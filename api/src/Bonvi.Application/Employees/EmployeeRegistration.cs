@@ -60,6 +60,8 @@ internal static class EmployeeRegistration
         services.AddScoped<GetProbationsEndingSoonQueryHandler>();
         services.AddScoped<ResolveProbationCommandHandler>();
         services.AddScoped<ExtendProbationCommandHandler>();
+        services.AddScoped<ListMissingProbationsQueryHandler>();
+        services.AddScoped<ConfirmMissingProbationsCommandHandler>();
 
         // Belgilar
         services.AddScoped<ListFlaggedQueryHandler>();

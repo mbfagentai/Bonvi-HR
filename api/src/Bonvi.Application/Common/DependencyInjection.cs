@@ -1,6 +1,7 @@
 using System.Reflection;
 using Bonvi.Application.Catalog;
 using Bonvi.Application.Common.Photos;
+using Bonvi.Application.Dashboard.Queries;
 using Bonvi.Application.Employees;
 using Bonvi.Application.Identity.Commands.Login;
 using Bonvi.Application.Identity.Commands.Logout;
@@ -27,6 +28,7 @@ public static class DependencyInjection
 
         // Use-case handler'lari. Yangi handler qo'shilganda shu yerga bitta qator.
         services.AddScoped<GetSystemInfoQueryHandler>();
+        services.AddScoped<GetDashboardStatsQueryHandler>();
 
         // Kvadrat surat quvuri — xodim rasmi ham, hisob rasmi ham shundan o'tadi.
         // Umumiy `Common` da, chunki u bironta bo'limga tegishli emas.

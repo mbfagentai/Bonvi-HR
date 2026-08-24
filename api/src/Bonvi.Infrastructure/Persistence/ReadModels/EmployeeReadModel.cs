@@ -356,6 +356,81 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         ];
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// Shart bittagina: holati <c>Probation</c>, lekin unga bog'langan
+    /// sinov yozuvi yo'q. EF buni <c>NOT EXISTS</c> ga aylantiradi —
+    /// munosabatlar jadvali bo'yicha bir marta yuriladi.
+    /// </para>
+    /// <para>
+    /// <b>Sahifalash ATAYLAB yo'q.</b> Bu ro'yxat — bir martalik tozalash
+    /// ishi va u tugagach bo'shab qoladi. Sahifalash HR ni «ikkinchi
+    /// sahifada yana bormi?» degan savol bilan qoldirardi; bu yerda esa
+    /// hammasini bir ekranda ko'rib, bir marta tasdiqlash kerak.
+    /// Ko'chirishdan keyin eng katta kutilgan hajm — bir necha yuz qator.
+    /// </para>
+    /// <para>
+    /// Tartib ishga kirish sanasi bo'yicha: eng eskisi tepada turadi —
+    /// aynan ular eng aniq holatlar («16 yil sinovda» degani bo'lmaydi).
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<MissingProbationRow>> ListMissingProbationsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var today = _clock.Today;
+
+        var rows = await (
+                from employment in _context.Employments.AsNoTracking()
+                where employment.Status == EmploymentStatus.Probation
+                   && !_context.Probations.Any(probation => probation.EmploymentId == employment.Id)
+                join employee in _context.Employees
+                    on employment.EmployeeId equals employee.Id
+                join legalEntity in _context.LegalEntities
+                    on employment.LegalEntityId equals legalEntity.Id into legalEntityMatch
+                from legalEntity in legalEntityMatch.DefaultIfEmpty()
+                join department in _context.Departments
+                    on employment.DepartmentId equals (Guid?)department.Id into departmentMatch
+                from department in departmentMatch.DefaultIfEmpty()
+                join position in _context.Positions
+                    on employment.PositionId equals (Guid?)position.Id into positionMatch
+                from position in positionMatch.DefaultIfEmpty()
+                orderby employment.HireDate, employee.FullName.LastName, employee.FullName.FirstName
+                select new
+                {
+                    EmploymentId = employment.Id,
+                    EmployeeId = employee.Id,
+                    employee.FullName.LastName,
+                    employee.FullName.FirstName,
+                    employee.FullName.MiddleName,
+                    employee.PhotoKey,
+                    LegalEntityName = legalEntity!.Name,
+                    DepartmentName = department!.Name,
+                    PositionName = position!.Name,
+                    employment.HireDate,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new MissingProbationRow(
+                row.EmploymentId,
+                row.EmployeeId,
+                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
+                row.PhotoKey,
+                row.LegalEntityName,
+                row.DepartmentName,
+                row.PositionName,
+                row.HireDate,
+                // Kunlar soni bazada emas, shu yerda: `DateOnly` ayirmasi
+                // PostgreSQL ifodasiga tarjima qilinmaydi va uni SQL'ga
+                // itarish uchun xom ifoda yozish kerak bo'lardi — 
+                // sahifasiz ro'yxatda bu foyda bermaydi.
+                today.DayNumber - row.HireDate.DayNumber)),
+        ];
+    }
+
     // ════════════════════════════════════════════════════════════
     //  3. Belgilar: rezerv / qora ro'yxat / nazorat / qobiliyatli
     // ════════════════════════════════════════════════════════════

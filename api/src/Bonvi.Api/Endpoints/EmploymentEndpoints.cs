@@ -69,16 +69,49 @@ public sealed record TerminateRequest(
     string? Note = null,
     bool? Confirm = null);
 
-/// <summary>Sinov muddati xulosasi so'rovi tanasi.</summary>
-/// <param name="Status">Natija: Passed | Failed | LeftEarly | Cancelled.</param>
-/// <param name="ResolvedAt">Xulosa sanasi.</param>
+/// <summary>
+/// Sinov muddati xulosasi — va u «o'tdi» bo'lsa, doimiy holatga o'tkazish
+/// shartlari.
+/// </summary>
+/// <remarks>
+/// Tayinlash maydonlari (<paramref name="PositionId"/> dan
+/// <paramref name="OrderDate"/> gacha) IXTIYORIY va bo'sh qoldirilgani
+/// «o'zgarmadi» degani. Ular faqat <c>Passed</c> bilan ishlaydi.
+/// </remarks>
+/// <param name="Status">Natija: o'tdi / o'tmadi / erta ketdi / bekor qilindi.</param>
+/// <param name="ResolvedAt">Yakunlangan sana. Bo'sh bo'lsa — bugun.</param>
 /// <param name="Conclusion">Xulosa matni.</param>
 /// <param name="ReviewerEmployeeId">Xulosa bergan mas'ul.</param>
+/// <param name="PositionId">Yangi lavozim.</param>
+/// <param name="DepartmentId">Yangi bo'lim.</param>
+/// <param name="SalaryAmount">Yangi oklad.</param>
+/// <param name="SalaryCurrency">Oklad valyutasi. Bo'sh bo'lsa — so'm.</param>
+/// <param name="Rate">Yangi stavka: 1.0 — to'liq, 0.5 — yarim.</param>
+/// <param name="OrderNo">Buyruq raqami.</param>
+/// <param name="OrderDate">Buyruq sanasi.</param>
 public sealed record ResolveProbationRequest(
     ProbationStatus Status,
     DateOnly? ResolvedAt = null,
     string? Conclusion = null,
-    Guid? ReviewerEmployeeId = null);
+    Guid? ReviewerEmployeeId = null,
+    Guid? PositionId = null,
+    Guid? DepartmentId = null,
+    decimal? SalaryAmount = null,
+    string? SalaryCurrency = null,
+    decimal? Rate = null,
+    string? OrderNo = null,
+    DateOnly? OrderDate = null);
+
+/// <summary>
+/// Sinov yozuvisiz «sinovda» qolgan munosabatlarni tasdiqlash so'rovi.
+/// </summary>
+/// <param name="EmploymentIds">HR belgilagan qatorlar.</param>
+/// <param name="At">Qaysi sanadan doimiy hisoblanadi. Bo'sh bo'lsa — bugun.</param>
+/// <param name="Note">Tarixda hodisa matni bo'lib qoladigan izoh.</param>
+public sealed record ConfirmMissingProbationsRequest(
+    IReadOnlyList<Guid> EmploymentIds,
+    DateOnly? At = null,
+    string? Note = null);
 
 /// <summary>Sinov muddatini uzaytirish so'rovi tanasi.</summary>
 /// <param name="NewEndDate">Yangi tugash sanasi.</param>
@@ -411,7 +444,14 @@ public static class EmploymentEndpoints
                             request.Status,
                             request.ResolvedAt,
                             request.Conclusion,
-                            request.ReviewerEmployeeId),
+                            request.ReviewerEmployeeId,
+                            request.PositionId,
+                            request.DepartmentId,
+                            request.SalaryAmount,
+                            request.SalaryCurrency,
+                            request.Rate,
+                            request.OrderNo,
+                            request.OrderDate),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -419,10 +459,14 @@ public static class EmploymentEndpoints
             })
             .RequireAuthorization(Permissions.EmploymentManage)
             .WithName("ResolveProbation")
-            .WithSummary("Sinov muddati — xulosa")
+            .WithSummary("Sinov muddati — xulosa va doimiy holatga o'tkazish")
             .WithDescription(
                 "«Passed» bo'lsa mehnat munosabati «sinovda» dan «faol» ga o'tadi — " +
                 "aks holda xodim ro'yxatda abadiy sinovda qolardi. " +
+                "SHU BITTA SO'ROVDA xodimga yangi lavozim, bo'lim, oklad va stavka ham " +
+                "tayinlanadi: bo'sh qoldirilgan maydon «o'zgarmadi» degani. Tarixda ikki " +
+                "hodisa qoladi — «sinov natijasi» va «lavozim/oklad o'zgarishi». " +
+                "Tayinlash maydonlari faqat «Passed» bilan ishlaydi: «sinov.tayinlash_otmagan» (400). " +
                 "Yakunlangan sinovni qayta yakunlab bo'lmaydi: «sinov.yakunlangan» (409).")
             .Produces<ProbationDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -449,5 +493,58 @@ public static class EmploymentEndpoints
             .Produces<ProbationDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapGet("/missing", async (
+                ListMissingProbationsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListMissingProbationsQuery(), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmploymentView)
+            .WithName("ListMissingProbations")
+            .WithSummary("Sinov yozuvisiz «sinovda» qolganlar")
+            .WithDescription(
+                "Holati «sinovda», lekin unga bog'langan sinov muddati yozuvi YO'Q " +
+                "munosabatlar. Bunday xodim xodimlar ro'yxatida ham (u yerda doimiylar), " +
+                "sinov muddatlari sahifasida ham (u yerda sinov yozuvlari) ko'rinmaydi — " +
+                "ya'ni tizimda bor, ekranda yo'q. Manba: Excel'dan ko'chirish, «91.5» " +
+                "varag'ida bo'lmagan odamlar. Ro'yxat sahifalanmaydi va tozalash " +
+                "tugagach bo'shab qoladi.")
+            .Produces<IReadOnlyList<MissingProbationDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/missing/confirm", async (
+                ConfirmMissingProbationsRequest request,
+                ConfirmMissingProbationsCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new ConfirmMissingProbationsCommand(
+                            request.EmploymentIds,
+                            request.At,
+                            request.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmploymentManage)
+            .WithName("ConfirmMissingProbations")
+            .WithSummary("Sinov yozuvisiz qolganlarni doimiy holatga o'tkazish")
+            .WithDescription(
+                "HR belgilagan munosabatlarni bir amalda «faol» qiladi va har biriga " +
+                "«sinov natijasi» hodisasini yozadi. Identifikatorlar server tomonda " +
+                "QAYTA tekshiriladi — faqat haqiqatan shu ro'yxatda turgan yozuv " +
+                "o'zgaradi. Ro'yxatda qolmaganlari xato bermaydi, «skipped» da sanaladi: " +
+                "HR ekranni ochib turganda boshqa birov o'zgartirgan bo'lishi mumkin. " +
+                "Hammasi bitta tranzaksiyada.")
+            .Produces<ConfirmMissingProbationsResultDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 }

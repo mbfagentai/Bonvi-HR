@@ -127,6 +127,7 @@ app.MapCatalogEndpoints();
 app.MapEmployeeEndpoints();
 app.MapEmploymentEndpoints();
 app.MapSystemEndpoints();
+app.MapDashboardEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {

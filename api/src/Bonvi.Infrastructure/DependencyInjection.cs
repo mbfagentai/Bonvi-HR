@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.System.Queries.GetSystemInfo;
@@ -41,6 +42,10 @@ public static class DependencyInjection
         services.AddIdentityServices(configuration);
         services.AddCatalogServices();
         services.AddEmployeeServices();
+
+        // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
+        // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
+        services.AddScoped<IDashboardReadModel, DashboardReadModel>();
 
         return services;
     }

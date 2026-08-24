@@ -36,6 +36,35 @@ public interface IEmployeeReadModel
         ProbationListFilter filter,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Holati «sinovda», lekin sinov muddati yozuvi YO'Q munosabatlar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Bu qanday paydo bo'ladi.</b> <c>Employment.Hire</c> munosabatni
+    /// doim <c>Probation</c> holatida ochadi. Tizim ichida qabul qilingan
+    /// xodimga sinov muddati birga tug'iladi va uni yopish bilan holat
+    /// <c>Active</c> ga o'tadi. Excel'dan ko'chirishda esa boshqacha:
+    /// sinov ma'lumoti faqat «91.5» varag'ida bor va u yerda bo'lmagan
+    /// odam holatsiz qoladi — 2010-yilda ishga kirgan xodim ham «sinovda»
+    /// bo'lib turaveradi.
+    /// </para>
+    /// <para>
+    /// <b>Nega bu jimgina yo'qotish.</b> Bunday odam xodimlar ro'yxatida
+    /// ham ko'rinmaydi (u yerda faqat doimiylar), sinov muddatlari
+    /// sahifasida ham (u yerda sinov YOZUVLARI ro'yxatlanadi). Ya'ni
+    /// tizimda bor, ekranda yo'q — hech qanday xato ham chiqmaydi.
+    /// </para>
+    /// <para>
+    /// Qaror ATAYLAB avtomatlashtirilmagan: ro'yxat HR ga ko'rsatiladi va
+    /// u tasdiqlaydi. «3 oydan oshgani — doimiy» degan qoida bilan tizim
+    /// o'zi yopsa, haqiqatan sinovda turgan bir necha odam ham qo'shilib
+    /// ketardi va buni keyin ajratib bo'lmasdi.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<MissingProbationRow>> ListMissingProbationsAsync(
+        CancellationToken cancellationToken = default);
+
     /// <summary>Belgi qo'yilgan xodimlar ro'yxati (rezerv / qora ro'yxat / nazorat / qobiliyatli).</summary>
     Task<IReadOnlyList<EmployeeFlagRow>> ListFlagsAsync(
         EmployeeFlagType type,
@@ -179,6 +208,32 @@ public sealed record ProbationRow(
     string? DepartmentName,
     string? PositionName,
     DateOnly HireDate);
+
+/// <summary>
+/// Sinov yozuvisiz «sinovda» qolgan munosabat — HR tasdiqlashi uchun qator.
+/// </summary>
+/// <param name="EmploymentId">Yopilishi kerak bo'lgan mehnat munosabati.</param>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="EmployeeName">To'liq ism — ro'yxatda ko'rinadi.</param>
+/// <param name="PhotoKey">Rasm kaliti; HR odamni yuzidan taniydi.</param>
+/// <param name="LegalEntityName">Qaysi firmada — holdingda bu muhim.</param>
+/// <param name="DepartmentName">Bo'lim nomi.</param>
+/// <param name="PositionName">Lavozim nomi.</param>
+/// <param name="HireDate">Ishga kirgan sana.</param>
+/// <param name="WorkedDays">
+/// Bugungi kunga qancha ishlagani. HR qarorini aynan shu raqamga qarab
+/// qabul qiladi: 16 yil ishlagan odam sinovda tura olmaydi.
+/// </param>
+public sealed record MissingProbationRow(
+    Guid EmploymentId,
+    Guid EmployeeId,
+    string EmployeeName,
+    string? PhotoKey,
+    string? LegalEntityName,
+    string? DepartmentName,
+    string? PositionName,
+    DateOnly HireDate,
+    int WorkedDays);
 
 /// <summary>
 /// Buyruqlar ro'yxatining filtri.
