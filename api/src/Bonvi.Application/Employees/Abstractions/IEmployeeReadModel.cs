@@ -1,0 +1,272 @@
+using Bonvi.Domain.Employees;
+
+namespace Bonvi.Application.Employees.Abstractions;
+
+/// <summary>
+/// Xodimlar bo'yicha <b>o'qish</b> porti — ro'yxat ekranlari uchun.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Nega Domain'dagi repozitoriy yetmaydi.</b> <see cref="Domain.Abstractions.IEmployeeRepository"/>
+/// agregatni <i>identifikator bo'yicha</i> yuklaydi — bu yozish tomonining vazifasi.
+/// Ro'yxat ekrani esa butunlay boshqa narsani so'raydi: sahifalangan, saralangan,
+/// yettita filtr bilan cheklangan va bo'lim/lavozim/firma nomlari bilan
+/// <i>birlashtirilgan</i> jadval. Agar bu Domain portiga qo'shilsa, domen
+/// sahifalash, saralash va ko'rsatish modelini bilib qolardi.
+/// </para>
+/// <para>
+/// <b>Nega xotirada filtrlanmaydi.</b> Bugun 540 xodim, arxiv bilan 2000+.
+/// Hammasini yuklab, keyin <c>Where</c> qilish — har bir sahifa uchun butun
+/// jadvalni tarmoqdan olib o'tish demak. Filtr, saralash va sahifalash
+/// <b>bazada</b> bajariladi; bu port aynan shuning uchun bor.
+/// </para>
+/// <para>
+/// Amalga oshirilishi Infrastructure qatlamida (proyeksiya so'rovi).
+/// </para>
+/// </remarks>
+public interface IEmployeeReadModel
+{
+    /// <summary>Xodimlar ro'yxati — asosiy ekran.</summary>
+    Task<EmployeeSearchPage> SearchEmployeesAsync(
+        EmployeeSearchFilter filter,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Sinov muddatlari ro'yxati — xodim nomi va lavozimi bilan.</summary>
+    Task<IReadOnlyList<ProbationRow>> ListProbationsAsync(
+        ProbationListFilter filter,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Belgi qo'yilgan xodimlar ro'yxati (rezerv / qora ro'yxat / nazorat / qobiliyatli).</summary>
+    Task<IReadOnlyList<EmployeeFlagRow>> ListFlagsAsync(
+        EmployeeFlagType type,
+        bool onlyActive,
+        DateOnly on,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Barcha buyruqlar — xodimdan qat'i nazar, bitta oqimda.</summary>
+    /// <remarks>
+    /// Xodim kartasidagi lenta bitta odamning yo'lini ko'rsatadi. HR esa
+    /// teskari savol beradi: «avgustda kimlar ishga olindi», «185-buyruq
+    /// kimniki edi». Bu savollarga javob beruvchi ro'yxat aynan shu port
+    /// orqali quriladi va u ham sahifalanadi — hodisalar soni munosabatlar
+    /// sonidan bir necha barobar ko'p bo'ladi.
+    /// </remarks>
+    Task<EmploymentEventPage> ListEmploymentEventsAsync(
+        EmploymentEventFilter filter,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>Xodimlar ro'yxatini saralash ustunlari.</summary>
+/// <remarks>
+/// Ataylab enum: mijozdan kelgan matn to'g'ridan-to'g'ri SQL'ga tushmaydi
+/// va qo'llab-quvvatlanmaydigan ustun so'ralganda sukut bo'yicha tartib ishlaydi.
+/// </remarks>
+public enum EmployeeSortField
+{
+    /// <summary>Familiya, ism (sukut bo'yicha).</summary>
+    Name = 0,
+
+    /// <summary>Ishga kirish sanasi.</summary>
+    HireDate = 1,
+
+    /// <summary>Bo'lim nomi.</summary>
+    Department = 2,
+
+    /// <summary>Lavozim nomi.</summary>
+    Position = 3,
+
+    /// <summary>Mehnat munosabati holati.</summary>
+    Status = 4,
+
+    /// <summary>Tug'ilgan sana.</summary>
+    BirthDate = 5,
+}
+
+/// <summary>
+/// Xodimlar ro'yxatining filtri.
+/// </summary>
+/// <param name="Search">FIO / JSHSHIR / telefon / pasport bo'yicha qidiruv matni.</param>
+/// <param name="DepartmentId">Bo'lim (ichki bo'limlari bilan birga qidirilishi kutiladi).</param>
+/// <param name="PositionId">Lavozim.</param>
+/// <param name="DirectionId">Yo'nalish — xodimga biriktirilgan ko'p-ga-ko'p bog'lanish.</param>
+/// <param name="LegalEntityId">Yuridik shaxs (holding ichidagi firma).</param>
+/// <param name="Status">Mehnat munosabati holati. <c>null</c> — arxiv bilan birga hammasi.</param>
+/// <param name="NeedsReview">Faqat tuzatish kerak bo'lgan yozuvlar (Excel'dan kelgan shubhali ma'lumot).</param>
+/// <param name="Page">Sahifa raqami, 1 dan boshlanadi.</param>
+/// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
+/// <param name="Sort">Saralash ustuni.</param>
+/// <param name="Descending">Teskari tartib.</param>
+public sealed record EmployeeSearchFilter(
+    string? Search = null,
+    Guid? DepartmentId = null,
+    Guid? PositionId = null,
+    Guid? DirectionId = null,
+    Guid? LegalEntityId = null,
+    EmploymentStatus? Status = null,
+    bool? NeedsReview = null,
+    int Page = 1,
+    int PageSize = 25,
+    EmployeeSortField Sort = EmployeeSortField.Name,
+    bool Descending = false)
+{
+    /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
+    public int Skip => (Page - 1) * PageSize;
+}
+
+/// <summary>Bitta sahifa: yozuvlar va umumiy soni.</summary>
+/// <param name="Items">Shu sahifadagi yozuvlar.</param>
+/// <param name="Total">Filtrga mos keladigan umumiy yozuvlar soni.</param>
+public sealed record EmployeeSearchPage(IReadOnlyList<EmployeeSearchRow> Items, int Total);
+
+/// <summary>
+/// Ro'yxatdagi bitta qator — xodim va uning <b>asosiy</b> mehnat munosabati.
+/// </summary>
+/// <remarks>
+/// Bir xodimning bir nechta munosabati bo'lishi mumkin, lekin ro'yxatda
+/// har bir shaxs BIR MARTA ko'rinadi: HR «540 xodim» deb sanaydi, «610 ta
+/// shartnoma» deb emas. Shu sababli qatorga <c>IsPrimary</c> munosabat
+/// (bo'lmasa — eng oxirgisi) qo'shiladi.
+/// </remarks>
+public sealed record EmployeeSearchRow(
+    Guid Id,
+    string LastName,
+    string FirstName,
+    string? MiddleName,
+    DateOnly? BirthDate,
+    string? Pinfl,
+    string? Passport,
+    string? Phone,
+    string? PhotoKey,
+    bool NeedsReview,
+    Guid? EmploymentId,
+    Guid? LegalEntityId,
+    string? LegalEntityName,
+    Guid? DepartmentId,
+    string? DepartmentName,
+    Guid? PositionId,
+    string? PositionName,
+    EmploymentStatus? Status,
+    DateOnly? HireDate,
+    decimal? Rate,
+    decimal? SalaryAmount,
+    string? SalaryCurrency,
+    IReadOnlyList<EmployeeFlagType> ActiveFlags);
+
+/// <summary>Sinov muddatlari ro'yxatining filtri.</summary>
+/// <param name="Status">Holat bo'yicha filtr. <c>null</c> — hammasi.</param>
+/// <param name="EndingWithinDays">Shuncha kun ichida tugaydiganlar (odatda 7).</param>
+/// <param name="Today">Bugungi sana — «qancha kun qoldi» shundan hisoblanadi.</param>
+public sealed record ProbationListFilter(
+    ProbationStatus? Status,
+    int? EndingWithinDays,
+    DateOnly Today);
+
+/// <summary>Sinov muddati — xodim ma'lumoti bilan birga.</summary>
+public sealed record ProbationRow(
+    Guid Id,
+    Guid EmploymentId,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    ProbationStatus Status,
+    DateOnly? ResolvedAt,
+    string? Conclusion,
+    Guid? ReviewerEmployeeId,
+    Guid EmployeeId,
+    string EmployeeName,
+    // Rasm kaliti — ro'yxatda xodim yuzi ko'rinishi uchun. HR odamni
+    // ismidan emas, yuzidan taniydi, shu sababli u har bir ro'yxatda kerak.
+    string? PhotoKey,
+    string? DepartmentName,
+    string? PositionName,
+    DateOnly HireDate);
+
+/// <summary>
+/// Buyruqlar ro'yxatining filtri.
+/// </summary>
+/// <param name="Search">
+/// BUYRUQ RAQAMI bo'yicha qidiruv. Ataylab faqat shu maydon: HR qo'lida
+/// qog'oz buyruq bilan keladi va «185-б» ni izlaydi. FIO bo'yicha qidiruv
+/// xodimlar ro'yxatining ishi.
+/// </param>
+/// <param name="Type">Hodisa turi (qabul, ko'chirish, bo'shatish...).</param>
+/// <param name="From">Kuchga kirish sanasining quyi chegarasi (o'zi ham kiradi).</param>
+/// <param name="To">Kuchga kirish sanasining yuqori chegarasi (o'zi ham kiradi).</param>
+/// <param name="DepartmentId">
+/// Bo'lim — ICHKI bo'limlari bilan birga (xodimlar ro'yxatidagi kabi).
+/// Hodisaning yangi yoki eski bo'limiga mos keladi; hodisada bo'lim
+/// umuman ko'rsatilmagan bo'lsa — munosabatning joriy bo'limiga.
+/// </param>
+/// <param name="LegalEntityId">Munosabat tegishli bo'lgan yuridik shaxs.</param>
+/// <param name="Page">Sahifa raqami, 1 dan boshlanadi.</param>
+/// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
+public sealed record EmploymentEventFilter(
+    string? Search = null,
+    EmploymentEventType? Type = null,
+    DateOnly? From = null,
+    DateOnly? To = null,
+    Guid? DepartmentId = null,
+    Guid? LegalEntityId = null,
+    int Page = 1,
+    int PageSize = 25)
+{
+    /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
+    public int Skip => (Page - 1) * PageSize;
+}
+
+/// <summary>Buyruqlarning bitta sahifasi: yozuvlar va umumiy soni.</summary>
+/// <param name="Items">Shu sahifadagi hodisalar.</param>
+/// <param name="Total">Filtrga mos keladigan umumiy hodisalar soni.</param>
+public sealed record EmploymentEventPage(IReadOnlyList<EmploymentEventRow> Items, int Total);
+
+/// <summary>
+/// Buyruqlar ro'yxatining bitta qatori.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Bo'lim va lavozim shu yerda NOM bo'lib turadi, identifikator bo'lib emas:
+/// qator ekranda o'qiladi, va har bir nom uchun ma'lumotnomaga qayta so'rov
+/// yuborish 25 qatorlik sahifada 100 ta ortiqcha so'rov bo'lardi.
+/// </para>
+/// <para>
+/// Oklad ATAYLAB xom holida (summa + valyuta) qaytadi, tayyor DTO bo'lib
+/// emas: uni ko'rsatish yoki yashirish <c>salary.view</c> ruxsatiga bog'liq
+/// va bu qaror Application qatlamida — o'qish modeli ruxsatlarni bilmaydi.
+/// </para>
+/// </remarks>
+public sealed record EmploymentEventRow(
+    Guid Id,
+    Guid EmploymentId,
+    Guid EmployeeId,
+    string EmployeeName,
+    // Rasm kaliti — ro'yxatda xodim yuzi ko'rinishi uchun. HR odamni
+    // ismidan emas, yuzidan taniydi, shu sababli u har bir ro'yxatda kerak.
+    string? PhotoKey,
+    EmploymentEventType Type,
+    DateOnly EffectiveDate,
+    string? OrderNo,
+    DateOnly? OrderDate,
+    string? FromDepartment,
+    string? ToDepartment,
+    string? FromPosition,
+    string? ToPosition,
+    decimal? FromSalaryAmount,
+    string? FromSalaryCurrency,
+    decimal? ToSalaryAmount,
+    string? ToSalaryCurrency,
+    string? Note,
+    bool IsImported);
+
+/// <summary>Belgi — xodim nomi bilan birga.</summary>
+public sealed record EmployeeFlagRow(
+    Guid Id,
+    Guid EmployeeId,
+    string EmployeeName,
+    // Rasm kaliti — ro'yxatda xodim yuzi ko'rinishi uchun. HR odamni
+    // ismidan emas, yuzidan taniydi, shu sababli u har bir ro'yxatda kerak.
+    string? PhotoKey,
+    EmployeeFlagType Type,
+    DateOnly StartDate,
+    DateOnly? EndDate,
+    string? Reason,
+    Guid? ResponsibleEmployeeId,
+    string? ResponsibleName);

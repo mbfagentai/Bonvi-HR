@@ -1,0 +1,527 @@
+@import "tailwindcss";
+
+/* ============================================================
+   BONVI HR — dizayn tizimi
+   Uslub: iOS (Human Interface Guidelines) · minimalistik
+
+   Asosiy tamoyillar:
+     1. Fon — yumshoq kulrang, kartalar — oq. Kontrast soya bilan emas,
+        rang farqi bilan beriladi.
+     2. Soya deyarli sezilmaydi (iOS'da chuqurlik — qatlam, ko'lanka emas).
+     3. Ko'p bo'sh joy. Zichlik emas — nafas.
+     4. Rang faqat ma'no uchun: holat, ogohlantirish, harakat.
+     5. Radius katta va yumshoq. Burchak — hech qachon o'tkir emas.
+   ============================================================ */
+
+/* Qo'lda boshqariladigan tungi rejim (tizim sozlamasiga bog'liq emas) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ---------- BREND ----------
+     Logotipdan olingan navy: #154067.
+
+     DIQQAT: bu shkala endi FAQAT logotip va brend elementlari uchun.
+     Interfeysning tint rangi — Apple systemBlue (pastdagi `--accent`).
+     Sabab: iOS HIG «Color» bo'limi bitta tint rangini talab qiladi —
+     u butun tizimda «bu bosiladigan narsa» degan yagona signal beradi.
+     Brend rangi bilan tint rangi ikkiga bo'linsa, signal yo'qoladi. */
+  --color-brand-50:  #F0F6FB;
+  --color-brand-100: #DCE9F5;
+  --color-brand-200: #B6D3EB;
+  --color-brand-300: #7BB0DA;
+  --color-brand-400: #3D86C4;
+  --color-brand-500: #2168A6;
+  --color-brand-600: #1A5285;
+  --color-brand-700: #154067;
+  --color-brand-800: #123A5D;
+  --color-brand-900: #0F2E4C;
+  --color-brand-950: #0B2138;
+
+  /* ---------- iOS TIZIM RANGLARI ----------
+     Apple'ning standart ranglari. Foydalanuvchi ularni tanidi:
+     yashil — muvaffaqiyat, qizil — xato, sariq — ogohlantirish. */
+  /* systemBlue. Tungi varianti (#0A84FF) bu yerda emas — u utilita
+     sifatida kerak emas, faqat semantik tokenlar ichida ishlatiladi. */
+  --color-ios-blue:   #007AFF;
+  --color-ios-green:  #34C759;
+  --color-ios-red:    #FF3B30;
+  --color-ios-orange: #FF9500;
+  --color-ios-yellow: #FFCC00;
+  --color-ios-purple: #AF52DE;
+  --color-ios-teal:   #30B0C7;
+  --color-ios-pink:   #FF2D55;
+  --color-ios-indigo: #5856D6;
+  --color-ios-gray:   #8E8E93;
+
+  /* ---------- RADIUS ----------
+     iOS'da burchaklar doim yumshoq va nisbatan katta */
+  --radius-xs:   6px;
+  --radius-sm:   8px;
+  --radius-md:  12px;   /* tugma, input */
+  --radius-lg:  16px;   /* karta */
+  --radius-xl:  20px;   /* katta panel */
+  --radius-2xl: 28px;
+
+  /* ---------- SOYA ----------
+     Juda nozik. Karta fondan soya bilan emas, oq rang bilan ajraladi. */
+  --shadow-card:     0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-raised:   0 2px 6px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.05);
+  --shadow-floating: 0 8px 28px rgb(16 24 40 / 0.12);
+
+  /* ---------- SHRIFT ----------
+     Birinchi o'rinda -apple-system: macOS va iOS'da bu SF Pro.
+     Boshqa tizimlarda Inter, keyin tizim shrifti. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+               "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  /* ---------- iOS TIPOGRAFIK SHKALA ---------- */
+  --text-caption2:   11px;
+  --text-caption1:   12px;
+  --text-footnote:   13px;
+  --text-subhead:    15px;
+  --text-callout:    16px;
+  --text-body:       17px;
+  --text-title3:     20px;
+  --text-title2:     22px;
+  --text-title1:     28px;
+  --text-largetitle: 34px;
+
+  /* ---------- HARAKAT ----------
+     iOS'ning standart yumshatish egri chizig'i */
+  --ease-ios: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-ios-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   SEMANTIK TOKENLAR
+   Komponentlar shu nomlarni ishlatadi, xom rangni emas.
+   Tungi rejim faqat shu bloklarni almashtiradi.
+   ============================================================ */
+:root {
+  color-scheme: light;
+
+  --bg:            #F4F6F9;   /* sahifa foni */
+  --bg-elevated:   #FFFFFF;   /* karta */
+  --bg-sunken:     #EDF0F4;   /* ichki blok, jadval sarlavhasi */
+  --bg-hover:      #F2F4F7;
+  --bg-active:     #E8EDF3;
+
+  --fg:            #16191D;   /* asosiy matn */
+  --fg-secondary:  #5C636E;   /* izoh, yorliq */
+  --fg-tertiary:   #98A0AC;   /* eng past darajali matn */
+  --fg-on-accent:  #FFFFFF;
+
+  --border:        #E3E8EF;   /* karta chegarasi */
+  --border-strong: #CFD6E0;   /* input chegarasi */
+
+  /* ---------- TINT (Apple systemBlue) ----------
+     iOS HIG «Color»: tizimda bitta tint rangi bo'ladi va u barcha
+     interaktiv elementlarni bog'laydi.
+
+     NEGA sof #007AFF emas: oq matn #007AFF ustida atigi 4.02:1 beradi —
+     WCAG AA (4.5:1) dan past. Apple ham veb'da aynan shu sababdan
+     #0071E3 ni ishlatadi (oq matn bilan 4.70:1). Shu sababli
+     «to'ldirilgan fon» va «matn tinti» ikki xil token:
+       --accent      — fon, ustida OQ matn turadi;
+       --accent-text — matn/ikonkaning o'zi, yorug' fonda turadi. */
+  --accent:            #0071E3;   /* to'ldirilgan tugma foni · oq matn 4.70:1 AA */
+  --accent-hover:      #0066CC;   /* Apple veb havola ko'ki · oq matn 5.57:1 AA */
+  /* iOS/macOS'da to'ldirilgan boshqaruv bosilganda RANGI to'qlashadi,
+     o'lchami o'zgarmaydi. Bu — Apple'ning ko'kini qorayish tomon
+     siljitish, yangi rang emas. Natija #0058B1 · oq matn 6.93:1 AAA.
+     `var()` emas, xom qiymat: shunda qurilish bosqichi color-mix uchun
+     to'g'ri zaxira qiymat hisoblab qo'ya oladi. */
+  --accent-pressed:    color-mix(in srgb, #0071E3 78%, #000);
+
+  /* Matn va ikonka tinti: havola, faol menyu yorlig'i, saralash o'qi.
+     Kichik matn ham AA dan o'tishi shart, shu sababli fondan to'qroq. */
+  --accent-text:       #0066CC;   /* oq kartada 5.57:1 · sahifa fonida 5.14:1 AA */
+
+  /* Yumshoq tint (iOS'ning «tinted» yuzasi): systemBlue past shaffoflikda,
+     karta oqi bilan aralashgan. Qattiq rang — ya'ni ustidagi matn
+     kontrasti oldindan hisoblangan va sirtga qarab o'zgarmaydi. */
+  --accent-soft:       color-mix(in srgb, #007AFF 12%, #FFFFFF);  /* = #E0EFFF */
+  --accent-soft-hover: color-mix(in srgb, #007AFF 16%, #FFFFFF);  /* = #D6EAFF */
+  --accent-on-soft:    #0066CC;   /* yumshoq fonda 4.76:1 · hover'da 4.53:1 AA */
+
+  /* ---------- «YARATISH» TUGMASI ----------
+     Yangi yozuv ochadigan amal (xodim qabul qilish, ma'lumotnomaga qator
+     qo'shish) qolgan hamma narsadan AJRALIB turishi kerak: ekranda bir
+     nechta ko'k tugma bo'lganda HR qaysi biri «yangi yaratadi» ekanini
+     o'ylab o'tirmasin.
+
+     Shu sababli u to'ldirilgan tekis ko'k emas — yorug'lik yuqoridan
+     tushayotgan qavariq yuza: markazi to'q ko'k, chetlari deyarli oq,
+     atrofida yupqa oq halqa. Bu iOS'ning «yorqin boshqaruv» naqshi.
+
+     ⚠️ MATN KONTRASTI. Gradient markazi eng to'q nuqta va matn aynan
+     shu yerdan o'tadi, shu sababli yorliq rangi ENG YOMON holatga
+     qarab tanlangan:
+       --create-fg / --create-core  4.49:1  AA  (eng to'q ko'kda)
+       --create-fg / --create-mid   7.9 :1  AAA
+     Gradient markazi tugmadan yuqorida (`50% -20%`) — to'q ko'k yuqori
+     chekkaga tushadi, matn esa yorug'roq zonada qoladi. */
+  --create-core: #3E8BE8;   /* gradient yadrosi — yuqori markaz */
+  --create-mid:  #9CC7F0;
+  --create-edge: #E9F2FD;   /* chekka — deyarli oq */
+  --create-fg:   #0A2540;   /* to'q navy yorliq */
+
+  /* Halqa va ko'lanka. Bu YAGONA soyali tugma: qolganlari sirtga
+     «yopishgan» (izohi button.tsx da), bu esa ataylab suzib turadi. */
+  --create-ring: rgba(255, 255, 255, 0.92);
+  --create-glow: rgba(21, 64, 103, 0.26);
+
+  /* ---------- XAVFLI AMAL ----------
+     systemRed (#FF3B30) oq matn bilan 3.55:1 — AA dan past. Qaytarib
+     bo'lmaydigan amal tugmasining yorlig'i aynan shu joyda shubhasiz
+     o'qilishi kerak, shu sababli Apple'ning «Increase Contrast»
+     rejimidagi qizili olinadi. --color-ios-red o'z o'rnida qoladi:
+     u yorliq va ikonka TINTI sifatida ishlatiladi, fon sifatida emas. */
+  --danger:            #D70015;                                  /* oq matn 5.38:1 AA */
+  --danger-hover:      color-mix(in srgb, #D70015 90%, #000);     /* = #C20013 · 6.36:1 */
+  --danger-pressed:    color-mix(in srgb, #D70015 82%, #000);     /* = #B00011 · 7.36:1 */
+
+  /* Xavfli amalning MATN ko'rinishi — iOS «Settings» dagi «Chiqish» kabi
+     to'ldirilmagan qator. Tint (#FF3B30) bu yerda ishlamaydi: oq kartada
+     u atigi 3.55:1 beradi va AA (4.5:1) dan o'tmaydi.
+
+     Yorug' rejimda fon bilan bir xil qiymat yetarli:
+       karta oqida (#FFFFFF)  5.38:1  AA
+       hover fonida (#F2F4F7) 4.89:1  AA
+     Ya'ni alohida rang KERAK EMAS, lekin alohida TOKEN kerak — «fon» va
+     «matn» ikki xil rol va tungi rejimda ular ajralib ketadi (pastga qara). */
+  --danger-text:       #D70015;
+
+  /* Fokus halqasi — sof systemBlue. To'ldirilgan tugmadan yorqinroq,
+     shu sababli ko'k tugma fokusga tushganda halqa unga qo'shilib
+     ketmaydi. `outline-offset: 2px` bo'lgani uchun halqaning qo'shnisi
+     sahifa foni: #007AFF / #F4F6F9 = 3.71:1 — WCAG 1.4.11 (3:1) dan o'tadi. */
+  --ring:              #007AFF;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg:            #0E1013;
+  --bg-elevated:   #1A1D22;
+  --bg-sunken:     #131519;
+  --bg-hover:      #23272E;
+  --bg-active:     #2A2F37;
+
+  /* Matn ranglari ataylab yorqin.
+     Qorong'i fonda ko'z kam yorug'lik oladi — yorug' rejimdagi
+     nisbatni shundayligicha ko'chirish mumkin emas, aks holda matn
+     xira ko'rinadi. Kartaga (#1A1D22) nisbatan kontrast:
+       --fg            16.9 : 1
+       --fg-secondary   9.8 : 1
+       --fg-tertiary    5.9 : 1
+     WCAG AA talabi 4.5 : 1 — uchalasi ham bemalol o'tadi. */
+  --fg:            #FAFBFC;
+  --fg-secondary:  #C6CDD8;
+  --fg-tertiary:   #98A2B0;
+  --fg-on-accent:  #FFFFFF;
+
+  --border:        #2E343C;
+  --border-strong: #3E4650;
+
+  /* ---------- TINT, tungi rejim ----------
+     `--accent`, `--accent-hover`, `--accent-pressed` va `--danger*`
+     ATAYLAB takrorlanmaydi — ular ikkala rejimda bir xil.
+
+     NEGA: ularning ustida oq matn turadi. Ko'kni tungi rejimda
+     yorqinlashtirsak (masalan systemBlue-dark #0A84FF), oq matn 3.65:1
+     ga tushadi va AA dan chiqadi. Yorqinlik faqat MATN tinti uchun
+     oshiriladi — pastdagi `--accent-text` / `--accent-on-soft`. */
+
+  /* Bosilganda tungi rejimda ham to'qlashadi: iOS bosilgan boshqaruvni
+     «so'ndiradi». To'q fonda tugma bir zumga fonga yaqinlashadi, lekin
+     yorlig'i 6.93:1 da qoladi — boshqaruv baribir aniq o'qiladi. */
+
+  /* Xavfli amal MATNI tungi rejimda ALMASHADI. Yorug' rejimdagi to'q qizil
+     (#D70015) qora fonda 3.14:1 beradi — o'qib bo'lmaydi. Shu sababli
+     Apple'ning «Increase Contrast» dagi tungi qizili olinadi:
+       karta fonida (#1A1D22)  5.99:1  AA
+       hover fonida (#23272E)  5.31:1  AA
+       bosilgan fonda (#2A2F37) 4.77:1 AA
+     `--danger*` (to'ldirilgan fon) esa o'zgarmaydi — ularning ustida
+     oq matn turadi va u ikkala rejimda bir xil ishlaydi. */
+  --danger-text:       #FF6961;
+
+  --accent-text:       #409CFF;   /* Apple accessible systemBlue (dark) · kartada 5.97:1 AA */
+  /* systemBlue-dark karta rangi (#1A1D22) bilan aralashgan.
+     Shaffoflik o'rniga qattiq rang — kontrast oldindan hisoblanadi. */
+  --accent-soft:       color-mix(in srgb, #0A84FF 16%, #1A1D22);  /* = #172D45 */
+  --accent-soft-hover: color-mix(in srgb, #0A84FF 20%, #1A1D22);  /* = #17324E */
+  --accent-on-soft:    #409CFF;   /* yumshoq fonda 4.95:1 · hover'da 4.63:1 AA */
+
+  /* «Yaratish» tugmasi tungi rejimda ham YORUG' qoladi — u qorong'i
+     sahifada yoritilgan boshqaruv bo'lib turadi va aynan shu narsa uni
+     ajratadi. Yadro biroz so'ndiriladi (to'q fonda sof #3E8BE8 ko'zni
+     qamashtiradi), halqa va ko'lanka esa kuchaytiriladi: oq halqa qora
+     fonda tugmaning chegarasini chizadi.
+
+     Yorliq rangi o'zgarmaydi: tugma yuzasi ikkala rejimda ham yorug',
+     demak kontrast ham o'sha-o'sha (eng yomon holat 4.62:1 AA). */
+  --create-core: #3B82DE;
+  --create-mid:  #93C0EC;
+  --create-edge: #DCEAFA;
+  --create-fg:   #0A2540;
+
+  --create-ring: rgba(255, 255, 255, 0.86);
+  --create-glow: rgba(59, 130, 222, 0.34);
+
+  --ring:              #0A84FF;   /* systemBlue tungi varianti · sahifa fonida 5.22:1 */
+}
+
+/* ============================================================
+   ASOS
+   ============================================================ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    /* Sahifa uzunligi o'zgarganda kontent sakramasligi uchun */
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-subhead);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* iOS'da matn tanlanganda brend rangi */
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--fg-on-accent);
+  }
+
+  /* Klaviatura bilan yurganda ko'rinadigan fokus (sichqoncha bilan — yo'q) */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Nozik scrollbar — macOS uslubida */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--fg-tertiary) 40%, transparent);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--fg-tertiary) 70%, transparent);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  /* Harakatni kamaytirish so'ralgan bo'lsa — hurmat qilamiz */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ============================================================
+   YORDAMCHI SINFLAR
+   ============================================================ */
+@layer utilities {
+  /* Raqamlar ustma-ust tushishi uchun — jadval, oklad, JSHSHIR, telefon */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /*
+     iOS'ning "bosilganda kichrayish" javobi.
+
+     QAYERDA: bosiladigan YUZALAR — ro'yxat qatori, karta, menyu bandi,
+     logotip havolasi. Ular butun blok bo'lib bosiladi va kichrayish
+     "men shu yuzani bosdim" degan javobni beradi.
+
+     QAYERDA EMAS: tugmalar. iOS HIG «Buttons» bo'yicha tugma bosilganda
+     o'lchamini o'zgartirmaydi — uning foni to'qlashadi (`--accent-pressed`).
+     Shu sababli `Button` va `Pagination` bu sinfni ishlatmaydi. */
+  .press {
+    transition: transform 120ms var(--ease-ios), background-color 120ms var(--ease-ios);
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+
+  /*
+     «Yaratish» tugmasining yuzasi.
+
+     NEGA Tailwind sinflari emas: bu yerda uchta qatlam bir-birining
+     ustiga tushadi (gradient + ichki yorug'lik + tashqi halqa va
+     ko'lanka) va ularning har biri vergulli uzun qiymat. Ularni
+     `bg-[radial-gradient(...)]` ko'rinishida yozish sinf nomini
+     o'qib bo'lmas holga keltirardi, tokenlar esa shu yerda yonma-yon
+     turgani uchun rang qoidasi bitta joyda ko'rinadi.
+
+     Uch qatlam nima qiladi:
+       1. `background` — qavariq yuza. Markaz tugmadan YUQORIDA
+          (`50% -20%`): shunda to'q ko'k yuqori chekkaga tushadi va
+          yorliq yorug'roq zonada qoladi (kontrast izohi globals'da).
+       2. `inset` ko'lanka — yuqoridan tushgan yorug'lik va pastdagi
+          nozik ichki soya: yuza «shishasimon» bo'lib ko'tariladi.
+       3. tashqi halqa + ko'lanka — tugmani fondan uzadi.
+  */
+  .btn-create {
+    position: relative;
+    /* O'z ustma-ustlik konteksti — pastdagi `z-index: -1` tugmadan
+       chiqib ketmasligi va sahifaning boshqa qatlamlariga aralashmasligi
+       uchun. */
+    isolation: isolate;
+
+    color: var(--create-fg);
+    background:
+      radial-gradient(
+        118% 150% at 50% -20%,
+        var(--create-core) 0%,
+        var(--create-mid) 46%,
+        var(--create-edge) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 2px rgba(21, 64, 103, 0.14),
+      0 0 0 1px var(--create-ring),
+      0 6px 16px -6px var(--create-glow),
+      0 2px 5px -2px var(--create-glow);
+  }
+
+  /*
+     Sichqoncha va bosish javobi — ALOHIDA qatlamda.
+
+     NEGA `filter: brightness()` emas: u butun elementga, shu jumladan
+     yorliq MATNIGA ham ta'sir qiladi va uni xiralashtiradi — bu qoida
+     loyihada allaqachon o'rnatilgan (`soft` variantining izohi). Fon
+     esa gradient, ya'ni oddiy `background-color` almashtirish ham
+     ishlamaydi.
+
+     Yechim: manfiy `z-index` li qoplama. CSS chizish tartibi bo'yicha u
+     elementning O'Z FONIDAN keyin, lekin matn va ikonkadan OLDIN
+     chiziladi — ya'ni gradient qorayadi, yorliq tegilmasdan qoladi.
+  */
+  .btn-create::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--create-core);
+    opacity: 0;
+    transition: opacity 120ms var(--ease-ios);
+    pointer-events: none;
+  }
+
+  .btn-create:hover::after {
+    opacity: 0.12;
+  }
+
+  /* iOS qoidasi: bosilganda yuza so'nadi, o'lchami o'zgarmaydi.
+     Ko'tarilgan ko'lanka ham yig'iladi — tugma sirtga «bosiladi». */
+  .btn-create:active::after {
+    opacity: 0.26;
+  }
+
+  .btn-create:active {
+    box-shadow:
+      inset 0 1px 3px rgba(21, 64, 103, 0.22),
+      0 0 0 1px var(--create-ring),
+      0 1px 3px -1px var(--create-glow);
+  }
+
+  /* Kontrastni oshirish so'ralganda gradient tekis rangga aylanadi:
+     yorliq ostidagi fon bitta qiymatga tushadi va o'qish osonlashadi. */
+  @media (prefers-contrast: more) {
+    .btn-create {
+      background: var(--create-mid);
+    }
+  }
+
+  /* Yuqori panel uchun shaffof orqa fon (iOS'ning belgisi) */
+  .blur-bar {
+    background-color: color-mix(in oklab, var(--bg) 72%, transparent);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+
+  /*
+     Ochiluvchi panel (dropdown, popover, tooltip).
+     iOS'da menyu "chiqmaydi" — u chaqirilgan nuqtadan o'sib chiqadi.
+     Radix `--radix-*-transform-origin` ni o'zi hisoblab beradi.
+  */
+  .pop-panel {
+    transform-origin: var(--radix-dropdown-menu-content-transform-origin, top right);
+  }
+  .pop-panel[data-state="open"] {
+    animation: pop-in 180ms var(--ease-ios-out);
+  }
+  .pop-panel[data-state="closed"] {
+    animation: pop-out 120ms var(--ease-ios);
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.94) translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes pop-out {
+    from {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.96) translateY(-4px);
+    }
+  }
+
+  /* Bir qatorga sig'masa — uchta nuqta */
+  .truncate-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

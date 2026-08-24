@@ -1,0 +1,69 @@
+<Project>
+
+  <!--
+    Barcha loyihalar uchun umumiy sozlamalar.
+    Bu yerda o'rnatilgan qoidalar butun yechim bo'ylab majburiy.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- SIFAT: null-xatolar kompilyatsiyada tutiladi, runtime'da emas -->
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- bin/ va obj/ bitta artifacts/ papkasiga yig'iladi.
+         Docker'da bu bitta named volume — bind-mount sekinligi yo'qoladi. -->
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+
+    <!-- O'zbek/kirill matni to'g'ri saralanishi uchun ICU yoqilgan -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!--
+      CS1591 — har bir a'zoga XML izoh talab qilinmaydi (faqat ommaviy API'da yozamiz).
+      CA1716 — "Error" nomi VB.NET kalit so'zi bilan to'qnashadi. Bu loyiha faqat C#,
+               "Error" esa Result-andozasining standart nomi. Qoida o'rinsiz.
+    -->
+    <NoWarn>$(NoWarn);CS1591;CA1716</NoWarn>
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    Test loyihalari uchun umumiy sozlamalar.
+    .NET 10 dan boshlab VSTest o'rniga Microsoft.Testing.Platform ishlatiladi:
+    test loyihasi o'zi bajariladigan dastur (Exe) bo'ladi va o'zini o'zi ishga tushiradi.
+    Natija: testlar tezroq boshlanadi va CI'da alohida runner kerak emas.
+  -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+
+    <!--
+      CA1707 — test nomlarida pastki chiziq. Bu ataylab:
+      «Domain_texnologiya_kutubxonalariga_boglanmasligi_kerak» xato hisobotida
+      to'liq jumla bo'lib o'qiladi. Sanoat standarti konvensiyasi.
+    -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+
+    <!-- Har bir test faylida takrorlanmasligi uchun global using -->
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

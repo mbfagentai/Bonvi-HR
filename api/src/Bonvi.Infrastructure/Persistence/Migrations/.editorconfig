@@ -1,0 +1,14 @@
+# ============================================================
+#  Migratsiyalar — `dotnet ef migrations add` generatsiya qiladi.
+#  Ular qo'lda tahrirlanmaydi va qayta yozilishi mumkin.
+#
+#  Nega bu fayl kerak: yechimda TreatWarningsAsErrors=true.
+#  Generatorning uslubi analizator qoidalariga mos kelmaydi
+#  (masalan `new bool[0]` → CA1825), natijada har bir yangi
+#  migratsiya build'ni yiqitardi. Qoidani generatorga emas,
+#  o'z kodimizga qo'llaymiz.
+# ============================================================
+
+[*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

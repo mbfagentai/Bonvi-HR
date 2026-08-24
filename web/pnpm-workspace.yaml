@@ -1,0 +1,10 @@
+# esbuild — Vite'ning ichki kompilyatori. Uning o'rnatish skripti platformaga
+# mos ikkilik faylni yuklab oladi; shusiz Vite ishlamaydi.
+# pnpm 11 sukut bo'yicha barcha o'rnatish skriptlarini bloklaydi (xavfsizlik) —
+# bu yerda faqat kerakli bittasiga ataylab ruxsat berilgan.
+allowBuilds:
+  esbuild: true
+
+# eslint 10 yaqinda chiqqan — pnpm'ning "yangi paketni kutish" qoidasidan chetlatildi
+minimumReleaseAgeExclude:
+  - eslint@10.9.0

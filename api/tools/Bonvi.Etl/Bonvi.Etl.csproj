@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═══════════════════════════════════════════════════════════
+     ETL — Excel'dan bazaga bir martalik ko'chirish vositasi
+     Bu ISHLAB CHIQARISH kodi emas: u bir marta ishlaydi va
+     natijasi qo'lda tekshiriladi. Shu sababli alohida loyiha —
+     Api yig'malasiga ClosedXML va ko'chirish mantig'i tushmaydi.
+    ═══════════════════════════════════════════════════════════
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Bonvi.Etl</RootNamespace>
+    <AssemblyName>bonvi-etl</AssemblyName>
+
+    <!--
+      CA1303 — konsolga chiqarilayotgan satrlarni resursga chiqarish talabi.
+      Bu vosita faqat dasturchi/HR uchun, matni o'zbekcha va tarjima
+      qilinmaydi. Resurs fayli faqat shovqin qo'shardi.
+
+      CA1031 — umumiy `catch (Exception)`. Ataylab: ETL bitta buzuq
+      qatordan yiqilmasligi kerak. Xato tutiladi, hisobotga yoziladi va
+      ko'chirish davom etadi — aynan shu vositaning vazifasi.
+    -->
+    <NoWarn>$(NoWarn);CA1303;CA1031</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Infrastructure orqali Domain ham, `AppDbContext` ham, `aliases.json`
+      ham (yig'maga joylashtirilgan resurs) qo'lga kiradi.
+    -->
+    <ProjectReference Include="..\..\src\Bonvi.Infrastructure\Bonvi.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="EFCore.NamingConventions" />
+  </ItemGroup>
+
+</Project>

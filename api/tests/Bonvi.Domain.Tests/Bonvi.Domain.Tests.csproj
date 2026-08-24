@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Sof biznes qoidalari testi. Bazasiz, tarmoqsiz — millisekundda ishlaydi. -->
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Domain.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bonvi.Domain\Bonvi.Domain.csproj" />
+  </ItemGroup>
+</Project>

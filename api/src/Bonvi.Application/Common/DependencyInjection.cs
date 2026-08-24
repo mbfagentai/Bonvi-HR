@@ -1,0 +1,57 @@
+using System.Reflection;
+using Bonvi.Application.Catalog;
+using Bonvi.Application.Common.Photos;
+using Bonvi.Application.Employees;
+using Bonvi.Application.Identity.Commands.Login;
+using Bonvi.Application.Identity.Commands.Logout;
+using Bonvi.Application.Identity.Commands.RefreshSession;
+using Bonvi.Application.Identity.Photos;
+using Bonvi.Application.Identity.Queries.GetCurrentUser;
+using Bonvi.Application.System.Queries.GetSystemInfo;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Bonvi.Application.Common;
+
+/// <summary>
+/// Application qatlamini DI konteyneriga ulash.
+/// </summary>
+public static class DependencyInjection
+{
+    /// <summary>Use-case'lar va validatorlarni ro'yxatga oladi.</summary>
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+
+        services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+
+        // Use-case handler'lari. Yangi handler qo'shilganda shu yerga bitta qator.
+        services.AddScoped<GetSystemInfoQueryHandler>();
+
+        // Kvadrat surat quvuri — xodim rasmi ham, hisob rasmi ham shundan o'tadi.
+        // Umumiy `Common` da, chunki u bironta bo'limga tegishli emas.
+        services.AddScoped<SquarePhotoStore>();
+
+        // Autentifikatsiya
+        services.AddScoped<LoginCommandHandler>();
+        services.AddScoped<RefreshSessionCommandHandler>();
+        services.AddScoped<LogoutCommandHandler>();
+        services.AddScoped<GetCurrentUserQueryHandler>();
+
+        // Hisob rasmi
+        services.AddScoped<GetAccountPhotoQueryHandler>();
+        services.AddScoped<UploadAccountPhotoCommandHandler>();
+        services.AddScoped<DeleteAccountPhotoCommandHandler>();
+
+        // Ma'lumotnomalar (S2) — o'z ro'yxatini o'zi olib boradi
+        services.AddCatalog();
+
+        // Xodimlar va mehnat munosabatlari (S4–S5) — shuningdek o'z ro'yxati bilan
+        services.AddEmployees();
+
+        return services;
+    }
+
+    /// <summary>Arxitektura testlari uchun qatlam yig'malasi (assembly) havolasi.</summary>
+    public static Assembly Assembly => typeof(DependencyInjection).Assembly;
+}

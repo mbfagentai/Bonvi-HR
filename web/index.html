@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!--
+      Yorliq ikonkasi. Busiz brauzer o'zining standart globusini chizadi va
+      ochilgan o'nlab yorliq orasidan tizimni faqat sarlavha matnidan topish
+      kerak bo'ladi — HR kun davomida bir necha oyna ochib ishlaydi.
+
+      Ikki fayl ataylab:
+        · SVG  — asosiysi. 16px dan 64px gacha har qanday o'lchamda aniq
+                 qoladi va tungi rejimda o'zi oqqa almashadi.
+        · PNG  — zaxira. SVG ikonkani tanimaydigan brauzerlar (Safari 15
+                 dan eski) shu qatorni oladi; `sizes` bilan qaysi biri
+                 kerakligi aniq aytilgan.
+
+      Apple qurilmasida «bosh ekranga qo'shish» alohida rasm so'raydi va u
+      shaffoflikni QO'LLAMAYDI — shu sababli to'liq belgi beriladi.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="128x128" href="/brand/favicon.png" />
+    <link rel="apple-touch-icon" href="/brand/bonvi-mark.png" />
+
+    <title>Bonvi HR</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

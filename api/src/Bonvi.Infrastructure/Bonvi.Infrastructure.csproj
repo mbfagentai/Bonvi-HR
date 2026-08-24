@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═══════════════════════════════════════════════════════════
+     INFRASTRUCTURE QATLAMI — texnologiya adapterlari
+     Domain/Application'da e'lon qilingan INTERFEYSLARNI
+     amalga oshiradi: PostgreSQL, Redis, fayl tizimi, Telegram.
+     QOIDA: bu qatlamni almashtirish biznes mantiqqa tegmaydi.
+    ═══════════════════════════════════════════════════════════
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bonvi.Application\Bonvi.Application.csproj" />
+  </ItemGroup>
+
+  <!--
+    Ma'lumotnomalarning boshlang'ich qiymatlari yig'malaning ICHIGA joylanadi.
+    Nega: ular kod bilan bir xil versiyaga ega bo'lishi kerak. Alohida fayl
+    bo'lsa, Docker tasviriga nusxalash unutilishi va urug'lantirish
+    ishlab chiqarishda jimgina o'tkazib yuborilishi mumkin edi.
+    Fayllar hali yo'q bo'lsa — shablon xatosiz bajariladi (Include bo'sh qoladi).
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence/Seed/data/*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <PackageReference Include="Hangfire.Core" />
+    <PackageReference Include="Hangfire.PostgreSql" />
+    <PackageReference Include="ClosedXML" />
+
+    <!-- Xodim rasmini kvadrat qilib kichraytirish (sabab: Directory.Packages.props) -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+  </ItemGroup>
+
+</Project>

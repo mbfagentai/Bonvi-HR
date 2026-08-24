@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═══════════════════════════════════════════════════════════
+     APPLICATION QATLAMI — foydalanish stsenariylari (use case)
+     QOIDA: faqat Domain'ga bog'lanadi.
+            EF Core / ASP.NET bu yerda YO'Q — faqat interfeys (port).
+    ═══════════════════════════════════════════════════════════
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bonvi.Domain\Bonvi.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Riok.Mapperly" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+</Project>

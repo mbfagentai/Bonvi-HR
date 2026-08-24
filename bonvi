@@ -1,0 +1,319 @@
+#!/usr/bin/env bash
+# ============================================================
+#  BONVI HR — yagona buyruq nuqtasi
+#  Xost mashinada .NET yoki Node O'RNATILISHI SHART EMAS.
+#  Hamma narsa Docker konteyner ichida bajariladi.
+# ============================================================
+set -euo pipefail
+cd "$(dirname "$0")"
+
+SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:10.0.400"
+NODE_IMAGE="node:24-alpine"
+DC="docker compose"
+
+c_g() { printf "\033[32m%s\033[0m\n" "$*"; }
+c_y() { printf "\033[33m%s\033[0m\n" "$*"; }
+c_r() { printf "\033[31m%s\033[0m\n" "$*"; }
+
+ensure_env() {
+  [ -f .env ] || { cp .env.example .env; c_y "→ .env yaratildi (.env.example dan)"; }
+}
+
+# Interaktiv TTY faqat terminal bo'lsa (skriptda/CI'da -it yiqiladi)
+tty_flag() { [ -t 0 ] && echo "-it" || echo "-i"; }
+
+# .NET SDK'ni bir martalik konteynerda ishga tushirish — tarmoqsiz
+dotnet_solo() {
+  docker run --rm $(tty_flag) \
+    -v "$PWD/api:/src" \
+    -v bonvi-hr_nuget-cache:/root/.nuget/packages \
+    -v bonvi-hr_api-artifacts:/src/artifacts \
+    -w /src \
+    -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    -e DOTNET_NOLOGO=1 \
+    "$SDK_IMAGE" "$@"
+}
+
+# .NET SDK — compose tarmog'iga ulangan (bazaga kirish kerak bo'lganda)
+dotnet_net() {
+  ensure_env
+  set -a; . ./.env; set +a
+  docker run --rm $(tty_flag) \
+    -v "$PWD/api:/src" \
+    -v bonvi-hr_nuget-cache:/root/.nuget/packages \
+    -v bonvi-hr_api-artifacts:/src/artifacts \
+    -w /src \
+    -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    -e DOTNET_NOLOGO=1 \
+    -e ConnectionStrings__Default="Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
+    -e ConnectionStrings__Redis="redis:6379" \
+    -e Jwt__SigningKey="${JWT__SIGNINGKEY}" \
+    --network bonvi-hr_bonvi \
+    "$SDK_IMAGE" "$@"
+}
+
+# `dotnet ef` — lokal vosita (`api/.config/dotnet-tools.json`).
+#
+# Tiklash va buyruq BITTA konteyner ichida bajariladi. Sabab: `dotnet tool restore`
+# paketni NuGet keshiga (saqlanadigan volume) yozadi, lekin vosita yo'lini
+# `~/.dotnet/toolResolverCache` ga qayd qiladi — u esa konteyner bilan birga
+# yo'qoladi. Ikkalasini ajratsak, har safar «restore qiling» xatosi chiqadi.
+ef() {
+  ensure_env
+  set -a; . ./.env; set +a
+  docker run --rm $(tty_flag) \
+    -v "$PWD/api:/src" \
+    -v bonvi-hr_nuget-cache:/root/.nuget/packages \
+    -v bonvi-hr_api-artifacts:/src/artifacts \
+    -w /src \
+    -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
+    -e ConnectionStrings__Default="Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
+    -e ConnectionStrings__Redis="redis:6379" \
+    -e Jwt__SigningKey="${JWT__SIGNINGKEY}" \
+    --network bonvi-hr_bonvi \
+    "$SDK_IMAGE" \
+    bash -c 'dotnet tool restore >/dev/null && dotnet ef "$@"' -- "$@"
+}
+
+node_run() {
+  docker run --rm $(tty_flag) \
+    -v "$PWD/web:/app" \
+    -v bonvi-hr_web-node-modules:/app/node_modules \
+    -v bonvi-hr_pnpm-store:/root/.local/share/pnpm/store \
+    -w /app \
+    "$NODE_IMAGE" sh -c "corepack enable >/dev/null 2>&1; $*"
+}
+
+usage() {
+cat <<'USAGE'
+BONVI HR — buyruqlar
+
+  MUHIT
+    ./bonvi up              Barcha servislarni ishga tushirish
+    ./bonvi down            To'xtatish
+    ./bonvi restart [srv]   Qayta ishga tushirish
+    ./bonvi ps              Holatni ko'rish
+    ./bonvi logs [srv]      Loglar (jonli)
+    ./bonvi reset           ⚠️  Hamma ma'lumotni o'chirib, noldan boshlash
+
+  BACKEND (.NET — konteyner ichida)
+    ./bonvi dotnet <args>   Har qanday dotnet buyrug'i
+    ./bonvi build           Yechimni build qilish
+    ./bonvi test            Barcha testlar
+    ./bonvi ef <args>       dotnet ef (migratsiya)
+    ./bonvi migrate <Nom>   Yangi migratsiya yaratish
+    ./bonvi db-update       Migratsiyani bazaga qo'llash
+
+  FRONTEND (Node — konteyner ichida)
+    ./bonvi pnpm <args>     Har qanday pnpm buyrug'i
+    ./bonvi gen             OpenAPI → TypeScript klient generatsiyasi
+
+  VAQTINCHALIK TUNNEL (namoyish uchun)
+    ./bonvi tunnel          Ochiq manzil beradi (*.trycloudflare.com)
+    ./bonvi tunnel-stop     Tunnelni yopadi va oddiy rejimga qaytaradi
+
+  MA'LUMOT KO'CHIRISH (Excel → baza)
+    ./bonvi etl             Quruq yurish — bazaga yozmaydi, hisobot beradi
+    ./bonvi etl --apply     Haqiqiy ko'chirish
+    ./bonvi etl --limit 50  Har varaqdan 50 qator (tez sinov)
+                            Excel fayl «data/» jildida bo'lishi kerak.
+                            Hisobot: data/etl-report.csv
+
+  BOSHQA
+    ./bonvi sh api|web|db   Konteyner ichiga kirish
+    ./bonvi psql            PostgreSQL konsoli
+USAGE
+}
+
+cmd="${1:-help}"; shift || true
+
+case "$cmd" in
+  up)
+    ensure_env
+    set -a; . ./.env; set +a
+    $DC up -d --remove-orphans
+    echo
+    c_g "✅ Ishga tushdi"
+    echo "   API      → http://localhost:${API_PORT:-7080}"
+    echo "   Hujjat   → http://localhost:${API_PORT:-7080}/scalar"
+    echo "   Web      → http://localhost:${WEB_PORT:-7173}"
+    echo
+    c_y "   Loglar:  ./bonvi logs"
+    ;;
+  down)    $DC down "$@" ;;
+  restart) $DC restart "$@" ;;
+  ps)      $DC ps ;;
+  logs)    $DC logs -f --tail=100 "$@" ;;
+  reset)
+    c_r "⚠️  BARCHA ma'lumot (baza, fayllar) o'chiriladi."
+    read -r -p "    Davom etilsinmi? [ha/yo'q]: " a
+    [ "$a" = "ha" ] || { echo "bekor qilindi"; exit 0; }
+    $DC down -v --remove-orphans
+    c_g "✅ tozalandi. ./bonvi up bilan qaytadan boshlang"
+    ;;
+
+  dotnet)     dotnet_solo dotnet "$@" ;;
+  build)      dotnet_solo dotnet build "$@" ;;
+  test)
+    # Integratsiya testlari compose'dagi PostgreSQL'da har safar yangi
+    # vaqtinchalik baza yaratadi. Shu sababli postgres ishlab turishi kerak.
+    ensure_env
+    set -a; . ./.env; set +a
+    if ! $DC ps --status running --services 2>/dev/null | grep -q '^postgres$'; then
+      c_y "→ postgres ishga tushirilmoqda (testlar uchun kerak)..."
+      $DC up -d postgres >/dev/null
+      until $DC exec -T postgres pg_isready -U "${POSTGRES_USER}" >/dev/null 2>&1; do sleep 1; done
+    fi
+    docker run --rm $(tty_flag) \
+      -v "$PWD/api:/src" \
+      -v bonvi-hr_nuget-cache:/root/.nuget/packages \
+      -v bonvi-hr_api-artifacts:/src/artifacts \
+      -w /src \
+      -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
+      -e TEST_POSTGRES="Host=postgres;Port=5432;Database=postgres;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
+      --network bonvi-hr_bonvi \
+      "$SDK_IMAGE" dotnet test "$@"
+    ;;
+  ef)         ef "$@" ;;
+  migrate)
+    [ $# -ge 1 ] || { c_r "Migratsiya nomini kiriting: ./bonvi migrate InitialCreate"; exit 1; }
+    ef migrations add "$1" \
+      --project src/Bonvi.Infrastructure \
+      --startup-project src/Bonvi.Api \
+      --output-dir Persistence/Migrations
+    ;;
+  db-update)
+    ef database update \
+      --project src/Bonvi.Infrastructure \
+      --startup-project src/Bonvi.Api
+    ;;
+
+  pnpm)  node_run "pnpm $*" ;;
+  gen)
+    # OpenAPI → TypeScript. API ishlab turishi kerak, shu sababli
+    # generator compose tarmog'iga ulanadi va api'ga to'g'ridan-to'g'ri murojaat qiladi.
+    ensure_env
+    if ! $DC ps --status running --services 2>/dev/null | grep -q '^api$'; then
+      c_r "API ishlamayapti. Avval: ./bonvi up"
+      exit 1
+    fi
+    c_y "→ OpenAPI o'qilmoqda: http://api:8080/openapi/v1.json"
+    docker run --rm $(tty_flag) \
+      -v "$PWD/web:/app" \
+      -v bonvi-hr_web-node-modules:/app/node_modules \
+      -v bonvi-hr_pnpm-store:/root/.local/share/pnpm/store \
+      -w /app \
+      -e VITE_OPENAPI_URL="http://api:8080/openapi/v1.json" \
+      --network bonvi-hr_bonvi \
+      "$NODE_IMAGE" sh -c "corepack enable >/dev/null 2>&1; pnpm gen"
+    c_g "✅ TypeScript klient yangilandi: web/src/shared/api/generated/"
+    ;;
+
+  tunnel)
+    # Namoyish uchun vaqtinchalik ochiq manzil. Hisob kerak emas:
+    # Cloudflare tasodifiy `*.trycloudflare.com` domenini beradi.
+    ensure_env
+    set -a; . ./.env; set +a
+    c_r "⚠️  DIQQAT: tizim INTERNETGA ochiladi."
+    echo "   Bazada haqiqiy xodimlarning shaxsiy ma'lumoti bor (JSHSHIR, pasport, telefon)."
+    echo "   Himoya faqat login va parol. Ishni tugatgach: ./bonvi tunnel-stop"
+    echo
+    read -r -p "   Davom etilsinmi? [ha/yo'q]: " a
+    [ "$a" = "ha" ] || { echo "bekor qilindi"; exit 0; }
+
+    $DC -f docker-compose.yml -f docker-compose.tunnel.yml up -d --remove-orphans
+    c_y "→ tunnel ko'tarilmoqda, manzil kutilmoqda..."
+    echo
+
+    # Manzil cloudflared loglarida chiqadi — uni topib ko'rsatamiz.
+    for _ in $(seq 1 30); do
+      url=$($DC logs cloudflared 2>/dev/null | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1)
+      [ -n "$url" ] && break
+      sleep 2
+    done
+
+    if [ -n "$url" ]; then
+      c_g "✅ Ochiq manzil: $url"
+      echo
+      echo "   Kirish: ${BOOTSTRAP__ADMINLOGIN}"
+      c_y "   Parol dev rejimda endi avtomatik to'ldirilmaydi — qo'lda kiriting."
+    else
+      c_r "Manzil topilmadi. Loglarni ko'ring: ./bonvi logs cloudflared"
+    fi
+    ;;
+
+  tunnel-stop)
+    $DC -f docker-compose.yml -f docker-compose.tunnel.yml stop cloudflared >/dev/null 2>&1 || true
+    $DC -f docker-compose.yml -f docker-compose.tunnel.yml rm -f cloudflared >/dev/null 2>&1 || true
+    # web'ni oddiy sozlamalar bilan qayta ko'taramiz (VITE_API_URL qaytadi)
+    $DC up -d web --force-recreate >/dev/null
+    c_g "✅ Tunnel yopildi, oddiy rejimga qaytdi"
+    ;;
+
+  etl)
+    # ETL konteyner ichida ishlaydi, lekin fayl va hisobot XOSTDA qoladi:
+    # Excel'ni HR qo'yadi, hisobotni HR Excel'da ochadi. Shu sababli
+    # `data/` jildi bind-mount bilan ulanadi, nomlangan tom emas.
+    ensure_env
+    set -a; . ./.env; set +a
+    mkdir -p data
+
+    # Manba ko'rsatilmagan bo'lsa — `data/` dagi yagona .xlsx faylni oladi.
+    # Bir nechta bo'lsa tanlashni foydalanuvchiga qoldiradi: noto'g'ri
+    # fayldan ko'chirish jimgina buzilishning eng qimmat turi.
+    if ! printf '%s\n' "$@" | grep -qE '^--(source|file)$'; then
+      # macOS'da bash 3.2 turibdi — `mapfile` yo'q, shu sababli oddiy sikl.
+      found=()
+      while IFS= read -r f; do found+=("$f"); done < <(
+        find data -maxdepth 1 -name '*.xlsx' -not -name '~$*' | sort)
+
+      case ${#found[@]} in
+        0) c_r "data/ jildida .xlsx fayl yo'q."
+           echo "   Excel faylni shu yerga qo'ying: $PWD/data/"
+           exit 1 ;;
+        1) c_y "→ Manba: ${found[0]}"
+           set -- --source "/${found[0]}" "$@" ;;
+        *) c_r "data/ jildida bir nechta .xlsx fayl bor — qaysi biri kerakligini ayting:"
+           printf '     ./bonvi etl --source "/%s"\n' "${found[@]}"
+           exit 1 ;;
+      esac
+    fi
+
+    # Bazaga ulanish faqat postgres ishlab turganda beriladi. Ulanishsiz
+    # ETL ham ishlaydi — u holda faqat Excel tekshiriladi.
+    conn_args=()
+    if $DC ps --status running --services 2>/dev/null | grep -q '^postgres$'; then
+      conn_args=(--connection "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}")
+    else
+      c_y "→ postgres ishlamayapti — faqat Excel tekshiriladi (bazasiz quruq yurish)"
+    fi
+
+    docker run --rm $(tty_flag) \
+      -v "$PWD/api:/src" \
+      -v "$PWD/data:/data" \
+      -v bonvi-hr_nuget-cache:/root/.nuget/packages \
+      -v bonvi-hr_api-artifacts:/src/artifacts \
+      -w /src \
+      -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
+      --network bonvi-hr_bonvi \
+      "$SDK_IMAGE" \
+      dotnet run --project tools/Bonvi.Etl -- "${conn_args[@]}" "$@"
+    ;;
+
+  sh)
+    case "${1:-}" in
+      api) $DC exec api bash ;;
+      web) $DC exec web sh ;;
+      db)  $DC exec postgres sh ;;
+      *)   c_r "ishlatish: ./bonvi sh api | web | db"; exit 1 ;;
+    esac
+    ;;
+  psql)
+    ensure_env
+    set -a; . ./.env; set +a
+    $DC exec postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"
+    ;;
+
+  help|--help|-h) usage ;;
+  *) c_r "Noma'lum buyruq: $cmd"; echo; usage; exit 1 ;;
+esac

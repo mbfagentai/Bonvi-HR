@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    ⭐ ARXITEKTURA QOIDALARI TESTI
+    Clean Architecture qoidalari qog'ozda emas, CI'da himoyalanadi.
+    Kimdir Domain'dan EF Core'ga murojaat qilsa — build yiqiladi.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Architecture.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bonvi.Domain\Bonvi.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Bonvi.Application\Bonvi.Application.csproj" />
+    <ProjectReference Include="..\..\src\Bonvi.Infrastructure\Bonvi.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Bonvi.Api\Bonvi.Api.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+</Project>

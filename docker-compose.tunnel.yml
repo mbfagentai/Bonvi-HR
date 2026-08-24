@@ -1,0 +1,41 @@
+# ============================================================
+#  VAQTINCHALIK TUNNEL — namoyish uchun
+#
+#  Ishlatish:
+#    ./bonvi tunnel
+#
+#  Bu fayl asosiy `docker-compose.yml` USTIGA qo'yiladi va faqat
+#  tunnel rejimida ishlaydi. Oddiy `./bonvi up` unga tegmaydi.
+#
+#  ⚠️ OCHIQ TUNNEL — himoya faqat login va parol. Ishni tugatgach
+#     `./bonvi tunnel-stop` bilan yoping.
+# ============================================================
+services:
+  web:
+    environment:
+      # Mijoz nisbiy manzilga murojaat qiladi (`/api/...`) va Vite uni
+      # backend'ga uzatadi. Tunnel ortidagi brauzer uchun `localhost:7080`
+      # — bu O'ZINING kompyuteri, shu sababli to'liq manzil yaramaydi.
+      VITE_API_URL: ""
+
+      # ⚠️ ENG MUHIMI: dev rejimda kirish formasi login va parolni
+      # o'zi to'ldiradi — ular BRAUZERGA yuboriladi. Ochiq tunnelda
+      # bu «parolni bosh sahifaga yozib qo'yish» bilan barobar.
+      # Shu sababli tunnel rejimida ular bo'shatiladi.
+      VITE_DEV_LOGIN: ""
+      VITE_DEV_PASSWORD: ""
+      VITE_DEV_LABEL: ""
+
+      # Vite noma'lum domendan kelgan so'rovni rad etadi (DNS rebinding
+      # himoyasi). Tunnel domeni ochiq ro'yxatga qo'shiladi.
+      VITE_ALLOWED_HOSTS: ".trycloudflare.com,.cfargotunnel.com"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: bonvi-tunnel
+    restart: "no"
+    # `--url` bilan hisobsiz, vaqtinchalik tunnel ochiladi va tasodifiy
+    # `*.trycloudflare.com` manzili beriladi. Manzil loglarda chiqadi.
+    command: tunnel --no-autoupdate --url http://web:7173
+    depends_on: [web]
+    networks: [bonvi]

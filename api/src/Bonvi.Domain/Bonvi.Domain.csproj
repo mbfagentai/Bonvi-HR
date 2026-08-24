@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═══════════════════════════════════════════════════════════
+     DOMAIN QATLAMI — yechimning yuragi
+     QOIDA: bu yerda ProjectReference BO'LMAYDI.
+            PackageReference ham bo'lmaydi (sof C#).
+     Sabab: biznes qoidalari hech qanday texnologiyaga bog'lanmaydi.
+            EF Core, ASP.NET, PostgreSQL — bu yerda mavjud emas.
+    ═══════════════════════════════════════════════════════════
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Domain</RootNamespace>
+  </PropertyGroup>
+
+</Project>

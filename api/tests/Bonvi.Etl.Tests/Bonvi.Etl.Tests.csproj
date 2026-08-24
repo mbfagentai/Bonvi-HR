@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Ko'chirish qoidalari testi.
+
+    Excel FAYLSIZ va BAZASIZ ishlaydi: `ExcelCell` ataylab ClosedXML tipidan
+    ajratilgan, shu sababli katak qiymatini test ichida qo'lda yasash mumkin.
+    Aynan shu narsa ko'chirish qoidalarini haqiqiy fayl kutmasdan tekshirish
+    imkonini beradi.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Etl.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Bonvi.Etl\Bonvi.Etl.csproj" />
+  </ItemGroup>
+
+</Project>

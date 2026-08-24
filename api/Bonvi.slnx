@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Bonvi.Api/Bonvi.Api.csproj" />
+    <Project Path="src/Bonvi.Application/Bonvi.Application.csproj" />
+    <Project Path="src/Bonvi.Domain/Bonvi.Domain.csproj" />
+    <Project Path="src/Bonvi.Infrastructure/Bonvi.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Bonvi.Etl/Bonvi.Etl.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Bonvi.Api.IntegrationTests/Bonvi.Api.IntegrationTests.csproj" />
+    <Project Path="tests/Bonvi.Application.Tests/Bonvi.Application.Tests.csproj" />
+    <Project Path="tests/Bonvi.Architecture.Tests/Bonvi.Architecture.Tests.csproj" />
+    <Project Path="tests/Bonvi.Domain.Tests/Bonvi.Domain.Tests.csproj" />
+    <Project Path="tests/Bonvi.Etl.Tests/Bonvi.Etl.Tests.csproj" />
+  </Folder>
+</Solution>

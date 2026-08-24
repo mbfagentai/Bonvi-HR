@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+
+    /* SIFAT: eng qat'iy rejim.
+       Bu yerdagi har bir bayroq — runtime'da chiqadigan xatoni
+       kompilyatsiya paytiga ko'chiradi.
+
+       Eslatma: "exactOptionalPropertyTypes" ataylab YOQILMAGAN.
+       U orval generatsiya qilgan kod bilan to'qnashadi (axios'ning
+       AbortSignal tipi), biz esa o'sha kodni nazorat qilmaymiz.
+       Qolgan barcha qat'iy tekshiruvlar kuchida. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+
+    /* vite/client — import.meta.env va CSS importlari uchun tip e'lonlari */
+    "types": ["vite/client"],
+
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+
+    /* TypeScript 7 da "baseUrl" olib tashlangan —
+       "paths" endi tsconfig faylining o'ziga nisbatan hisoblanadi. */
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

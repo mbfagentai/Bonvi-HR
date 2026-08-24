@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Integratsiya testi — HAQIQIY PostgreSQL ustida (Testcontainers).
+    Mock emas: migratsiya, indeks, cheklov, tranzaksiya — hammasi tekshiriladi.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Api.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bonvi.Api\Bonvi.Api.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+</Project>
