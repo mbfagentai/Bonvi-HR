@@ -699,18 +699,32 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             return employees;
         }
 
-        var pattern = LikePattern(search);
+        // Bitta qidiruv matnidan IKKI naqsh: ism ustuni kirillda, kod
+        // ustunlari lotin va raqamda saqlanadi va ular boshqa-boshqa
+        // «bir xil ko'rinadigan» belgilardan aziyat chekadi.
+        // To'liq sabab — `SearchFolding` izohida.
+        var namePattern = LikePattern(SearchFolding.ForName(search));
+        var codePattern = LikePattern(SearchFolding.ForCode(search));
 
+        // ⚠️ `translate(...)` ning ichidagi ikki satr XOM HOLDA yozilgan,
+        // parametr sifatida emas. Bu majburiy: PostgreSQL ifoda ustidagi
+        // indeksni faqat so'rovdagi ifoda indeks ta'rifi bilan AYNAN mos
+        // tushganda ishlatadi, parametr esa moslikni buzadi. Qiymatlar
+        // `SearchFolding` dagi konstantalardan ko'chirilgan va ular
+        // `ix_employees_full_name_fold_trgm` indeksida ham shundayligicha
+        // turibdi — uchalasi birga o'zgaradi.
         var matching = _context.Employees
             .FromSql(
                 $"""
                  SELECT x.*
                  FROM employees AS x
-                 WHERE lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')) ILIKE {pattern}
-                    OR x.pinfl ILIKE {pattern}
-                    OR x.passport ILIKE {pattern}
-                    OR x.phone ILIKE {pattern}
-                    OR x.second_phone ILIKE {pattern}
+                 WHERE translate(
+                           lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
+                           'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                    OR x.pinfl ILIKE {codePattern}
+                    OR x.passport ILIKE {codePattern}
+                    OR x.phone ILIKE {codePattern}
+                    OR x.second_phone ILIKE {codePattern}
                  """)
             .Select(employee => employee.Id);
 

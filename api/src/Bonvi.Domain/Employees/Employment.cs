@@ -171,7 +171,7 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
     {
         if (Status == EmploymentStatus.Terminated)
         {
-            return Error.Conflict("mehnat.tugagan", "Ishdan ketgan xodimning oklagini o'zgartirib bo'lmaydi.");
+            return Error.Conflict("mehnat.tugagan", "Ishdan ketgan xodimning okladini o'zgartirib bo'lmaydi.");
         }
 
         var oldSalary = Salary;
@@ -193,7 +193,7 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
     {
         if (rate is <= 0 or > 2)
         {
-            return Error.Validation("mehnat.stavka", "Stavka 0 dan katta va 2 dan kichik bo'lishi kerak.");
+            return Error.Validation("mehnat.stavka", "Stavka 0 dan katta va 2 dan oshmasligi kerak.");
         }
 
         Rate = rate;

@@ -551,8 +551,8 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
     // ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// <c>pg_trgm</c> kengaytmasi va ism bo'yicha trigramma indeksi
-    /// migratsiyada haqiqatan yaratilgan.
+    /// <c>pg_trgm</c> kengaytmasi va ism bo'yicha YIG'ILGAN trigramma
+    /// indeksi migratsiyada haqiqatan yaratilgan.
     /// </summary>
     /// <remarks>
     /// Nega alohida test: kengaytma migratsiyada <c>CREATE EXTENSION</c>
@@ -579,7 +579,12 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
             .SqlQuery<string>($"SELECT indexname AS \"Value\" FROM pg_indexes WHERE tablename = 'employees'")
             .ToListAsync(bekorQilish);
 
-        indekslar.ShouldContain("ix_employees_full_name_trgm");
+        // Indeks YIG'ILGAN ifoda ustida: `translate(lower(...), 'қғҳўё', 'кгхуе')`.
+        // Sabab `SearchFolding` da — rus klaviaturasida yozilgan ism ham
+        // topilishi kerak. Eski `ix_employees_full_name_trgm` yig'ilmagan
+        // ifoda ustida edi va so'rov o'zgargach ishlatilmay qolgandi.
+        indekslar.ShouldContain("ix_employees_full_name_fold_trgm");
+        indekslar.ShouldNotContain("ix_employees_full_name_trgm");
         indekslar.ShouldContain("ix_employees_last_name_first_name");
         indekslar.ShouldContain("ix_employees_pinfl");
         indekslar.ShouldContain("ix_employees_direction_ids");
