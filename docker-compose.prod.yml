@@ -50,6 +50,56 @@ services:
       Jwt__SigningKey: ${JWT__SIGNINGKEY}
       Storage__RootPath: /data/uploads
       Cors__Origins__0: ${SITE_ADDRESS:-http://localhost}
+
+      # ----------------------------------------------------------
+      #  Birinchi administrator
+      #
+      #  Bu ikki qator bo'lmasa, `DatabaseInitializer` administratorni
+      #  UMUMAN yaratmaydi (standart parol qo'yish ataylab rad etilgan) —
+      #  ya'ni yangi ko'tarilgan production'ga kira oladigan bironta ham
+      #  foydalanuvchi qolmaydi.
+      #
+      #  Ataylab `:-` standart qiymatisiz: .env da unutilsa, Compose
+      #  «variable is not set» deb OGOHLANTIRADI. Jimgina bo'sh qiymat
+      #  bilan ko'tarilib, keyin «nega kira olmayapman?» deb izlashdan
+      #  ko'ra, xato birinchi soniyada ko'ringani afzal.
+      #
+      #  Hisob faqat bazada bironta ham foydalanuvchi bo'lmaganda
+      #  yaratiladi, shu sababli bu qatorlar keyingi qayta ishga
+      #  tushirishlarda parolni tiklab yubormaydi.
+      # ----------------------------------------------------------
+      Bootstrap__AdminLogin: ${BOOTSTRAP__ADMINLOGIN}
+      Bootstrap__AdminPassword: ${BOOTSTRAP__ADMINPASSWORD}
+      Bootstrap__AdminFullName: ${BOOTSTRAP__ADMINFULLNAME:-Bosh administrator}
+
+      # ----------------------------------------------------------
+      #  Migratsiya
+      #
+      #  Standart holatda `AutoMigrate` = false, va avtomatik migratsiya
+      #  faqat Development'da yoqiladi. Bu yerda muhit Production, ya'ni
+      #  bayroq berilmasa API bo'sh bazaga ulanadi va birinchi so'rovdayoq
+      #  yiqiladi.
+      #
+      #  NEGA STANDART QIYMAT `true`:
+      #    • production tasviri (image) runtime SDK'siz quriladi — unda
+      #      `dotnet ef` yo'q. Ya'ni «migratsiyani alohida qadamda qo'llash»
+      #      uchun bu tuzilmada amaliy yo'l yo'q; `./bonvi db-update` faqat
+      #      development tarmog'ida ishlaydi;
+      #    • API bitta nusxada ishlaydi (replika yo'q) — ikki jarayon bir
+      #      vaqtda migratsiya qo'llash xavfi yo'q;
+      #    • migratsiya trafik qabul qilishdan OLDIN, ishga tushishda
+      #      bajariladi. Yiqilsa — konteyner ko'tarilmaydi va eski holat
+      #      buzilmaydi.
+      #
+      #  QACHON `false` QILISH KERAK: bazani alohida jamoa/DBA boshqarsa
+      #  yoki chiqarilayotgan migratsiya ma'lumot yo'qotishi mumkin bo'lsa.
+      #  U holda .env da BOOTSTRAP__AUTOMIGRATE=false qo'ying va
+      #  migratsiyani qo'lda qo'llang.
+      #
+      #  Har qanday holatda: yangi image chiqarishdan oldin `./backups`
+      #  ga zaxira nusxa oling — avtomatik migratsiya orqaga qaytarilmaydi.
+      # ----------------------------------------------------------
+      Bootstrap__AutoMigrate: ${BOOTSTRAP__AUTOMIGRATE:-true}
     volumes:
       - uploads-data:/data/uploads
     depends_on:

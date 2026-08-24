@@ -9,7 +9,20 @@
 	handle /api/* {
 		reverse_proxy api:8080
 	}
-	handle /health {
+	# Holat tekshiruvi.
+	#
+	# API `/health` manzilini BERMAYDI — faqat `/health/live` va
+	# `/health/ready`. Oddiy `/health` hech qanday endpoint'ga tushmaydi
+	# va fallback avtorizatsiya siyosatiga urilib 401 qaytaradi, ya'ni
+	# oldingi `handle /health` bloki har doim muvaffaqiyatsiz tekshiruv
+	# berardi. Ikkalasini bitta prefiks bilan o'tkazamiz.
+	#
+	# Ikki manzil ataylab alohida:
+	#   live  — jarayon tirik (bazaga tegmaydi; yiqilsa konteyner qayta
+	#           ko'tariladi);
+	#   ready — baza va kesh javob beryapti (yiqilsa konteyner tirik
+	#           qoladi, faqat trafik yuborilmaydi).
+	handle /health/* {
 		reverse_proxy api:8080
 	}
 
