@@ -179,7 +179,15 @@ public sealed record EmployeeSearchRow(
     decimal? Rate,
     decimal? SalaryAmount,
     string? SalaryCurrency,
-    IReadOnlyList<EmployeeFlagType> ActiveFlags);
+    IReadOnlyList<EmployeeFlagType> ActiveFlags,
+    // Yo'nalishlar — xodimga biriktirilgan ko'p-ga-ko'p bog'lanish.
+    // Ro'yxatda ular ism ostidagi kichik nishonlar bo'lib turadi va HR
+    // ularga qarab «bu odam qaysi biznesda» degan savolga darhol javob
+    // topadi. Nomi bilan keladi: identifikator ekranda hech nima demaydi.
+    IReadOnlyList<EmployeeDirectionRow> Directions);
+
+/// <summary>Yo'nalish — identifikator va ekranga chiqadigan nom.</summary>
+public sealed record EmployeeDirectionRow(Guid Id, string Name);
 
 /// <summary>Sinov muddatlari ro'yxatining filtri.</summary>
 /// <param name="Status">Holat bo'yicha filtr. <c>null</c> — hammasi.</param>

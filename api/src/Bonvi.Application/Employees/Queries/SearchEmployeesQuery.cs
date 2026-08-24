@@ -230,6 +230,7 @@ public sealed class SearchEmployeesQueryHandler
             row.HireDate,
             row.Rate,
             salary,
-            row.ActiveFlags);
+            row.ActiveFlags,
+            [.. row.Directions.Select(direction => new EmployeeDirectionDto(direction.Id, direction.Name))]);
     }
 }

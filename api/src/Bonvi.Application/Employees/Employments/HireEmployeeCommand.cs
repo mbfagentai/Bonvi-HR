@@ -109,6 +109,25 @@ public sealed class HireEmployeeCommandHandler
         var (employee, isNew) = resolved.Value;
         var warnings = new List<HrWarning>();
 
+        // ── Dublikat munosabat tekshiruvi ──
+        // O'rindoshlik (bir odam ikki firmada) TO'SILMAYDI — Bonvi'da bu
+        // odatiy hol. To'siladigani boshqa narsa: AYNAN SHU firmada
+        // ikkinchi ochiq munosabat. Busiz «ishga qabul» tugmasi ikki marta
+        // bosilsa, odamning shu firmadagi stavkasi, okladi va xodimlar
+        // sanog'i ikki barobar bo'lib ketardi — va bu hech qanday xato
+        // bermasdi, chunki ro'yxat har shaxsni baribir bir marta chizadi.
+        if (!isNew)
+        {
+            var open = await _employments
+                .GetActiveByEmployeeAsync(employee.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (open.Any(existing => existing.LegalEntityId == command.LegalEntityId))
+            {
+                return EmployeeErrors.AlreadyEmployedHere;
+            }
+        }
+
         // ── Qayta ishga olish tekshiruvi ──
         // Yangi karta uchun belgi bo'lishi mumkin emas, shu sababli faqat
         // mavjud shaxs tekshiriladi.

@@ -28,6 +28,89 @@ public sealed class HireEmployeeTests
         _context.Clock,
         _context.UnitOfWork);
 
+    // ────────── Dublikat munosabat: BLOK ──────────
+
+    /// <summary>
+    /// Bir odamni AYNAN SHU firmaga ikkinchi marta ishga olib bo'lmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Bu xato jimgina yuradi: ro'yxat har shaxsni baribir bir marta
+    /// chizadi, ya'ni ekranda hech narsa o'zgarmaydi — lekin stavka,
+    /// oklad va hisobotdagi xodimlar soni ikki barobar bo'lib ketadi.
+    /// HR buni faqat oylik hisoblanganda sezardi.
+    /// </remarks>
+    [Fact]
+    public async Task Shu_firmada_ishlayotgan_xodimni_qayta_ishga_olib_bolmaydi()
+    {
+        var employee = _context.ExistingEmployee();
+        var employment = _context.ExistingEmployment(employee.Id);
+
+        _context.Employments
+            .GetActiveByEmployeeAsync(employee.Id, Arg.Any<CancellationToken>())
+            .Returns([employment]);
+
+        var natija = await Qabul.HandleAsync(
+            new HireEmployeeCommand(employment.LegalEntityId, EmployeeId: employee.Id),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("mehnat.shu_firmada_bor");
+
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// O'rindoshlik — BOSHQA firmaga qabul to'silmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Bonvi holding: «VIKOR + Вело унион 0,5 ставка ўриндош» Excel'da
+    /// odatiy yozuv edi. Dublikat tekshiruvi buni buzmasligi shart —
+    /// aks holda qoida haqiqiy ish jarayonini to'xtatib qo'yardi.
+    /// </remarks>
+    [Fact]
+    public async Task Boshqa_firmaga_orindosh_qabul_toqnashmaydi()
+    {
+        var employee = _context.ExistingEmployee();
+        var employment = _context.ExistingEmployment(employee.Id);
+
+        _context.Employments
+            .GetActiveByEmployeeAsync(employee.Id, Arg.Any<CancellationToken>())
+            .Returns([employment]);
+
+        var natija = await Qabul.HandleAsync(
+            new HireEmployeeCommand(Guid.NewGuid(), EmployeeId: employee.Id, Rate: 0.5m),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        await _context.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Ishdan ketgan xodimni SHU firmaga qayta olish mumkin.
+    /// </summary>
+    /// <remarks>
+    /// Tekshiruv faqat OCHIQ munosabatlarga qaraydi
+    /// (<c>GetActiveByEmployeeAsync</c>). Qaytib kelgan odam yangi
+    /// munosabat oladi, eskisi esa tarixda qoladi — domen shunday
+    /// qurilgan va bu qoida uni buzmasligi kerak.
+    /// </remarks>
+    [Fact]
+    public async Task Ishdan_ketgan_xodimni_shu_firmaga_qayta_olish_mumkin()
+    {
+        var employee = _context.ExistingEmployee();
+
+        // Ochiq munosabat yo'q — hammasi yakunlangan
+        _context.Employments
+            .GetActiveByEmployeeAsync(employee.Id, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var natija = await Qabul.HandleAsync(
+            new HireEmployeeCommand(Guid.NewGuid(), EmployeeId: employee.Id),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+    }
+
     // ────────── Qora ro'yxat: BLOK ──────────
 
     [Fact]

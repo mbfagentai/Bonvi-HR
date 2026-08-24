@@ -229,6 +229,16 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 cancellationToken)
             .ConfigureAwait(false);
 
+        // Yo'nalish NOMLARI ham belgilar kabi alohida so'rovda: ular
+        // xodimda massiv bo'lib yotadi va asosiy so'rovga qo'shilsa
+        // qatorlarni ko'paytirib, sahifa hajmini buzardi. So'rov faqat
+        // SHU SAHIFADA uchraydigan identifikatorlar bo'yicha ketadi —
+        // odatda o'nga yaqin yozuv.
+        var directions = await DirectionNamesAsync(
+                [.. page.SelectMany(row => row.Employee.DirectionIds).Distinct()],
+                cancellationToken)
+            .ConfigureAwait(false);
+
         IReadOnlyList<EmployeeSearchRow> items =
         [
             .. page.Select(row => new EmployeeSearchRow(
@@ -254,7 +264,15 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 row.Employment?.Rate,
                 row.Employment?.Salary?.Amount,
                 row.Employment?.Salary?.Currency,
-                activeFlags.TryGetValue(row.Employee.Id, out var flags) ? flags : [])),
+                activeFlags.TryGetValue(row.Employee.Id, out var flags) ? flags : [],
+                // Nomi topilmagan yo'nalish TASHLAB YUBORILADI: u
+                // ma'lumotnomadan o'chirilgan bo'lishi mumkin va ekranda
+                // bo'sh nishon chizishning ma'nosi yo'q.
+                [
+                    .. row.Employee.DirectionIds
+                        .Where(directions.ContainsKey)
+                        .Select(id => new EmployeeDirectionRow(id, directions[id])),
+                ])),
         ];
 
         return new EmployeeSearchPage(items, total);
@@ -841,6 +859,32 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             .ConfigureAwait(false);
 
         return [departmentId, .. descendants];
+    }
+
+    /// <summary>Berilgan yo'nalishlarning nomlari.</summary>
+    /// <remarks>
+    /// Ataylab faqat FAOL yozuvlar emas: o'chirilgan yo'nalish ham
+    /// nomi bilan ko'rinishi kerak — xodimga u tarixan biriktirilgan va
+    /// nishonni bo'sh qoldirish «ma'lumot yo'qolgan» degan taassurot
+    /// berardi.
+    /// </remarks>
+    private async Task<Dictionary<Guid, string>> DirectionNamesAsync(
+        List<Guid> directionIds,
+        CancellationToken cancellationToken)
+    {
+        if (directionIds.Count == 0)
+        {
+            return [];
+        }
+
+        var found = await _context.Directions
+            .AsNoTracking()
+            .Where(direction => directionIds.Contains(direction.Id))
+            .Select(direction => new { direction.Id, direction.Name })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return found.ToDictionary(direction => direction.Id, direction => direction.Name);
     }
 
     /// <summary>Sahifadagi xodimlarning BUGUN kuchda bo'lgan belgilari.</summary>

@@ -88,6 +88,29 @@ public static class EmployeeErrors
     public static Error FlagNotFound { get; } =
         Error.NotFound("belgi.topilmadi", "Belgi topilmadi.");
 
+    /// <summary>
+    /// Xodim shu firmada allaqachon ishlayapti.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// BLOK, ogohlantirish emas. O'rindoshlik (bir odam ikki firmada)
+    /// odatiy hol va u to'sib qo'yilmaydi — bu yerdagi shart ikkalasini
+    /// ajratadi: BIR XIL yuridik shaxsda ikkinchi ochiq munosabat
+    /// mumkin emas.
+    /// </para>
+    /// <para>
+    /// Nega qat'iy: bunday ikkilanish jimgina yuradi. Xodim ikki qator
+    /// bo'lib chiqmaydi (ro'yxat har shaxsni bir marta ko'rsatadi), lekin
+    /// hisobotdagi stavka, oklad va xodimlar soni ikki barobar bo'lib
+    /// ketadi. HR buni faqat oylik hisoblanganda sezardi.
+    /// </para>
+    /// </remarks>
+    public static Error AlreadyEmployedHere { get; } =
+        Error.Conflict(
+            "mehnat.shu_firmada_bor",
+            "Xodim bu yuridik shaxsda allaqachon ishlayapti. "
+                + "Avval mavjud mehnat munosabatini yakunlang.");
+
     public static Error LegalEntityNotFound { get; } =
         Error.NotFound("yuridik_shaxs.topilmadi", "Yuridik shaxs topilmadi.");
 }

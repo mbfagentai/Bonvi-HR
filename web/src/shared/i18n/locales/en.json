@@ -456,7 +456,8 @@
     "sinov.tanlanmagan": "No records selected.",
     "sinov.tayinlash_joyi_yoq": "No active employment was found for this probation — position and salary were not applied.",
     "sinov.tayinlash_otmagan": "Position, department, salary and rate can only be set for an employee who passed probation.",
-    "xodim.holat_notogri": "Invalid status. Pick the status from the list again."
+    "xodim.holat_notogri": "Invalid status. Pick the status from the list again.",
+    "mehnat.shu_firmada_bor": "This employee already works at this legal entity. Close the existing employment first."
   },
   "language": {
     "en": "English",

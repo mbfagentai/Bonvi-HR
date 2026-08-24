@@ -456,7 +456,8 @@
     "sinov.tanlanmagan": "Hech qanday yozuv belgilanmagan.",
     "sinov.tayinlash_joyi_yoq": "Bu sinov muddatiga bog‘liq faol mehnat munosabati topilmadi — lavozim va oklad tayinlanmadi.",
     "sinov.tayinlash_otmagan": "Lavozim, bo‘lim, oklad va stavkani faqat sinovdan o‘tgan xodimga tayinlash mumkin.",
-    "xodim.holat_notogri": "Holat noto‘g‘ri. Ro‘yxatdan holatni qaytadan tanlang."
+    "xodim.holat_notogri": "Holat noto‘g‘ri. Ro‘yxatdan holatni qaytadan tanlang.",
+    "mehnat.shu_firmada_bor": "Xodim bu yuridik shaxsda allaqachon ishlayapti. Avval mavjud mehnat munosabatini yakunlang."
   },
   "language": {
     "en": "English",

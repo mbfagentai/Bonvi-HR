@@ -402,6 +402,13 @@ export interface CreateFlagRequest {
  * `EmploymentStatus.Probation = 1` → `names[0]`. Shu sababli raqam ham,
  * nom ham tushuniladi.
  */
+/** Belgilar massivi — noma'lum qiymat tashlab yuborilmaydi, tanilgani olinadi. */
+function flagList(raw: unknown): EmployeeFlagType[] {
+  return Array.isArray(raw)
+    ? raw.map((flag) => enumValue(flag, EMPLOYEE_FLAG_TYPES, 'monitoring'))
+    : []
+}
+
 function enumValue<T extends string>(
   raw: unknown,
   names: readonly T[],
@@ -563,11 +570,19 @@ function toListItem(raw: unknown): EmployeeListItem {
     pinfl: text(box['pinfl']),
     phone: text(box['phone']),
     directions: namedRefs(box['directions']),
-    activeFlags: Array.isArray(box['activeFlags'])
-      ? box['activeFlags'].map((flag) =>
-          enumValue(flag, EMPLOYEE_FLAG_TYPES, 'monitoring'),
-        )
-      : [],
+
+    /*
+      ⚠️ Server maydonni «flags» deb ataydi, «activeFlags» deb emas.
+      Ilgari bu yerda faqat «activeFlags» o'qilardi va ro'yxatdagi
+      «Belgilar» ustuni HAR DOIM bo'sh chiqardi — «Rezerv», «Qora
+      ro'yxat» va «Nazorat» nishonlari ekranga umuman tushmasdi.
+      Hech qanday xato ham chiqmasdi: bo'sh massiv bo'sh ustun demak.
+
+      Ikkala nom ham o'qiladi — eski nom shartnoma qaytib kelishi
+      ehtimoliga qarshi emas, balki xodim KARTASI (`EmployeeDto`) uni
+      shu nom bilan berishi mumkinligi uchun.
+    */
+    activeFlags: flagList(box['flags'] ?? box['activeFlags']),
   }
 }
 

@@ -83,7 +83,22 @@ export default defineConfig(({ mode }) => ({
 
   build: {
     outDir: 'dist',
-    sourcemap: true,
+
+    /**
+     * Manba xaritalari FAQAT development build'ida.
+     *
+     * NEGA production'da yo'q: `dist/` ichidagi `.map` fayllari butun
+     * TypeScript manbasini — izohlari, o'zgaruvchi nomlari va biznes
+     * qoidalari bilan — ochiq holda tarqatadi. Tizim internetga chiqarilsa
+     * (`./bonvi tunnel` yoki haqiqiy domen), brauzerni ochgan har kim uni
+     * yuklab olardi. Bundan tashqari xaritalar bundle hajmidan kattaroq:
+     * 1,2 MB kod uchun 4 MB xarita.
+     *
+     * Ishlab chiqishda esa ular SHART: xaritasiz brauzerdagi xato
+     * `index-Bz3Eg3uu.js:1:48211` bo'lib ko'rinadi.
+     */
+    sourcemap: mode !== 'production',
+
     // Ogohlantirish chegarasi: bundle kattalashib ketsa darhol bilinsin
     chunkSizeWarningLimit: 600,
   },

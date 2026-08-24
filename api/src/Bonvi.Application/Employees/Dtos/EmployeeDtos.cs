@@ -56,7 +56,11 @@ public sealed record EmployeeListItemDto(
     DateOnly? HireDate,
     decimal? Rate,
     MoneyDto? Salary,
-    IReadOnlyList<EmployeeFlagType> Flags);
+    IReadOnlyList<EmployeeFlagType> Flags,
+    IReadOnlyList<EmployeeDirectionDto> Directions);
+
+/// <summary>Yo'nalish — ro'yxatdagi nishon uchun.</summary>
+public sealed record EmployeeDirectionDto(Guid Id, string Name);
 
 /// <summary>Xodim — shaxs ma'lumotlari.</summary>
 public sealed record EmployeeDto(
