@@ -31,6 +31,39 @@ public sealed record Error(string Code, string Message, ErrorType Type = ErrorTy
 {
     public static readonly Error None = new(string.Empty, string.Empty);
 
+    /// <summary>
+    /// Shu bilan BIRGA kuchda bo'lgan boshqa sabablar kodlari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bitta amal bir nechta qoidaga urilishi mumkin: xodim bir vaqtda ham
+    /// qora ro'yxatda, ham nazoratda bo'ladi. <see cref="Code"/> da eng
+    /// jiddiysi qaytadi (interfeys unga qarab rang va matn tanlaydi),
+    /// qolganlari esa shu yerda — HR to'liq rasmni ko'rishi kerak.
+    /// </para>
+    /// <para>
+    /// Nega faqat KOD, matn emas: matnni foydalanuvchi tilida frontend
+    /// hosil qiladi. Serverdan tayyor matn yuborilsa, u har doim
+    /// o'zbekcha bo'lib qolardi — tanlangan tildan qat'i nazar.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<string> Related { get; init; } = [];
+
+    /// <summary>Yonma-yon kuchda bo'lgan sabablarni biriktiradi.</summary>
+    /// <remarks>
+    /// Asosiy xatoning o'zi ro'yxatga TUSHMAYDI: u allaqachon
+    /// <see cref="Code"/> da va ikki marta ko'rsatilishi kerak emas.
+    /// </remarks>
+    public Error With(params string[] related)
+    {
+        ArgumentNullException.ThrowIfNull(related);
+
+        return this with
+        {
+            Related = [.. related.Where(code => !string.IsNullOrWhiteSpace(code) && code != Code)],
+        };
+    }
+
     public static Error Validation(string code, string message) => new(code, message, ErrorType.Validation);
 
     public static Error NotFound(string code, string message) => new(code, message, ErrorType.NotFound);

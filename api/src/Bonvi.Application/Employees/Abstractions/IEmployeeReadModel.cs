@@ -207,6 +207,12 @@ public sealed record ProbationRow(
     string? PhotoKey,
     string? DepartmentName,
     string? PositionName,
+    // Identifikatorlar NOM bilan birga: «sinovdan o'tkazish» formasi
+    // bo'lim va lavozim tanlovini avvalgi qiymat bilan to'ldiradi, nom
+    // esa uni tanlab bo'lmaydi. Ikkalasi ham bitta so'rovdan keladi —
+    // forma ochilganda qo'shimcha murojaat bo'lmasin.
+    Guid? DepartmentId,
+    Guid? PositionId,
     DateOnly HireDate);
 
 /// <summary>

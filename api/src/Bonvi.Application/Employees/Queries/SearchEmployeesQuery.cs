@@ -16,7 +16,10 @@ namespace Bonvi.Application.Employees.Queries;
 /// <param name="PositionId">Lavozim bo'yicha filtr.</param>
 /// <param name="DirectionId">Yo'nalish bo'yicha filtr.</param>
 /// <param name="LegalEntityId">Yuridik shaxs bo'yicha filtr.</param>
-/// <param name="Status">Mehnat munosabati holati. Bo'sh bo'lsa — arxiv bilan hammasi.</param>
+/// <param name="Status">
+/// Mehnat munosabati holati: <c>Probation</c> | <c>Active</c> | <c>Terminated</c>.
+/// Bo'sh bo'lsa — arxiv bilan hammasi.
+/// </param>
 /// <param name="NeedsReview">Faqat tuzatish kerak bo'lgan yozuvlar.</param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
@@ -31,7 +34,7 @@ public sealed record SearchEmployeesQuery(
     Guid? PositionId = null,
     Guid? DirectionId = null,
     Guid? LegalEntityId = null,
-    EmploymentStatus? Status = null,
+    string? Status = null,
     bool? NeedsReview = null,
     int? Page = null,
     int? PageSize = null,
@@ -69,6 +72,12 @@ public sealed class SearchEmployeesQueryHandler
 
         var (sort, descending) = ParseSort(query.Sort);
 
+        var status = ParseStatus(query.Status);
+        if (status.IsFailure)
+        {
+            return status.Error;
+        }
+
         var page = query.Page is { } requested && requested > 0 ? requested : 1;
         var pageSize = Math.Clamp(query.PageSize ?? DefaultPageSize, 1, MaxPageSize);
 
@@ -78,7 +87,7 @@ public sealed class SearchEmployeesQueryHandler
             query.PositionId,
             query.DirectionId,
             query.LegalEntityId,
-            query.Status,
+            status.Value,
             query.NeedsReview,
             page,
             pageSize,
@@ -97,6 +106,47 @@ public sealed class SearchEmployeesQueryHandler
             pageSize,
             found.Total,
             pageCount));
+    }
+
+    /// <summary>
+    /// Holat matnini enum'ga o'giradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega satr, sanoq emas.</b> Minimal API sanoqni REGISTRGA SEZGIR
+    /// bog'laydi va bo'sh qiymatni umuman tushunmaydi: <c>?status=active</c>
+    /// ham, <c>?status=</c> ham 400 bo'lib qaytardi. Ikkalasi ham oddiy
+    /// hol — birinchisi qo'lda yozilgan havola, ikkinchisi esa «filtr
+    /// tozalandi» degan mijoz so'rovi.
+    /// </para>
+    /// <para>
+    /// <b>Bo'sh — «hammasi», noma'lum — xato.</b> Saralashdan farqli
+    /// (u jimgina sukutga tushadi), bu yerda noto'g'ri qiymat aytiladi:
+    /// saralash natijaning MAZMUNINI o'zgartirmaydi, filtr esa
+    /// o'zgartiradi. «terminatd» deb yozilgan havola jimgina butun
+    /// bazani ko'rsatsa, HR buni sezmasdi.
+    /// </para>
+    /// </remarks>
+    private static Result<EmploymentStatus?> ParseStatus(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Result.Success<EmploymentStatus?>(null);
+        }
+
+        // `Enum.TryParse` RAQAMNI ham qabul qiladi: «99» muvaffaqiyatli
+        // bog'lanadi va sanoqda mavjud bo'lmagan qiymat hosil bo'ladi.
+        // U so'rovga tushsa, natija bo'sh ro'yxat bo'lardi — shu sababli
+        // `IsDefined` ham kerak.
+        if (!Enum.TryParse<EmploymentStatus>(raw.Trim(), ignoreCase: true, out var parsed)
+            || !Enum.IsDefined(parsed))
+        {
+            return Error.Validation(
+                "xodim.holat_notogri",
+                "Holat noto'g'ri. Ruxsat etilgan qiymatlar: Probation, Active, Terminated.");
+        }
+
+        return Result.Success<EmploymentStatus?>(parsed);
     }
 
     /// <summary>

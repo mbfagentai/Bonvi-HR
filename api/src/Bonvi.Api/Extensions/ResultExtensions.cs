@@ -57,6 +57,18 @@ public static class ResultExtensions
             Detail = error.Message,
         };
 
+        // Yonma-yon kuchda bo'lgan sabablar. Bitta amal bir nechta qoidaga
+        // urilishi mumkin (xodim bir vaqtda qora ro'yxatda ham, nazoratda
+        // ham), va HR to'liq rasmni ko'rishi kerak — aks holda u birinchi
+        // to'siqni yopib, ikkinchisiga urilib, «yana nima?» deb qolardi.
+        //
+        // `Extensions` ProblemDetails'da YUQORI darajaga yoyiladi, ya'ni
+        // javobda oddiy `"warnings": [...]` maydoni bo'lib ko'rinadi.
+        if (error.Related.Count > 0)
+        {
+            problem.Extensions["warnings"] = error.Related;
+        }
+
         return Results.Problem(problem);
     }
 }

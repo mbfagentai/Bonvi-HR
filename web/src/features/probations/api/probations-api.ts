@@ -43,6 +43,9 @@ export interface ProbationItem {
   photoKey: string | null
   department: string | null
   position: string | null
+  /** Identifikator — «doimiyga o'tkazish» formasi tanlovni shu bilan to'ldiradi. */
+  departmentId: string | null
+  positionId: string | null
   hireDate: string | null
   startDate: string | null
   endDate: string | null
@@ -59,9 +62,51 @@ export interface ProbationFilters {
   status: ProbationStatus | ''
 }
 
+/**
+ * Sinov xulosasi — va u «o'tdi» bo'lsa, doimiy xodimga o'tkazish shartlari.
+ *
+ * Tayinlash maydonlari IXTIYORIY va `null` qoldirilgani «o'zgarmadi»
+ * degani: forma avvalgi qiymatlarni oldindan to'ldiradi va HR faqat
+ * o'zgargan qatorga tegadi. Server ularni faqat `passed` bilan qabul
+ * qiladi, aks holda `sinov.tayinlash_otmagan` (400) qaytadi.
+ */
 export interface ResolveProbationRequest {
   status: ProbationStatus
   conclusion: string | null
+  positionId?: string | null
+  departmentId?: string | null
+  salaryAmount?: number | null
+  rate?: number | null
+  orderNo?: string | null
+  orderDate?: string | null
+}
+
+/**
+ * Holati «sinovda», lekin sinov yozuvi YO'Q munosabat.
+ *
+ * Bunday xodim xodimlar ro'yxatida ham ko'rinmaydi (u yerda doimiylar),
+ * sinov muddatlari ro'yxatida ham (u yerda sinov YOZUVLARI) — ya'ni
+ * tizimda bor, ekranda yo'q. Manba: Excel'dan ko'chirish, «91.5»
+ * varag'ida bo'lmagan odamlar.
+ */
+export interface MissingProbationItem {
+  employmentId: string
+  employeeId: string
+  employeeName: string
+  photoKey: string | null
+  legalEntity: string | null
+  department: string | null
+  position: string | null
+  hireDate: string | null
+  /** Bugungi kunga qancha ishlagani — HR qarorini shu raqamga qarab beradi. */
+  workedDays: number
+}
+
+/** Ommaviy tasdiqlash natijasi. */
+export interface ConfirmMissingResult {
+  confirmed: number
+  /** Ro'yxatda qolmagani — xato emas, boshqa birov ulgurgan bo'lishi mumkin. */
+  skipped: number
 }
 
 export interface ExtendProbationRequest {
@@ -111,7 +156,41 @@ export async function resolveProbation(
   await api.post(`/api/probations/${id}/resolve`, {
     status: statusName(request.status),
     conclusion: request.conclusion,
+    // `undefined` maydonni axios butunlay tashlab yuboradi, `null` esa
+    // yuboriladi — ikkalasi ham server uchun «o'zgarmadi» degani, shu
+    // sababli qo'shimcha tozalash kerak emas.
+    positionId: request.positionId,
+    departmentId: request.departmentId,
+    salaryAmount: request.salaryAmount,
+    rate: request.rate,
+    orderNo: request.orderNo,
+    orderDate: request.orderDate,
   })
+}
+
+/** Sinov yozuvisiz «sinovda» qolganlar. Server sahifalamaydi. */
+export async function fetchMissingProbations(
+  signal?: AbortSignal,
+): Promise<MissingProbationItem[]> {
+  const { data } = await api.get<unknown>('/api/probations/missing', { signal })
+
+  return Array.isArray(data) ? data.map(toMissing) : []
+}
+
+/** Belgilanganlarni doimiy holatga o'tkazadi. */
+export async function confirmMissingProbations(
+  employmentIds: readonly string[],
+): Promise<ConfirmMissingResult> {
+  const { data } = await api.post<unknown>('/api/probations/missing/confirm', {
+    employmentIds,
+  })
+
+  const box = (data ?? {}) as Record<string, unknown>
+
+  return {
+    confirmed: typeof box['confirmed'] === 'number' ? box['confirmed'] : 0,
+    skipped: typeof box['skipped'] === 'number' ? box['skipped'] : 0,
+  }
 }
 
 export async function extendProbation(
@@ -163,6 +242,8 @@ function toItem(raw: unknown): ProbationItem {
     photoKey: text(box['photoKey']),
     department: text(box['department']),
     position: text(box['position']),
+    departmentId: text(box['departmentId']),
+    positionId: text(box['positionId']),
     hireDate: text(box['hireDate']),
     startDate: text(box['startDate']),
     endDate: text(box['endDate']),
@@ -171,6 +252,22 @@ function toItem(raw: unknown): ProbationItem {
     conclusion: text(box['conclusion']),
     daysLeft: typeof box['daysLeft'] === 'number' ? box['daysLeft'] : 0,
     needsWarning: box['needsWarning'] === true,
+  }
+}
+
+function toMissing(raw: unknown): MissingProbationItem {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    employmentId: text(box['employmentId']) ?? '',
+    employeeId: text(box['employeeId']) ?? '',
+    employeeName: text(box['employeeName']) ?? '—',
+    photoKey: text(box['photoKey']),
+    legalEntity: text(box['legalEntity']),
+    department: text(box['department']),
+    position: text(box['position']),
+    hireDate: text(box['hireDate']),
+    workedDays: typeof box['workedDays'] === 'number' ? box['workedDays'] : 0,
   }
 }
 

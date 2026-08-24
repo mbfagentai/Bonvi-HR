@@ -330,6 +330,8 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                     employee.PhotoKey,
                     DepartmentName = department!.Name,
                     PositionName = position!.Name,
+                    employment.DepartmentId,
+                    employment.PositionId,
                     employment.HireDate,
                 })
             .AsNoTracking()
@@ -352,6 +354,8 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 row.PhotoKey,
                 row.DepartmentName,
                 row.PositionName,
+                row.DepartmentId,
+                row.PositionId,
                 row.HireDate)),
         ];
     }

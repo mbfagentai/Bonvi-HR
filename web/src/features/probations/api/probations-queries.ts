@@ -1,8 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import { employeeKeys } from '@/features/employees/api/employees-queries'
+
 import {
+  confirmMissingProbations,
   extendProbation,
   fetchEndingSoon,
+  fetchMissingProbations,
   fetchProbations,
   resolveProbation,
   type ExtendProbationRequest,
@@ -26,6 +30,7 @@ export const probationKeys = {
   lists: ['probations', 'list'] as const,
   list: (filters: ProbationFilters) => ['probations', 'list', filters] as const,
   endingSoon: (withinDays: number) => ['probations', 'ending-soon', withinDays] as const,
+  missing: ['probations', 'missing'] as const,
 }
 
 export function useProbations(filters: ProbationFilters) {
@@ -58,6 +63,43 @@ export function useResolveProbation() {
       // Butun ildiz: yakunlangan muddat ham ro'yxatdan, ham ogohlantirish
       // sanog'idan chiqib ketishi kerak.
       void queryClient.invalidateQueries({ queryKey: probationKeys.root })
+
+      // Xodimlar ro'yxati ham: sinovdan o'tgan odam endi «doimiy» va
+      // aynan o'sha ro'yxatda paydo bo'ladi. Busiz HR «o'tkazdim, lekin
+      // xodimlarda yo'q» degan holatni ko'rardi.
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
+    },
+  })
+}
+
+/**
+ * Sinov yozuvisiz «sinovda» qolganlar.
+ *
+ * Bu ro'yxat bir martalik tozalash ishi va u tugagach bo'shab qoladi —
+ * shu sababli sahifalash ham, filtr ham yo'q. Xodimlar ro'yxati bilan
+ * bir vaqtda so'ralmaydi: u faqat sinov sahifasida kerak.
+ */
+export function useMissingProbations() {
+  return useQuery({
+    queryKey: probationKeys.missing,
+    queryFn: ({ signal }) => fetchMissingProbations(signal),
+  })
+}
+
+/**
+ * Belgilanganlarni doimiy holatga o'tkazadi.
+ *
+ * Xodimlar ro'yxati ham bekor qilinadi: tasdiqlangan odam endi u yerda
+ * paydo bo'ladi va HR natijani darhol ko'rishi kerak.
+ */
+export function useConfirmMissingProbations() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (employmentIds: readonly string[]) => confirmMissingProbations(employmentIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: probationKeys.root })
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
     },
   })
 }

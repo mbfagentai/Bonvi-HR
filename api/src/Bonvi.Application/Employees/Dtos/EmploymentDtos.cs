@@ -135,6 +135,8 @@ public sealed record ProbationListItemDto(
     string? PhotoKey,
     string? Department,
     string? Position,
+    Guid? DepartmentId,
+    Guid? PositionId,
     DateOnly HireDate,
     DateOnly StartDate,
     DateOnly EndDate,

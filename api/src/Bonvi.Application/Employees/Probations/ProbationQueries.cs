@@ -59,6 +59,8 @@ public sealed class ListProbationsQueryHandler
                     row.PhotoKey,
                     row.DepartmentName,
                     row.PositionName,
+                    row.DepartmentId,
+                    row.PositionId,
                     row.HireDate,
                     row.StartDate,
                     row.EndDate,

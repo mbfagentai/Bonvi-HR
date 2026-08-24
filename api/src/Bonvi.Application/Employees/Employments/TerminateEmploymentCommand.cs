@@ -117,9 +117,14 @@ public sealed class TerminateEmploymentCommandHandler
         if (!flags.IsClean && !command.Confirm)
         {
             // Qaysi belgi jiddiyroq — o'shanisi kodda qaytadi, chunki
-            // interfeys xato kodiga qarab matn va rang tanlaydi.
+            // interfeys xato kodiga qarab matn va rang tanlaydi. Qolgan
+            // sabablar `Related` da: xodim bir vaqtda ham qora ro'yxatda,
+            // ham nazoratda bo'lishi mumkin va ikkalasi ham qarorga
+            // ta'sir qiladi. Ularsiz HR birinchi to'siqni yopib,
+            // ikkinchisiga urilib, «yana nima bor?» deb qolardi.
             return flags.Blacklisted
-                ? EmployeeErrors.Blacklisted
+                ? EmployeeErrors.Blacklisted.With(
+                    [.. warnings.Select(warning => warning.Code)])
                 : EmployeeErrors.UnderMonitoring;
         }
 

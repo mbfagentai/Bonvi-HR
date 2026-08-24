@@ -17,6 +17,7 @@ import {
   Sparkles,
   Timer,
   UserCog,
+  UserMinus,
   Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -26,6 +27,19 @@ export interface NavItem {
   key: string
   to: string
   icon: LucideIcon
+  /**
+   * Manzil qidiruv parametrlari — bitta sahifaning boshqa KO'RINISHI.
+   *
+   * NEGA alohida sahifa emas: «ishdan ketganlar» xodimlar ro'yxatining
+   * o'zi, faqat boshqa filtr bilan. Unga alohida sahifa yozish qidiruv,
+   * saralash, sahifalash va kartochka ko'rinishini ikkinchi marta
+   * takrorlash demak — va ular vaqt o'tib bir-biridan ajralib ketardi.
+   *
+   * Menyudagi faol band shu parametrlarga ham qarab aniqlanadi
+   * (`sidebar.tsx` dagi `isActive`), aks holda ikkala band birdaniga
+   * yonib turardi.
+   */
+  search?: Readonly<Record<string, string>>
   /** Hali qurilmagan bo'lim — menyuda o'chiq ko'rinadi. */
   soon?: boolean
 }
@@ -52,8 +66,17 @@ export const NAV: NavSection[] = [
     key: 'sectionPeople',
     items: [
       { key: 'employees',    to: '/xodimlar',      icon: Users },
-      { key: 'employment',   to: '/buyruqlar',     icon: Briefcase,     soon: true },
       { key: 'probation',    to: '/sinov',         icon: Timer },
+      /*
+        Ishdan ketganlar — arxiv. Alohida band ATAYLAB: agar ketgan odamni
+        tizimdan umuman topib bo'lmasa, HR uni «bazada yo'q» deb o'ylab
+        dublikat yaratadi — loyihaning eng asosiy muammosi shundan
+        boshlangan. Xodimlar ro'yxatida esa ular ko'rinmaydi, chunki
+        u kundalik ish ekrani va unda hozir ishlayotganlar turadi.
+      */
+      { key: 'formerEmployees', to: '/xodimlar', icon: UserMinus,
+        search: { status: 'terminated' } },
+      { key: 'employment',   to: '/buyruqlar',     icon: Briefcase,     soon: true },
       { key: 'competencies', to: '/qobiliyatlar',  icon: Sparkles,      soon: true },
       { key: 'incentives',   to: '/ragbat',        icon: Award,         soon: true },
       { key: 'documents',    to: '/hujjatlar',     icon: FileText,      soon: true },

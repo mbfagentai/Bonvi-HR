@@ -107,6 +107,7 @@ BONVI HR — buyruqlar
   FRONTEND (Node — konteyner ichida)
     ./bonvi pnpm <args>     Har qanday pnpm buyrug'i
     ./bonvi gen             OpenAPI → TypeScript klient generatsiyasi
+    ./bonvi check           Tarjimalar to'liqmi (4 til + backend xato kodlari)
 
   VAQTINCHALIK TUNNEL (namoyish uchun)
     ./bonvi tunnel          Ochiq manzil beradi (*.trycloudflare.com)
@@ -189,6 +190,20 @@ case "$cmd" in
     ;;
 
   pnpm)  node_run "pnpm $*" ;;
+  check)
+    # To'liq tarjima tekshiruvi: 4 til bir-biriga mos ekanini VA backend'ning
+    # har bir xato kodi tarjimalanganini ko'radi.
+    #
+    # Nega alohida buyruq: `web` konteyneriga faqat `web/` jildi ulanadi va
+    # u yerdan `api/` ko'rinmaydi. Shartnomaning ikki tomoni esa aynan shu
+    # ikki jildda — tekshiruv ikkalasini birga ko'rishi shart.
+    docker run --rm $(tty_flag) \
+      -v "$PWD:/repo" \
+      -v bonvi-hr_web-node-modules:/repo/web/node_modules \
+      -w /repo/web \
+      -e BONVI_API_DIR=/repo/api \
+      "$NODE_IMAGE" node scripts/check-locales.mjs
+    ;;
   gen)
     # OpenAPI → TypeScript. API ishlab turishi kerak, shu sababli
     # generator compose tarmog'iga ulanadi va api'ga to'g'ridan-to'g'ri murojaat qiladi.

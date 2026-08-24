@@ -27,6 +27,7 @@ import {
   type ProbationStatus,
 } from '../api/probations-api'
 import { WARNING_DAYS, useEndingSoon, useProbations } from '../api/probations-queries'
+import { MissingProbations } from './missing-probations'
 import { ExtendDialog, ResolveDialog } from './probation-dialogs'
 
 const helper = dataColumnHelper<ProbationItem>()
@@ -208,6 +209,14 @@ export function ProbationsPage() {
           </div>
         </Alert>
       )}
+
+      {/*
+        Ko'chirishdan qolgan «yo'qolgan» yozuvlar bloki — jadvaldan YUQORIDA.
+        Ular hech qaysi ro'yxatda ko'rinmaydi, ya'ni HR ularni faqat shu
+        yerda topadi; pastda tursa, e'tibordan chetda qolardi.
+        Ro'yxat bo'shagach blok butunlay yo'qoladi.
+      */}
+      <MissingProbations canManage={canManage} />
 
       <Card>
         <div className="border-b border-[var(--border)] p-4">

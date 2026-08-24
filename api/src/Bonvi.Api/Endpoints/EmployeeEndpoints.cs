@@ -88,7 +88,10 @@ public static class EmployeeEndpoints
                 Guid? positionId,
                 Guid? directionId,
                 Guid? legalEntityId,
-                EmploymentStatus? status,
+                // Sanoq emas, SATR: sabab `SearchEmployeesQuery.ParseStatus`
+                // izohida — minimal API sanoqni registrga sezgir bog'laydi
+                // va bo'sh qiymatda 400 qaytarardi.
+                string? status,
                 bool? needsReview,
                 int? page,
                 int? pageSize,

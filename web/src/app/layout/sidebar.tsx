@@ -4,7 +4,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { BonviMark } from '@/shared/ui'
-import { NAV } from './nav-items'
+import { NAV, type NavItem } from './nav-items'
 
 /**
  * Yon menyu.
@@ -22,6 +22,7 @@ export function Sidebar({
 }) {
   const { t } = useLocale()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const search = useRouterState({ select: (s) => s.location.search })
 
   return (
     <aside
@@ -76,13 +77,16 @@ export function Sidebar({
 
             <ul className="space-y-0.5">
               {section.items.map((item) => {
-                const active =
-                  item.to === '/' ? pathname === '/' : pathname.startsWith(item.to)
+                const active = isActive(item, pathname, search)
 
                 return (
                   <li key={item.key}>
                     <Link
                       to={item.to}
+                      // Parametrlar bandning o'zida yozilgan (`nav-items.ts`).
+                      // Berilmagan bo'lsa `undefined` — router avvalgi
+                      // parametrlarni saqlab qolmaydi va toza manzil ochiladi.
+                      search={item.search}
                       title={collapsed ? t(`nav.${item.key}`) : undefined}
                       aria-current={active ? 'page' : undefined}
                       className={cn(
@@ -147,4 +151,43 @@ export function Sidebar({
       </div>
     </aside>
   )
+}
+
+
+/**
+ * Menyudagi band hozir ochiqmi.
+ *
+ * Yo'l bilan taqqoslash yetmaydi: «Xodimlar» va «Ishdan ketganlar» BITTA
+ * sahifaga olib boradi va faqat qidiruv parametri bilan farq qiladi. Faqat
+ * yo'lga qarasak, ikkalasi birdaniga yonib turardi va HR qaysi ro'yxatda
+ * turganini menyudan bilolmasdi.
+ *
+ * Qoida oddiy: parametrli band FAQAT o'sha parametrlar manzilda turganda
+ * yonadi; parametrsizi esa — shu yo'lakdagi parametrli variantlardan
+ * birortasi yonmagan bo'lsa.
+ */
+function isActive(
+  item: NavItem,
+  pathname: string,
+  search: Record<string, unknown>,
+): boolean {
+  const onPath = item.to === '/' ? pathname === '/' : pathname.startsWith(item.to)
+  if (!onPath) return false
+
+  if (item.search) return matches(item.search, search)
+
+  return !NAV.some((section) =>
+    section.items.some(
+      (other) => other !== item && other.to === item.to && other.search
+        ? matches(other.search, search)
+        : false,
+    ),
+  )
+}
+
+function matches(
+  expected: Readonly<Record<string, string>>,
+  actual: Record<string, unknown>,
+): boolean {
+  return Object.entries(expected).every(([key, value]) => String(actual[key] ?? '') === value)
 }
