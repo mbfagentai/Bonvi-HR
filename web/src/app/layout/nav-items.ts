@@ -10,6 +10,7 @@ import {
   HeartPulse,
   IdCard,
   LayoutGrid,
+  Library,
   LogOut,
   MessageSquareQuote,
   Network,
@@ -42,6 +43,15 @@ export interface NavItem {
   search?: Readonly<Record<string, string>>
   /** Hali qurilmagan bo'lim — menyuda o'chiq ko'rinadi. */
   soon?: boolean
+  /**
+   * Ichki bandlar. Bo'lsa, bu band HAVOLA EMAS — ochiluvchi guruh.
+   *
+   * NEGA kerak: ma'lumotnomalar sakkizta va ular kundalik ish emas —
+   * tizimning poydevori, yiliga bir necha marta ochiladi. Sakkizta band
+   * yon menyuning yarmini egallab, har kuni ishlatiladigan bo'limlarni
+   * pastga surib yuborardi. Guruh sukut bo'yicha YOPIQ turadi.
+   */
+  children?: readonly NavItem[]
 }
 
 export interface NavSection {
@@ -93,16 +103,29 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    key: 'sectionCatalog',
+    /*
+      Sarlavhasiz guruh: bandning O'ZI sarlavha vazifasini bajaradi.
+      Ustiga yana «MA'LUMOTNOMALAR» yozuvi qo'yilsa, bir xil so'z ikki
+      marta yonma-yon turardi.
+    */
     items: [
-      { key: 'legalEntities',      to: '/malumotnomalar/yuridik-shaxslar', icon: Building2 },
-      { key: 'directions',         to: '/malumotnomalar/yonalishlar',      icon: Compass },
-      { key: 'departments',        to: '/malumotnomalar/bolimlar',         icon: Network },
-      { key: 'positions',          to: '/malumotnomalar/lavozimlar',       icon: IdCard },
-      { key: 'terminationReasons', to: '/malumotnomalar/sabablar',         icon: LogOut },
-      { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
-      { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
-      { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
+      {
+        key: 'sectionCatalog',
+        // Faqat «shu yo'lakdamiz» tekshiruvi uchun — bu band bosilganda
+        // hech qayerga o'tmaydi, guruhni ochadi.
+        to: '/malumotnomalar',
+        icon: Library,
+        children: [
+          { key: 'legalEntities',      to: '/malumotnomalar/yuridik-shaxslar', icon: Building2 },
+          { key: 'directions',         to: '/malumotnomalar/yonalishlar',      icon: Compass },
+          { key: 'departments',        to: '/malumotnomalar/bolimlar',         icon: Network },
+          { key: 'positions',          to: '/malumotnomalar/lavozimlar',       icon: IdCard },
+          { key: 'terminationReasons', to: '/malumotnomalar/sabablar',         icon: LogOut },
+          { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
+          { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
+          { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
+        ],
+      },
     ],
   },
   {
