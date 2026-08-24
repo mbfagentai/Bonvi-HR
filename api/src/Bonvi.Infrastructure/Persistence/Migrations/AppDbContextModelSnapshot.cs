@@ -94,10 +94,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -132,10 +128,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("note");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -147,13 +139,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_award_types");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_award_types_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
-
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_award_types_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_award_types_is_active_name");
 
                     b.ToTable("award_types", (string)null);
                 });
@@ -164,10 +151,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -203,10 +186,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("note");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -218,17 +197,12 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_document_types");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_document_types_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
-
                     b.HasIndex("IsRequired")
                         .HasDatabaseName("ix_document_types_is_required")
                         .HasFilter("is_required");
 
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_document_types_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_document_types_is_active_name");
 
                     b.ToTable("document_types", (string)null);
                 });
@@ -239,10 +213,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -282,10 +252,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("severity");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -297,13 +263,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_penalty_types");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_penalty_types_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
-
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_penalty_types_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_penalty_types_is_active_name");
 
                     b.ToTable("penalty_types", (string)null);
                 });
@@ -314,10 +275,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -357,10 +314,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("note");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -372,16 +325,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_termination_reasons");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_termination_reasons_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
-
                     b.HasIndex("IsVoluntary")
                         .HasDatabaseName("ix_termination_reasons_is_voluntary");
 
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_termination_reasons_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_termination_reasons_is_active_name");
 
                     b.ToTable("termination_reasons", (string)null);
                 });
@@ -1138,10 +1086,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1192,10 +1136,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("path");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -1206,11 +1146,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_departments");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_departments_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
 
                     b.HasIndex("HeadEmployeeId")
                         .HasDatabaseName("ix_departments_head_employee_id")
@@ -1228,8 +1163,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Path"), new[] { "text_pattern_ops" });
 
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_departments_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_departments_is_active_name");
 
                     b.ToTable("departments", (string)null);
                 });
@@ -1240,10 +1175,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
 
                     b.Property<string>("Color")
                         .HasColumnType("text")
@@ -1279,10 +1210,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("note");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -1294,13 +1221,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_directions");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_directions_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
-
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_directions_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_directions_is_active_name");
 
                     b.ToTable("directions", (string)null);
                 });
@@ -1311,10 +1233,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1350,10 +1268,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("note");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<string>("TaxId")
                         .HasColumnType("text")
                         .HasColumnName("tax_id");
@@ -1369,17 +1283,12 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_legal_entities");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_legal_entities_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
-
                     b.HasIndex("TaxId")
                         .HasDatabaseName("ix_legal_entities_tax_id")
                         .HasFilter("tax_id IS NOT NULL");
 
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_legal_entities_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_legal_entities_is_active_name");
 
                     b.ToTable("legal_entities", (string)null);
                 });
@@ -1390,10 +1299,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text")
-                        .HasColumnName("code");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1437,10 +1342,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("probation_days");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -1452,16 +1353,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_positions");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_positions_code")
-                        .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
-
                     b.HasIndex("DepartmentId")
                         .HasDatabaseName("ix_positions_department_id");
 
-                    b.HasIndex("IsActive", "SortOrder")
-                        .HasDatabaseName("ix_positions_is_active_sort_order");
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_positions_is_active_name");
 
                     b.ToTable("positions", (string)null);
                 });

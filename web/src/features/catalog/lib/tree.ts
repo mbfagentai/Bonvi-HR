@@ -45,9 +45,11 @@ export function filterTree(
   const needle = query.trim().toLocaleLowerCase()
   if (needle === '') return [...nodes]
 
+  // Faqat nom bo'yicha: bo'lim nomi butun ma'lumotnoma bo'yicha unikal va
+  // daraxtda ko'rinib turgan yagona matn — foydalanuvchi ko'rmagan narsani
+  // qidirmaydi.
   const matches = (node: DepartmentNode): boolean =>
-    node.name.toLocaleLowerCase().includes(needle) ||
-    (node.code ?? '').toLocaleLowerCase().includes(needle)
+    node.name.toLocaleLowerCase().includes(needle)
 
   const walk = (list: readonly DepartmentNode[]): DepartmentNode[] =>
     list.flatMap((node) => {

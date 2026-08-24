@@ -29,8 +29,7 @@ public sealed class PositionRepository : ReferenceRepository<Position>, IPositio
         => await Set
             .AsNoTracking()
             .Where(position => position.DepartmentId == departmentId)
-            .OrderBy(position => position.SortOrder)
-            .ThenBy(position => position.Name)
+            .OrderBy(position => position.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 }

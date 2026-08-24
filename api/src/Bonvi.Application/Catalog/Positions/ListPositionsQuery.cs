@@ -56,8 +56,7 @@ public sealed class ListPositionsQueryHandler
         IReadOnlyList<PositionDto> result =
         [
             .. items
-                .OrderBy(position => position.SortOrder)
-                .ThenBy(position => position.Name, StringComparer.CurrentCulture)
+                .OrderBy(position => position.Name, StringComparer.CurrentCulture)
                 .Select(_definition.ToDto),
         ];
 

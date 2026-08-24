@@ -197,6 +197,10 @@ public static class DependencyInjection
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
         services.AddSingleton<IFileStorage, LocalFileStorage>();
 
+        // Baza nosozligini ma'noli holatga o'girish — drayver haqidagi bilim
+        // shu qatlamda qoladi (sabab `IDatabaseFault` izohida).
+        services.AddSingleton<IDatabaseFault, PostgresFault>();
+
         // Rasm qayta ishlash — holatsiz, shu sababli bitta nusxa yetarli.
         // Sozlama olmaydi: o'lcham va sifat use-case tomonidan beriladi.
         services.AddSingleton<IImageProcessor, SkiaImageProcessor>();

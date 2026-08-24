@@ -1,7 +1,7 @@
 namespace Bonvi.Domain.Common;
 
 /// <summary>
-/// Oddiy ma'lumotnoma yozuvi uchun asos: kod, nom, tartib, faollik.
+/// Oddiy ma'lumotnoma yozuvi uchun asos: nom va faollik.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -20,28 +20,36 @@ namespace Bonvi.Domain.Common;
 /// </remarks>
 public abstract class ReferenceEntity : AggregateRoot, IAuditable, ISoftDeletable
 {
-    protected ReferenceEntity(Guid id, string name, string? code)
+    protected ReferenceEntity(Guid id, string name)
         : base(id)
     {
         Name = name;
-        Code = code;
         IsActive = true;
     }
 
     /// <summary>EF Core uchun.</summary>
     protected ReferenceEntity() => Name = string.Empty;
 
-    /// <summary>Foydalanuvchiga ko'rinadigan nom.</summary>
+    /// <summary>
+    /// Foydalanuvchiga ko'rinadigan nom — <b>yagona kalit</b>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ilgari yonida qo'lda yoziladigan <c>Code</c> ham turardi va uni
+    /// yangi yozuv yaratayotgan HR dan so'rardi. Bu ortiqcha ish va
+    /// xavf edi: bitta nomni ikki xil kod bilan yaratish mumkin bo'lib,
+    /// keyin bir joyda birinchisi, boshqa joyda ikkinchisi ishlatilardi.
+    /// </para>
+    /// <para>
+    /// Yozuvning haqiqiy o'ziga xosligi <see cref="Entity.Id"/> da —
+    /// u baza tomonidan beriladi, hech qachon takrorlanmaydi va barcha
+    /// bog'lanishlar aynan unga qaraydi. Nom esa ma'lumotnoma bo'yicha
+    /// unikal (bazada <c>lower(name)</c> ustidagi indeks) — ya'ni odam
+    /// uchun kalit ham tayyor.
+    /// </para>
+    /// </remarks>
     public string Name { get; private set; }
 
-    /// <summary>
-    /// Ixtiyoriy qisqa kod. Integratsiya va import uchun —
-    /// nom o'zgarsa ham kod o'zgarmaydi.
-    /// </summary>
-    public string? Code { get; private set; }
-
-    /// <summary>Ro'yxatdagi tartib. Kichik son — yuqorida.</summary>
-    public int SortOrder { get; private set; }
 
     /// <summary>
     /// Faol emas — yangi yozuvlarda tanlab bo'lmaydi, lekin
@@ -71,9 +79,6 @@ public abstract class ReferenceEntity : AggregateRoot, IAuditable, ISoftDeletabl
         return Result.Success();
     }
 
-    public void SetCode(string? code) => Code = string.IsNullOrWhiteSpace(code) ? null : code.Trim();
-
-    public void SetSortOrder(int order) => SortOrder = order;
 
     public void SetNote(string? note) => Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
 

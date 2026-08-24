@@ -56,7 +56,6 @@ internal static class CatalogRegistration
         services.AddScoped(typeof(UpdateReferenceCommandHandler<,>));
         services.AddScoped(typeof(DeactivateReferenceCommandHandler<>));
         services.AddScoped(typeof(ActivateReferenceCommandHandler<>));
-        services.AddScoped(typeof(ReorderReferenceCommandHandler<>));
 
         return services;
     }

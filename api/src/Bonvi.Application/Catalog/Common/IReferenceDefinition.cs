@@ -62,15 +62,7 @@ public abstract class ReferenceDefinition<TEntity, TDto> : IReferenceDefinition<
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentNullException.ThrowIfNull(command);
 
-        entity.SetCode(command.Code);
         entity.SetNote(command.Note);
-
-        // Tartib ATAYLAB ixtiyoriy: forma uni yubormasa, mavjud o'rin saqlanadi.
-        // Aks holda har bir tahrirlash yozuvni ro'yxat boshiga tashlab yuborardi.
-        if (command.SortOrder is { } order)
-        {
-            entity.SetSortOrder(order);
-        }
 
         return ApplySpecific(entity, command);
     }

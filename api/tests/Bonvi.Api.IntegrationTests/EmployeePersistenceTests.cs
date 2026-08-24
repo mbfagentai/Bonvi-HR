@@ -70,7 +70,7 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var ism = FullName.Create("Мамажонов", "Бобуржон", "Фазлитдин ўғли").Value;
-            var xodim = Employee.Create(ism, TugilganSana).Value;
+            var xodim = Employee.Create(ism).Value;
 
             xodim.SetPinfl(Pinfl.Create(BirinchiJshshir).Value).IsSuccess.ShouldBeTrue();
             xodim.SetPassport(PassportSeries.Create("AB5725936").Value);
@@ -225,8 +225,8 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
-        var birinchiYonalish = Direction.Create("Йўналиш Тест Бир", "yonalish-test-1").Value;
-        var ikkinchiYonalish = Direction.Create("Йўналиш Тест Икки", "yonalish-test-2").Value;
+        var birinchiYonalish = Direction.Create("Йўналиш Тест Бир").Value;
+        var ikkinchiYonalish = Direction.Create("Йўналиш Тест Икки").Value;
         var xodimId = Guid.Empty;
 
         await using (var qamrov = _factory.Services.CreateAsyncScope())
@@ -293,7 +293,7 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var firma = LegalEntity.Create("Ҳодиса Тест МЧЖ", "hodisa-firma").Value;
+            var firma = LegalEntity.Create("Ҳодиса Тест МЧЖ").Value;
             var xodim = Employee.Create(FullName.Create("Ҳодисали", "Ходим", null).Value).Value;
 
             var munosabat = Employment.Hire(
@@ -388,8 +388,8 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var birinchiFirma = LegalEntity.Create("Ставка Тест ВИКОР", "stavka-vikor").Value;
-            var ikkinchiFirma = LegalEntity.Create("Ставка Тест Вело", "stavka-velo").Value;
+            var birinchiFirma = LegalEntity.Create("Ставка Тест ВИКОР").Value;
+            var ikkinchiFirma = LegalEntity.Create("Ставка Тест Вело").Value;
             var xodim = Employee.Create(FullName.Create("Ўриндош", "Ходим", null).Value).Value;
             xodimId = xodim.Id;
 
@@ -448,7 +448,7 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var firma = LegalEntity.Create("Синов Тест МЧЖ", "sinov-firma").Value;
+            var firma = LegalEntity.Create("Синов Тест МЧЖ").Value;
             var xodim = Employee.Create(FullName.Create("Синовдаги", "Ходим", null).Value).Value;
 
             var yaqinMunosabat = Employment.Hire(xodim.Id, firma.Id, bugun.AddDays(-85)).Value;

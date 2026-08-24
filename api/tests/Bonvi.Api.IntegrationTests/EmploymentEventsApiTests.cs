@@ -419,7 +419,7 @@ public sealed class EmploymentEventsApiTests : IClassFixture<BonviApiFactory>
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var firma = LegalEntity.Create("Дарахт Тест МЧЖ " + belgi, belgi).Value;
+        var firma = LegalEntity.Create("Дарахт Тест МЧЖ " + belgi).Value;
         var bosh = Department.Create("Бош " + belgi).Value;
         var ichki = Department.Create("Ички " + belgi, bosh.Id).Value;
         var lavozim = Position.Create("Мутахассис " + belgi).Value;
@@ -466,7 +466,7 @@ public sealed class EmploymentEventsApiTests : IClassFixture<BonviApiFactory>
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var firma = LegalEntity.Create("Buyruq Test MChJ " + belgi, belgi).Value;
+        var firma = LegalEntity.Create("Buyruq Test MChJ " + belgi).Value;
         var sotuv = Department.Create("Sotuv " + belgi).Value;
         var ombor = Department.Create("Ombor " + belgi).Value;
         var sotuvchi = Position.Create("Sotuvchi " + belgi).Value;

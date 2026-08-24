@@ -42,9 +42,9 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
         var bolimlar = qamrov.ServiceProvider.GetRequiredService<IDepartmentRepository>();
 
-        var ota = Department.Create("Daraxt Test Ota", code: "daraxt-ota").Value;
-        var bola = Department.Create("Daraxt Test Bola", ota.Id, "daraxt-bola").Value;
-        var nabira = Department.Create("Daraxt Test Nabira", bola.Id, "daraxt-nabira").Value;
+        var ota = Department.Create("Daraxt Test Ota").Value;
+        var bola = Department.Create("Daraxt Test Bola", ota.Id).Value;
+        var nabira = Department.Create("Daraxt Test Nabira", bola.Id).Value;
 
         kontekst.AddRange(ota, bola, nabira);
         await kontekst.SaveChangesAsync(bekorQilish);
@@ -72,10 +72,10 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
         var bolimlar = qamrov.ServiceProvider.GetRequiredService<IDepartmentRepository>();
 
-        var ota = Department.Create("Avlod Test Ota", code: "avlod-ota").Value;
-        var bola = Department.Create("Avlod Test Bola", ota.Id, "avlod-bola").Value;
-        var nabira = Department.Create("Avlod Test Nabira", bola.Id, "avlod-nabira").Value;
-        var begona = Department.Create("Avlod Test Begona", code: "avlod-begona").Value;
+        var ota = Department.Create("Avlod Test Ota").Value;
+        var bola = Department.Create("Avlod Test Bola", ota.Id).Value;
+        var nabira = Department.Create("Avlod Test Nabira", bola.Id).Value;
+        var begona = Department.Create("Avlod Test Begona").Value;
 
         kontekst.AddRange(ota, bola, nabira, begona);
         await kontekst.SaveChangesAsync(bekorQilish);
@@ -111,7 +111,7 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         await using (var qamrov = _factory.Services.CreateAsyncScope())
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
-            kontekst.Add(Department.Create("Маркетинг Тест Бўлими", code: "registr-1").Value);
+            kontekst.Add(Department.Create("Маркетинг Тест Бўлими").Value);
             await kontekst.SaveChangesAsync(bekorQilish);
         }
 
@@ -120,7 +120,7 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         var ikkinchiKontekst = ikkinchiQamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
         // Faqat REGISTRI bilan farq qiladi — kodi boshqa, ya'ni kod indeksi to'smaydi
-        ikkinchiKontekst.Add(Department.Create("маркетинг тест бўлими", code: "registr-2").Value);
+        ikkinchiKontekst.Add(Department.Create("маркетинг тест бўлими").Value);
 
         var xato = await Should.ThrowAsync<DbUpdateException>(
             async () => await ikkinchiKontekst.SaveChangesAsync(bekorQilish));
@@ -142,7 +142,7 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         var sabablar = qamrov.ServiceProvider
             .GetRequiredService<IReferenceRepository<TerminationReason>>();
 
-        var sabab = TerminationReason.Create("Қидирув Тест Сабаби", "qidiruv-sabab").Value;
+        var sabab = TerminationReason.Create("Қидирув Тест Сабаби").Value;
         kontekst.Add(sabab);
         await kontekst.SaveChangesAsync(bekorQilish);
 
@@ -157,8 +157,6 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         // Yozuvning O'ZI takror hisoblanmaydi — tahrirlashda shu kerak
         (await sabablar.NameExistsAsync("ҚИДИРУВ ТЕСТ САБАБИ", sabab.Id, bekorQilish))
             .ShouldBeFalse();
-
-        (await sabablar.FindByCodeAsync("qidiruv-sabab", bekorQilish)).ShouldNotBeNull();
 
         var royxat = await sabablar.ListAsync(onlyActive: true, bekorQilish);
         royxat.ShouldContain(element => element.Id == sabab.Id);
@@ -180,10 +178,10 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var bolim = Department.Create("Вазифа Тест Бўлими", code: "vazifa-bolim").Value;
+            var bolim = Department.Create("Вазифа Тест Бўлими").Value;
             bolimId = bolim.Id;
 
-            var lavozim = Position.Create("Вазифа Тест Юк ташувчи", bolim.Id, "vazifa-yuk").Value;
+            var lavozim = Position.Create("Вазифа Тест Юк ташувчи", bolim.Id).Value;
             lavozim.AddDuty("Юкни ортиш").IsSuccess.ShouldBeTrue();
             lavozim.AddDuty("Юкни ташиш").IsSuccess.ShouldBeTrue();
             lavozim.AddDuty("Юкни тушириш").IsSuccess.ShouldBeTrue();
@@ -294,6 +292,26 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
             .AsNoTracking()
             .Where(bolim => bolim.ParentId != null)
             .ToListAsync(bekorQilish);
+
+        // ⚠️ Bu tekshiruv MAJBURIY va u ataylab aniq songa bog'lanmagan.
+        //
+        // Urug' fayllarida bo'lim otasini va yuridik shaxsini NOM orqali
+        // ko'rsatadi (ilgari qo'lda yoziladigan kod orqali edi). Nom
+        // o'zgarsa yoki xarita buzilsa, bog'lanish JIMGINA yo'qoladi:
+        // barcha bo'limlar ildizga aylanadi, daraxt yassilanadi va hech
+        // qanday xato chiqmaydi. Pastdagi sikl esa bo'sh ro'yxatda ham
+        // muvaffaqiyatli o'tib ketardi — shu sababli avval bog'lanish
+        // UMUMAN borligi tasdiqlanadi.
+        otasiBorlar.Count.ShouldBeGreaterThan(
+            10,
+            "urug' fayllaridagi ota-bola bog'lanishi nom bo'yicha topilmayapti");
+
+        (await kontekst.Departments
+            .AsNoTracking()
+            .CountAsync(bolim => bolim.LegalEntityId != null, bekorQilish))
+            .ShouldBeGreaterThan(
+                0,
+                "urug' fayllaridagi yuridik shaxs bog'lanishi nom bo'yicha topilmayapti");
 
         foreach (var bolim in otasiBorlar)
         {

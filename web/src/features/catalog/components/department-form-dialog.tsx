@@ -14,7 +14,6 @@ import type { DepartmentInput, DepartmentNode } from '../api/catalog-api'
 import { CATALOG_ERROR_FIELD, catalogErrorCode } from '../lib/catalog-error'
 import {
   departmentSchema,
-  toNumberOrNull,
   toTextOrNull,
   type DepartmentValues,
 } from '../lib/catalog-schemas'
@@ -28,8 +27,6 @@ const EMPTY_TREE: DepartmentNode[] = []
 function toValues(item: DepartmentNode | null, parentId: string | null): DepartmentValues {
   return {
     name: item?.name ?? '',
-    code: item?.code ?? '',
-    sortOrder: item === null ? '' : String(item.sortOrder),
     note: item?.note ?? '',
     parentId: (item === null ? parentId : item.parentId) ?? '',
   }
@@ -114,8 +111,6 @@ export function DepartmentFormDialog({
     const parentId = values.parentId === '' ? null : values.parentId
     const body: DepartmentInput = {
       name: values.name.trim(),
-      code: toTextOrNull(values.code),
-      sortOrder: toNumberOrNull(values.sortOrder),
       note: toTextOrNull(values.note),
     }
 
@@ -174,13 +169,9 @@ export function DepartmentFormDialog({
         <CatalogBaseFields
           disabled={isSubmitting}
           name={register('name')}
-          code={register('code')}
-          sortOrder={register('sortOrder')}
           note={register('note')}
           errors={{
             name: errors.name ? errorMessage(errors.name.message) : undefined,
-            code: errors.code ? errorMessage(errors.code.message) : undefined,
-            sortOrder: errors.sortOrder ? errorMessage(errors.sortOrder.message) : undefined,
             note: errors.note ? errorMessage(errors.note.message) : undefined,
           }}
         />

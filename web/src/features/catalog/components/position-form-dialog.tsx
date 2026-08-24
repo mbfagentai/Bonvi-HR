@@ -25,8 +25,6 @@ const EMPTY_TREE: DepartmentNode[] = []
 function toValues(item: PositionItem | null): PositionValues {
   return {
     name: item?.name ?? '',
-    code: item?.code ?? '',
-    sortOrder: item === null ? '' : String(item.sortOrder),
     note: item?.note ?? '',
     departmentId: item?.departmentId ?? '',
     // `null` — kiritilmagan: maydon bo'sh qoladi, «0» emas
@@ -105,8 +103,6 @@ export function PositionFormDialog({
 
     const body: PositionInput = {
       name: values.name.trim(),
-      code: toTextOrNull(values.code),
-      sortOrder: toNumberOrNull(values.sortOrder),
       note: toTextOrNull(values.note),
       departmentId: values.departmentId === '' ? null : values.departmentId,
       grade: toNumberOrNull(values.grade),
@@ -173,13 +169,9 @@ export function PositionFormDialog({
         <CatalogBaseFields
           disabled={isSubmitting}
           name={register('name')}
-          code={register('code')}
-          sortOrder={register('sortOrder')}
           note={register('note')}
           errors={{
             name: errors.name ? errorMessage(errors.name.message) : undefined,
-            code: errors.code ? errorMessage(errors.code.message) : undefined,
-            sortOrder: errors.sortOrder ? errorMessage(errors.sortOrder.message) : undefined,
             note: errors.note ? errorMessage(errors.note.message) : undefined,
           }}
         />

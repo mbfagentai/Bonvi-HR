@@ -16,8 +16,6 @@ public sealed class LegalEntityDefinition : ReferenceDefinition<LegalEntity, Leg
         return new LegalEntityDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.TaxId,
@@ -28,7 +26,7 @@ public sealed class LegalEntityDefinition : ReferenceDefinition<LegalEntity, Leg
     public override Result<LegalEntity> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return LegalEntity.Create(command.Name, command.Code);
+        return LegalEntity.Create(command.Name);
     }
 
     /// <inheritdoc />
@@ -57,8 +55,6 @@ public sealed class DirectionDefinition : ReferenceDefinition<Direction, Directi
         return new DirectionDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.Color);
@@ -68,7 +64,7 @@ public sealed class DirectionDefinition : ReferenceDefinition<Direction, Directi
     public override Result<Direction> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return Direction.Create(command.Name, command.Code);
+        return Direction.Create(command.Name);
     }
 
     /// <inheritdoc />
@@ -92,8 +88,6 @@ public sealed class DepartmentDefinition : ReferenceDefinition<Department, Depar
         return new DepartmentDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.ParentId,
@@ -107,7 +101,7 @@ public sealed class DepartmentDefinition : ReferenceDefinition<Department, Depar
     public override Result<Department> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return Department.Create(command.Name, command.ParentId, command.Code);
+        return Department.Create(command.Name, command.ParentId);
     }
 
     /// <inheritdoc />
@@ -148,8 +142,6 @@ public sealed class PositionDefinition : ReferenceDefinition<Position, PositionD
         return new PositionDetailsDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.DepartmentId,
@@ -166,8 +158,6 @@ public sealed class PositionDefinition : ReferenceDefinition<Position, PositionD
         return new PositionDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.DepartmentId,
@@ -179,7 +169,7 @@ public sealed class PositionDefinition : ReferenceDefinition<Position, PositionD
     public override Result<Position> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return Position.Create(command.Name, command.DepartmentId, command.Code);
+        return Position.Create(command.Name, command.DepartmentId);
     }
 
     /// <inheritdoc />
@@ -213,8 +203,6 @@ public sealed class TerminationReasonDefinition : ReferenceDefinition<Terminatio
         return new TerminationReasonDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.IsVoluntary,
@@ -225,7 +213,7 @@ public sealed class TerminationReasonDefinition : ReferenceDefinition<Terminatio
     public override Result<TerminationReason> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return TerminationReason.Create(command.Name, command.Code);
+        return TerminationReason.Create(command.Name);
     }
 
     /// <inheritdoc />
@@ -256,8 +244,6 @@ public sealed class AwardTypeDefinition : ReferenceDefinition<AwardType, AwardTy
         return new AwardTypeDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.HasAmount);
@@ -267,7 +253,7 @@ public sealed class AwardTypeDefinition : ReferenceDefinition<AwardType, AwardTy
     public override Result<AwardType> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return AwardType.Create(command.Name, command.Code);
+        return AwardType.Create(command.Name);
     }
 
     /// <inheritdoc />
@@ -293,8 +279,6 @@ public sealed class PenaltyTypeDefinition : ReferenceDefinition<PenaltyType, Pen
         return new PenaltyTypeDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.HasAmount,
@@ -305,7 +289,7 @@ public sealed class PenaltyTypeDefinition : ReferenceDefinition<PenaltyType, Pen
     public override Result<PenaltyType> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return PenaltyType.Create(command.Name, command.Code);
+        return PenaltyType.Create(command.Name);
     }
 
     /// <inheritdoc />
@@ -333,8 +317,6 @@ public sealed class DocumentTypeDefinition : ReferenceDefinition<DocumentType, D
         return new DocumentTypeDto(
             entity.Id,
             entity.Name,
-            entity.Code,
-            entity.SortOrder,
             entity.IsActive,
             entity.Note,
             entity.IsRequired);
@@ -344,7 +326,7 @@ public sealed class DocumentTypeDefinition : ReferenceDefinition<DocumentType, D
     public override Result<DocumentType> Create(SaveReferenceCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return DocumentType.Create(command.Name, command.Code);
+        return DocumentType.Create(command.Name);
     }
 
     /// <inheritdoc />

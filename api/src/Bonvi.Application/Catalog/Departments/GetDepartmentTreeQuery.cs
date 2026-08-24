@@ -41,15 +41,13 @@ public sealed class GetDepartmentTreeQueryHandler
         var all = await _departments.ListAsync(query.OnlyActive, cancellationToken).ConfigureAwait(false);
 
         var byParent = all
-            .OrderBy(d => d.SortOrder)
-            .ThenBy(d => d.Name, StringComparer.CurrentCulture)
+            .OrderBy(d => d.Name, StringComparer.CurrentCulture)
             .ToLookup(d => d.ParentId);
 
         var known = all.Select(d => d.Id).ToHashSet();
 
         var roots = all
-            .OrderBy(d => d.SortOrder)
-            .ThenBy(d => d.Name, StringComparer.CurrentCulture)
+            .OrderBy(d => d.Name, StringComparer.CurrentCulture)
             .Where(d => d.ParentId is not { } parentId || !known.Contains(parentId));
 
         // Ko'rilgan tugunlar ro'yxati — halqadan himoya. Ma'lumotlarda halqa
@@ -78,8 +76,6 @@ public sealed class GetDepartmentTreeQueryHandler
         return new DepartmentTreeNodeDto(
             department.Id,
             department.Name,
-            department.Code,
-            department.SortOrder,
             department.IsActive,
             department.ParentId,
             department.Level,

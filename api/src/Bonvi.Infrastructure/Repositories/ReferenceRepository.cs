@@ -45,10 +45,13 @@ public class ReferenceRepository<TEntity> : Repository<TEntity>, IReferenceRepos
             query = query.Where(entity => entity.IsActive);
         }
 
-        // Tartib `(is_active, sort_order)` indeksiga mos — saralash bepul
+        // Tartib DOIM alifbo bo'yicha. Qo'lda qo'yiladigan tartib raqami
+        // olib tashlandi: uni to'g'ri qo'yish qiyin (ikki yozuvga bir xil
+        // raqam berilsa tartib tasodifiy bo'lardi) va u hech qanday savolga
+        // javob bermasdi. `name` ustunida o'zbek ICU kolatsiyasi bor, ya'ni
+        // «Ғаниев», «Қосимов», «Ҳакимов» o'z joyiga tushadi.
         return await query
-            .OrderBy(entity => entity.SortOrder)
-            .ThenBy(entity => entity.Name)
+            .OrderBy(entity => entity.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
@@ -82,19 +85,6 @@ public class ReferenceRepository<TEntity> : Repository<TEntity>, IReferenceRepos
         return query.AnyAsync(cancellationToken);
     }
 
-    /// <inheritdoc />
-    public virtual Task<TEntity?> FindByCodeAsync(
-        string code,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
-
-        // Kod — mashina uchun kalit (slug), registri qat'iy.
-        // Aynan shu sababli u bo'yicha oddiy unikal indeks yetarli.
-        var normalized = code.Trim();
-
-        return Set.FirstOrDefaultAsync(entity => entity.Code == normalized, cancellationToken);
-    }
 
     /// <summary>
     /// «Nomi shunga teng» sharti — registrga sezgir EMAS.

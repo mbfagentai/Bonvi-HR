@@ -85,8 +85,7 @@ public sealed class DepartmentRepository : ReferenceRepository<Department>, IDep
 
         return await query
             .AsNoTracking()
-            .OrderBy(department => department.SortOrder)
-            .ThenBy(department => department.Name)
+            .OrderBy(department => department.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

@@ -20,7 +20,7 @@ namespace Bonvi.Domain.Organization;
 /// </remarks>
 public sealed class LegalEntity : ReferenceEntity
 {
-    private LegalEntity(Guid id, string name, string? code) : base(id, name, code) { }
+    private LegalEntity(Guid id, string name) : base(id, name) { }
 
     private LegalEntity() { }
 
@@ -30,7 +30,7 @@ public sealed class LegalEntity : ReferenceEntity
     /// <summary>To'liq rasmiy nomi (shartnoma va buyruqlar uchun).</summary>
     public string? FullName { get; private set; }
 
-    public static Result<LegalEntity> Create(string? name, string? code = null)
+    public static Result<LegalEntity> Create(string? name)
     {
         var normalized = Normalize(name);
         if (normalized is null)
@@ -38,7 +38,7 @@ public sealed class LegalEntity : ReferenceEntity
             return Error.Validation("yuridik_shaxs.nom_bosh", "Yuridik shaxs nomi kiritilishi shart.");
         }
 
-        return new LegalEntity(NewId(), normalized, code);
+        return new LegalEntity(NewId(), normalized);
     }
 
     public Result SetTaxId(string? taxId)

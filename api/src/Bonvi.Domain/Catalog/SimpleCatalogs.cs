@@ -12,7 +12,7 @@ namespace Bonvi.Domain.Catalog;
 /// </remarks>
 public sealed class TerminationReason : ReferenceEntity
 {
-    private TerminationReason(Guid id, string name, string? code) : base(id, name, code) { }
+    private TerminationReason(Guid id, string name) : base(id, name) { }
 
     private TerminationReason() { }
 
@@ -28,12 +28,12 @@ public sealed class TerminationReason : ReferenceEntity
     /// </summary>
     public bool IsRehireable { get; private set; } = true;
 
-    public static Result<TerminationReason> Create(string? name, string? code = null)
+    public static Result<TerminationReason> Create(string? name)
     {
         var normalized = Normalize(name);
         return normalized is null
             ? Error.Validation("sabab.nom_bosh", "Sabab nomi kiritilishi shart.")
-            : new TerminationReason(NewId(), normalized, code);
+            : new TerminationReason(NewId(), normalized);
     }
 
     public void SetVoluntary(bool value) => IsVoluntary = value;
@@ -44,19 +44,19 @@ public sealed class TerminationReason : ReferenceEntity
 /// <summary>Rag'bat turi: tashakkurnoma, mukofot pul, sovg'a.</summary>
 public sealed class AwardType : ReferenceEntity
 {
-    private AwardType(Guid id, string name, string? code) : base(id, name, code) { }
+    private AwardType(Guid id, string name) : base(id, name) { }
 
     private AwardType() { }
 
     /// <summary>Pul bilan bog'liqmi — shundan xarajat hisoboti chiqadi.</summary>
     public bool HasAmount { get; private set; }
 
-    public static Result<AwardType> Create(string? name, string? code = null)
+    public static Result<AwardType> Create(string? name)
     {
         var normalized = Normalize(name);
         return normalized is null
             ? Error.Validation("ragbat.nom_bosh", "Rag'bat turi nomi kiritilishi shart.")
-            : new AwardType(NewId(), normalized, code);
+            : new AwardType(NewId(), normalized);
     }
 
     public void SetHasAmount(bool value) => HasAmount = value;
@@ -68,7 +68,7 @@ public sealed class AwardType : ReferenceEntity
 /// </remarks>
 public sealed class PenaltyType : ReferenceEntity
 {
-    private PenaltyType(Guid id, string name, string? code) : base(id, name, code) { }
+    private PenaltyType(Guid id, string name) : base(id, name) { }
 
     private PenaltyType() { }
 
@@ -81,12 +81,12 @@ public sealed class PenaltyType : ReferenceEntity
     /// </summary>
     public int Severity { get; private set; } = 1;
 
-    public static Result<PenaltyType> Create(string? name, string? code = null)
+    public static Result<PenaltyType> Create(string? name)
     {
         var normalized = Normalize(name);
         return normalized is null
             ? Error.Validation("jarima.nom_bosh", "Jarima turi nomi kiritilishi shart.")
-            : new PenaltyType(NewId(), normalized, code);
+            : new PenaltyType(NewId(), normalized);
     }
 
     public void SetHasAmount(bool value) => HasAmount = value;
@@ -106,19 +106,19 @@ public sealed class PenaltyType : ReferenceEntity
 /// <summary>Hujjat turi: mehnat shartnomasi, buyruq, anketa, pasport nusxasi.</summary>
 public sealed class DocumentType : ReferenceEntity
 {
-    private DocumentType(Guid id, string name, string? code) : base(id, name, code) { }
+    private DocumentType(Guid id, string name) : base(id, name) { }
 
     private DocumentType() { }
 
     /// <summary>Har bir xodimda bo'lishi shartmi — yetishmasa ogohlantiriladi.</summary>
     public bool IsRequired { get; private set; }
 
-    public static Result<DocumentType> Create(string? name, string? code = null)
+    public static Result<DocumentType> Create(string? name)
     {
         var normalized = Normalize(name);
         return normalized is null
             ? Error.Validation("hujjat.nom_bosh", "Hujjat turi nomi kiritilishi shart.")
-            : new DocumentType(NewId(), normalized, code);
+            : new DocumentType(NewId(), normalized);
     }
 
     public void SetRequired(bool value) => IsRequired = value;

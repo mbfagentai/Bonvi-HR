@@ -10,7 +10,6 @@ import type { CatalogItem, CatalogKind } from '../api/catalog-api'
 import { CATALOG_ERROR_FIELD, catalogErrorCode } from '../lib/catalog-error'
 import {
   catalogItemSchema,
-  toNumberOrNull,
   toTextOrNull,
   type CatalogItemValues,
 } from '../lib/catalog-schemas'
@@ -19,9 +18,6 @@ import { CatalogBaseFields } from './catalog-base-fields'
 function toValues(item: CatalogItem | null): CatalogItemValues {
   return {
     name: item?.name ?? '',
-    code: item?.code ?? '',
-    // Yangi yozuvda tartib bo'sh qoladi — serverning o'zi oxiriga qo'yadi
-    sortOrder: item === null ? '' : String(item.sortOrder),
     note: item?.note ?? '',
   }
 }
@@ -80,8 +76,6 @@ export function CatalogFormDialog({
         id: item?.id ?? null,
         body: {
           name: values.name.trim(),
-          code: toTextOrNull(values.code),
-          sortOrder: toNumberOrNull(values.sortOrder),
           note: toTextOrNull(values.note),
         },
       })
@@ -125,15 +119,9 @@ export function CatalogFormDialog({
         <CatalogBaseFields
           disabled={isSubmitting}
           name={register('name')}
-          code={register('code')}
-          sortOrder={register('sortOrder')}
           note={register('note')}
           errors={{
             name: errors.name ? errorMessage(errors.name.message) : undefined,
-            code: errors.code ? errorMessage(errors.code.message) : undefined,
-            sortOrder: errors.sortOrder
-              ? errorMessage(errors.sortOrder.message)
-              : undefined,
             note: errors.note ? errorMessage(errors.note.message) : undefined,
           }}
         />

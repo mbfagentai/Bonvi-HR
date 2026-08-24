@@ -65,6 +65,9 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
 
   const columns = useMemo<Array<DataColumn<CatalogItem>>>(() => {
     const definitions: Array<DataColumn<CatalogItem>> = [
+      // Yagona kengligi belgilanmagan ustun — qolganlaridan ortgan butun
+      // joyni shu oladi. Nom yozuvni tanishning birdan-bir yo'li, shu
+      // sababli u qanchalik keng bo'lsa, shunchalik kam qisqartiriladi.
       helper.accessor('name', {
         header: t('catalog.columnName'),
         cell: ({ row }) => (
@@ -76,20 +79,6 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
               </p>
             )}
           </div>
-        ),
-      }),
-
-      helper.accessor('code', {
-        header: t('catalog.columnCode'),
-        meta: { width: '180px', hideOnMobile: true },
-        cell: ({ getValue }) => <CodeCell value={getValue()} />,
-      }),
-
-      helper.accessor('sortOrder', {
-        header: t('catalog.columnOrder'),
-        meta: { align: 'end', width: '120px', hideOnMobile: true },
-        cell: ({ getValue }) => (
-          <span className="tabular text-[var(--fg-secondary)]">{num(getValue())}</span>
         ),
       }),
 
@@ -136,11 +125,10 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
     const needle = query.trim().toLocaleLowerCase()
     if (needle === '') return source
 
-    return source.filter(
-      (item) =>
-        item.name.toLocaleLowerCase().includes(needle) ||
-        (item.code ?? '').toLocaleLowerCase().includes(needle),
-    )
+    // Qidiruv faqat nom bo'yicha: nom butun ma'lumotnoma bo'yicha unikal va
+    // foydalanuvchi yozuvni aynan shu nom bilan biladi. Izoh ichki eslatma —
+    // uni qidiruvga qo'shish tasodifiy mos kelishlar keltirib chiqaradi.
+    return source.filter((item) => item.name.toLocaleLowerCase().includes(needle))
   }, [list.data, query])
 
   const searching = query.trim() !== ''
@@ -225,18 +213,5 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
         item={editing}
       />
     </div>
-  )
-}
-
-/** Kod bo'sh bo'lsa chiziqcha — bo'sh katak «yuklanmadimi?» degan savol tug'diradi. */
-function CodeCell({ value }: { value: string | null }) {
-  if (value === null || value === '') {
-    return <span className="text-[var(--fg-tertiary)]">—</span>
-  }
-
-  return (
-    <span className="tabular rounded-xs bg-[var(--bg-sunken)] px-1.5 py-0.5 font-mono text-caption1 text-[var(--fg-secondary)]">
-      {value}
-    </span>
   )
 }

@@ -21,7 +21,7 @@ public sealed class Position : ReferenceEntity
 {
     private readonly List<PositionDuty> _duties = [];
 
-    private Position(Guid id, string name, string? code) : base(id, name, code) { }
+    private Position(Guid id, string name) : base(id, name) { }
 
     private Position() { }
 
@@ -40,7 +40,7 @@ public sealed class Position : ReferenceEntity
     /// <summary>Lavozim vazifalari — tartiblangan ro'yxat.</summary>
     public IReadOnlyList<PositionDuty> Duties => _duties.AsReadOnly();
 
-    public static Result<Position> Create(string? name, Guid? departmentId = null, string? code = null)
+    public static Result<Position> Create(string? name, Guid? departmentId = null)
     {
         var normalized = Normalize(name);
         if (normalized is null)
@@ -48,7 +48,7 @@ public sealed class Position : ReferenceEntity
             return Error.Validation("lavozim.nom_bosh", "Lavozim nomi kiritilishi shart.");
         }
 
-        var position = new Position(NewId(), normalized, code);
+        var position = new Position(NewId(), normalized);
         position.DepartmentId = departmentId;
         return position;
     }

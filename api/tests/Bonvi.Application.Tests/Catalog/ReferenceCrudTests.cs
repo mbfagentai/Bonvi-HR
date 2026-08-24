@@ -90,7 +90,7 @@ public sealed class ReferenceCrudTests
 
         var natija = await Tahrirlovchi.HandleAsync(
             entity.Id,
-            new SaveReferenceCommand("VIKOR", Code: "VKR"),
+            new SaveReferenceCommand("VIKOR"),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
@@ -158,8 +158,6 @@ public sealed class ReferenceCrudTests
         var natija = await Yaratuvchi.HandleAsync(
             new SaveReferenceCommand(
                 "  VIKOR   MChJ ",
-                Code: "VKR",
-                SortOrder: 3,
                 TaxId: "123 456 789",
                 FullName: "«VIKOR» mas'uliyati cheklangan jamiyati"),
             TestContext.Current.CancellationToken);
@@ -168,8 +166,6 @@ public sealed class ReferenceCrudTests
 
         // Nom domen tomonidan tozalanadi: ortiqcha bo'shliqlar yo'qoladi
         natija.Value.Name.ShouldBe("VIKOR MChJ");
-        natija.Value.Code.ShouldBe("VKR");
-        natija.Value.SortOrder.ShouldBe(3);
         natija.Value.TaxId.ShouldBe("123456789");
         natija.Value.IsActive.ShouldBeTrue();
 
@@ -177,18 +173,22 @@ public sealed class ReferenceCrudTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Ro'yxat ALIFBO tartibida qaytadi.
+    /// </summary>
+    /// <remarks>
+    /// Kiritish tartibi ataylab teskari: natija repozitoriy qaytargan
+    /// ketma-ketlikka emas, faqat saralashga bog'liq bo'lsin.
+    /// </remarks>
     [Fact]
-    public async Task Royxat_tartib_boyicha_saralanadi()
+    public async Task Royxat_alifbo_tartibida_saralanadi()
     {
-        var uchinchi = LegalEntity.Create("Alfa").Value;
-        uchinchi.SetSortOrder(2);
-
-        var birinchi = LegalEntity.Create("Zulu").Value;
-        birinchi.SetSortOrder(0);
+        var zulu = LegalEntity.Create("Zulu").Value;
+        var alfa = LegalEntity.Create("Alfa").Value;
 
         _repository
             .ListAsync(false, Arg.Any<CancellationToken>())
-            .Returns(new List<LegalEntity> { uchinchi, birinchi });
+            .Returns(new List<LegalEntity> { zulu, alfa });
 
         var natija = await Royxat.HandleAsync(
             new ListReferenceQuery(),
@@ -196,9 +196,8 @@ public sealed class ReferenceCrudTests
 
         natija.IsSuccess.ShouldBeTrue();
 
-        // Alifbo emas, foydalanuvchi qo'ygan tartib ustun turadi
-        natija.Value[0].Name.ShouldBe("Zulu");
-        natija.Value[1].Name.ShouldBe("Alfa");
+        natija.Value[0].Name.ShouldBe("Alfa");
+        natija.Value[1].Name.ShouldBe("Zulu");
     }
 
     [Fact]

@@ -28,8 +28,6 @@ export const catalogItemSchema = z.object({
     .trim()
     .min(1, 'malumotnoma.nom_bosh')
     .max(CATALOG_NAME_MAX, 'malumotnoma.nom_uzun'),
-  code: z.string().trim(),
-  sortOrder: numericText,
   note: z.string().trim(),
 })
 

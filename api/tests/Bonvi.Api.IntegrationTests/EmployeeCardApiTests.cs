@@ -209,8 +209,8 @@ public sealed class EmployeeCardApiTests : IClassFixture<BonviApiFactory>
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var firma = LegalEntity.Create("Сабаб Тест МЧЖ " + belgi, belgi).Value;
-        var sabab = TerminationReason.Create(sababNomi, belgi).Value;
+        var firma = LegalEntity.Create("Сабаб Тест МЧЖ " + belgi).Value;
+        var sabab = TerminationReason.Create(sababNomi).Value;
         var xodim = Employee.Create(FullName.Create("Кетган", "Ходим", belgi).Value).Value;
 
         var munosabat = Employment.Hire(

@@ -50,7 +50,6 @@ public sealed class CatalogTests
         var direction = Direction.Create("Вело").Value;
 
         direction.IsActive.ShouldBeTrue();
-        direction.SortOrder.ShouldBe(0);
     }
 
     [Fact]

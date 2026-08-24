@@ -92,11 +92,17 @@ public sealed partial class CatalogSeeder
         Message = "«{Name}» yozuvi qabul qilinmadi: {Reason}")]
     private partial void LogRowRejected(string name, string reason);
 
+    [LoggerMessage(
+        EventId = 2104,
+        Level = LogLevel.Debug,
+        Message = "«{Catalog}» allaqachon to'ldirilgan — urug' fayli ({Rows} qator) o'tkazib yuborildi")]
+    private partial void LogCatalogSkipped(string catalog, int rows);
+
     /// <summary>
     /// Barcha ma'lumotnomalarni urug'lantiradi.
     /// </summary>
     /// <remarks>
-    /// Tartib muhim: bo'lim yuridik shaxsga, lavozim esa bo'limga kod orqali
+    /// Tartib muhim: bo'lim yuridik shaxsga, lavozim esa bo'limga NOM orqali
     /// murojaat qiladi. Ular oldin yaratilmasa, havola bo'sh qolardi.
     /// </remarks>
     public async Task<CatalogSeedResult> SeedAsync(CancellationToken cancellationToken = default)
@@ -126,7 +132,7 @@ public sealed partial class CatalogSeeder
         await SeedCatalogAsync<LegalEntity, LegalEntityRow>(
             "legal-entities.json",
             "Yuridik shaxslar",
-            row => LegalEntity.Create(row.Name, row.Code),
+            row => LegalEntity.Create(row.Name),
             (entity, row) =>
             {
                 entity.SetFullName(row.FullName);
@@ -143,7 +149,7 @@ public sealed partial class CatalogSeeder
         await SeedCatalogAsync<Direction, DirectionRow>(
             "directions.json",
             "Yo'nalishlar",
-            row => Direction.Create(row.Name, row.Code),
+            row => Direction.Create(row.Name),
             (entity, row) => _ = entity.SetColor(row.Color),
             stats,
             cancellationToken).ConfigureAwait(false);
@@ -162,16 +168,16 @@ public sealed partial class CatalogSeeder
     /// </remarks>
     private async Task SeedDepartmentsAsync(SeedStats stats, CancellationToken cancellationToken)
     {
-        var legalEntities = await CodeMapAsync<LegalEntity>(cancellationToken).ConfigureAwait(false);
+        var legalEntities = await NameMapAsync<LegalEntity>(cancellationToken).ConfigureAwait(false);
 
         var created = await SeedCatalogAsync<Department, DepartmentRow>(
             "departments.json",
             "Bo'limlar",
-            row => Department.Create(row.Name, parentId: null, code: row.Code),
+            row => Department.Create(row.Name, parentId: null),
             (entity, row) =>
             {
-                if (row.LegalEntityCode is { Length: > 0 } legalCode
-                    && legalEntities.TryGetValue(legalCode.Trim(), out var legalEntityId))
+                if (NormalizeName(row.LegalEntity) is { } legalName
+                    && legalEntities.TryGetValue(legalName, out var legalEntityId))
                 {
                     entity.AssignLegalEntity(legalEntityId);
                 }
@@ -183,12 +189,12 @@ public sealed partial class CatalogSeeder
 
         if (created.Count > 0)
         {
-            var byCode = await CodeMapAsync<Department>(cancellationToken).ConfigureAwait(false);
+            var byName = await NameMapAsync<Department>(cancellationToken).ConfigureAwait(false);
 
             foreach (var (entity, row) in created)
             {
-                if (row.ParentCode is { Length: > 0 } parentCode
-                    && byCode.TryGetValue(parentCode.Trim(), out var parentId))
+                if (NormalizeName(row.Parent) is { } parentName
+                    && byName.TryGetValue(parentName, out var parentId))
                 {
                     var moved = entity.MoveTo(parentId);
                     if (moved.IsFailure)
@@ -209,16 +215,16 @@ public sealed partial class CatalogSeeder
 
     private async Task SeedPositionsAsync(SeedStats stats, CancellationToken cancellationToken)
     {
-        var departments = await CodeMapAsync<Department>(cancellationToken).ConfigureAwait(false);
+        var departments = await NameMapAsync<Department>(cancellationToken).ConfigureAwait(false);
 
         await SeedCatalogAsync<Position, PositionRow>(
             "positions.json",
             "Lavozimlar",
-            row => Position.Create(row.Name, departmentId: null, code: row.Code),
+            row => Position.Create(row.Name, departmentId: null),
             (entity, row) =>
             {
-                if (row.DepartmentCode is { Length: > 0 } departmentCode
-                    && departments.TryGetValue(departmentCode.Trim(), out var departmentId))
+                if (NormalizeName(row.Department) is { } departmentName
+                    && departments.TryGetValue(departmentName, out var departmentId))
                 {
                     entity.AssignDepartment(departmentId);
                 }
@@ -246,7 +252,7 @@ public sealed partial class CatalogSeeder
         await SeedCatalogAsync<TerminationReason, TerminationReasonRow>(
             "termination-reasons.json",
             "Ishdan ketish sabablari",
-            row => TerminationReason.Create(row.Name, row.Code),
+            row => TerminationReason.Create(row.Name),
             (entity, row) =>
             {
                 entity.SetVoluntary(row.IsVoluntary ?? true);
@@ -263,7 +269,7 @@ public sealed partial class CatalogSeeder
         await SeedCatalogAsync<AwardType, AwardTypeRow>(
             "award-types.json",
             "Rag'bat turlari",
-            row => AwardType.Create(row.Name, row.Code),
+            row => AwardType.Create(row.Name),
             (entity, row) => entity.SetHasAmount(row.HasAmount ?? false),
             stats,
             cancellationToken).ConfigureAwait(false);
@@ -276,7 +282,7 @@ public sealed partial class CatalogSeeder
         await SeedCatalogAsync<PenaltyType, PenaltyTypeRow>(
             "penalty-types.json",
             "Jarima turlari",
-            row => PenaltyType.Create(row.Name, row.Code),
+            row => PenaltyType.Create(row.Name),
             (entity, row) =>
             {
                 entity.SetHasAmount(row.HasAmount ?? false);
@@ -297,7 +303,7 @@ public sealed partial class CatalogSeeder
         await SeedCatalogAsync<DocumentType, DocumentTypeRow>(
             "document-types.json",
             "Hujjat turlari",
-            row => DocumentType.Create(row.Name, row.Code),
+            row => DocumentType.Create(row.Name),
             (entity, row) => entity.SetRequired(row.IsRequired ?? false),
             stats,
             cancellationToken).ConfigureAwait(false);
@@ -335,31 +341,38 @@ public sealed partial class CatalogSeeder
             return created;
         }
 
-        // Mavjudlik tekshiruvi XOTIRADA bajariladi: ma'lumotnoma kichik
-        // (eng kattasi ~230 qator), har qator uchun alohida SELECT esa
-        // urug'lantirishni yuzlab so'rovga aylantirardi.
+        // ⚠️ Ma'lumotnoma BO'SH bo'lgandagina urug'lantiriladi.
+        //
+        // Ilgari har bir qator alohida tekshirilardi (avval kod, keyin nom
+        // bo'yicha) va yo'q bo'lgani qo'shilardi. Kod olib tashlangach bu
+        // naqsh xavfli bo'lib qoladi: HR bo'lim nomini tuzatsa (masalan
+        // imlo xatosini), keyingi ishga tushishda seeder eski nomni
+        // topolmay, uni QAYTA yaratardi — va HR bir kun ochib, ikkita
+        // «Риспетто офис» ni ko'rardi.
+        //
+        // Urug' ma'lumoti — bir martalik poydevor: u Excel tahlilidan
+        // olingan va tizim ishga tushganda bir marta quyiladi. Yangi
+        // yozuvni HR interfeysdan qo'shadi. Shu sababli to'g'ri semantika
+        // «bo'sh bo'lsa quy», «yetishmaganini to'ldir» emas.
         //
         // O'chirilganlar ham hisobga olinadi (`IgnoreQueryFilters`): ular
-        // bazada turibdi va `code` bo'yicha unikal indeks ularni ham ko'radi.
-        var existing = await _context.Set<TEntity>()
+        // bazada turibdi va ularning ustiga qayta quyish dublikat berardi.
+        var alreadySeeded = await _context.Set<TEntity>()
             .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Select(entity => new { entity.Code, entity.Name })
-            .ToListAsync(cancellationToken)
+            .AnyAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var item in existing)
+        if (alreadySeeded)
         {
-            if (item.Code is not null)
-            {
-                codes.Add(item.Code);
-            }
-
-            names.Add(item.Name);
+            stats.Skipped += rows.Count;
+            LogCatalogSkipped(catalogTitle, rows.Count);
+            return created;
         }
+
+        // Fayl ICHIDAGI takrorlarga qarshi: bir xil nom ikki marta uchrasa,
+        // ikkinchisi `lower(name)` ustidagi unikal indeksga urilib butun
+        // tranzaksiyani yiqitardi.
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var createdCount = 0;
         var skippedCount = 0;
@@ -373,12 +386,7 @@ public sealed partial class CatalogSeeder
                 continue;
             }
 
-            var code = string.IsNullOrWhiteSpace(row.Code) ? null : row.Code.Trim();
-
-            // Kod bo'yicha mavjud bo'lsa — tegmaymiz. Nom bo'yicha ham tekshiramiz:
-            // `lower(name)` ustidagi unikal indeks aks holda butun urug'lantirishni
-            // yiqitardi (bitta takror nom — bitta yiqilgan tranzaksiya).
-            if ((code is not null && codes.Contains(code)) || names.Contains(name))
+            if (!names.Add(name))
             {
                 skippedCount++;
                 continue;
@@ -393,8 +401,6 @@ public sealed partial class CatalogSeeder
             }
 
             var entity = result.Value;
-
-            entity.SetSortOrder(row.SortOrder);
             entity.SetNote(row.Note);
 
             if (row.IsActive == false)
@@ -405,15 +411,6 @@ public sealed partial class CatalogSeeder
             apply?.Invoke(entity, row);
 
             _context.Add(entity);
-
-            // Faylning O'ZIDA takror bo'lishi mumkin — yangi kod va nom
-            // darhol ro'yxatga qo'shiladi
-            if (code is not null)
-            {
-                codes.Add(code);
-            }
-
-            names.Add(name);
 
             created.Add((entity, row));
             createdCount++;
@@ -469,17 +466,45 @@ public sealed partial class CatalogSeeder
     }
 
     /// <summary>Kod → identifikator jadvali (kodi bor yozuvlar uchun).</summary>
-    private async Task<Dictionary<string, Guid>> CodeMapAsync<TEntity>(CancellationToken cancellationToken)
+    /// <summary>
+    /// Ma'lumotnomaning «nom → identifikator» xaritasi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Urug' fayllaridagi yozuvlar bir-birini NOM orqali topadi
+    /// (<c>parent</c>, <c>legalEntity</c>, <c>department</c>). Ilgari bu
+    /// qo'lda yozilgan <c>code</c> orqali edi — u foydalanuvchidan ham
+    /// so'ralardi va ikkilanishga olib kelardi (bir nom, ikki kod).
+    /// Nom esa ma'lumotnoma bo'yicha unikal, ya'ni o'zi yetarli kalit.
+    /// </para>
+    /// <para>
+    /// Taqqoslash registrga befarq va nom <see cref="NormalizeName"/>
+    /// bilan tozalanadi — fayldagi «Маркетинг  бўлими» bazadagi
+    /// «Маркетинг бўлими» ni topishi kerak.
+    /// </para>
+    /// </remarks>
+    private async Task<Dictionary<string, Guid>> NameMapAsync<TEntity>(CancellationToken cancellationToken)
         where TEntity : ReferenceEntity
-        => await _context.Set<TEntity>()
+    {
+        var rows = await _context.Set<TEntity>()
             .AsNoTracking()
-            .Where(entity => entity.Code != null)
-            .ToDictionaryAsync(
-                entity => entity.Code!,
-                entity => entity.Id,
-                StringComparer.OrdinalIgnoreCase,
-                cancellationToken)
+            .Select(entity => new { entity.Id, entity.Name })
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var map = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            var name = NormalizeName(row.Name);
+            if (name is not null)
+            {
+                map[name] = row.Id;
+            }
+        }
+
+        return map;
+    }
 
     /// <summary>
     /// Nomni <see cref="ReferenceEntity"/> bilan bir xil tozalaydi:
@@ -516,11 +541,8 @@ public sealed partial class CatalogSeeder
     /// <summary>Har bir ma'lumotnoma qatorida bo'ladigan umumiy maydonlar.</summary>
     private abstract record CatalogRow
     {
-        public string? Code { get; init; }
-
         public string? Name { get; init; }
 
-        public int SortOrder { get; init; }
 
         /// <summary>Ko'rsatilmasa — faol.</summary>
         public bool? IsActive { get; init; }
@@ -542,14 +564,17 @@ public sealed partial class CatalogSeeder
 
     private sealed record DepartmentRow : CatalogRow
     {
-        public string? ParentCode { get; init; }
+        /// <summary>Ota bo'limning NOMI (fayl ichida yuqorida turishi shart emas).</summary>
+        public string? Parent { get; init; }
 
-        public string? LegalEntityCode { get; init; }
+        /// <summary>Yuridik shaxs nomi.</summary>
+        public string? LegalEntity { get; init; }
     }
 
     private sealed record PositionRow : CatalogRow
     {
-        public string? DepartmentCode { get; init; }
+        /// <summary>Bo'lim nomi.</summary>
+        public string? Department { get; init; }
 
         public int? Grade { get; init; }
 

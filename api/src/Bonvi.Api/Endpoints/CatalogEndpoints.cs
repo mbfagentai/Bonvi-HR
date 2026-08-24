@@ -241,26 +241,6 @@ public static class CatalogEndpoints
             .WithDescription("Faolsizlantirilgan yozuvni qaytaradi.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
-
-        group.MapPut("/" + path + "/order", async (
-                ReorderRequest request,
-                ReorderReferenceCommandHandler<TEntity> handler,
-                CancellationToken cancellationToken) =>
-            {
-                var natija = await handler
-                    .HandleAsync(new ReorderReferenceCommand(request.OrderedIds), cancellationToken)
-                    .ConfigureAwait(false);
-
-                return natija.ToHttpResult();
-            })
-            .RequireAuthorization(Permissions.CatalogManage)
-            .WithName("Reorder" + plural)
-            .WithSummary(title + " — tartibni o'zgartirish")
-            .WithDescription(
-                "Yangi ketma-ketlik to'liq yuboriladi: birinchi identifikator ro'yxat boshiga tushadi. " +
-                "Eng ko'p ishlatiladigan qiymatlarni yuqoriga ko'tarish uchun.")
-            .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
     // ════════════════════════════════════════════════════════════

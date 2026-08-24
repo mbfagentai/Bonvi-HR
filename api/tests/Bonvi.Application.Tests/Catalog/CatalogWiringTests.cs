@@ -91,11 +91,9 @@ public sealed class CatalogWiringTests
         sp.GetRequiredService<UpdateReferenceCommandHandler<AwardType, AwardTypeDto>>().ShouldNotBeNull();
         sp.GetRequiredService<DeactivateReferenceCommandHandler<AwardType>>().ShouldNotBeNull();
         sp.GetRequiredService<ActivateReferenceCommandHandler<AwardType>>().ShouldNotBeNull();
-        sp.GetRequiredService<ReorderReferenceCommandHandler<AwardType>>().ShouldNotBeNull();
 
         // Bo'lim va lavozim ham umumiy amallardan foydalanadi
         sp.GetRequiredService<DeactivateReferenceCommandHandler<Department>>().ShouldNotBeNull();
-        sp.GetRequiredService<ReorderReferenceCommandHandler<Position>>().ShouldNotBeNull();
     }
 
     [Fact]

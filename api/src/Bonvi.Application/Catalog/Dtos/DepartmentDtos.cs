@@ -10,8 +10,6 @@ namespace Bonvi.Application.Catalog.Dtos;
 /// </remarks>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Name">Nom.</param>
-/// <param name="Code">Qisqa kod.</param>
-/// <param name="SortOrder">Ro'yxatdagi tartib.</param>
 /// <param name="IsActive">Faolmi.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="ParentId">Ota bo'lim. <c>null</c> — eng yuqori daraja.</param>
@@ -22,8 +20,6 @@ namespace Bonvi.Application.Catalog.Dtos;
 public sealed record DepartmentDto(
     Guid Id,
     string Name,
-    string? Code,
-    int SortOrder,
     bool IsActive,
     string? Note,
     Guid? ParentId,
@@ -43,8 +39,6 @@ public sealed record DepartmentDto(
 /// </remarks>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Name">Nom.</param>
-/// <param name="Code">Qisqa kod.</param>
-/// <param name="SortOrder">Ro'yxatdagi tartib.</param>
 /// <param name="IsActive">Faolmi.</param>
 /// <param name="ParentId">Ota bo'lim.</param>
 /// <param name="Level">Ierarxiyadagi chuqurlik.</param>
@@ -53,8 +47,6 @@ public sealed record DepartmentDto(
 public sealed record DepartmentTreeNodeDto(
     Guid Id,
     string Name,
-    string? Code,
-    int SortOrder,
     bool IsActive,
     Guid? ParentId,
     int Level,

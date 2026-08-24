@@ -1,3 +1,4 @@
+using Bonvi.Application.Abstractions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,11 +14,16 @@ namespace Bonvi.Api.Common;
 public sealed partial class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;
+    private readonly IDatabaseFault _databaseFault;
 
     [LoggerMessage(EventId = 5000, Level = LogLevel.Error, Message = "Tutilmagan istisno: {Method} {Path}")]
     private partial void LogUnhandled(Exception exception, string method, string path);
 
-    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) => _logger = logger;
+    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger, IDatabaseFault databaseFault)
+    {
+        _logger = logger;
+        _databaseFault = databaseFault;
+    }
 
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -26,9 +32,12 @@ public sealed partial class GlobalExceptionHandler : IExceptionHandler
     {
         ArgumentNullException.ThrowIfNull(httpContext);
 
-        var problem = exception is BadHttpRequestException badRequest
-            ? ClientMistake(httpContext, badRequest)
-            : ServerFault(httpContext, exception);
+        var problem = exception switch
+        {
+            BadHttpRequestException badRequest => ClientMistake(httpContext, badRequest),
+            _ when _databaseFault.IsDuplicateName(exception) => DuplicateName(httpContext),
+            _ => ServerFault(httpContext, exception),
+        };
 
         problem.Extensions["traceId"] = httpContext.TraceIdentifier;
 
@@ -75,6 +84,36 @@ public sealed partial class GlobalExceptionHandler : IExceptionHandler
             Instance = httpContext.Request.Path,
         };
     }
+
+    /// <summary>
+    /// Nom bo'yicha unikallikni buzish — bu ham <b>mijoz xatosi</b>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Odatda takror nom use-case qatlamida tutiladi va toza <c>409</c>
+    /// bo'lib qaytadi. Lekin tekshirish bilan yozish orasida qisqa oyna
+    /// bor: ikki foydalanuvchi bir vaqtda bir xil nom yuborsa, ikkalasi
+    /// ham «bo'sh» degan javob oladi va ikkinchisi bazadagi unikal
+    /// indeksga uriladi.
+    /// </para>
+    /// <para>
+    /// Bunday holat <c>500</c> bo'lib qaytsa, HR «tizim buzildi» deb
+    /// o'ylab qo'ng'iroq qilardi — aslida esa unga shunchaki «bunday nom
+    /// bor» deyish kerak edi. Shu sababli kod use-case qatlamidagi bilan
+    /// AYNAN bir xil: interfeys ikkala yo'lni ham bir xil tarjima qiladi.
+    /// </para>
+    /// </remarks>
+    private static ProblemDetails DuplicateName(HttpContext httpContext)
+    {
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "malumotnoma.nom_band",
+            Detail = "Bunday nom allaqachon mavjud.",
+            Instance = httpContext.Request.Path,
+        };
+    }
+
 
     /// <summary>Haqiqiy nosozlik — tafsilot faqat logga tushadi.</summary>
     /// <remarks>

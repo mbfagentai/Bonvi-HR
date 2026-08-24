@@ -59,8 +59,7 @@ public sealed class ListReferenceQueryHandler<TEntity, TDto>
         IReadOnlyList<TDto> result =
         [
             .. items
-                .OrderBy(e => e.SortOrder)
-                .ThenBy(e => e.Name, StringComparer.CurrentCulture)
+                .OrderBy(e => e.Name, StringComparer.CurrentCulture)
                 .Select(_definition.ToDto),
         ];
 

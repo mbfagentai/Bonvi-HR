@@ -18,8 +18,8 @@ namespace Bonvi.Domain.Organization;
 /// </remarks>
 public sealed class Department : ReferenceEntity
 {
-    private Department(Guid id, string name, string? code, Guid? parentId)
-        : base(id, name, code) => ParentId = parentId;
+    private Department(Guid id, string name, Guid? parentId)
+        : base(id, name) => ParentId = parentId;
 
     private Department() { }
 
@@ -44,7 +44,7 @@ public sealed class Department : ReferenceEntity
     /// <summary>Bo'lim boshlig'i — xodim (ixtiyoriy).</summary>
     public Guid? HeadEmployeeId { get; private set; }
 
-    public static Result<Department> Create(string? name, Guid? parentId = null, string? code = null)
+    public static Result<Department> Create(string? name, Guid? parentId = null)
     {
         var normalized = Normalize(name);
         if (normalized is null)
@@ -52,7 +52,7 @@ public sealed class Department : ReferenceEntity
             return Error.Validation("bolim.nom_bosh", "Bo'lim nomi kiritilishi shart.");
         }
 
-        return new Department(NewId(), normalized, code, parentId);
+        return new Department(NewId(), normalized, parentId);
     }
 
     /// <summary>

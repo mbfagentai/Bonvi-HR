@@ -20,8 +20,6 @@ namespace Bonvi.Application.Catalog.Common;
 /// </para>
 /// </remarks>
 /// <param name="Name">Nom. Barcha ma'lumotnomalar uchun majburiy.</param>
-/// <param name="Code">Ixtiyoriy qisqa kod (integratsiya va import uchun).</param>
-/// <param name="SortOrder">Ro'yxatdagi tartib. <c>null</c> — o'zgartirilmaydi.</param>
 /// <param name="Note">Ixtiyoriy izoh.</param>
 /// <param name="TaxId">STIR — faqat yuridik shaxs uchun.</param>
 /// <param name="FullName">To'liq rasmiy nom — faqat yuridik shaxs uchun.</param>
@@ -39,8 +37,6 @@ namespace Bonvi.Application.Catalog.Common;
 /// <param name="ProbationDays">Standart sinov muddati (kun), 0–180.</param>
 public sealed record SaveReferenceCommand(
     string? Name,
-    string? Code = null,
-    int? SortOrder = null,
     string? Note = null,
     string? TaxId = null,
     string? FullName = null,

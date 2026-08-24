@@ -15,17 +15,12 @@ public sealed class ReferenceStateTests
         Substitute.For<IReferenceRepository<TerminationReason>>();
 
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly ReorderReferenceCommandValidator _validator = new();
 
     private DeactivateReferenceCommandHandler<TerminationReason> Faolsizlantiruvchi
         => new(_repository, _unitOfWork);
 
     private ActivateReferenceCommandHandler<TerminationReason> Faollashtiruvchi
         => new(_repository, _unitOfWork);
-
-    private ReorderReferenceCommandHandler<TerminationReason> Tartiblovchi
-        => new(_repository, _validator, _unitOfWork);
-
     [Fact]
     public async Task Faolsizlantirish_yozuvni_ochirmaydi_sababni_saqlaydi()
     {
@@ -57,48 +52,6 @@ public sealed class ReferenceStateTests
 
         natija.IsSuccess.ShouldBeTrue();
         sabab.IsActive.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task Faqat_orni_ozgargan_yozuvlar_yuklanadi()
-    {
-        // `ListAsync` kuzatuvsiz qaytaradi — o'zgartirish uchun yozuv
-        // qayta, kuzatiladigan holda yuklanishi kerak. Lekin faqat
-        // haqiqatan siljiganlari.
-        var birinchi = TerminationReason.Create("Birinchi").Value;
-        birinchi.SetSortOrder(0);
-
-        var ikkinchi = TerminationReason.Create("Ikkinchi").Value;
-        ikkinchi.SetSortOrder(1);
-
-        _repository
-            .ListAsync(false, Arg.Any<CancellationToken>())
-            .Returns(new List<TerminationReason> { birinchi, ikkinchi });
-
-        _repository.GetByIdAsync(birinchi.Id, Arg.Any<CancellationToken>()).Returns(birinchi);
-        _repository.GetByIdAsync(ikkinchi.Id, Arg.Any<CancellationToken>()).Returns(ikkinchi);
-
-        var natija = await Tartiblovchi.HandleAsync(
-            new ReorderReferenceCommand([ikkinchi.Id, birinchi.Id]),
-            TestContext.Current.CancellationToken);
-
-        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
-        ikkinchi.SortOrder.ShouldBe(0);
-        birinchi.SortOrder.ShouldBe(1);
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Takroriy_identifikator_rad_etiladi()
-    {
-        var id = Guid.NewGuid();
-
-        var natija = await Tartiblovchi.HandleAsync(
-            new ReorderReferenceCommand([id, id]),
-            TestContext.Current.CancellationToken);
-
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("malumotnoma.tartib_takror");
     }
 
     [Fact]

@@ -18,14 +18,14 @@ namespace Bonvi.Domain.Organization;
 /// </remarks>
 public sealed class Direction : ReferenceEntity
 {
-    private Direction(Guid id, string name, string? code) : base(id, name, code) { }
+    private Direction(Guid id, string name) : base(id, name) { }
 
     private Direction() { }
 
     /// <summary>Interfeysda ajratib ko'rsatish uchun rang (masalan <c>#34C759</c>).</summary>
     public string? Color { get; private set; }
 
-    public static Result<Direction> Create(string? name, string? code = null)
+    public static Result<Direction> Create(string? name)
     {
         var normalized = Normalize(name);
         if (normalized is null)
@@ -33,7 +33,7 @@ public sealed class Direction : ReferenceEntity
             return Error.Validation("yonalish.nom_bosh", "Yo'nalish nomi kiritilishi shart.");
         }
 
-        return new Direction(NewId(), normalized, code);
+        return new Direction(NewId(), normalized);
     }
 
     public Result SetColor(string? color)

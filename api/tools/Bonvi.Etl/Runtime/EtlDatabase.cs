@@ -119,11 +119,11 @@ public sealed class EtlDatabase : IAsyncDisposable
         }
 
         return CatalogIndex.FromTables(
-            await CodesAsync<LegalEntity>(cancellationToken).ConfigureAwait(false),
-            await CodesAsync<Direction>(cancellationToken).ConfigureAwait(false),
-            await CodesAsync<Department>(cancellationToken).ConfigureAwait(false),
-            await CodesAsync<Position>(cancellationToken).ConfigureAwait(false),
-            await CodesAsync<TerminationReason>(cancellationToken).ConfigureAwait(false));
+            await NamesAsync<LegalEntity>(cancellationToken).ConfigureAwait(false),
+            await NamesAsync<Direction>(cancellationToken).ConfigureAwait(false),
+            await NamesAsync<Department>(cancellationToken).ConfigureAwait(false),
+            await NamesAsync<Position>(cancellationToken).ConfigureAwait(false),
+            await NamesAsync<TerminationReason>(cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>Mavjud xodimlar — takrorlanmaslik uchun.</summary>
@@ -213,13 +213,20 @@ public sealed class EtlDatabase : IAsyncDisposable
         _context?.ChangeTracker.Clear();
     }
 
-    private async Task<Dictionary<string, Guid>> CodesAsync<TEntity>(CancellationToken cancellationToken)
+    /// <summary>Ma'lumotnomaning «nom → identifikator» xaritasi.</summary>
+    /// <remarks>
+    /// Ilgari bu xarita KOD bo'yicha qurilardi va <c>aliases.json</c> ham
+    /// kodga bog'lanardi. Kod qo'lda yoziladigan maydon edi va ikkilanishga
+    /// olib kelardi (bir nom, ikki kod) — shu sababli u butunlay olib
+    /// tashlandi. Nom esa ma'lumotnoma bo'yicha unikal (bazada
+    /// <c>lower(name)</c> ustidagi indeks), ya'ni o'zi yetarli kalit.
+    /// </remarks>
+    private async Task<Dictionary<string, Guid>> NamesAsync<TEntity>(CancellationToken cancellationToken)
         where TEntity : ReferenceEntity
         => await _context!.Set<TEntity>()
             .AsNoTracking()
-            .Where(entity => entity.Code != null)
             .ToDictionaryAsync(
-                entity => entity.Code!,
+                entity => entity.Name,
                 entity => entity.Id,
                 StringComparer.OrdinalIgnoreCase,
                 cancellationToken)

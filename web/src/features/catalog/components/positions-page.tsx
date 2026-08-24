@@ -83,18 +83,12 @@ export function PositionsPage() {
 
   const columns = useMemo<Array<DataColumn<PositionItem>>>(() => {
     const definitions: Array<DataColumn<PositionItem>> = [
+      // Kengligi belgilanmagan yagona ustun — qolganlaridan ortgan joyni
+      // shu oladi. Lavozim nomlari uzun bo'ladi («Katta smena ustasi»),
+      // shu sababli eng keng joy aynan shu ustunga tegishi kerak.
       helper.accessor('name', {
         header: t('catalog.columnName'),
-        cell: ({ row }) => (
-          <div className="min-w-0">
-            <p className="truncate-1 font-medium">{row.original.name}</p>
-            {row.original.code !== null && row.original.code !== '' && (
-              <p className="tabular truncate-1 mt-0.5 font-mono text-caption2 text-[var(--fg-tertiary)]">
-                {row.original.code}
-              </p>
-            )}
-          </div>
-        ),
+        cell: ({ getValue }) => <p className="truncate-1 font-medium">{getValue()}</p>,
       }),
 
       helper.accessor((row) => departmentNames.get(row.departmentId ?? '') ?? '', {
@@ -177,10 +171,12 @@ export function PositionsPage() {
     const needle = query.trim().toLocaleLowerCase()
     if (needle === '') return source
 
+    // Nom va bo'lim nomi — ekranda ko'rinib turgan ikkala matn. Bir xil
+    // nomli lavozim turli bo'limlarda uchraydi, shu sababli bo'lim bo'yicha
+    // qidirish HR uchun kerakli qisqartma («ta'mirlash» → o'sha bo'lim ichi).
     return source.filter(
       (item) =>
         item.name.toLocaleLowerCase().includes(needle) ||
-        (item.code ?? '').toLocaleLowerCase().includes(needle) ||
         (departmentNames.get(item.departmentId ?? '') ?? '')
           .toLocaleLowerCase()
           .includes(needle),

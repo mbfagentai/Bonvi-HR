@@ -58,25 +58,22 @@ internal static class ReferenceEntityConfigurationExtensions
         builder.Property(entity => entity.IsActive)
             .IsRequired();
 
-        builder.Property(entity => entity.SortOrder)
-            .IsRequired();
 
         // Uzunlik cheklovi ataylab QO'YILMAGAN (text). PostgreSQL'da varchar(n)
         // va text bir xil tezlikda ishlaydi, lekin cheklov domenda emas, faqat
         // bazada bo'lsa — import paytida tushunarsiz «value too long» xatosi
         // chiqadi. Uzunlik qoidasi kerak bo'lsa, u Domain'da yoziladi.
 
-        // Kod — integratsiya va import kaliti. Unikal, LEKIN:
-        //   • NULL kodlar ko'p bo'lishi mumkin (kod ixtiyoriy),
-        //   • yumshoq o'chirilgan yozuvning kodini qayta ishlatish mumkin bo'lishi kerak.
-        // Shu sababli qisman (partial) indeks.
-        builder.HasIndex(entity => entity.Code)
-            .IsUnique()
-            .HasFilter("code IS NOT NULL AND deleted_at IS NULL");
+        // ⚠️ NOM bo'yicha unikal indeks BU YERDA YO'Q — u migratsiyada xom
+        // SQL bilan yaratiladi (`lower(name)` ustida, yumshoq o'chirilganlarni
+        // hisobga olmagan holda). EF fluent API ifoda ustidagi indeksni
+        // ifodalay olmaydi, `lower()` siz esa «Бухгалтерия» va «бухгалтерия»
+        // ikki xil yozuv bo'lib o'tib ketardi.
 
-        // Ma'lumotnomaning ASOSIY so'rovi bitta: «faol yozuvlarni tartib bo'yicha ber».
-        // Bu kompozit indeks unga to'liq javob beradi — PostgreSQL saralashni
-        // butunlay o'tkazib yuboradi.
-        builder.HasIndex(entity => new { entity.IsActive, entity.SortOrder });
+        // Ma'lumotnomaning ASOSIY so'rovi bitta: «faol yozuvlarni ALIFBO
+        // tartibida ber». Qo'lda qo'yiladigan tartib raqami olib tashlangach,
+        // saralash kaliti nomning o'ziga aylandi va indeks unga moslandi —
+        // PostgreSQL saralashni butunlay o'tkazib yuboradi.
+        builder.HasIndex(entity => new { entity.IsActive, entity.Name });
     }
 }

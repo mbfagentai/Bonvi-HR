@@ -180,24 +180,32 @@ public sealed class DepartmentTreeTests
         natija.Value[0].Name.ShouldBe("Metan zavod");
     }
 
+    /// <summary>
+    /// Daraxt ALIFBO tartibida chiziladi.
+    /// </summary>
+    /// <remarks>
+    /// Qo'lda qo'yiladigan tartib raqami olib tashlandi: uni to'g'ri qo'yish
+    /// qiyin edi va u hech qanday savolga javob bermasdi. Alifbo esa
+    /// oldindan aytib bo'ladigan — HR harfga qarab qidiradi.
+    ///
+    /// Kiritish tartibi ATAYLAB teskari: natija repozitoriy qaytargan
+    /// ketma-ketlikka emas, faqat saralashga bog'liq bo'lsin.
+    /// </remarks>
     [Fact]
-    public async Task Daraxt_tartib_boyicha_saralanadi()
+    public async Task Daraxt_alifbo_tartibida_saralanadi()
     {
-        var birinchi = Department.Create("Zavod").Value;
-        birinchi.SetSortOrder(0);
-
-        var ikkinchi = Department.Create("Anbor").Value;
-        ikkinchi.SetSortOrder(1);
+        var zavod = Department.Create("Zavod").Value;
+        var anbor = Department.Create("Anbor").Value;
 
         _departments
             .ListAsync(false, Arg.Any<CancellationToken>())
-            .Returns(new List<Department> { ikkinchi, birinchi });
+            .Returns(new List<Department> { zavod, anbor });
 
         var natija = await Daraxt.HandleAsync(
             new GetDepartmentTreeQuery(),
             TestContext.Current.CancellationToken);
 
-        natija.Value[0].Name.ShouldBe("Zavod");
-        natija.Value[1].Name.ShouldBe("Anbor");
+        natija.Value[0].Name.ShouldBe("Anbor");
+        natija.Value[1].Name.ShouldBe("Zavod");
     }
 }

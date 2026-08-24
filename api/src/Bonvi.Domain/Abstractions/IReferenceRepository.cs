@@ -30,6 +30,4 @@ public interface IReferenceRepository<TEntity> : IRepository<TEntity>
         Guid? exceptId = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Kod bo'yicha topadi.</summary>
-    Task<TEntity?> FindByCodeAsync(string code, CancellationToken cancellationToken = default);
 }

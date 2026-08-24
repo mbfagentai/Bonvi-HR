@@ -36,10 +36,9 @@ export type CatalogKind = SimpleCatalogKind | 'departments' | 'positions'
 
 /** Barcha ma'lumotnomalarga umumiy maydonlar. */
 export interface CatalogItem {
+  /** Yozuvning yagona kaliti — barcha bog'lanishlar shu UUID orqali. */
   id: string
   name: string
-  code: string | null
-  sortOrder: number
   isActive: boolean
   note: string | null
 }
@@ -50,9 +49,6 @@ export interface CatalogItem {
  */
 export interface CatalogItemInput {
   name: string
-  code?: string | null
-  /** `null` — tartib o'zgartirilmaydi (server o'zi joylashtiradi). */
-  sortOrder?: number | null
   note?: string | null
 }
 
@@ -109,6 +105,12 @@ export interface PositionDetails extends PositionItem {
 
 const base = (kind: CatalogKind): string => `/api/catalog/${kind}`
 
+/**
+ * Ro'yxat SERVERDAN ALLAQACHON TARTIBLANGAN holda keladi — nom bo'yicha,
+ * o'zbek ICU kolatsiyasi bilan. Klientda qayta saralanmaydi: `Array.sort`
+ * brauzer kolatsiyasiga tayanadi va «Ғ», «Қ», «Ҳ» harflarini serverdan
+ * boshqacha joyga qo'yib, ikki xil tartib ko'rsatib qo'yardi.
+ */
 export async function fetchCatalog<T extends CatalogItem = CatalogItem>(
   kind: CatalogKind,
   onlyActive: boolean,

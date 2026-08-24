@@ -225,8 +225,8 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var birinchiFirma = LegalEntity.Create($"{belgi} Биринчи МЧЖ", $"{belgi}-1").Value;
-            var ikkinchiFirma = LegalEntity.Create($"{belgi} Иккинчи МЧЖ", $"{belgi}-2").Value;
+            var birinchiFirma = LegalEntity.Create($"{belgi} Биринчи МЧЖ").Value;
+            var ikkinchiFirma = LegalEntity.Create($"{belgi} Иккинчи МЧЖ").Value;
 
             var xodim = Employee.Create(FullName.Create("Ўриндош", belgi, null).Value).Value;
 
@@ -269,8 +269,8 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var firma = LegalEntity.Create($"{belgi} Архив МЧЖ", $"{belgi}-a").Value;
-            var ikkinchiFirma = LegalEntity.Create($"{belgi} Қолган МЧЖ", $"{belgi}-q").Value;
+            var firma = LegalEntity.Create($"{belgi} Архив МЧЖ").Value;
+            var ikkinchiFirma = LegalEntity.Create($"{belgi} Қолган МЧЖ").Value;
 
             // 1. To'liq ketgan odam — arxivga tushishi kerak
             var ketgan = Employee.Create(FullName.Create("Кетган", belgi, null).Value).Value;
@@ -337,7 +337,7 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var firma = LegalEntity.Create($"{belgi} Давр МЧЖ", $"{belgi}-d").Value;
+            var firma = LegalEntity.Create($"{belgi} Давр МЧЖ").Value;
 
             // Bugun kelgan
             var bugungi = Employee.Create(FullName.Create("Бугунги", belgi, null).Value).Value;
@@ -402,7 +402,7 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var firma = LegalEntity.Create($"{belgi} Ўтган МЧЖ", $"{belgi}-o").Value;
+            var firma = LegalEntity.Create($"{belgi} Ўтган МЧЖ").Value;
 
             // Oldingi hafta oynasining o'rtasi: bugundan 10 kun oldin
             var otgan = Employee.Create(FullName.Create("Ўтганҳафта", belgi, null).Value).Value;
@@ -444,7 +444,7 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var firma = LegalEntity.Create($"{belgi} Туғилган МЧЖ", $"{belgi}-t").Value;
+            var firma = LegalEntity.Create($"{belgi} Туғилган МЧЖ").Value;
 
             // Bugun tug'ilgan va ishlayotgan — sanalishi kerak
             var tugilgan = Employee.Create(
@@ -503,12 +503,12 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var faol = Direction.Create($"{belgi} Фаол йўналиш", $"{belgi}-f").Value;
-            var faolsiz = Direction.Create($"{belgi} Ёпилган йўналиш", $"{belgi}-y").Value;
+            var faol = Direction.Create($"{belgi} Фаол йўналиш").Value;
+            var faolsiz = Direction.Create($"{belgi} Ёпилган йўналиш").Value;
             faolsiz.Deactivate("Тест учун ёпилди");
 
-            var bolim = Department.Create($"{belgi} Фаол бўлим", code: $"{belgi}-b").Value;
-            var yopilganBolim = Department.Create($"{belgi} Ёпилган бўлим", code: $"{belgi}-yb").Value;
+            var bolim = Department.Create($"{belgi} Фаол бўлим").Value;
+            var yopilganBolim = Department.Create($"{belgi} Ёпилган бўлим").Value;
             yopilganBolim.Deactivate();
 
             kontekst.AddRange(faol, faolsiz);

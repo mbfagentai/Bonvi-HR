@@ -3,7 +3,16 @@ namespace Bonvi.Application.Catalog.Dtos;
 /// <summary>Lavozim vazifasi — bitta band.</summary>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Text">Vazifa matni.</param>
-/// <param name="SortOrder">Ro'yxatdagi tartib.</param>
+/// <param name="SortOrder">
+/// Vazifalarning o'zaro tartibi.
+/// </param>
+/// <remarks>
+/// Bu tartib LAVOZIM ICHIDAGI vazifalar ketma-ketligi va u SAQLANADI —
+/// ma'lumotnoma yozuvlarining tartibidan farqli (u olib tashlandi va
+/// ro'yxatlar alifbo bo'yicha chiziladi). Sabab: vazifalar mazmunan
+/// ketma-ket bajariladi va ularni alifboga tizib qo'yish ma'nosini
+/// yo'qotardi — «Sexni yopish» «Aylanma tekshirish» dan oldin turardi.
+/// </remarks>
 public sealed record PositionDutyDto(Guid Id, string Text, int SortOrder);
 
 /// <summary>
@@ -16,8 +25,6 @@ public sealed record PositionDutyDto(Guid Id, string Text, int SortOrder);
 /// </remarks>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Name">Nom.</param>
-/// <param name="Code">Qisqa kod.</param>
-/// <param name="SortOrder">Ro'yxatdagi tartib.</param>
 /// <param name="IsActive">Faolmi.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="DepartmentId">Lavozim qaysi bo'limga tegishli.</param>
@@ -26,8 +33,6 @@ public sealed record PositionDutyDto(Guid Id, string Text, int SortOrder);
 public sealed record PositionDto(
     Guid Id,
     string Name,
-    string? Code,
-    int SortOrder,
     bool IsActive,
     string? Note,
     Guid? DepartmentId,
@@ -39,8 +44,6 @@ public sealed record PositionDto(
 /// </summary>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Name">Nom.</param>
-/// <param name="Code">Qisqa kod.</param>
-/// <param name="SortOrder">Ro'yxatdagi tartib.</param>
 /// <param name="IsActive">Faolmi.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="DepartmentId">Lavozim qaysi bo'limga tegishli.</param>
@@ -50,8 +53,6 @@ public sealed record PositionDto(
 public sealed record PositionDetailsDto(
     Guid Id,
     string Name,
-    string? Code,
-    int SortOrder,
     bool IsActive,
     string? Note,
     Guid? DepartmentId,

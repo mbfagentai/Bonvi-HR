@@ -103,12 +103,6 @@ export function DepartmentTree({
                   {node.name}
                 </span>
 
-                {node.code !== null && node.code !== '' && (
-                  <span className="tabular hidden shrink-0 rounded-xs bg-[var(--bg-sunken)] px-1.5 py-0.5 font-mono text-caption2 text-[var(--fg-secondary)] sm:inline">
-                    {node.code}
-                  </span>
-                )}
-
                 {hasChildren && (
                   <span className="hidden shrink-0 text-caption2 text-[var(--fg-tertiary)] md:inline">
                     {t('catalog.departments.childCount', { n: children.length })}
