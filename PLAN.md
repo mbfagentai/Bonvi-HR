@@ -424,8 +424,8 @@ uchun ish quroli. Shu sababli rollar kam va aniq:
 
 | Rol | Kim | Ruxsatlar |
 |---|---|---|
-| `admin` | Asosiy rahbar / tizim administratori | **15** — barchasi, jumladan foydalanuvchi boshqaruvi |
-| `hr_manager` | HR menejeri — Bonvi'da **3 kishi** | **14** — butun kadrlar ishi, oylik ish haqi ko'rinadi; foydalanuvchi boshqaruvi yopiq |
+| `admin` | Asosiy rahbar / tizim administratori | **21** — barchasi, jumladan foydalanuvchi boshqaruvi |
+| `hr_manager` | HR menejeri — Bonvi'da **3 kishi** | **20** — butun kadrlar ishi, oylik ish haqi ko'rinadi; foydalanuvchi boshqaruvi yopiq |
 
 Atigi ikkita rol. «Operator» darajasi kerak emas — HR bo'limidagi uchala
 xodim ham to'liq huquqli menejer. Bo'lim boshliqlari va xodimlar uchun rol
@@ -692,9 +692,11 @@ ancha yomonroq. Nomzod hisobotda ko'rsatiladi, qarorni HR qabul qiladi.
 4. **Hodisalar tarixi saqlanadi.** `91.7 Архив` dagi 1715 yozuv ham
    ko'chiriladi — «kim qachon ishlagan» savoli javobsiz qolmasligi kerak.
 
-### S4 — Xodim kartasi (M3) ⏱ 3 kun
-- [ ] `Employee` CRUD, JSHSHIR unikalligi
-- [ ] **Xodim rasmi** — ⚠️ *aniq talab, 2026-08-22*: ro'yxatda bosh harflar
+### S4 — Xodim kartasi (M3) ⏱ 3 kun ✅ **BAJARILDI**
+- [x] `Employee` CRUD, JSHSHIR unikalligi. O'CHIRISH ENDPOINT'I ATAYLAB YO'Q:
+      HR modelida xodim «bo'shatiladi», «o'chirilmaydi» — tarixni yo'q qilish
+      buyruq raqamiga ega yozuvlarni javobsiz qoldirardi
+- [x] **Xodim rasmi** — ⚠️ *aniq talab, 2026-08-22*: ro'yxatda bosh harflar
       (`АА`, `БО`) emas, **xodimning haqiqiy rasmi** ko'rinishi kerak — jadval
       ko'rinishida ham, kartochkada ham. Holat:
     - [x] `Employee.PhotoKey` + `SetPhoto` — domenda bor
@@ -728,10 +730,16 @@ ancha yomonroq. Nomzod hisobotda ko'rsatiladi, qarorni HR qabul qiladi.
 - [x] **Xodimlar ro'yxati:** TanStack Table — server-side filtr/sort/paginatsiya
       (`IEmployeeReadModel` proyeksiyasi, 7 filtr, 6 saralash ustuni)
 - [x] Global qidiruv: FIO / JSHSHIR / telefon / passport
-- [ ] **Xodim profili** — tab'lar: Umumiy · Mehnat tarixi · Hujjatlar · Qobiliyatlar · Rag'bat/Jarima · Teglar
-- [ ] Kartochka ko'rinishi (rasmli grid) — HR aynan shuni ko'rsatdi
+- [x] **Xodim profili** — oltita tab: Umumiy · Mehnat tarixi · Hujjatlar ·
+      Qobiliyatlar · Rag'bat/Jarima · Belgilar. Ro'yxat DINAMIK: ruxsati
+      bo'lmagan tab umuman chizilmaydi; har bir tab o'z ma'lumotini
+      ochilganda so'raydi
+- [x] Kartochka ko'rinishi (rasmli grid) — HR aynan shuni ko'rsatdi.
+      `web/src/features/employees/components/employees-grid.tsx` + jadval/kartochka
+      almashtirgichi; tanlangan ko'rinish manzilda saqlanadi (`?view=grid`) —
+      sahifa yangilansa yoki havola ulashilsa ham yo'qolmaydi
 
-### S5 — Mehnat munosabati va hodisalar (M4) ⏱ 2–3 kun
+### S5 — Mehnat munosabati va hodisalar (M4) ⏱ 2–3 kun ✅ **BAJARILDI**
 - [x] `Employment` + `EmploymentEvent` (Domain qoidalari bilan)
 - [x] **Yagona forma:** Ishga qabul (shaxs + firma + bo'lim + lavozim + oklad + buyruq)
 - [x] **Lavozim o'zgarishi / bo'lim ko'chirish** — avvalgi qiymat avtomatik to'ladi
@@ -739,8 +747,11 @@ ancha yomonroq. Nomzod hisobotda ko'rsatiladi, qarorni HR qabul qiladi.
 - [x] **Oklad o'zgarishi**
 - [x] **Ishdan bo'shatish** — sabab ma'lumotnomadan + **qora ro'yxat bloki ishlaydi**
 - [x] **Xodim timeline'i** — butun mehnat yo'li bitta vertikal lentada
-- [ ] `/buyruqlar` — barcha hodisalar bo'yicha umumiy ro'yxat (hozircha faqat
-      xodim kartasidan ko'riladi)
+- [x] `/buyruqlar` — barcha hodisalar bo'yicha umumiy ro'yxat. Backend
+      allaqachon bor edi: `GET /api/employments/events` (qidiruv, tur,
+      sana oralig'i, bo'lim, yuridik shaxs, sahifalash). Endi frontend ham:
+      `web/src/app/routes/_app/buyruqlar.tsx` + `web/src/features/employments/`
+      (qo'lda yozilgan API klienti, toolbar, jadval, manzilda saqlanadigan filtrlar)
 
 > **Hammasi xodim kartasidan bajariladi.** HR odamni ochib, o'sha yerda
 > ko'chiradi, vazifa beradi, okladni o'zgartiradi, belgi qo'yadi va
@@ -751,7 +762,7 @@ ancha yomonroq. Nomzod hisobotda ko'rsatiladi, qarorni HR qabul qiladi.
 > urinilganda server `409` va `xodim.qora_royxatda` qaytaradi. HR sababni
 > o'qib, ongli ravishda tasdiqlaydi — shundan keyingina amal bajariladi.
 
-### S6 — Sinov muddati (M5) ⏱ 1 kun
+### S6 — Sinov muddati (M5) ⏱ 1 kun ✅ **BAJARILDI**
 - [x] Avtomatik yaratish (hire + 3 oy), xulosa kiritish, uzaytirish — backend
       (`/api/probations`, `…/resolve`, `…/extend`)
 - [x] ~~Hangfire cron: har kuni 09:00 → bildirishnoma~~ → **Eslatma tizim
@@ -759,7 +770,10 @@ ancha yomonroq. Nomzod hisobotda ko'rsatiladi, qarorni HR qabul qiladi.
 - [x] **«Sinov muddati» sahifasi** (`/sinov`): yuqorida «N ta muddat tugayapti»
       ogohlantirishi, holat bo'yicha filtr, qolgan kun ustuni, yakunlash va
       uzaytirish dialoglari
-- [ ] Yon menyu va bosh sahifada sanoq (keyingi qadam)
+- [x] Yon menyu va bosh sahifada sanoq. Bosh sahifada allaqachon bor edi;
+      endi yon menyuda ham (`web/src/app/layout/sidebar.tsx`) — sinovdagilar
+      soni belgi sifatida. Yig'ilgan menyuda (76px) raqamga joy yo'q, shuning
+      uchun faqat nuqta chiziladi
 
 > **Nega Hangfire kerak emas.** Dastlabki rejada har kuni 09:00 da ishlaydigan
 > vazifa ko'zda tutilgandi. Lekin bu tizimdan **faqat 3 HR menejeri va rahbar**
@@ -781,18 +795,23 @@ yozadi, ya'ni sinov muddatlari sahifasida holat bo'yicha filtrlab ko'rsa
 bo'ladi. Alohida sahifa bir xil ma'lumotni ikkinchi joyda ko'rsatardi — Excel'da
 aynan shu tarqoqlik muammo edi.
 
-### S7 — Teglar va ro'yxatlar (M6) ⏱ 2 kun
+### S7 — Teglar va ro'yxatlar (M6) ⏱ 2 kun ✅ **BAJARILDI**
 - [x] `EmployeeFlag`: Reserve / Blacklist / Monitoring / Capable — sabab, sana, mas'ul
 - [x] **Uch sahifa** (`/rezerv`, `/qora-royxat`, `/nazorat`) + xodim profilida
       ko'rinish. Uchalasi **bitta komponentdan** (`FlagListPage`) — ustunlari va
       amallari bir xil, faqat sarlavha, ikonka va matni farq qiladi
 - [x] «Faqat kuchdagilar» almashtirgichi, belgini yopish (izoh bilan)
-- [ ] «Qobiliyatli» (`Capable`, 91.12) sahifasi — komponent tayyor, faqat
-      marshrut va yon menyu yozuvi qolgan
+- [x] «Qobiliyatli» (`Capable`, 91.12) sahifasi —
+      `web/src/app/routes/_app/qobiliyatli.tsx` (`FlagListPage type="capable"`)
+      + yon menyuda bandi + `nav.capable` tarjimasi
 - [x] **Bo'shatishdagi blok qoidasi ishga tushdi** — tekshirildi: `409` +
       `xodim.qora_royxatda`, tasdiqlangandan keyin o'tadi
 - [x] Belgi qo'yish xodim kartasidan (qora ro'yxat uchun sabab majburiy)
-- [ ] Qayta ishga olishda avtomatik tekshiruv
+- [x] Qayta ishga olishda avtomatik tekshiruv — `EmployeeFlagGuard`
+      (`Employees/Common/EmployeeFlagGuard.cs`) orqali `HireEmployeeCommand`
+      ichida to'liq ishlaydi: qora ro'yxatda bo'lsa `409` bilan bloklaydi,
+      nazoratda bo'lsa ogohlantirish bilan o'tkazadi. `HireEmployeeTests.cs`
+      da testlangan
 
 > **Belgi qo'yish ro'yxat sahifasida ATAYLAB yo'q.** Belgi xodimga
 > qo'yiladi, ro'yxatga emas — shu sababli u xodim profilidan boshlanadi.
@@ -803,28 +822,126 @@ aynan shu tarqoqlik muammo edi.
 > javob kerak bo'ladi, o'chirilgan yozuv esa uni javobsiz qoldirardi.
 
 ### S8 — Profil boyitish (M7 + M8 + M9) ⏱ 2 kun
-- [ ] Qobiliyatlar: til, kompyuter (0–100%), ta'lim, mutaxassislik, qiziqish
-- [ ] Rag'bat va jarima: tur, sana, summa, sovg'a, sabab, buyruq
-- [ ] Hujjatlar: MinIO'ga yuklash, tur bo'yicha guruh, ko'rish/yuklab olish
-- [ ] Baholash anketasi — **to'g'ridan-to'g'ri tizimda to'ldiriladi** (chop etish yo'q)
+- [x] Qobiliyatlar: til, kompyuter (0–100%), ta'lim, mutaxassislik, qiziqish —
+      `EmployeeCompetency` agregati (`employee_competencies` jadvali).
+      Bitta xodimga bitta profil — tarix emas, upsert. **Tuzatish:**
+      «91.15 Қобилятлар жадвали» varag'ida rejada yozilgan beshtadan tashqari
+      yana bitta ustun bor ekan — «Бошка қобилиятлар». U ham
+      `OtherAbilities` sifatida qo'shildi, jami olti maydon
+- [x] Rag'bat va jarima: tur, sana, summa, sovg'a, sabab, buyruq —
+      `Incentive` agregati (rag'bat va jarima **bitta** agregatda,
+      `IncentiveKind` bilan — `EmployeeFlag`ning to'rt turi kabi naqsh).
+      Jadval: `incentives`. Yangi ruxsatlar: `incentives.view`,
+      `incentives.manage`
+- [x] Hujjatlar: tur bo'yicha guruh, ko'rish/yuklab olish —
+      `EmployeeDocument` agregati (`employee_documents`). MinIO YO'Q (pastdagi
+      izoh): mavjud `IFileStorage` + `LocalFileStorage` ishlatiladi. Fayl turi
+      MAZMUN bo'yicha aniqlanadi (`IFileContentInspector`), chegara 20 MB,
+      ruxsat berilgani PDF va rasm (JPEG/PNG/WebP)
+- [ ] Baholash anketasi — **to'g'ridan-to'g'ri tizimda to'ldiriladi** (chop etish yo'q).
+      **S8 dan qolgan yagona band** — hali nol holatda
 
-### S9 — Qayta aloqa va xavfsizlik (M10 + M11) ⏱ 1 kun
-- [ ] Exit interview: ichki forma + ommaviy havola (Google Form o'rniga)
-- [ ] Baxtsiz hodisalar jurnali (13 maydon, komissiya xulosasi)
+> **`HasAmount` endi tirik qoida.** `AwardType.HasAmount` / `PenaltyType.HasAmount`
+> maydonlari S2 dan beri mavjud edi, lekin hech qayerda ishlatilmasdi. Endi ular
+> haqiqiy cheklov: pullik tur tanlansa summa majburiy, pulsiz turda esa summa
+> taqiqlanadi.
+>
+> **Tur va xodim o'zgarmas.** Rag'bat/jarima yozuvida tahrirlashda tur, sana,
+> summa, sabab, buyruq o'zgartirilishi mumkin, lekin `Kind` va `EmployeeId`
+> — yo'q: «rag'batni jarimaga aylantirish» tuzatish emas, boshqa faktni
+> yozish bo'lardi va tarixni soxtalashtirardi. Xato yozuv o'chiriladi va
+> qaytadan kiritiladi.
+>
+> **Jarima uchun sabab majburiy.** Mehnat kodeksi bo'yicha intizomiy chora
+> hujjatlashtirilgan sabab talab qiladi — bu `EmployeeFlag.Blacklist`
+> dagi qoidaning aynan o'zi.
+>
+> **MinIO qo'shilmaydi.** Hujjatlar bandida dastlab «MinIO'ga yuklash»
+> ko'zda tutilgan edi. Qaror: kerak emas — rasm saqlash allaqachon
+> `IFileStorage` porti + `LocalFileStorage` orqali ishlaydi; MinIO yangi
+> konteyner, yangi port va yangi hisob ma'lumotlari degani, bu mashinada esa
+> portlar band (8+ boshqa compose loyihasi bor). Port abstraksiyasi mavjud
+> bo'lgani uchun kerak bo'lsa keyinchalik almashtirish bitta sinf bilan bo'ladi.
+
+### S9 — Qayta aloqa va xavfsizlik (M10 + M11) ⏱ 1 kun ✅ **BAJARILDI**
+- [x] Exit interview: **ichki forma** — `ExitInterview` agregati mehnat
+      munosabatiga bog'lanadi, `/qayta-aloqa` sahifasi, alohida ruxsat
+      (`feedback.view`/`feedback.manage`)
+- [ ] Exit interview'ning **ommaviy havolasi** — ATAYLAB qoldirildi.
+      Autentifikatsiyasiz endpoint alohida xavfsizlik yuzasi: havola tokeni,
+      amal qilish muddati, bekor qilish, tezlik cheklovi va spam himoyasi
+      kerak. Ichki forma HR qo'lida sinovdan o'tgach, alohida qo'shiladi
+- [x] Baxtsiz hodisalar jurnali (13 maydon, komissiya xulosasi) —
+      `Incident` agregati, `/hodisalar` sahifasi, `safety.*` ruxsatlari.
+      Komissiya xulosasi ALOHIDA amal (`…/conclude`), tahrirlash emas:
+      hodisa darhol qayd etiladi, xulosa esa keyin beriladi
 
 ### S10 — Dashboard va hisobotlar (M12) ⏱ 2 kun
-- [ ] Bosh sahifa: jami xodim, bo'lim/yo'nalish kesimi, sinovdagilar, oylik kelgan/ketgan, bugungi tug'ilgan kunlar
-- [ ] Kadrlar oqimi (turnover) grafigi, ketish sabablari taqsimoti
-- [ ] Har bir ro'yxatdan **Excel eksport** (HR'ning odati saqlanadi)
-- [ ] Bo'lim boshliqlari uchun cheklangan ko'rinish
+- [x] Bosh sahifa: jami xodim, sinovdagilar, oylik kelgan/ketgan, bugungi
+      tug'ilgan kunlar — `GET /api/dashboard/stats` +
+      `web/src/app/routes/_app/index.tsx`
+- [x] Bo'lim/yo'nalish kesimi — **backend**: `GET /api/dashboard/breakdown`.
+      (Ilgari `DashboardCatalogSizesDto` faqat ma'lumotnoma yozuvlari SONINI
+      qaytarardi — bu xodimlar taqsimoti emas edi)
+- [x] Kadrlar oqimi va ketish sabablari taqsimoti — **backend**:
+      `GET /api/reports/turnover` (oylik qatorlar + sabablar). Shtat ODAM
+      bo'yicha sanaladi, bosh sahifa bilan bir xil qoida
+- [x] **Excel eksport** — **backend**: `GET /api/reports/employees/export`.
+      Ekrandagi ro'yxatning AYNAN o'zi: filtr qurish va DTO ga aylantirish
+      `SearchEmployeesQueryHandler` dan qayta ishlatiladi, oklad ustuni ham
+      shu yerda `salary.view` ga bog'liq
+- [ ] ⚠️ **Uchalasining EKRANI hali yo'q** — bosh sahifada grafik ham,
+      xodimlar ro'yxatida «Eksport» tugmasi ham chizilmagan. `recharts`
+      (`3.10.1`) hamon ishlatilmayapti. Bu eng arzon navbatdagi ish:
+      backend tayyor va testlangan
+- [ ] Bo'lim boshliqlari uchun cheklangan ko'rinish — avtorizatsiya
+      arxitekturasiga o'zgarish talab qiladi (pastdagi «Xavflar» ga qarang)
 
 ### S11 — Ishga tushirish ⏱ 1 kun
-- [ ] Production Docker build (multi-stage), Caddy + HTTPS
-- [ ] `pg_dump` avtomatik zaxira (kunlik, 30 kun saqlash)
-- [ ] Sentry + `/health` endpoint + Hangfire dashboard
+- [x] Production Docker build (multi-stage), Caddy + HTTPS —
+      `docker-compose.prod.yml` + `web/Caddyfile` (S0/S1 da qurilgan,
+      haqiqiy serverda hali sinalmagan)
+- [x] `pg_dump` avtomatik zaxira (kunlik, 30 kun saqlash) — prod'da `backup`
+      konteyneri (`crond`, 22:00 UTC = 03:00 Toshkent). **Baza va fayllar
+      BIRGA olinadi**: `photo_key` diskdagi faylga ishora qiladi, alohida
+      vaqtda olingan zaxiralar bir-biriga mos kelmasdi. `./bonvi backup`,
+      `./bonvi backup-list`, `./bonvi restore`
+- [ ] Sentry — hali yo'q. `/health/live` + `/health/ready` allaqachon bor.
+      ~~Hangfire dashboard~~ — Hangfire S6 da rejadan olib tashlangan
 - [ ] HR uchun qo'llanma + 1 kunlik o'qitish
 
 **1-bosqich jami: ~20–23 ish kuni.**
+
+### Xavflar
+
+Ikkita audit (backend va frontend) uchta jiddiy xavfni topdi. Bular funksiya
+yetishmasligi emas — e'tiborsiz qolsa muammoga aylanadigan joylar. Shu
+sababli alohida bo'lim: har biri bir nechta S-qadamga (S10, S11) tegishli,
+bitta bandga sig'dirib bo'lmaydi.
+
+1. ✅ **`pg_dump` zaxirasi yo'q edi — HAL QILINDI.** Prod'da `backup`
+   konteyneri kunlik zaxira oladi (baza + fayllar, bitta stamp bilan),
+   30 kundan eskisi o'zi o'chadi. Qolgan ish — zaxirani HAQIQIY serverda
+   bir marta tiklab ko'rish: sinalmagan zaxira zaxira emas.
+2. **Bo'lim darajasidagi ruxsat tushunchasi yo'q.** Hozirgi avtorizatsiya
+   modeli faqat ikkita global rol (5.1-bo'lim) — barcha ruxsatlar butun
+   tizim bo'yicha, bitta bo'limga cheklab bo'lmaydi. S10 dagi «bo'lim
+   boshliqlari uchun cheklangan ko'rinish» shu sababli oddiy ekran emas: u
+   avtorizatsiya arxitekturasiga (rol → bo'lim bog'lanishi) o'zgarish talab
+   qiladi. Buni erta bilish muhim — S10 ga yetganda qayta loyihalash
+   kutilmagan bo'lib chiqmasin.
+3. ✅ **Excel eksport uchun yarim tayyorgarlik — HAL QILINDI.**
+   `RateLimitPolicies.Export` siyosati va `reports.export` ruxsati endi
+   haqiqiy endpoint'ga (`GET /api/reports/employees/export`) ulandi.
+4. **`recharts` hamon ishlatilmayapti.** `web/package.json` da bog'liqlik
+   sifatida bor (`3.10.1`), lekin kodda bironta import yo'q. Kadrlar oqimi
+   endpoint'i tayyor, grafigi esa hali chizilmagan — S10 dagi «ekrani hali
+   yo'q» bandiga qarang.
+5. **Ma'lumot hali ko'chirilmagan.** Bu dasturchi xavfi emas, lekin eng
+   kattasi: `./bonvi etl --apply` hali ishga tushirilmagan va bazada atigi
+   59 xodim bor. Butun tizim haqiqiy hajmda (2347 xodim, 3527 hodisa)
+   sinalmagan — sahifalash, qidiruv tezligi va eksport hajmi shu paytgacha
+   kichik ma'lumotda tekshirilgan.
 
 ---
 
@@ -877,34 +994,68 @@ Bular ishni to'xtatmaydi — oqilona standart bilan boshlanadi, javob kelganda t
 
 ## 10. Keyingi qadam
 
-**S0 · S1 · S2 · S3 tugadi.** Qurilgan poydevor:
+**S0 · S1 · S2 tugadi, S3 vositasi tayyor** (HR ko'rigini kutmoqda).
+**S4, S5, S6, S7 va S9 to'liq bajarildi.** S8 dan bitta band qoldi
+(baholash anketasi), S10 ning uchala hisoboti backend'da tayyor, lekin
+EKRANI yo'q, S11 esa zaxiradan tashqari ochiq.
+
+Qurilgan poydevor:
 
 ```
 ./bonvi up      →  postgres 18.6 · redis 8.8 · API :7080 · Web :7173
-./bonvi test    →  465 test / 0 xato / ~5 s
+./bonvi test    →  710 test / 0 xato / ~15 s
+./bonvi check   →  4 til + kod ishlatgan kalitlar + backend xato kodlari
 ./bonvi gen     →  C# DTO → TypeScript tip + React Query hook
 ./bonvi etl     →  Excel → baza ko'chirish (quruq yurish standart)
+./bonvi backup  →  baza + fayllar zaxirasi (prod'da kunlik, avtomatik)
 ```
 
-Ishlaydi: kirish (JWT), token yangilash, ruxsat tekshiruvi, 4 tilli
-interfeys, yorug'/tungi rejim, xavfsizlik sarlavhalari, tezlik cheklovi,
-8 ta ma'lumotnoma (62 endpoint), bo'lim daraxti, lavozim vazifalari.
+Ishlaydi: kirish (JWT), token yangilash, ruxsat tekshiruvi (21 ta ruxsat,
+2 ta rol), foydalanuvchi va rollarni boshqarish, 4 tilli interfeys,
+yorug'/tungi rejim, xavfsizlik sarlavhalari, tezlik cheklovi, 8 ta
+ma'lumotnoma (62 endpoint), bo'lim daraxti, lavozim vazifalari, xodim
+kartasi (oltita tab), mehnat munosabati va hodisalar (`/buyruqlar`), sinov
+muddati, to'rtta teg ro'yxati, qobiliyatlar profili, rag'bat/jarima,
+hujjatlar, exit interview, baxtsiz hodisalar jurnali va kunlik avtomatik
+zaxira.
 
 **Ko'chirish vositasi tayyor va quruq yurishdan o'tdi**: 2347 xodim,
-2538 mehnat munosabati, 3527 hodisa, 1334 sinov muddati, 32 belgi.
+2538 mehnat munosabati, 3527 hodisa, 1334 sinov muddati, 32 belgi. Bu
+hali bazaga qo'llanmagan — joriy dev muhitida atigi 59 xodim yozuvi bor.
 
 ### Navbatdagi ish — tartib bo'yicha
 
-1. **HR bilan hisobotni ko'rib chiqish** (`data/etl-report.csv`, 4739 satr).
-   Eng muhim uchta savol:
-   - 1540 xodimda JSHSHIR yo'q — ular qayerdan olinadi?
-   - 99 odamda otasining ismi tushib qolgan; ehtimoliy moslik ko'rsatilgan,
-     lekin bog'lanmagan — HR tasdiqlashi kerak.
-   - `unmapped` dagi 109 qiymat (`Кара хайдовчи` qaysi bo'lim, `Электрик`
-     qaysi zavod…) — S2 bo'limidagi «Tozalash natijasi» ro'yxati.
-2. **`./bonvi etl --apply`** — hisobot tasdiqlangandan keyin.
-3. **S4 — xodim kartasi.** Ro'yxat ekrani uchun `IEmployeeReadModel`
-   proyeksiyasi allaqachon bor; qolgani — CRUD, rasm yuklash, profil tab'lari.
+1. **S10 ning EKRANLARI** — eng arzoni: uchala endpoint ham tayyor va
+   testlangan, faqat chizish qolgan. Bo'lim/yo'nalish kesimi va kadrlar
+   oqimi grafigi bosh sahifaga (`recharts` allaqachon `package.json` da),
+   «Excel eksport» tugmasi esa xodimlar ro'yxati toolbar'iga.
+2. **ETL 6-qadam — profil boyitish.** `91.15` qobiliyatlar (554 qator) va
+   `91.14` rag'bat (34 qator) hali ko'chirilmaydi. Endi buni yozish mumkin:
+   `EmployeeCompetency` va `Incentive` agregatlari S8 da qurildi, `Steps/`
+   da esa mos qadam hali yo'q.
+3. **S8 — baholash anketasi.** S8 dan qolgan yagona band.
+4. **S11** — Sentry, HR uchun qo'llanma va o'qitish, hamda zaxirani
+   haqiqiy serverda bir marta TIKLAB ko'rish.
+5. **Bo'lim boshliqlari uchun cheklangan ko'rinish** (S10) — bu oddiy ekran
+   emas: hozirgi avtorizatsiya modelida faqat ikkita global rol bor va
+   ruxsatni bitta bo'limga cheklab bo'lmaydi. «Xavflar» dagi 2-bandga
+   qarang, ish rol → bo'lim bog'lanishidan boshlanadi.
+
+> **Alohida, parallel oqim — ETL ma'lumotini ko'chirish.** Yuqoridagi
+> ro'yxat dasturchi ishi; real ma'lumotni ko'chirish esa HR ga bog'liq va
+> bulardan mustaqil ketadi: avval hisobot ko'rib chiqiladi
+> (`data/etl-report.csv`, 4739 satr — eng muhimi: 1540 xodimda JSHSHIR
+> yo'q, 99 odamda otasining ismi bog'lanmagan, `unmapped`dagi 109 qiymat —
+> S2 bo'limidagi «Tozalash natijasi»ga qarang), shundan keyin
+> `./bonvi etl --apply` ishga tushadi.
+
+> **Texnik qarz — qo'lda yozilgan API klientlari.**
+> `web/src/features/*/api/*-api.ts` fayllari hamon qo'lda yozilgan, holbuki
+> OpenAPI to'liq va `./bonvi gen` ishlaydi. Bu shunchaki uslub masalasi
+> emas: ilgari aynan shu qo'lda yozish tufayli `flags`/`activeFlags`
+> nomlari chalkashib, ro'yxatdagi nishonlar HECH QACHON chizilmagan edi.
+> Endi ko'chirilishi kerak bo'lgan ekranlar soni o'ndan oshdi — qanchalik
+> kechiktirilsa, shunchalik qimmatlashadi.
 
 9-bo'limdagi **1, 2 va 4-savolga** javob olsak, ma'lumot sxemasi bir marta
 to'g'ri quriladi.
