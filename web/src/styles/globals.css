@@ -283,8 +283,16 @@
   }
 
   html {
-    /* Sahifa uzunligi o'zgarganda kontent sakramasligi uchun */
-    scrollbar-gutter: stable;
+    /*
+     * Hujjatning O'ZI surilmaydi — ilova qobig'i `h-dvh overflow-hidden`
+     * va suriladigan yagona joy uning ichidagi `main` (sababi
+     * `app-shell.tsx` da). Shu sababli bu yerda ilgari turgan
+     * `scrollbar-gutter: stable` olib tashlandi: u hech qachon
+     * chiqmaydigan scroll uchun o'ng chekkada doimiy bo'sh yo'lak band
+     * qilib turardi. Xuddi shu xususiyat endi `main` da — u yerda
+     * haqiqiy ish bajaradi.
+     */
+    overscroll-behavior: none;
   }
 
   body {

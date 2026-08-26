@@ -13,12 +13,20 @@ import { UserMenu } from './user-menu'
  * Tarkibi: butun bo'sh kenglikni egallagan qidiruv → o'ngda til, ko'rinish,
  * bildirishnoma va eng chekkada foydalanuvchi menyusi.
  * Menyuni yig'ish tugmasi bu yerda emas — u yon menyuning o'z pastida.
+ *
+ * `sticky` EMAS, `shrink-0`: panel qobiqning qimirlamaydigan qismida
+ * turadi (`app-shell.tsx` dagi izohga qarang), ya'ni uni qadab turishning
+ * hojati yo'q — suriladigan maydon undan pastda boshlanadi. `shrink-0`
+ * esa kerak: flex ustunida kontent uzun bo'lsa panel siqilib ketardi.
+ *
+ * `z-30` qoladi — ostidan suriladigan kontent `blur-bar` ning shaffof
+ * fonidan o'tganda uning ustiga chiqib ketmasligi kerak.
  */
 export function Topbar() {
   const { t } = useLocale()
 
   return (
-    <header className="blur-bar sticky top-0 z-30 border-b border-[var(--border)]">
+    <header className="blur-bar z-30 shrink-0 border-b border-[var(--border)]">
       <div className="flex h-16 items-center gap-3 px-5 lg:gap-4 lg:px-6">
         {/* Qidiruv — bo'sh kenglikning hammasini egallaydi */}
         <div className="min-w-0 flex-1">
