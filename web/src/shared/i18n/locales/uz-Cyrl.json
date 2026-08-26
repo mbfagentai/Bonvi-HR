@@ -659,7 +659,10 @@
     "criminalRecordHint": "Эркин матн: «судланмаган» ёки модда рақами",
     "directionsHint": "Бир нечтасини танлаш мумкин",
     "stateYes": "Ҳа",
-    "stateNo": "Йўқ"
+    "stateNo": "Йўқ",
+    "exportFailed": "Excelга юклаб бўлмади",
+    "exportTooOften": "Сўровлар жуда тез-тез юборилди. Бир дақиқа кутиб, қайта уриниб кўринг.",
+    "exporting": "Тайёрланмоқда…"
   },
   "employments": {
     "anyType": "Барча турлар",

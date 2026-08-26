@@ -1,4 +1,11 @@
-import { ListFilter, Search, TriangleAlert, X } from 'lucide-react'
+import {
+  FileSpreadsheet,
+  ListFilter,
+  LoaderCircle,
+  Search,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
@@ -52,12 +59,27 @@ export function EmployeesToolbar({
   view,
   onViewChange,
   options,
+  onExport,
+  exporting = false,
 }: {
   filters: EmployeesFilterState
   onChange: (next: EmployeesFilterState) => void
   view: EmployeesView
   onViewChange: (view: EmployeesView) => void
   options: FilterOptions
+  /**
+   * «Excelga yuklash». `undefined` — tugma umuman chizilmaydi.
+   *
+   * NEGA ruxsat va so'rovning o'zi bu yerda emas: toolbar filtrlarni
+   * chizadi, u kimning nimaga haqqi borligini bilmaydi (ishga qabul
+   * tugmasi ham sahifadan aynan shunday beriladi). Muhimrog'i esa
+   * eksport SARALASHNI ham talab qiladi, saralash manzilda yashaydi va
+   * toolbar unga umuman tegmaydi — filtr va saralashni ikki komponentga
+   * bo'lib yuborsak, «ekranda nima ko'rsang, faylda ham shu» qoidasini
+   * ushlab turadigan yagona joy qolmasdi.
+   */
+  onExport?: () => void
+  exporting?: boolean
 }) {
   const { t, num } = useLocale()
 
@@ -164,6 +186,30 @@ export function EmployeesToolbar({
             </span>
           )}
         </Button>
+
+        {/* Eksport — «Filtrlar» yonida va bu ataylab: fayl aynan shu
+            panelda yig'ilgan filtrga tushadi, ya'ni ikkalasi bitta
+            fikrning davomi. Sarlavhadagi «Ishga qabul» yonida turgan
+            bo'lsa, u umumiy «hisobot» tugmasidek ko'rinardi. */}
+        {onExport !== undefined && (
+          <Button
+            type="button"
+            pill
+            onClick={onExport}
+            /* Ikki marta bosilsa ikkita fayl yuklanardi va ikkinchisi
+               tezlik cheklovini bekorga yeb qo'yardi */
+            disabled={exporting}
+            title={t('common.export')}
+            aria-label={t('common.export')}
+          >
+            {exporting ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
+            {/* Yorliq faqat keng ekranda: «Excelga yuklash» uzun va tor
+                oynada u qidiruv maydonini siqib qo'yardi */}
+            <span className="hidden lg:inline">
+              {exporting ? t('employees.exporting') : t('common.export')}
+            </span>
+          </Button>
+        )}
 
         <SegmentedControl
           value={view}

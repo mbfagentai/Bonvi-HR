@@ -10,8 +10,15 @@
  *
  * NEGA `shared/lib` da emas: rasm cheklovidan farqli, bu chegara faqat
  * xodim hujjatlari uchun — hisob sozlamalarida yoki boshqa bo'limda
- * ishlatilmaydi. Ikkinchi ishlatuvchi paydo bo'lsa, shu yerdan
- * `shared/lib` ga ko'chirish kifoya.
+ * ishlatilmaydi.
+ *
+ * Shu faylda `saveBlobAs` ham turardi va uning izohida «ikkinchi
+ * ishlatuvchi paydo bo'lsa, `shared/lib` ga ko'chiriladi» deb yozilgan
+ * edi. Shunday bo'ldi: xodimlar ro'yxatining Excel eksporti ham faylni
+ * diskka saqlaydi, ya'ni saqlash endi hujjatlar tabining ishi emas —
+ * u `shared/lib/download.ts` ga ko'chdi (fayl nomini `Content-Disposition`
+ * dan ajratish bilan birga). Quyidagilar esa o'z joyida qoldi: ular
+ * HUJJATNING qoidasi, saqlashning emas.
  */
 
 /** Server qabul qiladigan turlar. `<input accept>` uchun ham shu ro'yxat. */
@@ -53,25 +60,4 @@ export function documentFileError(file: File): string | null {
 export function fileSizeParts(bytes: number): { value: number; unit: 'KB' | 'MB' } {
   if (bytes < 1024 * 1024) return { value: Math.round(bytes / 1024), unit: 'KB' }
   return { value: Math.round((bytes / 1024 / 1024) * 10) / 10, unit: 'MB' }
-}
-
-/**
- * Blob'ni foydalanuvchi diskiga saqlaydi — vaqtinchalik `<a download>`
- * havolasi orqali.
- *
- * NEGA shu usul: backend javobi `Content-Disposition: attachment` bilan
- * keladi — server niyati aniq, ko'rish emas, SAQLASH. Havola sahifaga
- * fokus yoki skrinriderlar uchun emas, faqat bitta `click()` uchun
- * qo'shiladi va darhol olib tashlanadi (`useObjectUrl` dagi kabi, havola
- * ham shu zahoti bekor qilinadi — sizib qoladigan joy yo'q).
- */
-export function saveBlobAs(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
 }

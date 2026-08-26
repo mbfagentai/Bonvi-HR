@@ -659,7 +659,10 @@
     "criminalRecordHint": "Free text: “no conviction” or an article number",
     "directionsHint": "Several can be selected",
     "stateYes": "Yes",
-    "stateNo": "No"
+    "stateNo": "No",
+    "exportFailed": "Could not export to Excel",
+    "exportTooOften": "Too many requests. Please wait a minute and try again.",
+    "exporting": "Preparing…"
   },
   "employments": {
     "anyType": "All types",

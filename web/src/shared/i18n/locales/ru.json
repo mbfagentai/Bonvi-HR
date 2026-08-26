@@ -659,7 +659,10 @@
     "criminalRecordHint": "Свободный текст: «не судим» или номер статьи",
     "directionsHint": "Можно выбрать несколько",
     "stateYes": "Да",
-    "stateNo": "Нет"
+    "stateNo": "Нет",
+    "exportFailed": "Не удалось выгрузить в Excel",
+    "exportTooOften": "Слишком частые запросы. Подождите минуту и попробуйте снова.",
+    "exporting": "Готовится…"
   },
   "employments": {
     "anyType": "Все типы",

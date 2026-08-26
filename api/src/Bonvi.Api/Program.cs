@@ -80,6 +80,16 @@ builder.Services.AddHealthChecks()
 builder.Services.AddCors(options => options.AddPolicy("web", policy => policy
     .WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:7173"])
     .AllowAnyHeader()
+    // `AllowAnyHeader()` faqat SO'ROV sarlavhalariga tegishli — u klient
+    // nima yubora olishini belgilaydi. Javob sarlavhalari esa boshqa
+    // ro'yxat: CORS ostida brauzer JS ga faqat oltita «xavfsiz» sarlavhani
+    // ko'rsatadi, qolganini `Access-Control-Expose-Headers` da ataylab
+    // ochish kerak. Aks holda Excel eksporti javobidagi
+    // `Content-Disposition` klientga umuman yetib bormaydi va u serverning
+    // bergan fayl nomini (`Bonvi_xodimlar_2026-08-26.xlsx`) O'QIY OLMAYDI.
+    // Xodim hujjatlari bu muammoni chetlab o'tgan — u yerda nom DTO da
+    // keladi; eksportda esa DTO yo'q, javob to'g'ridan-to'g'ri fayl baytlari.
+    .WithExposedHeaders("Content-Disposition")
     .AllowAnyMethod()
     .AllowCredentials()));
 

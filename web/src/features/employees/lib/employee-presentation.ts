@@ -57,6 +57,17 @@ export const SALARY_VIEW = 'salary.view'
 export const INCENTIVES_VIEW = 'incentives.view'
 export const INCENTIVES_MANAGE = 'incentives.manage'
 
+/**
+ * Excelga yuklash — `employees.view` EMAS, alohida `reports.export`.
+ *
+ * Sabab backend'da yozilgan (`ReportsEndpoints` izohi): eksport bitta
+ * so'rov bilan butun bazani tashqariga chiqaradigan og'ir amal — shu
+ * sababli u alohida ruxsat va tezlik cheklovi ostida turadi. Ro'yxatni
+ * ko'ra oladigan har bir foydalanuvchi uni faylga ko'chira olishi
+ * SHART EMAS.
+ */
+export const REPORTS_EXPORT = 'reports.export'
+
 /* ══════════════════════════════════════════════════════════════ HOLATLAR */
 
 /**

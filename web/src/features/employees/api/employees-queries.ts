@@ -21,6 +21,7 @@ import type {
   PositionItem,
 } from '@/features/catalog/api/catalog-api'
 import { flattenTree } from '@/features/catalog/lib/tree'
+import { saveBlobAs } from '@/shared/lib/download'
 import type { SelectOption } from '@/shared/ui'
 
 import {
@@ -29,6 +30,7 @@ import {
   closeFlag,
   createFlag,
   deleteEmployeePhoto,
+  exportEmployees,
   fetchEmployee,
   fetchEmployeePhoto,
   fetchEmployees,
@@ -42,6 +44,7 @@ import {
   type AdditionalDutyRequest,
   type ChangeSalaryRequest,
   type CreateFlagRequest,
+  type EmployeeFilterParams,
   type EmployeeListFilters,
   type HireRequest,
   type TerminateRequest,
@@ -72,7 +75,6 @@ import {
   type EmployeeDocument,
   type UpdateDocumentRequest,
 } from './documents-api'
-import { saveBlobAs } from '../lib/document-file'
 
 /**
  * Kesh kalitlari.
@@ -564,6 +566,28 @@ export function useDownloadDocument(employeeId: string) {
     mutationFn: (doc: EmployeeDocument) =>
       fetchDocumentFile(employeeId, doc.id).then((blob) => ({ blob, doc })),
     onSuccess: ({ blob, doc }) => saveBlobAs(blob, doc.fileName),
+  })
+}
+
+/* ═══════════════════════════════════════════════════════ Excel eksport */
+
+/**
+ * Xodimlar ro'yxatini Excel'ga yuklash.
+ *
+ * NEGA `useQuery` emas, `useMutation`: so'rov hech qanday holatni
+ * o'zgartirmasa ham, u FOYDALANUVCHI BOSGANDA va faqat bir marta ketishi
+ * kerak. `useQuery` sahifa ochilishining o'zida 5000 qatorlik faylni
+ * so'rab yuborardi, oyna fokusga qaytganda esa yana takrorlardi — server
+ * eksportga tezlik cheklovi qo'ygan (60 soniyada 5 ta), ya'ni bunday
+ * so'rovlar HR ning haqiqiy urinishini 429 bilan to'sib qo'yardi.
+ *
+ * Kesh ham bekor qilinmaydi (hujjat yuklab olishdagi bilan bir xil
+ * sabab): natija ekranga emas, DISKKA tushadi.
+ */
+export function useExportEmployees() {
+  return useMutation({
+    mutationFn: (filters: EmployeeFilterParams) => exportEmployees(filters),
+    onSuccess: ({ blob, fileName }) => saveBlobAs(blob, fileName),
   })
 }
 

@@ -18,6 +18,7 @@
 import axios from 'axios'
 
 import { api } from '@/shared/api/http-client'
+import { fileNameFromDisposition } from '@/shared/lib/download'
 
 /* ═══════════════════════════════════════════════════════════ SANOQ TIPLARI */
 
@@ -212,7 +213,18 @@ export interface EmployeeFlag {
 
 /* ═════════════════════════════════════════════════════════ SO'ROV TIPLARI */
 
-export interface EmployeeListFilters {
+/**
+ * Ro'yxatni TORAYTIRADIGAN parametrlar — sahifalashsiz.
+ *
+ * NEGA sahifalashdan ajratilgan: aynan shu to'plam Excel eksportiga ham
+ * boradi (`exportEmployees`), eksport esa sahifalanmaydi — u butun mos
+ * ro'yxatni bitta faylda beradi. Ikkala so'rov bitta tipdan va bitta
+ * yig'uvchi funksiyadan (`filterParams`) foydalansa, yangi filtr
+ * qo'shilganda u ikkalasiga ham O'ZI tushadi va «ekranda boshqa, faylda
+ * boshqa» holati kelib chiqmaydi. Backend ham xuddi shu sababdan filtr
+ * qurish kodini bo'lishadi — `SearchEmployeesQueryHandler.BuildFilter`.
+ */
+export interface EmployeeFilterParams {
   search?: string
   departmentId?: string
   positionId?: string
@@ -220,10 +232,19 @@ export interface EmployeeListFilters {
   legalEntityId?: string
   status?: EmployeeStatus
   needsReview?: boolean
-  page: number
-  pageSize: number
   /** «fullName» — o'sish, «-hireDate» — kamayish tartibida. */
   sort?: string
+}
+
+export interface EmployeeListFilters extends EmployeeFilterParams {
+  page: number
+  pageSize: number
+}
+
+/** Eksport javobi: baytlar va ular qanday nom bilan saqlanishi. */
+export interface EmployeeExportFile {
+  blob: Blob
+  fileName: string
 }
 
 export interface PagedResult<T> {
@@ -744,11 +765,8 @@ function toFlag(raw: unknown): EmployeeFlag {
  * server uchun bir xil emas — birinchisi «bo'sh bo'limdagilarni ber»
  * deb tushunilishi mumkin.
  */
-function listParams(filters: EmployeeListFilters): Record<string, string | number | boolean> {
-  const params: Record<string, string | number | boolean> = {
-    page: filters.page,
-    pageSize: filters.pageSize,
-  }
+function filterParams(filters: EmployeeFilterParams): Record<string, string | number | boolean> {
+  const params: Record<string, string | number | boolean> = {}
 
   if (filters.search !== undefined && filters.search.trim() !== '') {
     params['search'] = filters.search.trim()
@@ -770,6 +788,11 @@ function listParams(filters: EmployeeListFilters): Record<string, string | numbe
   return params
 }
 
+/** Filtrlar + sahifa. Sahifalash faqat EKRANGA tegishli — eksportda yo'q. */
+function listParams(filters: EmployeeListFilters): Record<string, string | number | boolean> {
+  return { ...filterParams(filters), page: filters.page, pageSize: filters.pageSize }
+}
+
 export async function fetchEmployees(
   filters: EmployeeListFilters,
   signal?: AbortSignal,
@@ -780,6 +803,87 @@ export async function fetchEmployees(
   })
 
   return readPage(data, toListItem, filters.page, filters.pageSize)
+}
+
+/* ─────────────────────────────────────────────────────── Excel eksport */
+
+/**
+ * Xodimlar ro'yxatini `.xlsx` qilib yuklab olish.
+ *
+ * `GET /api/reports/employees/export` — parametrlari `GET /api/employees`
+ * bilan AYNAN bir xil (sahifalashdan tashqari), shu sababli bu yerda
+ * yangi so'rov qurilmaydi: `filterParams` ro'yxat bilan BO'LISHILADI.
+ * «Ekranda nima ko'rsang, faylda ham shu» talabini kod darajasida
+ * kafolatlaydigan yagona usul — ikkinchi nusxa yozmaslik.
+ *
+ * Nom serverdan olinadi (`Content-Disposition`), lekin unga TAYANIB
+ * qolinmaydi — sabab `fileNameFromDisposition` izohida.
+ */
+export async function exportEmployees(
+  filters: EmployeeFilterParams,
+  signal?: AbortSignal,
+): Promise<EmployeeExportFile> {
+  try {
+    const response = await api.get<Blob>('/api/reports/employees/export', {
+      params: filterParams(filters),
+      responseType: 'blob',
+      signal,
+    })
+
+    const disposition = response.headers['content-disposition']
+
+    return {
+      blob: response.data,
+      fileName:
+        fileNameFromDisposition(typeof disposition === 'string' ? disposition : null) ??
+        exportFileName(),
+    }
+  } catch (error) {
+    await revealProblemDetails(error)
+    throw error
+  }
+}
+
+/**
+ * Sarlavha kelmaganda ishlatiladigan zaxira nom.
+ *
+ * Serverning shakli takrorlanadi (`Bonvi_xodimlar_2026-08-26.xlsx`), lekin
+ * SANA klientniki: HR fayllarni yuklab olish papkasida sana bo'yicha
+ * ajratadi, «xodimlar.xlsx (3)» esa hech narsa aytmaydi. Sana `sv-SE`
+ * lokali bilan olinadi — u ISO shaklini (`YYYY-MM-DD`) beradigan yagona
+ * standart lokal, ya'ni qo'lda nol qo'shib yurish shart emas.
+ */
+function exportFileName(): string {
+  return `Bonvi_xodimlar_${new Date().toLocaleDateString('sv-SE')}.xlsx`
+}
+
+/**
+ * Blob so'rovidagi XATO tanasini o'qiladigan holga keltiradi.
+ *
+ * NEGA kerak: `responseType: 'blob'` axios uchun javobning HAMMASIGA
+ * tegishli — muvaffaqiyatga ham, xatoga ham. Server 400 bilan
+ * `{"title":"eksport.juda_kop"}` qaytarganda ham tana `Blob` bo'lib
+ * o'raladi va `problemCode` undan `title` ni topolmaydi. Natijada HR
+ * «filtrni toraytiring» o'rniga umumiy «Nimadir noto'g'ri ketdi» ni
+ * ko'rardi — ya'ni nima qilish kerakligini bilmasdi.
+ *
+ * Blob matnga o'girilib, javob tanasining O'RNIGA qo'yiladi: shundan
+ * keyin butun mavjud xato zanjiri (`employeeErrorCode` → `useErrorMessage`)
+ * hech qanday o'zgarishsiz ishlaydi.
+ */
+async function revealProblemDetails(error: unknown): Promise<void> {
+  if (!axios.isAxiosError(error)) return
+
+  const response = error.response
+  if (response === undefined || !(response.data instanceof Blob)) return
+
+  try {
+    response.data = JSON.parse(await response.data.text())
+  } catch {
+    // Tana JSON emas (proksining HTML sahifasi yoki bo'sh javob) — kod
+    // baribir topilmaydi, xato o'z holicha yuqoriga ketadi va umumiy
+    // xabarga aylanadi. Bu yerda yiqilish eng yomon variant bo'lardi.
+  }
 }
 
 export async function fetchEmployee(

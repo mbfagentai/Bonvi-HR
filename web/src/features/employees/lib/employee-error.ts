@@ -20,6 +20,21 @@ export function employeeErrorCode(error: unknown): string {
 }
 
 /**
+ * Server tezlik cheklovi tufayli rad etdimi (429).
+ *
+ * NEGA xato KODI emas, HOLAT kodi tekshiriladi: 429 ni serverning
+ * cheklovchisi ham (`rate_limit.oshib_ketdi`), oldidagi nginx yoki
+ * Cloudflare kabi vositachi ham qaytarishi mumkin — ikkinchisida tana
+ * umuman ProblemDetails bo'lmaydi va hech qanday kod topilmaydi. Holat
+ * kodi esa ikkala holatda ham bir xil va bitta ma'noni bildiradi:
+ * «so'rov to'g'ri, shunchaki juda tez-tez». `terminationWarning` dagi
+ * bilan bir xil mulohaza.
+ */
+export function isRateLimited(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 429
+}
+
+/**
  * Bo'shatishga to'sqinlik qiladigan ogohlantirish.
  *
  * HR aynan shuni so'ragan: xodim qora ro'yxatda yoki nazoratda bo'lsa,

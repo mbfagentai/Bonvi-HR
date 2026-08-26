@@ -659,7 +659,10 @@
     "criminalRecordHint": "Erkin matn: «sudlanmagan» yoki modda raqami",
     "directionsHint": "Bir nechtasini tanlash mumkin",
     "stateYes": "Ha",
-    "stateNo": "Yo‘q"
+    "stateNo": "Yo‘q",
+    "exportFailed": "Excelga yuklab bo‘lmadi",
+    "exportTooOften": "So‘rovlar juda tez-tez yuborildi. Bir daqiqa kutib, qayta urinib ko‘ring.",
+    "exporting": "Tayyorlanmoqda…"
   },
   "employments": {
     "anyType": "Barcha turlar",

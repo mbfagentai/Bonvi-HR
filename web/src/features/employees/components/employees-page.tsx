@@ -18,10 +18,14 @@ import {
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
-import type { EmployeeListItem } from '../api/employees-api'
-import { useEmployees, useFilterOptions } from '../api/employees-queries'
-import { employeeErrorCode } from '../lib/employee-error'
-import { EMPLOYEES_CREATE, EMPLOYMENT_MANAGE } from '../lib/employee-presentation'
+import type { EmployeeFilterParams, EmployeeListItem } from '../api/employees-api'
+import { useEmployees, useExportEmployees, useFilterOptions } from '../api/employees-queries'
+import { employeeErrorCode, isRateLimited } from '../lib/employee-error'
+import {
+  EMPLOYEES_CREATE,
+  EMPLOYMENT_MANAGE,
+  REPORTS_EXPORT,
+} from '../lib/employee-presentation'
 import {
   DEFAULT_SORT,
   filtersToSearch,
@@ -78,6 +82,7 @@ export function EmployeesPage() {
   const { hasPermission } = useAuth()
 
   const canHire = hasPermission(EMPLOYEES_CREATE) && hasPermission(EMPLOYMENT_MANAGE)
+  const canExport = hasPermission(REPORTS_EXPORT)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -93,18 +98,46 @@ export function EmployeesPage() {
 
   const options = useFilterOptions()
 
-  const query = useEmployees({
-    search: filters.search,
-    departmentId: filters.departmentId,
-    positionId: filters.positionId,
-    directionId: filters.directionId,
-    legalEntityId: filters.legalEntityId,
-    status: filters.status === '' ? undefined : filters.status,
-    needsReview: filters.needsReview,
-    page,
-    pageSize: PAGE_SIZE,
-    sort: sortParam,
-  })
+  /**
+   * So'rov filtri — bir marta yig'iladi, IKKI joyda ishlatiladi:
+   * ekrandagi ro'yxat ham, Excel eksporti ham aynan shundan quriladi.
+   *
+   * NEGA shunday: «ekranda nima ko'rsang, faylda ham shu» talabini kod
+   * darajasida kafolatlaydigan yagona usul — ikkinchi nusxa yozmaslik.
+   * Aynan shu sababdan saralash ham (`sort`) shu obyektda turibdi: u
+   * toolbar'da emas, manzilda yashaydi va eksport uni albatta olib
+   * ketishi kerak — aks holda fayl har doim familiya bo'yicha, ekran esa
+   * masalan sana bo'yicha saralangan bo'lardi.
+   *
+   * Sahifa raqami ATAYLAB kirmaydi: eksport sahifalanmaydi (butun mos
+   * ro'yxatni beradi), ro'yxat esa uni quyida o'zi qo'shadi.
+   */
+  const listFilters = useMemo<EmployeeFilterParams>(
+    () => ({
+      search: filters.search,
+      departmentId: filters.departmentId,
+      positionId: filters.positionId,
+      directionId: filters.directionId,
+      legalEntityId: filters.legalEntityId,
+      status: filters.status === '' ? undefined : filters.status,
+      needsReview: filters.needsReview,
+      sort: sortParam,
+    }),
+    [filters, sortParam],
+  )
+
+  const query = useEmployees({ ...listFilters, page, pageSize: PAGE_SIZE })
+
+  /**
+   * Eksport holati.
+   *
+   * Xato mutatsiyaning o'zida saqlanadi va qo'lda tozalanmaydi: keyingi
+   * `mutate` chaqiruvi holatni «kutilmoqda» ga o'tkazib, eski xatoni
+   * o'zi yo'q qiladi. Ya'ni HR filtrni toraytirib qayta bosganda
+   * ogohlantirish qolib ketmaydi, muvaffaqiyatsizlikda esa ekranda
+   * turaveradi — chaqnab o'tib ketmaydi.
+   */
+  const exportList = useExportEmployees()
 
   /**
    * Holatni manzil satriga yozadi.
@@ -431,7 +464,29 @@ export function EmployeesPage() {
           view={view}
           onViewChange={changeView}
           options={options}
+          onExport={canExport ? () => exportList.mutate(listFilters) : undefined}
+          exporting={exportList.isPending}
         />
+
+        {/*
+          Eksport xatosi AYNAN shu yerda — tugmaning ostida, kartaning
+          ichida. Sahifa tepasidagi ogohlantirish (`loadFailed`) yonida
+          tursa, HR uni tugmadan uzoqda ko'rardi va nima bilan bog'liqligi
+          tushunarsiz bo'lardi; oynada ko'rsatilsa esa yopilgach yo'qolib,
+          «filtrni toraytiring» maslahati bilan birga ketardi.
+
+          429 alohida gapiriladi: uning yagona yechimi — biroz kutish,
+          filtrni o'zgartirish esa yordam bermaydi.
+        */}
+        {exportList.isError && (
+          <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+            <Alert tone="danger" title={t('employees.exportFailed')}>
+              {isRateLimited(exportList.error)
+                ? t('employees.exportTooOften')
+                : errorMessage(employeeErrorCode(exportList.error))}
+            </Alert>
+          </div>
+        )}
 
         {view === 'table' ? (
           <DataTable
