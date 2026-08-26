@@ -12,7 +12,7 @@ import {
   PageHeader,
   Skeleton,
 } from '@/shared/ui'
-import { useDepartmentTree, useToggleCatalogItem } from '../api/catalog-queries'
+import { useDepartmentTree } from '../api/catalog-queries'
 import type { DepartmentNode } from '../api/catalog-api'
 import { catalogErrorCode } from '../lib/catalog-error'
 import { CATALOG_MANAGE_PERMISSION, DEPARTMENTS_META } from '../lib/catalog-kinds'
@@ -40,16 +40,18 @@ export function DepartmentsPage() {
   const canManage = hasPermission(CATALOG_MANAGE_PERMISSION)
 
   const [query, setQuery] = useState('')
-  const [onlyActive, setOnlyActive] = useState(true)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<DepartmentNode | null>(null)
   const [parentForNew, setParentForNew] = useState<string | null>(null)
 
-  const tree = useDepartmentTree(onlyActive)
-  const toggle = useToggleCatalogItem('departments')
-  const pendingId = toggle.isPending ? (toggle.variables?.id ?? null) : null
+  /*
+   * Butun daraxt, faol emas bo'limlar bilan birga. Faollik filtri ekrandan
+   * olib tashlandi: yopilgan bo'lim daraxtdan g'oyib bo'lsa, uning ichidagi
+   * bo'limlar ham ko'rinmay qolardi va tuzilma buzilgandek tuyulardi.
+   */
+  const tree = useDepartmentTree(false)
 
   const searching = query.trim() !== ''
 
@@ -127,8 +129,6 @@ export function DepartmentsPage() {
         <CatalogToolbar
           query={query}
           onQueryChange={setQuery}
-          onlyActive={onlyActive}
-          onOnlyActiveChange={setOnlyActive}
           trailing={
             branchIds.length > 0 && !searching ? (
               <Button
@@ -192,10 +192,6 @@ export function DepartmentsPage() {
             canManage={canManage}
             onSelect={openEdit}
             onAddChild={(parent) => openCreate(parent.id)}
-            onToggleActive={(node, next) =>
-              toggle.mutate({ id: node.id, active: next })
-            }
-            pendingId={pendingId}
           />
         )}
 

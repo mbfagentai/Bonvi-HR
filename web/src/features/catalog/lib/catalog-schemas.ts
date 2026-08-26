@@ -43,8 +43,12 @@ export type DepartmentValues = z.infer<typeof departmentSchema>
 export const positionSchema = catalogItemSchema.extend({
   /** Bo'sh satr — bo'limga biriktirilmagan. */
   departmentId: z.string(),
-  /** Daraja 1–5, sinov muddati 0–180 kun — chegaralarni server tekshiradi. */
-  grade: numericText,
+  /**
+   * Sinov muddati 0–180 kun — chegarani server tekshiradi.
+   *
+   * `grade` bu yerda YO'Q: u bazada qoladi, lekin formada ko'rsatilmaydi
+   * va yuborilmaydi (`position-form-dialog.tsx` ga qarang).
+   */
   probationDays: numericText,
 })
 

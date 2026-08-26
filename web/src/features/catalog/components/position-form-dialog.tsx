@@ -15,6 +15,7 @@ import {
   type PositionValues,
 } from '../lib/catalog-schemas'
 import { flattenTree } from '../lib/tree'
+import { CatalogActiveField } from './catalog-active-field'
 import { CatalogBaseFields } from './catalog-base-fields'
 import { DutiesEditor } from './duties-editor'
 
@@ -28,15 +29,18 @@ function toValues(item: PositionItem | null): PositionValues {
     note: item?.note ?? '',
     departmentId: item?.departmentId ?? '',
     // `null` — kiritilmagan: maydon bo'sh qoladi, «0» emas
-    grade: item === null ? '' : String(item.grade),
     probationDays:
       item === null || item.probationDays === null ? '' : String(item.probationDays),
   }
 }
 
 /**
- * Lavozim oynasi: umumiy maydonlar + bo'lim, daraja, sinov muddati va
+ * Lavozim oynasi: umumiy maydonlar + bo'lim, sinov muddati va
  * vazifalar ro'yxati.
+ *
+ * «Daraja» maydoni ataylab YO'Q: u bazada qoladi (yangi lavozimda 1,
+ * mavjudlarida o'zgarmaydi), lekin HR uni to'ldirmaydi — 1 dan 5 gacha
+ * bo'lgan raqamning ma'nosi tizim ichida, foydalanuvchi ishida emas.
  *
  * Vazifalarning o'z endpoint'i bor (`/positions/{id}/duties`), ya'ni ular
  * lavozim `id` siz saqlanmaydi. Shu sababli yangi lavozim saqlangach oyna
@@ -105,7 +109,7 @@ export function PositionFormDialog({
       name: values.name.trim(),
       note: toTextOrNull(values.note),
       departmentId: values.departmentId === '' ? null : values.departmentId,
-      grade: toNumberOrNull(values.grade),
+      // `grade` yuborilmaydi — server uni o'z holicha qoldiradi
       probationDays: toNumberOrNull(values.probationDays),
     }
 
@@ -123,7 +127,7 @@ export function PositionFormDialog({
       const code = catalogErrorCode(error)
       const field = CATALOG_ERROR_FIELD[code]
 
-      if (field === 'name' || field === 'grade' || field === 'probationDays') {
+      if (field === 'name' || field === 'probationDays') {
         setError(field, { message: code })
       } else {
         setFailure(code)
@@ -187,19 +191,6 @@ export function PositionFormDialog({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            label={t('catalog.positions.grade')}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={5}
-            placeholder="1"
-            disabled={isSubmitting}
-            hint={t('catalog.positions.gradeHint')}
-            error={errors.grade ? errorMessage(errors.grade.message) : undefined}
-            {...register('grade')}
-          />
-
-          <TextField
             label={t('catalog.positions.probationDays')}
             type="number"
             inputMode="numeric"
@@ -218,6 +209,16 @@ export function PositionFormDialog({
         </div>
 
         <DutiesEditor positionId={positionId} canManage={canManage} />
+
+        {item !== null && (
+          <CatalogActiveField
+            kind="positions"
+            id={item.id}
+            name={item.name}
+            active={item.isActive}
+            disabled={isSubmitting}
+          />
+        )}
       </form>
     </Dialog>
   )

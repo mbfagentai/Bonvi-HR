@@ -3,8 +3,10 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import {
   Alert,
+  Badge,
   Button,
   Card,
   DataTable,
@@ -14,12 +16,11 @@ import {
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
-import { useCatalogList, useToggleCatalogItem } from '../api/catalog-queries'
+import { useCatalogList } from '../api/catalog-queries'
 import type { CatalogItem } from '../api/catalog-api'
 import { catalogErrorCode } from '../lib/catalog-error'
 import { CATALOG_MANAGE_PERMISSION, type CatalogKindMeta } from '../lib/catalog-kinds'
 import { CatalogFormDialog } from './catalog-form-dialog'
-import { CatalogStatus } from './catalog-status'
 import { CatalogToolbar } from './catalog-toolbar'
 
 const helper = dataColumnHelper<CatalogItem>()
@@ -42,16 +43,15 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
   const canManage = hasPermission(CATALOG_MANAGE_PERMISSION)
 
   const [query, setQuery] = useState('')
-  const [onlyActive, setOnlyActive] = useState(true)
   const [editing, setEditing] = useState<CatalogItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const list = useCatalogList(meta.kind, onlyActive)
-  const toggle = useToggleCatalogItem(meta.kind)
-
-  const toggleMutate = toggle.mutate
-  /** Faqat bosilgan qatorning almashtirgichi «kutish» holatiga o'tadi. */
-  const pendingId = toggle.isPending ? (toggle.variables?.id ?? null) : null
+  /*
+   * Ro'yxatda HAMMA yozuv: faol emaslari ham. Ilgari bu «Faqat faollar»
+   * filtriga bog'liq edi, endi filtr yo'q — yozuv qayerga ketganini
+   * qidirishga hojat qolmasin.
+   */
+  const list = useCatalogList(meta.kind, false)
 
   const openCreate = useCallback(() => {
     setEditing(null)
@@ -65,34 +65,50 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
 
   const columns = useMemo<Array<DataColumn<CatalogItem>>>(() => {
     const definitions: Array<DataColumn<CatalogItem>> = [
-      // Yagona kengligi belgilanmagan ustun — qolganlaridan ortgan butun
-      // joyni shu oladi. Nom yozuvni tanishning birdan-bir yo'li, shu
-      // sababli u qanchalik keng bo'lsa, shunchalik kam qisqartiriladi.
+      // Ortgan joyni shu ustun oladi — nom yozuvni tanishning birdan-bir
+      // yo'li, shu sababli u qanchalik keng bo'lsa, shunchalik kam
+      // qisqartiriladi.
+      //
+      // `width` EMAS, `minWidth`: `width` ustunni QAT'IY o'lchamga qo'yib,
+      // ortgan-joy taqsimotidan chiqarib yuborardi (tekshirilgan: shunday
+      // qilinsa, yonidagi `actions` 56px'dan 243px'gacha shishadi — brauzer
+      // keng ekranda ortgan joyni ikkala «belgilangan» ustun o'rtasida
+      // proporsional taqsimlaydi). `minWidth` esa ustunni moslashuvchan
+      // holda qoldiradi: `actions` har doim aynan 56px, ortgan joyning
+      // HAMMASI shu yerga tushadi (tekshirilgan: 700/1100/1600px kenglikda
+      // — 700px'da 300px, 1100px'da 640px, 1600px'da 1140px).
+      //
+      // 300px — pastki chegara: real ma'lumotnomalardagi nomlarning aksari
+      // (oltala ma'lumotnoma, eng uzuni ~35 belgi) shu kenglikda bir
+      // qatorga sig'adi, faqat eng uzun uchtasi biroz kesiladi.
       helper.accessor('name', {
         header: t('catalog.columnName'),
+        meta: { minWidth: '300px' },
         cell: ({ row }) => (
           <div className="min-w-0">
-            <p className="truncate-1 font-medium">{row.original.name}</p>
+            <div className="flex min-w-0 items-center gap-2">
+              <p
+                className={cn(
+                  'truncate-1 font-medium',
+                  // Faol emas yozuv o'chirilmagan — shunchaki so'ndirilgan
+                  !row.original.isActive && 'text-[var(--fg-secondary)]',
+                )}
+              >
+                {row.original.name}
+              </p>
+
+              {!row.original.isActive && (
+                <Badge tone="neutral" size="sm" className="shrink-0">
+                  {t('catalog.statusInactive')}
+                </Badge>
+              )}
+            </div>
             {row.original.note !== null && row.original.note !== '' && (
               <p className="truncate-1 mt-0.5 text-caption1 text-[var(--fg-tertiary)]">
                 {row.original.note}
               </p>
             )}
           </div>
-        ),
-      }),
-
-      helper.display({
-        id: 'status',
-        header: t('catalog.columnStatus'),
-        meta: { width: '190px' },
-        cell: ({ row }) => (
-          <CatalogStatus
-            active={row.original.isActive}
-            canManage={canManage}
-            pending={pendingId === row.original.id}
-            onToggle={(next) => toggleMutate({ id: row.original.id, active: next })}
-          />
         ),
       }),
     ]
@@ -103,8 +119,13 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
       definitions.push(
         helper.display({
           id: 'actions',
-          header: t('catalog.columnActions'),
-          meta: { align: 'end', width: '72px' },
+          // Sarlavha ATAYLAB bo'sh: katakda hech qanday amal yo'q, faqat
+          // strelka — u qatorning bosiladiganini ko'rsatadi, xolos.
+          // «Amallar»/«Действия» yolg'on nom bo'lardi va ustunni 56px
+          // o'rniga 108px ga cho'zib turardi (employees-page.tsx dagi
+          // xuddi shu strelka ustuni bilan bir xil: `header: ''`, 56px).
+          header: '',
+          meta: { align: 'end', width: '56px' },
           cell: () => (
             // iOS ro'yxatidagi «ochiladi» belgisi: qator bosiladigan
             // ekanini alohida tugmasiz aytadi
@@ -118,7 +139,7 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
     }
 
     return definitions
-  }, [t, num, canManage, pendingId, toggleMutate])
+  }, [t, canManage])
 
   const rows = useMemo(() => {
     const source = list.data ?? EMPTY
@@ -160,12 +181,7 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
       )}
 
       <Card className="overflow-hidden">
-        <CatalogToolbar
-          query={query}
-          onQueryChange={setQuery}
-          onlyActive={onlyActive}
-          onOnlyActiveChange={setOnlyActive}
-        />
+        <CatalogToolbar query={query} onQueryChange={setQuery} />
 
         <DataTable
           columns={columns}

@@ -18,6 +18,7 @@ import {
   type DepartmentValues,
 } from '../lib/catalog-schemas'
 import { collectSubtreeIds, flattenTree } from '../lib/tree'
+import { CatalogActiveField } from './catalog-active-field'
 import { CatalogBaseFields } from './catalog-base-fields'
 
 const FORM_ID = 'department-form'
@@ -185,6 +186,16 @@ export function DepartmentFormDialog({
           error={errors.parentId ? errorMessage(errors.parentId.message) : undefined}
           {...register('parentId')}
         />
+
+        {item !== null && (
+          <CatalogActiveField
+            kind="departments"
+            id={item.id}
+            name={item.name}
+            active={item.isActive}
+            disabled={isSubmitting}
+          />
+        )}
       </form>
     </Dialog>
   )

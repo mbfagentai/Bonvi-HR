@@ -2,10 +2,9 @@ import { ChevronRight, Plus } from 'lucide-react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Button } from '@/shared/ui'
+import { Badge, Button } from '@/shared/ui'
 import type { DepartmentNode } from '../api/catalog-api'
 import type { FlatDepartment } from '../lib/tree'
-import { CatalogStatus } from './catalog-status'
 
 /** Har bir daraja shuncha piksel ichkariga suriladi. */
 const INDENT = 26
@@ -28,8 +27,6 @@ export function DepartmentTree({
   canManage,
   onSelect,
   onAddChild,
-  onToggleActive,
-  pendingId,
 }: {
   items: readonly FlatDepartment[]
   collapsed: ReadonlySet<string>
@@ -37,8 +34,6 @@ export function DepartmentTree({
   canManage: boolean
   onSelect: (node: DepartmentNode) => void
   onAddChild: (parent: DepartmentNode) => void
-  onToggleActive: (node: DepartmentNode, next: boolean) => void
-  pendingId: string | null
 }) {
   const { t } = useLocale()
 
@@ -98,10 +93,19 @@ export function DepartmentTree({
                     'truncate-1 text-subhead',
                     // Ildiz bo'limlar biroz to'yingroq — daraxt boshi ko'rinib tursin
                     depth === 0 ? 'font-semibold' : 'font-medium',
+                    // Faol emas bo'lim daraxtda qoladi (ichidagilar kerak),
+                    // lekin so'ndirilgan holda
+                    !node.isActive && 'text-[var(--fg-secondary)]',
                   )}
                 >
                   {node.name}
                 </span>
+
+                {!node.isActive && (
+                  <Badge tone="neutral" size="sm" className="shrink-0">
+                    {t('catalog.statusInactive')}
+                  </Badge>
+                )}
 
                 {hasChildren && (
                   <span className="hidden shrink-0 text-caption2 text-[var(--fg-tertiary)] md:inline">
@@ -111,13 +115,6 @@ export function DepartmentTree({
               </button>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <CatalogStatus
-                  active={node.isActive}
-                  canManage={canManage}
-                  pending={pendingId === node.id}
-                  onToggle={(next) => onToggleActive(node, next)}
-                />
-
                 {canManage && (
                   <Button
                     variant="ghost"

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import {
   Alert,
   Badge,
@@ -15,16 +16,11 @@ import {
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
-import {
-  useCatalogList,
-  useDepartmentTree,
-  useToggleCatalogItem,
-} from '../api/catalog-queries'
+import { useCatalogList, useDepartmentTree } from '../api/catalog-queries'
 import type { DepartmentNode, PositionItem } from '../api/catalog-api'
 import { catalogErrorCode } from '../lib/catalog-error'
 import { CATALOG_MANAGE_PERMISSION, POSITIONS_META } from '../lib/catalog-kinds'
 import { flattenTree } from '../lib/tree'
-import { CatalogStatus } from './catalog-status'
 import { CatalogToolbar } from './catalog-toolbar'
 import { PositionFormDialog } from './position-form-dialog'
 
@@ -36,9 +32,13 @@ const EMPTY_TREE: DepartmentNode[] = []
 /**
  * Lavozimlar ro'yxati.
  *
- * Oddiy ma'lumotnomadan farqi: lavozimda bo'lim, daraja va vazifalar bor.
+ * Oddiy ma'lumotnomadan farqi: lavozimda bo'lim va vazifalar bor.
  * Vazifalar soni ustuni ataylab ro'yxatda — HR uchun «vazifasi yozilmagan
  * lavozim» ishga qabulda muammo bo'ladi, uni bir qarashda ko'rish kerak.
+ *
+ * «Daraja» ustuni yo'q: u ma'lumotlar bazasining ichki maydoni (hisob-kitob
+ * va tartiblash uchun), HR esa lavozimni nomi bilan biladi. Ekranda turgan
+ * har bir raqam «buni to'ldirish kerakmi?» degan savol tug'diradi.
  */
 export function PositionsPage() {
   const { t, num } = useLocale()
@@ -47,12 +47,11 @@ export function PositionsPage() {
   const canManage = hasPermission(CATALOG_MANAGE_PERMISSION)
 
   const [query, setQuery] = useState('')
-  const [onlyActive, setOnlyActive] = useState(true)
   const [editing, setEditing] = useState<PositionItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const list = useCatalogList<PositionItem>('positions', onlyActive)
-  const toggle = useToggleCatalogItem('positions')
+  /** Faol emas lavozimlar ham ko'rinadi — nomi yonidagi yorliq bilan. */
+  const list = useCatalogList<PositionItem>('positions', false)
 
   /**
    * Bo'lim nomi lavozim yozuvida yo'q — faqat `departmentId` keladi.
@@ -68,9 +67,6 @@ export function PositionsPage() {
     return map
   }, [departments.data])
 
-  const toggleMutate = toggle.mutate
-  const pendingId = toggle.isPending ? (toggle.variables?.id ?? null) : null
-
   const openCreate = useCallback(() => {
     setEditing(null)
     setDialogOpen(true)
@@ -83,12 +79,49 @@ export function PositionsPage() {
 
   const columns = useMemo<Array<DataColumn<PositionItem>>>(() => {
     const definitions: Array<DataColumn<PositionItem>> = [
-      // Kengligi belgilanmagan yagona ustun — qolganlaridan ortgan joyni
-      // shu oladi. Lavozim nomlari uzun bo'ladi («Katta smena ustasi»),
-      // shu sababli eng keng joy aynan shu ustunga tegishi kerak.
+      // Ortgan joyni shu ustun oladi. Lavozim nomlari uzun bo'ladi
+      // («Katta smena ustasi», ba'zilari 60+ belgi), shu sababli eng keng
+      // joy aynan shu ustunga tegishi kerak.
+      //
+      // `width` EMAS, `minWidth`: ikkalasi ham `department`/`dutyCount`/
+      // `actions`ni «belgilangan» (piksellik) qoldiradi, lekin farqi bor.
+      // `width` bergan bo'lsak, `name` ham «belgilangan» ustunga aylanardi
+      // va brauzer (`table-layout: auto`) keng ekranda ortgan joyni
+      // TO'RTALASI o'rtasida proporsional taqsimlab, `dutyCount`/`actions`
+      // ni ham shishirib yuborardi (tekshirilgan: 140px→241px, 56px→96px).
+      // `minWidth` esa `name`ni moslashuvchan qoldiradi: uchala qo'shni
+      // ustun har doim aynan deklaratsiyasidagidek (260/140/56px), ortgan
+      // joyning HAMMASI faqat shu yerga tushadi (tekshirilgan: 700px'da
+      // 300px, 1100px'da 640px, 1600px'da 1140px — qo'shnilar o'zgarmadi).
+      //
+      // 300px — pastki chegara (fixed ustunlar 456px + 300 = 756px jami):
+      // real bazadagi 481 ta lavozim nomi mediana 18, 90-foizi ≤30 belgi —
+      // 300px'da ~30 belgi bir qatorga sig'adi (o'lchangan: 30 belgili
+      // haqiqiy nom «Ички бухгалтерия бўлим бошлиғи» 256px matn talab
+      // qiladi, +32px karra to'ldirish = 288px, 300px kichik zaxira bilan).
+      // Undan uzunroqlari (10-foiz, 68 belgigacha) kesiladi — bu qabul
+      // qilingan: to'liq nom tahrirlash oynasida ko'rinadi.
       helper.accessor('name', {
         header: t('catalog.columnName'),
-        cell: ({ getValue }) => <p className="truncate-1 font-medium">{getValue()}</p>,
+        meta: { minWidth: '300px' },
+        cell: ({ row }) => (
+          <div className="flex min-w-0 items-center gap-2">
+            <p
+              className={cn(
+                'truncate-1 font-medium',
+                !row.original.isActive && 'text-[var(--fg-secondary)]',
+              )}
+            >
+              {row.original.name}
+            </p>
+
+            {!row.original.isActive && (
+              <Badge tone="neutral" size="sm" className="shrink-0">
+                {t('catalog.statusInactive')}
+              </Badge>
+            )}
+          </div>
+        ),
       }),
 
       helper.accessor((row) => departmentNames.get(row.departmentId ?? '') ?? '', {
@@ -103,14 +136,6 @@ export function PositionsPage() {
             <span className="truncate-1 text-[var(--fg-secondary)]">{value}</span>
           )
         },
-      }),
-
-      helper.accessor('grade', {
-        header: t('catalog.positions.grade'),
-        meta: { align: 'end', width: '110px', hideOnMobile: true },
-        cell: ({ getValue }) => (
-          <span className="tabular text-[var(--fg-secondary)]">{num(getValue())}</span>
-        ),
       }),
 
       helper.accessor('dutyCount', {
@@ -131,28 +156,19 @@ export function PositionsPage() {
           )
         },
       }),
-
-      helper.display({
-        id: 'status',
-        header: t('catalog.columnStatus'),
-        meta: { width: '190px' },
-        cell: ({ row }) => (
-          <CatalogStatus
-            active={row.original.isActive}
-            canManage={canManage}
-            pending={pendingId === row.original.id}
-            onToggle={(next) => toggleMutate({ id: row.original.id, active: next })}
-          />
-        ),
-      }),
     ]
 
     if (canManage) {
       definitions.push(
         helper.display({
           id: 'actions',
-          header: t('catalog.columnActions'),
-          meta: { align: 'end', width: '72px' },
+          // Sarlavha ATAYLAB bo'sh: katakda hech qanday amal yo'q, faqat
+          // strelka — u qatorning bosiladiganini ko'rsatadi, xolos.
+          // «Amallar»/«Действия» yolg'on nom bo'lardi va ustunni 56px
+          // o'rniga 108px ga cho'zib turardi (employees-page.tsx dagi
+          // xuddi shu strelka ustuni bilan bir xil: `header: ''`, 56px).
+          header: '',
+          meta: { align: 'end', width: '56px' },
           cell: () => (
             <ChevronRight
               className="ml-auto size-4 text-[var(--fg-tertiary)]"
@@ -164,7 +180,7 @@ export function PositionsPage() {
     }
 
     return definitions
-  }, [t, num, canManage, pendingId, toggleMutate, departmentNames])
+  }, [t, num, canManage, departmentNames])
 
   const rows = useMemo(() => {
     const source = list.data ?? EMPTY
@@ -212,12 +228,7 @@ export function PositionsPage() {
       )}
 
       <Card className="overflow-hidden">
-        <CatalogToolbar
-          query={query}
-          onQueryChange={setQuery}
-          onlyActive={onlyActive}
-          onOnlyActiveChange={setOnlyActive}
-        />
+        <CatalogToolbar query={query} onQueryChange={setQuery} />
 
         <DataTable
           columns={columns}

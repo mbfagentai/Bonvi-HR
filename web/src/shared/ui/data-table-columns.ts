@@ -19,8 +19,21 @@ import {
 export interface DataColumnMeta {
   /** Raqamli ustunlar o'ngga tekislanadi. */
   align?: 'start' | 'end'
-  /** CSS kengligi: `'120px'`, `'22%'`. */
+  /**
+   * CSS kengligi: `'120px'`, `'22%'`. QAT'IY o'lcham — ustun ORTGAN JOY
+   * TAQSIMOTIDAN CHIQIB KETADI (brauzer uni proporsional kengaytirmaydi,
+   * `table-layout: auto` shu ustunni har doim aynan shu kenglikda chizadi).
+   */
   width?: string
+  /**
+   * Faqat PASTKI chegara: ustun `width`dan farqli, moslashuvchan bo'lib
+   * qoladi va boshqa moslashuvchan ustunlar bilan birga ortgan joyni
+   * o'zi oladi — faqat undan torroq bo'la olmaydi. Bitta jadvalda ko'pi
+   * bilan bitta ustun kengliksiz/`minWidth`li qolishi kerak: aks holda
+   * ortgan joy ular o'rtasida taqsimlanadi va tor ekranda har biri
+   * o'zining `minWidth`iga qisiladi (bu ham maqbul, lekin kutilmagan).
+   */
+  minWidth?: string
   /** Tor ekranda yashiriladi — telefonda faqat eng muhim ustunlar qoladi. */
   hideOnMobile?: boolean
 }

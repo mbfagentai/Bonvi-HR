@@ -13,6 +13,7 @@ import {
   toTextOrNull,
   type CatalogItemValues,
 } from '../lib/catalog-schemas'
+import { CatalogActiveField } from './catalog-active-field'
 import { CatalogBaseFields } from './catalog-base-fields'
 
 function toValues(item: CatalogItem | null): CatalogItemValues {
@@ -125,6 +126,17 @@ export function CatalogFormDialog({
             note: errors.note ? errorMessage(errors.note.message) : undefined,
           }}
         />
+
+        {/* Yangi yozuv doim faol yaratiladi — holat faqat mavjud yozuvda */}
+        {item !== null && (
+          <CatalogActiveField
+            kind={kind}
+            id={item.id}
+            name={item.name}
+            active={item.isActive}
+            disabled={isSubmitting}
+          />
+        )}
       </form>
     </Dialog>
   )

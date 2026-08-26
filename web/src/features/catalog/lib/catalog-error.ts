@@ -29,6 +29,7 @@ export const CATALOG_ERROR_FIELD: Readonly<Record<string, string>> = {
   'malumotnoma.nom_band': 'name',
   'bolim.nom_bosh': 'name',
   'lavozim.nom_bosh': 'name',
-  'lavozim.daraja': 'grade',
+  // `lavozim.daraja` ataylab yo'q: daraja maydoni formadan olib tashlangan,
+  // shu sababli bu xato (agar kelsa) umumiy ogohlantirishga tushadi
   'lavozim.sinov_muddati': 'probationDays',
 }
