@@ -89,7 +89,7 @@ internal static class SearchFolding
         => Fold(search.ToLowerInvariant());
 
     /// <summary>
-    /// Pasport, JSHSHIR va telefon ustunlari uchun naqsh: kirill gomogliflari
+    /// Pasport va JSHSHIR ustunlari uchun naqsh: kirill gomogliflari
     /// lotinga o'giriladi.
     /// </summary>
     public static string ForCode(string search)
@@ -111,6 +111,48 @@ internal static class SearchFolding
             }
 
             _ = builder.Append(replaced);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Telefon ustunlari uchun naqsh: faqat raqamlar qoladi, hammasi
+    /// boshqasi (bo'shliq, tire, qavs, «+») tashlab yuboriladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega alohida, <see cref="ForCode"/> emas.</b> <c>PhoneNumber</c>
+    /// bazada kanonik shaklda saqlanadi (<c>+998905088888</c>), lekin HR
+    /// ekranda ko'rgan formatlangan raqamni (<c>+998 90 508 88 88</c>)
+    /// ko'chirib qidiruvga qo'yishi mumkin. <see cref="ForCode"/> faqat
+    /// harflarni almashtiradi, ajratgichlarni tashlamaydi — natijada
+    /// bo'shliqli qidiruv hech narsa topmasdi.
+    /// </para>
+    /// <para>
+    /// <b>Nega pasport/JSHSHIR uchun ishlatilmaydi.</b> Ulardan harflarni
+    /// olib tashlash pasport seriyasini (<c>AB7412589</c> dagi «AB»)
+    /// yo'qotardi va qidiruv butunlay ishlamay qolardi. Shu sababli bu
+    /// naqsh FAQAT <c>phone</c> va <c>second_phone</c> ustunlariga
+    /// qo'llanadi.
+    /// </para>
+    /// <para>
+    /// Natija bo'sh bo'lishi mumkin (HR ism bilan qidirsa, matnda birorta
+    /// ham raqam yo'q) — bu holda chaqiruvchi telefon shartini SO'ROVGA
+    /// UMUMAN QO'SHMASLIGI kerak, aks holda <c>%%</c> naqshi butun
+    /// jadvalni olib kelardi.
+    /// </para>
+    /// </remarks>
+    public static string ForPhone(string search)
+    {
+        var builder = new StringBuilder(search.Length);
+
+        foreach (var symbol in search)
+        {
+            if (symbol is >= '0' and <= '9')
+            {
+                _ = builder.Append(symbol);
+            }
         }
 
         return builder.ToString();

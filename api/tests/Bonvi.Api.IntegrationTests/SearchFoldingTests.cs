@@ -149,6 +149,51 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
         topilgan.ShouldBe(1, $"«{qidiruv}» bo'yicha xodim topilishi kerak edi");
     }
 
+    /// <summary>
+    /// Telefon formatlangan (bo'shliq, tire, «+») holda ko'chirib
+    /// qidirilganda ham topiladi.
+    /// </summary>
+    /// <remarks>
+    /// Bazada telefon kanonik shaklda saqlanadi (<c>PhoneNumber</c> qiymat
+    /// obyekti), lekin HR ekranda <c>+998 90 508 74 12</c> ko'radi va aynan
+    /// shu ko'rinishni ko'chirib qidiruvga qo'yadi. Ajratgichlar hisobga
+    /// olinmasa, bu qidiruv jimgina bo'sh natija berardi.
+    /// </remarks>
+    [Theory]
+    [InlineData("90 508 74 12")]        // bo'shliq bilan
+    [InlineData("+998 90 508 74 12")]   // mamlakat kodi + bo'shliq
+    [InlineData("90-508-74-12")]        // tire bilan
+    [InlineData("(90) 508-74-12")]      // qavs bilan
+    [InlineData("905087412")]           // ajratgichsiz — avvalgidek ishlashi kerak
+    public async Task Telefon_ajratgichlar_bilan_yozilganda_ham_topiladi(string qidiruv)
+    {
+        await TayyorlaAsync();
+
+        var topilgan = await QidirAsync(qidiruv);
+
+        topilgan.ShouldBe(1, $"«{qidiruv}» bo'yicha xodim topilishi kerak edi");
+    }
+
+    /// <summary>
+    /// Qidiruv matnida bironta ham raqam bo'lmasa, telefon sharti
+    /// so'rovga qo'shilmaydi va ism bo'yicha qidiruv buzilmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Xavfli xato: telefon uchun raqamsiz naqsh <c>%%</c> ga aylanib,
+    /// butun jadvalni olib kelishi mumkin edi. Bu test aynan shu holatdan
+    /// himoyalanganini tasdiqlaydi — faqat SHU test yaratgan xodim
+    /// topilishi kerak, «begona» yozuvlar emas.
+    /// </remarks>
+    [Fact]
+    public async Task Raqamsiz_qidiruvda_telefon_sharti_qollanmaydi()
+    {
+        await TayyorlaAsync();
+
+        var topilgan = await QidirAsync(Familiya);
+
+        topilgan.ShouldBe(1, "ism bo'yicha qidiruv raqamsiz bo'lsa ham ishlashi kerak edi");
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────

@@ -796,12 +796,13 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             return employees;
         }
 
-        // Bitta qidiruv matnidan IKKI naqsh: ism ustuni kirillda, kod
-        // ustunlari lotin va raqamda saqlanadi va ular boshqa-boshqa
-        // «bir xil ko'rinadigan» belgilardan aziyat chekadi.
-        // To'liq sabab — `SearchFolding` izohida.
+        // Bitta qidiruv matnidan UCH naqsh: ism ustuni kirillda, pasport/
+        // JSHSHIR lotin va raqamda, telefon esa FAQAT raqamda (ajratgichsiz)
+        // saqlanadi va har biri boshqa-boshqa «bir xil ko'rinadigan»
+        // belgilardan aziyat chekadi. To'liq sabab — `SearchFolding` izohida.
         var namePattern = LikePattern(SearchFolding.ForName(search));
         var codePattern = LikePattern(SearchFolding.ForCode(search));
+        var phoneDigits = SearchFolding.ForPhone(search);
 
         // ⚠️ `translate(...)` ning ichidagi ikki satr XOM HOLDA yozilgan,
         // parametr sifatida emas. Bu majburiy: PostgreSQL ifoda ustidagi
@@ -810,20 +811,49 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         // `SearchFolding` dagi konstantalardan ko'chirilgan va ular
         // `ix_employees_full_name_fold_trgm` indeksida ham shundayligicha
         // turibdi — uchalasi birga o'zgaradi.
-        var matching = _context.Employees
-            .FromSql(
-                $"""
-                 SELECT x.*
-                 FROM employees AS x
-                 WHERE translate(
-                           lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                           'қғҳўё', 'кгхуе') ILIKE {namePattern}
-                    OR x.pinfl ILIKE {codePattern}
-                    OR x.passport ILIKE {codePattern}
-                    OR x.phone ILIKE {codePattern}
-                    OR x.second_phone ILIKE {codePattern}
-                 """)
-            .Select(employee => employee.Id);
+        //
+        // Telefon sharti ESA butunlay boshqa sabab bilan shartli: agar
+        // qidiruv matnida bironta ham raqam bo'lmasa (HR ism bilan
+        // qidiryapti), `phoneDigits` bo'sh qatorga aylanadi va uni naqshga
+        // aylantirsak `%%` chiqardi — bu BUTUN jadvalni olib kelardi va ism
+        // bo'yicha qidiruvni ma'nosiz qilardi. Shu sababli bo'sh bo'lganda
+        // telefon sharti SQL matniga UMUMAN qo'shilmaydi.
+        //
+        // `regexp_replace(x.phone, '\D', '', 'g')` — ustundagi ajratgichlarni
+        // (bo'shliq, tire, «+») so'rov vaqtida olib tashlaydi, xuddi
+        // `phoneDigits` qidiruv matni ustida qilganidek. `ix_employees_phone`
+        // — oddiy B-tree, ifoda ustida EMAS, shu sababli bu yerda ifodani
+        // o'zgartirish uni buzmaydi. U indeks aslida shu «ichida qidirish»
+        // (`%...%`) so'roviga baribir mos kelmaydi — PostgreSQL bunday
+        // naqsh uchun B-tree'ni ishlata olmaydi (chap tomoni joker bilan
+        // boshlanadi), ya'ni bu yerda seq scan avvaldan ham bor edi.
+        var matching = phoneDigits.Length == 0
+            ? _context.Employees
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM employees AS x
+                     WHERE translate(
+                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
+                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                        OR x.pinfl ILIKE {codePattern}
+                        OR x.passport ILIKE {codePattern}
+                     """)
+                .Select(employee => employee.Id)
+            : _context.Employees
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM employees AS x
+                     WHERE translate(
+                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
+                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                        OR x.pinfl ILIKE {codePattern}
+                        OR x.passport ILIKE {codePattern}
+                        OR regexp_replace(x.phone, '\D', '', 'g') ILIKE {LikePattern(phoneDigits)}
+                        OR regexp_replace(x.second_phone, '\D', '', 'g') ILIKE {LikePattern(phoneDigits)}
+                     """)
+                .Select(employee => employee.Id);
 
         return employees.Where(employee => matching.Contains(employee.Id));
     }

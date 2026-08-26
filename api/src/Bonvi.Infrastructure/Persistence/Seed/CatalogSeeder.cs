@@ -25,9 +25,15 @@ public sealed record CatalogSeedResult(int Created, int Skipped, int MissingFile
 /// uni eski holiga qaytarib qo'yardi.
 /// </para>
 /// <para>
-/// Amal <b>idempotent</b>: mavjud yozuv kod (kod bo'lmasa — nom) bo'yicha
-/// topiladi va unga TEGILMAYDI. Shu sababli uni har bir ishga tushishda
-/// chaqirish xavfsiz: JSON'ga yangi qator qo'shilsa, faqat o'sha paydo bo'ladi.
+/// Amal <b>idempotent</b>, lekin QATOR bo'yicha emas — ma'lumotnoma BUTUNLIGICHA.
+/// Har bir ma'lumotnoma FAQAT bazada hali bironta yozuvi bo'lmasa quyiladi;
+/// birorta yozuvi bo'lsa, butun JSON fayli o'tkazib yuboriladi (batafsil sabab —
+/// <c>SeedCatalogAsync</c> ichidagi izohda). Shu sababli har ishga tushishda
+/// chaqirish xavfsiz, LEKIN «yetishmaganini to'ldiradi» degani emas: ma'lumotnoma
+/// allaqachon to'lgan bo'lsa, JSON'ga keyin qo'shilgan qator ham HR uni qo'lda
+/// kiritmaguncha o'zi paydo bo'lmaydi. (Ilgari, kod olib tashlanishidan oldin,
+/// har bir qator alohida — avval kod, keyin nom bo'yicha — tekshirilardi; endi
+/// bunday emas.)
 /// </para>
 /// <para>
 /// Fayl topilmasa — xato tashlanmaydi, ogohlantirish yoziladi va o'sha

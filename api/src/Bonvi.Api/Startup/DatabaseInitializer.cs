@@ -131,8 +131,12 @@ public sealed partial class DatabaseInitializer : IHostedService
         // ---------- Ma'lumotnomalar ----------
         // Excel'dan tozalab olingan ro'yxatlar: yuridik shaxslar, yo'nalishlar,
         // bo'limlar daraxti, lavozimlar, ishdan ketish sabablari va boshqalar.
-        // Amal idempotent — mavjud yozuvlarga tegilmaydi, faqat yetishmayotgani
-        // qo'shiladi. Shu sababli har ishga tushishda chaqirish xavfsiz.
+        // Har bir ma'lumotnoma FAQAT bazada butunlay BO'SH bo'lsa quyiladi —
+        // birorta yozuvi bo'lsa, butun JSON fayli o'tkazib yuboriladi (sababi
+        // `CatalogSeeder` ichida: HR tuzatgan nomni seeder qayta yaratmasligi
+        // kerak). Shu sababli har ishga tushishda chaqirish xavfsiz, lekin
+        // «yetishmayotgani qo'shiladi» degani emas — bo'lim ro'yxatiga keyin
+        // qo'lda bitta qator qo'shilsa ham, seeder uni endi to'ldirmaydi.
         var catalog = await provider.GetRequiredService<CatalogSeeder>()
             .SeedAsync(cancellationToken)
             .ConfigureAwait(false);
