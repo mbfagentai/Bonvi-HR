@@ -194,11 +194,11 @@ export function EmployeesPage() {
       helper.accessor('fullName', {
         header: t('employee.fullName'),
         /*
-          Eng kichik kenglik ATAYLAB qo'yilgan. Qolgan ustunlar aniq
-          o'lchamda, F.I.Sh. esa ortib qolganini oladi — tor ekranda u
-          birinchi bo'lib qisiladi va ism «Абдуқодиро…» bo'lib kesiladi.
-          O'zbekcha to'liq ism uzun («Абдуқодиров Шерзод Нурмат ўғли»),
-          HR esa odamni aynan ismidan taniydi.
+          Ortib qolgan joyni shu ustun oladi — o'zbekcha to'liq ism uzun
+          («Абдуқодиров Шерзод Нурмат ўғли»), HR esa odamni aynan ismidan
+          taniydi. 340px — pastki chegara: rasm (44px) + ism ikki qatorda
+          + yo'nalish yorliqlari shundan tor joyga sig'maydi. Undan
+          qisilmaydi, jadval o'rniga o'ngga suriladi.
         */
         meta: { width: '340px' },
         cell: ({ row }) => {
@@ -210,7 +210,7 @@ export function EmployeesPage() {
                 employeeId={employee.id}
                 photoKey={employee.photoKey}
                 name={employee.fullName}
-                size="md"
+                size="lg"
               />
 
               <div className="min-w-0">
@@ -240,27 +240,33 @@ export function EmployeesPage() {
       helper.accessor('positionName', {
         header: t('employee.position'),
         enableSorting: false,
-        meta: { width: '180px' },
+        meta: { width: '224px' },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
       helper.accessor('departmentName', {
         header: t('employee.department'),
         enableSorting: false,
-        meta: { width: '180px', hideOnMobile: true },
+        meta: { width: '216px', hideOnMobile: true },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
       helper.accessor('legalEntityName', {
         header: t('employee.legalEntity'),
         enableSorting: false,
-        meta: { width: '150px', hideOnMobile: true },
+        meta: { width: '196px', hideOnMobile: true },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
       helper.accessor('hireDate', {
-        header: t('employee.hireDate'),
-        meta: { width: '124px', hideOnMobile: true },
+        /*
+          Sarlavha shu yerda qisqa: «Ishga kirgan sana» katakni o'zining
+          qiymatidan («15.01.1991») ikki barobar keng qilib yuborardi —
+          ustun sarlavhadan tor bo'la olmaydi. Qolgan joyda to'liq nom
+          ishlatiladi, bu yerda ustun tepasi kontekstning o'zi.
+        */
+        header: t('employee.hireDateShort'),
+        meta: { width: '116px', hideOnMobile: true },
         cell: ({ getValue }) => <DateCell value={getValue()} />,
       }),
 
@@ -281,7 +287,8 @@ export function EmployeesPage() {
         id: 'flags',
         header: t('employee.flags'),
         enableSorting: false,
-        meta: { width: '140px' },
+        // Bitta yorliq («Qora ro'yxat») bir qatorga sig'adigan kenglik
+        meta: { width: '172px' },
         cell: ({ row }) => (
           <span className="flex flex-wrap items-center gap-1.5">
             {row.original.activeFlags.map((flag) => (

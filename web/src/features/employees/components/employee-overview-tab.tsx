@@ -24,12 +24,12 @@ import type { ReactNode } from 'react'
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { formatPhone } from '@/shared/lib/phone'
 import { Badge, Button, Card, CardContent, CardHeader, EmptyState } from '@/shared/ui'
 import type { EmployeeDetails, EmploymentSummary } from '../api/employees-api'
 import {
   EMPLOYMENT_MANAGE,
   SALARY_VIEW,
-  formatPhone,
   formatPinfl,
   formatRate,
 } from '../lib/employee-presentation'

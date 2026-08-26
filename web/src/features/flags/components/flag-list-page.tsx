@@ -58,13 +58,27 @@ export function FlagListPage({ type }: { type: EmployeeFlagType }) {
     () => [
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
+        /*
+          Pastki chegara ATAYLAB qo'yildi — avval umuman yo'q edi. Hisob:
+          300px − katak to'ldirishi (px-4 × 2 = 32px) = 268px; 268px −
+          rasm (size-12 = 48px) − oraliq (gap-3 = 12px) = 208px sof matnga
+          qoladi. `text-subhead` (15px) da bu ~24-26 belgi — o'zbekcha
+          uch so'zli to'liq ism («Абдуқодиров Шерзод Нурмат ўғли», 30
+          belgi) baribir kesiladi (title yo'q, to'liq ism qatorni bosib
+          profilga o'tishda ko'rinadi), lekin odatiy ikki-uch so'zli ism
+          endi sig'adi. 260px yetarli emas edi — sof matnga atigi 168px
+          (~20 belgi) qolardi. Xodimlar ro'yxatida xuddi shu konstruksiya
+          (rasm+ism) 340px, sinov ro'yxatida 300px — bu yerda ham 300px,
+          uch ro'yxatda bir xil odam bir xil kenglikda ko'rinsin.
+        */
+        meta: { width: '300px' },
         cell: ({ row }) => (
           <div className="flex min-w-0 items-center gap-3">
             <EmployeePhoto
               employeeId={row.original.employeeId}
               photoKey={row.original.photoKey}
               name={row.original.employeeName}
-              size="md"
+              size="lg"
             />
             <p className="truncate-1 font-medium">{row.original.employeeName}</p>
           </div>
@@ -74,6 +88,16 @@ export function FlagListPage({ type }: { type: EmployeeFlagType }) {
       helper.accessor('reason', {
         header: t('flags.reason'),
         enableSorting: false,
+        /*
+          Bu yerda ham pastki chegara yo'q edi. «Sabab» — Excel'dan kelgan
+          erkin matn, ba'zan bir necha jumla; kengligi belgilanmasa
+          avtomatik jadval uni ENG UZUN qiymatning o'ralmagan kengligiga
+          qarab o'lchaydi va butun jadvalni cho'zib yuboradi. 220px — ikki
+          qatorda ~40-45 belgi ko'rsatadi (line-clamp-2 pastda), bu odatiy
+          sababni tanib olish uchun yetarli; to'lig'i `title` atributida
+          turibdi (pastdagi kod, o'zgarmagan).
+        */
+        meta: { width: '220px' },
         cell: ({ getValue }) => {
           const reason = getValue()
 
@@ -106,7 +130,9 @@ export function FlagListPage({ type }: { type: EmployeeFlagType }) {
       helper.accessor('responsibleName', {
         header: t('flags.responsible'),
         enableSorting: false,
-        meta: { width: '170px', hideOnMobile: true },
+        // 170px'da odatiy ikki so'zli ism («Karimova Nilufar» — 17 ta
+        // belgi) chekkasiga tegib turardi. 190px kichik zaxira beradi.
+        meta: { width: '190px', hideOnMobile: true },
         cell: ({ getValue }) => {
           const value = getValue()
           if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
@@ -117,7 +143,22 @@ export function FlagListPage({ type }: { type: EmployeeFlagType }) {
       helper.display({
         id: 'actions',
         header: '',
-        meta: { width: '150px', align: 'end' },
+        /*
+          Bitta tugma, `variant="secondary" size="sm"`. Hisob (eng uzun
+          tarjima — ruscha «Закрыть», 7 belgi):
+            matn:      7 × ~7.5px (text-footnote 13px, font-medium) ≈ 53px
+            tugma ichki bo'shlig'i: px-3 × 2                        = 24px
+            tugma chegarasi (border 1px × 2, secondary variantda)   =  2px
+            katak to'ldirishi: px-4 × 2                             = 32px
+            ---------------------------------------------------------
+            jami kerak                                             ≈ 111px
+          130px ≈ 19px zaxira qoldiradi — tugma chekkaga TEGMAYDI, oddiy
+          ehtiyot zaxirasi (font o'lchash noaniqligi uchun ham yetarli:
+          8px/belgi kabi «yomonroq» taxminda ham 114px chiqadi, hali ham
+          130px ichida). `align: 'end'` bo'lgani uchun bu zaxira chapda
+          ko'rinmas holda qoladi — 150px shunchaki isrof bo'lardi.
+        */
+        meta: { width: '130px', align: 'end' },
         cell: ({ row }) => {
           // Yopilgan belgini qayta yopib bo'lmaydi — domen rad etadi.
           if (!canManage || row.original.endDate !== null) return null

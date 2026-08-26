@@ -159,7 +159,7 @@ function MissingRow({
         employeeId={row.employeeId}
         photoKey={row.photoKey}
         name={row.employeeName}
-        size="sm"
+        size="md"
       />
 
       <div className="min-w-0 flex-1">

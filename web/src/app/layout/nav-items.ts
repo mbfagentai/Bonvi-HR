@@ -1,9 +1,11 @@
 import {
   Award,
   Briefcase,
+  BriefcaseBusiness,
   Building2,
   ClipboardList,
   Compass,
+  FileSignature,
   FileText,
   Gauge,
   Gavel,
@@ -12,13 +14,17 @@ import {
   LayoutGrid,
   Library,
   LogOut,
+  MessageCircle,
   MessageSquareQuote,
   Network,
   ShieldAlert,
   Sparkles,
+  ThumbsUp,
   Timer,
   UserCog,
   UserMinus,
+  UserPlus,
+  UserSearch,
   Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -43,6 +49,30 @@ export interface NavItem {
   search?: Readonly<Record<string, string>>
   /** Hali qurilmagan bo'lim — menyuda o'chiq ko'rinadi. */
   soon?: boolean
+  /**
+   * Ruxsat kodi — bo'lsa, band FAQAT shu ruxsati bor foydalanuvchiga
+   * ko'rinadi (`sidebar.tsx` filtrlaydi, `useAuth().hasPermission`).
+   *
+   * NEGA `soon` kabi «o'chiq ko'rinish» emas: `soon` — «hali qurilmagan,
+   * lekin YO'L XARITASI sifatida ko'rinsin» degani, bu esa boshqa
+   * masala — «bu odam BUTUNLAY yeta olmaydigan bo'lim». Masalan
+   * `/foydalanuvchilar`: uning `GET`i ham `users.manage` bilan
+   * himoyalangan (`UserEndpoints.cs`), ya'ni HR menejeri bu ro'yxatni
+   * SERVERDAN OLA OLMAYDI — bandni ko'rsatib, sahifani «bo'sh/xatoli»
+   * holatda ochish ortiqcha chalkashlik bo'lardi.
+   */
+  permission?: string
+  /**
+   * Yorliq yonidagi kichik sanoq belgisi (masalan, sinovdagilar soni).
+   *
+   * Statik ro'yxatda HAR DOIM `undefined`: bu massiv modul yuklanganda
+   * bir marta tuziladi, sanoq esa jonli so'rovdan keladi. Qiymatni
+   * `sidebar.tsx` band chizilayotganda ustiga qo'yadi — maydon shu yerda
+   * faqat TIP sifatida e'lon qilingan. `0` ham chizilmasin degan qoida
+   * bilan bu yerda emas, chizuvchi joyda — bu yerga `0` ni ham
+   * ruxsat berish kifoya.
+   */
+  count?: number
   /**
    * Ichki bandlar. Bo'lsa, bu band HAVOLA EMAS — ochiluvchi guruh.
    *
@@ -86,7 +116,7 @@ export const NAV: NavSection[] = [
       */
       { key: 'formerEmployees', to: '/xodimlar', icon: UserMinus,
         search: { status: 'terminated' } },
-      { key: 'employment',   to: '/buyruqlar',     icon: Briefcase,     soon: true },
+      { key: 'employment',   to: '/buyruqlar',     icon: Briefcase },
       { key: 'competencies', to: '/qobiliyatlar',  icon: Sparkles,      soon: true },
       { key: 'incentives',   to: '/ragbat',        icon: Award,         soon: true },
       { key: 'documents',    to: '/hujjatlar',     icon: FileText,      soon: true },
@@ -98,8 +128,14 @@ export const NAV: NavSection[] = [
       { key: 'reserve',    to: '/rezerv',       icon: ClipboardList },
       { key: 'blacklist',  to: '/qora-royxat',  icon: ShieldAlert },
       { key: 'monitoring', to: '/nazorat',      icon: Gauge },
-      { key: 'incidents',  to: '/hodisalar',    icon: HeartPulse,    soon: true },
-      { key: 'feedback',   to: '/qayta-aloqa',  icon: MessageSquareQuote, soon: true },
+      // `EMPLOYEE_FLAG_TYPES` tartibida oxirgisi — shu sababli shu yerda
+      // ham uch ro'yxatdan keyin turadi.
+      { key: 'capable',    to: '/qobiliyatli',  icon: ThumbsUp },
+      // Ruxsat `soon`ning o'rnini oldi: sahifa endi qurilgan, lekin
+      // hammada ham ko'rinmaydi — `users` bandidagi naqsh (yuqoridagi
+      // `permission` izohiga qarang).
+      { key: 'incidents',  to: '/hodisalar',    icon: HeartPulse,    permission: 'safety.view' },
+      { key: 'feedback',   to: '/qayta-aloqa',  icon: MessageSquareQuote, permission: 'feedback.view' },
     ],
   },
   {
@@ -129,9 +165,47 @@ export const NAV: NavSection[] = [
     ],
   },
   {
+    /*
+      Sarlavhasiz guruh, `sectionCatalog` bilan bir xil naqsh: bandning
+      o'zi («Rekruting») sarlavha vazifasini bajaradi.
+
+      NEGA ochiluvchi guruh, to'rtta bandning har biri alohida emas:
+      PLAN.md (11-qator) 2-bosqichni «Rekruting: vakansiya → anketa →
+      suhbat → job offer» deb belgilaydi — u hali BOSHLANMAGAN, bu
+      to'rttala band ham `soon`. To'rtta doimiy o'chiq qatorni kundalik
+      menyuga yoyish «Ma'lumotnomalar»ni yig'ib turgan sababning
+      aksi bo'lardi: bu safar ular kundalik ish emasligidan tashqari,
+      HALI UMUMAN ISHLAMAYDI ham — ikkalanchi sabab guruhlashni yanada
+      kuchliroq asoslaydi. Yig'ilganda yon menyuda bitta qator ko'rinadi,
+      xohlagan ochib yo'l xaritasini ko'radi.
+
+      NEGA shu yerda: 1-bosqich (Xodimlar, Ro'yxatlar, Ma'lumotnomalar)
+      tugagach, 2-bosqich boshlanishidan OLDIN — «Tizim» (administrator)
+      doim eng pastda qoladi, PLAN.md dagi bosqich tartibi menyuda ham
+      saqlanadi.
+    */
+    items: [
+      {
+        key: 'recruiting',
+        // Faqat «shu yo'lakdamiz» tekshiruvi uchun (`sectionCatalog` dagi
+        // bilan bir xil naqsh) — hech qaysi bola marshruti hali yo'q,
+        // shu sababli bu ham hech qachon haqiqiy navigatsiyaga ishtirok
+        // etmaydi, lekin nomlash uslubi saqlanadi.
+        to: '/rekruting',
+        icon: UserSearch,
+        children: [
+          { key: 'vacancies',  to: '/vakansiyalar', icon: BriefcaseBusiness, soon: true },
+          { key: 'candidates', to: '/nomzodlar',     icon: UserPlus,         soon: true },
+          { key: 'interviews', to: '/suhbatlar',     icon: MessageCircle,    soon: true },
+          { key: 'jobOffers',  to: '/takliflar',     icon: FileSignature,    soon: true },
+        ],
+      },
+    ],
+  },
+  {
     key: 'sectionSystem',
     items: [
-      { key: 'users', to: '/foydalanuvchilar', icon: UserCog, soon: true },
+      { key: 'users', to: '/foydalanuvchilar', icon: UserCog, permission: 'users.manage' },
     ],
   },
 ]

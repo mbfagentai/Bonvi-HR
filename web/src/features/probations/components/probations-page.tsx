@@ -87,6 +87,17 @@ export function ProbationsPage() {
     () => [
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
+        /*
+          Aniq kenglik yo'q edi — ustun brauzer xohlagancha torayardi.
+          Hisob-kitob: 300px − katak to'ldirishi (`px-4` = 32px) = 268px;
+          rasm (`size="lg"` = 48px) + `gap-3` (12px) = 60px; qolgan
+          ~208px matnga — bitta qatorli ism (~26 belgi) va ostidagi
+          lavozim qatori (~32 belgi, kichikroq shriftda) shu joyga
+          sig'adi. Uzunroq ism/lavozim uchida uchta nuqta bilan kesiladi
+          (`truncate-1`), bu boshqa matn ustunlaridagi kabi qabul
+          qilingan yechim.
+        */
+        meta: { width: '300px' },
         cell: ({ row }) => {
           const item = row.original
 
@@ -101,7 +112,7 @@ export function ProbationsPage() {
                 employeeId={item.employeeId}
                 photoKey={item.photoKey}
                 name={item.employeeName}
-                size="md"
+                size="lg"
               />
 
               <div className="min-w-0">
@@ -120,7 +131,9 @@ export function ProbationsPage() {
       helper.accessor('department', {
         header: t('employee.department'),
         enableSorting: false,
-        meta: { width: '200px', hideOnMobile: true },
+        // 216px — xodimlar ro'yxatidagi shu ustun bilan bir xil qiymat:
+        // bo'lim nomi bir xil katalogdan keladi, demak bir xil joy kerak.
+        meta: { width: '216px', hideOnMobile: true },
         cell: ({ getValue }) => <Muted value={getValue()} />,
       }),
 
@@ -138,7 +151,14 @@ export function ProbationsPage() {
 
       helper.accessor('daysLeft', {
         header: t('probation.daysLeft'),
-        meta: { width: '150px' },
+        /*
+          150px ikkinchi qatorga tushirardi: muddati o'tgan holat oddiy
+          "12 kun" emas, to'liq jumla — ruscha "просрочено на 12 дн."
+          belgi bilan birga eng uzun matn. 210px shu jumlani bir qatorda
+          ushlab turadi, qolgan holatlar (qisqa "N kun") esa erkin joy
+          qoladi.
+        */
+        meta: { width: '210px' },
         cell: ({ row }) => <DaysLeft item={row.original} />,
       }),
 
@@ -155,7 +175,10 @@ export function ProbationsPage() {
       helper.display({
         id: 'actions',
         header: '',
-        meta: { width: '190px', align: 'end' },
+        // 210px — ikkita tugma yonma-yon: "Uzaytirish"/"Продлить" va
+        // "Yakunlash"/"Завершить". Ruscha va o'zbekcha kirill juftligi
+        // eng keng, 190px ularni bir-biriga qisib qo'yardi.
+        meta: { width: '210px', align: 'end' },
         cell: ({ row }) => {
           const item = row.original
 

@@ -1,3 +1,5 @@
+import { formatPhone } from '@/shared/lib/phone'
+
 /**
  * Telefon raqami — kirish logini.
  *
@@ -62,8 +64,11 @@ export function toFullPhone(digits: string): string {
 /**
  * Ko'rsatish uchun: `+998905088888` → `+998 90 508 88 88`.
  * Kutilgan shaklga mos kelmasa — qiymat o'zgarishsiz qaytadi.
+ *
+ * NEGA o'zi hisoblamaydi: bu shakl butun tizim uchun umumiy qoida
+ * (`shared/lib/phone.ts` dagi `formatPhone`), login logikasi bilan
+ * bog'liq emas — shu sababli ikkinchi marta yozilmaydi.
  */
 export function formatFullPhone(value: string): string {
-  const digits = uzPhoneDigits(value)
-  return digits.length === UZ_PHONE_LENGTH ? `+998 ${formatUzPhone(digits)}` : value
+  return formatPhone(value) ?? value
 }

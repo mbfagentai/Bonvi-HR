@@ -5,6 +5,7 @@ import {
   Briefcase,
   CircleDollarSign,
   Eye,
+  Gavel,
   ListPlus,
   LogIn,
   LogOut,
@@ -21,6 +22,7 @@ import type {
   EmployeeStatus,
   EmploymentEventType,
 } from '../api/employees-api'
+import type { IncentiveKindValue } from '../api/incentives-api'
 
 /* ═════════════════════════════════════════════════════════════ RUXSATLAR */
 
@@ -44,6 +46,16 @@ export const LISTS_MANAGE = 'lists.manage'
  * maydonning o'zi chizilmaydi.
  */
 export const SALARY_VIEW = 'salary.view'
+
+/**
+ * Rag'bat/jarima — ALOHIDA ruxsat guruhi, `employees.*` emas.
+ *
+ * Sabab backend'dagi bilan bir xil (`Permissions.IncentivesView`
+ * izohiga qarang): pul (mukofot/jarima summasi) va intizomiy chora bilan
+ * bog'liq nozik ma'lumot.
+ */
+export const INCENTIVES_VIEW = 'incentives.view'
+export const INCENTIVES_MANAGE = 'incentives.manage'
 
 /* ══════════════════════════════════════════════════════════════ HOLATLAR */
 
@@ -111,6 +123,32 @@ export const FLAG_LOOK: Readonly<Record<EmployeeFlagType, FlagLook>> = {
   },
 }
 
+/* ═══════════════════════════════════════════════════ RAG'BAT VA JARIMA */
+
+export interface IncentiveKindLook {
+  tone: BadgeTone
+  iconTone: IconTone
+  icon: LucideIcon
+  /** `incentives.kind<Key>` tarjima kaliti. */
+  labelKey: string
+}
+
+/** Rag'bat — yashil (ijobiy), jarima — qizil (intizomiy chora). */
+export const INCENTIVE_KIND_LOOK: Readonly<Record<IncentiveKindValue, IncentiveKindLook>> = {
+  award: {
+    tone: 'success',
+    iconTone: 'green',
+    icon: Award,
+    labelKey: 'incentives.kindAward',
+  },
+  penalty: {
+    tone: 'danger',
+    iconTone: 'red',
+    icon: Gavel,
+    labelKey: 'incentives.kindPenalty',
+  },
+}
+
 /* ══════════════════════════════════════════════════════════════ HODISALAR */
 
 export interface EventLook {
@@ -154,17 +192,6 @@ export function formatPinfl(pinfl: string | null): string | null {
   const digits = pinfl.replaceAll(/\D/gu, '')
   if (digits.length !== 14) return pinfl
   return digits.replace(/(\d{4})(\d{4})(\d{4})(\d{2})/u, '$1 $2 $3 $4')
-}
-
-/** «905088888» yoki «+998905088888» → «+998 90 508 88 88». */
-export function formatPhone(phone: string | null): string | null {
-  if (phone === null) return null
-
-  const digits = phone.replaceAll(/\D/gu, '')
-  const local = digits.length === 12 && digits.startsWith('998') ? digits.slice(3) : digits
-  if (local.length !== 9) return phone
-
-  return `+998 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5, 7)} ${local.slice(7)}`
 }
 
 /**
