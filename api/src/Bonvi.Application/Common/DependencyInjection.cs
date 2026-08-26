@@ -4,11 +4,13 @@ using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Dashboard.Queries;
 using Bonvi.Application.Employees;
+using Bonvi.Application.Feedback;
 using Bonvi.Application.Identity.Commands.Login;
 using Bonvi.Application.Identity.Commands.Logout;
 using Bonvi.Application.Identity.Commands.RefreshSession;
 using Bonvi.Application.Identity.Photos;
 using Bonvi.Application.Identity.Queries.GetCurrentUser;
+using Bonvi.Application.Safety;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,6 +58,12 @@ public static class DependencyInjection
 
         // Xodimlar va mehnat munosabatlari (S4–S5) — shuningdek o'z ro'yxati bilan
         services.AddEmployees();
+
+        // Qayta aloqa — exit interview (S9/M10)
+        services.AddFeedback();
+
+        // Baxtsiz hodisalar jurnali (S9/M11)
+        services.AddSafety();
 
         return services;
     }

@@ -43,6 +43,8 @@ public static class DependencyInjection
         services.AddIdentityServices(configuration);
         services.AddCatalogServices();
         services.AddEmployeeServices();
+        services.AddFeedbackServices();
+        services.AddSafetyServices();
 
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
@@ -77,6 +79,22 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeDocumentRepository, EmployeeDocumentRepository>();
 
         services.AddScoped<IEmployeeReadModel, EmployeeReadModel>();
+
+        return services;
+    }
+
+    /// <summary>«Qayta aloqa» (exit interview, S9/M10) bilan ishlaydigan portlar.</summary>
+    private static IServiceCollection AddFeedbackServices(this IServiceCollection services)
+    {
+        services.AddScoped<IExitInterviewRepository, ExitInterviewRepository>();
+
+        return services;
+    }
+
+    /// <summary>Baxtsiz hodisalar jurnali (S9/M11) bilan ishlaydigan portlar.</summary>
+    private static IServiceCollection AddSafetyServices(this IServiceCollection services)
+    {
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         return services;
     }

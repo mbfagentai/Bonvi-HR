@@ -5,8 +5,10 @@ using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Safety;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -168,6 +170,16 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Xodimga biriktirilgan fayllar: shartnoma, buyruq, anketa, skan (<c>employee_documents</c>).</summary>
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+
+    // ────────────────────────────────────────────────────────────
+    //  QAYTA ALOQA VA XAVFSIZLIK (S9 — M10/M11)
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Ishdan ketuvchi xodim bilan suhbatlar (<c>exit_interviews</c>).</summary>
+    public DbSet<ExitInterview> ExitInterviews => Set<ExitInterview>();
+
+    /// <summary>Baxtsiz hodisalar jurnali (<c>incidents</c>).</summary>
+    public DbSet<Incident> Incidents => Set<Incident>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

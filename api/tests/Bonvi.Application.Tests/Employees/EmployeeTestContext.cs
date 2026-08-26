@@ -3,6 +3,8 @@ using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Documents;
 using Bonvi.Application.Employees.Incentives;
+using Bonvi.Application.Feedback;
+using Bonvi.Application.Safety;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
@@ -77,6 +79,10 @@ internal sealed class EmployeeTestContext
 
     public IEmployeeDocumentRepository Documents { get; } = Substitute.For<IEmployeeDocumentRepository>();
 
+    public IExitInterviewRepository ExitInterviews { get; } = Substitute.For<IExitInterviewRepository>();
+
+    public IIncidentRepository Incidents { get; } = Substitute.For<IIncidentRepository>();
+
     public IFileStorage Storage { get; } = Substitute.For<IFileStorage>();
 
     public IFileContentInspector Inspector { get; } = Substitute.For<IFileContentInspector>();
@@ -97,6 +103,10 @@ internal sealed class EmployeeTestContext
     public IncentiveTypeResolver Types => new(AwardTypes, PenaltyTypes);
 
     public DocumentFileStore Files => new(Storage, Inspector);
+
+    public ExitInterviewMapper FeedbackMapper => new(Employments, Employees, Names);
+
+    public IncidentMapper SafetyMapper => new(Employees, Names);
 
     /// <summary>Oklad ko'rish ruxsatini yoqadi/o'chiradi.</summary>
     public void AllowSalary(bool allowed)

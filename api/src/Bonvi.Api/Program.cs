@@ -128,6 +128,8 @@ app.MapEmployeeEndpoints();
 app.MapEmploymentEndpoints();
 app.MapIncentiveEndpoints();
 app.MapEmployeeDocumentEndpoints();
+app.MapExitInterviewEndpoints();
+app.MapIncidentEndpoints();
 app.MapSystemEndpoints();
 app.MapDashboardEndpoints();
 

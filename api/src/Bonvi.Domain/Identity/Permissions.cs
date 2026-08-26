@@ -46,6 +46,27 @@ public static class Permissions
 
     public const string IncentivesManage = "incentives.manage";
 
+    /// <summary>
+    /// Exit interview («qayta aloqa», M10). ALOHIDA ruxsat —
+    /// <see cref="IncentivesView"/> bilan bir xil mantiq: xodimning ishdan
+    /// ketish sababi haqidagi o'z so'zlari (rahbariyat bilan ziddiyat,
+    /// noroziliklar) nozik ma'lumot va uni har bir HR emas, ko'rish kerak
+    /// bo'lgan kishi ko'rishi kerak.
+    /// </summary>
+    public const string FeedbackView = "feedback.view";
+
+    public const string FeedbackManage = "feedback.manage";
+
+    /// <summary>
+    /// Baxtsiz hodisalar jurnali (M11). ALOHIDA ruxsat — mehnat muhofazasi
+    /// bo'yicha huquqiy javobgarlik bilan bog'liq yozuv (komissiya xulosasi,
+    /// jarohat darajasi), <see cref="IncentivesView"/> kabi umumiy
+    /// <see cref="EmployeesView"/> dan tor.
+    /// </summary>
+    public const string SafetyView = "safety.view";
+
+    public const string SafetyManage = "safety.manage";
+
     // ---------- Ma'lumotnomalar ----------
     public const string CatalogView = "catalog.view";
     public const string CatalogManage = "catalog.manage";
@@ -65,6 +86,8 @@ public static class Permissions
         EmploymentView, EmploymentManage, SalaryView,
         ListsView, ListsManage,
         IncentivesView, IncentivesManage,
+        FeedbackView, FeedbackManage,
+        SafetyView, SafetyManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
         UsersManage, AuditView,
@@ -119,6 +142,8 @@ public static class SystemRoles
                 Permissions.SalaryView,
                 Permissions.ListsView, Permissions.ListsManage,
                 Permissions.IncentivesView, Permissions.IncentivesManage,
+                Permissions.FeedbackView, Permissions.FeedbackManage,
+                Permissions.SafetyView, Permissions.SafetyManage,
                 Permissions.CatalogView, Permissions.CatalogManage,
                 Permissions.ReportsView, Permissions.ReportsExport,
                 Permissions.AuditView,
