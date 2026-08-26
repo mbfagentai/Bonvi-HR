@@ -70,33 +70,21 @@ public sealed class SearchEmployeesQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var (sort, descending) = ParseSort(query.Sort);
-
-        var status = ParseStatus(query.Status);
-        if (status.IsFailure)
-        {
-            return status.Error;
-        }
-
         var page = query.Page is { } requested && requested > 0 ? requested : 1;
         var pageSize = Math.Clamp(query.PageSize ?? DefaultPageSize, 1, MaxPageSize);
 
-        var filter = new EmployeeSearchFilter(
-            Normalize(query.Search),
-            query.DepartmentId,
-            query.PositionId,
-            query.DirectionId,
-            query.LegalEntityId,
-            status.Value,
-            query.NeedsReview,
-            page,
-            pageSize,
-            sort,
-            descending);
+        var filterResult = BuildFilter(query, page, pageSize);
+        if (filterResult.IsFailure)
+        {
+            return filterResult.Error;
+        }
+
+        var filter = filterResult.Value;
 
         var found = await _readModel.SearchEmployeesAsync(filter, cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyList<EmployeeListItemDto> items = [.. found.Items.Select(ToDto)];
+        var canSeeSalary = _currentUser.CanSeeSalary();
+        IReadOnlyList<EmployeeListItemDto> items = [.. found.Items.Select(row => ToDto(row, canSeeSalary))];
 
         var pageCount = pageSize == 0 ? 0 : (found.Total + pageSize - 1) / pageSize;
 
@@ -196,14 +184,66 @@ public sealed class SearchEmployeesQueryHandler
     private static string? Normalize(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private EmployeeListItemDto ToDto(EmployeeSearchRow row)
+    /// <summary>
+    /// So'rov parametrlarini <see cref="EmployeeSearchFilter"/> ga aylantiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>internal</c> — Excel eksporti (<c>ExportEmployeesQueryHandler</c>)
+    /// AYNAN shu metodni chaqiradi, o'z nusxasini yozmaydi. Ekrandagi ro'yxat
+    /// va eksport bir xil <see cref="SearchEmployeesQuery"/> ni bir xil
+    /// qoidalar bilan (qidiruv normalizatsiyasi, holat va saralash tekshiruvi)
+    /// filtrga aylantirishi SHART — aks holda ikkalasi asta-sekin ajralib
+    /// ketardi va HR ekranda ko'rgani bilan Excel'dagi qatorlar boshqacha
+    /// bo'lib chiqardi.
+    /// </para>
+    /// <para>
+    /// <c>page</c>/<c>pageSize</c> tashqaridan keladi: ekran ularni 200 bilan
+    /// cheklaydi, eksport esa o'zining (ancha kattaroq) chegarasi bilan —
+    /// ikkalasi ham shu bitta metodni chaqiradi, faqat sonlar boshqa.
+    /// </para>
+    /// </remarks>
+    internal static Result<EmployeeSearchFilter> BuildFilter(SearchEmployeesQuery query, int page, int pageSize)
+    {
+        var (sort, descending) = ParseSort(query.Sort);
+
+        var status = ParseStatus(query.Status);
+        if (status.IsFailure)
+        {
+            return status.Error;
+        }
+
+        return new EmployeeSearchFilter(
+            Normalize(query.Search),
+            query.DepartmentId,
+            query.PositionId,
+            query.DirectionId,
+            query.LegalEntityId,
+            status.Value,
+            query.NeedsReview,
+            page,
+            pageSize,
+            sort,
+            descending);
+    }
+
+    /// <summary>
+    /// Bitta qatorni ekranga/faylga chiqadigan DTO'ga aylantiradi.
+    /// </summary>
+    /// <remarks>
+    /// <c>internal static</c> — eksport ham AYNAN shu mapping'dan foydalanadi:
+    /// oklad ustuni ikkalasida ham bir xil qoida bilan (<c>canSeeSalary</c>)
+    /// ko'rinadi yoki yashiriladi, alohida yozilgan ikkinchi xarita
+    /// ertami-kechmi bittasida yangilanib, ikkinchisida eskirib qolardi.
+    /// </remarks>
+    internal static EmployeeListItemDto ToDto(EmployeeSearchRow row, bool canSeeSalary)
     {
         var fullName = FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName);
 
         // Oklad ustuni ro'yxatda ham «salary.view» ga bog'liq: HR aynan shu
         // jadvalni ekranga chiqarib boshqalarga ko'rsatadi.
         MoneyDto? salary = null;
-        if (_currentUser.CanSeeSalary() && row.SalaryAmount is { } amount)
+        if (canSeeSalary && row.SalaryAmount is { } amount)
         {
             var money = Money.FromTrusted(amount, row.SalaryCurrency ?? Money.Uzs);
             salary = new MoneyDto(money.Amount, money.Currency, money.Formatted);

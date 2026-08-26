@@ -3,10 +3,12 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using Bonvi.Infrastructure.Identity;
 using Bonvi.Infrastructure.Persistence.ReadModels;
 using Bonvi.Infrastructure.Persistence.Seed;
+using Bonvi.Infrastructure.Reports;
 using Bonvi.Infrastructure.Repositories;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Infrastructure.Persistence;
@@ -49,6 +51,14 @@ public static class DependencyInjection
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
         services.AddScoped<IDashboardReadModel, DashboardReadModel>();
+
+        // Hisobotlar (kadrlar oqimi, keyinchalik boshqalari) — xuddi
+        // bosh sahifa kabi bironta bo'limga tegishli emas.
+        services.AddScoped<IReportsReadModel, ReportsReadModel>();
+
+        // Excel eksporti — holatsiz (bitta chaqiruv, bitta fayl), shu
+        // sababli bitta nusxa yetarli (xuddi `IImageProcessor` kabi).
+        services.AddSingleton<IEmployeeExcelWriter, EmployeeExcelWriter>();
 
         return services;
     }

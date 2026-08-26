@@ -12,5 +12,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Npgsql" />
+
+    <!-- Excel eksport javobini o'qib tekshirish uchun (S10) — API'ning o'zi
+         ClosedXML'ni allaqachon Infrastructure orqali ishlatadi. -->
+    <PackageReference Include="ClosedXML" />
   </ItemGroup>
 </Project>

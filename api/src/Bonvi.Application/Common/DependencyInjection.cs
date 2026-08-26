@@ -10,6 +10,7 @@ using Bonvi.Application.Identity.Commands.Logout;
 using Bonvi.Application.Identity.Commands.RefreshSession;
 using Bonvi.Application.Identity.Photos;
 using Bonvi.Application.Identity.Queries.GetCurrentUser;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using FluentValidation;
@@ -32,6 +33,11 @@ public static class DependencyInjection
         // Use-case handler'lari. Yangi handler qo'shilganda shu yerga bitta qator.
         services.AddScoped<GetSystemInfoQueryHandler>();
         services.AddScoped<GetDashboardStatsQueryHandler>();
+        services.AddScoped<GetDashboardBreakdownQueryHandler>();
+
+        // Hisobotlar
+        services.AddScoped<GetTurnoverQueryHandler>();
+        services.AddScoped<ExportEmployeesQueryHandler>();
 
         // Kvadrat surat quvuri — xodim rasmi ham, hisob rasmi ham shundan o'tadi.
         // Umumiy `Common` da, chunki u bironta bo'limga tegishli emas.

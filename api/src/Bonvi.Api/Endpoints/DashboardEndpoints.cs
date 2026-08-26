@@ -72,6 +72,33 @@ public static class DashboardEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        // «breakdown» davrga bog'liq emas (izohi `DashboardBreakdownDto` da) —
+        // shu sababli parametrsiz va «/stats» dan alohida: sahifa uni
+        // «period» almashtirilganda QAYTA so'ramaydi.
+        group.MapGet("/breakdown", async (
+                GetDashboardBreakdownQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetDashboardBreakdownQuery(), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            // Xuddi «/stats» dagi kabi `employees.view`: raqamlar xodimlar
+            // ro'yxatidan hosil bo'ladi, alohida sir yo'q.
+            .RequireAuthorization(Permissions.EmployeesView)
+            .WithName("GetDashboardBreakdown")
+            .WithSummary("Bosh sahifa — bo'lim va yo'nalish kesimi")
+            .WithDescription(
+                "Faol (doimiy) xodimlarning taqsimoti: bo'lim bo'yicha — bo'lim daraxtining " +
+                "YUQORI DARAJASIGA (departament) yig'ilgan holda, yo'nalish bo'yicha — tekis. " +
+                "«Belgilanmagan» — bo'limi/yo'nalishi ko'rsatilmagan xodimlar. Bo'lim ustunlari " +
+                "yig'indisi «ActiveEmployees» ga teng; yo'nalish ustunlari yig'indisi undan " +
+                "OSHISHI mumkin — bitta xodim bir nechta yo'nalishga tegishli bo'la oladi.")
+            .Produces<DashboardBreakdownDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         return app;
     }
 }

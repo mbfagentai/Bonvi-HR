@@ -172,6 +172,163 @@ public sealed class DashboardReadModel : IDashboardReadModel
             legalEntities);
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// Uch qadam: (1) har bir FAOL xodimning bitta VAKILLIK QILUVCHI
+    /// munosabati tanlanadi — xuddi <c>EmployeeReadModel.SearchEmployeesAsync</c>
+    /// dagi kabi (asosiy, bo'lmasa eng so'nggi ishga kirgan); (2) bo'limlar
+    /// daraxti xotiraga olinib, har bir bo'lim ILDIZ ajdodiga (departament)
+    /// bog'lanadi — jadval kichik (o'nlab-yuzlab yozuv), bitta so'rovda
+    /// olib, C# da aylanish rekursiv SQL yozishdan arzonroq; (3) sonlar
+    /// C# da yig'iladi, chunki guruhlash ILDIZ bo'yicha, bazadagi ustun
+    /// bevosita bo'yicha emas.
+    /// </para>
+    /// </remarks>
+    public async Task<DashboardBreakdown> GetBreakdownAsync(CancellationToken cancellationToken = default)
+    {
+        // Har bir FAOL (doimiy) xodimning vakillik qiluvchi munosabati.
+        // Bir xodimda ikkita faol munosabat bo'lishi kamdan-kam (o'rindoshlik
+        // odatda bittasi sinovda/arxivda bo'ladi), lekin naqsh boshqa
+        // o'qish so'rovlari bilan bir xil bo'lishi uchun shu yerda ham
+        // qo'llanadi — aks holda «necha kishi» degan savolga ikki xil
+        // o'qish modeli ikki xil javob berardi.
+        var rows = await (
+                from employee in _context.Employees.AsNoTracking()
+                from employment in _context.Employments.AsNoTracking()
+                    .Where(e => e.EmployeeId == employee.Id && e.Status == EmploymentStatus.Active)
+                    .OrderByDescending(e => e.IsPrimary)
+                    .ThenByDescending(e => e.HireDate)
+                    .ThenByDescending(e => e.Id)
+                    .Take(1)
+                select new { employee.Id, employee.DirectionIds, employment.DepartmentId })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // ── Bo'lim: har biri ILDIZ ajdodiga yig'iladi ──────────────────
+        //
+        // Daraxt kichik (amalda ~100 yozuv), shu sababli bitta so'rovda
+        // xotiraga olinadi va ildiz C# da topiladi. Soft-delete filtri
+        // ATAYLAB o'chirilgan (`IgnoreQueryFilters`): xodim munosabati
+        // faolsizlantirilgan yoki yumshoq o'chirilgan bo'limga ham
+        // ishora qilishi mumkin va bunday zanjirni uzib qo'yish
+        // «Belgilanmagan» ga tushirib yuborardi — bo'lim aslida bor.
+        var departments = await _context.Departments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Select(department => new { department.Id, department.ParentId, department.Name })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var departmentById = departments.ToDictionary(department => department.Id);
+
+        (Guid Id, string Name) RootDepartment(Guid startId)
+        {
+            var currentId = startId;
+
+            // Halqadan himoya: daraxt nazariy jihatdan buzilishi mumkin
+            // (`Department.MoveTo` buni tekshira olmaydi). Bo'lmasa bu
+            // aylanish cheksiz davom etardi.
+            for (var qadam = 0; qadam < departments.Count + 1; qadam++)
+            {
+                if (!departmentById.TryGetValue(currentId, out var current))
+                {
+                    // Zanjir uzilgan (masalan ota butunlay o'chirilgan) —
+                    // oxirgi ma'lum bo'g'in ildiz deb olinadi.
+                    return (currentId, startId == currentId ? "Noma'lum bo'lim" : departmentById[startId].Name);
+                }
+
+                if (current.ParentId is not { } parentId)
+                {
+                    return (current.Id, current.Name);
+                }
+
+                currentId = parentId;
+            }
+
+            // Halqa aniqlandi — boshlang'ich bo'limning o'zi «ildiz» deb olinadi.
+            var boshlangich = departmentById[startId];
+            return (boshlangich.Id, boshlangich.Name);
+        }
+
+        var departmentBuckets = new Dictionary<Guid, (string Name, int Count)>();
+        var departmentUnassigned = 0;
+
+        foreach (var row in rows)
+        {
+            if (row.DepartmentId is not { } departmentId)
+            {
+                departmentUnassigned++;
+                continue;
+            }
+
+            var (rootId, rootName) = RootDepartment(departmentId);
+
+            departmentBuckets[rootId] = departmentBuckets.TryGetValue(rootId, out var mavjud)
+                ? (rootName, mavjud.Count + 1)
+                : (rootName, 1);
+        }
+
+        List<DashboardBreakdownItem> departmentItems =
+        [
+            .. departmentBuckets
+                .Select(pair => new DashboardBreakdownItem(pair.Key, pair.Value.Name, pair.Value.Count))
+                .OrderByDescending(item => item.Count)
+                .ThenBy(item => item.Name, StringComparer.Ordinal),
+        ];
+
+        if (departmentUnassigned > 0)
+        {
+            departmentItems.Add(new DashboardBreakdownItem(null, "Belgilanmagan", departmentUnassigned));
+        }
+
+        // ── Yo'nalish: tekis ro'yxat, ko'p-ga-ko'p ──────────────────────
+        //
+        // Bitta xodim bir nechta yo'nalishga tegishli bo'lishi mumkin —
+        // yig'indi shu sababli `ActiveEmployees` dan OSHISHI mumkin
+        // (izohi `DashboardBreakdownItem` da).
+        var directionNames = await _context.Directions
+            .AsNoTracking()
+            .Select(direction => new { direction.Id, direction.Name })
+            .ToDictionaryAsync(direction => direction.Id, direction => direction.Name, cancellationToken)
+            .ConfigureAwait(false);
+
+        var directionCounts = new Dictionary<Guid, int>();
+        var directionUnassigned = 0;
+
+        foreach (var row in rows)
+        {
+            if (row.DirectionIds.Count == 0)
+            {
+                directionUnassigned++;
+                continue;
+            }
+
+            foreach (var directionId in row.DirectionIds)
+            {
+                directionCounts[directionId] = directionCounts.GetValueOrDefault(directionId) + 1;
+            }
+        }
+
+        List<DashboardBreakdownItem> directionItems =
+        [
+            .. directionCounts
+                .Select(pair => new DashboardBreakdownItem(
+                    pair.Key,
+                    directionNames.TryGetValue(pair.Key, out var name) ? name : "Noma'lum yo'nalish",
+                    pair.Value))
+                .OrderByDescending(item => item.Count)
+                .ThenBy(item => item.Name, StringComparer.Ordinal),
+        ];
+
+        if (directionUnassigned > 0)
+        {
+            directionItems.Add(new DashboardBreakdownItem(null, "Belgilanmagan", directionUnassigned));
+        }
+
+        return new DashboardBreakdown(departmentItems, directionItems);
+    }
+
     /// <summary>
     /// Berilgan shartga mos munosabati BOR xodimlarni sanaydi.
     /// </summary>

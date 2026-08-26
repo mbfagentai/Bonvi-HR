@@ -98,3 +98,26 @@ public sealed record DashboardCatalogSizesDto(
     int Positions,
     int Directions,
     int LegalEntities);
+
+/// <summary>
+/// Bo'lim va yo'nalish bo'yicha taqsimot — bosh sahifadagi diagramma uchun.
+/// </summary>
+/// <remarks>
+/// Nega <c>DashboardStatsDto</c> ga qo'shilmagan, alohida endpoint: bu
+/// ma'lumot davrga bog'liq emas (har doim «hozir»ni ko'rsatadi, «period»
+/// bilan o'zgarmaydi) va uni har «period» almashtirilganda qayta so'rash
+/// ma'nosiz — alohida so'ralsa, sahifa faqat bir marta yuklaydi.
+/// </remarks>
+/// <param name="Departments">
+/// Yuqori daraja (departament) bo'yicha, ko'pdan kamga tartiblangan.
+/// </param>
+/// <param name="Directions">Yo'nalish bo'yicha, ko'pdan kamga tartiblangan.</param>
+public sealed record DashboardBreakdownDto(
+    IReadOnlyList<DashboardBreakdownItemDto> Departments,
+    IReadOnlyList<DashboardBreakdownItemDto> Directions);
+
+/// <summary>Taqsimotdagi bitta bo'lak.</summary>
+/// <param name="Id">Identifikator. <c>null</c> — «Belgilanmagan» (biriktirilmagan).</param>
+/// <param name="Name">Ko'rsatiladigan nom.</param>
+/// <param name="Count">Shu bo'lakka tushgan faol xodimlar soni.</param>
+public sealed record DashboardBreakdownItemDto(Guid? Id, string Name, int Count);

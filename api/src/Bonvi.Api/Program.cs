@@ -132,6 +132,7 @@ app.MapExitInterviewEndpoints();
 app.MapIncidentEndpoints();
 app.MapSystemEndpoints();
 app.MapDashboardEndpoints();
+app.MapReportsEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
