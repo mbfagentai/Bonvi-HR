@@ -48,6 +48,31 @@ import {
   type TransferRequest,
   type UpdateEmployeeRequest,
 } from './employees-api'
+import {
+  fetchEmployeeCompetency,
+  saveEmployeeCompetency,
+  type SaveCompetencyRequest,
+} from './employee-competency-api'
+import {
+  createIncentive,
+  deleteIncentive,
+  fetchIncentives,
+  updateIncentive,
+  type GrantIncentiveRequest,
+  type IncentiveKindValue,
+  type IncentiveTypeItem,
+  type UpdateIncentiveRequest,
+} from './incentives-api'
+import {
+  deleteDocument,
+  fetchDocumentFile,
+  fetchDocuments,
+  updateDocument,
+  uploadDocument,
+  type EmployeeDocument,
+  type UpdateDocumentRequest,
+} from './documents-api'
+import { saveBlobAs } from '../lib/document-file'
 
 /**
  * Kesh kalitlari.
@@ -64,6 +89,18 @@ export const employeeKeys = {
   details: (id: string) => ['employees', 'details', id] as const,
   timeline: (id: string) => ['employees', 'timeline', id] as const,
   flags: (id: string) => ['employees', 'flags', id] as const,
+  competency: (id: string) => ['employees', 'competency', id] as const,
+  /**
+   * `kind` KIRITILMAGAN — bekor qilishda ishlatiladi: prefiks sifatida
+   * `kind`li kalitlarning HAMMASINI ham qamrab oladi (TanStack Query
+   * standart mos kelishi — massiv boshlanishi bo'yicha).
+   */
+  incentives: (id: string) => ['employees', 'incentives', id] as const,
+  incentivesByKind: (id: string, kind: IncentiveKindValue) =>
+    ['employees', 'incentives', id, kind] as const,
+
+  /** Hujjatlar tabi (S6). */
+  documents: (id: string) => ['employees', 'documents', id] as const,
 
   /**
    * Rasm keshi ATAYLAB `employees` ildizidan tashqarida turadi.
@@ -334,6 +371,199 @@ export function useCloseFlag(employeeId: string) {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.flags(employeeId) })
       void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
     },
+  })
+}
+
+/* ══════════════════════════════════════════════════════ qobiliyatlar (91.15) */
+
+/**
+ * Qobiliyatlar profili.
+ *
+ * Javob `null` bo'lishi mumkin — HR hali to'ldirmagan (`isError` EMAS).
+ * Chaqiruvchi buni «forma bo'sh boshlanadi» deb o'qiydi.
+ */
+export function useEmployeeCompetency(employeeId: string) {
+  return useQuery({
+    queryKey: employeeKeys.competency(employeeId),
+    queryFn: ({ signal }) => fetchEmployeeCompetency(employeeId, signal),
+    enabled: employeeId !== '',
+  })
+}
+
+/**
+ * Profilni saqlash. Javob keshka to'g'ridan-to'g'ri yoziladi
+ * (`invalidate` emas, `setQueryData`) — server yangilangan TO'LIQ
+ * profilni qaytaradi, qo'shimcha `GET` so'rovi kerak emas.
+ */
+export function useSaveEmployeeCompetency(employeeId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (body: SaveCompetencyRequest) => saveEmployeeCompetency(employeeId, body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(employeeKeys.competency(employeeId), data)
+    },
+  })
+}
+
+/* ═══════════════════════════════════════════════ rag'bat va jarima (M8) */
+
+/** `kind` berilmasa — hammasi (rag'bat + jarima). */
+export function useIncentives(employeeId: string, kind?: IncentiveKindValue) {
+  return useQuery({
+    queryKey:
+      kind === undefined
+        ? employeeKeys.incentives(employeeId)
+        : employeeKeys.incentivesByKind(employeeId, kind),
+    queryFn: ({ signal }) => fetchIncentives(employeeId, kind, signal),
+    enabled: employeeId !== '',
+  })
+}
+
+/**
+ * Tur ro'yxati — `award-types` yoki `penalty-types` ma'lumotnomasidan,
+ * `kind` ga qarab. Ma'lumotnomalar S2 modulida qurilgan, shu sababli
+ * uning tayyor `useCatalogList` hook'i to'g'ridan-to'g'ri qayta
+ * ishlatiladi (`useFilterOptions` dagi bilan bir xil naqsh).
+ *
+ * Faqat FAOL turlar: faolsizlantirilgan turga yangi yozuv berib
+ * bo'lmaydi.
+ */
+export function useIncentiveTypes(kind: IncentiveKindValue) {
+  return useCatalogList<IncentiveTypeItem>(kind === 'award' ? 'award-types' : 'penalty-types', true)
+}
+
+/**
+ * Rag'bat/jarima ro'yxatlarini bekor qilish.
+ *
+ * `employeeKeys.incentives(id)` PREFIKS sifatida ishlatiladi — `kind`li
+ * (filtrlangan) va `kind`siz (to'liq) so'rovlarning HAMMASI bir yo'la
+ * bekor qilinadi, chunki ularning kaliti shu prefiksdan boshlanadi.
+ */
+function useInvalidateIncentives(employeeId: string) {
+  const queryClient = useQueryClient()
+
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: employeeKeys.incentives(employeeId) })
+  }
+}
+
+export function useCreateIncentive(employeeId: string) {
+  const invalidate = useInvalidateIncentives(employeeId)
+
+  return useMutation({
+    mutationFn: (body: GrantIncentiveRequest) => createIncentive(employeeId, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateIncentive(employeeId: string) {
+  const invalidate = useInvalidateIncentives(employeeId)
+
+  return useMutation({
+    mutationFn: ({
+      incentiveId,
+      body,
+    }: {
+      incentiveId: string
+      body: UpdateIncentiveRequest
+    }) => updateIncentive(employeeId, incentiveId, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteIncentive(employeeId: string) {
+  const invalidate = useInvalidateIncentives(employeeId)
+
+  return useMutation({
+    mutationFn: (incentiveId: string) => deleteIncentive(employeeId, incentiveId),
+    onSuccess: invalidate,
+  })
+}
+
+/* ══════════════════════════════════════════════════════════ hujjatlar (S6) */
+
+/** Hamma hujjat — guruhlash (tur bo'yicha) chaqiruvchi tomonda, klientda. */
+export function useEmployeeDocuments(employeeId: string) {
+  return useQuery({
+    queryKey: employeeKeys.documents(employeeId),
+    queryFn: ({ signal }) => fetchDocuments(employeeId, undefined, signal),
+    enabled: employeeId !== '',
+  })
+}
+
+/**
+ * Hujjat turlari — S2 «document-types» ma'lumotnomasidan, `useIncentiveTypes`
+ * dagi bilan bir xil naqsh (yuqoridagi izohga qarang). Faqat FAOL turlar:
+ * faolsizlantirilgan turga yangi hujjat biriktirib bo'lmaydi.
+ */
+export function useDocumentTypes() {
+  return useCatalogList<CatalogItem>('document-types', true)
+}
+
+function useInvalidateDocuments(employeeId: string) {
+  const queryClient = useQueryClient()
+
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: employeeKeys.documents(employeeId) })
+  }
+}
+
+export function useUploadDocument(employeeId: string) {
+  const invalidate = useInvalidateDocuments(employeeId)
+
+  return useMutation({
+    mutationFn: ({
+      file,
+      documentTypeId,
+      note,
+    }: {
+      file: File
+      documentTypeId: string
+      note: string | null
+    }) => uploadDocument(employeeId, file, documentTypeId, note),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateDocument(employeeId: string) {
+  const invalidate = useInvalidateDocuments(employeeId)
+
+  return useMutation({
+    mutationFn: ({
+      documentId,
+      body,
+    }: {
+      documentId: string
+      body: UpdateDocumentRequest
+    }) => updateDocument(employeeId, documentId, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteDocument(employeeId: string) {
+  const invalidate = useInvalidateDocuments(employeeId)
+
+  return useMutation({
+    mutationFn: (documentId: string) => deleteDocument(employeeId, documentId),
+    onSuccess: invalidate,
+  })
+}
+
+/**
+ * Hujjatni ko'rish/yuklab olish.
+ *
+ * Kesh bilan bog'liq emas — shu sababli boshqalardan farqli, `onSuccess`
+ * hech narsani bekor qilmaydi, bayt kelgach BROWSER'GA saqlanadi
+ * (`saveBlobAs`). Bitta mutatsiya butun tab uchun umumiy: qaysi qator
+ * yuklanayotganini chaqiruvchi `variables?.id` bilan aniqlaydi (`incentives`
+ * uslubidagi kabi alohida holat kerak emas).
+ */
+export function useDownloadDocument(employeeId: string) {
+  return useMutation({
+    mutationFn: (doc: EmployeeDocument) =>
+      fetchDocumentFile(employeeId, doc.id).then((blob) => ({ blob, doc })),
+    onSuccess: ({ blob, doc }) => saveBlobAs(blob, doc.fileName),
   })
 }
 

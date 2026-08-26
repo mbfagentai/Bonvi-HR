@@ -10,11 +10,14 @@ import {
   NeedsReviewMark,
   StatusBadge,
 } from '@/features/employees/components/employee-badges'
+import { EmployeeCompetencyTab } from '@/features/employees/components/employee-competency-tab'
+import { EmployeeDocumentsTab } from '@/features/employees/components/employee-documents-tab'
+import { EmployeeEditDialog } from '@/features/employees/components/employee-edit-dialog'
+import { EmployeeIncentivesTab } from '@/features/employees/components/employee-incentives-tab'
 import {
   EmployeeOverviewTab,
   type EmploymentAction,
 } from '@/features/employees/components/employee-overview-tab'
-import { EmployeeEditDialog } from '@/features/employees/components/employee-edit-dialog'
 import { EmployeePhotoEditor } from '@/features/employees/components/employee-photo-editor'
 import { EmployeeTimelineTab } from '@/features/employees/components/employee-timeline-tab'
 import {
@@ -26,7 +29,9 @@ import {
 import { RaiseFlagDialog } from '@/features/employees/components/raise-flag-dialog'
 import {
   EMPLOYEES_EDIT,
+  EMPLOYEES_VIEW,
   EMPLOYMENT_MANAGE,
+  INCENTIVES_VIEW,
   LISTS_MANAGE,
 } from '@/features/employees/lib/employee-presentation'
 import {
@@ -42,17 +47,29 @@ export const Route = createFileRoute('/_app/xodimlar/$employeeId')({
   component: EmployeeCardPage,
 })
 
-type Tab = 'overview' | 'timeline' | 'flags'
+type Tab = 'overview' | 'timeline' | 'documents' | 'competency' | 'incentives' | 'flags'
 
 /**
  * Xodim kartasi.
  *
- * Uch bo'lim: umumiy ma'lumot, mehnat tarixi va belgilar. Ular tab bilan
+ * Reja (PLAN.md) dagi oltita tab endi TO'LIQ: Umumiy · Mehnat tarixi ·
+ * Hujjatlar · Qobiliyatlar · Rag'bat/Jarima · Belgilar. Ular tab bilan
  * almashadi — bir vaqtda hammasini ko'rsatish sahifani cho'zib yuborardi,
  * HR esa odatda bittasiga qaraydi.
  *
- * Ma'lumot uchta alohida so'rov bilan olinadi: karta ochilishi bilan
- * asosiy qism ko'rinadi, tarix va belgilar esa keyin yuklanadi.
+ * Ma'lumot alohida so'rovlar bilan olinadi: karta ochilishi bilan asosiy
+ * qism, tarix va belgilar bir vaqtda yuklanadi (uchtasi ham engil).
+ * «Hujjatlar», «Qobiliyatlar» va «Rag'bat/Jarima» esa TANLANGANDAGINA
+ * so'raladi — ular `EmployeeDocumentsTab`/`EmployeeCompetencyTab`/
+ * `EmployeeIncentivesTab` ichida, faqat shu komponent chizilganda ishga
+ * tushadigan `useQuery` bilan.
+ *
+ * Uchtasi ham ALOHIDA ruxsat bilan ko'rinadi (`employees.view` va
+ * `incentives.view`): boshqa ikkitasidan farqli, ular sahifaning o'ziga
+ * kirish huquqidan mustaqil — shu sababli tab ro'yxati ham dinamik
+ * yig'iladi (`tabOptions`). Hujjatlar `employees.view` bilan chegaralanadi
+ * — «Qobiliyatlar» bilan bir xil, chunki ikkalasi ham xodim kartasining
+ * bir qismi, alohida modul emas.
  */
 function EmployeeCardPage() {
   const { employeeId } = Route.useParams()
@@ -78,6 +95,9 @@ function EmployeeCardPage() {
   const canEdit = hasPermission(EMPLOYEES_EDIT)
   const canManageEmployment = hasPermission(EMPLOYMENT_MANAGE)
   const canManageFlags = hasPermission(LISTS_MANAGE)
+  const canViewCompetency = hasPermission(EMPLOYEES_VIEW)
+  const canViewDocuments = hasPermission(EMPLOYEES_VIEW)
+  const canViewIncentives = hasPermission(INCENTIVES_VIEW)
 
   const employee = useEmployee(employeeId)
   const timeline = useEmployeeTimeline(employeeId)
@@ -108,6 +128,28 @@ function EmployeeCardPage() {
   // ketgan), birinchisi ko'rsatiladi.
   const primary =
     person.employments.find((e) => e.isPrimary) ?? person.employments[0] ?? null
+
+  /*
+   * Tab ro'yxati DINAMIK: «Hujjatlar», «Qobiliyatlar» va «Rag'bat/Jarima»
+   * faqat shu ruxsat bor foydalanuvchiga ko'rinadi (topshiriq qoidasi —
+   * ruxsat yo'q bo'lsa tab umuman chizilmaydi, «bo'sh/xatoli» holat
+   * ko'rsatilmaydi). Qolgan uchtasi (umumiy, tarix, belgilar) sahifaning
+   * o'ziga kirish huquqidan kelib chiqadi, shu sababli shartsiz.
+   */
+  const tabOptions: Array<{ value: Tab; label: string }> = [
+    { value: 'overview', label: t('employees.tabOverview') },
+    { value: 'timeline', label: t('employees.tabTimeline') },
+  ]
+  if (canViewDocuments) {
+    tabOptions.push({ value: 'documents', label: t('employees.tabDocuments') })
+  }
+  if (canViewCompetency) {
+    tabOptions.push({ value: 'competency', label: t('employees.tabCompetency') })
+  }
+  if (canViewIncentives) {
+    tabOptions.push({ value: 'incentives', label: t('employees.tabIncentives') })
+  }
+  tabOptions.push({ value: 'flags', label: t('employees.tabFlags') })
 
   return (
     <div className="space-y-5">
@@ -180,11 +222,7 @@ function EmployeeCardPage() {
         value={tab}
         onChange={setTab}
         aria-label={t('employees.tabs')}
-        options={[
-          { value: 'overview', label: t('employees.tabOverview') },
-          { value: 'timeline', label: t('employees.tabTimeline') },
-          { value: 'flags', label: t('employees.tabFlags') },
-        ]}
+        options={tabOptions}
       />
 
       {tab === 'overview' && (
@@ -200,6 +238,18 @@ function EmployeeCardPage() {
 
       {tab === 'timeline' && (
         <EmployeeTimelineTab events={timeline.data ?? []} loading={timeline.isPending} />
+      )}
+
+      {tab === 'documents' && canViewDocuments && (
+        <EmployeeDocumentsTab employeeId={person.id} />
+      )}
+
+      {tab === 'competency' && canViewCompetency && (
+        <EmployeeCompetencyTab employeeId={person.id} />
+      )}
+
+      {tab === 'incentives' && canViewIncentives && (
+        <EmployeeIncentivesTab employeeId={person.id} />
       )}
 
       {tab === 'flags' && (
