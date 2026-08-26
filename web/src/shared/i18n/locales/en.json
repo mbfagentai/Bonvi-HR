@@ -833,5 +833,33 @@
     "rolesHint": "At least one role must be selected.",
     "saving": "Saving…",
     "subtitle": "{{n}} accounts"
+  },
+  "reports": {
+    "subtitle": "Employee turnover: hires, departures and headcount trend",
+    "periodLabel": "Report period",
+    "periodMonths": "{{n}} mo",
+    "hired": "Hired in period",
+    "left": "Left in period",
+    "rate": "Turnover rate",
+    "rateHint": "Average headcount: {{n}}",
+    "rateUnavailable": "No headcount data — rate not calculated",
+    "chartTitle": "Hires and departures",
+    "chartHint": "Bars — hires and departures per month, line — headcount at month end",
+    "hiredShort": "Hired",
+    "leftShort": "Left",
+    "headcount": "Headcount",
+    "monthRate": "Monthly turnover",
+    "emptyTitle": "No data",
+    "emptyText": "No monthly figures were found for the selected period.",
+    "reasonsTitle": "Reasons for leaving",
+    "reasonsHint": "{{n}} departures in the period",
+    "reasonsEmptyTitle": "No departures",
+    "reasonsEmptyText": "Nobody left during the selected period.",
+    "voluntary": "Voluntary",
+    "involuntary": "Employer-initiated",
+    "voluntaryUnknown": "Unknown",
+    "noAccessTitle": "You don't have access to this section",
+    "noAccessText": "Reports are only available to employees with the relevant permission.",
+    "loadFailed": "Could not load the report"
   }
 }

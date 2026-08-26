@@ -14,6 +14,7 @@ import { Route as KirishRouteImport } from './routes/kirish'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBuyruqlarRouteImport } from './routes/_app/buyruqlar'
 import { Route as AppFoydalanuvchilarRouteImport } from './routes/_app/foydalanuvchilar'
+import { Route as AppHisobotlarRouteImport } from './routes/_app/hisobotlar'
 import { Route as AppHodisalarRouteImport } from './routes/_app/hodisalar'
 import { Route as AppNazoratRouteImport } from './routes/_app/nazorat'
 import { Route as AppQaytaAloqaRouteImport } from './routes/_app/qayta-aloqa'
@@ -54,6 +55,11 @@ const AppBuyruqlarRoute = AppBuyruqlarRouteImport.update({
 const AppFoydalanuvchilarRoute = AppFoydalanuvchilarRouteImport.update({
   id: '/foydalanuvchilar',
   path: '/foydalanuvchilar',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHisobotlarRoute = AppHisobotlarRouteImport.update({
+  id: '/hisobotlar',
+  path: '/hisobotlar',
   getParentRoute: () => AppRoute,
 } as any)
 const AppHodisalarRoute = AppHodisalarRouteImport.update({
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/kirish': typeof KirishRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
+  '/hisobotlar': typeof AppHisobotlarRoute
   '/hodisalar': typeof AppHodisalarRoute
   '/nazorat': typeof AppNazoratRoute
   '/qayta-aloqa': typeof AppQaytaAloqaRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/kirish': typeof KirishRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
+  '/hisobotlar': typeof AppHisobotlarRoute
   '/hodisalar': typeof AppHodisalarRoute
   '/nazorat': typeof AppNazoratRoute
   '/qayta-aloqa': typeof AppQaytaAloqaRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/kirish': typeof KirishRoute
   '/_app/buyruqlar': typeof AppBuyruqlarRoute
   '/_app/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
+  '/_app/hisobotlar': typeof AppHisobotlarRoute
   '/_app/hodisalar': typeof AppHodisalarRoute
   '/_app/nazorat': typeof AppNazoratRoute
   '/_app/qayta-aloqa': typeof AppQaytaAloqaRoute
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/kirish'
     | '/buyruqlar'
     | '/foydalanuvchilar'
+    | '/hisobotlar'
     | '/hodisalar'
     | '/nazorat'
     | '/qayta-aloqa'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/kirish'
     | '/buyruqlar'
     | '/foydalanuvchilar'
+    | '/hisobotlar'
     | '/hodisalar'
     | '/nazorat'
     | '/qayta-aloqa'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/kirish'
     | '/_app/buyruqlar'
     | '/_app/foydalanuvchilar'
+    | '/_app/hisobotlar'
     | '/_app/hodisalar'
     | '/_app/nazorat'
     | '/_app/qayta-aloqa'
@@ -334,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/foydalanuvchilar'
       fullPath: '/foydalanuvchilar'
       preLoaderRoute: typeof AppFoydalanuvchilarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/hisobotlar': {
+      id: '/_app/hisobotlar'
+      path: '/hisobotlar'
+      fullPath: '/hisobotlar'
+      preLoaderRoute: typeof AppHisobotlarRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/hodisalar': {
@@ -461,6 +480,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppBuyruqlarRoute: typeof AppBuyruqlarRoute
   AppFoydalanuvchilarRoute: typeof AppFoydalanuvchilarRoute
+  AppHisobotlarRoute: typeof AppHisobotlarRoute
   AppHodisalarRoute: typeof AppHodisalarRoute
   AppNazoratRoute: typeof AppNazoratRoute
   AppQaytaAloqaRoute: typeof AppQaytaAloqaRoute
@@ -484,6 +504,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBuyruqlarRoute: AppBuyruqlarRoute,
   AppFoydalanuvchilarRoute: AppFoydalanuvchilarRoute,
+  AppHisobotlarRoute: AppHisobotlarRoute,
   AppHodisalarRoute: AppHodisalarRoute,
   AppNazoratRoute: AppNazoratRoute,
   AppQaytaAloqaRoute: AppQaytaAloqaRoute,

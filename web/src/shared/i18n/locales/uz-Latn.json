@@ -833,5 +833,33 @@
     "rolesHint": "Kamida bitta rol tanlanishi kerak.",
     "saving": "Saqlanmoqda…",
     "subtitle": "{{n}} ta hisob"
+  },
+  "reports": {
+    "subtitle": "Kadrlar oqimi: qabul, ketish va shtat dinamikasi",
+    "periodLabel": "Hisobot davri",
+    "periodMonths": "{{n}} oy",
+    "hired": "Davrda qabul qilinganlar",
+    "left": "Davrda ishdan ketganlar",
+    "rate": "Kadrlar oqimi",
+    "rateHint": "O‘rtacha shtat: {{n}}",
+    "rateUnavailable": "Shtat ma’lumoti yo‘q — foiz hisoblanmadi",
+    "chartTitle": "Qabul va ketish dinamikasi",
+    "chartHint": "Ustunlar — oylik qabul va ketish, chiziq — oy oxiridagi shtat soni",
+    "hiredShort": "Qabul",
+    "leftShort": "Ketish",
+    "headcount": "Shtat soni",
+    "monthRate": "Oylik oqim",
+    "emptyTitle": "Ma’lumot yo‘q",
+    "emptyText": "Tanlangan davr uchun oylik ko‘rsatkichlar topilmadi.",
+    "reasonsTitle": "Ketish sabablari",
+    "reasonsHint": "Davrdagi {{n}} ta ketish",
+    "reasonsEmptyTitle": "Ketish qayd etilmagan",
+    "reasonsEmptyText": "Tanlangan davrda hech kim ishdan ketmagan.",
+    "voluntary": "O‘z xohishi",
+    "involuntary": "Tashkilot qarori",
+    "voluntaryUnknown": "Noma’lum",
+    "noAccessTitle": "Bu yerga kirish huquqingiz yo‘q",
+    "noAccessText": "Hisobotlar faqat maxsus ruxsati bor xodimlarga ochiq.",
+    "loadFailed": "Hisobotni yuklab bo‘lmadi"
   }
 }

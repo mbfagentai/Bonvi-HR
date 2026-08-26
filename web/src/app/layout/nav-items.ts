@@ -3,6 +3,7 @@ import {
   Briefcase,
   BriefcaseBusiness,
   Building2,
+  ChartColumn,
   ClipboardList,
   Compass,
   FileSignature,
@@ -100,7 +101,24 @@ export interface NavSection {
  */
 export const NAV: NavSection[] = [
   {
-    items: [{ key: 'dashboard', to: '/', icon: LayoutGrid }],
+    /*
+      Sarlavhasiz birinchi guruh — O'QISH uchun mo'ljallangan tahliliy
+      ekranlar. Ikkalasi ham hech narsani o'zgartirmaydi: bosh sahifa
+      «hozir nima bo'lyapti», hisobotlar «bir yilda nima bo'ldi» degan
+      savolga javob beradi. Quyidagi guruhlar esa ish qilinadigan
+      joylar — xodim qo'shiladi, buyruq yoziladi, ma'lumotnoma
+      to'ldiriladi.
+
+      Hisobotlar `permission` bilan (`users`/`incidents` bandlaridagi
+      naqsh): backend `GET /api/reports/turnover` ni `reports.view` bilan
+      himoyalagan, ya'ni bu ruxsatsiz odam ma'lumotni SERVERDAN OLA
+      OLMAYDI — bandni ko'rsatib, sahifani «bo'sh/xatoli» holatda ochish
+      ortiqcha chalkashlik bo'lardi.
+    */
+    items: [
+      { key: 'dashboard', to: '/',           icon: LayoutGrid },
+      { key: 'reports',   to: '/hisobotlar', icon: ChartColumn, permission: 'reports.view' },
+    ],
   },
   {
     key: 'sectionPeople',
