@@ -113,6 +113,38 @@ public sealed class User : AggregateRoot, IAuditable, ISoftDeletable
 
     public void RemoveRole(Guid roleId) => _roleIds.Remove(roleId);
 
+    /// <summary>
+    /// Roldan mahrum qiladi — O'ZINI O'ZI ADMINISTRATORLIKDAN
+    /// CHETLASHTIRISHDAN HIMOYA bilan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Foydalanuvchi boshqaruvi endpoint'lari uchun mo'ljallangan. Agar shu
+    /// hisobning o'zi (<paramref name="actingUserId"/> == <c>Id</c>)
+    /// aynan administrator rolidan (<paramref name="adminRoleId"/>) o'zini
+    /// mahrum qilishga urinsa — rad etiladi.
+    /// </para>
+    /// <para>
+    /// Nega muhim: aks holda administrator adashib (yoki ataylab) o'zidan
+    /// yagona huquqni olib tashlab, tizimga hech kim kira olmay qoladigan
+    /// holatga tushirib qo'yishi mumkin. Bu tekshiruv faqat identifikatorlar
+    /// taqqoslanadi — boshqa agregatga (masalan «yana nechta admin bor?»)
+    /// murojaat qilmaydi, shu sababli sof domen qoidasi.
+    /// </para>
+    /// </remarks>
+    public Result RemoveRole(Guid roleId, Guid actingUserId, Guid adminRoleId)
+    {
+        if (Id == actingUserId && roleId == adminRoleId)
+        {
+            return Error.Forbidden(
+                "foydalanuvchi.ozini_adminlikdan_chetlashtirish",
+                "O'zingizdan administrator rolini olib tashlay olmaysiz.");
+        }
+
+        _roleIds.Remove(roleId);
+        return Result.Success();
+    }
+
     public void ChangePassword(string passwordHash)
     {
         PasswordHash = passwordHash;
@@ -120,7 +152,30 @@ public sealed class User : AggregateRoot, IAuditable, ISoftDeletable
         LockedUntil = null;
     }
 
+    /// <summary>Hisobni faolsizlantiradi. Tekshiruvsiz — faqat ichki/test holatlar uchun.</summary>
     public void Deactivate() => IsActive = false;
+
+    /// <summary>
+    /// Hisobni faolsizlantiradi — O'ZINI O'ZI BLOKLASHDAN HIMOYA bilan.
+    /// </summary>
+    /// <remarks>
+    /// Foydalanuvchi boshqaruvi endpoint'i shuni chaqiradi. Agar
+    /// <paramref name="actingUserId"/> aynan shu hisobning o'zi bo'lsa —
+    /// rad etiladi: aks holda administrator o'z hisobini faolsizlantirib,
+    /// tizimga hech kim kira olmay qoladigan holatga tushirib qo'yishi mumkin.
+    /// </remarks>
+    public Result Deactivate(Guid actingUserId)
+    {
+        if (Id == actingUserId)
+        {
+            return Error.Forbidden(
+                "foydalanuvchi.ozini_blokash",
+                "O'zingizning hisobingizni faolsizlantira olmaysiz.");
+        }
+
+        IsActive = false;
+        return Result.Success();
+    }
 
     public void Activate()
     {
@@ -130,6 +185,28 @@ public sealed class User : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     public void LinkToEmployee(Guid employeeId) => EmployeeId = employeeId;
+
+    /// <summary>Ism-familiyani yangilaydi.</summary>
+    public void Rename(FullName fullName)
+    {
+        ArgumentNullException.ThrowIfNull(fullName);
+        FullName = fullName;
+    }
+
+    /// <summary>
+    /// Kirish uchun telefon raqamini yangilaydi.
+    /// </summary>
+    /// <remarks>
+    /// Unikallik BU YERDA tekshirilmaydi — bu use-case qatlamining ishi
+    /// (bazadan boshqa foydalanuvchini so'rash kerak). Domen faqat
+    /// qiymatning o'zi to'g'ri formatda ekanini kafolatlaydi, buni esa
+    /// <see cref="PhoneNumber"/> allaqachon qilgan.
+    /// </remarks>
+    public void ChangeLogin(PhoneNumber login)
+    {
+        ArgumentNullException.ThrowIfNull(login);
+        Login = login;
+    }
 
     /// <summary>Hisob rasmini o'rnatadi yoki (<c>null</c> bilan) olib tashlaydi.</summary>
     public void SetPhoto(string? photoKey) => PhotoKey = photoKey;

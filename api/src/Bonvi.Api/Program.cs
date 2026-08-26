@@ -123,6 +123,7 @@ app.MapBonviHealthChecks();
 
 // ---------- Endpoint guruhlari ----------
 app.MapAuthEndpoints();
+app.MapUserEndpoints();
 app.MapCatalogEndpoints();
 app.MapEmployeeEndpoints();
 app.MapEmploymentEndpoints();

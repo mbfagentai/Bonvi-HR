@@ -22,12 +22,26 @@ public sealed class UserRepository : Repository<User>, IUserRepository
         return Set.FirstOrDefaultAsync(u => u.Login == login, cancellationToken);
     }
 
-    public Task<bool> LoginExistsAsync(PhoneNumber login, CancellationToken cancellationToken = default)
+    public Task<bool> LoginExistsAsync(
+        PhoneNumber login,
+        Guid? exceptUserId = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(login);
 
-        return Set.AnyAsync(u => u.Login == login, cancellationToken);
+        var query = Set.Where(u => u.Login == login);
+
+        // Tahrirlashda foydalanuvchining O'ZI takror hisoblanmasligi kerak
+        if (exceptUserId is { } id)
+        {
+            query = query.Where(u => u.Id != id);
+        }
+
+        return query.AnyAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<User>> ListAsync(CancellationToken cancellationToken = default)
+        => await Set.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false);
 
     public async Task<IReadOnlyList<string>> GetRoleCodesAsync(
         Guid userId,

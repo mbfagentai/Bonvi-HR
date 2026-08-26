@@ -10,6 +10,12 @@ using Bonvi.Application.Identity.Commands.Logout;
 using Bonvi.Application.Identity.Commands.RefreshSession;
 using Bonvi.Application.Identity.Photos;
 using Bonvi.Application.Identity.Queries.GetCurrentUser;
+using Bonvi.Application.Identity.Users.Commands.ActivateUser;
+using Bonvi.Application.Identity.Users.Commands.CreateUser;
+using Bonvi.Application.Identity.Users.Commands.DeactivateUser;
+using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
+using Bonvi.Application.Identity.Users.Commands.UpdateUser;
+using Bonvi.Application.Identity.Users.Queries.ListUsers;
 using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
 using Bonvi.Application.System.Queries.GetSystemInfo;
@@ -53,6 +59,14 @@ public static class DependencyInjection
         services.AddScoped<RefreshSessionCommandHandler>();
         services.AddScoped<LogoutCommandHandler>();
         services.AddScoped<GetCurrentUserQueryHandler>();
+
+        // Foydalanuvchilarni boshqarish (faqat admin — «users.manage»)
+        services.AddScoped<ListUsersQueryHandler>();
+        services.AddScoped<CreateUserCommandHandler>();
+        services.AddScoped<UpdateUserCommandHandler>();
+        services.AddScoped<DeactivateUserCommandHandler>();
+        services.AddScoped<ActivateUserCommandHandler>();
+        services.AddScoped<ResetUserPasswordCommandHandler>();
 
         // Hisob rasmi
         services.AddScoped<GetAccountPhotoQueryHandler>();

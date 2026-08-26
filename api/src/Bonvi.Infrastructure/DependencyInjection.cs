@@ -42,6 +42,10 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
 
+        // Audit jurnali — barcha bo'limlar uchun umumiy, shu sababli
+        // bironta modulga tegishli emas, shu yerda ro'yxatga olinadi.
+        services.AddScoped<IAuditLogger, AuditLogger>();
+
         services.AddIdentityServices(configuration);
         services.AddCatalogServices();
         services.AddEmployeeServices();

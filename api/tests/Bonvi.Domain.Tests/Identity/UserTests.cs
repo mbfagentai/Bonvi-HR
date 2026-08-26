@@ -160,4 +160,99 @@ public sealed class UserTests
         user.IsActive.ShouldBeTrue();
         user.LockedUntil.ShouldBeNull();
     }
+
+    // ────────── O'zini o'zi bloklashdan himoya (foydalanuvchi boshqaruvi) ──────────
+
+    [Fact]
+    public void Ozini_ozi_faolsizlantirishga_urinish_rad_etiladi()
+    {
+        var user = YaratilganFoydalanuvchi();
+
+        var natija = user.Deactivate(user.Id);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.ozini_blokash");
+        user.IsActive.ShouldBeTrue("hisob holati o'zgarmasligi kerak");
+    }
+
+    [Fact]
+    public void Boshqa_foydalanuvchi_tomonidan_faolsizlantirish_ruxsat_etiladi()
+    {
+        var user = YaratilganFoydalanuvchi();
+        var boshqaAdmin = Guid.CreateVersion7();
+
+        var natija = user.Deactivate(boshqaAdmin);
+
+        natija.IsSuccess.ShouldBeTrue();
+        user.IsActive.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Ozidan_administrator_rolini_olib_tashlashga_urinish_rad_etiladi()
+    {
+        var user = YaratilganFoydalanuvchi();
+        var adminRoleId = Guid.CreateVersion7();
+        user.AssignRole(adminRoleId);
+
+        var natija = user.RemoveRole(adminRoleId, user.Id, adminRoleId);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.ozini_adminlikdan_chetlashtirish");
+        user.RoleIds.ShouldContain(adminRoleId, "rol qolishi kerak, hech narsa o'zgarmagan");
+    }
+
+    [Fact]
+    public void Ozidan_admin_bolmagan_rolni_olib_tashlash_ruxsat_etiladi()
+    {
+        var user = YaratilganFoydalanuvchi();
+        var adminRoleId = Guid.CreateVersion7();
+        var hrRoleId = Guid.CreateVersion7();
+        user.AssignRole(adminRoleId);
+        user.AssignRole(hrRoleId);
+
+        // O'zining hisobidan, lekin admin bo'lmagan rolni olib tashlaydi — bu xavfsiz
+        var natija = user.RemoveRole(hrRoleId, user.Id, adminRoleId);
+
+        natija.IsSuccess.ShouldBeTrue();
+        user.RoleIds.ShouldNotContain(hrRoleId);
+        user.RoleIds.ShouldContain(adminRoleId);
+    }
+
+    [Fact]
+    public void Boshqa_foydalanuvchidan_admin_rolini_olib_tashlash_ruxsat_etiladi()
+    {
+        var user = YaratilganFoydalanuvchi();
+        var adminRoleId = Guid.CreateVersion7();
+        var boshqaAdmin = Guid.CreateVersion7();
+        user.AssignRole(adminRoleId);
+
+        var natija = user.RemoveRole(adminRoleId, boshqaAdmin, adminRoleId);
+
+        natija.IsSuccess.ShouldBeTrue();
+        user.RoleIds.ShouldNotContain(adminRoleId);
+    }
+
+    // ────────── Profil yangilash ──────────
+
+    [Fact]
+    public void Ism_familiya_yangilanadi()
+    {
+        var user = YaratilganFoydalanuvchi();
+        var yangiIsm = FullName.Parse("Тошматов Акбар").Value;
+
+        user.Rename(yangiIsm);
+
+        user.FullName.ShouldBe(yangiIsm);
+    }
+
+    [Fact]
+    public void Login_yangilanadi()
+    {
+        var user = YaratilganFoydalanuvchi();
+        var yangiLogin = PhoneNumber.Create("901112233").Value;
+
+        user.ChangeLogin(yangiLogin);
+
+        user.Login.ShouldBe(yangiLogin);
+    }
 }
