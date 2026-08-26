@@ -890,10 +890,14 @@ aynan shu tarqoqlik muammo edi.
       Ekrandagi ro'yxatning AYNAN o'zi: filtr qurish va DTO ga aylantirish
       `SearchEmployeesQueryHandler` dan qayta ishlatiladi, oklad ustuni ham
       shu yerda `salary.view` ga bog'liq
-- [ ] ⚠️ **Uchalasining EKRANI hali yo'q** — bosh sahifada grafik ham,
-      xodimlar ro'yxatida «Eksport» tugmasi ham chizilmagan. `recharts`
-      (`3.10.1`) hamon ishlatilmayapti. Bu eng arzon navbatdagi ish:
-      backend tayyor va testlangan
+- [x] **Uchalasining EKRANI ham qurildi.** Bo'lim/yo'nalish kesimi —
+      bosh sahifada karta (diagramma emas, «bar list»; yo'nalishda foiz
+      ATAYLAB yo'q — bitta xodim bir nechta yo'nalishga tegishli bo'la
+      oladi, ya'ni yig'indi xodimlar sonidan oshadi). Kadrlar oqimi va
+      ketish sabablari — yangi `/hisobotlar` sahifasi (`reports.view`),
+      6/12/24 oylik oyna, `recharts` nihoyat ishga tushdi. Excel eksport —
+      xodimlar toolbar'ida tugma (`reports.export`), ekrandagi filtr va
+      saralashning aynan o'zi bilan
 - [ ] Bo'lim boshliqlari uchun cheklangan ko'rinish — avtorizatsiya
       arxitekturasiga o'zgarish talab qiladi (pastdagi «Xavflar» ga qarang)
 
@@ -933,10 +937,10 @@ bitta bandga sig'dirib bo'lmaydi.
 3. ✅ **Excel eksport uchun yarim tayyorgarlik — HAL QILINDI.**
    `RateLimitPolicies.Export` siyosati va `reports.export` ruxsati endi
    haqiqiy endpoint'ga (`GET /api/reports/employees/export`) ulandi.
-4. **`recharts` hamon ishlatilmayapti.** `web/package.json` da bog'liqlik
-   sifatida bor (`3.10.1`), lekin kodda bironta import yo'q. Kadrlar oqimi
-   endpoint'i tayyor, grafigi esa hali chizilmagan — S10 dagi «ekrani hali
-   yo'q» bandiga qarang.
+4. ✅ **`recharts` ishlatilmayotgan edi — HAL QILINDI.** U endi
+   `/hisobotlar` sahifasidagi kadrlar oqimi grafigida ishlaydi. Ranglar
+   CSS o'zgaruvchisi orqali beriladi, ya'ni mavzu almashganda grafik ham
+   almashadi (`getComputedStyle` nega rad etilganini kod izohi tushuntiradi).
 5. **Ma'lumot hali ko'chirilmagan.** Bu dasturchi xavfi emas, lekin eng
    kattasi: `./bonvi etl --apply` hali ishga tushirilmagan va bazada atigi
    59 xodim bor. Butun tizim haqiqiy hajmda (2347 xodim, 3527 hodisa)
@@ -995,9 +999,9 @@ Bular ishni to'xtatmaydi — oqilona standart bilan boshlanadi, javob kelganda t
 ## 10. Keyingi qadam
 
 **S0 · S1 · S2 tugadi, S3 vositasi tayyor** (HR ko'rigini kutmoqda).
-**S4, S5, S6, S7 va S9 to'liq bajarildi.** S8 dan bitta band qoldi
-(baholash anketasi), S10 ning uchala hisoboti backend'da tayyor, lekin
-EKRANI yo'q, S11 esa zaxiradan tashqari ochiq.
+**S4, S5, S6, S7, S9 va S10 ning hisobot qismi to'liq bajarildi** —
+backend ham, ekran ham. S8 dan bitta band qoldi (baholash anketasi),
+S10 dan bo'lim boshliqlari ko'rinishi, S11 esa zaxiradan tashqari ochiq.
 
 Qurilgan poydevor:
 
@@ -1009,6 +1013,11 @@ Qurilgan poydevor:
 ./bonvi etl     →  Excel → baza ko'chirish (quruq yurish standart)
 ./bonvi backup  →  baza + fayllar zaxirasi (prod'da kunlik, avtomatik)
 ```
+
+Ilova qobig'i ekran balandligida QOTIB turadi (`h-dvh overflow-hidden`) —
+yon menyu va yuqori panel hech qachon surilmaydi, suriladigan yagona joy
+kontent maydoni. Ilgari bu `position: sticky` bilan qilingan edi va u
+ota elementdagi `overflow`/`transform` tufayli jimgina buzilardi.
 
 Ishlaydi: kirish (JWT), token yangilash, ruxsat tekshiruvi (21 ta ruxsat,
 2 ta rol), foydalanuvchi va rollarni boshqarish, 4 tilli interfeys,
@@ -1025,18 +1034,14 @@ hali bazaga qo'llanmagan — joriy dev muhitida atigi 59 xodim yozuvi bor.
 
 ### Navbatdagi ish — tartib bo'yicha
 
-1. **S10 ning EKRANLARI** — eng arzoni: uchala endpoint ham tayyor va
-   testlangan, faqat chizish qolgan. Bo'lim/yo'nalish kesimi va kadrlar
-   oqimi grafigi bosh sahifaga (`recharts` allaqachon `package.json` da),
-   «Excel eksport» tugmasi esa xodimlar ro'yxati toolbar'iga.
-2. **ETL 6-qadam — profil boyitish.** `91.15` qobiliyatlar (554 qator) va
+1. **ETL 6-qadam — profil boyitish.** `91.15` qobiliyatlar (554 qator) va
    `91.14` rag'bat (34 qator) hali ko'chirilmaydi. Endi buni yozish mumkin:
    `EmployeeCompetency` va `Incentive` agregatlari S8 da qurildi, `Steps/`
    da esa mos qadam hali yo'q.
-3. **S8 — baholash anketasi.** S8 dan qolgan yagona band.
-4. **S11** — Sentry, HR uchun qo'llanma va o'qitish, hamda zaxirani
+2. **S8 — baholash anketasi.** S8 dan qolgan yagona band.
+3. **S11** — Sentry, HR uchun qo'llanma va o'qitish, hamda zaxirani
    haqiqiy serverda bir marta TIKLAB ko'rish.
-5. **Bo'lim boshliqlari uchun cheklangan ko'rinish** (S10) — bu oddiy ekran
+4. **Bo'lim boshliqlari uchun cheklangan ko'rinish** (S10) — bu oddiy ekran
    emas: hozirgi avtorizatsiya modelida faqat ikkita global rol bor va
    ruxsatni bitta bo'limga cheklab bo'lmaydi. «Xavflar» dagi 2-bandga
    qarang, ish rol → bo'lim bog'lanishidan boshlanadi.
