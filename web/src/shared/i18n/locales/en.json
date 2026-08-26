@@ -236,7 +236,15 @@
     "connected": "connected",
     "disconnected": "not connected",
     "apiUnreachable": "Cannot reach the API. Is ./bonvi up running?",
-    "stageNote": "Stage 1: employee management. The architecture is in place, modules are being added step by step."
+    "stageNote": "Stage 1: employee management. The architecture is in place, modules are being added step by step.",
+    "breakdownTitle": "Employee breakdown",
+    "breakdownViewLabel": "Breakdown view",
+    "breakdownDepartmentHint": "Active employees by top-level department",
+    "breakdownDirectionHint": "One employee can belong to several directions — the total exceeds the headcount",
+    "breakdownMore": "{{n}} more",
+    "breakdownLess": "Show less",
+    "breakdownEmpty": "Nothing to break down yet",
+    "breakdownEmptyText": "Once employees are hired, they will show up here by department and direction."
   },
   "catalog": {
     "searchPlaceholder": "Search by name…",

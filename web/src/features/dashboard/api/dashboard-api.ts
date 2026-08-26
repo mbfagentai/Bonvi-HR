@@ -87,3 +87,55 @@ export async function fetchDashboardStats(
 
   return data
 }
+
+/**
+ * Taqsimotdagi bitta bo'lak.
+ *
+ * `id === null` — «Belgilanmagan»: bo'limi (yoki yo'nalishi) ko'rsatilmagan
+ * xodimlar. Uning NOMI ham serverdan keladi va klientda yasalmaydi: aks
+ * holda bir xil tushuncha ikki joyda — C# da va bu yerda — nomlanardi va
+ * ular vaqt o'tib ajralib ketardi.
+ */
+export interface DashboardBreakdownItem {
+  id: string | null
+  name: string
+  count: number
+}
+
+/**
+ * Faol xodimlarning bo'lim va yo'nalish kesimi.
+ *
+ * Ikkala ro'yxat ham SERVERDA ko'pdan kamga tartiblangan — klientda qayta
+ * saralash kerak emas va qilinmaydi ham: tartib shartnomaning bir qismi.
+ *
+ * ⚠️ Ikki ro'yxatning ARIFMETIKASI BOSHQA va bu ekranda ko'rinadi:
+ *   • `departments` yig'indisi `DashboardStats.activeEmployees` ga TENG —
+ *     har bir xodim bitta bo'limga tegishli va u bo'lim daraxtining
+ *     yuqori darajasiga (departamentga) yig'iladi;
+ *   • `directions` yig'indisi esa undan OSHISHI mumkin — bitta xodim bir
+ *     nechta yo'nalishga tegishli bo'la oladi.
+ * Ya'ni «umumiy xodimning necha foizi» degan hisob faqat BIRINCHI ro'yxat
+ * uchun to'g'ri. Kartada shu farq hisobga olingan.
+ */
+export interface DashboardBreakdown {
+  departments: DashboardBreakdownItem[]
+  directions: DashboardBreakdownItem[]
+}
+
+/**
+ * Taqsimot — parametrsiz.
+ *
+ * `DashboardPeriod` ATAYLAB yo'q: bu «bugungi holat» kesimi, oraliqqa
+ * bog'liq emas. Aynan shu sababli u `/stats` dan alohida endpoint —
+ * davr almashtirgichi bosilganda qayta so'ralmasligi kerak
+ * (kesh kaliti `dashboard-queries.ts` da).
+ */
+export async function fetchDashboardBreakdown(
+  signal?: AbortSignal,
+): Promise<DashboardBreakdown> {
+  const { data } = await api.get<DashboardBreakdown>('/api/dashboard/breakdown', {
+    signal,
+  })
+
+  return data
+}

@@ -14,6 +14,7 @@ import { useState } from 'react'
 
 import { useDashboardStats } from '@/features/dashboard/api/dashboard-queries'
 import type { DashboardPeriod } from '@/features/dashboard/api/dashboard-api'
+import { EmployeeBreakdownCard } from '@/features/dashboard/components/employee-breakdown-card'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useGetSystemInfo } from '@/shared/api/generated/system/system'
 import {
@@ -138,6 +139,21 @@ function Dashboard() {
           </p>
         </Card>
       )}
+
+      {/*
+        ---------- Xodimlar taqsimoti ----------
+
+        O'rni ataylab shu yerda: yuqoridagi kartalar «nechta» degan
+        savolga javob beradi, bu esa keyingi savolga — «qayerda». Tizim
+        holati va ma'lumotnomalar qatori esa xodimlar haqida emas,
+        tizimning o'zi haqida, ya'ni u pastroqda turishi to'g'ri.
+
+        Karta o'z ma'lumotini O'ZI so'raydi va davr almashtirgichiga
+        umuman qaramaydi — taqsimot oraliqqa bog'liq emas (izohi
+        `dashboard-api.ts` da). Shu sababli unga bu yerdan hech qanday
+        parametr uzatilmaydi.
+      */}
+      <EmployeeBreakdownCard />
 
       {/* ---------- Tizim holati va ma'lumotnomalar ---------- */}
       <div className="grid gap-4 lg:grid-cols-3">

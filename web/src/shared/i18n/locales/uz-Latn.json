@@ -236,7 +236,15 @@
     "connected": "ulangan",
     "disconnected": "ulanmagan",
     "apiUnreachable": "API bilan bog‘lanib bo‘lmadi. ./bonvi up ishlab turibdimi?",
-    "stageNote": "1-bosqich: xodimlar boshqaruvi. Arxitektura tayyor, modullar bosqichma-bosqich qo‘shilmoqda."
+    "stageNote": "1-bosqich: xodimlar boshqaruvi. Arxitektura tayyor, modullar bosqichma-bosqich qo‘shilmoqda.",
+    "breakdownTitle": "Xodimlar taqsimoti",
+    "breakdownViewLabel": "Taqsimot kesimi",
+    "breakdownDepartmentHint": "Ishlayotgan xodimlar bosh bo‘limlar kesimida",
+    "breakdownDirectionHint": "Bitta xodim bir nechta yo‘nalishga tegishli bo‘lishi mumkin — yig‘indi xodimlar sonidan oshadi",
+    "breakdownMore": "Yana {{n}} ta",
+    "breakdownLess": "Yig‘ish",
+    "breakdownEmpty": "Taqsimlanadigan xodim yo‘q",
+    "breakdownEmptyText": "Xodim qabul qilingach, ular shu yerda bo‘lim va yo‘nalish bo‘yicha ko‘rinadi."
   },
   "catalog": {
     "searchPlaceholder": "Nomi bo‘yicha qidirish…",
