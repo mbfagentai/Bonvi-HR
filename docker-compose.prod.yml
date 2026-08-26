@@ -23,6 +23,81 @@ services:
       retries: 5
     networks: [bonvi]
 
+  # ----------------------------------------------------------
+  #  Avtomatik zaxira (kunlik pg_dump, 30 kun saqlash)
+  #
+  #  NEGA ALOHIDA KONTEYNER, HANGFIRE EMAS: loyihada Hangfire paketlari
+  #  bor, lekin ataylab ulanmagan — PLAN.md S6 dagi qarorga qarang: fon
+  #  vazifa serveri, uning jadvali va nosozliklarini kuzatish shu tizim
+  #  hajmida (3 HR + rahbar) ortiqcha infratuzilma. Zaxira uchun ham xuddi
+  #  shu mantiq ishlaydi — ustiga yana bir sabab qo'shiladi: Hangfire API
+  #  jarayoni ICHIDA ishlaydi, ya'ni API yiqilgan/qayta boshlanayotgan
+  #  daqiqada zaxira ham to'xtab qoladi. Zaxira API'ning holatidan
+  #  mustaqil bo'lishi kerak.
+  #
+  #  NEGA XOST CRON EMAS: loyihaning asosiy qoidasi — xost mashinaga
+  #  hech narsa o'rnatilmaydi, hammasi konteyner ichida.
+  #
+  #  NEGA SHU YECHIM: `postgres:18.6-alpine` image'ida pg_dump/pg_restore
+  #  serverning O'ZI bilan bir xil versiyada allaqachon bor, ustiga Alpine
+  #  negizida busybox `crond` ham bor — qo'shimcha paket, qo'shimcha image
+  #  qurish shart emas. Konteyner postgres'dan mustaqil qayta ishga
+  #  tushadi/ishlaydi, xotira va CPU izi minimal.
+  #
+  #  Skriptlar: infra/backup/ (backup.sh, restore.sh, entrypoint.sh) —
+  #  aynan shu fayllar `./bonvi backup`/`./bonvi restore` orqali dev'da
+  #  ham qo'lda sinaladi, ya'ni prod'da ishlaydigan kod bilan sinalgan
+  #  kod bir xil.
+  backup:
+    image: postgres:18.6-alpine
+    container_name: backup
+    restart: unless-stopped
+    entrypoint: ["/scripts/entrypoint.sh"]
+    environment:
+      # Alohida konteyner bo'lgani uchun postgres'ga TARMOQ orqali
+      # ulanadi (local socket emas) — shu sababli, `./bonvi backup`/
+      # `restore`dan farqli, parol kerak. U yerda konteyner ichidagi
+      # `environment:` maydoni orqali .env'dan o'qiladi — hech qanday
+      # buyruq qatorida yoki `docker` argumentida ochiq yozilmaydi
+      # (xuddi yuqoridagi `postgres`/`api` xizmatlari kabi).
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      # crond jadvali konteyner soati (UTC) bo'yicha ishlaydi.
+      # Standart: 22:00 UTC = 03:00 Toshkent vaqti (UTC+5, yozgi vaqt yo'q).
+      BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 22 * * *}
+      # Fayl (rasm, hujjat) zaxirasi uchun — quyidagi `uploads-data:ro`ga qarang.
+      UPLOADS_SRC_DIR: /uploads
+    volumes:
+      - ./backups:/backups
+      - ./infra/backup:/scripts:ro
+      # :ro — bu konteyner faqat O'QIYDI (zaxira oladi), hech qachon
+      # yozmaydi. Tiklash boshqa yo'l bilan (`./bonvi restore`, quyidagi
+      # `backup-files` tool konteyneri orqali) — u yerda rw kerak.
+      - uploads-data:/uploads:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [bonvi]
+
+  # Qo'lda zaxira/tiklash uchun bir martalik vosita — `docker compose run`
+  # bilan chaqiriladi, `up`/`up -d` uni ishga TUSHIRMAYDI (`profiles`
+  # tufayli). `./bonvi backup`/`./bonvi restore` fayllar qismini shu orqali
+  # bajaradi (dev'da ham, prod'da ham) — postgres konteyneriga esa
+  # uloshtirish shart emas, chunki `docker compose run` volume nomini
+  # loyihaning O'ZIDAN (bonvi-hr / bonvi-hr-prod) hal qiladi.
+  backup-files:
+    image: alpine:3.20
+    profiles: ["tools"]
+    volumes:
+      - uploads-data:/uploads
+      - ./backups:/backups
+      - ./infra/backup:/scripts:ro
+    networks: [bonvi]
+
   redis:
     image: redis:8.8.2-alpine
     restart: always

@@ -37,6 +37,11 @@ services:
       # /var/lib/postgresql. Baza ichida major-versiya papkasida saqlanadi —
       # bu kelajakda pg_upgrade bilan yangilashni osonlashtiradi.
       - postgres-data:/var/lib/postgresql
+      # Faqat `./bonvi backup`/`./bonvi restore` qo'lda sinash uchun.
+      # Avtomatik (kunlik) zaxira dev'da YO'Q — faqat docker-compose.prod.yml
+      # dagi `backup` konteynerida. Bind-mount o'zi hech qanday fon
+      # jarayon qo'shmaydi, shu sababli dev muhitini og'irlashtirmaydi.
+      - ./backups:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bonvi} -d ${POSTGRES_DB:-bonvi_hr}"]
       interval: 5s
@@ -131,6 +136,20 @@ services:
       - ./web:/app
       - web-node-modules:/app/node_modules    # bind-mount'dan tashqarida (tezlik)
       - pnpm-store:/root/.local/share/pnpm/store
+    networks: [bonvi]
+
+  # Qo'lda zaxira/tiklash sinash uchun bir martalik vosita (fayllar
+  # qismi — rasm, hujjat). `profiles: ["tools"]` tufayli `./bonvi up`
+  # uni ISHGA TUSHIRMAYDI — faqat `docker compose run backup-files ...`
+  # bilan (./bonvi backup/restore shuni qiladi) chaqiriladi. Avtomatik
+  # kunlik zaxira dev'da YO'Q — faqat docker-compose.prod.yml da.
+  backup-files:
+    image: alpine:3.20
+    profiles: ["tools"]
+    volumes:
+      - uploads-data:/uploads
+      - ./backups:/backups
+      - ./infra/backup:/scripts:ro
     networks: [bonvi]
 
 volumes:

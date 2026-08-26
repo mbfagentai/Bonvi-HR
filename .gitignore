@@ -34,3 +34,8 @@ Thumbs.db
 data/
 *.log
 uploads/
+
+# Zaxira (pg_dump) — ./bonvi backup / docker-compose.prod.yml dagi
+# `backup` konteyneri shu papkaga yozadi. Bazaning to'liq nusxasi
+# (JSHSHIR, pasport, telefon) git'ga TUSHMASLIGI SHART.
+/backups/

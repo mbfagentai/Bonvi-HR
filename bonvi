@@ -120,6 +120,13 @@ BONVI HR — buyruqlar
                             Excel fayl «data/» jildida bo'lishi kerak.
                             Hisobot: data/etl-report.csv
 
+  ZAXIRA (baza + fayllar — production'da kunlik avtomatik, docker-compose.prod.yml)
+    ./bonvi backup           Baza (pg_dump) VA fayllar (rasm/hujjat) zaxirasi,
+                             bitta stamp bilan juftlab → backups/
+    ./bonvi backup-list      Mavjud zaxiralar ro'yxati
+    ./bonvi restore <fayl>   ⚠️  Bazadan tiklash — mos fayllar zaxirasi topilsa
+                             BIRGA tiklanadi. HOZIRGI ma'lumot ustidan yoziladi
+
   BOSHQA
     ./bonvi sh api|web|db   Konteyner ichiga kirish
     ./bonvi psql            PostgreSQL konsoli
@@ -313,6 +320,112 @@ case "$cmd" in
       --network bonvi-hr_bonvi \
       "$SDK_IMAGE" \
       dotnet run --project tools/Bonvi.Etl -- "${conn_args[@]}" "$@"
+    ;;
+
+  backup)
+    # Baza (postgres, local socket — parolsiz) va fayllar (rasm, hujjat —
+    # `backup-files` bir martalik konteyner orqali) BIR XIL STAMP bilan,
+    # ketma-ket olinadi: AVVAL BAZA, KEYIN FAYLLAR. Sabab:
+    # infra/backup/backup-files.sh boshidagi izohga qarang — bu tartib
+    # "baza fayl arxivida yo'q rasmga ishora qiladi" xavfini kamaytiradi.
+    #
+    # Nega bitta buyruq, ikkita alohida emas: bazadagi `photo_key` fayl
+    # nomiga ishora qiladi — ular BOG'LIQ ma'lumot, alohida jadvalda
+    # olinsa vaqt orasidagi farq (skew) mos kelmaslikka olib kelishi
+    # mumkin. Bitta STAMP ikkalasini "bitta zaxira hodisasi" sifatida
+    # ko'rsatib, tiklashda ham juftlab tiklashni osonlashtiradi (pastga
+    # qarang).
+    ensure_env
+    set -a; . ./.env; set +a
+    if ! $DC ps --status running --services 2>/dev/null | grep -q '^postgres$'; then
+      c_r "postgres ishlamayapti. Avval: ./bonvi up"
+      exit 1
+    fi
+    mkdir -p backups
+    STAMP="$(date '+%Y-%m-%d_%H%M%S')"
+
+    c_y "→ baza zaxirasi olinmoqda..."
+    $DC exec -T \
+      -e BACKUP_DIR=/backups \
+      -e BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}" \
+      -e BACKUP_STAMP="$STAMP" \
+      postgres sh < infra/backup/backup.sh
+
+    c_y "→ fayllar (rasm, hujjat) zaxirasi olinmoqda..."
+    $DC run --rm -T \
+      -e UPLOADS_SRC_DIR=/uploads \
+      -e BACKUP_DIR=/backups \
+      -e BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}" \
+      -e BACKUP_STAMP="$STAMP" \
+      backup-files sh /scripts/backup-files.sh
+
+    c_g "✅ Zaxira tayyor (baza + fayllar), stamp: $STAMP → backups/"
+    ;;
+
+  backup-list)
+    if ls backups/*.dump backups/*.tar.gz >/dev/null 2>&1; then
+      ls -lh backups/*.dump backups/*.tar.gz 2>/dev/null | awk '{print $NF, "—", $5}'
+    else
+      c_y "Hali birorta zaxira yo'q. ./bonvi backup bilan oling."
+    fi
+    ;;
+
+  restore)
+    [ $# -ge 1 ] || {
+      c_r "Fayl nomini ko'rsating: ./bonvi restore backups/bonvi_..._2026-08-25_121947.dump"
+      echo
+      "$0" backup-list
+      exit 1
+    }
+    base="$(basename "$1")"
+    [ -f "backups/$base" ] || {
+      c_r "Fayl topilmadi: backups/$base"
+      echo "   (fayl «backups/» jildida bo'lishi kerak — konteynerga shu jild ulangan)"
+      exit 1
+    }
+
+    ensure_env
+    set -a; . ./.env; set +a
+    if ! $DC ps --status running --services 2>/dev/null | grep -q '^postgres$'; then
+      c_r "postgres ishlamayapti. Avval: ./bonvi up"
+      exit 1
+    fi
+
+    # DB fayl nomi bonvi_<baza>_<STAMP>.dump — stamp'ni ajratib olib, bir
+    # xil stamp'li fayl arxivi (bonvi_uploads_<STAMP>.tar.gz) bor-yo'qligini
+    # tekshiramiz. Topilsa, IKKALASI HAM bitta tasdiqlash bilan tiklanadi —
+    # bazani fayllarsiz (yoki aksincha) tiklash `photo_key` mosligini
+    # buzishi mumkin, shu sababli alohida tiklash buyrug'i ATAYLAB yo'q.
+    stamp="${base#bonvi_"${POSTGRES_DB}"_}"
+    stamp="${stamp%.dump}"
+    files_archive="bonvi_uploads_${stamp}.tar.gz"
+    has_files=0
+    [ -f "backups/$files_archive" ] && has_files=1
+
+    c_r "⚠️  DIQQAT: bu amal «${POSTGRES_DB}» bazasidagi HOZIRGI ma'lumotni"
+    echo "   «$base» zaxirasi bilan almashtiradi. Hozirgi ma'lumot qaytarib"
+    echo "   bo'lmaydigan tarzda o'chadi (agar oldindan zaxira olinmagan bo'lsa)."
+    if [ "$has_files" = 1 ]; then
+      echo "   Mos fayllar (rasm, hujjat) zaxirasi ham topildi va BIRGA"
+      echo "   tiklanadi: $files_archive — hozirgi fayllar ustidan yoziladi."
+    else
+      c_y "   OGOHLANTIRISH: bu zaxiraga mos fayllar arxivi topilmadi."
+      echo "   Tiklangandan keyin ba'zi xodimlarning rasm/hujjat havolalari"
+      echo "   (photo_key) bazada bor, lekin fayli yo'q bo'lib qolishi mumkin."
+    fi
+    read -r -p "   Davom etilsinmi? [ha/yo'q]: " a
+    [ "$a" = "ha" ] || { echo "bekor qilindi"; exit 0; }
+
+    c_y "→ baza tiklanmoqda: $base"
+    $DC exec -T postgres sh -s "/backups/$base" < infra/backup/restore.sh
+
+    if [ "$has_files" = 1 ]; then
+      c_y "→ fayllar tiklanmoqda: $files_archive"
+      $DC run --rm -T \
+        -e UPLOADS_DEST_DIR=/uploads \
+        backup-files sh -s "/backups/$files_archive" < infra/backup/restore-files.sh
+    fi
+    c_g "✅ Tiklandi: ${POSTGRES_DB}$([ "$has_files" = 1 ] && echo ' + fayllar')"
     ;;
 
   sh)
