@@ -1,16 +1,25 @@
 /**
- * Tarjimalar to'liqligini ikki tomondan tekshiradi.
+ * Tarjimalar to'liqligini UCH tomondan tekshiradi.
  *
  * <b>1. To'rt til bir-biriga mos.</b> Yangi kalit qo'shilganda bitta tilda
  * unutilishi oson. U holda foydalanuvchi kalit NOMINI ko'radi
  * («nav.employees»), matnni emas.
  *
- * <b>2. Backend'ning har bir xato kodi tarjima qilingan.</b> Bu ikkinchi
- * tekshiruv keyinroq qo'shildi va sababi aniq: `useErrorMessage` tarjima
- * topmasa XOM KODNI ekranga chiqaradi. Bir vaqtlar 39 ta kod shu holatda
- * edi va HR «mehnat.tugagan» degan matnni o'qirdi — hech qanday xato
- * chiqmagani uchun buni hech kim sezmasdi. Endi yangi `Error.Validation(...)`
- * yozgan odam tarjimasini ham qo'shmaguncha tekshiruv o'tmaydi.
+ * <b>2. Frontend kodi ishlatgan har bir kalit etalonda bor.</b> (1)-tekshiruv
+ * TO'RT TIL bir-biriga mosligini ko'radi, lekin kodning o'zi umuman
+ * yo'q kalitni chaqirsa — masalan `t('nav.users')`, u hech qaysi tilda
+ * yo'q bo'lsa — (1) buni SEZMAYDI: yo'qlik hammada bab-baravar, demak
+ * «mos». Xuddi shu sabab bilan `nav.users` xatosi ekranga ikkinchi marta
+ * chiqdi (birinchisi — `employees.events.*`). Bu tekshiruv kodni o'qiydi
+ * va har bir `t(...)` chaqiruvini pastdagi izohda tushuntirilgan usulda
+ * etalon bilan solishtiradi.
+ *
+ * <b>3. Backend'ning har bir xato kodi tarjima qilingan.</b> Bu tekshiruv
+ * sababi aniq: `useErrorMessage` tarjima topmasa XOM KODNI ekranga
+ * chiqaradi. Bir vaqtlar 39 ta kod shu holatda edi va HR «mehnat.tugagan»
+ * degan matnni o'qirdi — hech qanday xato chiqmagani uchun buni hech kim
+ * sezmasdi. Endi yangi `Error.Validation(...)` yozgan odam tarjimasini
+ * ham qo'shmaguncha tekshiruv o'tmaydi.
  *
  * Ishga tushirish:  ./bonvi pnpm check:locales
  */
@@ -70,6 +79,274 @@ for (const file of files) {
 }
 
 console.log(`\n${REFERENCE} (etalon): ${reference.size} kalit`)
+
+// ────────────────────────────────────────────────────────────
+//  Frontendda ishlatilgan tarjima kalitlari
+// ────────────────────────────────────────────────────────────
+
+/**
+ * `web/src` dagi HAR BIR `t(...)` chaqiruvini o'qiydi va uni etalon bilan
+ * solishtiradi. Ikki xil chaqiruv bor:
+ *
+ * <b>Oddiy holat — `t('nav.employees')`.</b> Kalit KODNING O'ZIDA yozilgan,
+ * shu sababli to'g'ridan-to'g'ri o'qib solishtirsa bo'ladi. Shart ichida ham
+ * («`t(collapsed ? 'a' : 'b')`») — ikkala tarmoq ham haqiqiy kalit, shu
+ * sababli qavs ICHIDAGI barcha qatorli literallar olinadi, faqat birinchisi
+ * emas.
+ *
+ * <b>Shablonli holat — `` t(`nav.${item.key}`) ``.</b> Bu YERDA kalit
+ * ISHGA TUSHGANDA hisoblanadi va faylni o'qib to'g'ridan-to'g'ri topib
+ * bo'lmaydi. Lekin `item.key` nima qiymat olishi mumkinligi kod
+ * bazasida ALOHIDA joyda — odatda o'sha ro'yxatning o'zida — statik
+ * yozilgan (`nav-items.ts` dagi `key: 'employees'` kabi). Shu sababli
+ * yondashuv: HAR BIR takrorlanuvchi shablon uchun uning manba ro'yxati
+ * qo'lda ko'rsatiladi (`DYNAMIC_KEY_SOURCES`), o'sha ro'yxatdagi qiymatlar
+ * o'qiladi va ular bilan shablon TO'LDIRILIB kutilgan kalitlar hosil
+ * qilinadi — masalan `nav-items.ts` dagi har bir `key:` qiymati uchun
+ * `nav.<qiymat>` etalonda bormi tekshiriladi.
+ *
+ * Bu yondashuv TO'LIQ statik tahlil emas (masalan `t(STATUS_KEY[status])`
+ * kabi o'zgaruvchidan o'qiladigan chaqiruvlarni ko'rmaydi — u yerda matn
+ * ko'rinishda umuman yo'q), lekin haqiqiy kodda uchraydigan naqshlarning
+ * katta qismini yopadi va yolg'on ijobiy natija BERMAYDI: agar ro'yxat
+ * o'zgarsa (band qo'shilsa/o'chsa), tekshiruv ham AVTOMATIK yangilanadi,
+ * chunki u ro'yxatni har safar qayta o'qiydi.
+ */
+const WEB_ROOT = new URL('../', import.meta.url).pathname
+
+function sourceFiles(dir) {
+  const found = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) found.push(...sourceFiles(path))
+    else if (/\.tsx?$/.test(entry.name)) found.push(path)
+  }
+  return found
+}
+
+function lineOf(text, index) {
+  return text.slice(0, index).split('\n').length
+}
+
+function addUsage(map, key, location) {
+  if (!map.has(key)) map.set(key, new Set())
+  map.get(key).add(location)
+}
+
+/**
+ * `t(` dan keyingi ochiq qavsdan boshlab, mos yopiq qavsgacha bo'lgan
+ * matnni qaytaradi — ICHKI qavslarni hisoblab (masalan
+ * `t('x', { n: num(y) })` yoki ichma-ich `t('a', { b: t('c') })`).
+ */
+function callArgument(text, openParenIndex) {
+  let depth = 1
+  let i = openParenIndex + 1
+  while (i < text.length && depth > 0) {
+    if (text[i] === '(') depth++
+    else if (text[i] === ')') depth--
+    i++
+  }
+  return text.slice(openParenIndex + 1, i - 1)
+}
+
+/** Har bir faylni o'qib, oddiy va shablonli `t(...)` chaqiruvlarini ajratadi. */
+function scanTranslationCalls() {
+  const literalKeys = new Map() // kalit → joylashuvlar to'plami
+  const templates = [] // { raw, location } — ichida `${...}` bor shabloncha
+
+  for (const file of sourceFiles(join(WEB_ROOT, 'src'))) {
+    const text = readFileSync(file, 'utf8')
+    const relative = `src${file.slice(join(WEB_ROOT, 'src').length)}`
+    const callRe = /\bt\(/g
+    let match
+    while ((match = callRe.exec(text))) {
+      const arg = callArgument(text, match.index + 1)
+      const location = `${relative}:${lineOf(text, match.index)}`
+
+      for (const literal of arg.matchAll(/'([^']*)'|"([^"]*)"/g)) {
+        addUsage(literalKeys, literal[1] ?? literal[2], location)
+      }
+      for (const template of arg.matchAll(/`([^`]*)`/g)) {
+        if (template[1].includes('${')) templates.push({ raw: template[1], location })
+        else addUsage(literalKeys, template[1], location)
+      }
+    }
+  }
+
+  return { literalKeys, templates }
+}
+
+/** `maydon: 'qiymat'` ko'rinishidagi HAR BIR yozuvni (satr bilan) chiqaradi. */
+function fieldValues(text, field) {
+  const re = new RegExp(`\\b${field}\\s*:\\s*'([^']+)'`, 'dg')
+  const out = []
+  let match
+  while ((match = re.exec(text))) out.push({ value: match[1], line: lineOf(text, match.indices[1][0]) })
+  return out
+}
+
+/** `export const NAME = ['a', 'b', ...] as const` massividagi qiymatlarni chiqaradi. */
+function constArrayValues(text, name) {
+  const block = new RegExp(`export const ${name}\\s*=\\s*\\[([^\\]]*)\\]`, 'ds').exec(text)
+  if (!block) return []
+  const [start] = block.indices[1]
+  const out = []
+  const itemRe = /'([^']+)'/dg
+  let match
+  while ((match = itemRe.exec(block[1]))) {
+    out.push({ value: match[1], line: lineOf(text, start + match.indices[1][0]) })
+  }
+  return out
+}
+
+/** `export const NAME = { kalit: qiymat, ... } as const` obyektining KALIT nomlarini chiqaradi. */
+function constObjectKeyNames(text, name) {
+  const block = new RegExp(`export const ${name}\\s*=\\s*\\{([^}]*)\\}`, 'ds').exec(text)
+  if (!block) return []
+  const [start] = block.indices[1]
+  const out = []
+  const keyRe = /(\w+)\s*:/dg
+  let match
+  while ((match = keyRe.exec(block[1]))) {
+    out.push({ value: match[1], line: lineOf(text, start + match.indices[1][0]) })
+  }
+  return out
+}
+
+/**
+ * Shablonli kalitlarning manba ro'yxati.
+ *
+ * Yangi shablonli `` t(`prefiks.${...}`) `` chaqiruvi qo'shilsa-yu, shu
+ * yerga mos yozuv qo'shilmasa — pastdagi «tanilmagan shablon» ogohlantirishi
+ * buni ko'rsatadi (lekin `` roles.${code} `` kabi ATAYLAB qoldirilganlar
+ * bundan mustasno, SKIPPED_DYNAMIC_PREFIXES ga qarang).
+ */
+const DYNAMIC_KEY_SOURCES = [
+  {
+    file: 'src/app/layout/nav-items.ts',
+    values: (text) => fieldValues(text, 'key'),
+    keysFor: (value) => [`nav.${value}`],
+  },
+  {
+    file: 'src/features/employees/api/employees-api.ts',
+    values: (text) => constArrayValues(text, 'EMPLOYMENT_EVENT_TYPES'),
+    keysFor: (value) => [`employees.events.${value}`],
+  },
+  {
+    file: 'src/features/employees/api/employees-api.ts',
+    values: (text) => constArrayValues(text, 'EMPLOYEE_FLAG_TYPES'),
+    keysFor: (value) => [
+      `employees.flags.${value}`,
+      `flags.page.${value}.title`,
+      `flags.page.${value}.hint`,
+      `flags.page.${value}.emptyTitle`,
+    ],
+  },
+  {
+    file: 'src/features/catalog/lib/catalog-kinds.ts',
+    values: (text) => fieldValues(text, 'i18nKey'),
+    keysFor: (value) => [`catalog.kinds.${value}.title`, `catalog.kinds.${value}.subtitle`],
+  },
+  {
+    file: 'src/features/probations/api/probations-api.ts',
+    values: (text) => constObjectKeyNames(text, 'PROBATION_STATUSES'),
+    keysFor: (value) => [`probation.status.${value}`],
+  },
+]
+
+function collectDynamicKeys() {
+  const dynamicKeys = new Map()
+  for (const source of DYNAMIC_KEY_SOURCES) {
+    const text = readFileSync(join(WEB_ROOT, source.file), 'utf8')
+    for (const { value, line } of source.values(text)) {
+      for (const key of source.keysFor(value)) {
+        addUsage(dynamicKeys, key, `${source.file}:${line}`)
+      }
+    }
+  }
+  return dynamicKeys
+}
+
+/**
+ * Shablonlari BILIB TURIB ro'yxatga qo'shilmagan prefikslar.
+ *
+ * `errors.*` — pastdagi backend tekshiruvida ALOHIDA ko'riladi (u yerda
+ * yo'nalish teskari: backend kodi → tarjima).
+ *
+ * `roles.*` — backend'dan `user.roles` orqali keladigan rol kodi
+ * (`settings-dialog.tsx`). Frontend'da rollarning statik ro'yxati YO'Q —
+ * `./bonvi gen` kelmaguncha bo'lishi ham mumkin emas. Kod buni BILADI va
+ * tarjimasi topilmagan rolni ekranga chiqarmay, o'zi filtrlab tashlaydi
+ * (`` .filter((role) => role.label !== `roles.${role.code}`) ``) —
+ * ya'ni yetishmagan tarjima UI'ni buzmaydi, shu sababli bu yerda majburiy
+ * tekshiruv shart emas.
+ */
+const SKIPPED_DYNAMIC_PREFIXES = ['errors.', 'roles.']
+
+const { literalKeys, templates } = scanTranslationCalls()
+const dynamicKeys = collectDynamicKeys()
+
+const usedKeys = new Map()
+for (const [key, locations] of literalKeys) for (const location of locations) addUsage(usedKeys, key, location)
+for (const [key, locations] of dynamicKeys) for (const location of locations) addUsage(usedKeys, key, location)
+
+const missingCodeKeys = [...usedKeys]
+  .filter(([key]) => !reference.has(key))
+  .sort(([a], [b]) => a.localeCompare(b))
+
+if (missingCodeKeys.length > 0) {
+  failed = true
+  console.error(`\n✗ Kodda ishlatilgan, lekin ${REFERENCE} da yo'q kalitlar — ${missingCodeKeys.length} ta:`)
+  for (const [key, locations] of missingCodeKeys) {
+    console.error(`    ${key}`)
+    for (const location of [...locations].sort()) console.error(`        @ ${location}`)
+  }
+  console.error('\n  Foydalanuvchi ekranda tarjima o\'rniga XOM KALIT nomini ko\'radi.')
+  console.error('  Har to\'rtala tilga qo\'shing: ' + files.join(', '))
+} else {
+  console.log(`✓ frontend tarjima kalitlari: ${usedKeys.size} ta ishlatilgan, hammasi ${REFERENCE} da bor`)
+}
+
+/*
+ * Shablonli chaqiruv YUQORIDAGI manbalarning birortasi bilan ham
+ * qoplanmasa — ehtimol yangi dinamik naqsh paydo bo'lgan va uni
+ * `DYNAMIC_KEY_SOURCES` ga qo'lda qo'shish kerak. Tekshiruvni ATAYLAB
+ * YIQITMAYDI: naqsh xato emas, faqat hali ro'yxatga olinmagan bo'lishi
+ * mumkin, majburiy xato esa bunday paytda tekshiruvning o'zini
+ * o'chirib qo'yishga olib keladi.
+ */
+const uncoveredTemplates = templates.filter(({ raw }) => {
+  if (SKIPPED_DYNAMIC_PREFIXES.some((prefix) => raw.startsWith(prefix))) return false
+  const prefix = raw.slice(0, raw.indexOf('${'))
+  const suffix = raw.slice(raw.lastIndexOf('}') + 1)
+  return ![...dynamicKeys.keys()].some((key) => key.startsWith(prefix) && key.endsWith(suffix))
+})
+
+if (uncoveredTemplates.length > 0) {
+  console.log(`\n⚠ Tanilmagan shablonli \`t()\` chaqiruvi — ${uncoveredTemplates.length} ta (qo'lda tekshiring):`)
+  for (const { raw, location } of uncoveredTemplates) console.log(`    \`${raw}\`  @ ${location}`)
+}
+
+/*
+ * Teskari tomon: etalonda bor, lekin kod hech qanday shaklda
+ * ishlatmayotgan kalitlar. Bu XATO EMAS — faqat ma'lumot, shu sababli
+ * `failed` ga ta'sir qilmaydi. Sabab shu izohning yuqorisida: dinamik
+ * chaqiruvlarning bir qismi (masalan `roles.*`) tamomila kuzatuvdan
+ * tashqarida qoldirilgan, ya'ni «ishlatilmagan» degan xulosa ular uchun
+ * YOLG'ON bo'lishi mumkin.
+ */
+const potentiallyUnused = [...reference]
+  .filter((key) => !SKIPPED_DYNAMIC_PREFIXES.some((prefix) => key.startsWith(prefix)))
+  .filter((key) => !usedKeys.has(key))
+  .sort()
+
+if (potentiallyUnused.length > 0) {
+  console.log(
+    `\nℹ Etalonda bor, kodda topilmagan kalitlar — ${potentiallyUnused.length} ta ` +
+      "(ogohlantirish, tekshiruvni YIQITMAYDI):",
+  )
+  for (const key of potentiallyUnused) console.log(`    ${key}`)
+}
 
 // ────────────────────────────────────────────────────────────
 //  Backend xato kodlari
