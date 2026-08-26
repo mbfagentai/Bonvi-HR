@@ -27,22 +27,34 @@ public sealed class CatalogNameResolver
     private readonly IPositionRepository _positions;
     private readonly IReferenceRepository<LegalEntity> _legalEntities;
     private readonly IReferenceRepository<TerminationReason> _terminationReasons;
+    private readonly IReferenceRepository<AwardType> _awardTypes;
+    private readonly IReferenceRepository<PenaltyType> _penaltyTypes;
+    private readonly IReferenceRepository<DocumentType> _documentTypes;
 
     private readonly Dictionary<Guid, string?> _departmentNames = [];
     private readonly Dictionary<Guid, string?> _positionNames = [];
     private readonly Dictionary<Guid, string?> _legalEntityNames = [];
     private readonly Dictionary<Guid, string?> _terminationReasonNames = [];
+    private readonly Dictionary<Guid, string?> _awardTypeNames = [];
+    private readonly Dictionary<Guid, string?> _penaltyTypeNames = [];
+    private readonly Dictionary<Guid, string?> _documentTypeNames = [];
 
     public CatalogNameResolver(
         IDepartmentRepository departments,
         IPositionRepository positions,
         IReferenceRepository<LegalEntity> legalEntities,
-        IReferenceRepository<TerminationReason> terminationReasons)
+        IReferenceRepository<TerminationReason> terminationReasons,
+        IReferenceRepository<AwardType> awardTypes,
+        IReferenceRepository<PenaltyType> penaltyTypes,
+        IReferenceRepository<DocumentType> documentTypes)
     {
         _departments = departments;
         _positions = positions;
         _legalEntities = legalEntities;
         _terminationReasons = terminationReasons;
+        _awardTypes = awardTypes;
+        _penaltyTypes = penaltyTypes;
+        _documentTypes = documentTypes;
     }
 
     public Task<string?> DepartmentAsync(Guid? id, CancellationToken cancellationToken = default)
@@ -56,6 +68,15 @@ public sealed class CatalogNameResolver
 
     public Task<string?> TerminationReasonAsync(Guid? id, CancellationToken cancellationToken = default)
         => ResolveAsync(id, _terminationReasonNames, _terminationReasons, cancellationToken);
+
+    public Task<string?> AwardTypeAsync(Guid? id, CancellationToken cancellationToken = default)
+        => ResolveAsync(id, _awardTypeNames, _awardTypes, cancellationToken);
+
+    public Task<string?> PenaltyTypeAsync(Guid? id, CancellationToken cancellationToken = default)
+        => ResolveAsync(id, _penaltyTypeNames, _penaltyTypes, cancellationToken);
+
+    public Task<string?> DocumentTypeAsync(Guid? id, CancellationToken cancellationToken = default)
+        => ResolveAsync(id, _documentTypeNames, _documentTypes, cancellationToken);
 
     private static async Task<string?> ResolveAsync<TEntity>(
         Guid? id,

@@ -62,6 +62,21 @@ public sealed class EmployeeMapper
             employee.ReviewNote);
     }
 
+    public static EmployeeCompetencyDto ToDto(EmployeeCompetency competency)
+    {
+        ArgumentNullException.ThrowIfNull(competency);
+
+        return new EmployeeCompetencyDto(
+            competency.Id,
+            competency.EmployeeId,
+            competency.Languages,
+            competency.ComputerLiteracyPercent,
+            competency.Specialization,
+            competency.OtherAbilities,
+            competency.Interest,
+            competency.EducationPlace);
+    }
+
     public static EmployeeFlagDto ToDto(EmployeeFlag flag, DateOnly on)
     {
         ArgumentNullException.ThrowIfNull(flag);
@@ -159,5 +174,54 @@ public sealed class EmployeeMapper
             employmentEvent.Note,
             employmentEvent.RecordedAt,
             employmentEvent.IsImported);
+    }
+
+    /// <summary>
+    /// Tur nomi <see cref="Incentive.Kind"/>ga qarab TO'G'RI ma'lumotnomadan
+    /// olinadi: <c>TypeId</c> bitta ustun bo'lsa ham, u yoki rag'bat, yoki
+    /// jarima turiga ishora qiladi — hech qachon ikkalasiga birga emas.
+    /// </summary>
+    public async Task<IncentiveDto> ToDtoAsync(Incentive incentive, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(incentive);
+
+        var typeName = incentive.Kind == IncentiveKind.Award
+            ? await _names.AwardTypeAsync(incentive.TypeId, cancellationToken).ConfigureAwait(false)
+            : await _names.PenaltyTypeAsync(incentive.TypeId, cancellationToken).ConfigureAwait(false);
+
+        return new IncentiveDto(
+            incentive.Id,
+            incentive.EmployeeId,
+            incentive.Kind,
+            incentive.TypeId,
+            typeName,
+            incentive.Date,
+            incentive.Amount is { } amount ? new MoneyDto(amount.Amount, amount.Currency, amount.Formatted) : null,
+            incentive.GiftDescription,
+            incentive.Reason,
+            incentive.OrderNo,
+            incentive.OrderDate);
+    }
+
+    public async Task<EmployeeDocumentDto> ToDtoAsync(
+        EmployeeDocument document,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        var typeName = await _names
+            .DocumentTypeAsync(document.DocumentTypeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new EmployeeDocumentDto(
+            document.Id,
+            document.EmployeeId,
+            document.DocumentTypeId,
+            typeName,
+            document.FileName,
+            document.ContentType,
+            document.SizeBytes,
+            document.Note,
+            document.CreatedAt);
     }
 }

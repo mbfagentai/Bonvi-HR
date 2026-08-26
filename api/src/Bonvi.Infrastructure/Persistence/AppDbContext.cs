@@ -160,6 +160,15 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Xodim belgilari: rezerv, qora ro'yxat, nazorat (<c>employee_flags</c>).</summary>
     public DbSet<EmployeeFlag> EmployeeFlags => Set<EmployeeFlag>();
 
+    /// <summary>Qobiliyatlar profili: til, kompyuter, ta'lim (<c>employee_competencies</c>).</summary>
+    public DbSet<EmployeeCompetency> EmployeeCompetencies => Set<EmployeeCompetency>();
+
+    /// <summary>Rag'bat va jarima (<c>incentives</c>).</summary>
+    public DbSet<Incentive> Incentives => Set<Incentive>();
+
+    /// <summary>Xodimga biriktirilgan fayllar: shartnoma, buyruq, anketa, skan (<c>employee_documents</c>).</summary>
+    public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

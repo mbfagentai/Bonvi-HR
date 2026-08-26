@@ -2,6 +2,7 @@ using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Employees.Commands;
+using Bonvi.Application.Employees.Competencies;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Flags;
 using Bonvi.Application.Employees.Photos;
@@ -29,6 +30,15 @@ public sealed record RaiseFlagRequest(
 /// <param name="ClosedAt">Yopilish sanasi. Bo'sh bo'lsa — bugun.</param>
 /// <param name="Note">Izoh — sababga qo'shiladi.</param>
 public sealed record CloseFlagRequest(DateOnly? ClosedAt = null, string? Note = null);
+
+/// <summary>Qobiliyatlar profilini saqlash so'rovi tanasi — butun profil bir yo'la yuboriladi.</summary>
+public sealed record SaveCompetencyRequest(
+    string? Languages = null,
+    int? ComputerLiteracyPercent = null,
+    string? Specialization = null,
+    string? OtherAbilities = null,
+    string? Interest = null,
+    string? EducationPlace = null);
 
 /// <summary>
 /// Xodimlar endpoint'lari.
@@ -61,6 +71,7 @@ public static class EmployeeEndpoints
         MapWrites(group);
         MapPhoto(group);
         MapFlags(group);
+        MapCompetency(group);
 
         return app;
     }
@@ -439,5 +450,64 @@ public static class EmployeeEndpoints
             .Produces<EmployeeFlagDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Qobiliyatlar profili (91.15)
+    // ════════════════════════════════════════════════════════════
+
+    private static void MapCompetency(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/{id:guid}/competency", async (
+                Guid id,
+                GetEmployeeCompetencyQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetEmployeeCompetencyQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmployeesView)
+            .WithName("GetEmployeeCompetency")
+            .WithSummary("Xodim — qobiliyatlar profili")
+            .WithDescription(
+                "Til, kompyuter savodxonligi (0-100%), mutaxassislik, boshqa qobiliyatlar, qiziqish, " +
+                "ta'lim olgan joyi. HR hali to'ldirmagan bo'lsa — bo'sh javob (200, null tana), xato emas.")
+            .Produces<EmployeeCompetencyDto?>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPut("/{id:guid}/competency", async (
+                Guid id,
+                SaveCompetencyRequest request,
+                SaveEmployeeCompetencyCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new SaveEmployeeCompetencyCommand(
+                            id,
+                            request.Languages,
+                            request.ComputerLiteracyPercent,
+                            request.Specialization,
+                            request.OtherAbilities,
+                            request.Interest,
+                            request.EducationPlace),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmployeesEdit)
+            .WithName("SaveEmployeeCompetency")
+            .WithSummary("Xodim — qobiliyatlar profilini saqlash")
+            .WithDescription(
+                "Profil BUTUNLIGICHA almashtiriladi (yaratadi yoki bor bo'lsa yangilaydi) — 91.15 " +
+                "varag'idagi bitta qator kabi. «computerLiteracyPercent» 0 dan 100 gacha: " +
+                "«qobiliyat.kompyuter_foiz» (400).")
+            .Produces<EmployeeCompetencyDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }

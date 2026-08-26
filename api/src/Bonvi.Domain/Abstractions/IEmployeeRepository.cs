@@ -94,3 +94,38 @@ public interface IEmployeeFlagRepository : IRepository<EmployeeFlag>
         DateOnly on,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>Qobiliyatlar profili uchun saqlash porti.</summary>
+/// <remarks>
+/// Bitta xodimda bitta profil — shu sababli <c>IReferenceRepository&lt;T&gt;</c>
+/// kabi ro'yxat emas, faqat xodim bo'yicha qidiruv kerak.
+/// </remarks>
+public interface IEmployeeCompetencyRepository : IRepository<EmployeeCompetency>
+{
+    Task<EmployeeCompetency?> GetByEmployeeAsync(Guid employeeId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Rag'bat va jarima yozuvlari uchun saqlash porti.</summary>
+public interface IIncentiveRepository : IRepository<Incentive>
+{
+    /// <summary>Xodimning barcha rag'bat/jarima yozuvlari, sana bo'yicha kamayish tartibida.</summary>
+    Task<IReadOnlyList<Incentive>> GetByEmployeeAsync(
+        Guid employeeId,
+        IncentiveKind? kind = null,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>Xodimga biriktirilgan fayllar uchun saqlash porti.</summary>
+public interface IEmployeeDocumentRepository : IRepository<EmployeeDocument>
+{
+    /// <summary>
+    /// Xodimning hujjatlari — yuklangan sana bo'yicha kamayish tartibida.
+    /// </summary>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="documentTypeId">Faqat shu turdagilar. Bo'sh — hammasi («tur bo'yicha guruh»).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<EmployeeDocument>> GetByEmployeeAsync(
+        Guid employeeId,
+        Guid? documentTypeId = null,
+        CancellationToken cancellationToken = default);
+}

@@ -126,6 +126,8 @@ app.MapAuthEndpoints();
 app.MapCatalogEndpoints();
 app.MapEmployeeEndpoints();
 app.MapEmploymentEndpoints();
+app.MapIncentiveEndpoints();
+app.MapEmployeeDocumentEndpoints();
 app.MapSystemEndpoints();
 app.MapDashboardEndpoints();
 

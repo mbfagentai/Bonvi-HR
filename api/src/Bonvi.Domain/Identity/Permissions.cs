@@ -36,6 +36,16 @@ public static class Permissions
     public const string ListsView = "lists.view";
     public const string ListsManage = "lists.manage";
 
+    /// <summary>
+    /// Rag'bat va jarima. ALOHIDA ruxsat — pul (jarima/mukofot summasi) va
+    /// intizomiy chora bilan bog'liq, oklad kabi nozik ma'lumot. Qobiliyatlar
+    /// profili esa alohida ruxsat OLMAYDI: u xodim kartasining bir qismi va
+    /// <see cref="EmployeesView"/>/<see cref="EmployeesEdit"/> orqali boshqariladi.
+    /// </summary>
+    public const string IncentivesView = "incentives.view";
+
+    public const string IncentivesManage = "incentives.manage";
+
     // ---------- Ma'lumotnomalar ----------
     public const string CatalogView = "catalog.view";
     public const string CatalogManage = "catalog.manage";
@@ -54,6 +64,7 @@ public static class Permissions
         EmployeesView, EmployeesCreate, EmployeesEdit, EmployeesDelete,
         EmploymentView, EmploymentManage, SalaryView,
         ListsView, ListsManage,
+        IncentivesView, IncentivesManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
         UsersManage, AuditView,
@@ -107,6 +118,7 @@ public static class SystemRoles
                 Permissions.EmploymentView, Permissions.EmploymentManage,
                 Permissions.SalaryView,
                 Permissions.ListsView, Permissions.ListsManage,
+                Permissions.IncentivesView, Permissions.IncentivesManage,
                 Permissions.CatalogView, Permissions.CatalogManage,
                 Permissions.ReportsView, Permissions.ReportsExport,
                 Permissions.AuditView,

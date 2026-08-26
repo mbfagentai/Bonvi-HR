@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bonvi.Application.Catalog;
+using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Dashboard.Queries;
 using Bonvi.Application.Employees;
@@ -33,6 +34,11 @@ public static class DependencyInjection
         // Kvadrat surat quvuri — xodim rasmi ham, hisob rasmi ham shundan o'tadi.
         // Umumiy `Common` da, chunki u bironta bo'limga tegishli emas.
         services.AddScoped<SquarePhotoStore>();
+
+        // Hujjat fayli quvuri (S8/M9) — xuddi shu sababdan `Common` da:
+        // hozircha faqat xodim hujjatlari ishlatadi, lekin bo'limga
+        // bog'liq emas (kelajakda boshqa egasi bo'lishi mumkin).
+        services.AddScoped<DocumentFileStore>();
 
         // Autentifikatsiya
         services.AddScoped<LoginCommandHandler>();

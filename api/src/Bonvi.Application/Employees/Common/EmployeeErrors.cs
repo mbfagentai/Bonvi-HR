@@ -1,3 +1,5 @@
+using Bonvi.Application.Abstractions;
+using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Domain.Common;
 
@@ -113,4 +115,42 @@ public static class EmployeeErrors
 
     public static Error LegalEntityNotFound { get; } =
         Error.NotFound("yuridik_shaxs.topilmadi", "Yuridik shaxs topilmadi.");
+
+    public static Error IncentiveNotFound { get; } =
+        Error.NotFound("ragbat_jarima.topilmadi", "Rag'bat/jarima yozuvi topilmadi.");
+
+    public static Error AwardTypeNotFound { get; } =
+        Error.NotFound("ragbat_jarima.ragbat_turi_topilmadi", "Rag'bat turi topilmadi.");
+
+    public static Error PenaltyTypeNotFound { get; } =
+        Error.NotFound("ragbat_jarima.jarima_turi_topilmadi", "Jarima turi topilmadi.");
+
+    public static Error DocumentNotFound { get; } =
+        Error.NotFound("hujjat.topilmadi", "Hujjat topilmadi.");
+
+    public static Error DocumentTypeNotFound { get; } =
+        Error.NotFound("hujjat.turi_topilmadi", "Hujjat turi topilmadi.");
+
+    public static Error DocumentTooLarge { get; } =
+        Error.Validation(
+            "hujjat.katta",
+            $"Fayl hajmi {DocumentLimits.MaxBytes / (1024 * 1024)} MB dan oshmasligi kerak.");
+
+    /// <summary>
+    /// Fayl mazmuni tanilmadi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PhotoInvalid"/> bilan bir xil mantiq: kengaytma emas,
+    /// MAZMUN tekshiriladi (<see cref="IFileContentInspector"/>).
+    /// </remarks>
+    public static Error DocumentInvalid { get; } =
+        Error.Validation("hujjat.yaroqsiz", "Fayl PDF, JPEG, PNG yoki WebP emas (yoki buzilgan).");
+
+    /// <summary>Umumiy hujjat quvurining rad etish sababini XODIM kodiga o'giradi.</summary>
+    public static Error DocumentRejected(DocumentRejection rejection) => rejection switch
+    {
+        DocumentRejection.TooLarge => DocumentTooLarge,
+        DocumentRejection.Invalid => DocumentInvalid,
+        _ => DocumentInvalid,
+    };
 }

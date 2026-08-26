@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddStorage(configuration);
 
         services.AddSingleton<IClock, SystemClock>();
+
         services.AddIdentityServices(configuration);
         services.AddCatalogServices();
         services.AddEmployeeServices();
@@ -71,6 +72,9 @@ public static class DependencyInjection
         services.AddScoped<IEmploymentRepository, EmploymentRepository>();
         services.AddScoped<IProbationRepository, ProbationRepository>();
         services.AddScoped<IEmployeeFlagRepository, EmployeeFlagRepository>();
+        services.AddScoped<IEmployeeCompetencyRepository, EmployeeCompetencyRepository>();
+        services.AddScoped<IIncentiveRepository, IncentiveRepository>();
+        services.AddScoped<IEmployeeDocumentRepository, EmployeeDocumentRepository>();
 
         services.AddScoped<IEmployeeReadModel, EmployeeReadModel>();
 
@@ -204,6 +208,10 @@ public static class DependencyInjection
         // Rasm qayta ishlash — holatsiz, shu sababli bitta nusxa yetarli.
         // Sozlama olmaydi: o'lcham va sifat use-case tomonidan beriladi.
         services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
+
+        // Hujjat mazmunini tekshirish (S8/M9) — holatsiz, xuddi
+        // `IImageProcessor` kabi bitta nusxa yetarli.
+        services.AddSingleton<IFileContentInspector, FileContentInspector>();
 
         return services;
     }

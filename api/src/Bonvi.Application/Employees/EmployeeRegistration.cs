@@ -1,7 +1,10 @@
 using Bonvi.Application.Employees.Commands;
 using Bonvi.Application.Employees.Common;
+using Bonvi.Application.Employees.Competencies;
+using Bonvi.Application.Employees.Documents;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Application.Employees.Flags;
+using Bonvi.Application.Employees.Incentives;
 using Bonvi.Application.Employees.Photos;
 using Bonvi.Application.Employees.Probations;
 using Bonvi.Application.Employees.Queries;
@@ -68,6 +71,24 @@ internal static class EmployeeRegistration
         services.AddScoped<GetEmployeeFlagsQueryHandler>();
         services.AddScoped<RaiseFlagCommandHandler>();
         services.AddScoped<CloseFlagCommandHandler>();
+
+        // Qobiliyatlar profili
+        services.AddScoped<GetEmployeeCompetencyQueryHandler>();
+        services.AddScoped<SaveEmployeeCompetencyCommandHandler>();
+
+        // Rag'bat va jarima
+        services.AddScoped<IncentiveTypeResolver>();
+        services.AddScoped<GetEmployeeIncentivesQueryHandler>();
+        services.AddScoped<GrantIncentiveCommandHandler>();
+        services.AddScoped<UpdateIncentiveCommandHandler>();
+        services.AddScoped<DeleteIncentiveCommandHandler>();
+
+        // Hujjatlar
+        services.AddScoped<GetEmployeeDocumentsQueryHandler>();
+        services.AddScoped<GetEmployeeDocumentFileQueryHandler>();
+        services.AddScoped<UploadEmployeeDocumentCommandHandler>();
+        services.AddScoped<UpdateEmployeeDocumentCommandHandler>();
+        services.AddScoped<DeleteEmployeeDocumentCommandHandler>();
 
         return services;
     }

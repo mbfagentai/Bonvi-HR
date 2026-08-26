@@ -1,5 +1,8 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Employees.Common;
+using Bonvi.Application.Employees.Documents;
+using Bonvi.Application.Employees.Incentives;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
@@ -49,6 +52,8 @@ internal sealed class EmployeeTestContext
 
     public IEmployeeFlagRepository Flags { get; } = Substitute.For<IEmployeeFlagRepository>();
 
+    public IEmployeeCompetencyRepository Competencies { get; } = Substitute.For<IEmployeeCompetencyRepository>();
+
     public IPositionRepository Positions { get; } = Substitute.For<IPositionRepository>();
 
     public IDepartmentRepository Departments { get; } = Substitute.For<IDepartmentRepository>();
@@ -59,17 +64,39 @@ internal sealed class EmployeeTestContext
     public IReferenceRepository<TerminationReason> TerminationReasons { get; } =
         Substitute.For<IReferenceRepository<TerminationReason>>();
 
+    public IReferenceRepository<AwardType> AwardTypes { get; } =
+        Substitute.For<IReferenceRepository<AwardType>>();
+
+    public IReferenceRepository<PenaltyType> PenaltyTypes { get; } =
+        Substitute.For<IReferenceRepository<PenaltyType>>();
+
+    public IIncentiveRepository Incentives { get; } = Substitute.For<IIncentiveRepository>();
+
+    public IReferenceRepository<DocumentType> DocumentTypes { get; } =
+        Substitute.For<IReferenceRepository<DocumentType>>();
+
+    public IEmployeeDocumentRepository Documents { get; } = Substitute.For<IEmployeeDocumentRepository>();
+
+    public IFileStorage Storage { get; } = Substitute.For<IFileStorage>();
+
+    public IFileContentInspector Inspector { get; } = Substitute.For<IFileContentInspector>();
+
     public IUnitOfWork UnitOfWork { get; } = Substitute.For<IUnitOfWork>();
 
     public IClock Clock { get; } = Substitute.For<IClock>();
 
     public ICurrentUser CurrentUser { get; } = Substitute.For<ICurrentUser>();
 
-    public CatalogNameResolver Names => new(Departments, Positions, LegalEntities, TerminationReasons);
+    public CatalogNameResolver Names => new(
+        Departments, Positions, LegalEntities, TerminationReasons, AwardTypes, PenaltyTypes, DocumentTypes);
 
     public EmployeeMapper Mapper => new(CurrentUser, Names, Clock);
 
     public EmployeeFlagGuard FlagGuard => new(Flags, Clock);
+
+    public IncentiveTypeResolver Types => new(AwardTypes, PenaltyTypes);
+
+    public DocumentFileStore Files => new(Storage, Inspector);
 
     /// <summary>Oklad ko'rish ruxsatini yoqadi/o'chiradi.</summary>
     public void AllowSalary(bool allowed)
@@ -102,6 +129,33 @@ internal sealed class EmployeeTestContext
         Positions.GetWithDutiesAsync(position.Id, Arg.Any<CancellationToken>()).Returns(position);
         Positions.GetByIdAsync(position.Id, Arg.Any<CancellationToken>()).Returns(position);
         return position;
+    }
+
+    /// <summary>Bazada mavjud rag'bat turi.</summary>
+    public AwardType ExistingAwardType(bool hasAmount = false)
+    {
+        var type = AwardType.Create("Ташаккурнома").Value;
+        type.SetHasAmount(hasAmount);
+        AwardTypes.GetByIdAsync(type.Id, Arg.Any<CancellationToken>()).Returns(type);
+        return type;
+    }
+
+    /// <summary>Bazada mavjud jarima turi.</summary>
+    public PenaltyType ExistingPenaltyType(bool hasAmount = false)
+    {
+        var type = PenaltyType.Create("Ҳайфсан").Value;
+        type.SetHasAmount(hasAmount);
+        PenaltyTypes.GetByIdAsync(type.Id, Arg.Any<CancellationToken>()).Returns(type);
+        return type;
+    }
+
+    /// <summary>Bazada mavjud hujjat turi.</summary>
+    public DocumentType ExistingDocumentType(string name = "Мехнат шартномаси")
+    {
+        var type = DocumentType.Create(name).Value;
+        DocumentTypes.GetByIdAsync(type.Id, Arg.Any<CancellationToken>()).Returns(type);
+        DocumentTypes.ExistsAsync(type.Id, Arg.Any<CancellationToken>()).Returns(true);
+        return type;
     }
 
     /// <summary>Faol mehnat munosabati (bazada bor deb hisoblanadi).</summary>
