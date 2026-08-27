@@ -50,6 +50,8 @@ public static class IncentiveEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        MapAllIncentives(app);
+
         var group = app.MapGroup("/api/employees/{employeeId:guid}/incentives").WithTags("Incentives");
 
         group.MapGet("/", async (
@@ -158,5 +160,92 @@ public static class IncentiveEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return app;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Umumiy ro'yxat — butun tizim bo'yicha
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Butun tizim bo'yicha umumiy ro'yxat — <c>/api/incentives</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega ikkinchi guruh, yuqoridagisining ichida emas.</b> Yuqoridagi
+    /// guruh yo'li <c>/api/employees/{employeeId}/incentives</c> — u xodim
+    /// kartasining bir qismi va har bir so'rovi bitta odam haqida. Bu
+    /// ro'yxat esa xodimdan qat'i nazar butun tizimni ko'radi, ya'ni
+    /// boshqa manba. Uni «xodimsiz xodim yo'li» qilib yozish (masalan
+    /// ixtiyoriy <c>employeeId</c>) marshrutni ham, ruxsat tekshiruvini
+    /// ham chalkashtirardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega <c>Program.cs</c> ga tegilmadi.</b> Mavjud
+    /// <see cref="MapIncentiveEndpoints"/> allaqachon ro'yxatga olingan va
+    /// u endi ikkala guruhni ham chizadi — bitta modulning ikkita yo'li
+    /// bitta joydan boshlanadi. Ikkinchi <c>Map…</c> metodi
+    /// <c>Program.cs</c> da ham qayd etilishi kerak bo'lardi va kimdir uni
+    /// unutsa, endpoint jimgina yo'qolib qolardi.
+    /// </para>
+    /// <para>
+    /// Ruxsat ikkalasida ham bir xil — <see cref="Permissions.IncentivesView"/>:
+    /// umumiy ro'yxat xodim kartasidagi tabga qaraganda ko'proq ma'lumot
+    /// ochmaydi, faqat boshqa savolga javob beradi.
+    /// </para>
+    /// </remarks>
+    private static void MapAllIncentives(IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/incentives").WithTags("Incentives");
+
+        group.MapGet("/", async (
+                string? search,
+                IncentiveKind? kind,
+                DateOnly? from,
+                DateOnly? to,
+                Guid? departmentId,
+                Guid? legalEntityId,
+                int? page,
+                int? pageSize,
+                string? sort,
+                ListIncentivesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new ListIncentivesQuery(
+                            search,
+                            kind,
+                            from,
+                            to,
+                            departmentId,
+                            legalEntityId,
+                            page,
+                            pageSize,
+                            sort),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.IncentivesView)
+            .WithName("ListIncentives")
+            .WithSummary("Rag'bat va jarima — barcha xodimlar bo'yicha umumiy ro'yxat")
+            .WithDescription(
+                "Excel'dagi «91.14 Тақдирланган ходимлар» varag'ining o'rniga, jarima bilan " +
+                "birga: bitta oqim va uning filtrlangan ko'rinishlari. HAR BIR YOZUV alohida " +
+                "qator — bitta xodim ro'yxatda bir necha marta ko'rinishi mumkin, yig'ma " +
+                "ko'rsatkich berilmaydi. " +
+                "«kind» = Award | Penalty, bo'sh bo'lsa — ikkalasi; noma'lum qiymat 400 beradi. " +
+                "«search» — XODIM F.I.Sh. bo'yicha (buyruq raqami emas), «қ/ғ/ҳ/ў/ё» harflari " +
+                "hisobga olinmaydi. «from»/«to» — sananing ikki tomondan yopiq oralig'i. " +
+                "«departmentId» — bo'lim ICHKI bo'limlari bilan birga; bo'lim va yuridik shaxs " +
+                "xodimning MUNOSABATLARI orqali qo'llanadi (o'rindoshlik ham hisobga olinadi). " +
+                "«sort» = date | employee, oldiga «-» qo'yilsa kamayish tartibida; sukut " +
+                "bo'yicha «-date» (yangidan eskiga). «pageSize» eng ko'pi 200. " +
+                "Summa faqat pul bilan bog'liq turlarda to'ldiriladi, qolganlarida null — " +
+                "u «salary.view» ga BOG'LIQ EMAS (sababi «ListIncentivesQuery» izohida).")
+            .Produces<PagedResult<IncentiveListItemDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 }

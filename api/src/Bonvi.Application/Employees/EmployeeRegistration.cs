@@ -79,6 +79,13 @@ internal static class EmployeeRegistration
         // Rag'bat va jarima
         services.AddScoped<IncentiveTypeResolver>();
         services.AddScoped<GetEmployeeIncentivesQueryHandler>();
+
+        // Umumiy ro'yxat («Rag'bat va jarima» sahifasi) — xodim kartasidagi
+        // tabdan ALOHIDA ishlovchi: u repozitoriy bilan bitta odamning
+        // yozuvlarini yuklaydi, bu esa o'qish modeli bilan butun tizimni
+        // filtrlab, saralab va sahifalab beradi.
+        services.AddScoped<ListIncentivesQueryHandler>();
+
         services.AddScoped<GrantIncentiveCommandHandler>();
         services.AddScoped<UpdateIncentiveCommandHandler>();
         services.AddScoped<DeleteIncentiveCommandHandler>();

@@ -20,6 +20,7 @@ import { Route as AppNazoratRouteImport } from './routes/_app/nazorat'
 import { Route as AppQaytaAloqaRouteImport } from './routes/_app/qayta-aloqa'
 import { Route as AppQobiliyatliRouteImport } from './routes/_app/qobiliyatli'
 import { Route as AppQoraRoyxatRouteImport } from './routes/_app/qora-royxat'
+import { Route as AppRagbatRouteImport } from './routes/_app/ragbat'
 import { Route as AppRezervRouteImport } from './routes/_app/rezerv'
 import { Route as AppSinovRouteImport } from './routes/_app/sinov'
 import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/malumotnomalar/bolimlar'
@@ -85,6 +86,11 @@ const AppQobiliyatliRoute = AppQobiliyatliRouteImport.update({
 const AppQoraRoyxatRoute = AppQoraRoyxatRouteImport.update({
   id: '/qora-royxat',
   path: '/qora-royxat',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRagbatRoute = AppRagbatRouteImport.update({
+  id: '/ragbat',
+  path: '/ragbat',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRezervRoute = AppRezervRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/qayta-aloqa': typeof AppQaytaAloqaRoute
   '/qobiliyatli': typeof AppQobiliyatliRoute
   '/qora-royxat': typeof AppQoraRoyxatRoute
+  '/ragbat': typeof AppRagbatRoute
   '/rezerv': typeof AppRezervRoute
   '/sinov': typeof AppSinovRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/qayta-aloqa': typeof AppQaytaAloqaRoute
   '/qobiliyatli': typeof AppQobiliyatliRoute
   '/qora-royxat': typeof AppQoraRoyxatRoute
+  '/ragbat': typeof AppRagbatRoute
   '/rezerv': typeof AppRezervRoute
   '/sinov': typeof AppSinovRoute
   '/': typeof AppIndexRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_app/qayta-aloqa': typeof AppQaytaAloqaRoute
   '/_app/qobiliyatli': typeof AppQobiliyatliRoute
   '/_app/qora-royxat': typeof AppQoraRoyxatRoute
+  '/_app/ragbat': typeof AppRagbatRoute
   '/_app/rezerv': typeof AppRezervRoute
   '/_app/sinov': typeof AppSinovRoute
   '/_app/': typeof AppIndexRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/qayta-aloqa'
     | '/qobiliyatli'
     | '/qora-royxat'
+    | '/ragbat'
     | '/rezerv'
     | '/sinov'
     | '/malumotnomalar/bolimlar'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/qayta-aloqa'
     | '/qobiliyatli'
     | '/qora-royxat'
+    | '/ragbat'
     | '/rezerv'
     | '/sinov'
     | '/'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/_app/qayta-aloqa'
     | '/_app/qobiliyatli'
     | '/_app/qora-royxat'
+    | '/_app/ragbat'
     | '/_app/rezerv'
     | '/_app/sinov'
     | '/_app/'
@@ -390,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppQoraRoyxatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/ragbat': {
+      id: '/_app/ragbat'
+      path: '/ragbat'
+      fullPath: '/ragbat'
+      preLoaderRoute: typeof AppRagbatRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/rezerv': {
       id: '/_app/rezerv'
       path: '/rezerv'
@@ -486,6 +505,7 @@ interface AppRouteChildren {
   AppQaytaAloqaRoute: typeof AppQaytaAloqaRoute
   AppQobiliyatliRoute: typeof AppQobiliyatliRoute
   AppQoraRoyxatRoute: typeof AppQoraRoyxatRoute
+  AppRagbatRoute: typeof AppRagbatRoute
   AppRezervRoute: typeof AppRezervRoute
   AppSinovRoute: typeof AppSinovRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -510,6 +530,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppQaytaAloqaRoute: AppQaytaAloqaRoute,
   AppQobiliyatliRoute: AppQobiliyatliRoute,
   AppQoraRoyxatRoute: AppQoraRoyxatRoute,
+  AppRagbatRoute: AppRagbatRoute,
   AppRezervRoute: AppRezervRoute,
   AppSinovRoute: AppSinovRoute,
   AppIndexRoute: AppIndexRoute,

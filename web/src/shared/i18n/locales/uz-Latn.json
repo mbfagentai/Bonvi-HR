@@ -19,9 +19,7 @@
     "blacklist": "Qora ro‘yxat",
     "monitoring": "Nazoratdagilar",
     "capable": "Qobiliyatli",
-    "competencies": "Qobiliyatlar",
     "incentives": "Rag‘bat va jarima",
-    "documents": "Hujjatlar",
     "incidents": "Baxtsiz hodisalar",
     "feedback": "Qayta aloqa",
     "reports": "Hisobotlar",
@@ -808,7 +806,15 @@
     "kindPenalty": "Jarima",
     "newTitle": "Yangi yozuv",
     "penaltyReasonHint": "Jarima uchun sabab ko‘rsatilishi shart.",
-    "type": "Tur"
+    "type": "Tur",
+    "subtitle": "{{n}} ta yozuv",
+    "searchPlaceholder": "Xodim F.I.Sh. bo‘yicha qidirish",
+    "listEmptyTitle": "Yozuvlar hali yo‘q",
+    "listEmptyText": "Xodimlarga berilgan har bir rag‘bat va jarima — mukofot, tashakkurnoma, hayfsan — shu yerda to‘planadi.",
+    "notFoundTitle": "Hech narsa topilmadi",
+    "notFoundText": "Filtrlarni o‘zgartirib ko‘ring.",
+    "noAccessTitle": "Bu yerga kirish huquqingiz yo‘q",
+    "noAccessText": "Bu bo‘lim faqat maxsus ruxsati bor xodimlarga ochiq."
   },
   "users": {
     "active": "Faol",

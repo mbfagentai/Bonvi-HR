@@ -19,9 +19,7 @@
     "blacklist": "Blacklist",
     "monitoring": "Under review",
     "capable": "Capable",
-    "competencies": "Competencies",
     "incentives": "Rewards & penalties",
-    "documents": "Documents",
     "incidents": "Incidents",
     "feedback": "Exit interviews",
     "reports": "Reports",
@@ -808,7 +806,15 @@
     "kindPenalty": "Penalty",
     "newTitle": "New record",
     "penaltyReasonHint": "A reason is required for a penalty.",
-    "type": "Type"
+    "type": "Type",
+    "subtitle": "{{n}} records",
+    "searchPlaceholder": "Search by employee name",
+    "listEmptyTitle": "No records yet",
+    "listEmptyText": "Every reward and penalty given to employees — a bonus, a letter of thanks, a reprimand — is collected here.",
+    "notFoundTitle": "Nothing found",
+    "notFoundText": "Try changing the filters.",
+    "noAccessTitle": "You don't have access to this section",
+    "noAccessText": "This section is only available to employees with the relevant permission."
   },
   "users": {
     "active": "Active",

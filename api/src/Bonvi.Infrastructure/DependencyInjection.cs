@@ -94,6 +94,11 @@ public static class DependencyInjection
 
         services.AddScoped<IEmployeeReadModel, EmployeeReadModel>();
 
+        // Rag'bat/jarima ro'yxati — ALOHIDA o'qish modeli, `IEmployeeReadModel`
+        // ga qo'shilmagan: sababi `IIncentiveReadModel` izohida (boshqa
+        // ruxsat chegarasi — `incentives.view`).
+        services.AddScoped<IIncentiveReadModel, IncentiveReadModel>();
+
         return services;
     }
 

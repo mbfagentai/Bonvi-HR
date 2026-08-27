@@ -19,7 +19,6 @@ import {
   MessageSquareQuote,
   Network,
   ShieldAlert,
-  Sparkles,
   ThumbsUp,
   Timer,
   UserCog,
@@ -135,9 +134,24 @@ export const NAV: NavSection[] = [
       { key: 'formerEmployees', to: '/xodimlar', icon: UserMinus,
         search: { status: 'terminated' } },
       { key: 'employment',   to: '/buyruqlar',     icon: Briefcase },
-      { key: 'competencies', to: '/qobiliyatlar',  icon: Sparkles,      soon: true },
-      { key: 'incentives',   to: '/ragbat',        icon: Award,         soon: true },
-      { key: 'documents',    to: '/hujjatlar',     icon: FileText,      soon: true },
+      /*
+        Rag'bat va jarima — endi haqiqiy sahifa: `soon` ning o'rnini
+        `permission` oldi (`incidents`/`users` bandlaridagi naqsh).
+        Backend `GET /api/incentives` ni `incentives.view` bilan
+        himoyalagan, ya'ni bu ruxsatsiz odam ro'yxatni SERVERDAN OLA
+        OLMAYDI — bandni ko'rsatib turish ortiqcha chalkashlik bo'lardi.
+
+        NEGA «Qobiliyatlar» va «Hujjatlar» bandlari BUTUNLAY o'chirildi:
+        ikkalasi ham xodim kartasining tab'i sifatida ALLAQACHON ishlaydi
+        (`employee-competency-tab.tsx`, `employee-documents-tab.tsx`).
+        Ular uchun alohida umumiy ro'yxat hech qachon so'ralmagan, ya'ni
+        bu bandlar «hali qurilmagan bo'lim» emas edi — ular qurilmaydigan
+        bo'limlar edi. `soon` esa foydalanuvchiga «tez orada bo'ladi»
+        deb va'da beradi; bajarilmaydigan va'dani menyuda saqlab turish
+        yo'l xaritasi emas, shovqin.
+      */
+      { key: 'incentives',   to: '/ragbat',        icon: Award,
+        permission: 'incentives.view' },
     ],
   },
   {
