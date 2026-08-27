@@ -1,0 +1,107 @@
+[
+  {
+    "name": "Ўз хохиши билан",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Иш ёқмади",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Ойлик камлик қилди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Соғлиғи кўтармади",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Уйи узоқлик қилди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Оилавий шароит сабабли",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Бошқа ишга ўтиб кетди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Четга ишлагани кетди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Ўқишга кетди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Армияга кетди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Декретга чиқди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Бир-икки кун ишлаб кетиб қолди",
+    "isVoluntary": true,
+    "isRehireable": true
+  },
+  {
+    "name": "Бошқа бўлимга ўтказилди",
+    "isVoluntary": false,
+    "isRehireable": true
+  },
+  {
+    "name": "Иш ўрни қисқартирилди (сокращение)",
+    "isVoluntary": false,
+    "isRehireable": true
+  },
+  {
+    "name": "Шартнома муддати тугади",
+    "isVoluntary": false,
+    "isRehireable": true
+  },
+  {
+    "name": "Синов муддатидан ўтмади",
+    "isVoluntary": false,
+    "isRehireable": false
+  },
+  {
+    "name": "Жавоби берилди (раҳбарият қарори)",
+    "isVoluntary": false,
+    "isRehireable": false
+  },
+  {
+    "name": "Ишига лаёқатсизлиги учун",
+    "isVoluntary": false,
+    "isRehireable": false
+  },
+  {
+    "name": "Меҳнат интизомини бузгани учун",
+    "isVoluntary": false,
+    "isRehireable": false
+  },
+  {
+    "name": "Вафот этди",
+    "isVoluntary": false,
+    "isRehireable": false
+  },
+  {
+    "name": "Бошқа сабаб",
+    "isVoluntary": false,
+    "isRehireable": true
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "name": "91-бланка (ходим маълумотномаси)",
+    "isRequired": true
+  },
+  {
+    "name": "Анкета",
+    "isRequired": true
+  },
+  {
+    "name": "Меҳнат шартномаси",
+    "isRequired": true
+  },
+  {
+    "name": "Буйруқ",
+    "isRequired": true
+  },
+  {
+    "name": "Ариза",
+    "isRequired": true
+  },
+  {
+    "name": "Паспорт нусхаси",
+    "isRequired": true
+  },
+  {
+    "name": "Меҳнат дафтарчаси",
+    "isRequired": true
+  },
+  {
+    "name": "Маълумот тўғрисида ҳужжат (диплом)",
+    "isRequired": false
+  },
+  {
+    "name": "Тиббий кўрик хулосаси",
+    "isRequired": false
+  },
+  {
+    "name": "Судланганлик тўғрисида маълумотнома",
+    "isRequired": false
+  },
+  {
+    "name": "Ҳарбий ҳисоб варақаси",
+    "isRequired": false
+  },
+  {
+    "name": "Лавозим йўриқномаси",
+    "isRequired": false
+  },
+  {
+    "name": "Тушунтириш хати",
+    "isRequired": false
+  },
+  {
+    "name": "Ташаккурнома",
+    "isRequired": false
+  },
+  {
+    "name": "Обходной варақа",
+    "isRequired": false
+  }
+]

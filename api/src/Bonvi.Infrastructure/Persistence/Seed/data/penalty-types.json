@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Оғзаки огоҳлантириш",
+    "hasAmount": false,
+    "severity": 1
+  },
+  {
+    "name": "Ёзма огоҳлантириш",
+    "hasAmount": false,
+    "severity": 1
+  },
+  {
+    "name": "Ҳайфсан",
+    "hasAmount": false,
+    "severity": 2
+  },
+  {
+    "name": "Жарима",
+    "hasAmount": true,
+    "severity": 2
+  },
+  {
+    "name": "Мукофотдан маҳрум қилиш",
+    "hasAmount": true,
+    "severity": 2
+  },
+  {
+    "name": "Лавозимдан туширилиш",
+    "hasAmount": false,
+    "severity": 3
+  },
+  {
+    "name": "Ишдан бўшатиш",
+    "hasAmount": false,
+    "severity": 3
+  }
+]

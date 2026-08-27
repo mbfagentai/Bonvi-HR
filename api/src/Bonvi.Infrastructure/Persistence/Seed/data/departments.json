@@ -1,0 +1,482 @@
+[
+  {
+    "name": "7-Департамент",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "3-Департамент",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "1-Департамент",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "HR департаменти",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Бухгалтерия белая",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Ички бухгалтерия",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Ғазна бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Ташқи таъминот бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Импорт бўлими",
+    "parent": "Ташқи таъминот бўлими",
+    "legalEntity": null
+  },
+  {
+    "name": "Сунъий интеллект",
+    "parent": "Ташқи таъминот бўлими",
+    "legalEntity": null
+  },
+  {
+    "name": "Декларация бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Маркетинг бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Колл центр бўлими",
+    "parent": "Маркетинг бўлими",
+    "legalEntity": null
+  },
+  {
+    "name": "АХО бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Қурилиш бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Назорат бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Хавфсизлик бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Савдо бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Савдони режалаштириш ва тахлил бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Телефон савдо йўналиши",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Тошкент офис",
+    "parent": "Телефон савдо йўналиши",
+    "legalEntity": null
+  },
+  {
+    "name": "Вело йўналиши бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Дўкон вело",
+    "parent": "Вело йўналиши бўлими",
+    "legalEntity": null
+  },
+  {
+    "name": "Скутер йўналиши бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Вело запчасть йўналиши",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Ёйма вело",
+    "parent": "Вело запчасть йўналиши",
+    "legalEntity": null
+  },
+  {
+    "name": "Автошина бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Метан установка бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Метан дўкон",
+    "parent": "Метан установка бўлими",
+    "legalEntity": null
+  },
+  {
+    "name": "Қўқон бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Вилоят савдо",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Онлайн савдо",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Скутер ва моторол йиғув бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Асосий омбор",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Вело устахона",
+    "parent": "Асосий омбор",
+    "legalEntity": null
+  },
+  {
+    "name": "Транспорт бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Логистика бўлими",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Метан завод",
+    "parent": null,
+    "legalEntity": "VIKOR"
+  },
+  {
+    "name": "Механика бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Краска бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Печка бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Лаборатория бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Чархлаш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Резьба очиш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Плазмада кесиш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Хаво билан синаш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Сув билан синаш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Учини букиш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Остини букиш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Ички шлифовка бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Ташқи шлифовка бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Ичини қириш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Қайта парлаш (синаш) бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Рақамлаш бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Компрессор бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Энергетика бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Омбор бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Таъминот бўлими",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Ошхона",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Маъмурият",
+    "parent": "Метан завод",
+    "legalEntity": null
+  },
+  {
+    "name": "Вело унион (Пропан) заводи",
+    "parent": null,
+    "legalEntity": "Velo union"
+  },
+  {
+    "name": "Пропан бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Заготовка (лазерда кесиш) бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Заготовка бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Заготовка Пресс 630 Т",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Кесиш ва букиш бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Сварщик (контакт сварка) бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Сварщик (продольный) бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Сварщик (кольцевой) бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Сварщик (горловина-донышко) бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Сварщик (перехватка) бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Сварщик созловчи бўлими",
+    "parent": "Вело унион (Пропан) заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Риспетто велосипед заводи",
+    "parent": null,
+    "legalEntity": "Rispetto"
+  },
+  {
+    "name": "Риспетто офис",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Омбор ва таъминот (Риспетто)",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Қоровуллар ва боғбон (Риспетто)",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Юк ташувчилар (Риспетто)",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Ошхона ва фаррош (Риспетто)",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Спица тортиш бўлими",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Спица ташлаш бўлими",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Спица териш бўлими",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Конвеер бўлими",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Рама бўлими",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Заготовка бўлими (Риспетто)",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "Покрышка бўлими",
+    "parent": "Риспетто велосипед заводи",
+    "legalEntity": null
+  },
+  {
+    "name": "\"Kokand Bicycles\" МЧЖ",
+    "parent": null,
+    "legalEntity": "Kokand Bicycles"
+  },
+  {
+    "name": "\"Бир Зумда\" чойхонаси",
+    "parent": null,
+    "legalEntity": "\"Intelligent invest\" ОК"
+  },
+  {
+    "name": "Скутер заводи",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Промзона",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Промонтаж",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Енгил тип",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Сара уруғ",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Кидс дўкон",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "BONVI дўкон",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "ПТЭМ",
+    "parent": null,
+    "legalEntity": null
+  },
+  {
+    "name": "Outer-source-using",
+    "parent": null,
+    "legalEntity": null
+  }
+]

@@ -1,0 +1,3369 @@
+[
+  {
+    "name": "Юк ташувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Краска бўлими",
+    "department": "Краска бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хаво билан синаш бўлими",
+    "department": "Хаво билан синаш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сув билан синаш ходими",
+    "department": "Сув билан синаш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ёрдамчи ишчи",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қоровул",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Конвеер оператори",
+    "department": "Конвеер бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Печка ходими",
+    "department": "Печка бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Чархлаш ходими",
+    "department": "Чархлаш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омборчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Лаборант",
+    "department": "Лаборатория бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят сотувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ички шлифовка ходими",
+    "department": "Ички шлифовка бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Плазма бўлими",
+    "department": "Плазмада кесиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сварщик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хайдовчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ҳисобчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резьба бўлими",
+    "department": "Резьба очиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Электрик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ичини қириш ходими",
+    "department": "Ичини қириш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят савдо бошқарувчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Остини букиш",
+    "department": "Остини букиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ташқи шлифовка ходими",
+    "department": "Ташқи шлифовка бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ёрдамчи ҳисобчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рақамлаш бўлими ходими",
+    "department": "Рақамлаш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кара хайдовчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Покришка ходими",
+    "department": "Покрышка бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ошпаз",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резьба ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Спица терувчи",
+    "department": "Спица териш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Слесарь",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Учини букиш",
+    "department": "Учини букиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қайта парлаш (синаш) ходими",
+    "department": "Қайта парлаш (синаш) бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Худуд фарроши",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят омбор хизматчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хавфсизлик ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Идиш ювувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Заготовшик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Компрессор бўлими",
+    "department": "Компрессор бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ошпаз ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Смена рахбари ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Фаррош",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Смена бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва эл.моторол йиғувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор юкларини режалаштириш ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ёрдамчи сотувчи",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Камера назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Мастона дўкон сотувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят бўлими омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Таъминотчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Печка шогирд",
+    "department": "Печка бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Заготовка ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резьба очиш",
+    "department": "Резьба очиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Диспетчер",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бўлим бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рекрутер",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор мудири",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хужжат тўлдирувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Таннарх ҳисобчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кассир",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Цех бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Call центр оператори",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт ҳисобчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "СММ менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Чархлаш бўлими ходими",
+    "department": "Чархлаш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Краска шогирд",
+    "department": "Краска бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Линия раҳбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Логистика менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Остини букиш катта уста",
+    "department": "Остини букиш бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резьба очиш уста",
+    "department": "Резьба очиш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо агенти",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тайёр махсулотлар омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Учини букиш катта уста",
+    "department": "Учини букиш бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хаво билан синаш уста",
+    "department": "Хаво билан синаш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қурилиш мухандиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан завод ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Насия назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рамачилар",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Балон бўлими ишчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Конструкторчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлайн савдо менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резьба очиш шогирд",
+    "department": "Резьба очиш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "HR менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кара хайдовчи шогирд",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор ҳисобчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Офис фарроши",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Декларант",
+    "department": "Декларация бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Плазмада кесиш уста",
+    "department": "Плазмада кесиш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Йигув устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Финансовый аналитик",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Назоратчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хавфсизлик бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Энергетик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош механик",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бошқарувчи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "График дизайнер",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт менеджери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "КДП мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Моторол устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Печка уста",
+    "department": "Печка бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Продукт менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хаво билан синаш шогирд",
+    "department": "Хаво билан синаш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Лаборатория бошлиғи",
+    "department": "Лаборатория бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Остини букиш уста",
+    "department": "Остини букиш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ошхона ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ракамлаш шогирд",
+    "department": "Рақамлаш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сифат назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сокчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ичини қириш уста",
+    "department": "Ичини қириш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ички шлифовка уста",
+    "department": "Ички шлифовка бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Краска уста",
+    "department": "Краска бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Механик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Оператор",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рахбар ёрдамчиси",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо бўлим бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Спица ташловчи",
+    "department": "Спица ташлаш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сув билан синаш уста",
+    "department": "Сув билан синаш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Улгуржи сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ишлаб чикариш бухгалтери",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Линия назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор юкларни режалаштириш бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Остини букиш шогирд",
+    "department": "Остини букиш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Спица тортувчи",
+    "department": "Спица тортиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Транспорт бўлими бошлиғи",
+    "department": "Транспорт бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Эксковаторчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Sys. admin",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош таъминотчи",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ижрочи директор ёрдамчиси",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Конвеер бўлим бошлиғи",
+    "department": "Конвеер бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Конвеер бўлими",
+    "department": "Конвеер бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кран хайдовчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маркетинг бўлими бошлиғи",
+    "department": "Маркетинг бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан дукон сотувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Учини букиш бўлими Шогирд",
+    "department": "Учини букиш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Боғбон",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело скутер уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Заготовка(Лазерда кесиш)",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ички бухгалтерия бўлим бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлайн савдо устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ракамлаш бўлими Уста",
+    "department": "Рақамлаш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ташки таъминот бухгалтер",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ташқи шлифовка уста",
+    "department": "Ташқи шлифовка бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Автошина сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош оператор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ишлаб чиқариш устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан установка хисобчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Операционный директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ошпаз ва фаррош",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Плазмада кесиш шогирд",
+    "department": "Плазмада кесиш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Прораб",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сварщик ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер йўналиши рахбари ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Табелчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Телефон йўналиши рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Учини букиш уста",
+    "department": "Учини букиш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Шогирд",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ёрдамчи табелчи",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Барча савдо йўналиши рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош энергетик",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Букувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят аналитики",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Камера назоратчиси ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кесиш ва букиш ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Корхона директори",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Лаборант катта уста",
+    "department": "Лаборатория бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маслахатчи ёрдамчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Насия назоратчиси ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Насия савдо менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Проектный менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Режалаштириш ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ривожланиш бўйича директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер бўйича савдо рахбари маслахатчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Слесарь шогирд",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Спица бўлими бошлиғи",
+    "department": "Спица териш бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Токарь",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хитой тили таржимони",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ходимлар бўлими рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Энергетика бўйича техназоратчи ва қуёш панел мутахассис",
+    "department": "Энергетика бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ўқитиш ва ривожлантириш менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Аналитик",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош омборчи",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ижрочи директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ичини қириш шогирд",
+    "department": "Ичини қириш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ишлаб чиқариш директори",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кидс дўкон бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Компрессор мутахассиси",
+    "department": "Компрессор бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Координатор HRBP",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Лаборант шогирд",
+    "department": "Лаборатория бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Мухандис",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор юкларини режалаштириш бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлайн савдо омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Плёнка савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Покришка бўлим бошлиғи",
+    "department": "Покрышка бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Раҳбар",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Региональный менежер ва Денов, Қарши, Самарқанд нуқталарига жавобгар",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдони ривожлантириш бўйича маслахатчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва Риспетто таъминотчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва моторол савдоси бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ташқи таъминот бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ташқи таъминот ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тергетолог",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Технический директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тошкент телефон дўкон сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Туриб қолган товарлар бўйича маслахатчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Улгуржи савдо бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Чакана сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "HR директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "HRBP",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош бухгалтер",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело запчасть савдо рахбари ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Дўкон сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Заготовка бўлим бошлиғи",
+    "department": "Заготовка бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кара хайдовчилар бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Лаборант уста",
+    "department": "Лаборатория бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маркетинг аналитик",
+    "department": "Маркетинг бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Мобилограф ва дизайнер",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Моторол йиғувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлайн савдо бўлим бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлайн савдо ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Остини букиш б/ми ходим",
+    "department": "Остини букиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Офис менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Печка уста ёрдамчиси",
+    "department": "Печка бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резьба очиш бўлими",
+    "department": "Резьба очиш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо бўйича директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо рахбари ўринбосари",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сертификат ёзувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва  эл.моторол сифат назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва Риспетто бош омборчис",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва мото уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Слесарь катта уста",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Табельчи ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Таржимон",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хужжатлаштириш бўйича мутахассис",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "конвейерчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "пакришка",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ғазна бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қурилиш ва хужжатлаштириш мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бошқарувчи ўринбосари",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Брак махсулотлар устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бўлим бошлиғи ўринбосари",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело ва скутер йўналиши рахбар ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело устахона булим бошлиги",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят савдо рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Водий вилоятлари бўйича худудий менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Декларация бўлим бошлиғи",
+    "department": "Декларация бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Енгил тип бошқарувчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт юклари етказиб берувчи(импорт омборчиси)",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Иш хаки хисобчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ишлаб чиқариш омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кидс дўкон сотувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кичик мутахассис",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Лаборатория хужжатлари мутахассиси",
+    "department": "Лаборатория бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маркетинг менеджери",
+    "department": "Маркетинг бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Менежер ёрдамчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан установка иш юритувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан установка рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Назоратчи маслахатчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлайн савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Операционный директор ёрдамчиси",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Офис менеджер ва IT мутахасиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рақамлаш бўлими",
+    "department": "Рақамлаш бўлими",
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резба очиш станоги",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо вакили",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо рахбари ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Синов ва қадоқлаш",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва Риспетто бош омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер йиғувчи уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Финансовый директор",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Чакана савдо бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Экспорт савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "йиғувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ғазна ҳисобчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "CALL-центр",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "CALL-центр бош оператори",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "SMM менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Асосий юкларни режалаштириш ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Балон ўтказувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош ошпаз",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош электрик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бухгалтерия Финансист",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бўлим бошлиқ ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело йиғувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Велосипед йўналиши рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят камера назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вокзал офис фарроши",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Директор ёрдамчиси",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Дўкон бошқарувчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт ва экспорт таъминотчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ички шлифовка шогирд",
+    "department": "Ички шлифовка бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Йиғув бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Камаз хайдовчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Камера назорати ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кара хайдовчи уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Касса бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Касса бўлими хисобчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кидс дўкон бошлиғи ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Колл центр оператор",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Комюнити менеджер",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Контейнер бухгалтер",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Логистика бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Логистика бухгалтери",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Логистика бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маркетинг бўлими бошлиғи ёрдамчиси",
+    "department": "Маркетинг бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маслахатчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Менеджер переводчик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Назорат гурухи ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор ёрдамчиси покрышка",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлаин савдо рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Печка катта уста",
+    "department": "Печка бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рақам ёзувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Резьба очиш ёрдамчи",
+    "department": "Резьба очиш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "СММ бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо аналитики",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо анлитики",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо бошлиғи ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо бўлим ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо рахбарини Вело савдо йўналиши буйича маслахатчи ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сертификация назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Синовчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер йиғувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Таъминот бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тошкент вело сотувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хисобчи ва Инвентарь",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хоразм Урганч дукон назорати",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Худуд фаррош",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хужжатлар бўйича мутахассис",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Шина онлайн савдо менеджери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Электрик уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Юкларни ташишни ташкил этиш мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "йиғувчи уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "моторл уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қоида  назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қурилиш менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қуёш панеллари энергетиги",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қуёш панеллари энергетик",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "2 линия назратчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "3 линия назратчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Call цент оператори",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "HR менеджер ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "WEB сайт  назорати",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ёйма дўкон сотувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ёйма сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ўқитувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Автошина йуналиши бўйича хисобчи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Агент савдо",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Барча грузчиклар бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Барча юкчилар бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бишкек савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бишкек сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бокчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош инженер",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бош кассир",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Брак махсулот омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Брак махсулотлар омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Булим бошлиги ва Сифат назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Бухгалтерия бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело савдо",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вело устахона бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Велозапчасть савдо рахбари ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Велосипед, моторол, скутер йўналиши бўйича рахбар",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Велосипед,моторол,скутер йўналиши булими бошлиги",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят аналитики ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят ва нарх-наво назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят назоратчиси ва нарх-наво назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят савдо аналитиги",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Вилоят савдо рахбари(Умумий)",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Дўкон бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Дўконлар таъминотчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Завод рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Завод таъминотчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Замдиректор",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт йўналиши мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт менеджер таржимони",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт мутахассиcи",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт юклар ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Импорт-экспорт таъминотчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ишлаб чикариш бошқарувчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ишлаб чиқариш омбор мудири",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ишлаб чиқаришлар бўйича рахбар маслахатчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кабобчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Кара хайдовчи катта уста",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Колцент оператор",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Колцентр оператори",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Компрессор катта уста",
+    "department": "Компрессор бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Компрессор шогирд",
+    "department": "Компрессор бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Компютер мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Логистика ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Логистикаменежери",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маркетинг бошлиғи",
+    "department": "Маркетинг бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Маркетинг бўлими рахбари",
+    "department": "Маркетинг бўлими",
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан булими бошлиги",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Метан савдо бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Моторол ва вело уста",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Назорат гурухи раҳбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Насия назоратчи ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Омбор юкларни режалаштириш бўлими мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Онлайн савдо вело устахона устаси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Офис менеджер",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Офис менеджер ва IT мутахассис",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Панел савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Подшибник сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Прораблар бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рама бўлим бошлиғи",
+    "department": "Рама бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рахбар маслахатчиси",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Рахбар ўринбосари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Риспетто  бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "СММ менеджери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Савдо назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Салатчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Система оператори",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Системний оператор",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер б/ми омборчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер б/ми омборчи бошлиги",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер бўлими бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва Риспетто таъминотчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер ва вело ишлаб чиқариш таъминотчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер дўкон сотувчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер йиғиш бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер йуналиш савдоси рахбари ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер омборга жавобгар омборчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Скутер савдо бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Спица тортиш бўлими бошлиғи",
+    "department": "Спица тортиш бўлими",
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Сув билан синаш шогирд",
+    "department": "Сув билан синаш бўлими",
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тайёр газ балонларни қабул қилиш ва чиқариш омбор рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тайёр махсулотлар омбор мудири",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ташки таъминот менежер",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ташқи таъминот рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Таъминот бошлиғи",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Телефон йўналиши назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Телефон омборчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Телефон савдо рахбари",
+    "department": null,
+    "grade": 5,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Телефон савдо ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Техника хавфсизлиги мухандиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тожикистон сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тошкент дўкон бошқарувчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Тошкент шина ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Укитиш ходими",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Финансист",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Финансовый аналитик ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хитой вело таъминотчиси",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хоразм ва Гулистон бошқарувчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Хужжат тўлдирувчи шогирд",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Цех рахбари, бош механик ёрдамчиси",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Чархлаш уста",
+    "department": "Чархлаш бўлими",
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Чойхона менежери",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Чойхона оператори",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Электрик шогирд",
+    "department": null,
+    "grade": 1,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Юкларни режалаштириш мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Юкларни ташишни назорат килиш",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Юкларни қабул қилиш ва етказиб бериш мутахассиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "конвейрчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "омбор қоровули",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "тошкент-қўқон сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Ғазначи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қурилиш",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қурулиш назоратчиси",
+    "department": null,
+    "grade": 3,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қуёш панель сотувчи",
+    "department": null,
+    "grade": 2,
+    "probationDays": null,
+    "duties": []
+  },
+  {
+    "name": "Қўқон бўлими Денов савдо ходимлар назорати савдо бошқарувчиси",
+    "department": null,
+    "grade": 4,
+    "probationDays": null,
+    "duties": []
+  }
+]

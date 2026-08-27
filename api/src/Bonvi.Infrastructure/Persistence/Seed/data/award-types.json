@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Ташаккурнома",
+    "hasAmount": false
+  },
+  {
+    "name": "Ота-онасига ташаккурнома",
+    "hasAmount": false
+  },
+  {
+    "name": "Пул мукофоти",
+    "hasAmount": true
+  },
+  {
+    "name": "Қимматбаҳо совға",
+    "hasAmount": false
+  },
+  {
+    "name": "Фахрий ёрлиқ",
+    "hasAmount": false
+  },
+  {
+    "name": "Қўшимча ҳақ тўланадиган таътил",
+    "hasAmount": false
+  },
+  {
+    "name": "Лавозимга кўтарилиш",
+    "hasAmount": false
+  }
+]

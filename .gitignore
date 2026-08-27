@@ -31,9 +31,32 @@ dist/
 Thumbs.db
 
 # Ma'lumot
-data/
+#
+# ⚠️ BOSHIDAGI «/» MUHIM — u naqshni FAQAT ildizga bog'laydi.
+# Ilgari bu yerda oddiy `data/` turardi va u har qanday chuqurlikdagi
+# «data» nomli papkani yutardi. Natijada ikkita narsa jimgina git'dan
+# tashqarida qolgan edi:
+#   * `api/src/Bonvi.Infrastructure/Persistence/Seed/data/` — ma'lumotnoma
+#     urug' fayllari. Ular bo'lmasa toza klonda `CatalogSeeder` hech narsa
+#     topmaydi (u xato ham tashlamaydi, faqat ogohlantirish yozadi) va
+#     yangi o'rnatma BO'SH ma'lumotnomalar bilan ishga tushardi;
+#   * `tools/data/` — urug' fayllarini yasaydigan Python skriptlari.
+# Urug' fayllarida shaxsiy ma'lumot yo'q: faqat bo'lim va lavozim nomlari.
+#
+# Ildizdagi `/data/` esa AVVALGIDEK yopiq qoladi — u yerda haqiqiy
+# «№91 бланк» Excel'i va ETL hisoboti yotadi (JSHSHIR, pasport, telefon).
+/data/
 *.log
 uploads/
+
+# `tools/data/` — urug' fayllarini Excel'dan yasaydigan Python skriptlari.
+# Ular manba kodi va git'da bo'lishi MANTIQAN to'g'ri bo'lardi, LEKIN
+# `refs_spec.py` ichidagi «shovqin qiymatlari» ro'yxatida haqiqiy pasport
+# seriyasi va xodimlarning familiya bo'laklari bor — ular Excel'dan
+# ko'chirib olingan va filtr sifatida ishlatiladi. Git tarixidan bunday
+# qiymatni keyin olib tashlash qiyin, shu sababli fayl shu qiymatlar
+# tozalanmaguncha git'dan tashqarida qoladi.
+/tools/data/
 
 # Zaxira (pg_dump) — ./bonvi backup / docker-compose.prod.yml dagi
 # `backup` konteyneri shu papkaga yozadi. Bazaning to'liq nusxasi
