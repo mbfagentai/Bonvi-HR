@@ -838,8 +838,15 @@ aynan shu tarqoqlik muammo edi.
       izoh): mavjud `IFileStorage` + `LocalFileStorage` ishlatiladi. Fayl turi
       MAZMUN bo'yicha aniqlanadi (`IFileContentInspector`), chegara 20 MB,
       ruxsat berilgani PDF va rasm (JPEG/PNG/WebP)
-- [ ] Baholash anketasi — **to'g'ridan-to'g'ri tizimda to'ldiriladi** (chop etish yo'q).
-      **S8 dan qolgan yagona band** — hali nol holatda
+- [x] ~~Baholash anketasi~~ — **REJADAN OLIB TASHLANDI (2026-08-27, foydalanuvchi
+      qarori).** Sabab: anketaning mazmuni (qanday mezonlar, kim baholaydi, natija
+      nimaga ta'sir qiladi) HR jarayoniga bog'liq va u hali aniqlanmagan. Mazmunini
+      taxmin qilib qurilgan ekran ishlatilmay turgan bo'lardi — bu Excel'dagi
+      «to'ldirilmagan ustun» muammosining aynan o'zi. Mezonlar aniqlanganda
+      qaytariladi; agregat va ma'lumotnoma naqshi (`EmployeeCompetency` kabi)
+      tayyor, ya'ni ish bir kunlik.
+
+  **Shu bilan S8 TO'LIQ yopildi.**
 
 > **`HasAmount` endi tirik qoida.** `AwardType.HasAmount` / `PenaltyType.HasAmount`
 > maydonlari S2 dan beri mavjud edi, lekin hech qayerda ishlatilmasdi. Endi ular
@@ -898,8 +905,16 @@ aynan shu tarqoqlik muammo edi.
       6/12/24 oylik oyna, `recharts` nihoyat ishga tushdi. Excel eksport —
       xodimlar toolbar'ida tugma (`reports.export`), ekrandagi filtr va
       saralashning aynan o'zi bilan
-- [ ] Bo'lim boshliqlari uchun cheklangan ko'rinish — avtorizatsiya
-      arxitekturasiga o'zgarish talab qiladi (pastdagi «Xavflar» ga qarang)
+- [x] ~~Bo'lim boshliqlari uchun cheklangan ko'rinish~~ — **REJADAN OLIB
+      TASHLANDI (2026-08-27, foydalanuvchi qarori).** Tizimda endi ATIGI uch xil
+      hisob bor va ularning uchalasi ham butun tashkilotni ko'radi: super
+      administrator, bosh rahbar va HR menejerlari (5.1-bo'limga qarang). Bo'lim
+      boshliqlari tizimga umuman kirmaydi — ya'ni ular uchun ko'rinish qurish
+      hech kim ochmaydigan ekran bo'lardi. Bu band boshidanoq «xodimlar ham
+      tizimdan foydalanadi» degan taxminga asoslangan edi va u taxmin noto'g'ri
+      chiqdi.
+
+  **Shu bilan S10 TO'LIQ yopildi.**
 
 ### S11 — Ishga tushirish ⏱ 1 kun
 - [x] Production Docker build (multi-stage), Caddy + HTTPS —
@@ -910,9 +925,19 @@ aynan shu tarqoqlik muammo edi.
       BIRGA olinadi**: `photo_key` diskdagi faylga ishora qiladi, alohida
       vaqtda olingan zaxiralar bir-biriga mos kelmasdi. `./bonvi backup`,
       `./bonvi backup-list`, `./bonvi restore`
-- [ ] Sentry — hali yo'q. `/health/live` + `/health/ready` allaqachon bor.
+- [ ] ~~Sentry~~ → **oddiy fayl jurnali** (2026-08-27, foydalanuvchi qarori).
+      Sentry tashqi xizmat: hisob, DSN talab qiladi va ma'lumot konteynerdan
+      TASHQARIGA chiqadi — bazada esa haqiqiy odamlarning JSHSHIR va pasporti
+      bor. O'rniga xatolar aylanadigan faylga yoziladi, saqlash muddati
+      cheklanadi (zaxira skriptlaridagi bilan bir xil fikr) va shaxsiy
+      ma'lumot jurnalga TUSHMASLIGI qat'iy shart.
+      `/health/live` + `/health/ready` allaqachon bor.
       ~~Hangfire dashboard~~ — Hangfire S6 da rejadan olib tashlangan
-- [ ] HR uchun qo'llanma + 1 kunlik o'qitish
+- [ ] HR uchun qo'llanma — **alohida bo'lim sifatida EMAS** (2026-08-27,
+      foydalanuvchi qarori): «Sozlamalar» oynasidagi bitta tugma qo'llanmani
+      PDF qilib yuklab beradi. Sabab: saytda qo'llanma uchun joy ajratish
+      ortiqcha, yangi foydalanuvchi PDF variantni o'qigani qulayroq.
+      ~~1 kunlik o'qitish~~ — qo'llanma uning o'rnini bosadi
 
 **1-bosqich jami: ~20–23 ish kuni.**
 
@@ -927,13 +952,13 @@ bitta bandga sig'dirib bo'lmaydi.
    konteyneri kunlik zaxira oladi (baza + fayllar, bitta stamp bilan),
    30 kundan eskisi o'zi o'chadi. Qolgan ish — zaxirani HAQIQIY serverda
    bir marta tiklab ko'rish: sinalmagan zaxira zaxira emas.
-2. **Bo'lim darajasidagi ruxsat tushunchasi yo'q.** Hozirgi avtorizatsiya
-   modeli faqat ikkita global rol (5.1-bo'lim) — barcha ruxsatlar butun
-   tizim bo'yicha, bitta bo'limga cheklab bo'lmaydi. S10 dagi «bo'lim
-   boshliqlari uchun cheklangan ko'rinish» shu sababli oddiy ekran emas: u
-   avtorizatsiya arxitekturasiga (rol → bo'lim bog'lanishi) o'zgarish talab
-   qiladi. Buni erta bilish muhim — S10 ga yetganda qayta loyihalash
-   kutilmagan bo'lib chiqmasin.
+2. ✅ **Bo'lim darajasidagi ruxsat tushunchasi yo'q edi — XAVF YO'QOLDI.**
+   Bu xavf S10 dagi «bo'lim boshliqlari uchun cheklangan ko'rinish» bandi
+   uchun yozilgan edi. O'sha band rejadan olib tashlandi (2026-08-27): tizimga
+   faqat uch xil hisob kiradi va uchalasi ham butun tashkilotni ko'radi.
+   Ya'ni avtorizatsiyani qayta loyihalash umuman kerak emas. Agar kelajakda
+   bo'lim darajasidagi ruxsat kerak bo'lsa, bu YANGI talab bo'ladi va uni
+   nolda emas, ishlab turgan modelga qo'shish kerak bo'ladi.
 3. ✅ **Excel eksport uchun yarim tayyorgarlik — HAL QILINDI.**
    `RateLimitPolicies.Export` siyosati va `reports.export` ruxsati endi
    haqiqiy endpoint'ga (`GET /api/reports/employees/export`) ulandi.
@@ -1038,13 +1063,17 @@ hali bazaga qo'llanmagan — joriy dev muhitida atigi 59 xodim yozuvi bor.
    `91.14` rag'bat (34 qator) hali ko'chirilmaydi. Endi buni yozish mumkin:
    `EmployeeCompetency` va `Incentive` agregatlari S8 da qurildi, `Steps/`
    da esa mos qadam hali yo'q.
-2. **S8 — baholash anketasi.** S8 dan qolgan yagona band.
-3. **S11** — Sentry, HR uchun qo'llanma va o'qitish, hamda zaxirani
-   haqiqiy serverda bir marta TIKLAB ko'rish.
-4. **Bo'lim boshliqlari uchun cheklangan ko'rinish** (S10) — bu oddiy ekran
-   emas: hozirgi avtorizatsiya modelida faqat ikkita global rol bor va
-   ruxsatni bitta bo'limga cheklab bo'lmaydi. «Xavflar» dagi 2-bandga
-   qarang, ish rol → bo'lim bog'lanishidan boshlanadi.
+2. **Uchta qat'iy rol** (5.1-bo'lim) — super administrator, bosh rahbar va
+   HR menejerlari; birinchi ikkitasi ATIGI BITTADAN. Kim kimni qo'sha
+   olishi — domen qoidasi, ruxsat emas.
+3. **«Rag'bat va jarima» sahifasi** — butun tizim bo'yicha umumiy ro'yxat
+   (har bir yozuv alohida qator). Menyudagi «Qobiliyatlar» va «Hujjatlar»
+   bandlari olib tashlanadi: ular xodim kartasining tab'lari sifatida
+   allaqachon ishlaydi, alohida ro'yxat esa so'ralmagan.
+4. **Foydalanuvchi hisobiga rasm** — ro'yxatda bosh harflar emas, haqiqiy
+   rasm (xodimlar ro'yxatidagi qoidaning aynan o'zi).
+5. **S11** — xato jurnali (Sentry O'RNIGA — pastga qarang), HR uchun
+   qo'llanma va zaxirani haqiqiy serverda bir marta TIKLAB ko'rish.
 
 > **Alohida, parallel oqim — ETL ma'lumotini ko'chirish.** Yuqoridagi
 > ro'yxat dasturchi ishi; real ma'lumotni ko'chirish esa HR ga bog'liq va
