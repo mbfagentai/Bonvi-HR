@@ -18,20 +18,31 @@ public sealed record DeactivateUserCommand(Guid Id);
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Ikki xavfsizlik himoyasi</b> —
+/// <b>Uch himoya, uch boshqa sabab</b> —
 /// <see cref="Bonvi.Application.Identity.Users.Commands.UpdateUser.UpdateUserCommandHandler"/>
 /// dagi bilan bir xil mantiq:
 /// </para>
 /// <list type="number">
 ///   <item>
+///     <b>Kim kimga tega oladi</b> (<see cref="UserRoleRules.EnsureCanActOn"/>).
+///     Bosh rahbar super administratorni ham, o'zini ham bu ekrandan
+///     faolsizlantira olmaydi.
+///   </item>
+///   <item>
+///     <b>Oxirgi rahbar.</b> Boshqa foydalanuvchilarni bilish kerak
+///     bo'lgani uchun bu yerda, repozitoriy orqali tekshiriladi.
+///   </item>
+///   <item>
 ///     <b>O'zini o'zi bloklash.</b> <see cref="User.Deactivate(Guid)"/> — sof
 ///     domen qoidasi, faqat identifikatorlar taqqoslanadi.
 ///   </item>
-///   <item>
-///     <b>Oxirgi administrator.</b> Boshqa foydalanuvchilarni bilish kerak
-///     bo'lgani uchun bu yerda, repozitoriy orqali tekshiriladi.
-///   </item>
 /// </list>
+/// <para>
+/// <b>Nega faolsizlantirish «atigi bitta» ni tekshirmaydi.</b> U hisoblar
+/// sonini faqat KAMAYTIRADI: bo'shatilgan lavozimga yangisini qo'yish esa
+/// aynan shu yo'l bilan mumkin bo'ladi (<see cref="UserRoleRules.EnsureSingleHolder"/>
+/// izohiga qarang — u faqat FAOL egalarni sanaydi).
+/// </para>
 /// </remarks>
 public sealed class DeactivateUserCommandHandler
 {
@@ -74,18 +85,25 @@ public sealed class DeactivateUserCommandHandler
         }
 
         var roles = await _roles.GetAllAsync(cancellationToken).ConfigureAwait(false);
-        var adminRoleId = roles.FirstOrDefault(role => role.Code == SystemRoles.Admin)?.Id ?? Guid.Empty;
 
-        // ---------- Oxirgi administratorni himoya qilish ----------
-        if (target.IsActive && target.RoleIds.Contains(adminRoleId))
+        // ---------- Kim kimga tega oladi ----------
+        var allowed = UserRoleRules.EnsureCanActOn(acting.Value, target, roles);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
+        }
+
+        // ---------- Oxirgi rahbarni himoya qilish ----------
+        // Faqat FAOL hisob uchun: allaqachon faolsiz hisobni qayta
+        // faolsizlantirish rahbariyat sonini kamaytirmaydi.
+        if (target.IsActive)
         {
             var allUsers = await _users.ListAsync(cancellationToken).ConfigureAwait(false);
-            var anotherActiveAdmin = allUsers.Any(user =>
-                user.Id != target.Id && user.IsActive && user.RoleIds.Contains(adminRoleId));
 
-            if (!anotherActiveAdmin)
+            var remains = UserRoleRules.EnsureManagerRemains(target, allUsers, roles);
+            if (remains.IsFailure)
             {
-                return UserErrors.LastAdminProtected;
+                return remains.Error;
             }
         }
 

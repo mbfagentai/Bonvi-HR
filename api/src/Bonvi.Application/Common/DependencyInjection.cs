@@ -15,6 +15,7 @@ using Bonvi.Application.Identity.Users.Commands.CreateUser;
 using Bonvi.Application.Identity.Users.Commands.DeactivateUser;
 using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
 using Bonvi.Application.Identity.Users.Commands.UpdateUser;
+using Bonvi.Application.Identity.Users.Photos;
 using Bonvi.Application.Identity.Users.Queries.ListUsers;
 using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
@@ -60,13 +61,23 @@ public static class DependencyInjection
         services.AddScoped<LogoutCommandHandler>();
         services.AddScoped<GetCurrentUserQueryHandler>();
 
-        // Foydalanuvchilarni boshqarish (faqat admin — «users.manage»)
+        // Foydalanuvchilarni boshqarish — «users.manage» (super administrator
+        // va bosh rahbar). Kim kimga tega olishi esa ruxsat emas, use-case
+        // qoidasi: `UserRoleRules`.
         services.AddScoped<ListUsersQueryHandler>();
         services.AddScoped<CreateUserCommandHandler>();
         services.AddScoped<UpdateUserCommandHandler>();
         services.AddScoped<DeactivateUserCommandHandler>();
         services.AddScoped<ActivateUserCommandHandler>();
         services.AddScoped<ResetUserPasswordCommandHandler>();
+
+        // Boshqa foydalanuvchining rasmi — o'z hisobi rasmidan ALOHIDA
+        // (`/api/users/{id}/photo` va `/api/auth/me/photo`): birinchisi
+        // «kim kimga tega oladi» qoidasi ostida, ikkinchisi tokendagi
+        // identifikator bilan chegaralangan.
+        services.AddScoped<GetUserPhotoQueryHandler>();
+        services.AddScoped<UploadUserPhotoCommandHandler>();
+        services.AddScoped<DeleteUserPhotoCommandHandler>();
 
         // Hisob rasmi
         services.AddScoped<GetAccountPhotoQueryHandler>();

@@ -6,12 +6,17 @@ import { z } from 'zod'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Checkbox, Dialog, TextField } from '@/shared/ui'
+import { Alert, Button, Dialog, Select, TextField, type SelectOption } from '@/shared/ui'
 
 import type { UserSummary } from '../api/users-api'
 import { useSaveUser } from '../api/users-queries'
 import { USER_ERROR_FIELD, userErrorCode } from '../lib/user-error'
-import { ADMIN_ROLE_CODE, ROLE_CODES, type RoleCode } from '../lib/user-presentation'
+import {
+  ROLE_CODES,
+  SINGLE_HOLDER_ROLE_CODES,
+  canActOnRole,
+  currentRoleCode,
+} from '../lib/user-presentation'
 import {
   passwordFieldSchema,
   toFullPhone,
@@ -19,6 +24,7 @@ import {
   toUserFormValues,
   userFormSchema,
 } from '../lib/user-schemas'
+import { UserPhotoEditor } from './user-photo-editor'
 
 const FORM_ID = 'user-form'
 
@@ -41,9 +47,9 @@ type CreateValues = z.infer<typeof createSchema>
  * Foydalanuvchi yaratish va tahrirlash — bitta oyna.
  *
  * Bitta forma ikkala holat uchun (`catalog-form-dialog.tsx` dagi bilan
- * bir xil naqsh): farq faqat sarlavhada, parol maydonida va `item`
- * borligida. Parol BU YERDA faqat yaratishda ko'rinadi — tahrirlashda
- * uni o'zgartirish uchun alohida «parolni tiklash» amali bor
+ * bir xil naqsh): farq faqat sarlavhada, parol maydonida, rasm blokida va
+ * `item` borligida. Parol BU YERDA faqat yaratishda ko'rinadi —
+ * tahrirlashda uni o'zgartirish uchun alohida «parolni tiklash» amali bor
  * (`reset-password-dialog.tsx`), chunki backend ham shunday ajratgan.
  */
 export function UserFormDialog({
@@ -64,6 +70,17 @@ export function UserFormDialog({
   const isCreate = item === null
   const isSelf = item !== null && currentUser !== null && currentUser.id === item.id
 
+  /** So'rovchining o'z roli — «kim kimga tega oladi» qoidasining birinchi yarmi. */
+  const myRole = currentRoleCode(currentUser?.roles)
+
+  /**
+   * Nishonga umuman tega oladimi.
+   *
+   * Yangi hisob uchun har doim `true`: nishon hali yo'q, chegara esa
+   * beriladigan ROL bo'yicha qo'yiladi (pastdagi `roleOptions`).
+   */
+  const canTouch = isCreate || canActOnRole(myRole, item.roleCode)
+
   /** Maydonga bog'lanmagan server xatosi. */
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -75,7 +92,6 @@ export function UserFormDialog({
     reset,
     setError,
     watch,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateValues>({
     resolver: zodResolver(schema),
@@ -84,30 +100,44 @@ export function UserFormDialog({
     reValidateMode: 'onChange',
   })
 
+  /*
+    Bog'liqlikda `item` emas, `item?.id`.
+
+    NEGA: `item` — ro'yxatdagi qatorning JORIY nusxasi va u ro'yxat har
+    yangilanganda (masalan rasm yuklangach) yangi OBYEKT bo'lib keladi.
+    Butun obyektga bog'lansa, forma o'sha lahzada qayta o'rnatilardi va
+    kiritilayotgan ism yo'qolardi. Identifikator esa faqat BOSHQA hisob
+    ochilganda o'zgaradi — aynan shunda forma qayta to'lishi kerak.
+  */
   useEffect(() => {
     if (!open) return
     setFailure(null)
     reset({ ...toUserFormValues(item), password: '' })
     save.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, item])
+  }, [open, item?.id])
 
-  const roleCodes = watch('roleCodes')
-
-  const toggleRole = (code: RoleCode) => {
-    // O'zining admin rolini o'zi olib tashlay olmaydi — backend ham shu
-    // amalni 403 bilan rad etadi (`foydalanuvchi.ozini_adminlikdan_
-    // chetlashtirish`). Katakcha shu yerda bosilmaydigan qilib qo'yiladi,
-    // shu sababli bu tekshiruv ham amalda hech qachon ishga tushmaydi —
-    // lekin himoya ikki qatlamli bo'lsin.
-    if (isSelf && code === ADMIN_ROLE_CODE && roleCodes.includes(code)) return
-
-    setValue(
-      'roleCodes',
-      roleCodes.includes(code) ? roleCodes.filter((c) => c !== code) : [...roleCodes, code],
-      { shouldValidate: false },
-    )
-  }
+  /**
+   * Rol ro'yxati.
+   *
+   * Bera OLMAYDIGAN rollar ro'yxatdan olib tashlanmaydi, `disabled`
+   * qilinadi: modelda uchta rol borligi va bu hisob qaysi darajada turgani
+   * ko'rinib tursin. Ro'yxatdan yo'qolgan qator «bunday rol yo'q» degan
+   * noto'g'ri taassurot qoldirardi.
+   *
+   * Hisobning O'Z joriy roli har doim yoqiq qoladi: aks holda `<select>`
+   * o'zi turgan qiymatni ko'rsata olmay, birinchi qatorga sakrab ketardi
+   * va forma yuborilganda rol jimgina o'zgarib qolardi.
+   */
+  const roleOptions = useMemo<SelectOption[]>(
+    () =>
+      ROLE_CODES.map((code) => ({
+        value: code,
+        label: t(`roles.${code}`),
+        disabled: !canActOnRole(myRole, code) && code !== item?.roleCode,
+      })),
+    [t, myRole, item],
+  )
 
   const onSubmit = handleSubmit(async (values) => {
     setFailure(null)
@@ -117,7 +147,7 @@ export function UserFormDialog({
       lastName: values.lastName.trim(),
       firstName: values.firstName.trim(),
       middleName: toTextOrNull(values.middleName),
-      roleCodes: values.roleCodes,
+      roleCode: values.roleCode,
     }
 
     try {
@@ -144,8 +174,19 @@ export function UserFormDialog({
     return typeof raw === 'string' ? errorMessage(raw) : undefined
   }
 
-  const rolesError =
-    typeof errors.roleCodes?.message === 'string' ? errorMessage(errors.roleCodes.message) : undefined
+  /**
+   * Rol maydonining izohi — nima cheklanganini AYNAN aytadi.
+   *
+   * Uch xil holat, uch xil sabab:
+   *   • o'z hisobi — o'z rolini hech kim o'zgartira olmaydi;
+   *   • nishonga huquqi yo'q — bosh rahbar super administratorga tegolmaydi;
+   *   • qolgan hamma holat — «atigi bitta» qoidasi haqida ogohlantirish.
+   */
+  const roleHint = isSelf
+    ? errorMessage('foydalanuvchi.oz_rolini_ozgartirish')
+    : !canTouch
+      ? errorMessage('foydalanuvchi.rolga_haqqi_yoq')
+      : t('users.roleHint')
 
   return (
     <Dialog
@@ -159,7 +200,12 @@ export function UserFormDialog({
           <Button type="button" onClick={onClose} disabled={isSubmitting}>
             {t('common.cancel')}
           </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            form={FORM_ID}
+            variant="primary"
+            disabled={isSubmitting || !canTouch}
+          >
             {isSubmitting && <LoaderCircle className="animate-spin" />}
             {isSubmitting ? t('users.saving') : t('common.save')}
           </Button>
@@ -173,6 +219,22 @@ export function UserFormDialog({
           </Alert>
         )}
 
+        {/*
+          Rasm faqat TAHRIRLASHDA: yangi hisobda `id` hali yo'q, rasm esa
+          unga biriktiriladi (`POST /api/users/{id}/photo`). Bu blok formadan
+          MUSTAQIL — u «Saqlash» ni kutmaydi va o'zi darhol yuklaydi, chunki
+          rasm alohida endpoint bilan boshqariladi.
+        */}
+        {item !== null && (
+          <UserPhotoEditor
+            userId={item.id}
+            photoKey={item.photoKey}
+            name={item.fullName}
+            canEdit={canTouch}
+            disabled={isSubmitting}
+          />
+        )}
+
         <TextField
           label={t('employee.phone')}
           leading="+998"
@@ -180,7 +242,7 @@ export function UserFormDialog({
           maxLength={9}
           placeholder="905088888"
           autoComplete="off"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canTouch}
           error={message('phone')}
           inputClassName="tabular"
           {...register('phone')}
@@ -190,14 +252,14 @@ export function UserFormDialog({
           <TextField
             label={t('employees.lastName')}
             autoComplete="off"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canTouch}
             error={message('lastName')}
             {...register('lastName')}
           />
           <TextField
             label={t('employees.firstName')}
             autoComplete="off"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canTouch}
             error={message('firstName')}
             {...register('firstName')}
           />
@@ -207,7 +269,7 @@ export function UserFormDialog({
           label={t('employees.middleName')}
           hint={t('employees.middleNameHint')}
           autoComplete="off"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canTouch}
           error={message('middleName')}
           {...register('middleName')}
         />
@@ -224,46 +286,41 @@ export function UserFormDialog({
           />
         )}
 
-        {/* ───────── Rollar ───────── */}
-        <div className="space-y-2">
-          <span className="block text-footnote font-medium text-[var(--fg-secondary)]">
-            {t('users.roles')}
-          </span>
+        {/*
+          ───────── Rol ─────────
+          Katakchalar emas, YAGONA tanlov: hisobda aynan bitta rol bo'ladi
+          (`User.SetRole`). Uchta katakchada esa «ikkitasini ham belgilash»
+          texnik jihatdan mumkin ko'rinardi va foydalanuvchi faqat saqlagach
+          bunday holat yo'qligini bilardi.
 
-          {/*
-            NEGA `flex flex-col` va `space-y-*` emas: `Checkbox` o'zi
-            `inline-flex` bilan chiziladi (matn ichida ishlatilishi mumkin
-            bo'lsin deb), shu sababli `space-y-*` faqat vertikal margin
-            qo'shadi — inline elementlar konteyner kengligiga sig'sa,
-            baribir bir qatorda yonma-yon qolib, orasidagi bo'sh joy
-            yo'qoladi. `flex-col` har birini alohida qatorga majburlaydi.
-          */}
-          <div className="flex flex-col items-start gap-2.5 rounded-md border border-[var(--border-strong)] bg-[var(--bg-sunken)] p-3.5">
-            {ROLE_CODES.map((code) => {
-              const lockedForSelf = isSelf && code === ADMIN_ROLE_CODE && roleCodes.includes(code)
+          O'z hisobida maydon o'chirilgan: `User.ChangeRole` buni 403 bilan
+          baribir to'xtatadi, lekin tanlatib turib keyin rad etish yomon
+          tajriba.
+        */}
+        <Select
+          label={t('users.role')}
+          hint={roleHint}
+          options={roleOptions}
+          /*
+            Bo'sh qator DOIM bor: rol berilmagan (eski) yozuvda `<select>`
+            hech qaysi qatorga mos kelmay, JIMGINA birinchisini ko'rsatib
+            qo'yardi — va saqlaganda rol o'zi o'zgarib ketardi.
+          */
+          placeholder={t('users.rolePlaceholder')}
+          disabled={isSubmitting || isSelf || !canTouch}
+          error={message('roleCode')}
+          {...register('roleCode')}
+        />
 
-              return (
-                <Checkbox
-                  key={code}
-                  checked={roleCodes.includes(code)}
-                  onChange={() => toggleRole(code)}
-                  label={t(`roles.${code}`)}
-                  disabled={isSubmitting || lockedForSelf}
-                />
-              )
-            })}
-          </div>
-
-          <p className="text-footnote text-[var(--fg-tertiary)]">
-            {isSelf ? errorMessage('foydalanuvchi.ozini_adminlikdan_chetlashtirish') : t('users.rolesHint')}
-          </p>
-
-          {rolesError !== undefined && (
-            <p role="alert" className="text-footnote text-ios-red">
-              {rolesError}
-            </p>
-          )}
-        </div>
+        {/*
+          «Atigi bitta» ogohlantirishi faqat KERAK bo'lganda chiqadi: HR
+          menejer tanlanganda u shunchaki shovqin bo'lardi. Rad etish qarori
+          baribir serverda qabul qilinadi — bu yerdagi matn kutilmagan 409
+          ni oldindan tushuntiradi.
+        */}
+        {SINGLE_HOLDER_ROLE_CODES.includes(watch('roleCode')) && (
+          <p className="text-footnote text-[var(--fg-tertiary)]">{t('users.singleHolderHint')}</p>
+        )}
       </form>
     </Dialog>
   )

@@ -8,8 +8,8 @@ using NSubstitute;
 namespace Bonvi.Application.Tests.Identity.Users;
 
 /// <summary>
-/// Foydalanuvchini faolsizlantirish mantig'ining testlari — asosan ikkita
-/// xavfsizlik himoyasiga qaratilgan: o'zini o'zi bloklash va oxirgi admin.
+/// Foydalanuvchini faolsizlantirish mantig'ining testlari — uchta himoyaga
+/// qaratilgan: kim kimga tega oladi, oxirgi rahbar va o'zini o'zi bloklash.
 /// </summary>
 public sealed class DeactivateUserCommandHandlerTests
 {
@@ -19,9 +19,19 @@ public sealed class DeactivateUserCommandHandlerTests
     private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
+    private readonly Role _superAdminRole =
+        Role.Create(SystemRoles.SuperAdmin, "Super administrator", isSystem: true).Value;
+
+    private readonly Role _mainBossRole =
+        Role.Create(SystemRoles.MainBoss, "Bosh rahbar", isSystem: true).Value;
+
+    private readonly Role _hrRole =
+        Role.Create(SystemRoles.HrManager, "HR menejeri", isSystem: true).Value;
+
     private DeactivateUserCommandHandler Handler => new(_currentUser, _users, _roles, _auditLogger, _unitOfWork);
 
-    private static Role AdminRole() => Role.Create(SystemRoles.Admin, "Administrator", isSystem: true).Value;
+    public DeactivateUserCommandHandlerTests()
+        => _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([_superAdminRole, _mainBossRole, _hrRole]);
 
     private static User YangiFoydalanuvchi(string phone, string fullName)
     {
@@ -30,97 +40,97 @@ public sealed class DeactivateUserCommandHandlerTests
         return User.Create(login, "xesh", ism).Value;
     }
 
-    private void ActingAs(User user)
+    private User Mavjud(string phone, string fullName, Role role)
     {
-        _currentUser.UserId.Returns(user.Id);
+        var user = YangiFoydalanuvchi(phone, fullName);
+        user.SetRole(role.Id);
         _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
+        return user;
     }
 
+    private void ActingAs(User user) => _currentUser.UserId.Returns(user.Id);
+
     [Fact]
-    public async Task Administrator_ozini_ozi_faolsizlantira_olmaydi()
+    public async Task Rahbar_ozini_ozi_faolsizlantira_olmaydi()
     {
-        var adminRole = AdminRole();
-        var actingAdmin = YangiFoydalanuvchi("905088888", "Тошматов Акбар");
-        actingAdmin.AssignRole(adminRole.Id);
-        ActingAs(actingAdmin);
+        var acting = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
+        ActingAs(acting);
 
-        var boshqaAdmin = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
-        boshqaAdmin.AssignRole(adminRole.Id);
+        var boshqaRahbar = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
+        boshqaRahbar.SetRole(_mainBossRole.Id);
 
-        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([adminRole]);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([actingAdmin, boshqaAdmin]);
+        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, boshqaRahbar]);
 
         var natija = await Handler.HandleAsync(
-            new DeactivateUserCommand(actingAdmin.Id),
+            new DeactivateUserCommand(acting.Id),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("foydalanuvchi.ozini_blokash");
-        actingAdmin.IsActive.ShouldBeTrue();
+        acting.IsActive.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Oxirgi_faol_administrator_faolsizlantirilmaydi()
+    public async Task Oxirgi_faol_rahbar_faolsizlantirilmaydi()
     {
-        var adminRole = AdminRole();
+        var yagonaRahbar = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
+        ActingAs(yagonaRahbar);
 
-        var actor = YangiFoydalanuvchi("905000000", "Boshqa Amaldor");
-        ActingAs(actor);
-
-        var yagonaAdmin = YangiFoydalanuvchi("905088888", "Тошматов Акбар");
-        yagonaAdmin.AssignRole(adminRole.Id);
-
-        _users.GetByIdAsync(yagonaAdmin.Id, Arg.Any<CancellationToken>()).Returns(yagonaAdmin);
-        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([adminRole]);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([yagonaAdmin]);
+        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([yagonaRahbar]);
 
         var natija = await Handler.HandleAsync(
-            new DeactivateUserCommand(yagonaAdmin.Id),
+            new DeactivateUserCommand(yagonaRahbar.Id),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("foydalanuvchi.oxirgi_administrator");
-        yagonaAdmin.IsActive.ShouldBeTrue();
+        yagonaRahbar.IsActive.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Ikkinchi_administrator_muvaffaqiyatli_faolsizlantiriladi()
+    public async Task Super_administrator_bosh_rahbarni_faolsizlantira_oladi()
     {
-        var adminRole = AdminRole();
+        var acting = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
+        ActingAs(acting);
 
-        var actor = YangiFoydalanuvchi("905000000", "Boshqa Amaldor");
-        ActingAs(actor);
-
-        var birinchiAdmin = YangiFoydalanuvchi("905088888", "Тошматов Акбар");
-        birinchiAdmin.AssignRole(adminRole.Id);
-        var ikkinchiAdmin = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
-        ikkinchiAdmin.AssignRole(adminRole.Id);
-
-        _users.GetByIdAsync(ikkinchiAdmin.Id, Arg.Any<CancellationToken>()).Returns(ikkinchiAdmin);
-        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([adminRole]);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([birinchiAdmin, ikkinchiAdmin]);
+        var boshRahbar = Mavjud("905011111", "Rahimov Sardor", _mainBossRole);
+        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, boshRahbar]);
 
         var natija = await Handler.HandleAsync(
-            new DeactivateUserCommand(ikkinchiAdmin.Id),
+            new DeactivateUserCommand(boshRahbar.Id),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
-        ikkinchiAdmin.IsActive.ShouldBeFalse();
+        boshRahbar.IsActive.ShouldBeFalse();
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Bosh_rahbar_super_administratorni_faolsizlantira_olmaydi()
+    {
+        var acting = Mavjud("905011111", "Rahimov Sardor", _mainBossRole);
+        ActingAs(acting);
+
+        var superAdmin = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
+        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, superAdmin]);
+
+        var natija = await Handler.HandleAsync(
+            new DeactivateUserCommand(superAdmin.Id),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.rolga_haqqi_yoq");
+        superAdmin.IsActive.ShouldBeTrue();
     }
 
     [Fact]
     public async Task Hr_menejerini_faolsizlantirish_cheklovsiz_utadi()
     {
-        var actor = YangiFoydalanuvchi("905000000", "Boshqa Amaldor");
-        ActingAs(actor);
+        var acting = Mavjud("905011111", "Rahimov Sardor", _mainBossRole);
+        ActingAs(acting);
 
-        var hrRole = Role.Create(SystemRoles.HrManager, "HR menejeri", isSystem: true).Value;
-        var hrUser = YangiFoydalanuvchi("905088877", "Каримов Жасур");
-        hrUser.AssignRole(hrRole.Id);
-
-        _users.GetByIdAsync(hrUser.Id, Arg.Any<CancellationToken>()).Returns(hrUser);
-        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([hrRole]);
+        var hrUser = Mavjud("905088877", "Каримов Жасур", _hrRole);
+        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, hrUser]);
 
         var natija = await Handler.HandleAsync(
             new DeactivateUserCommand(hrUser.Id),
@@ -133,8 +143,8 @@ public sealed class DeactivateUserCommandHandlerTests
     [Fact]
     public async Task Mavjud_bolmagan_foydalanuvchi_topilmadi_xatosini_beradi()
     {
-        var actor = YangiFoydalanuvchi("905000000", "Boshqa Amaldor");
-        ActingAs(actor);
+        var acting = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
+        ActingAs(acting);
 
         var yoqId = Guid.CreateVersion7();
         _users.GetByIdAsync(yoqId, Arg.Any<CancellationToken>()).Returns((User?)null);

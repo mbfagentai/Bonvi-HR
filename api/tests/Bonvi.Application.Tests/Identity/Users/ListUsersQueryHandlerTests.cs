@@ -22,27 +22,27 @@ public sealed class ListUsersQueryHandlerTests
     }
 
     [Fact]
-    public async Task Royxat_rol_kodlari_va_nomlari_bilan_qaytadi()
+    public async Task Royxat_rol_kodi_va_nomi_bilan_qaytadi()
     {
-        var adminRole = Role.Create(SystemRoles.Admin, "Administrator", isSystem: true).Value;
-        var admin = YangiFoydalanuvchi("905088888", "Тошматов Акбар");
-        admin.AssignRole(adminRole.Id);
+        var superAdminRole = Role.Create(SystemRoles.SuperAdmin, "Super administrator", isSystem: true).Value;
+        var superAdmin = YangiFoydalanuvchi("905088888", "Тошматов Акбар");
+        superAdmin.SetRole(superAdminRole.Id);
 
         var hrRole = Role.Create(SystemRoles.HrManager, "HR menejeri", isSystem: true).Value;
         var hr = YangiFoydalanuvchi("905088877", "Каримов Жасур");
-        hr.AssignRole(hrRole.Id);
+        hr.SetRole(hrRole.Id);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([admin, hr]);
-        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([adminRole, hrRole]);
+        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([superAdmin, hr]);
+        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([superAdminRole, hrRole]);
 
         var natija = await Handler.HandleAsync(TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Count.ShouldBe(2);
 
-        var adminDto = natija.Value.Single(dto => dto.Login == "+998905088888");
-        adminDto.RoleCodes.ShouldContain(SystemRoles.Admin);
-        adminDto.RoleNames.ShouldContain("Administrator");
+        var superAdminDto = natija.Value.Single(dto => dto.Login == "+998905088888");
+        superAdminDto.RoleCode.ShouldBe(SystemRoles.SuperAdmin);
+        superAdminDto.RoleName.ShouldBe("Super administrator");
 
         // Parol yoki uning xeshi DTO'da umuman yo'q — tip darajasida kafolatlangan
         var hasPasswordField = typeof(Bonvi.Application.Identity.Users.Dtos.UserSummaryDto)
@@ -50,6 +50,31 @@ public sealed class ListUsersQueryHandlerTests
             .Any(p => p.Name.Contains("password", StringComparison.OrdinalIgnoreCase));
 
         hasPasswordField.ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// Ro'yxatda rasm KALITI bo'lishi shart: usiz interfeys har bir qator
+    /// uchun keraksiz 404 so'rov yuborardi.
+    /// </summary>
+    [Fact]
+    public async Task Royxatda_rasm_kaliti_qaytadi()
+    {
+        var hrRole = Role.Create(SystemRoles.HrManager, "HR menejeri", isSystem: true).Value;
+
+        var rasmli = YangiFoydalanuvchi("905088877", "Каримов Жасур");
+        rasmli.SetRole(hrRole.Id);
+        rasmli.SetPhoto("users/rasm.jpg");
+
+        var rasmsiz = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
+        rasmsiz.SetRole(hrRole.Id);
+
+        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([rasmli, rasmsiz]);
+        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([hrRole]);
+
+        var natija = await Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        natija.Value.Single(dto => dto.Login == "+998905088877").PhotoKey.ShouldBe("users/rasm.jpg");
+        natija.Value.Single(dto => dto.Login == "+998905011111").PhotoKey.ShouldBeNull();
     }
 
     [Fact]

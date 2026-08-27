@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Application.Identity.Users.Dtos;
 using Bonvi.Domain.Abstractions;
@@ -21,17 +22,17 @@ namespace Bonvi.Application.Identity.Users.Commands.CreateUser;
 /// shaxsan (og'zaki yoki xizmat orqali) yetkazadi. Tizim uni hech qayerga
 /// yubormaydi va javobda qaytarmaydi.
 /// </param>
-/// <param name="RoleCodes">Biriktiriladigan rol kodlari (masalan <c>["hr_manager"]</c>).</param>
+/// <param name="RoleCode">Biriktiriladigan rol kodi (masalan <c>"hr_manager"</c>).</param>
 public sealed record CreateUserCommand(
     string? Login,
     string? LastName,
     string? FirstName,
     string? MiddleName,
     string? Password,
-    IReadOnlyList<string>? RoleCodes);
+    string? RoleCode);
 
 /// <summary>
-/// Yangi hisob yaratadi va unga bitta yoki bir nechta rol biriktiradi.
+/// Yangi hisob yaratadi va unga YAGONA rol biriktiradi.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -49,9 +50,16 @@ public sealed record CreateUserCommand(
 /// hammasi administratorga ma'lum. Talab qo'shilsa, yangi holat maydoni,
 /// alohida oqim va test kerak bo'lardi — foyda esa deyarli sezilmaydi.
 /// </para>
+/// <para>
+/// <b>Ikkita rol qoidasi</b> (<see cref="UserRoleRules"/>): so'rovchi shu
+/// rolni umuman BERA oladimi (bosh rahbar faqat HR menejer yarata oladi) va
+/// bu rolning egasi allaqachon bormi («atigi bitta»). Ikkalasi ham
+/// <c>users.manage</c> ruxsatidan MUSTAQIL: ruxsat ikkala rahbarda ham bor.
+/// </para>
 /// </remarks>
 public sealed class CreateUserCommandHandler
 {
+    private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
     private readonly IPasswordHasher _hasher;
@@ -59,12 +67,14 @@ public sealed class CreateUserCommandHandler
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateUserCommandHandler(
+        ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
         IPasswordHasher hasher,
         IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
+        _currentUser = currentUser;
         _users = users;
         _roles = roles;
         _hasher = hasher;
@@ -77,6 +87,12 @@ public sealed class CreateUserCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        var acting = await CurrentAccount.LoadAsync(_currentUser, _users, cancellationToken).ConfigureAwait(false);
+        if (acting.IsFailure)
+        {
+            return acting.Error;
+        }
 
         var loginResult = PhoneNumber.Create(command.Login);
         if (loginResult.IsFailure)
@@ -96,12 +112,21 @@ public sealed class CreateUserCommandHandler
             return passwordCheck.Error;
         }
 
-        var rolesResult = await RoleResolver.ResolveAsync(_roles, command.RoleCodes, cancellationToken)
-            .ConfigureAwait(false);
+        var roles = await _roles.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
-        if (rolesResult.IsFailure)
+        var roleResult = RoleResolver.Resolve(roles, command.RoleCode);
+        if (roleResult.IsFailure)
         {
-            return rolesResult.Error;
+            return roleResult.Error;
+        }
+
+        var role = roleResult.Value;
+
+        // ---------- Kim kimga rol bera oladi ----------
+        var allowed = UserRoleRules.EnsureCanAssign(acting.Value, role, roles);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
         }
 
         var taken = await _users.LoginExistsAsync(loginResult.Value, exceptUserId: null, cancellationToken)
@@ -112,6 +137,20 @@ public sealed class CreateUserCommandHandler
             return UserErrors.LoginTaken;
         }
 
+        // ---------- «Atigi bitta» ----------
+        // Ro'yxat faqat shu qoida kerak bo'lganda so'raladi: HR menejer
+        // yaratishda (eng ko'p uchraydigan holat) qo'shimcha so'rov ketmaydi.
+        if (SystemRoles.SingleHolder.Contains(role.Code))
+        {
+            var allUsers = await _users.ListAsync(cancellationToken).ConfigureAwait(false);
+
+            var single = UserRoleRules.EnsureSingleHolder(role, allUsers, exceptUserId: null);
+            if (single.IsFailure)
+            {
+                return single.Error;
+            }
+        }
+
         var userResult = User.Create(loginResult.Value, _hasher.Hash(command.Password!), nameResult.Value);
         if (userResult.IsFailure)
         {
@@ -119,12 +158,7 @@ public sealed class CreateUserCommandHandler
         }
 
         var user = userResult.Value;
-        var roles = rolesResult.Value;
-
-        foreach (var role in roles)
-        {
-            user.AssignRole(role.Id);
-        }
+        user.SetRole(role.Id);
 
         _users.Add(user);
 
@@ -137,7 +171,7 @@ public sealed class CreateUserCommandHandler
             {
                 login = user.Login.Value,
                 fullName = user.FullName.Full,
-                roles = roles.Select(r => r.Code).OrderBy(c => c, StringComparer.Ordinal),
+                role = role.Code,
             }));
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

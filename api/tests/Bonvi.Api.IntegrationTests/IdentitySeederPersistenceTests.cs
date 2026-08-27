@@ -97,19 +97,22 @@ public sealed class IdentitySeederPersistenceTests : IClassFixture<BonviApiFacto
         yangilangan.Permissions.Count.ShouldBe(SystemRoles.Defaults[SystemRoles.HrManager].Permissions.Length);
     }
 
-    [Fact]
-    public async Task Administrator_roli_hech_qachon_toliqsiz_qolmaydi()
+    [Theory]
+    [InlineData(SystemRoles.SuperAdmin)]
+    [InlineData(SystemRoles.MainBoss)]
+    public async Task Rahbariyat_roli_hech_qachon_toliqsiz_qolmaydi(string kod)
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // Domen qoidasi admin rolidan Grant/Revoke orqali ruxsat olib tashlashni
-        // taqiqlaydi (Role.Revoke) — shu sababli haqiqiy hodisadagi "eski bazani"
-        // qayta hosil qilish uchun to'g'ridan-to'g'ri SQL bilan buzamiz.
+        // Domen qoidasi rahbariyat rolidan Grant/Revoke orqali ruxsat olib
+        // tashlashni taqiqlaydi (Role.Revoke) — shu sababli haqiqiy hodisadagi
+        // "eski bazani" qayta hosil qilish uchun to'g'ridan-to'g'ri SQL bilan buzamiz.
         await kontekst.Database.ExecuteSqlRawAsync(
-            "UPDATE roles SET permissions = ARRAY['employees.view']::text[] WHERE code = 'admin'",
+            "UPDATE roles SET permissions = ARRAY['employees.view']::text[] WHERE code = {0}",
+            [kod],
             bekorQilish);
 
         // EF keshi bilan bazani mos holatga keltirish uchun kuzatuvni tozalaymiz —
@@ -120,13 +123,86 @@ public sealed class IdentitySeederPersistenceTests : IClassFixture<BonviApiFacto
 
         var yangilangan = await kontekst.Roles
             .AsNoTracking()
-            .SingleAsync(r => r.Code == SystemRoles.Admin, bekorQilish);
+            .SingleAsync(r => r.Code == kod, bekorQilish);
 
         yangilangan.Permissions.Count.ShouldBe(Permissions.All.Count);
         foreach (var ruxsat in Permissions.All)
         {
-            yangilangan.Has(ruxsat).ShouldBeTrue($"admin «{ruxsat}» ruxsatiga ega bo'lishi kerak edi");
+            yangilangan.Has(ruxsat).ShouldBeTrue($"«{kod}» «{ruxsat}» ruxsatiga ega bo'lishi kerak edi");
         }
+    }
+
+    /// <summary>
+    /// Ikki rolli modeldan qolgan <c>admin</c> roli <c>super_admin</c> ga
+    /// QAYTA NOMLANADI — foydalanuvchilardagi <c>role_ids</c> massiviga
+    /// tegilmagan holda.
+    /// </summary>
+    /// <remarks>
+    /// Bu test o'zining ALOHIDA bazasida ishlaydi: u rol jadvalini eski
+    /// modelga qaytaradi va umumiy bazada bu boshqa testlarga ta'sir qilardi.
+    /// </remarks>
+    [Fact]
+    public async Task Eski_admin_roli_super_admin_ga_kochiriladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var yakka = new BonviApiFactory();
+        await yakka.InitializeAsync();
+
+        // Fabrikani haqiqatan ko'taramiz — migratsiya va urug'lantirish o'tsin
+        using (var _ = yakka.CreateClient()) { }
+
+        await using var qamrov = yakka.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // "Eski baza" ni qayta hosil qilamiz: `super_admin` yana `admin` bo'ladi.
+        // To'g'ridan-to'g'ri SQL — `Code` domen darajasida faqat `Recode` orqali
+        // o'zgaradi, bu yerda esa aynan ko'chirishning O'ZI sinovdan o'tmoqda.
+        await kontekst.Database.ExecuteSqlRawAsync(
+            """UPDATE roles SET code = 'admin', name = 'Asosiy rahbar / Administrator' WHERE code = 'super_admin';""",
+            bekorQilish);
+
+        // Yangi modeldagi ikkinchi rolni ham olib tashlaymiz — eski bazada u yo'q edi
+        await kontekst.Database.ExecuteSqlRawAsync(
+            """DELETE FROM roles WHERE code = 'main_boss';""",
+            bekorQilish);
+
+        kontekst.ChangeTracker.Clear();
+
+        var eski = await kontekst.Roles.AsNoTracking().SingleAsync(r => r.Code == "admin", bekorQilish);
+        var eskiId = eski.Id;
+
+        // Boshlang'ich hisob hamon o'sha rolga bog'langan bo'lishi kerak
+        var hisob = await kontekst.Users
+            .AsNoTracking()
+            .SingleAsync(u => u.RoleIds.Contains(eskiId), bekorQilish);
+
+        await new IdentitySeeder(kontekst).SeedAsync(bekorQilish);
+
+        kontekst.ChangeTracker.Clear();
+
+        var kochirilgan = await kontekst.Roles
+            .AsNoTracking()
+            .SingleAsync(r => r.Code == SystemRoles.SuperAdmin, bekorQilish);
+
+        kochirilgan.Id.ShouldBe(eskiId, "rol identifikatori o'zgarmasligi kerak");
+        kochirilgan.Name.ShouldBe(SystemRoles.Defaults[SystemRoles.SuperAdmin].Name);
+        kochirilgan.Permissions.Count.ShouldBe(Permissions.All.Count);
+
+        // Eski kod umuman qolmasligi kerak
+        (await kontekst.Roles.AsNoTracking().AnyAsync(r => r.Code == SystemRoles.LegacyAdmin, bekorQilish))
+            .ShouldBeFalse();
+
+        // Yetishmayotgan uchinchi rol ham shu yerda yaratiladi
+        (await kontekst.Roles.AsNoTracking().AnyAsync(r => r.Code == SystemRoles.MainBoss, bekorQilish))
+            .ShouldBeTrue();
+
+        // Eng muhimi: hisob rolsiz qolmadi — u hamon o'sha identifikatorga bog'liq
+        var kochirilganHisob = await kontekst.Users
+            .AsNoTracking()
+            .SingleAsync(u => u.Id == hisob.Id, bekorQilish);
+
+        kochirilganHisob.RoleIds.ShouldContain(eskiId);
     }
 
     [Fact]

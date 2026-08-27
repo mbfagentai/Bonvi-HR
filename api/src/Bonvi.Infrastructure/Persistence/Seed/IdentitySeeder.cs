@@ -28,17 +28,25 @@ namespace Bonvi.Infrastructure.Persistence.Seed;
 /// <see cref="SystemRoles.Defaults"/> da ro'yxatda turgan rollarga tegiladi.
 /// Administrator qo'lda yaratgan (yoki tizim rolidan nusxa olib o'zgartirgan)
 /// har qanday boshqa rol — <c>IsSystem == false</c> — bu yerda umuman
-/// ko'rilmaydi. <c>admin</c> rolidan ruxsat olib tashlash esa bu yerda ham
+/// ko'rilmaydi. Rahbariyat rollaridan ruxsat olib tashlash esa bu yerda ham
 /// so'ralmaydi: <see cref="Role.Revoke"/> buni allaqachon domen qoidasi
-/// sifatida taqiqlaydi (administrator o'zini huquqsiz qoldira olmaydi),
-/// shu bilan birga <c>Defaults[Admin]</c> aynan <see cref="Permissions.All"/>
-/// bo'lgani uchun admin doim to'liq ro'yxatni oladi.
+/// sifatida taqiqlaydi (rahbariyat o'zini huquqsiz qoldira olmaydi),
+/// shu bilan birga <c>Defaults</c> ikkalasiga ham aynan
+/// <see cref="Permissions.All"/> berganidan ular doim to'liq ro'yxatni oladi.
+/// </para>
+/// <para>
+/// <b>Uch rolli modelga KO'CHIRISH ham shu yerda</b>
+/// (<see cref="Kochir"/>): allaqachon ishlab turgan bazadagi
+/// <c>admin</c> roli <c>super_admin</c> ga QAYTA NOMLANADI. Ko'chirishning
+/// tabiiy joyi aynan shu, chunki seeder allaqachon rol jadvalini kod bilan
+/// solishtirib turadi va u har ishga tushishda BIR MARTA, migratsiyalardan
+/// KEYIN bajariladi.
 /// </para>
 /// <para>
 /// Foydalanuvchi bu yerda yaratilmaydi: parol xeshlash Infrastructure'ning
 /// boshqa qismiga tegishli va urug'lantirishni parol siyosatiga bog'lab qo'yardi.
 /// Foydalanuvchilarning rol biriktirmalariga ham tegilmaydi — faqat rol
-/// ICHIDAGI ruxsatlar ro'yxati sinxronlanadi.
+/// ICHIDAGI ruxsatlar ro'yxati sinxronlanadi va (bir marta) rol kodi.
 /// </para>
 /// </remarks>
 public sealed class IdentitySeeder
@@ -59,8 +67,14 @@ public sealed class IdentitySeeder
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // Ko'chirish SINXRONLASHDAN OLDIN: qayta nomlangandan keyin eski rol
+        // `super_admin` kodi bilan topiladi va uning ruxsatlari o'sha yerda,
+        // umumiy yo'l bilan tekshiriladi. Teskari tartibda esa seeder ikkinchi
+        // `super_admin` yaratib qo'yardi.
+        var kochirildi = Kochir(mavjudRollar);
+
         var yangiRollar = new List<Role>();
-        var ozgardimi = false;
+        var ozgardimi = kochirildi;
 
         foreach (var (kod, tavsif) in SystemRoles.Defaults)
         {
@@ -100,14 +114,83 @@ public sealed class IdentitySeeder
     }
 
     /// <summary>
+    /// Ikki rolli modeldan uch rolliga BIR MARTALIK ko'chirish:
+    /// <c>admin</c> → <c>super_admin</c>.
+    /// </summary>
+    /// <returns>Ko'chirish bajarilgan bo'lsa — <c>true</c>.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega qayta nomlash, nega yangi rol emas.</b> Rolning
+    /// <c>Id</c> si o'zgarmasa, foydalanuvchilardagi
+    /// <c>role_ids</c> massivi ham tegilmaydi — hech kim bir lahzaga ham
+    /// rolsiz qolmaydi va <c>.env</c> dagi boshlang'ich hisob o'z huquqini
+    /// yo'qotmaydi. Yangi rol yaratilsa, har bir foydalanuvchi qatorini
+    /// qayta yozish kerak bo'lardi; ishga tushish paytida uzilish esa bir
+    /// qism hisoblarni ruxsatsiz qoldirardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega migratsiya emas.</b> Rol — ma'lumot, sxema emas (fayl
+    /// boshidagi izohga qarang). Migratsiyada <c>UPDATE roles SET code=…</c>
+    /// yozish mumkin edi, lekin u faqat MAVJUD bazalarga tegardi va yangi
+    /// bazada ma'nosiz qadam bo'lib qolardi. Seeder esa ikkala holatda ham
+    /// to'g'ri ishlaydi: yangi bazada <c>admin</c> umuman yo'q va bu metod
+    /// hech narsa qilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Nega faqat tizim roli.</b> Administrator qo'lda <c>admin</c> kodli
+    /// oddiy rol yaratgan bo'lsa (<c>IsSystem == false</c>), unga tegilmaydi
+    /// — u boshqa maqsad uchun. Ikkala kod bir vaqtda uchrasa (<c>admin</c>
+    /// ham, <c>super_admin</c> ham bor) ham ko'chirish bajarilmaydi: bu holat
+    /// faqat qo'lda aralashuvdan kelib chiqadi va uni jimgina «tuzatish»
+    /// ikkita rolni bir-biriga urib yuborardi. Eski rol o'z holicha qoladi,
+    /// <see cref="SystemRoles.Defaults"/> da yo'qligi uchun sinxronlashga
+    /// ham tushmaydi.
+    /// </para>
+    /// </remarks>
+    private static bool Kochir(List<Role> mavjudRollar)
+    {
+        var eski = mavjudRollar.Find(role =>
+            role.IsSystem && string.Equals(role.Code, SystemRoles.LegacyAdmin, StringComparison.Ordinal));
+
+        if (eski is null)
+        {
+            return false;
+        }
+
+        var yangiBor = mavjudRollar.Exists(role =>
+            string.Equals(role.Code, SystemRoles.SuperAdmin, StringComparison.Ordinal));
+
+        if (yangiBor)
+        {
+            return false;
+        }
+
+        var (nom, _) = SystemRoles.Defaults[SystemRoles.SuperAdmin];
+
+        var natija = eski.Recode(SystemRoles.SuperAdmin, nom);
+
+        if (natija.IsFailure)
+        {
+            // Kodda yozilgan qiymat rad etildi — bu dastur xatosi, ma'lumot
+            // xatosi emas. Jimgina o'tkazib yuborilsa, tizim eski rol bilan
+            // ishlab ketardi va sabab hech qayerda ko'rinmasdi.
+            throw new InvalidOperationException(
+                $"«{SystemRoles.LegacyAdmin}» roli «{SystemRoles.SuperAdmin}» ga ko'chirilmadi: {natija.Error}");
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Mavjud tizim rolining ruxsatlarini <paramref name="kerakli"/> ro'yxatga
     /// moslashtiradi: yetishmaganini qo'shadi, ortiqchasini olib tashlaydi.
     /// </summary>
     /// <returns>Biror ruxsat qo'shilgan yoki olib tashlangan bo'lsa — <c>true</c>.</returns>
     /// <remarks>
-    /// <c>admin</c> uchun olib tashlash amalda hech qachon sodir bo'lmaydi:
-    /// <see cref="Role.Revoke"/> uni domen qoidasi sifatida rad etadi — bu
-    /// yerda alohida tekshirilmaydi, natija shunchaki e'tiborsiz qoldiriladi.
+    /// Rahbariyat rollari (<see cref="SystemRoles.FullAccess"/>) uchun olib
+    /// tashlash amalda hech qachon sodir bo'lmaydi: <see cref="Role.Revoke"/>
+    /// uni domen qoidasi sifatida rad etadi — bu yerda alohida tekshirilmaydi,
+    /// natija shunchaki e'tiborsiz qoldiriladi.
     /// </remarks>
     private static bool Muvofiqlashtir(Role rol, IReadOnlyList<string> kerakli)
     {
@@ -137,7 +220,7 @@ public sealed class IdentitySeeder
         {
             if (rol.Revoke(ortiqcha).IsFailure)
             {
-                // Faqat admin uchun bloklanadi (Role.Revoke qoidasi) — xato emas.
+                // Faqat rahbariyat rollari uchun bloklanadi (Role.Revoke qoidasi) — xato emas.
                 continue;
             }
 

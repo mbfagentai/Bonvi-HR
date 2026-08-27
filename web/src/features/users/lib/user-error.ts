@@ -25,8 +25,17 @@ export const USER_ERROR_FIELD: Readonly<Record<string, string>> = {
   'telefon.mamlakat_kodi': 'phone',
   'telefon.operator': 'phone',
   'foydalanuvchi.login_band': 'phone',
-  'foydalanuvchi.rol_bosh': 'roleCodes',
-  'foydalanuvchi.rol_topilmadi': 'roleCodes',
+  'foydalanuvchi.rol_bosh': 'roleCode',
+  'foydalanuvchi.rol_topilmadi': 'roleCode',
+  // Uch rolli modelning qoidalari — hammasi ROL maydoniga tegishli:
+  // «bu rol egasiga huquqing yo'q», «bunday rahbar allaqachon bor»,
+  // «o'z rolingni o'zgartira olmaysan». Ularni umumiy blokda ko'rsatish
+  // foydalanuvchini «qayerda xato qildim?» degan savol bilan qoldirardi.
+  'foydalanuvchi.rolga_haqqi_yoq': 'roleCode',
+  'foydalanuvchi.super_admin_mavjud': 'roleCode',
+  'foydalanuvchi.bosh_rahbar_mavjud': 'roleCode',
+  'foydalanuvchi.oz_rolini_ozgartirish': 'roleCode',
+  'foydalanuvchi.oxirgi_administrator': 'roleCode',
   // Faqat parol maydoni bor formalarda uchraydi (yaratish, parol tiklash) —
   // qolganlarida `password` maydonining o'zi yo'q, xato umumiy blokka tushadi.
   'foydalanuvchi.parol_bosh': 'password',

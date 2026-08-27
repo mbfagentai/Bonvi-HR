@@ -5,7 +5,6 @@ import { formatFullPhone, useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   Alert,
-  Avatar,
   Badge,
   Button,
   Card,
@@ -20,10 +19,11 @@ import {
 import type { UserSummary } from '../api/users-api'
 import { useActivateUser, useUsers } from '../api/users-queries'
 import { userErrorCode } from '../lib/user-error'
-import { ADMIN_ROLE_CODE, USERS_MANAGE } from '../lib/user-presentation'
+import { LEADER_ROLE_CODES, USERS_MANAGE, canActOnRole, currentRoleCode } from '../lib/user-presentation'
 import { DeactivateUserDialog } from './deactivate-user-dialog'
 import { ResetPasswordDialog } from './reset-password-dialog'
 import { UserFormDialog } from './user-form-dialog'
+import { UserPhoto } from './user-photo'
 
 const helper = dataColumnHelper<UserSummary>()
 
@@ -31,16 +31,23 @@ const helper = dataColumnHelper<UserSummary>()
 const EMPTY: UserSummary[] = []
 
 /**
- * Foydalanuvchilarni boshqarish — faqat administrator.
+ * Foydalanuvchilarni boshqarish — faqat rahbariyat.
  *
  * <b>Nega ro'yxatda qidiruv, filtr va sahifalash yo'q.</b> Tizimdan
- * atigi bir necha kishi (bir necha HR menejeri va bosh rahbar)
- * foydalanadi — bu ekran ularning HAMMASINI bitta qarashda ko'rsatadi.
+ * atigi bir necha kishi (bir necha HR menejeri, bosh rahbar va super
+ * administrator) foydalanadi — bu ekran ularning HAMMASINI bitta qarashda
+ * ko'rsatadi.
  *
  * <b>Nega butun sahifa `users.manage` bilan o'ralgan.</b> `GET /api/users`
  * ning o'zi ham shu ruxsat bilan himoyalangan (`UserEndpoints.cs`): HR
  * menejeri bu ro'yxatni SERVERDAN OLA OLMAYDI, ya'ni bu yerda faqat
  * amallarni yashirish yetarli emas — butun kontent ruxsatga bog'liq.
+ *
+ * <b>Nega ro'yxat HAMMANI ko'rsatadi, hatto tegib bo'lmaydiganlarni ham.</b>
+ * Bosh rahbar super administratorni ko'radi, lekin unga tegishli tugmalar
+ * chizilmaydi. Yashirish yo'li yomonroq bo'lardi: «tizimda yana kim bor?»
+ * degan savolga javob berib bo'lmay qolardi va bosh rahbar o'zi ko'rmagan
+ * hisob bilan telefon raqami to'qnashganda sababni tushunmasdi.
  */
 export function UsersPage() {
   const { t, num, dateTime } = useLocale()
@@ -49,7 +56,18 @@ export function UsersPage() {
 
   const canManage = hasPermission(USERS_MANAGE)
 
-  const [editing, setEditing] = useState<UserSummary | null>(null)
+  /** So'rovchining o'z roli — «kim kimga tega oladi» qoidasining birinchi yarmi. */
+  const myRole = currentRoleCode(currentUser?.roles)
+
+  /**
+   * Tahrirlanayotgan hisob — nusxasi emas, IDENTIFIKATORI saqlanadi.
+   *
+   * NEGA: oynadagi rasm bloki ro'yxatni bekor qiladi (`useUploadUserPhoto`),
+   * ya'ni rasm yuklangach ro'yxat qayta keladi. Agar bu yerda qatorning
+   * NUSXASI turganida, oynadagi `photoKey` eski qiymatda qotib qolardi va
+   * yangi surat faqat oyna yopilib qayta ochilgandan keyin ko'rinardi.
+   */
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deactivating, setDeactivating] = useState<UserSummary | null>(null)
   const [resettingPassword, setResettingPassword] = useState<UserSummary | null>(null)
@@ -66,27 +84,35 @@ export function UsersPage() {
   const activate = useActivateUser()
 
   /**
-   * Tizimdagi faol administratorlar soni.
+   * Tizimdagi faol RAHBARLAR soni (super administrator + bosh rahbar).
    *
    * NEGA klientda hisoblanadi: butun ro'yxat allaqachon xotirada, server
-   * bilan yana bir so'rov almashish shart emas. Faqat OXIRGI faol
-   * administratorni himoya qilish uchun kerak — pastdagi `canDeactivate`ga
-   * qarang. Backend baribir o'zi ham tekshiradi (`foydalanuvchi.
-   * oxirgi_administrator`), bu yerdagi hisob faqat tugmani oldindan
-   * o'chirib, foydasiz so'rov-javobning oldini oladi.
+   * bilan yana bir so'rov almashish shart emas. Faqat OXIRGI faol rahbarni
+   * himoya qilish uchun kerak — pastdagi `isLastActiveLeader` ga qarang.
+   * Backend baribir o'zi ham tekshiradi (`foydalanuvchi.oxirgi_administrator`),
+   * bu yerdagi hisob faqat tugmani oldindan o'chirib, foydasiz so'rov-javobning
+   * oldini oladi.
    */
-  const activeAdminCount = useMemo(
-    () => rows.filter((row) => row.isActive && row.roleCodes.includes(ADMIN_ROLE_CODE)).length,
+  const activeLeaderCount = useMemo(
+    () =>
+      rows.filter((row) => row.isActive && row.roleCode !== null && LEADER_ROLE_CODES.includes(row.roleCode))
+        .length,
     [rows],
   )
 
+  /** Ro'yxatdagi JORIY holat — oyna doim eng so'nggi ma'lumotni ko'radi. */
+  const editing = useMemo(
+    () => rows.find((row) => row.id === editingId) ?? null,
+    [rows, editingId],
+  )
+
   const openCreate = () => {
-    setEditing(null)
+    setEditingId(null)
     setFormOpen(true)
   }
 
   const openEdit = (row: UserSummary) => {
-    setEditing(row)
+    setEditingId(row.id)
     setFormOpen(true)
   }
 
@@ -97,20 +123,30 @@ export function UsersPage() {
         /*
           Yagona moslashuvchan ustun (`minWidth`, boshqalari qat'iy `width`).
           Xrom: avatar (size="lg" = 48px) + oraliq (gap-3 = 12px) + katak
-          to'ldirishi (px-4 × 2 = 32px) = 92px. Qolgan 168px matnga: F.I.Sh.
+          to'ldirishi (px-4 × 2 = 32px) = 92px. Qolgan 208px matnga: F.I.Sh.
           bitta qatorda (`truncate-1`, uzuni kesiladi — to'lig'i `title`
           atributida), ostida telefon («+998 90 508 88 88», 17 belgi,
-          text-footnote 13px) — bemalol sig'adi. 260px — flags/xodimlar
-          ro'yxatidagi xuddi shu konstruksiya (rasm+ism, 300px) dan ozroq:
-          u yerda rasm HAQIQIY va kattaroq maydon talab qiladi, bu yerda
-          esa bosh harflar doim ikki belgi.
+          text-footnote 13px) — bemalol sig'adi. 300px — xodimlar
+          ro'yxatidagi xuddi shu konstruksiya bilan bir xil: u yerda ham
+          rasm HAQIQIY va ism yonida ko'proq joy talab qiladi.
         */
-        meta: { minWidth: '260px' },
+        meta: { minWidth: '300px' },
         cell: ({ row }) => {
           const item = row.original
           return (
             <div className="flex min-w-0 items-center gap-3">
-              <Avatar name={item.fullName} size="lg" />
+              {/*
+                Bosh harflar EMAS, haqiqiy rasm: `photoKey` bo'lsa u
+                baytlar bilan olinadi (`UserPhoto`). Kaliti yo'q hisob
+                uchun so'rov umuman yuborilmaydi va `Avatar` bosh harflarni
+                chizadi — ro'yxat behuda 404 so'rovlar yubormaydi.
+              */}
+              <UserPhoto
+                userId={item.id}
+                photoKey={item.photoKey}
+                name={item.fullName}
+                size="lg"
+              />
               <div className="min-w-0">
                 <p className="truncate-1 font-medium" title={item.fullName}>
                   {item.fullName}
@@ -128,24 +164,21 @@ export function UsersPage() {
         id: 'role',
         header: t('users.columnRole'),
         /*
-          190px − katak to'ldirishi (32px) = 158px matnga. Ikkita rol bor
-          (`user-presentation.ts`): «HR menejeri» (11 belgi, ~94px 15px
-          shriftda ~8.5px/belgi hisobida) TO'LIQ sig'adi. «Asosiy rahbar /
-          Administrator» (30 belgi, ~255px) kesiladi — bu qabul qilingan:
-          bu rolni FAQAT bitta odam (bosh rahbar) oladi, to'lig'i `title`
-          atributida turadi. Ustunni shu yagona uzun qatorga moslab
-          kengaytirish qolgan qatorlarning aksariyatida bo'sh joy
-          qoldirardi.
+          190px − katak to'ldirishi (32px) = 158px matnga. Uchala rol nomi
+          ham shunga sig'adi: «HR menejeri» (11 belgi), «Bosh rahbar»
+          (11 belgi), «Super administrator» (19 belgi, ~162px 15px shriftda
+          ~8.5px/belgi hisobida) — oxirgisi chegaraga tegib turadi va
+          zarurat bo'lsa kesiladi, to'lig'i esa `title` atributida.
         */
         meta: { width: '190px', hideOnMobile: true },
         cell: ({ row }) => {
-          const labels = row.original.roleCodes.map((code) => roleLabel(t, code))
-          if (labels.length === 0) return <span className="text-[var(--fg-tertiary)]">—</span>
+          const code = row.original.roleCode
+          if (code === null) return <span className="text-[var(--fg-tertiary)]">—</span>
 
-          const joined = labels.join(', ')
+          const label = roleLabel(t, code)
           return (
-            <span className="truncate-1 block text-[var(--fg-secondary)]" title={joined}>
-              {joined}
+            <span className="truncate-1 block text-[var(--fg-secondary)]" title={label}>
+              {label}
             </span>
           )
         },
@@ -201,17 +234,28 @@ export function UsersPage() {
         /*
           Ikkita ikonkali tugma (`icon-sm` = 32px har biri) + oraliq
           (gap-1.5 = 6px) = 70px + katak to'ldirishi (32px) = 102px,
-          kichik zaxira bilan 110px. Joriy foydalanuvchining o'z qatorida
-          birinchi tugma (faolsizlantirish) umuman chizilmaydi — bo'sh
-          joy qoladi, ustun kengligi o'zgarmaydi.
+          kichik zaxira bilan 110px. Tegib bo'lmaydigan qatorda tugmalar
+          umuman chizilmaydi — bo'sh joy qoladi, ustun kengligi o'zgarmaydi.
         */
         meta: { align: 'end', width: '110px' },
         cell: ({ row }) => {
           const item = row.original
           const isSelf = currentUser !== null && currentUser.id === item.id
 
-          const isLastActiveAdmin =
-            item.isActive && item.roleCodes.includes(ADMIN_ROLE_CODE) && activeAdminCount <= 1
+          /*
+            «Kim kimga tega oladi» — backend qoidasining ko'zgusi
+            (`canActOnRole`). Bosh rahbar super administratorning qatorida
+            hech qanday tugma ko'rmaydi: ularni ko'rsatib, keyin 403
+            qaytarish foydalanuvchini «nimadir buzilgan» degan xulosaga
+            olib borardi.
+          */
+          if (!canActOnRole(myRole, item.roleCode)) return null
+
+          const isLastActiveLeader =
+            item.isActive &&
+            item.roleCode !== null &&
+            LEADER_ROLE_CODES.includes(item.roleCode) &&
+            activeLeaderCount <= 1
 
           return (
             <span className="flex justify-end gap-1.5">
@@ -219,8 +263,7 @@ export function UsersPage() {
                 O'ZINI FAOLSIZLANTIRISH tugmasi shu qatorda umuman
                 ko'rsatilmaydi — backend buni 403 bilan baribir to'xtatadi
                 (`foydalanuvchi.ozini_blokash`), lekin tugmani ko'rsatib,
-                keyin xato qaytarish yomon tajriba (topshiriq shunday
-                talab qiladi).
+                keyin xato qaytarish yomon tajriba.
               */}
               {!isSelf && (
                 <Button
@@ -229,13 +272,13 @@ export function UsersPage() {
                   size="icon-sm"
                   title={
                     item.isActive
-                      ? isLastActiveAdmin
+                      ? isLastActiveLeader
                         ? errorMessage('foydalanuvchi.oxirgi_administrator')
                         : t('users.deactivate')
                       : t('users.activate')
                   }
                   aria-label={item.isActive ? t('users.deactivate') : t('users.activate')}
-                  disabled={item.isActive && isLastActiveAdmin}
+                  disabled={item.isActive && isLastActiveLeader}
                   onClick={(event) => {
                     // Qator bosilganda tahrirlash oynasi ochiladi — tugma buni to'xtatadi.
                     event.stopPropagation()
@@ -270,7 +313,7 @@ export function UsersPage() {
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, dateTime, errorMessage, currentUser, activeAdminCount, activate],
+    [t, dateTime, errorMessage, currentUser, myRole, activeLeaderCount, activate],
   )
 
   return (
@@ -345,7 +388,7 @@ export function UsersPage() {
 /**
  * Rol kodini joriy tilga o'giradi.
  *
- * Server `roleNames` ni ham qaytaradi, lekin u FAQAT o'zbek tilida
+ * Server `roleName` ni ham qaytaradi, lekin u FAQAT o'zbek tilida
  * (seed vaqtida yozilgan matn) — 4 tilli interfeysda ishlatib bo'lmaydi.
  * Shu sababli kod orqali `roles.<code>` tarjimasi ishlatiladi
  * (`settings-dialog.tsx` dagi bilan bir xil naqsh). Tarjimasi topilmasa —

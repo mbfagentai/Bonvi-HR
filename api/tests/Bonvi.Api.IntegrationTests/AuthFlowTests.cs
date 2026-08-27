@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Bonvi.Domain.Identity;
 
 namespace Bonvi.Api.IntegrationTests;
 
@@ -70,9 +71,11 @@ public sealed class AuthFlowTests : IClassFixture<BonviApiFactory>
         natija.AccessToken.ShouldNotBeNullOrWhiteSpace();
         natija.RefreshToken.ShouldNotBeNullOrWhiteSpace();
         natija.User.Login.ShouldBe("+998905088888");
-        natija.User.Roles.ShouldContain("admin");
+        // Boshlang'ich hisob SUPER ADMINISTRATOR: eski ikki rolli modeldagi
+        // «admin» endi shu kod bilan yuradi (`IdentitySeeder` ko'chiradi).
+        natija.User.Roles.ShouldContain(SystemRoles.SuperAdmin);
 
-        // Administrator barcha ruxsatlarga ega bo'lishi kerak
+        // Super administrator barcha ruxsatlarga ega bo'lishi kerak
         natija.User.Permissions.ShouldContain("employees.view");
         natija.User.Permissions.ShouldContain("salary.view");
         natija.User.Permissions.ShouldContain("users.manage");

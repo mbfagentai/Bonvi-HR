@@ -12,6 +12,8 @@
  * Backend uchun `./bonvi gen` ishga tushirilgach: shu fayl O'CHIRILADI,
  * `users-queries.ts` generatsiya qilingan hook'ga o'tkaziladi.
  */
+import axios from 'axios'
+
 import { api } from '@/shared/api/http-client'
 
 /**
@@ -36,15 +38,31 @@ export interface UserSummary {
    * bloklangan bo'lishi mumkin (parolni bir necha marta xato kiritish).
    */
   lockedUntil: string | null
-  /** Rol kodlari, masalan `['admin']`. So'rovlarda ham shu kod ishlatiladi. */
-  roleCodes: string[]
   /**
-   * Rol nomlari — serverda saqlangan, faqat o'zbek tilida (seed vaqtida
-   * yozilgan). Klient ularni KO'RSATISHDA ishlatmaydi: `roles.<code>`
-   * tarjimasi 4 tilda ham bor va joriy tilga mos keladi
-   * (`user-presentation.ts` ga qarang).
+   * Hisob rasmining saqlash kaliti; rasm yo'q bo'lsa `null`.
+   *
+   * Rasmning O'ZI emas, kaliti keladi — u kesh kaliti bo'lib xizmat qiladi
+   * (xuddi xodimlar ro'yxatidagi kabi): surat almashtirilsa kalit ham boshqa
+   * bo'ladi va eski nusxaga hech kim murojaat qilmaydi. Kalitsiz ro'yxat
+   * har bir qator uchun keraksiz 404 so'rov yuborardi.
    */
-  roleNames: string[]
+  photoKey: string | null
+  /**
+   * Rol kodi — AYNAN BITTA (`'hr_manager'`). So'rovlarda ham shu kod
+   * ishlatiladi.
+   *
+   * Ro'yxat emas: uch rolli modelda hisobda bittadan ortiq rol bo'lmaydi
+   * (`User.SetRole` izohiga qarang). Rol berilmagan eski yozuvda `null`
+   * bo'lishi mumkin — amalda bunday hisob yo'q.
+   */
+  roleCode: string | null
+  /**
+   * Rol nomi — serverda saqlangan, faqat o'zbek tilida (seed vaqtida
+   * yozilgan). Klient uni KO'RSATISHDA ishlatmaydi: `roles.<code>`
+   * tarjimasi 4 tilda ham bor va joriy tilga mos keladi
+   * (`users-page.tsx` dagi `roleLabel` ga qarang).
+   */
+  roleName: string | null
 }
 
 /** Yaratish va tahrirlashda umumiy maydonlar. */
@@ -54,8 +72,8 @@ export interface UserFormInput {
   lastName: string
   firstName: string
   middleName: string | null
-  /** Yangi TO'LIQ rol ro'yxati — eskisi ALMASHTIRILADI, qo'shilmaydi. */
-  roleCodes: string[]
+  /** Yangi rol kodi — eskisi ALMASHTIRILADI. */
+  roleCode: string
 }
 
 /** Yaratishda qo'shimcha — boshlang'ich parol. */
@@ -96,6 +114,56 @@ export async function resetUserPassword(id: string, newPassword: string): Promis
   await api.post(`/api/users/${id}/reset-password`, { newPassword })
 }
 
+/* ─────────────────────────────────────────────────────────── rasm */
+
+/**
+ * Foydalanuvchi rasmi — BAYTLAR, havola emas.
+ *
+ * NEGA `<img src="/api/…">` ishlamaydi: tizim `Authorization: Bearer`
+ * sarlavhasi bilan ishlaydi, cookie yo'q. Brauzer esa `<img>` so'roviga
+ * hech qanday sarlavha qo'sha olmaydi va server 401 qaytaradi. Shu sababli
+ * rasm oddiy so'rov bilan olinadi, ko'rsatish uchun esa `URL.createObjectURL`
+ * ishlatiladi (`useObjectUrl`) — xodim rasmidagi bilan aynan bir xil yo'l.
+ *
+ * `404` — XATO EMAS. U «bu hisobning rasmi yo'q» degani va `null` ga
+ * aylanadi: chaqiruvchi jimgina bosh harflarga qaytadi.
+ */
+export async function fetchUserPhoto(id: string, signal?: AbortSignal): Promise<Blob | null> {
+  try {
+    const { data } = await api.get<Blob>(`/api/users/${id}/photo`, {
+      responseType: 'blob',
+      signal,
+    })
+    return data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
+}
+
+/**
+ * Rasmni yuklash. Javobdagi yangi `photoKey` qaytariladi.
+ *
+ * `Content-Type` bu yerda QO'YILMAYDI va qo'yilmasligi kerak: axios uni
+ * `FormData` ni ko'rib o'zi yozadi va **chegara (boundary)** satrini ham
+ * qo'shadi. Sarlavhani qo'lda yozish chegarani yo'qotadi va server tanani
+ * ajrata olmay qoladi — sabab `http-client.ts` da batafsil.
+ */
+export async function uploadUserPhoto(id: string, file: File): Promise<string | null> {
+  const form = new FormData()
+  form.append('file', file)
+
+  const { data } = await api.post<unknown>(`/api/users/${id}/photo`, form)
+
+  const box = (data ?? {}) as Record<string, unknown>
+  return text(box['photoKey'])
+}
+
+/** Rasmni o'chirish. Server idempotent: rasm bo'lmasa ham `204` qaytaradi. */
+export async function deleteUserPhoto(id: string): Promise<void> {
+  await api.delete(`/api/users/${id}/photo`)
+}
+
 /* ─────────────────────────────────────────────────── xaritalash (map) */
 
 function toUser(raw: unknown): UserSummary {
@@ -109,8 +177,9 @@ function toUser(raw: unknown): UserSummary {
     isActive: box['isActive'] === true,
     lastLoginAt: text(box['lastLoginAt']),
     lockedUntil: text(box['lockedUntil']),
-    roleCodes: stringArray(box['roleCodes']),
-    roleNames: stringArray(box['roleNames']),
+    photoKey: text(box['photoKey']),
+    roleCode: text(box['roleCode']),
+    roleName: text(box['roleName']),
   }
 }
 
@@ -118,8 +187,4 @@ function text(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed === '' ? null : trimmed
-}
-
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 }

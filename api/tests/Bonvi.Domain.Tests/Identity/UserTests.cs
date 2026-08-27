@@ -121,27 +121,30 @@ public sealed class UserTests
 
     // ────────── Rollar ──────────
 
+    /// <summary>
+    /// «Bittadan ko'p rol bo'lmasin» — bu tekshiruv emas, KONSTRUKSIYA:
+    /// <c>SetRole</c> ro'yxatni avval tozalaydi.
+    /// </summary>
     [Fact]
-    public void Bir_xil_rol_ikki_marta_qoshilmaydi()
+    public void Hisobda_har_doim_aynan_bitta_rol_boladi()
     {
         var user = YaratilganFoydalanuvchi();
-        var roleId = Guid.CreateVersion7();
+        var birinchi = Guid.CreateVersion7();
+        var ikkinchi = Guid.CreateVersion7();
 
-        user.AssignRole(roleId);
-        user.AssignRole(roleId);
+        user.SetRole(birinchi);
+        user.SetRole(ikkinchi);
 
         user.RoleIds.Count.ShouldBe(1);
+        user.RoleId.ShouldBe(ikkinchi);
     }
 
     [Fact]
-    public void Rol_olib_tashlanadi()
+    public void Rol_berilmagan_hisobda_rol_bosh()
     {
         var user = YaratilganFoydalanuvchi();
-        var roleId = Guid.CreateVersion7();
-        user.AssignRole(roleId);
 
-        user.RemoveRole(roleId);
-
+        user.RoleId.ShouldBeNull();
         user.RoleIds.ShouldBeEmpty();
     }
 
@@ -187,49 +190,57 @@ public sealed class UserTests
         user.IsActive.ShouldBeFalse();
     }
 
+    /// <summary>
+    /// Uchala rol iyerarxik va foydalanuvchi boshqaruviga faqat rahbariyat
+    /// yetadi — ya'ni o'z rolini o'zgartirish HAR DOIM «o'zimni huquqdan
+    /// mahrum qilish» degani.
+    /// </summary>
     [Fact]
-    public void Ozidan_administrator_rolini_olib_tashlashga_urinish_rad_etiladi()
+    public void Oz_rolini_ozgartirishga_urinish_rad_etiladi()
     {
         var user = YaratilganFoydalanuvchi();
-        var adminRoleId = Guid.CreateVersion7();
-        user.AssignRole(adminRoleId);
+        var eskiRol = Guid.CreateVersion7();
+        var yangiRol = Guid.CreateVersion7();
+        user.SetRole(eskiRol);
 
-        var natija = user.RemoveRole(adminRoleId, user.Id, adminRoleId);
+        var natija = user.ChangeRole(yangiRol, user.Id);
 
         natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("foydalanuvchi.ozini_adminlikdan_chetlashtirish");
-        user.RoleIds.ShouldContain(adminRoleId, "rol qolishi kerak, hech narsa o'zgarmagan");
+        natija.Error.Code.ShouldBe("foydalanuvchi.oz_rolini_ozgartirish");
+        user.RoleId.ShouldBe(eskiRol, "rol qolishi kerak, hech narsa o'zgarmagan");
+    }
+
+    /// <summary>
+    /// Rol O'ZGARMASA cheklov yo'q: aks holda o'z ismini yoki telefonini
+    /// tuzatish ham rad etilardi (forma rolni ham birga yuboradi).
+    /// </summary>
+    [Fact]
+    public void Oz_rolini_ozgarishsiz_qayta_yuborish_utadi()
+    {
+        var user = YaratilganFoydalanuvchi();
+        var rol = Guid.CreateVersion7();
+        user.SetRole(rol);
+
+        var natija = user.ChangeRole(rol, user.Id);
+
+        natija.IsSuccess.ShouldBeTrue();
+        user.RoleId.ShouldBe(rol);
     }
 
     [Fact]
-    public void Ozidan_admin_bolmagan_rolni_olib_tashlash_ruxsat_etiladi()
+    public void Boshqa_foydalanuvchining_rolini_ozgartirish_ruxsat_etiladi()
     {
         var user = YaratilganFoydalanuvchi();
-        var adminRoleId = Guid.CreateVersion7();
-        var hrRoleId = Guid.CreateVersion7();
-        user.AssignRole(adminRoleId);
-        user.AssignRole(hrRoleId);
+        var eskiRol = Guid.CreateVersion7();
+        var yangiRol = Guid.CreateVersion7();
+        var boshqaRahbar = Guid.CreateVersion7();
+        user.SetRole(eskiRol);
 
-        // O'zining hisobidan, lekin admin bo'lmagan rolni olib tashlaydi — bu xavfsiz
-        var natija = user.RemoveRole(hrRoleId, user.Id, adminRoleId);
-
-        natija.IsSuccess.ShouldBeTrue();
-        user.RoleIds.ShouldNotContain(hrRoleId);
-        user.RoleIds.ShouldContain(adminRoleId);
-    }
-
-    [Fact]
-    public void Boshqa_foydalanuvchidan_admin_rolini_olib_tashlash_ruxsat_etiladi()
-    {
-        var user = YaratilganFoydalanuvchi();
-        var adminRoleId = Guid.CreateVersion7();
-        var boshqaAdmin = Guid.CreateVersion7();
-        user.AssignRole(adminRoleId);
-
-        var natija = user.RemoveRole(adminRoleId, boshqaAdmin, adminRoleId);
+        var natija = user.ChangeRole(yangiRol, boshqaRahbar);
 
         natija.IsSuccess.ShouldBeTrue();
-        user.RoleIds.ShouldNotContain(adminRoleId);
+        user.RoleId.ShouldBe(yangiRol);
+        user.RoleIds.Count.ShouldBe(1, "eski rol ALMASHTIRILADI, qo'shilmaydi");
     }
 
     // ────────── Profil yangilash ──────────

@@ -15,8 +15,24 @@ namespace Bonvi.Application.Identity.Users.Dtos;
 /// <param name="IsActive">Hisob faolmi.</param>
 /// <param name="LastLoginAt">Oxirgi muvaffaqiyatli kirish vaqti.</param>
 /// <param name="LockedUntil">Ketma-ket xato urinishlar sababli bloklangan bo'lsa — shu vaqtgacha.</param>
-/// <param name="RoleCodes">Rol kodlari (masalan <c>["admin"]</c>).</param>
-/// <param name="RoleNames">Rol nomlari — interfeysda ko'rsatish uchun.</param>
+/// <param name="PhotoKey">
+/// Hisob rasmining saqlash kaliti; rasm yo'q bo'lsa <c>null</c>.
+/// Rasmning O'ZI emas, kaliti beriladi — xuddi <c>CurrentUserDto</c> va
+/// xodimlar ro'yxatidagi kabi: mijoz shu kalitni kesh belgisi sifatida
+/// ishlatadi va suratni alohida so'rov bilan oladi. Kalitsiz ro'yxat
+/// har bir qator uchun keraksiz 404 so'rov yuborardi.
+/// </param>
+/// <param name="RoleCode">
+/// Rol kodi (masalan <c>"hr_manager"</c>). Rol berilmagan yozuvda —
+/// <c>null</c>; amalda bunday hisob yo'q, lekin eski ma'lumot uchun
+/// shartnoma buni ko'tara oladi.
+/// </param>
+/// <param name="RoleName">
+/// Rol nomi — bazadagi (o'zbekcha) matn. Interfeys uni KO'RSATISHDA
+/// ishlatmaydi: 4 tilli tarjima <c>roles.&lt;code&gt;</c> kaliti orqali
+/// olinadi. Baribir qaytariladi — API'ni brauzerdan yoki Swagger'dan
+/// ko'rayotgan odam kodning nima ekanini darhol tushunishi uchun.
+/// </param>
 public sealed record UserSummaryDto(
     Guid Id,
     string Login,
@@ -25,5 +41,10 @@ public sealed record UserSummaryDto(
     bool IsActive,
     DateTimeOffset? LastLoginAt,
     DateTimeOffset? LockedUntil,
-    IReadOnlyList<string> RoleCodes,
-    IReadOnlyList<string> RoleNames);
+    string? PhotoKey,
+    string? RoleCode,
+    string? RoleName);
+
+/// <summary>Yuklangan foydalanuvchi rasmining saqlash kaliti.</summary>
+/// <param name="PhotoKey">Yangi kalit — mijoz uni kesh belgisi sifatida ishlatadi.</param>
+public sealed record UserPhotoDto(string PhotoKey);

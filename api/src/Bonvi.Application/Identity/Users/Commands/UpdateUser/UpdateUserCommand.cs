@@ -17,34 +17,44 @@ namespace Bonvi.Application.Identity.Users.Commands.UpdateUser;
 /// <param name="LastName">Familiya.</param>
 /// <param name="FirstName">Ism.</param>
 /// <param name="MiddleName">Otasining ismi (ixtiyoriy).</param>
-/// <param name="RoleCodes">Yangi to'liq rol ro'yxati — eskisi ALMASHTIRILADI, qo'shilmaydi.</param>
+/// <param name="RoleCode">Yangi rol kodi — eskisi ALMASHTIRILADI.</param>
 public sealed record UpdateUserCommand(
     Guid Id,
     string? Login,
     string? LastName,
     string? FirstName,
     string? MiddleName,
-    IReadOnlyList<string>? RoleCodes);
+    string? RoleCode);
 
 /// <summary>
-/// Ism, telefon va rollarni yangilaydi. Parol BU YERDA O'ZGARTIRILMAYDI —
+/// Ism, telefon va rolni yangilaydi. Parol BU YERDA O'ZGARTIRILMAYDI —
 /// buning uchun alohida «parolni tiklash» amali bor.
 /// </summary>
 /// <remarks>
-/// <para><b>Ikki xavfsizlik himoyasi:</b></para>
+/// <para><b>To'rtta himoya, to'rtta boshqa sabab:</b></para>
 /// <list type="number">
 ///   <item>
-///     <b>O'zini o'zi adminlikdan chetlashtirish.</b> Rol ro'yxatidan admin
-///     rolini olib tashlash <see cref="User.RemoveRole(Guid, Guid, Guid)"/>
-///     orqali amalga oshiriladi — bu domen metodi shu hisobning aynan o'zi
-///     ekanini tekshiradi va sof identifikator taqqoslashi bilan ishlaydi.
+///     <b>Kim kimga tega oladi.</b> Ikkita tekshiruv: nishonning JORIY roli
+///     (bosh rahbar super administratorni umuman ocha olmaydi) va YANGI rol
+///     (bosh rahbar HR menejerni super administratorga ko'tara olmaydi).
+///     Qoida <see cref="UserRoleRules"/> da, yagona nusxada.
 ///   </item>
 ///   <item>
-///     <b>Oxirgi administrator.</b> Admin roli olib tashlanayotgan bo'lsa,
-///     tizimda BOSHQA faol admin qolishi tekshiriladi. Bu tekshiruv domen
-///     darajasida bo'lishi MUMKIN EMAS: <see cref="User"/> agregati boshqa
+///     <b>«Atigi bitta».</b> Yangi rol super administrator yoki bosh rahbar
+///     bo'lsa, uning boshqa FAOL egasi bo'lmasligi kerak. Tahrirlanayotgan
+///     hisobning o'zi sanalmaydi — aks holda rolni o'zgartirmay ismini
+///     tuzatish ham rad etilardi.
+///   </item>
+///   <item>
+///     <b>Oxirgi rahbar.</b> Rahbariyat roli tushirilayotgan bo'lsa, tizimda
+///     BOSHQA faol rahbar qolishi tekshiriladi. Bu tekshiruv domen darajasida
+///     bo'lishi MUMKIN EMAS: <see cref="User"/> agregati boshqa
 ///     foydalanuvchilar haqida hech narsa bilmaydi (agregatlar bir-biridan
 ///     mustaqil) — shu sababli bu yerda, repozitoriy orqali bajariladi.
+///   </item>
+///   <item>
+///     <b>O'z rolini o'zgartirish.</b> <see cref="User.ChangeRole"/> — sof
+///     domen qoidasi, faqat identifikatorlarni taqqoslaydi.
 ///   </item>
 /// </list>
 /// </remarks>
@@ -109,86 +119,92 @@ public sealed class UpdateUserCommandHandler
             return UserErrors.LoginTaken;
         }
 
-        var rolesResult = await RoleResolver.ResolveAsync(_roles, command.RoleCodes, cancellationToken)
-            .ConfigureAwait(false);
+        var roles = await _roles.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
-        if (rolesResult.IsFailure)
+        var roleResult = RoleResolver.Resolve(roles, command.RoleCode);
+        if (roleResult.IsFailure)
         {
-            return rolesResult.Error;
+            return roleResult.Error;
         }
 
-        var newRoles = rolesResult.Value;
-        var allRoles = await _roles.GetAllAsync(cancellationToken).ConfigureAwait(false);
-        var roleById = allRoles.ToDictionary(role => role.Id);
-        var adminRoleId = allRoles.FirstOrDefault(role => role.Code == SystemRoles.Admin)?.Id ?? Guid.Empty;
+        var newRole = roleResult.Value;
 
-        var oldRoleIds = target.RoleIds.ToHashSet();
-        var newRoleIds = newRoles.Select(role => role.Id).ToHashSet();
-        var removingIds = oldRoleIds.Except(newRoleIds).ToList();
-        var addingIds = newRoleIds.Except(oldRoleIds).ToList();
+        // ---------- Kim kimga tega oladi ----------
+        // Ikki tomonlama: hozirgi rol egasiga ham, beriladigan yangi rolga ham.
+        var canTouch = UserRoleRules.EnsureCanActOn(acting.Value, target, roles);
+        if (canTouch.IsFailure)
+        {
+            return canTouch.Error;
+        }
 
-        // ---------- Oxirgi administratorni himoya qilish ----------
-        if (removingIds.Contains(adminRoleId))
+        var canAssign = UserRoleRules.EnsureCanAssign(acting.Value, newRole, roles);
+        if (canAssign.IsFailure)
+        {
+            return canAssign.Error;
+        }
+
+        var rolOzgardi = target.RoleId != newRole.Id;
+
+        // Foydalanuvchilar ro'yxati faqat rol HAQIQATAN o'zgarganda kerak —
+        // ism yoki telefonni tuzatish uchun butun jadvalni o'qish ortiqcha.
+        if (rolOzgardi)
         {
             var allUsers = await _users.ListAsync(cancellationToken).ConfigureAwait(false);
-            var anotherActiveAdmin = allUsers.Any(user =>
-                user.Id != target.Id && user.IsActive && user.RoleIds.Contains(adminRoleId));
 
-            if (!anotherActiveAdmin)
+            // ---------- «Atigi bitta» ----------
+            var single = UserRoleRules.EnsureSingleHolder(newRole, allUsers, exceptUserId: target.Id);
+            if (single.IsFailure)
             {
-                return UserErrors.LastAdminProtected;
+                return single.Error;
+            }
+
+            // ---------- Oxirgi rahbarni himoya qilish ----------
+            // Faqat rahbariyat roli TUSHIRILAYOTGANDA: yangi rol ham
+            // rahbariyatniki bo'lsa, boshqaruvchilar soni kamaymaydi.
+            if (!SystemRoles.FullAccess.Contains(newRole.Code))
+            {
+                var remains = UserRoleRules.EnsureManagerRemains(target, allUsers, roles);
+                if (remains.IsFailure)
+                {
+                    return remains.Error;
+                }
             }
         }
 
-        var oldSnapshot = SnapshotJson(target, oldRoleIds, roleById);
+        var oldSnapshot = SnapshotJson(target, roles);
 
-        // ---------- O'zini o'zi adminlikdan chetlashtirishdan himoya (domen) ----------
-        // Olib tashlash QO'SHISHDAN OLDIN: agar bu yerda rad etilsa, hisobga
-        // hech qanday o'zgarish tegmagan bo'lishi kerak (keyingi qo'shish
-        // qadamlari hali bajarilmagan).
-        foreach (var id in removingIds)
+        // ---------- O'z rolini o'zgartirishdan himoya (domen) ----------
+        // Rolni almashtirish ism/telefondan OLDIN: bu yerda rad etilsa,
+        // hisobga hech qanday o'zgarish tegmagan bo'lishi kerak.
+        var changed = target.ChangeRole(newRole.Id, acting.Value.Id);
+        if (changed.IsFailure)
         {
-            var removed = target.RemoveRole(id, acting.Value.Id, adminRoleId);
-            if (removed.IsFailure)
-            {
-                return removed.Error;
-            }
+            return changed.Error;
         }
 
         target.Rename(nameResult.Value);
         target.ChangeLogin(loginResult.Value);
-
-        foreach (var id in addingIds)
-        {
-            target.AssignRole(id);
-        }
 
         _auditLogger.Record(
             AuditAction.Update,
             "User",
             target.Id.ToString(),
             oldValues: oldSnapshot,
-            newValues: SnapshotJson(target, newRoleIds, roleById));
+            newValues: SnapshotJson(target, roles));
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return UserSummaryDtoFactory.Create(target, newRoles);
+        return UserSummaryDtoFactory.Create(target, roles);
     }
 
-    private static string SnapshotJson(
-        User user,
-        IReadOnlySet<Guid> roleIds,
-        Dictionary<Guid, Role> roleById)
+    /// <summary>Audit uchun holat nusxasi — parolsiz, faqat ko'rinadigan maydonlar.</summary>
+    private static string SnapshotJson(User user, IReadOnlyList<Role> roles)
     {
-        var roleCodes = roleIds
-            .Select(id => roleById.TryGetValue(id, out var role) ? role.Code : id.ToString())
-            .OrderBy(code => code, StringComparer.Ordinal);
-
         return JsonSerializer.Serialize(new
         {
             login = user.Login.Value,
             fullName = user.FullName.Full,
-            roles = roleCodes,
+            role = UserRoleRules.CodeOf(user, roles) ?? user.RoleId?.ToString(),
         });
     }
 }

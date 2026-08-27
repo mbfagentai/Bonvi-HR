@@ -81,7 +81,31 @@ public sealed class User : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Shu vaqtgacha kirish bloklangan.</summary>
     public DateTimeOffset? LockedUntil { get; private set; }
 
+    /// <summary>
+    /// Rol identifikatorlari — bazadagi ko'rinish (<c>role_ids uuid[]</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ro'yxat sifatida qoldirildi, lekin unga BITTADAN ORTIQ element
+    /// tushmaydi: yagona yozuvchi <see cref="SetRole"/> avval ro'yxatni
+    /// tozalaydi. «Bir nechta rol» imkoniyati ataylab yopildi — uch rol
+    /// o'zaro iyerarxik va ularni birlashtirish ma'nosiz («HR menejer +
+    /// super administrator» degan holat qoidalarni buzardi).
+    /// </para>
+    /// <para>
+    /// <b>Nega baribir ro'yxat.</b> Ustunni bitta <c>uuid</c> ga o'zgartirish
+    /// migratsiya, indeks va butun ruxsat yig'ish so'rovini qayta yozishni
+    /// talab qilardi — hech qanday yangi imkoniyat bermay. Eski bazada
+    /// ikkita rolli hisob uchrasa (yangi qoidadan oldin yaratilgan), u
+    /// hamon ishlaydi: ruxsatlar birlashtirib olinadi, <see cref="RoleId"/>
+    /// esa birinchisini beradi va hisob birinchi tahrirdan keyin bitta rolga
+    /// keltiriladi.
+    /// </para>
+    /// </remarks>
     public IReadOnlyList<Guid> RoleIds => _roleIds.AsReadOnly();
+
+    /// <summary>Foydalanuvchining YAGONA roli. Rol berilmagan bo'lsa — <c>null</c>.</summary>
+    public Guid? RoleId => _roleIds.Count == 0 ? null : _roleIds[0];
 
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
@@ -103,45 +127,57 @@ public sealed class User : AggregateRoot, IAuditable, ISoftDeletable
         return new User(NewId(), login, passwordHash, fullName);
     }
 
-    public void AssignRole(Guid roleId)
+    /// <summary>
+    /// Rolni o'rnatadi — eskisi ALMASHTIRILADI, qo'shilmaydi.
+    /// </summary>
+    /// <remarks>
+    /// «Bittadan ko'p rol bo'lmasin» qoidasi aynan shu yerda, konstruksiya
+    /// bilan qo'yilgan: tekshiruv emas, imkoniyatning O'ZI yo'q. Shu sababli
+    /// uni chetlab o'tadigan yo'l ham qolmagan — <c>AssignRole</c> /
+    /// <c>RemoveRole</c> juftligi ataylab olib tashlandi.
+    /// </remarks>
+    public void SetRole(Guid roleId)
     {
-        if (!_roleIds.Contains(roleId))
-        {
-            _roleIds.Add(roleId);
-        }
+        _roleIds.Clear();
+        _roleIds.Add(roleId);
     }
 
-    public void RemoveRole(Guid roleId) => _roleIds.Remove(roleId);
-
     /// <summary>
-    /// Roldan mahrum qiladi — O'ZINI O'ZI ADMINISTRATORLIKDAN
-    /// CHETLASHTIRISHDAN HIMOYA bilan.
+    /// Rolni almashtiradi — O'Z ROLINI O'ZGARTIRISHDAN HIMOYA bilan.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Foydalanuvchi boshqaruvi endpoint'lari uchun mo'ljallangan. Agar shu
-    /// hisobning o'zi (<paramref name="actingUserId"/> == <c>Id</c>)
-    /// aynan administrator rolidan (<paramref name="adminRoleId"/>) o'zini
-    /// mahrum qilishga urinsa — rad etiladi.
+    /// Foydalanuvchi boshqaruvi endpoint'lari uchun mo'ljallangan. Rol
+    /// haqiqatan O'ZGARAYOTGAN bo'lsa va bu hisobning o'zi
+    /// (<paramref name="actingUserId"/> == <c>Id</c>) shuni qilayotgan
+    /// bo'lsa — rad etiladi. Rol o'zgarmasa (masalan faqat ism yoki telefon
+    /// tahrirlanmoqda) hech qanday cheklov yo'q.
     /// </para>
     /// <para>
-    /// Nega muhim: aks holda administrator adashib (yoki ataylab) o'zidan
-    /// yagona huquqni olib tashlab, tizimga hech kim kira olmay qoladigan
-    /// holatga tushirib qo'yishi mumkin. Bu tekshiruv faqat identifikatorlar
-    /// taqqoslanadi — boshqa agregatga (masalan «yana nechta admin bor?»)
-    /// murojaat qilmaydi, shu sababli sof domen qoidasi.
+    /// <b>Nega har qanday o'zgarish taqiqlanadi, faqat "pastga tushish" emas.</b>
+    /// Uchala rol iyerarxik va foydalanuvchi boshqaruviga faqat rahbariyat
+    /// yetadi. Ya'ni o'z rolini o'zgartirish har doim «o'zimni huquqdan
+    /// mahrum qilish» degani va tizimga hech kim kira olmay qoladigan
+    /// holatga olib borishi mumkin. Bu tekshiruv faqat identifikatorlarni
+    /// taqqoslaydi — boshqa agregatga («yana nechta rahbar bor?») murojaat
+    /// qilmaydi, shu sababli sof domen qoidasi.
     /// </para>
     /// </remarks>
-    public Result RemoveRole(Guid roleId, Guid actingUserId, Guid adminRoleId)
+    public Result ChangeRole(Guid roleId, Guid actingUserId)
     {
-        if (Id == actingUserId && roleId == adminRoleId)
+        if (RoleId == roleId)
         {
-            return Error.Forbidden(
-                "foydalanuvchi.ozini_adminlikdan_chetlashtirish",
-                "O'zingizdan administrator rolini olib tashlay olmaysiz.");
+            return Result.Success();
         }
 
-        _roleIds.Remove(roleId);
+        if (Id == actingUserId)
+        {
+            return Error.Forbidden(
+                "foydalanuvchi.oz_rolini_ozgartirish",
+                "O'z rolingizni o'zgartira olmaysiz.");
+        }
+
+        SetRole(roleId);
         return Result.Success();
     }
 

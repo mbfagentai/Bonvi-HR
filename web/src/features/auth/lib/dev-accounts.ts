@@ -61,8 +61,8 @@ export function devAccounts(): DevAccount[] {
 
   return [
     {
-      label: trimmed(import.meta.env.VITE_DEV_LABEL) ?? 'Asosiy rahbar',
-      role: 'admin',
+      label: trimmed(import.meta.env.VITE_DEV_LABEL) ?? 'Super administrator',
+      role: 'super_admin',
       hint: 'Barcha ruxsatlar, jumladan foydalanuvchi boshqaruvi',
       login: adminLogin,
       password,

@@ -21,8 +21,16 @@ export const userFormSchema = z.object({
   lastName: z.string().trim().min(1, 'ism.familiya_bosh'),
   firstName: z.string().trim().min(1, 'ism.ism_bosh'),
   middleName: z.string().trim(),
-  /** Kamida bitta rol — bo'sh ro'yxatni server ham rad etadi. */
-  roleCodes: z.array(z.string()).min(1, 'foydalanuvchi.rol_bosh'),
+  /**
+   * AYNAN BITTA rol — bo'sh qiymatni server ham rad etadi
+   * («foydalanuvchi.rol_bosh»).
+   *
+   * Massiv emas: uch rolli modelda hisobda bittadan ortiq rol bo'lmaydi
+   * (`User.SetRole` izohiga qarang). Shu sababli forma ham bitta tanlov
+   * beradi — «HR menejer + super administrator» degan holat umuman
+   * yuzaga kelmaydi.
+   */
+  roleCode: z.string().trim().min(1, 'foydalanuvchi.rol_bosh'),
 })
 
 export type UserFormValues = z.infer<typeof userFormSchema>
@@ -80,7 +88,7 @@ function toLocalPhone(value: string): string {
  */
 export function toUserFormValues(user: UserSummary | null): UserFormValues {
   if (user === null) {
-    return { phone: '', lastName: '', firstName: '', middleName: '', roleCodes: [] }
+    return { phone: '', lastName: '', firstName: '', middleName: '', roleCode: '' }
   }
 
   const [lastName = '', firstName = '', ...rest] = user.fullName.split(' ')
@@ -90,6 +98,6 @@ export function toUserFormValues(user: UserSummary | null): UserFormValues {
     lastName,
     firstName,
     middleName: rest.join(' '),
-    roleCodes: [...user.roleCodes],
+    roleCode: user.roleCode ?? '',
   }
 }

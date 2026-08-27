@@ -70,13 +70,24 @@ public sealed class Role : AggregateRoot, IAuditable
         return Result.Success();
     }
 
+    /// <summary>
+    /// Ruxsatni olib tashlaydi — TO'LIQ huquqli rollardan tashqari.
+    /// </summary>
+    /// <remarks>
+    /// Ilgari cheklov faqat <c>admin</c> roliga tegishli edi; endi u
+    /// <see cref="SystemRoles.FullAccess"/> ro'yxatidagi HAR IKKALA rolga
+    /// (super administrator va bosh rahbar) tegishli. Sabab o'zgarmagan:
+    /// rahbariyat rolini ruxsatsiz qoldirish tizimni boshqarib bo'lmaydigan
+    /// holatga tushiradi — bunday holatdan chiqish yo'li esa faqat bazaga
+    /// qo'lda aralashish bo'lardi.
+    /// </remarks>
     public Result Revoke(string permission)
     {
-        if (IsSystem && Code == SystemRoles.Admin)
+        if (IsSystem && SystemRoles.FullAccess.Contains(Code))
         {
             return Error.Conflict(
                 "rol.admin_ozgartirilmaydi",
-                "Administrator rolidan ruxsat olib tashlab bo'lmaydi.");
+                "Rahbariyat rolidan ruxsat olib tashlab bo'lmaydi.");
         }
 
         _permissions.Remove(permission);
@@ -93,6 +104,43 @@ public sealed class Role : AggregateRoot, IAuditable
         }
 
         Name = name.Trim();
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Rolning KODINI va nomini almashtiradi — faqat bir martalik ko'chirish uchun.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bunday metod bor.</b> <see cref="Code"/> — rolning haqiqiy
+    /// identifikatori va odatda O'ZGARMAYDI (shu sababli qolgan hamma joyda
+    /// <c>private set</c>). Yagona istisno — model o'zgarishi: <c>admin</c>
+    /// roli uch rolli modelda <c>super_admin</c> ga aylanadi. Bu ishni
+    /// <c>IdentitySeeder</c> bajaradi.
+    /// </para>
+    /// <para>
+    /// <b>Nega yangi rol yaratib, foydalanuvchilarni ko'chirish emas.</b>
+    /// Rolning <see cref="Entity.Id"/> si o'zgarmasa, foydalanuvchilardagi
+    /// <c>role_ids</c> massivi ham tegilmaydi — hech kim bir lahzaga ham
+    /// rolsiz qolmaydi. Yangi rol yaratilsa, har bir foydalanuvchi qatorini
+    /// qayta yozish kerak bo'lardi va yarim yo'lda uzilish (masalan ishga
+    /// tushish paytida) bir qism hisoblarni ruxsatsiz qoldirardi.
+    /// </para>
+    /// </remarks>
+    public Result Recode(string? code, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return Error.Validation("rol.kod_bosh", "Rol kodi kiritilishi shart.");
+        }
+
+        var renamed = Rename(name);
+        if (renamed.IsFailure)
+        {
+            return renamed;
+        }
+
+        Code = code.Trim().ToLowerInvariant();
         return Result.Success();
     }
 }

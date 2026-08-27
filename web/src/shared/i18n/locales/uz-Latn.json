@@ -42,8 +42,9 @@
     "jobOffers": "Ish takliflari"
   },
   "roles": {
-    "admin": "Asosiy rahbar / Administrator",
-    "hr_manager": "HR menejeri"
+    "hr_manager": "HR menejeri",
+    "super_admin": "Super administrator",
+    "main_boss": "Bosh rahbar"
   },
   "settings": {
     "subtitle": "Hisobingiz va interfeys sozlamalari",
@@ -370,7 +371,6 @@
     "auth.kirilmagan": "Tizimga kirilmagan. Davom etish uchun qaytadan kiring.",
     "auth.token_qayta_ishlatildi": "Xavfsizlik sababli barcha sessiyalar yopildi. Qaytadan kiring.",
     "foydalanuvchi.parol_bosh": "Parol kiritilishi shart.",
-    "foydalanuvchi.ozini_adminlikdan_chetlashtirish": "O‘zingizdan administrator rolini olib tashlay olmaysiz.",
     "foydalanuvchi.ozini_blokash": "O‘zingizning hisobingizni faolsizlantira olmaysiz.",
     "foydalanuvchi.topilmadi": "Foydalanuvchi topilmadi — u o‘chirilgan bo‘lishi mumkin.",
     "foydalanuvchi.login_band": "Bu telefon raqami bilan foydalanuvchi allaqachon mavjud.",
@@ -509,7 +509,15 @@
     "baxtsiz_hodisa.lavozim_topilmadi": "Lavozim topilmadi — ro‘yxatdan boshqasini tanlang.",
     "baxtsiz_hodisa.masul_topilmadi": "Mas’ul xodim topilmadi — ro‘yxatdan boshqasini tanlang.",
     "hisobot.oy_notogri": "Oylar soni 1 dan 24 gacha bo‘lishi kerak.",
-    "eksport.juda_kop": "Tanlangan filtrga juda ko‘p yozuv mos keladi — eksport chegarasi 5000 ta. Filtrni toraytirib (masalan bo‘lim yoki holat bo‘yicha) qayta urinib ko‘ring."
+    "eksport.juda_kop": "Tanlangan filtrga juda ko‘p yozuv mos keladi — eksport chegarasi 5000 ta. Filtrni toraytirib (masalan bo‘lim yoki holat bo‘yicha) qayta urinib ko‘ring.",
+    "foydalanuvchi.rolga_haqqi_yoq": "Bu rol egasini boshqarishga huquqingiz yo‘q.",
+    "foydalanuvchi.super_admin_mavjud": "Tizimda faol super administrator allaqachon bor — ikkinchisi bo‘lishi mumkin emas.",
+    "foydalanuvchi.bosh_rahbar_mavjud": "Tizimda faol bosh rahbar allaqachon bor — ikkinchisi bo‘lishi mumkin emas.",
+    "foydalanuvchi.oz_rolini_ozgartirish": "O‘z rolingizni o‘zgartira olmaysiz.",
+    "foydalanuvchi.rasm_yoq": "Bu foydalanuvchining rasmi yo‘q.",
+    "foydalanuvchi.rasm_katta": "Rasm hajmi 10 MB dan oshmasligi kerak.",
+    "foydalanuvchi.rasm_turi": "Faqat JPEG, PNG yoki WebP rasmlari qabul qilinadi.",
+    "foydalanuvchi.rasm_yaroqsiz": "Fayl rasm emas yoki buzilgan."
   },
   "language": {
     "en": "English",
@@ -824,7 +832,7 @@
     "lockedUntil": "Xato urinishlar sababli {{date}} gacha vaqtincha bloklangan.",
     "newPassword": "Yangi parol",
     "newPasswordHint": "Kamida 8 belgi. Buni foydalanuvchiga shaxsan ayting — tizim uni hech qayerga yubormaydi.",
-    "noAccessText": "Bu bo‘lim faqat administratorga ochiq.",
+    "noAccessText": "Bu bo‘lim faqat rahbariyatga ochiq.",
     "noAccessTitle": "Bu yerga kirish huquqingiz yo‘q",
     "password": "Boshlang‘ich parol",
     "passwordHint": "Kamida 8 belgi. Buni yangi foydalanuvchiga shaxsan ayting — tizim uni hech qayerga yubormaydi.",
@@ -832,10 +840,12 @@
     "resetPasswordText": "«{{name}}» uchun yangi parol o‘rnatiladi. Bu amaldan so‘ng uning barcha joriy sessiyalari tugaydi — qurilmalarda qayta kirish talab qilinadi.",
     "resetPasswordTitle": "Parolni tiklash",
     "resettingPassword": "Tiklanmoqda…",
-    "roles": "Rollar",
-    "rolesHint": "Kamida bitta rol tanlanishi kerak.",
     "saving": "Saqlanmoqda…",
-    "subtitle": "{{n}} ta hisob"
+    "subtitle": "{{n}} ta hisob",
+    "role": "Rol",
+    "roleHint": "Har bir hisobda aynan bitta rol bo‘ladi.",
+    "rolePlaceholder": "Rolni tanlang",
+    "singleHolderHint": "Bu rolda tizimda faqat bitta faol hisob bo‘lishi mumkin. O‘rni band bo‘lsa, avval eskisini faolsizlantiring."
   },
   "reports": {
     "subtitle": "Kadrlar oqimi: qabul, ketish va shtat dinamikasi",

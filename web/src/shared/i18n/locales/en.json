@@ -42,8 +42,9 @@
     "jobOffers": "Job offers"
   },
   "roles": {
-    "admin": "Director / Administrator",
-    "hr_manager": "HR manager"
+    "hr_manager": "HR manager",
+    "super_admin": "Super administrator",
+    "main_boss": "Main boss"
   },
   "settings": {
     "subtitle": "Your account and interface settings",
@@ -370,7 +371,6 @@
     "auth.kirilmagan": "You are not signed in. Sign in again to continue.",
     "auth.token_qayta_ishlatildi": "All sessions were closed for security reasons. Please sign in again.",
     "foydalanuvchi.parol_bosh": "Password is required.",
-    "foydalanuvchi.ozini_adminlikdan_chetlashtirish": "You cannot remove the administrator role from yourself.",
     "foydalanuvchi.ozini_blokash": "You cannot deactivate your own account.",
     "foydalanuvchi.topilmadi": "User not found — the account may have been removed.",
     "foydalanuvchi.login_band": "A user with this phone number already exists.",
@@ -509,7 +509,15 @@
     "baxtsiz_hodisa.lavozim_topilmadi": "Position not found — choose another one from the list.",
     "baxtsiz_hodisa.masul_topilmadi": "Responsible employee not found — choose another one from the list.",
     "hisobot.oy_notogri": "The number of months must be between 1 and 24.",
-    "eksport.juda_kop": "Too many records match the selected filter — the export limit is 5,000. Narrow the filter (for example by department or status) and try again."
+    "eksport.juda_kop": "Too many records match the selected filter — the export limit is 5,000. Narrow the filter (for example by department or status) and try again.",
+    "foydalanuvchi.rolga_haqqi_yoq": "You do not have the right to manage an account with this role.",
+    "foydalanuvchi.super_admin_mavjud": "The system already has an active super administrator — there cannot be a second one.",
+    "foydalanuvchi.bosh_rahbar_mavjud": "The system already has an active main boss — there cannot be a second one.",
+    "foydalanuvchi.oz_rolini_ozgartirish": "You cannot change your own role.",
+    "foydalanuvchi.rasm_yoq": "This user has no photo.",
+    "foydalanuvchi.rasm_katta": "The photo must not be larger than 10 MB.",
+    "foydalanuvchi.rasm_turi": "Only JPEG, PNG or WebP images are accepted.",
+    "foydalanuvchi.rasm_yaroqsiz": "The file is not an image or is damaged."
   },
   "language": {
     "en": "English",
@@ -824,7 +832,7 @@
     "lockedUntil": "Temporarily locked after failed sign-in attempts, until {{date}}.",
     "newPassword": "New password",
     "newPasswordHint": "At least 8 characters. Tell it to the user in person — the system never sends it anywhere.",
-    "noAccessText": "This section is only available to the administrator.",
+    "noAccessText": "This section is available to management only.",
     "noAccessTitle": "You don't have access to this section",
     "password": "Initial password",
     "passwordHint": "At least 8 characters. Tell it to the new user in person — the system never sends it anywhere.",
@@ -832,10 +840,12 @@
     "resetPasswordText": "A new password will be set for “{{name}}”. After this, all of their current sessions end — signing in again will be required on every device.",
     "resetPasswordTitle": "Reset password",
     "resettingPassword": "Resetting…",
-    "roles": "Roles",
-    "rolesHint": "At least one role must be selected.",
     "saving": "Saving…",
-    "subtitle": "{{n}} accounts"
+    "subtitle": "{{n}} accounts",
+    "role": "Role",
+    "roleHint": "Every account has exactly one role.",
+    "rolePlaceholder": "Select a role",
+    "singleHolderHint": "Only one active account may hold this role. If the seat is taken, deactivate the previous holder first."
   },
   "reports": {
     "subtitle": "Employee turnover: hires, departures and headcount trend",

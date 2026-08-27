@@ -225,7 +225,7 @@ public sealed partial class DatabaseInitializer : IHostedService
                 continue;
             }
 
-            userResult.Value.AssignRole(role.Id);
+            userResult.Value.SetRole(role.Id);
             context.Users.Add(userResult.Value);
             created++;
 
@@ -283,13 +283,17 @@ public sealed partial class DatabaseInitializer : IHostedService
             return;
         }
 
+        // Boshlang'ich hisob SUPER ADMINISTRATOR bo'ladi — eski `admin`
+        // emas. Ikki rolli modeldan qolgan bazalarda o'sha rol allaqachon
+        // `super_admin` ga ko'chirilgan (`IdentitySeeder.Kochir`) va u
+        // seeder bu yerdan OLDIN ishlaydi, ya'ni kod bu yerda doim yangi.
         var adminRole = await context.Roles
-            .FirstOrDefaultAsync(r => r.Code == SystemRoles.Admin, cancellationToken)
+            .FirstOrDefaultAsync(r => r.Code == SystemRoles.SuperAdmin, cancellationToken)
             .ConfigureAwait(false);
 
         if (adminRole is null)
         {
-            LogAdminFailed("«admin» roli topilmadi");
+            LogAdminFailed("«super_admin» roli topilmadi");
             return;
         }
 
@@ -307,7 +311,7 @@ public sealed partial class DatabaseInitializer : IHostedService
         }
 
         var user = userResult.Value;
-        user.AssignRole(adminRole.Id);
+        user.SetRole(adminRole.Id);
 
         context.Users.Add(user);
 

@@ -1,5 +1,6 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
@@ -31,15 +32,21 @@ public sealed record ResetUserPasswordCommand(Guid Id, string? NewPassword);
 /// «barcha qurilmalardan chiqish»da ishlatilgani.
 /// </para>
 /// <para>
-/// <b>Nega ruxsat qo'shimcha tekshiruvsiz.</b> Bu amal
-/// <c>users.manage</c> ruxsati bilan himoyalangan (faqat admin), boshqa
-/// hech kim bu endpoint'ga umuman yeta olmaydi — HR menejeri boshqa HR
-/// menejerining parolini tiklay olmaydi, chunki uning bu ruxsati yo'q.
+/// <b>Nega ruxsatning O'ZI yetarli emas.</b> Ilgari <c>users.manage</c>
+/// faqat administratorda bor edi va boshqa tekshiruv kerak emasdi. Uch
+/// rolli modelda bu ruxsat bosh rahbarda ham bor — parolni tiklash esa
+/// hisobni EGALLAB OLISH bilan barobar (yangi parolni kiritgan odam biladi,
+/// eski sessiyalar esa bekor qilinadi). Ya'ni tekshiruvsiz bosh rahbar
+/// super administratorning parolini almashtirib, uning o'rniga kirib
+/// olardi. Shu sababli bu yerda ham <see cref="UserRoleRules.EnsureCanActOn"/>
+/// chaqiriladi — «kim kimga tega oladi» qoidasining o'sha yagona nusxasi.
 /// </para>
 /// </remarks>
 public sealed class ResetUserPasswordCommandHandler
 {
+    private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
+    private readonly IRoleRepository _roles;
     private readonly IRefreshTokenRepository _refreshTokens;
     private readonly IPasswordHasher _hasher;
     private readonly IAuditLogger _auditLogger;
@@ -47,14 +54,18 @@ public sealed class ResetUserPasswordCommandHandler
     private readonly IClock _clock;
 
     public ResetUserPasswordCommandHandler(
+        ICurrentUser currentUser,
         IUserRepository users,
+        IRoleRepository roles,
         IRefreshTokenRepository refreshTokens,
         IPasswordHasher hasher,
         IAuditLogger auditLogger,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
+        _currentUser = currentUser;
         _users = users;
+        _roles = roles;
         _refreshTokens = refreshTokens;
         _hasher = hasher;
         _auditLogger = auditLogger;
@@ -68,10 +79,25 @@ public sealed class ResetUserPasswordCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        var acting = await CurrentAccount.LoadAsync(_currentUser, _users, cancellationToken).ConfigureAwait(false);
+        if (acting.IsFailure)
+        {
+            return acting.Error;
+        }
+
         var target = await _users.GetByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
         if (target is null)
         {
             return UserErrors.NotFound;
+        }
+
+        // ---------- Kim kimga tega oladi ----------
+        var roles = await _roles.GetAllAsync(cancellationToken).ConfigureAwait(false);
+
+        var allowed = UserRoleRules.EnsureCanActOn(acting.Value, target, roles);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
         }
 
         var passwordCheck = PasswordPolicy.Validate(command.NewPassword);

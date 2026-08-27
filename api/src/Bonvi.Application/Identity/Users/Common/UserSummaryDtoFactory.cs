@@ -4,7 +4,7 @@ using Bonvi.Domain.Identity;
 namespace Bonvi.Application.Identity.Users.Common;
 
 /// <summary>
-/// <see cref="User"/> + uning rollarini <see cref="UserSummaryDto"/> ga o'giradi.
+/// <see cref="User"/> + uning rolini <see cref="UserSummaryDto"/> ga o'giradi.
 /// </summary>
 /// <remarks>
 /// Ro'yxat, yaratish va tahrirlash javoblarining HAMMASI bir xil ko'rinishni
@@ -17,10 +17,11 @@ internal static class UserSummaryDtoFactory
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(roles);
 
-        var assigned = roles
-            .Where(role => user.RoleIds.Contains(role.Id))
-            .OrderBy(role => role.Name, StringComparer.CurrentCulture)
-            .ToList();
+        // Rol topilmasligi mumkin (rolsiz eski yozuv) — bunda maydonlar
+        // `null` bo'lib qaytadi, javob esa baribir yaroqli qoladi.
+        var role = user.RoleId is { } roleId
+            ? roles.FirstOrDefault(item => item.Id == roleId)
+            : null;
 
         return new UserSummaryDto(
             user.Id,
@@ -30,7 +31,8 @@ internal static class UserSummaryDtoFactory
             user.IsActive,
             user.LastLoginAt,
             user.LockedUntil,
-            [.. assigned.Select(role => role.Code)],
-            [.. assigned.Select(role => role.Name)]);
+            user.PhotoKey,
+            role?.Code,
+            role?.Name);
     }
 }

@@ -106,11 +106,32 @@ public static class Permissions
 /// undan HR bo'limi xodimlari va asosiy rahbar foydalanadi.
 /// </para>
 /// <para>
-/// Shu sababli rollar atigi <b>ikkita</b>: asosiy rahbar va HR menejeri
-/// (uni bir necha kishi oladi). Bo'lim boshliqlari, xodimlar yoki alohida
-/// "operator" darajasi uchun rol ataylab yaratilmagan — kerak bo'lganda
-/// qo'shiladi, lekin ishlatilmaydigan rolni oldindan yaratish faqat
-/// chalkashlik beradi.
+/// Shu sababli rollar atigi <b>uchta</b> va ular O'ZARO IYERARXIK:
+/// </para>
+/// <list type="bullet">
+///   <item>
+///     <b><see cref="SuperAdmin"/></b> — tizim egasi. Barcha ruxsatlar.
+///     Tizimda ATIGI BITTA bo'ladi.
+///   </item>
+///   <item>
+///     <b><see cref="MainBoss"/></b> — bosh rahbar. RUXSATLAR bo'yicha super
+///     administrator bilan TENG (o'sha 21 ta ruxsat), farq faqat KIMNI
+///     boshqara olishida: bosh rahbar faqat HR menejerlarga tegadi. Bu farq
+///     ruxsat kodi bilan emas, use-case qoidasi bilan qo'yilgan (sababi
+///     <see cref="Permissions.UsersManage"/> ni ikkalasi ham olgani uchun —
+///     ya'ni «ruxsati bor, lekin kimga ishlatishi cheklangan»). U ham
+///     tizimda ATIGI BITTA bo'ladi.
+///   </item>
+///   <item>
+///     <b><see cref="HrManager"/></b> — kundalik kadrlar ishi. Bir necha
+///     kishi oladi. Yagona farqi — <see cref="Permissions.UsersManage"/>
+///     yo'q: hisob ochish va rol berish rahbariyatning ishi.
+///   </item>
+/// </list>
+/// <para>
+/// Bo'lim boshliqlari, xodimlar yoki alohida "operator" darajasi uchun rol
+/// ataylab yaratilmagan — kerak bo'lganda qo'shiladi, lekin ishlatilmaydigan
+/// rolni oldindan yaratish faqat chalkashlik beradi.
 /// </para>
 /// <para>
 /// Bu ro'yxat birinchi ishga tushirishda bazaga yoziladi (seed).
@@ -120,8 +141,14 @@ public static class Permissions
 /// </remarks>
 public static class SystemRoles
 {
-    /// <summary>Asosiy rahbar va tizim administratori. Barcha ruxsatlar.</summary>
-    public const string Admin = "admin";
+    /// <summary>Super administrator — tizim egasi. Barcha ruxsatlar, ATIGI BITTA hisob.</summary>
+    public const string SuperAdmin = "super_admin";
+
+    /// <summary>
+    /// Bosh rahbar. Ruxsatlari super administrator bilan bir xil, lekin
+    /// foydalanuvchi boshqaruvida faqat HR menejerlarga tegadi. ATIGI BITTA hisob.
+    /// </summary>
+    public const string MainBoss = "main_boss";
 
     /// <summary>
     /// HR menejeri. Butun kadrlar ishi, oylik ish haqi ham ko'rinadi.
@@ -129,10 +156,61 @@ public static class SystemRoles
     /// </summary>
     public const string HrManager = "hr_manager";
 
+    /// <summary>
+    /// Eski (uch rolli modelga o'tishdan oldingi) administrator roli kodi.
+    /// </summary>
+    /// <remarks>
+    /// Faqat KO'CHIRISH uchun mavjud: allaqachon ishlab turgan bazalarda
+    /// <c>admin</c> kodli rol bor va <c>.env</c> dagi boshlang'ich hisob
+    /// aynan shunga bog'langan. <c>IdentitySeeder</c> uni <see cref="SuperAdmin"/>
+    /// ga QAYTA NOMLAYDI — yangi rol yaratib, foydalanuvchilarni ko'chirib
+    /// o'tirmaydi (sababi seeder ichida batafsil). Yangi bazalarda bu kod
+    /// hech qachon paydo bo'lmaydi.
+    /// </remarks>
+    public const string LegacyAdmin = "admin";
+
+    /// <summary>
+    /// TO'LIQ huquqli rollar — ulardan ruxsat olib tashlab bo'lmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Nega ikkitasi ham: foydalanuvchi qarori bo'yicha bosh rahbar ruxsatlar
+    /// bo'yicha super administrator bilan TENG. Ularning farqi boshqa
+    /// o'lchamda (kimni boshqara oladi) va u bu yerda emas, use-case
+    /// qatlamida tekshiriladi.
+    /// </remarks>
+    public static readonly IReadOnlySet<string> FullAccess =
+        new HashSet<string>(StringComparer.Ordinal) { SuperAdmin, MainBoss };
+
+    /// <summary>
+    /// Tizimda ATIGI BITTA FAOL egasi bo'lishi mumkin bo'lgan rollar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ro'yxat <see cref="FullAccess"/> bilan hozircha aynan bir xil, lekin
+    /// ATAYLAB alohida turadi: bular ikki xil qoida. «To'liq huquq» — rolning
+    /// ruxsatlari haqida, «atigi bitta» — hisoblar soni haqida. Ular bir
+    /// ro'yxatga qo'shib yuborilsa, kelajakda biri o'zgarganda ikkinchisi
+    /// jimgina o'zgarib ketardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega faqat FAOL hisoblar sanaladi.</b> Odam almashadi: eski super
+    /// administrator yoki bosh rahbar ishdan ketsa, uning hisobi
+    /// faolsizlantiriladi va o'rniga yangisi qo'yiladi. Faolsizlarni ham
+    /// sanash tizimni «bu lavozim abadiy band» holatiga qulflab qo'yardi va
+    /// buni faqat bazaga qo'lda aralashib ochish mumkin bo'lardi.
+    /// </para>
+    /// </remarks>
+    public static readonly IReadOnlySet<string> SingleHolder =
+        new HashSet<string>(StringComparer.Ordinal) { SuperAdmin, MainBoss };
+
     public static IReadOnlyDictionary<string, (string Name, string[] Permissions)> Defaults { get; } =
         new Dictionary<string, (string, string[])>(StringComparer.Ordinal)
         {
-            [Admin] = ("Asosiy rahbar / Administrator", [.. Permissions.All]),
+            [SuperAdmin] = ("Super administrator", [.. Permissions.All]),
+
+            // Ruxsatlar ro'yxati super administratorniki bilan AYNAN bir xil —
+            // takrorlanmasin deb `Permissions.All` ikkalasiga ham beriladi.
+            [MainBoss] = ("Bosh rahbar", [.. Permissions.All]),
 
             [HrManager] = ("HR menejeri",
             [

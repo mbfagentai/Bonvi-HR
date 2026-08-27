@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading;
 using Bonvi.Domain.Auditing;
+using Bonvi.Domain.Identity;
 using Bonvi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +12,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Bonvi.Api.IntegrationTests;
 
 /// <summary>Foydalanuvchi (test uchun).</summary>
+/// <remarks>
+/// <c>RoleCode</c> — AYNAN BITTA (ro'yxat emas): uch rolli modelda hisobda
+/// bittadan ortiq rol bo'lmaydi. <c>PhotoKey</c> ham shu javobda: ro'yxat
+/// avatarni shu kalit bo'yicha so'raydi.
+/// </remarks>
 public sealed record UserSummaryResponse(
     Guid Id,
     string Login,
@@ -19,20 +25,33 @@ public sealed record UserSummaryResponse(
     bool IsActive,
     DateTimeOffset? LastLoginAt,
     DateTimeOffset? LockedUntil,
-    string[] RoleCodes,
-    string[] RoleNames);
+    string? PhotoKey,
+    string? RoleCode,
+    string? RoleName);
+
+/// <summary>Yuklangan foydalanuvchi rasmining kaliti (test uchun).</summary>
+public sealed record UserPhotoResponse(string PhotoKey);
 
 /// <summary>
 /// Foydalanuvchilarni boshqarish HTTP qatlamining uchi-uchiga testlari.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Haqiqiy PostgreSQL ustida ishlaydi. Testlar bitta bazani baham ko'radi,
 /// shu sababli har bir test o'ziga xos telefon raqami ishlatadi.
+/// </para>
+/// <para>
+/// <b>Rahbariyat holatiga bog'liq testlar O'Z bazasida ishlaydi.</b>
+/// «Atigi bitta» qoidasi butun tizim holatiga tegishli: umumiy bazada
+/// bitta test bosh rahbar yaratsa, keyingisi uni yarata olmay qolardi va
+/// natija testlar tartibiga bog'lanib qolardi.
+/// </para>
 /// </remarks>
 public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
 {
-    private static readonly string[] HrManagerRoleOnly = ["hr_manager"];
-    private static readonly string[] AdminRoleOnly = ["admin"];
+    private static readonly Uri UsersUri = new("/api/users", UriKind.Relative);
+    private static readonly Uri LoginUri = new("/api/auth/login", UriKind.Relative);
+    private static readonly Uri MeUri = new("/api/auth/me", UriKind.Relative);
 
     private static int _telefonSonagichi;
 
@@ -49,9 +68,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
     {
         using var client = _factory.CreateClient();
 
-        using var javob = await client.GetAsync(
-            new Uri("/api/users", UriKind.Relative),
-            TestContext.Current.CancellationToken);
+        using var javob = await client.GetAsync(UsersUri, TestContext.Current.CancellationToken);
 
         javob.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -59,29 +76,20 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
     [Fact]
     public async Task Users_manage_ruxsati_yoqligi_403_beradi()
     {
-        using var adminClient = await AdminMijozAsync();
-        using var hrClient = await HrManagerMijozAsync(adminClient);
+        using var adminClient = await AdminMijozAsync(_factory);
+        using var hrClient = await HrManagerMijozAsync(_factory, adminClient);
 
-        using var royxat = await hrClient.GetAsync(
-            new Uri("/api/users", UriKind.Relative),
-            TestContext.Current.CancellationToken);
+        using var royxat = await hrClient.GetAsync(UsersUri, TestContext.Current.CancellationToken);
 
         royxat.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
         using var yaratish = await hrClient.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
-            new
-            {
-                login = NoyobTelefon(),
-                lastName = "Familiya",
-                firstName = "Ism",
-                password = "Parol_12345",
-                roleCodes = HrManagerRoleOnly,
-            },
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.HrManager),
             TestContext.Current.CancellationToken);
 
         // HR menejer boshqa hech kimning hisobini yarata olmaydi — foydalanuvchi
-        // boshqaruvi butunlay administratorga tegishli
+        // boshqaruvi butunlay rahbariyatga tegishli
         yaratish.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
@@ -92,20 +100,20 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
     [Fact]
     public async Task Foydalanuvchining_toliq_hayot_sikli_ishlaydi()
     {
-        using var client = await AdminMijozAsync();
+        using var client = await AdminMijozAsync(_factory);
         var telefon = NoyobTelefon();
         const string boshlangichParol = "Boshlangich_Parol1";
 
         // 1. Yaratish
         using var yaratish = await client.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
+            UsersUri,
             new
             {
                 login = telefon,
                 lastName = "Каримов",
                 firstName = "Жасур",
                 password = boshlangichParol,
-                roleCodes = HrManagerRoleOnly,
+                roleCode = SystemRoles.HrManager,
             },
             TestContext.Current.CancellationToken);
 
@@ -116,14 +124,13 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
 
         yaratilgan.ShouldNotBeNull();
         yaratilgan.IsActive.ShouldBeTrue();
-        yaratilgan.RoleCodes.ShouldContain("hr_manager");
+        yaratilgan.RoleCode.ShouldBe(SystemRoles.HrManager);
+        yaratilgan.PhotoKey.ShouldBeNull("yangi hisobda rasm yo'q");
         // Parol javobda hech qachon qaytmasligi kerak
         (await MatnAsync(yaratish)).ShouldNotContain(boshlangichParol);
 
         // 2. Ro'yxatda ko'rinishi
-        using var royxat1 = await client.GetAsync(
-            new Uri("/api/users", UriKind.Relative),
-            TestContext.Current.CancellationToken);
+        using var royxat1 = await client.GetAsync(UsersUri, TestContext.Current.CancellationToken);
 
         var hammasi = await royxat1.Content.ReadFromJsonAsync<List<UserSummaryResponse>>(
             TestContext.Current.CancellationToken);
@@ -133,7 +140,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
 
         // 3. Yangi hisob bilan haqiqatan kirish mumkin
         using var yangiHisobKirish = await _factory.CreateClient().PostAsJsonAsync(
-            new Uri("/api/auth/login", UriKind.Relative),
+            LoginUri,
             new { login = telefon, password = boshlangichParol },
             TestContext.Current.CancellationToken);
 
@@ -142,7 +149,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
             TestContext.Current.CancellationToken);
         eskiSessiya.ShouldNotBeNull();
 
-        // 4. Tahrirlash — ism va rol o'zgaradi
+        // 4. Tahrirlash — ism o'zgaradi, rol o'sha
         using var tahrir = await client.PutAsJsonAsync(
             new Uri($"/api/users/{yaratilgan.Id}", UriKind.Relative),
             new
@@ -151,7 +158,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
                 lastName = "Каримов",
                 firstName = "Жасур",
                 middleName = "Baxtiyorovich",
-                roleCodes = HrManagerRoleOnly,
+                roleCode = SystemRoles.HrManager,
             },
             TestContext.Current.CancellationToken);
 
@@ -160,6 +167,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
             TestContext.Current.CancellationToken);
         tahrirlangan.ShouldNotBeNull();
         tahrirlangan.FullName.ShouldContain("Baxtiyorovich");
+        tahrirlangan.RoleCode.ShouldBe(SystemRoles.HrManager);
 
         // 5. Parolni tiklash — eski sessiya bekor bo'lishi kerak
         const string yangiParol = "Yangilangan_Parol1";
@@ -181,7 +189,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
 
         // Yangi parol bilan kirish ishlaydi
         using var yangiParolBilanKirish = await _factory.CreateClient().PostAsJsonAsync(
-            new Uri("/api/auth/login", UriKind.Relative),
+            LoginUri,
             new { login = telefon, password = yangiParol },
             TestContext.Current.CancellationToken);
 
@@ -196,7 +204,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
         faolsizlantirish.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(faolsizlantirish));
 
         using var faolsizKirish = await _factory.CreateClient().PostAsJsonAsync(
-            new Uri("/api/auth/login", UriKind.Relative),
+            LoginUri,
             new { login = telefon, password = yangiParol },
             TestContext.Current.CancellationToken);
 
@@ -211,7 +219,7 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
         faollashtirish.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         using var qaytaKirish = await _factory.CreateClient().PostAsJsonAsync(
-            new Uri("/api/auth/login", UriKind.Relative),
+            LoginUri,
             new { login = telefon, password = yangiParol },
             TestContext.Current.CancellationToken);
 
@@ -221,33 +229,19 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
     [Fact]
     public async Task Band_telefon_raqami_bilan_yaratish_409_qaytaradi()
     {
-        using var client = await AdminMijozAsync();
+        using var client = await AdminMijozAsync(_factory);
         var telefon = NoyobTelefon();
 
         using var birinchi = await client.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
-            new
-            {
-                login = telefon,
-                lastName = "Familiya",
-                firstName = "Ism",
-                password = "Parol_12345",
-                roleCodes = HrManagerRoleOnly,
-            },
+            UsersUri,
+            YangiHisob(telefon, SystemRoles.HrManager),
             TestContext.Current.CancellationToken);
 
         birinchi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(birinchi));
 
         using var ikkinchi = await client.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
-            new
-            {
-                login = telefon,
-                lastName = "Boshqa",
-                firstName = "Odam",
-                password = "Parol_12345",
-                roleCodes = HrManagerRoleOnly,
-            },
+            UsersUri,
+            YangiHisob(telefon, SystemRoles.HrManager),
             TestContext.Current.CancellationToken);
 
         ikkinchi.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -257,17 +251,17 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
     [Fact]
     public async Task Qisqa_parol_bilan_yaratish_400_qaytaradi()
     {
-        using var client = await AdminMijozAsync();
+        using var client = await AdminMijozAsync(_factory);
 
         using var javob = await client.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
+            UsersUri,
             new
             {
                 login = NoyobTelefon(),
                 lastName = "Familiya",
                 firstName = "Ism",
                 password = "qisqa",
-                roleCodes = HrManagerRoleOnly,
+                roleCode = SystemRoles.HrManager,
             },
             TestContext.Current.CancellationToken);
 
@@ -276,78 +270,338 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
     }
 
     // ────────────────────────────────────────────────────────────
-    //  O'zini o'zi bloklashdan va oxirgi administratordan himoya
+    //  Uch rolli model: «atigi bitta» va «kim kimga tega oladi»
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Boshlang'ich hisob super administrator — ikkinchisi bo'lishi mumkin emas.
+    /// </summary>
+    [Fact]
+    public async Task Ikkinchi_super_administrator_yaratilmaydi()
+    {
+        using var client = await AdminMijozAsync(_factory);
+
+        using var javob = await client.PostAsJsonAsync(
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.SuperAdmin),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(javob));
+        (await MatnAsync(javob)).ShouldContain("foydalanuvchi.super_admin_mavjud");
+    }
+
+    /// <summary>
+    /// Bosh rahbar ham BITTA bo'ladi, lekin o'rni bo'shatilsa — yangisi
+    /// qo'yiladi. «Atigi bitta» faqat FAOL hisoblarni sanaydi.
+    /// </summary>
+    [Fact]
+    public async Task Bosh_rahbar_bitta_boladi_ammo_almashtirilishi_mumkin()
+    {
+        await using var yakka = new BonviApiFactory();
+        await yakka.InitializeAsync();
+
+        using var client = await AdminMijozAsync(yakka);
+
+        // 1. Birinchi bosh rahbar — muvaffaqiyat
+        var birinchiTelefon = NoyobTelefon();
+        using var birinchi = await client.PostAsJsonAsync(
+            UsersUri,
+            YangiHisob(birinchiTelefon, SystemRoles.MainBoss),
+            TestContext.Current.CancellationToken);
+
+        birinchi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(birinchi));
+        var eski = await birinchi.Content.ReadFromJsonAsync<UserSummaryResponse>(
+            TestContext.Current.CancellationToken);
+        eski.ShouldNotBeNull();
+
+        // 2. Ikkinchisi — rad etiladi
+        using var ikkinchi = await client.PostAsJsonAsync(
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.MainBoss),
+            TestContext.Current.CancellationToken);
+
+        ikkinchi.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(ikkinchi));
+        (await MatnAsync(ikkinchi)).ShouldContain("foydalanuvchi.bosh_rahbar_mavjud");
+
+        // 3. Eskisi faolsizlantiriladi — lavozim bo'shaydi
+        using var faolsizlantirish = await client.PostAsync(
+            new Uri($"/api/users/{eski.Id}/deactivate", UriKind.Relative),
+            content: null,
+            TestContext.Current.CancellationToken);
+
+        faolsizlantirish.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(faolsizlantirish));
+
+        // 4. Endi yangisi qo'yiladi
+        using var yangisi = await client.PostAsJsonAsync(
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.MainBoss),
+            TestContext.Current.CancellationToken);
+
+        yangisi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yangisi));
+
+        // 5. Eskisini qaytarish endi mumkin emas — o'rni band
+        using var qaytarish = await client.PostAsync(
+            new Uri($"/api/users/{eski.Id}/activate", UriKind.Relative),
+            content: null,
+            TestContext.Current.CancellationToken);
+
+        qaytarish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(qaytarish));
+        (await MatnAsync(qaytarish)).ShouldContain("foydalanuvchi.bosh_rahbar_mavjud");
+    }
+
+    /// <summary>
+    /// Bosh rahbarda <c>users.manage</c> BOR (ekranga kiradi), lekin super
+    /// administratorga tegolmaydi — farq ruxsatda emas, so'rov mazmunida.
+    /// </summary>
+    [Fact]
+    public async Task Bosh_rahbar_super_administratorga_tegolmaydi()
+    {
+        await using var yakka = new BonviApiFactory();
+        await yakka.InitializeAsync();
+
+        using var adminClient = await AdminMijozAsync(yakka);
+
+        // Bosh rahbar hisobi va uning mijozi
+        var telefon = NoyobTelefon();
+        const string parol = "Bosh_Rahbar_1";
+
+        using (var yaratish = await adminClient.PostAsJsonAsync(
+            UsersUri,
+            new
+            {
+                login = telefon,
+                lastName = "Раҳимов",
+                firstName = "Сардор",
+                password = parol,
+                roleCode = SystemRoles.MainBoss,
+            },
+            TestContext.Current.CancellationToken))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+        }
+
+        using var bossClient = await KirishAsync(yakka, telefon, parol);
+
+        // Ro'yxatni KO'RA oladi — `users.manage` bor
+        using (var royxat = await bossClient.GetAsync(UsersUri, TestContext.Current.CancellationToken))
+        {
+            royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
+        }
+
+        // HR menejer yarata oladi
+        using (var hrYaratish = await bossClient.PostAsJsonAsync(
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.HrManager),
+            TestContext.Current.CancellationToken))
+        {
+            hrYaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(hrYaratish));
+        }
+
+        // Lekin super administratorning parolini tiklay OLMAYDI
+        var superAdminId = await SuperAdminIdAsync(adminClient);
+
+        using (var tiklash = await bossClient.PostAsJsonAsync(
+            new Uri($"/api/users/{superAdminId}/reset-password", UriKind.Relative),
+            new { newPassword = "Egallab_Olaman1" },
+            TestContext.Current.CancellationToken))
+        {
+            tiklash.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await MatnAsync(tiklash));
+            (await MatnAsync(tiklash)).ShouldContain("foydalanuvchi.rolga_haqqi_yoq");
+        }
+
+        // Va uni faolsizlantira ham olmaydi
+        using (var faolsizlantirish = await bossClient.PostAsync(
+            new Uri($"/api/users/{superAdminId}/deactivate", UriKind.Relative),
+            content: null,
+            TestContext.Current.CancellationToken))
+        {
+            faolsizlantirish.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await MatnAsync(faolsizlantirish));
+            (await MatnAsync(faolsizlantirish)).ShouldContain("foydalanuvchi.rolga_haqqi_yoq");
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //  Rasm
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Yuklash → ro'yxatda kalit → berish → kesh → o'chirish.
+    /// </summary>
+    /// <remarks>
+    /// Bosqichlar ataylab bitta testda: ular bir-birining natijasiga tayanadi.
+    /// Rasm quvurining o'zi (SkiaSharp, diskka yozish) xodim testlarida
+    /// batafsil tekshirilgan — bu yerda faqat zanjir ulanganini isbotlovchi
+    /// minimal tekshiruv qoladi.
+    /// </remarks>
+    [Fact]
+    public async Task Foydalanuvchi_rasmining_toliq_hayot_sikli_ishlaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var client = await AdminMijozAsync(_factory);
+
+        using var yaratish = await client.PostAsJsonAsync(
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.HrManager),
+            bekorQilish);
+
+        yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+        var hisob = await yaratish.Content.ReadFromJsonAsync<UserSummaryResponse>(bekorQilish);
+        hisob.ShouldNotBeNull();
+
+        var photoUri = new Uri($"/api/users/{hisob.Id}/photo", UriKind.Relative);
+
+        // Boshida rasm yo'q — «xato» emas, oddiy holat
+        using (var boshida = await client.GetAsync(photoUri, bekorQilish))
+        {
+            boshida.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await MatnAsync(boshida)).ShouldContain("foydalanuvchi.rasm_yoq");
+        }
+
+        // 1. Yuklash — 40×20 PNG, ya'ni ATAYLAB kvadrat emas
+        string kalit;
+
+        using (var yuklash = await RasmYuborAsync(client, photoUri, TestImages.PngYasa(40, 20)))
+        {
+            yuklash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yuklash));
+
+            var yuklangan = await yuklash.Content.ReadFromJsonAsync<UserPhotoResponse>(bekorQilish);
+
+            yuklangan.ShouldNotBeNull();
+            yuklangan.PhotoKey.ShouldEndWith(".jpg");
+            yuklangan.PhotoKey.ShouldNotContain("surat");
+
+            kalit = yuklangan.PhotoKey;
+        }
+
+        // 2. Ro'yxat kalitni beradi — interfeys avatarni shundan biladi
+        using (var royxat = await client.GetAsync(UsersUri, bekorQilish))
+        {
+            var hammasi = await royxat.Content.ReadFromJsonAsync<List<UserSummaryResponse>>(bekorQilish);
+
+            hammasi.ShouldNotBeNull();
+            hammasi.Single(u => u.Id == hisob.Id).PhotoKey.ShouldBe(kalit);
+        }
+
+        // 3. Berish — mazmun haqiqatan JPEG va 512×512
+        string belgi;
+
+        using (var oqish = await client.GetAsync(photoUri, bekorQilish))
+        {
+            oqish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(oqish));
+            oqish.Content.Headers.ContentType.ShouldNotBeNull();
+            oqish.Content.Headers.ContentType.MediaType.ShouldBe("image/jpeg");
+
+            oqish.Headers.CacheControl.ShouldNotBeNull();
+            oqish.Headers.CacheControl.Private.ShouldBeTrue("surat — shaxsiy ma'lumot");
+
+            oqish.Headers.ETag.ShouldNotBeNull();
+            belgi = oqish.Headers.ETag.Tag;
+
+            var baytlar = await oqish.Content.ReadAsByteArrayAsync(bekorQilish);
+
+            var (eni, boyi) = TestImages.JpegOlchami(baytlar);
+            eni.ShouldBe(512);
+            boyi.ShouldBe(512, "markazdan kvadrat qirqilishi kerak");
+        }
+
+        // 4. Kesh — «If-None-Match» mos kelsa mazmun qayta yuborilmaydi
+        using (var soro = new HttpRequestMessage(HttpMethod.Get, photoUri))
+        {
+            soro.Headers.TryAddWithoutValidation("If-None-Match", belgi);
+
+            using var javob = await client.SendAsync(soro, bekorQilish);
+
+            javob.StatusCode.ShouldBe(HttpStatusCode.NotModified);
+            javob.Headers.ETag.ShouldNotBeNull("304 javobida ham ETag bo'lishi kerak");
+        }
+
+        // 5. O'chirish — IDEMPOTENT: ikkinchi marta ham 204
+        using (var ochirish = await client.DeleteAsync(photoUri, bekorQilish))
+        {
+            ochirish.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(ochirish));
+        }
+
+        using (var qayta = await client.DeleteAsync(photoUri, bekorQilish))
+        {
+            qayta.StatusCode.ShouldBe(HttpStatusCode.NoContent, "amal idempotent bo'lishi kerak");
+        }
+
+        using (var keyin = await client.GetAsync(photoUri, bekorQilish))
+        {
+            keyin.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
+    }
+
+    [Fact]
+    public async Task Hr_menejer_boshqa_hisobga_rasm_qoya_olmaydi()
+    {
+        using var adminClient = await AdminMijozAsync(_factory);
+        using var hrClient = await HrManagerMijozAsync(_factory, adminClient);
+
+        var nishonId = await SuperAdminIdAsync(adminClient);
+        var photoUri = new Uri($"/api/users/{nishonId}/photo", UriKind.Relative);
+
+        using var yuklash = await RasmYuborAsync(hrClient, photoUri, TestImages.PngYasa(20, 20));
+
+        // `users.manage` yo'q — marshrutning o'ziga yetmaydi
+        yuklash.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //  O'zini o'zi bloklashdan va oxirgi rahbardan himoya
     // ────────────────────────────────────────────────────────────
 
     /// <remarks>
     /// Bu test ATAYLAB o'zining ALOHIDA bazasida ishlaydi (umumiy
-    /// <see cref="_factory"/> emas): boshqa testlar shu sinfda qo'shimcha
-    /// administrator yaratishi mumkin, "tizimda bor-yo'g'i bitta admin bor"
-    /// holatini esa faqat yangi, hech kim tegmagan bazada kafolatlash mumkin.
+    /// <see cref="_factory"/> emas): «tizimda bor-yo'g'i bitta rahbar bor»
+    /// holatini faqat yangi, hech kim tegmagan bazada kafolatlash mumkin.
     /// </remarks>
     [Fact]
-    public async Task Yagona_administrator_ozini_faolsizlantira_olmaydi()
+    public async Task Yagona_rahbar_ozini_faolsizlantira_olmaydi()
     {
-        await using var yakkaFactory = new BonviApiFactory();
-        await yakkaFactory.InitializeAsync();
+        await using var yakka = new BonviApiFactory();
+        await yakka.InitializeAsync();
 
-        using var client = yakkaFactory.CreateClient();
-
-        using var kirish = await client.PostAsJsonAsync(
-            new Uri("/api/auth/login", UriKind.Relative),
-            new { login = BonviApiFactory.TestAdminLogin, password = BonviApiFactory.TestAdminPassword },
-            TestContext.Current.CancellationToken);
-
-        kirish.EnsureSuccessStatusCode();
-        var auth = await kirish.Content.ReadFromJsonAsync<AuthResponse>(TestContext.Current.CancellationToken);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
-
-        using var men = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), TestContext.Current.CancellationToken);
-        var joriy = await men.Content.ReadFromJsonAsync<UserResponse>(TestContext.Current.CancellationToken);
-        joriy.ShouldNotBeNull();
+        using var client = await AdminMijozAsync(yakka);
+        var joriyId = await SuperAdminIdAsync(client);
 
         using var javob = await client.PostAsync(
-            new Uri($"/api/users/{joriy.Id}/deactivate", UriKind.Relative),
+            new Uri($"/api/users/{joriyId}/deactivate", UriKind.Relative),
             content: null,
             TestContext.Current.CancellationToken);
 
-        // Bir vaqtda ham "o'zini o'zi", ham "oxirgi admin" holati — tizimda
-        // boshqa faol admin yo'qligi birinchi tekshiriladi
+        // Bir vaqtda ham "o'zini o'zi", ham "oxirgi rahbar" holati — tizimda
+        // boshqa faol rahbar yo'qligi birinchi tekshiriladi
         javob.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await MatnAsync(javob)).ShouldContain("foydalanuvchi.oxirgi_administrator");
     }
 
     [Fact]
-    public async Task Administrator_boshqa_admin_bolsa_ham_ozini_faolsizlantira_olmaydi()
+    public async Task Super_administrator_boshqa_rahbar_bolsa_ham_ozini_faolsizlantira_olmaydi()
     {
-        using var client = await AdminMijozAsync();
+        await using var yakka = new BonviApiFactory();
+        await yakka.InitializeAsync();
 
-        // Ikkinchi administrator yaratamiz — endi tizimda ikkita admin bor
-        var telefon = NoyobTelefon();
-        using var yaratish = await client.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
-            new
-            {
-                login = telefon,
-                lastName = "Иккинчи",
-                firstName = "Админ",
-                password = "Ikkinchi_Admin1",
-                roleCodes = AdminRoleOnly,
-            },
-            TestContext.Current.CancellationToken);
+        using var client = await AdminMijozAsync(yakka);
 
-        yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+        // Bosh rahbar yaratamiz — endi tizimda ikkita rahbar bor
+        using (var yaratish = await client.PostAsJsonAsync(
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.MainBoss),
+            TestContext.Current.CancellationToken))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+        }
 
-        using var men = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), TestContext.Current.CancellationToken);
-        var joriy = await men.Content.ReadFromJsonAsync<UserResponse>(TestContext.Current.CancellationToken);
-        joriy.ShouldNotBeNull();
+        var joriyId = await SuperAdminIdAsync(client);
 
         using var javob = await client.PostAsync(
-            new Uri($"/api/users/{joriy.Id}/deactivate", UriKind.Relative),
+            new Uri($"/api/users/{joriyId}/deactivate", UriKind.Relative),
             content: null,
             TestContext.Current.CancellationToken);
 
-        // Endi boshqa faol admin bor — shu sababli aynan "o'zini o'zi
+        // Endi boshqa faol rahbar bor — shu sababli aynan "o'zini o'zi
         // bloklash" qoidasi ishga tushadi
         javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         (await MatnAsync(javob)).ShouldContain("foydalanuvchi.ozini_blokash");
@@ -360,19 +614,11 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
     [Fact]
     public async Task Foydalanuvchi_yaratish_audit_jurnaliga_yoziladi()
     {
-        using var client = await AdminMijozAsync();
-        var telefon = NoyobTelefon();
+        using var client = await AdminMijozAsync(_factory);
 
         using var yaratish = await client.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
-            new
-            {
-                login = telefon,
-                lastName = "Familiya",
-                firstName = "Ism",
-                password = "Parol_12345",
-                roleCodes = HrManagerRoleOnly,
-            },
+            UsersUri,
+            YangiHisob(NoyobTelefon(), SystemRoles.HrManager),
             TestContext.Current.CancellationToken);
 
         yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
@@ -406,13 +652,26 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
         return "90" + raqam.ToString(CultureInfo.InvariantCulture);
     }
 
-    private async Task<HttpClient> AdminMijozAsync()
+    /// <summary>Yaratish so'rovining standart tanasi — faqat rol va telefon o'zgaradi.</summary>
+    private static object YangiHisob(string telefon, string rolKodi) => new
     {
-        var client = _factory.CreateClient();
+        login = telefon,
+        lastName = "Familiya",
+        firstName = "Ism",
+        password = "Parol_12345",
+        roleCode = rolKodi,
+    };
+
+    private static async Task<HttpClient> AdminMijozAsync(BonviApiFactory factory)
+        => await KirishAsync(factory, BonviApiFactory.TestAdminLogin, BonviApiFactory.TestAdminPassword);
+
+    private static async Task<HttpClient> KirishAsync(BonviApiFactory factory, string login, string parol)
+    {
+        var client = factory.CreateClient();
 
         using var javob = await client.PostAsJsonAsync(
-            new Uri("/api/auth/login", UriKind.Relative),
-            new { login = BonviApiFactory.TestAdminLogin, password = BonviApiFactory.TestAdminPassword },
+            LoginUri,
+            new { login, password = parol },
             TestContext.Current.CancellationToken);
 
         javob.EnsureSuccessStatusCode();
@@ -423,42 +682,55 @@ public sealed class UserManagementApiTests : IClassFixture<BonviApiFactory>
         return client;
     }
 
+    /// <summary>Joriy (kirgan) foydalanuvchining identifikatori.</summary>
+    private static async Task<Guid> SuperAdminIdAsync(HttpClient client)
+    {
+        using var men = await client.GetAsync(MeUri, TestContext.Current.CancellationToken);
+
+        var joriy = await men.Content.ReadFromJsonAsync<UserResponse>(TestContext.Current.CancellationToken);
+        joriy.ShouldNotBeNull();
+
+        return joriy.Id;
+    }
+
     /// <summary>
-    /// Haqiqiy HR menejer hisobi bilan kirgan mijoz — administrator uchun
+    /// Haqiqiy HR menejer hisobi bilan kirgan mijoz — rahbariyat uchun
     /// mo'ljallangan endpoint'larga ruxsati yo'qligini ko'rsatish uchun.
     /// </summary>
-    private async Task<HttpClient> HrManagerMijozAsync(HttpClient adminClient)
+    private static async Task<HttpClient> HrManagerMijozAsync(BonviApiFactory factory, HttpClient adminClient)
     {
         var telefon = NoyobTelefon();
         const string parol = "Hr_Sinov_Paroli1";
 
         using var yaratish = await adminClient.PostAsJsonAsync(
-            new Uri("/api/users", UriKind.Relative),
+            UsersUri,
             new
             {
                 login = telefon,
                 lastName = "HR",
                 firstName = "Sinov",
                 password = parol,
-                roleCodes = HrManagerRoleOnly,
+                roleCode = SystemRoles.HrManager,
             },
             TestContext.Current.CancellationToken);
 
         yaratish.EnsureSuccessStatusCode();
 
-        var client = _factory.CreateClient();
+        return await KirishAsync(factory, telefon, parol);
+    }
 
-        using var kirish = await client.PostAsJsonAsync(
-            new Uri("/api/auth/login", UriKind.Relative),
-            new { login = telefon, password = parol },
-            TestContext.Current.CancellationToken);
+    /// <summary>Faylni «multipart/form-data» bo'lib, «file» maydonida yuboradi.</summary>
+    private static async Task<HttpResponseMessage> RasmYuborAsync(HttpClient client, Uri manzil, byte[] baytlar)
+    {
+        using var forma = new MultipartFormDataContent();
+        using var qism = new ByteArrayContent(baytlar);
 
-        kirish.EnsureSuccessStatusCode();
+        qism.Headers.ContentType = new MediaTypeHeaderValue("image/png");
 
-        var auth = await kirish.Content.ReadFromJsonAsync<AuthResponse>(TestContext.Current.CancellationToken);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
+        // Fayl nomi ataylab beriladi: u javobdagi kalitga TUSHMASLIGI kerak.
+        forma.Add(qism, "file", "surat.png");
 
-        return client;
+        return await client.PostAsync(manzil, forma, TestContext.Current.CancellationToken);
     }
 
     private static async Task<string> MatnAsync(HttpResponseMessage javob)
