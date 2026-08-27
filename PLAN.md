@@ -422,14 +422,40 @@ Bular tizimning asosiy qiymati — Excel buni qila olmaydi:
 **Xodimlar tizimga kirmaydi.** Bu o'z-o'ziga xizmat portali emas — HR bo'limi
 uchun ish quroli. Shu sababli rollar kam va aniq:
 
-| Rol | Kim | Ruxsatlar |
-|---|---|---|
-| `admin` | Asosiy rahbar / tizim administratori | **21** — barchasi, jumladan foydalanuvchi boshqaruvi |
-| `hr_manager` | HR menejeri — Bonvi'da **3 kishi** | **20** — butun kadrlar ishi, oylik ish haqi ko'rinadi; foydalanuvchi boshqaruvi yopiq |
+| Rol | Kim | Nechta | Ruxsatlar |
+|---|---|---|---|
+| `super_admin` | Tizim administratori | **ATIGI BITTA** | **21** — barchasi |
+| `main_boss` | Bosh rahbar (Main Boss) | **ATIGI BITTA** | **21** — super admin bilan TENG |
+| `hr_manager` | HR menejeri — Bonvi'da **3 kishi** | Bir nechta | **20** — butun kadrlar ishi, oylik ish haqi ko'rinadi; foydalanuvchi boshqaruvi yopiq |
 
-Atigi ikkita rol. «Operator» darajasi kerak emas — HR bo'limidagi uchala
-xodim ham to'liq huquqli menejer. Bo'lim boshliqlari va xodimlar uchun rol
-ataylab yaratilmagan.
+Uchta rol, «operator» darajasi kerak emas — HR bo'limidagi uchala xodim ham
+to'liq huquqli menejer. Bo'lim boshliqlari va xodimlar uchun rol ataylab
+yaratilmagan (2026-08-27 da bu qaror yakuniy tasdiqlandi, S10 dagi tegishli
+band ham shu sababdan olib tashlandi).
+
+**Har bir hisobda AYNAN BITTA rol.** Bu tekshiruv emas, konstruksiya: domenda
+foydalanuvchi bitta `RoleId` saqlaydi, ya'ni «ikkita rol» holatini ifodalashning
+imkoni yo'q. Uchta rol iyerarxik va «HR menejer + super admin» kabi juftlik
+quyidagi qoidalarni ma'nosiz qilardi.
+
+**Ikkala rahbariyat roli RUXSAT bo'yicha TENG** — `users.manage` ikkalasida ham
+bor. Farq ruxsatda emas, KIMGA TEGA OLISHIDA:
+
+| Kim | Kimni qo'shadi va boshqaradi |
+|---|---|
+| `super_admin` | `main_boss` va `hr_manager` |
+| `main_boss` | faqat `hr_manager` |
+
+Shu sababli bu qoida `RequireAuthorization` bilan emas, use-case qatlamida
+(`UserRoleRules`) yozilgan va OLTITA amal uni chaqiradi: yaratish, tahrirlash,
+faolsizlantirish, faollashtirish, parolni tiklash, rasm. Oxirgi ikkitasi ilgari
+umuman tekshirilmasdi va ikkalasi ham teshik edi — faollashtirish orqali ikkinchi
+faol bosh rahbar hosil qilish, parol tiklash orqali esa boshqa hisobni egallab
+olish mumkin edi.
+
+**«Atigi bitta» faqat FAOL hisoblarni sanaydi.** Bosh rahbar ishdan ketsa, hisobi
+faolsizlantirilib o'rniga yangisi qo'yiladi — aks holda tizim odam almashishini
+butunlay bloklab qo'yardi.
 
 `salary.view` shunga qaramay **alohida ruxsat** sifatida ajratilgan: hozir
 u ikkala rolda ham bor, lekin kelajakda kimningdir okladini yopish kerak
