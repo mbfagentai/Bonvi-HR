@@ -123,8 +123,41 @@ public sealed class EtlDatabase : IAsyncDisposable
             await NamesAsync<Direction>(cancellationToken).ConfigureAwait(false),
             await NamesAsync<Department>(cancellationToken).ConfigureAwait(false),
             await NamesAsync<Position>(cancellationToken).ConfigureAwait(false),
-            await NamesAsync<TerminationReason>(cancellationToken).ConfigureAwait(false));
+            await NamesAsync<TerminationReason>(cancellationToken).ConfigureAwait(false),
+            await AwardTypesAsync(cancellationToken).ConfigureAwait(false),
+            await PenaltyTypesAsync(cancellationToken).ConfigureAwait(false));
     }
+
+    /// <summary>
+    /// Rag'bat turlari — identifikatori bilan birga «pullimi» belgisi ham.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="NamesAsync{TEntity}"/> ishlatilmaydi: <c>HasAmount</c>
+    /// maydoni <c>ReferenceEntity</c> da yo'q va <c>AwardType</c> bilan
+    /// <c>PenaltyType</c> ning boshqa umumiy ota-tipi ham yo'q. Ikkita qisqa
+    /// metod yozish generikni shu ikki tur uchungina sun'iy interfeys bilan
+    /// kengaytirishdan sodda va oshkora.
+    /// </remarks>
+    private async Task<Dictionary<string, CatalogEntry>> AwardTypesAsync(CancellationToken cancellationToken)
+        => await _context!.AwardTypes
+            .AsNoTracking()
+            .ToDictionaryAsync(
+                type => type.Name,
+                type => new CatalogEntry(type.Id, type.HasAmount),
+                StringComparer.OrdinalIgnoreCase,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>Jarima turlari.</summary>
+    private async Task<Dictionary<string, CatalogEntry>> PenaltyTypesAsync(CancellationToken cancellationToken)
+        => await _context!.PenaltyTypes
+            .AsNoTracking()
+            .ToDictionaryAsync(
+                type => type.Name,
+                type => new CatalogEntry(type.Id, type.HasAmount),
+                StringComparer.OrdinalIgnoreCase,
+                cancellationToken)
+            .ConfigureAwait(false);
 
     /// <summary>Mavjud xodimlar — takrorlanmaslik uchun.</summary>
     public async Task<IReadOnlyList<Employee>> LoadEmployeesAsync(CancellationToken cancellationToken)
@@ -152,6 +185,26 @@ public sealed class EtlDatabase : IAsyncDisposable
         => _context is null
             ? []
             : await _context.EmployeeFlags.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>
+    /// Mavjud qobiliyat profillari.
+    /// </summary>
+    /// <remarks>
+    /// <c>AsNoTracking</c> ATAYLAB qo'yilmagan: xodimda profil bitta va u
+    /// qayta yaratilmaydi, <b>to'ldiriladi</b> — bo'sh maydoniga Excel'dagi
+    /// qiymat yoziladi. Kuzatilmagan obyektga kiritilgan o'zgarish bazaga
+    /// umuman yetib bormasdi.
+    /// </remarks>
+    public async Task<IReadOnlyList<EmployeeCompetency>> LoadCompetenciesAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.EmployeeCompetencies.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>Mavjud rag'bat va jarimalar — takrorlanmaslik uchun.</summary>
+    public async Task<IReadOnlyList<Incentive>> LoadIncentivesAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.Incentives.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     // ────────────────────────────────────────────────────────────
     //  Yozish

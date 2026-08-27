@@ -152,6 +152,15 @@ static List<(EtlStep Step, Action Run)> Plan(EtlOptions options, EtlWorkspace wo
         plan.Add((EtlStep.Flags, new FlagsStep(workspace).Run));
     }
 
+    // Profil boyitish eng oxirida: qobiliyatlar jadvali ham, rag'batlar
+    // varag'i ham faqat MAVJUD odam haqida gapiradi va yangi xodim
+    // yaratmaydi. Undan oldin yurgizilsa, xodimlar qadami hali topmagan
+    // odamlar «topilmadi» bo'lib hisobotga tushardi.
+    if (options.Has(EtlStep.Profiles))
+    {
+        plan.Add((EtlStep.Profiles, new ProfilesStep(workspace).Run));
+    }
+
     return plan;
 }
 
@@ -243,6 +252,16 @@ static async Task LoadExistingAsync(
     foreach (var flag in await database.LoadFlagsAsync(cancellationToken).ConfigureAwait(false))
     {
         workspace.Register(flag);
+    }
+
+    foreach (var competency in await database.LoadCompetenciesAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(competency);
+    }
+
+    foreach (var incentive in await database.LoadIncentivesAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(incentive);
     }
 }
 
@@ -366,7 +385,7 @@ internal static class Usage
               --connection <satr>       PostgreSQL ulanish satri
               --apply                   Bazaga HAQIQATAN yozadi (aks holda quruq yurish)
               --dry-run                 Quruq yurish (standart holat, aniqlik uchun)
-              --steps <ro'yxat>         employees,employments,events,probations,flags
+              --steps <ro'yxat>         employees,employments,events,probations,flags,profiles
               --report <yo'l>           CSV hisobot yo'li
               --limit <son>             Har varaqdan nechta qator (sinov uchun)
               --default-legal-entity    Yuridik shaxs ko'rsatilmaganda ishlatiladigan kod

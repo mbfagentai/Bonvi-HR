@@ -66,6 +66,8 @@ public sealed class EtlOptionsTests
     [InlineData("xodimlar", EtlStep.Employees)]
     [InlineData("events,flags", EtlStep.Events | EtlStep.Flags)]
     [InlineData("hodisalar,belgilar", EtlStep.Events | EtlStep.Flags)]
+    [InlineData("profiles", EtlStep.Profiles)]
+    [InlineData("profil", EtlStep.Profiles)]
     [InlineData("all", EtlStep.All)]
     public void Qadamlar_royxati_ikki_tilda_oqiladi(string value, EtlStep expected)
     {
@@ -112,5 +114,32 @@ public sealed class EtlOptionsTests
 
         options!.Has(EtlStep.Events).ShouldBeTrue();
         options.Has(EtlStep.Employees).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Har_bir_qadam_All_ichiga_kiradi()
+    {
+        // Yangi qadam qo'shilib, `All` ga kiritilmasa — u standart yugurishda
+        // JIMGINA bajarilmay qolardi va buni hech kim sezmasdi: hisobotda
+        // qadam umuman ko'rinmaydi, xato ham chiqmaydi. Aynan shunday xato
+        // profil boyitish qadamida bir marta sodir bo'lgan, shu sababli
+        // qoida testga qadaldi.
+        foreach (var step in Enum.GetValues<EtlStep>())
+        {
+            if (step is EtlStep.None or EtlStep.All)
+            {
+                continue;
+            }
+
+            EtlStep.All.HasFlag(step).ShouldBeTrue($"«{step}» qadami «All» ga kiritilmagan.");
+        }
+    }
+
+    [Fact]
+    public void Qadam_korsatilmasa_hammasi_bajariladi()
+    {
+        var (options, _) = EtlOptions.Parse(["--source", Source]);
+
+        options!.Has(EtlStep.Profiles).ShouldBeTrue();
     }
 }

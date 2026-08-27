@@ -66,6 +66,8 @@ public sealed class EtlWorkspace
     private readonly Dictionary<Guid, List<Probation>> _probationsByEmployment = [];
     private readonly HashSet<string> _eventKeys = new(StringComparer.Ordinal);
     private readonly HashSet<string> _flagKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<Guid, EmployeeCompetency> _competencies = [];
+    private readonly HashSet<string> _incentiveKeys = new(StringComparer.Ordinal);
 
     public EtlWorkspace(
         EtlOptions options,
@@ -152,6 +154,31 @@ public sealed class EtlWorkspace
     {
         ArgumentNullException.ThrowIfNull(flag);
         _ = _flagKeys.Add(FlagKey(flag.EmployeeId, flag.Type, flag.StartDate));
+    }
+
+    /// <summary>Qobiliyat profilini ro'yxatga oladi.</summary>
+    /// <remarks>
+    /// Boshqa yozuvlardan farqli o'laroq bu yerda kalitlar to'plami emas,
+    /// obyektning O'ZI saqlanadi. Sabab: xodimda profil bitta va u ikkinchi
+    /// marta yaratilmaydi — mavjudining bo'sh maydonlari to'ldiriladi, ya'ni
+    /// «bormi?» degan javob yetarli emas, obyektni topish kerak.
+    /// </remarks>
+    public void Register(EmployeeCompetency competency)
+    {
+        ArgumentNullException.ThrowIfNull(competency);
+
+        // `TryAdd`: bazada bir xodimga ikkita profil paydo bo'lib qolsa
+        // (unikal indeks bo'lsa ham, ETL bunga tayanmaydi) birinchisi kuchda
+        // qoladi. Ikkinchisini «to'g'rirog'i» deb tanlashning asosi yo'q, va
+        // uni jimgina to'ldirish ikkalasini ham chalkashtirardi.
+        _ = _competencies.TryAdd(competency.EmployeeId, competency);
+    }
+
+    /// <summary>Rag'bat yoki jarimani ro'yxatga oladi.</summary>
+    public void Register(Incentive incentive)
+    {
+        ArgumentNullException.ThrowIfNull(incentive);
+        _ = _incentiveKeys.Add(IncentiveKey(incentive.EmployeeId, incentive.Kind, incentive.TypeId, incentive.Date));
     }
 
     /// <summary>Xodimning barcha mehnat munosabatlari.</summary>
@@ -316,6 +343,23 @@ public sealed class EtlWorkspace
     public bool HasFlag(Guid employeeId, EmployeeFlagType type, DateOnly startDate)
         => _flagKeys.Contains(FlagKey(employeeId, type, startDate));
 
+    /// <summary>Xodimning qobiliyat profili (bo'lmasa <c>null</c>).</summary>
+    public EmployeeCompetency? CompetencyOf(Guid employeeId)
+        => _competencies.GetValueOrDefault(employeeId);
+
+    /// <summary>
+    /// Shu rag'bat/jarima allaqachon yozilganmi.
+    /// </summary>
+    /// <remarks>
+    /// Kalitda buyruq raqami YO'Q — «91.14» varag'ida bunday ustun umuman
+    /// yo'q, ya'ni uni kalitga qo'shish har bir qatorni har yugurishda «yangi»
+    /// qilib ko'rsatardi va idempotentlik yo'qolardi. Bir odamga bir kunda
+    /// bir xil turdagi ikkita rag'bat berilgan hol varaqda uchramaydi —
+    /// tekshirib chiqilgan.
+    /// </remarks>
+    public bool HasIncentive(Guid employeeId, IncentiveKind kind, Guid typeId, DateOnly date)
+        => _incentiveKeys.Contains(IncentiveKey(employeeId, kind, typeId, date));
+
     // ────────────────────────────────────────────────────────────
     //  Katakni qiymatga aylantirish
     // ────────────────────────────────────────────────────────────
@@ -455,6 +499,51 @@ public sealed class EtlWorkspace
         }
 
         return Catalogs.Find(CatalogKind.TerminationReason, code);
+    }
+
+    /// <summary>
+    /// Rag'bat turini topadi — identifikatori va «pullimi» belgisi bilan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// «91.14» varag'ining <c>«Вид благодарности»</c> ustunida ma'lumotnoma
+    /// nomi emas, <b>jumla</b> turibdi: <c>«Йил якунида ташаккурнома
+    /// берилди»</c>. Shu sababli qiymat avval <c>aliases.json</c> dan
+    /// o'tkaziladi va kanonik nomga (<c>«Ташаккурнома»</c>) aylantiriladi —
+    /// xuddi bo'lim va lavozim kabi.
+    /// </para>
+    /// <para>
+    /// Javob <see cref="Guid"/> emas, <see cref="CatalogEntry"/>:
+    /// <c>Incentive.Grant</c> turning identifikatori bilan birga «summa
+    /// kerakmi» degan javobni ham talab qiladi va ularni ikki alohida
+    /// qidiruvdan yig'ish bir turning identifikatorini boshqasining qoidasi
+    /// bilan qo'shib yuborish xavfini tug'dirardi.
+    /// </para>
+    /// </remarks>
+    public CatalogEntry? AwardType(RowContext context, ExcelCell cell)
+    {
+        var match = Aliases.AwardType(cell);
+
+        if (match.First is not { } name)
+        {
+            if (!match.Known && cell.HasValue)
+            {
+                Report.Add(context.Step, context.Sheet, context.Row, context.Employee,
+                    "rag'bat turi ma'lumotnomada yo'q", cell.Text, EtlAction.LeftEmpty);
+            }
+
+            return null;
+        }
+
+        var entry = Catalogs.Entry(CatalogKind.AwardType, name);
+
+        if (entry is null)
+        {
+            Report.Add(context.Step, context.Sheet, context.Row, context.Employee,
+                "rag'bat turi bazada yo'q", name, EtlAction.LeftEmpty);
+        }
+
+        return entry;
     }
 
     /// <summary>
@@ -693,4 +782,7 @@ public sealed class EtlWorkspace
 
     private static string FlagKey(Guid employeeId, EmployeeFlagType type, DateOnly startDate)
         => string.Create(CultureInfo.InvariantCulture, $"{employeeId:N}|{(int)type}|{startDate:yyyy-MM-dd}");
+
+    private static string IncentiveKey(Guid employeeId, IncentiveKind kind, Guid typeId, DateOnly date)
+        => string.Create(CultureInfo.InvariantCulture, $"{employeeId:N}|{(int)kind}|{typeId:N}|{date:yyyy-MM-dd}");
 }
