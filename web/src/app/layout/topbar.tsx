@@ -1,9 +1,10 @@
-import { Bell, Search } from 'lucide-react'
+import { Bell } from 'lucide-react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
-import { Button, Input } from '@/shared/ui'
+import { Button } from '@/shared/ui'
 import { LanguageSwitcher } from '@/shared/ui/language-switcher'
 import { ThemeToggle } from '@/shared/ui/theme-toggle'
+import { TopbarSearch } from './topbar-search'
 import { UserMenu } from './user-menu'
 
 /**
@@ -28,16 +29,20 @@ export function Topbar() {
   return (
     <header className="blur-bar z-30 shrink-0 border-b border-[var(--border)]">
       <div className="flex h-16 items-center gap-3 px-5 lg:gap-4 lg:px-6">
-        {/* Qidiruv — bo'sh kenglikning hammasini egallaydi */}
+        {/*
+          Qidiruv — bo'sh kenglikning hammasini egallaydi. Mantiqi
+          `topbar-search.tsx` da: u marshrutga ham, ruxsatga ham bog'liq,
+          panelning o'zi esa faqat joylashtirish bilan shug'ullanadi
+          (`user-menu.tsx` bilan bir xil naqsh).
+
+          O'ROVCHI `div` ruxsati yo'q foydalanuvchida ham QOLADI, garchi
+          ichi bo'sh bo'lsa ham: `flex-1` bo'sh kenglikni yeb turadi va
+          shu sababli o'ngdagi boshqaruvlar (til, ko'rinish, hisob) doim
+          bir joyda — chekkada — turadi. Aks holda ular ekranning
+          o'rtasiga sirg'alib tushardi.
+        */}
         <div className="min-w-0 flex-1">
-          <Input
-            icon={Search}
-            shape="pill"
-            size="lg"
-            type="search"
-            placeholder={t('common.searchPlaceholder')}
-            aria-label={t('common.search')}
-          />
+          <TopbarSearch />
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
