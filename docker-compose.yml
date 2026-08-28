@@ -100,6 +100,28 @@ services:
       # Har bir rol uchun sinov hisobi. FAQAT development'da ishlaydi —
       # boshqa muhitda bu bayroq e'tiborga olinmaydi.
       Bootstrap__CreateDevUsers: ${BOOTSTRAP__CREATEDEVUSERS:-true}
+
+      # ----------------------------------------------------------
+      #  Xato jurnali (fayl)
+      #
+      #  `docker logs api` konteyner qayta ishga tushishi bilan tozalanadi —
+      #  ya'ni «kecha nima yiqilgan edi?» degan savolga javob bermaydi.
+      #  Shu sababli xatolar bind-mount qilingan papkaga ham yoziladi.
+      #
+      #  Yo'l BO'SH bo'lsa jurnal umuman yoqilmaydi (masalan `dotnet test`
+      #  ichida ko'tarilgan API'da) — shu sababli u aynan shu yerda,
+      #  oshkora beriladi. Fayl nomi oxiridagi tire tasodifiy emas:
+      #  Serilog sanani aynan shu joyga qo'yadi (bonvi-xato-20260828.log).
+      #
+      #  MinimumLevel ATAYLAB Warning: Information qo'yilsa har bir so'rov
+      #  faylga tushadi va shaxsiy ma'lumot sizib chiqishi mumkin bo'lgan
+      #  yuza keskin kengayadi.
+      # ----------------------------------------------------------
+      ErrorLog__Path: /logs/bonvi-xato-.log
+      ErrorLog__MinimumLevel: ${LOG_MIN_LEVEL:-Warning}
+      ErrorLog__RetentionDays: ${LOG_RETENTION_DAYS:-30}
+      ErrorLog__MaxFileMegabytes: ${LOG_MAX_FILE_MB:-10}
+      ErrorLog__MaxFileCount: ${LOG_MAX_FILE_COUNT:-50}
     ports:
       - "${API_PORT:-7080}:8080"
     volumes:
@@ -107,6 +129,10 @@ services:
       - nuget-cache:/root/.nuget/packages
       - api-artifacts:/src/artifacts          # bin/obj — bind-mount'dan tashqarida (tezlik)
       - uploads-data:/data/uploads
+      # Named volume EMAS, ataylab bind-mount: jurnalni o'qish uchun
+      # konteynerga kirish shart bo'lmasin. `grep XATO logs/*.log` —
+      # xolos. Papka git'dan tashqarida (.gitignore).
+      - ${LOG_DIR:-./logs}:/logs
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }

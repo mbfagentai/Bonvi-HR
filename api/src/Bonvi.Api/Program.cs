@@ -20,10 +20,19 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Log ----------
+// Ikkita chiqish, ikkita maqsad:
+//   • Konsol — «hozir nima bo'lyapti» (docker logs api). Konteyner qayta
+//     ishga tushsa yo'qoladi, shu sababli nosozlikni KEYIN tekshirish uchun
+//     yaramaydi;
+//   • Fayl — «o'tgan payshanba kechqurun nima yiqilgan edi». Faqat
+//     `ErrorLog__Path` berilgan joyda (compose) yoqiladi va faylga faqat
+//     ErrorLogFormatter ruxsat bergan maydonlar tushadi.
+//     Batafsil: Extensions/ErrorLogExtensions.cs.
 builder.Host.UseSerilog((context, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .Enrich.FromLogContext()
-    .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture));
+    .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
+    .WriteToBonviErrorFile(context.Configuration));
 
 // ---------- Qatlamlar ----------
 builder.Services.AddApplication();
@@ -104,7 +113,15 @@ var app = builder.Build();
 app.UseBonviSecurity();
 
 app.UseExceptionHandler();
-app.UseSerilogRequestLogging();
+
+// So'rov logi. `IncludeQueryInRequestPath` ATAYLAB va OSHKORA `false`:
+// bu Serilog'ning standart qiymati, lekin u shu tizimda maxfiylik talabi —
+// `?search=Karimov&pinfl=...` dagi hamma narsa foydalanuvchi kiritgan
+// shaxsiy ma'lumot. Standart qiymatga ishonib qo'yib yuborilsa, kimdir uni
+// «loglar tushunarsiz» deb yoqib qo'yishi va shaxsiy ma'lumot jimgina
+// faylga oqib tushishi mumkin. Ikkinchi qatlam — ErrorLogFormatter'dagi
+// yo'l tozalagichi.
+app.UseSerilogRequestLogging(options => options.IncludeQueryInRequestPath = false);
 
 if (app.Environment.IsDevelopment())
 {

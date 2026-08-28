@@ -62,3 +62,14 @@ uploads/
 # `backup` konteyneri shu papkaga yozadi. Bazaning to'liq nusxasi
 # (JSHSHIR, pasport, telefon) git'ga TUSHMASLIGI SHART.
 /backups/
+
+# Xato jurnali — API shu papkaga yozadi (docker-compose*.yml dagi
+# `${LOG_DIR:-./logs}:/logs`). Yuqoridagi `*.log` fayllarni allaqachon
+# yutadi, lekin papkaning O'ZI ham ataylab yopiladi: aylanish paytida
+# vaqtinchalik nom bilan fayl paydo bo'lishi mumkin va bo'sh papkani
+# git'ga qo'shishning ma'nosi yo'q.
+#
+# Jurnalga shaxsiy ma'lumot tushmasligi kod darajasida ta'minlanadi
+# (ErrorLogFormatter'ning oq ro'yxati), lekin xato matni baribir ichki
+# tuzilmani oshkor qiladi — git tarixida bunday narsaning o'rni yo'q.
+/logs/

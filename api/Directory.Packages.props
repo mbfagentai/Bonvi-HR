@@ -40,9 +40,24 @@
     <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
   </ItemGroup>
 
+  <!--
+    Log.
+
+    `Serilog.Sinks.File` — xato jurnali faylga yoziladi (Sentry o'rniga).
+    Sentry ataylab RAD ETILDI: u tashqi xizmat, hisob va DSN talab qiladi va
+    istisno tafsilotini konteynerdan tashqariga chiqaradi — bazada esa
+    haqiqiy odamlarning JSHSHIR, pasport va oyligi bor.
+
+    Litsenziya — Apache-2.0 (SkiaSharp/ImageSharp tanlovidagi bilan bir xil
+    tekshiruv). Ustiga bu paket YANGI bog'liqlik ham emas: u
+    `Serilog.AspNetCore` bilan birga allaqachon yuklab olinardi, endi esa
+    to'g'ridan-to'g'ri ishlatilgani uchun oshkora yozib qo'yildi (markazlashgan
+    boshqaruvda to'g'ridan-to'g'ri havolaning versiyasi shu yerda turishi shart).
+  -->
   <ItemGroup Label="Log">
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Fon vazifalar">

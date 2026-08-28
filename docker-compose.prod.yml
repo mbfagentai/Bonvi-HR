@@ -175,8 +175,44 @@ services:
       #  ga zaxira nusxa oling — avtomatik migratsiya orqaga qaytarilmaydi.
       # ----------------------------------------------------------
       Bootstrap__AutoMigrate: ${BOOTSTRAP__AUTOMIGRATE:-true}
+
+      # ----------------------------------------------------------
+      #  Xato jurnali (fayl)
+      #
+      #  NEGA KERAK: `docker logs` konteyner qayta ishga tushishi bilan
+      #  tozalanadi. Production'da nosozlik odatda KEYIN aniqlanadi
+      #  («payshanba kuni hisobot ochilmadi»), o'shanda esa konsol logi
+      #  allaqachon yo'q bo'ladi.
+      #
+      #  NEGA SENTRY EMAS: Sentry tashqi xizmat — istisno tafsilotini
+      #  uchinchi tomon serveriga chiqaradi. Bazada haqiqiy odamlarning
+      #  JSHSHIR, pasporti va oyligi bor, ya'ni bu ma'lumotni tashqariga
+      #  chiqarish xavfi zaxira nusxa xavfi bilan bir xil darajada.
+      #  Faylga yozish esa mashinadan chiqmaydi.
+      #
+      #  Faylga NIMA tushishini `ErrorLogFormatter` oq ro'yxati belgilaydi:
+      #  yo'l (parametrlarsiz), holat kodi, foydalanuvchi Guid'i, IP va
+      #  tozalangan istisno matni. F.I.Sh., telefon, JSHSHIR, SQL
+      #  parametrlari — YO'Q.
+      #
+      #  ⚠️ BIRINCHI ISHGA TUSHIRISHDAN OLDIN, xostda:
+      #        mkdir -p ./logs && chown 2000:2000 ./logs
+      #     API root'dan emas, `uid 2000` (bonvi) ostida ishlaydi. Docker
+      #     yo'q papkani root nomidan yaratadi va API unga yoza olmaydi.
+      #     Bu holat JIMGINA o'tmaydi: Serilog SelfLog xatoni stderr'ga
+      #     chiqaradi va u `docker compose logs api` da ko'rinadi.
+      # ----------------------------------------------------------
+      ErrorLog__Path: /logs/bonvi-xato-.log
+      ErrorLog__MinimumLevel: ${LOG_MIN_LEVEL:-Warning}
+      ErrorLog__RetentionDays: ${LOG_RETENTION_DAYS:-30}
+      ErrorLog__MaxFileMegabytes: ${LOG_MAX_FILE_MB:-10}
+      ErrorLog__MaxFileCount: ${LOG_MAX_FILE_COUNT:-50}
     volumes:
       - uploads-data:/data/uploads
+      # Bind-mount, named volume emas: jurnalni o'qish uchun konteynerga
+      # kirish yoki `docker cp` qilish shart bo'lmasin. Papka `./backups`
+      # bilan bir qatorda turadi va xuddi shunday git'dan tashqarida.
+      - ${LOG_DIR:-./logs}:/logs
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
