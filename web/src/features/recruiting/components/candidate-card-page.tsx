@@ -1,0 +1,367 @@
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowRightLeft,
+  DoorOpen,
+  Pencil,
+  Trash2,
+  UserRoundX,
+} from 'lucide-react'
+import { useState } from 'react'
+
+import { useAuth } from '@/features/auth'
+import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  SegmentedControl,
+  Skeleton,
+} from '@/shared/ui'
+import type { Candidate } from '../api/recruiting-api'
+import { useCandidate, useStages, useVacancyOptions } from '../api/recruiting-queries'
+import { recruitingErrorCode } from '../lib/recruiting-error'
+import {
+  CANDIDATE_LOOK,
+  RECRUITING_MANAGE,
+  SOURCE_LOOK,
+} from '../lib/recruiting-presentation'
+import { CandidateActionDialog, type CandidateAction } from './candidate-action-dialog'
+import { CandidateFormDialog } from './candidate-form-dialog'
+import { CandidateOffersTab } from './candidate-offers-tab'
+import { CandidateResumeCard } from './candidate-resume-card'
+import { CandidateStagesTab } from './candidate-stages-tab'
+
+const route = getRouteApi('/_app/nomzodlar/$candidateId')
+
+type Tab = 'overview' | 'stages' | 'offers'
+
+/**
+ * ⭐ Nomzod kartasi — 2-bosqichning markaziy ekrani.
+ *
+ * Uchta tab (`employee-card` dagi bilan bir xil naqsh: bir vaqtda
+ * hammasini ko'rsatish sahifani cho'zib yuborardi, HR esa odatda
+ * bittasiga qaraydi):
+ *   · <b>Umumiy</b> — shaxsiy ma'lumot va rezyume;
+ *   · <b>Bosqichlar</b> — vertikal lenta va natija yozish oynasi;
+ *   · <b>Takliflar</b> — yuborish, tuzatish, rad etish va QABUL QILISH.
+ *
+ * <b>Nega takliflar alohida tab, bosqichlar ichida emas.</b> Taklif
+ * ham voronkaning qadami, lekin uning SHARTLARI bor — oklad, ish
+ * boshlash sanasi, javob muddati (`JobOffer` domen izohi). Ularni
+ * lentaga qo'shish har bir yozuvni ikki xil shaklga solardi.
+ *
+ * <b>Nega tab ro'yxati DINAMIK emas.</b> Xodim kartasidan farqli
+ * (u yerda tab'lar alohida ruxsatlarga bog'liq), butun rekruting
+ * IKKITA ruxsat bilan boshqariladi: `recruiting.view` — hammasini
+ * ko'radi, `recruiting.manage` — o'zgartiradi. Ya'ni sahifaga kira
+ * olgan odam uchala tabni ham ko'ra oladi.
+ */
+export function CandidateCardPage() {
+  const { candidateId } = route.useParams()
+  const { t } = useLocale()
+  const errorMessage = useErrorMessage()
+  const navigate = useNavigate()
+
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission(RECRUITING_MANAGE)
+
+  const [tab, setTab] = useState<Tab>('overview')
+  const [editing, setEditing] = useState(false)
+  const [action, setAction] = useState<CandidateAction | null>(null)
+
+  const candidate = useCandidate(candidateId)
+
+  /*
+   * Tahrirlash oynasi vakansiya va bosqich ro'yxatlarini so'raydi,
+   * lekin ular MAVJUD nomzodda ko'rsatilmaydi (forma ularni faqat
+   * yaratishda chizadi). Bo'sh massiv berish mumkin edi; bir xil
+   * hook'ni chaqirish esa keshdan keladi va nomzod boshqa vakansiyaga
+   * o'tkazilganda ro'yxat allaqachon tayyor turadi.
+   */
+  const vacancies = useVacancyOptions('Open')
+  const stages = useStages(true)
+
+  if (candidate.isPending) {
+    return (
+      <div className="space-y-5">
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <Skeleton className="h-72 w-full rounded-lg" />
+      </div>
+    )
+  }
+
+  if (candidate.isError || !candidate.data) {
+    return (
+      <div className="space-y-4">
+        <BackButton onClick={() => void navigate({ to: '/nomzodlar' })} label={t('common.back')} />
+        <Alert tone="danger">{errorMessage(recruitingErrorCode(candidate.error))}</Alert>
+      </div>
+    )
+  }
+
+  const person = candidate.data
+  const look = CANDIDATE_LOOK[person.status]
+  const source = SOURCE_LOOK[person.source]
+  const SourceIcon = source.icon
+  const inProgress = person.status === 'InProgress'
+
+  return (
+    <div className="space-y-5">
+      <BackButton
+        onClick={() => void navigate({ to: '/nomzodlar' })}
+        label={t('nav.candidates')}
+      />
+
+      {/* ───────── Sarlavha kartasi ───────── */}
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-title2 leading-tight font-semibold tracking-tight">
+              {person.fullName}
+            </h1>
+
+            <p className="mt-1.5 text-subhead text-[var(--fg-secondary)]">
+              {person.vacancy ?? '—'}
+              {person.currentStage !== null && ` · ${person.currentStage}`}
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge tone={look.tone} size="sm">
+                {t(`recruiting.candidateStatus.${look.key}`)}
+              </Badge>
+
+              <Badge tone={source.tone} size="sm">
+                <SourceIcon className="size-3" strokeWidth={2.5} />
+                {t(`recruiting.source.${source.key}`)}
+              </Badge>
+            </div>
+          </div>
+
+          {canManage && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setEditing(true)}
+              className="shrink-0"
+            >
+              <Pencil />
+              {t('common.edit')}
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      {/*
+        Nomzod voronkadan chiqqan bo'lsa — sabab kartaning eng
+        ko'rinadigan joyida. Ishga olingan bo'lsa esa yaratilgan XODIM
+        kartasiga havola: HR ko'pincha aynan shuni qidiradi («o'sha
+        odamning kartasi qayerda?»).
+      */}
+      {!inProgress && (
+        <Alert tone={person.status === 'Hired' ? 'success' : 'warning'}>
+          <span className="flex flex-wrap items-center gap-2">
+            <span>
+              {t(`recruiting.candidateClosed.${look.key}`, {
+                date: person.closedAt ?? '—',
+              })}
+              {person.closingNote !== null && ` · ${person.closingNote}`}
+            </span>
+
+            {person.hiredEmployeeId !== null && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const employeeId = person.hiredEmployeeId
+                  if (employeeId === null) return
+                  void navigate({ to: '/xodimlar/$employeeId', params: { employeeId } })
+                }}
+              >
+                {t('recruiting.openEmployee')}
+                <ArrowRight />
+              </Button>
+            )}
+          </span>
+        </Alert>
+      )}
+
+      <SegmentedControl
+        value={tab}
+        onChange={setTab}
+        aria-label={t('employees.tabs')}
+        options={[
+          { value: 'overview', label: t('recruiting.tabOverview') },
+          { value: 'stages', label: t('recruiting.tabStages') },
+          { value: 'offers', label: t('recruiting.tabOffers') },
+        ]}
+      />
+
+      {tab === 'overview' && (
+        <div className="space-y-4">
+          <PersonalCard candidate={person} />
+          <CandidateResumeCard candidate={person} canManage={canManage} />
+
+          {/*
+            Voronkadan chiqarish amallari — «Umumiy» tabining ENG
+            OXIRIDA. Ular kamdan-kam bosiladi va lentaning yoki
+            takliflarning yonida turishi kerak emas: HR bosqich
+            yozayotganda «rad etish» tugmasi qo'l ostida bo'lsa,
+            tasodifiy bosish ehtimoli ortadi.
+          */}
+          {canManage && (
+            <Card>
+              <CardContent className="flex flex-wrap gap-2 py-4">
+                {inProgress && (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setAction('reassign')}
+                    >
+                      <ArrowRightLeft />
+                      {t('recruiting.candidateAction.reassignTitle')}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setAction('reject')}
+                    >
+                      <UserRoundX />
+                      {t('recruiting.candidateAction.rejectTitle')}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setAction('withdraw')}
+                    >
+                      <DoorOpen />
+                      {t('recruiting.candidateAction.withdrawTitle')}
+                    </Button>
+                  </>
+                )}
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setAction('delete')}
+                  className="ml-auto text-[var(--danger-text)]"
+                >
+                  <Trash2 />
+                  {t('common.delete')}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {tab === 'stages' && <CandidateStagesTab candidate={person} canManage={canManage} />}
+
+      {tab === 'offers' && <CandidateOffersTab candidate={person} canManage={canManage} />}
+
+      {/* ───────── Oynalar ───────── */}
+
+      <CandidateFormDialog
+        open={editing}
+        item={person}
+        vacancyOptions={vacancies.options}
+        stageOptions={(stages.data ?? []).map((stage) => ({
+          value: stage.id,
+          label: stage.name,
+        }))}
+        onClose={() => setEditing(false)}
+      />
+
+      <CandidateActionDialog
+        candidate={person}
+        action={action}
+        onClose={() => setAction(null)}
+      />
+    </div>
+  )
+}
+
+/**
+ * Shaxsiy ma'lumot.
+ *
+ * Bo'sh maydon ham KO'RSATILADI (chiziqcha bilan): nomzod anketasida
+ * ko'p maydon bo'sh qoladi va «yo'q» ekanini ko'rish ham ma'lumot —
+ * HR qaysi ma'lumotni so'rash kerakligini shu yerdan biladi. Xodim
+ * kartasida esa teskarisi bo'lardi: u yerda ma'lumot to'liq bo'lishi
+ * kutiladi.
+ */
+function PersonalCard({ candidate }: { candidate: Candidate }) {
+  const { t, date } = useLocale()
+
+  return (
+    <Card>
+      <CardContent className="py-5">
+        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+          <Field label={t('employee.birthDate')} value={candidate.birthDate === null ? null : date(candidate.birthDate)} />
+          <Field label={t('employee.phone')} value={candidate.phone} tabular />
+          <Field label={t('employee.speciality')} value={candidate.speciality} />
+          <Field label={t('employee.address')} value={candidate.address} />
+          <Field label={t('recruiting.vacancy')} value={candidate.vacancy} />
+          <Field label={t('recruiting.stage')} value={candidate.currentStage} />
+        </dl>
+
+        {candidate.note !== null && (
+          <p className="mt-5 rounded-md bg-[var(--bg-sunken)] px-3 py-2 text-footnote text-[var(--fg-secondary)]">
+            {candidate.note}
+          </p>
+        )}
+
+        {candidate.closedAt !== null && (
+          <p className="tabular mt-4 text-caption2 text-[var(--fg-tertiary)]">
+            {t('recruiting.closedAtLabel', { date: date(candidate.closedAt) })}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function Field({
+  label,
+  value,
+  tabular = false,
+}: {
+  label: string
+  value: string | null
+  tabular?: boolean
+}) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-caption1 text-[var(--fg-tertiary)]">{label}</dt>
+      <dd
+        className={
+          value === null
+            ? 'mt-0.5 text-subhead text-[var(--fg-tertiary)]'
+            : `mt-0.5 text-subhead${tabular ? ' tabular' : ''}`
+        }
+      >
+        {value ?? '—'}
+      </dd>
+    </div>
+  )
+}
+
+function BackButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <Button variant="ghost" size="sm" onClick={onClick} className="-ml-2">
+      <ArrowLeft />
+      {label}
+    </Button>
+  )
+}

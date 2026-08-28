@@ -6,16 +6,15 @@ import {
   ChartColumn,
   ClipboardList,
   Compass,
-  FileSignature,
   FileText,
   Gauge,
   Gavel,
+  GitBranch,
   HeartPulse,
   IdCard,
   LayoutGrid,
   Library,
   LogOut,
-  MessageCircle,
   MessageSquareQuote,
   Network,
   ShieldAlert,
@@ -192,6 +191,25 @@ export const NAV: NavSection[] = [
           { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
           { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
           { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
+          /*
+            Voronka bosqichlari — to'qqizinchi ma'lumotnoma (2-bosqich).
+
+            NEGA aynan shu guruhda: u boshqa sakkiztasi bilan bir xil
+            vazifani bajaradi — tizimning POYDEVORI, kundalik ish emas.
+            Bosqichlar yiliga bir-ikki marta o'zgaradi, nomzod esa
+            har kuni qo'shiladi.
+
+            NEGA `permission` boshqalarnikidan farqli (`recruiting.view`,
+            `catalog.manage` emas): yozuv `/api/recruiting/stages` da
+            yashaydi va uning `GET`i `recruiting.view` bilan
+            himoyalangan. Ma'lumotnomalarni boshqara oladigan, lekin
+            rekrutingga ruxsati yo'q odam bu ro'yxatni SERVERDAN OLA
+            OLMAYDI — bandni ko'rsatib, sahifani «bo'sh/xatoli» holatda
+            ochish ortiqcha chalkashlik bo'lardi (`users` bandidagi
+            naqsh).
+          */
+          { key: 'pipelineStages',     to: '/malumotnomalar/bosqichlar',       icon: GitBranch,
+            permission: 'recruiting.view' },
         ],
       },
     ],
@@ -201,35 +219,55 @@ export const NAV: NavSection[] = [
       Sarlavhasiz guruh, `sectionCatalog` bilan bir xil naqsh: bandning
       o'zi («Rekruting») sarlavha vazifasini bajaradi.
 
-      NEGA ochiluvchi guruh, to'rtta bandning har biri alohida emas:
-      PLAN.md (11-qator) 2-bosqichni «Rekruting: vakansiya → anketa →
-      suhbat → job offer» deb belgilaydi — u hali BOSHLANMAGAN, bu
-      to'rttala band ham `soon`. To'rtta doimiy o'chiq qatorni kundalik
-      menyuga yoyish «Ma'lumotnomalar»ni yig'ib turgan sababning
-      aksi bo'lardi: bu safar ular kundalik ish emasligidan tashqari,
-      HALI UMUMAN ISHLAMAYDI ham — ikkalanchi sabab guruhlashni yanada
-      kuchliroq asoslaydi. Yig'ilganda yon menyuda bitta qator ko'rinadi,
-      xohlagan ochib yo'l xaritasini ko'radi.
+      2-bosqich QURILDI: `soon` olib tashlandi va o'rnini `permission`
+      egalladi (`incentives`/`incidents` bandlaridagi naqsh). Backend
+      barcha `GET` larni `recruiting.view` bilan himoyalagan, ya'ni bu
+      ruxsatsiz odam ro'yxatni SERVERDAN OLA OLMAYDI — bandni
+      ko'rsatib, sahifani «bo'sh/xatoli» holatda ochish ortiqcha
+      chalkashlik bo'lardi.
 
-      NEGA shu yerda: 1-bosqich (Xodimlar, Ro'yxatlar, Ma'lumotnomalar)
-      tugagach, 2-bosqich boshlanishidan OLDIN — «Tizim» (administrator)
-      doim eng pastda qoladi, PLAN.md dagi bosqich tartibi menyuda ham
-      saqlanadi.
+      Guruhning O'ZI qoldi: ikkita band ham kundalik ish, lekin ular
+      bitta jarayonning (voronkaning) ikki qadami — yonma-yon turishi
+      va bitta nom ostida yig'ilishi ularni «xodimlar» bo'limidan
+      ajratib turadi. Rekruting hali ISHGA OLINMAGAN odamlar bilan
+      ishlaydi, xodimlar bo'limi esa olinganlar bilan.
+
+      ⚠️ «SUHBATLAR» BANDI O'CHIRILDI. Rejada u alohida bo'lim edi,
+      lekin backendda alohida `Interview` agregati YO'Q: suhbat ham
+      shunchaki voronka bosqichi (`CandidateStageEntry` domen izohi —
+      «uning kim, qachon, qanday xulosa dan boshqa maydoni yo'q»).
+      Bosqichlar esa SOZLANADIGAN ma'lumotnoma, ya'ni qaysi bosqich
+      «suhbat» ekanini kod hech qachon bila olmaydi: HR uni «Суҳбат 1»
+      deb ham, «Техник интервью» deb ham atashi mumkin. O'rniga
+      nomzodlar ro'yxatida BOSQICH bo'yicha filtr bor
+      (`/nomzodlar?stage=…`) — HR o'zi «suhbat» deb hisoblagan
+      bosqichni tanlaydi. Bu `/qobiliyatlar` va `/hujjatlar` bandlari
+      bilan qilingan ishning aynan o'zi: bajarilmaydigan va'dani
+      menyuda saqlab turish yo'l xaritasi emas, shovqin.
+
+      ⚠️ «TAKLIFLAR» BANDI HAM O'CHIRILDI. Sabab boshqacha: taklif
+      HAR DOIM aniq bir nomzodga tegishli va backend `candidateId` ni
+      MAJBURIY parametr qilgan (`GET /api/recruiting/offers` —
+      «barcha takliflar» degan so'rov umuman yo'q). Uning izohida
+      sabab ochiq yozilgan: bunday ro'yxat HR ga hech qanday savolga
+      javob bermaydi. Takliflar nomzod kartasining tabida boshqariladi
+      — u yerda ular muzokara tarixi bo'lib o'qiladi.
     */
     items: [
       {
         key: 'recruiting',
         // Faqat «shu yo'lakdamiz» tekshiruvi uchun (`sectionCatalog` dagi
-        // bilan bir xil naqsh) — hech qaysi bola marshruti hali yo'q,
-        // shu sababli bu ham hech qachon haqiqiy navigatsiyaga ishtirok
-        // etmaydi, lekin nomlash uslubi saqlanadi.
+        // bilan bir xil naqsh): bu band bosilganda hech qayerga
+        // o'tmaydi, guruhni ochadi. Bola marshrutlar esa yuqori
+        // darajada (`/vakansiyalar`, `/nomzodlar`) — ular kundalik ish
+        // va manzili qisqa bo'lgani ma'qul.
         to: '/rekruting',
         icon: UserSearch,
         children: [
-          { key: 'vacancies',  to: '/vakansiyalar', icon: BriefcaseBusiness, soon: true },
-          { key: 'candidates', to: '/nomzodlar',     icon: UserPlus,         soon: true },
-          { key: 'interviews', to: '/suhbatlar',     icon: MessageCircle,    soon: true },
-          { key: 'jobOffers',  to: '/takliflar',     icon: FileSignature,    soon: true },
+          { key: 'vacancies',  to: '/vakansiyalar', icon: BriefcaseBusiness,
+            permission: 'recruiting.view' },
+          { key: 'candidates', to: '/nomzodlar',    icon: UserPlus,
+            permission: 'recruiting.view' },
         ],
       },
     ],

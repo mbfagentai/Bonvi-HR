@@ -149,6 +149,45 @@ function callArgument(text, openParenIndex) {
   return text.slice(openParenIndex + 1, i - 1)
 }
 
+/**
+ * `t(...)` argumentlaridan FAQAT BIRINCHISINI — ya'ni kalitni — ajratadi.
+ *
+ * ⚠️ BU ZARUR, «shunchaki aniqroq» emas. Ilgari butun argument ro'yxati
+ * skanerlanardi va undagi HAR BIR satr kalit deb hisoblanardi. Natijada
+ * ikkinchi argumentdagi ORINBOSAR QIYMATLAR ham kalit bo'lib ko'rinardi:
+ *
+ *     t('recruiting.acceptSummary', { position: offer.vacancy ?? '—' })
+ *                                                                 ↑
+ *                                          «—» kalit deb o'qilardi
+ *
+ * va tekshiruv «kodda ishlatilgan, lekin etalonda yo'q kalit» deb
+ * YIQILARDI. Bu yolg'on xato edi: `—` hech qachon kalit bo'lmagan.
+ *
+ * Vergul QAVS VA TIRNOQ ICHIDA hisobga olinmaydi — aks holda
+ * `t(cond ? 'a' : 'b', { n: f(1, 2) })` kabi chaqiruv noto'g'ri kesilardi.
+ */
+function firstArgument(args) {
+  let depth = 0
+  let quote = null
+
+  for (let i = 0; i < args.length; i++) {
+    const ch = args[i]
+
+    if (quote !== null) {
+      if (ch === '\\') i++
+      else if (ch === quote) quote = null
+      continue
+    }
+
+    if (ch === "'" || ch === '"' || ch === '`') quote = ch
+    else if (ch === '(' || ch === '[' || ch === '{') depth++
+    else if (ch === ')' || ch === ']' || ch === '}') depth--
+    else if (ch === ',' && depth === 0) return args.slice(0, i)
+  }
+
+  return args
+}
+
 /** Har bir faylni o'qib, oddiy va shablonli `t(...)` chaqiruvlarini ajratadi. */
 function scanTranslationCalls() {
   const literalKeys = new Map() // kalit → joylashuvlar to'plami
@@ -160,7 +199,7 @@ function scanTranslationCalls() {
     const callRe = /\bt\(/g
     let match
     while ((match = callRe.exec(text))) {
-      const arg = callArgument(text, match.index + 1)
+      const arg = firstArgument(callArgument(text, match.index + 1))
       const location = `${relative}:${lineOf(text, match.index)}`
 
       for (const literal of arg.matchAll(/'([^']*)'|"([^"]*)"/g)) {
@@ -252,7 +291,92 @@ const DYNAMIC_KEY_SOURCES = [
     values: (text) => constObjectKeyNames(text, 'PROBATION_STATUSES'),
     keysFor: (value) => [`probation.status.${value}`],
   },
+
+  /*
+   * Rekruting (2-bosqich). Server sanoqlarni `"Open"`, `"InProgress"`
+   * ko'rinishida qaytaradi, tarjima kalitlari esa kichik harf bilan
+   * boshlanadi (`recruiting.vacancyStatus.open`) — kodda ular
+   * `status.charAt(0).toLowerCase() + status.slice(1)` bilan hosil
+   * qilinadi. Shu sababli bu yerda ham AYNAN o'sha o'girish qo'llanadi:
+   * ro'yxat kodda o'zgarsa, tekshiruv o'zi yangilanadi.
+   */
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'VACANCY_STATUSES'),
+    keysFor: (value) => [`recruiting.vacancyStatus.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'CANDIDATE_STATUSES'),
+    keysFor: (value) => [`recruiting.candidateStatus.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'CANDIDATE_SOURCES'),
+    keysFor: (value) => [`recruiting.source.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'STAGE_OUTCOMES'),
+    keysFor: (value) => [`recruiting.outcome.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'OFFER_STATUSES'),
+    keysFor: (value) => [`recruiting.offerStatus.${lowerFirst(value)}`],
+  },
+
+  /*
+   * Tasdiqlash oynalari uchta kalitni birga ishlatadi (`…Title`, `…Text`,
+   * `…Confirm`) va amal nomi shablonda turadi. Ro'yxat kodda alohida
+   * massiv bo'lib yotmaydi — u dialogning o'z tipida. Shu sababli
+   * qiymatlar SHU YERDA sanab o'tilgan: yangi amal qo'shilsa, «tanilmagan
+   * shablon» ogohlantirishi emas, «etalonda yo'q kalit» XATOSI chiqadi va
+   * uni e'tibordan chetda qoldirib bo'lmaydi.
+   */
+  {
+    file: 'src/features/recruiting/components/candidate-action-dialog.tsx',
+    values: () => ['reject', 'withdraw', 'reassign', 'delete'].map((value) => ({ value, line: 0 })),
+    keysFor: (value) => [
+      `recruiting.candidateAction.${value}Title`,
+      `recruiting.candidateAction.${value}Text`,
+      `recruiting.candidateAction.${value}Confirm`,
+    ],
+  },
+  {
+    file: 'src/features/recruiting/components/candidate-offers-tab.tsx',
+    values: () => ['decline', 'expire'].map((value) => ({ value, line: 0 })),
+    keysFor: (value) => [
+      `recruiting.offerClose.${value}Title`,
+      `recruiting.offerClose.${value}Text`,
+      `recruiting.offerClose.${value}Confirm`,
+    ],
+  },
+  {
+    file: 'src/features/recruiting/components/vacancy-action-dialog.tsx',
+    values: () => ['pause', 'resume', 'close', 'delete'].map((value) => ({ value, line: 0 })),
+    keysFor: (value) => [
+      `recruiting.vacancyAction.${value}Title`,
+      `recruiting.vacancyAction.${value}Text`,
+      `recruiting.vacancyAction.${value}Confirm`,
+    ],
+  },
+  {
+    /*
+     * Nomzod kartasidagi «yopilgan» yozuvi. Uchta holatning har biri uchun
+     * alohida matn — `InProgress` bu yerda YO'Q va bo'lishi ham kerak emas:
+     * jarayondagi nomzodda «yopildi» yozuvi umuman chizilmaydi.
+     */
+    file: 'src/features/recruiting/components/candidate-card-page.tsx',
+    values: () => ['rejected', 'withdrawn', 'hired'].map((value) => ({ value, line: 0 })),
+    keysFor: (value) => [`recruiting.candidateClosed.${value}`],
+  },
 ]
+
+/** `InProgress` → `inProgress`. Kodda ham aynan shu o'girish ishlatiladi. */
+function lowerFirst(value) {
+  return value.charAt(0).toLowerCase() + value.slice(1)
+}
 
 function collectDynamicKeys() {
   const dynamicKeys = new Map()
