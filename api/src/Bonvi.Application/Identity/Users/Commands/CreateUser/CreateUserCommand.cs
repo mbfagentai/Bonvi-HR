@@ -142,7 +142,7 @@ public sealed class CreateUserCommandHandler
         // yaratishda (eng ko'p uchraydigan holat) qo'shimcha so'rov ketmaydi.
         if (SystemRoles.SingleHolder.Contains(role.Code))
         {
-            var allUsers = await _users.ListAsync(cancellationToken).ConfigureAwait(false);
+            var allUsers = await _users.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var single = UserRoleRules.EnsureSingleHolder(role, allUsers, exceptUserId: null);
             if (single.IsFailure)

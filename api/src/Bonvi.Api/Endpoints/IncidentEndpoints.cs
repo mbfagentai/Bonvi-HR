@@ -72,11 +72,12 @@ public static class IncidentEndpoints
                 DateOnly? from,
                 DateOnly? to,
                 IncidentSeverity? severity,
+                string? search,
                 ListIncidentsQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ListIncidentsQuery(from, to, severity), cancellationToken)
+                    .HandleAsync(new ListIncidentsQuery(from, to, severity, search), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -87,7 +88,8 @@ public static class IncidentEndpoints
             .WithDescription(
                 "Barcha yozuvlar, hodisa sanasi bo'yicha kamayish tartibida. " +
                 "«from»/«to» — ikki tomondan yopiq oraliq. «severity» — Minor | Moderate | " +
-                "Severe | Fatal.")
+                "Severe | Fatal. «search» — JABRLANGAN XODIM bo'yicha (F.I.Sh., JSHSHIR, " +
+                "pasport, telefon); hodisa tavsifi va mas'ul shaxs qidiruvga kirmaydi.")
             .Produces<IReadOnlyList<IncidentDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 

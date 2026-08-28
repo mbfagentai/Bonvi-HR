@@ -1,5 +1,5 @@
 import { ListFilter, Search, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import {
   EMPLOYMENT_EVENT_TYPES,
@@ -7,6 +7,7 @@ import {
 } from '@/features/employees/api/employees-api'
 import type { FilterOptions } from '@/features/employees/api/employees-queries'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { useSearchDraft } from '@/shared/lib/list-search'
 import { Button, Input, Select, TextField } from '@/shared/ui'
 /*
  * Filtr holatining shakli manzil bilan bir joyda turadi
@@ -48,25 +49,13 @@ export function EmploymentsToolbar({
 
   /*
    * Qidiruv har harfda so'rov yubormaydi — yozish to'xtagach 350 ms
-   * kutiladi (`employees-toolbar.tsx` dagi bilan bir xil sabab).
+   * kutiladi. Mantiq `useSearchDraft` ga chiqarilgan: u endi sakkizta
+   * boshqa ro'yxatda ham ishlatiladi va nusxalar bir-biridan ajralib
+   * ketmasligi kerak.
    */
-  const [draft, setDraft] = useState(filters.search)
-  const latest = useRef({ filters, onChange })
-  latest.current = { filters, onChange }
-
-  useEffect(() => {
-    setDraft(filters.search)
-  }, [filters.search])
-
-  useEffect(() => {
-    if (draft === latest.current.filters.search) return
-
-    const timer = window.setTimeout(() => {
-      latest.current.onChange({ ...latest.current.filters, search: draft })
-    }, 350)
-
-    return () => window.clearTimeout(timer)
-  }, [draft])
+  const [draft, setDraft] = useSearchDraft(filters.search, (value) => {
+    onChange({ ...filters, search: value })
+  })
 
   const set = <K extends keyof EmploymentEventsFilterState>(
     key: K,
@@ -91,6 +80,13 @@ export function EmploymentsToolbar({
   return (
     <div className="border-b border-[var(--border)]">
       <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5 sm:gap-3 sm:px-5">
+        {/*
+          Placeholder ATAYLAB yangi kalitda: eski
+          `employments.searchPlaceholder` «Buyruq raqami bo'yicha qidirish»
+          deydi va bu endi YARIM haqiqat — server buyruq raqamini ham,
+          xodimni ham (F.I.Sh., JSHSHIR, pasport, telefon) qidiradi.
+          Noto'g'ri va'da bergan maydonga HR ism yozib ko'rmasdi.
+        */}
         <div className="min-w-[200px] flex-1">
           <Input
             icon={Search}
@@ -98,7 +94,7 @@ export function EmploymentsToolbar({
             type="search"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder={t('employments.searchPlaceholder')}
+            placeholder={t('employments.searchAnyPlaceholder')}
             aria-label={t('common.search')}
           />
         </div>

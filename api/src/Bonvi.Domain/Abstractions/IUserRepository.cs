@@ -30,7 +30,27 @@ public interface IUserRepository : IRepository<User>
     /// Sahifalash yo'q: tizimda bor-yo'g'i bir nechta foydalanuvchi (HR bo'limi
     /// va rahbariyat), yuzlab emas — butun ro'yxatni bitta so'rovda olish yetarli.
     /// </remarks>
-    Task<IReadOnlyList<User>> ListAsync(CancellationToken cancellationToken = default);
+    /// <param name="search">
+    /// F.I.Sh. yoki LOGIN (telefon raqami) bo'yicha qidiruv. <c>null</c>
+    /// yoki bo'sh — qidiruvsiz.
+    /// <para>
+    /// <b>Nega xodimlar qidiruvidan farq qiladi.</b> Foydalanuvchi — bu
+    /// tizimga kiradigan hisob; unda JSHSHIR ham, pasport ham yo'q va
+    /// bo'lmaydi (hisob xodimga ixtiyoriy bog'lanadi, uning nusxasi emas).
+    /// Shu sababli bu yerda ikki maydon qoladi va telefon qoidasi
+    /// xodimlarnikidan nusxa OLINMAYDI — bir xil yordamchidan keladi.
+    /// </para>
+    /// <para>
+    /// <b>Nega sahifalanmagan ro'yxatda ham serverda.</b> Ro'yxat kichik,
+    /// lekin qidiruv qoidasi (ism yig'ish, telefon ajratgichlari) bazada
+    /// yashaydi. Uni klientga ko'chirish qoidaning ikkinchi nusxasini
+    /// yaratardi va ular vaqt o'tib ajralib ketardi.
+    /// </para>
+    /// </param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<User>> ListAsync(
+        string? search = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Foydalanuvchining barcha ruxsatlari — rollari orqali yig'ilgan.

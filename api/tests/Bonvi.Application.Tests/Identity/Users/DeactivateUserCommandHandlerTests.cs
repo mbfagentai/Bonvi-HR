@@ -59,7 +59,7 @@ public sealed class DeactivateUserCommandHandlerTests
         var boshqaRahbar = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
         boshqaRahbar.SetRole(_mainBossRole.Id);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, boshqaRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, boshqaRahbar]);
 
         var natija = await Handler.HandleAsync(
             new DeactivateUserCommand(acting.Id),
@@ -76,7 +76,7 @@ public sealed class DeactivateUserCommandHandlerTests
         var yagonaRahbar = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
         ActingAs(yagonaRahbar);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([yagonaRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([yagonaRahbar]);
 
         var natija = await Handler.HandleAsync(
             new DeactivateUserCommand(yagonaRahbar.Id),
@@ -94,7 +94,7 @@ public sealed class DeactivateUserCommandHandlerTests
         ActingAs(acting);
 
         var boshRahbar = Mavjud("905011111", "Rahimov Sardor", _mainBossRole);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, boshRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, boshRahbar]);
 
         var natija = await Handler.HandleAsync(
             new DeactivateUserCommand(boshRahbar.Id),
@@ -112,7 +112,7 @@ public sealed class DeactivateUserCommandHandlerTests
         ActingAs(acting);
 
         var superAdmin = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, superAdmin]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, superAdmin]);
 
         var natija = await Handler.HandleAsync(
             new DeactivateUserCommand(superAdmin.Id),
@@ -130,7 +130,7 @@ public sealed class DeactivateUserCommandHandlerTests
         ActingAs(acting);
 
         var hrUser = Mavjud("905088877", "Каримов Жасур", _hrRole);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, hrUser]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, hrUser]);
 
         var natija = await Handler.HandleAsync(
             new DeactivateUserCommand(hrUser.Id),

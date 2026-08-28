@@ -64,9 +64,17 @@ public enum IncentiveSortField
 /// Rag'bat/jarima ro'yxatining filtri.
 /// </summary>
 /// <param name="Search">
-/// XODIM F.I.Sh. bo'yicha qidiruv. Buyruqlar ro'yxatidan (u yerda buyruq
-/// raqami) ATAYLAB farq qiladi: HR bu ekranga «kimga nima berilgan» degan
-/// savol bilan keladi, qo'lida qog'oz buyruq bilan emas.
+/// XODIM bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon —
+/// xodimlar ro'yxatidagi bilan AYNAN bir xil qoida.
+/// <para>
+/// ⚠️ Ilgari bu yerda FAQAT F.I.Sh. ishlardi va bu ataylab qilingan deb
+/// izohlangan edi («HR bu ekranga kimga nima berilgan degan savol bilan
+/// keladi»). Amalda esa qoida teskari ishladi: xodimlar ro'yxatida
+/// JSHSHIR bilan odamni topgan HR shu matnni rag'bat ro'yxatiga
+/// ko'chirganda BO'SH natija olardi — hech qanday xato ham chiqmasdi.
+/// Bitta qidiruv maydonining ikki ekranda ikki xil ishlashi tizimga
+/// ishonchni yo'qotadi, shu sababli qoida birlashtirildi.
+/// </para>
 /// </param>
 /// <param name="Kind">Rag'bat yoki jarima. Bo'sh bo'lsa — ikkalasi.</param>
 /// <param name="From">Sananing quyi chegarasi (o'zi ham kiradi).</param>

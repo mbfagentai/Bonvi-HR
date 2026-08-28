@@ -32,10 +32,10 @@ public sealed class ListUsersQueryHandlerTests
         var hr = YangiFoydalanuvchi("905088877", "Каримов Жасур");
         hr.SetRole(hrRole.Id);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([superAdmin, hr]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([superAdmin, hr]);
         _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([superAdminRole, hrRole]);
 
-        var natija = await Handler.HandleAsync(TestContext.Current.CancellationToken);
+        var natija = await Handler.HandleAsync(new ListUsersQuery(), TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Count.ShouldBe(2);
@@ -68,10 +68,10 @@ public sealed class ListUsersQueryHandlerTests
         var rasmsiz = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
         rasmsiz.SetRole(hrRole.Id);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([rasmli, rasmsiz]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([rasmli, rasmsiz]);
         _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([hrRole]);
 
-        var natija = await Handler.HandleAsync(TestContext.Current.CancellationToken);
+        var natija = await Handler.HandleAsync(new ListUsersQuery(), TestContext.Current.CancellationToken);
 
         natija.Value.Single(dto => dto.Login == "+998905088877").PhotoKey.ShouldBe("users/rasm.jpg");
         natija.Value.Single(dto => dto.Login == "+998905011111").PhotoKey.ShouldBeNull();
@@ -83,10 +83,10 @@ public sealed class ListUsersQueryHandlerTests
         var user = YangiFoydalanuvchi("905088877", "Каримов Жасур");
         user.Deactivate();
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([user]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([user]);
         _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([]);
 
-        var natija = await Handler.HandleAsync(TestContext.Current.CancellationToken);
+        var natija = await Handler.HandleAsync(new ListUsersQuery(), TestContext.Current.CancellationToken);
 
         natija.Value.Single().IsActive.ShouldBeFalse();
     }

@@ -40,8 +40,25 @@ public sealed class UserRepository : Repository<User>, IUserRepository
         return query.AnyAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<User>> ListAsync(CancellationToken cancellationToken = default)
-        => await Set.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false);
+    public async Task<IReadOnlyList<User>> ListAsync(
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = Set.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            // Shart xom SQL'da: `Login` konvertor orqali satrga tushadi va
+            // `user.Login.Value` ifodasi SQL'ga tarjima QILINMAYDI (xodimlar
+            // qidiruvidagi bilan aynan bir xil to'siq). To'liq sabab —
+            // `UserSearchQuery` izohida.
+            var ids = UserSearchQuery.MatchingIds(Context, search);
+
+            query = query.Where(user => ids.Contains(user.Id));
+        }
+
+        return await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     public async Task<IReadOnlyList<string>> GetRoleCodesAsync(
         Guid userId,

@@ -25,7 +25,7 @@ namespace Bonvi.Application.Employees.Incentives;
 /// bitta xodim ro'yxatda bir necha marta ko'rinadi — bu kutilgan holat.
 /// </para>
 /// </remarks>
-/// <param name="Search">Xodim F.I.Sh. bo'yicha qidiruv.</param>
+/// <param name="Search">Xodim bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon.</param>
 /// <param name="Kind">Rag'bat yoki jarima. Bo'sh bo'lsa — ikkalasi.</param>
 /// <param name="From">Sananing quyi chegarasi.</param>
 /// <param name="To">Sananing yuqori chegarasi.</param>

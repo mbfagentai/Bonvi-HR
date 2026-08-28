@@ -149,7 +149,7 @@ public sealed class UpdateUserCommandHandler
         // ism yoki telefonni tuzatish uchun butun jadvalni o'qish ortiqcha.
         if (rolOzgardi)
         {
-            var allUsers = await _users.ListAsync(cancellationToken).ConfigureAwait(false);
+            var allUsers = await _users.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // ---------- «Atigi bitta» ----------
             var single = UserRoleRules.EnsureSingleHolder(newRole, allUsers, exceptUserId: target.Id);

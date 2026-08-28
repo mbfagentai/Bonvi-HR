@@ -17,7 +17,11 @@ import {
 export interface IncentivesSearch {
   /** 1 dan boshlanadi. 1 — standart, manzilda ko'rinmaydi. */
   page?: number
-  /** Qidiruv matni: XODIM F.I.Sh. (buyruq raqami emas — backend shunday qidiradi). */
+  /**
+   * Qidiruv matni: XODIM bo'yicha — F.I.Sh., JSHSHIR, pasport yoki
+   * telefon (xodimlar ro'yxatidagi bilan aynan bir xil qoida). Buyruq
+   * raqami bu ekranda qidirilmaydi: savol «kimga nima berilgan».
+   */
   q?: string
   kind?: IncentiveKindValue
   /** `DateOnly` → «2026-08-26». */

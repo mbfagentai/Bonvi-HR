@@ -1,10 +1,12 @@
-import { CalendarClock, CircleAlert, Timer } from 'lucide-react'
+import { getRouteApi } from '@tanstack/react-router'
+import { CalendarClock, CircleAlert, Search, Timer } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { EMPLOYMENT_MANAGE } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
   Alert,
   Badge,
@@ -13,6 +15,7 @@ import {
   DataTable,
   EmptyState,
   IconTile,
+  Input,
   PageHeader,
   Select,
   dataColumnHelper,
@@ -34,6 +37,12 @@ const helper = dataColumnHelper<ProbationItem>()
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: ProbationItem[] = []
+
+/**
+ * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
+ * (`employees-page.tsx` dagi izohga qarang).
+ */
+const route = getRouteApi('/_app/sinov')
 
 const STATUS_TONE: Readonly<Record<ProbationStatus, BadgeTone>> = {
   inProgress: 'info',
@@ -62,9 +71,25 @@ export function ProbationsPage() {
 
   const canManage = hasPermission(EMPLOYMENT_MANAGE)
 
-  const [filters, setFilters] = useState<ProbationFilters>({ status: '' })
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
+
+  // Holat sahifaning o'zida, qidiruv esa manzilda — sabab marshrut
+  // faylida (`sinov.tsx`) yozilgan.
+  const [status, setStatus] = useState<ProbationFilters['status']>('')
   const [resolving, setResolving] = useState<ProbationItem | null>(null)
   const [extending, setExtending] = useState<ProbationItem | null>(null)
+
+  const filters: ProbationFilters = { status, search: search.q ?? '' }
+
+  /*
+   * Qidiruv har harfda so'rov yubormaydi (350 ms) va matn manzilga
+   * yoziladi. `replace` — qidiruvni aniqlashtirish alohida tarix qadami
+   * emas: aks holda «orqaga» tugmasi har bir harfni birma-bir qaytarardi.
+   */
+  const [draft, setDraft] = useSearchDraft(filters.search, (value) => {
+    void navigate({ search: { q: toSearchParam(value) }, replace: true })
+  })
 
   const list = useProbations(filters)
   const warning = useEndingSoon()
@@ -220,12 +245,8 @@ export function ProbationsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span>{t('probation.endingSoonText', { days: WARNING_DAYS })}</span>
 
-            {filters.status !== 'inProgress' && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setFilters({ status: 'inProgress' })}
-              >
+            {status !== 'inProgress' && (
+              <Button size="sm" variant="secondary" onClick={() => setStatus('inProgress')}>
                 {t('probation.showActive')}
               </Button>
             )}
@@ -242,14 +263,29 @@ export function ProbationsPage() {
       <MissingProbations canManage={canManage} />
 
       <Card>
-        <div className="border-b border-[var(--border)] p-4">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] p-4 sm:gap-3">
+          {/*
+            Qidiruv birinchi va butun bo'sh kenglikni egallaydi: sinovdagi
+            ikkita bir xil familiyani ajratish uchun HR JSHSHIR yozadi,
+            holatni esa kamdan-kam o'zgartiradi.
+          */}
+          <div className="min-w-[200px] flex-1">
+            <Input
+              icon={Search}
+              shape="pill"
+              type="search"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={t('common.searchPlaceholder')}
+              aria-label={t('common.search')}
+            />
+          </div>
+
           <Select
             options={statusOptions}
-            value={filters.status}
-            onChange={(event) =>
-              setFilters({ status: event.target.value as ProbationFilters['status'] })
-            }
-            className="max-w-[260px]"
+            value={status}
+            onChange={(event) => setStatus(event.target.value as ProbationFilters['status'])}
+            className="w-full sm:w-[260px]"
           />
         </div>
 

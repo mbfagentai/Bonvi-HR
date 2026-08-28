@@ -1,9 +1,11 @@
-import { ClipboardCheck, HeartPulse, Pencil, Plus, Trash2 } from 'lucide-react'
+import { getRouteApi } from '@tanstack/react-router'
+import { ClipboardCheck, HeartPulse, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
   Badge,
   Button,
@@ -11,6 +13,7 @@ import {
   DataTable,
   EmptyState,
   IconTile,
+  Input,
   PageHeader,
   Select,
   TextField,
@@ -39,6 +42,12 @@ interface Filters {
 const DEFAULT_FILTERS: Filters = { from: '', to: '', severity: '' }
 
 /**
+ * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
+ * (`employees-page.tsx` dagi izohga qarang).
+ */
+const route = getRouteApi('/_app/hodisalar')
+
+/**
  * Baxtsiz hodisalar jurnali.
  *
  * ALOHIDA sahifa, xodim kartasi ostida emas: bu jurnal ko'rinishi HR ga
@@ -59,6 +68,20 @@ export function IncidentsPage() {
   const canView = hasPermission(SAFETY_VIEW)
   const canManage = hasPermission(SAFETY_MANAGE)
 
+  const searchParams = route.useSearch()
+  const navigate = route.useNavigate()
+
+  const search = searchParams.q ?? ''
+
+  /*
+   * Qidiruv har harfda so'rov yubormaydi (350 ms) va matn manzilga
+   * yoziladi. `replace` — qidiruvni aniqlashtirish alohida tarix qadami
+   * emas: aks holda «orqaga» tugmasi har bir harfni birma-bir qaytarardi.
+   */
+  const [draft, setDraft] = useSearchDraft(search, (value) => {
+    void navigate({ search: { q: toSearchParam(value) }, replace: true })
+  })
+
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [editing, setEditing] = useState<Incident | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -74,6 +97,7 @@ export function IncidentsPage() {
     from: filters.from === '' ? undefined : filters.from,
     to: filters.to === '' ? undefined : filters.to,
     severity: filters.severity === '' ? undefined : filters.severity,
+    search: search === '' ? undefined : search,
   })
   const rows = canView ? (list.data ?? EMPTY) : EMPTY
 
@@ -297,6 +321,23 @@ export function IncidentsPage() {
       />
 
       <Card className="overflow-hidden">
+        {/*
+          Qidiruv sana va daraja filtrlaridan YUQORIDA va butun kenglikda:
+          jurnalga «falonchi bilan nima bo'lgan edi» degan savol bilan
+          kelinadi, qolgan ikkitasi esa kamdan-kam ishlatiladi.
+        */}
+        <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+          <Input
+            icon={Search}
+            shape="pill"
+            type="search"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={t('common.searchPlaceholder')}
+            aria-label={t('common.search')}
+          />
+        </div>
+
         <div className="grid gap-3 border-b border-[var(--border)] px-4 py-3.5 sm:grid-cols-3 sm:px-5">
           <TextField
             label={t('common.dateFrom')}

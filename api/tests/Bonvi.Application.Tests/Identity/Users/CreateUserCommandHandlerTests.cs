@@ -235,7 +235,7 @@ public sealed class CreateUserCommandHandlerTests
 
         var mavjudRahbar = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
         mavjudRahbar.SetRole(_mainBossRole.Id);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, mavjudRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, mavjudRahbar]);
 
         var natija = await Handler.HandleAsync(
             new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.MainBoss),
@@ -250,7 +250,7 @@ public sealed class CreateUserCommandHandlerTests
     public async Task Ikkinchi_super_administrator_yaratilmaydi()
     {
         var acting = ActingAs(_superAdminRole);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting]);
 
         var natija = await Handler.HandleAsync(
             new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.SuperAdmin),
@@ -272,7 +272,7 @@ public sealed class CreateUserCommandHandlerTests
         eskiRahbar.SetRole(_mainBossRole.Id);
         eskiRahbar.Deactivate();
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, eskiRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, eskiRahbar]);
 
         var natija = await Handler.HandleAsync(
             new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.MainBoss),
@@ -295,6 +295,6 @@ public sealed class CreateUserCommandHandlerTests
             new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.HrManager),
             TestContext.Current.CancellationToken);
 
-        await _users.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _users.DidNotReceive().ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 }

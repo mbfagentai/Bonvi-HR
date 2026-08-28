@@ -1,9 +1,11 @@
-import { MessageSquareQuote, Pencil, Plus, Trash2 } from 'lucide-react'
+import { getRouteApi } from '@tanstack/react-router'
+import { MessageSquareQuote, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
   Badge,
   Button,
@@ -11,6 +13,7 @@ import {
   DataTable,
   EmptyState,
   IconTile,
+  Input,
   PageHeader,
   TextField,
   dataColumnHelper,
@@ -36,6 +39,12 @@ interface Filters {
 const DEFAULT_FILTERS: Filters = { from: '', to: '' }
 
 /**
+ * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
+ * (`employees-page.tsx` dagi izohga qarang).
+ */
+const route = getRouteApi('/_app/qayta-aloqa')
+
+/**
  * Qayta aloqa (exit interview) jurnali — 91.16 o'rniga.
  *
  * `incidents-page.tsx` bilan bir xil naqsh va bir xil soddalashtirish
@@ -48,16 +57,31 @@ export function ExitInterviewsPage() {
   const canView = hasPermission(FEEDBACK_VIEW)
   const canManage = hasPermission(FEEDBACK_MANAGE)
 
+  const searchParams = route.useSearch()
+  const navigate = route.useNavigate()
+
+  const search = searchParams.q ?? ''
+
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [editing, setEditing] = useState<ExitInterview | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<ExitInterview | null>(null)
+
+  /*
+   * Qidiruv har harfda so'rov yubormaydi (350 ms) va matn manzilga
+   * yoziladi. `replace` — qidiruvni aniqlashtirish alohida tarix qadami
+   * emas: aks holda «orqaga» tugmasi har bir harfni birma-bir qaytarardi.
+   */
+  const [draft, setDraft] = useSearchDraft(search, (value) => {
+    void navigate({ search: { q: toSearchParam(value) }, replace: true })
+  })
 
   // `canView` yo'q bo'lsa ham so'rov chaqiriladi — `incidents-page.tsx`
   // dagi bilan bir xil naqsh (`users-page.tsx`dan meros).
   const list = useExitInterviews({
     from: filters.from === '' ? undefined : filters.from,
     to: filters.to === '' ? undefined : filters.to,
+    search: search === '' ? undefined : search,
   })
   const rows = canView ? (list.data ?? EMPTY) : EMPTY
 
@@ -256,6 +280,23 @@ export function ExitInterviewsPage() {
       />
 
       <Card className="overflow-hidden">
+        {/*
+          Qidiruv sana oralig'idan YUQORIDA va butun kenglikda: HR bu
+          jurnalga «falonchi nima degan edi» degan savol bilan keladi,
+          sana oralig'i esa kamdan-kam ishlatiladi.
+        */}
+        <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+          <Input
+            icon={Search}
+            shape="pill"
+            type="search"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={t('common.searchPlaceholder')}
+            aria-label={t('common.search')}
+          />
+        </div>
+
         <div className="grid gap-3 border-b border-[var(--border)] px-4 py-3.5 sm:grid-cols-2 sm:px-5">
           <TextField
             label={t('common.dateFrom')}

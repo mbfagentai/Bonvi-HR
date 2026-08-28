@@ -63,7 +63,7 @@ public sealed class UpdateUserCommandHandlerTests
         ActingAs(acting);
 
         var target = Mavjud("905088877", "Каримов Жасур", _hrRole);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, target]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, target]);
 
         var natija = await Handler.HandleAsync(
             new UpdateUserCommand(target.Id, "905088877", "Каримов", "Жасур", null, SystemRoles.MainBoss),
@@ -82,7 +82,7 @@ public sealed class UpdateUserCommandHandlerTests
         ActingAs(acting);
 
         var target = Mavjud("905088877", "Каримов Жасур", _hrRole);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, target]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, target]);
 
         await Handler.HandleAsync(
             new UpdateUserCommand(target.Id, "905088877", "Каримов", "Жасур", null, SystemRoles.MainBoss),
@@ -109,7 +109,7 @@ public sealed class UpdateUserCommandHandlerTests
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
-        await _users.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _users.DidNotReceive().ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     // ─────────────────────────── Kim kimga tega oladi ───────────────────────────
@@ -175,7 +175,7 @@ public sealed class UpdateUserCommandHandlerTests
         mavjudRahbar.SetRole(_mainBossRole.Id);
 
         var target = Mavjud("905088877", "Каримов Жасур", _hrRole);
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, mavjudRahbar, target]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, mavjudRahbar, target]);
 
         var natija = await Handler.HandleAsync(
             new UpdateUserCommand(target.Id, "905088877", "Каримов", "Жасур", null, SystemRoles.MainBoss),
@@ -194,7 +194,7 @@ public sealed class UpdateUserCommandHandlerTests
         var yagonaRahbar = Mavjud("905088888", "Тошматов Акбар", _superAdminRole);
         ActingAs(yagonaRahbar);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([yagonaRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([yagonaRahbar]);
 
         var natija = await Handler.HandleAsync(
             new UpdateUserCommand(yagonaRahbar.Id, "905088888", "Тошматов", "Акбар", null, SystemRoles.HrManager),
@@ -214,7 +214,7 @@ public sealed class UpdateUserCommandHandlerTests
         var boshqaRahbar = YangiFoydalanuvchi("905011111", "Rahimov Sardor");
         boshqaRahbar.SetRole(_mainBossRole.Id);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, boshqaRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, boshqaRahbar]);
 
         var natija = await Handler.HandleAsync(
             new UpdateUserCommand(acting.Id, "905088888", "Тошматов", "Акбар", null, SystemRoles.HrManager),

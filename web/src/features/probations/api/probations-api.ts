@@ -60,6 +60,11 @@ export interface ProbationItem {
 
 export interface ProbationFilters {
   status: ProbationStatus | ''
+  /**
+   * Xodim bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon.
+   * Bo'sh satr — «qidiruvsiz» (server ham shunday tushunadi).
+   */
+  search: string
 }
 
 /**
@@ -126,12 +131,20 @@ export async function fetchProbations(
   filters: ProbationFilters,
   signal?: AbortSignal,
 ): Promise<ProbationItem[]> {
-  const { data } = await api.get<unknown>('/api/probations', {
-    // Bo'sh filtr YUBORILMAYDI: `?status=` server uchun «noto'g'ri qiymat»,
-    // «hammasi» emas.
-    params: filters.status === '' ? {} : { status: statusName(filters.status) },
-    signal,
-  })
+  // Bo'sh filtr YUBORILMAYDI: `?status=` server uchun «noto'g'ri qiymat»,
+  // «hammasi» emas.
+  //
+  // Qidiruv SERVERGA yuboriladi, klientda `filter()` qilinmaydi: server
+  // ism yig'ish (қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini tashlash
+  // qoidalarini biladi, klient esa yo'q. Bu qoidani bu yerda takrorlash
+  // ikkinchi nusxa yaratardi va u vaqt o'tib birinchisidan ajralib
+  // ketardi.
+  const params: Record<string, string> = {}
+
+  if (filters.status !== '') params['status'] = statusName(filters.status)
+  if (filters.search.trim() !== '') params['search'] = filters.search
+
+  const { data } = await api.get<unknown>('/api/probations', { params, signal })
 
   return toList(data)
 }

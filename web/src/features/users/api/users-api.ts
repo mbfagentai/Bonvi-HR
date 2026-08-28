@@ -81,8 +81,27 @@ export interface CreateUserInput extends UserFormInput {
   password: string
 }
 
-export async function fetchUsers(signal?: AbortSignal): Promise<UserSummary[]> {
-  const { data } = await api.get<unknown>('/api/users', { signal })
+/**
+ * Hisoblar ro'yxati.
+ *
+ * `search` — F.I.Sh. yoki LOGIN (telefon). Xodimlar qidiruvidan ATAYLAB
+ * tor: hisobda JSHSHIR ham, pasport ham yo'q va bo'lmaydi — u tizimga
+ * kirish huquqi, shaxs kartasi emas.
+ *
+ * Qidiruv SERVERGA yuboriladi, garchi ro'yxat kichik bo'lsa ham: ism
+ * yig'ish (қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini tashlash qoidalari
+ * bazada yashaydi. Ularni bu yerda takrorlash ikkinchi nusxa yaratardi
+ * va u vaqt o'tib birinchisidan ajralib ketardi — bu loyihada aynan
+ * shunday xato allaqachon bo'lgan.
+ */
+export async function fetchUsers(search: string, signal?: AbortSignal): Promise<UserSummary[]> {
+  const params: Record<string, string> = {}
+
+  // Bo'sh qidiruv YUBORILMAYDI: «?search=» so'rov keshini keraksiz
+  // shovqin bilan to'ldirardi.
+  if (search.trim() !== '') params['search'] = search
+
+  const { data } = await api.get<unknown>('/api/users', { params, signal })
   return Array.isArray(data) ? data.map(toUser) : []
 }
 

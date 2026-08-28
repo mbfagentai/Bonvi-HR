@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { UsersPage } from '@/features/users/components/users-page'
+import { validateListSearch } from '@/shared/lib/list-search'
 
 /**
  * Foydalanuvchilarni boshqarish — faqat administrator.
@@ -13,5 +14,8 @@ import { UsersPage } from '@/features/users/components/users-page'
  * to'g'ridan-to'g'ri manzil yozilsa ham sahifa tushunarli holat ko'rsatadi.
  */
 export const Route = createFileRoute('/_app/foydalanuvchilar')({
+  /** Qidiruv matni — manzil satrida (loyihaning qat'iy konvensiyasi). */
+  validateSearch: validateListSearch,
+
   component: UsersPage,
 })

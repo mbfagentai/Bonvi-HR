@@ -1,4 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
+import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
@@ -6,12 +7,14 @@ import type { EmployeeFlagType } from '@/features/employees/api/employees-api'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { FLAG_LOOK, LISTS_MANAGE } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { useSearchDraft } from '@/shared/lib/list-search'
 import {
   Button,
   Card,
   DataTable,
   EmptyState,
   IconTile,
+  Input,
   PageHeader,
   Switch,
   dataColumnHelper,
@@ -39,8 +42,26 @@ const EMPTY: FlaggedEmployee[] = []
  * <b>Yangi belgi qo'yish bu yerda ATAYLAB yo'q.</b> Belgi xodimga
  * qo'yiladi, ro'yxatga emas — shu sababli u xodim profilidan boshlanadi.
  * Bu yerda ro'yxatni ko'rish va belgini yopish qoladi.
+ *
+ * <b>Qidiruv holati PROPS orqali keladi, ichkarida `useState` bilan emas.</b>
+ * NEGA: u manzil satrida yashaydi (loyihaning qat'iy konvensiyasi), manzil
+ * esa marshrutga tegishli — bu komponent esa to'rtta marshrutga xizmat
+ * qiladi. `useSearch({ strict: false })` bilan uni ichkaridan o'qish ham
+ * mumkin edi, lekin u holda tip to'rtta marshrutning birlashmasiga
+ * aylanardi va noto'g'ri marshrutga qo'shilgan sahifa hech qanday xato
+ * bermasdi. Props esa har bir marshrutni o'z holatini ochiq berishga
+ * majbur qiladi.
  */
-export function FlagListPage({ type }: { type: EmployeeFlagType }) {
+export function FlagListPage({
+  type,
+  search,
+  onSearchChange,
+}: {
+  type: EmployeeFlagType
+  /** Manzildagi qidiruv matni. Bo'sh satr — qidiruvsiz. */
+  search: string
+  onSearchChange: (next: string) => void
+}) {
   const { t, num } = useLocale()
   const navigate = useNavigate()
   const { hasPermission } = useAuth()
@@ -51,7 +72,13 @@ export function FlagListPage({ type }: { type: EmployeeFlagType }) {
   const [onlyActive, setOnlyActive] = useState(true)
   const [closing, setClosing] = useState<FlaggedEmployee | null>(null)
 
-  const list = useFlagged(type, onlyActive)
+  /*
+   * Qidiruv har harfda so'rov yubormaydi — yozish to'xtagach 350 ms
+   * kutiladi (`employments-toolbar.tsx` dagi bilan bir xil hook).
+   */
+  const [draft, setDraft] = useSearchDraft(search, onSearchChange)
+
+  const list = useFlagged(type, onlyActive, search)
   const rows = list.data ?? EMPTY
 
   const columns = useMemo<Array<DataColumn<FlaggedEmployee>>>(
@@ -208,6 +235,23 @@ export function FlagListPage({ type }: { type: EmployeeFlagType }) {
       />
 
       <Card>
+        {/*
+          Qidiruv jadvaldan YUQORIDA, kartaning ichida: «faqat kuchdagilar»
+          kalitidan farqli o'laroq u kundalik ishlatiladi va sahifa
+          sarlavhasiga emas, ro'yxatning o'ziga tegishli.
+        */}
+        <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+          <Input
+            icon={Search}
+            shape="pill"
+            type="search"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={t('common.searchPlaceholder')}
+            aria-label={t('common.search')}
+          />
+        </div>
+
         <DataTable
           columns={columns}
           data={rows}

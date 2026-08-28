@@ -103,7 +103,7 @@ public sealed class ActivateUserCommandHandler
 
         if (targetRole is not null && SystemRoles.SingleHolder.Contains(targetRole.Code))
         {
-            var allUsers = await _users.ListAsync(cancellationToken).ConfigureAwait(false);
+            var allUsers = await _users.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var single = UserRoleRules.EnsureSingleHolder(targetRole, allUsers, exceptUserId: target.Id);
             if (single.IsFailure)

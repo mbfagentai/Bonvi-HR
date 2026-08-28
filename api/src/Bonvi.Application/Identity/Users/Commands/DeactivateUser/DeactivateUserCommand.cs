@@ -98,7 +98,7 @@ public sealed class DeactivateUserCommandHandler
         // faolsizlantirish rahbariyat sonini kamaytirmaydi.
         if (target.IsActive)
         {
-            var allUsers = await _users.ListAsync(cancellationToken).ConfigureAwait(false);
+            var allUsers = await _users.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var remains = UserRoleRules.EnsureManagerRemains(target, allUsers, roles);
             if (remains.IsFailure)

@@ -57,11 +57,12 @@ public static class ExitInterviewEndpoints
         group.MapGet("/", async (
                 DateOnly? from,
                 DateOnly? to,
+                string? search,
                 ListExitInterviewsQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ListExitInterviewsQuery(from, to), cancellationToken)
+                    .HandleAsync(new ListExitInterviewsQuery(from, to, search), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -71,7 +72,9 @@ public static class ExitInterviewEndpoints
             .WithSummary("Qayta aloqa — jurnal (91.16 o'rniga)")
             .WithDescription(
                 "Barcha suhbatlar, suhbat sanasi bo'yicha kamayish tartibida. " +
-                "«from»/«to» — ikki tomondan yopiq oraliq.")
+                "«from»/«to» — ikki tomondan yopiq oraliq. " +
+                "«search» — XODIM bo'yicha (F.I.Sh., JSHSHIR, pasport, telefon), xodimlar " +
+                "ro'yxatidagi bilan aynan bir xil qoida; suhbat MATNI qidiruvga kirmaydi.")
             .Produces<IReadOnlyList<ExitInterviewDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 

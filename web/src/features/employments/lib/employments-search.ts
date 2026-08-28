@@ -14,7 +14,11 @@ import {
 export interface EmploymentEventsSearch {
   /** 1 dan boshlanadi. 1 — standart, manzilda ko'rinmaydi. */
   page?: number
-  /** Qidiruv matni: BUYRUQ RAQAMI (F.I.Sh. emas — backend shunday qidiradi). */
+  /**
+   * Qidiruv matni: BUYRUQ RAQAMI yoki XODIM (F.I.Sh., JSHSHIR, pasport,
+   * telefon). Server ikkala shartni «yoki» bilan bog'laydi, ya'ni HR
+   * maydonga nima yozganini oldindan aytishi shart emas.
+   */
   q?: string
   type?: EmploymentEventType
   /** `DateOnly` → «2026-08-25». */

@@ -51,6 +51,16 @@ export interface IncidentFilters {
   from?: string
   to?: string
   severity?: IncidentSeverityValue
+  /**
+   * JABRLANGAN xodim bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki
+   * telefon.
+   *
+   * Hodisa TAVSIFI va MAS'UL shaxs qidiruvga kirmaydi (server ham
+   * shunday): tavsifda begona odamlarning ismi tez-tez uchraydi
+   * («Karimov guvoh bo'ldi»), komissiya raisi esa o'nlab hodisada
+   * turadi — ikkalasi ham qidiruvni ma'nosiz qilardi.
+   */
+  search?: string
 }
 
 /**
@@ -150,6 +160,14 @@ function listParams(filters: IncidentFilters): Record<string, unknown> {
   if (filters.from) params['from'] = filters.from
   if (filters.to) params['to'] = filters.to
   if (filters.severity !== undefined) params['severity'] = enumName(filters.severity)
+
+  // Qidiruv SERVERGA yuboriladi, klientda `filter()` qilinmaydi: ism
+  // yig'ish va telefon ajratgichlarini tashlash qoidalari bazada
+  // yashaydi va ularning ikkinchi nusxasi vaqt o'tib ajralib ketardi.
+  if (filters.search !== undefined && filters.search.trim() !== '') {
+    params['search'] = filters.search
+  }
+
   return params
 }
 

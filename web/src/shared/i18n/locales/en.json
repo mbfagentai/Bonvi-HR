@@ -685,7 +685,8 @@
     "searchPlaceholder": "Search by order number",
     "subtitle": "{{n}} orders",
     "title": "Orders",
-    "type": "Type"
+    "type": "Type",
+    "searchAnyPlaceholder": "Order number, name, PINFL, phone…"
   },
   "competency": {
     "languages": "Languages",
@@ -853,7 +854,8 @@
     "role": "Role",
     "roleHint": "Every account has exactly one role.",
     "rolePlaceholder": "Select a role",
-    "singleHolderHint": "Only one active account may hold this role. If the seat is taken, deactivate the previous holder first."
+    "singleHolderHint": "Only one active account may hold this role. If the seat is taken, deactivate the previous holder first.",
+    "searchPlaceholder": "Name or login (phone)…"
   },
   "reports": {
     "subtitle": "Employee turnover: hires, departures and headcount trend",

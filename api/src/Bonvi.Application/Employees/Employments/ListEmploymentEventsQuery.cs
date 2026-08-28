@@ -24,7 +24,10 @@ namespace Bonvi.Application.Employees.Employments;
 /// <c>type=Hire</c> bilan filtrlangan ko'rinishi.
 /// </para>
 /// </remarks>
-/// <param name="Search">Buyruq raqami bo'yicha qidiruv (registrga sezgir emas).</param>
+/// <param name="Search">
+/// Buyruq raqami YOKI xodim bo'yicha qidiruv (F.I.Sh., JSHSHIR, pasport,
+/// telefon). Registrga sezgir emas.
+/// </param>
 /// <param name="Type">Hodisa turi. Bo'sh bo'lsa — barcha turlar.</param>
 /// <param name="From">Kuchga kirish sanasining quyi chegarasi.</param>
 /// <param name="To">Kuchga kirish sanasining yuqori chegarasi.</param>

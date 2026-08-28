@@ -16,6 +16,7 @@ public sealed class ExitInterviewRepository : Repository<ExitInterview>, IExitIn
     public async Task<IReadOnlyList<ExitInterview>> ListAsync(
         DateOnly? from = null,
         DateOnly? to = null,
+        string? search = null,
         CancellationToken cancellationToken = default)
     {
         var query = Set.AsNoTracking().AsQueryable();
@@ -28,6 +29,28 @@ public sealed class ExitInterviewRepository : Repository<ExitInterview>, IExitIn
         if (to is { } end)
         {
             query = query.Where(interview => interview.InterviewDate <= end);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            // Suhbat MUNOSABATGA bog'langan, xodimga emas (sababi
+            // `ExitInterview` izohida: bitta shaxsning bir nechta ketishi
+            // bo'lishi mumkin). Shu sababli qidiruv ikki qadamda:
+            // xodim → uning munosabatlari → shu munosabatlardagi suhbatlar.
+            //
+            // Ikkala ichki so'rov ham SERVERDA bajariladi va ustki so'rovga
+            // `employment_id IN (…)` bo'lib qo'shiladi — tarmoqdan birorta
+            // ham oraliq ro'yxat o'tmaydi. Qidiruv qoidasi xodimlar
+            // ro'yxatidagi bilan AYNAN bir xil: sabab `EmployeeSearchQuery`
+            // izohida.
+            var employeeIds = EmployeeSearchQuery.MatchingIds(Context, search);
+
+            var employmentIds = Context.Employments
+                .AsNoTracking()
+                .Where(employment => employeeIds.Contains(employment.EmployeeId))
+                .Select(employment => employment.Id);
+
+            query = query.Where(interview => employmentIds.Contains(interview.EmploymentId));
         }
 
         return await query

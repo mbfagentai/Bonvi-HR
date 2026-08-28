@@ -11,7 +11,16 @@ namespace Bonvi.Application.Feedback;
 /// </summary>
 /// <param name="From">Quyi chegara (o'zi ham kiradi). Bo'sh — chegarasiz.</param>
 /// <param name="To">Yuqori chegara (o'zi ham kiradi). Bo'sh — chegarasiz.</param>
-public sealed record ListExitInterviewsQuery(DateOnly? From = null, DateOnly? To = null);
+/// <param name="Search">
+/// Xodim bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon —
+/// xodimlar ro'yxatidagi bilan aynan bir xil qoida. Qidiruv SERVERDA
+/// bajariladi: jurnal ishdan ketgan har bir odam uchun o'sib boradi va
+/// klientda kesish bir kun jimgina noto'g'ri natija berardi.
+/// </param>
+public sealed record ListExitInterviewsQuery(
+    DateOnly? From = null,
+    DateOnly? To = null,
+    string? Search = null);
 
 public sealed class ListExitInterviewsQueryHandler
 {
@@ -30,7 +39,13 @@ public sealed class ListExitInterviewsQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var rows = await _interviews.ListAsync(query.From, query.To, cancellationToken).ConfigureAwait(false);
+        // Bo'sh matn `null` ga aylantiriladi: «?search=» — «qidiruvsiz»,
+        // «hech narsa topilmasin» emas (barcha ro'yxatlarda bir xil qoida).
+        var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
+
+        var rows = await _interviews
+            .ListAsync(query.From, query.To, search, cancellationToken)
+            .ConfigureAwait(false);
 
         var items = new List<ExitInterviewDto>(rows.Count);
         foreach (var row in rows)

@@ -10,10 +10,17 @@ namespace Bonvi.Application.Safety;
 /// <param name="From">Quyi chegara (o'zi ham kiradi). Bo'sh — chegarasiz.</param>
 /// <param name="To">Yuqori chegara (o'zi ham kiradi). Bo'sh — chegarasiz.</param>
 /// <param name="Severity">Faqat shu darajadagilar. Bo'sh — hammasi.</param>
+/// <param name="Search">
+/// Xodim bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon —
+/// xodimlar ro'yxatidagi bilan aynan bir xil qoida. Qidiruv SERVERDA
+/// bajariladi (barcha ro'yxatlarda bir xil qoida): jurnal yillar davomida
+/// o'sadi va klientda kesish bir kun jimgina noto'g'ri natija berardi.
+/// </param>
 public sealed record ListIncidentsQuery(
     DateOnly? From = null,
     DateOnly? To = null,
-    IncidentSeverity? Severity = null);
+    IncidentSeverity? Severity = null,
+    string? Search = null);
 
 public sealed class ListIncidentsQueryHandler
 {
@@ -32,8 +39,12 @@ public sealed class ListIncidentsQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        // Bo'sh matn `null` ga aylantiriladi: «?search=» — «qidiruvsiz»,
+        // «hech narsa topilmasin» emas (barcha ro'yxatlarda bir xil qoida).
+        var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
+
         var rows = await _incidents
-            .ListAsync(query.From, query.To, query.Severity, cancellationToken)
+            .ListAsync(query.From, query.To, query.Severity, search, cancellationToken)
             .ConfigureAwait(false);
 
         var items = new List<IncidentDto>(rows.Count);

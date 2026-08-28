@@ -66,10 +66,22 @@ public interface IEmployeeReadModel
         CancellationToken cancellationToken = default);
 
     /// <summary>Belgi qo'yilgan xodimlar ro'yxati (rezerv / qora ro'yxat / nazorat / qobiliyatli).</summary>
+    /// <param name="type">Belgi turi — to'rt ro'yxatning qaysi biri.</param>
+    /// <param name="onlyActive">Faqat berilgan kunda kuchda bo'lganlar.</param>
+    /// <param name="on">Faollik qaysi kunga hisoblanadi.</param>
+    /// <param name="search">
+    /// XODIM bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon —
+    /// xodimlar ro'yxatidagi bilan AYNAN bir xil qoida. <c>null</c> yoki
+    /// bo'sh — qidiruvsiz. Qora ro'yxat yuzlab yozuvga yetishi mumkin va
+    /// «bu odam qora ro'yxatdami?» degan savolga ko'z bilan varaqlab javob
+    /// topib bo'lmaydi.
+    /// </param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     Task<IReadOnlyList<EmployeeFlagRow>> ListFlagsAsync(
         EmployeeFlagType type,
         bool onlyActive,
         DateOnly on,
+        string? search = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Barcha buyruqlar — xodimdan qat'i nazar, bitta oqimda.</summary>
@@ -193,10 +205,18 @@ public sealed record EmployeeDirectionRow(Guid Id, string Name);
 /// <param name="Status">Holat bo'yicha filtr. <c>null</c> — hammasi.</param>
 /// <param name="EndingWithinDays">Shuncha kun ichida tugaydiganlar (odatda 7).</param>
 /// <param name="Today">Bugungi sana — «qancha kun qoldi» shundan hisoblanadi.</param>
+/// <param name="Search">
+/// XODIM bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon —
+/// xodimlar ro'yxatidagi bilan AYNAN bir xil qoida (sababi
+/// <see cref="EmployeeSearchFilter.Search"/> da). Ataylab faqat ismga
+/// cheklanmagan: sinovdagi ikkita «Каримов» bo'lsa, HR ularni JSHSHIR
+/// bilan ajratadi.
+/// </param>
 public sealed record ProbationListFilter(
     ProbationStatus? Status,
     int? EndingWithinDays,
-    DateOnly Today);
+    DateOnly Today,
+    string? Search = null);
 
 /// <summary>Sinov muddati — xodim ma'lumoti bilan birga.</summary>
 public sealed record ProbationRow(
@@ -253,9 +273,16 @@ public sealed record MissingProbationRow(
 /// Buyruqlar ro'yxatining filtri.
 /// </summary>
 /// <param name="Search">
-/// BUYRUQ RAQAMI bo'yicha qidiruv. Ataylab faqat shu maydon: HR qo'lida
-/// qog'oz buyruq bilan keladi va «185-б» ni izlaydi. FIO bo'yicha qidiruv
-/// xodimlar ro'yxatining ishi.
+/// BUYRUQ RAQAMI <b>yoki</b> XODIM bo'yicha qidiruv (F.I.Sh., JSHSHIR,
+/// pasport, telefon — xodimlar ro'yxatidagi bilan aynan bir xil qoida).
+/// <para>
+/// ⚠️ Ilgari bu yerda faqat buyruq raqami tekshirilardi: «HR qo'lida
+/// qog'oz buyruq bilan keladi» deb izohlangan edi. Bu holatlarning
+/// faqat yarmi — ikkinchi yarmida HR odamni biladi, buyruq raqamini esa
+/// yo'q («Каримовga qanday buyruqlar chiqqan?») va bu savolga ekran
+/// umuman javob bermasdi. Ikkala shart «YOKI» bilan birlashtirildi,
+/// eski xatti-harakat esa buzilmadi.
+/// </para>
 /// </param>
 /// <param name="Type">Hodisa turi (qabul, ko'chirish, bo'shatish...).</param>
 /// <param name="From">Kuchga kirish sanasining quyi chegarasi (o'zi ham kiradi).</param>

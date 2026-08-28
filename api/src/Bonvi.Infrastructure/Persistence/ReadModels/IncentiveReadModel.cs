@@ -84,7 +84,7 @@ public sealed class IncentiveReadModel : IIncentiveReadModel
             incentives = incentives.Where(incentive => incentive.Date <= to);
         }
 
-        var employees = MatchingEmployees(filter.Search);
+        var employees = EmployeeSearchQuery.Matching(_context, filter.Search);
 
         var matched =
             from incentive in incentives
@@ -221,80 +221,6 @@ public sealed class IncentiveReadModel : IIncentiveReadModel
     // ════════════════════════════════════════════════════════════
     //  Yordamchilar
     // ════════════════════════════════════════════════════════════
-
-    /// <summary>Ism bo'yicha qidiruv qo'llangan xodimlar manbai.</summary>
-    /// <remarks>
-    /// <para>
-    /// <b>Nega faqat ism.</b> Bu ekranga HR «kimga nima berilgan» degan
-    /// savol bilan keladi. Xodimlar ro'yxatidagi qidiruv esa undan
-    /// kengroq (JSHSHIR, pasport, telefon) — u yerda maqsad odamni
-    /// TOPISH, bu yerda esa ro'yxatni bitta odamga toraytirish.
-    /// </para>
-    /// <para>
-    /// <b>Nega xom SQL, <c>EF.Functions.ILike</c> emas.</b> Qidiruv
-    /// «bir xil ko'rinadigan» harflardan tozalanadi (қ/ғ/ҳ/ў/ё — sababi
-    /// <see cref="SearchFolding"/> izohida) va aynan shu tozalash bazada
-    /// ham bajarilishi kerak. <c>translate(...)</c> ifodasi
-    /// <c>ix_employees_full_name_fold_trgm</c> indeksi ta'rifi bilan
-    /// AYNAN bir xil bo'lishi shart, aks holda PostgreSQL indeksni
-    /// ishlatmaydi va qidiruv jimgina to'liq skanerlashga tushadi. Shu
-    /// sababli almashtirish satrlari ham parametr emas, xom holda
-    /// yozilgan — parametr moslikni buzardi.
-    /// </para>
-    /// <para>
-    /// <b>Nega xom so'rovdan faqat kalit olinadi.</b> To'g'ridan-to'g'ri
-    /// <c>Employee</c> o'qilsa, EF ustki proyeksiyada complex type
-    /// ustunlarini o'z sukut nomlari bilan so'raydi va so'rov «column
-    /// does not exist» bilan yiqiladi (batafsil sabab
-    /// <see cref="EmployeeReadModel"/> dagi bir xil metodning izohida).
-    /// </para>
-    /// <para>
-    /// Natija baribir bitta SQL bayonoti: ichki so'rov ustkisiga
-    /// <c>id IN (…)</c> bo'lib qo'shiladi.
-    /// </para>
-    /// </remarks>
-    private IQueryable<Employee> MatchingEmployees(string? search)
-    {
-        var employees = _context.Employees.AsNoTracking();
-
-        if (string.IsNullOrWhiteSpace(search))
-        {
-            return employees;
-        }
-
-        var pattern = LikePattern(SearchFolding.ForName(search));
-
-        var matching = _context.Employees
-            .FromSql(
-                $"""
-                 SELECT x.*
-                 FROM employees AS x
-                 WHERE translate(
-                           lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                           'қғҳўё', 'кгхуе') ILIKE {pattern}
-                 """)
-            .Select(employee => employee.Id);
-
-        return employees.Where(employee => matching.Contains(employee.Id));
-    }
-
-    /// <summary>Qidiruv matnini <c>ILIKE</c> naqshiga aylantiradi.</summary>
-    /// <remarks>
-    /// <c>\</c>, <c>%</c> va <c>_</c> ekranlanadi. Aks holda «50%» deb
-    /// qidirgan foydalanuvchi butun jadvalni olib kelardi, «_» esa
-    /// istalgan belgiga mos tushardi — ikkalasi ham jimgina noto'g'ri
-    /// natija beradi.
-    /// </remarks>
-    private static string LikePattern(string search)
-    {
-        var escaped = search
-            .Trim()
-            .Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("%", "\\%", StringComparison.Ordinal)
-            .Replace("_", "\\_", StringComparison.Ordinal);
-
-        return $"%{escaped}%";
-    }
 
     /// <summary>Bo'lim va uning BARCHA ichki bo'limlari identifikatorlari.</summary>
     /// <remarks>

@@ -685,7 +685,8 @@
     "searchPlaceholder": "Buyruq raqami bo‘yicha qidirish",
     "subtitle": "{{n}} ta buyruq",
     "title": "Buyruqlar",
-    "type": "Turi"
+    "type": "Turi",
+    "searchAnyPlaceholder": "Buyruq raqami, F.I.Sh., JSHSHIR, telefon…"
   },
   "competency": {
     "languages": "Til bilish",
@@ -853,7 +854,8 @@
     "role": "Rol",
     "roleHint": "Har bir hisobda aynan bitta rol bo‘ladi.",
     "rolePlaceholder": "Rolni tanlang",
-    "singleHolderHint": "Bu rolda tizimda faqat bitta faol hisob bo‘lishi mumkin. O‘rni band bo‘lsa, avval eskisini faolsizlantiring."
+    "singleHolderHint": "Bu rolda tizimda faqat bitta faol hisob bo‘lishi mumkin. O‘rni band bo‘lsa, avval eskisini faolsizlantiring.",
+    "searchPlaceholder": "F.I.Sh. yoki login (telefon)…"
   },
   "reports": {
     "subtitle": "Kadrlar oqimi: qabul, ketish va shtat dinamikasi",

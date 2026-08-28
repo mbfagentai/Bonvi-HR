@@ -8,14 +8,21 @@ import { fetchFlagged } from './flags-api'
 
 export const flagKeys = {
   root: ['flagged'] as const,
-  list: (type: EmployeeFlagType, onlyActive: boolean) =>
-    ['flagged', type, onlyActive] as const,
+  // Qidiruv kalitning bir qismi: server tomonda filtrlangan natija
+  // boshqa natija, ya'ni uni bir xil kalitga yozib bo'lmaydi.
+  list: (type: EmployeeFlagType, onlyActive: boolean, search: string) =>
+    ['flagged', type, onlyActive, search] as const,
 }
 
-export function useFlagged(type: EmployeeFlagType, onlyActive: boolean) {
+export function useFlagged(type: EmployeeFlagType, onlyActive: boolean, search: string) {
   return useQuery({
-    queryKey: flagKeys.list(type, onlyActive),
-    queryFn: ({ signal }) => fetchFlagged(type, onlyActive, signal),
+    queryKey: flagKeys.list(type, onlyActive, search),
+    queryFn: ({ signal }) => fetchFlagged(type, onlyActive, search, signal),
+
+    // Qidiruv o'zgarganda jadval bo'shab, «hech narsa topilmadi» bo'lib
+    // ko'rinmasligi kerak — eski natija yangisi kelguncha turadi
+    // (`useExitInterviews` dagi bilan bir xil qoida).
+    placeholderData: (previous) => previous,
   })
 }
 

@@ -219,7 +219,9 @@ public static class EmploymentEndpoints
                 "bitta hodisalar oqimi va uning filtrlangan ko'rinishlari. " +
                 "«type» qiymatlari: Hire | Transfer | Promotion | AdditionalDuty | " +
                 "SalaryChange | ProbationResult | Termination | Rehire; noma'lum qiymat 400 beradi. " +
-                "«search» — BUYRUQ RAQAMI bo'yicha (FIO emas). «from»/«to» — kuchga kirish " +
+                "«search» — BUYRUQ RAQAMI YOKI XODIM bo'yicha (F.I.Sh., JSHSHIR, pasport, " +
+                "telefon): ikkala shart «yoki» bilan bog'langan, ya'ni «185-б» ham, " +
+                "«Каримов» ham, JSHSHIR ham ishlaydi. «from»/«to» — kuchga kirish " +
                 "sanasining ikki tomondan yopiq oralig'i. «departmentId» — bo'lim ICHKI " +
                 "bo'limlari bilan birga: hodisaning yangi yoki eski bo'limiga, hodisada bo'lim " +
                 "ko'rsatilmagan bo'lsa (oklad, bo'shatish, qo'shimcha vazifa) munosabatning " +
@@ -392,11 +394,12 @@ public static class EmploymentEndpoints
         group.MapGet("/", async (
                 ProbationStatus? status,
                 int? endingWithinDays,
+                string? search,
                 ListProbationsQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ListProbationsQuery(status, endingWithinDays), cancellationToken)
+                    .HandleAsync(new ListProbationsQuery(status, endingWithinDays, search), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -407,7 +410,9 @@ public static class EmploymentEndpoints
             .WithDescription(
                 "«status» bo'yicha filtr (InProgress | Passed | Failed | LeftEarly | Cancelled). " +
                 "«endingWithinDays=7» — muddati tugashiga oz qolganlar; ro'yxat tugash sanasi " +
-                "bo'yicha tartiblanadi, ya'ni eng shoshilinchi tepada.")
+                "bo'yicha tartiblanadi, ya'ni eng shoshilinchi tepada. " +
+                "«search» — XODIM bo'yicha (F.I.Sh., JSHSHIR, pasport, telefon), xodimlar " +
+                "ro'yxatidagi bilan aynan bir xil qoida.")
             .Produces<IReadOnlyList<ProbationListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 

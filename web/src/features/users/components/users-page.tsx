@@ -1,8 +1,10 @@
-import { KeyRound, Lock, UserCheck, UserCog, UserPlus, UserX, Users } from 'lucide-react'
+import { getRouteApi } from '@tanstack/react-router'
+import { KeyRound, Lock, Search, UserCheck, UserCog, UserPlus, UserX, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { formatFullPhone, useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
   Alert,
   Badge,
@@ -11,6 +13,7 @@ import {
   DataTable,
   EmptyState,
   IconTile,
+  Input,
   PageHeader,
   dataColumnHelper,
   type DataColumn,
@@ -31,12 +34,25 @@ const helper = dataColumnHelper<UserSummary>()
 const EMPTY: UserSummary[] = []
 
 /**
+ * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
+ * (`employees-page.tsx` dagi izohga qarang).
+ */
+const route = getRouteApi('/_app/foydalanuvchilar')
+
+/**
  * Foydalanuvchilarni boshqarish — faqat rahbariyat.
  *
- * <b>Nega ro'yxatda qidiruv, filtr va sahifalash yo'q.</b> Tizimdan
- * atigi bir necha kishi (bir necha HR menejeri, bosh rahbar va super
+ * <b>Nega filtr va sahifalash yo'q, qidiruv esa BOR.</b> Tizimdan atigi
+ * bir necha kishi (bir necha HR menejeri, bosh rahbar va super
  * administrator) foydalanadi — bu ekran ularning HAMMASINI bitta qarashda
- * ko'rsatadi.
+ * ko'rsatadi va filtrga ehtiyoj yo'q. Qidiruv esa boshqa sabab bilan
+ * qo'shildi: tizimning BARCHA ro'yxatlarida qidiruv maydoni bir xil
+ * turadi va bittasida uning yo'qligi «bu yerda ishlamaydimi yoki men
+ * topolmayapmanmi?» degan savol tug'dirardi.
+ *
+ * <b>Qidiruv bu yerda TOR:</b> F.I.Sh. va login (telefon). Hisobda
+ * JSHSHIR ham, pasport ham yo'q — shu sababli maydonning matni ham
+ * boshqacha (`users.searchPlaceholder`).
  *
  * <b>Nega butun sahifa `users.manage` bilan o'ralgan.</b> `GET /api/users`
  * ning o'zi ham shu ruxsat bilan himoyalangan (`UserEndpoints.cs`): HR
@@ -72,7 +88,21 @@ export function UsersPage() {
   const [deactivating, setDeactivating] = useState<UserSummary | null>(null)
   const [resettingPassword, setResettingPassword] = useState<UserSummary | null>(null)
 
-  const list = useUsers()
+  const searchParams = route.useSearch()
+  const navigate = route.useNavigate()
+
+  const search = searchParams.q ?? ''
+
+  /*
+   * Qidiruv har harfda so'rov yubormaydi (350 ms) va matn manzilga
+   * yoziladi. `replace` — qidiruvni aniqlashtirish alohida tarix qadami
+   * emas: aks holda «orqaga» tugmasi har bir harfni birma-bir qaytarardi.
+   */
+  const [draft, setDraft] = useSearchDraft(search, (value) => {
+    void navigate({ search: { q: toSearchParam(value) }, replace: true })
+  })
+
+  const list = useUsers(search)
   const rows = list.data ?? EMPTY
 
   /*
@@ -353,6 +383,24 @@ export function UsersPage() {
           )}
 
           <Card className="overflow-hidden">
+            {/*
+              Qidiruv maydoni jadvaldan yuqorida — boshqa ro'yxatlardagi
+              bilan bir xil joyda. Matn esa boshqacha: bu yerda JSHSHIR
+              va pasport yo'q va bo'lmagan narsani va'da qilish HR ni
+              behuda urinishga majbur qilardi.
+            */}
+            <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+              <Input
+                icon={Search}
+                shape="pill"
+                type="search"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder={t('users.searchPlaceholder')}
+                aria-label={t('common.search')}
+              />
+            </div>
+
             <DataTable
               columns={columns}
               data={rows}

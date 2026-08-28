@@ -1,5 +1,5 @@
 import { ListFilter, Search, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import type { FilterOptions } from '@/features/employees/api/employees-queries'
 import {
@@ -8,6 +8,7 @@ import {
 } from '@/features/employees/api/incentives-api'
 import { INCENTIVE_KIND_LOOK } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { useSearchDraft } from '@/shared/lib/list-search'
 import { Button, Input, Select, TextField } from '@/shared/ui'
 /*
  * Filtr holatining shakli manzil bilan bir joyda turadi
@@ -49,25 +50,12 @@ export function IncentivesToolbar({
 
   /*
    * Qidiruv har harfda so'rov yubormaydi — yozish to'xtagach 350 ms
-   * kutiladi (`employments-toolbar.tsx` dagi bilan bir xil sabab).
+   * kutiladi (`employments-toolbar.tsx` dagi bilan bir xil sabab va
+   * endi bir xil hook).
    */
-  const [draft, setDraft] = useState(filters.search)
-  const latest = useRef({ filters, onChange })
-  latest.current = { filters, onChange }
-
-  useEffect(() => {
-    setDraft(filters.search)
-  }, [filters.search])
-
-  useEffect(() => {
-    if (draft === latest.current.filters.search) return
-
-    const timer = window.setTimeout(() => {
-      latest.current.onChange({ ...latest.current.filters, search: draft })
-    }, 350)
-
-    return () => window.clearTimeout(timer)
-  }, [draft])
+  const [draft, setDraft] = useSearchDraft(filters.search, (value) => {
+    onChange({ ...filters, search: value })
+  })
 
   const set = <K extends keyof IncentivesFilterState>(
     key: K,
@@ -101,6 +89,14 @@ export function IncentivesToolbar({
   return (
     <div className="border-b border-[var(--border)]">
       <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5 sm:gap-3 sm:px-5">
+        {/*
+          Placeholder endi UMUMIY kalitda. Eski
+          `incentives.searchPlaceholder` «Xodim F.I.Sh. bo'yicha qidirish»
+          deydi, server esa endi JSHSHIR, pasport va telefonni ham
+          qidiradi. Aynan shu farq xatoning o'zi edi: xodimlar ro'yxatida
+          JSHSHIR bilan odamni topgan HR shu matnni bu yerga ko'chirganda
+          bo'sh natija olardi.
+        */}
         <div className="min-w-[200px] flex-1">
           <Input
             icon={Search}
@@ -108,7 +104,7 @@ export function IncentivesToolbar({
             type="search"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder={t('incentives.searchPlaceholder')}
+            placeholder={t('common.searchPlaceholder')}
             aria-label={t('common.search')}
           />
         </div>

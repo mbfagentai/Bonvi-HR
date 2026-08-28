@@ -359,11 +359,12 @@ public static class EmployeeEndpoints
         group.MapGet("/flagged", async (
                 EmployeeFlagType type,
                 bool? onlyActive,
+                string? search,
                 ListFlaggedQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ListFlaggedQuery(type, onlyActive ?? true), cancellationToken)
+                    .HandleAsync(new ListFlaggedQuery(type, onlyActive ?? true, search), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -373,7 +374,9 @@ public static class EmployeeEndpoints
             .WithSummary("Belgilar — tur bo'yicha ro'yxat")
             .WithDescription(
                 "To'rt ro'yxat bitta endpoint bilan: «type» = Reserve | Blacklist | Monitoring | Capable. " +
-                "Sukut bo'yicha faqat bugun kuchda bo'lgan belgilar; «onlyActive=false» tarixni ham beradi.")
+                "Sukut bo'yicha faqat bugun kuchda bo'lgan belgilar; «onlyActive=false» tarixni ham beradi. " +
+                "«search» — XODIM bo'yicha (F.I.Sh., JSHSHIR, pasport, telefon), xodimlar ro'yxatidagi " +
+                "bilan aynan bir xil qoida.")
             .Produces<IReadOnlyList<FlaggedEmployeeDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 

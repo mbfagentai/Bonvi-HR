@@ -11,9 +11,18 @@ namespace Bonvi.Application.Employees.Probations;
 /// </summary>
 /// <param name="Status">Holat bo'yicha filtr. <c>null</c> — hammasi.</param>
 /// <param name="EndingWithinDays">Shuncha kun ichida tugaydiganlar.</param>
+/// <param name="Search">
+/// Xodim bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon.
+/// Ro'yxat sahifalanmaydi (bir vaqtda sinovda o'nlab, ko'pi bilan bir
+/// necha yuz odam bo'ladi), lekin qidiruv baribir SERVERDA bajariladi —
+/// klientda <c>filter()</c> qilish loyihaning Excel muammosini takrorlash
+/// bo'lardi: bir kun ro'yxat kattalashadi va kesish jimgina noto'g'ri
+/// natija berardi.
+/// </param>
 public sealed record ListProbationsQuery(
     ProbationStatus? Status = null,
-    int? EndingWithinDays = null);
+    int? EndingWithinDays = null,
+    string? Search = null);
 
 public sealed class ListProbationsQueryHandler
 {
@@ -36,12 +45,24 @@ public sealed class ListProbationsQueryHandler
 
         var rows = await _readModel
             .ListProbationsAsync(
-                new ProbationListFilter(query.Status, query.EndingWithinDays, today),
+                // Bo'sh matn `null` ga aylantiriladi: «?search=» — bu
+                // «hech narsa topilmasin» emas, «qidiruvsiz» degani
+                // (`ListEmploymentEventsQueryHandler` dagi bilan bir xil
+                // qoida — bir xil parametr hamma ekranda bir xil ishlaydi).
+                new ProbationListFilter(
+                    query.Status,
+                    query.EndingWithinDays,
+                    today,
+                    Normalize(query.Search)),
                 cancellationToken)
             .ConfigureAwait(false);
 
         return Result.Success(ToDtos(rows, today));
     }
+
+    /// <summary>Bo'sh yoki faqat bo'shliqdan iborat matn — «qidiruvsiz».</summary>
+    internal static string? Normalize(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     internal static IReadOnlyList<ProbationListItemDto> ToDtos(IReadOnlyList<ProbationRow> rows, DateOnly today)
         =>

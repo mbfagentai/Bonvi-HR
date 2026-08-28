@@ -25,7 +25,9 @@ import { USERS_MANAGE } from '../lib/user-presentation'
  */
 export const userKeys = {
   root: ['users'] as const,
-  list: ['users', 'list'] as const,
+  // Qidiruv kalitning bir qismi: server tomonda filtrlangan natija
+  // boshqa natija, ya'ni uni bir xil kalitga yozib bo'lmaydi.
+  list: (search: string) => ['users', 'list', search] as const,
   photos: (id: string) => ['user-photo', id] as const,
   photo: (id: string, photoKey: string | null) => ['user-photo', id, photoKey] as const,
 }
@@ -39,14 +41,18 @@ export const userKeys = {
  * behuda 403 kelardi va konsolni ogohlantirish bilan to'ldirardi — sahifa
  * o'zi buni allaqachon bilib turibdi (`useAuth().hasPermission`).
  */
-export function useUsers() {
+export function useUsers(search: string) {
   const { hasPermission } = useAuth()
   const canManage = hasPermission(USERS_MANAGE)
 
   return useQuery({
-    queryKey: userKeys.list,
-    queryFn: ({ signal }) => fetchUsers(signal),
+    queryKey: userKeys.list(search),
+    queryFn: ({ signal }) => fetchUsers(search, signal),
     enabled: canManage,
+
+    // Qidiruv o'zgarganda jadval bo'shab, «hech kim topilmadi» bo'lib
+    // ko'rinmasligi kerak — eski natija yangisi kelguncha turadi.
+    placeholderData: (previous) => previous,
   })
 }
 

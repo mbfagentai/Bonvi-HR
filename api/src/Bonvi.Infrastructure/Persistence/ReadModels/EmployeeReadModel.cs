@@ -34,16 +34,6 @@ namespace Bonvi.Infrastructure.Persistence.ReadModels;
 /// </remarks>
 public sealed class EmployeeReadModel : IEmployeeReadModel
 {
-    /// <summary>
-    /// <c>ILIKE</c> naqshidagi ekranlash belgisi — teskari chiziq.
-    /// </summary>
-    /// <remarks>
-    /// <c>LikePattern</c> aynan shu belgi bilan ekranlaydi va u xom SQL
-    /// yo'lidagi PostgreSQL sukutiga to'g'ri keladi. <c>EF.Functions.ILike</c>
-    /// ga esa uni QO'LDA uzatish kerak, aks holda ekranlash o'chib qoladi.
-    /// </remarks>
-    private const string LikeEscape = "\\";
-
     private readonly AppDbContext _context;
     private readonly IDepartmentRepository _departments;
     private readonly IClock _clock;
@@ -84,7 +74,7 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
     {
         ArgumentNullException.ThrowIfNull(filter);
 
-        var employees = MatchingEmployees(filter.Search);
+        var employees = EmployeeSearchQuery.Matching(_context, filter.Search);
 
         if (filter.NeedsReview is { } needsReview)
         {
@@ -318,11 +308,19 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             probations = probations.Where(probation => probation.EndDate <= limit);
         }
 
+        // Qidiruv XODIMGA qo'llanadi, sinov yozuviga emas: sinovda hech
+        // qanday matn ustuni yo'q (xulosadan boshqa) va HR bu ekranga
+        // «Каримов sinovi qachon tugaydi» degan savol bilan keladi.
+        // Shart birlashtirishning O'ZIDA — `MatchingEmployees` bo'sh
+        // qidiruvda butun jadvalni qaytaradi, ya'ni qo'shimcha shoxlanish
+        // kerak emas.
+        var employees = EmployeeSearchQuery.Matching(_context, filter.Search);
+
         var rows = await (
                 from probation in probations
                 join employment in _context.Employments
                     on probation.EmploymentId equals employment.Id
-                join employee in _context.Employees
+                join employee in employees
                     on employment.EmployeeId equals employee.Id
                 join department in _context.Departments
                     on employment.DepartmentId equals (Guid?)department.Id into departmentMatch
@@ -469,6 +467,7 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         EmployeeFlagType type,
         bool onlyActive,
         DateOnly on,
+        string? search = null,
         CancellationToken cancellationToken = default)
     {
         var flags = _context.EmployeeFlags
@@ -481,12 +480,25 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 flag.StartDate <= on && (flag.EndDate == null || flag.EndDate >= on));
         }
 
+        // Qidiruv BELGI EGASIGA qo'llanadi, mas'ulga emas.
+        //
+        // NEGA mas'ulga emas: ro'yxatning savoli — «kim rezervda / qora
+        // ro'yxatda», «kim uni kiritgan» emas. Ikkalasiga ham qo'llansa,
+        // Karimovani qidirgan HR uning O'ZI mas'ul bo'lgan o'nlab begona
+        // yozuvni ham ko'rardi va aynan shu ro'yxatda bu xavfli: «Karimov
+        // qora ro'yxatda» degan noto'g'ri xulosa chiqarish oson.
+        //
+        // NEGA sababdan qidirilmaydi: sabab — Excel'dan kelgan erkin matn
+        // va unda tez-tez ism ham uchraydi («Karimov bilan janjal»), ya'ni
+        // begona odam qidiruvga tushardi.
+        var employees = EmployeeSearchQuery.Matching(_context, search);
+
         // Mas'ul ham xodim: `employees` jadvaliga IKKINCHI birlashtirish.
         // Chapdan, chunki mas'ul ko'rsatilmagan bo'lishi mumkin — aks holda
         // mas'ulsiz belgilar ro'yxatdan jimgina tushib qolardi.
         var rows = await (
                 from flag in flags
-                join employee in _context.Employees
+                join employee in employees
                     on flag.EmployeeId equals employee.Id
                 join responsible in _context.Employees
                     on flag.ResponsibleEmployeeId equals (Guid?)responsible.Id into responsibleMatch
@@ -589,30 +601,6 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             events = events.Where(employmentEvent => employmentEvent.EffectiveDate <= to);
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var pattern = LikePattern(filter.Search);
-
-            // Buyruq raqami — oddiy satr ustuni (qiymat obyekti emas), shu
-            // sababli xodimlar qidiruvidagi xom SQL kerak emas: `ILike`
-            // to'g'ridan-to'g'ri SQL'ga tarjima bo'ladi.
-            //
-            // ⚠️ Ekranlash belgisi ATAYLAB uchinchi argument bilan beriladi.
-            // Ikki argumentli `ILike` Npgsql'da `ESCAPE ''` bo'lib tarjima
-            // bo'ladi, ya'ni ekranlash BUTUNLAY o'chadi va `LikePattern`
-            // qo'ygan teskari chiziq oddiy belgiga aylanadi. Natijada «50%»
-            // deb qidirgan foydalanuvchi hech narsa topmasdi, «_» esa
-            // istalgan belgiga mos tushardi (tekshirildi: SQL'da
-            // `ILIKE @pattern ESCAPE ''`).
-            //
-            // `order_no IS NOT NULL` sharti ataylab oldinda: ko'chirilgan
-            // hodisalarning katta qismida buyruq raqami yo'q va ular
-            // taqqoslashga umuman kirmasligi kerak.
-            events = events.Where(employmentEvent =>
-                employmentEvent.OrderNo != null
-                && EF.Functions.ILike(employmentEvent.OrderNo, pattern, LikeEscape));
-        }
-
         var employments = _context.Employments.AsNoTracking();
 
         if (filter.LegalEntityId is { } legalEntityId)
@@ -638,6 +626,51 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 employee.FullName.MiddleName,
                 employee.PhotoKey,
             };
+
+        // Matn qidiruvi ATAYLAB shu yerda — xodim bilan birlashtirilgandan
+        // KEYIN. U ikki savolga BIRDANIGA javob beradi:
+        //
+        //   1. «185-б buyrug'i qayerda?» — HR qo'lida qog'oz buyruq bilan
+        //      keladi. Bu yo'l AVVALDAN bor edi va buzilmasligi shart.
+        //   2. «Каримовga qanday buyruqlar chiqqan?» — HR odam nomini
+        //      (yoki JSHSHIR, pasport, telefonini) biladi, buyruq raqamini
+        //      esa YO'Q. Ilgari bu savolga bu ekran umuman javob bermasdi
+        //      va HR xodim kartasini ochib, lentani ko'zdan kechirardi.
+        //
+        // Ikkalasi «YOKI» bilan bog'langan, ikkita alohida filtr emas: HR
+        // qidiruv maydoniga nima yozganini oldindan aytolmaydi va «bu matn
+        // raqammi yoki ismmi» degan savolni foydalanuvchiga yuklash o'rniga
+        // ikkala ustundan ham qidiriladi.
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var orderPattern = SearchPattern.For(filter.Search);
+
+            // Xodim sharti — umumiy «xodim bo'yicha qidiruv» (F.I.Sh. +
+            // JSHSHIR + pasport + telefon), xodimlar ro'yxatidagi bilan
+            // AYNAN bir xil qoida. Nusxa yozilmaydi: sabab
+            // `EmployeeSearchQuery` izohida.
+            var employeeIds = EmployeeSearchQuery.MatchingIds(_context, filter.Search);
+
+            // Buyruq raqami — oddiy satr ustuni (qiymat obyekti emas), shu
+            // sababli xodimlar qidiruvidagi xom SQL kerak emas: `ILike`
+            // to'g'ridan-to'g'ri SQL'ga tarjima bo'ladi.
+            //
+            // ⚠️ Ekranlash belgisi ATAYLAB uchinchi argument bilan beriladi.
+            // Ikki argumentli `ILike` Npgsql'da `ESCAPE ''` bo'lib tarjima
+            // bo'ladi, ya'ni ekranlash BUTUNLAY o'chadi va `SearchPattern`
+            // qo'ygan teskari chiziq oddiy belgiga aylanadi. Natijada «50%»
+            // deb qidirgan foydalanuvchi hech narsa topmasdi, «_» esa
+            // istalgan belgiga mos tushardi (tekshirildi: SQL'da
+            // `ILIKE @pattern ESCAPE ''`).
+            //
+            // `order_no IS NOT NULL` sharti ataylab oldinda: ko'chirilgan
+            // hodisalarning katta qismida buyruq raqami yo'q va ular
+            // taqqoslashga umuman kirmasligi kerak.
+            matched = matched.Where(row =>
+                (row.Event.OrderNo != null
+                    && EF.Functions.ILike(row.Event.OrderNo, orderPattern, SearchPattern.Escape))
+                || employeeIds.Contains(row.EmployeeId));
+        }
 
         // Bo'lim filtri ATAYLAB shu yerda — munosabat bilan birlashtirilgandan
         // KEYIN: uning zaxira sharti munosabatning bo'limiga tayanadi va
@@ -747,133 +780,6 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
     // ════════════════════════════════════════════════════════════
     //  Yordamchilar
     // ════════════════════════════════════════════════════════════
-
-    /// <summary>Matn qidiruvi qo'llangan xodimlar manbai.</summary>
-    /// <remarks>
-    /// <para>
-    /// <b>Nega shart xom SQL'da.</b> JSHSHIR, pasport va telefon — qiymat
-    /// obyektlari; ular bazaga <i>konvertor</i> orqali satr bo'lib tushadi.
-    /// LINQ ichida <c>employee.Pinfl.Value</c> ifodasi SQL'ga tarjima
-    /// QILINMAYDI: konvertordan keyin EF uchun ustun skalyar, uning «ichi»
-    /// yo'q. Ya'ni <c>EF.Functions.ILike</c> ni bu ustunlarga qo'llab
-    /// bo'lmaydi (tekshirildi — EF «could not be translated» deb yiqiladi).
-    /// Qolgan yagona muqobil butun jadvalni xotiraga o'qib, keyin filtrlash
-    /// bo'lardi; aynan shu narsa port izohida taqiqlangan.
-    /// </para>
-    /// <para>
-    /// <b>Nega faqat identifikatorlar.</b> Xom so'rovdan to'g'ridan-to'g'ri
-    /// <see cref="Employee"/> o'qilsa, EF ustki proyeksiyada complex type
-    /// ustunlarini o'z sukut nomlari bilan
-    /// (<c>"FullName_LastName"</c>) so'raydi — bizda esa ular
-    /// <c>last_name</c>, <c>first_name</c>, <c>middle_name</c>
-    /// (<c>EmployeeConfiguration</c> da ataylab qisqartirilgan) va so'rov
-    /// «column does not exist» bilan yiqiladi. Shu sababli xom so'rovdan
-    /// faqat kalit olinadi, xodimning o'zi esa odatdagi jadvaldan o'qiladi.
-    /// </para>
-    /// <para>
-    /// Natija baribir <b>bitta</b> SQL bayonoti: ichki so'rov ustkisiga
-    /// <c>id IN (…)</c> bo'lib qo'shiladi, hech qanday oraliq ro'yxat
-    /// tarmoqdan o'tmaydi.
-    /// </para>
-    /// <para>
-    /// FIO ifodasi migratsiyadagi trigramma indeksi bilan AYNAN bir xil:
-    /// <c>lower(last_name || ' ' || first_name || ' ' || coalesce(middle_name, ''))</c>.
-    /// Bir belgi farq qilsa ham PostgreSQL indeksni ishlatmaydi va qidiruv
-    /// jimgina to'liq skanerlashga tushadi.
-    /// </para>
-    /// <para>
-    /// Qidiruv matni <b>parametr</b> bo'lib uzatiladi — <c>FromSql</c>
-    /// interpolyatsiyani parametrga aylantiradi, ya'ni SQL in'ektsiya
-    /// yo'li yo'q.
-    /// </para>
-    /// </remarks>
-    private IQueryable<Employee> MatchingEmployees(string? search)
-    {
-        var employees = _context.Employees.AsNoTracking();
-
-        if (string.IsNullOrWhiteSpace(search))
-        {
-            return employees;
-        }
-
-        // Bitta qidiruv matnidan UCH naqsh: ism ustuni kirillda, pasport/
-        // JSHSHIR lotin va raqamda, telefon esa FAQAT raqamda (ajratgichsiz)
-        // saqlanadi va har biri boshqa-boshqa «bir xil ko'rinadigan»
-        // belgilardan aziyat chekadi. To'liq sabab — `SearchFolding` izohida.
-        var namePattern = LikePattern(SearchFolding.ForName(search));
-        var codePattern = LikePattern(SearchFolding.ForCode(search));
-        var phoneDigits = SearchFolding.ForPhone(search);
-
-        // ⚠️ `translate(...)` ning ichidagi ikki satr XOM HOLDA yozilgan,
-        // parametr sifatida emas. Bu majburiy: PostgreSQL ifoda ustidagi
-        // indeksni faqat so'rovdagi ifoda indeks ta'rifi bilan AYNAN mos
-        // tushganda ishlatadi, parametr esa moslikni buzadi. Qiymatlar
-        // `SearchFolding` dagi konstantalardan ko'chirilgan va ular
-        // `ix_employees_full_name_fold_trgm` indeksida ham shundayligicha
-        // turibdi — uchalasi birga o'zgaradi.
-        //
-        // Telefon sharti ESA butunlay boshqa sabab bilan shartli: agar
-        // qidiruv matnida bironta ham raqam bo'lmasa (HR ism bilan
-        // qidiryapti), `phoneDigits` bo'sh qatorga aylanadi va uni naqshga
-        // aylantirsak `%%` chiqardi — bu BUTUN jadvalni olib kelardi va ism
-        // bo'yicha qidiruvni ma'nosiz qilardi. Shu sababli bo'sh bo'lganda
-        // telefon sharti SQL matniga UMUMAN qo'shilmaydi.
-        //
-        // `regexp_replace(x.phone, '\D', '', 'g')` — ustundagi ajratgichlarni
-        // (bo'shliq, tire, «+») so'rov vaqtida olib tashlaydi, xuddi
-        // `phoneDigits` qidiruv matni ustida qilganidek. `ix_employees_phone`
-        // — oddiy B-tree, ifoda ustida EMAS, shu sababli bu yerda ifodani
-        // o'zgartirish uni buzmaydi. U indeks aslida shu «ichida qidirish»
-        // (`%...%`) so'roviga baribir mos kelmaydi — PostgreSQL bunday
-        // naqsh uchun B-tree'ni ishlata olmaydi (chap tomoni joker bilan
-        // boshlanadi), ya'ni bu yerda seq scan avvaldan ham bor edi.
-        var matching = phoneDigits.Length == 0
-            ? _context.Employees
-                .FromSql(
-                    $"""
-                     SELECT x.*
-                     FROM employees AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
-                        OR x.pinfl ILIKE {codePattern}
-                        OR x.passport ILIKE {codePattern}
-                     """)
-                .Select(employee => employee.Id)
-            : _context.Employees
-                .FromSql(
-                    $"""
-                     SELECT x.*
-                     FROM employees AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
-                        OR x.pinfl ILIKE {codePattern}
-                        OR x.passport ILIKE {codePattern}
-                        OR regexp_replace(x.phone, '\D', '', 'g') ILIKE {LikePattern(phoneDigits)}
-                        OR regexp_replace(x.second_phone, '\D', '', 'g') ILIKE {LikePattern(phoneDigits)}
-                     """)
-                .Select(employee => employee.Id);
-
-        return employees.Where(employee => matching.Contains(employee.Id));
-    }
-
-    /// <summary>Qidiruv matnini <c>ILIKE</c> naqshiga aylantiradi.</summary>
-    /// <remarks>
-    /// <c>\</c>, <c>%</c> va <c>_</c> ekranlanadi. Aks holda «50%» deb
-    /// qidirgan foydalanuvchi butun jadvalni olib kelardi, «_» esa istalgan
-    /// belgiga mos tushardi — ikkalasi ham jimgina noto'g'ri natija beradi.
-    /// </remarks>
-    private static string LikePattern(string search)
-    {
-        var escaped = search
-            .Trim()
-            .Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("%", "\\%", StringComparison.Ordinal)
-            .Replace("_", "\\_", StringComparison.Ordinal);
-
-        return $"%{escaped}%";
-    }
 
     /// <summary>Bo'lim va uning BARCHA ichki bo'limlari identifikatorlari.</summary>
     /// <remarks>

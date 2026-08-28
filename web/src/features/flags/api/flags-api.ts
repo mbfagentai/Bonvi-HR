@@ -41,16 +41,26 @@ export interface FlaggedEmployee {
  *
  * `onlyActive` sukut bo'yicha rost: HR ko'pincha «hozir kimlar qora
  * ro'yxatda» degan savolga javob qidiradi, tarix esa alohida so'raladi.
+ *
+ * `search` SERVERGA yuboriladi, klientda `filter()` qilinmaydi: server
+ * ism yig'ish (қ/ғ/ҳ/ў/ё), pasport gomogliflari va telefon
+ * ajratgichlarini tashlash qoidalarini biladi, klient esa yo'q. Bu
+ * ro'yxatda bu ayniqsa muhim: «bu odam qora ro'yxatdami?» degan savolga
+ * ismning yozilishiga qarab emas, JSHSHIR bilan javob berish kerak.
  */
 export async function fetchFlagged(
   type: EmployeeFlagType,
   onlyActive: boolean,
+  search: string,
   signal?: AbortSignal,
 ): Promise<FlaggedEmployee[]> {
-  const { data } = await api.get<unknown>('/api/employees/flagged', {
-    params: { type: typeName(type), onlyActive },
-    signal,
-  })
+  const params: Record<string, unknown> = { type: typeName(type), onlyActive }
+
+  // Bo'sh qidiruv YUBORILMAYDI: «?search=» manzilni ham, so'rov keshini
+  // ham keraksiz shovqin bilan to'ldirardi.
+  if (search.trim() !== '') params['search'] = search
+
+  const { data } = await api.get<unknown>('/api/employees/flagged', { params, signal })
 
   return Array.isArray(data) ? data.map(toFlagged) : []
 }

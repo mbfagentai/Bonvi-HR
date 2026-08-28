@@ -59,6 +59,15 @@ export interface ExitInterviewFilters {
   /** `DateOnly` → «2026-08-25». Ikki tomondan yopiq oraliq (suhbat sanasi bo'yicha). */
   from?: string
   to?: string
+  /**
+   * Xodim bo'yicha qidiruv: F.I.Sh., JSHSHIR, pasport yoki telefon.
+   *
+   * Suhbat MATNI (sabab, taassurot) qidiruvga KIRMAYDI — server ham
+   * shunday: erkin matnda begona odamlarning ismi tez-tez uchraydi
+   * («Karimov bilan ishlash og'ir edi») va u qidiruvga qo'shilsa,
+   * Karimovni izlagan HR unga UMUMAN aloqasi yo'q suhbatni ko'rardi.
+   */
+  search?: string
 }
 
 /** Yaratish va tahrirlashda umumiy maydonlar — `employmentId` bu yerda ATAYLAB YO'Q. */
@@ -138,6 +147,14 @@ function listParams(filters: ExitInterviewFilters): Record<string, unknown> {
   const params: Record<string, unknown> = {}
   if (filters.from) params['from'] = filters.from
   if (filters.to) params['to'] = filters.to
+
+  // Qidiruv SERVERGA yuboriladi, klientda `filter()` qilinmaydi: ism
+  // yig'ish va telefon ajratgichlarini tashlash qoidalari bazada
+  // yashaydi va ularning ikkinchi nusxasi vaqt o'tib ajralib ketardi.
+  if (filters.search !== undefined && filters.search.trim() !== '') {
+    params['search'] = filters.search
+  }
+
   return params
 }
 

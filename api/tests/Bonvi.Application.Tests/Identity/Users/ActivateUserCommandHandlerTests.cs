@@ -87,7 +87,7 @@ public sealed class ActivateUserCommandHandlerTests
         var yangiRahbar = YangiFoydalanuvchi("905022222", "Юсупов Бекзод");
         yangiRahbar.SetRole(_mainBossRole.Id);
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, eskiRahbar, yangiRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, eskiRahbar, yangiRahbar]);
 
         var natija = await Handler.HandleAsync(
             new ActivateUserCommand(eskiRahbar.Id),
@@ -108,7 +108,7 @@ public sealed class ActivateUserCommandHandlerTests
         var eskiRahbar = Mavjud("905011111", "Rahimov Sardor", _mainBossRole);
         eskiRahbar.Deactivate();
 
-        _users.ListAsync(Arg.Any<CancellationToken>()).Returns([acting, eskiRahbar]);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, eskiRahbar]);
 
         var natija = await Handler.HandleAsync(
             new ActivateUserCommand(eskiRahbar.Id),

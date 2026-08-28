@@ -94,10 +94,14 @@ public static class UserEndpoints
             .RequireAuthorization(Permissions.UsersManage);
 
         group.MapGet("/", async (
+                string? search,
                 ListUsersQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
-                var natija = await handler.HandleAsync(cancellationToken).ConfigureAwait(false);
+                var natija = await handler
+                    .HandleAsync(new ListUsersQuery(search), cancellationToken)
+                    .ConfigureAwait(false);
+
                 return natija.ToHttpResult();
             })
             .WithName("ListUsers")
@@ -106,7 +110,9 @@ public static class UserEndpoints
                 "Tizimga kiradigan barcha hisoblar: faol va faolsizlari ham, ism bo'yicha " +
                 "alifbo tartibida. Sahifalash yo'q — hisoblar soni bir nechta. Har bir yozuvda " +
                 "«roleCode» (aynan bitta) va «photoKey» bo'ladi; rasmning o'zi alohida " +
-                "«GET /api/users/{id}/photo» bilan olinadi.")
+                "«GET /api/users/{id}/photo» bilan olinadi. " +
+                "«search» — F.I.Sh. yoki LOGIN (telefon) bo'yicha; hisobda JSHSHIR ham, " +
+                "pasport ham yo'q, shu sababli qidiruv xodimlar ro'yxatinikidan torroq.")
             .Produces<IReadOnlyList<UserSummaryDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
