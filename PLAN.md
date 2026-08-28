@@ -623,11 +623,17 @@ u barqaror va integratsiya uchun ishlatiladi.
 - [x] **5-qadam: teglar** (`91.9` rezerv, `91.10` qora ro'yxat, `91.12`,
       `Назорат`) va **sinov muddatlari** (`91.5` + karta varaqlari) —
       **1334 sinov muddati**, **32 belgi**.
-- [ ] **Profil boyitish** (`91.15` qobiliyatlar 554, `91.14` rag'bat 34,
-      `91.16` exit interview 192, baxtsiz hodisalar) — **S8/S9 ga ko'chirildi.**
-      Sabab: bu ma'lumotni joylashtiradigan entity'lar (`EmployeeSkill`,
-      `EmployeeAward`, `ExitInterview`) hali domenda yo'q. Ularsiz ko'chirish
-      mumkin emas, mavjud jadvalga tiqishtirish esa modelni buzardi.
+- [x] **Profil boyitish** — `ProfilesStep`. `91.15` dan 43 ta qobiliyat
+      profili (555 ismli qatordan 46 tasi bo'lim sarlavhasi, 509 tasi xodim,
+      lekin ATIGI 43 tasida qobiliyat to'ldirilgan), `91.14` dan 28 ta rag'bat.
+      **Jarima varag'i Excel'da umuman yo'q** — 20 varaqning birortasi ham
+      jarima ro'yxati emas.
+      «Чиқим» ustuni bo'yicha qaror: ikkala rag'bat turi ham pulsiz, lekin
+      33 qatorning hammasida chiqim to'ldirilgan — domen qoidasini so'zma-so'z
+      bajarsa rag'batlarning 100% i yo'qolardi. 30 qatorda bir xil `186 000`
+      va bir xil sovg'a to'plami turibdi, ya'ni bu SOVG'ANING TANNARXI, xodimga
+      berilgan pul emas: summa bo'sh qoldiriladi, hodisa hisobotga yoziladi,
+      rag'bat saqlanadi
 - [x] `--dry-run` rejimi — **standart holat**; yozish uchun `--apply` ataylab
       talab qilinadi va u `--connection` siz umuman ishlamaydi
 - [x] Migratsiya hisoboti (CSV): qadam, varaq, qator, xodim, muammo, qiymat, chora
@@ -951,19 +957,31 @@ aynan shu tarqoqlik muammo edi.
       BIRGA olinadi**: `photo_key` diskdagi faylga ishora qiladi, alohida
       vaqtda olingan zaxiralar bir-biriga mos kelmasdi. `./bonvi backup`,
       `./bonvi backup-list`, `./bonvi restore`
-- [ ] ~~Sentry~~ → **oddiy fayl jurnali** (2026-08-27, foydalanuvchi qarori).
+- [x] ~~Sentry~~ → **oddiy fayl jurnali** (2026-08-27, foydalanuvchi qarori).
       Sentry tashqi xizmat: hisob, DSN talab qiladi va ma'lumot konteynerdan
       TASHQARIGA chiqadi — bazada esa haqiqiy odamlarning JSHSHIR va pasporti
       bor. O'rniga xatolar aylanadigan faylga yoziladi, saqlash muddati
       cheklanadi (zaxira skriptlaridagi bilan bir xil fikr) va shaxsiy
       ma'lumot jurnalga TUSHMASLIGI qat'iy shart.
+      Qurildi: Serilog fayl sink'i (Apache-2.0, yangi bog'liqlik emas),
+      provayder darajasida — migratsiya va ishga tushish xatolari
+      `GlobalExceptionHandler` dan o'tmaydi, aynan o'shalar kerak.
+      Shaxsiy ma'lumot OQ RO'YXAT bilan to'siladi (qora ro'yxat emas):
+      ro'yxatda yo'q maydon `[yashirildi]` bo'ladi, ya'ni yangi maydon
+      jimgina sizib chiqa olmaydi.
+      ⚠️ Prod'da bir martalik qadam: `mkdir -p ./logs && chown 2000:2000 ./logs`.
       `/health/live` + `/health/ready` allaqachon bor.
       ~~Hangfire dashboard~~ — Hangfire S6 da rejadan olib tashlangan
-- [ ] HR uchun qo'llanma — **alohida bo'lim sifatida EMAS** (2026-08-27,
+- [x] HR uchun qo'llanma — **alohida bo'lim sifatida EMAS** (2026-08-27,
       foydalanuvchi qarori): «Sozlamalar» oynasidagi bitta tugma qo'llanmani
       PDF qilib yuklab beradi. Sabab: saytda qo'llanma uchun joy ajratish
       ortiqcha, yangi foydalanuvchi PDF variantni o'qigani qulayroq.
-      ~~1 kunlik o'qitish~~ — qo'llanma uning o'rnini bosadi
+      ~~1 kunlik o'qitish~~ — qo'llanma uning o'rnini bosadi.
+      Qurildi: 35 sahifa, ikki nashrda (lotin va kirill, ikkalasi ham qo'lda
+      yozilgan). Manba Markdown holida repozitoriyda, `./bonvi pnpm build:manual`
+      undan PDF yasaydi, tugma tayyor statik faylni yuklaydi. Generator yasagan
+      PDF'ini O'ZI qayta o'qib, matnni harfma-harf manba bilan solishtiradi —
+      tekshiruv yiqilsa fayl yozilmaydi (bu uchta ko'rinmas xatoni ushladi)
 
 **1-bosqich jami: ~20–23 ish kuni.**
 
@@ -1046,23 +1064,22 @@ Bular ishni to'xtatmaydi — oqilona standart bilan boshlanadi, javob kelganda t
 8. `Текширув`, `Судланганлик`, `MEHNAT.UZ` ustunlari qanday to'ldiriladi, majburiymi?
 
 ---
-
 ## 10. Keyingi qadam
 
-**S0 · S1 · S2 tugadi, S3 vositasi tayyor** (HR ko'rigini kutmoqda).
-**S4, S5, S6, S7, S9 va S10 ning hisobot qismi to'liq bajarildi** —
-backend ham, ekran ham. S8 dan bitta band qoldi (baholash anketasi),
-S10 dan bo'lim boshliqlari ko'rinishi, S11 esa zaxiradan tashqari ochiq.
+**1-BOSQICH TUGADI.** S0–S11 ning hamma bandi yopiq. Rejadagi yagona ochiq
+band — exit interview'ning ommaviy havolasi va u ATAYLAB qoldirilgan
+(S9 dagi izohga qarang).
 
 Qurilgan poydevor:
 
 ```
-./bonvi up      →  postgres 18.6 · redis 8.8 · API :7080 · Web :7173
-./bonvi test    →  710 test / 0 xato / ~15 s
-./bonvi check   →  4 til + kod ishlatgan kalitlar + backend xato kodlari
-./bonvi gen     →  C# DTO → TypeScript tip + React Query hook
-./bonvi etl     →  Excel → baza ko'chirish (quruq yurish standart)
-./bonvi backup  →  baza + fayllar zaxirasi (prod'da kunlik, avtomatik)
+./bonvi up            →  postgres 18.6 · redis 8.8 · API :7080 · Web :7173
+./bonvi test          →  809 test / 0 xato
+./bonvi check         →  4 til + kod ishlatgan kalitlar + backend xato kodlari
+./bonvi gen           →  C# DTO → TypeScript tip + React Query hook
+./bonvi etl           →  Excel → baza ko'chirish (quruq yurish standart)
+./bonvi backup        →  baza + fayllar zaxirasi (prod'da kunlik, avtomatik)
+./bonvi pnpm build:manual  →  HR qo'llanmasi → PDF (lotin va kirill)
 ```
 
 Ilova qobig'i ekran balandligida QOTIB turadi (`h-dvh overflow-hidden`) —
@@ -1071,51 +1088,66 @@ kontent maydoni. Ilgari bu `position: sticky` bilan qilingan edi va u
 ota elementdagi `overflow`/`transform` tufayli jimgina buzilardi.
 
 Ishlaydi: kirish (JWT), token yangilash, ruxsat tekshiruvi (21 ta ruxsat,
-2 ta rol), foydalanuvchi va rollarni boshqarish, 4 tilli interfeys,
-yorug'/tungi rejim, xavfsizlik sarlavhalari, tezlik cheklovi, 8 ta
-ma'lumotnoma (62 endpoint), bo'lim daraxti, lavozim vazifalari, xodim
-kartasi (oltita tab), mehnat munosabati va hodisalar (`/buyruqlar`), sinov
-muddati, to'rtta teg ro'yxati, qobiliyatlar profili, rag'bat/jarima,
-hujjatlar, exit interview, baxtsiz hodisalar jurnali va kunlik avtomatik
-zaxira.
+**3 ta rol** — 5.1-bo'lim), foydalanuvchi va rollarni boshqarish, hisob
+rasmi, 4 tilli interfeys, yorug'/tungi rejim, xavfsizlik sarlavhalari,
+tezlik cheklovi, 8 ta ma'lumotnoma (62 endpoint), bo'lim daraxti, lavozim
+vazifalari, xodim kartasi (oltita tab), mehnat munosabati va hodisalar
+(`/buyruqlar`), sinov muddati, to'rtta teg ro'yxati, qobiliyatlar profili,
+rag'bat/jarima (xodim kartasida ham, `/ragbat` umumiy ro'yxatida ham),
+hujjatlar, exit interview, baxtsiz hodisalar jurnali, hisobotlar
+(`/hisobotlar` — kadrlar oqimi va ketish sabablari), Excel eksport,
+kunlik avtomatik zaxira, fayl xato jurnali va PDF qo'llanma.
 
-**Ko'chirish vositasi tayyor va quruq yurishdan o'tdi**: 2347 xodim,
-2538 mehnat munosabati, 3527 hodisa, 1334 sinov muddati, 32 belgi. Bu
-hali bazaga qo'llanmagan — joriy dev muhitida atigi 59 xodim yozuvi bor.
+**Ko'chirish vositasi to'liq va quruq yurishdan o'tdi**: 2347 xodim,
+2538 mehnat munosabati, 3527 hodisa, 1334 sinov muddati, 32 belgi,
+43 qobiliyat profili va 28 rag'bat. Bu hali bazaga qo'llanmagan — joriy
+dev muhitida atigi 59 xodim yozuvi bor.
 
-### Navbatdagi ish — tartib bo'yicha
+### Navbatdagi ish — endi dasturchi ishi emas
 
-1. **ETL 6-qadam — profil boyitish.** `91.15` qobiliyatlar (554 qator) va
-   `91.14` rag'bat (34 qator) hali ko'chirilmaydi. Endi buni yozish mumkin:
-   `EmployeeCompetency` va `Incentive` agregatlari S8 da qurildi, `Steps/`
-   da esa mos qadam hali yo'q.
-2. **Uchta qat'iy rol** (5.1-bo'lim) — super administrator, bosh rahbar va
-   HR menejerlari; birinchi ikkitasi ATIGI BITTADAN. Kim kimni qo'sha
-   olishi — domen qoidasi, ruxsat emas.
-3. **«Rag'bat va jarima» sahifasi** — butun tizim bo'yicha umumiy ro'yxat
-   (har bir yozuv alohida qator). Menyudagi «Qobiliyatlar» va «Hujjatlar»
-   bandlari olib tashlanadi: ular xodim kartasining tab'lari sifatida
-   allaqachon ishlaydi, alohida ro'yxat esa so'ralmagan.
-4. **Foydalanuvchi hisobiga rasm** — ro'yxatda bosh harflar emas, haqiqiy
-   rasm (xodimlar ro'yxatidagi qoidaning aynan o'zi).
-5. **S11** — xato jurnali (Sentry O'RNIGA — pastga qarang), HR uchun
-   qo'llanma va zaxirani haqiqiy serverda bir marta TIKLAB ko'rish.
+Kod tomonidan 1-bosqich yopiq. Qolgan uchta ish TASHKILIY va ular
+foydalanuvchining qaroriga bog'liq:
 
-> **Alohida, parallel oqim — ETL ma'lumotini ko'chirish.** Yuqoridagi
-> ro'yxat dasturchi ishi; real ma'lumotni ko'chirish esa HR ga bog'liq va
-> bulardan mustaqil ketadi: avval hisobot ko'rib chiqiladi
-> (`data/etl-report.csv`, 4739 satr — eng muhimi: 1540 xodimda JSHSHIR
-> yo'q, 99 odamda otasining ismi bog'lanmagan, `unmapped`dagi 109 qiymat —
-> S2 bo'limidagi «Tozalash natijasi»ga qarang), shundan keyin
-> `./bonvi etl --apply` ishga tushadi.
+1. **ETL ni haqiqatan ishga tushirish.** Avval hisobot ko'rib chiqiladi
+   (`data/etl-report.csv` — eng muhimi: 1540 xodimda JSHSHIR yo'q, 99
+   odamda otasining ismi bog'lanmagan, `unmapped`dagi 109 qiymat, S2
+   bo'limidagi «Tozalash natijasi»ga qarang), shundan keyin
+   `./bonvi etl --apply`. Bu qadamdan keyin tizim haqiqiy hajmda ishlaydi.
+2. **Haqiqiy serverga chiqarish** va u yerda ikkita narsani BIR MARTA
+   tekshirish: zaxirani tiklab ko'rish (sinalmagan zaxira zaxira emas) va
+   `mkdir -p ./logs && chown 2000:2000 ./logs` (S11 dagi izoh).
+3. **HR ni ishga qo'shish** — qo'llanma «Sozlamalar» oynasidan PDF bo'lib
+   yuklanadi, alohida o'qitish rejalashtirilmagan.
 
-> **Texnik qarz — qo'lda yozilgan API klientlari.**
-> `web/src/features/*/api/*-api.ts` fayllari hamon qo'lda yozilgan, holbuki
-> OpenAPI to'liq va `./bonvi gen` ishlaydi. Bu shunchaki uslub masalasi
-> emas: ilgari aynan shu qo'lda yozish tufayli `flags`/`activeFlags`
-> nomlari chalkashib, ro'yxatdagi nishonlar HECH QACHON chizilmagan edi.
-> Endi ko'chirilishi kerak bo'lgan ekranlar soni o'ndan oshdi — qanchalik
-> kechiktirilsa, shunchalik qimmatlashadi.
+Shundan keyin **2-bosqich (rekruting)** boshlanadi — yon menyuda uning
+yo'l xaritasi allaqachon o'chiq holda turibdi.
+
+### Hal qilinishi kerak bo'lgan ikkita texnik qarz
+
+Ikkalasi ham 1-bosqichni to'sib turmaydi, lekin unutilmasligi kerak:
+
+1. **`EtlWorkspace.IsFactoryRoot` — o'lik shart.** U hamon eski
+   ma'lumotnoma KODLARI bilan solishtiradi (`metan-zavod`,
+   `velo-union-zavod`, `rispetto-zavod`, `kokand-bicycles-zavod`), kodlar
+   esa ma'lumotnomalardan olib tashlangan. Ya'ni «zavod darajasidagi bo'lim
+   o'rniga aniqroq blok sarlavhasi olinsin» qoidasi ISHLAMAYAPTI va bu
+   xodimlarning bo'limga biriktirilishiga ta'sir qiladi. Tuzatish uchun
+   eski kod → yangi nom moslamasi kerak: `metan-zavod` → «Метан завод»
+   aniq, lekin `kokand-bicycles-zavod` qaysi biriga tegishli ekani
+   NOANIQ («Скутер заводи» yoki «Риспетто велосипед заводи»). **Buni
+   `--apply` dan OLDIN hal qilish kerak.**
+2. **Qo'lda yozilgan API klientlari.** `web/src/features/*/api/*-api.ts`
+   fayllari hamon qo'lda yozilgan, holbuki OpenAPI to'liq va `./bonvi gen`
+   ishlaydi. Bu uslub masalasi emas: ilgari aynan shu tufayli
+   `flags`/`activeFlags` nomlari chalkashib, ro'yxatdagi nishonlar HECH
+   QACHON chizilmagan edi. Ekranlar soni o'sib borgani sari ko'chirish
+   qimmatlashadi.
+
+> **`tools/data/` git'dan tashqarida.** Urug' fayllarini Excel'dan
+> yasaydigan Python skriptlari `refs_spec.py` ichida haqiqiy pasport
+> seriyasi va familiya bo'laklarini saqlaydi («shovqin qiymatlari»
+> ro'yxati). Ular tozalanmaguncha fayl git'ga qo'shilmaydi — tarixdan
+> keyin olib tashlash qiyin.
 
 9-bo'limdagi **1, 2 va 4-savolga** javob olsak, ma'lumot sxemasi bir marta
 to'g'ri quriladi.
