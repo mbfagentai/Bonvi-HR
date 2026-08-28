@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "gen": "orval --config orval.config.ts",
-    "check:locales": "node scripts/check-locales.mjs"
+    "check:locales": "node scripts/check-locales.mjs",
+    "build:manual": "node scripts/build-manual.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
@@ -50,6 +51,7 @@
     "@vitejs/plugin-react": "6.1.0",
     "eslint": "10.9.0",
     "orval": "8.24.0",
+    "pdfkit": "^0.20.1",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "typescript-eslint": "8.67.0",

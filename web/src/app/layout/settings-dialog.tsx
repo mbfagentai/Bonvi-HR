@@ -1,11 +1,22 @@
-import { Languages, LogOut, Phone, ShieldCheck, SunMoon, type LucideIcon } from 'lucide-react'
+import {
+  BookOpen,
+  Download,
+  Languages,
+  LogOut,
+  Phone,
+  ShieldCheck,
+  SunMoon,
+  type LucideIcon,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { AccountPhotoEditor, formatFullPhone, useAuth } from '@/features/auth'
+import type { LocaleCode } from '@/shared/i18n/locales'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useTheme } from '@/shared/theme/theme-provider'
 import {
   Badge,
+  buttonVariants,
   Card,
   CardDivider,
   DangerRow,
@@ -15,6 +26,33 @@ import {
 } from '@/shared/ui'
 import { LanguageSwitcher } from '@/shared/ui/language-switcher'
 import { ThemeToggle } from '@/shared/ui/theme-toggle'
+
+/**
+ * HR qo'llanmasining PDF nusxalari — tayyor statik fayllar.
+ *
+ * NEGA tizimda qo'llanma uchun ALOHIDA BO'LIM yo'q: qo'llanma bir marta,
+ * ishning boshida o'qiladi. Uning uchun menyuda doimiy band ajratish har
+ * kuni ishlatiladigan bo'limlarni pastga surib yuborardi — holbuki bandga
+ * yiliga bir marta kiriladi. Yangi xodim uchun esa PDF qulayroq: uni
+ * chop etsa, yonida ochib qo'ysa yoki telefoniga ko'chirsa bo'ladi.
+ *
+ * NEGA ish vaqtida yasalmaydi: matn har so'rovda bir xil. Fayllar
+ * `web/manual/*.md` dan `web/scripts/build-manual.mjs` orqali oldindan
+ * yasaladi va repozitoriyda yotadi (`./bonvi pnpm build:manual`).
+ *
+ * NEGA faqat ikki nashr, to'rtta emas: qo'llanmaning auditoriyasi — Bonvi
+ * HR bo'limi, ular o'zbek tilida ishlaydi va tizimga faqat shular kiradi.
+ * Rus yoki ingliz interfeysini yoqib qo'ygan odam ham amalda o'sha HR —
+ * unga lotin nusxasini berish tarjima qilinmagan yoki eskirgan uchinchi
+ * faylni yuritishdan afzal. Shu sababli `ru` va `en` ataylab `uz-Latn` ga
+ * tushadi.
+ */
+const MANUAL_FILE = {
+  'uz-Latn': 'bonvi-hr-qollanma-uz-Latn.pdf',
+  'uz-Cyrl': 'bonvi-hr-qollanma-uz-Cyrl.pdf',
+  ru: 'bonvi-hr-qollanma-uz-Latn.pdf',
+  en: 'bonvi-hr-qollanma-uz-Latn.pdf',
+} satisfies Record<LocaleCode, string>
 
 /**
  * Shaxsiy sozlamalar oynasi — faqat o'zining hisobi.
@@ -46,7 +84,7 @@ export function SettingsDialog({
   /** Chiqish menyudagi bilan bir xil bo'lishi uchun tashqaridan beriladi. */
   onSignOut: () => void
 }) {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const { user } = useAuth()
   const { theme } = useTheme()
 
@@ -108,6 +146,54 @@ export function SettingsDialog({
               </Row>
             </>
           )}
+
+          <CardDivider />
+
+          {/*
+            Qo'llanma — «HISOB» ning oxirgi qatori.
+
+            NEGA aynan shu guruhda: qo'llanma tizimning sozlamasi emas
+            (tilni yoki mavzuni o'zgartirmaydi) va sessiyaga ham aloqasi
+            yo'q. U «men kimman va nima qila olaman» degan savolga
+            tegishli — rol qatorining davomi: rol nima qila olishingizni
+            aytadi, qo'llanma esa buni QANDAY qilishni.
+          */}
+          <Row
+            icon={BookOpen}
+            tone="teal"
+            label={t('settings.manual')}
+            hint={t('settings.manualHint')}
+          >
+            {/*
+              NEGA `<a download>`, tugma va JavaScript emas: fayl statik va
+              shu domendan beriladi, ya'ni brauzerning o'zi uni to'g'ridan-
+              to'g'ri saqlay oladi. `download` atributi yangi tab ochilishini
+              ham, PDF ning brauzer ichida ochilib ketishini ham to'xtatadi —
+              bosilishi bilan yuklab olish boshlanadi, oraliq oyna yo'q.
+
+              NEGA `fetch` + `blob` emas: u faylni avval xotiraga yuklardi,
+              keyin sun'iy havola yasab bosardi — bir xil natija uchun
+              uch barobar kod, ustiga yuklanish jarayonini o'zi ko'rsatish
+              kerak bo'lardi. Brauzer buni allaqachon qiladi.
+
+              NEGA `buttonVariants`, `Button` emas: bu HAVOLA, tugma emas
+              (o'ng tugma bilan «saqlash», o'rta tugma va h.k. ishlashi
+              kerak). Ko'rinish esa tugmanikidek bo'lsin — shu sababli
+              uslub qo'lda takrorlanmay, cva'dan olinadi (`__root.tsx` va
+              `employees-page.tsx` dagi bilan bir xil naqsh).
+
+              `import.meta.env.BASE_URL` — ilova ildizda emas, ost-yo'lda
+              joylashtirilsa ham havola buzilmasin uchun.
+            */}
+            <a
+              href={`${import.meta.env.BASE_URL}qollanma/${MANUAL_FILE[locale]}`}
+              download
+              className={buttonVariants({ variant: 'soft', size: 'sm' })}
+            >
+              <Download />
+              PDF
+            </a>
+          </Row>
         </Section>
 
         {/*

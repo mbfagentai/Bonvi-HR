@@ -56,7 +56,9 @@
     "signOutHint": "You will be signed out. Signing back in requires your phone number and password.",
     "photoTitle": "Account photo",
     "photoDeleteText": "The photo will be removed for good — the avatar falls back to initials.",
-    "photoHint": "Tap the photo to replace it"
+    "photoHint": "Tap the photo to replace it",
+    "manual": "Manual",
+    "manualHint": "Complete guide to working with the system — PDF"
   },
   "photo": {
     "subtitle": "JPEG, PNG or WebP · up to 10 MB",

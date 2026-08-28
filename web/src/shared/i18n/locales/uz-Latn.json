@@ -56,7 +56,9 @@
     "signOutHint": "Hisobdan chiqasiz. Qaytish uchun telefon raqami va parol kerak bo‘ladi.",
     "photoTitle": "Hisob rasmi",
     "photoDeleteText": "Rasm butunlay o‘chiriladi — avatarda yana bosh harflar ko‘rinadi.",
-    "photoHint": "Almashtirish uchun rasmga bosing"
+    "photoHint": "Almashtirish uchun rasmga bosing",
+    "manual": "Qo‘llanma",
+    "manualHint": "Tizim bilan ishlash bo‘yicha to‘liq qo‘llanma — PDF"
   },
   "photo": {
     "subtitle": "JPEG, PNG yoki WebP · 10 MB gacha",
