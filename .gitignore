@@ -49,14 +49,17 @@ Thumbs.db
 *.log
 uploads/
 
-# `tools/data/` — urug' fayllarini Excel'dan yasaydigan Python skriptlari.
-# Ular manba kodi va git'da bo'lishi MANTIQAN to'g'ri bo'lardi, LEKIN
-# `refs_spec.py` ichidagi «shovqin qiymatlari» ro'yxatida haqiqiy pasport
-# seriyasi va xodimlarning familiya bo'laklari bor — ular Excel'dan
-# ko'chirib olingan va filtr sifatida ishlatiladi. Git tarixidan bunday
-# qiymatni keyin olib tashlash qiyin, shu sababli fayl shu qiymatlar
-# tozalanmaguncha git'dan tashqarida qoladi.
-/tools/data/
+# Urug' fayllarini Excel'dan yasaydigan Python skriptlari GIT ICHIDA —
+# ilgari butun `tools/data/` yopiq edi va bu mantiq hech qayerda
+# zaxiralanmagan degani edi (faqat bitta diskda yotardi).
+#
+# Yopiq qolgani faqat SHU fayl: unda Excel'dan aynan ko'chirilgan ismlar,
+# bitta pasport seriyasi va uchta uy manzili bor. Ular «tozalash» ro'yxati
+# emas, FILTR — o'chirilsa, builder qayta ishga tushirilganda o'sha
+# qiymatlar aksincha urug' fayllariga tushib qolardi. Shu sababli ular
+# o'chirilmadi, ajratildi. `refs_spec.py` fayl yo'qligida yiqilmaydi,
+# ogohlantirish beradi.
+/tools/data/junk_local.py
 
 # Zaxira (pg_dump) — ./bonvi backup / docker-compose.prod.yml dagi
 # `backup` konteyneri shu papkaga yozadi. Bazaning to'liq nusxasi
