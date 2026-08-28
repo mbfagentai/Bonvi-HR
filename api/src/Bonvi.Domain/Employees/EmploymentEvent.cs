@@ -94,6 +94,42 @@ public sealed class EmploymentEvent : Entity
     /// <summary>Izoh. Qo'shimcha vazifada — vazifaning matni.</summary>
     public string? Note { get; private set; }
 
+    /// <summary>
+    /// Ishga qabul rekrutingdan kelgan bo'lsa — o'sha nomzod (2-bosqich).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>«Bu xodim qayerdan keldi?» degan savolning javobi shu yerda.</b>
+    /// Maydon <c>PLAN.md</c> ning 8-bo'limida oldindan rejalashtirilgan va
+    /// aynan shu joyda turgani ATAYLAB: ishga qabul — o'zgarmas FAKT, uning
+    /// kelib chiqishi ham shu faktning bir qismi. Nomzodda saqlansa
+    /// («men falon xodimga aylandim»), ikkita nozik holat buzilardi:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     odam ketib qaytib kelsa, ikkinchi qabul ham AYNI nomzod yozuviga
+    ///     ishora qilib qolardi va qaysi biri qaysi qabul ekani yo'qolardi;
+    ///   </item>
+    ///   <item>
+    ///     nomzod yozuvi yumshoq o'chirilsa, xodimning kelib chiqishi
+    ///     ham ko'rinmay qolardi — holbuki fakt o'zgarmagan.
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// Ikkinchi (va amaliy) foydasi: hodisa bilan BIR TRANZAKSIYADA
+    /// yoziladi, ya'ni «xodim yaratildi, lekin bog'lanish yozilmadi»
+    /// holati umuman bo'lmaydi. Taklifni qabul qilish oqimi shu tufayli
+    /// takroriy urinishga chidamli — batafsil
+    /// <c>AcceptJobOfferCommandHandler</c> izohida.
+    /// </para>
+    /// <para>
+    /// Domen qatlami rekrutingni BILMAYDI: bu shunchaki identifikator,
+    /// navigatsiya xossasi emas — agregatlar bir-birini identifikator
+    /// orqali biladi degan umumiy qoidaga to'liq mos.
+    /// </para>
+    /// </remarks>
+    public Guid? CandidateId { get; private set; }
+
     /// <summary>Kim kiritdi. ETL ko'chirgan bo'lsa — <c>null</c>.</summary>
     public Guid? RecordedBy { get; private set; }
 
@@ -115,9 +151,11 @@ public sealed class EmploymentEvent : Entity
         Money? fromSalary = null,
         Money? toSalary = null,
         string? note = null,
-        Guid? recordedBy = null)
+        Guid? recordedBy = null,
+        Guid? candidateId = null)
         => new(NewId(), employmentId, type, effectiveDate)
         {
+            CandidateId = candidateId,
             OrderNo = orderNo,
             OrderDate = orderDate,
             FromDepartmentId = fromDepartmentId,

@@ -17,6 +17,7 @@ using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
 using Bonvi.Application.Identity.Users.Commands.UpdateUser;
 using Bonvi.Application.Identity.Users.Photos;
 using Bonvi.Application.Identity.Users.Queries.ListUsers;
+using Bonvi.Application.Recruiting;
 using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
 using Bonvi.Application.System.Queries.GetSystemInfo;
@@ -95,6 +96,9 @@ public static class DependencyInjection
 
         // Baxtsiz hodisalar jurnali (S9/M11)
         services.AddSafety();
+
+        // Rekruting — 2-bosqich: vakansiya, voronka, nomzod, ish taklifi
+        services.AddRecruiting();
 
         return services;
     }

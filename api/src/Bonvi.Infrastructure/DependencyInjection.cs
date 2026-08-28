@@ -3,6 +3,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using Bonvi.Infrastructure.Identity;
@@ -51,6 +52,7 @@ public static class DependencyInjection
         services.AddEmployeeServices();
         services.AddFeedbackServices();
         services.AddSafetyServices();
+        services.AddRecruitingServices();
 
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
@@ -114,6 +116,33 @@ public static class DependencyInjection
     private static IServiceCollection AddSafetyServices(this IServiceCollection services)
     {
         services.AddScoped<IIncidentRepository, IncidentRepository>();
+
+        return services;
+    }
+
+    /// <summary>Rekruting (2-bosqich) bilan ishlaydigan portlar.</summary>
+    /// <remarks>
+    /// <para>
+    /// <c>IPipelineStageRepository</c> ALOHIDA ro'yxatga olinadi, garchi
+    /// bosqich ma'lumotnoma bo'lsa ham: ochiq generik
+    /// <c>IReferenceRepository&lt;&gt;</c> uni qoplamaydi, chunki
+    /// so'ralayotgan interfeys boshqa (voronka tartibi va «eng katta
+    /// tartib» qo'shilgan). Bo'lim va lavozim bilan aynan bir xil holat.
+    /// </para>
+    /// <para>
+    /// <c>IRecruitingReadModel</c> — repozitoriy EMAS: u agregat
+    /// qaytarmaydi, ro'yxat ekranlari uchun tayyor qatorlar beradi. Shu
+    /// sababli amalga oshirilishi <c>Persistence/ReadModels</c> da turadi.
+    /// </para>
+    /// </remarks>
+    private static IServiceCollection AddRecruitingServices(this IServiceCollection services)
+    {
+        services.AddScoped<IPipelineStageRepository, PipelineStageRepository>();
+        services.AddScoped<IVacancyRepository, VacancyRepository>();
+        services.AddScoped<ICandidateRepository, CandidateRepository>();
+        services.AddScoped<IJobOfferRepository, JobOfferRepository>();
+
+        services.AddScoped<IRecruitingReadModel, RecruitingReadModel>();
 
         return services;
     }

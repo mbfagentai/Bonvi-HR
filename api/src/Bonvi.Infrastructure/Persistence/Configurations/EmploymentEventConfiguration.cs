@@ -77,5 +77,19 @@ public sealed class EmploymentEventConfiguration : IEntityTypeConfiguration<Empl
             employmentEvent.Type,
             employmentEvent.EffectiveDate,
         });
+
+        // «Bu nomzod qaysi xodimga aylandi» va taklifni qabul qilishning
+        // takrorga qarshi tekshiruvi — ikkalasi ham SHU ustun bo'yicha
+        // qidiradi. Qisman indeks juda kichik: hodisalarning katta qismi
+        // rekrutingdan kelmaydi (Excel'dan ko'chirilgan 5000 yozuv va HR
+        // qo'lda kiritgan qabullar).
+        //
+        // ⚠️ Tashqi kalit ATAYLAB YO'Q — yuqoridagi bo'lim/lavozim qarori
+        // bilan bir xil sabab: bu jadval TARIX va unga qo'yilgan har bir
+        // cheklov bir kun faktni o'chirishga yoki buzishga majbur qiladi.
+        // Nomzod yozuvi hech qachon jismonan o'chirilmaydi (yumshoq
+        // o'chirish), ya'ni havola baribir uzilmaydi.
+        builder.HasIndex(employmentEvent => employmentEvent.CandidateId)
+            .HasFilter("candidate_id IS NOT NULL");
     }
 }

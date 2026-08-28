@@ -67,6 +67,36 @@ public static class Permissions
 
     public const string SafetyManage = "safety.manage";
 
+    /// <summary>
+    /// Rekruting (2-bosqich): vakansiya, nomzod, voronka, ish taklifi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ALOHIDA ruxsat guruhi — <see cref="EmployeesView"/> ostiga
+    /// qo'shilmagan. Sabab shakliy emas, mazmuniy: nomzod HALI xodim emas
+    /// va uning yozuvi butunlay boshqa toifadagi ma'lumot — rad etish
+    /// sabablari, suhbat xulosalari, taklif qilingan oklad. Xodimlar
+    /// ro'yxatini ochgan har bir kishi «kimni nega olmadik» degan
+    /// yozuvlarni ham ko'rib turishi kerak emas
+    /// (<see cref="IncentivesView"/> bilan bir xil mantiq).
+    /// </para>
+    /// <para>
+    /// <b>Voronka bosqichlari ham SHU ruxsat ostida</b>, ma'lumotnomalar
+    /// (<see cref="CatalogManage"/>) ostida emas: bosqichlar ro'yxati —
+    /// rekrutingning ish jarayoni ta'rifi va uni o'zgartirish HR'ning
+    /// tanlov usulini o'zgartiradi, ma'lumotnomaga yangi lavozim qo'shish
+    /// esa butunlay boshqa amal.
+    /// </para>
+    /// <para>
+    /// Uchala rol ham oladi: rekruting — HR bo'limining asosiy kundalik
+    /// ishi, «ko'rish» va «boshqarish» esa bu yerda amalda ajralmaydi
+    /// (nomzodni ko'rgan HR uni bosqichga ham o'tkazadi).
+    /// </para>
+    /// </remarks>
+    public const string RecruitingView = "recruiting.view";
+
+    public const string RecruitingManage = "recruiting.manage";
+
     // ---------- Ma'lumotnomalar ----------
     public const string CatalogView = "catalog.view";
     public const string CatalogManage = "catalog.manage";
@@ -88,6 +118,7 @@ public static class Permissions
         IncentivesView, IncentivesManage,
         FeedbackView, FeedbackManage,
         SafetyView, SafetyManage,
+        RecruitingView, RecruitingManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
         UsersManage, AuditView,
@@ -115,7 +146,8 @@ public static class Permissions
 ///   </item>
 ///   <item>
 ///     <b><see cref="MainBoss"/></b> — bosh rahbar. RUXSATLAR bo'yicha super
-///     administrator bilan TENG (o'sha 21 ta ruxsat), farq faqat KIMNI
+///     administrator bilan TENG (<see cref="Permissions.All"/> ning O'ZI),
+///     farq faqat KIMNI
 ///     boshqara olishida: bosh rahbar faqat HR menejerlarga tegadi. Bu farq
 ///     ruxsat kodi bilan emas, use-case qoidasi bilan qo'yilgan (sababi
 ///     <see cref="Permissions.UsersManage"/> ni ikkalasi ham olgani uchun —
@@ -222,6 +254,7 @@ public static class SystemRoles
                 Permissions.IncentivesView, Permissions.IncentivesManage,
                 Permissions.FeedbackView, Permissions.FeedbackManage,
                 Permissions.SafetyView, Permissions.SafetyManage,
+                Permissions.RecruitingView, Permissions.RecruitingManage,
                 Permissions.CatalogView, Permissions.CatalogManage,
                 Permissions.ReportsView, Permissions.ReportsExport,
                 Permissions.AuditView,

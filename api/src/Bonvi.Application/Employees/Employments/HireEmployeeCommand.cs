@@ -36,6 +36,13 @@ namespace Bonvi.Application.Employees.Employments;
 /// <c>/sinov</c> ro'yxatiga umuman tushmasdi. Bo'sh qoldirilsa lavozimdagi
 /// qiymat, u ham bo'lmasa 90 kun olinadi.
 /// </para>
+/// <para>
+/// <b><see cref="CandidateId"/> — 2-bosqich bilan yagona bog'lanish.</b> U
+/// faqat rekrutingdan keladi va ishga qabul HODISASIGA yoziladi
+/// (<see cref="EmploymentEvent.CandidateId"/>). Bu yerda ATAYLAB oddiy
+/// ixtiyoriy maydon: ishga qabulning o'zi rekruting haqida hech narsa
+/// bilmaydi va HR formasi uni yubormaydi.
+/// </para>
 /// </remarks>
 public sealed record HireEmployeeCommand(
     Guid LegalEntityId,
@@ -51,7 +58,8 @@ public sealed record HireEmployeeCommand(
     decimal? Rate = null,
     bool? IsPrimary = null,
     Guid? ResponsibleEmployeeId = null,
-    int? ProbationDays = null);
+    int? ProbationDays = null,
+    Guid? CandidateId = null);
 
 public sealed class HireEmployeeCommandHandler
 {
@@ -176,7 +184,8 @@ public sealed class HireEmployeeCommandHandler
             command.DepartmentId,
             command.PositionId,
             command.OrderNo,
-            command.OrderDate);
+            command.OrderDate,
+            command.CandidateId);
 
         if (hired.IsFailure)
         {

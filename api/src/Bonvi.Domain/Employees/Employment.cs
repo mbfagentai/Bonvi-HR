@@ -130,6 +130,13 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>
     /// Ishga qabul qiladi va birinchi hodisani yozadi.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="candidateId"/> — 2-bosqich (rekruting) bilan yagona
+    /// bog'lanish nuqtasi: taklifni qabul qilgan nomzod shu yerdan ishga
+    /// qabul HODISASIGA yoziladi. Ixtiyoriy va oxirida turadi — qo'lda
+    /// kiritilgan qabul (HR formasi) va Excel'dan ko'chirish uni bermaydi,
+    /// ya'ni mavjud chaqiruvlar o'zgarmaydi.
+    /// </remarks>
     public static Result<Employment> Hire(
         Guid employeeId,
         Guid legalEntityId,
@@ -137,7 +144,8 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
         Guid? departmentId = null,
         Guid? positionId = null,
         string? orderNo = null,
-        DateOnly? orderDate = null)
+        DateOnly? orderDate = null,
+        Guid? candidateId = null)
     {
         if (employeeId == Guid.Empty)
         {
@@ -162,7 +170,8 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
             orderNo: Normalize(orderNo),
             orderDate: orderDate,
             toDepartmentId: departmentId,
-            toPositionId: positionId));
+            toPositionId: positionId,
+            candidateId: candidateId));
 
         return employment;
     }

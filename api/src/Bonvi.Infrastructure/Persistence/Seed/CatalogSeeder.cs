@@ -4,6 +4,7 @@ using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -123,6 +124,7 @@ public sealed partial class CatalogSeeder
         await SeedAwardTypesAsync(stats, cancellationToken).ConfigureAwait(false);
         await SeedPenaltyTypesAsync(stats, cancellationToken).ConfigureAwait(false);
         await SeedDocumentTypesAsync(stats, cancellationToken).ConfigureAwait(false);
+        await SeedPipelineStagesAsync(stats, cancellationToken).ConfigureAwait(false);
 
         LogTotal(stats.Created, stats.Skipped, stats.MissingFiles);
 
@@ -311,6 +313,45 @@ public sealed partial class CatalogSeeder
             "Hujjat turlari",
             row => DocumentType.Create(row.Name),
             (entity, row) => entity.SetRequired(row.IsRequired ?? false),
+            stats,
+            cancellationToken).ConfigureAwait(false);
+
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Rekruting voronkasining bosqichlari (2-bosqich).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Tartib FAYLDAGI ketma-ketlikdan olinadi</b>, alohida
+    /// <c>sortOrder</c> maydonidan emas. Sabab: voronka — bu ro'yxatning
+    /// O'ZI, va faylni o'qiyotgan odam «Анкета → Телефон суҳбат → …» ni
+    /// yuqoridan pastga ko'radi. Raqamlar alohida yozilganda ular fayl
+    /// tartibidan ajralib ketishi mumkin edi (masalan qator ko'chirilganda
+    /// raqam unutiladi) va o'shanda haqiqiy voronka faylga qaraganda
+    /// boshqacha bo'lardi.
+    /// </para>
+    /// <para>
+    /// Ro'yxat <c>PLAN.md</c> dagi voronkadan olingan. «Ишга қабул» bosqich
+    /// sifatida YO'Q: u voronkaning oxiri emas, undan CHIQISH — taklif
+    /// qabul qilinganda 1-bosqichning ishga qabul oqimi ishlaydi va nomzod
+    /// xodimga aylanadi.
+    /// </para>
+    /// <para>
+    /// HR bu ro'yxatni to'liq o'zgartira oladi (qo'shish, faolsizlantirish,
+    /// qayta tartiblash) — urug' fayli faqat BOSHLANG'ICH holat.
+    /// </para>
+    /// </remarks>
+    private async Task SeedPipelineStagesAsync(SeedStats stats, CancellationToken cancellationToken)
+    {
+        var order = 0;
+
+        await SeedCatalogAsync<PipelineStage, PipelineStageRow>(
+            "pipeline-stages.json",
+            "Voronka bosqichlari",
+            row => PipelineStage.Create(row.Name, order++),
+            apply: null,
             stats,
             cancellationToken).ConfigureAwait(false);
 
@@ -612,4 +653,13 @@ public sealed partial class CatalogSeeder
     {
         public bool? IsRequired { get; init; }
     }
+
+    /// <summary>
+    /// Voronka bosqichi — faqat nom va izoh.
+    /// </summary>
+    /// <remarks>
+    /// Tartib maydoni ATAYLAB yo'q: u fayldagi qatorlar ketma-ketligidan
+    /// olinadi (sababi <see cref="SeedPipelineStagesAsync"/> izohida).
+    /// </remarks>
+    private sealed record PipelineStageRow : CatalogRow;
 }

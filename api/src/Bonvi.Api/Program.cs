@@ -158,6 +158,14 @@ app.MapIncentiveEndpoints();
 app.MapEmployeeDocumentEndpoints();
 app.MapExitInterviewEndpoints();
 app.MapIncidentEndpoints();
+
+// Rekruting (2-bosqich): voronka bosqichlari → vakansiya → nomzod →
+// ish taklifi. Oxirgi qadam 1-bosqichning ishga qabul oqimiga ulanadi.
+app.MapPipelineStageEndpoints();
+app.MapVacancyEndpoints();
+app.MapCandidateEndpoints();
+app.MapJobOfferEndpoints();
+
 app.MapSystemEndpoints();
 app.MapDashboardEndpoints();
 app.MapReportsEndpoints();

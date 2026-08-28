@@ -275,3 +275,81 @@ internal static class UserSearchQuery
                 .Select(user => user.Id);
     }
 }
+
+/// <summary>
+/// «Nomzod bo'yicha qidiruv» sharti — F.I.Sh. + telefon.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Nega <see cref="EmployeeSearchQuery"/> dan alohida.</b> Nomzodda
+/// JSHSHIR ham, pasport ham YO'Q va bo'lmasligi ham mumkin: u hali hujjat
+/// topshirmagan (sababi <c>Candidate.Phone</c> izohida). Xodim
+/// shartini shu yerda qayta ishlatish mavjud bo'lmagan ustunlarni
+/// qidirishga majbur qilardi.
+/// </para>
+/// <para>
+/// <b>Qoidaning O'ZI esa nusxa ko'chirilmaydi.</b> Ism yig'ilishi
+/// (қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini tozalash
+/// <see cref="SearchFolding"/> dan keladi — xodimlar, foydalanuvchilar va
+/// nomzodlar uchun BITTA joydan. Aks holda HR bitta ismni ikki ekranda
+/// ikki xil natija bilan qidirardi va bu loyihadagi eng qimmat xatoning
+/// (topilmagan odam → yangi dublikat karta) aynan o'zi bo'lardi.
+/// </para>
+/// <para>
+/// <b>Nega ifoda ustida indeks YO'Q.</b> Xodimlar jadvalida trigramma
+/// indeksi bor, chunki u yerda 2000+ yozuv va u har bir ekranda
+/// qidiriladi. Nomzodlar jadvali bir yilda bir necha yuz qatorga o'sadi
+/// va PostgreSQL uchun bu to'liq skanerlash ham bir necha millisekund.
+/// Indeks kerak bo'lganda, u xodimlardagi ifoda bilan AYNAN bir xil
+/// yozilishi shart — quyidagi <c>translate(...)</c> ifodasi shu sababli
+/// so'zma-so'z bir xil qoldirilgan.
+/// </para>
+/// </remarks>
+internal static class CandidateSearchQuery
+{
+    /// <summary>Qidiruvga mos keladigan nomzodlarning identifikatorlari.</summary>
+    /// <remarks>
+    /// ⚠️ Matn bo'sh bo'lganda chaqirilmaydi: u holda so'rov «hech kim»
+    /// emas, «hamma» degan ma'noni berishi kerak va buni chaqiruvchi
+    /// shartni umuman qo'shmaslik bilan hal qiladi
+    /// (<see cref="EmployeeSearchQuery.MatchingIds"/> bilan bir xil qoida).
+    /// </remarks>
+    public static IQueryable<Guid> MatchingIds(AppDbContext context, string search)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var namePattern = SearchPattern.For(SearchFolding.ForName(search));
+        var phoneDigits = SearchFolding.ForPhone(search);
+
+        // Telefon sharti shartli — xodimlardagi bilan bir xil sabab: matnda
+        // bironta ham raqam bo'lmasa, naqsh `%%` bo'lib butun jadvalni olib
+        // kelardi va ism bo'yicha qidiruvni ma'nosiz qilardi.
+        //
+        // Xom SQL sababi ham o'sha: `Phone` konvertor orqali satrga tushadi
+        // va `candidate.Phone.Value` ifodasi SQL'ga tarjima QILINMAYDI;
+        // F.I.Sh. ustunlari esa complex type va ular `last_name` /
+        // `first_name` / `middle_name` deb ataylab qisqartirilgan.
+        return phoneDigits.Length == 0
+            ? context.Candidates
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM candidates AS x
+                     WHERE translate(
+                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
+                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     """)
+                .Select(candidate => candidate.Id)
+            : context.Candidates
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM candidates AS x
+                     WHERE translate(
+                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
+                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                        OR regexp_replace(coalesce(x.phone, ''), '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
+                     """)
+                .Select(candidate => candidate.Id);
+    }
+}

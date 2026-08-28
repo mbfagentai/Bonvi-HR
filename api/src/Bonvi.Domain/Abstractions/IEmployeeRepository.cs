@@ -44,6 +44,25 @@ public interface IEmploymentRepository : IRepository<Employment>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Nomzoddan tug'ilgan mehnat munosabati (2-bosqich bog'lanishi).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ishga qabul HODISASIDAGI <c>CandidateId</c> bo'yicha qidiriladi
+    /// (sababi <see cref="EmploymentEvent.CandidateId"/> izohida). Ikki
+    /// joyda kerak: nomzod kartasida «u qaysi xodimga aylandi» havolasi va
+    /// taklifni qabul qilish oqimining TAKRORGA CHIDAMLILIGI — agar birinchi
+    /// urinishda xodim yaratilib, nomzod holati yozilmay qolgan bo'lsa,
+    /// ikkinchi urinish shu metod orqali «allaqachon ishga olingan» ekanini
+    /// ko'radi va ikkinchi xodim kartasini YARATMAYDI.
+    /// </para>
+    /// <para>
+    /// <c>null</c> — bu nomzoddan hech kim ishga olinmagan.
+    /// </para>
+    /// </remarks>
+    Task<Employment?> FindByCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Xodimning barcha faol stavkalari yig'indisi.
     /// </summary>
     /// <remarks>

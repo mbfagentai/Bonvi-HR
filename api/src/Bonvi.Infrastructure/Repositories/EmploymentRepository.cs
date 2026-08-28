@@ -59,6 +59,32 @@ public sealed class EmploymentRepository : Repository<Employment>, IEmploymentRe
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
+    /// So'rov ishga qabul HODISASI orqali ketadi: bog'lanish aynan o'sha
+    /// yerda saqlanadi (sababi <see cref="EmploymentEvent.CandidateId"/>
+    /// izohida). <c>candidate_id</c> ustidagi qisman indeks tufayli bu
+    /// arzon qidiruv.
+    /// </para>
+    /// <para>
+    /// Hodisa turi ham tekshiriladi: kelajakda boshqa turdagi hodisaga
+    /// nomzod yozilib qolsa (masalan qayta qabul), «bu nomzod ishga
+    /// olinganmi?» degan savolga faqat QABUL hodisasi javob berishi kerak.
+    /// </para>
+    /// </remarks>
+    public Task<Employment?> FindByCandidateAsync(
+        Guid candidateId,
+        CancellationToken cancellationToken = default)
+        => Set
+            .AsNoTracking()
+            .Where(employment => Context.EmploymentEvents.Any(item =>
+                item.EmploymentId == employment.Id &&
+                item.CandidateId == candidateId &&
+                item.Type == EmploymentEventType.Hire))
+            .OrderByDescending(employment => employment.HireDate)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Yig'indi BAZADA hisoblanadi (<c>SUM(rate)</c>), C# da emas. Sabab:
     /// bu tekshiruv har ishga qabul qilishda bajariladi va xodimning butun
     /// munosabatlar ro'yxatini tarmoq orqali tortib kelish ortiqcha —

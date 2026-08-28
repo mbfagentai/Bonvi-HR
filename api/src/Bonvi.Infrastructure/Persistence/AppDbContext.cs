@@ -8,6 +8,7 @@ using Bonvi.Domain.Employees;
 using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Safety;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -180,6 +181,28 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Baxtsiz hodisalar jurnali (<c>incidents</c>).</summary>
     public DbSet<Incident> Incidents => Set<Incident>();
+
+    // ────────────────────────────────────────────────────────────
+    //  REKRUTING (2-bosqich)
+    //  Voronka: vakansiya → nomzod → bosqichlar → ish taklifi →
+    //  1-bosqichning ishga qabul oqimi. Bosqichlar ro'yxati KODDA emas,
+    //  ma'lumotnomada — foydalanuvchi qarori (sababi `PipelineStage` da).
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Voronka bosqichlari — ma'lumotnoma (<c>pipeline_stages</c>).</summary>
+    public DbSet<PipelineStage> PipelineStages => Set<PipelineStage>();
+
+    /// <summary>Ochilgan ish o'rinlari (<c>vacancies</c>).</summary>
+    public DbSet<Vacancy> Vacancies => Set<Vacancy>();
+
+    /// <summary>Nomzodlar (<c>candidates</c>).</summary>
+    public DbSet<Candidate> Candidates => Set<Candidate>();
+
+    /// <summary>Nomzodning bosqichlardan o'tishi (<c>candidate_stage_entries</c>).</summary>
+    public DbSet<CandidateStageEntry> CandidateStageEntries => Set<CandidateStageEntry>();
+
+    /// <summary>Ish takliflari (<c>job_offers</c>).</summary>
+    public DbSet<JobOffer> JobOffers => Set<JobOffer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
