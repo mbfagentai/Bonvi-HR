@@ -517,7 +517,8 @@
     "foydalanuvchi.rasm_yoq": "Bu foydalanuvchining rasmi yo‘q.",
     "foydalanuvchi.rasm_katta": "Rasm hajmi 10 MB dan oshmasligi kerak.",
     "foydalanuvchi.rasm_turi": "Faqat JPEG, PNG yoki WebP rasmlari qabul qilinadi.",
-    "foydalanuvchi.rasm_yaroqsiz": "Fayl rasm emas yoki buzilgan."
+    "foydalanuvchi.rasm_yaroqsiz": "Fayl rasm emas yoki buzilgan.",
+    "sinov.majburiy": "Sinov muddatisiz ishga qabul qilib bo‘lmaydi: har bir yangi xodim sinovdan boshlaydi."
   },
   "language": {
     "en": "English",
@@ -543,7 +544,6 @@
     "departmentAutoHint": "Lavozim tanlanganda bo‘lim o‘zi to‘ldiriladi",
     "employments": "Mehnat munosabatlari",
     "employmentsHint": "Bir xodim bir nechta firmada ishlashi mumkin",
-    "emptyText": "Filtrlarni o‘zgartirib ko‘ring yoki yangi xodim qo‘shing",
     "emptyTitle": "Xodim topilmadi",
     "events": {
       "additionalDuty": "Qo‘shimcha vazifa",
@@ -670,7 +670,8 @@
     "stateNo": "Yo‘q",
     "exportFailed": "Excelga yuklab bo‘lmadi",
     "exportTooOften": "So‘rovlar juda tez-tez yuborildi. Bir daqiqa kutib, qayta urinib ko‘ring.",
-    "exporting": "Tayyorlanmoqda…"
+    "exporting": "Tayyorlanmoqda…",
+    "emptyHireHint": "Yangi xodim «Sinov muddati» sahifasidan qabul qilinadi — u ishni sinovdan boshlaydi."
   },
   "employments": {
     "anyType": "Barcha turlar",

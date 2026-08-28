@@ -1,5 +1,10 @@
 using Bonvi.Domain.Common;
 
+// Chegara raqamlari `Probation` dan olinadi — ikkinchi nusxa yozilsa, biri
+// o'zgarganda ikkinchisi jimgina eskirardi va lavozimda saqlangan muddat
+// ishga qabulda rad etilishi mumkin bo'lardi.
+using Bonvi.Domain.Employees;
+
 namespace Bonvi.Domain.Organization;
 
 /// <summary>
@@ -66,13 +71,25 @@ public sealed class Position : ReferenceEntity
         return Result.Success();
     }
 
+    /// <summary>
+    /// Lavozimning standart sinov muddati. <c>null</c> — «belgilanmagan»,
+    /// ishga qabulda 90 kun olinadi.
+    /// </summary>
+    /// <remarks>
+    /// <b>Nega quyi chegara 0 emas, 1.</b> Ilgari nol saqlanardi va u ishga
+    /// qabulda «bu lavozimga sinovsiz olinadi» degan ma'noni bildirardi.
+    /// Endi sinovsiz qabul umuman yo'q (<c>Probation.MinDays</c>), ya'ni
+    /// nolning yagona ma'nosi ham yo'qoldi: u endi butun ishga qabulni
+    /// to'xtatib qo'yadigan tuzoq bo'lardi. «Muddat kerak emas» degan holat
+    /// <c>null</c> bilan ifodalanadi va u standart 90 kunga tushadi.
+    /// </remarks>
     public Result SetProbationDays(int? days)
     {
-        if (days is not null && days is < 0 or > 180)
+        if (days is not null && days is < Probation.MinDays or > Probation.MaxDays)
         {
             return Error.Validation(
                 "lavozim.sinov_muddati",
-                "Sinov muddati 0 dan 180 kungacha bo'lishi kerak (mehnat kodeksi chegarasi).");
+                "Sinov muddati 1 dan 180 kungacha bo'lishi kerak; bo'sh qoldirilsa standart muddat olinadi.");
         }
 
         ProbationDays = days;

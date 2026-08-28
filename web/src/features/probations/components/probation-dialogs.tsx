@@ -8,8 +8,8 @@ import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 
 import {
   PROBATION_RESULTS,
-  type ProbationItem,
   type ProbationStatus,
+  type ProbationTarget,
 } from '../api/probations-api'
 import { useExtendProbation, useResolveProbation } from '../api/probations-queries'
 
@@ -35,7 +35,13 @@ export function ResolveDialog({
   item,
   onClose,
 }: {
-  item: ProbationItem | null
+  /*
+    `ProbationTarget` — ATAYLAB tor shartnoma: oyna sinov ro'yxatidan ham,
+    xodim kartasidan ham ochiladi va kartada to'liq ro'yxat qatori yo'q.
+    Ikkinchi nusxa yozish o'rniga oyna faqat o'zi ishlatadigan maydonlarni
+    so'raydi.
+  */
+  item: ProbationTarget | null
   onClose: () => void
 }) {
   const { t } = useLocale()
@@ -239,7 +245,13 @@ export function ExtendDialog({
   item,
   onClose,
 }: {
-  item: ProbationItem | null
+  /*
+    `ProbationTarget` — ATAYLAB tor shartnoma: oyna sinov ro'yxatidan ham,
+    xodim kartasidan ham ochiladi va kartada to'liq ro'yxat qatori yo'q.
+    Ikkinchi nusxa yozish o'rniga oyna faqat o'zi ishlatadigan maydonlarni
+    so'raydi.
+  */
+  item: ProbationTarget | null
   onClose: () => void
 }) {
   const { t, date } = useLocale()

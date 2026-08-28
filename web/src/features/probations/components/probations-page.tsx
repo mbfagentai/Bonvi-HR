@@ -1,10 +1,15 @@
 import { getRouteApi } from '@tanstack/react-router'
-import { CalendarClock, CircleAlert, Search, Timer } from 'lucide-react'
+import { CalendarClock, CircleAlert, Search, Timer, UserPlus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
-import { EMPLOYMENT_MANAGE } from '@/features/employees/lib/employee-presentation'
+import { HireDialog } from '@/features/employees/components/hire-dialog'
+import {
+  EMPLOYEES_CREATE,
+  EMPLOYMENT_MANAGE,
+} from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
@@ -71,6 +76,13 @@ export function ProbationsPage() {
 
   const canManage = hasPermission(EMPLOYMENT_MANAGE)
 
+  /*
+   * Ishga qabul ikki ruxsatni birga talab qiladi: shaxs kartasi
+   * yaratiladi VA mehnat munosabati ochiladi. Shart `/xodimlar` dagi bilan
+   * AYNAN bir xil qoldi — tugma ko'chdi, huquq emas.
+   */
+  const canHire = hasPermission(EMPLOYEES_CREATE) && canManage
+
   const search = route.useSearch()
   const navigate = route.useNavigate()
 
@@ -79,6 +91,7 @@ export function ProbationsPage() {
   const [status, setStatus] = useState<ProbationFilters['status']>('')
   const [resolving, setResolving] = useState<ProbationItem | null>(null)
   const [extending, setExtending] = useState<ProbationItem | null>(null)
+  const [hireOpen, setHireOpen] = useState(false)
 
   const filters: ProbationFilters = { status, search: search.q ?? '' }
 
@@ -93,6 +106,15 @@ export function ProbationsPage() {
 
   const list = useProbations(filters)
   const warning = useEndingSoon()
+
+  /*
+   * Ma'lumotnomalar — ishga qabul formasi uchun (firma, bo'lim, lavozim).
+   *
+   * NEGA oyna ochilishini kutmaydi: ular baribir keshlanadi va boshqa
+   * ekranlarda ham so'raladi, oyna esa darhol to'ldirilgan tanlovlar bilan
+   * ochilishi kerak — bo'sh ro'yxatli «Bo'limni tanlang» HR ni ikkilantirardi.
+   */
+  const options = useFilterOptions()
 
   const rows = list.data ?? EMPTY
   const soonCount = warning.data?.length ?? 0
@@ -230,6 +252,18 @@ export function ProbationsPage() {
 
   return (
     <div className="space-y-5">
+      {/*
+        «Yangi xodim qabul qilish» tugmasi AYNAN shu sahifada turadi.
+
+        Sabab oqimda: har bir yangi odam istisnosiz sinovdan boshlaydi
+        (`Probation.MinDays`), ya'ni qabul qilingan zahoti u shu ro'yxatga
+        tushadi. Ilgari tugma `/xodimlar` da edi — doimiy xodimlar
+        ro'yxatida — va HR odam qo'shgach uni o'sha ro'yxatda ko'rmasdi.
+
+        Oynaning O'ZI xodimlar modulida qoldi (`hire-dialog.tsx`): u shaxs,
+        mehnat munosabati va ma'lumotnomalar bilan ishlaydi, sinov esa
+        uning natijasi. Ko'chirilgani — chaqiruv joyi, kod emas.
+      */}
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -238,6 +272,14 @@ export function ProbationsPage() {
           </span>
         }
         subtitle={list.isSuccess ? t('probation.subtitle', { n: num(rows.length) }) : undefined}
+        actions={
+          canHire ? (
+            <Button variant="create" onClick={() => setHireOpen(true)}>
+              <UserPlus />
+              {t('employees.hire')}
+            </Button>
+          ) : undefined
+        }
       />
 
       {soonCount > 0 && (
@@ -300,6 +342,20 @@ export function ProbationsPage() {
               icon={CalendarClock}
               title={t('probation.emptyTitle')}
               description={t('probation.emptyText')}
+              /*
+                Bo'sh ekran — aynan «boshlash» payti: sinovda hech kim yo'q
+                bo'lsa, HR bu yerga yangi odam qo'shish uchun keladi. Tugma
+                yuqorida ham bor, lekin bo'sh jadval o'rtasida ko'z birinchi
+                shu yerga tushadi.
+              */
+              action={
+                canHire ? (
+                  <Button variant="create" onClick={() => setHireOpen(true)}>
+                    <UserPlus />
+                    {t('employees.hire')}
+                  </Button>
+                ) : undefined
+              }
             />
           }
         />
@@ -307,6 +363,7 @@ export function ProbationsPage() {
 
       <ResolveDialog item={resolving} onClose={() => setResolving(null)} />
       <ExtendDialog item={extending} onClose={() => setExtending(null)} />
+      <HireDialog open={hireOpen} onClose={() => setHireOpen(false)} options={options} />
     </div>
   )
 }

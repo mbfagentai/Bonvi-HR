@@ -27,6 +27,15 @@ namespace Bonvi.Application.Employees.Employments;
 /// avval JSHSHIR bo'yicha qidiriladi: odam qaytib kelgan bo'lishi mumkin va
 /// unga IKKINCHI karta ochish mumkin emas. Topilmasa yangi karta yaratiladi.
 /// </para>
+/// <para>
+/// <b>Har qanday qabul sinovdan boshlanadi.</b> Foydalanuvchining aniq
+/// qarori: «hamma sinovdan o'tadi, istisnosiz». Shu sababli
+/// <see cref="ProbationDays"/> muddatning UZUNLIGINI o'zgartiradi, uni
+/// o'chira olmaydi: nol yoki manfiy qiymat «sinov.majburiy» xatosi bo'lib
+/// qaytadi. Ilgari nol sinovsiz qabul degani edi va yangi xodim
+/// <c>/sinov</c> ro'yxatiga umuman tushmasdi. Bo'sh qoldirilsa lavozimdagi
+/// qiymat, u ham bo'lmasa 90 kun olinadi.
+/// </para>
 /// </remarks>
 public sealed record HireEmployeeCommand(
     Guid LegalEntityId,
@@ -228,33 +237,32 @@ public sealed class HireEmployeeCommandHandler
 
         _employments.Add(employment);
 
-        // ── Sinov muddati AVTOMATIK ──
+        // ── Sinov muddati AVTOMATIK va ISTISNOSIZ ──
+        //
         // HR uni qo'lda ochishni unutardi va keyin «kim sinovda» degan
         // savolga javob yo'q edi. Endi u ishga qabul bilan bir tranzaksiyada
         // tug'iladi.
-        var probationDays = command.ProbationDays ?? position?.ProbationDays ?? DefaultProbationDays;
+        //
+        // Sinovsiz qabul yo'li YOPILDI. Ilgari bu yerda ikkinchi tarmoq bor
+        // edi: `probationDays == 0` bo'lsa sinov yozuvi umuman ochilmasdi va
+        // munosabat darhol «faol» bo'lardi. Natijada yangi xodim `/sinov`
+        // ro'yxatida ko'rinmasdi, uni hech kim baholamasdi va «hamma sinovdan
+        // o'tadi» qoidasi jimgina buzilardi. Endi nol yoki manfiy kun domendan
+        // «sinov.majburiy» xatosi bo'lib qaytadi — tarmoq emas, xato.
+        //
+        // NEGA bu yerda qayta tekshirilmaydi: chegara `Probation` ning O'ZIDA
+        // turibdi. Shu shartni bu yerda takrorlasak, ikkita joyda ikkita
+        // haqiqat paydo bo'lardi va biri o'zgarganda ikkinchisi eskirardi.
+        var probationDays = command.ProbationDays ?? PositionProbationDays(position) ?? DefaultProbationDays;
 
-        Probation? probation = null;
-        if (probationDays > 0)
+        var started = Probation.Start(employment.Id, hireDate, probationDays);
+        if (started.IsFailure)
         {
-            var started = Probation.Start(employment.Id, hireDate, probationDays);
-            if (started.IsFailure)
-            {
-                return started.Error;
-            }
+            return started.Error;
+        }
 
-            probation = started.Value;
-            _probations.Add(probation);
-        }
-        else
-        {
-            // Sinov muddatisiz qabul — munosabat darhol «faol» bo'ladi.
-            var completed = employment.CompleteProbation(hireDate, "Sinov muddati belgilanmagan");
-            if (completed.IsFailure)
-            {
-                return completed.Error;
-            }
-        }
+        var probation = started.Value;
+        _probations.Add(probation);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -266,6 +274,25 @@ public sealed class HireEmployeeCommandHandler
 
         return Result.Success(new HireResultDto(dto, duties, warnings));
     }
+
+    /// <summary>
+    /// Lavozimda belgilangan sinov muddati — faqat ma'noli qiymat.
+    /// </summary>
+    /// <remarks>
+    /// Ma'lumotnoma endi nolni saqlay olmaydi
+    /// (<see cref="Position.SetProbationDays"/>), lekin bazada eski qatorlar
+    /// qolgan bo'lishi mumkin — Excel'dan ko'chirish paytida nol yozilgan
+    /// yozuvlar bor. Bunday qiymat «belgilanmagan» deb qaraladi va standart
+    /// 90 kunga tushadi.
+    ///
+    /// NEGA xato emas: HR hech narsa kiritmagan, aybi ham yo'q — u shunchaki
+    /// eski lavozimni tanlagan. Butun ishga qabulni to'xtatib, uni avval
+    /// ma'lumotnomani tuzatishga majburlash amaliy ish jarayonini to'sardi.
+    /// Ataylab yuborilgan <c>ProbationDays: 0</c> esa boshqa narsa: u aniq
+    /// «sinovsiz» degan so'rov va u domendan xato bo'lib qaytadi.
+    /// </remarks>
+    private static int? PositionProbationDays(Position? position)
+        => position?.ProbationDays is { } days && days >= Probation.MinDays ? days : null;
 
     /// <summary>
     /// Xodimni topadi yoki yaratadi.

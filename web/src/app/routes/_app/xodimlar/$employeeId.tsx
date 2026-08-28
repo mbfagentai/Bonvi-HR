@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Pencil, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { CloseFlagDialog } from '@/features/flags/components/close-flag-dialog'
@@ -27,6 +27,11 @@ import {
   TransferDialog,
 } from '@/features/employees/components/employment-dialogs'
 import { RaiseFlagDialog } from '@/features/employees/components/raise-flag-dialog'
+import type { ProbationTarget } from '@/features/probations/api/probations-api'
+import {
+  ExtendDialog,
+  ResolveDialog,
+} from '@/features/probations/components/probation-dialogs'
 import {
   EMPLOYEES_EDIT,
   EMPLOYEES_VIEW,
@@ -102,6 +107,45 @@ function EmployeeCardPage() {
   const employee = useEmployee(employeeId)
   const timeline = useEmployeeTimeline(employeeId)
   const flags = useEmployeeFlags(employeeId)
+
+  const fullName = employee.data?.fullName ?? ''
+
+  /**
+   * Sinov oynalari kutadigan qiymat — mehnat munosabatidan yig'iladi.
+   *
+   * <b>NEGA `useMemo`.</b> Oynalar formani `item` O'ZGARGANDA tiklaydi
+   * (obyekt tengligi bo'yicha). Bu yerda har render'da yangi obyekt
+   * yasalsa, HR yozayotgan xulosa har bosishda o'chib ketardi.
+   *
+   * <b>NEGA erta qaytishlardan OLDIN.</b> Hook shart ostida chaqirilmaydi:
+   * pastda «yuklanmoqda» va «xato» tarmoqlari bor va ular komponentdan
+   * chiqib ketadi.
+   *
+   * `probationId` faqat OCHIQ sinovda to'ladi (`employees-api.ts`), ya'ni
+   * holat bu yerda qaytadan tekshirilmaydi — kartadagi tugmalar ham xuddi
+   * shu shart bilan chiziladi, ikkalasi bitta manbadan.
+   */
+  const probationTarget = useMemo<ProbationTarget | null>(() => {
+    const employment = action?.employment
+    if (employment === undefined || employment.probationId === null) return null
+
+    return {
+      id: employment.probationId,
+      // Oyna sarlavhasi ostida kimning sinovi yopilayotgani turadi —
+      // sinov ro'yxatidagi bilan bir xil ko'rinish.
+      employeeName: fullName,
+      departmentId: employment.department?.id ?? null,
+      positionId: employment.position?.id ?? null,
+      endDate: employment.probationEndDate,
+    }
+    /*
+      Bog'liqlikda `employee.data` EMAS, undan olingan SATR. Sabab: karta
+      so'rovi fon rejimida qayta yuklanganda (oyna fokusga qaytgan payt)
+      obyekt yangisiga almashadi — matn esa o'sha-o'sha qoladi. Obyektga
+      bog'lansak, HR yozayotgan xulosa alt-tab bosilishi bilan o'chib
+      ketardi.
+    */
+  }, [action, fullName])
 
   if (employee.isPending) {
     return (
@@ -336,6 +380,28 @@ function EmployeeCardPage() {
       <TerminateDialog
         employeeId={person.id}
         employment={action?.kind === 'terminate' ? action.employment : null}
+        onClose={() => setAction(null)}
+      />
+
+      {/*
+        Sinov muddati oynalari — SINOV MUDDATLARI modulidan, ikkinchi nusxa
+        emas. «Doimiy xodim · o'tolmadi · o'zi ketdi · bekor qilindi» va
+        doimiyga o'tkazishdagi lavozim/bo'lim/oklad/stavka/buyruq —
+        hammasi `ResolveDialog` ichida allaqachon bor va u serverga BITTA
+        so'rov yuboradi (`/api/probations/{id}/resolve`).
+
+        Oynalar to'liq ro'yxat qatorini emas, tor `ProbationTarget` ni
+        so'raydi — kartada o'sha qator yo'q. Bo'lim va lavozim
+        identifikatorlari mehnat munosabatidan olinadi: doimiyga
+        o'tkazish formasi tanlovlarni aynan shular bilan to'ldiradi.
+      */}
+      <ResolveDialog
+        item={action?.kind === 'probationResolve' ? probationTarget : null}
+        onClose={() => setAction(null)}
+      />
+
+      <ExtendDialog
+        item={action?.kind === 'probationExtend' ? probationTarget : null}
         onClose={() => setAction(null)}
       />
 

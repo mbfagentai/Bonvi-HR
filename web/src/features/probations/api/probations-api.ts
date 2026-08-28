@@ -33,22 +33,38 @@ export const PROBATION_RESULTS: readonly ProbationStatus[] = [
   'cancelled',
 ]
 
-/** Ro'yxatdagi bitta sinov muddati — xodim ma'lumoti bilan birga. */
-export interface ProbationItem {
+/**
+ * Yakunlash va uzaytirish oynalari HAQIQATAN ishlatadigan maydonlar.
+ *
+ * <b>Nega alohida tip.</b> Bu ikki oyna endi ikki joydan chaqiriladi:
+ * sinov muddatlari ro'yxatidan va xodim kartasidan. Kartada esa to'liq
+ * `ProbationItem` yo'q — u yerda mehnat munosabati bor,
+ * qolgan ustunlar (rasm kaliti, qolgan kun, xulosa) umuman kerak emas.
+ * Tor shartnoma ikkinchi nusxa yozmasdan ikkalasini ham qabul qiladi:
+ * `ProbationItem` uni to'liq qoplaydi, karta esa faqat shu beshtasini
+ * yig'adi. Aks holda kartada bo'sh qiymatlar bilan soxta `ProbationItem`
+ * quriladigan edi va u har bir yangi maydonda buzilardi.
+ */
+export interface ProbationTarget {
   id: string
+  employeeName: string
+  /** Identifikator — «doimiyga o'tkazish» formasi tanlovni shu bilan to'ldiradi. */
+  departmentId: string | null
+  positionId: string | null
+  /** Hozirgi tugash sanasi — uzaytirish oynasi buni maslahat sifatida ko'rsatadi. */
+  endDate: string | null
+}
+
+/** Ro'yxatdagi bitta sinov muddati — xodim ma'lumoti bilan birga. */
+export interface ProbationItem extends ProbationTarget {
   employmentId: string
   employeeId: string
-  employeeName: string
   /** Rasm kaliti — `EmployeePhoto` shu bo'yicha rasmni oladi. */
   photoKey: string | null
   department: string | null
   position: string | null
-  /** Identifikator — «doimiyga o'tkazish» formasi tanlovni shu bilan to'ldiradi. */
-  departmentId: string | null
-  positionId: string | null
   hireDate: string | null
   startDate: string | null
-  endDate: string | null
   status: ProbationStatus
   resolvedAt: string | null
   conclusion: string | null

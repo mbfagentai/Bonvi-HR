@@ -126,6 +126,18 @@ export interface EmploymentSummary {
   terminationReasonName: string | null
   /** Sinov muddati tugash sanasi (`Probation` holatidagilar uchun). */
   probationEndDate: string | null
+  /**
+   * OCHIQ sinov muddatining identifikatori — kartadagi «yakunlash» va
+   * «uzaytirish» amallari shusiz ishlamaydi.
+   *
+   * <b>Yakunlangan sinovda ATAYLAB `null`.</b> «Sinov bormi» degan savolga
+   * emas, «unga hali amal qilish mumkinmi» degan savolga javob beradi:
+   * domen yakunlangan muddatni na yopadi, na uzaytiradi. Alohida `status`
+   * maydoni bo'lsa, uni tekshirishni har bir chaqiruv joyida takrorlashga
+   * to'g'ri kelardi va bittasida unutilishi aniq edi — u holda tugma
+   * ko'rinardi-yu, bosilganda xato chiqardi.
+   */
+  probationId: string | null
   needsReview: boolean
 }
 
@@ -254,7 +266,15 @@ export interface PagedResult<T> {
   pageSize: number
 }
 
-/** Ishga qabul — HR ning «bitta blanka» talabi. Bitta so'rovda hammasi. */
+/**
+ * Ishga qabul — HR ning «bitta blanka» talabi. Bitta so'rovda hammasi.
+ *
+ * ⚠️ Bu FORMA shakli, so'rov tanasi EMAS. Forma yassi: yigirmata maydon
+ * bitta obyektda yotadi va `hire-dialog.tsx` uni shundayligicha yig'adi.
+ * Server esa shaxsni ichma-ich `person` obyektida kutadi
+ * (`HireEmployeeCommand.Person`). O'girish `toHireBody` da — pastdagi
+ * izohga qarang.
+ */
 export interface HireRequest {
   /**
    * Mavjud shaxsni qayta ishga olishda to'ldiriladi. `null` bo'lsa server
@@ -273,6 +293,7 @@ export interface HireRequest {
   secondPhone: string | null
   address: string | null
   speciality: string | null
+  /** ⚠️ Serverda maydon nomi boshqacha — `telegramUrl` (`toHireBody`). */
   telegram: string | null
   directionIds: string[]
 
@@ -626,11 +647,36 @@ function refPair(box: Record<string, unknown>, idKey: string, nameKey: string): 
   return { id: text(box[idKey]) ?? '', name }
 }
 
+/**
+ * Sinov muddati OCHIQ bo'lsa — uning identifikatori, aks holda `null`.
+ *
+ * NEGA holat shu yerda tekshiriladi: kartadagi amallar («yakunlash»,
+ * «uzaytirish») faqat davom etayotgan sinovda ma'noga ega va domen
+ * yakunlanganini baribir rad etadi. Shartni bitta joyda yechib, tashqariga
+ * «amal qilish mumkinmi» degan bitta qiymat chiqarish — uni har bir
+ * chaqiruv joyida qaytarish xavfini butunlay yo'q qiladi.
+ */
+function openProbationId(probation: Record<string, unknown> | null): string | null {
+  if (probation === null) return null
+
+  /*
+    Enum ikki xil kelishi mumkin: hozir SON (`1`), `JsonStringEnumConverter`
+    qo'shilsa NOM («InProgress»). Ikkalasi ham tushuniladi — bu faylning
+    boshqa joylaridagi `enumValue` bilan bir xil qoida.
+  */
+  const status = probation['status']
+  const open =
+    status === 1 || (typeof status === 'string' && status.toLowerCase() === 'inprogress')
+
+  return open ? text(probation['id']) : null
+}
+
 function toEmployment(raw: unknown): EmploymentSummary {
   const box = (raw ?? {}) as Record<string, unknown>
 
-  // Sinov muddati kichik obyekt bo'lib keladi — kartochkaga faqat tugash
-  // sanasi chiqadi, qolgani sinov muddatlari sahifasida ko'rinadi.
+  // Sinov muddati kichik obyekt bo'lib keladi — kartochkaga tugash sanasi
+  // va (ochiq bo'lsa) identifikatori chiqadi, qolgani sinov muddatlari
+  // sahifasida ko'rinadi.
   const probation = (box['probation'] ?? null) as Record<string, unknown> | null
 
   return {
@@ -648,6 +694,7 @@ function toEmployment(raw: unknown): EmploymentSummary {
     terminationDate: text(box['terminationDate']),
     terminationReasonName: text(box['terminationReasonName']),
     probationEndDate: probation === null ? null : text(probation['endDate']),
+    probationId: openProbationId(probation),
     needsReview: bool(box['needsReview']),
   }
 }
@@ -1006,9 +1053,83 @@ export async function closeFlag(
 }
 
 /** Ishga qabul: shaxs + mehnat munosabati + buyruq — bitta so'rovda. */
+/**
+ * Forma qiymatlarini SERVER kutgan so'rov tanasiga o'giradi.
+ *
+ * <b>Nima uchun umuman kerak.</b> `HireEmployeeCommand` shaxsni ichma-ich
+ * `person` obyektida kutadi va usiz «xodim.malumot_yoq» xatosini qaytaradi
+ * — ya'ni yassi tana bilan yangi xodim HECH QACHON yaratilmasdi. Forma esa
+ * yassi bo'lib qolgani ma'qul: HR bitta blanka to'ldiradi va `hire-dialog`
+ * uning maydonlarini bir tekisda yig'adi. O'girish shu yerda — mijozdagi
+ * boshqa shakl mosliklari («EmploymentDto» → `toEmployment`) bilan bir
+ * joyda.
+ *
+ * <b>Nima uchun ALOHIDA va eksport qilingan funksiya.</b> Bu nomuvofiqlik
+ * jimgina yashagan, chunki uni tekshiradigan joy yo'q edi: interfeys tipi
+ * so'rov tanasini emas, faqat forma shaklini himoya qiladi. Endi tana
+ * hosil qilish sinaladigan sof funksiya. Backend tomonida shu shaklni
+ * qadab turadigan integratsiya testi bor:
+ * `api/tests/Bonvi.Api.IntegrationTests/HireApiTests.cs`.
+ *
+ * <b>Ikki yo'l, bittasi tanlanadi.</b> `employeeId` berilgan bo'lsa —
+ * mavjud shaxs (o'rindoshlik yoki qayta ishga olish) va `person` UMUMAN
+ * yuborilmaydi: server u holda kartani qidirmaydi ham. Aks holda `person`
+ * to'ldiriladi va server avval JSHSHIR bo'yicha qidirib, dublikat
+ * yaratmaydi.
+ */
+export function toHireBody(request: HireRequest): Record<string, unknown> {
+  const workplace = {
+    legalEntityId: request.legalEntityId,
+    departmentId: request.departmentId,
+    positionId: request.positionId,
+    hireDate: request.hireDate,
+    rate: request.rate,
+    isPrimary: request.isPrimary,
+    salaryAmount: request.salaryAmount,
+    salaryCurrency: request.salaryCurrency,
+    orderNo: request.orderNo,
+    orderDate: request.orderDate,
+  }
+
+  if (request.employeeId !== null) {
+    return { employeeId: request.employeeId, ...workplace }
+  }
+
+  return {
+    ...workplace,
+    person: {
+      lastName: request.lastName,
+      firstName: request.firstName,
+      middleName: request.middleName,
+      birthDate: request.birthDate,
+      pinfl: request.pinfl,
+      passport: request.passport,
+      phone: request.phone,
+      secondPhone: request.secondPhone,
+      address: request.address,
+      speciality: request.speciality,
+      // ⚠️ Nom farqi: formada `telegram`, serverda `telegramUrl`
+      // (`SaveEmployeeCommand.TelegramUrl`). Yassi tanada bu maydon
+      // jimgina yo'qolardi — xato ham chiqmasdi.
+      telegramUrl: request.telegram,
+      directionIds: request.directionIds,
+    },
+  }
+}
+
+/**
+ * Ishga qabul.
+ *
+ * Javob KONVERT: `HireResultDto` = `{ employment, duties, warnings }`.
+ * Ilgari bu yerda konvertning o'zi `toEmployment` ga berilardi va natijada
+ * hamma maydoni bo'sh munosabat qaytardi — xato chiqmasdi, chunki
+ * xaritalash yetishmagan maydonni jimgina `null` qiladi.
+ */
 export async function hire(body: HireRequest): Promise<EmploymentSummary> {
-  const { data } = await api.post<unknown>('/api/employments/hire', body)
-  return toEmployment(data)
+  const { data } = await api.post<unknown>('/api/employments/hire', toHireBody(body))
+
+  const envelope = (data ?? {}) as Record<string, unknown>
+  return toEmployment(envelope['employment'] ?? envelope)
 }
 
 /**

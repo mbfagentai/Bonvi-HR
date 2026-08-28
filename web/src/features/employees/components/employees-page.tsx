@@ -1,13 +1,12 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
 import type { SortingState } from '@tanstack/react-table'
-import { ChevronRight, SearchX, Timer, UserPlus, Users } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChevronRight, SearchX, Timer, Users } from 'lucide-react'
+import { useCallback, useEffect, useMemo } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   Alert,
-  Button,
   Card,
   DataTable,
   EmptyState,
@@ -41,7 +40,6 @@ import { DirectionBadge, FlagBadge, NeedsReviewMark } from './employee-badges'
 import { EmployeePhoto } from './employee-photo'
 import { EmployeesGrid } from './employees-grid'
 import { EmployeesToolbar } from './employees-toolbar'
-import { HireDialog } from './hire-dialog'
 
 const helper = dataColumnHelper<EmployeeListItem>()
 
@@ -81,13 +79,16 @@ export function EmployeesPage() {
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
 
+  /*
+   * Ruxsat SAQLANDI, tugma esa yo'q: bo'sh ro'yxatdagi «Sinov muddati»
+   * yo'nalmasi faqat ishga qabul qila oladigan odamga ko'rsatiladi.
+   * Ko'ra olmaydigan odamni u yerga yuborish — yopiq eshikka boshlash.
+   */
   const canHire = hasPermission(EMPLOYEES_CREATE) && hasPermission(EMPLOYMENT_MANAGE)
   const canExport = hasPermission(REPORTS_EXPORT)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
-
-  const [hireOpen, setHireOpen] = useState(false)
 
   const page = search.page ?? 1
   const view = search.view ?? 'table'
@@ -408,17 +409,23 @@ export function EmployeesPage() {
       )
     }
 
+    /*
+      Bazada umuman odam yo'q. Ilgari bu yerda «Ishga qabul qilish» tugmasi
+      turardi va u oynani SHU YERDA ochardi — endi u ham «Sinov muddati»
+      sahifasiga yo'naltiradi, chunki forma o'sha yerga ko'chdi. Yo'nalish
+      yuqoridagi tarmoq bilan bir xil: /xodimlar dan xodim YARATILMAYDI.
+    */
     return (
       <EmptyState
         icon={Users}
         title={t('employees.emptyTitle')}
-        description={t('employees.emptyText')}
+        description={t('employees.emptyHireHint')}
         action={
           canHire ? (
-            <Button variant="create" onClick={() => setHireOpen(true)}>
-              <UserPlus />
-              {t('employees.hire')}
-            </Button>
+            <Link to="/sinov" className={buttonVariants({ variant: 'primary' })}>
+              <Timer />
+              {t('nav.probation')}
+            </Link>
           ) : undefined
         }
       />
@@ -429,6 +436,19 @@ export function EmployeesPage() {
 
   return (
     <div className="space-y-6">
+      {/*
+        «Ishga qabul» tugmasi bu sahifada ATAYLAB yo'q — u `/sinov` ga
+        ko'chdi (`probations-page.tsx`). Sabab oqimda: bu ro'yxat DOIMIY
+        xodimlarniki (standart filtri `status=active`), yangi odam esa har
+        doim sinovdan boshlaydi va avval o'sha sahifada paydo bo'ladi.
+        Xodim yaratish tugmasi doimiylar ro'yxatida turgani oqimni teskari
+        ko'rsatardi: go'yo odam avval doimiy bo'lib, keyin qandaydir yo'l
+        bilan sinovga tushadi.
+
+        ⚠️ `HireDialog` ning O'ZI shu modulda qoldi: u shaxs, mehnat
+        munosabati va ma'lumotnomalar bilan ishlaydi — sinov esa uning
+        NATIJASI, sababi emas.
+      */}
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -440,14 +460,6 @@ export function EmployeesPage() {
           query.isPending
             ? t('common.loading')
             : t('employees.subtitle', { n: num(total) })
-        }
-        actions={
-          canHire ? (
-            <Button variant="create" onClick={() => setHireOpen(true)}>
-              <UserPlus />
-              {t('employees.hire')}
-            </Button>
-          ) : undefined
         }
       />
 
@@ -523,8 +535,6 @@ export function EmployeesPage() {
           />
         )}
       </Card>
-
-      <HireDialog open={hireOpen} onClose={() => setHireOpen(false)} options={options} />
     </div>
   )
 }

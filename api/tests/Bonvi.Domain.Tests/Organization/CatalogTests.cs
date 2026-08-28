@@ -195,6 +195,28 @@ public sealed class CatalogTests
         position.SetProbationDays(null).IsSuccess.ShouldBeTrue();
     }
 
+    /// <summary>
+    /// Lavozimda «0 kun» saqlab bo'lmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Ilgari nol ruxsat etilardi va u ishga qabulda «bu lavozimga sinovsiz
+    /// olinadi» degan ma'noni bildirardi. Sinovsiz qabul yopilgach nolning
+    /// ma'nosi ham qolmadi: u endi butun ishga qabulni to'xtatib qo'yadigan
+    /// tuzoq bo'lardi. «Muddat belgilanmagan» holati <c>null</c> bilan
+    /// ifodalanadi — u standart 90 kunga tushadi.
+    /// </remarks>
+    [Fact]
+    public void Lavozimda_nol_kunlik_sinov_saqlanmaydi()
+    {
+        var position = Position.Create("Қоровул").Value;
+
+        var natija = position.SetProbationDays(0);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("lavozim.sinov_muddati");
+        position.ProbationDays.ShouldBeNull();
+    }
+
     // ────────────────────── Lavozim vazifalari ──────────────────────
 
     [Fact]

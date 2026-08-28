@@ -1,3 +1,4 @@
+using Bonvi.Domain.Employees;
 using FluentValidation;
 
 namespace Bonvi.Application.Catalog.Common;
@@ -42,10 +43,14 @@ public sealed class SaveReferenceCommandValidator : AbstractValidator<SaveRefere
             .WithErrorCode("lavozim.daraja")
             .WithMessage("Daraja 1 dan 5 gacha bo'lishi kerak.");
 
+        // Quyi chegara 0 emas, 1: sinovsiz qabul umuman yo'q, ya'ni
+        // lavozimdagi nol endi hech qanday holatni ifodalamaydi
+        // («Position.SetProbationDays» izohiga qarang). Bo'sh qoldirish
+        // esa avvalgidek ishlaydi — standart 90 kun olinadi.
         RuleFor(x => x.ProbationDays)
-            .Must(days => days is null or (>= 0 and <= 180))
+            .Must(days => days is null or (>= Probation.MinDays and <= Probation.MaxDays))
             .WithErrorCode("lavozim.sinov_muddati")
-            .WithMessage("Sinov muddati 0 dan 180 kungacha bo'lishi kerak (mehnat kodeksi chegarasi).");
+            .WithMessage("Sinov muddati 1 dan 180 kungacha bo'lishi kerak; bo'sh qoldirilsa standart muddat olinadi.");
 
         RuleFor(x => x.Severity)
             .Must(severity => severity is null or (>= 1 and <= 3))

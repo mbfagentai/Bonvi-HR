@@ -242,6 +242,15 @@ export function useDeleteEmployeePhoto(employeeId: string) {
  * Muvaffaqiyatdan keyin butun `employees` ildizi bekor qilinadi: yangi
  * xodim ro'yxatda, sinovdagilar sanog'ida va (qayta ishga olish bo'lsa)
  * o'sha shaxs kartasida bir vaqtda paydo bo'lishi kerak.
+ *
+ * <b>Sinov ro'yxati ham bekor qilinadi.</b> Yangi xodim endi ISTISNOSIZ
+ * sinovdan boshlaydi, ya'ni u paydo bo'ladigan birinchi ekran — `/sinov`,
+ * va forma aynan o'sha sahifadan ochiladi. Busiz HR odam qo'shib,
+ * ko'z oldidagi ro'yxatda hech narsa o'zgarmaganini ko'rardi.
+ *
+ * Kalit ATAYLAB xom massiv, `probationKeys.root` emas: `probations-queries`
+ * shu fayldan `employeeKeys` ni oladi va teskari import aylanma bog'liqlik
+ * hosil qilardi. Bu yagona joy, shu sababli takrorlanish ham bitta.
  */
 export function useHire() {
   const queryClient = useQueryClient()
@@ -250,6 +259,7 @@ export function useHire() {
     mutationFn: (body: HireRequest) => hire(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
+      void queryClient.invalidateQueries({ queryKey: ['probations'] })
     },
   })
 }

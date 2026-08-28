@@ -391,7 +391,9 @@ public static class CatalogEndpoints
             .RequireAuthorization(Permissions.CatalogManage)
             .WithName("CreatePosition")
             .WithSummary("Lavozimlar — yangi lavozim")
-            .WithDescription("«grade» 1–5, «probationDays» 0–180. Vazifalar keyin alohida qo'shiladi.")
+            .WithDescription(
+                "«grade» 1–5, «probationDays» 1–180 yoki bo'sh (bo'sh — ishga qabulda 90 kun). " +
+                "Vazifalar keyin alohida qo'shiladi.")
             .Produces<PositionDetailsDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);

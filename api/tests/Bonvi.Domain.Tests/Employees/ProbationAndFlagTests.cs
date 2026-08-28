@@ -21,14 +21,35 @@ public sealed class ProbationAndFlagTests
     }
 
     [Theory]
-    [InlineData(0)]
     [InlineData(181)]
+    [InlineData(365)]
     public void Mehnat_kodeksi_chegarasidan_tashqari_muddat_rad_etiladi(int kun)
     {
         var natija = Probation.Start(MunosabatId, Boshlangan, kun);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("sinov.muddat");
+    }
+
+    /// <summary>
+    /// Sinovsiz ishga qabul — ALOHIDA xato, «muddat noto'g'ri» emas.
+    /// </summary>
+    /// <remarks>
+    /// Foydalanuvchining aniq qarori: «hamma sinovdan o'tadi, istisnosiz».
+    /// Nol kun — bu uzunlikdagi yanglishish emas, butunlay boshqa niyat:
+    /// sinovni umuman o'tkazib yuborish. Shu sababli kodi ham boshqa —
+    /// «1 dan 180 gacha» degan maslahat bu yerda noto'g'ri yo'l ko'rsatardi.
+    /// </remarks>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-90)]
+    public void Sinovsiz_muddat_ochib_bolmaydi(int kun)
+    {
+        var natija = Probation.Start(MunosabatId, Boshlangan, kun);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("sinov.majburiy");
     }
 
     [Fact]

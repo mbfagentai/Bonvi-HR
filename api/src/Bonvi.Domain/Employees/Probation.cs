@@ -30,6 +30,16 @@ public enum ProbationStatus
 /// (<c>Position.ProbationDays</c>). Mehnat kodeksi chegarasi — 180 kun.
 /// </para>
 /// <para>
+/// <b>Sinovsiz ishga qabul YO'Q.</b> Foydalanuvchining aniq qarori:
+/// «hamma sinovdan o'tadi, istisnosiz». Shu sababli muddatning
+/// UZUNLIGI o'zgaruvchan (<see cref="MinDays"/>–<see cref="MaxDays"/>),
+/// lekin uning YO'QLIGI umuman ifodalab bo'lmaydigan holat: nol yoki
+/// manfiy kun <see cref="Start"/> dan xato bo'lib qaytadi. Ilgari bu
+/// qiymat «sinovsiz qabul» degan alohida yo'lni ochardi va yangi xodim
+/// darhol doimiy bo'lib qolardi — ya'ni u <c>/sinov</c> ro'yxatida
+/// umuman ko'rinmasdi va hech kim uni baholamasdi.
+/// </para>
+/// <para>
 /// HR so'ragan asosiy imkoniyat: muddat tugashiga <b>7 kun</b> qolganda
 /// eslatma yuborish. Excel'da bu qo'lda kuzatilardi va shu sababli
 /// tez-tez o'tkazib yuborilardi.
@@ -39,6 +49,17 @@ public sealed class Probation : AggregateRoot, IAuditable
 {
     /// <summary>Muddat tugashiga necha kun qolganda ogohlantiriladi.</summary>
     public const int WarningDays = 7;
+
+    /// <summary>Eng qisqa sinov muddati — kun.</summary>
+    /// <remarks>
+    /// Bir kun — ma'nosiz kichik muddat, lekin chegara ATAYLAB shu yerda:
+    /// qoida «muddat qancha uzun bo'lsin» emas, «umuman bo'lsin» degani.
+    /// Uzunlikni HR o'zi hal qiladi, yo'qlikni esa hech kim.
+    /// </remarks>
+    public const int MinDays = 1;
+
+    /// <summary>Mehnat kodeksidagi eng uzun sinov muddati — kun.</summary>
+    public const int MaxDays = 180;
 
     private Probation(Guid id, Guid employmentId, DateOnly startDate, DateOnly endDate)
         : base(id)
@@ -74,9 +95,24 @@ public sealed class Probation : AggregateRoot, IAuditable
     public DateTimeOffset? UpdatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
 
+    /// <summary>Yangi sinov muddatini ochadi.</summary>
+    /// <remarks>
+    /// Ikkita chegara IKKI XIL xato kodi bilan qaytadi va bu ataylab:
+    /// «180 dan uzun» — kiritishdagi oddiy yanglishish, «0 yoki manfiy» esa
+    /// butunlay boshqa niyat — sinovni umuman o'tkazib yuborish. Ular bitta
+    /// kod ostida turganda HR ekranda «1 dan 180 gacha» degan maslahat
+    /// ko'rardi va uni «demak 0 ham deyarli to'g'ri» deb tushunardi.
+    /// </remarks>
     public static Result<Probation> Start(Guid employmentId, DateOnly startDate, int days = 90)
     {
-        if (days is < 1 or > 180)
+        if (days < MinDays)
+        {
+            return Error.Validation(
+                "sinov.majburiy",
+                "Sinov muddatisiz ishga qabul qilib bo'lmaydi: har bir yangi xodim sinovdan boshlaydi.");
+        }
+
+        if (days > MaxDays)
         {
             return Error.Validation(
                 "sinov.muddat",
@@ -132,7 +168,7 @@ public sealed class Probation : AggregateRoot, IAuditable
             return Error.Validation("sinov.uzaytirish", "Yangi sana joriy sanadan keyin bo'lishi kerak.");
         }
 
-        if (newEndDate.DayNumber - StartDate.DayNumber > 180)
+        if (newEndDate.DayNumber - StartDate.DayNumber > MaxDays)
         {
             return Error.Validation("sinov.muddat", "Umumiy sinov muddati 180 kundan oshmasligi kerak.");
         }

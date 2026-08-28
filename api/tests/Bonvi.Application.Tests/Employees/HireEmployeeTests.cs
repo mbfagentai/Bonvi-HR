@@ -1,6 +1,7 @@
 using Bonvi.Application.Employees.Commands;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Organization;
 using NSubstitute;
 
 namespace Bonvi.Application.Tests.Employees;
@@ -232,6 +233,70 @@ public sealed class HireEmployeeTests
         saqlangan.EndDate.ShouldBe(EmployeeTestContext.Today.AddDays(HireEmployeeCommandHandler.DefaultProbationDays));
     }
 
+    // ────────── Sinovsiz qabul: BLOK ──────────
+
+    /// <summary>
+    /// Sinovsiz ishga olib bo'lmaydi — hech qanday yo'l bilan.
+    /// </summary>
+    /// <remarks>
+    /// Foydalanuvchining aniq qarori: «hamma sinovdan o'tadi, istisnosiz».
+    /// Ilgari <c>ProbationDays: 0</c> alohida tarmoqni ochardi: sinov yozuvi
+    /// yaratilmasdi va munosabat darhol «faol» bo'lardi. Natija jimgina
+    /// yomon edi — odam <c>/sinov</c> ro'yxatida umuman ko'rinmasdi va uni
+    /// hech kim baholamasdi.
+    /// </remarks>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Sinovsiz_ishga_qabul_qilib_bolmaydi(int kun)
+    {
+        var employee = _context.ExistingEmployee();
+
+        var natija = await Qabul.HandleAsync(
+            new HireEmployeeCommand(Guid.NewGuid(), EmployeeId: employee.Id, ProbationDays: kun),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("sinov.majburiy");
+
+        // Blok chinakam: na munosabat, na sinov saqlangan
+        _context.Probations.DidNotReceive().Add(Arg.Any<Probation>());
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Ma'lumotnomadagi eski nol qabulni TO'XTATMAYDI — standart 90 kun olinadi.
+    /// </summary>
+    /// <remarks>
+    /// Ma'lumotnoma endi nolni saqlay olmaydi, lekin bazada Excel'dan
+    /// ko'chirilgan eski qatorlar qolgan bo'lishi mumkin. HR bunga aybdor
+    /// emas — u shunchaki lavozimni tanlagan. Butun ishga qabulni to'xtatib,
+    /// avval ma'lumotnomani tuzatishga majburlash ish jarayonini to'sardi.
+    /// </remarks>
+    [Fact]
+    public async Task Lavozimdagi_eski_nol_standart_muddatga_tushadi()
+    {
+        var employee = _context.ExistingEmployee();
+        var position = _context.ExistingPosition();
+        EskiNolQiymat(position);
+
+        Probation? saqlangan = null;
+        _context.Probations.When(r => r.Add(Arg.Any<Probation>()))
+            .Do(call => saqlangan = call.Arg<Probation>());
+
+        var natija = await Qabul.HandleAsync(
+            new HireEmployeeCommand(
+                Guid.NewGuid(),
+                EmployeeId: employee.Id,
+                PositionId: position.Id,
+                HireDate: EmployeeTestContext.Today),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        saqlangan.ShouldNotBeNull();
+        saqlangan.EndDate.ShouldBe(EmployeeTestContext.Today.AddDays(HireEmployeeCommandHandler.DefaultProbationDays));
+    }
+
     // ────────── Dublikatga qarshi ──────────
 
     [Fact]
@@ -256,4 +321,20 @@ public sealed class HireEmployeeTests
 
         _context.Employees.DidNotReceive().Add(Arg.Any<Domain.Employees.Employee>());
     }
+
+    /// <summary>
+    /// Lavozimga Excel'dan qolgan «0 kun» qiymatini qo'yadi.
+    /// </summary>
+    /// <remarks>
+    /// Domen orqali bunday holatni yasab bo'lmaydi — <c>SetProbationDays(0)</c>
+    /// endi rad etadi. Lekin BAZADA bunday qator qolgan bo'lishi mumkin va
+    /// tekshirilayotgan xulq aynan shu haqda. Yagona yo'l — EF Core
+    /// materializatsiyasi qiladigan ishni takrorlash: xususiyatni yopiq
+    /// o'rnatgich orqali to'g'ridan-to'g'ri yozish.
+    /// </remarks>
+    private static void EskiNolQiymat(Position position)
+        => typeof(Position)
+            .GetProperty(nameof(Position.ProbationDays))!
+            .GetSetMethod(nonPublic: true)!
+            .Invoke(position, [0]);
 }

@@ -517,7 +517,8 @@
     "foydalanuvchi.rasm_yoq": "This user has no photo.",
     "foydalanuvchi.rasm_katta": "The photo must not be larger than 10 MB.",
     "foydalanuvchi.rasm_turi": "Only JPEG, PNG or WebP images are accepted.",
-    "foydalanuvchi.rasm_yaroqsiz": "The file is not an image or is damaged."
+    "foydalanuvchi.rasm_yaroqsiz": "The file is not an image or is damaged.",
+    "sinov.majburiy": "Hiring without a probation period is not allowed: every new employee starts on probation."
   },
   "language": {
     "en": "English",
@@ -543,7 +544,6 @@
     "departmentAutoHint": "Choosing a position fills the department automatically",
     "employments": "Employments",
     "employmentsHint": "One person may work for several legal entities",
-    "emptyText": "Adjust the filters or add an employee",
     "emptyTitle": "No employees found",
     "events": {
       "additionalDuty": "Additional duty",
@@ -670,7 +670,8 @@
     "stateNo": "No",
     "exportFailed": "Could not export to Excel",
     "exportTooOften": "Too many requests. Please wait a minute and try again.",
-    "exporting": "Preparing…"
+    "exporting": "Preparing…",
+    "emptyHireHint": "New employees are hired from the Probation page — everyone starts on probation."
   },
   "employments": {
     "anyType": "All types",

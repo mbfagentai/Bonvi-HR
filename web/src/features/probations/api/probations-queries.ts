@@ -104,6 +104,14 @@ export function useConfirmMissingProbations() {
   })
 }
 
+/**
+ * Muddatni uzaytirish.
+ *
+ * Xodimlar ildizi ham bekor qilinadi. NEGA: uzaytirish endi xodim
+ * KARTASIDAN ham chaqiriladi va kartadagi «Sinov muddati tugashi» qatori
+ * aynan shu so'rovdan keladi. Busiz HR sanani o'zgartirib, ekranda eski
+ * sanani ko'rib turardi — va amal bajarilmagan deb o'ylardi.
+ */
 export function useExtendProbation() {
   const queryClient = useQueryClient()
 
@@ -112,6 +120,7 @@ export function useExtendProbation() {
       extendProbation(id, request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: probationKeys.root })
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
     },
   })
 }

@@ -2,6 +2,7 @@ import {
   ArrowRightLeft,
   BadgeCheck,
   Building2,
+  CalendarClock,
   CalendarDays,
   CircleSlash,
   ExternalLink,
@@ -49,8 +50,19 @@ import { DirectionBadge, StatusBadge } from './employee-badges'
  * qo'shimcha vazifa, oklad va bo'shatishni bajaradi. Har biri uchun
  * alohida prop bo'lsa, yangi amal qo'shilganda zanjirning har bir
  * bo'g'iniga tegishga to'g'ri kelardi.
+ *
+ * Oxirgi ikkitasi — sinov muddati amallari. Ular ro'yxatga QO'SHILDI,
+ * chunki ikkalasi ham aynan shu mehnat munosabatiga tegishli va bir xil
+ * yo'l bilan yuqoriga uzatiladi; alohida prop qilish esa yuqoridagi izoh
+ * ogohlantirgan holatning o'zi bo'lardi.
  */
-export type EmploymentAction = 'transfer' | 'duty' | 'salary' | 'terminate'
+export type EmploymentAction =
+  | 'transfer'
+  | 'duty'
+  | 'salary'
+  | 'terminate'
+  | 'probationResolve'
+  | 'probationExtend'
 
 export function EmployeeOverviewTab({
   employee,
@@ -326,6 +338,60 @@ function EmploymentCard({
           />
         )}
       </dl>
+
+      {/*
+        Sinov muddati bloki — oddiy amallardan YUQORIDA va ajratilgan.
+
+        NEGA alohida: sinovdagi xodim uchun eng muhim savol «ko'chiraymi»
+        emas, «sinovni nima qilamiz». Ilgari kartada shu haqda faqat MATN
+        turardi (yuqoridagi «Sinov muddati tugashi» qatori) va HR javob
+        berish uchun `/sinov` sahifasiga o'tishi kerak edi — u yerdan esa
+        odamni qaytadan qidirib topish kerak bo'lardi.
+
+        Blok faqat OCHIQ sinovda chiziladi: `probationId` yakunlanganida
+        `null` bo'ladi va domen ham yakunlangan muddatni na yopadi, na
+        uzaytiradi. Ruxsat `/sinov` sahifasidagi bilan aynan bir xil —
+        `employment.manage`.
+
+        Uchala natija (doimiy xodim · o'tolmadi · o'zi ketdi) va xulosa
+        matni bitta oynada tanlanadi — `ResolveDialog`. Uni bu yerda
+        takrorlash o'rniga, karta o'sha oynani chaqiradi.
+      */}
+      {canManage && !closed && onAction !== null && employment.probationId !== null && (
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 rounded-md border border-ios-orange/35 bg-ios-orange/10 px-3 py-2.5">
+          {/*
+            Sana bu yerda TAKRORLANMAYDI — u yuqoridagi «Sinov muddati
+            tugashi» qatorida turibdi va u ruxsatdan qat'i nazar hamma
+            ko'radigan MA'LUMOT. Bu blok esa amal haqida; bir xil sanani
+            ikki marta yozish kartani shovqinli qilardi.
+          */}
+          <p className="min-w-0 text-footnote font-medium text-ios-orange">
+            {t('probation.title')}
+          </p>
+
+          <span className="flex shrink-0 flex-wrap gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => onAction('probationExtend', employment)}
+            >
+              <CalendarClock />
+              {t('probation.extend')}
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              onClick={() => onAction('probationResolve', employment)}
+            >
+              <BadgeCheck />
+              {t('probation.resolve')}
+            </Button>
+          </span>
+        </div>
+      )}
 
       {/*
         Amallar faqat KUCHDAGI munosabatda ko'rinadi: yopilganini ko'chirib

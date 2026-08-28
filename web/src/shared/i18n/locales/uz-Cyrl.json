@@ -517,7 +517,8 @@
     "foydalanuvchi.rasm_yoq": "Бу фойдаланувчининг расми йўқ.",
     "foydalanuvchi.rasm_katta": "Расм ҳажми 10 MB дан ошмаслиги керак.",
     "foydalanuvchi.rasm_turi": "Фақат JPEG, PNG ёки WebP расмлари қабул қилинади.",
-    "foydalanuvchi.rasm_yaroqsiz": "Файл расм эмас ёки бузилган."
+    "foydalanuvchi.rasm_yaroqsiz": "Файл расм эмас ёки бузилган.",
+    "sinov.majburiy": "Синов муддатисиз ишга қабул қилиб бўлмайди: ҳар бир янги ходим синовдан бошлайди."
   },
   "language": {
     "en": "English",
@@ -543,7 +544,6 @@
     "departmentAutoHint": "Лавозим танланганда бўлим ўзи тўлдирилади",
     "employments": "Меҳнат муносабатлари",
     "employmentsHint": "Бир ходим бир нечта фирмада ишлаши мумкин",
-    "emptyText": "Фильтрларни ўзгартириб кўринг ёки янги ходим қўшинг",
     "emptyTitle": "Ходим топилмади",
     "events": {
       "additionalDuty": "Қўшимча вазифа",
@@ -670,7 +670,8 @@
     "stateNo": "Йўқ",
     "exportFailed": "Excelга юклаб бўлмади",
     "exportTooOften": "Сўровлар жуда тез-тез юборилди. Бир дақиқа кутиб, қайта уриниб кўринг.",
-    "exporting": "Тайёрланмоқда…"
+    "exporting": "Тайёрланмоқда…",
+    "emptyHireHint": "Янги ходим «Синов муддати» саҳифасидан қабул қилинади — у ишни синовдан бошлайди."
   },
   "employments": {
     "anyType": "Барча турлар",

@@ -169,8 +169,9 @@ public static class EmploymentEndpoints
                 "Xodim «employeeId» bilan ko'rsatiladi yoki «person» ichida yangi kiritiladi — " +
                 "ikkinchi holatda avval JSHSHIR bo'yicha qidiriladi va topilsa DUBLIKAT " +
                 "yaratilmaydi (qayta ishga olish). " +
-                "Sinov muddati AVTOMATIK ochiladi: lavozimning «probationDays» qiymati, " +
-                "u yo'q bo'lsa 90 kun; «probationDays: 0» — sinovsiz qabul. " +
+                "Sinov muddati AVTOMATIK va ISTISNOSIZ ochiladi: lavozimning «probationDays» " +
+                "qiymati, u yo'q bo'lsa 90 kun. Sinovsiz qabul YO'Q — «probationDays: 0» " +
+                "yoki manfiy qiymat «sinov.majburiy» (400) beradi. " +
                 "Qora ro'yxatdagi xodim: «xodim.qora_royxatda» (409). Nazoratdagi xodim va " +
                 "stavkalar yig'indisi 1.5 dan oshgani — javobdagi «warnings» massivida, " +
                 "amal esa bajariladi. Javobda lavozimning vazifalari ham qaytadi.")

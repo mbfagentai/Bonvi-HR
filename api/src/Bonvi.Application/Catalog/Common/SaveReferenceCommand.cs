@@ -34,7 +34,7 @@ namespace Bonvi.Application.Catalog.Common;
 /// <param name="HeadEmployeeId">Bo'lim boshlig'i (xodim).</param>
 /// <param name="DepartmentId">Lavozim qaysi bo'limga tegishli.</param>
 /// <param name="Grade">Lavozim darajasi 1–5.</param>
-/// <param name="ProbationDays">Standart sinov muddati (kun), 0–180.</param>
+/// <param name="ProbationDays">Standart sinov muddati (kun), 1–180. Bo'sh — 90 kun.</param>
 public sealed record SaveReferenceCommand(
     string? Name,
     string? Note = null,
