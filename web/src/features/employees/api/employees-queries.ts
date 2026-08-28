@@ -588,6 +588,16 @@ export function useExportEmployees() {
   return useMutation({
     mutationFn: (filters: EmployeeFilterParams) => exportEmployees(filters),
     onSuccess: ({ blob, fileName }) => saveBlobAs(blob, fileName),
+    /*
+      Eksport serverda HECH NARSANI o'zgartirmaydi — u mutatsiya shaklida
+      yozilgan faqat shu sababli: tugma bosilganda ishga tushadi, so'rov
+      esa avtomatik takrorlanmasligi kerak.
+
+      `readOnly` bayrog'i uni `providers.tsx` dagi umumiy kesh bekor
+      qilishdan chetlab o'tkazadi (izohi o'sha yerda): fayl yuklab
+      olingani uchun butun ekranni qayta yuklashning ma'nosi yo'q.
+    */
+    meta: { readOnly: true },
   })
 }
 
