@@ -36,12 +36,13 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   'bosqich.nom_bosh': 'name',
   'bosqich.nom_band': 'name',
 
-  // ── vakansiya
-  'vakansiya.lavozim_yoq': 'positionId',
-  'vakansiya.lavozim_topilmadi': 'positionId',
-  'vakansiya.yuridik_shaxs_yoq': 'legalEntityId',
-  'vakansiya.yuridik_shaxs_topilmadi': 'legalEntityId',
-  'vakansiya.bolim_topilmadi': 'departmentId',
+  // ── vakansiya (E'LON)
+  //
+  // Lavozim, bo'lim va firma xatolari bu yerda YO'Q va bo'lishi ham
+  // mumkin emas: vakansiya formasida bunday maydonlar qolmadi. Ular
+  // pastdagi «taklif qabul qilinganda» bo'limiga ko'chdi.
+  'vakansiya.nom_yoq': 'vacancyTitleId',
+  'vakansiya.nom_topilmadi': 'vacancyTitleId',
   'vakansiya.masul_topilmadi': 'responsibleEmployeeId',
   'vakansiya.orin_soni': 'openings',
   'vakansiya.yopish_sanasi': 'closedAt',
@@ -67,6 +68,19 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   'pul.manfiy': 'salaryAmount',
   'pul.aniqlik': 'salaryAmount',
   'pul.valyuta': 'salaryAmount',
+
+  // ── taklif qabul qilinganda: SHTAT birligi
+  //
+  // Firma va lavozim MAJBURIY, bo'lim ixtiyoriy.
+  //
+  // `yuridik_shaxs.topilmadi` va `lavozim.topilmadi` — ishga qabul
+  // oqimining O'Z kodlari (`EmployeeErrors`, `CatalogErrors`): rekruting
+  // ularni takrorlamaydi, faqat o'sha maydonlarga yo'naltiradi.
+  'taklif.yuridik_shaxs_yoq': 'legalEntityId',
+  'taklif.lavozim_yoq': 'positionId',
+  'taklif.bolim_topilmadi': 'departmentId',
+  'yuridik_shaxs.topilmadi': 'legalEntityId',
+  'lavozim.topilmadi': 'positionId',
 
   // ── taklif qabul qilinganda: ishga qabulning o'z xatolari
   'pinfl.uzunlik': 'pinfl',

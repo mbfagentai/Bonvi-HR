@@ -7,6 +7,7 @@ using Bonvi.Application.Catalog.Queries;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Catalog;
@@ -77,6 +78,12 @@ internal static class CatalogRegistration
         services.AddSingleton<IReferenceDefinition<AwardType, AwardTypeDto>, AwardTypeDefinition>();
         services.AddSingleton<IReferenceDefinition<PenaltyType, PenaltyTypeDto>, PenaltyTypeDefinition>();
         services.AddSingleton<IReferenceDefinition<DocumentType, DocumentTypeDto>, DocumentTypeDefinition>();
+
+        // Vakansiya nomi — rekruting tushunchasi, lekin mexanikasi bo'yicha
+        // oddiy ma'lumotnoma. Shu sababli u ham SHU ro'yxatda turadi va
+        // yuqoridagi generik handlerlar bilan xizmat qilinadi (sababi
+        // `VacancyTitleDefinition` izohida).
+        services.AddSingleton<IReferenceDefinition<VacancyTitle, VacancyTitleDto>, VacancyTitleDefinition>();
 
         return services;
     }

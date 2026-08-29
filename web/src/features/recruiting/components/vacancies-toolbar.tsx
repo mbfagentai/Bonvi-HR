@@ -1,10 +1,10 @@
 import { ListFilter, X } from 'lucide-react'
 import { useState } from 'react'
 
-import type { FilterOptions } from '@/features/employees/api/employees-queries'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Button, Select } from '@/shared/ui'
 import { VACANCY_STATUSES, type VacancyStatus } from '../api/recruiting-api'
+import { useVacancyTitleOptions } from '../api/recruiting-queries'
 /*
  * Filtr holatining shakli manzil bilan BIR JOYDA turadi
  * (`employments-toolbar.tsx` dagi bilan bir xil sabab: qoida ikki
@@ -13,12 +13,7 @@ import { VACANCY_STATUSES, type VacancyStatus } from '../api/recruiting-api'
 import { DEFAULT_FILTERS, type VacanciesFilterState } from '../lib/vacancies-search'
 
 function activeFilterCount(filters: VacanciesFilterState): number {
-  return [
-    filters.status,
-    filters.positionId,
-    filters.departmentId,
-    filters.legalEntityId,
-  ].filter((value) => value !== '').length
+  return [filters.status, filters.vacancyTitleId].filter((value) => value !== '').length
 }
 
 /**
@@ -26,11 +21,16 @@ function activeFilterCount(filters: VacanciesFilterState): number {
  *
  * ⚠️ Bu yerda QIDIRUV MAYDONI YO'Q — `EmploymentsToolbar` dan asosiy
  * farqi shu. Sabab: backend vakansiyalar uchun `search` parametrini
- * umuman qabul qilmaydi (`ListVacanciesQuery` — faqat holat, lavozim,
- * bo'lim va firma). Va bu to'g'ri qaror: vakansiyaning erkin nomi yo'q,
- * u LAVOZIM bilan taniladi — ya'ni «qidiruv» bu yerda aslida lavozim
- * filtri bo'lardi, u esa allaqachon bor. Ishlamaydigan maydon qo'yish
- * esa foydalanuvchiga yolg'on va'da beradi.
+ * umuman qabul qilmaydi (`ListVacanciesQuery` — faqat holat va e'lon
+ * nomi). Va bu to'g'ri qaror: vakansiyaning erkin nomi yo'q, u
+ * ma'lumotnomadagi NOM bilan taniladi — ya'ni «qidiruv» bu yerda
+ * aslida nom filtri bo'lardi, u esa allaqachon bor. Ishlamaydigan
+ * maydon qo'yish esa foydalanuvchiga yolg'on va'da beradi.
+ *
+ * ⚠️ Lavozim, bo'lim va firma filtrlari OLIB TASHLANDI: vakansiyada
+ * bunday maydonlar endi umuman yo'q (backend'dagi `Vacancy` domen
+ * izohi). Ular «kim ishga olindi» degan savolga tegishli va unga
+ * xodimlar ro'yxati javob beradi.
  *
  * Shu sababli filtr paneli ham YIG'ILMAGAN holda ochiq turadi: yashirib
  * qo'yiladigan qidiruv yo'q, ekranning ustki qatori esa bo'sh qolmasin.
@@ -41,13 +41,18 @@ function activeFilterCount(filters: VacanciesFilterState): number {
 export function VacanciesToolbar({
   filters,
   onChange,
-  options,
 }: {
   filters: VacanciesFilterState
   onChange: (next: VacanciesFilterState) => void
-  options: FilterOptions
 }) {
   const { t } = useLocale()
+
+  /*
+    FILTRDA — hamma nomlar, faolsizlantirilganlari ham: eski vakansiya
+    ro'yxatda turibdi va uni topa olish kerak. Formada esa faqat faollar
+    (`vacancy-form-dialog.tsx`).
+  */
+  const titles = useVacancyTitleOptions(false)
 
   const count = activeFilterCount(filters)
   const [open, setOpen] = useState(count > 0)
@@ -72,8 +77,8 @@ export function VacanciesToolbar({
       <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5 sm:gap-3 sm:px-5">
         {/*
           Holat — YAGONA doim ko'rinadigan filtr: HR kuniga o'nlab marta
-          «ochiqlarini ko'rsat» deydi, lavozim yoki firma bo'yicha esa
-          kamdan-kam filtrlaydi.
+          «ochiqlarini ko'rsat» deydi, e'lon nomi bo'yicha esa kamdan-kam
+          filtrlaydi.
         */}
         <div className="min-w-[180px] flex-1 sm:max-w-[260px] sm:flex-none">
           <Select
@@ -104,27 +109,19 @@ export function VacanciesToolbar({
 
       {open && (
         <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {/*
+            Yagona qolgan filtr — bir ustunda: ikkita bo'sh katak
+            yonida osilib turishi «bu yerda yana nimadir bo'lishi kerak
+            edi» degan taassurot qoldirardi.
+          */}
+          <div className="grid gap-3 sm:max-w-[420px]">
             <Select
-              label={t('employee.position')}
-              placeholder={t('recruiting.anyPosition')}
-              options={options.positions}
-              value={filters.positionId}
-              onChange={(event) => set('positionId', event.target.value)}
-            />
-            <Select
-              label={t('employee.department')}
-              placeholder={t('employees.anyDepartment')}
-              options={options.departments}
-              value={filters.departmentId}
-              onChange={(event) => set('departmentId', event.target.value)}
-            />
-            <Select
-              label={t('employee.legalEntity')}
-              placeholder={t('employees.anyLegalEntity')}
-              options={options.legalEntities}
-              value={filters.legalEntityId}
-              onChange={(event) => set('legalEntityId', event.target.value)}
+              label={t('recruiting.vacancyTitle')}
+              placeholder={t('recruiting.anyVacancyTitle')}
+              options={titles.options}
+              value={filters.vacancyTitleId}
+              disabled={titles.isPending}
+              onChange={(event) => set('vacancyTitleId', event.target.value)}
             />
           </div>
 

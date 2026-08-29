@@ -24,24 +24,31 @@ export interface VacanciesSearch {
    * (`recruiting-api.ts` boshidagi izoh).
    */
   status?: VacancyStatus
-  position?: string
-  department?: string
-  /** Yuridik shaxs. Manzilda qisqa nom — `legalEntity` juda uzun. */
-  entity?: string
+  /**
+   * E'lon nomi.
+   *
+   * Manzilda qisqa nom — `vacancyTitleId` juda uzun bo'lardi. Ilgari bu
+   * yerda `position`, `department` va `entity` ham bor edi; ular OLIB
+   * TASHLANDI, chunki vakansiyada bunday maydonlar umuman yo'q
+   * (backend'dagi `Vacancy` domen izohi).
+   */
+  title?: string
   sort?: VacanciesSortParam
 }
 
 /**
  * Server tanidigan saralash kalitlari — AYNAN shu ikkitasi
- * (`RecruitingQueryParsing.ParseVacancySort`).
+ * (`RecruitingQueryParsing.ParseVacancySort`). Ilgari ikkinchisi
+ * `position` edi; vakansiyada lavozim qolmagach, saralanadigan yagona
+ * matnli ustun e'lon nomi bo'lib qoldi.
  *
  * Noma'lum kalit serverda jimgina sukutga tushadi, lekin manzilga uni
  * yozib qo'yishning ma'nosi yo'q: havola bilan bo'lishilganda ikkinchi
  * odam boshqacha tartib ko'rardi va sababini tushunmasdi.
  */
-export type VacanciesSortKey = 'openedAt' | 'position'
+export type VacanciesSortKey = 'openedAt' | 'title'
 
-/** «position» — o'sish, «-openedAt» — kamayish tartibida. */
+/** «title» — o'sish, «-openedAt» — kamayish tartibida. */
 export type VacanciesSortParam = VacanciesSortKey | `-${VacanciesSortKey}`
 
 /**
@@ -56,16 +63,12 @@ export const DEFAULT_SORT: VacanciesSortParam = '-openedAt'
 /** Toolbar ishlaydigan ko'rinish: bo'sh satr — «filtr qo'yilmagan». */
 export interface VacanciesFilterState {
   status: VacancyStatus | ''
-  positionId: string
-  departmentId: string
-  legalEntityId: string
+  vacancyTitleId: string
 }
 
 export const DEFAULT_FILTERS: VacanciesFilterState = {
   status: '',
-  positionId: '',
-  departmentId: '',
-  legalEntityId: '',
+  vacancyTitleId: '',
 }
 
 /**
@@ -79,9 +82,7 @@ export function validateVacanciesSearch(search: Record<string, unknown>): Vacanc
   return {
     page: readPage(search['page']),
     status: readStatus(search['status']),
-    position: readId(search['position']),
-    department: readId(search['department']),
-    entity: readId(search['entity']),
+    title: readId(search['title']),
     sort: normalizeSort(search['sort']),
   }
 }
@@ -89,9 +90,7 @@ export function validateVacanciesSearch(search: Record<string, unknown>): Vacanc
 export function searchToFilters(search: VacanciesSearch): VacanciesFilterState {
   return {
     status: search.status ?? '',
-    positionId: search.position ?? '',
-    departmentId: search.department ?? '',
-    legalEntityId: search.entity ?? '',
+    vacancyTitleId: search.title ?? '',
   }
 }
 
@@ -102,17 +101,12 @@ export function searchToFilters(search: VacanciesSearch): VacanciesFilterState {
  * ya'ni bo'sh natijaning sababi bo'lolmaydi.
  */
 export function isFiltered(search: VacanciesSearch): boolean {
-  return (
-    search.status !== undefined ||
-    search.position !== undefined ||
-    search.department !== undefined ||
-    search.entity !== undefined
-  )
+  return search.status !== undefined || search.title !== undefined
 }
 
 /**
  * Toolbar → manzil. Bo'sh maydon `undefined` bo'lib qaytadi va manzildan
- * BUTUNLAY yo'qoladi — aks holda tozalangan filtr `?position=` bo'lib
+ * BUTUNLAY yo'qoladi — aks holda tozalangan filtr `?title=` bo'lib
  * osilib qolardi.
  */
 export function filtersToSearch(
@@ -120,9 +114,7 @@ export function filtersToSearch(
 ): Omit<VacanciesSearch, 'page' | 'sort'> {
   return {
     status: filters.status === '' ? undefined : filters.status,
-    position: emptyToUndefined(filters.positionId),
-    department: emptyToUndefined(filters.departmentId),
-    entity: emptyToUndefined(filters.legalEntityId),
+    title: emptyToUndefined(filters.vacancyTitleId),
   }
 }
 
@@ -157,7 +149,7 @@ export function normalizeSort(value: unknown): VacanciesSortParam | undefined {
  */
 const SORT_KEYS: Record<VacanciesSortKey, true> = {
   openedAt: true,
-  position: true,
+  title: true,
 }
 
 function isSortKey(value: string): value is VacanciesSortKey {

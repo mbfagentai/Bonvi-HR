@@ -2079,14 +2079,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
-                    b.Property<Guid?>("DepartmentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("department_id");
-
-                    b.Property<Guid>("LegalEntityId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("legal_entity_id");
-
                     b.Property<string>("Note")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -2099,10 +2091,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<int>("Openings")
                         .HasColumnType("integer")
                         .HasColumnName("openings");
-
-                    b.Property<Guid>("PositionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("position_id");
 
                     b.Property<Guid?>("ResponsibleEmployeeId")
                         .HasColumnType("uuid")
@@ -2120,25 +2108,77 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
+                    b.Property<Guid>("VacancyTitleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vacancy_title_id");
+
                     b.HasKey("Id")
                         .HasName("pk_vacancies");
 
-                    b.HasIndex("DepartmentId")
-                        .HasDatabaseName("ix_vacancies_department_id");
-
-                    b.HasIndex("LegalEntityId")
-                        .HasDatabaseName("ix_vacancies_legal_entity_id");
-
-                    b.HasIndex("PositionId")
-                        .HasDatabaseName("ix_vacancies_position_id");
-
                     b.HasIndex("ResponsibleEmployeeId")
                         .HasDatabaseName("ix_vacancies_responsible_employee_id");
+
+                    b.HasIndex("VacancyTitleId")
+                        .HasDatabaseName("ix_vacancies_vacancy_title_id");
 
                     b.HasIndex("Status", "OpenedAt")
                         .HasDatabaseName("ix_vacancies_status_opened_at");
 
                     b.ToTable("vacancies", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.VacancyTitle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name")
+                        .UseCollation("uz-Cyrl-x-icu");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vacancy_titles");
+
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_vacancy_titles_is_active_name");
+
+                    b.ToTable("vacancy_titles", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Safety.Incident", b =>
@@ -2481,31 +2521,18 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.Vacancy", b =>
                 {
-                    b.HasOne("Bonvi.Domain.Organization.Department", null)
-                        .WithMany()
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_vacancies_departments_department_id");
-
-                    b.HasOne("Bonvi.Domain.Organization.LegalEntity", null)
-                        .WithMany()
-                        .HasForeignKey("LegalEntityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_vacancies_legal_entities_legal_entity_id");
-
-                    b.HasOne("Bonvi.Domain.Organization.Position", null)
-                        .WithMany()
-                        .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_vacancies_positions_position_id");
-
                     b.HasOne("Bonvi.Domain.Employees.Employee", null)
                         .WithMany()
                         .HasForeignKey("ResponsibleEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_vacancies_employees_responsible_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Recruiting.VacancyTitle", null)
+                        .WithMany()
+                        .HasForeignKey("VacancyTitleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vacancies_vacancy_titles_vacancy_title_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Safety.Incident", b =>

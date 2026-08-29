@@ -24,8 +24,38 @@ namespace Bonvi.Application.Recruiting.Offers;
 /// ularni aynan shu formada kiritadi. Bo'sh qoldirilsa ham qabul o'tadi:
 /// Excel'da ham 540 xodimdan 3 tasida JSHSHIR yo'q edi.
 /// </para>
+/// <para>
+/// <b>⭐ FIRMA, BO'LIM va LAVOZIM ham shu yerda so'raladi.</b> Ilgari
+/// uchalasi VAKANSIYADAN olinardi. Endi vakansiyada ular umuman yo'q —
+/// vakansiya faqat e'lon (sababi <see cref="Vacancy"/> izohida). Ya'ni bu
+/// forma — <b>e'lon bilan shtat jadvali uchrashadigan yagona nuqta</b>:
+/// «Сотувчи-консультант» e'loniga kelgan odam bugun aynan qaysi firmaga,
+/// qaysi bo'limga va qaysi shtat birligiga olinayotgani AYNAN shu yerda
+/// hal qilinadi va shu yerdan hujjatga tushadi.
+/// </para>
+/// <para>
+/// <b>Nega bu yaxshiroq.</b> Vakansiya ochilayotganda bu savollarning
+/// javobi ko'pincha hali yo'q («odam kerak, qaysi do'konga — ko'ramiz»),
+/// qabul kunida esa u har doim aniq. Ilgari HR javobni oldindan taxmin
+/// qilib vakansiyaga yozardi va qabul paytida u ko'pincha noto'g'ri
+/// bo'lib chiqardi — lekin uni tuzatish uchun VAKANSIYANI tahrirlash
+/// kerak edi, ya'ni boshqa nomzodlarning ham «kelajagi» o'zgarardi.
+/// </para>
 /// </remarks>
 /// <param name="OfferId">Taklif.</param>
+/// <param name="LegalEntityId">
+/// Qaysi FIRMAGA rasmiylashtiriladi — <c>legal_entities</c> ma'lumotnomasidan.
+/// MAJBURIY: <c>HireEmployeeCommand.LegalEntityId</c> nullable emas, ya'ni
+/// ishga qabul usiz umuman bajarilmaydi.
+/// </param>
+/// <param name="PositionId">
+/// Qaysi LAVOZIMGA — <c>positions</c> ma'lumotnomasidan. MAJBURIY
+/// (sababi <c>RecruitingErrors.HirePositionMissing</c> izohida).
+/// </param>
+/// <param name="DepartmentId">
+/// Qaysi BO'LIMGA — <c>departments</c> ma'lumotnomasidan. Ixtiyoriy,
+/// <c>HireEmployeeCommand</c> dagi bilan bir xil.
+/// </param>
 /// <param name="RespondedAt">Javob sanasi. Bo'sh — bugun.</param>
 /// <param name="ResponseNote">Javob izohi.</param>
 /// <param name="HireDate">Ishga qabul sanasi. Bo'sh — taklifdagi ish boshlash sanasi.</param>
@@ -47,6 +77,9 @@ namespace Bonvi.Application.Recruiting.Offers;
 /// </param>
 public sealed record AcceptJobOfferCommand(
     Guid OfferId,
+    Guid LegalEntityId,
+    Guid PositionId,
+    Guid? DepartmentId = null,
     DateOnly? RespondedAt = null,
     string? ResponseNote = null,
     DateOnly? HireDate = null,
@@ -105,8 +138,8 @@ public sealed class AcceptJobOfferCommandHandler
 {
     private readonly IJobOfferRepository _offers;
     private readonly ICandidateRepository _candidates;
-    private readonly IVacancyRepository _vacancies;
     private readonly IEmploymentRepository _employments;
+    private readonly IDepartmentRepository _departments;
     private readonly HireEmployeeCommandHandler _hire;
     private readonly RecruitingMapper _mapper;
     private readonly IClock _clock;
@@ -114,16 +147,16 @@ public sealed class AcceptJobOfferCommandHandler
     public AcceptJobOfferCommandHandler(
         IJobOfferRepository offers,
         ICandidateRepository candidates,
-        IVacancyRepository vacancies,
         IEmploymentRepository employments,
+        IDepartmentRepository departments,
         HireEmployeeCommandHandler hire,
         RecruitingMapper mapper,
         IClock clock)
     {
         _offers = offers;
         _candidates = candidates;
-        _vacancies = vacancies;
         _employments = employments;
+        _departments = departments;
         _hire = hire;
         _mapper = mapper;
         _clock = clock;
@@ -134,6 +167,17 @@ public sealed class AcceptJobOfferCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Shtat birligi AVVAL tekshiriladi: taklif va nomzodning holatiga
+        // umuman tegilmasdan turib. Tartib muhim — pastda ular xotirada
+        // o'zgartiriladi va keyin yiqilish «hech narsa saqlanmadi, lekin
+        // obyektlar allaqachon boshqa holatda» degan holatni yaratardi.
+        // Bu yerda esa hech qanday o'zgarish bo'lmagan.
+        var placement = await CheckPlacementAsync(command, cancellationToken).ConfigureAwait(false);
+        if (placement.IsFailure)
+        {
+            return placement.Error;
+        }
 
         var offer = await _offers.GetByIdAsync(command.OfferId, cancellationToken).ConfigureAwait(false);
         if (offer is null)
@@ -156,15 +200,6 @@ public sealed class AcceptJobOfferCommandHandler
             return guarded.Error;
         }
 
-        // Taklif AYNAN qaysi o'ringa berilgan bo'lsa, o'sha o'ringa qabul
-        // qilinadi: nomzod keyinroq boshqa vakansiyaga ko'chirilgan bo'lishi
-        // mumkin, lekin va'da qilingan lavozim o'zgarmaydi.
-        var vacancy = await _vacancies.GetByIdAsync(offer.VacancyId, cancellationToken).ConfigureAwait(false);
-        if (vacancy is null)
-        {
-            return RecruitingErrors.VacancyNotFound;
-        }
-
         var respondedAt = command.RespondedAt ?? _clock.Today;
 
         var accepted = offer.Accept(respondedAt, command.ResponseNote);
@@ -180,7 +215,7 @@ public sealed class AcceptJobOfferCommandHandler
         }
 
         var hired = await _hire
-            .HandleAsync(BuildHireCommand(command, offer, candidate, vacancy), cancellationToken)
+            .HandleAsync(BuildHireCommand(command, offer, candidate), cancellationToken)
             .ConfigureAwait(false);
 
         if (hired.IsFailure)
@@ -207,17 +242,23 @@ public sealed class AcceptJobOfferCommandHandler
     /// shu sababli moslashtirish kerak emas.
     /// </para>
     /// <para>
-    /// Lavozim, bo'lim va firma VAKANSIYADAN, oklad va ish boshlash sanasi
-    /// TAKLIFDAN keladi. Ya'ni ishga qabul formasida HR faqat buyruq
-    /// raqamini va hujjat ma'lumotlarini kiritadi — qolgani voronkada
-    /// allaqachon kelishilgan.
+    /// Oklad va ish boshlash sanasi TAKLIFDAN keladi — ular voronkada
+    /// allaqachon kelishilgan. Firma, bo'lim va lavozim esa BUYRUQNING
+    /// O'ZIDAN, ya'ni qabul oynasidan: ilgari ular vakansiyadan olinardi,
+    /// endi vakansiyada bunday maydonlar yo'q (sinf izohiga qarang).
+    /// </para>
+    /// <para>
+    /// <b>Vakansiya bu yerda umuman o'qilmaydi.</b> Ilgari u faqat shu
+    /// uchta identifikator uchun yuklanardi va boshqa hech narsaga
+    /// ishlatilmasdi. Endi «nomzod qaysi e'longa kelgan» degan bog'lanish
+    /// nomzodning o'zida (<c>Candidate.VacancyId</c>) qoladi va uni ishga
+    /// qabul buyrug'iga ko'chirishning hojati yo'q.
     /// </para>
     /// </remarks>
     private static HireEmployeeCommand BuildHireCommand(
         AcceptJobOfferCommand command,
         JobOffer offer,
-        Candidate candidate,
-        Vacancy vacancy)
+        Candidate candidate)
     {
         var person = new SaveEmployeeCommand(
             candidate.FullName.LastName,
@@ -233,11 +274,11 @@ public sealed class AcceptJobOfferCommandHandler
             candidate.Speciality);
 
         return new HireEmployeeCommand(
-            vacancy.LegalEntityId,
+            command.LegalEntityId,
             command.EmployeeId,
             person,
-            vacancy.DepartmentId,
-            vacancy.PositionId,
+            command.DepartmentId,
+            command.PositionId,
             command.HireDate ?? offer.StartDate,
             command.OrderNo,
             command.OrderDate,
@@ -248,6 +289,48 @@ public sealed class AcceptJobOfferCommandHandler
             command.ResponsibleEmployeeId,
             command.ProbationDays,
             candidate.Id);
+    }
+
+    /// <summary>
+    /// Xodim QAYERGA joylashtirilayotgani to'liq ko'rsatilganmi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Firma va lavozim MAJBURIY, bo'lim ixtiyoriy — sabablari
+    /// <c>RecruitingErrors.HireLegalEntityMissing</c> va
+    /// <c>HirePositionMissing</c> izohlarida.
+    /// </para>
+    /// <para>
+    /// <b>Nega faqat «bo'sh emasmi» tekshiriladi, «mavjudmi» emas.</b>
+    /// Firma va lavozimning MAVJUDLIGINI ishga qabul oqimining o'zi
+    /// tekshiradi va o'zining tanish xatolarini qaytaradi
+    /// (<c>firma.topilmadi</c>, <c>lavozim.topilmadi</c>) — ularni bu
+    /// yerda takrorlash ikkita haqiqat manbai hosil qilardi. Bo'lim esa
+    /// u yerda tekshirilmaydi (u yerda ham ixtiyoriy), shu sababli
+    /// yagona qo'shimcha tekshiruv aynan bo'limga tegishli.
+    /// </para>
+    /// </remarks>
+    private async Task<Result> CheckPlacementAsync(
+        AcceptJobOfferCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command.LegalEntityId == Guid.Empty)
+        {
+            return RecruitingErrors.HireLegalEntityMissing;
+        }
+
+        if (command.PositionId == Guid.Empty)
+        {
+            return RecruitingErrors.HirePositionMissing;
+        }
+
+        if (command.DepartmentId is { } departmentId
+            && !await _departments.ExistsAsync(departmentId, cancellationToken).ConfigureAwait(false))
+        {
+            return RecruitingErrors.DepartmentNotFound;
+        }
+
+        return Result.Success();
     }
 
     /// <summary>Nomzod allaqachon ishga olinmaganini tekshiradi.</summary>

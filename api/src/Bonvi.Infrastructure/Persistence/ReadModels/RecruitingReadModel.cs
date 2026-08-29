@@ -87,16 +87,19 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             join vacancy in _context.Vacancies.AsNoTracking()
                 on candidate.VacancyId equals vacancy.Id into vacancyGroup
             from vacancy in vacancyGroup.DefaultIfEmpty()
-            join position in _context.Positions.AsNoTracking()
-                on vacancy.PositionId equals position.Id into positionGroup
-            from position in positionGroup.DefaultIfEmpty()
+            join title in _context.VacancyTitles.AsNoTracking()
+                on vacancy.VacancyTitleId equals title.Id into titleGroup
+            from title in titleGroup.DefaultIfEmpty()
             join stage in _context.PipelineStages.AsNoTracking()
                 on candidate.CurrentStageId equals stage.Id into stageGroup
             from stage in stageGroup.DefaultIfEmpty()
             select new
             {
                 Candidate = candidate,
-                VacancyName = position != null ? position.Name : null,
+                // Nomzod qatorida ko'rinadigan «vakansiya» — endi E'LON
+                // NOMI, lavozim emas: vakansiyada lavozim qolmadi
+                // (sababi `Vacancy` izohida).
+                VacancyName = title != null ? title.Name : null,
                 StageName = stage != null ? stage.Name : null,
                 StageOrder = stage != null ? stage.SortOrder : int.MaxValue,
             };
@@ -187,47 +190,26 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             vacancies = vacancies.Where(vacancy => vacancy.Status == status);
         }
 
-        if (filter.PositionId is { } positionId)
+        // Lavozim, bo'lim va firma filtrlari OLIB TASHLANDI: vakansiyada
+        // bunday ustunlar endi umuman yo'q (sababi `Vacancy` izohida).
+        // Yagona ma'lumotnoma filtri — e'lon nomi.
+        if (filter.VacancyTitleId is { } vacancyTitleId)
         {
-            vacancies = vacancies.Where(vacancy => vacancy.PositionId == positionId);
-        }
-
-        if (filter.DepartmentId is { } departmentId)
-        {
-            // ⚠️ Bo'lim filtri AYNAN mos keladigan bo'lim bo'yicha, butun
-            // shox bo'yicha EMAS — xodimlar ro'yxatidagidan farqli. Sabab:
-            // vakansiya ANIQ bir bo'limga ochiladi va «7-Departamentdagi
-            // vakansiyalar» degan savol amalda «uning ichidagi 22 ta sexning
-            // hammasidan» degani emas. Kerak bo'lganda shox bo'yicha filtr
-            // qo'shiladi, lekin u ATAYLAB hozir kiritilmadi.
-            vacancies = vacancies.Where(vacancy => vacancy.DepartmentId == departmentId);
-        }
-
-        if (filter.LegalEntityId is { } legalEntityId)
-        {
-            vacancies = vacancies.Where(vacancy => vacancy.LegalEntityId == legalEntityId);
+            vacancies = vacancies.Where(vacancy => vacancy.VacancyTitleId == vacancyTitleId);
         }
 
         var joined =
             from vacancy in vacancies
-            join position in _context.Positions.AsNoTracking()
-                on vacancy.PositionId equals position.Id into positionGroup
-            from position in positionGroup.DefaultIfEmpty()
-            join legalEntity in _context.LegalEntities.AsNoTracking()
-                on vacancy.LegalEntityId equals legalEntity.Id into legalEntityGroup
-            from legalEntity in legalEntityGroup.DefaultIfEmpty()
-            join department in _context.Departments.AsNoTracking()
-                on vacancy.DepartmentId equals department.Id into departmentGroup
-            from department in departmentGroup.DefaultIfEmpty()
+            join title in _context.VacancyTitles.AsNoTracking()
+                on vacancy.VacancyTitleId equals title.Id into titleGroup
+            from title in titleGroup.DefaultIfEmpty()
             join responsible in _context.Employees.AsNoTracking()
                 on vacancy.ResponsibleEmployeeId equals responsible.Id into responsibleGroup
             from responsible in responsibleGroup.DefaultIfEmpty()
             select new
             {
                 Vacancy = vacancy,
-                PositionName = position != null ? position.Name : null,
-                LegalEntityName = legalEntity != null ? legalEntity.Name : null,
-                DepartmentName = department != null ? department.Name : null,
+                TitleName = title != null ? title.Name : null,
                 Responsible = responsible,
                 CandidateCount = _context.Candidates.Count(c => c.VacancyId == vacancy.Id),
                 HiredCount = _context.Candidates
@@ -238,9 +220,9 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
 
         var ordered = filter.Sort switch
         {
-            VacancySortField.Position => filter.Descending
-                ? joined.OrderByDescending(row => row.PositionName)
-                : joined.OrderBy(row => row.PositionName),
+            VacancySortField.Title => filter.Descending
+                ? joined.OrderByDescending(row => row.TitleName)
+                : joined.OrderBy(row => row.TitleName),
 
             _ => filter.Descending
                 ? joined.OrderByDescending(row => row.Vacancy.OpenedAt)
@@ -258,12 +240,8 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         [
             .. page.Select(row => new VacancyRow(
                 row.Vacancy.Id,
-                row.Vacancy.PositionId,
-                row.PositionName,
-                row.Vacancy.LegalEntityId,
-                row.LegalEntityName,
-                row.Vacancy.DepartmentId,
-                row.DepartmentName,
+                row.Vacancy.VacancyTitleId,
+                row.TitleName,
                 row.Vacancy.Openings,
                 row.Vacancy.Status,
                 row.Vacancy.OpenedAt,

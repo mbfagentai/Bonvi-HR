@@ -19,14 +19,18 @@ public static class RecruitingErrors
     public static Error VacancyNotFound { get; } =
         Error.NotFound("vakansiya.topilmadi", "Vakansiya topilmadi.");
 
-    public static Error PositionNotFound { get; } =
-        Error.NotFound("vakansiya.lavozim_topilmadi", "Lavozim topilmadi.");
-
-    public static Error LegalEntityNotFound { get; } =
-        Error.NotFound("vakansiya.yuridik_shaxs_topilmadi", "Yuridik shaxs topilmadi.");
-
-    public static Error DepartmentNotFound { get; } =
-        Error.NotFound("vakansiya.bolim_topilmadi", "Bo'lim topilmadi.");
+    /// <summary>E'lon nomi ma'lumotnomada yo'q.</summary>
+    /// <remarks>
+    /// Ilgari bu yerda <c>vakansiya.lavozim_topilmadi</c>,
+    /// <c>vakansiya.yuridik_shaxs_topilmadi</c> va
+    /// <c>vakansiya.bolim_topilmadi</c> ham turardi. Vakansiyada kompaniya
+    /// tuzilmasidan hech narsa qolmagach (sababi <c>Vacancy</c> izohida),
+    /// ular vakansiyaning emas, TAKLIFNI QABUL QILISHNING xatolariga
+    /// aylandi va shu sababli <c>taklif.*</c> prefiksiga ko'chdi.
+    /// Vakansiyaning yagona ma'lumotnoma havolasi endi shu.
+    /// </remarks>
+    public static Error VacancyTitleNotFound { get; } =
+        Error.NotFound("vakansiya.nom_topilmadi", "Vakansiya nomi topilmadi.");
 
     public static Error ResponsibleNotFound { get; } =
         Error.NotFound("vakansiya.masul_topilmadi", "Mas'ul xodim topilmadi.");
@@ -111,4 +115,51 @@ public static class RecruitingErrors
     public static Error AlreadyHired { get; } = Error.Conflict(
         "nomzod.allaqachon_ishga_olingan",
         "Nomzod allaqachon ishga olingan.");
+
+    // ---------- Taklif qabul qilinganda: SHTAT birligi ----------
+    //
+    // Bu uchtasi ATAYLAB `taklif.*` prefiksida, `vakansiya.*` da emas.
+    // Sabab mazmuniy: firma, bo'lim va lavozim endi e'lonning xossasi
+    // emas, ishga qabul paytidagi QAROR (sababi `Vacancy` izohida). Xato
+    // kodi esa foydalanuvchi uchun «qaysi ekranda nima noto'g'ri» degan
+    // ma'noni tashiydi — va bu maydonlar endi faqat QABUL oynasida bor.
+
+    /// <summary>Qabul qilishda lavozim ko'rsatilmagan.</summary>
+    /// <remarks>
+    /// <b>Nega MAJBURIY, holbuki <c>HireEmployeeCommand.PositionId</c> ning
+    /// o'zi ixtiyoriy.</b> 1-bosqichda lavozimsiz qabul ataylab mumkin:
+    /// HR formasi va Excel'dan ko'chirish (ETL) lavozimi noma'lum eski
+    /// yozuvlarni ham kiritishi kerak. Rekrutingda esa bunday holat yo'q —
+    /// foydalanuvchi talabi aniq: «ишга олингандан кейин компаниянинг
+    /// бўлимлари билан ҳам танланиб АНИҚ ЛАВОЗИМ танланади». Vakansiyada
+    /// lavozim umuman yo'q, ya'ni bu yerda bo'sh qoldirilsa, xodim
+    /// lavozimsiz yaratilardi va uni keyin qo'lda tuzatish kerak bo'lardi.
+    /// Majburiylik shu sababli AYNAN SHU qatlamda, domenda emas.
+    /// </remarks>
+    public static Error HirePositionMissing { get; } = Error.Validation(
+        "taklif.lavozim_yoq",
+        "Lavozim ko'rsatilishi shart: nomzod aynan qaysi shtat birligiga olinayotgani yozilishi kerak.");
+
+    /// <summary>Qabul qilishda yuridik shaxs ko'rsatilmagan.</summary>
+    /// <remarks>
+    /// Bu majburiylik texnik ham: <c>HireEmployeeCommand.LegalEntityId</c> —
+    /// pozitsion va nullable EMAS, ya'ni ishga qabul usiz umuman
+    /// bajarilmaydi. Ilgari qiymat vakansiyadan kelardi; endi vakansiyada
+    /// firma yo'q, demak u qabul oynasidan kelishi SHART.
+    /// </remarks>
+    public static Error HireLegalEntityMissing { get; } = Error.Validation(
+        "taklif.yuridik_shaxs_yoq",
+        "Yuridik shaxs ko'rsatilishi shart: xodim qaysi firmaga rasmiylashtiriladi.");
+
+    /// <summary>Qabul qilishda ko'rsatilgan bo'lim ma'lumotnomada yo'q.</summary>
+    /// <remarks>
+    /// Bo'lim IXTIYORIY (<c>HireEmployeeCommand</c> dagi bilan bir xil),
+    /// lekin ko'rsatilgan bo'lsa — mavjud bo'lishi shart. Ishga qabul
+    /// oqimining o'zi bo'limni tekshirmaydi (u yerda ham ixtiyoriy), shu
+    /// sababli tekshiruv aynan shu yerda: aks holda mavjud bo'lmagan
+    /// identifikator bazaga yetib borib, tushunarsiz tashqi kalit xatosini
+    /// keltirib chiqarardi.
+    /// </remarks>
+    public static Error DepartmentNotFound { get; } =
+        Error.NotFound("taklif.bolim_topilmadi", "Bo'lim topilmadi.");
 }

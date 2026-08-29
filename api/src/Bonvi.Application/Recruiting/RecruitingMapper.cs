@@ -1,4 +1,3 @@
-using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Domain.Abstractions;
@@ -12,10 +11,17 @@ namespace Bonvi.Application.Recruiting;
 /// <remarks>
 /// <para>
 /// Bitta mapper uchala agregatga xizmat qiladi (vakansiya, nomzod,
-/// taklif), chunki ular bir xil manbadan nom oladi: lavozim, firma va
-/// bo'lim ma'lumotnomasi hamda vakansiya. Uchta alohida mapper bu
-/// bog'liqliklarni uch marta takrorlardi va nomlar bir kun uch xil
-/// ko'rinishda chiqib qolardi.
+/// taklif), chunki ular bir xil manbadan nom oladi: vakansiya nomlari
+/// ma'lumotnomasi, bosqichlar va vakansiyaning o'zi. Uchta alohida
+/// mapper bu bog'liqliklarni uch marta takrorlardi va nomlar bir kun
+/// uch xil ko'rinishda chiqib qolardi.
+/// </para>
+/// <para>
+/// <b>Lavozim/bo'lim/firma nomlari bu yerda ENDI KERAK EMAS.</b>
+/// Vakansiyada bunday havolalar qolmadi (sababi <c>Vacancy</c> izohida),
+/// shu sababli <c>CatalogNameResolver</c> ga bog'liqlik ham olib
+/// tashlandi: mapper faqat o'ziga haqiqatan kerak bo'lgan narsani
+/// so'raydi.
 /// </para>
 /// <para>
 /// <b>Bosqich nomlari BITTA so'rovda olinadi.</b> Voronkada 6-10 ta bosqich
@@ -34,7 +40,7 @@ public sealed class RecruitingMapper
     private readonly ICandidateRepository _candidates;
     private readonly IEmploymentRepository _employments;
     private readonly IEmployeeRepository _employees;
-    private readonly CatalogNameResolver _names;
+    private readonly IReferenceRepository<VacancyTitle> _titles;
 
     public RecruitingMapper(
         IPipelineStageRepository stages,
@@ -43,7 +49,7 @@ public sealed class RecruitingMapper
         ICandidateRepository candidates,
         IEmploymentRepository employments,
         IEmployeeRepository employees,
-        CatalogNameResolver names)
+        IReferenceRepository<VacancyTitle> titles)
     {
         _stages = stages;
         _vacancies = vacancies;
@@ -51,7 +57,7 @@ public sealed class RecruitingMapper
         _candidates = candidates;
         _employments = employments;
         _employees = employees;
-        _names = names;
+        _titles = titles;
     }
 
     /// <summary>Bosqich — ma'lumotnoma yozuvi, qo'shimcha so'rovsiz.</summary>
@@ -66,9 +72,7 @@ public sealed class RecruitingMapper
     {
         ArgumentNullException.ThrowIfNull(vacancy);
 
-        var position = await _names.PositionAsync(vacancy.PositionId, cancellationToken).ConfigureAwait(false);
-        var legalEntity = await _names.LegalEntityAsync(vacancy.LegalEntityId, cancellationToken).ConfigureAwait(false);
-        var department = await _names.DepartmentAsync(vacancy.DepartmentId, cancellationToken).ConfigureAwait(false);
+        var title = await TitleNameAsync(vacancy.VacancyTitleId, cancellationToken).ConfigureAwait(false);
 
         var responsible = vacancy.ResponsibleEmployeeId is { } responsibleId
             ? await _employees.GetByIdAsync(responsibleId, cancellationToken).ConfigureAwait(false)
@@ -83,12 +87,8 @@ public sealed class RecruitingMapper
 
         return new VacancyDto(
             vacancy.Id,
-            vacancy.PositionId,
-            position,
-            vacancy.LegalEntityId,
-            legalEntity,
-            vacancy.DepartmentId,
-            department,
+            vacancy.VacancyTitleId,
+            title,
             vacancy.Openings,
             vacancy.Status,
             vacancy.OpenedAt,
@@ -196,11 +196,15 @@ public sealed class RecruitingMapper
     }
 
     /// <summary>
-    /// Vakansiyaning ko'rinadigan nomi — uning LAVOZIMI.
+    /// Vakansiyaning ko'rinadigan nomi — uning E'LON NOMI.
     /// </summary>
     /// <remarks>
-    /// Vakansiyada alohida sarlavha yo'q (sababi <see cref="Vacancy"/>
-    /// izohida), shu sababli ekranda u lavozim nomi bilan ataladi.
+    /// Ilgari bu yerda LAVOZIM nomi qaytardi, chunki vakansiyaning o'z
+    /// nomi yo'q edi. Endi u bor va u aynan shu maqsad uchun yaratilgan
+    /// (sababi <see cref="VacancyTitle"/> izohida) — ya'ni nomzod
+    /// kartasida «bu odam nimaga kelgan» degan savolga endi e'londa
+    /// turgan matnning O'ZI javob beradi, shtat jadvalidagi rasmiy nom
+    /// emas.
     /// </remarks>
     private async Task<string?> VacancyNameAsync(Guid vacancyId, CancellationToken cancellationToken)
     {
@@ -208,7 +212,21 @@ public sealed class RecruitingMapper
 
         return vacancy is null
             ? null
-            : await _names.PositionAsync(vacancy.PositionId, cancellationToken).ConfigureAwait(false);
+            : await TitleNameAsync(vacancy.VacancyTitleId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Vakansiya nomi ma'lumotnomasidan matnni oladi.</summary>
+    /// <remarks>
+    /// Faolsizlantirilgan yozuv ham topiladi (repozitoriy faollikka
+    /// qaramaydi): eski vakansiyada unga havola qolgan va nomsiz qator
+    /// «ma'lumot yo'qolgan» degan taassurot berardi — bosqich nomlari
+    /// bilan aynan bir xil qoida.
+    /// </remarks>
+    private async Task<string?> TitleNameAsync(Guid titleId, CancellationToken cancellationToken)
+    {
+        var title = await _titles.GetByIdAsync(titleId, cancellationToken).ConfigureAwait(false);
+
+        return title?.Name;
     }
 
     private static JobOfferDto ToDto(JobOffer offer, string? candidateName, string? vacancyName)

@@ -93,7 +93,7 @@ export function VacancyActionDialog({
       size="sm"
       dismissible={!pending}
       title={t(`recruiting.vacancyAction.${action}Title`)}
-      description={item.position ?? undefined}
+      description={item.title ?? undefined}
       footer={
         <>
           <Button type="button" onClick={onClose} disabled={pending}>

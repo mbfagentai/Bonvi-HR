@@ -52,7 +52,11 @@ internal static class RecruitingQueryParsing
             ? (VacancySortField.OpenedAt, true)
             : value switch
             {
-                "POSITION" => (VacancySortField.Position, descending),
+                // «title» — e'lon nomi. Ilgari bu «position» edi; vakansiyada
+                // lavozim qolmagach, kalit ham ma'nosini yo'qotardi va
+                // eski nomni «uyg'unlik uchun» saqlab qolish mijozga
+                // mavjud bo'lmagan ustunni va'da qilgan bo'lardi.
+                "TITLE" => (VacancySortField.Title, descending),
                 _ => (VacancySortField.OpenedAt, descending),
             };
     }

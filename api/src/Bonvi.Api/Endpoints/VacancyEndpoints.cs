@@ -7,17 +7,22 @@ using Bonvi.Domain.Identity;
 namespace Bonvi.Api.Endpoints;
 
 /// <summary>Vakansiya ochish/tahrirlash so'rovi tanasi.</summary>
-/// <param name="PositionId">Lavozim — «positions» ma'lumotnomasidan. Majburiy.</param>
-/// <param name="LegalEntityId">Yuridik shaxs — «legal-entities» dan. Majburiy.</param>
-/// <param name="DepartmentId">Bo'lim — «departments» dan. Ixtiyoriy.</param>
+/// <remarks>
+/// <b>Lavozim, bo'lim va yuridik shaxs maydonlari YO'Q.</b> Vakansiya —
+/// e'lon, kompaniya tuzilmasidan unda hech narsa saqlanmaydi (batafsil
+/// sabab <c>Vacancy</c> domen izohida). Uchalasi taklif QABUL
+/// QILINGANDA so'raladi: <c>POST /api/recruiting/offers/{id}/accept</c>.
+/// </remarks>
+/// <param name="VacancyTitleId">
+/// Vakansiya nomi — «vacancy-titles» ma'lumotnomasidan. Majburiy va
+/// yagona bog'lanish.
+/// </param>
 /// <param name="Openings">Nechta odam kerak (1–100). Sukut — 1.</param>
 /// <param name="OpenedAt">Ochilgan sana. Bo'sh — bugun (tahrirlashda o'zgarmaydi).</param>
 /// <param name="ResponsibleEmployeeId">Mas'ul xodim (rekruter).</param>
 /// <param name="Note">Izoh: shoshilinchlik, talablar.</param>
 public sealed record SaveVacancyRequest(
-    Guid PositionId,
-    Guid LegalEntityId,
-    Guid? DepartmentId = null,
+    Guid VacancyTitleId,
     int Openings = 1,
     DateOnly? OpenedAt = null,
     Guid? ResponsibleEmployeeId = null,
@@ -35,8 +40,9 @@ public sealed record CloseVacancyRequest(DateOnly? ClosedAt = null, string? Reas
 /// Vakansiyalar — rekrutingning boshlanish nuqtasi (2-bosqich).
 /// </summary>
 /// <remarks>
-/// Vakansiyaning ko'rinadigan nomi — uning LAVOZIMI: alohida sarlavha
-/// maydoni ataylab yo'q (sababi <c>Vacancy</c> izohida).
+/// Vakansiyaning ko'rinadigan nomi O'ZINING ma'lumotnomasidan keladi
+/// («vacancy-titles»), kompaniya lavozimlaridan emas — nega ular ataylab
+/// ikki xil tushuncha ekani <c>VacancyTitle</c> izohida.
 /// </remarks>
 public static class VacancyEndpoints
 {
@@ -48,9 +54,7 @@ public static class VacancyEndpoints
 
         group.MapGet("/", async (
                 string? status,
-                Guid? positionId,
-                Guid? departmentId,
-                Guid? legalEntityId,
+                Guid? vacancyTitleId,
                 int? page,
                 int? pageSize,
                 string? sort,
@@ -59,8 +63,7 @@ public static class VacancyEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new ListVacanciesQuery(
-                            status, positionId, departmentId, legalEntityId, page, pageSize, sort),
+                        new ListVacanciesQuery(status, vacancyTitleId, page, pageSize, sort),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -72,8 +75,10 @@ public static class VacancyEndpoints
             .WithDescription(
                 "SERVER tomonda sahifalanadi, filtrlanadi va saralanadi. " +
                 "«status» — Open | Paused | Closed (bo'sh — hammasi, noma'lum qiymat " +
-                "«vakansiya.holat_notogri» 400). «sort» — openedAt (sukut, yangidan " +
-                "eskiga) yoki position; teskari tartib «-openedAt» yoki «openedAt:desc». " +
+                "«vakansiya.holat_notogri» 400). «vacancyTitleId» — e'lon nomi bo'yicha " +
+                "filtr; lavozim/bo'lim/firma filtrlari YO'Q, chunki vakansiyada bunday " +
+                "maydonlar yo'q. «sort» — openedAt (sukut, yangidan eskiga) yoki title; " +
+                "teskari tartib «-openedAt» yoki «openedAt:desc». " +
                 "«pageSize» eng ko'pi 200. Har bir qatorda «candidateCount» va " +
                 "«hiredCount» bor — «2/3 to'ldirildi» ko'rinishi uchun.")
             .Produces<PagedResult<VacancyDto>>(StatusCodes.Status200OK)
@@ -105,9 +110,7 @@ public static class VacancyEndpoints
                 var natija = await handler
                     .HandleAsync(
                         new OpenVacancyCommand(
-                            request.PositionId,
-                            request.LegalEntityId,
-                            request.DepartmentId,
+                            request.VacancyTitleId,
                             request.Openings,
                             request.OpenedAt,
                             request.ResponsibleEmployeeId,
@@ -121,11 +124,12 @@ public static class VacancyEndpoints
             .WithName("OpenVacancy")
             .WithSummary("Vakansiya — ochish")
             .WithDescription(
-                "Lavozim va yuridik shaxs MAJBURIY va ular MAVJUD ma'lumotnomalardan " +
-                "olinadi: ishga qabulda aynan shu identifikatorlar ishlatiladi. " +
-                "Xatolar: «vakansiya.lavozim_topilmadi», «vakansiya.yuridik_shaxs_topilmadi», " +
-                "«vakansiya.bolim_topilmadi», «vakansiya.masul_topilmadi» (404); " +
-                "«vakansiya.orin_soni» (400).")
+                "«vacancyTitleId» MAJBURIY va u «/api/catalog/vacancy-titles» " +
+                "ma'lumotnomasidan olinadi — bu KOMPANIYA LAVOZIMI EMAS, e'londa " +
+                "turadigan qisqa nom. Lavozim, bo'lim va firma bu yerda umuman " +
+                "so'ralmaydi: ular «/offers/{id}/accept» da tanlanadi. " +
+                "Xatolar: «vakansiya.nom_yoq» (400), «vakansiya.nom_topilmadi» va " +
+                "«vakansiya.masul_topilmadi» (404); «vakansiya.orin_soni» (400).")
             .Produces<VacancyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
@@ -140,9 +144,7 @@ public static class VacancyEndpoints
                     .HandleAsync(
                         new UpdateVacancyCommand(
                             id,
-                            request.PositionId,
-                            request.LegalEntityId,
-                            request.DepartmentId,
+                            request.VacancyTitleId,
                             request.Openings,
                             request.OpenedAt,
                             request.ResponsibleEmployeeId,
@@ -156,7 +158,7 @@ public static class VacancyEndpoints
             .WithName("UpdateVacancy")
             .WithSummary("Vakansiya — tahrirlash")
             .WithDescription(
-                "Lavozim va firma ham o'zgaradi (vakansiya — reja, fakt emas). " +
+                "Vakansiya nomi ham o'zgaradi (vakansiya — reja, fakt emas). " +
                 "HOLAT bu yerdan o'zgarmaydi: «/pause», «/resume», «/close» bor. " +
                 "«openedAt» bo'sh bo'lsa — eski sana saqlanadi.")
             .Produces<VacancyDto>(StatusCodes.Status200OK)

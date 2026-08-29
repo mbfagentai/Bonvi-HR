@@ -3,28 +3,25 @@ using Bonvi.Domain.Recruiting;
 namespace Bonvi.Domain.Tests.Recruiting;
 
 /// <summary>Vakansiya — ochilgan ish o'rni va uning holati.</summary>
+/// <remarks>
+/// ⚠️ Vakansiyada endi kompaniya tuzilmasidan HECH NARSA yo'q: lavozim,
+/// bo'lim va firma olib tashlangan (sababi <see cref="Vacancy"/> izohida).
+/// Shu sababli bu yerdagi «lavozim yo'q» testlari «NOM yo'q» testlariga
+/// aylandi va firma bo'yicha test butunlay olib tashlandi — tekshirish
+/// mumkin bo'lgan maydonning o'zi qolmadi.
+/// </remarks>
 public sealed class VacancyTests
 {
-    private static readonly Guid LavozimId = Guid.CreateVersion7();
-    private static readonly Guid FirmaId = Guid.CreateVersion7();
+    private static readonly Guid NomId = Guid.CreateVersion7();
     private static readonly DateOnly Sana = new(2026, 3, 1);
 
     [Fact]
-    public void Lavozimsiz_ochilmaydi()
+    public void Nomsiz_ochilmaydi()
     {
-        var natija = Vacancy.Open(Guid.Empty, FirmaId, Sana);
+        var natija = Vacancy.Open(Guid.Empty, Sana);
 
         natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("vakansiya.lavozim_yoq");
-    }
-
-    [Fact]
-    public void Yuridik_shaxssiz_ochilmaydi()
-    {
-        var natija = Vacancy.Open(LavozimId, Guid.Empty, Sana);
-
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("vakansiya.yuridik_shaxs_yoq");
+        natija.Error.Code.ShouldBe("vakansiya.nom_yoq");
     }
 
     [Theory]
@@ -33,7 +30,7 @@ public sealed class VacancyTests
     [InlineData(Vacancy.MaxOpenings + 1)]
     public void Orin_soni_chegaradan_chiqmaydi(int orinlar)
     {
-        var natija = Vacancy.Open(LavozimId, FirmaId, Sana, openings: orinlar);
+        var natija = Vacancy.Open(NomId, Sana, openings: orinlar);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("vakansiya.orin_soni");
@@ -42,19 +39,20 @@ public sealed class VacancyTests
     [Fact]
     public void Ochilgan_vakansiya_nomzod_qabul_qiladi()
     {
-        var natija = Vacancy.Open(LavozimId, FirmaId, Sana, openings: 3);
+        var natija = Vacancy.Open(NomId, Sana, openings: 3);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Status.ShouldBe(VacancyStatus.Open);
         natija.Value.AcceptsCandidates.ShouldBeTrue();
         natija.Value.Openings.ShouldBe(3);
         natija.Value.ClosedAt.ShouldBeNull();
+        natija.Value.VacancyTitleId.ShouldBe(NomId, "vakansiyaning yagona ma'lumotnoma havolasi — NOMI");
     }
 
     [Fact]
     public void Toxtatilgan_vakansiya_nomzod_qabul_qilmaydi()
     {
-        var vakansiya = Vacancy.Open(LavozimId, FirmaId, Sana).Value;
+        var vakansiya = Vacancy.Open(NomId, Sana).Value;
 
         var natija = vakansiya.Pause("Бюджет кутилмоқда");
 
@@ -67,7 +65,7 @@ public sealed class VacancyTests
     [Fact]
     public void Yopilgan_vakansiya_toxtatilmaydi()
     {
-        var vakansiya = Vacancy.Open(LavozimId, FirmaId, Sana).Value;
+        var vakansiya = Vacancy.Open(NomId, Sana).Value;
         vakansiya.Close(Sana.AddDays(10));
 
         var natija = vakansiya.Pause();
@@ -79,7 +77,7 @@ public sealed class VacancyTests
     [Fact]
     public void Ikki_marta_yopilmaydi()
     {
-        var vakansiya = Vacancy.Open(LavozimId, FirmaId, Sana).Value;
+        var vakansiya = Vacancy.Open(NomId, Sana).Value;
         vakansiya.Close(Sana.AddDays(10));
 
         var natija = vakansiya.Close(Sana.AddDays(11));
@@ -91,7 +89,7 @@ public sealed class VacancyTests
     [Fact]
     public void Ochilishdan_oldin_yopilmaydi()
     {
-        var vakansiya = Vacancy.Open(LavozimId, FirmaId, Sana).Value;
+        var vakansiya = Vacancy.Open(NomId, Sana).Value;
 
         var natija = vakansiya.Close(Sana.AddDays(-1));
 
@@ -104,7 +102,7 @@ public sealed class VacancyTests
     {
         // Bonvi'da odatiy hol: olingan odam bir haftada ketib qoladi
         // («91.8 Стажировкадан кетганлар»), o'rin esa yana bo'sh qoladi.
-        var vakansiya = Vacancy.Open(LavozimId, FirmaId, Sana).Value;
+        var vakansiya = Vacancy.Open(NomId, Sana).Value;
         vakansiya.Close(Sana.AddDays(10));
 
         var natija = vakansiya.Resume();
@@ -116,19 +114,31 @@ public sealed class VacancyTests
     }
 
     [Fact]
-    public void Tahrirlashda_lavozim_va_firma_ham_ozgaradi()
+    public void Tahrirlashda_nom_ham_ozgaradi()
     {
-        // Vakansiya — REJA, fakt emas: «sotuvchi emas, katta sotuvchi
-        // kerak ekan» — odatiy tuzatish.
-        var vakansiya = Vacancy.Open(LavozimId, FirmaId, Sana).Value;
-        var yangiLavozim = Guid.CreateVersion7();
+        // Vakansiya — REJA, fakt emas: «сотувчи эмас, катта сотувчи
+        // керак экан» — odatiy tuzatish.
+        var vakansiya = Vacancy.Open(NomId, Sana).Value;
+        var yangiNom = Guid.CreateVersion7();
 
-        var natija = vakansiya.Update(yangiLavozim, FirmaId, Sana, openings: 2, note: "Шошилинч");
+        var natija = vakansiya.Update(yangiNom, Sana, openings: 2, note: "Шошилинч");
 
         natija.IsSuccess.ShouldBeTrue();
-        vakansiya.PositionId.ShouldBe(yangiLavozim);
+        vakansiya.VacancyTitleId.ShouldBe(yangiNom);
         vakansiya.Openings.ShouldBe(2);
         vakansiya.Note.ShouldBe("Шошилинч");
         vakansiya.Status.ShouldBe(VacancyStatus.Open, "holat tahrirlashda o'zgarmaydi");
+    }
+
+    [Fact]
+    public void Tahrirlashda_ham_nom_bosh_qolmaydi()
+    {
+        var vakansiya = Vacancy.Open(NomId, Sana).Value;
+
+        var natija = vakansiya.Update(Guid.Empty, Sana);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("vakansiya.nom_yoq");
+        vakansiya.VacancyTitleId.ShouldBe(NomId, "rad etilgan tahrir hech narsani o'zgartirmaydi");
     }
 }

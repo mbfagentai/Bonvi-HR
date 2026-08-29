@@ -1,11 +1,14 @@
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import type { FilterOptions } from '@/features/employees/api/employees-queries'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 import type { Vacancy } from '../api/recruiting-api'
-import { useEmployeeOptions, useSaveVacancy } from '../api/recruiting-queries'
+import {
+  useEmployeeOptions,
+  useSaveVacancy,
+  useVacancyTitleOptions,
+} from '../api/recruiting-queries'
 import { RECRUITING_ERROR_FIELD, recruitingErrorCode } from '../lib/recruiting-error'
 import { orNull, today } from '../lib/recruiting-presentation'
 
@@ -16,11 +19,17 @@ const FORM_ID = 'vacancy-form'
  * (`incident-form-dialog.tsx` dagi bilan bir xil naqsh: forma bir xil,
  * farq faqat sarlavhada va `item` borligida).
  *
- * <b>Erkin SARLAVHA maydoni YO'Q va bu ataylab.</b> Vakansiyaning nomi —
- * lavozim nomi (`Vacancy` domen izohi). Alohida sarlavha bo'lganida
- * «Сотувчи (шошилинч!)» kabi yozuvlar paydo bo'lardi va ro'yxatda bir
- * xil lavozim uch xil nom bilan ko'rinardi. Shoshilinchlik va boshqa
- * tafsilotlar IZOHGA tushadi.
+ * <b>⭐ Forma ataylab QISQA: nomi, nechta odam va izoh.</b> Ilgari bu
+ * yerda lavozim, bo'lim va yuridik shaxs ham tanlanardi. Uchalasi
+ * OLIB TASHLANDI: vakansiya — e'lon, kompaniya tuzilmasidan unda hech
+ * narsa saqlanmaydi (backend'dagi `Vacancy` domen izohi). Ular endi
+ * taklif QABUL QILINGANDA so'raladi (`offer-accept-dialog.tsx`) — ya'ni
+ * o'sha paytda, qachonki javob haqiqatan ma'lum bo'ladi.
+ *
+ * <b>Nom ERKIN MATN emas, ma'lumotnomadan.</b> Erkin sarlavha bo'lganida
+ * «Сотувчи (шошилинч!)», «сотувчи консултант» kabi yozuvlar paydo
+ * bo'lardi va bitta e'lon ro'yxatda uch xil nom bilan ko'rinardi.
+ * Shoshilinchlik va boshqa tafsilotlar IZOHGA tushadi.
  *
  * <b>Holat bu yerda o'zgarmaydi.</b> To'xtatish, davom ettirish va
  * yopish — alohida amallar (`VacancyActionDialog`): ularning har biri
@@ -31,22 +40,21 @@ export function VacancyFormDialog({
   open,
   onClose,
   item,
-  options,
 }: {
   open: boolean
   onClose: () => void
   /** `null` — yangi vakansiya. */
   item: Vacancy | null
-  options: FilterOptions
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const save = useSaveVacancy()
   const employees = useEmployeeOptions()
+  // Faqat FAOL nomlar: faolsizlantirilgan e'lon nomiga yangi vakansiya
+  // ochilmaydi (ma'lumotnomalarning umumiy qoidasi).
+  const titles = useVacancyTitleOptions(true)
 
-  const [positionId, setPositionId] = useState('')
-  const [legalEntityId, setLegalEntityId] = useState('')
-  const [departmentId, setDepartmentId] = useState('')
+  const [vacancyTitleId, setVacancyTitleId] = useState('')
   const [openings, setOpenings] = useState('1')
   const [openedAt, setOpenedAt] = useState(today)
   const [responsibleEmployeeId, setResponsibleEmployeeId] = useState('')
@@ -64,9 +72,7 @@ export function VacancyFormDialog({
     setFieldError(null)
     save.reset()
 
-    setPositionId(item?.positionId ?? '')
-    setLegalEntityId(item?.legalEntityId ?? '')
-    setDepartmentId(item?.departmentId ?? '')
+    setVacancyTitleId(item?.vacancyTitleId ?? '')
     setOpenings(String(item?.openings ?? 1))
     setOpenedAt(item?.openedAt ?? today())
     setResponsibleEmployeeId(item?.responsibleEmployeeId ?? '')
@@ -76,7 +82,7 @@ export function VacancyFormDialog({
 
   if (!open) return null
 
-  const incomplete = positionId === '' || legalEntityId === ''
+  const incomplete = vacancyTitleId === ''
 
   const fieldMessage = (field: string): string | undefined =>
     fieldError?.field === field ? errorMessage(fieldError.code) : undefined
@@ -90,9 +96,7 @@ export function VacancyFormDialog({
       {
         id: item?.id ?? null,
         body: {
-          positionId,
-          legalEntityId,
-          departmentId: departmentId === '' ? null : departmentId,
+          vacancyTitleId,
           /*
             Bo'sh maydon 1 ga tushadi, `0` ga emas: `Number('')` — 0 va
             server uni «o'rin soni noto'g'ri» deb rad etardi
@@ -123,7 +127,7 @@ export function VacancyFormDialog({
       onClose={onClose}
       dismissible={!save.isPending}
       title={item === null ? t('recruiting.vacancyCreate') : t('recruiting.vacancyEdit')}
-      description={item?.position ?? undefined}
+      description={item?.title ?? undefined}
       footer={
         <>
           <Button type="button" onClick={onClose} disabled={save.isPending}>
@@ -156,47 +160,23 @@ export function VacancyFormDialog({
           </Alert>
         )}
 
-        <Select
-          label={t('employee.position')}
-          placeholder={t('recruiting.choosePosition')}
-          options={options.positions}
-          value={positionId}
-          error={fieldMessage('positionId')}
-          disabled={save.isPending}
-          onChange={(event) => {
-            const next = event.target.value
-            setPositionId(next)
-            /*
-              Lavozim tanlanganda bo'lim O'ZI to'ladi — lavozim
-              ma'lumotnomasida u allaqachon bog'langan
-              (`FilterOptions.positionDepartment`). Bu `hire-dialog.tsx`
-              dagi bilan bir xil qulaylik: HR bir xil ma'lumotni ikki
-              marta tanlamasin. Qo'lda o'zgartirish esa ochiq qoladi —
-              bitta lavozimga boshqa bo'limda ham vakansiya ochiladi.
-            */
-            const suggested = options.positionDepartment.get(next)
-            if (suggested !== undefined && departmentId === '') setDepartmentId(suggested)
-          }}
-        />
+        {/*
+          Vakansiyaning YAGONA ma'lumotnoma havolasi.
 
+          `hint` shu yerda MAJBURIY: HR ilgari bu maydonda lavozimni
+          tanlagan va ro'yxat boshqacha ekanini darhol tushunishi kerak
+          — aks holda u «lavozimim yo'q» deb o'ylab, ma'lumotnomani
+          qidirib yurardi.
+        */}
         <Select
-          label={t('employee.legalEntity')}
-          placeholder={t('recruiting.chooseLegalEntity')}
-          options={options.legalEntities}
-          value={legalEntityId}
-          error={fieldMessage('legalEntityId')}
-          disabled={save.isPending}
-          onChange={(event) => setLegalEntityId(event.target.value)}
-        />
-
-        <Select
-          label={t('employee.department')}
-          placeholder={t('recruiting.noDepartment')}
-          options={options.departments}
-          value={departmentId}
-          error={fieldMessage('departmentId')}
-          disabled={save.isPending}
-          onChange={(event) => setDepartmentId(event.target.value)}
+          label={t('recruiting.vacancyTitle')}
+          hint={t('recruiting.vacancyTitleHint')}
+          placeholder={t('recruiting.chooseVacancyTitle')}
+          options={titles.options}
+          value={vacancyTitleId}
+          error={fieldMessage('vacancyTitleId')}
+          disabled={save.isPending || titles.isPending}
+          onChange={(event) => setVacancyTitleId(event.target.value)}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">

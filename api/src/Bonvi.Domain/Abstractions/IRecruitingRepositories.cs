@@ -38,16 +38,24 @@ public interface IPipelineStageRepository : IReferenceRepository<PipelineStage>
 /// </remarks>
 public interface IVacancyRepository : IRepository<Vacancy>
 {
-    /// <summary>Shu lavozim bo'yicha OCHIQ vakansiya bormi (takrorni oldini olish).</summary>
+    /// <summary>Shu NOM bo'yicha OCHIQ vakansiya bormi (takrorni oldini olish).</summary>
     /// <remarks>
-    /// Bir xil lavozim va firma uchun ikkinchi ochiq vakansiya odatda
-    /// kiritish xatosi: nomzodlar ikkiga bo'linib ketadi va voronka
-    /// hisoboti ikki qatorga yoyiladi. Bu qat'iy TAQIQ emas, use-case
-    /// darajasidagi ogohlantirish uchun ishlatiladi.
+    /// <para>
+    /// Bir xil nom uchun ikkinchi ochiq vakansiya odatda kiritish xatosi:
+    /// nomzodlar ikkiga bo'linib ketadi va voronka hisoboti ikki qatorga
+    /// yoyiladi. Bu qat'iy TAQIQ emas, use-case darajasidagi ogohlantirish
+    /// uchun ishlatiladi.
+    /// </para>
+    /// <para>
+    /// Ilgari tekshiruv «lavozim + firma» juftligi bo'yicha edi. Ikkalasi
+    /// ham vakansiyadan olib tashlangach (sababi <see cref="Vacancy"/>
+    /// izohida), takrorning yagona belgisi NOM bo'lib qoldi — bu esa
+    /// aslida to'g'riroq: bir xil e'lonni ikki marta ochish xato,
+    /// e'lonni ikki xil firmaga bog'lash esa endi umuman ma'noga ega emas.
+    /// </para>
     /// </remarks>
     Task<bool> HasOpenAsync(
-        Guid positionId,
-        Guid legalEntityId,
+        Guid vacancyTitleId,
         Guid? exceptId = null,
         CancellationToken cancellationToken = default);
 }

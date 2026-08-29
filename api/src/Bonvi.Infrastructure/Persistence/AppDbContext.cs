@@ -192,6 +192,16 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Voronka bosqichlari — ma'lumotnoma (<c>pipeline_stages</c>).</summary>
     public DbSet<PipelineStage> PipelineStages => Set<PipelineStage>();
 
+    /// <summary>
+    /// Vakansiya nomlari — ma'lumotnoma (<c>vacancy_titles</c>).
+    /// </summary>
+    /// <remarks>
+    /// E'londa turadigan qisqa nomlar. Bu <b>lavozimlar ma'lumotnomasi
+    /// emas</b> va u bilan hech qanday bog'lanishi ham yo'q — nega ataylab
+    /// shunday qilingani <see cref="VacancyTitle"/> izohida.
+    /// </remarks>
+    public DbSet<VacancyTitle> VacancyTitles => Set<VacancyTitle>();
+
     /// <summary>Ochilgan ish o'rinlari (<c>vacancies</c>).</summary>
     public DbSet<Vacancy> Vacancies => Set<Vacancy>();
 

@@ -36,7 +36,8 @@
     "recruiting": "Recruiting",
     "vacancies": "Vacancies",
     "candidates": "Candidates",
-    "pipelineStages": "Pipeline stages"
+    "pipelineStages": "Pipeline stages",
+    "vacancyTitles": "Vacancy titles"
   },
   "roles": {
     "hr_manager": "HR manager",
@@ -307,6 +308,10 @@
       "documentTypes": {
         "title": "Document types",
         "subtitle": "Categories of documents attached to an employee card"
+      },
+      "vacancyTitles": {
+        "title": "Vacancy titles",
+        "subtitle": "Short names used in job ads — a separate list, not the company’s positions"
       }
     },
     "departments": {
@@ -527,11 +532,6 @@
     "bosqich.faol_yoq": "The pipeline has no active stages — add a stage first.",
     "bosqich_yozuvi.bosqich_yoq": "Select a stage.",
     "vakansiya.topilmadi": "Vacancy not found — the record may have been removed.",
-    "vakansiya.lavozim_yoq": "Select a position.",
-    "vakansiya.yuridik_shaxs_yoq": "Select a legal entity.",
-    "vakansiya.lavozim_topilmadi": "Position not found.",
-    "vakansiya.yuridik_shaxs_topilmadi": "Legal entity not found.",
-    "vakansiya.bolim_topilmadi": "Department not found.",
     "vakansiya.masul_topilmadi": "Responsible employee not found.",
     "vakansiya.orin_soni": "The number of openings must be between 1 and 100.",
     "vakansiya.qabul_qilmaydi": "The vacancy is not open: no new candidates can be added.",
@@ -557,7 +557,13 @@
     "taklif.muddat_sanasi": "The response deadline cannot be earlier than the date the offer was sent.",
     "taklif.javob_sanasi": "The response date cannot be earlier than the date the offer was sent.",
     "taklif.javob_berilgan": "The offer has already been answered — it can no longer be changed.",
-    "taklif.faol_mavjud": "The candidate has an offer awaiting a response — record that response first."
+    "taklif.faol_mavjud": "The candidate has an offer awaiting a response — record that response first.",
+    "vakansiya_nomi.nom_bosh": "Vacancy title is required.",
+    "vakansiya.nom_yoq": "A vacancy title must be selected.",
+    "vakansiya.nom_topilmadi": "Vacancy title not found — pick one from the “Vacancy titles” reference.",
+    "taklif.lavozim_yoq": "Position is required: record exactly which position the candidate is hired into.",
+    "taklif.yuridik_shaxs_yoq": "Legal entity is required: which company the employee is registered with.",
+    "taklif.bolim_topilmadi": "Department not found."
   },
   "language": {
     "en": "English",
@@ -966,7 +972,6 @@
     "anySource": "All sources",
     "anyStage": "All stages",
     "anyVacancy": "All vacancies",
-    "anyPosition": "All positions",
     "choosePosition": "— Choose a position —",
     "chooseLegalEntity": "— Choose a legal entity —",
     "chooseVacancy": "— Choose a vacancy —",
@@ -1110,7 +1115,6 @@
     "acceptEffectProbation": "A probation period starts — they appear in the Probation list.",
     "acceptEffectVacancy": "The vacancy’s “filled” counter increases by one.",
     "acceptEffectIrreversible": "This action CANNOT be undone.",
-    "acceptSummary": "{{position}} · {{salary}} · starts {{date}}",
     "acceptSectionDocuments": "Documents",
     "acceptSectionOrder": "Order",
     "acceptSectionTerms": "Employment terms",
@@ -1132,6 +1136,13 @@
     "stageActiveHint": "Candidates can be moved into this stage",
     "stageInactiveHint": "New candidates cannot be moved into this stage",
     "stageActivateText": "“{{name}}” returns to the funnel and becomes selectable again.",
-    "stageDeactivateText": "NEW candidates cannot be moved into “{{name}}”. Those already there stay put, and the stage name remains visible on their cards."
+    "stageDeactivateText": "NEW candidates cannot be moved into “{{name}}”. Those already there stay put, and the stage name remains visible on their cards.",
+    "vacancyTitle": "Vacancy title",
+    "vacancyTitleHint": "The name used in the job ad. This is not a company position — the position is chosen when the candidate is hired",
+    "chooseVacancyTitle": "— Choose a vacancy title —",
+    "anyVacancyTitle": "All vacancy titles",
+    "acceptSectionPlacement": "Placement",
+    "acceptPlacementHint": "Which legal entity, department and position the candidate is hired into. The vacancy does not carry this — the decision is made here.",
+    "acceptOfferSummary": "{{vacancy}} · {{salary}} · starts {{date}}"
   }
 }

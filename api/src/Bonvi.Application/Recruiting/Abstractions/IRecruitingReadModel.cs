@@ -61,8 +61,15 @@ public enum VacancySortField
     /// <summary>Ochilgan sana (sukut bo'yicha, yangidan eskiga).</summary>
     OpenedAt = 0,
 
-    /// <summary>Lavozim nomi.</summary>
-    Position = 1,
+    /// <summary>
+    /// Vakansiya nomi (e'lon nomi).
+    /// </summary>
+    /// <remarks>
+    /// Ilgari bu <c>Position</c> edi va lavozim nomi bo'yicha saralardi.
+    /// Vakansiyada lavozim qolmagach (sababi <c>Vacancy</c> izohida),
+    /// ro'yxatning yagona matnli ustuni e'lon nomi bo'lib qoldi.
+    /// </remarks>
+    Title = 1,
 }
 
 /// <summary>
@@ -117,7 +124,7 @@ public sealed record CandidatePage(IReadOnlyList<CandidateRow> Items, int Total)
 /// <param name="BirthDate">Tug'ilgan sana.</param>
 /// <param name="Speciality">Mutaxassisligi.</param>
 /// <param name="VacancyId">Vakansiya.</param>
-/// <param name="VacancyName">Vakansiyaning lavozim nomi.</param>
+/// <param name="VacancyName">Vakansiyaning nomi (e'lon nomi).</param>
 /// <param name="CurrentStageId">Joriy bosqich.</param>
 /// <param name="CurrentStageName">Joriy bosqich nomi.</param>
 /// <param name="Status">Voronkadagi holati.</param>
@@ -147,18 +154,21 @@ public sealed record CandidateRow(
 /// Vakansiyalar ro'yxatining filtri.
 /// </summary>
 /// <param name="Status">Holat bo'yicha filtr. Bo'sh — hammasi.</param>
-/// <param name="PositionId">Lavozim bo'yicha filtr.</param>
-/// <param name="DepartmentId">Bo'lim bo'yicha filtr (AYNAN shu bo'lim, shoxsiz).</param>
-/// <param name="LegalEntityId">Yuridik shaxs bo'yicha filtr.</param>
+/// <param name="VacancyTitleId">
+/// Vakansiya nomi bo'yicha filtr — «shu e'lon bo'yicha nima bo'lyapti».
+///
+/// Lavozim, bo'lim va firma filtrlari OLIB TASHLANDI: vakansiyada
+/// bunday maydonlar endi umuman yo'q (sababi <c>Vacancy</c> izohida).
+/// Ular «kim ishga olindi» degan savolga tegishli va o'sha savolga
+/// xodimlar ro'yxati javob beradi.
+/// </param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
 /// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
 /// <param name="Sort">Saralash ustuni.</param>
 /// <param name="Descending">Teskari tartib.</param>
 public sealed record VacancyListFilter(
     VacancyStatus? Status = null,
-    Guid? PositionId = null,
-    Guid? DepartmentId = null,
-    Guid? LegalEntityId = null,
+    Guid? VacancyTitleId = null,
     int Page = 1,
     int PageSize = 25,
     VacancySortField Sort = VacancySortField.OpenedAt,
@@ -173,12 +183,8 @@ public sealed record VacancyPage(IReadOnlyList<VacancyRow> Items, int Total);
 
 /// <summary>Vakansiyalar ro'yxatining bitta xom qatori.</summary>
 /// <param name="Id">Identifikator.</param>
-/// <param name="PositionId">Lavozim.</param>
-/// <param name="PositionName">Lavozim nomi.</param>
-/// <param name="LegalEntityId">Yuridik shaxs.</param>
-/// <param name="LegalEntityName">Yuridik shaxs nomi.</param>
-/// <param name="DepartmentId">Bo'lim.</param>
-/// <param name="DepartmentName">Bo'lim nomi.</param>
+/// <param name="VacancyTitleId">Vakansiya nomi (ma'lumotnoma yozuvi).</param>
+/// <param name="VacancyTitleName">Vakansiya nomining matni.</param>
 /// <param name="Openings">Nechta odam kerak.</param>
 /// <param name="Status">Holati.</param>
 /// <param name="OpenedAt">Ochilgan sana.</param>
@@ -190,12 +196,8 @@ public sealed record VacancyPage(IReadOnlyList<VacancyRow> Items, int Total);
 /// <param name="HiredCount">Ishga olinganlar soni.</param>
 public sealed record VacancyRow(
     Guid Id,
-    Guid PositionId,
-    string? PositionName,
-    Guid LegalEntityId,
-    string? LegalEntityName,
-    Guid? DepartmentId,
-    string? DepartmentName,
+    Guid VacancyTitleId,
+    string? VacancyTitleName,
     int Openings,
     VacancyStatus Status,
     DateOnly OpenedAt,

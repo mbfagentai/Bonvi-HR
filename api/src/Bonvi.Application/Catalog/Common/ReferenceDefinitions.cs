@@ -2,6 +2,7 @@ using Bonvi.Application.Catalog.Dtos;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Catalog.Common;
 
@@ -339,4 +340,52 @@ public sealed class DocumentTypeDefinition : ReferenceDefinition<DocumentType, D
 
         return Result.Success();
     }
+}
+
+/// <summary>
+/// Vakansiya nomi ma'lumotnomasining ta'rifi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Nega yozuv REKRUTING domenida, ta'rifi esa BU YERDA.</b>
+/// <c>VacancyTitle</c> — rekruting tushunchasi va u <c>Vacancy</c> ning
+/// yonida yashaydi (o'sha yerda uning ma'nosi izohlangan). Lekin
+/// MEXANIKASI bo'yicha u boshqa oltita ma'lumotnomadan hech farq
+/// qilmaydi: faqat nom, faollik va izoh. Shu sababli unga
+/// <c>PipelineStage</c> kabi alohida handlerlar YOZILMADI — u umumiy
+/// quvurdan o'tadi va yangi ma'lumotnoma qo'shish shu bitta sinf +
+/// bitta DI qatoriga tushadi.
+/// </para>
+/// <para>
+/// <b>Nega bosqichlar bilan bir xil qilinmadi.</b> <c>PipelineStage</c> ga
+/// o'z handlerlari kerak edi, chunki unda TARTIB bor va uni qayta
+/// tartiblash amali umumiy mexanizmda yo'q. Vakansiya nomlarida tartib
+/// yo'q (sababi <c>VacancyTitle</c> izohida) — ya'ni ularni umumiy
+/// quvurdan chiqarishga hech qanday sabab qolmaydi.
+/// </para>
+/// </remarks>
+public sealed class VacancyTitleDefinition : ReferenceDefinition<VacancyTitle, VacancyTitleDto>
+{
+    /// <inheritdoc />
+    public override VacancyTitleDto ToDto(VacancyTitle entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        return new VacancyTitleDto(entity.Id, entity.Name, entity.IsActive, entity.Note);
+    }
+
+    /// <inheritdoc />
+    public override Result<VacancyTitle> Create(SaveReferenceCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return VacancyTitle.Create(command.Name);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Turga xos maydon YO'Q, shu sababli bu yerda ham hech narsa
+    /// qilinmaydi: izoh asos sinfda (<c>Apply</c>) allaqachon qo'llangan.
+    /// </remarks>
+    protected override Result ApplySpecific(VacancyTitle entity, SaveReferenceCommand command)
+        => Result.Success();
 }

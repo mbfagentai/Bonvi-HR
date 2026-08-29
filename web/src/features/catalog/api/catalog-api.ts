@@ -27,6 +27,25 @@ export const SIMPLE_CATALOG_KINDS = [
   'award-types',
   'penalty-types',
   'document-types',
+  /*
+    Vakansiya nomlari — e'londa turadigan qisqa nomlar
+    («Сотувчи-консультант», «Ҳайдовчи»).
+
+    ⚠️ Bu LAVOZIMLAR ma'lumotnomasi EMAS va u bilan hech qanday
+    bog'lanishi ham yo'q. Ikkalasi ataylab ajratilgan: e'lon tashqariga
+    qaraydi va nomzod tushunadigan tilda yoziladi, lavozim esa
+    ichkariga — buyruqqa va mehnat shartnomasiga (backend'dagi
+    `VacancyTitle` domen izohida batafsil). Ular faqat bitta joyda
+    uchrashadi: taklif qabul qilinganda HR aynan qaysi shtat birligiga
+    olayotganini tanlaydi (`offer-accept-dialog.tsx`).
+
+    Yozuv tuzilishi bo'yicha yuqoridagilar bilan AYNAN bir xil (faqat
+    nom), shu sababli u ham `CatalogPage` bilan chiziladi va
+    `/api/catalog/…` yo'lagida yashaydi. Voronka BOSQICHLARI esa
+    rekruting yo'lagida qoldi — ularda tartib bor va u umumiy
+    mexanizmga sig'maydi.
+  */
+  'vacancy-titles',
 ] as const
 
 export type SimpleCatalogKind = (typeof SIMPLE_CATALOG_KINDS)[number]

@@ -13,7 +13,11 @@ import {
   TextField,
 } from '@/shared/ui'
 import type { Candidate, CandidateHireResult, JobOffer } from '../api/recruiting-api'
-import { useAcceptOffer, useEmployeeOptions } from '../api/recruiting-queries'
+import {
+  useAcceptOffer,
+  useEmployeeOptions,
+  useFilterOptions,
+} from '../api/recruiting-queries'
 import { RECRUITING_ERROR_FIELD, recruitingErrorCode } from '../lib/recruiting-error'
 import { orNull, today } from '../lib/recruiting-presentation'
 
@@ -50,6 +54,22 @@ const FORM_ID = 'offer-accept-form'
  * hujjat topshirmagan), xodimda esa JSHSHIR — asosiy identifikator
  * va dublikat qidiruvining kaliti. Bo'sh qoldirilsa ham qabul
  * o'tadi: Excel'da ham 540 xodimdan uchtasida JSHSHIR yo'q edi.
+ *
+ * <b>⭐ FIRMA, BO'LIM va LAVOZIM ham AYNAN shu yerda tanlanadi.</b>
+ * Ilgari uchalasi vakansiyadan olinardi va bu oynada umuman
+ * ko'rinmasdi. Endi vakansiya faqat E'LON — kompaniya tuzilmasidan
+ * unda hech narsa saqlanmaydi (backend'dagi `Vacancy` domen izohi).
+ * Ya'ni bu forma — <b>e'lon bilan shtat jadvali uchrashadigan yagona
+ * nuqta</b>: «Сотувчи-консультант» e'loniga kelgan odam bugun qaysi
+ * firmaga, qaysi bo'limga va qaysi shtat birligiga olinayotgani shu
+ * yerda hal bo'ladi va shu yerdan hujjatga tushadi.
+ *
+ * <b>Nega bu yaxshiroq.</b> Vakansiya ochilayotganda bu savollarning
+ * javobi ko'pincha hali yo'q («odam kerak, qaysi do'konga — ko'ramiz»),
+ * qabul kunida esa u har doim aniq. Ilgari HR javobni oldindan taxmin
+ * qilib vakansiyaga yozardi, keyin esa uni tuzatish uchun VAKANSIYANI
+ * tahrirlash kerak bo'lardi — ya'ni boshqa nomzodlarning ham
+ * «kelajagi» o'zgarardi.
  */
 export function OfferAcceptDialog({
   candidate,
@@ -67,7 +87,18 @@ export function OfferAcceptDialog({
 
   const accept = useAcceptOffer()
   const employees = useEmployeeOptions()
+  /*
+    Bo'lim, lavozim va firma ro'yxatlari — xodimlar modulining tayyor
+    hook'idan (`useFilterOptions`). NEGA nusxa yozilmadi: u aynan shu
+    uchta ma'lumotnomani yig'adi va ishga qabul formasi
+    (`hire-dialog.tsx`) allaqachon undan foydalanadi — ya'ni ikkala
+    ekranda ro'yxatlar bir xil bo'ladi va kesh ham bitta.
+  */
+  const options = useFilterOptions()
 
+  const [legalEntityId, setLegalEntityId] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
+  const [positionId, setPositionId] = useState('')
   const [respondedAt, setRespondedAt] = useState(today)
   const [responseNote, setResponseNote] = useState('')
   const [hireDate, setHireDate] = useState('')
@@ -92,6 +123,9 @@ export function OfferAcceptDialog({
     setResult(null)
     accept.reset()
 
+    setLegalEntityId('')
+    setDepartmentId('')
+    setPositionId('')
     setRespondedAt(today())
     setResponseNote('')
     // Ishga qabul sanasi — taklifdagi ish boshlash sanasi. Server ham
@@ -114,7 +148,19 @@ export function OfferAcceptDialog({
   const fieldMessage = (field: string): string | undefined =>
     fieldError?.field === field ? errorMessage(fieldError.code) : undefined
 
+  /*
+    Firma va lavozim MAJBURIY (server ularsiz «taklif.yuridik_shaxs_yoq»
+    va «taklif.lavozim_yoq» qaytaradi). Bo'lim ixtiyoriy —
+    `HireEmployeeCommand` dagi bilan bir xil.
+
+    Tugma OLDINDAN o'chiriladi: server xatosini kutib turish bu yerda
+    ayniqsa yomon bo'lardi — amal qaytarib bo'lmaydigan va HR uni
+    «bosdim, nima bo'ldi?» holatida takrorlashga urinardi.
+  */
+  const incomplete = legalEntityId === '' || positionId === ''
+
   const submit = () => {
+    if (incomplete) return
     setFailure(null)
     setFieldError(null)
 
@@ -122,6 +168,9 @@ export function OfferAcceptDialog({
       {
         id: offer.id,
         body: {
+          legalEntityId,
+          positionId,
+          departmentId: departmentId === '' ? null : departmentId,
           respondedAt: orNull(respondedAt),
           responseNote: orNull(responseNote),
           hireDate: orNull(hireDate),
@@ -236,7 +285,7 @@ export function OfferAcceptDialog({
               o'qiladigan joyda turadi.
             */
             variant="primary"
-            disabled={accept.isPending}
+            disabled={accept.isPending || incomplete}
           >
             {accept.isPending ? (
               <LoaderCircle className="animate-spin" />
@@ -273,13 +322,76 @@ export function OfferAcceptDialog({
           </ul>
         </Alert>
 
+        {/*
+          Xulosa qatorida VAKANSIYA nomi (e'lon nomi) turadi.
+
+          NEGA yangi kalit (`acceptOfferSummary`): eskisi
+          `{{position}}` o'rnini kutardi va u yerga lavozim nomi
+          qo'yilardi. Endi bu qiymat lavozim EMAS — o'rin nomini
+          o'zgartirmasdan qoldirish kod bilan matn o'rtasida jimgina
+          yolg'on hosil qilardi.
+        */}
         <p className="text-subhead text-[var(--fg-secondary)]">
-          {t('recruiting.acceptSummary', {
-            position: offer.vacancy ?? '—',
+          {t('recruiting.acceptOfferSummary', {
+            vacancy: offer.vacancy ?? '—',
             salary: money(offer.salary.amount, offer.salary.currency),
             date: offer.startDate,
           })}
         </p>
+
+        {/*
+          ⭐ Shtat birligi — BIRINCHI bo'lim va ataylab shunday: qolgan
+          maydonlarning yarmi ixtiyoriy, bu esa qarorning o'zi. Yuqoridagi
+          jumla «qaysi e'longa kelgan»ini aytadi, bu bo'lim esa «qayerga
+          olinadi»ni so'raydi — ikkalasi yonma-yon turgani muhim.
+        */}
+        <Section
+          title={t('recruiting.acceptSectionPlacement')}
+          hint={t('recruiting.acceptPlacementHint')}
+        >
+          <Select
+            label={t('employee.legalEntity')}
+            placeholder={t('recruiting.chooseLegalEntity')}
+            options={options.legalEntities}
+            value={legalEntityId}
+            error={fieldMessage('legalEntityId')}
+            disabled={accept.isPending || options.isPending}
+            onChange={(event) => setLegalEntityId(event.target.value)}
+          />
+
+          <Select
+            label={t('employee.position')}
+            placeholder={t('recruiting.choosePosition')}
+            options={options.positions}
+            value={positionId}
+            error={fieldMessage('positionId')}
+            disabled={accept.isPending || options.isPending}
+            onChange={(event) => {
+              const next = event.target.value
+              setPositionId(next)
+              /*
+                Lavozim tanlanganda bo'lim O'ZI to'ladi — ma'lumotnomada
+                lavozim allaqachon bo'limga biriktirilgan
+                (`FilterOptions.positionDepartment`). Bu `hire-dialog.tsx`
+                dagi AYNAN o'sha qulaylik va u yerdagi bilan bir xil
+                qoida: faqat bo'lim BO'SH bo'lganda ishlaydi, ya'ni HR
+                ataylab boshqa bo'lim tanlagan bo'lsa — tegilmaydi.
+              */
+              const suggested = options.positionDepartment.get(next)
+              if (suggested !== undefined && departmentId === '') setDepartmentId(suggested)
+            }}
+          />
+
+          <Select
+            label={t('employee.department')}
+            placeholder={t('recruiting.noDepartment')}
+            options={options.departments}
+            value={departmentId}
+            error={fieldMessage('departmentId')}
+            disabled={accept.isPending || options.isPending}
+            onChange={(event) => setDepartmentId(event.target.value)}
+          />
+        </Section>
 
         <Section title={t('recruiting.acceptSectionDocuments')}>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -421,12 +533,26 @@ export function OfferAcceptDialog({
  * ixtiyoriy va HR ko'pincha faqat buyruq raqamini yozadi. Qadamga
  * bo'lish uni uch marta «Davom etish» bosishga majbur qilardi.
  */
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string
+  /** Bo'lim nima uchun kerakligini bir jumlada aytadi. Faqat kerak joyda. */
+  hint?: string
+  children: ReactNode
+}) {
   return (
     <section className="space-y-4 rounded-lg border border-[var(--border)] bg-[var(--bg-sunken)] p-4">
-      <h3 className="text-caption1 font-semibold tracking-wider text-[var(--fg-tertiary)] uppercase">
-        {title}
-      </h3>
+      <div className="space-y-1">
+        <h3 className="text-caption1 font-semibold tracking-wider text-[var(--fg-tertiary)] uppercase">
+          {title}
+        </h3>
+        {hint !== undefined && (
+          <p className="text-caption1 text-[var(--fg-tertiary)]">{hint}</p>
+        )}
+      </div>
       {children}
     </section>
   )

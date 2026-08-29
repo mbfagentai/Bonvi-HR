@@ -1,5 +1,4 @@
 using Bonvi.Domain.Employees;
-using Bonvi.Domain.Organization;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -38,12 +37,40 @@ public sealed class PipelineStageConfiguration : IEntityTypeConfiguration<Pipeli
 }
 
 /// <summary>
+/// <see cref="VacancyTitle"/> uchun jadval konfiguratsiyasi (<c>vacancy_titles</c>).
+/// </summary>
+/// <remarks>
+/// Butunlay odatiy ma'lumotnoma: <c>ConfigureReference</c> dan boshqa hech
+/// narsa kerak emas. <see cref="PipelineStageConfiguration"/> ga
+/// qo'shimcha indeks kerak edi (voronkadagi tartib uchun), bu yerda esa
+/// yagona so'rov «faol nomlarni alifbo bo'yicha ber» — uni asosdagi
+/// <c>(is_active, name)</c> indeksi to'liq qoplaydi.
+/// </remarks>
+public sealed class VacancyTitleConfiguration : IEntityTypeConfiguration<VacancyTitle>
+{
+    public void Configure(EntityTypeBuilder<VacancyTitle> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ConfigureReference("vacancy_titles");
+    }
+}
+
+/// <summary>
 /// <see cref="Vacancy"/> uchun jadval konfiguratsiyasi (<c>vacancies</c>).
 /// </summary>
 /// <remarks>
-/// Tashqi kalitlar hamma joyda <c>Restrict</c> — <c>EmploymentConfiguration</c>
+/// <para>
+/// Tashqi kalitlar <c>Restrict</c> — <c>EmploymentConfiguration</c>
 /// dagi bilan bir xil sabab: ma'lumotnomadagi yozuv o'chirilganda uning
 /// ortidan vakansiya tarixi yo'q bo'lib ketishi mumkin emas.
+/// </para>
+/// <para>
+/// <b>Lavozim, bo'lim va firma ustunlari YO'Q.</b> Ular vakansiyadan
+/// butunlay olib tashlandi (sababi <see cref="Vacancy"/> izohida), shu
+/// bilan birga ularning tashqi kalitlari va indekslari ham. Jadvalda
+/// ma'lumotnomaga yagona havola qoldi — <c>vacancy_title_id</c>.
+/// </para>
 /// </remarks>
 public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
 {
@@ -69,19 +96,9 @@ public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
         builder.Property(vacancy => vacancy.Note)
             .HasMaxLength(2000);
 
-        builder.HasOne<Position>()
+        builder.HasOne<VacancyTitle>()
             .WithMany()
-            .HasForeignKey(vacancy => vacancy.PositionId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne<LegalEntity>()
-            .WithMany()
-            .HasForeignKey(vacancy => vacancy.LegalEntityId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne<Department>()
-            .WithMany()
-            .HasForeignKey(vacancy => vacancy.DepartmentId)
+            .HasForeignKey(vacancy => vacancy.VacancyTitleId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Mas'ul xodim (rekruter) — u keyinchalik ishdan ketsa ham, kim
@@ -99,13 +116,9 @@ public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
         // indeks saralashni ham qoplaydi.
         builder.HasIndex(vacancy => new { vacancy.Status, vacancy.OpenedAt });
 
-        // «Shu lavozimga ochiq vakansiya bormi» (takror tekshiruvi) va
-        // lavozim bo'yicha filtr.
-        builder.HasIndex(vacancy => vacancy.PositionId);
-
-        // Firma va bo'lim bo'yicha filtrlar.
-        builder.HasIndex(vacancy => vacancy.LegalEntityId);
-        builder.HasIndex(vacancy => vacancy.DepartmentId);
+        // «Shu nom bo'yicha ochiq vakansiya bormi» (takror tekshiruvi) va
+        // nom bo'yicha filtr — ro'yxatning yagona qolgan filtri.
+        builder.HasIndex(vacancy => vacancy.VacancyTitleId);
     }
 }
 

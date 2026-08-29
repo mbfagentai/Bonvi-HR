@@ -28,7 +28,7 @@ import {
   type DataColumn,
 } from '@/shared/ui'
 import type { Vacancy } from '../api/recruiting-api'
-import { useFilterOptions, useVacancies } from '../api/recruiting-queries'
+import { useVacancies } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
 import { RECRUITING_MANAGE, VACANCY_LOOK } from '../lib/recruiting-presentation'
 import {
@@ -83,7 +83,7 @@ const route = getRouteApi('/_app/vakansiyalar')
  * Ma'lumotnomalarda qator bosilishi tahrirlash oynasini ochadi
  * (`catalog-page.tsx`), lekin vakansiya ma'lumotnoma emas — u ish
  * jarayoni. HR kuniga o'nlab marta «bu o'ringa kimlar bor?» deb
- * qaraydi va yiliga bir marta lavozimini tuzatadi. Tahrirlash esa
+ * qaraydi va yiliga bir marta e'lon nomini tuzatadi. Tahrirlash esa
  * alohida ikona bilan qoladi.
  */
 export function VacanciesPage() {
@@ -98,7 +98,6 @@ export function VacanciesPage() {
   const page = search.page ?? 1
   const sort = search.sort ?? DEFAULT_SORT
   const filters = useMemo(() => searchToFilters(search), [search])
-  const options = useFilterOptions()
 
   const [editing, setEditing] = useState<Vacancy | null>(null)
   const [creating, setCreating] = useState(false)
@@ -106,9 +105,7 @@ export function VacanciesPage() {
 
   const query = useVacancies({
     ...(filters.status === '' ? {} : { status: filters.status }),
-    ...(filters.positionId === '' ? {} : { positionId: filters.positionId }),
-    ...(filters.departmentId === '' ? {} : { departmentId: filters.departmentId }),
-    ...(filters.legalEntityId === '' ? {} : { legalEntityId: filters.legalEntityId }),
+    ...(filters.vacancyTitleId === '' ? {} : { vacancyTitleId: filters.vacancyTitleId }),
     page,
     pageSize: PAGE_SIZE,
     sort,
@@ -170,24 +167,26 @@ export function VacanciesPage() {
 
   const columns = useMemo<Array<DataColumn<Vacancy>>>(() => {
     const definitions: Array<DataColumn<Vacancy>> = [
-      helper.accessor('position', {
-        header: t('employee.position'),
+      /*
+        Ustun sarlavhasi «Lavozim» EMAS, «Vakansiya nomi»: bu e'londa
+        turadigan nom va u kompaniya lavozimi bilan ataylab
+        aralashtirilmaydi (backend'dagi `VacancyTitle` domen izohi).
+
+        Ikkinchi qator (bo'lim) ham OLIB TASHLANDI — vakansiyada bo'lim
+        yo'q. Bir xil nomli ikkita ochiq e'lonni ajratadigan narsa
+        endi «Ochilgan» ustuni.
+      */
+      helper.accessor('title', {
+        header: t('recruiting.vacancyTitle'),
         /*
           YAGONA `minWidth`li ustun — qoidaga ko'ra jadvalda bittadan
-          ortiq bo'lmasligi kerak (`data-table.tsx`). Lavozim va bo'lim
-          nomlari uzunligi oldindan noma'lum, shu sababli ortgan joyni
-          aynan shu ustun oladi.
+          ortiq bo'lmasligi kerak (`data-table.tsx`). E'lon nomlarining
+          uzunligi oldindan noma'lum, shu sababli ortgan joyni aynan shu
+          ustun oladi.
         */
         meta: { minWidth: '260px' },
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <p className="truncate-1 font-medium">{row.original.position ?? '—'}</p>
-            {row.original.department !== null && (
-              <p className="truncate-1 mt-0.5 text-caption1 text-[var(--fg-tertiary)]">
-                {row.original.department}
-              </p>
-            )}
-          </div>
+          <p className="truncate-1 font-medium">{row.original.title ?? '—'}</p>
         ),
       }),
 
@@ -259,13 +258,12 @@ export function VacanciesPage() {
         cell: ({ getValue }) => <DateCell value={getValue()} />,
       }),
 
-      helper.accessor('legalEntity', {
-        header: t('employee.legalEntity'),
-        enableSorting: false,
-        meta: { width: '180px', hideOnMobile: true },
-        cell: ({ getValue }) => <TextCell value={getValue()} />,
-      }),
-
+      /*
+        «Yuridik shaxs» ustuni O'CHIRILDI: vakansiyada firma yo'q. Xodim
+        qaysi firmaga rasmiylashtirilgani ishga qabulda hal qilinadi va
+        xodim kartasida ko'rinadi — vakansiya ro'yxatida esa u har doim
+        bo'sh katak bo'lardi.
+      */
       helper.accessor('responsibleName', {
         header: t('recruiting.responsible'),
         enableSorting: false,
@@ -331,7 +329,7 @@ export function VacanciesPage() {
       )}
 
       <Card className="overflow-hidden">
-        <VacanciesToolbar filters={filters} onChange={changeFilters} options={options} />
+        <VacanciesToolbar filters={filters} onChange={changeFilters} />
 
         <DataTable
           columns={columns}
@@ -340,7 +338,7 @@ export function VacanciesPage() {
           loading={firstLoad}
           skeletonRows={6}
           onRowClick={openCandidates}
-          rowLabel={(item) => item.position ?? '—'}
+          rowLabel={(item) => item.title ?? '—'}
           sorting={sorting}
           onSortingChange={changeSorting}
           empty={
@@ -385,7 +383,6 @@ export function VacanciesPage() {
       <VacancyFormDialog
         open={creating || editing !== null}
         item={editing}
-        options={options}
         onClose={() => {
           setCreating(false)
           setEditing(null)

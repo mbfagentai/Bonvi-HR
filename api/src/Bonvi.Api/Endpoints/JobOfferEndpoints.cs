@@ -37,10 +37,29 @@ public sealed record RespondJobOfferRequest(DateOnly? At = null, string? Note = 
 /// Taklif qabul qilindi — nomzod xodimga aylanadi.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Shaxsiy ma'lumot NOMZODDAN ko'chadi va bu yerda qayta so'ralmaydi.
 /// JSHSHIR va pasport esa aynan shu yerda: nomzod hujjatlarini ishga qabul
 /// kuni keltiradi.
+/// </para>
+/// <para>
+/// <b>⭐ Firma, bo'lim va lavozim ham SHU YERDA.</b> Ilgari ular
+/// vakansiyadan olinardi; endi vakansiya faqat E'LON va unda kompaniya
+/// tuzilmasidan hech narsa yo'q (sababi <c>Vacancy</c> domen izohida).
+/// Ya'ni bu so'rov — e'lon bilan shtat jadvali uchrashadigan yagona
+/// nuqta.
+/// </para>
 /// </remarks>
+/// <param name="LegalEntityId">
+/// Qaysi firmaga rasmiylashtiriladi — «/api/catalog/legal-entities» dan.
+/// MAJBURIY.
+/// </param>
+/// <param name="PositionId">
+/// Qaysi lavozimga — «/api/catalog/positions» dan. MAJBURIY.
+/// </param>
+/// <param name="DepartmentId">
+/// Qaysi bo'limga — «/api/catalog/departments» dan. Ixtiyoriy.
+/// </param>
 /// <param name="RespondedAt">Javob sanasi. Bo'sh — bugun.</param>
 /// <param name="ResponseNote">Javob izohi.</param>
 /// <param name="HireDate">Ishga qabul sanasi. Bo'sh — taklifdagi ish boshlash sanasi.</param>
@@ -54,6 +73,9 @@ public sealed record RespondJobOfferRequest(DateOnly? At = null, string? Note = 
 /// <param name="ResponsibleEmployeeId">Biriktirilgan xodim (mentor).</param>
 /// <param name="ProbationDays">Sinov muddati (kun). Bo'sh — lavozimdagi qiymat yoki 90.</param>
 public sealed record AcceptJobOfferRequest(
+    Guid LegalEntityId = default,
+    Guid PositionId = default,
+    Guid? DepartmentId = null,
     DateOnly? RespondedAt = null,
     string? ResponseNote = null,
     DateOnly? HireDate = null,
@@ -226,6 +248,9 @@ public static class JobOfferEndpoints
                     .HandleAsync(
                         new AcceptJobOfferCommand(
                             id,
+                            body.LegalEntityId,
+                            body.PositionId,
+                            body.DepartmentId,
                             body.RespondedAt,
                             body.ResponseNote,
                             body.HireDate,
@@ -251,8 +276,13 @@ public static class JobOfferEndpoints
                 "bo'ladi, nomzod «ishga olingan» bo'lib voronkadan chiqadi, 1-bosqichning " +
                 "ishga qabul oqimi ishga tushadi — xodim kartasi, mehnat munosabati, " +
                 "ishga qabul buyrug'i va MAJBURIY sinov muddati. " +
-                "Lavozim/bo'lim/firma VAKANSIYADAN, oklad va ish boshlash sanasi " +
-                "TAKLIFDAN, F.I.Sh./telefon/tug'ilgan sana/manzil/mutaxassislik " +
+                "«legalEntityId» va «positionId» MAJBURIY, «departmentId» ixtiyoriy — " +
+                "ular VAKANSIYADAN OLINMAYDI: vakansiya faqat e'lon va unda " +
+                "kompaniya tuzilmasidan hech narsa yo'q. Bo'sh qoldirilsa " +
+                "«taklif.yuridik_shaxs_yoq» yoki «taklif.lavozim_yoq» (400), " +
+                "mavjud bo'lmagan bo'lim uchun «taklif.bolim_topilmadi» (404). " +
+                "Oklad va ish boshlash sanasi TAKLIFDAN, " +
+                "F.I.Sh./telefon/tug'ilgan sana/manzil/mutaxassislik " +
                 "NOMZODDAN ko'chadi — ularni qayta kiritish kerak emas. " +
                 "«probationDays» 0 yoki manfiy bo'lsa «sinov.majburiy» (400): " +
                 "sinovsiz qabul YO'Q. Nomzod allaqachon ishga olingan bo'lsa — " +

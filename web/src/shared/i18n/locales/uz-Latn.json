@@ -36,7 +36,8 @@
     "recruiting": "Rekruting",
     "vacancies": "Vakansiyalar",
     "candidates": "Nomzodlar",
-    "pipelineStages": "Voronka bosqichlari"
+    "pipelineStages": "Voronka bosqichlari",
+    "vacancyTitles": "Vakansiya nomlari"
   },
   "roles": {
     "hr_manager": "HR menejeri",
@@ -307,6 +308,10 @@
       "documentTypes": {
         "title": "Hujjat turlari",
         "subtitle": "Xodim kartasiga biriktiriladigan hujjatlar turkumi"
+      },
+      "vacancyTitles": {
+        "title": "Vakansiya nomlari",
+        "subtitle": "E’londa turadigan qisqa nomlar — kompaniya lavozimlaridan alohida ro‘yxat"
       }
     },
     "departments": {
@@ -527,11 +532,6 @@
     "bosqich.faol_yoq": "Voronkada bironta ham faol bosqich yo‘q — avval bosqich qo‘shing.",
     "bosqich_yozuvi.bosqich_yoq": "Bosqich ko‘rsatilishi shart.",
     "vakansiya.topilmadi": "Vakansiya topilmadi — u o‘chirilgan bo‘lishi mumkin.",
-    "vakansiya.lavozim_yoq": "Lavozim ko‘rsatilishi shart.",
-    "vakansiya.yuridik_shaxs_yoq": "Yuridik shaxs ko‘rsatilishi shart.",
-    "vakansiya.lavozim_topilmadi": "Lavozim topilmadi.",
-    "vakansiya.yuridik_shaxs_topilmadi": "Yuridik shaxs topilmadi.",
-    "vakansiya.bolim_topilmadi": "Bo‘lim topilmadi.",
     "vakansiya.masul_topilmadi": "Mas’ul xodim topilmadi.",
     "vakansiya.orin_soni": "Kerakli odamlar soni 1 dan 100 gacha bo‘lishi kerak.",
     "vakansiya.qabul_qilmaydi": "Vakansiya ochiq emas: unga yangi nomzod kiritib bo‘lmaydi.",
@@ -557,7 +557,13 @@
     "taklif.muddat_sanasi": "Javob muddati taklif yuborilgan sanadan oldin bo‘lishi mumkin emas.",
     "taklif.javob_sanasi": "Javob sanasi taklif yuborilgan sanadan oldin bo‘lishi mumkin emas.",
     "taklif.javob_berilgan": "Taklifga allaqachon javob berilgan — uni o‘zgartirib bo‘lmaydi.",
-    "taklif.faol_mavjud": "Nomzodga yuborilgan va javobi kelmagan taklif bor — avval unga javob yozing."
+    "taklif.faol_mavjud": "Nomzodga yuborilgan va javobi kelmagan taklif bor — avval unga javob yozing.",
+    "vakansiya_nomi.nom_bosh": "Vakansiya nomi kiritilishi shart.",
+    "vakansiya.nom_yoq": "Vakansiya nomi ko‘rsatilishi shart.",
+    "vakansiya.nom_topilmadi": "Vakansiya nomi topilmadi — u «Vakansiya nomlari» ma’lumotnomasidan tanlanadi.",
+    "taklif.lavozim_yoq": "Lavozim ko‘rsatilishi shart: nomzod aynan qaysi lavozimga olinayotgani yozilishi kerak.",
+    "taklif.yuridik_shaxs_yoq": "Yuridik shaxs ko‘rsatilishi shart: xodim qaysi firmaga rasmiylashtiriladi.",
+    "taklif.bolim_topilmadi": "Bo‘lim topilmadi."
   },
   "language": {
     "en": "English",
@@ -966,7 +972,6 @@
     "anySource": "Barcha manbalar",
     "anyStage": "Barcha bosqichlar",
     "anyVacancy": "Barcha vakansiyalar",
-    "anyPosition": "Barcha lavozimlar",
     "choosePosition": "— Lavozimni tanlang —",
     "chooseLegalEntity": "— Yuridik shaxsni tanlang —",
     "chooseVacancy": "— Vakansiyani tanlang —",
@@ -1110,7 +1115,6 @@
     "acceptEffectProbation": "Sinov muddati boshlanadi — u «Sinov muddati» ro‘yxatiga tushadi.",
     "acceptEffectVacancy": "Vakansiyaning «to‘ldirildi» sanog‘i bittaga ortadi.",
     "acceptEffectIrreversible": "Bu amalni QAYTARIB BO‘LMAYDI.",
-    "acceptSummary": "{{position}} · {{salary}} · ish boshlash: {{date}}",
     "acceptSectionDocuments": "Hujjatlar",
     "acceptSectionOrder": "Buyruq",
     "acceptSectionTerms": "Ish shartlari",
@@ -1132,6 +1136,13 @@
     "stageActiveHint": "Nomzodlarni bu bosqichga o‘tkazish mumkin",
     "stageInactiveHint": "Yangi nomzod bu bosqichga o‘tkazilmaydi",
     "stageActivateText": "«{{name}}» yana voronkaga qaytadi va uni tanlash mumkin bo‘ladi.",
-    "stageDeactivateText": "«{{name}}» ga YANGI nomzod o‘tkazilmaydi. Unda TURGAN nomzodlar joyida qoladi va bosqich nomi ularning kartasida ko‘rinib turadi."
+    "stageDeactivateText": "«{{name}}» ga YANGI nomzod o‘tkazilmaydi. Unda TURGAN nomzodlar joyida qoladi va bosqich nomi ularning kartasida ko‘rinib turadi.",
+    "vacancyTitle": "Vakansiya nomi",
+    "vacancyTitleHint": "E’londa turadigan nom. Bu kompaniya lavozimi emas — lavozim ishga qabulda tanlanadi",
+    "chooseVacancyTitle": "— Vakansiya nomini tanlang —",
+    "anyVacancyTitle": "Barcha vakansiya nomlari",
+    "acceptSectionPlacement": "Ish joyi",
+    "acceptPlacementHint": "Nomzod qaysi firmaga, bo‘limga va lavozimga olinadi. Vakansiyada bu ma’lumot yo‘q — qaror aynan shu yerda qabul qilinadi.",
+    "acceptOfferSummary": "{{vacancy}} · {{salary}} · ish boshlash: {{date}}"
   }
 }

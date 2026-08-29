@@ -65,12 +65,23 @@ internal sealed class RecruitingTestContext
 
     public IJobOfferRepository Offers { get; } = Substitute.For<IJobOfferRepository>();
 
+    /// <summary>Vakansiya nomlari ma'lumotnomasi — vakansiyaning yagona havolasi.</summary>
+    /// <remarks>
+    /// Ilgari vakansiya lavozim, bo'lim va firmaga bog'langan edi va ularning
+    /// mock'lari <see cref="EmployeeTestContext"/> dan olinardi. Endi
+    /// vakansiyada kompaniya tuzilmasidan hech narsa yo'q (sababi
+    /// <c>Vacancy</c> izohida), shu sababli bu yerda faqat SHU ma'lumotnoma
+    /// kerak.
+    /// </remarks>
+    public IReferenceRepository<VacancyTitle> Titles { get; } =
+        Substitute.For<IReferenceRepository<VacancyTitle>>();
+
     public IUnitOfWork UnitOfWork => Employees.UnitOfWork;
 
     public IClock Clock => Employees.Clock;
 
     public RecruitingMapper Mapper => new(
-        Stages, Vacancies, Offers, Candidates, Employees.Employments, Employees.Employees, Employees.Names);
+        Stages, Vacancies, Offers, Candidates, Employees.Employments, Employees.Employees, Titles);
 
     /// <summary>1-bosqichning HAQIQIY ishga qabul handleri (mock emas).</summary>
     /// <remarks>
@@ -116,21 +127,28 @@ internal sealed class RecruitingTestContext
             .Returns<IReadOnlyList<PipelineStage>>([.. stages.Where(stage => stage.IsActive)]);
     }
 
+    /// <summary>Bazada mavjud vakansiya nomi (ma'lumotnoma yozuvi).</summary>
+    public VacancyTitle ExistingTitle(string name = "Сотувчи-консультант")
+    {
+        var title = VacancyTitle.Create(name).Value;
+
+        Titles.GetByIdAsync(title.Id, Arg.Any<CancellationToken>()).Returns(title);
+        Titles.ExistsAsync(title.Id, Arg.Any<CancellationToken>()).Returns(true);
+
+        return title;
+    }
+
     /// <summary>Bazada mavjud vakansiya.</summary>
     /// <remarks>
-    /// Lavozim ATAYLAB tasodifiy identifikator emas, <see cref="EmployeeTestContext"/>
-    /// bilgan HAQIQIY lavozim: taklif qabul qilinganda vakansiyaning
-    /// lavozimi to'g'ridan-to'g'ri ishga qabul buyrug'iga tushadi va u yerda
-    /// ma'lumotnomadan izlanadi. Tasodifiy identifikator bilan har bir
-    /// qabul testi «lavozim.topilmadi» bilan yiqilardi — ya'ni bog'lanish
-    /// aynan shu joyda tekshirilib turibdi.
+    /// Ilgari bu yerda lavozim ATAYLAB haqiqiy lavozim edi: u vakansiyadan
+    /// to'g'ridan-to'g'ri ishga qabul buyrug'iga tushardi. Endi bunday
+    /// bog'lanish yo'q — lavozim qabul BUYRUG'IDA beriladi (sababi
+    /// <c>AcceptJobOfferCommand</c> izohida), vakansiyada esa faqat e'lon
+    /// nomi qoldi.
     /// </remarks>
-    public Vacancy ExistingVacancy(Guid? positionId = null, Guid? legalEntityId = null, bool open = true)
+    public Vacancy ExistingVacancy(Guid? vacancyTitleId = null, bool open = true)
     {
-        var vacancy = Vacancy.Open(
-            positionId ?? Employees.ExistingPosition().Id,
-            legalEntityId ?? Guid.CreateVersion7(),
-            Today.AddDays(-10)).Value;
+        var vacancy = Vacancy.Open(vacancyTitleId ?? ExistingTitle().Id, Today.AddDays(-10)).Value;
 
         if (!open)
         {

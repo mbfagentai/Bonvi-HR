@@ -9,6 +9,7 @@ using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Api.Endpoints;
 
@@ -70,6 +71,22 @@ public static class CatalogEndpoints
 
         MapSimpleReference<DocumentType, DocumentTypeDto>(
             group, "document-types", "DocumentTypes", "DocumentType", "Hujjat turlari");
+
+        // Vakansiya nomlari — e'londa turadigan qisqa nomlar.
+        //
+        // NEGA bu yerda, `/api/recruiting/…` da emas: bu ma'lumotnoma
+        // mexanikasi bo'yicha yuqoridagi oltitasi bilan AYNAN bir xil
+        // (faqat nom, faollik, izoh) va foydalanuvchi uni «ma'lumotnomalar»
+        // bo'limining ichida ko'radi. Voronka BOSQICHLARI esa rekruting
+        // yo'lagida qoldi va buning sababi boshqa: ular tartibga ega va
+        // ularni boshqarish HR ning ish jarayonini o'zgartiradi
+        // (`Permissions.RecruitingView` izohi).
+        //
+        // ⚠️ Ma'lumotnomaning O'ZI Domain'ning `Recruiting` bo'limida
+        // yashaydi — u rekruting tushunchasi (sababi `VacancyTitle`
+        // izohida). Bu yerda faqat uning MARSHRUTI turadi.
+        MapSimpleReference<VacancyTitle, VacancyTitleDto>(
+            group, "vacancy-titles", "VacancyTitles", "VacancyTitle", "Vakansiya nomlari");
 
         // ---------- Daraxt va vazifalar: o'z qoidalari bor ----------
         MapDepartments(group);

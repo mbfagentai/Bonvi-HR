@@ -27,17 +27,21 @@ public sealed record PipelineStageDto(
 /// Vakansiya — ro'yxat va karta uchun umumiy ko'rinish.
 /// </summary>
 /// <remarks>
-/// Identifikatorlar YONIDA nomlar ham qaytadi (bo'lim, lavozim, firma) —
-/// butun loyihadagi bir xil naqsh: mijozda identifikatorni nomga
-/// aylantiradigan hech narsa yo'q.
+/// <para>
+/// Identifikator YONIDA nom ham qaytadi — butun loyihadagi bir xil
+/// naqsh: mijozda identifikatorni nomga aylantiradigan hech narsa yo'q.
+/// </para>
+/// <para>
+/// <b>Lavozim, bo'lim va firma maydonlari YO'Q va bu ataylab.</b>
+/// Vakansiya — e'lon; kompaniya tuzilmasidan unda hech narsa
+/// saqlanmaydi (batafsil sabab <see cref="Vacancy"/> izohida). Shu
+/// uchtasi taklif QABUL QILINGANDA tanlanadi va o'sha yerdan
+/// <c>HireEmployeeCommand</c> ga tushadi.
+/// </para>
 /// </remarks>
 /// <param name="Id">Identifikator.</param>
-/// <param name="PositionId">Lavozim.</param>
-/// <param name="Position">Lavozim nomi.</param>
-/// <param name="LegalEntityId">Yuridik shaxs.</param>
-/// <param name="LegalEntity">Yuridik shaxs nomi.</param>
-/// <param name="DepartmentId">Bo'lim.</param>
-/// <param name="Department">Bo'lim nomi.</param>
+/// <param name="VacancyTitleId">Vakansiya nomi — ma'lumotnoma yozuvi.</param>
+/// <param name="Title">Vakansiya nomining matni.</param>
 /// <param name="Openings">Nechta odam kerak.</param>
 /// <param name="Status">Open | Paused | Closed.</param>
 /// <param name="OpenedAt">Ochilgan sana.</param>
@@ -53,12 +57,8 @@ public sealed record PipelineStageDto(
 /// </param>
 public sealed record VacancyDto(
     Guid Id,
-    Guid PositionId,
-    string? Position,
-    Guid LegalEntityId,
-    string? LegalEntity,
-    Guid? DepartmentId,
-    string? Department,
+    Guid VacancyTitleId,
+    string? Title,
     int Openings,
     VacancyStatus Status,
     DateOnly OpenedAt,
@@ -103,7 +103,7 @@ public sealed record CandidateStageEntryDto(
 /// <param name="BirthDate">Tug'ilgan sana.</param>
 /// <param name="Speciality">Mutaxassisligi.</param>
 /// <param name="VacancyId">Qaysi vakansiyaga.</param>
-/// <param name="Vacancy">Vakansiyaning lavozim nomi.</param>
+/// <param name="Vacancy">Vakansiyaning nomi (e'lon nomi).</param>
 /// <param name="CurrentStageId">Joriy bosqich.</param>
 /// <param name="CurrentStage">Joriy bosqich nomi.</param>
 /// <param name="Status">InProgress | Rejected | Hired | Withdrawn.</param>
@@ -142,7 +142,7 @@ public sealed record CandidateListItemDto(
 /// <param name="Address">Manzil.</param>
 /// <param name="Speciality">Mutaxassisligi.</param>
 /// <param name="VacancyId">Qaysi vakansiyaga.</param>
-/// <param name="Vacancy">Vakansiyaning lavozim nomi.</param>
+/// <param name="Vacancy">Vakansiyaning nomi (e'lon nomi).</param>
 /// <param name="CurrentStageId">Joriy bosqich.</param>
 /// <param name="CurrentStage">Joriy bosqich nomi.</param>
 /// <param name="Status">Voronkadagi holati.</param>
@@ -189,7 +189,7 @@ public sealed record CandidateDto(
 /// <param name="CandidateId">Nomzod.</param>
 /// <param name="CandidateName">Nomzodning F.I.Sh.</param>
 /// <param name="VacancyId">Vakansiya.</param>
-/// <param name="Vacancy">Vakansiyaning lavozim nomi.</param>
+/// <param name="Vacancy">Vakansiyaning nomi (e'lon nomi).</param>
 /// <param name="Salary">Taklif qilingan oylik ish haqi.</param>
 /// <param name="StartDate">Ish boshlash sanasi.</param>
 /// <param name="SentAt">Yuborilgan sana.</param>

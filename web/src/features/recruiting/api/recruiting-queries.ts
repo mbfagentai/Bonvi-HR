@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
+import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { fileNameFromDisposition, saveBlobAs } from '@/shared/lib/download'
 import type { SelectOption } from '@/shared/ui'
 import {
@@ -63,6 +64,40 @@ export { useFilterOptions } from '@/features/employees/api/employees-queries'
  * paytida faqat shu qator o'zgaradi.
  */
 export { useEmployeeOptions } from '@/features/safety/api/incidents-queries'
+
+/** Ma'lumotnoma yo'li — bitta joyda, chop etish xatosiga qarshi. */
+const VACANCY_TITLES_KIND = 'vacancy-titles' as const
+
+/**
+ * Vakansiya nomlari — TANLASH ro'yxati uchun.
+ *
+ * ⚠️ Bu LAVOZIMLAR ro'yxati EMAS (`useFilterOptions().positions`). Ikkalasi
+ * ataylab ajratilgan: e'lon nomi vakansiya ochilganda tanlanadi, lavozim
+ * esa taklif qabul qilinganda (`offer-accept-dialog.tsx`). Nega ular bir
+ * narsa emasligi backend'dagi `VacancyTitle` domen izohida.
+ *
+ * NEGA `useCatalogList` to'g'ridan-to'g'ri qayta ishlatiladi: yozuv
+ * `/api/catalog/vacancy-titles` da yashaydi va ma'lumotnomalar moduli
+ * uni allaqachon o'qiy oladi (`useIncentiveTypes` bilan aynan bir xil
+ * naqsh). Nusxa yozish ikkita kesh kaliti hosil qilardi.
+ *
+ * @param onlyActive `true` — vakansiya OCHISHDA: faolsizlantirilgan
+ *   nomga yangi e'lon berilmaydi. `false` — FILTRDA: eski
+ *   vakansiyalarning nomi ro'yxatdan yo'qolib qolmasin.
+ */
+export function useVacancyTitleOptions(onlyActive: boolean): {
+  options: SelectOption[]
+  isPending: boolean
+} {
+  const list = useCatalogList(VACANCY_TITLES_KIND, onlyActive)
+
+  const options = useMemo(
+    () => (list.data ?? []).map((item) => ({ value: item.id, label: item.name })),
+    [list.data],
+  )
+
+  return { options, isPending: list.isPending }
+}
 
 /**
  * Kesh kalitlari.
@@ -210,7 +245,7 @@ export function useVacancyOptions(status?: 'Open'): { options: SelectOption[]; i
     ...(status === undefined ? {} : { status }),
     page: 1,
     pageSize: 200,
-    sort: 'position',
+    sort: 'title',
   })
 
   const options = useMemo(
@@ -218,12 +253,16 @@ export function useVacancyOptions(status?: 'Open'): { options: SelectOption[]; i
       (list.data?.items ?? []).map((item) => ({
         value: item.id,
         /*
-          Yorliqda lavozim VA bo'lim: bitta lavozimga bir vaqtda ikki
-          xil bo'limda vakansiya ochilishi odatiy hol («Сотувчи» —
-          do'kon va ombor). Faqat lavozim ko'rsatilsa, ro'yxatda ikkita
-          bir xil qator turardi va HR qaysi birini tanlaganini bilmasdi.
+          Yorliq — e'lon nomi va ochilgan sana.
+
+          NEGA sana kerak: ilgari yorliqda lavozim VA bo'lim turardi,
+          chunki bitta lavozimga ikki bo'limda vakansiya ochilishi odatiy
+          hol edi. Vakansiyada bo'lim qolmagach (sababi `Vacancy` domen
+          izohida), bir xil nomli ikkita ochiq e'lonni ajratadigan yagona
+          narsa — qachon ochilgani. Usiz ro'yxatda ikkita bir xil qator
+          turardi va HR qaysi birini tanlaganini bilmasdi.
         */
-        label: item.department === null ? (item.position ?? '—') : `${item.position ?? '—'} · ${item.department}`,
+        label: `${item.title ?? '—'} · ${item.openedAt}`,
       })),
     [list.data],
   )

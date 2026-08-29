@@ -86,16 +86,14 @@ public sealed class VacancyRepository : Repository<Vacancy>, IVacancyRepository
 
     /// <inheritdoc />
     public Task<bool> HasOpenAsync(
-        Guid positionId,
-        Guid legalEntityId,
+        Guid vacancyTitleId,
         Guid? exceptId = null,
         CancellationToken cancellationToken = default)
     {
         var query = Set
             .AsNoTracking()
             .Where(vacancy =>
-                vacancy.PositionId == positionId &&
-                vacancy.LegalEntityId == legalEntityId &&
+                vacancy.VacancyTitleId == vacancyTitleId &&
                 vacancy.Status == VacancyStatus.Open);
 
         if (exceptId is { } id)

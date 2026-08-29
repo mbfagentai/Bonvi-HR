@@ -69,15 +69,21 @@ export interface PipelineStage {
   sortOrder: number
 }
 
-/** `VacancyDto` — ro'yxat va karta uchun umumiy ko'rinish. */
+/**
+ * `VacancyDto` — ro'yxat va karta uchun umumiy ko'rinish.
+ *
+ * ⚠️ Lavozim, bo'lim va firma maydonlari YO'Q va bu ataylab: vakansiya —
+ * E'LON, kompaniya tuzilmasidan unda hech narsa saqlanmaydi. Uchalasi
+ * taklif QABUL QILINGANDA tanlanadi (`offer-accept-dialog.tsx`) va
+ * o'sha yerdan xodim kartasiga tushadi. Batafsil sabab backend'dagi
+ * `Vacancy` domen izohida.
+ */
 export interface Vacancy {
   id: string
-  positionId: string
-  position: string | null
-  legalEntityId: string
-  legalEntity: string | null
-  departmentId: string | null
-  department: string | null
+  /** «vacancy-titles» ma'lumotnomasidagi yozuv — LAVOZIM emas. */
+  vacancyTitleId: string
+  /** E'lon nomining matni. */
+  title: string | null
   openings: number
   status: VacancyStatus
   openedAt: string
@@ -207,9 +213,7 @@ export interface CandidateHireResult {
 /* ═══════════════════════════════════════════════════ so'rov tanalari */
 
 export interface VacancyInput {
-  positionId: string
-  legalEntityId: string
-  departmentId: string | null
+  vacancyTitleId: string
   openings: number
   openedAt: string | null
   responsibleEmployeeId: string | null
@@ -242,8 +246,22 @@ export interface OfferInput {
   note: string | null
 }
 
-/** Taklif qabul qilinganda so'raladigan HUJJATIY qism — shaxsiy ma'lumot nomzoddan ko'chadi. */
+/**
+ * Taklif qabul qilinganda so'raladigan qism.
+ *
+ * Shaxsiy ma'lumot NOMZODDAN ko'chadi va bu yerda yo'q. Firma, bo'lim va
+ * lavozim esa AYNAN shu yerda: vakansiyada ular umuman saqlanmaydi
+ * (`Vacancy` tipidagi izohga qarang), ya'ni «bu odam qaysi firmaga, qaysi
+ * bo'limga va qaysi shtat birligiga olinadi» degan qaror shu formada
+ * qabul qilinadi.
+ */
 export interface AcceptOfferInput {
+  /** MAJBURIY — ishga qabul usiz umuman bajarilmaydi. */
+  legalEntityId: string
+  /** MAJBURIY — foydalanuvchi «aniq lavozim tanlanadi» dedi. */
+  positionId: string
+  /** Ixtiyoriy — ishga qabulning umumiy qoidasidagi kabi. */
+  departmentId: string | null
   respondedAt: string | null
   responseNote: string | null
   hireDate: string | null
@@ -261,12 +279,18 @@ export interface AcceptOfferInput {
 
 export interface VacancyFilters {
   status?: VacancyStatus
-  positionId?: string
-  departmentId?: string
-  legalEntityId?: string
+  /**
+   * E'lon nomi bo'yicha filtr.
+   *
+   * Lavozim, bo'lim va firma filtrlari OLIB TASHLANDI: server ularni
+   * endi umuman qabul qilmaydi, chunki vakansiyada bunday maydonlar
+   * yo'q. «Qaysi bo'limga kim olindi» degan savolga xodimlar ro'yxati
+   * javob beradi.
+   */
+  vacancyTitleId?: string
   page: number
   pageSize: number
-  /** `openedAt` (sukut, yangidan eskiga) yoki `position`; `-` — kamayish. */
+  /** `openedAt` (sukut, yangidan eskiga) yoki `title`; `-` — kamayish. */
   sort?: string
 }
 
@@ -386,12 +410,8 @@ function toVacancy(raw: unknown): Vacancy {
 
   return {
     id: text(box['id']) ?? '',
-    positionId: text(box['positionId']) ?? '',
-    position: text(box['position']),
-    legalEntityId: text(box['legalEntityId']) ?? '',
-    legalEntity: text(box['legalEntity']),
-    departmentId: text(box['departmentId']),
-    department: text(box['department']),
+    vacancyTitleId: text(box['vacancyTitleId']) ?? '',
+    title: text(box['title']),
     openings: count(box['openings']),
     status: oneOf(box['status'], VACANCY_STATUSES, 'Open'),
     openedAt: text(box['openedAt']) ?? '',
@@ -566,9 +586,7 @@ export async function fetchVacancies(
   const { data } = await api.get<unknown>(VACANCIES, {
     params: params({
       status: filters.status,
-      positionId: filters.positionId,
-      departmentId: filters.departmentId,
-      legalEntityId: filters.legalEntityId,
+      vacancyTitleId: filters.vacancyTitleId,
       page: filters.page,
       pageSize: filters.pageSize,
       sort: filters.sort,
