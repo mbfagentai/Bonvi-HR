@@ -563,7 +563,12 @@
     "vakansiya.nom_topilmadi": "Название вакансии не найдено — оно выбирается из справочника «Названия вакансий».",
     "taklif.lavozim_yoq": "Укажите должность: нужно зафиксировать, на какую именно должность принимается кандидат.",
     "taklif.yuridik_shaxs_yoq": "Укажите юридическое лицо: в какую фирму оформляется сотрудник.",
-    "taklif.bolim_topilmadi": "Подразделение не найдено."
+    "taklif.bolim_topilmadi": "Подразделение не найдено.",
+    "bildirishnoma.kalit_notogri": "Неверный ключ уведомления. Обновите страницу.",
+    "bildirishnoma.kalit_yoq": "Не выбрано ни одного уведомления.",
+    "bildirishnoma.kalit_kop": "Нельзя обработать более 200 уведомлений за один раз.",
+    "bildirishnoma.foydalanuvchi_aniqlanmadi": "Уведомления персональные. Войдите заново.",
+    "bildirishnoma.foydalanuvchi_yoq": "Состояние уведомления не сохранено: пользователь не определён."
   },
   "language": {
     "en": "English",

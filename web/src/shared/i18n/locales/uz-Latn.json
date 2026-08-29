@@ -563,7 +563,12 @@
     "vakansiya.nom_topilmadi": "Vakansiya nomi topilmadi — u «Vakansiya nomlari» ma’lumotnomasidan tanlanadi.",
     "taklif.lavozim_yoq": "Lavozim ko‘rsatilishi shart: nomzod aynan qaysi lavozimga olinayotgani yozilishi kerak.",
     "taklif.yuridik_shaxs_yoq": "Yuridik shaxs ko‘rsatilishi shart: xodim qaysi firmaga rasmiylashtiriladi.",
-    "taklif.bolim_topilmadi": "Bo‘lim topilmadi."
+    "taklif.bolim_topilmadi": "Bo‘lim topilmadi.",
+    "bildirishnoma.kalit_notogri": "Bildirishnoma kaliti noto‘g‘ri. Sahifani yangilang.",
+    "bildirishnoma.kalit_yoq": "Birorta bildirishnoma tanlanmagan.",
+    "bildirishnoma.kalit_kop": "Bir vaqtda 200 tadan ortiq bildirishnoma bilan ishlab bo‘lmaydi.",
+    "bildirishnoma.foydalanuvchi_aniqlanmadi": "Bildirishnomalar shaxsiy. Qaytadan kiring.",
+    "bildirishnoma.foydalanuvchi_yoq": "Bildirishnoma holati saqlanmadi: foydalanuvchi aniqlanmadi."
   },
   "language": {
     "en": "English",

@@ -563,7 +563,12 @@
     "vakansiya.nom_topilmadi": "Vacancy title not found — pick one from the “Vacancy titles” reference.",
     "taklif.lavozim_yoq": "Position is required: record exactly which position the candidate is hired into.",
     "taklif.yuridik_shaxs_yoq": "Legal entity is required: which company the employee is registered with.",
-    "taklif.bolim_topilmadi": "Department not found."
+    "taklif.bolim_topilmadi": "Department not found.",
+    "bildirishnoma.kalit_notogri": "Invalid notification key. Refresh the page.",
+    "bildirishnoma.kalit_yoq": "No notifications selected.",
+    "bildirishnoma.kalit_kop": "Cannot process more than 200 notifications at once.",
+    "bildirishnoma.foydalanuvchi_aniqlanmadi": "Notifications are personal. Please sign in again.",
+    "bildirishnoma.foydalanuvchi_yoq": "Notification state was not saved: the user could not be identified."
   },
   "language": {
     "en": "English",

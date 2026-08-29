@@ -7,6 +7,7 @@ using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Identity;
+using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Safety;
@@ -213,6 +214,17 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Ish takliflari (<c>job_offers</c>).</summary>
     public DbSet<JobOffer> JobOffers => Set<JobOffer>();
+
+    // ────────────────────────────────────────────────────────────
+    //  BILDIRISHNOMALAR
+    //  ⚠️ Bildirishnomalarning O'ZI bu yerda YO'Q va bo'lmaydi ham:
+    //  ular saqlanmaydi, so'rov kelganda joriy ma'lumotdan HISOBLANADI
+    //  (sababi `INotificationReadModel` izohida). Bazada faqat
+    //  foydalanuvchining qarori qoladi: nimani o'qidi, nimani o'chirdi.
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Kim nimani o'qigan/o'chirgan (<c>notification_states</c>).</summary>
+    public DbSet<NotificationState> NotificationStates => Set<NotificationState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -166,6 +166,11 @@ app.MapVacancyEndpoints();
 app.MapCandidateEndpoints();
 app.MapJobOfferEndpoints();
 
+// Bildirishnomalar — yuqori paneldagi qo'ng'iroq. Bironta bo'limga
+// tegishli emas: sinov, xodim, nomzod va taklif ma'lumotlarini BIRGA
+// o'qiydi va har bir foydalanuvchiga o'z ro'yxatini beradi.
+app.MapNotificationEndpoints();
+
 app.MapSystemEndpoints();
 app.MapDashboardEndpoints();
 app.MapReportsEndpoints();

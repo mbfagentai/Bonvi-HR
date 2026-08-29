@@ -3,6 +3,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.System.Queries.GetSystemInfo;
@@ -53,6 +54,7 @@ public static class DependencyInjection
         services.AddFeedbackServices();
         services.AddSafetyServices();
         services.AddRecruitingServices();
+        services.AddNotificationServices();
 
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
@@ -143,6 +145,30 @@ public static class DependencyInjection
         services.AddScoped<IJobOfferRepository, JobOfferRepository>();
 
         services.AddScoped<IRecruitingReadModel, RecruitingReadModel>();
+
+        return services;
+    }
+
+    /// <summary>Bildirishnomalar bilan ishlaydigan portlar.</summary>
+    /// <remarks>
+    /// <para>
+    /// Ikkita port, ikki xil vazifa: <c>INotificationReadModel</c>
+    /// SHARTLARNI o'qiydi (agregat qaytarmaydi — shu sababli
+    /// <c>Persistence/ReadModels</c> da), <c>INotificationStateRepository</c>
+    /// esa foydalanuvchining «o'qildi»/«o'chirildi» qarorini saqlaydi.
+    /// Ular BIRGA turadi, chunki ikkalasi ham faqat shu bo'limga xizmat
+    /// qiladi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Bu yerda hech qanday FON VAZIFASI ro'yxatga olinmaydi va bu
+    /// ataylab: bildirishnomalar o'qish paytida hisoblanadi
+    /// (sababi <c>INotificationReadModel</c> izohida).
+    /// </para>
+    /// </remarks>
+    private static IServiceCollection AddNotificationServices(this IServiceCollection services)
+    {
+        services.AddScoped<INotificationStateRepository, NotificationStateRepository>();
+        services.AddScoped<INotificationReadModel, NotificationReadModel>();
 
         return services;
     }

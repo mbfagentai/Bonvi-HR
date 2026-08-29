@@ -563,7 +563,12 @@
     "vakansiya.nom_topilmadi": "Вакансия номи топилмади — у «Вакансия номлари» маълумотномасидан танланади.",
     "taklif.lavozim_yoq": "Лавозим кўрсатилиши шарт: номзод айнан қайси лавозимга олинаётгани ёзилиши керак.",
     "taklif.yuridik_shaxs_yoq": "Юридик шахс кўрсатилиши шарт: ходим қайси фирмага расмийлаштирилади.",
-    "taklif.bolim_topilmadi": "Бўлим топилмади."
+    "taklif.bolim_topilmadi": "Бўлим топилмади.",
+    "bildirishnoma.kalit_notogri": "Билдиришнома калити нотўғри. Саҳифани янгиланг.",
+    "bildirishnoma.kalit_yoq": "Битта ҳам билдиришнома танланмаган.",
+    "bildirishnoma.kalit_kop": "Бир вақтда 200 тадан ортиқ билдиришнома билан ишлаб бўлмайди.",
+    "bildirishnoma.foydalanuvchi_aniqlanmadi": "Билдиришномалар шахсий. Қайтадан киринг.",
+    "bildirishnoma.foydalanuvchi_yoq": "Билдиришнома ҳолати сақланмади: фойдаланувчи аниқланмади."
   },
   "language": {
     "en": "English",

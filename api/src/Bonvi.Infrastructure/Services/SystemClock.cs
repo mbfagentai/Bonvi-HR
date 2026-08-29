@@ -8,7 +8,15 @@ namespace Bonvi.Infrastructure.Services;
 public sealed class SystemClock : IClock
 {
     /// <summary>Toshkent vaqt mintaqasi (UTC+5, yozgi vaqt yo'q).</summary>
-    private static readonly TimeSpan TashkentOffset = TimeSpan.FromHours(5);
+    /// <remarks>
+    /// <c>internal</c>, chunki bir joyda undan tashqarida ham kerak
+    /// bo'ladi: <c>NotificationReadModel</c> «nomzod qaysi KUNI
+    /// qo'shilgan» degan savolga javob berish uchun <c>timestamptz</c>
+    /// ustunini shu siljish bilan kunga aylantiradi. Ikkinchi nusxa
+    /// yozilsa, ular bir kun ajralib ketardi va yarim tunda hisoblangan
+    /// «bugun» ikki xil chiqardi.
+    /// </remarks>
+    internal static readonly TimeSpan TashkentOffset = TimeSpan.FromHours(5);
 
     public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 

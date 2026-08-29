@@ -17,6 +17,7 @@ using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
 using Bonvi.Application.Identity.Users.Commands.UpdateUser;
 using Bonvi.Application.Identity.Users.Photos;
 using Bonvi.Application.Identity.Users.Queries.ListUsers;
+using Bonvi.Application.Notifications;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
@@ -99,6 +100,11 @@ public static class DependencyInjection
 
         // Rekruting — 2-bosqich: vakansiya, voronka, nomzod, ish taklifi
         services.AddRecruiting();
+
+        // Bildirishnomalar — bironta bo'limga tegishli emas: ular sinov
+        // muddati, xodim, nomzod va taklif ma'lumotlarini BIRGA o'qiydi.
+        // Shu sababli o'z guruhida turadi.
+        services.AddNotifications();
 
         return services;
     }
