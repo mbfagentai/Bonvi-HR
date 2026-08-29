@@ -100,6 +100,27 @@ export function useUnreadCount(paused: boolean) {
     queryKey: notificationKeys.unreadCount,
     queryFn: ({ signal }) => fetchUnreadCount(signal),
     refetchInterval: paused ? false : UNREAD_POLL_MS,
+
+    /*
+     * Oynaga qaytilganda DARHOL yangilanadi.
+     *
+     * Ilova bo'ylab standart `refetchOnWindowFocus: false`
+     * (`providers.tsx`) — va u qolgan hamma joyda to'g'ri: HR ro'yxatni
+     * ochib, boshqa dasturga o'tib qaytganda jadval sababsiz
+     * miltillamasligi kerak.
+     *
+     * LEKIN bu sanoq uchun aynan teskarisi kerak. Davriy so'rov tab
+     * YASHIRIN bo'lganda umuman ketmaydi (TanStack Query ning standart
+     * xatti-harakati — bu to'g'ri, fonda turgan tab uchun so'rov
+     * yuborish behuda). Natijada brauzer bilan boshqa dastur orasida
+     * yurgan foydalanuvchi qaytganda ESKI sonni ko'radi va u haqiqatga
+     * mos kelmaydi — nishon esa aynan «hozir nima bor» degan savolga
+     * javob berishi kerak. Noto'g'ri son nishonni butunlay ishonchsiz
+     * qiladi (qattiq yozib qo'yilgan qizil nuqta bilan bir xil kasallik).
+     *
+     * Narxi — tabga qaytganda bitta yengil so'rov (`{ unreadCount }`).
+     */
+    refetchOnWindowFocus: true,
   })
 }
 
