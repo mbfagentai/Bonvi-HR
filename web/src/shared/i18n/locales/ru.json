@@ -1245,5 +1245,11 @@
         "text": "{{name}} — срок ответа на предложение о работе истёк {{date}}, прошло {{days}} дн., предложение всё ещё открыто."
       }
     }
-  }
+  },
+  "dashboard.birthdaysTitle": "Дни рождения сегодня",
+  "dashboard.birthdaysOpen": "Открыть карточку сотрудника",
+  "dashboard.birthdaysAge": "{{n}} лет",
+  "dashboard.birthdaysLoadFailed": "Не удалось загрузить список",
+  "dashboard.birthdaysEmpty": "Сегодня дней рождения нет",
+  "dashboard.birthdaysEmptyText": "Ни у кого из работающих сотрудников сегодня нет дня рождения."
 }

@@ -1245,5 +1245,11 @@
         "text": "{{name}} — the reply deadline for the job offer passed on {{date}}, {{days}} days ago, and the offer is still open."
       }
     }
-  }
+  },
+  "dashboard.birthdaysTitle": "Birthdays today",
+  "dashboard.birthdaysOpen": "Open the employee card",
+  "dashboard.birthdaysAge": "turns {{n}}",
+  "dashboard.birthdaysLoadFailed": "Could not load the list",
+  "dashboard.birthdaysEmpty": "No birthdays today",
+  "dashboard.birthdaysEmptyText": "None of the working employees has a birthday today."
 }

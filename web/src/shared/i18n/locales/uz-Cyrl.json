@@ -1245,5 +1245,11 @@
         "text": "{{name}} — иш таклифига жавоб муддати {{date}} да тугаган, {{days}} кун ўтди, таклиф ҳамон очиқ."
       }
     }
-  }
+  },
+  "dashboard.birthdaysTitle": "Бугунги туғилган кунлар",
+  "dashboard.birthdaysOpen": "Ходим картасини очиш",
+  "dashboard.birthdaysAge": "{{n}} ёш",
+  "dashboard.birthdaysLoadFailed": "Рўйхатни юклаб бўлмади",
+  "dashboard.birthdaysEmpty": "Бугун туғилган кун йўқ",
+  "dashboard.birthdaysEmptyText": "Ишлаётган ходимлар орасида бугун туғилган куни бўлгани йўқ."
 }

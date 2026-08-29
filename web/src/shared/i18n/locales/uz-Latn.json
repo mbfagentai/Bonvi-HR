@@ -1245,5 +1245,11 @@
         "text": "{{name}} — ish taklifiga javob muddati {{date}} da tugagan, {{days}} kun o‘tdi, taklif hamon ochiq."
       }
     }
-  }
+  },
+  "dashboard.birthdaysTitle": "Bugungi tug‘ilgan kunlar",
+  "dashboard.birthdaysOpen": "Xodim kartasini ochish",
+  "dashboard.birthdaysAge": "{{n}} yosh",
+  "dashboard.birthdaysLoadFailed": "Ro‘yxatni yuklab bo‘lmadi",
+  "dashboard.birthdaysEmpty": "Bugun tug‘ilgan kun yo‘q",
+  "dashboard.birthdaysEmptyText": "Ishlayotgan xodimlar orasida bugun tug‘ilgan kuni bo‘lgani yo‘q."
 }

@@ -82,7 +82,69 @@ public interface IDashboardReadModel
     Task<DashboardRecruitingCounts> GetRecruitingCountsAsync(
         DashboardCountsRange range,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bugun tug'ilgan kuni bo'lgan ishlayotgan xodimlarning RO'YXATI.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>⚠️ Bu portdagi yagona metod — u qatorlar qaytaradi.</b> Interfeys
+    /// izohida «birorta qator ham qaytmaydi» deyilgan edi va bu istisno
+    /// ataylab: ro'yxat <see cref="DashboardCounts.BirthdaysToday"/> soni
+    /// bilan AYNAN bir xil shartga tayanishi shart, aks holda ekranda
+    /// «Bugun 2 ta xodimning tug'ilgan kuni» yozuvi ochilib, ichidan
+    /// uchta odam chiqardi. Uni <c>IEmployeeReadModel</c> ga qo'yish shu
+    /// bog'lanishni ikki portga bo'lib yuborardi; shart esa
+    /// Infrastructure'da bitta joyda (<c>BirthdayQuery</c>) va bu ikki
+    /// metod uning yagona ikki chaqiruvchisi.
+    /// </para>
+    /// <para>
+    /// <b>Sahifalash YO'Q va kerak ham emas.</b> Bir kunda tug'ilgan kuni
+    /// bo'lganlar soni 2000 xodimda ham o'rtacha 5-6 kishi, eng ko'pi
+    /// bilan o'nlab. Chegara qo'yish «qolganlari qayerda?» degan savolni
+    /// tug'dirardi — bildirishnomalardagi kabi
+    /// (<c>notifications.limitNote</c>), lekin u yerdagi sababsiz.
+    /// </para>
+    /// <para>
+    /// <b>Yosh bu yerda HISOBLANMAYDI.</b> Qator faqat tug'ilgan sanani
+    /// olib chiqadi: «necha yoshga to'ldi» — ko'rsatish qarori va unda
+    /// «shubhali sana» chekkasi bor (Excel'dan ko'chirilgan yozuvlarda
+    /// kelajakdagi sana ham uchraydi). Bu qaror
+    /// <c>GetBirthdaysTodayQueryHandler</c> da, o'qish so'rovida emas.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<BirthdayEmployeeRow>> ListBirthdaysTodayAsync(
+        DateOnly today,
+        CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Bugun tug'ilgan kuni bo'lgan bitta xodim.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Lavozim va bo'lim <b>ISHLAYOTGAN</b> munosabatdan olinadi — aynan
+/// xodimni bu ro'yxatga tushirgan munosabatdan. O'rindoshda bittasi
+/// tanlanadi: asosiysi, u bo'lmasa eng so'nggi ishga kirgani (barcha
+/// ro'yxat so'rovlaridagi bilan bir xil qoida).
+/// </para>
+/// </remarks>
+/// <param name="EmployeeId">Xodim kartasiga o'tish uchun.</param>
+/// <param name="FullName">To'liq F.I.Sh. — uchta ustundan yig'ilgan.</param>
+/// <param name="PhotoKey">
+/// Rasm kaliti. <c>null</c> — rasm yuklanmagan va so'rov ham yuborilmaydi
+/// (mijozda bosh harflar chiziladi).
+/// </param>
+/// <param name="PositionName">Lavozim nomi. Ko'rsatilmagan bo'lsa — <c>null</c>.</param>
+/// <param name="DepartmentName">Bo'lim nomi. Ko'rsatilmagan bo'lsa — <c>null</c>.</param>
+/// <param name="BirthDate">Tug'ilgan sana — yili bilan.</param>
+public sealed record BirthdayEmployeeRow(
+    Guid EmployeeId,
+    string FullName,
+    string? PhotoKey,
+    string? PositionName,
+    string? DepartmentName,
+    DateOnly BirthDate);
 
 /// <summary>Bo'lim va yo'nalish bo'yicha taqsimot — ikkalasi bitta javobda.</summary>
 /// <param name="Departments">

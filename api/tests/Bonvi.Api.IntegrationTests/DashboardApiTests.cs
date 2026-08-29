@@ -32,6 +32,22 @@ public sealed record DashboardRecruitingResponse(
     int ActiveCandidates,
     int NewCandidates);
 
+/// <summary>Bugun tug'ilgan kuni bo'lgan bitta xodim (test uchun).</summary>
+/// <remarks>
+/// <c>Age</c> ATAYLAB <c>int?</c>: shubhali sanada (kelajakdagi yoki 120
+/// yildan oshgan) yosh umuman qaytmaydi. Tip <c>int</c> bo'lsa, bunday
+/// javob deserializatsiyada jimgina nolga aylanardi va «0 yosh» degan
+/// xato test orqali o'tib ketardi.
+/// </remarks>
+public sealed record DashboardBirthdayResponse(
+    Guid Id,
+    string FullName,
+    string? PhotoKey,
+    string? PositionName,
+    string? DepartmentName,
+    DateOnly BirthDate,
+    int? Age);
+
 /// <summary>Bosh sahifa ko'rsatkichlari (test uchun).</summary>
 /// <remarks>
 /// <c>Period</c> ATAYLAB satr: sanoq qiymatlari JSON'da nom bo'lib chiqadi
@@ -493,6 +509,113 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         (keyin.BirthdaysToday - oldin.BirthdaysToday).ShouldBe(1);
     }
 
+    /// <summary>
+    /// Tug'ilgan kunlar RO'YXATI bosh sahifadagi SON bilan aynan mos keladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bu testning butun mazmuni shu: ekranda «Bugun 2 ta xodimning
+    /// tug'ilgan kuni» yozuvi bosiladi va ochilgan oynada AYNAN o'sha
+    /// ikki odam turishi kerak. Shart ikki joyda yozilgan bo'lsa (ilgari
+    /// shunday edi), ular birinchi o'zgarishdayoq ajralib ketardi va HR
+    /// son bilan ro'yxat orasidagi farqni ko'rib, ikkalasiga ham
+    /// ishonmay qo'yardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Bu yerda FARQ emas, AYNAN TENGLIK tekshiriladi (qo'shni
+    /// testlardan farqi): ikkala javob ham bir vaqtda, bir xil bazadan
+    /// olinadi va ular butun baza bo'yicha mos kelishi shart.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Tugilgan_kunlar_royxati_son_bilan_aynan_mos_keladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+
+        using var client = await AdminMijozAsync();
+
+        var bugun = (await SonlarAsync(client, "?period=day")).To;
+
+        Guid ishlayotganId;
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var firma = LegalEntity.Create($"{belgi} Байрам МЧЖ").Value;
+            var bolim = Department.Create($"{belgi} Сотув бўлими").Value;
+            var lavozim = Position.Create($"{belgi} Менежер").Value;
+
+            // Bugun tug'ilgan va ishlayotgan — ro'yxatda BO'LISHI kerak
+            var ishlayotgan = Employee.Create(
+                FullName.Create("Байрамли", belgi, "Отаевич").Value,
+                OttizYilOldin(bugun)).Value;
+            var ishlayotganMunosabat = Employment
+                .Hire(ishlayotgan.Id, firma.Id, new DateOnly(2020, 1, 10), bolim.Id, lavozim.Id)
+                .Value;
+            ishlayotganMunosabat.CompleteProbation(new DateOnly(2020, 1, 10)).IsSuccess.ShouldBeTrue();
+            ishlayotganId = ishlayotgan.Id;
+
+            // Bugun tug'ilgan, lekin arxivda — ro'yxatda BO'LMASLIGI kerak
+            var ketgan = Employee.Create(
+                FullName.Create("Кетганбайрам", belgi, null).Value,
+                OttizYilOldin(bugun)).Value;
+            var ketganMunosabat = Doimiy(ketgan.Id, firma.Id, new DateOnly(2019, 1, 10));
+            ketganMunosabat.Terminate(new DateOnly(2022, 1, 10), null).IsSuccess.ShouldBeTrue();
+
+            // Ertaga tug'ilgan va ishlayotgan — bugun ro'yxatda BO'LMASLIGI
+            // kerak (bildirishnomalar ikkala kunni ham oladi, bosh sahifa
+            // esa faqat bugunni — bir xil shart, boshqa kun)
+            var ertangi = Employee.Create(
+                FullName.Create("Эртангибайрам", belgi, null).Value,
+                OttizYilOldin(bugun.AddDays(1))).Value;
+            var ertangiMunosabat = Doimiy(ertangi.Id, firma.Id, new DateOnly(2020, 2, 10));
+
+            kontekst.Add(firma);
+            kontekst.AddRange(bolim);
+            kontekst.Add(lavozim);
+            kontekst.AddRange(ishlayotgan, ketgan, ertangi);
+            kontekst.AddRange(ishlayotganMunosabat, ketganMunosabat, ertangiMunosabat);
+            await kontekst.SaveChangesAsync(bekorQilish);
+        }
+
+        var royxat = await TugilganKunlarAsync(client);
+        var sonlar = await SonlarAsync(client, "?period=day");
+
+        // ⭐ Asosiy da'vo: son va ro'yxat bitta shartdan hosil bo'ladi
+        royxat.Count.ShouldBe(sonlar.BirthdaysToday);
+
+        var qator = royxat.SingleOrDefault(item => item.Id == ishlayotganId);
+        qator.ShouldNotBeNull("ishlayotgan xodim ro'yxatda bo'lishi kerak");
+        qator.FullName.ShouldBe($"Байрамли {belgi} Отаевич");
+        qator.DepartmentName.ShouldBe($"{belgi} Сотув бўлими");
+        qator.PositionName.ShouldBe($"{belgi} Менежер");
+        qator.BirthDate.ShouldBe(OttizYilOldin(bugun));
+        qator.Age.ShouldBe(bugun.Year - OttizYilOldin(bugun).Year);
+
+        // Arxivdagi va ertangi bayram egasi ro'yxatga TUSHMAYDI
+        royxat.ShouldNotContain(item => item.FullName.Contains("Кетганбайрам", StringComparison.Ordinal));
+        royxat.ShouldNotContain(item => item.FullName.Contains("Эртангибайрам", StringComparison.Ordinal));
+    }
+
+    /// <summary>Tug'ilgan kunlar ro'yxati ham tokensiz ochilmaydi.</summary>
+    /// <remarks>
+    /// Ro'yxatda F.I.Sh., lavozim va bo'lim bor — bu bosh sahifadagi
+    /// sonlardan ko'ra ko'proq ma'lumot va u ham yopiq bo'lishi shart.
+    /// </remarks>
+    [Fact]
+    public async Task Tugilgan_kunlar_royxati_tokensiz_401_qaytaradi()
+    {
+        using var client = _factory.CreateClient();
+
+        using var javob = await client.GetAsync(
+            new Uri("/api/dashboard/birthdays", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Ma'lumotnomalar
     // ────────────────────────────────────────────────────────────
@@ -729,6 +852,21 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
 
         sonlar.ShouldNotBeNull();
         return sonlar;
+    }
+
+    private static async Task<IReadOnlyList<DashboardBirthdayResponse>> TugilganKunlarAsync(HttpClient client)
+    {
+        using var javob = await client.GetAsync(
+            new Uri("/api/dashboard/birthdays", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var royxat = await javob.Content.ReadFromJsonAsync<List<DashboardBirthdayResponse>>(
+            TestContext.Current.CancellationToken);
+
+        royxat.ShouldNotBeNull();
+        return royxat;
     }
 
     private async Task<HttpClient> AdminMijozAsync()

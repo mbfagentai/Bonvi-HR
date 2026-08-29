@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
 import {
+  fetchDashboardBirthdays,
   fetchDashboardBreakdown,
   fetchDashboardStats,
   type DashboardPeriod,
@@ -27,6 +28,16 @@ export const dashboardKeys = {
    * to'rt marta so'rab, kartani har bosishda sababsiz miltillatardi.
    */
   breakdown: () => ['dashboard', 'breakdown'] as const,
+
+  /**
+   * Tug'ilgan kunlar ro'yxati — davrSIZ va SANASIZ.
+   *
+   * Sana kalitga qo'shilmaydi, chunki uni mijoz bilmaydi: «bugun»
+   * serverda, Toshkent vaqti bo'yicha hisoblanadi. Brauzer sanasini
+   * kalitga qo'yish uni ikkinchi haqiqat manbaiga aylantirardi va yarim
+   * tunda ikkalasi ajralib ketardi.
+   */
+  birthdays: () => ['dashboard', 'birthdays'] as const,
 }
 
 /**
@@ -76,5 +87,35 @@ export function useDashboardBreakdown() {
      * ularning «eskirish» tezligi ham bir xil.
      */
     staleTime: 60_000,
+  })
+}
+
+/**
+ * Bugun tug'ilgan kuni bo'lgan xodimlar ro'yxati.
+ *
+ * @param enabled Modal OCHIQmi.
+ *
+ * ⚠️ **So'rov faqat oyna ochilganda ketadi** va bu qasddan qilingan
+ * asosiy qaror. Bosh sahifa har kirishda ochiladi, bu ro'yxatni esa ko'p
+ * hollarda hech kim ochmaydi: «Bugun 2 ta xodimning tug'ilgan kuni»
+ * yozuvining O'ZI allaqachon javob va odam odatda shu bilan kifoyalanadi.
+ * Ro'yxatni sahifa bilan birga yuklash har bir kirishda ishlatilmaydigan
+ * so'rov demak bo'lardi — va u eng ko'p ochiladigan ekranda. Bu
+ * `useNotifications(open)` dagi bilan AYNAN bir xil naqsh: qo'ng'iroqqa
+ * faqat SANOQ kerak, ro'yxat esa bosilganda so'raladi.
+ *
+ * `staleTime` shu sababli MEROS bo'yicha olinadi (`providers.tsx` dagi
+ * umumiy qiymat) va qo'lda `0` ga tushirilmaydi — bildirishnomalardan
+ * farqi shunda: u yerda oyna «nima o'zgardi?» degan savol bilan qayta
+ * ochiladi va har safar yangi ro'yxat kerak; bu yerda esa ro'yxat KUN
+ * davomida o'zgarmaydi — tug'ilgan kun sanasi bugun ko'chib ketmaydi.
+ * Yangi xodim qo'shilsa, kesh `providers.tsx` orqali baribir bekor
+ * qilinadi.
+ */
+export function useDashboardBirthdays(enabled: boolean) {
+  return useQuery({
+    queryKey: dashboardKeys.birthdays(),
+    queryFn: ({ signal }) => fetchDashboardBirthdays(signal),
+    enabled,
   })
 }

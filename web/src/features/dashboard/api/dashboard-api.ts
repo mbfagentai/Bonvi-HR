@@ -179,3 +179,62 @@ export async function fetchDashboardBreakdown(
 
   return data
 }
+
+/**
+ * Bugun tug'ilgan kuni bo'lgan bitta xodim.
+ *
+ * ⚠️ Bu ro'yxat `DashboardStats.birthdaysToday` SONI bilan bir xil
+ * shartdan hosil bo'ladi (serverda bitta so'rov, `BirthdayQuery`), ya'ni
+ * uzunligi doim o'sha songa teng. Shu sababli modalda son QAYTA
+ * ko'rsatilmaydi: ekranda bitta raqamni ikki manbadan chizish — ular
+ * ajralib ketishi uchun ochilgan eshik.
+ */
+export interface DashboardBirthday {
+  /** Xodim kartasiga o'tish uchun (`/xodimlar/$employeeId`). */
+  id: string
+  fullName: string
+  /**
+   * Rasm kaliti — `null` bo'lsa rasm umuman yuklanmagan.
+   *
+   * Rasmning O'ZI bu javobda yo'q va bo'lishi ham mumkin emas: u alohida
+   * endpoint'dan `blob` bo'lib, `Authorization` sarlavhasi bilan olinadi
+   * (oddiy `<img src>` ishlamaydi). Buni `EmployeePhoto` qiladi.
+   */
+  photoKey: string | null
+  /** Lavozim — ko'rsatilmagan bo'lsa `null`. */
+  positionName: string | null
+  /** Bo'lim — ko'rsatilmagan bo'lsa `null`. */
+  departmentName: string | null
+  /** `DateOnly` → «1996-08-29». Yili bilan. */
+  birthDate: string
+  /**
+   * Bugun to'lgan yosh — sana SHUBHALI bo'lsa `null`.
+   *
+   * Tip ATAYLAB `| null`, ixtiyoriy maydon (`?`) emas: server maydonni
+   * doim yuboradi. Excel'dan ko'chirilgan yozuvlarda kelajakdagi sana
+   * ham uchraydi va «136 yosh» degan yozuv ro'yxatga bo'lgan ishonchni
+   * yo'qotardi — shunday holatda yosh umuman chizilmaydi.
+   */
+  age: number | null
+}
+
+/**
+ * Bugungi tug'ilgan kunlar — parametrsiz.
+ *
+ * «Bugun» qachonligini mijoz AYTMAYDI: sana serverda, Toshkent vaqti
+ * bo'yicha aniqlanadi. Brauzerdagi kun foydalanuvchi qurilmasining
+ * sozlamasiga bog'liq va u bosh sahifadagi son bilan mos kelmay
+ * qolishi mumkin edi.
+ *
+ * Sahifalash yo'q — bir kunda tug'ilgan kuni bo'lganlar o'nlab yozuvdan
+ * oshmaydi (server qarori).
+ */
+export async function fetchDashboardBirthdays(
+  signal?: AbortSignal,
+): Promise<DashboardBirthday[]> {
+  const { data } = await api.get<DashboardBirthday[]>('/api/dashboard/birthdays', {
+    signal,
+  })
+
+  return data
+}

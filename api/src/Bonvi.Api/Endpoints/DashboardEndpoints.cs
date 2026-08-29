@@ -115,6 +115,57 @@ public static class DashboardEndpoints
             .Produces<DashboardBreakdownDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        // ─────────────────────────────────────────────────────────
+        //  Tug'ilgan kunlar RO'YXATI — «/stats» dagi sondan alohida.
+        //
+        //  NEGA javobga qo'shib yuborilmaydi: bosh sahifa har kirishda
+        //  ochiladi va davr almashtirilganda qayta so'raladi, bu ro'yxatni
+        //  esa ko'p hollarda hech kim ochmaydi — «Bugun 2 ta xodimning
+        //  tug'ilgan kuni» yozuvining o'zi allaqachon javob. Ro'yxatni
+        //  sonlar bilan birga tashish har bir sahifa ochilishida
+        //  biriktirishli qo'shimcha so'rov bo'lardi va u aksariyat
+        //  hollarda ishlatilmasdi. Bu «/breakdown» ni ajratishdagi bilan
+        //  bir xil qaror: kerak bo'lganda so'raladi.
+        //
+        //  Parametr YO'Q va bo'lmaydi ham: «bugun» — server qarori
+        //  (`IClock`, Toshkent vaqti). Sanani mijozdan olish brauzer
+        //  sozlamasiga ishonish demak bo'lardi va ro'yxat bosh sahifadagi
+        //  son bilan mos kelmay qolishi mumkin edi.
+        // ─────────────────────────────────────────────────────────
+        group.MapGet("/birthdays", async (
+                GetBirthdaysTodayQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetBirthdaysTodayQuery(), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            // Xuddi qo'shnilari kabi `employees.view`: bu ro'yxatda
+            // xodimlar ro'yxatida allaqachon ochiq bo'lgan maydonlardan
+            // boshqa hech narsa yo'q (ism, rasm, lavozim, bo'lim). Bosh
+            // sahifadagi SON shu ruxsat bilan ko'rinadi, ya'ni uning
+            // ostidagi ro'yxatni kuchliroq ruxsatga bog'lash sonni
+            // bosiladigan, lekin ochilmaydigan holatga tushirardi.
+            .RequireAuthorization(Permissions.EmployeesView)
+            .WithName("GetDashboardBirthdays")
+            .WithSummary("Bugun tug'ilgan kuni bo'lgan xodimlar")
+            .WithDescription(
+                "Bosh sahifadagi «birthdaysToday» soni ORTIDAGI ro'yxat: bugun tug'ilgan " +
+                "kuni bo'lgan ISHLAYOTGAN xodimlar (doimiy va sinovdagilar; arxivdagilar " +
+                "kirmaydi). Shart sonnikidan NUSXA emas — ikkalasi bitta so'rovdan hosil " +
+                "bo'ladi, ya'ni ro'yxatdagi yozuvlar soni «/stats» dagi «birthdaysToday» ga " +
+                "har doim teng. «Bugun» Toshkent vaqti bo'yicha, serverda aniqlanadi; " +
+                "yil e'tiborga olinmaydi, faqat kun va oy (29-fevralda tug'ilganlar kabisa " +
+                "bo'lmagan yilda chiqmaydi). Lavozim va bo'lim xodimning ishlayotgan " +
+                "munosabatidan olinadi (asosiysi, bo'lmasa eng so'nggisi) va ko'rsatilmagan " +
+                "bo'lsa «null». «age» — bugun to'lgan yosh; sana shubhali bo'lsa (shu yilgi, " +
+                "kelajakdagi yoki 120 yildan oshgan) «null». Tartib — F.I.Sh. bo'yicha. " +
+                "Sahifalash yo'q: ro'yxat kuniga o'nlab yozuvdan oshmaydi.")
+            .Produces<IReadOnlyList<DashboardBirthdayDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         return app;
     }
 }

@@ -95,23 +95,14 @@ public sealed class NotificationReadModel : INotificationReadModel
     {
         // Ikki kun BITTA so'rovda: ikkita alohida so'rov bir xil jadvalni
         // ikki marta o'qib chiqardi, natija esa baribir birga ishlatiladi.
-        // Yil e'tiborga olinmaydi — faqat kun va oy (bosh sahifadagi
-        // «bugungi tug'ilgan kunlar» bilan aynan bir xil qoida).
-        var rows = await _context.Employees
-            .AsNoTracking()
-            .Where(employee =>
-                employee.BirthDate != null
-                && ((employee.BirthDate.Value.Month == today.Month
-                        && employee.BirthDate.Value.Day == today.Day)
-                    || (employee.BirthDate.Value.Month == tomorrow.Month
-                        && employee.BirthDate.Value.Day == tomorrow.Day))
-                // Faqat ISHLAYOTGANLAR. Sinovdagilar ham kiradi — ular ham
-                // bugun ishga keladi; arxivdagilar esa yo'q, ishdan ketgan
-                // odamni tabriklashga chaqirish noqulay vaziyat yaratardi.
-                && _context.Employments.Any(employment =>
-                    employment.EmployeeId == employee.Id
-                    && (employment.Status == EmploymentStatus.Active
-                        || employment.Status == EmploymentStatus.Probation)))
+        //
+        // Shartning O'ZI shu yerda yozilmaydi — u `BirthdayQuery` da,
+        // bosh sahifadagi son va uning ostidagi ro'yxat bilan YAGONA
+        // nusxada. Ilgari u shu yerda takrorlangan edi va «aynan bir xil
+        // qoida» degan izoh bilan qadalgan edi; izoh esa kodni bir xil
+        // ushlab tura olmaydi — endi buni tiplar qiladi.
+        var rows = await BirthdayQuery
+            .WithBirthdayOn(_context, today, tomorrow)
             .Select(employee => new
             {
                 employee.Id,

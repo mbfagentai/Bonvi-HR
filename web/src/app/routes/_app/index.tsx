@@ -16,6 +16,7 @@ import { useState } from 'react'
 
 import { useDashboardStats } from '@/features/dashboard/api/dashboard-queries'
 import type { DashboardPeriod } from '@/features/dashboard/api/dashboard-api'
+import { BirthdaysDialog } from '@/features/dashboard/components/birthdays-dialog'
 import { EmployeeBreakdownCard } from '@/features/dashboard/components/employee-breakdown-card'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useGetSystemInfo } from '@/shared/api/generated/system/system'
@@ -39,6 +40,16 @@ export const Route = createFileRoute('/_app/')({
 function Dashboard() {
   const { t, num, date } = useLocale()
   const [period, setPeriod] = useState<DashboardPeriod>('month')
+
+  /*
+   * Tug'ilgan kunlar oynasi ochiqmi.
+   *
+   * Bu YAGONA holat va ro'yxatning o'zi bu yerda saqlanmaydi: uni
+   * `BirthdaysDialog` o'zi so'raydi va faqat ochilganda. Ma'lumotni shu
+   * yerda olib, pastga uzatish bosh sahifaning HAR ochilishida
+   * ishlatilmaydigan so'rov degani bo'lardi.
+   */
+  const [birthdaysOpen, setBirthdaysOpen] = useState(false)
 
   // Davr almashtirgich kesh kalitining ichida — bosilishi bilan
   // yangi so'rov ketadi (`dashboard-queries.ts`).
@@ -199,15 +210,57 @@ function Dashboard() {
         Tug'ilgan kunlar qatori FAQAT kimningdir bayrami bo'lganda
         ko'rinadi. «Bugun 0 ta tug'ilgan kun» degan doimiy qator hech
         qanday ish bermaydi — u shunchaki ekranni to'ldirardi.
+
+        ---------- Nega qator BOSILADI ----------
+
+        Ilgari bu yerda faqat SON turardi va u HR ning asosiy savoliga —
+        «kim?» — javob bermasdi: tabriklash uchun ismni bilish kerak va u
+        xodimlar ro'yxatidan qo'lda qidirilardi. Endi qator bosiladi va
+        ro'yxat oynada ochiladi.
+
+        `button`, `div` + `onClick` EMAS: tugma klaviatura bilan ham
+        ishlaydi (Tab bilan yetiladi, Enter/Probel bilan bosiladi),
+        ekran o'quvchiga «tugma» deb aytiladi va fokus halqasini
+        (`:focus-visible`, `globals.css`) o'zi oladi. `div` da bularning
+        HAMMASI qo'lda yozilishi kerak bo'lardi va bittasi unutilardi.
+
+        Bosilishi mumkinligi ko'rinib turadi: kursor, hover fon rangi,
+        bosilganda kichrayish (`press`) va o'ngdagi strelka — bu
+        ma'lumotnomalar qatoridagi bilan bir xil naqsh.
+
+        ⚠️ Ro'yxatning O'ZI shu yerda so'ralmaydi: `BirthdaysDialog`
+        uni faqat OCHILGANDA so'raydi (sabab `dashboard-queries.ts` da).
+        Shu sababli bu yerda holat bittagina — oyna ochiqmi.
+
+        Kartadagi `overflow-hidden`: hover foni yumaloq burchaklardan
+        chiqib ketmasligi uchun. Tugmaning o'z radiusi kartanikiga teng,
+        lekin `press` uni bosilganda bir zumga kichraytiradi va o'sha
+        lahzada chekka ko'rinib qolardi.
       */}
       {data && data.birthdaysToday > 0 && (
-        <Card className="flex items-center gap-3 p-4">
-          <IconTile icon={Cake} tone="purple" />
-          <p className="text-subhead">
-            {t('dashboard.birthdaysToday', { n: num(data.birthdaysToday) })}
-          </p>
+        <Card className="overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setBirthdaysOpen(true)}
+            className="press flex w-full items-center gap-3 rounded-lg p-4 text-left transition-colors duration-[120ms] ease-[var(--ease-ios)] hover:bg-[var(--bg-hover)]"
+          >
+            <IconTile icon={Cake} tone="purple" />
+            <span className="min-w-0 flex-1 text-subhead">
+              {t('dashboard.birthdaysToday', { n: num(data.birthdaysToday) })}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-[var(--fg-tertiary)]" strokeWidth={2.5} />
+          </button>
         </Card>
       )}
+
+      {/*
+        Oyna kartadan TASHQARIDA turadi va `birthdaysToday > 0` shartiga
+        BOG'LANMAGAN. Sabab: yopilish animatsiyasi (`Dialog` ichida
+        `CLOSE_MS`) tugagunga qadar oyna DOM'da qolishi kerak, karta esa
+        ma'lumot yangilangan lahzada yo'qolib ketishi mumkin — u holda
+        oyna chiqish animatsiyasisiz «uzilib» yo'qolardi.
+      */}
+      <BirthdaysDialog open={birthdaysOpen} onClose={() => setBirthdaysOpen(false)} />
 
       {/*
         ---------- Xodimlar taqsimoti ----------

@@ -175,3 +175,59 @@ public sealed record DashboardBreakdownDto(
 /// <param name="Name">Ko'rsatiladigan nom.</param>
 /// <param name="Count">Shu bo'lakka tushgan faol xodimlar soni.</param>
 public sealed record DashboardBreakdownItemDto(Guid? Id, string Name, int Count);
+
+/// <summary>
+/// Bugun tug'ilgan kuni bo'lgan bitta xodim — bosh sahifadagi
+/// «🎂 Bugun 2 ta xodimning tug'ilgan kuni» qatori ochilganda chiqadigan
+/// ro'yxat uchun.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Nega <see cref="DashboardStatsDto"/> ga QO'SHILMADI, alohida
+/// endpoint.</b> Bosh sahifa har kirishda ochiladi, bu ro'yxatni esa
+/// ko'p hollarda HECH KIM ochmaydi — son o'zi javob berib qo'yadi
+/// («bugun hech kim yo'q»). Ro'yxatni sonlar bilan birga yuborish har bir
+/// sahifa ochilishida biriktirishli qo'shimcha so'rov demak bo'lardi va
+/// undan foydalanilmasdi. Shu sababli u FAQAT modal ochilganda so'raladi
+/// («breakdown» endpoint'i bilan bir xil mantiq — ma'lumot alohida
+/// so'ralsa, u kerak bo'lgandagina yuklanadi).
+/// </para>
+/// <para>
+/// <b>Shart esa BIR XIL.</b> Ro'yxat <c>birthdaysToday</c> soni bilan
+/// aynan bitta so'rovdan (<c>BirthdayQuery</c>) o'sib chiqadi, aks holda
+/// «2 ta» yozuvi ochilib, ichidan uchta odam chiqishi mumkin edi.
+/// </para>
+/// <para>
+/// <b>Oklad, telefon va boshqa shaxsiy ma'lumot bu yerda YO'Q.</b>
+/// Endpoint <c>employees.view</c> bilan ochiladi (bosh sahifadagi sonlar
+/// bilan bir xil ruxsat) va u faqat ro'yxatda allaqachon ko'rinadigan
+/// maydonlarni beradi — ism, rasm, lavozim, bo'lim. Shu sababli maskalash
+/// (<c>SalaryAccess</c>) ham kerak emas: maskalanadigan maydon yo'q.
+/// </para>
+/// </remarks>
+/// <param name="Id">Xodim kartasiga o'tish uchun (<c>/xodimlar/{id}</c>).</param>
+/// <param name="FullName">To'liq F.I.Sh.</param>
+/// <param name="PhotoKey">
+/// Rasm kaliti. <c>null</c> — rasm yuklanmagan; mijoz bunda so'rov
+/// yubormaydi va bosh harflarni chizadi.
+/// </param>
+/// <param name="PositionName">Lavozim. Ko'rsatilmagan bo'lsa — <c>null</c>.</param>
+/// <param name="DepartmentName">Bo'lim. Ko'rsatilmagan bo'lsa — <c>null</c>.</param>
+/// <param name="BirthDate">Tug'ilgan sana — yili bilan.</param>
+/// <param name="Age">
+/// Bugun to'lgan yosh. <c>null</c> — sana SHUBHALI (shu yilgi, kelajakdagi
+/// yoki 120 yildan oshgan). Excel'dan ko'chirilgan yozuvlarda bunday
+/// qiymatlar uchraydi va «136 yoshga to'ldi» degan tabrik ma'lumotga
+/// bo'lgan ishonchni yo'qotardi. Chegara tug'ilgan kun BILDIRISHNOMASI
+/// bilan bir xil: bitta xodim ikkita ekranda bir xil yoshda ko'rinishi
+/// kerak. Ekranda <c>null</c> yosh — yozuvning YO'Qligi: hech narsa
+/// chizilmaydi, «0 yosh» ham, «—» ham emas.
+/// </param>
+public sealed record DashboardBirthdayDto(
+    Guid Id,
+    string FullName,
+    string? PhotoKey,
+    string? PositionName,
+    string? DepartmentName,
+    DateOnly BirthDate,
+    int? Age);

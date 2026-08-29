@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -113,25 +114,17 @@ public sealed class DashboardReadModel : IDashboardReadModel
 
         // ── Tug'ilgan kunlar ────────────────────────────────────────
         //
-        // Yil e'tiborga olinmaydi — faqat kun va oy. PostgreSQL buni
-        // `date_part` bilan bajaradi, ya'ni sana ustunini C# ga olib
-        // chiqish shart emas.
-        //
-        // Faqat ishlayotganlar: arxivdagi odamning tug'ilgan kuni bilan
-        // HR ni tabriklashga chaqirish ma'nosiz bo'lardi. Sinovdagilar ham
-        // kiradi — ular ham bugun ishga keladi.
-        var birthdays = await _context.Employees
-            .AsNoTracking()
-            .CountAsync(
-                employee =>
-                    employee.BirthDate != null
-                    && employee.BirthDate.Value.Month == range.Today.Month
-                    && employee.BirthDate.Value.Day == range.Today.Day
-                    && _context.Employments.Any(employment =>
-                        employment.EmployeeId == employee.Id
-                        && (employment.Status == EmploymentStatus.Active
-                            || employment.Status == EmploymentStatus.Probation)),
-                cancellationToken)
+        // Shart shu yerda yozilmaydi — u `BirthdayQuery` da, YAGONA
+        // nusxada turadi. Sabab: aynan shu odamlar ro'yxati ikki joyda
+        // qayta so'raladi (bu son bosilganda ochiladigan
+        // `ListBirthdaysTodayAsync`, hamda bildirishnomalar) va uchalasi
+        // BIR XIL javob berishi SHART. Shart bu yerda takrorlansa, ekranda
+        // «Bugun 2 ta xodimning tug'ilgan kuni» yozuvi ochilib, ichidan
+        // uchta odam chiqishi mumkin edi — batafsil sabab `BirthdayQuery`
+        // izohida.
+        var birthdays = await BirthdayQuery
+            .WithBirthdayOn(_context, range.Today)
+            .CountAsync(cancellationToken)
             .ConfigureAwait(false);
 
         // ── Ma'lumotnomalar ─────────────────────────────────────────
@@ -426,6 +419,95 @@ public sealed class DashboardReadModel : IDashboardReadModel
         }
 
         return new DashboardBreakdown(departmentItems, directionItems);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <b>Shart bu yerda YO'Q</b> — u <see cref="BirthdayQuery.WithBirthdayOn"/>
+    /// dan keladi, ya'ni bu ro'yxat <see cref="GetCountsAsync"/> dagi
+    /// <c>birthdaysToday</c> SONI bilan bir xil so'rovdan o'sib chiqadi.
+    /// Ikkalasi bir xil satrni ikki marta yozgan bo'lsa, ular birinchi
+    /// o'zgarishdayoq ajralib ketardi va ekranda son bilan ro'yxat mos
+    /// kelmay qolardi.
+    /// </para>
+    /// <para>
+    /// <b>Munosabat uchun <c>DefaultIfEmpty()</c> KERAK EMAS.</b> Xodim bu
+    /// ro'yxatga aynan ishlayotgan munosabati borligi uchun tushgan
+    /// (shartning ikkinchi yarmi), ya'ni ichma-ich so'rov hech qachon
+    /// bo'sh qaytmaydi. Chapdan biriktirish yozish «bo'lmasligi ham
+    /// mumkin» degan yolg'on va'da bo'lardi.
+    /// </para>
+    /// <para>
+    /// <b>Nomlar CHAPDAN biriktiriladi.</b> Bo'lim yoki lavozim
+    /// ko'rsatilmagan bo'lishi mumkin (Excel'dan ko'chirilgan yozuvlarda
+    /// odatiy hol) va bunday xodim ro'yxatdan tushib qolmasligi kerak —
+    /// uning tug'ilgan kuni bo'limidan qat'i nazar bugun
+    /// (<c>NotificationReadModel</c> dagi bilan bir xil sabab).
+    /// </para>
+    /// <para>
+    /// <b>Tartib — F.I.Sh. bo'yicha, bazada.</b> Ro'yxatda «muhimlik»
+    /// tushunchasi yo'q: hamma bir xil bayram qiladi. Alifbo tartibi esa
+    /// barqaror va u tizimdagi qolgan ro'yxatlar bilan bir xil his beradi.
+    /// Oxirgi mezon — <c>Id</c>: to'liq bir xil ismli ikki xodimda tartib
+    /// so'rovdan so'rovga sakramasligi kerak.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<BirthdayEmployeeRow>> ListBirthdaysTodayAsync(
+        DateOnly today,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await (
+                from employee in BirthdayQuery.WithBirthdayOn(_context, today)
+
+                    // Vakillik qiluvchi munosabat: asosiysi, u bo'lmasa eng
+                    // so'nggi ishga kirgani — `SearchEmployeesAsync` va
+                    // `GetBreakdownAsync` dagi bilan AYNAN bir xil naqsh.
+                    // Manba esa `WorkingEmployments`: ro'yxatdagi odam
+                    // «ishlayapti» deb turib, yonida uch yil oldin yopilgan
+                    // shartnomasining bo'limi yozilib qolmasligi uchun.
+                from employment in BirthdayQuery.WorkingEmployments(_context)
+                    .Where(candidate => candidate.EmployeeId == employee.Id)
+                    .OrderByDescending(candidate => candidate.IsPrimary)
+                    .ThenByDescending(candidate => candidate.HireDate)
+                    .ThenByDescending(candidate => candidate.Id)
+                    .Take(1)
+                join department in _context.Departments.AsNoTracking()
+                    on employment.DepartmentId equals (Guid?)department.Id into departmentMatch
+                from department in departmentMatch.DefaultIfEmpty()
+                join position in _context.Positions.AsNoTracking()
+                    on employment.PositionId equals (Guid?)position.Id into positionMatch
+                from position in positionMatch.DefaultIfEmpty()
+                orderby employee.FullName.LastName, employee.FullName.FirstName, employee.Id
+                select new
+                {
+                    employee.Id,
+                    employee.FullName.LastName,
+                    employee.FullName.FirstName,
+                    employee.FullName.MiddleName,
+                    employee.PhotoKey,
+                    employee.BirthDate,
+                    DepartmentName = department!.Name,
+                    PositionName = position!.Name,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new BirthdayEmployeeRow(
+                row.Id,
+                // Ism uchta ustundan yig'iladi — barcha o'qish modellarida
+                // bir xil qoida (`FromTrusted`: bazadagi qiymat allaqachon
+                // tekshirilgan, uni qayta validatsiya qilish shart emas).
+                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
+                row.PhotoKey,
+                row.PositionName,
+                row.DepartmentName,
+                // `!` xavfsiz: `BirthDate == null` bo'lgan xodim shartdan
+                // o'tolmaydi (tug'ilgan kuni yo'q odamning bayrami ham yo'q).
+                row.BirthDate!.Value)),
+        ];
     }
 
     /// <summary>
