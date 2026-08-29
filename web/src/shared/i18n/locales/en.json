@@ -1149,5 +1149,67 @@
     "acceptSectionPlacement": "Placement",
     "acceptPlacementHint": "Which legal entity, department and position the candidate is hired into. The vacancy does not carry this — the decision is made here.",
     "acceptOfferSummary": "{{vacancy}} · {{salary}} · starts {{date}}"
+  },
+  "notifications": {
+    "unreadSummary": "{{n}} unread",
+    "allRead": "All read",
+    "unread": "Unread",
+    "bellLabel": "Notifications: {{n}} unread",
+    "selectAll": "Select all",
+    "selectedCount": "{{n}} selected",
+    "deleteSelected": "Delete selected",
+    "markAllRead": "Mark all as read",
+    "open": "Open",
+    "age": "Age {{n}}",
+    "limitNote": "Showing {{shown}} of {{total}}",
+    "emptyTitle": "No notifications",
+    "emptyText": "Reminders about probation periods, birthdays and candidates will show up here.",
+    "loadFailed": "Could not load notifications",
+    "actionFailed": "Could not complete the action",
+    "confirmDeleteTitle": "Delete selected",
+    "confirmDeleteText": "The selected notifications ({{n}}) will be removed from the list for good and will not come back — even if the condition still holds. The employee and candidate records themselves are untouched.",
+    "deleting": "Deleting…",
+    "type": {
+      "probationEndingSoon": {
+        "title": "Probation ending soon",
+        "text": "{{name}} — probation ends in {{days}} days, on {{date}}."
+      },
+      "probationEndsToday": {
+        "title": "Probation ends today",
+        "text": "{{name}} — probation ends today, {{date}}. It needs to be closed out."
+      },
+      "probationOverdue": {
+        "title": "Probation overdue",
+        "text": "{{name}} — probation ended on {{date}}, {{days}} days ago, and is still not closed."
+      },
+      "probationMissing": {
+        "title": "No probation record",
+        "text": "{{name}} — employed since {{date}} ({{days}} days), marked as on probation, but there is no probation record."
+      },
+      "birthdayToday": {
+        "title": "Birthday today",
+        "text": "{{name}} — birthday today ({{date}})."
+      },
+      "birthdayTomorrow": {
+        "title": "Birthday tomorrow",
+        "text": "{{name}} — birthday tomorrow ({{date}})."
+      },
+      "candidateNew": {
+        "title": "New candidate",
+        "text": "{{name}} — added to the candidate list on {{date}}."
+      },
+      "jobOfferExpiring": {
+        "title": "Job offer expiring",
+        "text": "{{name}} — the reply deadline for the job offer is in {{days}} days, on {{date}}."
+      },
+      "jobOfferExpiringToday": {
+        "title": "Job offer expires today",
+        "text": "{{name}} — the reply deadline for the job offer is today, {{date}}."
+      },
+      "jobOfferExpired": {
+        "title": "Job offer expired",
+        "text": "{{name}} — the reply deadline for the job offer passed on {{date}}, {{days}} days ago, and the offer is still open."
+      }
+    }
   }
 }

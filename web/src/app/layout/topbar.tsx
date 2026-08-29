@@ -1,7 +1,4 @@
-import { Bell } from 'lucide-react'
-
-import { useLocale } from '@/shared/i18n/use-locale'
-import { Button } from '@/shared/ui'
+import { NotificationsBell } from '@/features/notifications'
 import { LanguageSwitcher } from '@/shared/ui/language-switcher'
 import { ThemeToggle } from '@/shared/ui/theme-toggle'
 import { TopbarSearch } from './topbar-search'
@@ -24,8 +21,6 @@ import { UserMenu } from './user-menu'
  * fonidan o'tganda uning ustiga chiqib ketmasligi kerak.
  */
 export function Topbar() {
-  const { t } = useLocale()
-
   return (
     <header className="blur-bar z-30 shrink-0 border-b border-[var(--border)]">
       <div className="flex h-16 items-center gap-3 px-5 lg:gap-4 lg:px-6">
@@ -50,16 +45,18 @@ export function Topbar() {
 
           <ThemeToggle />
 
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title={t('common.notifications')}
-            aria-label={t('common.notifications')}
-            className="relative"
-          >
-            <Bell />
-            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-ios-red ring-2 ring-[var(--bg)]" />
-          </Button>
+          {/*
+            Qo'ng'iroq — o'z moduli bilan birga keladi (tugma, sanoq va
+            oyna bitta komponentda). Panel bu yerda ham faqat
+            JOYLASHTIRADI, mantiqni saqlamaydi — `TopbarSearch` va
+            `UserMenu` bilan bir xil naqsh.
+
+            ⚠️ Ilgari shu o'rinda `onClick` siz tugma va ustida QATTIQ
+            YOZIB QO'YILGAN qizil nuqta turardi: u hech narsa qilmasdi va
+            hech qachon o'chmasdi. Ikkalasi ham
+            `features/notifications` ichida tuzatildi.
+          */}
+          <NotificationsBell />
 
           {/* Ajratgich — hisob qismini boshqa boshqaruvlardan ajratadi */}
           <span className="mx-0.5 hidden h-6 w-px bg-[var(--border)] sm:block" />

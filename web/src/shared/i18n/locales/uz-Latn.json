@@ -1149,5 +1149,67 @@
     "acceptSectionPlacement": "Ish joyi",
     "acceptPlacementHint": "Nomzod qaysi firmaga, bo‘limga va lavozimga olinadi. Vakansiyada bu ma’lumot yo‘q — qaror aynan shu yerda qabul qilinadi.",
     "acceptOfferSummary": "{{vacancy}} · {{salary}} · ish boshlash: {{date}}"
+  },
+  "notifications": {
+    "unreadSummary": "{{n}} ta o‘qilmagan",
+    "allRead": "Hammasi o‘qilgan",
+    "unread": "O‘qilmagan",
+    "bellLabel": "Bildirishnomalar: {{n}} ta o‘qilmagan",
+    "selectAll": "Barchasini belgilash",
+    "selectedCount": "{{n}} ta tanlandi",
+    "deleteSelected": "Belgilanganlarni o‘chirish",
+    "markAllRead": "Barchasini o‘qildi deb belgilash",
+    "open": "Kirib ko‘rish",
+    "age": "{{n}} yosh",
+    "limitNote": "{{total}} tadan {{shown}} tasi ko‘rsatildi",
+    "emptyTitle": "Bildirishnoma yo‘q",
+    "emptyText": "Sinov muddatlari, tug‘ilgan kunlar va nomzodlar haqidagi eslatmalar shu yerda paydo bo‘ladi.",
+    "loadFailed": "Bildirishnomalarni yuklab bo‘lmadi",
+    "actionFailed": "Amalni bajarib bo‘lmadi",
+    "confirmDeleteTitle": "Belgilanganlarni o‘chirish",
+    "confirmDeleteText": "{{n}} ta bildirishnoma ro‘yxatdan butunlay olib tashlanadi va boshqa ko‘rinmaydi — sharti hamon o‘z kuchida bo‘lsa ham. Xodim va nomzod yozuvlariga hech narsa bo‘lmaydi.",
+    "deleting": "O‘chirilmoqda…",
+    "type": {
+      "probationEndingSoon": {
+        "title": "Sinov muddati tugayapti",
+        "text": "{{name}} — sinov muddati {{days}} kundan keyin, {{date}} da tugaydi."
+      },
+      "probationEndsToday": {
+        "title": "Sinov muddati bugun tugaydi",
+        "text": "{{name}} — sinov muddati bugun, {{date}} da tugaydi. Natijani belgilash kerak."
+      },
+      "probationOverdue": {
+        "title": "Sinov muddati o‘tib ketgan",
+        "text": "{{name}} — sinov muddati {{date}} da tugagan, {{days}} kun o‘tdi, lekin yakunlanmagan."
+      },
+      "probationMissing": {
+        "title": "Sinov yozuvi ochilmagan",
+        "text": "{{name}} — {{date}} dan beri ishlaydi ({{days}} kun), holati «sinovda», lekin sinov muddati yozuvi yo‘q."
+      },
+      "birthdayToday": {
+        "title": "Bugun tug‘ilgan kun",
+        "text": "{{name}} — bugun tug‘ilgan kuni ({{date}})."
+      },
+      "birthdayTomorrow": {
+        "title": "Ertaga tug‘ilgan kun",
+        "text": "{{name}} — ertaga tug‘ilgan kuni ({{date}})."
+      },
+      "candidateNew": {
+        "title": "Yangi nomzod",
+        "text": "{{name}} — {{date}} da nomzodlar ro‘yxatiga qo‘shildi."
+      },
+      "jobOfferExpiring": {
+        "title": "Taklif muddati tugayapti",
+        "text": "{{name}} — ish taklifiga javob muddati {{days}} kundan keyin, {{date}} da tugaydi."
+      },
+      "jobOfferExpiringToday": {
+        "title": "Taklifga javob muddati bugun tugaydi",
+        "text": "{{name}} — ish taklifiga javob muddati bugun, {{date}} da tugaydi."
+      },
+      "jobOfferExpired": {
+        "title": "Taklif muddati o‘tib ketgan",
+        "text": "{{name}} — ish taklifiga javob muddati {{date}} da tugagan, {{days}} kun o‘tdi, taklif hamon ochiq."
+      }
+    }
   }
 }

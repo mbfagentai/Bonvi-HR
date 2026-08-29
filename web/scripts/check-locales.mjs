@@ -361,6 +361,28 @@ const DYNAMIC_KEY_SOURCES = [
       `recruiting.vacancyAction.${value}Confirm`,
     ],
   },
+  /*
+   * Bildirishnomalar (qo'ng'iroq oynasi). Har bir yozuv turi uchun
+   * sarlavha va matn kerak, tur esa shablonda turadi:
+   * `` t(`notifications.type.${textKey}.title`) ``.
+   *
+   * ⚠️ Manba `NOTIFICATION_TYPES` (server turlari) EMAS, balki
+   * `NOTIFICATION_TEXT_KEYS`: bitta tur ikkita matnga ajralishi mumkin.
+   * `JobOfferExpiring` da `daysLeft = "0"` kelganda «0 kundan keyin
+   * tugaydi» degan jumla hech qaysi tilda o'qilmaydi, shu sababli u
+   * uchun alohida `jobOfferExpiringToday` matni bor. Kod ham AYNAN shu
+   * massivdan tanlaydi (`notificationTextKey`), ya'ni ro'yxat
+   * o'zgarganda tekshiruv o'zi yangilanadi.
+   */
+  {
+    file: 'src/features/notifications/lib/notification-presentation.ts',
+    values: (text) => constArrayValues(text, 'NOTIFICATION_TEXT_KEYS'),
+    keysFor: (value) => [
+      `notifications.type.${value}.title`,
+      `notifications.type.${value}.text`,
+    ],
+  },
+
   {
     /*
      * Nomzod kartasidagi «yopilgan» yozuvi. Uchta holatning har biri uchun
