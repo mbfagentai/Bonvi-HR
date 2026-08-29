@@ -57,6 +57,53 @@ public sealed class ListIncidentsQueryHandler
     }
 }
 
+/// <summary>Bitta xodimning barcha baxtsiz hodisalari.</summary>
+/// <remarks>
+/// <para>
+/// <b>Nega jurnalning «search» i yaramaydi.</b> U MATN bo'yicha qidiradi
+/// (F.I.Sh., JSHSHIR) va bir xil ismli ikki odamni ajrata olmaydi —
+/// xodim kartasida esa aynan SHU odamning yozuvlari kerak, taxminan
+/// mos keladiganlari emas. Shu sababli alohida so'rov,
+/// <c>GetExitInterviewByEmploymentQuery</c> bilan bir xil naqsh.
+/// </para>
+/// <para>
+/// Ro'yxat BO'SH bo'lishi odatiy hol (ko'pchilikda hodisa yo'q) — bu
+/// xato emas, 200 va bo'sh massiv qaytadi.
+/// </para>
+/// </remarks>
+public sealed record ListEmployeeIncidentsQuery(Guid EmployeeId);
+
+public sealed class ListEmployeeIncidentsQueryHandler
+{
+    private readonly IIncidentRepository _incidents;
+    private readonly IncidentMapper _mapper;
+
+    public ListEmployeeIncidentsQueryHandler(IIncidentRepository incidents, IncidentMapper mapper)
+    {
+        _incidents = incidents;
+        _mapper = mapper;
+    }
+
+    public async Task<Result<IReadOnlyList<IncidentDto>>> HandleAsync(
+        ListEmployeeIncidentsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var rows = await _incidents
+            .GetByEmployeeAsync(query.EmployeeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = new List<IncidentDto>(rows.Count);
+        foreach (var row in rows)
+        {
+            items.Add(await _mapper.ToDtoAsync(row, cancellationToken).ConfigureAwait(false));
+        }
+
+        return Result.Success<IReadOnlyList<IncidentDto>>(items);
+    }
+}
+
 public sealed record GetIncidentQuery(Guid IncidentId);
 
 public sealed class GetIncidentQueryHandler

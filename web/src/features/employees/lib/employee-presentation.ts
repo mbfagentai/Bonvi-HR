@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 
 import type { BadgeTone, IconTone } from '@/shared/ui'
+import { EMPLOYEE_FLAG_TYPES } from '../api/employees-api'
 import type {
   EmployeeFlagType,
   EmployeeStatus,
@@ -144,6 +145,107 @@ export const FLAG_LOOK: Readonly<Record<EmployeeFlagType, FlagLook>> = {
     icon: Award,
     key: 'capable',
   },
+}
+
+/**
+ * Xodim yo'lining bosqichi — belgi shu bosqichga qarab tanlanadi.
+ *
+ * `employed` — xodim hozir ishlab turibdi (sinovda yoki doimiy).
+ * `departed` — barcha mehnat munosabatlari yakunlangan, yoki umuman yo'q.
+ */
+export type EmployeeStage = 'employed' | 'departed'
+
+/**
+ * Qaysi belgi qaysi bosqichda qo'yiladi.
+ *
+ * <b>Backend'dagi <c>EmployeeFlagStages</c> bilan AYNAN bir xil</b> —
+ * ikkalasi bir xil bo'lishi shart, aks holda interfeys qo'yib bo'lmaydigan
+ * belgini taklif qilib, server 409 bilan rad etardi.
+ *
+ * Bo'linish ma'nosi: ishlab turgan odam haqidagi savol «u bilan HOZIR
+ * nima qilamiz?» (kuzatamizmi, ko'proq yuklama beramizmi), ketayotgan
+ * odam haqidagisi esa «uni KEYIN qaytarib olamizmi?» (chaqirsa bo'ladimi,
+ * umuman olmaymizmi). Aralashgan holat ma'nosiz: bizda ishlab turgan
+ * odamni «rezerv» deb belgilash — «u bizda ishlayapti, lekin kerak bo'lsa
+ * chaqiramiz» degani.
+ */
+export const FLAG_STAGE: Readonly<Record<EmployeeFlagType, EmployeeStage>> = {
+  monitoring: 'employed',
+  capable: 'employed',
+  reserve: 'departed',
+  blacklist: 'departed',
+}
+
+/**
+ * Xodim hozir ishlayaptimi.
+ *
+ * Bitta ochiq munosabat yetarli: o'rindosh xodim bitta firmadan ketsa
+ * ham bizda ishlashda davom etadi (backend ham shunday hisoblaydi).
+ * Munosabati UMUMAN yo'q xodim `departed` — u hali ishga qabul
+ * qilinmagan va unga «nazorat» qo'yish ma'nosiz.
+ */
+export function employeeStage(
+  employments: readonly { status: EmployeeStatus }[],
+): EmployeeStage {
+  return employments.some((employment) => employment.status !== 'terminated')
+    ? 'employed'
+    : 'departed'
+}
+
+/**
+ * Belgilar ro'yxatida turadigan, lekin BELGI BO'LMAGAN yozuvlar.
+ *
+ * Ular xodim yo'lidagi xuddi shunday nishonlar — «bu odam bilan nima
+ * bo'lgan?» degan savolga javob beradi — lekin ularning ortida to'liq
+ * yozuv turadi: baxtsiz hodisada joy, sabab, jabrlanish darajasi va
+ * komissiya xulosasi; qayta aloqada esa suhbatning o'zi.
+ *
+ * <b>Nega belgi turiga aylantirilmadi.</b> Belgi — sana va sabab; bu
+ * yozuvlar esa o'ndan ortiq maydon va o'z hayot sikliga ega (hodisaga
+ * keyinroq komissiya xulosasi qo'shiladi). Ularni belgi qilib qo'yish
+ * bir odam bo'yicha IKKITA manba yaratardi: `/hodisalar` jurnalidagi
+ * to'liq yozuv va kartadagi bo'sh yorliq — va ular birinchi
+ * o'zgarishdayoq bir-biriga mos kelmay qolardi.
+ *
+ * Shu sababli ular «Belgi qo'yish» ro'yxatida TURADI (HR ularni shu
+ * yerdan izlaydi), lekin tanlanganda o'z formasiga olib boradi.
+ */
+export const ROUTED_MARKS = ['incident', 'interview'] as const
+export type RoutedMark = (typeof ROUTED_MARKS)[number]
+
+/**
+ * «Belgi qo'yish» oynasidagi tanlov — bosqich bo'yicha.
+ *
+ * Avval o'sha bosqichning belgilari, oxirida havolali yozuv: ro'yxat
+ * «tez-tez ishlatiladigandan kamdan-kamgacha» tartibida o'qiladi va
+ * havola oxirida turgani uchun tasodifan tanlanmaydi.
+ */
+export const STAGE_CHOICES: Readonly<
+  Record<EmployeeStage, readonly (EmployeeFlagType | RoutedMark)[]>
+> = {
+  employed: [...EMPLOYEE_FLAG_TYPES.filter((type) => FLAG_STAGE[type] === 'employed'), 'incident'],
+  departed: [...EMPLOYEE_FLAG_TYPES.filter((type) => FLAG_STAGE[type] === 'departed'), 'interview'],
+}
+
+/** Tanlangan yozuv belgi emas, havolami. */
+export function isRoutedMark(choice: EmployeeFlagType | RoutedMark): choice is RoutedMark {
+  return (ROUTED_MARKS as readonly string[]).includes(choice)
+}
+
+/**
+ * Belgi shu SANADAN keyin ham kuchdami.
+ *
+ * Backend'dagi `EmployeeFlag.IsInForceAfter` bilan aynan bir xil
+ * (`endDate > date`, `>=` emas): bugun yopilgan belgi bugundan keyin
+ * kuchda EMAS. Kartadagi nishonlar shu shartga tayanadi — aks holda
+ * almashtirilgan belgi almashtirilgan KUNI hali ham nishon bo'lib
+ * turardi va HR ikkita belgi ko'rib, qoida buzilgan deb o'ylardi.
+ */
+export function flagInForce(
+  flag: { startDate: string; endDate: string | null },
+  date: string,
+): boolean {
+  return flag.startDate <= date && (flag.endDate === null || flag.endDate > date)
 }
 
 /* ═══════════════════════════════════════════════════ RAG'BAT VA JARIMA */

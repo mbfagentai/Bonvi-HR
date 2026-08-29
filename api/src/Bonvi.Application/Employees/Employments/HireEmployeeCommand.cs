@@ -75,6 +75,7 @@ public sealed class HireEmployeeCommandHandler
     private readonly IProbationRepository _probations;
     private readonly IPositionRepository _positions;
     private readonly IReferenceRepository<LegalEntity> _legalEntities;
+    private readonly IEmployeeFlagRepository _flags;
     private readonly EmployeeFlagGuard _flagGuard;
     private readonly EmployeeMapper _mapper;
     private readonly IClock _clock;
@@ -86,6 +87,7 @@ public sealed class HireEmployeeCommandHandler
         IProbationRepository probations,
         IPositionRepository positions,
         IReferenceRepository<LegalEntity> legalEntities,
+        IEmployeeFlagRepository flags,
         EmployeeFlagGuard flagGuard,
         EmployeeMapper mapper,
         IClock clock,
@@ -96,6 +98,7 @@ public sealed class HireEmployeeCommandHandler
         _probations = probations;
         _positions = positions;
         _legalEntities = legalEntities;
+        _flags = flags;
         _flagGuard = flagGuard;
         _mapper = mapper;
         _clock = clock;
@@ -273,6 +276,26 @@ public sealed class HireEmployeeCommandHandler
         var probation = started.Value;
         _probations.Add(probation);
 
+        // ── Ketish belgisi ishga qabul bilan yopiladi ──
+        //
+        // Rezerv — «hozir olinmadi, lekin kerak bo'lsa chaqirsa bo'ladi».
+        // Odam chaqirildi va keldi: belgi bajarildi, uni ochiq qoldirish
+        // «rezerv» ro'yxatiga ishlab turgan xodimni qo'yib qo'yish demak.
+        // Bo'shatishdagi bilan bir xil naqsh, faqat teskari yo'nalishda.
+        //
+        // Qora ro'yxat bu yerga YETIB KELMAYDI: u yuqorida amalni butunlay
+        // to'xtatadi (`EmployeeErrors.Blacklisted`). Shart baribir tur
+        // bo'yicha yozilgan, holat bo'yicha emas — «qora ro'yxatdagi odam
+        // shu yerga tushmaydi» degan taxminni kodning ikkinchi joyiga
+        // ko'chirish keyingi o'zgarishda jimgina buzilardi.
+        var releasedFlags = await CloseDepartureFlagsAsync(employee.Id, hireDate, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (releasedFlags.IsFailure)
+        {
+            return releasedFlags.Error;
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         IReadOnlyList<PositionDutyDto> duties = position is null
@@ -282,6 +305,51 @@ public sealed class HireEmployeeCommandHandler
         var dto = await _mapper.ToDtoAsync(employment, probation, cancellationToken).ConfigureAwait(false);
 
         return Result.Success(new HireResultDto(dto, duties, warnings));
+    }
+
+    /// <summary>Ishdan ketishda qo'yilgan belgilarni ishga qabul bilan yopadi.</summary>
+    /// <remarks>
+    /// <para>
+    /// Yozuv O'CHIRILMAYDI — muddati yopiladi va sabab yozib qo'yiladi:
+    /// «bu odam falon sanagacha rezervda edi» degan fakt qayta ishga
+    /// olinganidan keyin ham to'g'ri qoladi
+    /// (<c>EmployeeFlag.Supersede</c> izohi).
+    /// </para>
+    /// <para>
+    /// Sanalar bilan ishlash bo'shatishdagi bilan AYNAN bir xil, sabab ham
+    /// bir xil — <c>TerminateEmploymentCommandHandler.CloseEmployedFlagsAsync</c>
+    /// izohiga qarang.
+    /// </para>
+    /// </remarks>
+    private async Task<Result> CloseDepartureFlagsAsync(
+        Guid employeeId,
+        DateOnly hireDate,
+        CancellationToken cancellationToken)
+    {
+        var today = _clock.Today;
+        var asOf = hireDate > today ? hireDate : today;
+
+        var inForce = await _flags
+            .GetInForceAsync(employeeId, asOf, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var flag in inForce)
+        {
+            if (!EmployeeFlagStages.IsForDeparture(flag.Type))
+            {
+                continue;
+            }
+
+            var closeAt = hireDate < flag.StartDate ? flag.StartDate : hireDate;
+
+            var result = flag.Supersede(closeAt, "qayta ishga olindi");
+            if (result.IsFailure)
+            {
+                return result.Error;
+            }
+        }
+
+        return Result.Success();
     }
 
     /// <summary>

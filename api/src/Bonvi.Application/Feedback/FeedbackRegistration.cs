@@ -22,6 +22,7 @@ internal static class FeedbackRegistration
 
         services.AddScoped<ListExitInterviewsQueryHandler>();
         services.AddScoped<GetExitInterviewByEmploymentQueryHandler>();
+        services.AddScoped<ListEmployeeExitInterviewsQueryHandler>();
 
         return services;
     }

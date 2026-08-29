@@ -78,6 +78,27 @@ public static class ExitInterviewEndpoints
             .Produces<IReadOnlyList<ExitInterviewDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        group.MapGet("/by-employee/{employeeId:guid}", async (
+                Guid employeeId,
+                ListEmployeeExitInterviewsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListEmployeeExitInterviewsQuery(employeeId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.FeedbackView)
+            .WithName("ListEmployeeExitInterviews")
+            .WithSummary("Qayta aloqa — bitta xodim bo'yicha")
+            .WithDescription(
+                "Xodim kartasidagi «Belgilar» tabi uchun: suhbat ham xodim yo'lidagi belgi bo'lib " +
+                "ko'rsatiladi. Bitta shaxsning bir nechta ketishi bo'lishi mumkin, shu sababli " +
+                "ro'yxat. Suhbati yo'q xodimda bo'sh massiv qaytadi, 404 emas.")
+            .Produces<IReadOnlyList<ExitInterviewDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         group.MapGet("/by-employment/{employmentId:guid}", async (
                 Guid employmentId,
                 GetExitInterviewByEmploymentQueryHandler handler,

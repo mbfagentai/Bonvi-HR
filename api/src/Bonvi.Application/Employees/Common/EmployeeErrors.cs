@@ -126,6 +126,47 @@ public static class EmployeeErrors
                 + "davom ettirilsa eskisi yopiladi. Tasdiqlash uchun «confirm=true» bilan qayta yuboring.");
 
     /// <summary>
+    /// Ketish belgisi ishlab turgan xodimga qo'yilmoqchi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Rezerv va qora ro'yxat — «bu odamni KEYIN qaytarib olamizmi?»
+    /// degan savolga javob, ya'ni ular ketish paytida tanlanadi
+    /// (<c>EmployeeFlagStage</c> izohi). Ishlab turgan odamni «rezerv»
+    /// deb belgilash ma'nosiz: u bizda ishlayapti, chaqirishning hojati
+    /// yo'q.
+    /// </para>
+    /// <para>
+    /// <b>Nega TAQIQ, tasdiq emas</b> (<see cref="FlagAlreadyInForce"/>
+    /// dan farqli): u yerda ikkala holat ham ma'noli edi va HR qaysi
+    /// birini saqlashni tanlaydi. Bu yerda esa saqlanadigan ma'no umuman
+    /// yo'q — belgi noto'g'ri joyda turadi va uni tasdiqlash bilan
+    /// to'g'rilab bo'lmaydi. Kerak bo'lsa, avval xodim ishdan bo'shatiladi
+    /// va belgi o'sha oqimda tanlanadi.
+    /// </para>
+    /// </remarks>
+    public static Error FlagNeedsDeparture { get; } =
+        Error.Conflict(
+            "belgi.xodim_ishlayapti",
+            "Rezerv va qora ro'yxat ishdan ketishda tanlanadi. Xodim hozir ishlayapti — "
+                + "unga faqat «nazoratda» yoki «qobiliyatli» belgisi qo'yiladi.");
+
+    /// <summary>
+    /// Ishlab turgan xodim belgisi ketgan odamga qo'yilmoqchi.
+    /// </summary>
+    /// <remarks>
+    /// Nazorat va «qobiliyatli» — «bu odam bilan HOZIR nima qilish
+    /// kerak?» degan savolga javob. Ketgan odamda bunday vazifa yo'q:
+    /// uni hech kim kuzatmaydi va unga hech kim yuklama bermaydi.
+    /// Sabab <see cref="FlagNeedsDeparture"/> dagi bilan bir xil.
+    /// </remarks>
+    public static Error FlagNeedsEmployment { get; } =
+        Error.Conflict(
+            "belgi.xodim_ketgan",
+            "«Nazoratda» va «qobiliyatli» belgilari ishlab turgan xodimga qo'yiladi. "
+                + "Xodim ishdan ketgan — unga rezerv yoki qora ro'yxat belgisi qo'yiladi.");
+
+    /// <summary>
     /// Xodim shu firmada allaqachon ishlayapti.
     /// </summary>
     /// <remarks>

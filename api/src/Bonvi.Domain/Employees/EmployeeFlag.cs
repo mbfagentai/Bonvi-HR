@@ -18,6 +18,72 @@ public enum EmployeeFlagType
     Capable = 4,
 }
 
+/// <summary>Belgi xodim yo'lining QAYSI nuqtasida qo'yiladi.</summary>
+/// <remarks>
+/// <para>
+/// Foydalanuvchining aniq qarori: belgilar ikki guruhga bo'linadi va
+/// ular ARALASHMAYDI. Sabab — belgining o'zi savolga javob berishi
+/// kerak, savol esa har bosqichda boshqacha:
+/// </para>
+/// <list type="bullet">
+///   <item><b>Ishlab turganda</b> — «bu odam bilan HOZIR nima qilish
+///   kerak?»: kuzatib turish (<see cref="EmployeeFlagType.Monitoring"/>)
+///   yoki ko'proq yuklama berish
+///   (<see cref="EmployeeFlagType.Capable"/>).</item>
+///   <item><b>Ketayotganda</b> — «bu odamni KEYIN qaytarib olamizmi?»:
+///   chaqirsa bo'ladi (<see cref="EmployeeFlagType.Reserve"/>) yoki
+///   umuman olinmaydi (<see cref="EmployeeFlagType.Blacklist"/>).</item>
+/// </list>
+/// <para>
+/// Aralashgan holat ma'nosiz: ishlab turgan odamni «rezerv» deb belgilash
+/// — «u bizda ishlayapti, lekin kerak bo'lsa chaqiramiz» degani, ketgan
+/// odamni «nazoratda» deb belgilash esa hech kim bajarmaydigan vazifa.
+/// Excel'da ikkala hol ham bor edi va ro'yxatlar shu sababdan
+/// ishlatilmay qolgan.
+/// </para>
+/// </remarks>
+public enum EmployeeFlagStage
+{
+    /// <summary>Ishlab turgan xodimga qo'yiladi.</summary>
+    Employed = 1,
+
+    /// <summary>Ishdan ketishda tanlanadi.</summary>
+    Departure = 2,
+}
+
+/// <summary>Belgi turining bosqichi — bitta manba.</summary>
+/// <remarks>
+/// <para>
+/// Bu bilim DOMENDA turadi, use-case'da emas: u belgi turining o'z
+/// xossasi va uchta joyda kerak bo'ladi — belgi qo'yishda
+/// (<c>RaiseFlagCommandHandler</c>), ishdan bo'shatishda va ishga
+/// qabulda. Uch joyda uchta <c>switch</c> yozilsa, yangi belgi turi
+/// qo'shilganda biri unutilardi.
+/// </para>
+/// <para>
+/// <c>switch</c> ATAYLAB <c>default</c> siz emas: yangi tur qo'shilganda
+/// kompilyator ogohlantirmaydi, shu sababli har bir tur ochiq
+/// sanab o'tilgan va noma'lum qiymat xato bilan tugaydi.
+/// </para>
+/// </remarks>
+public static class EmployeeFlagStages
+{
+    public static EmployeeFlagStage Of(EmployeeFlagType type) => type switch
+    {
+        EmployeeFlagType.Monitoring => EmployeeFlagStage.Employed,
+        EmployeeFlagType.Capable => EmployeeFlagStage.Employed,
+        EmployeeFlagType.Reserve => EmployeeFlagStage.Departure,
+        EmployeeFlagType.Blacklist => EmployeeFlagStage.Departure,
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Noma'lum belgi turi."),
+    };
+
+    /// <summary>Bu belgi ishlab turgan xodimga qo'yiladimi.</summary>
+    public static bool IsForEmployed(EmployeeFlagType type) => Of(type) == EmployeeFlagStage.Employed;
+
+    /// <summary>Bu belgi ishdan ketishda tanlanadimi.</summary>
+    public static bool IsForDeparture(EmployeeFlagType type) => Of(type) == EmployeeFlagStage.Departure;
+}
+
 /// <summary>
 /// Xodimga qo'yilgan belgi.
 /// </summary>
@@ -136,9 +202,19 @@ public sealed class EmployeeFlag : AggregateRoot, IAuditable
         => StartDate <= date && (EndDate is null || EndDate > date);
 
     /// <summary>
-    /// Belgini yangisi bilan almashtirilgani uchun tugatadi.
+    /// Belgini muddatidan OLDIN tugatadi.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// <b>Ikki chaqiruvchi, bitta mexanika.</b> Belgi ikki sababdan
+    /// muddatidan oldin tugashi mumkin: yangisi bilan ALMASHTIRILGANDA
+    /// (<c>RaiseFlagCommandHandler</c>) va xodim ISHDAN KETGANDA
+    /// (<c>TerminateEmploymentCommandHandler</c> — ketgan odamni hech kim
+    /// kuzatmaydi, ya'ni «nazoratda» belgisi ma'nosini yo'qotadi).
+    /// Ikkalasida ham qilinadigan ish bir xil — muddatni qisqartirish va
+    /// sababni yozib qo'yish; farq faqat <paramref name="note"/> matnida,
+    /// shu sababli ikkita metod emas, bitta.
+    /// </para>
     /// <para>
     /// <b>Nega <see cref="Close"/> yetmaydi.</b> <c>Close</c> muddatsiz
     /// belgini yopish uchun va u allaqachon <c>EndDate</c> si bor
@@ -156,8 +232,8 @@ public sealed class EmployeeFlag : AggregateRoot, IAuditable
     /// yozilmaydi.
     /// </para>
     /// </remarks>
-    /// <param name="at">Almashtirish kuni — belgi shu kunning oxirida tugaydi.</param>
-    /// <param name="note">Nima uchun almashtirilgani.</param>
+    /// <param name="at">Tugatish kuni — belgi shu kunning oxirida tugaydi.</param>
+    /// <param name="note">Nima uchun muddatidan oldin tugatilgani.</param>
     public Result Supersede(DateOnly at, string? note = null)
     {
         if (at < StartDate)

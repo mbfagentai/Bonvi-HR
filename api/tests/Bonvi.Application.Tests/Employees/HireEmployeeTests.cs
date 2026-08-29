@@ -24,6 +24,7 @@ public sealed class HireEmployeeTests
         _context.Probations,
         _context.Positions,
         _context.LegalEntities,
+        _context.Flags,
         _context.FlagGuard,
         _context.Mapper,
         _context.Clock,

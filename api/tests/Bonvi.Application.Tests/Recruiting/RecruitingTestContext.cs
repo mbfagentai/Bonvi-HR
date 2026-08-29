@@ -95,6 +95,7 @@ internal sealed class RecruitingTestContext
         Employees.Probations,
         Employees.Positions,
         Employees.LegalEntities,
+        Employees.Flags,
         Employees.FlagGuard,
         Employees.Mapper,
         Employees.Clock,

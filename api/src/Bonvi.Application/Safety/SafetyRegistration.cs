@@ -15,6 +15,7 @@ internal static class SafetyRegistration
         services.AddScoped<DeleteIncidentCommandHandler>();
 
         services.AddScoped<ListIncidentsQueryHandler>();
+        services.AddScoped<ListEmployeeIncidentsQueryHandler>();
         services.AddScoped<GetIncidentQueryHandler>();
 
         return services;

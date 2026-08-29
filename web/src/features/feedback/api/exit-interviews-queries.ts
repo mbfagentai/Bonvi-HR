@@ -8,6 +8,7 @@ import type { SelectOption } from '@/shared/ui'
 import {
   createExitInterview,
   deleteExitInterview,
+  fetchEmployeeExitInterviews,
   fetchExitInterviewByEmployment,
   fetchExitInterviews,
   updateExitInterview,
@@ -20,6 +21,7 @@ export const exitInterviewKeys = {
   root: ['exitInterviews'] as const,
   list: (filters: ExitInterviewFilters) => ['exitInterviews', 'list', filters] as const,
   byEmployment: (employmentId: string) => ['exitInterviews', 'byEmployment', employmentId] as const,
+  byEmployee: (employeeId: string) => ['exitInterviews', 'byEmployee', employeeId] as const,
 }
 
 /** Jurnal — filtrlangan, sahifalanmagan (server ham massiv qaytaradi). */
@@ -40,6 +42,20 @@ export function useExitInterviewByEmployment(employmentId: string | null) {
     queryKey: exitInterviewKeys.byEmployment(employmentId ?? ''),
     queryFn: ({ signal }) => fetchExitInterviewByEmployment(employmentId ?? '', signal),
     enabled: employmentId !== null && employmentId !== '',
+  })
+}
+
+/**
+ * Xodim kartasidagi suhbatlar.
+ *
+ * `enabled` — ruxsat tekshiruvi CHAQIRUVCHIDA (`useEmployeeIncidents`
+ * bilan bir xil naqsh): `feedback.view` bo'lmasa so'rov yuborilmaydi.
+ */
+export function useEmployeeExitInterviews(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: exitInterviewKeys.byEmployee(employeeId),
+    queryFn: ({ signal }) => fetchEmployeeExitInterviews(employeeId, signal),
+    enabled: enabled && employeeId !== '',
   })
 }
 

@@ -57,6 +57,49 @@ public sealed class ListExitInterviewsQueryHandler
     }
 }
 
+/// <summary>Bitta xodimning barcha «qayta aloqa» suhbatlari.</summary>
+/// <remarks>
+/// Xodim kartasidagi «Belgilar» tabi uchun: suhbat ham xodim yo'lidagi
+/// belgi bo'lib ko'rsatiladi. Bo'sh ro'yxat odatiy hol (har ketishda
+/// suhbat o'tkazilmagan) — bu xato emas, 200 va bo'sh massiv qaytadi.
+/// Shu sababli <c>404</c> yo'q, <see cref="GetExitInterviewByEmploymentQuery"/>
+/// dan farqli: u YAKKA yozuv so'raydi, bu esa RO'YXAT.
+/// </remarks>
+public sealed record ListEmployeeExitInterviewsQuery(Guid EmployeeId);
+
+public sealed class ListEmployeeExitInterviewsQueryHandler
+{
+    private readonly IExitInterviewRepository _interviews;
+    private readonly ExitInterviewMapper _mapper;
+
+    public ListEmployeeExitInterviewsQueryHandler(
+        IExitInterviewRepository interviews,
+        ExitInterviewMapper mapper)
+    {
+        _interviews = interviews;
+        _mapper = mapper;
+    }
+
+    public async Task<Result<IReadOnlyList<ExitInterviewDto>>> HandleAsync(
+        ListEmployeeExitInterviewsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var rows = await _interviews
+            .GetByEmployeeAsync(query.EmployeeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = new List<ExitInterviewDto>(rows.Count);
+        foreach (var row in rows)
+        {
+            items.Add(await _mapper.ToDtoAsync(row, cancellationToken).ConfigureAwait(false));
+        }
+
+        return Result.Success<IReadOnlyList<ExitInterviewDto>>(items);
+    }
+}
+
 /// <summary>
 /// Bitta mehnat munosabatiga tegishli suhbat — xodim kartasidagi
 /// «mehnat tarixi» tabida ko'rsatish uchun.

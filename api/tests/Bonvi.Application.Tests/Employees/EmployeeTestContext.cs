@@ -48,6 +48,16 @@ internal sealed class EmployeeTestContext
             .GetInForceAsync(Arg.Any<Guid>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<EmployeeFlag>());
 
+        // Sukut bo'yicha xodim HECH QAYERDA ishlamaydi. Sabab yuqoridagi
+        // bilan bir xil (NSubstitute `null` qaytaradi), lekin bu tanlovning
+        // MA'NOSI ham bor: belgi bosqichi shu ro'yxatga qarab aniqlanadi
+        // va bo'sh ro'yxat «ishdan ketgan» degani — ya'ni rezerv/qora
+        // ro'yxat testlari qo'shimcha sozlashsiz ishlaydi. Ishlab turgan
+        // xodim kerak bo'lganda `NowEmployed` chaqiriladi.
+        Employments
+            .GetActiveByEmployeeAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<Employment>());
+
         LegalEntities.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         TerminationReasons.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         Departments.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
@@ -201,6 +211,21 @@ internal sealed class EmployeeTestContext
         DocumentTypes.ExistsAsync(type.Id, Arg.Any<CancellationToken>()).Returns(true);
         return type;
     }
+
+    /// <summary>
+    /// Xodim HOZIR ishlab turibdi deb ko'rsatadi.
+    /// </summary>
+    /// <remarks>
+    /// Belgi bosqichi (<c>EmployeeFlagStage</c>) shu ro'yxatga qarab
+    /// aniqlanadi: bo'sh bo'lsa xodim ketgan hisoblanadi.
+    /// <see cref="ExistingEmployment"/> buni O'ZI qilmaydi — u yakunlangan
+    /// munosabatni ham yasashi mumkin va o'shanda «ishlayapti» deb
+    /// ko'rsatish yolg'on bo'lardi.
+    /// </remarks>
+    public void NowEmployed(Guid employeeId, params Employment[] employments)
+        => Employments
+            .GetActiveByEmployeeAsync(employeeId, Arg.Any<CancellationToken>())
+            .Returns(employments);
 
     /// <summary>Faol mehnat munosabati (bazada bor deb hisoblanadi).</summary>
     public Employment ExistingEmployment(

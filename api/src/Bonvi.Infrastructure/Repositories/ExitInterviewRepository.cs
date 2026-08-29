@@ -13,6 +13,27 @@ public sealed class ExitInterviewRepository : Repository<ExitInterview>, IExitIn
     public Task<ExitInterview?> GetByEmploymentAsync(Guid employmentId, CancellationToken cancellationToken = default)
         => Set.AsNoTracking().FirstOrDefaultAsync(interview => interview.EmploymentId == employmentId, cancellationToken);
 
+    public async Task<IReadOnlyList<ExitInterview>> GetByEmployeeAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default)
+    {
+        // Ikki qadam, `ListAsync` dagi qidiruv bilan bir xil naqsh — faqat
+        // bu yerda xodim MATN bo'yicha emas, `id` bo'yicha aniq olinadi.
+        // Ichki so'rov ustkiga `employment_id IN (…)` bo'lib qo'shiladi:
+        // tarmoqdan oraliq ro'yxat o'tmaydi.
+        var employmentIds = Context.Employments
+            .AsNoTracking()
+            .Where(employment => employment.EmployeeId == employeeId)
+            .Select(employment => employment.Id);
+
+        return await Set
+            .AsNoTracking()
+            .Where(interview => employmentIds.Contains(interview.EmploymentId))
+            .OrderByDescending(interview => interview.InterviewDate)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<ExitInterview>> ListAsync(
         DateOnly? from = null,
         DateOnly? to = null,

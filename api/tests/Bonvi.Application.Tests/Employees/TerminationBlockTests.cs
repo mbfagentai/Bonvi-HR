@@ -20,6 +20,7 @@ public sealed class TerminationBlockTests
         _context.Employments,
         _context.Probations,
         _context.TerminationReasons,
+        _context.Flags,
         _context.FlagGuard,
         _context.Mapper,
         _context.Clock,

@@ -42,7 +42,8 @@ public sealed record RaiseFlagCommand(
 public sealed record CloseFlagCommand(Guid FlagId, DateOnly? ClosedAt = null, string? Note = null);
 
 /// <summary>
-/// Belgi qo'yadi va «bir vaqtda atigi bitta belgi» qoidasini qo'llaydi.
+/// Belgi qo'yadi: bosqichni tekshiradi va «bir vaqtda atigi bitta belgi»
+/// qoidasini qo'llaydi.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -50,7 +51,19 @@ public sealed record CloseFlagCommand(Guid FlagId, DateOnly? ClosedAt = null, st
 /// belgilarini bilishni talab qiladi, <c>EmployeeFlag</c> esa alohida
 /// agregat va faqat o'zini ko'radi. Agregatlar orasidagi qoida — aynan
 /// use-case qatlamining ishi (<c>EmployeeFlagGuard</c> bilan bir xil
-/// bo'linish: o'qish repozitoriyda, qaror bu yerda).
+/// bo'linish: o'qish repozitoriyda, qaror bu yerda). BOSQICH tekshiruvi
+/// ham shu sababdan bu yerda: u belgining o'zini emas, xodimning
+/// MEHNAT MUNOSABATLARINI bilishni talab qiladi — bu esa uchinchi
+/// agregat.
+/// </para>
+/// <para>
+/// <b>Ikki tekshiruv, ikki xil javob.</b> Bosqich mos kelmasa — TAQIQ
+/// (409, tasdiq yo'l ochmaydi): belgi noto'g'ri joyda turadi va uni
+/// tasdiqlash bilan to'g'rilab bo'lmaydi. Kuchdagi belgi bo'lsa —
+/// TASDIQ: ikkala holat ham ma'noli, HR qaysi birini saqlashni o'zi
+/// hal qiladi. Bosqich BIRINCHI tekshiriladi: mumkin bo'lmagan belgi
+/// uchun «eskisini yopamizmi?» deb so'rash HR ni bekorga bir qadam
+/// oldinga yetaklardi.
 /// </para>
 /// <para>
 /// <b>Ikkalasi BITTA tranzaksiyada.</b> Eskisini yopish va yangisini
@@ -64,17 +77,20 @@ public sealed class RaiseFlagCommandHandler
 {
     private readonly IEmployeeFlagRepository _flags;
     private readonly IEmployeeRepository _employees;
+    private readonly IEmploymentRepository _employments;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
     public RaiseFlagCommandHandler(
         IEmployeeFlagRepository flags,
         IEmployeeRepository employees,
+        IEmploymentRepository employments,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
         _flags = flags;
         _employees = employees;
+        _employments = employments;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -109,6 +125,32 @@ public sealed class RaiseFlagCommandHandler
         if (raised.IsFailure)
         {
             return raised.Error;
+        }
+
+        // ── Bosqich tekshiruvi ──
+        //
+        // Ishlayaptimi — HOZIRGI holatga qarab, belgining sanasiga emas:
+        // «ishdan ketishda tanlanadi» degan qoida ish jarayoni haqida
+        // («avval bo'shatiladi, keyin belgilanadi»), tarix haqida emas.
+        // Sana bo'yicha tekshirsak, orqaga sana bilan kiritilgan yozuv
+        // qoidani chetlab o'tishning oson yo'liga aylanardi.
+        //
+        // BIR NECHTA munosabat: o'rindosh xodim ikkinchi firmadan ketsa
+        // ham ishlab turgan hisoblanadi — u hali ham bizda ishlayapti.
+        var employed = await _employments
+            .GetActiveByEmployeeAsync(command.EmployeeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var stage = EmployeeFlagStages.Of(command.Type);
+
+        if (employed.Count > 0 && stage == EmployeeFlagStage.Departure)
+        {
+            return EmployeeErrors.FlagNeedsDeparture;
+        }
+
+        if (employed.Count == 0 && stage == EmployeeFlagStage.Employed)
+        {
+            return EmployeeErrors.FlagNeedsEmployment;
         }
 
         // Faollik YANGI belgi kuchga kiradigan kunga qarab hisoblanadi,

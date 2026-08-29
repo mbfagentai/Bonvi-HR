@@ -28,6 +28,7 @@ public sealed class SingleActiveFlagTests
     private RaiseFlagCommandHandler Qoyuvchi => new(
         _context.Flags,
         _context.Employees,
+        _context.Employments,
         _context.Clock,
         _context.UnitOfWork);
 
@@ -109,6 +110,12 @@ public sealed class SingleActiveFlagTests
         // Qoida TURGA bog'liq emas: ikkita ochiq «nazorat» ham ikkita
         // kuchdagi belgi degani va ro'yxatda ikki marta ko'rinardi.
         var employee = _context.ExistingEmployee();
+
+        // «Nazorat» — ishlab turganlar belgisi (`EmployeeFlagStage`), ya'ni
+        // xodim ishlayotgan bo'lishi kerak. Aks holda test bosqich xatosiga
+        // urilib, tekshirmoqchi bo'lgan qoidasiga umuman yetib bormasdi.
+        _context.NowEmployed(employee.Id, _context.ExistingEmployment(employee.Id));
+
         _context.ExistingFlag(employee.Id, EmployeeFlagType.Monitoring);
 
         var natija = await Qoyuvchi.HandleAsync(

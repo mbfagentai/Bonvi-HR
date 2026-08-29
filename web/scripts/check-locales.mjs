@@ -281,6 +281,17 @@ const DYNAMIC_KEY_SOURCES = [
       `flags.page.${value}.emptyTitle`,
     ],
   },
+  /*
+   * «Belgi qo'yish» oynasidagi HAVOLALI yozuvlar — baxtsiz hodisa va
+   * qayta aloqa. Ular belgi EMAS (`ROUTED_MARKS` izohi), lekin ro'yxatda
+   * belgilar bilan yonma-yon turadi va har biriga ikkita kalit kerak:
+   * nomi va nima uchun boshqa formaga olib borilishini tushuntiruvchi matn.
+   */
+  {
+    file: 'src/features/employees/lib/employee-presentation.ts',
+    values: (text) => constArrayValues(text, 'ROUTED_MARKS'),
+    keysFor: (value) => [`employees.marks.${value}`, `employees.markRouteText.${value}`],
+  },
   {
     file: 'src/features/catalog/lib/catalog-kinds.ts',
     values: (text) => fieldValues(text, 'i18nKey'),

@@ -575,7 +575,9 @@
     "vakansiya.holat_notogri": "Invalid status. Allowed values: Open, Closed.",
     "xodim.mehnat_havola": "The mehnat.uz link must start with «https://».",
     "xodim.mehnat_rasm_yoq": "This employee has no mehnat.uz screenshot.",
-    "belgi.boshqa_belgi_bor": "This employee already has a mark in force. Only one is allowed at a time — confirm the replacement to continue."
+    "belgi.boshqa_belgi_bor": "This employee already has a mark in force. Only one is allowed at a time — confirm the replacement to continue.",
+    "belgi.xodim_ishlayapti": "Reserve and blacklist are chosen at termination. This person is still employed — use “under watch” or “capable” instead.",
+    "belgi.xodim_ketgan": "“Under watch” and “capable” apply to a currently employed person. This person has left — use reserve or blacklist instead."
   },
   "language": {
     "en": "English",
@@ -755,7 +757,17 @@
       "passed": "Passed",
       "failed": "Failed"
     },
-    "flagSingleHint": "Only one mark can be in force at a time",
+    "flagStageEmployed": "For a currently employed person. Only one mark is in force at a time.",
+    "flagStageDeparted": "Chosen at termination. Only one mark is in force at a time.",
+    "marks": {
+      "incident": "Workplace accident",
+      "interview": "Exit interview"
+    },
+    "markRouteText": {
+      "incident": "A workplace accident is not a mark but a full record: place, cause, severity and the commission's conclusion. Continue to open the incident form — the entry goes into the Accidents log.",
+      "interview": "An exit interview is not a mark but a conversation with the leaver: reason, impressions and what would bring them back. Continue to open the interview form — the entry goes into the Exit interviews log."
+    },
+    "markRouteConfirm": "Open the form",
     "flagReplaceTitle": "The mark in force will be replaced",
     "flagReplaceText": "This employee currently has the «{{flag}}» mark in force. Only one mark is allowed at a time: if you continue, the old one is closed (not deleted — it stays in the history) and the new one is opened.",
     "flagReplaceUnknown": "This employee already has a mark in force. If you continue, it is closed and the new one is opened.",

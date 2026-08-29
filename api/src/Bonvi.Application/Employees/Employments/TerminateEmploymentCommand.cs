@@ -51,6 +51,7 @@ public sealed class TerminateEmploymentCommandHandler
     private readonly IEmploymentRepository _employments;
     private readonly IProbationRepository _probations;
     private readonly IReferenceRepository<TerminationReason> _reasons;
+    private readonly IEmployeeFlagRepository _flags;
     private readonly EmployeeFlagGuard _flagGuard;
     private readonly EmployeeMapper _mapper;
     private readonly IClock _clock;
@@ -60,6 +61,7 @@ public sealed class TerminateEmploymentCommandHandler
         IEmploymentRepository employments,
         IProbationRepository probations,
         IReferenceRepository<TerminationReason> reasons,
+        IEmployeeFlagRepository flags,
         EmployeeFlagGuard flagGuard,
         EmployeeMapper mapper,
         IClock clock,
@@ -68,6 +70,7 @@ public sealed class TerminateEmploymentCommandHandler
         _employments = employments;
         _probations = probations;
         _reasons = reasons;
+        _flags = flags;
         _flagGuard = flagGuard;
         _mapper = mapper;
         _clock = clock;
@@ -162,10 +165,101 @@ public sealed class TerminateEmploymentCommandHandler
             }
         }
 
+        // Ishlab turgan xodim belgilari («nazoratda», «qobiliyatli») ketish
+        // bilan MA'NOSINI YO'QOTADI: ketgan odamni hech kim kuzatmaydi va
+        // unga hech kim yuklama bermaydi. Naqsh yuqoridagi sinov muddati
+        // bilan bir xil — aks holda «nazoratdagilar» ro'yxatida ishdan
+        // ketgan odam turib qolardi.
+        //
+        // Ketish belgilari (rezerv, qora ro'yxat) BU YERDA qo'yilmaydi:
+        // ular HR ning qarori, tizimning taxmini emas. Bo'shatgandan keyin
+        // xodim kartasida tanlanadi (`EmployeeFlagStage` izohi).
+        var closed = await CloseEmployedFlagsAsync(employment, terminationDate, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (closed.IsFailure)
+        {
+            return closed.Error;
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var dto = await _mapper.ToDtoAsync(employment, probation, cancellationToken).ConfigureAwait(false);
 
         return Result.Success(new EmploymentChangeDto(dto, warnings));
+    }
+
+    /// <summary>
+    /// Xodim BUTUNLAY ketganda ishlab turganlar uchun qo'yilgan belgilarni yopadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Faqat OXIRGI munosabat tugaganda.</b> O'rindosh xodim ikkinchi
+    /// firmadan ketsa ham bizda ishlashda davom etadi va nazorat kuchda
+    /// qolishi kerak — belgi SHAXSGA qo'yilgan, munosabatga emas.
+    /// </para>
+    /// <para>
+    /// <b>Nega joriy munosabat <c>Id</c> bo'yicha chiqarib tashlanadi.</b>
+    /// <c>GetActiveByEmployeeAsync</c> — <c>AsNoTracking</c> so'rov, ya'ni
+    /// u BAZANI o'qiydi. Hozirgina xotirada tugatilgan munosabat esa hali
+    /// saqlanmagan va so'rovga «faol» bo'lib qaytadi. Uni ajratmasak,
+    /// belgi hech qachon yopilmasdi.
+    /// </para>
+    /// <para>
+    /// <b>Nega belgilar KECHROQ sana bo'yicha izlanadi.</b>
+    /// <c>GetInForceAsync</c> «shu kuni kuchda bo'lgan» yozuvlarni beradi,
+    /// ya'ni <c>StartDate &lt;= sana</c>. Bo'shatish ORQAGA sana bilan
+    /// yozilganda (buyruq kechikib kiritilgan) belgi ketish kunidan KEYIN
+    /// qo'yilgan bo'lishi mumkin — o'sha sana bilan izlansak, u umuman
+    /// topilmasdi va ketgan odamda ochiq «nazorat» bo'lib qolardi.
+    /// Kelajakdagi bo'shatishda esa aksincha: o'sha kunga qadar qo'yilgan
+    /// belgilar ham yopilishi kerak. Ikkala holatni bitta shart qamraydi
+    /// — kechroq sana.
+    /// </para>
+    /// </remarks>
+    private async Task<Result> CloseEmployedFlagsAsync(
+        Employment employment,
+        DateOnly terminationDate,
+        CancellationToken cancellationToken)
+    {
+        var others = await _employments
+            .GetActiveByEmployeeAsync(employment.EmployeeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (others.Any(other => other.Id != employment.Id))
+        {
+            return Result.Success();
+        }
+
+        var today = _clock.Today;
+        var asOf = terminationDate > today ? terminationDate : today;
+
+        var inForce = await _flags
+            .GetInForceAsync(employment.EmployeeId, asOf, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var flag in inForce)
+        {
+            if (!EmployeeFlagStages.IsForEmployed(flag.Type))
+            {
+                continue;
+            }
+
+            // Belgi O'Z boshlanish sanasidan oldin yopilmaydi — `Supersede`
+            // buni «belgi.sana» bilan rad etadi va butun bo'shatish
+            // yiqilardi. Orqaga sana bilan bo'shatilgan xodimda keyinroq
+            // qo'yilgan belgi shu sababli o'z kuni bilan yopiladi: qoida
+            // «ketgan odamda ishlab turganlar belgisi qolmasin» degani,
+            // «hammasi ketish kuni bilan yopilsin» emas.
+            var closeAt = terminationDate < flag.StartDate ? flag.StartDate : terminationDate;
+
+            var result = flag.Supersede(closeAt, "xodim ishdan ketdi");
+            if (result.IsFailure)
+            {
+                return result.Error;
+            }
+        }
+
+        return Result.Success();
     }
 }

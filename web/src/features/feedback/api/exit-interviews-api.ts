@@ -171,6 +171,23 @@ export async function fetchExitInterviews(
 }
 
 /**
+ * Bitta XODIMning barcha suhbatlari — xodim kartasidagi «Belgilar» tabi uchun.
+ *
+ * Munosabat bo'yicha bittalab so'rash o'rniga bitta so'rov: bir shaxsning
+ * bir nechta ketishi bo'lishi mumkin va React'da ularni sikl ichida
+ * so'rash hooklar qoidasini buzardi. Bo'sh massiv — odatiy hol.
+ */
+export async function fetchEmployeeExitInterviews(
+  employeeId: string,
+  signal?: AbortSignal,
+): Promise<ExitInterview[]> {
+  const { data } = await api.get<unknown>(`/api/exit-interviews/by-employee/${employeeId}`, {
+    signal,
+  })
+  return Array.isArray(data) ? data.map(toExitInterview) : []
+}
+
+/**
  * Bitta mehnat munosabati bo'yicha suhbat.
  *
  * `404` — XATO EMAS. U «bu munosabatga hali suhbat yozilmagan» degani

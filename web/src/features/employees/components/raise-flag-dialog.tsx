@@ -4,14 +4,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 
-import {
-  EMPLOYEE_FLAG_TYPES,
-  type EmployeeFlag,
-  type EmployeeFlagType,
-} from '../api/employees-api'
+import type { EmployeeFlag, EmployeeFlagType } from '../api/employees-api'
 import { useCreateFlag, useEmployeeFlags } from '../api/employees-queries'
 import { employeeErrorCode } from '../lib/employee-error'
-import { FLAG_LOOK } from '../lib/employee-presentation'
+import {
+  FLAG_LOOK,
+  STAGE_CHOICES,
+  isRoutedMark,
+  type EmployeeStage,
+  type RoutedMark,
+} from '../lib/employee-presentation'
 
 /** `YYYY-MM-DD` — server `DateOnly` kutadi. */
 function today(): string {
@@ -35,39 +37,52 @@ function inForceAfter(flag: EmployeeFlag, date: string): boolean {
 }
 
 /**
- * Xodimga belgi qo'yish: rezerv, qora ro'yxat, nazorat, qobiliyatli.
+ * Xodimga belgi qo'yish.
  *
  * <b>Belgi aynan shu yerdan qo'yiladi</b>, ro'yxat sahifasidan emas: belgi
  * odamga tegishli va uni qo'yayotgan HR o'sha odamning kartasini ko'rib
  * turgan bo'lishi kerak.
  *
- * <b>Bir vaqtda ATIGI BITTA kuchdagi belgi.</b> Foydalanuvchining aniq
- * qarori, istisnosiz: qora ro'yxatdagi odam ayni paytda rezervda ham
- * bo'la olmaydi. Xodimda kuchdagi belgi bo'lsa, birinchi bosishda amal
- * BAJARILMAYDI — ogohlantirish chiqadi va tugma matni o'zgaradi, ya'ni
- * HR nima yo'qolishini bilib turib tasdiqlaydi. Tasdiqdan keyin eskisi
- * YOPILADI (o'chirilmaydi — tarix qoladi) va yangisi ochiladi.
+ * <b>Tanlov BOSQICHGA qarab o'zgaradi.</b> Ishlab turgan xodimga —
+ * «nazoratda», «qobiliyatli» va baxtsiz hodisa; ishdan ketganiga —
+ * «rezerv», «qora ro'yxat» va qayta aloqa. Sabab
+ * `employee-presentation.ts` dagi `FLAG_STAGE` izohida; qoida serverda ham
+ * bor (`belgi.xodim_ishlayapti` / `belgi.xodim_ketgan`) va u TAQIQ, ya'ni
+ * tasdiq bilan ochilmaydi — shu sababli mumkin bo'lmagan tur ro'yxatda
+ * umuman ko'rsatilmaydi. Bo'lmagan tanlovni chiqarib, keyin xato berish
+ * HR ni bekorga urintirardi.
  *
- * ⚠️ Bu tekshiruv — QULAYLIK. Asosiy himoya serverda
- * (`RaiseFlagCommandHandler`): agar keshdagi belgilar ro'yxati eskirgan
- * bo'lsa, server `belgi.boshqa_belgi_bor` qaytaradi va o'sha kod ham
- * shu yerda tasdiqlash holatiga aylanadi — foydalanuvchi tushunarsiz
- * xato o'rniga ma'noli savol ko'radi.
+ * <b>Bir vaqtda ATIGI BITTA kuchdagi belgi.</b> Xodimda kuchdagi belgi
+ * bo'lsa, ogohlantirish darhol ko'rinadi va tugma matni «Almashtirish» ga
+ * (qizil) o'zgaradi — ya'ni HR nima yo'qolishini bilib turib tasdiqlaydi.
+ * Tasdiqdan keyin eskisi YOPILADI (o'chirilmaydi — tarix qoladi).
+ *
+ * ⚠️ Ikkala tekshiruv ham QULAYLIK. Asosiy himoya serverda
+ * (`RaiseFlagCommandHandler`).
  */
 export function RaiseFlagDialog({
   employeeId,
   employeeName,
+  stage,
   open,
   onClose,
+  onRoute,
 }: {
   employeeId: string
   employeeName: string
+  /** Xodim hozir ishlayaptimi — tanlov shunga qarab tuziladi. */
+  stage: EmployeeStage
   open: boolean
   onClose: () => void
+  /** Havolali yozuv tanlanganda — o'z formasini ochish. */
+  onRoute: (mark: RoutedMark) => void
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const raise = useCreateFlag(employeeId)
+
+  const choices = STAGE_CHOICES[stage]
+  const firstChoice = choices[0] as EmployeeFlagType
 
   /*
    * Belgilar ro'yxati kartada ALLAQACHON so'ralgan (`$employeeId.tsx`),
@@ -77,7 +92,7 @@ export function RaiseFlagDialog({
    */
   const flags = useEmployeeFlags(employeeId)
 
-  const [type, setType] = useState<EmployeeFlagType>('reserve')
+  const [choice, setChoice] = useState<EmployeeFlagType | RoutedMark>(firstChoice)
   const [startDate, setStartDate] = useState(today)
   const [endDate, setEndDate] = useState('')
   const [reason, setReason] = useState('')
@@ -88,14 +103,14 @@ export function RaiseFlagDialog({
   useEffect(() => {
     if (!open) return
 
-    setType('reserve')
+    setChoice(firstChoice)
     setStartDate(today())
     setEndDate('')
     setReason('')
     setConfirming(false)
     raise.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, stage])
 
   /*
    * Ziddiyat YANGI belgi boshlanadigan kunga qarab hisoblanadi, bugunga
@@ -109,13 +124,15 @@ export function RaiseFlagDialog({
 
   if (!open) return null
 
+  const routed = isRoutedMark(choice)
+
   /*
    * Qora ro'yxat uchun sabab MAJBURIY — bu domen qoidasi, mijoz uni
    * takrorlamaydi, faqat oldindan ko'rsatadi. Sababsiz yozuvlar Excel'da
    * bor edi va keyin hech kim nima uchunligini bilmasdi.
    */
-  const reasonRequired = type === 'blacklist'
-  const incomplete = startDate === '' || (reasonRequired && reason.trim() === '')
+  const reasonRequired = choice === 'blacklist'
+  const incomplete = !routed && (startDate === '' || (reasonRequired && reason.trim() === ''))
 
   /*
    * Ziddiyat OLDINDAN ma'lum bo'lsa, tasdiqlash alohida bosqich EMAS —
@@ -130,13 +147,21 @@ export function RaiseFlagDialog({
    * `confirming` esa BOSHQA holat uchun: kesh eskirib, ziddiyat faqat
    * serverdan ma'lum bo'lganda. O'shanda ham natija bir xil — tugma
    * qizarib, matni o'zgaradi.
+   *
+   * Havolali yozuvda ziddiyat UMUMAN yo'q: hodisa va suhbat belgi emas,
+   * ular kuchdagi belgini almashtirmaydi.
    */
-  const replacing = conflicts.length > 0 || confirming
+  const replacing = !routed && (conflicts.length > 0 || confirming)
 
   const submit = () => {
+    if (routed) {
+      onRoute(choice)
+      return
+    }
+
     raise.mutate(
       {
-        type,
+        type: choice,
         startDate,
         endDate: endDate === '' ? null : endDate,
         reason: reason.trim() === '' ? null : reason.trim(),
@@ -152,6 +177,20 @@ export function RaiseFlagDialog({
       },
     )
   }
+
+  /*
+   * Kalit `t()` chaqiruvidan TASHQARIDA tanlanadi: `check-locales.mjs`
+   * chaqiruv ichidagi HAR BIR satrni kalit deb o'qiydi va ternarning
+   * shart qismidagi `'employed'` ni «yo'q kalit» deb hisoblardi.
+   */
+  const stageHintKey =
+    stage === 'employed' ? 'employees.flagStageEmployed' : 'employees.flagStageDeparted'
+
+  const confirmLabel = routed
+    ? t('employees.markRouteConfirm')
+    : replacing
+      ? t('employees.flagReplaceConfirm')
+      : t('employees.raiseFlag')
 
   return (
     <Dialog
@@ -171,7 +210,7 @@ export function RaiseFlagDialog({
             disabled={raise.isPending || incomplete}
           >
             {raise.isPending && <LoaderCircle className="animate-spin" />}
-            {replacing ? t('employees.flagReplaceConfirm') : t('employees.raiseFlag')}
+            {confirmLabel}
           </Button>
         </>
       }
@@ -207,38 +246,53 @@ export function RaiseFlagDialog({
 
         <Select
           label={t('employees.flagType')}
-          hint={t('employees.flagSingleHint')}
-          options={EMPLOYEE_FLAG_TYPES.map((value) => ({
+          hint={t(stageHintKey)}
+          options={choices.map((value) => ({
             value,
-            label: t(`employees.flags.${FLAG_LOOK[value].key}`),
+            label: isRoutedMark(value)
+              ? t(`employees.marks.${value}`)
+              : t(`employees.flags.${FLAG_LOOK[value].key}`),
           }))}
-          value={type}
-          onChange={(event) => setType(event.target.value as EmployeeFlagType)}
+          value={choice}
+          onChange={(event) => setChoice(event.target.value as EmployeeFlagType | RoutedMark)}
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label={t('flags.startDate')}
-            type="date"
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-          />
-          <TextField
-            label={t('flags.endDate')}
-            hint={t('employees.flagEndHint')}
-            type="date"
-            value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
-          />
-        </div>
+        {/*
+          Havolali yozuv tanlangan: sana va sabab maydonlari CHIZILMAYDI.
+          Ular bu yerda to'ldirilsa, keyingi formada qaytadan so'ralardi va
+          HR bir xil ma'lumotni ikki marta kiritardi.
+        */}
+        {routed ? (
+          <Alert tone="info" title={t(`employees.marks.${choice}`)}>
+            {t(`employees.markRouteText.${choice}`)}
+          </Alert>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                label={t('flags.startDate')}
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+              <TextField
+                label={t('flags.endDate')}
+                hint={t('employees.flagEndHint')}
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+            </div>
 
-        <TextArea
-          label={reasonRequired ? t('employees.reasonRequired') : t('flags.reason')}
-          hint={reasonRequired ? t('employees.blacklistReasonHint') : undefined}
-          rows={3}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
+            <TextArea
+              label={reasonRequired ? t('employees.reasonRequired') : t('flags.reason')}
+              hint={reasonRequired ? t('employees.blacklistReasonHint') : undefined}
+              rows={3}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </>
+        )}
       </div>
     </Dialog>
   )

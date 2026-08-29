@@ -183,6 +183,23 @@ export async function fetchIncidents(
   return Array.isArray(data) ? data.map(toIncident) : []
 }
 
+/**
+ * Bitta xodimning hodisalari — xodim kartasidagi «Belgilar» tabi uchun.
+ *
+ * Jurnalning `search` i BU YERDA yaramaydi: u matn bo'yicha qidiradi va
+ * bir xil ismli ikki odamni ajrata olmaydi. Kartada esa aynan shu odam
+ * kerak — shu sababli alohida endpoint (`by-employee/{id}`).
+ */
+export async function fetchEmployeeIncidents(
+  employeeId: string,
+  signal?: AbortSignal,
+): Promise<Incident[]> {
+  const { data } = await api.get<unknown>(`/api/safety/incidents/by-employee/${employeeId}`, {
+    signal,
+  })
+  return Array.isArray(data) ? data.map(toIncident) : []
+}
+
 export async function fetchIncident(id: string, signal?: AbortSignal): Promise<Incident> {
   const { data } = await api.get<unknown>(`/api/safety/incidents/${id}`, { signal })
   return toIncident(data)

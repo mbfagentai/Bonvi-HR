@@ -93,6 +93,28 @@ public static class IncidentEndpoints
             .Produces<IReadOnlyList<IncidentDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        group.MapGet("/by-employee/{employeeId:guid}", async (
+                Guid employeeId,
+                ListEmployeeIncidentsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListEmployeeIncidentsQuery(employeeId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.SafetyView)
+            .WithName("ListEmployeeIncidents")
+            .WithSummary("Baxtsiz hodisalar — bitta xodim bo'yicha")
+            .WithDescription(
+                "Xodim kartasidagi «Belgilar» tabi uchun: hodisa ham xodim yo'lidagi belgi bo'lib " +
+                "ko'rsatiladi. Jurnaldagi «search» dan farqli — bu yerda aynan SHU xodim (id " +
+                "bo'yicha), matn bo'yicha taxminiy moslik emas. Hodisasi yo'q xodimda bo'sh " +
+                "massiv qaytadi, 404 emas.")
+            .Produces<IReadOnlyList<IncidentDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         group.MapGet("/{id:guid}", async (
                 Guid id,
                 GetIncidentQueryHandler handler,

@@ -598,11 +598,16 @@ public static class EmployeeEndpoints
             .WithName("RaiseEmployeeFlag")
             .WithSummary("Xodim — belgi qo'yish")
             .WithDescription(
+                "BOSQICH qoidasi: ishlab turgan xodimga faqat Monitoring | Capable qo'yiladi, " +
+                "ishdan ketganga faqat Reserve | Blacklist. Mos kelmasa — «belgi.xodim_ishlayapti» " +
+                "yoki «belgi.xodim_ketgan» (409) va bu TAQIQ: «confirm» uni ochmaydi. " +
                 "Qora ro'yxat uchun sabab MAJBURIY: «belgi.sabab_bosh» (400). " +
                 "Xodimda bir vaqtda ATIGI BITTA kuchdagi belgi bo'ladi: eskisi bo'lsa " +
                 "«belgi.boshqa_belgi_bor» (409) qaytadi, «?confirm=true» bilan qayta " +
                 "yuborilganda esa eskisi YOPILADI (o'chirilmaydi — tarix qoladi) va " +
                 "yangisi ochiladi, ikkalasi bitta tranzaksiyada. " +
+                "Belgilar bosqich almashganda O'ZI ham yopiladi: bo'shatish «nazoratda»/«qobiliyatli» " +
+                "ni, ishga qabul esa «rezerv» ni yopadi. " +
                 "Qora ro'yxat va nazorat keyinchalik ishga qabul va bo'shatishni to'sadi.")
             .Produces<EmployeeFlagDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)

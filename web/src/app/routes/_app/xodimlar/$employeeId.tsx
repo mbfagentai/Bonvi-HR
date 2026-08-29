@@ -1,9 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Pencil, Plus } from 'lucide-react'
+import { ArrowLeft, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
-import { CloseFlagDialog } from '@/features/flags/components/close-flag-dialog'
 
 import {
   FlagBadge,
@@ -14,6 +13,7 @@ import { EmployeeCompetencyTab } from '@/features/employees/components/employee-
 import { EmployeeDocumentsTab } from '@/features/employees/components/employee-documents-tab'
 import { EmployeeEditDialog } from '@/features/employees/components/employee-edit-dialog'
 import { EmployeeIncentivesTab } from '@/features/employees/components/employee-incentives-tab'
+import { EmployeeMarksTab } from '@/features/employees/components/employee-marks-tab'
 import {
   EmployeeOverviewTab,
   type EmploymentAction,
@@ -26,7 +26,6 @@ import {
   TerminateDialog,
   TransferDialog,
 } from '@/features/employees/components/employment-dialogs'
-import { RaiseFlagDialog } from '@/features/employees/components/raise-flag-dialog'
 import type { ProbationTarget } from '@/features/probations/api/probations-api'
 import {
   ExtendDialog,
@@ -37,7 +36,8 @@ import {
   EMPLOYEES_VIEW,
   EMPLOYMENT_MANAGE,
   INCENTIVES_VIEW,
-  LISTS_MANAGE,
+  employeeStage,
+  flagInForce,
 } from '@/features/employees/lib/employee-presentation'
 import {
   useEmployee,
@@ -46,7 +46,7 @@ import {
 } from '@/features/employees/api/employees-queries'
 import type { EmploymentSummary } from '@/features/employees/api/employees-api'
 import { useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Card, CardContent, SegmentedControl, Skeleton } from '@/shared/ui'
+import { Alert, Button, Card, SegmentedControl, Skeleton } from '@/shared/ui'
 
 export const Route = createFileRoute('/_app/xodimlar/$employeeId')({
   component: EmployeeCardPage,
@@ -93,13 +93,10 @@ function EmployeeCardPage() {
   } | null>(null)
 
   const [editing, setEditing] = useState(false)
-  const [raisingFlag, setRaisingFlag] = useState(false)
-  const [closingFlag, setClosingFlag] = useState<{ id: string; employeeId: string; employeeName: string } | null>(null)
 
   const { hasPermission } = useAuth()
   const canEdit = hasPermission(EMPLOYEES_EDIT)
   const canManageEmployment = hasPermission(EMPLOYMENT_MANAGE)
-  const canManageFlags = hasPermission(LISTS_MANAGE)
   const canViewCompetency = hasPermission(EMPLOYEES_VIEW)
   const canViewDocuments = hasPermission(EMPLOYEES_VIEW)
   const canViewIncentives = hasPermission(INCENTIVES_VIEW)
@@ -174,6 +171,18 @@ function EmployeeCardPage() {
     person.employments.find((e) => e.isPrimary) ?? person.employments[0] ?? null
 
   /*
+   * Xodim hozir ishlayaptimi — belgi tanlovi shunga qarab tuziladi
+   * (`FLAG_STAGE` izohi). Bitta ochiq munosabat yetarli: o'rindosh xodim
+   * bitta firmadan ketsa ham bizda ishlashda davom etadi.
+   */
+  const stage = employeeStage(person.employments)
+
+  // Bugundan KEYIN ham kuchda qoladigan belgilar — serverdagi
+  // `IsInForceAfter` bilan bir xil shart (`flagInForce` izohi).
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const inForceFlags = (flags.data ?? []).filter((flag) => flagInForce(flag, todayIso))
+
+  /*
    * Tab ro'yxati DINAMIK: «Hujjatlar», «Qobiliyatlar» va «Rag'bat/Jarima»
    * faqat shu ruxsat bor foydalanuvchiga ko'rinadi (topshiriq qoidasi —
    * ruxsat yo'q bo'lsa tab umuman chizilmaydi, «bo'sh/xatoli» holat
@@ -227,7 +236,15 @@ function EmployeeCardPage() {
               {person.employments.map((employment) => (
                 <StatusBadge key={employment.id} status={employment.status} />
               ))}
-              {flags.data?.map((flag) => (
+              {/*
+                FAQAT kuchdagi belgilar. Ilgari bu yerda butun tarix
+                chizilardi va almashtirilgan belgi o'sha KUNI hali ham
+                nishon bo'lib turardi — natijada kartada bir vaqtda ikkita
+                belgi ko'rinib, «bir vaqtda atigi bitta belgi» qoidasi
+                buzilgandek taassurot qolardi. Tarix pastdagi «Belgilar»
+                tabida, u yerda sanalari bilan o'qiladi.
+              */}
+              {inForceFlags.map((flag) => (
                 <FlagBadge key={flag.id} type={flag.type} />
               ))}
             </div>
@@ -297,56 +314,12 @@ function EmployeeCardPage() {
       )}
 
       {tab === 'flags' && (
-        <Card>
-          <CardContent className="pt-5">
-            {canManageFlags && (
-              <div className="mb-4 flex justify-end">
-                <Button size="sm" variant="create" onClick={() => setRaisingFlag(true)}>
-                  <Plus />
-                  {t('employees.raiseFlag')}
-                </Button>
-              </div>
-            )}
-
-            {flags.isPending ? (
-              <Skeleton className="h-24 w-full" />
-            ) : flags.data && flags.data.length > 0 ? (
-              <ul className="space-y-3">
-                {flags.data.map((flag) => (
-                  <li key={flag.id} className="flex items-start gap-3">
-                    <FlagBadge type={flag.type} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-footnote">{flag.reason ?? '—'}</span>
-                      <span className="tabular block text-caption2 text-[var(--fg-tertiary)]">
-                        {flag.startDate}
-                        {flag.endDate !== null && ` — ${flag.endDate}`}
-                      </span>
-                    </span>
-
-                    {/* Yopilgan belgini qayta yopib bo'lmaydi — domen rad etadi. */}
-                    {canManageFlags && flag.endDate === null && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          setClosingFlag({
-                            id: flag.id,
-                            employeeId: person.id,
-                            employeeName: person.fullName,
-                          })
-                        }
-                      >
-                        {t('flags.close')}
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-subhead text-[var(--fg-secondary)]">{t('common.empty')}</p>
-            )}
-          </CardContent>
-        </Card>
+        <EmployeeMarksTab
+          employeeId={person.id}
+          employeeName={person.fullName}
+          employeePhotoKey={person.photoKey}
+          stage={stage}
+        />
       )}
 
       {/* ───────── Oynalar ───────── */}
@@ -404,15 +377,6 @@ function EmployeeCardPage() {
         item={action?.kind === 'probationExtend' ? probationTarget : null}
         onClose={() => setAction(null)}
       />
-
-      <RaiseFlagDialog
-        employeeId={person.id}
-        employeeName={person.fullName}
-        open={raisingFlag}
-        onClose={() => setRaisingFlag(false)}
-      />
-
-      <CloseFlagDialog item={closingFlag} onClose={() => setClosingFlag(null)} />
     </div>
   )
 }

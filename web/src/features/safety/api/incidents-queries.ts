@@ -8,6 +8,7 @@ import {
   concludeIncident,
   createIncident,
   deleteIncident,
+  fetchEmployeeIncidents,
   fetchIncident,
   fetchIncidents,
   updateIncident,
@@ -21,6 +22,7 @@ export const incidentKeys = {
   root: ['incidents'] as const,
   list: (filters: IncidentFilters) => ['incidents', 'list', filters] as const,
   detail: (id: string) => ['incidents', 'detail', id] as const,
+  byEmployee: (employeeId: string) => ['incidents', 'byEmployee', employeeId] as const,
 }
 
 /** Jurnal — filtrlangan, sahifalanmagan (server ham massiv qaytaradi). */
@@ -29,6 +31,21 @@ export function useIncidents(filters: IncidentFilters) {
     queryKey: incidentKeys.list(filters),
     queryFn: ({ signal }) => fetchIncidents(filters, signal),
     placeholderData: (previous) => previous,
+  })
+}
+
+/**
+ * Xodim kartasidagi hodisalar.
+ *
+ * `enabled` — ruxsat tekshiruvi CHAQIRUVCHIDA: `safety.view` bo'lmagan
+ * foydalanuvchida so'rov umuman yuborilmasligi kerak, aks holda karta
+ * har ochilganda 403 xatosi konsolga tushardi.
+ */
+export function useEmployeeIncidents(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: incidentKeys.byEmployee(employeeId),
+    queryFn: ({ signal }) => fetchEmployeeIncidents(employeeId, signal),
+    enabled: enabled && employeeId !== '',
   })
 }
 

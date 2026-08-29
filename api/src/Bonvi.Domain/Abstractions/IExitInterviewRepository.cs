@@ -9,6 +9,27 @@ public interface IExitInterviewRepository : IRepository<ExitInterview>
     Task<ExitInterview?> GetByEmploymentAsync(Guid employmentId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Bitta XODIMning barcha suhbatlari — suhbat sanasi bo'yicha kamayish tartibida.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega <see cref="GetByEmploymentAsync"/> yetmaydi.</b> Bitta
+    /// shaxsning bir nechta ketishi bo'lishi mumkin (ketib, qaytib kelib,
+    /// yana ketgan) va xodim kartasi ularning HAMMASINI ko'rsatishi kerak.
+    /// Munosabatlar bo'yicha bittalab so'rash esa klientdan N ta so'rov
+    /// talab qilardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega <see cref="ListAsync"/> ning «search» i yaramaydi.</b> U
+    /// MATN bo'yicha qidiradi va bir xil ismli ikki odamni ajrata olmaydi
+    /// — kartada esa aynan SHU odamning yozuvlari kerak.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<ExitInterview>> GetByEmployeeAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Barcha yozuvlar — suhbat sanasi bo'yicha kamayish tartibida.
     /// </summary>
     /// <param name="from">Quyi chegara (o'zi ham kiradi). <c>null</c> — chegarasiz.</param>

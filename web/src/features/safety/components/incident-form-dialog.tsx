@@ -39,15 +39,31 @@ function orNull(value: string): string | null {
  * alohida `IncidentConcludeDialog` orqali qo'shiladi — sabab
  * `incidents-api.ts` boshidagi izohda.
  */
+/**
+ * Formani AYNAN shu xodim uchun ochish (xodim kartasidan kelganda).
+ *
+ * Tanlov o'rniga odamning o'zi ko'rsatiladi: karta ochilganda kim
+ * haqidaligi allaqachon ma'lum va uni ro'yxatdan qayta izlatish —
+ * noto'g'ri odamni tanlashning eng oson yo'li.
+ */
+export interface LockedEmployee {
+  id: string
+  name: string
+  photoKey: string | null
+}
+
 export function IncidentFormDialog({
   open,
   onClose,
   item,
+  lockedEmployee = null,
 }: {
   open: boolean
   onClose: () => void
   /** `null` — yangi hodisa. */
   item: Incident | null
+  /** Berilsa — xodim tanlanmaydi, shu odam uchun yoziladi. */
+  lockedEmployee?: LockedEmployee | null
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
@@ -97,7 +113,7 @@ export function IncidentFormDialog({
       setMedicalAidNote(item.medicalAidNote ?? '')
       setResponsibleEmployeeId(item.responsibleEmployeeId ?? '')
     } else {
-      setEmployeeId('')
+      setEmployeeId(lockedEmployee?.id ?? '')
       setIncidentDate(today())
       setLocation('')
       setDescription('')
@@ -114,7 +130,7 @@ export function IncidentFormDialog({
     create.reset()
     update.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, item])
+  }, [open, item, lockedEmployee?.id])
 
   if (!open) return null
 
@@ -165,6 +181,12 @@ export function IncidentFormDialog({
   const fieldMessage = (field: string): string | undefined =>
     fieldError?.field === field ? errorMessage(fieldError.code) : undefined
 
+  /** Xodim OLDINDAN ma'lum bo'lgan holat — tahrirlash yoki karta. */
+  const person: LockedEmployee | null =
+    isEdit && item !== null
+      ? { id: item.employeeId, name: item.employeeName ?? '', photoKey: item.photoKey }
+      : lockedEmployee
+
   return (
     <Dialog
       open={open}
@@ -192,18 +214,24 @@ export function IncidentFormDialog({
       <div className="space-y-4">
         {failure !== null && <Alert tone="danger">{errorMessage(failure)}</Alert>}
 
-        {/* Xodim — faqat yaratishda tanlanadi (yuqoridagi izohga qarang) */}
-        {isEdit && item !== null ? (
+        {/*
+          Xodim — faqat yaratishda VA faqat kimligi noma'lum bo'lganda
+          tanlanadi. Tahrirlashda jabrlangan xodim umuman o'zgarmaydi
+          (yuqoridagi izohga qarang), xodim kartasidan kelganda esa u
+          allaqachon ma'lum — ikkala holatda ham tanlov o'rniga odamning
+          o'zi ko'rsatiladi.
+        */}
+        {person !== null ? (
           <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-3">
             <EmployeePhoto
-              employeeId={item.employeeId}
-              photoKey={item.photoKey}
-              name={item.employeeName ?? ''}
+              employeeId={person.id}
+              photoKey={person.photoKey}
+              name={person.name}
               size="md"
             />
             <div className="min-w-0">
               <p className="text-footnote text-[var(--fg-tertiary)]">{t('safety.employee')}</p>
-              <p className="truncate-1 font-medium">{item.employeeName}</p>
+              <p className="truncate-1 font-medium">{person.name}</p>
             </div>
           </div>
         ) : (

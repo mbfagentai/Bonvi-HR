@@ -45,15 +45,30 @@ function orNull(value: string): string | null {
  * yo'q» holati). Backend baribir 409 bilan rad etardi, lekin buni oldindan
  * ko'rsatish HR ni foydasiz xatoga uchratmaydi.
  */
+/**
+ * Formani AYNAN shu xodim uchun ochish (xodim kartasidan kelganda).
+ *
+ * Xodim tanlovi chizilmaydi, lekin MUNOSABAT tanlovi qoladi: bir odamning
+ * bir nechta yakunlangan munosabati bo'lishi mumkin va suhbat aynan
+ * qaysi ketishga tegishli ekani muhim (`ExitInterview` domen izohi).
+ */
+export interface LockedEmployee {
+  id: string
+  name: string
+}
+
 export function ExitInterviewFormDialog({
   open,
   onClose,
   item,
+  lockedEmployee = null,
 }: {
   open: boolean
   onClose: () => void
   /** `null` — yangi yozuv. */
   item: ExitInterview | null
+  /** Berilsa — xodim tanlanmaydi, shu odam uchun yoziladi. */
+  lockedEmployee?: LockedEmployee | null
 }) {
   const { t, date } = useLocale()
   const errorMessage = useErrorMessage()
@@ -99,7 +114,7 @@ export function ExitInterviewFormDialog({
       setImpressions(item.impressions ?? '')
       setConditionsToReturn(item.conditionsToReturn ?? '')
     } else {
-      setEmployeeId('')
+      setEmployeeId(lockedEmployee?.id ?? '')
       setEmploymentId('')
       setInterviewDate(today())
       setReason('')
@@ -111,7 +126,7 @@ export function ExitInterviewFormDialog({
     create.reset()
     update.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, item])
+  }, [open, item, lockedEmployee?.id])
 
   // Xodim almashtirilganda eski tanlov ma'nosiz qoladi — aks holda boshqa
   // odamning munosabat `id`si jimgina yuborilib ketardi.
@@ -222,17 +237,30 @@ export function ExitInterviewFormDialog({
           </div>
         ) : (
           <>
-            <Select
-              label={t('feedback.employee')}
-              options={employeeOptions.options}
-              placeholder={
-                employeeOptions.isPending ? t('common.loading') : t('feedback.chooseEmployee')
-              }
-              value={employeeId}
-              disabled={employeeOptions.isPending}
-              error={fieldMessage('employmentId')}
-              onChange={(event) => handleEmployeeChange(event.target.value)}
-            />
+            {/*
+              Xodim kartasidan kelganda tanlov o'rniga odamning O'ZI
+              ko'rsatiladi: kim haqidaligi allaqachon ma'lum va uni
+              ro'yxatdan qayta izlatish — noto'g'ri odamni tanlashning eng
+              oson yo'li.
+            */}
+            {lockedEmployee !== null ? (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-3">
+                <p className="text-footnote text-[var(--fg-tertiary)]">{t('feedback.employee')}</p>
+                <p className="font-medium">{lockedEmployee.name}</p>
+              </div>
+            ) : (
+              <Select
+                label={t('feedback.employee')}
+                options={employeeOptions.options}
+                placeholder={
+                  employeeOptions.isPending ? t('common.loading') : t('feedback.chooseEmployee')
+                }
+                value={employeeId}
+                disabled={employeeOptions.isPending}
+                error={fieldMessage('employmentId')}
+                onChange={(event) => handleEmployeeChange(event.target.value)}
+              />
+            )}
 
             {employeeId !== '' && !employmentsPending && employments.length === 0 && (
               <Alert tone="warning">{t('feedback.noTerminatedEmployment')}</Alert>

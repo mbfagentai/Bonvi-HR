@@ -575,7 +575,9 @@
     "vakansiya.holat_notogri": "Holat noto‘g‘ri. Ruxsat etilgan qiymatlar: Open, Closed.",
     "xodim.mehnat_havola": "mehnat.uz havolasi «https://» bilan boshlanishi kerak.",
     "xodim.mehnat_rasm_yoq": "Xodimning mehnat.uz skrinshoti yo‘q.",
-    "belgi.boshqa_belgi_bor": "Xodimda allaqachon kuchdagi belgi bor. Bir vaqtda atigi bitta belgi bo‘ladi — davom etish uchun almashtirishni tasdiqlang."
+    "belgi.boshqa_belgi_bor": "Xodimda allaqachon kuchdagi belgi bor. Bir vaqtda atigi bitta belgi bo‘ladi — davom etish uchun almashtirishni tasdiqlang.",
+    "belgi.xodim_ishlayapti": "Rezerv va qora ro‘yxat ishdan ketishda tanlanadi. Xodim hozir ishlayapti — unga «nazoratda» yoki «qobiliyatli» belgisi qo‘yiladi.",
+    "belgi.xodim_ketgan": "«Nazoratda» va «qobiliyatli» belgilari ishlab turgan xodimga qo‘yiladi. Xodim ishdan ketgan — unga rezerv yoki qora ro‘yxat belgisi qo‘yiladi."
   },
   "language": {
     "en": "English",
@@ -755,7 +757,17 @@
       "passed": "O‘tdi",
       "failed": "O‘tmadi"
     },
-    "flagSingleHint": "Bir vaqtda atigi bitta belgi kuchda bo‘ladi",
+    "flagStageEmployed": "Ishlab turgan xodim uchun. Bir vaqtda atigi bitta belgi kuchda bo‘ladi.",
+    "flagStageDeparted": "Ishdan ketishda tanlanadi. Bir vaqtda atigi bitta belgi kuchda bo‘ladi.",
+    "marks": {
+      "incident": "Baxtsiz hodisa",
+      "interview": "Qayta aloqa"
+    },
+    "markRouteText": {
+      "incident": "Baxtsiz hodisa — belgi emas, alohida yozuv: joyi, sababi, jabrlanish darajasi va komissiya xulosasi bilan. Davom etsangiz hodisa formasi ochiladi, yozuv esa «Baxtsiz hodisalar» jurnaliga tushadi.",
+      "interview": "Qayta aloqa — belgi emas, ishdan ketuvchi bilan o‘tkazilgan suhbat: ketish sababi, taassurot va qaytish sharti bilan. Davom etsangiz suhbat formasi ochiladi, yozuv esa «Qayta aloqa» jurnaliga tushadi."
+    },
+    "markRouteConfirm": "Formani ochish",
     "flagReplaceTitle": "Kuchdagi belgi almashtiriladi",
     "flagReplaceText": "Xodimda hozir «{{flag}}» belgisi kuchda. Bir vaqtda atigi bitta belgi bo‘ladi: davom etsangiz eskisi yopiladi (o‘chirilmaydi — tarixda qoladi) va yangisi ochiladi.",
     "flagReplaceUnknown": "Xodimda allaqachon kuchdagi belgi bor. Davom etsangiz u yopiladi va yangisi ochiladi.",
