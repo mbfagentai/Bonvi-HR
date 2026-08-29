@@ -115,10 +115,7 @@ export const SOURCE_LOOK: Readonly<Record<CandidateSource, StatusLook>> = {
 
 /* ═══════════════════════════════════════════════════════════════ SANALAR */
 
-/** `YYYY-MM-DD` — server `DateOnly` kutadi (`incident-form-dialog.tsx` dagi bilan bir xil). */
-export function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+export { todayIso as today } from '@/shared/lib/today'
 
 /** Bo'sh satrni `null` ga aylantiradi — server «kiritilmagan» deb tushunadi. */
 export function orNull(value: string): string | null {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
 
 import {
   useCreateExitInterview,
@@ -18,11 +19,6 @@ import {
 } from '../api/exit-interviews-api'
 import { FEEDBACK_ERROR_FIELD, feedbackErrorCode } from '../lib/feedback-error'
 import { RECOMMENDATION_LOOK } from '../lib/feedback-presentation'
-
-/** `YYYY-MM-DD` — server `DateOnly` kutadi. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function orNull(value: string): string | null {
   const trimmed = value.trim()
@@ -77,7 +73,7 @@ export function ExitInterviewFormDialog({
 
   const [employeeId, setEmployeeId] = useState('')
   const [employmentId, setEmploymentId] = useState('')
-  const [interviewDate, setInterviewDate] = useState(today)
+  const [interviewDate, setInterviewDate] = useState(todayIso)
   const [reason, setReason] = useState('')
   const [wouldRecommend, setWouldRecommend] = useState<RecommendationAnswerValue | ''>('')
   const [impressions, setImpressions] = useState('')
@@ -116,7 +112,7 @@ export function ExitInterviewFormDialog({
     } else {
       setEmployeeId(lockedEmployee?.id ?? '')
       setEmploymentId('')
-      setInterviewDate(today())
+      setInterviewDate(todayIso())
       setReason('')
       setWouldRecommend('')
       setImpressions('')

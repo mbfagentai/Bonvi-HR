@@ -11,11 +11,14 @@ import { useEmployeeIncidents } from '@/features/safety/api/incidents-queries'
 import { IncidentFormDialog } from '@/features/safety/components/incident-form-dialog'
 import { SAFETY_VIEW, SEVERITY_LOOK } from '@/features/safety/lib/safety-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
+import { todayIso } from '@/shared/lib/today'
 import { Badge, Button, Card, CardContent, Skeleton } from '@/shared/ui'
 
 import { useEmployeeFlags } from '../api/employees-queries'
 import {
   LISTS_MANAGE,
+  flagInForce,
   type EmployeeStage,
   type RoutedMark,
 } from '../lib/employee-presentation'
@@ -41,6 +44,18 @@ interface MarkRow {
   period: string
   /** O'ng tomondagi amal (faqat ochiq belgida). */
   action?: React.ReactNode
+  /**
+   * Yozuv endi KUCHDA emasmi — o'chirilgan ko'rinishda chiziladi.
+   *
+   * Kartaning sarlavhasida endi faqat kuchdagi nishonlar turadi, ya'ni
+   * «bu belgi hali amaldami?» degan savolga javob beradigan YAGONA joy
+   * shu ro'yxat. Yopilgan belgi ochig'i bilan bir xil ko'ringanda esa
+   * javob faqat ikkita sanani solishtirib o'qilardi.
+   *
+   * Hodisa va suhbat HECH QACHON so'nmaydi: ular «ochiq/yopiq» holati
+   * bo'lmagan faktlar — sodir bo'lgan va shundayligicha qoladi.
+   */
+  muted?: boolean
 }
 
 /**
@@ -111,6 +126,8 @@ export function EmployeeMarksTab({
    */
   const journalKey = employeePinfl ?? employeeName
 
+  const bugun = todayIso()
+
   /*
    * Hodisa va suhbat yozuvi TO'LIQ ko'rinishini o'z jurnalida oladi: u
    * yerda o'nlab maydon, komissiya xulosasi va tahrirlash bor. Ularni
@@ -145,6 +162,7 @@ export function EmployeeMarksTab({
             {t('flags.close')}
           </Button>
         ) : undefined,
+      muted: !flagInForce(flag, bugun),
     })),
 
     ...(incidents.data ?? []).map((incident) => ({
@@ -203,7 +221,10 @@ export function EmployeeMarksTab({
         ) : rows.length > 0 ? (
           <ul className="space-y-3">
             {rows.map((row) => (
-              <li key={row.key} className="flex items-start gap-3">
+              <li
+                key={row.key}
+                className={cn('flex items-start gap-3', row.muted && 'opacity-55')}
+              >
                 {row.badge}
                 <span className="min-w-0 flex-1">
                   <span className="block text-footnote">{row.text}</span>

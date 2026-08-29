@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
 
 import type { EmploymentSummary } from '../api/employees-api'
 import {
@@ -14,11 +15,6 @@ import {
   useTransfer,
 } from '../api/employees-queries'
 import { employeeErrorCode, terminationWarning } from '../lib/employee-error'
-
-/** `YYYY-MM-DD` — server `DateOnly` kutadi. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 /**
  * Buyruq maydonlari — to'rtala oynada bir xil.
@@ -139,7 +135,7 @@ export function TransferDialog({
   const options = useFilterOptions()
   const move = useTransfer(employeeId)
 
-  const [effectiveDate, setEffectiveDate] = useState(today)
+  const [effectiveDate, setEffectiveDate] = useState(todayIso)
   const [departmentId, setDepartmentId] = useState('')
   const [positionId, setPositionId] = useState('')
   const [orderNo, setOrderNo] = useState('')
@@ -149,7 +145,7 @@ export function TransferDialog({
   useEffect(() => {
     if (employment === null) return
 
-    setEffectiveDate(today())
+    setEffectiveDate(todayIso())
     setDepartmentId(employment.department?.id ?? '')
     setPositionId(employment.position?.id ?? '')
     setOrderNo('')
@@ -248,7 +244,7 @@ export function AdditionalDutyDialog({
   const duty = useAdditionalDuty(employeeId)
 
   const [text, setText] = useState('')
-  const [effectiveDate, setEffectiveDate] = useState(today)
+  const [effectiveDate, setEffectiveDate] = useState(todayIso)
   const [extra, setExtra] = useState('')
   const [orderNo, setOrderNo] = useState('')
   const [orderDate, setOrderDate] = useState('')
@@ -257,7 +253,7 @@ export function AdditionalDutyDialog({
     if (employment === null) return
 
     setText('')
-    setEffectiveDate(today())
+    setEffectiveDate(todayIso())
     setExtra('')
     setOrderNo('')
     setOrderDate('')
@@ -346,7 +342,7 @@ export function SalaryDialog({
   const salary = useChangeSalary(employeeId)
 
   const [amount, setAmount] = useState('')
-  const [effectiveDate, setEffectiveDate] = useState(today)
+  const [effectiveDate, setEffectiveDate] = useState(todayIso)
   const [orderNo, setOrderNo] = useState('')
   const [orderDate, setOrderDate] = useState('')
 
@@ -354,7 +350,7 @@ export function SalaryDialog({
     if (employment === null) return
 
     setAmount(employment.salary === null ? '' : String(employment.salary.amount))
-    setEffectiveDate(today())
+    setEffectiveDate(todayIso())
     setOrderNo('')
     setOrderDate('')
     salary.reset()
@@ -441,7 +437,7 @@ export function TerminateDialog({
   const reasons = useCatalogList('termination-reasons', true)
   const leave = useTerminate(employeeId)
 
-  const [terminationDate, setTerminationDate] = useState(today)
+  const [terminationDate, setTerminationDate] = useState(todayIso)
   const [reasonId, setReasonId] = useState('')
   const [orderNo, setOrderNo] = useState('')
   const [orderDate, setOrderDate] = useState('')
@@ -450,7 +446,7 @@ export function TerminateDialog({
   useEffect(() => {
     if (employment === null) return
 
-    setTerminationDate(today())
+    setTerminationDate(todayIso())
     setReasonId('')
     setOrderNo('')
     setOrderDate('')

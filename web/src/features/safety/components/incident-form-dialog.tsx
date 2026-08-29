@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, Switch, TextArea, TextField } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
 
 import {
   useCreateIncident,
@@ -13,11 +14,6 @@ import {
 import { INCIDENT_SEVERITIES, type Incident, type IncidentSeverityValue } from '../api/incidents-api'
 import { SAFETY_ERROR_FIELD, safetyErrorCode } from '../lib/safety-error'
 import { SEVERITY_LOOK } from '../lib/safety-presentation'
-
-/** `YYYY-MM-DD` — server `DateOnly` kutadi. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function orNull(value: string): string | null {
   const trimmed = value.trim()
@@ -69,7 +65,7 @@ export function IncidentFormDialog({
   const isEdit = item !== null
 
   const [employeeId, setEmployeeId] = useState('')
-  const [incidentDate, setIncidentDate] = useState(today)
+  const [incidentDate, setIncidentDate] = useState(todayIso)
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
   const [severity, setSeverity] = useState<IncidentSeverityValue>('minor')
@@ -109,7 +105,7 @@ export function IncidentFormDialog({
       setResponsibleEmployeeId(item.responsibleEmployeeId ?? '')
     } else {
       setEmployeeId(lockedEmployee?.id ?? '')
-      setIncidentDate(today())
+      setIncidentDate(todayIso())
       setLocation('')
       setDescription('')
       setSeverity('minor')
@@ -254,12 +250,27 @@ export function IncidentFormDialog({
           />
         </div>
 
-        <TextField
-          label={t('safety.location')}
-          value={location}
-          error={fieldMessage('location')}
-          onChange={(event) => setLocation(event.target.value)}
-        />
+        {/*
+          «Qayerda» va «qaysi smenada» — bitta savolning ikki yarmi, shu
+          sababli yonma-yon. Ilgari bu yerda «Smena» va «Lavozim» turardi;
+          lavozim olib tashlangach (u xodimga allaqachon biriktirilgan va
+          formada qayta so'ralishi ortiqcha ish edi) smena yolg'iz qolib,
+          butun oyna kengligiga cho'zilgan qisqa maydonga aylangandi.
+        */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label={t('safety.location')}
+            value={location}
+            error={fieldMessage('location')}
+            onChange={(event) => setLocation(event.target.value)}
+          />
+          <TextField
+            label={t('safety.shift')}
+            hint={t('safety.shiftHint')}
+            value={shift}
+            onChange={(event) => setShift(event.target.value)}
+          />
+        </div>
 
         <TextArea
           label={t('safety.description')}
@@ -269,20 +280,6 @@ export function IncidentFormDialog({
           onChange={(event) => setDescription(event.target.value)}
         />
 
-        {/*
-          Lavozim maydoni ATAYLAB yo'q. Xodimga u allaqachon biriktirilgan
-          va formada qayta so'rash ortiqcha ish edi — yomoni, HR shoshib
-          boshqa lavozimni tanlashi mumkin edi. Yozuvga lavozim baribir
-          tushadi: server uni hodisa KUNIDAGI mehnat munosabatidan oladi
-          (`IncidentPositionResolver`). Smena esa qoladi — u munosabatdan
-          kelib chiqmaydi.
-        */}
-        <TextField
-          label={t('safety.shift')}
-          hint={t('safety.shiftHint')}
-          value={shift}
-          onChange={(event) => setShift(event.target.value)}
-        />
 
         <TextArea
           label={t('safety.cause')}

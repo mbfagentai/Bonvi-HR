@@ -47,6 +47,7 @@ import {
 import type { EmploymentSummary } from '@/features/employees/api/employees-api'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Card, SegmentedControl, Skeleton } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
 
 export const Route = createFileRoute('/_app/xodimlar/$employeeId')({
   component: EmployeeCardPage,
@@ -179,8 +180,8 @@ function EmployeeCardPage() {
 
   // Bugundan KEYIN ham kuchda qoladigan belgilar — serverdagi
   // `IsInForceAfter` bilan bir xil shart (`flagInForce` izohi).
-  const todayIso = new Date().toISOString().slice(0, 10)
-  const inForceFlags = (flags.data ?? []).filter((flag) => flagInForce(flag, todayIso))
+  const bugun = todayIso()
+  const inForceFlags = (flags.data ?? []).filter((flag) => flagInForce(flag, bugun))
 
   /*
    * Tab ro'yxati DINAMIK: «Hujjatlar», «Qobiliyatlar» va «Rag'bat/Jarima»

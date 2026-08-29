@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { EmployeeDetails } from '../api/employees-api'
+import { todayIso } from '@/shared/lib/today'
 
 /**
  * Ishga qabul formasi.
@@ -115,7 +116,7 @@ export const hireSchema = z
      * Shu sababli tartib tekshirilmaydi — faqat kelajakdagi sana bloklanadi:
      * bu deyarli har doim yozuv xatosi.
      */
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayIso()
     if (values.birthDate !== '' && values.birthDate > today) {
       ctx.addIssue({
         code: 'custom',
@@ -145,7 +146,7 @@ export function emptyHireValues(): HireValues {
     departmentId: '',
     positionId: '',
     // Ishga kirish sanasi odatda BUGUN — HR buyruqni o'sha kuni kiritadi
-    hireDate: new Date().toISOString().slice(0, 10),
+    hireDate: todayIso(),
     rate: '1',
     isPrimary: true,
     salaryAmount: '',
@@ -317,7 +318,7 @@ export const employeeSchema = z
      * bilib olardi. Ishga qabul formasida bu tekshiruv allaqachon bor —
      * ikkalasi bir xil chegarada turishi kerak.
      */
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayIso()
     if (values.birthDate !== '' && values.birthDate > today) {
       ctx.addIssue({
         code: 'custom',

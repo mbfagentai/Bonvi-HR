@@ -5,6 +5,7 @@ import { useForm, type FieldPath } from 'react-hook-form'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { todayIso } from '@/shared/lib/today'
 import {
   Alert,
   Button,
@@ -126,7 +127,7 @@ export function EmployeeEditDialog({
 
   // `<input type="date">` ning o'z chegarasi: sanani tanlash oynasida
   // kelajak umuman ochilmasin — xatoni ko'rsatgandan ko'ra oldini olgan yaxshi
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayIso()
 
   const onSubmit = handleSubmit(async (values) => {
     setFailure(null)

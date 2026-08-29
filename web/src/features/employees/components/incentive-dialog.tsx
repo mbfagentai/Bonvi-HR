@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Badge, Button, Dialog, SegmentedControl, Select, TextArea, TextField } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
 
 import {
   useCreateIncentive,
@@ -12,11 +13,6 @@ import {
 import type { Incentive, IncentiveKindValue } from '../api/incentives-api'
 import { employeeErrorCode } from '../lib/employee-error'
 import { INCENTIVE_KIND_LOOK } from '../lib/employee-presentation'
-
-/** `YYYY-MM-DD` — server `DateOnly` kutadi. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function orNull(value: string): string | null {
   const trimmed = value.trim()
@@ -60,7 +56,7 @@ export function IncentiveDialog({
 
   const [kind, setKind] = useState<IncentiveKindValue>('award')
   const [typeId, setTypeId] = useState('')
-  const [date, setDate] = useState(today)
+  const [date, setDate] = useState(todayIso)
   const [amount, setAmount] = useState('')
   const [giftDescription, setGiftDescription] = useState('')
   const [reason, setReason] = useState('')
@@ -87,7 +83,7 @@ export function IncentiveDialog({
     } else {
       setKind('award')
       setTypeId('')
-      setDate(today())
+      setDate(todayIso())
       setAmount('')
       setGiftDescription('')
       setReason('')

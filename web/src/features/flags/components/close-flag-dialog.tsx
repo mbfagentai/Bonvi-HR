@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { employeeErrorCode } from '@/features/employees/lib/employee-error'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, TextArea, TextField } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
 
 import { useCloseFlag } from '../api/flags-queries'
 
@@ -19,11 +20,6 @@ export interface ClosableFlag {
   id: string
   employeeId: string
   employeeName: string
-}
-
-/** `YYYY-MM-DD` — server `DateOnly` kutadi. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 /**
@@ -45,13 +41,13 @@ export function CloseFlagDialog({
   const errorMessage = useErrorMessage()
   const close = useCloseFlag()
 
-  const [closedAt, setClosedAt] = useState(today)
+  const [closedAt, setClosedAt] = useState(todayIso)
   const [note, setNote] = useState('')
 
   // Dialog qayta ochilganda oldingi xodimning izohi qolib ketmasligi kerak.
   useEffect(() => {
     if (item !== null) {
-      setClosedAt(today())
+      setClosedAt(todayIso())
       setNote('')
       close.reset()
     }

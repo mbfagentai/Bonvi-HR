@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
 
 import type { EmployeeFlag, EmployeeFlagType } from '../api/employees-api'
 import { useCreateFlag, useEmployeeFlags } from '../api/employees-queries'
@@ -15,11 +16,6 @@ import {
   type EmployeeStage,
   type RoutedMark,
 } from '../lib/employee-presentation'
-
-/** `YYYY-MM-DD` — server `DateOnly` kutadi. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 /** Server «bir vaqtda atigi bitta belgi» qoidasini buzganini shu kod bilan aytadi. */
 const ALREADY_IN_FORCE = 'belgi.boshqa_belgi_bor'
@@ -100,7 +96,7 @@ export function RaiseFlagDialog({
   const flags = useEmployeeFlags(employeeId)
 
   const [choice, setChoice] = useState<EmployeeFlagType | RoutedMark>(firstChoice)
-  const [startDate, setStartDate] = useState(today)
+  const [startDate, setStartDate] = useState(todayIso)
   const [endDate, setEndDate] = useState('')
   const [reason, setReason] = useState('')
 
@@ -111,7 +107,7 @@ export function RaiseFlagDialog({
     if (!open) return
 
     setChoice(firstChoice)
-    setStartDate(today())
+    setStartDate(todayIso())
     setEndDate('')
     setReason('')
     setConfirming(false)
