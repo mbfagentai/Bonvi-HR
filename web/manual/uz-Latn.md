@@ -603,6 +603,37 @@ alohida sahifa mos keladi.
 | **Nazoratda** | `/nazorat` | Bir muddat kuzatiladi |
 | **Qobiliyatli** | `/qobiliyatli` | Qo‘shimcha yuklama ko‘tara oladi |
 
+## Ikkita guruh: ishlayotgan va ketayotgan
+
+Belgilar **aralashmaydi**. Qaysi biri taklif qilinishi xodimning holatiga
+bog‘liq, chunki har bosqichda savol boshqacha.
+
+| Xodim | Tanlanadigan belgilar | Savol |
+|---|---|---|
+| **Ishlayapti** | Nazoratda · Qobiliyatli | «Bu odam bilan **hozir** nima qilamiz?» |
+| **Ishdan ketgan** | Rezerv · Qora ro‘yxat | «Bu odamni **keyin** qaytarib olamizmi?» |
+
+Ishlab turgan odamni «rezerv» deb belgilash ma’nosiz — u bizda ishlayapti,
+chaqirishning hojati yo‘q. Ketgan odamni «nazoratda» deb belgilash ham
+shunday: uni hech kim kuzatmaydi.
+
+Shu sababli oynada faqat mos keladigan turlar chiqadi. Agar so‘rov baribir
+yuborilsa, tizim uni **rad etadi** — bu yerda «baribir davom etish» tugmasi
+yo‘q, chunki saqlanadigan ma’no ham yo‘q. Kerak bo‘lsa avval xodim ishdan
+bo‘shatiladi, belgi esa o‘sha oqimda tanlanadi.
+
+>! **Belgi o‘zi ham yopiladi.** Ishdan bo‘shatganda «nazoratda» va
+>! «qobiliyatli» belgilari avtomatik yopiladi, qayta ishga olganda esa
+>! «rezerv» yopiladi — u chaqirildi va keldi, ya’ni bajarildi. Yozuv
+>! o‘chirilmaydi, sababiga izoh qo‘shiladi.
+
+## Bir vaqtda atigi bitta belgi
+
+Xodimda bir vaqtda **faqat bitta kuchdagi belgi** bo‘ladi. Yangisini
+qo‘yganingizda eskisi avtomatik yopiladi — lekin tizim buni jimgina
+qilmaydi: oynada **qaysi belgi yopilishi** nomi bilan yoziladi va tugma
+matni **«Almashtirish»** ga o‘zgaradi.
+
 ## Belgi qo‘yish
 
 Belgi **faqat xodim kartasidan** qo‘yiladi — ro‘yxat sahifalarida bu tugma
@@ -612,13 +643,23 @@ Xodim kartasi » **«Belgilar»** yorlig‘i » **«Belgi qo‘yish»**.
 
 | Maydon | Majburiymi |
 |----|--------|
-| **Belgi turi** | Ha, sukut — «Rezerv» |
+| **Belgi turi** | Ha, sukut — holatga mos birinchi tur |
 | **Qo‘yilgan** | Ha, sukut — bugun |
 | **Yopilgan** | Yo‘q — bo‘sh qoldirilsa muddatsiz |
 | **Sabab** | **Qora ro‘yxat uchun majburiy**, qolganlarida ixtiyoriy |
 
 Qora ro‘yxat uchun sabab shart: keyin nima uchunligini bilish kerak bo‘ladi.
 Sababsiz tizim saqlashga yo‘l qo‘ymaydi.
+
+## Ro‘yxatda yana ikkita yozuv
+
+Belgi turlari ro‘yxatining oxirida **«Baxtsiz hodisa»** (ishlayotgan xodimda)
+yoki **«Qayta aloqa»** (ketganida) turadi. Ular belgi **emas** — ortida
+to‘liq yozuv bor: hodisada joy, sabab, jabrlanish darajasi va komissiya
+xulosasi; qayta aloqada esa suhbatning o‘zi.
+
+Tanlasangiz oyna yopiladi va **o‘sha yozuvning to‘liq formasi** ochiladi,
+xodim oldindan to‘ldirilgan holda. Yozuv o‘z jurnaliga tushadi.
 
 ## Belgini yopish
 
@@ -629,12 +670,25 @@ yo‘qolmaydi.
 **«Yopish»** tugmasi faqat hali yopilmagan qatorlarda ko‘rinadi. Oynada
 **«Yopilgan sana»** (majburiy) va **«Izoh»** (ixtiyoriy) bo‘ladi.
 
+## Kartadagi «Belgilar» yorlig‘i
+
+Bu yerda uchta manba **bitta ro‘yxatda**, vaqt bo‘yicha: belgilar, baxtsiz
+hodisalar va qayta aloqa suhbatlari. Hodisa va suhbat qatoridagi **«Jurnalda
+ochish»** tugmasi o‘sha yozuvning to‘liq ko‘rinishiga olib boradi.
+
+**Kuchdan chiqqan belgi so‘niq chiziladi** — ya’ni «bu belgi hali amaldami?»
+degan savolga sanalarni solishtirmasdan javob berish mumkin. Hodisa va suhbat
+hech qachon so‘nmaydi: ular sodir bo‘lgan va shundayligicha qoladigan faktlar.
+
+Kartaning **sarlavhasidagi** nishonlar esa faqat **kuchdagi** belgilarni
+ko‘rsatadi. Tarixni ko‘rish uchun shu yorliqni oching.
+
 ## Ro‘yxat sahifalari
 
 To‘rttala sahifa bir xil ko‘rinishda: **F.I.Sh.**, **Sabab**, **Qo‘yilgan**,
-**Yopilgan**, **Mas’ul** va **«Yopish»** tugmasi. O‘ng yuqorida **«Faqat
-kuchdagilar»** kaliti turadi va u **sukut bo‘yicha yoqilgan** — ya’ni yopilgan
-belgilar ko‘rinmaydi. Ularni ko‘rish uchun kalitni o‘chiring.
+**Yopilgan** va **«Yopish»** tugmasi. O‘ng yuqorida **«Faqat kuchdagilar»**
+kaliti turadi va u **sukut bo‘yicha yoqilgan** — ya’ni yopilgan belgilar
+ko‘rinmaydi. Ularni ko‘rish uchun kalitni o‘chiring.
 
 Qatorga bossangiz xodim kartasi ochiladi.
 
@@ -776,9 +830,12 @@ Manzil — `/hodisalar`. Ishlab chiqarishdagi jarohat va hodisalar qayd etiladi.
 **«Yangi hodisa»** oynasidagi majburiy maydonlar: **Jabrlangan xodim**,
 **Sana**, **Jabrlanish darajasi**, **Joyi** va **Tavsif**.
 
-Ixtiyoriy: **Smena**, **Lavozim**, **Sababi**, **Ko‘rilgan chora**,
-**Mas’ul xodim**, **Tibbiy yordam ko‘rsatildi** kaliti va uning tafsiloti
-(tafsilot maydoni faqat kalit yoqilganda chiqadi).
+Ixtiyoriy: **Smena**, **Sababi**, **Ko‘rilgan chora**, **Mas’ul xodim**,
+**Tibbiy yordam ko‘rsatildi** kaliti va uning tafsiloti (tafsilot maydoni
+faqat kalit yoqilganda chiqadi).
+
+>! **Lavozim so‘ralmaydi.** U xodimga allaqachon biriktirilgan va formada
+>! qayta so‘ralishi ortiqcha ish edi — shu sababli maydon olib tashlandi.
 
 Jabrlanish darajasi to‘rtta: **Yengil**, **O‘rtacha**, **Og‘ir**, **Halokatli**.
 

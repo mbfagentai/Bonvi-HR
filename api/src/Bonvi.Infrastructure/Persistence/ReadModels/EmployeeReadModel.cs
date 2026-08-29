@@ -457,11 +457,20 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
 
     /// <inheritdoc />
     /// <remarks>
-    /// Faollik sharti hamma joyda BIR XIL yozilgan:
-    /// <c>start_date &lt;= kun AND (end_date IS NULL OR end_date &gt;= kun)</c>
-    /// — <c>EmployeeFlagRepository</c> dagi bilan aynan bir xil. Uni har joyda
-    /// boshqacha yozish belgining bir ekranda ko'rinib, boshqasida
-    /// ko'rinmasligining eng keng tarqalgan sababi.
+    /// <para>
+    /// Faollik sharti <c>ActiveFlagsAsync</c> dagi bilan AYNAN bir xil:
+    /// <c>start_date &lt;= kun AND (end_date IS NULL OR end_date &gt; kun)</c>.
+    /// <c>&gt;</c>, <c>&gt;=</c> EMAS — sabab o'sha metodning izohida.
+    /// </para>
+    /// <para>
+    /// ⚠️ Bu shart ilgari <c>&gt;=</c> edi va u shu ro'yxatlarda
+    /// («Rezerv», «Qora ro'yxat», «Nazoratdagilar», «Qobiliyatli»)
+    /// bugun YOPILGAN belgini «kuchdagilar» orasida ko'rsatib turardi.
+    /// Xato uzoq sezilmadi, chunki bir xil so'rovning IKKINCHI nusxasi
+    /// <c>EmployeeFlagRepository.ListByTypeAsync</c> da ham bor edi va
+    /// tuzatish o'sha o'lik nusxaga tushgandi. Nusxa endi o'chirilgan —
+    /// ro'yxat so'rovi bitta joyda.
+    /// </para>
     /// </remarks>
     public async Task<IReadOnlyList<EmployeeFlagRow>> ListFlagsAsync(
         EmployeeFlagType type,
@@ -477,7 +486,7 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         if (onlyActive)
         {
             flags = flags.Where(flag =>
-                flag.StartDate <= on && (flag.EndDate == null || flag.EndDate >= on));
+                flag.StartDate <= on && (flag.EndDate == null || flag.EndDate > on));
         }
 
         // Qidiruv BELGI EGASIGA qo'llanadi, mas'ulga emas.

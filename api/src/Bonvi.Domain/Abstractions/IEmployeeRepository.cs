@@ -142,12 +142,6 @@ public interface IEmployeeFlagRepository : IRepository<EmployeeFlag>
         Guid employeeId,
         DateOnly on,
         CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<EmployeeFlag>> ListByTypeAsync(
-        EmployeeFlagType type,
-        bool onlyActive,
-        DateOnly on,
-        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Qobiliyatlar profili uchun saqlash porti.</summary>

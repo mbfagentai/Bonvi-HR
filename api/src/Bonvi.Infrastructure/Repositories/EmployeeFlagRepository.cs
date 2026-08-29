@@ -69,30 +69,4 @@ public sealed class EmployeeFlagRepository : Repository<EmployeeFlag>, IEmployee
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<EmployeeFlag>> ListByTypeAsync(
-        EmployeeFlagType type,
-        bool onlyActive,
-        DateOnly on,
-        CancellationToken cancellationToken = default)
-    {
-        var query = Set
-            .AsNoTracking()
-            .Where(flag => flag.Type == type);
-
-        if (onlyActive)
-        {
-            // `EndDate > on`, `>=` EMAS — sabab `EmployeeReadModel.ActiveFlagsAsync`
-            // izohida: bugun almashtirilgan belgi «kuchdagilar» ro'yxatida
-            // yangisi bilan yonma-yon turib qolardi.
-            query = query.Where(flag =>
-                flag.StartDate <= on &&
-                (flag.EndDate == null || flag.EndDate > on));
-        }
-
-        return await query
-            .OrderByDescending(flag => flag.StartDate)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-    }
 }

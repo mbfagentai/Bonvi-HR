@@ -1,4 +1,5 @@
 using Bonvi.Domain.Abstractions;
+using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.ValueObjects;
@@ -539,13 +540,31 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
         (await belgilar.GetByEmployeeAsync(xodimId, bekorQilish))
             .Count.ShouldBe(2);
 
-        var qoraRoyxatdagilar = await belgilar.ListByTypeAsync(
+        // Ro'yxat sahifasi (`/qora-royxat`) aynan SHU so'rovdan chiziladi.
+        // Ilgari bu yerda `IEmployeeFlagRepository.ListByTypeAsync` sinalardi
+        // — u bir xil so'rovning IKKINCHI nusxasi edi va uni hech kim
+        // chaqirmasdi, ya'ni test ekranga chiqadigan yo'lni emas, o'lik
+        // kodni tekshirardi. Nusxa o'chirildi.
+        var oqishModeli = oqishQamrovi.ServiceProvider.GetRequiredService<IEmployeeReadModel>();
+
+        var qoraRoyxatdagilar = await oqishModeli.ListFlagsAsync(
             EmployeeFlagType.Blacklist,
             onlyActive: true,
             kun,
-            bekorQilish);
+            cancellationToken: bekorQilish);
 
         qoraRoyxatdagilar.ShouldContain(element => element.EmployeeId == xodimId);
+
+        // Muddati SHU KUNI tugaydigan belgi «kuchdagilar» ro'yxatiga
+        // TUSHMAYDI: `end_date > kun`, `>=` emas. Aks holda almashtirilgan
+        // belgi yangisi bilan yonma-yon turib qolardi.
+        var nazoratdagilar = await oqishModeli.ListFlagsAsync(
+            EmployeeFlagType.Monitoring,
+            onlyActive: true,
+            new DateOnly(2025, 12, 31),
+            cancellationToken: bekorQilish);
+
+        nazoratdagilar.ShouldNotContain(element => element.EmployeeId == xodimId);
     }
 
     // ────────────────────────────────────────────────────────────
