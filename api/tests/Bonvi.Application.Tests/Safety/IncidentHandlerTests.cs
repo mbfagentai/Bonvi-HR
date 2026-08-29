@@ -11,10 +11,12 @@ public sealed class IncidentHandlerTests
     private readonly EmployeeTestContext _context = new();
 
     private RecordIncidentCommandHandler Yozish => new(
-        _context.Incidents, _context.Employees, _context.Positions, _context.SafetyMapper, _context.UnitOfWork);
+        _context.Incidents, _context.Employees, _context.IncidentPositions, _context.SafetyMapper,
+        _context.UnitOfWork);
 
     private UpdateIncidentCommandHandler Tuzatish => new(
-        _context.Incidents, _context.Employees, _context.Positions, _context.SafetyMapper, _context.UnitOfWork);
+        _context.Incidents, _context.Employees, _context.IncidentPositions, _context.SafetyMapper,
+        _context.UnitOfWork);
 
     private ConcludeIncidentCommandHandler Yakunlash => new(
         _context.Incidents, _context.SafetyMapper, _context.Clock, _context.UnitOfWork);
@@ -35,20 +37,61 @@ public sealed class IncidentHandlerTests
         natija.Error.Code.ShouldBe("baxtsiz_hodisa.xodim_topilmadi");
     }
 
+    /// <summary>
+    /// Lavozim SO'RALMAYDI — hodisa kunidagi munosabatdan o'zi olinadi.
+    /// </summary>
+    /// <remarks>
+    /// Ilgari bu yerda «nomavjud lavozimga yozilmaydi» testi turardi. U
+    /// endi ma'nosiz: lavozim foydalanuvchidan kelmaydi, ya'ni noto'g'ri
+    /// qiymat yuborishning yo'li yo'q. O'rniga qarama-qarshi tekshiruv —
+    /// qiymat HAQIQATDA to'ldiriladimi.
+    /// </remarks>
     [Fact]
-    public async Task Nomavjud_lavozimga_yozilmaydi()
+    public async Task Lavozim_hodisa_kunidagi_munosabatdan_toldiriladi()
     {
         var employee = _context.ExistingEmployee();
-        _context.Positions.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
+        var employment = _context.ExistingEmployment(employee.Id);
+        _context.Employments
+            .GetByEmployeeAsync(employee.Id, Arg.Any<CancellationToken>())
+            .Returns([employment]);
+
+        Incident? saqlangan = null;
+        _context.Incidents.When(x => x.Add(Arg.Any<Incident>())).Do(x => saqlangan = x.Arg<Incident>());
 
         var natija = await Yozish.HandleAsync(
             new RecordIncidentCommand(
-                employee.Id, EmployeeTestContext.Today, "Joy", "Tavsif", IncidentSeverity.Minor,
-                PositionId: Guid.CreateVersion7()),
+                employee.Id, EmployeeTestContext.Today, "Joy", "Tavsif", IncidentSeverity.Minor),
             TestContext.Current.CancellationToken);
 
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("baxtsiz_hodisa.lavozim_topilmadi");
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        saqlangan.ShouldNotBeNull();
+        saqlangan.PositionId.ShouldBe(employment.PositionId);
+    }
+
+    /// <summary>
+    /// Hodisa kunida munosabat bo'lmasa — lavozimsiz yoziladi.
+    /// </summary>
+    /// <remarks>
+    /// Excel'dan ko'chirilgan yozuvlarda mehnat munosabati umuman
+    /// bo'lmasligi mumkin. Bu xato emas: maydon ixtiyoriy va butun
+    /// hodisani to'xtatib qo'yish ma'lumotni yo'qotardi.
+    /// </remarks>
+    [Fact]
+    public async Task Munosabatsiz_xodimga_lavozimsiz_yoziladi()
+    {
+        var employee = _context.ExistingEmployee();
+
+        Incident? saqlangan = null;
+        _context.Incidents.When(x => x.Add(Arg.Any<Incident>())).Do(x => saqlangan = x.Arg<Incident>());
+
+        var natija = await Yozish.HandleAsync(
+            new RecordIncidentCommand(
+                employee.Id, EmployeeTestContext.Today, "Joy", "Tavsif", IncidentSeverity.Minor),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        saqlangan.ShouldNotBeNull();
+        saqlangan.PositionId.ShouldBeNull();
     }
 
     [Fact]

@@ -53,6 +53,17 @@ public enum IncidentSeverity
 /// yozilmaydi).
 /// </para>
 /// <para>
+/// <b>Uni HR kiritmaydi.</b> Xodimga lavozim allaqachon biriktirilgan va
+/// uni formada qayta so'rash ortiqcha ish edi. Qiymat hodisa KUNIDAGI
+/// mehnat munosabatidan olinadi (<c>IncidentPositionResolver</c>) —
+/// ya'ni maydon shu yerda saqlanadi, lekin manbasi so'rov emas, bazaning
+/// o'zi. Agregat baribir uni PARAMETR sifatida oladi: qaysi lavozim
+/// ekanini bilish uchun xodimning MUNOSABATLARINI o'qish kerak, bu esa
+/// boshqa agregat — bunday qoidani konstruktordan tekshirib bo'lmaydi
+/// (<c>EmployeeFlag</c> dagi «bitta belgi» qoidasi bilan bir xil
+/// bo'linish).
+/// </para>
+/// <para>
 /// <b>Komиssiya xulosasi kechikishi mumkin.</b> Voqea ro'y berganda HR
 /// asosiy tafsilotlarni darhol yozadi, lekin komissiya tekshiruvi vaqt
 /// oladi — shu sababli <see cref="CommissionConclusion"/> yaratishda

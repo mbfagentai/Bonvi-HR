@@ -2,8 +2,6 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
-import { useCatalogList } from '@/features/catalog/api/catalog-queries'
-import type { PositionItem } from '@/features/catalog/api/catalog-api'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, Switch, TextArea, TextField } from '@/shared/ui'
 
@@ -76,7 +74,6 @@ export function IncidentFormDialog({
   const [description, setDescription] = useState('')
   const [severity, setSeverity] = useState<IncidentSeverityValue>('minor')
   const [shift, setShift] = useState('')
-  const [positionId, setPositionId] = useState('')
   const [cause, setCause] = useState('')
   const [correctiveAction, setCorrectiveAction] = useState('')
   const [medicalAidProvided, setMedicalAidProvided] = useState(false)
@@ -88,7 +85,6 @@ export function IncidentFormDialog({
   const [fieldError, setFieldError] = useState<{ field: string; code: string } | null>(null)
 
   const employees = useEmployeeOptions()
-  const positions = useCatalogList<PositionItem>('positions', false)
 
   const create = useCreateIncident()
   const update = useUpdateIncident()
@@ -106,7 +102,6 @@ export function IncidentFormDialog({
       setDescription(item.description)
       setSeverity(item.severity)
       setShift(item.shift ?? '')
-      setPositionId(item.positionId ?? '')
       setCause(item.cause ?? '')
       setCorrectiveAction(item.correctiveAction ?? '')
       setMedicalAidProvided(item.medicalAidProvided)
@@ -119,7 +114,6 @@ export function IncidentFormDialog({
       setDescription('')
       setSeverity('minor')
       setShift('')
-      setPositionId('')
       setCause('')
       setCorrectiveAction('')
       setMedicalAidProvided(false)
@@ -151,7 +145,6 @@ export function IncidentFormDialog({
       description: description.trim(),
       severity,
       shift: orNull(shift),
-      positionId: positionId === '' ? null : positionId,
       cause: orNull(cause),
       correctiveAction: orNull(correctiveAction),
       medicalAidProvided,
@@ -276,26 +269,20 @@ export function IncidentFormDialog({
           onChange={(event) => setDescription(event.target.value)}
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label={t('safety.shift')}
-            hint={t('safety.shiftHint')}
-            value={shift}
-            onChange={(event) => setShift(event.target.value)}
-          />
-          <Select
-            label={t('safety.position')}
-            placeholder={t('safety.noPosition')}
-            options={(positions.data ?? []).map((option) => ({
-              value: option.id,
-              label: option.name,
-            }))}
-            disabled={positions.isPending}
-            value={positionId}
-            error={fieldMessage('positionId')}
-            onChange={(event) => setPositionId(event.target.value)}
-          />
-        </div>
+        {/*
+          Lavozim maydoni ATAYLAB yo'q. Xodimga u allaqachon biriktirilgan
+          va formada qayta so'rash ortiqcha ish edi — yomoni, HR shoshib
+          boshqa lavozimni tanlashi mumkin edi. Yozuvga lavozim baribir
+          tushadi: server uni hodisa KUNIDAGI mehnat munosabatidan oladi
+          (`IncidentPositionResolver`). Smena esa qoladi — u munosabatdan
+          kelib chiqmaydi.
+        */}
+        <TextField
+          label={t('safety.shift')}
+          hint={t('safety.shiftHint')}
+          value={shift}
+          onChange={(event) => setShift(event.target.value)}
+        />
 
         <TextArea
           label={t('safety.cause')}

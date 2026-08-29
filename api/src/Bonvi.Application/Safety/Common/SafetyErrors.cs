@@ -11,9 +11,6 @@ public static class SafetyErrors
     public static Error EmployeeNotFound { get; } =
         Error.NotFound("baxtsiz_hodisa.xodim_topilmadi", "Xodim topilmadi.");
 
-    public static Error PositionNotFound { get; } =
-        Error.NotFound("baxtsiz_hodisa.lavozim_topilmadi", "Lavozim topilmadi.");
-
     public static Error ResponsibleNotFound { get; } =
         Error.NotFound("baxtsiz_hodisa.masul_topilmadi", "Mas'ul xodim topilmadi.");
 }

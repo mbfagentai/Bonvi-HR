@@ -70,6 +70,12 @@ export interface IncidentFilters {
  * yo'q (`IncidentEndpoints.cs`) — tahrirlashda jabrlangan xodim
  * o'zgarmaydi, xuddi `Incentive.Update` dagi kabi (noto'g'ri xodimga
  * yozilgan bo'lsa, bu tuzatish emas, boshqa fakt).
+ *
+ * `positionId` ham YO'Q, lekin boshqa sababdan: xodimga lavozim
+ * allaqachon biriktirilgan va uni formada qayta so'rash ortiqcha ish edi.
+ * Server uni hodisa KUNIDAGI mehnat munosabatidan o'zi oladi va
+ * javobda `positionId`/`positionName` bo'lib qaytaradi — ya'ni maydon
+ * O'QISHDA bor, YOZISHDA yo'q.
  */
 export interface IncidentFormRequest {
   incidentDate: string
@@ -77,7 +83,6 @@ export interface IncidentFormRequest {
   description: string
   severity: IncidentSeverityValue
   shift: string | null
-  positionId: string | null
   cause: string | null
   correctiveAction: string | null
   medicalAidProvided: boolean

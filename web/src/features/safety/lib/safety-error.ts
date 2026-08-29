@@ -21,7 +21,6 @@ export const SAFETY_ERROR_FIELD: Readonly<Record<string, string>> = {
   'baxtsiz_hodisa.xodim_yoq': 'employeeId',
   'baxtsiz_hodisa.joy_bosh': 'location',
   'baxtsiz_hodisa.tavsif_bosh': 'description',
-  'baxtsiz_hodisa.lavozim_topilmadi': 'positionId',
   'baxtsiz_hodisa.masul_topilmadi': 'responsibleEmployeeId',
 }
 

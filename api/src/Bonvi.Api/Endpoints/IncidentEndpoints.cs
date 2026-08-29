@@ -13,7 +13,6 @@ namespace Bonvi.Api.Endpoints;
 /// <param name="Description">Hodisa tavsifi. Majburiy.</param>
 /// <param name="Severity">Jabrlanish darajasi: Minor | Moderate | Severe | Fatal.</param>
 /// <param name="Shift">Smena/vaqt tavsifi.</param>
-/// <param name="PositionId">Hodisa vaqtidagi lavozim.</param>
 /// <param name="Cause">Sababi.</param>
 /// <param name="CorrectiveAction">Ko'rilgan chora-tadbir.</param>
 /// <param name="MedicalAidProvided">Tibbiy yordam ko'rsatildimi.</param>
@@ -26,7 +25,6 @@ public sealed record RecordIncidentRequest(
     string? Description,
     IncidentSeverity Severity,
     string? Shift = null,
-    Guid? PositionId = null,
     string? Cause = null,
     string? CorrectiveAction = null,
     bool MedicalAidProvided = false,
@@ -40,7 +38,6 @@ public sealed record UpdateIncidentRequest(
     string? Description,
     IncidentSeverity Severity,
     string? Shift = null,
-    Guid? PositionId = null,
     string? Cause = null,
     string? CorrectiveAction = null,
     bool MedicalAidProvided = false,
@@ -146,7 +143,6 @@ public static class IncidentEndpoints
                             request.Description,
                             request.Severity,
                             request.Shift,
-                            request.PositionId,
                             request.Cause,
                             request.CorrectiveAction,
                             request.MedicalAidProvided,
@@ -183,7 +179,6 @@ public static class IncidentEndpoints
                             request.Description,
                             request.Severity,
                             request.Shift,
-                            request.PositionId,
                             request.Cause,
                             request.CorrectiveAction,
                             request.MedicalAidProvided,
