@@ -823,7 +823,20 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         return found.ToDictionary(direction => direction.Id, direction => direction.Name);
     }
 
-    /// <summary>Sahifadagi xodimlarning BUGUN kuchda bo'lgan belgilari.</summary>
+    /// <summary>Sahifadagi xodimlarning bugundan KEYIN ham kuchda qoladigan belgilari.</summary>
+    /// <remarks>
+    /// Shart <c>EmployeeFlag.IsInForceAfter</c> bilan bir xil
+    /// (<c>EndDate &gt; bugun</c>, <c>&gt;=</c> emas) va bu ATAYLAB.
+    /// Belgi almashtirilganda eskisining tugash sanasi o'sha KUNGA
+    /// qo'yiladi — <c>&gt;=</c> bilan u almashtirilgan kuni hali ham
+    /// nishon bo'lib turardi va ro'yxatda bir odamda IKKITA belgi
+    /// ko'rinardi. «Bir vaqtda atigi bitta belgi» qoidasi esa aynan
+    /// shu ekranda buzilgandek ko'rinardi.
+    ///
+    /// <c>IEmployeeFlagRepository.HasActiveFlagAsync</c> da esa
+    /// <c>&gt;=</c> QOLADI va u ham ataylab: u ishga qabul/bo'shatish
+    /// to'sig'i uchun va himoya bir kunga bo'lsa ham uzilmasligi kerak.
+    /// </remarks>
     private async Task<Dictionary<Guid, IReadOnlyList<EmployeeFlagType>>> ActiveFlagsAsync(
         List<Guid> employeeIds,
         CancellationToken cancellationToken)
@@ -840,7 +853,7 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             .Where(flag =>
                 employeeIds.Contains(flag.EmployeeId) &&
                 flag.StartDate <= today &&
-                (flag.EndDate == null || flag.EndDate >= today))
+                (flag.EndDate == null || flag.EndDate > today))
             .Select(flag => new { flag.EmployeeId, flag.Type })
             // Bir xodimda bir turdagi ikkita belgi bo'lishi mumkin (eskisi
             // yopilib, yangisi ochilgan). Ro'yxatda nishon bir marta

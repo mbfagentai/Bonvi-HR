@@ -370,6 +370,9 @@ export function useHire() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
       void queryClient.invalidateQueries({ queryKey: ['probations'] })
+      // Qabul «rezerv» belgisini YOPADI (`HireEmployeeCommandHandler`) —
+      // `/rezerv` ro'yxati ham yangilanishi kerak.
+      void queryClient.invalidateQueries({ queryKey: ['flagged'] })
     },
   })
 }
@@ -417,6 +420,17 @@ export function useTerminate(employeeId: string) {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.details(employeeId) })
       void queryClient.invalidateQueries({ queryKey: employeeKeys.timeline(employeeId) })
       void queryClient.invalidateQueries({ queryKey: employeeKeys.lists })
+
+      /*
+        Bo'shatish BELGILARGA ham tegadi: server ishlab turganlar uchun
+        qo'yilgan belgilarni («nazoratda», «qobiliyatli») yopadi
+        (`TerminateEmploymentCommandHandler`). Busiz kartadagi nishon va
+        «Belgilar» tabi yopilgan belgini ochiqdek ko'rsatib turardi —
+        ya'ni HR bo'shatgandan keyin ham «nazoratda» yozuvini ko'rardi.
+        `flagged` esa ro'yxat sahifalari (`/nazorat`, `/qobiliyatli`).
+      */
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.flags(employeeId) })
+      void queryClient.invalidateQueries({ queryKey: ['flagged'] })
     },
   })
 }
@@ -472,6 +486,13 @@ export function useCreateFlag(employeeId: string) {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.flags(employeeId) })
       // Ro'yxatdagi ogohlantirish belgisi ham shu ma'lumotdan chiziladi
       void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
+      /*
+        Belgi ro'yxatlari (`/rezerv`, `/qora-royxat`, `/nazorat`,
+        `/qobiliyatli`) BOSHQA kalitda yashaydi. Ular bekor qilinmasa,
+        HR kartada belgi qo'yib, ro'yxatga o'tganda odamni topa olmasdi
+        va yozuv saqlanmagan deb o'ylardi.
+      */
+      void queryClient.invalidateQueries({ queryKey: ['flagged'] })
     },
   })
 }
@@ -492,6 +513,7 @@ export function useCloseFlag(employeeId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.flags(employeeId) })
       void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
+      void queryClient.invalidateQueries({ queryKey: ['flagged'] })
     },
   })
 }

@@ -214,17 +214,38 @@ export const ROUTED_MARKS = ['incident', 'interview'] as const
 export type RoutedMark = (typeof ROUTED_MARKS)[number]
 
 /**
+ * Havolali yozuvni saqlash uchun kerak bo'ladigan ruxsat.
+ *
+ * Belgi qo'yish `lists.manage` bilan, hodisa va suhbat esa O'Z
+ * ruxsatlari bilan himoyalangan (`safety.manage` / `feedback.manage`) —
+ * ular alohida guruh, sabab `safety-presentation.ts` da yozilgan.
+ */
+export const ROUTED_MARK_PERMISSION: Readonly<Record<RoutedMark, string>> = {
+  incident: 'safety.manage',
+  interview: 'feedback.manage',
+}
+
+/**
  * «Belgi qo'yish» oynasidagi tanlov — bosqich bo'yicha.
  *
  * Avval o'sha bosqichning belgilari, oxirida havolali yozuv: ro'yxat
  * «tez-tez ishlatiladigandan kamdan-kamgacha» tartibida o'qiladi va
  * havola oxirida turgani uchun tasodifan tanlanmaydi.
+ *
+ * <b>Havola RUXSATGA qarab qo'shiladi.</b> `lists.manage` bor, lekin
+ * `safety.manage` yo'q foydalanuvchi butun hodisa formasini to'ldirib,
+ * «Saqlash» bosgandan keyin 403 olardi — ya'ni ish bekorga ketardi.
+ * Belgilarning o'zi shartsiz: oyna allaqachon `lists.manage` ostida
+ * ochiladi.
  */
-export const STAGE_CHOICES: Readonly<
-  Record<EmployeeStage, readonly (EmployeeFlagType | RoutedMark)[]>
-> = {
-  employed: [...EMPLOYEE_FLAG_TYPES.filter((type) => FLAG_STAGE[type] === 'employed'), 'incident'],
-  departed: [...EMPLOYEE_FLAG_TYPES.filter((type) => FLAG_STAGE[type] === 'departed'), 'interview'],
+export function stageChoices(
+  stage: EmployeeStage,
+  hasPermission: (code: string) => boolean,
+): readonly (EmployeeFlagType | RoutedMark)[] {
+  const flags = EMPLOYEE_FLAG_TYPES.filter((type) => FLAG_STAGE[type] === stage)
+  const routed: RoutedMark = stage === 'employed' ? 'incident' : 'interview'
+
+  return hasPermission(ROUTED_MARK_PERMISSION[routed]) ? [...flags, routed] : flags
 }
 
 /** Tanlangan yozuv belgi emas, havolami. */

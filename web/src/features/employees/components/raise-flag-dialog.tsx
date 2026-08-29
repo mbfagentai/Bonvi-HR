@@ -1,6 +1,7 @@
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 
@@ -9,8 +10,8 @@ import { useCreateFlag, useEmployeeFlags } from '../api/employees-queries'
 import { employeeErrorCode } from '../lib/employee-error'
 import {
   FLAG_LOOK,
-  STAGE_CHOICES,
   isRoutedMark,
+  stageChoices,
   type EmployeeStage,
   type RoutedMark,
 } from '../lib/employee-presentation'
@@ -79,9 +80,15 @@ export function RaiseFlagDialog({
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
+  const { hasPermission } = useAuth()
   const raise = useCreateFlag(employeeId)
 
-  const choices = STAGE_CHOICES[stage]
+  /*
+   * Ro'yxat RUXSATGA ham bog'liq (`stageChoices` izohi), shu sababli
+   * `useMemo`: har render'da yangi massiv `useEffect` ni bekorga
+   * qo'zg'atardi.
+   */
+  const choices = useMemo(() => stageChoices(stage, hasPermission), [stage, hasPermission])
   const firstChoice = choices[0] as EmployeeFlagType
 
   /*

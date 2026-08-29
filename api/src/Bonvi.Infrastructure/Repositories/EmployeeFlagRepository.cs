@@ -98,9 +98,12 @@ public sealed class EmployeeFlagRepository : Repository<EmployeeFlag>, IEmployee
 
         if (onlyActive)
         {
+            // `EndDate > on`, `>=` EMAS — sabab `EmployeeReadModel.ActiveFlagsAsync`
+            // izohida: bugun almashtirilgan belgi «kuchdagilar» ro'yxatida
+            // yangisi bilan yonma-yon turib qolardi.
             query = query.Where(flag =>
                 flag.StartDate <= on &&
-                (flag.EndDate == null || flag.EndDate >= on));
+                (flag.EndDate == null || flag.EndDate > on));
         }
 
         return await query
