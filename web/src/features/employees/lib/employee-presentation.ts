@@ -205,16 +205,36 @@ export const PROBATION_ICON: LucideIcon = Timer
 /* ═════════════════════════════════════════════════════════════ YORDAMCHI */
 
 /**
- * JSHSHIR ni o'qish uchun ajratadi: «12345678901234» → «1234 5678 9012 34».
+ * JSHSHIR ni MA'NOSI bo'yicha ajratadi:
+ * «32105897046171» → «3 210589 704617 1».
  *
- * NEGA: 14 ta raqam qatori ko'z bilan solishtirib bo'lmaydigan blok.
- * HR pasportdagi raqam bilan taqqoslaydi, shu sababli guruhlanadi.
+ * NEGA GURUHLANADI: 14 ta raqam qatori ko'z bilan solishtirib
+ * bo'lmaydigan blok. HR uni pasportdagi raqam bilan taqqoslaydi.
+ *
+ * ⚠️ NEGA 4-4-4-2 EMAS. Ilgari shunday edi va u XATO edi: JSHSHIR
+ * tasodifiy raqam emas, uning tuzilishi bor va to'rttalab bo'lish
+ * ma'noli bo'laklarni o'rtasidan kesib tashlardi.
+ *
+ *     3      210589      704617      1
+ *     │      │           │           └─ nazorat raqami
+ *     │      │           └───────────── tartib raqami
+ *     │      └───────────────────────── tug'ilgan sana (KKOOYY)
+ *     └──────────────────────────────── jins va tug'ilgan asr
+ *                                       (3/4 — 1900-yillar, 5/6 — 2000-yillar)
+ *
+ * Tuzilish TAXMIN emas: joriy bazadagi 44 ta JSHSHIR tekshirilgan va
+ * BARCHASIDA 2–7-raqamlar xodimning tug'ilgan sanasiga aynan mos
+ * kelgan (bittasi ham istisno emas).
+ *
+ * Amaliy foydasi: HR endi o'rtadagi olti raqamni tug'ilgan sana bilan
+ * bir qarashda solishtira oladi — bu Excel'dan ko'chirilgan noto'g'ri
+ * JSHSHIR ni topishning eng tez yo'li.
  */
 export function formatPinfl(pinfl: string | null): string | null {
   if (pinfl === null) return null
   const digits = pinfl.replaceAll(/\D/gu, '')
   if (digits.length !== 14) return pinfl
-  return digits.replace(/(\d{4})(\d{4})(\d{4})(\d{2})/u, '$1 $2 $3 $4')
+  return digits.replace(/(\d)(\d{6})(\d{6})(\d)/u, '$1 $2 $3 $4')
 }
 
 /**
