@@ -1,10 +1,12 @@
 using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
+using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Employees.Commands;
 using Bonvi.Application.Employees.Competencies;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Flags;
+using Bonvi.Application.Employees.MehnatUz;
 using Bonvi.Application.Employees.Photos;
 using Bonvi.Application.Employees.Queries;
 using Bonvi.Domain.Employees;
@@ -19,12 +21,17 @@ namespace Bonvi.Api.Endpoints;
 /// <param name="EndDate">Tugash sanasi (muddatli belgilar uchun).</param>
 /// <param name="Reason">Sabab. Qora ro'yxat uchun MAJBURIY.</param>
 /// <param name="ResponsibleEmployeeId">Belgini qo'ygan mas'ul.</param>
+/// <param name="Confirm">
+/// Kuchdagi belgini almashtirishga rozilik (so'rov qatoridagi «confirm»
+/// bilan bir xil — bo'shatishdagi naqsh).
+/// </param>
 public sealed record RaiseFlagRequest(
     EmployeeFlagType Type,
     DateOnly? StartDate = null,
     DateOnly? EndDate = null,
     string? Reason = null,
-    Guid? ResponsibleEmployeeId = null);
+    Guid? ResponsibleEmployeeId = null,
+    bool? Confirm = null);
 
 /// <summary>Belgini yopish so'rovi tanasi.</summary>
 /// <param name="ClosedAt">Yopilish sanasi. Bo'sh bo'lsa — bugun.</param>
@@ -70,6 +77,8 @@ public static class EmployeeEndpoints
         MapCard(group);
         MapWrites(group);
         MapPhoto(group);
+        MapMehnatUz(group);
+        MapStages(group);
         MapFlags(group);
         MapCompetency(group);
 
@@ -351,6 +360,170 @@ public static class EmployeeEndpoints
     }
 
     // ════════════════════════════════════════════════════════════
+    //  mehnat.uz skrinshoti
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// So'rov chegarasi: hujjat chegarasi + multipart «konverti».
+    /// </summary>
+    /// <remarks>
+    /// Rasm emas, HUJJAT chegarasi (20 MB): skrinshot qirqilmaydi va
+    /// kichraytirilmaydi, sababi <c>Employee.MehnatUzScreenshotKey</c>
+    /// izohida. Katta monitorning to'liq ekran surati bemalol bir necha
+    /// megabayt bo'ladi.
+    /// </remarks>
+    private const long MaxScreenshotRequestBytes = DocumentLimits.MaxBytes + (64 * 1024);
+
+    /// <summary>
+    /// mehnat.uz profilining skrinshoti: berish, yuklash, o'chirish.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Uchlik xodim rasmidagi bilan bir xil shaklda, lekin ATAYLAB alohida
+    /// marshrutda: bu boshqa fakt (xodimning yuzi emas, tekshiruv dalili)
+    /// va u boshqa quvurdan o'tadi. Ruxsatlar rasm bilan bir xil:
+    /// ko'rish — <c>employees.view</c>, o'zgartirish — <c>employees.edit</c>.
+    /// </para>
+    /// <para>
+    /// <c>ETag</c> bu yerda YO'Q (rasmdan farqli): skrinshot xodimlar
+    /// ro'yxatida 25 marta takrorlanmaydi, u faqat bitta kartada va faqat
+    /// ochilganda so'raladi — shartli so'rov mexanizmini qurishning foydasi
+    /// bo'lmasdi. Kalit o'zgarganda mijozdagi kesh baribir eskiradi:
+    /// so'rov kaliti <c>screenshotKey</c> ni o'z ichiga oladi.
+    /// </para>
+    /// </remarks>
+    private static void MapMehnatUz(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/{id:guid}/mehnat-uz-screenshot", async (
+                Guid id,
+                GetMehnatUzScreenshotQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetMehnatUzScreenshotQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                // Bayt qaytaradigan endpoint: `ToHttpResult()` faqat xato
+                // yo'lida (rasm endpoint'idagi bilan bir xil sabab).
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.Stream(natija.Value.Content, natija.Value.ContentType);
+            })
+            .RequireAuthorization(Permissions.EmployeesView)
+            .WithName("GetMehnatUzScreenshot")
+            .WithSummary("Xodim — mehnat.uz skrinshoti")
+            .WithDescription(
+                "Fayl baytlari SAQLANGAN turida qaytadi (PDF, JPEG, PNG yoki WebP) — " +
+                "skrinshot qayta kodlanmaydi, chunki uning qiymati matnda. " +
+                "Skrinshot yo'q bo'lsa: «xodim.mehnat_rasm_yoq» (404).")
+            .Produces(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/{id:guid}/mehnat-uz-screenshot", async (
+                Guid id,
+                IFormFile file,
+                UploadMehnatUzScreenshotCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                await using var content = file.OpenReadStream();
+
+                var natija = await handler
+                    .HandleAsync(
+                        new UploadMehnatUzScreenshotCommand(id, content, file.Length),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmployeesEdit)
+
+            // CSRF himoyasi ortiqcha — sabab `MapPhoto` dagi bilan bir xil:
+            // sessiya JWT sarlavhasida, cookie'da emas.
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(MaxScreenshotRequestBytes))
+            .WithName("UploadMehnatUzScreenshot")
+            .WithSummary("Xodim — mehnat.uz skrinshotini yuklash")
+            .WithDescription(
+                "«multipart/form-data», maydon nomi «file». Fayl turi MAZMUNIGA qarab " +
+                "aniqlanadi: PDF, JPEG, PNG yoki WebP, eng ko'pi 20 MB. Rasm QIRQILMAYDI va " +
+                "KICHRAYTIRILMAYDI — skrinshotdagi matn o'qilishi kerak. Eskisi almashtiriladi " +
+                "va diskdan o'chadi. Xatolar: «hujjat.katta», «hujjat.yaroqsiz» (400).")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<MehnatUzScreenshotDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/{id:guid}/mehnat-uz-screenshot", async (
+                Guid id,
+                DeleteMehnatUzScreenshotCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new DeleteMehnatUzScreenshotCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmployeesEdit)
+            .WithName("DeleteMehnatUzScreenshot")
+            .WithSummary("Xodim — mehnat.uz skrinshotini o'chirish")
+            .WithDescription(
+                "Fayl ham o'chadi. Amal IDEMPOTENT: skrinshot allaqachon yo'q bo'lsa ham 204.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Nomzodlik bosqichlari — «Kengash xulosasi»
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Xodimning nomzodlik davridagi bosqich xulosalari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Faqat <c>GET</c>.</b> Yozish endpoint'i ataylab yo'q: bo'lim
+    /// rekrutingdan kelgan TARIXNI ko'rsatadi va unga xodim kartasidan
+    /// yozuv qo'shib bo'lmaydi (to'liq asos <c>GetEmployeeStagesQuery</c>
+    /// izohida).
+    /// </para>
+    /// <para>
+    /// Ruxsat — <see cref="Permissions.RecruitingView"/>,
+    /// <c>employees.view</c> EMAS. Sabab rekruting ruxsati izohida
+    /// yozilgan: suhbat xulosalari va rad etish sabablari alohida toifadagi
+    /// ma'lumot, va xodimlar ro'yxatini ochgan har bir kishi «kimni nega
+    /// olmadik» degan yozuvlarni ko'rishi shart emas. Bo'lim ruxsatsiz
+    /// foydalanuvchida umuman CHIZILMAYDI — mijoz uni so'ramaydi ham.
+    /// </para>
+    /// </remarks>
+    private static void MapStages(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/{id:guid}/stages", async (
+                Guid id,
+                GetEmployeeStagesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetEmployeeStagesQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingView)
+            .WithName("GetEmployeeStages")
+            .WithSummary("Xodim — nomzodlik bosqichlari va kengash xulosasi")
+            .WithDescription(
+                "Xodim rekruting orqali kelgan bo'lsa, uning voronkadagi bosqich yozuvlari " +
+                "XRONOLOGIK tartibda qaytadi: bosqich, sana, natija, xulosa matni va kim " +
+                "yozgani. Bog'lanish ishga qabul hodisasidagi «candidateId» orqali. " +
+                "Excel'dan ko'chirilgan xodimlarda bunday yozuv YO'Q — bo'sh ro'yxat qaytadi, " +
+                "bu xato emas.")
+            .Produces<IReadOnlyList<EmployeeStageEntryDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  Belgilar
     // ════════════════════════════════════════════════════════════
 
@@ -402,6 +575,7 @@ public static class EmployeeEndpoints
         group.MapPost("/{id:guid}/flags", async (
                 Guid id,
                 RaiseFlagRequest request,
+                bool? confirm,
                 RaiseFlagCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -413,7 +587,8 @@ public static class EmployeeEndpoints
                             request.StartDate,
                             request.EndDate,
                             request.Reason,
-                            request.ResponsibleEmployeeId),
+                            request.ResponsibleEmployeeId,
+                            confirm ?? request.Confirm ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -424,10 +599,15 @@ public static class EmployeeEndpoints
             .WithSummary("Xodim — belgi qo'yish")
             .WithDescription(
                 "Qora ro'yxat uchun sabab MAJBURIY: «belgi.sabab_bosh» (400). " +
+                "Xodimda bir vaqtda ATIGI BITTA kuchdagi belgi bo'ladi: eskisi bo'lsa " +
+                "«belgi.boshqa_belgi_bor» (409) qaytadi, «?confirm=true» bilan qayta " +
+                "yuborilganda esa eskisi YOPILADI (o'chirilmaydi — tarix qoladi) va " +
+                "yangisi ochiladi, ikkalasi bitta tranzaksiyada. " +
                 "Qora ro'yxat va nazorat keyinchalik ishga qabul va bo'shatishni to'sadi.")
             .Produces<EmployeeFlagDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPost("/{id:guid}/flags/{flagId:guid}/close", async (
                 Guid flagId,

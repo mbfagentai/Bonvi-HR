@@ -572,7 +572,10 @@
     "bildirishnoma.foydalanuvchi_aniqlanmadi": "Билдиришномалар шахсий. Қайтадан киринг.",
     "bildirishnoma.foydalanuvchi_yoq": "Билдиришнома ҳолати сақланмади: фойдаланувчи аниқланмади.",
     "vakansiya.nomzodlari_bor": "Номзоди бор вакансия ўчирилмайди — уни ёпиш мумкин.",
-    "vakansiya.holat_notogri": "Ҳолат нотўғри. Рухсат этилган қийматлар: Open, Closed."
+    "vakansiya.holat_notogri": "Ҳолат нотўғри. Рухсат этилган қийматлар: Open, Closed.",
+    "xodim.mehnat_havola": "mehnat.uz ҳаволаси «https://» билан бошланиши керак.",
+    "xodim.mehnat_rasm_yoq": "Ходимнинг mehnat.uz скриншоти йўқ.",
+    "belgi.boshqa_belgi_bor": "Ходимда аллақачон кучдаги белги бор. Бир вақтда атиги битта белги бўлади — давом этиш учун алмаштиришни тасдиқланг."
   },
   "language": {
     "en": "English",
@@ -725,7 +728,38 @@
     "exportFailed": "Excelга юклаб бўлмади",
     "exportTooOften": "Сўровлар жуда тез-тез юборилди. Бир дақиқа кутиб, қайта уриниб кўринг.",
     "exporting": "Тайёрланмоқда…",
-    "emptyHireHint": "Янги ходим «Синов муддати» саҳифасидан қабул қилинади — у ишни синовдан бошлайди."
+    "emptyHireHint": "Янги ходим «Синов муддати» саҳифасидан қабул қилинади — у ишни синовдан бошлайди.",
+    "mehnatUzLink": "mehnat.uz ҳаволаси",
+    "mehnatUzLinkHint": "Профилнинг тўлиқ манзили. Схемасиз киритилса «https://» ўзи қўшилади.",
+    "mehnatUzNoLink": "Ҳавола киритилмаган",
+    "mehnatUzOpenProfile": "Профилни очиш",
+    "mehnatUzScreenshot": "Скриншот",
+    "mehnatUzNoScreenshot": "Скриншот юкланмаган",
+    "mehnatUzZoom": "Катталаштириб кўриш",
+    "mehnatUzZoomHint": "Скриншот қирқилмайди — ундаги матн тўлиқ ўқилиши керак",
+    "mehnatUzPdf": "PDF файл — очиш учун босинг",
+    "mehnatUzUpload": "Скриншот юклаш",
+    "mehnatUzReplace": "Алмаштириш",
+    "mehnatUzUploadHint": "PDF, JPEG, PNG ёки WebP · 20 MB гача. Расм қирқилмайди ва кичрайтирилмайди.",
+    "mehnatUzDeleteTitle": "Скриншотни ўчириш",
+    "mehnatUzDeleteText": "Скриншот ва унинг файли бутунлай ўчирилади. Ҳавола ва «mehnat.uz» белгиси ўз жойида қолади.",
+    "councilTitle": "Кенгаш хулосаси",
+    "councilHint": "Номзодлик давридаги босқичлар ва хулосалар — рекрутингдан келади",
+    "councilEmptyTitle": "Рекрутинг ёзуви йўқ",
+    "councilEmptyText": "Бу ходим рекрутинг орқали қўшилмаган — картаси Excel’дан кўчирилган ёки қўлда яратилган. Шу сабабли унинг номзодлик босқичлари ва кенгаш хулосаси йўқ.",
+    "councilUnknownStage": "Босқич кўрсатилмаган",
+    "councilNoConclusion": "Хулоса ҳали ёзилмаган",
+    "councilRecordedBy": "{{name}} ёзган",
+    "stageOutcome": {
+      "pending": "Кутилмоқда",
+      "passed": "Ўтди",
+      "failed": "Ўтмади"
+    },
+    "flagSingleHint": "Бир вақтда атиги битта белги кучда бўлади",
+    "flagReplaceTitle": "Кучдаги белги алмаштирилади",
+    "flagReplaceText": "Ходимда ҳозир «{{flag}}» белгиси кучда. Бир вақтда атиги битта белги бўлади: давом этсангиз эскиси ёпилади (ўчирилмайди — тарихда қолади) ва янгиси очилади.",
+    "flagReplaceUnknown": "Ходимда аллақачон кучдаги белги бор. Давом этсангиз у ёпилади ва янгиси очилади.",
+    "flagReplaceConfirm": "Алмаштириш"
   },
   "employments": {
     "anyType": "Барча турлар",

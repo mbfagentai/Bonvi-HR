@@ -378,6 +378,18 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("gender");
 
+                    b.Property<string>("MehnatUzScreenshotContentType")
+                        .HasColumnType("text")
+                        .HasColumnName("mehnat_uz_screenshot_content_type");
+
+                    b.Property<string>("MehnatUzScreenshotKey")
+                        .HasColumnType("text")
+                        .HasColumnName("mehnat_uz_screenshot_key");
+
+                    b.Property<string>("MehnatUzUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("mehnat_uz_url");
+
                     b.Property<bool>("NeedsReview")
                         .HasColumnType("boolean")
                         .HasColumnName("needs_review");

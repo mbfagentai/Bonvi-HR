@@ -36,7 +36,12 @@ public sealed record SaveEmployeeCommand(
     string? CriminalRecordNote = null,
     bool? SecurityChecked = null,
     bool? RegisteredOnMehnatUz = null,
-    IReadOnlyList<Guid>? DirectionIds = null);
+    IReadOnlyList<Guid>? DirectionIds = null,
+    // Ro'yxat OXIRIDA: mavjud chaqiruvlar pozitsion argumentlar bilan
+    // yozilgan va o'rtaga maydon qo'shish ularni jimgina siljitib yuborardi.
+    // Skrinshot bu yerda YO'Q — u rasm kabi alohida endpoint bilan
+    // boshqariladi (`MehnatUzScreenshotUseCases`).
+    string? MehnatUzUrl = null);
 
 /// <summary>
 /// Buyruq maydonlarini domen obyektiga o'tkazadi.
@@ -136,6 +141,16 @@ internal static class EmployeeFields
         employee.SetCriminalRecordNote(command.CriminalRecordNote);
         employee.SetSecurityChecked(command.SecurityChecked);
         employee.SetRegisteredOnMehnatUz(command.RegisteredOnMehnatUz);
+
+        // Havola BIRINCHI guruhda: u forma maydoni, ya'ni bo'sh yuborish
+        // «havolani o'chir» degan ma'noli buyruq (noto'g'ri manzilni HR
+        // olib tashlay olishi kerak). Skrinshot esa bu yerda umuman
+        // yo'q — rasm bilan bir xil sabab (yuqoridagi izoh).
+        var mehnatUz = employee.SetMehnatUzUrl(command.MehnatUzUrl);
+        if (mehnatUz.IsFailure)
+        {
+            return mehnatUz.Error;
+        }
 
         if (command.DirectionIds is { } directions)
         {

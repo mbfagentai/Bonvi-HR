@@ -572,7 +572,10 @@
     "bildirishnoma.foydalanuvchi_aniqlanmadi": "Bildirishnomalar shaxsiy. Qaytadan kiring.",
     "bildirishnoma.foydalanuvchi_yoq": "Bildirishnoma holati saqlanmadi: foydalanuvchi aniqlanmadi.",
     "vakansiya.nomzodlari_bor": "Nomzodi bor vakansiya o‘chirilmaydi — uni yopish mumkin.",
-    "vakansiya.holat_notogri": "Holat noto‘g‘ri. Ruxsat etilgan qiymatlar: Open, Closed."
+    "vakansiya.holat_notogri": "Holat noto‘g‘ri. Ruxsat etilgan qiymatlar: Open, Closed.",
+    "xodim.mehnat_havola": "mehnat.uz havolasi «https://» bilan boshlanishi kerak.",
+    "xodim.mehnat_rasm_yoq": "Xodimning mehnat.uz skrinshoti yo‘q.",
+    "belgi.boshqa_belgi_bor": "Xodimda allaqachon kuchdagi belgi bor. Bir vaqtda atigi bitta belgi bo‘ladi — davom etish uchun almashtirishni tasdiqlang."
   },
   "language": {
     "en": "English",
@@ -725,7 +728,38 @@
     "exportFailed": "Excelga yuklab bo‘lmadi",
     "exportTooOften": "So‘rovlar juda tez-tez yuborildi. Bir daqiqa kutib, qayta urinib ko‘ring.",
     "exporting": "Tayyorlanmoqda…",
-    "emptyHireHint": "Yangi xodim «Sinov muddati» sahifasidan qabul qilinadi — u ishni sinovdan boshlaydi."
+    "emptyHireHint": "Yangi xodim «Sinov muddati» sahifasidan qabul qilinadi — u ishni sinovdan boshlaydi.",
+    "mehnatUzLink": "mehnat.uz havolasi",
+    "mehnatUzLinkHint": "Profilning to‘liq manzili. Sxemasiz kiritilsa «https://» o‘zi qo‘shiladi.",
+    "mehnatUzNoLink": "Havola kiritilmagan",
+    "mehnatUzOpenProfile": "Profilni ochish",
+    "mehnatUzScreenshot": "Skrinshot",
+    "mehnatUzNoScreenshot": "Skrinshot yuklanmagan",
+    "mehnatUzZoom": "Kattalashtirib ko‘rish",
+    "mehnatUzZoomHint": "Skrinshot qirqilmaydi — undagi matn to‘liq o‘qilishi kerak",
+    "mehnatUzPdf": "PDF fayl — ochish uchun bosing",
+    "mehnatUzUpload": "Skrinshot yuklash",
+    "mehnatUzReplace": "Almashtirish",
+    "mehnatUzUploadHint": "PDF, JPEG, PNG yoki WebP · 20 MB gacha. Rasm qirqilmaydi va kichraytirilmaydi.",
+    "mehnatUzDeleteTitle": "Skrinshotni o‘chirish",
+    "mehnatUzDeleteText": "Skrinshot va uning fayli butunlay o‘chiriladi. Havola va «mehnat.uz» belgisi o‘z joyida qoladi.",
+    "councilTitle": "Kengash xulosasi",
+    "councilHint": "Nomzodlik davridagi bosqichlar va xulosalar — rekrutingdan keladi",
+    "councilEmptyTitle": "Rekruting yozuvi yo‘q",
+    "councilEmptyText": "Bu xodim rekruting orqali qo‘shilmagan — kartasi Excel’dan ko‘chirilgan yoki qo‘lda yaratilgan. Shu sababli uning nomzodlik bosqichlari va kengash xulosasi yo‘q.",
+    "councilUnknownStage": "Bosqich ko‘rsatilmagan",
+    "councilNoConclusion": "Xulosa hali yozilmagan",
+    "councilRecordedBy": "{{name}} yozgan",
+    "stageOutcome": {
+      "pending": "Kutilmoqda",
+      "passed": "O‘tdi",
+      "failed": "O‘tmadi"
+    },
+    "flagSingleHint": "Bir vaqtda atigi bitta belgi kuchda bo‘ladi",
+    "flagReplaceTitle": "Kuchdagi belgi almashtiriladi",
+    "flagReplaceText": "Xodimda hozir «{{flag}}» belgisi kuchda. Bir vaqtda atigi bitta belgi bo‘ladi: davom etsangiz eskisi yopiladi (o‘chirilmaydi — tarixda qoladi) va yangisi ochiladi.",
+    "flagReplaceUnknown": "Xodimda allaqachon kuchdagi belgi bor. Davom etsangiz u yopiladi va yangisi ochiladi.",
+    "flagReplaceConfirm": "Almashtirish"
   },
   "employments": {
     "anyType": "Barcha turlar",

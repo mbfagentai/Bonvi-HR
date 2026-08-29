@@ -30,11 +30,14 @@ import { Badge, Button, Card, CardContent, CardHeader, EmptyState } from '@/shar
 import type { EmployeeDetails, EmploymentSummary } from '../api/employees-api'
 import {
   EMPLOYMENT_MANAGE,
+  RECRUITING_VIEW,
   SALARY_VIEW,
   formatPinfl,
   formatRate,
 } from '../lib/employee-presentation'
 import { DirectionBadge, StatusBadge } from './employee-badges'
+import { EmployeeCouncilSection } from './employee-council-section'
+import { MehnatUzBlock } from './mehnat-uz-block'
 
 /**
  * «Umumiy» tab — shaxs haqidagi hamma narsa bitta ekranda.
@@ -73,6 +76,9 @@ export function EmployeeOverviewTab({
   onAction: ((action: EmploymentAction, employment: EmploymentSummary) => void) | null
 }) {
   const { t, date } = useLocale()
+  const { hasPermission } = useAuth()
+
+  const canViewRecruiting = hasPermission(RECRUITING_VIEW)
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
@@ -183,6 +189,19 @@ export function EmployeeOverviewTab({
             />
 
             {/*
+              Havola va skrinshot — belgining O'ZIDAN keyin, bevosita
+              uning ostida. Ular «ha/yo'q» javobini ALMASHTIRMAYDI
+              (u Excel'dan kelgan va o'z o'rnida qoladi), balki uni
+              ISBOTLAYDI. Shu sababli alohida karta emas: bitta savolning
+              javobi va dalili ajralib qolmasligi kerak.
+            */}
+            <MehnatUzBlock
+              employeeId={employee.id}
+              url={employee.mehnatUzUrl}
+              screenshotKey={employee.mehnatUzScreenshotKey}
+            />
+
+            {/*
               Sudlanganlik — «ha/yo'q» emas, MATN: Excel'da u yerda
               «судланмаган», «2019 й. 168-модда» kabi turli yozuvlar bor.
               Uni ikkilik qiymatga siqib bo'lmaydi, shu sababli o'z holicha.
@@ -211,6 +230,19 @@ export function EmployeeOverviewTab({
           </CardContent>
         </Card>
       </div>
+
+      {/*
+        ───────── Kengash xulosasi ─────────
+
+        Ruxsati yo'q foydalanuvchida bo'lim UMUMAN chizilmaydi (bo'sh
+        yoki xatoli holat ko'rsatilmaydi) — kartadagi tablar bilan bir
+        xil qoida. Ruxsat `recruiting.view` va u `employees.view` dan
+        MUSTAQIL: suhbat xulosalari va rad etish sabablari alohida
+        toifadagi ma'lumot, xodimlar ro'yxatini ochgan har bir kishi
+        ularni ko'rishi shart emas (sababi backend'dagi
+        `Permissions.RecruitingView` izohida).
+      */}
+      {canViewRecruiting && <EmployeeCouncilSection employeeId={employee.id} />}
 
       {/* ───────── Mehnat munosabatlari ───────── */}
       <Card className="lg:col-span-5">

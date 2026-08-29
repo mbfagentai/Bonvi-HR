@@ -58,6 +58,18 @@ export const INCENTIVES_VIEW = 'incentives.view'
 export const INCENTIVES_MANAGE = 'incentives.manage'
 
 /**
+ * Rekruting — ALOHIDA ruxsat guruhi, `employees.*` dan MUSTAQIL.
+ *
+ * Xodim kartasida u faqat bitta joyda kerak: «Kengash xulosasi» bo'limi
+ * nomzodlik davridagi suhbat xulosalarini ko'rsatadi. Backend'da ham
+ * shu ruxsat talab qilinadi (`Permissions.RecruitingView` izohi):
+ * «kimni nega olmadik» degan yozuvlarni xodimlar ro'yxatini ochgan har
+ * bir kishi ko'rishi shart emas. Ruxsat yo'q bo'lsa bo'lim umuman
+ * chizilmaydi va so'rov ham yuborilmaydi.
+ */
+export const RECRUITING_VIEW = 'recruiting.view'
+
+/**
  * Excelga yuklash — `employees.view` EMAS, alohida `reports.export`.
  *
  * Sabab backend'da yozilgan (`ReportsEndpoints` izohi): eksport bitta

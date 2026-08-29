@@ -1,4 +1,5 @@
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Employees.Abstractions;
 
@@ -94,6 +95,37 @@ public interface IEmployeeReadModel
     /// </remarks>
     Task<EmploymentEventPage> ListEmploymentEventsAsync(
         EmploymentEventFilter filter,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Xodim rekrutingdan kelgan bo'lsa — uning NOMZODLIK bosqichlari
+    /// («Кенгаш хулосаси» va boshqa suhbat xulosalari).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega o'qish modelida, rekruting repozitoriysida emas.</b> Savol
+    /// «bu nomzodning tarixi qanday» emas, «BU XODIM qayerdan kelgan va u
+    /// haqda nima yozilgan» — ya'ni yo'l xodimdan boshlanadi va to'rtta
+    /// jadvaldan (munosabat → hodisa → bosqich yozuvi → bosqich nomi)
+    /// o'tadi. Buni agregat yuklovchi repozitoriylar bilan yig'ish bir
+    /// necha ketma-ket so'rov bo'lardi; proyeksiya esa bitta.
+    /// </para>
+    /// <para>
+    /// <b>Bog'lanish <c>EmploymentEvent.CandidateId</c> orqali.</b> Nomzod
+    /// yozuvining O'ZI so'ralmaydi — bu ataylab: nomzod yumshoq
+    /// o'chirilgan bo'lsa ham xodimning kelib chiqishi ko'rinib turishi
+    /// kerak, chunki fakt o'zgarmagan (sababi <c>EmploymentEvent.CandidateId</c>
+    /// izohida). Nomzodlar jadvaliga birlashtirilsa, global yumshoq
+    /// o'chirish filtri butun tarixni jimgina yo'q qilib qo'yardi.
+    /// </para>
+    /// <para>
+    /// Bo'sh ro'yxat — XATO EMAS va u odatiy holat: 2347 xodimning deyarli
+    /// hammasi Excel'dan ko'chirilgan va ularda nomzodlik yozuvi umuman
+    /// yo'q.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<CandidateStageRow>> ListCandidateStagesAsync(
+        Guid employeeId,
         CancellationToken cancellationToken = default);
 }
 
@@ -351,6 +383,36 @@ public sealed record EmploymentEventRow(
     string? ToSalaryCurrency,
     string? Note,
     bool IsImported);
+
+/// <summary>
+/// Xodimning nomzodlik davridagi bitta bosqich yozuvi.
+/// </summary>
+/// <remarks>
+/// Bosqich nomi CHAPDAN birlashtiriladi: ma'lumotnomadan bosqich
+/// o'chirilgan bo'lsa ham xulosa matni yo'qolmasligi kerak — yozuvning
+/// asosiy qiymati aynan matnda.
+/// </remarks>
+/// <param name="Id">Bosqich yozuvining identifikatori.</param>
+/// <param name="CandidateId">Qaysi nomzod yozuvidan.</param>
+/// <param name="StageId">Bosqich.</param>
+/// <param name="StageName">Bosqich nomi. <c>null</c> — bosqich topilmadi.</param>
+/// <param name="Date">Bosqich o'tkazilgan sana.</param>
+/// <param name="Outcome">Natija: kutilmoqda / o'tdi / o'tmadi.</param>
+/// <param name="Conclusion">Xulosa matni («Кенгаш хулосаси»).</param>
+/// <param name="RecordedBy">Kim yozdi — TIZIM FOYDALANUVCHISI.</param>
+/// <param name="RecordedByName">Yozgan foydalanuvchining F.I.Sh.</param>
+/// <param name="RecordedAt">Qachon yozildi.</param>
+public sealed record CandidateStageRow(
+    Guid Id,
+    Guid CandidateId,
+    Guid StageId,
+    string? StageName,
+    DateOnly Date,
+    StageOutcome Outcome,
+    string? Conclusion,
+    Guid? RecordedBy,
+    string? RecordedByName,
+    DateTimeOffset RecordedAt);
 
 /// <summary>Belgi — xodim nomi bilan birga.</summary>
 public sealed record EmployeeFlagRow(

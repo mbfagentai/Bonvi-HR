@@ -78,6 +78,17 @@ public static class EmployeeErrors
         _ => PhotoInvalid,
     };
 
+    /// <summary>
+    /// Xodim bor, lekin mehnat.uz skrinshoti yo'q (yoki fayli yo'qolgan).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PhotoNotFound"/> bilan bir xil mantiq: «xodim topilmadi»
+    /// dan ajratilgan, chunki interfeys ikkinchi holatda xato ko'rsatmaydi —
+    /// shunchaki skrinshot maydonini bo'sh chizadi.
+    /// </remarks>
+    public static Error MehnatUzScreenshotNotFound { get; } =
+        Error.NotFound("xodim.mehnat_rasm_yoq", "Xodimning mehnat.uz skrinshoti yo'q.");
+
     public static Error EmploymentNotFound { get; } =
         Error.NotFound("mehnat.topilmadi", "Mehnat munosabati topilmadi.");
 
@@ -89,6 +100,30 @@ public static class EmployeeErrors
 
     public static Error FlagNotFound { get; } =
         Error.NotFound("belgi.topilmadi", "Belgi topilmadi.");
+
+    /// <summary>
+    /// Xodimda allaqachon kuchdagi belgi bor — yangisi uni ALMASHTIRADI.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Foydalanuvchi qarori: bir vaqtda atigi bitta kuchdagi belgi
+    /// (sababi <c>EmployeeFlag</c> izohida). Amal butunlay
+    /// to'silmaydi — HR tasdiqlasa, eskisi yopilib yangisi ochiladi.
+    /// Shu sababli bu <see cref="Blacklisted"/> emas, balki
+    /// <see cref="UnderMonitoring"/> bilan bir toifadagi xato: 409 va
+    /// «tasdiqlang» taklifi.
+    /// </para>
+    /// <para>
+    /// Bu — ASOSIY himoya. Interfeysdagi tasdiqlash oynasi faqat qulaylik:
+    /// so'rov to'g'ridan-to'g'ri yuborilsa ham qoida shu yerda ushlab
+    /// qoladi.
+    /// </para>
+    /// </remarks>
+    public static Error FlagAlreadyInForce { get; } =
+        Error.Conflict(
+            "belgi.boshqa_belgi_bor",
+            "Xodimda allaqachon kuchdagi belgi bor. Bir vaqtda atigi bitta belgi bo'ladi: "
+                + "davom ettirilsa eskisi yopiladi. Tasdiqlash uchun «confirm=true» bilan qayta yuboring.");
 
     /// <summary>
     /// Xodim shu firmada allaqachon ishlayapti.

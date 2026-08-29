@@ -73,7 +73,60 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
     public bool? SecurityChecked { get; private set; }
 
     /// <summary>mehnat.uz da ro'yxatdan o'tganmi.</summary>
+    /// <remarks>
+    /// Bu maydon Excel'dan kelgan uch holatli belgi («ha / yo'q / noma'lum»)
+    /// va u <b>qoladi</b>. Pastdagi ikkita mehnat.uz maydoni uni
+    /// almashtirmaydi, DALIL bo'lib qo'shiladi: belgi — HR ning javobi,
+    /// havola va skrinshot esa o'sha javobning isboti. Ularni bitta
+    /// maydonga siqib bo'lmaydi, chunki 2347 xodimning deyarli hammasida
+    /// faqat birinchisi bor va bo'lib ham qolaveradi.
+    /// </remarks>
     public bool? RegisteredOnMehnatUz { get; private set; }
+
+    /// <summary>mehnat.uz dagi profilga havola. Bo'sh bo'lishi mumkin.</summary>
+    public string? MehnatUzUrl { get; private set; }
+
+    /// <summary>
+    /// mehnat.uz profilining skrinshoti (<c>IFileStorage</c> kaliti).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bu XODIM RASMI quvuridan o'tmaydi.</b> Rasm quvuri
+    /// (<c>SquarePhotoStore</c>) suratni markazdan KVADRAT qirqib, 512×512
+    /// JPEG qilib qayta kodlaydi. Skrinshot esa kvadrat emas va uning
+    /// butun qiymati MATNDA: ism, JSHSHIR, ish joyi. Kvadratga qirqilganda
+    /// chetlari — ya'ni odatda aynan shu matn — yo'qoladi, 512 pikselga
+    /// kichraytirilganda esa qolgani ham o'qilmay qoladi. Ya'ni fayl
+    /// saqlanadi-yu, dalil sifatida yaroqsiz bo'lib qoladi.
+    /// </para>
+    /// <para>
+    /// Shu sababli skrinshot HUJJAT quvuridan o'tadi
+    /// (<c>DocumentFileStore</c>): u faylni faqat tekshiradi (mazmun
+    /// bo'yicha tur aniqlash, 20 MB chegara) va baytlarni O'ZGARISHSIZ
+    /// saqlaydi.
+    /// </para>
+    /// <para>
+    /// <b>Nega alohida maydon, <c>EmployeeDocument</c> emas.</b> Hujjatlar
+    /// — TARIX: bitta xodimda o'nlab shartnoma va buyruq bo'ladi.
+    /// Skrinshot esa bitta joriy HOLAT: yangisi kelsa eskisi o'z ma'nosini
+    /// yo'qotadi (xodim rasmi bilan bir xil mantiq). Uni hujjatlar
+    /// ro'yxatiga qo'shsak, «Tekshiruvlar» kartasi qaysi biri dolzarb
+    /// ekanini bilmasdi va HR uni har safar ro'yxatdan qidirib topishi
+    /// kerak bo'lardi.
+    /// </para>
+    /// </remarks>
+    public string? MehnatUzScreenshotKey { get; private set; }
+
+    /// <summary>
+    /// Skrinshotning ANIQLANGAN MIME turi (mijoz e'lon qilgani emas).
+    /// </summary>
+    /// <remarks>
+    /// Xodim rasmida bunday maydon yo'q, chunki u har doim JPEG bo'lib
+    /// qayta kodlanadi. Bu yerda esa fayl o'zgarishsiz saqlanadi va u
+    /// PNG ham, PDF ham bo'lishi mumkin — turini eslab qolmasak, uni
+    /// qaytarishda mazmunni qaytadan tekshirishga to'g'ri kelardi.
+    /// </remarks>
+    public string? MehnatUzScreenshotContentType { get; private set; }
 
     /// <summary>Yo'nalishlar — ko'p-ga-ko'p («Вело, метан, шина, логистика»).</summary>
     public IReadOnlyList<Guid> DirectionIds => _directionIds.AsReadOnly();
@@ -226,6 +279,70 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
     public void SetSecurityChecked(bool? value) => SecurityChecked = value;
 
     public void SetRegisteredOnMehnatUz(bool? value) => RegisteredOnMehnatUz = value;
+
+    /// <summary>
+    /// mehnat.uz profiliga havolani o'rnatadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega Telegramdagi kabi «@nom» qabul qilinmaydi.</b> Telegramda
+    /// foydalanuvchi nomi havolani bir qiymatli tiklaydi
+    /// (<c>t.me/&lt;nom&gt;</c>). mehnat.uz da esa bunday qoida yo'q:
+    /// profil manzili qidiruv parametrlari bilan keladi va uni qismlardan
+    /// yig'ib bo'lmaydi. Shu sababli bu yerda faqat TO'LIQ manzil qabul
+    /// qilinadi.
+    /// </para>
+    /// <para>
+    /// Sxemasiz kiritilgan matnga (<c>mehnat.uz/...</c>) <c>https://</c>
+    /// qo'shiladi: HR manzilni brauzerdan nusxalaganda sxema ba'zan
+    /// tushib qoladi, uni xato deb rad etish esa foydalanuvchini
+    /// «nima yetishmayapti» degan savol bilan qoldirardi. <c>http://</c>
+    /// ataylab RAD ETILADI — shifrlanmagan havolani saqlash va uni keyin
+    /// yangi oynada ochish shaxsiy ma'lumot uchun ma'noli xavf, mehnat.uz
+    /// esa allaqachon HTTPS da ishlaydi.
+    /// </para>
+    /// </remarks>
+    public Result SetMehnatUzUrl(string? url)
+    {
+        var value = Trim(url);
+        if (value is null)
+        {
+            MehnatUzUrl = null;
+            return Result.Success();
+        }
+
+        if (!value.Contains("://", StringComparison.Ordinal))
+        {
+            value = "https://" + value.TrimStart('/');
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var parsed) ||
+            !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal))
+        {
+            return Error.Validation(
+                "xodim.mehnat_havola",
+                "mehnat.uz havolasi «https://» bilan boshlanishi kerak.");
+        }
+
+        MehnatUzUrl = value;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// mehnat.uz skrinshotining kaliti va turini o'rnatadi (yoki bo'shatadi).
+    /// </summary>
+    /// <remarks>
+    /// Ikkalasi BIRGA o'rnatiladi: kalit turisiz saqlansa, faylni qaytarish
+    /// paytida mazmunni qaytadan tekshirishga to'g'ri kelardi. Bo'shatish
+    /// uchun ikkalasiga ham <c>null</c> beriladi.
+    /// </remarks>
+    public void SetMehnatUzScreenshot(string? key, string? contentType)
+    {
+        var storedKey = Trim(key);
+
+        MehnatUzScreenshotKey = storedKey;
+        MehnatUzScreenshotContentType = storedKey is null ? null : Trim(contentType);
+    }
 
     public Result SetTelegram(string? url)
     {

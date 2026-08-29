@@ -30,17 +30,21 @@ import {
   closeFlag,
   createFlag,
   deleteEmployeePhoto,
+  deleteMehnatUzScreenshot,
   exportEmployees,
   fetchEmployee,
   fetchEmployeePhoto,
+  fetchEmployeeStages,
   fetchEmployees,
   fetchFlags,
+  fetchMehnatUzScreenshot,
   fetchTimeline,
   hire,
   terminate,
   transfer,
   updateEmployee,
   uploadEmployeePhoto,
+  uploadMehnatUzScreenshot,
   type AdditionalDutyRequest,
   type ChangeSalaryRequest,
   type CreateFlagRequest,
@@ -114,6 +118,28 @@ export const employeeKeys = {
   photos: (id: string) => ['employee-photo', id] as const,
   photo: (id: string, photoKey: string | null) =>
     ['employee-photo', id, photoKey] as const,
+
+  /**
+   * mehnat.uz skrinshoti — RASM KESHI.
+   *
+   * Kalit ildizi ataylab `-photo` bilan tugaydi: `providers.tsx` har
+   * qanday muvaffaqiyatli mutatsiyadan keyin butun keshni bekor qiladi va
+   * shu qoidadan CHETLAB O'TADIGAN yagona guruh — nomi `-photo` ga
+   * tugaydigan binar keshlar (`employee-photo`, `user-photo`,
+   * `account-photo`). Skrinshot ham aynan shunday: bir necha megabaytlik
+   * blob, xodim yozuvidan mustaqil va faqat `mehnatUzScreenshotKey`
+   * o'zgarganda o'zgaradi. Chetlab o'tmasa, kartadagi HAR bir yozuv amali
+   * (masalan belgi qo'yish) uni qaytadan tortib olardi.
+   *
+   * Buning evaziga bekor qilish QO'LDA yoziladi — quyidagi ikki
+   * mutatsiyada; rasm keshlari uchun bu yagona yo'l.
+   */
+  screenshots: (id: string) => ['employee-mehnat-uz-photo', id] as const,
+  screenshot: (id: string, key: string | null) =>
+    ['employee-mehnat-uz-photo', id, key] as const,
+
+  /** Nomzodlik bosqichlari — «Kengash xulosasi» (faqat o'qish). */
+  stages: (id: string) => ['employees', 'stages', id] as const,
 }
 
 /**
@@ -233,6 +259,90 @@ export function useDeleteEmployeePhoto(employeeId: string) {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.lists })
       queryClient.removeQueries({ queryKey: employeeKeys.photos(employeeId) })
     },
+  })
+}
+
+/* ═══════════════════════════════════════════════ mehnat.uz (havola + skrinshot) */
+
+/**
+ * mehnat.uz skrinshoti.
+ *
+ * Kalitda `screenshotKey` turadi — rasm keshidagi bilan aynan bir xil
+ * hiyla: fayl almashtirilsa kalit ham boshqa bo'ladi va eski blob'ga
+ * hech kim murojaat qilmaydi.
+ */
+export function useMehnatUzScreenshot(employeeId: string, screenshotKey: string | null) {
+  return useQuery({
+    queryKey: employeeKeys.screenshot(employeeId, screenshotKey),
+    queryFn: ({ signal }) => fetchMehnatUzScreenshot(employeeId, signal),
+    /** Kaliti yo'q — fayli ham yo'q, so'rov umuman yuborilmaydi. */
+    enabled: employeeId !== '' && screenshotKey !== null,
+    /** Bir kalit — bir fayl. U o'zgarmaydi, demak eskirmaydi ham. */
+    staleTime: Infinity,
+    /**
+     * Qayta urinish yo'q — rasmdagi bilan bir xil mulohaza: skrinshot
+     * chiqmasa kartaning qolgan qismi baribir ishlaydi, takroriy so'rov
+     * esa faqat kutishni uzaytiradi.
+     */
+    retry: false,
+  })
+}
+
+/**
+ * Skrinshotni yuklash.
+ *
+ * Karta bekor qilinadi (yangi kalit u yerdan keladi) va skrinshot keshi
+ * ham — server kalitni o'zgartirmasdan faylni almashtirsa, eskisi
+ * ko'rinib qolmasin (`useUploadEmployeePhoto` dagi bilan bir xil ehtiyot).
+ */
+export function useUploadMehnatUzScreenshot(employeeId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (file: File) => uploadMehnatUzScreenshot(employeeId, file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.details(employeeId) })
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.screenshots(employeeId) })
+    },
+  })
+}
+
+/**
+ * Skrinshotni o'chirish.
+ *
+ * Keshdagi blob `invalidate` emas, `remove` qilinadi: kalit `null`
+ * bo'lgach unga hech kim murojaat qilmaydi, qayta so'rov esa faqat 404
+ * olib kelardi (`useDeleteEmployeePhoto` dagi bilan bir xil).
+ */
+export function useDeleteMehnatUzScreenshot(employeeId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => deleteMehnatUzScreenshot(employeeId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.details(employeeId) })
+      queryClient.removeQueries({ queryKey: employeeKeys.screenshots(employeeId) })
+    },
+  })
+}
+
+/* ══════════════════════════════════════════ kengash xulosasi (faqat o'qish) */
+
+/**
+ * Xodimning nomzodlik bosqichlari.
+ *
+ * @param enabled - `false` bo'lsa so'rov yuborilmaydi.
+ *
+ * NEGA kerak: endpoint `recruiting.view` talab qiladi va bu ruxsat
+ * `employees.view` dan MUSTAQIL. Ruxsatsiz foydalanuvchida so'rov
+ * yuborilsa, u har karta ochilganda 403 olib kelardi — bo'lim esa
+ * baribir chizilmaydi.
+ */
+export function useEmployeeStages(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: employeeKeys.stages(employeeId),
+    queryFn: ({ signal }) => fetchEmployeeStages(employeeId, signal),
+    enabled: enabled && employeeId !== '',
   })
 }
 

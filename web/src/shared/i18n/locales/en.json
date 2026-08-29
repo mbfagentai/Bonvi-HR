@@ -572,7 +572,10 @@
     "bildirishnoma.foydalanuvchi_aniqlanmadi": "Notifications are personal. Please sign in again.",
     "bildirishnoma.foydalanuvchi_yoq": "Notification state was not saved: the user could not be identified.",
     "vakansiya.nomzodlari_bor": "A vacancy with candidates cannot be deleted — you can close it instead.",
-    "vakansiya.holat_notogri": "Invalid status. Allowed values: Open, Closed."
+    "vakansiya.holat_notogri": "Invalid status. Allowed values: Open, Closed.",
+    "xodim.mehnat_havola": "The mehnat.uz link must start with «https://».",
+    "xodim.mehnat_rasm_yoq": "This employee has no mehnat.uz screenshot.",
+    "belgi.boshqa_belgi_bor": "This employee already has a mark in force. Only one is allowed at a time — confirm the replacement to continue."
   },
   "language": {
     "en": "English",
@@ -725,7 +728,38 @@
     "exportFailed": "Could not export to Excel",
     "exportTooOften": "Too many requests. Please wait a minute and try again.",
     "exporting": "Preparing…",
-    "emptyHireHint": "New employees are hired from the Probation page — everyone starts on probation."
+    "emptyHireHint": "New employees are hired from the Probation page — everyone starts on probation.",
+    "mehnatUzLink": "mehnat.uz link",
+    "mehnatUzLinkHint": "Full profile address. Without a scheme, «https://» is added automatically.",
+    "mehnatUzNoLink": "No link entered",
+    "mehnatUzOpenProfile": "Open profile",
+    "mehnatUzScreenshot": "Screenshot",
+    "mehnatUzNoScreenshot": "No screenshot uploaded",
+    "mehnatUzZoom": "View full size",
+    "mehnatUzZoomHint": "The screenshot is never cropped — its text has to stay readable",
+    "mehnatUzPdf": "PDF file — click to open",
+    "mehnatUzUpload": "Upload screenshot",
+    "mehnatUzReplace": "Replace",
+    "mehnatUzUploadHint": "PDF, JPEG, PNG or WebP · up to 20 MB. The image is not cropped or resized.",
+    "mehnatUzDeleteTitle": "Delete screenshot",
+    "mehnatUzDeleteText": "The screenshot and its file are deleted for good. The link and the «mehnat.uz» mark stay as they are.",
+    "councilTitle": "Council conclusion",
+    "councilHint": "Pipeline stages and conclusions from the candidate period — taken from recruiting",
+    "councilEmptyTitle": "No recruiting record",
+    "councilEmptyText": "This employee was not added through recruiting — the card was imported from Excel or created by hand. That is why there are no candidate stages or council conclusion.",
+    "councilUnknownStage": "Stage not specified",
+    "councilNoConclusion": "No conclusion written yet",
+    "councilRecordedBy": "Recorded by {{name}}",
+    "stageOutcome": {
+      "pending": "Pending",
+      "passed": "Passed",
+      "failed": "Failed"
+    },
+    "flagSingleHint": "Only one mark can be in force at a time",
+    "flagReplaceTitle": "The mark in force will be replaced",
+    "flagReplaceText": "This employee currently has the «{{flag}}» mark in force. Only one mark is allowed at a time: if you continue, the old one is closed (not deleted — it stays in the history) and the new one is opened.",
+    "flagReplaceUnknown": "This employee already has a mark in force. If you continue, it is closed and the new one is opened.",
+    "flagReplaceConfirm": "Replace"
   },
   "employments": {
     "anyType": "All types",

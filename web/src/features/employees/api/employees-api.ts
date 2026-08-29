@@ -58,6 +58,15 @@ export type EmployeeFlagType = (typeof EMPLOYEE_FLAG_TYPES)[number]
 export const GENDERS = ['male', 'female'] as const
 export type Gender = (typeof GENDERS)[number]
 
+/**
+ * Nomzodning bosqichdagi natijasi (`StageOutcome`).
+ *
+ * Tartib C# enum'ining RAQAMLI qiymatlariga mos (1 dan): `Pending = 1`
+ * → `names[0]` — `enumValue` shu qoidaga tayanadi.
+ */
+export const STAGE_OUTCOMES = ['pending', 'passed', 'failed'] as const
+export type StageOutcome = (typeof STAGE_OUTCOMES)[number]
+
 /* ═══════════════════════════════════════════════════════════════ MODELLAR */
 
 /** Pul: `Money` value object'ining yassi ko'rinishi. */
@@ -165,6 +174,23 @@ export interface EmployeeDetails {
   /** Tekshiruvdan o'tganmi (Excel: «Текширув»). `null` — ma'lum emas. */
   securityChecked: boolean | null
   registeredOnMehnatUz: boolean | null
+  /**
+   * mehnat.uz profiliga havola. `null` — kiritilmagan.
+   *
+   * `registeredOnMehnatUz` ni ALMASHTIRMAYDI: u Excel'dan kelgan uch
+   * holatli javob, bu esa o'sha javobning dalili. Ikkalasi birga turadi.
+   */
+  mehnatUzUrl: string | null
+  /**
+   * Skrinshotning SAQLASH KALITI — havola emas.
+   *
+   * `photoKey` bilan aynan bir xil ma'noda va bir xil sababdan: tizim
+   * `Authorization` sarlavhasi bilan ishlaydi, brauzer esa `<img src>`
+   * so'roviga uni qo'sha olmaydi. Kalit skrinshot bor-yo'qligini bildiradi
+   * (`null` bo'lsa so'rov yuborilmaydi) va kesh kalitiga kirib, fayl
+   * almashtirilganda keshni o'z-o'zidan eskirtiradi.
+   */
+  mehnatUzScreenshotKey: string | null
   directions: NamedRef[]
   /**
    * Yo'nalishlarning faqat `id` lari — tahrirlash formasi uchun.
@@ -373,6 +399,18 @@ export interface UpdateEmployeeRequest {
   securityChecked: boolean | null
   registeredOnMehnatUz: boolean | null
   /**
+   * mehnat.uz havolasi.
+   *
+   * Bu maydon oddiy qoidaga bo'ysunadi (`photoKey` dan farqli): bo'sh
+   * yuborish HAVOLANI O'CHIRADI. Ataylab shunday — noto'g'ri manzil
+   * kiritilgan bo'lsa, HR uni olib tashlay olishi kerak; skrinshotdan
+   * farqli o'laroq havola uchun alohida «o'chirish» endpoint'i yo'q.
+   *
+   * Server `https://` talab qiladi (sxemasiz matnga uni o'zi qo'shadi),
+   * aks holda `xodim.mehnat_havola` (400).
+   */
+  mehnatUzUrl: string | null
+  /**
    * To'liq ro'yxat — server eskilarini tozalab, kelganini biriktiradi.
    * Bo'sh massiv «yo'nalishlarni olib tashla» degani va bu ataylab
    * shunday; «yubormaslik» esa (`null`) «tegilmasin». Forma doim
@@ -433,6 +471,43 @@ export interface CreateFlagRequest {
   startDate: string
   endDate: string | null
   reason: string | null
+  /**
+   * Kuchdagi belgini ALMASHTIRISHGA rozilik.
+   *
+   * Xodimda bir vaqtda atigi bitta kuchdagi belgi bo'ladi (qora
+   * ro'yxatdagi odam rezervda ham bo'lolmaydi). Eskisi bo'lsa, tasdiqsiz
+   * so'rov `belgi.boshqa_belgi_bor` (409) bilan qaytadi; shu bayroq bilan
+   * esa eskisi yopilib yangisi ochiladi — ikkalasi bitta tranzaksiyada.
+   *
+   * ⚠️ Interfeysdagi tasdiqlash faqat QULAYLIK. Asosiy himoya serverda:
+   * bu maydonsiz yuborilgan so'rov ham to'xtatiladi.
+   */
+  confirm: boolean
+}
+
+/**
+ * Xodimning nomzodlik davridagi bitta bosqich yozuvi («Kengash xulosasi»).
+ *
+ * FAQAT O'QISH: bu yozuvni xodim kartasidan yaratib ham, tahrirlab ham
+ * bo'lmaydi — u rekruting voronkasida, odam hali nomzod bo'lgan paytda
+ * yozilgan. Xodim rekruting orqali kelmagan bo'lsa ro'yxat BO'SH keladi
+ * va bu xato emas.
+ */
+export interface EmployeeStageEntry {
+  id: string
+  candidateId: string
+  stageId: string
+  /** Bosqich nomi. `null` — ma'lumotnomadan topilmadi (o'chirilgan). */
+  stage: string | null
+  /** Bosqich o'tkazilgan sana — kengash kuni, suhbat kuni. */
+  date: string
+  outcome: StageOutcome
+  /** Xulosa matni. `null` — hali yozilmagan («kutilmoqda» yozuvida odatiy). */
+  conclusion: string | null
+  recordedBy: string | null
+  /** Kim yozgani — tizim foydalanuvchisining F.I.Sh. */
+  recordedByName: string | null
+  recordedAt: string
 }
 
 /* ══════════════════════════════════════════════════════════ NORMALIZATSIYA */
@@ -744,6 +819,8 @@ function toDetails(raw: unknown): EmployeeDetails {
     criminalRecordNote: text(box['criminalRecordNote']),
     securityChecked: nullableBool(box['securityChecked']),
     registeredOnMehnatUz: nullableBool(box['registeredOnMehnatUz']),
+    mehnatUzUrl: text(box['mehnatUzUrl']),
+    mehnatUzScreenshotKey: text(box['mehnatUzScreenshotKey']),
     directions,
     // Server nom bermasa ham `id` lar keladi; nom bergan holatda esa
     // ularni qaytadan so'ramaymiz — `id` o'sha ro'yxatdan olinadi
@@ -800,6 +877,25 @@ function toFlag(raw: unknown): EmployeeFlag {
     responsibleEmployeeName: text(box['responsibleEmployeeName']),
     // Server hisoblab bermasa — yopilmagan belgi kuchda deb qaraladi
     isActive: typeof box['isActive'] === 'boolean' ? box['isActive'] : endDate === null,
+  }
+}
+
+function toStageEntry(raw: unknown): EmployeeStageEntry {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    id: text(box['id']) ?? '',
+    candidateId: text(box['candidateId']) ?? '',
+    stageId: text(box['stageId']) ?? '',
+    stage: text(box['stage']),
+    date: text(box['date']) ?? '',
+    // Noma'lum qiymat «kutilmoqda» ga tushadi: u eng zararsiz taxmin —
+    // «o'tdi» yoki «o'tmadi» deb ko'rsatish yolg'on xulosa bo'lardi.
+    outcome: enumValue(box['outcome'], STAGE_OUTCOMES, 'pending'),
+    conclusion: text(box['conclusion']),
+    recordedBy: text(box['recordedBy']),
+    recordedByName: text(box['recordedByName']),
+    recordedAt: text(box['recordedAt']) ?? '',
   }
 }
 
@@ -994,6 +1090,57 @@ export async function deleteEmployeePhoto(id: string): Promise<void> {
   await api.delete(`/api/employees/${id}/photo`)
 }
 
+/* ─────────────────────────────────────────────── mehnat.uz skrinshoti */
+
+/**
+ * mehnat.uz skrinshoti — BAYTLAR.
+ *
+ * Xodim rasmidagi bilan aynan bir xil sabab: `Authorization` sarlavhasi
+ * `<img src>` so'roviga qo'shilmaydi. `404` — XATO EMAS, «skrinshot yo'q»
+ * degani.
+ *
+ * ⚠️ Rasmdan farqli, tur oldindan MA'LUM EMAS: server faylni qayta
+ * kodlamaydi va u PDF ham bo'lishi mumkin (sababi backend'da,
+ * `Employee.MehnatUzScreenshotKey` izohida). Shu sababli `blob` ning
+ * `type` iga qarab ko'rsatish usuli tanlanadi.
+ */
+export async function fetchMehnatUzScreenshot(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Blob | null> {
+  try {
+    const { data } = await api.get<Blob>(`/api/employees/${id}/mehnat-uz-screenshot`, {
+      responseType: 'blob',
+      signal,
+    })
+    return data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
+}
+
+/**
+ * Skrinshotni yuklash. Javobdagi yangi kalit qaytariladi.
+ *
+ * `Content-Type` QO'YILMAYDI — axios `FormData` ni ko'rib chegara
+ * (boundary) satri bilan birga o'zi yozadi (sababi `http-client.ts` da).
+ */
+export async function uploadMehnatUzScreenshot(id: string, file: File): Promise<string | null> {
+  const form = new FormData()
+  form.append('file', file)
+
+  const { data } = await api.post<unknown>(`/api/employees/${id}/mehnat-uz-screenshot`, form)
+
+  const box = (data ?? {}) as Record<string, unknown>
+  return text(box['screenshotKey'])
+}
+
+/** Skrinshotni o'chirish. Server idempotent: yo'q bo'lsa ham `204`. */
+export async function deleteMehnatUzScreenshot(id: string): Promise<void> {
+  await api.delete(`/api/employees/${id}/mehnat-uz-screenshot`)
+}
+
 export async function fetchTimeline(
   id: string,
   signal?: AbortSignal,
@@ -1010,15 +1157,40 @@ export async function fetchFlags(
   return Array.isArray(data) ? data.map(toFlag) : []
 }
 
+/**
+ * Belgi qo'yish.
+ *
+ * `confirm` so'rov QATORIDA ketadi, tanada emas — bo'shatishdagi bilan
+ * bir xil naqsh (`terminate`). Sabab: bu forma qiymati emas, AMALNI
+ * takrorlash sharti; tanaga qo'shilsa u boshqa maydonlar bilan bir
+ * qatorda turib, «bu ham belgi haqidagi ma'lumot» bo'lib ko'rinardi.
+ */
 export async function createFlag(
   employeeId: string,
   body: CreateFlagRequest,
 ): Promise<EmployeeFlag> {
-  const { data } = await api.post<unknown>(`/api/employees/${employeeId}/flags`, {
-    ...body,
-    type: enumName(body.type),
-  })
+  const { confirm, ...rest } = body
+
+  const { data } = await api.post<unknown>(
+    `/api/employees/${employeeId}/flags`,
+    { ...rest, type: enumName(rest.type) },
+    { params: confirm ? { confirm: true } : undefined },
+  )
   return toFlag(data)
+}
+
+/**
+ * Xodimning nomzodlik bosqichlari — «Kengash xulosasi» bo'limi uchun.
+ *
+ * Ruxsat `recruiting.view`: chaqiruvchi uni OLDINDAN tekshiradi va
+ * ruxsat yo'q bo'lsa so'rov umuman yuborilmaydi (bo'lim ham chizilmaydi).
+ */
+export async function fetchEmployeeStages(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EmployeeStageEntry[]> {
+  const { data } = await api.get<unknown>(`/api/employees/${id}/stages`, { signal })
+  return Array.isArray(data) ? data.map(toStageEntry) : []
 }
 
 /**

@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<GetSystemInfoQueryHandler>();
         services.AddScoped<GetDashboardStatsQueryHandler>();
         services.AddScoped<GetDashboardBreakdownQueryHandler>();
+        services.AddScoped<GetBirthdaysTodayQueryHandler>();
 
         // Hisobotlar
         services.AddScoped<GetTurnoverQueryHandler>();

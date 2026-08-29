@@ -184,4 +184,91 @@ public sealed class ProbationAndFlagTests
             endDate: Boshlangan.AddDays(-1))
             .Error.Code.ShouldBe("belgi.sana");
     }
+
+    // ────── Bir vaqtda atigi bitta belgi: almashtirish quroli ──────
+
+    [Fact]
+    public void Shu_kuni_tugaydigan_belgi_yangisiga_xalaqit_bermaydi()
+    {
+        // `IsActiveOn` va `IsInForceAfter` ning butun farqi shu holatda:
+        // «bugun yopilgan» belgi bugun hali kuchda, lekin ertaga yo'q —
+        // ya'ni bugun boshlanadigan yangi belgi uni almashtirmaydi.
+        var b = EmployeeFlag.Raise(
+            XodimId,
+            EmployeeFlagType.Monitoring,
+            Boshlangan,
+            "Sabab",
+            Boshlangan.AddMonths(1)).Value;
+
+        var tugash = Boshlangan.AddMonths(1);
+
+        b.IsActiveOn(tugash).ShouldBeTrue();
+        b.IsInForceAfter(tugash).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Muddati_kelajakda_tugaydigan_belgi_hozir_kuchda_hisoblanadi()
+    {
+        var b = EmployeeFlag.Raise(
+            XodimId,
+            EmployeeFlagType.Monitoring,
+            Boshlangan,
+            "Sabab",
+            Boshlangan.AddMonths(3)).Value;
+
+        b.IsInForceAfter(Boshlangan.AddMonths(1)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Almashtirish_muddatsiz_belgini_yopadi_va_sababga_izoh_qoshadi()
+    {
+        var b = EmployeeFlag.Raise(XodimId, EmployeeFlagType.Blacklist, Boshlangan, "Janjal").Value;
+
+        b.Supersede(Boshlangan.AddDays(10), "almashtirildi").IsSuccess.ShouldBeTrue();
+
+        b.EndDate.ShouldBe(Boshlangan.AddDays(10));
+        b.Reason.ShouldBe("Janjal; almashtirildi");
+    }
+
+    [Fact]
+    public void Almashtirish_muddatli_belgini_ham_qisqartiradi()
+    {
+        // `Close` bunga qodir emas: u `EndDate` si bor yozuvni
+        // «belgi.yopilgan» bilan rad etadi. Almashtirishda esa muddat
+        // QISQARADI — belgi qaytadan yopilmaydi.
+        var b = EmployeeFlag.Raise(
+            XodimId,
+            EmployeeFlagType.Monitoring,
+            Boshlangan,
+            "Kuzatuv",
+            Boshlangan.AddMonths(3)).Value;
+
+        b.Supersede(Boshlangan.AddDays(10)).IsSuccess.ShouldBeTrue();
+
+        b.EndDate.ShouldBe(Boshlangan.AddDays(10));
+    }
+
+    [Fact]
+    public void Almashtirish_muddatni_uzaytirmaydi()
+    {
+        var b = EmployeeFlag.Raise(
+            XodimId,
+            EmployeeFlagType.Monitoring,
+            Boshlangan,
+            "Kuzatuv",
+            Boshlangan.AddDays(5)).Value;
+
+        b.Supersede(Boshlangan.AddMonths(6)).IsSuccess.ShouldBeTrue();
+
+        // Eski belgi yangisidan uzoqroq yashab qolmasligi kerak
+        b.EndDate.ShouldBe(Boshlangan.AddDays(5));
+    }
+
+    [Fact]
+    public void Almashtirish_sanasi_boshlanishdan_oldin_bola_olmaydi()
+    {
+        var b = EmployeeFlag.Raise(XodimId, EmployeeFlagType.Reserve, Boshlangan).Value;
+
+        b.Supersede(Boshlangan.AddDays(-1)).Error.Code.ShouldBe("belgi.sana");
+    }
 }

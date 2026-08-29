@@ -40,6 +40,14 @@ internal sealed class EmployeeTestContext
         Clock.Today.Returns(Today);
         Clock.UtcNow.Returns(new DateTimeOffset(Today.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
 
+        // Sukut bo'yicha xodimda kuchdagi belgi YO'Q. Bo'sh ro'yxat ataylab
+        // aniq beriladi: NSubstitute `Task<IReadOnlyList<T>>` uchun `null`
+        // qaytaradi va belgi qo'yishga tegadigan har bir test tushunarsiz
+        // NRE bilan yiqilardi.
+        Flags
+            .GetInForceAsync(Arg.Any<Guid>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<EmployeeFlag>());
+
         LegalEntities.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         TerminationReasons.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         Departments.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
@@ -117,6 +125,32 @@ internal sealed class EmployeeTestContext
         => Flags
             .HasActiveFlagAsync(employeeId, type, Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
             .Returns(true);
+
+    /// <summary>
+    /// Xodimda KUCHDAGI belgi bor deb ko'rsatadi va o'sha yozuvni qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="GiveFlag"/> dan farqi: u faqat «bormi?» degan savolga
+    /// javob beradi (ishga qabul va bo'shatish to'siqlari uchun), bu esa
+    /// yozuvning O'ZINI beradi — «bir vaqtda atigi bitta belgi» qoidasi
+    /// eskisini YOPISHI kerak, ya'ni unga obyekt kerak.
+    /// </remarks>
+    public EmployeeFlag ExistingFlag(
+        Guid employeeId,
+        EmployeeFlagType type = EmployeeFlagType.Blacklist,
+        DateOnly? startDate = null,
+        DateOnly? endDate = null)
+    {
+        var flag = EmployeeFlag
+            .Raise(employeeId, type, startDate ?? Today.AddDays(-30), "eski sabab", endDate)
+            .Value;
+
+        Flags
+            .GetInForceAsync(employeeId, Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns([flag]);
+
+        return flag;
+    }
 
     /// <summary>Bazada mavjud xodim.</summary>
     public Employee ExistingEmployee(string lastName = "Karimov", string firstName = "Aziz")

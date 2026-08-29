@@ -65,6 +65,27 @@ public sealed class EmployeeFlagRepository : Repository<EmployeeFlag>, IEmployee
             cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <c>AsNoTracking</c> ATAYLAB YO'Q — bu yagona joyda belgilar
+    /// o'zgartirish uchun olinadi (yangisi bilan almashtirilganda).
+    /// Shart yuqoridagilardan bir belgiga farq qiladi:
+    /// <c>end_date &gt; kun</c>, <c>&gt;=</c> emas — o'sha kuni tugaydigan
+    /// belgi yangisiga xalaqit bermaydi.
+    /// </remarks>
+    public async Task<IReadOnlyList<EmployeeFlag>> GetInForceAsync(
+        Guid employeeId,
+        DateOnly on,
+        CancellationToken cancellationToken = default)
+        => await Set
+            .Where(flag =>
+                flag.EmployeeId == employeeId &&
+                flag.StartDate <= on &&
+                (flag.EndDate == null || flag.EndDate > on))
+            .OrderByDescending(flag => flag.StartDate)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<EmployeeFlag>> ListByTypeAsync(
         EmployeeFlagType type,
         bool onlyActive,

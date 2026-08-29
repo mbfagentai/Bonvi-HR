@@ -107,6 +107,30 @@ public interface IEmployeeFlagRepository : IRepository<EmployeeFlag>
         DateOnly on,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Xodimning shu sanadan KEYIN ham kuchda qoladigan belgilari —
+    /// <b>o'zgartirish uchun</b> (kuzatiladigan holda).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// «Bir vaqtda atigi bitta belgi» qoidasi shu ro'yxatga tayanadi:
+    /// yangi belgi qo'yilganda bu yerdan qaytgan yozuvlar yopiladi
+    /// (<c>EmployeeFlag.Supersede</c>).
+    /// </para>
+    /// <para>
+    /// <b>Nega <see cref="GetByEmployeeAsync"/> yaramaydi.</b> U ko'rsatish
+    /// uchun va yozuvlarni <c>AsNoTracking</c> bilan o'qiydi — undan olingan
+    /// obyektni o'zgartirish bazaga umuman yetib bormaydi. Shart ham
+    /// boshqacha: bu yerda «bugun kuchda» emas, «shu kundan KEYIN ham
+    /// kuchda» tekshiriladi (sababi <c>EmployeeFlag.IsInForceAfter</c>
+    /// izohida).
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<EmployeeFlag>> GetInForceAsync(
+        Guid employeeId,
+        DateOnly on,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<EmployeeFlag>> ListByTypeAsync(
         EmployeeFlagType type,
         bool onlyActive,

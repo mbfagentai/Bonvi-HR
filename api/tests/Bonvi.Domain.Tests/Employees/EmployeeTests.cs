@@ -194,6 +194,72 @@ public sealed class EmployeeTests
         x.TelegramUrl.ShouldBeNull();
     }
 
+    // ────────────────────── mehnat.uz ──────────────────────
+
+    [Theory]
+    [InlineData("https://mehnat.uz/uz/profile/123", "https://mehnat.uz/uz/profile/123")]
+    [InlineData("mehnat.uz/uz/profile/123", "https://mehnat.uz/uz/profile/123")]
+    public void Mehnat_uz_havolasiga_sxema_ozi_qoshiladi(string kirish, string kutilgan)
+    {
+        // HR manzilni brauzerdan nusxalaganda «https://» tez-tez tushib
+        // qoladi — buni xato deb rad etish foydalanuvchini «nima
+        // yetishmayapti» degan savol bilan qoldirardi.
+        var x = Yaratilgan();
+
+        x.SetMehnatUzUrl(kirish).IsSuccess.ShouldBeTrue();
+        x.MehnatUzUrl.ShouldBe(kutilgan);
+    }
+
+    [Fact]
+    public void Shifrlanmagan_mehnat_uz_havolasi_rad_etiladi()
+    {
+        // `http://` ATAYLAB qabul qilinmaydi: shaxsiy ma'lumotga
+        // shifrlanmagan havola saqlash ma'noli xavf.
+        var x = Yaratilgan();
+
+        x.SetMehnatUzUrl("http://mehnat.uz/profile").Error.Code.ShouldBe("xodim.mehnat_havola");
+    }
+
+    [Fact]
+    public void Bosh_mehnat_uz_havolasi_qiymatni_tozalaydi()
+    {
+        var x = Yaratilgan();
+        x.SetMehnatUzUrl("mehnat.uz/profile");
+
+        x.SetMehnatUzUrl("  ").IsSuccess.ShouldBeTrue();
+        x.MehnatUzUrl.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Skrinshot_kaliti_va_turi_birga_yashaydi()
+    {
+        // Kalit turisiz saqlansa, faylni qaytarishda mazmunni qaytadan
+        // tekshirishga to'g'ri kelardi — shu sababli ular birga.
+        var x = Yaratilgan();
+
+        x.SetMehnatUzScreenshot("kalit-1", "image/png");
+        x.MehnatUzScreenshotKey.ShouldBe("kalit-1");
+        x.MehnatUzScreenshotContentType.ShouldBe("image/png");
+
+        x.SetMehnatUzScreenshot(null, "image/png");
+        x.MehnatUzScreenshotKey.ShouldBeNull();
+        x.MehnatUzScreenshotContentType.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Mehnat_uz_belgisi_havola_bilan_almashmaydi()
+    {
+        // Excel'dan kelgan uch holatli javob QOLADI: havola va skrinshot
+        // uni almashtirmaydi, dalil bo'lib qo'shiladi.
+        var x = Yaratilgan();
+
+        x.SetRegisteredOnMehnatUz(true);
+        x.SetMehnatUzUrl("mehnat.uz/profile");
+
+        x.RegisteredOnMehnatUz.ShouldBe(true);
+        x.MehnatUzUrl.ShouldNotBeNull();
+    }
+
     // ────────────────────── Yo'nalishlar ──────────────────────
 
     [Fact]

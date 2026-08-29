@@ -160,6 +160,12 @@ export function EmployeeEditDialog({
         criminalRecordNote: orNull(values.criminalRecordNote),
         securityChecked: fromTristate(values.securityChecked),
         registeredOnMehnatUz: fromTristate(values.registeredOnMehnatUz),
+        /*
+         * Havola oddiy qoidada: bo'sh yuborish uni O'CHIRADI. Skrinshotdan
+         * farqli — u alohida endpoint bilan boshqariladi va bu formada
+         * umuman yo'q (rasm bilan bir xil bo'linish).
+         */
+        mehnatUzUrl: orNull(values.mehnatUzUrl),
         directionIds: values.directionIds,
       })
 
@@ -414,6 +420,23 @@ export function EmployeeEditDialog({
               {...register('registeredOnMehnatUz')}
             />
           </div>
+
+          {/*
+            Havola belgining O'ZI YONIDA turadi: HR «mehnat.uz da bormi?»
+            degan savolga javob berayotib, o'sha yerda dalilini ham
+            qoldiradi. Skrinshot esa bu formada YO'Q — u fayl va rasm
+            bilan bir xil yo'ldan boradi (kartadagi «Tekshiruvlar»
+            kartasidan yuklanadi), forma esa faqat matn maydonlarini
+            oladi.
+          */}
+          <TextField
+            label={t('employees.mehnatUzLink')}
+            placeholder="https://mehnat.uz/..."
+            hint={t('employees.mehnatUzLinkHint')}
+            disabled={isSubmitting}
+            error={message('mehnatUzUrl')}
+            {...register('mehnatUzUrl')}
+          />
 
           <TextArea
             label={t('employees.criminalRecord')}

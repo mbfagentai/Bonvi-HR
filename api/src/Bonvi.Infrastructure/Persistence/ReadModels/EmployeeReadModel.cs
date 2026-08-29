@@ -856,6 +856,91 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 group => (IReadOnlyList<EmployeeFlagType>)[.. group.Select(flag => flag.Type).Order()]);
     }
 
+    // ════════════════════════════════════════════════════════════
+    //  5. Nomzodlik bosqichlari — «Kengash xulosasi» bo'limi
+    // ════════════════════════════════════════════════════════════
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// Yo'l: xodimning MUNOSABATLARI → ularning HODISALARI → nomzod
+    /// identifikatori → o'sha nomzodning BOSQICH YOZUVLARI. Nomzodlar
+    /// jadvalining o'zi so'ralmaydi (sababi <c>IEmployeeReadModel</c>
+    /// izohida).
+    /// </para>
+    /// <para>
+    /// <c>Distinct</c> nomzod identifikatorlariga qo'llanadi: bitta odam
+    /// ketib qaytib kelsa, ikkita qabul hodisasi bo'ladi va ular AYNI
+    /// nomzodga ishora qilishi mumkin — u holda xulosalar ikki marta
+    /// ko'rinardi.
+    /// </para>
+    /// <para>
+    /// Tartib — XRONOLOGIK (eskisidan yangisiga), xodim kartasidagi
+    /// mehnat lentasidan farqli. Sabab: voronka bosqichma-bosqich o'qiladi
+    /// («telefon suhbat → kengash → rahbar suhbati»), teskari tartibda esa
+    /// qaror yo'li buzilib ko'rinardi.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<CandidateStageRow>> ListCandidateStagesAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default)
+    {
+        var candidateIds =
+            from employment in _context.Employments
+            join employmentEvent in _context.EmploymentEvents
+                on employment.Id equals employmentEvent.EmploymentId
+            where employment.EmployeeId == employeeId && employmentEvent.CandidateId != null
+            select employmentEvent.CandidateId!.Value;
+
+        var rows = await (
+                from entry in _context.CandidateStageEntries
+                where candidateIds.Distinct().Contains(entry.CandidateId)
+                join stage in _context.PipelineStages
+                    on entry.StageId equals stage.Id into stageMatch
+                from stage in stageMatch.DefaultIfEmpty()
+
+                // Kim yozgani ham CHAPDAN: yozuvni ETL yoki bot kiritgan
+                // bo'lsa `recorded_by` bo'sh bo'ladi va u holda xulosa
+                // ro'yxatdan tushib qolmasligi kerak.
+                join user in _context.Users
+                    on entry.RecordedBy equals (Guid?)user.Id into userMatch
+                from user in userMatch.DefaultIfEmpty()
+                orderby entry.Date, entry.RecordedAt
+                select new
+                {
+                    entry.Id,
+                    entry.CandidateId,
+                    entry.StageId,
+                    StageName = (string?)stage!.Name,
+                    entry.Date,
+                    entry.Outcome,
+                    entry.Conclusion,
+                    entry.RecordedBy,
+                    RecordedLastName = (string?)user!.FullName.LastName,
+                    RecordedFirstName = (string?)user!.FullName.FirstName,
+                    RecordedMiddleName = user!.FullName.MiddleName,
+                    entry.RecordedAt,
+                })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new CandidateStageRow(
+                row.Id,
+                row.CandidateId,
+                row.StageId,
+                row.StageName,
+                row.Date,
+                row.Outcome,
+                row.Conclusion,
+                row.RecordedBy,
+                Assemble(row.RecordedLastName, row.RecordedFirstName, row.RecordedMiddleName),
+                row.RecordedAt)),
+        ];
+    }
+
     /// <summary>Chapdan birlashtirilgan xodimning to'liq ismini yig'adi.</summary>
     /// <remarks>
     /// Mas'ul ko'rsatilmagan bo'lsa ustunlar NULL bo'ladi — o'shanda nom

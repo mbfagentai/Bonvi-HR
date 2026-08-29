@@ -291,6 +291,17 @@ export const employeeSchema = z
     securityChecked: z.enum(TRISTATE),
     registeredOnMehnatUz: z.enum(TRISTATE),
     /**
+     * mehnat.uz profiliga havola.
+     *
+     * Bu yerda faqat UZUNLIK tekshiriladi, shakl EMAS — va bu ataylab:
+     * server sxemasiz kiritilgan matnga `https://` ni O'ZI qo'shadi
+     * (`Employee.SetMehnatUzUrl`). Agar mijoz «https:// bilan boshlansin»
+     * deb turib olsa, brauzerdan nusxalangan «mehnat.uz/...» rad
+     * etilardi — holbuki server uni bemalol qabul qiladi. Haqiqiy xato
+     * (masalan `ftp://`) serverdan `xodim.mehnat_havola` bo'lib qaytadi.
+     */
+    mehnatUzUrl: optionalText.max(500, 'malumotnoma.nom_uzun'),
+    /**
      * To'liq ro'yxat yuboriladi, farq emas: server yo'nalishlarni tozalab,
      * kelganini qaytadan biriktiradi. «Qaysi biri qo'shildi» ni hisoblash
      * mijozning ishi emas.
@@ -344,6 +355,7 @@ export function toEmployeeValues(employee: EmployeeDetails): EmployeeValues {
     criminalRecordNote: employee.criminalRecordNote ?? '',
     securityChecked: toTristate(employee.securityChecked),
     registeredOnMehnatUz: toTristate(employee.registeredOnMehnatUz),
+    mehnatUzUrl: employee.mehnatUzUrl ?? '',
     directionIds: employee.directionIds,
   }
 }

@@ -5,6 +5,7 @@ using Bonvi.Application.Employees.Documents;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Application.Employees.Flags;
 using Bonvi.Application.Employees.Incentives;
+using Bonvi.Application.Employees.MehnatUz;
 using Bonvi.Application.Employees.Photos;
 using Bonvi.Application.Employees.Probations;
 using Bonvi.Application.Employees.Queries;
@@ -48,6 +49,15 @@ internal static class EmployeeRegistration
         services.AddScoped<GetEmployeePhotoQueryHandler>();
         services.AddScoped<UploadEmployeePhotoCommandHandler>();
         services.AddScoped<DeleteEmployeePhotoCommandHandler>();
+
+        // mehnat.uz skrinshoti — rasm bilan bir xil uchlik, lekin BOSHQA
+        // quvurda (hujjat): sababi `Employee.MehnatUzScreenshotKey` izohida.
+        services.AddScoped<GetMehnatUzScreenshotQueryHandler>();
+        services.AddScoped<UploadMehnatUzScreenshotCommandHandler>();
+        services.AddScoped<DeleteMehnatUzScreenshotCommandHandler>();
+
+        // Nomzodlik bosqichlari — FAQAT o'qish (sababi so'rovning izohida)
+        services.AddScoped<GetEmployeeStagesQueryHandler>();
 
         // Mehnat munosabatlari
         services.AddScoped<HireEmployeeCommandHandler>();
