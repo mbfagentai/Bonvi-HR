@@ -178,7 +178,7 @@ export function CandidateFormDialog({
             <Select
               label={t('recruiting.vacancy')}
               placeholder={t('recruiting.chooseVacancy')}
-              hint={t('recruiting.vacancyOpenOnlyHint')}
+              hint={t('recruiting.vacancyOpenHint')}
               options={vacancyOptions}
               value={vacancyId}
               error={fieldMessage('vacancyId')}

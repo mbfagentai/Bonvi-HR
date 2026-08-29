@@ -8,30 +8,39 @@ import { useChangeVacancyStatus, useDeleteVacancy } from '../api/recruiting-quer
 import { recruitingErrorCode } from '../lib/recruiting-error'
 import { orNull, today } from '../lib/recruiting-presentation'
 
-/** Ro'yxatdan chaqiriladigan amallar — qaysi oyna ochilishini shu belgilaydi. */
-export type VacancyAction = 'pause' | 'resume' | 'close' | 'delete'
+/**
+ * Ro'yxatdan chaqiriladigan amallar — qaysi oyna ochilishini shu belgilaydi.
+ *
+ * Ilgari to'rtta edi: `pause` OLIB TASHLANDI, `resume` esa `reopen` ga
+ * aylandi. Sabab ikkalasida ham bitta — to'xtatish va yopish AYNI
+ * natijani berardi (batafsil backend'dagi `VacancyStatus` izohida), ya'ni
+ * «davom ettiriladigan» narsa ham qolmadi.
+ */
+export type VacancyAction = 'close' | 'reopen' | 'delete'
 
 /**
- * Vakansiya holatini o'zgartirish — TO'RTTA amal, BITTA oyna.
+ * Vakansiya holatini o'zgartirish — UCHTA amal, BITTA oyna.
  *
- * NEGA to'rtta alohida komponent emas: ularning tuzilishi bir xil
+ * NEGA uchta alohida komponent emas: ularning tuzilishi bir xil
  * (sarlavha + tushuntirish + ixtiyoriy sabab + tasdiqlash tugmasi) va
- * farq faqat MATNDA hamda yuboriladigan so'rovda. To'rtga bo'linsa,
- * bir xil oyna qobig'i to'rt marta yozilardi.
+ * farq faqat MATNDA hamda yuboriladigan so'rovda. Uchga bo'linsa,
+ * bir xil oyna qobig'i uch marta yozilardi.
  *
  * NEGA har biri baribir TASDIQLASH so'raydi:
- *   · «To'xtatish» va «Yopish» — vakansiyaga yangi nomzod kirita
- *     olmaydigan holatga o'tkazadi (server 409 bilan rad etadi), ya'ni
- *     tasodifan bosilsa ish to'xtaydi;
- *   · «Davom ettirish» — qaytariladigan, lekin sababi yozilmaydi va
- *     u ham holat o'zgarishi;
- *   · «O'chirish» — YUMSHOQ o'chirish (yozuv bazada qoladi, nomzodlari
- *     yo'qolmaydi), lekin ro'yxatdan g'oyib bo'ladi.
+ *   · «Yopish» — vakansiya yangi nomzod qabul qilmaydigan holatga
+ *     o'tadi (server 409 bilan rad etadi), ya'ni tasodifan bosilsa
+ *     ish to'xtaydi;
+ *   · «Qayta ochish» — qaytariladigan, lekin u ham holat o'zgarishi va
+ *     u ham ro'yxatdagi yorliqni almashtiradi;
+ *   · «O'chirish» — YUMSHOQ o'chirish (yozuv bazada qoladi), lekin
+ *     ro'yxatdan g'oyib bo'ladi.
  *
  * NEGA «yopish» va «o'chirish» ATAYLAB ajratilgan: ish tugagan
- * vakansiya YOPILADI (u tarixning bir qismi va hisobotga tushadi),
- * o'chirish esa faqat XATO kiritilgan yozuv uchun. Backend hujjati ham
- * aynan shunday deydi.
+ * vakansiya YOPILADI (u tarixning bir qismi va nomzodlari unga
+ * bog'langan), o'chirish esa faqat XATO kiritilgan — ya'ni NOMZODI
+ * YO'Q — yozuv uchun. Buni server qat'iy tekshiradi
+ * (`vakansiya.nomzodlari_bor`), ro'yxat esa bunday qatorda o'chirish
+ * tugmasini umuman chizmaydi.
  */
 export function VacancyActionDialog({
   action,
@@ -78,8 +87,9 @@ export function VacancyActionDialog({
         id: item.id,
         action,
         reason: orNull(reason),
-        // Yopish sanasi FAQAT «yopish» amalida yuboriladi: qolgan
-        // ikkitasida server bunday maydonni umuman kutmaydi.
+        // Yopish sanasi FAQAT «yopish» amalida yuboriladi: qayta
+        // ochishda server bunday maydonni umuman kutmaydi — aksincha,
+        // u `closedAt` ni TOZALAYDI.
         ...(action === 'close' ? { closedAt: orNull(closedAt) } : {}),
       },
       { onSuccess: onClose },
@@ -102,13 +112,13 @@ export function VacancyActionDialog({
           <Button
             type="button"
             /*
-              «Davom ettirish» — tiklovchi amal, ko'k tugma. Qolgan
-              uchtasi ro'yxatdan olib qo'yadi: qizil
+              «Qayta ochish» — tiklovchi amal, ko'k tugma. Qolgan
+              ikkitasi ro'yxatdan olib qo'yadi: qizil
               (`catalog-active-field.tsx` dagi bilan bir xil mulohaza —
               qaytariladigan, lekin sezilarli amal asosiy tugma o'rnida
               turadi).
             */
-            variant={action === 'resume' ? 'primary' : 'danger'}
+            variant={action === 'reopen' ? 'primary' : 'danger'}
             onClick={submit}
             disabled={pending}
           >
@@ -138,12 +148,16 @@ export function VacancyActionDialog({
         )}
 
         {/*
-          Sabab «davom ettirish» va «o'chirish» da YO'Q va bu server
-          shartnomasidan kelib chiqadi: `ResumeVacancyCommand` va
+          Sabab «qayta ochish» va «o'chirish» da YO'Q va bu server
+          shartnomasidan kelib chiqadi: `ReopenVacancyCommand` va
           `DeleteVacancyCommand` da bunday maydon umuman yo'q. Ko'rsatib
           qo'yilsa, HR yozgan matn jimgina yo'qolardi.
+
+          Yopishda esa u ATAYLAB qoladi va endi avvalgidan muhimroq:
+          holat «nega yopildi» degan savolga javob bermaydi (u ikkitaga
+          qisqardi), javob faqat shu izohda qoladi.
         */}
-        {(action === 'pause' || action === 'close') && (
+        {action === 'close' && (
           <TextArea
             label={t('recruiting.reason')}
             placeholder={t('recruiting.reasonPlaceholder')}

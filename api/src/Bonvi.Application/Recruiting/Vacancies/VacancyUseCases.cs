@@ -12,7 +12,11 @@ namespace Bonvi.Application.Recruiting.Vacancies;
 /// Vakansiyalar ro'yxati.
 /// </summary>
 /// <param name="Status">
-/// Holat: <c>Open</c> | <c>Paused</c> | <c>Closed</c>. Bo'sh — hammasi.
+/// Holat: <c>Open</c> | <c>Closed</c>. Bo'sh — hammasi. <c>Paused</c>
+/// endi YO'Q (sababi <c>VacancyStatus</c> izohida) — eski havolalardagi
+/// <c>?status=Paused</c> «vakansiya.holat_notogri» bilan 400 qaytadi va
+/// bu ataylab: jimgina butun ro'yxatni ko'rsatish HR ga filtr ishlayapti
+/// degan yolg'on taassurot berardi.
 /// Satr, sanoq emas — <c>SearchEmployeesQuery.Status</c> dagi bilan bir xil
 /// sabab: minimal API sanoqni registrga sezgir bog'laydi va bo'sh qiymatni
 /// 400 bilan rad etadi, holbuki «filtr tozalandi» oddiy hol.
@@ -59,16 +63,23 @@ public sealed record UpdateVacancyCommand(
     Guid? ResponsibleEmployeeId = null,
     string? Note = null);
 
-/// <summary>Vakansiyani vaqtincha to'xtatish.</summary>
-public sealed record PauseVacancyCommand(Guid VacancyId, string? Reason = null);
-
-/// <summary>To'xtatilgan yoki yopilgan vakansiyani qayta ochish.</summary>
-public sealed record ResumeVacancyCommand(Guid VacancyId);
-
 /// <summary>Vakansiyani yopish.</summary>
 public sealed record CloseVacancyCommand(Guid VacancyId, DateOnly? ClosedAt = null, string? Reason = null);
 
+/// <summary>Yopilgan vakansiyani qayta ochish.</summary>
+/// <remarks>
+/// Ilgari <c>ResumeVacancyCommand</c> («davom ettirish») deb atalardi va
+/// nom to'xtatilgan holatdan qolgan edi. To'xtatish yo'q, ya'ni «davom
+/// ettiriladigan» narsa ham yo'q: bu buyruq faqat YOPIQNI qayta ochadi va
+/// nomi shuni aytishi kerak.
+/// </remarks>
+public sealed record ReopenVacancyCommand(Guid VacancyId);
+
 /// <summary>Vakansiyani yumshoq o'chirish (xato kiritilgan yozuv).</summary>
+/// <remarks>
+/// Faqat NOMZODI YO'Q vakansiya o'chiriladi — sababi
+/// <c>DeleteVacancyCommandHandler</c> izohida.
+/// </remarks>
 public sealed record DeleteVacancyCommand(Guid VacancyId);
 
 public sealed class ListVacanciesQueryHandler
@@ -282,11 +293,11 @@ public sealed class UpdateVacancyCommandHandler
     }
 }
 
-/// <summary>To'xtatish, qayta ochish va yopish — uchala amal bitta handlerda.</summary>
+/// <summary>Yopish va qayta ochish — ikkala amal bitta handlerda.</summary>
 /// <remarks>
 /// Ular bir xil qadamlardan iborat (yukla → domen metodini chaqir → saqla)
-/// va faqat chaqiriladigan metodda farq qiladi. Uchta alohida sinf o'sha
-/// yigirma qatorni uch marta takrorlardi.
+/// va faqat chaqiriladigan metodda farq qiladi. Ikkita alohida sinf o'sha
+/// yigirma qatorni ikki marta takrorlardi.
 /// </remarks>
 public sealed class ChangeVacancyStateCommandHandler
 {
@@ -308,19 +319,11 @@ public sealed class ChangeVacancyStateCommandHandler
     }
 
     public Task<Result<VacancyDto>> HandleAsync(
-        PauseVacancyCommand command,
+        ReopenVacancyCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return ApplyAsync(command.VacancyId, vacancy => vacancy.Pause(command.Reason), cancellationToken);
-    }
-
-    public Task<Result<VacancyDto>> HandleAsync(
-        ResumeVacancyCommand command,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return ApplyAsync(command.VacancyId, vacancy => vacancy.Resume(), cancellationToken);
+        return ApplyAsync(command.VacancyId, vacancy => vacancy.Reopen(), cancellationToken);
     }
 
     public Task<Result<VacancyDto>> HandleAsync(
@@ -358,14 +361,50 @@ public sealed class ChangeVacancyStateCommandHandler
     }
 }
 
+/// <summary>
+/// Vakansiyani o'chiradi — FAQAT nomzodi yo'q bo'lsa.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>NEGA nomzodi bor vakansiya o'chirilmaydi.</b> Bunday vakansiya —
+/// TARIX. Nomzodning yozuvi «bu odam nimaga kelgan» degan savolga javob
+/// beradi (<c>Vacancy</c> domen izohi) va vakansiya ro'yxatdan g'oyib
+/// bo'lsa, o'sha javob yetim qolardi: nomzod kartasida nom hali ham
+/// ko'rinardi, lekin unga o'tib bo'lmasdi, uni filtrlab bo'lmasdi va
+/// «bu odam qayerga ariza bergan edi?» degan savol javobsiz qolardi.
+/// </para>
+/// <para>
+/// <b>NEGA nomzodi YO'Q vakansiya esa o'chiriladi.</b> U ko'pincha
+/// shunchaki xato yozuv — imlo xatosi bilan ochilgani, sinov uchun
+/// ochilgani, ikki marta ochilgani. Uni abadiy «Yopiq» ro'yxatida
+/// saqlash hech qanday savolga javob bermaydi, faqat shovqin qo'shadi.
+/// </para>
+/// <para>
+/// <b>NEGA tekshiruv BU YERDA, domenda emas.</b> «Nechta nomzod bor» —
+/// boshqa agregatdagi fakt, domen esa bazani ko'rmaydi
+/// (<c>VacancyReferenceGuard</c> dagi bilan bir xil bo'linish).
+/// </para>
+/// <para>
+/// <b>NEGA faqat frontend'da yashirish yetarli emas.</b> Tugmani
+/// chizmaslik — qulaylik, himoya emas: <c>DELETE</c> so'rovini qo'lda
+/// ham, eskirgan ro'yxatdan ham yuborish mumkin (nomzod ro'yxat
+/// yuklangandan keyin qo'shilgan bo'lishi mumkin). Qat'iy javob shu
+/// yerda beriladi.
+/// </para>
+/// </remarks>
 public sealed class DeleteVacancyCommandHandler
 {
     private readonly IVacancyRepository _vacancies;
+    private readonly ICandidateRepository _candidates;
     private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteVacancyCommandHandler(IVacancyRepository vacancies, IUnitOfWork unitOfWork)
+    public DeleteVacancyCommandHandler(
+        IVacancyRepository vacancies,
+        ICandidateRepository candidates,
+        IUnitOfWork unitOfWork)
     {
         _vacancies = vacancies;
+        _candidates = candidates;
         _unitOfWork = unitOfWork;
     }
 
@@ -381,9 +420,21 @@ public sealed class DeleteVacancyCommandHandler
             return RecruitingErrors.VacancyNotFound;
         }
 
-        // Yumshoq o'chirish: nomzodlar unga havola qilib turibdi va ular
-        // yo'qolmasligi kerak. O'chirilgan vakansiya ro'yxatlarda
-        // ko'rinmaydi, lekin nomzod kartasidagi nom joyida qoladi.
+        // Sanoq allaqachon mavjud metoddan olinadi (ro'yxatdagi
+        // «candidateCount» ham shundan keladi) — bu yerda yangi so'rov
+        // yozish ikkita «nomzodlar soni» ta'rifini hosil qilardi.
+        var (total, _) = await _candidates
+            .CountByVacancyAsync(command.VacancyId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (total > 0)
+        {
+            return RecruitingErrors.VacancyHasCandidates;
+        }
+
+        // Yumshoq o'chirish (yozuv bazada qoladi) — global filtr uni
+        // ro'yxatlardan yashiradi. Nomzodlari yo'q, ya'ni bu yerda
+        // yetim qoladigan havola ham yo'q.
         _vacancies.Remove(vacancy);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

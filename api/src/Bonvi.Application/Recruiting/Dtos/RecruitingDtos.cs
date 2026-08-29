@@ -43,7 +43,7 @@ public sealed record PipelineStageDto(
 /// <param name="VacancyTitleId">Vakansiya nomi — ma'lumotnoma yozuvi.</param>
 /// <param name="Title">Vakansiya nomining matni.</param>
 /// <param name="Openings">Nechta odam kerak.</param>
-/// <param name="Status">Open | Paused | Closed.</param>
+/// <param name="Status">Open | Closed.</param>
 /// <param name="OpenedAt">Ochilgan sana.</param>
 /// <param name="ClosedAt">Yopilgan sana.</param>
 /// <param name="ResponsibleEmployeeId">Mas'ul xodim.</param>

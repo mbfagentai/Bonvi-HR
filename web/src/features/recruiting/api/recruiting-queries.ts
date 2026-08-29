@@ -214,7 +214,7 @@ export function useChangeVacancyStatus() {
       closedAt,
     }: {
       id: string
-      action: 'pause' | 'resume' | 'close'
+      action: 'close' | 'reopen'
       reason?: string | null
       closedAt?: string | null
     }) => changeVacancyStatus(id, action, { reason, closedAt }),

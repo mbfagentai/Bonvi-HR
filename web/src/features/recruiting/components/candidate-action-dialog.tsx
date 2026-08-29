@@ -154,7 +154,7 @@ export function CandidateActionDialog({
           <Select
             label={t('recruiting.vacancy')}
             placeholder={t('recruiting.chooseVacancy')}
-            hint={t('recruiting.vacancyOpenOnlyHint')}
+            hint={t('recruiting.vacancyOpenHint')}
             options={vacancies.options}
             value={vacancyId}
             disabled={pending || vacancies.isPending}

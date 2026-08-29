@@ -11,7 +11,7 @@
     "sectionSystem": "System",
     "dashboard": "Dashboard",
     "employees": "Employees",
-    "employment": "Employment & orders",
+    "employment": "Orders",
     "probation": "Probation",
     "formerEmployees": "Former employees",
     "lists": "Lists",
@@ -535,10 +535,8 @@
     "vakansiya.masul_topilmadi": "Responsible employee not found.",
     "vakansiya.orin_soni": "The number of openings must be between 1 and 100.",
     "vakansiya.qabul_qilmaydi": "The vacancy is not open: no new candidates can be added.",
-    "vakansiya.yopiq": "A closed vacancy cannot be paused.",
     "vakansiya.allaqachon_yopiq": "This vacancy is already closed.",
     "vakansiya.yopish_sanasi": "The closing date cannot be earlier than the opening date.",
-    "vakansiya.holat_notogri": "Invalid status. Allowed values: Open, Paused, Closed.",
     "nomzod.topilmadi": "Candidate not found — the record may have been removed.",
     "nomzod.vakansiya_yoq": "Select a vacancy.",
     "nomzod.tugilgan_sana": "Invalid date of birth: it cannot be in the future or more than 100 years ago.",
@@ -568,7 +566,9 @@
     "bildirishnoma.kalit_yoq": "No notifications selected.",
     "bildirishnoma.kalit_kop": "Cannot process more than 200 notifications at once.",
     "bildirishnoma.foydalanuvchi_aniqlanmadi": "Notifications are personal. Please sign in again.",
-    "bildirishnoma.foydalanuvchi_yoq": "Notification state was not saved: the user could not be identified."
+    "bildirishnoma.foydalanuvchi_yoq": "Notification state was not saved: the user could not be identified.",
+    "vakansiya.nomzodlari_bor": "A vacancy with candidates cannot be deleted — you can close it instead.",
+    "vakansiya.holat_notogri": "Invalid status. Allowed values: Open, Closed."
   },
   "language": {
     "en": "English",
@@ -990,25 +990,20 @@
     "vacancyEmptyText": "The funnel starts with a vacancy: every candidate belongs to exactly one opening.",
     "vacancyNotFoundTitle": "No vacancies found",
     "vacancyNotFoundText": "Try changing the filters.",
-    "vacancyOpenOnlyHint": "Open vacancies only: paused or closed ones do not accept candidates",
     "vacancyStatus": {
       "open": "Open",
-      "paused": "Paused",
       "closed": "Closed"
     },
     "vacancyAction": {
-      "pauseTitle": "Pause the vacancy",
-      "pauseText": "The vacancy is paused: no new candidates can be added. Existing candidates stay in the funnel and you can resume it later.",
-      "pauseConfirm": "Pause",
-      "resumeTitle": "Resume the vacancy",
-      "resumeText": "The vacancy becomes open again and can accept candidates.",
-      "resumeConfirm": "Resume",
       "closeTitle": "Close the vacancy",
-      "closeText": "The work is done: the vacancy closes and appears that way in reports. Its candidates are kept. It cannot be reopened — create a new vacancy if needed.",
       "closeConfirm": "Close",
       "deleteTitle": "Delete the vacancy",
-      "deleteText": "The record is removed from the list (kept in the database, candidates are preserved). Use this ONLY for a record created by mistake: a finished vacancy should be CLOSED, not deleted.",
-      "deleteConfirm": "Delete"
+      "deleteConfirm": "Delete",
+      "closeText": "The vacancy closes: no new candidates can be added and it disappears from the vacancy picker. Existing candidates, their stages and offers stay untouched. You can reopen it whenever you need to.",
+      "reopenTitle": "Reopen the vacancy",
+      "reopenText": "The vacancy becomes open again and can accept candidates. Its closing date is cleared.",
+      "reopenConfirm": "Reopen",
+      "deleteText": "The record is removed from the list (kept in the database). Use this ONLY for a record created by mistake — a typo, a test vacancy. A vacancy that already has candidates cannot be deleted: it is history and should be closed instead."
     },
     "candidateSubtitle": "{{n}} candidates",
     "candidateCreate": "Add a candidate",
@@ -1148,7 +1143,8 @@
     "anyVacancyTitle": "All vacancy titles",
     "acceptSectionPlacement": "Placement",
     "acceptPlacementHint": "Which legal entity, department and position the candidate is hired into. The vacancy does not carry this — the decision is made here.",
-    "acceptOfferSummary": "{{vacancy}} · {{salary}} · starts {{date}}"
+    "acceptOfferSummary": "{{vacancy}} · {{salary}} · starts {{date}}",
+    "vacancyOpenHint": "Open vacancies only: closed ones do not accept candidates"
   },
   "notifications": {
     "unreadSummary": "{{n}} unread",

@@ -37,7 +37,13 @@ import { api } from '@/shared/api/http-client'
  * bir xil ko'rinadi, ya'ni havolani qo'lda yozish ham mumkin.
  */
 
-export const VACANCY_STATUSES = ['Open', 'Paused', 'Closed'] as const
+/*
+ * Vakansiya holati — IKKITA. «Paused» OLIB TASHLANDI: pauza va yopish
+ * tizim uchun ayni natijani berardi (ikkalasida ham yangi nomzod
+ * kiritilmasdi), farq faqat HR ning niyatida edi — batafsil sabab
+ * backend'dagi `VacancyStatus` domen izohida.
+ */
+export const VACANCY_STATUSES = ['Open', 'Closed'] as const
 export type VacancyStatus = (typeof VACANCY_STATUSES)[number]
 
 export const CANDIDATE_STATUSES = ['InProgress', 'Rejected', 'Hired', 'Withdrawn'] as const
@@ -606,17 +612,34 @@ export async function saveVacancy(id: string | null, body: VacancyInput): Promis
   return toVacancy(data)
 }
 
-/** To'xtatish, davom ettirish va yopish — bitta funksiya: tanasi ham, javobi ham bir xil. */
+/**
+ * Yopish va qayta ochish — bitta funksiya: tanasi ham, javobi ham bir xil.
+ *
+ * Amal nomi to'g'ridan-to'g'ri MANZILGA tushadi va bu ataylab: server
+ * marshrutlari ham aynan shunday nomlanadi (`/close`, `/reopen`). Ilgari
+ * bu yerda `pause` va `resume` ham bor edi — birinchisi butunlay
+ * o'chirildi, ikkinchisi esa `reopen` ga qayta nomlandi, chunki
+ * «davom ettirish» to'xtatishdan qolgan nom edi va endi hech narsa
+ * davom ettirilmaydi.
+ */
 export async function changeVacancyStatus(
   id: string,
-  action: 'pause' | 'resume' | 'close',
+  action: 'close' | 'reopen',
   body: { reason?: string | null; closedAt?: string | null },
 ): Promise<Vacancy> {
   const { data } = await api.post<unknown>(`${VACANCIES}/${id}/${action}`, body)
   return toVacancy(data)
 }
 
-/** Yumshoq o'chirish: yozuv bazada qoladi, nomzodlari yo'qolmaydi. */
+/**
+ * Yumshoq o'chirish: yozuv bazada qoladi.
+ *
+ * ⚠️ Server FAQAT nomzodi yo'q vakansiyani o'chiradi
+ * («vakansiya.nomzodlari_bor», 409): nomzodi bori — tarix va uni
+ * o'chirish nomzodlarning yozuvini yetim qoldirardi. Ro'yxatda bunday
+ * qatorda tugma umuman chizilmaydi (`vacancies-page.tsx`), lekin
+ * xatoni ushlash baribir kerak — ro'yxat eskirgan bo'lishi mumkin.
+ */
 export async function deleteVacancy(id: string): Promise<void> {
   await api.delete(`${VACANCIES}/${id}`)
 }

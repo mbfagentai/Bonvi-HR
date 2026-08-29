@@ -28,9 +28,6 @@ public sealed record SaveVacancyRequest(
     Guid? ResponsibleEmployeeId = null,
     string? Note = null);
 
-/// <summary>Vakansiyani to'xtatish so'rovi tanasi.</summary>
-public sealed record PauseVacancyRequest(string? Reason = null);
-
 /// <summary>Vakansiyani yopish so'rovi tanasi.</summary>
 /// <param name="ClosedAt">Yopilish sanasi. Bo'sh — bugun.</param>
 /// <param name="Reason">Nima uchun yopildi — izohga yoziladi.</param>
@@ -74,8 +71,9 @@ public static class VacancyEndpoints
             .WithSummary("Vakansiyalar — ro'yxat")
             .WithDescription(
                 "SERVER tomonda sahifalanadi, filtrlanadi va saralanadi. " +
-                "«status» — Open | Paused | Closed (bo'sh — hammasi, noma'lum qiymat " +
-                "«vakansiya.holat_notogri» 400). «vacancyTitleId» — e'lon nomi bo'yicha " +
+                "«status» — Open | Closed (bo'sh — hammasi, noma'lum qiymat " +
+                "«vakansiya.holat_notogri» 400; «Paused» ENDI YO'Q). " +
+                "«vacancyTitleId» — e'lon nomi bo'yicha " +
                 "filtr; lavozim/bo'lim/firma filtrlari YO'Q, chunki vakansiyada bunday " +
                 "maydonlar yo'q. «sort» — openedAt (sukut, yangidan eskiga) yoki title; " +
                 "teskari tartib «-openedAt» yoki «openedAt:desc». " +
@@ -159,53 +157,46 @@ public static class VacancyEndpoints
             .WithSummary("Vakansiya — tahrirlash")
             .WithDescription(
                 "Vakansiya nomi ham o'zgaradi (vakansiya — reja, fakt emas). " +
-                "HOLAT bu yerdan o'zgarmaydi: «/pause», «/resume», «/close» bor. " +
+                "HOLAT bu yerdan o'zgarmaydi: «/close» va «/reopen» bor. " +
                 "«openedAt» bo'sh bo'lsa — eski sana saqlanadi.")
             .Produces<VacancyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPost("/{id:guid}/pause", async (
-                Guid id,
-                PauseVacancyRequest? request,
-                ChangeVacancyStateCommandHandler handler,
-                CancellationToken cancellationToken) =>
-            {
-                var natija = await handler
-                    .HandleAsync(new PauseVacancyCommand(id, request?.Reason), cancellationToken)
-                    .ConfigureAwait(false);
+        /*
+          «/pause» O'CHIRILDI, «/resume» esa «/reopen» bo'ldi.
 
-                return natija.ToHttpResult();
-            })
-            .RequireAuthorization(Permissions.RecruitingManage)
-            .WithName("PauseVacancy")
-            .WithSummary("Vakansiya — vaqtincha to'xtatish")
-            .WithDescription(
-                "To'xtatilgan vakansiyaga YANGI nomzod kiritilmaydi " +
-                "(«vakansiya.qabul_qilmaydi», 409) — to'xtatishning ma'nosi shu. " +
-                "Yopilgan vakansiyani to'xtatib bo'lmaydi: «vakansiya.yopiq» (409).")
-            .Produces<VacancyDto>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+          Pauza va yopish AYNI natijani berardi — ikkalasida ham vakansiya
+          yangi nomzod qabul qilmasdi. Farq faqat HR ning niyatida edi
+          («vaqtincha» yoki «tugadi») va undan hech qanday xatti-harakat
+          kelib chiqmasdi (batafsil sabab `VacancyStatus` domen izohida).
+          «resume» nomi esa to'xtatishdan qolgan qoldiq edi: davom
+          ettiriladigan narsa yo'q, faqat qayta ochiladigan.
 
-        group.MapPost("/{id:guid}/resume", async (
+          Eski manzillar ATAYLAB qoldirilmadi: ular 404 qaytaradi.
+          Ishlaydigan, lekin boshqa narsa qiladigan endpoint («pause»
+          aslida yopadi) mijozni jimgina aldardi.
+        */
+        group.MapPost("/{id:guid}/reopen", async (
                 Guid id,
                 ChangeVacancyStateCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ResumeVacancyCommand(id), cancellationToken)
+                    .HandleAsync(new ReopenVacancyCommand(id), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
             })
             .RequireAuthorization(Permissions.RecruitingManage)
-            .WithName("ResumeVacancy")
+            .WithName("ReopenVacancy")
             .WithSummary("Vakansiya — qayta ochish")
             .WithDescription(
-                "To'xtatilgan VA yopilgan vakansiya ham qayta ochiladi: olingan odam " +
-                "bir haftada ketib qolishi odatiy hol va yangi vakansiya ochish " +
-                "nomzodlar tarixini ikkiga bo'lib yuborardi. «closedAt» tozalanadi.")
+                "Yopilgan vakansiya qayta ochiladi: olingan odam bir haftada ketib " +
+                "qolishi odatiy hol va yangi vakansiya ochish nomzodlar tarixini " +
+                "ikkiga bo'lib yuborardi. «closedAt» tozalanadi. Allaqachon ochiq " +
+                "vakansiyada 409 QAYTMAYDI — amal hech narsa yozmaydi, ya'ni " +
+                "takrorlanishi zararsiz (sababi `Vacancy.Reopen` izohida).")
             .Produces<VacancyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -229,6 +220,8 @@ public static class VacancyEndpoints
             .WithDescription(
                 "«closedAt» bo'sh — bugun. O'rin to'lganda vakansiya O'ZI yopilmaydi: " +
                 "bu HR ning qarori (ro'yxatdagi «hiredCount» unga asos beradi). " +
+                "Yopish QAYTARILADI («/reopen») va nomzodlarga, ularning bosqichlari " +
+                "hamda takliflariga TEGMAYDI — u faqat yangi nomzod kiritishni to'sadi. " +
                 "Xatolar: «vakansiya.allaqachon_yopiq» (409), «vakansiya.yopish_sanasi» (400).")
             .Produces<VacancyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -249,11 +242,14 @@ public static class VacancyEndpoints
             .WithName("DeleteVacancy")
             .WithSummary("Vakansiya — yozuvni o'chirish")
             .WithDescription(
-                "Yumshoq o'chirish: yozuv bazada qoladi va unga bog'langan nomzodlar " +
-                "yo'qolmaydi. Xato kiritilgan vakansiya uchun; ish tugagan vakansiya " +
-                "esa YOPILADI, o'chirilmaydi.")
+                "FAQAT NOMZODI YO'Q vakansiya o'chiriladi: nomzodi bori — TARIX va " +
+                "uni o'chirish nomzodlarning yozuvini yetim qoldirardi " +
+                "(«vakansiya.nomzodlari_bor», 409; batafsil sabab " +
+                "`DeleteVacancyCommandHandler` izohida). Ish tugagan vakansiya " +
+                "YOPILADI, o'chirilmaydi. Yumshoq o'chirish: yozuv bazada qoladi.")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
     }

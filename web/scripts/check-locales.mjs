@@ -353,8 +353,16 @@ const DYNAMIC_KEY_SOURCES = [
     ],
   },
   {
+    /*
+     * Vakansiya amallari — UCHTA. Ilgari to'rtta edi: «pause» butunlay
+     * o'chirildi (pauza va yopish ayni natijani berardi — backend'dagi
+     * `VacancyStatus` izohi), «resume» esa «reopen» ga qayta nomlandi.
+     * Ro'yxat shu yerda QO'LDA yozilgani sababli u kod bilan birga
+     * yangilanishi shart: aks holda tekshiruv yo'q kalitlarni talab
+     * qilardi yoki yangilarini umuman ko'rmasdi.
+     */
     file: 'src/features/recruiting/components/vacancy-action-dialog.tsx',
-    values: () => ['pause', 'resume', 'close', 'delete'].map((value) => ({ value, line: 0 })),
+    values: () => ['close', 'reopen', 'delete'].map((value) => ({ value, line: 0 })),
     keysFor: (value) => [
       `recruiting.vacancyAction.${value}Title`,
       `recruiting.vacancyAction.${value}Text`,

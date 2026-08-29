@@ -35,10 +35,22 @@ public static class RecruitingErrors
     public static Error ResponsibleNotFound { get; } =
         Error.NotFound("vakansiya.masul_topilmadi", "Mas'ul xodim topilmadi.");
 
-    /// <summary>Yopilgan yoki to'xtatilgan vakansiyaga nomzod kiritilmaydi.</summary>
+    /// <summary>Yopilgan vakansiyaga nomzod kiritilmaydi.</summary>
     public static Error VacancyNotAccepting { get; } = Error.Conflict(
         "vakansiya.qabul_qilmaydi",
         "Vakansiya ochiq emas: unga yangi nomzod kiritib bo'lmaydi.");
+
+    /// <summary>Nomzodi bor vakansiya o'chirilmaydi.</summary>
+    /// <remarks>
+    /// Batafsil sabab <c>DeleteVacancyCommandHandler</c> izohida: nomzodi
+    /// bor vakansiya — tarix, uni o'chirish nomzodlarning yozuvini yetim
+    /// qoldirardi. Xabar YO'LNI ham aytadi («yoping»), chunki HR bu
+    /// nuqtada odatda «bu yozuv ro'yxatda turmasin» degan maqsadda
+    /// bo'ladi va uni yopish aynan shuni beradi.
+    /// </remarks>
+    public static Error VacancyHasCandidates { get; } = Error.Conflict(
+        "vakansiya.nomzodlari_bor",
+        "Nomzodi bor vakansiya o'chirilmaydi — uni yopish mumkin.");
 
     // ---------- Bosqich ----------
 

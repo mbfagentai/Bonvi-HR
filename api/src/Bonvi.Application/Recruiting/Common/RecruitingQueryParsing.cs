@@ -30,7 +30,12 @@ internal static class RecruitingQueryParsing
         => ParseEnum<VacancyStatus>(
             raw,
             "vakansiya.holat_notogri",
-            "Holat noto'g'ri. Ruxsat etilgan qiymatlar: Open, Paused, Closed.");
+            // «Paused» ro'yxatdan chiqdi (sababi `VacancyStatus` izohida).
+            // Eski havolalardagi `?status=Paused` endi shu xato bilan
+            // qaytadi — va bu to'g'ri: qiymat endi mavjud emas, jimgina
+            // e'tibordan qoldirish esa filtr ishlayapti degan taassurot
+            // qoldirardi.
+            "Holat noto'g'ri. Ruxsat etilgan qiymatlar: Open, Closed.");
 
     public static Result<CandidateStatus?> ParseCandidateStatus(string? raw)
         => ParseEnum<CandidateStatus>(

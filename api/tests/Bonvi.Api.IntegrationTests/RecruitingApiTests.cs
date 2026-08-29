@@ -25,6 +25,8 @@ public sealed record VacancyResponse(
     string? Title,
     int Openings,
     string Status,
+    // Qayta ochish uni TOZALAYDI — shu sababli testga kerak.
+    DateOnly? ClosedAt,
     int CandidateCount,
     int HiredCount);
 
@@ -328,6 +330,69 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         kiritish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(kiritish));
         (await MatnAsync(kiritish)).ShouldContain("vakansiya.qabul_qilmaydi");
+
+        // ── Yopish QAYTARILADI ──
+        //
+        // Yopish oynasida ilgari «qayta ochish mumkin emas» degan yozuv
+        // turardi va u YOLG'ON edi: domen hech qachon bunday shart
+        // qo'ymagan. Endi buni test ham ushlab turadi.
+        using var qaytaOchish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/vacancies/{vakansiya.Id}/reopen", UriKind.Relative),
+            new { },
+            bekorQilish);
+
+        qaytaOchish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaytaOchish));
+
+        var ochilgan = await qaytaOchish.Content.ReadFromJsonAsync<VacancyResponse>(bekorQilish);
+        ochilgan!.Status.ShouldBe("Open");
+        ochilgan.ClosedAt.ShouldBeNull("qayta ochilgan vakansiyada yopilish sanasi bo'lmaydi");
+    }
+
+    /// <summary>
+    /// O'chirish — FAQAT nomzodi yo'q vakansiyada.
+    /// </summary>
+    /// <remarks>
+    /// Nomzodi bor vakansiya — TARIX: uni o'chirish nomzodlarning
+    /// yozuvini yetim qoldirardi («bu odam qayerga ariza bergan edi?»
+    /// degan savol javobsiz qolardi). Frontend bunday qatorda o'chirish
+    /// tugmasini umuman chizmaydi, lekin himoya SERVER tomonda:
+    /// so'rovni qo'lda ham, eskirgan ro'yxatdan ham yuborish mumkin.
+    /// </remarks>
+    [Fact]
+    public async Task Nomzodi_bor_vakansiya_ochirilmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var nom = await VakansiyaNomiAsync(mijoz);
+
+        // ── 1. Nomzodi YO'Q vakansiya o'chiriladi ──
+        var bosh = await VakansiyaAsync(mijoz, nom.Id);
+
+        using var boshniOchirish = await mijoz.DeleteAsync(
+            new Uri($"/api/recruiting/vacancies/{bosh.Id}", UriKind.Relative), bekorQilish);
+
+        boshniOchirish.StatusCode.ShouldBe(
+            HttpStatusCode.NoContent,
+            "xato kiritilgan yozuv o'chiriladi: " + await MatnAsync(boshniOchirish));
+
+        // ── 2. Nomzodi BOR vakansiya o'chirilmaydi ──
+        var tolgan = await VakansiyaAsync(mijoz, nom.Id);
+        await NomzodAsync(mijoz, tolgan.Id);
+
+        using var ochirish = await mijoz.DeleteAsync(
+            new Uri($"/api/recruiting/vacancies/{tolgan.Id}", UriKind.Relative), bekorQilish);
+
+        ochirish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(ochirish));
+        (await MatnAsync(ochirish)).ShouldContain("vakansiya.nomzodlari_bor");
+
+        // ── 3. U hamon ro'yxatda va yopilishi mumkin ──
+        using var yopish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/vacancies/{tolgan.Id}/close", UriKind.Relative),
+            new { reason = "Хато очилган" },
+            bekorQilish);
+
+        yopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yopish));
     }
 
     [Fact]

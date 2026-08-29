@@ -2,24 +2,51 @@ using Bonvi.Domain.Common;
 
 namespace Bonvi.Domain.Recruiting;
 
-/// <summary>Ochilgan ish o'rnining holati.</summary>
+/// <summary>
+/// Ochilgan ish o'rnining holati — IKKITA, uchtasi emas.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>NEGA «to'xtatilgan» (Paused) OLIB TASHLANDI.</b> Pauza va yopish
+/// tizim uchun AYNI natijani berardi: ikkalasida ham vakansiya yangi
+/// nomzod qabul qilmaydi (<c>Vacancy.AcceptsCandidates</c> ikkalasini ham
+/// <c>false</c> deb hisoblardi), ikkalasidan ham qaytish mumkin edi.
+/// Yagona farq HR ning NIYATIDA edi — «vaqtincha» yoki «tugadi». Niyat
+/// esa tizim harakat qiladigan narsa emas: undan hech qanday tekshiruv,
+/// hisobot yoki cheklov kelib chiqmasdi.
+/// </para>
+/// <para>
+/// Ilgari bu yerda «byudjet kutilyapti» va «o'rin to'ldi» ikki xil fakt
+/// degan izoh turardi. Bu to'g'ri, lekin bu farq HOLATNING emas,
+/// SABABNING farqi — va sabab uchun <c>Vacancy.Note</c> bor, u yopishda
+/// aynan shu maqsadda so'raladi. Bir xil natija beradigan ikkita tugma
+/// esa HR ni har safar ma'nosiz tanlov qilishga majbur qilardi.
+/// </para>
+/// <para>
+/// <b>NEGA <see cref="Closed"/> raqami 3 bo'lib qoldi va 2 bo'sh
+/// turibdi.</b> Holat bazada BUTUN SON bo'lib yotadi. Yopilganini 2 ga
+/// ko'chirish barcha mavjud qatorlarni qayta raqamlashni talab qilardi va
+/// eski dump'lar («status = 3» — yopilgan) jimgina noto'g'ri o'qilardi.
+/// Bo'sh raqam — arzon narx; qayta raqamlash esa ma'lumot yo'qotish
+/// xavfi. 2 raqami ATAYLAB abadiy band deb hisoblanadi.
+/// </para>
+/// </remarks>
 public enum VacancyStatus
 {
     /// <summary>Ochiq — nomzod qabul qilinadi.</summary>
     Open = 1,
 
     /// <summary>
-    /// To'xtatilgan — vaqtincha yopilgan, lekin bekor qilinmagan.
+    /// Yopilgan — vakansiya yangi nomzod qabul qilmaydi.
     /// </summary>
     /// <remarks>
-    /// Nega <see cref="Closed"/> dan alohida: «byudjet kutilyapti» va
-    /// «o'rin to'ldi» ikki xil fakt. Ular bir holatga yig'ilsa, HR nima
-    /// uchun yopilganini faqat izohdan taxmin qilardi va «qайta ochish
-    /// kerakmi?» degan savolga javob yo'qolardi.
+    /// Yopilish sabablari har xil bo'lishi mumkin («o'rin to'ldi»,
+    /// «byudjet kutilyapti», «kerak emas ekan») va ular
+    /// <c>Vacancy.Note</c> ga yoziladi. Holat ularni ajratmaydi: tizim
+    /// uchun uchalasi ham bir narsani anglatadi — bu o'ringa endi nomzod
+    /// kiritilmaydi. Fikrdan qaytish normal hol, shu sababli
+    /// <c>Vacancy.Reopen</c> hech qanday shartsiz ishlaydi.
     /// </remarks>
-    Paused = 2,
-
-    /// <summary>Yopilgan — ish o'rni yakunlangan (to'ldirilgan yoki bekor qilingan).</summary>
     Closed = 3,
 }
 
@@ -152,9 +179,11 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
 
     /// <summary>Nomzod qabul qilinadigan holatdami.</summary>
     /// <remarks>
-    /// To'xtatilgan vakansiyaga ham nomzod kiritilmaydi: to'xtatishning
-    /// butun ma'nosi — «hozircha kerak emas». Aks holda to'xtatish faqat
-    /// ro'yxatdagi rangni o'zgartirardi.
+    /// Holat ikkitaga qisqargach bu xossa deyarli tavtologiyaga aylandi,
+    /// lekin ATAYLAB qoldirildi: chaqiruvchi joylar «ochiqmi» deb emas,
+    /// «nomzod qabul qiladimi» deb so'rashi kerak. Ikkovi bugun bir xil,
+    /// ertaga esa (masalan «o'rinlar to'ldi» avtomatik qoidasi qo'shilsa)
+    /// farq qilishi mumkin — va o'shanda tuzatiladigan joy BITTA bo'ladi.
     /// </remarks>
     public bool AcceptsCandidates => Status == VacancyStatus.Open;
 
@@ -193,7 +222,7 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
     /// to'ldirilishidan oldin qayta ko'rib chiqilishi odatiy hol
     /// («сотувчи эмас, катта сотувчи керак экан»). Holat esa bu yerdan
     /// o'zgarmaydi: uning o'z amallari bor
-    /// (<see cref="Pause"/> / <see cref="Resume"/> / <see cref="Close"/>).
+    /// (<see cref="Close"/> / <see cref="Reopen"/>).
     /// </remarks>
     public Result Update(
         Guid vacancyTitleId,
@@ -222,30 +251,32 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
         return Result.Success();
     }
 
-    /// <summary>Vaqtincha to'xtatadi.</summary>
-    public Result Pause(string? reason = null)
-    {
-        if (Status == VacancyStatus.Closed)
-        {
-            return Error.Conflict("vakansiya.yopiq", "Yopilgan vakansiyani to'xtatib bo'lmaydi.");
-        }
-
-        Status = VacancyStatus.Paused;
-        Note = Trim(reason) ?? Note;
-
-        return Result.Success();
-    }
-
-    /// <summary>To'xtatilgan yoki yopilgan vakansiyani qayta ochadi.</summary>
+    /// <summary>Yopilgan vakansiyani qayta ochadi.</summary>
     /// <remarks>
-    /// Yopilgan vakansiyani qayta ochish ATAYLAB mumkin: o'rin to'ldi deb
-    /// yopilgan vakansiyaga olingan odam bir haftada ketib qolishi Bonvi'da
-    /// odatiy hol («91.8 Стажировкадан кетганлар» — 231 yozuv). Bunda yangi
-    /// vakansiya ochish butun nomzodlar tarixini ikkiga bo'lib yuborardi.
+    /// <para>
+    /// <b>Qayta ochish ATAYLAB mumkin va bu asosiy oqim, istisno emas.</b>
+    /// O'rin to'ldi deb yopilgan vakansiyaga olingan odam bir haftada ketib
+    /// qolishi Bonvi'da odatiy hol («91.8 Стажировкадан кетганлар» — 231
+    /// yozuv). Bunda yangi vakansiya ochish butun nomzodlar tarixini ikkiga
+    /// bo'lib yuborardi. Ilgari yopish oynasida «qayta ochish mumkin emas»
+    /// degan yozuv turardi — u YOLG'ON edi: bu metod hech qachon hech
+    /// qanday shart qo'ymagan.
+    /// </para>
+    /// <para>
+    /// <b>NEGA «allaqachon ochiq» xatosi YO'Q</b> (<see cref="Close"/> da
+    /// esa «allaqachon yopiq» bor). Ikkalasi bir xil emas: yopish IZOH va
+    /// SANA yozadi, ya'ni ikkinchi yopish mavjud faktni jimgina qayta
+    /// yozardi va buni to'sish kerak. Qayta ochish esa hech narsa
+    /// yozmaydi — u faqat holatni tiklaydi. Ochiq vakansiyani qayta ochish
+    /// hech narsani buzmaydi, ya'ni bu yerda 409 faqat ikki oynada ochiq
+    /// turgan bir xil ro'yxat haqida xabar berardi.
+    /// </para>
+    /// <para>
     /// <see cref="ClosedAt"/> tozalanadi: vakansiya yana ochiq, ya'ni
     /// «qachon yopilgan» degan savolning javobi yo'q.
+    /// </para>
     /// </remarks>
-    public Result Resume()
+    public Result Reopen()
     {
         Status = VacancyStatus.Open;
         ClosedAt = null;
@@ -254,6 +285,11 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     /// <summary>Vakansiyani yopadi.</summary>
+    /// <remarks>
+    /// Yopish — QAYTARILADIGAN amal (<see cref="Reopen"/>). Nomzodlar,
+    /// ularning bosqichlari va takliflari tegilmaydi: yopish ular haqida
+    /// emas, faqat «bu o'ringa endi yangi odam kiritilmaydi» degani.
+    /// </remarks>
     public Result Close(DateOnly closedAt, string? reason = null)
     {
         if (Status == VacancyStatus.Closed)

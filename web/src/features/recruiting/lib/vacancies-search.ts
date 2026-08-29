@@ -16,12 +16,18 @@ export interface VacanciesSearch {
   /** 1 dan boshlanadi. 1 — standart, manzilda ko'rinmaydi. */
   page?: number
   /**
-   * Holat — server sanoq NOMINI kutadi («Open», «Paused», «Closed»).
+   * Holat — server sanoq NOMINI kutadi («Open», «Closed»).
    *
    * NEGA manzilda ham aynan shu nom: backend hujjatida so'rov satri
    * shunday yozilgan (`?status=Open`) va o'rtada yana bir xarita
    * qo'yish ikkita nomlash tizimi hosil qilardi
    * (`recruiting-api.ts` boshidagi izoh).
+   *
+   * Eski havolalardagi `?status=Paused` shu yerda JIMGINA tashlanadi
+   * (`readStatus`) va ro'yxat filtrsiz ochiladi — serverga yetib borsa
+   * 400 bo'lardi va HR «yuklab bo'lmadi» xatosini ko'rardi. Manzildan
+   * o'qishda hech qachon xato tashlanmaydi degan qoida shu faylning
+   * boshida yozilgan.
    */
   status?: VacancyStatus
   /**

@@ -11,7 +11,7 @@
     "sectionSystem": "Tizim",
     "dashboard": "Bosh sahifa",
     "employees": "Xodimlar",
-    "employment": "Mehnat munosabatlari va buyruqlar",
+    "employment": "Buyruqlar",
     "probation": "Sinov muddati",
     "formerEmployees": "Ishdan ketganlar",
     "lists": "Ro‘yxatlar",
@@ -535,10 +535,8 @@
     "vakansiya.masul_topilmadi": "Mas’ul xodim topilmadi.",
     "vakansiya.orin_soni": "Kerakli odamlar soni 1 dan 100 gacha bo‘lishi kerak.",
     "vakansiya.qabul_qilmaydi": "Vakansiya ochiq emas: unga yangi nomzod kiritib bo‘lmaydi.",
-    "vakansiya.yopiq": "Yopilgan vakansiyani to‘xtatib bo‘lmaydi.",
     "vakansiya.allaqachon_yopiq": "Bu vakansiya allaqachon yopilgan.",
     "vakansiya.yopish_sanasi": "Yopilish sanasi ochilish sanasidan oldin bo‘lishi mumkin emas.",
-    "vakansiya.holat_notogri": "Holat noto‘g‘ri. Ruxsat etilgan qiymatlar: Open, Paused, Closed.",
     "nomzod.topilmadi": "Nomzod topilmadi — u o‘chirilgan bo‘lishi mumkin.",
     "nomzod.vakansiya_yoq": "Vakansiya ko‘rsatilishi shart.",
     "nomzod.tugilgan_sana": "Tug‘ilgan sana noto‘g‘ri: u kelajakda bo‘lishi yoki 100 yildan oshiq bo‘lishi mumkin emas.",
@@ -568,7 +566,9 @@
     "bildirishnoma.kalit_yoq": "Birorta bildirishnoma tanlanmagan.",
     "bildirishnoma.kalit_kop": "Bir vaqtda 200 tadan ortiq bildirishnoma bilan ishlab bo‘lmaydi.",
     "bildirishnoma.foydalanuvchi_aniqlanmadi": "Bildirishnomalar shaxsiy. Qaytadan kiring.",
-    "bildirishnoma.foydalanuvchi_yoq": "Bildirishnoma holati saqlanmadi: foydalanuvchi aniqlanmadi."
+    "bildirishnoma.foydalanuvchi_yoq": "Bildirishnoma holati saqlanmadi: foydalanuvchi aniqlanmadi.",
+    "vakansiya.nomzodlari_bor": "Nomzodi bor vakansiya o‘chirilmaydi — uni yopish mumkin.",
+    "vakansiya.holat_notogri": "Holat noto‘g‘ri. Ruxsat etilgan qiymatlar: Open, Closed."
   },
   "language": {
     "en": "English",
@@ -990,25 +990,20 @@
     "vacancyEmptyText": "Voronka vakansiyadan boshlanadi: har bir nomzod aynan bitta ochiq o‘ringa kiritiladi.",
     "vacancyNotFoundTitle": "Vakansiya topilmadi",
     "vacancyNotFoundText": "Filtrlarni o‘zgartirib ko‘ring.",
-    "vacancyOpenOnlyHint": "Faqat ochiq vakansiyalar: to‘xtatilgan yoki yopilganiga nomzod kiritilmaydi",
     "vacancyStatus": {
       "open": "Ochiq",
-      "paused": "To‘xtatilgan",
       "closed": "Yopilgan"
     },
     "vacancyAction": {
-      "pauseTitle": "Vakansiyani to‘xtatish",
-      "pauseText": "Vakansiya vaqtincha yopiladi: unga yangi nomzod kiritib bo‘lmaydi. Mavjud nomzodlar voronkada qoladi va keyinroq davom ettirish mumkin.",
-      "pauseConfirm": "To‘xtatish",
-      "resumeTitle": "Vakansiyani davom ettirish",
-      "resumeText": "Vakansiya yana ochiladi va unga nomzod kiritish mumkin bo‘ladi.",
-      "resumeConfirm": "Davom ettirish",
       "closeTitle": "Vakansiyani yopish",
-      "closeText": "Ish tugadi: vakansiya yopiladi va hisobotlarda shunday ko‘rinadi. Nomzodlari yo‘qolmaydi. Qayta ochish mumkin emas — kerak bo‘lsa yangi vakansiya ochiladi.",
       "closeConfirm": "Yopish",
       "deleteTitle": "Vakansiyani o‘chirish",
-      "deleteText": "Yozuv ro‘yxatdan olib tashlanadi (bazada qoladi, nomzodlari yo‘qolmaydi). Bu amal FAQAT xato kiritilgan yozuv uchun: ish tugagan vakansiya o‘chirilmaydi, YOPILADI.",
-      "deleteConfirm": "O‘chirish"
+      "deleteConfirm": "O‘chirish",
+      "closeText": "Vakansiya yopiladi: unga yangi nomzod kiritib bo‘lmaydi va u nomzod qo‘shishdagi tanlov ro‘yxatida ko‘rinmaydi. Mavjud nomzodlar, ularning bosqichlari va takliflari o‘zgarishsiz qoladi. Kerak bo‘lsa qayta ochasiz.",
+      "reopenTitle": "Vakansiyani qayta ochish",
+      "reopenText": "Vakansiya yana ochiladi va unga nomzod kiritish mumkin bo‘ladi. Yopilgan sanasi olib tashlanadi.",
+      "reopenConfirm": "Qayta ochish",
+      "deleteText": "Yozuv ro‘yxatdan olib tashlanadi (bazada qoladi). Bu amal FAQAT xato kiritilgan yozuv uchun — imlo xatosi, sinov uchun ochilgani. Nomzodi bor vakansiya o‘chirilmaydi: u tarix va uni yopish kerak."
     },
     "candidateSubtitle": "{{n}} ta nomzod",
     "candidateCreate": "Nomzod qo‘shish",
@@ -1148,7 +1143,8 @@
     "anyVacancyTitle": "Barcha vakansiya nomlari",
     "acceptSectionPlacement": "Ish joyi",
     "acceptPlacementHint": "Nomzod qaysi firmaga, bo‘limga va lavozimga olinadi. Vakansiyada bu ma’lumot yo‘q — qaror aynan shu yerda qabul qilinadi.",
-    "acceptOfferSummary": "{{vacancy}} · {{salary}} · ish boshlash: {{date}}"
+    "acceptOfferSummary": "{{vacancy}} · {{salary}} · ish boshlash: {{date}}",
+    "vacancyOpenHint": "Faqat ochiq vakansiyalar: yopilganiga nomzod kiritilmaydi"
   },
   "notifications": {
     "unreadSummary": "{{n}} ta o‘qilmagan",

@@ -50,28 +50,21 @@ public sealed class VacancyTests
     }
 
     [Fact]
-    public void Toxtatilgan_vakansiya_nomzod_qabul_qilmaydi()
+    public void Yopilgan_vakansiya_nomzod_qabul_qilmaydi()
     {
+        // Ilgari bu yerda AYNI shu tekshiruv «to'xtatilgan» holat uchun
+        // ham takrorlanardi. Ikkala test bir xil natijani tasdiqlardi —
+        // aynan shu sababli holatlardan biri olib tashlandi
+        // (`VacancyStatus` izohi).
         var vakansiya = Vacancy.Open(NomId, Sana).Value;
 
-        var natija = vakansiya.Pause("Бюджет кутилмоқда");
+        var natija = vakansiya.Close(Sana.AddDays(10), "Бюджет кутилмоқда");
 
         natija.IsSuccess.ShouldBeTrue();
-        vakansiya.Status.ShouldBe(VacancyStatus.Paused);
-        vakansiya.AcceptsCandidates.ShouldBeFalse("to'xtatishning ma'nosi — hozircha kerak emas");
-        vakansiya.Note.ShouldBe("Бюджет кутилмоқда");
-    }
-
-    [Fact]
-    public void Yopilgan_vakansiya_toxtatilmaydi()
-    {
-        var vakansiya = Vacancy.Open(NomId, Sana).Value;
-        vakansiya.Close(Sana.AddDays(10));
-
-        var natija = vakansiya.Pause();
-
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("vakansiya.yopiq");
+        vakansiya.Status.ShouldBe(VacancyStatus.Closed);
+        vakansiya.AcceptsCandidates.ShouldBeFalse("yopishning ma'nosi — yangi nomzod kerak emas");
+        vakansiya.Note.ShouldBe("Бюджет кутилмоқда", "sabab izohga yoziladi, alohida holatga emas");
+        vakansiya.ClosedAt.ShouldBe(Sana.AddDays(10));
     }
 
     [Fact]
@@ -102,15 +95,32 @@ public sealed class VacancyTests
     {
         // Bonvi'da odatiy hol: olingan odam bir haftada ketib qoladi
         // («91.8 Стажировкадан кетганлар»), o'rin esa yana bo'sh qoladi.
+        // Yopish oynasidagi «qayta ochish mumkin emas» degan eski yozuv
+        // aynan shu sababli YOLG'ON edi.
         var vakansiya = Vacancy.Open(NomId, Sana).Value;
         vakansiya.Close(Sana.AddDays(10));
 
-        var natija = vakansiya.Resume();
+        var natija = vakansiya.Reopen();
 
         natija.IsSuccess.ShouldBeTrue();
         vakansiya.Status.ShouldBe(VacancyStatus.Open);
         vakansiya.ClosedAt.ShouldBeNull("qayta ochilgan vakansiyada yopilish sanasi bo'lmaydi");
         vakansiya.AcceptsCandidates.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Ochiq_vakansiyani_qayta_ochish_zararsiz()
+    {
+        // Yopishdan farqli: qayta ochish sana ham, izoh ham yozmaydi,
+        // ya'ni takrorlanishi mavjud faktni buzmaydi. Shu sababli
+        // «allaqachon ochiq» xatosi ATAYLAB yo'q (`Vacancy.Reopen` izohi).
+        var vakansiya = Vacancy.Open(NomId, Sana, note: "Шошилинч").Value;
+
+        var natija = vakansiya.Reopen();
+
+        natija.IsSuccess.ShouldBeTrue();
+        vakansiya.Status.ShouldBe(VacancyStatus.Open);
+        vakansiya.Note.ShouldBe("Шошилинч", "qayta ochish izohga tegmaydi");
     }
 
     [Fact]

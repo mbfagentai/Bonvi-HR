@@ -2,10 +2,9 @@ import { getRouteApi } from '@tanstack/react-router'
 import {
   BriefcaseBusiness,
   CircleSlash,
-  PauseCircle,
   Pencil,
-  Play,
   Plus,
+  RotateCcw,
   SearchX,
   Trash2,
 } from 'lucide-react'
@@ -193,10 +192,11 @@ export function VacanciesPage() {
       helper.accessor('status', {
         header: t('recruiting.status'),
         enableSorting: false,
-        // 130px: eng uzun tarjima «To'xtatilgan» / «Приостановлена»
-        // (12 belgi) `text-caption1` da sig'adi, sarlavha esa
-        // `text-caption2` uppercase — undan ham qisqa.
-        meta: { width: '130px' },
+        // 110px: holat ikkitaga qisqargach eng uzun tarjima
+        // «Yopilgan» / «Закрыта» (8 belgi) bo'lib qoldi — ilgari
+        // 130px «To'xtatilgan» / «Приостановлена» (12 belgi) uchun
+        // olingan edi va u yorliq endi yo'q.
+        meta: { width: '110px' },
         cell: ({ row }) => {
           const look = VACANCY_LOOK[row.original.status]
           return (
@@ -280,8 +280,14 @@ export function VacanciesPage() {
         helper.display({
           id: 'actions',
           header: '',
-          // 152px: to'rttagacha `icon-sm` tugma (32px) + oraliqlar.
-          meta: { align: 'end', width: '152px' },
+          /*
+            120px: ko'pi bilan UCHTA `icon-sm` tugma (32px) + oraliqlar.
+            Ilgari 152px edi — to'rtta tugma uchun. Kenglik QAT'IY
+            (eng ko'p tugmaga qarab): qatordan qatorga o'zgarsa,
+            o'chirish tugmasi bor-yo'qligiga qarab butun ustun
+            siljib ketardi va ko'z tayanadigan chekka yo'qolardi.
+          */
+          meta: { align: 'end', width: '120px' },
           cell: ({ row }) => (
             <RowActions
               item={row.original}
@@ -399,17 +405,28 @@ export function VacanciesPage() {
 }
 
 /**
- * Qator amallari.
+ * Qator amallari — ko'pi bilan UCHTA tugma.
  *
  * NEGA ochiluvchi menyu emas: `shared/ui` da menyu primitivi yo'q va
  * uni shu ish uchun qo'shish qoidaga zid. Ikonalar esa amallar
  * SONI KAM bo'lganda menyudan tez: bir bosish, ikki emas.
  *
- * Ro'yxat HOLATGA qarab qisqaradi — «to'xtatish» faqat ochiq
- * vakansiyada, «davom ettirish» faqat to'xtatilganida ko'rinadi.
- * Hammasini doim ko'rsatib, keraksizini o'chirib qo'yish (`disabled`)
- * mumkin edi, lekin u holda HR har safar to'rtta tugmadan qaysi biri
- * ishlashini o'qib chiqishi kerak bo'lardi.
+ * <b>Yopish va qayta ochish — BITTA tugma, ikki tomonga.</b> Ilgari
+ * bu yerda «to'xtatish» ham bor edi va HR to'rtta tugmadan qaysi biri
+ * hozir ishlashini har safar o'qib chiqardi. To'xtatish yopish bilan
+ * ayni natijani bergani uchun olib tashlandi (backend'dagi
+ * `VacancyStatus` izohi), qolgan ikkitasi esa bir-birining teskarisi —
+ * ya'ni ular hech qachon birga kerak bo'lmaydi va bitta joyni
+ * bo'lishadi. Ikona ham, matn ham holatga qarab almashadi.
+ *
+ * <b>«O'chirish» nomzodi bor qatorda UMUMAN chizilmaydi</b> —
+ * o'chirilgan holatda emas, butunlay yo'q. Sabab: o'chirilgan tugma
+ * «nega bosilmaydi?» degan savol tug'diradi, yo'q tugma esa savol
+ * tug'dirmaydi. Nomzodi bor vakansiya — tarix va uni o'chirish
+ * nomzodlarning yozuvini yetim qoldirardi; server buni qat'iy tekshiradi
+ * («vakansiya.nomzodlari_bor»), bu yerdagi shart esa faqat foydalanuvchi
+ * bekorga urinmasin degani. `candidateCount` ro'yxat javobida ALLAQACHON
+ * bor, ya'ni bu shart uchun qo'shimcha so'rov kerak emas.
  *
  * `stopPropagation` majburiy: qatorning O'ZI bosiladi (nomzodlarga
  * o'tadi), tugma esa uning ichida turadi.
@@ -425,40 +442,30 @@ function RowActions({
 }) {
   const { t } = useLocale()
 
+  const closed = item.status === 'Closed'
+
   return (
     <div className="flex items-center justify-end">
-      {item.status === 'Open' && (
-        <ActionButton
-          icon={PauseCircle}
-          label={t('recruiting.vacancyAction.pauseTitle')}
-          onClick={() => onAction('pause')}
-        />
-      )}
-
-      {item.status === 'Paused' && (
-        <ActionButton
-          icon={Play}
-          label={t('recruiting.vacancyAction.resumeTitle')}
-          onClick={() => onAction('resume')}
-        />
-      )}
-
-      {item.status !== 'Closed' && (
-        <ActionButton
-          icon={CircleSlash}
-          label={t('recruiting.vacancyAction.closeTitle')}
-          onClick={() => onAction('close')}
-        />
-      )}
+      <ActionButton
+        icon={closed ? RotateCcw : CircleSlash}
+        label={t(
+          closed
+            ? 'recruiting.vacancyAction.reopenTitle'
+            : 'recruiting.vacancyAction.closeTitle',
+        )}
+        onClick={() => onAction(closed ? 'reopen' : 'close')}
+      />
 
       <ActionButton icon={Pencil} label={t('common.edit')} onClick={onEdit} />
 
-      <ActionButton
-        icon={Trash2}
-        label={t('common.delete')}
-        danger
-        onClick={() => onAction('delete')}
-      />
+      {item.candidateCount === 0 && (
+        <ActionButton
+          icon={Trash2}
+          label={t('common.delete')}
+          danger
+          onClick={() => onAction('delete')}
+        />
+      )}
     </div>
   )
 }

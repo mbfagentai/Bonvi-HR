@@ -7,7 +7,6 @@ import {
   DoorOpen,
   Hourglass,
   Keyboard,
-  PauseCircle,
   Send,
   UserCheck,
   UserRoundX,
@@ -57,9 +56,16 @@ export interface StatusLook {
   icon: LucideIcon
 }
 
+/*
+ * Vakansiya holati — IKKITA yorliq. «To'xtatilgan» (sariq) qatori
+ * olib tashlandi: uning ortida turgan holatning O'ZI yo'q endi
+ * (sababi `recruiting-api.ts` dagi `VACANCY_STATUSES` izohida).
+ *
+ * Yopilgan — KULRANG, qizil emas: yopish muvaffaqiyatsizlik emas va
+ * qaytariladi. Qizil «xato bo'ldi» deb o'qilardi.
+ */
 export const VACANCY_LOOK: Readonly<Record<VacancyStatus, StatusLook>> = {
   Open: { key: 'open', tone: 'success', icon: DoorOpen },
-  Paused: { key: 'paused', tone: 'warning', icon: PauseCircle },
   Closed: { key: 'closed', tone: 'neutral', icon: CircleSlash },
 }
 
