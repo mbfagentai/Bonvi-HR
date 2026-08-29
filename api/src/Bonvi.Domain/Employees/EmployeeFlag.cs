@@ -136,9 +136,6 @@ public sealed class EmployeeFlag : AggregateRoot, IAuditable
     /// <summary>Nima uchun qo'yilgan. Qora ro'yxat uchun majburiy.</summary>
     public string? Reason { get; private set; }
 
-    /// <summary>Mas'ul shaxs (xodim).</summary>
-    public Guid? ResponsibleEmployeeId { get; private set; }
-
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -149,8 +146,7 @@ public sealed class EmployeeFlag : AggregateRoot, IAuditable
         EmployeeFlagType type,
         DateOnly startDate,
         string? reason = null,
-        DateOnly? endDate = null,
-        Guid? responsibleEmployeeId = null)
+        DateOnly? endDate = null)
     {
         var text = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
 
@@ -171,7 +167,6 @@ public sealed class EmployeeFlag : AggregateRoot, IAuditable
         {
             Reason = text,
             EndDate = endDate,
-            ResponsibleEmployeeId = responsibleEmployeeId,
         };
     }
 

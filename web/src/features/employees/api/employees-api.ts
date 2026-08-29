@@ -136,6 +136,17 @@ export interface EmploymentSummary {
   /** Sinov muddati tugash sanasi (`Probation` holatidagilar uchun). */
   probationEndDate: string | null
   /**
+   * Sinov muddati KETISH bilan yakunlanganmi («o'tolmadi» yoki «o'zi ketdi»).
+   *
+   * Bu maydon bitta jimgina nomuvofiqlikni ko'rsatish uchun: sinovni
+   * yakunlash mehnat munosabatini TUGATMAYDI (u alohida buyruq bilan
+   * rasmiylashtiriladi), ya'ni sinovdan yiqilgan odam `/sinov`
+   * ro'yxatidan chiqib ketadi-yu, xodimlar ro'yxatida «Sinovda» bo'lib
+   * turaverardi. Karta endi buni ochiq aytadi va bo'shatish tugmasini
+   * yonida ko'rsatadi.
+   */
+  probationEndedByLeaving: boolean
+  /**
    * OCHIQ sinov muddatining identifikatori — kartadagi «yakunlash» va
    * «uzaytirish» amallari shusiz ishlamaydi.
    *
@@ -244,7 +255,6 @@ export interface EmployeeFlag {
   /** `null` — muddatsiz, hali yopilmagan. */
   endDate: string | null
   reason: string | null
-  responsibleEmployeeName: string | null
   /** Server bugungi sanaga nisbatan hisoblaydi. */
   isActive: boolean
 }
@@ -746,6 +756,24 @@ function openProbationId(probation: Record<string, unknown> | null): string | nu
   return open ? text(probation['id']) : null
 }
 
+/**
+ * Sinov KETISH bilan yakunlanganmi: «o'tolmadi» (3) yoki «o'zi ketdi» (4).
+ *
+ * Enum ikki xil kelishi mumkin — `openProbationId` dagi bilan bir xil
+ * qoida va bir xil sabab.
+ */
+function probationEndedByLeaving(probation: Record<string, unknown> | null): boolean {
+  if (probation === null) return false
+
+  const status = probation['status']
+
+  if (typeof status === 'number') return status === 3 || status === 4
+  if (typeof status !== 'string') return false
+
+  const name = status.toLowerCase()
+  return name === 'failed' || name === 'leftearly'
+}
+
 function toEmployment(raw: unknown): EmploymentSummary {
   const box = (raw ?? {}) as Record<string, unknown>
 
@@ -770,6 +798,7 @@ function toEmployment(raw: unknown): EmploymentSummary {
     terminationReasonName: text(box['terminationReasonName']),
     probationEndDate: probation === null ? null : text(probation['endDate']),
     probationId: openProbationId(probation),
+    probationEndedByLeaving: probationEndedByLeaving(probation),
     needsReview: bool(box['needsReview']),
   }
 }
@@ -874,7 +903,6 @@ function toFlag(raw: unknown): EmployeeFlag {
     startDate: text(box['startDate']) ?? '',
     endDate,
     reason: text(box['reason']),
-    responsibleEmployeeName: text(box['responsibleEmployeeName']),
     // Server hisoblab bermasa — yopilmagan belgi kuchda deb qaraladi
     isActive: typeof box['isActive'] === 'boolean' ? box['isActive'] : endDate === null,
   }

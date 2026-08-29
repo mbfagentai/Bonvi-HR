@@ -187,7 +187,6 @@
     "reason": "Sabab",
     "startDate": "Qo‘yilgan",
     "endDate": "Yopilgan",
-    "responsible": "Mas’ul",
     "close": "Yopish",
     "closeTitle": "Belgini yopish",
     "closedAt": "Yopilgan sana",
@@ -767,6 +766,8 @@
       "interview": "Qayta aloqa — belgi emas, ishdan ketuvchi bilan o‘tkazilgan suhbat: ketish sababi, taassurot va qaytish sharti bilan. Davom etsangiz suhbat formasi ochiladi, yozuv esa «Qayta aloqa» jurnaliga tushadi."
     },
     "markRouteConfirm": "Formani ochish",
+    "markOpenJournal": "Jurnalda ochish",
+    "probationLeftOpen": "Sinov muddati ketish bilan yakunlangan, lekin ishdan bo‘shatish buyrug‘i hali yozilmagan — xodim hamon «sinovda» bo‘lib sanaladi.",
     "flagReplaceTitle": "Kuchdagi belgi almashtiriladi",
     "flagReplaceText": "Xodimda hozir «{{flag}}» belgisi kuchda. Bir vaqtda atigi bitta belgi bo‘ladi: davom etsangiz eskisi yopiladi (o‘chirilmaydi — tarixda qoladi) va yangisi ochiladi.",
     "flagReplaceUnknown": "Xodimda allaqachon kuchdagi belgi bor. Davom etsangiz u yopiladi va yangisi ochiladi.",

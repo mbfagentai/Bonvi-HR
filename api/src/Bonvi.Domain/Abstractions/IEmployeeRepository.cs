@@ -89,9 +89,21 @@ public interface IProbationRepository : IRepository<Probation>
 /// <summary>Xodim belgilari uchun saqlash porti.</summary>
 public interface IEmployeeFlagRepository : IRepository<EmployeeFlag>
 {
+    /// <summary>
+    /// Xodimning BARCHA belgilari — tarix bilan birga.
+    /// </summary>
+    /// <remarks>
+    /// «Faqat kuchdagilar» filtri BU YERDA ATAYLAB yo'q. U bor edi, lekin
+    /// hech kim ishlatmasdi va shu tufayli sezilmay ikkita xato yig'ib
+    /// oldi: kuchdagilikni <c>&gt;=</c> bilan hisoblardi (qolgan hamma
+    /// joyda <c>&gt;</c> — sabab <c>EmployeeFlag.IsInForceAfter</c> da) va
+    /// sanani <c>IClock</c> dan emas, <c>DateTime.UtcNow</c> dan olardi
+    /// (ya'ni testlarda qotirilgan «bugun» ga bo'ysunmasdi). Kartaga
+    /// baribir butun tarix kerak, filtr esa mijozda —
+    /// <c>flagInForce</c>.
+    /// </remarks>
     Task<IReadOnlyList<EmployeeFlag>> GetByEmployeeAsync(
         Guid employeeId,
-        bool onlyActive = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -8,11 +8,9 @@ namespace Bonvi.Application.Safety;
 
 /// <summary>Baxtsiz hodisani yozib qo'yadi. Komissiya xulosasi bu yerda YO'Q — u <see cref="ConcludeIncidentCommand"/> orqali.</summary>
 /// <remarks>
-/// <b>Lavozim bu yerda YO'Q va u so'ralmaydi.</b> Xodimga lavozim
-/// allaqachon biriktirilgan, uni formada ikkinchi marta so'rash ortiqcha
-/// ish edi va xato kiritishning yo'lini ochardi. Yozuvga u baribir
-/// tushadi — hodisa KUNIDAGI munosabatdan o'zi olinadi
-/// (<see cref="IncidentPositionResolver"/>).
+/// <b>Lavozim YO'Q.</b> U xodimga allaqachon biriktirilgan va hodisa
+/// yozuvida takrorlanishi HR dan ortiqcha ish talab qilardi — hech
+/// qayerda esa ko'rsatilmasdi (<c>Incident</c> izohi).
 /// </remarks>
 public sealed record RecordIncidentCommand(
     Guid EmployeeId,
@@ -28,13 +26,6 @@ public sealed record RecordIncidentCommand(
     Guid? ResponsibleEmployeeId = null);
 
 /// <summary>Kiritish xatosini tuzatadi — <c>EmployeeId</c> va komissiya xulosasi O'ZGARMAYDI.</summary>
-/// <remarks>
-/// Lavozim bu yerda ham YO'Q (<see cref="RecordIncidentCommand"/> izohi).
-/// U hodisa SANASIGA bog'liq, sana esa tuzatilishi mumkin — shu sababli
-/// har tuzatishda qaytadan hisoblanadi va eski qiymat ustiga yoziladi.
-/// Aks holda «sanani tuzatdim, lekin lavozim eskiligicha qoldi» degan
-/// jimgina nomuvofiqlik paydo bo'lardi.
-/// </remarks>
 public sealed record UpdateIncidentCommand(
     Guid IncidentId,
     DateOnly IncidentDate,
@@ -57,20 +48,17 @@ public sealed class RecordIncidentCommandHandler
 {
     private readonly IIncidentRepository _incidents;
     private readonly IEmployeeRepository _employees;
-    private readonly IncidentPositionResolver _positions;
     private readonly IncidentMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
 
     public RecordIncidentCommandHandler(
         IIncidentRepository incidents,
         IEmployeeRepository employees,
-        IncidentPositionResolver positions,
         IncidentMapper mapper,
         IUnitOfWork unitOfWork)
     {
         _incidents = incidents;
         _employees = employees;
-        _positions = positions;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
     }
@@ -93,13 +81,6 @@ public sealed class RecordIncidentCommandHandler
             return SafetyErrors.ResponsibleNotFound;
         }
 
-        // Lavozim so'ralmaydi — hodisa kunidagi munosabatdan olinadi.
-        // Ma'lumotnomada bor-yo'qligini tekshirish ham SHART EMAS: qiymat
-        // foydalanuvchidan emas, o'z bazamizdan keladi.
-        var positionId = await _positions
-            .ResolveAsync(command.EmployeeId, command.IncidentDate, cancellationToken)
-            .ConfigureAwait(false);
-
         var recorded = Incident.Record(
             command.EmployeeId,
             command.IncidentDate,
@@ -107,7 +88,6 @@ public sealed class RecordIncidentCommandHandler
             command.Description,
             command.Severity,
             command.Shift,
-            positionId,
             command.Cause,
             command.CorrectiveAction,
             command.MedicalAidProvided,
@@ -130,20 +110,17 @@ public sealed class UpdateIncidentCommandHandler
 {
     private readonly IIncidentRepository _incidents;
     private readonly IEmployeeRepository _employees;
-    private readonly IncidentPositionResolver _positions;
     private readonly IncidentMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateIncidentCommandHandler(
         IIncidentRepository incidents,
         IEmployeeRepository employees,
-        IncidentPositionResolver positions,
         IncidentMapper mapper,
         IUnitOfWork unitOfWork)
     {
         _incidents = incidents;
         _employees = employees;
-        _positions = positions;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
     }
@@ -166,19 +143,12 @@ public sealed class UpdateIncidentCommandHandler
             return SafetyErrors.ResponsibleNotFound;
         }
 
-        // Sana tuzatilgan bo'lishi mumkin — lavozim YANGI sanaga qarab
-        // qaytadan hisoblanadi (`UpdateIncidentCommand` izohi).
-        var positionId = await _positions
-            .ResolveAsync(incident.EmployeeId, command.IncidentDate, cancellationToken)
-            .ConfigureAwait(false);
-
         var updated = incident.Update(
             command.IncidentDate,
             command.Location,
             command.Description,
             command.Severity,
             command.Shift,
-            positionId,
             command.Cause,
             command.CorrectiveAction,
             command.MedicalAidProvided,

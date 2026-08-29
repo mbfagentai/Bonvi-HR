@@ -176,7 +176,66 @@ public sealed class CatalogIndex
     /// yo'q va <c>false</c> bo'lib qoladi.
     /// </para>
     /// </remarks>
-    private static Dictionary<string, CatalogEntry> ReadNames(string fileName)
+    /// <summary>
+    /// Zavod darajasidagi bo'lim nomlari — blok sarlavhasi ulardan aniqroq.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Ro'yxat ma'lumotdan olinadi, kodda sanab o'tilmaydi.</b>
+    /// <c>departments.json</c> da zavod darajasidagi yozuv yagona belgi
+    /// bilan ajralib turadi: u YURIDIK SHAXSGA to'g'ridan-to'g'ri
+    /// biriktirilgan (<c>legalEntity</c> to'ldirilgan). Oddiy bo'lim esa
+    /// firmaga emas, tashkiliy tuzilmaga tegishli va bu maydoni bo'sh.
+    /// </para>
+    /// <para>
+    /// <b>Nega qattiq ro'yxat emas.</b> Ilgari bu yerda to'rtta KOD
+    /// yozilgan edi (<c>metan-zavod</c>, <c>velo-union-zavod</c>,
+    /// <c>rispetto-zavod</c>, <c>kokand-bicycles-zavod</c>).
+    /// Ma'lumotnomalardan <c>code</c> maydoni butunlay olib tashlangach
+    /// (endi kalit — NOM), bu shart HECH QACHON bajarilmay qoldi: ya'ni
+    /// «zavod o'rniga aniqroq blok sarlavhasi olinsin» qoidasi jimgina
+    /// o'chib qolgan va 80 ga yaqin Rispetto xodimi haqiqiy bo'limi
+    /// o'rniga zavod darajasiga biriktirilgan bo'lardi. Ma'lumotdan
+    /// olinadigan ro'yxat bunday jimgina o'chishni takrorlay olmaydi:
+    /// ma'lumotnoma o'zgarsa, shart ham o'zi o'zgaradi.
+    /// </para>
+    /// <para>
+    /// «Скутер заводи» bu ro'yxatga TUSHMAYDI — u yuridik shaxsga
+    /// biriktirilmagan. Bu eski to'rtlikning aynan o'zini beradi va
+    /// amalda ham to'g'ri: uning ostida bironta ham aniqroq bo'lim yo'q,
+    /// ya'ni almashtiradigan narsa ham yo'q.
+    /// </para>
+    /// </remarks>
+    public static IReadOnlySet<string> FactoryRootDepartments { get; } = ReadFactoryRoots();
+
+    private static HashSet<string> ReadFactoryRoots()
+    {
+        var roots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in ReadRows("departments.json"))
+        {
+            if (row.TryGetProperty("name", out var name)
+                && name.ValueKind == JsonValueKind.String
+                && name.GetString() is { Length: > 0 } value
+                && row.TryGetProperty("legalEntity", out var legalEntity)
+                && legalEntity.ValueKind == JsonValueKind.String)
+            {
+                roots.Add(value);
+            }
+        }
+
+        return roots;
+    }
+
+    /// <summary>Urug'lantirish faylining qatorlarini o'qiydi.</summary>
+    /// <remarks>
+    /// Fayl <c>Bonvi.Infrastructure</c> yig'malasiga joylashtirilgan resurs
+    /// bo'lib turadi. Topilmasa BO'SH ro'yxat qaytadi, istisno emas:
+    /// ma'lumotnoma o'qilmagani ETL ni butunlay to'xtatmasligi kerak —
+    /// har bir qiymat baribir «ma'lumotnomada yo'q» bo'lib hisobotga
+    /// tushadi va HR uni ko'radi.
+    /// </remarks>
+    private static IEnumerable<JsonElement> ReadRows(string fileName)
     {
         var assembly = typeof(Bonvi.Infrastructure.Persistence.AppDbContext).Assembly;
         var suffix = "." + fileName;
@@ -185,22 +244,30 @@ public sealed class CatalogIndex
             assembly.GetManifestResourceNames(),
             name => name.EndsWith(suffix, StringComparison.Ordinal));
 
-        var table = new Dictionary<string, CatalogEntry>(StringComparer.OrdinalIgnoreCase);
-
         if (resourceName is null)
         {
-            return table;
+            yield break;
         }
 
         using var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream is null)
         {
-            return table;
+            yield break;
         }
 
         using var document = JsonDocument.Parse(stream);
 
         foreach (var row in document.RootElement.EnumerateArray())
+        {
+            yield return row.Clone();
+        }
+    }
+
+    private static Dictionary<string, CatalogEntry> ReadNames(string fileName)
+    {
+        var table = new Dictionary<string, CatalogEntry>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in ReadRows(fileName))
         {
             if (row.TryGetProperty("name", out var name)
                 && name.ValueKind == JsonValueKind.String

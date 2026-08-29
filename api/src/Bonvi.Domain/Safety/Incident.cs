@@ -33,35 +33,18 @@ public enum IncidentSeverity
 /// aynan 13 ta ustundan iborat: №, Сана, Вақти, Ходимнинг ФИШ, Лавозими,
 /// Ходиса жойи, Ходиса тавсифи, Сабаби, Чора тадбир, Жабрланиш даражаси,
 /// Тиббий ёрдам кўрсатилганми, Комиссия хулосаси, Масъул шахс имзоси.
-/// «№» saqlanmaydi (baza o'zi identifikator beradi); qolgan 12 ustun
-/// quyidagi maydonlarga mos keladi (tibbiy yordam ustuni ikkiga —
-/// bayroq va izohga — ajratilgan, shu bilan 13 ta domen maydoni hosil
-/// bo'ladi).
+/// «№» saqlanmaydi (baza o'zi identifikator beradi), «Лавозими» ham
+/// YO'Q: lavozim xodimga allaqachon biriktirilgan va uni hodisa
+/// yozuvida takrorlash HR dan ortiqcha ish talab qilardi — hech
+/// qayerda esa ko'rsatilmasdi. Qolgan 11 ustun quyidagi maydonlarga
+/// mos keladi (tibbiy yordam ustuni ikkiga — bayroq va izohga —
+/// ajratilgan).
 /// </para>
 /// <para>
 /// <b>Nega xodimga, mehnat munosabatiga emas bog'langan.</b> Voqea
 /// SHAXS bilan bog'liq fakt — <see cref="Incentive"/> bilan bir
 /// xil mantiq: xodim boshqa bo'limga o'tsa yoki ishdan ketib qaytib kelsa
 /// ham, tarix o'zgarmasligi kerak.
-/// </para>
-/// <para>
-/// <b>Lavozim — voqea vaqtidagi HOLAT, joriy emas.</b> <see cref="PositionId"/>
-/// ma'lumotnomaga ishora qiladi, lekin qiymati hodisa sodir bo'lgan
-/// paytdagi lavozimni saqlaydi — xodim keyinroq boshqa lavozimga
-/// o'tkazilsa ham, bu yozuv o'zgarmaydi (<see cref="EmploymentEvent"/>
-/// dagi «From»/«To» qiymatlar bilan bir xil falsafa: tarix qayta
-/// yozilmaydi).
-/// </para>
-/// <para>
-/// <b>Uni HR kiritmaydi.</b> Xodimga lavozim allaqachon biriktirilgan va
-/// uni formada qayta so'rash ortiqcha ish edi. Qiymat hodisa KUNIDAGI
-/// mehnat munosabatidan olinadi (<c>IncidentPositionResolver</c>) —
-/// ya'ni maydon shu yerda saqlanadi, lekin manbasi so'rov emas, bazaning
-/// o'zi. Agregat baribir uni PARAMETR sifatida oladi: qaysi lavozim
-/// ekanini bilish uchun xodimning MUNOSABATLARINI o'qish kerak, bu esa
-/// boshqa agregat — bunday qoidani konstruktordan tekshirib bo'lmaydi
-/// (<c>EmployeeFlag</c> dagi «bitta belgi» qoidasi bilan bir xil
-/// bo'linish).
 /// </para>
 /// <para>
 /// <b>Komиssiya xulosasi kechikishi mumkin.</b> Voqea ro'y berganda HR
@@ -107,9 +90,6 @@ public sealed class Incident : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Smena/vaqt tavsifi — masalan «Тунги смена 02.00–03.00» (Excel: «Вақти»).</summary>
     public string? Shift { get; private set; }
 
-    /// <summary>Hodisa vaqtidagi lavozim — SNAPSHOT (Excel: «Лавозими»).</summary>
-    public Guid? PositionId { get; private set; }
-
     /// <summary>Hodisa joyi — erkin matn, bo'limdan aniqroq (Excel: «Ходиса жойи»).</summary>
     public string Location { get; private set; } = string.Empty;
 
@@ -154,7 +134,6 @@ public sealed class Incident : AggregateRoot, IAuditable, ISoftDeletable
         string? description,
         IncidentSeverity severity,
         string? shift = null,
-        Guid? positionId = null,
         string? cause = null,
         string? correctiveAction = null,
         bool medicalAidProvided = false,
@@ -181,7 +160,6 @@ public sealed class Incident : AggregateRoot, IAuditable, ISoftDeletable
         return new Incident(NewId(), employeeId, incidentDate, trimmedLocation, trimmedDescription, severity)
         {
             Shift = Trim(shift),
-            PositionId = positionId,
             Cause = Trim(cause),
             CorrectiveAction = Trim(correctiveAction),
             MedicalAidProvided = medicalAidProvided,
@@ -206,7 +184,6 @@ public sealed class Incident : AggregateRoot, IAuditable, ISoftDeletable
         string? description,
         IncidentSeverity severity,
         string? shift = null,
-        Guid? positionId = null,
         string? cause = null,
         string? correctiveAction = null,
         bool medicalAidProvided = false,
@@ -230,7 +207,6 @@ public sealed class Incident : AggregateRoot, IAuditable, ISoftDeletable
         Description = trimmedDescription;
         Severity = severity;
         Shift = Trim(shift);
-        PositionId = positionId;
         Cause = Trim(cause);
         CorrectiveAction = Trim(correctiveAction);
         MedicalAidProvided = medicalAidProvided;

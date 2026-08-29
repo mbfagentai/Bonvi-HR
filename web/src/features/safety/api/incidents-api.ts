@@ -30,8 +30,6 @@ export interface Incident {
   photoKey: string | null
   incidentDate: string
   shift: string | null
-  positionId: string | null
-  positionName: string | null
   location: string
   description: string
   cause: string | null
@@ -71,11 +69,9 @@ export interface IncidentFilters {
  * o'zgarmaydi, xuddi `Incentive.Update` dagi kabi (noto'g'ri xodimga
  * yozilgan bo'lsa, bu tuzatish emas, boshqa fakt).
  *
- * `positionId` ham YO'Q, lekin boshqa sababdan: xodimga lavozim
- * allaqachon biriktirilgan va uni formada qayta so'rash ortiqcha ish edi.
- * Server uni hodisa KUNIDAGI mehnat munosabatidan o'zi oladi va
- * javobda `positionId`/`positionName` bo'lib qaytaradi — ya'ni maydon
- * O'QISHDA bor, YOZISHDA yo'q.
+ * Lavozim ham YO'Q va u BUTUNLAY olib tashlangan: xodimga lavozim
+ * allaqachon biriktirilgan, formada qayta so'rash ortiqcha ish edi va
+ * qiymat hech qayerda ko'rsatilmasdi (`Incident` domen izohi).
  */
 export interface IncidentFormRequest {
   incidentDate: string
@@ -144,8 +140,6 @@ function toIncident(raw: unknown): Incident {
     photoKey: text(box['photoKey']),
     incidentDate: text(box['incidentDate']) ?? '',
     shift: text(box['shift']),
-    positionId: text(box['positionId']),
-    positionName: text(box['positionName']),
     location: text(box['location']) ?? '',
     description: text(box['description']) ?? '',
     cause: text(box['cause']),

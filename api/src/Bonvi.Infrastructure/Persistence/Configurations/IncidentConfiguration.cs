@@ -58,15 +58,6 @@ public sealed class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .HasForeignKey(incident => incident.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Voqea vaqtidagi lavozim — SNAPSHOT (entity izohiga qarang).
-        // `Restrict`: lavozim ma'lumotnomadan o'chirilmaydi, faqat
-        // deaktivatsiya qilinadi (`ReferenceEntity`), shu sababli bu yerda
-        // amalda ishlamaydi, lekin niyatni aniq ko'rsatadi.
-        builder.HasOne<Position>()
-            .WithMany()
-            .HasForeignKey(incident => incident.PositionId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         // Mas'ul xodim — «imzo» o'rnini bosadi. `Restrict`: mas'ul xodim
         // keyinroq ishdan ketsa ham, kim javobgar bo'lgani ma'lum qolishi
         // kerak (xuddi `ProbationConfiguration`dagi baholovchi kabi).

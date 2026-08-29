@@ -1,4 +1,3 @@
-using Bonvi.Application.Safety.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Safety;
@@ -9,7 +8,6 @@ internal static class SafetyRegistration
     public static IServiceCollection AddSafety(this IServiceCollection services)
     {
         services.AddScoped<IncidentMapper>();
-        services.AddScoped<IncidentPositionResolver>();
 
         services.AddScoped<RecordIncidentCommandHandler>();
         services.AddScoped<UpdateIncidentCommandHandler>();

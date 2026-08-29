@@ -37,13 +37,6 @@ public sealed class EmployeeFlagConfiguration : IEntityTypeConfiguration<Employe
             .HasForeignKey(flag => flag.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Mas'ul shaxs ham xodim — `Restrict`: u ketsa ham, belgini kim
-        // qo'ygani ma'lum bo'lib qolishi kerak.
-        builder.HasOne<Employee>()
-            .WithMany()
-            .HasForeignKey(flag => flag.ResponsibleEmployeeId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         // ⚠️ HR aniq so'ragan qoida: ishdan bo'shatish va qayta ishga olishda
         // tizim qora ro'yxat va nazoratni tekshirib ogohlantirishi kerak.
         // Bu tekshiruv «shu xodimda shu turdagi belgi bormi» so'rovi —

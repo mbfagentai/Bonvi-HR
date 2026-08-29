@@ -66,7 +66,7 @@ public sealed class GetEmployeeQueryHandler
         }
 
         var flags = await _flags
-            .GetByEmployeeAsync(employee.Id, onlyActive: false, cancellationToken)
+            .GetByEmployeeAsync(employee.Id, cancellationToken)
             .ConfigureAwait(false);
 
         var today = _clock.Today;

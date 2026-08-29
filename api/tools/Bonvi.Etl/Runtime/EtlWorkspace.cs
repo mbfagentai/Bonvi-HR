@@ -66,6 +66,16 @@ public sealed class EtlWorkspace
     private readonly Dictionary<Guid, List<Probation>> _probationsByEmployment = [];
     private readonly HashSet<string> _eventKeys = new(StringComparer.Ordinal);
     private readonly HashSet<string> _flagKeys = new(StringComparer.Ordinal);
+
+    /// <summary>Xodim → uning OCHIQ belgisi (tugash sanasi yo'q).</summary>
+    /// <remarks>
+    /// «Bir vaqtda atigi bitta kuchdagi belgi» qoidasi shu reyestrga
+    /// tayanadi. Bazadan yuklangan belgilar ham, shu yugurishda
+    /// yaratilganlar ham bir xil <see cref="Register(EmployeeFlag)"/>
+    /// dan o'tadi — ya'ni ikki manba orasidagi to'qnashuv ham ko'rinadi,
+    /// faqat Excel varaqlari orasidagisi emas.
+    /// </remarks>
+    private readonly Dictionary<Guid, EmployeeFlag> _openFlags = [];
     private readonly Dictionary<Guid, EmployeeCompetency> _competencies = [];
     private readonly HashSet<string> _incentiveKeys = new(StringComparer.Ordinal);
 
@@ -154,7 +164,26 @@ public sealed class EtlWorkspace
     {
         ArgumentNullException.ThrowIfNull(flag);
         _ = _flagKeys.Add(FlagKey(flag.EmployeeId, flag.Type, flag.StartDate));
+
+        // Yopiq belgi hech kimga xalaqit bermaydi — u tarix.
+        if (flag.EndDate is null)
+        {
+            _openFlags[flag.EmployeeId] = flag;
+        }
+        else
+        {
+            // Belgi shu yugurishda YOPILGAN bo'lishi mumkin (to'qnashuv
+            // yechimi). O'shanda reyestrdan ham chiqarilishi kerak, aks
+            // holda keyingi varaq uni hamon «ochiq» deb ko'rardi.
+            if (_openFlags.TryGetValue(flag.EmployeeId, out var open) && open.Id == flag.Id)
+            {
+                _ = _openFlags.Remove(flag.EmployeeId);
+            }
+        }
     }
+
+    /// <summary>Xodimning ochiq belgisi — bo'lmasa <c>null</c>.</summary>
+    public EmployeeFlag? OpenFlagOf(Guid employeeId) => _openFlags.GetValueOrDefault(employeeId);
 
     /// <summary>Qobiliyat profilini ro'yxatga oladi.</summary>
     /// <remarks>
@@ -771,9 +800,14 @@ public sealed class EtlWorkspace
             or "ходимнинг фамилияси исми шарифи";
     }
 
-    /// <summary>Zavod darajasidagi bo'lim kodlari — blok sarlavhasi ulardan aniqroq.</summary>
-    private static bool IsFactoryRoot(string code)
-        => code is "metan-zavod" or "velo-union-zavod" or "rispetto-zavod" or "kokand-bicycles-zavod";
+    /// <summary>Zavod darajasidagi bo'lim — blok sarlavhasi undan aniqroq.</summary>
+    /// <remarks>
+    /// Ro'yxat ma'lumotnomaning O'ZIDAN olinadi
+    /// (<see cref="CatalogIndex.FactoryRootDepartments"/>): u yerda nima
+    /// uchun qattiq ro'yxat yaramasligi batafsil yozilgan.
+    /// </remarks>
+    private static bool IsFactoryRoot(string name)
+        => CatalogIndex.FactoryRootDepartments.Contains(name);
 
     private static string EventKey(Guid employmentId, EmploymentEventType type, DateOnly date, string? orderNo)
         => string.Create(

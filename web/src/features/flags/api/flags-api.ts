@@ -28,7 +28,6 @@ export interface FlaggedEmployee {
   /** `null` — belgi hali kuchda. */
   endDate: string | null
   reason: string | null
-  responsibleName: string | null
 }
 
 /**
@@ -103,7 +102,6 @@ function toFlagged(raw: unknown): FlaggedEmployee {
     startDate: text(box['startDate']),
     endDate: text(box['endDate']),
     reason: text(box['reason']),
-    responsibleName: text(box['responsibleName']),
   }
 }
 

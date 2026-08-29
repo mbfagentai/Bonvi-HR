@@ -534,7 +534,9 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
         (await belgilar.HasActiveFlagAsync(xodimId, EmployeeFlagType.Monitoring, kun, bekorQilish))
             .ShouldBeFalse("muddati tugagan belgi faol emas");
 
-        (await belgilar.GetByEmployeeAsync(xodimId, onlyActive: false, bekorQilish))
+        // Kartaga HAR DOIM butun tarix keladi — filtr repozitoriydan olib
+        // tashlangan (sabab `IEmployeeFlagRepository.GetByEmployeeAsync` izohida).
+        (await belgilar.GetByEmployeeAsync(xodimId, bekorQilish))
             .Count.ShouldBe(2);
 
         var qoraRoyxatdagilar = await belgilar.ListByTypeAsync(

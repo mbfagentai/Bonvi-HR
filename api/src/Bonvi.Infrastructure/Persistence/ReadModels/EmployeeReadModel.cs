@@ -493,16 +493,10 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         // begona odam qidiruvga tushardi.
         var employees = EmployeeSearchQuery.Matching(_context, search);
 
-        // Mas'ul ham xodim: `employees` jadvaliga IKKINCHI birlashtirish.
-        // Chapdan, chunki mas'ul ko'rsatilmagan bo'lishi mumkin — aks holda
-        // mas'ulsiz belgilar ro'yxatdan jimgina tushib qolardi.
         var rows = await (
                 from flag in flags
                 join employee in employees
                     on flag.EmployeeId equals employee.Id
-                join responsible in _context.Employees
-                    on flag.ResponsibleEmployeeId equals (Guid?)responsible.Id into responsibleMatch
-                from responsible in responsibleMatch.DefaultIfEmpty()
                 orderby flag.StartDate descending,
                     employee.FullName.LastName,
                     employee.FullName.FirstName
@@ -517,11 +511,7 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                     flag.StartDate,
                     flag.EndDate,
                     flag.Reason,
-                    flag.ResponsibleEmployeeId,
                     employee.PhotoKey,
-                    ResponsibleLastName = (string?)responsible!.FullName.LastName,
-                    ResponsibleFirstName = (string?)responsible!.FullName.FirstName,
-                    ResponsibleMiddleName = responsible!.FullName.MiddleName,
                 })
             .AsNoTracking()
             .ToListAsync(cancellationToken)
@@ -537,9 +527,7 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 row.Type,
                 row.StartDate,
                 row.EndDate,
-                row.Reason,
-                row.ResponsibleEmployeeId,
-                Assemble(row.ResponsibleLastName, row.ResponsibleFirstName, row.ResponsibleMiddleName))),
+                row.Reason)),
         ];
     }
 

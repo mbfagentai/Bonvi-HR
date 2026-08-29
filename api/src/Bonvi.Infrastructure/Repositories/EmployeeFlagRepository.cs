@@ -17,29 +17,13 @@ public sealed class EmployeeFlagRepository : Repository<EmployeeFlag>, IEmployee
     public EmployeeFlagRepository(AppDbContext context) : base(context) { }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// <paramref name="onlyActive"/> berilganda faollik BUGUNGI kunga
-    /// tekshiriladi — bu xodim kartasidagi «hozirgi yorliqlar» bo'limi.
-    /// Tarixni ko'rish uchun bayroq berilmaydi.
-    /// </remarks>
     public async Task<IReadOnlyList<EmployeeFlag>> GetByEmployeeAsync(
         Guid employeeId,
-        bool onlyActive = false,
         CancellationToken cancellationToken = default)
     {
-        var query = Set
+        return await Set
             .AsNoTracking()
-            .Where(flag => flag.EmployeeId == employeeId);
-
-        if (onlyActive)
-        {
-            var bugun = DateOnly.FromDateTime(DateTime.UtcNow);
-            query = query.Where(flag =>
-                flag.StartDate <= bugun &&
-                (flag.EndDate == null || flag.EndDate >= bugun));
-        }
-
-        return await query
+            .Where(flag => flag.EmployeeId == employeeId)
             .OrderByDescending(flag => flag.StartDate)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
@@ -61,15 +62,19 @@ export function EmployeeMarksTab({
   employeeId,
   employeeName,
   employeePhotoKey,
+  employeePinfl,
   stage,
 }: {
   employeeId: string
   employeeName: string
   employeePhotoKey: string | null
+  /** JSHSHIR — jurnalga o'tishda eng aniq qidiruv kaliti. */
+  employeePinfl: string | null
   /** Xodim hozir ishlayaptimi — belgi tanlovi shunga qarab tuziladi. */
   stage: EmployeeStage
 }) {
   const { t, date } = useLocale()
+  const navigate = useNavigate()
   const { hasPermission } = useAuth()
 
   const canManage = hasPermission(LISTS_MANAGE)
@@ -96,6 +101,28 @@ export function EmployeeMarksTab({
    * `isLoading` esa faqat HAQIQATDA yuklanayotganda rost bo'ladi.
    */
   const loading = flags.isLoading || incidents.isLoading || interviews.isLoading
+
+  /*
+   * Jurnalga o'tish kaliti: JSHSHIR bo'lsa — U, aks holda F.I.Sh.
+   * Sabab: ikkala jurnalning qidiruvi ham xodimlar ro'yxatidagi bilan bir
+   * xil qoidada ishlaydi (F.I.Sh., JSHSHIR, pasport, telefon), lekin ism
+   * NOYOB EMAS — «Каримов Азиз» ikkita bo'lishi mumkin va o'shanda HR
+   * begona odamning hodisasini ko'rardi. JSHSHIR esa noyob.
+   */
+  const journalKey = employeePinfl ?? employeeName
+
+  /*
+   * Hodisa va suhbat yozuvi TO'LIQ ko'rinishini o'z jurnalida oladi: u
+   * yerda o'nlab maydon, komissiya xulosasi va tahrirlash bor. Ularni
+   * kartaga nusxalash ikkinchi, eskiradigan ekran yasardi — shu sababli
+   * bu yerda faqat havola. Qidiruv bilan ochiladi, chunki yozuvning
+   * o'ziga alohida manzil yo'q.
+   */
+  const openJournal = (to: '/hodisalar' | '/qayta-aloqa') => {
+    // Manzildagi kalit — `q` (loyihaning barcha ro'yxatlarida bir xil,
+    // `validateListSearch`).
+    void navigate({ to, search: { q: journalKey } })
+  }
 
   const rows: MarkRow[] = [
     ...(flags.data ?? []).map((flag) => ({
@@ -132,6 +159,11 @@ export function EmployeeMarksTab({
       // «nima bo'lgan?» degan savolga javob beradi.
       text: incident.description,
       period: date(incident.incidentDate),
+      action: (
+        <Button size="sm" variant="ghost" onClick={() => openJournal('/hodisalar')}>
+          {t('employees.markOpenJournal')}
+        </Button>
+      ),
     })),
 
     ...(interviews.data ?? []).map((interview) => ({
@@ -146,6 +178,11 @@ export function EmployeeMarksTab({
       // emas (`ExitInterview` domen izohi).
       text: interview.reason,
       period: date(interview.interviewDate),
+      action: (
+        <Button size="sm" variant="ghost" onClick={() => openJournal('/qayta-aloqa')}>
+          {t('employees.markOpenJournal')}
+        </Button>
+      ),
     })),
   ].sort((a, b) => b.date.localeCompare(a.date))
 

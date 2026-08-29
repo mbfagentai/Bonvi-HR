@@ -73,8 +73,6 @@ public sealed class ListFlaggedQueryHandler
                     row.StartDate,
                     row.EndDate,
                     row.Reason,
-                    row.ResponsibleEmployeeId,
-                    row.ResponsibleName,
                     row.StartDate <= today && (row.EndDate is null || row.EndDate >= today))),
         ];
 
@@ -82,8 +80,14 @@ public sealed class ListFlaggedQueryHandler
     }
 }
 
-/// <summary>Bitta xodimning barcha belgilari — kartadagi qizil/sariq nishonlar uchun.</summary>
-public sealed record GetEmployeeFlagsQuery(Guid EmployeeId, bool OnlyActive = false);
+/// <summary>Bitta xodimning barcha belgilari — kartadagi nishonlar va tarix uchun.</summary>
+/// <remarks>
+/// Filtr YO'Q: kartaga baribir butun tarix kerak («Belgilar» tabi uni
+/// sanalari bilan ko'rsatadi), nishonlar esa mijozda kesiladi
+/// (<c>flagInForce</c>) — sabab <c>IEmployeeFlagRepository.GetByEmployeeAsync</c>
+/// izohida.
+/// </remarks>
+public sealed record GetEmployeeFlagsQuery(Guid EmployeeId);
 
 public sealed class GetEmployeeFlagsQueryHandler
 {
@@ -116,7 +120,7 @@ public sealed class GetEmployeeFlagsQueryHandler
         }
 
         var flags = await _flags
-            .GetByEmployeeAsync(query.EmployeeId, query.OnlyActive, cancellationToken)
+            .GetByEmployeeAsync(query.EmployeeId, cancellationToken)
             .ConfigureAwait(false);
 
         var today = _clock.Today;

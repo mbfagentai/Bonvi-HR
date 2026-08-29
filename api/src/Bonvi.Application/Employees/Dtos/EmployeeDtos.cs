@@ -118,7 +118,6 @@ public sealed record EmployeeFlagDto(
     DateOnly StartDate,
     DateOnly? EndDate,
     string? Reason,
-    Guid? ResponsibleEmployeeId,
     bool IsActive);
 
 /// <summary>
@@ -171,8 +170,6 @@ public sealed record FlaggedEmployeeDto(
     DateOnly StartDate,
     DateOnly? EndDate,
     string? Reason,
-    Guid? ResponsibleEmployeeId,
-    string? ResponsibleName,
     bool IsActive);
 
 /// <summary>

@@ -663,10 +663,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("reason");
 
-                    b.Property<Guid?>("ResponsibleEmployeeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("responsible_employee_id");
-
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date")
                         .HasColumnName("start_date");
@@ -685,9 +681,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_employee_flags");
-
-                    b.HasIndex("ResponsibleEmployeeId")
-                        .HasDatabaseName("ix_employee_flags_responsible_employee_id");
 
                     b.HasIndex("EmployeeId", "Type")
                         .HasDatabaseName("ix_employee_flags_employee_id_type");
@@ -2315,10 +2308,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("medical_aid_provided");
 
-                    b.Property<Guid?>("PositionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("position_id");
-
                     b.Property<Guid?>("ResponsibleEmployeeId")
                         .HasColumnType("uuid")
                         .HasColumnName("responsible_employee_id");
@@ -2348,9 +2337,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IncidentDate")
                         .HasDatabaseName("ix_incidents_incident_date");
-
-                    b.HasIndex("PositionId")
-                        .HasDatabaseName("ix_incidents_position_id");
 
                     b.HasIndex("ResponsibleEmployeeId")
                         .HasDatabaseName("ix_incidents_responsible_employee_id");
@@ -2393,12 +2379,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_employee_flags_employees_employee_id");
-
-                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("ResponsibleEmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_employee_flags_employees_responsible_employee_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Employees.Employment", b =>
@@ -2616,12 +2596,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_incidents_employees_employee_id");
-
-                    b.HasOne("Bonvi.Domain.Organization.Position", null)
-                        .WithMany()
-                        .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_incidents_positions_position_id");
 
                     b.HasOne("Bonvi.Domain.Employees.Employee", null)
                         .WithMany()

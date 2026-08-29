@@ -20,6 +20,18 @@ public static class EtlAction
 
     /// <summary>Qiymat e'tiborsiz qoldirildi (ma'lumotnomaga tegishli emas).</summary>
     public const string Ignored = "e'tiborsiz qoldirildi";
+
+    /// <summary>
+    /// Yozuv kiritildi, lekin O'ZGARTIRILGAN holda.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RowSkipped"/> dan farqi muhim: qator YO'QOLMADI, ya'ni
+    /// HR uni qaytadan kiritishi shart emas — lekin tizim qoidasiga
+    /// moslash uchun biror maydon o'zgartirildi (masalan belgi yopiq
+    /// holda kiritildi). Bu ikkalasini bir chora bilan belgilash HR ni
+    /// «nima yo'qoldi?» degan savol bilan qoldirardi.
+    /// </remarks>
+    public const string Adjusted = "moslashtirib kiritildi";
 }
 
 /// <summary>Hisobotdagi bitta satr.</summary>

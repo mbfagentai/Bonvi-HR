@@ -90,7 +90,6 @@ public sealed class EmployeeMapper
             flag.StartDate,
             flag.EndDate,
             flag.Reason,
-            flag.ResponsibleEmployeeId,
             flag.IsActiveOn(on));
     }
 

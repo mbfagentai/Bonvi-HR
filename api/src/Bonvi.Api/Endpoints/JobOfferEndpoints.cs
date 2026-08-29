@@ -72,9 +72,21 @@ public sealed record RespondJobOfferRequest(DateOnly? At = null, string? Note = 
 /// <param name="IsPrimary">Asosiy ish joyimi.</param>
 /// <param name="ResponsibleEmployeeId">Biriktirilgan xodim (mentor).</param>
 /// <param name="ProbationDays">Sinov muddati (kun). Bo'sh — lavozimdagi qiymat yoki 90.</param>
+/// <remarks>
+/// <b>Birinchi ikkita maydonda sukut qiymat ATAYLAB yo'q.</b> Ilgari ular
+/// <c>= default</c> bilan yozilgan edi va shu tufayli BUTUN OpenAPI
+/// hujjati yiqilardi: generator <c>Guid.Empty</c> ni sxemadagi sukut
+/// qiymatga aylantira olmay <c>The JSON value could not be converted to
+/// System.Guid</c> bilan tugardi, <c>/openapi/v1.json</c> esa 500
+/// qaytarardi — ya'ni <c>./bonvi gen</c> (OpenAPI → TypeScript) umuman
+/// ishlamasdi. Ikkalasi baribir MAJBURIY (yuqoridagi izohlar), demak
+/// sukut qiymatning ma'nosi ham yo'q edi: <c>System.Text.Json</c> yetishmayotgan
+/// maydonga <c>default(Guid)</c> ni o'zi beradi va tekshiruv
+/// <c>AcceptJobOfferCommandHandler</c> da qoladi.
+/// </remarks>
 public sealed record AcceptJobOfferRequest(
-    Guid LegalEntityId = default,
-    Guid PositionId = default,
+    Guid LegalEntityId,
+    Guid PositionId,
     Guid? DepartmentId = null,
     DateOnly? RespondedAt = null,
     string? ResponseNote = null,
@@ -242,7 +254,12 @@ public static class JobOfferEndpoints
                 AcceptJobOfferCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
-                var body = request ?? new AcceptJobOfferRequest();
+                // Tana umuman yuborilmagan hol: bo'sh identifikatorlar bilan
+                // davom etamiz va tekshiruvni `AcceptJobOfferCommandHandler`
+                // ga qoldiramiz — u ikkalasini ham `Guid.Empty` bo'yicha rad
+                // etadi va ma'noli xato kodini qaytaradi. Bu yerda alohida
+                // 400 yozish o'sha qoidani ikkinchi joyda takrorlash bo'lardi.
+                var body = request ?? new AcceptJobOfferRequest(Guid.Empty, Guid.Empty);
 
                 var natija = await handler
                     .HandleAsync(

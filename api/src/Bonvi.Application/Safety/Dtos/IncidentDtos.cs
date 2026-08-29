@@ -10,8 +10,6 @@ public sealed record IncidentDto(
     string? PhotoKey,
     DateOnly IncidentDate,
     string? Shift,
-    Guid? PositionId,
-    string? PositionName,
     string Location,
     string Description,
     string? Cause,

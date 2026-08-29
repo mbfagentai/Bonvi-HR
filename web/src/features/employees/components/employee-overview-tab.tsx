@@ -426,6 +426,42 @@ function EmploymentCard({
       )}
 
       {/*
+        ⚠️ Yarim qolgan ketish.
+
+        Sinovni yakunlash mehnat munosabatini TUGATMAYDI va bu ataylab:
+        bo'shatish alohida buyruq bilan rasmiylashtiriladi (raqam, sana,
+        sabab) va uni sinov oynasidan taxmin qilib yozib bo'lmaydi. Lekin
+        natijasi «o'tolmadi» yoki «o'zi ketdi» bo'lgan sinovdan keyin
+        munosabat OCHIQ qolsa, odam `/sinov` ro'yxatidan chiqib ketadi-yu,
+        xodimlar ro'yxatida «Sinovda» bo'lib turaverardi — ya'ni ketgan
+        odam ishlayotganlar orasida sanaladi va hisobotga ham shunday
+        tushadi.
+
+        Ilgari bu holat HECH QAYERDA ko'rinmasdi. Endi karta uni ochiq
+        aytadi va keyingi qadamni yonida beradi.
+      */}
+      {!closed && employment.probationEndedByLeaving && (
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 rounded-md border border-ios-red/35 bg-ios-red/10 px-3 py-2.5">
+          <p className="min-w-0 text-footnote font-medium text-ios-red">
+            {t('employees.probationLeftOpen')}
+          </p>
+
+          {canManage && onAction !== null && (
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              className="shrink-0"
+              onClick={() => onAction('terminate', employment)}
+            >
+              <LogOut />
+              {t('employees.terminate')}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/*
         Amallar faqat KUCHDAGI munosabatda ko'rinadi: yopilganini ko'chirib
         ham, unga vazifa berib ham bo'lmaydi — domen ularni rad etadi.
         Tugmani ko'rsatib, keyin xato chiqarish foydalanuvchini aldash

@@ -20,7 +20,6 @@ namespace Bonvi.Api.Endpoints;
 /// <param name="StartDate">Boshlanish sanasi. Bo'sh bo'lsa — bugun.</param>
 /// <param name="EndDate">Tugash sanasi (muddatli belgilar uchun).</param>
 /// <param name="Reason">Sabab. Qora ro'yxat uchun MAJBURIY.</param>
-/// <param name="ResponsibleEmployeeId">Belgini qo'ygan mas'ul.</param>
 /// <param name="Confirm">
 /// Kuchdagi belgini almashtirishga rozilik (so'rov qatoridagi «confirm»
 /// bilan bir xil — bo'shatishdagi naqsh).
@@ -30,7 +29,6 @@ public sealed record RaiseFlagRequest(
     DateOnly? StartDate = null,
     DateOnly? EndDate = null,
     string? Reason = null,
-    Guid? ResponsibleEmployeeId = null,
     bool? Confirm = null);
 
 /// <summary>Belgini yopish so'rovi tanasi.</summary>
@@ -555,12 +553,11 @@ public static class EmployeeEndpoints
 
         group.MapGet("/{id:guid}/flags", async (
                 Guid id,
-                bool? onlyActive,
                 GetEmployeeFlagsQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new GetEmployeeFlagsQuery(id, onlyActive ?? false), cancellationToken)
+                    .HandleAsync(new GetEmployeeFlagsQuery(id), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -568,7 +565,11 @@ public static class EmployeeEndpoints
             .RequireAuthorization(Permissions.ListsView)
             .WithName("GetEmployeeFlags")
             .WithSummary("Xodim — belgilari")
-            .WithDescription("Kartadagi qizil/sariq nishonlar uchun. Sukut bo'yicha tarix bilan.")
+            .WithDescription(
+                "HAR DOIM tarix bilan: kartadagi «Belgilar» tabi yopilgan belgilarni ham sanalari " +
+                "bilan ko'rsatadi, nishonlar esa mijozda kesiladi. «onlyActive» parametri OLIB " +
+                "TASHLANDI — uni hech kim ishlatmasdi va u kuchdagilikni qolgan hamma joydan " +
+                "boshqacha hisoblardi.")
             .Produces<IReadOnlyList<EmployeeFlagDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -587,7 +588,6 @@ public static class EmployeeEndpoints
                             request.StartDate,
                             request.EndDate,
                             request.Reason,
-                            request.ResponsibleEmployeeId,
                             confirm ?? request.Confirm ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);

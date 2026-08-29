@@ -17,7 +17,6 @@ namespace Bonvi.Application.Employees.Flags;
 /// <param name="StartDate">Boshlanish sanasi. Bo'sh — bugun.</param>
 /// <param name="EndDate">Tugash sanasi (muddatli belgilar uchun).</param>
 /// <param name="Reason">Sabab. Qora ro'yxat uchun majburiy.</param>
-/// <param name="ResponsibleEmployeeId">Mas'ul xodim.</param>
 /// <param name="Confirm">
 /// Kuchdagi belgini ALMASHTIRISHGA rozilik.
 /// <para>
@@ -35,7 +34,6 @@ public sealed record RaiseFlagCommand(
     DateOnly? StartDate = null,
     DateOnly? EndDate = null,
     string? Reason = null,
-    Guid? ResponsibleEmployeeId = null,
     bool Confirm = false);
 
 /// <summary>Belgini yopadi (masalan nazorat muddati tugadi).</summary>
@@ -119,8 +117,7 @@ public sealed class RaiseFlagCommandHandler
             command.Type,
             startDate,
             command.Reason,
-            command.EndDate,
-            command.ResponsibleEmployeeId);
+            command.EndDate);
 
         if (raised.IsFailure)
         {

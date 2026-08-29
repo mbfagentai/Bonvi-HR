@@ -154,19 +154,6 @@ export function FlagListPage({
         cell: ({ getValue }) => <DateText value={getValue()} />,
       }),
 
-      helper.accessor('responsibleName', {
-        header: t('flags.responsible'),
-        enableSorting: false,
-        // 170px'da odatiy ikki so'zli ism («Karimova Nilufar» — 17 ta
-        // belgi) chekkasiga tegib turardi. 190px kichik zaxira beradi.
-        meta: { width: '190px', hideOnMobile: true },
-        cell: ({ getValue }) => {
-          const value = getValue()
-          if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-          return <span className="truncate-1 text-[var(--fg-secondary)]">{value}</span>
-        },
-      }),
-
       helper.display({
         id: 'actions',
         header: '',

@@ -187,7 +187,6 @@
     "reason": "Reason",
     "startDate": "Raised",
     "endDate": "Closed",
-    "responsible": "Responsible",
     "close": "Close",
     "closeTitle": "Close flag",
     "closedAt": "Closing date",
@@ -767,6 +766,8 @@
       "interview": "An exit interview is not a mark but a conversation with the leaver: reason, impressions and what would bring them back. Continue to open the interview form — the entry goes into the Exit interviews log."
     },
     "markRouteConfirm": "Open the form",
+    "markOpenJournal": "Open in the log",
+    "probationLeftOpen": "The probation ended with the person leaving, but no termination order has been recorded — they are still counted as “on probation”.",
     "flagReplaceTitle": "The mark in force will be replaced",
     "flagReplaceText": "This employee currently has the «{{flag}}» mark in force. Only one mark is allowed at a time: if you continue, the old one is closed (not deleted — it stays in the history) and the new one is opened.",
     "flagReplaceUnknown": "This employee already has a mark in force. If you continue, it is closed and the new one is opened.",

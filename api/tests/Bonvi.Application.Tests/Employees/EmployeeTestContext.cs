@@ -5,7 +5,6 @@ using Bonvi.Application.Employees.Documents;
 using Bonvi.Application.Employees.Incentives;
 using Bonvi.Application.Feedback;
 using Bonvi.Application.Safety;
-using Bonvi.Application.Safety.Common;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
@@ -126,16 +125,6 @@ internal sealed class EmployeeTestContext
     public ExitInterviewMapper FeedbackMapper => new(Employments, Employees, Names);
 
     public IncidentMapper SafetyMapper => new(Employees, Names);
-
-    /// <summary>
-    /// Hodisa kunidagi lavozimni topuvchi — MOCK emas, haqiqiy sinf.
-    /// </summary>
-    /// <remarks>
-    /// Uning butun mantig'i mehnat munosabatlarini sana bo'yicha
-    /// saralashdan iborat. Mock qilinsa, aynan shu saralash testdan
-    /// tashqarida qolardi — `FlagGuard` va `Names` bilan bir xil qaror.
-    /// </remarks>
-    public IncidentPositionResolver IncidentPositions => new(Employments);
 
     /// <summary>Oklad ko'rish ruxsatini yoqadi/o'chiradi.</summary>
     public void AllowSalary(bool allowed)

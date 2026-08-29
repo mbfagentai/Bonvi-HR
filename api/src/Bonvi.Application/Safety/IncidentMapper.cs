@@ -27,8 +27,6 @@ public sealed class IncidentMapper
             ? await _employees.GetByIdAsync(responsibleId, cancellationToken).ConfigureAwait(false)
             : null;
 
-        var positionName = await _names.PositionAsync(incident.PositionId, cancellationToken).ConfigureAwait(false);
-
         return new IncidentDto(
             incident.Id,
             incident.EmployeeId,
@@ -36,8 +34,6 @@ public sealed class IncidentMapper
             employee?.PhotoKey,
             incident.IncidentDate,
             incident.Shift,
-            incident.PositionId,
-            positionName,
             incident.Location,
             incident.Description,
             incident.Cause,

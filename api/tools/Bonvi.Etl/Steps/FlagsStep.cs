@@ -250,10 +250,158 @@ public sealed class FlagsStep
 
         var flag = raised.Value;
 
+        if (!Reconcile(flag, sheet, row, context, summary))
+        {
+            return;
+        }
+
         _workspace.Register(flag);
         _workspace.Database.Add(flag);
         summary.Created++;
     }
+
+    /// <summary>
+    /// Yangi belgini tizimning ikkita qoidasiga moslaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>1. Bir vaqtda atigi bitta OCHIQ belgi.</b> Excel'da to'rt varaq
+    /// bir-biridan mustaqil to'ldirilgan va bir odam ikkitasida turishi
+    /// mumkin («Вазифа берса бўладиган» + «Назоратга олинган»). Bunday
+    /// yozuvlar tegilmasa, ko'chirishdan keyin karta va ro'yxatlar tizim
+    /// TA'QIQLAYDIGAN holatni ko'rsatib turardi — aynan shu holatni
+    /// <c>CloseExtraActiveFlags</c> migratsiyasi bir marta tozalagan edi
+    /// va ko'chirish uni qaytadan yaratib qo'yardi.
+    /// </para>
+    /// <para>
+    /// Yechim: MUHIMLIK bo'yicha (<see cref="Priority"/>) biri ochiq
+    /// qoladi, ikkinchisi YOPIQ holda kiritiladi. Hech narsa
+    /// tashlanmaydi: «bu odam falon sanada qobiliyatli deb belgilangan»
+    /// degan fakt yopiq yozuvda ham to'liq qoladi.
+    /// </para>
+    /// <para>
+    /// <b>2. Belgi bosqichi.</b> Nazorat va «qobiliyatli» — ishlab turgan
+    /// xodim uchun; rezerv va qora ro'yxat — ketganlar uchun
+    /// (<c>EmployeeFlagStage</c>). Ikki nomuvofiqlik ikki xil hal
+    /// qilinadi va bu ATAYLAB assimetrik:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     <b>Ketgan odamda «nazoratda»</b> — belgi YOPIQ kiritiladi.
+    ///     Ketgan odamni hech kim kuzatmaydi, ya'ni ochiq qoldirilsa
+    ///     «Nazoratdagilar» ro'yxati ishlamaydigan vazifalar bilan
+    ///     to'lardi. Fakt esa yopiq yozuvda saqlanadi.
+    ///   </item>
+    ///   <item>
+    ///     <b>Ishlayotgan odamda «qora ro'yxat»</b> — belgi OCHIQ
+    ///     kiritiladi va faqat hisobotga yoziladi. Bunday nomuvofiqlik
+    ///     deyarli har doim mehnat munosabati ma'lumotining to'liq
+    ///     emasligini bildiradi (odam ketgan, lekin «91.2» da buyruq
+    ///     yo'q). Belgini jimgina yopish qora ro'yxatdagi odamni qayta
+    ///     ishga olish to'sig'ini o'chirib qo'yardi — bu ko'chirishda
+    ///     qilinishi mumkin bo'lgan eng qimmat xato.
+    ///   </item>
+    /// </list>
+    /// </remarks>
+    /// <returns><c>false</c> — belgi umuman kiritilmadi.</returns>
+    private bool Reconcile(
+        EmployeeFlag flag,
+        FlagSheet sheet,
+        ExcelRow row,
+        RowContext context,
+        StepSummary summary)
+    {
+        // ── Bosqich ──
+        if (EmployeeFlagStages.IsForEmployed(flag.Type) && !IsEmployed(flag.EmployeeId))
+        {
+            var closeAt = LastDay(flag.EmployeeId) is { } left && left > flag.StartDate
+                ? left
+                : flag.StartDate;
+
+            _ = flag.Supersede(closeAt, "xodim ishdan ketgan — belgi yopiq holda ko'chirildi");
+
+            _workspace.Report.Add(Name, sheet.Name, row.Number, context.Employee,
+                "belgi ishlab turganlar uchun, xodim esa ketgan — yopiq holda kiritildi",
+                Label(flag.Type), EtlAction.Adjusted);
+        }
+        else if (EmployeeFlagStages.IsForDeparture(flag.Type) && IsEmployed(flag.EmployeeId))
+        {
+            // Ochiq qoldiriladi — faqat ogohlantirish (yuqoridagi izoh).
+            _workspace.Report.Add(Name, sheet.Name, row.Number, context.Employee,
+                "belgi ketganlar uchun, xodim esa ishlayapti — mehnat munosabatini tekshiring",
+                Label(flag.Type), EtlAction.Flagged);
+        }
+
+        // ── Bitta ochiq belgi ──
+        if (flag.EndDate is not null || _workspace.OpenFlagOf(flag.EmployeeId) is not { } open)
+        {
+            return true;
+        }
+
+        var yangiMuhimroq = Priority(flag.Type) > Priority(open.Type);
+        var loser = yangiMuhimroq ? open : flag;
+        var winner = yangiMuhimroq ? flag : open;
+
+        // Yutqazgan belgi G'OLIBNING boshlanish kunida tugaydi, lekin O'Z
+        // boshlanishidan oldin emas — aks holda «boshlanmasdan tugagan»
+        // yozuv paydo bo'lardi (`CloseExtraActiveFlags` dagi `GREATEST`).
+        var closedAt = winner.StartDate < loser.StartDate ? loser.StartDate : winner.StartDate;
+
+        _ = loser.Supersede(closedAt, "bir vaqtda atigi bitta belgi qoidasi");
+
+        // Yutqazgan bazadan kelgan bo'lsa, uning yopilishi ham SAQLANISHI
+        // kerak: `--apply` rejimida obyekt kuzatiladi va `UPDATE` ketadi.
+        // Yangisi bo'lsa — quyida baribir qo'shiladi.
+        _workspace.Register(loser);
+
+        _workspace.Report.Add(Name, sheet.Name, row.Number, context.Employee,
+            $"xodimda allaqachon ochiq «{Label(open.Type)}» belgisi bor — «{Label(loser.Type)}» yopiq holda qoldi",
+            Label(flag.Type), EtlAction.Adjusted);
+
+        return true;
+    }
+
+    /// <summary>Xodim hozir ishlayaptimi.</summary>
+    private bool IsEmployed(Guid employeeId)
+        => _workspace.EmploymentsOf(employeeId)
+            .Any(employment => employment.Status != EmploymentStatus.Terminated);
+
+    /// <summary>Xodim eng oxirgi marta qachon ketgan.</summary>
+    private DateOnly? LastDay(Guid employeeId)
+        => _workspace.EmploymentsOf(employeeId)
+            .Select(employment => employment.TerminationDate)
+            .Where(date => date is not null)
+            .DefaultIfEmpty(null)
+            .Max();
+
+    /// <summary>
+    /// Belgi turining muhimligi — to'qnashuvda kattasi ochiq qoladi.
+    /// </summary>
+    /// <remarks>
+    /// Tartib oqibatning og'irligiga qarab: qora ro'yxat qayta ishga
+    /// olishni BUTUNLAY to'sadi, nazorat ogohlantiradi, «qobiliyatli» va
+    /// «rezerv» esa hech narsani to'smaydi. Ya'ni to'qnashuvda har doim
+    /// himoya kuchliroq bo'lgani qoladi — teskarisi qora ro'yxatdagi
+    /// odamni jimgina «rezerv» ga aylantirib yuborardi.
+    /// </remarks>
+    private static int Priority(EmployeeFlagType type) => type switch
+    {
+        EmployeeFlagType.Blacklist => 4,
+        EmployeeFlagType.Monitoring => 3,
+        EmployeeFlagType.Capable => 2,
+        EmployeeFlagType.Reserve => 1,
+        _ => 0,
+    };
+
+    /// <summary>Hisobotdagi o'qiladigan nom.</summary>
+    private static string Label(EmployeeFlagType type) => type switch
+    {
+        EmployeeFlagType.Blacklist => "qora ro'yxat",
+        EmployeeFlagType.Monitoring => "nazoratda",
+        EmployeeFlagType.Capable => "qobiliyatli",
+        EmployeeFlagType.Reserve => "rezerv",
+        _ => type.ToString(),
+    };
 
     /// <summary>Belgi boshlanish sanasini ustunlar bo'yicha navbat bilan izlaydi.</summary>
     private DateOnly? StartDate(FlagSheet sheet, ExcelRow row, RowContext context)

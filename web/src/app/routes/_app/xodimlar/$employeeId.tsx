@@ -318,6 +318,7 @@ function EmployeeCardPage() {
           employeeId={person.id}
           employeeName={person.fullName}
           employeePhotoKey={person.photoKey}
+          employeePinfl={person.pinfl}
           stage={stage}
         />
       )}

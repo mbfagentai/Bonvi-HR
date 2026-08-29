@@ -425,6 +425,4 @@ public sealed record EmployeeFlagRow(
     EmployeeFlagType Type,
     DateOnly StartDate,
     DateOnly? EndDate,
-    string? Reason,
-    Guid? ResponsibleEmployeeId,
-    string? ResponsibleName);
+    string? Reason);
