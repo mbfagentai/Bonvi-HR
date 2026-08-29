@@ -245,7 +245,11 @@
     "breakdownMore": "{{n}} more",
     "breakdownLess": "Show less",
     "breakdownEmpty": "Nothing to break down yet",
-    "breakdownEmptyText": "Once employees are hired, they will show up here by department and direction."
+    "breakdownEmptyText": "Once employees are hired, they will show up here by department and direction.",
+    "openVacancies": "Open vacancies",
+    "openingsNeeded": "{{n}} openings needed",
+    "applications": "Applications",
+    "newApplications": "{{n}} new in period"
   },
   "catalog": {
     "searchPlaceholder": "Search by name…",

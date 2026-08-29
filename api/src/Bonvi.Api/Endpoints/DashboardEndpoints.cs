@@ -54,6 +54,18 @@ public static class DashboardEndpoints
             //  Ma'lumotnomalar SONI ham shu ruxsat ostida: son yozuvning
             //  o'zi emas, ro'yxat mazmuni ochilmaydi. Ikkita ruxsatni
             //  birdan talab qilish esa sahifani sababsiz sindirardi.
+            //
+            //  ⚠️ REKRUTING sonlari esa boshqa hikoya va ular shu qoidaga
+            //  SIG'MAYDI: ochiq vakansiya va arizalar xodimlar ro'yxatidan
+            //  hosil bo'lmaydi, ularni `employees.view` egasi o'zi sanab
+            //  chiqa olmaydi. Shu sababli endpoint ruxsati kuchaytirilmadi
+            //  (aks holda rekrutingsiz odam bosh sahifani umuman ocholmay
+            //  qolardi), balki JAVOB torayadi: «recruiting» bloki faqat
+            //  `recruiting.view` borlarga qaytadi, boshqalarga `null`.
+            //  Tekshiruvning o'zi `GetDashboardStatsQueryHandler` da —
+            //  bu javob MAZMUNI haqidagi qaror, marshrut haqidagi emas.
+            //  Xuddi shu naqsh oklad (`SalaryAccess`) va bildirishnomalarda
+            //  (`NotificationCollector`) ham qo'llangan.
             // ─────────────────────────────────────────────────────────
             .RequireAuthorization(Permissions.EmployeesView)
             .WithName("GetDashboardStats")
@@ -67,7 +79,11 @@ public static class DashboardEndpoints
                 "emas, bugundan orqaga siljuvchi oyna; javobda uning aniq chegaralari " +
                 "(«from», «to») va TAQQOSLASH uchun oldingi shunday davrning chegaralari " +
                 "va sonlari ham qaytadi. Xodimlar ODAM bo'yicha sanaladi: ikki firmada " +
-                "ishlaydigan o'rindosh bir marta hisoblanadi.")
+                "ishlaydigan o'rindosh bir marta hisoblanadi. «recruiting» bloki — ochiq " +
+                "vakansiyalar soni, ulardagi o'rinlar YIG'INDISI (ikkalasi boshqa raqam: " +
+                "bitta e'londa bir nechta o'rin bo'lishi mumkin), voronkadagi faol arizalar " +
+                "va tanlangan davrda kelgan yangi arizalar — FAQAT «recruiting.view» " +
+                "ruxsati borlarga qaytadi, boshqalarda «null».")
             .Produces<DashboardStatsDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);

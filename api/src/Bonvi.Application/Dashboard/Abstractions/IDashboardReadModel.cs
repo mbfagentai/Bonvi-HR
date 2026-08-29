@@ -55,6 +55,33 @@ public interface IDashboardReadModel
     /// </para>
     /// </remarks>
     Task<DashboardBreakdown> GetBreakdownAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rekruting sonlari — ochiq vakansiyalar va voronkadagi arizalar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega <see cref="GetCountsAsync"/> ga QO'SHILMADI, alohida metod.</b>
+    /// Xodimlar sonlari bosh sahifani ochgan HAR KIMGA qaytadi
+    /// (<c>employees.view</c>), rekruting sonlari esa faqat
+    /// <c>recruiting.view</c> ruxsati borlarga. Ikkalasi bitta chaqiruvda
+    /// bo'lganida ruxsati yo'q foydalanuvchi uchun ham to'rtta ortiqcha
+    /// <c>COUNT</c> bajarilar, natijasi esa handler'da tashlab yuborilardi —
+    /// ya'ni ko'rsatilmaydigan raqam uchun baza ishlar edi. Alohida metod
+    /// bilan ruxsat yo'q bo'lsa so'rov UMUMAN yuborilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Nega oraliq bu yerga ham keladi.</b> To'rtta sondan uchtasi joriy
+    /// holat, bittasi (<see cref="DashboardRecruitingCounts.NewCandidates"/>)
+    /// esa davrga bog'liq — ekrandagi almashtirgich unga ta'sir qiladi.
+    /// Oraliqni ikkinchi marta hisoblash o'rniga xodimlar sonlari bilan
+    /// AYNAN bir xil <see cref="DashboardCountsRange"/> uzatiladi: aks holda
+    /// bitta ekranda ikki xil «oxirgi bir oy» paydo bo'lardi.
+    /// </para>
+    /// </remarks>
+    Task<DashboardRecruitingCounts> GetRecruitingCountsAsync(
+        DashboardCountsRange range,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Bo'lim va yo'nalish bo'yicha taqsimot — ikkalasi bitta javobda.</summary>
@@ -164,3 +191,53 @@ public sealed record DashboardCounts(
     int Positions,
     int Directions,
     int LegalEntities);
+
+/// <summary>
+/// Rekruting sonlari — bosh sahifaning ikkita kartasi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Nega VAKANSIYA soni va O'RIN soni IKKI XIL raqam.</b> Bitta e'londa
+/// bir nechta o'rin bo'lishi mumkin (<c>Vacancy.Openings</c> — zavod sexiga
+/// 20 kishi bitta e'lon bilan qidiriladi). «5 ta ochiq vakansiya» —
+/// nechta e'lon olib borilyapti, ya'ni rekruterning ISH HAJMI; «12 ta o'rin
+/// kerak» — nechta odam yetishmayapti, ya'ni KADR EHTIYOJI. HR uchun bular
+/// butunlay boshqa savollar: birinchisiga qarab ish taqsimlanadi,
+/// ikkinchisiga qarab reja tuziladi. Faqat bittasini ko'rsatish
+/// chalkashtirardi — «5» ni ko'rgan rahbar besh kishi kerak deb o'ylardi.
+/// </para>
+/// <para>
+/// <b>Nega o'rinlardan ishga olinganlar AYIRILMAYDI.</b> Ayirish
+/// «yana nechta odam kerak» degan uchinchi raqamni berardi, lekin u YOLG'ON
+/// bo'lardi: <c>Vacancy</c> izohida yozilganidek, o'rin to'lganda vakansiya
+/// o'zi yopilmaydi va HR bitta o'ringa ikki kishi olishi ham mumkin. Ya'ni
+/// ayirma manfiy chiqishi mumkin edi. Bu yerda REJA turadi, fakt esa
+/// vakansiyalar ro'yxatida (<c>HiredCount</c>).
+/// </para>
+/// <para>
+/// <b>Nega «ariza» emas, <c>Candidate</c>.</b> Interfeysda foydalanuvchining
+/// so'zi ishlatiladi («Arizalar»), kodda esa mavjud atama saqlanadi: odam
+/// vakansiyaga ariza beradi va shundan <c>Candidate</c> yozuvi hosil
+/// bo'ladi — bu bitta narsaning ikkita nomi. Kodda ikkinchi atama kiritilsa,
+/// «ariza qayerda saqlanadi» degan savol javobsiz qolardi.
+/// </para>
+/// </remarks>
+/// <param name="OpenVacancies">Holati <c>Open</c> bo'lgan vakansiyalar soni.</param>
+/// <param name="Openings">
+/// Shu ochiq vakansiyalardagi o'rinlar YIG'INDISI — nechta odam kerakligi.
+/// </param>
+/// <param name="ActiveCandidates">
+/// Voronkadagi FAOL nomzodlar (<c>InProgress</c>) — joriy holat, davrga
+/// bog'liq emas. Rad etilgan, ishga olingan va voz kechganlar bu yerga
+/// kirmaydi: karta «hozir kim bilan ishlanyapti» degan savolga javob beradi.
+/// </param>
+/// <param name="NewCandidates">
+/// TANLANGAN DAVRDA kelgan yangi arizalar — natijasidan qat'i nazar.
+/// Keyin rad etilgani ham sanaladi: bu «qancha oqim keldi» degan savol,
+/// «qancha qoldi» degan emas (u <paramref name="ActiveCandidates"/> da).
+/// </param>
+public sealed record DashboardRecruitingCounts(
+    int OpenVacancies,
+    int Openings,
+    int ActiveCandidates,
+    int NewCandidates);

@@ -245,7 +245,11 @@
     "breakdownMore": "Ещё {{n}}",
     "breakdownLess": "Свернуть",
     "breakdownEmpty": "Нет сотрудников для распределения",
-    "breakdownEmptyText": "После приёма сотрудников они появятся здесь в разрезе подразделений и направлений."
+    "breakdownEmptyText": "После приёма сотрудников они появятся здесь в разрезе подразделений и направлений.",
+    "openVacancies": "Открытые вакансии",
+    "openingsNeeded": "Требуется мест: {{n}}",
+    "applications": "Заявки",
+    "newApplications": "Новых за период: {{n}}"
   },
   "catalog": {
     "searchPlaceholder": "Поиск по названию…",

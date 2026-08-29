@@ -1,6 +1,8 @@
 using System.Linq.Expressions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Recruiting;
+using Bonvi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bonvi.Infrastructure.Persistence.ReadModels;
@@ -170,6 +172,103 @@ public sealed class DashboardReadModel : IDashboardReadModel
             positions,
             directions,
             legalEntities);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <b>Vakansiya soni va o'rinlar yig'indisi — IKKITA alohida so'rov,
+    /// bitta emas.</b> Ularni bitta guruhlangan so'rovga yig'ish mumkin
+    /// edi, lekin natija bir xil narxda va o'qilishi yomonroq bo'lardi:
+    /// ikkala so'rov ham AYNI indeks (holat) bo'yicha ketadi va bittadan
+    /// son qaytaradi. Muhimi — ular ikki xil savolga javob beradi va shu
+    /// ikkilik kodda ham ko'rinib tursin (sabab
+    /// <c>DashboardRecruitingCounts</c> izohida).
+    /// </para>
+    /// <para>
+    /// <b>«Yangi ariza» sanog'i uchun oraliq KUNDAN LAHZAGA aylantiriladi.</b>
+    /// <c>Candidate.CreatedAt</c> — <c>timestamptz</c>, davr chegarasi esa
+    /// kun. Oddiy <c>ToDateTime(...)</c> UTC yarim tunini berardi va oyna
+    /// besh soatga surilib qolardi: kechqurun tushgan ariza ertasi kunga
+    /// tushardi. Shu sababli chegara Toshkent yarim tunidan olinadi —
+    /// <c>NotificationReadModel</c> dagi bilan AYNAN bir xil qoida va
+    /// AYNAN bir xil siljish manbai (<see cref="SystemClock.TashkentOffset"/>):
+    /// ikkinchi nusxa yozilsa, «bugun» ikki ekranda ikki xil chiqardi.
+    /// </para>
+    /// </remarks>
+    public async Task<DashboardRecruitingCounts> GetRecruitingCountsAsync(
+        DashboardCountsRange range,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(range);
+
+        // ── Vakansiyalar ────────────────────────────────────────────
+        //
+        // `Open` — «nomzod qabul qiladigan» holat (`Vacancy.Status`).
+        // Yopilgani sanalmaydi: karta «hozir nima ustida ishlanyapti»
+        // degan savolga javob beradi.
+        var openVacancies = await _context.Vacancies
+            .AsNoTracking()
+            .CountAsync(vacancy => vacancy.Status == VacancyStatus.Open, cancellationToken)
+            .ConfigureAwait(false);
+
+        // O'rinlar yig'indisi ATAYLAB `(int?)` ga keltirilgan: ochiq
+        // vakansiya bo'lmasa SQL `SUM` NULL qaytaradi va uni to'g'ridan-
+        // to'g'ri `int` ga o'qish istisno berardi. `?? 0` bilan «ochiq
+        // vakansiya yo'q» holati o'zining tabiiy javobini oladi — nol.
+        var openings = await _context.Vacancies
+            .AsNoTracking()
+            .Where(vacancy => vacancy.Status == VacancyStatus.Open)
+            .SumAsync(vacancy => (int?)vacancy.Openings, cancellationToken)
+            .ConfigureAwait(false) ?? 0;
+
+        // ── Arizalar (nomzodlar) ────────────────────────────────────
+        //
+        // Faol voronka — joriy holat, davrga bog'liq emas. Rad etilgan,
+        // ishga olingan va voz kechganlar chetda: ular bilan endi
+        // ishlanmaydi.
+        var activeCandidates = await _context.Candidates
+            .AsNoTracking()
+            .CountAsync(
+                candidate => candidate.Status == CandidateStatus.InProgress,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        // Davr chegaralari Toshkent yarim tunida (izohi yuqorida).
+        // `ToUniversalTime()` MAJBURIY: Npgsql `timestamptz` ustuniga faqat
+        // nol siljishli parametr yuboradi, aks holda istisno tashlanadi.
+        // Lahza o'zgarmaydi — faqat ifodalanishi.
+        var from = new DateTimeOffset(
+                range.From.ToDateTime(TimeOnly.MinValue),
+                SystemClock.TashkentOffset)
+            .ToUniversalTime();
+
+        // Yuqori chegara — KEYINGI kunning boshi va u QO'SHILMAYDI (`<`).
+        // Sabab: oraliq kunlarda yopiq (`To` kuni ham kiradi), lekin
+        // vaqt bilan «kunning oxirigacha» ni yozishga urinish klassik
+        // 23:59:59.999 xatosini keltirardi — yarim tundan oldingi
+        // millisekundlarda kelgan ariza sanoqdan tushib qolardi.
+        var toExclusive = new DateTimeOffset(
+                range.To.AddDays(1).ToDateTime(TimeOnly.MinValue),
+                SystemClock.TashkentOffset)
+            .ToUniversalTime();
+
+        // Holat bo'yicha filtr YO'Q va bu ataylab: davrda kelgan ariza
+        // keyin rad etilgan bo'lsa ham, u KELGAN. Aks holda eski davrlar
+        // raqami vaqt o'tishi bilan o'z-o'zidan kamayib borardi va
+        // taqqoslash ma'nosini yo'qotardi.
+        var newCandidates = await _context.Candidates
+            .AsNoTracking()
+            .CountAsync(
+                candidate => candidate.CreatedAt >= from && candidate.CreatedAt < toExclusive,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return new DashboardRecruitingCounts(
+            openVacancies,
+            openings,
+            activeCandidates,
+            newCandidates);
     }
 
     /// <inheritdoc />

@@ -245,7 +245,11 @@
     "breakdownMore": "Yana {{n}} ta",
     "breakdownLess": "Yig‘ish",
     "breakdownEmpty": "Taqsimlanadigan xodim yo‘q",
-    "breakdownEmptyText": "Xodim qabul qilingach, ular shu yerda bo‘lim va yo‘nalish bo‘yicha ko‘rinadi."
+    "breakdownEmptyText": "Xodim qabul qilingach, ular shu yerda bo‘lim va yo‘nalish bo‘yicha ko‘rinadi.",
+    "openVacancies": "Ochiq vakansiyalar",
+    "openingsNeeded": "{{n}} ta o‘rin kerak",
+    "applications": "Arizalar",
+    "newApplications": "Davrda {{n}} ta yangi ariza"
   },
   "catalog": {
     "searchPlaceholder": "Nomi bo‘yicha qidirish…",

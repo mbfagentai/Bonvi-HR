@@ -28,6 +28,36 @@ import { api } from '@/shared/api/http-client'
 export const DASHBOARD_PERIODS = ['day', 'week', 'days15', 'month'] as const
 export type DashboardPeriod = (typeof DASHBOARD_PERIODS)[number]
 
+/**
+ * Rekruting sonlari — bosh sahifadagi ikkita karta.
+ *
+ * ⚠️ Bu blok butunlay YO'Q bo'lishi mumkin (`DashboardStats.recruiting`
+ * `null`): u faqat `recruiting.view` ruxsati borlarga qaytadi. Bosh sahifa
+ * esa `employees.view` bilan ochiladi va bu ikki ruxsat bir odamda birga
+ * bo'lishi shart emas.
+ *
+ * Nol bilan `null` ni ARALASHTIRMASLIK kerak: nol — haqiqiy javob («ochiq
+ * vakansiya yo'q»), `null` esa javobning yo'qligi. Birinchisida karta «0»
+ * ko'rsatadi, ikkinchisida karta umuman chizilmaydi. Xuddi oklad
+ * maskalanishidagi kabi (`salary.view`).
+ */
+export interface DashboardRecruiting {
+  /** Nomzod qabul qiladigan (ochiq) vakansiyalar soni. */
+  openVacancies: number
+  /**
+   * Shu vakansiyalarda jami nechta O'RIN kerakligi.
+   *
+   * `openVacancies` bilan bir xil emas va bu ataylab: bitta e'londa bir
+   * nechta o'rin bo'lishi mumkin (zavod sexiga 20 kishi — bitta e'lon).
+   * «5 vakansiya» — rekruterning ish hajmi, «12 o'rin» — kadr ehtiyoji.
+   */
+  openings: number
+  /** Voronkadagi FAOL arizalar — joriy holat, davrga bog'liq emas. */
+  activeCandidates: number
+  /** Tanlangan davrda kelgan yangi arizalar — natijasidan qat'i nazar. */
+  newCandidates: number
+}
+
 /** Ma'lumotnomalardagi FAOL yozuvlar soni. */
 export interface DashboardCatalogSizes {
   departments: number
@@ -74,6 +104,16 @@ export interface DashboardStats {
   birthdaysToday: number
 
   catalog: DashboardCatalogSizes
+
+  /**
+   * Rekruting sonlari — ruxsat bo'lmasa `null`.
+   *
+   * Tip ATAYLAB `| null`, ixtiyoriy maydon (`?`) emas: server maydonni
+   * doim yuboradi, faqat qiymati `null` bo'ladi. `?` yozilsa «serverda
+   * bunday maydon yo'q» degan boshqa ma'no chiqardi va shartnoma
+   * o'zgarganini bu yerdan o'qib bo'lmasdi.
+   */
+  recruiting: DashboardRecruiting | null
 }
 
 export async function fetchDashboardStats(

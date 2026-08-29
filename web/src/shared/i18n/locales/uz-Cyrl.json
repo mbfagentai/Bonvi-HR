@@ -245,7 +245,11 @@
     "breakdownMore": "Яна {{n}} та",
     "breakdownLess": "Йиғиш",
     "breakdownEmpty": "Тақсимланадиган ходим йўқ",
-    "breakdownEmptyText": "Ходим қабул қилингач, улар шу ерда бўлим ва йўналиш бўйича кўринади."
+    "breakdownEmptyText": "Ходим қабул қилингач, улар шу ерда бўлим ва йўналиш бўйича кўринади.",
+    "openVacancies": "Очиқ вакансиялар",
+    "openingsNeeded": "{{n}} та ўрин керак",
+    "applications": "Аризалар",
+    "newApplications": "Даврда {{n}} та янги ариза"
   },
   "catalog": {
     "searchPlaceholder": "Номи бўйича қидириш…",

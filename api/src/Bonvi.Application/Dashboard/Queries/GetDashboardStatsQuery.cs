@@ -1,7 +1,9 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Dashboard.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Identity;
 
 namespace Bonvi.Application.Dashboard.Queries;
 
@@ -42,16 +44,29 @@ public sealed record GetDashboardStatsQuery(string? Period = null);
 /// (soat 03:00 da «bugun» ikki xil kun bo'lib qolardi); va vaqtni
 /// boshqara olmasdan «oxirgi 15 kun» qoidasini test qilib bo'lmaydi.
 /// </para>
+/// <para>
+/// <b>Ikkinchi mas'uliyat — rekruting sonlarini RUXSATGA qarab olish.</b>
+/// Endpoint <c>employees.view</c> bilan ochiladi, rekruting ma'lumoti esa
+/// <c>recruiting.view</c> talab qiladi. Tekshiruv aynan shu yerda, chunki
+/// bu javob MAZMUNI haqidagi qaror: endpoint darajasida qo'yilsa, butun
+/// bosh sahifa rekruting ruxsatiga bog'lanib qolardi (batafsil sabab
+/// <see cref="DashboardRecruitingDto"/> izohida).
+/// </para>
 /// </remarks>
 public sealed class GetDashboardStatsQueryHandler
 {
     private readonly IDashboardReadModel _dashboard;
     private readonly IClock _clock;
+    private readonly ICurrentUser _currentUser;
 
-    public GetDashboardStatsQueryHandler(IDashboardReadModel dashboard, IClock clock)
+    public GetDashboardStatsQueryHandler(
+        IDashboardReadModel dashboard,
+        IClock clock,
+        ICurrentUser currentUser)
     {
         _dashboard = dashboard;
         _clock = clock;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<DashboardStatsDto>> HandleAsync(
@@ -87,11 +102,28 @@ public sealed class GetDashboardStatsQueryHandler
         var previousTo = from.AddDays(-1);
         var previousFrom = PeriodStart(period, previousTo);
 
+        var range = new DashboardCountsRange(to, from, to, previousFrom, previousTo);
+
         var counts = await _dashboard
-            .GetCountsAsync(
-                new DashboardCountsRange(to, from, to, previousFrom, previousTo),
-                cancellationToken)
+            .GetCountsAsync(range, cancellationToken)
             .ConfigureAwait(false);
+
+        // ── Rekruting: FAQAT ruxsati borga ──────────────────────────
+        //
+        // Ruxsat yo'q bo'lsa so'rov umuman yuborilmaydi va blok `null`
+        // bo'lib qaytadi — ekranda ikkita karta chizilmaydi. Bu oklad
+        // maskalash (`SalaryAccess`) va bildirishnoma filtri
+        // (`NotificationCollector`) bilan bir xil naqsh: sahifaning
+        // O'ZI hamma uchun ochiq qoladi, faqat mazmuni torayadi.
+        //
+        // NEGA nol qaytarilmaydi: nol — «ochiq vakansiya yo'q» degan
+        // haqiqiy javob. Ruxsatsiz odamga nol ko'rsatilsa, u bunga
+        // ishonib «rekruting to'xtabdi» degan xulosaga kelardi.
+        var recruiting = _currentUser.HasPermission(Permissions.RecruitingView)
+            ? await _dashboard
+                .GetRecruitingCountsAsync(range, cancellationToken)
+                .ConfigureAwait(false)
+            : null;
 
         return new DashboardStatsDto(
             period,
@@ -111,7 +143,14 @@ public sealed class GetDashboardStatsQueryHandler
                 counts.Departments,
                 counts.Positions,
                 counts.Directions,
-                counts.LegalEntities));
+                counts.LegalEntities),
+            recruiting is null
+                ? null
+                : new DashboardRecruitingDto(
+                    recruiting.OpenVacancies,
+                    recruiting.Openings,
+                    recruiting.ActiveCandidates,
+                    recruiting.NewCandidates));
     }
 
     /// <summary>

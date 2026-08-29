@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
+  BriefcaseBusiness,
   Building2,
   Cake,
   ChevronRight,
@@ -8,6 +9,7 @@ import {
   Timer,
   TrendingDown,
   TrendingUp,
+  UserPlus,
   Users,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -124,6 +126,73 @@ function Dashboard() {
           delta={growth(data?.left, data?.leftPrevious, t('dashboard.vsPrevious'))}
           hint={range}
         />
+
+        {/*
+          ---------- Rekruting: ochiq vakansiyalar va arizalar ----------
+
+          ⚠️ Bu ikkita karta RUXSATGA bog'liq va shart `data.recruiting`
+          ning o'zi: serverda `recruiting.view` bo'lmasa butun blok `null`
+          bo'lib keladi va bu yerda hech narsa chizilmaydi. Nol
+          ko'rsatilmaydi ham, bo'sh karta ham qolmaydi — «0 ta vakansiya»
+          yolg'on bo'lardi: ruxsati yo'q odam vakansiya YO'Q deb emas,
+          ko'ra OLMAYDI. Bu oklad maskalanishi bilan bir xil qoida
+          (`salary.view` yo'q — maydon umuman ko'rsatilmaydi).
+
+          NEGA ruxsat frontendda («foydalanuvchining ruxsatlari» ro'yxati
+          bo'yicha) tekshirilmaydi: u holda ikki joyda ikki xil qoida
+          bo'lardi va biri o'zgarganda ikkinchisi jimgina eskirardi.
+          Ma'lumot kelgan bo'lsa — ko'rsatiladi; kelmagan bo'lsa —
+          ko'rsatilmaydi. Bitta manba, bitta qoida.
+
+          NEGA alohida qatorda emas, xuddi shu to'rda: bular ham «nechta»
+          degan bir xil savolga javob beradi va StatCard ko'rinishi bir
+          xil. Alohida bo'lim ochish ekranga sarlavha qo'shishni talab
+          qilardi, sarlavha esa kartalar chizilmaganda osilib qolardi.
+        */}
+        {data?.recruiting && (
+          <>
+            <StatCard
+              label={t('dashboard.openVacancies')}
+              value={num(data.recruiting.openVacancies)}
+              icon={BriefcaseBusiness}
+              tone="blue"
+              /*
+                `loading` ATAYLAB berilmagan (qo'shnilaridan farqi):
+                birinchi yuklashda `data` hali yo'q, ya'ni bu kartalar
+                umuman chizilmaydi. Ularga skelet qo'yish «hozir shu yerda
+                karta paydo bo'ladi» degan va'da bo'lardi — ruxsati yo'q
+                odamda esa u va'da bajarilmasdi va skelet o'rnida bo'shliq
+                qolardi.
+
+                Izohda O'RINLAR soni — vakansiya sonidan BOSHQA raqam.
+                Bitta e'londa bir nechta o'rin bo'lishi mumkin (zavod
+                sexiga 20 kishi bitta e'lon bilan qidiriladi). Asosiy
+                raqam — rekruter nechta e'lon olib boryapti; izoh —
+                nechta odam yetishmayapti. Faqat bittasi ko'rsatilsa,
+                «5» ni ko'rgan rahbar besh kishi kerak deb o'ylardi.
+              */
+              hint={t('dashboard.openingsNeeded', {
+                n: num(data.recruiting.openings),
+              })}
+            />
+            <StatCard
+              label={t('dashboard.applications')}
+              value={num(data.recruiting.activeCandidates)}
+              icon={UserPlus}
+              tone="teal"
+              /*
+                Asosiy raqam — voronkada HOZIR turgan arizalar (joriy
+                holat), izoh esa TANLANGAN DAVRDA kelgan yangilari.
+                Ya'ni bu kartada davr almashtirgichi faqat izohga ta'sir
+                qiladi — xuddi «Xodimlar» kartasidagi «Arxivda: 14» kabi
+                naqsh: yuqorida holat, pastda qo'shimcha kesim.
+              */
+              hint={t('dashboard.newApplications', {
+                n: num(data.recruiting.newCandidates),
+              })}
+            />
+          </>
+        )}
       </section>
 
       {/*

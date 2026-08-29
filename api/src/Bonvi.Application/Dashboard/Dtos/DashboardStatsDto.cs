@@ -64,6 +64,10 @@ public enum DashboardPeriod
 /// <param name="LeftPrevious">Oldingi shunday davrda ishdan ketganlar.</param>
 /// <param name="BirthdaysToday">Bugun tug'ilgan kuni bo'lgan ishlayotgan xodimlar.</param>
 /// <param name="Catalog">Ma'lumotnomalardagi faol yozuvlar soni.</param>
+/// <param name="Recruiting">
+/// Rekruting sonlari — <c>recruiting.view</c> ruxsati bo'lmasa <c>null</c>.
+/// Sababi <see cref="DashboardRecruitingDto"/> izohida.
+/// </param>
 public sealed record DashboardStatsDto(
     DashboardPeriod Period,
     DateOnly From,
@@ -78,7 +82,57 @@ public sealed record DashboardStatsDto(
     int HiredPrevious,
     int LeftPrevious,
     int BirthdaysToday,
-    DashboardCatalogSizesDto Catalog);
+    DashboardCatalogSizesDto Catalog,
+    DashboardRecruitingDto? Recruiting);
+
+/// <summary>
+/// Bosh sahifadagi rekruting kartalari: ochiq vakansiyalar va arizalar.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>⚠️ Nega bu blok RUXSATGA bog'langan.</b> Bosh sahifa
+/// <c>employees.view</c> bilan ochiladi (sababi <c>DashboardEndpoints</c>
+/// izohida: bu birinchi ekran, uni ikkita ruxsatga bog'lash sahifani
+/// sababsiz sindirardi). Rekruting ma'lumoti esa <c>recruiting.view</c>
+/// talab qiladi va bu ikki ruxsat bir odamda birga bo'lishi SHART emas.
+/// Shu sababli endpoint ruxsatini kuchaytirish o'rniga JAVOB torayadi:
+/// rekruting soni faqat uni ko'rishga haqli odamga qaytadi.
+/// </para>
+/// <para>
+/// <b>Bu loyihadagi mavjud naqsh, yangi ixtiro emas.</b> Oklad ham AYNAN
+/// shunday maskalanadi (<c>SalaryAccess.Mask</c>: <c>salary.view</c>
+/// yo'q — maydon <c>null</c>), bildirishnomalar ham ruxsatga qarab
+/// filtrlanadi (<c>NotificationCollector</c>). Uchalasining qoidasi bir
+/// xil: bitta ekran har xil huquqli odamga har xil TO'LIQLIKDA ochiladi,
+/// lekin hech kimga xato ko'rsatmaydi.
+/// </para>
+/// <para>
+/// <b>Nega butun blok <c>null</c>, to'rtta alohida <c>int?</c> emas.</b>
+/// Ruxsat to'rtta songa BIRDAN tegishli — ular birga keladi yoki umuman
+/// kelmaydi. To'rtta nullable maydonda mijoz to'rtta tekshiruv yozishi
+/// kerak bo'lardi va bittasini unutish «— o'rin kerak» kabi yarim
+/// chizilgan kartani berardi. Bir blok — bitta tekshiruv, ikkita karta.
+/// </para>
+/// <para>
+/// <b>Nega nol emas, <c>null</c>.</b> Nol — haqiqiy javob («ochiq
+/// vakansiya yo'q»), ruxsatsizlik esa javobning YO'QLIGI. Ekran ikkalasini
+/// farqlashi shart: birinchisida «0» ko'rsatiladi, ikkinchisida karta
+/// umuman chizilmaydi (bu ham <c>SalaryAccess</c> dagi qoida).
+/// </para>
+/// </remarks>
+/// <param name="OpenVacancies">Ochiq (nomzod qabul qiladigan) vakansiyalar soni.</param>
+/// <param name="Openings">
+/// Shu vakansiyalarda jami nechta O'RIN kerakligi. Vakansiya soni bilan bir
+/// xil emas: bitta e'londa bir nechta o'rin bo'lishi mumkin (batafsil sabab
+/// <see cref="Abstractions.DashboardRecruitingCounts"/> izohida).
+/// </param>
+/// <param name="ActiveCandidates">Voronkadagi faol arizalar — joriy holat.</param>
+/// <param name="NewCandidates">Tanlangan davrda kelgan yangi arizalar.</param>
+public sealed record DashboardRecruitingDto(
+    int OpenVacancies,
+    int Openings,
+    int ActiveCandidates,
+    int NewCandidates);
 
 /// <summary>
 /// Ma'lumotnomalardagi <b>faol</b> yozuvlar soni.

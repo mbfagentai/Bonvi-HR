@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,21 @@ public sealed record DashboardCatalogResponse(
     int Positions,
     int Directions,
     int LegalEntities);
+
+/// <summary>Rekruting sonlari (test uchun).</summary>
+/// <remarks>
+/// Butun blok <c>null</c> bo'lishi mumkin: u faqat <c>recruiting.view</c>
+/// ruxsati borlarga qaytadi. Testdagi administrator bu ruxsatga ega, ya'ni
+/// bu yerda blok doim to'lgan keladi; ruxsatsiz holat esa
+/// <c>GetDashboardStatsQueryHandlerTests</c> da tekshiriladi — qoida
+/// handler'da yashaydi va uni tekshirish uchun butun API ni ko'tarish
+/// shart emas.
+/// </remarks>
+public sealed record DashboardRecruitingResponse(
+    int OpenVacancies,
+    int Openings,
+    int ActiveCandidates,
+    int NewCandidates);
 
 /// <summary>Bosh sahifa ko'rsatkichlari (test uchun).</summary>
 /// <remarks>
@@ -36,7 +52,8 @@ public sealed record DashboardStatsResponse(
     int HiredPrevious,
     int LeftPrevious,
     int BirthdaysToday,
-    DashboardCatalogResponse Catalog);
+    DashboardCatalogResponse Catalog,
+    DashboardRecruitingResponse? Recruiting);
 
 /// <summary>
 /// Bosh sahifa ko'rsatkichlarining uchi-uchiga testlari.
@@ -523,8 +540,147 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
     }
 
     // ────────────────────────────────────────────────────────────
+    //  Rekruting
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Vakansiya soni va o'rinlar yig'indisi — IKKI XIL raqam.
+    /// </summary>
+    /// <remarks>
+    /// Bosh sahifadagi «5 vakansiya · 12 o'rin kerak» yozuvining butun
+    /// mazmuni shu. Bitta e'longa bir nechta o'rin qo'yiladi (zavod sexiga
+    /// 20 kishi bitta e'lon bilan qidiriladi), ya'ni bu ikki son bir-biriga
+    /// teng emas. Ular almashib qolsa yoki bittasi ikkinchisidan hosil
+    /// qilinsa, rahbar «5» ni ko'rib besh kishi kerak deb o'ylardi.
+    ///
+    /// Yopilgan vakansiya ikkala sanoqqa ham kirmaydi — u endi nomzod
+    /// qabul qilmaydi va uning o'rinlari ehtiyoj emas.
+    /// </remarks>
+    [Fact]
+    public async Task Ochiq_vakansiyalar_va_orinlar_alohida_sanaladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+
+        using var client = await AdminMijozAsync();
+
+        var oldin = await SonlarAsync(client, "?period=month");
+        oldin.Recruiting.ShouldNotBeNull("administratorda «recruiting.view» bor");
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var nom = VacancyTitle.Create($"{belgi} Сотувчи-консультант").Value;
+
+            // Ikkita OCHIQ e'lon: jami 3 + 4 = 7 o'rin
+            var uchOrin = Vacancy.Open(nom.Id, new DateOnly(2026, 3, 1), openings: 3).Value;
+            var tortOrin = Vacancy.Open(nom.Id, new DateOnly(2026, 4, 1), openings: 4).Value;
+
+            // Yopilgani hech qayerda ko'rinmasligi kerak — o'rinlari ko'p
+            // bo'lsa ham (10), u endi kadr ehtiyoji emas.
+            var yopilgan = Vacancy.Open(nom.Id, new DateOnly(2026, 2, 1), openings: 10).Value;
+            yopilgan.Close(new DateOnly(2026, 5, 1), "Ўрин тўлди").IsSuccess.ShouldBeTrue();
+
+            kontekst.Add(nom);
+            kontekst.AddRange(uchOrin, tortOrin, yopilgan);
+            await kontekst.SaveChangesAsync(bekorQilish);
+        }
+
+        var keyin = await SonlarAsync(client, "?period=month");
+        keyin.Recruiting.ShouldNotBeNull();
+
+        (keyin.Recruiting.OpenVacancies - oldin.Recruiting.OpenVacancies).ShouldBe(2);
+        (keyin.Recruiting.Openings - oldin.Recruiting.Openings).ShouldBe(7);
+    }
+
+    /// <summary>
+    /// Arizalar: asosiy son — JORIY holat, izohdagi son esa DAVRGA bog'liq.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kartaning ikkita raqami ataylab boshqa savolga javob beradi.
+    /// «Faol arizalar» — hozir voronkada kim turibdi (davr almashtirgichi
+    /// unga tegmaydi), «yangi arizalar» — tanlangan oynada qancha oqim
+    /// kelgani.
+    /// </para>
+    /// <para>
+    /// RAD ETILGAN ariza faol emas, lekin KELGAN — ya'ni birinchi sonda
+    /// yo'q, ikkinchisida bor. Aks holda o'tgan davrlarning raqami vaqt
+    /// o'tishi bilan o'z-o'zidan kamayib borardi va taqqoslash ma'nosini
+    /// yo'qotardi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Arizalar_joriy_holat_yangilari_esa_davr_boyicha_sanaladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+
+        using var client = await AdminMijozAsync();
+
+        var oldingiKun = await SonlarAsync(client, "?period=day");
+        var oldingiOnBesh = await SonlarAsync(client, "?period=days15");
+        oldingiKun.Recruiting.ShouldNotBeNull();
+        oldingiOnBesh.Recruiting.ShouldNotBeNull();
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var nom = VacancyTitle.Create($"{belgi} Ҳисобчи").Value;
+            var vakansiya = Vacancy.Open(nom.Id, new DateOnly(2026, 3, 1), openings: 5).Value;
+
+            var birinchi = Nomzod(vakansiya.Id, "Биринчи", belgi);
+            var ikkinchi = Nomzod(vakansiya.Id, "Иккинчи", belgi);
+
+            // Bugun kelgan, keyin rad etilgan: FAOL emas, lekin KELGAN
+            var radEtilgan = Nomzod(vakansiya.Id, "Радэтилган", belgi);
+            radEtilgan.Reject(oldingiKun.To, "Тажрибаси етарли эмас").IsSuccess.ShouldBeTrue();
+
+            // 10 kun oldin kelgan — «1 kun» oynasiga tushmaydi, «15 kun» ga tushadi
+            var eski = Nomzod(vakansiya.Id, "Эски", belgi);
+
+            kontekst.Add(nom);
+            kontekst.Add(vakansiya);
+            kontekst.AddRange(birinchi, ikkinchi, radEtilgan, eski);
+            await kontekst.SaveChangesAsync(bekorQilish);
+
+            // `CreatedAt` ni AuditableInterceptor saqlashda o'zi qo'yadi
+            // (`Added` holatida doim «hozir»). Shu sababli «eski» ariza
+            // ikkinchi saqlashda orqaga suriladi: `Modified` holatida
+            // interceptor `CreatedAt` ga tegmaydi, faqat `UpdatedAt` ni
+            // yozadi. Boshqa yo'l — soatni siljitish — butun API uchun
+            // vaqtni o'zgartirardi va qo'shni testlarni buzardi.
+            eski.CreatedAt = DateTimeOffset.UtcNow.AddDays(-10);
+            await kontekst.SaveChangesAsync(bekorQilish);
+        }
+
+        var kun = await SonlarAsync(client, "?period=day");
+        var onBesh = await SonlarAsync(client, "?period=days15");
+        kun.Recruiting.ShouldNotBeNull();
+        onBesh.Recruiting.ShouldNotBeNull();
+
+        // Faol voronka: uchta (rad etilgani chiqib ketdi) — va bu son
+        // DAVRGA BOG'LIQ EMAS, ikkala so'rovda ham bir xil
+        (kun.Recruiting.ActiveCandidates - oldingiKun.Recruiting.ActiveCandidates).ShouldBe(3);
+        (onBesh.Recruiting.ActiveCandidates - oldingiOnBesh.Recruiting.ActiveCandidates).ShouldBe(3);
+
+        // Bugungi oyna: uchta yangi ariza (rad etilgani ham «kelgan»),
+        // 10 kun oldingisi tashqarida
+        (kun.Recruiting.NewCandidates - oldingiKun.Recruiting.NewCandidates).ShouldBe(3);
+
+        // 15 kunlik oyna: eskisi ham qo'shiladi
+        (onBesh.Recruiting.NewCandidates - oldingiOnBesh.Recruiting.NewCandidates).ShouldBe(4);
+    }
+
+    // ────────────────────────────────────────────────────────────
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
+
+    /// <summary>Voronkadagi yangi ariza (nomzod) — test uchun eng qisqa yo'l.</summary>
+    private static Candidate Nomzod(Guid vakansiyaId, string familiya, string belgi)
+        => Candidate.Register(FullName.Create(familiya, belgi, null).Value, vakansiyaId).Value;
 
     /// <summary>Sinovi yopilgan, ya'ni DOIMIY mehnat munosabati.</summary>
     /// <remarks>
