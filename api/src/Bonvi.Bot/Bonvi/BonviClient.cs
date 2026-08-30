@@ -20,6 +20,11 @@ public sealed record BotSettings(
     string ContactsLatin,
     string ContactsRussian,
     string Location,
+    bool HasLogo,
+    string Instagram,
+    string Telegram,
+    string Facebook,
+    string Website,
     int ConversationTimeoutMinutes);
 
 /// <summary>Tizimda saqlangan Telegram tokeni. Qo'yilmagan bo'lsa <c>null</c>.</summary>
@@ -220,6 +225,77 @@ public sealed partial class BonviClient : IDisposable
                     new Uri("api/settings/bot", UriKind.Relative)),
                 cancellationToken)
             .ConfigureAwait(false);
+
+    /// <summary>
+    /// Kompaniya logotipining baytlarini oladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bayt oqimi <see cref="SendAsync{T}"/> dan o'tmaydi: u javobni
+    /// JSON deb o'qiydi. Shu sababli so'rov shu yerda qo'lda
+    /// yig'iladi — lekin qayta kirish qoidasi bir xil: 401 kelsa bir
+    /// marta qayta kiriladi.
+    /// </para>
+    /// <para>
+    /// Rasm YO'Q bo'lishi odatiy hol (404) va u xato sifatida
+    /// jurnalga yozilmaydi: logotip qo'yilmagan bo'lsa bot
+    /// «Kompaniya haqida» ni faqat matn bilan yuboradi.
+    /// </para>
+    /// </remarks>
+    /// <returns>Rasm baytlari, yo'q bo'lsa <c>null</c>.</returns>
+    public async Task<byte[]?> GetBotLogoAsync(CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                using var message = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/settings/bot/logo", UriKind.Relative));
+
+                if (_accessToken is not null)
+                {
+                    message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                }
+
+                using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
+                {
+                    if (!await SignInAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return null;
+                    }
+
+                    continue;
+                }
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    LogApiError((int)response.StatusCode, "logotip olinmadi");
+                    return null;
+                }
+
+                return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LogRequestFailed(ex);
+                return null;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Telegram tokenini tizimdan oladi.

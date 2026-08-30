@@ -1,7 +1,11 @@
+using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
+using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Settings;
 using Bonvi.Application.Settings.Dtos;
 using Bonvi.Domain.Identity;
+
+using Microsoft.AspNetCore.Mvc;
 
 namespace Bonvi.Api.Endpoints;
 
@@ -46,6 +50,15 @@ public sealed record UpdateSettingsRequest(IReadOnlyList<SystemSettingUpdate>? I
 /// </remarks>
 public static class SettingsEndpoints
 {
+    /// <summary>«multipart» so'rovining eng katta hajmi.</summary>
+    /// <remarks>
+    /// Faylning o'zi 10 MB bilan cheklangan (<see cref="PhotoLimits.MaxBytes"/>),
+    /// lekin <c>multipart/form-data</c> tanasiga chegara satrlari va maydon
+    /// sarlavhalari ham qo'shiladi. 64 KB zaxira aynan shu «konvert» uchun
+    /// (<c>AuthEndpoints</c> dagi bilan bir xil son).
+    /// </remarks>
+    private const long MaxLogoRequestBytes = PhotoLimits.MaxBytes + (64 * 1024);
+
     public static IEndpointRouteBuilder MapSettingsEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -207,6 +220,111 @@ public static class SettingsEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        MapBotLogo(group);
+
         return app;
+    }
+
+    /// <summary>
+    /// Kompaniya logotipi — botning «Kompaniya haqida» xabaridagi rasm.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega uchta alohida endpoint, umumiy sozlamalar so'roviga
+    /// qo'shilmadi.</b> Qolgan sozlamalar JSON maydonlari, bu esa
+    /// fayl: u «multipart/form-data» bilan keladi, hajmi marshrut
+    /// darajasida cheklanadi va javobda BAYT qaytadi, JSON emas.
+    /// Ikkalasini bitta so'rovga tiqish har ikkisining ham shaklini
+    /// buzardi.
+    /// </para>
+    /// <para>
+    /// <b>O'qish ruxsati <c>recruiting.view</c></b> — «/bot» dagi bilan
+    /// AYNAN bir xil, chunki logotipni o'sha bot o'qiydi. Yozish esa
+    /// <c>settings.manage</c>: rasmni almashtirish butun tizimga
+    /// tegadi.
+    /// </para>
+    /// </remarks>
+    private static void MapBotLogo(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/bot/logo", async (
+                HttpContext context,
+                GetBotLogoQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetBotLogoQuery(PhotoHttp.ReadKnownVersion(context.Request)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // JSON emas, BAYT qaytariladi — `ToHttpResult()` faqat
+                // xato yo'lida (`MapMyPhoto` dagi bilan bir xil sabab).
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : PhotoHttp.Write(context, natija.Value);
+            })
+            .RequireAuthorization(Permissions.RecruitingView)
+            .WithName("GetBotLogo")
+            .WithSummary("Bot logotipi")
+            .WithDescription(
+                "Kompaniya logotipi (image/jpeg). «ETag» saqlash kalitidan olingan barqaror " +
+                "xesh; «If-None-Match» mos kelsa 304 qaytadi. Logotip qo'yilmagan bo'lsa: " +
+                "«bot.logo_yoq» (404) — bu XATO EMAS, bot bunday holatda «Kompaniya haqida» ni " +
+                "faqat matn bilan yuboradi.")
+            .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
+            .Produces(StatusCodes.Status304NotModified)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/bot/logo", async (
+                IFormFile file,
+                UploadBotLogoCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                await using var content = file.OpenReadStream();
+
+                var natija = await handler
+                    .HandleAsync(
+                        new UploadBotLogoCommand(content, file.ContentType, file.Length),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.SettingsManage)
+
+            // CSRF himoyasi ortiqcha: sessiya JWT sarlavhasida yuradi
+            // (`MapMyPhoto` dagi bilan bir xil sabab).
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(MaxLogoRequestBytes))
+            .WithName("UploadBotLogo")
+            .WithSummary("Bot logotipini yuklash")
+            .WithDescription(
+                "«multipart/form-data», maydon nomi «file». JPEG, PNG yoki WebP, eng ko'pi 10 MB. " +
+                "Server rasmni markazdan kvadrat qirqib 512×512 JPEG qiladi va eskisini o'chiradi. " +
+                "Xatolar: «bot.logo_katta», «bot.logo_turi», «bot.logo_yaroqsiz» (hammasi 400).")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<BotLogoDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapDelete("/bot/logo", async (
+                DeleteBotLogoCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler.HandleAsync(cancellationToken).ConfigureAwait(false);
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.SettingsManage)
+            .WithName("DeleteBotLogo")
+            .WithSummary("Bot logotipini o'chirish")
+            .WithDescription(
+                "Fayl ham o'chadi. Amal IDEMPOTENT: logotip allaqachon yo'q bo'lsa ham 204 " +
+                "qaytadi — so'rovning maqsadi logotip qolmasligi, u esa bajarilgan.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 }

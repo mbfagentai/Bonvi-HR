@@ -49,6 +49,25 @@ public enum SystemSettingKind
     /// </para>
     /// </remarks>
     Secret = 3,
+
+    /// <summary>
+    /// RASM — qiymat fayl kaliti, uni foydalanuvchi YOZMAYDI.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Boshqa turlardan farqi shunda: qiymatni umumiy «sozlamalarni
+    /// saqlash» so'rovi O'ZGARTIRA OLMAYDI. Rasm alohida yo'l bilan
+    /// yuklanadi (<c>POST /api/settings/bot/logo</c>) — u yerda hajm,
+    /// tur va mazmun tekshiriladi, eski fayl o'chiriladi va faqat
+    /// shundan keyin kalit yoziladi.
+    /// </para>
+    /// <para>
+    /// Ro'yxatda esa u BOR: ekran rasmni ko'rsatishi va uni almashtirish
+    /// tugmasini chizishi kerak, ya'ni «bunday sozlama bor» degan bilim
+    /// baribir kerak.
+    /// </para>
+    /// </remarks>
+    Photo = 4,
 }
 
 /// <summary>
@@ -118,6 +137,14 @@ public sealed record SystemSettingDefinition(
     /// </remarks>
     public Result<string> Normalize(string? value)
     {
+        if (Kind == SystemSettingKind.Photo)
+        {
+            // Rasm kaliti — serverning ichki qiymati. Uni qo'lda yozish
+            // bazadagi kalitni mavjud bo'lmagan faylga qaratib qo'yardi
+            // va bot rasm o'rniga hech narsa yubormasdi.
+            return SystemSettingErrors.NotEditable;
+        }
+
         if (Kind == SystemSettingKind.Secret)
         {
             /*
@@ -290,6 +317,39 @@ public static class SystemSettingKeys
     /// <summary>Kontaktlar va manzil — rus tilida.</summary>
     public const string BotContactsRussian = "bot.contacts.russian";
 
+    /// <summary>Kompaniya logotipi — fayl kaliti.</summary>
+    /// <remarks>
+    /// Qiymatni ekrandagi yuklash tugmasi yozadi, qo'lda emas
+    /// (<see cref="SystemSettingKind.Photo"/>). Bo'sh bo'lsa bot
+    /// «Kompaniya haqida» ni faqat matn bilan yuboradi.
+    /// </remarks>
+    public const string BotLogo = "bot.logo";
+
+    /// <summary>Instagram sahifasi — «Kompaniya haqida» ostidagi tugma.</summary>
+    /// <remarks>
+    /// <para>
+    /// To'rtta havola ALOHIDA sozlama, bitta ro'yxat emas. Sabab: har
+    /// birining tugmasida o'z nomi va o'z ikonasi turadi, ya'ni bot
+    /// qaysi havola qaysi tarmoqniki ekanini BILISHI kerak. Bitta
+    /// matnga yig'ilgan ro'yxatda bu bilim yo'qolardi va tugmalar
+    /// «Havola 1», «Havola 2» bo'lib qolardi.
+    /// </para>
+    /// <para>
+    /// Bo'sh bo'lsa tugma umuman chizilmaydi — menyudagi bilan bir xil
+    /// qoida.
+    /// </para>
+    /// </remarks>
+    public const string BotSocialInstagram = "bot.social.instagram";
+
+    /// <summary>Telegram kanali — «Kompaniya haqida» ostidagi tugma.</summary>
+    public const string BotSocialTelegram = "bot.social.telegram";
+
+    /// <summary>Facebook sahifasi — «Kompaniya haqida» ostidagi tugma.</summary>
+    public const string BotSocialFacebook = "bot.social.facebook";
+
+    /// <summary>Kompaniya sayti — «Kompaniya haqida» ostidagi tugma.</summary>
+    public const string BotSocialWebsite = "bot.social.website";
+
     /// <summary>Bosh ofis xaritadagi nuqtasi — «kenglik,uzunlik».</summary>
     /// <remarks>
     /// <para>
@@ -373,6 +433,37 @@ public static class SystemSettingKeys
     /// <summary>Xarita nuqtasi matnining eng katta uzunligi.</summary>
     public const int MaxLocationLength = 64;
 
+    /// <summary>
+    /// Ijtimoiy tarmoq havolasining shakli.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Faqat <c>https</c>.</b> Telegram tugmaga qo'yilgan havolani
+    /// TEKSHIRADI va noto'g'risida butun xabarni rad etadi — ya'ni
+    /// bitta noto'g'ri havola «Kompaniya haqida» ni butunlay
+    /// ishlamaydigan qilib qo'yardi. Bundan tashqari <c>http</c>
+    /// havolasi nomzodning brauzerida ogohlantirish chiqaradi.
+    /// </para>
+    /// <para>
+    /// Ichki tuzilishi tekshirilmaydi: havolalar uzun va so'rov
+    /// parametrlari bilan keladi (Facebook profil havolasi bunga
+    /// yaqqol misol) va ularni naqsh bilan qamrab olishga urinish
+    /// haqiqiy havolani rad etib qo'yardi.
+    /// </para>
+    /// </remarks>
+    public const string UrlPattern = @"^https://\S{3,}$";
+
+    /// <summary>Havola matnining eng katta uzunligi.</summary>
+    /// <remarks>
+    /// Telegram tugmasidagi havola uchun chegara e'lon qilmagan, lekin
+    /// 2048 — brauzerlarning amaldagi chegarasi va undan uzun havola
+    /// baribir hech qayerda ishlamasdi.
+    /// </remarks>
+    public const int MaxUrlLength = 2048;
+
+    /// <summary>Fayl kalitining eng katta uzunligi.</summary>
+    public const int MaxKeyLength = 200;
+
     /// <summary>Matnli sozlamaning eng katta uzunligi.</summary>
     /// <remarks>
     /// Telegram bitta xabarda 4096 belgigacha ruxsat beradi va bot matni
@@ -427,6 +518,11 @@ public static class SystemSettingKeys
             string.Empty,
             MaxLength: MaxLocationLength,
             Pattern: LocationPattern),
+        new(BotLogo, SystemSettingKind.Photo, string.Empty, MaxLength: MaxKeyLength),
+        new(BotSocialInstagram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
+        new(BotSocialTelegram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
+        new(BotSocialFacebook, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
+        new(BotSocialWebsite, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
         new(
             BotConversationTimeoutMinutes,
             SystemSettingKind.Number,

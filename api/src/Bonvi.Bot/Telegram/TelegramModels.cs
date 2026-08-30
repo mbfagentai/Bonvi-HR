@@ -55,4 +55,27 @@ public sealed record TelegramCallbackQuery(
     [property: JsonPropertyName("message")] TelegramMessage? Message);
 
 /// <summary>Suhbat oynasi ostidagi tugmalar (inline keyboard).</summary>
-public sealed record InlineButton(string Text, string CallbackData);
+/// <summary>
+/// Xabar ostidagi tugma — yo AMAL, yo HAVOLA.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Ikkalasi bitta turda: Telegram uchun ham ular bitta ro'yxatning
+/// elementlari va faqat maydoni bilan farq qiladi
+/// (<c>callback_data</c> yoki <c>url</c>). Ikkita alohida tur qilish
+/// tugmalar qatorini «u yoki bu» ro'yxatiga aylantirardi, holbuki
+/// amaliy farq bitta maydonda.
+/// </para>
+/// <para>
+/// Havolali tugma bosilganda botga HECH NARSA kelmaydi — Telegram uni
+/// o'zi ochadi. Shu sababli <see cref="CallbackData"/> unda bo'sh.
+/// </para>
+/// </remarks>
+/// <param name="Text">Tugmadagi yozuv.</param>
+/// <param name="CallbackData">Bosilganda botga keladigan belgi.</param>
+/// <param name="Url">Ochiladigan havola. Berilsa, tugma HAVOLA bo'ladi.</param>
+public sealed record InlineButton(string Text, string? CallbackData = null, string? Url = null)
+{
+    /// <summary>Havolali tugma.</summary>
+    public static InlineButton Link(string text, string url) => new(text, Url: url);
+}

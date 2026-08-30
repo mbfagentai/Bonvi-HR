@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -165,14 +167,7 @@ public sealed partial class TelegramClient
         }
         else if (buttons is { Count: > 0 })
         {
-            markup = new
-            {
-                inline_keyboard = buttons
-                    .Select(row => row
-                        .Select(button => new { text = button.Text, callback_data = button.CallbackData })
-                        .ToArray())
-                    .ToArray(),
-            };
+            markup = InlineMarkup(buttons);
         }
         else if (menu is { Count: > 0 })
         {
@@ -228,6 +223,150 @@ public sealed partial class TelegramClient
 
         var result = await CallAsync<JsonElement>("sendMessage", body, cancellationToken).ConfigureAwait(false);
         return result.ValueKind == JsonValueKind.Object;
+    }
+
+    /// <summary>
+    /// Xabar ostidagi tugmalar uchun <c>reply_markup</c> yasaydi.
+    /// </summary>
+    /// <remarks>
+    /// Havolali tugmada <c>url</c>, qolganida <c>callback_data</c>
+    /// yuboriladi. Telegram ikkalasini BIRGA qabul qilmaydi va
+    /// ikkalasi ham yo'q bo'lsa butun xabarni rad etadi — shu sababli
+    /// amal tugmasida bo'sh satr emas, har doim qiymat bo'lishi kerak.
+    /// </remarks>
+    private static object InlineMarkup(IReadOnlyList<IReadOnlyList<InlineButton>> buttons)
+        => new
+        {
+            inline_keyboard = buttons
+                .Select(row => row
+                    .Select(button => button.Url is { Length: > 0 } url
+                        ? (object)new { text = button.Text, url }
+                        : new { text = button.Text, callback_data = button.CallbackData ?? string.Empty })
+                    .ToArray())
+                .ToArray(),
+        };
+
+    /// <summary>
+    /// Telegram'da ALLAQACHON yotgan rasmni yuboradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>file_id</c> — Telegram bir marta yuklangan faylga bergan
+    /// belgi. U bilan yuborish bayt uzatmaydi va shu sababli deyarli
+    /// bir zumda bajariladi.
+    /// </para>
+    /// <para>
+    /// <c>null</c> qaytishi — belgi eskirgan degani (bot tokeni
+    /// almashgan bo'lsa shunday bo'ladi). Chaqiruvchi bunda rasmni
+    /// qaytadan yuklaydi.
+    /// </para>
+    /// </remarks>
+    public async Task<bool> SendPhotoByIdAsync(
+        long chatId,
+        string fileId,
+        string? caption,
+        IReadOnlyList<IReadOnlyList<InlineButton>>? buttons,
+        CancellationToken cancellationToken)
+    {
+        var result = await CallAsync<JsonElement>(
+                "sendPhoto",
+                new
+                {
+                    chat_id = chatId,
+                    photo = fileId,
+                    caption,
+                    parse_mode = "HTML",
+                    reply_markup = buttons is { Count: > 0 } ? InlineMarkup(buttons) : null,
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.ValueKind == JsonValueKind.Object;
+    }
+
+    /// <summary>
+    /// Rasmni BAYT bilan yuklaydi va Telegram bergan belgini qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega havola emas.</b> Telegram rasmni URL bilan ham
+    /// yubora oladi, lekin u holda manzil INTERNETDAN ochiladigan
+    /// bo'lishi kerak. Bizning API esa ichki tarmoqda turadi va
+    /// ishlab chiqishda umuman tashqaridan ko'rinmaydi — ya'ni logotip
+    /// faqat serverda ishlagan bo'lardi.
+    /// </para>
+    /// <para>
+    /// Qaytgan <c>file_id</c> ni saqlab qo'yish kerak: keyingi
+    /// yuborishlar <see cref="SendPhotoByIdAsync"/> bilan ketadi va
+    /// bayt boshqa uzatilmaydi.
+    /// </para>
+    /// </remarks>
+    /// <returns>Yuklangan rasmning <c>file_id</c> si, xato bo'lsa <c>null</c>.</returns>
+    public async Task<string?> UploadPhotoAsync(
+        long chatId,
+        Stream content,
+        string? caption,
+        IReadOnlyList<IReadOnlyList<InlineButton>>? buttons,
+        CancellationToken cancellationToken)
+    {
+        var path = RelativePath(_token.Value, "sendPhoto");
+
+        try
+        {
+            using var form = new MultipartFormDataContent();
+            using var file = new StreamContent(content);
+
+            file.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+
+            form.Add(new StringContent(chatId.ToString(CultureInfo.InvariantCulture)), "chat_id");
+            form.Add(file, "photo", "logo.jpg");
+
+            if (!string.IsNullOrEmpty(caption))
+            {
+                form.Add(new StringContent(caption), "caption");
+                form.Add(new StringContent("HTML"), "parse_mode");
+            }
+
+            if (buttons is { Count: > 0 })
+            {
+                // «multipart» da murakkab qiymat MATN bo'lib ketadi:
+                // Telegram uni JSON deb o'qiydi.
+                form.Add(new StringContent(JsonSerializer.Serialize(InlineMarkup(buttons), Json)), "reply_markup");
+            }
+
+            using var response = await _http.PostAsync(path, form, cancellationToken).ConfigureAwait(false);
+
+            var payload = await response.Content
+                .ReadFromJsonAsync<TelegramResponse<JsonElement>>(Json, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (payload is not { Ok: true })
+            {
+                LogRejected("sendPhoto", payload?.Description ?? "sababsiz");
+                return null;
+            }
+
+            /*
+              Javobdagi `photo` — BITTA rasmning bir necha o'lchamdagi
+              ko'rinishlari. Belgini oxirgisidan olamiz: u eng katta
+              nusxa va aynan shu sifatni qayta yuborish kerak.
+            */
+            return payload.Result.TryGetProperty("photo", out var sizes)
+                && sizes.ValueKind == JsonValueKind.Array
+                && sizes.GetArrayLength() > 0
+                && sizes[sizes.GetArrayLength() - 1].TryGetProperty("file_id", out var id)
+                    ? id.GetString()
+                    : null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            LogCallFailed(ex, "sendPhoto");
+            return null;
+        }
     }
 
     /// <summary>

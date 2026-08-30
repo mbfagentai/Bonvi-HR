@@ -1,9 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { fetchSettings, saveSettings, type SettingUpdate } from './settings-api'
+import {
+  deleteBotLogo,
+  fetchBotLogo,
+  fetchSettings,
+  saveSettings,
+  uploadBotLogo,
+  type SettingUpdate,
+} from './settings-api'
 
 export const settingsKeys = {
   root: ['systemSettings'] as const,
+
+  /*
+    Kalit rasm KALITINI o'z ichiga oladi: logotip almashganda kalit ham
+    almashadi va React Query eski nusxani keshdan olmaydi. Rasm
+    o'zgargani, lekin manzil o'sha bo'lgani — brauzer keshidagi eng
+    ko'p uchraydigan tuzoq (`accountPhotoKeys` bilan bir xil naqsh).
+  */
+  logo: (key: string) => ['systemSettings', 'logo', key] as const,
 }
 
 /**
@@ -18,6 +33,40 @@ export function useSystemSettings(enabled: boolean) {
     queryKey: settingsKeys.root,
     queryFn: ({ signal }) => fetchSettings(signal),
     enabled,
+  })
+}
+
+/**
+ * Bot logotipi — rasm baytlari.
+ *
+ * `key` bo'sh bo'lsa so'rov umuman yuborilmaydi: sozlamalar javobida
+ * logotip yo'qligi allaqachon ma'lum va 404 ni bekorga chaqirishning
+ * hojati yo'q.
+ */
+export function useBotLogo(key: string) {
+  return useQuery({
+    queryKey: settingsKeys.logo(key),
+    queryFn: ({ signal }) => fetchBotLogo(signal),
+    enabled: key !== '',
+    staleTime: Infinity,
+  })
+}
+
+export function useUploadBotLogo() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (file: File) => uploadBotLogo(file),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: settingsKeys.root }),
+  })
+}
+
+export function useDeleteBotLogo() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => deleteBotLogo(),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: settingsKeys.root }),
   })
 }
 

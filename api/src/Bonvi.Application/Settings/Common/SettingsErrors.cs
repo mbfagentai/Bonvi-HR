@@ -1,3 +1,4 @@
+using Bonvi.Application.Common.Photos;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Application.Settings.Common;
@@ -44,4 +45,36 @@ public static class SettingsErrors
         Error.Validation(
             "sozlama.takror_kalit",
             "Bitta sozlama so'rovda ikki marta ko'rsatilgan.");
+}
+
+/// <summary>
+/// Kompaniya logotipining xatolari.
+/// </summary>
+/// <remarks>
+/// Kodlar ALOHIDA, hisob rasmi bilan bir xil emas (<c>hisob.rasm_*</c>):
+/// ikkalasi bir xil quvurdan o'tsa ham, foydalanuvchi uchun bular
+/// butunlay boshqa narsalar va xabar matni ham boshqacha. Bitta kodni
+/// ikki joyda ishlatish esa frontendni «bu qaysi rasm haqida?» degan
+/// savol oldida qoldirardi.
+/// </remarks>
+public static class BotLogoErrors
+{
+    public static Error NotFound { get; } =
+        Error.NotFound("bot.logo_yoq", "Bot uchun logotip qo'yilmagan.");
+
+    public static Error TooLarge { get; } =
+        Error.Validation("bot.logo_katta", "Logotip hajmi 10 MB dan oshmasligi kerak.");
+
+    public static Error TypeNotSupported { get; } =
+        Error.Validation("bot.logo_turi", "Faqat JPEG, PNG va WebP rasmlar qabul qilinadi.");
+
+    public static Error Invalid { get; } =
+        Error.Validation("bot.logo_yaroqsiz", "Fayl rasm emas yoki buzilgan.");
+
+    public static Error Rejected(PhotoRejection rejection) => rejection switch
+    {
+        PhotoRejection.TooLarge => TooLarge,
+        PhotoRejection.UnsupportedType => TypeNotSupported,
+        _ => Invalid,
+    };
 }

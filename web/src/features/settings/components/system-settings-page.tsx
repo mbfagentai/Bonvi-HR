@@ -1,10 +1,11 @@
-import { Bell, Bot, KeyRound, LoaderCircle, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Bell, Bot, ImagePlus, KeyRound, LoaderCircle, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { problemCode } from '@/shared/api/problem-details'
+import { cn } from '@/shared/lib/cn'
 import {
   Alert,
   Badge,
@@ -21,7 +22,13 @@ import {
 } from '@/shared/ui'
 
 import { SETTINGS_MANAGE, type SystemSetting } from '../api/settings-api'
-import { useSaveSettings, useSystemSettings } from '../api/settings-queries'
+import {
+  useBotLogo,
+  useDeleteBotLogo,
+  useSaveSettings,
+  useSystemSettings,
+  useUploadBotLogo,
+} from '../api/settings-queries'
 
 /**
  * Ekrandagi guruhlar: sarlavha, ikona va ichidagi kalitlar.
@@ -58,6 +65,11 @@ const GROUPS: readonly {
       'bot.contacts.latin': 'settings.system.botContactsLatin',
       'bot.contacts.russian': 'settings.system.botContactsRussian',
       'bot.location': 'settings.system.botLocation',
+      'bot.logo': 'settings.system.botLogo',
+      'bot.social.instagram': 'settings.system.botInstagram',
+      'bot.social.telegram': 'settings.system.botTelegram',
+      'bot.social.facebook': 'settings.system.botFacebook',
+      'bot.social.website': 'settings.system.botWebsite',
       'bot.conversationTimeoutMinutes': 'settings.system.botConversationTimeout',
     },
   },
@@ -89,6 +101,10 @@ const GROUPS: readonly {
  */
 const SINGLE_LINE_TEXT: Readonly<Record<string, string>> = {
   'bot.location': 'settings.system.botLocationHint',
+  'bot.social.instagram': 'settings.system.botLinkHint',
+  'bot.social.telegram': 'settings.system.botLinkHint',
+  'bot.social.facebook': 'settings.system.botLinkHint',
+  'bot.social.website': 'settings.system.botLinkHint',
 }
 
 /**
@@ -177,9 +193,18 @@ export function SystemSettingsPage() {
     O'chirish alohida tugma orqali ketadi (`confirmClear`).
   */
   const changed = items.filter((item) =>
-    item.kind === 'Secret'
-      ? (draft[item.key] ?? '').trim().length > 0
-      : (draft[item.key] ?? item.value) !== item.value,
+    item.kind === 'Photo'
+      /*
+        RASM bu ro'yxatga HECH QACHON tushmaydi. U «Saqlash» tugmasidan
+        mustaqil: fayl tanlangan zahoti yuklanadi va server uni umumiy
+        so'rov orqali o'zgartirishga umuman ruxsat bermaydi
+        («sozlama.qolda_ozgarmaydi»). Bu yerda tekshirilmasa, rasmi bor
+        tizimda «Saqlash» har safar shu xato bilan yiqilardi.
+      */
+      ? false
+      : item.kind === 'Secret'
+        ? (draft[item.key] ?? '').trim().length > 0
+        : (draft[item.key] ?? item.value) !== item.value,
   )
 
   const submit = () => {
@@ -402,6 +427,10 @@ function SettingField({
     return <SecretField setting={setting} label={label} value={value} onChange={onChange} onClear={onClear} />
   }
 
+  if (setting.kind === 'Photo') {
+    return <LogoField label={label} storedKey={setting.value} />
+  }
+
   if (setting.kind === 'Number') {
     return (
       <TextField
@@ -446,6 +475,121 @@ function SettingField({
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />
+  )
+}
+
+/**
+ * Logotip maydoni — rasmni ko'rsatadi, almashtiradi va o'chiradi.
+ *
+ * <b>Nega «Saqlash» tugmasiga bog'lanmagan.</b> Qolgan sozlamalar
+ * matn: ular formada yig'iladi va birga yuboriladi. Rasm esa FAYL —
+ * uni formada «yig'ib turish» degani baytlarni brauzer xotirasida
+ * ushlab turish va foydalanuvchini «saqladimmi?» degan savol oldida
+ * qoldirish bo'lardi. Shu sababli fayl tanlangan zahoti ketadi va
+ * natija darhol ko'rinadi.
+ *
+ * Server ham shu qoidani QO'LLAB TURADI: `Photo` turidagi sozlamani
+ * umumiy so'rov bilan o'zgartirib bo'lmaydi
+ * (`sozlama.qolda_ozgarmaydi`).
+ */
+function LogoField({ label, storedKey }: { label: string; storedKey: string }) {
+  const { t } = useLocale()
+  const errorMessage = useErrorMessage()
+
+  const input = useRef<HTMLInputElement>(null)
+
+  const logo = useBotLogo(storedKey)
+  const upload = useUploadBotLogo()
+  const remove = useDeleteBotLogo()
+
+  /*
+    Blob'dan manzil YASALADI va komponent yo'qolganda BO'SHATILADI.
+    Bo'shatilmasa, har bir yangi rasm brauzer xotirasida qolib
+    ketardi — sozlamalar sahifasi ochiq turadigan joy va rasm bir
+    necha marta almashtirilishi mumkin.
+  */
+  const [preview, setPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!(logo.data instanceof Blob)) {
+      setPreview(null)
+      return
+    }
+
+    const url = URL.createObjectURL(logo.data)
+    setPreview(url)
+
+    return () => URL.revokeObjectURL(url)
+  }, [logo.data])
+
+  const busy = upload.isPending || remove.isPending
+  const failure = upload.error ?? remove.error
+
+  return (
+    <div className="space-y-2">
+      <p className="text-footnote font-medium text-[var(--fg-secondary)]">{label}</p>
+
+      <div className="flex items-center gap-4">
+        <span
+          className={cn(
+            'grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl',
+            'border border-[var(--border)] bg-[var(--bg-sunken)]',
+          )}
+        >
+          {preview !== null ? (
+            <img src={preview} alt="" className="size-full object-cover" />
+          ) : (
+            <ImagePlus className="size-6 text-[var(--fg-tertiary)]" aria-hidden />
+          )}
+        </span>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={input}
+            type="file"
+            /*
+              Serverdagi ro'yxat bilan bir xil (`PhotoLimits`). Bu
+              tanlash oynasini toraytiradi, LEKIN tekshiruv emas:
+              haqiqiy tekshiruv serverda, fayl MAZMUNI bo'yicha.
+            */
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+
+              // Maydon TOZALANADI: aks holda o'sha faylni ikkinchi
+              // marta tanlash `change` hodisasini umuman bermasdi.
+              event.target.value = ''
+
+              if (file !== undefined) upload.mutate(file)
+            }}
+          />
+
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => input.current?.click()}
+          >
+            {preview !== null ? t('settings.system.botLogoReplace') : t('settings.system.botLogoUpload')}
+          </Button>
+
+          {preview !== null && (
+            <Button variant="ghost" disabled={busy} onClick={() => remove.mutate()}>
+              <Trash2 className="size-4" aria-hidden />
+              {t('common.delete')}
+            </Button>
+          )}
+
+          {busy && <LoaderCircle className="size-4 animate-spin text-[var(--fg-tertiary)]" aria-hidden />}
+        </div>
+      </div>
+
+      <p className="text-caption-1 text-[var(--fg-tertiary)]">{t('settings.system.botLogoHint')}</p>
+
+      {failure !== null && (
+        <Alert tone="danger">{errorMessage(problemCode(failure))}</Alert>
+      )}
+    </div>
   )
 }
 

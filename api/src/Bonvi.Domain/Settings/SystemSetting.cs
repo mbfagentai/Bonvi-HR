@@ -177,6 +177,78 @@ public sealed class SystemSetting : AggregateRoot, IAuditable
     }
 
     /// <summary>
+    /// SERVER yozadigan sozlama uchun yangi yozuv ochadi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Create"/> ning rasm uchun juftligi: sabab
+    /// <see cref="SetStoredKey"/> izohida. Yozuv bo'sh qiymat bilan
+    /// ochiladi va darhol to'ldiriladi — shunda kalit uzunligi
+    /// tekshiruvi bitta joyda qoladi.
+    /// </remarks>
+    public static Result<SystemSetting> CreateStored(string? key, string? storedKey)
+    {
+        var trimmed = key?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return SystemSettingErrors.EmptyKey;
+        }
+
+        if (SystemSettingKeys.Find(trimmed) is not { } definition)
+        {
+            return SystemSettingErrors.UnknownKey;
+        }
+
+        var setting = new SystemSetting(NewId(), definition.Key, string.Empty);
+
+        var applied = setting.SetStoredKey(storedKey);
+
+        return applied.IsFailure ? applied.Error : Result.Success(setting);
+    }
+
+    /// <summary>
+    /// SERVER yozadigan qiymat — rasm kaliti kabi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega alohida yo'l.</b> <see cref="SystemSettingKind.Photo"/>
+    /// turidagi sozlamani <see cref="Create"/> ham,
+    /// <see cref="SetValue"/> ham RAD ETADI — bu ataylab: umumiy
+    /// «sozlamalarni saqlash» so'rovi bilan fayl kalitini yozib
+    /// qo'yish, uni mavjud bo'lmagan faylga qaratib qo'yardi.
+    /// </para>
+    /// <para>
+    /// Bu metod esa faylni ALLAQACHON saqlagan use-case uchun: kalit
+    /// o'ylab topilmaydi, u saqlash natijasidan keladi. Shifrlash yo'q
+    /// — rasm kaliti sir emas va uni ekran ham, bot ham o'qiydi.
+    /// </para>
+    /// </remarks>
+    /// <param name="key">Fayl kaliti. Bo'sh — rasm olib tashlandi.</param>
+    public Result SetStoredKey(string? key)
+    {
+        if (SystemSettingKeys.Find(Key) is not { } definition)
+        {
+            return SystemSettingErrors.UnknownKey;
+        }
+
+        if (definition.Kind != SystemSettingKind.Photo)
+        {
+            // Bu yo'l faqat rasm uchun. Boshqa turda ochib qo'yish
+            // tekshiruvlarni butunlay chetlab o'tish imkonini berardi.
+            return SystemSettingErrors.NotEditable;
+        }
+
+        var trimmed = key?.Trim() ?? string.Empty;
+
+        if (definition.MaxLength is { } limit && trimmed.Length > limit)
+        {
+            return SystemSettingErrors.TextTooLong(limit);
+        }
+
+        Value = trimmed;
+        return Result.Success();
+    }
+
+    /// <summary>
     /// Kelgan qiymatni tekshiradi va SAQLANADIGAN ko'rinishga keltiradi.
     /// </summary>
     /// <remarks>

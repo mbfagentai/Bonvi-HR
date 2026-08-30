@@ -136,6 +136,17 @@ public sealed class SystemSettings
     public string Text(string key) => Raw(Definition(key, SystemSettingKind.Text));
 
     /// <summary>
+    /// Rasm sozlamasining FAYL KALITI. Qo'yilmagan bo'lsa bo'sh satr.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Text"/> dan alohida, chunki tur ham alohida
+    /// (<see cref="SystemSettingKind.Photo"/>) va <see cref="Definition"/>
+    /// turni qat'iy tekshiradi. Bu tekshiruv ataylab: rasm kalitini
+    /// matn deb o'qish, uni ekranga chizib qo'yish yo'lini ochardi.
+    /// </remarks>
+    public string Photo(string key) => Raw(Definition(key, SystemSettingKind.Photo));
+
+    /// <summary>
     /// Sirning OCHIQ qiymati. Qo'yilmagan yoki ochib bo'lmasa — <c>null</c>.
     /// </summary>
     /// <remarks>

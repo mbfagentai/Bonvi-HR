@@ -87,6 +87,11 @@ public sealed class GetBotSettingsQueryHandler
             settings.Text(SystemSettingKeys.BotContactsLatin),
             settings.Text(SystemSettingKeys.BotContactsRussian),
             settings.Text(SystemSettingKeys.BotLocation),
+            settings.Photo(SystemSettingKeys.BotLogo).Length > 0,
+            settings.Text(SystemSettingKeys.BotSocialInstagram),
+            settings.Text(SystemSettingKeys.BotSocialTelegram),
+            settings.Text(SystemSettingKeys.BotSocialFacebook),
+            settings.Text(SystemSettingKeys.BotSocialWebsite),
             settings.Number(SystemSettingKeys.BotConversationTimeoutMinutes)));
     }
 }

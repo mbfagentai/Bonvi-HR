@@ -253,6 +253,28 @@ public static class BotTexts
     /// </remarks>
     public const string LanguageButton = "🌐 Til / Тил / Язык";
 
+    /// <summary>Instagram tugmasi.</summary>
+    /// <remarks>
+    /// Ijtimoiy tarmoq nomlari TARJIMA QILINMAYDI — ular brend nomi
+    /// va uchala tilda ham bir xil o'qiladi. Tarjima qilishga urinish
+    /// («Инстаграм») tanish yozuvni tanimas qilib qo'yardi.
+    /// </remarks>
+    public const string InstagramButton = "📷 Instagram";
+
+    /// <summary>Telegram kanali tugmasi.</summary>
+    public const string TelegramButton = "✈️ Telegram";
+
+    /// <summary>Facebook tugmasi.</summary>
+    public const string FacebookButton = "👍 Facebook";
+
+    /// <summary>Sayt tugmasi — yagona tarjima qilinadigani.</summary>
+    public static string WebsiteButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "🌐 Сайт",
+        BotLanguage.Russian => "🌐 Сайт",
+        _ => "🌐 Sayt",
+    };
+
     /// <summary>Suhbat unutilgan yoki tushunilmagan xabar.</summary>
     public static string Restart(BotLanguage language) => language switch
     {

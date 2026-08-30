@@ -82,6 +82,16 @@ public sealed partial class BotWorker : BackgroundService
     private const string LanguageRussianData = "lang:rus";
 
 
+    /// <summary>
+    /// Telegram izohining (caption) eng katta uzunligi.
+    /// </summary>
+    /// <remarks>
+    /// Telegram chegarasi 1024 belgi. 1000 — unga tayanadi va HTML
+    /// teglari uchun ozgina zaxira qoldiradi: matndagi
+    /// <c>&lt;b&gt;</c> Telegram uchun ham belgi bo'lib sanaladi.
+    /// </remarks>
+    private const int MaxCaptionLength = 1000;
+
     private readonly TelegramClient _telegram;
     private readonly TelegramToken _token;
     private readonly BonviClient _bonvi;
@@ -99,6 +109,17 @@ public sealed partial class BotWorker : BackgroundService
     /// buni sezmaydi ham.
     /// </remarks>
     private BotSettings? _settings;
+
+    /// <summary>
+    /// Telegram'ga yuklangan logotipning belgisi.
+    /// </summary>
+    /// <remarks>
+    /// Xotirada saqlanadi va bot qayta ishga tushganda yo'qoladi —
+    /// bu ATAYLAB. Belgi bot TOKENIGA bog'langan: token almashsa u
+    /// baribir eskiradi, ya'ni uni bazaga yozib qo'yish ishonchni
+    /// oshirmasdi, faqat yana bir eskiradigan qiymat qo'shardi.
+    /// </remarks>
+    private string? _logoFileId;
     private DateTimeOffset _settingsReadAt;
 
     /// <summary>Hozir ISHLAYOTGAN token. <c>null</c> — bot ulanmagan.</summary>
@@ -832,7 +853,7 @@ public sealed partial class BotWorker : BackgroundService
                 break;
 
             case MenuAction.About:
-                await SendSectionAsync(chatId, language, About, cancellationToken).ConfigureAwait(false);
+                await SendAboutAsync(chatId, language, cancellationToken).ConfigureAwait(false);
                 break;
 
             case MenuAction.Contacts:
@@ -844,6 +865,126 @@ public sealed partial class BotWorker : BackgroundService
                 break;
         }
     }
+
+    /// <summary>
+    /// «Kompaniya haqida» — logotip, matn va ijtimoiy tarmoq tugmalari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Uchtasi BITTA xabarda.</b> Rasm, matn va tugmalar alohida
+    /// yuborilsa, ular suhbatda uchta yozuv bo'lib turardi va tugmalar
+    /// matndan uzilib qolardi. Telegram esa rasmga izoh (caption) va
+    /// tugmalar qo'shishga ruxsat beradi — natijada bitta, yaxlit
+    /// karta chiqadi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Izoh uzunligi 1024 belgi bilan cheklangan</b>, matnli
+    /// xabarniki esa 4096. Uzun matn rasm bilan birga ketolmaydi va
+    /// bunday holatda Telegram BUTUN xabarni rad etardi — shu sababli
+    /// uzun matn alohida yuboriladi va rasm izohsiz qoladi.
+    /// </para>
+    /// <para>
+    /// <b>Logotip bir marta yuklanadi.</b> Birinchi yuborishda baytlar
+    /// ketadi, Telegram <c>file_id</c> qaytaradi va keyingi
+    /// yuborishlar shu belgi bilan bo'ladi (<see cref="_logoFileId"/>).
+    /// Har safar bayt uzatish har bir nomzod uchun ikkita ortiqcha
+    /// so'rov degani bo'lardi.
+    /// </para>
+    /// </remarks>
+    private async Task SendAboutAsync(long chatId, BotLanguage language, CancellationToken cancellationToken)
+    {
+        var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+        var text = About(settings, language) ?? BotTexts.Restart(language);
+        var menu = MenuLabels(settings, language);
+        var social = SocialButtons(settings, language);
+
+        var caption = text.Length <= MaxCaptionLength ? text : null;
+
+        var sent = settings?.HasLogo == true
+            && await SendLogoAsync(chatId, caption, social, cancellationToken).ConfigureAwait(false);
+
+        if (!sent)
+        {
+            // Logotip yo'q yoki yuborilmadi — matn baribir yetib borishi
+            // kerak. Rasm bezak, xabar esa mazmun.
+            await _telegram
+                .SendMessageAsync(chatId, text, social, menu: menu, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        if (caption is null)
+        {
+            // Matn izohga sig'madi — alohida xabar bo'lib ketadi.
+            await _telegram
+                .SendMessageAsync(chatId, text, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /*
+          Doimiy menyu ALOHIDA yuboriladi: rasmli xabar uni ko'tara
+          olmaydi (`reply_markup` da bir vaqtda yo bir turdagi tugma,
+          yo boshqasi bo'ladi). Matn qisqa — u faqat menyuni qaytarish
+          uchun, ya'ni suhbatda ortiqcha shovqin qilmaydi.
+        */
+        await SendWithMenuAsync(chatId, BotTexts.MenuPrompt(language), language, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Logotipni yuboradi — belgisi bo'lsa u bilan, bo'lmasa yuklab.
+    /// </summary>
+    /// <returns>Rasm yetib bordimi.</returns>
+    private async Task<bool> SendLogoAsync(
+        long chatId,
+        string? caption,
+        IReadOnlyList<IReadOnlyList<InlineButton>>? buttons,
+        CancellationToken cancellationToken)
+    {
+        if (_logoFileId is { } fileId
+            && await _telegram.SendPhotoByIdAsync(chatId, fileId, caption, buttons, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return true;
+        }
+
+        /*
+          Belgi ishlamadi yoki hali yo'q. Sabablari: bot birinchi marta
+          ishga tushdi, HR logotipni almashtirdi yoki token o'zgardi
+          (belgi tokenga bog'langan). Uchalasida ham javob bitta —
+          qaytadan yuklash.
+        */
+        _logoFileId = null;
+
+        var bytes = await _bonvi.GetBotLogoAsync(cancellationToken).ConfigureAwait(false);
+
+        if (bytes is null || bytes.Length == 0)
+        {
+            return false;
+        }
+
+        using var content = new MemoryStream(bytes, writable: false);
+
+        _logoFileId = await _telegram
+            .UploadPhotoAsync(chatId, content, caption, buttons, cancellationToken)
+            .ConfigureAwait(false);
+
+        return _logoFileId is not null;
+    }
+
+    /// <summary>Sozlamadagi havolalardan ijtimoiy tarmoq tugmalari.</summary>
+    private static IReadOnlyList<IReadOnlyList<InlineButton>>? SocialButtons(
+        BotSettings? settings,
+        BotLanguage language)
+        => settings is null
+            ? null
+            : SocialLinks.Buttons(
+                language,
+                settings.Instagram,
+                settings.Telegram,
+                settings.Facebook,
+                settings.Website);
 
     /// <summary>
     /// Sozlamadagi matnli bo'limni ko'rsatadi.

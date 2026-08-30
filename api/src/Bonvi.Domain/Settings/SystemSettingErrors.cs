@@ -44,6 +44,20 @@ public static class SystemSettingErrors
             "sozlama.notogri_kalit",
             "Bunday sozlama yo'q: kalit noma'lum.");
 
+    /// <summary>
+    /// Sozlama umumiy so'rov bilan o'zgartirilmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Hozircha bu faqat <see cref="SystemSettingKind.Photo"/>: rasm
+    /// alohida yo'l bilan yuklanadi, u yerda hajm, tur va mazmun
+    /// tekshiriladi. Umumiy so'rov orqali kalit yozib qo'yilsa, u
+    /// mavjud bo'lmagan faylga ishora qilardi.
+    /// </remarks>
+    public static Error NotEditable { get; } =
+        Error.Validation(
+            "sozlama.qolda_ozgarmaydi",
+            "Bu sozlama alohida yo'l bilan o'zgartiriladi.");
+
     /// <summary>Butun son kutilgan joyda son emas.</summary>
     public static Error NotANumber { get; } =
         Error.Validation(

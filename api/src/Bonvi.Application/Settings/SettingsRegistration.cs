@@ -31,6 +31,10 @@ internal static class SettingsRegistration
         services.AddScoped<GetBotTokenQueryHandler>();
         services.AddScoped<UpdateSettingsCommandHandler>();
 
+        services.AddScoped<GetBotLogoQueryHandler>();
+        services.AddScoped<UploadBotLogoCommandHandler>();
+        services.AddScoped<DeleteBotLogoCommandHandler>();
+
         return services;
     }
 }

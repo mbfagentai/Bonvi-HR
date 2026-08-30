@@ -113,6 +113,15 @@ public sealed record SystemSettingDto(
 /// Bosh ofisning xaritadagi nuqtasi, «kenglik,uzunlik». Bo'sh bo'lsa
 /// bot xarita yubormaydi va kontakt matni bilan cheklanadi.
 /// </param>
+/// <param name="HasLogo">
+/// Logotip qo'yilganmi. Bayt EMAS, faqat bayroq: bot rasmni alohida
+/// so'rov bilan oladi va uni Telegram'ga BIR MARTA yuklab, keyin
+/// <c>file_id</c> ni qayta ishlatadi.
+/// </param>
+/// <param name="Instagram">Instagram havolasi. Bo'sh — tugma chizilmaydi.</param>
+/// <param name="Telegram">Telegram kanali havolasi.</param>
+/// <param name="Facebook">Facebook sahifasi havolasi.</param>
+/// <param name="Website">Kompaniya sayti havolasi.</param>
 /// <param name="ConversationTimeoutMinutes">Yarim qolgan suhbat necha daqiqadan keyin unutiladi.</param>
 public sealed record BotSettingsDto(
     string AboutCyrillic,
@@ -122,7 +131,20 @@ public sealed record BotSettingsDto(
     string ContactsLatin,
     string ContactsRussian,
     string Location,
+    bool HasLogo,
+    string Instagram,
+    string Telegram,
+    string Facebook,
+    string Website,
     int ConversationTimeoutMinutes);
+
+/// <summary>Yuklangan logotipning saqlash kaliti.</summary>
+/// <remarks>
+/// Kalit ekranga QAYTARILADI: rasm manzili o'zgarganini bilgan brauzer
+/// eski nusxani keshdan olmaydi (`AccountPhotoDto` bilan bir xil fikr).
+/// </remarks>
+/// <param name="Key">Fayl kaliti.</param>
+public sealed record BotLogoDto(string Key);
 
 /// <summary>
 /// Botning Telegram tokeni — FAQAT bot jarayoniga.
