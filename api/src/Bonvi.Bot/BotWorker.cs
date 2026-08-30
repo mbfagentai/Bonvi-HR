@@ -79,9 +79,8 @@ public sealed partial class BotWorker : BackgroundService
 
     private const string LanguageCyrillicData = "lang:cyrl";
     private const string LanguageLatinData = "lang:latn";
+    private const string LanguageRussianData = "lang:rus";
 
-    private const string MenuApplyData = "menu:apply";
-    private const string MenuAboutData = "menu:about";
 
     private readonly TelegramClient _telegram;
     private readonly TelegramToken _token;
@@ -282,59 +281,31 @@ public sealed partial class BotWorker : BackgroundService
 
         var state = _conversations.Find(chat.Id);
 
-        if (data is LanguageCyrillicData or LanguageLatinData)
+        if (data is LanguageCyrillicData or LanguageLatinData or LanguageRussianData)
         {
-            var language = data == LanguageCyrillicData ? BotLanguage.Cyrillic : BotLanguage.Latin;
-
-            _conversations.Save(chat.Id, new ConversationState
+            var language = data switch
             {
-                Step = ConversationStep.Vacancy,
-                Language = language,
-            });
-
-            await _telegram
-                .SendMessageAsync(chat.Id, BotTexts.Greeting(language), cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+                LanguageCyrillicData => BotLanguage.Cyrillic,
+                LanguageRussianData => BotLanguage.Russian,
+                _ => BotLanguage.Latin,
+            };
 
             /*
-              Kompaniya matni sozlanmagan bo'lsa MENYU umuman
-              ko'rsatilmaydi va nomzod to'g'ridan-to'g'ri vakansiyalarni
-              ko'radi: bitta tugmali menyu qadamni bekorga uzaytirardi
-              (izohi `BotOptions.AboutCyrillic` da).
+              Yarim to'ldirilgan ariza SAQLANADI: til almashtirish
+              arizani bekor qilish emas. Nomzod ismini yozib bo'lib
+              tilni almashtirsa, u ismni qaytadan yozishi kerak
+              bo'lmasligi kerak — shu sababli mavjud holat ustiga
+              faqat til yoziladi.
             */
-            if (About(await SettingsAsync(cancellationToken).ConfigureAwait(false), language) is null)
-            {
-                await ShowVacanciesAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
-                return;
-            }
+            _conversations.Save(
+                chat.Id,
+                state is null
+                    ? new ConversationState { Step = ConversationStep.Vacancy, Language = language }
+                    : state with { Language = language });
 
-            await ShowMenuAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
-            return;
-        }
+            await SendWithMenuAsync(chat.Id, BotTexts.Greeting(language), language, cancellationToken)
+                .ConfigureAwait(false);
 
-        if (data is MenuApplyData or MenuAboutData)
-        {
-            var language = state?.Language ?? BotLanguage.Cyrillic;
-
-            if (data == MenuAboutData)
-            {
-                await _telegram
-                    .SendMessageAsync(
-                        chat.Id,
-                        (About(await SettingsAsync(cancellationToken).ConfigureAwait(false), language)
-                            ?? string.Empty)
-                            + BotTexts.AfterAbout(language),
-                        cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
-
-                // Menyu QAYTA ko'rsatiladi: matnni o'qigan odam odatda
-                // shu yerdayoq ariza topshirmoqchi bo'ladi va uni
-                // `/start` yozishga majburlash ortiqcha to'siq.
-                await ShowMenuAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            await ShowVacanciesAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -390,29 +361,36 @@ public sealed partial class BotWorker : BackgroundService
         if (message.Text?.StartsWith("/start", StringComparison.OrdinalIgnoreCase) == true)
         {
             _conversations.Save(chatId, new ConversationState { Step = ConversationStep.Language });
-
-            await _telegram
-                .SendMessageAsync(
-                    chatId,
-                    BotTexts.ChooseLanguage,
-                    [
-                        [new InlineButton(BotTexts.LanguageCyrillic, LanguageCyrillicData)],
-                        [new InlineButton(BotTexts.LanguageLatin, LanguageLatinData)],
-                    ],
-                    cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
+            await AskLanguageAsync(chatId, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         var state = _conversations.Find(chatId);
 
+        /*
+          MENYU QADAMDAN OLDIN tekshiriladi va bu tartib ataylab.
+
+          Doimiy menyu tugmasi oddiy MATN bo'lib keladi. Agar avval
+          qadam ishlansa, F.I.Sh. kutilayotgan paytda bosilgan
+          «📞 Kontaktlar / Manzil» tugmasi NOMZODNING ISMI sifatida
+          o'qilardi va arizaga shu yozilardi. Ya'ni tugmani bosgan odam
+          arizadan chiqolmay qolardi — MBF ning botida bu yo'l bor va
+          u yerda ham menyu qadamdan ustun turadi.
+        */
+        var action = BotMenu.Resolve(message.Text);
+
+        if (action != MenuAction.None)
+        {
+            await HandleMenuAsync(chatId, state, action, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (state is null)
         {
-            await _telegram
-                .SendMessageAsync(chatId, BotTexts.Restart(BotLanguage.Cyrillic), cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
+            // Bot qayta ishga tushgan yoki suhbat eskirgan. Til noma'lum,
+            // shu sababli darhol til so'raladi — «/start» ni eslashga
+            // majburlashdan ko'ra bir qadam kam.
+            await AskLanguageAsync(chatId, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -526,11 +504,11 @@ public sealed partial class BotWorker : BackgroundService
         {
             _conversations.Forget(chatId);
 
-            await _telegram
-                .SendMessageAsync(
+            await SendWithMenuAsync(
                     chatId,
                     BotTexts.AlreadyApplied(state.Language, state.VacancyTitle, existing.AppliedAt, existing.StageName),
-                    cancellationToken: cancellationToken)
+                    state.Language,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             return;
@@ -559,11 +537,17 @@ public sealed partial class BotWorker : BackgroundService
 
         _conversations.Forget(chatId);
 
-        await _telegram
-            .SendMessageAsync(
+        /*
+          Menyu bilan: telefon so'ralganda Telegram uni kontakt tugmasi
+          bilan almashtirgan edi. Menyusiz nomzod ariza tugagach bo'sh
+          ekran oldida qolardi va ikkinchi vakansiyaga ariza berish
+          uchun `/start` yozishi kerak bo'lardi.
+        */
+        await SendWithMenuAsync(
                 chatId,
                 BotTexts.Accepted(state.Language, state.VacancyTitle),
-                cancellationToken: cancellationToken)
+                state.Language,
+                cancellationToken)
             .ConfigureAwait(false);
 
         LogApplication(state.VacancyTitle);
@@ -720,15 +704,36 @@ public sealed partial class BotWorker : BackgroundService
     /// <summary>
     /// Tanlangan tildagi kompaniya matni — sozlanmagan bo'lsa <c>null</c>.
     /// </summary>
-    /// <remarks>
-    /// Lotin matni bo'sh bo'lsa kirillcha ishlatiladi: bitta matn yozib
-    /// qo'yish ikkitasini majburlashdan foydaliroq.
-    /// </remarks>
     private static string? About(BotSettings? settings, BotLanguage language)
+        => Section(settings?.AboutCyrillic, settings?.AboutLatin, settings?.AboutRussian, language);
+
+    /// <summary>Tanlangan tildagi kontakt matni — sozlanmagan bo'lsa <c>null</c>.</summary>
+    private static string? Contacts(BotSettings? settings, BotLanguage language)
+        => Section(settings?.ContactsCyrillic, settings?.ContactsLatin, settings?.ContactsRussian, language);
+
+    /// <summary>
+    /// Uch tildan keraklisini tanlaydi.
+    /// </summary>
+    /// <remarks>
+    /// Tanlangan til bo'sh bo'lsa KIRILLGA tushadi: bitta matn yozib
+    /// qo'yish uchtasini majburlashdan foydaliroq. Kirill tayanch til
+    /// sifatida olingan, chunki tizimdagi ma'lumotning deyarli
+    /// hammasi shu yozuvda.
+    /// </remarks>
+    private static string? Section(
+        string? cyrillic,
+        string? latin,
+        string? russian,
+        BotLanguage language)
     {
-        var text = language == BotLanguage.Latin && !string.IsNullOrWhiteSpace(settings?.AboutLatin)
-            ? settings.AboutLatin
-            : settings?.AboutCyrillic;
+        var chosen = language switch
+        {
+            BotLanguage.Latin => latin,
+            BotLanguage.Russian => russian,
+            _ => cyrillic,
+        };
+
+        var text = string.IsNullOrWhiteSpace(chosen) ? cyrillic : chosen;
 
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -748,17 +753,140 @@ public sealed partial class BotWorker : BackgroundService
     }
 
     /// <summary>Bosh menyu: ariza topshirish yoki kompaniya haqida.</summary>
-    private async Task ShowMenuAsync(long chatId, BotLanguage language, CancellationToken cancellationToken)
+    /// <summary>Til tanlash tugmalarini ko'rsatadi.</summary>
+    private async Task AskLanguageAsync(long chatId, CancellationToken cancellationToken)
         => await _telegram
             .SendMessageAsync(
                 chatId,
-                BotTexts.MenuPrompt(language),
+                BotTexts.ChooseLanguage,
                 [
-                    [new InlineButton(BotTexts.ApplyButton(language), MenuApplyData)],
-                    [new InlineButton(BotTexts.AboutButton(language), MenuAboutData)],
+                    [new InlineButton(BotTexts.LanguageCyrillic, LanguageCyrillicData)],
+                    [new InlineButton(BotTexts.LanguageLatin, LanguageLatinData)],
+                    [new InlineButton(BotTexts.LanguageRussian, LanguageRussianData)],
                 ],
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
+
+    /// <summary>
+    /// Xabarni DOIMIY MENYU bilan birga yuboradi.
+    /// </summary>
+    /// <remarks>
+    /// Menyu har safar qayta yuboriladi va bu ortiqcha emas: telefon
+    /// so'ralganda Telegram menyuni kontakt tugmasi bilan ALMASHTIRADI
+    /// (bir chatda bir vaqtda bitta klaviatura bo'ladi). Ariza
+    /// tugagach menyu o'zi qaytmasa, nomzod bo'sh ekran oldida
+    /// qolardi.
+    /// </remarks>
+    private async Task SendWithMenuAsync(
+        long chatId,
+        string text,
+        BotLanguage language,
+        CancellationToken cancellationToken)
+    {
+        var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+
+        await _telegram
+            .SendMessageAsync(
+                chatId,
+                text,
+                menu: MenuLabels(settings, language),
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Sozlamaga qarab menyu tugmalarini yig'adi.</summary>
+    private static List<string> MenuLabels(BotSettings? settings, BotLanguage language)
+        => BotMenu.Labels(
+            language,
+            hasAbout: About(settings, language) is not null,
+            hasContacts: Contacts(settings, language) is not null);
+
+    private async Task HandleMenuAsync(
+        long chatId,
+        ConversationState? state,
+        MenuAction action,
+        CancellationToken cancellationToken)
+    {
+        var language = state?.Language ?? BotLanguage.Cyrillic;
+
+        if (action == MenuAction.Language)
+        {
+            await AskLanguageAsync(chatId, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        /*
+          Menyudan kelgan har qanday amal yarim qolgan ARIZANI bekor
+          qiladi: nomzod «Kontaktlar» ni ochib, keyin telefon raqamini
+          yuborsa, u eski vakansiyaga yozilib ketardi. Til bundan
+          mustasno (yuqorida) — u arizaning davomi.
+        */
+        _conversations.Save(
+            chatId,
+            new ConversationState { Step = ConversationStep.Vacancy, Language = language });
+
+        switch (action)
+        {
+            case MenuAction.Apply:
+                await ShowVacanciesAsync(chatId, language, cancellationToken).ConfigureAwait(false);
+                break;
+
+            case MenuAction.About:
+                await SendSectionAsync(chatId, language, About, cancellationToken).ConfigureAwait(false);
+                break;
+
+            case MenuAction.Contacts:
+                await SendSectionAsync(chatId, language, Contacts, cancellationToken).ConfigureAwait(false);
+                await SendLocationAsync(chatId, cancellationToken).ConfigureAwait(false);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Sozlamadagi matnli bo'limni ko'rsatadi.
+    /// </summary>
+    /// <remarks>
+    /// Bo'lim bo'sh bo'lsa tugma umuman chizilmagan bo'lardi
+    /// (<see cref="MenuLabels"/>), lekin HR matnni bot ochiq turganda
+    /// o'chirishi mumkin va eski tugma nomzod ekranida qolib ketadi.
+    /// Shunda bo'sh xabar o'rniga menyu qayta ko'rsatiladi.
+    /// </remarks>
+    private async Task SendSectionAsync(
+        long chatId,
+        BotLanguage language,
+        Func<BotSettings?, BotLanguage, string?> read,
+        CancellationToken cancellationToken)
+    {
+        var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+        var text = read(settings, language);
+
+        await _telegram
+            .SendMessageAsync(
+                chatId,
+                text ?? BotTexts.Restart(language),
+                menu: MenuLabels(settings, language),
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Bosh ofisning xaritadagi nuqtasi — sozlangan bo'lsa.</summary>
+    private async Task SendLocationAsync(long chatId, CancellationToken cancellationToken)
+    {
+        var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+
+        if (MapPoint.TryParse(settings?.Location) is not { } point)
+        {
+            return;
+        }
+
+        await _telegram
+            .SendLocationAsync(chatId, point.Latitude, point.Longitude, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
 
     private async Task ShowVacanciesAsync(
         long chatId,
@@ -771,8 +899,7 @@ public sealed partial class BotWorker : BackgroundService
         {
             _conversations.Forget(chatId);
 
-            await _telegram
-                .SendMessageAsync(chatId, BotTexts.NoVacancies(language), cancellationToken: cancellationToken)
+            await SendWithMenuAsync(chatId, BotTexts.NoVacancies(language), language, cancellationToken)
                 .ConfigureAwait(false);
 
             return;

@@ -12,7 +12,15 @@ namespace Bonvi.Bot.Bonvi;
 public sealed record OpenVacancy(Guid Id, string Title);
 
 /// <summary>Botning tizimdan olinadigan sozlamalari.</summary>
-public sealed record BotSettings(string AboutCyrillic, string AboutLatin, int ConversationTimeoutMinutes);
+public sealed record BotSettings(
+    string AboutCyrillic,
+    string AboutLatin,
+    string AboutRussian,
+    string ContactsCyrillic,
+    string ContactsLatin,
+    string ContactsRussian,
+    string Location,
+    int ConversationTimeoutMinutes);
 
 /// <summary>Tizimda saqlangan Telegram tokeni. Qo'yilmagan bo'lsa <c>null</c>.</summary>
 /// <remarks>

@@ -102,10 +102,26 @@ public sealed record SystemSettingDto(
 /// ko'rsatadi (bu qoida BOTDA, bu yerda emas: server matnni o'zgartirib
 /// yubormaydi, aks holda HR lotin matnini bo'shatolmasdi).
 /// </param>
+/// <param name="AboutRussian">
+/// «Kompaniya haqida» matni — ruscha. Bo'sh bo'lsa bot kirilldagisini
+/// ko'rsatadi, lotin bilan bir xil qoida.
+/// </param>
+/// <param name="ContactsCyrillic">Kontaktlar va manzil — kirillda.</param>
+/// <param name="ContactsLatin">Kontaktlar va manzil — lotinda.</param>
+/// <param name="ContactsRussian">Kontaktlar va manzil — ruscha.</param>
+/// <param name="Location">
+/// Bosh ofisning xaritadagi nuqtasi, «kenglik,uzunlik». Bo'sh bo'lsa
+/// bot xarita yubormaydi va kontakt matni bilan cheklanadi.
+/// </param>
 /// <param name="ConversationTimeoutMinutes">Yarim qolgan suhbat necha daqiqadan keyin unutiladi.</param>
 public sealed record BotSettingsDto(
     string AboutCyrillic,
     string AboutLatin,
+    string AboutRussian,
+    string ContactsCyrillic,
+    string ContactsLatin,
+    string ContactsRussian,
+    string Location,
     int ConversationTimeoutMinutes);
 
 /// <summary>

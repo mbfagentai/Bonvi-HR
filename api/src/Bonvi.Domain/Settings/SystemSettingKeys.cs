@@ -73,6 +73,12 @@ public enum SystemSettingKind
 /// SAQLANGUNCHA ushlaydi.
 /// </para>
 /// <para>
+/// Matnga ham tegishli va shu sabab bilan: xarita nuqtasi o'rniga
+/// manzil yozilsa, nomzod xaritani olmaydi va buni hech kim
+/// ko'rmaydi. BO'SH matn esa naqshdan qat'i nazar o'tadi — bo'shlik
+/// «o'chirish» degani.
+/// </para>
+/// <para>
 /// Naqsh KODDA yoziladi va tashqaridan kelmaydi — ya'ni «yovuz regex»
 /// xavfi yo'q. Shunga qaramay tekshiruv muddat bilan chegaralangan
 /// (<see cref="RegexTimeout"/>): naqsh kelajakda murakkablashsa,
@@ -147,9 +153,28 @@ public sealed record SystemSettingDefinition(
             // chizardi.
             var text = value?.Trim() ?? string.Empty;
 
-            return MaxLength is { } limit && text.Length > limit
-                ? SystemSettingErrors.TextTooLong(limit)
-                : Result.Success(text);
+            if (MaxLength is { } limit && text.Length > limit)
+            {
+                return SystemSettingErrors.TextTooLong(limit);
+            }
+
+            /*
+              Naqsh MATNGA ham tegishli. Ilgari u faqat sirda
+              tekshirilardi va bu jimgina teshik edi: `bot.location`
+              uchun naqsh yozib qo'yilgan bo'lsa ham, uning o'rniga
+              manzil matni yozilsa server uni QABUL QILARDI. Nomzod
+              esa xaritani olmasdi va buni hech kim ko'rmasdi —
+              aynan naqsh oldini olishi kerak bo'lgan holat.
+
+              BO'SH matn baribir o'tadi: bo'shlik — «o'chirish» degani
+              va bu qoida yuqoridagi izohda. Naqshni bo'sh satrga ham
+              qo'llash sozlamani o'chirib bo'lmaydigan qilib qo'yardi.
+            */
+            return text.Length > 0
+                && Pattern is not null
+                && !Regex.IsMatch(text, Pattern, RegexOptions.None, RegexTimeout)
+                    ? SystemSettingErrors.BadFormat
+                    : Result.Success(text);
         }
 
         // Son: `InvariantCulture` — chunki qiymat BAZADA ham shu ko'rinishda
@@ -239,6 +264,52 @@ public static class SystemSettingKeys
     /// <summary>«Kompaniya haqida» matni — lotin alifbosida.</summary>
     public const string BotAboutLatin = "bot.about.latin";
 
+    /// <summary>«Kompaniya haqida» matni — rus tilida.</summary>
+    public const string BotAboutRussian = "bot.about.russian";
+
+    /// <summary>Kontaktlar va manzil — kirill alifbosida.</summary>
+    /// <remarks>
+    /// <para>
+    /// Telefon va manzil BITTA matnda, alohida maydonlarga bo'linmasdan.
+    /// Sabab: kadrlar bo'limida bir nechta raqam bor, ba'zi filialda
+    /// qo'shimcha yo'l ko'rsatma kerak bo'ladi va bularning shakli
+    /// oldindan ma'lum emas. Har birini alohida maydon qilish HR ni
+    /// bizning tasavvurimizga majburlardi.
+    /// </para>
+    /// <para>
+    /// Bo'sh bo'lsa menyuda «Kontaktlar» tugmasi UMUMAN chizilmaydi —
+    /// «Kompaniya haqida» bilan bir xil qoida: sozlanmagan bo'lim
+    /// nomzodga bo'sh ekran ko'rsatgandan ko'ra ko'rinmagani yaxshi.
+    /// </para>
+    /// </remarks>
+    public const string BotContactsCyrillic = "bot.contacts.cyrillic";
+
+    /// <summary>Kontaktlar va manzil — lotin alifbosida.</summary>
+    public const string BotContactsLatin = "bot.contacts.latin";
+
+    /// <summary>Kontaktlar va manzil — rus tilida.</summary>
+    public const string BotContactsRussian = "bot.contacts.russian";
+
+    /// <summary>Bosh ofis xaritadagi nuqtasi — «kenglik,uzunlik».</summary>
+    /// <remarks>
+    /// <para>
+    /// Nomzod manzilni MATN bilan emas, xaritadagi nuqta bilan tushunadi:
+    /// Telegram uni ochib navigatorga uzatadi. Shu sababli kontakt
+    /// matnidan keyin alohida «Location» yuboriladi.
+    /// </para>
+    /// <para>
+    /// <b>Nega bitta matn maydoni, ikkita son emas.</b> HR nuqtani
+    /// Google Maps'dan NUSXA OLADI va u yerda u aynan shu ko'rinishda —
+    /// «40.505852, 70.930622». Ikkita alohida maydon HR ni sonni qo'lda
+    /// bo'lishga majbur qilardi va bu xatoning eng oson turi.
+    /// </para>
+    /// <para>
+    /// Bo'sh bo'lsa xarita yuborilmaydi, kontakt matni esa baribir
+    /// chiqadi: manzil matn bilan ham tushunarli.
+    /// </para>
+    /// </remarks>
+    public const string BotLocation = "bot.location";
+
     /// <summary>Yarim qolgan suhbat qancha vaqtdan keyin unutiladi (daqiqa).</summary>
     public const string BotConversationTimeoutMinutes = "bot.conversationTimeoutMinutes";
 
@@ -273,6 +344,34 @@ public static class SystemSettingKeys
     /// va tor chegara bir kun haqiqiy tokenni rad etib qo'yardi.
     /// </remarks>
     public const string TelegramTokenPattern = @"^[0-9]{5,20}:[A-Za-z0-9_-]{20,}$";
+
+    /// <summary>
+    /// Xarita nuqtasining shakli — «kenglik,uzunlik».
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sonlar orasida vergul, ixtiyoriy bo'sh joy bilan: Google Maps
+    /// aynan shunday nusxalaydi. Manfiy qiymat ham ruxsat etilgan —
+    /// janubiy yarim shar va g'arbiy uzunlik.
+    /// </para>
+    /// <para>
+    /// Shablon FAQAT shaklni tekshiradi, chegaralarni emas (kenglik
+    /// ±90, uzunlik ±180). Sabab: shablon domen qoidasi emas, ekrandagi
+    /// birinchi to'siq — «nuqta o'rniga manzil yozib qo'yildi» degan
+    /// eng ko'p uchraydigan xatoni darhol ushlaydi. Chegaralarni aniq
+    /// tekshiradigan naqsh esa o'qib bo'lmas darajada uzun bo'lardi.
+    /// </para>
+    /// <para>
+    /// Chegara yuborishdan oldin tekshiriladi (<c>MapPoint.TryParse</c>):
+    /// «91, 70» saqlanadi, lekin xarita YUBORILMAYDI — Telegram bunday
+    /// nuqtali xabarni butunlay rad etardi va nomzod kontakt matnini
+    /// ham olmay qolardi.
+    /// </para>
+    /// </remarks>
+    public const string LocationPattern = @"^-?[0-9]{1,3}(\.[0-9]+)?,\s*-?[0-9]{1,3}(\.[0-9]+)?$";
+
+    /// <summary>Xarita nuqtasi matnining eng katta uzunligi.</summary>
+    public const int MaxLocationLength = 64;
 
     /// <summary>Matnli sozlamaning eng katta uzunligi.</summary>
     /// <remarks>
@@ -318,6 +417,16 @@ public static class SystemSettingKeys
 
         new(BotAboutCyrillic, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
         new(BotAboutLatin, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
+        new(BotAboutRussian, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
+        new(BotContactsCyrillic, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
+        new(BotContactsLatin, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
+        new(BotContactsRussian, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
+        new(
+            BotLocation,
+            SystemSettingKind.Text,
+            string.Empty,
+            MaxLength: MaxLocationLength,
+            Pattern: LocationPattern),
         new(
             BotConversationTimeoutMinutes,
             SystemSettingKind.Number,

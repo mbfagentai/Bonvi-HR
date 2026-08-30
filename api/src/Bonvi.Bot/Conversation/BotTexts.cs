@@ -3,22 +3,30 @@ using System.Globalization;
 namespace Bonvi.Bot.Conversation;
 
 /// <summary>
-/// Botning barcha matnlari — ikki alifboda.
+/// Botning barcha matnlari — uch tilda.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <b>Nega loyihaning `i18n` tizimi ishlatilmadi.</b> U brauzer uchun
 /// (JSON fayllar + React hooki) va bu jarayonga umuman yetib bormaydi.
 /// Bot esa boshqa loyihalarga havola qilmaydi (izohi
-/// <c>Bonvi.Bot.csproj</c> da). Matnlar soni yigirmadan kam, shu sababli
-/// ular shu yerda — kalitlarni ikkinchi joyda saqlash ularning
-/// eskirishiga olib kelardi.
+/// <c>Bonvi.Bot.csproj</c> da). Matnlar soni oz, shu sababli ular shu
+/// yerda — kalitlarni ikkinchi joyda saqlash ularning eskirishiga olib
+/// kelardi.
 /// </para>
 /// <para>
-/// <b>Har bir matn ikkala alifboda ham qo'lda yozilgan.</b> Avtomatik
-/// o'girish jozibador ko'rinadi, lekin u «ў» va «ғ» kabi harflarda va
-/// qo'shma so'zlarda xato qiladi — nomzod ko'radigan birinchi ekranda
-/// bunday xato ishonchni yo'qotadi.
+/// <b>Har bir matn qo'lda yozilgan.</b> Avtomatik o'girish jozibador
+/// ko'rinadi, lekin u «ў» va «ғ» kabi harflarda va qo'shma so'zlarda
+/// xato qiladi — nomzod ko'radigan birinchi ekranda bunday xato
+/// ishonchni yo'qotadi. Solishtirish uchun: MBF ning hozirgi botida
+/// aynan shunday xatolar bor («ушбу болими», «оз аризангизни»,
+/// «мавжуд иш оринлари») va ular birinchi qarashdayoq ko'zga tashlanadi.
+/// </para>
+/// <para>
+/// ⚠️ <b>Har bir <c>switch</c> da uchala til ham ALOHIDA yozilgan.</b>
+/// <c>_ =></c> tarmog'i faqat lotinni bildiradi. Ruscha uchun alohida
+/// tarmoq yozilmasa, u jimgina lotincha matn ko'rsatib qo'yardi va
+/// kompilyator bunday xatoni ushlay olmaydi.
 /// </para>
 /// </remarks>
 public static class BotTexts
@@ -29,9 +37,9 @@ public static class BotTexts
     /// <remarks>
     /// Xabarlar <c>parse_mode=HTML</c> bilan yuboriladi (izohi
     /// <c>TelegramClient.SendMessageAsync</c> da). Tashqaridan tushadigan
-    /// yagona qiymat — vakansiya nomi, lekin unda <c>&amp;</c> yoki
-    /// <c>&lt;</c> bo'lsa Telegram BUTUN xabarni rad etardi va nomzod
-    /// hech qanday javob olmasdi.
+    /// qiymatlar — vakansiya nomi va sozlamalardagi matnlar, lekin ularda
+    /// <c>&amp;</c> yoki <c>&lt;</c> bo'lsa Telegram BUTUN xabarni rad
+    /// etardi va nomzod hech qanday javob olmasdi.
     /// </remarks>
     public static string Escape(string? value)
         => (value ?? string.Empty)
@@ -39,17 +47,21 @@ public static class BotTexts
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal);
 
-    /// <summary>Til tanlash — yagona matn, ikkala alifboda birga.</summary>
-    public const string ChooseLanguage = "Тилни танланг / Tilni tanlang:";
+    /// <summary>Til tanlash — yagona matn, uchala tilda birga.</summary>
+    public const string ChooseLanguage = "Тилни танланг / Tilni tanlang / Выберите язык:";
 
     public const string LanguageCyrillic = "Ўзбекча (кирилл)";
     public const string LanguageLatin = "O‘zbekcha (lotin)";
+    public const string LanguageRussian = "Русский";
 
     public static string Greeting(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic =>
             "Ассалому алайкум! 👋\nБонви HR га хуш келибсиз.\n\n"
             + "Бу бот орқали очиқ иш ўринларига ариза топширишингиз мумкин.",
+        BotLanguage.Russian =>
+            "Здравствуйте! 👋\nДобро пожаловать в Bonvi HR.\n\n"
+            + "Через этого бота вы можете подать заявку на открытые вакансии.",
         _ =>
             "Assalomu alaykum! 👋\nBonvi HR ga xush kelibsiz.\n\n"
             + "Bu bot orqali ochiq ish o‘rinlariga ariza topshirishingiz mumkin.",
@@ -58,6 +70,7 @@ public static class BotTexts
     public static string ChooseVacancy(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic => "Қайси вакансияга ариза топширмоқчисиз?",
+        BotLanguage.Russian => "На какую вакансию вы хотите подать заявку?",
         _ => "Qaysi vakansiyaga ariza topshirmoqchisiz?",
     };
 
@@ -66,10 +79,13 @@ public static class BotTexts
     {
         BotLanguage.Cyrillic =>
             "Ҳозирча очиқ иш ўрни йўқ. 🙏\n\n"
-            + "Кейинроқ /start буйруғи билан яна уриниб кўринг.",
+            + "Кейинроқ яна кириб кўринг — пастдаги менюдан.",
+        BotLanguage.Russian =>
+            "Пока открытых вакансий нет. 🙏\n\n"
+            + "Загляните позже — через меню ниже.",
         _ =>
             "Hozircha ochiq ish o‘rni yo‘q. 🙏\n\n"
-            + "Keyinroq /start buyrug‘i bilan yana urinib ko‘ring.",
+            + "Keyinroq yana kirib ko‘ring — pastdagi menyudan.",
     };
 
     public static string AskName(BotLanguage language) => language switch
@@ -77,6 +93,9 @@ public static class BotTexts
         BotLanguage.Cyrillic =>
             "Фамилия, исм ва отангизнинг исмини ёзинг.\n\n"
             + "Масалан: <i>Каримов Азиз Акмал ўғли</i>",
+        BotLanguage.Russian =>
+            "Напишите фамилию, имя и отчество.\n\n"
+            + "Например: <i>Каримов Азиз Акмалович</i>",
         _ =>
             "Familiya, ism va otangizning ismini yozing.\n\n"
             + "Masalan: <i>Karimov Aziz Akmal o‘g‘li</i>",
@@ -87,6 +106,9 @@ public static class BotTexts
         BotLanguage.Cyrillic =>
             "Камида фамилия ва исм керак. Илтимос, тўлиқ ёзинг.\n\n"
             + "Масалан: <i>Каримов Азиз Акмал ўғли</i>",
+        BotLanguage.Russian =>
+            "Нужны как минимум фамилия и имя. Пожалуйста, напишите полностью.\n\n"
+            + "Например: <i>Каримов Азиз Акмалович</i>",
         _ =>
             "Kamida familiya va ism kerak. Iltimos, to‘liq yozing.\n\n"
             + "Masalan: <i>Karimov Aziz Akmal o‘g‘li</i>",
@@ -97,6 +119,9 @@ public static class BotTexts
         BotLanguage.Cyrillic =>
             "Раҳмат! Энди телефон рақамингизни юборинг.\n\n"
             + "Пастдаги тугмани босинг — рақам ўзи юборилади.",
+        BotLanguage.Russian =>
+            "Спасибо! Теперь отправьте номер телефона.\n\n"
+            + "Нажмите кнопку ниже — номер отправится сам.",
         _ =>
             "Rahmat! Endi telefon raqamingizni yuboring.\n\n"
             + "Pastdagi tugmani bosing — raqam o‘zi yuboriladi.",
@@ -105,6 +130,7 @@ public static class BotTexts
     public static string PhoneButton(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic => "📱 Рақамни юбориш",
+        BotLanguage.Russian => "📱 Отправить номер",
         _ => "📱 Raqamni yuborish",
     };
 
@@ -114,6 +140,9 @@ public static class BotTexts
         BotLanguage.Cyrillic =>
             "Илтимос, рақамни қўлда ёзманг — пастдаги тугмани босинг.\n"
             + "Шунда рақам хатосиз тушади.",
+        BotLanguage.Russian =>
+            "Пожалуйста, не пишите номер вручную — нажмите кнопку ниже.\n"
+            + "Так номер придёт без ошибок.",
         _ =>
             "Iltimos, raqamni qo‘lda yozmang — pastdagi tugmani bosing.\n"
             + "Shunda raqam xatosiz tushadi.",
@@ -124,6 +153,8 @@ public static class BotTexts
     {
         BotLanguage.Cyrillic =>
             "Бу бошқа одамнинг рақами. Илтимос, ўз рақамингизни юборинг.",
+        BotLanguage.Russian =>
+            "Это номер другого человека. Пожалуйста, отправьте свой номер.",
         _ =>
             "Bu boshqa odamning raqami. Iltimos, o‘z raqamingizni yuboring.",
     };
@@ -132,12 +163,13 @@ public static class BotTexts
     {
         BotLanguage.Cyrillic =>
             $"✅ Аризангиз қабул қилинди!\n\nВакансия: <b>{Escape(vacancy)}</b>\n\n"
-            + "ХР бўлими кўриб чиқади ва сиз билан телефон орқали боғланади.\n"
-            + "Янги ариза учун: /start",
+            + "ХР бўлими кўриб чиқади ва сиз билан телефон орқали боғланади.",
+        BotLanguage.Russian =>
+            $"✅ Ваша заявка принята!\n\nВакансия: <b>{Escape(vacancy)}</b>\n\n"
+            + "Отдел кадров рассмотрит её и свяжется с вами по телефону.",
         _ =>
             $"✅ Arizangiz qabul qilindi!\n\nVakansiya: <b>{Escape(vacancy)}</b>\n\n"
-            + "HR bo‘limi ko‘rib chiqadi va siz bilan telefon orqali bog‘lanadi.\n"
-            + "Yangi ariza uchun: /start",
+            + "HR bo‘limi ko‘rib chiqadi va siz bilan telefon orqali bog‘lanadi.",
     };
 
     /// <summary>Takroriy ariza — holati bilan birga.</summary>
@@ -154,11 +186,15 @@ public static class BotTexts
             BotLanguage.Cyrillic =>
                 $"⚠️ Сиз «{Escape(vacancy)}» вакансиясига {date} да ариза топширгансиз.\n\n"
                 + (stage is null ? string.Empty : $"Ҳозирги ҳолат: <b>{Escape(stage)}</b>\n\n")
-                + "Бошқа вакансияни танлашингиз мумкин: /start",
+                + "Бошқа вакансияни танлашингиз мумкин.",
+            BotLanguage.Russian =>
+                $"⚠️ Вы уже подавали заявку на вакансию «{Escape(vacancy)}» {date}.\n\n"
+                + (stage is null ? string.Empty : $"Текущий статус: <b>{Escape(stage)}</b>\n\n")
+                + "Вы можете выбрать другую вакансию.",
             _ =>
                 $"⚠️ Siz «{Escape(vacancy)}» vakansiyasiga {date} da ariza topshirgansiz.\n\n"
                 + (stage is null ? string.Empty : $"Hozirgi holat: <b>{Escape(stage)}</b>\n\n")
-                + "Boshqa vakansiyani tanlashingiz mumkin: /start",
+                + "Boshqa vakansiyani tanlashingiz mumkin.",
         };
     }
 
@@ -167,44 +203,61 @@ public static class BotTexts
     {
         BotLanguage.Cyrillic =>
             "Кечирасиз, ариза юборилмади. 😔\n\n"
-            + "Бироздан кейин /start билан яна уриниб кўринг.",
+            + "Бироздан кейин яна уриниб кўринг.",
+        BotLanguage.Russian =>
+            "Извините, заявку отправить не удалось. 😔\n\n"
+            + "Попробуйте ещё раз чуть позже.",
         _ =>
             "Kechirasiz, ariza yuborilmadi. 😔\n\n"
-            + "Birozdan keyin /start bilan yana urinib ko‘ring.",
+            + "Birozdan keyin yana urinib ko‘ring.",
     };
 
     /// <summary>Bosh menyu savoli.</summary>
     public static string MenuPrompt(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic => "Нима қилмоқчисиз?",
+        BotLanguage.Russian => "Что вы хотите сделать?",
         _ => "Nima qilmoqchisiz?",
     };
 
-    /// <summary>Bosh menyudagi «Kompaniya haqida» tugmasi.</summary>
-    public static string AboutButton(BotLanguage language) => language switch
-    {
-        BotLanguage.Cyrillic => "ℹ️ Компания ҳақида",
-        _ => "ℹ️ Kompaniya haqida",
-    };
-
-    /// <summary>Bosh menyudagi «Ariza topshirish» tugmasi.</summary>
+    /// <summary>Menyudagi «Ariza topshirish» tugmasi.</summary>
     public static string ApplyButton(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic => "📝 Ариза топшириш",
+        BotLanguage.Russian => "📝 Подать заявку",
         _ => "📝 Ariza topshirish",
     };
 
-    /// <summary>Kompaniya matnidan keyingi qaytish taklifi.</summary>
-    public static string AfterAbout(BotLanguage language) => language switch
+    /// <summary>Menyudagi «Kompaniya haqida» tugmasi.</summary>
+    public static string AboutButton(BotLanguage language) => language switch
     {
-        BotLanguage.Cyrillic => "\n\nАриза топшириш учун: /start",
-        _ => "\n\nAriza topshirish uchun: /start",
+        BotLanguage.Cyrillic => "ℹ️ Компания ҳақида",
+        BotLanguage.Russian => "ℹ️ О компании",
+        _ => "ℹ️ Kompaniya haqida",
     };
+
+    /// <summary>Menyudagi «Kontaktlar / Manzil» tugmasi.</summary>
+    public static string ContactsButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "📞 Контактлар / Манзил",
+        BotLanguage.Russian => "📞 Контакты / Адрес",
+        _ => "📞 Kontaktlar / Manzil",
+    };
+
+    /// <summary>Menyudagi til almashtirish tugmasi.</summary>
+    /// <remarks>
+    /// Matn UCHALA tilda ham bir xil: nomzod tilni almashtirmoqchi
+    /// bo'lganda u hozirgi tilni tushunmayotgan bo'lishi mumkin —
+    /// aynan shuning uchun tugmani izlayapti. Uchala yozuv birga
+    /// turgani uni so'zdan ko'ra tez tanitadi.
+    /// </remarks>
+    public const string LanguageButton = "🌐 Til / Тил / Язык";
 
     /// <summary>Suhbat unutilgan yoki tushunilmagan xabar.</summary>
     public static string Restart(BotLanguage language) => language switch
     {
-        BotLanguage.Cyrillic => "Аризани бошидан бошлаш учун: /start",
-        _ => "Arizani boshidan boshlash uchun: /start",
+        BotLanguage.Cyrillic => "Пастдаги менюдан керакли бўлимни танланг.",
+        BotLanguage.Russian => "Выберите нужный раздел в меню ниже.",
+        _ => "Pastdagi menyudan kerakli bo‘limni tanlang.",
     };
 }

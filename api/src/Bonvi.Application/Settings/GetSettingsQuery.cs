@@ -82,6 +82,11 @@ public sealed class GetBotSettingsQueryHandler
         return Result.Success(new BotSettingsDto(
             settings.Text(SystemSettingKeys.BotAboutCyrillic),
             settings.Text(SystemSettingKeys.BotAboutLatin),
+            settings.Text(SystemSettingKeys.BotAboutRussian),
+            settings.Text(SystemSettingKeys.BotContactsCyrillic),
+            settings.Text(SystemSettingKeys.BotContactsLatin),
+            settings.Text(SystemSettingKeys.BotContactsRussian),
+            settings.Text(SystemSettingKeys.BotLocation),
             settings.Number(SystemSettingKeys.BotConversationTimeoutMinutes)));
     }
 }

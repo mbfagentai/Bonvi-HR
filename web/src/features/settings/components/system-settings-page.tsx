@@ -53,6 +53,11 @@ const GROUPS: readonly {
       'bot.token': 'settings.system.botToken',
       'bot.about.cyrillic': 'settings.system.botAboutCyrillic',
       'bot.about.latin': 'settings.system.botAboutLatin',
+      'bot.about.russian': 'settings.system.botAboutRussian',
+      'bot.contacts.cyrillic': 'settings.system.botContactsCyrillic',
+      'bot.contacts.latin': 'settings.system.botContactsLatin',
+      'bot.contacts.russian': 'settings.system.botContactsRussian',
+      'bot.location': 'settings.system.botLocation',
       'bot.conversationTimeoutMinutes': 'settings.system.botConversationTimeout',
     },
   },
@@ -68,6 +73,23 @@ const GROUPS: readonly {
     },
   },
 ]
+
+/**
+ * Bir qatorli matn maydonlari — kalit va uning o'z izohi.
+ *
+ * Matnli sozlama SUKUT BO'YICHA sakkiz qatorli maydonga tushadi, chunki
+ * ularning deyarli hammasi bot xabari: sarlavha, bo'sh qator, tavsif.
+ * Xarita nuqtasi esa bitta qisqa qiymat («40.505852, 70.930622») va u
+ * katta maydonda adashib ketardi — HR u yerga manzil YOZIB qo'yishi
+ * mumkin edi, holbuki kerak bo'lgani ikkita son.
+ *
+ * Xarita ro'yxatda: turini SERVER hal qilmaydi, chunki server uchun
+ * ikkalasi ham matn. Bu ko'rinish masalasi va u shu yerda qoladi —
+ * `GROUPS` dagi bilan bir xil fikr.
+ */
+const SINGLE_LINE_TEXT: Readonly<Record<string, string>> = {
+  'bot.location': 'settings.system.botLocationHint',
+}
 
 /**
  * Tizim sozlamalari — FAQAT super administrator uchun.
@@ -392,6 +414,17 @@ function SettingField({
             ? t('settings.system.range', { min: num(setting.min), max: num(setting.max) })
             : undefined
         }
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    )
+  }
+
+  if (SINGLE_LINE_TEXT[setting.key] !== undefined) {
+    return (
+      <TextField
+        label={label}
+        hint={t(SINGLE_LINE_TEXT[setting.key]!)}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

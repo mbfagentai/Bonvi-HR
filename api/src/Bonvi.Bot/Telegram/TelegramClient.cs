@@ -134,6 +134,11 @@ public sealed partial class TelegramClient
     /// xato terishga va begona raqam kiritishga yo'l ochardi.
     /// </param>
     /// <param name="contactButtonText">«Raqamni yuborish» tugmasining matni.</param>
+    /// <param name="menu">
+    /// Ekran ostida DOIMIY turadigan menyu tugmalari. Bosilganda ular
+    /// oddiy matnli xabar bo'lib keladi — <c>buttons</c> dan farqi
+    /// shunda: u <c>callback</c> yuboradi va xabarga bog'lanib qoladi.
+    /// </param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     public async Task<bool> SendMessageAsync(
         long chatId,
@@ -141,6 +146,7 @@ public sealed partial class TelegramClient
         IReadOnlyList<IReadOnlyList<InlineButton>>? buttons = null,
         bool requestContact = false,
         string? contactButtonText = null,
+        IReadOnlyList<string>? menu = null,
         CancellationToken cancellationToken = default)
     {
         object? markup = null;
@@ -166,6 +172,31 @@ public sealed partial class TelegramClient
                         .Select(button => new { text = button.Text, callback_data = button.CallbackData })
                         .ToArray())
                     .ToArray(),
+            };
+        }
+        else if (menu is { Count: > 0 })
+        {
+            /*
+              DOIMIY MENYU — ekran ostida turadigan tugmalar.
+
+              `one_time_keyboard` YO'Q: aynan shu narsa uni doimiy
+              qiladi. Nomzod suhbatning istalgan joyida bo'limni
+              almashtira oladi va «/start» buyrug'ini eslab qolishi
+              shart emas — bu bot bilan birinchi marta ishlayotgan
+              odam uchun eng katta farq.
+
+              Ikkitalab qator: to'rtta tugma bitta qatorda telefon
+              ekranida siqilib, matni kesilib qolardi.
+            */
+            markup = new
+            {
+                keyboard = menu
+                    .Select((label, index) => (label, index))
+                    .GroupBy(pair => pair.index / 2)
+                    .Select(row => row.Select(pair => new { text = pair.label }).ToArray())
+                    .ToArray(),
+                resize_keyboard = true,
+                is_persistent = true,
             };
         }
         else
@@ -196,6 +227,37 @@ public sealed partial class TelegramClient
         };
 
         var result = await CallAsync<JsonElement>("sendMessage", body, cancellationToken).ConfigureAwait(false);
+        return result.ValueKind == JsonValueKind.Object;
+    }
+
+    /// <summary>
+    /// Xaritadagi nuqtani yuboradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Manzil MATN bilan berilganda nomzod uni qo'lda navigatorga
+    /// ko'chirishi kerak bo'ladi; Telegram'ning o'z nuqtasi esa bir
+    /// bosishda yo'l ko'rsatishga o'tadi. Shu sababli kontakt matnidan
+    /// keyin alohida xabar bo'lib yuboriladi.
+    /// </para>
+    /// <para>
+    /// Xatolik yutiladi (<c>CallAsync</c> ning umumiy qoidasi): xarita
+    /// bormasa ham kontakt matni allaqachon yetib borgan va nomzod
+    /// manzilni biladi.
+    /// </para>
+    /// </remarks>
+    public async Task<bool> SendLocationAsync(
+        long chatId,
+        double latitude,
+        double longitude,
+        CancellationToken cancellationToken)
+    {
+        var result = await CallAsync<JsonElement>(
+                "sendLocation",
+                new { chat_id = chatId, latitude, longitude },
+                cancellationToken)
+            .ConfigureAwait(false);
+
         return result.ValueKind == JsonValueKind.Object;
     }
 

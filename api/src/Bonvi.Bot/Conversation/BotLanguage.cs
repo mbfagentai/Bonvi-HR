@@ -11,9 +11,17 @@ namespace Bonvi.Bot.Conversation;
 /// oxirigacha o'zgarmaydi.
 /// </para>
 /// <para>
-/// Rus tili YO'Q: bu bot ishchi o'rinlariga ariza uchun va nomzodlar
-/// o'zbek tilida yozadi. Kerak bo'lsa qo'shish — bitta sanoq qiymati va
-/// bitta matn to'plami.
+/// <b>Rus tili qo'shildi (2026-08-30, foydalanuvchi qarori).</b> MBF ning
+/// hozirgi boti ham ruscha gapiradi va uning tavsifi butunlay ruscha —
+/// ya'ni ruschada yozadigan nomzodlar haqiqatan bor. Uchinchi til
+/// alifbo emas, boshqa TIL: kirill va lotin bir xil gapning ikki
+/// yozuvi, ruscha esa alohida tarjima.
+/// </para>
+/// <para>
+/// ⚠️ <b>Matnlarda <c>_ =></c> tarmog'i lotinni bildiradi</b> va bu
+/// yerda qo'shilgan har bir yangi til uchun ALOHIDA tarmoq yozilishi
+/// shart. Aks holda yangi til jimgina lotincha matn ko'rsatib
+/// qo'yardi — kompilyator bunday xatoni ushlay olmaydi.
 /// </para>
 /// </remarks>
 public enum BotLanguage
@@ -23,4 +31,7 @@ public enum BotLanguage
 
     /// <summary>O'zbekcha (lotin).</summary>
     Latin = 2,
+
+    /// <summary>Русский.</summary>
+    Russian = 3,
 }
