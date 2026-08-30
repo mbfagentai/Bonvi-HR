@@ -403,10 +403,32 @@ Uchinchi bo‘limda **«Yo‘nalishi»** ham turadi va bir nechtasini birdaniga
 tanlash mumkin. Ishga qabul formasida bu maydon yo‘q — yo‘nalishlar aynan shu
 yerdan qo‘yiladi.
 
-«Tekshiruvlar» blokida uchta narsa yuritiladi: **Xavfsizlik tekshiruvi** va
-**mehnat.uz** (uchta holat: Noma’lum · O‘tgan · O‘tmagan) hamda
-**Sudlanganlik** — bu erkin matn maydoni, ya’ni «sudlanmagan» deb ham,
-modda raqamini ham yozsa bo‘ladi.
+«Tekshiruvlar» blokida ikkita narsa yuritiladi.
+
+**Sudlanganlik** — uchta javobdan biri tanlanadi:
+
+| Javob | Nimani bildiradi |
+|---|---|
+| **Noma’lum** | Hech kim tekshirmagan |
+| **Sudlanmagan** | Tekshirilgan, sudlanganligi yo‘q |
+| **Sudlangan** | Sudlanganligi bor |
+
+Yonidagi **«Sudlanganlik tafsiloti»** maydoniga izoh yoziladi: qaysi modda,
+qachon. U javobni almashtirmaydi — izohlaydi.
+
+>! **Nega tanlov, faqat matn emas.** Ilgari bu yerda faqat matn maydoni
+>! turardi va undan javobni o‘qib bo‘lmasdi: bo‘sh matn «sudlanmagan» degani
+>! emas, «hech kim yozmagan» degani. HR uchun esa bu ikkisi butunlay boshqa
+>! javob.
+
+**mehnat.uz havolasi** — xodimning mehnat.uz dagi profiliga manzil. Uni
+kiritsangiz kartada **«Profilni ochish»** tugmasi paydo bo‘ladi. Skrinshot
+esa bu formada emas, kartaning o‘zidan yuklanadi (rasm bilan bir xil yo‘l).
+
+>! Ilgari bu yerda **«Xavfsizlik tekshiruvi»** va **«mehnat.uz: ha/yo‘q»**
+>! degan yana ikkita tanlov bor edi. Ikkalasi ham olib tashlandi: birinchisini
+>! HR hech qachon to‘ldirmagan, ikkinchisi esa bir xil savolni ikki marta
+>! so‘rardi — havolaning o‘zi javob ham, dalil ham.
 
 Oynada eslatma turadi: **«Saqlangach «tekshirish kerak» belgisi olib
 tashlanadi»**.
