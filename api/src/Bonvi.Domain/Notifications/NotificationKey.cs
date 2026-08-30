@@ -92,6 +92,7 @@ public static class NotificationKey
             [NotificationType.BirthdayToday] = "tugilgan_kun.bugun",
             [NotificationType.BirthdayTomorrow] = "tugilgan_kun.ertaga",
             [NotificationType.CandidateNew] = "nomzod.yangi",
+            [NotificationType.CandidateFromBot] = "nomzod.botdan",
             [NotificationType.JobOfferExpiring] = "taklif.muddati",
             [NotificationType.JobOfferExpired] = "taklif.muddati_otdi",
         };

@@ -40,7 +40,21 @@ builder.Services.AddHttpClient<TelegramClient>((provider, client) =>
     // `HttpClient` ning muddati undan UZUNROQ bo'lishi shart, aks holda
     // har so'rov o'z vaqti tugashi bilan uzilardi.
     client.Timeout = TimeSpan.FromSeconds(options.PollTimeoutSeconds + 15);
-});
+})
+
+/*
+  ⚠️ TOKEN JURNALGA TUSHMASLIGI UCHUN.
+
+  `AddHttpClient` sukut bo'yicha har bir so'rovni jurnalga yozadi va
+  MANZILNI to'liq ko'rsatadi. Telegram tokeni esa aynan manzil ichida
+  turadi (API shunday qurilgan), ya'ni sukut sozlama bilan bot tokeni
+  `docker logs bot` da ochiq matn bo'lib yotardi — uni ko'rgan har
+  kim bot nomidan xabar yuborishi mumkin.
+
+  Bu jurnallar butunlay o'chiriladi. Yo'qotilgan narsa yo'q: chaqiruv
+  natijasini `TelegramClient` o'zi yozadi (metod nomi bilan, tokensiz).
+*/
+.RemoveAllLoggers();
 
 builder.Services.AddHttpClient<BonviClient>((provider, client) =>
 {

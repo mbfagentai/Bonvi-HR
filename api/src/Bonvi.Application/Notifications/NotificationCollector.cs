@@ -6,6 +6,7 @@ using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.Notifications.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Notifications;
+using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Notifications;
 
@@ -390,10 +391,24 @@ public sealed class NotificationCollector
 
             AddIfPresent(parameters, NotificationParams.VacancyTitle, row.VacancyTitle);
 
+            /*
+              Manba TURNI ham, DARAJANI ham belgilaydi.
+
+              Qo'lda kiritilgan nomzodni HR ning o'zi yozgan — u xabardor,
+              shu sababli ko'k eslatma. Botdan kelgan ariza esa hech kim
+              qaramayotgan paytda tushadi (kechasi, dam olish kunida) va
+              odam javob kutib turadi — shu sababli sariq va ro'yxatning
+              tepasida (sabab `NotificationType.CandidateFromBot` izohida).
+            */
+            var bot = row.Source == CandidateSource.TelegramBot;
+
+            var type = bot ? NotificationType.CandidateFromBot : NotificationType.CandidateNew;
+            var severity = bot ? NotificationSeverity.Warning : NotificationSeverity.Info;
+
             items.Add(new NotificationDto(
-                NotificationKey.For(NotificationType.CandidateNew, row.CandidateId),
-                NotificationType.CandidateNew,
-                NotificationSeverity.Info,
+                NotificationKey.For(type, row.CandidateId),
+                type,
+                severity,
                 row.AddedOn,
                 parameters,
                 new NotificationLinkDto(NotificationRoute.Candidate, row.CandidateId)));

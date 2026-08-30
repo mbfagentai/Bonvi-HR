@@ -39,6 +39,7 @@ export const NOTIFICATION_TYPES = [
   'CandidateNew',
   'JobOfferExpiring',
   'JobOfferExpired',
+  'CandidateFromBot',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]

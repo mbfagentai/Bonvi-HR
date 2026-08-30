@@ -60,6 +60,9 @@ public sealed partial class BotWorker : BackgroundService
     private const string LanguageCyrillicData = "lang:cyrl";
     private const string LanguageLatinData = "lang:latn";
 
+    private const string MenuApplyData = "menu:apply";
+    private const string MenuAboutData = "menu:about";
+
     private readonly TelegramClient _telegram;
     private readonly BonviClient _bonvi;
     private readonly ConversationStore _conversations;
@@ -101,6 +104,10 @@ public sealed partial class BotWorker : BackgroundService
             LogNotConfigured(string.Join(", ", missing));
             return;
         }
+
+        // Webhook faol bo'lsa `getUpdates` umuman ishlamaydi (izohi
+        // `TelegramClient.DeleteWebhookAsync` da).
+        await _telegram.DeleteWebhookAsync(stoppingToken).ConfigureAwait(false);
 
         var username = await _telegram.GetMeAsync(stoppingToken).ConfigureAwait(false);
 
@@ -199,7 +206,47 @@ public sealed partial class BotWorker : BackgroundService
                 Language = language,
             });
 
-            await SendGreetingAndVacanciesAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
+            await _telegram
+                .SendMessageAsync(chat.Id, BotTexts.Greeting(language), cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            /*
+              Kompaniya matni sozlanmagan bo'lsa MENYU umuman
+              ko'rsatilmaydi va nomzod to'g'ridan-to'g'ri vakansiyalarni
+              ko'radi: bitta tugmali menyu qadamni bekorga uzaytirardi
+              (izohi `BotOptions.AboutCyrillic` da).
+            */
+            if (About(language) is null)
+            {
+                await ShowVacanciesAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await ShowMenuAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (data is MenuApplyData or MenuAboutData)
+        {
+            var language = state?.Language ?? BotLanguage.Cyrillic;
+
+            if (data == MenuAboutData)
+            {
+                await _telegram
+                    .SendMessageAsync(
+                        chat.Id,
+                        (About(language) ?? string.Empty) + BotTexts.AfterAbout(language),
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                // Menyu QAYTA ko'rsatiladi: matnni o'qigan odam odatda
+                // shu yerdayoq ariza topshirmoqchi bo'ladi va uni
+                // `/start` yozishga majburlash ortiqcha to'siq.
+                await ShowMenuAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await ShowVacanciesAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -434,17 +481,49 @@ public sealed partial class BotWorker : BackgroundService
         LogApplication(state.VacancyTitle);
     }
 
-    private async Task SendGreetingAndVacanciesAsync(
-        long chatId,
-        BotLanguage language,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// Tanlangan tildagi kompaniya matni — sozlanmagan bo'lsa <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// Lotin matni bo'sh bo'lsa kirillcha ishlatiladi: bitta matn yozib
+    /// qo'yish ikkitasini majburlashdan foydaliroq (izohi
+    /// <c>BotOptions.AboutLatin</c> da).
+    /// </remarks>
+    private string? About(BotLanguage language)
     {
-        await _telegram
-            .SendMessageAsync(chatId, BotTexts.Greeting(language), cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        var text = language == BotLanguage.Latin && !string.IsNullOrWhiteSpace(_options.AboutLatin)
+            ? _options.AboutLatin
+            : _options.AboutCyrillic;
 
-        await ShowVacanciesAsync(chatId, language, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        /*
+          `.env` va docker-compose yangi QATORNI uzata olmaydi: ular
+          qiymatni bir satrda saqlaydi va `\n` ikkita BELGI bo'lib keladi
+          (teskari chiziq va «n»). Shu sababli u shu yerda haqiqiy qator
+          ko'chishiga aylantiriladi — aks holda kompaniya matni Telegram'da
+          bitta uzun satr bo'lib chiqardi.
+        */
+        return text
+            .Replace("\\r\\n", "\n", StringComparison.Ordinal)
+            .Replace("\\n", "\n", StringComparison.Ordinal);
     }
+
+    /// <summary>Bosh menyu: ariza topshirish yoki kompaniya haqida.</summary>
+    private async Task ShowMenuAsync(long chatId, BotLanguage language, CancellationToken cancellationToken)
+        => await _telegram
+            .SendMessageAsync(
+                chatId,
+                BotTexts.MenuPrompt(language),
+                [
+                    [new InlineButton(BotTexts.ApplyButton(language), MenuApplyData)],
+                    [new InlineButton(BotTexts.AboutButton(language), MenuAboutData)],
+                ],
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
     private async Task ShowVacanciesAsync(
         long chatId,

@@ -1,4 +1,5 @@
 import {
+  Bot,
   Cake,
   CalendarClock,
   FileClock,
@@ -27,7 +28,7 @@ import type { AppNotification, NotificationSeverity, NotificationType } from '..
  * shunday bo'shliqda `nav.users` xatosi ikki marta chiqqan).
  *
  * ⚠️ Bu SERVER turlarining ro'yxati EMAS (`NOTIFICATION_TYPES`): u yerda
- * to'qqizta tur, bu yerda o'nta matn. Farqi — `JobOfferExpiring`:
+ * to'qqizta tur, bu yerda o'n bitta matn. Farqi — `JobOfferExpiring`:
  * «javobga 2 kun qoldi» va «javob muddati BUGUN tugaydi» bir xil jumla
  * bilan yozilmaydi, chunki serverdan `daysLeft = "0"` keladi va «0
  * kundan keyin tugaydi» degan matn hech qaysi tilda o'qilmaydi. Sinov
@@ -46,6 +47,7 @@ export const NOTIFICATION_TEXT_KEYS = [
   'birthdayToday',
   'birthdayTomorrow',
   'candidateNew',
+  'candidateFromBot',
   'jobOfferExpiring',
   'jobOfferExpiringToday',
   'jobOfferExpired',
@@ -68,6 +70,7 @@ const TEXT_KEY: Readonly<Record<NotificationType, NotificationTextKey>> = {
   BirthdayToday: 'birthdayToday',
   BirthdayTomorrow: 'birthdayTomorrow',
   CandidateNew: 'candidateNew',
+  CandidateFromBot: 'candidateFromBot',
   JobOfferExpiring: 'jobOfferExpiring',
   JobOfferExpired: 'jobOfferExpired',
 }
@@ -288,6 +291,13 @@ export const TYPE_ICON: Readonly<Record<NotificationType, LucideIcon>> = {
   BirthdayToday: Cake,
   BirthdayTomorrow: Gift,
   CandidateNew: UserPlus,
+
+  /*
+    Bot ikonasi ATAYLAB odam ikonasidan boshqa. Ro'yxatda ikkalasi
+    yonma-yon tursa, HR «kim qo'shdi?» degan savolga matnni o'qimasdan
+    javob oladi — bu esa aynan shu ikkisining yagona muhim farqi.
+  */
+  CandidateFromBot: Bot,
   JobOfferExpiring: FileClock,
   JobOfferExpired: FileX2,
 }

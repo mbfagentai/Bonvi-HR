@@ -61,6 +61,34 @@ public sealed partial class TelegramClient
     }
 
     /// <summary>
+    /// Bot uchun ro'yxatdan o'tgan webhook'ni o'chiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Telegram bitta botga IKKALA usulni birdan bermaydi: webhook faol
+    /// bo'lsa <c>getUpdates</c> «Conflict» bilan rad etiladi va bot
+    /// birorta ham xabar ololmaydi.
+    /// </para>
+    /// <para>
+    /// Webhook bir marta qo'yilsa Telegram tomonida QOLADI — botni qayta
+    /// yaratish ham, tokenni almashtirish ham uni o'chirmaydi. Shu sababli
+    /// har ishga tushishda bir marta o'chiriladi: bu botni boshqa
+    /// muhitdan (masalan sinov serveridan) ko'chirganda yagona ishonchli
+    /// yo'l va webhook'siz botda hech qanday zarari yo'q.
+    /// </para>
+    /// </remarks>
+    public async Task DeleteWebhookAsync(CancellationToken cancellationToken)
+        => await CallAsync<JsonElement>(
+                "deleteWebhook",
+
+                // Kutib turgan xabarlar TASHLANMAYDI: nomzod bot
+                // ishlamayotgan paytda yozgan bo'lishi mumkin va uning
+                // xabari yo'qolmasligi kerak.
+                new { drop_pending_updates = false },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>
     /// Yangiliklarni oladi (long polling).
     /// </summary>
     /// <param name="offset">
@@ -149,6 +177,19 @@ public sealed partial class TelegramClient
         {
             chat_id = chatId,
             text,
+
+            /*
+              ⚠️ Matndagi `<b>` va `<i>` teglari IShLASHI uchun shart.
+
+              Busiz Telegram ularni oddiy matn deb ko'rsatadi va nomzod
+              ekranda «<i>Каримов Азиз</i>» degan dasturchi belgilarini
+              o'qiydi — bu bir qarashda buzuq bot taassurotini beradi.
+
+              Matnga tashqaridan tushadigan yagona qiymat — vakansiya
+              nomi, va u `Escape` dan o'tkaziladi (`BotTexts`): unda `<`
+              yoki `&` bo'lsa Telegram butun xabarni rad etardi.
+            */
+            parse_mode = "HTML",
             reply_markup = markup,
         };
 

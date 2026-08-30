@@ -58,6 +58,36 @@ public sealed class BotOptions
     public int PollTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
+    /// «Kompaniya haqida» tugmasi ostidagi matn — kirill alifbosida.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega sozlamada, kodda emas.</b> Bu MARKETING matni: u
+    /// o'zgaradi, uni HR yozadi va u dasturchini kutmasligi kerak.
+    /// Tizimda esa bunday matnni saqlaydigan joy yo'q —
+    /// «yuridik shaxslar» ma'lumotnomasi faqat nomlarni tutadi.
+    /// </para>
+    /// <para>
+    /// <b>Bo'sh bo'lsa tugma UMUMAN chizilmaydi.</b> Bo'sh bo'lim
+    /// ko'rsatib, «ma'lumot yo'q» deb yozish botni tugallanmagandek
+    /// ko'rsatardi.
+    /// </para>
+    /// <para>
+    /// Yangi qatorni <c>\n</c> bilan yozing. Matnda <c>&lt;b&gt;</c> va
+    /// <c>&lt;i&gt;</c> teglari ishlaydi.
+    /// </para>
+    /// </remarks>
+    public string AboutCyrillic { get; set; } = string.Empty;
+
+    /// <summary>«Kompaniya haqida» matni — lotin alifbosida.</summary>
+    /// <remarks>
+    /// Bo'sh bo'lsa <see cref="AboutCyrillic"/> ishlatiladi: bitta matn
+    /// yozib qo'yish ikkitasini majburlashdan ko'ra foydaliroq — nomzod
+    /// hech bo'lmasa biror narsa o'qiydi.
+    /// </remarks>
+    public string AboutLatin { get; set; } = string.Empty;
+
+    /// <summary>
     /// Yarim qolgan suhbat qancha vaqtdan keyin unutiladi (daqiqa).
     /// </summary>
     /// <remarks>

@@ -1242,6 +1242,10 @@
         "title": "Yangi nomzod",
         "text": "{{name}} — {{date}} da nomzodlar ro‘yxatiga qo‘shildi."
       },
+      "candidateFromBot": {
+        "title": "Botdan ariza tushdi",
+        "text": "{{name}} — {{date}} da Telegram bot orqali ariza topshirdi. Bog‘lanish kutilyapti."
+      },
       "jobOfferExpiring": {
         "title": "Taklif muddati tugayapti",
         "text": "{{name}} — ish taklifiga javob muddati {{days}} kundan keyin, {{date}} da tugaydi."

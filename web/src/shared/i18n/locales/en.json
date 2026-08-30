@@ -1242,6 +1242,10 @@
         "title": "New candidate",
         "text": "{{name}} — added to the candidate list on {{date}}."
       },
+      "candidateFromBot": {
+        "title": "Application from the bot",
+        "text": "{{name}} applied through the Telegram bot on {{date}} and is waiting to be contacted."
+      },
       "jobOfferExpiring": {
         "title": "Job offer expiring",
         "text": "{{name}} — the reply deadline for the job offer is in {{days}} days, on {{date}}."

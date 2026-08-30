@@ -178,6 +178,10 @@ services:
       # BIR XIL bo'lishi shart, aks holda kirish 401 bilan rad etiladi.
       Bot__Login: ${BOOTSTRAP__BOTLOGIN:-}
       Bot__Password: ${BOOTSTRAP__BOTPASSWORD:-}
+      # «Kompaniya haqida» tugmasi ostidagi matn. Bo'sh bo'lsa tugma
+      # umuman chizilmaydi (izohi `BotOptions.AboutCyrillic` da).
+      Bot__AboutCyrillic: ${TELEGRAM__ABOUT_CYRL:-}
+      Bot__AboutLatin: ${TELEGRAM__ABOUT_LATN:-}
       Bot__PollTimeoutSeconds: ${TELEGRAM__POLLTIMEOUT:-30}
       Bot__ConversationTimeoutMinutes: ${TELEGRAM__CONVERSATIONTIMEOUT:-60}
     volumes:

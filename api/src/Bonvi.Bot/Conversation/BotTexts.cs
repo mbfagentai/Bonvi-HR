@@ -23,6 +23,22 @@ namespace Bonvi.Bot.Conversation;
 /// </remarks>
 public static class BotTexts
 {
+    /// <summary>
+    /// Matnni HTML uchun xavfsiz qiladi.
+    /// </summary>
+    /// <remarks>
+    /// Xabarlar <c>parse_mode=HTML</c> bilan yuboriladi (izohi
+    /// <c>TelegramClient.SendMessageAsync</c> da). Tashqaridan tushadigan
+    /// yagona qiymat — vakansiya nomi, lekin unda <c>&amp;</c> yoki
+    /// <c>&lt;</c> bo'lsa Telegram BUTUN xabarni rad etardi va nomzod
+    /// hech qanday javob olmasdi.
+    /// </remarks>
+    public static string Escape(string? value)
+        => (value ?? string.Empty)
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal);
+
     /// <summary>Til tanlash — yagona matn, ikkala alifboda birga.</summary>
     public const string ChooseLanguage = "Тилни танланг / Tilni tanlang:";
 
@@ -115,11 +131,11 @@ public static class BotTexts
     public static string Accepted(BotLanguage language, string vacancy) => language switch
     {
         BotLanguage.Cyrillic =>
-            $"✅ Аризангиз қабул қилинди!\n\nВакансия: <b>{vacancy}</b>\n\n"
+            $"✅ Аризангиз қабул қилинди!\n\nВакансия: <b>{Escape(vacancy)}</b>\n\n"
             + "ХР бўлими кўриб чиқади ва сиз билан телефон орқали боғланади.\n"
             + "Янги ариза учун: /start",
         _ =>
-            $"✅ Arizangiz qabul qilindi!\n\nVakansiya: <b>{vacancy}</b>\n\n"
+            $"✅ Arizangiz qabul qilindi!\n\nVakansiya: <b>{Escape(vacancy)}</b>\n\n"
             + "HR bo‘limi ko‘rib chiqadi va siz bilan telefon orqali bog‘lanadi.\n"
             + "Yangi ariza uchun: /start",
     };
@@ -136,12 +152,12 @@ public static class BotTexts
         return language switch
         {
             BotLanguage.Cyrillic =>
-                $"⚠️ Сиз «{vacancy}» вакансиясига {date} да ариза топширгансиз.\n\n"
-                + (stage is null ? string.Empty : $"Ҳозирги ҳолат: <b>{stage}</b>\n\n")
+                $"⚠️ Сиз «{Escape(vacancy)}» вакансиясига {date} да ариза топширгансиз.\n\n"
+                + (stage is null ? string.Empty : $"Ҳозирги ҳолат: <b>{Escape(stage)}</b>\n\n")
                 + "Бошқа вакансияни танлашингиз мумкин: /start",
             _ =>
-                $"⚠️ Siz «{vacancy}» vakansiyasiga {date} da ariza topshirgansiz.\n\n"
-                + (stage is null ? string.Empty : $"Hozirgi holat: <b>{stage}</b>\n\n")
+                $"⚠️ Siz «{Escape(vacancy)}» vakansiyasiga {date} da ariza topshirgansiz.\n\n"
+                + (stage is null ? string.Empty : $"Hozirgi holat: <b>{Escape(stage)}</b>\n\n")
                 + "Boshqa vakansiyani tanlashingiz mumkin: /start",
         };
     }
@@ -155,6 +171,34 @@ public static class BotTexts
         _ =>
             "Kechirasiz, ariza yuborilmadi. 😔\n\n"
             + "Birozdan keyin /start bilan yana urinib ko‘ring.",
+    };
+
+    /// <summary>Bosh menyu savoli.</summary>
+    public static string MenuPrompt(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Нима қилмоқчисиз?",
+        _ => "Nima qilmoqchisiz?",
+    };
+
+    /// <summary>Bosh menyudagi «Kompaniya haqida» tugmasi.</summary>
+    public static string AboutButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "ℹ️ Компания ҳақида",
+        _ => "ℹ️ Kompaniya haqida",
+    };
+
+    /// <summary>Bosh menyudagi «Ariza topshirish» tugmasi.</summary>
+    public static string ApplyButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "📝 Ариза топшириш",
+        _ => "📝 Ariza topshirish",
+    };
+
+    /// <summary>Kompaniya matnidan keyingi qaytish taklifi.</summary>
+    public static string AfterAbout(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "\n\nАриза топшириш учун: /start",
+        _ => "\n\nAriza topshirish uchun: /start",
     };
 
     /// <summary>Suhbat unutilgan yoki tushunilmagan xabar.</summary>

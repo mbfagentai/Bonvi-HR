@@ -71,12 +71,11 @@ public enum NotificationType
     /// </remarks>
     BirthdayTomorrow = 6,
 
-    /// <summary>Yangi nomzod qo'shildi.</summary>
+    /// <summary>Yangi nomzod QO'LDA kiritildi.</summary>
     /// <remarks>
-    /// Hozircha nomzodni HR qo'lda kiritadi, kelajakda esa Telegram anketa
-    /// boti avtomatik qo'shadi (<c>CandidateSource.TelegramBot</c>). Bot
-    /// hali qurilmagan, lekin bildirishnoma allaqachon ishlaydi: manba
-    /// parametr bo'lib qaytadi va bot ulanganda hech narsa o'zgarmaydi.
+    /// Bu yozuvni HR ning o'zi kiritgan — ya'ni u allaqachon xabardor.
+    /// Bildirishnoma bu yerda eslatma, chaqiruv emas, shu sababli
+    /// <see cref="NotificationSeverity.Info"/>.
     /// </remarks>
     CandidateNew = 7,
 
@@ -91,6 +90,31 @@ public enum NotificationType
     /// bildirishnoma kerak.
     /// </remarks>
     JobOfferExpired = 9,
+
+    /// <summary>Telegram boti orqali ARIZA tushdi.</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega <see cref="CandidateNew"/> dan alohida tur.</b> Ikkalasi
+    /// ham «yangi nomzod», lekin HR uchun ular BUTUNLAY boshqa hodisa.
+    /// Qo'lda kiritilgan nomzodni HR ning o'zi yozgan — u xabardor.
+    /// Botdan kelgan ariza esa HECH KIM QARAMAYOTGAN paytda tushadi:
+    /// kechasi, dam olish kuni, tushlikda. Aynan shu — sezilmay qolishi
+    /// mumkin bo'lgan yagona nomzod.
+    /// </para>
+    /// <para>
+    /// <b>Nega <see cref="NotificationSeverity.Warning"/>.</b> Daraja
+    /// ro'yxatdagi tartibni ham, rangni ham belgilaydi: sariq yozuv ko'k
+    /// yozuvlar orasidan darhol ajralib turadi va ro'yxatning tepasiga
+    /// chiqadi. Bu «xato» degani emas — «javob kutilyapti» degani: odam
+    /// ariza topshirdi va uni kutmoqda.
+    /// </para>
+    /// <para>
+    /// Rangdan tashqari SHAKL ham boshqa: ikona alohida
+    /// (<c>notification-presentation.ts</c> dagi <c>TYPE_ICON</c>) —
+    /// rang shoshilinchlikni, ikona esa nima bo'lganini aytadi.
+    /// </para>
+    /// </remarks>
+    CandidateFromBot = 10,
 }
 
 /// <summary>Bildirishnomaning muhimlik darajasi.</summary>
@@ -168,6 +192,7 @@ public static class NotificationAccess
         // qildi: `recruiting.view` yo'q odamga nomzod bildirishnomasi
         // KO'RINMASIN.
         NotificationType.CandidateNew
+            or NotificationType.CandidateFromBot
             or NotificationType.JobOfferExpiring
             or NotificationType.JobOfferExpired => Permissions.RecruitingView,
 
