@@ -401,7 +401,14 @@ function SettingField({
   return (
     <TextArea
       label={label}
-      rows={4}
+      /*
+        Sakkiz qator — matnning HAQIQIY shakliga qarab olingan. Bot
+        matni bir bo'lak emas: sarlavha, bo'sh qator, tavsif, yana bo'sh
+        qator va manzil — ya'ni beshtadan kam bo'lmaydi. To'rt qatorda
+        u har doim aylanib turardi va HR o'zi yozgan matnni butunicha
+        ko'rolmasdi.
+      */
+      rows={8}
       hint={t('settings.system.textHint')}
       value={value}
       onChange={(event) => onChange(event.target.value)}
