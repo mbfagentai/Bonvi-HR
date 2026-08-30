@@ -198,6 +198,28 @@
      ketmaydi. `outline-offset: 2px` bo'lgani uchun halqaning qo'shnisi
      sahifa foni: #007AFF / #F4F6F9 = 3.71:1 — WCAG 1.4.11 (3:1) dan o'tadi. */
   --ring:              #007AFF;
+
+  /* ---------- JONLI XABAR (toast) O'RNI ----------
+     Xabar ekranning o'ng tepasida, qo'ng'iroq tugmasining tagida turadi.
+
+     `--toast-inset` — o'ng chetdan qancha turishi. Qiymat yuqori
+     panelning yon to'ldirmasi bilan BIR XIL (`topbar.tsx`:
+     `px-5 lg:px-6`) va shuning uchun ikkitasi: xabarning o'ng qirrasi
+     qo'ng'iroq va foydalanuvchi menyusining o'ng qirrasiga aniq
+     tekislanishi kerak. 4px farq ham qiyshiqlikdek ko'rinadi.
+
+     `--toast-top` — tepadan. Panel `h-16` (64px) + 1px chegara = 65px,
+     ustiga 7px havo. Xabar panelga YOPISHIB emas, uning tagidan
+     boshlanadi — iOS'da qatlamlar orasida doim ozgina nafas bor. */
+  --toast-inset: 20px;
+  --toast-top:   72px;
+}
+
+/* `lg` (Tailwind 64rem) da panel `px-6` ga o'tadi — xabar ham. */
+@media (min-width: 64rem) {
+  :root {
+    --toast-inset: 24px;
+  }
 }
 
 .dark {

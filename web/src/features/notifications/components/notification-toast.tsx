@@ -30,11 +30,15 @@ const VISIBLE_TOASTS = 3
 /**
  * Xabar ekranda necha millisekund turadi.
  *
- * 8 soniya — o'qishga yetadi, lekin diqqatni uzoq ushlab turmaydi.
- * Sichqoncha ustiga kelsa sonner taymerni O'ZI to'xtatadi, ya'ni
- * o'qiyotgan odam xabarni yo'qotmaydi.
+ * 3 soniya — foydalanuvchi belgilagan muddat. Taymer HAR BIR xabar
+ * uchun alohida ketadi: ketma-ket tushgan xabarlar birga emas, qaysi
+ * biri qachon kelgan bo'lsa, o'sha tartibda birin-ketin o'chadi.
+ *
+ * Sichqoncha ustiga kelsa sonner taymerni O'ZI to'xtatadi — o'qiyotgan
+ * odam xabarni yo'qotmaydi. Ma'lumotning o'zi baribir yo'qolmaydi: u
+ * qo'ng'iroq ostidagi ro'yxatda qoladi.
  */
-const TOAST_MS = 8_000
+const TOAST_MS = 3_000
 
 /**
  * Jonli bildirishnomalar: oqim, xabar (toast) va uning ko'rinishi.
@@ -42,7 +46,8 @@ const TOAST_MS = 8_000
  * ⭐ <b>Nima uchun qo'shildi.</b> Foydalanuvchi ko'rsatgan nosozlik:
  * «HR ishlab o'tirganda bot orqali ariza tushsa, u buni bilmaydi —
  * faqat sahifani yangilagandan keyin ko'radi». Endi xabar ekranning
- * tepasidan tushadi, qo'ng'iroqdagi son esa o'sha zahoti o'zgaradi.
+ * o'ng tepasidan, qo'ng'iroq tugmasining tagidan tushadi va
+ * qo'ng'iroqdagi son o'sha zahoti o'zgaradi.
  *
  * ⭐ <b>Uchta qat'iy qoida, ularning har biri foydalanuvchi talabidan.</b>
  *
@@ -57,7 +62,7 @@ const TOAST_MS = 8_000
  * fokusi ko'chmaydi. HR yozayotgan bo'lsa, harflar o'z joyiga
  * tushaveradi.
  *
- * <b>3. Xabar YO'QOLSA ham ma'lumot yo'qolmaydi.</b> U 8 soniyada
+ * <b>3. Xabar YO'QOLSA ham ma'lumot yo'qolmaydi.</b> U 3 soniyada
  * o'zi ketadi, lekin bildirishnomaning o'zi qo'ng'iroq ostidagi
  * ro'yxatda va sanoqda qoladi.
  *
@@ -143,21 +148,48 @@ export function LiveNotifications() {
   return (
     <Toaster
       /*
-        Tepada va o'rtada — telefondagi bildirishnoma bilan bir xil
-        joy. O'ng burchak ataylab tanlanmadi: u yerda qo'ng'iroq va
-        foydalanuvchi menyusi turibdi va xabar aynan o'sha tugmalarni
-        yopib qo'yardi.
+        O'NG TEPA burchak — qo'ng'iroq tugmasining tagi.
+
+        Nega o'rtada emas: xabar sahifaning o'rtasidan tushganda u
+        ishlanayotgan mazmunning ustiga tushardi va «bu qayerdan
+        keldi» degan savolni tug'dirardi. Qo'ng'iroqning tagida esa
+        javob ko'rinib turibdi: xabar o'sha ro'yxatga tushdi, sanoq
+        ham o'sha yerda o'zgardi. Ko'z xabardan tugmagacha bir
+        harakat bilan boradi.
+
+        O'rin `globals.css` dagi `--toast-top` / `--toast-inset` bilan
+        beriladi — ikkinchisi yuqori panelning yon to'ldirmasiga
+        tekislangan, ya'ni xabarning o'ng qirrasi qo'ng'iroq va
+        foydalanuvchi menyusining qirrasi bilan bir chiziqda.
       */
-      position="top-center"
-      visibleToasts={VISIBLE_TOASTS}
+      position="top-right"
+      offset={{ top: 'var(--toast-top)', right: 'var(--toast-inset)' }}
+      mobileOffset={{
+        top: 'var(--toast-top)',
+        right: 'var(--toast-inset)',
+        left: 'var(--toast-inset)',
+      }}
+      /*
+        TAGMA-TAG. `expand` bo'lmasa sonner xabarlarni bir-birining
+        USTIGA yig'ib, faqat eng oxirgisini ko'rsatadi — qolganlari
+        sichqoncha ustiga kelgandagina ochiladi. Ketma-ket tushgan
+        arizalar shunda ko'rinmay qolardi: HR ekranda bitta xabar
+        turganini ko'rib, aslida uchtasi kelganini bilmasdi.
+      */
+      expand
+      /*
+        Uchta tafsilotli karta USTIGA yig'ma karta ham chiqishi
+        mumkin (pastdagi `rest`), shuning uchun +1. Aks holda sonner
+        yig'ma kartani chiqarish uchun tafsilotli kartalardan birini
+        siqib chiqarardi.
+      */
+      visibleToasts={VISIBLE_TOASTS + 1}
       /*
         `unstyled` — sonner'ning O'Z ko'rinishi butunlay o'chiriladi.
         Usiz uning oq karta va soyasi bizning kartamiz ostidan
         ko'rinib turardi va tungi rejimda ayniqsa ko'zga tashlanardi.
       */
       toastOptions={{ unstyled: true, classNames: { toast: 'w-full' } }}
-      /* Yuqori panel ostidan tushsin — u yerda 56px lik panel bor. */
-      offset={72}
       gap={10}
     />
   )
