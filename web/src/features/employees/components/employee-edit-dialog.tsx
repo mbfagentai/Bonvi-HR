@@ -159,8 +159,7 @@ export function EmployeeEditDialog({
         // ko'rsatadi va shartnoma o'zgarsa bu joyda tuzatadigan narsa qolmaydi
         photoKey: employee.photoKey,
         criminalRecordNote: orNull(values.criminalRecordNote),
-        securityChecked: fromTristate(values.securityChecked),
-        registeredOnMehnatUz: fromTristate(values.registeredOnMehnatUz),
+        hasCriminalRecord: fromTristate(values.hasCriminalRecord),
         /*
          * Havola oddiy qoidada: bo'sh yuborish uni O'CHIRADI. Skrinshotdan
          * farqli — u alohida endpoint bilan boshqariladi va bu formada
@@ -397,50 +396,44 @@ export function EmployeeEditDialog({
 
         {/* ───────── Tekshiruvlar va yo'nalishlar ───────── */}
         <Section title={t('employees.checks')}>
+          {/*
+            Sudlanganlik JAVOBI — endi tanlanadi, matndan taxmin
+            qilinmaydi. «Noma'lum» va «Sudlanmagan» bir xil emas: birida
+            hech kim tekshirmagan, ikkinchisida tekshirilgan va topilmagan.
+            Ilgari ikkalasi ham bo'sh matn bo'lib ko'rinardi.
+
+            Havola bilan yonma-yon: ikkalasi ham «bu odam haqida nima
+            ma'lum?» degan savolning javobi va bir xil kenglikda o'qiladi.
+          */}
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
-              label={t('employees.securityCheck')}
+              label={t('employees.criminalRecord')}
               options={[
                 { value: 'unknown', label: t('employees.unknown') },
-                { value: 'yes', label: t('employees.checkPassed') },
-                { value: 'no', label: t('employees.checkFailed') },
+                { value: 'no', label: t('employees.criminalRecordNo') },
+                { value: 'yes', label: t('employees.criminalRecordYes') },
               ]}
               disabled={isSubmitting}
-              error={message('securityChecked')}
-              {...register('securityChecked')}
+              error={message('hasCriminalRecord')}
+              {...register('hasCriminalRecord')}
             />
-            <Select
-              label={t('employees.mehnatUz')}
-              options={[
-                { value: 'unknown', label: t('employees.unknown') },
-                { value: 'yes', label: t('employees.stateYes') },
-                { value: 'no', label: t('employees.stateNo') },
-              ]}
+            <TextField
+              label={t('employees.mehnatUzLink')}
+              placeholder="https://mehnat.uz/..."
+              hint={t('employees.mehnatUzLinkHint')}
               disabled={isSubmitting}
-              error={message('registeredOnMehnatUz')}
-              {...register('registeredOnMehnatUz')}
+              error={message('mehnatUzUrl')}
+              {...register('mehnatUzUrl')}
             />
           </div>
 
           {/*
-            Havola belgining O'ZI YONIDA turadi: HR «mehnat.uz da bormi?»
-            degan savolga javob berayotib, o'sha yerda dalilini ham
-            qoldiradi. Skrinshot esa bu formada YO'Q — u fayl va rasm
-            bilan bir xil yo'ldan boradi (kartadagi «Tekshiruvlar»
-            kartasidan yuklanadi), forma esa faqat matn maydonlarini
-            oladi.
+            Tafsilot — javobning izohi: qaysi modda, qachon.
+            Skrinshot bu formada YO'Q, u rasm bilan bir xil yo'ldan
+            boradi (kartadan yuklanadi).
           */}
-          <TextField
-            label={t('employees.mehnatUzLink')}
-            placeholder="https://mehnat.uz/..."
-            hint={t('employees.mehnatUzLinkHint')}
-            disabled={isSubmitting}
-            error={message('mehnatUzUrl')}
-            {...register('mehnatUzUrl')}
-          />
-
           <TextArea
-            label={t('employees.criminalRecord')}
+            label={t('employees.criminalRecordNote')}
             hint={t('employees.criminalRecordHint')}
             rows={2}
             disabled={isSubmitting}

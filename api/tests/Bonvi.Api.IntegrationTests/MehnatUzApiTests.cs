@@ -12,8 +12,7 @@ public sealed record MehnatUzScreenshotResponse(string ScreenshotKey);
 public sealed record MehnatUzCardResponse(
     Guid Id,
     string? MehnatUzUrl,
-    string? MehnatUzScreenshotKey,
-    bool? RegisteredOnMehnatUz);
+    string? MehnatUzScreenshotKey);
 
 /// <summary>
 /// mehnat.uz havolasi va profil skrinshotining uchi-uchiga testlari.
@@ -125,8 +124,18 @@ public sealed class MehnatUzApiTests : IClassFixture<BonviApiFactory>
         (await XatoKodiAsync(yuklash)).ShouldBe("hujjat.yaroqsiz");
     }
 
+    /// <summary>
+    /// Sxemasiz kiritilgan havolaga <c>https://</c> qo'shiladi.
+    /// </summary>
+    /// <remarks>
+    /// Test ilgari «belgi almashtirilmaydi» degan qo'shimcha tekshiruvni
+    /// ham olib yurardi: kartada «mehnat.uz: ha/yo'q» degan alohida javob
+    /// bor edi. U olib tashlandi (foydalanuvchi qarori: bir xil savol
+    /// ekranda ikki marta so'ralardi) — endi havolaning O'ZI javob ham,
+    /// dalil ham.
+    /// </remarks>
     [Fact]
-    public async Task Havola_sxemasiz_kiritilsa_https_qoshiladi_va_belgi_ozgarmaydi()
+    public async Task Havola_sxemasiz_kiritilsa_https_qoshiladi()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
@@ -139,7 +148,6 @@ public sealed class MehnatUzApiTests : IClassFixture<BonviApiFactory>
             {
                 lastName = "Ҳаволали",
                 firstName = "Ходим",
-                registeredOnMehnatUz = true,
                 mehnatUzUrl = "mehnat.uz/uz/profile/42",
             },
             bekorQilish))
@@ -150,10 +158,6 @@ public sealed class MehnatUzApiTests : IClassFixture<BonviApiFactory>
         var karta = await KartaAsync(client, xodim.Id);
 
         karta.MehnatUzUrl.ShouldBe("https://mehnat.uz/uz/profile/42");
-
-        // Excel'dan kelgan uch holatli belgi ALMASHTIRILMAYDI — havola
-        // uning o'rniga emas, yoniga qo'shiladi.
-        karta.RegisteredOnMehnatUz.ShouldBe(true);
     }
 
     [Fact]

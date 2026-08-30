@@ -289,8 +289,7 @@ export const employeeSchema = z
      * «судланмаган», «2019 й. 168-модда» kabi turli yozuvlar bor.
      */
     criminalRecordNote: optionalText.max(1000, 'malumotnoma.nom_uzun'),
-    securityChecked: z.enum(TRISTATE),
-    registeredOnMehnatUz: z.enum(TRISTATE),
+    hasCriminalRecord: z.enum(TRISTATE),
     /**
      * mehnat.uz profiliga havola.
      *
@@ -354,8 +353,7 @@ export function toEmployeeValues(employee: EmployeeDetails): EmployeeValues {
     speciality: employee.speciality ?? '',
     telegram: employee.telegramUrl ?? '',
     criminalRecordNote: employee.criminalRecordNote ?? '',
-    securityChecked: toTristate(employee.securityChecked),
-    registeredOnMehnatUz: toTristate(employee.registeredOnMehnatUz),
+    hasCriminalRecord: toTristate(employee.hasCriminalRecord),
     mehnatUzUrl: employee.mehnatUzUrl ?? '',
     directionIds: employee.directionIds,
   }

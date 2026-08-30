@@ -32,6 +32,9 @@ public sealed class EmployeesStep
     /// <summary>«Текширилди» — sudlanganlik ustunidagi «tekshirildi» belgisi.</summary>
     private const string CheckedMark = "текширилди";
 
+    /// <summary>«Sudlanmagan» degan javobning kaliti.</summary>
+    private const string NoRecordMark = "судланмаган";
+
     private readonly EtlWorkspace _workspace;
 
     /// <summary>Shu qadamda belgilangan xodimlar — jamlanmada ikki marta sanalmasin.</summary>
@@ -307,14 +310,29 @@ public sealed class EmployeesStep
             }
         }
 
-        if (employee.RegisteredOnMehnatUz is null && row.Has(sheet.MehnatUz))
+        if (employee.MehnatUzUrl is null && row.Has(sheet.MehnatUz))
         {
-            // Ustunda havola bo'lsa — ro'yxatdan o'tgan. Bo'sh bo'lsa
-            // «o'tmagan» degani EMAS: shunchaki ma'lumot yo'q.
+            // Ustunda mehnat.uz HAVOLASI turadi va u shu holicha
+            // saqlanadi — kartada «Profilni ochish» tugmasi aynan shundan
+            // chiziladi.
+            //
+            // Ilgari bu yerdan «ro'yxatdan o'tgan» degan ha/yo'q belgisi
+            // yozilardi va havolaning o'zi tashlanardi. Natijada karta
+            // «mehnat.uz — ha» deb turar, lekin qayerga qarash kerakligini
+            // aytmasdi. Belgi olib tashlandi (foydalanuvchi qarori: bir xil
+            // narsa ikki joyda ko'rinardi), havola esa saqlanadi — ya'ni
+            // Excel'dagi ma'lumot endi KO'PROQ ishlatiladi, kamroq emas.
             var value = row.Text(sheet.MehnatUz);
+
             if (value.Contains("mehnat.uz", StringComparison.OrdinalIgnoreCase))
             {
-                employee.SetRegisteredOnMehnatUz(true);
+                var applied = employee.SetMehnatUzUrl(value);
+
+                if (applied.IsFailure)
+                {
+                    _workspace.Report.Add(Name, sheet.Name, row.Number, context.Employee,
+                        "mehnat.uz havolasi o'qilmadi", value, EtlAction.LeftEmpty);
+                }
             }
         }
 
@@ -332,10 +350,26 @@ public sealed class EmployeesStep
     /// «Судланганлик» ustunini o'qiydi.
     /// </summary>
     /// <remarks>
-    /// Bu ustunda ikki xil ma'no bor: <c>«Текширилди»</c> — xavfsizlik
-    /// tekshiruvi o'tkazilgan (66 + 134 yozuv), qolgani esa sudlanganlik
-    /// haqidagi izoh («266.1 Судланган 12.08.2017»). Ularni ajratmasa,
-    /// tekshiruvdan o'tgan odam sudlangan bo'lib ko'rinardi.
+    /// <para>
+    /// Bu ustunda ikki xil ma'no bor: <c>«Текширилди»</c> — tekshiruv
+    /// o'tkazilgan (66 + 134 yozuv), qolgani esa sudlanganlik haqidagi
+    /// izoh («266.1 Судланган 12.08.2017»). Ularni ajratmasa, tekshiruvdan
+    /// o'tgan odam sudlangan bo'lib ko'rinardi.
+    /// </para>
+    /// <para>
+    /// <b><c>«Текширилди»</c> nima uchun «sudlanmagan» deb yoziladi.</b>
+    /// Ilgari u alohida <c>SecurityChecked</c> maydoniga tushardi, lekin
+    /// u maydon olib tashlandi (foydalanuvchi qarori). Qiymatni butunlay
+    /// tashlash 200 ga yaqin yozuvdagi ish natijasini yo'qotardi. HR bu
+    /// so'zni aynan sudlanganlik TOPILMAGANDA yozadi — modda topilganda
+    /// uning raqamini yozadi. Shu sababli u <c>false</c> ga aylanadi:
+    /// «tekshirilgan, sudlanganligi yo'q».
+    /// </para>
+    /// <para>
+    /// Matnning o'zi «судланмаган» bo'lsa ham javob <c>false</c>, lekin
+    /// tafsilot sifatida SAQLANADI — HR nima yozganini ko'rishi kerak.
+    /// Qolgan har qanday matn — sudlanganlik izohi, ya'ni <c>true</c>.
+    /// </para>
     /// </remarks>
     private void ReadCriminalRecord(EmployeeSheet sheet, ExcelRow row, RowContext context, Employee employee)
     {
@@ -347,11 +381,7 @@ public sealed class EmployeesStep
 
         if (AliasTable.Key(cell.Text).Contains(CheckedMark, StringComparison.Ordinal))
         {
-            if (employee.SecurityChecked is null)
-            {
-                employee.SetSecurityChecked(true);
-            }
-
+            employee.SetHasCriminalRecord(employee.HasCriminalRecord ?? false);
             return;
         }
 
@@ -367,6 +397,10 @@ public sealed class EmployeesStep
         {
             employee.SetCriminalRecordNote(cell.Text);
         }
+
+        // «судланмаган» — javob «yo'q», lekin matn baribir saqlanadi.
+        var clean = AliasTable.Key(cell.Text).Contains(NoRecordMark, StringComparison.Ordinal);
+        employee.SetHasCriminalRecord(employee.HasCriminalRecord ?? !clean);
     }
 
     private Pinfl? ReadPinfl(RowContext context, ExcelCell cell, out string? problem)

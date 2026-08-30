@@ -183,13 +183,15 @@ export interface EmployeeDetails {
   /** Sudlanganlik haqidagi erkin matn (Excel: «Судланганлик»). */
   criminalRecordNote: string | null
   /** Tekshiruvdan o'tganmi (Excel: «Текширув»). `null` — ma'lum emas. */
-  securityChecked: boolean | null
-  registeredOnMehnatUz: boolean | null
+  /** Sudlanganmi: `true` / `false` / `null` — noma'lum. */
+  hasCriminalRecord: boolean | null
   /**
    * mehnat.uz profiliga havola. `null` — kiritilmagan.
    *
-   * `registeredOnMehnatUz` ni ALMASHTIRMAYDI: u Excel'dan kelgan uch
-   * holatli javob, bu esa o'sha javobning dalili. Ikkalasi birga turadi.
+   * Ilgari uning yonida «mehnat.uz: ha/yo'q» degan alohida javob ham
+   * bor edi. U olib tashlandi: bir xil savol ekranda ikki marta
+   * so'ralardi, holbuki havola va skrinshot javobning O'ZI ham,
+   * dalili ham bo'lib xizmat qiladi.
    */
   mehnatUzUrl: string | null
   /**
@@ -406,8 +408,8 @@ export interface UpdateEmployeeRequest {
   photoKey: string | null
   criminalRecordNote: string | null
   /** `null` — «ma'lum emas», `false` — «tekshiruvdan o'tmagan». */
-  securityChecked: boolean | null
-  registeredOnMehnatUz: boolean | null
+  /** Sudlanganmi: `true` / `false` / `null` — noma'lum. */
+  hasCriminalRecord: boolean | null
   /**
    * mehnat.uz havolasi.
    *
@@ -846,8 +848,7 @@ function toDetails(raw: unknown): EmployeeDetails {
     speciality: text(box['speciality']),
     telegramUrl: text(box['telegramUrl']) ?? text(box['telegram']),
     criminalRecordNote: text(box['criminalRecordNote']),
-    securityChecked: nullableBool(box['securityChecked']),
-    registeredOnMehnatUz: nullableBool(box['registeredOnMehnatUz']),
+    hasCriminalRecord: nullableBool(box['hasCriminalRecord']),
     mehnatUzUrl: text(box['mehnatUzUrl']),
     mehnatUzScreenshotKey: text(box['mehnatUzScreenshotKey']),
     directions,

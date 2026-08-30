@@ -14,8 +14,8 @@ import {
   MapPin,
   Network,
   Phone,
-  ShieldCheck,
   Sparkles,
+  TriangleAlert,
   UserRound,
   Wallet,
   type LucideIcon,
@@ -177,23 +177,13 @@ export function EmployeeOverviewTab({
             subtitle={t('employees.checksHint')}
           />
           <CardContent className="space-y-2.5">
-            <CheckRow
-              icon={ShieldCheck}
-              label={t('employees.securityCheck')}
-              state={employee.securityChecked}
-            />
-            <CheckRow
-              icon={Globe}
-              label={t('employees.mehnatUz')}
-              state={employee.registeredOnMehnatUz}
-            />
-
             {/*
-              Havola va skrinshot — belgining O'ZIDAN keyin, bevosita
-              uning ostida. Ular «ha/yo'q» javobini ALMASHTIRMAYDI
-              (u Excel'dan kelgan va o'z o'rnida qoladi), balki uni
-              ISBOTLAYDI. Shu sababli alohida karta emas: bitta savolning
-              javobi va dalili ajralib qolmasligi kerak.
+              «mehnat.uz: ha/yo'q» va «Xavfsizlik tekshiruvi» qatorlari
+              OLIB TASHLANDI (foydalanuvchi qarori). Birinchisi bir xil
+              savolni ikki marta so'rardi — havola va skrinshot bloki
+              uning ostidayoq turibdi va javobni ham, dalilni ham
+              beradi. Ikkinchisi esa bazada bironta ham to'ldirilmagan
+              edi: HR uni hech qachon ishlatmagan.
             */}
             <MehnatUzBlock
               employeeId={employee.id}
@@ -202,9 +192,11 @@ export function EmployeeOverviewTab({
             />
 
             {/*
-              Sudlanganlik — «ha/yo'q» emas, MATN: Excel'da u yerda
-              «судланмаган», «2019 й. 168-модда» kabi turli yozuvlar bor.
-              Uni ikkilik qiymatga siqib bo'lmaydi, shu sababli o'z holicha.
+              Sudlanganlik ikki qismdan: JAVOB (ha / yo'q / noma'lum) va
+              uning TAFSILOTI. Ilgari faqat matn bor edi va undan javobni
+              o'qib bo'lmasdi — bo'sh matn «sudlanmagan» degani emas,
+              «hech kim yozmagan» degani. Endi javob tahrirlash oynasida
+              tanlanadi, matn esa uning izohi bo'lib qoladi.
             */}
             <div className="flex items-start gap-2.5 rounded-md bg-[var(--bg-sunken)] px-3 py-2.5">
               <Gavel
@@ -212,19 +204,22 @@ export function EmployeeOverviewTab({
                 strokeWidth={2}
               />
               <div className="min-w-0 flex-1">
-                <p className="text-footnote font-medium text-[var(--fg-secondary)]">
-                  {t('employees.criminalRecord')}
-                </p>
-                <p
-                  className={cn(
-                    'mt-0.5 text-subhead',
-                    employee.criminalRecordNote === null
-                      ? 'text-[var(--fg-tertiary)]'
-                      : 'text-[var(--fg)]',
-                  )}
-                >
-                  {employee.criminalRecordNote ?? t('employees.unknown')}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-footnote font-medium text-[var(--fg-secondary)]">
+                    {t('employees.criminalRecord')}
+                  </p>
+                  <CriminalRecordBadge value={employee.hasCriminalRecord} />
+                </div>
+
+                {/*
+                  Tafsilot faqat YOZILGAN bo'lsa chiziladi: bo'sh joyda
+                  «—» turishi javobni takrorlardi va qatorni uzaytirardi.
+                */}
+                {employee.criminalRecordNote !== null && (
+                  <p className="mt-1 text-subhead text-[var(--fg)]">
+                    {employee.criminalRecordNote}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -577,37 +572,39 @@ function MiniRow({
  * ko'p yozuvda bo'sh qolgan va uni «tekshirilmagan» deb ko'rsatish
  * xodimga tuhmat bo'lardi.
  */
-function CheckRow({
-  icon: Icon,
-  label,
-  state,
-}: {
-  icon: LucideIcon
-  label: string
-  state: boolean | null
-}) {
+/**
+ * Sudlanganlik javobi — uch holatli nishon.
+ *
+ * <b>«Noma'lum» ATAYLAB neytral, ogohlantirish emas.</b> U «bu odam
+ * shubhali» degani emas, «hech kim tekshirmagan» degani — ya'ni bu HR
+ * ning ish ro'yxatidagi band, xodimga qo'yilgan baho emas.
+ *
+ * Ilgari bu yerda uchta qator uchun umumiy <c>CheckRow</c> turardi
+ * («o'tgan / o'tmagan / noma'lum»). Ikkita qator olib tashlangach u
+ * yagona joyda qoldi va shu sababli o'z ma'nosiga ko'chirildi: bu yerda
+ * savol «tekshiruvdan o'tdimi» emas, «sudlanganmi».
+ */
+function CriminalRecordBadge({ value }: { value: boolean | null }) {
   const { t } = useLocale()
 
-  return (
-    <div className="flex items-center gap-2.5 rounded-md bg-[var(--bg-sunken)] px-3 py-2.5">
-      <Icon className="size-4 shrink-0 text-[var(--fg-tertiary)]" strokeWidth={2} />
-      <span className="min-w-0 flex-1 text-subhead">{label}</span>
+  if (value === null) {
+    return (
+      <Badge tone="neutral" size="sm">
+        <CircleSlash className="size-3" strokeWidth={2.5} />
+        {t('employees.unknown')}
+      </Badge>
+    )
+  }
 
-      {state === null ? (
-        <Badge tone="neutral" size="sm">
-          <CircleSlash className="size-3" strokeWidth={2.5} />
-          {t('employees.unknown')}
-        </Badge>
-      ) : state ? (
-        <Badge tone="success" size="sm">
-          <BadgeCheck className="size-3.5" strokeWidth={2.5} />
-          {t('employees.checkPassed')}
-        </Badge>
-      ) : (
-        <Badge tone="danger" size="sm">
-          {t('employees.checkFailed')}
-        </Badge>
-      )}
-    </div>
+  return value ? (
+    <Badge tone="warning" size="sm">
+      <TriangleAlert className="size-3.5" strokeWidth={2.5} />
+      {t('employees.criminalRecordYes')}
+    </Badge>
+  ) : (
+    <Badge tone="success" size="sm">
+      <BadgeCheck className="size-3.5" strokeWidth={2.5} />
+      {t('employees.criminalRecordNo')}
+    </Badge>
   )
 }

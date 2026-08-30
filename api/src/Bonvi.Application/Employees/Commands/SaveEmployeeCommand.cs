@@ -10,9 +10,9 @@ namespace Bonvi.Application.Employees.Commands;
 /// <remarks>
 /// <para>
 /// Ikkala amal bir xil forma bilan ishlaydi, shu sababli buyruq ham bitta.
-/// Ayrim maydonlar (<c>SecurityChecked</c>, <c>RegisteredOnMehnatUz</c>)
-/// ataylab <c>bool?</c>: «tekshirilmagan» va «tekshirilgan, natija yo'q»
-/// bir xil narsa emas — Excel'da bu farq yo'qolgan edi.
+/// <c>HasCriminalRecord</c> ataylab <c>bool?</c>: «sudlanmagan» va
+/// «hech kim tekshirmagan» bir xil javob emas — Excel'da bu farq
+/// yo'qolgan edi.
 /// </para>
 /// <para>
 /// <c>PhotoKey</c> va <c>BirthDate</c> da <c>null</c> «tozala» EMAS,
@@ -34,8 +34,7 @@ public sealed record SaveEmployeeCommand(
     string? TelegramUrl = null,
     string? PhotoKey = null,
     string? CriminalRecordNote = null,
-    bool? SecurityChecked = null,
-    bool? RegisteredOnMehnatUz = null,
+    bool? HasCriminalRecord = null,
     IReadOnlyList<Guid>? DirectionIds = null,
     // Ro'yxat OXIRIDA: mavjud chaqiruvlar pozitsion argumentlar bilan
     // yozilgan va o'rtaga maydon qo'shish ularni jimgina siljitib yuborardi.
@@ -139,8 +138,7 @@ internal static class EmployeeFields
         }
 
         employee.SetCriminalRecordNote(command.CriminalRecordNote);
-        employee.SetSecurityChecked(command.SecurityChecked);
-        employee.SetRegisteredOnMehnatUz(command.RegisteredOnMehnatUz);
+        employee.SetHasCriminalRecord(command.HasCriminalRecord);
 
         // Havola BIRINCHI guruhda: u forma maydoni, ya'ni bo'sh yuborish
         // «havolani o'chir» degan ma'noli buyruq (noto'g'ri manzilni HR

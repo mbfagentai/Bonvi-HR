@@ -66,22 +66,36 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Rasm fayli (<c>IFileStorage</c> kaliti).</summary>
     public string? PhotoKey { get; private set; }
 
-    /// <summary>Sudlanganlik haqidagi ma'lumot (Excel: «Судланганлик»).</summary>
-    public string? CriminalRecordNote { get; private set; }
-
-    /// <summary>Tekshiruvdan o'tganmi (Excel: «Текширув»).</summary>
-    public bool? SecurityChecked { get; private set; }
-
-    /// <summary>mehnat.uz da ro'yxatdan o'tganmi.</summary>
+    /// <summary>
+    /// Sudlanganmi — uch holat: <c>true</c>, <c>false</c>, <c>null</c>
+    /// («noma'lum»).
+    /// </summary>
     /// <remarks>
-    /// Bu maydon Excel'dan kelgan uch holatli belgi («ha / yo'q / noma'lum»)
-    /// va u <b>qoladi</b>. Pastdagi ikkita mehnat.uz maydoni uni
-    /// almashtirmaydi, DALIL bo'lib qo'shiladi: belgi — HR ning javobi,
-    /// havola va skrinshot esa o'sha javobning isboti. Ularni bitta
-    /// maydonga siqib bo'lmaydi, chunki 2347 xodimning deyarli hammasida
-    /// faqat birinchisi bor va bo'lib ham qolaveradi.
+    /// <para>
+    /// <b>Nega alohida maydon, faqat matn emas.</b>
+    /// <see cref="CriminalRecordNote"/> Excel'dan kelgan erkin matn
+    /// («судланмаган», «2019 й. 168-модда») va undan javobni ishonchli
+    /// o'qib bo'lmaydi: bo'sh matn «sudlanmagan» degani emas, «hech kim
+    /// yozmagan» degani. HR uchun esa bu ikkisi butunlay boshqa javob —
+    /// birinchisida odam tekshirilgan, ikkinchisida yo'q.
+    /// </para>
+    /// <para>
+    /// Shu sababli JAVOB tanlanadi, matn esa uning TAFSILOTI bo'lib
+    /// qoladi: «sudlangan» deyilganda qaysi modda ekani o'sha yerda
+    /// yoziladi.
+    /// </para>
     /// </remarks>
-    public bool? RegisteredOnMehnatUz { get; private set; }
+    public bool? HasCriminalRecord { get; private set; }
+
+    /// <summary>
+    /// Sudlanganlik tafsiloti (Excel: «Судланганлик»).
+    /// </summary>
+    /// <remarks>
+    /// Erkin matn — Excel'da bu ustunda modda raqami, sana va izoh
+    /// aralash yozilgan. <see cref="HasCriminalRecord"/> javobni beradi,
+    /// bu maydon esa tafsilotni.
+    /// </remarks>
+    public string? CriminalRecordNote { get; private set; }
 
     /// <summary>mehnat.uz dagi profilga havola. Bo'sh bo'lishi mumkin.</summary>
     public string? MehnatUzUrl { get; private set; }
@@ -276,9 +290,7 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
 
     public void SetCriminalRecordNote(string? note) => CriminalRecordNote = Trim(note);
 
-    public void SetSecurityChecked(bool? value) => SecurityChecked = value;
-
-    public void SetRegisteredOnMehnatUz(bool? value) => RegisteredOnMehnatUz = value;
+    public void SetHasCriminalRecord(bool? value) => HasCriminalRecord = value;
 
     /// <summary>
     /// mehnat.uz profiliga havolani o'rnatadi.

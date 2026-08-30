@@ -246,18 +246,38 @@ public sealed class EmployeeTests
         x.MehnatUzScreenshotContentType.ShouldBeNull();
     }
 
+    /// <summary>
+    /// Sudlanganlik JAVOBI va uning TAFSILOTI alohida saqlanadi.
+    /// </summary>
+    /// <remarks>
+    /// Ilgari bu yerda «mehnat.uz belgisi havola bilan almashmaydi» degan
+    /// test turardi — o'sha belgi olib tashlangan (foydalanuvchi qarori:
+    /// kartada bir xil narsa ikki joyda ko'rinardi, havola va skrinshot
+    /// bloki uni allaqachon aytadi).
+    ///
+    /// O'rniga shu tekshiruv: «sudlanmagan» va «hech kim tekshirmagan»
+    /// bir xil javob EMAS, va matn javobni almashtirmaydi.
+    /// </remarks>
     [Fact]
-    public void Mehnat_uz_belgisi_havola_bilan_almashmaydi()
+    public void Sudlanganlik_javobi_va_tafsiloti_alohida()
     {
-        // Excel'dan kelgan uch holatli javob QOLADI: havola va skrinshot
-        // uni almashtirmaydi, dalil bo'lib qo'shiladi.
         var x = Yaratilgan();
 
-        x.SetRegisteredOnMehnatUz(true);
-        x.SetMehnatUzUrl("mehnat.uz/profile");
+        // Sukut — noma'lum: hech kim tekshirmagan.
+        x.HasCriminalRecord.ShouldBeNull();
 
-        x.RegisteredOnMehnatUz.ShouldBe(true);
-        x.MehnatUzUrl.ShouldNotBeNull();
+        x.SetHasCriminalRecord(false);
+        x.SetCriminalRecordNote("Судланмаган");
+
+        x.HasCriminalRecord.ShouldBe(false);
+        x.CriminalRecordNote.ShouldBe("Судланмаган");
+
+        // Javob o'zgarsa tafsilot O'ZI o'chmaydi — HR uni qo'lda tuzatadi.
+        x.SetHasCriminalRecord(true);
+        x.SetCriminalRecordNote("266.1 Судланган 12.08.2017");
+
+        x.HasCriminalRecord.ShouldBe(true);
+        x.CriminalRecordNote.ShouldBe("266.1 Судланган 12.08.2017");
     }
 
     // ────────────────────── Yo'nalishlar ──────────────────────

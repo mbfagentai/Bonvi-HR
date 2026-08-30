@@ -378,6 +378,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("gender");
 
+                    b.Property<bool?>("HasCriminalRecord")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_criminal_record");
+
                     b.Property<string>("MehnatUzScreenshotContentType")
                         .HasColumnType("text")
                         .HasColumnName("mehnat_uz_screenshot_content_type");
@@ -410,10 +414,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("pinfl");
 
-                    b.Property<bool?>("RegisteredOnMehnatUz")
-                        .HasColumnType("boolean")
-                        .HasColumnName("registered_on_mehnat_uz");
-
                     b.Property<string>("ReviewNote")
                         .HasColumnType("text")
                         .HasColumnName("review_note");
@@ -421,10 +421,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<string>("SecondPhone")
                         .HasColumnType("text")
                         .HasColumnName("second_phone");
-
-                    b.Property<bool?>("SecurityChecked")
-                        .HasColumnType("boolean")
-                        .HasColumnName("security_checked");
 
                     b.Property<string>("Speciality")
                         .HasColumnType("text")

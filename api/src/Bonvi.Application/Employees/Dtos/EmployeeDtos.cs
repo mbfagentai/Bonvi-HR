@@ -81,9 +81,8 @@ public sealed record EmployeeDto(
     string? Speciality,
     string? TelegramUrl,
     string? PhotoKey,
+    bool? HasCriminalRecord,
     string? CriminalRecordNote,
-    bool? SecurityChecked,
-    bool? RegisteredOnMehnatUz,
     string? MehnatUzUrl,
     // Kalitning O'ZI qaytariladi, rasm emas — `PhotoKey` bilan aynan bir xil
     // sabab: skrinshot alohida endpoint bilan olinadi va kalit ikki ish
