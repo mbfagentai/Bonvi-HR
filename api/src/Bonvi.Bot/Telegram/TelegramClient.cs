@@ -38,11 +38,13 @@ public sealed partial class TelegramClient
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
+    private readonly TelegramToken _token;
     private readonly ILogger<TelegramClient> _logger;
 
-    public TelegramClient(HttpClient http, ILogger<TelegramClient> logger)
+    public TelegramClient(HttpClient http, TelegramToken token, ILogger<TelegramClient> logger)
     {
         _http = http;
+        _token = token;
         _logger = logger;
     }
 
@@ -213,11 +215,31 @@ public sealed partial class TelegramClient
 
     private async Task<T?> CallAsync<T>(string method, object? body, CancellationToken cancellationToken)
     {
+        /*
+          ⚠️ TOKEN MANZIL ICHIDA — Telegram API shunday qurilgan.
+
+          Ilgari u `HttpClient.BaseAddress` ga bir marta yozilardi. Endi
+          token ish paytida almashishi mumkin (`TelegramToken` izohi),
+          shu sababli manzil HAR CHAQIRUVDA yig'iladi. Narxi — bitta
+          satr biriktirish; evaziga tokenni almashtirish uchun
+          konteynerni qayta ishga tushirish kerak emas.
+
+          `HttpClient` ning o'zi o'zgarmaydi: ulanish havzasi (connection
+          pool) manzil bazasiga emas, HOSTGA bog'langan va u o'sha-o'sha
+          `api.telegram.org` bo'lib qolaveradi.
+
+          Token jurnalga tushmaydi: `AddHttpClient` ning so'rov
+          jurnallari `Program.cs` da butunlay o'chirilgan (sababi
+          o'sha yerda), bu yerdagi xabarlar esa faqat METOD nomini
+          yozadi.
+        */
+        var path = RelativePath(_token.Value, method);
+
         try
         {
             using var response = body is null
-                ? await _http.GetAsync(new Uri(method, UriKind.Relative), cancellationToken).ConfigureAwait(false)
-                : await _http.PostAsJsonAsync(new Uri(method, UriKind.Relative), body, Json, cancellationToken)
+                ? await _http.GetAsync(path, cancellationToken).ConfigureAwait(false)
+                : await _http.PostAsJsonAsync(path, body, Json, cancellationToken)
                     .ConfigureAwait(false);
 
             var payload = await response.Content
@@ -246,4 +268,28 @@ public sealed partial class TelegramClient
             return default;
         }
     }
+
+    /// <summary>
+    /// Chaqiruvning nisbiy yo'li: <c>/bot&lt;token&gt;/&lt;metod&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>Boshidagi qiya chiziq MAJBURIY va u shunchaki bezak emas.</b>
+    /// Telegram tokeni <c>8123456789:AAH…</c> ko'rinishida — ichida IKKI
+    /// NUQTA bor. Qiya chiziqsiz <c>Uri</c> uni sxema ajratgichi deb
+    /// o'qiydi va <c>bot8123456789</c> ni protokol nomi deb hisoblaydi:
+    /// natijada <c>UriKind.Relative</c> so'ralgan joyda «A relative URI
+    /// cannot be created…» istisnosi tashlanadi.
+    /// <para>
+    /// Bu xato ishga tushirishda darhol chiqdi va shu sababli metod
+    /// alohida ajratilgan: uni <c>TelegramClientTests</c> qadab turadi.
+    /// Boshida qiya chiziq bo'lsa, ikki nuqta birinchi <c>/</c> dan
+    /// KEYIN qoladi — sxema esa faqat birinchi bo'lakda izlanadi.
+    /// </para>
+    /// <para>
+    /// Manzil bazasida yo'l yo'q (faqat <c>https://api.telegram.org/</c>),
+    /// ya'ni «ildizdan» hisoblanadigan yo'l to'g'ri natija beradi.
+    /// </para>
+    /// </remarks>
+    public static Uri RelativePath(string token, string method)
+        => new($"/bot{token}/{method}", UriKind.Relative);
 }

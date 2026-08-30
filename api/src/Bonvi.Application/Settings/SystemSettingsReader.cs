@@ -40,10 +40,15 @@ namespace Bonvi.Application.Settings;
 public sealed class SystemSettingsReader
 {
     private readonly ISystemSettingRepository _settings;
+    private readonly ISecretProtector _protector;
 
     private SystemSettings? _cached;
 
-    public SystemSettingsReader(ISystemSettingRepository settings) => _settings = settings;
+    public SystemSettingsReader(ISystemSettingRepository settings, ISecretProtector protector)
+    {
+        _settings = settings;
+        _protector = protector;
+    }
 
     /// <summary>Barcha sozlamalarni o'qiydi (so'rov davomida bir marta).</summary>
     public async Task<SystemSettings> ReadAsync(CancellationToken cancellationToken = default)
@@ -55,7 +60,7 @@ public sealed class SystemSettingsReader
 
         var rows = await _settings.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
-        _cached = SystemSettings.From(rows);
+        _cached = SystemSettings.From(rows, _protector);
 
         return _cached;
     }
@@ -95,8 +100,13 @@ public sealed class SystemSettingsReader
 public sealed class SystemSettings
 {
     private readonly IReadOnlyDictionary<string, string> _stored;
+    private readonly ISecretProtector _protector;
 
-    private SystemSettings(IReadOnlyDictionary<string, string> stored) => _stored = stored;
+    private SystemSettings(IReadOnlyDictionary<string, string> stored, ISecretProtector protector)
+    {
+        _stored = stored;
+        _protector = protector;
+    }
 
     /// <summary>Bazadan kelgan qatorlardan nusxa yasaydi.</summary>
     /// <remarks>
@@ -104,9 +114,10 @@ public sealed class SystemSettings
     /// qolgan) shu yerda TASHLANADI: ular hech qachon o'qilmaydi va
     /// jadvalda turgani hech narsani buzmaydi.
     /// </remarks>
-    public static SystemSettings From(IEnumerable<SystemSetting> rows)
+    public static SystemSettings From(IEnumerable<SystemSetting> rows, ISecretProtector protector)
     {
         ArgumentNullException.ThrowIfNull(rows);
+        ArgumentNullException.ThrowIfNull(protector);
 
         var stored = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -118,11 +129,44 @@ public sealed class SystemSettings
             }
         }
 
-        return new SystemSettings(stored);
+        return new SystemSettings(stored, protector);
     }
 
     /// <summary>Matnli sozlama. Yozilmagan bo'lsa — sukut qiymat.</summary>
     public string Text(string key) => Raw(Definition(key, SystemSettingKind.Text));
+
+    /// <summary>
+    /// Sirning OCHIQ qiymati. Qo'yilmagan yoki ochib bo'lmasa — <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bo'sh satr emas, <c>null</c>.</b> Bu yagona metod sirni
+    /// ochiq holda qaytaradi va uni chaqirgan joy «bor/yo'q» ni ANIQ
+    /// ajratishi kerak: bot token bo'lmasa <c>.env</c> dagi zaxiraga
+    /// tushadi, bo'sh satr bilan esa Telegram'ga bemaqsad murojaat
+    /// qilardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Ochib bo'lmagan qiymat ham <c>null</c> qaytaradi — «kalit
+    /// almashgan» holati «qo'yilmagan» dan farq qilmaydi
+    /// (<see cref="ISecretProtector.Unprotect"/> izohi). Bu ataylab:
+    /// ikkalasining ham yagona yechimi bitta — qiymatni qayta qo'yish.
+    /// </para>
+    /// </remarks>
+    public string? Secret(string key)
+    {
+        var definition = Definition(key, SystemSettingKind.Secret);
+
+        if (!_stored.TryGetValue(definition.Key, out var protectedValue)
+            || protectedValue.Length == 0)
+        {
+            return null;
+        }
+
+        var plain = _protector.Unprotect(protectedValue);
+
+        return string.IsNullOrEmpty(plain) ? null : plain;
+    }
 
     /// <summary>
     /// Sonli sozlama. Yozilmagan yoki BUZILGAN qiymatda — sukut qiymat.
@@ -175,15 +219,77 @@ public sealed class SystemSettings
     /// </remarks>
     public IReadOnlyList<SystemSettingDto> Describe() =>
     [
-        .. SystemSettingKeys.All.Select(definition => new SystemSettingDto(
+        .. SystemSettingKeys.All.Select(Describe),
+    ];
+
+    /// <summary>Bitta sozlamaning tashqi ko'rinishi.</summary>
+    /// <remarks>
+    /// Sir bu yerda ochiq qiymatdan AJRATILADI: <c>value</c> bo'sh
+    /// qoladi va uning o'rniga «qo'yilganmi» hamda niqoblangan
+    /// ko'rinish beriladi (sabab <see cref="SystemSettingDto"/> da).
+    /// Shu sababli javobni yig'ayotgan hech bir joy «sirni qo'shishni
+    /// unutib qo'yish» ham, «tasodifan qo'shib yuborish» ham qila
+    /// olmaydi — qaror shu yagona metodda.
+    /// </remarks>
+    private SystemSettingDto Describe(SystemSettingDefinition definition)
+    {
+        if (definition.Kind != SystemSettingKind.Secret)
+        {
+            return new SystemSettingDto(
+                definition.Key,
+                Raw(definition),
+                definition.Kind,
+                definition.DefaultValue,
+                definition.Min,
+                definition.Max,
+                definition.MaxLength,
+                IsSet: _stored.ContainsKey(definition.Key),
+                Preview: null);
+        }
+
+        var plain = Secret(definition.Key);
+
+        return new SystemSettingDto(
             definition.Key,
-            Raw(definition),
+            string.Empty,
             definition.Kind,
             definition.DefaultValue,
             definition.Min,
             definition.Max,
-            definition.MaxLength)),
-    ];
+            definition.MaxLength,
+            IsSet: plain is not null,
+            Preview: plain is null ? null : Mask(plain));
+    }
+
+    /// <summary>
+    /// Sirni niqoblaydi: <c>8123456789:…mQ4t</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Telegram tokenida ikki nuqtagacha bo'lgan qism — botning ochiq
+    /// identifikatori, undan keyingisi — sir. Shu sababli birinchi
+    /// bo'lak TO'LIQ, ikkinchisidan esa faqat oxirgi to'rt belgi
+    /// qoladi.
+    /// </para>
+    /// <para>
+    /// Ikki nuqtasi yo'q sirda (kelajakdagi boshqa kalit) faqat oxirgi
+    /// to'rt belgi ko'rsatiladi. Sir juda qisqa bo'lsa — umuman hech
+    /// narsa: to'rt belgi olti belgili sirning uchdan ikkisi bo'lardi.
+    /// </para>
+    /// </remarks>
+    private static string Mask(string plain)
+    {
+        const int Visible = 4;
+
+        var separator = plain.IndexOf(':', StringComparison.Ordinal);
+
+        var head = separator > 0 ? plain[..separator] + ":" : string.Empty;
+        var tail = plain[(separator + 1)..];
+
+        return tail.Length >= Visible * 2
+            ? head + "…" + tail[^Visible..]
+            : head + "…";
+    }
 
     /// <summary>Xom qiymat: yozilgani, bo'lmasa sukut qiymat.</summary>
     private string Raw(SystemSettingDefinition definition)

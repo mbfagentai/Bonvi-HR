@@ -20,7 +20,7 @@ public sealed class SystemSettingsReaderTests
 {
     private readonly FakeSystemSettings _rows = new();
 
-    private SystemSettingsReader Reader => new(_rows);
+    private SystemSettingsReader Reader => new(_rows, _rows.Protector);
 
     [Fact]
     public async Task Yozilmagan_sozlama_sukut_qiymat_beradi()

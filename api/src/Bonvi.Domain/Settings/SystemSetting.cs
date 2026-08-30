@@ -1,3 +1,4 @@
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Domain.Settings;
@@ -16,12 +17,22 @@ namespace Bonvi.Domain.Settings;
 /// qiymat) va o'qish shu ro'yxat orqali ketadi.
 /// </para>
 /// <para>
-/// <b>Bu yozuv SIR EMAS.</b> Shifrlash yo'q va kerak ham emas: bu yerda
-/// bot matni va bildirishnoma chegaralari turadi. Sirlar (token, parol,
-/// JWT kaliti) bu jadvalga TUSHMAYDI — ular muhit o'zgaruvchilaridan
-/// keladi va git tarixiga hech qachon yaqinlashmaydi
-/// (<c>BotOptions</c> izohi). Agar kelajakda sir saqlash kerak bo'lsa,
-/// u ALOHIDA mexanizm bo'ladi, bu jadvalning kengaytmasi emas.
+/// <b>Ba'zi yozuvlar SIR.</b> Ilgari bu jadvalda bitta ham sir yo'q edi
+/// va shu izohda «kelajakda sir kerak bo'lsa, u ALOHIDA mexanizm
+/// bo'ladi» deb yozilgandi. Telegram tokeni ekranga chiqarilgach
+/// (foydalanuvchi qarori, sabab <see cref="SystemSettingKeys.BotToken"/>
+/// izohida) shu va'da bajarildi: sir bu jadvalning oddiy qatori EMAS,
+/// u <see cref="SystemSettingKind.Secret"/> turi bilan belgilanadi va
+/// boshqacha muomala qiladi — <see cref="ISecretProtector"/> orqali
+/// shifrlanib yoziladi, API javobida hech qachon qaytmaydi va o'chirish
+/// deganda qatorning O'ZI olib tashlanadi.
+/// </para>
+/// <para>
+/// <b>Nima baribir <c>.env</c> da qoldi:</b> baza paroli, JWT kaliti va
+/// bot hisobining logini/paroli. Birinchi ikkitasi bazaga umuman
+/// kirishdan OLDIN kerak, uchinchisi esa — bot aynan shu bilan tizimga
+/// kirib tokenni oladi. Ularni bu jadvalga ko'chirish «kalitni
+/// qulflangan xonaning ichida qoldirish» bo'lardi.
 /// </para>
 /// <para>
 /// <b>Yozuv YO'Q bo'lishi — normal holat.</b> Sozlamalar ekrani hech
@@ -76,9 +87,17 @@ public sealed class SystemSetting : AggregateRoot, IAuditable
     /// Qiymat — HAR DOIM matn, hatto son bo'lsa ham.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Turni <see cref="SystemSettingKeys"/> biladi; bu yerda esa faqat
     /// tekshirilgan va tozalangan satr yotadi (sabab
     /// <see cref="SystemSettingKind"/> izohida).
+    /// </para>
+    /// <para>
+    /// <see cref="SystemSettingKind.Secret"/> turida bu maydonda SHIFRLANGAN
+    /// matn yotadi (<c>v1.…</c>). Uni ochish faqat o'qish paytida va faqat
+    /// <see cref="ISecretProtector"/> orqali bo'ladi — ya'ni agregatdan
+    /// olingan qiymat hech qachon ochiq sir emas.
+    /// </para>
     /// </remarks>
     public string Value { get; private set; }
 
@@ -103,8 +122,10 @@ public sealed class SystemSetting : AggregateRoot, IAuditable
     /// uzunlik — hammasi bitta joyda.
     /// </para>
     /// </remarks>
-    public static Result<SystemSetting> Create(string? key, string? value)
+    public static Result<SystemSetting> Create(string? key, string? value, ISecretProtector protector)
     {
+        ArgumentNullException.ThrowIfNull(protector);
+
         var trimmed = key?.Trim();
         if (string.IsNullOrEmpty(trimmed))
         {
@@ -116,13 +137,13 @@ public sealed class SystemSetting : AggregateRoot, IAuditable
             return SystemSettingErrors.UnknownKey;
         }
 
-        var normalized = definition.Normalize(value);
-        if (normalized.IsFailure)
+        var stored = Prepare(definition, value, protector);
+        if (stored.IsFailure)
         {
-            return normalized.Error;
+            return stored.Error;
         }
 
-        return new SystemSetting(NewId(), definition.Key, normalized.Value);
+        return new SystemSetting(NewId(), definition.Key, stored.Value);
     }
 
     /// <summary>
@@ -136,20 +157,63 @@ public sealed class SystemSetting : AggregateRoot, IAuditable
     /// yozuvni yangilashga ruxsat berish ma'nosiz bo'lardi: uni hech kim
     /// o'qimaydi.
     /// </remarks>
-    public Result SetValue(string? value)
+    public Result SetValue(string? value, ISecretProtector protector)
     {
+        ArgumentNullException.ThrowIfNull(protector);
+
         if (SystemSettingKeys.Find(Key) is not { } definition)
         {
             return SystemSettingErrors.UnknownKey;
         }
 
+        var stored = Prepare(definition, value, protector);
+        if (stored.IsFailure)
+        {
+            return stored.Error;
+        }
+
+        Value = stored.Value;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Kelgan qiymatni tekshiradi va SAQLANADIGAN ko'rinishga keltiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ikki qadam va tartibi MUHIM: avval tekshiruv (ochiq matn ustida),
+    /// keyin shifrlash. Teskarisi bo'lsa naqsh shifrlangan satrni
+    /// tekshirib, har doim rad etardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega shifrlash aynan agregatda.</b> Uni chaqiruvchiga
+    /// qoldirish «shifrlashni unutib yozish» yo'lini ochib qo'yardi va
+    /// bu xato jimgina o'tardi: qator bazaga tushardi, ekran ishlardi,
+    /// faqat token ochiq matn bo'lib yotardi. Bu yerda esa
+    /// <see cref="Value"/> ga boshqa hech qanday yo'l yo'q.
+    /// </para>
+    /// <para>
+    /// BO'SH sirni shifrlash ham ma'nosiz: bo'sh sir «yo'q» degani va
+    /// bunday holatda yozuvning o'zi o'chiriladi (use-case shuni
+    /// qiladi). Bu yerda u shunchaki bo'sh satr bo'lib qaytadi.
+    /// </para>
+    /// </remarks>
+    private static Result<string> Prepare(
+        SystemSettingDefinition definition,
+        string? value,
+        ISecretProtector protector)
+    {
         var normalized = definition.Normalize(value);
         if (normalized.IsFailure)
         {
             return normalized.Error;
         }
 
-        Value = normalized.Value;
-        return Result.Success();
+        if (definition.Kind != SystemSettingKind.Secret || normalized.Value.Length == 0)
+        {
+            return normalized;
+        }
+
+        return Result.Success(protector.Protect(normalized.Value));
     }
 }

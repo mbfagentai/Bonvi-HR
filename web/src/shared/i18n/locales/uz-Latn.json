@@ -55,6 +55,8 @@
       "subtitle": "Bot matni va bildirishnoma chegaralari — butun tizim uchun",
       "groupBot": "Telegram bot",
       "groupBotHint": "Nomzod botda ko‘radigan matn va suhbat muddati",
+      "botToken": "Telegram tokeni",
+      "botTokenHint": "Tokenni @BotFather beradi. Saqlangach u qaytarib ko‘rsatilmaydi — faqat oxirgi belgilari.",
       "botAboutCyrillic": "Kompaniya haqida (kirill)",
       "botAboutLatin": "Kompaniya haqida (lotin)",
       "botConversationTimeout": "Suhbat muddati (daqiqa)",
@@ -67,7 +69,13 @@
       "textHint": "Bo‘sh qoldirilsa bot bu bo‘limni ko‘rsatmaydi. Yangi qator — Enter.",
       "unsaved": "Saqlanmagan o‘zgarishlar bor",
       "noAccessTitle": "Bu yerga kirish huquqingiz yo‘q",
-      "noAccessText": "Tizim sozlamalari faqat super administratorga ochiq."
+      "noAccessText": "Tizim sozlamalari faqat super administratorga ochiq.",
+      "secretSet": "Qo‘yilgan",
+      "secretEmpty": "Kiritilmagan",
+      "secretEnter": "Tokenni kiriting",
+      "secretReplace": "Almashtirish uchun yangisini kiriting",
+      "clearTitle": "Token o‘chirilsinmi?",
+      "clearText": "Token butunlay o‘chiriladi va uni qaytarib bo‘lmaydi — yangisini @BotFather dan olishga to‘g‘ri keladi. Bot bir daqiqa ichida to‘xtaydi."
     },
     "role": "Rol",
     "phoneHint": "Tizimga shu raqam bilan kiriladi",
@@ -601,6 +609,7 @@
     "sozlama.notogri_son": "Qiymat butun son bo'lishi kerak.",
     "sozlama.chegara": "Qiymat ruxsat etilgan chegaradan tashqarida.",
     "sozlama.matn_uzun": "Matn juda uzun.",
+    "sozlama.notogri_format": "Qiymat kutilgan ko‘rinishda emas. Telegram tokeni «8123456789:AA…» ko‘rinishida bo‘ladi.",
     "sozlama.royxat_bosh": "O‘zgartirish uchun hech narsa berilmadi.",
     "sozlama.takror_kalit": "Bitta sozlama ikki marta yuborildi."
   },

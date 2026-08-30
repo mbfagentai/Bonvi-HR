@@ -27,12 +27,45 @@ namespace Bonvi.Application.Settings.Dtos;
 /// <paramref name="DefaultValue"/> ning O'ZI (javobda «yozilgan» va
 /// «sukut» qiymat ATAYLAB farq qilmaydi: mijozga har doim TIZIM
 /// ISHLATAYOTGAN qiymat ko'rsatiladi).
+/// <para>
+/// ⚠️ <see cref="SystemSettingKind.Secret"/> turida bu maydon HAR DOIM
+/// bo'sh. Sir javobda hech qachon qaytmaydi — hatto uni qo'ygan super
+/// administratorga ham. Buning o'rniga <paramref name="IsSet"/> va
+/// <paramref name="Preview"/> beriladi.
+/// </para>
 /// </param>
-/// <param name="Kind">Turi: <c>Text</c> yoki <c>Number</c>.</param>
+/// <param name="Kind">Turi: <c>Text</c>, <c>Number</c> yoki <c>Secret</c>.</param>
 /// <param name="DefaultValue">Sukut qiymat — matn ko'rinishida.</param>
 /// <param name="Min">Sonning quyi chegarasi. Matnda <c>null</c>.</param>
 /// <param name="Max">Sonning yuqori chegarasi. Matnda <c>null</c>.</param>
 /// <param name="MaxLength">Matnning eng katta uzunligi. Sonda <c>null</c>.</param>
+/// <param name="IsSet">
+/// Qiymat ATAYLAB qo'yilganmi (bazada yozuv bormi).
+/// <para>
+/// Matn va son uchun bu ma'lumot ortiqcha — ularda sukut qiymat ham
+/// haqiqiy qiymat. Sir uchun esa bu YAGONA ko'rsatkich: qiymatning
+/// o'zi qaytmaydi, ya'ni «token qo'yilganmi?» degan savolga boshqa
+/// javob yo'q.
+/// </para>
+/// </param>
+/// <param name="Preview">
+/// Sirning niqoblangan ko'rinishi — masalan <c>8123456789:…mQ4t</c>.
+/// Qo'yilmagan sirda va sir bo'lmagan sozlamada <c>null</c>.
+/// <para>
+/// NEGA umuman ko'rsatiladi: server bir nechta bo'lishi mumkin (sinov
+/// va ishchi), token esa almashtiriladi. «Qaysi token turibdi?» degan
+/// savolga javobsiz qolgan odam eng oddiy yo'lni tanlaydi — tokenni
+/// har ehtimolga qarshi qayta qo'yadi.
+/// </para>
+/// <para>
+/// NEGA aynan shu bo'laklar OCHIQ: ikki nuqtagacha bo'lgan qism —
+/// botning identifikatori va u sir emas (uni har qanday odam
+/// <c>@BotFather</c> orqali yoki botning o'zi bilan yozishib bilib
+/// oladi). Oxirgi to'rt belgi esa tokenlarni bir-biridan ajratish
+/// uchun yetadi va qolgan ~30 belgini taxmin qilishga hech narsa
+/// bermaydi.
+/// </para>
+/// </param>
 public sealed record SystemSettingDto(
     string Key,
     string Value,
@@ -40,7 +73,9 @@ public sealed record SystemSettingDto(
     string DefaultValue,
     int? Min,
     int? Max,
-    int? MaxLength);
+    int? MaxLength,
+    bool IsSet,
+    string? Preview);
 
 /// <summary>
 /// Telegram bot o'qiydigan sozlamalar — TIPLASHGAN ko'rinishda.
@@ -72,3 +107,28 @@ public sealed record BotSettingsDto(
     string AboutCyrillic,
     string AboutLatin,
     int ConversationTimeoutMinutes);
+
+/// <summary>
+/// Botning Telegram tokeni — FAQAT bot jarayoniga.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega u <see cref="BotSettingsDto"/> ga qo'shilmadi.</b> O'sha
+/// javob <c>recruiting.view</c> ruxsati ostida beriladi va bu ruxsat HR
+/// menejerlarida ham bor. Token o'sha yerga qo'shilsa, uni har bir HR
+/// menejeri o'qiy olardi — holbuki tokenni QO'YGAN super administratorning
+/// o'zi ham uni qaytarib o'qiy olmaydi. Sir uchun bundan kulgili holat
+/// bo'lmasdi.
+/// </para>
+/// <para>
+/// Shu sababli token alohida endpoint'da va u ruxsat bilan emas, ROL
+/// bilan himoyalangan: uni faqat <c>recruiting_bot</c> xizmat hisobi
+/// ola oladi (sabab <c>SettingsEndpoints</c> da).
+/// </para>
+/// </remarks>
+/// <param name="Token">
+/// Ochiq token. Ekranda qo'yilmagan bo'lsa <c>null</c> — bunda bot
+/// <c>.env</c> dagi zaxira qiymatga tushadi
+/// (<c>SystemSettingKeys.BotToken</c> izohi).
+/// </param>
+public sealed record BotTokenDto(string? Token);

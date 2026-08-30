@@ -26,15 +26,35 @@ namespace Bonvi.Bot;
 /// </remarks>
 public sealed partial class BotWorker : BackgroundService
 {
-    [LoggerMessage(EventId = 3201, Level = LogLevel.Error, Message = "Telegram token qabul qilinmadi — bot to'xtatildi")]
+    [LoggerMessage(
+        EventId = 3201,
+        Level = LogLevel.Error,
+        Message = "Telegram token QABUL QILINMADI. Bot kutmoqda — «Tizim sozlamalari» ekranida "
+            + "tokenni to'g'rilang, bot o'zi qayta ulanadi.")]
     private partial void LogBadToken();
 
     [LoggerMessage(
         EventId = 3207,
         Level = LogLevel.Warning,
-        Message = "Bot SOZLANMAGAN — {Missing} berilmagan. «.env» faylini to'ldiring: TELEGRAM__BOTTOKEN, "
-            + "BOOTSTRAP__BOTLOGIN, BOOTSTRAP__BOTPASSWORD. Tizimning qolgan qismi bundan ta'sirlanmaydi.")]
+        Message = "Bot hisobi SOZLANMAGAN — {Missing} berilmagan. «.env» faylini to'ldiring: "
+            + "BOOTSTRAP__BOTLOGIN, BOOTSTRAP__BOTPASSWORD. Bu ikkisi tizim sozlamalariga "
+            + "KO'CHIRILMAYDI: bot aynan shular bilan tizimga kirib tokenni oladi. "
+            + "Tizimning qolgan qismi bundan ta'sirlanmaydi.")]
     private partial void LogNotConfigured(string missing);
+
+    [LoggerMessage(
+        EventId = 3208,
+        Level = LogLevel.Warning,
+        Message = "Telegram tokeni QO'YILMAGAN — bot kutmoqda. «Tizim sozlamalari» ekranida token "
+            + "kiriting (yoki «.env» dagi TELEGRAM__BOTTOKEN ni to'ldiring). Qayta ishga "
+            + "tushirish shart emas.")]
+    private partial void LogTokenMissing();
+
+    [LoggerMessage(
+        EventId = 3209,
+        Level = LogLevel.Information,
+        Message = "Telegram tokeni almashtirildi — bot yangi token bilan ulanmoqda")]
+    private partial void LogTokenChanged();
 
     [LoggerMessage(
         EventId = 3202,
@@ -64,6 +84,7 @@ public sealed partial class BotWorker : BackgroundService
     private const string MenuAboutData = "menu:about";
 
     private readonly TelegramClient _telegram;
+    private readonly TelegramToken _token;
     private readonly BonviClient _bonvi;
     private readonly ConversationStore _conversations;
     private readonly BotOptions _options;
@@ -81,51 +102,92 @@ public sealed partial class BotWorker : BackgroundService
     private BotSettings? _settings;
     private DateTimeOffset _settingsReadAt;
 
+    /// <summary>Hozir ISHLAYOTGAN token. <c>null</c> — bot ulanmagan.</summary>
+    /// <remarks>
+    /// Bu «tizimda yozilgan token» emas, «Telegram qabul qilgan va shu
+    /// bilan so'rov ketayotgan token». Ikkalasi farq qilganda bot qayta
+    /// ulanadi (<c>EnsureTokenAsync</c>).
+    /// </remarks>
+    private string? _activeToken;
+
+    /// <summary>Tizimdan oxirgi marta muvaffaqiyatli o'qilgan token.</summary>
+    /// <remarks>
+    /// <c>null</c> ikki xil ma'no tashiydi va ular
+    /// <see cref="_tokenEverRead"/> bilan ajratiladi: hali o'qilmagan,
+    /// yoki o'qildi-yu ekranda qo'yilmagan.
+    /// </remarks>
+    private string? _settingsToken;
+    private bool _tokenEverRead;
+    private DateTimeOffset _tokenReadAt;
+
+    /// <summary>Telegram rad etgan token — xato JURNALGA bir marta tushsin uchun.</summary>
+    /// <remarks>
+    /// Halqa har 15 soniyada aylanadi. Bu maydonsiz noto'g'ri token
+    /// bir kechada minglab bir xil satr yozib, jurnal saqlash
+    /// chegarasini (<c>LOG_MAX_FILE_COUNT</c>) yeb qo'yardi va haqiqiy
+    /// xatolarni surib chiqarardi. Qiymatning O'ZI hech qachon
+    /// jurnalga tushmaydi — u faqat «bu haqda aytganmidim?» degan
+    /// savolga javob berish uchun xotirada turadi.
+    /// </remarks>
+    private string? _complainedAbout;
+
     public BotWorker(
         TelegramClient telegram,
+        TelegramToken token,
         BonviClient bonvi,
         ConversationStore conversations,
         IOptions<BotOptions> options,
         ILogger<BotWorker> logger)
     {
         _telegram = telegram;
+        _token = token;
         _bonvi = bonvi;
         _conversations = conversations;
         _options = options.Value;
         _logger = logger;
     }
 
+    /// <summary>Token yo'q yoki yaroqsiz bo'lganda qayta urinish oralig'i.</summary>
+    /// <remarks>
+    /// Qisqa ATAYLAB: bu holatda odam ekran oldida turib tokenni endi
+    /// kiritgan bo'ladi va botning tirilishini kutadi. 15 soniya —
+    /// «darhol» bilan «API ni bekorga urish» orasidagi o'rta yo'l.
+    /// </remarks>
+    private static readonly TimeSpan TokenRetryDelay = TimeSpan.FromSeconds(15);
+
+    /// <summary>Ishlab turgan bot tokenni qayta o'qish oralig'i.</summary>
+    /// <remarks>
+    /// Bot ishlayotganda shoshilishning hojati yo'q, lekin bir daqiqa
+    /// «matn» sozlamasidagi besh daqiqadan qisqa: matn eskirsa nomzod
+    /// bir marta eski matnni o'qiydi, token eskirsa esa bot BEGONA
+    /// hisobga xabar yuborishda davom etadi — masalan token o'g'irlangan
+    /// deb bekor qilingan bo'lsa.
+    /// </remarks>
+    private static readonly TimeSpan TokenRefresh = TimeSpan.FromMinutes(1);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         /*
-          Sozlanmagan bot — XATO EMAS, holat: tizim botsiz ham to'liq
-          ishlaydi. Shu sababli jarayon yiqilmaydi va istisno tashlamaydi
-          (`BotOptions.Token` izohi): u sababni bir marta yozib, to'xtaydi.
-          `BackgroundService` dan chiqish qolgan konteynerga tegmaydi.
+          ⭐ ISHGA TUSHISH TARTIBI O'ZGARDI: avval BONVI, keyin TELEGRAM.
+
+          Ilgari teskari edi — token `.env` dan kelardi va u bilan darhol
+          Telegram'ga ulanish mumkin edi. Endi token tizim sozlamalarida
+          turadi (`SystemSettingKeys.BotToken`), ya'ni uni bilish uchun
+          avval Bonvi API ga kirish kerak.
+
+          Shundan kelib chiqib «sozlanmagan» tushunchasi ham toraydi: bot
+          hisobining logini va paroli bo'lmasa haqiqatan hech nima qilib
+          bo'lmaydi va jarayon to'xtaydi. Token esa endi to'xtash sababi
+          EMAS — u har lahzada ekranda paydo bo'lishi mumkin.
         */
         var missing = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(_options.Token)) missing.Add("Telegram tokeni");
         if (string.IsNullOrWhiteSpace(_options.Login)) missing.Add("bot hisobi logini");
         if (string.IsNullOrWhiteSpace(_options.Password)) missing.Add("bot hisobi paroli");
 
         if (missing.Count > 0)
         {
             LogNotConfigured(string.Join(", ", missing));
-            return;
-        }
-
-        // Webhook faol bo'lsa `getUpdates` umuman ishlamaydi (izohi
-        // `TelegramClient.DeleteWebhookAsync` da).
-        await _telegram.DeleteWebhookAsync(stoppingToken).ConfigureAwait(false);
-
-        var username = await _telegram.GetMeAsync(stoppingToken).ConfigureAwait(false);
-
-        if (username is null)
-        {
-            // Token noto'g'ri bo'lsa halqani aylantirishning ma'nosi yo'q:
-            // har so'rov bir xil xato bilan qaytardi va jurnal to'lib ketardi.
-            LogBadToken();
             return;
         }
 
@@ -136,12 +198,26 @@ public sealed partial class BotWorker : BackgroundService
             LogApiUnavailable();
         }
 
-        LogStarted(username);
-
         var lastCleanup = DateTimeOffset.UtcNow;
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            /*
+              Har aylanishda tekshiriladi: token bormi, o'zgardimi.
+              Yo'q yoki yaroqsiz bo'lsa — kutib, qaytadan uriniladi.
+
+              NEGA `return` emas (ilgari shunday edi): tokenni endi ekrandan
+              qo'yish mumkin va bot buni sezishi kerak. `return` bilan
+              «tokenni kiritdim, nega ishlamayapti?» degan savolning
+              yagona javobi «konteynerni qayta ishga tushiring» bo'lardi —
+              ya'ni butun o'zgarishning ma'nosi yo'qolardi.
+            */
+            if (!await EnsureTokenAsync(stoppingToken).ConfigureAwait(false))
+            {
+                await Task.Delay(TokenRetryDelay, stoppingToken).ConfigureAwait(false);
+                continue;
+            }
+
             var updates = await _telegram
                 .GetUpdatesAsync(_offset, _options.PollTimeoutSeconds, stoppingToken)
                 .ConfigureAwait(false);
@@ -491,6 +567,129 @@ public sealed partial class BotWorker : BackgroundService
             .ConfigureAwait(false);
 
         LogApplication(state.VacancyTitle);
+    }
+
+    /// <summary>
+    /// Ishchi token borligini va DOLZARBLIGINI ta'minlaydi.
+    /// </summary>
+    /// <returns>Bot xabar qabul qilishga tayyormi.</returns>
+    /// <remarks>
+    /// <para>
+    /// Uch holat: token yo'q, token o'zgarmagan, token yangi. Faqat
+    /// uchinchisida Telegram bilan qo'l berishiladi
+    /// (<c>deleteWebhook</c> + <c>getMe</c>) — ya'ni odatiy aylanishda
+    /// bu metod hech qanday tarmoq so'rovi qilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Xato holatida ham jurnal tinch.</b> Halqa 15 soniyada
+    /// aylanadi, shu sababli har bir shikoyat token bo'yicha BIR MARTA
+    /// yoziladi (<see cref="_complainedAbout"/>).
+    /// </para>
+    /// </remarks>
+    private async Task<bool> EnsureTokenAsync(CancellationToken cancellationToken)
+    {
+        // Bot ulanmagan bo'lsa kesh chetlab o'tiladi: odam ekranda
+        // tokenni endigina kiritgan bo'lishi mumkin va uni bir daqiqa
+        // kutishga majburlashning sababi yo'q.
+        var desired = await DesiredTokenAsync(force: _activeToken is null, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (desired is null)
+        {
+            if (_complainedAbout != string.Empty)
+            {
+                LogTokenMissing();
+                _complainedAbout = string.Empty;
+            }
+
+            _activeToken = null;
+            return false;
+        }
+
+        if (desired == _activeToken)
+        {
+            return true;
+        }
+
+        if (_activeToken is not null)
+        {
+            LogTokenChanged();
+        }
+
+        _token.Value = desired;
+
+        // Webhook faol bo'lsa `getUpdates` umuman ishlamaydi (izohi
+        // `TelegramClient.DeleteWebhookAsync` da). Har YANGI tokenda
+        // takrorlanadi: webhook bot tomonida yozilgan bo'ladi va yangi
+        // token boshqa botga tegishli bo'lishi mumkin.
+        await _telegram.DeleteWebhookAsync(cancellationToken).ConfigureAwait(false);
+
+        var username = await _telegram.GetMeAsync(cancellationToken).ConfigureAwait(false);
+
+        if (username is null)
+        {
+            if (_complainedAbout != desired)
+            {
+                LogBadToken();
+                _complainedAbout = desired;
+            }
+
+            _activeToken = null;
+            return false;
+        }
+
+        /*
+          Yangi token — yangi hisob bo'lishi mumkin (sinovdan ishchi
+          botga o'tish). Eski hisobning `offset` i yangisida ma'nosiz:
+          u boshqa botning yangilik raqamlari edi. Nolga qaytarish
+          xavfsiz — Telegram allaqachon TASDIQLANGAN yangiliklarni
+          qaytarmaydi, ya'ni eski xabarlar ikkinchi marta kelmaydi.
+        */
+        _offset = 0;
+        _activeToken = desired;
+        _complainedAbout = null;
+
+        LogStarted(username);
+        return true;
+    }
+
+    /// <summary>
+    /// Bot ISHLATISHI kerak bo'lgan token: tizimdagisi, bo'lmasa <c>.env</c> dagisi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Ustuvorlik: EKRAN &gt; <c>.env</c>.</b> Ekrandagi qiymat
+    /// ataylab, hozir va aniq bir odam tomonidan qo'yilgan; <c>.env</c>
+    /// esa o'rnatishda bir marta yozilgan va odatda unutiladi. Teskarisi
+    /// bo'lsa, ekranda tokenni almashtirgan odam hech qanday natija
+    /// ko'rmasdi va sababini topa olmasdi.
+    /// </para>
+    /// <para>
+    /// <b>So'rov bajarilmasa ESKI qiymat qoladi</b> (matn sozlamasidagi
+    /// bilan bir xil qoida): API ga borib kelolmaslik ishlab turgan
+    /// botni to'xtatishga sabab emas.
+    /// </para>
+    /// </remarks>
+    private async Task<string?> DesiredTokenAsync(bool force, CancellationToken cancellationToken)
+    {
+        if (force || !_tokenEverRead || DateTimeOffset.UtcNow - _tokenReadAt >= TokenRefresh)
+        {
+            var fresh = await _bonvi.GetBotTokenAsync(cancellationToken).ConfigureAwait(false);
+
+            if (fresh is not null)
+            {
+                _settingsToken = string.IsNullOrWhiteSpace(fresh.Token) ? null : fresh.Token;
+                _tokenEverRead = true;
+                _tokenReadAt = DateTimeOffset.UtcNow;
+            }
+        }
+
+        if (_settingsToken is not null)
+        {
+            return _settingsToken;
+        }
+
+        return string.IsNullOrWhiteSpace(_options.Token) ? null : _options.Token;
     }
 
     /// <summary>

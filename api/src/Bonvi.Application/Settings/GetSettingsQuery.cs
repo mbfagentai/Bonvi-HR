@@ -85,3 +85,35 @@ public sealed class GetBotSettingsQueryHandler
             settings.Number(SystemSettingKeys.BotConversationTimeoutMinutes)));
     }
 }
+
+/// <summary>
+/// Botning Telegram tokeni — bot jarayoni uchun.
+/// </summary>
+/// <remarks>
+/// ALOHIDA use-case va alohida endpoint: sabab
+/// <see cref="Dtos.BotTokenDto"/> izohida. Bu yagona joy, undan sir
+/// ochiq holda chiqadi — shu sababli u boshqa hech qanday sozlama
+/// bilan bir javobga QO'SHILMAYDI: bir kun kimdir <c>/bot</c> ning
+/// ruxsatini kengaytirsa, token u bilan birga ketmasin.
+/// </remarks>
+public sealed record GetBotTokenQuery;
+
+public sealed class GetBotTokenQueryHandler
+{
+    private readonly SystemSettingsReader _reader;
+
+    public GetBotTokenQueryHandler(SystemSettingsReader reader) => _reader = reader;
+
+    public async Task<Result<BotTokenDto>> HandleAsync(
+        GetBotTokenQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var settings = await _reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        // Qo'yilmagan token — XATO EMAS (404 ham emas): bu normal holat
+        // va bot uni ko'rib `.env` dagi zaxiraga tushadi.
+        return Result.Success(new BotTokenDto(settings.Secret(SystemSettingKeys.BotToken)));
+    }
+}

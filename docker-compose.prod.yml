@@ -123,6 +123,19 @@ services:
       Jwt__Issuer: ${JWT__ISSUER}
       Jwt__Audience: ${JWT__AUDIENCE}
       Jwt__SigningKey: ${JWT__SIGNINGKEY}
+
+      # Bazadagi sirlarni (Telegram tokeni) shifrlash kaliti.
+      #
+      # ATAYLAB `:-` bilan, ya'ni bo'sh bo'lishi mumkin: berilmasa kalit
+      # `Jwt__SigningKey` dan chiqariladi va hech narsa buzilmaydi
+      # (izohi `SecretProtectionOptions` da). Yuqoridagi majburiy
+      # qatorlardan farqi shunda — unutilgan qiymat bu yerda nosozlik
+      # emas.
+      #
+      # ⚠️ Ataylab bergan bo'lsangiz, uni `JWT__SIGNINGKEY` bilan BIRGA
+      # almashtirmang: ular endi mustaqil va aynan shu mustaqillik uchun
+      # bu qator qo'shilgan.
+      Settings__SecretKey: ${SETTINGS__SECRETKEY:-}
       Storage__RootPath: /data/uploads
       Cors__Origins__0: ${SITE_ADDRESS:-http://localhost}
 

@@ -55,6 +55,8 @@
       "subtitle": "Bot texts and notification thresholds — for the whole system",
       "groupBot": "Telegram bot",
       "groupBotHint": "The text a candidate sees and the conversation timeout",
+      "botToken": "Telegram token",
+      "botTokenHint": "The token comes from @BotFather. Once saved it is never shown again — only its last characters.",
       "botAboutCyrillic": "About the company (Cyrillic)",
       "botAboutLatin": "About the company (Latin)",
       "botConversationTimeout": "Conversation timeout (minutes)",
@@ -67,7 +69,13 @@
       "textHint": "Leave empty and the bot hides this section. Enter for a new line.",
       "unsaved": "You have unsaved changes",
       "noAccessTitle": "You don't have access to this section",
-      "noAccessText": "System settings are available to the super administrator only."
+      "noAccessText": "System settings are available to the super administrator only.",
+      "secretSet": "Set",
+      "secretEmpty": "Not set",
+      "secretEnter": "Enter the token",
+      "secretReplace": "Enter a new one to replace it",
+      "clearTitle": "Delete the token?",
+      "clearText": "The token will be deleted permanently — you would have to get a new one from @BotFather. The bot stops within a minute."
     },
     "role": "Role",
     "phoneHint": "Used to sign in",
@@ -601,6 +609,7 @@
     "sozlama.notogri_son": "The value must be a whole number.",
     "sozlama.chegara": "The value is outside the allowed range.",
     "sozlama.matn_uzun": "The text is too long.",
+    "sozlama.notogri_format": "The value is not in the expected format. A Telegram token looks like “8123456789:AA…”.",
     "sozlama.royxat_bosh": "No settings were sent.",
     "sozlama.takror_kalit": "The same setting was sent twice."
   },

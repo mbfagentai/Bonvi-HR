@@ -68,6 +68,25 @@ public static class SystemSettingErrors
                 min,
                 max));
 
+    /// <summary>Sir kutilgan ko'rinishda emas.</summary>
+    /// <remarks>
+    /// <para>
+    /// Xabar naqshning O'ZINI aytmaydi va ataylab: regex foydalanuvchiga
+    /// hech narsa tushuntirmaydi, ekran esa bu kodni ko'rib o'z tilida
+    /// «Token «12345:AA…» ko'rinishida bo'lishi kerak» deb yozadi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Xabarga kelgan QIYMAT hech qachon qo'shilmaydi. Bu — sir:
+    /// xato xabari jurnalga, brauzer konsoliga va ekran suratiga
+    /// tushadi, ya'ni qiymatni unga qo'shish sirni aynan eng ko'p
+    /// nusxalanadigan joyga chiqarish demak.
+    /// </para>
+    /// </remarks>
+    public static Error BadFormat { get; } =
+        Error.Validation(
+            "sozlama.notogri_format",
+            "Qiymat kutilgan ko'rinishda emas.");
+
     /// <summary>Matn juda uzun.</summary>
     /// <remarks>
     /// Chegara xavfsizlik uchun ham kerak: bot matni tashqi ekranga

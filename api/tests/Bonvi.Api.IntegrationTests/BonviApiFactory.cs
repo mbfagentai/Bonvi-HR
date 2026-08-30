@@ -50,6 +50,20 @@ public sealed class BonviApiFactory : WebApplicationFactory<Program>, IAsyncLife
     /// <summary>Testlarda ishlatiladigan administrator paroli.</summary>
     public const string TestAdminPassword = "Test_Bonvi_2026";
 
+    /// <summary>Telegram bot XIZMAT hisobining logini (test uchun).</summary>
+    /// <remarks>
+    /// Bot hisobi har bir test bazasida yaratiladi. Nega hammasida:
+    /// u qo'shimcha holat yaratmaydi (rol allaqachon urug'lantiriladi,
+    /// «atigi bitta» qoidasi unga tegishli emas), lekin usiz
+    /// <c>SettingsApiTests</c> tokenni o'qiy oladigan yagona hisobga
+    /// kira olmasdi — va o'sha test aynan «bu endpoint kimga ochiq?»
+    /// degan savolni tekshiradi.
+    /// </remarks>
+    public const string TestBotLogin = "905077777";
+
+    /// <summary>Bot xizmat hisobining paroli (test uchun).</summary>
+    public const string TestBotPassword = "Test_Bot_2026";
+
     public string ConnectionString { get; private set; } = string.Empty;
 
     public async ValueTask InitializeAsync()
@@ -112,5 +126,9 @@ public sealed class BonviApiFactory : WebApplicationFactory<Program>, IAsyncLife
         builder.UseSetting("Bootstrap:AdminLogin", TestAdminLogin);
         builder.UseSetting("Bootstrap:AdminPassword", TestAdminPassword);
         builder.UseSetting("Bootstrap:AdminFullName", "Test Administrator Testovich");
+
+        builder.UseSetting("Bootstrap:BotLogin", TestBotLogin);
+        builder.UseSetting("Bootstrap:BotPassword", TestBotPassword);
+        builder.UseSetting("Bootstrap:BotFullName", "Telegram bot");
     }
 }

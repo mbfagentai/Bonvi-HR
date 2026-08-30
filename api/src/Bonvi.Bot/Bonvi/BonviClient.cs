@@ -14,6 +14,15 @@ public sealed record OpenVacancy(Guid Id, string Title);
 /// <summary>Botning tizimdan olinadigan sozlamalari.</summary>
 public sealed record BotSettings(string AboutCyrillic, string AboutLatin, int ConversationTimeoutMinutes);
 
+/// <summary>Tizimda saqlangan Telegram tokeni. Qo'yilmagan bo'lsa <c>null</c>.</summary>
+/// <remarks>
+/// Yalang'och satr emas, O'RAM: shu tufayli «so'rov bajarilmadi»
+/// (<c>null</c> javob) va «token qo'yilmagan» (<c>Token = null</c>)
+/// bir-biridan farq qiladi. Sabab <c>BonviClient.GetBotTokenAsync</c>
+/// izohida.
+/// </remarks>
+public sealed record BotTokenResponse(string? Token);
+
 /// <summary>Nomzodning mavjud arizasi — takror tekshiruvi uchun.</summary>
 public sealed record ExistingApplication(DateTimeOffset AppliedAt, string? StageName);
 
@@ -201,6 +210,41 @@ public sealed partial class BonviClient : IDisposable
                 () => new HttpRequestMessage(
                     HttpMethod.Get,
                     new Uri("api/settings/bot", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>
+    /// Telegram tokenini tizimdan oladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega alohida so'rov, <see cref="GetBotSettingsAsync"/> ichida
+    /// emas.</b> Token — SIR va u <c>/api/settings/bot</c> javobiga
+    /// qo'shilmaydi: o'sha endpoint <c>recruiting.view</c> ruxsati ostida,
+    /// bu ruxsat esa HR menejerlarida ham bor. Token faqat
+    /// <c>recruiting_bot</c> ROLI ostidagi hisobga ochiq endpoint'dan
+    /// keladi (sabab serverda, <c>SettingsEndpoints</c> da).
+    /// </para>
+    /// <para>
+    /// <b>Uch xil javobning uch xil ma'nosi bor va ular chalkashmasligi
+    /// kerak:</b>
+    /// <list type="bullet">
+    ///   <item>qiymatli satr — ekranda qo'yilgan token;</item>
+    ///   <item><c>Token = null</c> bilan javob — ekranda QO'YILMAGAN,
+    ///         bot <c>.env</c> dagi zaxiraga tushadi;</item>
+    ///   <item><c>null</c> javob (so'rov bajarilmadi) — bilib bo'lmadi,
+    ///         eski qiymat saqlanadi.</item>
+    /// </list>
+    /// Uchinchi holatni ikkinchisi bilan qo'shib yuborish eng zararli
+    /// xato bo'lardi: API bir daqiqaga yiqilganda ishlab turgan bot
+    /// tokenini o'zi tashlab yuborardi.
+    /// </para>
+    /// </remarks>
+    public async Task<BotTokenResponse?> GetBotTokenAsync(CancellationToken cancellationToken)
+        => await SendAsync<BotTokenResponse>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/settings/bot/token", UriKind.Relative)),
                 cancellationToken)
             .ConfigureAwait(false);
 

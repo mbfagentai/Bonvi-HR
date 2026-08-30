@@ -990,11 +990,12 @@ uni yon menyuda **umuman ko‘rmaydi**.
 | Rol | Nechta bo‘ladi | Nima qila oladi |
 |-----|----|----------|
 | **Super administrator** | Atigi bitta | Tizimdagi hamma narsa |
-| **Bosh rahbar** | Atigi bitta | Ruxsatlar bo‘yicha super administrator bilan **teng** |
+| **Bosh rahbar** | Atigi bitta | Hammasi, **tizim sozlamalaridan tashqari** |
 | **HR menejeri** | Cheklanmagan | Hammasi, **foydalanuvchilarni boshqarishdan tashqari** |
 
-Super administrator va bosh rahbar ruxsatlar bo‘yicha bir xil. Yagona farq —
-**kim kimni qo‘sha oladi**.
+Super administrator va bosh rahbar deyarli bir xil. Ikki farq bor:
+**kim kimni qo‘sha oladi** (pastda) va **tizim sozlamalari** — u faqat super
+administratorga ochiq (keyingi bo‘lim).
 
 ## Kim kimni qo‘sha oladi
 
@@ -1065,6 +1066,70 @@ bermaydi.
 
 Yana bir cheklov: tizimda **kamida bitta faol rahbar** qolishi shart. Oxirgi
 rahbarni faolsizlantirib bo‘lmaydi.
+
+# Tizim sozlamalari
+
+Manzil — `/sozlamalar`, yon menyuda **TIZIM → «Tizim sozlamalari»**. Bo‘lim
+**faqat super administratorga** ochiq: bosh rahbar ham uni yon menyuda
+umuman ko‘rmaydi.
+
+> Bu **shaxsiy sozlamalar oynasi emas**. O‘sha oyna (yuqori o‘ng burchakdagi
+> ismingiz → «Sozlamalar») faqat sizga tegishli: rasmingiz, tilingiz,
+> ko‘rinish. Bu yerdagi qiymatlar esa **butun tizimga** ta’sir qiladi — ular
+> boshqa foydalanuvchilarga va nomzod Telegram botda o‘qiydigan matnga
+> tegishli.
+
+Sahifa ikki guruhdan iborat. O‘zgartirgandan keyin pastdagi **«Saqlash»**
+tugmasini bosing — u faqat haqiqatan bir narsa o‘zgargandagina yonadi.
+
+## Telegram bot
+
+**Telegram tokeni.** Botni ishlatadigan maxfiy kalit, uni `@BotFather`
+beradi. Qatorning ustida holat ko‘rinadi: **«Qo‘yilgan»** va tokenning
+niqoblangan ko‘rinishi (`8123456789:…abcd`) yoki **«Kiritilmagan»**.
+
+- Tokenni almashtirish uchun maydonga **yangisini yozing** va saqlang. Bot
+  o‘zgarishni **bir daqiqa ichida** o‘zi sezadi — serverga kirish yoki biror
+  narsani qayta ishga tushirish kerak emas.
+- Maydonni **bo‘sh qoldirsangiz hech narsa o‘zgarmaydi**. Ya’ni bot matnini
+  tahrirlab saqlaganingizda token tegilmay qolaveradi.
+- Tokenni butunlay olib tashlash uchun holat yonidagi **«O‘chirish»** ni
+  bosing va tasdiqlang.
+
+> **Saqlangan token qaytarib ko‘rsatilmaydi** — hatto sizga ham. Tizim faqat
+> oxirgi belgilarini ko‘rsatadi, shunda «qaysi token turibdi?» degan savolga
+> javob bo‘ladi. Tokenni yo‘qotsangiz, yangisini `@BotFather` dan olishga
+> to‘g‘ri keladi.
+
+Token noto‘g‘ri ko‘rinishda bo‘lsa (masalan chala nusxa olingan bo‘lsa) tizim
+uni **saqlamaydi** va shunday deydi: *«Qiymat kutilgan ko‘rinishda emas.
+Telegram tokeni «8123456789:AA…» ko‘rinishida bo‘ladi.»*
+
+**Kompaniya haqida (kirill / lotin).** Nomzod botda **«Kompaniya haqida»**
+tugmasini bosganda ko‘radigan matn. Ikkalasi ham **bo‘sh qolishi mumkin** —
+u holda bot bu tugmani umuman chizmaydi va nomzod to‘g‘ridan-to‘g‘ri
+vakansiyalarni ko‘radi. Lotincha matn bo‘sh bo‘lsa, bot kirilldagisini
+ko‘rsatadi.
+
+**Suhbat muddati (daqiqa).** Nomzod anketani yarim tashlab ketsa, bot uni
+shu vaqtdan keyin unutadi va suhbat boshidan boshlanadi. 1 dan 1440
+(bir sutka) gacha.
+
+## Bildirishnomalar
+
+Qo‘ng‘iroqcha ostidagi ogohlantirishlar **necha kun oldin** paydo
+bo‘lishini belgilaydi. Uchalasi ham **1 dan 90 kungacha**.
+
+| Sozlama | Nimani boshqaradi |
+|---------|-------------------|
+| **Sinov muddati ogohlantirishi** | Sinov tugashiga shuncha kun qolganda ogohlantiriladi |
+| **Yangi nomzod ko‘rsatiladi** | Nomzod shuncha kun davomida «yangi» hisoblanadi |
+| **Taklif muddati ogohlantirishi** | Ish taklifi muddati tugashiga shuncha kun qolganda ogohlantiriladi |
+
+> Chegarani kattalashtirsangiz ro‘yxat uzayadi, kichraytirsangiz —
+> qisqaradi. 90 kundan uzun qilib bo‘lmaydi: uch oydan uzoq ogohlantirish
+> ma’nosini yo‘qotadi, chunki ro‘yxat hech qachon bo‘shamaydi va unga
+> qarash to‘xtaydi.
 
 # Tez-tez uchraydigan xatolar
 

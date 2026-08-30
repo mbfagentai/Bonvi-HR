@@ -85,7 +85,7 @@ internal sealed class NotificationTestContext
     public List<MissingProbationRow> MissingProbations { get; } = [];
 
     public NotificationCollector Collector =>
-        new(Source, Employees, new SystemSettingsReader(Settings), CurrentUser, Clock);
+        new(Source, Employees, new SystemSettingsReader(Settings, Settings.Protector), CurrentUser, Clock);
 
     /// <summary>Bitta ruxsatni olib tashlaydi — qolganlari joyida qoladi.</summary>
     public void Deny(string permission) => CurrentUser.HasPermission(permission).Returns(false);

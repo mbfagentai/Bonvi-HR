@@ -17,6 +17,12 @@ namespace Bonvi.Application.Settings;
 /// bir-biridan farq qilmay qolardi va tekshiruv ikki xil yo'ldan
 /// ketardi.
 /// </para>
+/// <para>
+/// SIR turidagi sozlamada (<c>bot.token</c>) bu maydon OCHIQ token
+/// bo'lib keladi va serverda shifrlanib yoziladi. BO'SH satr esa
+/// «o'chirish» degani — yozuvning o'zi olib tashlanadi
+/// (<c>SystemSettingKind.Secret</c> izohi).
+/// </para>
 /// </param>
 public sealed record SystemSettingUpdate(string? Key, string? Value);
 
@@ -45,15 +51,18 @@ public sealed class UpdateSettingsCommandHandler
 {
     private readonly ISystemSettingRepository _settings;
     private readonly SystemSettingsReader _reader;
+    private readonly ISecretProtector _protector;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateSettingsCommandHandler(
         ISystemSettingRepository settings,
         SystemSettingsReader reader,
+        ISecretProtector protector,
         IUnitOfWork unitOfWork)
     {
         _settings = settings;
         _reader = reader;
+        _protector = protector;
         _unitOfWork = unitOfWork;
     }
 
@@ -69,16 +78,37 @@ public sealed class UpdateSettingsCommandHandler
             return prepared.Error;
         }
 
-        foreach (var (key, value) in prepared.Value)
+        foreach (var (key, value, clearSecret) in prepared.Value)
         {
             var existing = await _settings.FindAsync(key, cancellationToken).ConfigureAwait(false);
+
+            /*
+              SIRNI O'CHIRISH — yagona holat, unda yozuv YO'Q qilinadi.
+
+              Matnni bo'shatish (bot matnini olib tashlash) esa bo'sh
+              satr YOZADI va qator joyida qoladi: matnda «bo'sh» —
+              haqiqiy, ataylab tanlangan qiymat. Sirda esa bo'sh qiymat
+              degan narsa yo'q, u yo bor yo yo'q — shu sababli
+              «o'chirilgan sir» va «hech qachon qo'yilmagan sir» bazada
+              ham bir xil ko'rinishi kerak. Aks holda bo'sh shifrlangan
+              qator qolib, `IsSet` yolg'on gapirib qolardi.
+            */
+            if (clearSecret)
+            {
+                if (existing is not null)
+                {
+                    _settings.Remove(existing);
+                }
+
+                continue;
+            }
 
             if (existing is null)
             {
                 // Yozuv BIRINCHI marta qiymat berilganda paydo bo'ladi:
                 // jadvalda faqat ataylab o'zgartirilgan sozlamalar yotadi
                 // (`SystemSetting` izohi).
-                var created = SystemSetting.Create(key, value);
+                var created = SystemSetting.Create(key, value, _protector);
                 if (created.IsFailure)
                 {
                     // Bu yerga yetib bo'lmaydi: kalit va qiymat
@@ -93,7 +123,7 @@ public sealed class UpdateSettingsCommandHandler
                 continue;
             }
 
-            var updated = existing.SetValue(value);
+            var updated = existing.SetValue(value, _protector);
             if (updated.IsFailure)
             {
                 return updated.Error;
@@ -123,7 +153,7 @@ public sealed class UpdateSettingsCommandHandler
     /// <see cref="SystemSettingKeys"/> ta'rifidan kelib chiqadi. Shu
     /// sababli xato so'rovda bitta ham <c>SELECT</c> yuborilmaydi.
     /// </remarks>
-    private static Result<IReadOnlyList<(string Key, string Value)>> Prepare(
+    private static Result<IReadOnlyList<(string Key, string Value, bool ClearSecret)>> Prepare(
         IReadOnlyList<SystemSettingUpdate>? items)
     {
         if (items is null || items.Count == 0)
@@ -132,7 +162,7 @@ public sealed class UpdateSettingsCommandHandler
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var prepared = new List<(string Key, string Value)>(items.Count);
+        var prepared = new List<(string Key, string Value, bool ClearSecret)>(items.Count);
 
         foreach (var item in items)
         {
@@ -166,9 +196,13 @@ public sealed class UpdateSettingsCommandHandler
                 return normalized.Error;
             }
 
-            prepared.Add((definition.Key, normalized.Value));
+            prepared.Add((
+                definition.Key,
+                normalized.Value,
+                ClearSecret: definition.Kind == SystemSettingKind.Secret
+                    && normalized.Value.Length == 0));
         }
 
-        return Result.Success<IReadOnlyList<(string Key, string Value)>>(prepared);
+        return Result.Success<IReadOnlyList<(string Key, string Value, bool ClearSecret)>>(prepared);
     }
 }

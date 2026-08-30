@@ -24,6 +24,16 @@ internal sealed class FakeSystemSettings : ISystemSettingRepository
 {
     private readonly List<SystemSetting> _rows = [];
 
+    /// <summary>
+    /// Sirlarni o'girish uchun — <see cref="Seed"/> ham haqiqiy yo'ldan o'tadi.
+    /// </summary>
+    /// <remarks>
+    /// Tashqaridan berilishi mumkin: bitta testda repozitoriy va o'quvchi
+    /// BIR XIL o'girishni ishlatishi shart, aks holda yozilgan sir
+    /// o'qilmasdi.
+    /// </remarks>
+    public FakeSecretProtector Protector { get; init; } = new();
+
     /// <summary>Saqlangan barcha yozuvlar — tekshiruv uchun.</summary>
     public IReadOnlyList<SystemSetting> Rows => _rows;
 
@@ -41,7 +51,7 @@ internal sealed class FakeSystemSettings : ISystemSettingRepository
     /// </remarks>
     public SystemSetting Seed(string key, string value)
     {
-        var created = SystemSetting.Create(key, value);
+        var created = SystemSetting.Create(key, value, Protector);
 
         created.IsSuccess.ShouldBeTrue($"«{key}» = «{value}» test ma'lumoti yaroqsiz");
 

@@ -93,6 +93,13 @@ services:
       Jwt__SigningKey: ${JWT__SIGNINGKEY:-dev_uchun_kamida_32_belgili_maxfiy_kalit_almashtiring}
       Jwt__AccessTokenMinutes: ${JWT__ACCESSTOKENMINUTES:-15}
       Jwt__RefreshTokenDays: ${JWT__REFRESHTOKENDAYS:-7}
+
+      # Bazadagi sirlarni (Telegram tokeni) shifrlash kaliti.
+      # BO'SH bo'lsa `Jwt__SigningKey` dan chiqariladi va tizim ishlayveradi —
+      # shu sababli u `.env` da ham majburiy emas. Ataylab bersangiz, JWT
+      # kalitini saqlangan sirlarni yo'qotmasdan almashtira olasiz
+      # (izohi `SecretProtectionOptions` da).
+      Settings__SecretKey: ${SETTINGS__SECRETKEY:-}
       Storage__RootPath: /data/uploads
       Bootstrap__AdminLogin: ${BOOTSTRAP__ADMINLOGIN:-}
       Bootstrap__AdminPassword: ${BOOTSTRAP__ADMINPASSWORD:-}

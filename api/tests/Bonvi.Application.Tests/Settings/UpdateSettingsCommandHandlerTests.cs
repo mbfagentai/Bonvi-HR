@@ -28,7 +28,8 @@ public sealed class UpdateSettingsCommandHandlerTests
     private readonly FakeSystemSettings _rows = new();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
-    private UpdateSettingsCommandHandler Handler => new(_rows, new SystemSettingsReader(_rows), _unitOfWork);
+    private UpdateSettingsCommandHandler Handler =>
+        new(_rows, new SystemSettingsReader(_rows, _rows.Protector), _rows.Protector, _unitOfWork);
 
     // ────────────────────── Rad etiladigan so'rovlar ──────────────────────
 

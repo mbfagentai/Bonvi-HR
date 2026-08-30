@@ -1,4 +1,4 @@
-import { Bell, Bot, LoaderCircle, SlidersHorizontal } from 'lucide-react'
+import { Bell, Bot, KeyRound, LoaderCircle, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
@@ -7,8 +7,10 @@ import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { problemCode } from '@/shared/api/problem-details'
 import {
   Alert,
+  Badge,
   Button,
   Card,
+  Dialog,
   EmptyState,
   IconTile,
   PageHeader,
@@ -48,6 +50,7 @@ const GROUPS: readonly {
     icon: Bot,
     tone: 'blue',
     fields: {
+      'bot.token': 'settings.system.botToken',
       'bot.about.cyrillic': 'settings.system.botAboutCyrillic',
       'bot.about.latin': 'settings.system.botAboutLatin',
       'bot.conversationTimeoutMinutes': 'settings.system.botConversationTimeout',
@@ -110,6 +113,16 @@ export function SystemSettingsPage() {
   /** Tahrirlanayotgan qiymatlar: kalit → matn. */
   const [draft, setDraft] = useState<Record<string, string>>({})
 
+  /**
+   * O'chirish tasdig'i kutilayotgan SIR.
+   *
+   * Nega alohida holat va nega umuman tasdiq: sirni o'chirish
+   * QAYTARIB BO'LMAYDI — qiymat serverdan hech qachon o'qilmagan, ya'ni
+   * uni tiklashning yagona yo'li @BotFather ga qaytadan borish.
+   * Tasodifan bosilgan tugma botni to'xtatib qo'yardi.
+   */
+  const [clearing, setClearing] = useState<SystemSetting | null>(null)
+
   /*
     Serverdan kelgan qiymatlar nusxasi. Foydalanuvchi yozayotganda
     so'rov fon rejimida yangilansa (oyna fokusga qaytganda), yozilgan
@@ -127,7 +140,25 @@ export function SystemSettingsPage() {
   }, [settings.data])
 
   const items = settings.data ?? []
-  const changed = items.filter((item) => (draft[item.key] ?? item.value) !== item.value)
+
+  /*
+    O'zgargan sozlamalar — faqat shular yuboriladi.
+
+    ⚠️ SIR uchun qoida BOSHQACHA va bu ataylab. Uning `value` si serverdan
+    har doim bo'sh keladi, ya'ni oddiy solishtiruv («yozilgani kelganidan
+    farq qiladimi?») bo'sh maydonni ham «o'zgargan» deb hisoblab qolardi —
+    server esa bo'sh sirni O'CHIRISH deb tushunadi. Natijada bot matnini
+    tahrirlab «Saqlash» bosgan odam tokenni ham birga o'chirib yuborardi.
+
+    Shu sababli sir uchun yagona mezon: maydonga HAQIQATAN nimadir
+    yozilganmi. Bo'sh yoki faqat bo'shliqdan iborat qiymat — «tegmadim».
+    O'chirish alohida tugma orqali ketadi (`confirmClear`).
+  */
+  const changed = items.filter((item) =>
+    item.kind === 'Secret'
+      ? (draft[item.key] ?? '').trim().length > 0
+      : (draft[item.key] ?? item.value) !== item.value,
+  )
 
   const submit = () => {
     save.mutate(
@@ -139,6 +170,27 @@ export function SystemSettingsPage() {
         onSuccess: () => setDraft({}),
       },
     )
+  }
+
+  /*
+    Sirni o'chirish — FORMADAN TASHQARI amal.
+
+    Nega «Saqlash» bilan emas: sir maydoni har doim bo'sh boshlanadi
+    (qiymat serverdan kelmaydi), ya'ni «bo'sh qoldirib saqlash» =
+    «tegmadim» degani. Agar bo'shlik «o'chirish» deb tushunilsa, bot
+    matnini tahrirlab «Saqlash» bosgan odam tokenni ham birga
+    o'chirib yuborardi. Shu sababli o'chirish ALOHIDA tugma va u
+    darhol, o'z so'rovi bilan bajariladi.
+  */
+  const confirmClear = () => {
+    if (clearing === null) return
+
+    save.mutate([{ key: clearing.key, value: '' }], {
+      onSuccess: () => {
+        setClearing(null)
+        setDraft({})
+      },
+    })
   }
 
   return (
@@ -200,6 +252,7 @@ export function SystemSettingsPage() {
                     onChange={(next) =>
                       setDraft((current) => ({ ...current, [item.key]: next }))
                     }
+                    onClear={() => setClearing(item)}
                   />
                 ))}
               </Group>
@@ -232,6 +285,36 @@ export function SystemSettingsPage() {
           </div>
         </div>
       )}
+
+      {/* ───────── Sirni o'chirishni tasdiqlash ───────── */}
+      <Dialog
+        open={clearing !== null}
+        onClose={() => setClearing(null)}
+        size="sm"
+        dismissible={!save.isPending}
+        title={t('settings.system.clearTitle')}
+        footer={
+          <>
+            <Button type="button" onClick={() => setClearing(null)} disabled={save.isPending}>
+              {t('common.cancel')}
+            </Button>
+
+            <Button
+              type="button"
+              variant="danger"
+              onClick={confirmClear}
+              disabled={save.isPending}
+            >
+              {save.isPending ? <LoaderCircle className="animate-spin" /> : <Trash2 />}
+              {t('common.delete')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-subhead text-[var(--fg-secondary)]">
+          {t('settings.system.clearText')}
+        </p>
+      </Dialog>
     </div>
   )
 }
@@ -282,13 +365,20 @@ function SettingField({
   label,
   value,
   onChange,
+  onClear,
 }: {
   setting: SystemSetting
   label: string
   value: string
   onChange: (next: string) => void
+  /** Sirni o'chirish so'raldi. Sir bo'lmagan maydonda chaqirilmaydi. */
+  onClear: () => void
 }) {
   const { t, num } = useLocale()
+
+  if (setting.kind === 'Secret') {
+    return <SecretField setting={setting} label={label} value={value} onChange={onChange} onClear={onClear} />
+  }
 
   if (setting.kind === 'Number') {
     return (
@@ -316,5 +406,97 @@ function SettingField({
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />
+  )
+}
+
+/**
+ * Sir maydoni — token va kalitlar uchun.
+ *
+ * <b>Nega oddiy matn maydoni emas.</b> Uchta farq bor va uchalasi ham
+ * serverning qoidasidan kelib chiqadi:
+ *
+ * <b>1. Maydon HAR DOIM bo'sh boshlanadi.</b> Qiymat serverdan
+ * kelmaydi (`value` bo'sh) — ya'ni bu «tahrirlash» emas, «yangisini
+ * qo'yish». Shu sababli joriy holat maydonning ICHIDA emas, ustida
+ * ko'rsatiladi: niqoblangan ko'rinish yoki «kiritilmagan» belgisi.
+ *
+ * <b>2. Bo'sh qoldirish — «tegmadim».</b> Boshqa maydonlarda bo'sh
+ * qiymat saqlanadi, bu yerda esa e'tiborga olinmaydi. Aks holda bot
+ * matnini tahrirlab «Saqlash» bosgan odam tokenni ham o'chirib
+ * yuborardi. O'chirish — alohida tugma.
+ *
+ * <b>3. `type="password"`.</b> Ekran ulashilayotgan yoki orqada odam
+ * turgan bo'lishi mumkin; token esa bir marta ko'rinsa bas.
+ * «Ko'rsatish» tugmasi ATAYLAB yo'q — u faqat endigina yozilgan matnni
+ * ko'rsatardi, saqlangan qiymatni esa baribir hech kim ochib
+ * ko'rolmaydi.
+ */
+function SecretField({
+  setting,
+  label,
+  value,
+  onChange,
+  onClear,
+}: {
+  setting: SystemSetting
+  label: string
+  value: string
+  onChange: (next: string) => void
+  onClear: () => void
+}) {
+  const { t } = useLocale()
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="flex items-center gap-2 text-footnote font-medium text-[var(--fg-secondary)]">
+          <KeyRound className="size-4 text-[var(--fg-tertiary)]" />
+          {label}
+        </span>
+
+        {setting.isSet ? (
+          <>
+            {/*
+              Niqoblangan ko'rinish — «qaysi token turibdi?» degan
+              savolning yagona javobi. `tabular` sinfi: raqamlar bir xil
+              kenglikda bo'lsa, ikki tokenni ko'z bilan solishtirish
+              osonlashadi.
+            */}
+            <Badge tone="success">{t('settings.system.secretSet')}</Badge>
+            <code className="tabular text-caption1 text-[var(--fg-tertiary)]">
+              {setting.preview}
+            </code>
+
+            <button
+              type="button"
+              onClick={onClear}
+              className="press ml-auto text-caption1 font-medium text-ios-red hover:underline"
+            >
+              {t('common.delete')}
+            </button>
+          </>
+        ) : (
+          <Badge tone="neutral">{t('settings.system.secretEmpty')}</Badge>
+        )}
+      </div>
+
+      <TextField
+        type="password"
+        /*
+          Brauzerning parol menejeri bu maydonga aralashmasligi kerak:
+          u tizim sozlamasi, foydalanuvchining hisob ma'lumoti emas.
+          Saqlab qo'yilsa, keyingi safar kirish formasiga taklif
+          qilinib chiqardi.
+        */
+        autoComplete="off"
+        maxLength={setting.maxLength ?? undefined}
+        placeholder={setting.isSet
+          ? t('settings.system.secretReplace')
+          : t('settings.system.secretEnter')}
+        hint={t('settings.system.botTokenHint')}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
   )
 }

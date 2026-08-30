@@ -115,6 +115,17 @@ public static class AuthenticationExtensions
     /// bajariladi — bazaga so'rov yo'q.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Faqat Telegram bot xizmat hisobiga ochiq endpoint'lar siyosati.
+    /// </summary>
+    /// <remarks>
+    /// Nomi ruxsat kodiga O'XSHAMAYDI (nuqta yo'q, chiziqcha bor) —
+    /// ataylab: siyosatlar bitta nom fazosida yashaydi va bu yerdagi
+    /// yagona rol siyosatini ruxsat siyosatlaridan bir qarashda
+    /// ajratib turish kerak.
+    /// </remarks>
+    public const string BotServicePolicy = "bot-service";
+
     public static IServiceCollection AddBonviAuthorization(this IServiceCollection services)
     {
         services.AddAuthorizationBuilder()
@@ -132,6 +143,39 @@ public static class AuthenticationExtensions
                     .RequireAuthenticatedUser()
                     .RequireClaim(CurrentUser.PermissionClaimType, permission));
         }
+
+        /*
+          ═══════════════════════════════════════════════════════════
+           YAGONA ROL BO'YICHA SIYOSAT — qolganlari ruxsat bo'yicha.
+
+           ⭐ Nega bu yerda istisno bor. Tizimda kirish har doim
+           RUXSAT bilan tekshiriladi: rol — bu shunchaki ruxsatlar
+           to'plamining nomi va endpoint uning nomini bilishi shart
+           emas. Bitta joyda bu qoida ishlamaydi — bot Telegram
+           tokenini o'qiydigan endpoint.
+
+           Ruxsat bilan qilinganda yangi ruxsat kodi kerak bo'lardi
+           («settings.botsecrets» kabi). Lekin `SystemRoles.Defaults`
+           da super administrator `Permissions.All` ni, bosh rahbar esa
+           `All` dan `settings.manage` ni chiqarib tashlagan holini
+           OLADI — ya'ni yangi ruxsat ikkalasiga ham O'ZI yetib borardi
+           va tokenni ikki kishi o'qiy oladigan bo'lardi. Holbuki
+           tokenni QO'YGAN super administratorning o'zi ham uni
+           qaytarib o'qiy olmaydi (`SystemSettingsReader.Describe`).
+           Ularni ro'yxatdan qo'lda chiqarish esa `RoleTests` dagi
+           ikkita qat'iy testni buzardi va «rahbariyat nimani ko'ra
+           olmaydi?» degan ro'yxatni ikkiga ko'paytirardi.
+
+           Rol bilan esa savol to'g'ri qo'yiladi: bu endpoint odam
+           uchun EMAS, JARAYON uchun. Uni bot hisobidan boshqa hech
+           kim — na HR, na bosh rahbar, na super administrator —
+           chaqira olmaydi.
+          ═══════════════════════════════════════════════════════════
+        */
+        services.AddAuthorizationBuilder()
+            .AddPolicy(BotServicePolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(SystemRoles.RecruitingBot));
 
         return services;
     }

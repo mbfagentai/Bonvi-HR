@@ -11,6 +11,7 @@ using Bonvi.Infrastructure.Identity;
 using Bonvi.Infrastructure.Persistence.ReadModels;
 using Bonvi.Infrastructure.Persistence.Seed;
 using Bonvi.Infrastructure.Reports;
+using Bonvi.Infrastructure.Security;
 using Bonvi.Infrastructure.Repositories;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Infrastructure.Persistence;
@@ -55,7 +56,7 @@ public static class DependencyInjection
         services.AddSafetyServices();
         services.AddRecruitingServices();
         services.AddNotificationServices();
-        services.AddSettingsServices();
+        services.AddSettingsServices(configuration);
 
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
@@ -190,9 +191,27 @@ public static class DependencyInjection
     /// oltita qatorli jadval uchun bunday narx o'rinsiz.
     /// </para>
     /// </remarks>
-    private static IServiceCollection AddSettingsServices(this IServiceCollection services)
+    private static IServiceCollection AddSettingsServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
+
+        /*
+          Sirlarni shifrlash. `Singleton`, chunki kalit ishga tushishda
+          BIR MARTA chiqariladi (HKDF) va keyin o'zgarmaydi — uni har
+          so'rovda qayta hisoblash ortiqcha ish bo'lardi. Sinf holatsiz
+          va oqimga xavfsiz: `AesGcm` har chaqiruvda yangisi yasaladi.
+
+          Sozlama bo'limi ISHGA TUSHISHDA tekshirilmaydi (`ValidateOnStart`
+          yo'q): unda majburiy maydon yo'q — kalit berilmasa
+          `Jwt:SigningKey` dan chiqariladi (sabab
+          `SecretProtectionOptions` da).
+        */
+        services.AddOptions<SecretProtectionOptions>()
+            .Bind(configuration.GetSection(SecretProtectionOptions.SectionName));
+
+        services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
 
         return services;
     }

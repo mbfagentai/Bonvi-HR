@@ -24,17 +24,27 @@ builder.Services
     .ValidateOnStart();
 
 /*
-  Telegram mijozi — tokenli manzil bazasi bilan.
+  Botning JORIY tokeni — bitta umumiy yacheyka.
 
-  Token MANZILNING ICHIDA (Telegram API shunday qurilgan), shu sababli u
-  `HttpClient` sozlamasida bir marta qo'yiladi va chaqiruvlarda umuman
-  ko'rinmaydi. Jurnalga faqat metod nomi tushadi — token hech qachon.
+  Uni `BotWorker` to'ldiradi (tizim sozlamalaridan, bo'lmasa `.env` dan),
+  `TelegramClient` esa har chaqiruvda o'qiydi. Sabab `TelegramToken`
+  izohida: token endi ish paytida almashishi mumkin.
+*/
+builder.Services.AddSingleton<TelegramToken>();
+
+/*
+  Telegram mijozi.
+
+  ⚠️ Manzil bazasida TOKEN YO'Q — faqat host. Ilgari u shu yerda
+  `bot{token}/` bo'lib qotib qolardi va shuning uchun tokenni
+  almashtirish konteynerni qayta ishga tushirishni talab qilardi. Endi
+  to'liq yo'l har chaqiruvda yig'iladi (`TelegramClient.CallAsync`).
 */
 builder.Services.AddHttpClient<TelegramClient>((provider, client) =>
 {
     var options = provider.GetRequiredService<IOptions<BotOptions>>().Value;
 
-    client.BaseAddress = new Uri($"https://api.telegram.org/bot{options.Token}/");
+    client.BaseAddress = new Uri("https://api.telegram.org/");
 
     // Long polling so'rovi `PollTimeoutSeconds` gacha ochiq turadi —
     // `HttpClient` ning muddati undan UZUNROQ bo'lishi shart, aks holda

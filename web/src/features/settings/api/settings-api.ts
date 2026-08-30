@@ -3,8 +3,14 @@ import { api } from '@/shared/api/http-client'
 /** Ruxsat kodi — backend'dagi `Permissions.SettingsManage` bilan bir xil. */
 export const SETTINGS_MANAGE = 'settings.manage'
 
-/** Sozlamaning turi: erkin matn yoki butun son. */
-export type SettingKind = 'Text' | 'Number'
+/**
+ * Sozlamaning turi.
+ *
+ * `Secret` — token va kalitlar. `Text` dan farqi TURIDA emas,
+ * MUOMALADA: qiymati javobda hech qachon qaytmaydi (`value` har doim
+ * bo'sh), o'rniga `isSet` va `preview` beriladi.
+ */
+export type SettingKind = 'Text' | 'Number' | 'Secret'
 
 /**
  * Bitta sozlama — qiymati va CHEGARALARI bilan.
@@ -16,12 +22,23 @@ export type SettingKind = 'Text' | 'Number'
  */
 export interface SystemSetting {
   key: string
+  /**
+   * Joriy qiymat.
+   *
+   * ⚠️ `kind === 'Secret'` bo'lganda HAR DOIM bo'sh: sir serverdan
+   * chiqmaydi — hatto uni qo'ygan super administratorga ham. Bu
+   * mijozning cheklovi emas, serverning qoidasi.
+   */
   value: string
   kind: SettingKind
   defaultValue: string
   min: number | null
   max: number | null
   maxLength: number | null
+  /** Qiymat ATAYLAB qo'yilganmi. Sir uchun bu yagona ko'rsatkich. */
+  isSet: boolean
+  /** Sirning niqoblangan ko'rinishi (`8123456789:…abcd`). Sir bo'lmasa `null`. */
+  preview: string | null
 }
 
 export interface SettingUpdate {

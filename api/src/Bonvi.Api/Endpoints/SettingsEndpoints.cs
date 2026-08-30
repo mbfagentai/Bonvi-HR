@@ -39,8 +39,9 @@ public sealed record UpdateSettingsRequest(IReadOnlyList<SystemSettingUpdate>? I
 /// ko'rish ham boshqara olish bilan bir xil doiradagi ish.
 /// </para>
 /// <para>
-/// Yagona istisno — <c>/api/settings/bot</c>: u BOSHQA ruxsat ostida
-/// va sababi o'sha endpoint yonida.
+/// Ikkita istisno bor va ikkalasi ham bot uchun: <c>/api/settings/bot</c>
+/// (<c>recruiting.view</c>) va <c>/api/settings/bot/token</c> (rol
+/// bo'yicha). Sabablari o'sha endpoint'lar yonida.
 /// </para>
 /// </remarks>
 public static class SettingsEndpoints
@@ -155,6 +156,54 @@ public static class SettingsEndpoints
                 "Lotincha matn bo'sh bo'lsa server uni kirilldagisi bilan ALMASHTIRMAYDI — " +
                 "bu qoida botning o'zida, aks holda HR lotin matnini bo'shata olmasdi.")
             .Produces<BotSettingsDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        /*
+          ═══════════════════════════════════════════════════════════
+           TELEGRAM TOKENI — TIZIMDAGI YAGONA ENDPOINT, UNDAN SIR
+           OCHIQ HOLDA CHIQADI.
+
+           ⭐ Nega yuqoridagi `/bot` ga qo'shilmadi. U `recruiting.view`
+           ostida, bu ruxsat esa HR menejerlarida ham bor. Token o'sha
+           javobga tushsa, har bir HR uni o'qiy olardi — holbuki tokenni
+           QO'YGAN super administratorning o'zi ham uni qaytarib
+           ololmaydi (javobda faqat niqoblangan ko'rinish qaytadi).
+
+           ⭐ Nega ruxsat emas, ROL. Yangi ruxsat kodi
+           («settings.botsecrets») super administratorga ham, bosh
+           rahbarga ham O'ZI yetib borardi: ikkalasining ro'yxati
+           `Permissions.All` dan hisoblanadi. Rol bilan esa doira
+           aniq: bu endpoint odam uchun emas, JARAYON uchun. Batafsil
+           sabab `AuthenticationExtensions.BotServicePolicy` da.
+
+           Javobda `token: null` bo'lishi — XATO EMAS: sozlama
+           qo'yilmagan va bot `.env` dagi zaxiraga tushadi.
+          ═══════════════════════════════════════════════════════════
+        */
+        group.MapGet("/bot/token", async (
+                GetBotTokenQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetBotTokenQuery(), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("GetBotToken")
+            .WithSummary("Telegram tokeni — faqat bot xizmat hisobiga")
+            .WithDescription(
+                "«{ token }» qaytaradi. Bu tizimdagi YAGONA joy, undan saqlangan sir ochiq " +
+                "holda chiqadi va u faqat «recruiting_bot» roli ostidagi hisobga ochiq — " +
+                "ruxsat bilan emas, ROL bilan himoyalangan (sababi kodda). Super " +
+                "administrator ham, bosh rahbar ham bu endpoint'ni chaqira olmaydi. " +
+                "«token: null» — sozlama ekranda qo'yilmagan; bunday holatda bot «.env» " +
+                "dagi «TELEGRAM__BOTTOKEN» zaxira qiymatiga tushadi. Bot bu so'rovni " +
+                "davriy takrorlaydi: token ekranda almashtirilsa, u konteynerni qayta " +
+                "ishga tushirmasdan yangisiga o'tadi.")
+            .Produces<BotTokenDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 

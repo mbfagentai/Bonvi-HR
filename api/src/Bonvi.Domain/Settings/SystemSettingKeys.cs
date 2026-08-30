@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Notifications;
 
@@ -28,6 +29,26 @@ public enum SystemSettingKind
 
     /// <summary>Butun son — har doim <see cref="SystemSettingDefinition.Min"/>…<see cref="SystemSettingDefinition.Max"/> oralig'ida.</summary>
     Number = 2,
+
+    /// <summary>
+    /// SIR — bazaga shifrlangan holda yoziladi va o'qib bo'lmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Text"/> dan farqi TURIDA emas, MUOMALADA. Qiymat
+    /// <see cref="Bonvi.Domain.Abstractions.ISecretProtector"/> orqali
+    /// shifrlanadi, API javobida hech qachon qaytmaydi (o'rniga «qo'yilganmi»
+    /// bayrog'i va niqoblangan ko'rinishi beriladi) va ekranda parol
+    /// maydoni bo'lib chiziladi.
+    /// </para>
+    /// <para>
+    /// <b>Bo'sh qiymat — «o'chirish».</b> Matnda bo'sh satr haqiqiy
+    /// qiymat (bot matnini o'chirish), sirda esa yozuvning O'ZI
+    /// olib tashlanadi: «bo'sh sir» degan tushuncha yo'q, sir yo bor,
+    /// yo yo'q.
+    /// </para>
+    /// </remarks>
+    Secret = 3,
 }
 
 /// <summary>
@@ -42,14 +63,34 @@ public enum SystemSettingKind
 /// <param name="Min">Sonning eng kichik qiymati. Matn uchun <c>null</c>.</param>
 /// <param name="Max">Sonning eng katta qiymati. Matn uchun <c>null</c>.</param>
 /// <param name="MaxLength">Matnning eng katta uzunligi. Son uchun <c>null</c>.</param>
+/// <param name="Pattern">
+/// Qiymat mos kelishi shart bo'lgan naqsh (regex). <c>null</c> — tekshiruv yo'q.
+/// <para>
+/// NEGA kerak: <see cref="SystemSettingKind.Secret"/> turidagi qiymat
+/// noto'g'ri bo'lsa, buni HECH KIM darhol ko'rmaydi — server uni
+/// shifrlab qo'yadi, ekran esa «qo'yilgan» deb ko'rsatadi va nosozlik
+/// faqat botning jurnalida qoladi. Naqsh esa terish xatosini
+/// SAQLANGUNCHA ushlaydi.
+/// </para>
+/// <para>
+/// Naqsh KODDA yoziladi va tashqaridan kelmaydi — ya'ni «yovuz regex»
+/// xavfi yo'q. Shunga qaramay tekshiruv muddat bilan chegaralangan
+/// (<see cref="RegexTimeout"/>): naqsh kelajakda murakkablashsa,
+/// so'rov osilib qolmasin.
+/// </para>
+/// </param>
 public sealed record SystemSettingDefinition(
     string Key,
     SystemSettingKind Kind,
     string DefaultValue,
     int? Min = null,
     int? Max = null,
-    int? MaxLength = null)
+    int? MaxLength = null,
+    string? Pattern = null)
 {
+    /// <summary>Naqsh tekshiruvining eng uzun muddati.</summary>
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(100);
+
     /// <summary>
     /// Kelgan qiymatni tekshiradi va tozalangan holida qaytaradi.
     /// </summary>
@@ -71,6 +112,33 @@ public sealed record SystemSettingDefinition(
     /// </remarks>
     public Result<string> Normalize(string? value)
     {
+        if (Kind == SystemSettingKind.Secret)
+        {
+            /*
+              Sirda ichki bo'shliq ham xato: token va kalit bir bo'lakli
+              satr bo'ladi va ular odatda nusxa olishda qator ko'chishi
+              yoki tab bilan birga kelib qoladi. `Trim()` yetarli emas —
+              o'rtadagi bo'shliqni ham olib tashlash kerak, aks holda u
+              naqshdan o'tmay, foydalanuvchi esa sababini ko'rmasdi.
+            */
+            var secret = new string((value ?? string.Empty).Where(c => !char.IsWhiteSpace(c)).ToArray());
+
+            // Bo'sh — «o'chirish», xato emas (izohi `SystemSettingKind.Secret` da).
+            if (secret.Length == 0)
+            {
+                return Result.Success(string.Empty);
+            }
+
+            if (MaxLength is { } secretLimit && secret.Length > secretLimit)
+            {
+                return SystemSettingErrors.TextTooLong(secretLimit);
+            }
+
+            return Pattern is not null && !Regex.IsMatch(secret, Pattern, RegexOptions.None, RegexTimeout)
+                ? SystemSettingErrors.BadFormat
+                : Result.Success(secret);
+        }
+
         if (Kind == SystemSettingKind.Text)
         {
             // Chetdagi bo'shliqlar olib tashlanadi: HR matnni Word'dan
@@ -136,6 +204,35 @@ public static class SystemSettingKeys
     //  BOT — Telegram anketa boti o'qiydigan sozlamalar
     // ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// @BotFather bergan Telegram tokeni — SIR.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega u endi bu yerda, <c>.env</c> da emas</b> (foydalanuvchi
+    /// qarori). Token almashadi: bot qayta yaratiladi, tokeni o'g'irlangan
+    /// deb bekor qilinadi, sinov botidan ishchi botga o'tiladi.
+    /// Har safar serverga kirib, faylni tahrirlab, konteynerni qayta
+    /// ishga tushirish kerak edi — ya'ni oddiy ma'muriy ish dasturchining
+    /// ishiga aylanardi.
+    /// </para>
+    /// <para>
+    /// <b><c>.env</c> dagi <c>TELEGRAM__BOTTOKEN</c> YO'QOLMADI</b> — u
+    /// endi ZAXIRA: bu yerda qiymat bo'lmasa bot o'shanga tushadi. Shu
+    /// tufayli mavjud o'rnatmalar hech narsa o'zgartirmasdan ishlab
+    /// ketaveradi va yangi o'rnatishda botni ekranga kirmasdan ham
+    /// yoqib qo'yish mumkin.
+    /// </para>
+    /// <para>
+    /// <b>Naqsh Telegram formatiga bog'langan:</b> <c>&lt;bot id&gt;:&lt;sir&gt;</c>.
+    /// Bu qat'iy tekshiruv emas (Telegram formatni o'zgartirishi mumkin),
+    /// lekin eng keng tarqalgan xatoni — tokenni chala nusxa olishni —
+    /// darhol ushlaydi. Aks holda xato faqat botning jurnaliga tushardi
+    /// va sozlagan odam «nega ishlamayapti?» deb qolardi.
+    /// </para>
+    /// </remarks>
+    public const string BotToken = "bot.token";
+
     /// <summary>«Kompaniya haqida» matni — kirill alifbosida.</summary>
     public const string BotAboutCyrillic = "bot.about.cyrillic";
 
@@ -157,6 +254,25 @@ public static class SystemSettingKeys
 
     /// <summary>Ish taklifi muddati tugashiga necha kun qolganda ogohlantiriladi.</summary>
     public const string OfferWarningDays = "notifications.offerWarningDays";
+
+    /// <summary>Sirning eng katta uzunligi.</summary>
+    /// <remarks>
+    /// Telegram tokeni ~46 belgi. 200 — zaxira bilan: chegara bu yerda
+    /// to'g'rilik uchun emas, so'rov tanasini cheksiz o'stirishning
+    /// oldini olish uchun.
+    /// </remarks>
+    public const int MaxSecretLength = 200;
+
+    /// <summary>
+    /// Telegram tokenining ko'rinishi: <c>&lt;raqam&gt;:&lt;sir&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// Ikki nuqtagacha — botning identifikatori (u sir emas, hatto
+    /// niqoblangan ko'rinishda ham ko'rsatiladi), keyin sirning o'zi.
+    /// Uzunliklar ATAYLAB keng olingan: Telegram ularni e'lon qilmagan
+    /// va tor chegara bir kun haqiqiy tokenni rad etib qo'yardi.
+    /// </remarks>
+    public const string TelegramTokenPattern = @"^[0-9]{5,20}:[A-Za-z0-9_-]{20,}$";
 
     /// <summary>Matnli sozlamaning eng katta uzunligi.</summary>
     /// <remarks>
@@ -186,6 +302,20 @@ public static class SystemSettingKeys
     /// </remarks>
     public static IReadOnlyList<SystemSettingDefinition> All { get; } =
     [
+        // Token — bot bo'limining BIRINCHI qatori: usiz qolgan uchtasi
+        // umuman ishlamaydi.
+        new(
+            BotToken,
+            SystemSettingKind.Secret,
+
+            // Sukut qiymat BO'SH va boshqacha bo'lishi ham mumkin emas:
+            // sirning «tizim taklif qilgan qiymati» degan tushunchasi
+            // yo'q. Bo'sh — «qo'yilmagan», bot esa `.env` dagi zaxiraga
+            // tushadi.
+            string.Empty,
+            MaxLength: MaxSecretLength,
+            Pattern: TelegramTokenPattern),
+
         new(BotAboutCyrillic, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
         new(BotAboutLatin, SystemSettingKind.Text, string.Empty, MaxLength: MaxTextLength),
         new(
