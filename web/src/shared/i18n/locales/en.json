@@ -49,6 +49,17 @@
     "account": "Account",
     "interface": "Interface",
     "session": "Session",
+    "system": {
+      "title": "System settings",
+      "botAboutCyrillic": "Bot: about the company (Cyrillic)",
+      "botAboutLatin": "Bot: about the company (Latin)",
+      "botConversationTimeout": "Bot: conversation timeout (minutes)",
+      "probationWarningDays": "Probation warning (days)",
+      "newCandidateDays": "New candidate shown for (days)",
+      "offerWarningDays": "Offer deadline warning (days)",
+      "range": "from {{min}} to {{max}}",
+      "textHint": "Leave empty and the bot hides this section. Enter for a new line."
+    },
     "role": "Role",
     "phoneHint": "Used to sign in",
     "languageHint": "Language of menus and labels",
@@ -575,7 +586,14 @@
     "xodim.mehnat_rasm_yoq": "This employee has no mehnat.uz screenshot.",
     "belgi.boshqa_belgi_bor": "This employee already has a mark in force. Only one is allowed at a time — confirm the replacement to continue.",
     "belgi.xodim_ishlayapti": "Reserve and blacklist are chosen at termination. This person is still employed — use “under watch” or “capable” instead.",
-    "belgi.xodim_ketgan": "“Under watch” and “capable” apply to a currently employed person. This person has left — use reserve or blacklist instead."
+    "belgi.xodim_ketgan": "“Under watch” and “capable” apply to a currently employed person. This person has left — use reserve or blacklist instead.",
+    "sozlama.notogri_kalit": "Unknown setting key.",
+    "sozlama.kalit_bosh": "A setting key is required.",
+    "sozlama.notogri_son": "The value must be a whole number.",
+    "sozlama.chegara": "The value is outside the allowed range.",
+    "sozlama.matn_uzun": "The text is too long.",
+    "sozlama.royxat_bosh": "No settings were sent.",
+    "sozlama.takror_kalit": "The same setting was sent twice."
   },
   "language": {
     "en": "English",

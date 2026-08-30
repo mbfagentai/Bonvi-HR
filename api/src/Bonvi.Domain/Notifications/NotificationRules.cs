@@ -3,15 +3,25 @@ using Bonvi.Domain.Employees;
 namespace Bonvi.Domain.Notifications;
 
 /// <summary>
-/// Bildirishnomalar qachon paydo bo'lishini belgilaydigan chegaralar.
+/// Bildirishnomalar qachon paydo bo'lishini belgilaydigan chegaralar —
+/// SUKUT qiymatlar.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Nega konstanta, sozlama emas.</b> Bu qiymatlarni interfeysda
-/// o'zgartirish imkoniyati hech kimdan so'ralmagan, ular esa
-/// bildirishnoma MATNIGA ham tushadi («7 kun qoldi»). Sozlamaga
-/// chiqarilganda tarjima matni bilan haqiqiy chegara ajralib ketishi
-/// mumkin edi. Kerak bo'lganda o'zgartirish — bitta qator.
+/// ⚠️ <b>Bu qiymatlar endi TO'G'RIDAN-TO'G'RI ishlatilmaydi.</b> Yig'uvchi
+/// (<c>NotificationCollector</c>) ularni tizim sozlamalaridan o'qiydi
+/// (<c>SystemSettingKeys</c>), bu yerdagi konstantalar esa o'sha
+/// sozlamalarning SUKUT qiymati bo'lib turadi. Ya'ni sozlamalar ekrani
+/// hech qachon ochilmagan tizimda aynan shu sonlar ishlaydi.
+/// </para>
+/// <para>
+/// <b>Nega konstanta baribir qoldi</b> (sozlama ta'rifiga ko'chirib
+/// yuborilmadi). Sukut qiymat — bu «HR so'ragan qiymat» va uning
+/// kelib chiqishi shu yerda izohlangan: <c>ProbationWarningDays</c>
+/// <see cref="Probation.WarningDays"/> ning O'ZI bo'lishi shart, aks
+/// holda ro'yxatda qizarib turgan, lekin bildirishnomasi kelmagan
+/// xodim paydo bo'lardi. Sozlamalar ro'yxatiga ko'chirilsa, bu
+/// bog'liqlik ko'zdan yo'qolardi.
 /// </para>
 /// <para>
 /// <b>Nega hammasi bitta joyda.</b> Chegaralar ikki tomondan

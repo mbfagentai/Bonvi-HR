@@ -139,18 +139,37 @@ public sealed class RoleTests
     }
 
     /// <summary>
-    /// Super administrator va bosh rahbar RUXSATLAR bo'yicha TENG —
-    /// foydalanuvchining aniq talabi. Farq faqat kimni boshqara olishida
-    /// va u ruxsat kodi bilan emas, use-case qoidasi bilan qo'yilgan.
+    /// Super administratorda BARCHA ruxsat bor.
     /// </summary>
-    [Theory]
-    [InlineData(SystemRoles.SuperAdmin)]
-    [InlineData(SystemRoles.MainBoss)]
-    public void Rahbariyat_barcha_ruxsatlarga_ega(string kod)
+    [Fact]
+    public void Super_administrator_barcha_ruxsatlarga_ega()
     {
-        var (_, ruxsatlar) = SystemRoles.Defaults[kod];
+        var (_, ruxsatlar) = SystemRoles.Defaults[SystemRoles.SuperAdmin];
 
         ruxsatlar.Length.ShouldBe(Permissions.All.Count);
+    }
+
+    /// <summary>
+    /// Bosh rahbarda <c>settings.manage</c> dan TASHQARI hammasi bor.
+    /// </summary>
+    /// <remarks>
+    /// Ilgari ikkala rahbariyat roli ham `Permissions.All` ni olardi
+    /// («ruxsatlar bo'yicha TENG» — foydalanuvchining o'sha paytdagi
+    /// talabi). Endi yagona istisno bor: tizim sozlamalari faqat super
+    /// administratorda (yangi qaror, sabab
+    /// <see cref="Permissions.SettingsManage"/> izohida).
+    ///
+    /// Test aynan shu YAGONALIKNI qadab turadi: ikkinchi istisno
+    /// qo'shilsa u yiqiladi va qo'shuvchi odam «rahbariyat nimani
+    /// ko'ra olmaydi?» degan savolga javob berishga majbur bo'ladi.
+    /// </remarks>
+    [Fact]
+    public void Bosh_rahbarda_faqat_tizim_sozlamalari_yoq()
+    {
+        var (_, ruxsatlar) = SystemRoles.Defaults[SystemRoles.MainBoss];
+
+        ruxsatlar.ShouldNotContain(Permissions.SettingsManage);
+        ruxsatlar.Length.ShouldBe(Permissions.All.Count - 1);
     }
 
     /// <summary>

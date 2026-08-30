@@ -260,18 +260,47 @@ export function notificationMeta(
 /* ═══════════════════════════════════════════════════════════ ko'rinish */
 
 /**
- * Muhimlik darajasining rangi.
+ * Muhimlik darajasining rangi — ikona, nuqta va O'QILMAGAN qator foni.
  *
  * `Info` xom `ios-blue` emas, tint tokenlarini ishlatadi — `alert.tsx`
  * dagi bilan AYNAN bir xil sabab: `#007AFF` yorug' fonda 3.4:1 beradi
  * (AA dan past), `--accent-on-soft` esa 4.76:1.
+ *
+ * <b>`unreadRow` — o'qilmagan qatorning foni.</b> O'qilgan qator OQ
+ * qoladi, o'qilmagani esa o'z darajasining rangida tiniqlashadi. Nega
+ * kerak: ro'yxat endi VAQT bo'yicha tartiblanadi (foydalanuvchi
+ * qarori), ya'ni jiddiy yozuv o'rtada turishi mumkin. Ilgari uni
+ * TARTIB ajratib turardi, endi — RANG.
+ *
+ * <b>Nega har bir TUR uchun alohida rang emas.</b> Turlar o'nta;
+ * o'nta fon rangi ro'yxatni chiziqli bezakka aylantirardi va hech
+ * qanday savolga javob bermasdi. Turni SHAKL (ikona) aytadi, rang esa
+ * shoshilinchlikni — bu loyihaning mavjud qoidasi (`TYPE_ICON` izohi)
+ * va u shu yerda ham buzilmaydi.
+ *
+ * Shaffoflik ATAYLAB past (8–12%): fon matnni o'qishga xalaqit
+ * bermasligi kerak, uning vazifasi — ko'zni tortish, e'tiborni
+ * o'g'irlash emas. Uchta qiymat teng emas, chunki ranglarning o'z
+ * to'yinganligi boshqa: qizil sariqdan quyuqroq ko'rinadi.
  */
 export const SEVERITY_LOOK: Readonly<
-  Record<NotificationSeverity, { icon: string; dot: string }>
+  Record<NotificationSeverity, { icon: string; dot: string; unreadRow: string }>
 > = {
-  Info: { icon: 'text-[var(--accent-on-soft)]', dot: 'bg-[var(--accent-on-soft)]' },
-  Warning: { icon: 'text-ios-orange', dot: 'bg-ios-orange' },
-  Critical: { icon: 'text-ios-red', dot: 'bg-ios-red' },
+  Info: {
+    icon: 'text-[var(--accent-on-soft)]',
+    dot: 'bg-[var(--accent-on-soft)]',
+    unreadRow: 'bg-[var(--accent)]/8',
+  },
+  Warning: {
+    icon: 'text-ios-orange',
+    dot: 'bg-ios-orange',
+    unreadRow: 'bg-ios-orange/12',
+  },
+  Critical: {
+    icon: 'text-ios-red',
+    dot: 'bg-ios-red',
+    unreadRow: 'bg-ios-red/10',
+  },
 }
 
 /**

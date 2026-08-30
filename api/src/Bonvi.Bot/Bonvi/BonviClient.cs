@@ -11,6 +11,9 @@ namespace Bonvi.Bot.Bonvi;
 /// <summary>Ochiq vakansiya — botda ko'rsatiladigan minimal ma'lumot.</summary>
 public sealed record OpenVacancy(Guid Id, string Title);
 
+/// <summary>Botning tizimdan olinadigan sozlamalari.</summary>
+public sealed record BotSettings(string AboutCyrillic, string AboutLatin, int ConversationTimeoutMinutes);
+
 /// <summary>Nomzodning mavjud arizasi — takror tekshiruvi uchun.</summary>
 public sealed record ExistingApplication(DateTimeOffset AppliedAt, string? StageName);
 
@@ -183,6 +186,23 @@ public sealed partial class BonviClient : IDisposable
 
         return found is null ? null : new ExistingApplication(found.CreatedAt, found.CurrentStage);
     }
+
+    /// <summary>
+    /// Botning sozlamalarini oladi — kompaniya matni va suhbat muddati.
+    /// </summary>
+    /// <remarks>
+    /// Sozlama endi TIZIMDA saqlanadi, `.env` da emas: super
+    /// administrator uni ekrandan o'zgartiradi va bot qayta ishga
+    /// tushirilmaydi. Javob kelmasa (API yiqilgan) — chaqiruvchi eski
+    /// qiymat bilan davom etadi.
+    /// </remarks>
+    public async Task<BotSettings?> GetBotSettingsAsync(CancellationToken cancellationToken)
+        => await SendAsync<BotSettings>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/settings/bot", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
 
     /// <summary>Nomzodni voronkaga kiritadi.</summary>
     /// <returns>Yozuv yaratildimi.</returns>

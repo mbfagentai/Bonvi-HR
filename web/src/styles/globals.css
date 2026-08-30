@@ -508,6 +508,65 @@
     }
   }
 
+  /*
+   * Yangi bildirishnoma kelganini AYTADIGAN animatsiya.
+   *
+   * NEGA raqamning o'zi yetmaydi: qo'ng'iroq ekranning eng chekkasida,
+   * kichkina qizil doira bilan turadi. HR boshqa ishda bo'lganda son
+   * 3 dan 4 ga o'zgargani ko'zga umuman tashlanmaydi — o'zgarish
+   * STATIK, ya'ni uni faqat qarab turgan odam sezadi.
+   *
+   * `bell-ring` — qo'ng'iroqning o'zi: ikki marta chayqaladi, xuddi
+   * haqiqiy qo'ng'iroqdek. Uzunligi qisqa (700ms) va u FAQAT son
+   * OSHGANDA ishga tushadi: sahifa ochilganda ham o'ynasa, u xabar
+   * bermay, bezakka aylanardi.
+   *
+   * `badge-pulse` — nishonning o'zi bir marta kattalashadi: ko'z
+   * harakatga qaraydi, keyin esa aynan o'sha joyda raqamni topadi.
+   */
+  .bell-ring {
+    animation: bell-ring 700ms var(--ease-ios);
+    transform-origin: top center;
+  }
+
+  .badge-pulse {
+    animation: badge-pulse 700ms var(--ease-ios-out);
+  }
+
+  @keyframes bell-ring {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    15% {
+      transform: rotate(-14deg);
+    }
+    30% {
+      transform: rotate(11deg);
+    }
+    45% {
+      transform: rotate(-8deg);
+    }
+    60% {
+      transform: rotate(5deg);
+    }
+    75% {
+      transform: rotate(-2deg);
+    }
+  }
+
+  @keyframes badge-pulse {
+    0% {
+      transform: scale(1);
+    }
+    35% {
+      transform: scale(1.45);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
   @keyframes pop-out {
     from {
       opacity: 1;

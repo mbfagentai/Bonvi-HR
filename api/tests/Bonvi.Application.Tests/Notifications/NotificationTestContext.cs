@@ -2,6 +2,8 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Notifications;
 using Bonvi.Application.Notifications.Abstractions;
+using Bonvi.Application.Settings;
+using Bonvi.Application.Tests.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Recruiting;
@@ -68,10 +70,22 @@ internal sealed class NotificationTestContext
 
     public FakeNotificationStates States { get; } = new();
 
+    /// <summary>
+    /// Tizim sozlamalari — bildirishnoma CHEGARALARI shu yerdan olinadi.
+    /// </summary>
+    /// <remarks>
+    /// Sukut bo'yicha jadval BO'SH va bu ataylab: shunda yig'uvchi
+    /// <c>NotificationRules</c> dagi sukut qiymatlar bilan ishlaydi va
+    /// mavjud testlarning hammasi o'zgarmagan shartlarda qoladi.
+    /// Chegarani o'zgartiradigan test uni o'zi yozib qo'yadi.
+    /// </remarks>
+    public FakeSystemSettings Settings { get; } = new();
+
     /// <summary>Sinov yozuvisiz qolgan munosabatlar — <c>IEmployeeReadModel</c> orqali keladi.</summary>
     public List<MissingProbationRow> MissingProbations { get; } = [];
 
-    public NotificationCollector Collector => new(Source, Employees, CurrentUser, Clock);
+    public NotificationCollector Collector =>
+        new(Source, Employees, new SystemSettingsReader(Settings), CurrentUser, Clock);
 
     /// <summary>Bitta ruxsatni olib tashlaydi — qolganlari joyida qoladi.</summary>
     public void Deny(string permission) => CurrentUser.HasPermission(permission).Returns(false);
@@ -181,11 +195,29 @@ internal sealed class FakeNotificationSource : INotificationReadModel
     /// <summary>Nomzodlar so'ralgani — ruxsatsiz odam uchun so'rov umuman ketmasligi kerak.</summary>
     public int CandidateCalls { get; private set; }
 
+    /// <summary>
+    /// Manbaga uzatilgan CHEGARALAR — sozlama testlari uchun.
+    /// </summary>
+    /// <remarks>
+    /// Chegaralar bu yerda QO'LLANMAYDI (ro'yxatlar o'z holicha
+    /// qaytadi), lekin ESLAB QOLINADI: sozlama chegarani haqiqatan
+    /// o'zgartirganini boshqa yo'l bilan ko'rsatib bo'lmaydi — filtr
+    /// bazada bajariladi va u integratsiya testlarida tekshiriladi.
+    /// </remarks>
+    public DateOnly? LastProbationUntil { get; private set; }
+
+    /// <summary>Yangi nomzodlar uchun so'ralgan quyi sana.</summary>
+    public DateOnly? LastCandidateSince { get; private set; }
+
+    /// <summary>Ish takliflari uchun so'ralgan yuqori sana.</summary>
+    public DateOnly? LastOfferUntil { get; private set; }
+
     public Task<IReadOnlyList<ProbationDeadlineRow>> ListProbationDeadlinesAsync(
         DateOnly until,
         CancellationToken cancellationToken = default)
     {
         ProbationCalls++;
+        LastProbationUntil = until;
         return Task.FromResult<IReadOnlyList<ProbationDeadlineRow>>([.. Probations]);
     }
 
@@ -200,13 +232,17 @@ internal sealed class FakeNotificationSource : INotificationReadModel
         CancellationToken cancellationToken = default)
     {
         CandidateCalls++;
+        LastCandidateSince = since;
         return Task.FromResult<IReadOnlyList<NewCandidateRow>>([.. Candidates]);
     }
 
     public Task<IReadOnlyList<JobOfferDeadlineRow>> ListOfferDeadlinesAsync(
         DateOnly until,
         CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<JobOfferDeadlineRow>>([.. Offers]);
+    {
+        LastOfferUntil = until;
+        return Task.FromResult<IReadOnlyList<JobOfferDeadlineRow>>([.. Offers]);
+    }
 }
 
 /// <summary>

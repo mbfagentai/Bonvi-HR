@@ -11,6 +11,7 @@ using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Safety;
+using Bonvi.Domain.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -225,6 +226,17 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Kim nimani o'qigan/o'chirgan (<c>notification_states</c>).</summary>
     public DbSet<NotificationState> NotificationStates => Set<NotificationState>();
+
+    // ────────────────────────────────────────────────────────────
+    //  TIZIM SOZLAMALARI
+    //  Kalit-qiymat jadvali: bot matni va bildirishnoma chegaralari.
+    //  ⚠️ Bu yerda faqat O'ZGARTIRILGAN sozlamalar yotadi — jadval bo'sh
+    //  bo'lishi NORMAL holat va tizim shunda ham to'liq ishlaydi
+    //  (sukut qiymatlar `SystemSettingKeys` da, sababi o'sha yerda).
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Tizim sozlamalari (<c>system_settings</c>).</summary>
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -109,6 +109,26 @@ public static class Permissions
     public const string UsersManage = "users.manage";
     public const string AuditView = "audit.view";
 
+    /// <summary>
+    /// Tizim sozlamalarini o'zgartirish.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>YAGONA ruxsat, u super administratordan boshqa hech kimda yo'q</b>
+    /// — shu jumladan bosh rahbarda ham. Bu loyihadagi «rahbariyat
+    /// ruxsatlar bo'yicha TENG» qoidasidan yagona chekinish va u
+    /// foydalanuvchining aniq qarori.
+    /// </para>
+    /// <para>
+    /// Sabab: bu sozlamalar HR jarayoni emas, TIZIMNING ishlashi —
+    /// bildirishnoma chegaralari va bot matni. Ular noto'g'ri qo'yilsa
+    /// natija darhol ko'rinmaydi: bildirishnoma jimgina kelmay qo'yadi
+    /// yoki bot bo'sh matn ko'rsatadi. Bunday sozlamaga tegadigan odam
+    /// bitta bo'lgani ma'qul.
+    /// </para>
+    /// </remarks>
+    public const string SettingsManage = "settings.manage";
+
     /// <summary>Barcha ruxsatlar — tekshirish va seed uchun.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -121,7 +141,7 @@ public static class Permissions
         RecruitingView, RecruitingManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
-        UsersManage, AuditView,
+        UsersManage, AuditView, SettingsManage,
     };
 
     public static bool Exists(string permission) => All.Contains(permission);
@@ -265,9 +285,19 @@ public static class SystemRoles
         {
             [SuperAdmin] = ("Super administrator", [.. Permissions.All]),
 
-            // Ruxsatlar ro'yxati super administratorniki bilan AYNAN bir xil —
-            // takrorlanmasin deb `Permissions.All` ikkalasiga ham beriladi.
-            [MainBoss] = ("Bosh rahbar", [.. Permissions.All]),
+            /*
+              Bosh rahbarda `settings.manage` dan TASHQARI hamma ruxsat bor.
+
+              Ilgari ikkala rol ham `Permissions.All` ni olardi va izohda
+              «ruxsatlar bo'yicha AYNAN bir xil» deb yozilgandi. Endi
+              yagona istisno paydo bo'ldi — tizim sozlamalari
+              (foydalanuvchi qarori, sabab `Permissions.SettingsManage`
+              izohida). Ro'yxat baribir qo'lda sanab yozilmaydi: yangi
+              ruxsat qo'shilsa u bosh rahbarga O'ZI yetib boradi va faqat
+              ataylab chiqarib tashlangani qolib ketmaydi.
+            */
+            [MainBoss] = ("Bosh rahbar",
+                [.. Permissions.All.Where(p => p != Permissions.SettingsManage)]),
 
             [HrManager] = ("HR menejeri",
             [

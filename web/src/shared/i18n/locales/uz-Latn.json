@@ -49,6 +49,17 @@
     "account": "Hisob",
     "interface": "Interfeys",
     "session": "Sessiya",
+    "system": {
+      "title": "Tizim sozlamalari",
+      "botAboutCyrillic": "Bot: kompaniya haqida (kirill)",
+      "botAboutLatin": "Bot: kompaniya haqida (lotin)",
+      "botConversationTimeout": "Bot: suhbat muddati (daqiqa)",
+      "probationWarningDays": "Sinov muddati ogohlantirishi (kun)",
+      "newCandidateDays": "Yangi nomzod ko‘rsatiladi (kun)",
+      "offerWarningDays": "Taklif muddati ogohlantirishi (kun)",
+      "range": "{{min}} dan {{max}} gacha",
+      "textHint": "Bo‘sh qoldirilsa bot bu bo‘limni ko‘rsatmaydi. Yangi qator — Enter."
+    },
     "role": "Rol",
     "phoneHint": "Tizimga shu raqam bilan kiriladi",
     "languageHint": "Menyu va yozuvlar tili",
@@ -575,7 +586,14 @@
     "xodim.mehnat_rasm_yoq": "Xodimning mehnat.uz skrinshoti yo‘q.",
     "belgi.boshqa_belgi_bor": "Xodimda allaqachon kuchdagi belgi bor. Bir vaqtda atigi bitta belgi bo‘ladi — davom etish uchun almashtirishni tasdiqlang.",
     "belgi.xodim_ishlayapti": "Rezerv va qora ro‘yxat ishdan ketishda tanlanadi. Xodim hozir ishlayapti — unga «nazoratda» yoki «qobiliyatli» belgisi qo‘yiladi.",
-    "belgi.xodim_ketgan": "«Nazoratda» va «qobiliyatli» belgilari ishlab turgan xodimga qo‘yiladi. Xodim ishdan ketgan — unga rezerv yoki qora ro‘yxat belgisi qo‘yiladi."
+    "belgi.xodim_ketgan": "«Nazoratda» va «qobiliyatli» belgilari ishlab turgan xodimga qo‘yiladi. Xodim ishdan ketgan — unga rezerv yoki qora ro‘yxat belgisi qo‘yiladi.",
+    "sozlama.notogri_kalit": "Noma'lum sozlama kaliti.",
+    "sozlama.kalit_bosh": "Sozlama kaliti ko'rsatilishi shart.",
+    "sozlama.notogri_son": "Qiymat butun son bo'lishi kerak.",
+    "sozlama.chegara": "Qiymat ruxsat etilgan chegaradan tashqarida.",
+    "sozlama.matn_uzun": "Matn juda uzun.",
+    "sozlama.royxat_bosh": "O‘zgartirish uchun hech narsa berilmadi.",
+    "sozlama.takror_kalit": "Bitta sozlama ikki marta yuborildi."
   },
   "language": {
     "en": "English",

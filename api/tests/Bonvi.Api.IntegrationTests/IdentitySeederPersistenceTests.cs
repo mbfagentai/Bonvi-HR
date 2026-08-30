@@ -125,8 +125,17 @@ public sealed class IdentitySeederPersistenceTests : IClassFixture<BonviApiFacto
             .AsNoTracking()
             .SingleAsync(r => r.Code == kod, bekorQilish);
 
-        yangilangan.Permissions.Count.ShouldBe(Permissions.All.Count);
-        foreach (var ruxsat in Permissions.All)
+        /*
+          Kutilgan ro'yxat KODDAN olinadi, qo'lda sanalmaydi: bosh
+          rahbarda `settings.manage` YO'Q (yagona istisno, sabab
+          `Permissions.SettingsManage` izohida), super administratorda
+          esa hammasi bor. Sonni bu yerda qattiq yozib qo'ysak, har yangi
+          ruxsatda test bekorga yiqilardi.
+        */
+        var kutilgan = SystemRoles.Defaults[kod].Permissions;
+
+        yangilangan.Permissions.Count.ShouldBe(kutilgan.Length);
+        foreach (var ruxsat in kutilgan)
         {
             yangilangan.Has(ruxsat).ShouldBeTrue($"«{kod}» «{ruxsat}» ruxsatiga ega bo'lishi kerak edi");
         }

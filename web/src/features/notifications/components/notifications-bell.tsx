@@ -1,7 +1,8 @@
 import { Bell } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/ui'
 
 import { useUnreadCount } from '../api/notifications-queries'
@@ -47,6 +48,46 @@ export function NotificationsBell() {
   const count = useUnreadCount(open)
   const unread = count.data ?? 0
 
+  /*
+    ───────── Yangi bildirishnoma kelganida harakat ─────────
+
+    Raqamning o'zi YETMAYDI: qo'ng'iroq ekranning chekkasida turadi va
+    son 3 dan 4 ga o'zgargani boshqa ish bilan band odamning ko'ziga
+    umuman tashlanmaydi — o'zgarish statik.
+
+    Animatsiya FAQAT son OSHGANDA ishga tushadi. Nega shart:
+
+      · sahifa ochilganda o'ynasa — u xabar bermaydi, bezakka aylanadi
+        va bir kunda e'tibordan qoladi (bu fayldagi «har kuni yolg'on
+        gapiradigan qizil nuqta» xatosining aynan o'zi);
+      · son KAMAYGANDA (o'qilgach) o'ynasa — «yangi narsa keldi» degan
+        yolg'on signal bo'lardi.
+
+    `previous` boshida `null`: birinchi javob «oshish» deb
+    hisoblanmaydi, aks holda har sahifa ochilishida qo'ng'iroq
+    chayqalardi.
+  */
+  const [ringing, setRinging] = useState(false)
+  const previous = useRef<number | null>(null)
+
+  useEffect(() => {
+    // So'rov hali kelmagan: `undefined` ni nol deb hisoblab, keyin
+    // haqiqiy sonni «oshish» deb o'qib yuborish mumkin emas.
+    if (count.data === undefined) return
+
+    const before = previous.current
+    previous.current = count.data
+
+    if (before === null || count.data <= before) return
+
+    setRinging(true)
+
+    // Animatsiya tugagach sinf OLIB TASHLANADI: aks holda keyingi
+    // xabarda u qaytadan ishga tushmasdi (bir xil sinf — bir xil holat).
+    const timer = window.setTimeout(() => setRinging(false), 700)
+    return () => window.clearTimeout(timer)
+  }, [count.data])
+
   return (
     <>
       <Button
@@ -65,7 +106,7 @@ export function NotificationsBell() {
         }
         className="relative"
       >
-        <Bell />
+        <Bell className={cn(ringing && 'bell-ring')} />
 
         {unread > 0 && (
           /*
@@ -78,7 +119,12 @@ export function NotificationsBell() {
           */
           <span
             aria-hidden
-            className="tabular absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-ios-red px-1 text-[10px] leading-none font-semibold text-[var(--fg-on-accent)] ring-2 ring-[var(--bg)]"
+            className={cn(
+              'tabular absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full',
+              'bg-ios-red px-1 text-[10px] leading-none font-semibold text-[var(--fg-on-accent)]',
+              'ring-2 ring-[var(--bg)]',
+              ringing && 'badge-pulse',
+            )}
           >
             {unread > MAX_BADGE ? `${MAX_BADGE}+` : num(unread)}
           </span>

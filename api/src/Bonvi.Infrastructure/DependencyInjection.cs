@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddSafetyServices();
         services.AddRecruitingServices();
         services.AddNotificationServices();
+        services.AddSettingsServices();
 
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
@@ -169,6 +170,29 @@ public static class DependencyInjection
     {
         services.AddScoped<INotificationStateRepository, NotificationStateRepository>();
         services.AddScoped<INotificationReadModel, NotificationReadModel>();
+
+        return services;
+    }
+
+    /// <summary>Tizim sozlamalari bilan ishlaydigan portlar.</summary>
+    /// <remarks>
+    /// <para>
+    /// Atigi BITTA port va u ham juda kichik: sozlamalar soni kodda
+    /// belgilangan (<c>SystemSettingKeys.All</c>), ya'ni «ro'yxat
+    /// ekranlari» ham, o'qish modeli ham kerak emas.
+    /// </para>
+    /// <para>
+    /// ⚠️ Bu yerda KESH yo'q va bu ataylab. Sozlama har so'rovda bazadan
+    /// o'qiladi (bir marta — <c>SystemSettingsReader</c> so'rov davomida
+    /// eslab qoladi). Redis keshi qo'shilsa, bosh rahbar o'zgartirgan
+    /// chegara boshqa jarayonlarda (bot, ikkinchi konteyner) eskiligicha
+    /// qolib ketardi va buni faqat qayta ishga tushirish tuzatardi —
+    /// oltita qatorli jadval uchun bunday narx o'rinsiz.
+    /// </para>
+    /// </remarks>
+    private static IServiceCollection AddSettingsServices(this IServiceCollection services)
+    {
+        services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
 
         return services;
     }

@@ -4,9 +4,11 @@ using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.Notifications.Dtos;
+using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Settings;
 
 namespace Bonvi.Application.Notifications;
 
@@ -110,22 +112,35 @@ public static class NotificationParams
 /// joyda turadi va u yerda yangi tur uchun qiymat yozilmasa, kod
 /// ishlaydigan holatda umuman yig'ilmaydi.
 /// </para>
+/// <para>
+/// <b>Chegaralar SOZLAMADAN olinadi</b>, <c>NotificationRules</c> dagi
+/// konstantalardan emas. Konstantalar yo'qolmadi — ular endi SUKUT
+/// qiymat: sozlama hech qachon o'zgartirilmagan bo'lsa, aynan o'sha
+/// son ishlaydi (<c>SystemSettingKeys</c> izohi). Sozlama esa bitta
+/// joyda — so'rov boshida bir marta o'qiladi va shu yig'ilishning
+/// hamma bo'lagiga BIR XIL qiymat bo'lib tarqaladi. Har bir bo'lak
+/// o'zi o'qiganda, yarim tunda sozlama o'zgarsa, bitta ro'yxat ikki
+/// xil chegara bilan yig'ilib qolishi mumkin edi.
+/// </para>
 /// </remarks>
 public sealed class NotificationCollector
 {
     private readonly INotificationReadModel _source;
     private readonly IEmployeeReadModel _employees;
+    private readonly SystemSettingsReader _settings;
     private readonly ICurrentUser _user;
     private readonly IClock _clock;
 
     public NotificationCollector(
         INotificationReadModel source,
         IEmployeeReadModel employees,
+        SystemSettingsReader settings,
         ICurrentUser user,
         IClock clock)
     {
         _source = source;
         _employees = employees;
+        _settings = settings;
         _user = user;
         _clock = clock;
     }
@@ -143,28 +158,64 @@ public sealed class NotificationCollector
         CancellationToken cancellationToken = default)
     {
         var today = _clock.Today;
+
+        // Sozlamalar BIR MARTA o'qiladi va bo'laklarga uzatiladi: butun
+        // ro'yxat bitta va o'sha chegaralar bo'yicha yig'iladi (sabab
+        // sinf izohida). O'quvchining o'zi ham keshlaydi, ya'ni
+        // «hammasini o'qildi» dagi ikkinchi yig'ilish qo'shimcha so'rov
+        // yubormaydi.
+        var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
+
         var items = new List<NotificationDto>();
 
-        await AddProbationDeadlinesAsync(items, today, cancellationToken).ConfigureAwait(false);
+        await AddProbationDeadlinesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
         await AddMissingProbationsAsync(items, cancellationToken).ConfigureAwait(false);
         await AddBirthdaysAsync(items, today, cancellationToken).ConfigureAwait(false);
-        await AddNewCandidatesAsync(items, today, cancellationToken).ConfigureAwait(false);
-        await AddOfferDeadlinesAsync(items, today, cancellationToken).ConfigureAwait(false);
+        await AddNewCandidatesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
+        await AddOfferDeadlinesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
 
         return
         [
             .. items
-                // Eng muhimi tepada: o'tib ketgan muddat tug'ilgan kundan
-                // oldin turishi kerak — aks holda ular qo'shilgan tartibda
-                // aralashib, ro'yxat «nima birinchi navbatda kerak» degan
-                // savolga javob bermay qolardi.
-                .OrderByDescending(item => item.Severity)
-                // Teng muhimlikda — sana bo'yicha O'SISH tartibida. Kelajakdagi
-                // muddatlar uchun bu «eng yaqini tepada», o'tib ketganlar uchun
-                // «eng eskisi tepada» degani. Ikkalasi ham to'g'ri: birinchisida
-                // ulgurish kerak, ikkinchisida esa eng uzoq kutib qolgan ish
-                // eng jiddiysi.
-                .ThenBy(item => item.Date)
+                /*
+                  VAQT bo'yicha, yangisi tepada (foydalanuvchi qarori).
+
+                  Ilgari birinchi mezon MUHIMLIK edi va u ro'yxatni «nima
+                  birinchi navbatda kerak» tartibida chizardi. Amalda esa
+                  bu bitta kamchilik tug'dirdi: bugun tushgan yangi yozuv
+                  bir oy oldingi muddatlar ostiga tushib ketardi va uni
+                  ko'rish uchun ro'yxatni aylantirish kerak bo'lardi.
+                  Bildirishnoma esa avvalo «NIMA YANGI?» degan savolga
+                  javob beradi.
+
+                  Muhimlik YO'QOLMADI — u endi RANG bilan aytiladi:
+                  o'qilmagan qator o'z darajasining fonida chiziladi
+                  (`notification-row.tsx`). Ya'ni jiddiy yozuv ro'yxatning
+                  o'rtasida turgan bo'lsa ham ko'zga darhol tashlanadi.
+                */
+                /*
+                  Avval SODIR BO'LGANI, keyin KELAYOTGANI.
+
+                  Bildirishnomaning sanasi ikki xil ma'noni tashiydi:
+                  «bu bugun sodir bo'ldi» (bot arizasi, tug'ilgan kun) va
+                  «bu falon kuni tugaydi» (sinov muddati, taklif). Ularni
+                  bitta o'qqa qo'yib, sanasi kattasini tepaga chiqarish
+                  KELAJAKDAGI muddatni bugun sodir bo'lgan hodisadan
+                  yuqoriga ko'tarardi: «sinov 5-sentabrda tugaydi» degan
+                  yozuv «botdan ariza tushdi» ustida turardi, holbuki
+                  birinchisi hali bir hafta kutadi, ikkinchisi esa hozir
+                  javob kutyapti.
+                */
+                .OrderBy(item => item.Date > today)
+
+                // Sodir bo'lganlar: YANGISI tepada — «nima yangi?» degan
+                // savolga javob. Kelayotganlar: YAQINI tepada — «nimaga
+                // ulgurish kerak?» degan savolga. Ikkalasi ham vaqt
+                // bo'yicha, faqat yo'nalishi guruhning ma'nosiga qarab.
+                .ThenBy(item => item.Date > today ? item.Date.DayNumber : -item.Date.DayNumber)
+
+                // Bir XIL kundagi yozuvlarda muhimlik ajratadi.
+                .ThenByDescending(item => item.Severity)
                 // Oxirgi mezon — kalit. U barqaror va noyob, ya'ni bir xil
                 // ma'lumotda tartib HAR DOIM bir xil chiqadi. Bu bo'lmasa,
                 // teng qiymatlarda ro'yxat so'rovdan so'rovga «sakrab»
@@ -185,6 +236,7 @@ public sealed class NotificationCollector
     private async Task AddProbationDeadlinesAsync(
         List<NotificationDto> items,
         DateOnly today,
+        SystemSettings settings,
         CancellationToken cancellationToken)
     {
         // Uchala tur ham bitta ruxsat ostida — bittasini tekshirish yetadi.
@@ -193,7 +245,7 @@ public sealed class NotificationCollector
             return;
         }
 
-        var until = today.AddDays(NotificationRules.ProbationWarningDays);
+        var until = today.AddDays(settings.Number(SystemSettingKeys.ProbationWarningDays));
         var rows = await _source
             .ListProbationDeadlinesAsync(until, cancellationToken)
             .ConfigureAwait(false);
@@ -364,6 +416,7 @@ public sealed class NotificationCollector
     private async Task AddNewCandidatesAsync(
         List<NotificationDto> items,
         DateOnly today,
+        SystemSettings settings,
         CancellationToken cancellationToken)
     {
         if (!Allowed(NotificationType.CandidateNew))
@@ -371,7 +424,7 @@ public sealed class NotificationCollector
             return;
         }
 
-        var since = today.AddDays(-NotificationRules.NewCandidateDays);
+        var since = today.AddDays(-settings.Number(SystemSettingKeys.NewCandidateDays));
         var rows = await _source
             .ListNewCandidatesAsync(since, cancellationToken)
             .ConfigureAwait(false);
@@ -418,6 +471,7 @@ public sealed class NotificationCollector
     private async Task AddOfferDeadlinesAsync(
         List<NotificationDto> items,
         DateOnly today,
+        SystemSettings settings,
         CancellationToken cancellationToken)
     {
         if (!Allowed(NotificationType.JobOfferExpiring))
@@ -432,7 +486,7 @@ public sealed class NotificationCollector
         // ishlatiladi — ikkinchi ta'rif yozilmaydi.
         var canSeeSalary = _user.CanSeeSalary();
 
-        var until = today.AddDays(NotificationRules.OfferWarningDays);
+        var until = today.AddDays(settings.Number(SystemSettingKeys.OfferWarningDays));
         var rows = await _source
             .ListOfferDeadlinesAsync(until, cancellationToken)
             .ConfigureAwait(false);

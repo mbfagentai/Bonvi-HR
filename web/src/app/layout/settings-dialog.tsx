@@ -12,6 +12,8 @@ import type { ReactNode } from 'react'
 
 import { AccountPhotoEditor, formatFullPhone, useAuth } from '@/features/auth'
 import type { LocaleCode } from '@/shared/i18n/locales'
+import { SETTINGS_MANAGE } from '@/features/settings/api/settings-api'
+import { SystemSettingsSection } from '@/features/settings/components/system-settings-section'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useTheme } from '@/shared/theme/theme-provider'
 import {
@@ -85,7 +87,14 @@ export function SettingsDialog({
   onSignOut: () => void
 }) {
   const { t, locale } = useLocale()
-  const { user } = useAuth()
+  const { user, hasPermission } = useAuth()
+
+  /*
+    Tizim sozlamalari FAQAT super administratorda. Bosh rahbarda ham
+    yo'q — bu loyihadagi «rahbariyat ruxsatlar bo'yicha teng» qoidasidan
+    yagona chekinish (sabab `Permissions.SettingsManage` izohida).
+  */
+  const canManageSettings = hasPermission(SETTINGS_MANAGE)
   const { theme } = useTheme()
 
   const name = user?.fullName ?? t('auth.unknownUser')
@@ -236,6 +245,19 @@ export function SettingsDialog({
           bir xil qator (sababi `DangerRow` da). Tushuntirish matni tepada
           qoladi: qaytish uchun nima kerakligini oldindan aytadi.
         */}
+        {/*
+          ───────── Tizim sozlamalari ─────────
+          FAQAT super administratorga ko'rinadi. Ruxsat yo'q bo'lsa
+          bo'lim UMUMAN chizilmaydi va so'rov ham yuborilmaydi —
+          yon menyudagi bandlar bilan bir xil qoida («bo'sh/xatoli»
+          holat ko'rsatilmaydi).
+        */}
+        {canManageSettings && (
+          <Section title={t('settings.system.title')}>
+            <SystemSettingsSection />
+          </Section>
+        )}
+
         <Section title={t('settings.session')}>
           <p className="px-4 pt-4 pb-3 text-footnote text-[var(--fg-secondary)]">
             {t('settings.signOutHint')}

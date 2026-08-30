@@ -56,7 +56,21 @@ export function NotificationRow({
   const title = t(`notifications.type.${textKey}.title`)
 
   return (
-    <li className="flex items-start gap-3 py-2.5">
+    /*
+      O'QILMAGAN qator o'z darajasining fonida chiziladi, o'qilgani esa
+      oq qoladi (sabab `SEVERITY_LOOK.unreadRow` izohida).
+
+      Fon qatorning chetlaridan biroz TASHQARIGA chiqadi (`-mx-2 px-2`):
+      aks holda u matn bilan bir xil kenglikda tugab, «belgilangan
+      matn» kabi ko'rinardi — endi esa butun qator ajralib turadi.
+    */
+    <li
+      className={cn(
+        '-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5',
+        'transition-colors duration-[160ms] ease-[var(--ease-ios)]',
+        !item.isRead && look.unreadRow,
+      )}
+    >
       {/*
         Katakchaning yorlig'i EKRAN O'QUVCHI uchun: ko'z bilan qaraganda
         qaysi qatorga tegishli ekani joylashuvidan ko'rinadi, ovoz bilan

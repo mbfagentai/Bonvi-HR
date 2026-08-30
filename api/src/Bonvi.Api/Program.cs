@@ -175,6 +175,12 @@ app.MapSystemEndpoints();
 app.MapDashboardEndpoints();
 app.MapReportsEndpoints();
 
+// Tizim sozlamalari — bot matni va bildirishnoma chegaralari.
+// «settings.manage» ostida va u faqat super administratorda
+// (sababi `Permissions.SettingsManage` izohida). Ichida bitta istisno
+// bor: `/api/settings/bot` botning ruxsati bilan ochiladi.
+app.MapSettingsEndpoints();
+
 app.MapGet("/", () => Results.Ok(new
 {
     servis = "Bonvi HR API",

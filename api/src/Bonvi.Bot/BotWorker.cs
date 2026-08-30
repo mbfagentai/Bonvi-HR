@@ -71,6 +71,16 @@ public sealed partial class BotWorker : BackgroundService
 
     private long _offset;
 
+    /// <summary>Tizimdan olingan sozlama va u qachon o'qilgani.</summary>
+    /// <remarks>
+    /// Har `/start` da so'rov yuborish kerak emas — matn kamdan-kam
+    /// o'zgaradi. Besh daqiqalik kesh: administrator ekranda
+    /// o'zgartirsa, u shu muddat ichida botga yetib boradi va nomzod
+    /// buni sezmaydi ham.
+    /// </remarks>
+    private BotSettings? _settings;
+    private DateTimeOffset _settingsReadAt;
+
     public BotWorker(
         TelegramClient telegram,
         BonviClient bonvi,
@@ -216,7 +226,7 @@ public sealed partial class BotWorker : BackgroundService
               ko'radi: bitta tugmali menyu qadamni bekorga uzaytirardi
               (izohi `BotOptions.AboutCyrillic` da).
             */
-            if (About(language) is null)
+            if (About(await SettingsAsync(cancellationToken).ConfigureAwait(false), language) is null)
             {
                 await ShowVacanciesAsync(chat.Id, language, cancellationToken).ConfigureAwait(false);
                 return;
@@ -235,7 +245,9 @@ public sealed partial class BotWorker : BackgroundService
                 await _telegram
                     .SendMessageAsync(
                         chat.Id,
-                        (About(language) ?? string.Empty) + BotTexts.AfterAbout(language),
+                        (About(await SettingsAsync(cancellationToken).ConfigureAwait(false), language)
+                            ?? string.Empty)
+                            + BotTexts.AfterAbout(language),
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
 
@@ -482,18 +494,42 @@ public sealed partial class BotWorker : BackgroundService
     }
 
     /// <summary>
+    /// Sozlamani tizimdan oladi (besh daqiqalik kesh bilan).
+    /// </summary>
+    /// <remarks>
+    /// So'rov bajarilmasa ESKI qiymat qoladi: sozlama uchun API ga
+    /// borib kelolmaslik nomzodning arizasini to'xtatishga sabab emas.
+    /// </remarks>
+    private async Task<BotSettings?> SettingsAsync(CancellationToken cancellationToken)
+    {
+        if (_settings is not null && DateTimeOffset.UtcNow - _settingsReadAt < TimeSpan.FromMinutes(5))
+        {
+            return _settings;
+        }
+
+        var fresh = await _bonvi.GetBotSettingsAsync(cancellationToken).ConfigureAwait(false);
+
+        if (fresh is not null)
+        {
+            _settings = fresh;
+            _settingsReadAt = DateTimeOffset.UtcNow;
+        }
+
+        return _settings;
+    }
+
+    /// <summary>
     /// Tanlangan tildagi kompaniya matni — sozlanmagan bo'lsa <c>null</c>.
     /// </summary>
     /// <remarks>
     /// Lotin matni bo'sh bo'lsa kirillcha ishlatiladi: bitta matn yozib
-    /// qo'yish ikkitasini majburlashdan foydaliroq (izohi
-    /// <c>BotOptions.AboutLatin</c> da).
+    /// qo'yish ikkitasini majburlashdan foydaliroq.
     /// </remarks>
-    private string? About(BotLanguage language)
+    private static string? About(BotSettings? settings, BotLanguage language)
     {
-        var text = language == BotLanguage.Latin && !string.IsNullOrWhiteSpace(_options.AboutLatin)
-            ? _options.AboutLatin
-            : _options.AboutCyrillic;
+        var text = language == BotLanguage.Latin && !string.IsNullOrWhiteSpace(settings?.AboutLatin)
+            ? settings.AboutLatin
+            : settings?.AboutCyrillic;
 
         if (string.IsNullOrWhiteSpace(text))
         {

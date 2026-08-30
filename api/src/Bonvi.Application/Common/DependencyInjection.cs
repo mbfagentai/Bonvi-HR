@@ -21,6 +21,7 @@ using Bonvi.Application.Notifications;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
+using Bonvi.Application.Settings;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -101,6 +102,13 @@ public static class DependencyInjection
 
         // Rekruting — 2-bosqich: vakansiya, voronka, nomzod, ish taklifi
         services.AddRecruiting();
+
+        // Tizim sozlamalari — bot matni va bildirishnoma chegaralari.
+        // Bildirishnomalardan OLDIN turadi, chunki yig'uvchi shu bo'limning
+        // o'quvchisiga (`SystemSettingsReader`) bog'liq. DI uchun tartib
+        // ahamiyatsiz, lekin o'qiyotgan odam uchun bog'liqlik yo'nalishi
+        // shu tartibda ko'rinib turadi.
+        services.AddSettings();
 
         // Bildirishnomalar — bironta bo'limga tegishli emas: ular sinov
         // muddati, xodim, nomzod va taklif ma'lumotlarini BIRGA o'qiydi.

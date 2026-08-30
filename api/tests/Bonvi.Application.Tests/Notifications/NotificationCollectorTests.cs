@@ -332,20 +332,35 @@ public sealed class NotificationCollectorTests
         ikkinchi.Select(item => item.Key).ShouldBe(birinchi.Select(item => item.Key));
     }
 
+    /// <summary>
+    /// Avval SODIR BO'LGANI, keyin KELAYOTGANI.
+    /// </summary>
+    /// <remarks>
+    /// Ilgari birinchi mezon MUHIMLIK edi, endi VAQT (foydalanuvchi
+    /// qarori). Sana ikki xil ma'no tashiydi — «bugun sodir bo'ldi» va
+    /// «falon kuni tugaydi» — shu sababli ular ikki guruhga bo'linadi:
+    /// bo'lmasa kelajakdagi muddat bugungi hodisadan tepaga chiqib
+    /// ketardi (sabab `NotificationCollector` dagi tartib izohida).
+    ///
+    /// Muhimlik yo'qolmadi: u endi RANG bilan aytiladi
+    /// (`notification-presentation.ts` dagi `unreadRow`).
+    /// </remarks>
     [Fact]
-    public async Task Eng_muhimi_tepada_turadi()
+    public async Task Sodir_bolgani_kelayotganidan_tepada()
     {
         _context.Birthday(NotificationTestContext.Today, "Karimov Aziz");
-        _context.Probation(daysLeft: 4);
-        _context.Probation(daysLeft: -10, name: "Toshmatov Olim");
+        _context.Probation(daysLeft: 4, name: "Kelayotgan Muddat");
+        _context.Probation(daysLeft: -10, name: "Otib Ketgan");
 
         var natija = await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
 
-        natija.Select(item => item.Severity).ShouldBe(
+        // Bugun (tug'ilgan kun) va o'tib ketgan muddat — SODIR bo'lgan,
+        // yangisi tepada. Kelajakdagi muddat esa oxirida.
+        natija.Select(item => item.Type).ShouldBe(
         [
-            NotificationSeverity.Critical,
-            NotificationSeverity.Warning,
-            NotificationSeverity.Info,
+            NotificationType.BirthdayToday,
+            NotificationType.ProbationOverdue,
+            NotificationType.ProbationEndingSoon,
         ]);
     }
 
