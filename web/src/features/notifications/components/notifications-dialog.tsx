@@ -12,6 +12,7 @@ import {
   useNotifications,
 } from '../api/notifications-queries'
 import { notificationErrorCode } from '../lib/notification-presentation'
+import { navigateToNotification } from '../lib/notification-navigation'
 import { NotificationRow } from './notification-row'
 
 /** Modul darajasida — har render'da yangi massiv keraksiz qayta hisoblash beradi. */
@@ -188,29 +189,9 @@ export function NotificationsDialog({
 
     onClose()
 
-    const { route, id } = item.link
-
-    switch (route) {
-      case 'Employee':
-        if (id !== null) {
-          void navigate({ to: '/xodimlar/$employeeId', params: { employeeId: id } })
-        }
-        return
-
-      case 'Candidate':
-        if (id !== null) {
-          void navigate({ to: '/nomzodlar/$candidateId', params: { candidateId: id } })
-        }
-        return
-
-      case 'Probations':
-        void navigate({ to: '/sinov', search: { q: item.params['employeeName'] } })
-        return
-
-      case 'MissingProbations':
-        void navigate({ to: '/sinov', search: {} })
-        return
-    }
+    // O'tishning O'ZI umumiy funksiyada: aynan shu yo'l jonli xabar
+    // (toast) ustidan ham bosiladi (izohi `navigateToNotification` da).
+    navigateToNotification(navigate, item)
   }
 
   /*

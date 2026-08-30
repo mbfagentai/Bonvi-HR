@@ -20,27 +20,28 @@ import {
  * yetilgan holat oynada alohida qator bilan ochiq aytiladi
  * (`notifications.limitNote`).
  */
-const NOTIFICATION_LIMIT = 50
+export const NOTIFICATION_LIMIT = 50
 
 /**
  * Qo'ng'iroq ustidagi sanoq qanchadan keyin yangilanadi.
  *
- * 60 000 ms tanlandi va sabab bildirishnomalarning TABIATIDA:
- * ularning hammasi KUN o'lchovida yashaydi — «sinov muddati ertaga
- * tugaydi», «bugun tug'ilgan kun», «taklifga 2 kun qoldi». Bunday
- * ro'yxat bir daqiqada o'zgarishi mumkin bo'lgan yagona yo'l — shu
- * tizimda kimningdir yozuv kiritishi, va u holda kesh `providers.tsx`
- * orqali DARHOL bekor qilinadi (sanoq ham qayta so'raladi). Ya'ni davr
- * faqat BOSHQA foydalanuvchi kiritgan o'zgarishni ushlab olish uchun.
+ * ⭐ <b>Bu endi ASOSIY yo'l EMAS — ZAXIRA.</b> Boshqa foydalanuvchi (yoki
+ * Telegram bot) kiritgan o'zgarish jonli oqim orqali DARHOL keladi
+ * (`notifications-stream.ts`). Davriy so'rov esa oqim ishlamay
+ * qolgan holatlar uchun qoladi: ulanish uzilgan va hali qayta
+ * tiklanmagan, proksi oqimni yopib qo'ygan, yoki brauzer uni
+ * qo'llab-quvvatlamaydi. Ikkalasi AYNAN bir xil kesh kalitiga yozadi,
+ * ya'ni to'qnashuv yo'q — qaysi biri oldin kelsa, o'sha ko'rinadi.
  *
- * NEGA tezroq emas (masalan 15 s): foyda nol — HR bir daqiqa avvalgi
- * sondan hech narsa yutqazmaydi; narxi esa doimiy fon trafigi.
- * NEGA sekinroq emas (5 daqiqa): ilova kun bo'yi ochiq turadi va soat
- * 09:00 da paydo bo'ladigan «bugun tug'ilgan kun» kechikib chiqardi.
+ * <b>Nega 60 soniya (oqim qo'shilgach ham o'zgarmadi).</b> Zaxira
+ * yo'lning vazifasi «jonli» bo'lish emas, YO'QOLIB QOLMASLIK. Tezroq
+ * qilish oqim ishlayotgan 99% vaqtda bekor trafik, sekinroq qilish esa
+ * uzilish paytida sanoqni ishonchsiz qilardi.
  *
  * ⚠️ Yashirin oynada TanStack so'rov yubormaydi (`refetchIntervalInBackground`
  * standart bo'yicha `false`) — ya'ni ochiq qoldirilgan, lekin
- * qaralmayotgan tab tarmoqni bandlamaydi.
+ * qaralmayotgan tab tarmoqni bandlamaydi. Oqim esa bu holatda ham
+ * ochiq qoladi: u so'rov yubormaydi, faqat eshitadi.
  */
 const UNREAD_POLL_MS = 60_000
 

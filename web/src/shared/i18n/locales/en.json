@@ -1294,7 +1294,8 @@
         "title": "Job offer expired",
         "text": "{{name}} — the reply deadline for the job offer passed on {{date}}, {{days}} days ago, and the offer is still open."
       }
-    }
+    },
+    "moreArrived": "{{n}} more new notifications"
   },
   "dashboard.birthdaysTitle": "Birthdays today",
   "dashboard.birthdaysOpen": "Open the employee card",

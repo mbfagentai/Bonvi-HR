@@ -555,6 +555,41 @@
     }
   }
 
+  /*
+   * Jonli bildirishnoma — ekran tepasidan TUSHADI.
+   *
+   * NEGA harakat kerak: xabar yangi paydo bo'ladi va ko'z faqat
+   * HARAKATGA o'zi buriladi. Statik paydo bo'lgan karta boshqa ish
+   * bilan band odamning periferik ko'rishiga umuman tushmaydi — bu
+   * `bell-ring` bilan bir xil fikr, faqat kattaroq masshtabda.
+   *
+   * NEGA aynan yuqoridan: telefondagi bildirishnoma shu yerdan
+   * tushadi va bu harakat o'rganilgan — foydalanuvchi nima
+   * bo'layotganini tushuntirishsiz biladi.
+   *
+   * Uzunligi 320ms va oxirida ozgina «to'xtash» bor
+   * (`--ease-ios-out`): iOS'da hech narsa keskin to'xtamaydi.
+   *
+   * ⚠️ `prefers-reduced-motion` — harakatga sezgir foydalanuvchi
+   * uchun animatsiya BUTUNLAY o'chadi, xabarning o'zi esa qoladi.
+   * Bu butun ilovadagi qoida (pastdagi umumiy blok) va bu yerda ham
+   * amal qiladi.
+   */
+  .toast-drop {
+    animation: toast-drop 320ms var(--ease-ios-out);
+  }
+
+  @keyframes toast-drop {
+    0% {
+      opacity: 0;
+      transform: translateY(-14px) scale(0.97);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
   @keyframes badge-pulse {
     0% {
       transform: scale(1);

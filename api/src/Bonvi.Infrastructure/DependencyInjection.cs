@@ -262,6 +262,19 @@ public static class DependencyInjection
 
         services.AddScoped<AuditableInterceptor>();
 
+        /*
+          «Ma'lumot o'zgardi» signali — SINGLETON va boshqacha bo'lishi
+          mumkin emas: uni bir tomondan so'rovlar uyg'otadi, ikkinchi
+          tomondan soatlab ochiq turgan `stream` kutadi. Har so'rovda
+          yangi nusxa yasalsa, ular BOSHQA-BOSHQA obyektni kutib
+          o'tirardi va signal hech qachon yetib bormasdi.
+
+          Interceptor esa `Scoped` (qolganlari bilan bir xil), lekin
+          ichidagi signal — o'sha yagona nusxa.
+        */
+        services.AddSingleton<IDataChangeSignal, DataChangeSignal>();
+        services.AddScoped<DataChangeInterceptor>();
+
         services.AddDbContext<AppDbContext>((provider, options) =>
         {
             options
@@ -272,7 +285,9 @@ public static class DependencyInjection
                 })
                 // PostgreSQL uchun snake_case: employee_document, created_at
                 .UseSnakeCaseNamingConvention()
-                .AddInterceptors(provider.GetRequiredService<AuditableInterceptor>());
+                .AddInterceptors(
+                    provider.GetRequiredService<AuditableInterceptor>(),
+                    provider.GetRequiredService<DataChangeInterceptor>());
         });
 
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());

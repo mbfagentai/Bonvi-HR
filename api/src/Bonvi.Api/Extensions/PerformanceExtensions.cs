@@ -194,6 +194,21 @@ public static class PerformanceExtensions
             options.Providers.Add<GzipCompressionProvider>();
 
             options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(QoshimchaMimeTurlari);
+
+            /*
+              JONLI OQIM SIQILMAYDI. Siqish bufer talab qiladi: kelgan
+              baytlar to'planib turadi va faqat blok to'lganda yoki javob
+              yopilganda yuboriladi. `text/event-stream` esa hech qachon
+              yopilmaydi — natijada bildirishnoma soatlab yo'lda qolib
+              ketardi.
+
+              Bugun bu tur standart ro'yxatda YO'Q, ya'ni qator amalda
+              hech narsani o'zgartirmaydi. U ataylab yozilgan: ro'yxat
+              kelajakda kengaytirilsa yoki .NET standartga yangi tur
+              qo'shsa, xato JIMGINA paydo bo'lardi — oqim ishlamay
+              qo'yardi va sababi bu fayldan izlanmasdi.
+            */
+            options.ExcludedMimeTypes = ["text/event-stream"];
         });
 
         // Standart daraja (Optimal) Brotli uchun 11-sifat — u JSON'ni bir necha

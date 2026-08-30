@@ -1,6 +1,8 @@
 import { useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { LiveNotifications } from '@/features/notifications'
+
 import { Sidebar } from './sidebar'
 import { Topbar } from './topbar'
 
@@ -86,6 +88,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           Bu yerda esa u o'z ishini bajaradi: ro'yxat bir sahifadan
           ikkinchisiga o'tganda kontent chapga-o'ngga sakramaydi.
         */}
+        {/*
+          Jonli bildirishnomalar — butun ilovada BIR MARTA.
+
+          Nega aynan bu yerda: xabar ekran ustida suzadi va u
+          `main` ning scroll'i bilan birga surilmasligi kerak. Qobiq
+          esa marshrutlar almashganda qayta chizilmaydi — ya'ni
+          oqimning ulanishi sahifadan sahifaga o'tganda uzilmaydi.
+
+          Kirish sahifasi bu qobiqdan TASHQARIDA (`_app.tsx`), ya'ni
+          tizimga kirmagan odamda oqim umuman ochilmaydi.
+        */}
+        <LiveNotifications />
+
         <main
           ref={main}
           className="flex-1 overflow-y-auto px-5 py-6 [scrollbar-gutter:stable] lg:px-8 lg:py-8"

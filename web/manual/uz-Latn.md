@@ -1131,6 +1131,46 @@ bo‘lishini belgilaydi. Uchalasi ham **1 dan 90 kungacha**.
 > ma’nosini yo‘qotadi, chunki ro‘yxat hech qachon bo‘shamaydi va unga
 > qarash to‘xtaydi.
 
+# Qo‘ng‘iroq va bildirishnomalar
+
+Yuqori panelning o‘ng burchagidagi qo‘ng‘iroq — tizimning «bugun nimaga
+ulgurish kerak?» degan savolga javobi. Ustidagi qizil raqam
+**o‘qilmaganlar soni**; hech narsa bo‘lmasa u umuman chizilmaydi.
+
+## Xabar o‘zi keladi
+
+Bildirishnoma kelishi uchun **sahifani yangilash shart emas**. Yangi
+ariza tushgan (yoki boshqa ogohlantirish paydo bo‘lgan) zahoti:
+
+- ekranning **tepasidan karta tushadi** — turi va tafsiloti bilan;
+- qo‘ng‘iroq **chayqaladi**, undagi raqam esa o‘sha zahoti o‘zgaradi.
+
+Karta **8 soniyadan keyin o‘zi ketadi**. Sichqonchani ustiga olib
+borsangiz — kutib turadi. Ustiga bossangiz tegishli ekran ochiladi
+(nomzod kartasi, xodim kartasi yoki sinov ro‘yxati); o‘ng chetdagi
+kichik **✕** esa uni shunchaki yopadi.
+
+> Karta yo‘qolsa ham **hech narsa yo‘qolmaydi**: bildirishnomaning o‘zi
+> qo‘ng‘iroq ostidagi ro‘yxatda va sanoqda qolaveradi.
+
+## Ishingizga xalaqit bermaydi
+
+Bu ataylab shunday qilingan va uchta qat‘iy qoidasi bor:
+
+1. **Sahifa hech qachon o‘zi yangilanmaydi.** To‘ldirayotgan formangiz,
+   ochiq oynangiz va yozayotgan matningiz joyida qoladi.
+2. **Fokus ko‘chmaydi.** Karta chiqqanda ham harflar siz yozayotgan
+   maydonga tushaveradi — kartani bosmaguningizcha hech narsa
+   o‘zgarmaydi.
+3. **O‘z ishingiz uchun karta chiqmaydi.** Nomzod qo‘shib «Saqlash»
+   bosganingizda o‘zingiz kiritgan yozuv haqida xabar tushmaydi —
+   faqat qo‘ng‘iroqdagi raqam o‘zgaradi.
+
+> Aloqa uzilib qolsa (internet yo‘qolsa, server qayta ishga tushsa),
+> tizim ulanishni **o‘zi tiklaydi**. Shu oraliqda kelgan
+> bildirishnomalar yo‘qolmaydi — ulanish tiklangach ular ro‘yxatda
+> turgan bo‘ladi.
+
 # Tez-tez uchraydigan xatolar
 
 Tizim xatoni har doim **o‘zbek tilida** va sababini aytib beradi. Quyida eng

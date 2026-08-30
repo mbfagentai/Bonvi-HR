@@ -237,7 +237,20 @@ export async function fetchNotifications(
     signal,
   })
 
-  const box = (data ?? {}) as Record<string, unknown>
+  return toNotificationList(data)
+}
+
+/**
+ * Xom javobni ro'yxatga o'giradi.
+ *
+ * NEGA eksport qilingan: AYNAN shu shakl JONLI OQIMDAN ham keladi
+ * (`GET /api/notifications/stream`, `event: notifications`) va u
+ * `fetch` orqali qo'lda o'qiladi — ya'ni axios'ning yo'lidan o'tmaydi.
+ * Xaritalash ikkinchi marta yozilsa, bir kun ikkalasi ajralib ketardi:
+ * oynadagi ro'yxat bir xil, jonli kelgani boshqacha bo'lardi.
+ */
+export function toNotificationList(raw: unknown): NotificationList {
+  const box = (raw ?? {}) as Record<string, unknown>
   const items = Array.isArray(box['items']) ? box['items'].map(toNotification) : []
 
   return {

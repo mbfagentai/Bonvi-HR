@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { type ReactNode, useState } from 'react'
 
 import { AuthProvider } from '@/features/auth'
+import { markLocalWrite } from '@/shared/lib/local-write'
 import { ThemeProvider } from '@/shared/theme/theme-provider'
 
 // i18n yon ta'sir sifatida ishga tushadi (til aniqlanadi va yuklanadi)
@@ -60,6 +61,14 @@ function queryClientYarat(): QueryClient {
       // eksporti — u mutatsiya shaklida yozilgan, chunki tugma bosilganda
       // ishga tushadi) keshni bekor qilishi ma'nosiz.
       if (mutation.meta?.['readOnly'] === true) return
+
+      /*
+        «Bu o'zgarishni SHU brauzer qildi» belgisi. Jonli bildirishnoma
+        oqimi uni o'qib, o'z harakatimiz uchun ekran tepasiga xabar
+        CHIQARMAYDI — sabab `local-write.ts` da batafsil. Sanoq va
+        ro'yxat baribir yangilanadi.
+      */
+      markLocalWrite()
 
       void client.invalidateQueries({
         predicate: (query) => !RASM_KESHI.test(String(query.queryKey[0])),

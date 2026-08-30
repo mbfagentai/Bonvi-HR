@@ -1294,7 +1294,8 @@
         "title": "Taklif muddati o‘tib ketgan",
         "text": "{{name}} — ish taklifiga javob muddati {{date}} da tugagan, {{days}} kun o‘tdi, taklif hamon ochiq."
       }
-    }
+    },
+    "moreArrived": "Yana {{n}} ta yangi bildirishnoma"
   },
   "dashboard.birthdaysTitle": "Bugungi tug‘ilgan kunlar",
   "dashboard.birthdaysOpen": "Xodim kartasini ochish",
