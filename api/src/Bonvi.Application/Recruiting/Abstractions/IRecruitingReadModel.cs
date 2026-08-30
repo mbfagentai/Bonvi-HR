@@ -1,3 +1,4 @@
+using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Recruiting.Abstractions;
@@ -29,6 +30,19 @@ public interface IRecruitingReadModel
     /// <summary>Nomzodlar ro'yxati — rekrutingning asosiy ekrani.</summary>
     Task<CandidatePage> SearchCandidatesAsync(
         CandidateSearchFilter filter,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rad etilgan, lekin Telegram xabarini hali olmagan nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// Faqat botga kerak va faqat uchta shart birga bajarilganda:
+    /// nomzod rad etilgan, Telegram suhbati ma'lum va xabar hali
+    /// yuborilmagan. Uchalasi ham qisman indeks bilan qoplangan
+    /// (<c>RecruitingConfigurations</c>).
+    /// </remarks>
+    Task<IReadOnlyList<RejectionNoticeDto>> ListPendingRejectionNoticesAsync(
+        int limit,
         CancellationToken cancellationToken = default);
 
     /// <summary>Vakansiyalar ro'yxati — nomzodlar sanog'i bilan.</summary>

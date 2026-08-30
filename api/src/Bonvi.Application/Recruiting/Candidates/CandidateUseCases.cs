@@ -65,6 +65,14 @@ public sealed record GetCandidateQuery(Guid CandidateId);
 /// formasi shu qiymatni yubormaydi. Telegram bot (keyingi bosqich) esa
 /// <see cref="CandidateSource.TelegramBot"/> ni ochiq beradi.
 /// </param>
+/// <param name="TelegramChatId">
+/// Telegram suhbatining raqami — faqat botdan kelgan nomzodda.
+/// Rad etish xabari aynan shu manzilga boradi.
+/// </param>
+/// <param name="TelegramLanguage">
+/// Nomzod botda tanlagan til (<c>uz-Cyrl</c>, <c>uz-Latn</c>, <c>ru</c>).
+/// Javob aynan o'sha tilda yoziladi.
+/// </param>
 public sealed record RegisterCandidateCommand(
     Guid VacancyId,
     string? LastName,
@@ -76,7 +84,9 @@ public sealed record RegisterCandidateCommand(
     string? Speciality = null,
     string? Note = null,
     Guid? StageId = null,
-    CandidateSource Source = CandidateSource.Manual);
+    CandidateSource Source = CandidateSource.Manual,
+    long? TelegramChatId = null,
+    string? TelegramLanguage = null);
 
 /// <summary>Nomzodning shaxsiy ma'lumotini tuzatish. Vakansiya va manba o'zgarmaydi.</summary>
 public sealed record UpdateCandidateCommand(
@@ -331,6 +341,20 @@ public sealed class RegisterCandidateCommandHandler
         }
 
         var candidate = registered.Value;
+
+        /*
+          Telegram suhbatining raqami — FAQAT botdan kelgan nomzodda.
+          Busiz rad etish xabarini yuborib bo'lmaydi: bot nomzodni
+          telefon raqami bilan topa olmaydi, u Telegram'da manzil emas.
+
+          Tekshiruv `Source` bo'yicha EMAS, qiymat bo'yicha: manba
+          nomini so'rovda yozib qo'yish oson, chat raqamini esa
+          o'ylab topib bo'lmaydi.
+        */
+        if (command.TelegramChatId is { } chatId)
+        {
+            candidate.SetTelegram(chatId, command.TelegramLanguage);
+        }
 
         // Birinchi bosqich «kutilmoqda» bo'lib ochiladi: anketa tushdi,
         // natija hali yo'q. Shu tufayli nomzod yaratilgan zahoti voronka

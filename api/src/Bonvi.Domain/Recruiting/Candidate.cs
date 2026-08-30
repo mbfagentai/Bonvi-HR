@@ -161,6 +161,64 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Erkin izoh.</summary>
     public string? Note { get; private set; }
 
+    /// <summary>
+    /// Telegram suhbatining raqami — botdan kelgan nomzodda.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nima uchun kerak.</b> Rad etilgan nomzodga javob yozish
+    /// uchun. Busiz bot uni topa olmaydi: telefon raqami Telegram'da
+    /// manzil emas va u orqali xabar yuborib bo'lmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Bo'sh bo'lishi ODATIY hol</b> — HR qo'lda kiritgan nomzodda u
+    /// yo'q. Bunday nomzodga bot xabar yubormaydi va bu xato emas:
+    /// u tizimga Telegram orqali kelmagan, demak u yerda kutmayapti
+    /// ham.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Raqam SHAXSIY ma'lumot emas, lekin manzil.</b> U bilan
+    /// nomzodga istalgan xabarni yuborib bo'ladi — shu sababli u
+    /// ekranda ko'rsatilmaydi va faqat bot xizmat hisobiga beriladi.
+    /// </para>
+    /// </remarks>
+    public long? TelegramChatId { get; private set; }
+
+    /// <summary>
+    /// Nomzod botda tanlagan til: <c>uz-Cyrl</c>, <c>uz-Latn</c>, <c>ru</c>.
+    /// </summary>
+    /// <remarks>
+    /// Javob AYNAN o'sha tilda yozilishi kerak. Tilni taxmin qilish
+    /// («hammaga kirillda yozamiz») ruscha yozgan nomzodga tushunarsiz
+    /// xabar yuborardi — u esa arizasi rad etilgani haqidagi xabar.
+    /// </remarks>
+    public string? TelegramLanguage { get; private set; }
+
+    /// <summary>
+    /// Rad etish haqidagi xabar Telegram'ga QACHON yuborilgani.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Bu — navbat (outbox), oddiy bayroq emas.</b> Bot alohida
+    /// jarayon: API rad etish paytida unga to'g'ridan-to'g'ri xabar
+    /// yubora olmaydi (bot ulanishni O'ZI ochadi, teskarisi emas).
+    /// Shu sababli API faqat FAKTNI yozadi, bot esa «yuborilmaganlar»
+    /// ro'yxatini davriy so'rab turadi.
+    /// </para>
+    /// <para>
+    /// <b>Nega alohida jadval emas.</b> Navbatda bir vaqtda faqat
+    /// rad etilgan va hali xabar olmagan nomzodlar turadi — ular
+    /// o'nlab bo'ladi. Alohida jadval bu ma'lumotni ikkiga bo'lib,
+    /// «nomzod o'chdi, navbatdagi yozuv qoldi» degan holatni
+    /// tug'dirardi.
+    /// </para>
+    /// <para>
+    /// <c>null</c> + <see cref="CandidateStatus.Rejected"/> +
+    /// <see cref="TelegramChatId"/> bor = xabar yuborilishi kerak.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? RejectionNoticeSentAt { get; private set; }
+
     /// <summary>Voronkadan chiqqan sana (rad etilgan / ishga olingan / voz kechgan).</summary>
     public DateOnly? ClosedAt { get; private set; }
 
@@ -355,6 +413,35 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Korxona qarori bilan rad etadi.</summary>
     public Result Reject(DateOnly at, string? reason = null)
         => Close(CandidateStatus.Rejected, at, reason);
+
+    /// <summary>Telegram'dan kelgan nomzodning suhbatini belgilaydi.</summary>
+    /// <remarks>
+    /// Faqat BIR MARTA yoziladi va keyin o'zgarmaydi: ikkinchi ariza
+    /// bergan odamning yozuvi allaqachon bor va uni yangi suhbatga
+    /// ko'chirish eski suhbatdagi javobni yo'qotardi.
+    /// </remarks>
+    public void SetTelegram(long chatId, string? language)
+    {
+        TelegramChatId ??= chatId;
+        TelegramLanguage ??= Trim(language);
+    }
+
+    /// <summary>
+    /// Rad etish xabari yuborilganini belgilaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Xabar HAQIQATAN ketgandan KEYIN chaqiriladi. Teskarisi bo'lsa
+    /// (avval belgilab, keyin yuborish) tarmoq uzilganda nomzod
+    /// javobsiz qolardi va buni hech kim bilmasdi.
+    /// </para>
+    /// <para>
+    /// Ikkinchi marta chaqirilsa hech narsa qilmaydi: navbat
+    /// «kamida bir marta» yuborishga qurilgan va takroriy xabar
+    /// nomzod uchun eng yoqimsiz nosozlik bo'lardi.
+    /// </para>
+    /// </remarks>
+    public void MarkRejectionNoticeSent(DateTimeOffset at) => RejectionNoticeSentAt ??= at;
 
     /// <summary>Nomzod o'zi voz kechdi.</summary>
     public Result Withdraw(DateOnly at, string? reason = null)

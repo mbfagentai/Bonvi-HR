@@ -40,6 +40,21 @@ public sealed record BotTokenResponse(string? Token);
 public sealed record ExistingApplication(DateTimeOffset AppliedAt, string? StageName);
 
 /// <summary>
+/// Rad etilgan, lekin xabarni hali olmagan nomzod.
+/// </summary>
+/// <param name="CandidateId">Xabar ketgach shu bilan belgilanadi.</param>
+/// <param name="ChatId">Telegram suhbati.</param>
+/// <param name="Language">Nomzod tanlagan til: «uz-Cyrl», «uz-Latn», «ru».</param>
+/// <param name="FullName">Nomzodning ismi — xabar unga murojaat bilan boshlanadi.</param>
+/// <param name="VacancyTitle">Qaysi vakansiyaga ariza bergani.</param>
+public sealed record RejectionNotice(
+    Guid CandidateId,
+    long ChatId,
+    string? Language,
+    string FullName,
+    string VacancyTitle);
+
+/// <summary>
 /// Bonvi API bilan ishlaydigan mijoz — bot xizmat hisobi nomidan.
 /// </summary>
 /// <remarks>
@@ -227,6 +242,44 @@ public sealed partial class BonviClient : IDisposable
             .ConfigureAwait(false);
 
     /// <summary>
+    /// Rad etish xabari kutayotgan nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// Odatda BO'SH ro'yxat qaytaradi — bu so'rov halqaning har
+    /// aylanishida takrorlanadi. Javob kelmasa (API yiqilgan) bo'sh
+    /// ro'yxat qaytadi va bot keyingi aylanishda qayta uriniladi:
+    /// nomzodlar navbatda qolaveradi.
+    /// </remarks>
+    public async Task<IReadOnlyList<RejectionNotice>> GetPendingRejectionNoticesAsync(
+        CancellationToken cancellationToken)
+        => await SendAsync<List<RejectionNotice>>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/recruiting/candidates/rejection-notices", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false)
+            ?? [];
+
+    /// <summary>
+    /// Rad etish xabari yuborilganini belgilaydi.
+    /// </summary>
+    /// <remarks>
+    /// Xabar HAQIQATAN ketgandan KEYIN chaqiriladi. Belgilash
+    /// bajarilmasa (tarmoq uzildi), nomzod navbatda qoladi va xabar
+    /// TAKRORLANADI — bu yoqimsiz, lekin javobsiz qoldirishdan
+    /// yaxshiroq va shu sababli tartib aynan shunday.
+    /// </remarks>
+    public async Task<bool> MarkRejectionNoticeSentAsync(Guid candidateId, CancellationToken cancellationToken)
+    {
+        var path = $"api/recruiting/candidates/{candidateId:D}/rejection-notice-sent";
+
+        return await SendNoContentAsync(
+                () => new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Kompaniya logotipining baytlarini oladi.
     /// </summary>
     /// <remarks>
@@ -340,6 +393,8 @@ public sealed partial class BonviClient : IDisposable
         string firstName,
         string? middleName,
         string phone,
+        long chatId,
+        string language,
         CancellationToken cancellationToken)
     {
         var body = new
@@ -353,6 +408,18 @@ public sealed partial class BonviClient : IDisposable
             // «Bot qancha nomzod keltirdi» degan savolning javobi shu
             // maydonda — HR nomzodlar ro'yxatida manba bo'yicha filtrlaydi.
             source = "TelegramBot",
+
+            /*
+              Suhbat raqami va til — nomzod RAD ETILGANDA unga javob
+              yozish uchun. Busiz bot uni topa olmaydi: telefon raqami
+              Telegram'da manzil emas.
+
+              Til ham shu yerda yoziladi, keyin emas: nomzod uni AYNAN
+              shu suhbatda tanlagan va boshqa hech qayerdan bilib
+              bo'lmaydi.
+            */
+            telegramChatId = chatId,
+            telegramLanguage = language,
         };
 
         var created = await SendAsync<JsonElement>(
@@ -376,6 +443,64 @@ public sealed partial class BonviClient : IDisposable
     /// <c>HttpRequestMessage</c> ni ikkinchi marta yuborib bo'lmaydi va
     /// takrorlash uchun uni qaytadan yasash kerak.
     /// </remarks>
+    /// <summary>
+    /// TANASIZ javob qaytaradigan so'rov — muvaffaqiyat holat kodidan.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SendAsync{T}"/> javobni JSON deb o'qiydi, 204 esa
+    /// bo'sh tana bilan keladi va o'qishga urinish ma'nosiz. Qolgan
+    /// qoidalar bir xil: 401 da bir marta qayta kiriladi, tarmoq
+    /// xatosi jurnalga tushadi va <c>false</c> qaytadi.
+    /// </remarks>
+    private async Task<bool> SendNoContentAsync(
+        Func<HttpRequestMessage> request,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                using var message = request();
+
+                if (_accessToken is not null)
+                {
+                    message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                }
+
+                using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
+                {
+                    if (!await SignInAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    LogApiError((int)response.StatusCode, "so'rov bajarilmadi");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LogRequestFailed(ex);
+                return false;
+            }
+        }
+
+        return false;
+    }
+
     private async Task<T?> SendAsync<T>(
         Func<HttpRequestMessage> request,
         CancellationToken cancellationToken)

@@ -211,6 +211,10 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         builder.Property(candidate => candidate.ResumeContentType)
             .HasMaxLength(150);
 
+        // Til kodi: «uz-Cyrl», «uz-Latn», «ru» — eng uzuni 7 belgi.
+        builder.Property(candidate => candidate.TelegramLanguage)
+            .HasMaxLength(16);
+
         // ────────────────────────────────────────────────────────────
         //  Bosqichlar tarixi — nomzod agregatining ICHIDA
         // ────────────────────────────────────────────────────────────
@@ -258,6 +262,21 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         // «Shu vakansiyaning nomzodlari» — vakansiya kartasining asosiy
         // ro'yxati va sanoqlari.
         builder.HasIndex(candidate => new { candidate.VacancyId, candidate.Status });
+
+        /*
+          RAD ETISH XABARI NAVBATI.
+
+          Bot davriy ravishda «rad etilgan, Telegram'i bor, lekin xabar
+          hali yuborilmagan» nomzodlarni so'raydi. Bu so'rov har necha
+          o'n soniyada takrorlanadi va odatda BO'SH javob qaytaradi —
+          indekssiz u har safar butun jadvalni ko'zdan kechirardi.
+
+          Qisman indeks (`WHERE`): navbatda bir vaqtda o'nlab yozuv
+          bo'ladi, jadvalda esa minglab. To'liq indeks o'sha minglab
+          yozuvni ham saqlab, hech qachon ishlatmasdi.
+        */
+        builder.HasIndex(candidate => new { candidate.Status, candidate.RejectionNoticeSentAt })
+            .HasFilter("telegram_chat_id IS NOT NULL AND rejection_notice_sent_at IS NULL");
 
         // Telefon bo'yicha qidiruv — nomzodda JSHSHIR yo'q, shu sababli bu
         // ikkinchi eng muhim kalit. Qisman indeks: raqamsiz yozuvlar bo'ladi.

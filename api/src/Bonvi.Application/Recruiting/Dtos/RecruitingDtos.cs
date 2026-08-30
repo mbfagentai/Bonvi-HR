@@ -89,6 +89,34 @@ public sealed record CandidateStageEntryDto(
     DateTimeOffset RecordedAt);
 
 /// <summary>
+/// Rad etish xabari kutayotgan nomzod — FAQAT bot uchun.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Maydonlar ataylab OZ: bot xabar yozish uchun kimga, qaysi tilda va
+/// qaysi vakansiya haqida yozishini bilishi kifoya. Nomzodning
+/// telefoni, manzili va ichki izohlari bu javobga TUSHMAYDI — bot
+/// ularni hech qayerda ishlatmaydi va ular botning jurnaliga
+/// tushib qolishi mumkin bo'lgan ortiqcha shaxsiy ma'lumot bo'lardi.
+/// </para>
+/// <para>
+/// Ismi esa KERAK: xabar «Hurmatli Каримов Азиз» deb boshlanadi va
+/// nomzod uni o'ziga tegishli deb tanidi.
+/// </para>
+/// </remarks>
+/// <param name="CandidateId">Xabar yuborilgach shu bilan belgilanadi.</param>
+/// <param name="ChatId">Telegram suhbatining raqami.</param>
+/// <param name="Language">Nomzod tanlagan til: <c>uz-Cyrl</c>, <c>uz-Latn</c>, <c>ru</c>.</param>
+/// <param name="FullName">Nomzodning to'liq ismi.</param>
+/// <param name="VacancyTitle">Qaysi vakansiyaga ariza bergani.</param>
+public sealed record RejectionNoticeDto(
+    Guid CandidateId,
+    long ChatId,
+    string? Language,
+    string FullName,
+    string VacancyTitle);
+
+/// <summary>
 /// Nomzodlar ro'yxatining bitta qatori.
 /// </summary>
 /// <remarks>

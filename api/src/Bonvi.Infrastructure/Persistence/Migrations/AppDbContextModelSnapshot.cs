@@ -1811,6 +1811,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("phone");
 
+                    b.Property<DateTimeOffset?>("RejectionNoticeSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejection_notice_sent_at");
+
                     b.Property<string>("ResumeContentType")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
@@ -1841,6 +1845,15 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
+
+                    b.Property<long?>("TelegramChatId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("telegram_chat_id");
+
+                    b.Property<string>("TelegramLanguage")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("telegram_language");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1888,6 +1901,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CurrentStageId", "Status")
                         .HasDatabaseName("ix_candidates_current_stage_id_status");
+
+                    b.HasIndex("Status", "RejectionNoticeSentAt")
+                        .HasDatabaseName("ix_candidates_status_rejection_notice_sent_at")
+                        .HasFilter("telegram_chat_id IS NOT NULL AND rejection_notice_sent_at IS NULL");
 
                     b.HasIndex("VacancyId", "Status")
                         .HasDatabaseName("ix_candidates_vacancy_id_status");

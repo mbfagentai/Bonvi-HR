@@ -35,3 +35,39 @@ public enum BotLanguage
     /// <summary>Русский.</summary>
     Russian = 3,
 }
+
+/// <summary>
+/// Til va tizimdagi kodi orasidagi moslik.
+/// </summary>
+/// <remarks>
+/// Kodlar tizimning qolgan qismidagi bilan AYNAN bir xil
+/// (<c>web/src/shared/i18n</c> dagi fayl nomlari). Bot o'ziga alohida
+/// belgi o'ylab topsa, nomzodning tili bazada boshqa shaklda yotardi
+/// va uni bir kun solishtirish kerak bo'lganda ikkalasini moslashtirish
+/// kerak bo'lardi.
+/// </remarks>
+public static class BotLanguages
+{
+    /// <summary>Tilning tizimdagi kodi.</summary>
+    public static string Code(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "uz-Cyrl",
+        BotLanguage.Russian => "ru",
+        _ => "uz-Latn",
+    };
+
+    /// <summary>
+    /// Kodni tilga qaytaradi. Tanimasa — kirill.
+    /// </summary>
+    /// <remarks>
+    /// Kirill tayanch til: tizimdagi ma'lumotning deyarli hammasi shu
+    /// yozuvda. Noma'lum kod uchun istisno tashlash noto'g'ri bo'lardi —
+    /// nomzod rad etilgani haqidagi xabarni umuman olmay qolardi.
+    /// </remarks>
+    public static BotLanguage Parse(string? code) => code?.Trim() switch
+    {
+        "uz-Latn" => BotLanguage.Latin,
+        "ru" => BotLanguage.Russian,
+        _ => BotLanguage.Cyrillic,
+    };
+}

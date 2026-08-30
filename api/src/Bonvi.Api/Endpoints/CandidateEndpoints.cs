@@ -21,6 +21,8 @@ namespace Bonvi.Api.Endpoints;
 /// <param name="Note">Izoh.</param>
 /// <param name="StageId">Boshlang'ich bosqich. Bo'sh — voronkaning birinchi faol bosqichi.</param>
 /// <param name="Source">Manual (sukut) yoki TelegramBot.</param>
+/// <param name="TelegramChatId">Telegram suhbatining raqami — faqat bot to'ldiradi.</param>
+/// <param name="TelegramLanguage">Nomzod botda tanlagan til.</param>
 public sealed record RegisterCandidateRequest(
     Guid VacancyId,
     string? LastName,
@@ -32,7 +34,16 @@ public sealed record RegisterCandidateRequest(
     string? Speciality = null,
     string? Note = null,
     Guid? StageId = null,
-    CandidateSource Source = CandidateSource.Manual);
+    CandidateSource Source = CandidateSource.Manual,
+
+    /*
+      Telegram suhbatining raqami va nomzod tanlagan til — FAQAT bot
+      to'ldiradi. Ular rad etish xabarini yuborish uchun kerak
+      (`Candidate.TelegramChatId` izohi): busiz bot nomzodni topa
+      olmaydi, telefon raqami esa Telegram'da manzil emas.
+    */
+    long? TelegramChatId = null,
+    string? TelegramLanguage = null);
 
 /// <summary>Nomzod ma'lumotini tuzatish so'rovi tanasi — vakansiya va manba o'zgarmaydi.</summary>
 public sealed record UpdateCandidateRequest(
@@ -183,7 +194,9 @@ public static class CandidateEndpoints
                             request.Speciality,
                             request.Note,
                             request.StageId,
-                            request.Source),
+                            request.Source,
+                            request.TelegramChatId,
+                            request.TelegramLanguage),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -316,6 +329,72 @@ public static class CandidateEndpoints
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        /*
+          ═══════════════════════════════════════════════════════════
+           RAD ETISH XABARINING NAVBATI — FAQAT BOT XIZMAT HISOBIGA.
+
+           ⭐ Nega bu ikkita endpoint umuman bor. Bot alohida jarayon va
+           u API ga O'ZI ulanadi — teskarisi emas. Ya'ni HR nomzodni
+           rad etganda API botga xabar yubora olmaydi: uning botga
+           yo'li yo'q. Shu sababli bot «xabar kutayotganlar» ro'yxatini
+           davriy so'rab turadi.
+
+           ⭐ Nega ROL, ruxsat emas. Javobda nomzodning Telegram
+           MANZILI bor — u bilan istalgan xabarni yuborish mumkin.
+           Bu odam uchun emas, JARAYON uchun ochilgan yo'l va u
+           token endpoint'i bilan bir xil qoidaga bo'ysunadi
+           (`SettingsEndpoints` dagi batafsil izoh).
+          ═══════════════════════════════════════════════════════════
+        */
+        group.MapGet("/rejection-notices", async (
+                int? limit,
+                ListPendingRejectionNoticesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListPendingRejectionNoticesQuery(limit ?? 20), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("ListPendingRejectionNotices")
+            .WithSummary("Rad etish xabari kutayotgan nomzodlar — faqat botga")
+            .WithDescription(
+                "Rad etilgan, Telegram suhbati ma'lum va xabar hali yuborilmagan nomzodlar. " +
+                "Odatda BO'SH ro'yxat qaytadi. Har bir yozuvda faqat xabar yozish uchun " +
+                "kerakli maydonlar bor: nomzod, suhbat raqami, til va vakansiya nomi — " +
+                "telefon, manzil va ichki izohlar bu javobga TUSHMAYDI. Tartib rad etilgan " +
+                "sana bo'yicha: eng uzoq kutgan birinchi javob oladi. «limit» — ko'pi bilan 50.")
+            .Produces<IReadOnlyList<RejectionNoticeDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/{id:guid}/rejection-notice-sent", async (
+                Guid id,
+                MarkRejectionNoticeSentCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new MarkRejectionNoticeSentCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("MarkRejectionNoticeSent")
+            .WithSummary("Rad etish xabari yuborildi — faqat botga")
+            .WithDescription(
+                "Bot xabarni HAQIQATAN yuborgandan KEYIN chaqiradi. IDEMPOTENT: ikkinchi " +
+                "marta chaqirilsa hech narsa o'zgarmaydi va 204 qaytadi — javob yo'qolgan " +
+                "bo'lsa bot so'rovni takrorlashi mumkin. Belgi oldindan qo'yilmaydi: " +
+                "tarmoq uzilganda nomzod javobsiz qolardi va buni hech kim bilmasdi. " +
+                "Xato: «nomzod.topilmadi» (404).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/reject", async (
                 Guid id,

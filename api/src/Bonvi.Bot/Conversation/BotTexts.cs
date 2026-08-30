@@ -298,6 +298,48 @@ public static class BotTexts
         _ => "🌐 Sayt",
     };
 
+    /// <summary>
+    /// Rad etish xabari — nomzodga avtomatik boradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>SABAB YOZILMAYDI</b> (2026-08-31, foydalanuvchi qarori).
+    /// HR rad etishda yozadigan izoh ICHKI maydon: unga «tajribasi
+    /// yetarli emas» kabi baho yoziladi va u nomzodga borishi
+    /// mo'ljallanmagan. Bunday matnni to'g'ridan-to'g'ri yuborish HR
+    /// ni har bir izohni «nomzod o'qiydi» deb yozishga majburlardi va
+    /// izohning ichki qiymatini yo'qotardi.
+    /// </para>
+    /// <para>
+    /// <b>Ohangi ataylab iliq va yopiq.</b> Xabar javobsizlikni
+    /// tugatadi — nomzod kutishdan qutuladi. Oxiridagi taklif esa
+    /// bo'sh muomala emas: MBF doimiy ravishda ishga oladi va
+    /// bugun to'g'ri kelmagan odam olti oydan keyin to'g'ri kelishi
+    /// mumkin.
+    /// </para>
+    /// </remarks>
+    public static string RejectionNotice(BotLanguage language, string fullName, string vacancy) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            $"Ҳурматли {Escape(fullName)},\n\n"
+            + $"«{Escape(vacancy)}» вакансияси бўйича аризангиз кўриб чиқилди. "
+            + "Афсуски, бу сафар сизнинг номзодингиз танланмади.\n\n"
+            + "Вақтингиз ва қизиқишингиз учун раҳмат. Янги иш ўринлари очилганда "
+            + "яна ариза топширишингиз мумкин.",
+        BotLanguage.Russian =>
+            $"Уважаемый(ая) {Escape(fullName)},\n\n"
+            + $"Ваша заявка на вакансию «{Escape(vacancy)}» рассмотрена. "
+            + "К сожалению, в этот раз ваша кандидатура не была выбрана.\n\n"
+            + "Благодарим за уделённое время и интерес к нашей компании. "
+            + "Вы можете подать заявку снова, когда откроются новые вакансии.",
+        _ =>
+            $"Hurmatli {Escape(fullName)},\n\n"
+            + $"«{Escape(vacancy)}» vakansiyasi bo‘yicha arizangiz ko‘rib chiqildi. "
+            + "Afsuski, bu safar sizning nomzodingiz tanlanmadi.\n\n"
+            + "Vaqtingiz va qiziqishingiz uchun rahmat. Yangi ish o‘rinlari ochilganda "
+            + "yana ariza topshirishingiz mumkin.",
+    };
+
     /// <summary>Suhbat unutilgan yoki tushunilmagan xabar.</summary>
     public static string Restart(BotLanguage language) => language switch
     {

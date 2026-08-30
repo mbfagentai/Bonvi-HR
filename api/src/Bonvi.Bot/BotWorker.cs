@@ -74,6 +74,18 @@ public sealed partial class BotWorker : BackgroundService
     [LoggerMessage(EventId = 3206, Level = LogLevel.Information, Message = "Yangi ariza: «{Vacancy}»")]
     private partial void LogApplication(string vacancy);
 
+    [LoggerMessage(
+        EventId = 3210,
+        Level = LogLevel.Information,
+        Message = "Rad etish xabari yuborildi: «{Vacancy}»")]
+    private partial void LogNoticeSent(string vacancy);
+
+    [LoggerMessage(
+        EventId = 3211,
+        Level = LogLevel.Warning,
+        Message = "Rad etish xabarlari yuborilmadi — keyingi aylanishda qayta uriniladi")]
+    private partial void LogNoticesFailed(Exception exception);
+
     /// <summary>Tugma ma'lumotidagi ajratgich: «v:<c>guid</c>».</summary>
     private const string VacancyPrefix = "v:";
 
@@ -272,6 +284,85 @@ public sealed partial class BotWorker : BackgroundService
                     LogExpired(removed);
                 }
             }
+
+            /*
+              RAD ETISH XABARLARI — halqaning shu yerida, yangiliklardan
+              KEYIN.
+
+              Nega alohida taymer emas: `GetUpdatesAsync` uzoq so'rov
+              (long polling) va u aylanishning tezligini o'zi
+              belgilaydi — xabar kelmasa 30 soniya kutadi. Ya'ni bu
+              tekshiruv ham har 30 soniyada bir marta bo'ladi va
+              nomzod javobni yarim daqiqa ichida oladi. Alohida taymer
+              qo'shish ikkita ish jadvalini bir-biriga urishtirardi.
+
+              Xato butun halqani to'xtatmaydi: nomzodlar navbatda
+              qoladi va keyingi aylanishda qayta uriniladi.
+            */
+            try
+            {
+                await SendRejectionNoticesAsync(stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                LogNoticesFailed(ex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rad etilgan nomzodlarga javob yozadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Tartib QAT'IY: avval xabar yuboriladi, KEYIN belgilanadi.
+    /// Teskarisi bo'lsa tarmoq uzilganda nomzod javobsiz qolardi va
+    /// buni hech kim bilmasdi — belgi esa «yuborildi» deb turardi.
+    /// </para>
+    /// <para>
+    /// Aksincha xato ham bor: xabar ketib, belgilash bajarilmasligi
+    /// mumkin. Unda nomzod xabarni IKKI marta oladi. Ikkalasidan
+    /// birini tanlash kerak edi va takroriy xabar javobsiz
+    /// qoldirishdan yaxshiroq.
+    /// </para>
+    /// </remarks>
+    private async Task SendRejectionNoticesAsync(CancellationToken cancellationToken)
+    {
+        var pending = await _bonvi.GetPendingRejectionNoticesAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var notice in pending)
+        {
+            var language = BotLanguages.Parse(notice.Language);
+
+            var sent = await _telegram
+                .SendMessageAsync(
+                    notice.ChatId,
+                    BotTexts.RejectionNotice(language, notice.FullName, notice.VacancyTitle),
+                    menu: BotMenu.Labels(language, hasAbout: false, hasContacts: false),
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!sent)
+            {
+                /*
+                  Nomzod botni BLOKLAGAN bo'lishi mumkin — bu odatiy
+                  hol va u hech qachon tuzalmaydi. Shunga qaramay
+                  belgilanmaydi: «yubordim» deb yozib qo'yish yolg'on
+                  bo'lardi. Bunday yozuv navbatda qolaveradi va u
+                  yerda ko'rinib turadi — bu HR uchun ma'lumot.
+                */
+                continue;
+            }
+
+            await _bonvi
+                .MarkRejectionNoticeSentAsync(notice.CandidateId, cancellationToken)
+                .ConfigureAwait(false);
+
+            LogNoticeSent(notice.VacancyTitle);
         }
     }
 
@@ -542,6 +633,8 @@ public sealed partial class BotWorker : BackgroundService
                 name.FirstName,
                 name.MiddleName,
                 phone,
+                chatId,
+                BotLanguages.Code(state.Language),
                 cancellationToken)
             .ConfigureAwait(false);
 

@@ -1,4 +1,5 @@
 using Bonvi.Application.Recruiting.Abstractions;
+using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
 using Microsoft.EntityFrameworkCore;
@@ -177,6 +178,51 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
     /// sahifa uchun o'qishga majbur qilardi. Ikkala sanoq ham
     /// <c>(vacancy_id, status)</c> indeksiga tushadi.
     /// </remarks>
+    /// <summary>
+    /// Rad etilgan, lekin Telegram xabarini hali olmagan nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Uchta shart birga — aynan shu uchtasi qisman indeks bilan
+    /// qoplangan (<c>RecruitingConfigurations</c>). So'rov har necha
+    /// o'n soniyada takrorlanadi va odatda BO'SH javob qaytaradi,
+    /// shu sababli u arzon bo'lishi shart.
+    /// </para>
+    /// <para>
+    /// Tartib — RAD ETILGAN SANA bo'yicha: eng uzoq kutgan nomzod
+    /// birinchi javob oladi. Bir to'da nomzod birga rad etilsa,
+    /// ular ham kiritilgan tartibda ketadi.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<RejectionNoticeDto>> ListPendingRejectionNoticesAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var rows =
+            from candidate in _context.Candidates.AsNoTracking()
+            where candidate.Status == CandidateStatus.Rejected
+                && candidate.TelegramChatId != null
+                && candidate.RejectionNoticeSentAt == null
+            join vacancy in _context.Vacancies.AsNoTracking()
+                on candidate.VacancyId equals vacancy.Id into vacancyGroup
+            from vacancy in vacancyGroup.DefaultIfEmpty()
+            join title in _context.VacancyTitles.AsNoTracking()
+                on vacancy.VacancyTitleId equals title.Id into titleGroup
+            from title in titleGroup.DefaultIfEmpty()
+            orderby candidate.ClosedAt, candidate.CreatedAt
+            select new RejectionNoticeDto(
+                candidate.Id,
+                candidate.TelegramChatId!.Value,
+                candidate.TelegramLanguage,
+                candidate.FullName.LastName + " " + candidate.FullName.FirstName,
+
+                // Vakansiya o'chirilgan bo'lishi mumkin — xabar baribir
+                // ketishi kerak, nomsiz bo'lsa ham.
+                title.Name ?? string.Empty);
+
+        return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<VacancyPage> ListVacanciesAsync(
         VacancyListFilter filter,
         CancellationToken cancellationToken = default)

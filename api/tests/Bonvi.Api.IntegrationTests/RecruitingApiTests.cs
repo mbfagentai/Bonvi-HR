@@ -116,11 +116,25 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var bosqichlar = await BosqichlarAsync(mijoz);
 
-        bosqichlar.Count.ShouldBeGreaterThanOrEqualTo(6, "urug' fayli oltita bosqich beradi");
+        /*
+          VORONKA UCHTA BOSQICH (2026-08-31, foydalanuvchi qarori).
+
+          Ilgari urug' faylida oltita bosqich bor edi — Jobster'ning
+          voronkasidan olingan. MBF ning haqiqiy jarayoni esa qisqaroq:
+          ariza tushadi, kengash ko'radi, rahbar suhbatlashadi va
+          shundan keyin ishga olinadi yoki rad etiladi. «Телефон
+          суҳбат», «Суҳбат 1» va «Job Offer» ular o'tmaydigan
+          bosqichlar edi va voronka taxtasida doim bo'sh turardi.
+
+          Bosqichlar ekrandan boshqariladi, ya'ni bu son QAT'IY EMAS —
+          test aynan uchtani emas, VORONKANING SHAKLINI qadaydi:
+          anketadan boshlanadi, kengash bor va tartib buzilmagan.
+        */
+        bosqichlar.Count.ShouldBeGreaterThanOrEqualTo(3, "urug' fayli uchta bosqich beradi");
         bosqichlar[0].Name.ShouldBe("Анкета", "voronka anketadan boshlanadi");
         bosqichlar.Select(b => b.SortOrder).ShouldBe(bosqichlar.Select(b => b.SortOrder).Order());
         bosqichlar.ShouldContain(b => b.Name == "Кенгаш", "kengash — oddiy bosqich, alohida mexanizm emas");
-        bosqichlar.ShouldContain(b => b.Name == "Job Offer");
+        bosqichlar.ShouldContain(b => b.Name == "Раҳбар суҳбати", "yakuniy qaror shu yerda");
     }
 
     [Fact]
