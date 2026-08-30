@@ -210,6 +210,30 @@ public sealed class EmployeesStep
 
         Fill(sheet, row, context, employee, pinfl, pinflProblem, passport);
 
+        /*
+          JSHSHIR va pasport `Fill` da o'rnatiladi — ya'ni yuqoridagi
+          `Register` payti xodimda ular hali YO'Q edi va indeksga
+          tushmasdi. Shu sababli aynan shu yerda, to'ldirilgandan KEYIN
+          qayta indekslanadi: keyingi qatorlar bu odamni endi ismi
+          bo'yicha emas, DAVLAT RAQAMI bo'yicha topadi.
+
+          Bu mavjud xodimga ham tegishli: bazada JSHSHIRsiz yotgan
+          yozuv uni Excel'dan olgan bo'lishi mumkin.
+        */
+        _workspace.Employees.IndexIdentifiers(employee);
+
+        /*
+          Qator xodimga JSHSHIR bo'yicha qo'shilgan bo'lishi mumkin,
+          ismi esa boshqacha yozilgan. O'sha yozilish ham indeksga
+          kiritiladi — keyingi varaqlarda («91.3», «91.4») JSHSHIR
+          ustuni yo'q va odam faqat ismi bilan qidiriladi.
+
+          Ism aynan bir xil bo'lsa hech narsa qilmaydi (`IndexAlias`
+          ichidagi tekshiruv), ya'ni shartni bu yerda takrorlash
+          kerak emas.
+        */
+        _workspace.Employees.IndexAlias(employee, fullName);
+
         if (employee.NeedsReview && _flagged.Add(employee.Id))
         {
             summary.NeedsReview++;

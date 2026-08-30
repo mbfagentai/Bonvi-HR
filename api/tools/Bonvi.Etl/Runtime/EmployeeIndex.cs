@@ -75,8 +75,33 @@ public sealed class EmployeeIndex
     /// <summary>Indeksdagi xodimlar soni.</summary>
     public int Count { get; private set; }
 
-    /// <summary>Xodimni indeksga qo'shadi.</summary>
-    public void Add(Employee employee)
+    /// <summary>
+    /// Xodimning JSHSHIR va pasport kalitlarini indeksga qo'shadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega <see cref="Add"/> dan alohida.</b> Yangi xodim ISMDAN
+    /// yaratiladi, JSHSHIR esa undan KEYIN o'rnatiladi
+    /// (<c>EmployeesStep.Fill</c> — qiymatlar bir nechta varaqdan
+    /// yig'iladi). Ya'ni <see cref="Add"/> chaqirilgan payt xodimda
+    /// JSHSHIR hali YO'Q va u indeksga tushmasdi.
+    /// </para>
+    /// <para>
+    /// <b>Buning oqibati haqiqiy edi.</b> Excel'da bir odam bir necha
+    /// qatorda uchraydi va ismi har doim ham bir xil yozilmagan
+    /// («отаси исми» tushib qolgan, imlo boshqacha). Ism bo'yicha
+    /// topilmagan qator YANGI xodim yaratardi, JSHSHIR esa ikkalasida
+    /// bir xil — natijada `ix_employees_pinfl` unikal indeksi buzilib,
+    /// BUTUN ko'chirish yiqilardi. Ya'ni sinfning o'z qoidasi —
+    /// «tartib: JSHSHIR → pasport → ism» — yangi yozuvlar uchun
+    /// umuman ishlamayotgan edi.
+    /// </para>
+    /// <para>
+    /// <c>TryAdd</c>: birinchi egasi kuchda qoladi. Ikkinchisini
+    /// «to'g'rirog'i» deb tanlashning asosi yo'q.
+    /// </para>
+    /// </remarks>
+    public void IndexIdentifiers(Employee employee)
     {
         ArgumentNullException.ThrowIfNull(employee);
 
@@ -89,6 +114,14 @@ public sealed class EmployeeIndex
         {
             _ = _byPassport.TryAdd(passport.Value, employee);
         }
+    }
+
+    /// <summary>Xodimni indeksga qo'shadi.</summary>
+    public void Add(Employee employee)
+    {
+        ArgumentNullException.ThrowIfNull(employee);
+
+        IndexIdentifiers(employee);
 
         var nameKey = NameKey(employee.FullName);
         if (!_byName.TryGetValue(nameKey, out var list))
@@ -108,6 +141,55 @@ public sealed class EmployeeIndex
 
         sameShort.Add(employee);
         Count++;
+    }
+
+    /// <summary>
+    /// Xodimni QO'SHIMCHA ism yozilishi bilan ham topiladigan qiladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega kerak.</b> Excel'da bir odamning ismi har doim bir xil
+    /// yozilmagan: otasining ismi tushib qolgan, imlo boshqacha,
+    /// harflar almashgan. JSHSHIR bo'yicha qo'shilgan qator
+    /// xodimning YOZUVini to'ldiradi, lekin uning ismi o'zgarmaydi —
+    /// natijada keyingi varaqlar («91.3», «91.4» — u yerda JSHSHIR
+    /// ustuni yo'q) o'sha ikkinchi yozilishni ism bo'yicha izlaydi va
+    /// TOPMAYDI. Ilgari bu sezilmasdi, chunki ikkinchi yozilish o'ziga
+    /// alohida xodim yaratib olardi — ya'ni muammo ikkilanish narxiga
+    /// «hal qilingan» edi.
+    /// </para>
+    /// <para>
+    /// <b>Xodimlar soni oshmaydi.</b> <see cref="Count"/> ga tegilmaydi:
+    /// bu bitta odamning ikkinchi NOMI, ikkinchi odam emas.
+    /// </para>
+    /// <para>
+    /// Ro'yxatda allaqachon bo'lsa qayta qo'shilmaydi — aks holda
+    /// bitta odam «bir xil ismli ikkita xodim» bo'lib ko'rinib,
+    /// <see cref="EmployeeMatchKind.Ambiguous"/> bergan bo'lardi va
+    /// ETL uni umuman tanlamay qo'yardi.
+    /// </para>
+    /// </remarks>
+    public void IndexAlias(Employee employee, FullName name)
+    {
+        ArgumentNullException.ThrowIfNull(employee);
+        ArgumentNullException.ThrowIfNull(name);
+
+        AddAlias(_byName, NameKey(name), employee);
+        AddAlias(_byShortName, ShortKey(name), employee);
+    }
+
+    private static void AddAlias(Dictionary<string, List<Employee>> index, string key, Employee employee)
+    {
+        if (!index.TryGetValue(key, out var list))
+        {
+            list = [];
+            index[key] = list;
+        }
+
+        if (!list.Contains(employee))
+        {
+            list.Add(employee);
+        }
     }
 
     /// <summary>
