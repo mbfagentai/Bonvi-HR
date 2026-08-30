@@ -28,6 +28,28 @@ public sealed class BootstrapOptions
     /// </summary>
     public bool AutoMigrate { get; set; }
 
+    /// <summary>Telegram anketa boti hisobining telefon raqami.</summary>
+    /// <remarks>
+    /// <para>
+    /// Bu ODAM emas, xizmat hisobi: bot uning nomidan API ga kirib nomzod
+    /// yozadi. Login telefon raqami bo'lishi shart, chunki tizimda
+    /// identifikator shu (<c>User.Login</c>) — kompaniyaning ishlatilmayotgan
+    /// raqamini bering.
+    /// </para>
+    /// <para>
+    /// Ikkalasi (<c>BotLogin</c> va <c>BotPassword</c>) berilmasa hisob
+    /// UMUMAN yaratilmaydi va bot ishga tushmaydi. Bu ataylab: sukut bo'yicha
+    /// parol qo'yish — eng oson unutiladigan xavf.
+    /// </para>
+    /// </remarks>
+    public string? BotLogin { get; set; }
+
+    /// <summary>Telegram anketa boti hisobining paroli.</summary>
+    public string? BotPassword { get; set; }
+
+    /// <summary>Bot hisobining ekranda ko'rinadigan nomi.</summary>
+    public string BotFullName { get; set; } = "Telegram bot";
+
     /// <summary>
     /// HR menejeri uchun sinov hisobini yaratish.
     /// </summary>
@@ -100,6 +122,18 @@ public sealed partial class DatabaseInitializer : IHostedService
         Message = "SINOV hisobi yaratildi (faqat development): {Login} — {Role}")]
     private partial void LogDevUserCreated(string login, string role);
 
+    [LoggerMessage(
+        EventId = 2006,
+        Level = LogLevel.Information,
+        Message = "Telegram bot hisobi yaratildi: {Login}")]
+    private partial void LogBotUserCreated(string login);
+
+    [LoggerMessage(
+        EventId = 2007,
+        Level = LogLevel.Warning,
+        Message = "Telegram bot hisobi yaratilmadi: {Reason}")]
+    private partial void LogBotUserSkipped(string reason);
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
@@ -145,6 +179,9 @@ public sealed partial class DatabaseInitializer : IHostedService
 
         // ---------- Birinchi administrator ----------
         await CreateFirstAdminAsync(provider, options, cancellationToken).ConfigureAwait(false);
+
+        // ---------- Telegram bot hisobi ----------
+        await CreateBotUserAsync(provider, options, cancellationToken).ConfigureAwait(false);
 
         // ---------- Sinov hisoblari (faqat Development) ----------
         if (options.CreateDevUsers && _environment.IsDevelopment())
@@ -238,6 +275,97 @@ public sealed partial class DatabaseInitializer : IHostedService
                 .SaveChangesAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Telegram anketa boti uchun xizmat hisobini yaratadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega alohida hisob, administratornikini ishlatmasdan.</b> Bot
+    /// tokeni Telegram serverlariga chiqadi va sizib ketishi mumkin
+    /// bo'lgan yagona sir. Uning ortidagi hisob eng kam huquqli bo'lishi
+    /// kerak: <c>recruiting_bot</c> roli faqat ochiq vakansiyalarni o'qiy
+    /// oladi va nomzod yoza oladi. Eng yomon holatda soxta nomzod paydo
+    /// bo'ladi, xodimlar bazasi esa tegilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Mavjud hisobga TEGILMAYDI.</b> Birinchi administrator bilan bir
+    /// xil qoida: aks holda har qayta ishga tushishda parol tiklanib,
+    /// uni o'zgartirishning ma'nosi qolmasdi.
+    /// </para>
+    /// <para>
+    /// Sozlama bo'lmasa jimgina o'tkazib yuborilmaydi — ogohlantirish
+    /// yoziladi, chunki «bot ishlamayapti» degan savolning javobi aynan
+    /// shu qatordan boshlanadi.
+    /// </para>
+    /// </remarks>
+    private async Task CreateBotUserAsync(
+        IServiceProvider provider,
+        BootstrapOptions options,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(options.BotLogin) || string.IsNullOrWhiteSpace(options.BotPassword))
+        {
+            LogBotUserSkipped("«Bootstrap:BotLogin» yoki «Bootstrap:BotPassword» berilmagan");
+            return;
+        }
+
+        var phone = PhoneNumber.Create(options.BotLogin);
+        if (phone.IsFailure)
+        {
+            LogBotUserSkipped($"telefon raqami noto'g'ri: {options.BotLogin}");
+            return;
+        }
+
+        var context = provider.GetRequiredService<AppDbContext>();
+
+        // `IgnoreQueryFilters` — o'chirilgan hisob ham hisobga olinadi:
+        // aks holda uni qayta yaratishga urinib, unikal indeksga urilardik.
+        var exists = await context.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.Login == phone.Value, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (exists)
+        {
+            return;
+        }
+
+        var role = await context.Roles
+            .FirstOrDefaultAsync(r => r.Code == SystemRoles.RecruitingBot, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (role is null)
+        {
+            LogBotUserSkipped($"«{SystemRoles.RecruitingBot}» roli topilmadi");
+            return;
+        }
+
+        var fullName = FullName.Parse(options.BotFullName);
+        if (fullName.IsFailure)
+        {
+            LogBotUserSkipped($"nom noto'g'ri: {options.BotFullName}");
+            return;
+        }
+
+        var hasher = provider.GetRequiredService<IPasswordHasher>();
+        var user = User.Create(phone.Value, hasher.Hash(options.BotPassword), fullName.Value);
+
+        if (user.IsFailure)
+        {
+            LogBotUserSkipped(user.Error.Message);
+            return;
+        }
+
+        user.Value.SetRole(role.Id);
+        context.Users.Add(user.Value);
+
+        await provider.GetRequiredService<IUnitOfWork>()
+            .SaveChangesAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        LogBotUserCreated(phone.Value.Value);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

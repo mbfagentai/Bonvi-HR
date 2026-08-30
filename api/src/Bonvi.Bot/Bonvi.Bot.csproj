@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <!--
+    ═══════════════════════════════════════════════════════════
+     TELEGRAM ANKETA BOTI — alohida jarayon
+     Nomzod botga yozadi, bot esa API ga nomzod qo'shadi.
+
+     ⚠️ QOIDA: bu loyihada BOSHQA LOYIHAGA HAVOLA YO'Q.
+     Bot na `Domain`, na `Application`, na `Infrastructure` ni
+     ko'radi — u bazaga umuman tegmaydi va faqat ikkita HTTP
+     API bilan gaplashadi: `api.telegram.org` va Bonvi API.
+
+     Nega shunday: bot tokeni Telegram serverlariga chiqadigan
+     sir va sizib ketishi mumkin bo'lgan yagona joy. Uning
+     ortidagi jarayonda baza ulanishi BO'LMASA, eng yomon
+     holatda ham u API ruxsat bergan narsadan ortig'ini qila
+     olmaydi — `recruiting_bot` roli esa atigi ikkita ruxsatga
+     ega. Bir vaqtning o'zida bu «boshqa qismlarga zarar
+     bermasin» talabining eng qat'iy shakli: bot yiqilsa yoki
+     buzilsa, HR tizimida hech narsa o'zgarmaydi.
+    ═══════════════════════════════════════════════════════════
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Bonvi.Bot</RootNamespace>
+    <AssemblyName>bonvi-bot</AssemblyName>
+    <UserSecretsId>bonvi-hr-bot</UserSecretsId>
+
+    <!--
+      CA1031 — umumiy `catch (Exception)`. Ataylab: bitta suhbatdagi
+      xato butun botni to'xtatmasligi kerak. Xato jurnalga yoziladi,
+      so'rov halqasi davom etadi.
+    -->
+    <NoWarn>$(NoWarn);CA1031</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    UCHINCHI TARAF paketi yo'q — faqat platformaning o'z kengaytmalari.
+
+    Telegram uchun tayyor kutubxona (`Telegram.Bot`) ATAYLAB olinmadi:
+    botga atigi to'rtta chaqiruv kerak (`getUpdates`, `sendMessage`,
+    `answerCallbackQuery`, `getMe`) va ular uchun butun kutubxonani
+    bog'liqlikka qo'shish loyihaning uslubiga zid (MinIO, Sentry va
+    Hangfire ham shu sababdan rad etilgan). Qolgani `HttpClient` va
+    `System.Text.Json` — ikkalasi ham platformada bor.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+  </ItemGroup>
+
+</Project>

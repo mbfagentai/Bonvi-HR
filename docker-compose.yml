@@ -97,6 +97,12 @@ services:
       Bootstrap__AdminLogin: ${BOOTSTRAP__ADMINLOGIN:-}
       Bootstrap__AdminPassword: ${BOOTSTRAP__ADMINPASSWORD:-}
       Bootstrap__AdminFullName: ${BOOTSTRAP__ADMINFULLNAME:-Bosh administrator}
+      # Telegram anketa boti uchun XIZMAT hisobi. Ikkalasi berilmasa
+      # hisob yaratilmaydi va bot ishga tushmaydi (izohi
+      # `DatabaseInitializer.CreateBotUserAsync` da).
+      Bootstrap__BotLogin: ${BOOTSTRAP__BOTLOGIN:-}
+      Bootstrap__BotPassword: ${BOOTSTRAP__BOTPASSWORD:-}
+      Bootstrap__BotFullName: ${BOOTSTRAP__BOTFULLNAME:-Telegram bot}
       # Har bir rol uchun sinov hisobi. FAQAT development'da ishlaydi —
       # boshqa muhitda bu bayroq e'tiborga olinmaydi.
       Bootstrap__CreateDevUsers: ${BOOTSTRAP__CREATEDEVUSERS:-true}
@@ -136,6 +142,50 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
+    networks: [bonvi]
+
+  # ----------------------------------------------------------
+  #  Telegram anketa boti
+  #
+  #  PORT YO'Q va bu ataylab: bot Telegram'ga long polling bilan
+  #  ULANADI, ya'ni faqat CHIQUVCHI ulanish ishlatadi. Webhook
+  #  tashqaridan kiradigan ochiq manzil, sertifikat va yangi hujum
+  #  yuzasini talab qilardi — bu mashinada esa portlar allaqachon band.
+  #
+  #  Bot HR tizimiga BEVOSITA TEGMAYDI: bazaga ulanmaydi va faqat API
+  #  bilan `recruiting_bot` rolining ikkita ruxsati doirasida gaplashadi.
+  #  Shu sababli u yiqilsa ham, buzilsa ham HR tizimida hech narsa
+  #  o'zgarmaydi.
+  #
+  #  Token berilmasa konteyner ishga tushadi, lekin bot o'zini
+  #  to'xtatadi va sababni jurnalga yozadi.
+  # ----------------------------------------------------------
+  bot:
+    image: mcr.microsoft.com/dotnet/sdk:10.0.400
+    container_name: bot
+    restart: unless-stopped
+    working_dir: /src
+    command: >
+      dotnet watch run
+        --project src/Bonvi.Bot/Bonvi.Bot.csproj
+        --no-launch-profile
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      Bot__Token: ${TELEGRAM__BOTTOKEN:-}
+      Bot__ApiBaseUrl: http://api:8080
+      # Bot API ga aynan shu hisob bilan kiradi — `Bootstrap__Bot*` bilan
+      # BIR XIL bo'lishi shart, aks holda kirish 401 bilan rad etiladi.
+      Bot__Login: ${BOOTSTRAP__BOTLOGIN:-}
+      Bot__Password: ${BOOTSTRAP__BOTPASSWORD:-}
+      Bot__PollTimeoutSeconds: ${TELEGRAM__POLLTIMEOUT:-30}
+      Bot__ConversationTimeoutMinutes: ${TELEGRAM__CONVERSATIONTIMEOUT:-60}
+    volumes:
+      - ./api:/src
+      - nuget-cache:/root/.nuget/packages
+      - api-artifacts:/src/artifacts
+    depends_on:
+      api: { condition: service_started }
     networks: [bonvi]
 
   # ----------------------------------------------------------

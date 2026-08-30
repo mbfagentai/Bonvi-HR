@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Telegram anketa botining SOF mantig'i.
+
+    Tarmoqsiz ishlaydi: F.I.Sh. ajratish va suhbat holati Telegram'dan
+    ham, API dan ham mustaqil yozilgan — aynan shu narsa ularni haqiqiy
+    bot va haqiqiy server kutmasdan tekshirish imkonini beradi
+    (`Bonvi.Etl.Tests` dagi bilan bir xil fikr).
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.Bot.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bonvi.Bot\Bonvi.Bot.csproj" />
+  </ItemGroup>
+
+</Project>

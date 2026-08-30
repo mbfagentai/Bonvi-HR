@@ -189,6 +189,31 @@ public static class SystemRoles
     public const string HrManager = "hr_manager";
 
     /// <summary>
+    /// Telegram anketa boti — ODAM EMAS, xizmat hisobi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Botga atigi IKKITA ruxsat beriladi: ochiq vakansiyalarni o'qish va
+    /// nomzod yozish. Boshqa hech narsa — u xodimni ko'ra olmaydi,
+    /// o'chira olmaydi, oklad va belgilarga umuman yeta olmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Nega HR menejeri roli berilmadi.</b> Bot tokeni Telegram
+    /// serverlariga chiqadigan sir va u sizib ketishi mumkin bo'lgan
+    /// yagona hisob. Undan foydalangan odam nima qila olishi ANIQ
+    /// chegaralangan bo'lishi kerak: eng yomon holatda u soxta nomzod
+    /// yozadi, xodimlar bazasiga esa tegmaydi. HR menejeri roli bilan u
+    /// xodim o'chira olardi.
+    /// </para>
+    /// <para>
+    /// Rol <see cref="SingleHolder"/> ga KIRMAYDI: kelajakda ikkinchi bot
+    /// (masalan boshqa til yoki boshqa kanal uchun) qo'shilishi mumkin va
+    /// bu cheklov faqat rahbariyat lavozimlari uchun ma'noli.
+    /// </para>
+    /// </remarks>
+    public const string RecruitingBot = "recruiting_bot";
+
+    /// <summary>
     /// Eski (uch rolli modelga o'tishdan oldingi) administrator roli kodi.
     /// </summary>
     /// <remarks>
@@ -258,6 +283,13 @@ public static class SystemRoles
                 Permissions.CatalogView, Permissions.CatalogManage,
                 Permissions.ReportsView, Permissions.ReportsExport,
                 Permissions.AuditView,
+            ]),
+
+            [RecruitingBot] = ("Telegram bot",
+            [
+                // Ochiq vakansiyalarni o'qish va nomzod yozish — boshqa
+                // hech narsa (izohi `RecruitingBot` da).
+                Permissions.RecruitingView, Permissions.RecruitingManage,
             ]),
         };
 }

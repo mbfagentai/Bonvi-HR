@@ -153,15 +153,52 @@ public sealed class RoleTests
         ruxsatlar.Length.ShouldBe(Permissions.All.Count);
     }
 
+    /// <summary>
+    /// Uchta ODAM roli va bitta XIZMAT roli — boshqasi yo'q.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Xodimlar tizimga kirmaydi: undan faqat HR menejerlari (bir necha
+    /// kishi), bosh rahbar va super administrator foydalanadi.
+    /// Ishlatilmaydigan rol yaratilmaydi.
+    /// </para>
+    /// <para>
+    /// <see cref="SystemRoles.RecruitingBot"/> — istisno emas, BOSHQA
+    /// TOIFA: uning ortida odam turmaydi, Telegram anketa boti turadi.
+    /// Unga alohida rol aynan shuning uchun kerak — bot HR menejeri
+    /// huquqlari bilan ishlasa, tokeni sizib ketganda xodimlar bazasi
+    /// ochilib qolardi.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public void Faqat_uchta_rol_mavjud()
+    public void Uchta_odam_va_bitta_xizmat_roli_mavjud()
     {
-        // Xodimlar tizimga kirmaydi — undan faqat HR menejerlari (bir necha
-        // kishi), bosh rahbar va super administrator foydalanadi.
-        // Ishlatilmaydigan rol yaratilmaydi.
-        SystemRoles.Defaults.Count.ShouldBe(3);
         SystemRoles.Defaults.Keys.ShouldBe(
-            [SystemRoles.SuperAdmin, SystemRoles.MainBoss, SystemRoles.HrManager],
+            [
+                SystemRoles.SuperAdmin,
+                SystemRoles.MainBoss,
+                SystemRoles.HrManager,
+                SystemRoles.RecruitingBot,
+            ],
+            ignoreOrder: true);
+    }
+
+    /// <summary>
+    /// Bot roli ATIGI ikkita ruxsatga ega.
+    /// </summary>
+    /// <remarks>
+    /// Bu test qasddan qat'iy: rolga yangi ruxsat qo'shilsa u YIQILADI va
+    /// qo'shuvchi odam «bu botga haqiqatan kerakmi?» degan savolga javob
+    /// berishga majbur bo'ladi. Xizmat hisobining huquqlari sezilmay
+    /// o'sishi — sirning qiymatini oshiradigan eng keng tarqalgan yo'l.
+    /// </remarks>
+    [Fact]
+    public void Bot_roli_faqat_rekrutingga_yetadi()
+    {
+        var (_, ruxsatlar) = SystemRoles.Defaults[SystemRoles.RecruitingBot];
+
+        ruxsatlar.ShouldBe(
+            [Permissions.RecruitingView, Permissions.RecruitingManage],
             ignoreOrder: true);
     }
 

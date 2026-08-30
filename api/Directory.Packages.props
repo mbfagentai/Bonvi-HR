@@ -32,6 +32,14 @@
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <!--
+      Telegram boti uchun (`Bonvi.Bot`). `Microsoft.NET.Sdk.Worker` ularni
+      odatda O'ZI qo'shadi, lekin markazlashgan versiya boshqaruvida
+      (`ManagePackageVersionsCentrally`) yashirin havolalar versiyasiz
+      qolib, yig'ilish yiqiladi — shu sababli ochiq e'lon qilingan.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup Label="Validatsiya va mapping">
