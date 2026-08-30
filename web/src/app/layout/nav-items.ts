@@ -19,6 +19,7 @@ import {
   MessageSquareQuote,
   Network,
   ShieldAlert,
+  SlidersHorizontal,
   ThumbsUp,
   Timer,
   UserCog,
@@ -297,6 +298,26 @@ export const NAV: NavSection[] = [
     key: 'sectionSystem',
     items: [
       { key: 'users', to: '/foydalanuvchilar', icon: UserCog, permission: 'users.manage' },
+      /*
+        Tizim sozlamalari — bot matni va bildirishnoma chegaralari.
+
+        NEGA ALOHIDA BAND, shaxsiy sozlamalar oynasining bo'limi emas:
+        u oyna «MENING hisobim» (rasm, til, mavzu, chiqish), bu yerdagi
+        qiymatlar esa BUTUN tizimga — boshqa foydalanuvchilarga va nomzod
+        ko'radigan bot matniga — ta'sir qiladi. Ikkalasi bir joyda
+        turganda sozlama amalda yashirin bo'lib qolgandi.
+
+        NEGA aynan `sectionSystem`: `/foydalanuvchilar` bilan bitta savolga
+        javob beradi — tizimning o'zi qanday ishlaydi. Ikkalasining ruxsati
+        ham boshqalardan qattiqroq.
+
+        `permission` `soon` kabi «o'chiq ko'rinish» EMAS (maydon izohiga
+        qarang): `GET /api/settings` ham `settings.manage` bilan
+        himoyalangan, ya'ni bosh rahbar ham bu ro'yxatni SERVERDAN OLA
+        OLMAYDI.
+      */
+      { key: 'systemSettings', to: '/sozlamalar', icon: SlidersHorizontal,
+        permission: 'settings.manage' },
     ],
   },
 ]

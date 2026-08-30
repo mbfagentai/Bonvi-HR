@@ -23,6 +23,7 @@ import { Route as AppQoraRoyxatRouteImport } from './routes/_app/qora-royxat'
 import { Route as AppRagbatRouteImport } from './routes/_app/ragbat'
 import { Route as AppRezervRouteImport } from './routes/_app/rezerv'
 import { Route as AppSinovRouteImport } from './routes/_app/sinov'
+import { Route as AppSozlamalarRouteImport } from './routes/_app/sozlamalar'
 import { Route as AppVakansiyalarRouteImport } from './routes/_app/vakansiyalar'
 import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/malumotnomalar/bolimlar'
 import { Route as AppMalumotnomalarBosqichlarRouteImport } from './routes/_app/malumotnomalar/bosqichlar'
@@ -106,6 +107,11 @@ const AppRezervRoute = AppRezervRouteImport.update({
 const AppSinovRoute = AppSinovRouteImport.update({
   id: '/sinov',
   path: '/sinov',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSozlamalarRoute = AppSozlamalarRouteImport.update({
+  id: '/sozlamalar',
+  path: '/sozlamalar',
   getParentRoute: () => AppRoute,
 } as any)
 const AppVakansiyalarRoute = AppVakansiyalarRouteImport.update({
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/ragbat': typeof AppRagbatRoute
   '/rezerv': typeof AppRezervRoute
   '/sinov': typeof AppSinovRoute
+  '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/malumotnomalar/bosqichlar': typeof AppMalumotnomalarBosqichlarRoute
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/ragbat': typeof AppRagbatRoute
   '/rezerv': typeof AppRezervRoute
   '/sinov': typeof AppSinovRoute
+  '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/': typeof AppIndexRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
@@ -269,6 +277,7 @@ export interface FileRoutesById {
   '/_app/ragbat': typeof AppRagbatRoute
   '/_app/rezerv': typeof AppRezervRoute
   '/_app/sinov': typeof AppSinovRoute
+  '/_app/sozlamalar': typeof AppSozlamalarRoute
   '/_app/vakansiyalar': typeof AppVakansiyalarRoute
   '/_app/': typeof AppIndexRoute
   '/_app/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
@@ -302,6 +311,7 @@ export interface FileRouteTypes {
     | '/ragbat'
     | '/rezerv'
     | '/sinov'
+    | '/sozlamalar'
     | '/vakansiyalar'
     | '/malumotnomalar/bolimlar'
     | '/malumotnomalar/bosqichlar'
@@ -331,6 +341,7 @@ export interface FileRouteTypes {
     | '/ragbat'
     | '/rezerv'
     | '/sinov'
+    | '/sozlamalar'
     | '/vakansiyalar'
     | '/'
     | '/malumotnomalar/bolimlar'
@@ -362,6 +373,7 @@ export interface FileRouteTypes {
     | '/_app/ragbat'
     | '/_app/rezerv'
     | '/_app/sinov'
+    | '/_app/sozlamalar'
     | '/_app/vakansiyalar'
     | '/_app/'
     | '/_app/malumotnomalar/bolimlar'
@@ -485,6 +497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSinovRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sozlamalar': {
+      id: '/_app/sozlamalar'
+      path: '/sozlamalar'
+      fullPath: '/sozlamalar'
+      preLoaderRoute: typeof AppSozlamalarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/vakansiyalar': {
       id: '/_app/vakansiyalar'
       path: '/vakansiyalar'
@@ -605,6 +624,7 @@ interface AppRouteChildren {
   AppRagbatRoute: typeof AppRagbatRoute
   AppRezervRoute: typeof AppRezervRoute
   AppSinovRoute: typeof AppSinovRoute
+  AppSozlamalarRoute: typeof AppSozlamalarRoute
   AppVakansiyalarRoute: typeof AppVakansiyalarRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMalumotnomalarBolimlarRoute: typeof AppMalumotnomalarBolimlarRoute
@@ -635,6 +655,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRagbatRoute: AppRagbatRoute,
   AppRezervRoute: AppRezervRoute,
   AppSinovRoute: AppSinovRoute,
+  AppSozlamalarRoute: AppSozlamalarRoute,
   AppVakansiyalarRoute: AppVakansiyalarRoute,
   AppIndexRoute: AppIndexRoute,
   AppMalumotnomalarBolimlarRoute: AppMalumotnomalarBolimlarRoute,
