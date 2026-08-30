@@ -1010,11 +1010,21 @@ bitta bandga sig'dirib bo'lmaydi.
    `/hisobotlar` sahifasidagi kadrlar oqimi grafigida ishlaydi. Ranglar
    CSS o'zgaruvchisi orqali beriladi, ya'ni mavzu almashganda grafik ham
    almashadi (`getComputedStyle` nega rad etilganini kod izohi tushuntiradi).
-5. **Ma'lumot hali ko'chirilmagan.** Bu dasturchi xavfi emas, lekin eng
-   kattasi: `./bonvi etl --apply` hali ishga tushirilmagan va bazada atigi
-   59 xodim bor. Butun tizim haqiqiy hajmda (2347 xodim, 3527 hodisa)
-   sinalmagan — sahifalash, qidiruv tezligi va eksport hajmi shu paytgacha
-   kichik ma'lumotda tekshirilgan.
+5. ✅ **Ma'lumot ko'chirildi (2026-08-30) — XAVF YO'QOLDI.**
+   `./bonvi etl --apply` bajarildi. Bazada endi **2208 xodim**,
+   2446 mehnat munosabati, 7761 hodisa, 1342 sinov muddati, 42 belgi va
+   43 qobiliyat profili bor.
+
+   Ko'chirish birinchi urinishda YIQILDI va bu haqiqiy xatoni ochdi:
+   JSHSHIR indeksga xodim yaratilgandan keyin qo'yilar edi, ya'ni
+   takrorlanishni topish qoidasi yangi yozuvlar uchun ishlamasdi
+   (`e5a1e558`). Tuzatilgach 154 ta soxta ikkilanish yo'qoldi va
+   tekshirish kerak bo'lgan yozuvlar 3823 dan 3576 ga tushdi.
+
+   Haqiqiy hajmda o'lchandi (barchasi lokal, API):
+   xodimlar ro'yxati 40-sahifa 17ms, qidiruv 41ms, bosh sahifa 17ms,
+   kadrlar oqimi 61ms, Excel eksport 0.84s / 220 KB. Zaxira
+   `--apply` dan OLDIN olingan: stamp `2026-08-30_180118`.
 
 ---
 
@@ -1070,6 +1080,14 @@ Bular ishni to'xtatmaydi — oqilona standart bilan boshlanadi, javob kelganda t
 band — exit interview'ning ommaviy havolasi va u ATAYLAB qoldirilgan
 (S9 dagi izohga qarang).
 
+> ⚠️ **2-BOSQICH BOSHLANDI, LEKIN BU HUJJATDA REJASI YO'Q.** 28-avgustdan
+> beri qurildi: rekruting yadrosi, vakansiya/nomzod/voronka/taklif
+> ekranlari, taklif qabul qilinganda nomzodning xodimga aylanishi,
+> Telegram anketa boti, jonli bildirishnomalar va tizim sozlamalari.
+> Ya'ni 8-bo'limdagi voronka amalda ishlaydi, lekin 2-bosqich uchun
+> S-qadamlar ro'yxati yozilmagan va «nima qoldi» degan savolga bu
+> hujjat javob bermaydi. **Keyingi ish — o'sha ro'yxatni tuzish.**
+
 Qurilgan poydevor:
 
 ```
@@ -1108,11 +1126,13 @@ dev muhitida atigi 59 xodim yozuvi bor.
 Kod tomonidan 1-bosqich yopiq. Qolgan uchta ish TASHKILIY va ular
 foydalanuvchining qaroriga bog'liq:
 
-1. **ETL ni haqiqatan ishga tushirish.** Avval hisobot ko'rib chiqiladi
-   (`data/etl-report.csv` — eng muhimi: 1540 xodimda JSHSHIR yo'q, 99
-   odamda otasining ismi bog'lanmagan, `unmapped`dagi 109 qiymat, S2
-   bo'limidagi «Tozalash natijasi»ga qarang), shundan keyin
-   `./bonvi etl --apply`. Bu qadamdan keyin tizim haqiqiy hajmda ishlaydi.
+1. ✅ **ETL bajarildi (2026-08-30).** Tizim endi haqiqiy hajmda
+   ishlaydi (Xavflar bo'limi, 5-band). QOLGAN ISH — `data/etl-report.csv`
+   dagi **3576 yozuvni HR ko'rib chiqishi**: 1448 xodimda JSHSHIR yo'q,
+   408 pasport o'qilmadi, 327 qatorda sudlanganlik ustunida son turibdi,
+   152 yuridik shaxs ma'lumotnomada yo'q. Bular ko'chirishni to'xtatmadi
+   — yozuvlar «tekshirish kerak» belgisi bilan kirdi va ekranda shu
+   belgi bo'yicha filtr bor.
 2. **Haqiqiy serverga chiqarish** va u yerda ikkita narsani BIR MARTA
    tekshirish: zaxirani tiklab ko'rish (sinalmagan zaxira zaxira emas) va
    `mkdir -p ./logs && chown 2000:2000 ./logs` (S11 dagi izoh).
@@ -1122,23 +1142,34 @@ foydalanuvchining qaroriga bog'liq:
 Shundan keyin **2-bosqich (rekruting)** boshlanadi — yon menyuda uning
 yo'l xaritasi allaqachon o'chiq holda turibdi.
 
-### Hal qilinishi kerak bo'lgan ikkita texnik qarz
+### Hal qilinishi kerak bo'lgan texnik qarz
 
-Ikkalasi ham 1-bosqichni to'sib turmaydi, lekin unutilmasligi kerak:
+Hech biri ishni to'sib turmaydi, lekin unutilmasligi kerak:
 
-1. **`EtlWorkspace.IsFactoryRoot` — o'lik shart.** U hamon eski
-   ma'lumotnoma KODLARI bilan solishtiradi (`metan-zavod`,
-   `velo-union-zavod`, `rispetto-zavod`, `kokand-bicycles-zavod`), kodlar
-   esa ma'lumotnomalardan olib tashlangan. Ya'ni «zavod darajasidagi bo'lim
-   o'rniga aniqroq blok sarlavhasi olinsin» qoidasi ISHLAMAYAPTI va bu
-   xodimlarning bo'limga biriktirilishiga ta'sir qiladi. Tuzatish uchun
-   eski kod → yangi nom moslamasi kerak: `metan-zavod` → «Метан завод»
-   aniq, lekin `kokand-bicycles-zavod` qaysi biriga tegishli ekani
-   NOANIQ («Скутер заводи» yoki «Риспетто велосипед заводи»). **Buni
-   `--apply` dan OLDIN hal qilish kerak.**
-2. **Qo'lda yozilgan API klientlari.** `web/src/features/*/api/*-api.ts`
-   fayllari hamon qo'lda yozilgan, holbuki OpenAPI to'liq va `./bonvi gen`
-   ishlaydi. Bu uslub masalasi emas: ilgari aynan shu tufayli
+1. ✅ **`EtlWorkspace.IsFactoryRoot` — HAL QILINDI (`c915d80a`).**
+   Endi qattiq kodlar ro'yxati emas: zavod darajasidagi bo'lim
+   `departments.json` dan olinadi va yagona belgisi bilan aniqlanadi —
+   u YURIDIK SHAXSGA to'g'ridan-to'g'ri biriktirilgan. Ya'ni
+   ma'lumotnoma o'zgarsa shart ham o'zi o'zgaradi va yana jimgina
+   o'chib qola olmaydi. `FactoryRootTests` buni qadab turadi.
+2. ⚠️ **`GET /api/probations` sahifalanmaydi — ENDI bu sezildi.**
+   Ro'yxat butunicha qaytadi: hozir **1342 yozuv, 924 KB**, «Sinov
+   muddati» sahifasi ochilganda bir so'rovda. Qaror ataylab qilingan
+   edi va `ListProbationsQuery` izohida yozilgan: «bir vaqtda sinovda
+   o'nlab, ko'pi bilan bir necha yuz odam bo'ladi». Haqiqiy ma'lumot bu
+   taxminni RAD ETDI — ro'yxatga tarix ham kiradi (842 o'tgan, 263
+   o'tmagan, 235 davom etayotgan) va u har bir ishga qabul bilan
+   o'sadi. Lokal tarmoqda tez (14ms), lekin uzoq ulanishda sezilarli.
+
+   Boshqa ro'yxatlar tekshirildi: `employees`, `employments/events`,
+   `incentives`, `recruiting/*` — hammasi sahifali. `safety/incidents`
+   va `exit-interviews` ham sahifalanmaydi, lekin ular hozir bo'sh va
+   sekin to'ladi.
+
+3. **Qo'lda yozilgan API klientlari.** `web/src/features/*/api/*-api.ts`
+   fayllaridan **18 tadan 14 tasi** hamon qo'lda yozilgan (generatsiya
+   tiplaridan faqat `auth`, `catalog`, `dashboard`, `employees`
+   foydalanadi), holbuki OpenAPI to'liq va `./bonvi gen` ishlaydi. Bu uslub masalasi emas: ilgari aynan shu tufayli
    `flags`/`activeFlags` nomlari chalkashib, ro'yxatdagi nishonlar HECH
    QACHON chizilmagan edi. Ekranlar soni o'sib borgani sari ko'chirish
    qimmatlashadi.
