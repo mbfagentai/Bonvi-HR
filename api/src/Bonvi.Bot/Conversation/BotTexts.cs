@@ -255,19 +255,42 @@ public static class BotTexts
 
     /// <summary>Instagram tugmasi.</summary>
     /// <remarks>
-    /// Ijtimoiy tarmoq nomlari TARJIMA QILINMAYDI — ular brend nomi
-    /// va uchala tilda ham bir xil o'qiladi. Tarjima qilishga urinish
-    /// («Инстаграм») tanish yozuvni tanimas qilib qo'yardi.
+    /// <para>
+    /// ⚠️ <b>Emoji ATAYLAB YO'Q va uni qo'shishga urinmang.</b> Telegram
+    /// tugmasining yorlig'i — faqat MATN: unga rasm ham, maxsus emoji
+    /// ham qo'yib bo'lmaydi (bu Bot API ning cheklovi, bizning
+    /// tanlovimiz emas). Unicode'da esa Instagram va Facebook'ning
+    /// emojisi umuman yo'q.
+    /// </para>
+    /// <para>
+    /// Ilgari bu yerda o'xshatib olingan emojilar turardi — 📷, ✈️, 👍.
+    /// Ular brendni ko'rsatmasdi, aksincha: fotoapparat, samolyot va
+    /// «yoqdi» barmog'i tugmalarni havaskorona qilib ko'rsatardi.
+    /// Brend nomining O'ZI esa allaqachon tanish belgi — u hech qanday
+    /// ikonaga muhtoj emas.
+    /// </para>
+    /// <para>
+    /// Nomlar TARJIMA ham QILINMAYDI: ular uchala tilda bir xil
+    /// yoziladi va «Инстаграм» deb yozish tanish yozuvni tanimas
+    /// qilib qo'yardi.
+    /// </para>
     /// </remarks>
-    public const string InstagramButton = "📷 Instagram";
+    public const string InstagramButton = "Instagram";
 
     /// <summary>Telegram kanali tugmasi.</summary>
-    public const string TelegramButton = "✈️ Telegram";
+    public const string TelegramButton = "Telegram";
 
     /// <summary>Facebook tugmasi.</summary>
-    public const string FacebookButton = "👍 Facebook";
+    public const string FacebookButton = "Facebook";
 
-    /// <summary>Sayt tugmasi — yagona tarjima qilinadigani.</summary>
+    /// <summary>
+    /// Sayt tugmasi — yagona tarjima qilinadigani va yagona ikonalisi.
+    /// </summary>
+    /// <remarks>
+    /// Globus bu yerda BRENDNI emas, TUSHUNCHANI bildiradi: «bu
+    /// kompaniyaning sayti». Shu sababli u qoladi — yuqoridagi uchtasi
+    /// bilan farqi aynan shunda.
+    /// </remarks>
     public static string WebsiteButton(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic => "🌐 Сайт",

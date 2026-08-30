@@ -88,6 +88,32 @@ public sealed class SocialLinksTests
     }
 
     [Fact]
+    public void Brend_tugmalarida_emoji_yoq()
+    {
+        /*
+          Telegram tugmasining yorlig'iga rasm ham, maxsus emoji ham
+          qo'yib bo'lmaydi — faqat matn. Instagram va Facebook'ning
+          Unicode emojisi esa umuman yo'q.
+
+          Ilgari bu yerda o'xshatib olingan emojilar turardi (📷, ✈️,
+          👍) va ular brendni ko'rsatmasdi: fotoapparat, samolyot va
+          «yoqdi» barmog'i. Foydalanuvchi buni darhol sezdi.
+
+          Test brend nomini emas, QOIDANI qadab turadi: nomda faqat
+          harf bo'lsin.
+        */
+        foreach (var label in new[]
+        {
+            BotTexts.InstagramButton,
+            BotTexts.TelegramButton,
+            BotTexts.FacebookButton,
+        })
+        {
+            label.ShouldAllBe(character => char.IsAsciiLetter(character));
+        }
+    }
+
+    [Fact]
     public void Sayt_tugmasi_tarjima_qilinadi_brendlar_esa_yoq()
     {
         var latin = SocialLinks.Buttons(BotLanguage.Latin, Instagram, null, null, Website)!;
