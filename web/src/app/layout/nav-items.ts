@@ -9,7 +9,6 @@ import {
   FileText,
   Gauge,
   Gavel,
-  GitBranch,
   HeartPulse,
   IdCard,
   LayoutGrid,
@@ -207,31 +206,11 @@ export const NAV: NavSection[] = [
             ketardi — Excel'dagi 228 ta lavozimning kelib chiqishi aynan
             shunday.
 
-            NEGA `permission` YO'Q (`pipelineStages` dan farqli): yozuv
-            `/api/catalog/vacancy-titles` da yashaydi va u boshqa
-            sakkiztasi bilan bir xil `catalog.view` bilan himoyalangan.
-            Bosqichlar esa rekruting yo'lagida va o'z ruxsatiga ega.
+            NEGA `permission` YO'Q: yozuv `/api/catalog/vacancy-titles`
+            da yashaydi va u qolgan ma'lumotnomalar bilan bir xil
+            `catalog.view` bilan himoyalangan.
           */
           { key: 'vacancyTitles',      to: '/malumotnomalar/vakansiya-nomlari', icon: Megaphone },
-          /*
-            Voronka bosqichlari — to'qqizinchi ma'lumotnoma (2-bosqich).
-
-            NEGA aynan shu guruhda: u boshqa sakkiztasi bilan bir xil
-            vazifani bajaradi — tizimning POYDEVORI, kundalik ish emas.
-            Bosqichlar yiliga bir-ikki marta o'zgaradi, nomzod esa
-            har kuni qo'shiladi.
-
-            NEGA `permission` boshqalarnikidan farqli (`recruiting.view`,
-            `catalog.manage` emas): yozuv `/api/recruiting/stages` da
-            yashaydi va uning `GET`i `recruiting.view` bilan
-            himoyalangan. Ma'lumotnomalarni boshqara oladigan, lekin
-            rekrutingga ruxsati yo'q odam bu ro'yxatni SERVERDAN OLA
-            OLMAYDI — bandni ko'rsatib, sahifani «bo'sh/xatoli» holatda
-            ochish ortiqcha chalkashlik bo'lardi (`users` bandidagi
-            naqsh).
-          */
-          { key: 'pipelineStages',     to: '/malumotnomalar/bosqichlar',       icon: GitBranch,
-            permission: 'recruiting.view' },
         ],
       },
     ],

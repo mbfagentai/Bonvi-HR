@@ -26,7 +26,6 @@ import { Route as AppSinovRouteImport } from './routes/_app/sinov'
 import { Route as AppSozlamalarRouteImport } from './routes/_app/sozlamalar'
 import { Route as AppVakansiyalarRouteImport } from './routes/_app/vakansiyalar'
 import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/malumotnomalar/bolimlar'
-import { Route as AppMalumotnomalarBosqichlarRouteImport } from './routes/_app/malumotnomalar/bosqichlar'
 import { Route as AppMalumotnomalarHujjatTurlariRouteImport } from './routes/_app/malumotnomalar/hujjat-turlari'
 import { Route as AppMalumotnomalarJarimaTurlariRouteImport } from './routes/_app/malumotnomalar/jarima-turlari'
 import { Route as AppMalumotnomalarLavozimlarRouteImport } from './routes/_app/malumotnomalar/lavozimlar'
@@ -125,12 +124,6 @@ const AppMalumotnomalarBolimlarRoute =
     path: '/malumotnomalar/bolimlar',
     getParentRoute: () => AppRoute,
   } as any)
-const AppMalumotnomalarBosqichlarRoute =
-  AppMalumotnomalarBosqichlarRouteImport.update({
-    id: '/malumotnomalar/bosqichlar',
-    path: '/malumotnomalar/bosqichlar',
-    getParentRoute: () => AppRoute,
-  } as any)
 const AppMalumotnomalarHujjatTurlariRoute =
   AppMalumotnomalarHujjatTurlariRouteImport.update({
     id: '/malumotnomalar/hujjat-turlari',
@@ -217,7 +210,6 @@ export interface FileRoutesByFullPath {
   '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
-  '/malumotnomalar/bosqichlar': typeof AppMalumotnomalarBosqichlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
   '/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
@@ -248,7 +240,6 @@ export interface FileRoutesByTo {
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/': typeof AppIndexRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
-  '/malumotnomalar/bosqichlar': typeof AppMalumotnomalarBosqichlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
   '/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
@@ -281,7 +272,6 @@ export interface FileRoutesById {
   '/_app/vakansiyalar': typeof AppVakansiyalarRoute
   '/_app/': typeof AppIndexRoute
   '/_app/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
-  '/_app/malumotnomalar/bosqichlar': typeof AppMalumotnomalarBosqichlarRoute
   '/_app/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/_app/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
   '/_app/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
@@ -314,7 +304,6 @@ export interface FileRouteTypes {
     | '/sozlamalar'
     | '/vakansiyalar'
     | '/malumotnomalar/bolimlar'
-    | '/malumotnomalar/bosqichlar'
     | '/malumotnomalar/hujjat-turlari'
     | '/malumotnomalar/jarima-turlari'
     | '/malumotnomalar/lavozimlar'
@@ -345,7 +334,6 @@ export interface FileRouteTypes {
     | '/vakansiyalar'
     | '/'
     | '/malumotnomalar/bolimlar'
-    | '/malumotnomalar/bosqichlar'
     | '/malumotnomalar/hujjat-turlari'
     | '/malumotnomalar/jarima-turlari'
     | '/malumotnomalar/lavozimlar'
@@ -377,7 +365,6 @@ export interface FileRouteTypes {
     | '/_app/vakansiyalar'
     | '/_app/'
     | '/_app/malumotnomalar/bolimlar'
-    | '/_app/malumotnomalar/bosqichlar'
     | '/_app/malumotnomalar/hujjat-turlari'
     | '/_app/malumotnomalar/jarima-turlari'
     | '/_app/malumotnomalar/lavozimlar'
@@ -518,13 +505,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMalumotnomalarBolimlarRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/malumotnomalar/bosqichlar': {
-      id: '/_app/malumotnomalar/bosqichlar'
-      path: '/malumotnomalar/bosqichlar'
-      fullPath: '/malumotnomalar/bosqichlar'
-      preLoaderRoute: typeof AppMalumotnomalarBosqichlarRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/malumotnomalar/hujjat-turlari': {
       id: '/_app/malumotnomalar/hujjat-turlari'
       path: '/malumotnomalar/hujjat-turlari'
@@ -628,7 +608,6 @@ interface AppRouteChildren {
   AppVakansiyalarRoute: typeof AppVakansiyalarRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMalumotnomalarBolimlarRoute: typeof AppMalumotnomalarBolimlarRoute
-  AppMalumotnomalarBosqichlarRoute: typeof AppMalumotnomalarBosqichlarRoute
   AppMalumotnomalarHujjatTurlariRoute: typeof AppMalumotnomalarHujjatTurlariRoute
   AppMalumotnomalarJarimaTurlariRoute: typeof AppMalumotnomalarJarimaTurlariRoute
   AppMalumotnomalarLavozimlarRoute: typeof AppMalumotnomalarLavozimlarRoute
@@ -659,7 +638,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppVakansiyalarRoute: AppVakansiyalarRoute,
   AppIndexRoute: AppIndexRoute,
   AppMalumotnomalarBolimlarRoute: AppMalumotnomalarBolimlarRoute,
-  AppMalumotnomalarBosqichlarRoute: AppMalumotnomalarBosqichlarRoute,
   AppMalumotnomalarHujjatTurlariRoute: AppMalumotnomalarHujjatTurlariRoute,
   AppMalumotnomalarJarimaTurlariRoute: AppMalumotnomalarJarimaTurlariRoute,
   AppMalumotnomalarLavozimlarRoute: AppMalumotnomalarLavozimlarRoute,

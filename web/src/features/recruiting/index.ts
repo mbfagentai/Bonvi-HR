@@ -13,6 +13,5 @@
  */
 export { CandidateCardPage } from './components/candidate-card-page'
 export { CandidatesPage } from './components/candidates-page'
-export { PipelineStagesPage } from './components/pipeline-stages-page'
 export { VacanciesPage } from './components/vacancies-page'
 export { RECRUITING_MANAGE, RECRUITING_VIEW } from './lib/recruiting-presentation'

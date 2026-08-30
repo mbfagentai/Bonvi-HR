@@ -21,11 +21,8 @@ import {
   recordCandidateStage,
   reassignCandidate,
   registerCandidate,
-  reorderStages,
   saveOffer,
-  saveStage,
   saveVacancy,
-  setStageActive,
   updateCandidate,
   uploadResume,
   type AcceptOfferInput,
@@ -110,12 +107,10 @@ export function useVacancyTitleOptions(onlyActive: boolean): {
  * kalitlaridan tashqari) o'zi bekor qiladi. U yerdagi izohda sabab
  * batafsil: «nima eskirishini sanab chiq» qoidasi doimiy unutilardi.
  *
- * Ikkita ISTISNO bor va ikkalasi ham o'z joyida asoslangan:
- *   · `useReorderStages` — javobni keshga YOZADI (bekor qilmaydi):
- *     bu ro'yxatning ortga sakrashini oldini oladi;
- *   · `useAcceptOffer` — bekor qilishni TAKRORLAYDI, chunki bu amal
- *     boshqa modullarning (xodimlar, sinov) keshiga ham tegadi va
- *     ro'yxat shu bog'liqlikni hujjatlashtiradi.
+ * Bitta ISTISNO bor va u o'z joyida asoslangan: `useAcceptOffer`
+ * bekor qilishni TAKRORLAYDI, chunki bu amal boshqa modullarning
+ * (xodimlar, sinov) keshiga ham tegadi va ro'yxat shu bog'liqlikni
+ * hujjatlashtiradi.
  */
 export const recruitingKeys = {
   root: ['recruiting'] as const,
@@ -141,45 +136,6 @@ export function useStages(onlyActive: boolean) {
   return useQuery({
     queryKey: recruitingKeys.stages(onlyActive),
     queryFn: ({ signal }) => fetchStages(onlyActive, signal),
-  })
-}
-
-export function useSaveStage() {
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string | null; body: { name: string; note: string | null } }) =>
-      saveStage(id, body),
-  })
-}
-
-/**
- * Bosqichlar tartibini saqlash.
- *
- * Server YANGILANGAN TO'LIQ ro'yxatni qaytaradi, shu sababli javob
- * keshga TO'G'RIDAN-TO'G'RI yoziladi (`useDutyMutations` dagi bilan
- * aynan bir xil naqsh). NEGA bu kerak: sahifa strelka bosilishi bilan
- * yangi tartibni ko'rsatadi, `providers.tsx` esa keshni faqat BEKOR
- * qiladi va qayta yuklash tugaguncha eski tartib qaytib keladi — ro'yxat
- * bir zumga «sakrab» ortga qaytardi.
- *
- * Faqat `onlyActive: false` kaliti yoziladi: javobda hamma bosqich bor,
- * faol ro'yxatni esa undan yasash — serverning filtri va klientning
- * filtri o'rtasida ikkinchi haqiqat manbai hosil qilardi. U umumiy
- * bekor qilish orqali o'zi yangilanadi.
- */
-export function useReorderStages() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (orderedIds: string[]) => reorderStages(orderedIds),
-    onSuccess: (stages) => {
-      queryClient.setQueryData(recruitingKeys.stages(false), stages)
-    },
-  })
-}
-
-export function useToggleStage() {
-  return useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) => setStageActive(id, active),
   })
 }
 

@@ -554,32 +554,20 @@ export async function fetchStages(
   return Array.isArray(data) ? data.map(toStage) : []
 }
 
-export async function saveStage(
-  id: string | null,
-  body: { name: string; note: string | null },
-): Promise<PipelineStage> {
-  const { data } =
-    id === null
-      ? await api.post<unknown>(STAGES, body)
-      : await api.put<unknown>(`${STAGES}/${id}`, body)
+/*
+  BOSQICHLARNI TAHRIRLASH KLIENTDA YO'Q (2026-08-31, foydalanuvchi
+  qarori: «voronka bosqichini menyudan olib tashlayver, bizga umuman
+  kerakmas»).
 
-  return toStage(data)
-}
+  Voronka uchta bosqichdan iborat va u MBF ning jarayoni — u yiliga
+  ham o'zgarmaydi. Uni tahrirlash ekrani HR ning kundalik ishida
+  hech qachon ochilmasdi va menyuda faqat joy egallab turardi.
 
-/**
- * Butun tartib BITTA so'rovda — har siljishda alohida emas
- * (`reorderDuties` bilan bir xil naqsh). Server ro'yxat TO'LIQ
- * bo'lishini talab qiladi: yetishmasa «bosqich.tartib_royxati».
- */
-export async function reorderStages(orderedIds: string[]): Promise<PipelineStage[]> {
-  const { data } = await api.post<unknown>(`${STAGES}/reorder`, { orderedIds })
-  return Array.isArray(data) ? data.map(toStage) : []
-}
-
-export async function setStageActive(id: string, active: boolean): Promise<PipelineStage> {
-  const { data } = await api.post<unknown>(`${STAGES}/${id}/${active ? 'activate' : 'deactivate'}`)
-  return toStage(data)
-}
+  SERVERDAGI yozish endpoint'lari qoldi (`POST`, `PUT`, `/reorder`,
+  `/activate`, `/deactivate`): jarayon o'zgarsa, bosqichlar
+  konteynerni qayta yig'masdan o'zgartiriladi. Aynan shu yo'l bilan
+  uchta ortiqcha bosqich arxivlangan edi.
+*/
 
 /* ══════════════════════════════════════════════════════════ vakansiyalar */
 
