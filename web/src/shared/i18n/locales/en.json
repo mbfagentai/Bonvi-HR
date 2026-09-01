@@ -1248,6 +1248,7 @@
     "selectedCount": "{{n}} selected",
     "deleteSelected": "Delete selected",
     "markAllRead": "Mark all as read",
+    "markSelectedRead": "Mark selected as read",
     "open": "Open",
     "age": "Age {{n}}",
     "limitNote": "Showing {{shown}} of {{total}}",

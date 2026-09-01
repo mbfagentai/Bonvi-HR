@@ -1248,6 +1248,7 @@
     "selectedCount": "{{n}} ta tanlandi",
     "deleteSelected": "Belgilanganlarni o‘chirish",
     "markAllRead": "Barchasini o‘qildi deb belgilash",
+    "markSelectedRead": "Belgilanganlarni o‘qildi deb belgilash",
     "open": "Kirib ko‘rish",
     "age": "{{n}} yosh",
     "limitNote": "{{total}} tadan {{shown}} tasi ko‘rsatildi",

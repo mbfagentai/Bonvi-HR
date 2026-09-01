@@ -1248,6 +1248,7 @@
     "selectedCount": "Отмечено: {{n}}",
     "deleteSelected": "Удалить отмеченные",
     "markAllRead": "Отметить все прочитанными",
+    "markSelectedRead": "Отметить выбранные прочитанными",
     "open": "Открыть",
     "age": "Возраст: {{n}}",
     "limitNote": "Показано {{shown}} из {{total}}",

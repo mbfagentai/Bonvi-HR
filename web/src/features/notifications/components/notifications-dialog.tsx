@@ -99,6 +99,19 @@ export function NotificationsDialog({
   )
 
   const busy = markRead.isPending || remove.isPending
+
+  /*
+   * «O'qildi» tugmasi qachon faol.
+   *
+   * Tanlov bo'lsa — TANLANGANLAR ichida o'qilmagani bo'lsa. Umumiy
+   * `unread` ga qarash noto'g'ri edi: HR allaqachon o'qilgan uchta
+   * qatorni tanlab, faol tugmani bosardi va ekranda hech narsa
+   * o'zgarmasdi.
+   */
+  const readableCount =
+    selectedKeys.length > 0
+      ? items.filter((item) => !item.isRead && selected.has(item.key)).length
+      : unread
   const allSelected = items.length > 0 && selectedKeys.length === items.length
 
   const toggleAll = (checked: boolean) => {
@@ -119,12 +132,27 @@ export function NotificationsDialog({
    * muvaffaqiyatli mutatsiyadan keyin buni o'zi qiladi — ham ro'yxat,
    * ham qo'ng'iroqdagi sanoq yangilanadi.
    */
-  const markAllRead = () => {
+  /**
+   * «O'qildi» amali — o'chirish tugmasi bilan BIR XIL qoidada.
+   *
+   * Tanlangan qatorlar bo'lsa faqat ular belgilanadi, bo'lmasa —
+   * hammasi. Ilgari bu tugma tanlovga QARAMASDAN hammasini belgilardi:
+   * HR uchta qatorni tanlab bosardi, tizim esa yigirmatasini o'qildi
+   * qilib qo'yardi va bu HECH QAYERDA aytilmasdi.
+   *
+   * Muvaffaqiyatdan keyin tanlov TOZALANADI. Usiz belgilangan qatorlar
+   * amal bajarilgach ham belgilangan bo'lib turardi — HR esa amal
+   * o'tmadi deb o'ylab, ikkinchi marta bosardi.
+   */
+  const applyRead = () => {
     setFailure(null)
-    markRead.mutate(
-      { all: true },
-      { onError: (error) => setFailure(notificationErrorCode(error)) },
-    )
+
+    const target = selectedKeys.length > 0 ? { keys: selectedKeys } : { all: true as const }
+
+    markRead.mutate(target, {
+      onSuccess: () => setSelected(new Set()),
+      onError: (error) => setFailure(notificationErrorCode(error)),
+    })
   }
 
   const confirmDelete = () => {
@@ -223,15 +251,23 @@ export function NotificationsDialog({
         footer={
           items.length === 0 ? undefined : (
             <>
+              {/*
+                `secondary`, `ghost` EMAS: fonsiz tugma bu qavatda oddiy
+                yozuvga o'xshab qolardi va foydalanuvchi uni bosiladigan
+                deb tanimasdi. Yonida qizil «o'chirish» turibdi — ikkala
+                amal ham bir xil og'irlikda ko'rinishi kerak.
+              */}
               <Button
                 type="button"
-                variant="ghost"
+                variant="secondary"
                 className="mr-auto"
-                onClick={markAllRead}
-                disabled={unread === 0 || busy}
+                onClick={applyRead}
+                disabled={readableCount === 0 || busy}
               >
                 {markRead.isPending ? <LoaderCircle className="animate-spin" /> : <CheckCheck />}
-                {t('notifications.markAllRead')}
+                {selectedKeys.length > 0
+                  ? t('notifications.markSelectedRead')
+                  : t('notifications.markAllRead')}
               </Button>
 
               {/*
