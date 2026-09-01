@@ -70,6 +70,31 @@ public static class NotificationRules
     /// </remarks>
     public const int OfferWarningDays = 3;
 
+    /// <summary>
+    /// O'qilgan bildirishnoma ro'yxatda necha kun qoladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega kerak.</b> Bildirishnoma HISOBLANADI: sharti rost bo'lib
+    /// turgan ekan («480 xodimda sinov yozuvi yo'q») u ro'yxatda YILLAB
+    /// turaveradi — o'qilgan bo'lsa ham. HR har safar qo'lda belgilab
+    /// o'chirishga majbur bo'lardi va bu ish hech qachon tugamasdi.
+    /// </para>
+    /// <para>
+    /// <b>Nega 7 kun.</b> HR bo'limida uch kishi ishlaydi va ular har
+    /// kuni tizimga kirmaydi (dam olish, ta'til) —
+    /// <see cref="NewCandidateDays"/> dagi bilan AYNAN bir xil mulohaza.
+    /// Bir hafta ichida hamma o'qigan xabarni ko'rib ulguradi.
+    /// </para>
+    /// <para>
+    /// <b>Qanday ishlaydi.</b> Yozuv O'CHIRILMAYDI: bildirishnoma
+    /// ro'yxatdan chiqariladi, holat yozuvi esa bazada qoladi. Farqi
+    /// muhim — holat o'chirilsa, sharti hamon rost bildirishnoma
+    /// ertaga YANA O'QILMAGAN bo'lib qaytardi.
+    /// </para>
+    /// </remarks>
+    public const int ReadRetentionDays = 7;
+
     /// <summary>Bitta so'rovda nechta kalit yuborilishi mumkin.</summary>
     /// <remarks>
     /// «Hammasini o'qildi» amali server tomonda bajariladi va kalit

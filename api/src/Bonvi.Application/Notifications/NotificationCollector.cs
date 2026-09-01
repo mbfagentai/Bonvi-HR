@@ -154,6 +154,34 @@ public sealed class NotificationCollector
     /// yerda — u ma'lumotning o'zidan kelib chiqadi va holatga bog'liq
     /// emas.
     /// </remarks>
+
+    /// <summary>
+    /// O'qilgan bildirishnoma qaysi lahzadan oldin ko'rinmay qoladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega aynan shu sinfda.</b> Bu yerda sozlama o'quvchisi ham,
+    /// soat ham allaqachon bor va ularni to'rtta bildirishnoma
+    /// ishlovchisiga alohida ulash faqat konstruktorlarni
+    /// uzaytirardi. Ishlovchilarning hammasida esa <c>Collector</c>
+    /// bor — muddat tabiiy ravishda shu yerdan olinadi.
+    /// </para>
+    /// <para>
+    /// <b>Nega <c>DateTimeOffset</c>, <c>DateOnly</c> emas.</b> Holat
+    /// yozuvidagi <c>ReadAt</c> — lahza. Kun bo'yicha kesish
+    /// «bugun ertalab o'qilgani ham eskirgan» degan chekka holatga
+    /// olib kelardi.
+    /// </para>
+    /// </remarks>
+    public async Task<DateTimeOffset> ReadRetentionCutoffAsync(CancellationToken cancellationToken = default)
+    {
+        var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        var days = settings.Number(SystemSettingKeys.ReadRetentionDays);
+
+        return _clock.UtcNow.AddDays(-days);
+    }
+
     public async Task<IReadOnlyList<NotificationDto>> CollectAsync(
         CancellationToken cancellationToken = default)
     {

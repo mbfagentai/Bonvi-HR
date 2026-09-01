@@ -227,8 +227,10 @@ public sealed class MarkNotificationsReadCommandHandler
     {
         var computed = await _collector.CollectAsync(cancellationToken).ConfigureAwait(false);
 
+        var cutoff = await _collector.ReadRetentionCutoffAsync(cancellationToken).ConfigureAwait(false);
+
         return await ListNotificationsQueryHandler
-            .ApplyUserStateAsync(computed, userId, _states, cancellationToken)
+            .ApplyUserStateAsync(computed, userId, _states, cutoff, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -298,8 +300,10 @@ public sealed class DeleteNotificationsCommandHandler
         }
 
         var computed = await _collector.CollectAsync(cancellationToken).ConfigureAwait(false);
+
+        var cutoff = await _collector.ReadRetentionCutoffAsync(cancellationToken).ConfigureAwait(false);
         var after = await ListNotificationsQueryHandler
-            .ApplyUserStateAsync(computed, userId, _states, cancellationToken)
+            .ApplyUserStateAsync(computed, userId, _states, cutoff, cancellationToken)
             .ConfigureAwait(false);
 
         return Result.Success(new NotificationActionResultDto(

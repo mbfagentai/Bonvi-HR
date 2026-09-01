@@ -79,6 +79,7 @@
       "probationWarningDays": "Sinov muddati ogohlantirishi (kun)",
       "newCandidateDays": "Yangi nomzod ko‘rsatiladi (kun)",
       "offerWarningDays": "Taklif muddati ogohlantirishi (kun)",
+      "readRetentionDays": "O‘qilgan bildirishnoma necha kun ko‘rinadi",
       "range": "{{min}} dan {{max}} gacha",
       "textHint": "Bo‘sh qoldirilsa bot bu bo‘limni ko‘rsatmaydi. Yangi qator — Enter.",
       "unsaved": "Saqlanmagan o‘zgarishlar bor",

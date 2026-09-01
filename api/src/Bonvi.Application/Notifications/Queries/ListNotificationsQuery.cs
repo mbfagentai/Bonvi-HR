@@ -69,7 +69,9 @@ public sealed class ListNotificationsQueryHandler
 
         var computed = await _collector.CollectAsync(cancellationToken).ConfigureAwait(false);
 
-        var visible = await ApplyUserStateAsync(computed, userId, _states, cancellationToken)
+        var cutoff = await _collector.ReadRetentionCutoffAsync(cancellationToken).ConfigureAwait(false);
+
+        var visible = await ApplyUserStateAsync(computed, userId, _states, cutoff, cancellationToken)
             .ConfigureAwait(false);
 
         var unread = visible.Count(item => !item.IsRead);
@@ -112,6 +114,7 @@ public sealed class ListNotificationsQueryHandler
         IReadOnlyList<NotificationDto> computed,
         Guid userId,
         INotificationStateRepository states,
+        DateTimeOffset readRetentionCutoff,
         CancellationToken cancellationToken)
     {
         if (computed.Count == 0)
@@ -138,6 +141,27 @@ public sealed class ListNotificationsQueryHandler
             {
                 // Sharti hamon rost bo'lsa ham qaytmaydi — foydalanuvchining
                 // aniq talabi (`NotificationState.Dismiss` izohi).
+                continue;
+            }
+
+            if (state.ReadAt is { } readAt && readAt < readRetentionCutoff)
+            {
+                /*
+                  O'qilganiga bir haftadan oshdi — ro'yxatdan chiqadi.
+
+                  NEGA KERAK: bildirishnoma HISOBLANADI va sharti rost
+                  bo'lib turgan ekan («480 xodimda sinov yozuvi yo'q»)
+                  u yillab qaytaverardi. HR uni har safar qo'lda
+                  belgilab o'chirishga majbur bo'lardi.
+
+                  NEGA YOZUV O'CHIRILMAYDI: holat bazada QOLADI.
+                  O'chirilsa, sharti hamon rost bildirishnoma ertaga
+                  yana O'QILMAGAN bo'lib qaytardi — ya'ni tozalash
+                  o'zini o'zi bekor qilardi.
+
+                  Muddat sozlanadi (`notifications.readRetentionDays`),
+                  shu sababli chegara bu yerda emas, PARAMETRDA.
+                */
                 continue;
             }
 
@@ -194,8 +218,10 @@ public sealed class GetUnreadNotificationCountQueryHandler
         // ro'yxatga ishora qilib turardi.
         var computed = await _collector.CollectAsync(cancellationToken).ConfigureAwait(false);
 
+        var cutoff = await _collector.ReadRetentionCutoffAsync(cancellationToken).ConfigureAwait(false);
+
         var visible = await ListNotificationsQueryHandler
-            .ApplyUserStateAsync(computed, userId, _states, cancellationToken)
+            .ApplyUserStateAsync(computed, userId, _states, cutoff, cancellationToken)
             .ConfigureAwait(false);
 
         return Result.Success(new NotificationCountDto(visible.Count(item => !item.IsRead)));

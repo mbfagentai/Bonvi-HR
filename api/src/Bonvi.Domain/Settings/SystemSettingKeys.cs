@@ -386,6 +386,9 @@ public static class SystemSettingKeys
     /// <summary>Ish taklifi muddati tugashiga necha kun qolganda ogohlantiriladi.</summary>
     public const string OfferWarningDays = "notifications.offerWarningDays";
 
+    /// <summary>O'qilgan bildirishnoma ro'yxatda necha kun qoladi.</summary>
+    public const string ReadRetentionDays = "notifications.readRetentionDays";
+
     /// <summary>Sirning eng katta uzunligi.</summary>
     /// <remarks>
     /// Telegram tokeni ~46 belgi. 200 — zaxira bilan: chegara bu yerda
@@ -554,6 +557,12 @@ public static class SystemSettingKeys
             OfferWarningDays,
             SystemSettingKind.Number,
             Number(NotificationRules.OfferWarningDays),
+            Min: 1,
+            Max: MaxDays),
+        new(
+            ReadRetentionDays,
+            SystemSettingKind.Number,
+            Number(NotificationRules.ReadRetentionDays),
             Min: 1,
             Max: MaxDays),
     ];

@@ -2,6 +2,7 @@ using Bonvi.Application.Notifications.Commands;
 using Bonvi.Application.Notifications.Queries;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Notifications;
+using Bonvi.Domain.Settings;
 using NSubstitute;
 
 namespace Bonvi.Application.Tests.Notifications;
@@ -329,6 +330,86 @@ public sealed class NotificationHandlerTests
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("bildirishnoma.foydalanuvchi_aniqlanmadi");
+    }
+
+    /// <summary>
+    /// ⭐ Uchinchi asosiy qoida: o'qilgan bildirishnoma bir haftadan
+    /// keyin ro'yxatdan O'ZI chiqadi.
+    /// </summary>
+    /// <remarks>
+    /// Foydalanuvchining talabi: «o'qilganlari bir haftadan keyin
+    /// avtomatik o'chirib yuborilsin, qo'lda har safar tozalab
+    /// turgandan shu yaxshiroq». Bildirishnoma HISOBLANADI, ya'ni
+    /// sharti rost bo'lib turgan ekan («sinov yozuvi yo'q») u yillab
+    /// qaytaverardi.
+    /// </remarks>
+    [Fact]
+    public async Task Oqilgan_bildirishnoma_bir_haftadan_keyin_royxatdan_chiqadi()
+    {
+        _context.Probation(daysLeft: 3);
+
+        var kalit = await BirinchiKalitAsync();
+
+        var amal = await Oqish.HandleAsync(
+            new MarkNotificationsReadCommand([kalit]), TestContext.Current.CancellationToken);
+
+        amal.IsSuccess.ShouldBeTrue();
+
+        // Bir hafta o'tdi: soat oldinga suriladi, holat yozuvidagi
+        // `ReadAt` esa eski lahzada qoladi.
+        _context.Clock.UtcNow.Returns(NotificationTestContext.Now.AddDays(8));
+
+        var keyingi = await Royxat.HandleAsync(
+            new ListNotificationsQuery(), TestContext.Current.CancellationToken);
+
+        keyingi.Value.Total.ShouldBe(0, "o'qilganiga bir haftadan oshgan yozuv ko'rinmaydi");
+        keyingi.Value.UnreadCount.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// O'qilmagan bildirishnoma qancha yotsa ham ro'yxatda QOLADI.
+    /// </summary>
+    /// <remarks>
+    /// Muddat aynan «o'qilgan» holatga bog'langan. Usiz eslatma HR uni
+    /// ko'rmasdan turib o'chib ketardi — bu esa butun bildirishnoma
+    /// tizimining ma'nosini yo'q qilardi.
+    /// </remarks>
+    [Fact]
+    public async Task Oqilmagan_bildirishnoma_muddatdan_keyin_ham_qoladi()
+    {
+        _context.Probation(daysLeft: 3);
+
+        _context.Clock.UtcNow.Returns(NotificationTestContext.Now.AddDays(30));
+
+        var natija = await Royxat.HandleAsync(
+            new ListNotificationsQuery(), TestContext.Current.CancellationToken);
+
+        natija.Value.Total.ShouldBe(1);
+        natija.Value.UnreadCount.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Muddat SOZLAMADAN o'qiladi, kodga qadab qo'yilmagan.
+    /// </summary>
+    [Fact]
+    public async Task Muddat_sozlamadan_oqiladi()
+    {
+        _ = _context.Settings.Seed(SystemSettingKeys.ReadRetentionDays, "30");
+        _context.Probation(daysLeft: 3);
+
+        var kalit = await BirinchiKalitAsync();
+
+        _ = await Oqish.HandleAsync(
+            new MarkNotificationsReadCommand([kalit]), TestContext.Current.CancellationToken);
+
+        // Sukut bo'yicha 7 kun bo'lardi va yozuv chiqib ketardi —
+        // sozlama 30 kunga qo'yilgani uchun qoladi.
+        _context.Clock.UtcNow.Returns(NotificationTestContext.Now.AddDays(10));
+
+        var natija = await Royxat.HandleAsync(
+            new ListNotificationsQuery(), TestContext.Current.CancellationToken);
+
+        natija.Value.Total.ShouldBe(1, "sozlamada 30 kun turibdi");
     }
 
     /// <summary>Ro'yxatdagi birinchi bildirishnomaning kaliti.</summary>

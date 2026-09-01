@@ -79,6 +79,7 @@
       "probationWarningDays": "Probation warning (days)",
       "newCandidateDays": "New candidate shown for (days)",
       "offerWarningDays": "Offer deadline warning (days)",
+      "readRetentionDays": "Days a read notification stays in the list",
       "range": "from {{min}} to {{max}}",
       "textHint": "Leave empty and the bot hides this section. Enter for a new line.",
       "unsaved": "You have unsaved changes",
