@@ -16,13 +16,16 @@ public enum ConversationStep
 
     /// <summary>Telefon raqami kutilmoqda.</summary>
     Phone = 3,
+
+    /// <summary>Yashash manzili kutilmoqda.</summary>
+    Address = 4,
 }
 
 /// <summary>
 /// Bitta nomzod bilan suhbatning holati.
 /// </summary>
 /// <remarks>
-/// Ariza uch maydondan iborat, shu sababli holat ham kichik. Tugallangan
+/// Ariza to'rt maydondan iborat, shu sababli holat ham kichik. Tugallangan
 /// ariza bu yerda SAQLANMAYDI — u API ga yuboriladi va suhbat unutiladi:
 /// botning xotirasi HR ma'lumotining ikkinchi nusxasi bo'lib qolmasligi
 /// kerak.
@@ -38,6 +41,17 @@ public sealed record ConversationState
     public string VacancyTitle { get; init; } = string.Empty;
 
     public PersonName? Name { get; init; }
+
+    /// <summary>
+    /// Tugma orqali kelgan telefon raqami.
+    /// </summary>
+    /// <remarks>
+    /// Raqam manzil so'ralishidan OLDIN keladi, ariza esa manzildan
+    /// KEYIN yuboriladi — ya'ni u bir qadam kutib turishi kerak.
+    /// Kontakt tugmasi ikkinchi marta bosilmaydi, shu sababli raqamni
+    /// qayta so'rash imkoni yo'q.
+    /// </remarks>
+    public string? Phone { get; init; }
 
     /// <summary>Oxirgi harakat vaqti — eskirgan suhbatni tozalash uchun.</summary>
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;

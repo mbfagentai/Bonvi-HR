@@ -4,6 +4,7 @@ using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 using Bonvi.Infrastructure.Persistence;
 using Bonvi.Infrastructure.Persistence.Interceptors;
 using Bonvi.Infrastructure.Services;
@@ -205,6 +206,45 @@ public sealed class EtlDatabase : IAsyncDisposable
         => _context is null
             ? []
             : await _context.Incentives.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>Voronka bosqichlari — kengash qadami «Кенгаш» ni shu yerdan topadi.</summary>
+    /// <remarks>
+    /// Faol emaslari ham yuklanadi: bosqich keyinchalik o'chirilgan
+    /// bo'lishi mumkin, tarixiy yozuv esa baribir unga tegishli.
+    /// </remarks>
+    public async Task<IReadOnlyList<PipelineStage>> LoadPipelineStagesAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.PipelineStages.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>Vakansiya nomlari — arxiv vakansiyasini yaratish uchun.</summary>
+    public async Task<IReadOnlyList<VacancyTitle>> LoadVacancyTitlesAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.VacancyTitles.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>Vakansiyalar — arxiv vakansiyasi allaqachon bormi.</summary>
+    public async Task<IReadOnlyList<Vacancy>> LoadVacanciesAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.Vacancies.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>
+    /// Mavjud nomzodlar — bosqich yozuvlari bilan.
+    /// </summary>
+    /// <remarks>
+    /// <c>AsNoTracking</c> YO'Q: kengash qadami mavjud nomzodga yangi
+    /// bosqich yozuvi qo'shishi mumkin, kuzatilmagan obyektdagi
+    /// o'zgarish esa bazaga yetib bormasdi (qobiliyat profilidagi bilan
+    /// bir xil mulohaza).
+    /// </remarks>
+    public async Task<IReadOnlyList<Candidate>> LoadCandidatesAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.Candidates
+                .Include(candidate => candidate.StageEntries)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
     // ────────────────────────────────────────────────────────────
     //  Yozish

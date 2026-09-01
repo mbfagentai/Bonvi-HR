@@ -393,6 +393,7 @@ public sealed partial class BonviClient : IDisposable
         string firstName,
         string? middleName,
         string phone,
+        string? address,
         long chatId,
         string language,
         CancellationToken cancellationToken)
@@ -404,6 +405,13 @@ public sealed partial class BonviClient : IDisposable
             firstName,
             middleName,
             phone,
+
+            /*
+              Manzil — anketaning oxirgi savoli. HR uchun u shu yerda
+              turishi shart: nomzod uzoq tumandan bo'lsa, birinchi
+              qo'ng'iroqdayoq yo'l masalasi hal qilinadi.
+            */
+            address,
 
             // «Bot qancha nomzod keltirdi» degan savolning javobi shu
             // maydonda — HR nomzodlar ro'yxatida manba bo'yicha filtrlaydi.

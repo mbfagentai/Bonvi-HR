@@ -104,6 +104,26 @@ public sealed partial class BotWorker : BackgroundService
     /// </remarks>
     private const int MaxCaptionLength = 1000;
 
+    /// <summary>Manzil deb qabul qilinadigan eng qisqa matn.</summary>
+    /// <remarks>
+    /// Ma'noli eng qisqa javob — <c>«Риштон»</c> (6 belgi). Undan
+    /// qisqasi («ха», «-», «уй») manzil emas va HR uni ishlata olmaydi.
+    /// Chegara ataylab past: qat'iyroq qoida haqiqiy qisqa nomlarni
+    /// («Қўқон») rad etardi.
+    /// </remarks>
+    private const int MinAddressLength = 5;
+
+    /// <summary>
+    /// Manzilning eng katta uzunligi — bazadagi ustun bilan bir xil.
+    /// </summary>
+    /// <remarks>
+    /// Nomzod uzun matn yozsa u KESILADI, ariza esa baribir yuboriladi.
+    /// API'ga uzunroq matn borsa 400 qaytardi va nomzod ekranda
+    /// sababsiz «xatolik» ko'rardi — anketaning oxirgi qadamida bu
+    /// butun arizani yo'qotishga teng.
+    /// </remarks>
+    private const int MaxAddressLength = 500;
+
     private readonly TelegramClient _telegram;
     private readonly TelegramToken _token;
     private readonly BonviClient _bonvi;
@@ -516,6 +536,10 @@ public sealed partial class BotWorker : BackgroundService
                 await HandlePhoneAsync(chatId, state, message, cancellationToken).ConfigureAwait(false);
                 break;
 
+            case ConversationStep.Address:
+                await HandleAddressAsync(chatId, state, message.Text, cancellationToken).ConfigureAwait(false);
+                break;
+
             default:
                 // Til yoki vakansiya kutilyapti — javob tugma bilan beriladi.
                 await _telegram
@@ -608,6 +632,12 @@ public sealed partial class BotWorker : BackgroundService
 
         var phone = contact.PhoneNumber;
 
+        /*
+          Takroriy ariza AYNAN shu yerda tekshiriladi — manzil
+          so'ralishidan OLDIN. Aks holda allaqachon ariza bergan nomzod
+          manzilini yozib bo'lib, keyin «siz allaqachon ariza
+          bergansiz» degan javobni olardi.
+        */
         var existing = await _bonvi
             .FindActiveApplicationAsync(phone, state.VacancyId, cancellationToken)
             .ConfigureAwait(false);
@@ -626,6 +656,76 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
+        _conversations.Save(chatId, state with { Step = ConversationStep.Address, Phone = phone });
+
+        /*
+          Tugmasiz yuboriladi va shu bilan kontakt klaviaturasi ham
+          yo'qoladi: `SendMessageAsync` markup berilmaganda
+          `remove_keyboard` yuboradi. Bu muhim — tugma ekranda qolsa
+          nomzod raqamni ikkinchi marta bosardi, bot esa manzil kutib
+          turardi.
+        */
+        await _telegram
+            .SendMessageAsync(
+                chatId,
+                BotTexts.AskAddress(state.Language),
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Manzil qadami — anketaning oxirgisi, shu yerda ariza yuboriladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega ariza aynan shu yerda yaratiladi.</b> Nomzod yozuvi bir
+    /// marta, TO'LIQ holda yoziladi. Telefon qadamida yaratib, manzilni
+    /// keyin qo'shish ikkita so'rov degani va nomzod manzilni yozmay
+    /// ketsa, HR ro'yxatida yarim ariza qolardi.
+    /// </para>
+    /// <para>
+    /// <b>Suhbat xatoda SAQLANADI</b> — telefon qadamidagi bilan bir xil
+    /// mulohaza: nomzod manzilni qayta yozsa kifoya, <c>/start</c> dan
+    /// boshlash shart emas. Raqam esa holatda turibdi, chunki kontakt
+    /// tugmasi allaqachon olib tashlangan.
+    /// </para>
+    /// </remarks>
+    private async Task HandleAddressAsync(
+        long chatId,
+        ConversationState state,
+        string? text,
+        CancellationToken cancellationToken)
+    {
+        var address = text?.Trim();
+
+        // Uzunlik chegarasi bazadagi ustun bilan bir xil (500). Uzunroq
+        // matn API'da 400 bilan qaytardi va nomzod sababini bilmasdi.
+        if (string.IsNullOrEmpty(address) || address.Length < MinAddressLength)
+        {
+            await _telegram
+                .SendMessageAsync(
+                    chatId,
+                    BotTexts.AddressNotUnderstood(state.Language),
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        if (address.Length > MaxAddressLength)
+        {
+            address = address[..MaxAddressLength];
+        }
+
+        if (state.Name is not { } name || state.Phone is not { } phone)
+        {
+            await _telegram
+                .SendMessageAsync(chatId, BotTexts.Restart(state.Language), cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         var created = await _bonvi
             .RegisterCandidateAsync(
                 state.VacancyId,
@@ -633,6 +733,7 @@ public sealed partial class BotWorker : BackgroundService
                 name.FirstName,
                 name.MiddleName,
                 phone,
+                address,
                 chatId,
                 BotLanguages.Code(state.Language),
                 cancellationToken)
@@ -640,8 +741,6 @@ public sealed partial class BotWorker : BackgroundService
 
         if (!created)
         {
-            // Suhbat SAQLANADI: nomzod /start bosmasdan qayta urinib
-            // ko'rishi uchun raqamni yana yuborsa kifoya.
             await _telegram
                 .SendMessageAsync(chatId, BotTexts.Failed(state.Language), cancellationToken: cancellationToken)
                 .ConfigureAwait(false);

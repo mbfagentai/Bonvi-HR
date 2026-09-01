@@ -199,4 +199,35 @@ public sealed class EmploymentEvent : Entity
         created.IsImported = true;
         return created;
     }
+
+    /// <summary>
+    /// Hodisani nomzod yozuviga bog'laydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega keyin bog'lash kerak.</b> Odatiy oqimda bog'lanish ishga
+    /// qabul paytida yoziladi (<c>candidateId</c> konstruktorga beriladi)
+    /// — nomzod avval keladi, xodim keyin. Excel'dan ko'chirishda tartib
+    /// TESKARI: xodimlar allaqachon ko'chirilgan, kengash xulosasi esa
+    /// keyingi qadamda o'qiladi. Boshqacha aytganda, bu metod tarixni
+    /// tiklash uchun, kundalik ish uchun emas.
+    /// </para>
+    /// <para>
+    /// <b>Ustidan yozilmaydi.</b> Bog'lanish allaqachon bo'lsa amal
+    /// jimgina rad etiladi: tizimda kiritilgan haqiqiy bog'lanish
+    /// ko'chirishdagi ism bo'yicha topilgan taxminiy mosligidan
+    /// ishonchliroq va uni almashtirish ma'lumot yo'qotish bo'lardi.
+    /// </para>
+    /// </remarks>
+    /// <returns>Bog'lanish shu chaqiruvda yozildimi.</returns>
+    public bool LinkCandidate(Guid candidateId)
+    {
+        if (candidateId == Guid.Empty || CandidateId is not null)
+        {
+            return false;
+        }
+
+        CandidateId = candidateId;
+        return true;
+    }
 }

@@ -26,8 +26,11 @@ public enum EtlStep
     /// <summary>Profil boyitish: qobiliyatlar jadvali va rag'batlar.</summary>
     Profiles = 32,
 
+    /// <summary>Kengash xulosalari: nomzod yozuvi va bosqich xulosasi.</summary>
+    Council = 64,
+
     /// <summary>Hammasi.</summary>
-    All = Employees | Employments | Events | Probations | Flags | Profiles,
+    All = Employees | Employments | Events | Probations | Flags | Profiles | Council,
 }
 
 /// <summary>
@@ -238,13 +241,14 @@ public sealed class EtlOptions
                 "probations" or "sinov" => EtlStep.Probations,
                 "flags" or "belgilar" => EtlStep.Flags,
                 "profiles" or "profil" => EtlStep.Profiles,
+                "council" or "kengash" => EtlStep.Council,
                 "all" or "hammasi" => EtlStep.All,
                 _ => EtlStep.None,
             };
 
             if (step == EtlStep.None)
             {
-                return (EtlStep.None, $"Noma'lum qadam: «{name}». Mumkin: employees, employments, events, probations, flags, profiles.");
+                return (EtlStep.None, $"Noma'lum qadam: «{name}». Mumkin: employees, employments, events, probations, flags, profiles, council.");
             }
 
             result |= step;

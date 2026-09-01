@@ -49,7 +49,7 @@ export type VacancyStatus = (typeof VACANCY_STATUSES)[number]
 export const CANDIDATE_STATUSES = ['InProgress', 'Rejected', 'Hired', 'Withdrawn'] as const
 export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number]
 
-export const CANDIDATE_SOURCES = ['Manual', 'TelegramBot'] as const
+export const CANDIDATE_SOURCES = ['Manual', 'TelegramBot', 'Excel'] as const
 export type CandidateSource = (typeof CANDIDATE_SOURCES)[number]
 
 export const STAGE_OUTCOMES = ['Pending', 'Passed', 'Failed'] as const

@@ -5,6 +5,7 @@ import {
   CircleX,
   Clock,
   DoorOpen,
+  FileSpreadsheet,
   Hourglass,
   Keyboard,
   Send,
@@ -111,6 +112,7 @@ export const OUTCOME_LOOK: Readonly<
 export const SOURCE_LOOK: Readonly<Record<CandidateSource, StatusLook>> = {
   Manual: { key: 'manual', tone: 'neutral', icon: Keyboard },
   TelegramBot: { key: 'telegramBot', tone: 'info', icon: Bot },
+  Excel: { key: 'excel', tone: 'neutral', icon: FileSpreadsheet },
 }
 
 /* ═══════════════════════════════════════════════════════════════ SANALAR */

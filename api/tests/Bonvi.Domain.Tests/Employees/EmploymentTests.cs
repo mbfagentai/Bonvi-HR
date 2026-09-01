@@ -312,4 +312,40 @@ public sealed class EmploymentTests
         m.Events[^1].IsImported.ShouldBeTrue();
         m.Events[0].IsImported.ShouldBeFalse("tizimda kiritilgan hodisa ko'chirilgan emas");
     }
+
+    [Fact]
+    public void Ishga_qabul_hodisasi_nomzodga_keyin_boglanadi()
+    {
+        // Excel'dan ko'chirishda tartib teskari: xodim allaqachon bor,
+        // kengash xulosasi esa keyingi qadamda o'qiladi. Shu sababli
+        // bog'lanish hodisa yaratilgandan KEYIN yoziladi.
+        var m = YaratilganMunosabat();
+        var nomzodId = Guid.CreateVersion7();
+
+        m.Events[0].LinkCandidate(nomzodId).ShouldBeTrue();
+        m.Events[0].CandidateId.ShouldBe(nomzodId);
+    }
+
+    [Fact]
+    public void Mavjud_nomzod_boglanishi_ustidan_yozilmaydi()
+    {
+        // Tizimda kiritilgan haqiqiy bog'lanish ko'chirishdagi ism
+        // bo'yicha topilgan taxminiy moslikdan ishonchliroq.
+        var m = YaratilganMunosabat();
+        var birinchi = Guid.CreateVersion7();
+
+        _ = m.Events[0].LinkCandidate(birinchi);
+
+        m.Events[0].LinkCandidate(Guid.CreateVersion7()).ShouldBeFalse();
+        m.Events[0].CandidateId.ShouldBe(birinchi);
+    }
+
+    [Fact]
+    public void Bosh_nomzod_identifikatori_boglanmaydi()
+    {
+        var m = YaratilganMunosabat();
+
+        m.Events[0].LinkCandidate(Guid.Empty).ShouldBeFalse();
+        m.Events[0].CandidateId.ShouldBeNull();
+    }
 }

@@ -1146,7 +1146,8 @@
     },
     "source": {
       "manual": "Вручную",
-      "telegramBot": "Telegram-бот"
+      "telegramBot": "Telegram-бот",
+      "excel": "Архив Excel"
     },
     "startStage": "Начальный этап",
     "startStageDefault": "— Первый этап воронки —",

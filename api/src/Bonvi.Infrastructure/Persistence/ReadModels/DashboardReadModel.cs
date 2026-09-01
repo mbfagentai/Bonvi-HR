@@ -250,10 +250,18 @@ public sealed class DashboardReadModel : IDashboardReadModel
         // keyin rad etilgan bo'lsa ham, u KELGAN. Aks holda eski davrlar
         // raqami vaqt o'tishi bilan o'z-o'zidan kamayib borardi va
         // taqqoslash ma'nosini yo'qotardi.
+        //
+        // MANBA bo'yicha esa filtr BOR: Excel'dan ko'chirilgan kengash
+        // arxivida `CreatedAt` — ko'chirish kuni, ariza kelgan kun emas.
+        // Usiz ko'chirish kuni bosh sahifada 3110 ta «yangi ariza»
+        // ko'rinardi va bu raqam bilan bir necha oy yashash kerak
+        // bo'lardi (davr o'tmagunicha).
         var newCandidates = await _context.Candidates
             .AsNoTracking()
             .CountAsync(
-                candidate => candidate.CreatedAt >= from && candidate.CreatedAt < toExclusive,
+                candidate => candidate.Source != CandidateSource.Excel
+                    && candidate.CreatedAt >= from
+                    && candidate.CreatedAt < toExclusive,
                 cancellationToken)
             .ConfigureAwait(false);
 

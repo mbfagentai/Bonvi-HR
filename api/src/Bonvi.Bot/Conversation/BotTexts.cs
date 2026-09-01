@@ -159,6 +159,51 @@ public static class BotTexts
             "Bu boshqa odamning raqami. Iltimos, o‘z raqamingizni yuboring.",
     };
 
+    /// <summary>Manzil so'raladi — telefon raqamidan keyingi oxirgi qadam.</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega manzil so'raladi.</b> Korxona Rishtonda va nomzodlarning
+    /// bir qismi uzoq tumanlardan keladi. HR birinchi qo'ng'iroqda aynan
+    /// shuni so'rardi — endi u arizaning o'zida turadi va suhbat qisqaradi.
+    /// </para>
+    /// <para>
+    /// <b>Nega tuman darajasida yetarli.</b> Aniq ko'cha va uy raqami
+    /// ishga qabul qaroriga ta'sir qilmaydi, lekin uni yozish anketani
+    /// uzaytiradi va nomzodni qo'rqitadi. Namuna ataylab qisqa berilgan.
+    /// </para>
+    /// </remarks>
+    public static string AskAddress(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Раҳмат! Охирги савол: яшаш манзилингизни ёзинг.\n\n"
+            + "Масалан: <i>Риштон тумани, Работ МФЙ</i>",
+        BotLanguage.Russian =>
+            "Спасибо! Последний вопрос: напишите адрес проживания.\n\n"
+            + "Например: <i>Риштанский район, МФЙ Работ</i>",
+        _ =>
+            "Rahmat! Oxirgi savol: yashash manzilingizni yozing.\n\n"
+            + "Masalan: <i>Rishton tumani, Rabot MFY</i>",
+    };
+
+    /// <summary>Manzil juda qisqa yoki tushunarsiz.</summary>
+    /// <remarks>
+    /// Tekshiruv ATAYLAB yumshoq — faqat uzunlik. «Tuman nomi bormi»
+    /// kabi qoida haqiqiy manzilni («Работ МФЙ, 12-уй») rad etardi va
+    /// nomzod nima yozishni bilmay ketib qolardi.
+    /// </remarks>
+    public static string AddressNotUnderstood(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Манзил жуда қисқа. Камида туман ёки шаҳар номини ёзинг.\n\n"
+            + "Масалан: <i>Риштон тумани, Работ МФЙ</i>",
+        BotLanguage.Russian =>
+            "Адрес слишком короткий. Напишите хотя бы район или город.\n\n"
+            + "Например: <i>Риштанский район, МФЙ Работ</i>",
+        _ =>
+            "Manzil juda qisqa. Kamida tuman yoki shahar nomini yozing.\n\n"
+            + "Masalan: <i>Rishton tumani, Rabot MFY</i>",
+    };
+
     public static string Accepted(BotLanguage language, string vacancy) => language switch
     {
         BotLanguage.Cyrillic =>

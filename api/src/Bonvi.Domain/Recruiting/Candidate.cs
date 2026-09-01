@@ -52,6 +52,25 @@ public enum CandidateSource
 
     /// <summary>Telegram anketa boti orqali (3-agent quradi).</summary>
     TelegramBot = 2,
+
+    /// <summary>
+    /// Excel «91.1 Кенгаш хулосаси» varag'idan ko'chirilgan tarix.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bu nomzodlar bugun kelmagan — ular 2023–2024 yillarda kengashdan
+    /// o'tgan va qarori allaqachon chiqarilgan odamlar. Manbani ajratish
+    /// ikki joyda hal qiluvchi: bosh sahifadagi «davrda kelgan yangi
+    /// ariza» hisoblagichi ularni sanamaydi (aks holda ko'chirish kuni
+    /// 3110 ta «yangi ariza» ko'rinardi), va HR nomzodlar ro'yxatida
+    /// arxivni bir bosishda yashira oladi.
+    /// </para>
+    /// <para>
+    /// Qiymat OXIRIGA qo'shildi — sanoqning o'z qoidasi shuni talab
+    /// qiladi: o'rtaga qo'yilsa bazadagi eski qiymatlar siljib ketardi.
+    /// </para>
+    /// </remarks>
+    Excel = 3,
 }
 
 /// <summary>

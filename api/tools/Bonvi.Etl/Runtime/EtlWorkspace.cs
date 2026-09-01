@@ -1,6 +1,7 @@
 using System.Globalization;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Etl.Excel;
 using Bonvi.Etl.Mapping;
@@ -78,6 +79,26 @@ public sealed class EtlWorkspace
     private readonly Dictionary<Guid, EmployeeFlag> _openFlags = [];
     private readonly Dictionary<Guid, EmployeeCompetency> _competencies = [];
     private readonly HashSet<string> _incentiveKeys = new(StringComparer.Ordinal);
+
+    /// <summary>Voronka bosqichlari nomi bo'yicha («Кенгаш»).</summary>
+    private readonly Dictionary<string, PipelineStage> _stages = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Vakansiya nomlari — arxiv vakansiyasi uchun.</summary>
+    private readonly Dictionary<string, VacancyTitle> _vacancyTitles = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Vakansiyalar nomi identifikatori bo'yicha.</summary>
+    private readonly Dictionary<Guid, Vacancy> _vacanciesByTitle = [];
+
+    /// <summary>
+    /// Nomzodlar: «vakansiya + ism + tug'ilgan sana» kaliti bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Kalitda vakansiya ham bor: bitta odam ikki xil vakansiyaga ariza
+    /// bergan bo'lishi mumkin va ular AYRIM yozuv. Tug'ilgan sana esa
+    /// bir xil ismli ikki nomzodni ajratadi — kengash varag'ida bunday
+    /// juftliklar uchraydi.
+    /// </remarks>
+    private readonly Dictionary<string, Candidate> _candidates = new(StringComparer.Ordinal);
 
     public EtlWorkspace(
         EtlOptions options,
@@ -209,6 +230,74 @@ public sealed class EtlWorkspace
         ArgumentNullException.ThrowIfNull(incentive);
         _ = _incentiveKeys.Add(IncentiveKey(incentive.EmployeeId, incentive.Kind, incentive.TypeId, incentive.Date));
     }
+
+    // ────────────────────────────────────────────────────────────
+    //  Rekruting — kengash qadami uchun
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Voronka bosqichini ro'yxatga oladi.</summary>
+    public void Register(PipelineStage stage)
+    {
+        ArgumentNullException.ThrowIfNull(stage);
+        _stages[stage.Name] = stage;
+    }
+
+    /// <summary>Bosqichni NOMI bo'yicha topadi («Кенгаш»).</summary>
+    public PipelineStage? StageNamed(string name) => _stages.GetValueOrDefault(name);
+
+    /// <summary>Vakansiya nomini ro'yxatga oladi.</summary>
+    public void Register(VacancyTitle title)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+        _vacancyTitles[title.Name] = title;
+    }
+
+    /// <summary>Vakansiya nomini NOMI bo'yicha topadi.</summary>
+    public VacancyTitle? VacancyTitleNamed(string name) => _vacancyTitles.GetValueOrDefault(name);
+
+    /// <summary>
+    /// Vakansiyani ro'yxatga oladi.
+    /// </summary>
+    /// <remarks>
+    /// Kalit — vakansiya NOMINING identifikatori. Kengash qadami arxiv
+    /// uchun BITTA vakansiya ochadi va ikkinchi yugurishda aynan
+    /// o'shanisini qayta topishi kerak, aks holda har safar yangisi
+    /// ochilib, nomzodlar bir necha vakansiyaga tarqab ketardi.
+    /// </remarks>
+    public void Register(Vacancy vacancy)
+    {
+        ArgumentNullException.ThrowIfNull(vacancy);
+        _ = _vacanciesByTitle.TryAdd(vacancy.VacancyTitleId, vacancy);
+    }
+
+    /// <summary>Shu nomdagi vakansiya (bo'lmasa <c>null</c>).</summary>
+    public Vacancy? VacancyOfTitle(Guid vacancyTitleId) => _vacanciesByTitle.GetValueOrDefault(vacancyTitleId);
+
+    /// <summary>Nomzodni ro'yxatga oladi.</summary>
+    public void Register(Candidate candidate)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        _candidates[CandidateKey(candidate.VacancyId, candidate.FullName, candidate.BirthDate)] = candidate;
+    }
+
+    /// <summary>Shu vakansiyadagi shu odam (bo'lmasa <c>null</c>).</summary>
+    public Candidate? CandidateOf(Guid vacancyId, FullName fullName, DateOnly? birthDate)
+        => _candidates.GetValueOrDefault(CandidateKey(vacancyId, fullName, birthDate));
+
+    /// <summary>
+    /// Nomzod kaliti: vakansiya + ism + tug'ilgan sana.
+    /// </summary>
+    /// <remarks>
+    /// Ism <see cref="EmployeeIndex.NameKey"/> orqali normallashtiriladi —
+    /// ya'ni xodim qidiruvi bilan AYNAN bir xil qoida (kirill gomogliflari,
+    /// «ўғли»/«угли» farqi). Tug'ilgan sana kalitning ikkinchi qismi:
+    /// kengash varag'ida bir xil ismli, boshqa odamlar uchraydi va ularni
+    /// bitta nomzodga qo'shib yuborish tarixni buzardi.
+    /// </remarks>
+    private static string CandidateKey(Guid vacancyId, FullName fullName, DateOnly? birthDate)
+        => string.Create(
+            CultureInfo.InvariantCulture,
+            $"{vacancyId:N}|{EmployeeIndex.NameKey(fullName)}|{birthDate?.DayNumber ?? 0}");
 
     /// <summary>Xodimning barcha mehnat munosabatlari.</summary>
     public IReadOnlyList<Employment> EmploymentsOf(Guid employeeId)

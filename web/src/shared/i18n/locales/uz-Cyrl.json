@@ -1146,7 +1146,8 @@
     },
     "source": {
       "manual": "Қўлда",
-      "telegramBot": "Telegram бот"
+      "telegramBot": "Telegram бот",
+      "excel": "Excel архиви"
     },
     "startStage": "Бошланғич босқич",
     "startStageDefault": "— Воронканинг биринчи босқичи —",

@@ -1146,7 +1146,8 @@
     },
     "source": {
       "manual": "Manual",
-      "telegramBot": "Telegram bot"
+      "telegramBot": "Telegram bot",
+      "excel": "Excel archive"
     },
     "startStage": "Starting stage",
     "startStageDefault": "— First stage of the funnel —",

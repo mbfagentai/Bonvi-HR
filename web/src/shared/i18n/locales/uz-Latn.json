@@ -1146,7 +1146,8 @@
     },
     "source": {
       "manual": "Qo‘lda",
-      "telegramBot": "Telegram bot"
+      "telegramBot": "Telegram bot",
+      "excel": "Excel arxivi"
     },
     "startStage": "Boshlang‘ich bosqich",
     "startStageDefault": "— Voronkaning birinchi bosqichi —",

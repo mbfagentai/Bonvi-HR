@@ -161,6 +161,16 @@ static List<(EtlStep Step, Action Run)> Plan(EtlOptions options, EtlWorkspace wo
         plan.Add((EtlStep.Profiles, new ProfilesStep(workspace).Run));
     }
 
+    // Kengash xulosasi ENG OXIRIDA: qadam xodimlarni ham, ularning ishga
+    // qabul hodisalarini ham izlaydi va ikkalasi ham oldingi qadamlarda
+    // yaratiladi. Undan oldin yurgizilsa, hali ko'chirilmagan odamlar
+    // «topilmadi» bo'lib, ular uchun soxta «ishga olinmagan nomzod»
+    // yozuvi ochilardi — bu esa tarixni buzardi.
+    if (options.Has(EtlStep.Council))
+    {
+        plan.Add((EtlStep.Council, new CouncilStep(workspace).Run));
+    }
+
     return plan;
 }
 
@@ -262,6 +272,30 @@ static async Task LoadExistingAsync(
     foreach (var incentive in await database.LoadIncentivesAsync(cancellationToken).ConfigureAwait(false))
     {
         workspace.Register(incentive);
+    }
+
+    // Rekruting — faqat kengash qadami uchun. Bosqichlar urug'lantirishda
+    // yaratilgan, arxiv vakansiyasi va nomzodlar esa oldingi yugurishdan
+    // qolgan bo'lishi mumkin: ikkinchi yugurish ularni QAYTA yaratmasligi
+    // kerak (qadam idempotent bo'lishi shart).
+    foreach (var stage in await database.LoadPipelineStagesAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(stage);
+    }
+
+    foreach (var title in await database.LoadVacancyTitlesAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(title);
+    }
+
+    foreach (var vacancy in await database.LoadVacanciesAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(vacancy);
+    }
+
+    foreach (var candidate in await database.LoadCandidatesAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(candidate);
     }
 }
 
@@ -385,7 +419,7 @@ internal static class Usage
               --connection <satr>       PostgreSQL ulanish satri
               --apply                   Bazaga HAQIQATAN yozadi (aks holda quruq yurish)
               --dry-run                 Quruq yurish (standart holat, aniqlik uchun)
-              --steps <ro'yxat>         employees,employments,events,probations,flags,profiles
+              --steps <ro'yxat>         employees,employments,events,probations,flags,profiles,council
               --report <yo'l>           CSV hisobot yo'li
               --limit <son>             Har varaqdan nechta qator (sinov uchun)
               --default-legal-entity    Yuridik shaxs ko'rsatilmaganda ishlatiladigan kod

@@ -81,4 +81,28 @@ public sealed class ConversationStoreTests
 
         store.Find(42)!.Step.ShouldBe(ConversationStep.Phone);
     }
+
+    [Fact]
+    public void Manzil_qadamida_telefon_raqami_saqlanib_qoladi()
+    {
+        // Raqam kontakt TUGMASI orqali keladi va tugma manzil
+        // so'ralganda olib tashlanadi — ya'ni uni qayta so'rash imkoni
+        // yo'q. Shu sababli u manzil yozilguncha holatda turishi shart,
+        // aks holda ariza raqamsiz yuborilardi.
+        var store = new ConversationStore(TimeSpan.FromMinutes(60));
+
+        store.Save(42, new ConversationState
+        {
+            Step = ConversationStep.Address,
+            Name = new PersonName("Karimov", "Aziz", null),
+            Phone = "+998901234567",
+        });
+
+        var found = store.Find(42);
+
+        found.ShouldNotBeNull();
+        found.Step.ShouldBe(ConversationStep.Address);
+        found.Phone.ShouldBe("+998901234567");
+        found.Name!.LastName.ShouldBe("Karimov");
+    }
 }
