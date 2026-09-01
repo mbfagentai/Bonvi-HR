@@ -1,7 +1,9 @@
 using System.Globalization;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Safety;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Etl.Excel;
 using Bonvi.Etl.Mapping;
@@ -99,6 +101,12 @@ public sealed class EtlWorkspace
     /// juftliklar uchraydi.
     /// </remarks>
     private readonly Dictionary<string, Candidate> _candidates = new(StringComparer.Ordinal);
+
+    /// <summary>Suhbat yozilgan munosabatlar — bittasiga bitta suhbat.</summary>
+    private readonly HashSet<Guid> _exitInterviewEmployments = [];
+
+    /// <summary>«Xodim + sana» — bir hodisa ikki marta yozilmasin.</summary>
+    private readonly HashSet<string> _incidentKeys = new(StringComparer.Ordinal);
 
     public EtlWorkspace(
         EtlOptions options,
@@ -298,6 +306,51 @@ public sealed class EtlWorkspace
         => string.Create(
             CultureInfo.InvariantCulture,
             $"{vacancyId:N}|{EmployeeIndex.NameKey(fullName)}|{birthDate?.DayNumber ?? 0}");
+
+    // ────────────────────────────────────────────────────────────
+    //  Qayta aloqa va baxtsiz hodisalar
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>«Qayta aloqa» suhbatini ro'yxatga oladi.</summary>
+    public void Register(ExitInterview interview)
+    {
+        ArgumentNullException.ThrowIfNull(interview);
+        _ = _exitInterviewEmployments.Add(interview.EmploymentId);
+    }
+
+    /// <summary>
+    /// Shu munosabatda suhbat allaqachon bormi.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Kalitda SANA YO'Q va bu majburiy: bazada
+    /// <c>ix_exit_interviews_employment_id</c> UNIKAL indeksi turibdi —
+    /// bitta mehnat munosabatiga bitta suhbat. Sana ham kalitga
+    /// kiritilsa, bir odamning ikkita anketasi ikkita yozuv bo'lib
+    /// ketardi va butun qadam indeks buzilishi bilan yiqilardi
+    /// (aynan shunday bo'lgan edi).
+    /// </remarks>
+    public bool HasExitInterview(Guid employmentId)
+        => _exitInterviewEmployments.Contains(employmentId);
+
+    /// <summary>Baxtsiz hodisani ro'yxatga oladi.</summary>
+    public void Register(Incident incident)
+    {
+        ArgumentNullException.ThrowIfNull(incident);
+        _ = _incidentKeys.Add(IncidentKey(incident.EmployeeId, incident.IncidentDate));
+    }
+
+    /// <summary>Shu xodimda shu kunda hodisa allaqachon yozilganmi.</summary>
+    public bool HasIncident(Guid employeeId, DateOnly date)
+        => _incidentKeys.Contains(IncidentKey(employeeId, date));
+
+    /// <summary>Takrorlanish kaliti: xodim + sana.</summary>
+    /// <remarks>
+    /// Hodisa xodimga TO'G'RIDAN-TO'G'RI bog'langan (munosabat orqali
+    /// emas) — <c>Incident.EmployeeId</c>. Bir kunda bir odamda ikkita
+    /// hodisa bo'lishi amalda uchramaydi.
+    /// </remarks>
+    private static string IncidentKey(Guid employeeId, DateOnly date)
+        => string.Create(CultureInfo.InvariantCulture, $"{employeeId:N}|{date.DayNumber}");
 
     /// <summary>
     /// Barcha mehnat munosabatlari — sinov muddatini solishtirish uchun.

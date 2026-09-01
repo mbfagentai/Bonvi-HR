@@ -29,8 +29,14 @@ public enum EtlStep
     /// <summary>Kengash xulosalari: nomzod yozuvi va bosqich xulosasi.</summary>
     Council = 64,
 
+    /// <summary>«Qayta aloqa» — ishdan ketuvchi bilan suhbat anketasi.</summary>
+    Feedback = 128,
+
+    /// <summary>Ish paytidagi baxtsiz hodisalar jurnali.</summary>
+    Safety = 256,
+
     /// <summary>Hammasi.</summary>
-    All = Employees | Employments | Events | Probations | Flags | Profiles | Council,
+    All = Employees | Employments | Events | Probations | Flags | Profiles | Council | Feedback | Safety,
 }
 
 /// <summary>
@@ -242,13 +248,15 @@ public sealed class EtlOptions
                 "flags" or "belgilar" => EtlStep.Flags,
                 "profiles" or "profil" => EtlStep.Profiles,
                 "council" or "kengash" => EtlStep.Council,
+                "feedback" or "aloqa" => EtlStep.Feedback,
+                "safety" or "hodisalar" => EtlStep.Safety,
                 "all" or "hammasi" => EtlStep.All,
                 _ => EtlStep.None,
             };
 
             if (step == EtlStep.None)
             {
-                return (EtlStep.None, $"Noma'lum qadam: «{name}». Mumkin: employees, employments, events, probations, flags, profiles, council.");
+                return (EtlStep.None, $"Noma'lum qadam: «{name}». Mumkin: employees, employments, events, probations, flags, profiles, council, feedback, safety.");
             }
 
             result |= step;

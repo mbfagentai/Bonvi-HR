@@ -171,6 +171,20 @@ static List<(EtlStep Step, Action Run)> Plan(EtlOptions options, EtlWorkspace wo
         plan.Add((EtlStep.Council, new CouncilStep(workspace).Run));
     }
 
+    // «Qayta aloqa» va baxtsiz hodisalar — kengashdan ham KEYIN.
+    // Ikkalasi ham faqat MAVJUD odam haqida gapiradi va yangi xodim
+    // yaratmaydi; «qayta aloqa» ustiga xodimning ishdan ketish
+    // yozuvini ham izlaydi.
+    if (options.Has(EtlStep.Feedback))
+    {
+        plan.Add((EtlStep.Feedback, new FeedbackStep(workspace).Run));
+    }
+
+    if (options.Has(EtlStep.Safety))
+    {
+        plan.Add((EtlStep.Safety, new SafetyStep(workspace).Run));
+    }
+
     return plan;
 }
 
@@ -297,6 +311,16 @@ static async Task LoadExistingAsync(
     {
         workspace.Register(candidate);
     }
+
+    foreach (var interview in await database.LoadExitInterviewsAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(interview);
+    }
+
+    foreach (var incident in await database.LoadIncidentsAsync(cancellationToken).ConfigureAwait(false))
+    {
+        workspace.Register(incident);
+    }
 }
 
 static async Task WriteReportAsync(EtlOptions options, EtlReport report, CancellationToken cancellationToken)
@@ -419,7 +443,7 @@ internal static class Usage
               --connection <satr>       PostgreSQL ulanish satri
               --apply                   Bazaga HAQIQATAN yozadi (aks holda quruq yurish)
               --dry-run                 Quruq yurish (standart holat, aniqlik uchun)
-              --steps <ro'yxat>         employees,employments,events,probations,flags,profiles,council
+              --steps <ro'yxat>         employees,employments,events,probations,flags,profiles,council,feedback,safety
               --report <yo'l>           CSV hisobot yo'li
               --limit <son>             Har varaqdan nechta qator (sinov uchun)
               --default-legal-entity    Yuridik shaxs ko'rsatilmaganda ishlatiladigan kod

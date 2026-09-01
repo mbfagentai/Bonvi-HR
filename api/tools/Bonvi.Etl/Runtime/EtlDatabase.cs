@@ -3,8 +3,10 @@ using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Safety;
 using Bonvi.Infrastructure.Persistence;
 using Bonvi.Infrastructure.Persistence.Interceptors;
 using Bonvi.Infrastructure.Services;
@@ -206,6 +208,18 @@ public sealed class EtlDatabase : IAsyncDisposable
         => _context is null
             ? []
             : await _context.Incentives.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>Mavjud «qayta aloqa» suhbatlari — takrorlanmaslik uchun.</summary>
+    public async Task<IReadOnlyList<ExitInterview>> LoadExitInterviewsAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.ExitInterviews.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>Mavjud baxtsiz hodisalar — takrorlanmaslik uchun.</summary>
+    public async Task<IReadOnlyList<Incident>> LoadIncidentsAsync(CancellationToken cancellationToken)
+        => _context is null
+            ? []
+            : await _context.Incidents.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <summary>Voronka bosqichlari — kengash qadami «Кенгаш» ni shu yerdan topadi.</summary>
     /// <remarks>
