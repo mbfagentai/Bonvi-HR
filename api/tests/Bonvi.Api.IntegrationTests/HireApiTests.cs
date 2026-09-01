@@ -38,6 +38,16 @@ public sealed record HiredCardResponse(HiredPersonResponse Employee);
 public sealed record ProbationRowResponse(Guid Id, Guid EmployeeId, string Status);
 
 /// <summary>
+/// «/api/probations» sahifalangan javobi.
+/// </summary>
+/// <remarks>
+/// Ro'yxat 2026-09-01 da sahifalangan: Excel tarixi ko'chirilgach u
+/// 1342 qatorga (bitta javobda 926 KB) yetgan edi. Shakl xodimlar
+/// ro'yxatidagi bilan bir xil.
+/// </remarks>
+public sealed record ProbationPageResponse(IReadOnlyList<ProbationRowResponse> Items, int Total);
+
+/// <summary>
 /// Mijoz yuboradigan shaxs bloki — <c>toHireBody</c> dagi <c>person</c>.
 /// </summary>
 /// <remarks>
@@ -326,11 +336,11 @@ public sealed class HireApiTests : IClassFixture<BonviApiFactory>
 
         javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
 
-        var qatorlar = await javob.Content.ReadFromJsonAsync<List<ProbationRowResponse>>(
+        var sahifa = await javob.Content.ReadFromJsonAsync<ProbationPageResponse>(
             TestContext.Current.CancellationToken);
 
-        qatorlar.ShouldNotBeNull();
-        return qatorlar;
+        sahifa.ShouldNotBeNull();
+        return sahifa.Items;
     }
 
     private async Task<HttpClient> AdminMijozAsync()

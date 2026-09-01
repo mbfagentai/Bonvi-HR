@@ -1,0 +1,54 @@
+# ============================================================
+#  Bonvi HR Telegram boti — production image
+#
+#  API tasviridan ALOHIDA va bu ataylab: bot boshqa jarayon,
+#  boshqa hayot davri va boshqa xavf darajasiga ega. Uni API
+#  bilan bitta tasvirga qo'shish ikkalasini birga chiqarishga
+#  majbur qilardi — bot tokeni almashganda esa butun API ni
+#  qayta ishga tushirish kerak bo'lardi.
+#
+#  Loyihada boshqa loyihaga havola YO'Q (izohi Bonvi.Bot.csproj
+#  da), shu sababli bu yerda faqat bitta csproj tiklanadi va
+#  tasvir API nikidan sezilarli kichik chiqadi.
+# ============================================================
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400-noble AS build
+WORKDIR /src
+
+# Avval faqat loyiha fayllari — NuGet qatlami keshlanadi va
+# kod o'zgarganda qayta yuklanmaydi
+COPY global.json Directory.Build.props Directory.Packages.props ./
+COPY src/Bonvi.Bot/*.csproj src/Bonvi.Bot/
+RUN dotnet restore src/Bonvi.Bot/Bonvi.Bot.csproj
+
+COPY src/Bonvi.Bot/ src/Bonvi.Bot/
+RUN dotnet publish src/Bonvi.Bot/Bonvi.Bot.csproj \
+      -c Release \
+      -o /app/publish \
+      --no-restore \
+      /p:UseAppHost=false
+
+# ------------------------------------------------------------
+#  `aspnet` emas, `runtime`: bot HTTP SERVER emas, u faqat
+#  chiquvchi so'rov yuboradi. ASP.NET Core ish vaqti ortiqcha
+#  ~15 MB va ortiqcha hujum yuzasi bo'lardi.
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble AS runtime
+WORKDIR /app
+
+# Root'dan ishlamaydi — API bilan bir xil talab
+RUN groupadd --system --gid 2000 bonvi \
+ && useradd  --system --uid 2000 --gid bonvi bonvi
+
+COPY --from=build --chown=bonvi:bonvi /app/publish .
+
+USER bonvi
+
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1
+
+# Port OCHILMAYDI: bot tashqaridan so'rov qabul qilmaydi.
+# Holat tekshiruvi ham yo'q — `restart: unless-stopped` yetarli,
+# chunki botning yagona vazifasi Telegram'ni so'rab turish va
+# u to'xtasa jarayon tugaydi.
+
+ENTRYPOINT ["dotnet", "bonvi-bot.dll"]

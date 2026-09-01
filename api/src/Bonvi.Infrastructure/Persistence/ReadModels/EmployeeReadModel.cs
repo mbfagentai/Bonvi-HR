@@ -286,7 +286,7 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
     /// mumkin va bunday yozuv ekranda ko'rinmasligi kerak.
     /// </para>
     /// </remarks>
-    public async Task<IReadOnlyList<ProbationRow>> ListProbationsAsync(
+    public async Task<ProbationPage> ListProbationsAsync(
         ProbationListFilter filter,
         CancellationToken cancellationToken = default)
     {
@@ -315,6 +315,21 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         // qidiruvda butun jadvalni qaytaradi, ya'ni qo'shimcha shoxlanish
         // kerak emas.
         var employees = EmployeeSearchQuery.Matching(_context, filter.Search);
+
+        // Bir marta yozilgan so'rov ikki marta ishlatiladi: umumiy son
+        // uchun `CountAsync`, sahifa uchun `Skip`/`Take`. Shartlar shu
+        // sababli ajratib qo'yilgan — ular ikkalasida ham AYNAN bir xil
+        // bo'lishi shart, aks holda «3 sahifa» deb yozib, uchinchisini
+        // bo'sh berardi.
+        var moslar =
+                from probation in probations
+                join employment in _context.Employments
+                    on probation.EmploymentId equals employment.Id
+                join employee in employees
+                    on employment.EmployeeId equals employee.Id
+                select new { probation, employment, employee };
+
+        var total = await moslar.CountAsync(cancellationToken).ConfigureAwait(false);
 
         var rows = await (
                 from probation in probations
@@ -351,10 +366,12 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                     employment.HireDate,
                 })
             .AsNoTracking()
+            .Skip(filter.Skip)
+            .Take(filter.PageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return
+        return new ProbationPage(
         [
             .. rows.Select(row => new ProbationRow(
                 row.Id,
@@ -373,7 +390,8 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 row.DepartmentId,
                 row.PositionId,
                 row.HireDate)),
-        ];
+        ],
+            total);
     }
 
     /// <inheritdoc />

@@ -81,7 +81,23 @@ export interface ProbationFilters {
    * Bo'sh satr — «qidiruvsiz» (server ham shunday tushunadi).
    */
   search: string
+  /** Sahifa raqami, 1 dan. */
+  page: number
 }
+
+/** Bir sahifa sinov muddati va umumiy soni. */
+export interface ProbationPage {
+  items: ProbationItem[]
+  total: number
+}
+
+/**
+ * Bir ekranda ko'rsatiladigan sinov muddatlari soni.
+ *
+ * Xodimlar ro'yxatidagi bilan bir xil: ikkita ro'yxat bir xil naqshda
+ * chizilgan ekan, ular bir xil his qilishi kerak.
+ */
+export const PROBATIONS_PAGE_SIZE = 25
 
 /**
  * Sinov xulosasi — va u «o'tdi» bo'lsa, doimiy xodimga o'tkazish shartlari.
@@ -137,16 +153,18 @@ export interface ExtendProbationRequest {
 /* ─────────────────────────────────────────────────────────── so'rovlar */
 
 /**
- * Sinov muddatlari ro'yxati.
+ * Sinov muddatlari ro'yxati — SERVER tomonda sahifalanadi.
  *
- * Server sahifalamaydi va bu ataylab: bir vaqtda sinovda bo'lgan xodimlar
- * o'nlab, ko'pi bilan bir necha yuz. Ularni bitta ro'yxatda ko'rish HR uchun
- * qulayroq — «keyingi sahifa» tugmasi bu yerda faqat xalaqit berardi.
+ * ⚠️ Ilgari bu ro'yxat sahifalanmasdi: «bir vaqtda sinovda bo'lganlar
+ * o'nlab» degan taxminga tayanardi. Excel ko'chirilgach ro'yxat 1342
+ * qatorga (926 KB bitta javobda) yetdi — tarixiy, allaqachon yakunlangan
+ * sinovlar ham shu ro'yxatda. Taxmin noto'g'ri chiqdi va u ma'lumot
+ * o'sishi bilan yomonlashardi.
  */
 export async function fetchProbations(
   filters: ProbationFilters,
   signal?: AbortSignal,
-): Promise<ProbationItem[]> {
+): Promise<ProbationPage> {
   // Bo'sh filtr YUBORILMAYDI: `?status=` server uchun «noto'g'ri qiymat»,
   // «hammasi» emas.
   //
@@ -155,14 +173,30 @@ export async function fetchProbations(
   // qoidalarini biladi, klient esa yo'q. Bu qoidani bu yerda takrorlash
   // ikkinchi nusxa yaratardi va u vaqt o'tib birinchisidan ajralib
   // ketardi.
-  const params: Record<string, string> = {}
+  const params: Record<string, string | number> = {
+    page: filters.page,
+    pageSize: PROBATIONS_PAGE_SIZE,
+  }
 
   if (filters.status !== '') params['status'] = statusName(filters.status)
   if (filters.search.trim() !== '') params['search'] = filters.search
 
   const { data } = await api.get<unknown>('/api/probations', { params, signal })
 
-  return toList(data)
+  // Massiv ham qabul qilinadi: shartnoma o'zgarishidan oldin chiqarilgan
+  // klient yangi server bilan, yangi klient esa eski server bilan
+  // ishlashda davom etsin. `total` u holda ro'yxat uzunligi bo'ladi va
+  // sahifalash o'z-o'zidan bitta sahifaga aylanadi.
+  if (Array.isArray(data)) {
+    const items = toList(data)
+    return { items, total: items.length }
+  }
+
+  const box = (data ?? {}) as Record<string, unknown>
+  const items = toList(box['items'])
+  const total = typeof box['total'] === 'number' ? box['total'] : items.length
+
+  return { items, total }
 }
 
 /** Muddati yaqinlashganlar — sahifa boshidagi ogohlantirish uchun. */

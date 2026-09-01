@@ -19,6 +19,7 @@ import {
   Card,
   DataTable,
   EmptyState,
+  Pagination,
   IconTile,
   Input,
   PageHeader,
@@ -30,6 +31,7 @@ import {
 
 import {
   PROBATION_STATUSES,
+  PROBATIONS_PAGE_SIZE,
   type ProbationFilters,
   type ProbationItem,
   type ProbationStatus,
@@ -89,18 +91,26 @@ export function ProbationsPage() {
   // Holat sahifaning o'zida, qidiruv esa manzilda — sabab marshrut
   // faylida (`sinov.tsx`) yozilgan.
   const [status, setStatus] = useState<ProbationFilters['status']>('')
+  const [page, setPage] = useState(1)
   const [resolving, setResolving] = useState<ProbationItem | null>(null)
   const [extending, setExtending] = useState<ProbationItem | null>(null)
   const [hireOpen, setHireOpen] = useState(false)
 
-  const filters: ProbationFilters = { status, search: search.q ?? '' }
+  const filters: ProbationFilters = { status, search: search.q ?? '', page }
 
   /*
    * Qidiruv har harfda so'rov yubormaydi (350 ms) va matn manzilga
    * yoziladi. `replace` — qidiruvni aniqlashtirish alohida tarix qadami
    * emas: aks holda «orqaga» tugmasi har bir harfni birma-bir qaytarardi.
    */
+  /*
+   * Qidiruv yoki holat o'zgarsa BIRINCHI sahifaga qaytiladi.
+   *
+   * Usiz HR uchinchi sahifada turib qidirsa, natija bir sahifaga
+   * sig'sa ham bo'sh ekran ko'rardi — «topilmadi» deb o'ylardi.
+   */
   const [draft, setDraft] = useSearchDraft(filters.search, (value) => {
+    setPage(1)
     void navigate({ search: { q: toSearchParam(value) }, replace: true })
   })
 
@@ -116,7 +126,8 @@ export function ProbationsPage() {
    */
   const options = useFilterOptions()
 
-  const rows = list.data ?? EMPTY
+  const rows = list.data?.items ?? EMPTY
+  const total = list.data?.total ?? 0
   const soonCount = warning.data?.length ?? 0
 
   const statusOptions = useMemo(
@@ -271,7 +282,7 @@ export function ProbationsPage() {
             {t('probation.title')}
           </span>
         }
-        subtitle={list.isSuccess ? t('probation.subtitle', { n: num(rows.length) }) : undefined}
+        subtitle={list.isSuccess ? t('probation.subtitle', { n: num(total) }) : undefined}
         actions={
           canHire ? (
             <Button variant="create" onClick={() => setHireOpen(true)}>
@@ -326,7 +337,10 @@ export function ProbationsPage() {
           <Select
             options={statusOptions}
             value={status}
-            onChange={(event) => setStatus(event.target.value as ProbationFilters['status'])}
+            onChange={(event) => {
+              setPage(1)
+              setStatus(event.target.value as ProbationFilters['status'])
+            }}
             className="w-full sm:w-[260px]"
           />
         </div>
@@ -359,6 +373,17 @@ export function ProbationsPage() {
             />
           }
         />
+
+        {total > PROBATIONS_PAGE_SIZE && (
+          <Pagination
+            page={page}
+            pageSize={PROBATIONS_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            disabled={list.isFetching}
+            className="border-t border-[var(--border)]"
+          />
+        )}
       </Card>
 
       <ResolveDialog item={resolving} onClose={() => setResolving(null)} />

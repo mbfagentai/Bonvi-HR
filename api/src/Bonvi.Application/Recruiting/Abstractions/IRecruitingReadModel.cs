@@ -104,6 +104,7 @@ public enum VacancySortField
 /// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
 /// <param name="Sort">Saralash ustuni.</param>
 /// <param name="Descending">Teskari tartib.</param>
+/// <param name="IncludeArchive">Excel arxivi ham ko'rsatilsinmi (sukut: yo'q).</param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -113,10 +114,21 @@ public sealed record CandidateSearchFilter(
     int Page = 1,
     int PageSize = 25,
     CandidateSortField Sort = CandidateSortField.CreatedAt,
-    bool Descending = true)
+    bool Descending = true,
+    bool IncludeArchive = false)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
+
+    /// <summary>
+    /// Excel arxivi ro'yxatdan chiqarilsinmi.
+    /// </summary>
+    /// <remarks>
+    /// Manba ATAYLAB tanlangan bo'lsa chiqarilmaydi: HR «Excel arxivi»ni
+    /// tanlagan ekan, aynan o'shani ko'rmoqchi. Aks holda tanlov jimgina
+    /// bo'sh ro'yxat berardi.
+    /// </remarks>
+    public bool HideArchive => !IncludeArchive && Source is null;
 }
 
 /// <summary>Bitta sahifa: nomzodlar va umumiy soni.</summary>

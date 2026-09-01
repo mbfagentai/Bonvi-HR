@@ -33,7 +33,7 @@ public interface IEmployeeReadModel
         CancellationToken cancellationToken = default);
 
     /// <summary>Sinov muddatlari ro'yxati — xodim nomi va lavozimi bilan.</summary>
-    Task<IReadOnlyList<ProbationRow>> ListProbationsAsync(
+    Task<ProbationPage> ListProbationsAsync(
         ProbationListFilter filter,
         CancellationToken cancellationToken = default);
 
@@ -244,11 +244,22 @@ public sealed record EmployeeDirectionRow(Guid Id, string Name);
 /// cheklanmagan: sinovdagi ikkita «Каримов» bo'lsa, HR ularni JSHSHIR
 /// bilan ajratadi.
 /// </param>
+/// <param name="Page">Sahifa raqami, 1 dan.</param>
+/// <param name="PageSize">Sahifa hajmi.</param>
 public sealed record ProbationListFilter(
     ProbationStatus? Status,
     int? EndingWithinDays,
     DateOnly Today,
-    string? Search = null);
+    string? Search = null,
+    int Page = 1,
+    int PageSize = 25)
+{
+    /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
+    public int Skip => (Page - 1) * PageSize;
+}
+
+/// <summary>Sinov muddatlarining bitta sahifasi.</summary>
+public sealed record ProbationPage(IReadOnlyList<ProbationRow> Items, int Total);
 
 /// <summary>Sinov muddati — xodim ma'lumoti bilan birga.</summary>
 public sealed record ProbationRow(

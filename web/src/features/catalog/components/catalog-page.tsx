@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { matchesSearch } from '@/shared/lib/search-fold'
 import {
   Alert,
   Badge,
@@ -143,13 +144,17 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
 
   const rows = useMemo(() => {
     const source = list.data ?? EMPTY
-    const needle = query.trim().toLocaleLowerCase()
+    const needle = query.trim()
     if (needle === '') return source
 
     // Qidiruv faqat nom bo'yicha: nom butun ma'lumotnoma bo'yicha unikal va
     // foydalanuvchi yozuvni aynan shu nom bilan biladi. Izoh ichki eslatma —
     // uni qidiruvga qo'shish tasodifiy mos kelishlar keltirib chiqaradi.
-    return source.filter((item) => item.name.toLocaleLowerCase().includes(needle))
+    //
+    // `matchesSearch` — server qidiruvidagi qoidaning O'ZI: HR rus
+    // klaviaturada «Кукон» yozsa ham «Қўқон» topiladi. Usiz ma'lumotnoma
+    // tizimdagi yagona «boshqacha qidiradigan» ekran bo'lib qolardi.
+    return source.filter((item) => matchesSearch(item.name, needle))
   }, [list.data, query])
 
   const searching = query.trim() !== ''

@@ -19,10 +19,14 @@ namespace Bonvi.Application.Employees.Probations;
 /// bo'lardi: bir kun ro'yxat kattalashadi va kesish jimgina noto'g'ri
 /// natija berardi.
 /// </param>
+/// <param name="Page">Sahifa raqami, 1 dan (sukut: 1).</param>
+/// <param name="PageSize">Sahifa hajmi (sukut 25, eng ko'pi 200).</param>
 public sealed record ListProbationsQuery(
     ProbationStatus? Status = null,
     int? EndingWithinDays = null,
-    string? Search = null);
+    string? Search = null,
+    int? Page = null,
+    int? PageSize = null);
 
 public sealed class ListProbationsQueryHandler
 {
@@ -35,7 +39,23 @@ public sealed class ListProbationsQueryHandler
         _clock = clock;
     }
 
-    public async Task<Result<IReadOnlyList<ProbationListItemDto>>> HandleAsync(
+    /// <summary>Sahifa hajmi — xodimlar ro'yxatidagi bilan bir xil.</summary>
+    /// <remarks>
+    /// Ikkala chegara ham <c>SearchEmployeesQuery</c> dan ko'chirilgan:
+    /// bir xil ekran naqshi bir xil his qilishi kerak va HR ikkita
+    /// ro'yxatda ikki xil sahifa hajmini ko'rmasligi lozim.
+    /// </remarks>
+    public const int DefaultPageSize = 25;
+
+    /// <summary>Bir so'rovda beriladigan eng katta sahifa.</summary>
+    /// <remarks>
+    /// Chegara ATAYLAB bor: sahifalashdan oldin bu ro'yxat 1342 qatorni
+    /// bitta javobda (926 KB) yuborardi va u ma'lumot o'sishi bilan
+    /// cheksiz kattalashardi.
+    /// </remarks>
+    public const int MaxPageSize = 200;
+
+    public async Task<Result<PagedResult<ProbationListItemDto>>> HandleAsync(
         ListProbationsQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -43,7 +63,10 @@ public sealed class ListProbationsQueryHandler
 
         var today = _clock.Today;
 
-        var rows = await _readModel
+        var page = Math.Max(query.Page ?? 1, 1);
+        var pageSize = Math.Clamp(query.PageSize ?? DefaultPageSize, 1, MaxPageSize);
+
+        var found = await _readModel
             .ListProbationsAsync(
                 // Bo'sh matn `null` ga aylantiriladi: «?search=» — bu
                 // «hech narsa topilmasin» emas, «qidiruvsiz» degani
@@ -53,11 +76,20 @@ public sealed class ListProbationsQueryHandler
                     query.Status,
                     query.EndingWithinDays,
                     today,
-                    Normalize(query.Search)),
+                    Normalize(query.Search),
+                    page,
+                    pageSize),
                 cancellationToken)
             .ConfigureAwait(false);
 
-        return Result.Success(ToDtos(rows, today));
+        var pageCount = (found.Total + pageSize - 1) / pageSize;
+
+        return Result.Success(new PagedResult<ProbationListItemDto>(
+            ToDtos(found.Items, today),
+            page,
+            pageSize,
+            found.Total,
+            pageCount));
     }
 
     /// <summary>Bo'sh yoki faqat bo'shliqdan iborat matn — «qidiruvsiz».</summary>
@@ -124,12 +156,23 @@ public sealed class GetProbationsEndingSoonQueryHandler
         var today = _clock.Today;
         var within = query.WithinDays is { } days && days > 0 ? days : Probation.WarningDays;
 
-        var rows = await _readModel
+        // Bu ro'yxat SAHIFALANMAYDI va bu ataylab: u bosh sahifadagi
+        // «diqqat» bloki hamda kunlik eslatma uchun va 7 kun ichida
+        // tugaydiganlar soni tabiatan kichik. Sahifa hajmi baribir
+        // yuqori chegara bilan beriladi — chegarasiz so'rov ma'lumot
+        // o'sganda jimgina og'irlashardi.
+        var found = await _readModel
             .ListProbationsAsync(
-                new ProbationListFilter(ProbationStatus.InProgress, within, today),
+                new ProbationListFilter(
+                    ProbationStatus.InProgress,
+                    within,
+                    today,
+                    Search: null,
+                    Page: 1,
+                    PageSize: ListProbationsQueryHandler.MaxPageSize),
                 cancellationToken)
             .ConfigureAwait(false);
 
-        return Result.Success(ListProbationsQueryHandler.ToDtos(rows, today));
+        return Result.Success(ListProbationsQueryHandler.ToDtos(found.Items, today));
     }
 }

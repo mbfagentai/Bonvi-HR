@@ -98,11 +98,35 @@ public sealed partial class LocalFileStorage : IFileStorage
     /// Kalitni to'liq manzilga aylantiradi va ildiz papkadan chiqib ketmasligini tekshiradi
     /// (path traversal hujumidan himoya).
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Ildiz oxiriga ajratgich MAJBURIY qo'shiladi.</b> Usiz tekshiruv
+    /// «boshlanadimi» degan oddiy satr taqqoslash bo'lib qolardi va
+    /// <c>/data/uploads</c> ildizi ostida <c>/data/uploads-eski/parol.txt</c>
+    /// ham «ichkarida» deb hisoblanardi — u butunlay boshqa papka.
+    /// </para>
+    /// <para>
+    /// <b>Bugun kalit ishonchli, ertaga shart emas.</b> Hozir kalitni
+    /// <see cref="SaveAsync"/> ning o'zi UUID'dan yasaydi, ya'ni tashqaridan
+    /// kelmaydi. Lekin bu sinf umumiy saqlash porti va kalit kelajakda
+    /// so'rovdan (masalan eksport yoki tiklash oqimida) kelishi mumkin.
+    /// Himoya aynan shunday kunga yozilgan.
+    /// </para>
+    /// </remarks>
     private string? ResolveSafePath(string key)
     {
         var root = Path.GetFullPath(_options.RootPath);
+
+        // `TrimEnd` + qo'shish: `RootPath` sozlamada ajratgich bilan ham,
+        // ajratgichsiz ham yozilishi mumkin va ikkalasi bir xil ishlashi
+        // kerak.
+        var rootWithSeparator = root.TrimEnd(Path.DirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+
         var candidate = Path.GetFullPath(Path.Combine(root, key));
 
-        return candidate.StartsWith(root, StringComparison.Ordinal) ? candidate : null;
+        return candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal)
+            ? candidate
+            : null;
     }
 }

@@ -137,7 +137,21 @@ services:
       # bu qator qo'shilgan.
       Settings__SecretKey: ${SETTINGS__SECRETKEY:-}
       Storage__RootPath: /data/uploads
-      Cors__Origins__0: ${SITE_ADDRESS:-http://localhost}
+      # ----------------------------------------------------------
+      #  CORS — sukut bo'yicha BO'SH va bu to'g'ri.
+      #
+      #  Prod'da web va API bir xil domenda: Caddy `/api/*` ni shu
+      #  konteynerga proksi qiladi, brauzer uchun bu SAME-ORIGIN va
+      #  CORS umuman ishlamaydi.
+      #
+      #  ⚠️ Bu yerga `SITE_ADDRESS` ni QO'YMANG: u Caddy manzili
+      #  («hr.bonvi.uz» yoki «:80»), CORS esa to'liq origin talab
+      #  qiladi («https://hr.bonvi.uz»). Ikkalasi boshqa format va
+      #  ilgari shu sababdan qiymat jimgina ishlamas edi.
+      #
+      #  Faqat frontend BOSHQA domendan berilsa to'ldiring.
+      # ----------------------------------------------------------
+      Cors__Origins__0: ${CORS_ORIGIN:-}
 
       # ----------------------------------------------------------
       #  Birinchi administrator
@@ -159,6 +173,23 @@ services:
       Bootstrap__AdminLogin: ${BOOTSTRAP__ADMINLOGIN}
       Bootstrap__AdminPassword: ${BOOTSTRAP__ADMINPASSWORD}
       Bootstrap__AdminFullName: ${BOOTSTRAP__ADMINFULLNAME:-Bosh administrator}
+
+      # ----------------------------------------------------------
+      #  Telegram boti uchun XIZMAT hisobi
+      #
+      #  Bu odam emas: bot uning nomidan API ga kirib nomzod
+      #  yozadi va bot tokenini o'qiydi. Ikkalasi berilmasa hisob
+      #  UMUMAN yaratilmaydi va yuqoridagi `bot` xizmati 401
+      #  olib, ishga tusha olmaydi.
+      #
+      #  Login TELEFON RAQAMI bo'lishi shart (tizimda identifikator
+      #  shu) — kompaniyaning ishlatilmayotgan raqamini bering.
+      #  Ataylab `:-` standart qiymatisiz: unutilsa Compose
+      #  «variable is not set» deb birinchi soniyada ogohlantiradi.
+      # ----------------------------------------------------------
+      Bootstrap__BotLogin: ${BOOTSTRAP__BOTLOGIN}
+      Bootstrap__BotPassword: ${BOOTSTRAP__BOTPASSWORD}
+      Bootstrap__BotFullName: ${BOOTSTRAP__BOTFULLNAME:-Telegram bot}
 
       # ----------------------------------------------------------
       #  Migratsiya
@@ -229,6 +260,46 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
+    networks: [bonvi]
+
+  # ----------------------------------------------------------
+  #  Telegram anketa boti
+  #
+  #  NEGA ALOHIDA XIZMAT: bot API dan mustaqil jarayon va u
+  #  bazaga UMUMAN tegmaydi — faqat ikkita HTTP manzil bilan
+  #  gaplashadi (`api.telegram.org` va ichki `api:8080`).
+  #  Batafsil sabab `Bonvi.Bot.csproj` izohida.
+  #
+  #  NEGA PORT YO'Q: bot tashqaridan so'rov qabul qilmaydi, u
+  #  Telegram'ni O'ZI so'rab turadi (long polling). Ya'ni
+  #  tarmoqdan unga kirish nuqtasi umuman ochilmaydi.
+  #
+  #  ⚠️ TOKEN BU YERDA EMAS: u bazada, shifrlangan holda
+  #  saqlanadi va «Tizim sozlamalari» ekranidan qo'yiladi
+  #  (`Settings__SecretKey` ga qarang). Bot uni `Bot__Login` /
+  #  `Bot__Password` hisobi ostida API dan so'raydi. `Bot__Token`
+  #  faqat ZAXIRA yo'l: baza bo'sh bo'lganda birinchi ishga
+  #  tushirish uchun.
+  # ----------------------------------------------------------
+  bot:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.bot
+    restart: always
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      Bot__ApiBaseUrl: http://api:8080
+
+      # Bot API ga aynan shu hisob bilan kiradi — quyidagi
+      # `Bootstrap__Bot*` bilan BIR XIL bo'lishi shart, aks holda
+      # kirish 401 bilan rad etiladi.
+      Bot__Login: ${BOOTSTRAP__BOTLOGIN}
+      Bot__Password: ${BOOTSTRAP__BOTPASSWORD}
+      Bot__Token: ${TELEGRAM__BOTTOKEN:-}
+      Bot__PollTimeoutSeconds: ${TELEGRAM__POLLTIMEOUT:-30}
+      Bot__ConversationTimeoutMinutes: ${TELEGRAM__CONVERSATIONTIMEOUT:-60}
+    depends_on:
+      api: { condition: service_started }
     networks: [bonvi]
 
   web:

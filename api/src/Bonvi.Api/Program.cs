@@ -86,8 +86,24 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("postgres");
 
+// Bo'sh va probelli yozuvlar OLIB TASHLANADI. Sabab amaliy: production
+// compose'da manba `.env` dagi o'zgaruvchi va u berilmasa massivga bo'sh
+// satr tushadi — `WithOrigins("")` esa ArgumentException bilan butun
+// dasturni ishga tushirmasdi. Bo'sh ro'yxat ham to'g'ri holat: prod'da
+// web va API BIR XIL domenda (Caddy `/api/*` ni proksi qiladi), ya'ni
+// CORS umuman ishlamaydi va hech qanday tashqi manbaga ruxsat kerak emas.
+var corsOrigins = (builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [])
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim().TrimEnd('/'))
+    .ToArray();
+
+if (corsOrigins.Length == 0 && builder.Environment.IsDevelopment())
+{
+    corsOrigins = ["http://localhost:7173"];
+}
+
 builder.Services.AddCors(options => options.AddPolicy("web", policy => policy
-    .WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:7173"])
+    .WithOrigins(corsOrigins)
     .AllowAnyHeader()
     // `AllowAnyHeader()` faqat SO'ROV sarlavhalariga tegishli — u klient
     // nima yubora olishini belgilaydi. Javob sarlavhalari esa boshqa

@@ -124,13 +124,15 @@ public static class CandidateEndpoints
                 int? page,
                 int? pageSize,
                 string? sort,
+                bool? includeArchive,
                 SearchCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
                     .HandleAsync(
                         new SearchCandidatesQuery(
-                            search, vacancyId, stageId, status, source, page, pageSize, sort),
+                            search, vacancyId, stageId, status, source, page, pageSize, sort,
+                            includeArchive ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -145,9 +147,13 @@ public static class CandidateEndpoints
                 "bo'lmaydi); qidiruv xodimlar ro'yxatidagi kabi kirill imlo variantlarini " +
                 "(қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini hisobga oladi. " +
                 "«status» — InProgress | Rejected | Hired | Withdrawn, «source» — " +
-                "Manual | TelegramBot (noma'lum qiymat 400: «nomzod.holat_notogri» / " +
+                "Manual | TelegramBot | Excel (noma'lum qiymat 400: «nomzod.holat_notogri» / " +
                 "«nomzod.manba_notogri»). «sort» — createdAt (sukut, yangidan eskiga), " +
-                "name, stage. Voronka ustuni: «?status=InProgress&stageId=…».")
+                "name, stage. Voronka ustuni: «?status=InProgress&stageId=…». " +
+                "«includeArchive=true» — Excel'dan ko'chirilgan kengash arxivi ham " +
+                "qo'shiladi; sukut bo'yicha u ro'yxatda KO'RINMAYDI, chunki ekran " +
+                "«hozir kim bor?» degan savolga javob beradi. «source=Excel» tanlansa " +
+                "arxiv bayroqsiz ham ochiladi.")
             .Produces<PagedResult<CandidateListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);

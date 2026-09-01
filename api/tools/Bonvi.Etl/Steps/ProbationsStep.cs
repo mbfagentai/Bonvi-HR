@@ -108,6 +108,118 @@ public sealed class ProbationsStep
         ReadProbationSheet(summary);
         ReadEmployeeSheet(EmployeeSheet.Main, summary);
         ReadEmployeeSheet(EmployeeSheet.NewHires, summary);
+
+        // Varaqlar o'qilgandan KEYIN: solishtirish shu yugurishda
+        // yaratilgan yozuvlarni ham, bazadan yuklanganlarini ham
+        // birga ko'rishi kerak.
+        Reconcile(summary);
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //  Holatni solishtirish
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Munosabat holatini sinov natijasiga moslashtiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Qanday xato tuzatiladi.</b> Bu qadam sinov natijasini domen
+    /// obyektiga to'g'ridan-to'g'ri yozadi (<c>Probation.Resolve</c>) va
+    /// shu bilan MUNOSABATNI unutardi. Tizimdagi odatiy oqim esa ikkalasini
+    /// birga bajaradi: <c>ResolveProbationCommandHandler</c> sinovni
+    /// yakunlaydi VA <c>employment.CompleteProbation()</c> ni chaqiradi.
+    /// Natijada bazada 379 ta odam «sinovda» bo'lib qolgan edi — sinovi
+    /// allaqachon «o'tdi» bo'lsa ham. Bosh sahifa esa «Faol xodimlar: 30»
+    /// deb ko'rsatardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega tuzatish ALOHIDA yurish, yozish joyida emas.</b> Xato
+    /// allaqachon bazada. Faqat yozish joyini tuzatsak, yangi yugurish
+    /// to'g'ri ishlardi-yu, mavjud 379 yozuv abadiy qotib qolardi:
+    /// interfeysda ularni tuzatadigan yo'l YO'Q (sinov yakunlangani uchun
+    /// «sinov» ekrani ularni ko'rsatmaydi, <c>Resolve</c> esa
+    /// «allaqachon yakunlangan» xatosini beradi). Bu yurish esa
+    /// idempotent: har safar faqat mos kelmaydiganini tuzatadi.
+    /// </para>
+    /// <para>
+    /// <b>Faqat «o'tdi» avtomatik tuzatiladi.</b> «O'tmadi» yoki «o'zi
+    /// ketdi» bo'lsa odam ishdan bo'shatilgan bo'lishi kerak, lekin
+    /// bo'shatish yozuvi varaqda yo'q — bu HR qarori, ETL taxmini emas.
+    /// Ular hisobotga tushadi.
+    /// </para>
+    /// </remarks>
+    private void Reconcile(StepSummary summary)
+    {
+        foreach (var employment in _workspace.AllEmployments())
+        {
+            if (employment.Status != EmploymentStatus.Probation)
+            {
+                continue;
+            }
+
+            var probations = _workspace.ProbationsOf(employment.Id);
+
+            if (probations.Count == 0)
+            {
+                // Sinov yozuvi umuman yo'q — bu boshqa holat va uning
+                // o'z ekrani bor («sinov» sahifasidagi «yozuvsizlar»
+                // bloki, `ListMissingProbationsAsync`). HR u yerda
+                // bir bosishda tasdiqlaydi, ETL aralashmaydi.
+                continue;
+            }
+
+            var latest = Latest(probations);
+
+            if (latest.Status == ProbationStatus.InProgress)
+            {
+                continue;
+            }
+
+            if (latest.Status != ProbationStatus.Passed)
+            {
+                _workspace.Report.Add(Name, SheetName, 0, string.Empty,
+                    $"sinov «{latest.Status}» bilan yakunlangan, lekin xodim hali sinovda — HR ko'rib chiqsin",
+                    latest.Conclusion, EtlAction.Flagged);
+                summary.NeedsReview++;
+                continue;
+            }
+
+            var completed = employment.CompleteProbation(
+                latest.ResolvedAt ?? latest.EndDate,
+                latest.Conclusion);
+
+            if (completed.IsFailure)
+            {
+                _workspace.Report.Add(Name, SheetName, 0, string.Empty,
+                    "sinov natijasi munosabatga qo'llanmadi", completed.Error.Message, EtlAction.Flagged);
+                summary.NeedsReview++;
+                continue;
+            }
+
+            summary.Updated++;
+        }
+    }
+
+    /// <summary>Eng oxirgi sinov muddati — tugash sanasi bo'yicha.</summary>
+    /// <remarks>
+    /// Bitta munosabatda bir nechta sinov bo'lishi mumkin (muddat
+    /// uzaytirilgan yoki qayta ochilgan). Holatni ULARNING ENG
+    /// OXIRGISI belgilaydi: eskisi allaqachon o'tgan tarix.
+    /// </remarks>
+    private static Probation Latest(IReadOnlyList<Probation> probations)
+    {
+        var latest = probations[0];
+
+        for (var i = 1; i < probations.Count; i++)
+        {
+            if (probations[i].EndDate > latest.EndDate)
+            {
+                latest = probations[i];
+            }
+        }
+
+        return latest;
     }
 
     // ────────────────────────────────────────────────────────────

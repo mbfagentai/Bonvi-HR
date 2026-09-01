@@ -223,8 +223,10 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var sinovlar = await mijoz.GetAsync(
             new Uri("/api/probations?status=InProgress", UriKind.Relative), bekorQilish);
 
-        var qatorlar = await sinovlar.Content.ReadFromJsonAsync<List<ProbationRowResponse>>(bekorQilish);
-        qatorlar!.ShouldContain(q => q.EmployeeId == mehnat.EmployeeId, "ishga olingan nomzod /sinov ro'yxatida");
+        var sahifa = await sinovlar.Content.ReadFromJsonAsync<ProbationPageResponse>(bekorQilish);
+        sahifa!.Items.ShouldContain(
+            q => q.EmployeeId == mehnat.EmployeeId,
+            "ishga olingan nomzod /sinov ro'yxatida");
 
         // ── 7. Nomzod voronkada FAOL bo'lib qolmaydi ──
         var faollar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");

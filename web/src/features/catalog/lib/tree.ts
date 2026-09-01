@@ -1,3 +1,5 @@
+import { matchesSearch } from '@/shared/lib/search-fold'
+
 import type { DepartmentNode } from '../api/catalog-api'
 
 export interface FlatDepartment {
@@ -42,14 +44,15 @@ export function filterTree(
   nodes: readonly DepartmentNode[],
   query: string,
 ): DepartmentNode[] {
-  const needle = query.trim().toLocaleLowerCase()
+  const needle = query.trim()
   if (needle === '') return [...nodes]
 
   // Faqat nom bo'yicha: bo'lim nomi butun ma'lumotnoma bo'yicha unikal va
   // daraxtda ko'rinib turgan yagona matn — foydalanuvchi ko'rmagan narsani
   // qidirmaydi.
-  const matches = (node: DepartmentNode): boolean =>
-    node.name.toLocaleLowerCase().includes(needle)
+  // Yig'ish server qidiruvidagi bilan bir xil (`search-fold.ts`):
+  // «Кукон» yozilganda «Қўқон» bo'limi ham topiladi.
+  const matches = (node: DepartmentNode): boolean => matchesSearch(node.name, needle)
 
   const walk = (list: readonly DepartmentNode[]): DepartmentNode[] =>
     list.flatMap((node) => {

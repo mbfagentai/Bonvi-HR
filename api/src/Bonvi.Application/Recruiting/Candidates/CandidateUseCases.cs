@@ -22,14 +22,23 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// ishga olingan va rad etilganlar u yerda faol bo'lib turmasligi kerak.
 /// </param>
 /// <param name="Source">
-/// <c>Manual</c> | <c>TelegramBot</c>. «Bot qancha nomzod keltirdi» degan
-/// savolning javobi shu filtr orqali olinadi.
+/// <c>Manual</c> | <c>TelegramBot</c> | <c>Excel</c>. «Bot qancha nomzod
+/// keltirdi» degan savolning javobi shu filtr orqali olinadi.
 /// </param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
 /// <param name="Sort">
 /// <c>createdAt</c> (sukut, yangidan eskiga), <c>name</c>, <c>stage</c>.
 /// Teskari tartib: oldiga <c>-</c> yoki oxiriga <c>:desc</c>.
+/// </param>
+/// <param name="IncludeArchive">
+/// Excel'dan ko'chirilgan kengash arxivi ham qo'shilsinmi.
+/// <para>
+/// Sukut bo'yicha <c>false</c>: 3110 ta tarixiy yozuv kundalik ro'yxatni
+/// ko'mib yuborardi. <c>Source</c> ataylab tanlangan bo'lsa bu bayroq
+/// e'tiborga olinmaydi — HR «Excel arxivi» ni tanlagan ekan, aynan
+/// o'shani ko'rmoqchi.
+/// </para>
 /// </param>
 public sealed record SearchCandidatesQuery(
     string? Search = null,
@@ -39,7 +48,8 @@ public sealed record SearchCandidatesQuery(
     string? Source = null,
     int? Page = null,
     int? PageSize = null,
-    string? Sort = null);
+    string? Sort = null,
+    bool IncludeArchive = false);
 
 public sealed record GetCandidateQuery(Guid CandidateId);
 
@@ -181,7 +191,8 @@ public sealed class SearchCandidatesQueryHandler
                     page,
                     pageSize,
                     sort,
-                    descending),
+                    descending,
+                    query.IncludeArchive),
                 cancellationToken)
             .ConfigureAwait(false);
 

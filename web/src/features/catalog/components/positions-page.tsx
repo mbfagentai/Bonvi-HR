@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { matchesSearch } from '@/shared/lib/search-fold'
 import {
   Alert,
   Badge,
@@ -184,7 +185,7 @@ export function PositionsPage() {
 
   const rows = useMemo(() => {
     const source = list.data ?? EMPTY
-    const needle = query.trim().toLocaleLowerCase()
+    const needle = query.trim()
     if (needle === '') return source
 
     // Nom va bo'lim nomi — ekranda ko'rinib turgan ikkala matn. Bir xil
@@ -192,10 +193,8 @@ export function PositionsPage() {
     // qidirish HR uchun kerakli qisqartma («ta'mirlash» → o'sha bo'lim ichi).
     return source.filter(
       (item) =>
-        item.name.toLocaleLowerCase().includes(needle) ||
-        (departmentNames.get(item.departmentId ?? '') ?? '')
-          .toLocaleLowerCase()
-          .includes(needle),
+        matchesSearch(item.name, needle) ||
+        matchesSearch(departmentNames.get(item.departmentId ?? '') ?? '', needle),
     )
   }, [list.data, query, departmentNames])
 

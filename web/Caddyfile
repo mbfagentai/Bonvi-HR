@@ -38,5 +38,24 @@
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
+
+		# Kontent siyosati — XSS ning oxirgi to'sig'i.
+		#
+		# `script-src 'self'`: sahifaga qo'yilgan begona skript
+		# ISHLAMAYDI. Bu tizimda hal qiluvchi, chunki HR kiritadigan
+		# matn (xulosa, izoh, sabab) ekranda qayta ko'rsatiladi.
+		#
+		# `'unsafe-inline'` FAQAT uslub uchun: Vite CSS ni ajratadi,
+		# lekin React ba'zi elementlarga `style=""` qo'yadi va usiz
+		# ular chizilmaydi. Skriptda esa u YO'Q — aynan shu farq
+		# siyosatga ma'no beradi.
+		#
+		# `connect-src 'self'`: API bir xil domenda (yuqoridagi
+		# `handle /api/*`), ya'ni tashqi manzilga so'rov kerak emas —
+		# ma'lumot sizib chiqadigan yo'l yopiladi.
+		#
+		# `frame-ancestors 'none'` — `X-Frame-Options` ning zamonaviy
+		# shakli; ikkalasi ham qoldirilgan, eski brauzerlar uchun.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	}
 }

@@ -73,6 +73,16 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.Source == source);
         }
 
+        // Excel'dan ko'chirilgan kengash arxivi (3110 yozuv) kundalik
+        // ro'yxatda KO'RINMAYDI. Sabab amaliy: HR ekranni «hozir kim
+        // bor?» degan savol bilan ochadi va 2023-yilda rad etilgan
+        // odamlar bu savolni ko'mib yuboradi. Arxiv yo'qolmaydi —
+        // manba filtridan «Excel arxivi» ni tanlash yetarli.
+        if (filter.HideArchive)
+        {
+            candidates = candidates.Where(candidate => candidate.Source != CandidateSource.Excel);
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             // Qidiruv qoidasi bitta joyda — `CandidateSearchQuery`. Uning

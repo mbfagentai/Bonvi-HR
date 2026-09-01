@@ -299,6 +299,31 @@ public sealed class EtlWorkspace
             CultureInfo.InvariantCulture,
             $"{vacancyId:N}|{EmployeeIndex.NameKey(fullName)}|{birthDate?.DayNumber ?? 0}");
 
+    /// <summary>
+    /// Barcha mehnat munosabatlari — sinov muddatini solishtirish uchun.
+    /// </summary>
+    /// <remarks>
+    /// Sinov muddati qadami oxirida munosabatning holati sinov yozuvining
+    /// natijasiga MOS ekanini tekshiradi va bu tekshiruv bitta xodim bilan
+    /// cheklanmaydi — u butun bazani ko'radi. Boshqa hech qayerda kerak
+    /// emas, shu sababli qolgan qadamlar xodim bo'yicha indeksdan
+    /// (<see cref="EmploymentsOf"/>) foydalanadi.
+    /// </remarks>
+    public IEnumerable<Employment> AllEmployments()
+    {
+        foreach (var list in _employmentsByEmployee.Values)
+        {
+            foreach (var employment in list)
+            {
+                yield return employment;
+            }
+        }
+    }
+
+    /// <summary>Munosabatning sinov muddatlari (bo'lmasa bo'sh).</summary>
+    public IReadOnlyList<Probation> ProbationsOf(Guid employmentId)
+        => _probationsByEmployment.TryGetValue(employmentId, out var list) ? list : [];
+
     /// <summary>Xodimning barcha mehnat munosabatlari.</summary>
     public IReadOnlyList<Employment> EmploymentsOf(Guid employeeId)
         => _employmentsByEmployee.TryGetValue(employeeId, out var list) ? list : [];

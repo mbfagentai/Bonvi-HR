@@ -95,6 +95,13 @@ public sealed class ListSearchApiTests : IClassFixture<BonviApiFactory>
     /// </remarks>
     private static readonly string[] Royxatlar =
     [
+        // Xodimlar ro'yxatining O'ZI ham shu yerda: u qolganlarga
+        // qidiruv qoidasini beradigan manba (`EmployeeSearchQuery`) va
+        // aynan shu sababli u ham xuddi shu tekshiruvdan o'tishi kerak.
+        // Aks holda manba buzilib, qolganlar bilan birga jimgina
+        // buzilardi — testlar esa faqat «hammasi bir xil noto'g'ri»
+        // ekanini tasdiqlardi.
+        "/api/employees?search={0}",
         "/api/employments/events?search={0}",
         "/api/incentives?search={0}",
         "/api/probations?search={0}",
@@ -115,7 +122,10 @@ public sealed class ListSearchApiTests : IClassFixture<BonviApiFactory>
     /// </remarks>
     public static TheoryData<string, string> RoyxatVaKalit()
     {
-        string[] kalitlar = [Familiya, Jshshir, FormatlanganTelefon];
+        // Pasport ham shu yerda: u KOD ustuni bo'yicha alohida yo'lni
+        // bosadi (`SearchFolding.ForCode` — kirill gomogliflari) va
+        // ilgari faqat bitta testda, aylanma tarzda tekshirilardi.
+        string[] kalitlar = [Familiya, Jshshir, Pasport, FormatlanganTelefon];
 
         var data = new TheoryData<string, string>();
 
@@ -160,6 +170,7 @@ public sealed class ListSearchApiTests : IClassFixture<BonviApiFactory>
     /// borligi tasdiqlanadi — demak qidiruvni aynan qidiruv toraytirgan.
     /// </remarks>
     [Theory]
+    [InlineData("/api/employees")]
     [InlineData("/api/employments/events")]
     [InlineData("/api/incentives")]
     [InlineData("/api/probations")]
@@ -585,9 +596,23 @@ public sealed class ListSearchApiTests : IClassFixture<BonviApiFactory>
         [
             .. qatorlar
                 .EnumerateArray()
-                .Select(qator => qator.GetProperty("employeeId").GetGuid()),
+                .Select(XodimId),
         ];
     }
+
+    /// <summary>
+    /// Qatordan xodim identifikatorini oladi.
+    /// </summary>
+    /// <remarks>
+    /// Ikki shakl bor va ikkalasi ham to'g'ri: xodimga TEGISHLI yozuv
+    /// (sinov, rag'bat, belgi) uni <c>employeeId</c> bilan ko'rsatadi,
+    /// xodimning O'ZI esa oddiy <c>id</c> bilan keladi. Ular bir xil
+    /// bo'lishi shart emas — bu ikki xil obyekt.
+    /// </remarks>
+    private static Guid XodimId(JsonElement qator)
+        => qator.TryGetProperty("employeeId", out var xodim)
+            ? xodim.GetGuid()
+            : qator.GetProperty("id").GetGuid();
 
     /// <summary>Foydalanuvchilar ro'yxatidagi identifikatorlar.</summary>
     private static async Task<IReadOnlyList<Guid>> FoydalanuvchilarAsync(HttpClient client, string manzil)
