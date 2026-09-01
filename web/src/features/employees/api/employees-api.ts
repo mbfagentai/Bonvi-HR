@@ -869,8 +869,22 @@ function toDetails(raw: unknown): EmployeeDetails {
   }
 }
 
-function toTimelineEvent(raw: unknown): TimelineEvent {
+/**
+ * Lentaning bitta hodisasi.
+ *
+ * ⚠️ Server maydonlarni `fromDepartment` deb ataydi, `...Name` QO'SHIMCHASIZ
+ * (`EmploymentEventDto`). Ilgari bu yerda `fromDepartmentName` o'qilardi va
+ * hamma nom `null` bo'lib chiqardi — hodisa chizilsa ham «qayerdan qayerga»
+ * degan qismi bo'sh qolardi. Ehtiyot uchun ikkala nom ham sinaladi.
+ *
+ * Yuridik shaxs PARAMETRDA keladi: u hodisaga emas, munosabatga tegishli
+ * va javobda bir daraja tepada turadi.
+ */
+function toTimelineEvent(raw: unknown, legalEntityName: string | null): TimelineEvent {
   const box = (raw ?? {}) as Record<string, unknown>
+
+  const name = (short: string, long: string): string | null =>
+    text(box[short]) ?? text(box[long])
 
   return {
     id: text(box['id']) ?? '',
@@ -879,17 +893,19 @@ function toTimelineEvent(raw: unknown): TimelineEvent {
     effectiveDate: text(box['effectiveDate']) ?? '',
     orderNo: text(box['orderNo']),
     orderDate: text(box['orderDate']),
-    fromDepartmentName: text(box['fromDepartmentName']),
-    toDepartmentName: text(box['toDepartmentName']),
-    fromPositionName: text(box['fromPositionName']),
-    toPositionName: text(box['toPositionName']),
+    fromDepartmentName: name('fromDepartment', 'fromDepartmentName'),
+    toDepartmentName: name('toDepartment', 'toDepartmentName'),
+    fromPositionName: name('fromPosition', 'fromPositionName'),
+    toPositionName: name('toPosition', 'toPositionName'),
     fromSalary: money(box['fromSalary']),
     toSalary: money(box['toSalary']),
     note: text(box['note']),
     isImported: bool(box['isImported']),
     recordedAt: text(box['recordedAt']),
+    // Server bu maydonni lentada BERMAYDI (`EmploymentEventDto` da yo'q).
+    // `null` — «kim yozgani noma'lum», ekranda u shunday ko'rsatiladi.
     recordedByName: text(box['recordedByName']),
-    legalEntityName: text(box['legalEntityName']),
+    legalEntityName: legalEntityName ?? text(box['legalEntityName']),
   }
 }
 
@@ -1170,12 +1186,40 @@ export async function deleteMehnatUzScreenshot(id: string): Promise<void> {
   await api.delete(`/api/employees/${id}/mehnat-uz-screenshot`)
 }
 
+/**
+ * Xodimning butun mehnat yo'li — bitta lenta.
+ *
+ * ⚠️ Javob MASSIV EMAS, obyekt: `{ employeeId, fullName, items }`.
+ * Ichidagi har bir element esa hodisaning O'ZI emas, o'ram:
+ * `{ employmentId, legalEntity, event }` — yuridik shaxs hodisaga
+ * emas, MUNOSABATGA tegishli (holdingda bitta odam ikki firmada
+ * ishlashi mumkin va lentada bu ko'rinishi kerak).
+ *
+ * Bu funksiya ilgari javobni massiv deb o'qirdi va `Array.isArray`
+ * tekshiruvi doim `false` bo'lgani uchun HAR BIR xodimda bo'sh
+ * ro'yxat qaytarardi — «Mehnat tarixi» varag'i 2200 xodimning
+ * hammasida «Hodisa yo'q» deb turardi.
+ */
 export async function fetchTimeline(
   id: string,
   signal?: AbortSignal,
 ): Promise<TimelineEvent[]> {
   const { data } = await api.get<unknown>(`/api/employees/${id}/timeline`, { signal })
-  return Array.isArray(data) ? data.map(toTimelineEvent) : []
+
+  // Massiv ham qabul qilinadi: shartnoma o'zgarsa ekran bo'sh
+  // qolmasin (`readPage` dagi bilan bir xil mulohaza).
+  if (Array.isArray(data)) {
+    return data.map((raw) => toTimelineEvent(raw, null))
+  }
+
+  const box = (data ?? {}) as Record<string, unknown>
+  const items = Array.isArray(box['items']) ? box['items'] : []
+
+  return items.map((raw) => {
+    const wrapper = (raw ?? {}) as Record<string, unknown>
+
+    return toTimelineEvent(wrapper['event'] ?? wrapper, text(wrapper['legalEntity']))
+  })
 }
 
 export async function fetchFlags(
