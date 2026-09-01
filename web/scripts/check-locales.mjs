@@ -292,6 +292,22 @@ const DYNAMIC_KEY_SOURCES = [
     values: (text) => constArrayValues(text, 'ROUTED_MARKS'),
     keysFor: (value) => [`employees.marks.${value}`, `employees.markRouteText.${value}`],
   },
+  /*
+   * Til bilish — qat'iy ro'yxat KODDA yashaydi (ma'lumotnoma emas,
+   * `LANGUAGE_CODES` izohi). Har bir til va daraja uchun tarjima shu
+   * yerda qadaladi: ro'yxatga yangi til qo'shgan odam 4 tilga nomini
+   * qo'shmaguncha tekshiruv o'tmaydi.
+   */
+  {
+    file: 'src/features/employees/api/employee-competency-api.ts',
+    values: (text) => constArrayValues(text, 'LANGUAGE_CODES'),
+    keysFor: (value) => [`competency.language.${value}`],
+  },
+  {
+    file: 'src/features/employees/api/employee-competency-api.ts',
+    values: (text) => constArrayValues(text, 'LANGUAGE_LEVELS'),
+    keysFor: (value) => [`competency.languageLevel.${value}`],
+  },
   {
     file: 'src/features/catalog/lib/catalog-kinds.ts',
     values: (text) => fieldValues(text, 'i18nKey'),

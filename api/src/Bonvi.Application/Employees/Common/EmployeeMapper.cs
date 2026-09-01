@@ -71,6 +71,12 @@ public sealed class EmployeeMapper
             competency.Id,
             competency.EmployeeId,
             competency.Languages,
+            // Kiritilgan tartibda: Id — UUIDv7, ya'ni vaqt bo'yicha o'sadi.
+            // Alifbo ATAYLAB emas — nomlar til kodidan mijozda hosil bo'ladi
+            // va har bir interfeys tilida boshqa tartib berardi.
+            [.. competency.LanguageSkills
+                .OrderBy(language => language.Id)
+                .Select(language => new EmployeeCompetencyLanguageDto(language.Language, language.Level))],
             competency.ComputerLiteracyPercent,
             competency.Specialization,
             competency.OtherAbilities,

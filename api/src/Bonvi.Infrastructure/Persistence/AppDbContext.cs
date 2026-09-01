@@ -168,6 +168,9 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Qobiliyatlar profili: til, kompyuter, ta'lim (<c>employee_competencies</c>).</summary>
     public DbSet<EmployeeCompetency> EmployeeCompetencies => Set<EmployeeCompetency>();
 
+    /// <summary>Profildagi tillar: til + daraja (<c>employee_competency_languages</c>).</summary>
+    public DbSet<EmployeeCompetencyLanguage> EmployeeCompetencyLanguages => Set<EmployeeCompetencyLanguage>();
+
     /// <summary>Rag'bat va jarima (<c>incentives</c>).</summary>
     public DbSet<Incentive> Incentives => Set<Incentive>();
 

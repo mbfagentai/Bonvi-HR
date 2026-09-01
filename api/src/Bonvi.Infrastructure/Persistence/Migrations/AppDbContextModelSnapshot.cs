@@ -554,6 +554,35 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("employee_competencies", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetencyLanguage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("EmployeeCompetencyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_competency_id");
+
+                    b.Property<int>("Language")
+                        .HasColumnType("integer")
+                        .HasColumnName("language");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer")
+                        .HasColumnName("level");
+
+                    b.HasKey("Id")
+                        .HasName("pk_employee_competency_languages");
+
+                    b.HasIndex("EmployeeCompetencyId", "Language")
+                        .IsUnique()
+                        .HasDatabaseName("ix_employee_competency_languages_employee_competency_id_langua");
+
+                    b.ToTable("employee_competency_languages", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2412,6 +2441,16 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_employee_competencies_employees_employee_id");
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetencyLanguage", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Employees.EmployeeCompetency", null)
+                        .WithMany("LanguageSkills")
+                        .HasForeignKey("EmployeeCompetencyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_competency_languages_employee_competencies_employe");
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeDocument", b =>
                 {
                     b.HasOne("Bonvi.Domain.Catalog.DocumentType", null)
@@ -2660,6 +2699,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ResponsibleEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_incidents_employees_responsible_employee_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetency", b =>
+                {
+                    b.Navigation("LanguageSkills");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Employees.Employment", b =>

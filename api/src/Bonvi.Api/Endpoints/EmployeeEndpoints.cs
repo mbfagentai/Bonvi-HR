@@ -37,8 +37,22 @@ public sealed record RaiseFlagRequest(
 public sealed record CloseFlagRequest(DateOnly? ClosedAt = null, string? Note = null);
 
 /// <summary>Qobiliyatlar profilini saqlash so'rovi tanasi — butun profil bir yo'la yuboriladi.</summary>
+/// <param name="Languages">
+/// ESKI erkin matn — faqat Excel'dan ko'chgan yozuvni saqlab turish uchun;
+/// yangi kiritishlar <paramref name="LanguageSkills"/> ga boradi.
+/// </param>
+/// <param name="LanguageSkills">
+/// Tillar ro'yxati: har biri <c>{"language":"English","level":"Advanced"}</c>.
+/// Bitta til faqat bir marta kelishi mumkin.
+/// </param>
+/// <param name="ComputerLiteracyPercent">Kompyuter savodxonligi, 0–100%.</param>
+/// <param name="Specialization">Mutaxassisligi.</param>
+/// <param name="OtherAbilities">Boshqa qobiliyatlar.</param>
+/// <param name="Interest">Qiziqishi nimada.</param>
+/// <param name="EducationPlace">Ta'lim olgan joyi.</param>
 public sealed record SaveCompetencyRequest(
     string? Languages = null,
+    IReadOnlyList<LanguageSkill>? LanguageSkills = null,
     int? ComputerLiteracyPercent = null,
     string? Specialization = null,
     string? OtherAbilities = null,
@@ -661,8 +675,10 @@ public static class EmployeeEndpoints
             .WithName("GetEmployeeCompetency")
             .WithSummary("Xodim — qobiliyatlar profili")
             .WithDescription(
-                "Til, kompyuter savodxonligi (0-100%), mutaxassislik, boshqa qobiliyatlar, qiziqish, " +
-                "ta'lim olgan joyi. HR hali to'ldirmagan bo'lsa — bo'sh javob (200, null tana), xato emas.")
+                "Tillar («languageSkills»: til + daraja, sanoqlar NOM bilan), kompyuter savodxonligi " +
+                "(0-100%), mutaxassislik, boshqa qobiliyatlar, qiziqish, ta'lim olgan joyi. " +
+                "«languages» — Excel'dan ko'chgan ESKI erkin matn, faqat ko'rsatish uchun. " +
+                "HR hali to'ldirmagan bo'lsa — bo'sh javob (200, null tana), xato emas.")
             .Produces<EmployeeCompetencyDto?>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -677,6 +693,7 @@ public static class EmployeeEndpoints
                         new SaveEmployeeCompetencyCommand(
                             id,
                             request.Languages,
+                            request.LanguageSkills,
                             request.ComputerLiteracyPercent,
                             request.Specialization,
                             request.OtherAbilities,
@@ -693,7 +710,9 @@ public static class EmployeeEndpoints
             .WithDescription(
                 "Profil BUTUNLIGICHA almashtiriladi (yaratadi yoki bor bo'lsa yangilaydi) — 91.15 " +
                 "varag'idagi bitta qator kabi. «computerLiteracyPercent» 0 dan 100 gacha: " +
-                "«qobiliyat.kompyuter_foiz» (400).")
+                "«qobiliyat.kompyuter_foiz» (400). «languageSkills»da bitta til bir marta: " +
+                "«qobiliyat.til_takror» (400); ro'yxatdan tashqari sanoq raqami: " +
+                "«qobiliyat.til_notogri» (400).")
             .Produces<EmployeeCompetencyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);

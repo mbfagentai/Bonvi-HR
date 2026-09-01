@@ -77,6 +77,55 @@ public sealed class CompetencyTests
     }
 
     [Fact]
+    public async Task Tillar_royxati_saqlanadi_va_dtoda_qaytadi()
+    {
+        var employee = _context.ExistingEmployee();
+
+        _context.Competencies
+            .GetByEmployeeAsync(employee.Id, Arg.Any<CancellationToken>())
+            .Returns((EmployeeCompetency?)null);
+
+        var natija = await Saqlash.HandleAsync(
+            new SaveEmployeeCompetencyCommand(
+                employee.Id,
+                LanguageSkills:
+                [
+                    new LanguageSkill(LanguageCode.English, LanguageLevel.UpperIntermediate),
+                    new LanguageSkill(LanguageCode.Russian, LanguageLevel.Native),
+                ]),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.LanguageSkills.Count.ShouldBe(2);
+        natija.Value.LanguageSkills.ShouldContain(
+            l => l.Language == LanguageCode.English && l.Level == LanguageLevel.UpperIntermediate);
+    }
+
+    [Fact]
+    public async Task Takror_til_bilan_saqlash_rad_etiladi()
+    {
+        var employee = _context.ExistingEmployee();
+
+        _context.Competencies
+            .GetByEmployeeAsync(employee.Id, Arg.Any<CancellationToken>())
+            .Returns((EmployeeCompetency?)null);
+
+        var natija = await Saqlash.HandleAsync(
+            new SaveEmployeeCompetencyCommand(
+                employee.Id,
+                LanguageSkills:
+                [
+                    new LanguageSkill(LanguageCode.English, LanguageLevel.Elementary),
+                    new LanguageSkill(LanguageCode.English, LanguageLevel.Advanced),
+                ]),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("qobiliyat.til_takror");
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Notogri_foiz_bilan_saqlash_rad_etiladi()
     {
         var employee = _context.ExistingEmployee();

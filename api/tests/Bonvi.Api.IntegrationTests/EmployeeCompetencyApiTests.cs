@@ -4,11 +4,20 @@ using System.Net.Http.Json;
 
 namespace Bonvi.Api.IntegrationTests;
 
+/// <summary>Profildagi bitta til (test uchun).</summary>
+/// <remarks>
+/// Ikkala maydon ham ATAYLAB satr: sanoq qiymatlari JSON'da nom bo'lib
+/// chiqadi (<c>JsonStringEnumConverter</c>). Raqamga qaytsa, test aynan
+/// shu joyda yiqiladi — frontend enum'ni nomi bo'yicha o'qiydi.
+/// </remarks>
+public sealed record CompetencyLanguageResponse(string Language, string Level);
+
 /// <summary>Qobiliyatlar profili javobi (test uchun).</summary>
 public sealed record CompetencyResponse(
     Guid Id,
     Guid EmployeeId,
     string? Languages,
+    IReadOnlyList<CompetencyLanguageResponse> LanguageSkills,
     int? ComputerLiteracyPercent,
     string? Specialization,
     string? OtherAbilities,
@@ -109,6 +118,126 @@ public sealed class EmployeeCompetencyApiTests : IClassFixture<BonviApiFactory>
         ikkinchiNatija!.Id.ShouldBe(birinchiNatija!.Id, "profil bitta — ustiga yoziladi, yangisi ochilmaydi");
         ikkinchiNatija.Languages.ShouldBe("Ingliz tili");
         ikkinchiNatija.ComputerLiteracyPercent.ShouldBe(60);
+    }
+
+    [Fact]
+    public async Task Tillar_royxati_saqlanadi_va_qayta_sorovda_nom_bilan_qaytadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+
+        using var saqlash = await mijoz.PutAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/competency", UriKind.Relative),
+            new
+            {
+                languageSkills = new[]
+                {
+                    new { language = "English", level = "Advanced" },
+                    new { language = "Russian", level = "Native" },
+                },
+            },
+            bekorQilish);
+
+        saqlash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(saqlash));
+
+        using var olish = await mijoz.GetAsync(
+            new Uri($"/api/employees/{xodim.Id}/competency", UriKind.Relative), bekorQilish);
+
+        var qayta = await olish.Content.ReadFromJsonAsync<CompetencyResponse>(bekorQilish);
+        qayta!.LanguageSkills.Count.ShouldBe(2);
+        qayta.LanguageSkills.ShouldContain(l => l.Language == "English" && l.Level == "Advanced");
+        qayta.LanguageSkills.ShouldContain(l => l.Language == "Russian" && l.Level == "Native");
+    }
+
+    [Fact]
+    public async Task Qayta_saqlash_tillar_royxatini_butunligicha_almashtiradi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+
+        using var birinchi = await mijoz.PutAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/competency", UriKind.Relative),
+            new
+            {
+                languageSkills = new[]
+                {
+                    new { language = "English", level = "Elementary" },
+                    new { language = "Tajik", level = "Intermediate" },
+                },
+            },
+            bekorQilish);
+
+        birinchi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(birinchi));
+
+        using var ikkinchi = await mijoz.PutAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/competency", UriKind.Relative),
+            new
+            {
+                languageSkills = new[] { new { language = "English", level = "Advanced" } },
+            },
+            bekorQilish);
+
+        ikkinchi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(ikkinchi));
+
+        var natija = await ikkinchi.Content.ReadFromJsonAsync<CompetencyResponse>(bekorQilish);
+        natija!.LanguageSkills.Count.ShouldBe(1, "PUT — to'liq almashtirish: chiqib ketgan til qolmasligi kerak");
+        natija.LanguageSkills[0].Language.ShouldBe("English");
+        natija.LanguageSkills[0].Level.ShouldBe("Advanced");
+    }
+
+    [Fact]
+    public async Task Takror_til_400_qaytaradi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+
+        using var javob = await mijoz.PutAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/competency", UriKind.Relative),
+            new
+            {
+                languageSkills = new[]
+                {
+                    new { language = "English", level = "Elementary" },
+                    new { language = "English", level = "Advanced" },
+                },
+            },
+            bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(javob));
+        (await MatnAsync(javob)).ShouldContain("qobiliyat.til_takror");
+    }
+
+    [Fact]
+    public async Task Eski_erkin_matn_tillar_royxati_bilan_yonma_yon_yashaydi()
+    {
+        // Excel'dan ko'chgan yozuvlar stsenariysi: eski matn bor, HR endi
+        // strukturaviy ro'yxatni to'ldiradi — matn yo'qolmasligi kerak
+        // (frontend uni o'zgarishsiz qaytarib yuboradi).
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+
+        using var saqlash = await mijoz.PutAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/competency", UriKind.Relative),
+            new
+            {
+                languages = "Рус тили , Инглиз тили",
+                languageSkills = new[] { new { language = "Russian", level = "Advanced" } },
+            },
+            bekorQilish);
+
+        saqlash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(saqlash));
+
+        var natija = await saqlash.Content.ReadFromJsonAsync<CompetencyResponse>(bekorQilish);
+        natija!.Languages.ShouldBe("Рус тили , Инглиз тили");
+        natija.LanguageSkills.Count.ShouldBe(1);
     }
 
     [Fact]

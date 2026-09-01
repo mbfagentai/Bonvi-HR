@@ -17,6 +17,7 @@ namespace Bonvi.Application.Employees.Competencies;
 public sealed record SaveEmployeeCompetencyCommand(
     Guid EmployeeId,
     string? Languages = null,
+    IReadOnlyList<LanguageSkill>? LanguageSkills = null,
     int? ComputerLiteracyPercent = null,
     string? Specialization = null,
     string? OtherAbilities = null,
@@ -71,6 +72,15 @@ public sealed class SaveEmployeeCompetencyCommandHandler
         if (percent.IsFailure)
         {
             return percent.Error;
+        }
+
+        // `null` va bo'sh ro'yxat BIR XIL o'qiladi — «tillar yo'q».
+        // Profil butunligicha almashtiriladi, «tegilmadi» degan holat
+        // boshqa maydonlarda ham yo'q (`Languages = null` matnni bo'shatadi).
+        var tillar = competency.SetLanguageSkills(command.LanguageSkills ?? []);
+        if (tillar.IsFailure)
+        {
+            return tillar.Error;
         }
 
         competency.SetLanguages(command.Languages);

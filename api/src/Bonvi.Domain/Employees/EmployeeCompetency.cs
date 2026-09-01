@@ -24,6 +24,8 @@ public sealed class EmployeeCompetency : AggregateRoot, IAuditable
     /// <summary>Kompyuter savodxonligi foizining yuqori chegarasi.</summary>
     public const int MaxComputerLiteracyPercent = 100;
 
+    private readonly List<EmployeeCompetencyLanguage> _languageSkills = [];
+
     private EmployeeCompetency(Guid id, Guid employeeId) : base(id) => EmployeeId = employeeId;
 
     /// <summary>EF Core uchun.</summary>
@@ -31,8 +33,21 @@ public sealed class EmployeeCompetency : AggregateRoot, IAuditable
 
     public Guid EmployeeId { get; private set; }
 
-    /// <summary>Til bilish (Excel: «Тил билиш») — erkin matn: «Инглиз ва рус тили».</summary>
+    /// <summary>
+    /// Til bilish (Excel: «Тил билиш») — erkin matn: «Инглиз ва рус тили».
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ ESKI yozuv, yangi kiritishlar <see cref="LanguageSkills"/> ga
+    /// boradi. Ustun ATAYLAB o'chirilmagan: Excel'dan ko'chgan yozuvlarda
+    /// erkin matn bor va uni «Рус тили , Инглиз тили» kabi qiymatlardan
+    /// avtomatik ajratish taxmin bo'lardi — noto'g'ri ajratilgan til
+    /// yo'qolgan matndan yomonroq. Strukturaviy ro'yxat bo'sh bo'lsa,
+    /// ekran shu matnni «eski yozuv» sifatida ko'rsatadi.
+    /// </remarks>
     public string? Languages { get; private set; }
+
+    /// <summary>Til bilish — strukturaviy ro'yxat: til + daraja.</summary>
+    public IReadOnlyList<EmployeeCompetencyLanguage> LanguageSkills => _languageSkills.AsReadOnly();
 
     /// <summary>
     /// Kompyuter savodxonligi, 0–100%.
@@ -67,6 +82,71 @@ public sealed class EmployeeCompetency : AggregateRoot, IAuditable
             : new EmployeeCompetency(NewId(), employeeId);
 
     public void SetLanguages(string? value) => Languages = Trim(value);
+
+    /// <summary>
+    /// Til ro'yxatini BUTUNLIGICHA almashtiradi — profildagi boshqa
+    /// maydonlar kabi (butun forma yuboriladi, qisman yangilash yo'q).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Bitta til — bir marta.</b> «Ingliz — Elementary» va «Ingliz —
+    /// Advanced» birga tursa, «bu odam inglizchani qay darajada biladi?»
+    /// savoli javobsiz qolardi. Takror kelsa butun amal rad etiladi,
+    /// jimgina birlashtirish yo'q — HR qaysi darajani nazarda tutganini
+    /// faqat o'zi biladi.
+    /// </para>
+    /// <para>
+    /// <b>Sanoq qiymatlari ham tekshiriladi.</b> JSON'da sanoq NOM bilan
+    /// yursa ham, raqam yuborilsa binder uni tekshirmasdan qabul qiladi —
+    /// <c>(LanguageCode)99</c> bazaga tushib, keyin hech qaysi ro'yxatda
+    /// ko'rinmay yotardi.
+    /// </para>
+    /// <para>
+    /// <b>Mavjud yozuvlar saqlanadi.</b> Ro'yxatda qolgan tilning yozuvi
+    /// o'chirilib qayta yaratilmaydi, faqat darajasi yangilanadi — aks
+    /// holda har saqlashda barcha qatorlar yangi <c>Id</c> olib, bazada
+    /// keraksiz DELETE+INSERT bo'lardi.
+    /// </para>
+    /// </remarks>
+    public Result SetLanguageSkills(IReadOnlyList<LanguageSkill> skills)
+    {
+        ArgumentNullException.ThrowIfNull(skills);
+
+        var seen = new HashSet<LanguageCode>();
+        foreach (var skill in skills)
+        {
+            if (!Enum.IsDefined(skill.Language) || !Enum.IsDefined(skill.Level))
+            {
+                return Error.Validation(
+                    "qobiliyat.til_notogri",
+                    "Til yoki daraja ro'yxatdan tashqarida.");
+            }
+
+            if (!seen.Add(skill.Language))
+            {
+                return Error.Validation(
+                    "qobiliyat.til_takror",
+                    "Bitta til ro'yxatda faqat bir marta kelishi mumkin.");
+            }
+        }
+
+        _languageSkills.RemoveAll(existing => skills.All(skill => skill.Language != existing.Language));
+
+        foreach (var skill in skills)
+        {
+            var existing = _languageSkills.Find(entry => entry.Language == skill.Language);
+            if (existing is null)
+            {
+                _languageSkills.Add(EmployeeCompetencyLanguage.Create(Id, skill.Language, skill.Level));
+            }
+            else
+            {
+                existing.SetLevel(skill.Level);
+            }
+        }
+
+        return Result.Success();
+    }
 
     public Result SetComputerLiteracy(int? percent)
     {

@@ -13,7 +13,7 @@ import { useState, type ReactNode } from 'react'
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Alert, Button, Card, CardContent, CardHeader, Skeleton } from '@/shared/ui'
+import { Alert, Badge, Button, Card, CardContent, CardHeader, Skeleton } from '@/shared/ui'
 
 import { useEmployeeCompetency } from '../api/employees-queries'
 import { EMPLOYEES_EDIT } from '../lib/employee-presentation'
@@ -70,6 +70,36 @@ export function EmployeeCompetencyTab({ employeeId }: { employeeId: string }) {
       ? `${profile.computerLiteracyPercent}%`
       : null
 
+  /*
+   * Tillar uch holatda uch xil chiziladi:
+   *  1) strukturaviy ro'yxat bor — har biri badge («til · daraja»);
+   *  2) ro'yxat bo'sh, lekin Excel'dan ko'chgan ESKI erkin matn bor —
+   *     matn «eski yozuv» belgisi bilan (yangi ro'yxat matn o'rniga
+   *     kelganini bildirish uchun — matn tahrirlanmaydi, faqat hujjat);
+   *  3) ikkalasi ham yo'q — boshqa maydonlar kabi xotirjam «—».
+   */
+  const skills = profile?.languageSkills ?? []
+  const legacyText = profile?.languages ?? null
+  const languagesValue =
+    skills.length > 0 ? (
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {skills.map((skill) => (
+          <Badge key={skill.language} tone="neutral">
+            {t(`competency.language.${skill.language}`)}
+            <span className="text-[var(--fg-tertiary)]">·</span>
+            {t(`competency.languageLevel.${skill.level}`)}
+          </Badge>
+        ))}
+      </div>
+    ) : legacyText !== null ? (
+      <>
+        {legacyText}{' '}
+        <span className="text-caption2 text-[var(--fg-tertiary)]">
+          ({t('competency.legacyLanguages')})
+        </span>
+      </>
+    ) : null
+
   return (
     <>
       <Card>
@@ -87,7 +117,12 @@ export function EmployeeCompetencyTab({ employeeId }: { employeeId: string }) {
         />
         <CardContent>
           <dl className="grid gap-x-8 gap-y-0 sm:grid-cols-2">
-            <InfoRow icon={Languages} label={t('competency.languages')} value={profile?.languages ?? null} />
+            <InfoRow
+              icon={Languages}
+              label={t('competency.languages')}
+              value={languagesValue}
+              className="sm:col-span-2"
+            />
             <InfoRow icon={Laptop} label={t('competency.computerLiteracy')} value={percent} />
             <InfoRow
               icon={GraduationCap}
