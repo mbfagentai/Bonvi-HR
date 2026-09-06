@@ -1840,6 +1840,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("phone");
 
+                    b.Property<string>("PhotoKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("photo_key");
+
                     b.Property<DateTimeOffset?>("RejectionNoticeSentAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("rejection_notice_sent_at");
@@ -1939,6 +1944,85 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_candidates_vacancy_id_status");
 
                     b.ToTable("candidates", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateQuestionnaire", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<string>("DriverLicenseCategories")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("driver_license_categories");
+
+                    b.Property<int>("Education")
+                        .HasColumnType("integer")
+                        .HasColumnName("education");
+
+                    b.Property<int>("ExpectedSalary")
+                        .HasColumnType("integer")
+                        .HasColumnName("expected_salary");
+
+                    b.Property<string>("ExtraNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("extra_note");
+
+                    b.Property<bool>("HasDriverLicense")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_driver_license");
+
+                    b.Property<string>("LastSalary")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("last_salary");
+
+                    b.Property<int>("MaritalStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("marital_status");
+
+                    b.Property<DateTimeOffset?>("OfferAcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("offer_accepted_at");
+
+                    b.Property<string>("OfficeSkills")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("office_skills");
+
+                    b.Property<string>("OtherLanguages")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("other_languages");
+
+                    b.Property<int>("ReferralSource")
+                        .HasColumnType("integer")
+                        .HasColumnName("referral_source");
+
+                    b.Property<int>("RussianLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("russian_level");
+
+                    b.Property<string>("WorkExperience")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("work_experience");
+
+                    b.HasKey("Id")
+                        .HasName("pk_candidate_questionnaires");
+
+                    b.HasIndex("CandidateId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_candidate_questionnaires_candidate_id");
+
+                    b.ToTable("candidate_questionnaires", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateStageEntry", b =>
@@ -2635,6 +2719,16 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_candidates_vacancies_vacancy_id");
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateQuestionnaire", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithOne("Questionnaire")
+                        .HasForeignKey("Bonvi.Domain.Recruiting.CandidateQuestionnaire", "CandidateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_candidate_questionnaires_candidates_candidate_id");
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateStageEntry", b =>
                 {
                     b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
@@ -2718,6 +2812,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.Candidate", b =>
                 {
+                    b.Navigation("Questionnaire");
+
                     b.Navigation("StageEntries");
                 });
 #pragma warning restore 612, 618

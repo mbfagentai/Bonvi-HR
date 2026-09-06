@@ -370,6 +370,70 @@ public sealed partial class TelegramClient
     }
 
     /// <summary>
+    /// Nomzod yuborgan faylni Telegram'dan YUKLAB OLADI (18-qadam, surat).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Ikki so'rov, bittasi emas.</b> Telegram fayl baytlarini
+    /// belgisi bilan bermaydi: avval <c>getFile</c> chaqiriladi va u
+    /// <c>file_path</c> qaytaradi, keyin fayl BOSHQA manzildan olinadi
+    /// (<c>/file/bot…</c>). Yo'l qisqa muddat yashaydi, shu sababli uni
+    /// saqlab qo'yishning ma'nosi yo'q — rasm shu yerda darhol olinadi.
+    /// </para>
+    /// <para>
+    /// <b>Chegara: 20 MB</b> (Telegram Bot API cheklovi). Undan katta
+    /// faylni <c>getFile</c> umuman qaytarmaydi — bu nomzod suratida
+    /// amalda uchramaydi, chunki Telegram rasmni o'zi siqadi.
+    /// </para>
+    /// <para>
+    /// Xato tashlanmaydi (sinfning umumiy qoidasi): rasm yetib
+    /// bormasligi arizani to'xtatmaydi.
+    /// </para>
+    /// </remarks>
+    /// <param name="fileId">Faylning belgisi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <returns>Fayl baytlari, olinmasa <c>null</c>.</returns>
+    public async Task<byte[]?> DownloadFileAsync(string fileId, CancellationToken cancellationToken)
+    {
+        var file = await CallAsync<JsonElement>("getFile", new { file_id = fileId }, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (file.ValueKind != JsonValueKind.Object
+            || !file.TryGetProperty("file_path", out var pathValue)
+            || pathValue.GetString() is not { Length: > 0 } remotePath)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var response = await _http
+                .GetAsync(FilePath(_token.Value, remotePath), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Bu yerda javob JSON emas, shu sababli sabab HOLAT
+                // KODIDAN olinadi. Kod matnga aylantiriladi — token
+                // manzilda turibdi va manzil jurnalga tushmasligi kerak.
+                LogRejected("getFile", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture));
+                return null;
+            }
+
+            return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            LogCallFailed(ex, "getFile");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Xaritadagi nuqtani yuboradi.
     /// </summary>
     /// <remarks>
@@ -493,4 +557,22 @@ public sealed partial class TelegramClient
     /// </remarks>
     public static Uri RelativePath(string token, string method)
         => new($"/bot{token}/{method}", UriKind.Relative);
+
+    /// <summary>
+    /// Yuklab olinadigan faylning yo'li: <c>/file/bot&lt;token&gt;/&lt;yo'l&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>Bu BOSHQA manzil</b> va uni <see cref="RelativePath"/> bilan
+    /// aralashtirib bo'lmaydi: chaqiruvlar <c>/bot…</c> dan, fayllar esa
+    /// <c>/file/bot…</c> dan olinadi. Boshidagi qiya chiziq shu yerda ham
+    /// MAJBURIY — sabab <see cref="RelativePath"/> izohida (tokendagi
+    /// ikki nuqta sxema ajratgichi deb o'qiladi).
+    /// <para>
+    /// <c>file_path</c> ichida ham qiya chiziq bo'ladi
+    /// («photos/file_12.jpg») va u ATAYLAB kodlanmaydi: bu yo'lning
+    /// bo'lagi, qiymat emas.
+    /// </para>
+    /// </remarks>
+    public static Uri FilePath(string token, string filePath)
+        => new($"/file/bot{token}/{filePath}", UriKind.Relative);
 }

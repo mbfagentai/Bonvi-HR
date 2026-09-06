@@ -70,6 +70,7 @@ const GROUPS: readonly {
       'bot.social.telegram': 'settings.system.botTelegram',
       'bot.social.facebook': 'settings.system.botFacebook',
       'bot.social.website': 'settings.system.botWebsite',
+      'bot.offerUrl': 'settings.system.botOfferUrl',
       'bot.conversationTimeoutMinutes': 'settings.system.botConversationTimeout',
     },
   },
@@ -106,6 +107,13 @@ const SINGLE_LINE_TEXT: Readonly<Record<string, string>> = {
   'bot.social.telegram': 'settings.system.botLinkHint',
   'bot.social.facebook': 'settings.system.botLinkHint',
   'bot.social.website': 'settings.system.botLinkHint',
+  /*
+    Ommaviy oferta havolasi — qolgan havolalar bilan BIR XIL chiziladi
+    (bir qatorli maydon), lekin izohi boshqa: bu ijtimoiy tarmoq emas,
+    anketaning oxirgi qadami. Bo'sh qoldirilsa qadam umuman
+    ko'rsatilmaydi va matn ham aynan shuni aytadi.
+  */
+  'bot.offerUrl': 'settings.system.botOfferUrlHint',
 }
 
 /**

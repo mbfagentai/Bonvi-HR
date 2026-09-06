@@ -31,8 +31,21 @@ $C build api
 echo "### 3/7 bot build $(date +%T)"
 $C build bot
 
+# ⭐ BOT HAM SHU YERDA ko'tariladi, oxirgi qadamda emas.
+#
+#  Sabab: API ko'tarilishi bilan urug'lantirish «Umumiy anketa»
+#  xizmat vakansiyasini `Open` holatda yaratadi. ESKI bot esa
+#  vakansiyalar ro'yxatini `excludeGeneralPool` filtrisiz so'raydi —
+#  ya'ni u xizmat vakansiyasini nomzodga TANLANADIGAN ish o'rni deb
+#  ko'rsatib qo'yadi. Bot faqat 7-qadamda yangilansa, oradagi OpenAPI
+#  generatsiyasi va web build 2 GB VPS'da bir necha daqiqa davom
+#  etadi — o'sha oyna ichida nomzodlar «Umumiy anketa»ni vakansiya
+#  deb ko'radi.
+#
+#  Bot image 3-qadamda ALLAQACHON qurilgan, ya'ni bu qadam hech
+#  narsa qurmaydi va deploy uzaymaydi.
 echo "### 4/7 backend up $(date +%T)"
-$C up -d postgres redis api
+$C up -d postgres redis api bot
 
 # ----------------------------------------------------------
 #  TypeScript klient — web build'dan OLDIN

@@ -74,19 +74,16 @@ public static class BotTexts
         _ => "Qaysi vakansiyaga ariza topshirmoqchisiz?",
     };
 
-    /// <summary>Ochiq vakansiya yo'q — bu xato emas, odatiy hol.</summary>
-    public static string NoVacancies(BotLanguage language) => language switch
-    {
-        BotLanguage.Cyrillic =>
-            "Ҳозирча очиқ иш ўрни йўқ. 🙏\n\n"
-            + "Кейинроқ яна кириб кўринг — пастдаги менюдан.",
-        BotLanguage.Russian =>
-            "Пока открытых вакансий нет. 🙏\n\n"
-            + "Загляните позже — через меню ниже.",
-        _ =>
-            "Hozircha ochiq ish o‘rni yo‘q. 🙏\n\n"
-            + "Keyinroq yana kirib ko‘ring — pastdagi menyudan.",
-    };
+    /*
+      ⚠️ «Ochiq vakansiya yo'q» MATNI OLIB TASHLANDI va uni qaytarmang.
+
+      Ilgari bot shu xabar bilan suhbatni tugatardi. Endi ochiq ish o'rni
+      bo'lmasligi anketani TO'XTATMAYDI: vakansiya qadami jimgina
+      o'tkazib yuboriladi va nomzod to'liq anketani to'ldiradi — ariza
+      esa serverda «Umumiy anketa»ga tushadi (SPEC-anketa, 3-bo'lim).
+      Nomzod bu haqda faqat OXIRIDA, `AcceptedToGeneralPool` xabarida
+      biladi; boshida aytilsa u anketani umuman boshlamasdi.
+    */
 
     public static string AskName(BotLanguage language) => language switch
     {
@@ -159,8 +156,13 @@ public static class BotTexts
             "Bu boshqa odamning raqami. Iltimos, o‘z raqamingizni yuboring.",
     };
 
-    /// <summary>Manzil so'raladi — telefon raqamidan keyingi oxirgi qadam.</summary>
+    /// <summary>Manzil so'raladi — anketaning 5-qadami.</summary>
     /// <remarks>
+    /// <para>
+    /// ⚠️ Matnda «oxirgi savol» degan gap ATAYLAB YO'Q: u ilgari bor
+    /// edi, chunki anketa manzil bilan tugardi. Endi undan keyin yana
+    /// o'n yettita savol bor va eski va'da nomzodni aldab qo'yardi.
+    /// </para>
     /// <para>
     /// <b>Nega manzil so'raladi.</b> Korxona Rishtonda va nomzodlarning
     /// bir qismi uzoq tumanlardan keladi. HR birinchi qo'ng'iroqda aynan
@@ -175,13 +177,13 @@ public static class BotTexts
     public static string AskAddress(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic =>
-            "Раҳмат! Охирги савол: яшаш манзилингизни ёзинг.\n\n"
+            "🏠 Яшаш манзилингизни ёзинг.\n\n"
             + "Масалан: <i>Риштон тумани, Работ МФЙ</i>",
         BotLanguage.Russian =>
-            "Спасибо! Последний вопрос: напишите адрес проживания.\n\n"
+            "🏠 Напишите адрес проживания.\n\n"
             + "Например: <i>Риштанский район, МФЙ Работ</i>",
         _ =>
-            "Rahmat! Oxirgi savol: yashash manzilingizni yozing.\n\n"
+            "🏠 Yashash manzilingizni yozing.\n\n"
             + "Masalan: <i>Rishton tumani, Rabot MFY</i>",
     };
 
@@ -217,14 +219,46 @@ public static class BotTexts
             + "HR bo‘limi ko‘rib chiqadi va siz bilan telefon orqali bog‘lanadi.",
     };
 
+    /// <summary>
+    /// «Umumiy anketa»ga tushgan nomzodga — vakansiya nomi O'RNIGA.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ <b>Nega alohida matn.</b> Ochiq ish o'rni bo'lmaganda arizada
+    /// vakansiya YO'Q va uning o'rniga bo'sh joy qoldirib bo'lmaydi.
+    /// «Hozircha ochiq vakansiya yo'q» degan quruq gap esa nomzodga
+    /// «arizangiz rad etildi» bo'lib tuyulardi — shu sababli xabar
+    /// anketa SAQLANGANINI va HR o'zi bog'lanishini aniq aytadi.
+    /// </remarks>
+    public static string AcceptedToGeneralPool(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "✅ Анкетангиз қабул қилинди!\n\n"
+            + "Ҳозирча очиқ иш ўрни йўқ, лекин анкетангиз базада сақланади. "
+            + "Мос вакансия чиққанда ХР бўлими сиз билан боғланади.",
+        BotLanguage.Russian =>
+            "✅ Ваша анкета принята!\n\n"
+            + "Сейчас открытых вакансий нет, но анкета сохранится в базе. "
+            + "Когда появится подходящая вакансия, отдел кадров свяжется с вами.",
+        _ =>
+            "✅ Anketangiz qabul qilindi!\n\n"
+            + "Hozircha ochiq ish o‘rni yo‘q, lekin anketangiz bazada saqlanadi. "
+            + "Mos vakansiya chiqqanda HR bo‘limi siz bilan bog‘lanadi.",
+    };
+
     /// <summary>Takroriy ariza — holati bilan birga.</summary>
+    /// <remarks>
+    /// ⚠️ <b>Sana TOSHKENT vaqtida chiziladi</b> (<see cref="BotClock"/>).
+    /// API qiymatni UTC da qaytaradi va siljitilmagan sana soat 19:00 dan
+    /// keyin topshirilgan arizani KECHAGI kun deb ko'rsatardi — nomzod
+    /// esa buni «bu men emasman» deb o'qirdi.
+    /// </remarks>
     public static string AlreadyApplied(
         BotLanguage language,
         string vacancy,
         DateTimeOffset appliedAt,
         string? stage)
     {
-        var date = appliedAt.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+        var date = BotClock.Local(appliedAt).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
 
         return language switch
         {
@@ -391,5 +425,543 @@ public static class BotTexts
         BotLanguage.Cyrillic => "Пастдаги менюдан керакли бўлимни танланг.",
         BotLanguage.Russian => "Выберите нужный раздел в меню ниже.",
         _ => "Pastdagi menyudan kerakli bo‘limni tanlang.",
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    //  ANKETA (22 qadam) — matnlar `docs/BOT-ANKETA-MATNLARI.md` dan.
+    //  Ular O'YLAB TOPILMAYDI: hujjatdagi matn HR bilan kelishilgan
+    //  va uchala tilda qo'lda yozilgan.
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// «O'tkazib yuborish» — javob bermaslik ham JAVOB.
+    /// </summary>
+    /// <remarks>
+    /// Beshta savolda bu tugma bor va u tasodifiy emas: ish tajribasi
+    /// yo'q nomzod («ilk ishim») savolga umuman javob bera olmaydi va
+    /// tugmasiz u yo yolg'on yozardi, yo anketani tashlab ketardi.
+    /// </remarks>
+    public static string SkipButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Ўтказиб юбориш",
+        BotLanguage.Russian => "Пропустить",
+        _ => "O‘tkazib yuborish",
+    };
+
+    /// <summary>«Ha» tugmasi.</summary>
+    public static string YesButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Ҳа",
+        BotLanguage.Russian => "Да",
+        _ => "Ha",
+    };
+
+    /// <summary>«Yo'q» tugmasi.</summary>
+    public static string NoButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Йўқ",
+        BotLanguage.Russian => "Нет",
+        _ => "Yo‘q",
+    };
+
+    /// <summary>Yakuniy «Yuborish» tugmasi (22-qadam).</summary>
+    public static string SubmitButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "📨 Юбориш",
+        BotLanguage.Russian => "📨 Отправить",
+        _ => "📨 Yuborish",
+    };
+
+    /// <summary>Ommaviy oferta bilan rozilik tugmasi (21-qadam).</summary>
+    public static string AgreeButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Розиман",
+        BotLanguage.Russian => "Согласен",
+        _ => "Roziman",
+    };
+
+    /// <summary>«Boshidan boshlash» — <c>/start</c> bilan bir xil ish.</summary>
+    public static string StartOverButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Бошидан бошлаш",
+        BotLanguage.Russian => "Начать заново",
+        _ => "Boshidan boshlash",
+    };
+
+    /// <summary>
+    /// Tugma kutilayotgan qadamda matn yozilganda.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Restart"/> bu yerda TO'G'RI KELMAYDI: u «menyudan
+    /// bo'lim tanlang» deydi va nomzodni yarim to'ldirilgan anketadan
+    /// chiqib ketishga undardi. Bu yerda esa aytiladigan gap boshqa —
+    /// javob yuqoridagi tugmalar orqali beriladi.
+    /// </remarks>
+    public static string UseButtons(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Илтимос, юқоридаги тугмалардан бирини танланг.",
+        BotLanguage.Russian => "Пожалуйста, выберите один из вариантов выше.",
+        _ => "Iltimos, yuqoridagi tugmalardan birini tanlang.",
+    };
+
+    /// <summary>4-qadam: tug'ilgan sana.</summary>
+    public static string AskBirthDate(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "🗓 Туғилган кунингизни ёзинг (кк.оо.йййй).\n\nМасалан: <i>10.10.1990</i>",
+        BotLanguage.Russian =>
+            "🗓 Укажите дату рождения (дд.мм.гггг).\n\nНапример: <i>10.10.1990</i>",
+        _ =>
+            "🗓 Tug‘ilgan kuningizni yozing (kk.oo.yyyy).\n\nMasalan: <i>10.10.1990</i>",
+    };
+
+    /// <summary>Sana tushunilmadi yoki chegaradan chiqdi.</summary>
+    /// <remarks>
+    /// Kelajakdagi sana ham, 14 yoshdan kichik va 80 yoshdan katta sana
+    /// ham AYNAN shu xabar bilan rad etiladi
+    /// (<see cref="BirthDateParser"/>): nomzodga «yoshingiz to'g'ri
+    /// kelmadi» deb yozish uni haqoratlardi, holbuki amalda bu deyarli
+    /// har doim terish xatosi.
+    /// </remarks>
+    public static string BirthDateNotUnderstood(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Сана тушунарсиз. Илтимос, <i>кк.оо.йййй</i> кўринишида ёзинг — масалан <i>10.10.1990</i>.",
+        BotLanguage.Russian =>
+            "Не удалось разобрать дату. Напишите в виде <i>дд.мм.гггг</i> — например <i>10.10.1990</i>.",
+        _ =>
+            "Sana tushunarsiz. Iltimos, <i>kk.oo.yyyy</i> ko‘rinishida yozing — masalan <i>10.10.1990</i>.",
+    };
+
+    /// <summary>7-qadam: ma'lumot darajasi.</summary>
+    public static string AskEducation(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "🎓 Маълумот даражангиз қандай?",
+        BotLanguage.Russian => "🎓 Какой у вас уровень образования?",
+        _ => "🎓 Ma’lumot darajangiz qanday?",
+    };
+
+    /// <summary>Ma'lumot darajasining tugmadagi va xulosadagi nomi.</summary>
+    public static string EducationLabel(BotLanguage language, EducationAnswer answer) => language switch
+    {
+        BotLanguage.Cyrillic => answer switch
+        {
+            EducationAnswer.SecondarySchool => "Ўрта (мактаб)",
+            EducationAnswer.VocationalSchool => "Ўрта махсус (коллеж, лицей)",
+            EducationAnswer.HigherComplete => "Олий (бакалавр)",
+            EducationAnswer.HigherIncomplete => "Олий (тугалланмаган)",
+            _ => string.Empty,
+        },
+        BotLanguage.Russian => answer switch
+        {
+            EducationAnswer.SecondarySchool => "Среднее (школа)",
+            EducationAnswer.VocationalSchool => "Среднее специальное",
+            EducationAnswer.HigherComplete => "Высшее (бакалавр)",
+            EducationAnswer.HigherIncomplete => "Высшее (незаконченное)",
+            _ => string.Empty,
+        },
+        _ => answer switch
+        {
+            EducationAnswer.SecondarySchool => "O‘rta (maktab)",
+            EducationAnswer.VocationalSchool => "O‘rta maxsus (kollej, litsey)",
+            EducationAnswer.HigherComplete => "Oliy (bakalavr)",
+            EducationAnswer.HigherIncomplete => "Oliy (tugallanmagan)",
+            _ => string.Empty,
+        },
+    };
+
+    /// <summary>8-qadam: mutaxassisligi (o'tkazib yuborish mumkin).</summary>
+    public static string AskSpeciality(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "📌 Мутахассислигингиз нима? Бўлмаса, «Ўтказиб юбориш»ни босинг.",
+        BotLanguage.Russian => "📌 Ваша специальность? Если нет — нажмите «Пропустить».",
+        _ => "📌 Mutaxassisligingiz nima? Bo‘lmasa, «O‘tkazib yuborish»ni bosing.",
+    };
+
+    /// <summary>9-qadam: ish tajribasi (o'tkazib yuborish mumkin).</summary>
+    public static string AskWorkExperience(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "💼 Иш тажрибангизни ёзинг: корхона, лавозим ва йиллар.\n\n"
+            + "Масалан: <i>Dream Job МЧЖ, кассир, 2015–2018</i>",
+        BotLanguage.Russian =>
+            "💼 Опишите опыт работы: компания, должность и годы.\n\n"
+            + "Например: <i>Dream Job MChJ, кассир, 2015–2018</i>",
+        _ =>
+            "💼 Ish tajribangizni yozing: korxona, lavozim va yillar.\n\n"
+            + "Masalan: <i>Dream Job MChJ, kassir, 2015–2018</i>",
+    };
+
+    /// <summary>10-qadam: oilaviy holat.</summary>
+    public static string AskMaritalStatus(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "👨‍👩‍👧 Оилавий ҳолатингиз?",
+        BotLanguage.Russian => "👨‍👩‍👧 Ваше семейное положение?",
+        _ => "👨‍👩‍👧 Oilaviy holatingiz?",
+    };
+
+    /// <summary>Oilaviy holatning tugmadagi va xulosadagi nomi.</summary>
+    public static string MaritalLabel(BotLanguage language, MaritalAnswer answer) => language switch
+    {
+        BotLanguage.Cyrillic => answer switch
+        {
+            MaritalAnswer.Married => "Оилали",
+            MaritalAnswer.Unmarried => "Турмуш қурмаган",
+            MaritalAnswer.Divorced => "Ажрашган",
+            _ => string.Empty,
+        },
+        BotLanguage.Russian => answer switch
+        {
+            MaritalAnswer.Married => "Женат / замужем",
+            MaritalAnswer.Unmarried => "Холост / не замужем",
+            MaritalAnswer.Divorced => "В разводе",
+            _ => string.Empty,
+        },
+        _ => answer switch
+        {
+            MaritalAnswer.Married => "Oilali",
+            MaritalAnswer.Unmarried => "Turmush qurmagan",
+            MaritalAnswer.Divorced => "Ajrashgan",
+            _ => string.Empty,
+        },
+    };
+
+    /// <summary>11-qadam: rus tili darajasi.</summary>
+    public static string AskRussianLevel(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "🇷🇺 Рус тилини қай даражада биласиз?",
+        BotLanguage.Russian => "🇷🇺 Насколько хорошо вы владеете русским языком?",
+        _ => "🇷🇺 Rus tilini qay darajada bilasiz?",
+    };
+
+    /// <summary>Rus tili darajasining tugmadagi va xulosadagi nomi.</summary>
+    public static string RussianLevelLabel(BotLanguage language, RussianLevelAnswer answer) => language switch
+    {
+        BotLanguage.Cyrillic => answer switch
+        {
+            RussianLevelAnswer.Elementary => "Бошланғич — тушунмайман",
+            RussianLevelAnswer.Intermediate => "Ўрта — тушунаман, қийналиб гапираман",
+            RussianLevelAnswer.Advanced => "Яхши — эркин гаплашаман",
+            _ => string.Empty,
+        },
+        BotLanguage.Russian => answer switch
+        {
+            RussianLevelAnswer.Elementary => "Начальный — не понимаю",
+            RussianLevelAnswer.Intermediate => "Средний — понимаю, говорю с трудом",
+            RussianLevelAnswer.Advanced => "Свободный — говорю свободно",
+            _ => string.Empty,
+        },
+        _ => answer switch
+        {
+            RussianLevelAnswer.Elementary => "Boshlang‘ich — tushunmayman",
+            RussianLevelAnswer.Intermediate => "O‘rta — tushunaman, qiynalib gapiraman",
+            RussianLevelAnswer.Advanced => "Yaxshi — erkin gaplashaman",
+            _ => string.Empty,
+        },
+    };
+
+    /// <summary>12-qadam: boshqa tillar (o'tkazib yuborish mumkin).</summary>
+    public static string AskOtherLanguages(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "🌐 Яна қайси тилларни биласиз ва қай даражада?\n\n"
+            + "Масалан: <i>инглиз — ўрта, тожик — эркин</i>",
+        BotLanguage.Russian =>
+            "🌐 Какими ещё языками владеете и на каком уровне?\n\n"
+            + "Например: <i>английский — средний, таджикский — свободно</i>",
+        _ =>
+            "🌐 Yana qaysi tillarni bilasiz va qay darajada?\n\n"
+            + "Masalan: <i>ingliz — o‘rta, tojik — erkin</i>",
+    };
+
+    /// <summary>13-qadam: Office dasturlari (o'tkazib yuborish mumkin).</summary>
+    public static string AskOfficeSkills(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "💻 Офис дастурларини қай даражада биласиз? Фоизда ёзинг.\n\n"
+            + "Масалан: <i>Word 80%, Excel 60%, Photoshop 20%</i>",
+        BotLanguage.Russian =>
+            "💻 Насколько владеете офисными программами? Укажите в процентах.\n\n"
+            + "Например: <i>Word 80%, Excel 60%, Photoshop 20%</i>",
+        _ =>
+            "💻 Ofis dasturlarini qay darajada bilasiz? Foizda yozing.\n\n"
+            + "Masalan: <i>Word 80%, Excel 60%, Photoshop 20%</i>",
+    };
+
+    /// <summary>14-qadam: oxirgi maosh (o'tkazib yuborish mumkin).</summary>
+    public static string AskLastSalary(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "💵 Охирги иш жойингизда ойлик маошингиз қанча эди?",
+        BotLanguage.Russian => "💵 Какой была ваша зарплата на последнем месте работы?",
+        _ => "💵 Oxirgi ish joyingizda oylik maoshingiz qancha edi?",
+    };
+
+    /// <summary>15-qadam: o'zi haqida qo'shimcha (o'tkazib yuborish mumkin).</summary>
+    public static string AskExtraNote(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "✍️ Ўзингиз ҳақингизда яна нима қўшимча қилмоқчисиз?\n\n"
+            + "Масалан: <i>кучли томоним — тез ўрганаман; заиф томоним — шошқалоқлик</i>",
+        BotLanguage.Russian =>
+            "✍️ Что ещё хотите рассказать о себе?\n\n"
+            + "Например: <i>сильная сторона — быстро учусь; слабая — тороплюсь</i>",
+        _ =>
+            "✍️ O‘zingiz haqingizda yana nima qo‘shimcha qilmoqchisiz?\n\n"
+            + "Masalan: <i>kuchli tomonim — tez o‘rganaman; zaif tomonim — shoshqaloqlik</i>",
+    };
+
+    /// <summary>16-qadam: haydovchilik guvohnomasi.</summary>
+    public static string AskDriverLicense(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "🚗 Ҳайдовчилик гувоҳномангиз борми?",
+        BotLanguage.Russian => "🚗 У вас есть водительское удостоверение?",
+        _ => "🚗 Haydovchilik guvohnomangiz bormi?",
+    };
+
+    /// <summary>17-qadam: guvohnoma toifasi — faqat «Ha» dan keyin.</summary>
+    public static string AskDriverLicenseCategory(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "🚗 Гувоҳнома тоифаси қайси?",
+        BotLanguage.Russian => "🚗 Какой категории удостоверение?",
+        _ => "🚗 Guvohnoma toifasi qaysi?",
+    };
+
+    /// <summary>18-qadam: surat (o'tkazib yuborish mumkin).</summary>
+    public static string AskPhoto(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "🤳 Суратингизни юборинг. Телефон камерасидан олсангиз ҳам бўлади.",
+        BotLanguage.Russian => "🤳 Отправьте свою фотографию. Можно сделать селфи на телефон.",
+        _ => "🤳 Suratingizni yuboring. Telefon kamerasidan olsangiz ham bo‘ladi.",
+    };
+
+    /// <summary>Rasm o'rniga matn kelganda.</summary>
+    public static string PhotoNotUnderstood(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Бу расм эмас. Расм юборинг ёки «Ўтказиб юбориш»ни босинг.",
+        BotLanguage.Russian => "Это не фотография. Отправьте фото или нажмите «Пропустить».",
+        _ => "Bu rasm emas. Rasm yuboring yoki «O‘tkazib yuborish»ni bosing.",
+    };
+
+    /// <summary>19-qadam: kutilayotgan maosh.</summary>
+    public static string AskExpectedSalary(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "💰 Қанча ойлик маош кутяпсиз?",
+        BotLanguage.Russian => "💰 На какую зарплату вы рассчитываете?",
+        _ => "💰 Qancha oylik maosh kutyapsiz?",
+    };
+
+    /// <summary>
+    /// Maosh oralig'ining tugmadagi va xulosadagi nomi.
+    /// </summary>
+    /// <remarks>
+    /// Sonlar uchala tilda bir xil, faqat qisqartma farq qiladi:
+    /// «млн» kirill va ruschada, «mln» lotinda.
+    /// </remarks>
+    public static string SalaryLabel(BotLanguage language, SalaryAnswer answer) => language switch
+    {
+        BotLanguage.Cyrillic => answer switch
+        {
+            SalaryAnswer.From1To2Million => "1–2 млн",
+            SalaryAnswer.From2To3Million => "2–3 млн",
+            SalaryAnswer.From3To4Million => "3–4 млн",
+            SalaryAnswer.From5To7Million => "5–7 млн",
+            _ => string.Empty,
+        },
+        BotLanguage.Russian => answer switch
+        {
+            SalaryAnswer.From1To2Million => "1–2 млн",
+            SalaryAnswer.From2To3Million => "2–3 млн",
+            SalaryAnswer.From3To4Million => "3–4 млн",
+            SalaryAnswer.From5To7Million => "5–7 млн",
+            _ => string.Empty,
+        },
+        _ => answer switch
+        {
+            SalaryAnswer.From1To2Million => "1–2 mln",
+            SalaryAnswer.From2To3Million => "2–3 mln",
+            SalaryAnswer.From3To4Million => "3–4 mln",
+            SalaryAnswer.From5To7Million => "5–7 mln",
+            _ => string.Empty,
+        },
+    };
+
+    /// <summary>20-qadam: ish haqida qayerdan bilgan.</summary>
+    public static string AskReferralSource(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "📣 Иш ҳақида қаердан билдингиз?",
+        BotLanguage.Russian => "📣 Откуда вы узнали о вакансии?",
+        _ => "📣 Ish haqida qayerdan bildingiz?",
+    };
+
+    /// <summary>Manbaning tugmadagi va xulosadagi nomi.</summary>
+    /// <remarks>
+    /// Brend nomlari («Instagram», «OLX.uz», «hh.uz», «Telegram»)
+    /// TARJIMA QILINMAYDI — sabab <see cref="InstagramButton"/> izohida.
+    /// </remarks>
+    public static string ReferralLabel(BotLanguage language, ReferralAnswer answer) => language switch
+    {
+        BotLanguage.Cyrillic => answer switch
+        {
+            ReferralAnswer.Acquaintance => "Танишлар орқали",
+            ReferralAnswer.SocialNetwork => "Instagram, Facebook",
+            ReferralAnswer.Olx => "OLX.uz",
+            ReferralAnswer.HeadHunter => "hh.uz",
+            ReferralAnswer.Telegram => "Telegram",
+            ReferralAnswer.Other => "Бошқа манба",
+            _ => string.Empty,
+        },
+        BotLanguage.Russian => answer switch
+        {
+            ReferralAnswer.Acquaintance => "От знакомых",
+            ReferralAnswer.SocialNetwork => "Instagram, Facebook",
+            ReferralAnswer.Olx => "OLX.uz",
+            ReferralAnswer.HeadHunter => "hh.uz",
+            ReferralAnswer.Telegram => "Telegram",
+            ReferralAnswer.Other => "Другой источник",
+            _ => string.Empty,
+        },
+        _ => answer switch
+        {
+            ReferralAnswer.Acquaintance => "Tanishlar orqali",
+            ReferralAnswer.SocialNetwork => "Instagram, Facebook",
+            ReferralAnswer.Olx => "OLX.uz",
+            ReferralAnswer.HeadHunter => "hh.uz",
+            ReferralAnswer.Telegram => "Telegram",
+            ReferralAnswer.Other => "Boshqa manba",
+            _ => string.Empty,
+        },
+    };
+
+    /// <summary>
+    /// 21-qadam: ommaviy oferta.
+    /// </summary>
+    /// <remarks>
+    /// Havola sozlamadan keladi (<c>bot.offerUrl</c>) va BO'SH bo'lsa bu
+    /// qadam umuman chizilmaydi — bo'sh havolali xabar nomzodni
+    /// boshi berk ko'chaga olib borardi.
+    /// </remarks>
+    public static string Offer(BotLanguage language, string url) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            $"📄 Юборишдан олдин оммавий оферта билан танишиб чиқинг:\n{Escape(url)}\n\n"
+            + "Давом этиш учун «Розиман»ни босинг.",
+        BotLanguage.Russian =>
+            $"📄 Перед отправкой ознакомьтесь с публичной офертой:\n{Escape(url)}\n\n"
+            + "Нажмите «Согласен», чтобы продолжить.",
+        _ =>
+            $"📄 Yuborishdan oldin ommaviy oferta bilan tanishib chiqing:\n{Escape(url)}\n\n"
+            + "Davom etish uchun «Roziman»ni bosing.",
+    };
+
+    /// <summary>22-qadam: xulosadan keyingi savol.</summary>
+    public static string ConfirmQuestion(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Барча маълумот тўғрими?",
+        BotLanguage.Russian => "Все данные указаны верно?",
+        _ => "Barcha ma’lumot to‘g‘rimi?",
+    };
+
+    /// <summary>Xulosadagi «сурат: юборилди» qiymati.</summary>
+    public static string PhotoSent(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "юборилди",
+        BotLanguage.Russian => "отправлено",
+        _ => "yuborildi",
+    };
+
+    /// <summary>Xulosadagi «оферта: розилик берилди» qiymati.</summary>
+    public static string OfferAccepted(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "розилик берилди",
+        BotLanguage.Russian => "согласие дано",
+        _ => "rozilik berildi",
+    };
+
+    /// <summary>
+    /// Xulosa qatorining sarlavhasi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bitta metod, o'n to'qqizta alohida metod emas: sarlavhalar bir
+    /// xil vazifani bajaradi va ular yonma-yon turgani ularni
+    /// solishtirishni osonlashtiradi — bitta tilda unutilgan qator shu
+    /// yerda darhol ko'rinadi.
+    /// </para>
+    /// <para>
+    /// Belgi (emoji) sarlavhaning bir qismi: xulosa uzun ro'yxat va
+    /// belgisiz uni ko'z bilan o'qib bo'lmasdi.
+    /// </para>
+    /// </remarks>
+    public static string SummaryLabel(BotLanguage language, SummaryLine line) => language switch
+    {
+        BotLanguage.Cyrillic => line switch
+        {
+            SummaryLine.Name => "👤 Ф.И.Ш.",
+            SummaryLine.BirthDate => "🗓 Туғилган кун",
+            SummaryLine.Address => "🏠 Манзил",
+            SummaryLine.Phone => "📱 Телефон",
+            SummaryLine.Vacancy => "💼 Вакансия",
+            SummaryLine.Education => "🎓 Маълумот",
+            SummaryLine.Speciality => "📌 Мутахассислик",
+            SummaryLine.WorkExperience => "💼 Иш тажрибаси",
+            SummaryLine.MaritalStatus => "👨‍👩‍👧 Оилавий ҳолат",
+            SummaryLine.RussianLevel => "🇷🇺 Рус тили",
+            SummaryLine.OtherLanguages => "🌐 Бошқа тиллар",
+            SummaryLine.OfficeSkills => "💻 Офис дастурлари",
+            SummaryLine.LastSalary => "💵 Охирги маош",
+            SummaryLine.ExtraNote => "✍️ Қўшимча",
+            SummaryLine.DriverLicense => "🚗 Ҳайдовчилик гувоҳномаси",
+            SummaryLine.Photo => "🤳 Сурат",
+            SummaryLine.ExpectedSalary => "💰 Кутилаётган маош",
+            SummaryLine.ReferralSource => "📣 Қаердан билди",
+            SummaryLine.Offer => "📄 Оммавий оферта",
+            _ => string.Empty,
+        },
+        BotLanguage.Russian => line switch
+        {
+            SummaryLine.Name => "👤 Ф.И.О.",
+            SummaryLine.BirthDate => "🗓 Дата рождения",
+            SummaryLine.Address => "🏠 Адрес",
+            SummaryLine.Phone => "📱 Телефон",
+            SummaryLine.Vacancy => "💼 Вакансия",
+            SummaryLine.Education => "🎓 Образование",
+            SummaryLine.Speciality => "📌 Специальность",
+            SummaryLine.WorkExperience => "💼 Опыт работы",
+            SummaryLine.MaritalStatus => "👨‍👩‍👧 Семейное положение",
+            SummaryLine.RussianLevel => "🇷🇺 Русский язык",
+            SummaryLine.OtherLanguages => "🌐 Другие языки",
+            SummaryLine.OfficeSkills => "💻 Офисные программы",
+            SummaryLine.LastSalary => "💵 Последняя зарплата",
+            SummaryLine.ExtraNote => "✍️ Дополнительно",
+            SummaryLine.DriverLicense => "🚗 Водительское удостоверение",
+            SummaryLine.Photo => "🤳 Фотография",
+            SummaryLine.ExpectedSalary => "💰 Ожидаемая зарплата",
+            SummaryLine.ReferralSource => "📣 Откуда узнал(а)",
+            SummaryLine.Offer => "📄 Публичная оферта",
+            _ => string.Empty,
+        },
+        _ => line switch
+        {
+            SummaryLine.Name => "👤 F.I.Sh.",
+            SummaryLine.BirthDate => "🗓 Tug‘ilgan kun",
+            SummaryLine.Address => "🏠 Manzil",
+            SummaryLine.Phone => "📱 Telefon",
+            SummaryLine.Vacancy => "💼 Vakansiya",
+            SummaryLine.Education => "🎓 Ma’lumot",
+            SummaryLine.Speciality => "📌 Mutaxassislik",
+            SummaryLine.WorkExperience => "💼 Ish tajribasi",
+            SummaryLine.MaritalStatus => "👨‍👩‍👧 Oilaviy holat",
+            SummaryLine.RussianLevel => "🇷🇺 Rus tili",
+            SummaryLine.OtherLanguages => "🌐 Boshqa tillar",
+            SummaryLine.OfficeSkills => "💻 Ofis dasturlari",
+            SummaryLine.LastSalary => "💵 Oxirgi maosh",
+            SummaryLine.ExtraNote => "✍️ Qo‘shimcha",
+            SummaryLine.DriverLicense => "🚗 Haydovchilik guvohnomasi",
+            SummaryLine.Photo => "🤳 Surat",
+            SummaryLine.ExpectedSalary => "💰 Kutilayotgan maosh",
+            SummaryLine.ReferralSource => "📣 Qayerdan bildi",
+            SummaryLine.Offer => "📄 Ommaviy oferta",
+            _ => string.Empty,
+        },
     };
 }

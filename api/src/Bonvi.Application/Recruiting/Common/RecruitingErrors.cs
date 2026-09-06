@@ -1,3 +1,4 @@
+using Bonvi.Application.Common.Photos;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Application.Recruiting.Common;
@@ -93,6 +94,32 @@ public static class RecruitingErrors
     public static Error CandidateNotFound { get; } =
         Error.NotFound("nomzod.topilmadi", "Nomzod topilmadi.");
 
+    /// <summary>
+    /// «Umumiy anketa» vakansiyasi ishlatib bo'lmaydigan holatda.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nomzod vakansiyasiz kelganda u shu XIZMAT vakansiyasiga tushadi
+    /// (izohi <c>SystemSettingKeys.GeneralPoolVacancyId</c> da). Xato
+    /// uchta holatni birlashtiradi: sozlama yozilmagan, ko'rsatilgan
+    /// vakansiya topilmadi va u YOPILGAN. Uchalasining ham sababi bitta
+    /// — xizmat vakansiyasi buzilgan, yechimi ham bitta: uni tiklash
+    /// yoki qayta ochish. Ularni ajratish bot uchun hech narsa
+    /// bermasdi, chunki bot baribir hech qanday qaror qabul qila
+    /// olmaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Jimgina o'tkazib yuborilmaydi.</b> Bu holat faqat
+    /// urug'lantirish ishlamaganda yoki HR xizmat vakansiyasini qo'lda
+    /// yopganda yuzaga keladi — va o'shanda BARCHA vakansiyasiz
+    /// anketalar to'xtaydi. Aniq xato bo'lmasa, buni faqat «botdan
+    /// nomzod kelmayapti» degan shikoyatdan bilib olardik.
+    /// </para>
+    /// </remarks>
+    public static Error GeneralPoolUnavailable { get; } = Error.Conflict(
+        "nomzod.umumiy_anketa_yoq",
+        "«Umumiy anketa» vakansiyasi sozlanmagan yoki ochiq emas — vakansiyasiz anketa qabul qilinmaydi.");
+
     public static Error ResumeNotFound { get; } =
         Error.NotFound("nomzod.rezyume_topilmadi", "Nomzodning rezyumesi yo'q.");
 
@@ -105,6 +132,51 @@ public static class RecruitingErrors
     public static Error ResumeInvalid { get; } = Error.Validation(
         "nomzod.rezyume_yaroqsiz",
         "Rezyume PDF, JPEG, PNG yoki WebP emas (yoki buzilgan).");
+
+    // ---------- Nomzod surati ----------
+    //
+    // Kodlar `xodim.rasm_*` dan ATAYLAB alohida, holbuki quvur bitta
+    // (`SquarePhotoStore`). Sabab `EmployeeErrors.PhotoRejected` izohida:
+    // quvur SABABNI biladi, kod esa bo'limning shartnomasi va interfeys
+    // aynan unga qarab qaysi ekranda nima ko'rsatishini hal qiladi.
+
+    /// <summary>Nomzod bor, lekin surati yo'q (yoki fayli yo'qolgan).</summary>
+    /// <remarks>
+    /// «Nomzod topilmadi» dan ajratilgan: interfeys birinchi holatda xato
+    /// ko'rsatadi, ikkinchisida esa jimgina bosh harflardan iborat
+    /// o'rinbosar chizadi (xodim rasmidagi bilan bir xil qoida).
+    /// </remarks>
+    public static Error PhotoNotFound { get; } =
+        Error.NotFound("nomzod.rasm_yoq", "Nomzodning surati yo'q.");
+
+    public static Error PhotoTooLarge { get; } =
+        Error.Validation("nomzod.rasm_katta", "Rasm hajmi 10 MB dan oshmasligi kerak.");
+
+    public static Error PhotoTypeNotSupported { get; } =
+        Error.Validation("nomzod.rasm_turi", "Faqat JPEG, PNG va WebP rasmlar qabul qilinadi.");
+
+    /// <summary>Fayl rasm sifatida ochilmadi.</summary>
+    /// <remarks>
+    /// <see cref="PhotoTypeNotSupported"/> dan farqi: u E'LON QILINGAN turga
+    /// qaraydi, bu esa fayl MAZMUNIGA. Nomi «.jpg» bo'lgan skript aynan shu
+    /// yerda to'xtaydi — va bu bot uchun muhim: unga rasm Telegram'dan
+    /// keladi va uni tekshirishning boshqa yo'li yo'q.
+    /// </remarks>
+    public static Error PhotoInvalid { get; } =
+        Error.Validation("nomzod.rasm_yaroqsiz", "Fayl rasm emas yoki buzilgan.");
+
+    /// <summary>Umumiy rasm quvurining rad etish sababini NOMZOD kodiga o'giradi.</summary>
+    /// <remarks>
+    /// Xaritalash bitta joyda: yangi sabab qo'shilsa, kompilyator uni
+    /// tarjimasiz qoldirmaydi.
+    /// </remarks>
+    public static Error PhotoRejected(PhotoRejection rejection) => rejection switch
+    {
+        PhotoRejection.TooLarge => PhotoTooLarge,
+        PhotoRejection.UnsupportedType => PhotoTypeNotSupported,
+        PhotoRejection.Invalid => PhotoInvalid,
+        _ => PhotoInvalid,
+    };
 
     // ---------- Taklif ----------
 

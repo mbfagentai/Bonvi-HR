@@ -112,10 +112,11 @@ public sealed class RecruitingMapper
 
     /// <summary>Nomzod kartasi — bosqichlar tarixi va takliflari bilan.</summary>
     /// <remarks>
-    /// <paramref name="candidate"/> bosqichlari bilan yuklangan bo'lishi
-    /// kerak (<c>ICandidateRepository.GetWithStagesAsync</c>). Aks holda
-    /// tarix bo'sh chiqadi va bu HECH QANDAY xato bermaydi — shu sababli
-    /// chaqiruvchilar ataylab bitta metoddan foydalanadi.
+    /// <paramref name="candidate"/> bosqichlari VA anketasi bilan yuklangan
+    /// bo'lishi kerak (<c>ICandidateRepository.GetWithStagesAsync</c>). Aks
+    /// holda tarix bo'sh, anketa esa <c>null</c> chiqadi va bu HECH QANDAY
+    /// xato bermaydi — shu sababli chaqiruvchilar ataylab bitta metoddan
+    /// foydalanadi.
     /// </remarks>
     public async Task<CandidateDto> ToDtoAsync(Candidate candidate, CancellationToken cancellationToken = default)
     {
@@ -175,11 +176,38 @@ public sealed class RecruitingMapper
             candidate.ResumeFileName,
             candidate.ResumeContentType,
             candidate.ResumeSizeBytes,
+            candidate.PhotoKey is not null,
             employment?.EmployeeId,
             employment?.Id,
             stages,
-            offerDtos);
+            offerDtos,
+            ToDto(candidate.Questionnaire));
     }
+
+    /// <summary>Anketa — qo'shimcha so'rovsiz, nomzod bilan birga yuklangan.</summary>
+    /// <remarks>
+    /// Anketasi yo'q nomzodda <c>null</c> qaytadi va interfeys bo'limni
+    /// umuman chizmaydi. Bo'sh qiymatli blok qaytarish YARAMAYDI: u
+    /// «anketa bor, lekin javoblar yo'q» degan ma'no berardi, holbuki
+    /// anketaning O'ZI yo'q (HR qo'lda kiritgan nomzod).
+    /// </remarks>
+    private static CandidateQuestionnaireDto? ToDto(CandidateQuestionnaire? questionnaire)
+        => questionnaire is null
+            ? null
+            : new CandidateQuestionnaireDto(
+                questionnaire.Education,
+                questionnaire.WorkExperience,
+                questionnaire.MaritalStatus,
+                questionnaire.RussianLevel,
+                questionnaire.OtherLanguages,
+                questionnaire.OfficeSkills,
+                questionnaire.LastSalary,
+                questionnaire.ExtraNote,
+                questionnaire.HasDriverLicense,
+                questionnaire.DriverLicenseCategories,
+                questionnaire.ExpectedSalary,
+                questionnaire.ReferralSource,
+                questionnaire.OfferAcceptedAt);
 
     /// <summary>Bosqich nomlari: identifikator → nom.</summary>
     /// <remarks>

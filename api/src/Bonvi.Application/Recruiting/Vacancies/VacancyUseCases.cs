@@ -2,9 +2,11 @@ using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Common;
 using Bonvi.Application.Recruiting.Dtos;
+using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Settings;
 
 namespace Bonvi.Application.Recruiting.Vacancies;
 
@@ -32,12 +34,30 @@ namespace Bonvi.Application.Recruiting.Vacancies;
 /// Saralash: <c>openedAt</c> (sukut, yangidan eskiga) yoki <c>title</c>.
 /// Teskari tartib uchun oldiga <c>-</c> yoki oxiriga <c>:desc</c>.
 /// </param>
+/// <param name="ExcludeGeneralPool">
+/// «Umumiy anketa» vakansiyasini ro'yxatdan chiqarib tashlash.
+/// <para>
+/// ⭐ Buni FAQAT bot so'raydi: nomzodga vakansiyalar TANLOV bo'lib
+/// ko'rsatiladi, «Umumiy anketa» esa tanlanadigan ish o'rni emas —
+/// u vakansiyasiz kelgan anketa tushadigan joy
+/// (<c>SystemSettingKeys.GeneralPoolVacancyId</c>).
+/// </para>
+/// <para>
+/// <b>Nega HR uchun sukut bo'yicha O'CHIQ.</b> HR uchun u eng oddiy
+/// vakansiya: voronka, bosqichlar va rad etish unda ham ishlaydi,
+/// nomzodni unga qo'lda kiritish ham, undan boshqasiga ko'chirish ham
+/// mumkin bo'lishi kerak. Filtrni har doim yoqib qo'yish esa aynan shu
+/// ekranlarni jimgina ishlamaydigan qilib qo'yardi — HR nomzodni
+/// «Umumiy anketa» ga kirita olmay qolardi va sababini ko'rmasdi.
+/// </para>
+/// </param>
 public sealed record ListVacanciesQuery(
     string? Status = null,
     Guid? VacancyTitleId = null,
     int? Page = null,
     int? PageSize = null,
-    string? Sort = null);
+    string? Sort = null,
+    bool ExcludeGeneralPool = false);
 
 public sealed record GetVacancyQuery(Guid VacancyId);
 
@@ -91,8 +111,13 @@ public sealed class ListVacanciesQueryHandler
     public const int MaxPageSize = 200;
 
     private readonly IRecruitingReadModel _readModel;
+    private readonly SystemSettingsReader _settings;
 
-    public ListVacanciesQueryHandler(IRecruitingReadModel readModel) => _readModel = readModel;
+    public ListVacanciesQueryHandler(IRecruitingReadModel readModel, SystemSettingsReader settings)
+    {
+        _readModel = readModel;
+        _settings = settings;
+    }
 
     public async Task<Result<PagedResult<VacancyDto>>> HandleAsync(
         ListVacanciesQuery query,
@@ -111,6 +136,10 @@ public sealed class ListVacanciesQueryHandler
 
         var (sort, descending) = RecruitingQueryParsing.ParseVacancySort(query.Sort);
 
+        var excluded = query.ExcludeGeneralPool
+            ? await GeneralPoolVacancyIdAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+
         var found = await _readModel
             .ListVacanciesAsync(
                 new VacancyListFilter(
@@ -119,7 +148,8 @@ public sealed class ListVacanciesQueryHandler
                     page,
                     pageSize,
                     sort,
-                    descending),
+                    descending,
+                    excluded),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -143,6 +173,27 @@ public sealed class ListVacanciesQueryHandler
         var pageCount = (found.Total + pageSize - 1) / pageSize;
 
         return Result.Success(new PagedResult<VacancyDto>(items, page, pageSize, found.Total, pageCount));
+    }
+
+    /// <summary>
+    /// «Umumiy anketa» vakansiyasi. Sozlanmagan bo'lsa — <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>Bu yerdan XATO chiqmaydi va chiqmasligi ham kerak.</b>
+    /// Sozlama bo'sh bo'lishi (urug'lantirish hali o'tmagan) yoki
+    /// buzilgan bo'lishi (bazaga qo'lda aralashilgan) mumkin — ikkala
+    /// holatda ham ro'yxat AVVALGIDEK to'liq qaytadi. Botning yagona
+    /// ish yo'li shu so'rovdan o'tadi: filtr tufayli yiqilgan ro'yxat
+    /// «Umumiy anketa» ko'rinib qolganidan ko'ra ancha qimmatga
+    /// tushardi.
+    /// </remarks>
+    private async Task<Guid?> GeneralPoolVacancyIdAsync(CancellationToken cancellationToken)
+    {
+        var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        return Guid.TryParse(settings.Hidden(SystemSettingKeys.GeneralPoolVacancyId), out var id)
+            ? id
+            : null;
     }
 }
 

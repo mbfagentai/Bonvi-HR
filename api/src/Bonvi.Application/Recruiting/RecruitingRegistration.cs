@@ -55,6 +55,12 @@ internal static class RecruitingRegistration
         services.AddScoped<GetCandidateResumeQueryHandler>();
         services.AddScoped<DeleteCandidateResumeCommandHandler>();
 
+        // Nomzod surati — xodim rasmi bilan bir xil quvur
+        // (`SquarePhotoStore` ham `Common` da ro'yxatga olingan).
+        services.AddScoped<UploadCandidatePhotoCommandHandler>();
+        services.AddScoped<GetCandidatePhotoQueryHandler>();
+        services.AddScoped<DeleteCandidatePhotoCommandHandler>();
+
         // Ish takliflari
         services.AddScoped<ListCandidateOffersQueryHandler>();
         services.AddScoped<SendJobOfferCommandHandler>();

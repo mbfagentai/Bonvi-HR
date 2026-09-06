@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bonvi.Bot.Conversation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,30 @@ namespace Bonvi.Bot.Bonvi;
 public sealed record OpenVacancy(Guid Id, string Title);
 
 /// <summary>Botning tizimdan olinadigan sozlamalari.</summary>
+/// <remarks>
+/// Maydonlar <c>GET /api/settings/bot</c> javobidagi nomlar bilan
+/// AYNAN bir xil bo'lishi shart: mos kelmagan maydon xatoga aylanmaydi,
+/// jimgina TASHLANADI. <c>OfferUrl</c> bilan aynan shunday bo'lgan —
+/// server uni qaytarardi, bot esa ko'rmasdi.
+/// </remarks>
+/// <param name="AboutCyrillic">«Kompaniya haqida» — kirill.</param>
+/// <param name="AboutLatin">«Kompaniya haqida» — lotin.</param>
+/// <param name="AboutRussian">«Kompaniya haqida» — rus.</param>
+/// <param name="ContactsCyrillic">Kontaktlar — kirill.</param>
+/// <param name="ContactsLatin">Kontaktlar — lotin.</param>
+/// <param name="ContactsRussian">Kontaktlar — rus.</param>
+/// <param name="Location">Bosh ofisning xaritadagi nuqtasi.</param>
+/// <param name="HasLogo">Logotip yuklanganmi.</param>
+/// <param name="Instagram">Instagram havolasi.</param>
+/// <param name="Telegram">Telegram kanali havolasi.</param>
+/// <param name="Facebook">Facebook havolasi.</param>
+/// <param name="Website">Sayt havolasi.</param>
+/// <param name="OfferUrl">
+/// Ommaviy oferta havolasi. BO'SH bo'lsa anketaning 21-qadami umuman
+/// chizilmaydi — bo'sh havolali xabar nomzodni boshi berk ko'chaga
+/// olib borardi.
+/// </param>
+/// <param name="ConversationTimeoutMinutes">Suhbat necha daqiqa yashaydi.</param>
 public sealed record BotSettings(
     string AboutCyrillic,
     string AboutLatin,
@@ -25,6 +50,7 @@ public sealed record BotSettings(
     string Telegram,
     string Facebook,
     string Website,
+    string OfferUrl,
     int ConversationTimeoutMinutes);
 
 /// <summary>Tizimda saqlangan Telegram tokeni. Qo'yilmagan bo'lsa <c>null</c>.</summary>
@@ -37,7 +63,110 @@ public sealed record BotSettings(
 public sealed record BotTokenResponse(string? Token);
 
 /// <summary>Nomzodning mavjud arizasi — takror tekshiruvi uchun.</summary>
-public sealed record ExistingApplication(DateTimeOffset AppliedAt, string? StageName);
+/// <param name="AppliedAt">
+/// Ariza qachon topshirilgan. Qiymat serverdan UTC da keladi va
+/// nomzodga ko'rsatilishidan OLDIN Toshkent vaqtiga keltiriladi
+/// (<c>BotClock</c>).
+/// </param>
+/// <param name="StageName">Voronkadagi hozirgi bosqichi.</param>
+/// <param name="VacancyTitle">
+/// Qaysi vakansiyaga topshirgani. Bu SERVERDAN keladi, suhbatdan emas:
+/// nomzod hozir vakansiya tanlamagan bo'lishi mumkin (ochiq ish o'rni
+/// yo'q), lekin eski arizasi baribir biror vakansiyada turadi.
+/// </param>
+public sealed record ExistingApplication(
+    DateTimeOffset AppliedAt,
+    string? StageName,
+    string? VacancyTitle);
+
+/// <summary>
+/// Botda to'ldirilgan anketaning javoblari — arizaning bir qismi.
+/// </summary>
+/// <remarks>
+/// Sanoqlar serverga SATR bo'lib ketadi (a'zoning nomi bilan) — sabab
+/// <c>Answers</c> izohida. Bo'sh matnli javoblar so'rov tanasiga umuman
+/// qo'shilmaydi: «o'tkazib yuborildi» va «bo'sh satr yozildi» serverda
+/// bir xil ma'noga ega bo'lishi kerak.
+/// </remarks>
+/// <param name="Education">Ma'lumot darajasi.</param>
+/// <param name="MaritalStatus">Oilaviy holati.</param>
+/// <param name="RussianLevel">Rus tili darajasi.</param>
+/// <param name="ExpectedSalary">Kutilayotgan maosh oralig'i.</param>
+/// <param name="ReferralSource">Ish haqida qayerdan bilgan.</param>
+/// <param name="OfferAcceptedAt">
+/// Ommaviy oferta bilan rozilik VAQTI. Server uni o'zi UTC ga
+/// keltiradi, ya'ni siljish qanday bo'lishi ahamiyatsiz.
+/// <para>
+/// <c>null</c> — oferta havolasi sozlanmagan, 21-qadam chizilmagan va
+/// nomzoddan rozilik SO'RALMAGAN. U holda maydon so'rov tanasiga
+/// umuman tushmaydi (<c>RequestJson</c>) va server uni bo'sh saqlaydi.
+/// Zaxira vaqt qo'yish huquqiy faktni soxtalashtirardi.
+/// </para>
+/// </param>
+/// <param name="WorkExperience">Ish tajribasi.</param>
+/// <param name="OtherLanguages">Boshqa tillar.</param>
+/// <param name="OfficeSkills">Office dasturlari.</param>
+/// <param name="LastSalary">Oxirgi maosh.</param>
+/// <param name="ExtraNote">O'zi haqida qo'shimcha.</param>
+/// <param name="HasDriverLicense">Haydovchilik guvohnomasi bormi.</param>
+/// <param name="DriverLicenseCategories">Guvohnoma toifasi.</param>
+public sealed record QuestionnaireAnswers(
+    EducationAnswer Education,
+    MaritalAnswer MaritalStatus,
+    RussianLevelAnswer RussianLevel,
+    SalaryAnswer ExpectedSalary,
+    ReferralAnswer ReferralSource,
+    DateTimeOffset? OfferAcceptedAt,
+    string? WorkExperience = null,
+    string? OtherLanguages = null,
+    string? OfficeSkills = null,
+    string? LastSalary = null,
+    string? ExtraNote = null,
+    bool HasDriverLicense = false,
+    string? DriverLicenseCategories = null);
+
+/// <summary>
+/// Botdan yuboriladigan tayyor ariza.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Nega record, metodning parametrlari emas.</b> Ariza endi o'n
+/// beshdan ortiq maydondan iborat: shuncha parametrli chaqiruvda qaysi
+/// qiymat qayerga tushayotganini ko'z bilan tekshirib bo'lmasdi va
+/// yonma-yon turgan ikkita <c>string?</c> ni almashtirib qo'yish
+/// kompilyator ushlamaydigan xato bo'lardi.
+/// </para>
+/// <para>
+/// ⚠️ <b><see cref="VacancyId"/> bo'sh bo'lishi ODATIY hol.</b> Ochiq
+/// ish o'rni bo'lmaganda maydon so'rov tanasiga UMUMAN qo'shilmaydi va
+/// server arizani o'zi «Umumiy anketa»ga qo'yadi. Bot bu yerda hech
+/// qanday zaxira identifikator o'ylab topmaydi — u qaysi vakansiya
+/// ekanini bilmaydi ham.
+/// </para>
+/// </remarks>
+/// <param name="VacancyId">Tanlangan vakansiya — bo'lmasa <c>null</c>.</param>
+/// <param name="LastName">Familiya.</param>
+/// <param name="FirstName">Ism.</param>
+/// <param name="MiddleName">Otasining ismi.</param>
+/// <param name="BirthDate">Tug'ilgan sana.</param>
+/// <param name="Phone">Telefon raqami — kontakt tugmasidan.</param>
+/// <param name="Address">Yashash manzili.</param>
+/// <param name="Speciality">Mutaxassisligi.</param>
+/// <param name="ChatId">Telegram suhbatining raqami.</param>
+/// <param name="Language">Nomzod tanlagan til kodi.</param>
+/// <param name="Questionnaire">Anketa javoblari.</param>
+public sealed record CandidateRegistration(
+    Guid? VacancyId,
+    string LastName,
+    string FirstName,
+    string? MiddleName,
+    DateOnly? BirthDate,
+    string Phone,
+    string? Address,
+    string? Speciality,
+    long ChatId,
+    string Language,
+    QuestionnaireAnswers Questionnaire);
 
 /// <summary>
 /// Rad etilgan, lekin xabarni hali olmagan nomzod.
@@ -99,6 +228,30 @@ public sealed partial class BonviClient : IDisposable
     private partial void LogRequestFailed(Exception exception);
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// So'rov TANASI uchun alohida sozlama.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b><c>null</c> maydon so'rovga UMUMAN qo'shilmaydi.</b> Bu
+    /// vakansiyasiz ariza uchun shart: <c>vacancyId</c> bo'sh
+    /// yuborilganda server uni o'zi «Umumiy anketa»ga qo'yadi, lekin
+    /// buning uchun maydon TANADA BO'LMASLIGI kerak. O'tkazib
+    /// yuborilgan savollar ham shu qoida bilan tushib qoladi.
+    /// </para>
+    /// <para>
+    /// <b>Sanoqlar SATR bo'lib ketadi.</b> Server ularni nom bo'yicha
+    /// o'qiydi («SecondarySchool»). Raqam yuborish ham ishlardi, lekin
+    /// o'shanda so'rovni jurnaldan o'qigan odam «education: 2» ning
+    /// nimani bildirishini topa olmasdi.
+    /// </para>
+    /// </remarks>
+    private static readonly JsonSerializerOptions RequestJson = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     private readonly HttpClient _http;
     private readonly BotOptions _options;
@@ -166,15 +319,26 @@ public sealed partial class BonviClient : IDisposable
     /// Ochiq vakansiyalar ro'yxati.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// FAQAT <c>Open</c>: yopilgan vakansiyaga ariza qabul qilish nomzodni
     /// ham, HR ni ham bekorga ovora qilardi.
+    /// </para>
+    /// <para>
+    /// <c>excludeGeneralPool=true</c>: «Umumiy anketa» — tanlanadigan ish
+    /// o'rni EMAS, vakansiyasiz kelgan anketa tushadigan joy. Filtr
+    /// serverda, chunki qaysi vakansiya ekanini faqat server biladi
+    /// (sozlamada turadi). Eski server bu parametrni shunchaki
+    /// e'tiborsiz qoldiradi.
+    /// </para>
     /// </remarks>
     public async Task<IReadOnlyList<OpenVacancy>> GetOpenVacanciesAsync(CancellationToken cancellationToken)
     {
         var page = await SendAsync<VacancyPage>(
                 () => new HttpRequestMessage(
                     HttpMethod.Get,
-                    new Uri("api/recruiting/vacancies?status=Open&page=1&pageSize=50", UriKind.Relative)),
+                    new Uri(
+                        "api/recruiting/vacancies?status=Open&excludeGeneralPool=true&page=1&pageSize=50",
+                        UriKind.Relative)),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -208,11 +372,23 @@ public sealed partial class BonviClient : IDisposable
     /// </remarks>
     public async Task<ExistingApplication?> FindActiveApplicationAsync(
         string phone,
-        Guid vacancyId,
+        Guid? vacancyId,
         CancellationToken cancellationToken)
     {
         var query = $"api/recruiting/candidates?search={Uri.EscapeDataString(phone)}"
-            + $"&vacancyId={vacancyId}&status=InProgress&page=1&pageSize=1";
+            + "&status=InProgress&page=1&pageSize=1";
+
+        /*
+          Vakansiya tanlanmagan bo'lsa (ochiq ish o'rni yo'q) filtr
+          UMUMAN qo'yilmaydi va tekshiruv «shu raqam bilan ko'rilayotgan
+          ariza bormi?» degan savolga aylanadi. Bu ataylab kengroq:
+          nomzod allaqachon voronkada turgan bo'lsa, unga ikkinchi
+          yozuv ochish HR ning ish jadvalini ikkilantirardi.
+        */
+        if (vacancyId is { } id)
+        {
+            query += $"&vacancyId={id}";
+        }
 
         var page = await SendAsync<CandidatePage>(
                 () => new HttpRequestMessage(HttpMethod.Get, new Uri(query, UriKind.Relative)),
@@ -221,7 +397,9 @@ public sealed partial class BonviClient : IDisposable
 
         var found = page?.Items?.FirstOrDefault();
 
-        return found is null ? null : new ExistingApplication(found.CreatedAt, found.CurrentStage);
+        return found is null
+            ? null
+            : new ExistingApplication(found.CreatedAt, found.CurrentStage, found.Vacancy);
     }
 
     /// <summary>
@@ -385,33 +563,49 @@ public sealed partial class BonviClient : IDisposable
                 cancellationToken)
             .ConfigureAwait(false);
 
-    /// <summary>Nomzodni voronkaga kiritadi.</summary>
-    /// <returns>Yozuv yaratildimi.</returns>
-    public async Task<bool> RegisterCandidateAsync(
-        Guid vacancyId,
-        string lastName,
-        string firstName,
-        string? middleName,
-        string phone,
-        string? address,
-        long chatId,
-        string language,
+    /// <summary>
+    /// Nomzodni voronkaga kiritadi — anketasi bilan birga.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ <b>Nega endi <c>bool</c> emas, <c>Guid?</c>.</b> Suratni
+    /// yuborish uchun yaratilgan nomzodning <c>id</c> si kerak
+    /// (<see cref="UploadCandidatePhotoAsync"/>), ya'ni tartib qat'iy:
+    /// avval yozuv, keyin rasm. «Yaratildimi» degan bayroq bilan
+    /// ikkinchi so'rovni umuman yuborib bo'lmasdi — nomzodni telefon
+    /// raqami bo'yicha qayta izlash esa boshqa odamni topib qo'yish
+    /// xavfi.
+    /// </remarks>
+    /// <param name="registration">Tayyor ariza.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <returns>Yaratilgan nomzodning <c>id</c> si, bo'lmasa <c>null</c>.</returns>
+    public async Task<Guid?> RegisterCandidateAsync(
+        CandidateRegistration registration,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(registration);
+
+        var form = registration.Questionnaire;
+
         var body = new
         {
-            vacancyId,
-            lastName,
-            firstName,
-            middleName,
-            phone,
+            // Bo'sh bo'lsa maydon so'rovga UMUMAN tushmaydi
+            // (`RequestJson` izohi) va server arizani «Umumiy anketa»ga
+            // qo'yadi.
+            registration.VacancyId,
+
+            registration.LastName,
+            registration.FirstName,
+            registration.MiddleName,
+            registration.BirthDate,
+            registration.Phone,
 
             /*
-              Manzil — anketaning oxirgi savoli. HR uchun u shu yerda
-              turishi shart: nomzod uzoq tumandan bo'lsa, birinchi
-              qo'ng'iroqdayoq yo'l masalasi hal qilinadi.
+              Manzil va mutaxassislik nomzod kartasining O'Z maydonlari,
+              anketa bloki emas: HR ularni ro'yxatda ham, qidiruvda ham
+              ishlatadi.
             */
-            address,
+            registration.Address,
+            registration.Speciality,
 
             // «Bot qancha nomzod keltirdi» degan savolning javobi shu
             // maydonda — HR nomzodlar ro'yxatida manba bo'yicha filtrlaydi.
@@ -426,8 +620,25 @@ public sealed partial class BonviClient : IDisposable
               shu suhbatda tanlagan va boshqa hech qayerdan bilib
               bo'lmaydi.
             */
-            telegramChatId = chatId,
-            telegramLanguage = language,
+            telegramChatId = registration.ChatId,
+            telegramLanguage = registration.Language,
+
+            questionnaire = new
+            {
+                form.Education,
+                form.MaritalStatus,
+                form.RussianLevel,
+                form.ExpectedSalary,
+                form.ReferralSource,
+                form.OfferAcceptedAt,
+                form.WorkExperience,
+                form.OtherLanguages,
+                form.OfficeSkills,
+                form.LastSalary,
+                form.ExtraNote,
+                form.HasDriverLicense,
+                form.DriverLicenseCategories,
+            },
         };
 
         var created = await SendAsync<JsonElement>(
@@ -435,12 +646,108 @@ public sealed partial class BonviClient : IDisposable
                     HttpMethod.Post,
                     new Uri("api/recruiting/candidates", UriKind.Relative))
                 {
-                    Content = JsonContent.Create(body, options: Json),
+                    Content = JsonContent.Create(body, options: RequestJson),
                 },
                 cancellationToken)
             .ConfigureAwait(false);
 
-        return created.ValueKind == JsonValueKind.Object;
+        if (created.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return created.TryGetProperty("id", out var id) && id.TryGetGuid(out var candidateId)
+            ? candidateId
+            : null;
+    }
+
+    /// <summary>
+    /// Nomzodning suratini yuklaydi (18-qadam).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Bu so'rov ARIZANI hal qilmaydi.</b> U ariza YARATILGANDAN
+    /// keyin yuboriladi va bajarilmasligi mumkin — nomzod baribir
+    /// voronkada, HR baribir unga qo'ng'iroq qiladi. Shu sababli
+    /// chaqiruvchi xatoni jurnalga yozib, ishni davom ettiradi: rasm
+    /// arizadan muhimroq emas.
+    /// </para>
+    /// <para>
+    /// Baytlar <see cref="SendAsync{T}"/> dan o'tmaydi (u JSON kutadi),
+    /// shu sababli so'rov qo'lda yig'iladi — lekin qayta kirish qoidasi
+    /// bir xil: <c>401</c> kelsa bir marta qayta kiriladi va konvert
+    /// QAYTADAN yasaladi (yuborilgan <c>MultipartFormDataContent</c> ni
+    /// ikkinchi marta jo'natib bo'lmaydi).
+    /// </para>
+    /// </remarks>
+    /// <param name="candidateId">Yaratilgan nomzod.</param>
+    /// <param name="photo">JPEG baytlari — Telegram'dan yuklab olingan.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <returns>Rasm yetib bordimi.</returns>
+    public async Task<bool> UploadCandidatePhotoAsync(
+        Guid candidateId,
+        byte[] photo,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(photo);
+
+        var path = $"api/recruiting/candidates/{candidateId:D}/photo";
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                using var content = new MultipartFormDataContent();
+                using var file = new ByteArrayContent(photo);
+
+                file.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+
+                // Maydon nomi «file» — server aynan shuni kutadi
+                // (xodim rasmi bilan bir xil quvur).
+                content.Add(file, "file", "photo.jpg");
+
+                using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative))
+                {
+                    Content = content,
+                };
+
+                if (_accessToken is not null)
+                {
+                    message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                }
+
+                using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
+                {
+                    if (!await SignInAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    LogApiError((int)response.StatusCode, "nomzod surati yuklanmadi");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LogRequestFailed(ex);
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -586,5 +893,9 @@ public sealed partial class BonviClient : IDisposable
 
     private sealed record CandidatePage(List<CandidateItem>? Items);
 
-    private sealed record CandidateItem(Guid Id, DateTimeOffset CreatedAt, string? CurrentStage);
+    private sealed record CandidateItem(
+        Guid Id,
+        DateTimeOffset CreatedAt,
+        string? CurrentStage,
+        string? Vacancy);
 }

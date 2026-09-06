@@ -147,6 +147,23 @@ public sealed class SystemSettings
     public string Photo(string key) => Raw(Definition(key, SystemSettingKind.Photo));
 
     /// <summary>
+    /// YASHIRIN sozlamaning qiymati. Yozilmagan bo'lsa bo'sh satr.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Photo"/> bilan bir xil sabab bilan alohida: tur
+    /// <see cref="Definition"/> da QAT'IY tekshiriladi va yashirin
+    /// qiymatni matn deb o'qishga urinish darhol ko'rinadi.
+    /// </para>
+    /// <para>
+    /// Qiymat XOM qaytadi (odatda <c>Guid</c> matni) — uni tushunish
+    /// chaqiruvchining ishi. Bo'sh satr «hali yozilmagan» degani va bu
+    /// NORMAL holat: urug'lantirish hali ishlamagan bo'lishi mumkin.
+    /// </para>
+    /// </remarks>
+    public string Hidden(string key) => Raw(Definition(key, SystemSettingKind.Hidden));
+
+    /// <summary>
     /// Sirning OCHIQ qiymati. Qo'yilmagan yoki ochib bo'lmasa — <c>null</c>.
     /// </summary>
     /// <remarks>
@@ -220,17 +237,26 @@ public sealed class SystemSettings
     }
 
     /// <summary>
-    /// Barcha sozlamalar — ta'rifi va joriy qiymati bilan.
+    /// Ekranga chiqadigan sozlamalar — ta'rifi va joriy qiymati bilan.
     /// </summary>
     /// <remarks>
-    /// Tartib <see cref="SystemSettingKeys.All"/> dan keladi (ma'no
+    /// <para>
+    /// Tartib <see cref="SystemSettingKeys.Visible"/> dan keladi (ma'no
     /// bo'yicha guruhlangan), bazadagi tartibdan emas: bazada faqat
     /// O'ZGARTIRILGAN sozlamalar bor va ular ekrandagi ketma-ketlikni
     /// belgilay olmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Yashirin sozlamalar bu yerda YO'Q</b>
+    /// (<see cref="SystemSettingKind.Hidden"/>): ularni server o'zi
+    /// yozadi va ekranda ko'rsatish faqat savol tug'dirardi. Filtr
+    /// ro'yxatning O'ZIDA — shu sababli uni bu yerda unutib qo'yish
+    /// mumkin emas.
+    /// </para>
     /// </remarks>
     public IReadOnlyList<SystemSettingDto> Describe() =>
     [
-        .. SystemSettingKeys.All.Select(Describe),
+        .. SystemSettingKeys.Visible.Select(Describe),
     ];
 
     /// <summary>Bitta sozlamaning tashqi ko'rinishi.</summary>

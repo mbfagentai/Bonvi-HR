@@ -156,6 +156,7 @@ public sealed record CandidatePage(IReadOnlyList<CandidateRow> Items, int Total)
 /// <param name="Status">Voronkadagi holati.</param>
 /// <param name="Source">Qayerdan kelgan.</param>
 /// <param name="HasResume">Rezyume biriktirilganmi.</param>
+/// <param name="HasPhoto">Surati bormi — ro'yxat qatorida rasm ko'rsatiladi.</param>
 /// <param name="CreatedAt">Kiritilgan vaqt.</param>
 /// <param name="HiredEmployeeId">Ishga olingan bo'lsa — xodim kartasi.</param>
 public sealed record CandidateRow(
@@ -173,6 +174,7 @@ public sealed record CandidateRow(
     CandidateStatus Status,
     CandidateSource Source,
     bool HasResume,
+    bool HasPhoto,
     DateTimeOffset CreatedAt,
     Guid? HiredEmployeeId);
 
@@ -192,13 +194,23 @@ public sealed record CandidateRow(
 /// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
 /// <param name="Sort">Saralash ustuni.</param>
 /// <param name="Descending">Teskari tartib.</param>
+/// <param name="ExcludedVacancyId">
+/// Ro'yxatdan CHIQARIB tashlanadigan bitta vakansiya. <c>null</c> —
+/// hech kim chiqarilmaydi.
+///
+/// Nega umumiy «id emas» filtri, «umumiy anketani yashir» emas:
+/// o'qish modeli qaysi vakansiya nima uchun xizmat qilishini
+/// BILMASLIGI kerak — bu use-case qatlamining bilimi. Bu yerda faqat
+/// «shu qatorni qo'shma» degan mexanik shart qoladi.
+/// </param>
 public sealed record VacancyListFilter(
     VacancyStatus? Status = null,
     Guid? VacancyTitleId = null,
     int Page = 1,
     int PageSize = 25,
     VacancySortField Sort = VacancySortField.OpenedAt,
-    bool Descending = true)
+    bool Descending = true,
+    Guid? ExcludedVacancyId = null)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;

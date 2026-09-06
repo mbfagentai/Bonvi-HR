@@ -1,6 +1,8 @@
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Identity;
+using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
 using Bonvi.Infrastructure.Persistence.Seed;
@@ -78,6 +80,27 @@ public sealed class BootstrapOptions
 /// </remarks>
 public sealed partial class DatabaseInitializer : IHostedService
 {
+    /// <summary>
+    /// «Tushadigan joy» vakansiyasining nomi — <c>vacancy_titles</c> dagi yozuv.
+    /// </summary>
+    /// <remarks>
+    /// Nom nomzodga KO'RINMAYDI (bot bu vakansiyani ro'yxatda
+    /// chizmaydi), lekin HR ekranlarida — voronkada, nomzod kartasida —
+    /// aynan shu matn turadi. Shu sababli u tushunarli bo'lishi kerak.
+    /// </remarks>
+    public const string GeneralPoolTitle = "Umumiy anketa";
+
+    /// <summary>Vakansiya kartasidagi izoh — nima uchun kerakligini tushuntiradi.</summary>
+    /// <remarks>
+    /// Izoh HR uchun va u OGOHLANTIRISH ham: bu vakansiya qo'lda
+    /// ochilmagan, uni yopish esa vakansiyasiz kelgan anketalarni
+    /// butunlay to'xtatib qo'yadi (urug' yopilganini qayta ochmaydi —
+    /// sabab <see cref="SeedGeneralPoolVacancyAsync"/> izohida).
+    /// </remarks>
+    private const string GeneralPoolNote =
+        "Tizim vakansiyasi: ochiq ish o'rni bo'lmaganda nomzod anketasi shu yerga tushadi. "
+        + "Yopilsa, bunday anketalar qabul qilinmaydi.";
+
     private readonly IServiceProvider _services;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<DatabaseInitializer> _logger;
@@ -134,6 +157,18 @@ public sealed partial class DatabaseInitializer : IHostedService
         Message = "Telegram bot hisobi yaratilmadi: {Reason}")]
     private partial void LogBotUserSkipped(string reason);
 
+    [LoggerMessage(
+        EventId = 2008,
+        Level = LogLevel.Information,
+        Message = "«{Title}» vakansiyasi tayyor: {VacancyId}")]
+    private partial void LogGeneralPoolSeeded(string title, Guid vacancyId);
+
+    [LoggerMessage(
+        EventId = 2009,
+        Level = LogLevel.Warning,
+        Message = "«{Title}» vakansiyasi tayyorlanmadi: {Reason}")]
+    private partial void LogGeneralPoolSkipped(string title, string reason);
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
@@ -176,6 +211,9 @@ public sealed partial class DatabaseInitializer : IHostedService
             .ConfigureAwait(false);
 
         LogCatalogSeeded(catalog.Created, catalog.Skipped, catalog.MissingFiles);
+
+        // ---------- «Umumiy anketa» vakansiyasi ----------
+        await SeedGeneralPoolVacancyAsync(provider, cancellationToken).ConfigureAwait(false);
 
         // ---------- Birinchi administrator ----------
         await CreateFirstAdminAsync(provider, options, cancellationToken).ConfigureAwait(false);
@@ -275,6 +313,176 @@ public sealed partial class DatabaseInitializer : IHostedService
                 .SaveChangesAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// «Umumiy anketa» vakansiyasini tayyorlaydi va uni sozlamaga bog'laydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bunday vakansiya umuman kerak.</b> Nomzod OCHIQ VAKANSIYA
+    /// BO'LMASA HAM anketa to'ldira olishi kerak, <c>Candidate.VacancyId</c>
+    /// esa majburiy. Ustunni nullable qilish o'rniga doimiy «tushadigan
+    /// joy» vakansiyasi tanlandi: bunda voronka, bosqichlar va rad etish
+    /// bir zumda ishlab ketadi va mavjud ma'lumotga umuman tegilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>IDEMPOTENT.</b> Odatiy (ikkinchi va undan keyingi) ishga
+    /// tushishda bu yerda ikkita <c>SELECT</c> bo'ladi va boshqa hech
+    /// narsa: sozlama vakansiyani ko'rsatib turgan bo'lsa, yo'l shu
+    /// yerda tugaydi. Yozuvni «har ehtimolga qarshi» yangilash HR
+    /// yopgan yoki qayta ochgan vakansiyani jimgina o'zgartirib
+    /// qo'yardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega vakansiya YUMSHOQ O'CHIRILGANLARDAN izlanmaydi</b>
+    /// (<c>CreateBotUserAsync</c> dagi <c>IgnoreQueryFilters</c> dan
+    /// farqli). U yerda maqsad — unikal indeksga urilmaslik; bu yerda
+    /// esa vakansiya ISHLASHI kerak. O'chirilgan yozuvni «bor» deb
+    /// hisoblash tizimni tuzatib bo'lmaydigan holatda qoldirardi: bot
+    /// nomzodni ko'rinmaydigan vakansiyaga yozishga urinardi.
+    /// Ma'lumotnoma nomi esa aksincha — u
+    /// <c>IReferenceRepository.FindByNameAsync</c> orqali, ya'ni
+    /// <c>lower(name)</c> ustidagi unikal indeks bilan AYNAN bir xil
+    /// qoida bo'yicha izlanadi: HR «umumiy anketa» nomini qo'lda
+    /// yaratib qo'ygan bo'lsa, registri boshqa deb ikkinchisini
+    /// qo'shishga urinish ilovani UMUMAN ishga tushirmay qo'yardi.
+    /// </para>
+    /// <para>
+    /// Domen tekshiruvi rad etsa, urug' O'TKAZIB YUBORILADI va
+    /// ogohlantirish yoziladi — ilova baribir ko'tariladi. Bu urug'
+    /// tizimning ishlashi uchun shart emas: usiz faqat vakansiyasiz
+    /// anketa qabul qilinmaydi, qolgan hamma narsa avvalgidek.
+    /// </para>
+    /// </remarks>
+    private async Task SeedGeneralPoolVacancyAsync(
+        IServiceProvider provider,
+        CancellationToken cancellationToken)
+    {
+        var context = provider.GetRequiredService<AppDbContext>();
+
+        var setting = await context.SystemSettings
+            .FirstOrDefaultAsync(row => row.Key == SystemSettingKeys.GeneralPoolVacancyId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var linked = setting is not null
+            && Guid.TryParse(setting.Value, out var known)
+            && await context.Vacancies
+                .AnyAsync(vacancy => vacancy.Id == known, cancellationToken)
+                .ConfigureAwait(false);
+
+        if (linked)
+        {
+            return;
+        }
+
+        // ---------- Ma'lumotnomadagi nom ----------
+        var titles = provider.GetRequiredService<IReferenceRepository<VacancyTitle>>();
+
+        var title = await titles
+            .FindByNameAsync(GeneralPoolTitle, cancellationToken)
+            .ConfigureAwait(false);
+
+        VacancyTitle? newTitle = null;
+
+        if (title is null)
+        {
+            var created = VacancyTitle.Create(GeneralPoolTitle);
+            if (created.IsFailure)
+            {
+                LogGeneralPoolSkipped(GeneralPoolTitle, created.Error.Message);
+                return;
+            }
+
+            newTitle = created.Value;
+        }
+
+        // Yangi yozuvning identifikatori bazaga borishdan OLDIN ma'lum
+        // (`Entity.NewId`), shu sababli quyidagi so'rov ikkala holatda
+        // ham bir xil yoziladi.
+        var titleId = (title ?? newTitle!).Id;
+
+        // ---------- Vakansiyaning o'zi ----------
+        // FAQAT ochig'i: yopilgan vakansiya nomzod qabul qilmaydi
+        // (`Vacancy.AcceptsCandidates`), ya'ni unga bog'lanish botni
+        // ishlamaydigan holatda qoldirardi. Tartib esa barqarorlik
+        // uchun: bir xil bazada har doim bir xil yozuv tanlanadi.
+        var vacancy = await context.Vacancies
+            .Where(row => row.VacancyTitleId == titleId && row.Status == VacancyStatus.Open)
+            .OrderBy(row => row.CreatedAt)
+            .ThenBy(row => row.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        Vacancy? newVacancy = null;
+
+        if (vacancy is null)
+        {
+            var opened = Vacancy.Open(
+                titleId,
+                provider.GetRequiredService<IClock>().Today,
+                note: GeneralPoolNote);
+
+            if (opened.IsFailure)
+            {
+                LogGeneralPoolSkipped(GeneralPoolTitle, opened.Error.Message);
+                return;
+            }
+
+            newVacancy = opened.Value;
+        }
+
+        var vacancyId = (vacancy ?? newVacancy!).Id;
+
+        // ---------- Sozlama ----------
+        /*
+          Qiymatni `SetValue` YOZA OLMAYDI: kalit
+          `SystemSettingKind.Hidden` turida va uni umumiy «sozlamalarni
+          saqlash» so'rovi ham, bu yer ham bir xil eshikdan — SERVER
+          yo'lidan — o'tkazadi (`SystemSetting.SetServerValue`).
+        */
+        var stored = vacancyId.ToString();
+
+        if (setting is null)
+        {
+            var created = SystemSetting.CreateServerValue(SystemSettingKeys.GeneralPoolVacancyId, stored);
+            if (created.IsFailure)
+            {
+                LogGeneralPoolSkipped(GeneralPoolTitle, created.Error.Message);
+                return;
+            }
+
+            context.SystemSettings.Add(created.Value);
+        }
+        else
+        {
+            var applied = setting.SetServerValue(stored);
+            if (applied.IsFailure)
+            {
+                LogGeneralPoolSkipped(GeneralPoolTitle, applied.Error.Message);
+                return;
+            }
+        }
+
+        // Yozuvlar SHU YERDA qo'shiladi — barcha tekshiruvlardan keyin.
+        // Yuqorida qo'shilganda, tekshiruv yiqilgan yo'lda kontekstda
+        // saqlanmagan yozuv qolib ketardi va uni keyingi urug'ning
+        // `SaveChanges` i yozib yuborardi.
+        if (newTitle is not null)
+        {
+            titles.Add(newTitle);
+        }
+
+        if (newVacancy is not null)
+        {
+            context.Vacancies.Add(newVacancy);
+        }
+
+        await provider.GetRequiredService<IUnitOfWork>()
+            .SaveChangesAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        LogGeneralPoolSeeded(GeneralPoolTitle, vacancyId);
     }
 
     /// <summary>

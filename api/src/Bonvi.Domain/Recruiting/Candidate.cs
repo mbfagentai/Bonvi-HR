@@ -166,6 +166,25 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public string? Speciality { get; private set; }
 
+    /// <summary>
+    /// Nomzod surati — <c>IFileStorage</c> kaliti.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Rasm botdagi anketada so'raladi (selfi) va xodim rasmi bilan AYNAN
+    /// bir quvurdan o'tadi: markazdan kvadrat qirqilib 512×512 JPEG
+    /// bo'ladi. Ikkinchi quvur yozilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Nega anketa jadvalida emas, shu yerda.</b> Rasm — nomzodning
+    /// O'ZI, anketa savoliga javob emas: HR uni nomzodlar ro'yxatida ham
+    /// ko'rsatishni so'rashi mumkin (xodimlar ro'yxatida shunday
+    /// qilingan), o'shanda u allaqachon joyida bo'ladi. Anketasi yo'q,
+    /// lekin rasmi bor nomzod ham mumkin — HR uni qo'lda yuklasa.
+    /// </para>
+    /// </remarks>
+    public string? PhotoKey { get; private set; }
+
     /// <summary>Rezyume fayli — <c>IFileStorage</c> kaliti.</summary>
     public string? ResumeFileKey { get; private set; }
 
@@ -246,6 +265,18 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
 
     /// <summary>Bosqichlar tarixi — yozilgan tartibda.</summary>
     public IReadOnlyList<CandidateStageEntry> StageEntries => _stageEntries.AsReadOnly();
+
+    /// <summary>
+    /// Botda to'ldirilgan anketa. Yo'q bo'lishi NORMAL.
+    /// </summary>
+    /// <remarks>
+    /// Anketa faqat botdan keladi. HR qo'lda kiritgan nomzodda ham, bu
+    /// funksiya paydo bo'lgunicha yozilgan nomzodlarda ham u <c>null</c> —
+    /// va bu xato emas. Shu sababli uni o'qiydigan hech bir joy anketa
+    /// bor deb faraz qilmasligi kerak (izohi
+    /// <see cref="CandidateQuestionnaire"/> da).
+    /// </remarks>
+    public CandidateQuestionnaire? Questionnaire { get; private set; }
 
     /// <summary>Voronkada faolmi.</summary>
     public bool IsActive => Status == CandidateStatus.InProgress;
@@ -498,6 +529,51 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         ResumeContentType = contentType;
         ResumeSizeBytes = sizeBytes;
 
+        return Result.Success();
+    }
+
+    /// <summary>Suratni biriktiradi yoki olib tashlaydi (<c>null</c>).</summary>
+    /// <remarks>
+    /// Rasm ALLAQACHON tekshirilgan va qirqilgan bo'lishi kerak — domen
+    /// faqat kalitni yozadi (<see cref="AttachResume"/> bilan bir xil
+    /// mas'uliyat taqsimoti). Eski faylni diskdan olib tashlash
+    /// chaqiruvchining ishi.
+    /// </remarks>
+    public void SetPhoto(string? photoKey) => PhotoKey = photoKey;
+
+    /// <summary>
+    /// Anketani biriktiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Anketa bir marta, nomzod yaratilayotgan tranzaksiyada
+    /// biriktiriladi va keyin o'zgarmaydi (sabab
+    /// <see cref="CandidateQuestionnaire"/> izohida). Ikkinchi marta
+    /// biriktirishga urinish — chaqiruvchi qatlamdagi xato: nomzod
+    /// anketani ikki marta to'ldira olmaydi, takroriy ariza telefon
+    /// qadamida ushlanadi.
+    /// </para>
+    /// <para>
+    /// Anketa <see cref="Entity.Id"/> ga bog'lanishi tekshiriladi: boshqa
+    /// nomzodning anketasi ulanib qolsa, HR bir odamning javoblarini
+    /// ikkinchisining kartasida ko'rardi.
+    /// </para>
+    /// </remarks>
+    public Result AttachQuestionnaire(CandidateQuestionnaire questionnaire)
+    {
+        ArgumentNullException.ThrowIfNull(questionnaire);
+
+        if (Questionnaire is not null)
+        {
+            return Error.Conflict("nomzod.anketa_bor", "Nomzodda anketa allaqachon bor.");
+        }
+
+        if (questionnaire.CandidateId != Id)
+        {
+            return Error.Validation("nomzod.anketa_begona", "Anketa boshqa nomzodga tegishli.");
+        }
+
+        Questionnaire = questionnaire;
         return Result.Success();
     }
 

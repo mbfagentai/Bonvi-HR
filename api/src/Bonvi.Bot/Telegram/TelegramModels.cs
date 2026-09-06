@@ -31,7 +31,80 @@ public sealed record TelegramMessage(
     [property: JsonPropertyName("message_id")] long MessageId,
     [property: JsonPropertyName("chat")] TelegramChat Chat,
     [property: JsonPropertyName("text")] string? Text,
-    [property: JsonPropertyName("contact")] TelegramContact? Contact);
+    [property: JsonPropertyName("contact")] TelegramContact? Contact,
+    [property: JsonPropertyName("photo")] IReadOnlyList<TelegramPhotoSize>? Photo = null);
+
+/// <summary>
+/// Yuborilgan rasmning BITTA o'lchamdagi ko'rinishi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Telegram har bir rasmni bir necha o'lchamda saqlaydi va xabarda
+/// ularning HAMMASINI yuboradi — kichigidan kattasiga. Ya'ni «rasm»
+/// aslida ro'yxat va undan bittasini tanlash kerak
+/// (<see cref="TelegramPhotos.BestFileId"/>).
+/// </para>
+/// <para>
+/// <c>file_size</c> BO'LMASLIGI mumkin (Telegram uni har doim ham
+/// bermaydi) — shu sababli u <c>null</c> bo'la oladi va tanlashda
+/// «noma'lum» degan ma'noni tashiydi.
+/// </para>
+/// </remarks>
+/// <param name="FileId">Faylning belgisi — yuklab olish shu bilan.</param>
+/// <param name="Width">Eni.</param>
+/// <param name="Height">Bo'yi.</param>
+/// <param name="FileSize">Hajmi baytda — noma'lum bo'lsa <c>null</c>.</param>
+public sealed record TelegramPhotoSize(
+    [property: JsonPropertyName("file_id")] string FileId,
+    [property: JsonPropertyName("width")] int Width,
+    [property: JsonPropertyName("height")] int Height,
+    [property: JsonPropertyName("file_size")] long? FileSize = null);
+
+/// <summary>
+/// Yuborilgan rasmlardan keraklisini tanlaydi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>ENG KATTASI, lekin chegara ichida.</b> Server rasmni o'zi
+/// 512×512 ga qirqadi, ya'ni sifat qanchalik yuqori bo'lsa natija
+/// shunchalik yaxshi. Lekin serverning hajm chegarasi bor (10 MB) va
+/// undan katta fayl 400 bilan qaytardi — nomzod uchun bu «surat
+/// yuklanmadi» degani bo'lardi.
+/// </para>
+/// <para>
+/// <b>Tartibga ishonilmaydi.</b> Telegram ro'yxatni o'sish tartibida
+/// beradi, lekin bu hujjatda KAFOLAT qilinmagan xatti-harakat —
+/// piksellar soni bo'yicha solishtirish esa har qanday tartibda
+/// ishlaydi.
+/// </para>
+/// </remarks>
+public static class TelegramPhotos
+{
+    /// <summary>
+    /// Yuklab olinadigan rasmning belgisi.
+    /// </summary>
+    /// <param name="sizes">Xabardagi barcha o'lchamlar.</param>
+    /// <param name="maxBytes">Server qabul qiladigan eng katta hajm.</param>
+    /// <returns>Tanlangan <c>file_id</c>; rasm bo'lmasa <c>null</c>.</returns>
+    public static string? BestFileId(IReadOnlyList<TelegramPhotoSize>? sizes, long maxBytes)
+    {
+        if (sizes is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var ordered = sizes.OrderByDescending(size => (long)size.Width * size.Height).ToList();
+
+        var fitting = ordered.Find(size => size.FileSize is null || size.FileSize <= maxBytes);
+
+        /*
+          Hech biri sig'masa ENG KICHIGI olinadi: u chegaradan o'tish
+          ehtimoli eng yuqori nusxa. O'tmasa ham ariza yo'qolmaydi —
+          rasm arizadan muhimroq emas.
+        */
+        return (fitting ?? ordered[^1]).FileId;
+    }
+}
 
 public sealed record TelegramChat(
     [property: JsonPropertyName("id")] long Id);

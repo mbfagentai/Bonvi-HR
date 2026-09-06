@@ -68,7 +68,7 @@ public sealed class UploadBotLogoCommandHandler
 
         if (existing is null)
         {
-            var created = SystemSetting.CreateStored(SystemSettingKeys.BotLogo, key);
+            var created = SystemSetting.CreateServerValue(SystemSettingKeys.BotLogo, key);
             if (created.IsFailure)
             {
                 return created.Error;
@@ -78,7 +78,7 @@ public sealed class UploadBotLogoCommandHandler
         }
         else
         {
-            var applied = existing.SetStoredKey(key);
+            var applied = existing.SetServerValue(key);
             if (applied.IsFailure)
             {
                 return applied.Error;

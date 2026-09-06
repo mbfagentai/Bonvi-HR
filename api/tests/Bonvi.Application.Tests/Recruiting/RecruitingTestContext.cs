@@ -1,8 +1,11 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Application.Recruiting;
+using Bonvi.Application.Settings;
 using Bonvi.Application.Tests.Employees;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using NSubstitute;
 
@@ -52,6 +55,13 @@ internal sealed class RecruitingTestContext
         Employees.Employments
             .FindByCandidateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns((Domain.Employees.Employment?)null);
+
+        // Sukut bo'yicha BIRONTA sozlama yozilmagan — «Umumiy anketa» ham
+        // sozlanmagan. Bu ataylab: xizmat vakansiyasiga tayanadigan test
+        // uni ochiq talab qilsin, qolganlari esa undan bexabar qolsin.
+        SettingRows
+            .GetAllAsync(Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyList<SystemSetting>>([]);
     }
 
     /// <summary>1-bosqichning mock to'plami — ishga qabul oqimi shundan quriladi.</summary>
@@ -64,6 +74,20 @@ internal sealed class RecruitingTestContext
     public ICandidateRepository Candidates { get; } = Substitute.For<ICandidateRepository>();
 
     public IJobOfferRepository Offers { get; } = Substitute.For<IJobOfferRepository>();
+
+    /// <summary>Sozlamalar jadvali — «Umumiy anketa» havolasi shu yerda yashaydi.</summary>
+    public ISystemSettingRepository SettingRows { get; } = Substitute.For<ISystemSettingRepository>();
+
+    /// <summary>
+    /// Sozlamalarni o'qiydigan HAQIQIY sinf (mock emas).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SystemSettingsReader"/> — <c>sealed</c>, ya'ni uni mock
+    /// qilib bo'lmaydi; lekin bunga hojat ham yo'q: u faqat repozitoriy
+    /// ustidagi yupqa qatlam va uning O'Z qoidasi (yozilmagan kalit —
+    /// sukut qiymat) testda ham ishlashi kerak.
+    /// </remarks>
+    public SystemSettingsReader Settings => new(SettingRows, Substitute.For<ISecretProtector>());
 
     /// <summary>Vakansiya nomlari ma'lumotnomasi — vakansiyaning yagona havolasi.</summary>
     /// <remarks>
@@ -158,6 +182,29 @@ internal sealed class RecruitingTestContext
 
         Vacancies.GetByIdAsync(vacancy.Id, Arg.Any<CancellationToken>()).Returns(vacancy);
         Vacancies.ExistsAsync(vacancy.Id, Arg.Any<CancellationToken>()).Returns(true);
+
+        return vacancy;
+    }
+
+    /// <summary>
+    /// «Umumiy anketa» xizmat vakansiyasini sozlab beradi.
+    /// </summary>
+    /// <remarks>
+    /// Vakansiyaning O'ZI ham yaratiladi va sozlamaga uning
+    /// identifikatori yoziladi — server aynan shu ikki qadamdan o'tadi
+    /// (<c>DatabaseInitializer.SeedGeneralPoolVacancyAsync</c>).
+    /// </remarks>
+    public Vacancy GeneralPoolVacancy(bool open = true)
+    {
+        var vacancy = ExistingVacancy(open: open);
+
+        var setting = SystemSetting
+            .CreateServerValue(SystemSettingKeys.GeneralPoolVacancyId, vacancy.Id.ToString())
+            .Value;
+
+        SettingRows
+            .GetAllAsync(Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyList<SystemSetting>>([setting]);
 
         return vacancy;
     }

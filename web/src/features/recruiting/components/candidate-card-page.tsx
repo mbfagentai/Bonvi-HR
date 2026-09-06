@@ -32,6 +32,8 @@ import {
 import { CandidateActionDialog, type CandidateAction } from './candidate-action-dialog'
 import { CandidateFormDialog } from './candidate-form-dialog'
 import { CandidateOffersTab } from './candidate-offers-tab'
+import { CandidatePhotoEditor } from './candidate-photo-editor'
+import { CandidateQuestionnaireCard } from './candidate-questionnaire-card'
 import { CandidateResumeCard } from './candidate-resume-card'
 import { CandidateStagesTab } from './candidate-stages-tab'
 
@@ -45,7 +47,8 @@ type Tab = 'overview' | 'stages' | 'offers'
  * Uchta tab (`employee-card` dagi bilan bir xil naqsh: bir vaqtda
  * hammasini ko'rsatish sahifani cho'zib yuborardi, HR esa odatda
  * bittasiga qaraydi):
- *   · <b>Umumiy</b> — shaxsiy ma'lumot va rezyume;
+ *   · <b>Umumiy</b> — shaxsiy ma'lumot, botda to'ldirilgan anketa
+ *     va rezyume;
  *   · <b>Bosqichlar</b> — vertikal lenta va natija yozish oynasi;
  *   · <b>Takliflar</b> — yuborish, tuzatish, rad etish va QABUL QILISH.
  *
@@ -119,6 +122,18 @@ export function CandidateCardPage() {
       {/* ───────── Sarlavha kartasi ───────── */}
       <Card className="p-5">
         <div className="flex flex-wrap items-start gap-4">
+          {/*
+            Surat — xodim kartasidagi bilan AYNAN bir joyda va aynan bir
+            xil ishlaydi. U ANKETADAN mustaqil: anketasi yo'q nomzodda
+            ham (HR qo'lda kiritgan) surat yuklash mumkin, chunki bu
+            nomzodning O'ZI haqidagi ma'lumot, anketa javobi emas.
+          */}
+          <CandidatePhotoEditor
+            candidateId={person.id}
+            hasPhoto={person.hasPhoto}
+            name={person.fullName}
+          />
+
           <div className="min-w-0 flex-1">
             <h1 className="text-title2 leading-tight font-semibold tracking-tight">
               {person.fullName}
@@ -204,6 +219,15 @@ export function CandidateCardPage() {
       {tab === 'overview' && (
         <div className="space-y-4">
           <PersonalCard candidate={person} />
+
+          {/*
+            Anketa — shaxsiy ma'lumotdan KEYIN, rezyumedan OLDIN.
+            Tartib HR ning o'qish yo'lidan: avval «kim», keyin «nima
+            deb javob berdi», oxirida biriktirilgan fayl. Nomzodda
+            anketa bo'lmasa karta umuman chizilmaydi.
+          */}
+          <CandidateQuestionnaireCard questionnaire={person.questionnaire} />
+
           <CandidateResumeCard candidate={person} canManage={canManage} />
 
           {/*

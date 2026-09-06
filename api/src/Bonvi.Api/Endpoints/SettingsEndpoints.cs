@@ -161,13 +161,17 @@ public static class SettingsEndpoints
             .WithName("GetBotSettings")
             .WithSummary("Tizim sozlamalari — faqat botga keraklilari")
             .WithDescription(
-                "Telegram anketa boti uchun: «Kompaniya haqida» matni (kirill va lotin) " +
-                "hamda yarim qolgan suhbat necha daqiqadan keyin unutilishi. Boshqa " +
-                "sozlamalar bu javobda YO'Q. Ruxsat «recruiting.view» — bot hisobida " +
-                "«settings.manage» ataylab yo'q (izohi kodda). Matnlar bo'sh bo'lishi " +
-                "mumkin: bo'sh matnda bot «Kompaniya haqida» tugmasini umuman chizmaydi. " +
-                "Lotincha matn bo'sh bo'lsa server uni kirilldagisi bilan ALMASHTIRMAYDI — " +
-                "bu qoida botning o'zida, aks holda HR lotin matnini bo'shata olmasdi.")
+                "Telegram anketa boti uchun: «Kompaniya haqida» va «Kontaktlar» matnlari " +
+                "(uchala tilda), xarita nuqtasi («location»), logotip bor-yo'qligi " +
+                "(«hasLogo» — rasmning O'ZI emas, u alohida so'rov bilan olinadi), to'rtta " +
+                "ijtimoiy havola, ommaviy oferta havolasi («offerUrl») va yarim qolgan " +
+                "suhbat necha daqiqadan keyin unutilishi. Boshqa sozlamalar bu javobda " +
+                "YO'Q. Ruxsat «recruiting.view» — bot hisobida «settings.manage» ataylab " +
+                "yo'q (izohi kodda). Matnlar bo'sh bo'lishi mumkin va bo'shlik BOT UCHUN " +
+                "ma'noli: bo'sh matnda «Kompaniya haqida» tugmasi, bo'sh «offerUrl» da esa " +
+                "anketaning oferta qadami UMUMAN chizilmaydi. Lotincha matn bo'sh bo'lsa " +
+                "server uni kirilldagisi bilan ALMASHTIRMAYDI — bu qoida botning o'zida, " +
+                "aks holda HR lotin matnini bo'shata olmasdi.")
             .Produces<BotSettingsDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);

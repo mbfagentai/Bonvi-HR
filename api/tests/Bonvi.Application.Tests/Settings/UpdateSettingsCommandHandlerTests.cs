@@ -232,7 +232,7 @@ public sealed class UpdateSettingsCommandHandlerTests
             Command((SystemSettingKeys.ProbationWarningDays, "21")),
             TestContext.Current.CancellationToken);
 
-        natija.Value.Count.ShouldBe(SystemSettingKeys.All.Count);
+        natija.Value.Count.ShouldBe(SystemSettingKeys.Visible.Count);
 
         natija.Value
             .Single(item => item.Key == SystemSettingKeys.ProbationWarningDays)

@@ -354,6 +354,34 @@ const DYNAMIC_KEY_SOURCES = [
   },
 
   /*
+   * Nomzod ANKETASI (`candidate-questionnaire-card.tsx`). To'rtta yopiq
+   * to'plam — javoblar botda tugmadan tanlanadi. Beshinchisi,
+   * `russianLevel`, bu yerda YO'Q va bo'lishi ham kerak emas: u xodim
+   * kartasidagi bilan bir xil sanoq va yuqoridagi `LANGUAGE_LEVELS`
+   * yozuvi uni allaqachon qamrab oladi (`competency.languageLevel.*`).
+   */
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'EDUCATION_LEVELS'),
+    keysFor: (value) => [`recruiting.education.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'MARITAL_STATUSES'),
+    keysFor: (value) => [`recruiting.marital.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'SALARY_EXPECTATIONS'),
+    keysFor: (value) => [`recruiting.expectedSalary.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'REFERRAL_SOURCES'),
+    keysFor: (value) => [`recruiting.referral.${lowerFirst(value)}`],
+  },
+
+  /*
    * Tasdiqlash oynalari uchta kalitni birga ishlatadi (`…Title`, `…Text`,
    * `…Confirm`) va amal nomi shablonda turadi. Ro'yxat kodda alohida
    * massiv bo'lib yotmaydi — u dialogning o'z tipida. Shu sababli

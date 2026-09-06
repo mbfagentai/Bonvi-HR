@@ -88,7 +88,9 @@ public sealed class SystemSettingsReaderTests
 
         var royxat = sozlamalar.Describe();
 
-        royxat.Count.ShouldBe(SystemSettingKeys.All.Count);
+        // YASHIRIN sozlamalar bu ro'yxatda YO'Q — shu sababli `All` emas,
+        // `Visible` bilan solishtiriladi (sabab `SystemSettingKeys.Visible` da).
+        royxat.Count.ShouldBe(SystemSettingKeys.Visible.Count);
 
         var offer = royxat.Single(item => item.Key == SystemSettingKeys.OfferWarningDays);
         offer.Value.ShouldBe("5");

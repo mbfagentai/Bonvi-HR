@@ -55,12 +55,19 @@ public static class VacancyEndpoints
                 int? page,
                 int? pageSize,
                 string? sort,
+                bool? excludeGeneralPool,
                 ListVacanciesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
                     .HandleAsync(
-                        new ListVacanciesQuery(status, vacancyTitleId, page, pageSize, sort),
+                        new ListVacanciesQuery(
+                            status,
+                            vacancyTitleId,
+                            page,
+                            pageSize,
+                            sort,
+                            excludeGeneralPool ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -78,7 +85,11 @@ public static class VacancyEndpoints
                 "maydonlar yo'q. «sort» — openedAt (sukut, yangidan eskiga) yoki title; " +
                 "teskari tartib «-openedAt» yoki «openedAt:desc». " +
                 "«pageSize» eng ko'pi 200. Har bir qatorda «candidateCount» va " +
-                "«hiredCount» bor — «2/3 to'ldirildi» ko'rinishi uchun.")
+                "«hiredCount» bor — «2/3 to'ldirildi» ko'rinishi uchun. " +
+                "«excludeGeneralPool=true» — «Umumiy anketa» vakansiyasini ro'yxatdan " +
+                "chiqarib tashlaydi; buni FAQAT bot so'raydi, chunki u nomzodga " +
+                "tanlov ko'rsatadi. HR uchun bu oddiy vakansiya va sukut bo'yicha " +
+                "ro'yxatda turadi. Sozlama bo'sh bo'lsa filtr hech narsa qilmaydi.")
             .Produces<PagedResult<VacancyDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);

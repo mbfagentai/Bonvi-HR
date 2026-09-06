@@ -19,6 +19,7 @@ import axios from 'axios'
 
 import { api } from '@/shared/api/http-client'
 import { fileNameFromDisposition } from '@/shared/lib/download'
+import { todayIso } from '@/shared/lib/today'
 
 /* ═══════════════════════════════════════════════════════════ SANOQ TIPLARI */
 
@@ -1037,12 +1038,16 @@ export async function exportEmployees(
  *
  * Serverning shakli takrorlanadi (`Bonvi_xodimlar_2026-08-26.xlsx`), lekin
  * SANA klientniki: HR fayllarni yuklab olish papkasida sana bo'yicha
- * ajratadi, «xodimlar.xlsx (3)» esa hech narsa aytmaydi. Sana `sv-SE`
- * lokali bilan olinadi — u ISO shaklini (`YYYY-MM-DD`) beradigan yagona
- * standart lokal, ya'ni qo'lda nol qo'shib yurish shart emas.
+ * ajratadi, «xodimlar.xlsx (3)» esa hech narsa aytmaydi.
+ *
+ * Sana `todayIso()` dan olinadi — ilgari bu yerda
+ * `toLocaleDateString('sv-SE')` turardi va u BRAUZER mintaqasidagi kunni
+ * berardi. Tizimda «bugun» bitta bo'lishi kerak va u Toshkent kuni
+ * (`shared/lib/timezone.ts`): boshqa mintaqada ochilgan brauzerda fayl
+ * nomi serverning javobidagi sanadan bir kunga farq qilardi.
  */
 function exportFileName(): string {
-  return `Bonvi_xodimlar_${new Date().toLocaleDateString('sv-SE')}.xlsx`
+  return `Bonvi_xodimlar_${todayIso()}.xlsx`
 }
 
 /**

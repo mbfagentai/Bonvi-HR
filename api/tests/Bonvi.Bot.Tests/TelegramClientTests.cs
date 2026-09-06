@@ -56,4 +56,23 @@ public sealed class TelegramClientTests
         full.ToString().ShouldBe(
             "https://api.telegram.org/bot8123456789:AAHtestTOKENqiymati_1234567890abcd/sendMessage");
     }
+
+    /// <summary>
+    /// Fayl BOSHQA manzildan olinadi.
+    /// </summary>
+    /// <remarks>
+    /// Nomzodning surati (18-qadam) ikkita so'rov bilan olinadi:
+    /// <c>getFile</c> yo'lni aytadi, fayl esa <c>/file/bot…</c> dan
+    /// yuklanadi. Ikkalasini adashtirish oson va natijasi bir xil —
+    /// 404, ya'ni rasmsiz nomzod.
+    /// </remarks>
+    [Fact]
+    public void Fayl_manzili_alohida_yol_bilan_yasaladi()
+    {
+        var path = TelegramClient.FilePath(Token, "photos/file_12.jpg");
+
+        path.IsAbsoluteUri.ShouldBeFalse();
+        path.OriginalString.ShouldBe(
+            "/file/bot8123456789:AAHtestTOKENqiymati_1234567890abcd/photos/file_12.jpg");
+    }
 }

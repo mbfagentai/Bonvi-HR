@@ -54,6 +54,6 @@ public sealed class GetSystemInfoQueryHandler
             ServiceVersion,
             query.Environment,
             connected,
-            _clock.UtcNow.ToOffset(TimeSpan.FromHours(5)));
+            _clock.UtcNow.ToTashkent());
     }
 }

@@ -5,20 +5,15 @@ namespace Bonvi.Infrastructure.Services;
 /// <summary>
 /// Haqiqiy tizim vaqti. Testlarda bu sinf soxta (fake) vaqt bilan almashtiriladi.
 /// </summary>
+/// <remarks>
+/// Siljishning O'ZI bu yerda emas, <see cref="BonviTime"/> da — sabab
+/// o'sha yerda. Ilgari u shu sinfda <c>internal</c> bo'lib turgan va
+/// Application qatlami unga yeta olmagani uchun ikkinchi nusxa paydo
+/// bo'lgan edi.
+/// </remarks>
 public sealed class SystemClock : IClock
 {
-    /// <summary>Toshkent vaqt mintaqasi (UTC+5, yozgi vaqt yo'q).</summary>
-    /// <remarks>
-    /// <c>internal</c>, chunki bir joyda undan tashqarida ham kerak
-    /// bo'ladi: <c>NotificationReadModel</c> «nomzod qaysi KUNI
-    /// qo'shilgan» degan savolga javob berish uchun <c>timestamptz</c>
-    /// ustunini shu siljish bilan kunga aylantiradi. Ikkinchi nusxa
-    /// yozilsa, ular bir kun ajralib ketardi va yarim tunda hisoblangan
-    /// «bugun» ikki xil chiqardi.
-    /// </remarks>
-    internal static readonly TimeSpan TashkentOffset = TimeSpan.FromHours(5);
-
     public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 
-    public DateOnly Today => DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TashkentOffset).Date);
+    public DateOnly Today => DateTimeOffset.UtcNow.TashkentDate();
 }

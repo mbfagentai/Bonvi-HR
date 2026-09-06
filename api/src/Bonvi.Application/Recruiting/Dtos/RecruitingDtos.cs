@@ -1,4 +1,5 @@
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Recruiting.Dtos;
@@ -137,6 +138,19 @@ public sealed record RejectionNoticeDto(
 /// <param name="Status">InProgress | Rejected | Hired | Withdrawn.</param>
 /// <param name="Source">Manual | TelegramBot.</param>
 /// <param name="HasResume">Rezyume biriktirilganmi.</param>
+/// <param name="HasPhoto">
+/// Surati bormi. Anketaning O'ZI bu yerda YO'Q — u og'ir va ro'yxatda
+/// kerak emas.
+/// <para>
+/// ⚠️ Bayroq HOZIRCHA hech qayerda o'qilmaydi: nomzodlar ro'yxati
+/// (<c>candidates-page.tsx</c>) rasmni ko'rsatmaydi, surat faqat
+/// nomzod kartasida chiziladi. Maydon oldindan qo'yilgan, chunki uni
+/// keyin qo'shish ro'yxat so'rovini o'zgartirishni talab qilardi;
+/// bayroqsiz esa interfeys har bir qator uchun surat so'rab,
+/// mavjud emasligini 404 orqali bilib olardi. Ro'yxatda rasm kerak
+/// bo'lganda ma'lumot allaqachon joyida bo'ladi.
+/// </para>
+/// </param>
 /// <param name="CreatedAt">Nomzod kiritilgan vaqt.</param>
 /// <param name="HiredEmployeeId">
 /// Ishga olingan bo'lsa — yaratilgan XODIM kartasi. Bog'lanish ishga qabul
@@ -156,8 +170,71 @@ public sealed record CandidateListItemDto(
     CandidateStatus Status,
     CandidateSource Source,
     bool HasResume,
+    bool HasPhoto,
     DateTimeOffset CreatedAt,
     Guid? HiredEmployeeId);
+
+/// <summary>
+/// Nomzodning botda to'ldirgan anketasi — nomzod kartasining bir qismi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Alohida endpoint YO'Q</b> va bu ataylab: HR anketani har doim
+/// nomzod bilan birga ko'radi, ya'ni ikkinchi so'rov faqat ekranni
+/// sekinlashtirardi. Shu sababli u <see cref="CandidateDto"/> ning
+/// ichida, nullable blok bo'lib qaytadi.
+/// </para>
+/// <para>
+/// <b>Bo'sh maydonlar NORMAL</b>: botda beshta qadamni o'tkazib yuborish
+/// mumkin (izohi <c>CandidateQuestionnaire</c> da). Interfeys ularni
+/// umuman chizmaydi — «ma'lumot yo'q» degan bo'sh qator emas.
+/// </para>
+/// </remarks>
+/// <param name="Education">Ma'lumot darajasi.</param>
+/// <param name="WorkExperience">Ish tajribasi — erkin matn.</param>
+/// <param name="MaritalStatus">Oilaviy holati.</param>
+/// <param name="RussianLevel">
+/// Rus tilini bilish darajasi — xodim kartasidagi til darajasi bilan
+/// AYNAN bir xil sanoq (sababi domen izohida).
+/// </param>
+/// <param name="OtherLanguages">Boshqa tillar — erkin matn.</param>
+/// <param name="OfficeSkills">Office dasturlari — erkin matn.</param>
+/// <param name="LastSalary">Oxirgi maosh — SON EMAS, matn.</param>
+/// <param name="ExtraNote">Nomzodning o'zi haqida qo'shimcha aytgani.</param>
+/// <param name="HasDriverLicense">Haydovchilik guvohnomasi bormi.</param>
+/// <param name="DriverLicenseCategories">Guvohnoma toifasi: B, BC, BCE, BCED.</param>
+/// <param name="ExpectedSalary">Kutilayotgan maosh ORALIG'I.</param>
+/// <param name="ReferralSource">Ish haqida qayerdan bilgan.</param>
+/// <param name="OfferAcceptedAt">
+/// Ommaviy oferta bilan rozilik VAQTI — huquqiy fakt, bayroq emas.
+/// <c>null</c> bo'lishi ODATIY hol: oferta havolasi sozlanmaganda bot
+/// bu qadamni umuman chizmaydi va rozilik so'ralmaydi. Interfeys u
+/// holda qatorni chizmaydi (yuqoridagi «bo'sh maydonlar» qoidasi).
+/// </param>
+public sealed record CandidateQuestionnaireDto(
+    EducationLevel Education,
+    string? WorkExperience,
+    MaritalStatus MaritalStatus,
+    LanguageLevel RussianLevel,
+    string? OtherLanguages,
+    string? OfficeSkills,
+    string? LastSalary,
+    string? ExtraNote,
+    bool HasDriverLicense,
+    string? DriverLicenseCategories,
+    SalaryExpectation ExpectedSalary,
+    ReferralSource ReferralSource,
+    DateTimeOffset? OfferAcceptedAt);
+
+/// <summary>Yuklangan nomzod suratining saqlash kaliti.</summary>
+/// <remarks>
+/// Shakl <c>EmployeePhotoDto</c> bilan AYNAN bir xil va bu ataylab: rasm
+/// quvuri ham bitta (<c>SquarePhotoStore</c>). Rasmning O'ZI qaytarilmaydi —
+/// interfeys uni odatdagi <c>GET .../photo</c> orqali oladi va o'sha yo'l
+/// brauzer keshiga tushadi; kalit esa kartani sahifani qayta yuklamasdan
+/// yangilash uchun kerak.
+/// </remarks>
+public sealed record CandidatePhotoDto(string PhotoKey);
 
 /// <summary>Nomzod kartasi — bosqichlar tarixi va takliflari bilan.</summary>
 /// <param name="Id">Identifikator.</param>
@@ -181,10 +258,19 @@ public sealed record CandidateListItemDto(
 /// <param name="ResumeFileName">Rezyume fayl nomi. <c>null</c> — rezyume yo'q.</param>
 /// <param name="ResumeContentType">Rezyume MIME turi.</param>
 /// <param name="ResumeSizeBytes">Rezyume hajmi.</param>
+/// <param name="HasPhoto">
+/// Surati bormi. Kalitning O'ZI qaytarilmaydi: u ichki saqlash manzili
+/// va rasm baribir alohida endpoint orqali olinadi.
+/// </param>
 /// <param name="HiredEmployeeId">Ishga olingan bo'lsa — xodim kartasi.</param>
 /// <param name="HiredEmploymentId">Ishga olingan bo'lsa — mehnat munosabati.</param>
 /// <param name="Stages">Bosqichlar tarixi — yozilgan tartibda.</param>
 /// <param name="Offers">Ish takliflari — yangidan eskiga.</param>
+/// <param name="Questionnaire">
+/// Botda to'ldirilgan anketa. <c>null</c> BO'LISHI ODATIY hol: HR qo'lda
+/// kiritgan nomzodda ham, bu funksiya paydo bo'lgunicha yozilgan
+/// nomzodlarda ham u yo'q.
+/// </param>
 public sealed record CandidateDto(
     Guid Id,
     string LastName,
@@ -207,10 +293,12 @@ public sealed record CandidateDto(
     string? ResumeFileName,
     string? ResumeContentType,
     long? ResumeSizeBytes,
+    bool HasPhoto,
     Guid? HiredEmployeeId,
     Guid? HiredEmploymentId,
     IReadOnlyList<CandidateStageEntryDto> Stages,
-    IReadOnlyList<JobOfferDto> Offers);
+    IReadOnlyList<JobOfferDto> Offers,
+    CandidateQuestionnaireDto? Questionnaire);
 
 /// <summary>Ish taklifi.</summary>
 /// <param name="Id">Identifikator.</param>

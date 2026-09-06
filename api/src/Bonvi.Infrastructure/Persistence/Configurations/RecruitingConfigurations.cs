@@ -235,6 +235,21 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
             .HasField("_stageEntries")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
+        // Rasm kaliti — `employees.photo_key` bilan bir xil uzunlik.
+        builder.Property(candidate => candidate.PhotoKey)
+            .HasMaxLength(256);
+
+        // ────────────────────────────────────────────────────────────
+        //  Anketa — nomzod agregatining ICHIDA, bittadan ko'p emas
+        // ────────────────────────────────────────────────────────────
+
+        // Bosqichlar tarixi bilan bir xil qaror: anketa nomzodsiz ma'noga
+        // ega emas, o'z repozitoriysi yo'q va nomzod bilan birga o'chadi.
+        builder.HasOne(candidate => candidate.Questionnaire)
+            .WithOne()
+            .HasForeignKey<CandidateQuestionnaire>(form => form.CandidateId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // ────────────────────────────────────────────────────────────
         //  Bog'lanishlar
         // ────────────────────────────────────────────────────────────
@@ -407,5 +422,85 @@ public sealed class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
 
         // «Yuborilgan takliflar, yangidan eskiga» — rekruting hisoboti.
         builder.HasIndex(offer => offer.SentAt);
+    }
+}
+
+/// <summary>
+/// <see cref="CandidateQuestionnaire"/> uchun jadval konfiguratsiyasi
+/// (<c>candidate_questionnaires</c>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Yumshoq o'chirish YO'Q — <c>CandidateStageEntry</c> dagi bilan bir xil
+/// sabab: yozuv nomzod bilan birga yashaydi va faqat u orqali o'qiladi.
+/// </para>
+/// <para>
+/// <b>Indeks BITTA va u unikal.</b> Bu jadval hech qachon o'zicha
+/// so'ralmaydi: unga yagona yo'l — nomzod kartasi. Shu sababli
+/// <c>candidate_id</c> dan boshqa indeks qo'shish faqat yozishni
+/// sekinlashtirardi.
+/// </para>
+/// </remarks>
+public sealed class CandidateQuestionnaireConfiguration : IEntityTypeConfiguration<CandidateQuestionnaire>
+{
+    public void Configure(EntityTypeBuilder<CandidateQuestionnaire> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("candidate_questionnaires");
+
+        builder.HasKey(form => form.Id);
+
+        builder.Ignore(form => form.DomainEvents);
+
+        // Bittadan ko'p anketa bo'lishi MUMKIN EMAS. Domen buni
+        // `Candidate.AttachQuestionnaire` da tekshiradi, lekin qoida
+        // bazada ham turishi kerak: domen tekshiruvi kod orqali
+        // kelmagan yozuvni (migratsiya, qo'lda SQL) ushlay olmaydi.
+        builder.HasIndex(form => form.CandidateId)
+            .IsUnique();
+
+        builder.Property(form => form.Education)
+            .IsRequired();
+
+        builder.Property(form => form.MaritalStatus)
+            .IsRequired();
+
+        builder.Property(form => form.RussianLevel)
+            .IsRequired();
+
+        builder.Property(form => form.ExpectedSalary)
+            .IsRequired();
+
+        builder.Property(form => form.ReferralSource)
+            .IsRequired();
+
+        /*
+          `OfferAcceptedAt` ro'yxatda YO'Q va bu ATAYLAB: u yagona
+          majburiy EMAS sanoq/vaqt maydoni. `NULL` — «oferta
+          ko'rsatilmagan, rozilik so'ralmagan» (izohi domenda).
+          `IsRequired()` qo'yilganida bot oferta havolasi sozlanmagan
+          holatda yuborish lahzasini soxta rozilik vaqti qilib
+          yozishga majbur bo'lardi — aynan shu xato tuzatilgan
+          (migratsiya `OfertaRoziligiIxtiyoriy`).
+        */
+
+        builder.Property(form => form.WorkExperience)
+            .HasMaxLength(CandidateQuestionnaire.MaxWorkExperienceLength);
+
+        builder.Property(form => form.OtherLanguages)
+            .HasMaxLength(CandidateQuestionnaire.MaxOtherLanguagesLength);
+
+        builder.Property(form => form.OfficeSkills)
+            .HasMaxLength(CandidateQuestionnaire.MaxOfficeSkillsLength);
+
+        builder.Property(form => form.LastSalary)
+            .HasMaxLength(CandidateQuestionnaire.MaxLastSalaryLength);
+
+        builder.Property(form => form.ExtraNote)
+            .HasMaxLength(CandidateQuestionnaire.MaxExtraNoteLength);
+
+        builder.Property(form => form.DriverLicenseCategories)
+            .HasMaxLength(CandidateQuestionnaire.MaxDriverLicenseCategoriesLength);
     }
 }

@@ -77,8 +77,10 @@ public sealed class GetBotSettingsQueryHandler
 
         var settings = await _reader.ReadAsync(cancellationToken).ConfigureAwait(false);
 
-        // Tiplashgan kirish: kalit → qiymat o'girish shu yerda tugaydi
-        // va botga tayyor uchta maydon boradi (sababi `BotSettingsDto` da).
+        // Tiplashgan kirish: kalit → qiymat o'girish shu yerda TUGAYDI
+        // va botga tayyor maydonlar boradi (sababi `BotSettingsDto` da).
+        // Yangi `bot.` sozlamasi botga o'zi yetib bormaydi — u aynan shu
+        // ro'yxatga qo'lda qo'shiladi (`SystemSettingKeys` oxiridagi izoh).
         return Result.Success(new BotSettingsDto(
             settings.Text(SystemSettingKeys.BotAboutCyrillic),
             settings.Text(SystemSettingKeys.BotAboutLatin),
@@ -92,6 +94,7 @@ public sealed class GetBotSettingsQueryHandler
             settings.Text(SystemSettingKeys.BotSocialTelegram),
             settings.Text(SystemSettingKeys.BotSocialFacebook),
             settings.Text(SystemSettingKeys.BotSocialWebsite),
+            settings.Text(SystemSettingKeys.BotOfferUrl),
             settings.Number(SystemSettingKeys.BotConversationTimeoutMinutes)));
     }
 }

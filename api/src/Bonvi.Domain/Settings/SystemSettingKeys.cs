@@ -15,11 +15,12 @@ namespace Bonvi.Domain.Settings;
 /// ikkalasi ham «to'g'ri» bo'lardi.
 /// </para>
 /// <para>
-/// Turlar ATIGI IKKITA va bu ataylab. Sana, bayroq (ha/yo'q) yoki
-/// ro'yxat qo'shilsa, har biri o'z tekshiruvi, o'z formati va
-/// frontendda o'z maydonini talab qilardi — hozircha bunday sozlama
-/// so'ralmagan. Kerak bo'lganda qo'shish oson: bitta qiymat va bitta
-/// <c>switch</c> tarmog'i.
+/// Yangi tur qo'shish ARZON emas: har biri o'z tekshiruvini, o'z
+/// saqlash yo'lini va frontendda o'z maydonini talab qiladi. Shu
+/// sababli bu yerda faqat MUOMALASI boshqacha bo'lgan turlar bor
+/// (sir shifrlanadi, rasm alohida yuklanadi, yashirin qiymatni
+/// server yozadi). Sana yoki bayroq (ha/yo'q) qo'shilmagan —
+/// bunday sozlama hali so'ralmagan.
 /// </para>
 /// </remarks>
 public enum SystemSettingKind
@@ -68,6 +69,29 @@ public enum SystemSettingKind
     /// </para>
     /// </remarks>
     Photo = 4,
+
+    /// <summary>
+    /// YASHIRIN — qiymatni server o'zi yozadi va u ekranga UMUMAN chiqmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Photo"/> bilan bir xil tomoni: umumiy «sozlamalarni
+    /// saqlash» so'rovi bu qiymatga tega olmaydi. Farqi — ro'yxatda
+    /// ham YO'Q. Rasmni foydalanuvchi ko'rishi va almashtirishi kerak,
+    /// bu yerdagi qiymat esa tizimning ICHKI bog'lanishi («Umumiy
+    /// anketa» vakansiyasining identifikatori). Uni ekranga chiqarish
+    /// foydalanuvchiga hech narsa bermaydi, lekin «bu nima va uni
+    /// o'zgartirsam nima bo'ladi?» degan savol tug'dirardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega u baribir SHU jadvalda.</b> Qiymat aynan SHU bazadagi
+    /// qatorga ishora qiladi, ya'ni baza bilan birga yashashi kerak.
+    /// <c>.env</c> ga yozilganda nusxa olingan bazada (sinov muhiti,
+    /// zaxiradan tiklash) u boshqa bazadagi identifikatorni
+    /// ko'rsatib turardi.
+    /// </para>
+    /// </remarks>
+    Hidden = 5,
 }
 
 /// <summary>
@@ -137,11 +161,16 @@ public sealed record SystemSettingDefinition(
     /// </remarks>
     public Result<string> Normalize(string? value)
     {
-        if (Kind == SystemSettingKind.Photo)
+        if (Kind is SystemSettingKind.Photo or SystemSettingKind.Hidden)
         {
-            // Rasm kaliti — serverning ichki qiymati. Uni qo'lda yozish
-            // bazadagi kalitni mavjud bo'lmagan faylga qaratib qo'yardi
-            // va bot rasm o'rniga hech narsa yubormasdi.
+            /*
+              Ikkalasini ham SERVER yozadi: rasm kaliti — saqlash
+              natijasidan, yashirin qiymat — urug'lantirishdan. Qo'lda
+              yozishga ruxsat berilsa, kalit mavjud bo'lmagan FAYLGA,
+              identifikator esa mavjud bo'lmagan QATORGA qarab qolardi.
+              Ikkala xato ham jimgina o'tardi: bot rasm o'rniga hech
+              narsa yubormasdi, nomzod esa yo'q vakansiyaga tushardi.
+            */
             return SystemSettingErrors.NotEditable;
         }
 
@@ -370,6 +399,25 @@ public static class SystemSettingKeys
     /// </remarks>
     public const string BotLocation = "bot.location";
 
+    /// <summary>Ommaviy oferta havolasi — anketaning oxirgi qadamida.</summary>
+    /// <remarks>
+    /// <para>
+    /// Nomzod anketani yuborishdan oldin oferta bilan tanishib,
+    /// «Roziman» tugmasini bosadi va rozilik VAQTI yozib qo'yiladi
+    /// (<c>CandidateQuestionnaire.OfferAcceptedAt</c>) — bu huquqiy
+    /// fakt, oddiy bayroq emas.
+    /// </para>
+    /// <para>
+    /// <b>Bo'sh bo'lsa bot oferta qadamini UMUMAN chizmaydi</b> va
+    /// anketa bir qadam qisqaradi. Boshqa <c>bot.</c> sozlamalari
+    /// bilan bir xil qoida: sozlanmagan bo'lim nomzodga bo'sh ekran
+    /// ko'rsatgandan ko'ra ko'rinmagani yaxshi. Rozilik ham
+    /// so'ralmaydi — o'qib bo'lmaydigan hujjatga rozilik olish
+    /// huquqiy jihatdan hech narsa bermaydi.
+    /// </para>
+    /// </remarks>
+    public const string BotOfferUrl = "bot.offerUrl";
+
     /// <summary>Yarim qolgan suhbat qancha vaqtdan keyin unutiladi (daqiqa).</summary>
     public const string BotConversationTimeoutMinutes = "bot.conversationTimeoutMinutes";
 
@@ -388,6 +436,34 @@ public static class SystemSettingKeys
 
     /// <summary>O'qilgan bildirishnoma ro'yxatda necha kun qoladi.</summary>
     public const string ReadRetentionDays = "notifications.readRetentionDays";
+
+    // ────────────────────────────────────────────────────────────
+    //  REKRUTING — serverning O'ZI yozadigan ichki qiymatlar
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>«Umumiy anketa» vakansiyasining identifikatori.</summary>
+    /// <remarks>
+    /// <para>
+    /// Ochiq vakansiya bo'lmaganda ham nomzod anketa to'ldira olishi
+    /// kerak, <c>Candidate.VacancyId</c> esa majburiy — shu sababli
+    /// tizimda doimiy «tushadigan joy» vakansiyasi bor. Uni
+    /// <c>DatabaseInitializer</c> ishga tushishda yaratadi va
+    /// identifikatorini SHU yerga yozadi.
+    /// </para>
+    /// <para>
+    /// <b>Nega <see cref="SystemSettingKind.Hidden"/>.</b> Bu HR ning
+    /// tanlovi emas, tizimning ichki bog'lanishi: qo'lda o'zgartirilsa
+    /// bot nomzodni mavjud bo'lmagan vakansiyaga yozishga urinardi va
+    /// xato faqat botning jurnalida ko'rinardi. Shu sababli u
+    /// <c>GET /api/settings</c> javobida ham, ekranda ham YO'Q.
+    /// </para>
+    /// <para>
+    /// Qiymat bo'sh yoki noto'g'ri bo'lishi — YIQILISH sababi emas:
+    /// uni o'qiydigan joylar (ochiq vakansiyalar ro'yxati) qiymat
+    /// tushunarsiz bo'lganda avvalgidek ishlashda davom etadi.
+    /// </para>
+    /// </remarks>
+    public const string GeneralPoolVacancyId = "recruiting.generalPoolVacancyId";
 
     /// <summary>Sirning eng katta uzunligi.</summary>
     /// <remarks>
@@ -467,6 +543,15 @@ public static class SystemSettingKeys
     /// <summary>Fayl kalitining eng katta uzunligi.</summary>
     public const int MaxKeyLength = 200;
 
+    /// <summary>Identifikator matnining eng katta uzunligi.</summary>
+    /// <remarks>
+    /// <c>Guid</c> ning «D» ko'rinishi — aynan 36 belgi
+    /// («00000000-0000-0000-0000-000000000000»). Chegara tor ataylab:
+    /// bu maydonga identifikatordan boshqa hech narsa tushmasligi
+    /// kerak.
+    /// </remarks>
+    public const int MaxIdLength = 36;
+
     /// <summary>Matnli sozlamaning eng katta uzunligi.</summary>
     /// <remarks>
     /// Telegram bitta xabarda 4096 belgigacha ruxsat beradi va bot matni
@@ -492,6 +577,10 @@ public static class SystemSettingKeys
     /// ketma-ketlikda chiziladi va u ma'noga qarab guruhlangan (avval
     /// bot, keyin bildirishnomalar). Alifbo tartibida «bot.about.latin»
     /// bilan «notifications.newCandidateDays» aralashib ketardi.
+    /// <para>
+    /// ⚠️ Bu ro'yxatning HAMMASI ekranga chiqmaydi — chizish uchun
+    /// <see cref="Visible"/> olinadi (sabab o'sha yerda).
+    /// </para>
     /// </remarks>
     public static IReadOnlyList<SystemSettingDefinition> All { get; } =
     [
@@ -526,6 +615,12 @@ public static class SystemSettingKeys
         new(BotSocialTelegram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
         new(BotSocialFacebook, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
         new(BotSocialWebsite, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
+
+        // Ijtimoiy havolalar bilan bir xil naqsh va bir xil chegara:
+        // bu ham tashqariga chiqadigan havola va u ham bo'sh bo'lishi
+        // mumkin.
+        new(BotOfferUrl, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
+
         new(
             BotConversationTimeoutMinutes,
             SystemSettingKind.Number,
@@ -565,12 +660,42 @@ public static class SystemSettingKeys
             Number(NotificationRules.ReadRetentionDays),
             Min: 1,
             Max: MaxDays),
+
+        // Yashirin qiymat ro'yxatning OXIRIDA: u ekranga chiqmaydi,
+        // ya'ni tartibda joyi ham yo'q. Bot va bildirishnoma
+        // guruhlarining orasiga tushib qolsa, keyingi sozlama
+        // qo'shayotgan odam guruhlash buzilgan deb o'ylardi.
+        new(GeneralPoolVacancyId, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxIdLength),
+    ];
+
+    /// <summary>
+    /// Ekranda KO'RINADIGAN sozlamalar — <see cref="All"/> dan
+    /// yashirinlari olib tashlangan holda.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega ikkita ro'yxat.</b> <see cref="All"/> — TEKSHIRUV uchun:
+    /// bu yerda yo'q kalit na yoziladi, na o'qiladi. Ekran esa boshqa
+    /// savolga javob kutadi — «foydalanuvchi nimani o'zgartira oladi».
+    /// <see cref="SystemSettingKind.Hidden"/> turidagi qiymatni server
+    /// o'zi yozadi, ya'ni uni ro'yxatga qo'shish foydalanuvchiga hech
+    /// narsa bermaydi (sabab o'sha turning izohida).
+    /// </para>
+    /// <para>
+    /// Filtr SHU YERDA, javobni yig'ayotgan joyda emas: aks holda har
+    /// bir yangi javob yashirin kalitni chiqarib yuborishi mumkin
+    /// bo'lardi va buni hech kim sezmasdi.
+    /// </para>
+    /// </remarks>
+    public static IReadOnlyList<SystemSettingDefinition> Visible { get; } =
+    [
+        .. All.Where(definition => definition.Kind != SystemSettingKind.Hidden),
     ];
 
     /*
       «Bot kalitlari» degan ALOHIDA ro'yxat ATAYLAB yo'q.
 
-      Botga sozlamalar kalit-qiymat bo'lib emas, TIPLASHGAN uchta maydon
+      Botga sozlamalar kalit-qiymat bo'lib emas, TIPLASHGAN maydonlar
       bo'lib beriladi (`BotSettingsDto`) — shu sababli prefiks bo'yicha
       ajratilgan ro'yxat hech qayerda ishlatilmasdi. Bo'lsa ham, u
       «yangi bot. sozlamasi botga o'zi yetib boradi» degan noto'g'ri

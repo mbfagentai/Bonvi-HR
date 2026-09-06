@@ -10,9 +10,11 @@ import {
   closeCandidate,
   closeOffer,
   deleteCandidate,
+  deleteCandidatePhoto,
   deleteResume,
   deleteVacancy,
   fetchCandidate,
+  fetchCandidatePhoto,
   fetchCandidates,
   fetchOffers,
   fetchResume,
@@ -24,6 +26,7 @@ import {
   saveOffer,
   saveVacancy,
   updateCandidate,
+  uploadCandidatePhoto,
   uploadResume,
   type AcceptOfferInput,
   type CandidateFilters,
@@ -119,6 +122,17 @@ export const recruitingKeys = {
   candidates: (filters: CandidateFilters) => ['recruiting', 'candidates', filters] as const,
   candidate: (id: string) => ['recruiting', 'candidate', id] as const,
   offers: (candidateId: string) => ['recruiting', 'offers', candidateId] as const,
+
+  /**
+   * Nomzod surati — BINAR kesh va u qolganlaridan ATAYLAB ajratilgan.
+   *
+   * Kalit ildizi `-photo` bilan tugaydi: `providers.tsx` har muvaffaqiyatli
+   * yozuvdan keyin butun keshni bekor qiladi va shu qoidadan chetlab
+   * o'tadigan yagona guruh — nomi `-photo` ga tugaydigan kalitlar
+   * (`employee-photo`, `user-photo`, `account-photo`). Busiz nomzod
+   * kartasida yozilgan har bir bosqich suratni qaytadan yuklatardi.
+   */
+  photo: (candidateId: string) => ['candidate-photo', candidateId] as const,
 }
 
 /* ═══════════════════════════════════════════════════════════ bosqichlar */
@@ -328,6 +342,73 @@ export function useDownloadResume() {
       // Nom SERVERNIKI: u asl fayl nomini biladi. Sarlavha kesilgan
       // bo'lsa (proksi, CORS) — nomzodning ismi bilan saqlanadi.
       saveBlobAs(blob, fileNameFromDisposition(disposition) ?? fallbackName)
+    },
+  })
+}
+
+/* ─────────────────────────────────────────────────────────────── surat */
+
+/**
+ * Nomzod surati.
+ *
+ * ⚠️ Kalitda `photoKey` YO'Q — xodim rasmidan yagona farqi shu.
+ * `CandidateDto` saqlash kalitini umuman qaytarmaydi (server qarori: u
+ * ichki manzil), ya'ni «yangi kalit — yangi kesh yozuvi» hiylasi bu
+ * yerda ishlamaydi. O'rniga kesh QO'LDA yangilanadi: surat almashtirilsa
+ * `useUploadCandidatePhoto` shu kalitni bekor qiladi.
+ *
+ * `hasPhoto` — so'rovning kalitida emas, YOQISH shartida: surati yo'q
+ * nomzodda so'rov umuman yuborilmaydi va keraksiz 404 ketmaydi.
+ */
+export function useCandidatePhoto(candidateId: string, hasPhoto: boolean) {
+  return useQuery({
+    queryKey: recruitingKeys.photo(candidateId),
+    queryFn: ({ signal }) => fetchCandidatePhoto(candidateId, signal),
+    enabled: candidateId !== '' && hasPhoto,
+    /** Bir nomzod — bir surat. U o'z amalidan tashqari o'zgarmaydi. */
+    staleTime: Infinity,
+    /**
+     * Qayta urinish yo'q: surat chiqmasa bosh harflar qoladi va HR
+     * ishida hech narsa to'xtamaydi (`useEmployeePhoto` bilan bir xil).
+     */
+    retry: false,
+  })
+}
+
+/**
+ * Suratni yuklash.
+ *
+ * Ikkala bekor qilish ham KERAK: `candidate` — `hasPhoto` bayrog'i
+ * uchun, `photo` — baytlarning o'zi uchun. Ikkinchisisiz almashtirilgan
+ * surat ekranda eskisi bo'lib qolardi (kalit o'zgarmaydi).
+ */
+export function useUploadCandidatePhoto(candidateId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (file: File) => uploadCandidatePhoto(candidateId, file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: recruitingKeys.candidate(candidateId) })
+      void queryClient.invalidateQueries({ queryKey: recruitingKeys.photo(candidateId) })
+    },
+  })
+}
+
+/**
+ * Suratni o'chirish.
+ *
+ * Keshdagi blob `invalidate` emas, `remove` qilinadi: `hasPhoto` `false`
+ * bo'lgach so'rov o'chadi, qayta yuborishning esa ma'nosi yo'q — u faqat
+ * 404 olib kelardi (`useDeleteEmployeePhoto` bilan bir xil qaror).
+ */
+export function useDeleteCandidatePhoto(candidateId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => deleteCandidatePhoto(candidateId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: recruitingKeys.candidate(candidateId) })
+      queryClient.removeQueries({ queryKey: recruitingKeys.photo(candidateId) })
     },
   })
 }

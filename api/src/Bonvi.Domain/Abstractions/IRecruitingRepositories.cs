@@ -63,12 +63,21 @@ public interface IVacancyRepository : IRepository<Vacancy>
 /// <summary>Nomzodlar uchun saqlash porti.</summary>
 public interface ICandidateRepository : IRepository<Candidate>
 {
-    /// <summary>Bosqichlar tarixi bilan birga yuklaydi.</summary>
+    /// <summary>Bosqichlar tarixi VA anketasi bilan birga yuklaydi.</summary>
     /// <remarks>
+    /// <para>
     /// Tarix DOIM kerak emas: ro'yxat ekrani uni umuman o'qimaydi. Alohida
     /// metod — <c>IEmploymentRepository.GetWithEventsAsync</c> bilan bir xil
     /// sabab: har bir o'qishda o'nlab bola yozuvni tortish ro'yxatni
     /// sekinlashtirardi.
+    /// </para>
+    /// <para>
+    /// Anketa ham SHU metodda keladi, o'ziga alohida yo'l ochilmaydi:
+    /// u faqat nomzod kartasida ko'rinadi va karta baribir shu yerdan
+    /// yuklanadi. Ikkinchi metod bo'lganida chaqiruvchi ikkalasini ham
+    /// eslab qolishi kerak bo'lardi — va biri unutilganda anketa
+    /// XATOSIZ yo'qolib qolardi.
+    /// </para>
     /// </remarks>
     Task<Candidate?> GetWithStagesAsync(Guid id, CancellationToken cancellationToken = default);
 

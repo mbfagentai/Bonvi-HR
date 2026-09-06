@@ -124,3 +124,20 @@ export function orNull(value: string): string | null {
   const trimmed = value.trim()
   return trimmed === '' ? null : trimmed
 }
+
+/**
+ * `InProgress` → `inProgress`.
+ *
+ * Server sanoqni PascalCase yuboradi, tarjima kalitlari esa butun
+ * loyihada camelCase (`recruiting-api.ts` dagi izoh). O'girishning
+ * O'ZI ilgari chaqiruv joyida qo'lda yozilardi
+ * (`candidates-toolbar.tsx`) — anketada esa beshta sanoq bor va
+ * beshinchi nusxa yozishning ma'nosi yo'q.
+ *
+ * ⚠️ `scripts/check-locales.mjs` da AYNAN shu o'girish takrorlanadi:
+ * tekshiruv sanoq ro'yxatidan kutilgan kalitlarni hosil qiladi va
+ * to'rtala tilda borligini talab qiladi.
+ */
+export function lowerFirst(value: string): string {
+  return value.charAt(0).toLowerCase() + value.slice(1)
+}

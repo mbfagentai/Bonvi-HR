@@ -1,8 +1,8 @@
 using Bonvi.Application.Notifications.Abstractions;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
-using Bonvi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bonvi.Infrastructure.Persistence.ReadModels;
@@ -138,7 +138,7 @@ public sealed class NotificationReadModel : INotificationReadModel
         // nol siljishli (UTC) qiymat yozadi va Toshkent siljishi bilan
         // yuborilgan parametr istisno tashlaydi. Lahza o'zgarmaydi —
         // faqat ifodalanishi.
-        var boundary = new DateTimeOffset(since.ToDateTime(TimeOnly.MinValue), SystemClock.TashkentOffset)
+        var boundary = new DateTimeOffset(since.ToDateTime(TimeOnly.MinValue), BonviTime.TashkentOffset)
             .ToUniversalTime();
 
         var rows = await (
@@ -176,7 +176,7 @@ public sealed class NotificationReadModel : INotificationReadModel
                 // Kun Toshkent vaqti bo'yicha — foydalanuvchi «kecha
                 // qo'shilgan» deganda o'z kunini nazarda tutadi, UTC
                 // kunini emas.
-                DateOnly.FromDateTime(row.CreatedAt.ToOffset(SystemClock.TashkentOffset).DateTime))),
+                DateOnly.FromDateTime(row.CreatedAt.ToOffset(BonviTime.TashkentOffset).DateTime))),
         ];
     }
 

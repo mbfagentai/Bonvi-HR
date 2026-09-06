@@ -14,6 +14,7 @@ public sealed class CandidateHandlerTests
         _context.Vacancies,
         _context.Stages,
         _context.Mapper,
+        _context.Settings,
         _context.Clock,
         _context.UnitOfWork);
 
@@ -37,7 +38,7 @@ public sealed class CandidateHandlerTests
     public async Task Nomavjud_vakansiyaga_kiritilmaydi()
     {
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand(Guid.CreateVersion7(), "Каримов", "Азиз"),
+            new RegisterCandidateCommand("Каримов", "Азиз", Guid.CreateVersion7()),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
@@ -51,7 +52,7 @@ public sealed class CandidateHandlerTests
         _context.Funnel(_context.ExistingStage());
 
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand(vakansiya.Id, "Каримов", "Азиз"),
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
@@ -67,7 +68,7 @@ public sealed class CandidateHandlerTests
         _context.Funnel(anketa, telefon);
 
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand(vakansiya.Id, "Каримов", "Азиз", Phone: "905088888"),
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id, Phone: "905088888"),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
@@ -85,7 +86,7 @@ public sealed class CandidateHandlerTests
         _context.Funnel();
 
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand(vakansiya.Id, "Каримов", "Азиз"),
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
@@ -100,7 +101,7 @@ public sealed class CandidateHandlerTests
         _context.Funnel(eski);
 
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand(vakansiya.Id, "Каримов", "Азиз", StageId: eski.Id),
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id, StageId: eski.Id),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
@@ -114,7 +115,7 @@ public sealed class CandidateHandlerTests
         _context.Funnel(_context.ExistingStage());
 
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand(vakansiya.Id, "Каримов", "Азиз", Phone: "123"),
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id, Phone: "123"),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
@@ -129,13 +130,62 @@ public sealed class CandidateHandlerTests
 
         var natija = await Kiritish.HandleAsync(
             new RegisterCandidateCommand(
-                vakansiya.Id, "Каримов", "Азиз", Source: CandidateSource.TelegramBot),
+                "Каримов", "Азиз", vakansiya.Id, Source: CandidateSource.TelegramBot),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Source.ShouldBe(
             CandidateSource.TelegramBot,
             "«bot qancha nomzod keltirdi» savolining javobi shu maydonda");
+    }
+
+    [Fact]
+    public async Task Vakansiyasiz_nomzod_Umumiy_anketaga_tushadi()
+    {
+        // Ochiq ish o'rni bo'lmaganda ham anketa qabul qilinishi kerak —
+        // butun funksiyaning maqsadi shu.
+        var umumiy = _context.GeneralPoolVacancy();
+        _context.Funnel(_context.ExistingStage());
+
+        var natija = await Kiritish.HandleAsync(
+            new RegisterCandidateCommand("Каримов", "Азиз"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.VacancyId.ShouldBe(umumiy.Id);
+    }
+
+    [Fact]
+    public async Task Umumiy_anketa_sozlanmagan_bolsa_ANIQ_xato_qaytadi()
+    {
+        // Bu holat faqat urug'lantirish ishlamaganda bo'ladi va uni
+        // DARHOL ko'rish kerak: aks holda botdan kelgan barcha anketa
+        // jimgina yo'qolardi.
+        _context.Funnel(_context.ExistingStage());
+
+        var natija = await Kiritish.HandleAsync(
+            new RegisterCandidateCommand("Каримов", "Азиз"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.umumiy_anketa_yoq");
+    }
+
+    [Fact]
+    public async Task Yopilgan_Umumiy_anketa_ham_ANIQ_xato_beradi()
+    {
+        // HR xizmat vakansiyasini qo'lda yopishi mumkin. Bunda
+        // «vakansiya.qabul_qilmaydi» chalg'itardi: mijoz hech qanday
+        // vakansiya yubormagan va o'z so'rovida xato izlardi.
+        _context.GeneralPoolVacancy(open: false);
+        _context.Funnel(_context.ExistingStage());
+
+        var natija = await Kiritish.HandleAsync(
+            new RegisterCandidateCommand("Каримов", "Азиз"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.umumiy_anketa_yoq");
     }
 
     // ────────────────────── Voronka ──────────────────────

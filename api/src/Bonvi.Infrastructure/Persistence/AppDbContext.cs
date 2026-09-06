@@ -216,6 +216,9 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Nomzodning bosqichlardan o'tishi (<c>candidate_stage_entries</c>).</summary>
     public DbSet<CandidateStageEntry> CandidateStageEntries => Set<CandidateStageEntry>();
 
+    /// <summary>Botda to'ldirilgan anketalar (<c>candidate_questionnaires</c>).</summary>
+    public DbSet<CandidateQuestionnaire> CandidateQuestionnaires => Set<CandidateQuestionnaire>();
+
     /// <summary>Ish takliflari (<c>job_offers</c>).</summary>
     public DbSet<JobOffer> JobOffers => Set<JobOffer>();
 

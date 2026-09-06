@@ -34,7 +34,14 @@ namespace Bonvi.Application.Settings.Dtos;
 /// <paramref name="Preview"/> beriladi.
 /// </para>
 /// </param>
-/// <param name="Kind">Turi: <c>Text</c>, <c>Number</c> yoki <c>Secret</c>.</param>
+/// <param name="Kind">
+/// Turi: <c>Text</c>, <c>Number</c>, <c>Secret</c> yoki <c>Photo</c>.
+/// <para>
+/// <see cref="SystemSettingKind.Hidden"/> bu yerda HECH QACHON
+/// uchramaydi: yashirin sozlamalar javobga umuman qo'shilmaydi
+/// (<c>SystemSettingKeys.Visible</c>).
+/// </para>
+/// </param>
 /// <param name="DefaultValue">Sukut qiymat — matn ko'rinishida.</param>
 /// <param name="Min">Sonning quyi chegarasi. Matnda <c>null</c>.</param>
 /// <param name="Max">Sonning yuqori chegarasi. Matnda <c>null</c>.</param>
@@ -122,6 +129,16 @@ public sealed record SystemSettingDto(
 /// <param name="Telegram">Telegram kanali havolasi.</param>
 /// <param name="Facebook">Facebook sahifasi havolasi.</param>
 /// <param name="Website">Kompaniya sayti havolasi.</param>
+/// <param name="OfferUrl">
+/// Ommaviy oferta havolasi — anketaning oxirgi qadamida ko'rsatiladi.
+/// <para>
+/// Bo'sh bo'lsa bot oferta qadamini UMUMAN chizmaydi va anketa bir
+/// qadam qisqaradi (qoida BOTDA, bu yerda emas — server matnni ham,
+/// bo'shlikni ham o'zgartirmasdan uzatadi). Rozilik so'ralmaydi ham:
+/// o'qib bo'lmaydigan hujjatga rozilik olish huquqiy jihatdan hech
+/// narsa bermaydi.
+/// </para>
+/// </param>
 /// <param name="ConversationTimeoutMinutes">Yarim qolgan suhbat necha daqiqadan keyin unutiladi.</param>
 public sealed record BotSettingsDto(
     string AboutCyrillic,
@@ -136,6 +153,7 @@ public sealed record BotSettingsDto(
     string Telegram,
     string Facebook,
     string Website,
+    string OfferUrl,
     int ConversationTimeoutMinutes);
 
 /// <summary>Yuklangan logotipning saqlash kaliti.</summary>

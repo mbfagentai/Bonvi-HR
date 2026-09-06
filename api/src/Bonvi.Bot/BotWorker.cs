@@ -13,10 +13,17 @@ namespace Bonvi.Bot;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Uch qadam, ortiqchasi yo'q</b> (foydalanuvchi qarori): til →
-/// vakansiya → F.I.Sh. → telefon. Har bir qo'shimcha savol arizani
-/// tashlab ketish ehtimolini oshiradi, qolgan ma'lumotni esa HR
-/// telefon suhbatida baribir so'raydi.
+/// <b>Anketa 22 qadamdan iborat</b> (SPEC-anketa, 4-bo'lim) va bu
+/// ataylab: eski bot (@MBF_jbot) aynan shu ma'lumotni so'raydi, HR esa
+/// nomzodni birinchi qo'ng'iroqdan OLDIN baholay olishi kerak. Ilgari
+/// botda to'rt qadam bor edi va qolgan hamma narsani HR telefonda
+/// so'rardi.
+/// </para>
+/// <para>
+/// <b>Qadam tartibi BITTA joyda</b> — <c>ConversationStep</c> sanog'ida,
+/// o'tish esa <c>ContinueAsync</c> da. Shartli qadamlar (vakansiya,
+/// guvohnoma toifasi, ommaviy oferta) ham faqat o'sha yerda o'tkazib
+/// yuboriladi.
 /// </para>
 /// <para>
 /// <b>Xato halqani to'xtatmaydi.</b> Bitta suhbatdagi muammo qolganlarga
@@ -86,6 +93,13 @@ public sealed partial class BotWorker : BackgroundService
         Message = "Rad etish xabarlari yuborilmadi — keyingi aylanishda qayta uriniladi")]
     private partial void LogNoticesFailed(Exception exception);
 
+    [LoggerMessage(
+        EventId = 3212,
+        Level = LogLevel.Warning,
+        Message = "Nomzod surati saqlanmadi: {CandidateId}. ARIZA YARATILGAN va nomzod voronkada — "
+            + "rasmni HR keyin qo'lda qo'sha oladi.")]
+    private partial void LogPhotoFailed(Guid candidateId);
+
     /// <summary>Tugma ma'lumotidagi ajratgich: «v:<c>guid</c>».</summary>
     private const string VacancyPrefix = "v:";
 
@@ -93,6 +107,52 @@ public sealed partial class BotWorker : BackgroundService
     private const string LanguageLatinData = "lang:latn";
     private const string LanguageRussianData = "lang:rus";
 
+    /*
+      ANKETA TUGMALARINING MA'LUMOTI.
+
+      Har bir sanoqli javob o'z old qo'shimchasi bilan yuboriladi, qiymat
+      esa sanoq a'zosining NOMI bo'ladi («edu:HigherComplete»). Ikkita
+      foydasi bor: tugma qaysi QADAMGA tegishli ekani ma'lumotning
+      o'zidan ko'rinadi (eski xabardagi tugma bosilganda bu muhim), va
+      ma'lumotni ko'rgan odam uning nimani bildirishini o'qiy oladi.
+
+      Telegram chegarasi 64 bayt — eng uzun qiymat («src:SocialNetwork»)
+      undan uzoq.
+    */
+    private const string SkipData = "skip";
+    private const string EducationPrefix = "edu:";
+    private const string MaritalPrefix = "mar:";
+    private const string RussianPrefix = "rus:";
+    private const string LicenseYesData = "lic:yes";
+    private const string LicenseNoData = "lic:no";
+    private const string LicenseCategoryPrefix = "cat:";
+    private const string SalaryPrefix = "sal:";
+    private const string ReferralPrefix = "src:";
+    private const string OfferData = "offer";
+    private const string SubmitData = "submit";
+    private const string StartOverData = "restart";
+
+    /// <summary>
+    /// Serverning surat uchun hajm chegarasi (10 MB).
+    /// </summary>
+    /// <remarks>
+    /// Qiymat <c>PhotoLimits.MaxBytes</c> bilan bir xil, lekin bu yerda
+    /// qaytadan yozilgan: bot boshqa loyihalarga havola qilmaydi
+    /// (<c>Bonvi.Bot.csproj</c> izohi). U FAQAT Telegram bergan
+    /// nusxalardan birini tanlashda ishlatiladi — haqiqiy tekshiruv
+    /// baribir serverda.
+    /// </remarks>
+    private const long MaxPhotoBytes = 10L * 1024 * 1024;
+
+    /// <summary>
+    /// Vakansiyasiz ariza JURNALDA shunday ko'rinadi.
+    /// </summary>
+    /// <remarks>
+    /// Faqat jurnal uchun: bot «Umumiy anketa» vakansiyasining
+    /// identifikatorini bilmaydi va bilishi ham shart emas — arizani
+    /// o'sha yerga server qo'yadi.
+    /// </remarks>
+    private const string GeneralPoolLabel = "Umumiy anketa";
 
     /// <summary>
     /// Telegram izohining (caption) eng katta uzunligi.
@@ -386,7 +446,18 @@ public sealed partial class BotWorker : BackgroundService
         }
     }
 
-    private async Task HandleAsync(TelegramUpdate update, CancellationToken cancellationToken)
+    /// <summary>
+    /// Bitta yangilikka ishlov beradi.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ <c>internal</c> — TESTLAR uchun (<c>InternalsVisibleTo</c>,
+    /// izohi <c>Bonvi.Bot.csproj</c> da). Anketaning 22 qadamini
+    /// tekshirishning yagona halol yo'li — botga xuddi Telegram
+    /// yuborgandek yangilik berish va u qaysi savolni chizganiga qarash.
+    /// Qadam mantig'ini alohida sinfga ko'chirish esa uni ikkinchi marta
+    /// yozish bo'lardi.
+    /// </remarks>
+    internal async Task HandleAsync(TelegramUpdate update, CancellationToken cancellationToken)
     {
         if (update.CallbackQuery is { } callback)
         {
@@ -415,34 +486,7 @@ public sealed partial class BotWorker : BackgroundService
 
         if (data is LanguageCyrillicData or LanguageLatinData or LanguageRussianData)
         {
-            var language = data switch
-            {
-                LanguageCyrillicData => BotLanguage.Cyrillic,
-                LanguageRussianData => BotLanguage.Russian,
-                _ => BotLanguage.Latin,
-            };
-
-            /*
-              Yarim to'ldirilgan ariza SAQLANADI: til almashtirish
-              arizani bekor qilish emas. Nomzod ismini yozib bo'lib
-              tilni almashtirsa, u ismni qaytadan yozishi kerak
-              bo'lmasligi kerak — shu sababli mavjud holat ustiga
-              faqat til yoziladi.
-            */
-            _conversations.Save(
-                chat.Id,
-                state is null
-                    ? new ConversationState { Step = ConversationStep.Vacancy, Language = language }
-                    : state with { Language = language });
-
-            await SendWithMenuAsync(chat.Id, BotTexts.Greeting(language), language, cancellationToken)
-                .ConfigureAwait(false);
-
-            return;
-        }
-
-        if (!data.StartsWith(VacancyPrefix, StringComparison.Ordinal))
-        {
+            await ChooseLanguageAsync(chat.Id, state, data, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -457,32 +501,552 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        if (!Guid.TryParse(data[VacancyPrefix.Length..], out var vacancyId))
+        if (data == StartOverData)
+        {
+            // «Boshidan boshlash» — `/start` bilan AYNAN bir xil ish.
+            // Til esa saqlanadi: nomzod uni endigina tanlagan.
+            _conversations.Save(
+                chat.Id,
+                new ConversationState { Step = ConversationStep.Language, Language = state.Language });
+
+            await AskLanguageAsync(chat.Id, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await HandleAnswerAsync(chat.Id, state, data, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Til tanlandi — yarim to'ldirilgan anketa SAQLANADI.</summary>
+    /// <remarks>
+    /// Til almashtirish arizani bekor qilish emas: nomzod o'n savolga
+    /// javob berib bo'lib tilni almashtirsa, u hammasini qaytadan
+    /// yozishi kerak bo'lmasligi kerak — shu sababli mavjud holat
+    /// ustiga FAQAT til yoziladi va qadam ham o'zgarmaydi.
+    /// </remarks>
+    private async Task ChooseLanguageAsync(
+        long chatId,
+        ConversationState? state,
+        string data,
+        CancellationToken cancellationToken)
+    {
+        var language = data switch
+        {
+            LanguageCyrillicData => BotLanguage.Cyrillic,
+            LanguageRussianData => BotLanguage.Russian,
+            _ => BotLanguage.Latin,
+        };
+
+        _conversations.Save(
+            chatId,
+            state is null
+                ? new ConversationState { Step = ConversationStep.Vacancy, Language = language }
+                : state with { Language = language });
+
+        await SendWithMenuAsync(chatId, BotTexts.Greeting(language), language, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Tugma javobini QADAMGA qarab qabul qiladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Tugma hozirgi qadamga tegishli bo'lmasa JIMGINA e'tiborsiz
+    /// qoldiriladi.</b> Eski xabarlar suhbatda qolib ketadi va nomzod
+    /// yuqoriga surib, allaqachon o'tilgan savolning tugmasini bosishi
+    /// mumkin. Uni qabul qilish anketani orqaga qaytarardi, xato yozish
+    /// esa nomzodni chalg'itardi — javob bermaslik eng tinch yo'l.
+    /// </para>
+    /// <para>
+    /// «O'tkazib yuborish» bosilganda javob YOZILMAYDI: maydon
+    /// <c>null</c> bo'lib qoladi va yakuniy xulosada umuman
+    /// chizilmaydi (<see cref="AnswerSummary"/>).
+    /// </para>
+    /// </remarks>
+    private async Task HandleAnswerAsync(
+        long chatId,
+        ConversationState state,
+        string data,
+        CancellationToken cancellationToken)
+    {
+        switch (state.Step)
+        {
+            case ConversationStep.Vacancy when data.StartsWith(VacancyPrefix, StringComparison.Ordinal):
+                await ChooseVacancyAsync(chatId, state, data[VacancyPrefix.Length..], cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Education
+                when ParseAnswer<EducationAnswer>(data, EducationPrefix) is { } education:
+                await AcceptAsync(chatId, state with { Education = education }, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.MaritalStatus
+                when ParseAnswer<MaritalAnswer>(data, MaritalPrefix) is { } marital:
+                await AcceptAsync(chatId, state with { MaritalStatus = marital }, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.RussianLevel
+                when ParseAnswer<RussianLevelAnswer>(data, RussianPrefix) is { } russian:
+                await AcceptAsync(chatId, state with { RussianLevel = russian }, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.DriverLicense when data is LicenseYesData or LicenseNoData:
+            {
+                /*
+                  Toifa ATAYLAB tozalanadi: nomzod «Ha» deb toifani
+                  tanlab, keyin savolga qaytib «Yo'q» ni bosishi mumkin.
+                  Eski toifa qolib ketsa, xulosada «guvohnoma: yo'q, BC»
+                  degan qarama-qarshi qator chiqardi.
+                */
+                var hasLicense = data == LicenseYesData;
+
+                await AcceptAsync(
+                        chatId,
+                        state with { HasDriverLicense = hasLicense, DriverLicenseCategory = null },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                break;
+            }
+
+            case ConversationStep.DriverLicenseCategory when ParseCategory(data) is { } category:
+                await AcceptAsync(chatId, state with { DriverLicenseCategory = category }, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.ExpectedSalary
+                when ParseAnswer<SalaryAnswer>(data, SalaryPrefix) is { } salary:
+                await AcceptAsync(chatId, state with { ExpectedSalary = salary }, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.ReferralSource
+                when ParseAnswer<ReferralAnswer>(data, ReferralPrefix) is { } referral:
+                await AcceptAsync(chatId, state with { ReferralSource = referral }, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Offer when data == OfferData:
+                // Rozilik VAQTI — huquqiy fakt, bayroq emas.
+                await AcceptAsync(chatId, state with { OfferAcceptedAt = BotClock.Now }, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Confirm when data == SubmitData:
+                await SubmitAsync(chatId, state, cancellationToken).ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Speciality when data == SkipData:
+            case ConversationStep.WorkExperience when data == SkipData:
+            case ConversationStep.OtherLanguages when data == SkipData:
+            case ConversationStep.OfficeSkills when data == SkipData:
+            case ConversationStep.LastSalary when data == SkipData:
+            case ConversationStep.ExtraNote when data == SkipData:
+            case ConversationStep.Photo when data == SkipData:
+                await AcceptAsync(chatId, state, cancellationToken).ConfigureAwait(false);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    /// <summary>Vakansiya tanlandi.</summary>
+    private async Task ChooseVacancyAsync(
+        long chatId,
+        ConversationState state,
+        string rawId,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(rawId, out var vacancyId))
         {
             return;
         }
 
         var vacancies = await _bonvi.GetOpenVacanciesAsync(cancellationToken).ConfigureAwait(false);
-        var chosen = vacancies.FirstOrDefault(v => v.Id == vacancyId);
+        var chosen = vacancies.FirstOrDefault(vacancy => vacancy.Id == vacancyId);
 
         if (chosen is null)
         {
-            // Vakansiya tugmani bosgunicha yopilgan bo'lishi mumkin.
-            await ShowVacanciesAsync(chat.Id, state.Language, cancellationToken).ConfigureAwait(false);
+            /*
+              Vakansiya tugma bosilgunicha yopilgan bo'lishi mumkin.
+              Ro'yxat qaytadan chiziladi — agar u shu orada butunlay
+              bo'shab qolgan bo'lsa, anketa TO'XTAMAYDI: qadam o'tkazib
+              yuboriladi va ariza «Umumiy anketa»ga ketadi.
+            */
+            await ContinueAsync(chatId, state, ConversationStep.Vacancy, cancellationToken)
+                .ConfigureAwait(false);
+
             return;
         }
 
-        _conversations.Save(chat.Id, state with
-        {
-            Step = ConversationStep.Name,
-            VacancyId = chosen.Id,
-            VacancyTitle = chosen.Title,
-        });
-
-        await _telegram
-            .SendMessageAsync(chat.Id, BotTexts.AskName(state.Language), cancellationToken: cancellationToken)
+        await AcceptAsync(
+                chatId,
+                state with { VacancyId = chosen.Id, VacancyTitle = chosen.Title },
+                cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <summary>Javob qabul qilindi — keyingi qadamga o'tiladi.</summary>
+    private Task AcceptAsync(long chatId, ConversationState answered, CancellationToken cancellationToken)
+        => ContinueAsync(chatId, answered, NextStep(answered.Step), cancellationToken);
+
+    /// <summary>
+    /// Chizilishi kerak bo'lgan birinchi qadamni topadi va uni chizadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>SHARTLI qadamlar aynan shu yerda o'tkazib yuboriladi</b> va
+    /// boshqa hech qayerda: ochiq vakansiya bo'lmasa 2-qadam, guvohnoma
+    /// yo'q bo'lsa 17-qadam, oferta havolasi sozlanmagan bo'lsa
+    /// 21-qadam. Har bir chaqiruv joyida takrorlangan <c>if</c> lar
+    /// vaqt o'tib bir-biridan farq qila boshlardi va nomzod qadamsiz
+    /// qolib ketardi.
+    /// </para>
+    /// <para>
+    /// <b>Halqa CHEKSIZ emas:</b> 22-qadam (yakuniy tasdiq) hech qachon
+    /// o'tkazib yuborilmaydi va halqa unga yetganda albatta to'xtaydi.
+    /// </para>
+    /// </remarks>
+    private async Task ContinueAsync(
+        long chatId,
+        ConversationState state,
+        ConversationStep step,
+        CancellationToken cancellationToken)
+    {
+        var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<OpenVacancy> vacancies = [];
+        var current = step;
+
+        while (current != ConversationStep.Confirm)
+        {
+            if (current == ConversationStep.Vacancy)
+            {
+                vacancies = await _bonvi.GetOpenVacanciesAsync(cancellationToken).ConfigureAwait(false);
+
+                if (vacancies.Count > 0)
+                {
+                    break;
+                }
+            }
+            else if (Applies(current, state, settings))
+            {
+                break;
+            }
+
+            current = NextStep(current);
+        }
+
+        var next = state with { Step = current };
+
+        // Holat SAVOLDAN OLDIN yoziladi: xabar yuborilmasa ham nomzod
+        // javobi to'g'ri qadamga tushadi (savolni u ekranda ko'rmagan
+        // bo'lsa ham, «/start» bilan qayta boshlay oladi).
+        _conversations.Save(chatId, next);
+
+        await AskAsync(chatId, next, vacancies, settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Shu qadam nomzodga ko'rsatiladimi.</summary>
+    /// <remarks>
+    /// Vakansiya qadami bu yerda YO'Q: uning javobi ochiq vakansiyalar
+    /// ro'yxatiga bog'liq, ro'yxat esa API so'rovi — ya'ni javob bu
+    /// sinxron funksiyada berilib bo'lmaydi (<see cref="ContinueAsync"/>).
+    /// </remarks>
+    private static bool Applies(ConversationStep step, ConversationState state, BotSettings? settings)
+        => step switch
+        {
+            ConversationStep.DriverLicenseCategory => state.HasDriverLicense == true,
+            ConversationStep.Offer => !string.IsNullOrWhiteSpace(settings?.OfferUrl),
+            _ => true,
+        };
+
+    /// <summary>Ro'yxatdagi keyingi qadam — oxirgisida o'zi qoladi.</summary>
+    private static ConversationStep NextStep(ConversationStep step)
+        => step == ConversationStep.Confirm ? step : step + 1;
+
+    /// <summary>Tugma ma'lumotidan sanoq qiymatini o'qiydi.</summary>
+    /// <remarks>
+    /// Qiymat NOM bilan yuboriladi («edu:HigherComplete»), raqam bilan
+    /// emas: shu tufayli tugma ma'lumotini ko'rgan odam uning nimani
+    /// bildirishini darhol tushunadi. <c>Enum.IsDefined</c> shart —
+    /// tugma ma'lumoti tashqaridan keladi va o'ylab topilgan qiymat
+    /// sanoqqa jimgina o'tib ketmasligi kerak.
+    /// </remarks>
+    private static T? ParseAnswer<T>(string data, string prefix)
+        where T : struct, Enum
+    {
+        if (!data.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<T>(data[prefix.Length..], out var value) && Enum.IsDefined(value)
+            ? value
+            : null;
+    }
+
+    /// <summary>Guvohnoma toifasi — faqat ro'yxatdagi qiymat qabul qilinadi.</summary>
+    private static string? ParseCategory(string data)
+    {
+        if (!data.StartsWith(LicenseCategoryPrefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var value = data[LicenseCategoryPrefix.Length..];
+
+        return Array.Exists(Answers.DriverLicenseCategories, item => item == value) ? value : null;
+    }
+
+    /// <summary>
+    /// Qadamning savolini chizadi.
+    /// </summary>
+    /// <remarks>
+    /// Bu metod HECH NARSANI hal qilmaydi — qaysi qadam chizilishini
+    /// <see cref="ContinueAsync"/> allaqachon aytgan. Shu bo'linish
+    /// tufayli «qadam tartibi» va «savol qanday ko'rinadi» degan ikki
+    /// masala bir-biriga aralashmaydi.
+    /// </remarks>
+    private async Task AskAsync(
+        long chatId,
+        ConversationState state,
+        IReadOnlyList<OpenVacancy> vacancies,
+        BotSettings? settings,
+        CancellationToken cancellationToken)
+    {
+        var language = state.Language;
+
+        switch (state.Step)
+        {
+            case ConversationStep.Vacancy:
+                await SendAsync(chatId, BotTexts.ChooseVacancy(language), VacancyButtons(vacancies), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Name:
+                await SendAsync(chatId, BotTexts.AskName(language), null, cancellationToken).ConfigureAwait(false);
+                break;
+
+            case ConversationStep.BirthDate:
+                await SendAsync(chatId, BotTexts.AskBirthDate(language), null, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Address:
+                await SendAsync(chatId, BotTexts.AskAddress(language), null, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Phone:
+                await _telegram
+                    .SendMessageAsync(
+                        chatId,
+                        BotTexts.AskPhone(language),
+                        requestContact: true,
+                        contactButtonText: BotTexts.PhoneButton(language),
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Education:
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskEducation(language),
+                        Choices(
+                            Enum.GetValues<EducationAnswer>(),
+                            EducationPrefix,
+                            answer => BotTexts.EducationLabel(language, answer)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Speciality:
+                await SendAsync(chatId, BotTexts.AskSpeciality(language), SkipButtons(language), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.WorkExperience:
+                await SendAsync(chatId, BotTexts.AskWorkExperience(language), SkipButtons(language), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.MaritalStatus:
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskMaritalStatus(language),
+                        Choices(
+                            Enum.GetValues<MaritalAnswer>(),
+                            MaritalPrefix,
+                            answer => BotTexts.MaritalLabel(language, answer)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.RussianLevel:
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskRussianLevel(language),
+                        Choices(
+                            Enum.GetValues<RussianLevelAnswer>(),
+                            RussianPrefix,
+                            answer => BotTexts.RussianLevelLabel(language, answer)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.OtherLanguages:
+                await SendAsync(chatId, BotTexts.AskOtherLanguages(language), SkipButtons(language), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.OfficeSkills:
+                await SendAsync(chatId, BotTexts.AskOfficeSkills(language), SkipButtons(language), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.LastSalary:
+                await SendAsync(chatId, BotTexts.AskLastSalary(language), SkipButtons(language), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.ExtraNote:
+                await SendAsync(chatId, BotTexts.AskExtraNote(language), SkipButtons(language), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.DriverLicense:
+                // «Ha» va «Yo'q» BITTA qatorda: javob qisqa va ikkitasi
+                // yonma-yon turgani tanlashni tezlashtiradi.
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskDriverLicense(language),
+                        [
+                            [
+                                new InlineButton(BotTexts.YesButton(language), LicenseYesData),
+                                new InlineButton(BotTexts.NoButton(language), LicenseNoData),
+                            ],
+                        ],
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.DriverLicenseCategory:
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskDriverLicenseCategory(language),
+                        [
+                            [
+                                .. Answers.DriverLicenseCategories.Select(category =>
+                                    new InlineButton(category, LicenseCategoryPrefix + category)),
+                            ],
+                        ],
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Photo:
+                await SendAsync(chatId, BotTexts.AskPhoto(language), SkipButtons(language), cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.ExpectedSalary:
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskExpectedSalary(language),
+                        Choices(
+                            Enum.GetValues<SalaryAnswer>(),
+                            SalaryPrefix,
+                            answer => BotTexts.SalaryLabel(language, answer)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.ReferralSource:
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskReferralSource(language),
+                        Choices(
+                            Enum.GetValues<ReferralAnswer>(),
+                            ReferralPrefix,
+                            answer => BotTexts.ReferralLabel(language, answer)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Offer:
+                await SendAsync(
+                        chatId,
+                        BotTexts.Offer(language, settings?.OfferUrl ?? string.Empty),
+                        [[new InlineButton(BotTexts.AgreeButton(language), OfferData)]],
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Confirm:
+                await SendAsync(
+                        chatId,
+                        AnswerSummary.Build(state) + "\n\n" + BotTexts.ConfirmQuestion(language),
+                        [
+                            [new InlineButton(BotTexts.SubmitButton(language), SubmitData)],
+                            [new InlineButton(BotTexts.StartOverButton(language), StartOverData)],
+                        ],
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            default:
+                // Til qadami bu yerga tushmaydi — u `AskLanguageAsync`
+                // bilan alohida chiziladi.
+                break;
+        }
+    }
+
+    /// <summary>Savolni yuboradi.</summary>
+    private async Task SendAsync(
+        long chatId,
+        string text,
+        IReadOnlyList<IReadOnlyList<InlineButton>>? buttons,
+        CancellationToken cancellationToken)
+        => await _telegram
+            .SendMessageAsync(chatId, text, buttons, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>«O'tkazib yuborish» tugmasi — yagona qator.</summary>
+    private static IReadOnlyList<IReadOnlyList<InlineButton>> SkipButtons(BotLanguage language)
+        => [[new InlineButton(BotTexts.SkipButton(language), SkipData)]];
+
+    /// <summary>
+    /// Sanoqning har bir qiymatidan bittadan tugma yasaydi.
+    /// </summary>
+    /// <remarks>
+    /// Har biri ALOHIDA qatorda: javoblar uzun («Ўрта махсус (коллеж,
+    /// лицей)») va ikkitasi telefon ekranida bir qatorga sig'maydi —
+    /// sig'magan matn esa kesilib ko'rinadi.
+    /// </remarks>
+    private static List<IReadOnlyList<InlineButton>> Choices<T>(T[] answers, string prefix, Func<T, string> label)
+        where T : struct, Enum
+        =>
+        [
+            .. answers.Select(answer => (IReadOnlyList<InlineButton>)
+                [new InlineButton(label(answer), prefix + answer.ToString())]),
+        ];
+
+    /// <summary>Ochiq vakansiyalarning tugmalari.</summary>
+    /// <remarks>
+    /// Har bir vakansiya ALOHIDA qatorda: nomlar uzun («2 линия
+    /// назратчиси») va ikkitasi bir qatorga sig'maydi.
+    /// </remarks>
+    private static List<IReadOnlyList<InlineButton>> VacancyButtons(IReadOnlyList<OpenVacancy> vacancies)
+        =>
+        [
+            .. vacancies.Select(vacancy => (IReadOnlyList<InlineButton>)
+                [new InlineButton(vacancy.Title, VacancyPrefix + vacancy.Id.ToString("N"))]),
+        ];
 
     private async Task HandleMessageAsync(TelegramMessage message, CancellationToken cancellationToken)
     {
@@ -508,6 +1072,10 @@ public sealed partial class BotWorker : BackgroundService
           o'qilardi va arizaga shu yozilardi. Ya'ni tugmani bosgan odam
           arizadan chiqolmay qolardi — MBF ning botida bu yo'l bor va
           u yerda ham menyu qadamdan ustun turadi.
+
+          ⚠️ Anketa 22 qadamga o'sgach bu qoida YANADA muhim bo'ldi:
+          endi tugma matni «mutaxassislik», «ish tajribasi» yoki
+          «qo'shimcha ma'lumot» javobiga ham aylanib ketishi mumkin edi.
         */
         var action = BotMenu.Resolve(message.Text);
 
@@ -532,18 +1100,106 @@ public sealed partial class BotWorker : BackgroundService
                 await HandleNameAsync(chatId, state, message.Text, cancellationToken).ConfigureAwait(false);
                 break;
 
-            case ConversationStep.Phone:
-                await HandlePhoneAsync(chatId, state, message, cancellationToken).ConfigureAwait(false);
+            case ConversationStep.BirthDate:
+                await HandleBirthDateAsync(chatId, state, message.Text, cancellationToken).ConfigureAwait(false);
                 break;
 
             case ConversationStep.Address:
                 await HandleAddressAsync(chatId, state, message.Text, cancellationToken).ConfigureAwait(false);
                 break;
 
+            case ConversationStep.Phone:
+                await HandlePhoneAsync(chatId, state, message, cancellationToken).ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Speciality:
+                await SaveTextAsync(
+                        chatId,
+                        state,
+                        message.Text,
+                        Answers.MaxSpecialityLength,
+                        (current, value) => current with { Speciality = value },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.WorkExperience:
+                await SaveTextAsync(
+                        chatId,
+                        state,
+                        message.Text,
+                        Answers.MaxWorkExperienceLength,
+                        (current, value) => current with { WorkExperience = value },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.OtherLanguages:
+                await SaveTextAsync(
+                        chatId,
+                        state,
+                        message.Text,
+                        Answers.MaxOtherLanguagesLength,
+                        (current, value) => current with { OtherLanguages = value },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.OfficeSkills:
+                await SaveTextAsync(
+                        chatId,
+                        state,
+                        message.Text,
+                        Answers.MaxOfficeSkillsLength,
+                        (current, value) => current with { OfficeSkills = value },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.LastSalary:
+                await SaveTextAsync(
+                        chatId,
+                        state,
+                        message.Text,
+                        Answers.MaxLastSalaryLength,
+                        (current, value) => current with { LastSalary = value },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.ExtraNote:
+                await SaveTextAsync(
+                        chatId,
+                        state,
+                        message.Text,
+                        Answers.MaxExtraNoteLength,
+                        (current, value) => current with { ExtraNote = value },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
+            case ConversationStep.Photo:
+                await HandlePhotoAsync(chatId, state, message, cancellationToken).ConfigureAwait(false);
+                break;
+
             default:
-                // Til yoki vakansiya kutilyapti — javob tugma bilan beriladi.
+                /*
+                  Tugma kutilyapti, nomzod esa matn yozdi. Javob qadamga
+                  QARAB tanlanadi va bu farq muhim:
+
+                  • til va vakansiya — bular hali anketa emas, nomzod
+                    menyu oldida turibdi va unga menyu ko'rsatiladi;
+                  • qolgan hamma qadam — anketaning O'RTASI. U yerda
+                    «menyudan bo'lim tanlang» deyish yarim to'ldirilgan
+                    anketadan chiqib ketishga undardi.
+                */
                 await _telegram
-                    .SendMessageAsync(chatId, BotTexts.Restart(state.Language), cancellationToken: cancellationToken)
+                    .SendMessageAsync(
+                        chatId,
+                        state.Step is ConversationStep.Language or ConversationStep.Vacancy
+                            ? BotTexts.Restart(state.Language)
+                            : BotTexts.UseButtons(state.Language),
+                        cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
                 break;
         }
@@ -569,16 +1225,65 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        _conversations.Save(chatId, state with { Step = ConversationStep.Phone, Name = name });
+        await AcceptAsync(chatId, state with { Name = name }, cancellationToken).ConfigureAwait(false);
+    }
 
-        await _telegram
-            .SendMessageAsync(
-                chatId,
-                BotTexts.AskPhone(state.Language),
-                requestContact: true,
-                contactButtonText: BotTexts.PhoneButton(state.Language),
-                cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+    /// <summary>Tug'ilgan sana (4-qadam).</summary>
+    /// <remarks>
+    /// Sana <c>DateOnly</c> bo'lib saqlanadi va HECH QAYERDA
+    /// siljitilmaydi (<see cref="BotClock"/> izohi): vaqt mintaqasi
+    /// tug'ilgan kunga tegishli emas.
+    /// </remarks>
+    private async Task HandleBirthDateAsync(
+        long chatId,
+        ConversationState state,
+        string? text,
+        CancellationToken cancellationToken)
+    {
+        if (BirthDateParser.TryParse(text) is not { } birthDate)
+        {
+            await _telegram
+                .SendMessageAsync(
+                    chatId,
+                    BotTexts.BirthDateNotUnderstood(state.Language),
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        await AcceptAsync(chatId, state with { BirthDate = birthDate }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Yashash manzili (5-qadam).</summary>
+    private async Task HandleAddressAsync(
+        long chatId,
+        ConversationState state,
+        string? text,
+        CancellationToken cancellationToken)
+    {
+        var address = text?.Trim();
+
+        if (string.IsNullOrEmpty(address) || address.Length < MinAddressLength)
+        {
+            await _telegram
+                .SendMessageAsync(
+                    chatId,
+                    BotTexts.AddressNotUnderstood(state.Language),
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        // Uzunlik chegarasi bazadagi ustun bilan bir xil (500). Uzunroq
+        // matn API'da xatoga aylanardi va nomzod sababini bilmasdi.
+        if (address.Length > MaxAddressLength)
+        {
+            address = address[..MaxAddressLength];
+        }
+
+        await AcceptAsync(chatId, state with { Address = address }, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task HandlePhoneAsync(
@@ -621,22 +1326,16 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        if (state.Name is not { } name)
-        {
-            await _telegram
-                .SendMessageAsync(chatId, BotTexts.Restart(state.Language), cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
-            return;
-        }
-
         var phone = contact.PhoneNumber;
 
         /*
-          Takroriy ariza AYNAN shu yerda tekshiriladi — manzil
-          so'ralishidan OLDIN. Aks holda allaqachon ariza bergan nomzod
-          manzilini yozib bo'lib, keyin «siz allaqachon ariza
-          bergansiz» degan javobni olardi.
+          ⭐ TAKRORIY ARIZA AYNAN SHU YERDA tekshiriladi — 6-qadamda,
+          telefon raqami ma'lum bo'lgan zahoti.
+
+          Tekshiruvni oxirga (22-qadamga) qoldirish eng shafqatsiz
+          variant bo'lardi: nomzod o'n oltita savolga javob berib bo'lib,
+          «siz allaqachon ariza bergansiz» degan xabarni olardi va
+          hamma mehnati bekorga ketardi.
         */
         var existing = await _bonvi
             .FindActiveApplicationAsync(phone, state.VacancyId, cancellationToken)
@@ -646,9 +1345,17 @@ public sealed partial class BotWorker : BackgroundService
         {
             _conversations.Forget(chatId);
 
+            /*
+              Vakansiya nomi SERVERDAN olinadi: nomzod hozir vakansiya
+              tanlamagan bo'lishi mumkin (ochiq ish o'rni yo'q), lekin
+              eski arizasi baribir biror vakansiyada turibdi va aynan
+              o'sha nom unga ma'noli.
+            */
+            var vacancy = existing.VacancyTitle ?? state.VacancyTitle;
+
             await SendWithMenuAsync(
                     chatId,
-                    BotTexts.AlreadyApplied(state.Language, state.VacancyTitle, existing.AppliedAt, existing.StageName),
+                    BotTexts.AlreadyApplied(state.Language, vacancy, existing.AppliedAt, existing.StageName),
                     state.Language,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -656,69 +1363,103 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        _conversations.Save(chatId, state with { Step = ConversationStep.Address, Phone = phone });
-
-        /*
-          Tugmasiz yuboriladi va shu bilan kontakt klaviaturasi ham
-          yo'qoladi: `SendMessageAsync` markup berilmaganda
-          `remove_keyboard` yuboradi. Bu muhim — tugma ekranda qolsa
-          nomzod raqamni ikkinchi marta bosardi, bot esa manzil kutib
-          turardi.
-        */
-        await _telegram
-            .SendMessageAsync(
-                chatId,
-                BotTexts.AskAddress(state.Language),
-                cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        await AcceptAsync(chatId, state with { Phone = phone }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Manzil qadami — anketaning oxirgisi, shu yerda ariza yuboriladi.
+    /// Erkin matnli javobni yozadi (8, 9, 12, 13, 14, 15-qadamlar).
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>Nega ariza aynan shu yerda yaratiladi.</b> Nomzod yozuvi bir
-    /// marta, TO'LIQ holda yoziladi. Telefon qadamida yaratib, manzilni
-    /// keyin qo'shish ikkita so'rov degani va nomzod manzilni yozmay
-    /// ketsa, HR ro'yxatida yarim ariza qolardi.
-    /// </para>
-    /// <para>
-    /// <b>Suhbat xatoda SAQLANADI</b> — telefon qadamidagi bilan bir xil
-    /// mulohaza: nomzod manzilni qayta yozsa kifoya, <c>/start</c> dan
-    /// boshlash shart emas. Raqam esa holatda turibdi, chunki kontakt
-    /// tugmasi allaqachon olib tashlangan.
-    /// </para>
+    /// Matn tozalanadi va chegaraga sig'diriladi (<see cref="Answers"/>).
+    /// Bo'sh javob — javob EMAS: unda savol qaytadan beriladi, chunki
+    /// «o'tkazib yuborish» uchun alohida tugma bor va nomzod uni
+    /// ko'rmagan bo'lishi mumkin.
     /// </remarks>
-    private async Task HandleAddressAsync(
+    private async Task SaveTextAsync(
         long chatId,
         ConversationState state,
         string? text,
+        int maxLength,
+        Func<ConversationState, string, ConversationState> apply,
         CancellationToken cancellationToken)
     {
-        var address = text?.Trim();
-
-        // Uzunlik chegarasi bazadagi ustun bilan bir xil (500). Uzunroq
-        // matn API'da 400 bilan qaytardi va nomzod sababini bilmasdi.
-        if (string.IsNullOrEmpty(address) || address.Length < MinAddressLength)
+        if (Answers.Clean(text, maxLength) is not { } value)
         {
-            await _telegram
-                .SendMessageAsync(
+            var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+
+            await AskAsync(chatId, state, [], settings, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await AcceptAsync(chatId, apply(state, value), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Surat (18-qadam) — bu yerda faqat BELGI olinadi.
+    /// </summary>
+    /// <remarks>
+    /// Baytlar hozir yuklab olinmaydi: ariza yuborilmasa ular bekorga
+    /// olingan bo'lardi va yarim qolgan har bir suhbat xotirada bir
+    /// necha yuz kilobayt ushlab turardi. Rasm ariza YARATILGANDAN
+    /// keyin olinadi (<see cref="TryUploadPhotoAsync"/>).
+    /// </remarks>
+    private async Task HandlePhotoAsync(
+        long chatId,
+        ConversationState state,
+        TelegramMessage message,
+        CancellationToken cancellationToken)
+    {
+        if (TelegramPhotos.BestFileId(message.Photo, MaxPhotoBytes) is not { } fileId)
+        {
+            await SendAsync(
                     chatId,
-                    BotTexts.AddressNotUnderstood(state.Language),
-                    cancellationToken: cancellationToken)
+                    BotTexts.PhotoNotUnderstood(state.Language),
+                    SkipButtons(state.Language),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             return;
         }
 
-        if (address.Length > MaxAddressLength)
-        {
-            address = address[..MaxAddressLength];
-        }
+        await AcceptAsync(chatId, state with { PhotoFileId = fileId }, cancellationToken).ConfigureAwait(false);
+    }
 
-        if (state.Name is not { } name || state.Phone is not { } phone)
+    /// <summary>
+    /// Tugallangan anketani yuboradi (22-qadam).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Ariza BIR MARTA, to'liq holda yoziladi.</b> Har bir qadamda
+    /// serverga tegib borish yarim arizalarni HR ro'yxatida qoldirardi:
+    /// nomzodlarning bir qismi anketani albatta tashlab ketadi.
+    /// </para>
+    /// <para>
+    /// <b>Xatoda suhbat SAQLANADI</b> — nomzod «Yuborish»ni qayta
+    /// bosishi kifoya, o'n oltita savolga qayta javob berish shart
+    /// emas.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Surat arizadan KEYIN va u arizaga ta'sir qilmaydi</b>
+    /// (<see cref="TryUploadPhotoAsync"/>).
+    /// </para>
+    /// </remarks>
+    private async Task SubmitAsync(long chatId, ConversationState state, CancellationToken cancellationToken)
+    {
+        if (state.Name is not { } name
+            || state.Phone is not { } phone
+            || state.Education is not { } education
+            || state.MaritalStatus is not { } marital
+            || state.RussianLevel is not { } russianLevel
+            || state.ExpectedSalary is not { } expectedSalary
+            || state.ReferralSource is not { } referralSource)
         {
+            /*
+              Majburiy javob yo'q. Bunga faqat holat buzilganda kelib
+              bo'ladi (masalan eski tugma bosilgan). Serverga chala
+              ariza yuborishdan ko'ra boshidan boshlash to'g'ri:
+              yarim ariza HR ro'yxatida tuzatib bo'lmaydigan yozuv
+              bo'lib qolardi.
+            */
             await _telegram
                 .SendMessageAsync(chatId, BotTexts.Restart(state.Language), cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
@@ -726,20 +1467,51 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        var created = await _bonvi
-            .RegisterCandidateAsync(
-                state.VacancyId,
-                name.LastName,
-                name.FirstName,
-                name.MiddleName,
-                phone,
-                address,
-                chatId,
-                BotLanguages.Code(state.Language),
-                cancellationToken)
+        var answers = new QuestionnaireAnswers(
+            education,
+            marital,
+            russianLevel,
+            expectedSalary,
+            referralSource,
+
+            /*
+              ⭐ Oferta qadami O'TKAZIB YUBORILGAN bo'lsa (havola
+              sozlanmagan) qiymat `null` bo'lib ketadi va maydon so'rov
+              tanasiga umuman tushmaydi (`BonviClient.RequestJson`).
+
+              Zaxira vaqt QO'YILMAYDI. Ilgari bu yerda `?? BotClock.Now`
+              turardi — nomzod hech qanday oferta ko'rmagan holda ham
+              bazaga «rozilik shu lahzada berildi» deb yozilardi, ya'ni
+              huquqiy fakt soxtalashtirilardi. Endi server `null` ni
+              qabul qiladi va u «rozilik SO'RALMAGAN» degani.
+            */
+            state.OfferAcceptedAt,
+            state.WorkExperience,
+            state.OtherLanguages,
+            state.OfficeSkills,
+            state.LastSalary,
+            state.ExtraNote,
+            state.HasDriverLicense == true,
+            state.DriverLicenseCategory);
+
+        var registration = new CandidateRegistration(
+            state.VacancyId,
+            name.LastName,
+            name.FirstName,
+            name.MiddleName,
+            state.BirthDate,
+            phone,
+            state.Address,
+            state.Speciality,
+            chatId,
+            BotLanguages.Code(state.Language),
+            answers);
+
+        var candidateId = await _bonvi
+            .RegisterCandidateAsync(registration, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!created)
+        if (candidateId is not { } created)
         {
             await _telegram
                 .SendMessageAsync(chatId, BotTexts.Failed(state.Language), cancellationToken: cancellationToken)
@@ -747,6 +1519,8 @@ public sealed partial class BotWorker : BackgroundService
 
             return;
         }
+
+        await TryUploadPhotoAsync(created, state.PhotoFileId, cancellationToken).ConfigureAwait(false);
 
         _conversations.Forget(chatId);
 
@@ -758,12 +1532,47 @@ public sealed partial class BotWorker : BackgroundService
         */
         await SendWithMenuAsync(
                 chatId,
-                BotTexts.Accepted(state.Language, state.VacancyTitle),
+                state.VacancyId is null
+                    ? BotTexts.AcceptedToGeneralPool(state.Language)
+                    : BotTexts.Accepted(state.Language, state.VacancyTitle),
                 state.Language,
                 cancellationToken)
             .ConfigureAwait(false);
 
-        LogApplication(state.VacancyTitle);
+        LogApplication(state.VacancyId is null ? GeneralPoolLabel : state.VacancyTitle);
+    }
+
+    /// <summary>
+    /// Suratni Telegram'dan olib, nomzod kartasiga qo'yadi.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>Xato YUTILADI va bu ataylab.</b> Ariza allaqachon
+    /// yaratilgan: rasm yetib bormasa ham nomzod voronkada turadi va
+    /// HR unga qo'ng'iroq qiladi. Bu yerda istisno tashlash yoki
+    /// nomzodga «xatolik» deb yozish uni arizasi yo'qolgan deb
+    /// o'ylashga majburlardi — holbuki yo'qolgani atigi surat.
+    /// Xato jurnalga tushadi va HR rasmni keyin qo'lda qo'sha oladi.
+    /// </remarks>
+    private async Task TryUploadPhotoAsync(Guid candidateId, string? fileId, CancellationToken cancellationToken)
+    {
+        if (fileId is null)
+        {
+            // Nomzod suratni o'tkazib yuborgan — bu odatiy hol.
+            return;
+        }
+
+        var bytes = await _telegram.DownloadFileAsync(fileId, cancellationToken).ConfigureAwait(false);
+
+        if (bytes is null || bytes.Length == 0)
+        {
+            LogPhotoFailed(candidateId);
+            return;
+        }
+
+        if (!await _bonvi.UploadCandidatePhotoAsync(candidateId, bytes, cancellationToken).ConfigureAwait(false))
+        {
+            LogPhotoFailed(candidateId);
+        }
     }
 
     /// <summary>
@@ -1029,19 +1838,28 @@ public sealed partial class BotWorker : BackgroundService
         }
 
         /*
-          Menyudan kelgan har qanday amal yarim qolgan ARIZANI bekor
-          qiladi: nomzod «Kontaktlar» ni ochib, keyin telefon raqamini
-          yuborsa, u eski vakansiyaga yozilib ketardi. Til bundan
-          mustasno (yuqorida) — u arizaning davomi.
+          Menyudan kelgan har qanday amal yarim qolgan ANKETANI bekor
+          qiladi: nomzod «Kontaktlar» ni ochib, keyin biror javob
+          yuborsa, u eski anketaga yozilib ketardi. Til bundan mustasno
+          (yuqorida) — u anketaning davomi.
+
+          ⚠️ Javoblar ham SHU YERDA yo'qoladi: yangi holat bo'sh
+          yaratiladi. Bu ataylab — «Kontaktlar» ni ko'rgan nomzod
+          anketaga qaytganda uning yarmi eski javoblar bilan to'lgan
+          bo'lsa, u nima yozganini eslay olmasdi.
         */
-        _conversations.Save(
-            chatId,
-            new ConversationState { Step = ConversationStep.Vacancy, Language = language });
+        var fresh = new ConversationState { Step = ConversationStep.Vacancy, Language = language };
+
+        _conversations.Save(chatId, fresh);
 
         switch (action)
         {
             case MenuAction.Apply:
-                await ShowVacanciesAsync(chatId, language, cancellationToken).ConfigureAwait(false);
+                // Anketa 2-qadamdan boshlanadi. Ochiq vakansiya
+                // bo'lmasa u jimgina o'tkazib yuboriladi va nomzod
+                // to'g'ridan-to'g'ri F.I.Sh. ga tushadi.
+                await ContinueAsync(chatId, fresh, ConversationStep.Vacancy, cancellationToken)
+                    .ConfigureAwait(false);
                 break;
 
             case MenuAction.About:
@@ -1220,37 +2038,4 @@ public sealed partial class BotWorker : BackgroundService
             .ConfigureAwait(false);
     }
 
-
-    private async Task ShowVacanciesAsync(
-        long chatId,
-        BotLanguage language,
-        CancellationToken cancellationToken)
-    {
-        var vacancies = await _bonvi.GetOpenVacanciesAsync(cancellationToken).ConfigureAwait(false);
-
-        if (vacancies.Count == 0)
-        {
-            _conversations.Forget(chatId);
-
-            await SendWithMenuAsync(chatId, BotTexts.NoVacancies(language), language, cancellationToken)
-                .ConfigureAwait(false);
-
-            return;
-        }
-
-        // Har bir vakansiya ALOHIDA qatorda: nomlar uzun («2 линия
-        // назратчиси») va ikkitasi bir qatorga sig'maydi.
-        var buttons = vacancies
-            .Select(vacancy => (IReadOnlyList<InlineButton>)
-                [new InlineButton(vacancy.Title, VacancyPrefix + vacancy.Id.ToString("N"))])
-            .ToList();
-
-        await _telegram
-            .SendMessageAsync(
-                chatId,
-                BotTexts.ChooseVacancy(language),
-                buttons,
-                cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
-    }
 }

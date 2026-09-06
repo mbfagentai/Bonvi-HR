@@ -112,14 +112,24 @@ public sealed class CandidateRepository : Repository<Candidate>, ICandidateRepos
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// Tartib <c>Include</c> ichida ATAYLAB beriladi: aks holda PostgreSQL
     /// qatorlarni ixtiyoriy tartibda qaytaradi va voronka tarixi har
     /// ochilganda boshqacha ko'rinardi. So'rov
     /// <c>(candidate_id, recorded_at)</c> indeksiga to'liq tushadi.
+    /// </para>
+    /// <para>
+    /// Anketa ham shu yerda ulanadi — bittadan ko'p bo'lmaydi (1:1) va u
+    /// nomzod kartasi bilan birga ko'rsatiladi. Alohida so'rov bo'lganida
+    /// har bir karta ochilishi ikki murojaat bo'lardi, kechiktirilgan
+    /// yuklash (lazy) esa bu loyihada umuman yoqilmagan: anketa jimgina
+    /// <c>null</c> bo'lib qolardi.
+    /// </para>
     /// </remarks>
     public Task<Candidate?> GetWithStagesAsync(Guid id, CancellationToken cancellationToken = default)
         => Set
             .Include(candidate => candidate.StageEntries.OrderBy(entry => entry.RecordedAt))
+            .Include(candidate => candidate.Questionnaire)
             .FirstOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
 
     /// <inheritdoc />

@@ -19,6 +19,12 @@
  * yordamchilari (`text`, `money`, `readPage`) ham nusxalanardi —
  * `employees-api.ts` da aynan shunday bir necha nusxa hosil bo'lgan edi.
  */
+import axios from 'axios'
+
+import {
+  LANGUAGE_LEVELS,
+  type LanguageLevel,
+} from '@/features/employees/api/employee-competency-api'
 import type { MoneyValue, PagedResult } from '@/features/employees/api/employees-api'
 import { api } from '@/shared/api/http-client'
 
@@ -57,6 +63,53 @@ export type StageOutcome = (typeof STAGE_OUTCOMES)[number]
 
 export const OFFER_STATUSES = ['Sent', 'Accepted', 'Declined', 'Expired'] as const
 export type JobOfferStatus = (typeof OFFER_STATUSES)[number]
+
+/* ───────────────────────────────────────────────────── anketa sanoqlari */
+
+/*
+ * Anketa javoblari — YOPIQ to'plamlar: nomzod ularni botda tugmadan
+ * tanlaydi. Qiymatlar backend'dagi nomlar bilan AYNAN bir xil
+ * (`CandidateQuestionnaire.cs`) va tarjima kaliti ulardan
+ * `lowerFirst` bilan hosil qilinadi — yuqoridagi holat sanoqlari
+ * bilan bir xil qoida.
+ */
+
+export const EDUCATION_LEVELS = [
+  'SecondarySchool',
+  'VocationalSchool',
+  'HigherComplete',
+  'HigherIncomplete',
+] as const
+export type EducationLevel = (typeof EDUCATION_LEVELS)[number]
+
+export const MARITAL_STATUSES = ['Married', 'Unmarried', 'Divorced'] as const
+export type MaritalStatus = (typeof MARITAL_STATUSES)[number]
+
+/**
+ * Kutilayotgan maosh — ORALIQ, aniq son emas.
+ *
+ * ⚠️ Oraliqlar vaqt o'tishi bilan eskiradi va o'shanda backend YANGI
+ * qiymat qo'shadi, eskisini o'chirmaydi (domen izohi). Shu sababli
+ * tanilmagan qiymat bu yerda XATO EMAS — u `null` ga aylanadi va qator
+ * umuman chizilmaydi (pastdagi `enumOrNull` izohi).
+ */
+export const SALARY_EXPECTATIONS = [
+  'From1To2Million',
+  'From2To3Million',
+  'From3To4Million',
+  'From5To7Million',
+] as const
+export type SalaryExpectation = (typeof SALARY_EXPECTATIONS)[number]
+
+export const REFERRAL_SOURCES = [
+  'Acquaintance',
+  'SocialNetwork',
+  'Olx',
+  'HeadHunter',
+  'Telegram',
+  'Other',
+] as const
+export type ReferralSource = (typeof REFERRAL_SOURCES)[number]
 
 /* ═══════════════════════════════════════════════════════════════ tiplar */
 
@@ -135,6 +188,47 @@ export interface CandidateListItem {
   hiredEmployeeId: string | null
 }
 
+/**
+ * `CandidateQuestionnaireDto` — nomzod botda to'ldirgan anketa.
+ *
+ * <b>Alohida so'rov YO'Q</b>: anketa nomzod kartasi javobining ichida
+ * keladi (server qarori — HR uni har doim nomzod bilan birga ko'radi).
+ *
+ * ⚠️ <b>Sanoq maydonlari `null` BO'LISHI MUMKIN</b>, garchi serverda
+ * ular majburiy bo'lsa ham. Sabab `enumOrNull` da: backend yangi qiymat
+ * qo'shishi mumkin va eski klient uni tanimaydi. Bunday paytda qator
+ * NOTO'G'RI javob bilan chizilgandan ko'ra umuman chizilmagani ma'qul
+ * (`candidate-resume-card.tsx` dagi bilan bir xil mulohaza).
+ *
+ * `hasDriverLicense` esa `false` bo'lsa ham KO'RSATILADI: «yo'q» —
+ * bo'sh maydon emas, javobning o'zi.
+ */
+export interface CandidateQuestionnaire {
+  education: EducationLevel | null
+  /** Erkin matn — botda o'tkazib yuborilishi mumkin. */
+  workExperience: string | null
+  maritalStatus: MaritalStatus | null
+  /**
+   * Rus tili darajasi — xodim kartasidagi til darajasi bilan AYNAN bir
+   * xil sanoq (server shuni qaytaradi). Shu sababli tipi ham,
+   * tarjimasi ham qayta yozilmaydi: `competency.languageLevel.*`
+   * kalitlari qayta ishlatiladi.
+   */
+  russianLevel: LanguageLevel | null
+  otherLanguages: string | null
+  officeSkills: string | null
+  /** SON EMAS, matn: «kelishilgan», «3 mln» kabi javoblar uchun. */
+  lastSalary: string | null
+  extraNote: string | null
+  hasDriverLicense: boolean
+  /** Faqat `hasDriverLicense = true` da: B, BC, BCE, BCED. */
+  driverLicenseCategories: string | null
+  expectedSalary: SalaryExpectation | null
+  referralSource: ReferralSource | null
+  /** Ommaviy oferta bilan rozilik VAQTI — huquqiy fakt, bayroq emas. */
+  offerAcceptedAt: string | null
+}
+
 /** `CandidateDto` — nomzod kartasi: bosqichlar tarixi va takliflari bilan. */
 export interface Candidate {
   id: string
@@ -159,12 +253,24 @@ export interface Candidate {
   resumeFileName: string | null
   resumeContentType: string | null
   resumeSizeBytes: number | null
+  /**
+   * Surat bor-yo'qligi. Saqlash KALITI qaytarilmaydi (server qarori: u
+   * ichki manzil), shu sababli rasm keshi xodimnikidan farq qiladi —
+   * izohi `useCandidatePhoto` da.
+   */
+  hasPhoto: boolean
   hiredEmployeeId: string | null
   hiredEmploymentId: string | null
   /** Yozilgan tartibda. */
   stages: CandidateStageEntry[]
   /** Yangidan eskiga — muzokara tarixi shu tartibda o'qiladi. */
   offers: JobOffer[]
+  /**
+   * Botda to'ldirilgan anketa. `null` BO'LISHI ODATIY hol: HR qo'lda
+   * kiritgan nomzodda ham, bot ishga tushgunicha yozilgan nomzodlarda
+   * ham u yo'q.
+   */
+  questionnaire: CandidateQuestionnaire | null
 }
 
 /** `JobOfferDto` — ish taklifi. */
@@ -340,6 +446,27 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
     : fallback
 }
 
+/**
+ * `oneOf` ning zaxirasiz varianti — ANKETA sanoqlari uchun.
+ *
+ * NEGA zaxira qiymat berilmaydi: holat sanoqlarida («Open»,
+ * «InProgress») eng zararsiz qiymat bor va noma'lum javob unga tushsa
+ * ro'yxat baribir o'qiladi. Anketa esa NOMZODNING JAVOBI: tanilmagan
+ * qiymatni «O'rta maktab» yoki «Tanishlar orqali» deb ko'rsatish
+ * yolg'on ma'lumot bo'lardi va HR uni haqiqiy javobdan ajrata olmasdi.
+ * `null` esa qatorni umuman chizdirmaydi.
+ *
+ * Server nomni PascalCase yuboradi; ro'yxatdagi qiymat kichik harf
+ * bilan bo'lishi ham mumkin (`LANGUAGE_LEVELS`), shu sababli
+ * solishtirish REGISTRGA BEFARQ — `employee-competency-api.ts` dagi
+ * bilan bir xil kelishuv.
+ */
+function enumOrNull<T extends string>(value: unknown, allowed: readonly T[]): T | null {
+  if (typeof value !== 'string') return null
+  const needle = value.toLowerCase()
+  return allowed.find((name) => name.toLowerCase() === needle) ?? null
+}
+
 /** `MoneyDto` — `{amount, currency, formatted}`; bizga birinchi ikkitasi kerak. */
 function money(value: unknown): MoneyValue {
   const box = (value ?? {}) as Record<string, unknown>
@@ -487,6 +614,31 @@ function toOffer(raw: unknown): JobOffer {
   }
 }
 
+/**
+ * Anketa. `null` — nomzodda anketa YO'Q (HR qo'lda kiritgan yoki bot
+ * ishga tushgunicha yozilgan yozuv) va bu odatiy hol.
+ */
+function toQuestionnaire(raw: unknown): CandidateQuestionnaire | null {
+  if (raw === null || raw === undefined || typeof raw !== 'object') return null
+  const box = raw as Record<string, unknown>
+
+  return {
+    education: enumOrNull(box['education'], EDUCATION_LEVELS),
+    workExperience: text(box['workExperience']),
+    maritalStatus: enumOrNull(box['maritalStatus'], MARITAL_STATUSES),
+    russianLevel: enumOrNull(box['russianLevel'], LANGUAGE_LEVELS),
+    otherLanguages: text(box['otherLanguages']),
+    officeSkills: text(box['officeSkills']),
+    lastSalary: text(box['lastSalary']),
+    extraNote: text(box['extraNote']),
+    hasDriverLicense: box['hasDriverLicense'] === true,
+    driverLicenseCategories: text(box['driverLicenseCategories']),
+    expectedSalary: enumOrNull(box['expectedSalary'], SALARY_EXPECTATIONS),
+    referralSource: enumOrNull(box['referralSource'], REFERRAL_SOURCES),
+    offerAcceptedAt: text(box['offerAcceptedAt']),
+  }
+}
+
 function toCandidate(raw: unknown): Candidate {
   const box = (raw ?? {}) as Record<string, unknown>
 
@@ -513,10 +665,12 @@ function toCandidate(raw: unknown): Candidate {
     resumeContentType: text(box['resumeContentType']),
     resumeSizeBytes:
       typeof box['resumeSizeBytes'] === 'number' ? box['resumeSizeBytes'] : null,
+    hasPhoto: box['hasPhoto'] === true,
     hiredEmployeeId: text(box['hiredEmployeeId']),
     hiredEmploymentId: text(box['hiredEmploymentId']),
     stages: (Array.isArray(box['stages']) ? box['stages'] : []).map(toStageEntry),
     offers: (Array.isArray(box['offers']) ? box['offers'] : []).map(toOffer),
+    questionnaire: toQuestionnaire(box['questionnaire']),
   }
 }
 
@@ -769,6 +923,59 @@ export async function fetchResume(
 export async function deleteResume(id: string): Promise<Candidate> {
   const { data } = await api.delete<unknown>(`${CANDIDATES}/${id}/resume`)
   return toCandidate(data)
+}
+
+/* ──────────────────────────────────────────────────────────────── surat */
+
+/**
+ * Nomzod surati — BAYTLAR, havola emas.
+ *
+ * NEGA `<img src="/api/…">` ishlamaydi: tizim `Authorization: Bearer`
+ * sarlavhasi bilan ishlaydi, cookie yo'q — brauzer `<img>` so'roviga
+ * sarlavha qo'sha olmaydi va server 401 qaytaradi (`fetchEmployeePhoto`
+ * bilan aynan bir xil sabab va aynan bir xil quvur).
+ *
+ * `404` — XATO EMAS. U «bu nomzodning surati yo'q» degani va `null` ga
+ * aylanadi: chaqiruvchi jimgina bosh harflarga qaytadi.
+ */
+export async function fetchCandidatePhoto(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Blob | null> {
+  try {
+    const { data } = await api.get<Blob>(`${CANDIDATES}/${id}/photo`, {
+      responseType: 'blob',
+      signal,
+    })
+    return data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
+}
+
+/**
+ * Suratni yuklash — **multipart**, maydon nomi `file`. Yangisi eskisini
+ * almashtiradi.
+ *
+ * Javobdagi `photoKey` ATAYLAB qaytarilmaydi: nomzod kartasi uni umuman
+ * ko'rsatmaydi (`CandidateDto` da faqat `hasPhoto` bor), ya'ni undan
+ * foydalanadigan joy yo'q. Keshni yangilash `useUploadCandidatePhoto`
+ * zimmasida.
+ *
+ * `Content-Type` bu yerda QO'YILMAYDI: axios `FormData` ni ko'rib uni
+ * chegara (boundary) satri bilan o'zi yozadi — sabab `http-client.ts` da.
+ */
+export async function uploadCandidatePhoto(id: string, file: File): Promise<void> {
+  const form = new FormData()
+  form.append('file', file)
+
+  await api.post(`${CANDIDATES}/${id}/photo`, form)
+}
+
+/** Suratni o'chirish. Server idempotent: surat bo'lmasa ham `204` qaytaradi. */
+export async function deleteCandidatePhoto(id: string): Promise<void> {
+  await api.delete(`${CANDIDATES}/${id}/photo`)
 }
 
 /* ═════════════════════════════════════════════════════════════ takliflar */

@@ -45,6 +45,17 @@
     Hangfire ham shu sababdan rad etilgan). Qolgani `HttpClient` va
     `System.Text.Json` — ikkalasi ham platformada bor.
   -->
+  <!--
+    Testlar botga xuddi Telegram yuborgandek yangilik beradi va u qaysi
+    savolni chizganiga qaraydi (`BotWorker.HandleAsync`). Shu bitta
+    `internal` a'zosiz anketaning 22 qadamini tarmoqsiz tekshirib
+    bo'lmasdi — qadam mantig'ini alohida sinfga ko'chirish esa uni
+    ikkinchi marta yozish degani bo'lardi.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bonvi.Bot.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Http" />

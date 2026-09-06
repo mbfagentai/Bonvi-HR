@@ -173,6 +173,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 row.Candidate.Status,
                 row.Candidate.Source,
                 row.Candidate.ResumeFileKey != null,
+                row.Candidate.PhotoKey != null,
                 row.Candidate.CreatedAt,
                 hires.GetValueOrDefault(row.Candidate.Id))),
         ];
@@ -252,6 +253,15 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         if (filter.VacancyTitleId is { } vacancyTitleId)
         {
             vacancies = vacancies.Where(vacancy => vacancy.VacancyTitleId == vacancyTitleId);
+        }
+
+        // Chiqarib tashlash SANOQDAN OLDIN: `total` ham, sahifa ham bir
+        // xil to'plamdan olinishi kerak. Filtrni xotirada, sahifa
+        // olingandan keyin qo'llash «12 tadan 11 tasi ko'rinyapti»
+        // degan holatga olib kelardi.
+        if (filter.ExcludedVacancyId is { } excludedVacancyId)
+        {
+            vacancies = vacancies.Where(vacancy => vacancy.Id != excludedVacancyId);
         }
 
         var joined =

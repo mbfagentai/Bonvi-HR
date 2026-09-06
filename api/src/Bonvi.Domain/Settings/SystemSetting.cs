@@ -180,12 +180,14 @@ public sealed class SystemSetting : AggregateRoot, IAuditable
     /// SERVER yozadigan sozlama uchun yangi yozuv ochadi.
     /// </summary>
     /// <remarks>
-    /// <see cref="Create"/> ning rasm uchun juftligi: sabab
-    /// <see cref="SetStoredKey"/> izohida. Yozuv bo'sh qiymat bilan
-    /// ochiladi va darhol to'ldiriladi — shunda kalit uzunligi
-    /// tekshiruvi bitta joyda qoladi.
+    /// <see cref="Create"/> ning juftligi: sabab
+    /// <see cref="SetServerValue"/> izohida. Yozuv bo'sh qiymat bilan
+    /// ochiladi va darhol to'ldiriladi — shunda uzunlik tekshiruvi
+    /// bitta joyda qoladi.
     /// </remarks>
-    public static Result<SystemSetting> CreateStored(string? key, string? storedKey)
+    /// <param name="key">Sozlama kaliti.</param>
+    /// <param name="value">Serverdan kelgan qiymat.</param>
+    public static Result<SystemSetting> CreateServerValue(string? key, string? value)
     {
         var trimmed = key?.Trim();
         if (string.IsNullOrEmpty(trimmed))
@@ -200,44 +202,58 @@ public sealed class SystemSetting : AggregateRoot, IAuditable
 
         var setting = new SystemSetting(NewId(), definition.Key, string.Empty);
 
-        var applied = setting.SetStoredKey(storedKey);
+        var applied = setting.SetServerValue(value);
 
         return applied.IsFailure ? applied.Error : Result.Success(setting);
     }
 
     /// <summary>
-    /// SERVER yozadigan qiymat — rasm kaliti kabi.
+    /// SERVER yozadigan qiymat — rasm kaliti yoki ichki identifikator.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Nega alohida yo'l.</b> <see cref="SystemSettingKind.Photo"/>
-    /// turidagi sozlamani <see cref="Create"/> ham,
-    /// <see cref="SetValue"/> ham RAD ETADI — bu ataylab: umumiy
-    /// «sozlamalarni saqlash» so'rovi bilan fayl kalitini yozib
-    /// qo'yish, uni mavjud bo'lmagan faylga qaratib qo'yardi.
+    /// <b>Nega alohida yo'l.</b> <see cref="SystemSettingKind.Photo"/> va
+    /// <see cref="SystemSettingKind.Hidden"/> turidagi sozlamani
+    /// <see cref="Create"/> ham, <see cref="SetValue"/> ham RAD ETADI
+    /// (<see cref="SystemSettingDefinition.Normalize"/>) — bu ataylab:
+    /// umumiy «sozlamalarni saqlash» so'rovi bilan fayl kalitini yoki
+    /// vakansiya identifikatorini yozib qo'yish, ularni mavjud
+    /// bo'lmagan faylga va mavjud bo'lmagan qatorga qaratib qo'yardi.
     /// </para>
     /// <para>
-    /// Bu metod esa faylni ALLAQACHON saqlagan use-case uchun: kalit
-    /// o'ylab topilmaydi, u saqlash natijasidan keladi. Shifrlash yo'q
-    /// — rasm kaliti sir emas va uni ekran ham, bot ham o'qiydi.
+    /// Bu metod esa qiymatni ALLAQACHON hosil qilgan chaqiruvchi uchun:
+    /// rasm kaliti saqlash natijasidan, «Umumiy anketa» vakansiyasining
+    /// identifikatori esa urug'lantirishdan keladi. Shifrlash yo'q —
+    /// ikkalasi ham sir emas.
+    /// </para>
+    /// <para>
+    /// <b>Nega ikkala tur bitta metodda.</b> Ular uchun qoida AYNAN bir
+    /// xil: qiymatni server beradi va tekshiriladigan yagona narsa —
+    /// uzunlik. Ikkita nusxa yozilsa, biri o'zgarganda ikkinchisi
+    /// eskirib qolardi.
     /// </para>
     /// </remarks>
-    /// <param name="key">Fayl kaliti. Bo'sh — rasm olib tashlandi.</param>
-    public Result SetStoredKey(string? key)
+    /// <param name="value">
+    /// Serverdan kelgan qiymat. Bo'sh — rasm olib tashlandi (yashirin
+    /// qiymatda esa «hali yozilmagan» degani).
+    /// </param>
+    public Result SetServerValue(string? value)
     {
         if (SystemSettingKeys.Find(Key) is not { } definition)
         {
             return SystemSettingErrors.UnknownKey;
         }
 
-        if (definition.Kind != SystemSettingKind.Photo)
+        if (definition.Kind is not (SystemSettingKind.Photo or SystemSettingKind.Hidden))
         {
-            // Bu yo'l faqat rasm uchun. Boshqa turda ochib qo'yish
-            // tekshiruvlarni butunlay chetlab o'tish imkonini berardi.
+            // Bu yo'l faqat SERVER yozadigan turlar uchun. Matn yoki
+            // sonni bu yerdan yozishga ruxsat berish naqsh, chegara va
+            // shifrlash tekshiruvlarini butunlay chetlab o'tish
+            // imkonini berardi.
             return SystemSettingErrors.NotEditable;
         }
 
-        var trimmed = key?.Trim() ?? string.Empty;
+        var trimmed = value?.Trim() ?? string.Empty;
 
         if (definition.MaxLength is { } limit && trimmed.Length > limit)
         {

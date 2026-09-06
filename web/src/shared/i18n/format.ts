@@ -1,4 +1,5 @@
-import { intlTag, type LocaleCode } from './locales'
+import { tashkentParts } from '@/shared/lib/timezone'
+import type { LocaleCode } from './locales'
 
 /**
  * Raqamni bo'sh joy bilan ajratib formatlaydi: 4500000 → «4 500 000».
@@ -36,27 +37,41 @@ export function formatMoney(
   return `${amount} ${suffix[locale]}`
 }
 
-/** Sana: «15.01.1991». Barcha tillarda bir xil — chalkashlik bo'lmasligi uchun. */
+/**
+ * Sana: «15.01.1991». Barcha tillarda bir xil — chalkashlik bo'lmasligi uchun.
+ *
+ * ⭐ Sana TOSHKENT mintaqasida hisoblanadi, brauzernikida emas
+ * (`TASHKENT_TIME_ZONE` izohi): boshqa mintaqadagi noutbukda yoki
+ * serverdagi brauzerda kun bir kunga siljib ketardi. Backend ham
+ * aynan shu qoida bilan ishlaydi (`SystemClock.TashkentOffset`).
+ *
+ * `DateOnly` qiymatlari («1991-01-15») ham xavfsiz: ular UTC yarim
+ * tunga bog'lanadi, Toshkent esa UTC dan DOIM oldinda — ya'ni kun
+ * o'zgarmaydi. Brauzer mintaqasida esa `UTC-5` da turgan mashina
+ * o'sha sanani «14.01.1991» deb chizardi.
+ */
 export function formatDate(value: Date | string, locale: LocaleCode): string {
   const date = typeof value === 'string' ? new Date(value) : value
   if (Number.isNaN(date.getTime())) return '—'
 
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const yyyy = date.getFullYear()
+  const { year, month, day } = tashkentParts(date)
 
-  return locale === 'en' ? `${yyyy}-${mm}-${dd}` : `${dd}.${mm}.${yyyy}`
+  return locale === 'en' ? `${year}-${month}-${day}` : `${day}.${month}.${year}`
 }
 
-/** Sana va vaqt: «15.01.1991 09:30». */
+/**
+ * Sana va vaqt: «15.01.1991 09:30».
+ *
+ * Soat ham Toshkent mintaqasida: yozuv qachon qilinganini HR
+ * O'ZINING soatiga qarab o'qiydi, brauzer qayerda turganiga emas.
+ * Bo'laklar `formatDate` bilan BITTA formatlagichdan keladi, ya'ni
+ * sana va soat bir-biriga mos bo'lmay qolishi mumkin emas.
+ */
 export function formatDateTime(value: Date | string, locale: LocaleCode): string {
   const date = typeof value === 'string' ? new Date(value) : value
   if (Number.isNaN(date.getTime())) return '—'
 
-  const time = new Intl.DateTimeFormat(intlTag(locale) === 'en-US' ? 'en-GB' : 'ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+  const { hour, minute } = tashkentParts(date)
 
-  return `${formatDate(date, locale)} ${time}`
+  return `${formatDate(date, locale)} ${hour}:${minute}`
 }

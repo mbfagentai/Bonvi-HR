@@ -1,5 +1,7 @@
+using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Common.Documents;
+using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Application.Recruiting.Dtos;
@@ -10,9 +12,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bonvi.Api.Endpoints;
 
 /// <summary>Nomzodni voronkaga kiritish so'rovi tanasi.</summary>
-/// <param name="VacancyId">Qaysi vakansiyaga. Majburiy.</param>
 /// <param name="LastName">Familiya. Majburiy.</param>
 /// <param name="FirstName">Ism. Majburiy.</param>
+/// <param name="VacancyId">
+/// Qaysi vakansiyaga. Berilmasa — «Umumiy anketa» xizmat vakansiyasi.
+/// </param>
 /// <param name="MiddleName">Otasining ismi.</param>
 /// <param name="BirthDate">Tug'ilgan sana.</param>
 /// <param name="Phone">Telefon (+998… yoki 9 xonali).</param>
@@ -23,10 +27,28 @@ namespace Bonvi.Api.Endpoints;
 /// <param name="Source">Manual (sukut) yoki TelegramBot.</param>
 /// <param name="TelegramChatId">Telegram suhbatining raqami — faqat bot to'ldiradi.</param>
 /// <param name="TelegramLanguage">Nomzod botda tanlagan til.</param>
+/// <param name="Questionnaire">
+/// Botda to'ldirilgan anketa — IXTIYORIY blok. Berilmasa so'rov AYNAN
+/// avvalgidek ishlaydi (batafsil sabab <c>CandidateQuestionnaireInput</c>
+/// izohida).
+/// </param>
 public sealed record RegisterCandidateRequest(
-    Guid VacancyId,
     string? LastName,
     string? FirstName,
+
+    /*
+      Vakansiya IXTIYORIY: ochiq ish o'rni bo'lmaganda ham nomzod anketa
+      to'ldira olishi kerak va o'shanda server uni «Umumiy anketa»
+      xizmat vakansiyasiga qo'yadi (izohi
+      `RegisterCandidateCommandHandler` da).
+
+      ⚠️ Tur `Guid?` va sukut qiymati `null`. `Guid` ga `= default`
+      berilsa OpenAPI hujjati butunlay 500 bo'ladi — loyiha bundan bir
+      marta jabr ko'rgan. Shu sababli maydon majburiylardan KEYIN
+      turadi: C# ixtiyoriy parametrni oldinga qo'yishga ruxsat bermaydi,
+      JSON esa nom bo'yicha o'qiladi va mijoz uchun tartib ahamiyatsiz.
+    */
+    Guid? VacancyId = null,
     string? MiddleName = null,
     DateOnly? BirthDate = null,
     string? Phone = null,
@@ -43,7 +65,19 @@ public sealed record RegisterCandidateRequest(
       olmaydi, telefon raqami esa Telegram'da manzil emas.
     */
     long? TelegramChatId = null,
-    string? TelegramLanguage = null);
+    string? TelegramLanguage = null,
+
+    /*
+      Anketa — botning 22 qadamli oqimidagi javoblar. Blok BUTUNLIGICHA
+      ixtiyoriy: deploy tartibi «avval API, keyin bot» va oraliqda eski
+      bot shu maydonsiz so'rov yuboradi.
+
+      Tur Application qatlamidan olinadi va API'da qayta e'lon
+      qilinmaydi — `LanguageSkill` bilan bir xil qaror: ikkita bir xil
+      record bo'lganida ular vaqt o'tib bir-biridan uzoqlashardi va
+      farqi faqat prod'da ko'rinardi.
+    */
+    CandidateQuestionnaireInput? Questionnaire = null);
 
 /// <summary>Nomzod ma'lumotini tuzatish so'rovi tanasi — vakansiya va manba o'zgarmaydi.</summary>
 public sealed record UpdateCandidateRequest(
@@ -99,6 +133,9 @@ public static class CandidateEndpoints
     /// </summary>
     private const long MaxResumeRequestBytes = DocumentLimits.MaxBytes + (64 * 1024);
 
+    /// <summary>Surat so'rovining chegarasi — rasm chegarasi + multipart «konverti».</summary>
+    private const long MaxPhotoRequestBytes = PhotoLimits.MaxBytes + (64 * 1024);
+
     public static IEndpointRouteBuilder MapCandidateEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -109,6 +146,7 @@ public static class CandidateEndpoints
         MapWrites(group);
         MapFunnel(group);
         MapResume(group);
+        MapPhoto(group);
 
         return app;
     }
@@ -153,7 +191,9 @@ public static class CandidateEndpoints
                 "«includeArchive=true» — Excel'dan ko'chirilgan kengash arxivi ham " +
                 "qo'shiladi; sukut bo'yicha u ro'yxatda KO'RINMAYDI, chunki ekran " +
                 "«hozir kim bor?» degan savolga javob beradi. «source=Excel» tanlansa " +
-                "arxiv bayroqsiz ham ochiladi.")
+                "arxiv bayroqsiz ham ochiladi. Har qatorda «hasResume» va «hasPhoto» " +
+                "bayroqlari bor; ANKETA ro'yxatga QO'SHILMAYDI — u og'ir va faqat " +
+                "kartada kerak.")
             .Produces<PagedResult<CandidateListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
@@ -175,7 +215,11 @@ public static class CandidateEndpoints
             .WithDescription(
                 "Bosqichlar TARIXI («stages», yozilgan tartibda) va barcha ish " +
                 "takliflari («offers», yangidan eskiga) bilan. Ishga olingan bo'lsa — " +
-                "«hiredEmployeeId» va «hiredEmploymentId» to'ldiriladi.")
+                "«hiredEmployeeId» va «hiredEmploymentId» to'ldiriladi. " +
+                "Botda to'ldirilgan anketa «questionnaire» blokida qaytadi; u " +
+                "«null» BO'LISHI ODATIY hol (HR qo'lda kiritgan yoki eski bot " +
+                "yozuvi) va o'shanda interfeys anketa bo'limini umuman chizmaydi. " +
+                "«hasPhoto» — surat bor-yo'qligi; rasmning o'zi «/photo» orqali olinadi.")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
@@ -190,9 +234,9 @@ public static class CandidateEndpoints
                 var natija = await handler
                     .HandleAsync(
                         new RegisterCandidateCommand(
-                            request.VacancyId,
                             request.LastName,
                             request.FirstName,
+                            request.VacancyId,
                             request.MiddleName,
                             request.BirthDate,
                             request.Phone,
@@ -202,7 +246,8 @@ public static class CandidateEndpoints
                             request.StageId,
                             request.Source,
                             request.TelegramChatId,
-                            request.TelegramLanguage),
+                            request.TelegramLanguage,
+                            request.Questionnaire),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -216,8 +261,20 @@ public static class CandidateEndpoints
                 "bilan qo'yiladi — «stageId» berilsa, o'sha bosqichga. Vakansiya OCHIQ " +
                 "bo'lishi shart («vakansiya.qabul_qilmaydi», 409). Dublikat tekshiruvi " +
                 "YO'Q: nomzodda JSHSHIR kabi ishonchli kalit bo'lmaydi. " +
+                "«vacancyId» IXTIYORIY: berilmasa nomzod «Umumiy anketa» xizmat " +
+                "vakansiyasiga tushadi — uning identifikatorini server o'zi biladi va " +
+                "mijozga ochmaydi. Xizmat vakansiyasi sozlanmagan yoki yopilgan bo'lsa: " +
+                "«nomzod.umumiy_anketa_yoq» (409). " +
+                "Ixtiyoriy «questionnaire» bloki berilsa, anketa nomzod bilan BITTA " +
+                "saqlashda yoziladi: u rad etilsa nomzod ham yaratilmaydi (yarim " +
+                "yozuv qolmaydi). Blok berilmasa so'rov AYNAN avvalgidek ishlaydi. " +
+                "Anketadagi «offerAcceptedAt» IXTIYORIY: berilmasa nomzoddan ommaviy " +
+                "oferta bilan rozilik SO'RALMAGAN degani (oferta havolasi sozlanmagan " +
+                "bo'lsa bot 21-qadamni umuman chizmaydi) va maydon bo'sh saqlanadi. " +
                 "Xatolar: «bosqich.faol_emas» (409), «bosqich.faol_yoq» (409), " +
-                "«ism.familiya_bosh» / «ism.ism_bosh» / «telefon.*» (400).")
+                "«ism.familiya_bosh» / «ism.ism_bosh» / «telefon.*» (400), " +
+                "«anketa.malumot_notogri» / «anketa.oila_notogri» / «anketa.til_notogri» / " +
+                "«anketa.maosh_notogri» / «anketa.manba_notogri» (400).")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -529,6 +586,123 @@ public static class CandidateEndpoints
             .WithSummary("Nomzod — rezyumeni olib tashlash")
             .WithDescription("Fayl HAQIQATAN diskdan o'chiriladi: unga boshqa hech kim ishora qilmaydi.")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    /// <summary>
+    /// Nomzod surati — botdagi anketada so'raladigan selfi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Quvur xodim rasmi bilan AYNAN bitta</b> (<c>SquarePhotoStore</c> +
+    /// <c>PhotoHttp</c>): bir xil chegara, bir xil 512×512 JPEG, bir xil
+    /// <c>ETag</c> va kesh siyosati. Ikkinchi quvur yozilsa, xavfsizlik
+    /// tuzatishi ikki joyda kerak bo'lardi.
+    /// </para>
+    /// <para>
+    /// <b>O'qish <c>recruiting.view</c>, yozish <c>recruiting.manage</c></b> —
+    /// nomzod kartasidagi qolgan hamma narsa bilan bir xil: nomzodni ko'ra
+    /// olgan odam suratini ham ko'radi, rasmni esa faqat kartani
+    /// boshqaradigan odam almashtiradi. Botning o'zi ham
+    /// <c>recruiting.manage</c> bilan yuklaydi — u nomzod yozuvini
+    /// yaratayotgan tomonda turibdi.
+    /// </para>
+    /// </remarks>
+    private static void MapPhoto(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/{id:guid}/photo", async (
+                Guid id,
+                HttpContext context,
+                GetCandidatePhotoQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetCandidatePhotoQuery(id, PhotoHttp.ReadKnownVersion(context.Request)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // JSON emas, BAYT qaytaradi — shu sababli `ToHttpResult()`
+                // faqat xato yo'lida (xodim rasmidagi bilan bir xil sabab:
+                // aks holda u oqimni obyekt deb serializatsiya qilardi).
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : PhotoHttp.Write(context, natija.Value);
+            })
+            .RequireAuthorization(Permissions.RecruitingView)
+            .WithName("GetCandidatePhoto")
+            .WithSummary("Nomzod — surati")
+            .WithDescription(
+                "Rasm baytlari (image/jpeg). «ETag» saqlash kalitidan olingan barqaror xesh; " +
+                "«If-None-Match» mos kelsa 304 qaytadi. Kesh SHAXSIY (private, 1 kun) — " +
+                "surat shaxsiy ma'lumot va umumiy proksida saqlanmasligi kerak. " +
+                "Xatolar: «nomzod.topilmadi» (404), «nomzod.rasm_yoq» (404) — ikkinchisi " +
+                "XATO EMAS, interfeys o'rinbosar chizadi.")
+            .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
+            .Produces(StatusCodes.Status304NotModified)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/{id:guid}/photo", async (
+                Guid id,
+                IFormFile file,
+                UploadCandidatePhotoCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                await using var content = file.OpenReadStream();
+
+                var natija = await handler
+                    .HandleAsync(
+                        new UploadCandidatePhotoCommand(id, content, file.ContentType, file.Length),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+
+            // CSRF himoyasi bu yerda ORTIQCHA — JWT sarlavhada, sessiya
+            // cookie'da emas (rezyume yuklashdagi bilan bir xil sabab).
+            .DisableAntiforgery()
+
+            // Cheklov marshrut darajasida: chegaradan katta tana Kestrel
+            // tomonidan umuman o'qilmaydi.
+            .WithMetadata(new RequestSizeLimitAttribute(MaxPhotoRequestBytes))
+            .WithName("UploadCandidatePhoto")
+            .WithSummary("Nomzod — surat yuklash")
+            .WithDescription(
+                "«multipart/form-data», maydon nomi «file». JPEG, PNG yoki WebP, eng ko'pi 10 MB. " +
+                "Server rasmni markazdan kvadrat qirqib 512×512 JPEG qiladi va ESKISINI diskdan " +
+                "o'chiradi — manba fayl saqlanmaydi. Javobda faqat saqlash kaliti qaytadi: " +
+                "rasmning o'zi odatdagi «GET .../photo» orqali olinadi. " +
+                "Xatolar: «nomzod.rasm_katta», «nomzod.rasm_turi», «nomzod.rasm_yaroqsiz» " +
+                "(hammasi 400), «nomzod.topilmadi» (404).")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<CandidatePhotoDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/{id:guid}/photo", async (
+                Guid id,
+                DeleteCandidatePhotoCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new DeleteCandidatePhotoCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("DeleteCandidatePhoto")
+            .WithSummary("Nomzod — suratni o'chirish")
+            .WithDescription(
+                "Fayl ham o'chadi. Amal IDEMPOTENT: surat allaqachon yo'q bo'lsa ham 204 " +
+                "qaytadi — so'rovning maqsadi rasm qolmasligi, u esa bajarilgan. " +
+                "Xato: «nomzod.topilmadi» (404).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }

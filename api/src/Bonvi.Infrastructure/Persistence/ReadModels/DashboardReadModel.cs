@@ -1,9 +1,9 @@
 using System.Linq.Expressions;
 using Bonvi.Application.Dashboard.Abstractions;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
-using Bonvi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bonvi.Infrastructure.Persistence.ReadModels;
@@ -185,7 +185,7 @@ public sealed class DashboardReadModel : IDashboardReadModel
     /// besh soatga surilib qolardi: kechqurun tushgan ariza ertasi kunga
     /// tushardi. Shu sababli chegara Toshkent yarim tunidan olinadi —
     /// <c>NotificationReadModel</c> dagi bilan AYNAN bir xil qoida va
-    /// AYNAN bir xil siljish manbai (<see cref="SystemClock.TashkentOffset"/>):
+    /// AYNAN bir xil siljish manbai (<see cref="BonviTime.TashkentOffset"/>):
     /// ikkinchi nusxa yozilsa, «bugun» ikki ekranda ikki xil chiqardi.
     /// </para>
     /// </remarks>
@@ -233,7 +233,7 @@ public sealed class DashboardReadModel : IDashboardReadModel
         // Lahza o'zgarmaydi — faqat ifodalanishi.
         var from = new DateTimeOffset(
                 range.From.ToDateTime(TimeOnly.MinValue),
-                SystemClock.TashkentOffset)
+                BonviTime.TashkentOffset)
             .ToUniversalTime();
 
         // Yuqori chegara — KEYINGI kunning boshi va u QO'SHILMAYDI (`<`).
@@ -243,7 +243,7 @@ public sealed class DashboardReadModel : IDashboardReadModel
         // millisekundlarda kelgan ariza sanoqdan tushib qolardi.
         var toExclusive = new DateTimeOffset(
                 range.To.AddDays(1).ToDateTime(TimeOnly.MinValue),
-                SystemClock.TashkentOffset)
+                BonviTime.TashkentOffset)
             .ToUniversalTime();
 
         // Holat bo'yicha filtr YO'Q va bu ataylab: davrda kelgan ariza

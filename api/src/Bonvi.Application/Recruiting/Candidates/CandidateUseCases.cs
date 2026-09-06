@@ -3,9 +3,12 @@ using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Common;
 using Bonvi.Application.Recruiting.Dtos;
+using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 
 namespace Bonvi.Application.Recruiting.Candidates;
@@ -54,11 +57,82 @@ public sealed record SearchCandidatesQuery(
 public sealed record GetCandidateQuery(Guid CandidateId);
 
 /// <summary>
+/// Botda to'ldirilgan anketa — nomzodni ro'yxatga olish so'rovining
+/// IXTIYORIY bloki.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Blok butunligicha ixtiyoriy va bu deploy tartibini belgilaydi.</b>
+/// Prod'da avval API yangilanadi, keyin bot: oraliqda ESKI bot anketasiz
+/// so'rov yuboradi va u AYNAN avvalgidek ishlashi shart. Shu sababli
+/// bu yerda hech qanday majburiy maydon paydo bo'lmaydi — «anketa yo'q»
+/// xato emas, odatiy hol.
+/// </para>
+/// <para>
+/// <b>Nega alohida record, buyruqqa o'n uchta parametr qo'shilmadi.</b>
+/// <c>RegisterCandidateCommand</c> allaqachon o'n uch parametrli; yana
+/// shuncha qo'shilsa, chaqiruv joyida qaysi qiymat qayerga tushayotganini
+/// ko'z bilan tekshirib bo'lmasdi. Blok esa butunligicha bor yoki yo'q —
+/// va shakl aynan shu qoidani ko'rsatib turadi.
+/// </para>
+/// <para>
+/// <b>Tekshiruv bu yerda YO'Q</b>: sanoqlar va uzunliklar
+/// <see cref="CandidateQuestionnaire.Create"/> da tekshiriladi — qoida
+/// bitta joyda tursin (mavjud <c>FullName</c>/<c>PhoneNumber</c> bilan
+/// bir xil bo'linish).
+/// </para>
+/// </remarks>
+/// <param name="Education">Ma'lumot darajasi.</param>
+/// <param name="MaritalStatus">Oilaviy holati.</param>
+/// <param name="RussianLevel">Rus tilini bilish darajasi.</param>
+/// <param name="ExpectedSalary">Kutilayotgan maosh oralig'i.</param>
+/// <param name="ReferralSource">Ish haqida qayerdan bilgan.</param>
+/// <param name="OfferAcceptedAt">
+/// Ommaviy oferta bilan rozilik VAQTI. <c>null</c> — oferta havolasi
+/// sozlanmagan, ya'ni nomzoddan rozilik SO'RALMAGAN (sababi domenda).
+/// </param>
+/// <param name="WorkExperience">Ish tajribasi — erkin matn, o'tkazib yuborsa bo'ladi.</param>
+/// <param name="OtherLanguages">Boshqa tillar — erkin matn.</param>
+/// <param name="OfficeSkills">Office dasturlari — erkin matn.</param>
+/// <param name="LastSalary">Oxirgi maosh — erkin matn.</param>
+/// <param name="ExtraNote">Nomzodning o'zi haqida qo'shimchasi.</param>
+/// <param name="HasDriverLicense">Haydovchilik guvohnomasi bormi.</param>
+/// <param name="DriverLicenseCategories">
+/// Guvohnoma toifasi (B, BC, BCE, BCED). Guvohnoma yo'q bo'lsa qiymat
+/// jimgina tashlanadi — sababi domen izohida.
+/// </param>
+public sealed record CandidateQuestionnaireInput(
+    EducationLevel Education,
+    MaritalStatus MaritalStatus,
+    LanguageLevel RussianLevel,
+    SalaryExpectation ExpectedSalary,
+    ReferralSource ReferralSource,
+
+    /*
+      ⚠️ `DateTimeOffset?` va `= null`, `= default` EMAS. So'rov
+      rekordidagi qiymat turiga (`Guid`, `DateTimeOffset`) sukut qiymat
+      yozilsa, .NET 10 OpenAPI generatori butun `/openapi/v1.json` ni
+      500 qiladi — ya'ni `./bonvi gen` umuman ishlamay qoladi. Bir
+      marta shunday bo'lgan (`AcceptJobOfferRequest`, 2026-08-29).
+    */
+    DateTimeOffset? OfferAcceptedAt = null,
+    string? WorkExperience = null,
+    string? OtherLanguages = null,
+    string? OfficeSkills = null,
+    string? LastSalary = null,
+    string? ExtraNote = null,
+    bool HasDriverLicense = false,
+    string? DriverLicenseCategories = null);
+
+/// <summary>
 /// Yangi nomzodni voronkaga kiritish.
 /// </summary>
-/// <param name="VacancyId">Qaysi vakansiyaga — MAJBURIY.</param>
 /// <param name="LastName">Familiya.</param>
 /// <param name="FirstName">Ism.</param>
+/// <param name="VacancyId">
+/// Qaysi vakansiyaga. Bo'sh bo'lsa — «Umumiy anketa» xizmat vakansiyasi
+/// (izohi <see cref="RegisterCandidateCommandHandler"/> da).
+/// </param>
 /// <param name="MiddleName">Otasining ismi.</param>
 /// <param name="BirthDate">Tug'ilgan sana.</param>
 /// <param name="Phone">Telefon.</param>
@@ -83,10 +157,14 @@ public sealed record GetCandidateQuery(Guid CandidateId);
 /// Nomzod botda tanlagan til (<c>uz-Cyrl</c>, <c>uz-Latn</c>, <c>ru</c>).
 /// Javob aynan o'sha tilda yoziladi.
 /// </param>
+/// <param name="Questionnaire">
+/// Botda to'ldirilgan anketa. Bo'sh bo'lsa nomzod anketasiz yaratiladi —
+/// HR formasi va ESKI bot aynan shunday yuboradi.
+/// </param>
 public sealed record RegisterCandidateCommand(
-    Guid VacancyId,
     string? LastName,
     string? FirstName,
+    Guid? VacancyId = null,
     string? MiddleName = null,
     DateOnly? BirthDate = null,
     string? Phone = null,
@@ -96,7 +174,8 @@ public sealed record RegisterCandidateCommand(
     Guid? StageId = null,
     CandidateSource Source = CandidateSource.Manual,
     long? TelegramChatId = null,
-    string? TelegramLanguage = null);
+    string? TelegramLanguage = null,
+    CandidateQuestionnaireInput? Questionnaire = null);
 
 /// <summary>Nomzodning shaxsiy ma'lumotini tuzatish. Vakansiya va manba o'zgarmaydi.</summary>
 public sealed record UpdateCandidateCommand(
@@ -227,6 +306,7 @@ public sealed class SearchCandidatesQueryHandler
             row.Status,
             row.Source,
             row.HasResume,
+            row.HasPhoto,
             row.CreatedAt,
             row.HiredEmployeeId);
     }
@@ -269,11 +349,28 @@ public sealed class GetCandidateQueryHandler
 /// izlaydi, u esa hech qaysi faol ro'yxatda ko'rinmaydi.
 /// </para>
 /// <para>
+/// ⭐ <b>Vakansiya berilmasa — «Umumiy anketa».</b> Ochiq ish o'rni
+/// bo'lmaganda ham nomzod anketa to'ldira olishi kerak (butun
+/// funksiyaning maqsadi shu), <c>Candidate.VacancyId</c> esa majburiy.
+/// Xizmat vakansiyasining identifikatori YASHIRIN sozlamada turadi va
+/// uni SERVER o'qiydi: bot uni bilmasligi kerak — bilsa, identifikator
+/// ikki joyda takrorlanardi va sozlama o'zgarganda bot eskisiga yozib
+/// yuraverardi.
+/// </para>
+/// <para>
 /// <b>Dublikat tekshiruvi ATAYLAB YO'Q.</b> Xodimda u JSHSHIR bo'yicha
 /// bajariladi, nomzodda esa unday kalit yo'q: bir xil ism-familiya butunlay
 /// boshqa odamlar bo'lishi mumkin, telefon esa oilada bitta bo'lishi
 /// mumkin. To'sib qo'yish haqiqiy nomzodni kiritishga xalaqit berardi —
 /// takrorni HR qidiruv orqali o'zi ko'radi.
+/// </para>
+/// <para>
+/// ⭐ <b>Anketa nomzod bilan BITTA saqlashda yoziladi.</b> U rad etilsa
+/// (masalan sanoq qiymati noto'g'ri kelsa) nomzod ham yaratilmaydi:
+/// aks holda bazada javoblarsiz, «bo'sh» nomzod qolib ketardi va bot
+/// takroriy urinishda ikkinchisini yaratardi. Domen tekshiruvi
+/// <c>SaveChangesAsync</c> dan OLDIN bajarilgani uchun buning uchun
+/// alohida tranzaksiya boshqaruvi kerak emas.
 /// </para>
 /// </remarks>
 public sealed class RegisterCandidateCommandHandler
@@ -282,6 +379,7 @@ public sealed class RegisterCandidateCommandHandler
     private readonly IVacancyRepository _vacancies;
     private readonly IPipelineStageRepository _stages;
     private readonly RecruitingMapper _mapper;
+    private readonly SystemSettingsReader _settings;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -290,6 +388,7 @@ public sealed class RegisterCandidateCommandHandler
         IVacancyRepository vacancies,
         IPipelineStageRepository stages,
         RecruitingMapper mapper,
+        SystemSettingsReader settings,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
@@ -297,6 +396,7 @@ public sealed class RegisterCandidateCommandHandler
         _vacancies = vacancies;
         _stages = stages;
         _mapper = mapper;
+        _settings = settings;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -307,15 +407,10 @@ public sealed class RegisterCandidateCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var vacancy = await _vacancies.GetByIdAsync(command.VacancyId, cancellationToken).ConfigureAwait(false);
-        if (vacancy is null)
+        var vacancy = await ResolveVacancyAsync(command.VacancyId, cancellationToken).ConfigureAwait(false);
+        if (vacancy.IsFailure)
         {
-            return RecruitingErrors.VacancyNotFound;
-        }
-
-        if (!vacancy.AcceptsCandidates)
-        {
-            return RecruitingErrors.VacancyNotAccepting;
+            return vacancy.Error;
         }
 
         var stage = await ResolveStageAsync(command.StageId, cancellationToken).ConfigureAwait(false);
@@ -338,7 +433,7 @@ public sealed class RegisterCandidateCommandHandler
 
         var registered = Candidate.Register(
             fullName.Value,
-            command.VacancyId,
+            vacancy.Value.Id,
             command.Source,
             command.BirthDate,
             phone.Value,
@@ -378,10 +473,111 @@ public sealed class RegisterCandidateCommandHandler
             return recorded.Error;
         }
 
+        if (command.Questionnaire is { } form)
+        {
+            var attached = AttachQuestionnaire(candidate, form);
+            if (attached.IsFailure)
+            {
+                return attached.Error;
+            }
+        }
+
         _candidates.Add(candidate);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return await _mapper.ToDtoAsync(candidate, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Nomzod tushadigan vakansiyani aniqlaydi va uni tekshiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ochiq berilgan vakansiya uchun qoida AVVALGIDEK qoladi: topilmasa
+    /// «vakansiya.topilmadi», yopiq bo'lsa «vakansiya.qabul_qilmaydi».
+    /// Bu prod uchun muhim — hozirgi bot va HR formasi aynan shu yo'ldan
+    /// yuradi va ularning xatolari o'zgarmasligi kerak.
+    /// </para>
+    /// <para>
+    /// Berilmagan bo'lsa «Umumiy anketa» olinadi. Uning uchala nosozligi
+    /// (sozlama bo'sh, vakansiya topilmadi, yopilgan) BITTA xatoga
+    /// yig'iladi — sababi <see cref="RecruitingErrors.GeneralPoolUnavailable"/>
+    /// izohida. «vakansiya.topilmadi» qaytarish yaramaydi: mijoz hech
+    /// qanday vakansiya YUBORMAGAN va bunday javob uni o'z so'rovida xato
+    /// izlashga majbur qilardi.
+    /// </para>
+    /// </remarks>
+    private async Task<Result<Vacancy>> ResolveVacancyAsync(Guid? requested, CancellationToken cancellationToken)
+    {
+        if (requested is { } vacancyId)
+        {
+            var chosen = await _vacancies.GetByIdAsync(vacancyId, cancellationToken).ConfigureAwait(false);
+
+            if (chosen is null)
+            {
+                return RecruitingErrors.VacancyNotFound;
+            }
+
+            return chosen.AcceptsCandidates ? chosen : RecruitingErrors.VacancyNotAccepting;
+        }
+
+        var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!Guid.TryParse(settings.Hidden(SystemSettingKeys.GeneralPoolVacancyId), out var poolId))
+        {
+            return RecruitingErrors.GeneralPoolUnavailable;
+        }
+
+        var pool = await _vacancies.GetByIdAsync(poolId, cancellationToken).ConfigureAwait(false);
+
+        return pool is null || !pool.AcceptsCandidates
+            ? RecruitingErrors.GeneralPoolUnavailable
+            : pool;
+    }
+
+    /// <summary>
+    /// Anketani yasaydi va nomzodga biriktiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nomzod HALI saqlanmagan, ya'ni xato qaytsa hech narsa yozilmaydi
+    /// (handler izohidagi qoida). Identifikator esa allaqachon bor —
+    /// u xotirada, <c>Candidate.Register</c> da beriladi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b><c>ToUniversalTime()</c> MAJBURIY.</b> Npgsql
+    /// <c>timestamptz</c> ustuniga faqat NOL siljishli qiymat yozadi va
+    /// aks holda istisno tashlaydi. Bot esa vaqtni Toshkent siljishi
+    /// bilan yuboradi («…+05:00») — normallashtirilmasa butun so'rov
+    /// 500 bo'lardi. Lahza o'zgarmaydi, faqat ifodalanishi.
+    /// Bir xil qoida <c>DashboardReadModel</c> da ham bor.
+    /// </para>
+    /// <para>
+    /// <c>?.</c> — rozilik vaqti BO'LMASLIGI mumkin: oferta havolasi
+    /// sozlanmagan bo'lsa bot bu qadamni umuman chizmaydi va maydonni
+    /// yubormaydi (sababi <see cref="CandidateQuestionnaire"/> da).
+    /// <c>null</c> shundayligicha o'tadi.
+    /// </para>
+    /// </remarks>
+    private static Result AttachQuestionnaire(Candidate candidate, CandidateQuestionnaireInput form)
+    {
+        var created = CandidateQuestionnaire.Create(
+            candidate.Id,
+            form.Education,
+            form.MaritalStatus,
+            form.RussianLevel,
+            form.ExpectedSalary,
+            form.ReferralSource,
+            form.OfferAcceptedAt?.ToUniversalTime(),
+            form.WorkExperience,
+            form.OtherLanguages,
+            form.OfficeSkills,
+            form.LastSalary,
+            form.ExtraNote,
+            form.HasDriverLicense,
+            form.DriverLicenseCategories);
+
+        return created.IsFailure ? created.Error : candidate.AttachQuestionnaire(created.Value);
     }
 
     /// <summary>
