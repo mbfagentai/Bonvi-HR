@@ -109,6 +109,11 @@ public static class IncentiveEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPut("/{incentiveId:guid}", async (
+                // `employeeId` marshrutda bor, ya'ni OpenAPI hujjatida ham parametr
+                // sifatida turishi SHART — aks holda hujjat yaroqsiz bo'ladi va
+                // `./bonvi gen` (Orval) uni o'qishdan bosh tortadi. Qiymat bu yerda
+                // ishlatilmaydi: yozuv `incentiveId` bo'yicha topiladi.
+                Guid employeeId,
                 Guid incentiveId,
                 UpdateIncentiveRequest request,
                 UpdateIncentiveCommandHandler handler,
@@ -142,6 +147,11 @@ public static class IncentiveEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{incentiveId:guid}", async (
+                // `employeeId` marshrutda bor, ya'ni OpenAPI hujjatida ham parametr
+                // sifatida turishi SHART — aks holda hujjat yaroqsiz bo'ladi va
+                // `./bonvi gen` (Orval) uni o'qishdan bosh tortadi. Qiymat bu yerda
+                // ishlatilmaydi: yozuv `incentiveId` bo'yicha topiladi.
+                Guid employeeId,
                 Guid incentiveId,
                 DeleteIncentiveCommandHandler handler,
                 CancellationToken cancellationToken) =>

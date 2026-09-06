@@ -629,6 +629,11 @@ public static class EmployeeEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPost("/{id:guid}/flags/{flagId:guid}/close", async (
+                // `id` marshrutda bor, ya'ni OpenAPI hujjatida ham parametr sifatida
+                // turishi SHART — aks holda hujjat yaroqsiz bo'ladi va `./bonvi gen`
+                // (Orval) uni o'qishdan bosh tortadi. Qiymat bu yerda ishlatilmaydi:
+                // belgi `flagId` bo'yicha topiladi.
+                Guid id,
                 Guid flagId,
                 CloseFlagRequest? request,
                 CloseFlagCommandHandler handler,

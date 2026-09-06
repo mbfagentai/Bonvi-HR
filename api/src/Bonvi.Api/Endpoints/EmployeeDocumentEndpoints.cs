@@ -101,6 +101,11 @@ public static class EmployeeDocumentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/{documentId:guid}/file", async (
+                // `employeeId` marshrutda bor, ya'ni OpenAPI hujjatida ham parametr
+                // sifatida turishi SHART — aks holda hujjat yaroqsiz bo'ladi va
+                // `./bonvi gen` (Orval) uni o'qishdan bosh tortadi. Qiymat bu yerda
+                // ishlatilmaydi: yozuv `documentId` bo'yicha topiladi.
+                Guid employeeId,
                 Guid documentId,
                 GetEmployeeDocumentFileQueryHandler handler,
                 CancellationToken cancellationToken) =>
@@ -125,6 +130,11 @@ public static class EmployeeDocumentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPut("/{documentId:guid}", async (
+                // `employeeId` marshrutda bor, ya'ni OpenAPI hujjatida ham parametr
+                // sifatida turishi SHART — aks holda hujjat yaroqsiz bo'ladi va
+                // `./bonvi gen` (Orval) uni o'qishdan bosh tortadi. Qiymat bu yerda
+                // ishlatilmaydi: yozuv `documentId` bo'yicha topiladi.
+                Guid employeeId,
                 Guid documentId,
                 UpdateEmployeeDocumentRequest request,
                 UpdateEmployeeDocumentCommandHandler handler,
@@ -149,6 +159,11 @@ public static class EmployeeDocumentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{documentId:guid}", async (
+                // `employeeId` marshrutda bor, ya'ni OpenAPI hujjatida ham parametr
+                // sifatida turishi SHART — aks holda hujjat yaroqsiz bo'ladi va
+                // `./bonvi gen` (Orval) uni o'qishdan bosh tortadi. Qiymat bu yerda
+                // ishlatilmaydi: yozuv `documentId` bo'yicha topiladi.
+                Guid employeeId,
                 Guid documentId,
                 DeleteEmployeeDocumentCommandHandler handler,
                 CancellationToken cancellationToken) =>
