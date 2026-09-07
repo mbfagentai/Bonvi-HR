@@ -118,7 +118,7 @@ public sealed record RecordCandidateStageRequest(
 public sealed record CloseCandidateRequest(DateOnly? At = null, string? Reason = null);
 
 /// <summary>
-/// Nomzodni to'g'ridan-to'g'ri ishga olish so'rovi tanasi — TAKLIFSIZ.
+/// Nomzodni ishga olish so'rovi tanasi.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -132,7 +132,8 @@ public sealed record CloseCandidateRequest(DateOnly? At = null, string? Reason =
 /// BUTUN OpenAPI hujjati yiqilardi — generator <c>Guid.Empty</c> ni
 /// sxemadagi sukut qiymatga aylantira olmaydi va
 /// <c>/openapi/v1.json</c> 500 qaytarardi (loyiha bundan bir marta jabr
-/// ko'rgan: <c>AcceptJobOfferRequest</c>, 2026-08-29).
+/// ko'rgan: o'shanda ish taklifini qabul qilish so'rovi butun hujjatni
+/// yiqitgan edi, 2026-08-29).
 /// <c>System.Text.Json</c> yetishmayotgan maydonga <c>default(Guid)</c> ni
 /// o'zi beradi va tekshiruv <c>HireCandidateCommandHandler</c> da qoladi.
 /// </para>
@@ -198,9 +199,10 @@ public sealed record HireCandidateRequest(
 /// </para>
 /// <para>
 /// Holatni QO'LDA «ishga olingan» qilib qo'yish amali ATAYLAB yo'q:
-/// nomzod faqat HAQIQIY xodim kartasi yaratilganda yopiladi. Taklif
-/// orqali boradigan eski yo'l (<c>POST /api/recruiting/offers/{id}/accept</c>)
-/// hozircha YONMA-YON ishlaydi.
+/// nomzod faqat HAQIQIY xodim kartasi yaratilganda yopiladi. Ilgari
+/// mavjud bo'lgan ikkinchi yo'l — rasmiy ish taklifi orqali qabul —
+/// butunlay olib tashlandi (<c>docs/SPEC-nomzod-yakuni.md</c>,
+/// 3-bo'lim).
 /// </para>
 /// </remarks>
 public static class CandidateEndpoints
@@ -298,8 +300,8 @@ public static class CandidateEndpoints
             .WithName("GetCandidate")
             .WithSummary("Nomzod — karta")
             .WithDescription(
-                "Bosqichlar TARIXI («stages», yozilgan tartibda) va barcha ish " +
-                "takliflari («offers», yangidan eskiga) bilan. Ishga olingan bo'lsa — " +
+                "Bosqichlar TARIXI bilan («stages», yozilgan tartibda). " +
+                "Ishga olingan bo'lsa — " +
                 "«hiredEmployeeId» va «hiredEmploymentId» to'ldiriladi. " +
                 "Botda to'ldirilgan anketa «questionnaire» blokida qaytadi; u " +
                 "«null» BO'LISHI ODATIY hol (HR qo'lda kiritgan yoki eski bot " +
@@ -706,10 +708,9 @@ public static class CandidateEndpoints
             })
             .RequireAuthorization(Permissions.RecruitingManage)
             .WithName("HireCandidate")
-            .WithSummary("Nomzod — ishga olish (TAKLIFSIZ, nomzod XODIMGA aylanadi)")
+            .WithSummary("Nomzod — ishga olish (nomzod XODIMGA aylanadi)")
             .WithDescription(
-                "Voronkaning yakuniy qadami va ishga olishning ODATIY yo'li: rasmiy " +
-                "ish taklifi TALAB QILINMAYDI. BITTA tranzaksiyada: nomzod «ishga " +
+                "Voronkaning yakuniy qadami. BITTA tranzaksiyada: nomzod «ishga " +
                 "olingan» bo'lib voronkadan chiqadi va 1-bosqichning ishga qabul " +
                 "oqimi ishga tushadi — xodim kartasi, mehnat munosabati, ishga qabul " +
                 "buyrug'i va MAJBURIY sinov muddati. " +

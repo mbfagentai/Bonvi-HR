@@ -26,8 +26,8 @@ public static class RecruitingErrors
     /// <c>vakansiya.yuridik_shaxs_topilmadi</c> va
     /// <c>vakansiya.bolim_topilmadi</c> ham turardi. Vakansiyada kompaniya
     /// tuzilmasidan hech narsa qolmagach (sababi <c>Vacancy</c> izohida),
-    /// ular vakansiyaning emas, TAKLIFNI QABUL QILISHNING xatolariga
-    /// aylandi va shu sababli <c>taklif.*</c> prefiksiga ko'chdi.
+    /// ular vakansiyaning emas, ISHGA OLISHNING xatolariga aylandi va
+    /// shu sababli <c>nomzod.*</c> prefiksiga ko'chdi.
     /// Vakansiyaning yagona ma'lumotnoma havolasi endi shu.
     /// </remarks>
     public static Error VacancyTitleNotFound { get; } =
@@ -178,15 +178,7 @@ public static class RecruitingErrors
         _ => PhotoInvalid,
     };
 
-    // ---------- Taklif ----------
-
-    public static Error OfferNotFound { get; } =
-        Error.NotFound("taklif.topilmadi", "Ish taklifi topilmadi.");
-
-    /// <summary>Nomzodda javob kutayotgan taklif allaqachon bor.</summary>
-    public static Error OfferAlreadyPending { get; } = Error.Conflict(
-        "taklif.faol_mavjud",
-        "Nomzodga yuborilgan va javobi kelmagan taklif bor — avval unga javob yozing.");
+    // ---------- Ishga olish ----------
 
     /// <summary>Nomzod allaqachon ishga olingan (takroriy qabul).</summary>
     /// <remarks>
@@ -194,21 +186,23 @@ public static class RecruitingErrors
     /// «ishga olingan» yoki uning nomiga ishga qabul hodisasi topilgan.
     /// Ikkinchisi — birinchi urinish yarim yo'lda uzilgan holat va
     /// takroriy urinish IKKINCHI xodim kartasini yaratmasligi kerak
-    /// (batafsil <c>AcceptJobOfferCommandHandler</c> izohida).
+    /// (batafsil <c>HireCandidateCommandHandler</c> izohida).
     /// </remarks>
     public static Error AlreadyHired { get; } = Error.Conflict(
         "nomzod.allaqachon_ishga_olingan",
         "Nomzod allaqachon ishga olingan.");
 
-    // ---------- Taklif qabul qilinganda: SHTAT birligi ----------
+    // ---------- Ishga olishda: SHTAT birligi ----------
     //
-    // Bu uchtasi ATAYLAB `taklif.*` prefiksida, `vakansiya.*` da emas.
-    // Sabab mazmuniy: firma, bo'lim va lavozim endi e'lonning xossasi
-    // emas, ishga qabul paytidagi QAROR (sababi `Vacancy` izohida). Xato
-    // kodi esa foydalanuvchi uchun «qaysi ekranda nima noto'g'ri» degan
-    // ma'noni tashiydi — va bu maydonlar endi faqat QABUL oynasida bor.
+    // Kodlar `nomzod.*` prefiksida: xato foydalanuvchi uchun «qaysi
+    // EKRANDA nima noto'g'ri» degan ma'noni tashiydi va bu maydonlar
+    // faqat nomzod kartasidagi «Ishga olish» oynasida bor.
+    //
+    // Ilgari yonida `taklif.*` prefiksli AYNAN shunday uchtasi ham
+    // turardi — ular ish taklifi funksiyasi bilan birga o'chirildi
+    // (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim).
 
-    /// <summary>Qabul qilishda lavozim ko'rsatilmagan.</summary>
+    /// <summary>To'g'ridan-to'g'ri ishga olishda lavozim ko'rsatilmagan.</summary>
     /// <remarks>
     /// <b>Nega MAJBURIY, holbuki <c>HireEmployeeCommand.PositionId</c> ning
     /// o'zi ixtiyoriy.</b> 1-bosqichda lavozimsiz qabul ataylab mumkin:
@@ -219,54 +213,6 @@ public static class RecruitingErrors
     /// lavozim umuman yo'q, ya'ni bu yerda bo'sh qoldirilsa, xodim
     /// lavozimsiz yaratilardi va uni keyin qo'lda tuzatish kerak bo'lardi.
     /// Majburiylik shu sababli AYNAN SHU qatlamda, domenda emas.
-    /// </remarks>
-    public static Error HirePositionMissing { get; } = Error.Validation(
-        "taklif.lavozim_yoq",
-        "Lavozim ko'rsatilishi shart: nomzod aynan qaysi shtat birligiga olinayotgani yozilishi kerak.");
-
-    /// <summary>Qabul qilishda yuridik shaxs ko'rsatilmagan.</summary>
-    /// <remarks>
-    /// Bu majburiylik texnik ham: <c>HireEmployeeCommand.LegalEntityId</c> —
-    /// pozitsion va nullable EMAS, ya'ni ishga qabul usiz umuman
-    /// bajarilmaydi. Ilgari qiymat vakansiyadan kelardi; endi vakansiyada
-    /// firma yo'q, demak u qabul oynasidan kelishi SHART.
-    /// </remarks>
-    public static Error HireLegalEntityMissing { get; } = Error.Validation(
-        "taklif.yuridik_shaxs_yoq",
-        "Yuridik shaxs ko'rsatilishi shart: xodim qaysi firmaga rasmiylashtiriladi.");
-
-    /// <summary>Qabul qilishda ko'rsatilgan bo'lim ma'lumotnomada yo'q.</summary>
-    /// <remarks>
-    /// Bo'lim IXTIYORIY (<c>HireEmployeeCommand</c> dagi bilan bir xil),
-    /// lekin ko'rsatilgan bo'lsa — mavjud bo'lishi shart. Ishga qabul
-    /// oqimining o'zi bo'limni tekshirmaydi (u yerda ham ixtiyoriy), shu
-    /// sababli tekshiruv aynan shu yerda: aks holda mavjud bo'lmagan
-    /// identifikator bazaga yetib borib, tushunarsiz tashqi kalit xatosini
-    /// keltirib chiqarardi.
-    /// </remarks>
-    public static Error DepartmentNotFound { get; } =
-        Error.NotFound("taklif.bolim_topilmadi", "Bo'lim topilmadi.");
-
-    // ---------- To'g'ridan-to'g'ri ishga olish: SHTAT birligi ----------
-    //
-    // ⭐ Yuqoridagi uchtasining AYNAN nusxasi, faqat prefiksi boshqa —
-    // va bu ataylab. Xato kodi foydalanuvchi uchun «qaysi EKRANDA nima
-    // noto'g'ri» degan ma'noni tashiydi; taklifni qabul qilish va nomzod
-    // kartasidagi «Ishga olish» — ikki xil ekran va ikki xil forma.
-    //
-    // Ikkinchi, hal qiluvchi sabab: ish taklifi funksiyasi butunlay
-    // o'chiriladi (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim) va u bilan
-    // birga `taklif.*` kodlari ham ketadi. Yagona SAQLANIB QOLADIGAN
-    // ishga olish yo'li o'chirilayotgan funksiyaning nomiga tayanib
-    // qolmasligi kerak edi.
-
-    /// <summary>To'g'ridan-to'g'ri ishga olishda lavozim ko'rsatilmagan.</summary>
-    /// <remarks>
-    /// Majburiylik sababi <see cref="HirePositionMissing"/> dagi bilan bir
-    /// xil: <c>HireEmployeeCommand.PositionId</c> ning O'ZI ixtiyoriy (HR
-    /// formasi va Excel'dan ko'chirish lavozimsiz eski yozuvlarni ham
-    /// kiritadi), rekrutingda esa bunday holat yo'q — nomzod aynan qaysi
-    /// shtat birligiga olinayotgani yozilishi shart.
     /// </remarks>
     public static Error CandidateHirePositionMissing { get; } = Error.Validation(
         "nomzod.lavozim_yoq",

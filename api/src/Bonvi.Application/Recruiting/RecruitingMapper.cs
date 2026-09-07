@@ -10,11 +10,11 @@ namespace Bonvi.Application.Recruiting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bitta mapper uchala agregatga xizmat qiladi (vakansiya, nomzod,
-/// taklif), chunki ular bir xil manbadan nom oladi: vakansiya nomlari
-/// ma'lumotnomasi, bosqichlar va vakansiyaning o'zi. Uchta alohida
-/// mapper bu bog'liqliklarni uch marta takrorlardi va nomlar bir kun
-/// uch xil ko'rinishda chiqib qolardi.
+/// Bitta mapper ikkala agregatga ham xizmat qiladi (vakansiya va
+/// nomzod), chunki ular bir xil manbadan nom oladi: vakansiya nomlari
+/// ma'lumotnomasi, bosqichlar va vakansiyaning o'zi. Ikkita alohida
+/// mapper bu bog'liqliklarni ikki marta takrorlardi va nomlar bir kun
+/// ikki xil ko'rinishda chiqib qolardi.
 /// </para>
 /// <para>
 /// <b>Lavozim/bo'lim/firma nomlari bu yerda ENDI KERAK EMAS.</b>
@@ -36,7 +36,6 @@ public sealed class RecruitingMapper
 {
     private readonly IPipelineStageRepository _stages;
     private readonly IVacancyRepository _vacancies;
-    private readonly IJobOfferRepository _offers;
     private readonly ICandidateRepository _candidates;
     private readonly IEmploymentRepository _employments;
     private readonly IEmployeeRepository _employees;
@@ -45,7 +44,6 @@ public sealed class RecruitingMapper
     public RecruitingMapper(
         IPipelineStageRepository stages,
         IVacancyRepository vacancies,
-        IJobOfferRepository offers,
         ICandidateRepository candidates,
         IEmploymentRepository employments,
         IEmployeeRepository employees,
@@ -53,7 +51,6 @@ public sealed class RecruitingMapper
     {
         _stages = stages;
         _vacancies = vacancies;
-        _offers = offers;
         _candidates = candidates;
         _employments = employments;
         _employees = employees;
@@ -100,17 +97,7 @@ public sealed class RecruitingMapper
             hired);
     }
 
-    public async Task<JobOfferDto> ToDtoAsync(JobOffer offer, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(offer);
-
-        var candidate = await _candidates.GetByIdAsync(offer.CandidateId, cancellationToken).ConfigureAwait(false);
-        var vacancyName = await VacancyNameAsync(offer.VacancyId, cancellationToken).ConfigureAwait(false);
-
-        return ToDto(offer, candidate?.FullName.Full, vacancyName);
-    }
-
-    /// <summary>Nomzod kartasi — bosqichlar tarixi va takliflari bilan.</summary>
+    /// <summary>Nomzod kartasi — bosqichlar tarixi bilan.</summary>
     /// <remarks>
     /// <paramref name="candidate"/> bosqichlari VA anketasi bilan yuklangan
     /// bo'lishi kerak (<c>ICandidateRepository.GetWithStagesAsync</c>). Aks
@@ -125,8 +112,6 @@ public sealed class RecruitingMapper
         var vacancyName = await VacancyNameAsync(candidate.VacancyId, cancellationToken).ConfigureAwait(false);
 
         var stageNames = await StageNamesAsync(cancellationToken).ConfigureAwait(false);
-
-        var offers = await _offers.GetByCandidateAsync(candidate.Id, cancellationToken).ConfigureAwait(false);
 
         // «Bu nomzod qaysi xodimga aylandi» — ishga qabul HODISASIDAN
         // (sababi `EmploymentEvent.CandidateId` izohida). Faqat ishga
@@ -147,11 +132,6 @@ public sealed class RecruitingMapper
                 entry.Conclusion,
                 entry.RecordedBy,
                 entry.RecordedAt)),
-        ];
-
-        IReadOnlyList<JobOfferDto> offerDtos =
-        [
-            .. offers.Select(offer => ToDto(offer, candidate.FullName.Full, vacancyName)),
         ];
 
         return new CandidateDto(
@@ -180,7 +160,6 @@ public sealed class RecruitingMapper
             employment?.EmployeeId,
             employment?.Id,
             stages,
-            offerDtos,
             ToDto(candidate.Questionnaire));
     }
 
@@ -256,20 +235,4 @@ public sealed class RecruitingMapper
 
         return title?.Name;
     }
-
-    private static JobOfferDto ToDto(JobOffer offer, string? candidateName, string? vacancyName)
-        => new(
-            offer.Id,
-            offer.CandidateId,
-            candidateName,
-            offer.VacancyId,
-            vacancyName,
-            new MoneyDto(offer.Salary.Amount, offer.Salary.Currency, offer.Salary.Formatted),
-            offer.StartDate,
-            offer.SentAt,
-            offer.ExpiresAt,
-            offer.Status,
-            offer.RespondedAt,
-            offer.ResponseNote,
-            offer.Note);
 }

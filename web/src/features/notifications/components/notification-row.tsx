@@ -44,11 +44,11 @@ export function NotificationRow({
   /** «Kirib ko'rish». Havolasi ochilmaydigan qatorda BERILMAYDI. */
   onOpen: (() => void) | null
 }) {
-  const { t, num, money, date } = useLocale()
+  const { t, num, date } = useLocale()
 
   const textKey = notificationTextKey(item)
-  const values = notificationValues(item, { num, money, date })
-  const meta = notificationMeta(item, { num, money, date })
+  const values = notificationValues(item, { num, date })
+  const meta = notificationMeta(item, { num, date })
 
   const look = SEVERITY_LOOK[item.severity]
   const Icon = TYPE_ICON[item.type]

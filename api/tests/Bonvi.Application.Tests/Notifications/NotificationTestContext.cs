@@ -135,22 +135,6 @@ internal sealed class NotificationTestContext
         return row;
     }
 
-    /// <summary>Javob kutayotgan ish taklifini qo'shadi.</summary>
-    public JobOfferDeadlineRow Offer(int daysLeft, decimal salary = 4_500_000m)
-    {
-        var row = new JobOfferDeadlineRow(
-            Guid.CreateVersion7(),
-            Guid.CreateVersion7(),
-            "Rahimov Bobur",
-            "Sotuvchi-konsultant",
-            Today.AddDays(daysLeft),
-            salary,
-            "UZS");
-
-        Source.Offers.Add(row);
-        return row;
-    }
-
     /// <summary>Sinov yozuvisiz qolgan munosabatni qo'shadi.</summary>
     public MissingProbationRow MissingProbation(string name = "Toshmatov Olim")
     {
@@ -187,8 +171,6 @@ internal sealed class FakeNotificationSource : INotificationReadModel
 
     public List<NewCandidateRow> Candidates { get; } = [];
 
-    public List<JobOfferDeadlineRow> Offers { get; } = [];
-
     /// <summary>Manba so'rovlari nechta marta chaqirilgani — ruxsat testlari uchun.</summary>
     public int ProbationCalls { get; private set; }
 
@@ -208,9 +190,6 @@ internal sealed class FakeNotificationSource : INotificationReadModel
 
     /// <summary>Yangi nomzodlar uchun so'ralgan quyi sana.</summary>
     public DateOnly? LastCandidateSince { get; private set; }
-
-    /// <summary>Ish takliflari uchun so'ralgan yuqori sana.</summary>
-    public DateOnly? LastOfferUntil { get; private set; }
 
     public Task<IReadOnlyList<ProbationDeadlineRow>> ListProbationDeadlinesAsync(
         DateOnly until,
@@ -234,14 +213,6 @@ internal sealed class FakeNotificationSource : INotificationReadModel
         CandidateCalls++;
         LastCandidateSince = since;
         return Task.FromResult<IReadOnlyList<NewCandidateRow>>([.. Candidates]);
-    }
-
-    public Task<IReadOnlyList<JobOfferDeadlineRow>> ListOfferDeadlinesAsync(
-        DateOnly until,
-        CancellationToken cancellationToken = default)
-    {
-        LastOfferUntil = until;
-        return Task.FromResult<IReadOnlyList<JobOfferDeadlineRow>>([.. Offers]);
     }
 }
 

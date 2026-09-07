@@ -246,13 +246,9 @@ export const NAV: NavSection[] = [
       bilan qilingan ishning aynan o'zi: bajarilmaydigan va'dani
       menyuda saqlab turish yo'l xaritasi emas, shovqin.
 
-      ⚠️ «TAKLIFLAR» BANDI HAM O'CHIRILDI. Sabab boshqacha: taklif
-      HAR DOIM aniq bir nomzodga tegishli va backend `candidateId` ni
-      MAJBURIY parametr qilgan (`GET /api/recruiting/offers` —
-      «barcha takliflar» degan so'rov umuman yo'q). Uning izohida
-      sabab ochiq yozilgan: bunday ro'yxat HR ga hech qanday savolga
-      javob bermaydi. Takliflar nomzod kartasining tabida boshqariladi
-      — u yerda ular muzokara tarixi bo'lib o'qiladi.
+      ⚠️ «TAKLIFLAR» BANDI HAM YO'Q — ish taklifi funksiyasining o'zi
+      butunlay o'chirildi (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim):
+      nomzod endi to'g'ridan-to'g'ri xodimga aylanadi.
     */
     items: [
       {

@@ -100,7 +100,7 @@ public static class DependencyInjection
         // Baxtsiz hodisalar jurnali (S9/M11)
         services.AddSafety();
 
-        // Rekruting — 2-bosqich: vakansiya, voronka, nomzod, ish taklifi
+        // Rekruting — 2-bosqich: vakansiya, voronka, nomzod, ishga olish
         services.AddRecruiting();
 
         // Tizim sozlamalari — bot matni va bildirishnoma chegaralari.
@@ -111,7 +111,7 @@ public static class DependencyInjection
         services.AddSettings();
 
         // Bildirishnomalar — bironta bo'limga tegishli emas: ular sinov
-        // muddati, xodim, nomzod va taklif ma'lumotlarini BIRGA o'qiydi.
+        // muddati, xodim va nomzod ma'lumotlarini BIRGA o'qiydi.
         // Shu sababli o'z guruhida turadi.
         services.AddNotifications();
 

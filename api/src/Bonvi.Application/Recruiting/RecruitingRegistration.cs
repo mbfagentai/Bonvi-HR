@@ -1,5 +1,4 @@
 using Bonvi.Application.Recruiting.Candidates;
-using Bonvi.Application.Recruiting.Offers;
 using Bonvi.Application.Recruiting.Stages;
 using Bonvi.Application.Recruiting.Vacancies;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,9 +49,9 @@ internal static class RecruitingRegistration
         services.AddScoped<ReturnCandidateFromReserveCommandHandler>();
         services.AddScoped<DeleteCandidateCommandHandler>();
 
-        // To'g'ridan-to'g'ri ishga olish (taklifsiz) — taklifni qabul
-        // qilish bilan AYNAN bir xil sababdan `HireEmployeeCommandHandler`
-        // ga bog'liq: xodimni 1-bosqichning oqimi yaratadi.
+        // Nomzodni ishga olish — `HireEmployeeCommandHandler` ga bog'liq
+        // (u `EmployeeRegistration` da ro'yxatga olingan): xodimni
+        // 1-bosqichning oqimi yaratadi, rekruting o'z yo'lini yozmaydi.
         services.AddScoped<HireCandidateCommandHandler>();
 
         // Rezyume fayli — xodim hujjatlari bilan bir xil quvurdan o'tadi
@@ -66,16 +65,6 @@ internal static class RecruitingRegistration
         services.AddScoped<UploadCandidatePhotoCommandHandler>();
         services.AddScoped<GetCandidatePhotoQueryHandler>();
         services.AddScoped<DeleteCandidatePhotoCommandHandler>();
-
-        // Ish takliflari
-        services.AddScoped<ListCandidateOffersQueryHandler>();
-        services.AddScoped<SendJobOfferCommandHandler>();
-        services.AddScoped<ChangeJobOfferCommandHandler>();
-
-        // Taklifni qabul qilish — 1-bosqichning ishga qabul oqimini
-        // chaqiradi, shu sababli `HireEmployeeCommandHandler` ga bog'liq
-        // (u `EmployeeRegistration` da ro'yxatga olingan).
-        services.AddScoped<AcceptJobOfferCommandHandler>();
 
         return services;
     }

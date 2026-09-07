@@ -132,7 +132,7 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
     /// </summary>
     /// <remarks>
     /// <paramref name="candidateId"/> — 2-bosqich (rekruting) bilan yagona
-    /// bog'lanish nuqtasi: taklifni qabul qilgan nomzod shu yerdan ishga
+    /// bog'lanish nuqtasi: ishga olingan nomzod shu yerdan ishga
     /// qabul HODISASIGA yoziladi. Ixtiyoriy va oxirida turadi — qo'lda
     /// kiritilgan qabul (HR formasi) va Excel'dan ko'chirish uni bermaydi,
     /// ya'ni mavjud chaqiruvlar o'zgarmaydi.

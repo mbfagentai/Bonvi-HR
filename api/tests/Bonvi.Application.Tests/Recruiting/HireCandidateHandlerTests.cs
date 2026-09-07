@@ -6,13 +6,13 @@ using NSubstitute;
 namespace Bonvi.Application.Tests.Recruiting;
 
 /// <summary>
-/// Nomzoddan xodimga o'tishning ODATIY yo'li: taklifsiz, to'g'ridan-to'g'ri.
+/// Nomzoddan xodimga o'tish — to'g'ridan-to'g'ri, oraliq qadamsiz.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu — 1-bosqich bilan 2-bosqichni bog'laydigan ikkinchi nuqta va tez
-/// orada YAGONA nuqta bo'lib qoladi (ish taklifi o'chiriladi), shu sababli
-/// qoplama <c>AcceptJobOfferHandlerTests</c> bilan bir xil zichlikda.
+/// Bu — 1-bosqich bilan 2-bosqichni bog'laydigan YAGONA nuqta (ish
+/// taklifi orqali boradigan eski yo'l o'chirildi), shu sababli qoplama
+/// shunga yarasha zich.
 /// </para>
 /// <para>
 /// Testlar ishga qabulning MOCK qilingan nusxasini emas, HAQIQIY
@@ -227,21 +227,6 @@ public sealed class HireCandidateHandlerTests
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
         mehnat.ShouldNotBeNull();
         mehnat.Salary.ShouldBeNull("oklad yozuvi ochilmaydi, lekin qabul o'tadi");
-    }
-
-    [Fact]
-    public async Task Ish_taklifi_YARATILMAYDI()
-    {
-        // ⭐ Butun use-case shu uchun yozilgan: HR nomzodni rasmiy taklif
-        // yubormasdan ishga oladi. Taklif jimgina yaratilib qo'yilsa,
-        // uni o'chirish bosqichi (SPEC 3-bo'lim) ma'lumot yo'qotardi.
-        var nomzod = Nomzod();
-
-        var natija = await IshgaOlish.HandleAsync(
-            Buyruq(nomzod.Id), TestContext.Current.CancellationToken);
-
-        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
-        _context.Offers.DidNotReceive().Add(Arg.Any<JobOffer>());
     }
 
     [Fact]

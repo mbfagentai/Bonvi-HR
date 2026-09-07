@@ -42,14 +42,6 @@ public sealed record CandidateStageResponse(
     string Outcome,
     string? Conclusion);
 
-/// <summary>Ish taklifi — testga kerakli qismi.</summary>
-public sealed record OfferResponse(
-    Guid Id,
-    Guid CandidateId,
-    string Status,
-    MoneyResponse Salary,
-    DateOnly StartDate);
-
 /// <summary>Nomzod kartasi — testga kerakli qismi.</summary>
 public sealed record CandidateResponse(
     Guid Id,
@@ -63,7 +55,6 @@ public sealed record CandidateResponse(
     Guid? HiredEmployeeId,
     Guid? HiredEmploymentId,
     IReadOnlyList<CandidateStageResponse> Stages,
-    IReadOnlyList<OfferResponse> Offers,
 
     // Rezerv testiga kerak: rezervga o'tkazish ularni to'ldiradi,
     // voronkaga qaytarish esa TOZALAYDI.
@@ -88,20 +79,14 @@ public sealed record CandidatePageResponse(IReadOnlyList<CandidateRowResponse> I
 /// <summary>Ishga qabul natijasi — «accept» javobidagi qism.</summary>
 public sealed record RecruitingHireResponse(HireEmploymentResponse Employment);
 
-/// <summary>«Taklif qabul qilindi» javobining to'liq konverti.</summary>
-public sealed record AcceptOfferResponse(
-    OfferResponse Offer,
-    CandidateResponse Candidate,
-    RecruitingHireResponse Hire);
-
-/// <summary>«Nomzod ishga olindi» (TAKLIFSIZ) javobining to'liq konverti.</summary>
+/// <summary>«Nomzod ishga olindi» javobining to'liq konverti.</summary>
 public sealed record DirectHireResponse(
     CandidateResponse Candidate,
     RecruitingHireResponse Hire);
 
 /// <summary>
 /// Rekruting (2-bosqich) — uchi-uchiga: vakansiya → nomzod → voronka →
-/// ish taklifi → 1-bosqichning ishga qabul oqimi.
+/// 1-bosqichning ishga qabul oqimi.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -227,31 +212,26 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         kengashdan.Stages[^1].Conclusion.ShouldBe("Кенгаш хулосаси: ишга олинсин");
         kengashdan.Stages[^1].Stage.ShouldBe("Кенгаш", "bosqich NOMI qatorda tayyor keladi");
 
-        // ── 4. Ish taklifi ──
-        var taklif = await TaklifAsync(mijoz, nomzod.Id);
-        taklif.Status.ShouldBe("Sent");
-        taklif.Salary.Amount.ShouldBe(6_000_000m);
-
-        // ── 5. Taklif qabul qilinadi → XODIM yaratiladi ──
+        // ── 4. Nomzod ishga olinadi → XODIM yaratiladi ──
         // ⭐ Firma va LAVOZIM aynan shu yerda tanlanadi — vakansiyadan
         //    emas. Bu e'lon bilan shtat jadvali uchrashadigan yagona nuqta.
         using var qabul = await mijoz.PostAsJsonAsync(
-            new Uri($"/api/recruiting/offers/{taklif.Id}/accept", UriKind.Relative),
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/hire", UriKind.Relative),
             new
             {
                 legalEntityId = firmaId,
                 positionId = lavozimId,
                 orderNo = "185-b",
                 orderDate = new DateOnly(2026, 4, 10),
+                salaryAmount = 6_000_000m,
                 pinfl = (string?)null,
             },
             bekorQilish);
 
         qabul.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qabul));
-        var natija = await qabul.Content.ReadFromJsonAsync<AcceptOfferResponse>(bekorQilish);
+        var natija = await qabul.Content.ReadFromJsonAsync<DirectHireResponse>(bekorQilish);
 
-        natija!.Offer.Status.ShouldBe("Accepted");
-        natija.Candidate.Status.ShouldBe("Hired");
+        natija!.Candidate.Status.ShouldBe("Hired");
         natija.Candidate.HiredEmployeeId.ShouldNotBeNull("nomzod qaysi xodimga aylangani ko'rinishi kerak");
 
         var mehnat = natija.Hire.Employment;
@@ -260,7 +240,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         natija.Candidate.HiredEmployeeId.ShouldBe(mehnat.EmployeeId);
         natija.Candidate.HiredEmploymentId.ShouldBe(mehnat.Id);
 
-        // ── 6. Yangi xodim SINOV ro'yxatida ──
+        // ── 5. Yangi xodim SINOV ro'yxatida ──
         using var sinovlar = await mijoz.GetAsync(
             new Uri("/api/probations?status=InProgress", UriKind.Relative), bekorQilish);
 
@@ -269,7 +249,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             q => q.EmployeeId == mehnat.EmployeeId,
             "ishga olingan nomzod /sinov ro'yxatida");
 
-        // ── 7. Nomzod voronkada FAOL bo'lib qolmaydi ──
+        // ── 6. Nomzod voronkada FAOL bo'lib qolmaydi ──
         var faollar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
         faollar.Items.ShouldNotContain(q => q.Id == nomzod.Id);
 
@@ -277,7 +257,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         ishgaOlinganlar.Items.ShouldContain(q => q.Id == nomzod.Id && q.HiredEmployeeId == mehnat.EmployeeId);
 
 
-        // ── 8. Vakansiya sanog'i yangilandi ──
+        // ── 7. Vakansiya sanog'i yangilandi ──
         using var vakansiyaJavobi = await mijoz.GetAsync(
             new Uri($"/api/recruiting/vacancies/{vakansiya.Id}", UriKind.Relative), bekorQilish);
 
@@ -286,9 +266,9 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         yangilangan.HiredCount.ShouldBe(1);
         yangilangan.Status.ShouldBe("Open", "o'rin to'lganda vakansiya O'ZI yopilmaydi — bu HR qarori");
 
-        // ── 9. Ikkinchi marta qabul qilib bo'lmaydi ──
+        // ── 8. Ikkinchi marta qabul qilib bo'lmaydi ──
         using var takror = await mijoz.PostAsJsonAsync(
-            new Uri($"/api/recruiting/offers/{taklif.Id}/accept", UriKind.Relative),
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/hire", UriKind.Relative),
             new { legalEntityId = firmaId, positionId = lavozimId },
             bekorQilish);
 
@@ -296,12 +276,11 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
-    public async Task Nomzod_TAKLIFSIZ_xodimga_aylanadi()
+    public async Task Nomzod_qoshimcha_maydonlar_bilan_xodimga_aylanadi()
     {
-        // ⭐ Ishga olishning ODATIY yo'li: rasmiy ish taklifi TALAB
-        //    QILINMAYDI. Amalda HR nomzod bilan gaplashib, kelishib, o'sha
-        //    kuni hujjatga o'tkazadi — taklif esa alohida bosqichda
-        //    butunlay o'chiriladi.
+        // Yuqoridagi to'liq voronka testidan farqi: nomzod darhol
+        // kengash bosqichida yaratiladi va so'rovda oklad, ishga qabul
+        // sanasi ham beriladi — ya'ni formaning to'liq shakli.
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
@@ -330,7 +309,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         // 1. Nomzod voronkadan chiqdi va xodimga bog'landi
         natija!.Candidate.Status.ShouldBe("Hired");
-        natija.Candidate.Offers.ShouldBeEmpty("taklif yaratilmaydi — butun gap shunda");
         natija.Candidate.HiredEmployeeId.ShouldNotBeNull("nomzod qaysi xodimga aylangani ko'rinishi kerak");
 
         // 2. Xodim, mehnat munosabati va MAJBURIY sinov muddati yaratildi
@@ -348,7 +326,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var sahifa = await sinovlar.Content.ReadFromJsonAsync<ProbationPageResponse>(bekorQilish);
         sahifa!.Items.ShouldContain(
             q => q.EmployeeId == mehnat.EmployeeId,
-            "taklifsiz olingan xodim ham /sinov ro'yxatiga tushadi");
+            "ishga olingan xodim /sinov ro'yxatiga tushadi");
 
         // 4. Voronkada faol qolmaydi, vakansiya sanog'i yangilanadi
         var faollar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
@@ -371,11 +349,10 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
-    public async Task Taklifsiz_ishga_olishda_FIRMA_va_LAVOZIM_majburiy()
+    public async Task Ishga_olishda_FIRMA_va_LAVOZIM_majburiy()
     {
-        // Xato kodlari `nomzod.*` prefiksida, `taklif.*` da EMAS: bu boshqa
-        // ekran va ish taklifi funksiyasi bilan birga o'sha kodlar ham
-        // o'chiriladi.
+        // Xato kodlari `nomzod.*` prefiksida: ular ish taklifi bilan
+        // birga o'chirilgan `taklif.*` kodlarining o'rnini bosadi.
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
@@ -620,26 +597,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
-    public async Task Ikkinchi_faol_taklif_yuborilmaydi()
-    {
-        var bekorQilish = TestContext.Current.CancellationToken;
-        using var mijoz = await AdminMijozAsync();
-
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
-        var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
-
-        await TaklifAsync(mijoz, nomzod.Id);
-
-        using var ikkinchi = await mijoz.PostAsJsonAsync(
-            new Uri("/api/recruiting/offers", UriKind.Relative),
-            new { candidateId = nomzod.Id, salaryAmount = 7_000_000m, startDate = new DateOnly(2026, 5, 1) },
-            bekorQilish);
-
-        ikkinchi.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(ikkinchi));
-        (await MatnAsync(ikkinchi)).ShouldContain("taklif.faol_mavjud");
-    }
-
-    [Fact]
     public async Task Ochirilgan_bosqichga_otkazilmaydi_lekin_unda_turgan_nomzod_yoqolmaydi()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
@@ -775,51 +732,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             bekorQilish);
 
         yopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yopish));
-    }
-
-    [Fact]
-    public async Task Qabulda_LAVOZIM_majburiy()
-    {
-        // ⭐ Foydalanuvchining qarori: «ишга олингандан кейин
-        // компаниянинг бўлимлари билан ҳам танланиб АНИҚ ЛАВОЗИМ
-        // танланади». Vakansiyada lavozim yo'q, ya'ni uni bu yerda
-        // bo'sh qoldirish xodimni lavozimsiz yaratardi.
-        //
-        // ⚠️ Bu majburiylik FAQAT rekruting qatlamida:
-        // `POST /api/employments/hire` lavozimsiz ishlashda davom etadi
-        // (HR formasi va Excel'dan ko'chirish unga tayanadi).
-        var bekorQilish = TestContext.Current.CancellationToken;
-        using var mijoz = await AdminMijozAsync();
-
-        var (firmaId, _) = await MalumotnomaAsync();
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
-        var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
-        var taklif = await TaklifAsync(mijoz, nomzod.Id);
-
-        using var lavozimsiz = await mijoz.PostAsJsonAsync(
-            new Uri($"/api/recruiting/offers/{taklif.Id}/accept", UriKind.Relative),
-            new { legalEntityId = firmaId },
-            bekorQilish);
-
-        lavozimsiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(lavozimsiz));
-        (await MatnAsync(lavozimsiz)).ShouldContain("taklif.lavozim_yoq");
-
-        // Firma ham majburiy — u `HireEmployeeCommand` da nullable emas.
-        using var firmasiz = await mijoz.PostAsJsonAsync(
-            new Uri($"/api/recruiting/offers/{taklif.Id}/accept", UriKind.Relative),
-            new { },
-            bekorQilish);
-
-        firmasiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(firmasiz));
-        (await MatnAsync(firmasiz)).ShouldContain("taklif.yuridik_shaxs_yoq");
-
-        // Nomzod voronkada QOLDI: rad etilgan qabul hech narsani
-        // o'zgartirmaydi.
-        using var karta = await mijoz.GetAsync(
-            new Uri($"/api/recruiting/candidates/{nomzod.Id}", UriKind.Relative), bekorQilish);
-
-        var kartaJavobi = await karta.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
-        kartaJavobi!.Status.ShouldBe("InProgress");
     }
 
     [Fact]
@@ -1072,29 +984,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         nomzod.ShouldNotBeNull();
         return nomzod;
-    }
-
-    private static async Task<OfferResponse> TaklifAsync(HttpClient mijoz, Guid nomzodId)
-    {
-        using var javob = await mijoz.PostAsJsonAsync(
-            new Uri("/api/recruiting/offers", UriKind.Relative),
-            new
-            {
-                candidateId = nomzodId,
-                salaryAmount = 6_000_000m,
-                startDate = new DateOnly(2026, 4, 15),
-                sentAt = new DateOnly(2026, 4, 5),
-                expiresAt = new DateOnly(2026, 4, 12),
-            },
-            TestContext.Current.CancellationToken);
-
-        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
-
-        var taklif = await javob.Content.ReadFromJsonAsync<OfferResponse>(
-            TestContext.Current.CancellationToken);
-
-        taklif.ShouldNotBeNull();
-        return taklif;
     }
 
     private static async Task<CandidatePageResponse> NomzodlarAsync(HttpClient mijoz, string sorov)

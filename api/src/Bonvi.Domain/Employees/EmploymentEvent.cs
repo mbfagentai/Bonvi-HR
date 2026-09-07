@@ -118,9 +118,9 @@ public sealed class EmploymentEvent : Entity
     /// <para>
     /// Ikkinchi (va amaliy) foydasi: hodisa bilan BIR TRANZAKSIYADA
     /// yoziladi, ya'ni «xodim yaratildi, lekin bog'lanish yozilmadi»
-    /// holati umuman bo'lmaydi. Taklifni qabul qilish oqimi shu tufayli
+    /// holati umuman bo'lmaydi. Nomzodni ishga olish oqimi shu tufayli
     /// takroriy urinishga chidamli — batafsil
-    /// <c>AcceptJobOfferCommandHandler</c> izohida.
+    /// <c>HireCandidateCommandHandler</c> izohida.
     /// </para>
     /// <para>
     /// Domen qatlami rekrutingni BILMAYDI: bu shunchaki identifikator,

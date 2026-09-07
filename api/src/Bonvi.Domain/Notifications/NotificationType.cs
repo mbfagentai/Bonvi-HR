@@ -79,17 +79,15 @@ public enum NotificationType
     /// </remarks>
     CandidateNew = 7,
 
-    /// <summary>Ish taklifiga javob muddati tugayapti.</summary>
-    JobOfferExpiring = 8,
-
-    /// <summary>Ish taklifiga javob muddati TUGAGAN, lekin taklif hamon ochiq.</summary>
-    /// <remarks>
-    /// Tizim taklifni O'ZI «muddati o'tdi» deb belgilamaydi — buni HR
-    /// qiladi (<c>JobOffer.MarkExpired</c> izohi). Ya'ni muddati o'tgan
-    /// taklif hech qayerda o'z-o'zidan qizarmaydi va aynan shu sababli
-    /// bildirishnoma kerak.
-    /// </remarks>
-    JobOfferExpired = 9,
+    /*
+      8 va 9 — BO'SH. Ular ish taklifining muddati haqidagi ikkita tur
+      edi va funksiya bilan birga olib tashlandi
+      (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim). Qiymatlar QAYTA
+      ISHLATILMAYDI va qolganlari SURILMAYDI — yuqoridagi qoida
+      («yangisi oxiriga») aynan shuni anglatadi: bugun bo'shagan
+      raqamni ertaga boshqa turga berish, eski mijoz uchun bir turni
+      ikkinchisiga aylantirib qo'yardi.
+    */
 
     /// <summary>Telegram boti orqali ARIZA tushdi.</summary>
     /// <remarks>
@@ -188,13 +186,11 @@ public static class NotificationAccess
         NotificationType.BirthdayToday
             or NotificationType.BirthdayTomorrow => Permissions.EmployeesView,
 
-        // Nomzod va taklif — rekruting yo'lagi. Foydalanuvchi aniq talab
-        // qildi: `recruiting.view` yo'q odamga nomzod bildirishnomasi
+        // Nomzod — rekruting yo'lagi. Foydalanuvchi aniq talab qildi:
+        // `recruiting.view` yo'q odamga nomzod bildirishnomasi
         // KO'RINMASIN.
         NotificationType.CandidateNew
-            or NotificationType.CandidateFromBot
-            or NotificationType.JobOfferExpiring
-            or NotificationType.JobOfferExpired => Permissions.RecruitingView,
+            or NotificationType.CandidateFromBot => Permissions.RecruitingView,
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(type),

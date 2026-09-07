@@ -105,3 +105,8 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   kelardi; taklifsiz yo'lda uni beradigan boshqa joy yo'q va
   `HireCandidateCommand.SalaryAmount` izohi to'g'ridan-to'g'ri «qabul
   formasidan» deydi. Maydonsiz har bir yangi xodim okladsiz ochilardi.
+- [2026-09-07] Ish taklifi o'chirilganda `NotificationType` ning 8 va 9 qiymatlari
+  bo'sh qoldi → qolgan turlar SURILMADI, `CandidateFromBot` hamon 10 → sanoq
+  qiymatlarini surish mijoz bilan server orasidagi moslikni jimgina buzardi;
+  klientda son bo'yicha o'girish shu sababli indeks emas, aniq jadval orqali
+  ketadi (`notifications-api.ts` → `TYPE_BY_NUMBER`).

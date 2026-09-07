@@ -124,7 +124,8 @@ public sealed record CandidateQuestionnaireInput(
       rekordidagi qiymat turiga (`Guid`, `DateTimeOffset`) sukut qiymat
       yozilsa, .NET 10 OpenAPI generatori butun `/openapi/v1.json` ni
       500 qiladi — ya'ni `./bonvi gen` umuman ishlamay qoladi. Bir
-      marta shunday bo'lgan (`AcceptJobOfferRequest`, 2026-08-29).
+      marta shunday bo'lgan: o'shanda ish taklifini qabul qilish
+      so'rovi butun hujjatni yiqitgan edi (2026-08-29).
     */
     DateTimeOffset? OfferAcceptedAt = null,
     string? WorkExperience = null,

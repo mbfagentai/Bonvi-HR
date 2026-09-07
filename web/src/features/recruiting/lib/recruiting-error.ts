@@ -10,7 +10,7 @@ import { problemCode } from '@/shared/api/problem-details'
  * degan savol chaqiruv joyida ko'rinib tursin.
  *
  * ⚠️ Rekruting xato kodlari (`errors.nomzod.*`, `errors.vakansiya.*`,
- * `errors.taklif.*`, `errors.bosqich.*`) TO'RT TILGA ALLAQACHON tarjima
+ * `errors.bosqich.*`) TO'RT TILGA ALLAQACHON tarjima
  * qilingan — `useErrorMessage` ularni o'zi topadi, bu yerda hech narsa
  * takrorlanmaydi.
  */
@@ -40,7 +40,7 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   //
   // Lavozim, bo'lim va firma xatolari bu yerda YO'Q va bo'lishi ham
   // mumkin emas: vakansiya formasida bunday maydonlar qolmadi. Ular
-  // pastdagi «taklif qabul qilinganda» bo'limiga ko'chdi.
+  // pastdagi «ishga olishda» bo'limiga ko'chdi.
   'vakansiya.nom_yoq': 'vacancyTitleId',
   'vakansiya.nom_topilmadi': 'vacancyTitleId',
   'vakansiya.masul_topilmadi': 'responsibleEmployeeId',
@@ -62,39 +62,25 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   'telefon.mamlakat_kodi': 'phone',
   'telefon.operator': 'phone',
 
-  // ── taklif
-  'taklif.boshlash_sanasi': 'startDate',
-  'taklif.muddat_sanasi': 'expiresAt',
+  // ── oklad («Ishga olish» formasi)
   'pul.manfiy': 'salaryAmount',
   'pul.aniqlik': 'salaryAmount',
   'pul.valyuta': 'salaryAmount',
 
-  // ── taklif qabul qilinganda: SHTAT birligi
+  // ── ishga olishda: SHTAT birligi
   //
   // Firma va lavozim MAJBURIY, bo'lim ixtiyoriy.
   //
   // `yuridik_shaxs.topilmadi` va `lavozim.topilmadi` — ishga qabul
   // oqimining O'Z kodlari (`EmployeeErrors`, `CatalogErrors`): rekruting
   // ularni takrorlamaydi, faqat o'sha maydonlarga yo'naltiradi.
-  'taklif.yuridik_shaxs_yoq': 'legalEntityId',
-  'taklif.lavozim_yoq': 'positionId',
-  'taklif.bolim_topilmadi': 'departmentId',
-  'yuridik_shaxs.topilmadi': 'legalEntityId',
-  'lavozim.topilmadi': 'positionId',
-
-  // ── TAKLIFSIZ ishga olishda: SHTAT birligi
-  //
-  // Yuqoridagi uchtasining aynan nusxasi, faqat prefiksi boshqa — va
-  // bu server tomonda ATAYLAB shunday (`RecruitingErrors` izohi): xato
-  // kodi «qaysi EKRANDA nima noto'g'ri» degan ma'noni tashiydi, taklif
-  // qabuli va nomzod kartasidagi «Ishga olish» esa ikki xil forma.
-  // Ish taklifi o'chirilgach (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim)
-  // `taklif.*` qatorlari ketadi, shu uchtasi qoladi.
   'nomzod.yuridik_shaxs_yoq': 'legalEntityId',
   'nomzod.lavozim_yoq': 'positionId',
   'nomzod.bolim_topilmadi': 'departmentId',
+  'yuridik_shaxs.topilmadi': 'legalEntityId',
+  'lavozim.topilmadi': 'positionId',
 
-  // ── taklif qabul qilinganda: ishga qabulning o'z xatolari
+  // ── ishga olishda: ishga qabulning o'z xatolari
   'pinfl.uzunlik': 'pinfl',
   'pinfl.birinchi_raqam': 'pinfl',
   'pinfl.sana': 'pinfl',
@@ -105,11 +91,4 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   'mehnat.stavka': 'rate',
   'sinov.muddat': 'probationDays',
   'sinov.majburiy': 'probationDays',
-  /*
-    Oklad — FAQAT taklifsiz ishga olish formasida bor maydon
-    (`candidate-hire-dialog.tsx`): taklif qabul qilinganda summa
-    taklifdan kelardi. `pul.*` kodlari taklif formasida
-    `salaryAmount` ga tushadi va bu yerda ular ALLAQACHON yuqorida
-    sanab o'tilgan — maydon nomi ikkala formada ham bir xil.
-  */
 }

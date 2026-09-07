@@ -24,11 +24,20 @@ import { api } from '@/shared/api/http-client'
  * tizimi hosil qiladi. Tarjima kalitlari uchun birinchi harf kichraytiriladi
  * va bu O'GIRISH BITTA joyda turadi (`notification-presentation.ts`).
  *
- * Massivlar tartibi C# sanoq qiymatlariga mos (1 dan boshlanadi) —
- * pastdagi `enumValue` shunga tayanadi.
+ * Yo'lakcha (marshrut) va daraja massivlarining tartibi C# sanoq
+ * qiymatlariga mos (1 dan boshlanadi) — `enumValue` shunga tayanadi.
+ * TURLAR uchun bu endi to'g'ri emas, sababi pastda.
  */
 
-/** To'qqizta tur. Yangisi OXIRIGA qo'shiladi (backend'da ham shunday). */
+/**
+ * Sakkizta tur. Yangisi OXIRIGA qo'shiladi (backend'da ham shunday).
+ *
+ * ⚠️ Tartib C# sanoq QIYMATLARIGA MOS EMAS: ish taklifi bilan birga
+ * 8 va 9-qiymatlar o'chirildi va qolganlari SURILMADI
+ * (`NotificationType` izohi), ya'ni `CandidateFromBot` server tomonda
+ * hamon 10. Shu sababli pastda son bo'yicha o'girish alohida jadval
+ * orqali ketadi — indeks bo'yicha emas.
+ */
 export const NOTIFICATION_TYPES = [
   'ProbationEndingSoon',
   'ProbationEndsToday',
@@ -37,8 +46,6 @@ export const NOTIFICATION_TYPES = [
   'BirthdayToday',
   'BirthdayTomorrow',
   'CandidateNew',
-  'JobOfferExpiring',
-  'JobOfferExpired',
   'CandidateFromBot',
 ] as const
 
@@ -99,18 +106,12 @@ export interface AppNotification {
   type: NotificationType
   severity: NotificationSeverity
   /**
-   * Bildirishnoma ISHORA QILAYOTGAN sana (sinov tugashi, tug'ilgan kun,
-   * taklif muddati) — «xabar kelgan vaqt» EMAS: bildirishnoma
-   * saqlanmaydi, u so'rov kelganda hisoblanadi.
+   * Bildirishnoma ISHORA QILAYOTGAN sana (sinov tugashi, tug'ilgan
+   * kun) — «xabar kelgan vaqt» EMAS: bildirishnoma saqlanmaydi, u
+   * so'rov kelganda hisoblanadi.
    */
   date: string
-  /**
-   * Matnni yig'ish uchun qiymatlar; kalitlari turga bog'liq.
-   *
-   * ⚠️ `salaryAmount`/`salaryCurrency` `salary.view` ruxsati yo'q
-   * foydalanuvchida UMUMAN kelmaydi — matn ularsiz ham to'liq bo'lishi
-   * shart (`notification-presentation.ts` dagi qoida).
-   */
+  /** Matnni yig'ish uchun qiymatlar; kalitlari turga bog'liq. */
   params: Readonly<Record<string, string>>
   link: NotificationLink
   isRead: boolean
@@ -191,12 +192,41 @@ function toLink(raw: unknown): NotificationLink {
   }
 }
 
+/**
+ * Tur — SON qiymatlari bilan.
+ *
+ * Alohida jadval, chunki qiymatlarda BO'SHLIQ bor: 8 va 9 ish taklifi
+ * turlariniki edi va ular o'chirilgach ham qayta ishlatilmaydi
+ * (backend'dagi `NotificationType` izohi). Massiv indeksi bilan
+ * o'girish `CandidateFromBot` ni jimgina noto'g'ri turga aylantirardi.
+ */
+const TYPE_BY_NUMBER: Readonly<Record<number, NotificationType>> = {
+  1: 'ProbationEndingSoon',
+  2: 'ProbationEndsToday',
+  3: 'ProbationOverdue',
+  4: 'ProbationMissing',
+  5: 'BirthdayToday',
+  6: 'BirthdayTomorrow',
+  7: 'CandidateNew',
+  10: 'CandidateFromBot',
+}
+
+/**
+ * Tur: server NOM yuboradi (`JsonStringEnumConverter`), son esa faqat
+ * zaxira yo'l — sanoq JSON sozlamasi o'zgarsa ekran buzilmasin.
+ */
+function toType(raw: unknown): NotificationType {
+  if (typeof raw === 'number') return TYPE_BY_NUMBER[raw] ?? 'ProbationEndingSoon'
+
+  return enumValue(raw, NOTIFICATION_TYPES, 'ProbationEndingSoon')
+}
+
 function toNotification(raw: unknown): AppNotification {
   const box = (raw ?? {}) as Record<string, unknown>
 
   return {
     key: text(box['key']) ?? '',
-    type: enumValue(box['type'], NOTIFICATION_TYPES, 'ProbationEndingSoon'),
+    type: toType(box['type']),
     severity: enumValue(box['severity'], NOTIFICATION_SEVERITIES, 'Info'),
     date: text(box['date']) ?? '',
     params: toParams(box['params']),

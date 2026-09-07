@@ -38,9 +38,6 @@ public sealed class SettingsInNotificationsTests
 
         _context.Source.LastCandidateSince.ShouldBe(
             NotificationTestContext.Today.AddDays(-NotificationRules.NewCandidateDays));
-
-        _context.Source.LastOfferUntil.ShouldBe(
-            NotificationTestContext.Today.AddDays(NotificationRules.OfferWarningDays));
     }
 
     [Fact]
@@ -65,16 +62,6 @@ public sealed class SettingsInNotificationsTests
         _context.Source.LastCandidateSince.ShouldBe(NotificationTestContext.Today.AddDays(-3));
     }
 
-    [Fact]
-    public async Task Taklif_chegarasi_sozlamadan_olinadi()
-    {
-        _context.Settings.Seed(SystemSettingKeys.OfferWarningDays, "10");
-
-        await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
-
-        _context.Source.LastOfferUntil.ShouldBe(NotificationTestContext.Today.AddDays(10));
-    }
-
     /// <summary>
     /// Bitta chegarani o'zgartirish qolganlariga tegmaydi. Sozlamalar
     /// bitta jadvalda yotgani uchun bu ravshan emas: noto'g'ri yozilgan
@@ -87,7 +74,7 @@ public sealed class SettingsInNotificationsTests
 
         await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
 
-        _context.Source.LastOfferUntil.ShouldBe(
-            NotificationTestContext.Today.AddDays(NotificationRules.OfferWarningDays));
+        _context.Source.LastCandidateSince.ShouldBe(
+            NotificationTestContext.Today.AddDays(-NotificationRules.NewCandidateDays));
     }
 }

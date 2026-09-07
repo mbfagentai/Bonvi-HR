@@ -68,14 +68,14 @@ public static class Permissions
     public const string SafetyManage = "safety.manage";
 
     /// <summary>
-    /// Rekruting (2-bosqich): vakansiya, nomzod, voronka, ish taklifi.
+    /// Rekruting (2-bosqich): vakansiya, nomzod, voronka, ishga olish.
     /// </summary>
     /// <remarks>
     /// <para>
     /// ALOHIDA ruxsat guruhi — <see cref="EmployeesView"/> ostiga
     /// qo'shilmagan. Sabab shakliy emas, mazmuniy: nomzod HALI xodim emas
     /// va uning yozuvi butunlay boshqa toifadagi ma'lumot — rad etish
-    /// sabablari, suhbat xulosalari, taklif qilingan oklad. Xodimlar
+    /// sabablari, suhbat xulosalari, kelishilgan oklad. Xodimlar
     /// ro'yxatini ochgan har bir kishi «kimni nega olmadik» degan
     /// yozuvlarni ham ko'rib turishi kerak emas
     /// (<see cref="IncentivesView"/> bilan bir xil mantiq).

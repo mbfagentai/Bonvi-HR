@@ -99,18 +99,26 @@ public sealed class NotificationKeyTests
     }
 
     /// <summary>
-    /// «taklif.muddati» — «taklif.muddati_otdi» ning boshlanishi. Tur
-    /// aniqlash <c>StartsWith</c> bilan yozilsa, muddati o'tgan taklif
-    /// jimgina «tugayapti» bo'lib chiqardi.
+    /// Tanish prefiks bilan BOSHLANADIGAN begona kalit tur bermaydi.
     /// </summary>
+    /// <remarks>
+    /// Tur aniqlash <c>StartsWith</c> bilan yozilsa, «nomzod.yangi_arxiv»
+    /// degan begona kalit jimgina «yangi nomzod» bo'lib chiqardi. Ilgari
+    /// bunday juftlik tizimda HAQIQATAN bor edi («taklif.muddati» va
+    /// «taklif.muddati_otdi»); ish taklifi o'chirilgach u qolmadi, lekin
+    /// qoida o'zgarmaydi — kalit AVVAL ajratgich bo'yicha bo'linadi va
+    /// birinchi bo'lak TO'LIQ solishtiriladi.
+    /// </remarks>
     [Fact]
-    public void Ustma_ust_tushadigan_prefikslar_chalkashtirilmaydi()
+    public void Tanish_prefiks_bilan_boshlanadigan_begona_kalit_qabul_qilinmaydi()
     {
-        var tugayapti = NotificationKey.For(NotificationType.JobOfferExpiring, Id, Sana);
-        var tugagan = NotificationKey.For(NotificationType.JobOfferExpired, Id, Sana);
+        var prefiks = NotificationKey.Prefix(NotificationType.CandidateNew);
 
-        NotificationKey.TypeOf(tugayapti).ShouldBe(NotificationType.JobOfferExpiring);
-        NotificationKey.TypeOf(tugagan).ShouldBe(NotificationType.JobOfferExpired);
+        NotificationKey.TypeOf($"{prefiks}_arxiv{NotificationKey.Separator}{Id:D}")
+            .ShouldBeNull("prefiks TO'LIQ solishtirilishi kerak");
+
+        NotificationKey.TypeOf($"{prefiks}{NotificationKey.Separator}{Id:D}")
+            .ShouldBe(NotificationType.CandidateNew);
     }
 
     [Fact]
@@ -169,10 +177,7 @@ public sealed class NotificationKeyTests
         NotificationAccess.RequiredPermission(NotificationType.CandidateNew)
             .ShouldBe(Permissions.RecruitingView);
 
-        NotificationAccess.RequiredPermission(NotificationType.JobOfferExpiring)
-            .ShouldBe(Permissions.RecruitingView);
-
-        NotificationAccess.RequiredPermission(NotificationType.JobOfferExpired)
+        NotificationAccess.RequiredPermission(NotificationType.CandidateFromBot)
             .ShouldBe(Permissions.RecruitingView);
     }
 }

@@ -189,8 +189,8 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     // ────────────────────────────────────────────────────────────
     //  REKRUTING (2-bosqich)
-    //  Voronka: vakansiya → nomzod → bosqichlar → ish taklifi →
-    //  1-bosqichning ishga qabul oqimi. Bosqichlar ro'yxati KODDA emas,
+    //  Voronka: vakansiya → nomzod → bosqichlar → ishga olish
+    //  (1-bosqichning ishga qabul oqimi). Bosqichlar ro'yxati KODDA emas,
     //  ma'lumotnomada — foydalanuvchi qarori (sababi `PipelineStage` da).
     // ────────────────────────────────────────────────────────────
 
@@ -218,9 +218,6 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Botda to'ldirilgan anketalar (<c>candidate_questionnaires</c>).</summary>
     public DbSet<CandidateQuestionnaire> CandidateQuestionnaires => Set<CandidateQuestionnaire>();
-
-    /// <summary>Ish takliflari (<c>job_offers</c>).</summary>
-    public DbSet<JobOffer> JobOffers => Set<JobOffer>();
 
     // ────────────────────────────────────────────────────────────
     //  BILDIRISHNOMALAR

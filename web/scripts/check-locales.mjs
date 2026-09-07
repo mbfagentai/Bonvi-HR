@@ -402,15 +402,6 @@ const DYNAMIC_KEY_SOURCES = [
     ],
   },
   {
-    file: 'src/features/recruiting/components/candidate-offers-tab.tsx',
-    values: () => ['decline', 'expire'].map((value) => ({ value, line: 0 })),
-    keysFor: (value) => [
-      `recruiting.offerClose.${value}Title`,
-      `recruiting.offerClose.${value}Text`,
-      `recruiting.offerClose.${value}Confirm`,
-    ],
-  },
-  {
     /*
      * Vakansiya amallari — UCHTA. Ilgari to'rtta edi: «pause» butunlay
      * o'chirildi (pauza va yopish ayni natijani berardi — backend'dagi
@@ -433,10 +424,8 @@ const DYNAMIC_KEY_SOURCES = [
    * `` t(`notifications.type.${textKey}.title`) ``.
    *
    * ⚠️ Manba `NOTIFICATION_TYPES` (server turlari) EMAS, balki
-   * `NOTIFICATION_TEXT_KEYS`: bitta tur ikkita matnga ajralishi mumkin.
-   * `JobOfferExpiring` da `daysLeft = "0"` kelganda «0 kundan keyin
-   * tugaydi» degan jumla hech qaysi tilda o'qilmaydi, shu sababli u
-   * uchun alohida `jobOfferExpiringToday` matni bor. Kod ham AYNAN shu
+   * `NOTIFICATION_TEXT_KEYS`: bitta tur ikkita matnga ajralishi mumkin
+   * (ish taklifi turlarida shunday bo'lgan edi). Kod ham AYNAN shu
    * massivdan tanlaydi (`notificationTextKey`), ya'ni ro'yxat
    * o'zgarganda tekshiruv o'zi yangilanadi.
    */

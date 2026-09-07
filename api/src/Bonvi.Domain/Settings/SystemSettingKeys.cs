@@ -431,9 +431,6 @@ public static class SystemSettingKeys
     /// <summary>Nomzod necha kun davomida «yangi» hisoblanadi.</summary>
     public const string NewCandidateDays = "notifications.newCandidateDays";
 
-    /// <summary>Ish taklifi muddati tugashiga necha kun qolganda ogohlantiriladi.</summary>
-    public const string OfferWarningDays = "notifications.offerWarningDays";
-
     /// <summary>O'qilgan bildirishnoma ro'yxatda necha kun qoladi.</summary>
     public const string ReadRetentionDays = "notifications.readRetentionDays";
 
@@ -646,12 +643,6 @@ public static class SystemSettingKeys
             NewCandidateDays,
             SystemSettingKind.Number,
             Number(NotificationRules.NewCandidateDays),
-            Min: 1,
-            Max: MaxDays),
-        new(
-            OfferWarningDays,
-            SystemSettingKind.Number,
-            Number(NotificationRules.OfferWarningDays),
             Min: 1,
             Max: MaxDays),
         new(

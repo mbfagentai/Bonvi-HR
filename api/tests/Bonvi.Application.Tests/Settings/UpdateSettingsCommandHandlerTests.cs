@@ -171,8 +171,8 @@ public sealed class UpdateSettingsCommandHandlerTests
     {
         var natija = await Handler.HandleAsync(
             Command(
-                (SystemSettingKeys.OfferWarningDays, "3"),
-                (SystemSettingKeys.OfferWarningDays, "5")),
+                (SystemSettingKeys.ProbationWarningDays, "3"),
+                (SystemSettingKeys.ProbationWarningDays, "5")),
             TestContext.Current.CancellationToken);
 
         // «Oxirgisi g'olib» qoidasi yashirin xato bo'lardi: qaysi qiymat
@@ -192,7 +192,7 @@ public sealed class UpdateSettingsCommandHandlerTests
         var natija = await Handler.HandleAsync(
             Command(
                 (SystemSettingKeys.BotAboutLatin, "Bonvi — 540 xodim"),
-                (SystemSettingKeys.OfferWarningDays, "1000")),
+                (SystemSettingKeys.ProbationWarningDays, "1000")),
             TestContext.Current.CancellationToken);
 
         natija.Error.Code.ShouldBe("sozlama.chegara");
@@ -248,10 +248,10 @@ public sealed class UpdateSettingsCommandHandlerTests
     [Fact]
     public async Task Ikkinchi_yozish_yangi_qator_ochmaydi()
     {
-        _rows.Seed(SystemSettingKeys.OfferWarningDays, "3");
+        _rows.Seed(SystemSettingKeys.ProbationWarningDays, "3");
 
         await Handler.HandleAsync(
-            Command((SystemSettingKeys.OfferWarningDays, "5")),
+            Command((SystemSettingKeys.ProbationWarningDays, "5")),
             TestContext.Current.CancellationToken);
 
         var saqlangan = _rows.Rows.ShouldHaveSingleItem();

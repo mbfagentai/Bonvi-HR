@@ -2073,106 +2073,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("candidate_stage_entries", (string)null);
                 });
 
-            modelBuilder.Entity("Bonvi.Domain.Recruiting.JobOffer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("CandidateId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("candidate_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<DateOnly?>("ExpiresAt")
-                        .HasColumnType("date")
-                        .HasColumnName("expires_at");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("note");
-
-                    b.Property<DateOnly?>("RespondedAt")
-                        .HasColumnType("date")
-                        .HasColumnName("responded_at");
-
-                    b.Property<string>("ResponseNote")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("response_note");
-
-                    b.Property<DateOnly>("SentAt")
-                        .HasColumnType("date")
-                        .HasColumnName("sent_at");
-
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("date")
-                        .HasColumnName("start_date");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.Property<Guid>("VacancyId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("vacancy_id");
-
-                    b.ComplexProperty(typeof(Dictionary<string, object>), "Salary", "Bonvi.Domain.Recruiting.JobOffer.Salary#Money", b1 =>
-                        {
-                            b1.IsRequired();
-
-                            b1.Property<decimal>("Amount")
-                                .HasPrecision(14, 2)
-                                .HasColumnType("numeric(14,2)")
-                                .HasColumnName("salary_amount");
-
-                            b1.Property<string>("Currency")
-                                .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("character varying(3)")
-                                .HasColumnName("salary_currency");
-                        });
-
-                    b.HasKey("Id")
-                        .HasName("pk_job_offers");
-
-                    b.HasIndex("SentAt")
-                        .HasDatabaseName("ix_job_offers_sent_at");
-
-                    b.HasIndex("VacancyId")
-                        .HasDatabaseName("ix_job_offers_vacancy_id");
-
-                    b.HasIndex("CandidateId", "Status")
-                        .HasDatabaseName("ix_job_offers_candidate_id_status");
-
-                    b.ToTable("job_offers", (string)null);
-                });
-
             modelBuilder.Entity("Bonvi.Domain.Recruiting.PipelineStage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2744,23 +2644,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_candidate_stage_entries_pipeline_stages_stage_id");
-                });
-
-            modelBuilder.Entity("Bonvi.Domain.Recruiting.JobOffer", b =>
-                {
-                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
-                        .WithMany()
-                        .HasForeignKey("CandidateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_job_offers_candidates_candidate_id");
-
-                    b.HasOne("Bonvi.Domain.Recruiting.Vacancy", null)
-                        .WithMany()
-                        .HasForeignKey("VacancyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_job_offers_vacancies_vacancy_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.Vacancy", b =>

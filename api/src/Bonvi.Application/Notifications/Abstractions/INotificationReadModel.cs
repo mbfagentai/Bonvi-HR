@@ -14,7 +14,7 @@ namespace Bonvi.Application.Notifications.Abstractions;
 /// <list type="number">
 ///   <item>
 ///     <b>Bildirishnomalarning ko'pchiligi HODISA emas, HOLAT.</b>
-///     «Sinov 7 kundan keyin tugaydi», «ertaga tug'ilgan kun», «taklif
+///     «Sinov 7 kundan keyin tugaydi», «ertaga tug'ilgan kun», «sinov
 ///     muddati o'tib ketdi» — bularning sodir bo'lgan LAHZASI yo'q. Hech
 ///     kim hech narsa qilmasa ham, vaqt o'tishi bilan ular o'z-o'zidan
 ///     rost bo'lib qoladi. Bunday shartni «hodisa» ga aylantirish uchun
@@ -105,20 +105,6 @@ public interface INotificationReadModel
     Task<IReadOnlyList<NewCandidateRow>> ListNewCandidatesAsync(
         DateOnly since,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Javob muddati yaqinlashgan yoki o'tib ketgan, hamon JAVOB KUTAYOTGAN takliflar.
-    /// </summary>
-    /// <remarks>
-    /// Muddatsiz takliflar (<c>ExpiresAt is null</c>) bu yerga tushmaydi:
-    /// HR ataylab «o'ylab ko'ring» deb muddatsiz taklif qilishi mumkin va
-    /// unga eslatma yuborish uchun hech qanday sana yo'q.
-    /// </remarks>
-    /// <param name="until">Shu sanagacha (o'zi ham kiradi) muddati tugaydiganlar.</param>
-    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    Task<IReadOnlyList<JobOfferDeadlineRow>> ListOfferDeadlinesAsync(
-        DateOnly until,
-        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Yakunlanmagan sinov muddati — bildirishnoma uchun kerak bo'lgan minimum.</summary>
@@ -159,26 +145,3 @@ public sealed record NewCandidateRow(
     string? VacancyTitle,
     CandidateSource Source,
     DateOnly AddedOn);
-
-/// <summary>Javob kutayotgan ish taklifi.</summary>
-/// <remarks>
-/// Oklad qatorda XOM holda keladi (miqdor + valyuta), tayyor matn emas:
-/// uni ko'rsatish yoki YASHIRISH <c>salary.view</c> ruxsatiga bog'liq va
-/// bu qaror Application qatlamida qabul qilinadi (<c>SalaryAccess</c>
-/// bilan bir xil naqsh).
-/// </remarks>
-/// <param name="OfferId">Taklif — kalitning asosi.</param>
-/// <param name="CandidateId">Nomzod — havola nomzod kartasiga olib boradi.</param>
-/// <param name="CandidateName">Nomzodning to'liq F.I.Sh.</param>
-/// <param name="VacancyTitle">Qaysi e'longa (vakansiya nomi).</param>
-/// <param name="ExpiresAt">Javob kutiladigan oxirgi sana — kalitning ikkinchi qismi.</param>
-/// <param name="SalaryAmount">Taklif qilingan oylik ish haqi.</param>
-/// <param name="SalaryCurrency">Valyuta kodi (ISO 4217).</param>
-public sealed record JobOfferDeadlineRow(
-    Guid OfferId,
-    Guid CandidateId,
-    string CandidateName,
-    string? VacancyTitle,
-    DateOnly ExpiresAt,
-    decimal SalaryAmount,
-    string SalaryCurrency);

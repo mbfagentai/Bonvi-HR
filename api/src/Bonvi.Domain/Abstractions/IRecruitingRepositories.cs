@@ -94,22 +94,3 @@ public interface ICandidateRepository : IRepository<Candidate>
         Guid vacancyId,
         CancellationToken cancellationToken = default);
 }
-
-/// <summary>Ish takliflari uchun saqlash porti.</summary>
-public interface IJobOfferRepository : IRepository<JobOffer>
-{
-    /// <summary>Nomzodning barcha takliflari — yangidan eskiga.</summary>
-    Task<IReadOnlyList<JobOffer>> GetByCandidateAsync(
-        Guid candidateId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>Nomzodning javob kutayotgan taklifi. Yo'q bo'lsa — <c>null</c>.</summary>
-    /// <remarks>
-    /// Bir vaqtda faqat BITTA faol taklif bo'lishi kerak: ikkita ochiq
-    /// taklif ikki xil oklad va’da qilingan degani va qaysi biri kuchda
-    /// ekani noaniq bo'lardi.
-    /// </remarks>
-    Task<JobOffer?> GetPendingByCandidateAsync(
-        Guid candidateId,
-        CancellationToken cancellationToken = default);
-}

@@ -29,7 +29,7 @@ namespace Bonvi.Domain.Recruiting;
 /// </list>
 /// <para>
 /// <b>Ular QAYERDA uchrashadi:</b> aynan bitta nuqtada —
-/// <c>AcceptJobOfferCommandHandler</c> da, ya'ni taklif QABUL QILINGANDA.
+/// <c>HireCandidateCommandHandler</c> da, ya'ni nomzod ISHGA OLINGANDA.
 /// O'sha paytgacha nomzod haqida «u qaysi e'longa kelgan» degan faktgina
 /// bor; ishga qabul kuni esa HR aniq qaror qabul qiladi: qaysi firmaga,
 /// qaysi bo'limga, qaysi shtat birligiga. Bu qaror e'lonning xossasi emas —

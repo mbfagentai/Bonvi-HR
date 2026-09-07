@@ -40,8 +40,7 @@ public sealed record DeleteNotificationsRequest(IReadOnlyList<string>? Keys);
 /// bir foydalanuvchi o'z bildirishnomalarini ko'radi. MAZMUN esa
 /// ruxsatga bog'liq va u endpoint'da emas, yig'ish paytida filtrlanadi
 /// (<c>NotificationAccess</c>): <c>recruiting.view</c> yo'q odamga
-/// nomzod bildirishnomasi umuman kelmaydi, <c>salary.view</c> yo'qqa
-/// esa taklif summasi parametrlarda bo'lmaydi. Guruhni bitta ruxsat
+/// nomzod bildirishnomasi umuman kelmaydi. Guruhni bitta ruxsat
 /// bilan yopish noto'g'ri bo'lardi — qaysi birini tanlasak ham, boshqa
 /// ruxsatlarga ega foydalanuvchi qo'ng'iroqni umuman ocha olmasdi.
 /// </para>
@@ -78,8 +77,7 @@ public static class NotificationEndpoints
                 "Matn YO'Q: har bir yozuvda tur («type»), parametrlar («params») va tiplashgan " +
                 "havola («link») keladi, jumlani frontend yig'adi (tizim 4 tilli). " +
                 "Bildirishnoma mazmuni RUXSATGA bog'liq: «recruiting.view» yo'q foydalanuvchi " +
-                "nomzod va taklif yozuvlarini umuman ko'rmaydi, «salary.view» yo'qqa esa " +
-                "taklif summasi parametrlarda bo'lmaydi. «limit» — 1 dan 200 gacha (sukut 50); " +
+                "nomzod yozuvlarini umuman ko'rmaydi. «limit» — 1 dan 200 gacha (sukut 50); " +
                 "sahifalash ataylab yo'q. «onlyUnread=true» — faqat o'qilmaganlar.")
             .Produces<NotificationListDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized);

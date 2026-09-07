@@ -1,7 +1,6 @@
 using System.Globalization;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
-using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.Notifications.Dtos;
 using Bonvi.Application.Settings;
@@ -59,9 +58,6 @@ public static class NotificationParams
     /// <summary>Nomzod qo'shilgan sana (ISO).</summary>
     public const string AddedOn = "addedOn";
 
-    /// <summary>Taklifga javob kutiladigan oxirgi sana (ISO).</summary>
-    public const string ExpiresAt = "expiresAt";
-
     /// <summary>Muddat tugashiga qolgan kunlar — musbat son.</summary>
     public const string DaysLeft = "daysLeft";
 
@@ -76,12 +72,6 @@ public static class NotificationParams
 
     /// <summary>Nomzod manbai: <c>Manual</c> yoki <c>TelegramBot</c>.</summary>
     public const string Source = "source";
-
-    /// <summary>Taklif qilingan oklad miqdori. FAQAT «salary.view» ruxsati bilan.</summary>
-    public const string SalaryAmount = "salaryAmount";
-
-    /// <summary>Oklad valyutasi (ISO 4217). FAQAT «salary.view» ruxsati bilan.</summary>
-    public const string SalaryCurrency = "salaryCurrency";
 }
 
 /// <summary>
@@ -200,7 +190,6 @@ public sealed class NotificationCollector
         await AddMissingProbationsAsync(items, cancellationToken).ConfigureAwait(false);
         await AddBirthdaysAsync(items, today, cancellationToken).ConfigureAwait(false);
         await AddNewCandidatesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
-        await AddOfferDeadlinesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
 
         return
         [
@@ -226,7 +215,7 @@ public sealed class NotificationCollector
 
                   Bildirishnomaning sanasi ikki xil ma'noni tashiydi:
                   «bu bugun sodir bo'ldi» (bot arizasi, tug'ilgan kun) va
-                  «bu falon kuni tugaydi» (sinov muddati, taklif). Ularni
+                  «bu falon kuni tugaydi» (sinov muddati). Ularni
                   bitta o'qqa qo'yib, sanasi kattasini tepaga chiqarish
                   KELAJAKDAGI muddatni bugun sodir bo'lgan hodisadan
                   yuqoriga ko'tarardi: «sinov 5-sentabrda tugaydi» degan
@@ -309,11 +298,11 @@ public sealed class NotificationCollector
             }
             else
             {
-                // Nol ham beriladi («bugun tugaydi»). Qoida taklif muddati
-                // bilan AYNAN bir xil: qolgan kun manfiy bo'lmasa —
-                // «daysLeft», bo'lsa — «daysOverdue». Ikkita joyda ikki xil
-                // shart yozilsa, frontend har bir tur uchun alohida
-                // istisnoni yodda tutishi kerak bo'lardi.
+                // Nol ham beriladi («bugun tugaydi»). Qoida butun tizimda
+                // bitta: qolgan kun manfiy bo'lmasa — «daysLeft», bo'lsa —
+                // «daysOverdue». Ikkita joyda ikki xil shart yozilsa,
+                // frontend har bir tur uchun alohida istisnoni yodda
+                // tutishi kerak bo'lardi.
                 parameters[NotificationParams.DaysLeft] = Number(daysLeft);
             }
 
@@ -438,7 +427,7 @@ public sealed class NotificationCollector
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Rekruting: yangi nomzod va taklif muddati
+    //  Rekruting: yangi nomzod
     // ════════════════════════════════════════════════════════════
 
     private async Task AddNewCandidatesAsync(
@@ -492,76 +481,6 @@ public sealed class NotificationCollector
                 severity,
                 row.AddedOn,
                 parameters,
-                new NotificationLinkDto(NotificationRoute.Candidate, row.CandidateId)));
-        }
-    }
-
-    private async Task AddOfferDeadlinesAsync(
-        List<NotificationDto> items,
-        DateOnly today,
-        SystemSettings settings,
-        CancellationToken cancellationToken)
-    {
-        if (!Allowed(NotificationType.JobOfferExpiring))
-        {
-            return;
-        }
-
-        // Oklad ALOHIDA ruxsat ostida (`salary.view`) — rekrutingni
-        // ko'rish huquqi taklif summasini ko'rish huquqini bermaydi.
-        // Bu xodimlar ro'yxatidagi bilan aynan bir xil qoida
-        // (`SalaryAccess`), shu sababli o'sha yerdagi kengaytma
-        // ishlatiladi — ikkinchi ta'rif yozilmaydi.
-        var canSeeSalary = _user.CanSeeSalary();
-
-        var until = today.AddDays(settings.Number(SystemSettingKeys.OfferWarningDays));
-        var rows = await _source
-            .ListOfferDeadlinesAsync(until, cancellationToken)
-            .ConfigureAwait(false);
-
-        foreach (var row in rows)
-        {
-            var daysLeft = row.ExpiresAt.DayNumber - today.DayNumber;
-
-            var (type, severity) = daysLeft < 0
-                ? (NotificationType.JobOfferExpired, NotificationSeverity.Critical)
-                : (NotificationType.JobOfferExpiring, NotificationSeverity.Warning);
-
-            var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                [NotificationParams.CandidateName] = row.CandidateName,
-                [NotificationParams.ExpiresAt] = Iso(row.ExpiresAt),
-            };
-
-            AddIfPresent(parameters, NotificationParams.VacancyTitle, row.VacancyTitle);
-
-            if (daysLeft < 0)
-            {
-                parameters[NotificationParams.DaysOverdue] = Number(-daysLeft);
-            }
-            else
-            {
-                // «Bugun oxirgi kun» — `daysLeft = 0`. Parametr baribir
-                // beriladi: matnni frontend tanlaydi va nolni ham
-                // ishlatadi («bugun tugaydi»).
-                parameters[NotificationParams.DaysLeft] = Number(daysLeft);
-            }
-
-            if (canSeeSalary)
-            {
-                parameters[NotificationParams.SalaryAmount] =
-                    row.SalaryAmount.ToString(CultureInfo.InvariantCulture);
-                parameters[NotificationParams.SalaryCurrency] = row.SalaryCurrency;
-            }
-
-            items.Add(new NotificationDto(
-                NotificationKey.For(type, row.OfferId, row.ExpiresAt),
-                type,
-                severity,
-                row.ExpiresAt,
-                parameters,
-                // Taklifning o'z sahifasi yo'q — u nomzod kartasida
-                // ko'rinadi va javob ham o'sha yerda belgilanadi.
                 new NotificationLinkDto(NotificationRoute.Candidate, row.CandidateId)));
         }
     }

@@ -77,9 +77,8 @@ Foydalanuvchi uchun bu bitta tugma; qaror va uning narxi
   havolasi qo'shilsa, u rad etilgan nomzodda ham paydo bo'lib,
   mavjud bo'lmagan xodimga olib borardi.
 
-⚠️ **Ish taklifi funksiyasiga TEGILMADI** — u SPEC 3-bo'limida alohida
-bosqichda o'chiriladi. Hozir ikkala yo'l ham ishlaydi:
-`POST /candidates/{id}/hire` (yangi, taklifsiz) va
-`POST /offers/{id}/accept` (eski). Ikkalasi bir xil
-`HireEmployeeCommand` oqimini chaqiradi va bir-birini takroriy qabuldan
-to'sadi (`IEmploymentRepository.FindByCandidateAsync`).
+> **Ish taklifi O'CHIRILDI (2026-09-07).** SPEC 3-bo'limi bajarildi:
+> `job_offers` jadvali, endpoint'lari, bildirishnomalari, ekranlari va
+> `taklif.*` xato kodlari butunlay olib tashlandi
+> (`20260907070127_TaklifOlibTashlandi`). Nomzoddan xodimga o'tishning
+> yagona yo'li — `POST /candidates/{id}/hire`.

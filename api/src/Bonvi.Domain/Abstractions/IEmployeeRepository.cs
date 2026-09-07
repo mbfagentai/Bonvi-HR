@@ -51,7 +51,7 @@ public interface IEmploymentRepository : IRepository<Employment>
     /// Ishga qabul HODISASIDAGI <c>CandidateId</c> bo'yicha qidiriladi
     /// (sababi <see cref="EmploymentEvent.CandidateId"/> izohida). Ikki
     /// joyda kerak: nomzod kartasida «u qaysi xodimga aylandi» havolasi va
-    /// taklifni qabul qilish oqimining TAKRORGA CHIDAMLILIGI — agar birinchi
+    /// ishga olish oqimining TAKRORGA CHIDAMLILIGI — agar birinchi
     /// urinishda xodim yaratilib, nomzod holati yozilmay qolgan bo'lsa,
     /// ikkinchi urinish shu metod orqali «allaqachon ishga olingan» ekanini
     /// ko'radi va ikkinchi xodim kartasini YARATMAYDI.

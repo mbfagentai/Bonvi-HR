@@ -17,7 +17,7 @@ namespace Bonvi.Application.Tests.Recruiting;
 /// <remarks>
 /// <para>
 /// <see cref="EmployeeTestContext"/> ni ICHIGA oladi, nusxa ko'chirmaydi:
-/// taklifni qabul qilish 1-bosqichning HAQIQIY
+/// nomzodni ishga olish 1-bosqichning HAQIQIY
 /// <see cref="HireEmployeeCommandHandler"/> ini chaqiradi va u yerdagi
 /// barcha bog'liqliklar (xodim, munosabat, sinov, lavozim, firma, belgilar)
 /// allaqachon o'sha kontekstda yig'ilgan. Ikkinchi nusxa yozilsa, ishga
@@ -36,15 +36,6 @@ internal sealed class RecruitingTestContext
     public RecruitingTestContext()
     {
         Candidates.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
-
-        // Sukut bo'yicha nomzodda javob kutayotgan taklif YO'Q.
-        Offers
-            .GetPendingByCandidateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns((JobOffer?)null);
-
-        Offers
-            .GetByCandidateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns<IReadOnlyList<JobOffer>>([]);
 
         Candidates
             .CountByVacancyAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -72,8 +63,6 @@ internal sealed class RecruitingTestContext
     public IVacancyRepository Vacancies { get; } = Substitute.For<IVacancyRepository>();
 
     public ICandidateRepository Candidates { get; } = Substitute.For<ICandidateRepository>();
-
-    public IJobOfferRepository Offers { get; } = Substitute.For<IJobOfferRepository>();
 
     /// <summary>Sozlamalar jadvali — «Umumiy anketa» havolasi shu yerda yashaydi.</summary>
     public ISystemSettingRepository SettingRows { get; } = Substitute.For<ISystemSettingRepository>();
@@ -105,11 +94,11 @@ internal sealed class RecruitingTestContext
     public IClock Clock => Employees.Clock;
 
     public RecruitingMapper Mapper => new(
-        Stages, Vacancies, Offers, Candidates, Employees.Employments, Employees.Employees, Titles);
+        Stages, Vacancies, Candidates, Employees.Employments, Employees.Employees, Titles);
 
     /// <summary>1-bosqichning HAQIQIY ishga qabul handleri (mock emas).</summary>
     /// <remarks>
-    /// Aynan shu narsa tekshirilishi kerak: taklif qabul qilinganda sinov
+    /// Aynan shu narsa tekshirilishi kerak: nomzod ishga olinganda sinov
     /// muddati ochiladimi, qora ro'yxat to'sadimi. Mock qilingan handler
     /// bularning hech birini ko'rsatmasdi.
     /// </remarks>
@@ -168,7 +157,7 @@ internal sealed class RecruitingTestContext
     /// Ilgari bu yerda lavozim ATAYLAB haqiqiy lavozim edi: u vakansiyadan
     /// to'g'ridan-to'g'ri ishga qabul buyrug'iga tushardi. Endi bunday
     /// bog'lanish yo'q — lavozim qabul BUYRUG'IDA beriladi (sababi
-    /// <c>AcceptJobOfferCommand</c> izohida), vakansiyada esa faqat e'lon
+    /// <c>HireCandidateCommand</c> izohida), vakansiyada esa faqat e'lon
     /// nomi qoldi.
     /// </remarks>
     public Vacancy ExistingVacancy(Guid? vacancyTitleId = null, bool open = true)
@@ -228,21 +217,5 @@ internal sealed class RecruitingTestContext
         Candidates.GetWithStagesAsync(candidate.Id, Arg.Any<CancellationToken>()).Returns(candidate);
 
         return candidate;
-    }
-
-    /// <summary>Bazada mavjud, javob kutayotgan taklif.</summary>
-    public JobOffer ExistingOffer(Candidate candidate, Vacancy vacancy, decimal salary = 5_000_000m)
-    {
-        var offer = JobOffer.Send(
-            candidate.Id,
-            vacancy.Id,
-            Money.Create(salary).Value,
-            Today.AddDays(5),
-            Today).Value;
-
-        Offers.GetByIdAsync(offer.Id, Arg.Any<CancellationToken>()).Returns(offer);
-        Offers.GetPendingByCandidateAsync(candidate.Id, Arg.Any<CancellationToken>()).Returns(offer);
-
-        return offer;
     }
 }

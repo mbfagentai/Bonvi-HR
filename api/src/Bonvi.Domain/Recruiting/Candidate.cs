@@ -119,16 +119,17 @@ public enum CandidateSource
 /// sinovdan o'tadi, istisnosiz») jimgina chetlab o'tilardi.
 /// </para>
 /// <para>
-/// Bu o'tishning IKKITA kirish nuqtasi bor va ikkalasi ham AYNAN o'sha
-/// bitta oqimni chaqiradi: <c>HireCandidateCommand</c> (to'g'ridan-to'g'ri,
-/// taklifsiz — odatiy yo'l) va <c>AcceptJobOfferCommand</c> (rasmiy taklif
-/// orqali). Farqi faqat kirishda: birinchisida oklad va ish boshlash
-/// sanasi qabul formasidan, ikkinchisida taklifdan keladi.
+/// Bu o'tishning YAGONA kirish nuqtasi — <c>HireCandidateCommand</c>:
+/// nomzod kartasidagi «Ishga olish» oynasi. Oklad va ish boshlash sanasi
+/// ham o'sha formadan keladi. Ilgari ikkinchi yo'l ham bor edi (rasmiy
+/// ish taklifi orqali), lekin u HR uchun ortiqcha oraliq qadam bo'lib
+/// chiqdi va butunlay olib tashlandi
+/// (<c>docs/SPEC-nomzod-yakuni.md</c>, 3-bo'lim).
 /// </para>
 /// <para>
 /// <b>Bog'lanish nomzodda emas, ISHGA QABUL HODISASIDA saqlanadi</b>
 /// (<c>EmploymentEvent.CandidateId</c>) — sabab
-/// <c>AcceptJobOfferCommandHandler</c> izohida batafsil.
+/// <c>HireCandidateCommandHandler</c> izohida batafsil.
 /// </para>
 /// </remarks>
 public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
@@ -595,10 +596,9 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// Ishga olindi — voronkadan chiqadi.
     /// </summary>
     /// <remarks>
-    /// Bu metodni FAQAT ishga qabul oqimini chaqiradigan ikkita use-case
-    /// ishlatadi (<c>HireCandidateCommandHandler</c> —
-    /// to'g'ridan-to'g'ri, <c>AcceptJobOfferCommandHandler</c> — taklif
-    /// orqali) va faqat xodim haqiqatan yaratilgandan keyin. «Ishga
+    /// Bu metodni FAQAT ishga qabul oqimini chaqiradigan use-case
+    /// ishlatadi (<c>HireCandidateCommandHandler</c>) va faqat xodim
+    /// haqiqatan yaratilgandan keyin. «Ishga
     /// olindi» deb belgilaydigan ALOHIDA endpoint yo'q: holatni qo'yib,
     /// xodim kartasini yaratmaslik — bu aynan Excel'dagi holat (nomzod
     /// ro'yxatida «принят», xodimlar ro'yxatida yo'q).

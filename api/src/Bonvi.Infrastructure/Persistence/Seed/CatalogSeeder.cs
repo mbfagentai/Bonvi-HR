@@ -334,8 +334,8 @@ public sealed partial class CatalogSeeder
     /// </para>
     /// <para>
     /// Ro'yxat <c>PLAN.md</c> dagi voronkadan olingan. «Ишга қабул» bosqich
-    /// sifatida YO'Q: u voronkaning oxiri emas, undan CHIQISH — taklif
-    /// qabul qilinganda 1-bosqichning ishga qabul oqimi ishlaydi va nomzod
+    /// sifatida YO'Q: u voronkaning oxiri emas, undan CHIQISH — nomzod
+    /// ishga olinganda 1-bosqichning ishga qabul oqimi ishlaydi va nomzod
     /// xodimga aylanadi.
     /// </para>
     /// <para>

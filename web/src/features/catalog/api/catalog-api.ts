@@ -36,8 +36,8 @@ export const SIMPLE_CATALOG_KINDS = [
     qaraydi va nomzod tushunadigan tilda yoziladi, lavozim esa
     ichkariga — buyruqqa va mehnat shartnomasiga (backend'dagi
     `VacancyTitle` domen izohida batafsil). Ular faqat bitta joyda
-    uchrashadi: taklif qabul qilinganda HR aynan qaysi shtat birligiga
-    olayotganini tanlaydi (`offer-accept-dialog.tsx`).
+    uchrashadi: nomzod ishga olinayotganda HR aynan qaysi shtat
+    birligiga olayotganini tanlaydi (`candidate-hire-dialog.tsx`).
 
     Yozuv tuzilishi bo'yicha yuqoridagilar bilan AYNAN bir xil (faqat
     nom), shu sababli u ham `CatalogPage` bilan chiziladi va

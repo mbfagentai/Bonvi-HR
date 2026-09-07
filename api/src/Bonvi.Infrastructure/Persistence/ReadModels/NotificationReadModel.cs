@@ -26,7 +26,7 @@ namespace Bonvi.Infrastructure.Persistence.ReadModels;
 /// </para>
 /// <para>
 /// <b>Yumshoq o'chirilganlar o'z-o'zidan chetda.</b> Xodim, munosabat,
-/// nomzod va taklif — hammasi <c>ISoftDeletable</c>, ya'ni global filtr
+/// va nomzod — hammasi <c>ISoftDeletable</c>, ya'ni global filtr
 /// ularni allaqachon yashiradi. Bu yerda qo'shimcha shart yozilmaydi:
 /// takrorlangan shart bir kun global filtr o'zgarganda unutilardi.
 /// </para>
@@ -177,57 +177,6 @@ public sealed class NotificationReadModel : INotificationReadModel
                 // qo'shilgan» deganda o'z kunini nazarda tutadi, UTC
                 // kunini emas.
                 DateOnly.FromDateTime(row.CreatedAt.ToOffset(BonviTime.TashkentOffset).DateTime))),
-        ];
-    }
-
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<JobOfferDeadlineRow>> ListOfferDeadlinesAsync(
-        DateOnly until,
-        CancellationToken cancellationToken = default)
-    {
-        var rows = await (
-                from offer in _context.JobOffers.AsNoTracking()
-                where offer.Status == JobOfferStatus.Sent
-                    // Muddatsiz taklif bu yerga TUSHMAYDI: HR ataylab
-                    // «o'ylab ko'ring» deb muddatsiz taklif qilishi mumkin
-                    // va unga eslatma yuborish uchun sana yo'q. SQL'da
-                    // `NULL <= sana` hech qachon rost bo'lmaydi, lekin
-                    // niyat oshkora yozilgan.
-                    && offer.ExpiresAt != null
-                    && offer.ExpiresAt <= until
-                join candidate in _context.Candidates.AsNoTracking()
-                    on offer.CandidateId equals candidate.Id
-                join vacancy in _context.Vacancies.AsNoTracking()
-                    on offer.VacancyId equals vacancy.Id into vacancyMatch
-                from vacancy in vacancyMatch.DefaultIfEmpty()
-                join title in _context.VacancyTitles.AsNoTracking()
-                    on vacancy.VacancyTitleId equals title.Id into titleMatch
-                from title in titleMatch.DefaultIfEmpty()
-                select new
-                {
-                    OfferId = offer.Id,
-                    CandidateId = candidate.Id,
-                    candidate.FullName.LastName,
-                    candidate.FullName.FirstName,
-                    candidate.FullName.MiddleName,
-                    VacancyTitle = title!.Name,
-                    offer.ExpiresAt,
-                    offer.Salary.Amount,
-                    offer.Salary.Currency,
-                })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return
-        [
-            .. rows.Select(row => new JobOfferDeadlineRow(
-                row.OfferId,
-                row.CandidateId,
-                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
-                row.VacancyTitle,
-                row.ExpiresAt!.Value,
-                row.Amount,
-                row.Currency)),
         ];
     }
 }

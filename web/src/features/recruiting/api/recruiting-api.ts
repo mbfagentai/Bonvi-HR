@@ -6,15 +6,15 @@
  * endpoint'da tekshirilgan (`GET /api/recruiting/stages` javobi bilan
  * solishtirildi):
  *   api/src/Bonvi.Application/Recruiting/Dtos/RecruitingDtos.cs
- *   api/src/Bonvi.Api/Endpoints/{Vacancy,Candidate,JobOffer,PipelineStage}Endpoints.cs
+ *   api/src/Bonvi.Api/Endpoints/{Vacancy,Candidate,PipelineStage}Endpoints.cs
  *
  * Backend uchun `./bonvi gen` ishga tushirilgach: shu fayl O'CHIRILADI,
  * `recruiting-queries.ts` generatsiya qilingan hook'larga o'tkaziladi.
  *
- * NEGA butun rekruting BITTA faylda (vakansiya, nomzod, taklif, bosqich).
- * To'rttala endpoint bitta shartnomaning bo'laklari: nomzod kartasi
- * javobida taklif ham, bosqich yozuvi ham bor (`CandidateDto.offers`,
- * `.stages`), ya'ni tiplar bir-biriga bog'langan. Fayllarga bo'linsa,
+ * NEGA butun rekruting BITTA faylda (vakansiya, nomzod, bosqich).
+ * Uchala endpoint bitta shartnomaning bo'laklari: nomzod kartasi
+ * javobida bosqich yozuvlari ham bor (`CandidateDto.stages`), ya'ni
+ * tiplar bir-biriga bog'langan. Fayllarga bo'linsa,
  * ular orasida o'zaro import paydo bo'lardi va `unknown` dan o'qish
  * yordamchilari (`text`, `money`, `readPage`) ham nusxalanardi —
  * `employees-api.ts` da aynan shunday bir necha nusxa hosil bo'lgan edi.
@@ -25,7 +25,7 @@ import {
   LANGUAGE_LEVELS,
   type LanguageLevel,
 } from '@/features/employees/api/employee-competency-api'
-import type { MoneyValue, PagedResult } from '@/features/employees/api/employees-api'
+import type { PagedResult } from '@/features/employees/api/employees-api'
 import { api } from '@/shared/api/http-client'
 
 /* ═══════════════════════════════════════════════════════════════ sanoqlar */
@@ -79,9 +79,6 @@ export type CandidateSource = (typeof CANDIDATE_SOURCES)[number]
 
 export const STAGE_OUTCOMES = ['Pending', 'Passed', 'Failed'] as const
 export type StageOutcome = (typeof STAGE_OUTCOMES)[number]
-
-export const OFFER_STATUSES = ['Sent', 'Accepted', 'Declined', 'Expired'] as const
-export type JobOfferStatus = (typeof OFFER_STATUSES)[number]
 
 /* ───────────────────────────────────────────────────── anketa sanoqlari */
 
@@ -152,7 +149,7 @@ export interface PipelineStage {
  *
  * ⚠️ Lavozim, bo'lim va firma maydonlari YO'Q va bu ataylab: vakansiya —
  * E'LON, kompaniya tuzilmasidan unda hech narsa saqlanmaydi. Uchalasi
- * taklif QABUL QILINGANDA tanlanadi (`offer-accept-dialog.tsx`) va
+ * nomzod ISHGA OLINAYOTGANDA tanlanadi (`candidate-hire-dialog.tsx`) va
  * o'sha yerdan xodim kartasiga tushadi. Batafsil sabab backend'dagi
  * `Vacancy` domen izohida.
  */
@@ -248,7 +245,7 @@ export interface CandidateQuestionnaire {
   offerAcceptedAt: string | null
 }
 
-/** `CandidateDto` — nomzod kartasi: bosqichlar tarixi va takliflari bilan. */
+/** `CandidateDto` — nomzod kartasi: bosqichlar tarixi bilan. */
 export interface Candidate {
   id: string
   lastName: string
@@ -282,31 +279,12 @@ export interface Candidate {
   hiredEmploymentId: string | null
   /** Yozilgan tartibda. */
   stages: CandidateStageEntry[]
-  /** Yangidan eskiga — muzokara tarixi shu tartibda o'qiladi. */
-  offers: JobOffer[]
   /**
    * Botda to'ldirilgan anketa. `null` BO'LISHI ODATIY hol: HR qo'lda
    * kiritgan nomzodda ham, bot ishga tushgunicha yozilgan nomzodlarda
    * ham u yo'q.
    */
   questionnaire: CandidateQuestionnaire | null
-}
-
-/** `JobOfferDto` — ish taklifi. */
-export interface JobOffer {
-  id: string
-  candidateId: string
-  candidateName: string | null
-  vacancyId: string
-  vacancy: string | null
-  salary: MoneyValue
-  startDate: string
-  sentAt: string
-  expiresAt: string | null
-  status: JobOfferStatus
-  respondedAt: string | null
-  responseNote: string | null
-  note: string | null
 }
 
 /**
@@ -322,26 +300,11 @@ export interface HrWarning {
 }
 
 /**
- * `CandidateHireResultDto` — taklif qabul qilinganining natijasi.
- *
- * Uchalasi BIRGA qaytadi, chunki bu bitta amalning uch tomoni: taklif
- * yopildi, nomzod «ishga olingan» bo'ldi va XODIM yaratildi. Ekran
- * shu javobdan darhol yangi xodim kartasiga havola qo'yadi —
- * qo'shimcha so'rovsiz.
- */
-export interface CandidateHireResult {
-  offer: JobOffer
-  candidate: Candidate
-  hire: HireOutcome
-}
-
-/**
  * Ishga qabulning natijasi — `HireResultDto` ning ekranga kerak bo'lgan
  * qismi.
  *
- * Alohida tip, chunki uni IKKI javob ishlatadi: taklif qabul qilinganda
- * (`CandidateHireResult`) va taklifsiz ishga olinganda
- * (`DirectHireResult`). Ikkalasida ham u AYNAN bir xil.
+ * `DirectHireResult` ichida turadi va ekran shu javobdan darhol yangi
+ * xodim kartasiga havola qo'yadi — qo'shimcha so'rovsiz.
  */
 export interface HireOutcome {
   /** Yaratilgan mehnat munosabati — bizga faqat `employeeId` kerak. */
@@ -351,15 +314,7 @@ export interface HireOutcome {
   warnings: HrWarning[]
 }
 
-/**
- * `DirectHireResultDto` — TAKLIFSIZ ishga olishning natijasi.
- *
- * `CandidateHireResult` dan yagona farqi — taklif maydoni yo'q. Server
- * ularni ataylab ikkita record qilib ajratgan: mijoz «taklif bormi?»
- * degan savolni bermasligi kerak, javob endpoint'ga qarab oldindan
- * ma'lum (`DirectHireResultDto` izohi). Ish taklifi o'chirilgach
- * (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim) shu tip yagona bo'lib qoladi.
- */
+/** `DirectHireResultDto` — nomzod ishga olinganining natijasi. */
 export interface DirectHireResult {
   candidate: Candidate
   hire: HireOutcome
@@ -393,55 +348,13 @@ export interface RegisterCandidateInput extends CandidateInput {
   stageId: string | null
 }
 
-export interface OfferInput {
-  salaryAmount: number
-  salaryCurrency: string | null
-  startDate: string | null
-  expiresAt: string | null
-  note: string | null
-}
-
 /**
- * Taklif qabul qilinganda so'raladigan qism.
+ * ⭐ Nomzodni ishga olishda so'raladigan qism (`HireCandidateRequest`).
  *
- * Shaxsiy ma'lumot NOMZODDAN ko'chadi va bu yerda yo'q. Firma, bo'lim va
- * lavozim esa AYNAN shu yerda: vakansiyada ular umuman saqlanmaydi
- * (`Vacancy` tipidagi izohga qarang), ya'ni «bu odam qaysi firmaga, qaysi
- * bo'limga va qaysi shtat birligiga olinadi» degan qaror shu formada
- * qabul qilinadi.
- */
-export interface AcceptOfferInput {
-  /** MAJBURIY — ishga qabul usiz umuman bajarilmaydi. */
-  legalEntityId: string
-  /** MAJBURIY — foydalanuvchi «aniq lavozim tanlanadi» dedi. */
-  positionId: string
-  /** Ixtiyoriy — ishga qabulning umumiy qoidasidagi kabi. */
-  departmentId: string | null
-  respondedAt: string | null
-  responseNote: string | null
-  hireDate: string | null
-  orderNo: string | null
-  orderDate: string | null
-  pinfl: string | null
-  passport: string | null
-  rate: number | null
-  isPrimary: boolean
-  responsibleEmployeeId: string | null
-  probationDays: number | null
-}
-
-/**
- * ⭐ TAKLIFSIZ ishga olishda so'raladigan qism (`HireCandidateRequest`).
- *
- * `AcceptOfferInput` bilan deyarli bir xil va bu ATAYLAB: ikkala oyna
- * ham ayni bir ishga qabul oqimini chaqiradi (`HireEmployeeCommand`),
- * ya'ni hujjatiy maydonlar ham bir xil bo'lishi kerak. Ikkita farq bor:
- *
- *  · `respondedAt` / `responseNote` YO'Q — javob yozadigan taklif yo'q;
- *  · `salaryAmount` / `salaryCurrency` BOR — taklifda oklad kelishilgan
- *    bo'lardi, bu yerda esa uni faqat shu forma bera oladi (server
- *    izohi: «bu yerda esa qabul formasidan, chunki kelishilgan taklif
- *    yo'q»). Bo'sh qoldirilsa munosabat oklad yozuvisiz ochiladi.
+ * Firma, bo'lim va lavozim AYNAN shu yerda: vakansiyada ular umuman
+ * saqlanmaydi (`Vacancy` tipidagi izohga qarang), ya'ni «bu odam qaysi
+ * firmaga, qaysi bo'limga va qaysi shtat birligiga olinadi» degan qaror
+ * shu formada qabul qilinadi.
  *
  * Shaxsiy ma'lumot (F.I.Sh., tug'ilgan sana, telefon, manzil,
  * mutaxassislik) NOMZODDAN ko'chadi va bu yerda umuman yo'q.
@@ -547,17 +460,6 @@ function enumOrNull<T extends string>(value: unknown, allowed: readonly T[]): T 
   if (typeof value !== 'string') return null
   const needle = value.toLowerCase()
   return allowed.find((name) => name.toLowerCase() === needle) ?? null
-}
-
-/** `MoneyDto` — `{amount, currency, formatted}`; bizga birinchi ikkitasi kerak. */
-function money(value: unknown): MoneyValue {
-  const box = (value ?? {}) as Record<string, unknown>
-  const amount = box['amount']
-
-  return {
-    amount: typeof amount === 'number' && Number.isFinite(amount) ? amount : 0,
-    currency: text(box['currency']) ?? 'UZS',
-  }
 }
 
 /**
@@ -676,26 +578,6 @@ function toCandidateRow(raw: unknown): CandidateListItem {
   }
 }
 
-function toOffer(raw: unknown): JobOffer {
-  const box = (raw ?? {}) as Record<string, unknown>
-
-  return {
-    id: text(box['id']) ?? '',
-    candidateId: text(box['candidateId']) ?? '',
-    candidateName: text(box['candidateName']),
-    vacancyId: text(box['vacancyId']) ?? '',
-    vacancy: text(box['vacancy']),
-    salary: money(box['salary']),
-    startDate: text(box['startDate']) ?? '',
-    sentAt: text(box['sentAt']) ?? '',
-    expiresAt: text(box['expiresAt']),
-    status: oneOf(box['status'], OFFER_STATUSES, 'Sent'),
-    respondedAt: text(box['respondedAt']),
-    responseNote: text(box['responseNote']),
-    note: text(box['note']),
-  }
-}
-
 /**
  * Anketa. `null` — nomzodda anketa YO'Q (HR qo'lda kiritgan yoki bot
  * ishga tushgunicha yozilgan yozuv) va bu odatiy hol.
@@ -751,12 +633,10 @@ function toCandidate(raw: unknown): Candidate {
     hiredEmployeeId: text(box['hiredEmployeeId']),
     hiredEmploymentId: text(box['hiredEmploymentId']),
     stages: (Array.isArray(box['stages']) ? box['stages'] : []).map(toStageEntry),
-    offers: (Array.isArray(box['offers']) ? box['offers'] : []).map(toOffer),
     questionnaire: toQuestionnaire(box['questionnaire']),
   }
 }
 
-/** `HireResultDto` — ikkala qabul yo'lida ham AYNAN bir xil o'qiladi. */
 function toHireOutcome(raw: unknown): HireOutcome {
   const hire = (raw ?? {}) as Record<string, unknown>
   const employment = (hire['employment'] ?? {}) as Record<string, unknown>
@@ -771,16 +651,6 @@ function toHireOutcome(raw: unknown): HireOutcome {
       const code = text(warning['code'])
       return code === null ? [] : [{ code, message: text(warning['message']) ?? code }]
     }),
-  }
-}
-
-function toHireResult(raw: unknown): CandidateHireResult {
-  const box = (raw ?? {}) as Record<string, unknown>
-
-  return {
-    offer: toOffer(box['offer']),
-    candidate: toCandidate(box['candidate']),
-    hire: toHireOutcome(box['hire']),
   }
 }
 
@@ -997,12 +867,11 @@ export async function returnCandidateFromReserve(id: string): Promise<Candidate>
 }
 
 /**
- * ⚠️ QAYTARIB BO'LMAYDIGAN AMAL: nomzod XODIMGA aylanadi — TAKLIFSIZ.
+ * ⚠️ QAYTARIB BO'LMAYDIGAN AMAL: nomzod XODIMGA aylanadi.
  *
  * Bitta tranzaksiyada: nomzod «ishga olingan» bo'lib voronkadan chiqadi,
  * xodim kartasi, mehnat munosabati, ishga qabul buyrug'i va MAJBURIY
- * sinov muddati yaratiladi. Ya'ni `acceptOffer` bilan aynan bir xil
- * oqim — farqi faqat kirish nuqtasida (o'rtada kelishilgan taklif yo'q).
+ * sinov muddati yaratiladi.
  */
 export async function hireCandidate(
   id: string,
@@ -1113,60 +982,4 @@ export async function uploadCandidatePhoto(id: string, file: File): Promise<void
 /** Suratni o'chirish. Server idempotent: surat bo'lmasa ham `204` qaytaradi. */
 export async function deleteCandidatePhoto(id: string): Promise<void> {
   await api.delete(`${CANDIDATES}/${id}/photo`)
-}
-
-/* ═════════════════════════════════════════════════════════════ takliflar */
-
-const OFFERS = '/api/recruiting/offers'
-
-/**
- * Takliflar — DOIM nomzod bo'yicha (`candidateId` majburiy).
- *
- * NEGA alohida so'rov, nomzod kartasida ular allaqachon borligiga
- * qaramay: kartadagi ro'yxat karta so'rovi bilan birga eskiradi, bu
- * so'rov esa taklif amalidan keyin darhol yangilanadi. Ikkalasini bir
- * joyga yig'ish uchun karta so'rovini butunlay qayta yuklash kerak
- * bo'lardi — bu esa nomzodning bosqichlar tarixini ham beparvo
- * qayta tortardi.
- */
-export async function fetchOffers(candidateId: string, signal?: AbortSignal): Promise<JobOffer[]> {
-  const { data } = await api.get<unknown>(OFFERS, { params: { candidateId }, signal })
-  return Array.isArray(data) ? data.map(toOffer) : []
-}
-
-export async function saveOffer(
-  id: string | null,
-  candidateId: string,
-  body: OfferInput,
-): Promise<JobOffer> {
-  const { data } =
-    id === null
-      ? await api.post<unknown>(OFFERS, { candidateId, ...body })
-      : await api.put<unknown>(`${OFFERS}/${id}`, body)
-
-  return toOffer(data)
-}
-
-/** Rad javobi va muddat o'tishi — ikkalasi ham taklifni YOPADI, nomzodni emas. */
-export async function closeOffer(
-  id: string,
-  action: 'decline' | 'expire',
-  body: { at: string | null; note: string | null },
-): Promise<JobOffer> {
-  const { data } = await api.post<unknown>(`${OFFERS}/${id}/${action}`, body)
-  return toOffer(data)
-}
-
-/**
- * ⚠️ QAYTARIB BO'LMAYDIGAN AMAL: nomzod XODIMGA aylanadi.
- *
- * Bitta tranzaksiyada: taklif «qabul qilindi», nomzod «ishga olingan»,
- * xodim kartasi va uning MAJBURIY sinov muddati yaratiladi.
- */
-export async function acceptOffer(
-  id: string,
-  body: AcceptOfferInput,
-): Promise<CandidateHireResult> {
-  const { data } = await api.post<unknown>(`${OFFERS}/${id}/accept`, body)
-  return toHireResult(data)
 }

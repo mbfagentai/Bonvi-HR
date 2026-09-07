@@ -35,10 +35,6 @@ public sealed class SystemSettingsReaderTests
         sozlamalar
             .Number(SystemSettingKeys.NewCandidateDays)
             .ShouldBe(NotificationRules.NewCandidateDays);
-
-        sozlamalar
-            .Number(SystemSettingKeys.OfferWarningDays)
-            .ShouldBe(NotificationRules.OfferWarningDays);
     }
 
     /// <summary>
@@ -82,7 +78,7 @@ public sealed class SystemSettingsReaderTests
     [Fact]
     public async Task Royxatda_yozilmagan_sozlamalar_ham_bor()
     {
-        _rows.Seed(SystemSettingKeys.OfferWarningDays, "5");
+        _rows.Seed(SystemSettingKeys.ProbationWarningDays, "5");
 
         var sozlamalar = await Reader.ReadAsync(TestContext.Current.CancellationToken);
 
@@ -92,10 +88,10 @@ public sealed class SystemSettingsReaderTests
         // `Visible` bilan solishtiriladi (sabab `SystemSettingKeys.Visible` da).
         royxat.Count.ShouldBe(SystemSettingKeys.Visible.Count);
 
-        var offer = royxat.Single(item => item.Key == SystemSettingKeys.OfferWarningDays);
-        offer.Value.ShouldBe("5");
-        offer.DefaultValue.ShouldBe(
-            NotificationRules.OfferWarningDays.ToString(CultureInfo.InvariantCulture));
+        var sinov = royxat.Single(item => item.Key == SystemSettingKeys.ProbationWarningDays);
+        sinov.Value.ShouldBe("5");
+        sinov.DefaultValue.ShouldBe(
+            NotificationRules.ProbationWarningDays.ToString(CultureInfo.InvariantCulture));
 
         // Yozilmagan sozlamada joriy qiymat sukut qiymatga TENG bo'ladi:
         // mijozga har doim tizim ISHLATAYOTGAN qiymat ko'rsatiladi.
@@ -191,6 +187,6 @@ public sealed class SystemSettingsReaderTests
             () => { _ = sozlamalar.Number(SystemSettingKeys.BotAboutCyrillic); });
 
         Should.Throw<InvalidOperationException>(
-            () => { _ = sozlamalar.Text(SystemSettingKeys.OfferWarningDays); });
+            () => { _ = sozlamalar.Text(SystemSettingKeys.ProbationWarningDays); });
     }
 }

@@ -35,7 +35,6 @@ import {
 import { CandidateActionDialog, type CandidateAction } from './candidate-action-dialog'
 import { CandidateFormDialog } from './candidate-form-dialog'
 import { CandidateHireDialog } from './candidate-hire-dialog'
-import { CandidateOffersTab } from './candidate-offers-tab'
 import { CandidatePhotoEditor } from './candidate-photo-editor'
 import { CandidateQuestionnaireCard } from './candidate-questionnaire-card'
 import { CandidateResumeCard } from './candidate-resume-card'
@@ -43,29 +42,26 @@ import { CandidateStagesTab } from './candidate-stages-tab'
 
 const route = getRouteApi('/_app/nomzodlar/$candidateId')
 
-type Tab = 'overview' | 'stages' | 'offers'
+type Tab = 'overview' | 'stages'
 
 /**
  * ⭐ Nomzod kartasi — 2-bosqichning markaziy ekrani.
  *
- * Uchta tab (`employee-card` dagi bilan bir xil naqsh: bir vaqtda
+ * Ikkita tab (`employee-card` dagi bilan bir xil naqsh: bir vaqtda
  * hammasini ko'rsatish sahifani cho'zib yuborardi, HR esa odatda
  * bittasiga qaraydi):
- *   · <b>Umumiy</b> — shaxsiy ma'lumot, botda to'ldirilgan anketa
- *     va rezyume;
- *   · <b>Bosqichlar</b> — vertikal lenta va natija yozish oynasi;
- *   · <b>Takliflar</b> — yuborish, tuzatish, rad etish va QABUL QILISH.
+ *   · <b>Umumiy</b> — shaxsiy ma'lumot, botda to'ldirilgan anketa,
+ *     rezyume va voronkadan chiqarish amallari;
+ *   · <b>Bosqichlar</b> — vertikal lenta va natija yozish oynasi.
  *
- * <b>Nega takliflar alohida tab, bosqichlar ichida emas.</b> Taklif
- * ham voronkaning qadami, lekin uning SHARTLARI bor — oklad, ish
- * boshlash sanasi, javob muddati (`JobOffer` domen izohi). Ularni
- * lentaga qo'shish har bir yozuvni ikki xil shaklga solardi.
+ * Uchinchi tab — «Takliflar» — ish taklifi funksiyasi bilan birga
+ * o'chirildi (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim).
  *
  * <b>Nega tab ro'yxati DINAMIK emas.</b> Xodim kartasidan farqli
  * (u yerda tab'lar alohida ruxsatlarga bog'liq), butun rekruting
  * IKKITA ruxsat bilan boshqariladi: `recruiting.view` — hammasini
  * ko'radi, `recruiting.manage` — o'zgartiradi. Ya'ni sahifaga kira
- * olgan odam uchala tabni ham ko'ra oladi.
+ * olgan odam ikkala tabni ham ko'ra oladi.
  */
 export function CandidateCardPage() {
   const { candidateId } = route.useParams()
@@ -226,7 +222,6 @@ export function CandidateCardPage() {
         options={[
           { value: 'overview', label: t('recruiting.tabOverview') },
           { value: 'stages', label: t('recruiting.tabStages') },
-          { value: 'offers', label: t('recruiting.tabOffers') },
         ]}
       />
 
@@ -246,10 +241,10 @@ export function CandidateCardPage() {
 
           {/*
             Voronkadan chiqarish amallari — «Umumiy» tabining ENG
-            OXIRIDA. Ular kamdan-kam bosiladi va lentaning yoki
-            takliflarning yonida turishi kerak emas: HR bosqich
-            yozayotganda «rad etish» tugmasi qo'l ostida bo'lsa,
-            tasodifiy bosish ehtimoli ortadi.
+            OXIRIDA. Ular kamdan-kam bosiladi va bosqich lentasining
+            yonida turishi kerak emas: HR bosqich yozayotganda «rad
+            etish» tugmasi qo'l ostida bo'lsa, tasodifiy bosish
+            ehtimoli ortadi.
           */}
           {canManage && (
             <Card>
@@ -353,8 +348,6 @@ export function CandidateCardPage() {
       )}
 
       {tab === 'stages' && <CandidateStagesTab candidate={person} canManage={canManage} />}
-
-      {tab === 'offers' && <CandidateOffersTab candidate={person} canManage={canManage} />}
 
       {/* ───────── Oynalar ───────── */}
 

@@ -9,16 +9,17 @@ using Bonvi.Domain.Recruiting;
 namespace Bonvi.Application.Recruiting.Candidates;
 
 /// <summary>
-/// Nomzod XODIMGA aylanadi — taklifsiz, to'g'ridan-to'g'ri.
+/// Nomzod XODIMGA aylanadi — to'g'ridan-to'g'ri, oraliq qadamsiz.
 /// </summary>
 /// <remarks>
 /// <para>
 /// ⭐ <b>Nega bu yo'l kerak.</b> Foydalanuvchi qarori (2026-09-07):
 /// nomzodning uchta yakuni bor — «xodim sifatida olindi», «rezerv» va
-/// «qabul qilinmadi». Ularning birinchisi rasmiy ish taklifini talab
-/// qilmaydi: amalda HR nomzod bilan gaplashib, kelishib, o'sha kuni
-/// hujjatga o'tkazadi. Taklif esa ALOHIDA bosqichda o'chiriladi, ya'ni
-/// bu yo'l tez orada yagona bo'lib qoladi.
+/// «qabul qilinmadi». Ularning birinchisi hech qanday oraliq qadamni
+/// talab qilmaydi: amalda HR nomzod bilan gaplashib, kelishib, o'sha
+/// kuni hujjatga o'tkazadi. Ilgari bu yo'l rasmiy ish taklifi orqali
+/// o'tardi — u ortiqcha bo'lgani uchun butunlay olib tashlandi
+/// (<c>docs/SPEC-nomzod-yakuni.md</c>, 3-bo'lim).
 /// </para>
 /// <para>
 /// <b>So'rovda faqat ishga qabulning HUJJATIY qismi bor.</b> Shaxsiy
@@ -32,9 +33,6 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// <b>Majburiy maydon IKKITA: firma va lavozim.</b> Qolganining zaxirasi
 /// bor: oklad — yo'q bo'lsa munosabat oklad yozuvisiz ochiladi, ishga
 /// qabul sanasi — bugun, sinov muddati — lavozimdagi qiymat yoki 90 kun.
-/// Bu <c>AcceptJobOfferCommand</c> dagi bilan AYNAN bir xil qoida; farqi
-/// faqat oklad va ish boshlash sanasida — u yerda ular TAKLIFDAN keladi,
-/// bu yerda esa qabul formasidan, chunki kelishilgan taklif yo'q.
 /// </para>
 /// </remarks>
 /// <param name="CandidateId">Qaysi nomzod ishga olinmoqda.</param>
@@ -99,8 +97,7 @@ public sealed record HireCandidateCommand(
 /// <para>
 /// <b>Nega ishga qabul QAYTA YOZILMAYDI.</b> Bu handler o'zi xodim
 /// yaratmaydi — u 1-bosqichning MAVJUD <see cref="HireEmployeeCommand"/>
-/// oqimini chaqiradi (<c>AcceptJobOfferCommandHandler</c> bilan AYNAN bir
-/// xil sabab). O'sha oqim ichida qimmatga tushgan qoidalar bor: JSHSHIR
+/// oqimini chaqiradi. O'sha oqim ichida qimmatga tushgan qoidalar bor: JSHSHIR
 /// bo'yicha dublikat qidiruvi, qora ro'yxat blokirovkasi, stavka
 /// chegarasi ogohlantirishi va eng muhimi MAJBURIY sinov muddati.
 /// Rekruting o'zining ikkinchi «qabul» yo'lini yozganida, bu qoidalarning
@@ -130,9 +127,7 @@ public sealed record HireCandidateCommand(
 /// Ikkinchisi — ishga qabul hodisasi bo'yicha qidiruv
 /// (<c>IEmploymentRepository.FindByCandidateAsync</c>): u ma'lumotning
 /// O'ZIDAN kelib chiqadi va holat qandaydir sabab bilan yozilmay qolgan
-/// holatda ham ishlaydi. Shu ikkinchi to'siq tufayli taklif orqali
-/// olingan odamni bu yo'l bilan ikkinchi marta olib bo'lmaydi (va
-/// teskarisi ham).
+/// holatda ham ishlaydi.
 /// </para>
 /// </remarks>
 public sealed class HireCandidateCommandHandler
@@ -198,10 +193,6 @@ public sealed class HireCandidateCommandHandler
           mumkin («dushanbadan chiqadi»). Ikkalasini birlashtirish
           `ClosedAt` ga kelajakdagi sanani yozardi va «shu oyda voronkadan
           nechta odam chiqdi» degan hisobot uni umuman ko'rmasdi.
-
-          Bu `AcceptJobOfferCommandHandler` dagi bilan bir xil bo'linish:
-          u yerda ham nomzod JAVOB sanasida yopiladi, munosabat esa
-          taklifdagi ish boshlash sanasidan boshlanadi.
         */
         var marked = candidate.MarkHired(_clock.Today);
         if (marked.IsFailure)

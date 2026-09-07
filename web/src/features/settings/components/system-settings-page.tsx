@@ -82,7 +82,6 @@ const GROUPS: readonly {
     fields: {
       'notifications.probationWarningDays': 'settings.system.probationWarningDays',
       'notifications.newCandidateDays': 'settings.system.newCandidateDays',
-      'notifications.offerWarningDays': 'settings.system.offerWarningDays',
       'notifications.readRetentionDays': 'settings.system.readRetentionDays',
     },
   },

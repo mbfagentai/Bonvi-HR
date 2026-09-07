@@ -41,11 +41,6 @@ public enum NotificationRoute
     MissingProbations = 3,
 
     /// <summary>Nomzod kartasi. <c>Id</c> — nomzod.</summary>
-    /// <remarks>
-    /// Ish taklifi bildirishnomalari ham SHU YERGA olib boradi: taklifning
-    /// o'z sahifasi yo'q, u nomzod kartasida ko'rinadi va javobni ham
-    /// o'sha yerdan belgilanadi.
-    /// </remarks>
     Candidate = 4,
 }
 
@@ -68,8 +63,8 @@ public sealed record NotificationLinkDto(NotificationRoute Route, Guid? Id);
 /// </para>
 /// <para>
 /// <b>Nega parametrlar lug'at (<c>Dictionary</c>), qat'iy maydonlar
-/// emas.</b> To'qqizta turning parametrlari bir-biriga o'xshamaydi:
-/// tug'ilgan kunda yosh bor, taklifda oklad va valyuta, sinovda qolgan
+/// emas.</b> Turlarning parametrlari bir-biriga o'xshamaydi:
+/// tug'ilgan kunda yosh bor, nomzodda manba, sinovda qolgan
 /// kunlar. Ularning hammasini bitta DTO'ga qo'shsak, har bir
 /// bildirishnomada o'nlab <c>null</c> maydon yurardi va frontend
 /// «bu turda qaysi maydon to'ldirilgan» ni baribir bilishi kerak
@@ -90,7 +85,7 @@ public sealed record NotificationLinkDto(NotificationRoute Route, Guid? Id);
 /// <param name="Severity">Muhimlik darajasi — rang va tartib shu bo'yicha.</param>
 /// <param name="Date">
 /// Bildirishnoma ISHORA QILAYOTGAN sana: sinov tugash sanasi, tug'ilgan
-/// kun, taklif muddati. Bu «xabar kelgan vaqt» EMAS — bunday vaqt umuman
+/// kun, ariza tushgan kun. Bu «xabar kelgan vaqt» EMAS — bunday vaqt umuman
 /// yo'q, chunki bildirishnoma saqlanmaydi, hisoblanadi.
 /// </param>
 /// <param name="Params">Matnni yig'ish uchun qiymatlar. Kalitlari turga bog'liq.</param>

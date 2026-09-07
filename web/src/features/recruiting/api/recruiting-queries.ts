@@ -6,10 +6,8 @@ import type { PagedResult } from '@/features/employees/api/employees-api'
 import { fileNameFromDisposition, saveBlobAs } from '@/shared/lib/download'
 import type { SelectOption } from '@/shared/ui'
 import {
-  acceptOffer,
   changeVacancyStatus,
   closeCandidate,
-  closeOffer,
   deleteCandidate,
   deleteCandidatePhoto,
   deleteResume,
@@ -17,7 +15,6 @@ import {
   fetchCandidate,
   fetchCandidatePhoto,
   fetchCandidates,
-  fetchOffers,
   fetchResume,
   fetchStages,
   fetchVacancies,
@@ -26,17 +23,14 @@ import {
   reassignCandidate,
   registerCandidate,
   returnCandidateFromReserve,
-  saveOffer,
   saveVacancy,
   updateCandidate,
   uploadCandidatePhoto,
   uploadResume,
-  type AcceptOfferInput,
   type CandidateFilters,
   type CandidateInput,
   type CandidateListItem,
   type HireCandidateInput,
-  type OfferInput,
   type PipelineStage,
   type RegisterCandidateInput,
   type StageOutcome,
@@ -79,8 +73,8 @@ const VACANCY_TITLES_KIND = 'vacancy-titles' as const
  *
  * ⚠️ Bu LAVOZIMLAR ro'yxati EMAS (`useFilterOptions().positions`). Ikkalasi
  * ataylab ajratilgan: e'lon nomi vakansiya ochilganda tanlanadi, lavozim
- * esa taklif qabul qilinganda (`offer-accept-dialog.tsx`). Nega ular bir
- * narsa emasligi backend'dagi `VacancyTitle` domen izohida.
+ * esa nomzod ishga olinayotganda (`candidate-hire-dialog.tsx`). Nega
+ * ular bir narsa emasligi backend'dagi `VacancyTitle` domen izohida.
  *
  * NEGA `useCatalogList` to'g'ridan-to'g'ri qayta ishlatiladi: yozuv
  * `/api/catalog/vacancy-titles` da yashaydi va ma'lumotnomalar moduli
@@ -116,7 +110,7 @@ export function useVacancyTitleOptions(onlyActive: boolean): {
  * kalitlaridan tashqari) o'zi bekor qiladi. U yerdagi izohda sabab
  * batafsil: «nima eskirishini sanab chiq» qoidasi doimiy unutilardi.
  *
- * Bitta ISTISNO bor va u o'z joyida asoslangan: `useAcceptOffer`
+ * Bitta ISTISNO bor va u o'z joyida asoslangan: `useHireCandidate`
  * bekor qilishni TAKRORLAYDI, chunki bu amal boshqa modullarning
  * (xodimlar, sinov) keshiga ham tegadi va ro'yxat shu bog'liqlikni
  * hujjatlashtiradi.
@@ -127,7 +121,6 @@ export const recruitingKeys = {
   vacancies: (filters: VacancyFilters) => ['recruiting', 'vacancies', filters] as const,
   candidates: (filters: CandidateFilters) => ['recruiting', 'candidates', filters] as const,
   candidate: (id: string) => ['recruiting', 'candidate', id] as const,
-  offers: (candidateId: string) => ['recruiting', 'offers', candidateId] as const,
 
   /**
    * Nomzod surati — BINAR kesh va u qolganlaridan ATAYLAB ajratilgan.
@@ -514,14 +507,14 @@ export function useReturnCandidateFromReserve() {
 }
 
 /**
- * ⚠️ TAKLIFSIZ ishga olish — nomzod xodimga aylanadi.
+ * ⚠️ Nomzodni ishga olish — u XODIMGA aylanadi.
  *
- * Keshni QO'SHIMCHA bekor qilishi bilan `useAcceptOffer` ning aynan
- * juftligi va sabab ham o'sha: yaratilgan XODIM boshqa modullarning
- * keshiga tegadi (`employees`, `probations`) va HR darhol o'sha
- * kartaga o'tishi mumkin. `providers.tsx` dagi umumiy qoida ularni
- * baribir qamrab oladi — bu yerdagi ro'yxat NIYATNI hujjatlashtiradi:
- * bitta amaldan qaysi ekranlar eskirishi ko'rinib tursin.
+ * Yagona joy, qayerda mutatsiya keshni O'ZI ham qo'shimcha bekor
+ * qiladi: yaratilgan XODIM boshqa modullarning keshiga tegishli
+ * (`employees`, `probations`) va HR darhol o'sha kartaga o'tishi
+ * mumkin. `providers.tsx` dagi umumiy qoida ularni baribir qamrab
+ * oladi — bu yerdagi ro'yxat NIYATNI hujjatlashtiradi: bitta amaldan
+ * qaysi ekranlar eskirishi ko'rinib tursin.
  */
 export function useHireCandidate() {
   const queryClient = useQueryClient()
@@ -638,65 +631,6 @@ export function useDeleteCandidatePhoto(candidateId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recruitingKeys.candidate(candidateId) })
       queryClient.removeQueries({ queryKey: recruitingKeys.photo(candidateId) })
-    },
-  })
-}
-
-/* ═════════════════════════════════════════════════════════════ takliflar */
-
-export function useOffers(candidateId: string) {
-  return useQuery({
-    queryKey: recruitingKeys.offers(candidateId),
-    queryFn: ({ signal }) => fetchOffers(candidateId, signal),
-  })
-}
-
-export function useSaveOffer(candidateId: string) {
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string | null; body: OfferInput }) =>
-      saveOffer(id, candidateId, body),
-  })
-}
-
-export function useCloseOffer() {
-  return useMutation({
-    mutationFn: ({
-      id,
-      action,
-      at,
-      note,
-    }: {
-      id: string
-      action: 'decline' | 'expire'
-      at: string | null
-      note: string | null
-    }) => closeOffer(id, action, { at, note }),
-  })
-}
-
-/**
- * ⚠️ Taklifni QABUL QILISH — nomzod xodimga aylanadi.
- *
- * Yagona joy, qayerda mutatsiya keshni O'ZI ham qo'shimcha bekor
- * qiladi. NEGA `providers.tsx` dagi umumiy qoida yetmaydi: u
- * `onSuccess` dan keyin ishlaydi va faol so'rovlarni yangilaydi —
- * bu yerda esa yaratilgan XODIM boshqa modulning keshiga tegishli
- * (`employees`, `probations`) va HR darhol o'sha kartaga o'tishi
- * mumkin. Umumiy bekor qilish ularni ham qamrab oladi, shu sababli
- * bu yerda faqat NIYAT hujjatlashtiriladi: ro'yxat qaysi keshlar
- * eskirishini aytib turadi.
- */
-export function useAcceptOffer() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: AcceptOfferInput }) => acceptOffer(id, body),
-    onSuccess: () => {
-      // Nomzod, vakansiya (`hiredCount`), xodimlar ro'yxati va sinov
-      // muddatlari — hammasi shu bitta amaldan o'zgaradi.
-      void queryClient.invalidateQueries({ queryKey: recruitingKeys.root })
-      void queryClient.invalidateQueries({ queryKey: ['employees'] })
-      void queryClient.invalidateQueries({ queryKey: ['probations'] })
     },
   })
 }

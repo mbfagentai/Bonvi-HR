@@ -190,32 +190,6 @@ public sealed class NotificationCollectorTests
         item.Params[NotificationParams.Source].ShouldBe("Manual");
     }
 
-    [Fact]
-    public async Task Taklif_muddati_otib_ketsa_jiddiy_boladi()
-    {
-        _context.Offer(daysLeft: -1);
-
-        var natija = await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
-
-        var item = natija.ShouldHaveSingleItem();
-        item.Type.ShouldBe(NotificationType.JobOfferExpired);
-        item.Severity.ShouldBe(NotificationSeverity.Critical);
-        item.Params[NotificationParams.DaysOverdue].ShouldBe("1");
-    }
-
-    [Fact]
-    public async Task Taklif_muddati_yaqinlashsa_diqqat_boladi()
-    {
-        _context.Offer(daysLeft: 2);
-
-        var natija = await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
-
-        var item = natija.ShouldHaveSingleItem();
-        item.Type.ShouldBe(NotificationType.JobOfferExpiring);
-        item.Severity.ShouldBe(NotificationSeverity.Warning);
-        item.Params[NotificationParams.DaysLeft].ShouldBe("2");
-    }
-
     // ────────────────────── Ruxsat ──────────────────────
 
     /// <summary>
@@ -223,10 +197,9 @@ public sealed class NotificationCollectorTests
     /// nomzod bildirishnomasi KO'RINMASIN.
     /// </summary>
     [Fact]
-    public async Task Rekruting_ruxsatisiz_nomzod_va_taklif_korinmaydi()
+    public async Task Rekruting_ruxsatisiz_nomzod_korinmaydi()
     {
         _context.Candidate();
-        _context.Offer(daysLeft: 1);
         _context.Birthday(NotificationTestContext.Today, "Karimov Aziz");
 
         _context.Deny(Permissions.RecruitingView);
@@ -279,36 +252,6 @@ public sealed class NotificationCollectorTests
         natija.ShouldHaveSingleItem().Type.ShouldBe(NotificationType.ProbationEndingSoon);
     }
 
-    /// <summary>
-    /// Oklad ALOHIDA ruxsat ostida: rekrutingni ko'rish huquqi taklif
-    /// summasini ko'rish huquqini bermaydi.
-    /// </summary>
-    [Fact]
-    public async Task Oklad_ruxsatisiz_taklif_summasi_berilmaydi()
-    {
-        _context.Offer(daysLeft: 1, salary: 7_000_000m);
-        _context.Deny(Permissions.SalaryView);
-
-        var natija = await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
-
-        var item = natija.ShouldHaveSingleItem();
-        item.Params.ShouldNotContainKey(NotificationParams.SalaryAmount);
-        item.Params.ShouldNotContainKey(NotificationParams.SalaryCurrency);
-        item.Type.ShouldBe(NotificationType.JobOfferExpiring, "bildirishnomaning o'zi ko'rinadi");
-    }
-
-    [Fact]
-    public async Task Oklad_ruxsati_bilan_summa_beriladi()
-    {
-        _context.Offer(daysLeft: 1, salary: 7_000_000m);
-
-        var natija = await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
-
-        var item = natija.ShouldHaveSingleItem();
-        item.Params[NotificationParams.SalaryAmount].ShouldBe("7000000");
-        item.Params[NotificationParams.SalaryCurrency].ShouldBe("UZS");
-    }
-
     // ────────────────────── Kalit barqarorligi va tartib ──────────────────────
 
     /// <summary>
@@ -322,13 +265,12 @@ public sealed class NotificationCollectorTests
         _context.Probation(daysLeft: 3);
         _context.Birthday(NotificationTestContext.Today, "Karimov Aziz");
         _context.Candidate();
-        _context.Offer(daysLeft: 1);
         _context.MissingProbation();
 
         var birinchi = await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
         var ikkinchi = await _context.Collector.CollectAsync(TestContext.Current.CancellationToken);
 
-        birinchi.Count.ShouldBe(5);
+        birinchi.Count.ShouldBe(4);
         ikkinchi.Select(item => item.Key).ShouldBe(birinchi.Select(item => item.Key));
     }
 

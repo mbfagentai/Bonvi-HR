@@ -2,8 +2,6 @@ import {
   Bot,
   Cake,
   CalendarClock,
-  FileClock,
-  FileX2,
   Gift,
   Timer,
   TimerOff,
@@ -27,14 +25,10 @@ import type { AppNotification, NotificationSeverity, NotificationType } from '..
  * unutilgan tur ekranga XOM KALIT bo'lib chiqardi (loyihada aynan
  * shunday bo'shliqda `nav.users` xatosi ikki marta chiqqan).
  *
- * ⚠️ Bu SERVER turlarining ro'yxati EMAS (`NOTIFICATION_TYPES`): u yerda
- * to'qqizta tur, bu yerda o'n bitta matn. Farqi — `JobOfferExpiring`:
- * «javobga 2 kun qoldi» va «javob muddati BUGUN tugaydi» bir xil jumla
- * bilan yozilmaydi, chunki serverdan `daysLeft = "0"` keladi va «0
- * kundan keyin tugaydi» degan matn hech qaysi tilda o'qilmaydi. Sinov
- * muddatida bu farq TUR darajasida hal qilingan (`ProbationEndsToday`
- * alohida tur), taklifda esa — parametr darajasida, shu sababli
- * ajratish shu yerda.
+ * Bugun ro'yxat SERVER turlari bilan bir-bir mos (`NOTIFICATION_TYPES`),
+ * lekin u SHART emas va shu sababli alohida massiv: bitta tur ikkita
+ * matnga ajralishi mumkin — shunday hol ish taklifi turlarida bor edi
+ * («2 kun qoldi» va «bugun tugaydi» bir jumla bilan yozilmaydi).
  *
  * Massivning to'liqligini TypeScript ta'minlaydi: pastdagi `TEXT_KEY`
  * har bir TUR uchun shu massivning A'ZOSINI talab qiladi.
@@ -48,9 +42,6 @@ export const NOTIFICATION_TEXT_KEYS = [
   'birthdayTomorrow',
   'candidateNew',
   'candidateFromBot',
-  'jobOfferExpiring',
-  'jobOfferExpiringToday',
-  'jobOfferExpired',
 ] as const
 
 export type NotificationTextKey = (typeof NOTIFICATION_TEXT_KEYS)[number]
@@ -71,21 +62,10 @@ const TEXT_KEY: Readonly<Record<NotificationType, NotificationTextKey>> = {
   BirthdayTomorrow: 'birthdayTomorrow',
   CandidateNew: 'candidateNew',
   CandidateFromBot: 'candidateFromBot',
-  JobOfferExpiring: 'jobOfferExpiring',
-  JobOfferExpired: 'jobOfferExpired',
 }
 
-/**
- * Bildirishnoma turi va PARAMETRLARIGA qarab matn kalitini tanlaydi.
- *
- * Yagona istisno — taklif muddatining oxirgi kuni (sabab yuqorida,
- * `NOTIFICATION_TEXT_KEYS` izohida).
- */
+/** Bildirishnoma turiga mos matn kaliti. */
 export function notificationTextKey(item: AppNotification): NotificationTextKey {
-  if (item.type === 'JobOfferExpiring' && item.params['daysLeft'] === '0') {
-    return 'jobOfferExpiringToday'
-  }
-
   return TEXT_KEY[item.type]
 }
 
@@ -102,7 +82,6 @@ export function notificationTextKey(item: AppNotification): NotificationTextKey 
  */
 export interface NotificationFormatters {
   num: (value: number) => string
-  money: (value: number, currency?: string) => string
   date: (value: string) => string
 }
 
@@ -148,8 +127,7 @@ export function notificationValues(
     item.params['endDate'] ??
     item.params['hireDate'] ??
     item.params['birthDate'] ??
-    item.params['addedOn'] ??
-    item.params['expiresAt']
+    item.params['addedOn']
 
   const values: NotificationValues = {
     // Ism — xodimniki yoki nomzodniki. Ikkalasi bir vaqtda hech qachon
@@ -208,7 +186,7 @@ const SOURCE_KEY: Readonly<Record<string, string>> = {
 
 /**
  * Matn ostidagi kontekst satri: bo'lim · lavozim · vakansiya · yosh ·
- * oklad · manba.
+ * manba.
  *
  * NEGA bu asosiy matnga QO'SHILMAYDI. Ixtiyoriy parametrlarni jumlaga
  * kiritish uchun har bir tur bo'yicha bir nechta matn varianti kerak
@@ -216,16 +194,11 @@ const SOURCE_KEY: Readonly<Record<string, string>> = {
  * kalit, to'rt tilda. Ular ALOHIDA satrda esa bittasi yo'q bo'lsa
  * shunchaki tushib qoladi va jumla buzilmaydi.
  *
- * ⚠️ Aynan shu sababdan `salaryAmount` ham shu yerda: `salary.view`
- * ruxsati yo'q foydalanuvchida u UMUMAN kelmaydi va matn undan xabar
- * ham topmasligi kerak.
- *
  * Tartib qat'iy va sarlavhadagi ro'yxat bilan bir xil: avval odam
  * QAYERGA tegishli (bo'lim, lavozim, vakansiya), keyin uning O'ZI
- * haqidagi fakt (yosh), keyin shartnoma sharti (oklad) va oxirida
- * yozuvning kelib chiqishi (manba). Bir xil tartib ro'yxatda ko'zni
- * o'rgatadi: qatordan qatorga o'tganda bir xil ma'lumot bir xil joyda
- * turadi.
+ * haqidagi fakt (yosh) va oxirida yozuvning kelib chiqishi (manba).
+ * Bir xil tartib ro'yxatda ko'zni o'rgatadi: qatordan qatorga o'tganda
+ * bir xil ma'lumot bir xil joyda turadi.
  */
 export function notificationMeta(
   item: AppNotification,
@@ -244,11 +217,6 @@ export function notificationMeta(
   const age = Number(item.params['age'])
   if (item.params['age'] !== undefined && Number.isFinite(age)) {
     meta.push({ kind: 'key', key: 'notifications.age', values: { n: fmt.num(age) } })
-  }
-
-  const salary = Number(item.params['salaryAmount'])
-  if (item.params['salaryAmount'] !== undefined && Number.isFinite(salary)) {
-    push(fmt.money(salary, item.params['salaryCurrency']))
   }
 
   const sourceKey = SOURCE_KEY[item.params['source'] ?? '']
@@ -272,8 +240,8 @@ export function notificationMeta(
  * qarori), ya'ni jiddiy yozuv o'rtada turishi mumkin. Ilgari uni
  * TARTIB ajratib turardi, endi — RANG.
  *
- * <b>Nega har bir TUR uchun alohida rang emas.</b> Turlar o'nta;
- * o'nta fon rangi ro'yxatni chiziqli bezakka aylantirardi va hech
+ * <b>Nega har bir TUR uchun alohida rang emas.</b> Turlar sakkizta;
+ * sakkizta fon rangi ro'yxatni chiziqli bezakka aylantirardi va hech
  * qanday savolga javob bermasdi. Turni SHAKL (ikona) aytadi, rang esa
  * shoshilinchlikni — bu loyihaning mavjud qoidasi (`TYPE_ICON` izohi)
  * va u shu yerda ham buzilmaydi.
@@ -307,7 +275,7 @@ export const SEVERITY_LOOK: Readonly<
  * Har bir tur uchun ikona.
  *
  * NEGA rang emas, SHAKL ham kerak: ranglar atigi uchta (uchta daraja),
- * turlar esa to'qqizta — bir xil to'q sariq nuqta «sinov tugayapti» ni
+ * turlar esa sakkizta — bir xil to'q sariq nuqta «sinov tugayapti» ni
  * ham, «sinov yozuvi yo'q» ni ham bildirardi. Ikona ro'yxatni matnni
  * o'qimasdan ajratish imkonini beradi; rang esa qanchalik shoshilinch
  * ekanini aytadi. Ikkalasi bir-birini takrorlamaydi.
@@ -327,8 +295,6 @@ export const TYPE_ICON: Readonly<Record<NotificationType, LucideIcon>> = {
     javob oladi — bu esa aynan shu ikkisining yagona muhim farqi.
   */
   CandidateFromBot: Bot,
-  JobOfferExpiring: FileClock,
-  JobOfferExpired: FileX2,
 }
 
 /**

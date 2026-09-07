@@ -10,8 +10,9 @@ namespace Bonvi.Api.Endpoints;
 /// <remarks>
 /// <b>Lavozim, bo'lim va yuridik shaxs maydonlari YO'Q.</b> Vakansiya —
 /// e'lon, kompaniya tuzilmasidan unda hech narsa saqlanmaydi (batafsil
-/// sabab <c>Vacancy</c> domen izohida). Uchalasi taklif QABUL
-/// QILINGANDA so'raladi: <c>POST /api/recruiting/offers/{id}/accept</c>.
+/// sabab <c>Vacancy</c> domen izohida). Uchalasi nomzod ISHGA
+/// OLINAYOTGANDA so'raladi:
+/// <c>POST /api/recruiting/candidates/{id}/hire</c>.
 /// </remarks>
 /// <param name="VacancyTitleId">
 /// Vakansiya nomi — «vacancy-titles» ma'lumotnomasidan. Majburiy va
@@ -231,8 +232,8 @@ public static class VacancyEndpoints
             .WithDescription(
                 "«closedAt» bo'sh — bugun. O'rin to'lganda vakansiya O'ZI yopilmaydi: " +
                 "bu HR ning qarori (ro'yxatdagi «hiredCount» unga asos beradi). " +
-                "Yopish QAYTARILADI («/reopen») va nomzodlarga, ularning bosqichlari " +
-                "hamda takliflariga TEGMAYDI — u faqat yangi nomzod kiritishni to'sadi. " +
+                "Yopish QAYTARILADI («/reopen») va nomzodlarga hamda ularning " +
+                "bosqichlariga TEGMAYDI — u faqat yangi nomzod kiritishni to'sadi. " +
                 "Xatolar: «vakansiya.allaqachon_yopiq» (409), «vakansiya.yopish_sanasi» (400).")
             .Produces<VacancyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)

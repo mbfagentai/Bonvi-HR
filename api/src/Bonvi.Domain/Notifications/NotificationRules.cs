@@ -62,14 +62,6 @@ public static class NotificationRules
     /// </remarks>
     public const int NewCandidateDays = 7;
 
-    /// <summary>Ish taklifi javob muddati tugashiga necha kun qolganda ogohlantiriladi.</summary>
-    /// <remarks>
-    /// Sinovnikidan (7) qisqaroq, chunki taklif muddati odatda bir hafta
-    /// atrofida bo'ladi — 7 kunlik ogohlantirish taklif yuborilgan kuniyoq
-    /// ishga tushib, ma'nosini yo'qotardi.
-    /// </remarks>
-    public const int OfferWarningDays = 3;
-
     /// <summary>
     /// O'qilgan bildirishnoma ro'yxatda necha kun qoladi.
     /// </summary>

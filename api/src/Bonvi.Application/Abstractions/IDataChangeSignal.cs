@@ -19,9 +19,9 @@ namespace Bonvi.Application.Abstractions;
 /// HISOBLAB, ochiq turgan brauzerlarga yuboradi.
 /// </para>
 /// <para>
-/// <b>Nega davriy qayta hisoblash emas.</b> Bitta hisob beshta so'rov
+/// <b>Nega davriy qayta hisoblash emas.</b> Bitta hisob to'rtta so'rov
 /// (sinov muddatlari, yozuvsiz munosabatlar, tug'ilgan kunlar,
-/// nomzodlar, takliflar). Har o'n soniyada, har bir ulangan
+/// nomzodlar). Har o'n soniyada, har bir ulangan
 /// foydalanuvchi uchun takrorlansa — kun bo'yi bo'sh ish. Signal bilan
 /// esa hisob FAQAT haqiqatan bir narsa yozilganda bajariladi.
 /// </para>

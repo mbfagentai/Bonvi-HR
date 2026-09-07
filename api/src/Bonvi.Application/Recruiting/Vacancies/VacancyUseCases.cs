@@ -65,7 +65,7 @@ public sealed record GetVacancyQuery(Guid VacancyId);
 /// <remarks>
 /// Buyruqda kompaniya tuzilmasidan hech narsa YO'Q: e'lon ochish uchun
 /// faqat uning nomi kerak. Firma, bo'lim va lavozim — ishga qabul
-/// paytidagi qaror (<c>AcceptJobOfferCommand</c>), e'lonning xossasi emas.
+/// paytidagi qaror (<c>HireCandidateCommand</c>), e'lonning xossasi emas.
 /// </remarks>
 public sealed record OpenVacancyCommand(
     Guid VacancyTitleId,
@@ -518,7 +518,7 @@ public sealed class VacancyReferenceGuard
     /// endi ikkita: vakansiyada kompaniya tuzilmasidan hech narsa
     /// qolmadi (sababi <c>Vacancy</c> izohida). Qolgan uchtasi
     /// yo'qolmadi — ular ishga qabul oqimida tekshiriladi
-    /// (<c>AcceptJobOfferCommandHandler</c> va uning chaqiradigan
+    /// (<c>HireCandidateCommandHandler</c> va uning chaqiradigan
     /// <c>HireEmployeeCommandHandler</c> i).
     /// </remarks>
     public async Task<Result> CheckAsync(

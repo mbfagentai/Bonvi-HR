@@ -176,14 +176,13 @@ app.MapExitInterviewEndpoints();
 app.MapIncidentEndpoints();
 
 // Rekruting (2-bosqich): voronka bosqichlari → vakansiya → nomzod →
-// ish taklifi. Oxirgi qadam 1-bosqichning ishga qabul oqimiga ulanadi.
+// ishga olish. Oxirgi qadam 1-bosqichning ishga qabul oqimiga ulanadi.
 app.MapPipelineStageEndpoints();
 app.MapVacancyEndpoints();
 app.MapCandidateEndpoints();
-app.MapJobOfferEndpoints();
 
 // Bildirishnomalar — yuqori paneldagi qo'ng'iroq. Bironta bo'limga
-// tegishli emas: sinov, xodim, nomzod va taklif ma'lumotlarini BIRGA
+// tegishli emas: sinov, xodim va nomzod ma'lumotlarini BIRGA
 // o'qiydi va har bir foydalanuvchiga o'z ro'yxatini beradi.
 app.MapNotificationEndpoints();
 

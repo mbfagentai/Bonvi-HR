@@ -167,38 +167,3 @@ public sealed class CandidateRepository : Repository<Candidate>, ICandidateRepos
         return counts is null ? (0, 0) : (counts.Total, counts.Hired);
     }
 }
-
-/// <summary><see cref="IJobOfferRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
-public sealed class JobOfferRepository : Repository<JobOffer>, IJobOfferRepository
-{
-    public JobOfferRepository(AppDbContext context) : base(context) { }
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// Eng yangisi birinchi: kartada joriy taklif tepada turishi kerak,
-    /// muzokara tarixi esa pastda.
-    /// </remarks>
-    public async Task<IReadOnlyList<JobOffer>> GetByCandidateAsync(
-        Guid candidateId,
-        CancellationToken cancellationToken = default)
-        => await Set
-            .AsNoTracking()
-            .Where(offer => offer.CandidateId == candidateId)
-            .OrderByDescending(offer => offer.SentAt)
-            .ThenByDescending(offer => offer.Id)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// Kuzatiladi: bu metod javob yozishdan oldin ham chaqiriladi va
-    /// topilgan yozuv darhol o'zgartirilishi mumkin.
-    /// </remarks>
-    public Task<JobOffer?> GetPendingByCandidateAsync(
-        Guid candidateId,
-        CancellationToken cancellationToken = default)
-        => Set
-            .Where(offer => offer.CandidateId == candidateId && offer.Status == JobOfferStatus.Sent)
-            .OrderByDescending(offer => offer.SentAt)
-            .FirstOrDefaultAsync(cancellationToken);
-}

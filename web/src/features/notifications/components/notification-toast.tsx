@@ -76,7 +76,7 @@ const TOAST_MS = 3_000
 export function LiveNotifications() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const { t, num, money, date } = useLocale()
+  const { t, num, date } = useLocale()
 
   const show = useCallback(
     (items: AppNotification[]) => {
@@ -105,7 +105,7 @@ export function LiveNotifications() {
                 nima bo'lganini tushunish qiyinlashardi.
               */
               title={t(`notifications.type.${key}.title`)}
-              text={t(`notifications.type.${key}.text`, notificationValues(item, { num, money, date }))}
+              text={t(`notifications.type.${key}.text`, notificationValues(item, { num, date }))}
               onOpen={() => {
                 toast.dismiss(id)
                 navigateToNotification(navigate, item)
@@ -140,7 +140,7 @@ export function LiveNotifications() {
         )
       }
     },
-    [navigate, t, num, money, date],
+    [navigate, t, num, date],
   )
 
   useNotificationStream(isAuthenticated, show)

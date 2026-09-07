@@ -4,12 +4,10 @@ import {
   CircleCheck,
   CircleSlash,
   CircleX,
-  Clock,
   DoorOpen,
   FileSpreadsheet,
   Hourglass,
   Keyboard,
-  Send,
   UserCheck,
   UserRoundX,
   type LucideIcon,
@@ -19,7 +17,6 @@ import type { BadgeTone, IconTone } from '@/shared/ui'
 import type {
   CandidateSource,
   CandidateStatus,
-  JobOfferStatus,
   StageOutcome,
   VacancyStatus,
 } from '../api/recruiting-api'
@@ -102,13 +99,6 @@ export const CANDIDATE_LOOK: Readonly<Record<CandidateStatus, StatusLook>> = {
     shu holat bilan chalkashardi.
   */
   Reserve: { key: 'reserve', tone: 'neutral', icon: Bookmark },
-}
-
-export const OFFER_LOOK: Readonly<Record<JobOfferStatus, StatusLook>> = {
-  Sent: { key: 'sent', tone: 'info', icon: Send },
-  Accepted: { key: 'accepted', tone: 'success', icon: CircleCheck },
-  Declined: { key: 'declined', tone: 'danger', icon: CircleX },
-  Expired: { key: 'expired', tone: 'neutral', icon: Clock },
 }
 
 /** Bosqich natijasi — lentadagi ikona uchun `IconTone` (Badge emas). */

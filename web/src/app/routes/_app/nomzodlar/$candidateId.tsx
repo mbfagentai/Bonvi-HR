@@ -3,8 +3,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { CandidateCardPage } from '@/features/recruiting/components/candidate-card-page'
 
 /**
- * Nomzod kartasi: shaxsiy ma'lumot, rezyume, bosqichlar tarixi va
- * ish takliflari.
+ * Nomzod kartasi: shaxsiy ma'lumot, anketa, rezyume va bosqichlar
+ * tarixi.
  *
  * Tab tanlovi manzilda SAQLANMAYDI (xodim kartasidagi bilan bir xil
  * qaror): u ro'yxatni filtrlamaydi va «orqaga» bosilganda tiklanishi

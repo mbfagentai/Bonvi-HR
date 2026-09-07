@@ -29,9 +29,9 @@ const FORM_ID = 'candidate-stage-form'
  * klientda «bu yangi yozuvmi yoki tahrirmi?» degan qaror ham yo'q.
  *
  * <b>«Ishga olindi» deb belgilash amali YO'Q.</b> Nomzod xodimga
- * faqat TAKLIF QABUL QILINGANDA aylanadi (`OfferAcceptDialog`) —
- * boshqa yo'l bo'lganida sinov muddati, buyruq raqami va JSHSHIR
- * tekshiruvi chetlab o'tilardi.
+ * faqat «Ishga olish» oynasi orqali aylanadi
+ * (`CandidateHireDialog`) — boshqa yo'l bo'lganida sinov muddati,
+ * buyruq raqami va JSHSHIR tekshiruvi chetlab o'tilardi.
  */
 export function CandidateStageDialog({
   candidate,

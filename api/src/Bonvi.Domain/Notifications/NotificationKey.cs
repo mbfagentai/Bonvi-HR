@@ -75,11 +75,11 @@ public static class NotificationKey
     /// ochiq yotadi va ularni o'qiydigan odam aynan shu tilda o'ylaydi.
     /// </para>
     /// <para>
-    /// ⚠️ Prefikslar bir-birining boshlanishi bo'lishi mumkin
-    /// (<c>taklif.muddati</c> va <c>taklif.muddati_otdi</c>) — bu xavfsiz,
-    /// chunki tur aniqlanayotganda kalit AVVAL <see cref="Separator"/>
-    /// bo'yicha bo'linadi va birinchi bo'lak TO'LIQ solishtiriladi,
-    /// <c>StartsWith</c> bilan emas.
+    /// ⚠️ Prefikslar bir-birining boshlanishi bo'lishi MUMKIN (masalan
+    /// <c>sinov.tugayapti</c> yoniga <c>sinov.tugayapti_yana</c>
+    /// qo'shilsa) — bu xavfsiz, chunki tur aniqlanayotganda kalit AVVAL
+    /// <see cref="Separator"/> bo'yicha bo'linadi va birinchi bo'lak
+    /// TO'LIQ solishtiriladi, <c>StartsWith</c> bilan emas.
     /// </para>
     /// </remarks>
     private static readonly Dictionary<NotificationType, string> Prefixes =
@@ -93,8 +93,6 @@ public static class NotificationKey
             [NotificationType.BirthdayTomorrow] = "tugilgan_kun.ertaga",
             [NotificationType.CandidateNew] = "nomzod.yangi",
             [NotificationType.CandidateFromBot] = "nomzod.botdan",
-            [NotificationType.JobOfferExpiring] = "taklif.muddati",
-            [NotificationType.JobOfferExpired] = "taklif.muddati_otdi",
         };
 
     /// <summary>Prefiksdan turga — <see cref="TypeOf"/> uchun teskari jadval.</summary>

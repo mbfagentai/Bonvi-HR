@@ -48,20 +48,18 @@ const ALWAYS_VISIBLE_FIELDS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * ⚠️⚠️ ISHGA OLISH — nomzod XODIMGA aylanadi, TAKLIFSIZ.
+ * ⚠️⚠️ ISHGA OLISH — nomzod XODIMGA aylanadi.
  *
- * Voronkaning yakuniy qadami va ishga olishning ODATIY yo'li
- * (`docs/SPEC-nomzod-yakuni.md`, 2-bo'lim). Server bitta tranzaksiyada
+ * Voronkaning yakuniy qadami va nomzoddan xodimga o'tishning YAGONA
+ * yo'li (`docs/SPEC-nomzod-yakuni.md`, 2-bo'lim). Server bitta tranzaksiyada
  * nomzodni yopadi, XODIM kartasini yaratadi, mehnat munosabatini
  * ochadi va MAJBURIY sinov muddatini boshlaydi — ya'ni bir bosishdan
  * keyin `/xodimlar` va `/sinov` ro'yxatlarida yangi odam paydo bo'ladi.
  *
- * <b>Naqsh `offer-accept-dialog.tsx` dan KO'CHIRILGAN va bu ataylab.</b>
+ * <b>Naqsh `hire-dialog.tsx` (xodimlar moduli) bilan bir xil.</b>
  * Ikkala oyna ham ayni bir ishga qabul oqimini chaqiradi
  * (`HireEmployeeCommand`), ya'ni bir xil maydonlarni so'raydi va bir
- * xil ogohlantirishlarni qaytaradi. Ikkinchi uslub o'ylab topilsa, HR
- * bugun ikkita, ertaga esa (taklif o'chirilgach) noma'lum bittasini
- * o'rganishga majbur bo'lardi.
+ * xil ogohlantirishlarni qaytaradi.
  *
  * <b>⭐ Farqi — MAJBURIY maydon ATIGI IKKITA:</b> yuridik shaxs va
  * lavozim. Qolganining zaxirasi SERVERDA bor (ishga qabul sanasi —
@@ -108,9 +106,8 @@ export function CandidateHireDialog({
   const employees = useEmployeeOptions()
   /*
     Bo'lim, lavozim va firma ro'yxatlari — xodimlar modulining tayyor
-    hook'idan. `offer-accept-dialog.tsx` va `hire-dialog.tsx` ham aynan
-    shundan oladi: uchala ekranda ro'yxatlar bir xil bo'ladi va kesh
-    ham bitta.
+    hook'idan. `hire-dialog.tsx` ham aynan shundan oladi: ikkala
+    ekranda ro'yxatlar bir xil bo'ladi va kesh ham bitta.
   */
   const options = useFilterOptions()
 
@@ -348,8 +345,7 @@ export function CandidateHireDialog({
             /*
               `primary`, `danger` emas: amal buzuvchi emas, qaytarib
               bo'lmaydigan. Ogohlantirish esa formaning tepasida —
-              qizil tugmadan ko'ra ko'proq o'qiladigan joyda
-              (`offer-accept-dialog.tsx` dagi bilan bir xil qaror).
+              qizil tugmadan ko'ra ko'proq o'qiladigan joyda.
             */
             variant="primary"
             disabled={pending || incomplete}
@@ -545,9 +541,7 @@ export function CandidateHireDialog({
               </div>
 
               {/*
-                Oklad bu formada BOR (taklifni qabul qilishda esa yo'q):
-                u yerda summa taklifdan kelardi, bu yerda esa kelishilgan
-                taklif yo'q va uni faqat shu maydon bera oladi
+                Kelishilgan oklad faqat SHU maydondan keladi
                 (`HireCandidateCommand.SalaryAmount` izohi). Bo'sh
                 qoldirilsa munosabat oklad yozuvisiz ochiladi.
               */}
@@ -632,16 +626,7 @@ export function CandidateHireDialog({
   )
 }
 
-/**
- * Forma bo'limi — `offer-accept-dialog.tsx` dagi bilan AYNAN bir xil
- * ko'rinish.
- *
- * Nusxa ataylab: ikkinchi oyna «bir oz boshqacha» ko'rinmasligi kerak,
- * umumiy komponentga chiqarish esa faqat taklif o'chirilgach ma'noli
- * bo'ladi — o'shanda `offer-accept-dialog.tsx` butunlay ketadi va
- * yagona nusxa aynan shu yerda qoladi (`docs/SPEC-nomzod-yakuni.md`,
- * 3-bo'lim).
- */
+/** Forma bo'limi — sarlavha, izoh va maydonlar guruhi. */
 function Section({
   title,
   hint,

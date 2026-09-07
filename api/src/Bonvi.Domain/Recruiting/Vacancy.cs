@@ -92,7 +92,7 @@ public enum VacancyStatus
 /// </para>
 /// <para>
 /// <b>Uchalasi QAYERDA so'raladi.</b> Aynan bitta nuqtada —
-/// <c>AcceptJobOfferCommand</c> da, ya'ni taklif qabul qilinganda. O'sha
+/// <c>HireCandidateCommand</c> da, ya'ni nomzod ishga olinayotganda. O'sha
 /// yerda HR firma, bo'lim va lavozimni MAVJUD ma'lumotnomalardan tanlaydi
 /// va ular to'g'ridan-to'g'ri <c>HireEmployeeCommand</c> ga uzatiladi.
 /// Ya'ni e'lon bilan shtat jadvali bitta joyda, bitta qarorda uchrashadi —
@@ -286,9 +286,9 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
 
     /// <summary>Vakansiyani yopadi.</summary>
     /// <remarks>
-    /// Yopish — QAYTARILADIGAN amal (<see cref="Reopen"/>). Nomzodlar,
-    /// ularning bosqichlari va takliflari tegilmaydi: yopish ular haqida
-    /// emas, faqat «bu o'ringa endi yangi odam kiritilmaydi» degani.
+    /// Yopish — QAYTARILADIGAN amal (<see cref="Reopen"/>). Nomzodlar va
+    /// ularning bosqichlari tegilmaydi: yopish ular haqida emas, faqat
+    /// «bu o'ringa endi yangi odam kiritilmaydi» degani.
     /// </remarks>
     public Result Close(DateOnly closedAt, string? reason = null)
     {

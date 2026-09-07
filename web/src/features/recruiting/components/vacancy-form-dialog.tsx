@@ -23,8 +23,8 @@ const FORM_ID = 'vacancy-form'
  * yerda lavozim, bo'lim va yuridik shaxs ham tanlanardi. Uchalasi
  * OLIB TASHLANDI: vakansiya — e'lon, kompaniya tuzilmasidan unda hech
  * narsa saqlanmaydi (backend'dagi `Vacancy` domen izohi). Ular endi
- * taklif QABUL QILINGANDA so'raladi (`offer-accept-dialog.tsx`) — ya'ni
- * o'sha paytda, qachonki javob haqiqatan ma'lum bo'ladi.
+ * nomzod ISHGA OLINAYOTGANDA so'raladi (`candidate-hire-dialog.tsx`) —
+ * ya'ni o'sha paytda, qachonki javob haqiqatan ma'lum bo'ladi.
  *
  * <b>Nom ERKIN MATN emas, ma'lumotnomadan.</b> Erkin sarlavha bo'lganida
  * «Сотувчи (шошилинч!)», «сотувчи консултант» kabi yozuvlar paydo

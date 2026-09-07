@@ -36,7 +36,7 @@ public sealed record PipelineStageDto(
 /// <b>Lavozim, bo'lim va firma maydonlari YO'Q va bu ataylab.</b>
 /// Vakansiya — e'lon; kompaniya tuzilmasidan unda hech narsa
 /// saqlanmaydi (batafsil sabab <see cref="Vacancy"/> izohida). Shu
-/// uchtasi taklif QABUL QILINGANDA tanlanadi va o'sha yerdan
+/// uchtasi nomzod ISHGA OLINAYOTGANDA tanlanadi va o'sha yerdan
 /// <c>HireEmployeeCommand</c> ga tushadi.
 /// </para>
 /// </remarks>
@@ -121,9 +121,9 @@ public sealed record RejectionNoticeDto(
 /// Nomzodlar ro'yxatining bitta qatori.
 /// </summary>
 /// <remarks>
-/// Bosqichlar tarixi va takliflar bu yerda YO'Q: ro'yxat yuzlab qatorni
-/// tortadi va har biriga tarix yig'ish keraksiz yuk bo'lardi
-/// (<c>EmployeeListItemDto</c> bilan bir xil qoida). Ular kartada.
+/// Bosqichlar tarixi bu yerda YO'Q: ro'yxat yuzlab qatorni tortadi va
+/// har biriga tarix yig'ish keraksiz yuk bo'lardi
+/// (<c>EmployeeListItemDto</c> bilan bir xil qoida). U kartada.
 /// </remarks>
 /// <param name="Id">Identifikator.</param>
 /// <param name="FullName">To'liq F.I.Sh.</param>
@@ -236,7 +236,7 @@ public sealed record CandidateQuestionnaireDto(
 /// </remarks>
 public sealed record CandidatePhotoDto(string PhotoKey);
 
-/// <summary>Nomzod kartasi — bosqichlar tarixi va takliflari bilan.</summary>
+/// <summary>Nomzod kartasi — bosqichlar tarixi bilan.</summary>
 /// <param name="Id">Identifikator.</param>
 /// <param name="LastName">Familiya.</param>
 /// <param name="FirstName">Ism.</param>
@@ -265,7 +265,6 @@ public sealed record CandidatePhotoDto(string PhotoKey);
 /// <param name="HiredEmployeeId">Ishga olingan bo'lsa — xodim kartasi.</param>
 /// <param name="HiredEmploymentId">Ishga olingan bo'lsa — mehnat munosabati.</param>
 /// <param name="Stages">Bosqichlar tarixi — yozilgan tartibda.</param>
-/// <param name="Offers">Ish takliflari — yangidan eskiga.</param>
 /// <param name="Questionnaire">
 /// Botda to'ldirilgan anketa. <c>null</c> BO'LISHI ODATIY hol: HR qo'lda
 /// kiritgan nomzodda ham, bu funksiya paydo bo'lgunicha yozilgan
@@ -297,56 +296,7 @@ public sealed record CandidateDto(
     Guid? HiredEmployeeId,
     Guid? HiredEmploymentId,
     IReadOnlyList<CandidateStageEntryDto> Stages,
-    IReadOnlyList<JobOfferDto> Offers,
     CandidateQuestionnaireDto? Questionnaire);
-
-/// <summary>Ish taklifi.</summary>
-/// <param name="Id">Identifikator.</param>
-/// <param name="CandidateId">Nomzod.</param>
-/// <param name="CandidateName">Nomzodning F.I.Sh.</param>
-/// <param name="VacancyId">Vakansiya.</param>
-/// <param name="Vacancy">Vakansiyaning nomi (e'lon nomi).</param>
-/// <param name="Salary">Taklif qilingan oylik ish haqi.</param>
-/// <param name="StartDate">Ish boshlash sanasi.</param>
-/// <param name="SentAt">Yuborilgan sana.</param>
-/// <param name="ExpiresAt">Javob muddati.</param>
-/// <param name="Status">Sent | Accepted | Declined | Expired.</param>
-/// <param name="RespondedAt">Javob sanasi.</param>
-/// <param name="ResponseNote">Javob izohi.</param>
-/// <param name="Note">Ichki izoh.</param>
-public sealed record JobOfferDto(
-    Guid Id,
-    Guid CandidateId,
-    string? CandidateName,
-    Guid VacancyId,
-    string? Vacancy,
-    MoneyDto Salary,
-    DateOnly StartDate,
-    DateOnly SentAt,
-    DateOnly? ExpiresAt,
-    JobOfferStatus Status,
-    DateOnly? RespondedAt,
-    string? ResponseNote,
-    string? Note);
-
-/// <summary>
-/// Taklif qabul qilinganining natijasi: yopilgan nomzod va yaratilgan xodim.
-/// </summary>
-/// <remarks>
-/// Ikkalasi BIRGA qaytadi, chunki bu bitta amalning ikki tomoni: HR
-/// «taklif qabul qilindi» tugmasini bosgach, ekranda darhol yangi
-/// xodimning kartasi (va uning sinov muddati) ochilishi kerak — qo'shimcha
-/// so'rovsiz. <see cref="Hire"/> ichida ishga qabulning odatiy javobi
-/// turadi: mehnat munosabati, lavozim vazifalari va ogohlantirishlar
-/// (masalan stavka chegarasi).
-/// </remarks>
-/// <param name="Offer">Yakunlangan taklif.</param>
-/// <param name="Candidate">Yangilangan nomzod (holati — «ishga olingan»).</param>
-/// <param name="Hire">Ishga qabul natijasi — 1-bosqichning odatiy javobi.</param>
-public sealed record CandidateHireResultDto(
-    JobOfferDto Offer,
-    CandidateDto Candidate,
-    HireResultDto Hire);
 
 /// <summary>
 /// To'g'ridan-to'g'ri ishga olishning natijasi: yopilgan nomzod va
@@ -354,13 +304,10 @@ public sealed record CandidateHireResultDto(
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="CandidateHireResultDto"/> ning taklifsiz varianti va
-/// undan yagona farqi shu — taklif maydoni yo'q. Ikkalasini bitta
-/// record qilib, <c>Offer</c> ni <c>null</c> qoldirish mumkin edi, lekin
-/// o'shanda mijoz har safar «taklif bormi?» degan savolni berishga
-/// majbur bo'lardi va javob endpoint'ga qarab oldindan ma'lum edi.
-/// Ish taklifi o'chirilgach (<c>docs/SPEC-nomzod-yakuni.md</c>,
-/// 3-bo'lim) shu record yagona bo'lib qoladi.
+/// Ikkalasi BIRGA qaytadi, chunki bu bitta amalning ikki tomoni: HR
+/// «Ishga olish» tugmasini bosgach, ekranda darhol yangi xodimning
+/// kartasi (va uning sinov muddati) ochilishi kerak — qo'shimcha
+/// so'rovsiz.
 /// </para>
 /// <para>
 /// <see cref="Hire"/> ichida ishga qabulning odatiy javobi turadi:

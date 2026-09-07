@@ -78,7 +78,7 @@ public sealed class EmploymentEventConfiguration : IEntityTypeConfiguration<Empl
             employmentEvent.EffectiveDate,
         });
 
-        // «Bu nomzod qaysi xodimga aylandi» va taklifni qabul qilishning
+        // «Bu nomzod qaysi xodimga aylandi» va ishga olishning
         // takrorga qarshi tekshiruvi — ikkalasi ham SHU ustun bo'yicha
         // qidiradi. Qisman indeks juda kichik: hodisalarning katta qismi
         // rekrutingdan kelmaydi (Excel'dan ko'chirilgan 5000 yozuv va HR
