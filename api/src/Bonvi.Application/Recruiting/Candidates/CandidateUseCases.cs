@@ -246,9 +246,6 @@ public sealed record ReserveCandidateCommand(Guid CandidateId, DateOnly? At = nu
 /// <summary>Rezervdagi nomzodni voronkaga qaytarish.</summary>
 public sealed record ReturnCandidateFromReserveCommand(Guid CandidateId);
 
-/// <summary>Nomzod yozuvini yumshoq o'chirish.</summary>
-public sealed record DeleteCandidateCommand(Guid CandidateId);
-
 public sealed class SearchCandidatesQueryHandler
 {
     /// <summary>Sukut bo'yicha sahifa hajmi.</summary>
@@ -999,39 +996,5 @@ public sealed class ReturnCandidateFromReserveCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return await _mapper.ToDtoAsync(candidate, cancellationToken).ConfigureAwait(false);
-    }
-}
-
-public sealed class DeleteCandidateCommandHandler
-{
-    private readonly ICandidateRepository _candidates;
-    private readonly IUnitOfWork _unitOfWork;
-
-    public DeleteCandidateCommandHandler(ICandidateRepository candidates, IUnitOfWork unitOfWork)
-    {
-        _candidates = candidates;
-        _unitOfWork = unitOfWork;
-    }
-
-    public async Task<Result> HandleAsync(
-        DeleteCandidateCommand command,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-
-        var candidate = await _candidates.GetByIdAsync(command.CandidateId, cancellationToken).ConfigureAwait(false);
-        if (candidate is null)
-        {
-            return RecruitingErrors.CandidateNotFound;
-        }
-
-        // Yumshoq o'chirish. Rezyume fayli diskda QOLADI — xodim hujjatidagi
-        // bilan bir xil qaror: yozuv bazada turgan ekan, unga ishora
-        // qiladigan fayl ham turishi kerak, aks holda tiklangan yozuv
-        // buzilgan bo'lib chiqardi.
-        _candidates.Remove(candidate);
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        return Result.Success();
     }
 }

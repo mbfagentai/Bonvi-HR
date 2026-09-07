@@ -6,7 +6,6 @@ import {
   Bookmark,
   DoorOpen,
   Pencil,
-  Trash2,
   Undo2,
   UserCheck,
   UserRoundX,
@@ -331,16 +330,14 @@ export function CandidateCardPage() {
                   </>
                 )}
 
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setAction('delete')}
-                  className="ml-auto text-[var(--danger-text)]"
-                >
-                  <Trash2 />
-                  {t('common.delete')}
-                </Button>
+                {/*
+                  ⚠️ «O'chirish» tugmasi YO'Q va u ataylab olib
+                  tashlangan (foydalanuvchi qarori, 2026-09-07): har bir
+                  anketa — nomzodning o'zi to'ldirgan ma'lumot va u
+                  kelasi izlanishning bazasi. Nomzod YAKUNLANADI
+                  (rezerv, rad etish, ishga olish), lekin yo'q
+                  qilinmaydi. Server tomonda ham endpoint qolmagan.
+                */}
               </CardContent>
             </Card>
           )}

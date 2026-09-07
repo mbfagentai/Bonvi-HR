@@ -8,7 +8,6 @@ import type { SelectOption } from '@/shared/ui'
 import {
   changeVacancyStatus,
   closeCandidate,
-  deleteCandidate,
   deleteCandidatePhoto,
   deleteResume,
   deleteVacancy,
@@ -527,10 +526,6 @@ export function useHireCandidate() {
       void queryClient.invalidateQueries({ queryKey: ['probations'] })
     },
   })
-}
-
-export function useDeleteCandidate() {
-  return useMutation({ mutationFn: (id: string) => deleteCandidate(id) })
 }
 
 /* ─────────────────────────────────────────────────────────────── rezyume */

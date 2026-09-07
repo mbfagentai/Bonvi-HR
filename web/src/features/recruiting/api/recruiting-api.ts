@@ -881,11 +881,6 @@ export async function hireCandidate(
   return toDirectHireResult(data)
 }
 
-/** Yumshoq o'chirish — faqat XATO kiritilgan yozuv uchun. */
-export async function deleteCandidate(id: string): Promise<void> {
-  await api.delete(`${CANDIDATES}/${id}`)
-}
-
 /* ─────────────────────────────────────────────────────────────── rezyume */
 
 /**

@@ -1,4 +1,3 @@
-import { useNavigate } from '@tanstack/react-router'
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -7,7 +6,6 @@ import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 import type { Candidate } from '../api/recruiting-api'
 import {
   useCloseCandidate,
-  useDeleteCandidate,
   useReassignCandidate,
   useReturnCandidateFromReserve,
   useVacancyOptions,
@@ -22,7 +20,6 @@ export type CandidateAction =
   | 'reserve'
   | 'returnFromReserve'
   | 'reassign'
-  | 'delete'
 
 /** Sana va sabab so'raladigan amallar — ular voronkadan CHIQARADI. */
 const CLOSING: readonly CandidateAction[] = ['reject', 'withdraw', 'reserve']
@@ -79,14 +76,12 @@ export function CandidateActionDialog({
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
-  const navigate = useNavigate()
 
   const close = useCloseCandidate()
   const reassign = useReassignCandidate()
   const restore = useReturnCandidateFromReserve()
-  const remove = useDeleteCandidate()
   const pending =
-    close.isPending || reassign.isPending || restore.isPending || remove.isPending
+    close.isPending || reassign.isPending || restore.isPending
 
   /*
    * Faqat OCHIQ vakansiyalar: yopiq yoki to'xtatilganiga nomzod
@@ -109,13 +104,12 @@ export function CandidateActionDialog({
     close.reset()
     reassign.reset()
     restore.reset()
-    remove.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [action, candidate.id])
 
   if (action === null) return null
 
-  const failure = close.error ?? reassign.error ?? restore.error ?? remove.error
+  const failure = close.error ?? reassign.error ?? restore.error
   const incomplete = action === 'reassign' && vacancyId === ''
 
   const submit = () => {
@@ -128,17 +122,6 @@ export function CandidateActionDialog({
 
     if (action === 'returnFromReserve') {
       restore.mutate(candidate.id, { onSuccess: onClose })
-      return
-    }
-
-    if (action === 'delete') {
-      remove.mutate(candidate.id, {
-        // Yozuv ro'yxatdan g'oyib bo'ladi — kartada qolish ma'nosiz.
-        onSuccess: () => {
-          onClose()
-          void navigate({ to: '/nomzodlar' })
-        },
-      })
       return
     }
 
@@ -202,7 +185,7 @@ export function CandidateActionDialog({
 
         {/*
           Sana va sabab faqat voronkadan chiqarishda: `reassign`,
-          `returnFromReserve` va `delete` so'rovlarida bunday maydon
+          `returnFromReserve` so'rovida bunday maydon
           UMUMAN yo'q — ko'rsatib qo'yilsa, HR yozgan matn jimgina
           yo'qolardi.
         */}

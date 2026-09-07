@@ -424,26 +424,21 @@ public static class CandidateEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
-        group.MapDelete("/{id:guid}", async (
-                Guid id,
-                DeleteCandidateCommandHandler handler,
-                CancellationToken cancellationToken) =>
-            {
-                var natija = await handler
-                    .HandleAsync(new DeleteCandidateCommand(id), cancellationToken)
-                    .ConfigureAwait(false);
+        /*
+          ⚠️ NOMZODNI O'CHIRISH ENDPOINT'I YO'Q va u ATAYLAB olib
+          tashlangan (foydalanuvchi qarori, 2026-09-07): «hamma anketa
+          turishi kerak, o'chirish mumkin emas».
 
-                return natija.ToHttpResult();
-            })
-            .RequireAuthorization(Permissions.RecruitingManage)
-            .WithName("DeleteCandidate")
-            .WithSummary("Nomzod — yozuvni o'chirish")
-            .WithDescription(
-                "Yumshoq o'chirish: yozuv bazada qoladi. Rad etilgan nomzod " +
-                "O'CHIRILMAYDI — u kelasi izlanishning bazasi; o'chirish faqat " +
-                "xato kiritilgan yozuv uchun.")
-            .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+          Ilgari yumshoq o'chirish bor edi va u «xato kiritilgan yozuv
+          uchun» deb izohlangan. Amalda esa har bir anketa — nomzodning
+          o'zi to'ldirgan ma'lumot va u kelasi izlanishning bazasi:
+          bugun kerak bo'lmagan odam olti oydan keyin aynan kerak
+          bo'lishi mumkin. Shu sababli yozuv YAKUNLANADI (rezerv, rad
+          etish yoki ishga olish), lekin hech qachon yo'q qilinmaydi.
+
+          Xato kiritilgan yozuv uchun tahrirlash bor; adashib
+          kiritilgani esa rad etish bilan yopiladi.
+        */
     }
 
     private static void MapFunnel(IEndpointRouteBuilder group)
