@@ -9,16 +9,36 @@ import {
   useCloseCandidate,
   useDeleteCandidate,
   useReassignCandidate,
+  useReturnCandidateFromReserve,
   useVacancyOptions,
 } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
 import { orNull, today } from '../lib/recruiting-presentation'
 
 /** Nomzod kartasidagi amallar — qaysi oyna ochilishini shu belgilaydi. */
-export type CandidateAction = 'reject' | 'withdraw' | 'reassign' | 'delete'
+export type CandidateAction =
+  | 'reject'
+  | 'withdraw'
+  | 'reserve'
+  | 'returnFromReserve'
+  | 'reassign'
+  | 'delete'
+
+/** Sana va sabab so'raladigan amallar — ular voronkadan CHIQARADI. */
+const CLOSING: readonly CandidateAction[] = ['reject', 'withdraw', 'reserve']
 
 /**
- * Nomzod ustidagi to'rtta amal — BITTA oyna
+ * Nomzodni voronkada QOLDIRADIGAN yoki unga QAYTARADIGAN amallar.
+ *
+ * Tasdiqlash tugmasining rangi shundan hisoblanadi: qizil faqat
+ * voronkadan chiqarish va o'chirish uchun. «Rezervga» ham chiqaradi,
+ * lekin u QAYTARILADI — qizil «xato bo'ldi» deb o'qilardi va aynan shu
+ * sababdan uning yorlig'i ham kulrang (`CANDIDATE_LOOK`).
+ */
+const REVERSIBLE: readonly CandidateAction[] = ['reassign', 'reserve', 'returnFromReserve']
+
+/**
+ * Nomzod ustidagi OLTITA amal — BITTA oyna
  * (`VacancyActionDialog` bilan bir xil naqsh: tuzilishi bir xil, farq
  * matnda va yuboriladigan so'rovda).
  *
@@ -29,9 +49,18 @@ export type CandidateAction = 'reject' | 'withdraw' | 'reassign' | 'delete'
  * amaliga yig'ilsa, ikkala muammo ham ko'rinmay qolardi — shu sababli
  * bu yerda ham ikkita alohida tugma va ikkita alohida matn.
  *
- * <b>«Ishga olindi» amali bu ro'yxatda YO'Q.</b> Nomzod xodimga faqat
- * taklif qabul qilinganda aylanadi — qo'lda belgilash yo'li bo'lganida
- * sinov muddati va buyruq ma'lumoti chetlab o'tilardi.
+ * <b>«Rezervga» ham SHU YERDA</b> va u ham qisqa tasdiq oynasi: sana va
+ * ixtiyoriy sabab. Boshqa yakunlardan farqi bittada — u QAYTARILADI, va
+ * qaytarish («Rezervdan qaytarish») ham shu ro'yxatda turadi. U yagona
+ * amal bo'lib, maydonsiz: nomzod qaysi bosqichda rezervga o'tgan bo'lsa,
+ * o'sha yerdan davom etadi va chiqish sababi tozalanadi — kiritadigan
+ * hech narsa yo'q.
+ *
+ * <b>«Ishga olindi» amali bu ro'yxatda YO'Q.</b> Uning O'Z oynasi bor
+ * (`candidate-hire-dialog.tsx`): u xodim yaratadi va o'nga yaqin
+ * hujjatiy maydon so'raydi, ya'ni «sana + sabab» qolipiga sig'maydi.
+ * Holatni qo'lda «ishga olingan» qilib qo'yish yo'li esa umuman yo'q —
+ * o'shanda sinov muddati va buyruq ma'lumoti chetlab o'tilardi.
  *
  * <b>O'chirish — YUMSHOQ.</b> Yozuv bazada qoladi. Lekin rad etilgan
  * nomzod O'CHIRILMAYDI: u kelasi izlanishning bazasi (backend
@@ -54,8 +83,10 @@ export function CandidateActionDialog({
 
   const close = useCloseCandidate()
   const reassign = useReassignCandidate()
+  const restore = useReturnCandidateFromReserve()
   const remove = useDeleteCandidate()
-  const pending = close.isPending || reassign.isPending || remove.isPending
+  const pending =
+    close.isPending || reassign.isPending || restore.isPending || remove.isPending
 
   /*
    * Faqat OCHIQ vakansiyalar: yopiq yoki to'xtatilganiga nomzod
@@ -77,13 +108,14 @@ export function CandidateActionDialog({
     setVacancyId('')
     close.reset()
     reassign.reset()
+    restore.reset()
     remove.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [action, candidate.id])
 
   if (action === null) return null
 
-  const failure = close.error ?? reassign.error ?? remove.error
+  const failure = close.error ?? reassign.error ?? restore.error ?? remove.error
   const incomplete = action === 'reassign' && vacancyId === ''
 
   const submit = () => {
@@ -91,6 +123,11 @@ export function CandidateActionDialog({
 
     if (action === 'reassign') {
       reassign.mutate({ id: candidate.id, vacancyId }, { onSuccess: onClose })
+      return
+    }
+
+    if (action === 'returnFromReserve') {
+      restore.mutate(candidate.id, { onSuccess: onClose })
       return
     }
 
@@ -127,11 +164,12 @@ export function CandidateActionDialog({
           <Button
             type="button"
             /*
-              «O'tkazish» — tiklovchi emas, lekin buzuvchi ham emas:
-              nomzod voronkada qoladi, faqat boshqa o'ringa. Qolgan
-              uchtasi uni voronkadan chiqaradi — qizil.
+              Qizil FAQAT qaytarib bo'lmaydigan amallarda: rad etish,
+              voz kechish va o'chirish. «O'tkazish», «Rezervga» va
+              «Rezervdan qaytarish» esa qaytariladi — ular tugmani
+              qizartirmaydi (sabab `REVERSIBLE` izohida).
             */
-            variant={action === 'reassign' ? 'primary' : 'danger'}
+            variant={REVERSIBLE.includes(action) ? 'primary' : 'danger'}
             onClick={submit}
             disabled={pending || incomplete}
           >
@@ -163,11 +201,12 @@ export function CandidateActionDialog({
         )}
 
         {/*
-          Sana va sabab faqat voronkadan chiqarishda: `reassign` va
-          `delete` so'rovlarida bunday maydon UMUMAN yo'q — ko'rsatib
-          qo'yilsa, HR yozgan matn jimgina yo'qolardi.
+          Sana va sabab faqat voronkadan chiqarishda: `reassign`,
+          `returnFromReserve` va `delete` so'rovlarida bunday maydon
+          UMUMAN yo'q — ko'rsatib qo'yilsa, HR yozgan matn jimgina
+          yo'qolardi.
         */}
-        {(action === 'reject' || action === 'withdraw') && (
+        {CLOSING.includes(action) && (
           <>
             <TextField
               label={t('recruiting.closedAt')}

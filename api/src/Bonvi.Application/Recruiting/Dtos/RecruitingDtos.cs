@@ -347,3 +347,29 @@ public sealed record CandidateHireResultDto(
     JobOfferDto Offer,
     CandidateDto Candidate,
     HireResultDto Hire);
+
+/// <summary>
+/// To'g'ridan-to'g'ri ishga olishning natijasi: yopilgan nomzod va
+/// yaratilgan xodim.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="CandidateHireResultDto"/> ning taklifsiz varianti va
+/// undan yagona farqi shu — taklif maydoni yo'q. Ikkalasini bitta
+/// record qilib, <c>Offer</c> ni <c>null</c> qoldirish mumkin edi, lekin
+/// o'shanda mijoz har safar «taklif bormi?» degan savolni berishga
+/// majbur bo'lardi va javob endpoint'ga qarab oldindan ma'lum edi.
+/// Ish taklifi o'chirilgach (<c>docs/SPEC-nomzod-yakuni.md</c>,
+/// 3-bo'lim) shu record yagona bo'lib qoladi.
+/// </para>
+/// <para>
+/// <see cref="Hire"/> ichida ishga qabulning odatiy javobi turadi:
+/// mehnat munosabati, lavozim vazifalari va ogohlantirishlar (masalan
+/// stavka chegarasi).
+/// </para>
+/// </remarks>
+/// <param name="Candidate">Yangilangan nomzod (holati — «ishga olingan»).</param>
+/// <param name="Hire">Ishga qabul natijasi — 1-bosqichning odatiy javobi.</param>
+public sealed record DirectHireResultDto(
+    CandidateDto Candidate,
+    HireResultDto Hire);

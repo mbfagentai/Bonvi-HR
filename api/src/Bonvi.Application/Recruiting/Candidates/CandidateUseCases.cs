@@ -20,9 +20,20 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// <param name="VacancyId">Vakansiya bo'yicha filtr.</param>
 /// <param name="StageId">Bosqich bo'yicha filtr — voronka ustunini chizish uchun.</param>
 /// <param name="Status">
-/// <c>InProgress</c> | <c>Rejected</c> | <c>Hired</c> | <c>Withdrawn</c>.
-/// Bo'sh — hammasi. Voronka taxtasi <c>InProgress</c> bilan so'raydi:
-/// ishga olingan va rad etilganlar u yerda faol bo'lib turmasligi kerak.
+/// <c>InProgress</c> | <c>Rejected</c> | <c>Hired</c> | <c>Withdrawn</c> |
+/// <c>Reserve</c>.
+/// <para>
+/// Bo'sh bo'lsa — ISHGA OLINGANLARDAN tashqari hammasi: ular endi xodim
+/// va nomzodlar ro'yxatida shovqin (batafsil sabab
+/// <c>CandidateSearchFilter.HideHired</c> izohida). Ularni ko'rish uchun
+/// <c>Hired</c> ni ATAYLAB tanlash kerak.
+/// </para>
+/// <para>
+/// Voronka taxtasi <c>InProgress</c> bilan so'raydi: voronkadan chiqqan
+/// nomzodlar u yerda faol bo'lib turmasligi kerak. <c>Reserve</c> esa
+/// sukut ro'yxatda KO'RINADI — rezervning butun ma'nosi «kerak bo'lganda
+/// shu yerdan chaqiramiz» degani.
+/// </para>
 /// </param>
 /// <param name="Source">
 /// <c>Manual</c> | <c>TelegramBot</c> | <c>Excel</c>. «Bot qancha nomzod
@@ -216,6 +227,23 @@ public sealed record RejectCandidateCommand(Guid CandidateId, DateOnly? At = nul
 
 /// <summary>Nomzod o'zi voz kechdi.</summary>
 public sealed record WithdrawCandidateCommand(Guid CandidateId, DateOnly? At = null, string? Reason = null);
+
+/// <summary>
+/// Nomzodni rezervga o'tkazish — «hozir olinmadi, lekin kerak bo'lsa
+/// chaqiramiz».
+/// </summary>
+/// <param name="CandidateId">Nomzod.</param>
+/// <param name="At">Rezervga o'tkazilgan sana. Bo'sh — bugun.</param>
+/// <param name="Reason">
+/// Sabab: «o'rin yo'q», «kelasi mavsumga», «boshqa do'konga mos». Bu matn
+/// nomzod qaytarilganda YO'QOLADI (sababi
+/// <c>Candidate.ReturnFromReserve</c> izohida), shu sababli u qarorning
+/// izohi bo'lib qoladi, uzoq muddatli tavsif emas.
+/// </param>
+public sealed record ReserveCandidateCommand(Guid CandidateId, DateOnly? At = null, string? Reason = null);
+
+/// <summary>Rezervdagi nomzodni voronkaga qaytarish.</summary>
+public sealed record ReturnCandidateFromReserveCommand(Guid CandidateId);
 
 /// <summary>Nomzod yozuvini yumshoq o'chirish.</summary>
 public sealed record DeleteCandidateCommand(Guid CandidateId);
@@ -818,14 +846,21 @@ public sealed class RecordCandidateStageCommandHandler
 }
 
 /// <summary>
-/// Nomzodni voronkadan chiqaradi: rad etish yoki voz kechish.
+/// Nomzodni voronkadan chiqaradi: rad etish, voz kechish yoki rezerv.
 /// </summary>
 /// <remarks>
-/// Ikkala amal bir xil qadamlardan iborat va faqat chaqiriladigan domen
+/// <para>
+/// Uchala amal bir xil qadamlardan iborat va faqat chaqiriladigan domen
 /// metodida farq qiladi — <c>ChangeVacancyStateCommandHandler</c> bilan bir
-/// xil sabab. «Ishga olindi» esa BU YERDA YO'Q: u faqat taklif qabul
-/// qilinganda va xodim haqiqatan yaratilganda qo'yiladi
-/// (<c>Candidate.MarkHired</c> izohiga qarang).
+/// xil sabab. «Ishga olindi» esa BU YERDA YO'Q: u faqat xodim haqiqatan
+/// yaratilganda qo'yiladi (<c>Candidate.MarkHired</c> izohiga qarang).
+/// </para>
+/// <para>
+/// Rezervdan QAYTARISH ham bu yerda emas
+/// (<see cref="ReturnCandidateFromReserveCommandHandler"/>): u nomzodni
+/// voronkadan chiqarmaydi, aksincha — qaytaradi. Uni shu sinfga qo'shish
+/// «yopish» degan nomni yolg'onga aylantirardi.
+/// </para>
 /// </remarks>
 public sealed class CloseCandidateCommandHandler
 {
@@ -870,6 +905,18 @@ public sealed class CloseCandidateCommandHandler
             cancellationToken);
     }
 
+    public Task<Result<CandidateDto>> HandleAsync(
+        ReserveCandidateCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        return ApplyAsync(
+            command.CandidateId,
+            candidate => candidate.MoveToReserve(command.At ?? _clock.Today, command.Reason),
+            cancellationToken);
+    }
+
     private async Task<Result<CandidateDto>> ApplyAsync(
         Guid candidateId,
         Func<Candidate, Result> change,
@@ -885,6 +932,67 @@ public sealed class CloseCandidateCommandHandler
         if (changed.IsFailure)
         {
             return changed.Error;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return await _mapper.ToDtoAsync(candidate, cancellationToken).ConfigureAwait(false);
+    }
+}
+
+/// <summary>
+/// Rezervdagi nomzodni voronkaga qaytaradi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega alohida use-case, <see cref="CloseCandidateCommandHandler"/>
+/// ning bir qismi emas.</b> U yerdagi uchala amal nomzodni voronkadan
+/// CHIQARADI va bitta umumiy qoidaga bo'ysunadi («faqat jarayondagi
+/// nomzod yopiladi»). Bu amal esa teskari yo'nalishda ishlaydi va uning
+/// sharti ham teskari: nomzod aynan REZERVDA bo'lishi kerak. Ikkalasini
+/// bitta sinfga yig'ish «yopish» degan nomni yolg'onga aylantirardi.
+/// </para>
+/// <para>
+/// Bosqich va bosqichlar tarixi saqlanadi — nomzod qayerda to'xtagan
+/// bo'lsa, o'sha yerdan davom etadi (sababi
+/// <c>Candidate.ReturnFromReserve</c> izohida).
+/// </para>
+/// </remarks>
+public sealed class ReturnCandidateFromReserveCommandHandler
+{
+    private readonly ICandidateRepository _candidates;
+    private readonly RecruitingMapper _mapper;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public ReturnCandidateFromReserveCommandHandler(
+        ICandidateRepository candidates,
+        RecruitingMapper mapper,
+        IUnitOfWork unitOfWork)
+    {
+        _candidates = candidates;
+        _mapper = mapper;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result<CandidateDto>> HandleAsync(
+        ReturnCandidateFromReserveCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var candidate = await _candidates
+            .GetWithStagesAsync(command.CandidateId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (candidate is null)
+        {
+            return RecruitingErrors.CandidateNotFound;
+        }
+
+        var returned = candidate.ReturnFromReserve();
+        if (returned.IsFailure)
+        {
+            return returned.Error;
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

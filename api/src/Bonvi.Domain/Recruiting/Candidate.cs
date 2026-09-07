@@ -24,6 +24,29 @@ public enum CandidateStatus
     /// ikkala muammo ham ko'rinmay qolardi.
     /// </remarks>
     Withdrawn = 4,
+
+    /// <summary>Rezerv — hozir olinmadi, lekin kerak bo'lsa chaqiriladi.</summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Rejected"/> dan ATAYLAB ajratilgan: «bu odam bizga
+    /// to'g'ri kelmadi» va «bu odam yaxshi, lekin bugun o'rin yo'q»
+    /// butunlay boshqa qaror. Birinchisiga qaytilmaydi, ikkinchisiga esa
+    /// aynan QAYTILADI — o'rin bo'shaganda HR shu ro'yxatdan qidiradi va
+    /// izlanishni noldan boshlamaydi. Rad etilganlarga qo'shib yuborilsa,
+    /// bu ro'yxat yo'qolardi.
+    /// </para>
+    /// <para>
+    /// Nom tasodifiy emas: xodimlarda ham aynan shu tushuncha bor
+    /// (<c>EmployeeFlagType.Reserve</c>, Excel «91.9 Резерв») va HR uni
+    /// shu nom bilan biladi.
+    /// </para>
+    /// <para>
+    /// Qiymat OXIRIGA qo'shildi — sanoqning umumiy qoidasi: o'rtaga
+    /// qo'yilsa bazadagi eski qiymatlar jimgina siljib ketardi. Ustun
+    /// <c>integer</c> bo'lgani uchun migratsiya kerak emas.
+    /// </para>
+    /// </remarks>
+    Reserve = 5,
 }
 
 /// <summary>
@@ -88,13 +111,19 @@ public enum CandidateSource
 /// </para>
 /// <para>
 /// <b>Nomzoddan xodimga o'tish — <c>HireEmployeeCommand</c> orqali.</b>
-/// Taklif qabul qilinganda nomzodning ma'lumoti (F.I.Sh., telefon,
-/// tug'ilgan sana, manzil, mutaxassislik) ishga qabul buyrug'iga ko'chadi
-/// va 1-bosqichning MAVJUD oqimi ishlaydi: xodim kartasi, mehnat
-/// munosabati, birinchi buyruq va MAJBURIY sinov muddati. Rekruting
-/// o'zining «ishga qabul» yo'lini yozmaydi — ikkinchi yo'l bo'lganida
-/// sinov muddati qoidasi («hamma sinovdan o'tadi, istisnosiz») jimgina
-/// chetlab o'tilardi.
+/// Nomzodning ma'lumoti (F.I.Sh., telefon, tug'ilgan sana, manzil,
+/// mutaxassislik) ishga qabul buyrug'iga ko'chadi va 1-bosqichning MAVJUD
+/// oqimi ishlaydi: xodim kartasi, mehnat munosabati, birinchi buyruq va
+/// MAJBURIY sinov muddati. Rekruting o'zining «ishga qabul» yo'lini
+/// yozmaydi — ikkinchi yo'l bo'lganida sinov muddati qoidasi («hamma
+/// sinovdan o'tadi, istisnosiz») jimgina chetlab o'tilardi.
+/// </para>
+/// <para>
+/// Bu o'tishning IKKITA kirish nuqtasi bor va ikkalasi ham AYNAN o'sha
+/// bitta oqimni chaqiradi: <c>HireCandidateCommand</c> (to'g'ridan-to'g'ri,
+/// taklifsiz — odatiy yo'l) va <c>AcceptJobOfferCommand</c> (rasmiy taklif
+/// orqali). Farqi faqat kirishda: birinchisida oklad va ish boshlash
+/// sanasi qabul formasidan, ikkinchisida taklifdan keladi.
 /// </para>
 /// <para>
 /// <b>Bog'lanish nomzodda emas, ISHGA QABUL HODISASIDA saqlanadi</b>
@@ -257,10 +286,10 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public DateTimeOffset? RejectionNoticeSentAt { get; private set; }
 
-    /// <summary>Voronkadan chiqqan sana (rad etilgan / ishga olingan / voz kechgan).</summary>
+    /// <summary>Voronkadan chiqqan sana (rad etilgan / ishga olingan / voz kechgan / rezerv).</summary>
     public DateOnly? ClosedAt { get; private set; }
 
-    /// <summary>Voronkadan chiqish sababi — rad etish yoki voz kechish izohi.</summary>
+    /// <summary>Voronkadan chiqish sababi — rad etish, voz kechish yoki rezerv izohi.</summary>
     public string? ClosingNote { get; private set; }
 
     /// <summary>Bosqichlar tarixi — yozilgan tartibda.</summary>
@@ -498,15 +527,83 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         => Close(CandidateStatus.Withdrawn, at, reason);
 
     /// <summary>
+    /// Rezervga o'tkazadi — «hozir olinmadi, lekin kerak bo'lsa chaqiramiz».
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Qolgan yakunlar bilan bir xil qoidaga bo'ysunadi (<see cref="Close"/>):
+    /// faqat JARAYONDAGI nomzod rezervga o'tadi. Rad etilgan nomzodni
+    /// «aslida rezerv edi» deb o'zgartirish yo'li ataylab yopiq — u qarorni
+    /// keyinchalik qayta yozish bo'lardi va voronka hisoboti jimgina
+    /// buzilardi.
+    /// </para>
+    /// <para>
+    /// Sabab <see cref="ClosingNote"/> ga yoziladi — bu CHIQISH izohi va
+    /// nomzod voronkaga qaytganda u tozalanadi
+    /// (<see cref="ReturnFromReserve"/>). Ya'ni u qarorning izohi, nomzod
+    /// haqidagi uzoq muddatli tavsif emas; tavsif uchun <see cref="Note"/>
+    /// bor va unga bu amal tegmaydi.
+    /// </para>
+    /// </remarks>
+    public Result MoveToReserve(DateOnly at, string? reason = null)
+        => Close(CandidateStatus.Reserve, at, reason);
+
+    /// <summary>
+    /// Rezervdagi nomzodni voronkaga qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Bu — <see cref="Close"/> ning teskarisi EMAS.</b> «Yopishni
+    /// bekor qilish» degan umumiy amal ataylab yo'q: u bilan rad etilgan
+    /// yoki ishga olingan nomzodni ham voronkaga qaytarish mumkin bo'lardi
+    /// va o'shanda ishga olingan odam bir vaqtning o'zida ham xodim, ham
+    /// faol nomzod bo'lib qolardi. Bu yerdagi yagona manba —
+    /// <see cref="CandidateStatus.Reserve"/>, va rezervning butun ma'nosi
+    /// aynan shu qaytishda.
+    /// </para>
+    /// <para>
+    /// <b>Bosqich SAQLANADI.</b> Nomzod qaysi bosqichda rezervga
+    /// o'tgan bo'lsa, o'sha yerdan davom etadi: kengashdan o'tgan odamni
+    /// qaytadan telefon suhbatiga tushirish ma'nosiz (bir xil sabab
+    /// <see cref="Reassign"/> da izohlangan).
+    /// </para>
+    /// <para>
+    /// <b>Chiqish sanasi va sababi TOZALANADI.</b> Ular «nomzod voronkadan
+    /// nega chiqqan» degan savolning javobi; nomzod qaytgach bunday fakt
+    /// endi yo'q. Qoldirilsa, faol nomzod kartasida «voronkadan chiqqan:
+    /// …» yozuvi turaverardi va <see cref="ClosedAt"/> bo'yicha
+    /// hisoblaydigan hisobot uni yopilganlar qatorida sanardi.
+    /// </para>
+    /// </remarks>
+    public Result ReturnFromReserve()
+    {
+        if (Status != CandidateStatus.Reserve)
+        {
+            return Error.Conflict(
+                "nomzod.rezervda_emas",
+                $"Nomzod rezervda emas (holati: {Status}), uni voronkaga qaytarib bo'lmaydi.");
+        }
+
+        Status = CandidateStatus.InProgress;
+        ClosedAt = null;
+        ClosingNote = null;
+
+        return Result.Success();
+    }
+
+    /// <summary>
     /// Ishga olindi — voronkadan chiqadi.
     /// </summary>
     /// <remarks>
-    /// Bu metodni FAQAT <c>AcceptJobOfferCommandHandler</c> chaqiradi va
-    /// faqat xodim haqiqatan yaratilgandan keyin. Alohida endpoint yo'q:
-    /// «ishga olindi» deb belgilash, lekin xodim kartasini yaratmaslik —
-    /// bu aynan Excel'dagi holat (nomzod ro'yxatida «принят», xodimlar
-    /// ro'yxatida yo'q). <see cref="CandidateStatus.Hired"/> holati esa
-    /// nomzod voronkada faol bo'lib qolmasligini kafolatlaydi.
+    /// Bu metodni FAQAT ishga qabul oqimini chaqiradigan ikkita use-case
+    /// ishlatadi (<c>HireCandidateCommandHandler</c> —
+    /// to'g'ridan-to'g'ri, <c>AcceptJobOfferCommandHandler</c> — taklif
+    /// orqali) va faqat xodim haqiqatan yaratilgandan keyin. «Ishga
+    /// olindi» deb belgilaydigan ALOHIDA endpoint yo'q: holatni qo'yib,
+    /// xodim kartasini yaratmaslik — bu aynan Excel'dagi holat (nomzod
+    /// ro'yxatida «принят», xodimlar ro'yxatida yo'q).
+    /// <see cref="CandidateStatus.Hired"/> holati esa nomzod voronkada
+    /// faol bo'lib qolmasligini kafolatlaydi.
     /// </remarks>
     public Result MarkHired(DateOnly at) => Close(CandidateStatus.Hired, at, null);
 
@@ -586,7 +683,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         ResumeSizeBytes = null;
     }
 
-    /// <summary>Voronkadan chiqarish — uchala yakun uchun umumiy qoida.</summary>
+    /// <summary>Voronkadan chiqarish — barcha yakunlar uchun umumiy qoida.</summary>
     /// <remarks>
     /// Faqat JARAYONDAGI nomzod yopiladi. Ikkinchi marta yopishga urinish
     /// xato bo'lib qaytadi: aks holda rad etilgan nomzodni «ishga olindi»

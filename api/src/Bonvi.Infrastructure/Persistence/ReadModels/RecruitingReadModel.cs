@@ -68,6 +68,20 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.Status == status);
         }
 
+        // Ishga olingan nomzod kundalik ro'yxatda KO'RINMAYDI: u endi
+        // xodim va uning o'rni «Xodimlar» bo'limida. Yozuv o'chirilmaydi —
+        // u vakansiya sanog'iga va bot hisobotiga kerak (batafsil sabab
+        // `CandidateSearchFilter.HideHired` izohida). Holat ataylab
+        // tanlangan bo'lsa bu qoida ishlamaydi, ya'ni shart yuqoridagi
+        // filtr bilan hech qachon ziddiyatga tushmaydi.
+        //
+        // Sanoq (`total`) ham shu so'rovdan olinadi — qatorlar bilan
+        // sanoqning ziddiyatga tushishi shu tufayli MUMKIN EMAS.
+        if (filter.HideHired)
+        {
+            candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Hired);
+        }
+
         if (filter.Source is { } source)
         {
             candidates = candidates.Where(candidate => candidate.Source == source);
@@ -175,7 +189,21 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 row.Candidate.ResumeFileKey != null,
                 row.Candidate.PhotoKey != null,
                 row.Candidate.CreatedAt,
-                hires.GetValueOrDefault(row.Candidate.Id))),
+
+                /*
+                  ⚠️ `GetValueOrDefault` BU YERDA YARAMAYDI: lug'at
+                  qiymati `Guid` (nullable emas), ya'ni topilmaganda u
+                  `null` emas, `Guid.Empty` qaytaradi. Maydon esa
+                  `Guid?` — natijada ishga OLINMAGAN nomzod javobda
+                  «00000000-0000-0000-0000-000000000000» bilan chiqardi.
+                  Bugun ro'yxat bu maydonni chizmaydi, lekin unga
+                  «xodim kartasi» havolasi qo'shilgan kuni u rad
+                  etilgan nomzodda ham paydo bo'lib, mavjud bo'lmagan
+                  xodimga olib borardi.
+                */
+                hires.TryGetValue(row.Candidate.Id, out var hiredEmployeeId)
+                    ? hiredEmployeeId
+                    : null)),
         ];
 
         return new CandidatePage(items, total);

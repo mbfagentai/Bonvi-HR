@@ -591,6 +591,10 @@
     "nomzod.tugilgan_sana": "Invalid date of birth: it cannot be in the future or more than 100 years ago.",
     "nomzod.jarayonda_emas": "The candidate has left the pipeline — this action is not available.",
     "nomzod.allaqachon_ishga_olingan": "The candidate has already been hired.",
+    "nomzod.rezervda_emas": "The candidate is not in reserve — they cannot be returned to the pipeline.",
+    "nomzod.yuridik_shaxs_yoq": "Legal entity is required: which company the employee is registered with.",
+    "nomzod.lavozim_yoq": "Position is required: record exactly which position the candidate is hired into.",
+    "nomzod.bolim_topilmadi": "Department not found.",
     "nomzod.holat_notogri": "Invalid status. Allowed values: InProgress, Rejected, Hired, Withdrawn.",
     "nomzod.manba_notogri": "Invalid source. Allowed values: Manual, TelegramBot.",
     "nomzod.rezyume_bosh": "Attach a résumé file.",
@@ -1130,6 +1134,7 @@
     "noStage": "No stage assigned",
     "hasResume": "Has a resume",
     "anyStatus": "All statuses",
+    "statusFilterHint": "Hired candidates are not shown in this list — pick “Hired” to see them",
     "anySource": "All sources",
     "anyStage": "All stages",
     "anyVacancy": "All vacancies",
@@ -1171,17 +1176,19 @@
     "candidateEmptyTitle": "No candidates yet",
     "candidateEmptyText": "Add a candidate manually, or wait for the Telegram application bot.",
     "candidateNotFoundTitle": "No candidates found",
-    "candidateNotFoundText": "Try changing the search or the filters.",
+    "candidateNotFoundText": "Try changing the search or the filters. Hired candidates are hidden by default — pick them in the “Status” filter.",
     "candidateStatus": {
       "inProgress": "In progress",
       "rejected": "Rejected",
       "hired": "Hired",
-      "withdrawn": "Withdrew"
+      "withdrawn": "Withdrew",
+      "reserve": "In reserve"
     },
     "candidateClosed": {
       "rejected": "Rejected · {{date}}",
       "withdrawn": "Withdrew · {{date}}",
-      "hired": "Hired · {{date}}"
+      "hired": "Hired · {{date}}",
+      "reserve": "Moved to reserve · {{date}}"
     },
     "candidateAction": {
       "rejectTitle": "Reject",
@@ -1195,7 +1202,13 @@
       "reassignConfirm": "Move",
       "deleteTitle": "Delete the candidate",
       "deleteText": "The record is removed from the list (kept in the database). Use this ONLY for a record created by mistake: a rejected candidate is kept — they are the base for a future search.",
-      "deleteConfirm": "Delete"
+      "deleteConfirm": "Delete",
+      "reserveTitle": "Move to reserve",
+      "reserveText": "The candidate leaves the pipeline, but this is NOT a rejection: “no opening right now, we will call them when there is”. The record stays in the list and returns to the pipeline in one action.",
+      "reserveConfirm": "Move to reserve",
+      "returnFromReserveTitle": "Return from reserve",
+      "returnFromReserveText": "The candidate returns to the pipeline and continues from the stage where they stopped — the stage history is kept. The reserve date and reason are cleared.",
+      "returnFromReserveConfirm": "Return"
     },
     "source": {
       "manual": "Manual",
@@ -1289,6 +1302,17 @@
     "acceptDoneHeading": "The candidate is now an employee",
     "acceptDoneText": "The employee card has been created and the probation period has started.",
     "acceptWarnings": "Please note",
+    "hireAction": "Hire",
+    "hireTitle": "Hire the candidate",
+    "hireConfirm": "Hire and create employee",
+    "hireFromReserve": "The candidate is in reserve. They are first returned to the pipeline and then hired — for you this is a single action, nothing else is required.",
+    "hireSectionIdentity": "Identification",
+    "hirePinflWhy": "The PINFL is deliberately kept in plain view: an existing employee is matched by exactly this number — leave it empty and a second card may be created for the same person.",
+    "hireMoreTitle": "More",
+    "hireMoreHint": "Everything here is optional — hiring works even if you never open it: every field has a server-side default.",
+    "hireDateHint": "Left empty — today",
+    "hireSalaryHint": "Left empty — registered without a salary record",
+    "hireCatalogEmpty": "The legal entity or position list is empty — hiring is impossible without them. Add entries under “Catalogs”, or reload the page: the list may have failed to load.",
     "openEmployee": "Employee card",
     "vacancyTitle": "Vacancy title",
     "vacancyTitleHint": "The name used in the job ad. This is not a company position — the position is chosen when the candidate is hired",

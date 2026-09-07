@@ -246,4 +246,50 @@ public static class RecruitingErrors
     /// </remarks>
     public static Error DepartmentNotFound { get; } =
         Error.NotFound("taklif.bolim_topilmadi", "Bo'lim topilmadi.");
+
+    // ---------- To'g'ridan-to'g'ri ishga olish: SHTAT birligi ----------
+    //
+    // ⭐ Yuqoridagi uchtasining AYNAN nusxasi, faqat prefiksi boshqa —
+    // va bu ataylab. Xato kodi foydalanuvchi uchun «qaysi EKRANDA nima
+    // noto'g'ri» degan ma'noni tashiydi; taklifni qabul qilish va nomzod
+    // kartasidagi «Ishga olish» — ikki xil ekran va ikki xil forma.
+    //
+    // Ikkinchi, hal qiluvchi sabab: ish taklifi funksiyasi butunlay
+    // o'chiriladi (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim) va u bilan
+    // birga `taklif.*` kodlari ham ketadi. Yagona SAQLANIB QOLADIGAN
+    // ishga olish yo'li o'chirilayotgan funksiyaning nomiga tayanib
+    // qolmasligi kerak edi.
+
+    /// <summary>To'g'ridan-to'g'ri ishga olishda lavozim ko'rsatilmagan.</summary>
+    /// <remarks>
+    /// Majburiylik sababi <see cref="HirePositionMissing"/> dagi bilan bir
+    /// xil: <c>HireEmployeeCommand.PositionId</c> ning O'ZI ixtiyoriy (HR
+    /// formasi va Excel'dan ko'chirish lavozimsiz eski yozuvlarni ham
+    /// kiritadi), rekrutingda esa bunday holat yo'q — nomzod aynan qaysi
+    /// shtat birligiga olinayotgani yozilishi shart.
+    /// </remarks>
+    public static Error CandidateHirePositionMissing { get; } = Error.Validation(
+        "nomzod.lavozim_yoq",
+        "Lavozim ko'rsatilishi shart: nomzod aynan qaysi shtat birligiga olinayotgani yozilishi kerak.");
+
+    /// <summary>To'g'ridan-to'g'ri ishga olishda yuridik shaxs ko'rsatilmagan.</summary>
+    /// <remarks>
+    /// Bu majburiylik texnik ham: <c>HireEmployeeCommand.LegalEntityId</c> —
+    /// pozitsion va nullable EMAS, ya'ni ishga qabul usiz umuman
+    /// bajarilmaydi.
+    /// </remarks>
+    public static Error CandidateHireLegalEntityMissing { get; } = Error.Validation(
+        "nomzod.yuridik_shaxs_yoq",
+        "Yuridik shaxs ko'rsatilishi shart: xodim qaysi firmaga rasmiylashtiriladi.");
+
+    /// <summary>To'g'ridan-to'g'ri ishga olishda ko'rsatilgan bo'lim ma'lumotnomada yo'q.</summary>
+    /// <remarks>
+    /// Bo'lim IXTIYORIY, lekin ko'rsatilgan bo'lsa — mavjud bo'lishi shart.
+    /// Ishga qabul oqimining o'zi buni tekshirmaydi (u yerda ham ixtiyoriy),
+    /// shu sababli tekshiruv shu qatlamda: aks holda mavjud bo'lmagan
+    /// identifikator bazaga yetib borib, tushunarsiz tashqi kalit xatosini
+    /// keltirib chiqarardi.
+    /// </remarks>
+    public static Error CandidateHireDepartmentNotFound { get; } =
+        Error.NotFound("nomzod.bolim_topilmadi", "Bo'lim topilmadi.");
 }

@@ -3,9 +3,12 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowRightLeft,
+  Bookmark,
   DoorOpen,
   Pencil,
   Trash2,
+  Undo2,
+  UserCheck,
   UserRoundX,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -21,7 +24,7 @@ import {
   SegmentedControl,
   Skeleton,
 } from '@/shared/ui'
-import type { Candidate } from '../api/recruiting-api'
+import type { Candidate, CandidateStatus } from '../api/recruiting-api'
 import { useCandidate, useStages, useVacancyOptions } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
 import {
@@ -31,6 +34,7 @@ import {
 } from '../lib/recruiting-presentation'
 import { CandidateActionDialog, type CandidateAction } from './candidate-action-dialog'
 import { CandidateFormDialog } from './candidate-form-dialog'
+import { CandidateHireDialog } from './candidate-hire-dialog'
 import { CandidateOffersTab } from './candidate-offers-tab'
 import { CandidatePhotoEditor } from './candidate-photo-editor'
 import { CandidateQuestionnaireCard } from './candidate-questionnaire-card'
@@ -74,6 +78,7 @@ export function CandidateCardPage() {
 
   const [tab, setTab] = useState<Tab>('overview')
   const [editing, setEditing] = useState(false)
+  const [hiring, setHiring] = useState(false)
   const [action, setAction] = useState<CandidateAction | null>(null)
 
   const candidate = useCandidate(candidateId)
@@ -111,6 +116,15 @@ export function CandidateCardPage() {
   const source = SOURCE_LOOK[person.source]
   const SourceIcon = source.icon
   const inProgress = person.status === 'InProgress'
+  const inReserve = person.status === 'Reserve'
+  /*
+    ⭐ Ishga olish IKKI holatdan mumkin: voronkadagi nomzod va
+    REZERVDAGI. Rezervning butun ma'nosi shu — o'rin bo'shaganda HR
+    izlanishni noldan boshlamaydi. Serverga ketadigan ikkinchi so'rov
+    (avval voronkaga qaytarish) oynaning o'zida, HR uchun bu bitta
+    qaror bo'lib qoladi (`candidate-hire-dialog.tsx`).
+  */
+  const canHire = inProgress || inReserve
 
   return (
     <div className="space-y-5">
@@ -177,7 +191,7 @@ export function CandidateCardPage() {
         odamning kartasi qayerda?»).
       */}
       {!inProgress && (
-        <Alert tone={person.status === 'Hired' ? 'success' : 'warning'}>
+        <Alert tone={closedTone(person.status)}>
           <span className="flex flex-wrap items-center gap-2">
             <span>
               {t(`recruiting.candidateClosed.${look.key}`, {
@@ -240,6 +254,44 @@ export function CandidateCardPage() {
           {canManage && (
             <Card>
               <CardContent className="flex flex-wrap gap-2 py-4">
+                {/*
+                  ⭐ «Ishga olish» — qatordagi YAGONA `primary` tugma va
+                  u BIRINCHI turadi. Voronkaning maqsadi shu: qolgan
+                  amallar odam OLINMAGANDA bosiladi. Rezervdagi nomzodda
+                  ham ko'rinadi — o'rin bo'shaganda uni chaqirish uchun
+                  ikkita ekran kezishning ma'nosi yo'q.
+                */}
+                {canHire && (
+                  <Button type="button" size="sm" variant="primary" onClick={() => setHiring(true)}>
+                    <UserCheck />
+                    {t('recruiting.hireAction')}
+                  </Button>
+                )}
+
+                {/*
+                  Rezervdan qaytarish — FAQAT rezervdagi nomzodda.
+                  «Ishga olmaymiz, lekin voronkaga qaytaramiz» degan
+                  alohida qaror: nomzod qaysi bosqichda to'xtagan bo'lsa,
+                  o'sha yerdan davom etadi.
+                */}
+                {inReserve && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setAction('returnFromReserve')}
+                  >
+                    <Undo2 />
+                    {t('recruiting.candidateAction.returnFromReserveTitle')}
+                  </Button>
+                )}
+
+                {/*
+                  Tartib — ENG YAXSHI natijadan eng yomoniga:
+                  «olindi» → «boshqa o'ringa» → «rezerv» → «rad etdik» →
+                  «o'zi ketdi». HR qatorni chapdan o'qiydi va ro'yxatning
+                  o'zi qarorlarni og'irligi bo'yicha saralab beradi.
+                */}
                 {inProgress && (
                   <>
                     <Button
@@ -250,6 +302,16 @@ export function CandidateCardPage() {
                     >
                       <ArrowRightLeft />
                       {t('recruiting.candidateAction.reassignTitle')}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setAction('reserve')}
+                    >
+                      <Bookmark />
+                      {t('recruiting.candidateAction.reserveTitle')}
                     </Button>
 
                     <Button
@@ -311,6 +373,12 @@ export function CandidateCardPage() {
         candidate={person}
         action={action}
         onClose={() => setAction(null)}
+      />
+
+      <CandidateHireDialog
+        candidate={person}
+        open={hiring}
+        onClose={() => setHiring(false)}
       />
     </div>
   )
@@ -379,6 +447,21 @@ function Field({
       </dd>
     </div>
   )
+}
+
+/**
+ * Voronkadan chiqqan nomzod yozuvining ohangi.
+ *
+ * ⚠️ Rezerv — SARIQ EMAS, ko'k (`info`). Sariq «e'tibor bering, nimadir
+ * noto'g'ri» degani va o'zi voz kechgan nomzod uchun to'g'ri; rezerv esa
+ * HR ning O'Z rejasi — «keyin qaytamiz». Uni ogohlantirish rangida
+ * chizish yorliqning kulrang («neytral») ma'nosi bilan ham urishib
+ * qolardi (`CANDIDATE_LOOK` izohi).
+ */
+function closedTone(status: CandidateStatus): 'success' | 'info' | 'warning' {
+  if (status === 'Hired') return 'success'
+  if (status === 'Reserve') return 'info'
+  return 'warning'
 }
 
 function BackButton({ onClick, label }: { onClick: () => void; label: string }) {

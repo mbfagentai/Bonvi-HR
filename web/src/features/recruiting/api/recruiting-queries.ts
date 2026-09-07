@@ -21,9 +21,11 @@ import {
   fetchResume,
   fetchStages,
   fetchVacancies,
+  hireCandidate,
   recordCandidateStage,
   reassignCandidate,
   registerCandidate,
+  returnCandidateFromReserve,
   saveOffer,
   saveVacancy,
   updateCandidate,
@@ -33,6 +35,7 @@ import {
   type CandidateFilters,
   type CandidateInput,
   type CandidateListItem,
+  type HireCandidateInput,
   type OfferInput,
   type PipelineStage,
   type RegisterCandidateInput,
@@ -498,10 +501,38 @@ export function useCloseCandidate() {
       reason,
     }: {
       id: string
-      action: 'reject' | 'withdraw'
+      action: 'reject' | 'withdraw' | 'reserve'
       at: string | null
       reason: string | null
     }) => closeCandidate(id, action, { at, reason }),
+  })
+}
+
+/** ⭐ Rezervdan voronkaga qaytarish — «Rezervga» ning yagona teskarisi. */
+export function useReturnCandidateFromReserve() {
+  return useMutation({ mutationFn: (id: string) => returnCandidateFromReserve(id) })
+}
+
+/**
+ * ⚠️ TAKLIFSIZ ishga olish — nomzod xodimga aylanadi.
+ *
+ * Keshni QO'SHIMCHA bekor qilishi bilan `useAcceptOffer` ning aynan
+ * juftligi va sabab ham o'sha: yaratilgan XODIM boshqa modullarning
+ * keshiga tegadi (`employees`, `probations`) va HR darhol o'sha
+ * kartaga o'tishi mumkin. `providers.tsx` dagi umumiy qoida ularni
+ * baribir qamrab oladi — bu yerdagi ro'yxat NIYATNI hujjatlashtiradi:
+ * bitta amaldan qaysi ekranlar eskirishi ko'rinib tursin.
+ */
+export function useHireCandidate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: HireCandidateInput }) => hireCandidate(id, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: recruitingKeys.root })
+      void queryClient.invalidateQueries({ queryKey: ['employees'] })
+      void queryClient.invalidateQueries({ queryKey: ['probations'] })
+    },
   })
 }
 

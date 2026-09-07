@@ -104,8 +104,77 @@ public sealed record RecordCandidateStageRequest(
     DateOnly? Date = null,
     string? Conclusion = null);
 
-/// <summary>Nomzodni voronkadan chiqarish so'rovi tanasi.</summary>
+/// <summary>
+/// Nomzodni voronkadan chiqarish so'rovi tanasi.
+/// </summary>
+/// <remarks>
+/// Uchala yakun uchun BITTA shakl: rad etish, voz kechish va rezerv —
+/// hammasi «qachon» va «nega» dan iborat. Uchta bir xil record yozilsa,
+/// ular vaqt o'tib bir-biridan uzoqlashardi va farqi faqat mijozda
+/// ko'rinardi.
+/// </remarks>
+/// <param name="At">Sana. Bo'sh — bugun.</param>
+/// <param name="Reason">Sabab — nomzod kartasida ko'rinadi.</param>
 public sealed record CloseCandidateRequest(DateOnly? At = null, string? Reason = null);
+
+/// <summary>
+/// Nomzodni to'g'ridan-to'g'ri ishga olish so'rovi tanasi — TAKLIFSIZ.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Shaxsiy ma'lumot NOMZODDAN ko'chadi va bu yerda qayta so'ralmaydi.
+/// JSHSHIR va pasport esa aynan shu yerda: nomzod hujjatlarini ishga
+/// qabul kuni keltiradi va dublikat qidiruvi aynan JSHSHIRga tayanadi.
+/// </para>
+/// <para>
+/// <b>Birinchi ikkita maydonda sukut qiymat ATAYLAB yo'q.</b> Ular
+/// baribir MAJBURIY, ya'ni sukut qiymatning ma'nosi yo'q; qo'yilsa esa
+/// BUTUN OpenAPI hujjati yiqilardi — generator <c>Guid.Empty</c> ni
+/// sxemadagi sukut qiymatga aylantira olmaydi va
+/// <c>/openapi/v1.json</c> 500 qaytarardi (loyiha bundan bir marta jabr
+/// ko'rgan: <c>AcceptJobOfferRequest</c>, 2026-08-29).
+/// <c>System.Text.Json</c> yetishmayotgan maydonga <c>default(Guid)</c> ni
+/// o'zi beradi va tekshiruv <c>HireCandidateCommandHandler</c> da qoladi.
+/// </para>
+/// </remarks>
+/// <param name="LegalEntityId">
+/// Qaysi firmaga rasmiylashtiriladi — «/api/catalog/legal-entities» dan.
+/// MAJBURIY.
+/// </param>
+/// <param name="PositionId">
+/// Qaysi lavozimga — «/api/catalog/positions» dan. MAJBURIY.
+/// </param>
+/// <param name="DepartmentId">
+/// Qaysi bo'limga — «/api/catalog/departments» dan. Ixtiyoriy.
+/// </param>
+/// <param name="HireDate">Ishga qabul sanasi. Bo'sh — bugun.</param>
+/// <param name="OrderNo">Ishga qabul buyrug'ining raqami.</param>
+/// <param name="OrderDate">Buyruq sanasi.</param>
+/// <param name="Pinfl">JSHSHIR (14 xona).</param>
+/// <param name="Passport">Pasport seriyasi va raqami.</param>
+/// <param name="EmployeeId">Mavjud xodim kartasi — QAYTA ishga olishda.</param>
+/// <param name="SalaryAmount">Kelishilgan oylik ish haqi. Bo'sh — oklad yozuvisiz.</param>
+/// <param name="SalaryCurrency">Valyuta. Bo'sh — UZS.</param>
+/// <param name="Rate">Stavka: 1.0 — to'liq, 0.5 — o'rindoshlik.</param>
+/// <param name="IsPrimary">Asosiy ish joyimi.</param>
+/// <param name="ResponsibleEmployeeId">Biriktirilgan xodim (mentor).</param>
+/// <param name="ProbationDays">Sinov muddati (kun). Bo'sh — lavozimdagi qiymat yoki 90.</param>
+public sealed record HireCandidateRequest(
+    Guid LegalEntityId,
+    Guid PositionId,
+    Guid? DepartmentId = null,
+    DateOnly? HireDate = null,
+    string? OrderNo = null,
+    DateOnly? OrderDate = null,
+    string? Pinfl = null,
+    string? Passport = null,
+    Guid? EmployeeId = null,
+    decimal? SalaryAmount = null,
+    string? SalaryCurrency = null,
+    decimal? Rate = null,
+    bool? IsPrimary = null,
+    Guid? ResponsibleEmployeeId = null,
+    int? ProbationDays = null);
 
 /// <summary>
 /// Nomzodlar va voronka — rekrutingning asosiy ekrani (2-bosqich).
@@ -120,9 +189,18 @@ public sealed record CloseCandidateRequest(DateOnly? At = null, string? Reason =
 /// bir-biridan uzoqlashardi.
 /// </para>
 /// <para>
-/// «Ishga olindi» deb belgilash amali ATAYLAB yo'q: nomzod faqat taklif
-/// qabul qilinganda va HAQIQIY xodim kartasi yaratilganda yopiladi
-/// (<c>POST /api/recruiting/offers/{id}/accept</c>).
+/// <b>Nomzodning uchta yakuni:</b> «ishga olindi»
+/// (<c>POST /{id}/hire</c> — xodim kartasi shu yerda yaratiladi),
+/// «rezerv» (<c>POST /{id}/reserve</c>, qaytarish —
+/// <c>POST /{id}/return-from-reserve</c>) va «qabul qilinmadi»
+/// (<c>POST /{id}/reject</c>). Nomzodning O'ZI voz kechgani ALOHIDA
+/// yakun (<c>POST /{id}/withdraw</c>) — u korxonaning qarori emas.
+/// </para>
+/// <para>
+/// Holatni QO'LDA «ishga olingan» qilib qo'yish amali ATAYLAB yo'q:
+/// nomzod faqat HAQIQIY xodim kartasi yaratilganda yopiladi. Taklif
+/// orqali boradigan eski yo'l (<c>POST /api/recruiting/offers/{id}/accept</c>)
+/// hozircha YONMA-YON ishlaydi.
 /// </para>
 /// </remarks>
 public static class CandidateEndpoints
@@ -145,6 +223,7 @@ public static class CandidateEndpoints
         MapReads(group);
         MapWrites(group);
         MapFunnel(group);
+        MapHire(group);
         MapResume(group);
         MapPhoto(group);
 
@@ -184,7 +263,13 @@ public static class CandidateEndpoints
                 "«search» — F.I.Sh. yoki TELEFON bo'yicha (nomzodda JSHSHIR va pasport " +
                 "bo'lmaydi); qidiruv xodimlar ro'yxatidagi kabi kirill imlo variantlarini " +
                 "(қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini hisobga oladi. " +
-                "«status» — InProgress | Rejected | Hired | Withdrawn, «source» — " +
+                "«status» — InProgress | Rejected | Hired | Withdrawn | Reserve. " +
+                "⚠️ Filtr BERILMASA, ISHGA OLINGANLAR ro'yxatga tushmaydi (va " +
+                "sanoqqa ham kirmaydi): ular endi xodim va ularning o'rni " +
+                "«Xodimlar» bo'limida. Yozuv o'chirilmaydi — «status=Hired» " +
+                "tanlansa ular to'liq qaytadi. REZERVGA bu qoida tegmaydi: " +
+                "rezervdagi nomzod sukut ro'yxatda ko'rinadi va «status=Reserve» " +
+                "bilan alohida ham topiladi. «source» — " +
                 "Manual | TelegramBot | Excel (noma'lum qiymat 400: «nomzod.holat_notogri» / " +
                 "«nomzod.manba_notogri»). «sort» — createdAt (sukut, yangidan eskiga), " +
                 "name, stage. Voronka ustuni: «?status=InProgress&stageId=…». " +
@@ -506,6 +591,148 @@ public static class CandidateEndpoints
                 "va «u ketib qoldi» butunlay boshqa ma'no beradi (birinchisi tanlov " +
                 "sifati, ikkinchisi taklif shartlari haqida gapiradi).")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/{id:guid}/reserve", async (
+                Guid id,
+                CloseCandidateRequest? request,
+                CloseCandidateCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new ReserveCandidateCommand(id, request?.At, request?.Reason),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("ReserveCandidate")
+            .WithSummary("Nomzod — rezervga o'tkazish")
+            .WithDescription(
+                "«Hozir olinmadi, lekin kerak bo'lsa chaqiramiz». Nomzod voronkadan " +
+                "chiqadi va voronka taxtasida («?status=InProgress») ko'rinmaydi, " +
+                "lekin RAD ETILGAN emas: nomzodlar ro'yxatida SUKUT bo'yicha " +
+                "ko'rinib turadi (ishga olinganlardan farqi shu), «?status=Reserve» " +
+                "bilan alohida ham topiladi va bir amal bilan voronkaga " +
+                "qaytariladi («/return-from-reserve»). Ajratish ataylab — " +
+                "«bizga to'g'ri kelmadi» va «yaxshi odam, lekin bugun o'rin yo'q» " +
+                "butunlay boshqa qaror va ikkinchisiga QAYTILADI. " +
+                "«at» bo'sh — bugun; «reason» nomzod kartasida ko'rinadi va " +
+                "qaytarilganda TOZALANADI (u chiqish sababi, uzoq muddatli tavsif emas). " +
+                "Faqat JARAYONDAGI nomzod o'tkaziladi: ikkinchi marta yopib " +
+                "bo'lmaydi — «nomzod.jarayonda_emas» (409).")
+            .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/{id:guid}/return-from-reserve", async (
+                Guid id,
+                ReturnCandidateFromReserveCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ReturnCandidateFromReserveCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("ReturnCandidateFromReserve")
+            .WithSummary("Nomzod — rezervdan voronkaga qaytarish")
+            .WithDescription(
+                "Rezervning butun ma'nosi shu amalda: o'rin bo'shaganda HR nomzodni " +
+                "izlanishni noldan boshlamasdan qaytaradi. Nomzod QAYSI bosqichda " +
+                "rezervga o'tgan bo'lsa, o'sha yerdan davom etadi — bosqichlar tarixi " +
+                "va joriy bosqich saqlanadi. Chiqish sanasi va sababi tozalanadi. " +
+                "Manba FAQAT rezerv bo'lishi mumkin: rad etilgan, voz kechgan yoki " +
+                "ishga olingan nomzodni bu amal qaytarmaydi — «nomzod.rezervda_emas» " +
+                "(409). Ishga olingan nomzodni qaytarish yo'li ochilsa, u bir vaqtda " +
+                "ham xodim, ham faol nomzod bo'lib qolardi.")
+            .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    /// <summary>
+    /// Nomzoddan xodimga o'tish — voronkaning YAKUNIY qadami.
+    /// </summary>
+    /// <remarks>
+    /// Alohida guruh: bu yerdagi yagona endpoint 1-bosqichning ishga qabul
+    /// oqimini chaqiradi va shu bilan boshqa barcha nomzod amallaridan
+    /// farq qiladi — u rekruting jadvallaridan tashqariga, xodimlar
+    /// bo'limiga yozadi.
+    /// </remarks>
+    private static void MapHire(IEndpointRouteBuilder group)
+    {
+        group.MapPost("/{id:guid}/hire", async (
+                Guid id,
+                HireCandidateRequest? request,
+                HireCandidateCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Tana umuman yuborilmagan hol: bo'sh identifikatorlar bilan
+                // davom etamiz va tekshiruvni `HireCandidateCommandHandler`
+                // ga qoldiramiz — u ikkalasini ham `Guid.Empty` bo'yicha rad
+                // etadi va ma'noli xato kodini qaytaradi. Bu yerda alohida
+                // 400 yozish o'sha qoidani ikkinchi joyda takrorlash bo'lardi.
+                var body = request ?? new HireCandidateRequest(Guid.Empty, Guid.Empty);
+
+                var natija = await handler
+                    .HandleAsync(
+                        new HireCandidateCommand(
+                            id,
+                            body.LegalEntityId,
+                            body.PositionId,
+                            body.DepartmentId,
+                            body.HireDate,
+                            body.OrderNo,
+                            body.OrderDate,
+                            body.Pinfl,
+                            body.Passport,
+                            body.EmployeeId,
+                            body.SalaryAmount,
+                            body.SalaryCurrency,
+                            body.Rate,
+                            body.IsPrimary,
+                            body.ResponsibleEmployeeId,
+                            body.ProbationDays),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("HireCandidate")
+            .WithSummary("Nomzod — ishga olish (TAKLIFSIZ, nomzod XODIMGA aylanadi)")
+            .WithDescription(
+                "Voronkaning yakuniy qadami va ishga olishning ODATIY yo'li: rasmiy " +
+                "ish taklifi TALAB QILINMAYDI. BITTA tranzaksiyada: nomzod «ishga " +
+                "olingan» bo'lib voronkadan chiqadi va 1-bosqichning ishga qabul " +
+                "oqimi ishga tushadi — xodim kartasi, mehnat munosabati, ishga qabul " +
+                "buyrug'i va MAJBURIY sinov muddati. " +
+                "MAJBURIY maydon IKKITA: «legalEntityId» va «positionId» " +
+                "(«nomzod.yuridik_shaxs_yoq» / «nomzod.lavozim_yoq», 400); mavjud " +
+                "bo'lmagan bo'lim uchun «nomzod.bolim_topilmadi» (404). " +
+                "Qolganining zaxirasi bor: ishga qabul sanasi — bugun, sinov muddati — " +
+                "lavozimdagi qiymat yoki 90 kun, valyuta — UZS. " +
+                "F.I.Sh./telefon/tug'ilgan sana/manzil/mutaxassislik NOMZODDAN " +
+                "ko'chadi; JSHSHIR va pasport shu formada kiritiladi va dublikat " +
+                "qidiruvi aynan JSHSHIRga tayanadi (topilsa IKKINCHI karta " +
+                "ochilmaydi). " +
+                "«probationDays» 0 yoki manfiy bo'lsa «sinov.majburiy» (400): " +
+                "sinovsiz qabul YO'Q. Nomzod allaqachon ishga olingan bo'lsa — " +
+                "«nomzod.allaqachon_ishga_olingan» (409); voronkadan chiqqan " +
+                "(rad etilgan, voz kechgan yoki REZERVDAGI) nomzod uchun " +
+                "«nomzod.jarayonda_emas» (409) — rezervdagini avval " +
+                "«/return-from-reserve» bilan qaytarish kerak; qora ro'yxatdagi " +
+                "odam uchun «xodim.qora_royxatda» (409). " +
+                "Javob: «candidate» + «hire» (ishga qabulning odatiy natijasi, " +
+                "lavozim vazifalari va ogohlantirishlar bilan).")
+            .Produces<DirectHireResultDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
     }

@@ -391,7 +391,10 @@ const DYNAMIC_KEY_SOURCES = [
    */
   {
     file: 'src/features/recruiting/components/candidate-action-dialog.tsx',
-    values: () => ['reject', 'withdraw', 'reassign', 'delete'].map((value) => ({ value, line: 0 })),
+    values: () =>
+      ['reject', 'withdraw', 'reserve', 'returnFromReserve', 'reassign', 'delete'].map(
+        (value) => ({ value, line: 0 }),
+      ),
     keysFor: (value) => [
       `recruiting.candidateAction.${value}Title`,
       `recruiting.candidateAction.${value}Text`,
@@ -448,12 +451,15 @@ const DYNAMIC_KEY_SOURCES = [
 
   {
     /*
-     * Nomzod kartasidagi «yopilgan» yozuvi. Uchta holatning har biri uchun
+     * Nomzod kartasidagi «yopilgan» yozuvi. To'rtta holatning har biri uchun
      * alohida matn — `InProgress` bu yerda YO'Q va bo'lishi ham kerak emas:
-     * jarayondagi nomzodda «yopildi» yozuvi umuman chizilmaydi.
+     * jarayondagi nomzodda «yopildi» yozuvi umuman chizilmaydi. `reserve`
+     * esa BOR: rezervdagi nomzod ham voronkadan chiqqan va kartada aynan
+     * shu yozuv ko'rinadi.
      */
     file: 'src/features/recruiting/components/candidate-card-page.tsx',
-    values: () => ['rejected', 'withdrawn', 'hired'].map((value) => ({ value, line: 0 })),
+    values: () =>
+      ['rejected', 'withdrawn', 'hired', 'reserve'].map((value) => ({ value, line: 0 })),
     keysFor: (value) => [`recruiting.candidateClosed.${value}`],
   },
 ]

@@ -32,6 +32,9 @@ public sealed class CandidateHandlerTests
     private CloseCandidateCommandHandler Yopish => new(
         _context.Candidates, _context.Mapper, _context.Clock, _context.UnitOfWork);
 
+    private ReturnCandidateFromReserveCommandHandler Qaytarish => new(
+        _context.Candidates, _context.Mapper, _context.UnitOfWork);
+
     // ────────────────────── Kiritish ──────────────────────
 
     [Fact]
@@ -329,5 +332,101 @@ public sealed class CandidateHandlerTests
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("nomzod.jarayonda_emas");
+    }
+
+    // ────────────────────── Rezerv ──────────────────────
+
+    [Fact]
+    public async Task Rezervga_otkazilgan_nomzod_saqlanadi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+
+        var natija = await Yopish.HandleAsync(
+            new ReserveCandidateCommand(nomzod.Id, Reason: "Ҳозир ўрин йўқ"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        natija.Value.Status.ShouldBe(CandidateStatus.Reserve);
+        natija.Value.ClosedAt.ShouldBe(RecruitingTestContext.Today, "sana bo'sh bo'lsa — bugun");
+        natija.Value.ClosingNote.ShouldBe("Ҳозир ўрин йўқ");
+        await _context.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Nomavjud_nomzod_rezervga_otkazilmaydi()
+    {
+        var natija = await Yopish.HandleAsync(
+            new ReserveCandidateCommand(Guid.CreateVersion7()),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.topilmadi");
+    }
+
+    [Fact]
+    public async Task Rad_etilgan_nomzod_rezervga_otkazilmaydi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.Reject(RecruitingTestContext.Today);
+
+        var natija = await Yopish.HandleAsync(
+            new ReserveCandidateCommand(nomzod.Id), TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.jarayonda_emas");
+    }
+
+    [Fact]
+    public async Task Rezervdan_qaytarilgan_nomzod_voronkaga_tushadi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var kengash = _context.ExistingStage("Кенгаш", 1);
+        _context.Funnel(kengash);
+        var nomzod = _context.ExistingCandidate(vakansiya, kengash);
+        nomzod.MoveToReserve(RecruitingTestContext.Today, "Ҳозир ўрин йўқ");
+
+        var natija = await Qaytarish.HandleAsync(
+            new ReturnCandidateFromReserveCommand(nomzod.Id), TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        natija.Value.Status.ShouldBe(CandidateStatus.InProgress);
+        natija.Value.ClosedAt.ShouldBeNull();
+        natija.Value.ClosingNote.ShouldBeNull();
+        natija.Value.CurrentStageId.ShouldBe(kengash.Id, "qayerda to'xtagan bo'lsa, o'sha yerdan davom etadi");
+        await _context.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Rezervda_bolmagan_nomzod_qaytarilmaydi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.Reject(RecruitingTestContext.Today);
+
+        var natija = await Qaytarish.HandleAsync(
+            new ReturnCandidateFromReserveCommand(nomzod.Id), TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Nomavjud_nomzod_qaytarilmaydi()
+    {
+        var natija = await Qaytarish.HandleAsync(
+            new ReturnCandidateFromReserveCommand(Guid.CreateVersion7()),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.topilmadi");
     }
 }

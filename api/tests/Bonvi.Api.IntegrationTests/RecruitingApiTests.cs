@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -60,7 +63,12 @@ public sealed record CandidateResponse(
     Guid? HiredEmployeeId,
     Guid? HiredEmploymentId,
     IReadOnlyList<CandidateStageResponse> Stages,
-    IReadOnlyList<OfferResponse> Offers);
+    IReadOnlyList<OfferResponse> Offers,
+
+    // Rezerv testiga kerak: rezervga o'tkazish ularni to'ldiradi,
+    // voronkaga qaytarish esa TOZALAYDI.
+    DateOnly? ClosedAt,
+    string? ClosingNote);
 
 /// <summary>Sahifalangan vakansiyalar ro'yxati.</summary>
 public sealed record VacancyPageResponse(IReadOnlyList<VacancyResponse> Items, int Total);
@@ -83,6 +91,11 @@ public sealed record RecruitingHireResponse(HireEmploymentResponse Employment);
 /// <summary>«Taklif qabul qilindi» javobining to'liq konverti.</summary>
 public sealed record AcceptOfferResponse(
     OfferResponse Offer,
+    CandidateResponse Candidate,
+    RecruitingHireResponse Hire);
+
+/// <summary>«Nomzod ishga olindi» (TAKLIFSIZ) javobining to'liq konverti.</summary>
+public sealed record DirectHireResponse(
     CandidateResponse Candidate,
     RecruitingHireResponse Hire);
 
@@ -135,6 +148,34 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         bosqichlar.Select(b => b.SortOrder).ShouldBe(bosqichlar.Select(b => b.SortOrder).Order());
         bosqichlar.ShouldContain(b => b.Name == "Кенгаш", "kengash — oddiy bosqich, alohida mexanizm emas");
         bosqichlar.ShouldContain(b => b.Name == "Раҳбар суҳбати", "yakuniy qaror shu yerda");
+    }
+
+    /// <summary>
+    /// Ishga OLINMAGAN nomzodda «xodim kartasi» havolasi <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Ro'yxat bu maydonni lug'atdan oladi va <c>GetValueOrDefault</c>
+    /// topilmaganda <c>Guid.Empty</c> qaytarardi — javobda
+    /// «00000000-…» chiqib turardi. Bugun ro'yxat maydonni CHIZMAYDI,
+    /// ya'ni xato ko'rinmaydi; unga «xodim kartasi» havolasi qo'shilgan
+    /// kuni esa u rad etilgan nomzodda ham paydo bo'lib, mavjud
+    /// bo'lmagan xodimga olib borardi.
+    /// </remarks>
+    [Fact]
+    public async Task Ishga_olinmagan_nomzodda_xodim_havolasi_bosh()
+    {
+        using var mijoz = await AdminMijozAsync();
+
+        var nom = await VakansiyaNomiAsync(mijoz);
+        var vakansiya = await VakansiyaAsync(mijoz, nom.Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
+
+        var royxat = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
+
+        royxat.Items
+            .First(qator => qator.Id == nomzod.Id)
+            .HiredEmployeeId
+            .ShouldBeNull("ishga olinmagan nomzodda xodim havolasi BO'SH bo'lishi kerak");
     }
 
     [Fact]
@@ -235,6 +276,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var ishgaOlinganlar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Hired");
         ishgaOlinganlar.Items.ShouldContain(q => q.Id == nomzod.Id && q.HiredEmployeeId == mehnat.EmployeeId);
 
+
         // ── 8. Vakansiya sanog'i yangilandi ──
         using var vakansiyaJavobi = await mijoz.GetAsync(
             new Uri($"/api/recruiting/vacancies/{vakansiya.Id}", UriKind.Relative), bekorQilish);
@@ -251,6 +293,330 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             bekorQilish);
 
         takror.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(takror));
+    }
+
+    [Fact]
+    public async Task Nomzod_TAKLIFSIZ_xodimga_aylanadi()
+    {
+        // ⭐ Ishga olishning ODATIY yo'li: rasmiy ish taklifi TALAB
+        //    QILINMAYDI. Amalda HR nomzod bilan gaplashib, kelishib, o'sha
+        //    kuni hujjatga o'tkazadi — taklif esa alohida bosqichda
+        //    butunlay o'chiriladi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var (firmaId, lavozimId) = await MalumotnomaAsync();
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id, kengash.Id);
+
+        using var qabul = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/hire", UriKind.Relative),
+            new
+            {
+                legalEntityId = firmaId,
+                positionId = lavozimId,
+                hireDate = new DateOnly(2026, 4, 15),
+                orderNo = "186-b",
+                orderDate = new DateOnly(2026, 4, 10),
+                salaryAmount = 6_000_000m,
+            },
+            bekorQilish);
+
+        qabul.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qabul));
+        var natija = await qabul.Content.ReadFromJsonAsync<DirectHireResponse>(bekorQilish);
+
+        // 1. Nomzod voronkadan chiqdi va xodimga bog'landi
+        natija!.Candidate.Status.ShouldBe("Hired");
+        natija.Candidate.Offers.ShouldBeEmpty("taklif yaratilmaydi — butun gap shunda");
+        natija.Candidate.HiredEmployeeId.ShouldNotBeNull("nomzod qaysi xodimga aylangani ko'rinishi kerak");
+
+        // 2. Xodim, mehnat munosabati va MAJBURIY sinov muddati yaratildi
+        var mehnat = natija.Hire.Employment;
+        mehnat.Status.ShouldBe("Probation", "sinov muddati MAJBURIY va istisnosiz");
+        mehnat.Probation.ShouldNotBeNull();
+        natija.Candidate.HiredEmployeeId.ShouldBe(mehnat.EmployeeId);
+        natija.Candidate.HiredEmploymentId.ShouldBe(mehnat.Id);
+
+        // 3. Yangi xodim SINOV ro'yxatida — 1-bosqichning oqimi chaqirilgani
+        //    aynan shu bilan ko'rinadi.
+        using var sinovlar = await mijoz.GetAsync(
+            new Uri("/api/probations?status=InProgress", UriKind.Relative), bekorQilish);
+
+        var sahifa = await sinovlar.Content.ReadFromJsonAsync<ProbationPageResponse>(bekorQilish);
+        sahifa!.Items.ShouldContain(
+            q => q.EmployeeId == mehnat.EmployeeId,
+            "taklifsiz olingan xodim ham /sinov ro'yxatiga tushadi");
+
+        // 4. Voronkada faol qolmaydi, vakansiya sanog'i yangilanadi
+        var faollar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
+        faollar.Items.ShouldNotContain(q => q.Id == nomzod.Id);
+
+        using var vakansiyaJavobi = await mijoz.GetAsync(
+            new Uri($"/api/recruiting/vacancies/{vakansiya.Id}", UriKind.Relative), bekorQilish);
+
+        var yangilangan = await vakansiyaJavobi.Content.ReadFromJsonAsync<VacancyResponse>(bekorQilish);
+        yangilangan!.HiredCount.ShouldBe(1);
+
+        // 5. Ikkinchi marta olib bo'lmaydi
+        using var takror = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/hire", UriKind.Relative),
+            new { legalEntityId = firmaId, positionId = lavozimId },
+            bekorQilish);
+
+        takror.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(takror));
+        (await MatnAsync(takror)).ShouldContain("nomzod.allaqachon_ishga_olingan");
+    }
+
+    [Fact]
+    public async Task Taklifsiz_ishga_olishda_FIRMA_va_LAVOZIM_majburiy()
+    {
+        // Xato kodlari `nomzod.*` prefiksida, `taklif.*` da EMAS: bu boshqa
+        // ekran va ish taklifi funksiyasi bilan birga o'sha kodlar ham
+        // o'chiriladi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var (firmaId, _) = await MalumotnomaAsync();
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
+        var yol = new Uri($"/api/recruiting/candidates/{nomzod.Id}/hire", UriKind.Relative);
+
+        using var firmasiz = await mijoz.PostAsJsonAsync(yol, new { }, bekorQilish);
+
+        firmasiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(firmasiz));
+        (await MatnAsync(firmasiz)).ShouldContain("nomzod.yuridik_shaxs_yoq");
+
+        using var lavozimsiz = await mijoz.PostAsJsonAsync(
+            yol, new { legalEntityId = firmaId }, bekorQilish);
+
+        lavozimsiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(lavozimsiz));
+        (await MatnAsync(lavozimsiz)).ShouldContain("nomzod.lavozim_yoq");
+
+        // Nomzod voronkada QOLDI: rad etilgan qabul hech narsani
+        // o'zgartirmaydi.
+        var karta = await KartaAsync(mijoz, nomzod.Id);
+        karta.Status.ShouldBe("InProgress");
+    }
+
+    [Fact]
+    public async Task Rezerv_nomzodni_SAQLAYDI_va_voronkaga_qaytaradi()
+    {
+        // ⭐ Rezervning butun ma'nosi qaytishda: «ҳозир олинмади, лекин
+        //    керак бўлса чақирамиз». Rad etilganlarga qo'shib yuborilsa,
+        //    bu ro'yxat yo'qolardi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id, kengash.Id);
+
+        // ── 1. Rezervga ──
+        using var rezerv = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reserve", UriKind.Relative),
+            new { at = new DateOnly(2026, 4, 2), reason = "Ҳозир ўрин йўқ" },
+            bekorQilish);
+
+        rezerv.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rezerv));
+        var rezervda = await rezerv.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
+
+        rezervda!.Status.ShouldBe("Reserve");
+        rezervda.ClosedAt.ShouldBe(new DateOnly(2026, 4, 2));
+        rezervda.ClosingNote.ShouldBe("Ҳозир ўрин йўқ");
+        rezervda.CurrentStageId.ShouldBe(kengash.Id, "bosqich saqlanadi");
+
+        // ── 2. Voronka taxtasida yo'q, lekin FILTR bilan topiladi ──
+        var faollar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
+        faollar.Items.ShouldNotContain(q => q.Id == nomzod.Id);
+
+        var rezervdagilar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Reserve");
+        rezervdagilar.Items.ShouldContain(
+            q => q.Id == nomzod.Id,
+            "rezervdagi nomzod aynan shu filtr uchun saqlanadi");
+
+        // ── 3. Voronkaga qaytariladi ──
+        using var qaytarish = await mijoz.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            content: null,
+            bekorQilish);
+
+        qaytarish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaytarish));
+        var qaytgan = await qaytarish.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
+
+        qaytgan!.Status.ShouldBe("InProgress");
+        qaytgan.ClosedAt.ShouldBeNull("nomzod endi voronkadan chiqqan emas");
+        qaytgan.ClosingNote.ShouldBeNull();
+        qaytgan.CurrentStageId.ShouldBe(kengash.Id, "qayerda to'xtagan bo'lsa, o'sha yerdan davom etadi");
+        qaytgan.Stages.Count.ShouldBe(nomzod.Stages.Count, "bosqichlar tarixi saqlanadi");
+
+        var yanaFaollar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
+        yanaFaollar.Items.ShouldContain(q => q.Id == nomzod.Id);
+
+        // ── 4. Ikkinchi marta qaytarib bo'lmaydi: u allaqachon voronkada ──
+        using var takror = await mijoz.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            content: null,
+            bekorQilish);
+
+        takror.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(takror));
+        (await MatnAsync(takror)).ShouldContain("nomzod.rezervda_emas");
+    }
+
+    [Fact]
+    public async Task Voronkadan_chiqqan_nomzod_rezervga_otkazilmaydi()
+    {
+        // Rezerv ham YAKUN: rad etilgan nomzodni «aslida rezerv edi» deb
+        // o'zgartirish qarorni keyinchalik qayta yozish bo'lardi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
+
+        using var rad = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reject", UriKind.Relative),
+            new { reason = "Тажрибаси етарли эмас" },
+            bekorQilish);
+
+        rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+
+        using var rezerv = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reserve", UriKind.Relative),
+            new { reason = "Ҳозир ўрин йўқ" },
+            bekorQilish);
+
+        rezerv.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(rezerv));
+        (await MatnAsync(rezerv)).ShouldContain("nomzod.jarayonda_emas");
+
+        var karta = await KartaAsync(mijoz, nomzod.Id);
+        karta.Status.ShouldBe("Rejected", "holat o'zgarmaydi");
+        karta.ClosingNote.ShouldBe("Тажрибаси етарли эмас", "rad etish izohi tegilmaydi");
+    }
+
+    [Fact]
+    public async Task Ishga_olingan_nomzod_SUKUT_royxatda_KORINMAYDI()
+    {
+        // ⭐ Foydalanuvchi talabi (2026-09-07): ishga olingan nomzod endi
+        //    XODIM va uning o'rni «Xodimlar» bo'limida. Nomzodlar ro'yxati
+        //    esa «hozir kim ish ustida?» degan savolga javob beradi.
+        //
+        //    ⚠️ Yozuv O'CHIRILMAYDI — pastda vakansiya sanog'i buni
+        //    ko'rsatadi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var (firmaId, lavozimId) = await MalumotnomaAsync();
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+
+        var jarayonda = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Жараёнда");
+        var rezervda = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Резервда");
+        var ishgaOlingan = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Ишгаолинган");
+
+        using (var rezerv = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{rezervda.Id}/reserve", UriKind.Relative),
+            new { reason = "Ҳозир ўрин йўқ" },
+            bekorQilish))
+        {
+            rezerv.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rezerv));
+        }
+
+        using (var qabul = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{ishgaOlingan.Id}/hire", UriKind.Relative),
+            new { legalEntityId = firmaId, positionId = lavozimId },
+            bekorQilish))
+        {
+            qabul.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qabul));
+        }
+
+        // ── 1. SUKUT ro'yxat: ishga olingan yo'q, rezervdagi BOR ──
+        var sukut = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}");
+
+        sukut.Items.ShouldContain(q => q.Id == jarayonda.Id);
+        sukut.Items.ShouldContain(
+            q => q.Id == rezervda.Id,
+            "rezervga qoida TEGMAYDI — uning butun ma'nosi «keyin chaqiramiz» degani");
+        sukut.Items.ShouldNotContain(q => q.Id == ishgaOlingan.Id);
+
+        // ── 2. Sanoq qatorlarga MOS: ikkalasi bitta so'rovdan olinadi ──
+        sukut.Total.ShouldBe(
+            sukut.Items.Count,
+            "sanoq va qatorlar bir-biriga zid bo'lmasligi kerak");
+        sukut.Total.ShouldBe(2);
+
+        // ── 3. Filtr ataylab tanlansa — qaytadi ──
+        var ishgaOlinganlar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Hired");
+
+        ishgaOlinganlar.Items.ShouldContain(q => q.Id == ishgaOlingan.Id);
+        ishgaOlinganlar.Total.ShouldBe(1);
+        ishgaOlinganlar.Items[0].HiredEmployeeId.ShouldNotBeNull("havola joyida qoladi");
+
+        // ── 4. Yozuv O'CHIRILMAGAN: vakansiya sanog'i buni ko'rsatadi ──
+        using var vakansiyaJavobi = await mijoz.GetAsync(
+            new Uri($"/api/recruiting/vacancies/{vakansiya.Id}", UriKind.Relative), bekorQilish);
+
+        var yangilangan = await vakansiyaJavobi.Content.ReadFromJsonAsync<VacancyResponse>(bekorQilish);
+        yangilangan!.CandidateCount.ShouldBe(3, "uchala yozuv ham bazada turibdi");
+        yangilangan.HiredCount.ShouldBe(1, "«2/3 to'ldirildi» hisobi shu yozuvga tayanadi");
+
+        // ── 5. Karta ham ochilaveradi — faqat RO'YXATDAN chiqarilgan ──
+        var karta = await KartaAsync(mijoz, ishgaOlingan.Id);
+        karta.Status.ShouldBe("Hired");
+    }
+
+    /// <summary>Yangi uchala amal ham RUXSAT talab qiladi.</summary>
+    /// <remarks>
+    /// Token HAQIQIY va imzosi to'g'ri — faqat ichida «recruiting.*» yo'q.
+    /// Aynan shu holat eng xavflisi: autentifikatsiya o'tadi, avtorizatsiya
+    /// esa endpoint darajasida to'xtatishi kerak. «Ishga olish» uchun bu
+    /// ayniqsa muhim: u rekrutingdan tashqariga, XODIMLAR bo'limiga yozadi.
+    /// </remarks>
+    [Fact]
+    public async Task Ruxsatsiz_foydalanuvchi_rezerv_va_ishga_olishda_403_oladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        // Nomzod haqiqiy bo'lsin: 403 «yo'q» degani emas, «ruxsat yo'q» degani.
+        using var admin = await AdminMijozAsync();
+        var (firmaId, lavozimId) = await MalumotnomaAsync();
+        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Ҳимояланган");
+
+        using var mijoz = _factory.CreateClient();
+        mijoz.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await RuxsatsizTokenAsync());
+
+        using (var rezerv = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reserve", UriKind.Relative),
+            new { reason = "Ҳозир ўрин йўқ" },
+            bekorQilish))
+        {
+            rezerv.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var qaytarish = await mijoz.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            content: null,
+            bekorQilish))
+        {
+            qaytarish.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var ishgaOlish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/hire", UriKind.Relative),
+            new { legalEntityId = firmaId, positionId = lavozimId },
+            bekorQilish))
+        {
+            ishgaOlish.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        // Ruxsatsiz urinishlar hech narsani o'zgartirmadi.
+        var karta = await KartaAsync(admin, nomzod.Id);
+        karta.Status.ShouldBe("InProgress");
     }
 
     [Fact]
@@ -744,6 +1110,45 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         sahifa.ShouldNotBeNull();
         return sahifa;
+    }
+
+    /// <summary>Nomzod kartasini o'qiydi.</summary>
+    private static async Task<CandidateResponse> KartaAsync(HttpClient mijoz, Guid nomzodId)
+    {
+        using var javob = await mijoz.GetAsync(
+            new Uri($"/api/recruiting/candidates/{nomzodId}", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var karta = await javob.Content.ReadFromJsonAsync<CandidateResponse>(
+            TestContext.Current.CancellationToken);
+
+        karta.ShouldNotBeNull();
+        return karta;
+    }
+
+    /// <summary>
+    /// Haqiqiy, lekin RUXSATSIZ token.
+    /// </summary>
+    /// <remarks>
+    /// Foydalanuvchi va imzo haqiqiy — faqat ro'llar va ruxsatlar ro'yxati
+    /// bo'sh. Login orqali ruxsatsiz foydalanuvchi yasash butun bir rol
+    /// boshqaruvi ketma-ketligini talab qilardi; tekshiriladigan narsa esa
+    /// bitta — endpoint'dagi <c>RequireAuthorization</c>.
+    /// </remarks>
+    private async Task<string> RuxsatsizTokenAsync()
+    {
+        using var qamrov = _factory.Services.CreateScope();
+
+        var users = qamrov.ServiceProvider.GetRequiredService<IUserRepository>();
+        var tokens = qamrov.ServiceProvider.GetRequiredService<ITokenService>();
+
+        var login = PhoneNumber.Create(BonviApiFactory.TestAdminLogin).Value;
+        var user = await users.GetByLoginAsync(login, TestContext.Current.CancellationToken);
+        user.ShouldNotBeNull();
+
+        return tokens.CreateTokens(user, [], new HashSet<string>(StringComparer.Ordinal)).AccessToken;
     }
 
     private async Task<HttpClient> AdminMijozAsync()

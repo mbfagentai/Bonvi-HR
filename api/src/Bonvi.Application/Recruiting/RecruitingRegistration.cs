@@ -47,7 +47,13 @@ internal static class RecruitingRegistration
         services.AddScoped<ReassignCandidateCommandHandler>();
         services.AddScoped<RecordCandidateStageCommandHandler>();
         services.AddScoped<CloseCandidateCommandHandler>();
+        services.AddScoped<ReturnCandidateFromReserveCommandHandler>();
         services.AddScoped<DeleteCandidateCommandHandler>();
+
+        // To'g'ridan-to'g'ri ishga olish (taklifsiz) — taklifni qabul
+        // qilish bilan AYNAN bir xil sababdan `HireEmployeeCommandHandler`
+        // ga bog'liq: xodimni 1-bosqichning oqimi yaratadi.
+        services.AddScoped<HireCandidateCommandHandler>();
 
         // Rezyume fayli — xodim hujjatlari bilan bir xil quvurdan o'tadi
         // (`DocumentFileStore` allaqachon `Common` da ro'yxatga olingan).

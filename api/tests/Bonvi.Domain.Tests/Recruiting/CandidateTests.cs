@@ -246,6 +246,124 @@ public sealed class CandidateTests
         nomzod.CurrentStageId.ShouldBe(AnketaId);
     }
 
+    // ────────────────────── Rezerv ──────────────────────
+
+    [Fact]
+    public void Rezervga_otgan_nomzod_voronkada_faol_qolmaydi()
+    {
+        var nomzod = Nomzod();
+
+        var natija = nomzod.MoveToReserve(Sana, "Ҳозир ўрин йўқ");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.Reserve);
+        nomzod.IsActive.ShouldBeFalse("rezervdagi nomzod voronka taxtasida turmasligi kerak");
+        nomzod.ClosedAt.ShouldBe(Sana);
+        nomzod.ClosingNote.ShouldBe("Ҳозир ўрин йўқ");
+    }
+
+    [Fact]
+    public void Rezerv_rad_etishdan_ALOHIDA_holat()
+    {
+        var nomzod = Nomzod();
+
+        nomzod.MoveToReserve(Sana);
+
+        nomzod.Status.ShouldBe(
+            CandidateStatus.Reserve,
+            "«бизга тўғри келмади» ва «яхши одам, лекин ўрин йўқ» — бошқа-бошқа қарор");
+    }
+
+    [Fact]
+    public void Voronkadan_chiqqan_nomzod_rezervga_otkazilmaydi()
+    {
+        // Rezerv ham YAKUN: rad etilgan nomzodni «aslida rezerv edi» deb
+        // o'zgartirish qarorni keyinchalik qayta yozish bo'lardi.
+        var nomzod = Nomzod();
+        nomzod.Reject(Sana);
+
+        var natija = nomzod.MoveToReserve(Sana.AddDays(1));
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.jarayonda_emas");
+        nomzod.Status.ShouldBe(CandidateStatus.Rejected, "holat o'zgarmaydi");
+    }
+
+    [Fact]
+    public void Rezervdan_qaytgan_nomzod_yana_voronkada_boladi()
+    {
+        var nomzod = Nomzod();
+        nomzod.RecordStage(KengashId, Sana, StageOutcome.Passed);
+        nomzod.MoveToReserve(Sana.AddDays(1), "Ҳозир ўрин йўқ");
+
+        var natija = nomzod.ReturnFromReserve();
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.InProgress);
+        nomzod.IsActive.ShouldBeTrue();
+        nomzod.ClosedAt.ShouldBeNull("nomzod endi voronkadan chiqqan emas");
+        nomzod.ClosingNote.ShouldBeNull();
+        nomzod.CurrentStageId.ShouldBe(KengashId, "qayerda to'xtagan bo'lsa, o'sha yerdan davom etadi");
+        nomzod.StageEntries.Count.ShouldBe(1, "bosqichlar tarixi saqlanadi");
+    }
+
+    [Fact]
+    public void Rezervdan_qaytgan_nomzod_yana_rezervga_otkaziladi()
+    {
+        // Voronkaga qaytgan nomzod — oddiy jarayondagi nomzod: unga
+        // barcha yakunlar, shu jumladan rezerv, yana ochiq.
+        var nomzod = Nomzod();
+        nomzod.MoveToReserve(Sana);
+        nomzod.ReturnFromReserve();
+
+        var natija = nomzod.MoveToReserve(Sana.AddDays(30), "Кейинги мавсумга");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.Reserve);
+        nomzod.ClosingNote.ShouldBe("Кейинги мавсумга");
+    }
+
+    [Fact]
+    public void Ishga_olingan_nomzod_voronkaga_QAYTARILMAYDI()
+    {
+        // ⭐ Eng muhim to'siq: «yopishni bekor qilish» degan umumiy amal
+        // yo'q. Bo'lganida, ishga olingan odam bir vaqtda ham xodim, ham
+        // faol nomzod bo'lib qolardi.
+        var nomzod = Nomzod();
+        nomzod.MarkHired(Sana);
+
+        var natija = nomzod.ReturnFromReserve();
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
+        nomzod.Status.ShouldBe(CandidateStatus.Hired, "holat o'zgarmaydi");
+    }
+
+    [Fact]
+    public void Rad_etilgan_nomzod_voronkaga_QAYTARILMAYDI()
+    {
+        var nomzod = Nomzod();
+        nomzod.Reject(Sana, "Тажрибаси етарли эмас");
+
+        var natija = nomzod.ReturnFromReserve();
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
+        nomzod.ClosingNote.ShouldBe("Тажрибаси етарли эмас", "rad etish izohi tegilmaydi");
+    }
+
+    [Fact]
+    public void Jarayondagi_nomzod_voronkaga_QAYTARILMAYDI()
+    {
+        // U allaqachon voronkada — bu amal uchun manba yo'q.
+        var nomzod = Nomzod();
+
+        var natija = nomzod.ReturnFromReserve();
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
+    }
+
     // ────────────────────── Rezyume ──────────────────────
 
     [Fact]

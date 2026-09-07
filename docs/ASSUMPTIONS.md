@@ -60,4 +60,48 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   ya'ni nomzod ko'rmagan ofertaga «rozilik berdi» degan huquqiy fakt
   bazaga tushardi. `NULL` = «so'ralmagan», qiymat = «aynan o'sha lahzada
   berilgan»; ikkalasi bir xil ko'rinmasligi kerak.
-
+- [2026-09-07] Taklifsiz ishga olishda `taklif.lavozim_yoq` kabi mavjud xato
+  kodlari qayta ishlatilsinmi? → YO'Q, `nomzod.lavozim_yoq` /
+  `nomzod.yuridik_shaxs_yoq` / `nomzod.bolim_topilmadi` qo'shildi → xato kodi
+  EKRANNING shartnomasi, bu esa boshqa ekran; qolaversa `taklif.*` kodlari ish
+  taklifi bilan birga o'chiriladi va saqlanib qoladigan yo'l o'chirilayotgan
+  funksiya nomiga tayanib qolmasligi kerak.
+- [2026-09-07] Taklifsiz ishga olishda nomzodning `ClosedAt` iga qaysi sana
+  yozilsin? → BUGUN, `hireDate` emas → qaror ayni hozir qabul qilinmoqda, ish
+  boshlash esa kelajakda bo'lishi mumkin; birlashtirilsa «shu oyda voronkadan
+  nechta odam chiqdi» hisoboti kelajakdagi sanani ko'rmasdi. Bu
+  `AcceptJobOfferCommandHandler` dagi «javob sanasi ≠ ish boshlash sanasi»
+  bo'linishining aynan o'zi.
+- [2026-09-07] Rezervdagi nomzodni to'g'ridan ishga olsa bo'ladimi? → YO'Q,
+  avval `/return-from-reserve` → rezerv ham YAKUN (nomzod voronkadan chiqqan);
+  to'g'ridan olish yo'li ochilsa, «rezervdan qaytarish» amali ma'nosini
+  yo'qotardi va nomzod voronkaga tushmasdan xodim bo'lardi.
+- [2026-09-07] Rezervga o'tkazish sababi (`ClosingNote`) qaytarilganda
+  saqlansinmi? → YO'Q, tozalanadi → u CHIQISH sababi; qoldirilsa faol nomzod
+  kartasida «voronkadan chiqqan: …» turaverardi va `ClosedAt` bo'yicha
+  hisoblaydigan hisobot uni yopilganlar qatorida sanardi. Uzoq muddatli tavsif
+  uchun `Note` bor va unga tegilmaydi.
+- [2026-09-07] Ishga olinganlar ro'yxatdan chiqarilishi `Reserve` ga ham
+  tegsinmi? → YO'Q, faqat `Hired` → rezervning butun ma'nosi «kerak bo'lganda
+  shu ro'yxatdan chaqiramiz» degani; yashirilsa u ma'no yo'qolardi.
+- [2026-09-07] `Reserve` yorlig'i qaysi rangda? → KULRANG (`neutral`) → yashil
+  «olindi», qizil «rad etildi», sariq «o'zi ketdi» allaqachon band va har biri
+  o'z ma'nosini tashiydi; rezerv esa yakun emas, TO'XTASH — va undan
+  qaytiladi. Yopilgan vakansiya ham aynan shu sababdan kulrang. To'rtinchi
+  rang o'ylab topish tizimda «bu rang nimani anglatadi?» degan yangi savol
+  hosil qilardi.
+- [2026-09-07] Rezervdagi nomzod kartasida «Ishga olish» tugmasi bo'lsinmi,
+  server uni 409 bilan rad etishini bilib turib? → HA, lekin oyna AVVAL
+  `/return-from-reserve` ni chaqiradi, keyin `/hire` → serverning qoidasi
+  buzilmaydi (nomzod haqiqatan voronkaga qaytadi va shundan keyin xodim
+  bo'ladi), foydalanuvchi uchun esa bu bitta qaror: «bu odamni olamiz».
+  Tugmani olib tashlash HR ni ikkita ekran kezishga majburlardi; uni shunchaki
+  qo'yib, so'rovni chaqirish esa tushunarsiz 409 berardi. «Rezervdan
+  qaytarish» tugmasi joyida qoladi — u boshqa qaror («qaytaramiz, lekin hali
+  olmaymiz»).
+- [2026-09-07] Taklifsiz ishga olish oynasida OKLAD maydoni bo'lsinmi (u
+  topshiriqdagi maydonlar ro'yxatida yo'q edi)? → HA, «Qo'shimcha» ostida va
+  `salary.view` ruxsatiga bog'liq → taklif orqali olishda summa TAKLIFDAN
+  kelardi; taklifsiz yo'lda uni beradigan boshqa joy yo'q va
+  `HireCandidateCommand.SalaryAmount` izohi to'g'ridan-to'g'ri «qabul
+  formasidan» deydi. Maydonsiz har bir yangi xodim okladsiz ochilardi.

@@ -591,6 +591,10 @@
     "nomzod.tugilgan_sana": "Tug‘ilgan sana noto‘g‘ri: u kelajakda bo‘lishi yoki 100 yildan oshiq bo‘lishi mumkin emas.",
     "nomzod.jarayonda_emas": "Nomzod voronkadan chiqqan — bu amalni bajarib bo‘lmaydi.",
     "nomzod.allaqachon_ishga_olingan": "Nomzod allaqachon ishga olingan.",
+    "nomzod.rezervda_emas": "Nomzod rezervda emas — uni voronkaga qaytarib bo‘lmaydi.",
+    "nomzod.yuridik_shaxs_yoq": "Yuridik shaxs ko‘rsatilishi shart: xodim qaysi firmaga rasmiylashtiriladi.",
+    "nomzod.lavozim_yoq": "Lavozim ko‘rsatilishi shart: nomzod aynan qaysi lavozimga olinayotgani yozilishi kerak.",
+    "nomzod.bolim_topilmadi": "Bo‘lim topilmadi.",
     "nomzod.holat_notogri": "Holat noto‘g‘ri. Ruxsat etilgan qiymatlar: InProgress, Rejected, Hired, Withdrawn.",
     "nomzod.manba_notogri": "Manba noto‘g‘ri. Ruxsat etilgan qiymatlar: Manual, TelegramBot.",
     "nomzod.rezyume_bosh": "Rezyume fayli biriktirilishi shart.",
@@ -1130,6 +1134,7 @@
     "noStage": "Bosqich belgilanmagan",
     "hasResume": "Rezyume biriktirilgan",
     "anyStatus": "Barcha holatlar",
+    "statusFilterHint": "Ishga olinganlar bu ro‘yxatda ko‘rsatilmaydi — ularni ko‘rish uchun «Ishga olingan»ni tanlang",
     "anySource": "Barcha manbalar",
     "anyStage": "Barcha bosqichlar",
     "anyVacancy": "Barcha vakansiyalar",
@@ -1171,17 +1176,19 @@
     "candidateEmptyTitle": "Hali nomzod yo‘q",
     "candidateEmptyText": "Nomzodni qo‘lda kiriting yoki Telegram anketa boti ulanishini kuting.",
     "candidateNotFoundTitle": "Nomzod topilmadi",
-    "candidateNotFoundText": "Qidiruvni yoki filtrlarni o‘zgartirib ko‘ring.",
+    "candidateNotFoundText": "Qidiruvni yoki filtrlarni o‘zgartirib ko‘ring. Ishga olinganlar sukut bo‘yicha ko‘rsatilmaydi — ularni «Holati» filtridan tanlang.",
     "candidateStatus": {
       "inProgress": "Jarayonda",
       "rejected": "Rad etilgan",
       "hired": "Ishga olingan",
-      "withdrawn": "O‘zi voz kechgan"
+      "withdrawn": "O‘zi voz kechgan",
+      "reserve": "Rezervda"
     },
     "candidateClosed": {
       "rejected": "Rad etilgan · {{date}}",
       "withdrawn": "O‘zi voz kechgan · {{date}}",
-      "hired": "Ishga olingan · {{date}}"
+      "hired": "Ishga olingan · {{date}}",
+      "reserve": "Rezervga o‘tkazilgan · {{date}}"
     },
     "candidateAction": {
       "rejectTitle": "Rad etish",
@@ -1195,7 +1202,13 @@
       "reassignConfirm": "O‘tkazish",
       "deleteTitle": "Nomzodni o‘chirish",
       "deleteText": "Yozuv ro‘yxatdan olib tashlanadi (bazada qoladi). Bu amal FAQAT xato kiritilgan yozuv uchun: rad etilgan nomzod o‘chirilmaydi — u kelasi izlanishning bazasi.",
-      "deleteConfirm": "O‘chirish"
+      "deleteConfirm": "O‘chirish",
+      "reserveTitle": "Rezervga o‘tkazish",
+      "reserveText": "Nomzod voronkadan chiqadi, lekin bu RAD ETISH EMAS: «hozir o‘rin yo‘q, kerak bo‘lganda chaqiramiz». Yozuv ro‘yxatda ko‘rinib turadi va bir amal bilan voronkaga qaytariladi.",
+      "reserveConfirm": "Rezervga",
+      "returnFromReserveTitle": "Rezervdan qaytarish",
+      "returnFromReserveText": "Nomzod voronkaga qaytadi va qaysi bosqichda to‘xtagan bo‘lsa, o‘sha yerdan davom etadi — bosqichlar tarixi saqlanadi. Rezervga o‘tkazish sanasi va sababi tozalanadi.",
+      "returnFromReserveConfirm": "Qaytarish"
     },
     "source": {
       "manual": "Qo‘lda",
@@ -1289,6 +1302,17 @@
     "acceptDoneHeading": "Nomzod xodimga aylandi",
     "acceptDoneText": "Xodim kartasi yaratildi va sinov muddati boshlandi.",
     "acceptWarnings": "Diqqat qiling",
+    "hireAction": "Ishga olish",
+    "hireTitle": "Nomzodni ishga olish",
+    "hireConfirm": "Ishga olish va xodim yaratish",
+    "hireFromReserve": "Nomzod rezervda. U avval voronkaga qaytariladi, so‘ng ishga olinadi — bu siz uchun bitta amal, qo‘shimcha hech narsa qilish shart emas.",
+    "hireSectionIdentity": "Shaxsni aniqlash",
+    "hirePinflWhy": "JSHSHIR ataylab ochiq turibdi: mavjud xodim aynan shu raqam bo‘yicha topiladi — bo‘sh qoldirilsa, o‘sha odamga ikkinchi karta ochilishi mumkin.",
+    "hireMoreTitle": "Qo‘shimcha",
+    "hireMoreHint": "Hammasi ixtiyoriy — ochmasangiz ham ishga olish o‘tadi: har bir maydonning zaxira qiymati serverda bor.",
+    "hireDateHint": "Bo‘sh qoldirilsa — bugun",
+    "hireSalaryHint": "Bo‘sh qoldirilsa — oklad yozuvisiz rasmiylashtiriladi",
+    "hireCatalogEmpty": "Yuridik shaxslar yoki lavozimlar ro‘yxati bo‘sh — ishga olish uchun ularsiz ilojisi yo‘q. «Ma’lumotnomalar» bo‘limida yozuv qo‘shing yoki sahifani yangilang: ro‘yxat yuklanmagan bo‘lishi mumkin.",
     "openEmployee": "Xodim kartasi",
     "vacancyTitle": "Vakansiya nomi",
     "vacancyTitleHint": "E’londa turadigan nom. Bu kompaniya lavozimi emas — lavozim ishga qabulda tanlanadi",

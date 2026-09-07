@@ -1,4 +1,5 @@
 import {
+  Bookmark,
   Bot,
   CircleCheck,
   CircleSlash,
@@ -82,6 +83,25 @@ export const CANDIDATE_LOOK: Readonly<Record<CandidateStatus, StatusLook>> = {
     olmasdi — `CandidateStatus` izohidagi butun sabab shu.
   */
   Withdrawn: { key: 'withdrawn', tone: 'warning', icon: DoorOpen },
+  /*
+    ⭐ «Rezerv» — KULRANG, ataylab. U na muvaffaqiyat (yashil), na rad
+    etish (qizil), na nomzodning ketishi (sariq): «hozir olinmadi,
+    kerak bo'lganda chaqiramiz». Rangning o'zi shu ma'noni bermasa,
+    HR ro'yxatga qarab rezervni rad etilganlar bilan bir qatorga
+    qo'shib yuborardi — va rezervning butun qiymati aynan shu
+    ajratishda.
+
+    Yopilgan vakansiya ham AYNAN shu sababdan kulrang (`VACANCY_LOOK`):
+    ikkalasi ham yakun EMAS, to'xtash — va ikkalasidan ham QAYTILADI.
+    Qolgan uch rang esa allaqachon band va har biri o'z ma'nosini
+    tashiydi; rezervga to'rtinchi rang o'ylab topish tizimda «bu rang
+    nimani anglatadi?» degan yangi savol hosil qilardi.
+
+    Ikona — xatcho'p: «belgilab qo'yildi, keyin qaytamiz». Soat yoki
+    qum soati (`Hourglass`) mos EMAS — u «jarayonda» degani va aynan
+    shu holat bilan chalkashardi.
+  */
+  Reserve: { key: 'reserve', tone: 'neutral', icon: Bookmark },
 }
 
 export const OFFER_LOOK: Readonly<Record<JobOfferStatus, StatusLook>> = {

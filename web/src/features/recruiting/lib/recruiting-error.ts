@@ -82,6 +82,18 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   'yuridik_shaxs.topilmadi': 'legalEntityId',
   'lavozim.topilmadi': 'positionId',
 
+  // ── TAKLIFSIZ ishga olishda: SHTAT birligi
+  //
+  // Yuqoridagi uchtasining aynan nusxasi, faqat prefiksi boshqa — va
+  // bu server tomonda ATAYLAB shunday (`RecruitingErrors` izohi): xato
+  // kodi «qaysi EKRANDA nima noto'g'ri» degan ma'noni tashiydi, taklif
+  // qabuli va nomzod kartasidagi «Ishga olish» esa ikki xil forma.
+  // Ish taklifi o'chirilgach (`docs/SPEC-nomzod-yakuni.md`, 3-bo'lim)
+  // `taklif.*` qatorlari ketadi, shu uchtasi qoladi.
+  'nomzod.yuridik_shaxs_yoq': 'legalEntityId',
+  'nomzod.lavozim_yoq': 'positionId',
+  'nomzod.bolim_topilmadi': 'departmentId',
+
   // ── taklif qabul qilinganda: ishga qabulning o'z xatolari
   'pinfl.uzunlik': 'pinfl',
   'pinfl.birinchi_raqam': 'pinfl',
@@ -93,4 +105,11 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   'mehnat.stavka': 'rate',
   'sinov.muddat': 'probationDays',
   'sinov.majburiy': 'probationDays',
+  /*
+    Oklad — FAQAT taklifsiz ishga olish formasida bor maydon
+    (`candidate-hire-dialog.tsx`): taklif qabul qilinganda summa
+    taklifdan kelardi. `pul.*` kodlari taklif formasida
+    `salaryAmount` ga tushadi va bu yerda ular ALLAQACHON yuqorida
+    sanab o'tilgan — maydon nomi ikkala formada ham bir xil.
+  */
 }

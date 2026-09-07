@@ -98,7 +98,10 @@ public enum VacancySortField
 /// </param>
 /// <param name="VacancyId">Vakansiya bo'yicha filtr.</param>
 /// <param name="StageId">Bosqich bo'yicha filtr — voronka ustunini chizish uchun.</param>
-/// <param name="Status">Holat bo'yicha filtr. Bo'sh — hammasi (rad etilganlar ham).</param>
+/// <param name="Status">
+/// Holat bo'yicha filtr. Bo'sh — ISHGA OLINGANLARDAN tashqari hammasi
+/// (sababi <see cref="CandidateSearchFilter.HideHired"/> izohida).
+/// </param>
 /// <param name="Source">Manba bo'yicha filtr: qo'lda kiritilgan / botdan kelgan.</param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
 /// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
@@ -129,6 +132,37 @@ public sealed record CandidateSearchFilter(
     /// bo'sh ro'yxat berardi.
     /// </remarks>
     public bool HideArchive => !IncludeArchive && Source is null;
+
+    /// <summary>
+    /// Ishga olinganlar ro'yxatdan chiqarilsinmi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Sukut bo'yicha CHIQARILADI</b> (foydalanuvchi talabi,
+    /// 2026-09-07). Ishga olingan nomzod endi XODIM va uning o'rni
+    /// «Xodimlar» bo'limida; nomzodlar ro'yxati esa «hozir kim ish
+    /// ustida?» degan savolga javob beradi. «Ishga olingan» belgisi bilan
+    /// turgan qatorlar shu savolni ko'mib yuborardi.
+    /// </para>
+    /// <para>
+    /// <b>Yozuv O'CHIRILMAYDI</b> — u vakansiyaning «2/3 to'ldirildi»
+    /// hisobiga (<c>VacancyDto.HiredCount</c>), bot samaradorligi
+    /// hisobotiga (<c>Source</c>) va xodim kartasidan nomzodga
+    /// qaytishga kerak. Faqat SUKUT ro'yxatdan chiqariladi.
+    /// </para>
+    /// <para>
+    /// <b>Holat ataylab tanlangan bo'lsa chiqarilmaydi</b> — <c>HideArchive</c>
+    /// bilan aynan bir xil qoida: HR «Ishga olingan» ni tanlagan ekan,
+    /// aynan o'shani ko'rmoqchi va bo'sh ro'yxat olishi mumkin emas.
+    /// </para>
+    /// <para>
+    /// ⚠️ Qoida FAQAT <see cref="CandidateStatus.Hired"/> ga tegishli.
+    /// Rezervdagi nomzod ro'yxatda KO'RINIB TURADI: uning butun ma'nosi
+    /// «kerak bo'lganda shu yerdan chaqiramiz» degani va ro'yxatdan
+    /// yashirilsa, u ma'no yo'qolardi.
+    /// </para>
+    /// </remarks>
+    public bool HideHired => Status is null;
 }
 
 /// <summary>Bitta sahifa: nomzodlar va umumiy soni.</summary>

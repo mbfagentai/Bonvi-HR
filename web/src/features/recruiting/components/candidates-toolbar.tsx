@@ -140,8 +140,18 @@ export function CandidatesToolbar({
               value={filters.stageId}
               onChange={(event) => set('stageId', event.target.value)}
             />
+            {/*
+              ⚠️ «Barcha holatlar» — TO'LIQ ro'yxat EMAS: server sukut
+              bo'yicha ishga olinganlarni chiqarib tashlaydi (ular endi
+              xodim va bu ro'yxatda shovqin). Izoh shu sababli bor —
+              usiz HR ishga olingan odamni qidirib topolmay, «yozuv
+              yo'qolibdi» degan xulosaga kelardi. Rezerv esa KO'RINADI:
+              rezervning butun ma'nosi «kerak bo'lganda shu yerdan
+              chaqiramiz» degani.
+            */}
             <Select
               label={t('recruiting.status')}
+              hint={t('recruiting.statusFilterHint')}
               options={statusOptions}
               value={filters.status}
               onChange={(event) => set('status', event.target.value as CandidateStatus | '')}
