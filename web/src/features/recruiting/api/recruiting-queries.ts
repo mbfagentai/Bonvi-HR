@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
+import type { PagedResult } from '@/features/employees/api/employees-api'
 import { fileNameFromDisposition, saveBlobAs } from '@/shared/lib/download'
 import type { SelectOption } from '@/shared/ui'
 import {
@@ -31,7 +32,9 @@ import {
   type AcceptOfferInput,
   type CandidateFilters,
   type CandidateInput,
+  type CandidateListItem,
   type OfferInput,
+  type PipelineStage,
   type RegisterCandidateInput,
   type StageOutcome,
   type VacancyFilters,
@@ -289,6 +292,201 @@ export function useRecordStage() {
       conclusion: string | null
     }) => recordCandidateStage(id, body),
   })
+}
+
+/* ──────────────────────────────────────────────────── voronka taxtasi */
+
+/**
+ * Bir ustunda ko'rsatiladigan eng ko'p nomzod.
+ *
+ * NEGA cheklov bor: ustun sahifalanmaydi (voronkada sahifalash
+ * ma'nosiz — ko'z bilan qarash uchun taxta) va cheklovsiz bitta ustun
+ * yuzta kartani tortib, brauzerni ham, ko'zni ham toldirardi. Ortiqchasi
+ * «yana N ta» qatoriga aylanadi va u JADVAL ko'rinishiga o'tkazadi —
+ * u yerda sahifalash bor.
+ */
+export const FUNNEL_COLUMN_SIZE = 20
+
+/** Voronka filtri: bosqich, sahifa va o'lcham USTUNNING o'zidan keladi. */
+export type FunnelFilters = Omit<CandidateFilters, 'stageId' | 'page' | 'pageSize'>
+
+type CandidatePage = PagedResult<CandidateListItem>
+
+/**
+ * ⭐ Ustun so'rovining filtri — YAGONA joyda.
+ *
+ * NEGA bu funksiya bor va nega u aynan shu faylda. Uni ikkita mijoz
+ * ishlatadi: ustunning O'ZI (`useFunnelColumn`) va kartani boshqa
+ * bosqichga tashlaganda keshni optimistik yamaydigan mutatsiya
+ * (`useMoveCandidateToStage`). Ikkinchisi keshni AYNAN birinchisi
+ * yozgan kalit bo'yicha topishi shart — bitta maydon (masalan `sort`)
+ * ikki joyda boshqacha yozilsa, yamoq boshqa yozuvga tushar va karta
+ * ekranda «ko'chmay» qolardi. Bitta manba bunday xatoni umuman
+ * imkonsiz qiladi.
+ */
+function funnelColumnFilters(filters: FunnelFilters, stageId: string): CandidateFilters {
+  return {
+    ...filters,
+    stageId,
+    page: 1,
+    pageSize: FUNNEL_COLUMN_SIZE,
+    /*
+      Voronkada tartib DOIM «yangidan eskiga» — bosqichdagi eng yangi
+      nomzod tepada. Ro'yxatning umumiy saralashi bu yerga
+      ko'chirilmaydi: «bosqich bo'yicha saralash» ustun ichida ma'nosiz
+      (hammasi bitta bosqichda), «ism bo'yicha» esa taxtaning
+      maqsadiga («kim eng uzoq turibdi?») javob bermaydi.
+    */
+    sort: '-createdAt',
+  }
+}
+
+/** Bitta voronka ustuni — nomzodlar ro'yxatining bosqich bo'yicha kesimi. */
+export function useFunnelColumn(filters: FunnelFilters, stageId: string) {
+  return useCandidates(funnelColumnFilters(filters, stageId))
+}
+
+/** Sudralayotgan karta va u chiqib ketayotgan ustun. */
+export interface FunnelCard {
+  item: CandidateListItem
+  fromStageId: string
+}
+
+/**
+ * Karta ID bo'yicha — qaysi ustunda turganini ham qaytaradi.
+ *
+ * NEGA kesh o'qiladi, `useDraggable` ning `data` maydoni emas: dnd-kit
+ * u yerdagi qiymatni `Record<string, any>` qilib qaytaradi va uni
+ * `CandidateListItem` ga aylantirish tekshirilmagan `as` bo'lardi.
+ * Kesh esa allaqachon TIPLANGAN va aynan ekranda ko'rinib turgan
+ * ma'lumot — ya'ni sudralayotgan kartaning o'zi. Qidiruv faqat
+ * ochiq ustunlar bo'yicha yuradi (oltitagacha × 20 yozuv).
+ */
+export function useFunnelCardFinder(filters: FunnelFilters, stages: PipelineStage[]) {
+  const queryClient = useQueryClient()
+
+  return useCallback(
+    (candidateId: string): FunnelCard | null => {
+      for (const stage of stages) {
+        const page = queryClient.getQueryData<CandidatePage>(
+          recruitingKeys.candidates(funnelColumnFilters(filters, stage.id)),
+        )
+
+        const item = page?.items.find((row) => row.id === candidateId)
+        if (item !== undefined) return { item, fromStageId: stage.id }
+      }
+
+      return null
+    },
+    [queryClient, filters, stages],
+  )
+}
+
+/**
+ * ⭐ Kartani boshqa bosqichga ko'chirish — voronkadagi sudrash.
+ *
+ * <b>So'rov `useRecordStage` bilan AYNAN bir xil endpoint'ga ketadi</b>
+ * (`POST /candidates/{id}/stages`), faqat tanasi eng qisqasi:
+ * `outcome = Pending`, sana va xulosa bo'sh. Sabab domenda yozilgan —
+ * «kutilmoqda» bu «bosqich boshlandi, natija hali yo'q» degani, ya'ni
+ * kartani ustunga tashlashning MA'NOSI shu. Sanani server o'zi
+ * bugungi qilib qo'yadi (`Date = null` → `_clock.Today`), natijani esa
+ * HR keyinroq mavjud oyna orqali yozadi va o'sha yozuv TO'LDIRILADI —
+ * tarixda ikkita qator paydo bo'lmaydi.
+ *
+ * <b>Optimistik yamoq.</b> Karta darhol yangi ustunga ko'chadi: sudrash
+ * butun qiymati tezlikda va so'rov javobini kutib turish uni yo'qqa
+ * chiqarardi. So'rov yiqilsa ikkala ustun ham suratdan tiklanadi —
+ * «yiqildi, lekin ekranda ko'chgan» holati QOLMAYDI. Muvaffaqiyatda
+ * hech narsa qilinmaydi: `providers.tsx` butun keshni bekor qiladi va
+ * ustunlar serverdan haqiqiy holatni oladi.
+ */
+export function useMoveCandidateToStage(filters: FunnelFilters) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ card, toStageId }: { card: FunnelCard; toStageId: string; toStageName: string }) =>
+      recordCandidateStage(card.item.id, {
+        stageId: toStageId,
+        outcome: 'Pending',
+        date: null,
+        conclusion: null,
+      }),
+
+    /*
+      ⚠️ ATAYLAB `async` EMAS. `cancelQueries` ni kutib turish yamoqni
+      keyingi mikrotaskka surardi — o'shanda karta sudrab qo'yilgandan
+      keyin bir kadr eski ustunida turib qolardi va sakrab o'tardi.
+      Bekor qilish baribir DARHOL boshlanadi (uchayotgan so'rov shu
+      yerda uziladi), faqat tugashi kutilmaydi.
+    */
+    onMutate: ({ card, toStageId, toStageName }) => {
+      const fromKey = recruitingKeys.candidates(funnelColumnFilters(filters, card.fromStageId))
+      const toKey = recruitingKeys.candidates(funnelColumnFilters(filters, toStageId))
+
+      void queryClient.cancelQueries({ queryKey: fromKey })
+      void queryClient.cancelQueries({ queryKey: toKey })
+
+      const restore = [fromKey, toKey].map(
+        (key) => [key, queryClient.getQueryData<CandidatePage>(key)] as const,
+      )
+
+      queryClient.setQueryData<CandidatePage>(fromKey, (page) =>
+        page === undefined ? page : withoutCandidate(page, card.item.id),
+      )
+
+      queryClient.setQueryData<CandidatePage>(toKey, (page) =>
+        page === undefined
+          ? page
+          : withCandidate(page, {
+              ...card.item,
+              currentStageId: toStageId,
+              currentStage: toStageName,
+            }),
+      )
+
+      return { restore }
+    },
+
+    onError: (_error, _variables, context) => {
+      context?.restore.forEach(([key, page]) => {
+        if (page !== undefined) queryClient.setQueryData(key, page)
+      })
+    },
+  })
+}
+
+/**
+ * Kartani ustundan olib tashlaydi.
+ *
+ * ⚠️ Bu «klientda filtrlash» EMAS (u bu loyihada taqiqlangan) — bu
+ * server javobini bir necha yuz millisekundga oldindan chizish. Haqiqiy
+ * ro'yxatni baribir server qaytaradi: muvaffaqiyatdan keyin butun kesh
+ * bekor qilinadi va ustun qaytadan yuklanadi.
+ */
+function withoutCandidate(page: CandidatePage, candidateId: string): CandidatePage {
+  const items = page.items.filter((row) => row.id !== candidateId)
+  if (items.length === page.items.length) return page
+
+  return { ...page, items, total: Math.max(0, page.total - 1) }
+}
+
+/**
+ * Kartani ustunga qo'shadi — `-createdAt` tartibini SAQLAB.
+ *
+ * Ro'yxat kesilmaydi (`FUNNEL_COLUMN_SIZE`): eng eski karta bo'lsa u
+ * yigirmanchidan keyinga tushadi va kesish uni ekrandan butunlay
+ * yo'qotardi — foydalanuvchi buni «tashlanmadi» deb o'qirdi. Bir zumga
+ * 21 ta karta ko'rinishi esa hech narsani buzmaydi.
+ */
+function withCandidate(page: CandidatePage, item: CandidateListItem): CandidatePage {
+  if (page.items.some((row) => row.id === item.id)) return page
+
+  const at = page.items.findIndex((row) => row.createdAt < item.createdAt)
+  const items = [...page.items]
+  items.splice(at === -1 ? items.length : at, 0, item)
+
+  return { ...page, items, total: page.total + 1 }
 }
 
 export function useCloseCandidate() {
