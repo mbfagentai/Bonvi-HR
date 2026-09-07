@@ -8,8 +8,16 @@ public enum MenuAction
     /// <summary>Menyu tugmasi emas — nomzodning oddiy xabari.</summary>
     None = 0,
 
-    /// <summary>Vakansiyalar ro'yxati va ariza.</summary>
-    Apply = 1,
+    /// <summary>
+    /// Ochiq ish o'rinlari ro'yxati.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Ilgari bu amal ARIZANI boshlab yuborardi (nomi ham <c>Apply</c>
+    /// edi). Endi u faqat RO'YXATNI ko'rsatadi: ariza nomzod aniq bir
+    /// vakansiyani tanlagandan keyin, o'sha xabar ostidagi tugma bilan
+    /// boshlanadi. Sabab <c>BotTexts.VacanciesButton</c> izohida.
+    /// </remarks>
+    Vacancies = 1,
 
     /// <summary>«Kompaniya haqida» matni.</summary>
     About = 2,
@@ -19,6 +27,27 @@ public enum MenuAction
 
     /// <summary>Tilni almashtirish.</summary>
     Language = 4,
+
+    /// <summary>
+    /// Anketa — VAKANSIYASIZ, «Umumiy anketa»ga.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega <see cref="Vacancies"/> yo'lidan alohida tugma.</b> Ochiq
+    /// vakansiya bo'lmasa «Ariza topshirish» ham vakansiya qadamini
+    /// o'tkazib yuboradi va natija bir xil bo'ladi. Lekin vakansiya BOR
+    /// bo'lganda nomzod o'sha ro'yxatdan birini tanlashga majbur
+    /// bo'lardi — holbuki uning maqsadi aniq bir o'rin emas, umuman
+    /// ishga joylashish bo'lishi mumkin. Foydalanuvchi talabi shu
+    /// (2026-09-07): «vakansiya bo'lsa ham shunchaki alohida anketa
+    /// to'ldirish mumkin bo'lsin».
+    /// </para>
+    /// <para>
+    /// Eski botda (@MBF_jbot) ham aynan shunday: «Бўш иш ўринлари»
+    /// yonida «Ўзингиз ҳақингизда маълумот қолдиринг» alohida turadi.
+    /// </para>
+    /// </remarks>
+    Questionnaire = 5,
 }
 
 /// <summary>
@@ -57,15 +86,28 @@ public static class BotMenu
     /// </summary>
     /// <remarks>
     /// Bo'sh bo'limga olib boradigan tugma botni buzuq ko'rsatadi.
-    /// «Ariza topshirish» va til esa doim bor: birinchisi botning
-    /// borlik sababi, ikkinchisi sozlamaga umuman bog'liq emas.
+    /// «Vakansiyalar», «Anketa to'ldirish» va til esa doim bor:
+    /// birinchi ikkisi botning borlik sababi, uchinchisi sozlamaga
+    /// umuman bog'liq emas.
     /// </remarks>
     /// <param name="language">Tugmalar qaysi tilda yozilishi.</param>
     /// <param name="hasAbout">«Kompaniya haqida» matni sozlanganmi.</param>
     /// <param name="hasContacts">Kontakt matni sozlanganmi.</param>
     public static List<string> Labels(BotLanguage language, bool hasAbout, bool hasContacts)
     {
-        var labels = new List<string> { BotTexts.ApplyButton(language) };
+        var labels = new List<string>
+        {
+            BotTexts.VacanciesButton(language),
+
+            /*
+              «Anketa to'ldirish» SHARTSIZ chiziladi — «Kompaniya
+              haqida» va «Kontaktlar» dan farqli. Sabab: u sozlamaga
+              emas, botning o'z ishiga bog'liq va u har doim bor.
+              Ochiq vakansiya bo'lmaganda ham u ishlaydi (o'shanda
+              «Ariza topshirish» bilan bir xil natija beradi).
+            */
+            BotTexts.QuestionnaireButton(language),
+        };
 
         if (hasAbout)
         {
@@ -107,9 +149,14 @@ public static class BotMenu
 
         foreach (var language in Languages)
         {
-            if (string.Equals(value, BotTexts.ApplyButton(language), StringComparison.Ordinal))
+            if (string.Equals(value, BotTexts.VacanciesButton(language), StringComparison.Ordinal))
             {
-                return MenuAction.Apply;
+                return MenuAction.Vacancies;
+            }
+
+            if (string.Equals(value, BotTexts.QuestionnaireButton(language), StringComparison.Ordinal))
+            {
+                return MenuAction.Questionnaire;
             }
 
             if (string.Equals(value, BotTexts.AboutButton(language), StringComparison.Ordinal))

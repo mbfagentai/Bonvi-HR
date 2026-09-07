@@ -31,13 +31,22 @@ public sealed class AnketaOqimiTests
         using var bot = New(withVacancy: true);
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.VacanciesAsync();
 
-        // 2-qadam: vakansiya.
+        // 2-qadam: vakansiya ro'yxati.
         bot.Last.Text.ShouldBe(BotTexts.ChooseVacancy(Uz));
         bot.HasButton("v:" + VacancyId.ToString("N")).ShouldBeTrue();
 
+        /*
+          Vakansiya tanlash anketani BOSHLAMAYDI: avval nomzod
+          tanlaganini ko'radi va «Ariza topshirish» tugmasini bosadi.
+          Ro'yxatdan bosish «qiziqdim» degani, «ariza beraman» emas.
+        */
         await bot.PressAsync("v:" + VacancyId.ToString("N"));
+        bot.Last.Text.ShouldBe(BotTexts.VacancyChosen(Uz, "Kassir"));
+        bot.HasButton("apply").ShouldBeTrue();
+
+        await bot.PressAsync("apply");
         bot.Last.Text.ShouldBe(BotTexts.AskName(Uz));
 
         await bot.TextAsync("Karimov Aziz Akmal o‘g‘li");
@@ -147,12 +156,39 @@ public sealed class AnketaOqimiTests
         using var bot = New(withVacancy: false);
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
 
         // Vakansiya SO'RALMAYDI — nomzod to'g'ridan-to'g'ri F.I.Sh. ga
         // tushadi va anketa to'xtamaydi.
         bot.Last.Text.ShouldBe(BotTexts.AskName(Uz));
         bot.State.ShouldNotBeNull().Step.ShouldBe(ConversationStep.Name);
+    }
+
+    /// <summary>
+    /// «Vakansiyalar» ochiq o'rin bo'lmaganda anketani BOSHLAMAYDI.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ Foydalanuvchi qarori (2026-09-07): menyudagi tugma endi faqat
+    /// ro'yxatni ko'rsatadi. Ilgari u ochiq o'rin bo'lmaganda vakansiya
+    /// qadamini jimgina o'tkazib yuborib, anketani boshlab yuborardi —
+    /// «vakansiyalarni ko'rmoqchi edim» degan odam o'zini yigirmata
+    /// savol oldida ko'rardi. Endi unga holat aytiladi va anketa
+    /// tugmasi taklif qilinadi.
+    /// </remarks>
+    [Fact]
+    public async Task Vakansiyalar_tugmasi_bosh_royxatda_anketani_boshlamaydi()
+    {
+        using var bot = New(withVacancy: false);
+
+        await bot.ChooseLanguageAsync();
+        await bot.VacanciesAsync();
+
+        bot.Last.Text.ShouldBe(BotTexts.NoOpenVacancies(Uz));
+
+        // Savol berilmadi va suhbat vakansiya qadamida turibdi —
+        // anketa boshlanmagan.
+        bot.State.ShouldNotBeNull().Step.ShouldBe(ConversationStep.Vacancy);
+        bot.State.ShouldNotBeNull().Name.ShouldBeNull();
     }
 
     [Fact]
@@ -173,13 +209,72 @@ public sealed class AnketaOqimiTests
         bot.Last.Text.ShouldBe(BotTexts.AcceptedToGeneralPool(Uz));
     }
 
+    /// <summary>
+    /// «Anketa to'ldirish» ochiq vakansiya BOR bo'lganda ham vakansiya
+    /// so'ramaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Foydalanuvchi talabi (2026-09-07): «vakansiya bo'lsa ham
+    /// shunchaki alohida anketa to'ldirish mumkin bo'lsin». Ilgari
+    /// anketaga yagona yo'l «Ariza topshirish» edi va u vakansiya bor
+    /// bo'lganda ro'yxatdan birini tanlashga MAJBUR qilardi — ya'ni
+    /// «umuman ishga joylashmoqchiman» degan nomzod uchun yo'l yo'q edi.
+    /// </para>
+    /// <para>
+    /// Test aynan shu farqni qadaydi: bu yerda vakansiya BOR
+    /// (<c>withVacancy: true</c>), lekin savol berilmasligi va tanaga
+    /// <c>vacancyId</c> tushmasligi kerak.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Anketa_tugmasi_vakansiya_borida_ham_sormaydi()
+    {
+        using var bot = New(withVacancy: true);
+
+        await bot.ChooseLanguageAsync();
+        await bot.QuestionnaireAsync();
+
+        // Vakansiya qadami CHETLAB o'tildi — darhol F.I.Sh.
+        bot.Last.Text.ShouldBe(BotTexts.AskName(Uz));
+        bot.State.ShouldNotBeNull().Step.ShouldBe(ConversationStep.Name);
+        bot.State.ShouldNotBeNull().VacancyId.ShouldBeNull();
+
+        // Qolgan qadamlar «Ariza topshirish» dagi bilan AYNAN bir xil.
+        await bot.TextAsync("Karimov Aziz Akmal o‘g‘li");
+        await bot.TextAsync("10.10.1990");
+        await bot.TextAsync("Rishton tumani, Rabot MFY");
+        await bot.ContactAsync();
+        await bot.PressAsync("edu:HigherComplete");
+        await bot.TextAsync("Buxgalter");
+        await bot.TextAsync("Dream Job MChJ, kassir, 2015–2018");
+        await bot.PressAsync("mar:Married");
+        await bot.PressAsync("rus:Advanced");
+        await bot.PressAsync("skip");
+        await bot.PressAsync("skip");
+        await bot.PressAsync("skip");
+        await bot.PressAsync("skip");
+        await bot.PressAsync("lic:no");
+        await bot.PressAsync("skip");
+        await bot.PressAsync("sal:From2To3Million");
+        await bot.PressAsync("src:Telegram");
+        await bot.PressAsync("offer");
+        await bot.PressAsync("submit");
+
+        var body = bot.RegisterBody.ShouldNotBeNull().RootElement;
+
+        // Ariza VAKANSIYASIZ ketdi — server uni «Umumiy anketa»ga qo'yadi.
+        body.TryGetProperty("vacancyId", out _).ShouldBeFalse();
+        bot.Last.Text.ShouldBe(BotTexts.AcceptedToGeneralPool(Uz));
+    }
+
     [Fact]
     public async Task Otkazib_yuborilgan_savol_xulosada_chizilmaydi()
     {
         using var bot = New(withVacancy: false);
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
         await bot.TextAsync("Karimov Aziz");
         await bot.TextAsync("10.10.1990");
         await bot.TextAsync("Rishton tumani");
@@ -225,7 +320,7 @@ public sealed class AnketaOqimiTests
         using var bot = New(withVacancy: false);
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
         await bot.TextAsync("Karimov Aziz");
         await bot.TextAsync("10.10.1990");
         await bot.TextAsync("Rishton tumani");
@@ -343,7 +438,7 @@ public sealed class AnketaOqimiTests
         bot.HasExistingApplication = true;
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
         await bot.TextAsync("Karimov Aziz");
         await bot.TextAsync("10.10.1990");
         await bot.TextAsync("Rishton tumani");
@@ -426,7 +521,7 @@ public sealed class AnketaOqimiTests
         using var bot = New(withVacancy: false);
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
         await bot.TextAsync("Karimov Aziz");
 
         await bot.TextAsync("kecha");
@@ -441,7 +536,7 @@ public sealed class AnketaOqimiTests
         using var bot = New(withVacancy: false);
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
         await bot.TextAsync("Karimov Aziz");
 
         var before = bot.Sent.Count;
@@ -460,7 +555,7 @@ public sealed class AnketaOqimiTests
         using var bot = New(withVacancy: false);
 
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
         await bot.TextAsync("Karimov Aziz");
         await bot.TextAsync("10.10.1990");
         await bot.TextAsync("Rishton tumani");
@@ -495,7 +590,7 @@ public sealed class AnketaOqimiTests
     private static async Task ReachDriverLicenseAsync(BotHarness bot)
     {
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
+        await bot.QuestionnaireAsync();
         await bot.TextAsync("Karimov Aziz");
         await bot.TextAsync("10.10.1990");
         await bot.TextAsync("Rishton tumani");
@@ -524,11 +619,19 @@ public sealed class AnketaOqimiTests
     private static async Task WalkAsync(BotHarness bot, bool chooseVacancy, bool withPhoto)
     {
         await bot.ChooseLanguageAsync();
-        await bot.ApplyAsync();
 
         if (chooseVacancy)
         {
+            // Menyu → ro'yxat → vakansiya → «Ariza topshirish».
+            await bot.VacanciesAsync();
             await bot.PressAsync("v:" + VacancyId.ToString("N"));
+            await bot.PressAsync("apply");
+        }
+        else
+        {
+            // Vakansiyasiz yo'l: anketa tugmasi vakansiya qadamini
+            // umuman so'ramaydi.
+            await bot.QuestionnaireAsync();
         }
 
         await bot.TextAsync("Karimov Aziz Akmal o‘g‘li");

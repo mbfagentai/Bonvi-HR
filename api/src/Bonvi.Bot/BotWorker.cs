@@ -103,6 +103,16 @@ public sealed partial class BotWorker : BackgroundService
     /// <summary>Tugma ma'lumotidagi ajratgich: «v:<c>guid</c>».</summary>
     private const string VacancyPrefix = "v:";
 
+    /// <summary>Tanlangan vakansiyaga ariza boshlash tugmasi.</summary>
+    /// <remarks>
+    /// Vakansiyaning O'ZI holatda saqlanadi, shu sababli belgida
+    /// identifikator kerak emas. Bu ataylab: tugma faqat «hozir
+    /// tanlangan vakansiyaga» tegishli va eski xabardagi tugma bosilsa,
+    /// u holatdagi joriy tanlovni ishlatadi — ikkita har xil vakansiya
+    /// aralashib ketmaydi.
+    /// </remarks>
+    private const string ApplyData = "apply";
+
     private const string LanguageCyrillicData = "lang:cyrl";
     private const string LanguageLatinData = "lang:latn";
     private const string LanguageRussianData = "lang:rus";
@@ -571,6 +581,12 @@ public sealed partial class BotWorker : BackgroundService
     {
         switch (state.Step)
         {
+            case ConversationStep.Vacancy when data == ApplyData && state.VacancyId is not null:
+                // Vakansiya allaqachon holatda — anketa 3-qadamdan ketadi.
+                await ContinueAsync(chatId, state, ConversationStep.Name, cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+
             case ConversationStep.Vacancy when data.StartsWith(VacancyPrefix, StringComparison.Ordinal):
                 await ChooseVacancyAsync(chatId, state, data[VacancyPrefix.Length..], cancellationToken)
                     .ConfigureAwait(false);
@@ -684,9 +700,63 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        await AcceptAsync(
+        /*
+          ⭐ Anketa BU YERDA boshlanmaydi. Nomzod vakansiya nomini
+          ko'rib, «Ariza topshirish» tugmasini bosgandan keyingina
+          savollar ketadi (foydalanuvchi qarori, 2026-09-07).
+
+          Sabab: ro'yxatdan tugma bosish «qiziqdim» degani, «ariza
+          beraman» degani emas. Ilgari bir bosish darhol yigirmata
+          savolni boshlab yuborardi va nomzod ortga qayta olmasdi.
+
+          Holat SAQLANADI (qadam o'zgarmaydi): tanlangan vakansiya
+          yozib qo'yiladi va tugma bosilganda o'sha ishlatiladi.
+        */
+        var chosenState = state with { VacancyId = chosen.Id, VacancyTitle = chosen.Title };
+
+        _conversations.Save(chatId, chosenState);
+
+        await SendAsync(
                 chatId,
-                state with { VacancyId = chosen.Id, VacancyTitle = chosen.Title },
+                BotTexts.VacancyChosen(state.Language, chosen.Title),
+                [[new InlineButton(BotTexts.ApplyButton(state.Language), ApplyData)]],
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Ochiq ish o'rinlarini ko'rsatadi — anketani boshlamasdan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ro'yxat BO'SH bo'lsa nomzod «anketa to'ldirish» ga
+    /// yo'naltiriladi va menyu qayta chiziladi: yo'l oxiri emas, boshqa
+    /// yo'l taklif qilinadi (izohi <see cref="BotTexts.NoOpenVacancies"/>).
+    /// </para>
+    /// <para>
+    /// Holat <see cref="ConversationStep.Vacancy"/> da qoladi — nomzod
+    /// tugmani hozir bosmasdan, keyinroq ham bosishi mumkin.
+    /// </para>
+    /// </remarks>
+    private async Task ShowVacanciesAsync(
+        long chatId,
+        ConversationState state,
+        CancellationToken cancellationToken)
+    {
+        var vacancies = await _bonvi.GetOpenVacanciesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (vacancies.Count == 0)
+        {
+            await SendWithMenuAsync(chatId, BotTexts.NoOpenVacancies(state.Language), state.Language, cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        await SendAsync(
+                chatId,
+                BotTexts.ChooseVacancy(state.Language),
+                VacancyButtons(vacancies),
                 cancellationToken)
             .ConfigureAwait(false);
     }
@@ -1854,11 +1924,35 @@ public sealed partial class BotWorker : BackgroundService
 
         switch (action)
         {
-            case MenuAction.Apply:
-                // Anketa 2-qadamdan boshlanadi. Ochiq vakansiya
-                // bo'lmasa u jimgina o'tkazib yuboriladi va nomzod
-                // to'g'ridan-to'g'ri F.I.Sh. ga tushadi.
-                await ContinueAsync(chatId, fresh, ConversationStep.Vacancy, cancellationToken)
+            case MenuAction.Vacancies:
+                /*
+                  ⭐ Bu amal ANKETANI BOSHLAMAYDI — faqat ochiq
+                  o'rinlarni ko'rsatadi. Ariza nomzod ro'yxatdan birini
+                  tanlagandan keyin, o'sha xabar ostidagi tugma bilan
+                  boshlanadi.
+
+                  Ochiq o'rin bo'lmasa ham anketa boshlanmaydi: nomzodga
+                  holat aytiladi va u «Anketa to'ldirish» ga
+                  yo'naltiriladi. Ilgari bu yerda anketa jimgina
+                  boshlanib ketardi va «vakansiyalarni ko'rmoqchi
+                  edim» degan odam o'zini yigirmata savol oldida
+                  ko'rardi.
+                */
+                await ShowVacanciesAsync(chatId, fresh, cancellationToken).ConfigureAwait(false);
+                break;
+
+            case MenuAction.Questionnaire:
+                /*
+                  ⭐ Vakansiya qadami UMUMAN o'tkazib yuboriladi —
+                  ochiq ish o'rni bor-yo'qligidan qat'i nazar. Ariza
+                  vakansiyasiz ketadi va server uni «Umumiy anketa»ga
+                  qo'yadi.
+
+                  Farqi `Apply` dan aynan shu: u vakansiya BO'LSA
+                  tanlashni so'raydi, bu esa hech qachon so'ramaydi.
+                  Savollarning qolgani ikkalasida bir xil.
+                */
+                await ContinueAsync(chatId, fresh, ConversationStep.Name, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 

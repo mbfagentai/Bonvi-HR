@@ -26,7 +26,7 @@ public sealed class BotMenuTests
     [Theory]
     [MemberData(nameof(AllLanguages))]
     public void Ariza_tugmasi_har_qaysi_tilda_tanildi(BotLanguage language)
-        => BotMenu.Resolve(BotTexts.ApplyButton(language)).ShouldBe(MenuAction.Apply);
+        => BotMenu.Resolve(BotTexts.VacanciesButton(language)).ShouldBe(MenuAction.Vacancies);
 
     [Theory]
     [MemberData(nameof(AllLanguages))]
@@ -51,8 +51,8 @@ public sealed class BotMenuTests
           unutilgan). Tugma baribir ishlashi kerak — aks holda odam
           «bot buzuq» deb o'ylardi.
         */
-        BotMenu.Resolve(BotTexts.ApplyButton(BotLanguage.Cyrillic)).ShouldBe(MenuAction.Apply);
-        BotMenu.Resolve(BotTexts.ApplyButton(BotLanguage.Russian)).ShouldBe(MenuAction.Apply);
+        BotMenu.Resolve(BotTexts.VacanciesButton(BotLanguage.Cyrillic)).ShouldBe(MenuAction.Vacancies);
+        BotMenu.Resolve(BotTexts.VacanciesButton(BotLanguage.Russian)).ShouldBe(MenuAction.Vacancies);
     }
 
     [Theory]
@@ -81,7 +81,17 @@ public sealed class BotMenuTests
     {
         var labels = BotMenu.Labels(BotLanguage.Latin, hasAbout: false, hasContacts: false);
 
-        labels.ShouldBe([BotTexts.ApplyButton(BotLanguage.Latin), BotTexts.LanguageButton]);
+        /*
+          «Anketa to'ldirish» BU YERDA HAM bor: u sozlamaga bog'liq
+          emas (izohi `BotMenu.Labels` da). Sozlanmagani uchun
+          tushib qoladigan tugmalar — faqat «Kompaniya haqida» va
+          «Kontaktlar».
+        */
+        labels.ShouldBe([
+            BotTexts.VacanciesButton(BotLanguage.Latin),
+            BotTexts.QuestionnaireButton(BotLanguage.Latin),
+            BotTexts.LanguageButton,
+        ]);
     }
 
     [Fact]
@@ -90,7 +100,8 @@ public sealed class BotMenuTests
         var labels = BotMenu.Labels(BotLanguage.Cyrillic, hasAbout: true, hasContacts: true);
 
         labels.ShouldBe([
-            BotTexts.ApplyButton(BotLanguage.Cyrillic),
+            BotTexts.VacanciesButton(BotLanguage.Cyrillic),
+            BotTexts.QuestionnaireButton(BotLanguage.Cyrillic),
             BotTexts.AboutButton(BotLanguage.Cyrillic),
             BotTexts.ContactsButton(BotLanguage.Cyrillic),
             BotTexts.LanguageButton,

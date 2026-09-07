@@ -300,11 +300,84 @@ public static class BotTexts
     };
 
     /// <summary>Menyudagi «Ariza topshirish» tugmasi.</summary>
+    /// <summary>
+    /// Menyudagi «Vakansiyalar» tugmasi.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Ilgari bu yerda «Ariza topshirish» turardi va u bosilishi
+    /// bilan anketa boshlanardi. Foydalanuvchi qarori (2026-09-07):
+    /// menyudan avval OCHIQ O'RINLAR ko'rsatilsin, ariza esa nomzod
+    /// aniq bir vakansiyani tanlagandan KEYIN taklif qilinsin. Sabab:
+    /// «ariza topshirish» hali qaysi o'ringa ekani noma'lum bo'lganda
+    /// ma'nosiz va nomzodni ro'yxatdan birini tanlashga majburlab
+    /// qo'yardi.
+    /// </remarks>
+    public static string VacanciesButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "💼 Вакансиялар",
+        BotLanguage.Russian => "💼 Вакансии",
+        _ => "💼 Vakansiyalar",
+    };
+
+    /// <summary>
+    /// Vakansiya tanlangandan keyingi «Ariza topshirish» tugmasi.
+    /// </summary>
+    /// <remarks>
+    /// Bu MENYU tugmasi emas, xabar ostidagi tugma: u aynan bitta
+    /// vakansiyaga tegishli va o'sha xabar bilan birga yashaydi.
+    /// </remarks>
     public static string ApplyButton(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic => "📝 Ариза топшириш",
         BotLanguage.Russian => "📝 Подать заявку",
         _ => "📝 Ariza topshirish",
+    };
+
+    /// <summary>Tanlangan vakansiya — ariza berishdan oldingi tasdiq.</summary>
+    public static string VacancyChosen(BotLanguage language, string vacancy) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            $"💼 <b>{Escape(vacancy)}</b>\n\nШу иш ўрнига ариза топширасизми?",
+        BotLanguage.Russian =>
+            $"💼 <b>{Escape(vacancy)}</b>\n\nПодать заявку на эту вакансию?",
+        _ =>
+            $"💼 <b>{Escape(vacancy)}</b>\n\nShu ish o‘rniga ariza topshirasizmi?",
+    };
+
+    /// <summary>
+    /// Ochiq ish o'rni yo'q — lekin bu YO'L OXIRI emas.
+    /// </summary>
+    /// <remarks>
+    /// Xabar albatta anketaga yo'naltiradi: «vakansiya yo'q» degan
+    /// quruq javob nomzodni botdan ketkazardi, holbuki uning
+    /// ma'lumotini olish HR uchun aynan shu holatda qimmatli.
+    /// </remarks>
+    public static string NoOpenVacancies(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Ҳозирча очиқ иш ўрни йўқ. 🙁\n\n«📋 Анкета тўлдириш» тугмасини боссангиз, "
+            + "маълумотингиз базада сақланади ва мос вакансия чиққанда ХР бўлими сиз билан боғланади.",
+        BotLanguage.Russian =>
+            "Сейчас открытых вакансий нет. 🙁\n\nНажмите «📋 Заполнить анкету» — ваши данные "
+            + "сохранятся в базе, и когда появится подходящая вакансия, отдел кадров свяжется с вами.",
+        _ =>
+            "Hozircha ochiq ish o‘rni yo‘q. 🙁\n\n«📋 Anketa to‘ldirish» tugmasini bossangiz, "
+            + "ma’lumotingiz bazada saqlanadi va mos vakansiya chiqqanda HR bo‘limi siz bilan bog‘lanadi.",
+    };
+
+    /// <summary>Menyudagi «Anketa to'ldirish» tugmasi — vakansiyasiz.</summary>
+    /// <remarks>
+    /// Matn «Ariza topshirish» dan ANIQ farq qilishi kerak: ikkalasi
+    /// bir xil savollarni beradi va farqi faqat natijada (vakansiyaga
+    /// yoki umumiy bazaga). Nomzod tugmani bosishdan OLDIN qaysi biri
+    /// nima qilishini tushunishi kerak, aks holda ikkalasini ham bosib
+    /// ko'rardi. Shu sababli emoji ham boshqacha.
+    /// </remarks>
+    public static string QuestionnaireButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "📋 Анкета тўлдириш",
+        BotLanguage.Russian => "📋 Заполнить анкету",
+        _ => "📋 Anketa to‘ldirish",
     };
 
     /// <summary>Menyudagi «Kompaniya haqida» tugmasi.</summary>

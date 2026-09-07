@@ -102,7 +102,7 @@ farq bilan (pastda).
 | # | Qadam | Javob turi | O'tkazib yuborish |
 |---|---|---|---|
 | 1 | Til | tugma | ✗ |
-| 2 | Vakansiya | tugma | ochiq vakansiya bo'lmasa — avtomatik |
+| 2 | Vakansiya | tugma | ochiq vakansiya bo'lmasa — avtomatik; «Anketa to'ldirish» yo'lida — HAR DOIM |
 | 3 | F.I.Sh. | matn | ✗ |
 | 4 | Tug'ilgan kun | matn `kk.oo.yyyy` | ✗ |
 | 5 | Yashash manzili | matn | ✗ |
@@ -123,6 +123,28 @@ farq bilan (pastda).
 | 20 | Qayerdan bildingiz | tugma (6) | ✗ |
 | 21 | Ommaviy oferta | havola + «Roziman» | `bot.offerUrl` bo'sh bo'lsa qadam CHIZILMAYDI, rozilik `NULL` bo'lib saqlanadi |
 | 22 | Yakuniy tasdiq | to'ldirilgan anketa + «Yuborish» | ✗ |
+
+### 4.0 Anketaga IKKI yo'l — doimiy menyudan
+
+| Menyu tugmasi | Nima qiladi | Natija |
+|---|---|---|
+| 💼 Vakansiyalar | ochiq o'rinlar ro'yxatini ko'rsatadi. Nomzod birini tanlaydi → vakansiya nomi va «📝 Ariza topshirish» tugmasi chiqadi → shundan keyin savollar boshlanadi. Ochiq o'rin bo'lmasa — holat aytiladi va anketa taklif qilinadi | tanlangan vakansiyaga |
+| 📋 Anketa to'ldirish | vakansiyani HECH QACHON so'ramaydi, darhol 3-qadamdan boshlanadi | «Umumiy anketa»ga |
+
+Qolgan 20 qadam ikkala yo'lda ham AYNAN bir xil.
+
+Ikkala qaror ham foydalanuvchidan (2026-09-07):
+1. **«Anketa to'ldirish» alohida tugma** — ochiq vakansiya bor bo'lganda
+   ham nomzod ro'yxatdan birini tanlashga majbur bo'lmasligi kerak:
+   uning maqsadi aniq bir o'rin emas, umuman ishga joylashish bo'lishi
+   mumkin.
+2. **«Ariza topshirish» faqat vakansiya tanlangandan keyin** — menyudagi
+   tugma endi ro'yxatni ochadi, ariza esa aniq bir o'ringa bog'langan
+   holda taklif qilinadi. Ro'yxatdan tugma bosish «qiziqdim» degani,
+   «yigirmata savolga javob beraman» degani emas.
+
+Eski botda ham shunday tuzilgan: «Бўш иш ўринлари» yonida «Ўзингиз
+ҳақингизда маълумот қолдиринг» alohida turadi.
 
 ### 4.1 Eski botdan farqlar (ataylab)
 

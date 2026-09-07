@@ -143,7 +143,11 @@ public sealed class BotHarness : IDisposable
     public Task ChooseLanguageAsync() => PressAsync("lang:latn");
 
     /// <summary>Menyudagi «Ariza topshirish» bosildi.</summary>
-    public Task ApplyAsync() => TextAsync(BotTexts.ApplyButton(BotLanguage.Latin));
+    /// <summary>Menyudagi «Vakansiyalar» tugmasi — faqat ro'yxatni ochadi.</summary>
+    public Task VacanciesAsync() => TextAsync(BotTexts.VacanciesButton(BotLanguage.Latin));
+
+    /// <summary>Menyudagi «Anketa to'ldirish» tugmasi — vakansiyasiz anketa.</summary>
+    public Task QuestionnaireAsync() => TextAsync(BotTexts.QuestionnaireButton(BotLanguage.Latin));
 
     /// <summary>Oxirgi xabarda shu tugma bormi.</summary>
     public bool HasButton(string data) => Last.Buttons.Contains(data, StringComparer.Ordinal);
