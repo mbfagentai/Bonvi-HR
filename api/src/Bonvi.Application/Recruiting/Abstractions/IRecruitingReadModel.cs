@@ -41,6 +41,34 @@ public interface IRecruitingReadModel
     /// yuborilmagan. Uchalasi ham qisman indeks bilan qoplangan
     /// (<c>RecruitingConfigurations</c>).
     /// </remarks>
+    /// <summary>
+    /// Shu odamning ENG DOLZARB arizasi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// «Dolzarb» tartibi: avval JARAYONDAGI ariza (u har qanday
+    /// muddatdan kuchliroq), keyin eng OXIRGI yopilgani. Muddatni
+    /// oxirgi arizadan hisoblash shart — aks holda 2019-yilgi eski
+    /// yozuv bugungi qarorni bekor qilardi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Ikkita kalit: telefon VA Telegram hisobi.</b> Faqat
+    /// telefon yetmaydi — bir odamda ikkita SIM bo'lishi mumkin va u
+    /// o'sha hisobdan yangi raqam bilan qaytib kelardi. Ikkalasi OR
+    /// bilan birlashtiriladi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Vakansiya bo'yicha AJRATILMAYDI (2026-09-08 qarori): to'siq
+    /// odamga qo'yiladi, arizaga emas. Vakansiya bo'yicha ajratilsa,
+    /// bir odam har kuni boshqa vakansiyaga anketa tashlab, o'sha
+    /// muammoni qaytarardi.
+    /// </para>
+    /// </remarks>
+    Task<CandidateApplicationRow?> FindLatestApplicationAsync(
+        string phoneDigits,
+        long? telegramChatId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RejectionNoticeDto>> ListPendingRejectionNoticesAsync(
         int limit,
         CancellationToken cancellationToken = default);
@@ -234,6 +262,31 @@ public sealed record CandidateSearchFilter(
     /// </remarks>
     private bool ArchiveRequested => IncludeArchive || Source == CandidateSource.Excel;
 }
+
+/// <summary>
+/// Takroriy ariza tekshiruvi uchun kerakli MINIMUM.
+/// </summary>
+/// <remarks>
+/// Maydonlar oz: javob botga ketadi va u yerda faqat «qachon topshirgan,
+/// qaysi vakansiyaga, qaysi bosqichda» kerak. Telefon, manzil va ichki
+/// izohlar bu qatorga TUSHMAYDI — <c>RejectionNoticeDto</c> dagi bilan
+/// aynan bir xil qoida.
+/// </remarks>
+/// <param name="Status">Jarayondami yoki yopilganmi.</param>
+/// <param name="ClosedAt">
+/// Voronkadan chiqqan sana — muddat SHUNDAN hisoblanadi. Ariza
+/// topshirilgan sanadan emas: HR qarorni bir oy keyin yozishi mumkin
+/// va o'shanda hisob qaror kunidan boshlanishi kerak.
+/// </param>
+/// <param name="AppliedAt">Ariza topshirilgan lahza — nomzodga ko'rsatiladi.</param>
+/// <param name="VacancyTitle">Qaysi vakansiyaga.</param>
+/// <param name="StageName">Qaysi bosqichda to'xtagan.</param>
+public sealed record CandidateApplicationRow(
+    CandidateStatus Status,
+    DateOnly? ClosedAt,
+    DateTimeOffset AppliedAt,
+    string? VacancyTitle,
+    string? StageName);
 
 /// <summary>Bitta sahifa: nomzodlar va umumiy soni.</summary>
 public sealed record CandidatePage(IReadOnlyList<CandidateRow> Items, int Total);

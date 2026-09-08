@@ -247,6 +247,68 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
     /// ular ham kiritilgan tartibda ketadi.
     /// </para>
     /// </remarks>
+    public async Task<CandidateApplicationRow?> FindLatestApplicationAsync(
+        string phoneDigits,
+        long? telegramChatId,
+        CancellationToken cancellationToken = default)
+    {
+        var candidates = _context.Candidates.AsNoTracking();
+
+        /*
+          Ikkita kalit, OR bilan: telefon va Telegram hisobi. Faqat
+          telefon yetmaydi — bir odamda ikkita SIM bo'lishi mumkin va u
+          o'sha hisobdan yangi raqam bilan qaytib kelardi
+          (`IRecruitingReadModel` izohi).
+
+          Kalitlardan biri bo'lmasligi MUMKIN: o'shanda shunchaki
+          ikkinchisi bo'yicha qidiriladi. Ikkalasi ham bo'sh bo'lsa
+          tekshiradigan narsa yo'q va javob `null` — to'siqsiz.
+        */
+        if (phoneDigits.Length > 0)
+        {
+            var matching = CandidateSearchQuery.WithPhone(_context, phoneDigits);
+
+            candidates = candidates.Where(
+                candidate => matching.Contains(candidate.Id)
+                    || (telegramChatId != null && candidate.TelegramChatId == telegramChatId));
+        }
+        else if (telegramChatId is { } chatId)
+        {
+            candidates = candidates.Where(candidate => candidate.TelegramChatId == chatId);
+        }
+        else
+        {
+            return null;
+        }
+
+        var rows =
+            from candidate in candidates
+            join vacancy in _context.Vacancies.AsNoTracking()
+                on candidate.VacancyId equals vacancy.Id into vacancyGroup
+            from vacancy in vacancyGroup.DefaultIfEmpty()
+            join title in _context.VacancyTitles.AsNoTracking()
+                on vacancy.VacancyTitleId equals title.Id into titleGroup
+            from title in titleGroup.DefaultIfEmpty()
+            join stage in _context.PipelineStages.AsNoTracking()
+                on candidate.CurrentStageId equals stage.Id into stageGroup
+            from stage in stageGroup.DefaultIfEmpty()
+
+            // Jarayondagi ariza BIRINCHI — u har qanday muddatdan
+            // kuchliroq. Qolganida eng oxirgi yopilgani (izohi
+            // `IRecruitingReadModel` da).
+            orderby candidate.Status == CandidateStatus.InProgress descending,
+                candidate.ClosedAt descending,
+                candidate.CreatedAt descending
+            select new CandidateApplicationRow(
+                candidate.Status,
+                candidate.ClosedAt,
+                candidate.CreatedAt,
+                title.Name,
+                stage.Name);
+
+        return await rows.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<RejectionNoticeDto>> ListPendingRejectionNoticesAsync(
         int limit,
         CancellationToken cancellationToken = default)

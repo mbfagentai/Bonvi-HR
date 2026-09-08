@@ -172,3 +172,29 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   etilgan, ikkala qoida birga qo'llansa «Excel arxivi» tanlovi bo'sh ro'yxat
   berardi. Boshqa manba tanlovlarida (bot, qo'lda) qoida kuchda qoladi:
   manba tanlash holat tanlash emas.
+- [2026-09-08] Takroriy ariza MUTLAQ taqiqlanmadi — sozlamadagi muddat
+  (`recruiting.reapplyMonths`, sukut 6 oy) qo'yildi (foydalanuvchi tanlovi) →
+  odamning holati o'zgaradi va bir yildan keyingi urinish spam emas. Mutlaq
+  taqiq kerak bo'lsa qiymat 120 oyga qo'yiladi — dasturchisiz.
+- [2026-09-08] Qayta ariza muddati VAKANSIYA bo'yicha ajratilmaydi → to'siq
+  odamga qo'yiladi, arizaga emas; aks holda bir odam har kuni boshqa
+  vakansiyaga anketa tashlab, o'sha muammoni qaytarardi. Yon ta'siri: bitta
+  vakansiyaga rad etilgan odam olti oy davomida boshqasiga ham topshira
+  olmaydi.
+- [2026-09-08] Nomzodlar uchun QORA RO'YXAT qurilgan edi, keyin BUTUNLAY olib
+  tashlandi (foydalanuvchi qarori: «nomzod uchun alohida qora ro'yxat degan
+  bo'lim qo'shish shart emas, shunchaki botdan bir marta to'liq ariza
+  tashlagan odam 6 oygacha ariza tashlolmasligi kerak xolos») → talab
+  faqat takroriy arizani to'xtatish edi va uni muddat qoidasining o'zi
+  hal qiladi. Migratsiya commit qilinmagan va prodga chiqmagan, shu
+  sababli u ham o'chirildi — bazada bo'sh ustun qolmadi. XODIMLAR qora
+  ro'yxati (`EmployeeFlagType.Blacklist`) tegilmagan, u boshqa narsa.
+- [2026-09-08] To'siq telefon bilan birga TELEGRAM hisobi bo'yicha ham
+  qo'yiladi → bir odamda ikkita SIM bo'lishi mumkin va u o'sha hisobdan
+  yangi raqam bilan qaytib kelardi. Bu tekshiruv qora ro'yxat uchun
+  yozilgan edi va u olib tashlangach ham saqlab qolindi — muddat
+  qoidasiga ham xuddi shunday kerak.
+- [2026-09-08] Takroriy ariza qoidasi SERVERDA, botda emas → qaror ikkita
+  manbaga tayanadi (sozlamadagi muddat va qora ro'yxat); bot ularni
+  takrorlaganda HR ekranda muddatni o'zgartirgach, bot eski qoida bilan
+  ishlab qolardi.

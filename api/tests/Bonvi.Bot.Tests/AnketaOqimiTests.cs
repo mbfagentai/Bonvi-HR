@@ -435,7 +435,7 @@ public sealed class AnketaOqimiTests
     {
         using var bot = New(withVacancy: false);
 
-        bot.HasExistingApplication = true;
+        bot.Block = ApplicationBlockReason.Active;
 
         await bot.ChooseLanguageAsync();
         await bot.QuestionnaireAsync();

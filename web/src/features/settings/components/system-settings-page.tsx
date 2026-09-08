@@ -74,6 +74,19 @@ const GROUPS: readonly {
       'bot.social.website': 'settings.system.botWebsite',
       'bot.offerUrl': 'settings.system.botOfferUrl',
       'bot.conversationTimeoutMinutes': 'settings.system.botConversationTimeout',
+      /*
+        ⭐ Qayta ariza muddati — kaliti `recruiting.*`, o'rni esa BOT
+        guruhida va bu ataylab.
+
+        Guruh — KO'RINISH masalasi (yuqoridagi izoh), ya'ni savol
+        «kalit qaysi domenniki?» emas, «foydalanuvchi buni qayerdan
+        qidiradi?». Qoida faqat BOTDA ishlaydi: HR qo'lda kiritganda
+        hech qanday to'siq yo'q. Uni alohida «Rekruting» guruhiga
+        chiqarish bitta maydonli guruh hosil qilardi va HR bot
+        qoidalarini ikki joydan qidirardi — «suhbat muddati» esa
+        allaqachon shu yerda turibdi.
+      */
+      'recruiting.reapplyMonths': 'settings.system.reapplyMonths',
     },
   },
   {
@@ -122,6 +135,24 @@ const SINGLE_LINE_TEXT: Readonly<Record<string, string>> = {
     ko'rsatilmaydi va matn ham aynan shuni aytadi.
   */
   'bot.offerUrl': 'settings.system.botOfferUrlHint',
+}
+
+/**
+ * Sonli sozlamaning O'Z izohi — chegara matnidan TASHQARI.
+ *
+ * NEGA kerak: `Number` maydonining izohi sukut bo'yicha faqat chegarani
+ * aytadi («1 dan 120 gacha»), ya'ni son NIMA qilishini tushuntirmaydi.
+ * Ko'pchilik sonli sozlamada bu yetarli — yorlig'ining o'zi javob
+ * beradi («Sinov muddati ogohlantirishi (kun)»). «Qayta ariza muddati»
+ * esa bunday emas: uning ta'siri boshqa joyda ko'rinadi (bot yangi
+ * anketani rad etadi) va yorliqdan buni bilib bo'lmaydi.
+ *
+ * Xarita `SINGLE_LINE_TEXT` bilan bir xil fikr: turini SERVER hal
+ * qilmaydi, chunki server uchun ikkalasi ham son. Bu ko'rinish masalasi
+ * va u shu yerda qoladi.
+ */
+const NUMBER_HINT: Readonly<Record<string, string>> = {
+  'recruiting.reapplyMonths': 'settings.system.reapplyMonthsHint',
 }
 
 /**
@@ -449,17 +480,27 @@ function SettingField({
   }
 
   if (setting.kind === 'Number') {
+    /*
+      Izoh ikki bo'lakdan: sozlamaning MA'NOSI (bo'lsa) va chegara.
+      Tartib shunday, chunki chegara faqat ma'no tushunilgandan keyin
+      foyda beradi. Bo'lagi yo'q bo'lsa maydon izohsiz qoladi — bo'sh
+      satr chizish yorliq bilan maydon orasini bekorga uzaytirardi.
+    */
+    const explanation = NUMBER_HINT[setting.key]
+    const parts = [
+      explanation === undefined ? null : t(explanation),
+      setting.min !== null && setting.max !== null
+        ? t('settings.system.range', { min: num(setting.min), max: num(setting.max) })
+        : null,
+    ].filter((part): part is string => part !== null)
+
     return (
       <TextField
         label={label}
         type="number"
         min={setting.min ?? undefined}
         max={setting.max ?? undefined}
-        hint={
-          setting.min !== null && setting.max !== null
-            ? t('settings.system.range', { min: num(setting.min), max: num(setting.max) })
-            : undefined
-        }
+        hint={parts.length === 0 ? undefined : parts.join(' · ')}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

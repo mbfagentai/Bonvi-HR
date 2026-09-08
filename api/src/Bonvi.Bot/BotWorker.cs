@@ -1493,25 +1493,27 @@ public sealed partial class BotWorker : BackgroundService
           «siz allaqachon ariza bergansiz» degan xabarni olardi va
           hamma mehnati bekorga ketardi.
         */
-        var existing = await _bonvi
-            .FindActiveApplicationAsync(phone, state.VacancyId, cancellationToken)
+        /*
+          ⭐ Qarorni SERVER beradi, bot emas (izohi
+          `BonviClient.CheckApplicationAsync` da). Ikkita to'siq bor —
+          jarayondagi ariza va qayta ariza muddati — va ikkinchisining
+          qoidasi sozlamadan o'zgaradi.
+
+          `null` — javob umuman kelmadi. Unda O'TKAZAMIZ: server
+          yiqilganida odamni yolg'on to'siq bilan qaytarishdan ko'ra
+          anketani davom ettirgan yaxshiroq.
+        */
+        var check = await _bonvi
+            .CheckApplicationAsync(phone, chatId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (existing is not null)
+        if (check is { Allowed: false })
         {
             _conversations.Forget(chatId);
 
-            /*
-              Vakansiya nomi SERVERDAN olinadi: nomzod hozir vakansiya
-              tanlamagan bo'lishi mumkin (ochiq ish o'rni yo'q), lekin
-              eski arizasi baribir biror vakansiyada turibdi va aynan
-              o'sha nom unga ma'noli.
-            */
-            var vacancy = existing.VacancyTitle ?? state.VacancyTitle;
-
             await SendWithMenuAsync(
                     chatId,
-                    BotTexts.AlreadyApplied(state.Language, vacancy, existing.AppliedAt, existing.StageName),
+                    BlockedText(state, check),
                     state.Language,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -1521,6 +1523,45 @@ public sealed partial class BotWorker : BackgroundService
 
         await AcceptAsync(chatId, state with { Phone = phone }, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// To'silgan arizaga qaysi matn boradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Har bir sabab boshqacha xabar talab qiladi.</b> Jarayondagi
+    /// arizada bosqich aytiladi («ko'rib chiqilmoqda»), muddatda esa
+    /// qaytish SANASI — u aytilmasa nomzod qachon urinishini bilmay
+    /// qolardi va bot bilan har kuni gaplashib turardi.
+    /// </para>
+    /// <para>
+    /// <b>Tafsilot yetmasa — quruq rad javobi.</b> Server sanani
+    /// yubormagan bo'lsa (nazariy holat yoki javob shakli
+    /// o'zgargan), xabarni chizib bo'lmaydi. To'siqni jimgina ochib
+    /// yuborish esa MUMKIN emas: server «yo'q» degan bo'lsa, javob
+    /// «yo'q» bo'lib qoladi, faqat sababsiz.
+    /// </para>
+    /// </remarks>
+    private static string BlockedText(ConversationState state, ApplicationCheck check) => check switch
+    {
+        /*
+          Vakansiya nomi SERVERDAN olinadi: nomzod hozir vakansiya
+          tanlamagan bo'lishi mumkin (ochiq ish o'rni yo'q), lekin eski
+          arizasi baribir biror vakansiyada turibdi va aynan o'sha nom
+          unga ma'noli.
+        */
+        { Reason: ApplicationBlockReason.Active, AppliedAt: { } appliedAt } =>
+            BotTexts.AlreadyApplied(
+                state.Language,
+                check.VacancyTitle ?? state.VacancyTitle,
+                appliedAt,
+                check.StageName),
+
+        { Reason: ApplicationBlockReason.Cooldown, AppliedAt: { } appliedAt, AvailableFrom: { } availableFrom } =>
+            BotTexts.ReapplyLater(state.Language, appliedAt, availableFrom),
+
+        _ => BotTexts.ApplicationNotAccepted(state.Language),
+    };
 
     /// <summary>
     /// Erkin matnli javobni yozadi (8, 9, 12, 13, 14, 15-qadamlar).

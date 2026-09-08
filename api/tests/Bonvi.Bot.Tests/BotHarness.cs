@@ -88,11 +88,39 @@ public sealed class BotHarness : IDisposable
     /// <summary>Sozlamadagi ommaviy oferta havolasi.</summary>
     public string OfferUrl { get; set; } = string.Empty;
 
-    /// <summary>Shu telefon bilan ko'rilayotgan ariza topildimi.</summary>
-    public bool HasExistingApplication { get; set; }
+    /// <summary>
+    /// Server yangi arizani to'sadimi va NEGA.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Ilgari bu yerda <c>HasExistingApplication</c> degan bayroq
+    /// turardi va bot qoidani o'zi yozardi. Endi qaror SERVERNIKI
+    /// (<c>CheckApplicationQuery</c>), sabablari esa uchta va har
+    /// biriga boshqa xabar ketadi — bitta bayroq ularni ajrata
+    /// olmasdi.
+    /// </remarks>
+    public ApplicationBlockReason Block { get; set; } = ApplicationBlockReason.None;
 
     /// <summary>Mavjud arizaning sanasi — UTC da, xuddi API qaytargandek.</summary>
     public DateTimeOffset ExistingAppliedAt { get; set; } = new(2026, 9, 5, 20, 30, 0, TimeSpan.Zero);
+
+    /// <summary>Muddat tugaydigan sana — faqat «Cooldown» da ma'noli.</summary>
+    public DateOnly AvailableFrom { get; set; } = new(2027, 3, 6);
+
+    /// <summary>Server to'siq bilan birga TAFSILOTLARNI ham yuboradimi.</summary>
+    /// <remarks>
+    /// <c>false</c> — javobda «yo'q» bor, lekin sana yo'q. Bot bunday
+    /// javobda tayanch matnga tushishi kerak; to'siqni jimgina ochib
+    /// yuborish esa MUMKIN emas.
+    /// </remarks>
+    public bool WithDetails { get; set; } = true;
+
+    /// <summary>Tekshiruv so'rovi umuman javob beradimi.</summary>
+    /// <remarks>
+    /// <c>false</c> — server 500 qaytaradi. Bu holat ataylab sinaladi:
+    /// javob kelmaganda anketa DAVOM etishi kerak, aks holda API
+    /// yiqilgan paytda bot hamma nomzodni to'sib qo'yardi.
+    /// </remarks>
+    public bool CheckSucceeds { get; set; } = true;
 
     /// <summary>Ariza yaratilganda qaytadigan identifikator.</summary>
     public Guid CreatedCandidateId { get; } = Guid.Parse("11111111-2222-3333-4444-555555555555");
@@ -215,15 +243,14 @@ public sealed class BotHarness : IDisposable
             return Json($$"""{"items":[{{items}}],"total":{{Vacancies.Count}}}""");
         }
 
-        if (path == "/api/recruiting/candidates" && request.Method == HttpMethod.Get)
+        if (path == "/api/recruiting/candidates/application-check")
         {
-            return HasExistingApplication
-                ? Json($$"""
-                    {"items":[{"id":"{{Guid.Empty}}",
-                    "createdAt":"{{ExistingAppliedAt.ToString("O", CultureInfo.InvariantCulture)}}",
-                    "currentStage":"Anketa","vacancy":"Kassir"}]}
-                    """)
-                : Json("""{"items":[]}""");
+            return CheckSucceeds
+                ? Json(ApplicationCheck())
+                : new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                {
+                    Content = new StringContent("xato"),
+                };
         }
 
         if (path == "/api/recruiting/candidates" && request.Method == HttpMethod.Post)
@@ -255,6 +282,47 @@ public sealed class BotHarness : IDisposable
         }
 
         return Json("{}");
+    }
+
+    /// <summary>«Bu odam ariza topshira oladimi» so'rovining javobi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Javob QO'LDA yoziladi, obyektdan seriyalanmaydi.</b> Sabab —
+    /// aynan shu joyda haqiqiy xato yashiringan edi: server sanoqni
+    /// MATN bo'lib qaytaradi (<c>"reason":"Cooldown"</c>) va botning
+    /// javob o'qish sozlamasida <c>JsonStringEnumConverter</c> yo'q
+    /// edi. Obyektni bot sozlamasi bilan seriyalash bu xatoni yashirib
+    /// qo'yardi: ikkala tomon ham bir xil noto'g'ri qoidada yurardi.
+    /// </para>
+    /// </remarks>
+    private string ApplicationCheck()
+    {
+        var applied = ExistingAppliedAt.ToString("O", CultureInfo.InvariantCulture);
+        var available = AvailableFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        return Block switch
+        {
+            ApplicationBlockReason.Active => $$"""
+                {"allowed":false,"reason":"Active","appliedAt":"{{applied}}",
+                 "vacancyTitle":"Kassir","stageName":"Anketa","availableFrom":null}
+                """,
+            // Tafsilotsiz to'siq: server «yo'q» dedi, lekin sana
+            // yubormadi. Bot bunday javobda tayanch matnga tushishi va
+            // to'siqni JIMGINA ochib yubormasligi kerak. Shart avvalroq
+            // turadi — quyidagi umumiy tarmoq uni yutib yuborardi.
+            ApplicationBlockReason.Cooldown when !WithDetails => """
+                {"allowed":false,"reason":"Cooldown","appliedAt":null,
+                 "vacancyTitle":null,"stageName":null,"availableFrom":null}
+                """,
+            ApplicationBlockReason.Cooldown => $$"""
+                {"allowed":false,"reason":"Cooldown","appliedAt":"{{applied}}",
+                 "vacancyTitle":"Kassir","stageName":"Anketa","availableFrom":"{{available}}"}
+                """,
+            _ => """
+                {"allowed":true,"reason":"None","appliedAt":null,
+                 "vacancyTitle":null,"stageName":null,"availableFrom":null}
+                """,
+        };
     }
 
     private string Settings() => $$"""

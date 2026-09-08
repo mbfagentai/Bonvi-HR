@@ -122,6 +122,62 @@ public sealed record RejectionNoticeDto(
     string FullName,
     string VacancyTitle);
 
+/// <summary>Yangi ariza nega qabul qilinmadi.</summary>
+public enum ApplicationBlockReason
+{
+    /// <summary>To'siq yo'q.</summary>
+    None = 0,
+
+    /// <summary>Shu raqam bilan HALI KO'RILAYOTGAN ariza bor.</summary>
+    Active = 1,
+
+    /// <summary>Oldingi ariza yopilgan, lekin muddat hali tugamagan.</summary>
+    Cooldown = 2,
+}
+
+/// <summary>
+/// «Bu odam yangi anketa topshira oladimi» degan savolning javobi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Botga ketadi. Maydonlar ataylab OZ va ular faqat nomzodga
+/// ko'rsatiladigan xabarni yozish uchun yetadi —
+/// <c>RejectionNoticeDto</c> dagi bilan bir xil qoida: nomzodning
+/// ismi, manzili va ichki izohlari bu javobga TUSHMAYDI.
+/// </para>
+/// </remarks>
+/// <param name="Allowed">Yangi anketa qabul qilinadimi.</param>
+/// <param name="Reason">To'siq sababi.</param>
+/// <param name="AppliedAt">Oldingi ariza qachon topshirilgan.</param>
+/// <param name="VacancyTitle">Qaysi vakansiyaga edi.</param>
+/// <param name="StageName">Qaysi bosqichda to'xtagan.</param>
+/// <param name="AvailableFrom">
+/// Qaysi sanadan keyin qayta topshirish mumkin. Faqat
+/// <see cref="ApplicationBlockReason.Cooldown"/> da to'ladi.
+/// </param>
+public sealed record ApplicationCheckDto(
+    bool Allowed,
+    ApplicationBlockReason Reason,
+    DateTimeOffset? AppliedAt,
+    string? VacancyTitle,
+    string? StageName,
+    DateOnly? AvailableFrom)
+{
+    /// <summary>To'siq yo'q — anketa davom etadi.</summary>
+    public static ApplicationCheckDto Allow()
+        => new(true, ApplicationBlockReason.None, null, null, null, null);
+
+    /// <summary>To'siq bor — sabab va (kerak bo'lsa) tafsilotlar bilan.</summary>
+
+    public static ApplicationCheckDto Blocked(
+        ApplicationBlockReason reason,
+        DateTimeOffset? appliedAt = null,
+        string? vacancyTitle = null,
+        string? stageName = null,
+        DateOnly? availableFrom = null)
+        => new(false, reason, appliedAt, vacancyTitle, stageName, availableFrom);
+}
+
 /// <summary>
 /// Suhbat taklifi kutayotgan nomzod — FAQAT botga beriladigan ko'rinish.
 /// </summary>

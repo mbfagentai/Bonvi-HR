@@ -251,12 +251,30 @@ public static class BotTexts
             + "Mos vakansiya chiqqanda HR bo‘limi siz bilan bog‘lanadi.",
     };
 
-    /// <summary>Takroriy ariza — holati bilan birga.</summary>
+    /// <summary>
+    /// Takroriy ariza — oldingisi HALI KO'RILAYOTGANDA.
+    /// </summary>
     /// <remarks>
+    /// <para>
     /// ⚠️ <b>Sana TOSHKENT vaqtida chiziladi</b> (<see cref="BotClock"/>).
     /// API qiymatni UTC da qaytaradi va siljitilmagan sana soat 19:00 dan
     /// keyin topshirilgan arizani KECHAGI kun deb ko'rsatardi — nomzod
     /// esa buni «bu men emasman» deb o'qirdi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>«Boshqa vakansiyani tanlang» degan gap OLIB TASHLANDI</b>
+    /// (2026-09-08). To'siq endi ODAMGA qo'yiladi, arizaga emas: server
+    /// vakansiya bo'yicha ajratmaydi (<c>CheckApplicationQuery</c>) va
+    /// nomzod boshqa o'rinni tanlab kelganda ayni shu telefon qadamida
+    /// yana to'silardi. Ya'ni matn uni aylanma yo'lga solib qo'yardi.
+    /// O'rniga aniq va yopiq gap: ariza ko'rilmoqda, javobni o'zimiz
+    /// aytamiz.
+    /// </para>
+    /// <para>
+    /// Bosqich esa QOLDI va bu <see cref="ReapplyLater"/> dan farqi:
+    /// bu yerda ariza HAQIQATAN davom etyapti, u yerda esa allaqachon
+    /// yopilgan.
+    /// </para>
     /// </remarks>
     public static string AlreadyApplied(
         BotLanguage language,
@@ -271,17 +289,113 @@ public static class BotTexts
             BotLanguage.Cyrillic =>
                 $"⚠️ Сиз «{Escape(vacancy)}» вакансиясига {date} да ариза топширгансиз.\n\n"
                 + (stage is null ? string.Empty : $"Ҳозирги ҳолат: <b>{Escape(stage)}</b>\n\n")
-                + "Бошқа вакансияни танлашингиз мумкин.",
+                + "Аризангиз кўриб чиқилмоқда — натижа ҳақида ўзимиз хабар берамиз.",
             BotLanguage.Russian =>
                 $"⚠️ Вы уже подавали заявку на вакансию «{Escape(vacancy)}» {date}.\n\n"
                 + (stage is null ? string.Empty : $"Текущий статус: <b>{Escape(stage)}</b>\n\n")
-                + "Вы можете выбрать другую вакансию.",
+                + "Заявка на рассмотрении — о результате мы сообщим сами.",
             _ =>
                 $"⚠️ Siz «{Escape(vacancy)}» vakansiyasiga {date} da ariza topshirgansiz.\n\n"
                 + (stage is null ? string.Empty : $"Hozirgi holat: <b>{Escape(stage)}</b>\n\n")
-                + "Boshqa vakansiyani tanlashingiz mumkin.",
+                + "Arizangiz ko\u2018rib chiqilmoqda — natija haqida o\u2018zimiz xabar beramiz.",
         };
     }
+
+    /// <summary>
+    /// Qayta ariza muddati hali tugamagan — qachondan keyin mumkinligi
+    /// bilan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega <see cref="AlreadyApplied"/> yaramaydi.</b> U bosqichni
+    /// ko'rsatadi va oxirida «boshqa vakansiyani tanlashingiz mumkin»
+    /// deydi. Muddat esa ODAMGA qo'yiladi, arizaga emas: server
+    /// vakansiya bo'yicha ajratmaydi va nomzod boshqa o'rinni tanlab
+    /// kelganda ayni shu joyda yana to'siladi. Ya'ni eski matn uni
+    /// aylanma yo'lga solib qo'yardi. Shu sababli bu yerda BITTA aniq
+    /// gap bor: qaysi sanadan keyin qayta urinish mumkin.
+    /// </para>
+    /// <para>
+    /// <b>Bosqich ATAYLAB aytilmaydi.</b> Ariza allaqachon yopilgan va
+    /// «Ҳозирги ҳолат: Анкета» degan qator nomzodga jarayon hali
+    /// davom etyapti degan yolg'on umid berardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Ikkita sana ikki xil qoidada chiziladi.</b>
+    /// <paramref name="appliedAt"/> — LAHZA, u Toshkent vaqtiga
+    /// keltiriladi (<see cref="BotClock"/>, sabab
+    /// <see cref="AlreadyApplied"/> da). <paramref name="availableFrom"/>
+    /// esa <c>DateOnly</c>: unga vaqt mintaqasi umuman tegishli emas va
+    /// siljitish uni bir kunga surib yuborardi.
+    /// </para>
+    /// </remarks>
+    /// <param name="language">Nomzod tanlagan til.</param>
+    /// <param name="appliedAt">Oldingi ariza qachon topshirilgan.</param>
+    /// <param name="availableFrom">Qaysi sanadan keyin qayta topshirsa bo'ladi.</param>
+    public static string ReapplyLater(
+        BotLanguage language,
+        DateTimeOffset appliedAt,
+        DateOnly availableFrom)
+    {
+        var applied = BotClock.Local(appliedAt).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+        var available = availableFrom.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+
+        return language switch
+        {
+            BotLanguage.Cyrillic =>
+                $"⚠️ Сиз {applied} да ариза топширгансиз ва у кўриб чиқилган.\n\n"
+                + $"Янги анкетани <b>{available}</b> дан кейин топширишингиз мумкин.\n\n"
+                + Signature(language),
+            BotLanguage.Russian =>
+                $"⚠️ Вы подавали заявку {applied}, она уже рассмотрена.\n\n"
+                + $"Новую анкету можно подать после <b>{available}</b>.\n\n"
+                + Signature(language),
+            _ =>
+                $"⚠️ Siz {applied} da ariza topshirgansiz va u ko‘rib chiqilgan.\n\n"
+                + $"Yangi anketani <b>{available}</b> dan keyin topshirishingiz mumkin.\n\n"
+                + Signature(language),
+        };
+    }
+
+    /// <summary>
+    /// Ariza qabul qilinmaydi — TAFSILOTSIZ tayanch javob.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Qachon ishlatiladi.</b> Server «yo'q» degan, lekin xabar
+    /// yozish uchun kerakli maydonni yubormagan: sana yoki qaytish
+    /// muddati yetishmayapti (javob shakli o'zgargan yoki nazariy
+    /// nosozlik). Bunday holatda to'siqni jimgina OCHIB YUBORISH
+    /// mumkin emas — server «yo'q» degan bo'lsa, javob «yo'q» bo'lib
+    /// qoladi, faqat sababsiz.
+    /// </para>
+    /// <para>
+    /// <b>Nega taxmin qilinmaydi.</b> «Olti oydan keyin urinib
+    /// ko'ring» deb yozish oson bo'lardi, lekin muddat SOZLAMADA
+    /// turadi va botda takrorlansa, HR uni o'zgartirgach nomzodga
+    /// yolg'on sana ketardi.
+    /// </para>
+    /// <para>
+    /// <b>Ohang xushmuomala.</b> Nomzod aybdor emas — u shunchaki javob
+    /// oladi. Qo'pol matn kompaniya haqidagi fikrni buzardi va u
+    /// ijtimoiy tarmoqqa tushardi.
+    /// </para>
+    /// </remarks>
+    public static string ApplicationNotAccepted(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Мурожаатингиз учун ташаккур.\n\n"
+            + "Афсуски, ҳозирда аризангизни қабул қила олмаймиз.\n\n"
+            + Signature(language),
+        BotLanguage.Russian =>
+            "Благодарим за обращение.\n\n"
+            + "К сожалению, сейчас мы не можем принять вашу заявку.\n\n"
+            + Signature(language),
+        _ =>
+            "Murojaatingiz uchun tashakkur.\n\n"
+            + "Afsuski, hozirda arizangizni qabul qila olmaymiz.\n\n"
+            + Signature(language),
+    };
 
     /// <summary>Server javob bermadi — ariza YO'QOLDI deb aytilmaydi.</summary>
     public static string Failed(BotLanguage language) => language switch

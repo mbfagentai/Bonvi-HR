@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,6 +75,21 @@ public sealed record CandidateRowResponse(
     string Status,
     Guid? CurrentStageId,
     Guid? HiredEmployeeId);
+
+/// <summary>«Bu odam yangi anketa topshira oladimi» javobi.</summary>
+/// <remarks>
+/// <c>Reason</c> ATAYLAB satr, sanoq emas: bot javobni aynan shu nomlar
+/// bilan o'qiydi va nom o'zgarsa u to'siqni tanimay qolardi — ya'ni
+/// jimgina hammani o'tkazib yuborardi. Test sim ustidagi QIYMATNI
+/// qadaydi, C# turini emas.
+/// </remarks>
+public sealed record ApplicationCheckResponse(
+    bool Allowed,
+    string Reason,
+    DateTimeOffset? AppliedAt,
+    string? VacancyTitle,
+    string? StageName,
+    DateOnly? AvailableFrom);
 
 /// <summary>Sahifalangan nomzodlar ro'yxati.</summary>
 public sealed record CandidatePageResponse(IReadOnlyList<CandidateRowResponse> Items, int Total);
@@ -904,10 +922,350 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     }
 
     // ────────────────────────────────────────────────────────────
+    //  Takroriy ariza to'sig'i
+    //  (2026-09-08 — docs/SPEC-qayta-ariza.md)
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>To'siq TELEGRAM hisobi bo'yicha ham ishlaydi.</summary>
+    /// <remarks>
+    /// ⭐ Faqat telefon bo'yicha tekshirish YETMAYDI: bir odamda ikkita
+    /// SIM bo'lishi mumkin va u o'sha Telegram hisobidan yangi raqam
+    /// bilan qaytib kelardi. Ekranda ko'rilgan holat aynan shunga
+    /// yaqin — bir odam, ikki kun, ikkita anketa.
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_TELEGRAM_hisobi_boyicha_ham_tosadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var suhbat = SuhbatRaqami();
+        var begonaSuhbat = SuhbatRaqami();
+        var eskiRaqam = Raqam();
+        var yangiRaqam = Raqam();
+
+        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var nomzod = await NomzodAsync(
+            admin, vakansiya.Id, familiya: "Иккинчиуриниш", telefon: eskiRaqam, suhbatId: suhbat);
+
+        // Ariza YOPILADI — muddat aynan shu sanadan hisoblanadi.
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reject", UriKind.Relative),
+            new { reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        // 1. YANGI raqam, ESKI hisob — to'siq qoladi.
+        var yangiRaqamBilan = await TekshiruvAsync(bot, Sorov(yangiRaqam, suhbat));
+
+        yangiRaqamBilan.Allowed.ShouldBeFalse("raqamni almashtirish yordam bermaydi");
+        yangiRaqamBilan.Reason.ShouldBe("Cooldown");
+
+        // 2. ESKI raqam, BEGONA hisob — to'siq baribir qoladi.
+        var boshqaHisobdan = await TekshiruvAsync(bot, Sorov(eskiRaqam, begonaSuhbat));
+
+        boshqaHisobdan.Allowed.ShouldBeFalse("hisobni almashtirish ham yordam bermaydi");
+        boshqaHisobdan.Reason.ShouldBe("Cooldown");
+
+        // 3. Nazorat o'lchovi: ikkala kalit ham begona bo'lsa — yo'l ochiq.
+        //    Busiz test «hammani to'sadigan» xatoni ham o'tkazib yuborardi.
+        var begona = await TekshiruvAsync(bot, Sorov(yangiRaqam, begonaSuhbat));
+
+        begona.Allowed.ShouldBeTrue("to'siq ODAMGA qo'yilgan, hammaga emas");
+        begona.Reason.ShouldBe("None");
+    }
+
+    /// <summary>Jarayondagi ariza muddatdan QAT'I NAZAR to'sadi.</summary>
+    /// <remarks>
+    /// Bu — botdagi eng eski qoida va u saqlanishi kerak: ikkinchi yozuv
+    /// ochilsa, HR bir odamni voronkada ikki marta ko'rardi (ekranda
+    /// ko'rilgan aynan shu holat — bir raqam, ikkita anketa).
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_jarayondagi_arizani_tosadi()
+    {
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var raqam = Raqam();
+        var nom = await VakansiyaNomiAsync(admin);
+        var vakansiya = await VakansiyaAsync(admin, nom.Id);
+        var kengash = (await BosqichlarAsync(admin)).First(b => b.Name == "Кенгаш");
+
+        await NomzodAsync(admin, vakansiya.Id, kengash.Id, "Жараёнда", raqam);
+
+        var javob = await TekshiruvAsync(bot, Sorov(raqam));
+
+        javob.Allowed.ShouldBeFalse();
+        javob.Reason.ShouldBe("Active");
+
+        // Bot xabarni aynan shu uchta maydondan yozadi: «falon kuni
+        // falon vakansiyaga ariza bergansiz, hozir falon bosqichda».
+        javob.AppliedAt.ShouldNotBeNull();
+        javob.VacancyTitle.ShouldBe(nom.Name);
+        javob.StageName.ShouldBe(kengash.Name);
+        javob.AvailableFrom.ShouldBeNull("jarayondagi arizada «qachondan keyin» degan javob yo'q");
+    }
+
+    /// <summary>Muddat ichidagi qayta ariza to'siladi va SANA aytiladi.</summary>
+    /// <remarks>
+    /// Hisob YOPILGAN sanadan ketadi, ariza topshirilgan sanadan emas:
+    /// HR qarorni bir oy keyin yozishi mumkin va muddat o'shanda
+    /// boshlanishi kerak (SPEC, 2.1-bo'lim).
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_muddat_ichidagi_arizani_tosadi_va_SANANI_aytadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var raqam = Raqam();
+        var nom = await VakansiyaNomiAsync(admin);
+        var vakansiya = await VakansiyaAsync(admin, nom.Id);
+        var kengash = (await BosqichlarAsync(admin)).First(b => b.Name == "Кенгаш");
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, kengash.Id, "Муддатичида", raqam);
+
+        // Bir oy oldin yopilgan: sukut muddat olti oy, ya'ni yo'l hali yopiq.
+        var yopilgan = Bugun().AddMonths(-1);
+
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reject", UriKind.Relative),
+            new { at = yopilgan, reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        var javob = await TekshiruvAsync(bot, Sorov(raqam));
+
+        javob.Allowed.ShouldBeFalse();
+        javob.Reason.ShouldBe("Cooldown");
+        javob.AvailableFrom.ShouldBe(
+            yopilgan.AddMonths(RecruitingRules.ReapplyMonths),
+            "hisob YOPILGAN sanadan + sozlamadagi oy");
+        javob.AppliedAt.ShouldNotBeNull();
+        javob.VacancyTitle.ShouldBe(nom.Name);
+        javob.StageName.ShouldBe(kengash.Name);
+    }
+
+    /// <summary>Muddat o'tgach yo'l OCHILADI.</summary>
+    /// <remarks>
+    /// ⭐ Ikkinchi vazifasi ham bor: nomzod yozuvi BUGUN yaratilgan,
+    /// yopilish sanasi esa uch yil oldin. Hisob <c>ClosedAt</c> dan
+    /// emas, kiritilgan sanadan ketganida bu odam to'silib qolardi va
+    /// xatoni faqat prod'da payqash mumkin bo'lardi.
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_muddat_otgach_arizani_OTKAZADI()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var raqam = Raqam();
+        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Муддатўтган", telefon: raqam);
+
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reject", UriKind.Relative),
+            new { at = Bugun().AddYears(-3), reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        var javob = await TekshiruvAsync(bot, Sorov(raqam));
+
+        javob.Allowed.ShouldBeTrue("muddat mutlaq taqiq emas — u o'zi tugaydi");
+        javob.Reason.ShouldBe("None");
+        javob.AvailableFrom.ShouldBeNull();
+        javob.AppliedAt.ShouldBeNull("to'siq yo'q ekan, botga tafsilot ham kerak emas");
+    }
+
+    /// <summary>Muddat SOZLAMADAN olinadi, kodda qadab qo'yilmagan.</summary>
+    /// <remarks>
+    /// ⭐ Endpoint umuman shu uchun bor: bot qoidani o'zi yozganida HR
+    /// ekranda muddatni o'zgartirgach, bot eski qoida bilan ishlab
+    /// qolardi. Test ikkala yo'nalishni ham tekshiradi — sozlama
+    /// ko'tarilganda to'siq PAYDO bo'ladi, qaytarilganda esa KETADI.
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_muddati_SOZLAMADAN_olinadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var raqam = Raqam();
+        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Созламабўйича", telefon: raqam);
+        var yopilgan = Bugun().AddYears(-3);
+
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reject", UriKind.Relative),
+            new { at = yopilgan, reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        try
+        {
+            (await TekshiruvAsync(bot, Sorov(raqam)))
+                .Allowed.ShouldBeTrue("sukut olti oy — uch yil oldingi ariza yo'lni to'smaydi");
+
+            // Yuqori chegara — amalda «umuman bo'lmaydi» degani.
+            await MuddatniYozAsync(admin, 120);
+
+            var yopiq = await TekshiruvAsync(bot, Sorov(raqam));
+
+            yopiq.Allowed.ShouldBeFalse("sozlama ko'tarilgach o'sha ariza endi to'sadi");
+            yopiq.Reason.ShouldBe("Cooldown");
+            yopiq.AvailableFrom.ShouldBe(yopilgan.AddMonths(120), "hisob YANGI qiymat bilan ketadi");
+        }
+        finally
+        {
+            // Sozlama BUTUN bazaga tegishli — keyingi testlar uni eski
+            // holida ko'rishi kerak.
+            await MuddatniYozAsync(admin, RecruitingRules.ReapplyMonths);
+        }
+
+        (await TekshiruvAsync(bot, Sorov(raqam)))
+            .Allowed.ShouldBeTrue("qiymat qaytarilgach to'siq ham ketadi");
+    }
+
+    /// <summary>Muddat sozlamasi CHEGARADAN tashqariga chiqmaydi.</summary>
+    /// <remarks>
+    /// 0 oy — qoidaning o'zini bekor qilardi (ertasiga qayta ariza,
+    /// ya'ni ekranda ko'rilgan aynan o'sha holat), 120 dan yuqorisi esa
+    /// «umuman bo'lmaydi» chegarasidan oshadi. Ikkalasini ham SERVER
+    /// to'xtatadi: ekrandagi min/max faqat qulaylik.
+    /// </remarks>
+    [Fact]
+    public async Task Qayta_ariza_muddati_CHEGARADAN_tashqariga_chiqmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        foreach (var qiymat in new[] { "0", "121" })
+        {
+            using var javob = await admin.PutAsJsonAsync(
+                new Uri("/api/settings", UriKind.Relative),
+                new { items = new[] { new { key = SystemSettingKeys.ReapplyMonths, value = qiymat } } },
+                bekorQilish);
+
+            javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(javob));
+            (await MatnAsync(javob)).ShouldContain("sozlama.chegara");
+        }
+
+        // Sozlama ro'yxatda KO'RINADI va chegaralari e'lon qilingan —
+        // ekran maydonni aynan shular bo'yicha chizadi.
+        using var royxat = await admin.GetAsync(new Uri("/api/settings", UriKind.Relative), bekorQilish);
+        royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
+
+        var sozlamalar = await royxat.Content.ReadFromJsonAsync<List<SettingResponse>>(bekorQilish);
+        var muddat = sozlamalar.ShouldNotBeNull().Single(s => s.Key == SystemSettingKeys.ReapplyMonths);
+
+        muddat.Kind.ShouldBe("Number");
+        muddat.Min.ShouldBe(1);
+        muddat.Max.ShouldBe(120);
+        muddat.DefaultValue.ShouldBe("6", "sukut qiymat — yarim yil");
+        muddat.Value.ShouldBe("6", "rad etilgan so'rovlar qiymatga TEGMAGAN");
+    }
+
+    /// <summary>Begona raqamga yo'l ochiq.</summary>
+    /// <remarks>
+    /// Nazorat o'lchovi. Busiz yuqoridagi to'rt test «hammani to'sadigan»
+    /// xatoni ham xursandchilik bilan o'tkazib yuborardi — va o'shanda
+    /// bot bironta ham yangi anketa qabul qilmasdi.
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_begona_raqamni_OTKAZADI()
+    {
+        using var bot = await BotMijozAsync();
+
+        var javob = await TekshiruvAsync(bot, Sorov(Raqam(), SuhbatRaqami()));
+
+        javob.Allowed.ShouldBeTrue();
+        javob.Reason.ShouldBe("None");
+        javob.AppliedAt.ShouldBeNull();
+        javob.VacancyTitle.ShouldBeNull();
+        javob.StageName.ShouldBeNull();
+        javob.AvailableFrom.ShouldBeNull();
+    }
+
+    /// <summary>Tekshiruv FAQAT bot xizmat hisobiga ochiq.</summary>
+    /// <remarks>
+    /// <para>
+    /// Testning eng muhim yarmi — SUPER ADMINISTRATORGA rad javobi. Bu
+    /// endpoint odam uchun emas, JARAYON uchun ochilgan va u
+    /// <c>SettingsApiTests.Tokenni_faqat_bot_hisobi_oqiy_oladi</c> bilan
+    /// bir xil qoidaga bo'ysunadi. Kimdir bir kun uni «qulaylik uchun»
+    /// <c>recruiting.view</c> ga o'tkazsa, bu test yiqiladi.
+    /// </para>
+    /// <para>
+    /// Sabab shunchaki tartib emas: javob boshqa odamning arizasi
+    /// haqidagi ma'lumotni istalgan telefon raqami bo'yicha beradi —
+    /// qachon topshirgani, qaysi vakansiyaga, qaysi bosqichda.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_FAQAT_bot_hisobiga_ochiq()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var yol = new Uri(
+            "/api/recruiting/candidates/application-check" + Sorov(Raqam()), UriKind.Relative);
+
+        using var admin = await AdminMijozAsync();
+
+        using (var javob = await admin.GetAsync(yol, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(
+                HttpStatusCode.Forbidden,
+                "super administrator ham bu yo'lni ocha olmaydi");
+        }
+
+        using var ruxsatsiz = _factory.CreateClient();
+        ruxsatsiz.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await RuxsatsizTokenAsync());
+
+        using (var javob = await ruxsatsiz.GetAsync(yol, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using var tokensiz = _factory.CreateClient();
+
+        using (var javob = await tokensiz.GetAsync(yol, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, "«kim ekaningni bilmayman» — boshqa javob");
+        }
+
+        // Bot esa o'tadi — aks holda test yopiq eshikni tekshirib,
+        // eshikning umuman ochilmasligini payqamasdi.
+        using var bot = await BotMijozAsync();
+
+        using (var javob = await bot.GetAsync(yol, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────
     //  Muhit tayyorlash
     // ────────────────────────────────────────────────────────────
 
     private static string Belgi() => Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+    /// <summary>Telefon raqami hisoblagichi — izohi <see cref="Raqam"/> da.</summary>
+    private static int _raqamHisoblagichi;
+
+    /// <summary>Telegram suhbati hisoblagichi.</summary>
+    private static int _suhbatHisoblagichi;
 
     /// <summary>
     /// Yuridik shaxs va lavozimni to'g'ridan-to'g'ri bazaga qo'yadi.
@@ -1018,11 +1376,20 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         return vakansiya;
     }
 
+    /// <summary>Nomzod kiritadi.</summary>
+    /// <remarks>
+    /// <paramref name="telefon"/> va <paramref name="suhbatId"/> —
+    /// takroriy ariza tekshiruvi uchun qo'shilgan. Sukut qiymatlar
+    /// ATAYLAB o'zgarmagan: mavjud testlar ularga tayanadi va ular
+    /// tekshiruvga umuman tegmaydi.
+    /// </remarks>
     private static async Task<CandidateResponse> NomzodAsync(
         HttpClient mijoz,
         Guid vakansiyaId,
         Guid? bosqichId = null,
-        string familiya = "Каримов")
+        string familiya = "Каримов",
+        string telefon = "905088888",
+        long? suhbatId = null)
     {
         using var javob = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/candidates", UriKind.Relative),
@@ -1031,10 +1398,11 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
                 vacancyId = vakansiyaId,
                 lastName = familiya,
                 firstName = "Азиз",
-                phone = "905088888",
+                phone = telefon,
                 speciality = "Иқтисодчи",
                 birthDate = new DateOnly(1995, 5, 20),
                 stageId = bosqichId,
+                telegramChatId = suhbatId,
             },
             TestContext.Current.CancellationToken);
 
@@ -1101,13 +1469,114 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         return tokens.CreateTokens(user, [], new HashSet<string>(StringComparer.Ordinal)).AccessToken;
     }
 
+    /// <summary>Har chaqiruvda BOSHQA telefon raqami.</summary>
+    /// <remarks>
+    /// Takroriy ariza tekshiruvi vakansiya bo'yicha AJRATMAYDI — to'siq
+    /// odamga qo'yiladi. Ya'ni bitta raqamni ikkita test ishlatsa, biri
+    /// ikkinchisining to'sig'iga urilardi va yiqilish tasodifiy
+    /// ko'rinardi. Tasodif yetarli emas: oxirgi ikki xona —
+    /// hisoblagich, ya'ni raqamlar bir yig'ma ichida takrorlanmaydi.
+    /// </remarks>
+    private static string Raqam()
+        => "9"
+            + Random.Shared.Next(100_000, 999_999).ToString(CultureInfo.InvariantCulture)
+            + (Interlocked.Increment(ref _raqamHisoblagichi) % 100).ToString("D2", CultureInfo.InvariantCulture);
+
+    /// <summary>Har chaqiruvda BOSHQA Telegram suhbati.</summary>
+    private static long SuhbatRaqami()
+        => 700_000_000L + Interlocked.Increment(ref _suhbatHisoblagichi);
+
+    /// <summary>Bugungi kun.</summary>
+    /// <remarks>
+    /// Server sanani TOSHKENT mintaqasida hisoblaydi (<c>SystemClock</c>),
+    /// bu yerda esa UTC olinadi va ular kun chegarasida besh soatga farq
+    /// qilishi mumkin. Shu sababli testlar sanani hech qachon bugungi
+    /// kunga TENG qilib qo'ymaydi: chegara oylar va yillar bilan
+    /// olinadi, ya'ni bir kunlik farq javobga ta'sir qilmaydi.
+    /// </remarks>
+    private static DateOnly Bugun() => DateOnly.FromDateTime(DateTime.UtcNow);
+
+    /// <summary>Tekshiruv so'rovining satri.</summary>
+    /// <remarks>
+    /// Raqam «+998…» ko'rinishida ketadi — Telegram kontaktni aynan
+    /// shunday beradi. «+» so'rov satrida BO'SH JOYGA aylanadi va shu
+    /// sababli qochiriladi: qochirilmasa server boshqa raqamni ko'rib,
+    /// hech kimni topmasdi va testlar yolg'on «yo'l ochiq» javobidan
+    /// xursand bo'lib o'tib ketardi.
+    /// </remarks>
+    private static string Sorov(string raqam, long? suhbatId = null)
+    {
+        var sorov = "?phone=" + Uri.EscapeDataString("+998" + raqam);
+
+        return suhbatId is { } id
+            ? sorov + "&telegramChatId=" + id.ToString(CultureInfo.InvariantCulture)
+            : sorov;
+    }
+
+    /// <summary>Botning savoli: «bu odam anketa topshira oladimi?».</summary>
+    private static async Task<ApplicationCheckResponse> TekshiruvAsync(HttpClient bot, string sorov)
+    {
+        using var javob = await bot.GetAsync(
+            new Uri("/api/recruiting/candidates/application-check" + sorov, UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var natija = await javob.Content.ReadFromJsonAsync<ApplicationCheckResponse>(
+            TestContext.Current.CancellationToken);
+
+        natija.ShouldNotBeNull();
+        return natija;
+    }
+
+    /// <summary>«Qayta ariza muddati» sozlamasini yozadi.</summary>
+    /// <remarks>
+    /// Ekrandagi yo'l bilan — <c>PUT /api/settings</c> orqali, bazaga
+    /// to'g'ridan-to'g'ri emas: tekshirilayotgan narsa aynan
+    /// «HR qiymatni o'zgartirdi, bot yangi qoida bilan ishlaydi»
+    /// degan zanjir.
+    /// </remarks>
+    private static async Task MuddatniYozAsync(HttpClient admin, int oy)
+    {
+        using var javob = await admin.PutAsJsonAsync(
+            new Uri("/api/settings", UriKind.Relative),
+            new
+            {
+                items = new[]
+                {
+                    new
+                    {
+                        key = SystemSettingKeys.ReapplyMonths,
+                        value = oy.ToString(CultureInfo.InvariantCulture),
+                    },
+                },
+            },
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+    }
+
     private async Task<HttpClient> AdminMijozAsync()
+        => await KirishAsync(BonviApiFactory.TestAdminLogin, BonviApiFactory.TestAdminPassword);
+
+    /// <summary>Telegram botning XIZMAT hisobi.</summary>
+    /// <remarks>
+    /// «/application-check» ROL bo'yicha himoyalangan
+    /// (<c>AuthenticationExtensions.BotServicePolicy</c>) va unga ruxsat
+    /// bilan yetib bo'lmaydi — hatto super administrator ham. Shu
+    /// sababli tekshiruv testlariga alohida hisob kerak;
+    /// <c>SettingsApiTests</c> dagi bilan bir xil naqsh.
+    /// </remarks>
+    private async Task<HttpClient> BotMijozAsync()
+        => await KirishAsync(BonviApiFactory.TestBotLogin, BonviApiFactory.TestBotPassword);
+
+    private async Task<HttpClient> KirishAsync(string login, string parol)
     {
         var client = _factory.CreateClient();
 
         using var javob = await client.PostAsJsonAsync(
             new Uri("/api/auth/login", UriKind.Relative),
-            new { login = BonviApiFactory.TestAdminLogin, password = BonviApiFactory.TestAdminPassword },
+            new { login, password = parol },
             TestContext.Current.CancellationToken);
 
         javob.EnsureSuccessStatusCode();

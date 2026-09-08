@@ -297,7 +297,8 @@ public static class CandidateEndpoints
                 "qo'shiladi; sukut bo'yicha u ro'yxatda KO'RINMAYDI, chunki ekran " +
                 "«hozir kim bor?» degan savolga javob beradi. «source=Excel» tanlansa " +
                 "arxiv bayroqsiz ham ochiladi — arxiv ochilganda rad etilganlar " +
-                "ham qaytadi, chunki arxivning deyarli hammasi shu holatda. Har qatorda «hasResume» va «hasPhoto» " +
+                "ham qaytadi, chunki arxivning deyarli hammasi shu holatda. " +
+                "Har qatorda «hasResume» va «hasPhoto» " +
                 "bayroqlari bor; ANKETA ro'yxatga QO'SHILMAYDI — u og'ir va faqat " +
                 "kartada kerak.")
             .Produces<PagedResult<CandidateListItemDto>>(StatusCodes.Status200OK)
@@ -511,6 +512,39 @@ public static class CandidateEndpoints
            (`SettingsEndpoints` dagi batafsil izoh).
           ═══════════════════════════════════════════════════════════
         */
+        group.MapGet("/application-check", async (
+                string? phone,
+                long? telegramChatId,
+                CheckApplicationQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new CheckApplicationQuery(phone, telegramChatId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("CheckApplication")
+            .WithSummary("Bu odam yangi anketa topshira oladimi — faqat botga")
+            .WithDescription(
+                "Ikkita to'siq, SHU tartibda: (1) JARAYONDAGI ariza — muddatdan " +
+                "qat'i nazar; (2) qayta ariza muddati — «recruiting.reapplyMonths» " +
+                "sozlamasi (sukut 6 oy), hisob oxirgi arizaning YOPILGAN " +
+                "sanasidan ketadi. " +
+                "Ikkita kalit bo'yicha qidiriladi: telefon VA Telegram hisobi — " +
+                "bir odamda ikkita SIM bo'lishi mumkin va u o'sha hisobdan yangi " +
+                "raqam bilan qaytib kelardi. " +
+                "Vakansiya bo'yicha AJRATILMAYDI: to'siq odamga qo'yiladi, arizaga " +
+                "emas — aks holda bir odam har kuni boshqa vakansiyaga anketa " +
+                "tashlayverardi. " +
+                "Javobda faqat xabar yozish uchun kerakli maydonlar bor. " +
+                "⚠️ Qoida faqat BOTGA tegishli: HR qo'lda nomzod kiritganda hech " +
+                "qanday to'siq yo'q.")
+            .Produces<ApplicationCheckDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         group.MapGet("/rejection-notices", async (
                 int? limit,
                 ListPendingRejectionNoticesQueryHandler handler,
@@ -761,6 +795,7 @@ public static class CandidateEndpoints
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
     }
 
     /// <summary>

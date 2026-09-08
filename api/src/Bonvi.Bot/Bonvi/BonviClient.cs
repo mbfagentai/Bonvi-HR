@@ -66,22 +66,45 @@ public sealed record BotSettings(
 /// </remarks>
 public sealed record BotTokenResponse(string? Token);
 
-/// <summary>Nomzodning mavjud arizasi — takror tekshiruvi uchun.</summary>
+/// <summary>Yangi ariza nega qabul qilinmadi — server bergan sabab.</summary>
+/// <remarks>
+/// Qiymatlar server tomonidagi <c>ApplicationBlockReason</c> bilan
+/// AYNAN bir xil yozilishi shart: JSON'da ular MATN bo'lib keladi.
+/// </remarks>
+public enum ApplicationBlockReason
+{
+    None = 0,
+    Active = 1,
+    Cooldown = 2,
+}
+
+/// <summary>
+/// «Bu odam yangi anketa topshira oladimi» degan savolning javobi.
+/// </summary>
+/// <param name="Allowed">Anketa davom etadimi.</param>
+/// <param name="Reason">To'siq sababi.</param>
 /// <param name="AppliedAt">
-/// Ariza qachon topshirilgan. Qiymat serverdan UTC da keladi va
+/// Oldingi ariza qachon topshirilgan. Qiymat serverdan UTC da keladi va
 /// nomzodga ko'rsatilishidan OLDIN Toshkent vaqtiga keltiriladi
 /// (<c>BotClock</c>).
 /// </param>
-/// <param name="StageName">Voronkadagi hozirgi bosqichi.</param>
 /// <param name="VacancyTitle">
 /// Qaysi vakansiyaga topshirgani. Bu SERVERDAN keladi, suhbatdan emas:
 /// nomzod hozir vakansiya tanlamagan bo'lishi mumkin (ochiq ish o'rni
 /// yo'q), lekin eski arizasi baribir biror vakansiyada turadi.
 /// </param>
-public sealed record ExistingApplication(
-    DateTimeOffset AppliedAt,
+/// <param name="StageName">Voronkadagi hozirgi bosqichi.</param>
+/// <param name="AvailableFrom">
+/// Qaysi sanadan keyin qayta topshirish mumkin. Faqat
+/// <see cref="ApplicationBlockReason.Cooldown"/> da to'ladi.
+/// </param>
+public sealed record ApplicationCheck(
+    bool Allowed,
+    ApplicationBlockReason Reason,
+    DateTimeOffset? AppliedAt,
+    string? VacancyTitle,
     string? StageName,
-    string? VacancyTitle);
+    DateOnly? AvailableFrom);
 
 /// <summary>
 /// Botda to'ldirilgan anketaning javoblari — arizaning bir qismi.
@@ -252,7 +275,27 @@ public sealed partial class BonviClient : IDisposable
         Message = "Bonvi API so'rovi bajarilmadi")]
     private partial void LogRequestFailed(Exception exception);
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    /// <summary>Serverdan kelgan JAVOBNI o'qish uchun sozlama.</summary>
+    /// <remarks>
+    /// ⭐ <b>Sanoqlar MATN bo'lib keladi</b> — server ularni shunday
+    /// yozadi (<c>Program.cs</c>: <c>ConfigureHttpJsonOptions</c> ga
+    /// <c>JsonStringEnumConverter</c> qo'shilgan). Converter'siz
+    /// <c>"reason": "Cooldown"</c> ni o'qib bo'lmasdi va butun javob
+    /// istisnoga aylanardi. Istisno esa <c>SendAsync</c> da <c>null</c>
+    /// bo'lib qaytardi, ya'ni to'siq JIMGINA ochilib ketardi: muddat
+    /// ichidagi odam anketani to'ldiraverardi va buni hech kim
+    /// sezmasdi.
+    /// <para>
+    /// So'rov TANASI uchun alohida sozlama bor (<see cref="RequestJson"/>)
+    /// va unda converter allaqachon bor edi. Ikkalasi bir xil qoidada
+    /// yurishi shart — aks holda bot serverga nom yuborib, o'zi son
+    /// kutib turardi.
+    /// </para>
+    /// </remarks>
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     /// <summary>
     /// So'rov TANASI uchun alohida sozlama.
@@ -381,50 +424,37 @@ public sealed partial class BonviClient : IDisposable
     }
 
     /// <summary>
-    /// Shu telefon bilan shu vakansiyaga ariza allaqachon bormi.
+    /// Bu odam yangi anketa topshira oladimi.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Qidiruv API ning O'Z qoidasi bilan ketadi (F.I.Sh. yoki TELEFON,
-    /// ajratgichlarni hisobga oladi) — bot uni takrorlamaydi.
+    /// ⭐ <b>Qoida SERVERDA</b> (2026-09-08). Ilgari bot uni O'ZI
+    /// yozardi: qidiruv so'roviga <c>status=InProgress</c> qo'shib.
+    /// Endi qaror sozlamadagi «qayta ariza muddati» ga tayanadi va bot
+    /// uni takrorlaganda HR ekranda muddatni o'zgartirgach, bot eski
+    /// qoida bilan ishlab qolardi.
     /// </para>
     /// <para>
-    /// <c>status=InProgress</c>: rad etilgan yoki o'zi voz kechgan nomzod
-    /// qayta ariza topshira olishi KERAK — odamning fikri o'zgaradi va
-    /// vakansiya ham boshqa bo'ladi. To'siq faqat HALI KO'RILAYOTGAN
-    /// ariza uchun.
+    /// <b>Javob kelmasa — O'TKAZAMIZ</b> (<c>null</c>). Bu ataylab:
+    /// server javob bermayotganida odamni «siz allaqachon ariza
+    /// topshirgansiz» degan YOLG'ON xabar bilan qaytarish eng yomon
+    /// natija bo'lardi. Ariza yaratish qadamining o'zi baribir
+    /// serverga boradi va u yerda yiqilsa, nomzod to'g'ri xato
+    /// xabarini oladi.
     /// </para>
     /// </remarks>
-    public async Task<ExistingApplication?> FindActiveApplicationAsync(
+    public async Task<ApplicationCheck?> CheckApplicationAsync(
         string phone,
-        Guid? vacancyId,
+        long chatId,
         CancellationToken cancellationToken)
     {
-        var query = $"api/recruiting/candidates?search={Uri.EscapeDataString(phone)}"
-            + "&status=InProgress&page=1&pageSize=1";
+        var query = $"api/recruiting/candidates/application-check"
+            + $"?phone={Uri.EscapeDataString(phone)}&telegramChatId={chatId}";
 
-        /*
-          Vakansiya tanlanmagan bo'lsa (ochiq ish o'rni yo'q) filtr
-          UMUMAN qo'yilmaydi va tekshiruv «shu raqam bilan ko'rilayotgan
-          ariza bormi?» degan savolga aylanadi. Bu ataylab kengroq:
-          nomzod allaqachon voronkada turgan bo'lsa, unga ikkinchi
-          yozuv ochish HR ning ish jadvalini ikkilantirardi.
-        */
-        if (vacancyId is { } id)
-        {
-            query += $"&vacancyId={id}";
-        }
-
-        var page = await SendAsync<CandidatePage>(
+        return await SendAsync<ApplicationCheck>(
                 () => new HttpRequestMessage(HttpMethod.Get, new Uri(query, UriKind.Relative)),
                 cancellationToken)
             .ConfigureAwait(false);
-
-        var found = page?.Items?.FirstOrDefault();
-
-        return found is null
-            ? null
-            : new ExistingApplication(found.CreatedAt, found.CurrentStage, found.Vacancy);
     }
 
     /// <summary>

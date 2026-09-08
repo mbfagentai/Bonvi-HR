@@ -352,4 +352,37 @@ internal static class CandidateSearchQuery
                      """)
                 .Select(candidate => candidate.Id);
     }
+
+    /// <summary>
+    /// Telefon raqami AYNAN mos keladigan nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <see cref="MatchingIds"/> dan farqi: bu yerda <c>ILIKE</c> va
+    /// naqsh YO'Q — qat'iy tenglik. Sabab: bu so'rov QIDIRUV emas,
+    /// TEKSHIRUV (takroriy ariza va qora ro'yxat). Naqsh bilan
+    /// «998901234567» so'rovi «998901234567 8» kabi begona raqamni ham
+    /// topib, boshqa odamning arizasini to'sib qo'yardi.
+    /// </para>
+    /// <para>
+    /// Xom SQL sababi o'sha: <c>Phone</c> konvertor orqali satrga
+    /// tushadi va <c>candidate.Phone.Value</c> ifodasi SQL'ga tarjima
+    /// qilinmaydi. Normalizatsiya ifodasi ham yuqoridagi bilan
+    /// SO'ZMA-SO'Z bir xil — ikkalasi bir xil raqamni bir xil
+    /// ko'rmasa, qidiruvda topilgan odam tekshiruvda topilmasdi.
+    /// </para>
+    /// </remarks>
+    public static IQueryable<Guid> WithPhone(AppDbContext context, string phoneDigits)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return context.Candidates
+            .FromSql(
+                $"""
+                 SELECT x.*
+                 FROM candidates AS x
+                 WHERE regexp_replace(coalesce(x.phone, ''), '\D', '', 'g') = {phoneDigits}
+                 """)
+            .Select(candidate => candidate.Id);
+    }
 }

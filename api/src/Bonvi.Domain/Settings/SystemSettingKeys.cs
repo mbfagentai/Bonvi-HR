@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Notifications;
+using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Domain.Settings;
 
@@ -465,6 +466,42 @@ public static class SystemSettingKeys
     public const string ReadRetentionDays = "notifications.readRetentionDays";
 
     // ────────────────────────────────────────────────────────────
+    //  REKRUTING — nomzod bilan bog'liq qoidalar
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Yopilgan arizadan keyin necha OY o'tgach bot yangi anketani
+    /// qabul qiladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nima uchun bor</b> (2026-09-08, foydalanuvchi talabi):
+    /// «битта номердан битта анкета». Bitta telefon raqami bilan ikki
+    /// kun ichida ikkita anketa tushgani shu sozlamaning sababi.
+    /// Ilgari to'siq FAQAT jarayondagi ariza uchun ishlardi va rad
+    /// etilgan odam ertasiga qayta topshira olardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega mutlaq taqiq emas.</b> Foydalanuvchi ataylab shu yo'lni
+    /// tanladi: odamning holati o'zgaradi va bir yildan keyingi urinish
+    /// spam emas. Mutlaq taqiq kerak bo'lsa, qiymatni yuqori chegaraga
+    /// (120 oy = 10 yil) qo'yish yetarli — bu dasturchisiz bajariladi.
+    /// </para>
+    /// <para>
+    /// <b>Nega OY, kun emas.</b> Qolgan uchta sozlama kunda
+    /// (<see cref="NewCandidateDays"/> va boshqalar), lekin ular
+    /// kunlik ish ritmiga tegishli. Bu esa oylik ritm: «yarim yildan
+    /// keyin» degan qarorni 180 kun deb yozish HR uchun o'qib
+    /// bo'lmaydigan qiymat.
+    /// </para>
+    /// <para>
+    /// ⚠️ Qoida faqat BOTGA tegishli. HR qo'lda nomzod kiritganda hech
+    /// qanday to'siq yo'q — u odamni ko'rib turibdi.
+    /// </para>
+    /// </remarks>
+    public const string ReapplyMonths = "recruiting.reapplyMonths";
+
+    // ────────────────────────────────────────────────────────────
     //  REKRUTING — serverning O'ZI yozadigan ichki qiymatlar
     // ────────────────────────────────────────────────────────────
 
@@ -683,6 +720,16 @@ public static class SystemSettingKeys
             Number(NotificationRules.ReadRetentionDays),
             Min: 1,
             Max: MaxDays),
+
+        new(
+            ReapplyMonths,
+            SystemSettingKind.Number,
+            Number(RecruitingRules.ReapplyMonths),
+            // 1 oy — eng past ma'noli qiymat: undan pastda «qayta ariza
+            // muddati» degan tushunchaning o'zi yo'qoladi. 120 oy esa
+            // amalda «umuman bo'lmaydi» degani (kalit izohiga qarang).
+            Min: 1,
+            Max: 120),
 
         // Yashirin qiymat ro'yxatning OXIRIDA: u ekranga chiqmaydi,
         // ya'ni tartibda joyi ham yo'q. Bot va bildirishnoma
