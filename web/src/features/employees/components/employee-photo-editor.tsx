@@ -1,4 +1,4 @@
-import { Camera, LoaderCircle, Trash2, Upload } from 'lucide-react'
+import { Camera, Expand, LoaderCircle, Trash2, Upload } from 'lucide-react'
 import { useRef, useState, type ChangeEvent } from 'react'
 
 import { useAuth } from '@/features/auth'
@@ -49,6 +49,7 @@ export function EmployeePhotoEditor({
   const [uploadFailure, setUploadFailure] = useState<string | null>(null)
   const [deleteFailure, setDeleteFailure] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [viewing, setViewing] = useState(false)
 
   const upload = useUploadEmployeePhoto(employeeId)
   const remove = useDeleteEmployeePhoto(employeeId)
@@ -134,11 +135,21 @@ export function EmployeePhotoEditor({
       />
 
       <div className="relative">
+        {/*
+          ⭐ Suratning O'ZIGA bosish — uni KATTA KO'RISH, yuklash emas
+          (foydalanuvchi talabi, 2026-09-08). Ilgari bu tugma fayl tanlash
+          oynasini ochardi: HR suratni kattaroq ko'rmoqchi bo'lib bosardi
+          va o'zini «yangi rasm qo'yish» oqimida topib olardi. Ya'ni eng
+          ko'p uchraydigan niyatga eng xavfli javob berilardi.
+
+          Surat YO'Q bo'lsa ko'rsatadigan narsa ham yo'q — o'shanda bosish
+          avvalgidek fayl tanlashni ochadi.
+        */}
         <button
           type="button"
-          onClick={openPicker}
-          aria-label={hasPhoto ? t('photo.change') : t('photo.choose')}
-          title={hasPhoto ? t('photo.change') : t('photo.choose')}
+          onClick={() => (hasPhoto ? setViewing(true) : openPicker())}
+          aria-label={hasPhoto ? t('photo.view') : t('photo.choose')}
+          title={hasPhoto ? t('photo.view') : t('photo.choose')}
           className="press group relative block cursor-pointer rounded-full"
         >
           <EmployeePhoto
@@ -157,28 +168,38 @@ export function EmployeePhotoEditor({
               'group-hover:opacity-100 group-focus-visible:opacity-100',
             )}
           >
-            <Camera className="size-6 text-white" strokeWidth={2} />
+            {hasPhoto ? (
+              <Expand className="size-6 text-white" strokeWidth={2} />
+            ) : (
+              <Camera className="size-6 text-white" strokeWidth={2} />
+            )}
           </span>
         </button>
 
         {/*
-          Doimiy belgi. Sensorli ekranda «sichqoncha ostida» degan holat
-          yo'q, ya'ni rasmni bosish mumkinligi boshqa yo'l bilan bilinishi
-          kerak. Chegara fon rangida — belgi rasmdan «kesib» turadi.
+          ⭐ Kamera belgisi endi BEZAK EMAS, haqiqiy tugma: u fayl
+          tanlashni to'g'ridan-to'g'ri ochadi. Suratni bosish ko'rish
+          oynasiga ketgach, yuklash yo'li ekranda ko'rinib turishi
+          shart edi — foydalanuvchi talabi aynan shu: «yuklash tugmasi
+          ham yo'qolmasin».
+
+          Chegara fon rangida — belgi suratdan «kesib» turadi. Soyasiz:
+          to'ldirilgan tint belgisi Button `primary` bilan bir qoidada
+          (iOS HIG «Buttons») — ajralishni chegara beradi, ko'lanka emas.
         */}
-        <span
-          aria-hidden
+        <button
+          type="button"
+          onClick={openPicker}
+          aria-label={hasPhoto ? t('photo.change') : t('photo.choose')}
+          title={hasPhoto ? t('photo.change') : t('photo.choose')}
           className={cn(
-            'pointer-events-none absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center',
-            // Soyasiz: to'ldirilgan tint belgisi — Button `primary` bilan
-            // bir qoida (iOS HIG «Buttons»). Rasmdan ajralishni fon rangidagi
-            // chegara beradi, ko'lanka emas — u ikki marta ajratgan bo'lar edi.
+            'press absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center',
             'rounded-full border-2 border-[var(--bg-elevated)]',
             'bg-[var(--accent)] text-[var(--fg-on-accent)]',
           )}
         >
           <Camera className="size-3.5" strokeWidth={2.5} />
-        </span>
+        </button>
       </div>
 
       {hasPhoto && (
@@ -193,6 +214,52 @@ export function EmployeePhotoEditor({
           {t('photo.delete')}
         </Button>
       )}
+
+      {/* ───────── Suratni katta ko'rish ───────── */}
+      <Dialog
+        open={viewing}
+        onClose={() => setViewing(false)}
+        size="sm"
+        title={t('employees.photoTitle')}
+        description={name}
+        footer={
+          /*
+            Yuklash tugmasi oynaning ICHIDA ham turadi: HR suratni ko'rib
+            «bu boshqa odam ekan» degan xulosaga kelsa, oynani yopib
+            qaytadan izlashi shart emas. Oyna avval yopiladi — fayl
+            tanlash oynasi ustidan chiqsa, ikkitasi bir-birini to'sardi.
+          */
+          <Button
+            type="button"
+            onClick={() => {
+              setViewing(false)
+              openPicker()
+            }}
+          >
+            <Camera />
+            {t('photo.change')}
+          </Button>
+        }
+      >
+        {/*
+          Bu yerda surat TO'RTBURCHAK ko'rinadi, doira emas: serverda u
+          512×512 kvadrat bo'lib yotadi va doira uning chetlarini kesib
+          qo'yardi. Oynaning butun maqsadi — suratni TO'LIQ ko'rsatish.
+
+          Yuklashdan oldingi ko'rib chiqish esa aksincha, DOIRA shaklida
+          qoladi: u kartada qanday chiqishini va'da qiladi (izohi
+          o'sha oynada).
+        */}
+        <div className="flex justify-center">
+          <EmployeePhoto
+            employeeId={employeeId}
+            photoKey={photoKey}
+            name={name}
+            size="xl"
+            className="size-64 rounded-lg text-largetitle"
+          />
+        </div>
+      </Dialog>
 
       {/* ───────── Ko'rib chiqish va yuklash ───────── */}
       <Dialog
