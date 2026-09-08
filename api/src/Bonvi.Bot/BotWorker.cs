@@ -433,12 +433,19 @@ public sealed partial class BotWorker : BackgroundService
 
         foreach (var notice in pending)
         {
+            /*
+              Til FAQAT menyu yorliqlari uchun: rad etish matnining
+              o'zi hammaga bir xil va ikki tilli
+              (`BotTexts.RejectionNotice` izohi). Menyu esa nomzod
+              tanlagan tilda qolaveradi — u xabarning bir qismi emas,
+              botning doimiy tugmalari.
+            */
             var language = BotLanguages.Parse(notice.Language);
 
             var sent = await _telegram
                 .SendMessageAsync(
                     notice.ChatId,
-                    BotTexts.RejectionNotice(language, notice.FullName, notice.VacancyTitle),
+                    BotTexts.RejectionNotice(notice.FullName),
                     menu: BotMenu.Labels(language, hasAbout: false, hasContacts: false),
                     cancellationToken: cancellationToken)
                 .ConfigureAwait(false);

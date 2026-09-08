@@ -8,8 +8,8 @@ namespace Bonvi.Bot.Tests;
 /// <remarks>
 /// <b>Nega test kerak.</b> Kod nomzod bilan birga BAZAGA yoziladi va
 /// undan qaytib o'qiladi. Yozishda bir shakl, o'qishda boshqasi
-/// ishlatilsa, rad etilgan ruscha nomzod kirillcha xabar olardi va bu
-/// faqat nomzodda ko'rinardi.
+/// ishlatilsa, ruscha nomzod kirillcha menyu va kirillcha suhbat
+/// taklifini olardi va bu faqat nomzodda ko'rinardi.
 /// </remarks>
 public sealed class BotLanguagesTests
 {
@@ -51,27 +51,44 @@ public sealed class BotLanguagesTests
         => BotLanguages.Parse("  ru  ").ShouldBe(BotLanguage.Russian);
 
     [Fact]
-    public void Rad_etish_xabari_uchala_tilda_ham_boshqacha()
+    public void Rad_etish_xabari_hamma_nomzodga_bir_xil()
     {
         /*
-          Yangi til qo'shilganda `_ =>` tarmog'i uni jimgina lotincha
-          matn bilan qoldirib ketishi mumkin — kompilyator bunday
-          xatoni ushlamaydi (`BotLanguage` izohidagi ogohlantirish).
+          Foydalanuvchi qarori (2026-09-08): rad etish javobi
+          KOMPANIYANING rasmiy matni, u nomzoddan nomzodga farq
+          qilmaydi. Shu sababli matn tilga umuman bog'lanmagan —
+          ismdan boshqa hech narsa o'zgarmasligi shu yerda
+          qulflanadi.
         */
-        var texts = new[] { BotLanguage.Cyrillic, BotLanguage.Latin, BotLanguage.Russian }
-            .Select(language => BotTexts.RejectionNotice(language, "Каримов Азиз", "Ҳисобчи"))
-            .ToList();
+        var first = BotTexts.RejectionNotice("Karimov Aziz");
+        var second = BotTexts.RejectionNotice("Karimov Aziz");
 
-        texts.Distinct(StringComparer.Ordinal).Count().ShouldBe(3);
+        first.ShouldBe(second);
     }
 
     [Fact]
-    public void Rad_etish_xabarida_ism_va_vakansiya_bor()
+    public void Rad_etish_xabari_ikki_tilda_ham_yoziladi()
     {
-        var text = BotTexts.RejectionNotice(BotLanguage.Latin, "Karimov Aziz", "Hisobchi");
+        var text = BotTexts.RejectionNotice("Turdimuhammadova Durdona");
 
-        // Nomzod xabarni o'ziga tegishli deb tanishi kerak.
-        text.ShouldContain("Karimov Aziz");
-        text.ShouldContain("Hisobchi");
+        // Nomzod xabarni o'ziga tegishli deb tanishi kerak — ikkala
+        // tildagi qismida ham ismi turadi.
+        text.Split("Turdimuhammadova Durdona").Length.ShouldBe(3);
+
+        text.ShouldContain("Assalomu alaykum");
+        text.ShouldContain("Здравствуйте");
+        text.ShouldContain("HR MBF company!");
+    }
+
+    [Fact]
+    public void Rad_etish_xabarida_vakansiya_nomi_yoq()
+    {
+        /*
+          Shablonda vakansiya nomi ATAYLAB yo'q. Test uni qaytarib
+          qo'yilishidan saqlaydi: nom qo'shilsa, xabar ikki tilda ikki
+          marta uzayardi va shablon HR dagi qog'oz nusxadan farq
+          qilardi.
+        */
+        BotTexts.RejectionNotice("Karimov Aziz").ShouldNotContain("Hisobchi");
     }
 }

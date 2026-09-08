@@ -199,9 +199,17 @@ export function CandidateActionDialog({
               onChange={(event) => setAt(event.target.value)}
             />
 
+            {/*
+              Sabab ICHKI: u nomzodga ketadigan xabarga tushmaydi
+              (backend `BotTexts.RejectionNotice`). Bu yozuvsiz HR
+              izohni «nomzod o'qiydi» deb yozardi va izohning ichki
+              qiymati yo'qolardi — shu sababli eslatma maydonning
+              O'ZIDA turadi.
+            */}
             <TextArea
               label={t('recruiting.reason')}
               placeholder={t('recruiting.candidateReasonPlaceholder')}
+              hint={t('recruiting.candidateReasonHint')}
               value={reason}
               disabled={pending}
               onChange={(event) => setReason(event.target.value)}

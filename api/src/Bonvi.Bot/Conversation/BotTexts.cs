@@ -466,7 +466,26 @@ public static class BotTexts
     /// yetarli emas» kabi baho yoziladi va u nomzodga borishi
     /// mo'ljallanmagan. Bunday matnni to'g'ridan-to'g'ri yuborish HR
     /// ni har bir izohni «nomzod o'qiydi» deb yozishga majburlardi va
-    /// izohning ichki qiymatini yo'qotardi.
+    /// izohning ichki qiymatini yo'qotardi. Shu sababli sabab hatto
+    /// botga BERILMAYDI ham: <c>RejectionNoticeDto</c> da bunday
+    /// maydon yo'q.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Matn HAMMAGA bir xil</b> (2026-09-08, foydalanuvchi
+    /// qarori: «bir xil holatda borishi kerak»). Xabar ikki tilda —
+    /// o'zbekcha va ruscha — BITTA xabarda ketadi va nomzod bot
+    /// boshida qaysi tilni tanlaganiga bog'liq emas. Sabab: bu
+    /// kompaniyaning rasmiy javobi, uning matni HR da qog'ozda ham
+    /// shu ko'rinishda turadi va nomzoddan nomzodga farq qilmasligi
+    /// kerak. Til bo'yicha uchta boshqa matn esa aynan shu farqni
+    /// tug'dirardi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Vakansiya nomi ham YO'Q.</b> Matn «vakansiyaga bo'lgan
+    /// qiziqishingiz uchun» deydi, nomini aytmaydi — talab qilingan
+    /// shablon shunday. Nomzod odatda bitta vakansiyaga ariza beradi
+    /// va nomni takrorlash xabarni ikki tilda ikki marta
+    /// uzaytirardi.
     /// </para>
     /// <para>
     /// <b>Ohangi ataylab iliq va yopiq.</b> Xabar javobsizlikni
@@ -476,43 +495,52 @@ public static class BotTexts
     /// mumkin.
     /// </para>
     /// </remarks>
-    public static string RejectionNotice(BotLanguage language, string fullName, string vacancy) => language switch
+    /// <param name="fullName">
+    /// Nomzodning ismi — xabarning YAGONA o'zgaruvchi qismi. U ikkala
+    /// tilda ham bir xil yoziladi: ism tarjima qilinmaydi.
+    /// </param>
+    public static string RejectionNotice(string fullName)
     {
-        BotLanguage.Cyrillic =>
-            $"Ассалому алайкум, {Escape(fullName)}!\n\n"
-            + $"«{Escape(vacancy)}» вакансиясига бўлган қизиқишингиз учун катта раҳмат. "
-            + "Афсуски, ҳозирда биз сизни ушбу вакансия учун кейинги суҳбатга таклиф "
-            + "қилишга тайёр эмасмиз.\n\n"
-            + "Анкетангизни диққат билан кўриб чиқдик ва зарур бўлганда номзодингизга "
-            + "қайтишимиз мумкин.\n\n"
-            + Signature(language),
-        BotLanguage.Russian =>
-            $"Здравствуйте, {Escape(fullName)}!\n\n"
-            + $"Большое спасибо за интерес, проявленный к вакансии «{Escape(vacancy)}». "
-            + "К сожалению, в настоящий момент мы не готовы пригласить Вас на "
-            + "дальнейшее интервью.\n\n"
+        var name = Escape(fullName);
+
+        return $"🇺🇿 Assalomu alaykum, {name}!\n\n"
+            + "Vakansiyaga bo\u2018lgan qiziqishingiz uchun katta rahmat. Afsuski, "
+            + "hozirda biz sizni ushbu vakansiya uchun keyingi suhbatga taklif "
+            + "qilishga tayyor emasmiz. Biz sizning rezyumeingizni diqqat bilan "
+            + "ko\u2018rib chiqdik va agar kerak bo\u2018lsa, sizning nomzodingizga "
+            + "qaytishimiz mumkin.\n\n"
+            + "Hurmat bilan,\nHR MBF company!\n"
+            + RejectionDivider + "\n"
+            + $"🇷🇺 Здравствуйте, {name}!\n\n"
+            + "Большое спасибо за интерес, проявленный к вакансии. К сожалению, в "
+            + "настоящий момент мы не готовы пригласить Вас на дальнейшее интервью. "
             + "Мы внимательно ознакомились с Вашей анкетой и, возможно, вернёмся к "
             + "Вашей кандидатуре, когда у нас возникнет такая потребность.\n\n"
-            + Signature(language),
-        _ =>
-            $"Assalomu alaykum, {Escape(fullName)}!\n\n"
-            + $"«{Escape(vacancy)}» vakansiyasiga bo‘lgan qiziqishingiz uchun katta rahmat. "
-            + "Afsuski, hozirda biz sizni ushbu vakansiya uchun keyingi suhbatga taklif "
-            + "qilishga tayyor emasmiz.\n\n"
-            + "Anketangizni diqqat bilan ko‘rib chiqdik va zarur bo‘lganda nomzodingizga "
-            + "qaytishimiz mumkin.\n\n"
-            + Signature(language),
-    };
+            + "С уважением,\nHR MBF company!";
+    }
+
+    /// <summary>
+    /// Ikki tilni ajratuvchi chiziq.
+    /// </summary>
+    /// <remarks>
+    /// Uzunligi ataylab QISQA: Telegram matnni telefon ekrani bo'yicha
+    /// o'raydi va uzun chiziq ikkiga bo'linib, ajratkich o'rniga ikkita
+    /// sinuq qatorga aylanardi.
+    /// </remarks>
+    private const string RejectionDivider = "------------------------------";
 
     /// <summary>
     /// Xabar oxiridagi imzo — «Ҳурмат билан, HR MBF company».
     /// </summary>
     /// <remarks>
     /// <para>
-    /// ⭐ <b>Nega alohida funksiya.</b> Imzo UCHTA xabarda takrorlanadi
-    /// (ariza qabul qilindi, suhbatga taklif, rad etish) va uchalasi ham
-    /// nomzod bilan RASMIY muloqot. Har birida qo'lda yozilsa, kompaniya
-    /// nomi bir kun bir joyda o'zgarib, boshqasida eski holida qolardi.
+    /// ⭐ <b>Nega alohida funksiya.</b> Imzo IKKI xabarda takrorlanadi
+    /// (ariza qabul qilindi, suhbatga taklif) va ikkalasi ham nomzod
+    /// bilan RASMIY muloqot. Har birida qo'lda yozilsa, kompaniya nomi
+    /// bir kun bir joyda o'zgarib, boshqasida eski holida qolardi.
+    /// Rad etish xabari bu imzoni ISHLATMAYDI: u ikki tilli va qat'iy
+    /// shablon, imzosi ham shablonning bir qismi
+    /// (<see cref="RejectionNotice"/>).
     /// </para>
     /// <para>
     /// <b>Nega sozlamaga chiqarilmagan.</b> Bu kompaniyaning O'Z nomi,
