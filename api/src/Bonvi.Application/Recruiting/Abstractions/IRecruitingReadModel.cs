@@ -112,8 +112,9 @@ public enum VacancySortField
 /// <param name="VacancyId">Vakansiya bo'yicha filtr.</param>
 /// <param name="StageId">Bosqich bo'yicha filtr — voronka ustunini chizish uchun.</param>
 /// <param name="Status">
-/// Holat bo'yicha filtr. Bo'sh — ISHGA OLINGANLARDAN tashqari hammasi
-/// (sababi <see cref="CandidateSearchFilter.HideHired"/> izohida).
+/// Holat bo'yicha filtr. Bo'sh — ISHGA OLINGANLAR va RAD ETILGANLARDAN
+/// tashqari hammasi (sabablari <see cref="CandidateSearchFilter.HideHired"/>
+/// va <see cref="CandidateSearchFilter.HideRejected"/> izohlarida).
 /// </param>
 /// <param name="Source">Manba bo'yicha filtr: qo'lda kiritilgan / botdan kelgan.</param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
@@ -176,6 +177,62 @@ public sealed record CandidateSearchFilter(
     /// </para>
     /// </remarks>
     public bool HideHired => Status is null;
+
+    /// <summary>
+    /// Rad etilganlar ro'yxatdan chiqarilsinmi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Sukut bo'yicha CHIQARILADI</b> (foydalanuvchi talabi,
+    /// 2026-09-08: «отказ бўлганлар алоҳида рад бўлганлар бўлимига ўтиши
+    /// керак»). <see cref="HideHired"/> bilan AYNAN bir xil mulohaza:
+    /// nomzodlar ro'yxati «hozir kim ish ustida?» degan savolga javob
+    /// beradi va rad etilganlar shu savolni ko'mib yuborardi. Ular
+    /// yillar davomida to'planadi — ishga olinganlardan ham tezroq.
+    /// </para>
+    /// <para>
+    /// <b>Yozuv O'CHIRILMAYDI</b> va bu ataylab: rad etilgan nomzod
+    /// kelasi izlanishning bazasi (<c>DeleteCandidateCommand</c> izohi).
+    /// Faqat SUKUT ro'yxatdan chiqariladi — menyudagi «Rad etilganlar»
+    /// bandi <c>?status=Rejected</c> bilan aynan shularni ochadi.
+    /// </para>
+    /// <para>
+    /// <b>Holat ataylab tanlangan bo'lsa chiqarilmaydi</b> —
+    /// <see cref="HideHired"/> va <see cref="HideArchive"/> bilan bir xil
+    /// qoida, aks holda o'sha band jimgina bo'sh ro'yxat berardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ «O'zi voz kechgan» (<see cref="CandidateStatus.Withdrawn"/>) va
+    /// rezervdagilar bu qoidaga TUSHMAYDI: birinchisi kam uchraydi,
+    /// ikkinchisining butun ma'nosi «kerak bo'lganda shu yerdan
+    /// chaqiramiz» degani.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Excel ARXIVIDA qoida ishlamaydi.</b> Kengash arxividagi 3110
+    /// yozuvning deyarli hammasi aynan RAD ETILGAN
+    /// (<c>CouncilStep.Close</c>: xodimga ulanmagani rad etiladi). Ikkala
+    /// qoida birga qo'llansa, «Excel arxivi» ni tanlagan HR bo'm-bo'sh
+    /// ro'yxat olardi — arxivning o'zi ko'rinmas bo'lib qolardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Shart <see cref="HideArchive"/> ga bog'lanmagan va bu ATAYLAB:
+    /// u har qanday MANBA tanlovida ochiladi, ya'ni «manba: Telegram bot»
+    /// ni tanlagan HR ga rad etilganlar qaytib kelardi. Bu qoidaning
+    /// <see cref="HideHired"/> bilan bo'lgan qarindoshligini buzardi —
+    /// unda faqat HOLAT tanlovi qoidani ochadi.
+    /// </para>
+    /// </remarks>
+    public bool HideRejected => Status is null && !ArchiveRequested;
+
+    /// <summary>
+    /// Excel arxivi ATAYLAB so'ralganmi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="HideArchive"/> dan farqi: u istalgan manba tanlovida
+    /// ochiladi, bu esa faqat arxivning O'ZI so'ralganda. Farqning sababi
+    /// <see cref="HideRejected"/> izohida.
+    /// </remarks>
+    private bool ArchiveRequested => IncludeArchive || Source == CandidateSource.Excel;
 }
 
 /// <summary>Bitta sahifa: nomzodlar va umumiy soni.</summary>

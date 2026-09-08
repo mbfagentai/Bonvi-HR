@@ -37,6 +37,7 @@
     "recruiting": "Recruiting",
     "vacancies": "Vacancies",
     "candidates": "Candidates",
+    "rejectedCandidates": "Rejected",
     "vacancyTitles": "Vacancy titles"
   },
   "roles": {
@@ -1163,9 +1164,12 @@
     "candidateEdit": "Edit candidate details",
     "candidateNotePlaceholder": "Internal note: who referred them, what stands out",
     "candidateReasonPlaceholder": "Why they left the funnel",
+    "candidateReasonHint": "Internal note only — it is not sent to the candidate.",
     "candidateSearchPlaceholder": "Full name or phone…",
     "candidateEmptyTitle": "No candidates yet",
     "candidateEmptyText": "Add a candidate manually, or wait for the Telegram application bot.",
+    "candidateNoRejectedTitle": "No rejected candidates",
+    "candidateNoRejectedText": "Rejected candidates land here and are never deleted — you may revisit them in a future search.",
     "candidateNotFoundTitle": "No candidates found",
     "candidateNotFoundText": "Try changing the search or the filters. Hired candidates are hidden by default — pick them in the “Status” filter.",
     "candidateStatus": {

@@ -282,19 +282,22 @@ public static class CandidateEndpoints
                 "bo'lmaydi); qidiruv xodimlar ro'yxatidagi kabi kirill imlo variantlarini " +
                 "(қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini hisobga oladi. " +
                 "«status» — InProgress | Rejected | Hired | Withdrawn | Reserve. " +
-                "⚠️ Filtr BERILMASA, ISHGA OLINGANLAR ro'yxatga tushmaydi (va " +
-                "sanoqqa ham kirmaydi): ular endi xodim va ularning o'rni " +
-                "«Xodimlar» bo'limida. Yozuv o'chirilmaydi — «status=Hired» " +
-                "tanlansa ular to'liq qaytadi. REZERVGA bu qoida tegmaydi: " +
-                "rezervdagi nomzod sukut ro'yxatda ko'rinadi va «status=Reserve» " +
-                "bilan alohida ham topiladi. «source» — " +
+                "⚠️ Filtr BERILMASA, ISHGA OLINGANLAR va RAD ETILGANLAR ro'yxatga " +
+                "tushmaydi (va sanoqqa ham kirmaydi): birinchilari endi xodim va " +
+                "ularning o'rni «Xodimlar» bo'limida, ikkinchilari voronkadan " +
+                "chiqqan va ularning o'rni «Rad etilganlar» bo'limida. Yozuv " +
+                "o'chirilmaydi — «status=Hired» yoki «status=Rejected» tanlansa " +
+                "ular to'liq qaytadi. REZERVGA va «o'zi voz kechgan»ga bu qoida " +
+                "tegmaydi: ular sukut ro'yxatda ko'rinadi va «status=…» bilan " +
+                "alohida ham topiladi. «source» — " +
                 "Manual | TelegramBot | Excel (noma'lum qiymat 400: «nomzod.holat_notogri» / " +
                 "«nomzod.manba_notogri»). «sort» — createdAt (sukut, yangidan eskiga), " +
                 "name, stage. Voronka ustuni: «?status=InProgress&stageId=…». " +
                 "«includeArchive=true» — Excel'dan ko'chirilgan kengash arxivi ham " +
                 "qo'shiladi; sukut bo'yicha u ro'yxatda KO'RINMAYDI, chunki ekran " +
                 "«hozir kim bor?» degan savolga javob beradi. «source=Excel» tanlansa " +
-                "arxiv bayroqsiz ham ochiladi. Har qatorda «hasResume» va «hasPhoto» " +
+                "arxiv bayroqsiz ham ochiladi — arxiv ochilganda rad etilganlar " +
+                "ham qaytadi, chunki arxivning deyarli hammasi shu holatda. Har qatorda «hasResume» va «hasPhoto» " +
                 "bayroqlari bor; ANKETA ro'yxatga QO'SHILMAYDI — u og'ir va faqat " +
                 "kartada kerak.")
             .Produces<PagedResult<CandidateListItemDto>>(StatusCodes.Status200OK)

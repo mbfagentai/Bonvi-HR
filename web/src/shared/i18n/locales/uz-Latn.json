@@ -37,6 +37,7 @@
     "recruiting": "Rekruting",
     "vacancies": "Vakansiyalar",
     "candidates": "Nomzodlar",
+    "rejectedCandidates": "Rad etilganlar",
     "vacancyTitles": "Vakansiya nomlari"
   },
   "roles": {
@@ -1163,9 +1164,12 @@
     "candidateEdit": "Nomzod ma’lumotini tuzatish",
     "candidateNotePlaceholder": "Ichki eslatma: kim tavsiya qildi, nima diqqatga sazovor",
     "candidateReasonPlaceholder": "Nima uchun voronkadan chiqdi",
+    "candidateReasonHint": "Faqat ichki qayd — nomzodga bormaydi.",
     "candidateSearchPlaceholder": "F.I.Sh. yoki telefon…",
     "candidateEmptyTitle": "Hali nomzod yo‘q",
     "candidateEmptyText": "Nomzodni qo‘lda kiriting yoki Telegram anketa boti ulanishini kuting.",
+    "candidateNoRejectedTitle": "Rad etilgan nomzod yo‘q",
+    "candidateNoRejectedText": "Rad etilgan nomzodlar shu yerga tushadi va o‘chirilmaydi — kelasi izlanishda ular qayta ko‘riladi.",
     "candidateNotFoundTitle": "Nomzod topilmadi",
     "candidateNotFoundText": "Qidiruvni yoki filtrlarni o‘zgartirib ko‘ring. Ishga olinganlar sukut bo‘yicha ko‘rsatilmaydi — ularni «Holati» filtridan tanlang.",
     "candidateStatus": {

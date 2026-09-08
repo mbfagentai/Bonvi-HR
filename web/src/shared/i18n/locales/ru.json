@@ -37,6 +37,7 @@
     "recruiting": "Рекрутинг",
     "vacancies": "Вакансии",
     "candidates": "Кандидаты",
+    "rejectedCandidates": "Отказано",
     "vacancyTitles": "Названия вакансий"
   },
   "roles": {
@@ -1163,9 +1164,12 @@
     "candidateEdit": "Изменить данные кандидата",
     "candidateNotePlaceholder": "Внутренняя заметка: кто порекомендовал, что важно",
     "candidateReasonPlaceholder": "Почему вышел из воронки",
+    "candidateReasonHint": "Только внутренняя заметка — кандидату не отправляется.",
     "candidateSearchPlaceholder": "Ф.И.О. или телефон…",
     "candidateEmptyTitle": "Кандидатов пока нет",
     "candidateEmptyText": "Добавьте кандидата вручную или дождитесь подключения Telegram-анкеты.",
+    "candidateNoRejectedTitle": "Отклонённых кандидатов нет",
+    "candidateNoRejectedText": "Кандидаты с отказом попадают сюда и не удаляются — при будущем подборе их можно пересмотреть.",
     "candidateNotFoundTitle": "Кандидаты не найдены",
     "candidateNotFoundText": "Измените поиск или фильтры. Принятые на работу по умолчанию не показываются — выберите их в фильтре «Статус».",
     "candidateStatus": {

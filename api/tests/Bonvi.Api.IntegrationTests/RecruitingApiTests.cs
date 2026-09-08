@@ -476,6 +476,67 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
+    public async Task Rad_etilgan_nomzod_SUKUT_royxatda_KORINMAYDI()
+    {
+        // ⭐ Foydalanuvchi talabi (2026-09-08): «отказ бўлганлар алоҳида
+        //    рад бўлганлар бўлимига ўтиши керак». Ya'ni rad etilgan
+        //    nomzod kundalik ro'yxatdan CHIQADI va `?status=Rejected`
+        //    bilan ochiladigan alohida bo'limda turadi.
+        //
+        //    ⚠️ Yozuv O'CHIRILMAYDI: u kelasi izlanishning bazasi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+
+        var jarayonda = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Жараёнда");
+        var vozKechgan = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Возкечган");
+        var radEtilgan = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Радэтилган");
+
+        using (var vozKechish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{vozKechgan.Id}/withdraw", UriKind.Relative),
+            new { reason = "Бошқа жойга ишга кирди" },
+            bekorQilish))
+        {
+            vozKechish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(vozKechish));
+        }
+
+        using (var rad = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{radEtilgan.Id}/reject", UriKind.Relative),
+            new { reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        // ── 1. SUKUT ro'yxat: rad etilgan yo'q, voz kechgani BOR ──
+        var sukut = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}");
+
+        sukut.Items.ShouldContain(q => q.Id == jarayonda.Id);
+        sukut.Items.ShouldContain(
+            q => q.Id == vozKechgan.Id,
+            "qoida FAQAT rad etilganlarga tegishli — voz kechgan kam uchraydi");
+        sukut.Items.ShouldNotContain(q => q.Id == radEtilgan.Id);
+
+        // ── 2. Sanoq qatorlarga MOS: ikkalasi bitta so'rovdan olinadi ──
+        sukut.Total.ShouldBe(
+            sukut.Items.Count,
+            "sanoq va qatorlar bir-biriga zid bo'lmasligi kerak");
+        sukut.Total.ShouldBe(2);
+
+        // ── 3. «Rad etilganlar» bo'limi — menyudagi band shu so'rovni yuboradi ──
+        var radEtilganlar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Rejected");
+
+        radEtilganlar.Items.ShouldContain(q => q.Id == radEtilgan.Id);
+        radEtilganlar.Total.ShouldBe(1, "band jimgina bo'sh ro'yxat bermasligi kerak");
+
+        // ── 4. Yozuv O'CHIRILMAGAN: karta ochilaveradi ──
+        var karta = await KartaAsync(mijoz, radEtilgan.Id);
+        karta.Status.ShouldBe("Rejected");
+        karta.ClosingNote.ShouldBe("Тажрибаси етарли эмас", "izoh ICHKI — nomzodga bormaydi");
+    }
+
+    [Fact]
     public async Task Ishga_olingan_nomzod_SUKUT_royxatda_KORINMAYDI()
     {
         // ⭐ Foydalanuvchi talabi (2026-09-07): ishga olingan nomzod endi

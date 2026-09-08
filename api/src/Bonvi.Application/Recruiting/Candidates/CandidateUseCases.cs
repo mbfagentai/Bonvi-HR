@@ -23,10 +23,12 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// <c>InProgress</c> | <c>Rejected</c> | <c>Hired</c> | <c>Withdrawn</c> |
 /// <c>Reserve</c>.
 /// <para>
-/// Bo'sh bo'lsa — ISHGA OLINGANLARDAN tashqari hammasi: ular endi xodim
-/// va nomzodlar ro'yxatida shovqin (batafsil sabab
-/// <c>CandidateSearchFilter.HideHired</c> izohida). Ularni ko'rish uchun
-/// <c>Hired</c> ni ATAYLAB tanlash kerak.
+/// Bo'sh bo'lsa — ISHGA OLINGANLAR va RAD ETILGANLARDAN tashqari hammasi.
+/// Birinchisi endi xodim, ikkinchisi voronkadan chiqqan: ikkalasi ham
+/// «hozir kim ish ustida?» degan savolga shovqin (batafsil sabablar
+/// <c>CandidateSearchFilter.HideHired</c> va <c>HideRejected</c>
+/// izohlarida). Ularni ko'rish uchun <c>Hired</c> yoki <c>Rejected</c> ni
+/// ATAYLAB tanlash kerak — interfeysda bu menyudagi alohida bandlar.
 /// </para>
 /// <para>
 /// Voronka taxtasi <c>InProgress</c> bilan so'raydi: voronkadan chiqqan

@@ -451,6 +451,20 @@ function groups(): NavItem[] {
   return NAV.flatMap((section) => section.items.filter((item) => item.children))
 }
 
+/**
+ * Menyudagi HAMMA band — ochiluvchi guruhlarning ichidagilari bilan birga.
+ *
+ * NEGA kerak: `isActive` parametrsiz bandni tekshirayotganda «shu yo'lakda
+ * parametrli qarindoshi bormi?» deb qaraydi. Faqat yuqori darajaga
+ * qaralsa, guruh ICHIDAGI juftlik topilmasdi — «Nomzodlar» va «Rad
+ * etilganlar» aynan shunday juftlik va ikkalasi birdaniga yonib turardi.
+ */
+function allItems(): NavItem[] {
+  return NAV.flatMap((section) =>
+    section.items.flatMap((item) => [item, ...(item.children ?? [])]),
+  )
+}
+
 /** Band shu yo'lakdami (qidiruv parametrlari hisobga olinmaydi). */
 function onPath(item: NavItem, pathname: string): boolean {
   return item.to === '/' ? pathname === '/' : pathname.startsWith(item.to)
@@ -477,12 +491,12 @@ function isActive(
 
   if (item.search) return matches(item.search, search)
 
-  return !NAV.some((section) =>
-    section.items.some((other) =>
-      other !== item && other.to === item.to && other.search
-        ? matches(other.search, search)
-        : false,
-    ),
+  return !allItems().some(
+    (other) =>
+      other !== item &&
+      other.to === item.to &&
+      other.search !== undefined &&
+      matches(other.search, search),
   )
 }
 

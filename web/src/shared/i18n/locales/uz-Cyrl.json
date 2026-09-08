@@ -37,6 +37,7 @@
     "recruiting": "Рекрутинг",
     "vacancies": "Вакансиялар",
     "candidates": "Номзодлар",
+    "rejectedCandidates": "Рад этилганлар",
     "vacancyTitles": "Вакансия номлари"
   },
   "roles": {
@@ -1163,9 +1164,12 @@
     "candidateEdit": "Номзод маълумотини тузатиш",
     "candidateNotePlaceholder": "Ички эслатма: ким тавсия қилди, нима диққатга сазовор",
     "candidateReasonPlaceholder": "Нима учун воронкадан чиқди",
+    "candidateReasonHint": "Фақат ички қайд — номзодга бормайди.",
     "candidateSearchPlaceholder": "Ф.И.Ш. ёки телефон…",
     "candidateEmptyTitle": "Ҳали номзод йўқ",
     "candidateEmptyText": "Номзодни қўлда киритинг ёки Telegram анкета боти уланишини кутинг.",
+    "candidateNoRejectedTitle": "Рад этилган номзод йўқ",
+    "candidateNoRejectedText": "Рад этилган номзодлар шу ерга тушади ва ўчирилмайди — келаси изланишда улар қайта кўрилади.",
     "candidateNotFoundTitle": "Номзод топилмади",
     "candidateNotFoundText": "Қидирувни ёки филтрларни ўзгартириб кўринг. Ишга олинганлар сукут бўйича кўрсатилмайди — уларни «Ҳолати» филтридан танланг.",
     "candidateStatus": {

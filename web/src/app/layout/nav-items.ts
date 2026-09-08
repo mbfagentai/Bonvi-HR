@@ -24,6 +24,7 @@ import {
   UserCog,
   UserMinus,
   UserPlus,
+  UserRoundX,
   UserSearch,
   Users,
 } from 'lucide-react'
@@ -265,6 +266,22 @@ export const NAV: NavSection[] = [
             permission: 'recruiting.view' },
           { key: 'candidates', to: '/nomzodlar',    icon: UserPlus,
             permission: 'recruiting.view' },
+          /*
+            Rad etilganlar — arxiv. `formerEmployees` bandining AYNAN
+            naqshi: alohida sahifa emas, o'sha ro'yxatning boshqa filtri
+            (`?status=Rejected`). Sabab o'sha yerda yozilgan — alohida
+            sahifa qidiruv, saralash, sahifalash va jadval ustunlarini
+            ikkinchi marta takrorlash demak.
+
+            NEGA ALOHIDA BAND KERAK (foydalanuvchi talabi, 2026-09-08):
+            rad etilganlar endi kundalik ro'yxatda KO'RINMAYDI
+            (`CandidateSearchFilter.HideRejected`). Filtrning o'zi
+            qoldirilsa, ular tizimda BUTUNLAY ko'rinmas bo'lib qolardi —
+            «ishdan ketganlar» bandidagi bilan bir xil xavf: topib
+            bo'lmagan odam qayta kiritiladi.
+          */
+          { key: 'rejectedCandidates', to: '/nomzodlar', icon: UserRoundX,
+            search: { status: 'Rejected' }, permission: 'recruiting.view' },
         ],
       },
     ],

@@ -82,6 +82,20 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Hired);
         }
 
+        // Rad etilgan nomzod ham kundalik ro'yxatda KO'RINMAYDI — u
+        // menyudagi «Rad etilganlar» bandiga o'tadi (`?status=Rejected`).
+        // Yuqoridagi bilan bir xil qoida va bir xil sabab
+        // (`CandidateSearchFilter.HideRejected` izohi): yozuv o'chmaydi,
+        // faqat sukut ro'yxatdan chiqariladi.
+        //
+        // ⚠️ Excel arxivi ochilganda qoida O'CHADI: arxivning deyarli
+        // hammasi rad etilgan va aks holda «Excel arxivi» tanlovi bo'sh
+        // ro'yxat berardi.
+        if (filter.HideRejected)
+        {
+            candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Rejected);
+        }
+
         if (filter.Source is { } source)
         {
             candidates = candidates.Where(candidate => candidate.Source == source);

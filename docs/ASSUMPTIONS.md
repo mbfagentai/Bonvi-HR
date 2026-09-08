@@ -143,3 +143,32 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   qabul qilinadi → HR ertalab «bugun soat 15:00» deb yozadi; soat darajasida
   tekshirish shu odatiy holatni to'sib qo'yardi, kun darajasidagi tekshiruv
   esa yil terish xatosini ushlaydi.
+- [2026-09-08] RAD ETISH xabari yuqoridagi «bitta tilda» qoidasidan ISTISNO
+  (foydalanuvchi qarori: «bir xil holatda borishi kerak») → matn hammaga bir
+  xil, ikki tilda (o'zbekcha + ruscha) bitta xabarda va nomzod tanlagan tilga
+  bog'liq emas. Sabab: bu kompaniyaning rasmiy javobi, HR da qog'ozda ham shu
+  ko'rinishda turadi. Qolgan xabarlar (ariza qabul qilindi, suhbatga taklif)
+  eski qoidada — nomzod tilida.
+- [2026-09-08] Rad etish xabarida vakansiya nomi YO'Q (talab qilingan shablon
+  shunday) → matn «vakansiyaga bo'lgan qiziqishingiz uchun» deydi; nom ikki
+  tilda ikki marta takrorlanib xabarni uzaytirardi.
+- [2026-09-08] Ikki tilni ajratuvchi chiziq 30 belgi, shablondagi 60 emas →
+  Telegram matnni telefon ekrani bo'yicha o'raydi va uzun chiziq ikkiga
+  bo'linib, ajratkich o'rniga ikkita sinuq qatorga aylanardi.
+- [2026-09-08] Rad etilgan nomzod kundalik ro'yxatdan CHIQARILDI
+  (`CandidateSearchFilter.HideRejected`) va menyuga alohida «Rad etilganlar»
+  bandi qo'shildi (foydalanuvchi talabi) → `HideHired` bilan aynan bir xil
+  qoida va bir xil sabab. «O'zi voz kechgan» va rezervdagilar bu qoidaga
+  TUSHMADI: birinchisi kam uchraydi, ikkinchisining butun ma'nosi «kerak
+  bo'lganda shu yerdan chaqiramiz» degani.
+- [2026-09-08] «Rad etilganlar» alohida SAHIFA emas, o'sha ro'yxatning
+  filtri (`/nomzodlar?status=Rejected`) → «Ishdan ketganlar» bandidagi
+  naqsh; alohida sahifa qidiruv, saralash, sahifalash va ustunlarni
+  ikkinchi marta takrorlash bo'lardi. Ekran BO'LIMDEK ko'rinadi: sarlavha,
+  ikona va bo'sh holat matni filtrga qarab o'zgaradi, «Nomzod qo'shish»
+  tugmasi esa u yerda ko'rinmaydi.
+- [2026-09-08] Rad etilganlarni yashirish qoidasi Excel ARXIVIDA ishlamaydi
+  (`ArchiveRequested`) → kengash arxividagi 3110 yozuvning deyarli hammasi rad
+  etilgan, ikkala qoida birga qo'llansa «Excel arxivi» tanlovi bo'sh ro'yxat
+  berardi. Boshqa manba tanlovlarida (bot, qo'lda) qoida kuchda qoladi:
+  manba tanlash holat tanlash emas.

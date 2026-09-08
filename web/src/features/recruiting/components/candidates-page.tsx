@@ -1,5 +1,5 @@
 import { getRouteApi } from '@tanstack/react-router'
-import { Paperclip, Plus, SearchX, UserPlus } from 'lucide-react'
+import { Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 
@@ -85,6 +85,20 @@ export function CandidatesPage() {
   const filters = useMemo(() => searchToFilters(search), [search])
 
   const [creating, setCreating] = useState(false)
+
+  /**
+   * ⭐ «RAD ETILGANLAR» BO'LIMI — menyudagi alohida band shu manzilni
+   * ochadi (`nav-items.ts`, `?status=Rejected`).
+   *
+   * Alohida SAHIFA emas: bu o'sha ro'yxatning boshqa filtri, ya'ni
+   * qidiruv, saralash, sahifalash va ustunlar bitta joyda qoladi
+   * («ishdan ketganlar» bandidagi bilan bir xil mulohaza). Lekin ekran
+   * BO'LIMDEK ko'rinishi kerak — sarlavha, ikona va bo'sh holat matni
+   * shu bayroqqa qarab o'zgaradi, aks holda HR «Rad etilganlar» ni
+   * bosib, sarlavhasida «Nomzodlar» yozilgan ekranga tushardi va
+   * qayerdaligini bilmasdi.
+   */
+  const rejectedSection = filters.status === 'Rejected'
 
   /*
    * Filtr ro'yxatlari. Vakansiyalar — HAMMASI (yopilganini ham):
@@ -345,6 +359,16 @@ export function CandidatesPage() {
   const filtered = isFiltered(search)
   const listEmpty = rows.length === 0 && !firstLoad
 
+  /**
+   * Bo'limning O'ZIDAN boshqa filtr qo'yilmagan — ro'yxat haqiqatan
+   * bo'sh, «topilmadi» emas.
+   *
+   * `status` chiqarib tashlanadi: bu bo'limda u filtr emas, EKRANNING
+   * o'zi. Aks holda bo'sh «Rad etilganlar» bo'limi «qidiruv bo'yicha
+   * hech narsa topilmadi» deb yozardi — HR esa hech narsa qidirmagan.
+   */
+  const emptySection = rejectedSection && !isFiltered({ ...search, status: undefined })
+
   const viewOptions = [
     { value: 'table' as const, label: t('recruiting.viewTable') },
     { value: 'funnel' as const, label: t('recruiting.viewFunnel') },
@@ -355,8 +379,16 @@ export function CandidatesPage() {
       <PageHeader
         title={
           <span className="flex items-center gap-3">
-            <IconTile icon={UserPlus} tone="brand" size="lg" />
-            {t('nav.candidates')}
+            {/*
+              Ohang `red` EMAS, `gray`: bu ARXIV, xato emas. Qizil
+              ekranni «bu yerda nimadir buzilgan» deb o'qitardi.
+            */}
+            <IconTile
+              icon={rejectedSection ? UserRoundX : UserPlus}
+              tone={rejectedSection ? 'gray' : 'brand'}
+              size="lg"
+            />
+            {t(rejectedSection ? 'nav.rejectedCandidates' : 'nav.candidates')}
           </span>
         }
         subtitle={
@@ -376,7 +408,13 @@ export function CandidatesPage() {
               aria-label={t('recruiting.view')}
             />
 
-            {canManage && (
+            {/*
+              «Nomzod qo'shish» rad etilganlar bo'limida ATAYLAB yo'q:
+              yangi nomzod har doim `InProgress` bo'lib tug'iladi, ya'ni
+              u shu ro'yxatga tushmasdi — HR qo'shgan odam ko'z oldida
+              yo'q bo'lib qolardi.
+            */}
+            {canManage && !rejectedSection && (
               <Button variant="create" onClick={() => setCreating(true)}>
                 <Plus />
                 {t('recruiting.candidateCreate')}
@@ -420,7 +458,13 @@ export function CandidatesPage() {
               onSortingChange={changeSorting}
               empty={
                 listEmpty ? (
-                  filtered ? (
+                  emptySection ? (
+                    <EmptyState
+                      icon={UserRoundX}
+                      title={t('recruiting.candidateNoRejectedTitle')}
+                      description={t('recruiting.candidateNoRejectedText')}
+                    />
+                  ) : filtered ? (
                     <EmptyState
                       icon={SearchX}
                       title={t('recruiting.candidateNotFoundTitle')}
