@@ -45,6 +45,19 @@ public interface IRecruitingReadModel
         int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Suhbatga chaqirilgan, lekin taklif xabarini hali olmagan nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// Yuqoridagining egizagi, lekin sharti nomzodning HOLATIGA bog'liq
+    /// emas: taklif voronkada turgan nomzodga yuboriladi. Uchta shart —
+    /// suhbat vaqti qo'yilgan, Telegram suhbati ma'lum va xabar hali
+    /// ketmagan.
+    /// </remarks>
+    Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewNoticesAsync(
+        int limit,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Vakansiyalar ro'yxati — nomzodlar sanog'i bilan.</summary>
     Task<VacancyPage> ListVacanciesAsync(
         VacancyListFilter filter,

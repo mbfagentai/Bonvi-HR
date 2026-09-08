@@ -18,6 +18,7 @@ import {
   fetchStages,
   fetchVacancies,
   hireCandidate,
+  inviteCandidateToInterview,
   recordCandidateStage,
   reassignCandidate,
   registerCandidate,
@@ -270,6 +271,27 @@ export function useReassignCandidate() {
   return useMutation({
     mutationFn: ({ id, vacancyId }: { id: string; vacancyId: string }) =>
       reassignCandidate(id, vacancyId),
+  })
+}
+
+/**
+ * ⭐ Suhbatga chaqirish — bosqich, vaqt va Telegram taklifi bir so'rovda.
+ *
+ * `useRecordStage` dan farqi bittada va u muhim: bu yerda nomzodga
+ * XABAR ketadi. Shu sababli amal alohida hook va alohida oyna orqali
+ * bajariladi — tasodifan bosilib qolmasligi kerak.
+ */
+export function useInviteToInterview() {
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string
+      interviewAt: string
+      stageId: string | null
+      conclusion: string | null
+    }) => inviteCandidateToInterview(id, body),
   })
 }
 

@@ -104,6 +104,22 @@ public sealed record RecordCandidateStageRequest(
     DateOnly? Date = null,
     string? Conclusion = null);
 
+/// <summary>Nomzodni suhbatga chaqirish so'rovi tanasi.</summary>
+/// <param name="InterviewAt">
+/// Suhbat lahzasi — siljish bilan («2026-09-10T15:00:00+05:00»). Siljishsiz
+/// yuborilgan qiymat UTC deb o'qiladi va nomzodga besh soat oldingi vaqtni
+/// ko'rsatardi.
+/// </param>
+/// <param name="StageId">
+/// Qaysi bosqichga o'tkaziladi. Bo'sh — bosqich o'zgarmaydi (vaqtni
+/// ko'chirish).
+/// </param>
+/// <param name="Conclusion">Bosqich yozuviga izoh — ixtiyoriy.</param>
+public sealed record InviteCandidateToInterviewRequest(
+    DateTimeOffset InterviewAt,
+    Guid? StageId = null,
+    string? Conclusion = null);
+
 /// <summary>
 /// Nomzodni voronkadan chiqarish so'rovi tanasi.
 /// </summary>
@@ -536,6 +552,97 @@ public static class CandidateEndpoints
                 "bo'lsa bot so'rovni takrorlashi mumkin. Belgi oldindan qo'yilmaydi: " +
                 "tarmoq uzilganda nomzod javobsiz qolardi va buni hech kim bilmasdi. " +
                 "Xato: «nomzod.topilmadi» (404).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        /*
+          ═══════════════════════════════════════════════════════════
+           SUHBATGA CHAQIRISH — bitta amal, uchta natija.
+
+           HR uchun bu bitta tugma: «Кенгашга чақирилди». Server esa
+           uchta ishni BIR tranzaksiyada bajaradi — bosqichni yozadi,
+           suhbat vaqtini qo'yadi va Telegram xabarini navbatga
+           tashlaydi. Ularni ajratish «bosqich yozildi, xabar
+           ketmadi» degan yarim holatni tug'dirardi.
+          ═══════════════════════════════════════════════════════════
+        */
+        group.MapPost("/{id:guid}/interview-invite", async (
+                Guid id,
+                InviteCandidateToInterviewRequest request,
+                InviteCandidateToInterviewCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new InviteCandidateToInterviewCommand(
+                            id, request.StageId, request.InterviewAt, request.Conclusion),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("InviteCandidateToInterview")
+            .WithSummary("Nomzod — suhbatga chaqirish")
+            .WithDescription(
+                "Suhbat vaqtini yozadi va nomzodga Telegram TAKLIFINI navbatga qo'yadi. " +
+                "«stageId» berilsa nomzod o'sha bosqichga o'tadi («kutilmoqda» natijasi " +
+                "bilan, sana — SUHBAT kuni); berilmasa bosqich o'zgarmaydi — suhbatni " +
+                "KO'CHIRISH aynan shunday ishlaydi va nomzod yangi vaqt bilan yangi " +
+                "xabar oladi. Telegram suhbati yo'q nomzodda (HR qo'lda kiritgan) vaqt " +
+                "baribir yoziladi, xabar esa yuborilmaydi — yuboradigan manzil yo'q. " +
+                "Xatolar: «nomzod.topilmadi» (404), «bosqich.topilmadi» (404), " +
+                "«bosqich.faol_emas» (409), «nomzod.jarayonda_emas» (409), " +
+                "«nomzod.suhbat_vaqti_otgan» (400). Javob — yangilangan nomzod kartasi.")
+            .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapGet("/interview-notices", async (
+                int? limit,
+                ListPendingInterviewNoticesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListPendingInterviewNoticesQuery(limit ?? 20), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("ListPendingInterviewNotices")
+            .WithSummary("Suhbat taklifi kutayotgan nomzodlar — faqat botga")
+            .WithDescription(
+                "Suhbatga chaqirilgan, Telegram suhbati ma'lum, voronkada turgan va " +
+                "taklifni hali olmagan nomzodlar. Tartib SUHBAT VAQTI bo'yicha: eng " +
+                "yaqini birinchi javob oladi. Vaqt UTC da qaytadi — Toshkent vaqtiga " +
+                "botning o'zi keltiradi. «limit» — ko'pi bilan 50.")
+            .Produces<IReadOnlyList<InterviewNoticeDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/{id:guid}/interview-notice-sent", async (
+                Guid id,
+                MarkInterviewNoticeSentCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new MarkInterviewNoticeSentCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("MarkInterviewNoticeSent")
+            .WithSummary("Suhbat taklifi yuborildi — faqat botga")
+            .WithDescription(
+                "«rejection-notice-sent» bilan bir xil qoida: bot xabarni HAQIQATAN " +
+                "yuborgandan KEYIN chaqiradi. Farqi bittada — belgi suhbat vaqti " +
+                "QAYTA qo'yilganda tozalanadi va nomzod yangi vaqt bo'yicha yangi " +
+                "xabar oladi. Xato: «nomzod.topilmadi» (404).")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)

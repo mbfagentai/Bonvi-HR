@@ -21,10 +21,17 @@ public sealed record ListPipelineStagesQuery(bool OnlyActive = false);
 /// Yaratish formasida tartib raqami so'ralsa, HR uni boshqa yozuvlarnikidan
 /// mustaqil kiritib, ikkita bosqich bir xil raqamda qolishi mumkin edi.
 /// </remarks>
-public sealed record CreatePipelineStageCommand(string? Name, string? Note = null);
+public sealed record CreatePipelineStageCommand(
+    string? Name,
+    string? Note = null,
+    bool InvitesToInterview = false);
 
 /// <summary>Bosqich nomini va izohini tuzatadi. Tartib BU YERDA o'zgarmaydi.</summary>
-public sealed record UpdatePipelineStageCommand(Guid StageId, string? Name, string? Note = null);
+public sealed record UpdatePipelineStageCommand(
+    Guid StageId,
+    string? Name,
+    string? Note = null,
+    bool InvitesToInterview = false);
 
 /// <summary>
 /// Voronkani qayta tartiblaydi.
@@ -112,7 +119,7 @@ public sealed class CreatePipelineStageCommandHandler
         var max = await _stages.MaxSortOrderAsync(cancellationToken).ConfigureAwait(false);
         var next = max is { } value ? value + 1 : 0;
 
-        var created = PipelineStage.Create(command.Name, next);
+        var created = PipelineStage.Create(command.Name, next, command.InvitesToInterview);
         if (created.IsFailure)
         {
             return created.Error;
@@ -171,6 +178,7 @@ public sealed class UpdatePipelineStageCommandHandler
         }
 
         stage.SetNote(command.Note);
+        stage.SetInvitesToInterview(command.InvitesToInterview);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

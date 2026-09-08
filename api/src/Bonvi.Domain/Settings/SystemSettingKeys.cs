@@ -399,6 +399,36 @@ public static class SystemSettingKeys
     /// </remarks>
     public const string BotLocation = "bot.location";
 
+    /// <summary>
+    /// Suhbat taklifidagi mas'ul telefon raqami.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega <see cref="BotContactsCyrillic"/> dan alohida.</b> «Kontaktlar»
+    /// — menyudagi bo'lim uchun yozilgan ERKIN matn: unda bir nechta raqam,
+    /// ish vaqti va yo'l ko'rsatma bo'lishi mumkin. Suhbat taklifi esa qisqa
+    /// xabar va unga BITTA raqam kerak — nomzod chalkashmasligi kerak,
+    /// «kelolmayman» deb kimga qo'ng'iroq qilishini bir qarashda ko'rishi
+    /// shart.
+    /// </para>
+    /// <para>
+    /// Bo'sh bo'lsa xabarda telefon qatori umuman chizilmaydi — botning
+    /// qolgan hamma joyidagi bilan bir xil qoida.
+    /// </para>
+    /// </remarks>
+    public const string BotInterviewPhone = "bot.interview.phone";
+
+    /// <summary>
+    /// Suhbat taklifidagi manzil — qisqa satr («Qo'qon», «Toshkent, Chilonzor»).
+    /// </summary>
+    /// <remarks>
+    /// Xaritadagi nuqta <see cref="BotLocation"/> dan olinadi va u ALOHIDA
+    /// xabar bo'lib ketadi (Telegram uni navigatorga uzatadi). Bu maydon esa
+    /// nuqtaning YORLIG'I: nomzod xaritani ochmasdan ham qayerga borishini
+    /// bilishi kerak. Ikkalasi bir-birini almashtirmaydi.
+    /// </remarks>
+    public const string BotInterviewAddress = "bot.interview.address";
+
     /// <summary>Ommaviy oferta havolasi — anketaning oxirgi qadamida.</summary>
     /// <remarks>
     /// <para>
@@ -607,6 +637,8 @@ public static class SystemSettingKeys
             string.Empty,
             MaxLength: MaxLocationLength,
             Pattern: LocationPattern),
+        new(BotInterviewPhone, SystemSettingKind.Text, string.Empty, MaxLength: MaxKeyLength),
+        new(BotInterviewAddress, SystemSettingKind.Text, string.Empty, MaxLength: MaxKeyLength),
         new(BotLogo, SystemSettingKind.Photo, string.Empty, MaxLength: MaxKeyLength),
         new(BotSocialInstagram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
         new(BotSocialTelegram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),

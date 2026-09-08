@@ -42,6 +42,9 @@ internal static class RecruitingRegistration
         services.AddScoped<RegisterCandidateCommandHandler>();
         services.AddScoped<ListPendingRejectionNoticesQueryHandler>();
         services.AddScoped<MarkRejectionNoticeSentCommandHandler>();
+        services.AddScoped<InviteCandidateToInterviewCommandHandler>();
+        services.AddScoped<ListPendingInterviewNoticesQueryHandler>();
+        services.AddScoped<MarkInterviewNoticeSentCommandHandler>();
         services.AddScoped<UpdateCandidateCommandHandler>();
         services.AddScoped<ReassignCandidateCommandHandler>();
         services.AddScoped<RecordCandidateStageCommandHandler>();

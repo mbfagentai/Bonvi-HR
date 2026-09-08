@@ -210,13 +210,19 @@ public static class BotTexts
     {
         BotLanguage.Cyrillic =>
             $"✅ Аризангиз қабул қилинди!\n\nВакансия: <b>{Escape(vacancy)}</b>\n\n"
-            + "HR бўлими кўриб чиқади ва сиз билан телефон орқали боғланади.",
+            + "Бўш иш ўрнимизга қизиққанингиз учун ташаккур. Анкетангиз кадрлар "
+            + "бўлимига юборилди — тез орада сиз билан боғланамиз.\n\n"
+            + Signature(language),
         BotLanguage.Russian =>
             $"✅ Ваша заявка принята!\n\nВакансия: <b>{Escape(vacancy)}</b>\n\n"
-            + "Отдел кадров рассмотрит её и свяжется с вами по телефону.",
+            + "Спасибо за проявленный интерес. Ваша анкета передана в отдел "
+            + "кадров — в скором времени мы с Вами свяжемся.\n\n"
+            + Signature(language),
         _ =>
             $"✅ Arizangiz qabul qilindi!\n\nVakansiya: <b>{Escape(vacancy)}</b>\n\n"
-            + "HR bo‘limi ko‘rib chiqadi va siz bilan telefon orqali bog‘lanadi.",
+            + "Bo‘sh ish o‘rnimizga qiziqqaningiz uchun tashakkur. Anketangiz "
+            + "kadrlar bo‘limiga yuborildi — tez orada siz bilan bog‘lanamiz.\n\n"
+            + Signature(language),
     };
 
     /// <summary>
@@ -473,24 +479,137 @@ public static class BotTexts
     public static string RejectionNotice(BotLanguage language, string fullName, string vacancy) => language switch
     {
         BotLanguage.Cyrillic =>
-            $"Ҳурматли {Escape(fullName)},\n\n"
-            + $"«{Escape(vacancy)}» вакансияси бўйича аризангиз кўриб чиқилди. "
-            + "Афсуски, бу сафар сизнинг номзодингиз танланмади.\n\n"
-            + "Вақтингиз ва қизиқишингиз учун раҳмат. Янги иш ўринлари очилганда "
-            + "яна ариза топширишингиз мумкин.",
+            $"Ассалому алайкум, {Escape(fullName)}!\n\n"
+            + $"«{Escape(vacancy)}» вакансиясига бўлган қизиқишингиз учун катта раҳмат. "
+            + "Афсуски, ҳозирда биз сизни ушбу вакансия учун кейинги суҳбатга таклиф "
+            + "қилишга тайёр эмасмиз.\n\n"
+            + "Анкетангизни диққат билан кўриб чиқдик ва зарур бўлганда номзодингизга "
+            + "қайтишимиз мумкин.\n\n"
+            + Signature(language),
         BotLanguage.Russian =>
-            $"Уважаемый(ая) {Escape(fullName)},\n\n"
-            + $"Ваша заявка на вакансию «{Escape(vacancy)}» рассмотрена. "
-            + "К сожалению, в этот раз ваша кандидатура не была выбрана.\n\n"
-            + "Благодарим за уделённое время и интерес к нашей компании. "
-            + "Вы можете подать заявку снова, когда откроются новые вакансии.",
+            $"Здравствуйте, {Escape(fullName)}!\n\n"
+            + $"Большое спасибо за интерес, проявленный к вакансии «{Escape(vacancy)}». "
+            + "К сожалению, в настоящий момент мы не готовы пригласить Вас на "
+            + "дальнейшее интервью.\n\n"
+            + "Мы внимательно ознакомились с Вашей анкетой и, возможно, вернёмся к "
+            + "Вашей кандидатуре, когда у нас возникнет такая потребность.\n\n"
+            + Signature(language),
         _ =>
-            $"Hurmatli {Escape(fullName)},\n\n"
-            + $"«{Escape(vacancy)}» vakansiyasi bo‘yicha arizangiz ko‘rib chiqildi. "
-            + "Afsuski, bu safar sizning nomzodingiz tanlanmadi.\n\n"
-            + "Vaqtingiz va qiziqishingiz uchun rahmat. Yangi ish o‘rinlari ochilganda "
-            + "yana ariza topshirishingiz mumkin.",
+            $"Assalomu alaykum, {Escape(fullName)}!\n\n"
+            + $"«{Escape(vacancy)}» vakansiyasiga bo‘lgan qiziqishingiz uchun katta rahmat. "
+            + "Afsuski, hozirda biz sizni ushbu vakansiya uchun keyingi suhbatga taklif "
+            + "qilishga tayyor emasmiz.\n\n"
+            + "Anketangizni diqqat bilan ko‘rib chiqdik va zarur bo‘lganda nomzodingizga "
+            + "qaytishimiz mumkin.\n\n"
+            + Signature(language),
     };
+
+    /// <summary>
+    /// Xabar oxiridagi imzo — «Ҳурмат билан, HR MBF company».
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega alohida funksiya.</b> Imzo UCHTA xabarda takrorlanadi
+    /// (ariza qabul qilindi, suhbatga taklif, rad etish) va uchalasi ham
+    /// nomzod bilan RASMIY muloqot. Har birida qo'lda yozilsa, kompaniya
+    /// nomi bir kun bir joyda o'zgarib, boshqasida eski holida qolardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega sozlamaga chiqarilmagan.</b> Bu kompaniyaning O'Z nomi,
+    /// HR ning matni emas: uni ekrandan o'zgartirish imkoniyati faqat
+    /// tasodifiy o'zgartirish yo'lini ochardi. Nom o'zgarsa — bitta
+    /// qatorli o'zgarish.
+    /// </para>
+    /// </remarks>
+    public static string Signature(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "Ҳурмат билан,\nHR MBF company",
+        BotLanguage.Russian => "С уважением,\nHR MBF company",
+        _ => "Hurmat bilan,\nHR MBF company",
+    };
+
+    /// <summary>
+    /// Suhbatga taklif — HR «Кенгашга чақирилди» tugmasini bosgach
+    /// nomzodga avtomatik boradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Vaqt Toshkent bo'yicha chiziladi.</b> Server lahzani UTC da
+    /// qaytaradi va siljitilmagan qiymat nomzodni suhbatga BESH SOAT
+    /// erta chaqirardi — bu xatoning eng qimmat turi. Siljish
+    /// <see cref="BotClock"/> dan keladi, ya'ni botda yagona nusxada.
+    /// </para>
+    /// <para>
+    /// <b>Telefon va manzil qatorlari SHARTLI.</b> Ikkalasi ham
+    /// sozlamadan keladi (<c>bot.interview.phone</c>,
+    /// <c>bot.interview.address</c>) va bo'sh bo'lishi mumkin. Bo'sh
+    /// qiymat bilan «📍 » degan yolg'iz belgi qolardi — botning boshqa
+    /// hamma joyidagi qoida bir xil: sozlanmagan narsa umuman
+    /// chizilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Tasdiqlash TUGMA bilan emas, qo'ng'iroq bilan</b>
+    /// (foydalanuvchi qarori, 2026-09-08). Tugma bot suhbatiga yangi
+    /// holat qo'shardi va «tasdiqladi, lekin kelmadi» degan yozuvni
+    /// haqiqat deb ko'rsatardi; qo'ng'iroqda esa HR odam bilan
+    /// gaplashadi va rejasini o'sha yerda tuzatadi.
+    /// </para>
+    /// </remarks>
+    public static string InterviewNotice(
+        BotLanguage language,
+        string fullName,
+        string vacancy,
+        DateTimeOffset interviewAt,
+        string phone,
+        string address)
+    {
+        var local = BotClock.Local(interviewAt);
+        var when = local.ToString("dd.MM.yyyy, HH:mm", CultureInfo.InvariantCulture);
+
+        var contact = string.IsNullOrWhiteSpace(phone)
+            ? string.Empty
+            : language switch
+            {
+                BotLanguage.Cyrillic => $"📞 Масъул: Кадрлар бўлими {Escape(phone)}\n",
+                BotLanguage.Russian => $"📞 Контакты: Отдел кадров {Escape(phone)}\n",
+                _ => $"📞 Mas’ul: Kadrlar bo‘limi {Escape(phone)}\n",
+            };
+
+        var place = string.IsNullOrWhiteSpace(address)
+            ? string.Empty
+            : $"📍 {Escape(address)}\n";
+
+        return language switch
+        {
+            BotLanguage.Cyrillic =>
+                $"Ассалому алайкум, {Escape(fullName)}!\n\n"
+                + $"Сизни «{Escape(vacancy)}» вакансияси бўйича суҳбатга таклиф қиламиз.\n\n"
+                + $"🗓 Суҳбат санаси ва вақти: <b>{when}</b>\n"
+                + contact
+                + place
+                + "\nИлтимос, суҳбат вақтини тасдиқлаш учун кўрсатилган рақамга "
+                + "қўнғироқ қилинг.\n\n"
+                + Signature(language),
+            BotLanguage.Russian =>
+                $"Здравствуйте, {Escape(fullName)}!\n\n"
+                + $"Приглашаем Вас на интервью по вакансии «{Escape(vacancy)}».\n\n"
+                + $"🗓 Дата и время интервью: <b>{when}</b>\n"
+                + contact
+                + place
+                + "\nПожалуйста, позвоните по указанному номеру, чтобы подтвердить "
+                + "время встречи.\n\n"
+                + Signature(language),
+            _ =>
+                $"Assalomu alaykum, {Escape(fullName)}!\n\n"
+                + $"Sizni «{Escape(vacancy)}» vakansiyasi bo‘yicha suhbatga taklif qilamiz.\n\n"
+                + $"🗓 Suhbat sanasi va vaqti: <b>{when}</b>\n"
+                + contact
+                + place
+                + "\nIltimos, suhbat vaqtini tasdiqlash uchun ko‘rsatilgan raqamga "
+                + "qo‘ng‘iroq qiling.\n\n"
+                + Signature(language),
+        };
+    }
 
     /// <summary>Suhbat unutilgan yoki tushunilmagan xabar.</summary>
     public static string Restart(BotLanguage language) => language switch

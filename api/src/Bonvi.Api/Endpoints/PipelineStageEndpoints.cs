@@ -8,7 +8,15 @@ namespace Bonvi.Api.Endpoints;
 /// <summary>Voronka bosqichini yaratish/tahrirlash so'rovi tanasi.</summary>
 /// <param name="Name">Bosqich nomi. Majburiy va takrorlanmaydi.</param>
 /// <param name="Note">Ixtiyoriy izoh.</param>
-public sealed record SavePipelineStageRequest(string? Name, string? Note = null);
+/// <param name="InvitesToInterview">
+/// Shu bosqichga o'tkazilganda nomzoddan SUHBAT VAQTI so'ralsinmi va unga
+/// Telegram taklifi yuborilsinmi. Sukut — yo'q; sabab
+/// <c>PipelineStage.InvitesToInterview</c> izohida.
+/// </param>
+public sealed record SavePipelineStageRequest(
+    string? Name,
+    string? Note = null,
+    bool InvitesToInterview = false);
 
 /// <summary>Voronkani qayta tartiblash so'rovi tanasi.</summary>
 /// <param name="OrderedIds">Yangi ketma-ketlikdagi BARCHA bosqichlar.</param>
@@ -72,7 +80,7 @@ public static class PipelineStageEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new CreatePipelineStageCommand(request.Name, request.Note), cancellationToken)
+                    .HandleAsync(new CreatePipelineStageCommand(request.Name, request.Note, request.InvitesToInterview), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -96,7 +104,7 @@ public static class PipelineStageEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new UpdatePipelineStageCommand(id, request.Name, request.Note),
+                        new UpdatePipelineStageCommand(id, request.Name, request.Note, request.InvitesToInterview),
                         cancellationToken)
                     .ConfigureAwait(false);
 

@@ -120,6 +120,15 @@ public sealed record SystemSettingDto(
 /// Bosh ofisning xaritadagi nuqtasi, «kenglik,uzunlik». Bo'sh bo'lsa
 /// bot xarita yubormaydi va kontakt matni bilan cheklanadi.
 /// </param>
+/// <param name="InterviewPhone">
+/// Suhbat taklifidagi mas'ul telefon. Bo'sh bo'lsa xabarda telefon qatori
+/// chizilmaydi.
+/// </param>
+/// <param name="InterviewAddress">
+/// Suhbat taklifidagi manzil yorlig'i («Qo'qon»). Bo'sh bo'lsa manzil
+/// qatori chizilmaydi — xarita esa <paramref name="Location"/> dan
+/// baribir ketadi.
+/// </param>
 /// <param name="HasLogo">
 /// Logotip qo'yilganmi. Bayt EMAS, faqat bayroq: bot rasmni alohida
 /// so'rov bilan oladi va uni Telegram'ga BIR MARTA yuklab, keyin
@@ -148,6 +157,8 @@ public sealed record BotSettingsDto(
     string ContactsLatin,
     string ContactsRussian,
     string Location,
+    string InterviewPhone,
+    string InterviewAddress,
     bool HasLogo,
     string Instagram,
     string Telegram,

@@ -110,3 +110,36 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   qiymatlarini surish mijoz bilan server orasidagi moslikni jimgina buzardi;
   klientda son bo'yicha o'girish shu sababli indeks emas, aniq jadval orqali
   ketadi (`notifications-api.ts` → `TYPE_BY_NUMBER`).
+- [2026-09-08] «Гаплашилди» va «Кенгашга чақирилди» tugmalari KODDA sanab
+  chiqilmadi → nomzod kartasidagi qator FAOL bosqichlar ma'lumotnomasidan
+  chiziladi (`candidate-stage-picker.tsx`) → bosqich nomi kodga yozilsa, HR uni
+  qayta nomlagan kuni tugma jimgina yo'qolardi; voronkani HR boshqarishi esa
+  `PipelineStage` ning asosiy qarori. Bosqichlarning o'zi urug' fayliga va
+  mavjud bazaga migratsiya bilan qo'shildi
+  (`20260908050836_VoronkaBosqichlariToldirildi`).
+- [2026-09-08] Bosqich qatori voronkadan chiqarish tugmalari bilan BIR qatorga
+  qo'yilmadi → alohida kartada, ulardan yuqorida → «Гаплашилди» kuniga o'nlab
+  marta bosiladigan odatiy qadam, «Рад этиш» esa qaytarib bo'lmaydigan yakun;
+  yonma-yon turishi tasodifiy bosish ehtimolini oshirardi.
+- [2026-09-08] Suhbat taklifi xabari qaysi tugmadan chiqishi — bosqich NOMIGA
+  bog'lanmadi → `PipelineStage.InvitesToInterview` bayrog'i qo'shildi
+  (`20260908061342_SuhbatgaChaqirish`) → nom ma'lumotnomada va HR uni istagan
+  payt o'zgartiradi; kodga yozilsa tugma jimgina oddiy tugmaga aylanardi.
+  Bayroq bittadan ko'p bosqichga qo'yilishi mumkin (kengash + rahbar suhbati).
+- [2026-09-08] Nomzodga boradigan xabar IKKI tilda emas, BITTA tilda
+  (foydalanuvchi qarori) → bot nomzod tanlagan tilni allaqachon biladi
+  (`Candidate.TelegramLanguage`); Jobster ikki tilda yozardi, chunki tilni
+  bilmasdi.
+- [2026-09-08] Suhbat vaqtini nomzod TUGMA bilan tasdiqlamaydi (foydalanuvchi
+  qarori) → xabar matni ko'rsatilgan raqamga qo'ng'iroq qilishni so'raydi;
+  tugma bot suhbatiga yangi holat qo'shardi va «tasdiqladi, lekin kelmadi»
+  degan yozuvni haqiqat deb ko'rsatardi.
+- [2026-09-08] Taklifdagi telefon va manzil kodga emas, SOZLAMAGA chiqarildi
+  (`bot.interview.phone`, `bot.interview.address`) → ofis ko'chsa yoki raqam
+  o'zgarsa dasturchisiz tuzatiladi. Xaritadagi nuqta mavjud `bot.location`
+  dan olinadi — ikkinchi nusxa yaratilmadi.
+- [2026-09-08] Suhbat vaqti O'TGAN kunga qo'yilmaydi
+  («nomzod.suhbat_vaqti_otgan»), lekin BUGUNGI kunning istalgan soati
+  qabul qilinadi → HR ertalab «bugun soat 15:00» deb yozadi; soat darajasida
+  tekshirish shu odatiy holatni to'sib qo'yardi, kun darajasidagi tekshiruv
+  esa yil terish xatosini ushlaydi.

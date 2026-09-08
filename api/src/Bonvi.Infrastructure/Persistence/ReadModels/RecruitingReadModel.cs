@@ -262,6 +262,45 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewNoticesAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        /*
+          Nomzodning HOLATI tekshirilmaydi va bu ataylab: taklif voronkada
+          turgan nomzodga yuboriladi, lekin HR chaqirgandan keyin uni rad
+          etib ulgurgan bo'lsa, xabar baribir ketishi KERAK EMAS. Shu
+          sababli yagona shart — nomzod hali yopilmagan (`ClosedAt`
+          bo'sh): rad etilgan yoki ishga olingan odamga «sizni suhbatga
+          kutamiz» degan xabar eng yomon nosozlik bo'lardi.
+        */
+        var rows =
+            from candidate in _context.Candidates.AsNoTracking()
+            where candidate.InterviewAt != null
+                && candidate.TelegramChatId != null
+                && candidate.InterviewNoticeSentAt == null
+                && candidate.ClosedAt == null
+            join vacancy in _context.Vacancies.AsNoTracking()
+                on candidate.VacancyId equals vacancy.Id into vacancyGroup
+            from vacancy in vacancyGroup.DefaultIfEmpty()
+            join title in _context.VacancyTitles.AsNoTracking()
+                on vacancy.VacancyTitleId equals title.Id into titleGroup
+            from title in titleGroup.DefaultIfEmpty()
+
+            // Eng yaqin suhbat birinchi javob oladi: kechikish narxi
+            // aynan shu yerda eng yuqori.
+            orderby candidate.InterviewAt
+            select new InterviewNoticeDto(
+                candidate.Id,
+                candidate.TelegramChatId!.Value,
+                candidate.TelegramLanguage,
+                candidate.FullName.LastName + " " + candidate.FullName.FirstName,
+                title.Name ?? string.Empty,
+                candidate.InterviewAt!.Value);
+
+        return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<VacancyPage> ListVacanciesAsync(
         VacancyListFilter filter,
         CancellationToken cancellationToken = default)

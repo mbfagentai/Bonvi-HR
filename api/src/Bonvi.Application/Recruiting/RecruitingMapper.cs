@@ -62,7 +62,13 @@ public sealed class RecruitingMapper
     {
         ArgumentNullException.ThrowIfNull(stage);
 
-        return new PipelineStageDto(stage.Id, stage.Name, stage.IsActive, stage.Note, stage.SortOrder);
+        return new PipelineStageDto(
+            stage.Id,
+            stage.Name,
+            stage.IsActive,
+            stage.Note,
+            stage.SortOrder,
+            stage.InvitesToInterview);
     }
 
     public async Task<VacancyDto> ToDtoAsync(Vacancy vacancy, CancellationToken cancellationToken = default)
@@ -159,6 +165,8 @@ public sealed class RecruitingMapper
             candidate.PhotoKey is not null,
             employment?.EmployeeId,
             employment?.Id,
+            candidate.InterviewAt,
+            candidate.InterviewNoticeSentAt,
             stages,
             ToDto(candidate.Questionnaire));
     }

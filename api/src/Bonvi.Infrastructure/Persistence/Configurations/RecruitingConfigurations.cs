@@ -28,6 +28,9 @@ public sealed class PipelineStageConfiguration : IEntityTypeConfiguration<Pipeli
         builder.Property(stage => stage.SortOrder)
             .IsRequired();
 
+        builder.Property(stage => stage.InvitesToInterview)
+            .IsRequired();
+
         // Voronkaning ASOSIY so'rovi: «faol bosqichlarni TARTIB bo'yicha
         // ber». `ConfigureReference` qo'yadigan (is_active, name) indeksi
         // bunga yaramaydi — u alifbo uchun. Ikkalasi ham qoladi: birinchisi
@@ -292,6 +295,19 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         */
         builder.HasIndex(candidate => new { candidate.Status, candidate.RejectionNoticeSentAt })
             .HasFilter("telegram_chat_id IS NOT NULL AND rejection_notice_sent_at IS NULL");
+
+        /*
+          SUHBAT TAKLIFI NAVBATI — yuqoridagining aynan egizagi.
+
+          Farqi ikkita va ikkalasi ham qidiruv shartida: taklif nomzodning
+          HOLATIGA bog'liq emas (u voronkada turganda yuboriladi), lekin
+          suhbat vaqti QO'YILGAN bo'lishi shart. Shu sababli filtr
+          `interview_at IS NOT NULL` dan boshlanadi.
+        */
+        builder.HasIndex(candidate => candidate.InterviewNoticeSentAt)
+            .HasFilter(
+                "telegram_chat_id IS NOT NULL AND interview_at IS NOT NULL "
+                + "AND interview_notice_sent_at IS NULL");
 
         // Telefon bo'yicha qidiruv — nomzodda JSHSHIR yo'q, shu sababli bu
         // ikkinchi eng muhim kalit. Qisman indeks: raqamsiz yozuvlar bo'ladi.

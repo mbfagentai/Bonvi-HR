@@ -37,6 +37,7 @@ import { CandidateHireDialog } from './candidate-hire-dialog'
 import { CandidatePhotoEditor } from './candidate-photo-editor'
 import { CandidateQuestionnaireCard } from './candidate-questionnaire-card'
 import { CandidateResumeCard } from './candidate-resume-card'
+import { CandidateStagePicker } from './candidate-stage-picker'
 import { CandidateStagesTab } from './candidate-stages-tab'
 
 const route = getRouteApi('/_app/nomzodlar/$candidateId')
@@ -237,6 +238,20 @@ export function CandidateCardPage() {
           <CandidateQuestionnaireCard questionnaire={person.questionnaire} />
 
           <CandidateResumeCard candidate={person} canManage={canManage} />
+
+          {/*
+            ⭐ Bosqich qatori — voronkadan CHIQARISH amallaridan darrov
+            YUQORIDA va ataylab alohida kartada. Ikkalasi bitta qatorga
+            qo'shilsa, «Гаплашилди» bilan «Рад этиш» yonma-yon turardi:
+            bittasi kuniga o'nlab marta bosiladigan odatiy qadam,
+            ikkinchisi esa qaytarib bo'lmaydigan yakun.
+
+            Faqat JARAYONDAGI nomzodda: yopilgan nomzodni bosqichga
+            o'tkazishni server baribir rad etadi («nomzod.jarayonda_emas»)
+            va tugmani ko'rsatib, keyin xato berish HR ni bekorga sarson
+            qilardi.
+          */}
+          {canManage && inProgress && <CandidateStagePicker candidate={person} />}
 
           {/*
             Voronkadan chiqarish amallari — «Umumiy» tabining ENG

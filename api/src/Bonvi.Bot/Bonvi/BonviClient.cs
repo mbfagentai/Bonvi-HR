@@ -26,6 +26,8 @@ public sealed record OpenVacancy(Guid Id, string Title);
 /// <param name="ContactsLatin">Kontaktlar — lotin.</param>
 /// <param name="ContactsRussian">Kontaktlar — rus.</param>
 /// <param name="Location">Bosh ofisning xaritadagi nuqtasi.</param>
+/// <param name="InterviewPhone">Suhbat taklifidagi mas'ul telefon.</param>
+/// <param name="InterviewAddress">Suhbat taklifidagi manzil yorlig'i.</param>
 /// <param name="HasLogo">Logotip yuklanganmi.</param>
 /// <param name="Instagram">Instagram havolasi.</param>
 /// <param name="Telegram">Telegram kanali havolasi.</param>
@@ -45,6 +47,8 @@ public sealed record BotSettings(
     string ContactsLatin,
     string ContactsRussian,
     string Location,
+    string InterviewPhone,
+    string InterviewAddress,
     bool HasLogo,
     string Instagram,
     string Telegram,
@@ -182,6 +186,27 @@ public sealed record RejectionNotice(
     string? Language,
     string FullName,
     string VacancyTitle);
+
+/// <summary>Suhbat taklifi kutayotgan nomzod.</summary>
+/// <remarks>
+/// <see cref="RejectionNotice"/> ning egizagi, ustiga bitta maydon —
+/// suhbat lahzasi. U serverdan UTC da keladi va nomzodga
+/// ko'rsatilishidan oldin Toshkent vaqtiga keltiriladi
+/// (<c>BotTexts.InterviewNotice</c>).
+/// </remarks>
+/// <param name="CandidateId">Xabar ketgach shu bilan belgilanadi.</param>
+/// <param name="ChatId">Telegram suhbati.</param>
+/// <param name="Language">Nomzod tanlagan til.</param>
+/// <param name="FullName">Murojaat uchun ism.</param>
+/// <param name="VacancyTitle">Qaysi vakansiyaga.</param>
+/// <param name="InterviewAt">Suhbat lahzasi — UTC.</param>
+public sealed record InterviewNotice(
+    Guid CandidateId,
+    long ChatId,
+    string? Language,
+    string FullName,
+    string VacancyTitle,
+    DateTimeOffset InterviewAt);
 
 /// <summary>
 /// Bonvi API bilan ishlaydigan mijoz — bot xizmat hisobi nomidan.
@@ -450,6 +475,35 @@ public sealed partial class BonviClient : IDisposable
     public async Task<bool> MarkRejectionNoticeSentAsync(Guid candidateId, CancellationToken cancellationToken)
     {
         var path = $"api/recruiting/candidates/{candidateId:D}/rejection-notice-sent";
+
+        return await SendNoContentAsync(
+                () => new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Suhbat taklifi kutayotgan nomzodlarni oladi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="GetPendingRejectionNoticesAsync"/> bilan bir xil qoida:
+    /// odatda BO'SH ro'yxat qaytadi va so'rov halqaning har aylanishida
+    /// takrorlanadi.
+    /// </remarks>
+    public async Task<IReadOnlyList<InterviewNotice>> GetPendingInterviewNoticesAsync(
+        CancellationToken cancellationToken)
+        => await SendAsync<List<InterviewNotice>>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/recruiting/candidates/interview-notices", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false)
+            ?? [];
+
+    /// <summary>Suhbat taklifi yuborilganini belgilaydi.</summary>
+    public async Task<bool> MarkInterviewNoticeSentAsync(Guid candidateId, CancellationToken cancellationToken)
+    {
+        var path = $"api/recruiting/candidates/{candidateId:D}/interview-notice-sent";
 
         return await SendNoContentAsync(
                 () => new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative)),

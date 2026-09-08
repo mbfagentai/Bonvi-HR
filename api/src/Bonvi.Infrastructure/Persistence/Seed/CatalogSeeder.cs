@@ -350,7 +350,7 @@ public sealed partial class CatalogSeeder
         await SeedCatalogAsync<PipelineStage, PipelineStageRow>(
             "pipeline-stages.json",
             "Voronka bosqichlari",
-            row => PipelineStage.Create(row.Name, order++),
+            row => PipelineStage.Create(row.Name, order++, row.InvitesToInterview ?? false),
             apply: null,
             stats,
             cancellationToken).ConfigureAwait(false);
@@ -661,5 +661,15 @@ public sealed partial class CatalogSeeder
     /// Tartib maydoni ATAYLAB yo'q: u fayldagi qatorlar ketma-ketligidan
     /// olinadi (sababi <see cref="SeedPipelineStagesAsync"/> izohida).
     /// </remarks>
-    private sealed record PipelineStageRow : CatalogRow;
+    /// <summary>
+    /// Voronka bosqichi — urug' faylining qatori.
+    /// </summary>
+    private sealed record PipelineStageRow : CatalogRow
+    {
+        /// <summary>
+        /// Shu bosqichga o'tkazilganda nomzoddan suhbat vaqti so'ralib, unga
+        /// Telegram taklifi yuboriladimi. Faylda ko'rsatilmasa — yo'q.
+        /// </summary>
+        public bool? InvitesToInterview { get; init; }
+    }
 }

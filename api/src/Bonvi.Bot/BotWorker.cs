@@ -88,6 +88,12 @@ public sealed partial class BotWorker : BackgroundService
     private partial void LogNoticeSent(string vacancy);
 
     [LoggerMessage(
+        EventId = 3212,
+        Level = LogLevel.Information,
+        Message = "Suhbat taklifi yuborildi: «{Vacancy}»")]
+    private partial void LogInterviewNoticeSent(string vacancy);
+
+    [LoggerMessage(
         EventId = 3211,
         Level = LogLevel.Warning,
         Message = "Rad etish xabarlari yuborilmadi — keyingi aylanishda qayta uriniladi")]
@@ -392,6 +398,7 @@ public sealed partial class BotWorker : BackgroundService
             try
             {
                 await SendRejectionNoticesAsync(stoppingToken).ConfigureAwait(false);
+                await SendInterviewNoticesAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -453,6 +460,78 @@ public sealed partial class BotWorker : BackgroundService
                 .ConfigureAwait(false);
 
             LogNoticeSent(notice.VacancyTitle);
+        }
+    }
+
+    /// <summary>
+    /// Suhbat takliflarini yuboradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="SendRejectionNoticesAsync"/> ning aynan naqshi — o'sha
+    /// izohdagi barcha qoidalar (kamida bir marta, belgilash xabardan
+    /// KEYIN, bloklagan nomzod navbatda qolishi) shu yerda ham amal
+    /// qiladi.
+    /// </para>
+    /// <para>
+    /// <b>Xaritadagi nuqta ALOHIDA xabar bo'lib ketadi</b> — kontaktlar
+    /// bo'limidagi bilan bir xil: Telegram uni ochib navigatorga uzatadi
+    /// va matn ichidagi havola bunday ishlamaydi. Nuqta yuborilmasa ham
+    /// taklif YUBORILGAN hisoblanadi: asosiy ma'lumot — vaqt — nomzodga
+    /// allaqachon yetgan.
+    /// </para>
+    /// </remarks>
+    private async Task SendInterviewNoticesAsync(CancellationToken cancellationToken)
+    {
+        var pending = await _bonvi.GetPendingInterviewNoticesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+        var point = MapPoint.TryParse(settings?.Location);
+
+        foreach (var notice in pending)
+        {
+            var language = BotLanguages.Parse(notice.Language);
+
+            var sent = await _telegram
+                .SendMessageAsync(
+                    notice.ChatId,
+                    BotTexts.InterviewNotice(
+                        language,
+                        notice.FullName,
+                        notice.VacancyTitle,
+                        notice.InterviewAt,
+                        settings?.InterviewPhone ?? string.Empty,
+                        settings?.InterviewAddress ?? string.Empty),
+                    menu: BotMenu.Labels(language, hasAbout: false, hasContacts: false),
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!sent)
+            {
+                continue;
+            }
+
+            if (point is { } place)
+            {
+                await _telegram
+                    .SendLocationAsync(
+                        notice.ChatId,
+                        place.Latitude,
+                        place.Longitude,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await _bonvi
+                .MarkInterviewNoticeSentAsync(notice.CandidateId, cancellationToken)
+                .ConfigureAwait(false);
+
+            LogInterviewNoticeSent(notice.VacancyTitle);
         }
     }
 

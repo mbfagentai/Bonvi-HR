@@ -142,6 +142,16 @@ export interface PipelineStage {
    * bo'lmasin).
    */
   sortOrder: number
+  /**
+   * ⭐ Shu bosqichga o'tkazilganda nomzoddan SUHBAT VAQTI so'raladimi va
+   * unga Telegram taklifi yuboriladimi.
+   *
+   * Bayroq ma'lumotnomada turadi, kodda emas: «Кенгашга чақирилди» —
+   * HR o'zi qo'yadigan nom va uni qayta nomlash tugmaning xatti-harakatini
+   * buzmasligi kerak (sabab `PipelineStage.InvitesToInterview` domen
+   * izohida).
+   */
+  invitesToInterview: boolean
 }
 
 /**
@@ -277,6 +287,16 @@ export interface Candidate {
   hasPhoto: boolean
   hiredEmployeeId: string | null
   hiredEmploymentId: string | null
+  /**
+   * Chaqirilgan suhbat vaqti — ISO satr, UTC da. `null` — chaqirilmagan.
+   * Ekranda Toshkent vaqtida chiziladi.
+   */
+  interviewAt: string | null
+  /**
+   * Taklif Telegram'ga qachon ketgani. Vaqt qo'yilgan, lekin bu bo'sh —
+   * xabar hali navbatda (yoki nomzodning Telegram suhbati yo'q).
+   */
+  interviewNoticeSentAt: string | null
   /** Yozilgan tartibda. */
   stages: CandidateStageEntry[]
   /**
@@ -519,6 +539,7 @@ function toStage(raw: unknown): PipelineStage {
     isActive: box['isActive'] === true,
     note: text(box['note']),
     sortOrder: count(box['sortOrder']),
+    invitesToInterview: box['invitesToInterview'] === true,
   }
 }
 
@@ -632,6 +653,8 @@ function toCandidate(raw: unknown): Candidate {
     hasPhoto: box['hasPhoto'] === true,
     hiredEmployeeId: text(box['hiredEmployeeId']),
     hiredEmploymentId: text(box['hiredEmploymentId']),
+    interviewAt: text(box['interviewAt']),
+    interviewNoticeSentAt: text(box['interviewNoticeSentAt']),
     stages: (Array.isArray(box['stages']) ? box['stages'] : []).map(toStageEntry),
     questionnaire: toQuestionnaire(box['questionnaire']),
   }
@@ -815,6 +838,32 @@ export async function reassignCandidate(id: string, vacancyId: string): Promise<
  * ochib, tugagach natijasini yozadi. Oldinga yurish majburlanmaydi:
  * bosqichni o'tkazib yuborish va orqaga qaytish ham mumkin.
  */
+/**
+ * ⭐ Nomzodni suhbatga chaqirish — bitta so'rovda uchta natija.
+ *
+ * Server bosqichni yozadi, suhbat vaqtini qo'yadi va Telegram taklifini
+ * navbatga tashlaydi. Ularni uch so'rovga bo'lish «bosqich yozildi,
+ * xabar ketmadi» degan yarim holatni tug'dirardi.
+ *
+ * ⚠️ `interviewAt` SILJISH bilan yuboriladi («…+05:00»). Siljishsiz
+ * qiymatni server UTC deb o'qiydi va nomzod besh soat oldingi vaqtni
+ * ko'rardi.
+ *
+ * `stageId` bo'sh bo'lsa bosqich o'zgarmaydi — suhbatni KO'CHIRISH
+ * aynan shunday ishlaydi.
+ */
+export async function inviteCandidateToInterview(
+  id: string,
+  body: {
+    interviewAt: string
+    stageId: string | null
+    conclusion: string | null
+  },
+): Promise<Candidate> {
+  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/interview-invite`, body)
+  return toCandidate(data)
+}
+
 export async function recordCandidateStage(
   id: string,
   body: {

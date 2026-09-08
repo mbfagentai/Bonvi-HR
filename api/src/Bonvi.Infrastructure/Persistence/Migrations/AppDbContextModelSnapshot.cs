@@ -1831,6 +1831,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
+                    b.Property<DateTimeOffset?>("InterviewAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("interview_at");
+
+                    b.Property<DateTimeOffset?>("InterviewNoticeSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("interview_notice_sent_at");
+
                     b.Property<string>("Note")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -1925,6 +1933,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_candidates");
+
+                    b.HasIndex("InterviewNoticeSentAt")
+                        .HasDatabaseName("ix_candidates_interview_notice_sent_at")
+                        .HasFilter("telegram_chat_id IS NOT NULL AND interview_at IS NOT NULL AND interview_notice_sent_at IS NULL");
 
                     b.HasIndex("Phone")
                         .HasDatabaseName("ix_candidates_phone")
@@ -2095,6 +2107,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
+
+                    b.Property<bool>("InvitesToInterview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("invites_to_interview");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")

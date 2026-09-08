@@ -65,6 +65,8 @@ const GROUPS: readonly {
       'bot.contacts.latin': 'settings.system.botContactsLatin',
       'bot.contacts.russian': 'settings.system.botContactsRussian',
       'bot.location': 'settings.system.botLocation',
+      'bot.interview.phone': 'settings.system.botInterviewPhone',
+      'bot.interview.address': 'settings.system.botInterviewAddress',
       'bot.logo': 'settings.system.botLogo',
       'bot.social.instagram': 'settings.system.botInstagram',
       'bot.social.telegram': 'settings.system.botTelegram',
@@ -102,6 +104,13 @@ const GROUPS: readonly {
  */
 const SINGLE_LINE_TEXT: Readonly<Record<string, string>> = {
   'bot.location': 'settings.system.botLocationHint',
+  /*
+    Suhbat taklifining ikkita qatori: telefon va manzil YORLIG'I.
+    Ikkalasi ham bitta qisqa qiymat — «Kontaktlar» matnidan farqi
+    aynan shunda (sabab `SystemSettingKeys.BotInterviewPhone` izohida).
+  */
+  'bot.interview.phone': 'settings.system.botInterviewPhoneHint',
+  'bot.interview.address': 'settings.system.botInterviewAddressHint',
   'bot.social.instagram': 'settings.system.botLinkHint',
   'bot.social.telegram': 'settings.system.botLinkHint',
   'bot.social.facebook': 'settings.system.botLinkHint',

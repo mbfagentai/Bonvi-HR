@@ -89,6 +89,8 @@ public sealed class GetBotSettingsQueryHandler
             settings.Text(SystemSettingKeys.BotContactsLatin),
             settings.Text(SystemSettingKeys.BotContactsRussian),
             settings.Text(SystemSettingKeys.BotLocation),
+            settings.Text(SystemSettingKeys.BotInterviewPhone),
+            settings.Text(SystemSettingKeys.BotInterviewAddress),
             settings.Photo(SystemSettingKeys.BotLogo).Length > 0,
             settings.Text(SystemSettingKeys.BotSocialInstagram),
             settings.Text(SystemSettingKeys.BotSocialTelegram),

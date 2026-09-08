@@ -17,12 +17,17 @@ namespace Bonvi.Application.Recruiting.Dtos;
 /// <param name="IsActive">Faolmi — faol emasiga yangi nomzod o'tkazilmaydi.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="SortOrder">Voronkadagi o'rin: kichik qiymat — oldinroq.</param>
+/// <param name="InvitesToInterview">
+/// Shu bosqichga o'tkazilganda nomzoddan suhbat vaqti so'ralib, unga
+/// Telegram taklifi yuboriladimi.
+/// </param>
 public sealed record PipelineStageDto(
     Guid Id,
     string Name,
     bool IsActive,
     string? Note,
-    int SortOrder);
+    int SortOrder,
+    bool InvitesToInterview);
 
 /// <summary>
 /// Vakansiya — ro'yxat va karta uchun umumiy ko'rinish.
@@ -116,6 +121,32 @@ public sealed record RejectionNoticeDto(
     string? Language,
     string FullName,
     string VacancyTitle);
+
+/// <summary>
+/// Suhbat taklifi kutayotgan nomzod — FAQAT botga beriladigan ko'rinish.
+/// </summary>
+/// <remarks>
+/// <see cref="RejectionNoticeDto"/> ning egizagi va bir xil qoidaga
+/// bo'ysunadi: javobda faqat xabar yozish uchun kerakli maydonlar bor,
+/// telefon va ichki izohlar bu yerga TUSHMAYDI.
+/// </remarks>
+/// <param name="CandidateId">Xabar ketgach shu bilan belgilanadi.</param>
+/// <param name="ChatId">Telegram suhbati.</param>
+/// <param name="Language">Nomzod tanlagan til.</param>
+/// <param name="FullName">Murojaat uchun ism.</param>
+/// <param name="VacancyTitle">Qaysi vakansiyaga.</param>
+/// <param name="InterviewAt">
+/// Suhbat lahzasi — UTC da. Toshkent vaqtiga botning O'ZI keltiradi
+/// (<c>BotClock</c>): shu tufayli siljish faqat KO'RSATISH joyida
+/// qo'llanadi va lahzaning o'zi hech qayerda o'zgarmaydi.
+/// </param>
+public sealed record InterviewNoticeDto(
+    Guid CandidateId,
+    long ChatId,
+    string? Language,
+    string FullName,
+    string VacancyTitle,
+    DateTimeOffset InterviewAt);
 
 /// <summary>
 /// Nomzodlar ro'yxatining bitta qatori.
@@ -264,6 +295,13 @@ public sealed record CandidatePhotoDto(string PhotoKey);
 /// </param>
 /// <param name="HiredEmployeeId">Ishga olingan bo'lsa — xodim kartasi.</param>
 /// <param name="HiredEmploymentId">Ishga olingan bo'lsa — mehnat munosabati.</param>
+/// <param name="InterviewAt">
+/// Chaqirilgan suhbat vaqti — UTC da. <c>null</c> — chaqirilmagan.
+/// </param>
+/// <param name="InterviewNoticeSentAt">
+/// Taklif Telegram'ga qachon ketgani. Vaqt qo'yilgan, lekin bu bo'sh —
+/// xabar hali navbatda (yoki nomzodning Telegram'i yo'q).
+/// </param>
 /// <param name="Stages">Bosqichlar tarixi — yozilgan tartibda.</param>
 /// <param name="Questionnaire">
 /// Botda to'ldirilgan anketa. <c>null</c> BO'LISHI ODATIY hol: HR qo'lda
@@ -295,6 +333,8 @@ public sealed record CandidateDto(
     bool HasPhoto,
     Guid? HiredEmployeeId,
     Guid? HiredEmploymentId,
+    DateTimeOffset? InterviewAt,
+    DateTimeOffset? InterviewNoticeSentAt,
     IReadOnlyList<CandidateStageEntryDto> Stages,
     CandidateQuestionnaireDto? Questionnaire);
 

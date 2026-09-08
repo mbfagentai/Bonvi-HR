@@ -1,3 +1,4 @@
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.ValueObjects;
 
@@ -287,6 +288,41 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public DateTimeOffset? RejectionNoticeSentAt { get; private set; }
 
+    /// <summary>
+    /// Nomzod chaqirilgan SUHBAT VAQTI — nomzodga yuboriladigan taklifda
+    /// aynan shu lahza turadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bazada UTC bo'lib yotadi, ekranda va Telegram xabarida Toshkent
+    /// vaqtida chiziladi (<see cref="BonviTime"/>). Ikkisini aralashtirmaslik
+    /// butun loyihada bir xil qoida.
+    /// </para>
+    /// <para>
+    /// <c>null</c> — nomzod hali hech qanday suhbatga chaqirilmagan. Qiymat
+    /// QAYTA yozilishi mumkin: suhbat ko'chirilsa HR yangi vaqt qo'yadi va
+    /// nomzod yangi xabar oladi (<see cref="InviteToInterview"/>).
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? InterviewAt { get; private set; }
+
+    /// <summary>
+    /// Suhbat taklifi Telegram'ga QACHON yuborilgani.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="RejectionNoticeSentAt"/> bilan AYNAN bir xil navbat
+    /// (o'sha izohda batafsil): API faqat faktni yozadi, bot esa
+    /// «yuborilmaganlar» ro'yxatini davriy so'rab turadi.
+    /// </para>
+    /// <para>
+    /// Farqi bittada — rad etish bir marta bo'ladi, suhbat esa
+    /// KO'CHIRILISHI mumkin. Shu sababli bu belgi yangi vaqt qo'yilganda
+    /// TOZALANADI: nomzod o'zgargan vaqtni bilishi shart.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? InterviewNoticeSentAt { get; private set; }
+
     /// <summary>Voronkadan chiqqan sana (rad etilgan / ishga olingan / voz kechgan / rezerv).</summary>
     public DateOnly? ClosedAt { get; private set; }
 
@@ -522,6 +558,61 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </para>
     /// </remarks>
     public void MarkRejectionNoticeSent(DateTimeOffset at) => RejectionNoticeSentAt ??= at;
+
+    /// <summary>
+    /// Nomzodni belgilangan vaqtdagi suhbatga chaqiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Bosqichni bu metod O'ZGARTIRMAYDI.</b> Chaqirish odatda bosqich
+    /// yozuvi bilan birga bajariladi («Кенгашга чақирилди»), lekin ikkisi
+    /// alohida fakt: suhbat vaqtini ko'chirishda bosqich o'zgarmaydi, va
+    /// aksincha — bayroqsiz bosqichga o'tkazishda taklif yuborilmaydi.
+    /// Ikkalasini bitta tranzaksiyada bog'lash use-case ishi
+    /// (<c>InviteCandidateToInterviewCommandHandler</c>).
+    /// </para>
+    /// <para>
+    /// <b>O'tgan kun RAD ETILADI.</b> Bugungi kun ichidagi istalgan soat
+    /// qabul qilinadi (HR ertalab «bugun soat 15:00» deb yozadi), lekin
+    /// KECHAGI sana — bu deyarli har doim terish xatosi va u nomzodga
+    /// allaqachon o'tib ketgan vaqtdagi taklifni yuborardi.
+    /// </para>
+    /// <para>
+    /// Yuborilgan belgisi TOZALANADI: vaqt o'zgargan bo'lsa nomzod yangi
+    /// xabar olishi shart, aks holda u eski vaqtga kelardi.
+    /// </para>
+    /// </remarks>
+    public Result InviteToInterview(DateTimeOffset at, DateOnly today)
+    {
+        if (!IsActive)
+        {
+            return NotActive();
+        }
+
+        if (at.TashkentDate() < today)
+        {
+            return Error.Validation(
+                "nomzod.suhbat_vaqti_otgan",
+                "Suhbat vaqti o'tgan kunga qo'yilmaydi.");
+        }
+
+        InterviewAt = at.ToUniversalTime();
+        InterviewNoticeSentAt = null;
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Suhbat taklifi yuborilganini belgilaydi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MarkRejectionNoticeSent"/> bilan bir xil qoida — xabar
+    /// HAQIQATAN ketgandan keyin chaqiriladi. Farqi: bu yerda <c>??=</c>
+    /// EMAS, oddiy o'zlashtirish. Sabab — belgi yangi taklifda tozalanadi
+    /// va navbatga qayta tushadi; <c>??=</c> ikkinchi taklifni yuborilgan
+    /// deb hisoblab, nomzodni eski vaqt bilan qoldirardi.
+    /// </remarks>
+    public void MarkInterviewNoticeSent(DateTimeOffset at) => InterviewNoticeSentAt = at;
 
     /// <summary>Nomzod o'zi voz kechdi.</summary>
     public Result Withdraw(DateOnly at, string? reason = null)

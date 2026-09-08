@@ -59,6 +59,37 @@ public sealed class PipelineStage : ReferenceEntity
     /// </remarks>
     public int SortOrder { get; private set; }
 
+    /// <summary>
+    /// Shu bosqichga o'tkazilgan nomzodga SUHBAT TAKLIFI yuboriladimi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega bu bosqichning XUSUSIYATI, kodda yozilgan nom emas.</b>
+    /// Ekranda «Кенгашга чақирилди» tugmasi bosilganda HR dan suhbat sanasi
+    /// va vaqti so'ralishi, keyin nomzodga Telegram xabari ketishi kerak
+    /// (foydalanuvchi talabi, 2026-09-08). Klient qaysi tugma shunday
+    /// ishlashini BILISHI kerak — va uni bosqich NOMIGA qarab bilishi
+    /// mumkin emas edi: nom ma'lumotnomada, HR uni istagan payt
+    /// o'zgartiradi va o'shanda tugma jimgina oddiy tugmaga aylanardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega BAYROQ, yagona sozlama emas.</b> «Qaysi bosqich taklif
+    /// yuboradi» degan bitta sozlama ham yetardi, lekin amalda taklif
+    /// bittadan ko'p: kengashga chaqirish ham, rahbar suhbatiga chaqirish
+    /// ham aynan shu xabar. Bayroq ikkalasiga ham qo'yiladi va HR o'z
+    /// jarayonini o'zi ta'riflaydi.
+    /// </para>
+    /// <para>
+    /// Bayroq YOQILGAN bo'lishi xabarni majburlamaydi: nomzodning Telegram
+    /// suhbati bo'lmasa (HR uni qo'lda kiritgan) yuboradigan manzil yo'q va
+    /// bosqich oddiygina yoziladi.
+    /// </para>
+    /// </remarks>
+    public bool InvitesToInterview { get; private set; }
+
+    /// <summary>Suhbat taklifi bayrog'ini qo'yadi yoki oladi.</summary>
+    public void SetInvitesToInterview(bool value) => InvitesToInterview = value;
+
     /// <summary>Yangi bosqich yaratadi.</summary>
     /// <remarks>
     /// <paramref name="sortOrder"/> ni chaqiruvchi hisoblaydi: yangi bosqich
@@ -66,7 +97,10 @@ public sealed class PipelineStage : ReferenceEntity
     /// emas: domen bazadagi boshqa yozuvlarni ko'rmaydi va «eng katta
     /// tartib» ni bila olmaydi.
     /// </remarks>
-    public static Result<PipelineStage> Create(string? name, int sortOrder = 0)
+    public static Result<PipelineStage> Create(
+        string? name,
+        int sortOrder = 0,
+        bool invitesToInterview = false)
     {
         var normalized = Normalize(name);
         if (normalized is null)
@@ -76,7 +110,7 @@ public sealed class PipelineStage : ReferenceEntity
 
         return sortOrder < 0
             ? Error.Validation("bosqich.tartib", "Bosqich tartibi manfiy bo'lishi mumkin emas.")
-            : new PipelineStage(NewId(), normalized, sortOrder);
+            : new PipelineStage(NewId(), normalized, sortOrder) { InvitesToInterview = invitesToInterview };
     }
 
     /// <summary>Voronkadagi o'rnini o'zgartiradi.</summary>
