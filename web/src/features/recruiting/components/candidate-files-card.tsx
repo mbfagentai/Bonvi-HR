@@ -131,11 +131,12 @@ export function CandidateFilesCard({
    * Uch qadam va tartibi muhim: avval SIG'ADIGANINI ajratish, keyin
    * turini/hajmini tekshirish, oxirida yuklash. Shunda server bilan
    * gaplashmasdan aytiladigan hamma narsa DARHOL aytiladi.
+   *
+   * ⚠️ Kirish — TAYYOR massiv, `FileList` EMAS. Sabab chaqiruv joyida
+   * yozilgan: `FileList` inputning o'ziga bog'langan tirik obyekt.
    */
-  const pick = async (picked: FileList | null) => {
-    if (picked === null || picked.length === 0) return
-
-    const chosen = Array.from(picked)
+  const pick = async (chosen: File[]) => {
+    if (chosen.length === 0) return
 
     /*
       O'nta chegara KLIENTDA ham qo'llanadi (SPEC §5.4).
@@ -257,11 +258,24 @@ export function CandidateFilesCard({
                 tabIndex={-1}
                 aria-hidden
                 onChange={(event) => {
-                  const list = event.target.files
-                  // Qiymat DARHOL tozalanadi: aks holda aynan o'sha
-                  // fayllarni ikkinchi marta tanlash hodisa hosil qilmaydi.
+                  /*
+                    ⚠️ TARTIB MUHIM va uni almashtirish mumkin emas.
+
+                    `event.target.files` — TIRIK `FileList`: u alohida
+                    nusxa emas, aynan inputning o'zidagi ro'yxat.
+                    `value = ''` uni BO'SHATADI, ya'ni tozalash oldin
+                    bajarilsa `pick` ga uzunligi nol ro'yxat borardi va
+                    tanlangan fayl JIMGINA yo'qolardi — na yuklanardi,
+                    na xato chiqardi. Shu sababli avval massivga nusxa
+                    olinadi.
+                  */
+                  const chosen = Array.from(event.target.files ?? [])
+
+                  // Qiymat tozalanadi: aks holda aynan o'sha fayllarni
+                  // ikkinchi marta tanlash hodisa hosil qilmaydi.
                   event.target.value = ''
-                  void pick(list)
+
+                  void pick(chosen)
                 }}
               />
 

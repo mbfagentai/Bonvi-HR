@@ -1,5 +1,5 @@
 import { getRouteApi } from '@tanstack/react-router'
-import { CircleAlert, Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
+import { Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 
@@ -36,7 +36,6 @@ import {
   CANDIDATE_LOOK,
   RECRUITING_MANAGE,
   SOURCE_LOOK,
-  isContactDue,
 } from '../lib/recruiting-presentation'
 import { CandidateFormDialog } from './candidate-form-dialog'
 import { CandidateFunnel } from './candidate-funnel'
@@ -330,25 +329,16 @@ export function CandidatesPage() {
       }),
 
       /*
-        ⭐ KEYINGI ALOQA — mijozning talabi: HR qo'ng'iroq qiladi, nomzod
-        «5-6 kundan keyin kelaman» deydi, ertalab ro'yxatni ochgan HR
-        bugun kim bilan gaplashishi kerakligini KO'RISHI kerak.
+        Keyingi aloqa sanasi uchun USTUN YO'Q — foydalanuvchi qarori
+        (2026-09-10): jadval allaqachon keng va sana har kuni emas,
+        kerak bo'lganda qaraladi. Ma'lumotning o'zi yo'qolmadi — u
+        nomzod kartasida turadi, «Bugun aloqa kerak» filtri esa
+        ro'yxatni aynan shu belgiga qarab toraytiradi.
 
-        O'rni ATAYLAB «Bosqich» va «Holati» ORASIDA: u «bu odam hozir
-        qayerda?» degan savolning davomi. Eng o'ngga qo'yilsa noutbuk
-        ekranida jadval chetiga tushib, aynan har kuni qaraladigan ustun
-        ko'rinmay qolardi.
-
-        Saralash SERVERDA: ustun `id` si `nextContact` — `normalizeSort`
-        tanidigan kalit, sanasi yo'q qatorlar ikkala yo'nalishda ham
-        oxirida turadi (SPEC §4.6).
+        Ustun bilan birga saralash ham ketdi (u ustun sarlavhasidan
+        boshqarilardi). Server `sort=nextContact` ni hamon tushunadi —
+        shartnoma torayтirilmadi, chunki ustun qaytarilishi mumkin.
       */
-      helper.accessor('nextContactDate', {
-        id: 'nextContact',
-        header: t('recruiting.nextContact'),
-        meta: { width: '140px' },
-        cell: ({ getValue }) => <NextContactCell value={getValue()} />,
-      }),
 
       helper.accessor('status', {
         header: t('recruiting.status'),
@@ -600,38 +590,4 @@ function DateCell({ value }: { value: string | null }) {
 
   if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
   return <span className="tabular text-[var(--fg-secondary)]">{date(value)}</span>
-}
-
-/**
- * Keyingi aloqa sanasi — muddati kelgani AJRALIB TURADI.
- *
- * Bugun yoki o'tgan sana ogohlantirish ohangida (`text-ios-orange`,
- * `Badge` ning `warning` ohangi bilan bitta rang) — «bugun kim bilan
- * gaplashish kerak» degan savol saralashsiz ham javob olishi kerak.
- *
- * Rang YAGONA signal EMAS: yonida ogohlantirish ikonasi va `title`
- * izohi turadi (`probations-page.tsx` dagi `DaysLeft` bilan bir xil
- * qoida) — rangni ajratmaydigan foydalanuvchi ham farqni ko'radi.
- *
- * Kelasi sana esa oddiy ko'rinishda: agar hammasi bo'yalsa, ajratish
- * ma'nosini yo'qotardi.
- */
-function NextContactCell({ value }: { value: string | null }) {
-  const { t, date } = useLocale()
-
-  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
-
-  if (!isContactDue(value)) {
-    return <span className="tabular text-[var(--fg-secondary)]">{date(value)}</span>
-  }
-
-  return (
-    <span
-      className="tabular flex items-center gap-1.5 font-medium text-ios-orange"
-      title={t('recruiting.nextContactDue')}
-    >
-      <CircleAlert className="size-4 shrink-0" aria-hidden />
-      {date(value)}
-    </span>
-  )
 }
