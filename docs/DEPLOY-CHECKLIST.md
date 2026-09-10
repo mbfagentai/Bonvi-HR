@@ -9,8 +9,21 @@
       `./bonvi check` · `./bonvi pnpm build`
 - [ ] `git push` — `deploy.sh` `git pull --ff-only` qiladi, ya'ni
       o'zgarishlar origin'da bo'lishi SHART
-- [ ] **Yangi zaxira**: prod'da `./bonvi backup`. Kunlik zaxira 22:00 UTC
-      da olinadi, ya'ni ertalabki deploy oldida u eskirgan bo'ladi
+- [ ] **Yangi zaxira**: prod'da
+
+      ```
+      docker compose -f docker-compose.prod.yml exec backup /scripts/run-all.sh
+      ```
+
+      ⚠️ `./bonvi backup` prod'da ISHLAMAYDI: `bonvi` skripti dev
+      compose faylini qidiradi va «postgres ishlamayapti» deb to'xtaydi.
+      Kunlik avtomatik zaxira 22:00 UTC da olinadi, ya'ni ertalabki
+      deploy oldida u eskirgan bo'ladi.
+
+      ⚠️ `.env` dagi `BACKUP_CRON_SCHEDULE` qiymati QO'SHTIRNOQDA
+      bo'lishi shart (`"0 22 * * *"`). Qo'shtirnoqsiz yozilsa `bonvi`
+      skripti uni buyruq deb o'qiydi va `exit 127` bilan o'ladi —
+      2026-09-10 da prod'da aynan shu holat topilgan va tuzatilgan.
 - [ ] Ish vaqtidan tashqarida: bot qayta ishga tushganda YARIM
       TO'LDIRILGAN anketalar yo'qoladi (holat xotirada)
 
@@ -19,7 +32,7 @@
 ```
 ssh root@189.74.98.57
 cd /opt/bonvi-hr
-./bonvi backup
+docker compose -f docker-compose.prod.yml exec backup /scripts/run-all.sh
 ./infra/deploy.sh
 ```
 
