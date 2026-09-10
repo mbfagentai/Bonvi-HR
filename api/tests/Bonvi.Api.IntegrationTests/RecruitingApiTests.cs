@@ -2,8 +2,10 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Settings;
@@ -45,6 +47,19 @@ public sealed record CandidateStageResponse(
     string Outcome,
     string? Conclusion);
 
+/// <summary>Nomzodning amal izohi (bosqichga bog'lanmagan qayd).</summary>
+/// <remarks>
+/// <c>Kind</c> ATAYLAB satr, sanoq emas: interfeys qatorning yorlig'ini
+/// aynan shu nom bo'yicha to'rt tilda chizadi. Test sim ustidagi
+/// QIYMATNI qadaydi, C# turini emas.
+/// </remarks>
+public sealed record CandidateNoteResponse(
+    Guid Id,
+    string Kind,
+    string Text,
+    Guid? CreatedBy,
+    DateTimeOffset CreatedAt);
+
 /// <summary>Nomzod kartasi — testga kerakli qismi.</summary>
 public sealed record CandidateResponse(
     Guid Id,
@@ -62,19 +77,35 @@ public sealed record CandidateResponse(
     // Rezerv testiga kerak: rezervga o'tkazish ularni to'ldiradi,
     // voronkaga qaytarish esa TOZALAYDI.
     DateOnly? ClosedAt,
-    string? ClosingNote);
+    string? ClosingNote,
+
+    // Suhbat vaqti — «faqat ko'rish» ruxsati testiga kerak: rad etilgan
+    // taklif kartada iz qoldirmasligi kerak.
+    DateTimeOffset? InterviewAt,
+
+    // Keyingi aloqa sanasi va amal izohlari — yangi maydonlar.
+    DateOnly? NextContactDate,
+    IReadOnlyList<CandidateNoteResponse> Notes);
 
 /// <summary>Sahifalangan vakansiyalar ro'yxati.</summary>
 public sealed record VacancyPageResponse(IReadOnlyList<VacancyResponse> Items, int Total);
 
 /// <summary>Nomzodlar ro'yxatining qatori.</summary>
+/// <remarks>
+/// <paramref name="HasResume"/> va <paramref name="NextContactDate"/> —
+/// yangi ustunlar. Birinchisi endi «kamida BITTA fayl biriktirilganmi»
+/// degan ma'noda (nomi ataylab o'zgarmadi: uni o'zgartirish TypeScript
+/// o'quvchisini va anketa testlarini buzardi).
+/// </remarks>
 public sealed record CandidateRowResponse(
     Guid Id,
     string FullName,
     string? Phone,
     string Status,
     Guid? CurrentStageId,
-    Guid? HiredEmployeeId);
+    Guid? HiredEmployeeId,
+    bool HasResume,
+    DateOnly? NextContactDate);
 
 /// <summary>«Bu odam yangi anketa topshira oladimi» javobi.</summary>
 /// <remarks>
@@ -496,12 +527,19 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     [Fact]
     public async Task Rad_etilgan_nomzod_SUKUT_royxatda_KORINMAYDI()
     {
-        // ⭐ Foydalanuvchi talabi (2026-09-08): «отказ бўлганлар алоҳида
-        //    рад бўлганлар бўлимига ўтиши керак». Ya'ni rad etilgan
-        //    nomzod kundalik ro'yxatdan CHIQADI va `?status=Rejected`
-        //    bilan ochiladigan alohida bo'limda turadi.
-        //
-        //    ⚠️ Yozuv O'CHIRILMAYDI: u kelasi izlanishning bazasi.
+        /*
+          ⭐ Foydalanuvchi qarori (2026-09-10) MAVJUD qoidani KENGAYTIRDI:
+             endi «o'zi voz kechgan» (`Withdrawn`) ham kundalik ro'yxatdan
+             CHIQADI. Ilgari u ro'yxatda qolardi va sababi «kam uchraydi»
+             deb yozilgan edi — amalda bu to'g'ri chiqmadi.
+
+          ⚠️ Ikkala holat AYRIM bo'lib qoladi: belgisi ham, voronka
+             hisoboti ham alohida. Faqat RO'YXATDA ko'rinishi umumiy va u
+             `?rejected=true` BO'LIMI orqali ochiladi (`?status=…` ham
+             avvalgidek ishlaydi).
+
+          ⚠️ Yozuv O'CHIRILMAYDI: u kelasi izlanishning bazasi.
+        */
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
@@ -511,47 +549,298 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var vozKechgan = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Возкечган");
         var radEtilgan = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Радэтилган");
 
-        using (var vozKechish = await mijoz.PostAsJsonAsync(
-            new Uri($"/api/recruiting/candidates/{vozKechgan.Id}/withdraw", UriKind.Relative),
-            new { reason = "Бошқа жойга ишга кирди" },
-            bekorQilish))
+        // Excel'dan ko'chirilgan kengash arxivi — pastdagi 5-bo'lim uchun.
+        var arxivRad = await NomzodAsync(
+            mijoz, vakansiya.Id, familiya: "Арxиврад", manba: "Excel");
+        var arxivVoz = await NomzodAsync(
+            mijoz, vakansiya.Id, familiya: "Арxиввоз", manba: "Excel");
+
+        foreach (var id in new[] { vozKechgan.Id, arxivVoz.Id })
         {
+            using var vozKechish = await mijoz.PostAsJsonAsync(
+                new Uri($"/api/recruiting/candidates/{id}/withdraw", UriKind.Relative),
+                new { reason = "Бошқа жойга ишга кирди" },
+                bekorQilish);
+
             vozKechish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(vozKechish));
         }
 
-        using (var rad = await mijoz.PostAsJsonAsync(
-            new Uri($"/api/recruiting/candidates/{radEtilgan.Id}/reject", UriKind.Relative),
-            new { reason = "Тажрибаси етарли эмас" },
-            bekorQilish))
+        foreach (var id in new[] { radEtilgan.Id, arxivRad.Id })
         {
+            using var rad = await mijoz.PostAsJsonAsync(
+                new Uri($"/api/recruiting/candidates/{id}/reject", UriKind.Relative),
+                new { reason = "Тажрибаси етарли эмас" },
+                bekorQilish);
+
             rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
         }
 
-        // ── 1. SUKUT ro'yxat: rad etilgan yo'q, voz kechgani BOR ──
+        // ── 1. SUKUT ro'yxat: IKKALASI ham yo'q ──
         var sukut = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}");
 
         sukut.Items.ShouldContain(q => q.Id == jarayonda.Id);
-        sukut.Items.ShouldContain(
-            q => q.Id == vozKechgan.Id,
-            "qoida FAQAT rad etilganlarga tegishli — voz kechgan kam uchraydi");
         sukut.Items.ShouldNotContain(q => q.Id == radEtilgan.Id);
+        sukut.Items.ShouldNotContain(
+            q => q.Id == vozKechgan.Id,
+            "voz kechgan odam «hozir kim ish ustida?» degan savolga javob emas");
 
-        // ── 2. Sanoq qatorlarga MOS: ikkalasi bitta so'rovdan olinadi ──
-        sukut.Total.ShouldBe(
-            sukut.Items.Count,
-            "sanoq va qatorlar bir-biriga zid bo'lmasligi kerak");
-        sukut.Total.ShouldBe(2);
+        // Sanoq qatorlarga MOS: ikkalasi bitta so'rovdan olinadi.
+        sukut.Total.ShouldBe(sukut.Items.Count, "sanoq va qatorlar bir-biriga zid bo'lmasligi kerak");
+        sukut.Total.ShouldBe(1, "arxiv qatorlari ham sukut ro'yxatga tushmaydi");
 
-        // ── 3. «Rad etilganlar» bo'limi — menyudagi band shu so'rovni yuboradi ──
-        var radEtilganlar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Rejected");
+        // ── 2. «Rad etilganlar» BO'LIMI: ikkalasi birga ──
+        var bolim = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&rejected=true");
 
-        radEtilganlar.Items.ShouldContain(q => q.Id == radEtilgan.Id);
-        radEtilganlar.Total.ShouldBe(1, "band jimgina bo'sh ro'yxat bermasligi kerak");
+        bolim.Items.ShouldContain(q => q.Id == radEtilgan.Id);
+        bolim.Items.ShouldContain(q => q.Id == vozKechgan.Id, "bo'lim ikkala holatni BIRGA ko'rsatadi");
+        bolim.Items.ShouldNotContain(q => q.Id == jarayonda.Id, "jarayondagi nomzod bo'limda turmaydi");
+        bolim.Total.ShouldBe(bolim.Items.Count);
+        bolim.Total.ShouldBe(
+            2,
+            "bo'lim Excel arxivini O'ZI tortmaydi — arxivning kirish yo'li «source=Excel»");
 
-        // ── 4. Yozuv O'CHIRILMAGAN: karta ochilaveradi ──
+        // Holatlar bo'limda ham AYRIM ko'rinadi — belgilar shunga qarab chiziladi.
+        bolim.Items.First(q => q.Id == radEtilgan.Id).Status.ShouldBe("Rejected");
+        bolim.Items.First(q => q.Id == vozKechgan.Id).Status.ShouldBe("Withdrawn");
+
+        // ── 3. Bo'lim + holat tanlovi: faqat voz kechganlar ──
+        var faqatVoz = await NomzodlarAsync(
+            mijoz, $"?vacancyId={vakansiya.Id}&rejected=true&status=Withdrawn");
+
+        faqatVoz.Items.ShouldContain(q => q.Id == vozKechgan.Id);
+        faqatVoz.Items.ShouldNotContain(q => q.Id == radEtilgan.Id);
+        faqatVoz.Total.ShouldBe(1);
+
+        // ── 4. Holat yolg'iz ham avvalgidek ishlaydi ──
+        var holat = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Withdrawn");
+
+        holat.Items.ShouldContain(q => q.Id == vozKechgan.Id);
+        holat.Items.ShouldNotContain(q => q.Id == radEtilgan.Id);
+        holat.Total.ShouldBe(1, "arxiv «status» tanlovidan ham o'z-o'zidan ochilmaydi");
+
+        // ── 5. Excel arxivi: IKKALA holat ham qaytadi (ARXIV IMTIYOZI) ──
+        //
+        //    Kengash arxividagi yozuvlarning deyarli hammasi yopilgan. Yangi
+        //    «voz kechganlarni yashirish» qoidasi arxivga ham tegsa, «Excel
+        //    arxivi» ni tanlagan HR bo'm-bo'sh ro'yxat olardi.
+        var arxiv = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&source=Excel");
+
+        arxiv.Items.ShouldContain(q => q.Id == arxivRad.Id);
+        arxiv.Items.ShouldContain(q => q.Id == arxivVoz.Id, "imtiyoz IKKALA holatni ham qamraydi");
+        arxiv.Items.ShouldNotContain(q => q.Id == jarayonda.Id, "manba filtri qo'llanadi");
+        arxiv.Total.ShouldBe(2);
+
+        // ── 6. Yozuv O'CHIRILMAGAN: karta ochilaveradi ──
         var karta = await KartaAsync(mijoz, radEtilgan.Id);
         karta.Status.ShouldBe("Rejected");
         karta.ClosingNote.ShouldBe("Тажрибаси етарли эмас", "izoh ICHKI — nomzodga bormaydi");
+
+        var vozKarta = await KartaAsync(mijoz, vozKechgan.Id);
+        vozKarta.Status.ShouldBe("Withdrawn", "holat RAD ETISHGA aylanib qolmaydi");
+    }
+
+    [Fact]
+    public async Task Aloqa_sanasi_KELGAN_nomzodlar_filtr_bilan_qaytadi()
+    {
+        // «Bugun kim bilan gaplashish kerak» — bu maydonning YAGONA ekrandagi
+        // ma'nosi (bildirishnoma ham, fon vazifasi ham ataylab yo'q).
+        using var mijoz = await AdminMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var anketa = bosqichlar[0];
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+
+        var otgan = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Ўтган");
+        var kelasi = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Келаси");
+        var sanasiz = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Санасиз");
+
+        // Chegara sanadan 30 kun narida: server «bugun» ni Toshkent
+        // kalendarida hisoblaydi, test esa UTC da — bir kunlik farq
+        // javobga ta'sir qilmasligi kerak.
+        await AloqaSanasiniQoyAsync(mijoz, otgan.Id, anketa.Id, Bugun().AddDays(-30));
+        await AloqaSanasiniQoyAsync(mijoz, kelasi.Id, anketa.Id, Bugun().AddDays(30));
+
+        // ── 1. Filtr: faqat muddati kelganlar ──
+        var kelganlar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&contactDue=true");
+
+        kelganlar.Items.ShouldContain(q => q.Id == otgan.Id);
+        kelganlar.Items.ShouldNotContain(q => q.Id == kelasi.Id, "kelasi sana hali kelmagan");
+        kelganlar.Items.ShouldNotContain(q => q.Id == sanasiz.Id, "sanasi yo'q nomzod bu ro'yxatda emas");
+        kelganlar.Total.ShouldBe(kelganlar.Items.Count);
+        kelganlar.Total.ShouldBe(1);
+        kelganlar.Items[0].NextContactDate.ShouldBe(Bugun().AddDays(-30), "ustun qatorda ham qaytadi");
+
+        // ── 2. Bayroqsiz (va «false» bilan) — filtr YO'Q ──
+        var hammasi = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}");
+        hammasi.Total.ShouldBe(3);
+
+        var ochiq = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&contactDue=false");
+        ochiq.Total.ShouldBe(3, "«false» — filtr yo'q, bo'sh ro'yxat emas");
+
+        var karta = await KartaAsync(mijoz, kelasi.Id);
+        karta.NextContactDate.ShouldBe(Bugun().AddDays(30), "kartada ham shu sana turadi");
+    }
+
+    [Fact]
+    public async Task Aloqa_sanasi_boyicha_saralashda_SANASIZ_qatorlar_OXIRIDA()
+    {
+        /*
+          ⭐ PostgreSQL NULL'ni o'sish tartibida oxiriga, KAMAYISH tartibida
+             esa BOSHIGA qo'yadi. Ya'ni «keyingi aloqa bo'yicha, yangidan
+             eskiga» so'rovi bir ekran chiziqcha bilan ochilardi va HR
+             ro'yxatning boshida hech narsa ko'rmasdi. Shu sababli tartib
+             ikkala yo'nalishda ham ATAYLAB «sanasi yo'qlar oxirida».
+        */
+        using var mijoz = await AdminMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var anketa = bosqichlar[0];
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+
+        var erta = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Эрта");
+        var kech = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Кеч");
+        var sanasiz = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Санасиз");
+
+        await AloqaSanasiniQoyAsync(mijoz, erta.Id, anketa.Id, Bugun().AddDays(-20));
+        await AloqaSanasiniQoyAsync(mijoz, kech.Id, anketa.Id, Bugun().AddDays(-10));
+
+        var osish = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&sort=nextContact");
+
+        osish.Items.Count.ShouldBe(3);
+        osish.Items[0].Id.ShouldBe(erta.Id);
+        osish.Items[1].Id.ShouldBe(kech.Id);
+        osish.Items[2].Id.ShouldBe(sanasiz.Id, "sanasi yo'q qator OXIRIDA");
+
+        var kamayish = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&sort=-nextContact");
+
+        kamayish.Items.Count.ShouldBe(3);
+        kamayish.Items[0].Id.ShouldBe(kech.Id);
+        kamayish.Items[1].Id.ShouldBe(erta.Id);
+        kamayish.Items[2].Id.ShouldBe(sanasiz.Id, "teskari tartibda HAM oxirida");
+    }
+
+    /// <summary>Voronkada kartani sudrab o'tkazish aloqa sanasini o'chirmasligi kerak.</summary>
+    /// <remarks>
+    /// ⭐ Sudrash oynasiz ishlaydi va so'rovda faqat bosqich bo'ladi. «null —
+    /// tozalash» shartnomasida u HR besh daqiqa oldin qo'ygan qo'ng'iroq
+    /// rejasini JIMGINA o'chirib tashlardi. Shu sababli shartnomada ikkita
+    /// alohida maydon bor va bu test uchala holatni sim ustida qadaydi.
+    /// </remarks>
+    [Fact]
+    public async Task Sudrab_otkazish_aloqa_sanasiga_TEGMAYDI()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var anketa = bosqichlar[0];
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id);
+
+        // ── 1. Sana qo'yildi ──
+        await AloqaSanasiniQoyAsync(mijoz, nomzod.Id, anketa.Id, Bugun().AddDays(7));
+        (await KartaAsync(mijoz, nomzod.Id)).NextContactDate.ShouldBe(Bugun().AddDays(7));
+
+        // ── 2. SUDRASH: so'rovda faqat bosqich — sana TEGILMAYDI ──
+        using (var sudrash = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/stages", UriKind.Relative),
+            new { stageId = kengash.Id },
+            bekorQilish))
+        {
+            sudrash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(sudrash));
+
+            var keyin = await sudrash.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
+            keyin!.CurrentStageId.ShouldBe(kengash.Id, "bosqich baribir o'zgaradi");
+            keyin.NextContactDate.ShouldBe(Bugun().AddDays(7), "sana JOYIDA qoladi");
+        }
+
+        // ── 3. Bayroq ATAYLAB yuborilsa — tozalanadi ──
+        using (var tozalash = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/stages", UriKind.Relative),
+            new { stageId = kengash.Id, clearNextContact = true },
+            bekorQilish))
+        {
+            tozalash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tozalash));
+
+            var keyin = await tozalash.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
+            keyin!.NextContactDate.ShouldBeNull();
+        }
+    }
+
+    [Fact]
+    public async Task Kartada_izohlar_YARATILISH_tartibida_qaytadi()
+    {
+        // Izoh HECH QACHON mustaqil emas: u amaldan tug'iladi. Shu sababli
+        // test uni amallar orqali yozadi va tarixdagi tartibini qadaydi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var anketa = bosqichlar[0];
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var boshqa = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id);
+
+        // ── 1. Boshqa vakansiyaga o'tkazish ──
+        using (var kochirish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reassign", UriKind.Relative),
+            new { vacancyId = boshqa.Id, note = "Сотувчига мос эмас, кассирга кўчирилди" },
+            bekorQilish))
+        {
+            kochirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(kochirish));
+        }
+
+        // ── 2. Rezerv va rezervdan qaytarish ──
+        using (var rezerv = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reserve", UriKind.Relative),
+            new { reason = "Ҳозир ўрин йўқ" },
+            bekorQilish))
+        {
+            rezerv.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rezerv));
+        }
+
+        using (var qaytarish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            new { note = "Ўрин бўшади, қайта чақирдим" },
+            bekorQilish))
+        {
+            qaytarish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaytarish));
+        }
+
+        var karta = await KartaAsync(mijoz, nomzod.Id);
+
+        karta.Notes.Count.ShouldBe(2);
+        karta.Notes[0].Kind.ShouldBe("Reassign");
+        karta.Notes[0].Text.ShouldBe("Сотувчига мос эмас, кассирга кўчирилди");
+        karta.Notes[0].CreatedBy.ShouldNotBeNull("«kim yozdi» — audit fakti");
+        karta.Notes[1].Kind.ShouldBe("ReturnFromReserve");
+        karta.Notes[1].Text.ShouldBe("Ўрин бўшади, қайта чақирдим");
+        karta.ClosingNote.ShouldBeNull("qaytarish chiqish izohini TOZALAYDI — izoh esa saqlanib qoldi");
+    }
+
+    [Fact]
+    public async Task BOSH_izoh_kartada_yozuv_qoldirmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var boshqa = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
+
+        // Domen bo'sh matnda ISTISNO tashlaydi — tekshiruv tushib qolsa,
+        // bu so'rov 500 bilan qaytardi.
+        using var kochirish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reassign", UriKind.Relative),
+            new { vacancyId = boshqa.Id, note = "   " },
+            bekorQilish);
+
+        kochirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(kochirish));
+
+        var karta = await KartaAsync(mijoz, nomzod.Id);
+        karta.VacancyId.ShouldBe(boshqa.Id);
+        karta.Notes.ShouldBeEmpty("«izoh yozilmadi» — yozuvsiz ko'rinadi");
     }
 
     [Fact]
@@ -673,6 +962,90 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         // Ruxsatsiz urinishlar hech narsani o'zgartirmadi.
         var karta = await KartaAsync(admin, nomzod.Id);
         karta.Status.ShouldBe("InProgress");
+    }
+
+    /// <summary>O'zgargan yozish marshrutlari FAQAT ko'rish ruxsatiga ochilmaydi.</summary>
+    /// <remarks>
+    /// <para>
+    /// Uchala marshrut ham shu o'zgarishda kengaydi (izoh va keyingi aloqa
+    /// sanasi maydonlari). Ruxsat tekshiruvi endpoint darajasida turadi,
+    /// ya'ni yangi maydon qo'shilganda uni tushirib qoldirish oson —
+    /// va o'shanda ro'yxatni ko'ra oladigan har kim nomzodni voronka
+    /// bo'ylab yurgiza olardi.
+    /// </para>
+    /// <para>
+    /// Oxirgi qadam MAJBURIY: o'qish YO'LI ochiq qolishi ham tekshiriladi,
+    /// aks holda test shunchaki «hamma yopiq» degan holatdan xursand bo'lib
+    /// o'tib ketardi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Ozgargan_yozish_marshrutlari_FAQAT_korish_ruxsatiga_ochilmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        var bosqichlar = await BosqichlarAsync(admin);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var boshqa = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Ҳимояланган");
+
+        using var koruvchi = _factory.CreateClient();
+        koruvchi.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await KoruvchiTokenAsync());
+
+        using (var bosqich = await koruvchi.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/stages", UriKind.Relative),
+            new { stageId = kengash.Id, nextContactDate = Bugun().AddDays(3) },
+            bekorQilish))
+        {
+            bosqich.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var kochirish = await koruvchi.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reassign", UriKind.Relative),
+            new { vacancyId = boshqa.Id, note = "Кўчириб қўяман" },
+            bekorQilish))
+        {
+            kochirish.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var taklif = await koruvchi.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/interview-invite", UriKind.Relative),
+            new { interviewAt = DateTimeOffset.UtcNow.AddDays(3), conclusion = "Чақирдим" },
+            bekorQilish))
+        {
+            taklif.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var qaytarish = await koruvchi.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            new { note = "Қайтараман" },
+            bekorQilish))
+        {
+            qaytarish.StatusCode.ShouldBe(
+                HttpStatusCode.Forbidden,
+                "«rezervda emas» (409) EMAS: ruxsat tekshiruvi qoidadan OLDIN turadi");
+        }
+
+        // Hech narsa o'zgarmagan.
+        var karta = await KartaAsync(admin, nomzod.Id);
+        karta.VacancyId.ShouldBe(vakansiya.Id);
+        karta.NextContactDate.ShouldBeNull();
+        karta.InterviewAt.ShouldBeNull();
+        karta.Notes.ShouldBeEmpty();
+
+        // O'qish yo'li esa AYNAN shu token bilan ochiq.
+        using (var royxat = await koruvchi.GetAsync(
+            new Uri($"/api/recruiting/candidates?vacancyId={vakansiya.Id}", UriKind.Relative),
+            bekorQilish))
+        {
+            royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
+
+            var sahifa = await royxat.Content.ReadFromJsonAsync<CandidatePageResponse>(bekorQilish);
+            sahifa!.Items.ShouldContain(q => q.Id == nomzod.Id);
+        }
     }
 
     [Fact]
@@ -1255,11 +1628,101 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         }
     }
 
+    /// <summary>Botga ketadigan ikkala javob ham AYNAN o'z maydonlarini beradi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Bu — «ichki maydon nomzodga bormaydi» qoidasining MEXANIK
+    /// qorovuli. Nomzodning telefoni, manzili, ichki izohlari va endi
+    /// keyingi aloqa sanasi ham botga TUSHMASLIGI kerak: bot bu obyektlarni
+    /// nomzodga yoziladigan xabarga aylantiradi.
+    /// </para>
+    /// <para>
+    /// Test JSON maydon NOMLARINI qadaydi, C# turini emas. Shu sababli
+    /// DTO ga yangi maydon qo'shilsa — hatto zararsizi ham — bu test
+    /// yiqiladi va o'sha qo'shimcha ATAYLAB ko'rib chiqiladi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Botga_ketadigan_javoblarda_ORTIQCHA_maydon_yoq()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(admin);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+
+        var radEtilgan = await NomzodAsync(
+            admin, vakansiya.Id, familiya: "Ботрад", telefon: Raqam(), suhbatId: SuhbatRaqami());
+
+        var chaqirilgan = await NomzodAsync(
+            admin, vakansiya.Id, familiya: "Ботсуҳбат", telefon: Raqam(), suhbatId: SuhbatRaqami());
+
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{radEtilgan.Id}/reject", UriKind.Relative),
+            new { reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        using (var taklif = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{chaqirilgan.Id}/interview-invite", UriKind.Relative),
+            new
+            {
+                interviewAt = DateTimeOffset.UtcNow.AddDays(3),
+                stageId = kengash.Id,
+                nextContactDate = Bugun().AddDays(1),
+            },
+            bekorQilish))
+        {
+            taklif.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(taklif));
+        }
+
+        (await BotMaydonlariAsync(bot, "rejection-notices", radEtilgan.Id)).ShouldBe(
+            ["candidateId", "chatId", "fullName", "language", "vacancyTitle"],
+            "rad etish xabari uchun boshqa hech narsa kerak emas");
+
+        (await BotMaydonlariAsync(bot, "interview-notices", chaqirilgan.Id)).ShouldBe(
+            ["candidateId", "chatId", "fullName", "interviewAt", "language", "vacancyTitle"],
+            "suhbat taklifi uchun qo'shimcha faqat VAQT");
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Muhit tayyorlash
     // ────────────────────────────────────────────────────────────
 
     private static string Belgi() => Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+    /// <summary>Botga ketgan javobdagi bitta yozuvning maydon NOMLARI.</summary>
+    /// <remarks>
+    /// Javob <c>JsonDocument</c> bilan o'qiladi, C# rekordi bilan EMAS:
+    /// rekord ortiqcha maydonni jimgina tashlab yuborardi va test aynan
+    /// shu ortiqchani qidiryapti.
+    /// </remarks>
+    private static async Task<string[]> BotMaydonlariAsync(HttpClient bot, string yol, Guid nomzodId)
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var javob = await bot.GetAsync(
+            new Uri($"/api/recruiting/candidates/{yol}?limit=50", UriKind.Relative), bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        using var hujjat = JsonDocument.Parse(await javob.Content.ReadAsStringAsync(bekorQilish));
+
+        var qator = hujjat.RootElement
+            .EnumerateArray()
+            .FirstOrDefault(yozuv => yozuv.GetProperty("candidateId").GetGuid() == nomzodId);
+
+        qator.ValueKind.ShouldBe(JsonValueKind.Object, $"«{yol}» navbatida nomzod topilmadi");
+
+        return [.. qator.EnumerateObject()
+            .Select(maydon => maydon.Name)
+            .OrderBy(nom => nom, StringComparer.Ordinal)];
+    }
 
     /// <summary>Telefon raqami hisoblagichi — izohi <see cref="Raqam"/> da.</summary>
     private static int _raqamHisoblagichi;
@@ -1382,6 +1845,13 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     /// takroriy ariza tekshiruvi uchun qo'shilgan. Sukut qiymatlar
     /// ATAYLAB o'zgarmagan: mavjud testlar ularga tayanadi va ular
     /// tekshiruvga umuman tegmaydi.
+    /// <para>
+    /// <paramref name="manba"/> — «Excel» berilsa nomzod KENGASH ARXIVI
+    /// qatoriga aylanadi (sukut ro'yxatda ko'rinmaydi, «source=Excel»
+    /// bilan esa yashirish qoidalari ochiladi). Sukut qiymat serverning
+    /// o'z sukutiga teng, ya'ni mavjud chaqiruvlar uchun hech narsa
+    /// o'zgarmaydi.
+    /// </para>
     /// </remarks>
     private static async Task<CandidateResponse> NomzodAsync(
         HttpClient mijoz,
@@ -1389,7 +1859,8 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         Guid? bosqichId = null,
         string familiya = "Каримов",
         string telefon = "905088888",
-        long? suhbatId = null)
+        long? suhbatId = null,
+        string manba = "Manual")
     {
         using var javob = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/candidates", UriKind.Relative),
@@ -1403,6 +1874,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
                 birthDate = new DateOnly(1995, 5, 20),
                 stageId = bosqichId,
                 telegramChatId = suhbatId,
+                source = manba,
             },
             TestContext.Current.CancellationToken);
 
@@ -1428,6 +1900,26 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         sahifa.ShouldNotBeNull();
         return sahifa;
+    }
+
+    /// <summary>Bosqich yozuvi orqali keyingi aloqa sanasini qo'yadi.</summary>
+    /// <remarks>
+    /// Ekrandagi yo'l bilan: yangi oyna aynan shu so'rovni yuboradi
+    /// (bosqich + xulosa + aloqa sanasi bitta tranzaksiyada). Bazaga
+    /// to'g'ridan-to'g'ri yozish shartnomani umuman tekshirmasdi.
+    /// </remarks>
+    private static async Task AloqaSanasiniQoyAsync(
+        HttpClient mijoz,
+        Guid nomzodId,
+        Guid bosqichId,
+        DateOnly sana)
+    {
+        using var javob = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzodId}/stages", UriKind.Relative),
+            new { stageId = bosqichId, nextContactDate = sana },
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
     }
 
     /// <summary>Nomzod kartasini o'qiydi.</summary>
@@ -1467,6 +1959,39 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         user.ShouldNotBeNull();
 
         return tokens.CreateTokens(user, [], new HashSet<string>(StringComparer.Ordinal)).AccessToken;
+    }
+
+    /// <summary>
+    /// Haqiqiy token, ichida FAQAT <c>recruiting.view</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Bu hisobni login orqali olish MUMKIN emas: urug'lantirilgan
+    /// rollarning hammasida ikkala rekruting ruxsati BIRGA turadi
+    /// (<c>Permissions.cs</c>), ya'ni «faqat ko'ruvchi» degan foydalanuvchi
+    /// bazada yo'q. Ruxsat esa endpoint darajasida tekshiriladi, shu sababli
+    /// token'ni to'g'ridan-to'g'ri yasash aynan shu farqni ko'rsatadi:
+    /// yuklab olish ochiq, yuklash va o'chirish esa 403.
+    /// </para>
+    /// <para>
+    /// <see cref="RuxsatsizTokenAsync"/> ning egizagi — farqi bittagina
+    /// ruxsatda.
+    /// </para>
+    /// </remarks>
+    private async Task<string> KoruvchiTokenAsync()
+    {
+        using var qamrov = _factory.Services.CreateScope();
+
+        var users = qamrov.ServiceProvider.GetRequiredService<IUserRepository>();
+        var tokens = qamrov.ServiceProvider.GetRequiredService<ITokenService>();
+
+        var login = PhoneNumber.Create(BonviApiFactory.TestAdminLogin).Value;
+        var user = await users.GetByLoginAsync(login, TestContext.Current.CancellationToken);
+        user.ShouldNotBeNull();
+
+        var ruxsatlar = new HashSet<string>(StringComparer.Ordinal) { Permissions.RecruitingView };
+
+        return tokens.CreateTokens(user, [], ruxsatlar).AccessToken;
     }
 
     /// <summary>Har chaqiruvda BOSHQA telefon raqami.</summary>

@@ -248,7 +248,7 @@ export function CandidateHireDialog({
       qaytadan rezervga o'tkaza oladi.
     */
     if (fromReserve && !restored) {
-      restore.mutate(candidate.id, {
+      restore.mutate({ id: candidate.id }, {
         onSuccess: () => {
           setRestored(true)
           send()

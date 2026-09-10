@@ -1,5 +1,6 @@
 using Bonvi.Application.Common.Photos;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Recruiting.Common;
 
@@ -120,13 +121,52 @@ public static class RecruitingErrors
         "nomzod.umumiy_anketa_yoq",
         "«Umumiy anketa» vakansiyasi sozlanmagan yoki ochiq emas — vakansiyasiz anketa qabul qilinmaydi.");
 
+    /// <summary>
+    /// Nomzodning bunday fayli yo'q — noma'lum identifikator, boshqa
+    /// nomzodning fayli, yoki yozuv bor-u diskdagi baytlar yo'q.
+    /// </summary>
+    /// <remarks>
+    /// Uchala holat BITTA javobga yig'iladi va bu ataylab. Oxirgisi
+    /// buzilgan holat, lekin mijozga u «bunday fayl yo'q» bo'lib
+    /// ko'rinishi kerak: 500 xatosi foydalanuvchiga hech narsa aytmaydi.
+    /// Birinchi ikkitasi esa ajratilsa, chalkash juftlik boshqa nomzodda
+    /// fayl BORLIGINI oshkor qilardi.
+    ///
+    /// Kod eski BITTA rezyume davridan meros va o'zgarmadi: u to'rt tilga
+    /// tarjimalangan, ma'nosi esa aynan bir xil qoldi.
+    /// </remarks>
     public static Error ResumeNotFound { get; } =
-        Error.NotFound("nomzod.rezyume_topilmadi", "Nomzodning rezyumesi yo'q.");
+        Error.NotFound("nomzod.rezyume_topilmadi", "Nomzodning bunday fayli yo'q.");
 
     /// <summary>Fayl chegaradan katta.</summary>
     public static Error ResumeTooLarge { get; } = Error.Validation(
         "nomzod.rezyume_katta",
         "Rezyume fayli juda katta (eng ko'pi 20 MB).");
+
+    /// <summary>
+    /// Fayllar soni chegarasi — ARZON, oldindan to'xtatish uchun.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Faylning bu qatlamda turishi — YAGONA istisno</b> (sinf
+    /// izohidagi «domen xatolari takrorlanmaydi» qoidasiga). Sabab amaliy:
+    /// invariantni <c>Candidate.AttachFile</c> ushlab turadi va u AYNAN
+    /// shu kodni qaytaradi, lekin u faylni diskka yozgandan KEYIN ishlaydi.
+    /// O'nta fayli bor nomzodga yana 4 MB lik surat yuklanganda uni
+    /// butunlay o'qib, dekodlab, kichraytirib, saqlab, so'ng o'chirish —
+    /// behuda ish. Shu sababli ishlovchi oqimga TEGMASDAN oldin shu xato
+    /// bilan to'xtaydi.
+    /// </para>
+    /// <para>
+    /// Kod ikkalasida BIR XIL (<c>nomzod.rezyume_kop</c>): foydalanuvchi
+    /// qaysi tekshiruv ishlaganini bilishi shart emas va ekranda bitta
+    /// tarjima ko'rinadi. Ikkisi bir kun ajralib qolsa, oxirgi so'z
+    /// DOMENDA — u har qanday holatda saqlashdan oldin qayta tekshiradi.
+    /// </para>
+    /// </remarks>
+    public static Error ResumeTooMany { get; } = Error.Validation(
+        "nomzod.rezyume_kop",
+        $"Bitta nomzodga eng ko'pi {Candidate.MaxFiles} ta fayl biriktiriladi.");
 
     /// <summary>Fayl mazmuni tanilmadi.</summary>
     public static Error ResumeInvalid { get; } = Error.Validation(

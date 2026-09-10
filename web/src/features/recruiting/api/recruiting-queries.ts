@@ -8,13 +8,13 @@ import type { SelectOption } from '@/shared/ui'
 import {
   changeVacancyStatus,
   closeCandidate,
+  deleteCandidateFile,
   deleteCandidatePhoto,
-  deleteResume,
   deleteVacancy,
   fetchCandidate,
+  fetchCandidateFile,
   fetchCandidatePhoto,
   fetchCandidates,
-  fetchResume,
   fetchStages,
   fetchVacancies,
   hireCandidate,
@@ -25,8 +25,8 @@ import {
   returnCandidateFromReserve,
   saveVacancy,
   updateCandidate,
+  uploadCandidateFile,
   uploadCandidatePhoto,
-  uploadResume,
   type CandidateFilters,
   type CandidateInput,
   type CandidateListItem,
@@ -132,6 +132,22 @@ export const recruitingKeys = {
    * kartasida yozilgan har bir bosqich suratni qaytadan yuklatardi.
    */
   photo: (candidateId: string) => ['candidate-photo', candidateId] as const,
+
+  /**
+   * Biriktirilgan RASMNI katta ko'rish uchun binar kesh.
+   *
+   * ⚠️ Kalit ildizi `-photo` bilan tugashi SHART (`candidate-file-photo`)
+   * — yuqoridagi bilan aynan bir xil sabab: `providers.tsx` har
+   * muvaffaqiyatli yozuvdan keyin butun keshni bekor qiladi va bu
+   * qoidadan chetlab o'tadigan yagona guruh — nomi `-photo` ga
+   * tugaydigan kalitlar. Suffikssiz nomzod kartasida yozilgan HAR BIR
+   * izoh ochiq turgan rasmni qaytadan yuklatardi (bir necha megabayt).
+   *
+   * Kalitda `fileId` bor: bir nomzodda o'ntagacha fayl bo'ladi va
+   * ularning har biri o'z yozuviga tushishi kerak.
+   */
+  fileBlob: (candidateId: string, fileId: string) =>
+    ['candidate-file-photo', candidateId, fileId] as const,
 }
 
 /* ═══════════════════════════════════════════════════════════ bosqichlar */
@@ -267,10 +283,23 @@ export function useUpdateCandidate() {
   })
 }
 
+/**
+ * Vakansiyani almashtirish.
+ *
+ * `note` va `nextContactDate` IXTIYORIY: ularni yubormaydigan chaqiruv
+ * avvalgidek ishlaydi (izoh yozuvi hosil bo'lmaydi, sana o'zgarmaydi).
+ */
 export function useReassignCandidate() {
   return useMutation({
-    mutationFn: ({ id, vacancyId }: { id: string; vacancyId: string }) =>
-      reassignCandidate(id, vacancyId),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string
+      vacancyId: string
+      note?: string | null
+      nextContactDate?: string | null
+    }) => reassignCandidate(id, body),
   })
 }
 
@@ -280,6 +309,10 @@ export function useReassignCandidate() {
  * `useRecordStage` dan farqi bittada va u muhim: bu yerda nomzodga
  * XABAR ketadi. Shu sababli amal alohida hook va alohida oyna orqali
  * bajariladi — tasodifan bosilib qolmasligi kerak.
+ *
+ * `conclusion` bitta maydon bo'lib yuboriladi va uni qaysi jadvalga
+ * yozishni SERVER hal qiladi (`stageId` bor — bosqich xulosasi, yo'q —
+ * «suhbat ko'chirildi» izohi). Batafsil `inviteCandidateToInterview` da.
  */
 export function useInviteToInterview() {
   return useMutation({
@@ -291,11 +324,21 @@ export function useInviteToInterview() {
       interviewAt: string
       stageId: string | null
       conclusion: string | null
+      nextContactDate?: string | null
+      clearNextContact?: boolean
     }) => inviteCandidateToInterview(id, body),
   })
 }
 
-/** ⭐ Voronkaning yagona harakati — bosqich natijasini yozish. */
+/**
+ * ⭐ Voronkaning yagona harakati — bosqich natijasini yozish.
+ *
+ * `nextContactDate` va `clearNextContact` IXTIYORIY va uch holatli:
+ * sana — qo'yadi, `clearNextContact: true` — tozalaydi, ikkalasi ham
+ * yo'q — TEGMAYDI. Aynan shu sababli sudrash (`useMoveCandidateToStage`)
+ * o'zgarmasdan qoldi (izoh `recruiting-api.ts` da, «keyingi aloqa
+ * sanasi: yozish qoidasi»).
+ */
 export function useRecordStage() {
   return useMutation({
     mutationFn: ({
@@ -307,6 +350,8 @@ export function useRecordStage() {
       outcome: StageOutcome
       date: string | null
       conclusion: string | null
+      nextContactDate?: string | null
+      clearNextContact?: boolean
     }) => recordCandidateStage(id, body),
   })
 }
@@ -506,6 +551,14 @@ function withCandidate(page: CandidatePage, item: CandidateListItem): CandidateP
   return { ...page, items, total: page.total + 1 }
 }
 
+/**
+ * Voronkadan chiqarish: rad etish, voz kechish, rezervga.
+ *
+ * ⚠️ `nextContactDate` ni FAQAT `reserve` hisobga oladi; qolgan
+ * ikkitasida server uni e'tiborsiz qoldiradi va saqlangan sanani
+ * tozalaydi. Shu sababli oynada maydon faqat rezerv uchun chizilishi
+ * kerak — tip esa uchalasi uchun bitta (`closeCandidate` izohi).
+ */
 export function useCloseCandidate() {
   return useMutation({
     mutationFn: ({
@@ -513,18 +566,36 @@ export function useCloseCandidate() {
       action,
       at,
       reason,
+      nextContactDate,
     }: {
       id: string
       action: 'reject' | 'withdraw' | 'reserve'
       at: string | null
       reason: string | null
-    }) => closeCandidate(id, action, { at, reason }),
+      nextContactDate?: string | null
+    }) => closeCandidate(id, action, { at, reason, nextContactDate }),
   })
 }
 
-/** ⭐ Rezervdan voronkaga qaytarish — «Rezervga» ning yagona teskarisi. */
+/**
+ * ⭐ Rezervdan voronkaga qaytarish — «Rezervga» ning yagona teskarisi.
+ *
+ * ⚠️ O'zgaruvchi endi SATR emas, OBYEKT: amal izoh va keyingi aloqa
+ * sanasini ham qabul qiladi. Ikkalasi ham ixtiyoriy — `{ id }` bilan
+ * chaqirish avvalgi xatti-harakatni AYNAN saqlaydi (server tanasi bo'sh
+ * so'rovni ham qabul qiladi).
+ */
 export function useReturnCandidateFromReserve() {
-  return useMutation({ mutationFn: (id: string) => returnCandidateFromReserve(id) })
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string
+      note?: string | null
+      nextContactDate?: string | null
+    }) => returnCandidateFromReserve(id, body),
+  })
 }
 
 /**
@@ -550,20 +621,46 @@ export function useHireCandidate() {
   })
 }
 
-/* ─────────────────────────────────────────────────────────────── rezyume */
+/* ─────────────────────────────────────────────────────────────── fayllar */
 
-export function useUploadResume() {
+/**
+ * Bitta faylni yuklash.
+ *
+ * ⚠️ Chaqiruvchi tanlangan fayllarni KETMA-KET yuklaydi (server bitta
+ * so'rovda bitta fayl qabul qiladi — sabab `uploadCandidateFile` da).
+ * Shu sababli bu hook «bir amal — bir fayl» bo'lib qoladi va guruh
+ * holatini (qaysi fayl yiqildi) chaqiruvchi o'zi kuzatadi: bitta yiqilish
+ * qolganlarini to'xtatmasligi kerak.
+ *
+ * Kartani yangilash uchun QO'LDA `invalidateQueries` YOZILMAYDI —
+ * `providers.tsx` har muvaffaqiyatli yozuvdan keyin butun keshni bekor
+ * qiladi, ya'ni nomzod kartasi ham, ro'yxatdagi `hasResume` qisqichi ham
+ * o'zi yangilanadi. Bu yerdagi qoida bitta rezyume paytidagidek qoldi:
+ * qo'lda yozilgan bekor qilish ro'yxatlari doim eskirardi (sabab
+ * `recruitingKeys` izohida).
+ */
+export function useUploadCandidateFile() {
   return useMutation({
-    mutationFn: ({ id, file }: { id: string; file: File }) => uploadResume(id, file),
+    mutationFn: ({ id, file }: { id: string; file: File }) => uploadCandidateFile(id, file),
   })
 }
 
-export function useDeleteResume() {
-  return useMutation({ mutationFn: (id: string) => deleteResume(id) })
+/**
+ * Faylni o'chirish — yozuv ham, diskdagi baytlar ham.
+ *
+ * Keshni bekor qilish yuqoridagi bilan bir xil: `providers.tsx` zimmasida.
+ * Ochiq turgan RASM keshi (`fileBlob`) esa ataylab tegilmaydi — u `-photo`
+ * kalitida va o'chirilgan faylga boshqa hech kim murojaat qilmaydi,
+ * dialog yopilishi bilan blob'ga havola qolmaydi.
+ */
+export function useDeleteCandidateFile() {
+  return useMutation({
+    mutationFn: ({ id, fileId }: { id: string; fileId: string }) => deleteCandidateFile(id, fileId),
+  })
 }
 
 /**
- * Rezyumeni yuklab olish.
+ * Faylni yuklab olish.
  *
  * NEGA `useQuery` emas, MUTATSIYA: fayl tugma bosilganda kerak bo'ladi,
  * sahifa ochilganda emas — keshda 20 MB baytni saqlab turishning
@@ -573,15 +670,58 @@ export function useDeleteResume() {
  * undan keyin butun keshni bekor qilish keraksiz (`providers.tsx`
  * dagi qoida shu bayroqni tekshiradi).
  */
-export function useDownloadResume() {
+export function useDownloadCandidateFile() {
   return useMutation({
     meta: { readOnly: true },
-    mutationFn: async ({ id, fallbackName }: { id: string; fallbackName: string }) => {
-      const { blob, disposition } = await fetchResume(id)
+    mutationFn: async ({
+      id,
+      fileId,
+      fallbackName,
+    }: {
+      id: string
+      fileId: string
+      fallbackName: string
+    }) => {
+      const { blob, disposition } = await fetchCandidateFile(id, fileId)
       // Nom SERVERNIKI: u asl fayl nomini biladi. Sarlavha kesilgan
-      // bo'lsa (proksi, CORS) — nomzodning ismi bilan saqlanadi.
+      // bo'lsa (proksi, CORS) — chaqiruvchi bergan nom bilan saqlanadi.
       saveBlobAs(blob, fileNameFromDisposition(disposition) ?? fallbackName)
     },
+  })
+}
+
+/**
+ * Biriktirilgan RASMNI katta ko'rish uchun baytlar.
+ *
+ * NEGA bu yerda `useQuery` (yuklab olish esa mutatsiya): rasm oyna
+ * OCHILGANDA kerak bo'ladi, tugma bosilganda emas — ya'ni bu ekranning
+ * ma'lumoti va u yuklanish/xato holatiga ega bo'lishi kerak. Kesh esa
+ * bitta rasmni ikki marta ochishni tekinga aylantiradi.
+ *
+ * ⚠️ PDF uchun ISHLATILMAYDI: ilovada PDF ko'ruvchi yo'q va u yuklab
+ * olinadi (brauzer yoki tizim o'zi ochadi). Faqat `contentType` `image/`
+ * bilan boshlanadigan qator bu hook'ni yoqadi — `enabled` shu tanlovni
+ * chaqiruvchidan oladi, chunki turni bilgan joy u.
+ *
+ * Ro'yxatda MINIATYURA yo'q va shu sababli bu hook har qator uchun
+ * chaqirilmaydi: o'nta miniatyura o'nta autentifikatsiyalangan so'rov
+ * degani va u ekrandagi eng sekin narsa bo'lardi (SPEC §5.4.1).
+ */
+export function useCandidateFileBlob(candidateId: string, fileId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: recruitingKeys.fileBlob(candidateId, fileId),
+    queryFn: async ({ signal }) => {
+      const { blob } = await fetchCandidateFile(candidateId, fileId, signal)
+      return blob
+    },
+    enabled: enabled && candidateId !== '' && fileId !== '',
+    /** Bir fayl — bir mazmun. Fayllar o'zgarmaydi: yangisi yangi ID oladi. */
+    staleTime: Infinity,
+    /**
+     * Qayta urinish yo'q: rasm chiqmasa oynada xato ko'rinadi va yuklab
+     * olish tugmasi baribir ishlaydi (`useCandidatePhoto` bilan bir xil).
+     */
+    retry: false,
   })
 }
 

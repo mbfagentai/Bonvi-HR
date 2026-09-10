@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
-import { Button, Input, Select, type SelectOption } from '@/shared/ui'
+import { Button, Checkbox, Input, Select, type SelectOption } from '@/shared/ui'
 import {
   CANDIDATE_SOURCES,
   CANDIDATE_STATUSES,
@@ -12,11 +12,20 @@ import {
 } from '../api/recruiting-api'
 import { DEFAULT_FILTERS, type CandidatesFilterState } from '../lib/candidates-search'
 
-/** Qidiruvdan tashqari nechta filtr yoqilgan — tugmadagi sanoq uchun. */
+/**
+ * Qidiruvdan tashqari nechta filtr yoqilgan — tugmadagi sanoq uchun.
+ *
+ * «Bugun aloqa kerak» ham SANALADI, garchi u satr emas, katakcha bo'lsa
+ * ham: u ro'yxatni eng qattiq qisqartiradigan filtr (odatda bir necha
+ * qator qoladi). Sanalmasa, yig'ilgan panel ortida ro'yxat sababsiz
+ * qisqargandek ko'rinardi va HR nima uchun ekanini topa olmasdi.
+ */
 function activeFilterCount(filters: CandidatesFilterState): number {
-  return [filters.vacancyId, filters.stageId, filters.status, filters.source].filter(
+  const chosen = [filters.vacancyId, filters.stageId, filters.status, filters.source].filter(
     (value) => value !== '',
   ).length
+
+  return filters.contactDue ? chosen + 1 : chosen
 }
 
 /**
@@ -142,12 +151,22 @@ export function CandidatesToolbar({
             />
             {/*
               ⚠️ «Barcha holatlar» — TO'LIQ ro'yxat EMAS: server sukut
-              bo'yicha ishga olinganlarni chiqarib tashlaydi (ular endi
-              xodim va bu ro'yxatda shovqin). Izoh shu sababli bor —
-              usiz HR ishga olingan odamni qidirib topolmay, «yozuv
-              yo'qolibdi» degan xulosaga kelardi. Rezerv esa KO'RINADI:
-              rezervning butun ma'nosi «kerak bo'lganda shu yerdan
-              chaqiramiz» degani.
+              bo'yicha UCHTA holatni chiqarib tashlaydi — ishga
+              olinganlar (ular endi xodim va bu ro'yxatda shovqin), rad
+              etilganlar va o'zi voz kechganlar (`HideHired`,
+              `HideRejected`, `HideWithdrawn`). Izoh shu sababli bor —
+              usiz HR ulardan birini qidirib topolmay, «yozuv yo'qolibdi»
+              degan xulosaga kelardi.
+
+              Ro'yxatning O'ZI esa har uchtasini ham tanlashga ruxsat
+              beradi va bu talabning ikkinchi yarmi: «Rad etilganlar»
+              bo'limi ikkita holatni birga ko'rsatadi, `<select>` esa
+              ularni AYRIM-AYRIM ajratib bera olishi kerak
+              (`rejected=true&status=Withdrawn` — faqat o'zi voz
+              kechganlar, SPEC §4.7).
+
+              Rezerv esa KO'RINADI: rezervning butun ma'nosi «kerak
+              bo'lganda shu yerdan chaqiramiz» degani.
             */}
             <Select
               label={t('recruiting.status')}
@@ -162,6 +181,35 @@ export function CandidatesToolbar({
               value={filters.source}
               onChange={(event) => set('source', event.target.value as CandidateSource | '')}
             />
+          </div>
+
+          {/*
+            ⭐ «Bugun aloqa kerak» — mijozning aynan shu so'zlari bilan
+            aytilgan talab: HR qo'ng'iroq qiladi, nomzod «5-6 kundan keyin
+            kelaman» deydi, va ertalab ro'yxatni ochgan HR bugun kim bilan
+            gaplashishi kerakligini KO'RISHI kerak.
+
+            Katakcha, `Switch` EMAS: o'tkirgich sozlama («shu ko'rinish
+            yoqilgan») ma'nosini beradi, bu esa filtr — bir marta belgilanib,
+            ish tugagach bo'shatiladi.
+
+            Panelning ICHIDA, `Select`lar qatoridan keyin: u ro'yxatni eng
+            qattiq qisqartiradigan filtr, lekin kundalik qidiruv emas —
+            birinchi qatorga chiqarilsa (xodimlardagi «tekshirish kerak»
+            kabi) ekranning eng qimmat joyini har kuni bir marta bosiladigan
+            tugmaga berardi.
+          */}
+          <div className="mt-3.5 space-y-1.5">
+            <Checkbox
+              checked={filters.contactDue}
+              onChange={(checked) => set('contactDue', checked)}
+              label={t('recruiting.contactDue')}
+            />
+            {/* Chapdan 30px — katakcha (20px) va oraliq (10px) kengligi:
+                izoh yorliq matni bilan bir tekislikda turadi. */}
+            <p className="pl-[30px] text-footnote text-[var(--fg-tertiary)]">
+              {t('recruiting.contactDueHint')}
+            </p>
           </div>
 
           {(count > 0 || filters.search !== '') && (

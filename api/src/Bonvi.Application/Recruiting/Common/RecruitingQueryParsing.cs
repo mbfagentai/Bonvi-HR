@@ -76,6 +76,11 @@ internal static class RecruitingQueryParsing
             {
                 "NAME" => (CandidateSortField.Name, descending),
                 "STAGE" => (CandidateSortField.Stage, descending),
+
+                // «nextContact» — keyingi aloqa sanasi. Sanasi yo'q qatorlar
+                // ikkala yo'nalishda ham oxirida turadi (sababi
+                // `CandidateSortField.NextContact` izohida).
+                "NEXTCONTACT" => (CandidateSortField.NextContact, descending),
                 _ => (CandidateSortField.CreatedAt, descending),
             };
     }

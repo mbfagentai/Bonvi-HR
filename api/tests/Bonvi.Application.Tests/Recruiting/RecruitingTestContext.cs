@@ -1,4 +1,5 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Settings;
@@ -90,6 +91,27 @@ internal sealed class RecruitingTestContext
         Substitute.For<IReferenceRepository<VacancyTitle>>();
 
     public IUnitOfWork UnitOfWork => Employees.UnitOfWork;
+
+    /// <summary>Rasm qayta ishlovchisining o'rinbosari.</summary>
+    /// <remarks>
+    /// <see cref="EmployeeTestContext"/> da yo'q, chunki xodim hujjatlari
+    /// hech qachon qayta kodlanmaydi (sababi <c>DocumentFileStore</c>
+    /// izohida). Nomzod fayllarining quvuri esa rasmni kichraytiradi va
+    /// shu portga tayanadi.
+    /// </remarks>
+    public IImageProcessor Images { get; } = Substitute.For<IImageProcessor>();
+
+    /// <summary>
+    /// Nomzod fayllarining HAQIQIY quvuri — faqat disk, tekshiruvchi va
+    /// rasm ishlovchisi o'rinbosar.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="EmployeeTestContext.Files"/> bilan bir xil naqsh:
+    /// <c>ScaledDocumentStore</c> — <c>sealed</c> sinf va uni mock qilib
+    /// bo'lmaydi; hojat ham yo'q, uning o'z qoidasi (hajm chegarasi, tur
+    /// tekshiruvi) testda ham ishlashi kerak.
+    /// </remarks>
+    public ScaledDocumentStore Files => new(Employees.Storage, Employees.Inspector, Images);
 
     public IClock Clock => Employees.Clock;
 

@@ -268,8 +268,8 @@ export const NAV: NavSection[] = [
             permission: 'recruiting.view' },
           /*
             Rad etilganlar — arxiv. `formerEmployees` bandining AYNAN
-            naqshi: alohida sahifa emas, o'sha ro'yxatning boshqa filtri
-            (`?status=Rejected`). Sabab o'sha yerda yozilgan — alohida
+            naqshi: alohida sahifa emas, o'sha ro'yxatning boshqa kesimi
+            (`?rejected=true`). Sabab o'sha yerda yozilgan — alohida
             sahifa qidiruv, saralash, sahifalash va jadval ustunlarini
             ikkinchi marta takrorlash demak.
 
@@ -279,9 +279,42 @@ export const NAV: NavSection[] = [
             qoldirilsa, ular tizimda BUTUNLAY ko'rinmas bo'lib qolardi —
             «ishdan ketganlar» bandidagi bilan bir xil xavf: topib
             bo'lmagan odam qayta kiritiladi.
+
+            ⭐ BAND IKKITA HOLATNI OCHADI (foydalanuvchi talabi,
+            2026-09-10): «Biz rad etdik» (`Rejected`) va «O'zi voz kechdi»
+            (`Withdrawn`) — ikkalasi ham kundalik ro'yxatdan yashirilgan,
+            ikkalasi ham shu yerda. Holatlarning O'ZI esa avvalgidek
+            AJRALGAN qoladi: yorliqlar boshqa rangda (qizil va sariq) va
+            har bir hisobot ularni ajratadi. Shu sababli manzil `status`
+            filtri emas, alohida `rejected` bayrog'i — bitta `<select>`
+            ikkita qiymatni ifodalay olmaydi, holat filtri esa bo'lim
+            ichida ham ishlashi kerak (SPEC §4.7). Nomi ham «Rad
+            etilganlar» bo'lib qoldi: qatordagi yorliq kimning ketganini
+            aytib turadi.
+
+            Eski xatcho'p (`?status=Rejected`) ISHLASHDA DAVOM ETADI va
+            faqat rad etilganlarni ko'rsatadi — torroq, lekin to'g'ri
+            javob. Yo'naltirish ATAYLAB qo'yilmadi: u aynan bitta holatga
+            filtrlash imkonini yo'q qilardi.
+
+            ⚠️ Qiymat `'true'` — SATR, mantiqiy `true` EMAS. Bu ATAYLAB,
+            «tuzatish» kerak emas: `NavItem.search` tipi
+            `Readonly<Record<string, string>>`, `sidebar.tsx` dagi
+            `matches()` esa `String(actual[key] ?? '') === value` bilan
+            solishtiradi. Router `{ rejected: 'true' }` ni
+            `?rejected=true` qilib yozadi va o'qiganda (har bir qiymat
+            `JSON.parse` dan o'tadi) MANTIQIY `true` qaytaradi — ya'ni
+            `validateCandidatesSearch` mantiqiy qiymat oladi, `matches()`
+            esa `String(true) === 'true'` bo'lib mos keladi. `page`
+            parametri ham xuddi shu o'qigichga tayanadi (`readPage` da
+            `typeof value !== 'number'`). Mantiqiy `true` yozilsa tip
+            xatosi chiqadi, tipni kengaytirish esa ikkita UMUMIY faylni
+            («nav-items», «sidebar») hech qanday foyda uchun o'zgartirish
+            bo'lardi — buning o'rniga menyudagi yonish tekshiruvi
+            avvalgidek satr bilan ishlaydi.
           */
           { key: 'rejectedCandidates', to: '/nomzodlar', icon: UserRoundX,
-            search: { status: 'Rejected' }, permission: 'recruiting.view' },
+            search: { rejected: 'true' }, permission: 'recruiting.view' },
         ],
       },
     ],

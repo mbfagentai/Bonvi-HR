@@ -45,7 +45,12 @@ export default defineConfig(({ mode }) => ({
     host: '0.0.0.0',
     port: 7173,   // 7xxx — BonviHR yo'lagi (boshqa loyihalar bilan to'qnashmaydi)
     // Docker bind-mount'da fayl o'zgarishini sezish uchun
-    watch: { usePolling: true },
+    watch: {
+      usePolling: true,
+      interval: 1000,
+      binaryInterval: 3000,
+      ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
+    },
 
     /**
      * Tashqi domendan kirishga ruxsat (Cloudflare tunnel va shunga o'xshash).

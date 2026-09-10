@@ -36,6 +36,19 @@ const DEFAULT_TIME = '10:00'
  * <b>Vaqtni KO'CHIRISH ham shu oyna.</b> Nomzod allaqachon chaqirilgan
  * bo'lsa, `stageId` yuborilmaydi: bosqich o'zgarmaydi, faqat vaqt
  * yangilanadi va nomzod yangi xabar oladi.
+ *
+ * <b>⭐ Izoh maydoni DOIM chiziladi</b> — ko'chirishda ham. Ilgari u
+ * bosqichsiz holatda umuman ko'rinmasdi, chunki matn hech qayerga
+ * tushmasdi. Endi tushadi va manzilni SERVER tanlaydi: bosqich bor —
+ * bosqich xulosasi, bosqich yo'q — `candidate_notes` yozuvi
+ * («suhbat ko'chirildi» turi, SPEC §4.2). Tanlovni klientga berish
+ * server qarorini brauzerga ko'chirardi.
+ *
+ * <b>Keyingi aloqa sanasi ham shu yerda.</b> Suhbat vaqti bilan
+ * ARALASHTIRILMASIN: suhbat vaqti nomzodga XABAR bo'lib ketadi,
+ * keyingi aloqa sanasi esa faqat HR ning o'z ro'yxatida qator hosil
+ * qiladi (SPEC §7 — ichki maydonlar nomzodga hech qachon
+ * yuborilmaydi).
  */
 export function CandidateInterviewDialog({
   candidate,
@@ -60,6 +73,7 @@ export function CandidateInterviewDialog({
   const [date, setDate] = useState(today)
   const [time, setTime] = useState(DEFAULT_TIME)
   const [conclusion, setConclusion] = useState('')
+  const [nextContact, setNextContact] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -74,6 +88,17 @@ export function CandidateInterviewDialog({
     */
     const current = candidate.interviewAt
 
+    /*
+      Keyingi aloqa sanasi MAVJUD qiymatdan boshlanadi — ikkala
+      tarmoqda ham (suhbat vaqti bor nomzodda ham, yo'qida ham).
+
+      ⚠️ `candidate.nextContactDate` bog'liqliklar ro'yxatida turishi
+      SHART: qaytadan ochilgan oynada eski bo'sh quti qolib qolsa, u
+      serverga «tozalash» buyrug'ini yuborardi (pastdagi
+      `clearNextContact`) va HR qo'ygan sana jimgina o'chib ketardi.
+    */
+    const seedContact = candidate.nextContactDate ?? ''
+
     if (current !== null) {
       const local = new Date(current)
       if (!Number.isNaN(local.getTime())) {
@@ -81,6 +106,7 @@ export function CandidateInterviewDialog({
         setDate(shifted.toISOString().slice(0, 10))
         setTime(shifted.toISOString().slice(11, 16))
         setConclusion('')
+        setNextContact(seedContact)
         return
       }
     }
@@ -88,8 +114,9 @@ export function CandidateInterviewDialog({
     setDate(today())
     setTime(DEFAULT_TIME)
     setConclusion('')
+    setNextContact(seedContact)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, candidate.interviewAt])
+  }, [open, candidate.interviewAt, candidate.nextContactDate])
 
   if (!open) return null
 
@@ -104,6 +131,15 @@ export function CandidateInterviewDialog({
         interviewAt: `${date}T${time}:00+05:00`,
         stageId: stage?.id ?? null,
         conclusion: orNull(conclusion),
+        nextContactDate: orNull(nextContact),
+        /*
+          ⭐ Bo'sh quti O'ZICHA TOZALAMAYDI — shartnomada uch holat
+          bor (`recruiting-api.ts`, «keyingi aloqa sanasi: yozish
+          qoidasi»). «Tozala» buyrug'i faqat ilgari sana BO'LGAN
+          bo'lsa yuboriladi: aks holda har bir suhbat chaqiruvi
+          serverga keraksiz buyruq berardi.
+        */
+        clearNextContact: nextContact === '' && candidate.nextContactDate !== null,
       },
       { onSuccess: onClose },
     )
@@ -180,21 +216,45 @@ export function CandidateInterviewDialog({
         </div>
 
         {/*
-          Izoh BOSQICH yozuviga tushadi, xabarga EMAS — matn ichki
-          qoladi. Bosqich o'zgarmaydigan holatda (vaqtni ko'chirish)
-          maydon umuman chizilmaydi: yozilgan matn hech qayerga
-          tushmasdi.
+          Izoh XABARGA tushmaydi — matn har qanday holatda ICHKI
+          qoladi. Maydon DOIM chiziladi: ilgari bosqich
+          o'zgarmaydigan holatda (vaqtni ko'chirish) u umuman
+          ko'rinmasdi, chunki matn hech qayerga tushmasdi. Endi
+          tushadi — server `stageId` bo'lmaganda uni «suhbat
+          ko'chirildi» turidagi izoh qilib yozadi (SPEC §4.2), ya'ni
+          maydonning paydo bo'lib-yo'qolishi uchun sabab qolmadi.
+
+          `maxLength` matn QAYSI jadvalga tushishiga qarab: bosqich
+          xulosasi 4000, izoh esa 2000 belgi (ustun kengligi). Server
+          uzunlikni tekshirmaydi, shu sababli chegarani maydonning
+          o'zi ushlaydi — aks holda uzun matn bazada xato bo'lib
+          qaytardi.
         */}
-        {stage !== null && (
-          <TextArea
-            label={t('recruiting.conclusion')}
-            hint={t('recruiting.interviewNoteHint')}
-            placeholder={t('recruiting.conclusionPlaceholder')}
-            value={conclusion}
-            disabled={invite.isPending}
-            onChange={(event) => setConclusion(event.target.value)}
-          />
-        )}
+        <TextArea
+          label={t('recruiting.conclusion')}
+          hint={t('recruiting.interviewNoteHint')}
+          placeholder={t('recruiting.conclusionPlaceholder')}
+          maxLength={stage === null ? 2000 : 4000}
+          value={conclusion}
+          disabled={invite.isPending}
+          onChange={(event) => setConclusion(event.target.value)}
+        />
+
+        {/*
+          Keyingi aloqa sanasi — suhbat vaqtidan BOSHQA narsa: bu
+          nomzod bilan keyin qachon gaplashish rejasi va u nomzodga
+          ketmaydi. O'tgan sana ham to'g'ri qiymat va tekshirilmaydi
+          (SPEC §2.1.3) — «bugun yoki muddati o'tganlar» ro'yxati
+          aynan shundan tuziladi.
+        */}
+        <TextField
+          label={t('recruiting.nextContact')}
+          hint={t('recruiting.nextContactHint')}
+          type="date"
+          value={nextContact}
+          disabled={invite.isPending}
+          onChange={(event) => setNextContact(event.target.value)}
+        />
       </form>
     </Dialog>
   )

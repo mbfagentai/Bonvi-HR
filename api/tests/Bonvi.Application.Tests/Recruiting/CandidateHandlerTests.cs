@@ -27,13 +27,28 @@ public sealed class CandidateHandlerTests
         _context.UnitOfWork);
 
     private ReassignCandidateCommandHandler Kochirish => new(
-        _context.Candidates, _context.Vacancies, _context.Mapper, _context.UnitOfWork);
+        _context.Candidates,
+        _context.Vacancies,
+        _context.Mapper,
+        _context.Employees.CurrentUser,
+        _context.UnitOfWork);
 
     private CloseCandidateCommandHandler Yopish => new(
         _context.Candidates, _context.Mapper, _context.Clock, _context.UnitOfWork);
 
     private ReturnCandidateFromReserveCommandHandler Qaytarish => new(
-        _context.Candidates, _context.Mapper, _context.UnitOfWork);
+        _context.Candidates,
+        _context.Mapper,
+        _context.Employees.CurrentUser,
+        _context.UnitOfWork);
+
+    private InviteCandidateToInterviewCommandHandler Suhbat => new(
+        _context.Candidates,
+        _context.Stages,
+        _context.Mapper,
+        _context.Employees.CurrentUser,
+        _context.Clock,
+        _context.UnitOfWork);
 
     // ────────────────────── Kiritish ──────────────────────
 
@@ -428,5 +443,363 @@ public sealed class CandidateHandlerTests
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("nomzod.topilmadi");
+    }
+
+    // ────────────────────── Keyingi aloqa sanasi ──────────────────────
+
+    [Fact]
+    public async Task Bosqich_izoh_va_ALOQA_sanasi_bilan_yoziladi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var kengash = _context.ExistingStage("Кенгаш", 3);
+        _context.Funnel(kengash);
+        var nomzod = _context.ExistingCandidate(vakansiya, kengash);
+
+        var natija = await Bosqich.HandleAsync(
+            new RecordCandidateStageCommand(
+                nomzod.Id,
+                kengash.Id,
+                StageOutcome.Passed,
+                RecruitingTestContext.Today,
+                "Кенгаш хулосаси: ишга олинсин",
+                NextContactDate: RecruitingTestContext.Today.AddDays(5)),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.Stages[0].Conclusion.ShouldBe("Кенгаш хулосаси: ишга олинсин");
+        natija.Value.NextContactDate.ShouldBe(
+            RecruitingTestContext.Today.AddDays(5),
+            "oynadagi ikkala maydon ham BITTA so'rovda saqlanadi");
+        await _context.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Bayroq_berilsa_aloqa_sanasi_TOZALANADI()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.SetNextContactDate(RecruitingTestContext.Today.AddDays(3));
+
+        // Ikkalasi birga berilgan (mos kelmaydigan) so'rovda TOZALASH ustun
+        // keladi — xato qaytarilmaydi.
+        var natija = await Bosqich.HandleAsync(
+            new RecordCandidateStageCommand(
+                nomzod.Id,
+                anketa.Id,
+                NextContactDate: RecruitingTestContext.Today.AddDays(9),
+                ClearNextContact: true),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.NextContactDate.ShouldBeNull();
+        nomzod.NextContactDate.ShouldBeNull();
+    }
+
+    /// <summary>Voronkada kartani SUDRAB o'tkazish sanani o'chirmasligi kerak.</summary>
+    /// <remarks>
+    /// ⭐ Eng jimgina yo'qoladigan xato: sudrash oynasiz ishlaydi va faqat
+    /// bosqichni yuboradi. «null — tozalash» shartnomasida u HR besh daqiqa
+    /// oldin qo'ygan qo'ng'iroq rejasini o'chirib tashlardi va buni hech kim
+    /// payqamasdi.
+    /// </remarks>
+    [Fact]
+    public async Task Ikkala_maydon_berilmasa_aloqa_sanasi_TEGILMAYDI()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage("Анкета", 0);
+        var kengash = _context.ExistingStage("Кенгаш", 3);
+        _context.Funnel(anketa, kengash);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.SetNextContactDate(RecruitingTestContext.Today.AddDays(4));
+
+        var natija = await Bosqich.HandleAsync(
+            new RecordCandidateStageCommand(nomzod.Id, kengash.Id),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.CurrentStageId.ShouldBe(kengash.Id, "bosqich baribir o'zgaradi");
+        natija.Value.NextContactDate.ShouldBe(
+            RecruitingTestContext.Today.AddDays(4),
+            "sudrash sanaga TEGMAYDI");
+    }
+
+    [Fact]
+    public async Task Rad_etish_aloqa_sanasini_TOZALAYDI()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.SetNextContactDate(RecruitingTestContext.Today.AddDays(3));
+
+        var natija = await Yopish.HandleAsync(
+            new RejectCandidateCommand(nomzod.Id, Reason: "Тажрибаси етарли эмас"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.NextContactDate.ShouldBeNull(
+            "rad etilgan nomzod «bugun bog'lanish kerak» ro'yxatida qolmasligi kerak");
+    }
+
+    [Fact]
+    public async Task Rezerv_aloqa_sanasini_SAQLAYDI()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.SetNextContactDate(RecruitingTestContext.Today.AddDays(3));
+
+        var saqlangan = await Yopish.HandleAsync(
+            new ReserveCandidateCommand(nomzod.Id, Reason: "Ҳозир ўрин йўқ"),
+            TestContext.Current.CancellationToken);
+
+        saqlangan.IsSuccess.ShouldBeTrue(saqlangan.IsFailure ? saqlangan.Error.Code : null);
+        saqlangan.Value.NextContactDate.ShouldBe(
+            RecruitingTestContext.Today.AddDays(3),
+            "rezerv chiqish emas, KECHIKTIRISH — qo'ng'iroq rejasi o'rinli");
+
+        // Yangi sana berilsa esa u qo'yiladi.
+        nomzod.ReturnFromReserve();
+
+        var yangilangan = await Yopish.HandleAsync(
+            new ReserveCandidateCommand(
+                nomzod.Id, NextContactDate: RecruitingTestContext.Today.AddDays(60)),
+            TestContext.Current.CancellationToken);
+
+        yangilangan.IsSuccess.ShouldBeTrue(yangilangan.IsFailure ? yangilangan.Error.Code : null);
+        yangilangan.Value.NextContactDate.ShouldBe(RecruitingTestContext.Today.AddDays(60));
+    }
+
+    // ────────────────────── Suhbatga chaqirish ──────────────────────
+
+    /// <summary>Suhbat vaqti — «bugun» dan keyin, ya'ni domen to'sig'idan o'tadi.</summary>
+    private static readonly DateTimeOffset SuhbatVaqti =
+        new(2026, 3, 12, 15, 0, 0, TimeSpan.FromHours(5));
+
+    [Fact]
+    public async Task Suhbatga_chaqirishda_bosqich_berilsa_izoh_XULOSAGA_tushadi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var kengash = _context.ExistingStage("Кенгаш", 3);
+        _context.Funnel(kengash);
+        var nomzod = _context.ExistingCandidate(vakansiya);
+
+        var natija = await Suhbat.HandleAsync(
+            new InviteCandidateToInterviewCommand(
+                nomzod.Id, kengash.Id, SuhbatVaqti, "Кенгашга чақирилди"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.Stages.Count.ShouldBe(1);
+        natija.Value.Stages[0].StageId.ShouldBe(kengash.Id);
+        natija.Value.Stages[0].Conclusion.ShouldBe("Кенгашга чақирилди");
+        natija.Value.Notes.ShouldBeEmpty("bosqich yozuvi bor — izoh alohida jadvalga TUSHMAYDI");
+    }
+
+    /// <summary>Suhbat ko'chirilganda izoh yo'qolmasligi kerak.</summary>
+    /// <remarks>
+    /// Ilgari bu matn interfeysda umuman so'ralmasdi, so'rovda kelib qolsa
+    /// ham JIMGINA tashlanardi — aynan shu nosozlik tuzatilyapti.
+    /// </remarks>
+    [Fact]
+    public async Task Suhbat_kochirilsa_izoh_IZOHLAR_jadvaliga_tushadi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var kengash = _context.ExistingStage("Кенгаш", 3);
+        _context.Funnel(kengash);
+        var nomzod = _context.ExistingCandidate(vakansiya, kengash);
+        var kim = Guid.CreateVersion7();
+        _context.Employees.CurrentUser.UserId.Returns(kim);
+
+        var natija = await Suhbat.HandleAsync(
+            new InviteCandidateToInterviewCommand(
+                nomzod.Id, StageId: null, SuhbatVaqti, "Номзод сўради, эртага кўчирилди"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.Notes.Count.ShouldBe(1);
+        natija.Value.Notes[0].Kind.ShouldBe(CandidateNoteKind.InterviewRescheduled);
+        natija.Value.Notes[0].Text.ShouldBe("Номзод сўради, эртага кўчирилди");
+        natija.Value.Notes[0].CreatedBy.ShouldBe(kim);
+        natija.Value.Stages.Count.ShouldBe(1, "bosqich o'zgarmadi — yangi yozuv qo'shilmaydi");
+        natija.Value.InterviewAt.ShouldBe(SuhbatVaqti.ToUniversalTime());
+    }
+
+    [Fact]
+    public async Task Suhbat_kochirilganda_BOSH_izoh_yozuv_yaratmaydi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+
+        var natija = await Suhbat.HandleAsync(
+            new InviteCandidateToInterviewCommand(nomzod.Id, StageId: null, SuhbatVaqti, "   "),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.Notes.ShouldBeEmpty("«izoh yozilmadi» — yozuvsiz ko'rinadi");
+    }
+
+    [Fact]
+    public async Task Suhbatga_chaqirishda_ham_aloqa_sanasi_uch_holatli()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.SetNextContactDate(RecruitingTestContext.Today.AddDays(4));
+
+        // 1. Ikkala maydon ham berilmadi — sana JOYIDA qoladi.
+        var tegilmagan = await Suhbat.HandleAsync(
+            new InviteCandidateToInterviewCommand(nomzod.Id, StageId: null, SuhbatVaqti),
+            TestContext.Current.CancellationToken);
+
+        tegilmagan.IsSuccess.ShouldBeTrue(tegilmagan.IsFailure ? tegilmagan.Error.Code : null);
+        tegilmagan.Value.NextContactDate.ShouldBe(RecruitingTestContext.Today.AddDays(4));
+
+        // 2. Yangi sana berildi — qo'yiladi.
+        var qoyilgan = await Suhbat.HandleAsync(
+            new InviteCandidateToInterviewCommand(
+                nomzod.Id,
+                StageId: null,
+                SuhbatVaqti,
+                NextContactDate: RecruitingTestContext.Today.AddDays(7)),
+            TestContext.Current.CancellationToken);
+
+        qoyilgan.Value.NextContactDate.ShouldBe(RecruitingTestContext.Today.AddDays(7));
+
+        // 3. Bayroq berildi — tozalanadi.
+        var tozalangan = await Suhbat.HandleAsync(
+            new InviteCandidateToInterviewCommand(
+                nomzod.Id, StageId: null, SuhbatVaqti, ClearNextContact: true),
+            TestContext.Current.CancellationToken);
+
+        tozalangan.Value.NextContactDate.ShouldBeNull();
+    }
+
+    // ────────────────────── Amal izohlari ──────────────────────
+
+    [Fact]
+    public async Task Kochirishda_izoh_IZOHLAR_jadvaliga_yoziladi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        var boshqa = _context.ExistingVacancy();
+        var kim = Guid.CreateVersion7();
+        _context.Employees.CurrentUser.UserId.Returns(kim);
+
+        var natija = await Kochirish.HandleAsync(
+            new ReassignCandidateCommand(
+                nomzod.Id,
+                boshqa.Id,
+                "Сотувчига мос эмас, кассирга кўчирилди",
+                RecruitingTestContext.Today.AddDays(2)),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.VacancyId.ShouldBe(boshqa.Id);
+        natija.Value.Notes.Count.ShouldBe(1);
+        natija.Value.Notes[0].Kind.ShouldBe(CandidateNoteKind.Reassign);
+        natija.Value.Notes[0].Text.ShouldBe("Сотувчига мос эмас, кассирга кўчирилди");
+        natija.Value.Notes[0].CreatedBy.ShouldBe(kim);
+        natija.Value.NextContactDate.ShouldBe(RecruitingTestContext.Today.AddDays(2));
+        natija.Value.Note.ShouldBeNull("bu nomzodning uzoq muddatli TAVSIFI emas");
+    }
+
+    [Fact]
+    public async Task Kochirishda_BOSH_izoh_yozuv_yaratmaydi()
+    {
+        // Domen `AddNote` bo'sh matnda ISTISNO tashlaydi, xato kodi
+        // qaytarmaydi — ya'ni ishlovchi uni umuman chaqirmasligi kerak.
+        // Tekshiruv tushib qolsa, bu test 500 bilan yiqiladi.
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        var boshqa = _context.ExistingVacancy();
+
+        var natija = await Kochirish.HandleAsync(
+            new ReassignCandidateCommand(nomzod.Id, boshqa.Id, "   "),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.Notes.ShouldBeEmpty();
+        nomzod.Notes.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Kochirishda_sana_berilmasa_aloqa_sanasi_TEGILMAYDI()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var anketa = _context.ExistingStage();
+        _context.Funnel(anketa);
+        var nomzod = _context.ExistingCandidate(vakansiya, anketa);
+        nomzod.SetNextContactDate(RecruitingTestContext.Today.AddDays(6));
+        var boshqa = _context.ExistingVacancy();
+
+        var natija = await Kochirish.HandleAsync(
+            new ReassignCandidateCommand(nomzod.Id, boshqa.Id),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.NextContactDate.ShouldBe(
+            RecruitingTestContext.Today.AddDays(6),
+            "bu amalda «tozalash» yo'q");
+    }
+
+    [Fact]
+    public async Task Rezervdan_qaytarishda_izoh_IZOHLAR_jadvaliga_yoziladi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        var kengash = _context.ExistingStage("Кенгаш", 1);
+        _context.Funnel(kengash);
+        var nomzod = _context.ExistingCandidate(vakansiya, kengash);
+        nomzod.MoveToReserve(RecruitingTestContext.Today, "Ҳозир ўрин йўқ");
+        var kim = Guid.CreateVersion7();
+        _context.Employees.CurrentUser.UserId.Returns(kim);
+
+        var natija = await Qaytarish.HandleAsync(
+            new ReturnCandidateFromReserveCommand(
+                nomzod.Id, "Ўрин бўшади, қайта чақирдим", RecruitingTestContext.Today.AddDays(1)),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.Notes.Count.ShouldBe(1);
+        natija.Value.Notes[0].Kind.ShouldBe(CandidateNoteKind.ReturnFromReserve);
+        natija.Value.Notes[0].Text.ShouldBe("Ўрин бўшади, қайта чақирдим");
+        natija.Value.Notes[0].CreatedBy.ShouldBe(kim);
+        natija.Value.ClosingNote.ShouldBeNull(
+            "izoh `ClosingNote` ga yozilsa, o'sha tranzaksiyada o'chib ketardi");
+        natija.Value.NextContactDate.ShouldBe(RecruitingTestContext.Today.AddDays(1));
+    }
+
+    [Fact]
+    public async Task Rezervdan_qaytarish_TANASIZ_ham_avvalgidek_ishlaydi()
+    {
+        // Endpoint tanasi IXTIYORIY bo'lib qoldi: tana yubormagan chaqiruvchi
+        // (va eski interfeys) aynan avvalgidek ishlashi kerak.
+        var vakansiya = _context.ExistingVacancy();
+        var kengash = _context.ExistingStage("Кенгаш", 1);
+        _context.Funnel(kengash);
+        var nomzod = _context.ExistingCandidate(vakansiya, kengash);
+        nomzod.MoveToReserve(RecruitingTestContext.Today, "Ҳозир ўрин йўқ", RecruitingTestContext.Today.AddDays(8));
+
+        var natija = await Qaytarish.HandleAsync(
+            new ReturnCandidateFromReserveCommand(nomzod.Id), TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.Status.ShouldBe(CandidateStatus.InProgress);
+        natija.Value.ClosedAt.ShouldBeNull();
+        natija.Value.ClosingNote.ShouldBeNull();
+        natija.Value.Notes.ShouldBeEmpty("izoh yo'q — yozuv ham yo'q");
+        natija.Value.NextContactDate.ShouldBe(
+            RecruitingTestContext.Today.AddDays(8),
+            "rezervda qo'yilgan qo'ng'iroq rejasi voronkada ham kuchda qoladi");
     }
 }

@@ -216,6 +216,19 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Nomzodning bosqichlardan o'tishi (<c>candidate_stage_entries</c>).</summary>
     public DbSet<CandidateStageEntry> CandidateStageEntries => Set<CandidateStageEntry>();
 
+    /// <summary>Nomzodga biriktirilgan fayllar (<c>candidate_files</c>).</summary>
+    /// <remarks>
+    /// Yozish DOIM nomzod agregati orqali ketadi (fayllar soni va hajmi —
+    /// uning invarianti, sababi <see cref="CandidateFile"/> izohida). Bu
+    /// to'plam o'qish modeli uchun kerak: nomzodlar RO'YXATIDA «fayli
+    /// bormi» belgisi shu jadvalga bitta <c>EXISTS</c> so'rovi bilan
+    /// hisoblanadi, nomzodni bolalari bilan yuklamasdan.
+    /// </remarks>
+    public DbSet<CandidateFile> CandidateFiles => Set<CandidateFile>();
+
+    /// <summary>Amallar izohlari (<c>candidate_notes</c>).</summary>
+    public DbSet<CandidateNote> CandidateNotes => Set<CandidateNote>();
+
     /// <summary>Botda to'ldirilgan anketalar (<c>candidate_questionnaires</c>).</summary>
     public DbSet<CandidateQuestionnaire> CandidateQuestionnaires => Set<CandidateQuestionnaire>();
 

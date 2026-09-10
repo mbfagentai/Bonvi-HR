@@ -8,7 +8,7 @@ namespace Bonvi.Application.Abstractions;
 public sealed record ProcessedImage(Stream Content, string ContentType, int Width, int Height);
 
 /// <summary>
-/// Rasm qayta ishlash porti: xodim suratini bir xil o'lchamga keltiradi.
+/// Rasm qayta ishlash porti: rasmni bir xil o'lchamga keltiradi.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,6 +25,17 @@ public sealed record ProcessedImage(Stream Content, string ContentType, int Widt
 /// ocholish. Shu sababli «bu rasm emas» degan javob aynan shu portdan
 /// chiqadi, chaqiruvchi taxmin qilmaydi.
 /// </para>
+/// <para>
+/// <b>Ikki shakl, ikki maqsad.</b> <see cref="ToSquareAsync"/> — AVATAR:
+/// o'lcham qat'iy, chunki u ro'yxatdagi doirada va yuqori paneldagi kichik
+/// suratda ko'rinadi, ya'ni nisbatni saqlashning ma'nosi yo'q va markazdan
+/// qirqish eng yaxshi natija beradi. <see cref="ToBoundedAsync"/> — HUJJAT
+/// SURATI (pasport, diplom sahifasi): u yerda qirqish MA'LUMOTNI YO'QOTADI
+/// (chetdagi seriya raqami yoki muhr kesilib ketardi), shu sababli faqat
+/// chegara qo'yiladi va nisbat o'zgarmaydi. Ikkita alohida metod aynan shu
+/// farq uchun: bitta «universal» metod ikkita mantiqni bayroq bilan
+/// boshqarardi va chaqiruvchi har safar qaysi bayroqni qo'yishni o'ylardi.
+/// </para>
 /// </remarks>
 public interface IImageProcessor
 {
@@ -39,4 +50,36 @@ public interface IImageProcessor
     /// formatda bo'lsa — <c>null</c>.
     /// </returns>
     Task<ProcessedImage?> ToSquareAsync(Stream source, int size, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rasmni <paramref name="maxEdge"/>×<paramref name="maxEdge"/> qutisiga
+    /// sig'diradi: nisbat saqlanadi, qirqilmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Kattalashtirilmaydi.</b> Chegaradan kichik rasm o'lchamini
+    /// saqlaydi, lekin QAYTA KODLANADI: mijozning shikoyati aynan shu
+    /// holatdan boshlandi — 1200 px, ammo sifati 100 ga qo'yilgan 5 MB lik
+    /// JPEG. Kattalashtirish esa bir bayt ma'lumot qo'shmaydi, faqat faylni
+    /// o'stiradi.
+    /// </para>
+    /// <para>
+    /// <b>Natija doim JPEG.</b> Nomzod biriktirgan fayl — surat yoki skan;
+    /// shaffoflik u yerda hech qanday ma'no tashimaydi. PNG/WebP ni saqlash
+    /// ikkita chiqish formati, ikkita MIME turi va ikkita kod yo'li degani
+    /// bo'lardi — foydasi yo'q. Shaffof fon oq bo'lib qoladi
+    /// (<c>SquarePhotoStore</c> ham xuddi shunday qiladi).
+    /// </para>
+    /// </remarks>
+    /// <param name="source">Manba oqimi.</param>
+    /// <param name="maxEdge">Eng uzun tomonning chegarasi (piksel).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <returns>
+    /// Tayyor rasm; manba rasm bo'lmasa, qo'llab-quvvatlanmaydigan formatda
+    /// bo'lsa, buzilgan bo'lsa yoki piksel hisobi aql bovar qilmas darajada
+    /// katta bo'lsa (siqilgan «bomba» fayl) — <c>null</c>. Ya'ni chaqiruvchi
+    /// istisno TUTMAYDI: bu yerda «yaroqsiz fayl» kutilgan javob, favqulodda
+    /// holat emas.
+    /// </returns>
+    Task<ProcessedImage?> ToBoundedAsync(Stream source, int maxEdge, CancellationToken cancellationToken = default);
 }

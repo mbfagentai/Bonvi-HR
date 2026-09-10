@@ -25,6 +25,36 @@ export type CandidateAction =
 const CLOSING: readonly CandidateAction[] = ['reject', 'withdraw', 'reserve']
 
 /**
+ * BOSQICHI bo'lmagan amallar — izoh so'raladi, CHIQISH sanasi esa yo'q
+ * (nomzod voronkadan chiqmaydi).
+ *
+ * Ikkalasi ham bosqich yozuvi hosil qilmaydi, shu sababli yozilgan
+ * matn `candidate_notes` jadvaliga tushadi (`Reassign` va
+ * `ReturnFromReserve` turlari). U nomzodning `note` maydoni EMAS: u
+ * shaxsning uzoq muddatli ta'rifi va tahrirlash formasidan qayta
+ * yozilib ketardi; `closingNote` ham emas — qaytarish uni o'sha
+ * tranzaksiyada tozalaydi (SPEC §2.3.1).
+ */
+const WITH_NOTE: readonly CandidateAction[] = ['reassign', 'returnFromReserve']
+
+/**
+ * Keyingi aloqa sanasi so'raladigan amallar.
+ *
+ * ⚠️ «Rad etdik» va «voz kechdi» bu ro'yxatda YO'Q va bo'lishi ham
+ * mumkin emas: server o'sha ikkitasida saqlangan sanani TOZALAYDI va
+ * yuborilganini e'tiborsiz qoldiradi (SPEC §2.1.2). Maydonni
+ * ko'rsatish HR yozgan sana jimgina yo'qoladigan holat bo'lardi.
+ *
+ * «Rezervga» esa chiqish emas, KECHIKTIRISH («o'rin bo'shasa
+ * chaqiramiz») — sana aynan o'sha yerda ma'noli.
+ */
+const WITH_NEXT_CONTACT: readonly CandidateAction[] = [
+  'reserve',
+  'reassign',
+  'returnFromReserve',
+]
+
+/**
  * Nomzodni voronkada QOLDIRADIGAN yoki unga QAYTARADIGAN amallar.
  *
  * Tasdiqlash tugmasining rangi shundan hisoblanadi: qizil faqat
@@ -46,12 +76,22 @@ const REVERSIBLE: readonly CandidateAction[] = ['reassign', 'reserve', 'returnFr
  * amaliga yig'ilsa, ikkala muammo ham ko'rinmay qolardi — shu sababli
  * bu yerda ham ikkita alohida tugma va ikkita alohida matn.
  *
- * <b>«Rezervga» ham SHU YERDA</b> va u ham qisqa tasdiq oynasi: sana va
- * ixtiyoriy sabab. Boshqa yakunlardan farqi bittada — u QAYTARILADI, va
- * qaytarish («Rezervdan qaytarish») ham shu ro'yxatda turadi. U yagona
- * amal bo'lib, maydonsiz: nomzod qaysi bosqichda rezervga o'tgan bo'lsa,
- * o'sha yerdan davom etadi va chiqish sababi tozalanadi — kiritadigan
- * hech narsa yo'q.
+ * <b>«Rezervga» ham SHU YERDA</b> va u ham qisqa tasdiq oynasi: sana,
+ * ixtiyoriy sabab va keyingi aloqa sanasi. Boshqa yakunlardan farqi
+ * bittada — u QAYTARILADI, va qaytarish («Rezervdan qaytarish») ham shu
+ * ro'yxatda turadi. Nomzod qaysi bosqichda rezervga o'tgan bo'lsa,
+ * o'sha yerdan davom etadi va chiqish sababi tozalanadi.
+ *
+ * <b>⭐ Endi HAR BIR amal matn so'raydi</b> (foydalanuvchi talabi,
+ * 2026-09-10): yopish amallarida u «Sababi», bosqichsiz ikkitasida
+ * («o'tkazish», «rezervdan qaytarish») «Izoh». Ilgari o'sha ikkitasi
+ * matn so'ramasdi va «gaplashdik, o'ylab ko'raman dedi» degan gap
+ * hech qayerga yozilmasdi — ertasiga uni hech kim eslay olmasdi.
+ *
+ * Matn HECH QACHON majburiy emas: bo'sh bo'lsa yozuv umuman hosil
+ * bo'lmaydi va amal baribir bajariladi. Majburlangan maydon «ok» kabi
+ * yolg'on izohlar tug'diradi (`CandidateStageEntry.Conclusion` domen
+ * izohi).
  *
  * <b>«Ishga olindi» amali bu ro'yxatda YO'Q.</b> Uning O'Z oynasi bor
  * (`candidate-hire-dialog.tsx`): u xodim yaratadi va o'nga yaqin
@@ -95,17 +135,31 @@ export function CandidateActionDialog({
   const [at, setAt] = useState(today)
   const [reason, setReason] = useState('')
   const [vacancyId, setVacancyId] = useState('')
+  const [note, setNote] = useState('')
+  const [nextContact, setNextContact] = useState('')
 
   useEffect(() => {
     if (action === null) return
     setAt(today())
     setReason('')
     setVacancyId('')
+    setNote('')
+    /*
+      Keyingi aloqa sanasi MAVJUD qiymatdan boshlanadi: rezervga
+      o'tkazishda HR odatda uni bir-ikki haftaga suradi, noldan
+      terish emas.
+
+      ⚠️ Bo'sh qoldirilgan quti bu oynada TOZALAMAYDI — bu uchta amalda
+      «tozalash» degan buyruq umuman yo'q (`clearNextContact` faqat
+      bosqich va suhbat so'rovlarida bor, SPEC §4.5). Ya'ni bo'sh quti
+      «sanaga tegilmadi» degani va HR qo'ygan sana o'z joyida qoladi.
+    */
+    setNextContact(candidate.nextContactDate ?? '')
     close.reset()
     reassign.reset()
     restore.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, candidate.id])
+  }, [action, candidate.id, candidate.nextContactDate])
 
   if (action === null) return null
 
@@ -116,17 +170,42 @@ export function CandidateActionDialog({
     if (incomplete) return
 
     if (action === 'reassign') {
-      reassign.mutate({ id: candidate.id, vacancyId }, { onSuccess: onClose })
+      reassign.mutate(
+        {
+          id: candidate.id,
+          vacancyId,
+          note: orNull(note),
+          nextContactDate: orNull(nextContact),
+        },
+        { onSuccess: onClose },
+      )
       return
     }
 
     if (action === 'returnFromReserve') {
-      restore.mutate(candidate.id, { onSuccess: onClose })
+      restore.mutate(
+        { id: candidate.id, note: orNull(note), nextContactDate: orNull(nextContact) },
+        { onSuccess: onClose },
+      )
       return
     }
 
     close.mutate(
-      { id: candidate.id, action, at: orNull(at), reason: orNull(reason) },
+      {
+        id: candidate.id,
+        action,
+        at: orNull(at),
+        reason: orNull(reason),
+        /*
+          Sana FAQAT rezervga o'tkazishda yuboriladi. Rad etish va voz
+          kechishda maydon chizilmaydi, ya'ni qiymat baribir bo'sh
+          bo'lardi — lekin shart ATAYLAB yozilgan: server u ikkitasida
+          sanani tozalaydi va kelgan qiymatni e'tiborsiz qoldiradi
+          (`closeCandidate` izohi), shu sababli niyat kodda ko'rinib
+          turishi kerak.
+        */
+        nextContactDate: action === 'reserve' ? orNull(nextContact) : null,
+      },
       { onSuccess: onClose },
     )
   }
@@ -184,10 +263,9 @@ export function CandidateActionDialog({
         )}
 
         {/*
-          Sana va sabab faqat voronkadan chiqarishda: `reassign`,
-          `returnFromReserve` so'rovida bunday maydon
-          UMUMAN yo'q — ko'rsatib qo'yilsa, HR yozgan matn jimgina
-          yo'qolardi.
+          Sana va sabab faqat voronkadan CHIQARISHDA: bosqichsiz
+          amallarda («o'tkazish», «rezervdan qaytarish») chiqish sanasi
+          degan narsaning o'zi yo'q — nomzod voronkada qoladi.
         */}
         {CLOSING.includes(action) && (
           <>
@@ -205,16 +283,65 @@ export function CandidateActionDialog({
               izohni «nomzod o'qiydi» deb yozardi va izohning ichki
               qiymati yo'qolardi — shu sababli eslatma maydonning
               O'ZIDA turadi.
+
+              `maxLength` — ustun kengligi (2000). Server uzunlikni
+              tekshirmaydi, chegarani maydonning o'zi ushlab turadi.
             */}
             <TextArea
               label={t('recruiting.reason')}
               placeholder={t('recruiting.candidateReasonPlaceholder')}
               hint={t('recruiting.candidateReasonHint')}
+              maxLength={2000}
               value={reason}
               disabled={pending}
               onChange={(event) => setReason(event.target.value)}
             />
           </>
+        )}
+
+        {/*
+          Izoh — bosqichsiz amallar uchun. Yorliq «Sababi» EMAS,
+          «Izoh»: nomzodni boshqa vakansiyaga o'tkazish yoki rezervdan
+          qaytarish yakun emas va uning «sababi» ham yo'q — bu shunchaki
+          nima gaplashilganining qaydi. Eslatma esa AYNI o'sha:
+          matn ichki qoladi va nomzodga bormaydi.
+
+          O'rin egari (`placeholder`) ATAYLAB yo'q: mavjud matnlarning
+          ikkisi ham yolg'on bo'lardi — «Nima uchun voronkadan chiqdi»
+          bu amalda chiqish yo'q, «Ichki eslatma: kim tavsiya qildi»
+          esa nomzodning uzoq muddatli ta'rifi (boshqa maydon). Uchinchi
+          kalit o'ylab topish esa tarjima faylini bekorga
+          kengaytirardi.
+        */}
+        {WITH_NOTE.includes(action) && (
+          <TextArea
+            label={t('recruiting.note')}
+            hint={t('recruiting.candidateReasonHint')}
+            maxLength={2000}
+            value={note}
+            disabled={pending}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        )}
+
+        {/*
+          Keyingi aloqa sanasi — «hozir o'rin yo'q, ikki haftadan keyin
+          qo'ng'iroq qilaman» degan holat uchun. Kalendar sanasi,
+          vaqtsiz va nomzodga BORMAYDI.
+
+          O'tgan sana ham to'g'ri qiymat va tekshirilmaydi (SPEC
+          §2.1.3): «bugun yoki muddati o'tganlar» ro'yxati aynan shu
+          maydondan tuziladi.
+        */}
+        {WITH_NEXT_CONTACT.includes(action) && (
+          <TextField
+            label={t('recruiting.nextContact')}
+            hint={t('recruiting.nextContactHint')}
+            type="date"
+            value={nextContact}
+            disabled={pending}
+            onChange={(event) => setNextContact(event.target.value)}
+          />
         )}
       </div>
     </Dialog>

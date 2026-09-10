@@ -125,11 +125,35 @@ public sealed class CandidateRepository : Repository<Candidate>, ICandidateRepos
     /// yuklash (lazy) esa bu loyihada umuman yoqilmagan: anketa jimgina
     /// <c>null</c> bo'lib qolardi.
     /// </para>
+    /// <para>
+    /// ⚠️ <c>AsSplitQuery()</c> — bezak emas, ZARURAT. Uchta to'plam bitta
+    /// so'rovga qo'shilsa PostgreSQL dekart ko'paytmasini qaytaradi (eng
+    /// yomon holatda 10 × 10 × 10 qator, ya'ni bitta nomzod uchun mingta
+    /// qator) va EF Core buni ogohlantirish bilan qayd qiladi. Bo'lingan
+    /// so'rov o'rniga to'rtta arzon so'rov ketadi va har biri o'z
+    /// indeksiga tushadi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Fayl va izohda <c>ThenBy(Id)</c> — TENGLIKNI uzish uchun.
+    /// <c>CreatedAt</c> <c>DateTimeOffset.UtcNow</c> dan olinadi
+    /// (<c>CandidateStageEntry</c> va <c>EmploymentEvent</c> dagi bilan
+    /// bir xil), ya'ni bitta tick ichida yozilgan ikki qatorning vaqti
+    /// AYNAN teng bo'lishi mumkin — o'shanda PostgreSQL ularni har
+    /// o'qishda boshqa tartibda qaytaradi va pasport varaqlari joy
+    /// almashardi, ya'ni yuqoridagi <c>OrderBy</c> aynan o'zi oldini
+    /// olishi kerak bo'lgan holat qaytardi. <c>Id</c> tiebreaker sifatida
+    /// tasodifiy emas: <c>Entity.NewId()</c> — UUID v7, u ham vaqt
+    /// bo'yicha o'sadi, ya'ni teng vaqtda ham YOZILISH ketma-ketligini
+    /// saqlaydi.
+    /// </para>
     /// </remarks>
     public Task<Candidate?> GetWithStagesAsync(Guid id, CancellationToken cancellationToken = default)
         => Set
             .Include(candidate => candidate.StageEntries.OrderBy(entry => entry.RecordedAt))
+            .Include(candidate => candidate.Files.OrderBy(file => file.CreatedAt).ThenBy(file => file.Id))
+            .Include(candidate => candidate.Notes.OrderBy(note => note.CreatedAt).ThenBy(note => note.Id))
             .Include(candidate => candidate.Questionnaire)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
 
     /// <inheritdoc />

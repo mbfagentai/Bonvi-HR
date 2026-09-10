@@ -364,36 +364,340 @@ public sealed class CandidateTests
         natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
     }
 
-    // ────────────────────── Rezyume ──────────────────────
+    // ────────────────────── Fayllar ──────────────────────
 
     [Fact]
-    public void Rezyume_biriktiriladi_va_olib_tashlanadi()
+    public void Fayl_biriktiriladi_va_olib_tashlanadi()
     {
         var nomzod = Nomzod();
 
-        var natija = nomzod.AttachResume("kalit-1", "C:\\Users\\hr\\rezyume.pdf", "application/pdf", 1024);
+        var natija = nomzod.AttachFile("kalit-1", "C:\\Users\\hr\\rezyume.pdf", "application/pdf", 1024);
 
         natija.IsSuccess.ShouldBeTrue();
-        nomzod.ResumeFileKey.ShouldBe("kalit-1");
-        nomzod.ResumeFileName.ShouldBe("rezyume.pdf", "mijoz yuborgan yo'l qismi tashlanadi");
-        nomzod.ResumeSizeBytes.ShouldBe(1024);
+        natija.Value.FileKey.ShouldBe("kalit-1");
+        natija.Value.FileName.ShouldBe("rezyume.pdf", "mijoz yuborgan yo'l qismi tashlanadi");
+        natija.Value.ContentType.ShouldBe("application/pdf");
+        natija.Value.SizeBytes.ShouldBe(1024, "bazaga DISKKA tushgan hajm yoziladi");
+        nomzod.Files.Count.ShouldBe(1);
+        nomzod.Files[0].ShouldBeSameAs(natija.Value, "yozuv agregat ichida turadi");
 
-        nomzod.RemoveResume();
+        var olib = nomzod.RemoveFile(natija.Value.Id);
 
-        nomzod.ResumeFileKey.ShouldBeNull();
-        nomzod.ResumeFileName.ShouldBeNull();
-        nomzod.ResumeContentType.ShouldBeNull();
-        nomzod.ResumeSizeBytes.ShouldBeNull();
+        olib.IsSuccess.ShouldBeTrue();
+        olib.Value.ShouldBe("kalit-1", "chaqiruvchi diskdagi baytni shu kalit bilan o'chiradi");
+        nomzod.Files.ShouldBeEmpty();
     }
 
     [Fact]
-    public void Bosh_kalit_bilan_rezyume_biriktirilmaydi()
+    public void Fayl_nomi_bosh_bolsa_ZAXIRA_nom_qoyiladi()
+    {
+        // Migratsiyada ko'chgan eski rezyumelar ham aynan shu nomni oldi —
+        // ikkalasi kartada bir xil ko'rinishi kerak.
+        var nomzod = Nomzod();
+
+        var natija = nomzod.AttachFile("kalit-1", "   ", "application/pdf", 1024);
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.FileName.ShouldBe("rezyume");
+    }
+
+    [Theory]
+    [InlineData("  ", "application/pdf", 1024)]
+    [InlineData("kalit-1", "   ", 1024)]
+    [InlineData("kalit-1", "application/pdf", 0)]
+    [InlineData("kalit-1", "application/pdf", -1)]
+    public void Notogri_qiymat_bilan_fayl_biriktirilmaydi(string kalit, string tur, long hajm)
     {
         var nomzod = Nomzod();
 
-        var natija = nomzod.AttachResume("  ", "rezyume.pdf", "application/pdf", 1024);
+        var natija = nomzod.AttachFile(kalit, "rezyume.pdf", tur, hajm);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("nomzod.rezyume_bosh");
+        nomzod.Files.ShouldBeEmpty("rad etilgan fayl yozuvga tushmaydi");
+    }
+
+    [Fact]
+    public void Ontadan_ortiq_fayl_biriktirilmaydi()
+    {
+        // Pasport, diplom va mehnat daftarchasi uch-to'rt varaq bo'lib
+        // keladi — o'nta o'rin shu uchun. O'n birinchisi esa ANIQ xato
+        // beradi, jimgina tashlab yuborilmaydi.
+        var nomzod = Nomzod();
+
+        for (var i = 1; i <= Candidate.MaxFiles; i++)
+        {
+            nomzod
+                .AttachFile($"kalit-{i}", $"varaq-{i}.jpg", "image/jpeg", 1024)
+                .IsSuccess.ShouldBeTrue($"{i}-fayl sig'ishi kerak");
+        }
+
+        var ortiqcha = nomzod.AttachFile("kalit-11", "varaq-11.jpg", "image/jpeg", 1024);
+
+        ortiqcha.IsFailure.ShouldBeTrue();
+        ortiqcha.Error.Code.ShouldBe("nomzod.rezyume_kop");
+        nomzod.Files.Count.ShouldBe(Candidate.MaxFiles);
+    }
+
+    [Fact]
+    public void Chegaraga_TENG_kelgan_fayl_sigadi_oshgani_sigmaydi()
+    {
+        // Diskni haqiqatan unga tushgan narsa to'ldiradi — chegara
+        // SAQLANGAN hajmlar yig'indisiga qo'yiladi.
+        var nomzod = Nomzod();
+
+        nomzod
+            .AttachFile("kalit-1", "pasport.jpg", "image/jpeg", Candidate.MaxFilesTotalBytes - 1024)
+            .IsSuccess.ShouldBeTrue();
+
+        nomzod
+            .AttachFile("kalit-2", "diplom.jpg", "image/jpeg", 1024)
+            .IsSuccess.ShouldBeTrue("chegaraga TENG kelgan fayl qabul qilinadi");
+
+        var oshgan = nomzod.AttachFile("kalit-3", "yana.jpg", "image/jpeg", 1);
+
+        oshgan.IsFailure.ShouldBeTrue();
+        oshgan.Error.Code.ShouldBe("nomzod.rezyume_joy");
+        nomzod.Files.Count.ShouldBe(2);
+        nomzod.Files.Sum(fayl => fayl.SizeBytes).ShouldBe(Candidate.MaxFilesTotalBytes);
+    }
+
+    [Fact]
+    public void Voronkadan_chiqqan_nomzodga_ham_fayl_biriktiriladi()
+    {
+        // ⭐ Bosqich yozishdan ATAYLAB farq qiladi: HR diplom nusxasini rad
+        //    etilgan nomzodga ertasi kuni ham yuklaydi va bunga to'sqinlik
+        //    qilish faylni tizimdan tashqariga surib qo'yardi.
+        var nomzod = Nomzod();
+        nomzod.Reject(Sana, "Тажрибаси етарли эмас");
+
+        var natija = nomzod.AttachFile("kalit-1", "diplom.pdf", "application/pdf", 2048);
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Files.Count.ShouldBe(1);
+        nomzod.Status.ShouldBe(CandidateStatus.Rejected, "holat o'zgarmaydi");
+    }
+
+    [Fact]
+    public void Nomavjud_fayl_olib_tashlanmaydi()
+    {
+        // Amal IDEMPOTENT emas: chaqiruvchi ANIQ bir qatorni nomlagan va
+        // jimgina «bajarildi» deyish allaqachon yo'q faylni ko'rsatib
+        // turgan eskirgan ekranni yashirardi.
+        var nomzod = Nomzod();
+        nomzod.AttachFile("kalit-1", "rezyume.pdf", "application/pdf", 1024);
+
+        var natija = nomzod.RemoveFile(Guid.CreateVersion7());
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.rezyume_topilmadi");
+        nomzod.Files.Count.ShouldBe(1, "boshqa fayl tegilmaydi");
+    }
+
+    [Fact]
+    public void Fayl_olib_tashlansa_ORIN_boshaydi()
+    {
+        var nomzod = Nomzod();
+
+        for (var i = 1; i <= Candidate.MaxFiles; i++)
+        {
+            nomzod.AttachFile($"kalit-{i}", $"varaq-{i}.jpg", "image/jpeg", 1024);
+        }
+
+        nomzod.AttachFile("kalit-11", "varaq-11.jpg", "image/jpeg", 1024)
+            .Error.Code.ShouldBe("nomzod.rezyume_kop");
+
+        nomzod.RemoveFile(nomzod.Files[0].Id).IsSuccess.ShouldBeTrue();
+
+        var yana = nomzod.AttachFile("kalit-11", "varaq-11.jpg", "image/jpeg", 1024);
+
+        yana.IsSuccess.ShouldBeTrue("bo'shagan o'rin darhol ishlatiladi");
+        nomzod.Files.Count.ShouldBe(Candidate.MaxFiles);
+    }
+
+    /// <summary>Eski BITTA rezyume yo'li qaytib kelmasligi kerak.</summary>
+    /// <remarks>
+    /// To'rt ustun (<c>resume_file_key</c> va uning qardoshlari) migratsiyada
+    /// O'CHIRILDI. Metod yoki xossa qaytib kelsa, u hech qanday ustunga
+    /// yozmaydigan o'lik kod bo'lardi va uni faqat shu tekshiruv ushlaydi:
+    /// kompilyator eski nomni qayta qo'shishga qarshilik qilmaydi.
+    /// </remarks>
+    [Fact]
+    public void Eski_rezyume_azolari_QAYTIB_kelmaydi()
+    {
+        var azolar = typeof(Candidate)
+            .GetMembers()
+            .Select(azo => azo.Name)
+            .ToList();
+
+        azolar.ShouldNotContain("AttachResume");
+        azolar.ShouldNotContain("RemoveResume");
+        azolar.ShouldNotContain("ResumeFileKey");
+        azolar.ShouldNotContain("ResumeFileName");
+        azolar.ShouldNotContain("ResumeContentType");
+        azolar.ShouldNotContain("ResumeSizeBytes");
+    }
+
+    // ────────────────────── Keyingi aloqa sanasi ──────────────────────
+
+    [Fact]
+    public void Keyingi_aloqa_sanasi_qoyiladi_va_tozalanadi()
+    {
+        var nomzod = Nomzod();
+        nomzod.NextContactDate.ShouldBeNull("yangi nomzodda reja yo'q");
+
+        nomzod.SetNextContactDate(Sana.AddDays(5));
+        nomzod.NextContactDate.ShouldBe(Sana.AddDays(5));
+
+        nomzod.SetNextContactDate(null);
+        nomzod.NextContactDate.ShouldBeNull("null — TOZALASH");
+    }
+
+    [Fact]
+    public void Otgan_aloqa_sanasi_QABUL_qilinadi()
+    {
+        // Maydonning butun maqsadi «bugun yoki muddati o'tgan» ro'yxati —
+        // ya'ni o'tgan sana ODATIY holat, xato emas. Suhbat vaqtidagi
+        // «kechagi kun — xato» qoidasini bu yerga ko'chirib bo'lmaydi.
+        var nomzod = Nomzod();
+        var otgan = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-30);
+
+        nomzod.SetNextContactDate(otgan);
+
+        nomzod.NextContactDate.ShouldBe(otgan);
+    }
+
+    [Fact]
+    public void Rad_etish_keyingi_aloqa_sanasini_TOZALAYDI()
+    {
+        // Aks holda rad etilgan nomzod «bugun bog'lanish kerak» ro'yxatida
+        // abadiy qolib ketardi va HR ro'yxatga umuman ishonmay qo'yardi.
+        var nomzod = Nomzod();
+        nomzod.SetNextContactDate(Sana.AddDays(3));
+
+        nomzod.Reject(Sana).IsSuccess.ShouldBeTrue();
+
+        nomzod.NextContactDate.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Voz_kechish_keyingi_aloqa_sanasini_TOZALAYDI()
+    {
+        var nomzod = Nomzod();
+        nomzod.SetNextContactDate(Sana.AddDays(3));
+
+        nomzod.Withdraw(Sana).IsSuccess.ShouldBeTrue();
+
+        nomzod.NextContactDate.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Ishga_olish_keyingi_aloqa_sanasini_TOZALAYDI()
+    {
+        var nomzod = Nomzod();
+        nomzod.SetNextContactDate(Sana.AddDays(3));
+
+        nomzod.MarkHired(Sana).IsSuccess.ShouldBeTrue();
+
+        nomzod.NextContactDate.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Rezerv_keyingi_aloqa_sanasini_SAQLAYDI()
+    {
+        // ⭐ Yakunlar orasida YAGONA istisno: rezerv chiqish emas,
+        //    KECHIKTIRISH («o'rin bo'shasa chaqiramiz») — qo'ng'iroq rejasi
+        //    aynan o'sha yerda o'rinli.
+        var nomzod = Nomzod();
+        nomzod.SetNextContactDate(Sana.AddDays(3));
+
+        nomzod.MoveToReserve(Sana, "Ҳозир ўрин йўқ").IsSuccess.ShouldBeTrue();
+
+        nomzod.NextContactDate.ShouldBe(Sana.AddDays(3));
+        nomzod.Status.ShouldBe(CandidateStatus.Reserve);
+    }
+
+    [Fact]
+    public void Rezervga_otkazishda_yangi_aloqa_sanasi_qoyiladi()
+    {
+        var nomzod = Nomzod();
+        nomzod.SetNextContactDate(Sana.AddDays(3));
+
+        nomzod.MoveToReserve(Sana, "Кейинги мавсумга", Sana.AddDays(60)).IsSuccess.ShouldBeTrue();
+
+        nomzod.NextContactDate.ShouldBe(Sana.AddDays(60));
+    }
+
+    [Fact]
+    public void Rezervdan_qaytarish_aloqa_sanasiga_TEGMAYDI()
+    {
+        var nomzod = Nomzod();
+        nomzod.MoveToReserve(Sana, "Ҳозир ўрин йўқ", Sana.AddDays(10));
+
+        nomzod.ReturnFromReserve().IsSuccess.ShouldBeTrue();
+
+        nomzod.ClosedAt.ShouldBeNull("chiqish fakti yo'q");
+        nomzod.ClosingNote.ShouldBeNull();
+        nomzod.NextContactDate.ShouldBe(
+            Sana.AddDays(10),
+            "«nega chiqqan» tozalanadi, «keyin nima qilamiz» esa qoladi");
+    }
+
+    [Fact]
+    public void Rezervdan_qaytarishda_yangi_aloqa_sanasi_qoyiladi()
+    {
+        var nomzod = Nomzod();
+        nomzod.MoveToReserve(Sana, nextContactDate: Sana.AddDays(10));
+
+        nomzod.ReturnFromReserve(Sana.AddDays(2)).IsSuccess.ShouldBeTrue();
+
+        nomzod.NextContactDate.ShouldBe(Sana.AddDays(2));
+    }
+
+    // ────────────────────── Amal izohlari ──────────────────────
+
+    [Fact]
+    public void Izoh_turi_bilan_saqlanadi_va_matni_tozalanadi()
+    {
+        var nomzod = Nomzod();
+        var kim = Guid.CreateVersion7();
+
+        var izoh = nomzod.AddNote(
+            CandidateNoteKind.Reassign, "  Қўнғироқ қилдим, 5-6 кунда келади  ", kim);
+
+        izoh.Kind.ShouldBe(CandidateNoteKind.Reassign);
+        izoh.Text.ShouldBe("Қўнғироқ қилдим, 5-6 кунда келади", "matn tozalanadi");
+        izoh.CreatedBy.ShouldBe(kim);
+        izoh.CandidateId.ShouldBe(nomzod.Id);
+        nomzod.Notes.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Izohlar_KETMA_KET_yigiladi()
+    {
+        var nomzod = Nomzod();
+
+        nomzod.AddNote(CandidateNoteKind.Reassign, "Бошқа вакансияга");
+        nomzod.AddNote(CandidateNoteKind.ReturnFromReserve, "Ўрин бўшади");
+
+        nomzod.Notes.Count.ShouldBe(2);
+        nomzod.Notes[0].Kind.ShouldBe(CandidateNoteKind.Reassign);
+        nomzod.Notes[1].Kind.ShouldBe(CandidateNoteKind.ReturnFromReserve);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Bosh_izoh_yozuv_YARATMAYDI(string matn)
+    {
+        // Yozuv FAQAT matn borligi uchun mavjud. Domen bo'sh matnda istisno
+        // tashlaydi (xato kodi emas — sababi `CandidateNote.Create` izohida),
+        // ya'ni «izoh yozilmadi» holatini CHAQIRUVCHI tekshiradi va bu
+        // metodni umuman chaqirmaydi.
+        var nomzod = Nomzod();
+
+        Should.Throw<ArgumentException>(() => nomzod.AddNote(CandidateNoteKind.Reassign, matn));
+
+        nomzod.Notes.ShouldBeEmpty();
     }
 }

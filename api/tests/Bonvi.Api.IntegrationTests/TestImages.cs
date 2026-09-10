@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Text;
+using SkiaSharp;
 
 namespace Bonvi.Api.IntegrationTests;
 
@@ -81,6 +83,45 @@ internal static class TestImages
         BolakYoz(png, "IEND", []);
 
         return png.ToArray();
+    }
+
+    /// <summary>
+    /// Berilgan o'lchamdagi haqiqiy, SHOVQINLI JPEG yasaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shovqin ATAYLAB: bir tekis gradient JPEG'da deyarli joy egallamaydi
+    /// va «fayl kichraydi» degan tekshiruv ma'nosini yo'qotardi. Shovqin —
+    /// haqiqiy suratning eng yomon holati: test o'tsa, telefondagi haqiqiy
+    /// surat bundan ham yaxshi natija beradi.
+    /// </para>
+    /// <para>
+    /// Nega <see cref="PngYasa"/> yonida: quvurni ikki joy tekshiradi —
+    /// birlik darajasida (<c>ScaledDocumentStoreTests</c>) va uchi-uchiga
+    /// (<c>CandidateFileApiTests</c>). Manba rasm yasash mantig'i ikkiga
+    /// bo'linsa, ulardan bittasidagi tuzatish ikkinchisiga yetib bormasdi.
+    /// </para>
+    /// </remarks>
+    public static byte[] JpegYasa(int eni, int boyi, int sifat)
+    {
+        using var bitmap = new SKBitmap(eni, boyi, SKColorType.Rgba8888, SKAlphaType.Premul);
+
+        var piksellar = new byte[eni * boyi * 4];
+        new Random((eni * 31) + boyi).NextBytes(piksellar);
+
+        // Alfa kanali to'liq shaffofsiz bo'lishi kerak, aks holda
+        // premultiply natijani qoraytiradi.
+        for (var i = 3; i < piksellar.Length; i += 4)
+        {
+            piksellar[i] = 255;
+        }
+
+        Marshal.Copy(piksellar, 0, bitmap.GetPixels(), piksellar.Length);
+
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Jpeg, sifat);
+
+        return data.ToArray();
     }
 
     /// <summary>PNG bo'lagini yozadi: uzunlik, turi, mazmuni, CRC.</summary>

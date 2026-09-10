@@ -108,6 +108,18 @@ public enum CandidateSortField
 
     /// <summary>Voronkadagi bosqich tartibi.</summary>
     Stage = 2,
+
+    /// <summary>
+    /// Keyingi aloqa sanasi — «bugun kim bilan gaplashish kerak».
+    /// </summary>
+    /// <remarks>
+    /// Sanasi YO'Q qatorlar IKKALA yo'nalishda ham oxirida turadi
+    /// (amalga oshirilishi <c>RecruitingReadModel</c> da). PostgreSQL
+    /// o'z-o'zidan <c>NULL</c> ni o'sishda oxiriga, kamayishda esa
+    /// BOSHIGA qo'yadi — ya'ni «keyingi aloqa, yangidan eskiga» tanlovi
+    /// bir ekran chiziqcha bilan ochilardi.
+    /// </remarks>
+    NextContact = 3,
 }
 
 /// <summary>Vakansiyalar ro'yxatini saralash ustunlari.</summary>
@@ -140,9 +152,11 @@ public enum VacancySortField
 /// <param name="VacancyId">Vakansiya bo'yicha filtr.</param>
 /// <param name="StageId">Bosqich bo'yicha filtr — voronka ustunini chizish uchun.</param>
 /// <param name="Status">
-/// Holat bo'yicha filtr. Bo'sh — ISHGA OLINGANLAR va RAD ETILGANLARDAN
-/// tashqari hammasi (sabablari <see cref="CandidateSearchFilter.HideHired"/>
-/// va <see cref="CandidateSearchFilter.HideRejected"/> izohlarida).
+/// Holat bo'yicha filtr. Bo'sh — ISHGA OLINGANLAR, RAD ETILGANLAR va O'ZI
+/// VOZ KECHGANLARDAN tashqari hammasi (sabablari
+/// <see cref="CandidateSearchFilter.HideHired"/>,
+/// <see cref="CandidateSearchFilter.HideRejected"/> va
+/// <see cref="CandidateSearchFilter.HideWithdrawn"/> izohlarida).
 /// </param>
 /// <param name="Source">Manba bo'yicha filtr: qo'lda kiritilgan / botdan kelgan.</param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
@@ -150,6 +164,27 @@ public enum VacancySortField
 /// <param name="Sort">Saralash ustuni.</param>
 /// <param name="Descending">Teskari tartib.</param>
 /// <param name="IncludeArchive">Excel arxivi ham ko'rsatilsinmi (sukut: yo'q).</param>
+/// <param name="ContactDueOn">
+/// Shu SANAGA (yoki undan oldin) aloqa rejalashtirilgan nomzodlar —
+/// «bugun kim bilan gaplashish kerak». <c>null</c> — filtr yo'q.
+/// <para>
+/// ⭐ <b>Nega bayroq emas, SANA.</b> O'qish modeli faqat
+/// <c>AppDbContext</c> ni oladi va uning soati YO'Q: «bugun» — use-case
+/// qatlamining bilimi (butun loyihada shunday, <c>IClock</c>
+/// handlerlarda turadi). <c>SearchCandidatesQueryHandler</c> shu sababli
+/// <c>_clock.Today</c> ni O'ZI beradi. Teskarisi — o'qish modeliga soat
+/// ulash — uni «faqat so'rovni biladi» qoidasidan chiqarardi.
+/// </para>
+/// </param>
+/// <param name="RejectedSection">
+/// «Rad etilganlar» BO'LIMI: <c>Rejected</c> VA <c>Withdrawn</c>.
+/// <para>
+/// Nega ko'p qiymatli holat filtri emas — <see cref="HideRejected"/>
+/// izohida. Bayroq holat tanlovi bilan BIRGA ishlaydi:
+/// <c>rejected=true</c> + <c>status=Withdrawn</c> faqat voz kechganlarni
+/// beradi.
+/// </para>
+/// </param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -160,7 +195,18 @@ public sealed record CandidateSearchFilter(
     int PageSize = 25,
     CandidateSortField Sort = CandidateSortField.CreatedAt,
     bool Descending = true,
-    bool IncludeArchive = false)
+    bool IncludeArchive = false,
+
+    /*
+      ⚠️ YANGI parametrlar FAQAT oxiriga qo'shiladi.
+      `SearchCandidatesQueryHandler` bu rekordni POZITSIYA bo'yicha
+      yasaydi (nom bilan emas), ya'ni o'rtaga qo'yilgan parametr butun
+      argument qatorini jimgina bir pog'ona surib yuborardi: `search`
+      `vacancyId` ga, `page` `pageSize` ga tushardi va kompilyator
+      indamasdi (turlari mos kelib qolgan joyda).
+    */
+    DateOnly? ContactDueOn = null,
+    bool RejectedSection = false)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
@@ -222,18 +268,37 @@ public sealed record CandidateSearchFilter(
     /// <b>Yozuv O'CHIRILMAYDI</b> va bu ataylab: rad etilgan nomzod
     /// kelasi izlanishning bazasi (<c>DeleteCandidateCommand</c> izohi).
     /// Faqat SUKUT ro'yxatdan chiqariladi — menyudagi «Rad etilganlar»
-    /// bandi <c>?status=Rejected</c> bilan aynan shularni ochadi.
+    /// bandi <c>?rejected=true</c> bilan aynan shularni ochadi
+    /// (<see cref="RejectedSection"/>).
     /// </para>
     /// <para>
     /// <b>Holat ataylab tanlangan bo'lsa chiqarilmaydi</b> —
     /// <see cref="HideHired"/> va <see cref="HideArchive"/> bilan bir xil
-    /// qoida, aks holda o'sha band jimgina bo'sh ro'yxat berardi.
+    /// qoida, aks holda o'sha band jimgina bo'sh ro'yxat berardi. Bo'lim
+    /// bayrog'i ham qoidani ochadi va SABABI o'sha: bo'lim aynan shu
+    /// qatorlarni ko'rsatish uchun ochiladi.
     /// </para>
     /// <para>
-    /// ⚠️ «O'zi voz kechgan» (<see cref="CandidateStatus.Withdrawn"/>) va
-    /// rezervdagilar bu qoidaga TUSHMAYDI: birinchisi kam uchraydi,
-    /// ikkinchisining butun ma'nosi «kerak bo'lganda shu yerdan
-    /// chaqiramiz» degani.
+    /// ⭐ <b>«O'zi voz kechgan» ham SHU qoidaga tushadi</b> (foydalanuvchi
+    /// qarori, 2026-09-10) — qoida <see cref="HideWithdrawn"/> da alohida
+    /// turadi. Ilgari bu yerda «Withdrawn qoidaga tushmaydi, chunki kam
+    /// uchraydi» deb yozilgan edi; amalda u kam uchramadi va kundalik
+    /// ro'yxatni to'ldirib qo'ydi. Kundalik ro'yxat «hozir kim ish
+    /// ustida?» degan savolga javob beradi, o'zi ketib qolgan odam esa bu
+    /// savolga javob emas.
+    /// </para>
+    /// <para>
+    /// ⚠️ Lekin <see cref="CandidateStatus.Rejected"/> va
+    /// <see cref="CandidateStatus.Withdrawn"/> AYRIM holatlar bo'lib
+    /// qoladi: alohida belgi (qizil va sariq), voronka hisobotida alohida
+    /// sanoq — ular faqat RO'YXATDA KO'RINISHNI baham ko'radi. Ajratishning
+    /// sababi <see cref="CandidateStatus.Withdrawn"/> izohida: «biz rad
+    /// etdik» va «u ketib qoldi» butunlay boshqa ma'no beradi.
+    /// </para>
+    /// <para>
+    /// ⚠️ REZERVDAGILAR esa qoidaga TUSHMAYDI va sabab o'zgarmadi:
+    /// rezervning butun ma'nosi «kerak bo'lganda shu ro'yxatdan
+    /// chaqiramiz» degani, ya'ni yashirish ma'noning o'zini yo'q qilardi.
     /// </para>
     /// <para>
     /// ⚠️ <b>Excel ARXIVIDA qoida ishlamaydi.</b> Kengash arxividagi 3110
@@ -250,7 +315,34 @@ public sealed record CandidateSearchFilter(
     /// unda faqat HOLAT tanlovi qoidani ochadi.
     /// </para>
     /// </remarks>
-    public bool HideRejected => Status is null && !ArchiveRequested;
+    public bool HideRejected => Status is null && !ArchiveRequested && !RejectedSection;
+
+    /// <summary>
+    /// O'zi voz kechganlar ro'yxatdan chiqarilsinmi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="HideRejected"/> ning egizagi va u bilan AYNAN bir xil
+    /// shartlarga bo'ysunadi — sabablari (nega yashiriladi, nega holat
+    /// tanlovi qoidani ochadi, nega Excel arxivida ishlamaydi) o'sha
+    /// izohda, bu yerda takrorlanmaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <c>!ArchiveRequested</c> bo'lagi MAJBURIY va aynan shu yerda
+    /// unutish oson: kengash arxivi deyarli butunlay yopilgan yozuvlardan
+    /// iborat, ya'ni arxivga yetib boradigan yashirish qoidasi «Excel
+    /// arxivi» tanlovini qisqa yoki BO'SH qilib qo'yardi. Qoida endi ikkala
+    /// holatni ham qamraydi.
+    /// </para>
+    /// <para>
+    /// <see cref="HideHired"/> ga esa <c>!RejectedSection</c> bo'lagi
+    /// ATAYLAB qo'shilmadi: bo'lim ichidagi
+    /// <c>status IN (Rejected, Withdrawn)</c> sharti ishga olinganlarni
+    /// allaqachon chiqarib tashlaydi va qo'shimcha shart hech qanday
+    /// natijani o'zgartirmasdi — ya'ni ko'rinmas ta'sirli o'zgarish bo'lardi.
+    /// </para>
+    /// </remarks>
+    public bool HideWithdrawn => Status is null && !ArchiveRequested && !RejectedSection;
 
     /// <summary>
     /// Excel arxivi ATAYLAB so'ralganmi.
@@ -312,10 +404,20 @@ public sealed record CandidatePage(IReadOnlyList<CandidateRow> Items, int Total)
 /// <param name="CurrentStageName">Joriy bosqich nomi.</param>
 /// <param name="Status">Voronkadagi holati.</param>
 /// <param name="Source">Qayerdan kelgan.</param>
-/// <param name="HasResume">Rezyume biriktirilganmi.</param>
+/// <param name="HasResume">
+/// Kamida bitta fayl biriktirilganmi. Nomi ATAYLAB o'zgarmadi — sababi
+/// <see cref="CandidateListItemDto.HasResume"/> izohida.
+/// </param>
 /// <param name="HasPhoto">Surati bormi — ro'yxat qatorida rasm ko'rsatiladi.</param>
 /// <param name="CreatedAt">Kiritilgan vaqt.</param>
 /// <param name="HiredEmployeeId">Ishga olingan bo'lsa — xodim kartasi.</param>
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi. <c>null</c> — reja yo'q.
+///
+/// ⚠️ Yangi maydon OXIRIGA qo'shildi: qator <c>RecruitingReadModel</c> da
+/// POZITSIYA bo'yicha yasaladi va o'rtaga qo'yilgan parametr butun
+/// argument qatorini surib yuborardi.
+/// </param>
 public sealed record CandidateRow(
     Guid Id,
     string LastName,
@@ -333,7 +435,8 @@ public sealed record CandidateRow(
     bool HasResume,
     bool HasPhoto,
     DateTimeOffset CreatedAt,
-    Guid? HiredEmployeeId);
+    Guid? HiredEmployeeId,
+    DateOnly? NextContactDate);
 
 /// <summary>
 /// Vakansiyalar ro'yxatining filtri.

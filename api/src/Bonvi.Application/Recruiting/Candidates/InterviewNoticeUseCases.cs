@@ -43,12 +43,38 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// bir xil qator qo'shardi.
 /// </param>
 /// <param name="InterviewAt">Suhbat lahzasi.</param>
-/// <param name="Conclusion">Bosqich yozuviga izoh — ixtiyoriy.</param>
+/// <param name="Conclusion">
+/// Izoh matni — ixtiyoriy. ⭐ <b>Ikkita manzili bor va qaysi biriga
+/// tushishini SERVER hal qiladi</b>:
+/// <list type="bullet">
+///   <item><paramref name="StageId"/> BERILGAN → matn yangi bosqich
+///   yozuvining <c>Conclusion</c> maydoniga tushadi (bugungi
+///   xatti-harakat, o'zgarmadi).</item>
+///   <item><paramref name="StageId"/> BO'SH (suhbatni ko'chirish, bosqich
+///   o'zgarmaydi) → matn <c>candidate_notes</c> ga
+///   <see cref="CandidateNoteKind.InterviewRescheduled"/> turi bilan
+///   yoziladi.</item>
+/// </list>
+/// Nega mijozga IKKITA maydon berilmadi (<c>conclusion</c> va
+/// <c>note</c>): tanlov — saqlash qarori, ya'ni serverning ishi; brauzerga
+/// berilsa u yerda yana bitta adashish joyi paydo bo'lardi. Ilgari maydon
+/// ko'chirishda umuman KO'RSATILMASDI va yozilgan matn jimgina tashlab
+/// yuborilardi — aynan shu nosozlik tuzatilyapti.
+/// </param>
+/// <param name="NextContactDate">Keyingi aloqa sanasi — berilsa QO'YILADI.</param>
+/// <param name="ClearNextContact">
+/// <c>true</c> — saqlangan sana TOZALANADI. Uch holatli qoidaning to'liq
+/// izohi <see cref="RecordCandidateStageCommand.ClearNextContact"/> da;
+/// amalga oshirilishi ikkalasida BITTA
+/// (<see cref="RecordCandidateStageCommandHandler.ApplyNextContact"/>).
+/// </param>
 public sealed record InviteCandidateToInterviewCommand(
     Guid CandidateId,
     Guid? StageId,
     DateTimeOffset InterviewAt,
-    string? Conclusion = null);
+    string? Conclusion = null,
+    DateOnly? NextContactDate = null,
+    bool ClearNextContact = false);
 
 public sealed class InviteCandidateToInterviewCommandHandler
 {
@@ -136,6 +162,31 @@ public sealed class InviteCandidateToInterviewCommandHandler
                 return recorded.Error;
             }
         }
+        else if (!string.IsNullOrWhiteSpace(command.Conclusion))
+        {
+            /*
+              Bosqich o'zgarmaydi — ya'ni izohni biriktiradigan bosqich
+              yozuvi YO'Q va u alohida jadvalga tushadi. Ilgari bu matn
+              interfeysda umuman so'ralmasdi (maydon yashirilardi), so'rovda
+              kelib qolsa ham JIMGINA tashlanardi.
+
+              Bo'shlik tekshiruvi shu yerda: domen `AddNote` bo'sh matn
+              uchun istisno tashlaydi, xato kodi bermaydi (sababi
+              `CandidateNote.Create` izohida).
+            */
+            candidate.AddNote(
+                CandidateNoteKind.InterviewRescheduled,
+                command.Conclusion,
+                _currentUser.UserId);
+        }
+
+        // Aloqa sanasi eng oxirida, saqlashdan OLDIN: yuqoridagi
+        // tekshiruvlardan birortasi xato qaytarsa, o'zgargan sana ortidan
+        // qolib ketmasligi kerak.
+        RecordCandidateStageCommandHandler.ApplyNextContact(
+            candidate,
+            command.NextContactDate,
+            command.ClearNextContact);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

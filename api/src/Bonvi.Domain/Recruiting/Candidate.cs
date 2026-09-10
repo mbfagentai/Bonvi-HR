@@ -136,6 +136,41 @@ public enum CandidateSource
 public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
 {
     private readonly List<CandidateStageEntry> _stageEntries = [];
+    private readonly List<CandidateFile> _files = [];
+    private readonly List<CandidateNote> _notes = [];
+
+    /// <summary>Bitta nomzodga biriktiriladigan fayllarning eng katta soni.</summary>
+    /// <remarks>
+    /// <para>
+    /// O'nta — pasport (2 varaq) + diplom (2 varaq) + rezyume + zaxira.
+    /// Chegara kerak: fayllar diskda yotadi va chegarasiz bitta nomzod
+    /// kartasi yuzlab telefon rasmiga aylanib ketishi mumkin.
+    /// </para>
+    /// <para>
+    /// <b>Nega bu son shu yerda, <see cref="RecruitingRules"/> da emas.</b>
+    /// U yerdagi qiymatlarning hammasi — tizim SOZLAMALARINING sukut
+    /// qiymati va ular to'g'ridan-to'g'ri ishlatilmaydi (o'sha sinf izohi).
+    /// Bu esa qat'iy chegara: uni <see cref="AttachFile"/> ning o'zi
+    /// tekshiradi va son qoidadan ajralib turmasligi kerak.
+    /// </para>
+    /// </remarks>
+    public const int MaxFiles = 10;
+
+    /// <summary>Bitta nomzodning fayllari egallashi mumkin bo'lgan umumiy hajm.</summary>
+    /// <remarks>
+    /// <para>
+    /// SAQLANGAN baytlar bo'yicha hisoblanadi (izohi
+    /// <see cref="CandidateFile.SizeBytes"/> da): rasmlar serverda
+    /// kichraytiriladi, ya'ni o'nta skan odatda ~4 MB bo'ladi va bu chegara
+    /// faqat uzun PDF larda ishga tushadi. Chegarasiz esa bitta fayl
+    /// chegarasi (20 MB) o'nta faylga 200 MB ruxsat berardi.
+    /// </para>
+    /// <para>
+    /// Sozlamaga chiqarilmadi — bir mijoz, bir server: sozlamalar ekranidan
+    /// diskni boshqarish taklifi shu yerda hech kimga foyda bermaydi.
+    /// </para>
+    /// </remarks>
+    public const long MaxFilesTotalBytes = 60L * 1024 * 1024;
 
     private Candidate(
         Guid id,
@@ -216,19 +251,49 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public string? PhotoKey { get; private set; }
 
-    /// <summary>Rezyume fayli — <c>IFileStorage</c> kaliti.</summary>
-    public string? ResumeFileKey { get; private set; }
-
-    /// <summary>Rezyumening asl fayl nomi — faqat KO'RSATISH uchun.</summary>
-    public string? ResumeFileName { get; private set; }
-
-    /// <summary>Rezyume faylining MAZMUNIGA qarab aniqlangan MIME turi.</summary>
-    public string? ResumeContentType { get; private set; }
-
-    public long? ResumeSizeBytes { get; private set; }
-
     /// <summary>Erkin izoh.</summary>
     public string? Note { get; private set; }
+
+    /// <summary>
+    /// HR bu odam bilan KEYIN qachon bog'lanishni rejalashtirgani.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega vaqt emas, SANA.</b> «Qo'ng'iroq qildim, 5-6 kunda keladi
+    /// dedi» — bu kalendar fakti, lahza emas: soati yo'q va bo'lishi ham
+    /// kerak emas. Loyihada lahzalar <c>timestamptz</c>, kalendar faktlari
+    /// esa <c>date</c> bo'lib saqlanadi (<see cref="ClosedAt"/> bilan bir
+    /// xil qoida), taqqoslash esa Toshkent kalendarida bajariladi.
+    /// </para>
+    /// <para>
+    /// <b>Nega bosqichlar tarixidan HOSIL QILINMAYDI.</b> Ro'yxat ekraniga
+    /// ikki narsa kerak: saralanadigan ustun va <c>WHERE next_contact_date
+    /// &lt;= bugun</c> filtri (u qator sonini ham beradi). Tarixdan
+    /// hisoblash har qator uchun bog'langan ichki so'rov degani — indeksga
+    /// tushmaydi va har sahifada bosqichlar jadvalini skanerlardi.
+    /// <see cref="CurrentStageId"/> ham aynan shu sababdan bola
+    /// yozuvlardan chiqarib olingan; bu — o'sha savdo, o'sha javob.
+    /// Qabul qilingan narxi: bazaga qo'lda aralashilsa ustun tarixdan
+    /// ajralib qolishi mumkin. Sanalarning TARIXI yuritilmaydi — «5-6
+    /// kunda keladi» gapi baribir xulosa matnida turadi.
+    /// </para>
+    /// <para>
+    /// <b>O'TGAN sana ham qabul qilinadi</b> —
+    /// <see cref="InviteToInterview"/> dagi «kechagi kun terish xatosi»
+    /// qoidasi bu yerga KO'CHIRILMAYDI. Sabab: maydonning butun vazifasi
+    /// «bugun yoki kechikkan» ro'yxatini berish, ya'ni o'tgan sana bu yerda
+    /// ODATIY holat. Bundan tashqari oldindan to'ldirilgan oyna sana o'tib
+    /// ketgach saqlashdan bosh tortardi — HR umuman tegishni
+    /// o'ylamagan maydon uchun. Suhbat vaqti boshqacha, chunki u
+    /// NOMZODGA XABAR yuboradi; bu sana esa faqat HR ning o'z ro'yxatida
+    /// qator paydo qiladi va xato ekranda ko'rinib turadi.
+    /// </para>
+    /// <para>
+    /// Voronkadan chiqishda TOZALANADI, rezervda esa QOLADI — sababi
+    /// <see cref="Close"/> izohida.
+    /// </para>
+    /// </remarks>
+    public DateOnly? NextContactDate { get; private set; }
 
     /// <summary>
     /// Telegram suhbatining raqami — botdan kelgan nomzodda.
@@ -331,6 +396,24 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
 
     /// <summary>Bosqichlar tarixi — yozilgan tartibda.</summary>
     public IReadOnlyList<CandidateStageEntry> StageEntries => _stageEntries.AsReadOnly();
+
+    /// <summary>Biriktirilgan fayllar — YUKLASH tartibida.</summary>
+    /// <remarks>
+    /// Tartib <see cref="CandidateFile.CreatedAt"/> bo'yicha o'suvchi va
+    /// buni repozitoriy ta'minlaydi (<c>Include</c> ichidagi
+    /// <c>OrderBy</c>) — sababi <see cref="CandidateFile.CreatedAt"/>
+    /// izohida: pasport 1-2-3 varaq bo'lib keladi.
+    /// </remarks>
+    public IReadOnlyList<CandidateFile> Files => _files.AsReadOnly();
+
+    /// <summary>Amallar izohlari — yozilgan tartibda.</summary>
+    /// <remarks>
+    /// Bosqich yozuvi bo'lmagan amallarning izohi
+    /// (<see cref="CandidateNote"/> izohida nega alohida jadval kerak
+    /// bo'lgani yozilgan). Bo'sh bo'lishi ODATIY hol: izoh hech qachon
+    /// majburiy emas.
+    /// </remarks>
+    public IReadOnlyList<CandidateNote> Notes => _notes.AsReadOnly();
 
     /// <summary>
     /// Botda to'ldirilgan anketa. Yo'q bo'lishi NORMAL.
@@ -636,9 +719,28 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// haqidagi uzoq muddatli tavsif emas; tavsif uchun <see cref="Note"/>
     /// bor va unga bu amal tegmaydi.
     /// </para>
+    /// <para>
+    /// ⭐ <b>Keyingi aloqa sanasi SAQLANADI</b> — qolgan yakunlardan
+    /// ataylab farq (sababi <see cref="Close"/> izohida). Yangi sana
+    /// berilsa u qo'yiladi, berilmasa esa mavjudi o'z joyida qoladi:
+    /// rezervga o'tkazish sanani bekor qilish emas.
+    /// </para>
     /// </remarks>
-    public Result MoveToReserve(DateOnly at, string? reason = null)
-        => Close(CandidateStatus.Reserve, at, reason);
+    public Result MoveToReserve(DateOnly at, string? reason = null, DateOnly? nextContactDate = null)
+    {
+        var closed = Close(CandidateStatus.Reserve, at, reason);
+        if (closed.IsFailure)
+        {
+            return closed;
+        }
+
+        if (nextContactDate is { } date)
+        {
+            NextContactDate = date;
+        }
+
+        return Result.Success();
+    }
 
     /// <summary>
     /// Rezervdagi nomzodni voronkaga qaytaradi.
@@ -666,8 +768,15 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// …» yozuvi turaverardi va <see cref="ClosedAt"/> bo'yicha
     /// hisoblaydigan hisobot uni yopilganlar qatorida sanardi.
     /// </para>
+    /// <para>
+    /// <b>Keyingi aloqa sanasiga esa TEGILMAYDI</b> (yangisi berilmasa):
+    /// rezervda turgan odamga qo'ng'iroq qilish rejasi u voronkaga
+    /// qaytgach ham o'z kuchida qoladi. Chiqish sanasi va sababi
+    /// tozalanadi, chunki ular «nega chiqqan» degan savolning javobi;
+    /// aloqa sanasi esa «keyin nima qilamiz» — boshqa savol.
+    /// </para>
     /// </remarks>
-    public Result ReturnFromReserve()
+    public Result ReturnFromReserve(DateOnly? nextContactDate = null)
     {
         if (Status != CandidateStatus.Reserve)
         {
@@ -679,6 +788,11 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         Status = CandidateStatus.InProgress;
         ClosedAt = null;
         ClosingNote = null;
+
+        if (nextContactDate is { } date)
+        {
+            NextContactDate = date;
+        }
 
         return Result.Success();
     }
@@ -698,32 +812,100 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public Result MarkHired(DateOnly at) => Close(CandidateStatus.Hired, at, null);
 
-    /// <summary>Tekshirilgan rezyume faylini biriktiradi.</summary>
+    /// <summary>
+    /// Tekshirilgan faylni nomzodga biriktiradi.
+    /// </summary>
     /// <remarks>
-    /// Fayl mazmuni bu bosqichda ALLAQACHON tekshirilgan bo'lishi kerak
-    /// (hajm va haqiqiy tur) — <c>EmployeeDocument.Attach</c> bilan bir xil
-    /// mas'uliyat taqsimoti: domen faqat metama'lumotni yozadi.
-    /// Eski fayl bo'lsa, uni diskdan olib tashlash chaqiruvchining ishi.
+    /// <para>
+    /// Fayl mazmuni bu bosqichda ALLAQACHON tekshirilgan va rasm bo'lsa
+    /// kichraytirilgan bo'lishi kerak (<c>ScaledDocumentStore</c>) —
+    /// <c>EmployeeDocument.Attach</c> bilan bir xil mas'uliyat taqsimoti:
+    /// domen faqat metama'lumotni yozadi.
+    /// </para>
+    /// <para>
+    /// <b>Tekshiruvlar tartibi muhim.</b> Avval soni, keyin umumiy hajmi,
+    /// eng oxirida faylning o'zi: birinchi ikkitasi nomzodning invarianti
+    /// va ular AYNAN shu yerda tekshirilishi shart (sababi
+    /// <see cref="CandidateFile"/> izohida — sanoqni so'rov bilan olish
+    /// poyga bo'lardi). Chegaraga TENG kelgan fayl qabul qilinadi, oshgani
+    /// esa rad etiladi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Nomzodning JARAYONDA bo'lishi TALAB QILINMAYDI</b> — bu
+    /// <see cref="RecordStage"/> va yopish amallaridan ataylab farq
+    /// qiladi. HR diplom nusxasini rad etilgan nomzodga ertasi kuni ham
+    /// yuklaydi (hujjat keyin keladi) va bunga to'sqinlik qilish faylni
+    /// tizimdan tashqariga — telefondagi galereyaga — surib qo'yardi.
+    /// </para>
     /// </remarks>
-    public Result AttachResume(string fileKey, string? fileName, string contentType, long sizeBytes)
+    public Result<CandidateFile> AttachFile(
+        string fileKey,
+        string? fileName,
+        string contentType,
+        long storedBytes,
+        Guid? createdBy = null)
     {
-        if (string.IsNullOrWhiteSpace(fileKey) || string.IsNullOrWhiteSpace(contentType) || sizeBytes <= 0)
+        if (_files.Count >= MaxFiles)
         {
-            return Error.Validation("nomzod.rezyume_bosh", "Rezyume fayli biriktirilishi shart.");
+            return Error.Validation(
+                "nomzod.rezyume_kop",
+                $"Bitta nomzodga eng ko'pi {MaxFiles} ta fayl biriktiriladi.");
         }
 
-        ResumeFileKey = fileKey;
-        ResumeFileName = NormalizeFileName(fileName);
-        ResumeContentType = contentType;
-        ResumeSizeBytes = sizeBytes;
+        if (_files.Sum(file => file.SizeBytes) + storedBytes > MaxFilesTotalBytes)
+        {
+            return Error.Validation(
+                "nomzod.rezyume_joy",
+                $"Nomzod fayllarining umumiy hajmi {MaxFilesTotalBytes / (1024 * 1024)} MB dan oshib ketadi.");
+        }
 
-        return Result.Success();
+        var created = CandidateFile.Create(Id, fileKey, fileName, contentType, storedBytes, createdBy);
+        if (created.IsFailure)
+        {
+            return created.Error;
+        }
+
+        _files.Add(created.Value);
+
+        return created.Value;
+    }
+
+    /// <summary>
+    /// Faylni olib tashlaydi va uning saqlash kalitini qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Yozuv butunlay o'chadi (yumshoq o'chirish yo'q — sababi
+    /// <see cref="CandidateFile"/> izohida), diskdagi baytlarni esa
+    /// CHAQIRUVCHI o'chiradi va aynan <c>SaveChangesAsync</c> dan KEYIN:
+    /// saqlash yiqilsa, yozuv hali ham joyida turgan faylga ishora qilib
+    /// qolishi kerak. Shu sababli metod kalitni qaytaradi — chaqiruvchi
+    /// uni o'zi izlab yurmaydi.
+    /// </para>
+    /// <para>
+    /// Noma'lum identifikator — 404. Bu amal IDEMPOTENT emas
+    /// (surat o'chirishdan farqli): chaqiruvchi aniq bir qatorni nomlagan
+    /// va uni jimgina «muvaffaqiyat» deb qaytarish ekranda allaqachon
+    /// yo'q faylni ko'rsatib turgan eski ro'yxatni yashirardi.
+    /// </para>
+    /// </remarks>
+    public Result<string> RemoveFile(Guid fileId)
+    {
+        var file = _files.Find(candidateFile => candidateFile.Id == fileId);
+        if (file is null)
+        {
+            return Error.NotFound("nomzod.rezyume_topilmadi", "Nomzodning bunday fayli yo'q.");
+        }
+
+        _files.Remove(file);
+
+        return file.FileKey;
     }
 
     /// <summary>Suratni biriktiradi yoki olib tashlaydi (<c>null</c>).</summary>
     /// <remarks>
     /// Rasm ALLAQACHON tekshirilgan va qirqilgan bo'lishi kerak — domen
-    /// faqat kalitni yozadi (<see cref="AttachResume"/> bilan bir xil
+    /// faqat kalitni yozadi (<see cref="AttachFile"/> bilan bir xil
     /// mas'uliyat taqsimoti). Eski faylni diskdan olib tashlash
     /// chaqiruvchining ishi.
     /// </remarks>
@@ -765,20 +947,79 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         return Result.Success();
     }
 
-    /// <summary>Rezyume havolasini olib tashlaydi. Diskdagi faylni chaqiruvchi o'chiradi.</summary>
-    public void RemoveResume()
+    /// <summary>
+    /// Amal izohini yozadi — bosqich yozuvi TEGISHLI bo'lmagan amallar
+    /// uchun.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nega alohida jadval va nega uchta mavjud maydonning bittasi ham
+    /// yaramaganini <see cref="CandidateNote"/> izohi tushuntiradi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Faqat BO'SH BO'LMAGAN matn bilan chaqiriladi.</b> Izoh
+    /// hamma joyda IXTIYORIY, ya'ni «izoh yozilmadi» degan holat yozuvsiz
+    /// ko'rinadi — ishlovchi <c>string.IsNullOrWhiteSpace</c> ni tekshirib
+    /// bu metodni umuman chaqirmaydi. Shartnoma buzilsa
+    /// <see cref="ArgumentException"/> keladi (nega xato kodi emasligi
+    /// <see cref="CandidateNote.Create"/> izohida). Aynan shu sababdan
+    /// javob <c>Result</c> ga O'RALMAYDI: yiqiladigan yo'l yo'q, o'ram
+    /// esa chaqiruvchini mavjud bo'lmagan xatoni tekshirishga undardi.
+    /// </para>
+    /// <para>
+    /// Nomzodning holati TEKSHIRILMAYDI: izohni tug'diradigan amalning
+    /// o'zi (o'tkazish, rezervdan qaytarish, suhbatni ko'chirish) allaqachon
+    /// o'z qoidasini tekshirgan bo'ladi va ikkinchi tekshiruv shu qoidani
+    /// ikki joyda saqlash degani bo'lardi.
+    /// </para>
+    /// </remarks>
+    public CandidateNote AddNote(CandidateNoteKind kind, string text, Guid? createdBy = null)
     {
-        ResumeFileKey = null;
-        ResumeFileName = null;
-        ResumeContentType = null;
-        ResumeSizeBytes = null;
+        var note = CandidateNote.Create(Id, kind, text, createdBy);
+        _notes.Add(note);
+
+        return note;
     }
+
+    /// <summary>
+    /// Keyingi aloqa sanasini qo'yadi yoki tozalaydi (<c>null</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Tekshiruv YO'Q — o'tgan sana ham qabul qilinadi (sababi
+    /// <see cref="NextContactDate"/> izohida).
+    /// </para>
+    /// <para>
+    /// ⚠️ <c>null</c> — «tozalash», «tegilmasin» EMAS. «Tegilmasin»
+    /// holatini chaqiruvchi metodni umuman chaqirmasdan bildiradi: HTTP
+    /// shartnomasida shu sababli ikkita alohida maydon bor
+    /// (<c>nextContactDate</c> va <c>clearNextContact</c>) — voronkadagi
+    /// «sudrab o'tkazish» harakati oynasiz ishlaydi va u HR besh daqiqa
+    /// oldin qo'ygan sanani jimgina o'chirib yuborishi mumkin emas.
+    /// </para>
+    /// </remarks>
+    public void SetNextContactDate(DateOnly? date) => NextContactDate = date;
 
     /// <summary>Voronkadan chiqarish — barcha yakunlar uchun umumiy qoida.</summary>
     /// <remarks>
+    /// <para>
     /// Faqat JARAYONDAGI nomzod yopiladi. Ikkinchi marta yopishga urinish
     /// xato bo'lib qaytadi: aks holda rad etilgan nomzodni «ishga olindi»
     /// deb belgilash mumkin bo'lardi va voronka hisoboti jimgina buzilardi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Keyingi aloqa sanasi shu yerda TOZALANADI</b> — barcha
+    /// chiqish yo'llari bitta joydan o'tgani uchun qoidani ham bitta
+    /// joyda ushlab turish mumkin. Sabab: rad etilgan nomzod aloqa sanasi
+    /// bilan «bugun bog'lanish kerak» ro'yxatida abadiy qolib ketardi va
+    /// HR ro'yxatga umuman ishonmay qo'yardi.
+    /// </para>
+    /// <para>
+    /// <b>Yagona istisno — <see cref="CandidateStatus.Reserve"/>.</b>
+    /// Rezerv chiqish emas, KECHIKTIRISH: holatning butun ma'nosi «o'rin
+    /// bo'shaganda chaqiramiz» (o'sha qiymat izohi), ya'ni aloqa sanasi
+    /// aynan o'sha yerda o'rinli. Shu sababli u saqlanib qoladi.
+    /// </para>
     /// </remarks>
     private Result Close(CandidateStatus status, DateOnly at, string? reason)
     {
@@ -790,6 +1031,11 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         Status = status;
         ClosedAt = at;
         ClosingNote = Trim(reason);
+
+        if (status != CandidateStatus.Reserve)
+        {
+            NextContactDate = null;
+        }
 
         return Result.Success();
     }
@@ -822,22 +1068,6 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         return today.Year - birthDate.Year > 100
             ? Error.Validation("nomzod.tugilgan_sana", "Tug'ilgan sana haqiqiy emas.")
             : Result.Success();
-    }
-
-    /// <summary>Fayl nomini ko'rsatish uchun tozalaydi (yo'l qismi tashlanadi).</summary>
-    private static string NormalizeFileName(string? fileName)
-    {
-        var trimmed = Trim(fileName);
-        if (trimmed is null)
-        {
-            return "rezyume";
-        }
-
-        // Mijoz to'liq yo'l yuborishi mumkin («C:\Users\...\rezyume.pdf») —
-        // saqlashda u ishlatilmaydi, lekin ekranda ham ko'rinmasligi kerak.
-        var name = Path.GetFileName(trimmed.Replace('\\', '/'));
-
-        return string.IsNullOrWhiteSpace(name) ? "rezyume" : name;
     }
 
     private static string? Trim(string? value)

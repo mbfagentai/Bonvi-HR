@@ -63,7 +63,10 @@ public interface IVacancyRepository : IRepository<Vacancy>
 /// <summary>Nomzodlar uchun saqlash porti.</summary>
 public interface ICandidateRepository : IRepository<Candidate>
 {
-    /// <summary>Bosqichlar tarixi VA anketasi bilan birga yuklaydi.</summary>
+    /// <summary>
+    /// Nomzodni BUTUN kartasi bilan yuklaydi: bosqichlar tarixi, fayllari,
+    /// izohlari va anketasi.
+    /// </summary>
     /// <remarks>
     /// <para>
     /// Tarix DOIM kerak emas: ro'yxat ekrani uni umuman o'qimaydi. Alohida
@@ -72,11 +75,17 @@ public interface ICandidateRepository : IRepository<Candidate>
     /// sekinlashtirardi.
     /// </para>
     /// <para>
-    /// Anketa ham SHU metodda keladi, o'ziga alohida yo'l ochilmaydi:
-    /// u faqat nomzod kartasida ko'rinadi va karta baribir shu yerdan
-    /// yuklanadi. Ikkinchi metod bo'lganida chaqiruvchi ikkalasini ham
-    /// eslab qolishi kerak bo'lardi — va biri unutilganda anketa
-    /// XATOSIZ yo'qolib qolardi.
+    /// Anketa, fayllar va izohlar ham SHU metodda keladi, ularga alohida
+    /// yo'l ochilmaydi: hammasi faqat nomzod kartasida ko'rinadi va karta
+    /// baribir shu yerdan yuklanadi. Ikkinchi metod bo'lganida chaqiruvchi
+    /// hammasini eslab qolishi kerak bo'lardi — va biri unutilganda
+    /// ma'lumot XATOSIZ yo'qolib qolardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Nomi ATAYLAB o'zgartirilmadi</b> (masalan <c>GetFullAsync</c>
+    /// bo'lmadi): metod o'ndan ortiq joydan chaqiriladi va qayta nomlash
+    /// xatti-harakatga hech narsa qo'shmasdi. Nima yuklanishini shu izoh
+    /// aytadi.
     /// </para>
     /// </remarks>
     Task<Candidate?> GetWithStagesAsync(Guid id, CancellationToken cancellationToken = default);

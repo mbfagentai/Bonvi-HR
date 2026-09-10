@@ -352,6 +352,22 @@ const DYNAMIC_KEY_SOURCES = [
     values: (text) => constArrayValues(text, 'OFFER_STATUSES'),
     keysFor: (value) => [`recruiting.offerStatus.${lowerFirst(value)}`],
   },
+  /*
+   * Nomzod IZOHLARINING turi — «oxirgi nima bo'ldi» qatoridagi yorliq
+   * (`candidate-stage-picker.tsx`: `` t(`recruiting.noteKind.${lowerFirst(last.kind)}`) ``).
+   *
+   * Nega bu yozuv ZARUR: usiz skript faqat «tanilmagan shablon»
+   * ogohlantirishini chiqaradi va u ATAYLAB yiqitmaydi (pastdagi izoh) —
+   * ya'ni tarjimasi qolib ketgan tur ekranga XOM KALIT bo'lib chiqardi
+   * («recruiting.noteKind.reassign»), aynan shu fayl sarlavhasida
+   * tasvirlangan nosozlik. Manba — `CANDIDATE_NOTE_KINDS`, ya'ni serverga
+   * yangi tur qo'shilib ro'yxat o'sganda tekshiruv o'zi yangilanadi.
+   */
+  {
+    file: 'src/features/recruiting/api/recruiting-api.ts',
+    values: (text) => constArrayValues(text, 'CANDIDATE_NOTE_KINDS'),
+    keysFor: (value) => [`recruiting.noteKind.${lowerFirst(value)}`],
+  },
 
   /*
    * Nomzod ANKETASI (`candidate-questionnaire-card.tsx`). To'rtta yopiq

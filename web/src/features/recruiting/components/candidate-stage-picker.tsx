@@ -1,23 +1,26 @@
-import { CalendarClock, LoaderCircle } from 'lucide-react'
-import { useState } from 'react'
+import { CalendarClock } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 import { cn } from '@/shared/lib/cn'
-import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Card, CardContent, buttonVariants } from '@/shared/ui'
-import type { Candidate, PipelineStage } from '../api/recruiting-api'
-import { useRecordStage, useStages } from '../api/recruiting-queries'
-import { recruitingErrorCode } from '../lib/recruiting-error'
+import { useLocale } from '@/shared/i18n/use-locale'
+import { Badge, Button, Card, CardContent, buttonVariants } from '@/shared/ui'
+import type { Candidate, CandidateNoteKind, PipelineStage } from '../api/recruiting-api'
+import { useStages } from '../api/recruiting-queries'
+import { lowerFirst, today } from '../lib/recruiting-presentation'
 import { CandidateInterviewDialog } from './candidate-interview-dialog'
+import { CandidateStageDialog } from './candidate-stage-dialog'
 
 /**
- * ⭐ Bosqichni BIR BOSISHDA o'zgartirish — nomzod kartasidagi tezkor qator.
+ * ⭐ Bosqichni o'zgartirish — nomzod kartasidagi tezkor qator.
  *
  * <b>Nima uchun qo'shildi.</b> Foydalanuvchi talabi (2026-09-08): HR
  * nomzodga telefon qilgandan keyin uni «Гаплашилди» bosqichiga, kengashga
  * chaqirgandan keyin esa «Кенгашга чақирилди» bosqichiga o'tkazishi kerak.
  * Ilgari buning yagona yo'li «Bosqichlar» tabini ochib, oyna chaqirib,
  * bosqichni ro'yxatdan tanlab, saqlash edi — kuniga o'nlab marta
- * takrorlanadigan amal uchun to'rt qadam.
+ * takrorlanadigan amal uchun to'rt qadam. Bu qator o'sha yo'lni
+ * QISQARTIRADI: kerakli bosqich ko'z oldida turadi va bir bosishda
+ * shu bosqichning oynasi ochiladi.
  *
  * <b>Nega tugmalar KODDA sanab chiqilmagan.</b> «Гаплашилди» va
  * «Кенгашга чақирилди» — bu kod emas, MA'LUMOTNOMA yozuvi
@@ -27,27 +30,43 @@ import { CandidateInterviewDialog } from './candidate-interview-dialog'
  * ro'yxatidan chiziladi: HR ma'lumotnomaga bosqich qo'shsa, tugmasi ham
  * o'zidan paydo bo'ladi, tartibi ham voronkanikidek qoladi.
  *
- * <b>Nima yuboriladi.</b> Voronka taxtasidagi sudrash bilan AYNAN bir xil
- * so'rov (`useMoveCandidateToStage` izohi): `outcome = Pending`, sana va
- * xulosa bo'sh — «bosqich boshlandi, natija hali yo'q». Natijani HR
- * keyinroq «Bosqichlar» tabidagi oyna orqali yozadi va SHU yozuv
- * to'ldiriladi, tarixda ikkinchi qator paydo bo'lmaydi.
+ * <b>⭐ Har bir tugma OYNA ochadi — bir bosishda ko'chirish OLIB
+ * TASHLANDI</b> (foydalanuvchi talabi, 2026-09-10). Ilgari tugma
+ * to'g'ridan-to'g'ri so'rov yuborardi (`outcome = Pending`, sana va
+ * xulosa bo'sh), ostidagi eslatma esa «natijani keyin Bosqichlar
+ * bo'limida yozasiz» deb turardi — va u amalda HECH QACHON yozilmadi:
+ * telefon suhbatining butun mazmuni yo'qoldi. Endi tugma
+ * `CandidateStageDialog` ni QOTIB QO'YILGAN bosqich bilan ochadi va
+ * sana, natija, xulosa, keyingi aloqa sanasi bir joyda so'raladi.
+ * Oyna BITTA: alohida «tezkor oyna» yozish rad etildi (sabab shu
+ * oynaning izohida, SPEC §5.1.1).
  *
- * <b>Ba'zi bosqich TO'G'RIDAN-TO'G'RI o'tkazmaydi.</b> Ma'lumotnomada
- * «suhbat taklifi» bayrog'i qo'yilgan bosqich (odatda «Кенгашга
- * чақирилди») avval OYNA ochadi va HR dan sana bilan vaqtni so'raydi —
- * nomzodga aynan shu ma'lumot bilan Telegram xabari ketadi. Bayroq
- * bosqichning o'zida turadi, kodda emas: sabab
+ * <b>Voronka TAXTASIDAGI sudrash esa bir bosishda qoldi</b> va bu ham
+ * ataylab: taxta triaj yuzasi, oyna esa sudrashning butun qiymatini —
+ * tezligini va optimistik yamog'ini — yo'q qilardi
+ * (`useMoveCandidateToStage` izohi, SPEC §5.1.6). Ya'ni ikkita yo'l
+ * ikki xil ish uchun: taxtada tez saralash, kartada yozib qo'yish.
+ *
+ * <b>Ba'zi bosqich BOSHQA oyna ochadi.</b> Ma'lumotnomada «suhbat
+ * taklifi» bayrog'i qo'yilgan bosqich (odatda «Кенгашга чақирилди»)
+ * bosqich oynasi emas, SUHBAT oynasini ochadi va HR dan sana bilan
+ * vaqtni so'raydi — nomzodga aynan shu ma'lumot bilan Telegram xabari
+ * ketadi. Bayroq bosqichning o'zida turadi, kodda emas: sabab
  * `PipelineStage.InvitesToInterview` domen izohida.
  *
  * <b>Joriy bosqich — tugma EMAS.</b> U tugma bo'lib, `disabled` qilinsa
  * xiralashardi (`disabled:opacity-40`) va «ishlamayapti» degan ma'no
  * berardi. Aslida u ishlamaydigan tugma emas, HOLAT ko'rsatkichi —
  * shuning uchun bir xil o'lchamdagi to'ldirilgan yorliq.
+ *
+ * <b>«Oxirgi nima bo'ldi» chizig'i — tugmalardan YUQORIDA.</b> Talab
+ * shunday: HR keyingi tugmani bosishdan oldin ilgari nima
+ * qilinganini ko'rishi kerak. Uni «Bosqichlar» tabiga yuborish RAD
+ * ETILDI — bugungi ish oqimi aynan shunday va hech kim o'sha tabni
+ * ochmaydi (SPEC §5.2).
  */
 export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
-  const { t, dateTime } = useLocale()
-  const errorMessage = useErrorMessage()
+  const { t, date, dateTime } = useLocale()
 
   /*
    * Faqat FAOL bosqichlar: faolsizlantirilganiga o'tkazib bo'lmaydi va
@@ -56,7 +75,6 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
    * (`candidate-card-page.tsx`).
    */
   const stages = useStages(true)
-  const record = useRecordStage()
 
   /**
    * Suhbat oynasi: `closed` — yopiq, `null` — ochiq, lekin bosqichni
@@ -68,6 +86,24 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
    */
   const [inviting, setInviting] = useState<PipelineStage | null | 'closed'>('closed')
 
+  /**
+   * Bosqich oynasi: `null` — yopiq, bosqich — o'sha bosqich QOTIB
+   * qo'yilgan holda ochiq.
+   *
+   * Bu yerda IKKI holat yetadi — suhbat oynasidan farqli o'laroq, u
+   * bosqichsiz OCHILMAYDI: qator faqat aniq bir bosqich tugmasidan
+   * ochiladi, «bosqichni tanlab yoz» ko'rinishi esa «Bosqichlar»
+   * tabida turibdi.
+   */
+  const [recording, setRecording] = useState<PipelineStage | null>(null)
+
+  /*
+   * ⚠️ Hook'lar QAYTISHDAN oldin: pastda bo'sh ma'lumotnomada karta
+   * umuman chizilmaydi va shartli chaqirilgan hook React qoidasini
+   * buzardi.
+   */
+  const last = useLastActivity(candidate)
+
   const list = stages.data ?? []
 
   /*
@@ -78,32 +114,85 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
    */
   if (list.length === 0) return null
 
+  /*
+   * Tugma bosildi — mutatsiya YO'Q, faqat oyna ochiladi. Shu sababli
+   * bu yerda «boshqa so'rov ketayotgan bo'lsa to'xta» tekshiruvi ham
+   * kerak emas: kutiladigan holat oynaning O'ZIDA (saqlash tugmasi)
+   * va ikkita so'rov yonma-yon ketishi mumkin emas.
+   */
   const move = (stage: PipelineStage) => {
-    if (record.isPending) return
-
     if (stage.invitesToInterview) {
       setInviting(stage)
       return
     }
 
-    record.mutate({
-      id: candidate.id,
-      stageId: stage.id,
-      outcome: 'Pending',
-      date: null,
-      conclusion: null,
-    })
+    setRecording(stage)
   }
+
+  /*
+   * «Muddati keldi» yorlig'i — sana BUGUN yoki o'tgan bo'lsa. Sanalar
+   * ikkalasi ham `YYYY-MM-DD` (Toshkent kalendari), shu sababli
+   * SATRIY solishtirish to'g'ri ishlaydi va `Date` yaratish kerak
+   * emas — mintaqa siljishi bu yerga umuman aralashmaydi.
+   *
+   * Yorliq FAQAT muddati kelganda chiziladi: sananing neytral qiymati
+   * shaxsiy ma'lumotlar kartasida allaqachon turibdi va bitta ekranda
+   * ikki marta takrorlanishi shovqin bo'lardi (SPEC §5.2).
+   */
+  const dueDate =
+    candidate.nextContactDate !== null && candidate.nextContactDate <= today()
+      ? candidate.nextContactDate
+      : null
 
   return (
     <Card>
       <CardContent className="py-4">
-        <p className="text-caption1 text-[var(--fg-tertiary)]">{t('recruiting.stageMoveTitle')}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-caption1 text-[var(--fg-tertiary)]">
+            {t('recruiting.stageMoveTitle')}
+          </p>
 
-        {record.isError && (
-          <Alert tone="danger" className="mt-3">
-            {errorMessage(recruitingErrorCode(record.error))}
-          </Alert>
+          {dueDate !== null && (
+            <Badge tone="warning" size="sm" dot title={date(dueDate)}>
+              {t('recruiting.nextContactDue')}
+            </Badge>
+          )}
+        </div>
+
+        {/*
+          Oxirgi MATNLI yozuv — bitta, eng yangisi. Butun tarixni bu
+          yerga chizish RAD ETILDI: karta lentaga aylanardi va lenta
+          allaqachon «Bosqichlar» tabida bor. Matn yo'q bo'lsa
+          umuman chizilmaydi — bo'sh quti HR ga hech narsa aytmaydi
+          (anketa kartasi va bu kartaning o'zi bilan bir xil qoida).
+        */}
+        {last !== null && (
+          <div className="mt-3 rounded-md bg-[var(--bg-sunken)] px-3 py-2">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-caption2 text-[var(--fg-tertiary)]">
+                {t('recruiting.lastActivity')}
+              </span>
+
+              <span className="text-footnote font-medium">
+                {last.source === 'stage'
+                  ? (last.stage ?? '—')
+                  : t(`recruiting.noteKind.${lowerFirst(last.kind)}`)}
+              </span>
+
+              <span className="tabular text-caption2 text-[var(--fg-tertiary)]">
+                {dateTime(last.at)}
+              </span>
+            </div>
+
+            {/*
+              Uch qatordan keyin kesiladi: bu yerda maqsad «nima
+              bo'lganini eslatish», to'liq matnni o'qish emas — u
+              «Bosqichlar» lentasida to'lig'icha turadi.
+            */}
+            <p className="mt-1 line-clamp-3 text-footnote text-[var(--fg-secondary)]">
+              {last.text}
+            </p>
+          </div>
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -126,14 +215,11 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
             }
 
             /*
-              Yuklanish belgisi FAQAT bosilgan tugmada: butun qatorni
-              aylantirish HR ga qaysi bosqich yozilayotganini
-              ko'rsatmasdi. Qolganlari shu paytda o'chiriladi — ikkita
-              so'rov ketma-ket ketsa, oxirgisi g'olib chiqib, HR
-              kutmagan bosqich qolardi.
+              Tugmada yuklanish belgisi YO'Q va `disabled` ham yo'q:
+              bosish so'rov emas, oyna ochadi. Kutish holati oynaning
+              saqlash tugmasida — u ham yagona joyda, chunki so'rovni
+              endi faqat oyna yuboradi.
             */
-            const saving = record.isPending && record.variables?.stageId === stage.id
-
             return (
               <Button
                 key={stage.id}
@@ -141,14 +227,14 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
                 size="sm"
                 variant="secondary"
                 pill
-                disabled={record.isPending}
                 onClick={() => move(stage)}
               >
-                {saving ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : (
-                  stage.invitesToInterview && <CalendarClock />
-                )}
+                {/*
+                  Kalendar ikonasi — «bu tugma xabar yuboradi» degan
+                  ogohlantirish: suhbat oynasi ochiladi va nomzodga
+                  Telegram taklifi ketadi.
+                */}
+                {stage.invitesToInterview && <CalendarClock />}
                 {stage.name}
               </Button>
             )
@@ -206,6 +292,81 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
         open={inviting !== 'closed'}
         onClose={() => setInviting('closed')}
       />
+
+      <CandidateStageDialog
+        candidate={candidate}
+        lockedStage={recording}
+        open={recording !== null}
+        onClose={() => setRecording(null)}
+      />
     </Card>
   )
+}
+
+/** «Oxirgi nima bo'ldi» chizig'ining mazmuni — ikki oqimdan bittasi. */
+type LastActivity =
+  | { source: 'stage'; stage: string | null; at: string; text: string }
+  | { source: 'note'; kind: CandidateNoteKind; at: string; text: string }
+
+/**
+ * Eng yangi MATNLI yozuv — bosqich xulosalari va bosqichsiz izohlar
+ * ichidan bittasi.
+ *
+ * <b>Nega ikkala oqim ham o'qiladi.</b> HR uchun «oxirgi nima bo'ldi»
+ * degan savolga javob ikki joyda: bosqich xulosasi
+ * (`stages[].conclusion`) va bosqichi bo'lmagan amal izohi
+ * (`notes[]` — boshqa vakansiyaga o'tkazish, rezervdan qaytarish,
+ * suhbatni ko'chirish). Bittasini o'qish «ikki kun oldin gaplashgan
+ * edik» degan yozuvni jimgina yashirardi.
+ *
+ * <b>Nega SANA bo'yicha, ro'yxat tartibi bo'yicha emas.</b> Ikki
+ * oqimning tartibini bir-biriga qo'shib bo'lmaydi — ular alohida
+ * massiv. Solishtirish `Date.parse` bilan: serverdan kelgan ISO satr
+ * «Z» yoki «+00:00» bilan yozilishi mumkin va satriy solishtirish
+ * o'shanda jimgina noto'g'ri javob berardi.
+ *
+ * ⚠️ Bosqich yozuvining kaliti — `recordedAt` (YOZILGAN vaqt), `date`
+ * emas: `date` QO'LDA kiritiladi va o'tgan kun bilan yozilishi odatiy
+ * hol («kecha suhbat bo'lgan edi»). Lentadagi tartib ham aynan shu
+ * sababdan kiritilish ketma-ketligini saqlaydi
+ * (`candidate-stages-tab.tsx` izohi).
+ */
+function useLastActivity(candidate: Candidate): LastActivity | null {
+  return useMemo(() => {
+    const items: LastActivity[] = []
+
+    /* Xulosasi BO'SH bosqich yozuvi chetlab o'tiladi: «Кенгашга
+       чақирилди — kutilmoqda» qatorining o'zi «nima bo'ldi» degan
+       savolga javob bermaydi va haqiqiy matnni pastga surib
+       yuborardi. */
+    for (const entry of candidate.stages) {
+      if (entry.conclusion === null) continue
+      items.push({
+        source: 'stage',
+        stage: entry.stage,
+        at: entry.recordedAt,
+        text: entry.conclusion,
+      })
+    }
+
+    /* Izohda matn bo'lmasligi mumkin emas — server bo'sh matnga
+       umuman qator yaratmaydi (`candidate_notes`, SPEC §2.3). */
+    for (const note of candidate.notes) {
+      items.push({ source: 'note', kind: note.kind, at: note.createdAt, text: note.text })
+    }
+
+    let best: LastActivity | null = null
+    let bestAt = -Infinity
+
+    for (const item of items) {
+      const ms = Date.parse(item.at)
+      /* Tanilmagan sana — yozuv butunlay tashlab ketiladi: «1970 yil»
+         deb chizilgani, chizilmaganidan yomonroq. */
+      if (Number.isNaN(ms) || ms <= bestAt) continue
+      bestAt = ms
+      best = item
+    }
+
+    return best
+  }, [candidate.stages, candidate.notes])
 }

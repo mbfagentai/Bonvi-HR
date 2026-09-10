@@ -82,8 +82,26 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Hired);
         }
 
+        /*
+          «Rad etilganlar» BO'LIMI — rad etilganlar VA o'zi voz kechganlar
+          birga. Bu holat filtri emas: bitta `<select>` ikkita qiymatni
+          ifodalay olmaydi (sababi `CandidateSearchFilter.HideRejected`
+          izohida). Shart holat filtridan KEYIN turadi va u bilan
+          birlashadi — `rejected=true&status=Withdrawn` faqat voz
+          kechganlarni beradi.
+
+          Shart sanoqdan (`total`) OLDIN: qatorlar bilan sanoq bitta
+          to'plamdan olinishi shart.
+        */
+        if (filter.RejectedSection)
+        {
+            candidates = candidates.Where(candidate =>
+                candidate.Status == CandidateStatus.Rejected
+                || candidate.Status == CandidateStatus.Withdrawn);
+        }
+
         // Rad etilgan nomzod ham kundalik ro'yxatda KO'RINMAYDI — u
-        // menyudagi «Rad etilganlar» bandiga o'tadi (`?status=Rejected`).
+        // menyudagi «Rad etilganlar» bandiga o'tadi (`?rejected=true`).
         // Yuqoridagi bilan bir xil qoida va bir xil sabab
         // (`CandidateSearchFilter.HideRejected` izohi): yozuv o'chmaydi,
         // faqat sukut ro'yxatdan chiqariladi.
@@ -94,6 +112,31 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         if (filter.HideRejected)
         {
             candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Rejected);
+        }
+
+        // ⭐ O'ZI VOZ KECHGANLAR ham xuddi shunday yashiriladi
+        // (foydalanuvchi qarori, 2026-09-10): kundalik ro'yxat «hozir kim
+        // ish ustida?» degan savolga javob beradi. Holatlar esa AYRIM
+        // bo'lib qoladi — belgi ham, hisobot ham alohida; faqat ro'yxatda
+        // ko'rinish umumiy (batafsil `CandidateSearchFilter.HideWithdrawn`).
+        //
+        // ⚠️ Excel arxivi bu yerda ham qoidani O'CHIRADI — shart
+        // `HideWithdrawn` ning ichida. Busiz kengash arxivi qisqa yoki
+        // bo'm-bo'sh chizilardi.
+        if (filter.HideWithdrawn)
+        {
+            candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Withdrawn);
+        }
+
+        // «Bugun kim bilan gaplashish kerak»: sanasi qo'yilgan VA u
+        // berilgan kundan oshmagan qatorlar. Sana o'qish modeliga
+        // TASHQARIDAN beriladi — bu yerda soat yo'q (sababi
+        // `CandidateSearchFilter.ContactDueOn` izohida). Shart qisman
+        // indeksga tushadi (`ix_candidates_next_contact_date`).
+        if (filter.ContactDueOn is { } due)
+        {
+            candidates = candidates.Where(candidate =>
+                candidate.NextContactDate != null && candidate.NextContactDate <= due);
         }
 
         if (filter.Source is { } source)
@@ -141,6 +184,22 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 VacancyName = title != null ? title.Name : null,
                 StageName = stage != null ? stage.Name : null,
                 StageOrder = stage != null ? stage.SortOrder : int.MaxValue,
+
+                /*
+                  «Fayli bormi» — SQL ichida, bog'liq `EXISTS` bo'lib
+                  (`ListVacanciesAsync` dagi sanoqlar bilan bir xil naqsh).
+                  Ilgari bu `candidates.resume_file_key != null` edi, ya'ni
+                  bitta ustunni o'qish; fayllar alohida jadvalga
+                  ko'chgach javob boshqa jadvalda qoldi.
+
+                  ⚠️ Materializatsiyadan KEYIN hisoblash YARAMAYDI: pastdagi
+                  `page.Select(...)` xotirada bajariladi va u yerdagi
+                  `Any(...)` har qator uchun alohida SINXRON so'rov yuborardi
+                  — 25 qatorlik sahifa uchun 25 ta ortiqcha murojaat (N+1).
+                  Shart `(candidate_id, created_at)` indeksiga tushadi va
+                  birinchi qatorda to'xtaydi.
+                */
+                HasFiles = _context.CandidateFiles.Any(file => file.CandidateId == candidate.Id),
             };
 
         var total = await joined.CountAsync(cancellationToken).ConfigureAwait(false);
@@ -161,6 +220,22 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             CandidateSortField.Stage => filter.Descending
                 ? joined.OrderByDescending(row => row.StageOrder)
                 : joined.OrderBy(row => row.StageOrder),
+
+            /*
+              ⚠️ Birinchi mezon — «sanasi bormi», IKKALA yo'nalishda ham.
+              Usiz PostgreSQL `NULL` ni o'sishda oxiriga, kamayishda esa
+              BOSHIGA qo'yadi, ya'ni «keyingi aloqa, yangidan eskiga»
+              tanlovi bir ekran chiziqcha bilan ochilardi — jadvalning
+              sarlavhasini bosgan HR esa buni «saralash ishlamadi» deb
+              tushunardi. Sanasi yo'q qator DOIM oxirida.
+            */
+            CandidateSortField.NextContact => filter.Descending
+                ? joined
+                    .OrderBy(row => row.Candidate.NextContactDate == null)
+                    .ThenByDescending(row => row.Candidate.NextContactDate)
+                : joined
+                    .OrderBy(row => row.Candidate.NextContactDate == null)
+                    .ThenBy(row => row.Candidate.NextContactDate),
 
             _ => filter.Descending
                 ? joined.OrderByDescending(row => row.Candidate.CreatedAt)
@@ -200,7 +275,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 row.StageName,
                 row.Candidate.Status,
                 row.Candidate.Source,
-                row.Candidate.ResumeFileKey != null,
+                row.HasFiles,
                 row.Candidate.PhotoKey != null,
                 row.Candidate.CreatedAt,
 
@@ -217,7 +292,8 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 */
                 hires.TryGetValue(row.Candidate.Id, out var hiredEmployeeId)
                     ? hiredEmployeeId
-                    : null)),
+                    : null,
+                row.Candidate.NextContactDate)),
         ];
 
         return new CandidatePage(items, total);

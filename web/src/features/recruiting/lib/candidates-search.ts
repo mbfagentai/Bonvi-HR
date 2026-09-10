@@ -41,6 +41,38 @@ export interface CandidatesSearch {
   stage?: string
   status?: CandidateStatus
   source?: CandidateSource
+  /**
+   * ⭐ «Bugun kim bilan gaplashish kerak» — keyingi aloqa sanasi bugun
+   * yoki undan oldin bo'lganlar (`contactDue` so'rov parametri).
+   *
+   * FILTR: bo'sh natija foydalanuvchining o'z tanlovi oqibati, shu
+   * sababli `isFiltered` uni SANAYDI — ekranda «topilmadi» matni
+   * chiqishi kerak.
+   *
+   * «Bugun»ni SERVER hisoblaydi (Toshkent kalendari): brauzer boshqa
+   * mintaqada bo'lsa ro'yxat bir kunga surilib ketardi
+   * (`CandidateFilters.contactDue` izohi).
+   *
+   * Tipi `true` — `false` manzilda ATAYLAB saqlanmaydi: standart holat
+   * manzilda ko'rinmaydi (`readView` bilan bir xil qoida).
+   */
+  due?: true
+  /**
+   * ⭐ «Rad etilganlar» BO'LIMI: `Rejected` VA `Withdrawn`
+   * (`rejected=true` so'rov parametri, SPEC §4.7).
+   *
+   * ⚠️ Bu FILTR EMAS, BO'LIM — shu sababli `isFiltered` uni ATAYLAB
+   * sanamaydi. Bo'sh natija bu yerda «hech kim rad etilmagan» degani,
+   * «qidiruvingiz hech narsa topmadi» degani emas, va ekrandagi bo'sh
+   * holat matni aynan shu farqqa tayanadi.
+   *
+   * NEGA `status=Rejected,Withdrawn` emas: bitta `<select>` ikkita
+   * qiymatni ifodalay olmaydi, ya'ni butun manzil sxemasi UI hech qachon
+   * hosil qila olmaydigan ko'p qiymatli holatni tashib yurardi. Bayroq
+   * esa holat filtri bilan BIRGA ishlaydi: bo'lim ichida HR «O'zi voz
+   * kechgan»ni tanlab, faqat ularni ko'ra oladi.
+   */
+  rejected?: true
   sort?: CandidatesSortParam
   view?: CandidatesView
 }
@@ -49,10 +81,14 @@ export interface CandidatesSearch {
 export type CandidatesView = 'table' | 'funnel'
 
 /**
- * Server tanidigan saralash kalitlari — AYNAN shu uchtasi
+ * Server tanidigan saralash kalitlari — AYNAN shu to'rttasi
  * (`RecruitingQueryParsing.ParseCandidateSort`).
+ *
+ * `nextContact` — keyingi aloqa sanasi. Serverda sanasi YO'Q qatorlar
+ * ikkala yo'nalishda ham OXIRIDA turadi (SPEC §4.6): usiz «keyingi aloqa,
+ * kamayish bo'yicha» butun bir ekran chiziqcha bilan ochilardi.
  */
-export type CandidatesSortKey = 'createdAt' | 'name' | 'stage'
+export type CandidatesSortKey = 'createdAt' | 'name' | 'stage' | 'nextContact'
 
 export type CandidatesSortParam = CandidatesSortKey | `-${CandidatesSortKey}`
 
@@ -72,6 +108,16 @@ export interface CandidatesFilterState {
   stageId: string
   status: CandidateStatus | ''
   source: CandidateSource | ''
+  /**
+   * «Bugun aloqa kerak» katakchasi (`EmployeesFilterState.needsReview`
+   * bilan bir xil naqsh: mantiqiy filtr shu yerda `boolean`, manzilda esa
+   * faqat yoqilgan holatda ko'rinadi).
+   *
+   * ⚠️ «Rad etilganlar» bo'limi bu tarkibda ATAYLAB YO'Q: u toolbar
+   * boshqaradigan filtr emas, ekranning o'zi. Bu yerga qo'shilsa,
+   * «filtrlarni tozalash» HR ni bo'limdan chiqarib yuborardi.
+   */
+  contactDue: boolean
 }
 
 export const DEFAULT_FILTERS: CandidatesFilterState = {
@@ -80,6 +126,7 @@ export const DEFAULT_FILTERS: CandidatesFilterState = {
   stageId: '',
   status: '',
   source: '',
+  contactDue: false,
 }
 
 /**
@@ -95,6 +142,8 @@ export function validateCandidatesSearch(search: Record<string, unknown>): Candi
     stage: readId(search['stage']),
     status: readOneOf(search['status'], CANDIDATE_STATUSES),
     source: readOneOf(search['source'], CANDIDATE_SOURCES),
+    due: readFlag(search['due']),
+    rejected: readFlag(search['rejected']),
     sort: normalizeSort(search['sort']),
     view: readView(search['view']),
   }
@@ -107,6 +156,7 @@ export function searchToFilters(search: CandidatesSearch): CandidatesFilterState
     stageId: search.stage ?? '',
     status: search.status ?? '',
     source: search.source ?? '',
+    contactDue: search.due ?? false,
   }
 }
 
@@ -115,6 +165,12 @@ export function searchToFilters(search: CandidatesSearch): CandidatesFilterState
  *
  * Sahifa, saralash va KO'RINISH hisobga olinmaydi: ular ro'yxatni
  * qisqartirmaydi, ya'ni bo'sh natijaning sababi bo'lolmaydi.
+ *
+ * ⚠️ `rejected` ham ATAYLAB sanalmaydi — u filtr emas, BO'LIM
+ * (`CandidatesSearch.rejected` izohi). Ilgari bu farq chaqiruv joyida,
+ * `isFiltered({ ...search, status: undefined })` ko'rinishida qo'lda
+ * yasalardi; endi qoida shu funksiyaning O'ZIDA turadi va sahifa
+ * shunchaki `isFiltered(search)` deb so'raydi.
  */
 export function isFiltered(search: CandidatesSearch): boolean {
   return (
@@ -122,19 +178,34 @@ export function isFiltered(search: CandidatesSearch): boolean {
     search.vacancy !== undefined ||
     search.stage !== undefined ||
     search.status !== undefined ||
-    search.source !== undefined
+    search.source !== undefined ||
+    search.due !== undefined
   )
 }
 
+/**
+ * Toolbar → manzil.
+ *
+ * ⚠️ Qaytadigan tipdan `rejected` CHIQARIB TASHLANGAN, va bu tasodif
+ * emas: natija sahifada avvalgi manzil ustiga yoyiladi
+ * (`{ ...previous, ...filtersToSearch(next) }`). Bayroq bu ro'yxatga
+ * tushsa, har filtr o'zgarishida `undefined` bo'lib ustiga yozilardi va
+ * HR «Rad etilganlar» bo'limida vakansiyani tanlagan zahoti kundalik
+ * ro'yxatga uchib chiqardi. Bo'lim bayrog'ini FAQAT menyu bandi va
+ * manzilning o'zi qo'yadi.
+ */
 export function filtersToSearch(
   filters: CandidatesFilterState,
-): Omit<CandidatesSearch, 'page' | 'sort' | 'view'> {
+): Omit<CandidatesSearch, 'page' | 'sort' | 'view' | 'rejected'> {
   return {
     q: readText(filters.search),
     vacancy: emptyToUndefined(filters.vacancyId),
     stage: emptyToUndefined(filters.stageId),
     status: filters.status === '' ? undefined : filters.status,
     source: filters.source === '' ? undefined : filters.source,
+    // Katakcha bo'shatilganda `undefined` YOZILISHI kerak — u avvalgi
+    // manzildagi `due=true` ni o'chiradi.
+    due: filters.contactDue ? true : undefined,
   }
 }
 
@@ -157,6 +228,7 @@ const SORT_KEYS: Record<CandidatesSortKey, true> = {
   createdAt: true,
   name: true,
   stage: true,
+  nextContact: true,
 }
 
 function isSortKey(value: string): value is CandidatesSortKey {
@@ -183,6 +255,24 @@ function readOneOf<T extends string>(value: unknown, allowed: readonly T[]): T |
 function readPage(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 2) return undefined
   return value
+}
+
+/**
+ * Mantiqiy bayroq — `due` va `rejected` uchun (`employees-search.ts` dagi
+ * `readFlag` bilan AYNAN bir xil qoida, ikkita ro'yxat bir xil o'qilsin).
+ *
+ * ⭐ IKKI xil qiymat qabul qilinadi. Router qidiruv parametrlarini JSON
+ * sifatida o'qiydi, ya'ni `?rejected=true` bu yerga mantiqiy `true` bo'lib
+ * keladi (`readPage` ning `typeof value !== 'number'` tekshiruvi ham shu
+ * xatti-harakatga tayanadi). Lekin manzil qo'lda ham yozilishi mumkin —
+ * satr varianti ham tan olinadi.
+ *
+ * Qolgan hamma narsa — `undefined`: yoqilmagan bayroq manzilda umuman
+ * turmaydi (`?due=false` ni saqlash serverda hech narsani o'zgartirmagan
+ * holda so'rov satrini shovqinga to'ldirardi).
+ */
+function readFlag(value: unknown): true | undefined {
+  return value === true || value === 'true' ? true : undefined
 }
 
 /**

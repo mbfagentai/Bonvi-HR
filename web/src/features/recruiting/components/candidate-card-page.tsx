@@ -32,11 +32,11 @@ import {
   SOURCE_LOOK,
 } from '../lib/recruiting-presentation'
 import { CandidateActionDialog, type CandidateAction } from './candidate-action-dialog'
+import { CandidateFilesCard } from './candidate-files-card'
 import { CandidateFormDialog } from './candidate-form-dialog'
 import { CandidateHireDialog } from './candidate-hire-dialog'
 import { CandidatePhotoEditor } from './candidate-photo-editor'
 import { CandidateQuestionnaireCard } from './candidate-questionnaire-card'
-import { CandidateResumeCard } from './candidate-resume-card'
 import { CandidateStagePicker } from './candidate-stage-picker'
 import { CandidateStagesTab } from './candidate-stages-tab'
 
@@ -51,7 +51,7 @@ type Tab = 'overview' | 'stages'
  * hammasini ko'rsatish sahifani cho'zib yuborardi, HR esa odatda
  * bittasiga qaraydi):
  *   · <b>Umumiy</b> — shaxsiy ma'lumot, botda to'ldirilgan anketa,
- *     rezyume va voronkadan chiqarish amallari;
+ *     biriktirilgan fayllar va voronkadan chiqarish amallari;
  *   · <b>Bosqichlar</b> — vertikal lenta va natija yozish oynasi.
  *
  * Uchinchi tab — «Takliflar» — ish taklifi funksiyasi bilan birga
@@ -230,14 +230,15 @@ export function CandidateCardPage() {
           <PersonalCard candidate={person} />
 
           {/*
-            Anketa — shaxsiy ma'lumotdan KEYIN, rezyumedan OLDIN.
+            Anketa — shaxsiy ma'lumotdan KEYIN, FAYLLARDAN oldin.
             Tartib HR ning o'qish yo'lidan: avval «kim», keyin «nima
-            deb javob berdi», oxirida biriktirilgan fayl. Nomzodda
-            anketa bo'lmasa karta umuman chizilmaydi.
+            deb javob berdi», oxirida biriktirilgan fayllar (endi
+            bittasi emas, o'ntagacha). Nomzodda anketa bo'lmasa karta
+            umuman chizilmaydi.
           */}
           <CandidateQuestionnaireCard questionnaire={person.questionnaire} />
 
-          <CandidateResumeCard candidate={person} canManage={canManage} />
+          <CandidateFilesCard candidate={person} canManage={canManage} />
 
           {/*
             ⭐ Bosqich qatori — voronkadan CHIQARISH amallaridan darrov
@@ -411,6 +412,25 @@ function PersonalCard({ candidate }: { candidate: Candidate }) {
           <Field label={t('employee.address')} value={candidate.address} />
           <Field label={t('recruiting.vacancy')} value={candidate.vacancy} />
           <Field label={t('recruiting.stage')} value={candidate.currentStage} />
+          {/*
+            ⭐ Keyingi aloqa sanasi SHU KARTADA, bosqich qatorida emas.
+            Sabab ruxsatda: bosqich kartasi faqat `recruiting.manage`
+            bo'lganda chiziladi (`canManage && inProgress`), ya'ni
+            faqat KO'RISH ruxsati bo'lgan odam rejani boshqa hech
+            qaysi ekranda ko'rmasdi (SPEC §5.3 va §6 dagi jadval).
+
+            Ohang ATAYLAB neytral: muddati kelgan sanani bosqich
+            kartasidagi ogohlantirish yorlig'i va ro'yxatdagi to'q
+            sariq ustun allaqachon belgilaydi — bir ekranda uchinchi
+            marta qizartirish shovqin bo'lardi (SPEC §5.2).
+
+            Bo'sh bo'lsa chiziqcha chiqadi: «reja qo'yilmagan» ekanini
+            ko'rish ham ma'lumot (kartaning yuqoridagi qoidasi).
+          */}
+          <Field
+            label={t('recruiting.nextContact')}
+            value={candidate.nextContactDate === null ? null : date(candidate.nextContactDate)}
+          />
         </dl>
 
         {candidate.note !== null && (

@@ -71,6 +71,29 @@ public sealed class RecruitingMapper
             stage.InvitesToInterview);
     }
 
+    /// <summary>Biriktirilgan fayl — qo'shimcha so'rovsiz.</summary>
+    /// <remarks>
+    /// Alohida (va <c>static</c>) metod, chunki uni IKKI joy ishlatadi:
+    /// nomzod kartasi (<see cref="ToDtoAsync(Candidate, CancellationToken)"/>)
+    /// va yuklash javobi (<c>UploadCandidateFileCommandHandler</c> — u butun
+    /// kartani emas, YARATILGAN faylni qaytaradi). Ikki nusxa yozilsa, bir
+    /// kun bittasida maydon qo'shilib, ikkinchisida qolib ketardi.
+    ///
+    /// Saqlash KALITI qaytarilmaydi — sababi <see cref="CandidateFileDto"/>
+    /// izohida.
+    /// </remarks>
+    public static CandidateFileDto ToDto(CandidateFile file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+
+        return new CandidateFileDto(
+            file.Id,
+            file.FileName,
+            file.ContentType,
+            file.SizeBytes,
+            file.CreatedAt);
+    }
+
     public async Task<VacancyDto> ToDtoAsync(Vacancy vacancy, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(vacancy);
@@ -103,13 +126,28 @@ public sealed class RecruitingMapper
             hired);
     }
 
-    /// <summary>Nomzod kartasi — bosqichlar tarixi bilan.</summary>
+    /// <summary>Nomzod kartasi — bosqichlar tarixi, fayllari va izohlari bilan.</summary>
     /// <remarks>
-    /// <paramref name="candidate"/> bosqichlari VA anketasi bilan yuklangan
-    /// bo'lishi kerak (<c>ICandidateRepository.GetWithStagesAsync</c>). Aks
-    /// holda tarix bo'sh, anketa esa <c>null</c> chiqadi va bu HECH QANDAY
-    /// xato bermaydi — shu sababli chaqiruvchilar ataylab bitta metoddan
-    /// foydalanadi.
+    /// <para>
+    /// <paramref name="candidate"/> bosqichlari, FAYLLARI, IZOHLARI va
+    /// anketasi bilan yuklangan bo'lishi kerak
+    /// (<c>ICandidateRepository.GetWithStagesAsync</c>). Aks holda ular bo'sh,
+    /// anketa esa <c>null</c> chiqadi va bu HECH QANDAY xato bermaydi — shu
+    /// sababli chaqiruvchilar ataylab bitta metoddan foydalanadi.
+    /// </para>
+    /// <para>
+    /// Fayllar va izohlar uchun YANGI bog'liqlik kerak emas: ular
+    /// ma'lumotnoma nomini ko'tarmaydi (fayl turi ham, izoh yorlig'i ham
+    /// bazada yo'q — birinchisi umuman mavjud emas, ikkinchisi sanoq va
+    /// tarjimasi mijozda). Shu sababli bu yerda faqat proyeksiya bor,
+    /// so'rov yo'q.
+    /// </para>
+    /// <para>
+    /// Tartib repozitoriydan KELGANIDEK qoldiriladi (ikkalasi ham
+    /// <c>CreatedAt</c> bo'yicha o'sish tartibida): bu yerda qayta saralash
+    /// ikkinchi haqiqat manbaini yaratardi va bir kun ikkisi ajralib
+    /// ketardi.
+    /// </para>
     /// </remarks>
     public async Task<CandidateDto> ToDtoAsync(Candidate candidate, CancellationToken cancellationToken = default)
     {
@@ -140,6 +178,18 @@ public sealed class RecruitingMapper
                 entry.RecordedAt)),
         ];
 
+        IReadOnlyList<CandidateFileDto> files = [.. candidate.Files.Select(ToDto)];
+
+        IReadOnlyList<CandidateNoteDto> notes =
+        [
+            .. candidate.Notes.Select(note => new CandidateNoteDto(
+                note.Id,
+                note.Kind,
+                note.Text,
+                note.CreatedBy,
+                note.CreatedAt)),
+        ];
+
         return new CandidateDto(
             candidate.Id,
             candidate.FullName.LastName,
@@ -159,15 +209,15 @@ public sealed class RecruitingMapper
             candidate.Note,
             candidate.ClosedAt,
             candidate.ClosingNote,
-            candidate.ResumeFileName,
-            candidate.ResumeContentType,
-            candidate.ResumeSizeBytes,
+            candidate.NextContactDate,
             candidate.PhotoKey is not null,
             employment?.EmployeeId,
             employment?.Id,
             candidate.InterviewAt,
             candidate.InterviewNoticeSentAt,
             stages,
+            files,
+            notes,
             ToDto(candidate.Questionnaire));
     }
 

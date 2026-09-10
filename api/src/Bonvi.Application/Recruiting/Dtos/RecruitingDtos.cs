@@ -95,6 +95,71 @@ public sealed record CandidateStageEntryDto(
     DateTimeOffset RecordedAt);
 
 /// <summary>
+/// Nomzodga biriktirilgan BITTA fayl — rezyume, pasport varag'i, diplom skani.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Alohida ro'yxat endpointi YO'Q</b>: fayllar
+/// <see cref="CandidateDto.Files"/> ichida, karta bilan BIRGA keladi —
+/// <see cref="CandidateQuestionnaireDto"/> va bosqichlar tarixi bilan
+/// aynan bir xil qoida (HR ularni doim karta bilan birga ko'radi, ikkinchi
+/// so'rov faqat ekranni sekinlashtirardi). Xodim hujjatlarida alohida
+/// ro'yxat BOR, chunki u o'z tabi va o'z <c>documentTypeId</c> filtri
+/// bilan yashaydi — bu yerda ikkalasi ham yo'q.
+/// </para>
+/// <para>
+/// <b>Saqlash kaliti QAYTARILMAYDI</b> (<see cref="CandidatePhotoDto"/>
+/// dan farqli): u ichki manzil va yuklab olish uchun
+/// <see cref="Id"/> yetadi.
+/// </para>
+/// <para>
+/// <c>isImage</c> kabi bayroq ATAYLAB yo'q: mijoz uni
+/// <c>contentType.startsWith('image/')</c> bilan o'zi hisoblaydi va
+/// server ikkinchi haqiqat manbaini yaratmaydi.
+/// </para>
+/// </remarks>
+/// <param name="Id">Fayl identifikatori — yuklab olish va o'chirish shu bo'yicha.</param>
+/// <param name="FileName">Asl nom — FAQAT ko'rsatish uchun.</param>
+/// <param name="ContentType">MIME turi — fayl MAZMUNIDAN aniqlangan.</param>
+/// <param name="SizeBytes">
+/// SAQLANGAN hajm — kichraytirilgandan KEYINGI baytlar, yuklangan fayl
+/// hajmi emas (sababi <see cref="CandidateFile.SizeBytes"/> izohida).
+/// <c>0</c> — noma'lum: eski rezyumeda hajm bo'lmagan bo'lishi mumkin edi
+/// va ko'chirish o'shanda nol yozadi; ekranda chiziqcha chiziladi.
+/// </param>
+/// <param name="UploadedAt">Qachon biriktirilgani.</param>
+public sealed record CandidateFileDto(
+    Guid Id,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    DateTimeOffset UploadedAt);
+
+/// <summary>
+/// Bosqichi bo'lmagan amaldan qolgan izoh.
+/// </summary>
+/// <remarks>
+/// Nega alohida jadval va nega mavjud uchta maydonning bittasi ham
+/// yaramaganini <see cref="CandidateNote"/> izohi tushuntiradi.
+/// </remarks>
+/// <param name="Id">Identifikator.</param>
+/// <param name="Kind">Qaysi amal shu izohni tug'dirgani — tarixdagi yorliq shundan.</param>
+/// <param name="Text">
+/// Izohning o'zi — ICHKI qayd, nomzodga HECH QACHON yuborilmaydi (na
+/// Telegram xabarida, na rad etish matnida). Bot bu DTO ni umuman
+/// o'qimaydi: uning javoblari <see cref="RejectionNoticeDto"/> va
+/// <see cref="InterviewNoticeDto"/>.
+/// </param>
+/// <param name="CreatedBy">Kim yozgani — tizim foydalanuvchisi.</param>
+/// <param name="CreatedAt">Qachon yozilgani.</param>
+public sealed record CandidateNoteDto(
+    Guid Id,
+    CandidateNoteKind Kind,
+    string Text,
+    Guid? CreatedBy,
+    DateTimeOffset CreatedAt);
+
+/// <summary>
 /// Rad etish xabari kutayotgan nomzod — FAQAT bot uchun.
 /// </summary>
 /// <remarks>
@@ -108,6 +173,16 @@ public sealed record CandidateStageEntryDto(
 /// <para>
 /// Ismi esa KERAK: xabar «Hurmatli Каримов Азиз» deb boshlanadi va
 /// nomzod uni o'ziga tegishli deb tanidi.
+/// </para>
+/// <para>
+/// ⚠️ <b>Yangi maydonlar bu yerga QO'SHILMAYDI</b> (mijoz talabi,
+/// 2026-09-10). Bosqich xulosasi
+/// (<see cref="CandidateStageEntryDto.Conclusion"/>), amal izohi
+/// (<see cref="CandidateNoteDto.Text"/>), keyingi aloqa sanasi
+/// (<see cref="CandidateDto.NextContactDate"/>) va biriktirilgan fayllar
+/// — hammasi ICHKI. Va'dani DTO chegarasining O'ZI ushlab turadi: bot
+/// <see cref="CandidateDto"/> ni umuman o'qimaydi, ya'ni u yerga maydon
+/// qo'shish bu javobga hech narsa qo'shmaydi.
 /// </para>
 /// </remarks>
 /// <param name="CandidateId">Xabar yuborilgach shu bilan belgilanadi.</param>
@@ -224,7 +299,16 @@ public sealed record InterviewNoticeDto(
 /// <param name="CurrentStage">Joriy bosqich nomi.</param>
 /// <param name="Status">InProgress | Rejected | Hired | Withdrawn.</param>
 /// <param name="Source">Manual | TelegramBot.</param>
-/// <param name="HasResume">Rezyume biriktirilganmi.</param>
+/// <param name="HasResume">
+/// Kamida BITTA fayl biriktirilganmi.
+/// <para>
+/// ⚠️ Nomi ATAYLAB o'zgarmadi, garchi nomzodda endi bitta rezyume emas,
+/// o'ntagacha fayl bo'lsa ham (<see cref="CandidateFileDto"/>). Qayta
+/// nomlash mijozdagi o'quvchini ham, mavjud testlarni ham surardi, foydasi
+/// esa nol: jadvalda SON emas, qisqich belgisi chiziladi. Loyihaning
+/// qoidasi — qo'shimcha o'zgarish, keraksiz qayta nomlash emas.
+/// </para>
+/// </param>
 /// <param name="HasPhoto">
 /// Surati bormi. Anketaning O'ZI bu yerda YO'Q — u og'ir va ro'yxatda
 /// kerak emas.
@@ -243,6 +327,19 @@ public sealed record InterviewNoticeDto(
 /// Ishga olingan bo'lsa — yaratilgan XODIM kartasi. Bog'lanish ishga qabul
 /// hodisasidan olinadi (<c>EmploymentEvent.CandidateId</c>).
 /// </param>
+/// <param name="NextContactDate">
+/// HR shu odam bilan keyingi marta qachon gaplashishni rejalashtirgani —
+/// kalendar sanasi, vaqtsiz. <c>null</c> — reja yo'q (ko'pchilik qatorda
+/// shunday).
+/// <para>
+/// Ro'yxatda ALOHIDA USTUN bo'lib chiziladi va <c>sort=nextContact</c>
+/// bilan saralanadi; <c>contactDue=true</c> filtri aynan shu maydonga
+/// tayanadi. Fayllar SONI kabi bu yerda faqat ko'rsatiladigan qiymat
+/// turadi — hisob-kitob serverda (sababi
+/// <see cref="Candidate.NextContactDate"/> izohida: ustun ATAYLAB
+/// denormallashtirilgan, aks holda filtr indeksga tushmasdi).
+/// </para>
+/// </param>
 public sealed record CandidateListItemDto(
     Guid Id,
     string FullName,
@@ -259,7 +356,8 @@ public sealed record CandidateListItemDto(
     bool HasResume,
     bool HasPhoto,
     DateTimeOffset CreatedAt,
-    Guid? HiredEmployeeId);
+    Guid? HiredEmployeeId,
+    DateOnly? NextContactDate);
 
 /// <summary>
 /// Nomzodning botda to'ldirgan anketasi — nomzod kartasining bir qismi.
@@ -342,9 +440,22 @@ public sealed record CandidatePhotoDto(string PhotoKey);
 /// <param name="Note">Izoh.</param>
 /// <param name="ClosedAt">Voronkadan chiqqan sana.</param>
 /// <param name="ClosingNote">Chiqish sababi.</param>
-/// <param name="ResumeFileName">Rezyume fayl nomi. <c>null</c> — rezyume yo'q.</param>
-/// <param name="ResumeContentType">Rezyume MIME turi.</param>
-/// <param name="ResumeSizeBytes">Rezyume hajmi.</param>
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi — kalendar sanasi, vaqtsiz. <c>null</c> — reja
+/// qo'yilmagan.
+/// <para>
+/// O'TGAN sana ODATIY hol va xato EMAS: maydonning butun maqsadi «bugun
+/// yoki muddati o'tgan» ro'yxatini berish (sababi
+/// <see cref="Candidate.NextContactDate"/> izohida). Qaysi amal uni
+/// qo'yadi, qaysi biri tozalaydi — <c>Candidate.Close</c> izohida:
+/// qisqasi rad etish / voz kechish / ishga olish TOZALAYDI, rezervga
+/// o'tkazish esa SAQLAYDI.
+/// </para>
+/// <para>
+/// ⚠️ ICHKI maydon: botga hech qachon ketmaydi (sababi
+/// <see cref="RejectionNoticeDto"/> izohida).
+/// </para>
+/// </param>
 /// <param name="HasPhoto">
 /// Surati bormi. Kalitning O'ZI qaytarilmaydi: u ichki saqlash manzili
 /// va rasm baribir alohida endpoint orqali olinadi.
@@ -359,6 +470,22 @@ public sealed record CandidatePhotoDto(string PhotoKey);
 /// xabar hali navbatda (yoki nomzodning Telegram'i yo'q).
 /// </param>
 /// <param name="Stages">Bosqichlar tarixi — yozilgan tartibda.</param>
+/// <param name="Files">
+/// Biriktirilgan fayllar — YUKLASH tartibida (eskisidan yangisiga).
+/// <para>
+/// Tartib xodim hujjatlaridagidan (yangisi tepada) ATAYLAB teskari:
+/// pasport uch varaq bo'lib 1-2-3 tartibda yuklanadi va teskari tartibda
+/// karta o'qilmas bo'lib qolardi (sababi <see cref="CandidateFile.CreatedAt"/>
+/// izohida ham yozilgan). Bo'sh massiv — fayl yo'q, odatiy hol.
+/// </para>
+/// </param>
+/// <param name="Notes">
+/// Bosqichi bo'lmagan amallardan qolgan izohlar — yozilgan tartibda.
+/// <para>
+/// Bosqich XULOSALARI bu yerda EMAS, <see cref="Stages"/> ichida: ikkisi
+/// boshqa-boshqa fakt (sababi <see cref="CandidateNote"/> izohida).
+/// </para>
+/// </param>
 /// <param name="Questionnaire">
 /// Botda to'ldirilgan anketa. <c>null</c> BO'LISHI ODATIY hol: HR qo'lda
 /// kiritgan nomzodda ham, bu funksiya paydo bo'lgunicha yozilgan
@@ -383,15 +510,15 @@ public sealed record CandidateDto(
     string? Note,
     DateOnly? ClosedAt,
     string? ClosingNote,
-    string? ResumeFileName,
-    string? ResumeContentType,
-    long? ResumeSizeBytes,
+    DateOnly? NextContactDate,
     bool HasPhoto,
     Guid? HiredEmployeeId,
     Guid? HiredEmploymentId,
     DateTimeOffset? InterviewAt,
     DateTimeOffset? InterviewNoticeSentAt,
     IReadOnlyList<CandidateStageEntryDto> Stages,
+    IReadOnlyList<CandidateFileDto> Files,
+    IReadOnlyList<CandidateNoteDto> Notes,
     CandidateQuestionnaireDto? Questionnaire);
 
 /// <summary>

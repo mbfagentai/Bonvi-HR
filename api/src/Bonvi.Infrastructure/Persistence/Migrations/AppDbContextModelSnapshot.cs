@@ -1839,6 +1839,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("interview_notice_sent_at");
 
+                    b.Property<DateOnly?>("NextContactDate")
+                        .HasColumnType("date")
+                        .HasColumnName("next_contact_date");
+
                     b.Property<string>("Note")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -1856,24 +1860,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("RejectionNoticeSentAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("rejection_notice_sent_at");
-
-                    b.Property<string>("ResumeContentType")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("resume_content_type");
-
-                    b.Property<string>("ResumeFileKey")
-                        .HasColumnType("text")
-                        .HasColumnName("resume_file_key");
-
-                    b.Property<string>("ResumeFileName")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
-                        .HasColumnName("resume_file_name");
-
-                    b.Property<long?>("ResumeSizeBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("resume_size_bytes");
 
                     b.Property<int>("Source")
                         .HasColumnType("integer")
@@ -1938,6 +1924,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_candidates_interview_notice_sent_at")
                         .HasFilter("telegram_chat_id IS NOT NULL AND interview_at IS NOT NULL AND interview_notice_sent_at IS NULL");
 
+                    b.HasIndex("NextContactDate")
+                        .HasDatabaseName("ix_candidates_next_contact_date")
+                        .HasFilter("next_contact_date IS NOT NULL");
+
                     b.HasIndex("Phone")
                         .HasDatabaseName("ix_candidates_phone")
                         .HasFilter("phone IS NOT NULL");
@@ -1956,6 +1946,94 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_candidates_vacancy_id_status");
 
                     b.ToTable("candidates", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("FileKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("file_name");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.HasKey("Id")
+                        .HasName("pk_candidate_files");
+
+                    b.HasIndex("CandidateId", "CreatedAt")
+                        .HasDatabaseName("ix_candidate_files_candidate_id_created_at");
+
+                    b.ToTable("candidate_files", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_candidate_notes");
+
+                    b.HasIndex("CandidateId", "CreatedAt")
+                        .HasDatabaseName("ix_candidate_notes_candidate_id_created_at");
+
+                    b.ToTable("candidate_notes", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateQuestionnaire", b =>
@@ -2635,6 +2713,26 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_candidates_vacancies_vacancy_id");
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateFile", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany("Files")
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_candidate_files_candidates_candidate_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateNote", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany("Notes")
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_candidate_notes_candidates_candidate_id");
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateQuestionnaire", b =>
                 {
                     b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
@@ -2711,6 +2809,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.Candidate", b =>
                 {
+                    b.Navigation("Files");
+
+                    b.Navigation("Notes");
+
                     b.Navigation("Questionnaire");
 
                     b.Navigation("StageEntries");

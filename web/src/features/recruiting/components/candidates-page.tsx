@@ -1,5 +1,5 @@
 import { getRouteApi } from '@tanstack/react-router'
-import { Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
+import { CircleAlert, Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 
@@ -36,6 +36,7 @@ import {
   CANDIDATE_LOOK,
   RECRUITING_MANAGE,
   SOURCE_LOOK,
+  isContactDue,
 } from '../lib/recruiting-presentation'
 import { CandidateFormDialog } from './candidate-form-dialog'
 import { CandidateFunnel } from './candidate-funnel'
@@ -88,17 +89,32 @@ export function CandidatesPage() {
 
   /**
    * ⭐ «RAD ETILGANLAR» BO'LIMI — menyudagi alohida band shu manzilni
-   * ochadi (`nav-items.ts`, `?status=Rejected`).
+   * ochadi (`nav-items.ts`, `?rejected=true`).
    *
-   * Alohida SAHIFA emas: bu o'sha ro'yxatning boshqa filtri, ya'ni
+   * Alohida SAHIFA emas: bu o'sha ro'yxatning boshqa KESIMI, ya'ni
    * qidiruv, saralash, sahifalash va ustunlar bitta joyda qoladi
    * («ishdan ketganlar» bandidagi bilan bir xil mulohaza). Lekin ekran
    * BO'LIMDEK ko'rinishi kerak — sarlavha, ikona va bo'sh holat matni
    * shu bayroqqa qarab o'zgaradi, aks holda HR «Rad etilganlar» ni
    * bosib, sarlavhasida «Nomzodlar» yozilgan ekranga tushardi va
    * qayerdaligini bilmasdi.
+   *
+   * ⚠️ Bayroq HOLAT FILTRIDAN olinmaydi (ilgari `status === 'Rejected'`
+   * edi). Bo'lim endi IKKITA holatni ko'rsatadi — «Biz rad etdik»
+   * (`Rejected`) va «O'zi voz kechdi» (`Withdrawn`) — va ikkalasi ham
+   * kundalik ro'yxatdan yashiringan (foydalanuvchi qarori, 2026-09-10:
+   * ketgan odam «hozir kim harakatlanyapti?» degan savolga javob emas).
+   * Bitta `<select>` esa ikkita qiymatni ifodalay olmaydi, shu sababli
+   * bo'lim alohida bayroq bo'ldi (SPEC §4.7).
+   *
+   * Ikkita holat QO'SHILIB KETMADI: yorliqlar ham (qizil va sariq),
+   * voronka hisoboti ham ularni avvalgidek ajratadi — «biz tanlamadik»
+   * va «bizni tanlamadi» boshqa-boshqa savollar (`CANDIDATE_LOOK`
+   * izohi). Faqat RO'YXATDA KO'RINISHI umumiy bo'ldi. Shu sababli
+   * bo'limning nomi ham «Rad etilganlar» bo'lib qoldi: qatordagi
+   * yorliqning o'zi kimning ketganini aytib turadi.
    */
-  const rejectedSection = filters.status === 'Rejected'
+  const rejectedSection = search.rejected === true
 
   /*
    * Filtr ro'yxatlari. Vakansiyalar — HAMMASI (yopilganini ham):
@@ -146,8 +162,12 @@ export function CandidatesPage() {
       ...(filters.vacancyId === '' ? {} : { vacancyId: filters.vacancyId }),
       ...(filters.status === '' ? {} : { status: filters.status }),
       ...(filters.source === '' ? {} : { source: filters.source }),
+      // Ikkala bayroq faqat YOQILGANDA qo'shiladi — `false` so'rovda
+      // hech narsani o'zgartirmagan holda kesh kalitini ikkiga bo'lardi.
+      ...(filters.contactDue ? { contactDue: true } : {}),
+      ...(rejectedSection ? { rejected: true } : {}),
     }),
-    [filters],
+    [filters, rejectedSection],
   )
 
   /**
@@ -163,10 +183,20 @@ export function CandidatesPage() {
    * Ataylab tanlangan holat esa HURMAT QILINADI: HR «rad etilganlar»ni
    * tanlab, ular qaysi bosqichda to'xtaganini ko'ra oladi — voronkaning
    * eng foydali savollaridan biri aynan shu.
+   *
+   * ⚠️ BO'LIM BAYROG'I ham ataylab tanlangan holat hisoblanadi. Ilgari bu
+   * tanlov `status=Rejected` bo'lib kelardi va shart o'z-o'zidan
+   * ishlardi; endi bo'lim alohida bayroq, ya'ni uni shu yerda TEKSHIRISH
+   * SHART. Aks holda «Rad etilganlar» bo'limidagi voronka
+   * `rejected=true AND status=InProgress` so'rovini yuborib, HAR SAFAR
+   * bo'sh taxta chizardi — bir-birini yo'q qiladigan ikki shart.
    */
   const funnelFilters = useMemo<Omit<CandidateFilters, 'stageId' | 'page' | 'pageSize'>>(
-    () => ({ ...sharedFilters, status: filters.status === '' ? 'InProgress' : filters.status }),
-    [sharedFilters, filters.status],
+    () => ({
+      ...sharedFilters,
+      ...(rejectedSection || filters.status !== '' ? {} : { status: 'InProgress' as const }),
+    }),
+    [sharedFilters, filters.status, rejectedSection],
   )
 
   const query = useCandidates(
@@ -299,6 +329,27 @@ export function CandidatesPage() {
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
+      /*
+        ⭐ KEYINGI ALOQA — mijozning talabi: HR qo'ng'iroq qiladi, nomzod
+        «5-6 kundan keyin kelaman» deydi, ertalab ro'yxatni ochgan HR
+        bugun kim bilan gaplashishi kerakligini KO'RISHI kerak.
+
+        O'rni ATAYLAB «Bosqich» va «Holati» ORASIDA: u «bu odam hozir
+        qayerda?» degan savolning davomi. Eng o'ngga qo'yilsa noutbuk
+        ekranida jadval chetiga tushib, aynan har kuni qaraladigan ustun
+        ko'rinmay qolardi.
+
+        Saralash SERVERDA: ustun `id` si `nextContact` — `normalizeSort`
+        tanidigan kalit, sanasi yo'q qatorlar ikkala yo'nalishda ham
+        oxirida turadi (SPEC §4.6).
+      */
+      helper.accessor('nextContactDate', {
+        id: 'nextContact',
+        header: t('recruiting.nextContact'),
+        meta: { width: '140px' },
+        cell: ({ getValue }) => <NextContactCell value={getValue()} />,
+      }),
+
       helper.accessor('status', {
         header: t('recruiting.status'),
         enableSorting: false,
@@ -363,11 +414,16 @@ export function CandidatesPage() {
    * Bo'limning O'ZIDAN boshqa filtr qo'yilmagan — ro'yxat haqiqatan
    * bo'sh, «topilmadi» emas.
    *
-   * `status` chiqarib tashlanadi: bu bo'limda u filtr emas, EKRANNING
-   * o'zi. Aks holda bo'sh «Rad etilganlar» bo'limi «qidiruv bo'yicha
-   * hech narsa topilmadi» deb yozardi — HR esa hech narsa qidirmagan.
+   * Bo'sh «Rad etilganlar» bo'limi «qidiruv bo'yicha hech narsa
+   * topilmadi» deb yozmasligi kerak — HR hech narsa qidirmagan.
+   *
+   * Ilgari bu yerda `isFiltered({ ...search, status: undefined })`
+   * turardi: bo'lim holat filtri bo'lgani uchun uni qo'lda o'chirib
+   * tashlash kerak edi. Endi bayroq alohida va `isFiltered` uni O'ZI
+   * sanamaydi (`candidates-search.ts` izohi), ya'ni shart oddiy so'rovga
+   * aylandi.
    */
-  const emptySection = rejectedSection && !isFiltered({ ...search, status: undefined })
+  const emptySection = rejectedSection && !isFiltered(search)
 
   const viewOptions = [
     { value: 'table' as const, label: t('recruiting.viewTable') },
@@ -530,9 +586,52 @@ function TextCell({ value }: { value: string | null }) {
   )
 }
 
-function DateCell({ value }: { value: string }) {
+/**
+ * Sana katagi.
+ *
+ * ⚠️ Tipi `string | null`, ikkalasi ham chiziqchaga aylanadi. Bo'sh SATR
+ * `createdAt` dan keladi (o'qishda `?? ''` zaxirasi bor), `null` esa
+ * haqiqiy «kiritilmagan» qiymat — `nextContactDate` odatda aynan shunday.
+ * Ilgari tip faqat `string` edi va `null` uzatilsa `new Date(null)`
+ * 1970-yilni qaytarib, katakda «01.01.1970» turardi — chiziqcha emas.
+ */
+function DateCell({ value }: { value: string | null }) {
   const { date } = useLocale()
 
-  if (value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
+  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
   return <span className="tabular text-[var(--fg-secondary)]">{date(value)}</span>
+}
+
+/**
+ * Keyingi aloqa sanasi — muddati kelgani AJRALIB TURADI.
+ *
+ * Bugun yoki o'tgan sana ogohlantirish ohangida (`text-ios-orange`,
+ * `Badge` ning `warning` ohangi bilan bitta rang) — «bugun kim bilan
+ * gaplashish kerak» degan savol saralashsiz ham javob olishi kerak.
+ *
+ * Rang YAGONA signal EMAS: yonida ogohlantirish ikonasi va `title`
+ * izohi turadi (`probations-page.tsx` dagi `DaysLeft` bilan bir xil
+ * qoida) — rangni ajratmaydigan foydalanuvchi ham farqni ko'radi.
+ *
+ * Kelasi sana esa oddiy ko'rinishda: agar hammasi bo'yalsa, ajratish
+ * ma'nosini yo'qotardi.
+ */
+function NextContactCell({ value }: { value: string | null }) {
+  const { t, date } = useLocale()
+
+  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
+
+  if (!isContactDue(value)) {
+    return <span className="tabular text-[var(--fg-secondary)]">{date(value)}</span>
+  }
+
+  return (
+    <span
+      className="tabular flex items-center gap-1.5 font-medium text-ios-orange"
+      title={t('recruiting.nextContactDue')}
+    >
+      <CircleAlert className="size-4 shrink-0" aria-hidden />
+      {date(value)}
+    </span>
+  )
 }

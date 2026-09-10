@@ -59,6 +59,18 @@ public static class DependencyInjection
         // bog'liq emas (kelajakda boshqa egasi bo'lishi mumkin).
         services.AddScoped<DocumentFileStore>();
 
+        // Kichraytirib saqlaydigan hujjat quvuri — nomzod fayllari uchun.
+        //
+        // ⚠️ Ikkalasi YONMA-YON turadi va bu ataylab: yuqoridagi sinf
+        // faylni BAYTMA-BAYT saqlaydi, chunki xodim hujjati (shartnoma,
+        // buyruq) mazmuni o'zgarmasligi kerak bo'lgan hujjat. Nomzod fayli
+        // esa hujjat NUSXASI (telefonda olingan pasport surati) — uni
+        // o'qib bo'lsa bas, shu sababli rasm 2000 px ichiga sig'diriladi.
+        // Kichraytirishni `DocumentFileStore` ga qo'shish butun
+        // tashkilotning shartnoma skanlarini jimgina qayta kodlashni
+        // boshlardi (batafsil sabab `ScaledDocumentStore` izohida).
+        services.AddScoped<ScaledDocumentStore>();
+
         // Autentifikatsiya
         services.AddScoped<LoginCommandHandler>();
         services.AddScoped<RefreshSessionCommandHandler>();

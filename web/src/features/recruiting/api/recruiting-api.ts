@@ -8,6 +8,14 @@
  *   api/src/Bonvi.Application/Recruiting/Dtos/RecruitingDtos.cs
  *   api/src/Bonvi.Api/Endpoints/{Vacancy,Candidate,PipelineStage}Endpoints.cs
  *
+ * ⚠️ ISTISNO — nomzod izohi, keyingi aloqa sanasi va FAYLLAR
+ * (`nextContactDate`, `files`, `notes`, `/files` endpoint'lari,
+ * `contactDue`, `rejected`). Ular hali YOZILMAGAN backend'ning
+ * shartnomasidan olingan: `docs/SPEC-nomzod-izoh-fayl.md` §4. SPEC shu
+ * ish uchun yagona haqiqat manbasi va ikki tomon (server va klient)
+ * unga qarab yoziladi. Server tayyor bo'lgach `./bonvi gen` shartnomani
+ * tasdiqlaydi; farq chiqsa TUZATILADIGAN joy shu fayl, SPEC emas.
+ *
  * Backend uchun `./bonvi gen` ishga tushirilgach: shu fayl O'CHIRILADI,
  * `recruiting-queries.ts` generatsiya qilingan hook'larga o'tkaziladi.
  *
@@ -79,6 +87,33 @@ export type CandidateSource = (typeof CANDIDATE_SOURCES)[number]
 
 export const STAGE_OUTCOMES = ['Pending', 'Passed', 'Failed'] as const
 export type StageOutcome = (typeof STAGE_OUTCOMES)[number]
+
+/*
+ * Izoh TURI — nomzod izohi qaysi AMALDAN paydo bo'lgani.
+ *
+ * Bosqichi bo'lmagan amallar (vakansiyani almashtirish, rezervdan
+ * qaytarish, suhbatni ko'chirish) bosqich yozuvi hosil qilmaydi — ularning
+ * izohi alohida jadvalga tushadi. Tur MATN emas, SANOQ: tarixdagi qatorni
+ * to'rt tilda nomlash kerak («Boshqa vakansiyaga o'tkazildi») va matnga
+ * qotib qolgan yorliqni tarjima qilib bo'lmasdi.
+ *
+ * ⚠️ Ro'yxatda `Manual` YO'Q va bu ataylab: erkin «izoh qo'shish» tugmasi
+ * shartnomada YO'Q (SPEC §1.2). Izoh faqat amaldan tug'iladi, aks holda
+ * bosqich xulosasi bilan ikkita raqib joy paydo bo'lardi.
+ *
+ * ⚠️ Tartib serverdagi sanoq bilan bir xil bo'lishi SHART
+ * (`CandidateNoteKind`, 1-2-3) va yangi qiymat FAQAT oxiriga qo'shiladi.
+ * Pastdagi `oneOf(...)` tanilmagan qiymatni JIMGINA birinchisiga
+ * (`Reassign`) tushiradi — ya'ni ro'yxatdan tushib qolgan tur xato
+ * bermaydi, u YOLG'ON yorliq ko'rsatadi (`CANDIDATE_STATUSES` izohidagi
+ * `Reserve` bilan aynan bir xil tuzoq).
+ */
+export const CANDIDATE_NOTE_KINDS = [
+  'Reassign',
+  'ReturnFromReserve',
+  'InterviewRescheduled',
+] as const
+export type CandidateNoteKind = (typeof CANDIDATE_NOTE_KINDS)[number]
 
 /* ───────────────────────────────────────────────────── anketa sanoqlari */
 
@@ -208,10 +243,30 @@ export interface CandidateListItem {
   currentStage: string | null
   status: CandidateStatus
   source: CandidateSource
+  /**
+   * Kamida BITTA fayl biriktirilganmi.
+   *
+   * Nomi `hasResume` bo'lib qoldi, garchi nomzodda endi o'ntagacha fayl
+   * bo'lsa ham: qayta nomlash serverdagi DTO ni ham, uni o'qiydigan
+   * testlarni ham surardi, foydasi esa nol — jadvalda baribir SON emas,
+   * qisqich belgisi chiziladi (shartnoma qarori, SPEC §4.8).
+   */
   hasResume: boolean
   createdAt: string
   /** Ishga olingan bo'lsa — yaratilgan XODIM kartasi. */
   hiredEmployeeId: string | null
+  /**
+   * ⭐ HR shu odam bilan keyingi marta qachon gaplashishni rejalashtirgani —
+   * kalendar sanasi (`YYYY-MM-DD`, Toshkent), vaqt YO'Q. `null` — reja
+   * qo'yilmagan (odatiy hol, ko'pchilik qatorda shunday).
+   *
+   * Ro'yxatda alohida ustun bo'lib chiziladi va serverda `sort=nextContact`
+   * bilan saralanadi. Bugungi yoki o'tgan sana — «bugun kim bilan
+   * gaplashish kerak» degan savolning javobi, shu sababli u ogohlantirish
+   * rangida ko'rinadi (`contactDue` filtri esa aynan shu qatorlarni
+   * qoldiradi).
+   */
+  nextContactDate: string | null
 }
 
 /**
@@ -224,7 +279,7 @@ export interface CandidateListItem {
  * ular majburiy bo'lsa ham. Sabab `enumOrNull` da: backend yangi qiymat
  * qo'shishi mumkin va eski klient uni tanimaydi. Bunday paytda qator
  * NOTO'G'RI javob bilan chizilgandan ko'ra umuman chizilmagani ma'qul
- * (`candidate-resume-card.tsx` dagi bilan bir xil mulohaza).
+ * (`candidate-files-card.tsx` dagi bilan bir xil mulohaza).
  *
  * `hasDriverLicense` esa `false` bo'lsa ham KO'RSATILADI: «yo'q» —
  * bo'sh maydon emas, javobning o'zi.
@@ -255,6 +310,59 @@ export interface CandidateQuestionnaire {
   offerAcceptedAt: string | null
 }
 
+/**
+ * `CandidateFileDto` — nomzodga biriktirilgan BITTA fayl.
+ *
+ * <b>Alohida so'rov YO'Q</b>: fayllar ro'yxati nomzod kartasi javobining
+ * ichida keladi (`CandidateDto.files`), anketa va bosqichlar bilan bir
+ * xil qoida — HR ularni har doim karta bilan birga ko'radi, ikkinchi
+ * so'rov faqat ekranni sekinlashtirardi.
+ *
+ * Yuklab olish va o'chirish uchun `id` yetadi; saqlash KALITI ataylab
+ * qaytarilmaydi (u ichki manzil — surat bilan bir xil qaror).
+ */
+export interface CandidateFile {
+  /** Yuklab olish va o'chirish AYNAN shu identifikator bo'yicha ketadi. */
+  id: string
+  /** Asl nom — FAQAT ko'rsatish uchun. Saqlash yo'lida u ishlatilmaydi. */
+  fileName: string
+  /** MIME turi — server MAZMUNDAN aniqlagan, klient sarlavhasidan emas. */
+  contentType: string
+  /**
+   * SAQLANGAN hajm — kichiklashtirilgandan KEYINGI baytlar, yuklangan
+   * fayl hajmi emas: 4 MB telefon surati diskda ~300 KB bo'lib qoladi va
+   * kartada 4 MB deb yozish yolg'on bo'lardi.
+   *
+   * `0` — NOMA'LUM. Eski bitta rezyumeda hajm saqlanmagan bo'lishi mumkin
+   * edi va ko'chirish o'shanda `0` yozadi; bunday qatorda hajm o'rniga
+   * chiziqcha chiziladi.
+   */
+  sizeBytes: number
+  /** Biriktirilgan VAQT — ISO satr, UTC. Ekranda Toshkent vaqtida. */
+  uploadedAt: string
+}
+
+/**
+ * `CandidateNoteDto` — bosqichi bo'lmagan amaldan qolgan izoh.
+ *
+ * ⚠️ ICHKI YOZUV: nomzodga hech qachon yuborilmaydi (na Telegram
+ * xabarida, na rad etish matnida). Uni faqat HR va rahbar ko'radi.
+ *
+ * NEGA bosqich yozuvi emas: bosqich yozuvida `stageId` va `outcome`
+ * bo'lishi shart, «boshqa vakansiyaga o'tkazildi» esa hech qanday
+ * bosqichning NATIJASI emas — ikkisi ham yolg'on qiymat bo'lardi
+ * (batafsil sabab SPEC §2.3.1 da).
+ */
+export interface CandidateNote {
+  id: string
+  /** Qaysi amaldan tug'ilgani — tarixdagi yorliq shundan hosil bo'ladi. */
+  kind: CandidateNoteKind
+  text: string
+  /** Kim yozgani. `null` — tizimdan tashqarida hosil bo'lgan yozuv. */
+  createdBy: string | null
+  createdAt: string
+}
+
 /** `CandidateDto` — nomzod kartasi: bosqichlar tarixi bilan. */
 export interface Candidate {
   id: string
@@ -275,10 +383,21 @@ export interface Candidate {
   note: string | null
   closedAt: string | null
   closingNote: string | null
-  /** `null` — rezyume yo'q. */
-  resumeFileName: string | null
-  resumeContentType: string | null
-  resumeSizeBytes: number | null
+  /**
+   * ⭐ Keyingi aloqa sanasi — kalendar sanasi (`YYYY-MM-DD`, Toshkent),
+   * vaqt YO'Q. `null` — reja qo'yilmagan.
+   *
+   * O'TGAN sana ham ODATIY hol va xato EMAS: maydonning butun maqsadi
+   * «bugun yoki muddati o'tgan» ro'yxatini berish. Shu sababli server ham
+   * o'tgan sanani tekshirmaydi (SPEC §2.1.3) — suhbat vaqtidan farqi
+   * shunda: suhbat vaqti nomzodga XABAR bo'lib ketadi, bu sana esa faqat
+   * HR ning o'z ro'yxatida qator paydo qiladi.
+   *
+   * Qaysi amal uni qo'yadi, qaysi biri tozalaydi — SPEC §2.1.2 dagi
+   * jadval. Qisqasi: rad etish/voz kechish/ishga olish TOZALAYDI,
+   * rezervga o'tkazish esa SAQLAYDI (rezerv — chiqish emas, kechiktirish).
+   */
+  nextContactDate: string | null
   /**
    * Surat bor-yo'qligi. Saqlash KALITI qaytarilmaydi (server qarori: u
    * ichki manzil), shu sababli rasm keshi xodimnikidan farq qiladi —
@@ -299,6 +418,25 @@ export interface Candidate {
   interviewNoticeSentAt: string | null
   /** Yozilgan tartibda. */
   stages: CandidateStageEntry[]
+  /**
+   * Biriktirilgan fayllar — YUKLANGAN TARTIBDA (eskisidan yangisiga).
+   *
+   * ⚠️ Tartib server qarori va u xodim hujjatlaridagidan TESKARI (u yerda
+   * yangisi tepada). Sabab: pasport uch varaq bo'lib 1-2-3 tartibda
+   * yuklanadi va teskari qilinsa karta o'qilmas holga tushadi
+   * (SPEC §4.3.4). Klientda QAYTA SARALANMAYDI — ikki xil tartib
+   * bo'lmasligi kerak.
+   *
+   * Bo'sh massiv — fayl yo'q (odatiy hol).
+   */
+  files: CandidateFile[]
+  /**
+   * Bosqichi bo'lmagan amallardan qolgan izohlar — yozilgan tartibda.
+   *
+   * Bosqich xulosalari BU YERDA EMAS, `stages[].conclusion` da: ikkisi
+   * boshqa-boshqa narsa va tarixda ham alohida ko'rinadi.
+   */
+  notes: CandidateNote[]
   /**
    * Botda to'ldirilgan anketa. `null` BO'LISHI ODATIY hol: HR qo'lda
    * kiritgan nomzodda ham, bot ishga tushgunicha yozilgan nomzodlarda
@@ -430,8 +568,31 @@ export interface CandidateFilters {
   source?: CandidateSource
   page: number
   pageSize: number
-  /** `createdAt` (sukut), `name`, `stage`; `-` — kamayish. */
+  /** `createdAt` (sukut), `name`, `stage`, `nextContact`; `-` — kamayish. */
   sort?: string
+  /**
+   * ⭐ FILTR: keyingi aloqa sanasi qo'yilgan VA u bugun yoki undan oldin
+   * bo'lgan nomzodlar — «bugun kim bilan gaplashish kerak».
+   *
+   * «Bugun» ni SERVER hisoblaydi (Toshkent kalendari), klient emas:
+   * brauzer sanasi boshqa mintaqada bo'lishi mumkin va u holda ro'yxat
+   * bir kunga surilib ketardi.
+   */
+  contactDue?: boolean
+  /**
+   * ⭐ BO'LIM bayrog'i: «Rad etilganlar» — `Rejected` VA `Withdrawn`.
+   *
+   * NEGA holat filtri emas: bitta `<select>` ikkita qiymatni ifodalay
+   * olmaydi, `status` esa bitta holat (`?status=Rejected,Withdrawn` uchun
+   * butun filtr va manzil sxemasi ko'p qiymatli bo'lib ketardi —
+   * SPEC §4.7). Bayroq holat filtri bilan BIRGA ham ishlaydi:
+   * `rejected=true&status=Withdrawn` — faqat o'zi voz kechganlar.
+   *
+   * ⚠️ Bu FILTR EMAS, BO'LIM: bo'sh natija «hech kim rad etilmagan»
+   * degani, «qidiruv topilmadi» degani emas — ekrandagi bo'sh holat matni
+   * shu farqqa tayanadi.
+   */
+  rejected?: boolean
 }
 
 /* ═════════════════════════════════════════════════ `unknown` dan o'qish */
@@ -516,8 +677,17 @@ function readPage<T>(
  * «noto'g'ri holat» deb 400 qaytarishi mumkin edi. Uni sanoq
  * o'qiydigan joyda (`RecruitingQueryParsing`) maxsus qoplab
  * qo'yishgan, lekin klient baribir keraksiz shovqin yubormasligi kerak.
+ *
+ * ⚠️ `boolean` ham qabul qilinadi, lekin `false` TASHLANMAYDI — bu
+ * yordamchi «bo'sh qiymat» deb faqat `undefined` va `''` ni biladi.
+ * Ya'ni yoqilmagan bayroqni chaqiruvchi O'ZI `undefined` ga aylantirishi
+ * kerak (`filters.contactDue === true ? true : undefined`). Aks holda
+ * so'rov satrida `?contactDue=false` bo'lib, server uchun ma'nosiz,
+ * keshda esa boshqa kalit hosil qiladigan shovqin paydo bo'lardi.
  */
-function params(source: Record<string, string | number | undefined>): Record<string, unknown> {
+function params(
+  source: Record<string, string | number | boolean | undefined>,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(source)) {
@@ -596,6 +766,50 @@ function toCandidateRow(raw: unknown): CandidateListItem {
     hasResume: box['hasResume'] === true,
     createdAt: text(box['createdAt']) ?? '',
     hiredEmployeeId: text(box['hiredEmployeeId']),
+    nextContactDate: text(box['nextContactDate']),
+  }
+}
+
+/**
+ * Biriktirilgan fayl.
+ *
+ * `sizeBytes` uchun `count(...)`: son bo'lmagan qiymat `0` ga tushadi va
+ * `0` shartnomada allaqachon «noma'lum hajm» degani — ya'ni bu yerda
+ * maxsus zaxira o'ylab topish shart emas.
+ */
+function toCandidateFile(raw: unknown): CandidateFile {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    id: text(box['id']) ?? '',
+    // Nom bo'sh kelsa ham qator chizilishi kerak: fayl BOR, faqat nomi
+    // yo'q (ko'chirilgan yozuvda shunday bo'lishi mumkin edi).
+    fileName: text(box['fileName']) ?? '—',
+    // Tur bo'yicha faqat belgi tanlanadi (`image/` bilan boshlanishi),
+    // shu sababli tanilmagan qiymat xavfsiz: hujjat belgisi chiziladi.
+    contentType: text(box['contentType']) ?? 'application/octet-stream',
+    sizeBytes: count(box['sizeBytes']),
+    uploadedAt: text(box['uploadedAt']) ?? '',
+  }
+}
+
+/**
+ * Amaldan qolgan izoh.
+ *
+ * Matni bo'sh yozuv serverda UMUMAN hosil bo'lmaydi («qator bor, chunki
+ * matn bor» — SPEC §2.3), shu sababli bu yerda ham bo'sh matn zaxirasi
+ * yo'q: kutilmagan holatda qator ko'rinadi, lekin matni chiziqcha bo'ladi
+ * va yolg'on ma'lumot chizilmaydi.
+ */
+function toCandidateNote(raw: unknown): CandidateNote {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    id: text(box['id']) ?? '',
+    kind: oneOf(box['kind'], CANDIDATE_NOTE_KINDS, 'Reassign'),
+    text: text(box['text']) ?? '—',
+    createdBy: text(box['createdBy']),
+    createdAt: text(box['createdAt']) ?? '',
   }
 }
 
@@ -646,16 +860,18 @@ function toCandidate(raw: unknown): Candidate {
     note: text(box['note']),
     closedAt: text(box['closedAt']),
     closingNote: text(box['closingNote']),
-    resumeFileName: text(box['resumeFileName']),
-    resumeContentType: text(box['resumeContentType']),
-    resumeSizeBytes:
-      typeof box['resumeSizeBytes'] === 'number' ? box['resumeSizeBytes'] : null,
+    nextContactDate: text(box['nextContactDate']),
     hasPhoto: box['hasPhoto'] === true,
     hiredEmployeeId: text(box['hiredEmployeeId']),
     hiredEmploymentId: text(box['hiredEmploymentId']),
     interviewAt: text(box['interviewAt']),
     interviewNoticeSentAt: text(box['interviewNoticeSentAt']),
     stages: (Array.isArray(box['stages']) ? box['stages'] : []).map(toStageEntry),
+    // Massiv kelmasa BO'SH ro'yxat: «fayl yo'q» va «javob kutilmagan
+    // shaklda» ekranda bir xil ko'rinadi va ikkalasi ham kartani
+    // yiqitmaydi (`stages` bilan aynan bir xil qoida).
+    files: (Array.isArray(box['files']) ? box['files'] : []).map(toCandidateFile),
+    notes: (Array.isArray(box['notes']) ? box['notes'] : []).map(toCandidateNote),
     questionnaire: toQuestionnaire(box['questionnaire']),
   }
 }
@@ -794,6 +1010,14 @@ export async function fetchCandidates(
       page: filters.page,
       pageSize: filters.pageSize,
       sort: filters.sort,
+      /*
+        Ikkala bayroq FAQAT `true` bo'lganda yuboriladi. `false` ni
+        yuborish serverda hech narsani o'zgartirmasdi (u `bool?` ni
+        `?? false` bilan o'qiydi), lekin so'rov satrida keraksiz shovqin
+        qoldirardi — `params` izohidagi qoida.
+      */
+      contactDue: filters.contactDue === true ? true : undefined,
+      rejected: filters.rejected === true ? true : undefined,
     }),
     signal,
   })
@@ -824,9 +1048,54 @@ export async function updateCandidate(id: string, body: CandidateInput): Promise
   return toCandidate(data)
 }
 
-/** Vakansiyani almashtirish — alohida amal: nomzod boshqa o'ringa mos kelib qolgan. */
-export async function reassignCandidate(id: string, vacancyId: string): Promise<Candidate> {
-  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/reassign`, { vacancyId })
+/* ────────────────────────── keyingi aloqa sanasi: yozish qoidasi ─────────
+ *
+ * ⭐ IKKITA maydon, bittasi emas: `nextContactDate` VA `clearNextContact`.
+ *
+ * NEGA «null — tozalash» QILINMADI. `POST /candidates/{id}/stages` ga
+ * ikkita mijoz murojaat qiladi: yangi oyna (formasi bor) va voronkadagi
+ * SUDRASH (`useMoveCandidateToStage` — formasi yo'q, u `conclusion: null`
+ * yuboradi). «null — tozalash» shartnomasida kartani sudrab qo'yish HR
+ * besh daqiqa oldin qo'ygan sanani JIMGINA o'chirib tashlardi.
+ *
+ * Uchta holat, aniq:
+ *   `nextContactDate` bor            → sana QO'YILADI
+ *   `clearNextContact: true`         → sana TOZALANADI (`nextContactDate` e'tiborsiz)
+ *   ikkalasi ham yo'q (yoki `null`)  → sana O'ZGARMAYDI
+ *
+ * Shu sababli ikkala maydon ham IXTIYORIY (`?`): ularni umuman
+ * yubormaydigan chaqiruv (sudrash) o'zgarmasdan qoldi. Ikkita maydon
+ * xunukroq, lekin ANIQ — bu loyihada aniqlik jimlikdan doim ustun
+ * (`includeArchive`, `excludedVacancyId` bilan bir xil qaror,
+ * SPEC §4.1).
+ *
+ * `nextContactDate` — `YYYY-MM-DD` (kalendar sanasi, Toshkent). Vaqt va
+ * mintaqa siljishi YO'Q: suhbat vaqtidan farqli o'laroq, bu sana
+ * nomzodga xabar bo'lib ketmaydi.
+ */
+
+/**
+ * Vakansiyani almashtirish — alohida amal: nomzod boshqa o'ringa mos
+ * kelib qolgan.
+ *
+ * `note` — bosqichi bo'lmagan izoh: server uni `candidate_notes` ga
+ * `Reassign` turi bilan yozadi (bo'sh bo'lsa yozuv umuman hosil
+ * bo'lmaydi). U nomzodning `note` maydoni EMAS — u shaxsning uzoq
+ * muddatli ta'rifi va tahrirlash formasidan qayta yozilib ketardi
+ * (SPEC §2.3.1).
+ *
+ * `nextContactDate` bo'lsa qo'yiladi, bo'lmasa sana o'zgarmaydi —
+ * tozalash bu amalda YO'Q (yuqoridagi qoidaga qarang).
+ */
+export async function reassignCandidate(
+  id: string,
+  body: {
+    vacancyId: string
+    note?: string | null
+    nextContactDate?: string | null
+  },
+): Promise<Candidate> {
+  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/reassign`, body)
   return toCandidate(data)
 }
 
@@ -851,6 +1120,16 @@ export async function reassignCandidate(id: string, vacancyId: string): Promise<
  *
  * `stageId` bo'sh bo'lsa bosqich o'zgarmaydi — suhbatni KO'CHIRISH
  * aynan shunday ishlaydi.
+ *
+ * ⭐ `conclusion` ning IKKITA manzili bor va qaysi biriga tushishini
+ * SERVER hal qiladi:
+ *   `stageId` bor  → yangi bosqich yozuvining xulosasi (bugungi xatti-harakat)
+ *   `stageId` bo'sh → `candidate_notes` yozuvi, `InterviewRescheduled` turi
+ * Klient DOIM bitta matn maydonini yuboradi. Tanlovni klientga berish
+ * server qarorini brauzerga ko'chirardi va yana bitta xato qilish joyi
+ * paydo bo'lardi (SPEC §4.2).
+ *
+ * `nextContactDate` / `clearNextContact` — yuqoridagi uch holatli qoida.
  */
 export async function inviteCandidateToInterview(
   id: string,
@@ -858,12 +1137,21 @@ export async function inviteCandidateToInterview(
     interviewAt: string
     stageId: string | null
     conclusion: string | null
+    nextContactDate?: string | null
+    clearNextContact?: boolean
   },
 ): Promise<Candidate> {
   const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/interview-invite`, body)
   return toCandidate(data)
 }
 
+/**
+ * Bosqich natijasini yozish.
+ *
+ * `nextContactDate` / `clearNextContact` IXTIYORIY — voronkadagi sudrash
+ * ularni umuman yubormaydi va sana o'zgarmasdan qoladi (yuqoridagi
+ * «keyingi aloqa sanasi» qoidasi).
+ */
 export async function recordCandidateStage(
   id: string,
   body: {
@@ -871,6 +1159,8 @@ export async function recordCandidateStage(
     outcome: StageOutcome
     date: string | null
     conclusion: string | null
+    nextContactDate?: string | null
+    clearNextContact?: boolean
   },
 ): Promise<Candidate> {
   const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/stages`, body)
@@ -889,11 +1179,20 @@ export async function recordCandidateStage(
  * sabab), ya'ni bitta funksiya yetadi. `reserve` dan farqli o'laroq,
  * qolgan ikkitasi qaytarilmaydi — qaytarish faqat rezervda bor
  * (`returnCandidateFromReserve`).
+ *
+ * ⚠️ `nextContactDate` ni FAQAT `reserve` hisobga oladi. `reject` va
+ * `withdraw` uni JIMGINA e'tiborsiz qoldiradi va saqlangan sanani
+ * TOZALAYDI — rad etilgan nomzod «bugun qo'ng'iroq qilinadiganlar»
+ * ro'yxatida abadiy turib qolsa, HR o'sha ro'yxatga ishonmay qo'yardi.
+ * Rezerv esa chiqish emas, KECHIKTIRISH («o'rin bo'shasa chaqiramiz»),
+ * ya'ni u yerda sana o'z joyida (SPEC §2.1.2). Ekranda maydon faqat
+ * rezerv uchun chiziladi, lekin server xato qaytarmaydi — shu sababli
+ * tip ham uchalasi uchun bitta.
  */
 export async function closeCandidate(
   id: string,
   action: 'reject' | 'withdraw' | 'reserve',
-  body: { at: string | null; reason: string | null },
+  body: { at: string | null; reason: string | null; nextContactDate?: string | null },
 ): Promise<Candidate> {
   const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/${action}`, body)
   return toCandidate(data)
@@ -903,15 +1202,28 @@ export async function closeCandidate(
  * ⭐ Rezervdagi nomzodni voronkaga QAYTARADI — rezervning butun ma'nosi
  * shu amalda.
  *
- * So'rov tanasi YO'Q va bo'lishi ham kerak emas: nomzod qaysi bosqichda
- * rezervga o'tgan bo'lsa, o'sha yerdan davom etadi (server bosqichlar
- * tarixini saqlaydi), chiqish sanasi va sababi esa tozalanadi.
+ * Nomzod qaysi bosqichda rezervga o'tgan bo'lsa, o'sha yerdan davom
+ * etadi (server bosqichlar tarixini saqlaydi), chiqish sanasi va sababi
+ * esa tozalanadi.
+ *
+ * So'rov tanasi IXTIYORIY va u ilgari umuman yo'q edi. Tanani
+ * yubormaydigan chaqiruv AVVALGIDEK ishlaydi — server `null` tanani ham
+ * qabul qiladi (yopish amallaridagi `CloseCandidateRequest?` bilan aynan
+ * bir xil naqsh).
+ *
+ * `note` — `ReturnFromReserve` turidagi izoh. U `closingNote` GA
+ * yozilmaydi va yozilishi ham mumkin emas: qaytarish `closingNote` ni
+ * o'sha tranzaksiyada TOZALAYDI, ya'ni izoh yozilgan zahoti o'chib
+ * ketardi (SPEC §2.3.1).
  *
  * Manba FAQAT rezerv: rad etilgan, voz kechgan yoki ishga olingan
  * nomzod uchun server «nomzod.rezervda_emas» (409) qaytaradi.
  */
-export async function returnCandidateFromReserve(id: string): Promise<Candidate> {
-  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/return-from-reserve`)
+export async function returnCandidateFromReserve(
+  id: string,
+  body?: { note?: string | null; nextContactDate?: string | null },
+): Promise<Candidate> {
+  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/return-from-reserve`, body)
   return toCandidate(data)
 }
 
@@ -930,35 +1242,63 @@ export async function hireCandidate(
   return toDirectHireResult(data)
 }
 
-/* ─────────────────────────────────────────────────────────────── rezyume */
+/* ─────────────────────────────────────────────────────────────── fayllar */
+
+/*
+ * Nomzod fayllari — o'ntagacha, bitta rezyume o'rniga.
+ *
+ * Manzil bo'lagi `files` (KO'PLIK), xato kodlari esa `nomzod.rezyume_*`
+ * bo'lib qoldi. Ziddiyat ataylab: to'plamni birlik nom bilan atash
+ * har bir keyingi o'quvchini adashtirardi, xato kodlari esa allaqachon
+ * to'rt tilga tarjima qilingan va «rezyume» — HR ning o'z so'zi
+ * (SPEC §4.3).
+ *
+ * Eski `POST|GET|DELETE /{id}/resume` uchligi O'CHIRILDI — ular mavjud
+ * bo'lmagan ustunlarni o'qiydi, ya'ni «eskirgan taxallus» sifatida ham
+ * qoldirib bo'lmaydi.
+ */
 
 /**
- * Rezyume yuklash — **multipart**, maydon nomi `file`.
+ * Bitta faylni yuklash — **multipart**, maydon nomi `file`.
+ *
+ * ⚠️ BITTA so'rov — BITTA fayl. Bir so'rovda N ta fayl yuborilsa, bitta
+ * yaroqsiz fayl yo butun to'plamni yiqitardi, yo «qisman muvaffaqiyat»
+ * degan holatni tug'dirardi — uni na `Result<T>`, na `ProblemDetails`
+ * ifodalay oladi. Chaqiruvchi tanlangan fayllarni KETMA-KET yuklaydi va
+ * xatoni fayl nomi bilan ko'rsatadi (SPEC §4.3.1).
+ *
+ * Javob — YARATILGAN FAYL, butun nomzod emas: kartani yangilashni
+ * `providers.tsx` ning umumiy bekor qilishi bajaradi.
  *
  * `Content-Type` bu yerda QO'YILMAYDI: axios `FormData` ni ko'rib uni
  * chegara (boundary) satri bilan o'zi yozadi — sabab `http-client.ts` da.
  */
-export async function uploadResume(id: string, file: File): Promise<Candidate> {
+export async function uploadCandidateFile(id: string, file: File): Promise<CandidateFile> {
   const form = new FormData()
   form.append('file', file)
 
-  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/resume`, form)
-  return toCandidate(data)
+  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/files`, form)
+  return toCandidateFile(data)
 }
 
 /**
- * Rezyume baytlari — BLOB, havola emas.
+ * Fayl baytlari — BLOB, havola emas.
  *
  * NEGA `<a href="/api/…">` ishlamaydi: tizim `Authorization: Bearer`
  * sarlavhasi bilan ishlaydi, cookie yo'q. Brauzer bu so'rovga sarlavha
  * qo'sha olmaydi va server 401 qaytaradi (`documents-api.ts` dagi
  * `fetchDocumentFile` bilan aynan bir xil sabab).
+ *
+ * Manzilda IKKALA identifikator ham bor va bu ataylab: server faylni
+ * `candidate_id` + `id` juftligi bo'yicha qidiradi, ya'ni chalkash juft
+ * 404 qaytaradi va boshqa nomzodning pasport nusxasi berilmaydi.
  */
-export async function fetchResume(
+export async function fetchCandidateFile(
   id: string,
+  fileId: string,
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; disposition: string | null }> {
-  const response = await api.get<Blob>(`${CANDIDATES}/${id}/resume`, {
+  const response = await api.get<Blob>(`${CANDIDATES}/${id}/files/${fileId}`, {
     responseType: 'blob',
     signal,
   })
@@ -969,10 +1309,18 @@ export async function fetchResume(
   }
 }
 
-/** Fayl HAQIQATAN diskdan o'chiriladi — unga boshqa hech kim ishora qilmaydi. */
-export async function deleteResume(id: string): Promise<Candidate> {
-  const { data } = await api.delete<unknown>(`${CANDIDATES}/${id}/resume`)
-  return toCandidate(data)
+/**
+ * Faylni o'chirish — yozuv ham, diskdagi baytlar ham HAQIQATAN
+ * o'chiriladi (yumshoq o'chirish YO'Q: ko'rinmaydigan yozuv o'nta
+ * o'rindan bittasini jimgina band qilib turardi).
+ *
+ * ⚠️ IDEMPOTENT EMAS: noma'lum `fileId` uchun server 404 qaytaradi
+ * (suratni o'chirishdan farqi shunda). Chaqiruvchi aniq bir qatorni
+ * nomlagan; jimgina «bajarildi» deyish allaqachon yo'q bo'lgan faylni
+ * ko'rsatib turgan eskirgan ekranni YASHIRARDI (SPEC §4.3.3).
+ */
+export async function deleteCandidateFile(id: string, fileId: string): Promise<void> {
+  await api.delete(`${CANDIDATES}/${id}/files/${fileId}`)
 }
 
 /* ──────────────────────────────────────────────────────────────── surat */

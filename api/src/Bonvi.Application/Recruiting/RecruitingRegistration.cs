@@ -57,11 +57,17 @@ internal static class RecruitingRegistration
         // 1-bosqichning oqimi yaratadi, rekruting o'z yo'lini yozmaydi.
         services.AddScoped<HireCandidateCommandHandler>();
 
-        // Rezyume fayli — xodim hujjatlari bilan bir xil quvurdan o'tadi
-        // (`DocumentFileStore` allaqachon `Common` da ro'yxatga olingan).
-        services.AddScoped<UploadCandidateResumeCommandHandler>();
-        services.AddScoped<GetCandidateResumeQueryHandler>();
-        services.AddScoped<DeleteCandidateResumeCommandHandler>();
+        // Nomzod fayllari (o'ntagacha) — `ScaledDocumentStore` quvuridan
+        // o'tadi va u `Common` da ro'yxatga olingan. Xodim hujjatlarining
+        // quvuri ALOHIDA qoladi: u faylni qayta kodlamaydi (sababi
+        // `ScaledDocumentStore` izohida).
+        //
+        // Eski uchlik (`UploadCandidateResume…`, `GetCandidateResume…`,
+        // `DeleteCandidateResume…`) O'CHIRILDI: ular endi mavjud bo'lmagan
+        // `candidates.resume_*` ustunlarini o'qirdi.
+        services.AddScoped<UploadCandidateFileCommandHandler>();
+        services.AddScoped<GetCandidateFileQueryHandler>();
+        services.AddScoped<DeleteCandidateFileCommandHandler>();
 
         // Nomzod surati — xodim rasmi bilan bir xil quvur
         // (`SquarePhotoStore` ham `Common` da ro'yxatga olingan).

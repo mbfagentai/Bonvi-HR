@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { todayIso } from '@/shared/lib/today'
 import type { BadgeTone, IconTone } from '@/shared/ui'
 import type {
   CandidateSource,
@@ -127,7 +128,32 @@ export const SOURCE_LOOK: Readonly<Record<CandidateSource, StatusLook>> = {
 
 /* ═══════════════════════════════════════════════════════════════ SANALAR */
 
-export { todayIso as today } from '@/shared/lib/today'
+/*
+ * `today` nomi bilan qayta eksport — chaqiruv joylari (`candidate-*-dialog`)
+ * shu modulni allaqachon import qilgan va sana uchun ikkinchi import
+ * yozishning ma'nosi yo'q. Endi funksiyaning O'ZI ham shu faylda kerak
+ * (`isContactDue`), shu sababli import tepada, eksport shu yerda.
+ */
+export { todayIso as today }
+
+/**
+ * Keyingi aloqa sanasi «bugun yoki o'tgan»mi — ya'ni HR bu odamga BUGUN
+ * qo'ng'iroq qilishi kerakmi.
+ *
+ * ⚠️ Bu FILTR EMAS, faqat KO'RINISH: qatorni ro'yxatdan tanlashni
+ * `contactDue` so'rov parametri orqali SERVER bajaradi (Toshkent
+ * kalendari bo'yicha). Klientda faqat rang va ogohlantirish belgisi
+ * hisoblanadi — server bilan chegaradagi bir kunlik farq eng yomon holda
+ * qatorni bir kun oldin sariq qilib ko'rsatadi, ro'yxatdan tushirib
+ * qoldirmaydi.
+ *
+ * Solishtirish SATR bo'yicha: ikkalasi ham `YYYY-MM-DD` (Toshkent), bu
+ * formatda leksikografik tartib kalendar tartibiga teng — `Date` yasash
+ * mintaqa xatolarini qaytarib olib kelardi (`today.ts` izohi).
+ */
+export function isContactDue(value: string | null): boolean {
+  return value !== null && value !== '' && value <= todayIso()
+}
 
 /** Bo'sh satrni `null` ga aylantiradi — server «kiritilmagan» deb tushunadi. */
 export function orNull(value: string): string | null {

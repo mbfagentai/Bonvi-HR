@@ -91,18 +91,76 @@ public sealed record UpdateCandidateRequest(
     string? Note = null);
 
 /// <summary>Nomzodni boshqa vakansiyaga o'tkazish so'rovi tanasi.</summary>
-public sealed record ReassignCandidateRequest(Guid VacancyId);
+/// <param name="VacancyId">
+/// Yangi vakansiya. MAJBURIY va shu sababli sukut qiymatSIZ — <c>Guid</c> ga
+/// <c>= default</c> yozilsa butun OpenAPI hujjati 500 bo'lardi (loyiha
+/// bundan bir marta jabr ko'rgan, 2026-08-29).
+/// </param>
+/// <param name="Note">
+/// Amal izohi — ICHKI qayd, nomzodga yuborilmaydi. Bo'sh bo'lmasa server
+/// uni nomzod izohlari tarixiga yozadi. Nomzodning «izoh» maydoni EMAS: u
+/// odamning uzoq muddatli tavsifi va tahrirlash formasidan qayta yozilib
+/// ketardi.
+/// </param>
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi. Berilmasa saqlangan sana o'zgarmaydi — bu amalda
+/// «tozalash» yo'q.
+/// </param>
+public sealed record ReassignCandidateRequest(
+    Guid VacancyId,
+    string? Note = null,
+    DateOnly? NextContactDate = null);
+
+/// <summary>
+/// Rezervdagi nomzodni voronkaga qaytarish so'rovi tanasi.
+/// </summary>
+/// <remarks>
+/// Endpoint ilgari TANASIZ edi; tana endi bor, lekin BUTUNLIGICHA
+/// ixtiyoriy (<c>CloseCandidateRequest?</c> bilan aynan bir xil naqsh).
+/// Tanani yubormaydigan chaqiruv avvalgidek ishlaydi.
+/// </remarks>
+/// <param name="Note">Amal izohi — ICHKI qayd (yuqoridagi bilan bir xil qoida).</param>
+/// <param name="NextContactDate">Keyingi aloqa sanasi. Berilmasa — o'zgarmaydi.</param>
+public sealed record ReturnCandidateFromReserveRequest(
+    string? Note = null,
+    DateOnly? NextContactDate = null);
 
 /// <summary>Bosqich natijasini yozish so'rovi tanasi.</summary>
 /// <param name="StageId">Bosqich. Majburiy.</param>
 /// <param name="Outcome">Pending (sukut) | Passed | Failed.</param>
 /// <param name="Date">Bosqich sanasi. Bo'sh — bugun.</param>
 /// <param name="Conclusion">Xulosa matni — kengash xulosasi ham shu maydon.</param>
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi (<c>YYYY-MM-DD</c>, Toshkent kalendari) — berilsa
+/// QO'YILADI. O'tgan sana ham qabul qilinadi: maydonning butun maqsadi
+/// «bugun yoki muddati o'tgan» ro'yxatini berish.
+/// </param>
+/// <param name="ClearNextContact">
+/// <c>true</c> — saqlangan sana TOZALANADI
+/// (<paramref name="NextContactDate"/> e'tiborsiz qoladi).
+/// <para>
+/// ⭐ <b>Nega ikkita maydon, «null — tozalash» emas.</b> Bu endpointni
+/// ikkita mijoz chaqiradi: yangi oyna (formasi bor) va voronkadagi
+/// SUDRASH (formasi yo'q — u sanani umuman yubormaydi). «null —
+/// tozalash» shartnomasida kartani sudrab qo'yish HR besh daqiqa oldin
+/// qo'ygan sanani JIMGINA o'chirib tashlardi. Ikkalasi ham berilmasa
+/// saqlangan qiymat o'zgarmaydi.
+/// </para>
+/// <para>
+/// ⚠️ Tur <c>bool?</c> va sukut qiymati <c>null</c>. <c>bool</c> ga
+/// <c>= false</c> yozilsa OpenAPI hujjati butunlay 500 bo'ladi — qiymat
+/// turlariga sukut qiymat berish shu faylda TAQIQLANGAN (yuqoridagi
+/// <c>RegisterCandidateRequest</c> izohi). Ishlovchi qatlamdagi buyruqda
+/// esa oddiy <c>bool</c>: generator faqat so'rov rekordlarini ko'radi.
+/// </para>
+/// </param>
 public sealed record RecordCandidateStageRequest(
     Guid StageId,
     StageOutcome Outcome = StageOutcome.Pending,
     DateOnly? Date = null,
-    string? Conclusion = null);
+    string? Conclusion = null,
+    DateOnly? NextContactDate = null,
+    bool? ClearNextContact = null);
 
 /// <summary>Nomzodni suhbatga chaqirish so'rovi tanasi.</summary>
 /// <param name="InterviewAt">
@@ -114,11 +172,33 @@ public sealed record RecordCandidateStageRequest(
 /// Qaysi bosqichga o'tkaziladi. Bo'sh — bosqich o'zgarmaydi (vaqtni
 /// ko'chirish).
 /// </param>
-/// <param name="Conclusion">Bosqich yozuviga izoh — ixtiyoriy.</param>
+/// <param name="Conclusion">
+/// Izoh matni — ixtiyoriy va ICHKI (nomzodga yuborilmaydi).
+/// <para>
+/// ⭐ <b>Ikkita manzili bor, qaysi biriga tushishini SERVER hal qiladi.</b>
+/// <c>stageId</c> berilsa — matn yangi bosqich yozuvining xulosasi bo'ladi
+/// (avvalgidek). <c>stageId</c> bo'sh bo'lsa (suhbatni KO'CHIRISH, bosqich
+/// o'zgarmaydi) — matn nomzod izohlari tarixiga «suhbat ko'chirildi» turi
+/// bilan yoziladi. Mijoz DOIM bitta matn maydonini yuboradi: tanlov —
+/// saqlash qarori, ya'ni serverning ishi, brauzerning emas. Ilgari bu
+/// maydon ko'chirishda umuman ko'rsatilmasdi va yozilgan matn jimgina
+/// tashlanardi.
+/// </para>
+/// </param>
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi — <c>RecordCandidateStageRequest</c> dagi bilan
+/// AYNAN bir xil uch holatli qoida.
+/// </param>
+/// <param name="ClearNextContact">
+/// <c>true</c> — saqlangan sana tozalanadi. Qoidaning to'liq izohi
+/// <see cref="RecordCandidateStageRequest.ClearNextContact"/> da.
+/// </param>
 public sealed record InviteCandidateToInterviewRequest(
     DateTimeOffset InterviewAt,
     Guid? StageId = null,
-    string? Conclusion = null);
+    string? Conclusion = null,
+    DateOnly? NextContactDate = null,
+    bool? ClearNextContact = null);
 
 /// <summary>
 /// Nomzodni voronkadan chiqarish so'rovi tanasi.
@@ -131,7 +211,25 @@ public sealed record InviteCandidateToInterviewRequest(
 /// </remarks>
 /// <param name="At">Sana. Bo'sh — bugun.</param>
 /// <param name="Reason">Sabab — nomzod kartasida ko'rinadi.</param>
-public sealed record CloseCandidateRequest(DateOnly? At = null, string? Reason = null);
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi — ⚠️ FAQAT <c>/reserve</c> uni hisobga oladi.
+/// <para>
+/// <c>/reject</c> va <c>/withdraw</c> uni JIMGINA e'tiborsiz qoldiradi va
+/// saqlangan sanani TOZALAYDI: rad etilgan nomzod «bugun qo'ng'iroq
+/// qilinadiganlar» ro'yxatida abadiy turib qolsa, HR o'sha ro'yxatga
+/// ishonmay qo'yardi. Rezerv esa chiqish emas, KECHIKTIRISH («o'rin
+/// bo'shasa chaqiramiz») — u yerda sana o'z joyida.
+/// </para>
+/// <para>
+/// Xato QAYTARILMAYDI: interfeys maydonni faqat rezerv uchun chizadi va
+/// e'tiborsiz qoladigan maydon uchun 400 berish hech narsani himoya
+/// qilmasdi, faqat mijozlarni buzardi.
+/// </para>
+/// </param>
+public sealed record CloseCandidateRequest(
+    DateOnly? At = null,
+    string? Reason = null,
+    DateOnly? NextContactDate = null);
 
 /// <summary>
 /// Nomzodni ishga olish so'rovi tanasi.
@@ -242,7 +340,7 @@ public static class CandidateEndpoints
         MapWrites(group);
         MapFunnel(group);
         MapHire(group);
-        MapResume(group);
+        MapFiles(group);
         MapPhoto(group);
 
         return app;
@@ -260,6 +358,15 @@ public static class CandidateEndpoints
                 int? pageSize,
                 string? sort,
                 bool? includeArchive,
+
+                /*
+                  Ikkala bayroq ham `bool?`: `?contactDue=` (bo'sh) va
+                  butunlay berilmagan hol ham NORMAL — «filtr yo'q» degani.
+                  `bool` bo'lsa Minimal API bo'sh qiymatni 400 qilardi
+                  (`includeArchive` bilan bir xil qoida).
+                */
+                bool? contactDue,
+                bool? rejected,
                 SearchCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -267,7 +374,7 @@ public static class CandidateEndpoints
                     .HandleAsync(
                         new SearchCandidatesQuery(
                             search, vacancyId, stageId, status, source, page, pageSize, sort,
-                            includeArchive ?? false),
+                            includeArchive ?? false, contactDue ?? false, rejected ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -282,25 +389,35 @@ public static class CandidateEndpoints
                 "bo'lmaydi); qidiruv xodimlar ro'yxatidagi kabi kirill imlo variantlarini " +
                 "(қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini hisobga oladi. " +
                 "«status» — InProgress | Rejected | Hired | Withdrawn | Reserve. " +
-                "⚠️ Filtr BERILMASA, ISHGA OLINGANLAR va RAD ETILGANLAR ro'yxatga " +
-                "tushmaydi (va sanoqqa ham kirmaydi): birinchilari endi xodim va " +
-                "ularning o'rni «Xodimlar» bo'limida, ikkinchilari voronkadan " +
-                "chiqqan va ularning o'rni «Rad etilganlar» bo'limida. Yozuv " +
-                "o'chirilmaydi — «status=Hired» yoki «status=Rejected» tanlansa " +
-                "ular to'liq qaytadi. REZERVGA va «o'zi voz kechgan»ga bu qoida " +
-                "tegmaydi: ular sukut ro'yxatda ko'rinadi va «status=…» bilan " +
-                "alohida ham topiladi. «source» — " +
+                "⚠️ Filtr BERILMASA, ISHGA OLINGANLAR, RAD ETILGANLAR va O'ZI VOZ " +
+                "KECHGANLAR ro'yxatga tushmaydi (va sanoqqa ham kirmaydi): " +
+                "birinchilari endi xodim va ularning o'rni «Xodimlar» bo'limida, " +
+                "qolganlari voronkadan chiqqan va ularning o'rni «Rad etilganlar» " +
+                "bo'limida. Yozuv o'chirilmaydi — «status=…» tanlansa ular to'liq " +
+                "qaytadi. REZERVGA bu qoida tegmaydi: rezervdagilar sukut ro'yxatda " +
+                "ko'rinadi, chunki rezervning butun ma'nosi «kerak bo'lganda shu " +
+                "yerdan chaqiramiz» degani. «source» — " +
                 "Manual | TelegramBot | Excel (noma'lum qiymat 400: «nomzod.holat_notogri» / " +
                 "«nomzod.manba_notogri»). «sort» — createdAt (sukut, yangidan eskiga), " +
-                "name, stage. Voronka ustuni: «?status=InProgress&stageId=…». " +
+                "name, stage, nextContact (sanasi yo'q qatorlar IKKALA yo'nalishda ham " +
+                "oxirida). Voronka ustuni: «?status=InProgress&stageId=…». " +
                 "«includeArchive=true» — Excel'dan ko'chirilgan kengash arxivi ham " +
                 "qo'shiladi; sukut bo'yicha u ro'yxatda KO'RINMAYDI, chunki ekran " +
                 "«hozir kim bor?» degan savolga javob beradi. «source=Excel» tanlansa " +
-                "arxiv bayroqsiz ham ochiladi — arxiv ochilganda rad etilganlar " +
-                "ham qaytadi, chunki arxivning deyarli hammasi shu holatda. " +
-                "Har qatorda «hasResume» va «hasPhoto» " +
-                "bayroqlari bor; ANKETA ro'yxatga QO'SHILMAYDI — u og'ir va faqat " +
-                "kartada kerak.")
+                "arxiv bayroqsiz ham ochiladi — arxiv ochilganda rad etilganlar va voz " +
+                "kechganlar ham qaytadi, chunki arxivning deyarli hammasi shu holatda. " +
+                "«rejected=true» — «Rad etilganlar» BO'LIMI: aynan Rejected + Withdrawn " +
+                "(ikkisi AYRIM holat bo'lib qoladi — belgisi ham, hisoboti ham alohida; " +
+                "faqat ro'yxatda ko'rinishi umumiy). Bayroq holat filtri bilan birga " +
+                "ham ishlaydi: «rejected=true&status=Withdrawn» faqat voz kechganlarni " +
+                "beradi. Bo'lim Excel arxivini O'ZI tortmaydi — arxivning kirish yo'li " +
+                "«source=Excel». " +
+                "«contactDue=true» — keyingi aloqa sanasi qo'yilgan VA u BUGUN yoki " +
+                "undan oldin bo'lgan nomzodlar («bugun kim bilan gaplashish kerak»); " +
+                "«bugun» ni server Toshkent kalendarida hisoblaydi. " +
+                "Har qatorda «hasResume» (kamida bitta FAYL biriktirilganmi), " +
+                "«hasPhoto» va «nextContactDate» bor; ANKETA ro'yxatga QO'SHILMAYDI — " +
+                "u og'ir va faqat kartada kerak.")
             .Produces<PagedResult<CandidateListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
@@ -320,7 +437,13 @@ public static class CandidateEndpoints
             .WithName("GetCandidate")
             .WithSummary("Nomzod — karta")
             .WithDescription(
-                "Bosqichlar TARIXI bilan («stages», yozilgan tartibda). " +
+                "Bosqichlar TARIXI bilan («stages», yozilgan tartibda), " +
+                "biriktirilgan FAYLLAR («files», YUKLASH tartibida — eskisidan " +
+                "yangisiga; xodim hujjatlaridan ataylab teskari, chunki pasport " +
+                "1-2-3 varaq bo'lib yuklanadi) va amal IZOHLARI («notes», yozilgan " +
+                "tartibda — bosqichi bo'lmagan amallardan qolgan ICHKI qaydlar). " +
+                "«nextContactDate» — HR keyingi marta qachon gaplashishni " +
+                "rejalashtirgani (kalendar sanasi; o'tgan sana ODATIY hol). " +
                 "Ishga olingan bo'lsa — " +
                 "«hiredEmployeeId» va «hiredEmploymentId» to'ldiriladi. " +
                 "Botda to'ldirilgan anketa «questionnaire» blokida qaytadi; u " +
@@ -428,7 +551,10 @@ public static class CandidateEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ReassignCandidateCommand(id, request.VacancyId), cancellationToken)
+                    .HandleAsync(
+                        new ReassignCandidateCommand(
+                            id, request.VacancyId, request.Note, request.NextContactDate),
+                        cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -439,7 +565,12 @@ public static class CandidateEndpoints
             .WithDescription(
                 "Bosqichlar tarixi SAQLANADI va joriy bosqich o'zgarmaydi. " +
                 "Yangi vakansiya ochiq bo'lishi shart, nomzod esa jarayonda " +
-                "(«nomzod.jarayonda_emas», 409).")
+                "(«nomzod.jarayonda_emas», 409). " +
+                "«note» bo'sh bo'lmasa — nomzod izohlari tarixiga «boshqa vakansiyaga " +
+                "o'tkazildi» turi bilan yoziladi (bo'sh bo'lsa yozuv umuman hosil " +
+                "bo'lmaydi). Izoh ICHKI: nomzodga hech qachon yuborilmaydi. " +
+                "«nextContactDate» berilsa keyingi aloqa sanasi qo'yiladi; berilmasa " +
+                "saqlangan sana o'zgarmaydi — bu amalda «tozalash» yo'q.")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -472,7 +603,17 @@ public static class CandidateEndpoints
                 var natija = await handler
                     .HandleAsync(
                         new RecordCandidateStageCommand(
-                            id, request.StageId, request.Outcome, request.Date, request.Conclusion),
+                            id,
+                            request.StageId,
+                            request.Outcome,
+                            request.Date,
+                            request.Conclusion,
+                            request.NextContactDate,
+
+                            // `bool?` → `bool`: sukut qiymat so'rov
+                            // rekordida BO'LMASLIGI kerak (OpenAPI tuzog'i),
+                            // buyruq esa oddiy `bool` bilan ishlaydi.
+                            request.ClearNextContact ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -488,7 +629,17 @@ public static class CandidateEndpoints
                 "«outcome=Pending» bilan bosqichni ochib, keyin AYNI bosqichga natija " +
                 "yozilsa — o'sha yozuv TO'LDIRILADI, yangisi qo'shilmaydi. " +
                 "Voronka oldinga yurishga majburlamaydi: bosqichni o'tkazib yuborish " +
-                "va orqaga qaytish mumkin. Xatolar: «bosqich.topilmadi» (404), " +
+                "va orqaga qaytish mumkin. " +
+                "«conclusion» BO'SH bo'lishi mumkin va bu xato emas: majburlash " +
+                "«ok» degan yolg'on xulosalarni tug'dirardi. " +
+                "Keyingi aloqa sanasi UCH holatli: «nextContactDate» berilsa " +
+                "QO'YILADI, «clearNextContact=true» bo'lsa TOZALANADI (o'shanda " +
+                "«nextContactDate» e'tiborsiz), ikkalasi ham berilmasa saqlangan " +
+                "sana O'ZGARMAYDI — oxirgisi voronkadagi SUDRASH uchun: u oynasiz " +
+                "ishlaydi va HR qo'ygan sanani jimgina o'chirib yuborishi mumkin " +
+                "emas. Sana bosqich YOZILGANDAN keyin qo'yiladi: bosqich rad etilsa " +
+                "sana ham o'zgarmaydi. " +
+                "Xatolar: «bosqich.topilmadi» (404), " +
                 "«bosqich.faol_emas» (409), «nomzod.jarayonda_emas» (409). " +
                 "Javob — YANGILANGAN nomzod kartasi (butun tarixi bilan).")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
@@ -614,7 +765,12 @@ public static class CandidateEndpoints
                 var natija = await handler
                     .HandleAsync(
                         new InviteCandidateToInterviewCommand(
-                            id, request.StageId, request.InterviewAt, request.Conclusion),
+                            id,
+                            request.StageId,
+                            request.InterviewAt,
+                            request.Conclusion,
+                            request.NextContactDate,
+                            request.ClearNextContact ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -630,6 +786,16 @@ public static class CandidateEndpoints
                 "KO'CHIRISH aynan shunday ishlaydi va nomzod yangi vaqt bilan yangi " +
                 "xabar oladi. Telegram suhbati yo'q nomzodda (HR qo'lda kiritgan) vaqt " +
                 "baribir yoziladi, xabar esa yuborilmaydi — yuboradigan manzil yo'q. " +
+                "⭐ «conclusion» ning IKKITA manzili bor va qaysi biriga tushishini " +
+                "SERVER hal qiladi: «stageId» berilsa — yangi bosqich yozuvining " +
+                "xulosasi, berilmasa (ko'chirish) — nomzod izohlari tarixida «suhbat " +
+                "ko'chirildi» turidagi yozuv. Mijoz doim BITTA matn maydonini " +
+                "yuboradi. Matn ICHKI: nomzodga ketadigan xabar qat'iy shabloncha " +
+                "va unda izoh YO'Q. " +
+                "«nextContactDate» / «clearNextContact» — «/stages» dagi bilan aynan " +
+                "bir xil uch holatli qoida. Tartib: avval SUHBAT VAQTI tekshiriladi, " +
+                "keyin bosqich, keyin izoh, eng oxirida aloqa sanasi — o'tgan vaqt " +
+                "kiritilganda hech narsa yozilmasligi kerak. " +
                 "Xatolar: «nomzod.topilmadi» (404), «bosqich.topilmadi» (404), " +
                 "«bosqich.faol_emas» (409), «nomzod.jarayonda_emas» (409), " +
                 "«nomzod.suhbat_vaqti_otgan» (400). Javob — yangilangan nomzod kartasi.")
@@ -703,9 +869,13 @@ public static class CandidateEndpoints
             .WithName("RejectCandidate")
             .WithSummary("Nomzod — rad etish (korxona qarori)")
             .WithDescription(
-                "Nomzod voronkadan chiqadi va faol ro'yxatlarda ko'rinmaydi. " +
-                "«at» bo'sh — bugun. Ikkinchi marta yopib bo'lmaydi: " +
-                "«nomzod.jarayonda_emas» (409).")
+                "Nomzod voronkadan chiqadi va faol ro'yxatlarda ko'rinmaydi — u " +
+                "«Rad etilganlar» bo'limiga o'tadi («?rejected=true»). " +
+                "«at» bo'sh — bugun. Keyingi aloqa sanasi TOZALANADI: rad etilgan " +
+                "nomzod «bugun qo'ng'iroq qilinadiganlar» ro'yxatida abadiy turib " +
+                "qolsa, HR o'sha ro'yxatga ishonmay qo'yardi. Shu sababli tanadagi " +
+                "«nextContactDate» bu yerda e'tiborsiz qoldiriladi (xato emas). " +
+                "Ikkinchi marta yopib bo'lmaydi: «nomzod.jarayonda_emas» (409).")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -730,7 +900,12 @@ public static class CandidateEndpoints
             .WithDescription(
                 "«Rad etish» dan ATAYLAB alohida: voronka hisobotida «biz rad etdik» " +
                 "va «u ketib qoldi» butunlay boshqa ma'no beradi (birinchisi tanlov " +
-                "sifati, ikkinchisi taklif shartlari haqida gapiradi).")
+                "sifati, ikkinchisi taklif shartlari haqida gapiradi). " +
+                "⚠️ Nomzod endi kundalik ro'yxatdan ham CHIQADI (2026-09-10 qarori) va " +
+                "«Rad etilganlar» bo'limida rad etilganlar bilan BIRGA ko'rinadi " +
+                "(«?rejected=true»); holat esa alohida qoladi — belgisi ham, hisoboti " +
+                "ham boshqa. «?status=Withdrawn» aynan shularni alohida beradi. " +
+                "Keyingi aloqa sanasi TOZALANADI — «/reject» dagi bilan bir xil qoida.")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -743,7 +918,10 @@ public static class CandidateEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new ReserveCandidateCommand(id, request?.At, request?.Reason),
+                        // Aloqa sanasi FAQAT shu yakunga uzatiladi (izohi
+                        // `CloseCandidateRequest.NextContactDate` da).
+                        new ReserveCandidateCommand(
+                            id, request?.At, request?.Reason, request?.NextContactDate),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -763,6 +941,10 @@ public static class CandidateEndpoints
                 "butunlay boshqa qaror va ikkinchisiga QAYTILADI. " +
                 "«at» bo'sh — bugun; «reason» nomzod kartasida ko'rinadi va " +
                 "qaytarilganda TOZALANADI (u chiqish sababi, uzoq muddatli tavsif emas). " +
+                "⭐ Keyingi aloqa sanasi SAQLANADI — yakunlar orasida yagona joy: " +
+                "«nextContactDate» berilsa qo'yiladi, berilmasa MAVJUDI o'z joyida " +
+                "qoladi. Sabab: rezerv chiqish emas, KECHIKTIRISH («o'rin bo'shasa " +
+                "chaqiramiz»), ya'ni qo'ng'iroq rejasi aynan o'sha yerda o'rinli. " +
                 "Faqat JARAYONDAGI nomzod o'tkaziladi: ikkinchi marta yopib " +
                 "bo'lmaydi — «nomzod.jarayonda_emas» (409).")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
@@ -771,11 +953,19 @@ public static class CandidateEndpoints
 
         group.MapPost("/{id:guid}/return-from-reserve", async (
                 Guid id,
+
+                // Tana IXTIYORIY (`?`) — endpoint ilgari tanasiz edi va tanani
+                // yubormaydigan eski chaqiruv AVVALGIDEK ishlashi kerak
+                // (yopish amallaridagi `CloseCandidateRequest?` bilan bir xil naqsh).
+                ReturnCandidateFromReserveRequest? request,
                 ReturnCandidateFromReserveCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ReturnCandidateFromReserveCommand(id), cancellationToken)
+                    .HandleAsync(
+                        new ReturnCandidateFromReserveCommand(
+                            id, request?.Note, request?.NextContactDate),
+                        cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -791,7 +981,12 @@ public static class CandidateEndpoints
                 "Manba FAQAT rezerv bo'lishi mumkin: rad etilgan, voz kechgan yoki " +
                 "ishga olingan nomzodni bu amal qaytarmaydi — «nomzod.rezervda_emas» " +
                 "(409). Ishga olingan nomzodni qaytarish yo'li ochilsa, u bir vaqtda " +
-                "ham xodim, ham faol nomzod bo'lib qolardi.")
+                "ham xodim, ham faol nomzod bo'lib qolardi. " +
+                "So'rov tanasi IXTIYORIY: yubormaslik avvalgidek ishlaydi. «note» " +
+                "bo'sh bo'lmasa — nomzod izohlari tarixiga «rezervdan qaytarildi» " +
+                "turi bilan yoziladi; u «closingNote» ga yozilMAYDI, chunki qaytarish " +
+                "o'sha tranzaksiyada uni tozalaydi. «nextContactDate» berilsa " +
+                "qo'yiladi, berilmasa rezervda qo'yilgan sana O'Z KUCHIDA qoladi.")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -878,19 +1073,48 @@ public static class CandidateEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
-    private static void MapResume(IEndpointRouteBuilder group)
+    /// <summary>
+    /// Nomzod fayllari — o'ntagacha: rezyume, pasport varaqlari, diplom skani.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Marshrut bo'lagi <c>files</c> (KO'PLIK), xato kodlari esa
+    /// <c>nomzod.rezyume_*</c> bo'lib qoldi.</b> Ziddiyat ataylab:
+    /// to'plamni birlik nom bilan atash har bir keyingi o'quvchini
+    /// adashtirardi, xato kodlari esa allaqachon TO'RT tilga tarjima
+    /// qilingan va «rezyume» — HR ning o'z so'zi.
+    /// </para>
+    /// <para>
+    /// <b>Eski uchlik (<c>POST|GET|DELETE /{id}/resume</c>) O'CHIRILDI</b> va
+    /// «eskirgan taxallus» sifatida ham qoldirilmadi: ular endi mavjud
+    /// bo'lmagan <c>candidates.resume_*</c> ustunlarini o'qirdi.
+    /// </para>
+    /// <para>
+    /// <b>Ro'yxat endpointi YO'Q</b>: fayllar nomzod kartasi javobining
+    /// ichida keladi (<c>CandidateDto.files</c>) — anketa va bosqichlar
+    /// bilan bir xil qoida. Xodim hujjatlarida ro'yxat BOR, chunki u o'z
+    /// tabi va turi bo'yicha filtri bilan yashaydi; bu yerda ikkalasi ham
+    /// yo'q.
+    /// </para>
+    /// <para>
+    /// <b>O'qish <c>recruiting.view</c>, yozish <c>recruiting.manage</c></b> —
+    /// nomzod kartasidagi qolgan hamma narsa bilan bir xil (surat bo'limidagi
+    /// izohga qarang: uchinchi ruxsat kiritilmaydi).
+    /// </para>
+    /// </remarks>
+    private static void MapFiles(IEndpointRouteBuilder group)
     {
-        group.MapPost("/{id:guid}/resume", async (
+        group.MapPost("/{id:guid}/files", async (
                 Guid id,
                 IFormFile file,
-                UploadCandidateResumeCommandHandler handler,
+                UploadCandidateFileCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 await using var content = file.OpenReadStream();
 
                 var natija = await handler
                     .HandleAsync(
-                        new UploadCandidateResumeCommand(id, content, file.FileName, file.Length),
+                        new UploadCandidateFileCommand(id, content, file.FileName, file.Length),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -901,27 +1125,51 @@ public static class CandidateEndpoints
             // CSRF himoyasi bu yerda ORTIQCHA — JWT sarlavhada, sessiya
             // cookie'da emas (xodim hujjatlaridagi bilan bir xil sabab).
             .DisableAntiforgery()
+
+            // Cheklov marshrut darajasida: chegaradan katta tana Kestrel
+            // tomonidan UMUMAN o'qilmaydi. Doimiyning nomi («…Resume…»)
+            // ATAYLAB o'zgartirilmadi — qiymati aynan bir xil va qayta
+            // nomlash o'quvchiga hech narsa bermasdi.
             .WithMetadata(new RequestSizeLimitAttribute(MaxResumeRequestBytes))
-            .WithName("UploadCandidateResume")
-            .WithSummary("Nomzod — rezyume yuklash")
+            .WithName("UploadCandidateFile")
+            .WithSummary("Nomzod — fayl yuklash")
             .WithDescription(
-                "«multipart/form-data», maydon nomi «file». Fayl turi MAZMUNIGA qarab " +
-                "aniqlanadi: PDF, JPEG, PNG yoki WebP, eng ko'pi 20 MB. Nomzodda BITTA " +
-                "rezyume bo'ladi — yangisi eskisini almashtiradi va eski fayl diskdan " +
-                "o'chiriladi. Xatolar: «nomzod.rezyume_katta», «nomzod.rezyume_yaroqsiz» " +
-                "(400), «nomzod.topilmadi» (404).")
+                "«multipart/form-data», maydon nomi «file». BITTA so'rov — BITTA fayl: " +
+                "N ta fayl bir so'rovda kelsa, bitta yaroqsizi yo butun to'plamni " +
+                "yiqitardi, yo «qisman muvaffaqiyat» degan holatni tug'dirardi. " +
+                "Interfeys tanlangan fayllarni KETMA-KET yuboradi. " +
+                "Fayl turi MAZMUNIGA qarab aniqlanadi (kengaytma va mijoz e'lon " +
+                "qilgan sarlavhaga ishonilmaydi): PDF, JPEG, PNG yoki WebP, eng " +
+                "ko'pi 20 MB. RASM serverda kichraytiriladi — eng uzun tomoni 2000 px, " +
+                "natija doim JPEG; PDF esa BAYTMA-BAYT saqlanadi. " +
+                "Nomzodda eng ko'pi 10 fayl va jami 60 MB (SAQLANGAN hajm bo'yicha) " +
+                "bo'ladi. Javobdagi «sizeBytes» — diskka TUSHGAN hajm, yuklangan " +
+                "fayl hajmi emas: 4 MB lik telefon surati ~300 KB bo'lib qoladi. " +
+                "Javob — YARATILGAN FAYL, butun karta emas (kartani interfeys " +
+                "keshni bekor qilish orqali yangilaydi). " +
+                "Xatolar: «nomzod.rezyume_katta», «nomzod.rezyume_yaroqsiz», " +
+                "«nomzod.rezyume_kop», «nomzod.rezyume_joy» (hammasi 400), " +
+                "«nomzod.topilmadi» (404).")
             .Accepts<IFormFile>("multipart/form-data")
-            .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .Produces<CandidateFileDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapGet("/{id:guid}/resume", async (
+        group.MapGet("/{id:guid}/files/{fileId:guid}", async (
+                // ⚠️ IKKALA identifikator ham ISHLATILADI (xodim
+                // hujjatlaridan ataylab farq: u yerda `employeeId` faqat
+                // OpenAPI hujjati yaroqli bo'lishi uchun turadi). Fayl
+                // nomzodning agregati ichidan olinadi, ya'ni chalkash
+                // juftlik 404 beradi va boshqa odamning pasport nusxasi
+                // berilmaydi.
                 Guid id,
-                GetCandidateResumeQueryHandler handler,
+                Guid fileId,
+                GetCandidateFileQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new GetCandidateResumeQuery(id), cancellationToken)
+                    .HandleAsync(new GetCandidateFileQuery(id, fileId), cancellationToken)
                     .ConfigureAwait(false);
 
                 // JSON emas, BAYT qaytaradi — xodim hujjatidagi bilan bir xil.
@@ -930,30 +1178,50 @@ public static class CandidateEndpoints
                     : Results.File(natija.Value.Content, natija.Value.ContentType, natija.Value.FileName);
             })
             .RequireAuthorization(Permissions.RecruitingView)
-            .WithName("DownloadCandidateResume")
-            .WithSummary("Nomzod — rezyumeni yuklab olish")
+            .WithName("DownloadCandidateFile")
+            .WithSummary("Nomzod — faylni yuklab olish")
             .WithDescription(
                 "Fayl bayti. «Content-Disposition» da ASL fayl nomi qaytadi. " +
-                "Rezyume yo'q bo'lsa: «nomzod.rezyume_topilmadi» (404).")
+                "Fayl AYNAN shu nomzodga tegishli bo'lishi shart: noma'lum " +
+                "identifikator ham, boshqa nomzodning fayli ham bir xil javob " +
+                "beradi — «nomzod.rezyume_topilmadi» (404). Yozuv bor-u diskda " +
+                "fayl yo'q bo'lsa ham javob shu: buzilgan holat mijozga 500 emas, " +
+                "«fayl yo'q» bo'lib ko'rinishi kerak. " +
+                "⚠️ KESH sarlavhalari ATAYLAB yo'q (suratdan farqi shunda): fayl " +
+                "shaxsiy ma'lumot va u baribir ekran ochiq bo'lgan vaqtda mijoz " +
+                "keshida turadi. Kesh qo'shilsa, u faqat «private» bo'lishi mumkin.")
             .Produces(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapDelete("/{id:guid}/resume", async (
+        group.MapDelete("/{id:guid}/files/{fileId:guid}", async (
                 Guid id,
-                DeleteCandidateResumeCommandHandler handler,
+                Guid fileId,
+                DeleteCandidateFileCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new DeleteCandidateResumeCommand(id), cancellationToken)
+                    .HandleAsync(new DeleteCandidateFileCommand(id, fileId), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
             })
             .RequireAuthorization(Permissions.RecruitingManage)
-            .WithName("DeleteCandidateResume")
-            .WithSummary("Nomzod — rezyumeni olib tashlash")
-            .WithDescription("Fayl HAQIQATAN diskdan o'chiriladi: unga boshqa hech kim ishora qilmaydi.")
-            .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .WithName("DeleteCandidateFile")
+            .WithSummary("Nomzod — faylni olib tashlash")
+            .WithDescription(
+                "Yozuv ham, diskdagi baytlar ham HAQIQATAN o'chiriladi (yumshoq " +
+                "o'chirish YO'Q: ko'rinmaydigan yozuv o'nta o'rindan bittasini " +
+                "jimgina band qilib turardi va yuklash sababsiz to'xtardi). Fayl " +
+                "SAQLASHDAN KEYIN o'chadi: saqlash yiqilsa, yozuv joyida turgan " +
+                "faylga ishora qilib qolishi kerak. " +
+                "⚠️ Amal IDEMPOTENT EMAS (suratni o'chirishdan farqi shunda): " +
+                "noma'lum «fileId» uchun «nomzod.rezyume_topilmadi» (404). " +
+                "Chaqiruvchi ANIQ bir qatorni nomlagan; jimgina «bajarildi» deyish " +
+                "allaqachon yo'q bo'lgan faylni ko'rsatib turgan eskirgan ekranni " +
+                "yashirardi. Xato: «nomzod.topilmadi» (404).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 

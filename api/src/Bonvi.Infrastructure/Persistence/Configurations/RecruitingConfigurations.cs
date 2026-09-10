@@ -208,12 +208,6 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         builder.Property(candidate => candidate.ClosingNote)
             .HasMaxLength(2000);
 
-        builder.Property(candidate => candidate.ResumeFileName)
-            .HasMaxLength(300);
-
-        builder.Property(candidate => candidate.ResumeContentType)
-            .HasMaxLength(150);
-
         // Til kodi: «uz-Cyrl», «uz-Latn», «ru» — eng uzuni 7 belgi.
         builder.Property(candidate => candidate.TelegramLanguage)
             .HasMaxLength(16);
@@ -236,6 +230,33 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         // `StageEntries` — faqat o'qish uchun xossa, unga yozib bo'lmaydi.
         builder.Navigation(candidate => candidate.StageEntries)
             .HasField("_stageEntries")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // ────────────────────────────────────────────────────────────
+        //  Fayllar va izohlar — ikkalasi ham nomzod agregatining ICHIDA
+        // ────────────────────────────────────────────────────────────
+
+        // Bosqichlar tarixi bilan AYNAN bir xil sozlash va bir xil sabab:
+        // yozuv nomzodsiz ma'noga ega emas, o'z repozitoriysi yo'q va
+        // nomzod bilan birga o'chadi. Fayllarda buning ustiga soni va
+        // umumiy hajmi nomzodning invarianti — sababi `CandidateFile`
+        // izohida.
+        builder.HasMany(candidate => candidate.Files)
+            .WithOne()
+            .HasForeignKey(file => file.CandidateId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(candidate => candidate.Files)
+            .HasField("_files")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(candidate => candidate.Notes)
+            .WithOne()
+            .HasForeignKey(note => note.CandidateId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(candidate => candidate.Notes)
+            .HasField("_notes")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         // Rasm kaliti — `employees.photo_key` bilan bir xil uzunlik.
@@ -313,6 +334,18 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         // ikkinchi eng muhim kalit. Qisman indeks: raqamsiz yozuvlar bo'ladi.
         builder.HasIndex(candidate => candidate.Phone)
             .HasFilter("phone IS NOT NULL");
+
+        /*
+          «BUGUN BOG'LANISH KERAK» ro'yxati.
+
+          Ro'yxat ekranidagi filtr (`next_contact_date <= bugun`) va shu
+          filtr bo'yicha saralash. Qisman indeks — yuqoridagi telefon va
+          navbat indekslari bilan bir xil sabab: nomzodlarning KO'PIDA
+          aloqa sanasi yo'q, to'liq indeks esa minglab NULL yozuvni
+          saqlab, ularni hech qachon o'qimasdi.
+        */
+        builder.HasIndex(candidate => candidate.NextContactDate)
+            .HasFilter("next_contact_date IS NOT NULL");
 
         // «Botdan qancha nomzod keldi» — manba bo'yicha hisobot.
         builder.HasIndex(candidate => candidate.Source);
@@ -450,5 +483,106 @@ public sealed class CandidateQuestionnaireConfiguration : IEntityTypeConfigurati
 
         builder.Property(form => form.DriverLicenseCategories)
             .HasMaxLength(CandidateQuestionnaire.MaxDriverLicenseCategoriesLength);
+    }
+}
+
+/// <summary>
+/// <see cref="CandidateFile"/> uchun jadval konfiguratsiyasi
+/// (<c>candidate_files</c>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Yumshoq o'chirish YO'Q va bu <c>employee_documents</c> dan ATAYLAB
+/// farq — sababi <see cref="CandidateFile"/> izohida: yumshoq o'chirilgan
+/// qator o'nta o'rindan bittasini egallab turardi. Shu sababli bu entity
+/// <c>ISoftDeletable</c> ni amalga oshirmaydi va global filtrga tushmaydi.
+/// </para>
+/// <para>
+/// <b>Ma'lumotnomaga tashqi kalit YO'Q.</b> Xodim hujjatida
+/// <c>document_type_id</c> bor, nomzod faylida esa hujjat turi tushunchasi
+/// umuman yo'q (uni so'rash HR ning har bir rasm uchun ro'yxatdan tanlashi
+/// degani bo'lardi — bugungi bir bosishlik yuklashning o'rniga).
+/// </para>
+/// </remarks>
+public sealed class CandidateFileConfiguration : IEntityTypeConfiguration<CandidateFile>
+{
+    public void Configure(EntityTypeBuilder<CandidateFile> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("candidate_files");
+
+        builder.HasKey(file => file.Id);
+
+        builder.Ignore(file => file.DomainEvents);
+
+        // Uzunlik `employee_documents.file_key` dan olindi: kalitni bitta
+        // `IFileStorage` yasaydi, ya'ni chegara ham bir xil bo'lishi kerak.
+        builder.Property(file => file.FileKey)
+            .HasMaxLength(500)
+            .IsRequired();
+
+        // 300 va 150 — o'chirilgan `candidates.resume_file_name` va
+        // `resume_content_type` dan AYNAN ko'chirildi: migratsiya eski
+        // qatorlarni shu jadvalga ko'chiradi va qisqaroq ustun ma'lumotni
+        // kesib tashlardi.
+        builder.Property(file => file.FileName)
+            .HasMaxLength(300)
+            .IsRequired();
+
+        builder.Property(file => file.ContentType)
+            .HasMaxLength(150)
+            .IsRequired();
+
+        builder.Property(file => file.SizeBytes)
+            .IsRequired();
+
+        builder.Property(file => file.CreatedAt)
+            .IsRequired();
+
+        // Fayllar DOIM nomzod bo'yicha va yuklash tartibida o'qiladi;
+        // o'nta chegarasining sanog'i ham shu indeksdan foydalanadi.
+        // Kompozit indeks tashqi kalit indeksining o'rnini ham bosadi
+        // (`candidate_stage_entries` dagi bilan bir xil qaror).
+        builder.HasIndex(file => new { file.CandidateId, file.CreatedAt });
+    }
+}
+
+/// <summary>
+/// <see cref="CandidateNote"/> uchun jadval konfiguratsiyasi
+/// (<c>candidate_notes</c>).
+/// </summary>
+/// <remarks>
+/// Yumshoq o'chirish YO'Q — <c>CandidateStageEntry</c> dagi bilan bir xil
+/// sabab: yozuv nomzod bilan birga yashaydi va faqat u orqali o'qiladi.
+/// <c>IAuditable</c> ham emas: <c>created_at</c> / <c>created_by</c> ni
+/// domen o'zi yozadi, xuddi <c>recorded_at</c> / <c>recorded_by</c> kabi.
+/// </remarks>
+public sealed class CandidateNoteConfiguration : IEntityTypeConfiguration<CandidateNote>
+{
+    public void Configure(EntityTypeBuilder<CandidateNote> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("candidate_notes");
+
+        builder.HasKey(note => note.Id);
+
+        builder.Ignore(note => note.DomainEvents);
+
+        builder.Property(note => note.Kind)
+            .IsRequired();
+
+        // 2000 — `candidates.note` va `candidates.closing_note` bilan bir
+        // xil chegara: bu ham HR ning bir-ikki abzatslik qaydi.
+        builder.Property(note => note.Text)
+            .HasMaxLength(2000)
+            .IsRequired();
+
+        builder.Property(note => note.CreatedAt)
+            .IsRequired();
+
+        // Izohlar DOIM nomzod bo'yicha va yozilgan tartibda o'qiladi.
+        builder.HasIndex(note => new { note.CandidateId, note.CreatedAt });
     }
 }
