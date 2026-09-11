@@ -113,6 +113,94 @@ public enum NotificationType
     /// </para>
     /// </remarks>
     CandidateFromBot = 10,
+
+    /// <summary>Nomzod bilan BUGUN bog'lanish kerak (keyingi aloqa sanasi — bugun).</summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nima uchun paydo bo'ldi</b> (mijoz talabi, 2026-09-10).
+    /// Nomzodlar ro'yxatida «Keyingi aloqa» ustuni bor edi va u
+    /// OLIB TASHLANDI — jadval juda kengayib ketgani uchun
+    /// (<c>7e678dab</c>). Sana esa yozilishda davom etyapti
+    /// (<c>Candidate.NextContactDate</c>), ya'ni ma'lumot bor, uni
+    /// KO'RSATADIGAN joy yo'q edi. Endi uni qo'ng'iroq ko'rsatadi:
+    /// ertalab bitta ro'yxat — «bugun kimga qo'ng'iroq qilishim kerak».
+    /// </para>
+    /// <para>
+    /// <b>Nega <see cref="CandidateContactOverdue"/> dan alohida tur.</b>
+    /// Sabab <see cref="ProbationEndsToday"/> va
+    /// <see cref="ProbationOverdue"/> dagi bilan AYNAN bir xil: «bugun
+    /// qilinadigan ish» va «kechikkan ish» ekranda bir xil rangda tursa,
+    /// kechikkanlar bugungilar orasida ko'rinmay ketardi. Daraja ham shu
+    /// juftlikdan olingan — bu yerda «diqqat», u yerda «jiddiy».
+    /// </para>
+    /// <para>
+    /// <b>YOPILGAN nomzodda CHIQMAYDI.</b> Rad etilgan, voz kechgan yoki
+    /// ishga olingan nomzodda sana domenning o'zida tozalanadi
+    /// (<c>Candidate.Close</c>), lekin bildirishnoma bunga TAYANMAYDI:
+    /// so'rov holatni ham tekshiradi. Ikkinchi to'siq ataylab — Excel'dan
+    /// ko'chirilgan yozuvlar bu qoidadan o'tmagan.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>REZERV esa KIRADI</b> (foydalanuvchi qarori, 2026-09-11) —
+    /// garchi loyihaning lug'atida rezerv voronkadan TASHQARIDA bo'lsa
+    /// ham (<c>Candidate.IsActive</c>). Sabab
+    /// <c>NotificationReadModel.ListCandidateContactsAsync</c> izohida.
+    /// <see cref="CandidateInterviewSoon"/> esa faqat
+    /// <c>InProgress</c> — asimmetriya ataylab.
+    /// </para>
+    /// </remarks>
+    CandidateContactDue = 11,
+
+    /// <summary>Nomzod bilan bog'lanish sanasi O'TIB KETGAN.</summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CandidateContactDue"/> bilan BIR VAQTDA hech qachon
+    /// chiqmaydi: sana yo bugun, yo o'tmishda — uchinchi holat yo'q.
+    /// Tur sanalar nisbatidan hisoblanadi (<c>NotificationCollector</c>),
+    /// bazada esa «bu qanday ogohlantirish» degan ustun yo'q va bo'lishi
+    /// ham kerak emas — u har kuni o'zgaradi.
+    /// </para>
+    /// <para>
+    /// <b>Nega <see cref="NotificationSeverity.Critical"/>.</b> Bu — HR
+    /// ning O'ZI belgilagan va'da: «shu kuni qo'ng'iroq qilaman». Uning
+    /// o'tib ketishi tizimdagi eng oson yo'qoladigan ish: nomzod
+    /// ro'yxatda boshqalar orasida turadi va hech qayerda qizarmaydi
+    /// (ustun olib tashlangandan keyin — umuman ko'rinmaydi).
+    /// </para>
+    /// </remarks>
+    CandidateContactOverdue = 12,
+
+    /// <summary>Suhbatgacha sozlamada ko'rsatilgan soatdan kam qoldi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nima uchun kerak.</b> Suhbat vaqti nomzodga yuboriladi
+    /// (<c>Candidate.InviteToInterview</c> → bot), lekin HR ning o'zi
+    /// uchun hech qanday eslatma yo'q edi: vaqt faqat nomzod kartasida
+    /// turardi. «Bu odam hozir keladi» degan xabar aynan shu bo'shliqni
+    /// yopadi.
+    /// </para>
+    /// <para>
+    /// <b>Oyna ikki tomonlama: HOZIRDAN to N soatgacha.</b> O'tib ketgan
+    /// suhbat «yaqin» emas — ikki soat oldin boshlangan suhbat haqidagi
+    /// ogohlantirish faqat halaqit berardi. N — sozlama
+    /// (<c>SystemSettingKeys.InterviewWarningHours</c>, sukut 1 soat),
+    /// ya'ni «bir soat oldin» qoidasi kodda qadalmagan.
+    /// </para>
+    /// <para>
+    /// <b>Yagona SOATLI tur.</b> Qolganlarining hammasi kalendar fakti
+    /// («bugun tugaydi», «ertaga tug'ilgan kun»), bu esa lahza: shu
+    /// sababli parametrlarida VAQT ham bor
+    /// (<c>NotificationParams.InterviewTime</c>, Toshkent vaqtida) —
+    /// sanaviy turlarda bunday parametr yo'q va kerak ham emas.
+    /// </para>
+    /// <para>
+    /// Daraja <see cref="ProbationEndsToday"/> dan olingan: bu bugun
+    /// bajariladigan ish, «muddat o'tib ketdi» emas. Suhbat o'tib
+    /// ketgach bildirishnoma shunchaki YO'QOLADI — «kelmadi» degan
+    /// faktni tizim bilmaydi va uni o'ylab topmaydi.
+    /// </para>
+    /// </remarks>
+    CandidateInterviewSoon = 13,
 }
 
 /// <summary>Bildirishnomaning muhimlik darajasi.</summary>
@@ -188,9 +276,15 @@ public static class NotificationAccess
 
         // Nomzod — rekruting yo'lagi. Foydalanuvchi aniq talab qildi:
         // `recruiting.view` yo'q odamga nomzod bildirishnomasi
-        // KO'RINMASIN.
+        // KO'RINMASIN. Aloqa va suhbat eslatmalari ham shu yerda:
+        // ularning MAZMUNI o'sha nomzod kartasi (ism, sana, vaqt) va
+        // havolasi ham o'sha kartaga boradi — boshqa ruxsat ostiga
+        // qo'yilsa, ochib bo'lmaydigan sahifaga yetaklagan bo'lardi.
         NotificationType.CandidateNew
-            or NotificationType.CandidateFromBot => Permissions.RecruitingView,
+            or NotificationType.CandidateFromBot
+            or NotificationType.CandidateContactDue
+            or NotificationType.CandidateContactOverdue
+            or NotificationType.CandidateInterviewSoon => Permissions.RecruitingView,
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(type),

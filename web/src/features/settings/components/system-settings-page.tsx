@@ -97,6 +97,17 @@ const GROUPS: readonly {
     fields: {
       'notifications.probationWarningDays': 'settings.system.probationWarningDays',
       'notifications.newCandidateDays': 'settings.system.newCandidateDays',
+      /*
+        Suhbatdan oldingi ogohlantirish — guruhdagi yagona SOATLI
+        qiymat, qolganlari kun bilan o'lchanadi. Nega baribir shu
+        guruhda: guruh — «qo'ng'iroqcha nimani, qachon ko'rsatadi»
+        degan savol, o'lchov birligi emas. Uni alohida guruhga
+        chiqarish bitta maydonli guruh hosil qilardi va HR bitta
+        qo'ng'iroqchaning sozlamalarini ikki joydan qidirardi
+        (`recruiting.reapplyMonths` dagi bilan bir xil fikr, teskari
+        tomondan).
+      */
+      'notifications.interviewWarningHours': 'settings.system.interviewWarningHours',
       'notifications.readRetentionDays': 'settings.system.readRetentionDays',
     },
   },
@@ -153,6 +164,15 @@ const SINGLE_LINE_TEXT: Readonly<Record<string, string>> = {
  */
 const NUMBER_HINT: Readonly<Record<string, string>> = {
   'recruiting.reapplyMonths': 'settings.system.reapplyMonthsHint',
+  /*
+    Suhbat ogohlantirishi — xuddi shu holat. Yorlig'i («Suhbatdan
+    oldin ogohlantirish (soat)») son NIMAGA ta'sir qilishini
+    aytmaydi: ogohlantirish qo'ng'iroqchada chiqadi va u nomzod
+    suhbatga kelishidan oldin BIR MARTA ko'rinadi. Qo'shni
+    maydonlarda («Sinov muddati ogohlantirishi (kun)») izoh yo'q va
+    kerak ham emas — u yerda yorliqning o'zi to'liq javob beradi.
+  */
+  'notifications.interviewWarningHours': 'settings.system.interviewWarningHoursHint',
 }
 
 /**

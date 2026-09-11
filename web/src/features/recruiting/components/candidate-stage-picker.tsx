@@ -327,9 +327,9 @@ type LastActivity =
  *
  * ⚠️ Bosqich yozuvining kaliti — `recordedAt` (YOZILGAN vaqt), `date`
  * emas: `date` QO'LDA kiritiladi va o'tgan kun bilan yozilishi odatiy
- * hol («kecha suhbat bo'lgan edi»). Lentadagi tartib ham aynan shu
- * sababdan kiritilish ketma-ketligini saqlaydi
- * (`candidate-stages-tab.tsx` izohi).
+ * hol («kecha suhbat bo'lgan edi»). Lenta ham AYNAN shu kalitni —
+ * `recordedAt` ni — ishlatadi, ya'ni ikkala ko'rinish bir xil javob
+ * beradi (`candidate-stages-tab.tsx` izohi).
  */
 function useLastActivity(candidate: Candidate): LastActivity | null {
   return useMemo(() => {

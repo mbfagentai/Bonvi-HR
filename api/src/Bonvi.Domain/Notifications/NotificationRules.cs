@@ -63,6 +63,33 @@ public static class NotificationRules
     public const int NewCandidateDays = 7;
 
     /// <summary>
+    /// Suhbatgacha necha SOAT qolganda ogohlantiriladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nega aynan 1 soat (mijoz talabi, 2026-09-10): xabar «bu odam
+    /// hozir keladi» degan ma'noni berishi kerak — stolni bo'shatish,
+    /// xonani tayyorlash, anketani ochib qo'yish uchun yetadigan vaqt.
+    /// Ertalabki rejalashtirish uchun boshqa xabar bor
+    /// (<see cref="NotificationType.CandidateContactDue"/>), ya'ni bu
+    /// chegara uzoq bo'lishi shart emas.
+    /// </para>
+    /// <para>
+    /// <b>Nega SOAT, kun emas.</b> Qolgan uchta chegara kunda va ular
+    /// kalendar faktlariga tegishli («muddat falon kuni tugaydi»).
+    /// Suhbat esa LAHZA: kun bilan o'lchansa, ertalab soat 9 da
+    /// kelgan xabar kechqurun 18:00 dagi suhbat haqida bo'lardi va
+    /// «hozir keladi» degan ma'no butunlay yo'qolardi.
+    /// </para>
+    /// <para>
+    /// Sukut qiymat — sozlama hech qachon ochilmagan tizim uchun
+    /// (<c>SystemSettingKeys.InterviewWarningHours</c>), qolganlari
+    /// bilan bir xil qoida.
+    /// </para>
+    /// </remarks>
+    public const int InterviewWarningHours = 1;
+
+    /// <summary>
     /// O'qilgan bildirishnoma ro'yxatda necha kun qoladi.
     /// </summary>
     /// <remarks>

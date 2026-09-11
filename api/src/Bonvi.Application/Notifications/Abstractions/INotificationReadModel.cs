@@ -105,6 +105,58 @@ public interface INotificationReadModel
     Task<IReadOnlyList<NewCandidateRow>> ListNewCandidatesAsync(
         DateOnly since,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Keyingi aloqa sanasi kelib qolgan (yoki o'tib ketgan) nomzodlar —
+    /// holati <c>InProgress</c> YOKI <c>Reserve</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bitta so'rov ikkala turni ham qoplaydi — «bugun bog'lanish kerak»
+    /// va «sana o'tib ketgan»: ular faqat sananing bugunga nisbatiga
+    /// qarab ajraladi (<c>ListProbationDeadlinesAsync</c> dagi bilan
+    /// aynan bir xil mulohaza). Turni yig'uvchi tanlaydi, ya'ni bitta
+    /// nomzoddan bitta qator chiqadi.
+    /// </para>
+    /// <para>
+    /// Quyi chegara YO'Q: sanasi eng ko'p kechikkan nomzod eng muhimi —
+    /// aynan u unutilgan bo'ladi.
+    /// </para>
+    /// </remarks>
+    /// <param name="until">
+    /// Shu sanagacha (o'zi ham kiradi) bog'lanish rejalashtirilganlar.
+    /// Amalda — bugun.
+    /// </param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<CandidateContactRow>> ListCandidateContactsAsync(
+        DateOnly until,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Berilgan OYNA ichida suhbatga chaqirilgan, hamon VORONKADAGI nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Ikki tomonlama chegara — bu yerdagi yagona shunday so'rov.</b>
+    /// Quyi chegara («hozirdan») MAJBURIY: o'tib ketgan suhbat «yaqin»
+    /// emas va u haqidagi ogohlantirish faqat halaqit berardi
+    /// (<c>NotificationType.CandidateInterviewSoon</c> izohi). Sinov
+    /// muddatlarida quyi chegara ataylab yo'q — u yerda kechikkanlar
+    /// aynan kerak; farq shu ikki hodisaning ma'nosida.
+    /// </para>
+    /// <para>
+    /// Chegaralar LAHZA (<c>DateTimeOffset</c>), sana emas: oyna
+    /// soatlarda o'lchanadi va kun bilan kesish uni butun sutkaga
+    /// yoyib yuborardi.
+    /// </para>
+    /// </remarks>
+    /// <param name="from">Oynaning boshi — amalda «hozir».</param>
+    /// <param name="until">Oynaning oxiri — «hozir + sozlamadagi soat».</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<CandidateInterviewRow>> ListCandidateInterviewsAsync(
+        DateTimeOffset from,
+        DateTimeOffset until,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Yakunlanmagan sinov muddati — bildirishnoma uchun kerak bo'lgan minimum.</summary>
@@ -145,3 +197,32 @@ public sealed record NewCandidateRow(
     string? VacancyTitle,
     CandidateSource Source,
     DateOnly AddedOn);
+
+/// <summary>Keyingi aloqa sanasi kelib qolgan nomzod.</summary>
+/// <remarks>
+/// Vakansiya nomi bu yerda ATAYLAB yo'q, garchi <see cref="NewCandidateRow"/>
+/// da bo'lsa ham: «yangi nomzod» xabari HR ga qaysi e'longa ariza
+/// tushganini aytadi, «bugun qo'ng'iroq qiling» esa odamning O'ZI
+/// haqida — qo'shimcha ustun qo'shilishi tarmoqqa ham, ekrandagi
+/// qatorga ham hech narsa bermasdi.
+/// </remarks>
+/// <param name="CandidateId">Nomzod — kalitning va havolaning asosi.</param>
+/// <param name="CandidateName">To'liq F.I.Sh.</param>
+/// <param name="NextContactDate">Bog'lanish rejalashtirilgan sana — kalitning ikkinchi qismi.</param>
+public sealed record CandidateContactRow(
+    Guid CandidateId,
+    string CandidateName,
+    DateOnly NextContactDate);
+
+/// <summary>Yaqinlashib qolgan suhbat.</summary>
+/// <param name="CandidateId">Nomzod — kalitning va havolaning asosi.</param>
+/// <param name="CandidateName">To'liq F.I.Sh.</param>
+/// <param name="InterviewAt">
+/// Suhbat LAHZASI — bazadagidek UTC. Toshkent vaqtiga o'girish
+/// yig'uvchining ishi (<c>BonviTime</c>), chunki u yerda vaqt
+/// ko'rsatiladigan matn parametriga aylanadi.
+/// </param>
+public sealed record CandidateInterviewRow(
+    Guid CandidateId,
+    string CandidateName,
+    DateTimeOffset InterviewAt);

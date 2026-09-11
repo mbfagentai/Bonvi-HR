@@ -179,4 +179,123 @@ public sealed class NotificationReadModel : INotificationReadModel
                 DateOnly.FromDateTime(row.CreatedAt.ToOffset(BonviTime.TashkentOffset).DateTime))),
         ];
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CandidateContactRow>> ListCandidateContactsAsync(
+        DateOnly until,
+        CancellationToken cancellationToken = default)
+    {
+        // ⭐ HOLAT sharti — bu so'rovdagi eng muhim qator. Nomzod
+        // voronkadan chiqqanda sana domenning o'zida tozalanadi
+        // (`Candidate.Close`), ya'ni bugun bu shart bitta ham qator
+        // qo'shmaydi va OLIB TASHLASA HAM ro'yxat o'zgarmasdi. Baribir
+        // yozilgan, chunki u BOSHQA savolga javob beradi: «bu ro'yxatda
+        // kim bo'lishi mumkin?». Domendagi tozalash — invariant, bu esa
+        // ta'rif, va ular bir joyda turmaydi. Excel'dan ko'chirilgan
+        // yozuvlar (3110 ta) `Close` dan umuman o'tmaydi — ular bazaga
+        // to'g'ridan-to'g'ri yoziladi; ertaga ETL aloqa sanasini ham
+        // ko'chira boshlasa, shart bo'lmagan ro'yxat bir necha yil oldin
+        // rad etilgan odamlarga qo'ng'iroq qilishga chaqirardi va buni
+        // hech kim kutmagan bo'lardi.
+        //
+        // ⚠️ REZERV esa CHIQADI va bu ataylab (foydalanuvchi qarori,
+        // 2026-09-11). Domen rezervga o'tkazishda aloqa sanasini SAQLAB
+        // qoladi — «o'rin bo'shaganda chaqiramiz» (`Candidate.Close`
+        // izohi). Agar qo'ng'iroqcha faqat `InProgress` ni ko'rsatsa, HR
+        // sanani qo'yardi-yu, u hech qachon ogohlantirmasdi: ya'ni
+        // saqlashning butun sababi yo'qolardi. Shu sababli bu so'rov
+        // qo'shni `ListNewCandidatesAsync` dan ATAYLAB farq qiladi —
+        // «yangi nomzod» faol voronka haqidagi savol, «aloqa qilish
+        // kerak» esa HR ning bugungi ish ro'yxati, va rezerv aynan shu
+        // ro'yxatning bir qismi.
+        //
+        // Suhbat ogohlantirishi (`ListCandidateInterviewsAsync`) bu
+        // qoidaga QO'SHILMADI: rezervdagi nomzodga suhbat belgilanmaydi —
+        // suhbat tayinlash uni voronkaga qaytaradi.
+        //
+        // Shart qisman indeksga tushadi: `ix_candidates_next_contact_date`
+        // (`next_contact_date IS NOT NULL` filtri bilan).
+        var rows = await (
+                from candidate in _context.Candidates.AsNoTracking()
+                where (candidate.Status == CandidateStatus.InProgress
+                        || candidate.Status == CandidateStatus.Reserve)
+                    && candidate.NextContactDate != null
+                    && candidate.NextContactDate <= until
+                select new
+                {
+                    CandidateId = candidate.Id,
+                    candidate.FullName.LastName,
+                    candidate.FullName.FirstName,
+                    candidate.FullName.MiddleName,
+                    candidate.NextContactDate,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new CandidateContactRow(
+                row.CandidateId,
+                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
+                // `!` xavfsiz: `NULL` qatorlar so'rovning o'zida
+                // chiqarib tashlangan.
+                row.NextContactDate!.Value)),
+        ];
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CandidateInterviewRow>> ListCandidateInterviewsAsync(
+        DateTimeOffset from,
+        DateTimeOffset until,
+        CancellationToken cancellationToken = default)
+    {
+        // Chegaralar UTC'ga keltiriladi: `interview_at` — `timestamptz` va
+        // Npgsql unga faqat nol siljishli qiymat bilan taqqoslash
+        // parametrini yuboradi (`ListNewCandidatesAsync` dagi bilan bir xil
+        // sabab). Lahza o'zgarmaydi, faqat ifodalanishi.
+        var start = from.ToUniversalTime();
+        var end = until.ToUniversalTime();
+
+        // ⭐ Holat sharti bu yerda yuqoridagidan ham MUHIMROQ va uning
+        // sababi boshqa. Aloqa sanasi voronkadan chiqishda tozalanadi,
+        // SUHBAT VAQTI esa QOLADI (`Candidate.Close` unga tegmaydi) — u
+        // tarixning bir qismi: nomzod chaqirilgan, kelgan, ko'rilgan.
+        // Ya'ni shartsiz so'rov eng odatiy holatda yiqilardi: soat 15:00
+        // ga chaqirilgan nomzod tushda «kelolmayman» desa (voz kechish)
+        // yoki HR uni suhbatgacha rad etsa, qo'ng'iroq baribir 14:00 da
+        // «bu odam hozir keladi» deb turardi.
+        //
+        // ⚠️ Bu so'rov indeksga TUSHMAYDI: `interview_at` bo'yicha
+        // alohida indeks yo'q (bor indeks — taklif NAVBATI uchun va
+        // uning filtri boshqa). Ataylab: jadval bir necha ming qator va
+        // so'rov qo'ng'iroq bosilganda ketadi; indeks har bir suhbat
+        // taklifida yozish narxini oshirardi, foydasi esa o'lchanmas
+        // darajada kichik. Nomzodlar soni o'n minglarga chiqsa —
+        // qisman indeks (`interview_at IS NOT NULL`) qo'shiladigan
+        // birinchi joy shu.
+        var rows = await (
+                from candidate in _context.Candidates.AsNoTracking()
+                where candidate.Status == CandidateStatus.InProgress
+                    && candidate.InterviewAt != null
+                    && candidate.InterviewAt >= start
+                    && candidate.InterviewAt <= end
+                select new
+                {
+                    CandidateId = candidate.Id,
+                    candidate.FullName.LastName,
+                    candidate.FullName.FirstName,
+                    candidate.FullName.MiddleName,
+                    candidate.InterviewAt,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new CandidateInterviewRow(
+                row.CandidateId,
+                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
+                row.InterviewAt!.Value)),
+        ];
+    }
 }

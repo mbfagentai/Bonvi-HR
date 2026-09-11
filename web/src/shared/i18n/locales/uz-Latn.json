@@ -84,9 +84,11 @@
       "reapplyMonths": "Qayta ariza muddati (oy)",
       "reapplyMonthsHint": "Arizasi yopilgandan keyin bot shu muddat davomida bu odamdan yangi anketa qabul qilmaydi. Faqat BOTGA tegishli — HR qo‘lda kiritganda to‘siq yo‘q.",
       "groupNotifications": "Bildirishnomalar",
-      "groupNotificationsHint": "Qo‘ng‘iroqcha ostidagi ogohlantirishlar necha kun oldin chiqadi",
+      "groupNotificationsHint": "Qo‘ng‘iroqcha ostidagi ogohlantirishlar qancha vaqt oldin chiqadi",
       "probationWarningDays": "Sinov muddati ogohlantirishi (kun)",
       "newCandidateDays": "Yangi nomzod ko‘rsatiladi (kun)",
+      "interviewWarningHours": "Suhbatdan oldin ogohlantirish (soat)",
+      "interviewWarningHoursHint": "Suhbat boshlanishiga necha soat qolganda qo‘ng‘iroqcha ogohlantiradi. Ogohlantirish faqat vaqti belgilangan suhbatlarga chiqadi.",
       "readRetentionDays": "O‘qilgan bildirishnoma necha kun ko‘rinadi",
       "range": "{{min}} dan {{max}} gacha",
       "textHint": "Bo‘sh qoldirilsa bot bu bo‘limni ko‘rsatmaydi. Yangi qator — Enter.",
@@ -1402,6 +1404,18 @@
       "candidateFromBot": {
         "title": "Botdan ariza tushdi",
         "text": "{{name}} — {{date}} da Telegram bot orqali ariza topshirdi. Bog‘lanish kutilyapti."
+      },
+      "candidateContactDue": {
+        "title": "Bugun aloqa qilish kerak",
+        "text": "{{name}} — bugun aloqa qilish kerak ({{date}})."
+      },
+      "candidateContactOverdue": {
+        "title": "Aloqa muddati o‘tib ketdi",
+        "text": "{{name}} — keyingi aloqa sanasi {{date}} edi, muddat o‘tib ketdi."
+      },
+      "candidateInterviewSoon": {
+        "title": "Suhbat yaqinlashdi",
+        "text": "{{name}} — suhbat soat {{time}} da boshlanadi."
       }
     },
     "moreArrived": "Yana {{n}} ta yangi bildirishnoma"

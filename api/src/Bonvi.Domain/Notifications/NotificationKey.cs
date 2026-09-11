@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bonvi.Domain.Abstractions;
 
 namespace Bonvi.Domain.Notifications;
 
@@ -93,6 +94,9 @@ public static class NotificationKey
             [NotificationType.BirthdayTomorrow] = "tugilgan_kun.ertaga",
             [NotificationType.CandidateNew] = "nomzod.yangi",
             [NotificationType.CandidateFromBot] = "nomzod.botdan",
+            [NotificationType.CandidateContactDue] = "nomzod.aloqa_bugun",
+            [NotificationType.CandidateContactOverdue] = "nomzod.aloqa_kechikkan",
+            [NotificationType.CandidateInterviewSoon] = "nomzod.suhbat_yaqin",
         };
 
     /// <summary>Prefiksdan turga — <see cref="TypeOf"/> uchun teskari jadval.</summary>
@@ -127,6 +131,42 @@ public static class NotificationKey
             id.ToString("D", CultureInfo.InvariantCulture),
             Separator,
             date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+
+    /// <summary>
+    /// LAHZA bilan bog'langan kalit: <c>nomzod.suhbat_yaqin:{id}:2026-09-10T14:30</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega sana yetmaydi.</b> Yuqoridagi qoida bo'yicha kalitda
+    /// shartning O'ZGARMAS asosi turadi va u o'zgarsa — bildirishnoma
+    /// qaytadan ko'rinadi (sinov muddati uzaytirilgandagi bilan bir xil
+    /// mulohaza). Suhbatda esa o'zgaradigan narsa KUN emas, VAQT: HR
+    /// suhbatni soat 10:00 dan 15:00 ga surganda nomzod yangi xabar
+    /// oladi (<c>Candidate.InviteToInterview</c>), HR ning o'zi esa
+    /// ertalab «o'qildi» qilgan yozuvi tufayli yangi vaqt haqida
+    /// ogohlantirishni UMUMAN olmasdi — kun o'zgarmagani uchun kalit
+    /// ham o'zgarmasdi.
+    /// </para>
+    /// <para>
+    /// <b>Aniqlik — DAQIQA.</b> Sekund kesiladi: suhbat vaqti ekranda
+    /// daqiqagacha qo'yiladi va kalitga sekund qo'shish uni
+    /// ma'lumotning ko'rinmaydigan qismiga bog'lab qo'yardi.
+    /// </para>
+    /// <para>
+    /// Vaqt TOSHKENT mintaqasida yoziladi (<see cref="BonviTime"/>):
+    /// kalit loglarda va bazada ochiq yotadi, uni o'qiydigan odam esa
+    /// ekrandagi vaqt bilan solishtiradi. Siljish qat'iy son bo'lgani
+    /// uchun natija baribir deterministik — bir xil lahzadan har doim
+    /// bir xil kalit chiqadi.
+    /// </para>
+    /// </remarks>
+    public static string For(NotificationType type, Guid id, DateTimeOffset moment)
+        => string.Concat(
+            Prefix(type),
+            Separator,
+            id.ToString("D", CultureInfo.InvariantCulture),
+            Separator,
+            moment.ToTashkent().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture));
 
     /// <summary>
     /// Kalitning turi. Noma'lum prefiks — <c>null</c>.

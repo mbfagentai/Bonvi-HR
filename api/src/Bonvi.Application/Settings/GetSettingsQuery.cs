@@ -9,7 +9,7 @@ namespace Bonvi.Application.Settings;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Parametrsiz: sozlamalar oltita va ular BIRGA ko'rsatiladi. Filtr
+/// Parametrsiz: sozlamalar sanoqli va ular BIRGA ko'rsatiladi. Filtr
 /// yoki sahifalash ma'nosiz bo'lardi — ro'yxat kodda belgilangan va
 /// hech qachon o'smaydi.
 /// </para>

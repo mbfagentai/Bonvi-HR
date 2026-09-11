@@ -202,3 +202,53 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-10] Fayllar SONI chegarasi ishlovchida ham tekshiriladimi (SPEC «oldindan tekshir» degan, xato manbasini aytmagan) → `RecruitingErrors.ResumeTooMany` qo'shildi, kodi domendagi bilan AYNAN bir xil (`nomzod.rezyume_kop`) → invariant `Candidate.AttachFile` da qoladi, lekin u faylni diskka yozgandan keyin ishlaydi: o'nta fayli bor nomzodga 4 MB lik suratni o'qib, kichraytirib, saqlab, so'ng o'chirish behuda ish. Yangi xato kodi paydo bo'lmadi, ya'ni `./bonvi check` ga ta'siri yo'q.
 - [2026-09-10] `hasResume` ni «kamida bitta fayl bormi» ga o'girish QAYERDA bajariladi (SPEC proyeksiyaning o'zini ko'rsatgan) → SQL ichida, `joined` ning maydoni bo'lib (`EXISTS`), materializatsiyadan keyingi `page.Select(...)` da EMAS → u yerda `Any(...)` har qator uchun alohida sinxron so'rov yuborardi (25 qatorlik sahifa — 25 ortiqcha murojaat). Natija bir xil, so'rov soni bitta.
 - [2026-09-10] Keyingi aloqa sanasining uch holatli qoidasi (qo'y / tozala / tegma) ikkita amalda kerak — bosqich yozish va suhbatga chaqirish → bitta `internal static` metod (`RecordCandidateStageCommandHandler.ApplyNextContact`), ikki nusxa emas → nusxalar bir kun ajralib ketardi va farqi faqat «sudrab o'tkazgandan keyin sana yo'qoldi» degan shikoyatda ko'rinardi (naqsh `RegisterCandidateCommandHandler.ParsePhone` dan).
+- [2026-09-10] Yangi sozlamaning TO'LIQ kaliti qanday (shartnoma faqat
+  `interviewWarningHours` degan) → `notifications.interviewWarningHours` →
+  guruhdagi qo'shnilari ham aynan shu prefiks bilan yuradi
+  (`notifications.probationWarningDays`, `notifications.newCandidateDays`) va
+  ekran maydonni KALIT bo'yicha topadi: server boshqa nom bersa, maydon
+  shunchaki chizilmaydi (xato chiqmaydi, shu sababli backend bilan nom bir xil
+  bo'lishi shart).
+- [2026-09-10] Uchta yangi bildirishnoma turining SON qiymatlari (shartnomada
+  faqat nomlar berilgan) → `CandidateContactDue: 11`,
+  `CandidateContactOverdue: 12`, `CandidateInterviewSoon: 13` →
+  `NotificationType` da yangisi oxiriga qo'shiladi va oxirgi band qiymat 10
+  edi. Bu jadval faqat ZAXIRA yo'l: server `JsonStringEnumConverter` bilan nom
+  yuboradi va `toType` avval nomga qaraydi, ya'ni taxmin xato bo'lsa ham ekran
+  buzilmaydi.
+- [2026-09-10] Nomzod ismi va suhbat vaqti parametri qaysi nom bilan keladi
+  (shartnoma `name`/`time` deydi, mavjud turlar esa `candidateName` yuboradi) →
+  ikkalasi ham qabul qilinadi (`candidateName ?? name`, `time ?? interviewTime`)
+  → shartnomaning ikki tomoni parallel yozilyapti va nom bir harfga farq qilsa
+  jumlada ism yoki vaqt o'rniga bo'shliq qolardi; qo'shimcha zaxira nom
+  hech kimga xalaqit bermaydi.
+- [2026-09-11] Yangi bildirishnomalarning parametr nomlari (shartnoma jadvali
+  `name` va `time` deydi) → serverdan `candidateName` va `interviewTime`
+  ketadi → jadvaldagi nomlar FRONTEND o'rinbosarlari (`{{name}}`,
+  `{{time}}`), server nomlari esa har doim ma'no bilan aniqlangan
+  (`employeeName`, `endDate`, `daysLeft` — `NotificationParams` izohi) va
+  `CandidateNew` aynan `candidateName` yuboradi. Qisqa `name` bir kun
+  xodimniki bilan aralashardi. Frontend ikkala nomni ham qabul qiladi.
+- [2026-09-11] Aloqa/suhbat bildirishnomalari REZERVdagi nomzodga chiqadimi
+  → ALOQA: `InProgress` VA `Reserve`; SUHBAT: faqat `InProgress` →
+  foydalanuvchi qarori (2026-09-11). Domen rezervga o'tkazishda aloqa
+  sanasini ATAYLAB saqlab qoladi (`Candidate.Close`) — «o'rin bo'shaganda
+  chaqiramiz». Agar eslatma chiqmasa, sana yozilardi-yu hech qachon
+  ogohlantirmasdi, ya'ni saqlashning butun sababi yo'qolardi.
+  Asimmetriya ham ataylab: rezervdagi odamga suhbat belgilanmaydi
+  (`InviteToInterview` → `IsActive`), ya'ni suhbat so'roviga rezervni
+  qo'shish mavjud bo'lmagan holatni ekranga chiqarardi.
+  ⚠️ Bu so'rov qo'shni `ListNewCandidatesAsync` dan ATAYLAB farq qiladi —
+  u «faol voronka» haqidagi savol, bu esa HR ning bugungi ish ro'yxati.
+- [2026-09-11] «Suhbat yaqin» kalitiga sana yetadimi → YO'Q, LAHZA
+  (daqiqagacha, `NotificationKey.For(..., DateTimeOffset)`) → suhbat ko'p
+  hollarda O'SHA kunning ichida ko'chiriladi; sana bilan kalit
+  o'zgarmasdi va ertalab «o'qildi» qilingan HR yangi vaqt haqida
+  ogohlantirishni umuman olmasdi (sinov muddati uzaytirilgandagi bilan bir
+  xil mulohaza).
+- [2026-09-11] `interview_at` uchun indeks qo'shilmadi (migratsiya ham yo'q) →
+  jadval bir necha ming qator va so'rov faqat qo'ng'iroq bosilganda ketadi;
+  indeks har bir suhbat taklifida yozish narxini oshirardi. Nomzodlar soni
+  o'n minglarga chiqsa — qisman indeks (`interview_at IS NOT NULL`)
+  qo'shiladigan birinchi joy `NotificationReadModel` da izoh bilan
+  belgilangan.

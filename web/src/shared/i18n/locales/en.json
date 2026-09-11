@@ -84,9 +84,11 @@
       "reapplyMonths": "Re-application cooldown (months)",
       "reapplyMonthsHint": "Once an application is closed, the bot refuses a new one from that person for this many months. Applies to the BOT only — manual entry by HR is never blocked.",
       "groupNotifications": "Notifications",
-      "groupNotificationsHint": "How many days ahead the bell warnings appear",
+      "groupNotificationsHint": "How far ahead the bell warnings appear",
       "probationWarningDays": "Probation warning (days)",
       "newCandidateDays": "New candidate shown for (days)",
+      "interviewWarningHours": "Interview warning (hours)",
+      "interviewWarningHoursHint": "How many hours before the interview starts the bell warning appears. Only interviews with a set time are covered.",
       "readRetentionDays": "Days a read notification stays in the list",
       "range": "from {{min}} to {{max}}",
       "textHint": "Leave empty and the bot hides this section. Enter for a new line.",
@@ -1402,6 +1404,18 @@
       "candidateFromBot": {
         "title": "Application from the bot",
         "text": "{{name}} applied through the Telegram bot on {{date}} and is waiting to be contacted."
+      },
+      "candidateContactDue": {
+        "title": "Contact due today",
+        "text": "{{name}} — needs to be contacted today ({{date}})."
+      },
+      "candidateContactOverdue": {
+        "title": "Contact overdue",
+        "text": "{{name}} — was due to be contacted on {{date}}; that date has passed."
+      },
+      "candidateInterviewSoon": {
+        "title": "Interview soon",
+        "text": "{{name}} — interview starts at {{time}}."
       }
     },
     "moreArrived": "{{n}} more new notifications"

@@ -135,6 +135,52 @@ internal sealed class NotificationTestContext
         return row;
     }
 
+    /// <summary>Keyingi aloqa sanasi kelib qolgan nomzodni qo'shadi.</summary>
+    /// <param name="daysUntil">
+    /// Sananing bugunga nisbati: <c>0</c> — bugun bog'lanish kerak,
+    /// MANFIY — sana o'tib ketgan. Musbat qiymat manbadan umuman
+    /// kelmaydi (so'rovning yuqori chegarasi — bugun), lekin bu yerda
+    /// TAQIQLANMAGAN: chegara bazaning ishi va uni soxta manba
+    /// takrorlamaydi (sinf izohi).
+    /// </param>
+    /// <param name="name">Nomzod nomi — bildirishnoma matnida ko'rinadi.</param>
+    /// <param name="candidateId">
+    /// Nomzod. Berilmasa — yangisi. Bir XIL nomzodning ikkinchi rejasini
+    /// yasash uchun kerak: «HR sanani boshqa kunga ko'chirdi» degan
+    /// holat aynan shu bilan tekshiriladi.
+    /// </param>
+    public CandidateContactRow Contact(
+        int daysUntil = 0,
+        string name = "Yusupova Nilufar",
+        Guid? candidateId = null)
+    {
+        var row = new CandidateContactRow(
+            candidateId ?? Guid.CreateVersion7(),
+            name,
+            Today.AddDays(daysUntil));
+
+        Source.Contacts.Add(row);
+        return row;
+    }
+
+    /// <summary>Yaqinlashib qolgan suhbatni qo'shadi.</summary>
+    /// <param name="at">
+    /// Suhbat LAHZASI. Siljishi ixtiyoriy — bazadan u UTC bo'lib keladi,
+    /// testlarda esa aynan shu o'girish tekshiriladi.
+    /// </param>
+    /// <param name="name">Nomzod nomi.</param>
+    /// <param name="candidateId">Nomzod. Berilmasa — yangisi (<see cref="Contact"/> dagi bilan bir xil sabab).</param>
+    public CandidateInterviewRow Interview(
+        DateTimeOffset at,
+        string name = "Xolmatov Sardor",
+        Guid? candidateId = null)
+    {
+        var row = new CandidateInterviewRow(candidateId ?? Guid.CreateVersion7(), name, at);
+
+        Source.Interviews.Add(row);
+        return row;
+    }
+
     /// <summary>Sinov yozuvisiz qolgan munosabatni qo'shadi.</summary>
     public MissingProbationRow MissingProbation(string name = "Toshmatov Olim")
     {
@@ -171,10 +217,25 @@ internal sealed class FakeNotificationSource : INotificationReadModel
 
     public List<NewCandidateRow> Candidates { get; } = [];
 
+    /// <summary>Keyingi aloqa sanasi kelib qolgan nomzodlar.</summary>
+    public List<CandidateContactRow> Contacts { get; } = [];
+
+    /// <summary>Yaqinlashib qolgan suhbatlar.</summary>
+    public List<CandidateInterviewRow> Interviews { get; } = [];
+
     /// <summary>Manba so'rovlari nechta marta chaqirilgani — ruxsat testlari uchun.</summary>
     public int ProbationCalls { get; private set; }
 
-    /// <summary>Nomzodlar so'ralgani — ruxsatsiz odam uchun so'rov umuman ketmasligi kerak.</summary>
+    /// <summary>
+    /// Nomzodlar so'ralgani — ruxsatsiz odam uchun so'rov umuman
+    /// ketmasligi kerak.
+    /// </summary>
+    /// <remarks>
+    /// Sanoq nomzodlarga tegishli UCHALA so'rovni ham qamrab oladi
+    /// (yangi nomzodlar, keyingi aloqa, suhbat): ruxsat tekshiruvi
+    /// har bo'lakda alohida va bittasida unutilsa, u shu sanoqda
+    /// ko'rinadi.
+    /// </remarks>
     public int CandidateCalls { get; private set; }
 
     /// <summary>
@@ -190,6 +251,23 @@ internal sealed class FakeNotificationSource : INotificationReadModel
 
     /// <summary>Yangi nomzodlar uchun so'ralgan quyi sana.</summary>
     public DateOnly? LastCandidateSince { get; private set; }
+
+    /// <summary>Keyingi aloqa uchun so'ralgan yuqori sana — amalda «bugun».</summary>
+    public DateOnly? LastContactUntil { get; private set; }
+
+    /// <summary>Suhbatlar uchun so'ralgan oynaning boshi — amalda «hozir».</summary>
+    public DateTimeOffset? LastInterviewFrom { get; private set; }
+
+    /// <summary>
+    /// Suhbatlar uchun so'ralgan oynaning oxiri.
+    /// </summary>
+    /// <remarks>
+    /// Sozlama (<c>notifications.interviewWarningHours</c>) haqiqatan
+    /// chegarani o'zgartirganini boshqa yo'l bilan ko'rsatib bo'lmaydi:
+    /// oyna bazada qo'llanadi, bu yerda esa faqat ESLAB QOLINADI —
+    /// <see cref="LastCandidateSince"/> bilan bir xil sabab.
+    /// </remarks>
+    public DateTimeOffset? LastInterviewUntil { get; private set; }
 
     public Task<IReadOnlyList<ProbationDeadlineRow>> ListProbationDeadlinesAsync(
         DateOnly until,
@@ -213,6 +291,26 @@ internal sealed class FakeNotificationSource : INotificationReadModel
         CandidateCalls++;
         LastCandidateSince = since;
         return Task.FromResult<IReadOnlyList<NewCandidateRow>>([.. Candidates]);
+    }
+
+    public Task<IReadOnlyList<CandidateContactRow>> ListCandidateContactsAsync(
+        DateOnly until,
+        CancellationToken cancellationToken = default)
+    {
+        CandidateCalls++;
+        LastContactUntil = until;
+        return Task.FromResult<IReadOnlyList<CandidateContactRow>>([.. Contacts]);
+    }
+
+    public Task<IReadOnlyList<CandidateInterviewRow>> ListCandidateInterviewsAsync(
+        DateTimeOffset from,
+        DateTimeOffset until,
+        CancellationToken cancellationToken = default)
+    {
+        CandidateCalls++;
+        LastInterviewFrom = from;
+        LastInterviewUntil = until;
+        return Task.FromResult<IReadOnlyList<CandidateInterviewRow>>([.. Interviews]);
     }
 }
 

@@ -1,8 +1,11 @@
 import {
+  AlarmClock,
   Bot,
   Cake,
   CalendarClock,
   Gift,
+  PhoneCall,
+  PhoneMissed,
   Timer,
   TimerOff,
   TriangleAlert,
@@ -42,6 +45,9 @@ export const NOTIFICATION_TEXT_KEYS = [
   'birthdayTomorrow',
   'candidateNew',
   'candidateFromBot',
+  'candidateContactDue',
+  'candidateContactOverdue',
+  'candidateInterviewSoon',
 ] as const
 
 export type NotificationTextKey = (typeof NOTIFICATION_TEXT_KEYS)[number]
@@ -62,6 +68,20 @@ const TEXT_KEY: Readonly<Record<NotificationType, NotificationTextKey>> = {
   BirthdayTomorrow: 'birthdayTomorrow',
   CandidateNew: 'candidateNew',
   CandidateFromBot: 'candidateFromBot',
+
+  /*
+    Aloqa muddati ATAYLAB ikkita turga bo'lingan («bugun» va «o'tib
+    ketdi»), garchi ikkalasi ham bitta sanadan hisoblansa ham. Sabab
+    yuqoridagi izohda aytilgan qoida bilan bir xil: «bugun qo'ng'iroq
+    qiling» va «muddat o'tib ketdi» bitta jumlaga sig'maydi, ularning
+    ohangi ham, shoshilinchligi ham boshqa. Turlarni serverda birlashtirib,
+    farqni parametr bilan berish ham mumkin edi — u holda matn ichida
+    shart paydo bo'lardi va tarjimon uni to'rt tilda takrorlashi kerak
+    bo'lardi.
+  */
+  CandidateContactDue: 'candidateContactDue',
+  CandidateContactOverdue: 'candidateContactOverdue',
+  CandidateInterviewSoon: 'candidateInterviewSoon',
 }
 
 /** Bildirishnoma turiga mos matn kaliti. */
@@ -101,13 +121,20 @@ export type NotificationValues = {
   date: string
   /** Faqat kun soni bor turlarda. */
   days?: string
+  /**
+   * Faqat suhbat vaqti bor turda (`CandidateInterviewSoon`) — «14:30».
+   *
+   * ⚠️ Bu SATR, sana emas, va u SHU HOLICHA chiziladi. Sababi pastda,
+   * `notificationValues` ichida.
+   */
+  time?: string
 }
 
 /**
  * Bildirishnoma matniga qo'yiladigan o'rinbosarlar.
  *
  * To'rttala til uchun BITTA nomlash sxemasi: `{{name}}`, `{{date}}`,
- * `{{days}}`. NEGA server nomlari («employeeName», «endDate»,
+ * `{{days}}`, `{{time}}`. NEGA server nomlari («employeeName», «endDate»,
  * «daysLeft») to'g'ridan-to'g'ri ishlatilmaydi: u holda har bir turning
  * o'rinbosarlari boshqacha bo'lardi va tarjimon (yoki keyingi dasturchi)
  * har safar shartnoma jadvaliga qarab qaysi nomni yozishni tekshirishga
@@ -127,12 +154,30 @@ export function notificationValues(
     item.params['endDate'] ??
     item.params['hireDate'] ??
     item.params['birthDate'] ??
-    item.params['addedOn']
+    item.params['addedOn'] ??
+    /*
+      Keyingi aloqa sanasi — aloqa turlarida. Shartnoma bo'yicha u
+      bildirishnomaning O'Z sanasi bilan bir xil bo'lishi kerak, ya'ni
+      pastdagi zaxira ham to'g'ri javob berardi. Baribir ro'yxatda:
+      «muddat o'tib ketdi» matni AYNAN o'sha sanani aytadi va agar
+      server bir kun `Date` ga «bugun» ni yozib qo'ysa, jumla jimgina
+      yolg'onga aylanardi («aloqa sanasi bugun edi, muddat o'tib
+      ketdi»). Parametr bor bo'lsa — u ishonchliroq manba.
+    */
+    item.params['nextContactDate']
 
   const values: NotificationValues = {
     // Ism — xodimniki yoki nomzodniki. Ikkalasi bir vaqtda hech qachon
     // kelmaydi, shu sababli birini tanlash yetarli.
-    name: item.params['employeeName'] ?? item.params['candidateName'] ?? '',
+    //
+    // Uchinchi variant — qisqa `name`. Aloqa va suhbat turlarining
+    // shartnomasi parametrni AYNAN shunday nomlaydi; eski turlar esa
+    // to'liq nomni («candidateName») yuboradi. Ikkalasini ham qabul
+    // qilish ATAYLAB: shartnomaning ikki tomoni ikki papkada va
+    // parallel yozilyapti, nom bir harfga farq qilsa ekranda ism
+    // o'rniga BO'SHLIQ qolardi — jumla esa «— bugun aloqa qilish
+    // kerak» bo'lib chiqardi. Tartib muhim: aniqroq nom oldinda.
+    name: item.params['employeeName'] ?? item.params['candidateName'] ?? item.params['name'] ?? '',
 
     // Sana topilmasa — bildirishnomaning O'Z sanasi ishlatiladi: u har
     // doim bor va aynan shu hodisaga ishora qiladi.
@@ -150,6 +195,29 @@ export function notificationValues(
   const days = Number(rawDays)
   if (rawDays !== undefined && Number.isFinite(days)) {
     values.days = fmt.num(days)
+  }
+
+  /*
+   * Suhbat vaqti — serverdan TAYYOR matn bo'lib keladi («14:30»,
+   * Toshkent vaqtida).
+   *
+   * ⚠️ Bu yerda `fmt.date` ham, `new Date(...)` ham ATAYLAB YO'Q va bu
+   * eng muhim qatorlardan biri. Loyihaning qoidasi: saqlash UTC,
+   * ko'rsatish +5. O'girishni SERVER bajarib bo'lgan, ya'ni satrni
+   * qayta o'qib, brauzer mintaqasiga solish +5 ni IKKINCHI marta
+   * qo'shardi — soat 14:30 dagi suhbat ekranda 19:30 bo'lib
+   * ko'rinardi. Bundan tashqari «14:30» hech qanday mintaqa
+   * ma'lumotini tashimaydi, ya'ni uni sana deb o'qish umuman
+   * ishonchsiz (`Invalid Date` yoki bugungi kunning tasodifiy soati).
+   *
+   * Bo'sh satr umuman QO'YILMAYDI: i18next to'ldirilmagan o'rinbosarni
+   * o'z holicha qoldiradi va matnda `{{time}}` ko'rinib qoladi — bu
+   * «suhbat  da» degan jimgina buzilgan jumladan ko'ra darrov
+   * sezilarli, ya'ni server vaqtni yubormay qo'ysa xato yashirinmaydi.
+   */
+  const rawTime = item.params['time'] ?? item.params['interviewTime']
+  if (rawTime !== undefined && rawTime.trim() !== '') {
+    values.time = rawTime.trim()
   }
 
   return values
@@ -240,8 +308,8 @@ export function notificationMeta(
  * qarori), ya'ni jiddiy yozuv o'rtada turishi mumkin. Ilgari uni
  * TARTIB ajratib turardi, endi — RANG.
  *
- * <b>Nega har bir TUR uchun alohida rang emas.</b> Turlar sakkizta;
- * sakkizta fon rangi ro'yxatni chiziqli bezakka aylantirardi va hech
+ * <b>Nega har bir TUR uchun alohida rang emas.</b> Turlar o'n bitta;
+ * o'n bitta fon rangi ro'yxatni chiziqli bezakka aylantirardi va hech
  * qanday savolga javob bermasdi. Turni SHAKL (ikona) aytadi, rang esa
  * shoshilinchlikni — bu loyihaning mavjud qoidasi (`TYPE_ICON` izohi)
  * va u shu yerda ham buzilmaydi.
@@ -275,7 +343,7 @@ export const SEVERITY_LOOK: Readonly<
  * Har bir tur uchun ikona.
  *
  * NEGA rang emas, SHAKL ham kerak: ranglar atigi uchta (uchta daraja),
- * turlar esa sakkizta — bir xil to'q sariq nuqta «sinov tugayapti» ni
+ * turlar esa o'n bitta — bir xil to'q sariq nuqta «sinov tugayapti» ni
  * ham, «sinov yozuvi yo'q» ni ham bildirardi. Ikona ro'yxatni matnni
  * o'qimasdan ajratish imkonini beradi; rang esa qanchalik shoshilinch
  * ekanini aytadi. Ikkalasi bir-birini takrorlamaydi.
@@ -295,6 +363,22 @@ export const TYPE_ICON: Readonly<Record<NotificationType, LucideIcon>> = {
     javob oladi — bu esa aynan shu ikkisining yagona muhim farqi.
   */
   CandidateFromBot: Bot,
+
+  /*
+    Aloqa turlari — TELEFON ikonasi, chunki amal ham aynan shu:
+    nomzodga qo'ng'iroq qilinadi. «O'tkazib yuborilgan qo'ng'iroq»
+    (`PhoneMissed`) muddati o'tgani uchun ataylab: u telefonda ham
+    AYNAN shu ma'noni bildiradi va HR uni o'rganishga majbur emas.
+
+    Suhbat — `AlarmClock`, `CalendarClock` EMAS: kalendar ikonasi
+    allaqachon «sinov muddati bugun tugaydi» da band va ikkalasi yonma-yon
+    tursa ro'yxatda farqlanmasdi. Budilnik esa boshqa narsani aytadi —
+    voqea BUGUN emas, bir necha DAQIQADAN keyin; qo'ng'iroqchaning
+    «hozir keladi» degan yagona shoshilinch yozuvi shu.
+  */
+  CandidateContactDue: PhoneCall,
+  CandidateContactOverdue: PhoneMissed,
+  CandidateInterviewSoon: AlarmClock,
 }
 
 /**

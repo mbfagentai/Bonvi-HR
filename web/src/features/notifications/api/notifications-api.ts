@@ -30,13 +30,21 @@ import { api } from '@/shared/api/http-client'
  */
 
 /**
- * Sakkizta tur. Yangisi OXIRIGA qo'shiladi (backend'da ham shunday).
+ * O'n bitta tur. Yangisi OXIRIGA qo'shiladi (backend'da ham shunday).
  *
  * ⚠️ Tartib C# sanoq QIYMATLARIGA MOS EMAS: ish taklifi bilan birga
  * 8 va 9-qiymatlar o'chirildi va qolganlari SURILMADI
  * (`NotificationType` izohi), ya'ni `CandidateFromBot` server tomonda
  * hamon 10. Shu sababli pastda son bo'yicha o'girish alohida jadval
  * orqali ketadi — indeks bo'yicha emas.
+ *
+ * Oxirgi UCHTASI — nomzodning KEYINGI ALOQA sanasidan o'sadi. Ilgari bu
+ * sana ro'yxatda alohida ustun edi va mijoz uni olib tashlatdi (jadval
+ * juda kengayib ketgan edi), lekin sananing o'zi yozilishda qolgan.
+ * Ya'ni ma'lumot bor, ko'rinishi yo'q edi — endi uni qo'ng'iroqcha
+ * ko'taradi: ertalab «bugun kimga qo'ng'iroq qilaman», suhbatdan bir
+ * soat oldin «bu odam hozir keladi». Ustunni QAYTARISH varianti
+ * ataylab rad etildi: mijoz aynan undan voz kechgan.
  */
 export const NOTIFICATION_TYPES = [
   'ProbationEndingSoon',
@@ -47,6 +55,9 @@ export const NOTIFICATION_TYPES = [
   'BirthdayTomorrow',
   'CandidateNew',
   'CandidateFromBot',
+  'CandidateContactDue',
+  'CandidateContactOverdue',
+  'CandidateInterviewSoon',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
@@ -209,6 +220,22 @@ const TYPE_BY_NUMBER: Readonly<Record<number, NotificationType>> = {
   6: 'BirthdayTomorrow',
   7: 'CandidateNew',
   10: 'CandidateFromBot',
+
+  /*
+    11–13 — TASDIQLANGAN: serverda shu qiymatlar turibdi va ular
+    `CandidateNotificationKeyTests.Uch_turning_qiymati_siljimaydi`
+    testi bilan qadab qo'yilgan, ya'ni sanoq siljisa test yiqiladi.
+    Bu jadval baribir faqat ZAXIRA yo'l va xato bo'lganda ham ekran
+    BUZILMASDI: server
+    `JsonStringEnumConverter` bilan NOM yuboradi va `toType` avval
+    nomga qaraydi; bu jadval faqat zaxira yo'l (sanoq JSON sozlamasi
+    o'zgarib qolgan holat) — shu sababli u yerda taxmin qilish
+    «umuman yozmaslik» dan xavfsizroq: yozilmasa, son kelgan zahoti
+    hamma narsa jimgina `ProbationEndingSoon` ga aylanardi.
+  */
+  11: 'CandidateContactDue',
+  12: 'CandidateContactOverdue',
+  13: 'CandidateInterviewSoon',
 }
 
 /**

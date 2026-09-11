@@ -58,6 +58,28 @@ public static class NotificationParams
     /// <summary>Nomzod qo'shilgan sana (ISO).</summary>
     public const string AddedOn = "addedOn";
 
+    /// <summary>
+    /// Suhbat VAQTI — <c>HH:mm</c>, Toshkent vaqtida.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Yagona OLDINDAN FORMATLANGAN parametr.</b> Qolganlari xom
+    /// qiymat (sana ISO, son invariant) va ko'rinishni frontend
+    /// tanlaydi. Bu yerda boshqacha bo'lishining sababi tashkiliy emas,
+    /// TEXNIK: bildirishnomaning o'z sanasi <c>DateOnly</c>
+    /// (<c>NotificationDto.Date</c>) — ya'ni javobda LAHZA olib
+    /// o'tadigan boshqa joy yo'q. Xom qiymat sifatida UTC lahzasini
+    /// yuborish esa mintaqani mijozga o'tkazardi: brauzer sozlamasi
+    /// boshqa mintaqada turgan noutbukda suhbat vaqti besh soatga
+    /// surilib ko'rinardi.
+    /// </para>
+    /// <para>
+    /// Mintaqa serverda hal qilinadi — loyihaning umumiy qoidasi:
+    /// saqlash UTC, ko'rsatish Toshkent (<c>BonviTime</c>).
+    /// </para>
+    /// </remarks>
+    public const string InterviewTime = "interviewTime";
+
     /// <summary>Muddat tugashiga qolgan kunlar — musbat son.</summary>
     public const string DaysLeft = "daysLeft";
 
@@ -190,6 +212,8 @@ public sealed class NotificationCollector
         await AddMissingProbationsAsync(items, cancellationToken).ConfigureAwait(false);
         await AddBirthdaysAsync(items, today, cancellationToken).ConfigureAwait(false);
         await AddNewCandidatesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
+        await AddCandidateContactsAsync(items, today, cancellationToken).ConfigureAwait(false);
+        await AddCandidateInterviewsAsync(items, settings, cancellationToken).ConfigureAwait(false);
 
         return
         [
@@ -486,6 +510,166 @@ public sealed class NotificationCollector
     }
 
     // ════════════════════════════════════════════════════════════
+    //  Rekruting: keyingi aloqa — bugun / kechikkan
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// «Bugun kimga qo'ng'iroq qilishim kerak» — keyingi aloqa sanasi
+    /// kelib qolgan nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bu bo'lakning sozlamasi YO'Q va kerak ham emas: sana HR ning
+    /// O'ZI tanlagan kuni, chegara emas. «Necha kun oldin
+    /// ogohlantirilsin» degan sozlama qo'shilsa, u HR ning qaroriga
+    /// ikkinchi qoida qo'shib qo'yardi — u «5-noyabrda qo'ng'iroq
+    /// qilaman» deb yozgan bo'lsa, xabar aynan o'sha kuni kerak.
+    /// </para>
+    /// <para>
+    /// Parametrlarda faqat ISM bor. Sana ALOHIDA parametr bo'lib
+    /// ketmaydi, chunki u bildirishnomaning O'Z sanasi
+    /// (<c>NotificationDto.Date</c>) — frontend sanasi yo'q turlarda
+    /// aynan shuni oladi (<c>notificationValues</c>). Ikkinchi nusxa
+    /// faqat ikkitasi ajralib ketishi uchun imkoniyat yaratardi.
+    /// </para>
+    /// </remarks>
+    private async Task AddCandidateContactsAsync(
+        List<NotificationDto> items,
+        DateOnly today,
+        CancellationToken cancellationToken)
+    {
+        // Ikkala tur ham bitta ruxsat ostida — bittasini tekshirish yetadi
+        // (sinov muddatlaridagi bilan bir xil naqsh).
+        if (!Allowed(NotificationType.CandidateContactDue))
+        {
+            return;
+        }
+
+        // Yuqori chegara — BUGUN: ertangi va undan keyingi rejalar
+        // qo'ng'iroqqa tushmaydi. Kechikkanlarga quyi chegara yo'q.
+        var rows = await _source
+            .ListCandidateContactsAsync(today, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var row in rows)
+        {
+            /*
+              Ikkala tur O'ZARO INKOR: sana yo bugun, yo o'tmishda.
+              Uchinchi holat («kelajak») bu yerga umuman yetib kelmaydi —
+              u so'rovning yuqori chegarasida kesilgan. Shart shu sababli
+              `switch` emas, oddiy solishtiruv: qiyoslanadigan narsa
+              bitta va u ikki qiymatli.
+            */
+            var overdue = row.NextContactDate < today;
+
+            var type = overdue
+                ? NotificationType.CandidateContactOverdue
+                : NotificationType.CandidateContactDue;
+
+            // Daraja sinov muddatlaridan ko'chirilgan: «bugun bajariladigan
+            // ish» — diqqat, «muddati o'tgan ish» — jiddiy.
+            var severity = overdue
+                ? NotificationSeverity.Critical
+                : NotificationSeverity.Warning;
+
+            var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [NotificationParams.CandidateName] = row.CandidateName,
+            };
+
+            items.Add(new NotificationDto(
+                // Kalitda SANA bor: HR aloqani boshqa kunga ko'chirsa
+                // (`SetNextContactDate`), bu YANGI reja va uning
+                // «o'qildi» belgisi eskisidan o'tmasligi kerak — sinov
+                // muddati uzaytirilgandagi bilan bir xil mulohaza
+                // (`NotificationKey` izohi).
+                NotificationKey.For(type, row.CandidateId, row.NextContactDate),
+                type,
+                severity,
+                row.NextContactDate,
+                parameters,
+                new NotificationLinkDto(NotificationRoute.Candidate, row.CandidateId)));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Rekruting: suhbat yaqinlashdi
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// «Bu odam hozir keladi» — sozlamadagi oyna ichidagi suhbatlar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Yagona SOATLIK bo'lak.</b> Qolgan hammasi <c>_clock.Today</c>
+    /// bilan ishlaydi, bu yerda esa <c>_clock.UtcNow</c> kerak: oyna
+    /// bir necha soat va uni kun bilan o'lchab bo'lmaydi. Ikkalasi ham
+    /// AYNI soatdan keladi — <c>DateTime.Now</c> hech qayerda
+    /// chaqirilmaydi, aks holda testlarda vaqtni boshqarib
+    /// bo'lmasdi (<c>IClock</c> izohi).
+    /// </para>
+    /// <para>
+    /// Oynaning ikkala cheti ham KIRADI. Bu chekka holat emas, aniq
+    /// qaror: aynan «hozir» boshlanadigan suhbat ham, oynaning eng
+    /// chetidagi suhbat ham ko'rinishi kerak — chegarada yozuvni
+    /// tashlab yuborish HR uchun tushuntirib bo'lmaydigan xatti-harakat
+    /// bo'lardi.
+    /// </para>
+    /// </remarks>
+    private async Task AddCandidateInterviewsAsync(
+        List<NotificationDto> items,
+        SystemSettings settings,
+        CancellationToken cancellationToken)
+    {
+        if (!Allowed(NotificationType.CandidateInterviewSoon))
+        {
+            return;
+        }
+
+        var now = _clock.UtcNow;
+        var until = now.AddHours(settings.Number(SystemSettingKeys.InterviewWarningHours));
+
+        // Quyi chegara — HOZIR: o'tib ketgan suhbat «yaqin» emas
+        // (`NotificationType.CandidateInterviewSoon` izohi). Filtrning
+        // O'ZI bazada bajariladi, bu yerda takrorlanmaydi: ikki nusxadagi
+        // shart bir kun ajralib ketardi.
+        var rows = await _source
+            .ListCandidateInterviewsAsync(now, until, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var row in rows)
+        {
+            var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [NotificationParams.CandidateName] = row.CandidateName,
+
+                // Vaqt Toshkent mintaqasida va TAYYOR ko'rinishda —
+                // sabab `NotificationParams.InterviewTime` izohida.
+                [NotificationParams.InterviewTime] = Time(row.InterviewAt),
+            };
+
+            items.Add(new NotificationDto(
+                // Kalitda LAHZA (daqiqagacha), sana emas: suhbat o'sha
+                // kunning ichida ko'chirilsa ham bu YANGI holat va
+                // ogohlantirish qaytadan ko'rinishi kerak.
+                NotificationKey.For(NotificationType.CandidateInterviewSoon, row.CandidateId, row.InterviewAt),
+                NotificationType.CandidateInterviewSoon,
+
+                // «Diqqat», «jiddiy» emas: suhbat hali BO'LMAGAN —
+                // bu bugun bajariladigan ish, o'tkazib yuborilgan
+                // muddat emas (`ProbationEndsToday` bilan bir xil daraja).
+                NotificationSeverity.Warning,
+
+                // Sana — suhbat KUNI, Toshkent kalendarida. UTC kuni
+                // olinsa, kechqurun 01:00 dan keyingi suhbat ro'yxatda
+                // «kechagi» bo'lib turardi.
+                row.InterviewAt.TashkentDate(),
+                parameters,
+                new NotificationLinkDto(NotificationRoute.Candidate, row.CandidateId)));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  Kichik yordamchilar
     // ════════════════════════════════════════════════════════════
 
@@ -511,4 +695,21 @@ public sealed class NotificationCollector
 
     /// <summary>Son — invariant formatda, ajratgichsiz.</summary>
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>Lahzaning VAQTI — <c>HH:mm</c>, Toshkent mintaqasida.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Siljish <see cref="BonviTime"/> dan olinadi va u yerdan
+    /// boshqa hech qayerdan: qo'lda yozilgan «+5» tizimda ikkinchi
+    /// haqiqat yaratardi (o'sha sinf izohi). Bu yerdagi xato jimgina
+    /// bo'lardi — suhbat vaqti ekranda besh soat oldin ko'rinardi va
+    /// buni faqat kelmagan nomzod ko'rsatardi.
+    /// </para>
+    /// <para>
+    /// Format 24 soatlik va invariant: tizimning to'rtala tilida ham
+    /// vaqt aynan shunday yoziladi va «PM» degan tushuncha yo'q.
+    /// </para>
+    /// </remarks>
+    private static string Time(DateTimeOffset moment)
+        => moment.ToTashkent().ToString("HH:mm", CultureInfo.InvariantCulture);
 }

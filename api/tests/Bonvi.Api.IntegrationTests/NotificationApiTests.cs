@@ -1,10 +1,14 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Api.IntegrationTests;
@@ -67,6 +71,9 @@ public sealed class NotificationApiTests : IClassFixture<BonviApiFactory>
 
     /// <summary>Bitta testning yozuvlarini ajratib turadigan belgi.</summary>
     private static string Belgi() => "BX" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+
+    /// <summary>Telefon raqamlari takrorlanmasligi uchun hisoblagich.</summary>
+    private static int _raqamHisoblagichi;
 
     // ────────────────────────────────────────────────────────────
     //  Ruxsat
@@ -326,6 +333,212 @@ public sealed class NotificationApiTests : IClassFixture<BonviApiFactory>
         return meniki.ShouldHaveSingleItem();
     }
 
+    // ────────────────────────────────────────────────────────────
+    //  «Keyingi aloqa» — QAYSI HOLATDAGI nomzod ogohlantiradi
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// ⭐ Aloqa eslatmasi FAQAT jarayondagi va REZERVDAGI nomzodga
+    /// chiqadi; rad etilgan, o'zi voz kechgan va ishga olinganga
+    /// CHIQMAYDI.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bu test HAQIQIY BAZADA.</b> Qoida EF so'roviga yozilgan
+    /// (<c>NotificationReadModel.ListCandidateContactsAsync</c>),
+    /// Application qatlamidagi testlar esa o'qish modelini soxta manba
+    /// bilan almashtiradi — ya'ni ular bu shartni UMUMAN ko'rmaydi.
+    /// Shartni faqat shu yerda qadab bo'ladi.
+    /// </para>
+    /// <para>
+    /// <b>Nega holat va sana TO'G'RIDAN-TO'G'RI bazaga yoziladi.</b>
+    /// Domen nomzodni yopganda aloqa sanasini O'ZI tozalaydi
+    /// (<c>Candidate.Close</c>), ya'ni API orqali «rad etilgan, lekin
+    /// sanasi bor» holatini yasab bo'lmaydi. Bunday qator baribir
+    /// PAYDO BO'LADI — Excel arxivi bazaga to'g'ridan-to'g'ri
+    /// yoziladi va ertaga ETL aloqa sanasini ham ko'chira boshlashi
+    /// mumkin. Aynan o'sha holat bu yerda yasalmoqda: himoya domen
+    /// tozalashida emas, SO'ROVNING o'zida bo'lishi kerak.
+    /// </para>
+    /// <para>
+    /// <b>Rezerv — foydalanuvchi qarori (2026-09-11).</b> Rezervga
+    /// o'tkazishda sana ATAYLAB saqlanadi («o'rin bo'shaganda
+    /// chaqiramiz»). Agar eslatma chiqmasa, sana yozilardi-yu hech
+    /// qachon ogohlantirmasdi — ya'ni saqlashning sababi yo'qolardi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Aloqa_eslatmasi_FAQAT_jarayondagi_va_rezervdagiga_chiqadi()
+    {
+        var belgi = Belgi();
+        using var client = await AdminMijozAsync();
+
+        var bugun = await BugunAsync(client);
+
+        // Har bir holat uchun bitta nomzod — familiyasida belgi bor, shu
+        // sababli boshqa testlarning yozuvlari bilan aralashmaydi.
+        var holatlar = new (string Familiya, CandidateStatus Holat, bool Kutiladi)[]
+        {
+            ("Жараён", CandidateStatus.InProgress, true),
+            ("Резерв", CandidateStatus.Reserve, true),
+            ("Рад", CandidateStatus.Rejected, false),
+            ("Воз", CandidateStatus.Withdrawn, false),
+            ("Ишга", CandidateStatus.Hired, false),
+        };
+
+        var kimlar = new Dictionary<Guid, (string Familiya, bool Kutiladi)>();
+
+        foreach (var (familiya, holat, kutiladi) in holatlar)
+        {
+            var id = await NomzodAsync(client, familiya + belgi);
+            kimlar[id] = (familiya, kutiladi);
+
+            await using var qamrov = _factory.Services.CreateAsyncScope();
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            // Domen gvardiyalarini chetlab o'tish ATAYLAB — sabab yuqorida.
+            await kontekst.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE candidates
+                    SET status = {(int)holat}, next_contact_date = {bugun}
+                  WHERE id = {id}
+                 """,
+                TestContext.Current.CancellationToken);
+        }
+
+        var royxat = await RoyxatAsync(client);
+
+        var chiqqanlar = royxat.Items
+            .Where(item => item.Type == "CandidateContactDue"
+                && item.Link.Id is { } id && kimlar.ContainsKey(id))
+            .Select(item => kimlar[item.Link.Id!.Value].Familiya)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var (familiya, _, kutiladi) in holatlar)
+        {
+            chiqqanlar.Contains(familiya).ShouldBe(
+                kutiladi,
+                $"«{familiya}» holatidagi nomzod uchun eslatma {(kutiladi ? "CHIQISHI" : "CHIQMASLIGI")} kerak edi");
+        }
+    }
+
+    /// <summary>
+    /// ⭐ Yaqinlashgan suhbat eslatmasi HAQIQIY BAZADAN chiqadi va vaqti
+    /// TOSHKENT soatida yoziladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bu test ZARUR, garchi qo'shni salbiy test bo'lsa ham.</b>
+    /// «Rezervdagiga chiqmaydi» degan test so'rov UMUMAN bo'sh qaytarsa
+    /// ham yashil qolaveradi — ya'ni u yolg'iz o'zi hech narsani
+    /// isbotlamaydi. Musbat holat qadalmasa, oyna solishtirishidagi
+    /// xato ham, <c>timestamptz</c> chegarasidagi siljish ham jimgina
+    /// o'tib ketardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega Application qatlamidagi testlar yetmaydi.</b> U yerda
+    /// o'qish modeli soxta manba bilan almashtiriladi, ya'ni
+    /// <c>status = InProgress AND interview_at BETWEEN …</c> sharti va
+    /// baza bilan borib-kelishda lahzaning saqlanishi UMUMAN
+    /// tekshirilmaydi. Loyihaning eng qimmat xatosi aynan shu yo'lda
+    /// yashaydi: saqlash UTC, ko'rsatish Toshkent (+5) — noto'g'ri
+    /// bo'lsa, har bir suhbat ekranda besh soat erta ko'rinadi va buni
+    /// koddan qarab sezib bo'lmaydi.
+    /// </para>
+    /// <para>
+    /// Kutilayotgan qiymat AYNAN yozilgan lahzadan hisoblanadi
+    /// (<c>ToTashkent</c>), qo'lda yozilgan satrdan emas: test kun
+    /// chegarasida ishga tushsa ham ikkala tomon bir xil lahzadan
+    /// kelib chiqadi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Yaqinlashgan_suhbat_TOSHKENT_vaqti_bilan_chiqadi()
+    {
+        var belgi = Belgi();
+        using var client = await AdminMijozAsync();
+
+        var id = await NomzodAsync(client, "Суҳбатяқин" + belgi);
+
+        // Yarim soatdan keyin — sukut oyna (1 soat) ichida.
+        var lahza = DateTimeOffset.UtcNow.AddMinutes(30);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            await kontekst.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE candidates
+                    SET status = {(int)CandidateStatus.InProgress}, interview_at = {lahza}
+                  WHERE id = {id}
+                 """,
+                TestContext.Current.CancellationToken);
+        }
+
+        var royxat = await RoyxatAsync(client);
+
+        var yozuv = royxat.Items
+            .SingleOrDefault(item => item.Type == "CandidateInterviewSoon" && item.Link.Id == id);
+
+        yozuv.ShouldNotBeNull("yaqinlashgan suhbat uchun eslatma chiqishi kerak edi");
+
+        var toshkent = lahza.ToTashkent();
+
+        yozuv.Params["interviewTime"].ShouldBe(
+            toshkent.ToString("HH:mm", CultureInfo.InvariantCulture),
+            "vaqt Toshkent soatida bo'lishi kerak (+5)");
+
+        yozuv.Date.ShouldBe(
+            lahza.TashkentDate(),
+            "sana Toshkent kuni bo'lishi kerak — UTC kechqurun ertangi kunga o'tadi");
+
+        yozuv.Link.Route.ShouldBe("Candidate");
+        yozuv.Severity.ShouldBe("Warning");
+    }
+
+    /// <summary>
+    /// Rezervdagi nomzodga SUHBAT eslatmasi chiqmaydi — aloqa
+    /// eslatmasidan ataylab farq qiladi.
+    /// </summary>
+    /// <remarks>
+    /// Rezervdagi odamga suhbat belgilanmaydi: suhbat tayinlash uni
+    /// voronkaga qaytaradi. Ikki so'rovning shartini bir xil qilib
+    /// qo'yish «rezervda turgan odam bilan bugun soat 14:00 da
+    /// suhbat» degan mavjud bo'lmagan holatni ekranga chiqarardi.
+    /// Asimmetriya ATAYLAB, shu sababli u ham qadab qo'yilgan.
+    /// </remarks>
+    [Fact]
+    public async Task Rezervdagiga_SUHBAT_eslatmasi_chiqmaydi()
+    {
+        var belgi = Belgi();
+        using var client = await AdminMijozAsync();
+
+        var id = await NomzodAsync(client, "Резервсуҳбат" + belgi);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            // Yarim soatdan keyingi suhbat — istalgan oynaga tushadi.
+            var vaqt = DateTimeOffset.UtcNow.AddMinutes(30);
+
+            await kontekst.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE candidates
+                    SET status = {(int)CandidateStatus.Reserve}, interview_at = {vaqt}
+                  WHERE id = {id}
+                 """,
+                TestContext.Current.CancellationToken);
+        }
+
+        var royxat = await RoyxatAsync(client);
+
+        royxat.Items
+            .Any(item => item.Type == "CandidateInterviewSoon" && item.Link.Id == id)
+            .ShouldBeFalse("rezervdagi nomzodga suhbat eslatmasi chiqmasligi kerak");
+    }
+
     private static async Task<NotificationListResponse> RoyxatAsync(HttpClient client)
     {
         // Chegara ataylab yuqori: bu sinfning testlari bitta bazani baham
@@ -425,6 +638,62 @@ public sealed class NotificationApiTests : IClassFixture<BonviApiFactory>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
 
         return client;
+    }
+
+    /// <summary>
+    /// Vakansiya nomi, vakansiya va nomzod — bitta qadamda.
+    /// </summary>
+    /// <remarks>
+    /// <c>CandidateFileApiTests</c> dagi bir nomli yordamchining nusxasi.
+    /// Umumiy bazaga ko'chirilmadi: ikkala sinf ham O'Z bazasini
+    /// ishlatadi va yordamchi har birida atigi bir necha qator —
+    /// umumiylashtirish uchun testlar orasida yangi bog'liqlik yasash
+    /// kerak bo'lardi (loyihaning mavjud qarori: `resume-file.ts` dagi
+    /// bilan bir xil mulohaza).
+    /// </remarks>
+    private static async Task<Guid> NomzodAsync(HttpClient mijoz, string familiya)
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        Guid nomId;
+
+        using (var nom = await mijoz.PostAsJsonAsync(
+            new Uri("/api/catalog/vacancy-titles", UriKind.Relative),
+            new { name = "Эслатма лавозими " + Belgi() },
+            bekorQilish))
+        {
+            nom.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(nom));
+            nomId = (await nom.Content.ReadFromJsonAsync<VacancyTitleResponse>(bekorQilish))!.Id;
+        }
+
+        Guid vakansiyaId;
+
+        using (var vakansiya = await mijoz.PostAsJsonAsync(
+            new Uri("/api/recruiting/vacancies", UriKind.Relative),
+            new { vacancyTitleId = nomId, openings = 1, openedAt = new DateOnly(2026, 3, 1) },
+            bekorQilish))
+        {
+            vakansiya.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(vakansiya));
+            vakansiyaId = (await vakansiya.Content.ReadFromJsonAsync<VacancyResponse>(bekorQilish))!.Id;
+        }
+
+        // Telefon HAR SAFAR boshqa: takroriy ariza tekshiruvi odamga
+        // qo'yiladi, vakansiyaga emas — bir xil raqam ikkinchi nomzodni
+        // rad etardi. Shakl `RecruitingApiTests.Raqam()` dagi bilan bir
+        // xil: JAMI TO'QQIZ xona, oxirgi ikkitasi hisoblagich (tasodif
+        // yolg'iz yetarli emas — bitta yig'mada to'qnashuv bo'lardi).
+        var telefon = "9"
+            + Random.Shared.Next(100_000, 999_999).ToString(CultureInfo.InvariantCulture)
+            + (Interlocked.Increment(ref _raqamHisoblagichi) % 100).ToString("D2", CultureInfo.InvariantCulture);
+
+        using var javob = await mijoz.PostAsJsonAsync(
+            new Uri("/api/recruiting/candidates", UriKind.Relative),
+            new { vacancyId = vakansiyaId, lastName = familiya, firstName = "Азиз", phone = telefon },
+            bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        return (await javob.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish))!.Id;
     }
 
     private static async Task<string> MatnAsync(HttpResponseMessage javob)

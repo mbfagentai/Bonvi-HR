@@ -462,6 +462,24 @@ public static class SystemSettingKeys
     /// <summary>Nomzod necha kun davomida «yangi» hisoblanadi.</summary>
     public const string NewCandidateDays = "notifications.newCandidateDays";
 
+    /// <summary>
+    /// Suhbatgacha necha SOAT qolganda ogohlantirish paydo bo'ladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bildirishnoma sozlamalari orasida yagona SOATLI qiymat: qolgan
+    /// uchtasi kun bilan o'lchanadi, chunki ular kalendar faktlariga
+    /// tegishli. Suhbat esa lahza — sabab va sukut qiymatning kelib chiqishi
+    /// <see cref="NotificationRules.InterviewWarningHours"/> izohida.
+    /// </para>
+    /// <para>
+    /// ⚠️ Chegara <see cref="MaxDays"/> ga TAYANMAYDI (90 kun bu yerda
+    /// 90 soat degani bo'lardi va u ma'nosiz katta) — o'zining
+    /// <see cref="MaxWarningHours"/> si bor.
+    /// </para>
+    /// </remarks>
+    public const string InterviewWarningHours = "notifications.interviewWarningHours";
+
     /// <summary>O'qilgan bildirishnoma ro'yxatda necha kun qoladi.</summary>
     public const string ReadRetentionDays = "notifications.readRetentionDays";
 
@@ -634,6 +652,18 @@ public static class SystemSettingKeys
     public const int MaxDays = 90;
 
     /// <summary>
+    /// Soat bilan o'lchanadigan ogohlantirish chegarasining eng katta qiymati.
+    /// </summary>
+    /// <remarks>
+    /// 24 soat — bir sutka. Undan uzoq oynada qo'ng'iroqda bugungi va
+    /// ertangi suhbatlar aralashib ketardi va «bu odam hozir keladi»
+    /// degan xabar o'z ma'nosini yo'qotardi. Pastki chegara esa 1 soat:
+    /// undan kichik qiymat yo'q, chunki sozlama BUTUN sonda o'lchanadi
+    /// (<see cref="SystemSettingKind.Number"/>).
+    /// </remarks>
+    public const int MaxWarningHours = 24;
+
+    /// <summary>
     /// Barcha sozlamalar — E'LON TARTIBIDA.
     /// </summary>
     /// <remarks>
@@ -714,6 +744,18 @@ public static class SystemSettingKeys
             Number(NotificationRules.NewCandidateDays),
             Min: 1,
             Max: MaxDays),
+
+        // Bildirishnoma guruhining ichida, lekin chegarasi BOSHQA
+        // birlikda: soat (sabab kalit izohida). Joyi ataylab shu yerda —
+        // ekranda u qo'shni ikkita bildirishnoma sozlamasi bilan yonma-yon
+        // turishi kerak, «soat» degani uni boshqa guruhga ko'chirmaydi.
+        new(
+            InterviewWarningHours,
+            SystemSettingKind.Number,
+            Number(NotificationRules.InterviewWarningHours),
+            Min: 1,
+            Max: MaxWarningHours),
+
         new(
             ReadRetentionDays,
             SystemSettingKind.Number,
