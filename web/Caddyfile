@@ -2,6 +2,28 @@
 # Domen olingach {$SITE_ADDRESS} ni haqiqiy domenga almashtiring —
 # Caddy HTTPS sertifikatini avtomatik oladi.
 
+# ⚠️ VAQTINCHALIK: eski IP manzilini domenga yo'naltirish.
+#
+# 2026-09-12 gacha xodimlar tizimga `http://189.74.98.57` orqali
+# kirardi. `SITE_ADDRESS` domenga o'tkazilganda Caddy IP so'rovlarini
+# sertifikati YO'Q HTTPS'ga yuborib yubordi va ish bir muddat to'xtadi
+# — shu sababli endi IP jimgina o'lmaydi, domenga uzatadi.
+#
+# Nega 302 (vaqtincha), 301/308 EMAS: doimiy yo'naltirishni brauzer
+# eslab qoladi va keyin uni tozalash qiyin (aynan shu bugun muammo
+# bo'ldi). Vaqtinchasi keshlanmaydi, ya'ni kerak bo'lsa IP'ni bir
+# buyruq bilan qaytarsa bo'ladi.
+#
+# Sukut qiymat `:9999` — konteynerdan tashqariga CHIQARILMAGAN port,
+# ya'ni bu blok dev'da va boshqa o'rnatishlarda umuman ishlamaydi.
+# Faqat prod `.env` da `LEGACY_ADDRESS=http://189.74.98.57` turibdi.
+#
+# QACHON O'CHIRILADI: hamma xodim domenga ko'chgani aniq bo'lgach —
+# shu blok ham, prod `.env` dagi `LEGACY_ADDRESS` ham.
+{$LEGACY_ADDRESS::9999} {
+	redir https://hr.bonvi.uz{uri} 302
+}
+
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 

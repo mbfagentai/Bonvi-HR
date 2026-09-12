@@ -309,6 +309,9 @@ services:
     restart: always
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      # Eski IP manzilini domenga uzatish — vaqtincha (`web/Caddyfile` izohi).
+      # Sukut `:9999` — tashqariga chiqarilmagan port, ya'ni blok o'lik.
+      LEGACY_ADDRESS: ${LEGACY_ADDRESS:-:9999}
     ports:
       - "80:80"
       - "443:443"
