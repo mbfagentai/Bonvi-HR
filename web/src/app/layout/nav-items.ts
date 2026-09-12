@@ -121,105 +121,17 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    key: 'sectionPeople',
-    items: [
-      { key: 'employees',    to: '/xodimlar',      icon: Users },
-      { key: 'probation',    to: '/sinov',         icon: Timer },
-      /*
-        Ishdan ketganlar — arxiv. Alohida band ATAYLAB: agar ketgan odamni
-        tizimdan umuman topib bo'lmasa, HR uni «bazada yo'q» deb o'ylab
-        dublikat yaratadi — loyihaning eng asosiy muammosi shundan
-        boshlangan. Xodimlar ro'yxatida esa ular ko'rinmaydi, chunki
-        u kundalik ish ekrani va unda hozir ishlayotganlar turadi.
-      */
-      { key: 'formerEmployees', to: '/xodimlar', icon: UserMinus,
-        search: { status: 'terminated' } },
-      { key: 'employment',   to: '/buyruqlar',     icon: Briefcase },
-      /*
-        Rag'bat va jarima — endi haqiqiy sahifa: `soon` ning o'rnini
-        `permission` oldi (`incidents`/`users` bandlaridagi naqsh).
-        Backend `GET /api/incentives` ni `incentives.view` bilan
-        himoyalagan, ya'ni bu ruxsatsiz odam ro'yxatni SERVERDAN OLA
-        OLMAYDI — bandni ko'rsatib turish ortiqcha chalkashlik bo'lardi.
-
-        NEGA «Qobiliyatlar» va «Hujjatlar» bandlari BUTUNLAY o'chirildi:
-        ikkalasi ham xodim kartasining tab'i sifatida ALLAQACHON ishlaydi
-        (`employee-competency-tab.tsx`, `employee-documents-tab.tsx`).
-        Ular uchun alohida umumiy ro'yxat hech qachon so'ralmagan, ya'ni
-        bu bandlar «hali qurilmagan bo'lim» emas edi — ular qurilmaydigan
-        bo'limlar edi. `soon` esa foydalanuvchiga «tez orada bo'ladi»
-        deb va'da beradi; bajarilmaydigan va'dani menyuda saqlab turish
-        yo'l xaritasi emas, shovqin.
-      */
-      { key: 'incentives',   to: '/ragbat',        icon: Award,
-        permission: 'incentives.view' },
-    ],
-  },
-  {
-    key: 'lists',
-    items: [
-      { key: 'reserve',    to: '/rezerv',       icon: ClipboardList },
-      { key: 'blacklist',  to: '/qora-royxat',  icon: ShieldAlert },
-      { key: 'monitoring', to: '/nazorat',      icon: Gauge },
-      // `EMPLOYEE_FLAG_TYPES` tartibida oxirgisi — shu sababli shu yerda
-      // ham uch ro'yxatdan keyin turadi.
-      { key: 'capable',    to: '/qobiliyatli',  icon: ThumbsUp },
-      // Ruxsat `soon`ning o'rnini oldi: sahifa endi qurilgan, lekin
-      // hammada ham ko'rinmaydi — `users` bandidagi naqsh (yuqoridagi
-      // `permission` izohiga qarang).
-      { key: 'incidents',  to: '/hodisalar',    icon: HeartPulse,    permission: 'safety.view' },
-      { key: 'feedback',   to: '/qayta-aloqa',  icon: MessageSquareQuote, permission: 'feedback.view' },
-    ],
-  },
-  {
-    /*
-      Sarlavhasiz guruh: bandning O'ZI sarlavha vazifasini bajaradi.
-      Ustiga yana «MA'LUMOTNOMALAR» yozuvi qo'yilsa, bir xil so'z ikki
-      marta yonma-yon turardi.
-    */
-    items: [
-      {
-        key: 'sectionCatalog',
-        // Faqat «shu yo'lakdamiz» tekshiruvi uchun — bu band bosilganda
-        // hech qayerga o'tmaydi, guruhni ochadi.
-        to: '/malumotnomalar',
-        icon: Library,
-        children: [
-          { key: 'legalEntities',      to: '/malumotnomalar/yuridik-shaxslar', icon: Building2 },
-          { key: 'directions',         to: '/malumotnomalar/yonalishlar',      icon: Compass },
-          { key: 'departments',        to: '/malumotnomalar/bolimlar',         icon: Network },
-          { key: 'positions',          to: '/malumotnomalar/lavozimlar',       icon: IdCard },
-          { key: 'terminationReasons', to: '/malumotnomalar/sabablar',         icon: LogOut },
-          { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
-          { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
-          { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
-          /*
-            Vakansiya nomlari — e'londa turadigan qisqa nomlar
-            («Сотувчи-консультант», «Ҳайдовчи»).
-
-            ⚠️ Bu «Lavozimlar» ning takrori EMAS va ular ataylab ikkita
-            alohida band. Lavozim — kompaniyaning SHTAT birligi: u
-            buyruqda, mehnat shartnomasida turadi va unga vazifalar
-            biriktirilgan. Vakansiya nomi — E'LON: u tashqariga qaraydi
-            va nomzod tushunadigan tilda yoziladi. Ilgari vakansiya
-            lavozimlar ma'lumotnomasidan tanlanardi va natijada e'lon
-            uchun o'ylab topilgan har bir nom shtat jadvaliga tushib
-            ketardi — Excel'dagi 228 ta lavozimning kelib chiqishi aynan
-            shunday.
-
-            NEGA `permission` YO'Q: yozuv `/api/catalog/vacancy-titles`
-            da yashaydi va u qolgan ma'lumotnomalar bilan bir xil
-            `catalog.view` bilan himoyalangan.
-          */
-          { key: 'vacancyTitles',      to: '/malumotnomalar/vakansiya-nomlari', icon: Megaphone },
-        ],
-      },
-    ],
-  },
-  {
     /*
       Sarlavhasiz guruh, `sectionCatalog` bilan bir xil naqsh: bandning
       o'zi («Rekruting») sarlavha vazifasini bajaradi.
+
+      ⭐ O'RNI — «Hisobotlar» DAN KEYIN, menyuning TEPASIDA
+      (foydalanuvchi talabi, 2026-09-12). Ilgari u eng pastda, hatto
+      «Ma'lumotnomalar» dan ham keyin turardi — ya'ni menyudagi eng
+      ko'p bosiladigan band eng uzoq joyda edi va HR uni har safar
+      izlab topishga majbur bo'lardi. Tartib mantiqan emas, AMALDA
+      qancha ishlatilishiga qarab qo'yiladi: kundalik ish tepada,
+      kamdan-kam ochiladigan ma'lumotnoma va sozlama pastda.
 
       2-bosqich QURILDI: `soon` olib tashlandi va o'rnini `permission`
       egalladi (`incentives`/`incidents` bandlaridagi naqsh). Backend
@@ -315,6 +227,102 @@ export const NAV: NavSection[] = [
           */
           { key: 'rejectedCandidates', to: '/nomzodlar', icon: UserRoundX,
             search: { rejected: 'true' }, permission: 'recruiting.view' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'sectionPeople',
+    items: [
+      { key: 'employees',    to: '/xodimlar',      icon: Users },
+      { key: 'probation',    to: '/sinov',         icon: Timer },
+      /*
+        Ishdan ketganlar — arxiv. Alohida band ATAYLAB: agar ketgan odamni
+        tizimdan umuman topib bo'lmasa, HR uni «bazada yo'q» deb o'ylab
+        dublikat yaratadi — loyihaning eng asosiy muammosi shundan
+        boshlangan. Xodimlar ro'yxatida esa ular ko'rinmaydi, chunki
+        u kundalik ish ekrani va unda hozir ishlayotganlar turadi.
+      */
+      { key: 'formerEmployees', to: '/xodimlar', icon: UserMinus,
+        search: { status: 'terminated' } },
+      { key: 'employment',   to: '/buyruqlar',     icon: Briefcase },
+      /*
+        Rag'bat va jarima — endi haqiqiy sahifa: `soon` ning o'rnini
+        `permission` oldi (`incidents`/`users` bandlaridagi naqsh).
+        Backend `GET /api/incentives` ni `incentives.view` bilan
+        himoyalagan, ya'ni bu ruxsatsiz odam ro'yxatni SERVERDAN OLA
+        OLMAYDI — bandni ko'rsatib turish ortiqcha chalkashlik bo'lardi.
+
+        NEGA «Qobiliyatlar» va «Hujjatlar» bandlari BUTUNLAY o'chirildi:
+        ikkalasi ham xodim kartasining tab'i sifatida ALLAQACHON ishlaydi
+        (`employee-competency-tab.tsx`, `employee-documents-tab.tsx`).
+        Ular uchun alohida umumiy ro'yxat hech qachon so'ralmagan, ya'ni
+        bu bandlar «hali qurilmagan bo'lim» emas edi — ular qurilmaydigan
+        bo'limlar edi. `soon` esa foydalanuvchiga «tez orada bo'ladi»
+        deb va'da beradi; bajarilmaydigan va'dani menyuda saqlab turish
+        yo'l xaritasi emas, shovqin.
+      */
+      { key: 'incentives',   to: '/ragbat',        icon: Award,
+        permission: 'incentives.view' },
+    ],
+  },
+  {
+    key: 'lists',
+    items: [
+      { key: 'reserve',    to: '/rezerv',       icon: ClipboardList },
+      { key: 'blacklist',  to: '/qora-royxat',  icon: ShieldAlert },
+      { key: 'monitoring', to: '/nazorat',      icon: Gauge },
+      // `EMPLOYEE_FLAG_TYPES` tartibida oxirgisi — shu sababli shu yerda
+      // ham uch ro'yxatdan keyin turadi.
+      { key: 'capable',    to: '/qobiliyatli',  icon: ThumbsUp },
+      // Ruxsat `soon`ning o'rnini oldi: sahifa endi qurilgan, lekin
+      // hammada ham ko'rinmaydi — `users` bandidagi naqsh (yuqoridagi
+      // `permission` izohiga qarang).
+      { key: 'incidents',  to: '/hodisalar',    icon: HeartPulse,    permission: 'safety.view' },
+      { key: 'feedback',   to: '/qayta-aloqa',  icon: MessageSquareQuote, permission: 'feedback.view' },
+    ],
+  },
+  {
+    /*
+      Sarlavhasiz guruh: bandning O'ZI sarlavha vazifasini bajaradi.
+      Ustiga yana «MA'LUMOTNOMALAR» yozuvi qo'yilsa, bir xil so'z ikki
+      marta yonma-yon turardi.
+    */
+    items: [
+      {
+        key: 'sectionCatalog',
+        // Faqat «shu yo'lakdamiz» tekshiruvi uchun — bu band bosilganda
+        // hech qayerga o'tmaydi, guruhni ochadi.
+        to: '/malumotnomalar',
+        icon: Library,
+        children: [
+          { key: 'legalEntities',      to: '/malumotnomalar/yuridik-shaxslar', icon: Building2 },
+          { key: 'directions',         to: '/malumotnomalar/yonalishlar',      icon: Compass },
+          { key: 'departments',        to: '/malumotnomalar/bolimlar',         icon: Network },
+          { key: 'positions',          to: '/malumotnomalar/lavozimlar',       icon: IdCard },
+          { key: 'terminationReasons', to: '/malumotnomalar/sabablar',         icon: LogOut },
+          { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
+          { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
+          { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
+          /*
+            Vakansiya nomlari — e'londa turadigan qisqa nomlar
+            («Сотувчи-консультант», «Ҳайдовчи»).
+
+            ⚠️ Bu «Lavozimlar» ning takrori EMAS va ular ataylab ikkita
+            alohida band. Lavozim — kompaniyaning SHTAT birligi: u
+            buyruqda, mehnat shartnomasida turadi va unga vazifalar
+            biriktirilgan. Vakansiya nomi — E'LON: u tashqariga qaraydi
+            va nomzod tushunadigan tilda yoziladi. Ilgari vakansiya
+            lavozimlar ma'lumotnomasidan tanlanardi va natijada e'lon
+            uchun o'ylab topilgan har bir nom shtat jadvaliga tushib
+            ketardi — Excel'dagi 228 ta lavozimning kelib chiqishi aynan
+            shunday.
+
+            NEGA `permission` YO'Q: yozuv `/api/catalog/vacancy-titles`
+            da yashaydi va u qolgan ma'lumotnomalar bilan bir xil
+            `catalog.view` bilan himoyalangan.
+          */
+          { key: 'vacancyTitles',      to: '/malumotnomalar/vakansiya-nomlari', icon: Megaphone },
         ],
       },
     ],
