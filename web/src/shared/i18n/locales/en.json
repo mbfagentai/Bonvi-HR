@@ -835,11 +835,6 @@
     "councilUnknownStage": "Stage not specified",
     "councilNoConclusion": "No conclusion written yet",
     "councilRecordedBy": "Recorded by {{name}}",
-    "stageOutcome": {
-      "pending": "Pending",
-      "passed": "Passed",
-      "failed": "Failed"
-    },
     "flagStageEmployed": "For a currently employed person. Only one mark is in force at a time.",
     "flagStageDeparted": "Chosen at termination. Only one mark is in force at a time.",
     "marks": {
@@ -1133,7 +1128,6 @@
     "conclusion": "Conclusion",
     "conclusionPlaceholder": "Interview or panel conclusion",
     "stageDate": "Stage date",
-    "outcomeHint": "If the interview has not happened yet — “Pending”",
     "recordedAt": "Recorded: {{at}}",
     "editedAt": "edited: {{at}}",
     "currentStage": "Current stage: {{stage}}",
@@ -1265,16 +1259,9 @@
     "interviewQueued": "Message queued",
     "interviewSent": "Message sent",
     "interviewReschedule": "Change time",
-    "stageFill": "Record the outcome",
     "stageEditTitle": "Edit the record",
     "stagesEmptyTitle": "No stage history yet",
     "stagesEmptyText": "Every interview, panel and phone call is recorded in this timeline.",
-    "outcome": {
-      "label": "Outcome",
-      "pending": "Pending",
-      "passed": "Passed",
-      "failed": "Failed"
-    },
     "noteKind": {
       "reassign": "Moved to another vacancy",
       "returnToFunnel": "Returned to the funnel",

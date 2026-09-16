@@ -835,11 +835,6 @@
     "councilUnknownStage": "Этап не указан",
     "councilNoConclusion": "Заключение ещё не записано",
     "councilRecordedBy": "Внёс(ла) {{name}}",
-    "stageOutcome": {
-      "pending": "Ожидается",
-      "passed": "Пройден",
-      "failed": "Не пройден"
-    },
     "flagStageEmployed": "Для работающего сотрудника. Одновременно действует только одна отметка.",
     "flagStageDeparted": "Выбирается при увольнении. Одновременно действует только одна отметка.",
     "marks": {
@@ -1133,7 +1128,6 @@
     "conclusion": "Заключение",
     "conclusionPlaceholder": "Итог собеседования или совета",
     "stageDate": "Дата этапа",
-    "outcomeHint": "Если собеседование ещё не прошло — «Ожидается»",
     "recordedAt": "Записано: {{at}}",
     "editedAt": "изменено: {{at}}",
     "currentStage": "Текущий этап: {{stage}}",
@@ -1265,16 +1259,9 @@
     "interviewQueued": "Сообщение в очереди",
     "interviewSent": "Сообщение отправлено",
     "interviewReschedule": "Изменить время",
-    "stageFill": "Записать результат",
     "stageEditTitle": "Редактировать запись",
     "stagesEmptyTitle": "История этапов пуста",
     "stagesEmptyText": "Каждое собеседование, совет и звонок попадают в эту ленту.",
-    "outcome": {
-      "label": "Результат",
-      "pending": "Ожидается",
-      "passed": "Прошёл",
-      "failed": "Не прошёл"
-    },
     "noteKind": {
       "reassign": "Переведён на другую вакансию",
       "returnToFunnel": "Возвращён в воронку",

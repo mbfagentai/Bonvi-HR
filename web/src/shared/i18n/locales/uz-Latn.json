@@ -835,11 +835,6 @@
     "councilUnknownStage": "Bosqich ko‘rsatilmagan",
     "councilNoConclusion": "Xulosa hali yozilmagan",
     "councilRecordedBy": "{{name}} yozgan",
-    "stageOutcome": {
-      "pending": "Kutilmoqda",
-      "passed": "O‘tdi",
-      "failed": "O‘tmadi"
-    },
     "flagStageEmployed": "Ishlab turgan xodim uchun. Bir vaqtda atigi bitta belgi kuchda bo‘ladi.",
     "flagStageDeparted": "Ishdan ketishda tanlanadi. Bir vaqtda atigi bitta belgi kuchda bo‘ladi.",
     "marks": {
@@ -1133,7 +1128,6 @@
     "conclusion": "Xulosa",
     "conclusionPlaceholder": "Suhbat yoki kengash xulosasi",
     "stageDate": "Bosqich sanasi",
-    "outcomeHint": "Suhbat hali bo‘lmagan bo‘lsa — «Kutilmoqda»",
     "recordedAt": "Yozildi: {{at}}",
     "editedAt": "tahrirlandi: {{at}}",
     "currentStage": "Joriy bosqich: {{stage}}",
@@ -1265,16 +1259,9 @@
     "interviewQueued": "Xabar navbatda",
     "interviewSent": "Xabar yuborildi",
     "interviewReschedule": "Vaqtni o‘zgartirish",
-    "stageFill": "Natijani yozish",
     "stageEditTitle": "Yozuvni tahrirlash",
     "stagesEmptyTitle": "Bosqichlar tarixi bo‘sh",
     "stagesEmptyText": "Har bir suhbat, kengash va telefon aloqasi shu lentaga yoziladi.",
-    "outcome": {
-      "label": "Natija",
-      "pending": "Kutilmoqda",
-      "passed": "O‘tdi",
-      "failed": "O‘tmadi"
-    },
     "noteKind": {
       "reassign": "Boshqa vakansiyaga o‘tkazildi",
       "returnToFunnel": "Voronkaga qaytarildi",

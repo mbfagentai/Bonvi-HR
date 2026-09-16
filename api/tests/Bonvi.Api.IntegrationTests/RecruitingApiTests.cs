@@ -44,7 +44,6 @@ public sealed record CandidateStageResponse(
     Guid StageId,
     string? Stage,
     DateOnly Date,
-    string Outcome,
     string? Conclusion,
     DateTimeOffset RecordedAt,
     DateTimeOffset? UpdatedAt);
@@ -245,7 +244,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         {
             using var javob = await mijoz.PostAsJsonAsync(
                 new Uri($"/api/recruiting/candidates/{nomzod.Id}/stages", UriKind.Relative),
-                new { stageId = kengash.Id, outcome = "Pending", conclusion = xulosa },
+                new { stageId = kengash.Id, conclusion = xulosa },
                 bekorQilish);
 
             javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
@@ -279,7 +278,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
                 UriKind.Relative),
             new
             {
-                outcome = "Passed",
                 date = eski.Date,
                 conclusion = "Биринчи қўнғироқ: гаплашилди, келишилди",
             },
@@ -290,7 +288,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         tuzatilgan!.Stages.Count.ShouldBe(4, "tuzatish YANGI qator qo'shmaydi");
         tuzatilgan.Stages[1].Id.ShouldBe(eski.Id, "tuzatilgan qator O'Z O'RNIDA qoladi");
-        tuzatilgan.Stages[1].Outcome.ShouldBe("Passed");
         tuzatilgan.Stages[1].Conclusion.ShouldBe("Биринчи қўнғироқ: гаплашилди, келишилди");
         tuzatilgan.Stages[1].RecordedAt.ShouldBe(
             eski.RecordedAt,
@@ -329,7 +326,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         nomzod.Source.ShouldBe("Manual");
         nomzod.CurrentStageId.ShouldBe(anketa.Id);
         nomzod.Stages.Count.ShouldBe(1);
-        nomzod.Stages[0].Outcome.ShouldBe("Pending");
 
         // ── 3. Kengash xulosasi — ODDIY bosqich yozuvi ──
         using var kengashJavobi = await mijoz.PostAsJsonAsync(
@@ -337,7 +333,6 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             new
             {
                 stageId = kengash.Id,
-                outcome = "Passed",
                 date = new DateOnly(2026, 4, 1),
                 conclusion = "Кенгаш хулосаси: ишга олинсин",
             },
@@ -604,7 +599,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         using (var bosqich = await mijoz.PostAsJsonAsync(
             new Uri($"/api/recruiting/candidates/{nomzod.Id}/stages", UriKind.Relative),
-            new { stageId = kengash.Id, outcome = "Failed", conclusion = "Кенгаш маъқулламади" },
+            new { stageId = kengash.Id, conclusion = "Кенгаш маъқулламади" },
             bekorQilish))
         {
             bosqich.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(bosqich));
@@ -1186,7 +1181,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             new Uri(
                 $"/api/recruiting/candidates/{nomzod.Id}/stages/{nomzod.Stages[0].Id}",
                 UriKind.Relative),
-            new { outcome = "Passed", conclusion = "Ўзгартириб қўяман" },
+            new { conclusion = "Ўзгартириб қўяман" },
             bekorQilish))
         {
             tuzatish.StatusCode.ShouldBe(HttpStatusCode.Forbidden);

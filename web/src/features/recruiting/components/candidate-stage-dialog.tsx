@@ -4,11 +4,9 @@ import { useEffect, useState } from 'react'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 import {
-  STAGE_OUTCOMES,
   type Candidate,
   type CandidateStageEntry,
   type PipelineStage,
-  type StageOutcome,
 } from '../api/recruiting-api'
 import { useEditStageEntry, useRecordStage, useStages } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
@@ -31,16 +29,15 @@ const FORM_ID = 'candidate-stage-form'
  * berilmasa tarixga YANGI qator qo'shadi (`POST .../stages`). Qaysi
  * yozuv tuzatilayotganini MIJOZ aytadi, server taxmin qilmaydi.
  *
- * ⚠️ Ilgari bu qaror serverda edi va nosozlik manbai bo'lgan: oxirgi
- * yozuv ayni shu bosqich uchun «kutilmoqda» bo'lsa, u JIMGINA
- * to'ldirilardi. Natijada (1) bo'sh xulosa bilan saqlash oldingi
+ * ⚠️ Ilgari bu qaror serverda edi va nosozlik manbai bo'lgan: ayni
+ * shu bosqichdagi oxirgi ochiq yozuv JIMGINA to'ldirilardi. Natijada (1) bo'sh xulosa bilan saqlash oldingi
  * izohni o'chirardi, (2) lentadagi ESKIROQ qatorga natija yozilsa,
  * o'sha qator bo'sh qolib, pastga duplikat tushardi (2026-09-16).
  *
- * <b>«Kutilmoqda» — to'liq huquqli natija.</b> HR suhbatni oldindan
- * belgilaydi (nomzod o'sha bosqichga ko'chadi, natija esa bo'sh
- * qoladi), suhbat tugagach lentadagi O'SHA qatorni ochib natijani
- * yozadi — tarixda ikkita qator paydo bo'lmaydi.
+ * <b>Bosqichni oldindan ochish mumkin.</b> HR suhbatni belgilaydi
+ * (nomzod o'sha bosqichga ko'chadi, xulosa esa bo'sh qoladi), suhbat
+ * tugagach lentadagi O'SHA qatorni ochib xulosani yozadi — tarixda
+ * ikkita qator paydo bo'lmaydi.
  *
  * <b>«Ishga olindi» deb belgilash amali YO'Q.</b> Nomzod xodimga
  * faqat «Ishga olish» oynasi orqali aylanadi
@@ -118,7 +115,6 @@ export function CandidateStageDialog({
   const stages = useStages(true)
 
   const [stageId, setStageId] = useState('')
-  const [outcome, setOutcome] = useState<StageOutcome>('Pending')
   const [date, setDate] = useState(today)
   const [conclusion, setConclusion] = useState('')
   const [nextContact, setNextContact] = useState('')
@@ -139,11 +135,10 @@ export function CandidateStageDialog({
 
     /*
       ⚠️ TUZATISHDA maydonlar yozuvning O'Z qiymatidan boshlanadi.
-      Bo'sh ochilsa, HR faqat natijani belgilab saqlaganda ilgari
-      yozilgan xulosa o'chib ketardi: server yuborilgan qiymatni
-      ustidan yozadi (`editCandidateStageEntry` izohi).
+      Bo'sh ochilsa, HR faqat sanani tuzatib saqlaganda ilgari yozilgan
+      xulosa o'chib ketardi: server yuborilgan qiymatni ustidan yozadi
+      (`editCandidateStageEntry` izohi).
     */
-    setOutcome(entry?.outcome ?? 'Pending')
     setDate(entry?.date ?? today())
     setConclusion(entry?.conclusion ?? '')
     /*
@@ -175,11 +170,6 @@ export function CandidateStageDialog({
   */
   const qotganBosqich = entry?.stage ?? lockedStage?.name ?? null
 
-  const outcomeOptions = STAGE_OUTCOMES.map((value) => ({
-    value,
-    label: t(`recruiting.outcome.${value.toLowerCase()}`),
-  }))
-
   const submit = () => {
     if (stageId === '') return
 
@@ -189,7 +179,6 @@ export function CandidateStageDialog({
       shartnomasi) va uni yuborish yolg'on va'da bo'lardi.
     */
     const umumiy = {
-      outcome,
       date: orNull(date),
       conclusion: orNull(conclusion),
       nextContactDate: orNull(nextContact),
@@ -285,24 +274,18 @@ export function CandidateStageDialog({
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select
-            label={t('recruiting.outcome.label')}
-            hint={t('recruiting.outcomeHint')}
-            options={outcomeOptions}
-            value={outcome}
-            disabled={saving.isPending}
-            onChange={(event) => setOutcome(event.target.value as StageOutcome)}
-          />
-
-          <TextField
-            label={t('recruiting.stageDate')}
-            type="date"
-            value={date}
-            disabled={saving.isPending}
-            onChange={(event) => setDate(event.target.value)}
-          />
-        </div>
+        {/*
+          ⭐ «Natija» tanlagichi YO'Q (2026-09-16). Bosqichning o'zi
+          holatni aytadi, natija esa xulosa matnida yoziladi — ikkita
+          joy bir xil savolga javob berardi.
+        */}
+        <TextField
+          label={t('recruiting.stageDate')}
+          type="date"
+          value={date}
+          disabled={saving.isPending}
+          onChange={(event) => setDate(event.target.value)}
+        />
 
         {/*
           Xulosa — «Kengash» bosqichining butun mazmuni. Ovoz berish

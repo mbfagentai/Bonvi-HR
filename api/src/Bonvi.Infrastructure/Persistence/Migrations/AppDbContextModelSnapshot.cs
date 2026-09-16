@@ -2139,10 +2139,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("date");
 
-                    b.Property<int>("Outcome")
-                        .HasColumnType("integer")
-                        .HasColumnName("outcome");
-
                     b.Property<DateTimeOffset>("RecordedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("recorded_at");

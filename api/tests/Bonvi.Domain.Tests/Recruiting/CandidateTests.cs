@@ -69,24 +69,23 @@ public sealed class CandidateTests
         natija.IsSuccess.ShouldBeTrue();
         nomzod.CurrentStageId.ShouldBe(AnketaId);
         nomzod.StageEntries.Count.ShouldBe(1);
-        nomzod.StageEntries[0].Outcome.ShouldBe(StageOutcome.Pending, "sukut — «kutilmoqda»");
+        nomzod.StageEntries[0].Conclusion.ShouldBeNull("xulosa keyin yoziladi");
     }
 
     [Fact]
-    public void Ochiq_yozuvga_natija_yozilsa_AYNI_yozuv_toldiriladi()
+    public void Ochiq_yozuvga_xulosa_yozilsa_AYNI_yozuv_toldiriladi()
     {
-        // HR bosqichni oldindan ochadi («ertaga kengash»), natijani keyin
+        // HR bosqichni oldindan ochadi («ertaga kengash»), xulosani keyin
         // yozadi. Bu ikkita yozuv emas, BITTA yozuvning ikki holati — lekin
         // to'ldiriladigan yozuv ANIQ ko'rsatiladi.
         var nomzod = Nomzod();
         var ochiq = nomzod.RecordStage(KengashId, Sana).Value;
 
         var natija = nomzod.EditStageEntry(
-            ochiq.Id, StageOutcome.Passed, Sana.AddDays(1), "Кенгаш хулосаси: маъқулланди");
+            ochiq.Id, Sana.AddDays(1), "Кенгаш хулосаси: маъқулланди");
 
         natija.IsSuccess.ShouldBeTrue();
         nomzod.StageEntries.Count.ShouldBe(1, "yangi yozuv qo'shilmaydi");
-        nomzod.StageEntries[0].Outcome.ShouldBe(StageOutcome.Passed);
         nomzod.StageEntries[0].Date.ShouldBe(Sana.AddDays(1));
         nomzod.StageEntries[0].Conclusion.ShouldBe("Кенгаш хулосаси: маъқулланди");
         nomzod.StageEntries[0].UpdatedAt.ShouldNotBeNull("tuzatilgani ko'rinib turishi kerak");
@@ -101,9 +100,9 @@ public sealed class CandidateTests
           yozilardi va HR yozgan izoh jimgina yo'qolardi.
         */
         var nomzod = Nomzod();
-        nomzod.RecordStage(KengashId, Sana, StageOutcome.Pending, "Биринчи қўнғироқ");
+        nomzod.RecordStage(KengashId, Sana, "Биринчи қўнғироқ");
 
-        nomzod.RecordStage(KengashId, Sana.AddDays(3), StageOutcome.Pending, "Иккинчи қўнғироқ");
+        nomzod.RecordStage(KengashId, Sana.AddDays(3), "Иккинчи қўнғироқ");
 
         nomzod.StageEntries.Count.ShouldBe(2, "har bir aloqa — alohida yozuv");
         nomzod.StageEntries[0].Conclusion.ShouldBe("Биринчи қўнғироқ", "eski izoh joyida qoladi");
@@ -117,7 +116,7 @@ public sealed class CandidateTests
         // so'rov yuboradi (xulosa bo'sh). Ilgari bu eski izohni NULL bilan
         // almashtirardi — ogohlantirishsiz.
         var nomzod = Nomzod();
-        nomzod.RecordStage(KengashId, Sana, StageOutcome.Pending, "Телефон рақами нотўғри");
+        nomzod.RecordStage(KengashId, Sana, "Телефон рақами нотўғри");
 
         nomzod.RecordStage(KengashId, Sana);
 
@@ -134,7 +133,7 @@ public sealed class CandidateTests
         nomzod.RecordStage(KengashId, Sana.AddDays(1));
 
         var yozilgan = birinchi.RecordedAt;
-        nomzod.EditStageEntry(birinchi.Id, StageOutcome.Passed, Sana, "Анкета тўлиқ");
+        nomzod.EditStageEntry(birinchi.Id, Sana, "Анкета тўлиқ");
 
         birinchi.RecordedAt.ShouldBe(yozilgan, "kiritilgan vaqt o'zgarmaydi");
         nomzod.CurrentStageId.ShouldBe(KengashId, "tuzatish nomzodni voronkada SURMAYDI");
@@ -147,7 +146,7 @@ public sealed class CandidateTests
         nomzod.RecordStage(AnketaId, Sana);
 
         var natija = nomzod.EditStageEntry(
-            Guid.CreateVersion7(), StageOutcome.Passed, Sana, null);
+            Guid.CreateVersion7(), Sana, null);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("bosqich_yozuvi.topilmadi");
@@ -163,7 +162,7 @@ public sealed class CandidateTests
         nomzod.Reject(Sana.AddDays(1));
 
         var natija = nomzod.EditStageEntry(
-            yozuv.Id, StageOutcome.Failed, Sana, "Кенгаш рад этди");
+            yozuv.Id, Sana, "Кенгаш рад этди");
 
         natija.IsSuccess.ShouldBeTrue();
         nomzod.StageEntries[0].Conclusion.ShouldBe("Кенгаш рад этди");
@@ -174,7 +173,7 @@ public sealed class CandidateTests
     public void Boshqa_bosqich_yozilsa_yangi_yozuv_qoshiladi()
     {
         var nomzod = Nomzod();
-        nomzod.RecordStage(AnketaId, Sana, StageOutcome.Passed);
+        nomzod.RecordStage(AnketaId, Sana);
 
         nomzod.RecordStage(KengashId, Sana.AddDays(2));
 
@@ -187,13 +186,15 @@ public sealed class CandidateTests
     {
         // Qayta suhbat — haqiqiy hol va u tarixda alohida fakt bo'lishi kerak.
         var nomzod = Nomzod();
-        nomzod.RecordStage(KengashId, Sana, StageOutcome.Failed, "Биринчи кенгаш: рад");
+        nomzod.RecordStage(KengashId, Sana, "Биринчи кенгаш: рад");
 
-        nomzod.RecordStage(KengashId, Sana.AddDays(30), StageOutcome.Passed, "Иккинчи кенгаш: маъқул");
+        nomzod.RecordStage(KengashId, Sana.AddDays(30), "Иккинчи кенгаш: маъқул");
 
         nomzod.StageEntries.Count.ShouldBe(2);
-        nomzod.StageEntries[0].Outcome.ShouldBe(StageOutcome.Failed, "eski xulosa qayta yozilmaydi");
-        nomzod.StageEntries[1].Outcome.ShouldBe(StageOutcome.Passed);
+        nomzod.StageEntries[0].Conclusion.ShouldBe(
+            "Биринчи кенгаш: рад",
+            "eski xulosa qayta yozilmaydi");
+        nomzod.StageEntries[1].Conclusion.ShouldBe("Иккинчи кенгаш: маъқул");
     }
 
     [Fact]
@@ -203,7 +204,7 @@ public sealed class CandidateTests
         // majburlanmaydi: amalda HR bosqichni o'tkazib yuboradi yoki
         // nomzodni orqaga qaytaradi.
         var nomzod = Nomzod();
-        nomzod.RecordStage(KengashId, Sana, StageOutcome.Passed);
+        nomzod.RecordStage(KengashId, Sana);
 
         var natija = nomzod.RecordStage(AnketaId, Sana.AddDays(1));
 
@@ -315,7 +316,7 @@ public sealed class CandidateTests
     public void Kochirishda_bosqichlar_tarixi_saqlanadi()
     {
         var nomzod = Nomzod();
-        nomzod.RecordStage(AnketaId, Sana, StageOutcome.Passed);
+        nomzod.RecordStage(AnketaId, Sana);
         var yangiVakansiya = Guid.CreateVersion7();
 
         var natija = nomzod.Reassign(yangiVakansiya);
@@ -373,7 +374,7 @@ public sealed class CandidateTests
     public void Rezervdan_qaytgan_nomzod_yana_voronkada_boladi()
     {
         var nomzod = Nomzod();
-        nomzod.RecordStage(KengashId, Sana, StageOutcome.Passed);
+        nomzod.RecordStage(KengashId, Sana);
         nomzod.MoveToReserve(Sana.AddDays(1), "Ҳозир ўрин йўқ");
 
         var natija = nomzod.ReturnToFunnel();
@@ -428,7 +429,7 @@ public sealed class CandidateTests
           anketani va fayllarni yo'qotardi.
         */
         var nomzod = Nomzod();
-        nomzod.RecordStage(KengashId, Sana, StageOutcome.Failed);
+        nomzod.RecordStage(KengashId, Sana);
         nomzod.Reject(Sana, "Тажрибаси етарли эмас");
 
         var natija = nomzod.ReturnToFunnel("Ўзи қайта мурожаат қилди, тажриба орттирган");

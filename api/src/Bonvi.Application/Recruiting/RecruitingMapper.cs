@@ -172,7 +172,6 @@ public sealed class RecruitingMapper
                 entry.StageId,
                 stageNames.GetValueOrDefault(entry.StageId),
                 entry.Date,
-                entry.Outcome,
                 entry.Conclusion,
                 entry.RecordedBy,
                 entry.RecordedAt,

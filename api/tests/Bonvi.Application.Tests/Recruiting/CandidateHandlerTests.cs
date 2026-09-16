@@ -99,7 +99,7 @@ public sealed class CandidateHandlerTests
         natija.Value.CurrentStageId.ShouldBe(anketa.Id);
         natija.Value.Status.ShouldBe(CandidateStatus.InProgress);
         natija.Value.Stages.Count.ShouldBe(1, "nomzod darhol voronkaning birinchi ustuniga tushadi");
-        natija.Value.Stages[0].Outcome.ShouldBe(StageOutcome.Pending);
+        natija.Value.Stages[0].StageId.ShouldBe(anketa.Id);
         _context.Candidates.Received(1).Add(Arg.Any<Candidate>());
     }
 
@@ -267,21 +267,19 @@ public sealed class CandidateHandlerTests
             new RecordCandidateStageCommand(
                 nomzod.Id,
                 kengash.Id,
-                StageOutcome.Passed,
                 RecruitingTestContext.Today,
                 "Кенгаш хулосаси: ишга олинсин"),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Stages.Count.ShouldBe(2, "har bir yozuv — alohida tarix qatori");
-        natija.Value.Stages[^1].Outcome.ShouldBe(StageOutcome.Passed);
         natija.Value.Stages[^1].Conclusion.ShouldBe("Кенгаш хулосаси: ишга олинсин");
         natija.Value.CurrentStageId.ShouldBe(kengash.Id, "joriy holat — OXIRGI yozuvdan");
     }
 
-    /// <summary>«Kutilmoqda» qatoriga natija yozish — AYNI qator to'ldiriladi.</summary>
+    /// <summary>Ochiq qatorga xulosa yozish — AYNI qator to'ldiriladi.</summary>
     [Fact]
-    public async Task Ochiq_yozuvga_natija_yozilsa_yangi_qator_qoshilmaydi()
+    public async Task Ochiq_yozuvga_xulosa_yozilsa_yangi_qator_qoshilmaydi()
     {
         var vakansiya = _context.ExistingVacancy();
         var kengash = _context.ExistingStage("Кенгаш", 3);
@@ -293,14 +291,12 @@ public sealed class CandidateHandlerTests
             new EditCandidateStageEntryCommand(
                 nomzod.Id,
                 ochiq.Id,
-                StageOutcome.Passed,
                 RecruitingTestContext.Today,
                 "Кенгаш хулосаси: ишга олинсин"),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
         natija.Value.Stages.Count.ShouldBe(1, "tuzatish yangi qator QO'SHMAYDI");
-        natija.Value.Stages[0].Outcome.ShouldBe(StageOutcome.Passed);
         natija.Value.Stages[0].Conclusion.ShouldBe("Кенгаш хулосаси: ишга олинсин");
         natija.Value.Stages[0].UpdatedAt.ShouldNotBeNull();
     }
@@ -327,7 +323,7 @@ public sealed class CandidateHandlerTests
 
         var natija = await BosqichTahriri.HandleAsync(
             new EditCandidateStageEntryCommand(
-                nomzod.Id, yozuv.Id, StageOutcome.Failed, null, "Рад этилди"),
+                nomzod.Id, yozuv.Id, null, "Рад этилди"),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
@@ -344,7 +340,7 @@ public sealed class CandidateHandlerTests
 
         var natija = await BosqichTahriri.HandleAsync(
             new EditCandidateStageEntryCommand(
-                nomzod.Id, Guid.CreateVersion7(), StageOutcome.Passed),
+                nomzod.Id, Guid.CreateVersion7()),
             TestContext.Current.CancellationToken);
 
         natija.IsFailure.ShouldBeTrue();
@@ -564,7 +560,6 @@ public sealed class CandidateHandlerTests
             new RecordCandidateStageCommand(
                 nomzod.Id,
                 kengash.Id,
-                StageOutcome.Passed,
                 RecruitingTestContext.Today,
                 "Кенгаш хулосаси: ишга олинсин",
                 NextContactDate: RecruitingTestContext.Today.AddDays(5)),

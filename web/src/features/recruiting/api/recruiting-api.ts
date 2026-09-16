@@ -85,8 +85,15 @@ export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number]
 export const CANDIDATE_SOURCES = ['Manual', 'TelegramBot', 'Excel'] as const
 export type CandidateSource = (typeof CANDIDATE_SOURCES)[number]
 
-export const STAGE_OUTCOMES = ['Pending', 'Passed', 'Failed'] as const
-export type StageOutcome = (typeof STAGE_OUTCOMES)[number]
+/*
+ * ⭐ Bosqich yozuvida «natija» sanog'i YO'Q (2026-09-16, foydalanuvchi
+ * qarori). Ilgari `Pending | Passed | Failed` bor edi; u olib tashlandi,
+ * chunki BOSQICHNING O'ZI holatni aytadi — «Анкета», «Гаплашилди»,
+ * «Кенгаш» qatori nomzod qayerda ekanini bildiradi, natija esa o'sha
+ * bosqichning xulosa MATNIDA yozilgan. Ikkita joy bir xil savolga javob
+ * berardi va ular bir-biriga zid tushardi.
+ */
+
 
 /*
  * Izoh TURI — nomzod izohi qaysi AMALDAN paydo bo'lgani.
@@ -226,7 +233,6 @@ export interface CandidateStageEntry {
   /** Faolsizlantirilgan bosqich uchun ham qaytadi — tarix «noma'lum» bo'lib qolmasin. */
   stage: string | null
   date: string
-  outcome: StageOutcome
   conclusion: string | null
   recordedBy: string | null
   /**
@@ -363,8 +369,7 @@ export interface CandidateFile {
  * ⚠️ ICHKI YOZUV: nomzodga hech qachon yuborilmaydi (na Telegram
  * xabarida, na rad etish matnida). Uni faqat HR va rahbar ko'radi.
  *
- * NEGA bosqich yozuvi emas: bosqich yozuvida `stageId` va `outcome`
- * bo'lishi shart, «boshqa vakansiyaga o'tkazildi» esa hech qanday
+ * NEGA bosqich yozuvi emas: bosqich yozuvida `stageId` bo'lishi shart, «boshqa vakansiyaga o'tkazildi» esa hech qanday
  * bosqichning NATIJASI emas — ikkisi ham yolg'on qiymat bo'lardi
  * (batafsil sabab SPEC §2.3.1 da).
  */
@@ -755,7 +760,6 @@ function toStageEntry(raw: unknown): CandidateStageEntry {
     stageId: text(box['stageId']) ?? '',
     stage: text(box['stage']),
     date: text(box['date']) ?? '',
-    outcome: oneOf(box['outcome'], STAGE_OUTCOMES, 'Pending'),
     conclusion: text(box['conclusion']),
     recordedBy: text(box['recordedBy']),
     recordedAt: text(box['recordedAt']) ?? '',
@@ -1176,7 +1180,6 @@ export async function recordCandidateStage(
   id: string,
   body: {
     stageId: string
-    outcome: StageOutcome
     date: string | null
     conclusion: string | null
     nextContactDate?: string | null
@@ -1207,7 +1210,6 @@ export async function editCandidateStageEntry(
   id: string,
   entryId: string,
   body: {
-    outcome: StageOutcome
     date: string | null
     conclusion: string | null
     nextContactDate?: string | null

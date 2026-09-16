@@ -1,36 +1,29 @@
-import { BadgeCheck, CircleSlash, Gavel, Hourglass, XCircle } from 'lucide-react'
+import { CircleDot, CircleSlash, Gavel } from 'lucide-react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import {
-  Badge,
   Card,
   CardContent,
   CardHeader,
   EmptyState,
   IconTile,
   Skeleton,
-  type BadgeTone,
-  type IconTone,
 } from '@/shared/ui'
-import type { LucideIcon } from 'lucide-react'
 
-import type { EmployeeStageEntry, StageOutcome } from '../api/employees-api'
+import type { EmployeeStageEntry } from '../api/employees-api'
 import { useEmployeeStages } from '../api/employees-queries'
 
-/**
- * Bosqich natijasining ko'rinishi.
+/*
+ * ⭐ «Natija» yorlig'i OLIB TASHLANDI (2026-09-16, foydalanuvchi
+ * qarori). Ilgari har qatorda yashil «o'tdi» / qizil «o'tmadi» /
+ * sariq «kutilmoqda» turardi.
  *
- * Ranglar ma'no tashiydi: yashil — o'tdi, qizil — o'tmadi, sariq — hali
- * javob yo'q. «Kutilmoqda» ataylab NEYTRAL emas: u HR e'tiborini talab
- * qiladigan holat — kimdir suhbatni boshlab, natijasini yozmagan.
+ * Sabab faqat soddalik emas: arxivdagi yorliqni ETL Excel MATNIDAN
+ * taxmin qilib qo'ygan edi va u ko'p joyda xulosaga zid chiqardi —
+ * «o'tdi» deb turgan qatorning xulosasi aslida rad etilgani haqida
+ * gapirardi. Xulosa MATNI esa o'z o'rnida qoladi va u yagona ishonchli
+ * manba.
  */
-const OUTCOME_LOOK: Readonly<
-  Record<StageOutcome, { icon: LucideIcon; tone: IconTone; badge: BadgeTone; key: string }>
-> = {
-  passed: { icon: BadgeCheck, tone: 'green', badge: 'success', key: 'passed' },
-  failed: { icon: XCircle, tone: 'red', badge: 'danger', key: 'failed' },
-  pending: { icon: Hourglass, tone: 'orange', badge: 'warning', key: 'pending' },
-}
 
 /**
  * ⭐ «Kengash xulosasi» — nomzodlik davridagi bosqich xulosalari.
@@ -100,13 +93,11 @@ export function EmployeeCouncilSection({ employeeId }: { employeeId: string }) {
 
 function StageRow({ entry }: { entry: EmployeeStageEntry }) {
   const { t, date } = useLocale()
-  const look = OUTCOME_LOOK[entry.outcome]
-
   return (
     <li className="relative flex gap-4 pb-6 last:pb-1">
       {/* Ikona chiziq ustida turadi — atrofidagi halqa fon rangida */}
       <span className="relative z-10 rounded-md ring-4 ring-[var(--bg-elevated)]">
-        <IconTile icon={look.icon} tone={look.tone} />
+        <IconTile icon={CircleDot} tone="gray" />
       </span>
 
       <div className="min-w-0 flex-1 pt-0.5">
@@ -119,10 +110,6 @@ function StageRow({ entry }: { entry: EmployeeStageEntry }) {
           <span className="text-subhead font-semibold">
             {entry.stage ?? t('employees.councilUnknownStage')}
           </span>
-
-          <Badge tone={look.badge} size="sm">
-            {t(`employees.stageOutcome.${look.key}`)}
-          </Badge>
         </div>
 
         <p className="tabular mt-1 text-caption1 text-[var(--fg-secondary)]">

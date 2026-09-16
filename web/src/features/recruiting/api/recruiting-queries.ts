@@ -34,7 +34,6 @@ import {
   type HireCandidateInput,
   type PipelineStage,
   type RegisterCandidateInput,
-  type StageOutcome,
   type VacancyFilters,
   type VacancyInput,
 } from './recruiting-api'
@@ -348,7 +347,6 @@ export function useRecordStage() {
     }: {
       id: string
       stageId: string
-      outcome: StageOutcome
       date: string | null
       conclusion: string | null
       nextContactDate?: string | null
@@ -375,7 +373,6 @@ export function useEditStageEntry() {
     }: {
       id: string
       entryId: string
-      outcome: StageOutcome
       date: string | null
       conclusion: string | null
       nextContactDate?: string | null
@@ -476,10 +473,9 @@ export function useFunnelCardFinder(filters: FunnelFilters, stages: PipelineStag
  * ⭐ Kartani boshqa bosqichga ko'chirish — voronkadagi sudrash.
  *
  * <b>So'rov `useRecordStage` bilan AYNAN bir xil endpoint'ga ketadi</b>
- * (`POST /candidates/{id}/stages`), faqat tanasi eng qisqasi:
- * `outcome = Pending`, sana va xulosa bo'sh. Sabab domenda yozilgan —
- * «kutilmoqda» bu «bosqich boshlandi, natija hali yo'q» degani, ya'ni
- * kartani ustunga tashlashning MA'NOSI shu. Sanani server o'zi
+ * (`POST /candidates/{id}/stages`), faqat tanasi eng qisqasi: sana va
+ * xulosa bo'sh. Kartani ustunga tashlashning MA'NOSI shu — «bosqich
+ * boshlandi, aytadigan gap hali yo'q». Sanani server o'zi
  * bugungi qilib qo'yadi (`Date = null` → `_clock.Today`), natijani esa
  * HR keyinroq lentadagi SHU QATORNI ochib yozadi
  * (`useEditStageEntry`) — sudrash hosil qilgan qator to'ldiriladi,
@@ -504,7 +500,6 @@ export function useMoveCandidateToStage(filters: FunnelFilters) {
     mutationFn: ({ card, toStageId }: { card: FunnelCard; toStageId: string; toStageName: string }) =>
       recordCandidateStage(card.item.id, {
         stageId: toStageId,
-        outcome: 'Pending',
         date: null,
         conclusion: null,
       }),

@@ -254,15 +254,10 @@ public sealed record ReassignCandidateCommand(
     DateOnly? NextContactDate = null);
 
 /// <summary>
-/// Bosqich natijasini yozish — voronkaning yagona harakati.
+/// Bosqichni yozish — voronkaning yagona harakati.
 /// </summary>
 /// <param name="CandidateId">Nomzod.</param>
 /// <param name="StageId">Bosqich.</param>
-/// <param name="Outcome">
-/// <c>Pending</c> — bosqich ochildi, natija keyin; <c>Passed</c> / <c>Failed</c> —
-/// tayyor natija. Sukut <c>Pending</c>: «keyingi bosqichga o'tkazish» eng
-/// tez-tez uchraydigan amal.
-/// </param>
 /// <param name="Date">Bosqich sanasi. Bo'sh — bugun.</param>
 /// <param name="Conclusion">Xulosa matni — kengash xulosasi ham SHU maydon.</param>
 /// <param name="NextContactDate">Keyingi aloqa sanasi — berilsa QO'YILADI.</param>
@@ -289,7 +284,6 @@ public sealed record ReassignCandidateCommand(
 public sealed record RecordCandidateStageCommand(
     Guid CandidateId,
     Guid StageId,
-    StageOutcome Outcome = StageOutcome.Pending,
     DateOnly? Date = null,
     string? Conclusion = null,
     DateOnly? NextContactDate = null,
@@ -317,7 +311,6 @@ public sealed record RecordCandidateStageCommand(
 /// </remarks>
 /// <param name="CandidateId">Nomzod.</param>
 /// <param name="EntryId">Qaysi yozuv tuzatiladi.</param>
-/// <param name="Outcome">Natija.</param>
 /// <param name="Date">Bosqich sanasi. Bo'sh — bugun.</param>
 /// <param name="Conclusion">Xulosa matni; bo'sh bo'lishi mumkin.</param>
 /// <param name="NextContactDate">
@@ -330,7 +323,6 @@ public sealed record RecordCandidateStageCommand(
 public sealed record EditCandidateStageEntryCommand(
     Guid CandidateId,
     Guid EntryId,
-    StageOutcome Outcome,
     DateOnly? Date = null,
     string? Conclusion = null,
     DateOnly? NextContactDate = null,
@@ -1061,7 +1053,6 @@ public sealed class RecordCandidateStageCommandHandler
         var recorded = candidate.RecordStage(
             command.StageId,
             command.Date ?? _clock.Today,
-            command.Outcome,
             command.Conclusion,
             _currentUser.UserId);
 
@@ -1171,7 +1162,6 @@ public sealed class EditCandidateStageEntryCommandHandler
 
         var edited = candidate.EditStageEntry(
             command.EntryId,
-            command.Outcome,
             command.Date ?? _clock.Today,
             command.Conclusion);
 

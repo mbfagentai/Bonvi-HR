@@ -1,9 +1,7 @@
 import {
   Bookmark,
   Bot,
-  CircleCheck,
   CircleSlash,
-  CircleX,
   DoorOpen,
   FileSpreadsheet,
   Hourglass,
@@ -14,11 +12,10 @@ import {
 } from 'lucide-react'
 
 import { todayIso } from '@/shared/lib/today'
-import type { BadgeTone, IconTone } from '@/shared/ui'
+import type { BadgeTone } from '@/shared/ui'
 import type {
   CandidateSource,
   CandidateStatus,
-  StageOutcome,
   VacancyStatus,
 } from '../api/recruiting-api'
 
@@ -102,14 +99,6 @@ export const CANDIDATE_LOOK: Readonly<Record<CandidateStatus, StatusLook>> = {
   Reserve: { key: 'reserve', tone: 'neutral', icon: Bookmark },
 }
 
-/** Bosqich natijasi — lentadagi ikona uchun `IconTone` (Badge emas). */
-export const OUTCOME_LOOK: Readonly<
-  Record<StageOutcome, { key: string; tone: IconTone; badge: BadgeTone; icon: LucideIcon }>
-> = {
-  Pending: { key: 'pending', tone: 'gray', badge: 'neutral', icon: Hourglass },
-  Passed: { key: 'passed', tone: 'green', badge: 'success', icon: CircleCheck },
-  Failed: { key: 'failed', tone: 'red', badge: 'danger', icon: CircleX },
-}
 
 /**
  * Manba — nomzod qayerdan kelgan.

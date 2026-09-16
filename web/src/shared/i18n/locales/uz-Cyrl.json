@@ -835,11 +835,6 @@
     "councilUnknownStage": "Босқич кўрсатилмаган",
     "councilNoConclusion": "Хулоса ҳали ёзилмаган",
     "councilRecordedBy": "{{name}} ёзган",
-    "stageOutcome": {
-      "pending": "Кутилмоқда",
-      "passed": "Ўтди",
-      "failed": "Ўтмади"
-    },
     "flagStageEmployed": "Ишлаб турган ходим учун. Бир вақтда атиги битта белги кучда бўлади.",
     "flagStageDeparted": "Ишдан кетишда танланади. Бир вақтда атиги битта белги кучда бўлади.",
     "marks": {
@@ -1133,7 +1128,6 @@
     "conclusion": "Хулоса",
     "conclusionPlaceholder": "Суҳбат ёки кенгаш хулосаси",
     "stageDate": "Босқич санаси",
-    "outcomeHint": "Суҳбат ҳали бўлмаган бўлса — «Кутилмоқда»",
     "recordedAt": "Ёзилди: {{at}}",
     "editedAt": "таҳрирланди: {{at}}",
     "currentStage": "Жорий босқич: {{stage}}",
@@ -1265,16 +1259,9 @@
     "interviewQueued": "Хабар навбатда",
     "interviewSent": "Хабар юборилди",
     "interviewReschedule": "Вақтни ўзгартириш",
-    "stageFill": "Натижани ёзиш",
     "stageEditTitle": "Ёзувни таҳрирлаш",
     "stagesEmptyTitle": "Босқичлар тарихи бўш",
     "stagesEmptyText": "Ҳар бир суҳбат, кенгаш ва телефон алоқаси шу лентага ёзилади.",
-    "outcome": {
-      "label": "Натижа",
-      "pending": "Кутилмоқда",
-      "passed": "Ўтди",
-      "failed": "Ўтмади"
-    },
     "noteKind": {
       "reassign": "Бошқа вакансияга ўтказилди",
       "returnToFunnel": "Воронкага қайтарилди",

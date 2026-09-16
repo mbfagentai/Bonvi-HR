@@ -131,7 +131,6 @@ public sealed record ReturnCandidateToFunnelRequest(
 
 /// <summary>Bosqich natijasini yozish so'rovi tanasi.</summary>
 /// <param name="StageId">Bosqich. Majburiy.</param>
-/// <param name="Outcome">Pending (sukut) | Passed | Failed.</param>
 /// <param name="Date">Bosqich sanasi. Bo'sh — bugun.</param>
 /// <param name="Conclusion">Xulosa matni — kengash xulosasi ham shu maydon.</param>
 /// <param name="NextContactDate">
@@ -160,7 +159,6 @@ public sealed record ReturnCandidateToFunnelRequest(
 /// </param>
 public sealed record RecordCandidateStageRequest(
     Guid StageId,
-    StageOutcome Outcome = StageOutcome.Pending,
     DateOnly? Date = null,
     string? Conclusion = null,
     DateOnly? NextContactDate = null,
@@ -168,13 +166,12 @@ public sealed record RecordCandidateStageRequest(
 
 /// <summary>Tarixdagi bitta bosqich yozuvini tuzatish so'rovi tanasi.</summary>
 /// <remarks>
-/// ⭐ <b>Bosqich bu yerda YO'Q.</b> Tuzatish yozuvning natijasini, sanasini
-/// va xulosasini o'zgartiradi, «qaysi bosqich» degan faktni emas — sababi
+/// ⭐ <b>Bosqich bu yerda YO'Q.</b> Tuzatish yozuvning sanasini va
+/// xulosasini o'zgartiradi, «qaysi bosqich» degan faktni emas — sababi
 /// <c>CandidateStageEntry.Edit</c> domen izohida. Yozuvning O'ZI manzilda
 /// ko'rsatiladi (<c>/stages/{entryId}</c>), tanada emas: u resursning
 /// identifikatori, ma'lumot emas.
 /// </remarks>
-/// <param name="Outcome">Pending | Passed | Failed.</param>
 /// <param name="Date">Bosqich sanasi. Bo'sh — bugun.</param>
 /// <param name="Conclusion">
 /// Xulosa matni. ⚠️ Bu maydon USTIDAN yozadi: mijoz mavjud matnni
@@ -187,7 +184,6 @@ public sealed record RecordCandidateStageRequest(
 /// </param>
 /// <param name="ClearNextContact">Sanani tozalash.</param>
 public sealed record EditCandidateStageEntryRequest(
-    StageOutcome Outcome = StageOutcome.Pending,
     DateOnly? Date = null,
     string? Conclusion = null,
     DateOnly? NextContactDate = null,
@@ -636,7 +632,6 @@ public static class CandidateEndpoints
                         new RecordCandidateStageCommand(
                             id,
                             request.StageId,
-                            request.Outcome,
                             request.Date,
                             request.Conclusion,
                             request.NextContactDate,
@@ -656,12 +651,13 @@ public static class CandidateEndpoints
             .WithDescription(
                 "Voronkaning YAGONA harakati: telefon suhbat natijasi ham, KENGASH " +
                 "XULOSASI ham, rahbar suhbati ham shu endpoint orqali yoziladi " +
-                "(«conclusion» — xulosa matni). ⭐ HAR CHAQIRUV TARIXGA YANGI QATOR " +
+                "(«conclusion» — xulosa matni; alohida «natija» maydoni YO'Q — " +
+                "bosqichning O'ZI holatni aytadi). ⭐ HAR CHAQIRUV TARIXGA YANGI QATOR " +
                 "QO'SHADI va mavjud yozuvning ustidan HECH QACHON yozmaydi: bitta " +
                 "bosqich necha marta takrorlansa, shuncha qator bo'ladi («besh marta " +
                 "gaplashildi — beshta yozuv»), nomzodning joriy holati esa oxirgi " +
-                "yozuvdan kelib chiqadi. Ochib qo'yilgan «kutilmoqda» yozuviga natija " +
-                "yozish uchun «PUT /stages/{entryId}» ishlatiladi. " +
+                "yozuvdan kelib chiqadi. Ochib qo'yilgan yozuvga xulosa yozish uchun " +
+                "«PUT /stages/{entryId}» ishlatiladi. " +
                 "Voronka oldinga yurishga majburlamaydi: bosqichni o'tkazib yuborish " +
                 "va orqaga qaytish mumkin. " +
                 "«conclusion» BO'SH bo'lishi mumkin va bu xato emas: majburlash " +
@@ -692,7 +688,6 @@ public static class CandidateEndpoints
                         new EditCandidateStageEntryCommand(
                             id,
                             entryId,
-                            request.Outcome,
                             request.Date,
                             request.Conclusion,
                             request.NextContactDate,
@@ -706,7 +701,7 @@ public static class CandidateEndpoints
             .WithName("EditCandidateStageEntry")
             .WithSummary("Nomzod — tarixdagi bosqich yozuvini tuzatish")
             .WithDescription(
-                "TARIXNING bitta qatorini tuzatadi: «kutilmoqda» yozuviga natijani " +
+                "TARIXNING bitta qatorini tuzatadi: bo'sh qolgan yozuvga xulosa " +
                 "yozish ham, ilgari yozilgan xulosadagi xatoni to'g'rilash ham shu " +
                 "endpoint. Yangi qator QO'SHILMAYDI va nomzodning joriy bosqichi " +
                 "O'ZGARMAYDI — tuzatish odamni voronkada surmaydi. Yozuvning " +

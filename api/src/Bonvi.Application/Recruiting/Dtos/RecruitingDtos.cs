@@ -80,7 +80,6 @@ public sealed record VacancyDto(
 /// <param name="StageId">Bosqich.</param>
 /// <param name="Stage">Bosqich nomi — faolsizlantirilgan bosqich uchun ham qaytadi.</param>
 /// <param name="Date">Bosqich sanasi.</param>
-/// <param name="Outcome">Pending | Passed | Failed.</param>
 /// <param name="Conclusion">Xulosa matni (kengash xulosasi, suhbat natijasi).</param>
 /// <param name="RecordedBy">Kim yozdi — tizim foydalanuvchisi.</param>
 /// <param name="RecordedAt">
@@ -96,7 +95,6 @@ public sealed record CandidateStageEntryDto(
     Guid StageId,
     string? Stage,
     DateOnly Date,
-    StageOutcome Outcome,
     string? Conclusion,
     Guid? RecordedBy,
     DateTimeOffset RecordedAt,

@@ -90,21 +90,11 @@ public enum CandidateNoteKind
 ///   <item><see cref="Candidate.ClosingNote"/> — rezervdan qaytarish uchun
 ///   umuman ishlamaydi: <see cref="Candidate.ReturnToFunnel"/> o'sha
 ///   tranzaksiyada uni TOZALAYDI, ya'ni izoh yozilgan zahoti o'chardi.</item>
-///   <item><see cref="CandidateStageEntry"/> — yozuvda <c>StageId</c> ham,
-///   <c>Outcome</c> ham bo'ladi va ikkalasi ham yolg'on bo'lardi: telefon
-///   suhbatidan o'tgan odamga «Гаплашилди» bosqichida yangi «kutilmoqda»
-///   yozuvi qo'yilsa, tarix telefon suhbati qaytadan o'tkazilayotganini
-///   da'vo qilardi va qatorda «natijani yozing» tugmasi paydo bo'lardi —
-///   natijasi bo'lmagan narsa uchun.</item>
+///   <item><see cref="CandidateStageEntry"/> — yozuvda <c>StageId</c>
+///   bo'ladi va u yolg'on bo'lardi: telefon suhbatidan o'tgan odamga
+///   «Гаплашилди» bosqichida yana bir yozuv qo'yilsa, tarix telefon
+///   suhbati QAYTADAN o'tkazilayotganini da'vo qilardi.</item>
 /// </list>
-/// <para>
-/// To'rtinchi yo'l — <see cref="StageOutcome"/> ga <c>Note</c> qiymatini
-/// qo'shish — ham rad etildi, sababi ta'mga emas faktga tayanadi: u
-/// sanoqning IKKINCHI iste'molchisi bor. Xodim kartasidagi kengash arxivi
-/// <c>GET /api/employees/{id}/stages</c> dan o'qiydi, ya'ni yangi qiymat
-/// XODIMLAR bo'limida paydo bo'lardi — u yerda nomzod izohining ma'nosi
-/// yo'q.
-/// </para>
 /// <para>
 /// <b>Bu ham <see cref="Candidate"/> ning bolasi</b>, ildiz emas:
 /// <see cref="CandidateStageEntry"/> bilan bir xil sabab — yozuv

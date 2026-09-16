@@ -552,7 +552,8 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// qachon yozilmaydi: bitta bosqich necha marta takrorlansa, tarixda
     /// shuncha qator bo'ladi («besh marta gaplashildi — beshta yozuv»,
     /// foydalanuvchi qarori 2026-09-16). Nomzodning joriy holati esa
-    /// oxirgi yozuvdan kelib chiqadi.
+    /// oxirgi yozuvning BOSQICHIdan kelib chiqadi — alohida «natija»
+    /// maydoni yo'q (sababi <see cref="CandidateStageEntry"/> izohida).
     /// </para>
     /// <para>
     /// ⚠️ <b>Ilgari boshqacha edi va bu XATO edi.</b> Oxirgi yozuv ayni shu
@@ -582,7 +583,6 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     public Result<CandidateStageEntry> RecordStage(
         Guid stageId,
         DateOnly date,
-        StageOutcome outcome = StageOutcome.Pending,
         string? conclusion = null,
         Guid? recordedBy = null)
     {
@@ -591,7 +591,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
             return NotActive();
         }
 
-        var created = CandidateStageEntry.Create(Id, stageId, date, outcome, conclusion, recordedBy);
+        var created = CandidateStageEntry.Create(Id, stageId, date, conclusion, recordedBy);
         if (created.IsFailure)
         {
             return created.Error;
@@ -603,12 +603,12 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         return created.Value;
     }
 
-    /// <summary>Tarixdagi BITTA yozuvni tuzatadi — natija, sana va xulosa.</summary>
+    /// <summary>Tarixdagi BITTA yozuvni tuzatadi — sana va xulosa.</summary>
     /// <remarks>
     /// <para>
     /// ⭐ <b>Yozuv ID bo'yicha topiladi, «oxirgisi» bo'yicha EMAS.</b> HR
     /// lentaning istalgan qatoriga bosadi va aynan o'sha qator ochiladi:
-    /// «kutilmoqda» qatoriga natija yozish ham, ilgari yozilgan xulosadagi
+    /// bo'sh qolgan yozuvga xulosa yozish ham, ilgari yozilgan xulosadagi
     /// xatoni tuzatish ham shu metod. Mijoz qaysi qatorni tahrirlayotganini
     /// ANIQ aytadi, server esa taxmin qilmaydi.
     /// </para>
@@ -630,7 +630,6 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public Result<CandidateStageEntry> EditStageEntry(
         Guid entryId,
-        StageOutcome outcome,
         DateOnly date,
         string? conclusion)
     {
@@ -641,7 +640,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
             return Error.NotFound("bosqich_yozuvi.topilmadi", "Bosqich yozuvi topilmadi.");
         }
 
-        var edited = entry.Edit(outcome, date, conclusion);
+        var edited = entry.Edit(date, conclusion);
 
         return edited.IsFailure ? edited.Error : entry;
     }

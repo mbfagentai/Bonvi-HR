@@ -142,7 +142,6 @@ public sealed record EmployeeFlagDto(
 /// <param name="StageId">Bosqich.</param>
 /// <param name="Stage">Bosqich nomi. <c>null</c> — ma'lumotnomadan topilmadi.</param>
 /// <param name="Date">Bosqich o'tkazilgan sana (kengash kuni, suhbat kuni).</param>
-/// <param name="Outcome">Kutilmoqda / o'tdi / o'tmadi.</param>
 /// <param name="Conclusion">Xulosa matni.</param>
 /// <param name="RecordedBy">Kim yozdi — tizim foydalanuvchisi.</param>
 /// <param name="RecordedByName">Yozgan foydalanuvchining F.I.Sh.</param>
@@ -153,7 +152,6 @@ public sealed record EmployeeStageEntryDto(
     Guid StageId,
     string? Stage,
     DateOnly Date,
-    StageOutcome Outcome,
     string? Conclusion,
     Guid? RecordedBy,
     string? RecordedByName,

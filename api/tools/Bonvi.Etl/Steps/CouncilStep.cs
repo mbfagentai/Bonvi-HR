@@ -295,7 +295,6 @@ public sealed class CouncilStep
 
         var note = row.Text(NoteColumn).Trim();
         var verdict = Verdict(row);
-        var outcome = Outcome(verdict, employee is not null);
 
         var date = ResolveDate(row, employee, blocks, out var assumed);
 
@@ -327,10 +326,17 @@ public sealed class CouncilStep
 
         if (date is { } councilDate)
         {
+            /*
+              ⚠️ Kengash NATIJASI («o'tdi/o'tmadi») endi yozilmaydi va
+              maydonning o'zi ham yo'q (2026-09-16). U varaqdagi matndan
+              TAXMIN qilinardi va ko'p joyda yolg'on chiqardi: yorlig'i
+              «o'tdi» bo'lgan yozuvning xulosasi aslida rad etilgani
+              haqida gapirardi. Xulosa MATNI esa o'z o'rnida qoladi va
+              u yagona ishonchli manba.
+            */
             var recorded = candidate.RecordStage(
                 stageId,
                 councilDate,
-                outcome,
                 conclusion: Conclusion(note, verdict));
 
             if (recorded.IsFailure)
@@ -625,17 +631,14 @@ public sealed class CouncilStep
         return string.Empty;
     }
 
-    private static bool Recognized(string text)
-        => Mark(text) is not null || Form(text) is not null;
+    private static bool Recognized(string text) => Mark(text) || Form(text);
 
-    private static StageOutcome? Mark(string text) => text switch
-    {
-        PassedMark or PassedMarkAlt => StageOutcome.Passed,
-        FailedMark or FailedMarkAlt => StageOutcome.Failed,
-        _ => null,
-    };
+    /// <summary>Katakda kengash belgisi turibdimi («✔», «❌»).</summary>
+    private static bool Mark(string text)
+        => text is PassedMark or PassedMarkAlt or FailedMark or FailedMarkAlt;
 
-    private static StageOutcome? Form(string text)
+    /// <summary>Katakda kengash xulosasining so'zi turibdimi.</summary>
+    private static bool Form(string text)
     {
         var key = Fold(text);
 
@@ -643,7 +646,7 @@ public sealed class CouncilStep
         {
             if (key.Contains(form, StringComparison.Ordinal))
             {
-                return StageOutcome.Failed;
+                return true;
             }
         }
 
@@ -651,35 +654,11 @@ public sealed class CouncilStep
         {
             if (key.Contains(form, StringComparison.Ordinal))
             {
-                return StageOutcome.Passed;
+                return true;
             }
         }
 
-        return null;
-    }
-
-    /// <summary>
-    /// Bosqich natijasi.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Ustundagi aniq xulosa har doim ustun turadi. U bo'lmasa xodim
-    /// borligi hal qiladi: odam ishga olingan ekan, kengash uni
-    /// ma'qullagan — bu xulosa emas, FAKTDAN kelib chiqadigan natija.
-    /// </para>
-    /// <para>
-    /// Xodim ham, xulosa ham yo'q bo'lsa natija <c>Pending</c>:
-    /// «bilmaymiz» ni «o'tmadi» deb yozish odamga tuhmat bo'lardi.
-    /// </para>
-    /// </remarks>
-    private static StageOutcome Outcome(string verdict, bool hired)
-    {
-        if (verdict.Length > 0 && (Mark(verdict) ?? Form(verdict)) is { } known)
-        {
-            return known;
-        }
-
-        return hired ? StageOutcome.Passed : StageOutcome.Pending;
+        return false;
     }
 
     /// <summary>Bosqich yozuvining xulosa matni.</summary>

@@ -1,10 +1,10 @@
-import { History, MessageSquareText, Pencil, Plus } from 'lucide-react'
+import { CircleDot, History, MessageSquareText, Pencil, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
-import { Badge, Button, Card, CardContent, EmptyState, IconTile } from '@/shared/ui'
+import { Button, Card, CardContent, EmptyState, IconTile } from '@/shared/ui'
 import type { Candidate, CandidateNote, CandidateStageEntry } from '../api/recruiting-api'
-import { lowerFirst, OUTCOME_LOOK } from '../lib/recruiting-presentation'
+import { lowerFirst } from '../lib/recruiting-presentation'
 import { CandidateStageDialog } from './candidate-stage-dialog'
 
 /**
@@ -168,31 +168,29 @@ function StageRow({
 }) {
   const { t, date, dateTime } = useLocale()
 
-  const look = OUTCOME_LOOK[entry.outcome]
-
   return (
     <li className="relative flex gap-4 pb-6 last:pb-1">
-      {/* Ikona chiziq ustida turadi — atrofidagi halqa fon rangida */}
+      {/*
+        Ikona chiziq ustida turadi — atrofidagi halqa fon rangida.
+
+        ⭐ Rang NEYTRAL va hamma qatorda bir xil (2026-09-16). Ilgari u
+        natijaga qarab yashil/qizil bo'lardi; natija olib tashlangach,
+        rang ajratadigan narsa qolmadi — qatorni BOSQICH nomi va xulosa
+        matni ajratib turadi.
+      */}
       <span className="relative z-10 rounded-md ring-4 ring-[var(--bg-elevated)]">
-        <IconTile icon={look.icon} tone={look.tone} />
+        <IconTile icon={CircleDot} tone="gray" />
       </span>
 
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
           <span className="text-subhead font-semibold">{entry.stage ?? '—'}</span>
 
-          <Badge tone={look.badge} size="sm">
-            {t(`recruiting.outcome.${look.key}`)}
-          </Badge>
-
           {/*
-            ⭐ Tugma HAR BIR qatorda — natijasi yozilganida ham.
-            Ikkalasi AYNAN bitta amal (`PUT .../stages/{entryId}`) va
-            faqat yorlig'i farq qiladi: bo'sh yozuvda «natijani
-            yozish», to'ldirilganida «tahrirlash». Ilgari tugma faqat
-            «kutilmoqda» da bor edi va yozilgan xulosadagi xatoni
-            tuzatishning YO'LI YO'Q edi; ustiga-ustak u eng oxirgi
-            bo'lmagan qatorda duplikat yozuv yaratardi (2026-09-16).
+            ⭐ Tugma HAR BIR qatorda. Ilgari u faqat «kutilmoqda»
+            yozuvida bor edi va yozilgan xulosadagi xatoni tuzatishning
+            YO'LI YO'Q edi; ustiga-ustak u eng oxirgi bo'lmagan qatorda
+            duplikat yozuv yaratardi (2026-09-16).
           */}
           {canManage && (
             <Button
@@ -203,9 +201,7 @@ function StageRow({
               className="-my-1"
             >
               <Pencil />
-              {entry.outcome === 'Pending'
-                ? t('recruiting.stageFill')
-                : t('common.edit')}
+              {t('common.edit')}
             </Button>
           )}
         </div>

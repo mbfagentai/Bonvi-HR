@@ -59,14 +59,6 @@ export type EmployeeFlagType = (typeof EMPLOYEE_FLAG_TYPES)[number]
 export const GENDERS = ['male', 'female'] as const
 export type Gender = (typeof GENDERS)[number]
 
-/**
- * Nomzodning bosqichdagi natijasi (`StageOutcome`).
- *
- * Tartib C# enum'ining RAQAMLI qiymatlariga mos (1 dan): `Pending = 1`
- * → `names[0]` — `enumValue` shu qoidaga tayanadi.
- */
-export const STAGE_OUTCOMES = ['pending', 'passed', 'failed'] as const
-export type StageOutcome = (typeof STAGE_OUTCOMES)[number]
 
 /* ═══════════════════════════════════════════════════════════════ MODELLAR */
 
@@ -544,7 +536,6 @@ export interface EmployeeStageEntry {
   stage: string | null
   /** Bosqich o'tkazilgan sana — kengash kuni, suhbat kuni. */
   date: string
-  outcome: StageOutcome
   /** Xulosa matni. `null` — hali yozilmagan («kutilmoqda» yozuvida odatiy). */
   conclusion: string | null
   recordedBy: string | null
@@ -968,7 +959,6 @@ function toStageEntry(raw: unknown): EmployeeStageEntry {
     date: text(box['date']) ?? '',
     // Noma'lum qiymat «kutilmoqda» ga tushadi: u eng zararsiz taxmin —
     // «o'tdi» yoki «o'tmadi» deb ko'rsatish yolg'on xulosa bo'lardi.
-    outcome: enumValue(box['outcome'], STAGE_OUTCOMES, 'pending'),
     conclusion: text(box['conclusion']),
     recordedBy: text(box['recordedBy']),
     recordedByName: text(box['recordedByName']),

@@ -142,8 +142,8 @@ public sealed class InviteCandidateToInterviewCommandHandler
             }
 
             /*
-              Natija «kutilmoqda»: suhbat hali bo'lgani yo'q va uning
-              xulosasi keyin, LENTADAGI SHU QATORNI ochib yoziladi
+              Xulosa hozir bo'sh bo'lishi mumkin: suhbat hali bo'lgani
+              yo'q va u keyin, LENTADAGI SHU QATORNI ochib yoziladi
               (<c>EditCandidateStageEntryCommand</c>). Chaqirishning o'zi
               esa tarixda alohida fakt bo'lib qoladi: ikkinchi marta
               chaqirilgan nomzodda ikkita qator bo'ladi va bu to'g'ri —
@@ -156,7 +156,6 @@ public sealed class InviteCandidateToInterviewCommandHandler
             var recorded = candidate.RecordStage(
                 stageId,
                 command.InterviewAt.TashkentDate(),
-                StageOutcome.Pending,
                 command.Conclusion,
                 _currentUser.UserId);
 

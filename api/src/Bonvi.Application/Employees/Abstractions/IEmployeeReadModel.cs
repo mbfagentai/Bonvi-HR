@@ -427,7 +427,6 @@ public sealed record EmploymentEventRow(
 /// <param name="StageId">Bosqich.</param>
 /// <param name="StageName">Bosqich nomi. <c>null</c> — bosqich topilmadi.</param>
 /// <param name="Date">Bosqich o'tkazilgan sana.</param>
-/// <param name="Outcome">Natija: kutilmoqda / o'tdi / o'tmadi.</param>
 /// <param name="Conclusion">Xulosa matni («Кенгаш хулосаси»).</param>
 /// <param name="RecordedBy">Kim yozdi — TIZIM FOYDALANUVCHISI.</param>
 /// <param name="RecordedByName">Yozgan foydalanuvchining F.I.Sh.</param>
@@ -438,7 +437,6 @@ public sealed record CandidateStageRow(
     Guid StageId,
     string? StageName,
     DateOnly Date,
-    StageOutcome Outcome,
     string? Conclusion,
     Guid? RecordedBy,
     string? RecordedByName,

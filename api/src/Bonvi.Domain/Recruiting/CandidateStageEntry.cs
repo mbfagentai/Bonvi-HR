@@ -2,29 +2,27 @@ using Bonvi.Domain.Common;
 
 namespace Bonvi.Domain.Recruiting;
 
-/// <summary>Nomzodning bosqichdagi natijasi.</summary>
-public enum StageOutcome
-{
-    /// <summary>Kutilmoqda — bosqich boshlandi, natija hali yo'q.</summary>
-    Pending = 1,
-
-    /// <summary>O'tdi.</summary>
-    Passed = 2,
-
-    /// <summary>O'tmadi.</summary>
-    Failed = 3,
-}
-
 /// <summary>
-/// Nomzodning bitta bosqichdan o'tishi: qachon, qanday natija, qanday xulosa.
+/// Nomzodning bitta bosqichdan o'tishi: qachon va qanday xulosa bilan.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <b>Bu yozuv butun voronkaning yagona «hodisasi».</b> Telefon suhbat
 /// natijasi ham, kengash xulosasi ham, rahbar suhbati ham — hammasi shu
 /// yozuv. Foydalanuvchi qarori shuni talab qildi: kengash ovoz bermaydi,
-/// HR bitta xulosa yozadi (natija + izoh + sana). Ya'ni «Кенгаш» — bu
-/// mexanizm emas, <see cref="PipelineStage"/> ning bir qiymati.
+/// HR bitta xulosa yozadi (sana + izoh). Ya'ni «Кенгаш» — bu mexanizm
+/// emas, <see cref="PipelineStage"/> ning bir qiymati.
+/// </para>
+/// <para>
+/// ⭐ <b>ALOHIDA «natija» maydoni YO'Q</b> (foydalanuvchi qarori,
+/// 2026-09-16). Ilgari har yozuvda «kutilmoqda / o'tdi / o'tmadi»
+/// sanog'i bor edi. U olib tashlandi, sababi oddiy: BOSQICHNING O'ZI
+/// holatni aytadi — «Анкета», «Гаплашилди», «Кенгаш» qatori nomzod
+/// qayerda ekanini allaqachon bildiradi, natija esa o'sha bosqichning
+/// XULOSASIDA yozilgan. Ikkita joy bir xil savolga javob berardi va
+/// ular bir-biriga zid tushardi: Excel arxividagi yozuvlarning bir
+/// qismida yorliq «o'tdi» deb tursa, xulosa matni rad etilgani haqida
+/// gapirardi (yorliqni ETL matndan TAXMIN qilib qo'ygan edi).
 /// </para>
 /// <para>
 /// <b>Nega alohida <c>Interview</c> agregati YOZILMADI.</b> Suhbat ham
@@ -68,14 +66,12 @@ public sealed class CandidateStageEntry : Entity
         Guid id,
         Guid candidateId,
         Guid stageId,
-        DateOnly date,
-        StageOutcome outcome)
+        DateOnly date)
         : base(id)
     {
         CandidateId = candidateId;
         StageId = stageId;
         Date = date;
-        Outcome = outcome;
     }
 
     /// <summary>EF Core uchun.</summary>
@@ -89,16 +85,14 @@ public sealed class CandidateStageEntry : Entity
     /// <summary>Bosqich o'tkazilgan sana (suhbat kuni, kengash kuni).</summary>
     public DateOnly Date { get; private set; }
 
-    public StageOutcome Outcome { get; private set; }
-
     /// <summary>
     /// Xulosa matni — «Кенгаш хулосаси», «телефон суҳбат натижаси».
     /// </summary>
     /// <remarks>
-    /// Erkin matn va ATAYLAB majburiy emas: «kutilmoqda» yozuvida hali
-    /// aytadigan gap yo'q. Natija qo'yilganda ham xulosa talab qilinmaydi —
-    /// HR ba'zan faqat «o'tdi» deb belgilaydi va uni majburlash yolg'on
-    /// («ok») xulosalar yozilishiga olib kelardi.
+    /// Erkin matn va ATAYLAB majburiy emas: bosqich oldindan ochilganda
+    /// («ertaga kengash») hali aytadigan gap yo'q, keyin esa HR ba'zan
+    /// bir og'iz ham yozmaydi. Majburlash yolg'on («ok») xulosalar
+    /// yozilishiga olib kelardi.
     /// </remarks>
     public string? Conclusion { get; private set; }
 
@@ -138,7 +132,6 @@ public sealed class CandidateStageEntry : Entity
         Guid candidateId,
         Guid stageId,
         DateOnly date,
-        StageOutcome outcome,
         string? conclusion = null,
         Guid? recordedBy = null)
     {
@@ -147,7 +140,7 @@ public sealed class CandidateStageEntry : Entity
             return Error.Validation("bosqich_yozuvi.bosqich_yoq", "Bosqich ko'rsatilishi shart.");
         }
 
-        return new CandidateStageEntry(NewId(), candidateId, stageId, date, outcome)
+        return new CandidateStageEntry(NewId(), candidateId, stageId, date)
         {
             Conclusion = Trim(conclusion),
             RecordedBy = recordedBy,
@@ -155,7 +148,7 @@ public sealed class CandidateStageEntry : Entity
         };
     }
 
-    /// <summary>Yozuvning natijasini, sanasini va xulosasini tuzatadi.</summary>
+    /// <summary>Yozuvning sanasini va xulosasini tuzatadi.</summary>
     /// <remarks>
     /// <para>
     /// ⚠️ <b>Bosqich O'ZGARMAYDI.</b> Yozuv «qaysi bosqich» degan fakt
@@ -169,9 +162,8 @@ public sealed class CandidateStageEntry : Entity
     /// muallifi o'zgarmaydi.
     /// </para>
     /// </remarks>
-    internal Result Edit(StageOutcome outcome, DateOnly date, string? conclusion)
+    internal Result Edit(DateOnly date, string? conclusion)
     {
-        Outcome = outcome;
         Date = date;
         Conclusion = Trim(conclusion);
         UpdatedAt = DateTimeOffset.UtcNow;

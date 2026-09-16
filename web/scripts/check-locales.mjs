@@ -344,11 +344,6 @@ const DYNAMIC_KEY_SOURCES = [
   },
   {
     file: 'src/features/recruiting/api/recruiting-api.ts',
-    values: (text) => constArrayValues(text, 'STAGE_OUTCOMES'),
-    keysFor: (value) => [`recruiting.outcome.${lowerFirst(value)}`],
-  },
-  {
-    file: 'src/features/recruiting/api/recruiting-api.ts',
     values: (text) => constArrayValues(text, 'OFFER_STATUSES'),
     keysFor: (value) => [`recruiting.offerStatus.${lowerFirst(value)}`],
   },

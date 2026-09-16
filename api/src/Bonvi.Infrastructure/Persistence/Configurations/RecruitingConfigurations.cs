@@ -376,9 +376,6 @@ public sealed class CandidateStageEntryConfiguration : IEntityTypeConfiguration<
         builder.Property(entry => entry.Date)
             .IsRequired();
 
-        builder.Property(entry => entry.Outcome)
-            .IsRequired();
-
         builder.Property(entry => entry.RecordedAt)
             .IsRequired();
 

@@ -67,7 +67,6 @@ public sealed class GetEmployeeStagesQueryHandler
                 row.StageId,
                 row.StageName,
                 row.Date,
-                row.Outcome,
                 row.Conclusion,
                 row.RecordedBy,
                 row.RecordedByName,
