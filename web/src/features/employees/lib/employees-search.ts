@@ -38,22 +38,39 @@ export interface EmployeesSearch {
   view?: EmployeesView
 }
 
-/** `all` — «holat bo'yicha filtrlama», ya'ni butun baza. */
-export type EmployeesStatusFilter = EmployeeStatus | 'all'
+/**
+ * Ro'yxatning holat filtri.
+ *
+ * ⭐ `employed` — SINOVDAGILAR va DOIMIYLAR birga. U xodimning holati
+ * EMAS (bazada bunday qiymat yo'q), faqat filtr qiymati: sinovdagi odam
+ * ham xodim va umumiy ro'yxatda ko'rinishi kerak (foydalanuvchi talabi,
+ * 2026-09-16). Server uni aynan shu nom bilan taniydi
+ * (`SearchEmployeesQuery.Status` izohi).
+ *
+ * `all` — «holat bo'yicha filtrlama», ya'ni ishdan ketganlar bilan
+ * butun baza.
+ */
+export type EmployeeStatusFilterValue = EmployeeStatus | 'employed'
+export type EmployeesStatusFilter = EmployeeStatusFilterValue | 'all'
 
 /**
- * Ro'yxatning standart holati: faqat DOIMIY xodimlar.
+ * Ro'yxatning standart holati: HOZIR ISHLAYOTGANLAR — sinovdagilar
+ * bilan birga.
  *
- * NEGA: «xodimlar» bo'limi — kundalik ish ro'yxati, undagi odam hozir
- * ishlab turgan bo'lishi kerak. Sinovdagilar `/sinov` sahifasida
- * yakunlanadi, ishdan ketganlar esa tarix.
+ * ⚠️ Ilgari bu `active` edi, ya'ni faqat doimiy xodimlar. Oqibati:
+ * sinovdagi 600 dan ortiq odam umumiy ro'yxatda UMUMAN ko'rinmasdi va
+ * ularning kartasiga kirishning yo'li ham yo'q edi (`/sinov`
+ * jadvalidagi qator ham bosilmasdi). Foydalanuvchi talabi bo'yicha
+ * (2026-09-16) ular endi ro'yxatda turadi va holat yorlig'i bilan
+ * ajralib ko'rinadi.
  *
- * Filtr paneldan boshqa holatni tanlash IMKONI QOLDIRILGAN va bu ataylab:
- * agar ishdan ketgan odamni tizimdan umuman topib bo'lmasa, HR uni
- * «bazada yo'q» deb o'ylab dublikat yaratadi — loyihaning eng asosiy
+ * Ishdan ketganlar esa baribir chetda: ular tarix va «Ishdan ketganlar»
+ * bo'limida. Filtr paneldan ularni tanlash IMKONI QOLDIRILGAN va bu
+ * ataylab: agar ishdan ketgan odamni tizimdan umuman topib bo'lmasa, HR
+ * uni «bazada yo'q» deb o'ylab dublikat yaratadi — loyihaning eng asosiy
  * muammosi shundan boshlangan edi.
  */
-export const DEFAULT_STATUS: EmployeeStatus = 'active'
+export const DEFAULT_STATUS: EmployeeStatusFilterValue = 'employed'
 
 export type EmployeesView = 'table' | 'cards'
 
@@ -90,7 +107,7 @@ export interface EmployeesFilterState {
   directionId: string
   legalEntityId: string
   /** Bo'sh satr — «barcha holatlar» (`Select` dagi placeholder qiymati). */
-  status: EmployeeStatus | ''
+  status: EmployeeStatusFilterValue | ''
   needsReview: boolean
 }
 
@@ -144,7 +161,8 @@ export function validateEmployeesSearch(search: Record<string, unknown>): Employ
  * Manzil → toolbar. Bo'sh maydon bu yerda bo'sh SATR bo'ladi.
  *
  * Holat teskari o'giriladi: manzildagi `all` toolbar uchun bo'sh satr
- * («barcha holatlar»), manzilda holat umuman bo'lmasa — standart `active`.
+ * («barcha holatlar»), manzilda holat umuman bo'lmasa — standart
+ * `employed`.
  */
 export function searchToFilters(search: EmployeesSearch): EmployeesFilterState {
   return {
@@ -199,7 +217,7 @@ export function filtersToSearch(filters: EmployeesFilterState): EmployeesFilterS
   }
 }
 
-function statusToSearch(status: EmployeeStatus): EmployeesStatusFilter | undefined {
+function statusToSearch(status: EmployeeStatusFilterValue): EmployeesStatusFilter | undefined {
   return status === DEFAULT_STATUS ? undefined : status
 }
 
@@ -240,7 +258,8 @@ const SORT_KEYS: Record<EmployeesSortKey, true> = {
   status: true,
 }
 
-const STATUSES: Record<EmployeeStatus, true> = {
+const STATUSES: Record<EmployeeStatusFilterValue, true> = {
+  employed: true,
   probation: true,
   active: true,
   terminated: true,
@@ -255,7 +274,7 @@ function isSortKey(value: string): value is EmployeesSortKey {
   return Object.hasOwn(SORT_KEYS, value)
 }
 
-function isStatus(value: string): value is EmployeeStatus {
+function isStatus(value: string): value is EmployeeStatusFilterValue {
   return Object.hasOwn(STATUSES, value)
 }
 

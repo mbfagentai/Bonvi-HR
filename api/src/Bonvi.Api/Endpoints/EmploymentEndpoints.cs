@@ -54,6 +54,32 @@ public sealed record ChangeSalaryRequest(
     string? OrderNo = null,
     DateOnly? OrderDate = null);
 
+/// <summary>Mehnat yo'li yozuvining terish xatosini tuzatish so'rovi tanasi.</summary>
+/// <remarks>
+/// ⭐ Hodisa TURI, lavozim va bo'lim bu yerda YO'Q va bo'lishi ham mumkin
+/// emas: ular «nima bo'lgan» degan faktning o'zi va ularni almashtirish
+/// bitta hodisani boshqasiga aylantirib yuborardi
+/// (<c>EmploymentEvent</c> domen izohi). Noto'g'ri QAROR yozilgan bo'lsa,
+/// uning ustiga yangi hodisa yoziladi — «/transfer», «/salary».
+/// </remarks>
+/// <param name="EffectiveDate">Kuchga kirish sanasi. Bo'sh — bugun.</param>
+/// <param name="Amount">
+/// Oklad summasi — FAQAT summasi bor hodisada (qabul, oklad o'zgarishi)
+/// qo'llanadi. Qolganlarida jimgina e'tiborsiz qoladi: interfeys maydonni
+/// ko'rsatmaydi ham.
+/// </param>
+/// <param name="Currency">Valyuta kodi, sukut bo'yicha UZS.</param>
+/// <param name="OrderNo">Buyruq raqami.</param>
+/// <param name="OrderDate">Buyruq sanasi.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record EditEmploymentEventRequest(
+    DateOnly? EffectiveDate = null,
+    decimal? Amount = null,
+    string? Currency = null,
+    string? OrderNo = null,
+    DateOnly? OrderDate = null,
+    string? Note = null);
+
 /// <summary>Ishdan bo'shatish so'rovi tanasi.</summary>
 /// <param name="TerminationDate">Ketish sanasi. Bo'sh bo'lsa — bugun.</param>
 /// <param name="ReasonId">Ketish sababi (ma'lumotnomadan).</param>
@@ -348,6 +374,53 @@ public static class EmploymentEndpoints
             .Produces<EmploymentChangeDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/{id:guid}/events/{eventId:guid}", async (
+                Guid id,
+                Guid eventId,
+                EditEmploymentEventRequest request,
+                EditEmploymentEventCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new EditEmploymentEventCommand(
+                            id,
+                            eventId,
+                            request.EffectiveDate,
+                            request.Amount,
+                            request.Currency,
+                            request.OrderNo,
+                            request.OrderDate,
+                            request.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmploymentManage)
+            .WithName("EditEmploymentEvent")
+            .WithSummary("Mehnat yo'li — yozuvdagi terish xatosini tuzatish")
+            .WithDescription(
+                "Mehnat yo'lidagi BITTA yozuvni tuzatadi: kuchga kirish sanasi, buyruq " +
+                "raqami, buyruq sanasi, izoh va oklad SUMMASI. Yangi hodisa QO'SHILMAYDI " +
+                "va eskisi bekor qilinmaydi. " +
+                "⚠️ Bu «qarorni o'zgartirish» EMAS: oklad boshqa summaga o'zgargan bo'lsa, " +
+                "u yangi buyruq va «/salary» orqali yoziladi; bu yerda esa AYNI buyruqning " +
+                "noto'g'ri yozib olingani to'g'rilanadi. Shu sababli hodisa TURI, lavozim " +
+                "va bo'lim yuborilmaydi. " +
+                "Oklad summasi faqat summasi BOR hodisada qo'llanadi (qabul, oklad " +
+                "o'zgarishi); qolganlarida jimgina e'tiborsiz qoladi. Tuzatilgan yozuv " +
+                "xodimning JORIY okladini ham yangilaydi — lekin faqat o'sha yozuv " +
+                "okladning manbai bo'lsa (eng oxirgi summali hodisa). " +
+                "Ishdan ketgan xodimning yozuvi ham tuzatiladi: arxivdagi xato ham " +
+                "xato. " +
+                "Xatolar: «mehnat.topilmadi» / «mehnat_hodisasi.topilmadi» (404). " +
+                "DIQQAT: amalni «employment.manage» bajaradi, javobdagi oklad esa " +
+                "«salary.view» ruxsatisiz bo'sh qaytadi.")
+            .Produces<EmploymentEventDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/terminate", async (
                 Guid id,

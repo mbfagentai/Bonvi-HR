@@ -131,6 +131,100 @@ public sealed class EmploymentTests
         hodisa.ToSalary!.Amount.ShouldBe(5_500_000m);
     }
 
+    // ────────────────────── Yozuvni tuzatish ──────────────────────
+
+    [Fact]
+    public void Yozuvdagi_terish_xatosi_tuzatiladi()
+    {
+        /*
+          ⭐ Foydalanuvchi talabi (2026-09-16): buyruq sanasi noto'g'ri
+          yozib olingan bo'lsa, uni to'g'rilash kerak. Tuzatuvchi YANGI
+          hodisa yozish bu yerda yaramaydi — u tarixda ikkita buyruq
+          bo'lib ko'rinardi, holbuki bittasi bor.
+        */
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(4_000_000m).Value, Kirgan, "10-b", new DateOnly(2026, 9, 6));
+        var hodisa = m.Events[^1];
+
+        var natija = m.EditEvent(
+            hodisa.Id,
+            new DateOnly(2026, 9, 16),
+            "10-b",
+            new DateOnly(2026, 9, 16),
+            "Сана хато ёзилган эди",
+            Money.Create(5_000_000m).Value);
+
+        natija.IsSuccess.ShouldBeTrue();
+        hodisa.EffectiveDate.ShouldBe(new DateOnly(2026, 9, 16));
+        hodisa.OrderDate.ShouldBe(new DateOnly(2026, 9, 16));
+        hodisa.Note.ShouldBe("Сана хато ёзилган эди");
+        hodisa.ToSalary!.Amount.ShouldBe(5_000_000m);
+        hodisa.UpdatedAt.ShouldNotBeNull("tuzatilgani ko'rinib turishi kerak");
+
+        m.Events.Count.ShouldBe(2, "yangi hodisa QO'SHILMAYDI (qabul + oklad)");
+        m.Salary!.Amount.ShouldBe(5_000_000m, "joriy oklad ham yangilanadi — manba shu yozuv");
+    }
+
+    [Fact]
+    public void Eskiroq_yozuv_tuzatilsa_joriy_oklad_TEGILMAYDI()
+    {
+        // Eski yozuvni keyingi hodisa allaqachon ustidan yozgan: uni
+        // tuzatish odamning bugungi okladini o'zgartirmasligi kerak.
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(4_000_000m).Value, new DateOnly(2026, 3, 1));
+        var eski = m.Events[^1];
+        m.SetSalary(Money.Create(6_000_000m).Value, new DateOnly(2026, 6, 1));
+
+        m.EditEvent(eski.Id, new DateOnly(2026, 3, 2), toSalary: Money.Create(4_500_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+
+        eski.ToSalary!.Amount.ShouldBe(4_500_000m);
+        m.Salary!.Amount.ShouldBe(6_000_000m, "joriy oklad keyingi hodisadan");
+    }
+
+    [Fact]
+    public void Summasiz_hodisaga_oklad_YOZILMAYDI()
+    {
+        // «Bo'lim o'zgarishi» da summa yo'q; unga summa yozish hodisani
+        // boshqa turga aylantirib yuborardi.
+        var m = YaratilganMunosabat();
+        m.Transfer(new DateOnly(2026, 6, 1), null, Guid.CreateVersion7());
+        var hodisa = m.Events[^1];
+        hodisa.ToSalary.ShouldBeNull();
+
+        m.EditEvent(hodisa.Id, new DateOnly(2026, 6, 2), toSalary: Money.Create(9_000_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+
+        hodisa.ToSalary.ShouldBeNull("summasi yo'q hodisaga summa tushmaydi");
+        hodisa.EffectiveDate.ShouldBe(new DateOnly(2026, 6, 2), "qolgan maydonlar tuzatiladi");
+    }
+
+    [Fact]
+    public void Notogri_yozuv_tuzatilmaydi()
+    {
+        var m = YaratilganMunosabat();
+
+        var natija = m.EditEvent(Guid.CreateVersion7(), Kirgan);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("mehnat_hodisasi.topilmadi");
+    }
+
+    [Fact]
+    public void Ishdan_ketgan_xodimning_yozuvi_ham_tuzatiladi()
+    {
+        // Arxivdagi xato ham xato: yangi qaror yozilmayapti, yozib
+        // olingan hujjat to'g'rilanyapti.
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(4_000_000m).Value, Kirgan, "10-b");
+        var hodisa = m.Events[^1];
+        m.Terminate(new DateOnly(2026, 8, 20), null);
+
+        m.EditEvent(hodisa.Id, Kirgan, "11-b").IsSuccess.ShouldBeTrue();
+
+        hodisa.OrderNo.ShouldBe("11-b");
+    }
+
     // ────────────────────── Ishdan bo'shatish ──────────────────────
 
     [Fact]

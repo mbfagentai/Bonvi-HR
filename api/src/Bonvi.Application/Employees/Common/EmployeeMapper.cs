@@ -179,6 +179,7 @@ public sealed class EmployeeMapper
             _currentUser.Mask(employmentEvent.ToSalary),
             employmentEvent.Note,
             employmentEvent.RecordedAt,
+            employmentEvent.UpdatedAt,
             employmentEvent.IsImported);
     }
 

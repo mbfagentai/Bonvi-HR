@@ -88,6 +88,22 @@ export function ProbationsPage() {
   const search = route.useSearch()
   const navigate = route.useNavigate()
 
+  /**
+   * ⭐ Qatorni bosish — XODIM KARTASI (foydalanuvchi talabi, 2026-09-16).
+   *
+   * Ilgari qator umuman bosilmasdi va sinovdagi odamning kartasiga
+   * kirishning yo'li yo'q edi: HR uni «Xodimlar» bo'limida ham topa
+   * olmasdi (u yerda sukut filtr faqat doimiylarni ko'rsatardi).
+   * Ya'ni 600 dan ortiq odam tizimda bor edi, lekin ularning kartasi
+   * hech qayerdan ochilmasdi.
+   *
+   * Manzil `employeeId` bo'yicha — jadvaldagi `id` sinov YOZUVIniki,
+   * xodimniki emas.
+   */
+  const openEmployee = (row: ProbationItem) => {
+    void navigate({ to: '/xodimlar/$employeeId', params: { employeeId: row.employeeId } })
+  }
+
   // Holat sahifaning o'zida, qidiruv esa manzilda — sabab marshrut
   // faylida (`sinov.tsx`) yozilgan.
   const [status, setStatus] = useState<ProbationFilters['status']>('')
@@ -246,7 +262,16 @@ export function ProbationsPage() {
           if (!canManage || item.status !== 'inProgress') return null
 
           return (
-            <span className="flex justify-end gap-1.5">
+            /*
+              ⚠️ Bosish qatorga O'TMAYDI. Qator endi xodim kartasiga olib
+              boradi, tugmalar esa oyna ochadi — to'sisiz ikkalasi birga
+              ishga tushardi va HR «Uzaytirish» ni bosib, o'zini boshqa
+              ekranda topardi.
+            */
+            <span
+              className="flex justify-end gap-1.5"
+              onClick={(event) => event.stopPropagation()}
+            >
               <Button size="sm" variant="secondary" onClick={() => setExtending(item)}>
                 {t('probation.extend')}
               </Button>
@@ -350,6 +375,7 @@ export function ProbationsPage() {
           data={rows}
           getRowId={(row) => row.id}
           loading={list.isPending}
+          onRowClick={openEmployee}
           rowLabel={(row) => row.employeeName}
           empty={
             <EmptyState

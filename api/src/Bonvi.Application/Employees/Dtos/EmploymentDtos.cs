@@ -37,6 +37,11 @@ public sealed record EmploymentDto(
     ProbationDto? Probation);
 
 /// <summary>Mehnat yo'lidagi bitta hodisa (buyruq).</summary>
+/// <remarks>
+/// <c>UpdatedAt</c> — terish xatosi tuzatilgan lahza; tegilmagan yozuvda
+/// <c>null</c> va o'shanda interfeys «tahrirlandi» qaydini umuman
+/// chizmaydi (<c>EmploymentEvent.UpdatedAt</c> izohi).
+/// </remarks>
 public sealed record EmploymentEventDto(
     Guid Id,
     Guid EmploymentId,
@@ -56,6 +61,7 @@ public sealed record EmploymentEventDto(
     MoneyDto? ToSalary,
     string? Note,
     DateTimeOffset RecordedAt,
+    DateTimeOffset? UpdatedAt,
     bool IsImported);
 
 /// <summary>

@@ -17,8 +17,19 @@ namespace Bonvi.Application.Employees.Queries;
 /// <param name="DirectionId">Yo'nalish bo'yicha filtr.</param>
 /// <param name="LegalEntityId">Yuridik shaxs bo'yicha filtr.</param>
 /// <param name="Status">
-/// Mehnat munosabati holati: <c>Probation</c> | <c>Active</c> | <c>Terminated</c>.
+/// Mehnat munosabati holati: <c>Probation</c> | <c>Active</c> |
+/// <c>Terminated</c>, yoki <c>Employed</c> — SINOVDAGILAR va DOIMIYLAR
+/// birga (ishdan ketganlarsiz).
+/// <para>
+/// ⭐ <c>Employed</c> — ro'yxatning kundalik ko'rinishi va mijozning
+/// standart filtri (foydalanuvchi talabi, 2026-09-16): sinovdagi odam
+/// ham xodim va u umumiy ro'yxatda ko'rinishi kerak. Bu qiymat sanoqda
+/// YO'Q — u ikkita holatning birlashmasi, sababi
+/// <c>EmployeeSearchFilter.HideTerminated</c> izohida.
+/// </para>
+/// <para>
 /// Bo'sh bo'lsa — arxiv bilan hammasi.
+/// </para>
 /// </param>
 /// <param name="NeedsReview">Faqat tuzatish kerak bo'lgan yozuvlar.</param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
@@ -115,9 +126,20 @@ public sealed class SearchEmployeesQueryHandler
     /// bazani ko'rsatsa, HR buni sezmasdi.
     /// </para>
     /// </remarks>
+    /// <summary>Faqat ishlayotganlar so'ralganmi (<c>Employed</c>).</summary>
+    private const string EmployedFilter = "employed";
+
     private static Result<EmploymentStatus?> ParseStatus(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Result.Success<EmploymentStatus?>(null);
+        }
+
+        // «Ishlayotganlar» — sanoq qiymati EMAS, ikkita holatning
+        // birlashmasi. Bu yerda `null` qaytadi va filtr bayrog'i
+        // `HideTerminated` orqali qo'yiladi (izohi filtr rekordida).
+        if (string.Equals(raw.Trim(), EmployedFilter, StringComparison.OrdinalIgnoreCase))
         {
             return Result.Success<EmploymentStatus?>(null);
         }
@@ -131,7 +153,7 @@ public sealed class SearchEmployeesQueryHandler
         {
             return Error.Validation(
                 "xodim.holat_notogri",
-                "Holat noto'g'ri. Ruxsat etilgan qiymatlar: Probation, Active, Terminated.");
+                "Holat noto'g'ri. Ruxsat etilgan qiymatlar: Employed, Probation, Active, Terminated.");
         }
 
         return Result.Success<EmploymentStatus?>(parsed);
@@ -220,6 +242,7 @@ public sealed class SearchEmployeesQueryHandler
             query.DirectionId,
             query.LegalEntityId,
             status.Value,
+            string.Equals(query.Status?.Trim(), EmployedFilter, StringComparison.OrdinalIgnoreCase),
             query.NeedsReview,
             page,
             pageSize,

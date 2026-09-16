@@ -164,6 +164,24 @@ public enum EmployeeSortField
 /// <param name="DirectionId">Yo'nalish — xodimga biriktirilgan ko'p-ga-ko'p bog'lanish.</param>
 /// <param name="LegalEntityId">Yuridik shaxs (holding ichidagi firma).</param>
 /// <param name="Status">Mehnat munosabati holati. <c>null</c> — arxiv bilan birga hammasi.</param>
+/// <param name="HideTerminated">
+/// ⭐ «Hozir ishlayotganlar» — SINOVDAGILAR bilan birga, ishdan
+/// ketganlarsiz.
+/// <para>
+/// Nega alohida bayroq, <paramref name="Status"/> ning yana bir qiymati
+/// emas: holat BITTA qiymat, bu esa IKKITASI («sinovda» + «doimiy»).
+/// Sanoqqa «ishlayapti» degan uchinchi qiymat qo'shilsa, u bazada
+/// saqlanmaydigan, faqat filtr uchun yashaydigan soxta holat bo'lardi va
+/// har bir <c>switch</c> da «bu qiymat bo'lmaydi» degan tarmoq paydo
+/// qilardi. Bir xil qaror rekrutingda allaqachon qabul qilingan
+/// (<c>CandidateSearchFilter.HideRejected</c>).
+/// </para>
+/// <para>
+/// <paramref name="Status"/> ochiq berilgan bo'lsa, bu bayroq
+/// E'TIBORGA OLINMAYDI: HR aynan bitta holatni tanlagan ekan, o'shani
+/// ko'rsatish kerak.
+/// </para>
+/// </param>
 /// <param name="NeedsReview">Faqat tuzatish kerak bo'lgan yozuvlar (Excel'dan kelgan shubhali ma'lumot).</param>
 /// <param name="Page">Sahifa raqami, 1 dan boshlanadi.</param>
 /// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
@@ -176,6 +194,7 @@ public sealed record EmployeeSearchFilter(
     Guid? DirectionId = null,
     Guid? LegalEntityId = null,
     EmploymentStatus? Status = null,
+    bool HideTerminated = false,
     bool? NeedsReview = null,
     int Page = 1,
     int PageSize = 25,

@@ -246,6 +246,11 @@ export interface TimelineEvent {
   /** Excel'dan ko'chirilgan tarixiy yozuv — aniqligi kafolatlanmaydi. */
   isImported: boolean
   recordedAt: string | null
+  /**
+   * Terish xatosi tuzatilgan lahza; tegilmagan yozuvda `null` —
+   * o'shanda lentada «tahrirlandi» qaydi umuman chizilmaydi.
+   */
+  updatedAt: string | null
   recordedByName: string | null
   legalEntityName: string | null
 }
@@ -281,7 +286,12 @@ export interface EmployeeFilterParams {
   positionId?: string
   directionId?: string
   legalEntityId?: string
-  status?: EmployeeStatus
+  /**
+   * Holat filtri. `employed` — sinovdagilar va doimiylar BIRGA; u
+   * xodimning holati emas, faqat so'rov qiymati
+   * (`EmployeeStatusFilterValue` izohi).
+   */
+  status?: EmployeeStatus | 'employed'
   needsReview?: boolean
   /** «fullName» — o'sish, «-hireDate» — kamayish tartibida. */
   sort?: string
@@ -468,6 +478,26 @@ export interface AdditionalDutyRequest {
   extraSalaryAmount: number | null
   orderNo: string | null
   orderDate: string | null
+}
+
+/**
+ * ⭐ Mehnat yo'lidagi yozuvning TERISH XATOSINI tuzatish.
+ *
+ * Bu «qarorni o'zgartirish» EMAS va yangi hodisa ham yozmaydi: oklad
+ * boshqa summaga o'zgargan bo'lsa, u yangi buyruq bilan `changeSalary`
+ * orqali yoziladi. Bu yerda esa AYNI buyruqning noto'g'ri yozib
+ * olingani to'g'rilanadi — shu sababli hodisa TURI, lavozim va bo'lim
+ * bu yerda yo'q (server ham qabul qilmaydi).
+ *
+ * `amount` faqat summasi BOR hodisada qo'llanadi (qabul, oklad
+ * o'zgarishi); qolganlarida server uni jimgina e'tiborsiz qoldiradi.
+ */
+export interface EditEmploymentEventRequest {
+  effectiveDate: string
+  amount: number | null
+  orderNo: string | null
+  orderDate: string | null
+  note: string | null
 }
 
 /** Oklad o'zgarishi. */
@@ -903,6 +933,7 @@ function toTimelineEvent(raw: unknown, legalEntityName: string | null): Timeline
     note: text(box['note']),
     isImported: bool(box['isImported']),
     recordedAt: text(box['recordedAt']),
+    updatedAt: text(box['updatedAt']),
     // Server bu maydonni lentada BERMAYDI (`EmploymentEventDto` da yo'q).
     // `null` — «kim yozgani noma'lum», ekranda u shunday ko'rsatiladi.
     recordedByName: text(box['recordedByName']),
@@ -1422,4 +1453,13 @@ export async function changeSalary(
   body: ChangeSalaryRequest,
 ): Promise<void> {
   await api.post(`/api/employments/${employmentId}/salary`, body)
+}
+
+/** Mehnat yo'lidagi bitta yozuvning terish xatosini tuzatadi. */
+export async function editEmploymentEvent(
+  employmentId: string,
+  eventId: string,
+  body: EditEmploymentEventRequest,
+): Promise<void> {
+  await api.put(`/api/employments/${employmentId}/events/${eventId}`, body)
 }

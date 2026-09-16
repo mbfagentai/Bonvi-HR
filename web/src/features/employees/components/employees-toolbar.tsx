@@ -11,7 +11,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Button, Input, SegmentedControl, Select } from '@/shared/ui'
-import type { EmployeeStatus } from '../api/employees-api'
 import type { FilterOptions } from '../api/employees-queries'
 /*
  * Filtr holatining shakli manzil (URL) bilan bir joyda turadi.
@@ -23,6 +22,7 @@ import type { FilterOptions } from '../api/employees-queries'
 import {
   DEFAULT_FILTERS,
   DEFAULT_STATUS,
+  type EmployeeStatusFilterValue,
   type EmployeesFilterState,
   type EmployeesView,
 } from '../lib/employees-search'
@@ -30,8 +30,9 @@ import {
 /**
  * Qidiruvdan tashqari nechta filtr yoqilgan — tugmadagi sanoq uchun.
  *
- * Holat STANDARTDAN farq qilgandagina sanaladi: ro'yxat baribir doimiy
- * xodimlarni ko'rsatadi, ya'ni «active» — filtr emas, oddiy ko'rinish.
+ * Holat STANDARTDAN farq qilgandagina sanaladi: ro'yxat baribir
+ * ishlayotganlarni ko'rsatadi, ya'ni «employed» — filtr emas, oddiy
+ * ko'rinish.
  * Aks holda tugmada doim «1» turib, sanoq ma'nosini yo'qotardi.
  */
 function activeFilterCount(filters: EmployeesFilterState): number {
@@ -132,7 +133,13 @@ export function EmployeesToolbar({
     setDraft('')
   }
 
+  /*
+    Birinchi qiymat — ro'yxatning STANDART ko'rinishi: sinovdagilar va
+    doimiylar birga. U «barcha holatlar» dan farq qiladi: ishdan
+    ketganlar bu yerga kirmaydi (ular tarix va alohida bo'limda).
+  */
   const statusOptions = [
+    { value: 'employed', label: t('employee.statusEmployed') },
     { value: 'active', label: t('employee.statusActive') },
     { value: 'probation', label: t('employee.statusProbation') },
     { value: 'terminated', label: t('employee.statusTerminated') },
@@ -258,7 +265,9 @@ export function EmployeesToolbar({
               placeholder={t('employees.anyStatus')}
               options={statusOptions}
               value={filters.status}
-              onChange={(event) => set('status', event.target.value as EmployeeStatus | '')}
+              onChange={(event) =>
+                set('status', event.target.value as EmployeeStatusFilterValue | '')
+              }
             />
           </div>
 

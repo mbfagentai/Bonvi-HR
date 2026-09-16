@@ -27,6 +27,7 @@ import type { SelectOption } from '@/shared/ui'
 import {
   addAdditionalDuty,
   changeSalary,
+  editEmploymentEvent,
   closeFlag,
   createFlag,
   deleteEmployeePhoto,
@@ -47,6 +48,7 @@ import {
   uploadMehnatUzScreenshot,
   type AdditionalDutyRequest,
   type ChangeSalaryRequest,
+  type EditEmploymentEventRequest,
   type CreateFlagRequest,
   type EmployeeFilterParams,
   type EmployeeListFilters,
@@ -475,6 +477,24 @@ export function useAdditionalDuty(employeeId: string) {
 
 export function useChangeSalary(employeeId: string) {
   return useEmploymentChange<ChangeSalaryRequest>(employeeId, changeSalary)
+}
+
+/**
+ * ⭐ Mehnat yo'lidagi yozuvning terish xatosini tuzatish.
+ *
+ * `useEmploymentChange` dan foydalanadi, chunki bekor qilinadigan joylar
+ * AYNAN o'sha: tuzatish joriy okladni ham yangilashi mumkin (yozuv
+ * okladning manbai bo'lsa), ya'ni karta ham, ro'yxat ham eskirgan
+ * bo'lib qoladi.
+ *
+ * Yozuv ID'si tanada emas, funksiyaning O'ZIDA: u resursning
+ * identifikatori (`PUT .../events/{eventId}`), ma'lumot emas.
+ */
+export function useEditEmploymentEvent(employeeId: string, eventId: string) {
+  return useEmploymentChange<EditEmploymentEventRequest>(
+    employeeId,
+    (employmentId, body) => editEmploymentEvent(employmentId, eventId, body),
+  )
 }
 
 export function useCreateFlag(employeeId: string) {

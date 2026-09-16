@@ -122,6 +122,15 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             employments = employments.Where(employment => employment.Status == status);
             employmentRequired = true;
         }
+        else if (filter.HideTerminated)
+        {
+            // «Hozir ishlayotganlar»: sinovdagi ham, doimiy ham. Ishdan
+            // ketganlar chiqib ketadi — ular «Ishdan ketganlar» bo'limida.
+            employments = employments.Where(
+                employment => employment.Status != EmploymentStatus.Terminated);
+
+            employmentRequired = true;
+        }
 
         // ⚠️ Ro'yxatda har bir SHAXS bir marta ko'rinadi. Munosabatlar bilan
         // oddiy JOIN qilinsa, ikki firmada ishlaydigan odam ikki qator bo'lib

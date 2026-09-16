@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
 using Bonvi.Infrastructure.Persistence;
@@ -191,6 +192,92 @@ public sealed class HireApiTests : IClassFixture<BonviApiFactory>
             qator => qator.EmployeeId == munosabat.EmployeeId
                 && qator.Status == nameof(ProbationStatus.InProgress),
             "yangi xodim /sinov ro'yxatida ko'rinishi kerak");
+    }
+
+    /// <summary>
+    /// ⭐ SINOVDAGI xodim umumiy ro'yxatda ham ko'rinadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Foydalanuvchi talabi (2026-09-16): sinovdagi odam ham xodim va uni
+    /// «Xodimlar» bo'limida topish kerak. Ilgari ro'yxatning standart
+    /// filtri faqat DOIMIYLARNI ko'rsatardi, ya'ni yangi qabul qilingan
+    /// odam ekrandan butunlay yo'qolardi — 600 dan ortiq odam shu holatda
+    /// edi.
+    /// </para>
+    /// <para>
+    /// <c>employed</c> — holat sanog'ining qiymati EMAS, ikkita holatning
+    /// birlashmasi (<c>EmployeeSearchFilter.HideTerminated</c> izohi). Shu
+    /// sababli test uchala so'rovni ham qadaydi: birlashma topadi, aniq
+    /// holat filtri esa ajratadi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Sinovdagi_xodim_umumiy_royxatda_korinadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        var belgi = Belgi();
+        var firmaId = await FirmaAsync(belgi);
+        var familiya = "Рўйхатдаги " + belgi;
+
+        using var client = await AdminMijozAsync();
+
+        /*
+          ⚠️ JSHSHIRSIZ tana. `MijozTanasi` bitta QAT'IY raqamni yuboradi
+          va server shaxsni aynan shu bo'yicha taniydi — ya'ni ikkinchi
+          qabul MAVJUD odamni topib, uning ismini qayta yozardi va
+          qo'shni testni yiqitardi. Bu yerda shaxsning o'zi emas,
+          ro'yxat filtri tekshirilyapti: JSHSHIR umuman kerak emas.
+        */
+        var tana = MijozTanasi(firmaId, familiya) with
+        {
+            Person = MijozTanasi(firmaId, familiya).Person with
+            {
+                Pinfl = null,
+                Phone = null,
+            },
+        };
+
+        using var javob = await client.PostAsJsonAsync(
+            new Uri("/api/employments/hire", UriKind.Relative),
+            tana,
+            bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var natija = await javob.Content.ReadFromJsonAsync<HireResultResponse>(bekorQilish);
+        natija.ShouldNotBeNull();
+        natija.Employment.Status.ShouldBe(
+            nameof(EmploymentStatus.Probation),
+            "yangi xodim SINOVDA boshlaydi");
+
+        var xodimId = natija.Employment.EmployeeId;
+
+        async Task<bool> RoyxatdaAsync(string holat)
+        {
+            using var royxat = await client.GetAsync(
+                new Uri($"/api/employees?status={holat}&search={familiya}", UriKind.Relative),
+                bekorQilish);
+
+            royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
+
+            using var hujjat = JsonDocument.Parse(
+                await royxat.Content.ReadAsStringAsync(bekorQilish));
+
+            return hujjat.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .Any(qator => qator.GetProperty("id").GetGuid() == xodimId);
+        }
+
+        (await RoyxatdaAsync("employed")).ShouldBeTrue(
+            "«ishlayotganlar» sinovdagilarni ham qamraydi — ro'yxatning standart ko'rinishi");
+
+        (await RoyxatdaAsync("probation")).ShouldBeTrue("aniq holat filtri ham topadi");
+
+        (await RoyxatdaAsync("active")).ShouldBeFalse(
+            "«doimiy» filtri sinovdagini ko'rsatmaydi — ikkisi boshqa holat");
     }
 
     /// <summary>

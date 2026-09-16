@@ -42,10 +42,25 @@ public enum EmploymentEventType
 /// qolgan barcha ro'yxatlar undan hosil qilinadi.
 /// </para>
 /// <para>
-/// Yozuv o'zgartirilmaydi: o'zgartiruvchi metodlari yo'q, barcha qiymat
-/// konstruktorda beriladi. Xato bo'lsa — tuzatuvchi yangi hodisa yoziladi,
-/// eskisi tarixda qoladi. HR tizimida bu majburiy: buyruqlar bekor
-/// qilinmaydi, ular ustiga yangi buyruq chiqariladi.
+/// <b>Hodisaning O'ZI o'chirilmaydi va boshqa hodisaga aylanmaydi.</b>
+/// Xato qaror bo'lsa — tuzatuvchi YANGI hodisa yoziladi, eskisi tarixda
+/// qoladi. HR tizimida bu majburiy: buyruqlar bekor qilinmaydi, ular
+/// ustiga yangi buyruq chiqariladi.
+/// </para>
+/// <para>
+/// ⭐ <b>Lekin TERISH XATOSI tuzatiladi</b> (<see cref="Edit"/>,
+/// foydalanuvchi talabi 2026-09-16). Bu ikkisi bir xil narsa emas:
+/// «oklad 4 mln emas, 5 mln bo'lishi kerak edi» — bu yangi qaror,
+/// yangi buyruq; «buyruq sanasi 06.09 emas, 16.09 edi» esa AYNI
+/// hujjatning noto'g'ri yozib olingani. Ikkinchisiga tuzatuvchi hodisa
+/// yozish tarixni yolg'on qilardi: ikkita buyruq bo'lib ko'rinardi,
+/// holbuki bittasi bor.
+/// </para>
+/// <para>
+/// Shu sababli tahrir QAT'IY chegaralangan: sana, buyruq raqami, buyruq
+/// sanasi, izoh va oklad SUMMASI. Hodisa TURI, lavozim va bo'lim
+/// tegilmaydi — ular «nima bo'lgan» degan faktning o'zi, va ularni
+/// almashtirish bitta hodisani boshqasiga aylantirib yuborardi.
 /// </para>
 /// <para>
 /// Har bir hodisada <c>OrderNo</c> bor — HR aytdi: «buyruq nomeri
@@ -135,6 +150,15 @@ public sealed class EmploymentEvent : Entity
 
     public DateTimeOffset RecordedAt { get; private set; }
 
+    /// <summary>Terish xatosi tuzatilgan lahza; tegilmagan yozuvda <c>null</c>.</summary>
+    /// <remarks>
+    /// Tarixdagi yozuv tuzatilgani KO'RINIB turishi kerak — nomzod
+    /// bosqichlaridagi bilan bir xil qoida
+    /// (<c>CandidateStageEntry.UpdatedAt</c>). Kim tuzatgani
+    /// saqlanmaydi: kartada foydalanuvchi ismlari yig'ilmaydi.
+    /// </remarks>
+    public DateTimeOffset? UpdatedAt { get; private set; }
+
     /// <summary>Excel'dan ko'chirilganmi — tarixiy yozuvni ajratish uchun.</summary>
     public bool IsImported { get; private set; }
 
@@ -168,6 +192,41 @@ public sealed class EmploymentEvent : Entity
             RecordedBy = recordedBy,
             RecordedAt = DateTimeOffset.UtcNow,
         };
+
+    /// <summary>Terish xatosini tuzatadi — hujjat maydonlari va oklad summasi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Oklad FAQAT unda allaqachon bo'lgan hodisada o'zgaradi.</b>
+    /// «Ishga qabul» yoki «oklad o'zgarishi» da summa bor; «bo'lim
+    /// o'zgarishi» da esa yo'q va unga summa yozish hodisani boshqa
+    /// turga aylantirib yuborardi. Shu sababli bo'sh maydonga qiymat
+    /// TUSHMAYDI (jimgina, xatosiz: mijoz maydonni ko'rsatmaydi ham).
+    /// </para>
+    /// <para>
+    /// Xodimning JORIY okladi bu yerda o'zgarmaydi — u
+    /// <see cref="Employment"/> ning maydoni va uni faqat agregat
+    /// ildizi hisoblay oladi (<c>Employment.EditEvent</c>).
+    /// </para>
+    /// </remarks>
+    internal void Edit(
+        DateOnly effectiveDate,
+        string? orderNo,
+        DateOnly? orderDate,
+        string? note,
+        Money? toSalary)
+    {
+        EffectiveDate = effectiveDate;
+        OrderNo = orderNo;
+        OrderDate = orderDate;
+        Note = note;
+
+        if (ToSalary is not null && toSalary is not null)
+        {
+            ToSalary = toSalary;
+        }
+
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 
     /// <summary>
     /// Excel'dan ko'chirilgan tarixiy hodisa.

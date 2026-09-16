@@ -1,12 +1,13 @@
-import { ArrowRight, FileClock, History, Import } from 'lucide-react'
-import { useMemo } from 'react'
+import { ArrowRight, FileClock, History, Import, Pencil } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Badge, Card, CardContent, EmptyState, IconTile, Skeleton } from '@/shared/ui'
+import { Badge, Button, Card, CardContent, EmptyState, IconTile, Skeleton } from '@/shared/ui'
 import type { MoneyValue, TimelineEvent } from '../api/employees-api'
 import { EVENT_LOOK, SALARY_VIEW } from '../lib/employee-presentation'
+import { EmploymentEventEditDialog } from './employment-dialogs'
 
 /**
  * ⭐ Mehnat tarixi — butun mehnat yo'li bitta vertikal lentada.
@@ -20,15 +21,29 @@ import { EVENT_LOOK, SALARY_VIEW } from '../lib/employee-presentation'
  * Tartib — YANGISIDAN ESKISIGA. HR ko'pincha «oxirgi nima bo'ldi?» deb
  * qaraydi, shu sababli oxirgi hodisa tepada. Yil ajratgichlari uzun
  * tarixda mo'ljal bo'lib xizmat qiladi.
+ *
+ * <b>⭐ Har bir yozuvni TUZATISH mumkin</b> (foydalanuvchi talabi,
+ * 2026-09-16) — lekin faqat TERISH XATOSI ma'nosida: sana, buyruq
+ * raqami, izoh va oklad summasi. Hodisaning o'zi bekor qilinmaydi va
+ * turi o'zgarmaydi; haqiqiy o'zgarish yangi buyruq bilan yoziladi
+ * (sababi `EmploymentEventEditDialog` va domen izohida).
  */
 export function EmployeeTimelineTab({
+  employeeId,
   events,
   loading,
+  canManage,
 }: {
+  employeeId: string
   events: TimelineEvent[]
   loading: boolean
+  canManage: boolean
 }) {
   const { t } = useLocale()
+
+  /** Tuzatilayotgan yozuv — `null` bo'lsa oyna yopiq. */
+  const [editing, setEditing] = useState<TimelineEvent | null>(null)
+  const { hasPermission } = useAuth()
 
   /** Yil bo'yicha guruhlab, har birining ichida sana bo'yicha kamayish tartibida. */
   const groups = useMemo(() => {
@@ -100,18 +115,38 @@ export function EmployeeTimelineTab({
               />
 
               {yearEvents.map((event) => (
-                <TimelineRow key={event.id} event={event} />
+                <TimelineRow
+                  key={event.id}
+                  event={event}
+                  canManage={canManage}
+                  onEdit={() => setEditing(event)}
+                />
               ))}
             </ol>
           </section>
         ))}
       </CardContent>
+
+      <EmploymentEventEditDialog
+        employeeId={employeeId}
+        event={editing}
+        canSeeSalary={hasPermission(SALARY_VIEW)}
+        onClose={() => setEditing(null)}
+      />
     </Card>
   )
 }
 
-function TimelineRow({ event }: { event: TimelineEvent }) {
-  const { t, date } = useLocale()
+function TimelineRow({
+  event,
+  canManage,
+  onEdit,
+}: {
+  event: TimelineEvent
+  canManage: boolean
+  onEdit: () => void
+}) {
+  const { t, date, dateTime } = useLocale()
   const { hasPermission } = useAuth()
   const canSeeSalary = hasPermission(SALARY_VIEW)
 
@@ -147,6 +182,18 @@ function TimelineRow({ event }: { event: TimelineEvent }) {
             <span className="truncate-1 text-caption1 text-[var(--fg-tertiary)]">
               {event.legalEntityName}
             </span>
+          )}
+
+          {/*
+            ⚠️ Tugma «tahrirlash» deb emas, «tuzatish» deb o'qilishi
+            kerak: u qarorni o'zgartirmaydi, noto'g'ri yozib olingan
+            hujjatni to'g'rilaydi (oynaning o'zida ham shu yozilgan).
+          */}
+          {canManage && (
+            <Button type="button" size="sm" variant="ghost" onClick={onEdit} className="-my-1">
+              <Pencil />
+              {t('employees.eventEditTitle')}
+            </Button>
           )}
         </div>
 
@@ -197,9 +244,22 @@ function TimelineRow({ event }: { event: TimelineEvent }) {
           </p>
         )}
 
-        {event.recordedByName !== null && (
+        {(event.recordedByName !== null || event.updatedAt !== null) && (
           <p className="mt-1.5 text-caption2 text-[var(--fg-tertiary)]">
-            {t('employees.recordedBy', { name: event.recordedByName })}
+            {event.recordedByName !== null &&
+              t('employees.recordedBy', { name: event.recordedByName })}
+
+            {/*
+              Tuzatilgan yozuv ajralib turadi: HR ko'rgan qiymat
+              birinchi kiritilganidan farq qilishi mumkinligini bilishi
+              kerak (nomzod bosqichlaridagi bilan bir xil qoida).
+            */}
+            {event.updatedAt !== null && (
+              <span className={cn(event.recordedByName !== null && 'ml-1')}>
+                {event.recordedByName !== null && '· '}
+                {t('employees.eventEdited')} · {dateTime(event.updatedAt)}
+              </span>
+            )}
           </p>
         )}
       </div>

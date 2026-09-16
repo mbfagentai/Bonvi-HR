@@ -198,6 +198,72 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
         return Result.Success();
     }
 
+    /// <summary>
+    /// Mehnat yo'lidagi BITTA yozuvning terish xatosini tuzatadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Bu hodisani BEKOR QILMAYDI.</b> Tuzatiladigan narsa —
+    /// hujjatning yozib olinishi: kuchga kirish sanasi, buyruq raqami,
+    /// buyruq sanasi, izoh va oklad summasi. Hodisa turi, lavozim va
+    /// bo'lim tegilmaydi (sababi <see cref="EmploymentEvent.Edit"/>
+    /// izohida).
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Xodimning JORIY okladi ham yangilanadi</b> — lekin faqat
+    /// tuzatilgan yozuv AYNAN o'sha oklad manbai bo'lsa. Aks holda
+    /// karta va tarix bir-biriga zid bo'lib qolardi: lentada 5 mln,
+    /// kartada esa 4 mln. Eskiroq yozuv tuzatilsa joriy oklad
+    /// TEGILMAYDI — uni keyingi hodisa allaqachon ustidan yozgan.
+    /// </para>
+    /// <para>
+    /// <b>Ishdan ketgan xodimda ham ishlaydi</b> — <see cref="SetSalary"/>
+    /// dan farqli. Sabab: yangi qaror yozilmayapti, arxivdagi yozuvning
+    /// xatosi tuzatilyapti va u ham to'g'ri bo'lishi kerak.
+    /// </para>
+    /// </remarks>
+    public Result EditEvent(
+        Guid eventId,
+        DateOnly effectiveDate,
+        string? orderNo = null,
+        DateOnly? orderDate = null,
+        string? note = null,
+        Money? toSalary = null)
+    {
+        var hodisa = _events.FirstOrDefault(item => item.Id == eventId);
+
+        if (hodisa is null)
+        {
+            return Error.NotFound("mehnat_hodisasi.topilmadi", "Mehnat yo'li yozuvi topilmadi.");
+        }
+
+        // Joriy oklad manbai — tuzatishdan OLDIN aniqlanadi: tahrir
+        // sanani o'zgartirishi mumkin va o'shanda tartib ham siljiydi.
+        var okladManbai = SalarySource();
+
+        hodisa.Edit(effectiveDate, Normalize(orderNo), orderDate, Normalize(note), toSalary);
+
+        if (okladManbai is not null && okladManbai.Id == hodisa.Id && hodisa.ToSalary is not null)
+        {
+            Salary = hodisa.ToSalary;
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>Joriy okladni belgilab turgan hodisa — eng oxirgi summali yozuv.</summary>
+    /// <remarks>
+    /// Tartib <see cref="EmploymentEvent.EffectiveDate"/> bo'yicha, teng
+    /// bo'lsa yozilgan vaqt bo'yicha: bir kunda ikkita buyruq bo'lishi
+    /// mumkin va o'shanda keyin KIRITILGANI oxirgisi hisoblanadi.
+    /// </remarks>
+    private EmploymentEvent? SalarySource()
+        => _events
+            .Where(item => item.ToSalary is not null)
+            .OrderBy(item => item.EffectiveDate)
+            .ThenBy(item => item.RecordedAt)
+            .LastOrDefault();
+
     public Result SetRate(decimal rate)
     {
         if (rate is <= 0 or > 2)

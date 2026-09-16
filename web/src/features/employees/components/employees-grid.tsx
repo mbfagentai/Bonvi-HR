@@ -4,7 +4,7 @@ import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Card, Skeleton } from '@/shared/ui'
 import type { EmployeeListItem } from '../api/employees-api'
-import { DirectionBadge, FlagBadge, NeedsReviewMark } from './employee-badges'
+import { DirectionBadge, FlagBadge, NeedsReviewMark, StatusBadge } from './employee-badges'
 import { EmployeePhoto } from './employee-photo'
 
 /**
@@ -104,11 +104,24 @@ function EmployeeTile({
       </p>
 
       {/*
-        Holat yorlig'i ataylab yo'q: ro'yxatda faqat doimiy xodimlar
-        turadi, ya'ni har kartochkadagi «Ishlayapti» hech nimani
-        ajratmaydi. Belgilar esa qoladi — «Qora ro'yxat» yoki «Rezerv»
-        aynan shu yerdan ko'rinishi kerak. Belgi yo'q bo'lsa qator ham
-        yo'q: kartochka balandligi ortiqcha o'smaydi.
+        ⭐ Holat yorlig'i — FAQAT doimiy bo'lmaganda.
+
+        Ro'yxatda endi sinovdagilar ham turadi (standart filtr
+        `employed`, 2026-09-16): sariq yorliq HR ga «bu odam hali
+        sinovda» deb aytadi. «Ishlayapti» esa CHIZILMAYDI — u
+        kartochkalarning ko'pchiligida takrorlanib, hech nimani
+        ajratmasdi va sarig'ini ko'mib yuborardi.
+      */}
+      {employee.status !== 'active' && (
+        <div className="mt-3 flex justify-center">
+          <StatusBadge status={employee.status} size="sm" />
+        </div>
+      )}
+
+      {/*
+        Belgilar — «Qora ro'yxat» yoki «Rezerv» aynan shu yerdan
+        ko'rinishi kerak. Belgi yo'q bo'lsa qator ham yo'q: kartochka
+        balandligi ortiqcha o'smaydi.
       */}
       {employee.activeFlags.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">

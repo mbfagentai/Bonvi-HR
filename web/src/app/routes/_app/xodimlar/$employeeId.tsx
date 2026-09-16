@@ -299,7 +299,12 @@ function EmployeeCardPage() {
       )}
 
       {tab === 'timeline' && (
-        <EmployeeTimelineTab events={timeline.data ?? []} loading={timeline.isPending} />
+        <EmployeeTimelineTab
+          employeeId={employeeId}
+          events={timeline.data ?? []}
+          loading={timeline.isPending}
+          canManage={canManageEmployment}
+        />
       )}
 
       {tab === 'documents' && canViewDocuments && (

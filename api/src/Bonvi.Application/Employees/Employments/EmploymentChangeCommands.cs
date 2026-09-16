@@ -45,6 +45,43 @@ public sealed record ChangeSalaryCommand(
     string? OrderNo = null,
     DateOnly? OrderDate = null);
 
+/// <summary>
+/// Mehnat yo'lidagi BITTA yozuvning terish xatosini tuzatish.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ Bu hodisani BEKOR QILMAYDI va yangi hodisa ham yozmaydi: tuzatiladigan
+/// narsa — hujjatning yozib olinishi. Farqi <c>EmploymentEvent</c> domen
+/// izohida: «oklad 5 mln bo'lishi kerak edi» — yangi qaror (yangi hodisa),
+/// «buyruq sanasi 06.09 emas, 16.09 edi» — terish xatosi (shu buyruq).
+/// </para>
+/// <para>
+/// <b>Hodisa TURI, lavozim va bo'lim yuborilmaydi</b> — ular faktning
+/// o'zi va ularni almashtirish bitta hodisani boshqasiga aylantirib
+/// yuborardi (sababi domen izohida).
+/// </para>
+/// </remarks>
+/// <param name="EmploymentId">Qaysi mehnat munosabati.</param>
+/// <param name="EventId">Qaysi yozuv tuzatiladi.</param>
+/// <param name="EffectiveDate">Kuchga kirish sanasi. Bo'sh — bugun.</param>
+/// <param name="Amount">
+/// Oklad summasi. FAQAT summasi bor hodisada (qabul, oklad o'zgarishi)
+/// qo'llanadi; qolganlarida jimgina e'tiborsiz qoladi.
+/// </param>
+/// <param name="Currency">Valyuta; bo'sh — so'm.</param>
+/// <param name="OrderNo">Buyruq raqami.</param>
+/// <param name="OrderDate">Buyruq sanasi.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record EditEmploymentEventCommand(
+    Guid EmploymentId,
+    Guid EventId,
+    DateOnly? EffectiveDate = null,
+    decimal? Amount = null,
+    string? Currency = null,
+    string? OrderNo = null,
+    DateOnly? OrderDate = null,
+    string? Note = null);
+
 /// <summary>Lavozim/bo'lim o'zgarishini qayd etadi.</summary>
 public sealed class TransferEmployeeCommandHandler
 {
@@ -295,3 +332,85 @@ public sealed class ChangeSalaryCommandHandler
             .ConfigureAwait(false);
     }
 }
+
+/// <summary>Mehnat yo'lidagi yozuvning terish xatosini tuzatadi.</summary>
+/// <remarks>
+/// <para>
+/// Ruxsat <c>employment.manage</c> — yozuvni kim yozgan bo'lsa, xatosini
+/// ham o'sha tuzatadi. Oklad summasi javobda <c>salary.view</c> siz
+/// ko'rinmaydi (<see cref="ChangeSalaryCommandHandler"/> bilan bir xil
+/// qoida).
+/// </para>
+/// <para>
+/// ⚠️ Munosabat hodisalari BILAN yuklanadi (<c>GetWithEventsAsync</c>):
+/// tuzatiladigan yozuv agregat ichidan topiladi va joriy oklad manbai
+/// ham shu ro'yxatdan aniqlanadi (<c>Employment.EditEvent</c>).
+/// </para>
+/// </remarks>
+public sealed class EditEmploymentEventCommandHandler
+{
+    private readonly IEmploymentRepository _employments;
+    private readonly EmployeeMapper _mapper;
+    private readonly IClock _clock;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public EditEmploymentEventCommandHandler(
+        IEmploymentRepository employments,
+        EmployeeMapper mapper,
+        IClock clock,
+        IUnitOfWork unitOfWork)
+    {
+        _employments = employments;
+        _mapper = mapper;
+        _clock = clock;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result<EmploymentEventDto>> HandleAsync(
+        EditEmploymentEventCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var employment = await _employments
+            .GetWithEventsAsync(command.EmploymentId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (employment is null)
+        {
+            return EmployeeErrors.EmploymentNotFound;
+        }
+
+        Money? salary = null;
+        if (command.Amount is { } amount)
+        {
+            var money = Money.Create(amount, command.Currency ?? Money.Uzs);
+            if (money.IsFailure)
+            {
+                return money.Error;
+            }
+
+            salary = money.Value;
+        }
+
+        var edited = employment.EditEvent(
+            command.EventId,
+            command.EffectiveDate ?? _clock.Today,
+            command.OrderNo,
+            command.OrderDate,
+            command.Note,
+            salary);
+
+        if (edited.IsFailure)
+        {
+            return edited.Error;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        var hodisa = employment.Events.First(item => item.Id == command.EventId);
+
+        return Result.Success(await _mapper.ToDtoAsync(hodisa, cancellationToken).ConfigureAwait(false));
+    }
+}
+

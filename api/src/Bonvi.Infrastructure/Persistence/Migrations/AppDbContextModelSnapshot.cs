@@ -928,6 +928,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("type");
 
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "FromSalary", "Bonvi.Domain.Employees.EmploymentEvent.FromSalary#Money", b1 =>
                         {
                             b1.Property<decimal>("Amount")

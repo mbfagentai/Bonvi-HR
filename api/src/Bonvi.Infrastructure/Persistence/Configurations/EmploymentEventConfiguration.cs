@@ -43,6 +43,11 @@ public sealed class EmploymentEventConfiguration : IEntityTypeConfiguration<Empl
         builder.Property(employmentEvent => employmentEvent.RecordedAt)
             .IsRequired();
 
+        // Tuzatish vaqti — tegilmagan yozuvda NULL (sukut qiymat yo'q:
+        // «hech qachon tahrirlanmagan» va «hozir tahrirlandi» ni ajratib
+        // turadigan yagona narsa shu bo'shlik).
+        builder.Property(employmentEvent => employmentEvent.UpdatedAt);
+
         builder.Property(employmentEvent => employmentEvent.IsImported)
             .IsRequired();
 

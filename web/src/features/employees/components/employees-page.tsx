@@ -36,7 +36,7 @@ import {
   type EmployeesSortParam,
   type EmployeesView,
 } from '../lib/employees-search'
-import { DirectionBadge, FlagBadge, NeedsReviewMark } from './employee-badges'
+import { DirectionBadge, FlagBadge, NeedsReviewMark, StatusBadge } from './employee-badges'
 import { EmployeePhoto } from './employee-photo'
 import { EmployeesGrid } from './employees-grid'
 import { EmployeesToolbar } from './employees-toolbar'
@@ -253,6 +253,23 @@ export function EmployeesPage() {
                   {employee.needsReview && <NeedsReviewMark compact />}
                 </p>
 
+                {/*
+                  ⭐ Holat yorlig'i — FAQAT doimiy bo'lmaganda.
+
+                  Ro'yxatda endi sinovdagilar ham turadi (standart filtr
+                  `employed`), ya'ni qator qaysi holatda ekani ko'rinib
+                  turishi kerak: sariq — sinovda, kulrang — ishdan
+                  ketgan. «Ishlayapti» yorlig'i esa CHIZILMAYDI: u
+                  qatorlarning ko'pchiligida takrorlanib, shovqin bo'lardi
+                  va aynan ajratib turishi kerak bo'lgan sarig'ini
+                  ko'mib yuborardi.
+                */}
+                {employee.status !== 'active' && (
+                  <span className="mt-1 flex">
+                    <StatusBadge status={employee.status} size="sm" />
+                  </span>
+                )}
+
                 {employee.directions.length > 0 && (
                   <span className="mt-1 flex flex-wrap items-center gap-1">
                     {employee.directions.slice(0, 2).map((direction) => (
@@ -362,22 +379,18 @@ export function EmployeesPage() {
   const filtered = isFiltered(search)
   const listEmpty = employees.length === 0 && !firstLoad
 
-  /**
-   * Sinovdagilar soni — FAQAT ro'yxat filtrsiz bo'sh chiqqanda so'raladi.
-   *
-   * NEGA umuman kerak: ro'yxatda doimiy xodimlar turadi, ETL esa har
-   * kimga sinov muddati ochgan va hech biri yakunlanmagan — HR bo'sh
-   * ekranni ko'rib «ma'lumot yo'qolibdi» deb o'ylashi mumkin. Son bilan
-   * gap boshqacha eshitiladi: odamlar bor, ular boshqa sahifada kutyapti.
-   *
-   * `pageSize: 1` — bizga faqat `total` kerak, yozuvlar emas.
-   */
-  const probation = useEmployees(
-    { status: 'probation', page: 1, pageSize: 1 },
-    listEmpty && !filtered,
-  )
-  const probationCount = probation.data?.total ?? 0
+  /*
+    ⭐ «Hammasi sinovda» degan alohida bo'sh ekran OLIB TASHLANDI
+    (2026-09-16). U ro'yxat faqat DOIMIY xodimlarni ko'rsatgan davrdan
+    qolgan edi: ETL har kimga sinov muddati ochgani uchun ro'yxat bo'sh
+    chiqardi va ekran «odamlar bor, ular /sinov sahifasida» deb yo'l
+    ko'rsatardi.
 
+    Endi standart filtr sinovdagilarni ham qamraydi (`DEFAULT_STATUS =
+    'employed'`), ya'ni bunday holat umuman yuzaga kelmaydi — bo'sh
+    ro'yxat endi HAQIQATAN «bazada ishlayotgan odam yo'q» degani.
+    Matnni qoldirish yolg'on yo'l ko'rsatgan bo'lardi.
+  */
   function emptyState() {
     if (filtered) {
       return (
@@ -385,26 +398,6 @@ export function EmployeesPage() {
           icon={SearchX}
           title={t('employees.notFoundTitle')}
           description={t('employees.notFoundText')}
-        />
-      )
-    }
-
-    // Sinovdagilar soni hali kelmagan: noto'g'ri matn chaqnab o'tmasin
-    if (probation.isFetching) return null
-
-    // Bazada odam bor, lekin hammasi hali sinovda — yo'lni ko'rsatamiz
-    if (probationCount > 0) {
-      return (
-        <EmptyState
-          icon={Timer}
-          title={t('employees.noActiveTitle')}
-          description={t('employees.noActiveText', { n: num(probationCount) })}
-          action={
-            <Link to="/sinov" className={buttonVariants({ variant: 'primary' })}>
-              <Timer />
-              {t('nav.probation')}
-            </Link>
-          }
         />
       )
     }

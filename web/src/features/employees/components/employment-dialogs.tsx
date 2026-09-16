@@ -6,10 +6,11 @@ import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
-import type { EmploymentSummary } from '../api/employees-api'
+import type { EmploymentSummary, TimelineEvent } from '../api/employees-api'
 import {
   useAdditionalDuty,
   useChangeSalary,
+  useEditEmploymentEvent,
   useFilterOptions,
   useTerminate,
   useTransfer,
@@ -408,6 +409,137 @@ export function SalaryDialog({
         orderDate={orderDate}
         onOrderNo={setOrderNo}
         onOrderDate={setOrderDate}
+      />
+    </ActionDialog>
+  )
+}
+
+/* ═══════════════════════════════════════ Mehnat yo'li — xatoni tuzatish */
+
+/**
+ * ⭐ Mehnat yo'lidagi BITTA yozuvning terish xatosini tuzatish.
+ *
+ * <b>Bu «qarorni o'zgartirish» EMAS</b> va shuning uchun oynada hodisa
+ * TURI ham, lavozim/bo'lim ham yo'q: ular «nima bo'lgan» degan faktning
+ * o'zi. «Oklad 5 mln bo'lishi kerak edi» — bu yangi qaror, yangi buyruq
+ * (`SalaryDialog`); «buyruq sanasi 06.09 emas, 16.09 edi» esa AYNI
+ * hujjatning noto'g'ri yozib olingani va shu yerda tuzatiladi
+ * (foydalanuvchi talabi, 2026-09-16).
+ *
+ * <b>Oklad maydoni FAQAT summasi bor hodisada chiziladi</b> — qabul va
+ * oklad o'zgarishida. Bo'lim ko'chishida summa yo'q va uni so'rash
+ * hodisani boshqa turga aylantirib yuborardi (server ham qabul
+ * qilmaydi).
+ *
+ * <b>Maydonlar MAVJUD qiymat bilan to'ldirilib ochiladi.</b> Bo'sh
+ * ochilsa, HR faqat sanani tuzatib saqlaganda buyruq raqami va izoh
+ * o'chib ketardi: server yuborilgan qiymatni ustidan yozadi.
+ */
+export function EmploymentEventEditDialog({
+  employeeId,
+  event,
+  canSeeSalary,
+  onClose,
+}: {
+  employeeId: string
+  event: TimelineEvent | null
+  canSeeSalary: boolean
+  onClose: () => void
+}) {
+  const { t } = useLocale()
+  const errorMessage = useErrorMessage()
+  const edit = useEditEmploymentEvent(employeeId, event?.id ?? '')
+
+  const [effectiveDate, setEffectiveDate] = useState(todayIso)
+  const [amount, setAmount] = useState('')
+  const [orderNo, setOrderNo] = useState('')
+  const [orderDate, setOrderDate] = useState('')
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    if (event === null) return
+
+    setEffectiveDate(event.effectiveDate)
+    setAmount(event.toSalary === null ? '' : String(event.toSalary.amount))
+    setOrderNo(event.orderNo ?? '')
+    setOrderDate(event.orderDate ?? '')
+    setNote(event.note ?? '')
+    edit.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event])
+
+  if (event === null) return null
+
+  /*
+    Summa maydoni yozuvning O'ZIDA summa bo'lgandagina chiziladi va
+    faqat uni ko'rish huquqi bo'lsa: ruxsatsiz odamga bo'sh maydon
+    ko'rsatish «oklad kiritilmagan» degan yolg'on taassurot berardi va
+    saqlashda uni O'CHIRIB yuborardi.
+  */
+  const salaryEditable = event.toSalary !== null && canSeeSalary
+
+  const submit = () => {
+    edit.mutate(
+      {
+        employmentId: event.employmentId,
+        body: {
+          effectiveDate,
+          amount: salaryEditable && amount.trim() !== '' ? Number(amount) : null,
+          orderNo: orderNo.trim() === '' ? null : orderNo.trim(),
+          orderDate: orderDate === '' ? null : orderDate,
+          note: note.trim() === '' ? null : note.trim(),
+        },
+      },
+      { onSuccess: onClose },
+    )
+  }
+
+  return (
+    <ActionDialog
+      open
+      onClose={onClose}
+      title={t('employees.eventEditTitle')}
+      submitLabel={t('common.save')}
+      onSubmit={submit}
+      pending={edit.isPending}
+      disabled={effectiveDate === ''}
+      error={
+        edit.isError && <Alert tone="danger">{errorMessage(employeeErrorCode(edit.error))}</Alert>
+      }
+    >
+      <p className="text-footnote text-[var(--fg-secondary)]">
+        {t('employees.eventEditHint')}
+      </p>
+
+      <TextField
+        label={t('employees.effectiveDate')}
+        type="date"
+        value={effectiveDate}
+        onChange={(event_) => setEffectiveDate(event_.target.value)}
+      />
+
+      {salaryEditable && (
+        <TextField
+          label={t('employee.salary')}
+          type="number"
+          inputMode="numeric"
+          value={amount}
+          onChange={(event_) => setAmount(event_.target.value)}
+        />
+      )}
+
+      <OrderFields
+        orderNo={orderNo}
+        orderDate={orderDate}
+        onOrderNo={setOrderNo}
+        onOrderDate={setOrderDate}
+      />
+
+      <TextArea
+        label={t('employees.note')}
+        maxLength={2000}
+        value={note}
+        onChange={(event_) => setNote(event_.target.value)}
       />
     </ActionDialog>
   )

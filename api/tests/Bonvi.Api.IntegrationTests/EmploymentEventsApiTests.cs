@@ -414,6 +414,109 @@ public sealed class EmploymentEventsApiTests : IClassFixture<BonviApiFactory>
     /// Ikkala hodisa ham bo'lim filtrining ikki xil yo'lini tekshiradi —
     /// biri ichki bo'limga tegishli, ikkinchisida bo'lim umuman yo'q.
     /// </remarks>
+    /// <summary>
+    /// ⭐ Mehnat yo'lidagi yozuvning TERISH XATOSI tuzatiladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Foydalanuvchi talabi (2026-09-16): buyruq sanasi yoki summasi
+    /// noto'g'ri yozib olingan bo'lsa, uni to'g'rilash kerak. Ilgari
+    /// yagona yo'l tuzatuvchi YANGI hodisa yozish edi — lentada ikkita
+    /// buyruq bo'lib ko'rinardi, holbuki bittasi bor.
+    /// </para>
+    /// <para>
+    /// Test yangi qator QO'SHILMASLIGINI ham qadaydi: aynan shu narsa
+    /// nomzod bosqichlarida nosozlik bo'lgan edi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Mehnat_yoli_yozuvidagi_terish_xatosi_tuzatiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        var belgi = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var urug = await UrugAsync(belgi);
+
+        using var client = await AdminMijozAsync();
+
+        var oldin = await SoravAsync(client, $"?search={belgi}");
+        var oklad = oldin.Items.Single(qator => qator.Type == nameof(EmploymentEventType.SalaryChange));
+
+        oklad.OrderNo.ShouldBe(belgi + "-3");
+
+        using var tuzatish = await client.PutAsJsonAsync(
+            new Uri($"/api/employments/{urug.MunosabatId}/events/{oklad.Id}", UriKind.Relative),
+            new
+            {
+                effectiveDate = new DateOnly(2024, 9, 16),
+                amount = 5_500_000m,
+                orderNo = belgi + "-3-tuzatilgan",
+                orderDate = new DateOnly(2024, 9, 16),
+                note = "Буйруқ санаси хато ёзилган эди",
+            },
+            bekorQilish);
+
+        tuzatish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tuzatish));
+
+        var keyin = await SoravAsync(client, $"?search={belgi}");
+
+        keyin.Items.Count.ShouldBe(oldin.Items.Count, "yangi qator QO'SHILMAYDI");
+
+        var tuzatilgan = keyin.Items.Single(qator => qator.Id == oklad.Id);
+
+        tuzatilgan.EffectiveDate.ShouldBe(new DateOnly(2024, 9, 16));
+        tuzatilgan.OrderNo.ShouldBe(belgi + "-3-tuzatilgan");
+        tuzatilgan.OrderDate.ShouldBe(new DateOnly(2024, 9, 16));
+        tuzatilgan.Note.ShouldBe("Буйруқ санаси хато ёзилган эди");
+        tuzatilgan.ToSalary!.Amount.ShouldBe(5_500_000m);
+        tuzatilgan.Type.ShouldBe(
+            nameof(EmploymentEventType.SalaryChange),
+            "hodisa TURI o'zgarmaydi");
+    }
+
+    /// <summary>Mavjud bo'lmagan yozuv tuzatilmaydi.</summary>
+    [Fact]
+    public async Task Nomavjud_yozuv_tuzatilmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        var belgi = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var urug = await UrugAsync(belgi);
+
+        using var client = await AdminMijozAsync();
+
+        using var javob = await client.PutAsJsonAsync(
+            new Uri(
+                $"/api/employments/{urug.MunosabatId}/events/{Guid.CreateVersion7()}",
+                UriKind.Relative),
+            new { effectiveDate = new DateOnly(2024, 9, 16) },
+            bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.NotFound, await MatnAsync(javob));
+        (await MatnAsync(javob)).ShouldContain("mehnat_hodisasi.topilmadi");
+    }
+
+    /// <summary>Tuzatish — YOZISH amali: tokensiz o'tmaydi.</summary>
+    [Fact]
+    public async Task Tokensiz_yozuv_tuzatilmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        var belgi = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var urug = await UrugAsync(belgi);
+
+        using var tokensiz = _factory.CreateClient();
+
+        using var javob = await tokensiz.PutAsJsonAsync(
+            new Uri(
+                $"/api/employments/{urug.MunosabatId}/events/{Guid.CreateVersion7()}",
+                UriKind.Relative),
+            new { effectiveDate = new DateOnly(2024, 9, 16) },
+            bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, await MatnAsync(javob));
+    }
+
     private async Task<BolimUrugi> BolimUrugiAsync(string belgi)
     {
         await using var qamrov = _factory.Services.CreateAsyncScope();
