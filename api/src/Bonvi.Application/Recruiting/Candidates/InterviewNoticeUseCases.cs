@@ -143,8 +143,11 @@ public sealed class InviteCandidateToInterviewCommandHandler
 
             /*
               Natija «kutilmoqda»: suhbat hali bo'lgani yo'q va uning
-              xulosasi keyin, bosqich oynasi orqali yoziladi — mavjud
-              yozuv TO'LDIRILADI, tarixda ikkita qator paydo bo'lmaydi
+              xulosasi keyin, LENTADAGI SHU QATORNI ochib yoziladi
+              (<c>EditCandidateStageEntryCommand</c>). Chaqirishning o'zi
+              esa tarixda alohida fakt bo'lib qoladi: ikkinchi marta
+              chaqirilgan nomzodda ikkita qator bo'ladi va bu to'g'ri —
+              u haqiqatan ikki marta chaqirilgan
               (<c>Candidate.RecordStage</c> izohi).
 
               Sana — suhbat KUNI, bugungi kun emas: bosqich lentasi

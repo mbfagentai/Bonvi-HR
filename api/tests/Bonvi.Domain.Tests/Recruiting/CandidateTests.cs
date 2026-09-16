@@ -73,21 +73,101 @@ public sealed class CandidateTests
     }
 
     [Fact]
-    public void Ochiq_bosqichga_natija_yozilsa_AYNI_yozuv_toldiriladi()
+    public void Ochiq_yozuvga_natija_yozilsa_AYNI_yozuv_toldiriladi()
     {
         // HR bosqichni oldindan ochadi («ertaga kengash»), natijani keyin
-        // yozadi. Bu ikkita yozuv emas, BITTA yozuvning ikki holati.
+        // yozadi. Bu ikkita yozuv emas, BITTA yozuvning ikki holati — lekin
+        // to'ldiriladigan yozuv ANIQ ko'rsatiladi.
         var nomzod = Nomzod();
-        nomzod.RecordStage(KengashId, Sana);
+        var ochiq = nomzod.RecordStage(KengashId, Sana).Value;
 
-        var natija = nomzod.RecordStage(
-            KengashId, Sana.AddDays(1), StageOutcome.Passed, "Кенгаш хулосаси: маъқулланди");
+        var natija = nomzod.EditStageEntry(
+            ochiq.Id, StageOutcome.Passed, Sana.AddDays(1), "Кенгаш хулосаси: маъқулланди");
 
         natija.IsSuccess.ShouldBeTrue();
         nomzod.StageEntries.Count.ShouldBe(1, "yangi yozuv qo'shilmaydi");
         nomzod.StageEntries[0].Outcome.ShouldBe(StageOutcome.Passed);
         nomzod.StageEntries[0].Date.ShouldBe(Sana.AddDays(1));
         nomzod.StageEntries[0].Conclusion.ShouldBe("Кенгаш хулосаси: маъқулланди");
+        nomzod.StageEntries[0].UpdatedAt.ShouldNotBeNull("tuzatilgani ko'rinib turishi kerak");
+    }
+
+    [Fact]
+    public void Ayni_bosqich_qayta_yozilsa_YANGI_yozuv_qoshiladi()
+    {
+        /*
+          ⭐ Talabning o'zagi (2026-09-16): «besh marta gaplashilsa —
+          beshta holat». Ilgari ikkinchi yozuv birinchisining USTIDAN
+          yozilardi va HR yozgan izoh jimgina yo'qolardi.
+        */
+        var nomzod = Nomzod();
+        nomzod.RecordStage(KengashId, Sana, StageOutcome.Pending, "Биринчи қўнғироқ");
+
+        nomzod.RecordStage(KengashId, Sana.AddDays(3), StageOutcome.Pending, "Иккинчи қўнғироқ");
+
+        nomzod.StageEntries.Count.ShouldBe(2, "har bir aloqa — alohida yozuv");
+        nomzod.StageEntries[0].Conclusion.ShouldBe("Биринчи қўнғироқ", "eski izoh joyida qoladi");
+        nomzod.StageEntries[1].Conclusion.ShouldBe("Иккинчи қўнғироқ");
+    }
+
+    [Fact]
+    public void Izohsiz_qayta_yozish_eski_izohni_OCHIRMAYDI()
+    {
+        // Voronkada kartani sudrash va tugmani qayta bosish aynan shunday
+        // so'rov yuboradi (xulosa bo'sh). Ilgari bu eski izohni NULL bilan
+        // almashtirardi — ogohlantirishsiz.
+        var nomzod = Nomzod();
+        nomzod.RecordStage(KengashId, Sana, StageOutcome.Pending, "Телефон рақами нотўғри");
+
+        nomzod.RecordStage(KengashId, Sana);
+
+        nomzod.StageEntries[0].Conclusion.ShouldBe("Телефон рақами нотўғри");
+    }
+
+    [Fact]
+    public void Tuzatish_yozuvning_lentadagi_joyini_ozgartirmaydi()
+    {
+        // Lenta `RecordedAt` bo'yicha saralanadi: u tuzatishda o'zgarsa,
+        // eski qator tarixning tepasiga sakrab chiqardi.
+        var nomzod = Nomzod();
+        var birinchi = nomzod.RecordStage(AnketaId, Sana).Value;
+        nomzod.RecordStage(KengashId, Sana.AddDays(1));
+
+        var yozilgan = birinchi.RecordedAt;
+        nomzod.EditStageEntry(birinchi.Id, StageOutcome.Passed, Sana, "Анкета тўлиқ");
+
+        birinchi.RecordedAt.ShouldBe(yozilgan, "kiritilgan vaqt o'zgarmaydi");
+        nomzod.CurrentStageId.ShouldBe(KengashId, "tuzatish nomzodni voronkada SURMAYDI");
+    }
+
+    [Fact]
+    public void Notogri_yozuv_tuzatilmaydi()
+    {
+        var nomzod = Nomzod();
+        nomzod.RecordStage(AnketaId, Sana);
+
+        var natija = nomzod.EditStageEntry(
+            Guid.CreateVersion7(), StageOutcome.Passed, Sana, null);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("bosqich_yozuvi.topilmadi");
+    }
+
+    [Fact]
+    public void Voronkadan_chiqqan_nomzodning_yozuvi_ham_tuzatiladi()
+    {
+        // Rad etilgan nomzodning tarixidagi xato ham tuzatilishi kerak:
+        // yangi bosqich yozish taqiqlanadi, TUZATISH esa yo'q.
+        var nomzod = Nomzod();
+        var yozuv = nomzod.RecordStage(KengashId, Sana).Value;
+        nomzod.Reject(Sana.AddDays(1));
+
+        var natija = nomzod.EditStageEntry(
+            yozuv.Id, StageOutcome.Failed, Sana, "Кенгаш рад этди");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.StageEntries[0].Conclusion.ShouldBe("Кенгаш рад этди");
+        nomzod.Status.ShouldBe(CandidateStatus.Rejected, "holat o'zgarmaydi");
     }
 
     [Fact]
@@ -296,7 +376,7 @@ public sealed class CandidateTests
         nomzod.RecordStage(KengashId, Sana, StageOutcome.Passed);
         nomzod.MoveToReserve(Sana.AddDays(1), "Ҳозир ўрин йўқ");
 
-        var natija = nomzod.ReturnFromReserve();
+        var natija = nomzod.ReturnToFunnel();
 
         natija.IsSuccess.ShouldBeTrue();
         nomzod.Status.ShouldBe(CandidateStatus.InProgress);
@@ -314,7 +394,7 @@ public sealed class CandidateTests
         // barcha yakunlar, shu jumladan rezerv, yana ochiq.
         var nomzod = Nomzod();
         nomzod.MoveToReserve(Sana);
-        nomzod.ReturnFromReserve();
+        nomzod.ReturnToFunnel();
 
         var natija = nomzod.MoveToReserve(Sana.AddDays(30), "Кейинги мавсумга");
 
@@ -332,24 +412,103 @@ public sealed class CandidateTests
         var nomzod = Nomzod();
         nomzod.MarkHired(Sana);
 
-        var natija = nomzod.ReturnFromReserve();
+        var natija = nomzod.ReturnToFunnel();
 
         natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
+        natija.Error.Code.ShouldBe("nomzod.qaytarilmaydi");
         nomzod.Status.ShouldBe(CandidateStatus.Hired, "holat o'zgarmaydi");
     }
 
     [Fact]
-    public void Rad_etilgan_nomzod_voronkaga_QAYTARILMAYDI()
+    public void Rad_etilgan_nomzod_SABAB_bilan_qaytariladi()
     {
+        /*
+          ⭐ Foydalanuvchi talabi (2026-09-16): rad etilgan odam ko'pincha
+          o'zi qayta aloqaga chiqadi. Uni noldan kiritish butun tarixni,
+          anketani va fayllarni yo'qotardi.
+        */
+        var nomzod = Nomzod();
+        nomzod.RecordStage(KengashId, Sana, StageOutcome.Failed);
+        nomzod.Reject(Sana, "Тажрибаси етарли эмас");
+
+        var natija = nomzod.ReturnToFunnel("Ўзи қайта мурожаат қилди, тажриба орттирган");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.InProgress);
+        nomzod.ClosedAt.ShouldBeNull();
+        nomzod.ClosingNote.ShouldBeNull("chiqish sababi endi o'rinsiz");
+        nomzod.CurrentStageId.ShouldBe(KengashId, "qayerda to'xtagan bo'lsa, o'sha yerdan");
+        nomzod.StageEntries.Count.ShouldBe(1, "bosqichlar tarixi saqlanadi");
+
+        /*
+          ⭐ Ikkala sabab ham LENTADA qoladi: rad etishniki ham,
+          qaytarishniki ham. `ClosingNote` tozalanadi — «nega rad
+          etilgan edi» degan savolning javobi faqat shu yerda saqlanadi.
+        */
+        nomzod.Notes.Count.ShouldBe(2);
+        nomzod.Notes[0].Kind.ShouldBe(CandidateNoteKind.Rejected);
+        nomzod.Notes[0].Text.ShouldBe("Тажрибаси етарли эмас");
+        nomzod.Notes[1].Kind.ShouldBe(CandidateNoteKind.ReturnToFunnel);
+        nomzod.Notes[1].Text.ShouldBe("Ўзи қайта мурожаат қилди, тажриба орттирган");
+    }
+
+    [Fact]
+    public void Rad_etilganni_SABABSIZ_qaytarib_bolmaydi()
+    {
+        // Qarorni bekor qilyapmiz — «nega» degan savol albatta tug'iladi.
         var nomzod = Nomzod();
         nomzod.Reject(Sana, "Тажрибаси етарли эмас");
 
-        var natija = nomzod.ReturnFromReserve();
+        var natija = nomzod.ReturnToFunnel("   ");
 
         natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
-        nomzod.ClosingNote.ShouldBe("Тажрибаси етарли эмас", "rad etish izohi tegilmaydi");
+        natija.Error.Code.ShouldBe("nomzod.qaytarish_sababi_yoq");
+        nomzod.Status.ShouldBe(CandidateStatus.Rejected, "holat o'zgarmaydi");
+    }
+
+    [Fact]
+    public void Voz_kechgan_nomzod_ham_qaytariladi()
+    {
+        var nomzod = Nomzod();
+        nomzod.Withdraw(Sana, "Бошқа жойга ишга кирди");
+
+        var natija = nomzod.ReturnToFunnel("Ўша иш тўғри келмабди");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.InProgress);
+        nomzod.Notes[0].Kind.ShouldBe(CandidateNoteKind.Withdrawn);
+        nomzod.Notes[1].Kind.ShouldBe(CandidateNoteKind.ReturnToFunnel);
+    }
+
+    [Fact]
+    public void Qaytarilgan_nomzodga_rad_xabari_QAYTA_yuboriladi()
+    {
+        /*
+          Belgi tozalanmasa, ikkinchi marta rad etilgan nomzod javobsiz
+          qolardi: `MarkRejectionNoticeSent` dagi `??=` uni «allaqachon
+          xabardor» deb hisoblardi.
+        */
+        var nomzod = Nomzod();
+        nomzod.Reject(Sana, "Ўрин йўқ");
+        nomzod.MarkRejectionNoticeSent(DateTimeOffset.UtcNow);
+
+        nomzod.ReturnToFunnel("Ўрин бўшади").IsSuccess.ShouldBeTrue();
+
+        nomzod.RejectionNoticeSentAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Rezervdan_qaytarishda_sabab_SHART_emas()
+    {
+        // Rezervning butun ma'nosi «o'rin bo'shasa chaqiramiz» — qaytish
+        // o'sha holatning tabiiy yakuni va tushuntirish talab qilmaydi.
+        var nomzod = Nomzod();
+        nomzod.MoveToReserve(Sana);
+
+        var natija = nomzod.ReturnToFunnel();
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Notes.ShouldBeEmpty("sababsiz qaytarish lentaga qator yozmaydi");
     }
 
     [Fact]
@@ -358,10 +517,10 @@ public sealed class CandidateTests
         // U allaqachon voronkada — bu amal uchun manba yo'q.
         var nomzod = Nomzod();
 
-        var natija = nomzod.ReturnFromReserve();
+        var natija = nomzod.ReturnToFunnel();
 
         natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("nomzod.rezervda_emas");
+        natija.Error.Code.ShouldBe("nomzod.qaytarilmaydi");
     }
 
     // ────────────────────── Fayllar ──────────────────────
@@ -634,7 +793,7 @@ public sealed class CandidateTests
         var nomzod = Nomzod();
         nomzod.MoveToReserve(Sana, "Ҳозир ўрин йўқ", Sana.AddDays(10));
 
-        nomzod.ReturnFromReserve().IsSuccess.ShouldBeTrue();
+        nomzod.ReturnToFunnel().IsSuccess.ShouldBeTrue();
 
         nomzod.ClosedAt.ShouldBeNull("chiqish fakti yo'q");
         nomzod.ClosingNote.ShouldBeNull();
@@ -649,7 +808,7 @@ public sealed class CandidateTests
         var nomzod = Nomzod();
         nomzod.MoveToReserve(Sana, nextContactDate: Sana.AddDays(10));
 
-        nomzod.ReturnFromReserve(Sana.AddDays(2)).IsSuccess.ShouldBeTrue();
+        nomzod.ReturnToFunnel(nextContactDate: Sana.AddDays(2)).IsSuccess.ShouldBeTrue();
 
         nomzod.NextContactDate.ShouldBe(Sana.AddDays(2));
     }
@@ -678,11 +837,11 @@ public sealed class CandidateTests
         var nomzod = Nomzod();
 
         nomzod.AddNote(CandidateNoteKind.Reassign, "Бошқа вакансияга");
-        nomzod.AddNote(CandidateNoteKind.ReturnFromReserve, "Ўрин бўшади");
+        nomzod.AddNote(CandidateNoteKind.ReturnToFunnel, "Ўрин бўшади");
 
         nomzod.Notes.Count.ShouldBe(2);
         nomzod.Notes[0].Kind.ShouldBe(CandidateNoteKind.Reassign);
-        nomzod.Notes[1].Kind.ShouldBe(CandidateNoteKind.ReturnFromReserve);
+        nomzod.Notes[1].Kind.ShouldBe(CandidateNoteKind.ReturnToFunnel);
     }
 
     [Theory]

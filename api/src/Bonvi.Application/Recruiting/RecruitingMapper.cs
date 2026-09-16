@@ -175,7 +175,8 @@ public sealed class RecruitingMapper
                 entry.Outcome,
                 entry.Conclusion,
                 entry.RecordedBy,
-                entry.RecordedAt)),
+                entry.RecordedAt,
+                entry.UpdatedAt)),
         ];
 
         IReadOnlyList<CandidateFileDto> files = [.. candidate.Files.Select(ToDto)];

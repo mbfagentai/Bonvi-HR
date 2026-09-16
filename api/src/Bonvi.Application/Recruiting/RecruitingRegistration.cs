@@ -48,8 +48,9 @@ internal static class RecruitingRegistration
         services.AddScoped<UpdateCandidateCommandHandler>();
         services.AddScoped<ReassignCandidateCommandHandler>();
         services.AddScoped<RecordCandidateStageCommandHandler>();
+        services.AddScoped<EditCandidateStageEntryCommandHandler>();
         services.AddScoped<CloseCandidateCommandHandler>();
-        services.AddScoped<ReturnCandidateFromReserveCommandHandler>();
+        services.AddScoped<ReturnCandidateToFunnelCommandHandler>();
         services.AddScoped<CheckApplicationQueryHandler>();
 
         // Nomzodni ishga olish — `HireEmployeeCommandHandler` ga bog'liq

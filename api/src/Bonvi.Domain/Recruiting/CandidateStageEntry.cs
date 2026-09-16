@@ -44,13 +44,22 @@ public enum StageOutcome
 /// yozuvi bo'lmasdi.
 /// </para>
 /// <para>
+/// ⭐ <b>Har bir yozuv — ALOHIDA HODISA.</b> Bitta bosqich necha marta
+/// takrorlansa, shuncha yozuv bo'ladi: besh marta gaplashilsa — beshta
+/// qator, har birida o'z sanasi, natijasi va izohi bilan (foydalanuvchi
+/// qarori, 2026-09-16). Nomzodning JORIY holati esa oxirgi yozuvdan
+/// kelib chiqadi. Ilgari ayni bosqich qayta yozilganda mavjud yozuv
+/// USTIDAN yozilardi va oldingi izoh jimgina yo'qolardi — aynan shu
+/// xatolik tuzatildi.
+/// </para>
+/// <para>
 /// <b>Yozuv o'zgarmas EMAS</b> — <c>EmploymentEvent</c> dan farqli.
 /// Sabab: mehnat hodisasi buyruq bilan rasmiylashtiriladi va buyruq bekor
 /// qilinmaydi; suhbat xulosasi esa ichki qayd — HR uni suhbat davomida
 /// «kutilmoqda» deb ochib, tugagach natijasini yozadi
-/// (<see cref="Resolve"/>). Ikki bosqichli yozuvni o'zgarmas qilish har
-/// suhbat uchun ikkita yozuv qoldirardi va tarix ikki barobar shovqin
-/// bo'lardi.
+/// (<see cref="Edit"/>). Lekin o'zgartirish faqat ATAYLAB, AYNI yozuvni
+/// ko'rsatib bajariladi: yangi yozuv hech qachon eskisining ustidan
+/// yozmaydi.
 /// </para>
 /// </remarks>
 public sealed class CandidateStageEntry : Entity
@@ -105,7 +114,25 @@ public sealed class CandidateStageEntry : Entity
     /// </remarks>
     public Guid? RecordedBy { get; private set; }
 
+    /// <summary>Yozuv YARATILGAN lahza — hech qachon o'zgarmaydi.</summary>
+    /// <remarks>
+    /// ⭐ Lenta aynan shu maydon bo'yicha saralanadi, shu sababli u
+    /// o'zgarmasligi SHART: ilgari yozuv tahrirlanganda bu vaqt
+    /// yangilanardi va qator tarixning o'rtasidan tepasiga sakrab
+    /// chiqardi — ya'ni «qachon nima bo'ldi» degan tartib buzilardi.
+    /// Tahrir vaqti alohida maydonda (<see cref="UpdatedAt"/>).
+    /// </remarks>
     public DateTimeOffset RecordedAt { get; private set; }
+
+    /// <summary>Yozuv oxirgi marta tuzatilgan lahza; tegilmagan bo'lsa <c>null</c>.</summary>
+    /// <remarks>
+    /// Tarixdagi qator tuzatilgani KO'RINIB turishi kerak: HR ekranda
+    /// «tahrirlandi» belgisini ko'radi va yozuv birinchi kiritilganidan
+    /// farq qilishini biladi. Kim tuzatgani saqlanmaydi — nomzod
+    /// kartasida foydalanuvchi ismlari umuman yig'ilmaydi
+    /// (<see cref="RecordedBy"/> izohi).
+    /// </remarks>
+    public DateTimeOffset? UpdatedAt { get; private set; }
 
     internal static Result<CandidateStageEntry> Create(
         Guid candidateId,
@@ -128,14 +155,26 @@ public sealed class CandidateStageEntry : Entity
         };
     }
 
-    /// <summary>Natijani va xulosani yozadi (yoki tuzatadi).</summary>
-    internal Result Resolve(StageOutcome outcome, DateOnly date, string? conclusion, Guid? recordedBy)
+    /// <summary>Yozuvning natijasini, sanasini va xulosasini tuzatadi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Bosqich O'ZGARMAYDI.</b> Yozuv «qaysi bosqich» degan fakt
+    /// bilan tug'iladi; uni almashtirish tarixni qayta yozish bo'lardi.
+    /// Noto'g'ri bosqich yozilgan bo'lsa, to'g'risi YANGI yozuv bo'lib
+    /// tushadi — lentada ikkalasi ham ko'rinadi.
+    /// </para>
+    /// <para>
+    /// <b><see cref="RecordedBy"/> ham o'zgarmaydi</b>: u «kim KIRITGAN»
+    /// degan audit fakti. Tuzatgan odam boshqa bo'lsa ham, yozuvning
+    /// muallifi o'zgarmaydi.
+    /// </para>
+    /// </remarks>
+    internal Result Edit(StageOutcome outcome, DateOnly date, string? conclusion)
     {
         Outcome = outcome;
         Date = date;
         Conclusion = Trim(conclusion);
-        RecordedBy = recordedBy ?? RecordedBy;
-        RecordedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
 
         return Result.Success();
     }

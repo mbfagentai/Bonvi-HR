@@ -382,6 +382,11 @@ public sealed class CandidateStageEntryConfiguration : IEntityTypeConfiguration<
         builder.Property(entry => entry.RecordedAt)
             .IsRequired();
 
+        // Tuzatish vaqti — tegilmagan yozuvda NULL. Sukut qiymat YO'Q:
+        // «hech qachon tahrirlanmagan» va «hozir tahrirlandi» ni ajratib
+        // turadigan yagona narsa shu bo'shlik.
+        builder.Property(entry => entry.UpdatedAt);
+
         // Xulosa — erkin matn. «Кенгаш хулосаси» ba'zan bir necha
         // abzatsdan iborat bo'ladi, shu sababli chegara keng.
         builder.Property(entry => entry.Conclusion)

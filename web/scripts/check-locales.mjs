@@ -408,7 +408,7 @@ const DYNAMIC_KEY_SOURCES = [
   {
     file: 'src/features/recruiting/components/candidate-action-dialog.tsx',
     values: () =>
-      ['reject', 'withdraw', 'reserve', 'returnFromReserve', 'reassign', 'delete'].map(
+      ['reject', 'withdraw', 'reserve', 'returnToFunnel', 'reassign', 'delete'].map(
         (value) => ({ value, line: 0 }),
       ),
     keysFor: (value) => [

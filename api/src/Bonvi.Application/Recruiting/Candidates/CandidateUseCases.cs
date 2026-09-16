@@ -295,6 +295,47 @@ public sealed record RecordCandidateStageCommand(
     DateOnly? NextContactDate = null,
     bool ClearNextContact = false);
 
+/// <summary>
+/// Tarixdagi BITTA bosqich yozuvini tuzatish.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega alohida buyruq, <see cref="RecordCandidateStageCommand"/> ga
+/// «yozuv ID» qo'shilmadi.</b> Ikkisi ikki xil amal va ularning
+/// tekshiruvlari ham har xil: yozish voronkani SURADI (bosqich faol
+/// bo'lishi shart, nomzod jarayonda bo'lishi shart), tuzatish esa faqat
+/// mavjud qatorni to'g'rilaydi (bosqich ham, nomzod holati ham
+/// o'zgarmaydi). Bitta buyruqqa ixtiyoriy ID qo'shilsa, handler ichida
+/// ikkita butunlay boshqa yo'l paydo bo'lardi va har bir tekshiruv
+/// «bu qaysi holat edi?» degan shart bilan o'ralardi.
+/// </para>
+/// <para>
+/// <b>Bosqich bu yerda YO'Q va bo'lishi ham mumkin emas</b> — sabab
+/// <c>CandidateStageEntry.Edit</c> izohida: yozuv «qaysi bosqich» degan
+/// fakt bilan tug'iladi.
+/// </para>
+/// </remarks>
+/// <param name="CandidateId">Nomzod.</param>
+/// <param name="EntryId">Qaysi yozuv tuzatiladi.</param>
+/// <param name="Outcome">Natija.</param>
+/// <param name="Date">Bosqich sanasi. Bo'sh — bugun.</param>
+/// <param name="Conclusion">Xulosa matni; bo'sh bo'lishi mumkin.</param>
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi — <see cref="RecordCandidateStageCommand"/> dagi
+/// bilan AYNAN bir xil uch holatli qoida. Tuzatish oynasi ham shu maydonni
+/// so'raydi: «gaplashdim, besh kundan keyin qayta qo'ng'iroq» degan qaror
+/// ko'pincha aynan natija yozilayotgan lahzada tug'iladi.
+/// </param>
+/// <param name="ClearNextContact">Sanani tozalash.</param>
+public sealed record EditCandidateStageEntryCommand(
+    Guid CandidateId,
+    Guid EntryId,
+    StageOutcome Outcome,
+    DateOnly? Date = null,
+    string? Conclusion = null,
+    DateOnly? NextContactDate = null,
+    bool ClearNextContact = false);
+
 /// <summary>Nomzodni rad etish (korxona qarori).</summary>
 public sealed record RejectCandidateCommand(Guid CandidateId, DateOnly? At = null, string? Reason = null);
 
@@ -330,11 +371,22 @@ public sealed record ReserveCandidateCommand(
     string? Reason = null,
     DateOnly? NextContactDate = null);
 
-/// <summary>Rezervdagi nomzodni voronkaga qaytarish.</summary>
+/// <summary>Voronkadan chiqqan nomzodni qaytarish.</summary>
+/// <remarks>
+/// Uchta manbadan: rezervdan, RAD ETILGANDAN va o'zi VOZ KECHGANDAN
+/// (foydalanuvchi talabi, 2026-09-16). Qoidalar domenda —
+/// <c>Candidate.ReturnToFunnel</c>.
+/// </remarks>
 /// <param name="CandidateId">Nomzod.</param>
 /// <param name="Note">
-/// Amal izohi — bo'sh bo'lmasa <c>candidate_notes</c> ga
-/// <see cref="CandidateNoteKind.ReturnFromReserve"/> turi bilan yoziladi.
+/// Qaytarish sababi — <c>candidate_notes</c> ga
+/// <see cref="CandidateNoteKind.ReturnToFunnel"/> turi bilan yoziladi va
+/// nomzodning lentasida abadiy qoladi.
+/// <para>
+/// ⚠️ Rad etilgan va voz kechgan nomzodda MAJBURIY («qarorni bekor
+/// qilyapmiz — nega?»), rezervdan qaytarishda ixtiyoriy. Tekshiruv
+/// domenda.
+/// </para>
 /// <para>
 /// U <c>ClosingNote</c> GA yozilmaydi va yozilishi ham MUMKIN emas:
 /// qaytarish o'sha tranzaksiyada <c>ClosingNote</c> ni tozalaydi, ya'ni
@@ -345,7 +397,7 @@ public sealed record ReserveCandidateCommand(
 /// Keyingi aloqa sanasi. Berilmasa mavjudi TEGILMAYDI — rezervda qo'yilgan
 /// qo'ng'iroq rejasi nomzod voronkaga qaytgach ham o'z kuchida qoladi.
 /// </param>
-public sealed record ReturnCandidateFromReserveCommand(
+public sealed record ReturnCandidateToFunnelCommand(
     Guid CandidateId,
     string? Note = null,
     DateOnly? NextContactDate = null);
@@ -1067,6 +1119,79 @@ public sealed class RecordCandidateStageCommandHandler
 }
 
 /// <summary>
+/// Tarixdagi bitta bosqich yozuvini tuzatadi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Bosqich ma'lumotnomasi bu yerda TEKSHIRILMAYDI</b> —
+/// <see cref="RecordCandidateStageCommandHandler"/> dan farqli. Sabab:
+/// tuzatish bosqichni o'zgartirmaydi, ya'ni tekshiradigan yangi qiymat
+/// yo'q. Aks holda faolsizlantirilgan bosqichdagi ESKI yozuvning izohini
+/// tuzatib bo'lmasdi — holbuki tarix aynan shu narsani saqlash uchun bor.
+/// </para>
+/// <para>
+/// <b>Nomzodning holati ham tekshirilmaydi</b>: rad etilgan nomzodning
+/// tarixidagi xato ham tuzatiladi (sababi <c>Candidate.EditStageEntry</c>
+/// izohida).
+/// </para>
+/// </remarks>
+public sealed class EditCandidateStageEntryCommandHandler
+{
+    private readonly ICandidateRepository _candidates;
+    private readonly RecruitingMapper _mapper;
+    private readonly IClock _clock;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public EditCandidateStageEntryCommandHandler(
+        ICandidateRepository candidates,
+        RecruitingMapper mapper,
+        IClock clock,
+        IUnitOfWork unitOfWork)
+    {
+        _candidates = candidates;
+        _mapper = mapper;
+        _clock = clock;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result<CandidateDto>> HandleAsync(
+        EditCandidateStageEntryCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var candidate = await _candidates
+            .GetWithStagesAsync(command.CandidateId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (candidate is null)
+        {
+            return RecruitingErrors.CandidateNotFound;
+        }
+
+        var edited = candidate.EditStageEntry(
+            command.EntryId,
+            command.Outcome,
+            command.Date ?? _clock.Today,
+            command.Conclusion);
+
+        if (edited.IsFailure)
+        {
+            return edited.Error;
+        }
+
+        RecordCandidateStageCommandHandler.ApplyNextContact(
+            candidate,
+            command.NextContactDate,
+            command.ClearNextContact);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return await _mapper.ToDtoAsync(candidate, cancellationToken).ConfigureAwait(false);
+    }
+}
+
+/// <summary>
 /// Nomzodni voronkadan chiqaradi: rad etish, voz kechish yoki rezerv.
 /// </summary>
 /// <remarks>
@@ -1078,7 +1203,7 @@ public sealed class RecordCandidateStageCommandHandler
 /// </para>
 /// <para>
 /// Rezervdan QAYTARISH ham bu yerda emas
-/// (<see cref="ReturnCandidateFromReserveCommandHandler"/>): u nomzodni
+/// (<see cref="ReturnCandidateToFunnelCommandHandler"/>): u nomzodni
 /// voronkadan chiqarmaydi, aksincha — qaytaradi. Uni shu sinfga qo'shish
 /// «yopish» degan nomni yolg'onga aylantirardi.
 /// </para>
@@ -1181,7 +1306,8 @@ public sealed class CloseCandidateCommandHandler
 }
 
 /// <summary>
-/// Rezervdagi nomzodni voronkaga qaytaradi.
+/// Voronkadan chiqqan nomzodni qaytaradi — rezervdan, rad etilgandan
+/// yoki voz kechgandan.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -1189,29 +1315,30 @@ public sealed class CloseCandidateCommandHandler
 /// ning bir qismi emas.</b> U yerdagi uchala amal nomzodni voronkadan
 /// CHIQARADI va bitta umumiy qoidaga bo'ysunadi («faqat jarayondagi
 /// nomzod yopiladi»). Bu amal esa teskari yo'nalishda ishlaydi va uning
-/// sharti ham teskari: nomzod aynan REZERVDA bo'lishi kerak. Ikkalasini
-/// bitta sinfga yig'ish «yopish» degan nomni yolg'onga aylantirardi.
+/// sharti ham teskari: nomzod voronkadan CHIQQAN bo'lishi kerak.
+/// Ikkalasini bitta sinfga yig'ish «yopish» degan nomni yolg'onga
+/// aylantirardi.
 /// </para>
 /// <para>
 /// Bosqich va bosqichlar tarixi saqlanadi — nomzod qayerda to'xtagan
 /// bo'lsa, o'sha yerdan davom etadi (sababi
-/// <c>Candidate.ReturnFromReserve</c> izohida).
+/// <c>Candidate.ReturnToFunnel</c> izohida).
 /// </para>
 /// <para>
-/// Izoh <c>candidate_notes</c> ga tushadi
-/// (<see cref="CandidateNoteKind.ReturnFromReserve"/>) va <c>ClosingNote</c>
-/// ga TUSHMAYDI: qaytarish o'sha tranzaksiyada uni tozalaydi, ya'ni izoh
-/// yozilgan zahoti o'chib ketardi.
+/// ⭐ Izohni DOMEN o'zi lentaga yozadi (<c>ReturnToFunnel</c> ichida) —
+/// bu yerda emas. Sabab: sabab rad etish va voz kechishdan qaytarishda
+/// MAJBURIY, ya'ni tekshiruv va yozuv bitta joyda turishi kerak. Aks
+/// holda «tekshirdi, lekin yozmadi» degan tarmoq paydo bo'lardi.
 /// </para>
 /// </remarks>
-public sealed class ReturnCandidateFromReserveCommandHandler
+public sealed class ReturnCandidateToFunnelCommandHandler
 {
     private readonly ICandidateRepository _candidates;
     private readonly RecruitingMapper _mapper;
     private readonly ICurrentUser _currentUser;
     private readonly IUnitOfWork _unitOfWork;
 
-    public ReturnCandidateFromReserveCommandHandler(
+    public ReturnCandidateToFunnelCommandHandler(
         ICandidateRepository candidates,
         RecruitingMapper mapper,
         ICurrentUser currentUser,
@@ -1224,7 +1351,7 @@ public sealed class ReturnCandidateFromReserveCommandHandler
     }
 
     public async Task<Result<CandidateDto>> HandleAsync(
-        ReturnCandidateFromReserveCommand command,
+        ReturnCandidateToFunnelCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -1238,21 +1365,19 @@ public sealed class ReturnCandidateFromReserveCommandHandler
             return RecruitingErrors.CandidateNotFound;
         }
 
-        // Sana domenning O'ZIGA uzatiladi: qaytarish `ClosedAt` va
-        // `ClosingNote` ni tozalaydi, lekin aloqa sanasiga tegmaydi —
-        // yangisi berilgan bo'lsa esa uni qo'yadi (izohi
-        // `Candidate.ReturnFromReserve` da).
-        var returned = candidate.ReturnFromReserve(command.NextContactDate);
+        // Sabab, kim qaytargani va sana domenning O'ZIGA uzatiladi:
+        // qaytarish `ClosedAt`, `ClosingNote` va rad etish xabarining
+        // belgisini tozalaydi, sababni lentaga yozadi, aloqa sanasiga
+        // esa tegmaydi — yangisi berilgan bo'lsa qo'yadi (izohi
+        // `Candidate.ReturnToFunnel` da).
+        var returned = candidate.ReturnToFunnel(
+            command.Note,
+            _currentUser.UserId,
+            command.NextContactDate);
+
         if (returned.IsFailure)
         {
             return returned.Error;
-        }
-
-        // Bo'shlik tekshiruvi chaqiruvchida — `AddNote` bo'sh matnda istisno
-        // tashlaydi (sababi `CandidateNote.Create` izohida).
-        if (!string.IsNullOrWhiteSpace(command.Note))
-        {
-            candidate.AddNote(CandidateNoteKind.ReturnFromReserve, command.Note, _currentUser.UserId);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

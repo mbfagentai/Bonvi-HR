@@ -548,13 +548,21 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Ikkita ish jarayoni, bitta metod.</b> HR ba'zan bosqichni oldindan
-    /// ochadi («ertaga kengash») va natijani keyin yozadi, ba'zan esa
-    /// hammasini bir vaqtda kiritadi («telefon qildim — o'tmadi»). Agar
-    /// oxirgi yozuv AYNAN shu bosqich uchun va hali «kutilmoqda» bo'lsa, u
-    /// TO'LDIRILADI; aks holda yangi yozuv qo'shiladi. Ikkita alohida metod
-    /// bo'lganida mijoz «bu bosqich ochilganmi?» degan holatni o'zi
-    /// kuzatishi kerak bo'lardi.
+    /// ⭐ <b>HAR CHAQIRUV — YANGI YOZUV.</b> Mavjud yozuvning ustidan hech
+    /// qachon yozilmaydi: bitta bosqich necha marta takrorlansa, tarixda
+    /// shuncha qator bo'ladi («besh marta gaplashildi — beshta yozuv»,
+    /// foydalanuvchi qarori 2026-09-16). Nomzodning joriy holati esa
+    /// oxirgi yozuvdan kelib chiqadi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Ilgari boshqacha edi va bu XATO edi.</b> Oxirgi yozuv ayni shu
+    /// bosqich uchun va «kutilmoqda» bo'lsa, u JIMGINA to'ldirilardi. Ikki
+    /// oqibati bor edi: (1) voronkada kartani sudrash yoki tugmani qayta
+    /// bosish oldin yozilgan izohni <c>NULL</c> bilan almashtirardi — HR
+    /// yozgan gap ogohlantirishsiz yo'qolardi; (2) HR lentadagi ESKIROQ
+    /// «kutilmoqda» qatoriga natija yozsa, o'sha qator bo'sh qolib, pastga
+    /// duplikat qator qo'shilardi. Endi mavjud yozuv faqat ATAYLAB, uning
+    /// ID'si ko'rsatilib o'zgartiriladi (<see cref="EditStageEntry"/>).
     /// </para>
     /// <para>
     /// <b>Voronka OLDINGA yurishga majburlamaydi.</b> Bosqichlarning
@@ -583,20 +591,6 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
             return NotActive();
         }
 
-        var last = _stageEntries.Count > 0 ? _stageEntries[^1] : null;
-
-        if (last is not null && last.StageId == stageId && last.Outcome == StageOutcome.Pending)
-        {
-            var resolved = last.Resolve(outcome, date, conclusion, recordedBy);
-            if (resolved.IsFailure)
-            {
-                return resolved.Error;
-            }
-
-            CurrentStageId = stageId;
-            return last;
-        }
-
         var created = CandidateStageEntry.Create(Id, stageId, date, outcome, conclusion, recordedBy);
         if (created.IsFailure)
         {
@@ -609,9 +603,52 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         return created.Value;
     }
 
+    /// <summary>Tarixdagi BITTA yozuvni tuzatadi — natija, sana va xulosa.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Yozuv ID bo'yicha topiladi, «oxirgisi» bo'yicha EMAS.</b> HR
+    /// lentaning istalgan qatoriga bosadi va aynan o'sha qator ochiladi:
+    /// «kutilmoqda» qatoriga natija yozish ham, ilgari yozilgan xulosadagi
+    /// xatoni tuzatish ham shu metod. Mijoz qaysi qatorni tahrirlayotganini
+    /// ANIQ aytadi, server esa taxmin qilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Bosqich va tartib O'ZGARMAYDI</b> — sabab
+    /// <see cref="CandidateStageEntry.Edit"/> va
+    /// <see cref="CandidateStageEntry.RecordedAt"/> izohlarida. Shu sababli
+    /// <see cref="CurrentStageId"/> ham tegilmaydi: tuzatish nomzodni
+    /// voronkada SURMAYDI, aks holda eski qatordagi terish xatosini
+    /// tuzatish odamni bir yil oldingi bosqichga qaytarib yuborardi.
+    /// </para>
+    /// <para>
+    /// <b>Voronkadan chiqqan nomzodda ham ishlaydi</b> —
+    /// <see cref="RecordStage"/> dan farqli. Rad etilgan nomzodning
+    /// tarixidagi xato ham tuzatilishi kerak, tuzatish esa uni voronkaga
+    /// qaytarmaydi: yangi bosqich yozish uchun baribir avval qaytarish
+    /// kerak.
+    /// </para>
+    /// </remarks>
+    public Result<CandidateStageEntry> EditStageEntry(
+        Guid entryId,
+        StageOutcome outcome,
+        DateOnly date,
+        string? conclusion)
+    {
+        var entry = _stageEntries.FirstOrDefault(item => item.Id == entryId);
+
+        if (entry is null)
+        {
+            return Error.NotFound("bosqich_yozuvi.topilmadi", "Bosqich yozuvi topilmadi.");
+        }
+
+        var edited = entry.Edit(outcome, date, conclusion);
+
+        return edited.IsFailure ? edited.Error : entry;
+    }
+
     /// <summary>Korxona qarori bilan rad etadi.</summary>
-    public Result Reject(DateOnly at, string? reason = null)
-        => Close(CandidateStatus.Rejected, at, reason);
+    public Result Reject(DateOnly at, string? reason = null, Guid? closedBy = null)
+        => Close(CandidateStatus.Rejected, at, reason, closedBy);
 
     /// <summary>Telegram'dan kelgan nomzodning suhbatini belgilaydi.</summary>
     /// <remarks>
@@ -698,8 +735,8 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     public void MarkInterviewNoticeSent(DateTimeOffset at) => InterviewNoticeSentAt = at;
 
     /// <summary>Nomzod o'zi voz kechdi.</summary>
-    public Result Withdraw(DateOnly at, string? reason = null)
-        => Close(CandidateStatus.Withdrawn, at, reason);
+    public Result Withdraw(DateOnly at, string? reason = null, Guid? closedBy = null)
+        => Close(CandidateStatus.Withdrawn, at, reason, closedBy);
 
     /// <summary>
     /// Rezervga o'tkazadi — «hozir olinmadi, lekin kerak bo'lsa chaqiramiz».
@@ -715,7 +752,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// <para>
     /// Sabab <see cref="ClosingNote"/> ga yoziladi — bu CHIQISH izohi va
     /// nomzod voronkaga qaytganda u tozalanadi
-    /// (<see cref="ReturnFromReserve"/>). Ya'ni u qarorning izohi, nomzod
+    /// (<see cref="ReturnToFunnel"/>). Ya'ni u qarorning izohi, nomzod
     /// haqidagi uzoq muddatli tavsif emas; tavsif uchun <see cref="Note"/>
     /// bor va unga bu amal tegmaydi.
     /// </para>
@@ -726,9 +763,13 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// rezervga o'tkazish sanani bekor qilish emas.
     /// </para>
     /// </remarks>
-    public Result MoveToReserve(DateOnly at, string? reason = null, DateOnly? nextContactDate = null)
+    public Result MoveToReserve(
+        DateOnly at,
+        string? reason = null,
+        DateOnly? nextContactDate = null,
+        Guid? closedBy = null)
     {
-        var closed = Close(CandidateStatus.Reserve, at, reason);
+        var closed = Close(CandidateStatus.Reserve, at, reason, closedBy);
         if (closed.IsFailure)
         {
             return closed;
@@ -743,51 +784,102 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     /// <summary>
-    /// Rezervdagi nomzodni voronkaga qaytaradi.
+    /// Voronkadan chiqqan nomzodni QAYTARADI — rezervdan, rad etilgandan
+    /// yoki o'zi voz kechgandan keyin.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// ⭐ <b>Bu — <see cref="Close"/> ning teskarisi EMAS.</b> «Yopishni
-    /// bekor qilish» degan umumiy amal ataylab yo'q: u bilan rad etilgan
-    /// yoki ishga olingan nomzodni ham voronkaga qaytarish mumkin bo'lardi
-    /// va o'shanda ishga olingan odam bir vaqtning o'zida ham xodim, ham
-    /// faol nomzod bo'lib qolardi. Bu yerdagi yagona manba —
-    /// <see cref="CandidateStatus.Reserve"/>, va rezervning butun ma'nosi
-    /// aynan shu qaytishda.
+    /// ⭐ <b>Uchta manba va bu foydalanuvchi talabi (2026-09-16).</b>
+    /// Ilgari faqat rezervdan qaytarish bor edi. Amalda esa rad etilgan
+    /// odam o'zi qayta aloqaga chiqadi yoki sharoit o'zgaradi («o'shanda
+    /// o'rin yo'q edi»), va HR uni qaytadan noldan kiritishga majbur
+    /// bo'lardi — o'shanda butun tarix, anketa va fayllar yangi yozuvda
+    /// yo'q bo'lardi.
     /// </para>
     /// <para>
-    /// <b>Bosqich SAQLANADI.</b> Nomzod qaysi bosqichda rezervga
-    /// o'tgan bo'lsa, o'sha yerdan davom etadi: kengashdan o'tgan odamni
-    /// qaytadan telefon suhbatiga tushirish ma'nosiz (bir xil sabab
+    /// <b>«Ishga olindi» dan QAYTARILMAYDI.</b> U endi xodim: qaytarilsa,
+    /// bitta odam bir vaqtning o'zida ham xodim, ham faol nomzod bo'lib
+    /// qolardi. Qayta ishga olish uchun yangi nomzod yozuvi ochiladi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>SABAB — rad etish va voz kechishdan qaytarishda MAJBURIY.</b>
+    /// Bu qarorni BEKOR QILISH, ya'ni «nega fikr o'zgardi» degan savol
+    /// albatta tug'iladi — olti oydan keyin ham. Rezervdan qaytarishda
+    /// esa ixtiyoriy: rezervning butun ma'nosi «o'rin bo'shasa
+    /// chaqiramiz», ya'ni qaytish o'sha holatning TABIIY yakuni va
+    /// tushuntirish talab qilmaydi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Sabab LENTAGA yoziladi</b> (<see cref="CandidateNoteKind.ReturnToFunnel"/>)
+    /// — <see cref="ClosingNote"/> ga EMAS: qaytarish o'sha maydonni
+    /// tozalaydi va izoh yozilgan zahoti o'chib ketardi. Yozuvni domen
+    /// o'zi qo'shadi, chaqiruvchi emas: «qaytarildi, lekin tarixda izi
+    /// yo'q» degan holat umuman bo'lmasligi kerak.
+    /// </para>
+    /// <para>
+    /// <b>Bosqich SAQLANADI.</b> Nomzod qaysi bosqichda to'xtagan bo'lsa,
+    /// o'sha yerdan davom etadi: kengashdan o'tgan odamni qaytadan
+    /// telefon suhbatiga tushirish ma'nosiz (bir xil sabab
     /// <see cref="Reassign"/> da izohlangan).
     /// </para>
     /// <para>
-    /// <b>Chiqish sanasi va sababi TOZALANADI.</b> Ular «nomzod voronkadan
-    /// nega chiqqan» degan savolning javobi; nomzod qaytgach bunday fakt
-    /// endi yo'q. Qoldirilsa, faol nomzod kartasida «voronkadan chiqqan:
-    /// …» yozuvi turaverardi va <see cref="ClosedAt"/> bo'yicha
-    /// hisoblaydigan hisobot uni yopilganlar qatorida sanardi.
+    /// <b>Chiqish sanasi va sababi TOZALANADI.</b> Ular «nomzod
+    /// voronkadan nega chiqqan» degan savolning javobi; nomzod qaytgach
+    /// bunday fakt endi yo'q. Qoldirilsa, faol nomzod kartasida
+    /// «voronkadan chiqqan: …» yozuvi turaverardi va
+    /// <see cref="ClosedAt"/> bo'yicha hisoblaydigan hisobot uni
+    /// yopilganlar qatorida sanardi. Sabab esa lentada qoladi — yuqoriga
+    /// qarang.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Rad etish xabarining belgisi ham TOZALANADI.</b> Nomzod
+    /// qaytarilgach jarayon boshidan ketadi; agar u yana rad etilsa,
+    /// Telegram xabari QAYTA yuborilishi kerak
+    /// (<see cref="MarkRejectionNoticeSent"/> dagi <c>??=</c> aks holda
+    /// uni «allaqachon xabardor» deb hisoblab, odamni javobsiz
+    /// qoldirardi).
     /// </para>
     /// <para>
     /// <b>Keyingi aloqa sanasiga esa TEGILMAYDI</b> (yangisi berilmasa):
     /// rezervda turgan odamga qo'ng'iroq qilish rejasi u voronkaga
-    /// qaytgach ham o'z kuchida qoladi. Chiqish sanasi va sababi
-    /// tozalanadi, chunki ular «nega chiqqan» degan savolning javobi;
-    /// aloqa sanasi esa «keyin nima qilamiz» — boshqa savol.
+    /// qaytgach ham o'z kuchida qoladi.
     /// </para>
     /// </remarks>
-    public Result ReturnFromReserve(DateOnly? nextContactDate = null)
+    /// <param name="reason">
+    /// Qaytarish sababi. Rad etilgan va voz kechgan nomzodda MAJBURIY.
+    /// </param>
+    /// <param name="returnedBy">Kim qaytardi — lentadagi yozuv uchun.</param>
+    /// <param name="nextContactDate">Keyingi aloqa sanasi; berilmasa tegilmaydi.</param>
+    public Result ReturnToFunnel(
+        string? reason = null,
+        Guid? returnedBy = null,
+        DateOnly? nextContactDate = null)
     {
-        if (Status != CandidateStatus.Reserve)
+        if (Status is not (CandidateStatus.Reserve or CandidateStatus.Rejected or CandidateStatus.Withdrawn))
         {
             return Error.Conflict(
-                "nomzod.rezervda_emas",
-                $"Nomzod rezervda emas (holati: {Status}), uni voronkaga qaytarib bo'lmaydi.");
+                "nomzod.qaytarilmaydi",
+                $"Nomzodni voronkaga qaytarib bo'lmaydi (holati: {Status}).");
+        }
+
+        var izoh = Trim(reason);
+
+        if (izoh is null && Status is not CandidateStatus.Reserve)
+        {
+            return Error.Validation(
+                "nomzod.qaytarish_sababi_yoq",
+                "Qaytarish sababini yozing.");
         }
 
         Status = CandidateStatus.InProgress;
         ClosedAt = null;
         ClosingNote = null;
+        RejectionNoticeSentAt = null;
+
+        if (izoh is not null)
+        {
+            AddNote(CandidateNoteKind.ReturnToFunnel, izoh, returnedBy);
+        }
 
         if (nextContactDate is { } date)
         {
@@ -1021,7 +1113,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// aynan o'sha yerda o'rinli. Shu sababli u saqlanib qoladi.
     /// </para>
     /// </remarks>
-    private Result Close(CandidateStatus status, DateOnly at, string? reason)
+    private Result Close(CandidateStatus status, DateOnly at, string? reason, Guid? closedBy = null)
     {
         if (!IsActive)
         {
@@ -1037,8 +1129,45 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
             NextContactDate = null;
         }
 
+        /*
+          ⭐ Sabab LENTAGA ham tushadi (2026-09-16).
+
+          `ClosingNote` — nomzodning HOZIRGI holatini tushuntiradigan
+          bitta maydon va u qaytarishda tozalanadi
+          (`ReturnToFunnel`), ya'ni «nega rad etilgan edi» degan fakt
+          o'sha lahzada yo'qolardi. Lentadagi yozuv esa hech qachon
+          o'chmaydi: qaytarilgan nomzodning kartasi «08.09 rad etildi —
+          sabab X» → «16.09 qaytarildi — sabab Y» bo'lib o'qiladi.
+
+          Ikki joyda turgani takror EMAS, ikki xil savolning javobi:
+          biri «hozir nima bo'lyapti», ikkinchisi «nima bo'lgan edi».
+
+          Sabab yozilmagan bo'lsa qator ham yozilmaydi: `CandidateNote`
+          bo'sh matnni qabul qilmaydi va «sababsiz rad etildi» degan
+          bo'sh qator lentaga hech narsa qo'shmasdi — holatning o'zi
+          kartaning tepasida turadi.
+        */
+        if (ClosingNote is { } izoh && NoteKindFor(status) is { } kind)
+        {
+            AddNote(kind, izoh, closedBy);
+        }
+
         return Result.Success();
     }
+
+    /// <summary>Yakun turi uchun lenta yorlig'i; «ishga olindi» da — yo'q.</summary>
+    /// <remarks>
+    /// Ishga qabul mehnat hodisasi bilan rasmiylashtiriladi va xodim
+    /// kartasida ko'rinadi — nomzod lentasidagi ikkinchi nusxa ortiqcha
+    /// bo'lardi.
+    /// </remarks>
+    private static CandidateNoteKind? NoteKindFor(CandidateStatus status) => status switch
+    {
+        CandidateStatus.Rejected => CandidateNoteKind.Rejected,
+        CandidateStatus.Withdrawn => CandidateNoteKind.Withdrawn,
+        CandidateStatus.Reserve => CandidateNoteKind.Reserved,
+        _ => null,
+    };
 
     private Error NotActive() => Error.Conflict(
         "nomzod.jarayonda_emas",

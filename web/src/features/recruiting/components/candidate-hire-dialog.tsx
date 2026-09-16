@@ -24,7 +24,7 @@ import {
   useEmployeeOptions,
   useFilterOptions,
   useHireCandidate,
-  useReturnCandidateFromReserve,
+  useReturnCandidateToFunnel,
 } from '../api/recruiting-queries'
 import { RECRUITING_ERROR_FIELD, recruitingErrorCode } from '../lib/recruiting-error'
 import { orNull } from '../lib/recruiting-presentation'
@@ -102,7 +102,7 @@ export function CandidateHireDialog({
   const canSeeSalary = hasPermission(SALARY_VIEW)
 
   const hire = useHireCandidate()
-  const restore = useReturnCandidateFromReserve()
+  const restore = useReturnCandidateToFunnel()
   const employees = useEmployeeOptions()
   /*
     Bo'lim, lavozim va firma ro'yxatlari — xodimlar modulining tayyor

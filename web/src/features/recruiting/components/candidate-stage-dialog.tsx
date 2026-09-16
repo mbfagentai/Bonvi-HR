@@ -6,10 +6,11 @@ import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 import {
   STAGE_OUTCOMES,
   type Candidate,
+  type CandidateStageEntry,
   type PipelineStage,
   type StageOutcome,
 } from '../api/recruiting-api'
-import { useRecordStage, useStages } from '../api/recruiting-queries'
+import { useEditStageEntry, useRecordStage, useStages } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
 import { orNull, today } from '../lib/recruiting-presentation'
 
@@ -25,13 +26,21 @@ const FORM_ID = 'candidate-stage-form'
  * o'tkazib yuborish ham, orqaga qaytish ham mumkin, chunki haqiqiy
  * ish jarayoni shunday ketadi.
  *
+ * <b>⭐ IKKI REJIM: yangi yozuv va TUZATISH.</b> `entry` berilsa oyna
+ * aynan o'sha yozuvni tahrirlaydi (`PUT .../stages/{entryId}`),
+ * berilmasa tarixga YANGI qator qo'shadi (`POST .../stages`). Qaysi
+ * yozuv tuzatilayotganini MIJOZ aytadi, server taxmin qilmaydi.
+ *
+ * ⚠️ Ilgari bu qaror serverda edi va nosozlik manbai bo'lgan: oxirgi
+ * yozuv ayni shu bosqich uchun «kutilmoqda» bo'lsa, u JIMGINA
+ * to'ldirilardi. Natijada (1) bo'sh xulosa bilan saqlash oldingi
+ * izohni o'chirardi, (2) lentadagi ESKIROQ qatorga natija yozilsa,
+ * o'sha qator bo'sh qolib, pastga duplikat tushardi (2026-09-16).
+ *
  * <b>«Kutilmoqda» — to'liq huquqli natija.</b> HR suhbatni oldindan
  * belgilaydi (nomzod o'sha bosqichga ko'chadi, natija esa bo'sh
- * qoladi), suhbat tugagach xuddi shu oynani qaytadan ochib natijani
- * yozadi. Server buni O'ZI biladi: oxirgi yozuv aynan shu bosqich
- * uchun va «kutilmoqda» bo'lsa, YANGI yozuv qo'shilmaydi — mavjudi
- * to'ldiriladi. Ya'ni tarixda ikkita yozuv paydo bo'lmaydi va
- * klientda «bu yangi yozuvmi yoki tahrirmi?» degan qaror ham yo'q.
+ * qoladi), suhbat tugagach lentadagi O'SHA qatorni ochib natijani
+ * yozadi — tarixda ikkita qator paydo bo'lmaydi.
  *
  * <b>«Ishga olindi» deb belgilash amali YO'Q.</b> Nomzod xodimga
  * faqat «Ishga olish» oynasi orqali aylanadi
@@ -48,6 +57,11 @@ const FORM_ID = 'candidate-stage-form'
  * oltita amalni bitta oynada boshqarishi bilan bir xil qaror
  * (SPEC §5.1.1).
  *
+ * <b>⚠️ Tuzatishda maydonlar MAVJUD qiymat bilan to'ldiriladi.</b>
+ * Xulosa maydoni bo'sh ochilsa, HR faqat natijani o'zgartirib
+ * saqlaganda oldin yozilgan matn o'chib ketardi — server yuborilgan
+ * qiymatni ustidan yozadi.
+ *
  * <b>Xulosa MAJBURIY EMAS.</b> Bo'sh xulosa bilan ham SAQLANADI:
  * tekshiruv ham, yulduzcha ham, o'chirilgan tugma ham yo'q. Sabab
  * domen izohida yozilgan (`CandidateStageEntry.Conclusion`):
@@ -62,8 +76,14 @@ export function CandidateStageDialog({
   candidate,
   open,
   onClose,
-  /** Oldindan tanlangan bosqich — lentadagi yozuvni to'ldirishda. */
-  presetStageId = null,
+  /**
+   * TUZATILADIGAN yozuv — lentadagi qatordan ochilganda.
+   *
+   * Berilsa oyna tahrir rejimida ishlaydi: bosqich o'zgarmaydi,
+   * maydonlar mavjud qiymat bilan to'ldiriladi va saqlash YANGI qator
+   * qo'shmaydi.
+   */
+  entry = null,
   /**
    * Bosqich QOTIB qo'yilgan — tezkor qatordagi tugma shu ko'rinishda
    * ochadi. Ro'yxat chizilmaydi va `stageId` o'zgarmaydi: HR aynan
@@ -74,13 +94,21 @@ export function CandidateStageDialog({
   candidate: Candidate
   open: boolean
   onClose: () => void
-  presetStageId?: string | null
+  entry?: CandidateStageEntry | null
   lockedStage?: PipelineStage | null
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
 
   const record = useRecordStage()
+  const edit = useEditStageEntry()
+
+  /*
+    Ikkala hook ham SHARTSIZ chaqiriladi (React qoidasi), lekin oyna
+    bir vaqtda faqat bittasi bilan ishlaydi. Holat (kutish, xato) shu
+    yerdan olinadi — pastda ikki tarmoqli shart yozilmasin.
+  */
+  const saving = entry === null ? record : edit
   /*
    * Faqat FAOL bosqichlar: faolsizlantirilganiga nomzodni o'tkazib
    * bo'lmaydi va server buni 409 bilan rad etadi
@@ -98,19 +126,26 @@ export function CandidateStageDialog({
   useEffect(() => {
     if (!open) return
     record.reset()
+    edit.reset()
 
     /*
-      Standart bosqich: (1) QOTIB qo'yilgani, (2) chaqiruvchi
-      ko'rsatgani, (3) nomzodning JORIY bosqichi. Uchinchisi eng ko'p
-      uchraydigan holat — «kutilmoqda» deb ochilgan yozuvni
-      to'ldirish. Keyingi bosqichni taxmin qilib qo'yish RAD ETILDI:
-      voronkada tartib qat'iy emas va noto'g'ri taxmin HR ni
-      e'tiborsizlikka undardi.
+      Standart bosqich: (1) TUZATILAYOTGAN yozuvniki, (2) QOTIB
+      qo'yilgani, (3) nomzodning JORIY bosqichi. Oxirgisi eng ko'p
+      uchraydigan holat — «yana gaplashdim». Keyingi bosqichni taxmin
+      qilib qo'yish RAD ETILDI: voronkada tartib qat'iy emas va
+      noto'g'ri taxmin HR ni e'tiborsizlikka undardi.
     */
-    setStageId(lockedStage?.id ?? presetStageId ?? candidate.currentStageId ?? '')
-    setOutcome('Pending')
-    setDate(today())
-    setConclusion('')
+    setStageId(entry?.stageId ?? lockedStage?.id ?? candidate.currentStageId ?? '')
+
+    /*
+      ⚠️ TUZATISHDA maydonlar yozuvning O'Z qiymatidan boshlanadi.
+      Bo'sh ochilsa, HR faqat natijani belgilab saqlaganda ilgari
+      yozilgan xulosa o'chib ketardi: server yuborilgan qiymatni
+      ustidan yozadi (`editCandidateStageEntry` izohi).
+    */
+    setOutcome(entry?.outcome ?? 'Pending')
+    setDate(entry?.date ?? today())
+    setConclusion(entry?.conclusion ?? '')
     /*
       Keyingi aloqa sanasi MAVJUD qiymatdan boshlanadi: HR odatda uni
       suradi («yana uch kundan keyin»), noldan terish emas.
@@ -122,7 +157,7 @@ export function CandidateStageDialog({
     */
     setNextContact(candidate.nextContactDate ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, presetStageId, lockedStage, candidate.currentStageId, candidate.nextContactDate])
+  }, [open, entry, lockedStage, candidate.currentStageId, candidate.nextContactDate])
 
   if (!open) return null
 
@@ -130,6 +165,15 @@ export function CandidateStageDialog({
     value: stage.id,
     label: stage.name,
   }))
+
+  /*
+    Bosqich TANLANMAYDIGAN ikki holat: tezkor qatordan ochilgan oyna
+    (bosgan tugmaning bosqichi) va TUZATISH (yozuvning o'z bosqichi —
+    u umuman o'zgarmaydi). Ikkalasida ham `disabled` qilingan `Select`
+    o'rniga oddiy yozuv chiziladi: xiralashgan tanlagich «ishlamayapti»
+    degan ma'no berardi.
+  */
+  const qotganBosqich = entry?.stage ?? lockedStage?.name ?? null
 
   const outcomeOptions = STAGE_OUTCOMES.map((value) => ({
     value,
@@ -139,55 +183,64 @@ export function CandidateStageDialog({
   const submit = () => {
     if (stageId === '') return
 
-    record.mutate(
-      {
-        id: candidate.id,
-        stageId,
-        outcome,
-        date: orNull(date),
-        conclusion: orNull(conclusion),
-        nextContactDate: orNull(nextContact),
-        /*
-          ⭐ Bo'sh quti O'ZICHA TOZALAMAYDI — shartnomada uch holat bor
-          (`recruiting-api.ts`, «keyingi aloqa sanasi: yozish qoidasi»).
-          «Tozalash» buyrug'i FAQAT ilgari sana bo'lgan bo'lsa
-          yuboriladi: sanasi yo'q nomzodda ochilgan oyna serverga
-          keraksiz «tozala» demasligi kerak, aks holda har bir bosqich
-          yozuvi jimgina yozuv qilardi.
+    /*
+      Uch maydon ikkala so'rovda ham bir xil. `stageId` esa FAQAT yangi
+      yozuvda: tuzatish yozuvning bosqichini o'zgartirmaydi (server
+      shartnomasi) va uni yuborish yolg'on va'da bo'lardi.
+    */
+    const umumiy = {
+      outcome,
+      date: orNull(date),
+      conclusion: orNull(conclusion),
+      nextContactDate: orNull(nextContact),
+      /*
+        ⭐ Bo'sh quti O'ZICHA TOZALAMAYDI — shartnomada uch holat bor
+        (`recruiting-api.ts`, «keyingi aloqa sanasi: yozish qoidasi»).
+        «Tozalash» buyrug'i FAQAT ilgari sana bo'lgan bo'lsa
+        yuboriladi: sanasi yo'q nomzodda ochilgan oyna serverga
+        keraksiz «tozala» demasligi kerak, aks holda har bir bosqich
+        yozuvi jimgina yozuv qilardi.
 
-          Teskarisi ham muhim: HR sanani ATAYLAB o'chirsa
-          («qo'ng'iroq kerak emas»), quti bo'sh qolgani YETMAYDI —
-          `nextContactDate: null` server uchun «tegma» degani.
-        */
-        clearNextContact: nextContact === '' && candidate.nextContactDate !== null,
-      },
-      { onSuccess: onClose },
-    )
+        Teskarisi ham muhim: HR sanani ATAYLAB o'chirsa
+        («qo'ng'iroq kerak emas»), quti bo'sh qolgani YETMAYDI —
+        `nextContactDate: null` server uchun «tegma» degani.
+      */
+      clearNextContact: nextContact === '' && candidate.nextContactDate !== null,
+    }
+
+    if (entry === null) {
+      record.mutate({ id: candidate.id, stageId, ...umumiy }, { onSuccess: onClose })
+      return
+    }
+
+    edit.mutate({ id: candidate.id, entryId: entry.id, ...umumiy }, { onSuccess: onClose })
   }
 
   return (
     <Dialog
       open
       onClose={onClose}
-      dismissible={!record.isPending}
+      dismissible={!saving.isPending}
       title={
-        lockedStage === null
-          ? t('recruiting.stageRecordTitle')
-          : t('recruiting.stageMoveTo', { stage: lockedStage.name })
+        entry !== null
+          ? t('recruiting.stageEditTitle')
+          : lockedStage === null
+            ? t('recruiting.stageRecordTitle')
+            : t('recruiting.stageMoveTo', { stage: lockedStage.name })
       }
       description={candidate.fullName}
       footer={
         <>
-          <Button type="button" onClick={onClose} disabled={record.isPending}>
+          <Button type="button" onClick={onClose} disabled={saving.isPending}>
             {t('common.cancel')}
           </Button>
           <Button
             type="submit"
             form={FORM_ID}
             variant="primary"
-            disabled={record.isPending || stageId === ''}
+            disabled={saving.isPending || stageId === ''}
           >
-            {record.isPending && <LoaderCircle className="animate-spin" />}
+            {saving.isPending && <LoaderCircle className="animate-spin" />}
             {t('common.save')}
           </Button>
         </>
@@ -202,9 +255,9 @@ export function CandidateStageDialog({
           submit()
         }}
       >
-        {record.isError && (
+        {saving.isError && (
           <Alert tone="danger" className="[animation:pop-in_180ms_var(--ease-ios-out)]">
-            {errorMessage(recruitingErrorCode(record.error))}
+            {errorMessage(recruitingErrorCode(saving.error))}
           </Alert>
         )}
 
@@ -214,13 +267,13 @@ export function CandidateStageDialog({
           berardi (tezkor qatordagi joriy bosqich yorlig'i bilan aynan
           bir xil mulohaza).
         */}
-        {lockedStage === null ? (
+        {qotganBosqich === null ? (
           <Select
             label={t('recruiting.stage')}
             placeholder={t('recruiting.chooseStage')}
             options={stageOptions}
             value={stageId}
-            disabled={record.isPending || stages.isPending}
+            disabled={saving.isPending || stages.isPending}
             onChange={(event) => setStageId(event.target.value)}
           />
         ) : (
@@ -228,7 +281,7 @@ export function CandidateStageDialog({
             <p className="text-footnote font-medium text-[var(--fg-secondary)]">
               {t('recruiting.stage')}
             </p>
-            <p className="text-body font-medium">{lockedStage.name}</p>
+            <p className="text-body font-medium">{qotganBosqich}</p>
           </div>
         )}
 
@@ -238,7 +291,7 @@ export function CandidateStageDialog({
             hint={t('recruiting.outcomeHint')}
             options={outcomeOptions}
             value={outcome}
-            disabled={record.isPending}
+            disabled={saving.isPending}
             onChange={(event) => setOutcome(event.target.value as StageOutcome)}
           />
 
@@ -246,7 +299,7 @@ export function CandidateStageDialog({
             label={t('recruiting.stageDate')}
             type="date"
             value={date}
-            disabled={record.isPending}
+            disabled={saving.isPending}
             onChange={(event) => setDate(event.target.value)}
           />
         </div>
@@ -267,7 +320,7 @@ export function CandidateStageDialog({
           placeholder={t('recruiting.conclusionPlaceholder')}
           maxLength={4000}
           value={conclusion}
-          disabled={record.isPending}
+          disabled={saving.isPending}
           onChange={(event) => setConclusion(event.target.value)}
         />
 
@@ -287,7 +340,7 @@ export function CandidateStageDialog({
           hint={t('recruiting.nextContactHint')}
           type="date"
           value={nextContact}
-          disabled={record.isPending}
+          disabled={saving.isPending}
           onChange={(event) => setNextContact(event.target.value)}
         />
       </form>

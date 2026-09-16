@@ -418,7 +418,7 @@ public sealed class HireCandidateHandlerTests
         // voronkaga qaytadi va odatiy yo'l bilan xodimga aylanadi.
         var nomzod = Nomzod();
         nomzod.MoveToReserve(RecruitingTestContext.Today, "Ҳозир ўрин йўқ");
-        nomzod.ReturnFromReserve();
+        nomzod.ReturnToFunnel();
 
         var natija = await IshgaOlish.HandleAsync(
             Buyruq(nomzod.Id), TestContext.Current.CancellationToken);

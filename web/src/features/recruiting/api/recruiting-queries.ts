@@ -19,10 +19,11 @@ import {
   fetchVacancies,
   hireCandidate,
   inviteCandidateToInterview,
+  editCandidateStageEntry,
   recordCandidateStage,
   reassignCandidate,
   registerCandidate,
-  returnCandidateFromReserve,
+  returnCandidateToFunnel,
   saveVacancy,
   updateCandidate,
   uploadCandidateFile,
@@ -356,6 +357,33 @@ export function useRecordStage() {
   })
 }
 
+/**
+ * ⭐ Tarixdagi bitta yozuvni tuzatish — `useRecordStage` ning egizagi.
+ *
+ * Ikkitasi ATAYLAB ajratilgan: birinchisi tarixga QATOR QO'SHADI
+ * («yana gaplashdim»), ikkinchisi mavjud qatorni to'g'rilaydi
+ * («o'sha qo'ng'iroqning natijasini yozdim»). Bitta hook'ga
+ * ixtiyoriy `entryId` qo'shilsa, chaqiruv joyida qaysi amal
+ * bajarilayotgani ko'rinmay qolardi — holbuki farqi tarixda qoladi.
+ */
+export function useEditStageEntry() {
+  return useMutation({
+    mutationFn: ({
+      id,
+      entryId,
+      ...body
+    }: {
+      id: string
+      entryId: string
+      outcome: StageOutcome
+      date: string | null
+      conclusion: string | null
+      nextContactDate?: string | null
+      clearNextContact?: boolean
+    }) => editCandidateStageEntry(id, entryId, body),
+  })
+}
+
 /* ──────────────────────────────────────────────────── voronka taxtasi */
 
 /**
@@ -453,8 +481,14 @@ export function useFunnelCardFinder(filters: FunnelFilters, stages: PipelineStag
  * «kutilmoqda» bu «bosqich boshlandi, natija hali yo'q» degani, ya'ni
  * kartani ustunga tashlashning MA'NOSI shu. Sanani server o'zi
  * bugungi qilib qo'yadi (`Date = null` → `_clock.Today`), natijani esa
- * HR keyinroq mavjud oyna orqali yozadi va o'sha yozuv TO'LDIRILADI —
- * tarixda ikkita qator paydo bo'lmaydi.
+ * HR keyinroq lentadagi SHU QATORNI ochib yozadi
+ * (`useEditStageEntry`) — sudrash hosil qilgan qator to'ldiriladi,
+ * yangisi qo'shilmaydi.
+ *
+ * ⚠️ Har tashlash TARIXGA QATOR QO'SHADI va bu ataylab: nomzod
+ * ustunlar orasida u yoqdan-bu yoqqa ko'chgani ham fakt. Ilgari
+ * server oxirgi «kutilmoqda» yozuvini jimgina ustidan yozardi va
+ * shunda oldin yozilgan xulosa yo'qolardi (2026-09-16).
  *
  * <b>Optimistik yamoq.</b> Karta darhol yangi ustunga ko'chadi: sudrash
  * butun qiymati tezlikda va so'rov javobini kutib turish uni yo'qqa
@@ -578,14 +612,13 @@ export function useCloseCandidate() {
 }
 
 /**
- * ⭐ Rezervdan voronkaga qaytarish — «Rezervga» ning yagona teskarisi.
+ * ⭐ Voronkaga qaytarish — rezervdan, rad etilgandan va voz
+ * kechgandan (2026-09-16 dan uchala manba).
  *
- * ⚠️ O'zgaruvchi endi SATR emas, OBYEKT: amal izoh va keyingi aloqa
- * sanasini ham qabul qiladi. Ikkalasi ham ixtiyoriy — `{ id }` bilan
- * chaqirish avvalgi xatti-harakatni AYNAN saqlaydi (server tanasi bo'sh
- * so'rovni ham qabul qiladi).
+ * `note` — qaytarish sababi: rad etilgan va voz kechgan nomzodda
+ * server uni TALAB qiladi, rezervda esa ixtiyoriy.
  */
-export function useReturnCandidateFromReserve() {
+export function useReturnCandidateToFunnel() {
   return useMutation({
     mutationFn: ({
       id,
@@ -594,7 +627,7 @@ export function useReturnCandidateFromReserve() {
       id: string
       note?: string | null
       nextContactDate?: string | null
-    }) => returnCandidateFromReserve(id, body),
+    }) => returnCandidateToFunnel(id, body),
   })
 }
 

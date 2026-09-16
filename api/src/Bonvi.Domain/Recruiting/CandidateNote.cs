@@ -29,11 +29,43 @@ public enum CandidateNoteKind
     /// <summary>Boshqa vakansiyaga o'tkazildi.</summary>
     Reassign = 1,
 
-    /// <summary>Rezervdan voronkaga qaytarildi.</summary>
-    ReturnFromReserve = 2,
+    /// <summary>Voronkaga qaytarildi — rezervdan, rad etilgandan yoki voz kechgandan.</summary>
+    /// <remarks>
+    /// Ilgari nomi <c>ReturnFromReserve</c> edi va qaytish faqat rezervdan
+    /// bo'lardi. 2026-09-16 dan boshlab rad etilgan va o'zi voz kechgan
+    /// nomzod ham qaytariladi (foydalanuvchi talabi) — ya'ni yorliq
+    /// «rezerv» ni emas, QAYTISHNING O'ZINI nomlashi kerak. Raqam
+    /// o'zgarmadi: bazadagi mavjud qatorlar aynan shu qiymat bilan
+    /// yozilgan.
+    /// </remarks>
+    ReturnToFunnel = 2,
 
     /// <summary>Suhbat yangi vaqtga ko'chirildi (bosqich o'zgarmadi).</summary>
     InterviewRescheduled = 3,
+
+    /*
+      ⭐ Voronkadan CHIQISH ham tarixda qoladi (2026-09-16).
+
+      Sabab: chiqish sababi `Candidate.ClosingNote` da turadi va u
+      nomzod qaytarilganda TOZALANADI — ya'ni «nega rad etilgan edi»
+      degan fakt o'sha lahzada yo'qolardi. Holbuki qaytarilgan
+      nomzodning kartasida aynan shu savol birinchi bo'lib tug'iladi.
+      Shu sababli sabab yozilgan bo'lsa, u lentaga ham tushadi va u
+      yerdan hech qachon o'chmaydi.
+
+      «Ishga olindi» bu yerda YO'Q: u mehnat hodisasi bilan
+      rasmiylashtiriladi va xodim kartasida ko'rinadi — ikkinchi nusxa
+      ortiqcha bo'lardi.
+    */
+
+    /// <summary>Rad etildi (korxona qarori).</summary>
+    Rejected = 4,
+
+    /// <summary>Nomzod o'zi voz kechdi.</summary>
+    Withdrawn = 5,
+
+    /// <summary>Rezervga o'tkazildi.</summary>
+    Reserved = 6,
 }
 
 /// <summary>
@@ -56,7 +88,7 @@ public enum CandidateNoteKind
 ///   Chegara <see cref="Candidate.MoveToReserve"/> izohida allaqachon
 ///   chizilgan.</item>
 ///   <item><see cref="Candidate.ClosingNote"/> — rezervdan qaytarish uchun
-///   umuman ishlamaydi: <see cref="Candidate.ReturnFromReserve"/> o'sha
+///   umuman ishlamaydi: <see cref="Candidate.ReturnToFunnel"/> o'sha
 ///   tranzaksiyada uni TOZALAYDI, ya'ni izoh yozilgan zahoti o'chardi.</item>
 ///   <item><see cref="CandidateStageEntry"/> — yozuvda <c>StageId</c> ham,
 ///   <c>Outcome</c> ham bo'ladi va ikkalasi ham yolg'on bo'lardi: telefon

@@ -7,7 +7,7 @@ import type { Candidate } from '../api/recruiting-api'
 import {
   useCloseCandidate,
   useReassignCandidate,
-  useReturnCandidateFromReserve,
+  useReturnCandidateToFunnel,
   useVacancyOptions,
 } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
@@ -18,7 +18,7 @@ export type CandidateAction =
   | 'reject'
   | 'withdraw'
   | 'reserve'
-  | 'returnFromReserve'
+  | 'returnToFunnel'
   | 'reassign'
 
 /** Sana va sabab so'raladigan amallar — ular voronkadan CHIQARADI. */
@@ -30,12 +30,12 @@ const CLOSING: readonly CandidateAction[] = ['reject', 'withdraw', 'reserve']
  *
  * Ikkalasi ham bosqich yozuvi hosil qilmaydi, shu sababli yozilgan
  * matn `candidate_notes` jadvaliga tushadi (`Reassign` va
- * `ReturnFromReserve` turlari). U nomzodning `note` maydoni EMAS: u
+ * `ReturnToFunnel` turlari). U nomzodning `note` maydoni EMAS: u
  * shaxsning uzoq muddatli ta'rifi va tahrirlash formasidan qayta
  * yozilib ketardi; `closingNote` ham emas — qaytarish uni o'sha
  * tranzaksiyada tozalaydi (SPEC §2.3.1).
  */
-const WITH_NOTE: readonly CandidateAction[] = ['reassign', 'returnFromReserve']
+const WITH_NOTE: readonly CandidateAction[] = ['reassign', 'returnToFunnel']
 
 /**
  * Keyingi aloqa sanasi so'raladigan amallar.
@@ -51,7 +51,7 @@ const WITH_NOTE: readonly CandidateAction[] = ['reassign', 'returnFromReserve']
 const WITH_NEXT_CONTACT: readonly CandidateAction[] = [
   'reserve',
   'reassign',
-  'returnFromReserve',
+  'returnToFunnel',
 ]
 
 /**
@@ -62,7 +62,7 @@ const WITH_NEXT_CONTACT: readonly CandidateAction[] = [
  * lekin u QAYTARILADI — qizil «xato bo'ldi» deb o'qilardi va aynan shu
  * sababdan uning yorlig'i ham kulrang (`CANDIDATE_LOOK`).
  */
-const REVERSIBLE: readonly CandidateAction[] = ['reassign', 'reserve', 'returnFromReserve']
+const REVERSIBLE: readonly CandidateAction[] = ['reassign', 'reserve', 'returnToFunnel']
 
 /**
  * Nomzod ustidagi OLTITA amal — BITTA oyna
@@ -119,7 +119,7 @@ export function CandidateActionDialog({
 
   const close = useCloseCandidate()
   const reassign = useReassignCandidate()
-  const restore = useReturnCandidateFromReserve()
+  const restore = useReturnCandidateToFunnel()
   const pending =
     close.isPending || reassign.isPending || restore.isPending
 
@@ -164,7 +164,19 @@ export function CandidateActionDialog({
   if (action === null) return null
 
   const failure = close.error ?? reassign.error ?? restore.error
-  const incomplete = action === 'reassign' && vacancyId === ''
+  /*
+    ⭐ Qaytarish sababi — RAD ETILGAN va VOZ KECHGAN nomzodda majburiy
+    (server ham talab qiladi: «nomzod.qaytarish_sababi_yoq»).
+    Rezervdan qaytarishda esa ixtiyoriy: rezervning butun ma'nosi
+    «o'rin bo'shasa chaqiramiz», ya'ni qaytish o'sha holatning tabiiy
+    yakuni. Tugma o'chirilgani xatoni OLDINDAN aytadi — HR matnni
+    yozib, so'ng 400 olishi kerak emas.
+  */
+  const reasonRequired =
+    action === 'returnToFunnel' && candidate.status !== 'Reserve'
+
+  const incomplete =
+    (action === 'reassign' && vacancyId === '') || (reasonRequired && note.trim() === '')
 
   const submit = () => {
     if (incomplete) return
@@ -182,7 +194,7 @@ export function CandidateActionDialog({
       return
     }
 
-    if (action === 'returnFromReserve') {
+    if (action === 'returnToFunnel') {
       restore.mutate(
         { id: candidate.id, note: orNull(note), nextContactDate: orNull(nextContact) },
         { onSuccess: onClose },
@@ -315,8 +327,22 @@ export function CandidateActionDialog({
         */}
         {WITH_NOTE.includes(action) && (
           <TextArea
-            label={t('recruiting.note')}
-            hint={t('recruiting.candidateReasonHint')}
+            /*
+              Qaytarishda maydon boshqacha NOMLANADI: u «izoh» emas,
+              QARORNING sababi («nega fikr o'zgardi») va lentada
+              abadiy qoladi. Ko'chirishda esa oddiy izoh — shu sababli
+              yorliq ham, tavsif ham amalga qarab tanlanadi.
+            */
+            label={
+              action === 'returnToFunnel'
+                ? t('recruiting.candidateAction.returnReason')
+                : t('recruiting.note')
+            }
+            hint={
+              action === 'returnToFunnel'
+                ? t('recruiting.candidateAction.returnReasonHint')
+                : t('recruiting.candidateReasonHint')
+            }
             maxLength={2000}
             value={note}
             disabled={pending}

@@ -45,7 +45,9 @@ public sealed record CandidateStageResponse(
     string? Stage,
     DateOnly Date,
     string Outcome,
-    string? Conclusion);
+    string? Conclusion,
+    DateTimeOffset RecordedAt,
+    DateTimeOffset? UpdatedAt);
 
 /// <summary>Nomzodning amal izohi (bosqichga bog'lanmagan qayd).</summary>
 /// <remarks>
@@ -210,6 +212,93 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             .First(qator => qator.Id == nomzod.Id)
             .HiredEmployeeId
             .ShouldBeNull("ishga olinmagan nomzodda xodim havolasi BO'SH bo'lishi kerak");
+    }
+
+    /// <summary>
+    /// ⭐ Bosqich tarixi — HAR BIR ALOQA alohida qator.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Foydalanuvchi talabi (2026-09-16): «besh marta gaplashilsa, beshta
+    /// holat bo'lishi mumkin». Ilgari server ayni bosqich qayta
+    /// yozilganda mavjud qatorni TO'LDIRARDI va u bilan birga oldingi
+    /// izohni ham o'chirardi — HR yozgan gap ogohlantirishsiz yo'qolardi.
+    /// </para>
+    /// <para>
+    /// Test aynan shu yo'lni qaytaradi: xulosa bilan yozish, keyin
+    /// XULOSASIZ qayta yozish (voronkadagi sudrash aynan shunday so'rov
+    /// yuboradi) va eski qatorni tuzatish.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Ayni_bosqich_qayta_yozilsa_tarix_TOPLANADI()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Такрорий");
+
+        async Task<CandidateResponse> YozAsync(string? xulosa)
+        {
+            using var javob = await mijoz.PostAsJsonAsync(
+                new Uri($"/api/recruiting/candidates/{nomzod.Id}/stages", UriKind.Relative),
+                new { stageId = kengash.Id, outcome = "Pending", conclusion = xulosa },
+                bekorQilish);
+
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+            var karta = await javob.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
+            karta.ShouldNotBeNull();
+            return karta;
+        }
+
+        await YozAsync("Биринчи қўнғироқ: эртага келаман деди");
+
+        // ⚠️ Eng muhim qadam: xulosasiz qayta yozish. Ilgari aynan shu
+        // so'rov yuqoridagi izohni NULL bilan almashtirardi.
+        await YozAsync(null);
+
+        var uchinchi = await YozAsync("Учинчи қўнғироқ: кенгашга чақирдим");
+
+        uchinchi.Stages.Count.ShouldBe(4, "анкета + учта қўнғироқ — ҳар бири алоҳида қатор");
+        uchinchi.Stages[1].Conclusion.ShouldBe(
+            "Биринчи қўнғироқ: эртага келаман деди",
+            "izohsiz qayta yozish eski izohga TEGMAYDI");
+        uchinchi.Stages[2].Conclusion.ShouldBeNull();
+        uchinchi.Stages[3].Conclusion.ShouldBe("Учинчи қўнғироқ: кенгашга чақирдим");
+        uchinchi.CurrentStageId.ShouldBe(kengash.Id, "joriy holat — OXIRGI yozuvdan");
+
+        // ── Eskiroq qator tuzatiladi: AYNI qator, yangisi qo'shilmaydi ──
+        var eski = uchinchi.Stages[1];
+
+        using var tuzatish = await mijoz.PutAsJsonAsync(
+            new Uri(
+                $"/api/recruiting/candidates/{nomzod.Id}/stages/{eski.Id}",
+                UriKind.Relative),
+            new
+            {
+                outcome = "Passed",
+                date = eski.Date,
+                conclusion = "Биринчи қўнғироқ: гаплашилди, келишилди",
+            },
+            bekorQilish);
+
+        tuzatish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tuzatish));
+        var tuzatilgan = await tuzatish.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
+
+        tuzatilgan!.Stages.Count.ShouldBe(4, "tuzatish YANGI qator qo'shmaydi");
+        tuzatilgan.Stages[1].Id.ShouldBe(eski.Id, "tuzatilgan qator O'Z O'RNIDA qoladi");
+        tuzatilgan.Stages[1].Outcome.ShouldBe("Passed");
+        tuzatilgan.Stages[1].Conclusion.ShouldBe("Биринчи қўнғироқ: гаплашилди, келишилди");
+        tuzatilgan.Stages[1].RecordedAt.ShouldBe(
+            eski.RecordedAt,
+            "kiritilgan vaqt o'zgarmaydi — aks holda qator lentaning tepasiga sakrardi");
+        tuzatilgan.Stages[1].UpdatedAt.ShouldNotBeNull("tuzatilgani ko'rinib turadi");
+        tuzatilgan.Stages[3].Conclusion.ShouldBe(
+            "Учинчи қўнғироқ: кенгашга чақирдим",
+            "qolgan qatorlarga tegilmaydi");
     }
 
     [Fact]
@@ -467,7 +556,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         // ── 3. Voronkaga qaytariladi ──
         using var qaytarish = await mijoz.PostAsync(
-            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return", UriKind.Relative),
             content: null,
             bekorQilish);
 
@@ -485,12 +574,92 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         // ── 4. Ikkinchi marta qaytarib bo'lmaydi: u allaqachon voronkada ──
         using var takror = await mijoz.PostAsync(
-            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return", UriKind.Relative),
             content: null,
             bekorQilish);
 
         takror.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(takror));
-        (await MatnAsync(takror)).ShouldContain("nomzod.rezervda_emas");
+        (await MatnAsync(takror)).ShouldContain("nomzod.qaytarilmaydi");
+    }
+
+    /// <summary>
+    /// ⭐ RAD ETILGAN nomzod sabab bilan voronkaga qaytariladi.
+    /// </summary>
+    /// <remarks>
+    /// Foydalanuvchi talabi (2026-09-16): rad etilgan odam ko'pincha o'zi
+    /// qayta aloqaga chiqadi. Ilgari yagona yo'l uni NOLDAN kiritish edi —
+    /// o'shanda bosqichlar tarixi, anketa va fayllar yangi yozuvda
+    /// bo'lmasdi.
+    /// </remarks>
+    [Fact]
+    public async Task Rad_etilgan_nomzod_SABAB_bilan_voronkaga_qaytadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(mijoz);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var nomzod = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Қайтган");
+
+        using (var bosqich = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/stages", UriKind.Relative),
+            new { stageId = kengash.Id, outcome = "Failed", conclusion = "Кенгаш маъқулламади" },
+            bekorQilish))
+        {
+            bosqich.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(bosqich));
+        }
+
+        using (var rad = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/reject", UriKind.Relative),
+            new { reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        // ── Sababsiz qaytarish RAD ETILADI ──
+        using (var sababsiz = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return", UriKind.Relative),
+            new { note = (string?)null },
+            bekorQilish))
+        {
+            sababsiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(sababsiz));
+            (await MatnAsync(sababsiz)).ShouldContain("nomzod.qaytarish_sababi_yoq");
+        }
+
+        // ── Sabab bilan — qaytadi ──
+        using (var qaytarish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return", UriKind.Relative),
+            new { note = "Ўзи қайта мурожаат қилди, тажриба орттирган" },
+            bekorQilish))
+        {
+            qaytarish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaytarish));
+        }
+
+        var karta = await KartaAsync(mijoz, nomzod.Id);
+
+        karta.Status.ShouldBe("InProgress");
+        karta.ClosedAt.ShouldBeNull();
+        karta.ClosingNote.ShouldBeNull("chiqish sababi endi o'rinsiz");
+        karta.CurrentStageId.ShouldBe(kengash.Id, "qayerda to'xtagan bo'lsa, o'sha yerdan");
+        karta.Stages.Count.ShouldBe(2, "bosqichlar tarixi butunligicha saqlanadi");
+        karta.Stages[^1].Conclusion.ShouldBe("Кенгаш маъқулламади");
+
+        /*
+          ⭐ IKKALA sabab ham lentada: rad etishniki va qaytarishniki.
+          `ClosingNote` tozalangani uchun «nega rad etilgan edi» degan
+          savolning javobi FAQAT shu yerda qoladi.
+        */
+        karta.Notes.Count.ShouldBe(2);
+        karta.Notes[0].Kind.ShouldBe("Rejected");
+        karta.Notes[0].Text.ShouldBe("Тажрибаси етарли эмас");
+        karta.Notes[1].Kind.ShouldBe("ReturnToFunnel");
+        karta.Notes[1].Text.ShouldBe("Ўзи қайта мурожаат қилди, тажриба орттирган");
+
+        // Ro'yxatda ham faol bo'lib ko'rinadi.
+        var faollar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
+        faollar.Items.ShouldContain(q => q.Id == nomzod.Id);
     }
 
     [Fact]
@@ -801,7 +970,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         }
 
         using (var qaytarish = await mijoz.PostAsJsonAsync(
-            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return", UriKind.Relative),
             new { note = "Ўрин бўшади, қайта чақирдим" },
             bekorQilish))
         {
@@ -810,12 +979,21 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var karta = await KartaAsync(mijoz, nomzod.Id);
 
-        karta.Notes.Count.ShouldBe(2);
+        /*
+          ⭐ Uchta qator: ko'chirish, REZERVGA o'tkazish va qaytarish.
+          O'rtadagisi 2026-09-16 da qo'shildi — chiqish sababi
+          `ClosingNote` da turardi va qaytarish uni tozalardi, ya'ni
+          «nega rezervga o'tgan edi» degan fakt o'sha lahzada
+          yo'qolardi.
+        */
+        karta.Notes.Count.ShouldBe(3);
         karta.Notes[0].Kind.ShouldBe("Reassign");
         karta.Notes[0].Text.ShouldBe("Сотувчига мос эмас, кассирга кўчирилди");
         karta.Notes[0].CreatedBy.ShouldNotBeNull("«kim yozdi» — audit fakti");
-        karta.Notes[1].Kind.ShouldBe("ReturnFromReserve");
-        karta.Notes[1].Text.ShouldBe("Ўрин бўшади, қайта чақирдим");
+        karta.Notes[1].Kind.ShouldBe("Reserved");
+        karta.Notes[1].Text.ShouldBe("Ҳозир ўрин йўқ");
+        karta.Notes[2].Kind.ShouldBe("ReturnToFunnel");
+        karta.Notes[2].Text.ShouldBe("Ўрин бўшади, қайта чақирдим");
         karta.ClosingNote.ShouldBeNull("qaytarish chiqish izohini TOZALAYDI — izoh esa saqlanib qoldi");
     }
 
@@ -944,7 +1122,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         }
 
         using (var qaytarish = await mijoz.PostAsync(
-            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return", UriKind.Relative),
             content: null,
             bekorQilish))
         {
@@ -1003,6 +1181,17 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             bosqich.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         }
 
+        // Tarixni TUZATISH ham yozish amali: ko'ruvchi tarixga tegmaydi.
+        using (var tuzatish = await koruvchi.PutAsJsonAsync(
+            new Uri(
+                $"/api/recruiting/candidates/{nomzod.Id}/stages/{nomzod.Stages[0].Id}",
+                UriKind.Relative),
+            new { outcome = "Passed", conclusion = "Ўзгартириб қўяман" },
+            bekorQilish))
+        {
+            tuzatish.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
         using (var kochirish = await koruvchi.PostAsJsonAsync(
             new Uri($"/api/recruiting/candidates/{nomzod.Id}/reassign", UriKind.Relative),
             new { vacancyId = boshqa.Id, note = "Кўчириб қўяман" },
@@ -1020,7 +1209,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         }
 
         using (var qaytarish = await koruvchi.PostAsJsonAsync(
-            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return-from-reserve", UriKind.Relative),
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/return", UriKind.Relative),
             new { note = "Қайтараман" },
             bekorQilish))
         {

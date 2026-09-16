@@ -589,6 +589,7 @@
     "bosqich.faol_emas": "Bosqich faol emas: nomzodni unga o‘tkazib bo‘lmaydi.",
     "bosqich.faol_yoq": "Voronkada bironta ham faol bosqich yo‘q — avval bosqich qo‘shing.",
     "bosqich_yozuvi.bosqich_yoq": "Bosqich ko‘rsatilishi shart.",
+    "bosqich_yozuvi.topilmadi": "Bosqich yozuvi topilmadi — u o‘chirilgan yoki sahifa eskirgan bo‘lishi mumkin.",
     "vakansiya.topilmadi": "Vakansiya topilmadi — u o‘chirilgan bo‘lishi mumkin.",
     "vakansiya.masul_topilmadi": "Mas’ul xodim topilmadi.",
     "vakansiya.orin_soni": "Kerakli odamlar soni 1 dan 100 gacha bo‘lishi kerak.",
@@ -601,7 +602,8 @@
     "nomzod.jarayonda_emas": "Nomzod voronkadan chiqqan — bu amalni bajarib bo‘lmaydi.",
     "nomzod.suhbat_vaqti_otgan": "Suhbat vaqti o‘tgan kunga qo‘yilmaydi — sanani tekshiring.",
     "nomzod.allaqachon_ishga_olingan": "Nomzod allaqachon ishga olingan.",
-    "nomzod.rezervda_emas": "Nomzod rezervda emas — uni voronkaga qaytarib bo‘lmaydi.",
+    "nomzod.qaytarilmaydi": "Bu nomzodni voronkaga qaytarib bo‘lmaydi — ishga olingan nomzod qaytarilmaydi.",
+    "nomzod.qaytarish_sababi_yoq": "Qaytarish sababini yozing.",
     "nomzod.yuridik_shaxs_yoq": "Yuridik shaxs ko‘rsatilishi shart: xodim qaysi firmaga rasmiylashtiriladi.",
     "nomzod.lavozim_yoq": "Lavozim ko‘rsatilishi shart: nomzod aynan qaysi lavozimga olinayotgani yozilishi kerak.",
     "nomzod.bolim_topilmadi": "Bo‘lim topilmadi.",
@@ -1128,6 +1130,7 @@
     "stageDate": "Bosqich sanasi",
     "outcomeHint": "Suhbat hali bo‘lmagan bo‘lsa — «Kutilmoqda»",
     "recordedAt": "Yozildi: {{at}}",
+    "editedAt": "tahrirlandi: {{at}}",
     "currentStage": "Joriy bosqich: {{stage}}",
     "noStage": "Bosqich belgilanmagan",
     "hasResume": "Fayl biriktirilgan",
@@ -1212,9 +1215,11 @@
       "reserveTitle": "Rezervga o‘tkazish",
       "reserveText": "Nomzod voronkadan chiqadi, lekin bu RAD ETISH EMAS: «hozir o‘rin yo‘q, kerak bo‘lganda chaqiramiz». Yozuv ro‘yxatda ko‘rinib turadi va bir amal bilan voronkaga qaytariladi.",
       "reserveConfirm": "Rezervga",
-      "returnFromReserveTitle": "Rezervdan qaytarish",
-      "returnFromReserveText": "Nomzod voronkaga qaytadi va qaysi bosqichda to‘xtagan bo‘lsa, o‘sha yerdan davom etadi — bosqichlar tarixi saqlanadi. Rezervga o‘tkazish sanasi va sababi tozalanadi.",
-      "returnFromReserveConfirm": "Qaytarish"
+      "returnToFunnelTitle": "Voronkaga qaytarish",
+      "returnToFunnelText": "Nomzod voronkaga qaytadi va qaysi bosqichda to‘xtagan bo‘lsa, o‘sha yerdan davom etadi — bosqichlar tarixi saqlanadi. Chiqish sanasi va sababi tozalanadi, lekin ikkalasi ham bosqichlar lentasida qoladi.",
+      "returnToFunnelConfirm": "Qaytarish",
+      "returnReason": "Qaytarish sababi",
+      "returnReasonHint": "Nega qaytaryapmiz — masalan «o‘zi qayta murojaat qildi, tajriba orttirgan»"
     },
     "source": {
       "manual": "Qo‘lda",
@@ -1256,6 +1261,7 @@
     "interviewSent": "Xabar yuborildi",
     "interviewReschedule": "Vaqtni o‘zgartirish",
     "stageFill": "Natijani yozish",
+    "stageEditTitle": "Yozuvni tahrirlash",
     "stagesEmptyTitle": "Bosqichlar tarixi bo‘sh",
     "stagesEmptyText": "Har bir suhbat, kengash va telefon aloqasi shu lentaga yoziladi.",
     "outcome": {
@@ -1266,8 +1272,11 @@
     },
     "noteKind": {
       "reassign": "Boshqa vakansiyaga o‘tkazildi",
-      "returnFromReserve": "Rezervdan qaytarildi",
-      "interviewRescheduled": "Suhbat ko‘chirildi"
+      "returnToFunnel": "Voronkaga qaytarildi",
+      "interviewRescheduled": "Suhbat ko‘chirildi",
+      "rejected": "Rad etildi",
+      "withdrawn": "O‘zi voz kechdi",
+      "reserved": "Rezervga o‘tkazildi"
     },
     "filesTitle": "Fayllar",
     "filesEmpty": "Fayl biriktirilmagan",

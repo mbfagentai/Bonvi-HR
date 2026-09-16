@@ -110,8 +110,11 @@ export type StageOutcome = (typeof STAGE_OUTCOMES)[number]
  */
 export const CANDIDATE_NOTE_KINDS = [
   'Reassign',
-  'ReturnFromReserve',
+  'ReturnToFunnel',
   'InterviewRescheduled',
+  'Rejected',
+  'Withdrawn',
+  'Reserved',
 ] as const
 export type CandidateNoteKind = (typeof CANDIDATE_NOTE_KINDS)[number]
 
@@ -226,7 +229,19 @@ export interface CandidateStageEntry {
   outcome: StageOutcome
   conclusion: string | null
   recordedBy: string | null
+  /**
+   * Yozuv KIRITILGAN lahza — tuzatilganda ham o'zgarmaydi.
+   *
+   * Lenta aynan shu bo'yicha saralanadi (sabab `candidate-stages-tab.tsx`
+   * boshida): tuzatilgan qator tarixning o'rtasidan tepasiga sakrab
+   * chiqmasligi kerak.
+   */
   recordedAt: string
+  /**
+   * Qachon tuzatilgan; tegilmagan yozuvda `null` — o'shanda lentada
+   * «tahrirlandi» belgisi umuman chizilmaydi.
+   */
+  updatedAt: string | null
 }
 
 /** `CandidateListItemDto` — nomzodlar ro'yxatining bitta qatori. */
@@ -744,6 +759,7 @@ function toStageEntry(raw: unknown): CandidateStageEntry {
     conclusion: text(box['conclusion']),
     recordedBy: text(box['recordedBy']),
     recordedAt: text(box['recordedAt']) ?? '',
+    updatedAt: text(box['updatedAt']),
   }
 }
 
@@ -1102,10 +1118,14 @@ export async function reassignCandidate(
 /**
  * ⭐ Voronkaning YAGONA harakati.
  *
- * Oxirgi yozuv aynan shu bosqich uchun va `Pending` bo'lsa, u
- * TO'LDIRILADI (yangisi qo'shilmaydi) — HR suhbatni «kutilmoqda» deb
- * ochib, tugagach natijasini yozadi. Oldinga yurish majburlanmaydi:
- * bosqichni o'tkazib yuborish va orqaga qaytish ham mumkin.
+ * ⭐ Har chaqiruv TARIXGA YANGI QATOR qo'shadi va mavjud yozuvning
+ * ustidan hech qachon yozmaydi: bitta bosqich necha marta
+ * takrorlansa, shuncha qator bo'ladi. Ochib qo'yilgan «kutilmoqda»
+ * yozuviga natija yozish — boshqa amal
+ * (`editCandidateStageEntry`).
+ *
+ * Oldinga yurish majburlanmaydi: bosqichni o'tkazib yuborish va
+ * orqaga qaytish ham mumkin.
  */
 /**
  * ⭐ Nomzodni suhbatga chaqirish — bitta so'rovda uchta natija.
@@ -1168,6 +1188,37 @@ export async function recordCandidateStage(
 }
 
 /**
+ * ⭐ Tarixdagi BITTA yozuvni tuzatish.
+ *
+ * `recordCandidateStage` dan farqi bitta va u hal qiluvchi: bu yerda
+ * YANGI qator qo'shilmaydi — manzilda ko'rsatilgan qator o'zgaradi.
+ * Ikkalasi ikki xil ish uchun: «yana bir marta gaplashdim» (yangi
+ * qator) va «o'sha qatorga natijani yozdim / xatoni tuzatdim».
+ *
+ * ⚠️ `conclusion` USTIDAN yozadi. Oyna mavjud matnni to'ldirib
+ * ochilishi SHART — bo'sh yuborilsa izoh o'chadi. Bu shartnomaning
+ * o'zi ilgari nosozlik manbai bo'lgan: server oxirgi yozuvni jimgina
+ * to'ldirar va bo'sh xulosa bilan eski matnni o'chirib yuborardi.
+ *
+ * Bosqich yuborilmaydi: yozuvning bosqichi o'zgarmaydi (server
+ * shartnomasi).
+ */
+export async function editCandidateStageEntry(
+  id: string,
+  entryId: string,
+  body: {
+    outcome: StageOutcome
+    date: string | null
+    conclusion: string | null
+    nextContactDate?: string | null
+    clearNextContact?: boolean
+  },
+): Promise<Candidate> {
+  const { data } = await api.put<unknown>(`${CANDIDATES}/${id}/stages/${entryId}`, body)
+  return toCandidate(data)
+}
+
+/**
  * Voronkadan chiqarish: «rad etdik» (`reject`), «o'zi voz kechdi»
  * (`withdraw`) va «rezervga» (`reserve`). Uchalasi ATAYLAB ajratilgan —
  * voronka hisobotida ular butunlay boshqa ma'no beradi
@@ -1178,7 +1229,7 @@ export async function recordCandidateStage(
  * Uchalasining SO'ROV TANASI bir xil (`CloseCandidateRequest`: sana va
  * sabab), ya'ni bitta funksiya yetadi. `reserve` dan farqli o'laroq,
  * qolgan ikkitasi qaytarilmaydi — qaytarish faqat rezervda bor
- * (`returnCandidateFromReserve`).
+ * (`returnCandidateToFunnel`).
  *
  * ⚠️ `nextContactDate` ni FAQAT `reserve` hisobga oladi. `reject` va
  * `withdraw` uni JIMGINA e'tiborsiz qoldiradi va saqlangan sanani
@@ -1211,19 +1262,24 @@ export async function closeCandidate(
  * qabul qiladi (yopish amallaridagi `CloseCandidateRequest?` bilan aynan
  * bir xil naqsh).
  *
- * `note` — `ReturnFromReserve` turidagi izoh. U `closingNote` GA
- * yozilmaydi va yozilishi ham mumkin emas: qaytarish `closingNote` ni
- * o'sha tranzaksiyada TOZALAYDI, ya'ni izoh yozilgan zahoti o'chib
- * ketardi (SPEC §2.3.1).
+ * `note` — QAYTARISH SABABI, `ReturnToFunnel` turidagi izoh. U
+ * `closingNote` GA yozilmaydi va yozilishi ham mumkin emas: qaytarish
+ * `closingNote` ni o'sha tranzaksiyada TOZALAYDI, ya'ni izoh yozilgan
+ * zahoti o'chib ketardi (SPEC §2.3.1). Lentadagi yozuv esa qoladi —
+ * qaytarilgan nomzodda «nega rad etilgan edi» degan savolning javobi
+ * faqat o'sha yerda.
  *
- * Manba FAQAT rezerv: rad etilgan, voz kechgan yoki ishga olingan
- * nomzod uchun server «nomzod.rezervda_emas» (409) qaytaradi.
+ * ⚠️ Rad etilgan va voz kechgan nomzodda sabab MAJBURIY
+ * («nomzod.qaytarish_sababi_yoq», 400), rezervdan qaytarishda
+ * ixtiyoriy. Ishga OLINGAN nomzod qaytarilmaydi —
+ * «nomzod.qaytarilmaydi» (409): u bir vaqtda ham xodim, ham faol
+ * nomzod bo'lib qolardi.
  */
-export async function returnCandidateFromReserve(
+export async function returnCandidateToFunnel(
   id: string,
   body?: { note?: string | null; nextContactDate?: string | null },
 ): Promise<Candidate> {
-  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/return-from-reserve`, body)
+  const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/return`, body)
   return toCandidate(data)
 }
 

@@ -589,6 +589,7 @@
     "bosqich.faol_emas": "The stage is inactive: a candidate cannot be moved to it.",
     "bosqich.faol_yoq": "The pipeline has no active stages — add a stage first.",
     "bosqich_yozuvi.bosqich_yoq": "Select a stage.",
+    "bosqich_yozuvi.topilmadi": "Stage record not found — the page may be out of date.",
     "vakansiya.topilmadi": "Vacancy not found — the record may have been removed.",
     "vakansiya.masul_topilmadi": "Responsible employee not found.",
     "vakansiya.orin_soni": "The number of openings must be between 1 and 100.",
@@ -601,7 +602,8 @@
     "nomzod.jarayonda_emas": "The candidate has left the pipeline — this action is not available.",
     "nomzod.suhbat_vaqti_otgan": "The interview time cannot be set to a past day — check the date.",
     "nomzod.allaqachon_ishga_olingan": "The candidate has already been hired.",
-    "nomzod.rezervda_emas": "The candidate is not in reserve — they cannot be returned to the pipeline.",
+    "nomzod.qaytarilmaydi": "This candidate cannot be returned to the funnel — a hired candidate is not returned.",
+    "nomzod.qaytarish_sababi_yoq": "Enter a reason for returning.",
     "nomzod.yuridik_shaxs_yoq": "Legal entity is required: which company the employee is registered with.",
     "nomzod.lavozim_yoq": "Position is required: record exactly which position the candidate is hired into.",
     "nomzod.bolim_topilmadi": "Department not found.",
@@ -1128,6 +1130,7 @@
     "stageDate": "Stage date",
     "outcomeHint": "If the interview has not happened yet — “Pending”",
     "recordedAt": "Recorded: {{at}}",
+    "editedAt": "edited: {{at}}",
     "currentStage": "Current stage: {{stage}}",
     "noStage": "No stage assigned",
     "hasResume": "Has attached files",
@@ -1212,9 +1215,11 @@
       "reserveTitle": "Move to reserve",
       "reserveText": "The candidate leaves the pipeline, but this is NOT a rejection: “no opening right now, we will call them when there is”. The record stays in the list and returns to the pipeline in one action.",
       "reserveConfirm": "Move to reserve",
-      "returnFromReserveTitle": "Return from reserve",
-      "returnFromReserveText": "The candidate returns to the pipeline and continues from the stage where they stopped — the stage history is kept. The reserve date and reason are cleared.",
-      "returnFromReserveConfirm": "Return"
+      "returnToFunnelTitle": "Return to the funnel",
+      "returnToFunnelText": "The candidate returns to the funnel and continues from the stage where they stopped — the stage history is kept. The exit date and reason are cleared, but both stay in the stage timeline.",
+      "returnToFunnelConfirm": "Return",
+      "returnReason": "Reason for returning",
+      "returnReasonHint": "Why are we returning them — e.g. “reached out again, has more experience now”"
     },
     "source": {
       "manual": "Manual",
@@ -1256,6 +1261,7 @@
     "interviewSent": "Message sent",
     "interviewReschedule": "Change time",
     "stageFill": "Record the outcome",
+    "stageEditTitle": "Edit the record",
     "stagesEmptyTitle": "No stage history yet",
     "stagesEmptyText": "Every interview, panel and phone call is recorded in this timeline.",
     "outcome": {
@@ -1266,8 +1272,11 @@
     },
     "noteKind": {
       "reassign": "Moved to another vacancy",
-      "returnFromReserve": "Returned from reserve",
-      "interviewRescheduled": "Interview rescheduled"
+      "returnToFunnel": "Returned to the funnel",
+      "interviewRescheduled": "Interview rescheduled",
+      "rejected": "Rejected",
+      "withdrawn": "Withdrew",
+      "reserved": "Moved to the reserve"
     },
     "filesTitle": "Files",
     "filesEmpty": "No files attached",

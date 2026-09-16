@@ -112,16 +112,20 @@ public sealed record ReassignCandidateRequest(
     DateOnly? NextContactDate = null);
 
 /// <summary>
-/// Rezervdagi nomzodni voronkaga qaytarish so'rovi tanasi.
+/// Voronkadan chiqqan nomzodni qaytarish so'rovi tanasi.
 /// </summary>
 /// <remarks>
-/// Endpoint ilgari TANASIZ edi; tana endi bor, lekin BUTUNLIGICHA
-/// ixtiyoriy (<c>CloseCandidateRequest?</c> bilan aynan bir xil naqsh).
-/// Tanani yubormaydigan chaqiruv avvalgidek ishlaydi.
+/// Tana BUTUNLIGICHA ixtiyoriy (<c>CloseCandidateRequest?</c> bilan aynan
+/// bir xil naqsh) — rezervdan qaytarish uni umuman yubormasligi mumkin.
+/// Rad etilgan va voz kechgan nomzodda esa «note» SHART va busiz so'rov
+/// 400 bilan qaytadi.
 /// </remarks>
-/// <param name="Note">Amal izohi — ICHKI qayd (yuqoridagi bilan bir xil qoida).</param>
+/// <param name="Note">
+/// Qaytarish sababi — ICHKI qayd (yuqoridagi bilan bir xil qoida).
+/// Rad etilgan va voz kechgan nomzodda MAJBURIY.
+/// </param>
 /// <param name="NextContactDate">Keyingi aloqa sanasi. Berilmasa — o'zgarmaydi.</param>
-public sealed record ReturnCandidateFromReserveRequest(
+public sealed record ReturnCandidateToFunnelRequest(
     string? Note = null,
     DateOnly? NextContactDate = null);
 
@@ -156,6 +160,33 @@ public sealed record ReturnCandidateFromReserveRequest(
 /// </param>
 public sealed record RecordCandidateStageRequest(
     Guid StageId,
+    StageOutcome Outcome = StageOutcome.Pending,
+    DateOnly? Date = null,
+    string? Conclusion = null,
+    DateOnly? NextContactDate = null,
+    bool? ClearNextContact = null);
+
+/// <summary>Tarixdagi bitta bosqich yozuvini tuzatish so'rovi tanasi.</summary>
+/// <remarks>
+/// ⭐ <b>Bosqich bu yerda YO'Q.</b> Tuzatish yozuvning natijasini, sanasini
+/// va xulosasini o'zgartiradi, «qaysi bosqich» degan faktni emas — sababi
+/// <c>CandidateStageEntry.Edit</c> domen izohida. Yozuvning O'ZI manzilda
+/// ko'rsatiladi (<c>/stages/{entryId}</c>), tanada emas: u resursning
+/// identifikatori, ma'lumot emas.
+/// </remarks>
+/// <param name="Outcome">Pending | Passed | Failed.</param>
+/// <param name="Date">Bosqich sanasi. Bo'sh — bugun.</param>
+/// <param name="Conclusion">
+/// Xulosa matni. ⚠️ Bu maydon USTIDAN yozadi: mijoz mavjud matnni
+/// oynaga TO'LDIRIB ochishi va o'zgarmagan bo'lsa AYNAN o'sha matnni
+/// qaytarib yuborishi shart. Bo'sh yuborilsa xulosa o'chadi.
+/// </param>
+/// <param name="NextContactDate">
+/// Keyingi aloqa sanasi — <see cref="RecordCandidateStageRequest"/> dagi
+/// bilan bir xil uch holatli qoida.
+/// </param>
+/// <param name="ClearNextContact">Sanani tozalash.</param>
+public sealed record EditCandidateStageEntryRequest(
     StageOutcome Outcome = StageOutcome.Pending,
     DateOnly? Date = null,
     string? Conclusion = null,
@@ -625,9 +656,12 @@ public static class CandidateEndpoints
             .WithDescription(
                 "Voronkaning YAGONA harakati: telefon suhbat natijasi ham, KENGASH " +
                 "XULOSASI ham, rahbar suhbati ham shu endpoint orqali yoziladi " +
-                "(«conclusion» — xulosa matni). Ikki ish uslubi qo'llab-quvvatlanadi: " +
-                "«outcome=Pending» bilan bosqichni ochib, keyin AYNI bosqichga natija " +
-                "yozilsa — o'sha yozuv TO'LDIRILADI, yangisi qo'shilmaydi. " +
+                "(«conclusion» — xulosa matni). ⭐ HAR CHAQIRUV TARIXGA YANGI QATOR " +
+                "QO'SHADI va mavjud yozuvning ustidan HECH QACHON yozmaydi: bitta " +
+                "bosqich necha marta takrorlansa, shuncha qator bo'ladi («besh marta " +
+                "gaplashildi — beshta yozuv»), nomzodning joriy holati esa oxirgi " +
+                "yozuvdan kelib chiqadi. Ochib qo'yilgan «kutilmoqda» yozuviga natija " +
+                "yozish uchun «PUT /stages/{entryId}» ishlatiladi. " +
                 "Voronka oldinga yurishga majburlamaydi: bosqichni o'tkazib yuborish " +
                 "va orqaga qaytish mumkin. " +
                 "«conclusion» BO'SH bo'lishi mumkin va bu xato emas: majburlash " +
@@ -645,6 +679,46 @@ public static class CandidateEndpoints
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/{id:guid}/stages/{entryId:guid}", async (
+                Guid id,
+                Guid entryId,
+                EditCandidateStageEntryRequest request,
+                EditCandidateStageEntryCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new EditCandidateStageEntryCommand(
+                            id,
+                            entryId,
+                            request.Outcome,
+                            request.Date,
+                            request.Conclusion,
+                            request.NextContactDate,
+                            request.ClearNextContact ?? false),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("EditCandidateStageEntry")
+            .WithSummary("Nomzod — tarixdagi bosqich yozuvini tuzatish")
+            .WithDescription(
+                "TARIXNING bitta qatorini tuzatadi: «kutilmoqda» yozuviga natijani " +
+                "yozish ham, ilgari yozilgan xulosadagi xatoni to'g'rilash ham shu " +
+                "endpoint. Yangi qator QO'SHILMAYDI va nomzodning joriy bosqichi " +
+                "O'ZGARMAYDI — tuzatish odamni voronkada surmaydi. Yozuvning " +
+                "bosqichi ham o'zgarmaydi: noto'g'ri bosqich yozilgan bo'lsa, " +
+                "to'g'risi «POST /stages» bilan YANGI qator bo'lib tushadi. " +
+                "⚠️ «conclusion» ustidan yozadi — mijoz mavjud matnni to'ldirib " +
+                "ochishi va o'zgarmagan bo'lsa qaytarib yuborishi shart. " +
+                "Faolsizlantirilgan bosqichdagi va voronkadan chiqqan nomzodning " +
+                "yozuvi ham tuzatiladi: tarix aynan shuni saqlash uchun bor. " +
+                "Xatolar: «nomzod.topilmadi» / «bosqich_yozuvi.topilmadi» (404).")
+            .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         /*
           ═══════════════════════════════════════════════════════════
@@ -951,19 +1025,19 @@ public static class CandidateEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
-        group.MapPost("/{id:guid}/return-from-reserve", async (
+        group.MapPost("/{id:guid}/return", async (
                 Guid id,
 
-                // Tana IXTIYORIY (`?`) — endpoint ilgari tanasiz edi va tanani
-                // yubormaydigan eski chaqiruv AVVALGIDEK ishlashi kerak
-                // (yopish amallaridagi `CloseCandidateRequest?` bilan bir xil naqsh).
-                ReturnCandidateFromReserveRequest? request,
-                ReturnCandidateFromReserveCommandHandler handler,
+                // Tana IXTIYORIY (`?`) — rezervdan qaytarish uni umuman
+                // yubormasligi mumkin (yopish amallaridagi
+                // `CloseCandidateRequest?` bilan bir xil naqsh).
+                ReturnCandidateToFunnelRequest? request,
+                ReturnCandidateToFunnelCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
                     .HandleAsync(
-                        new ReturnCandidateFromReserveCommand(
+                        new ReturnCandidateToFunnelCommand(
                             id, request?.Note, request?.NextContactDate),
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -971,23 +1045,28 @@ public static class CandidateEndpoints
                 return natija.ToHttpResult();
             })
             .RequireAuthorization(Permissions.RecruitingManage)
-            .WithName("ReturnCandidateFromReserve")
-            .WithSummary("Nomzod — rezervdan voronkaga qaytarish")
+            .WithName("ReturnCandidateToFunnel")
+            .WithSummary("Nomzod — voronkaga qaytarish")
             .WithDescription(
-                "Rezervning butun ma'nosi shu amalda: o'rin bo'shaganda HR nomzodni " +
-                "izlanishni noldan boshlamasdan qaytaradi. Nomzod QAYSI bosqichda " +
-                "rezervga o'tgan bo'lsa, o'sha yerdan davom etadi — bosqichlar tarixi " +
-                "va joriy bosqich saqlanadi. Chiqish sanasi va sababi tozalanadi. " +
-                "Manba FAQAT rezerv bo'lishi mumkin: rad etilgan, voz kechgan yoki " +
-                "ishga olingan nomzodni bu amal qaytarmaydi — «nomzod.rezervda_emas» " +
-                "(409). Ishga olingan nomzodni qaytarish yo'li ochilsa, u bir vaqtda " +
-                "ham xodim, ham faol nomzod bo'lib qolardi. " +
-                "So'rov tanasi IXTIYORIY: yubormaslik avvalgidek ishlaydi. «note» " +
-                "bo'sh bo'lmasa — nomzod izohlari tarixiga «rezervdan qaytarildi» " +
-                "turi bilan yoziladi; u «closingNote» ga yozilMAYDI, chunki qaytarish " +
-                "o'sha tranzaksiyada uni tozalaydi. «nextContactDate» berilsa " +
-                "qo'yiladi, berilmasa rezervda qo'yilgan sana O'Z KUCHIDA qoladi.")
+                "Voronkadan chiqqan nomzodni QAYTARADI: rezervdan, RAD ETILGANDAN " +
+                "va o'zi VOZ KECHGANDAN. Rad etilgan odam ko'pincha o'zi qayta " +
+                "aloqaga chiqadi yoki sharoit o'zgaradi — noldan kiritish esa butun " +
+                "tarixni, anketani va fayllarni yo'qotardi. " +
+                "Nomzod QAYSI bosqichda to'xtagan bo'lsa, o'sha yerdan davom etadi — " +
+                "bosqichlar tarixi va joriy bosqich saqlanadi. Chiqish sanasi, sababi " +
+                "va rad etish xabarining belgisi tozalanadi (nomzod yana rad etilsa, " +
+                "Telegram xabari qayta yuborilishi kerak). " +
+                "«Ishga olingan» nomzod QAYTARILMAYDI — «nomzod.qaytarilmaydi» (409): " +
+                "u bir vaqtda ham xodim, ham faol nomzod bo'lib qolardi. " +
+                "⭐ «note» — QAYTARISH SABABI: rad etilgan va voz kechgan nomzodda " +
+                "MAJBURIY («nomzod.qaytarish_sababi_yoq», 400), rezervdan qaytarishda " +
+                "ixtiyoriy. U nomzod lentasiga «voronkaga qaytarildi» turi bilan " +
+                "yoziladi va u yerdan hech qachon o'chmaydi; «closingNote» ga " +
+                "yozilMAYDI, chunki qaytarish o'sha tranzaksiyada uni tozalaydi. " +
+                "«nextContactDate» berilsa qo'yiladi, berilmasa mavjudi O'Z KUCHIDA " +
+                "qoladi.")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 

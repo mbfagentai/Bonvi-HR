@@ -83,7 +83,14 @@ public sealed record VacancyDto(
 /// <param name="Outcome">Pending | Passed | Failed.</param>
 /// <param name="Conclusion">Xulosa matni (kengash xulosasi, suhbat natijasi).</param>
 /// <param name="RecordedBy">Kim yozdi — tizim foydalanuvchisi.</param>
-/// <param name="RecordedAt">Qachon yozildi.</param>
+/// <param name="RecordedAt">
+/// Qachon KIRITILGAN — lenta shu bo'yicha saralanadi va tuzatishdan keyin
+/// ham o'zgarmaydi (sababi <c>CandidateStageEntry.RecordedAt</c> izohida).
+/// </param>
+/// <param name="UpdatedAt">
+/// Qachon tuzatilgan; tegilmagan yozuvda <c>null</c> — interfeys o'shanda
+/// «tahrirlandi» belgisini umuman chizmaydi.
+/// </param>
 public sealed record CandidateStageEntryDto(
     Guid Id,
     Guid StageId,
@@ -92,7 +99,8 @@ public sealed record CandidateStageEntryDto(
     StageOutcome Outcome,
     string? Conclusion,
     Guid? RecordedBy,
-    DateTimeOffset RecordedAt);
+    DateTimeOffset RecordedAt,
+    DateTimeOffset? UpdatedAt);
 
 /// <summary>
 /// Nomzodga biriktirilgan BITTA fayl — rezyume, pasport varag'i, diplom skani.

@@ -149,7 +149,7 @@ public sealed class CandidateRepository : Repository<Candidate>, ICandidateRepos
     /// </remarks>
     public Task<Candidate?> GetWithStagesAsync(Guid id, CancellationToken cancellationToken = default)
         => Set
-            .Include(candidate => candidate.StageEntries.OrderBy(entry => entry.RecordedAt))
+            .Include(candidate => candidate.StageEntries.OrderBy(entry => entry.RecordedAt).ThenBy(entry => entry.Id))
             .Include(candidate => candidate.Files.OrderBy(file => file.CreatedAt).ThenBy(file => file.Id))
             .Include(candidate => candidate.Notes.OrderBy(note => note.CreatedAt).ThenBy(note => note.Id))
             .Include(candidate => candidate.Questionnaire)

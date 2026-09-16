@@ -70,8 +70,8 @@ import {
  * ⭐ <b>Kartani sudrab boshqa bosqichga o'tkazish.</b> Tashlash o'sha
  * bosqichni DARHOL «kutilmoqda» natijasi bilan yozadi va oyna
  * ochmaydi — sudrashning butun qiymati tezlikda, oyna esa uni ikkinchi
- * marta so'rashga aylantirardi. Natija/xulosani HR keyin mavjud oyna
- * orqali yozadi va o'sha yozuv TO'LDIRILADI (`candidate-stage-dialog.tsx`).
+ * marta so'rashga aylantirardi. Natija/xulosani HR keyin lentadagi
+ * O'SHA qatorni ochib yozadi (`candidate-stages-tab.tsx`).
  * So'rovning o'zi `useMoveCandidateToStage` da.
  */
 export function CandidateFunnel({

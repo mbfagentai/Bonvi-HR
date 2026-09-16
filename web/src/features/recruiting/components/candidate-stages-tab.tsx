@@ -39,11 +39,16 @@ import { CandidateStageDialog } from './candidate-stage-dialog'
  * izohlarni ham to'g'ri joyga qo'yadi — ro'yxat tartibi buni qila
  * olmasdi, chunki ikki oqim ikki alohida massivdan keladi.
  *
- * ⚠️ Bitta xatti-harakat o'zgardi: «kutilmoqda» yozuvi to'ldirilganda
- * server `recordedAt` ni yangilaydi, ya'ni yozuv lentaning TEPASIGA
- * chiqadi. Bu ataylab qabul qilindi — kartadagi «oxirgi nima bo'ldi»
- * chizig'i allaqachon aynan shu qoida bilan tanlaydi, ikki ko'rinish
- * bir xil javob berishi kerak.
+ * <b>⭐ HAR BIR AMAL — ALOHIDA QATOR</b> (foydalanuvchi talabi,
+ * 2026-09-16). Bitta bosqich necha marta takrorlansa, lentada shuncha
+ * qator bo'ladi: «besh marta gaplashilsa — beshta holat». Nomzodning
+ * joriy holati esa eng oxirgi qatordan kelib chiqadi.
+ *
+ * <b>Tuzatish qatorning JOYINI o'zgartirmaydi.</b> `recordedAt` server
+ * tomonda o'zgarmas (domen izohi) — ilgari «kutilmoqda» yozuvi
+ * to'ldirilganda u yangilanardi va qator tarixning o'rtasidan tepasiga
+ * sakrab chiqardi. Tuzatilgan qator o'z o'rnida qoladi, ostida esa
+ * «tahrirlandi» qaydi paydo bo'ladi.
  */
 export function CandidateStagesTab({
   candidate,
@@ -55,8 +60,14 @@ export function CandidateStagesTab({
   const { t } = useLocale()
 
   const [recording, setRecording] = useState(false)
-  /** Lentadagi yozuvni to'ldirish — o'sha bosqich oldindan tanlanadi. */
-  const [presetStageId, setPresetStageId] = useState<string | null>(null)
+  /**
+   * Tuzatilayotgan yozuv — lentadagi qatordan ochilganda.
+   *
+   * `null` + `recording === true` — YANGI yozuv qo'shilyapti. Ikkita
+   * alohida holat kerak emas: oyna bitta va u `entry` bo'yicha o'zi
+   * rejimni tanlaydi.
+   */
+  const [editing, setEditing] = useState<CandidateStageEntry | null>(null)
 
   /*
     Ikki oqim bitta lentaga. Tanilmagan sana pastga tushadi (`0`), tashlab
@@ -71,8 +82,8 @@ export function CandidateStagesTab({
     return merged.sort((a, b) => stamp(b) - stamp(a))
   }, [candidate.stages, candidate.notes])
 
-  const open = (stageId: string | null) => {
-    setPresetStageId(stageId)
+  const open = (entry: CandidateStageEntry | null) => {
+    setEditing(entry)
     setRecording(true)
   }
 
@@ -125,7 +136,7 @@ export function CandidateStagesTab({
                     key={`stage:${item.entry.id}`}
                     entry={item.entry}
                     canManage={canManage}
-                    onFill={() => open(item.entry.stageId)}
+                    onEdit={() => open(item.entry)}
                   />
                 ) : (
                   <NoteRow key={`note:${item.note.id}`} note={item.note} />
@@ -139,7 +150,7 @@ export function CandidateStagesTab({
       <CandidateStageDialog
         candidate={candidate}
         open={recording}
-        presetStageId={presetStageId}
+        entry={editing}
         onClose={() => setRecording(false)}
       />
     </div>
@@ -149,11 +160,11 @@ export function CandidateStagesTab({
 function StageRow({
   entry,
   canManage,
-  onFill,
+  onEdit,
 }: {
   entry: CandidateStageEntry
   canManage: boolean
-  onFill: () => void
+  onEdit: () => void
 }) {
   const { t, date, dateTime } = useLocale()
 
@@ -175,21 +186,26 @@ function StageRow({
           </Badge>
 
           {/*
-            «Kutilmoqda» yozuvini TO'LDIRISH — lentadan bir bosishda.
-            Server aynan shu yozuvni yangilaydi (yangisini qo'shmaydi),
-            shu sababli tugma «tahrirlash» emas, «natijani yozish»
-            ma'nosini beradi.
+            ⭐ Tugma HAR BIR qatorda — natijasi yozilganida ham.
+            Ikkalasi AYNAN bitta amal (`PUT .../stages/{entryId}`) va
+            faqat yorlig'i farq qiladi: bo'sh yozuvda «natijani
+            yozish», to'ldirilganida «tahrirlash». Ilgari tugma faqat
+            «kutilmoqda» da bor edi va yozilgan xulosadagi xatoni
+            tuzatishning YO'LI YO'Q edi; ustiga-ustak u eng oxirgi
+            bo'lmagan qatorda duplikat yozuv yaratardi (2026-09-16).
           */}
-          {canManage && entry.outcome === 'Pending' && (
+          {canManage && (
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              onClick={onFill}
+              onClick={onEdit}
               className="-my-1"
             >
               <Pencil />
-              {t('recruiting.stageFill')}
+              {entry.outcome === 'Pending'
+                ? t('recruiting.stageFill')
+                : t('common.edit')}
             </Button>
           )}
         </div>
@@ -214,6 +230,15 @@ function StageRow({
         */}
         <p className="mt-1.5 text-caption2 text-[var(--fg-tertiary)]">
           {t('recruiting.recordedAt', { at: dateTime(entry.recordedAt) })}
+
+          {/*
+            Tuzatilgan yozuv shu qayd bilan ajralib turadi: HR ko'rgan
+            matn birinchi kiritilganidan farq qilishi mumkinligini
+            bilishi kerak. Tuzatilmagan yozuvda qayd UMUMAN chizilmaydi
+            — har qatorga «tahrirlanmagan» deb yozish shovqin bo'lardi.
+          */}
+          {entry.updatedAt !== null &&
+            ` · ${t('recruiting.editedAt', { at: dateTime(entry.updatedAt) })}`}
         </p>
       </div>
     </li>

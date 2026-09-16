@@ -114,6 +114,18 @@ export function CandidateCardPage() {
   const inProgress = person.status === 'InProgress'
   const inReserve = person.status === 'Reserve'
   /*
+    ⭐ Voronkaga qaytarish UCH holatdan mumkin (foydalanuvchi talabi,
+    2026-09-16): rezervdan, RAD ETILGANDAN va o'zi VOZ KECHGANDAN.
+    Amalda rad etilgan odam ko'pincha o'zi qayta aloqaga chiqadi yoki
+    sharoit o'zgaradi — uni noldan kiritish esa butun tarixni, anketani
+    va fayllarni yo'qotardi.
+
+    «Ishga olingan» bu ro'yxatda YO'Q va server ham uni rad etadi: u
+    bir vaqtda ham xodim, ham faol nomzod bo'lib qolardi.
+  */
+  const canReturn =
+    inReserve || person.status === 'Rejected' || person.status === 'Withdrawn'
+  /*
     ⭐ Ishga olish IKKI holatdan mumkin: voronkadagi nomzod va
     REZERVDAGI. Rezervning butun ma'nosi shu — o'rin bo'shaganda HR
     izlanishni noldan boshlamaydi. Serverga ketadigan ikkinchi so'rov
@@ -279,20 +291,20 @@ export function CandidateCardPage() {
                 )}
 
                 {/*
-                  Rezervdan qaytarish — FAQAT rezervdagi nomzodda.
-                  «Ishga olmaymiz, lekin voronkaga qaytaramiz» degan
-                  alohida qaror: nomzod qaysi bosqichda to'xtagan bo'lsa,
-                  o'sha yerdan davom etadi.
+                  Voronkaga qaytarish — rezervdan, rad etilgandan va voz
+                  kechgandan. Nomzod qaysi bosqichda to'xtagan bo'lsa,
+                  o'sha yerdan davom etadi; rad etish va qaytarish
+                  sabablari esa bosqichlar lentasida qoladi.
                 */}
-                {inReserve && (
+                {canReturn && (
                   <Button
                     type="button"
                     size="sm"
                     variant="secondary"
-                    onClick={() => setAction('returnFromReserve')}
+                    onClick={() => setAction('returnToFunnel')}
                   >
                     <Undo2 />
-                    {t('recruiting.candidateAction.returnFromReserveTitle')}
+                    {t('recruiting.candidateAction.returnToFunnelTitle')}
                   </Button>
                 )}
 
