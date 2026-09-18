@@ -3,9 +3,14 @@ import {
   Briefcase,
   BriefcaseBusiness,
   Building2,
+  CalendarDays,
   ChartColumn,
+  ChartPie,
   ClipboardList,
+  Clock,
   Compass,
+  Cpu,
+  DoorOpen,
   FileText,
   Gauge,
   Gavel,
@@ -13,10 +18,12 @@ import {
   IdCard,
   LayoutGrid,
   Library,
+  Link2,
   LogOut,
   Megaphone,
   MessageSquareQuote,
   Network,
+  ScanFace,
   ShieldAlert,
   SlidersHorizontal,
   ThumbsUp,
@@ -74,6 +81,36 @@ export interface NavItem {
    * ruxsat berish kifoya.
    */
   count?: number
+  /**
+   * Sanoq belgisining RANGI. Berilmasa — `'warning'` (to'q sariq), ya'ni
+   * «qilinadigan ish bor»: sinovdagilar, moslanmagan o'tishlar.
+   *
+   * NEGA alohida maydon (SPEC §8.7): menyuda ikki xil ma'noli sanoq yonma-yon
+   * turadi. Moslanmagan o'tishlar — navbatdagi ish; ishdan ketgan odamning
+   * turniketdan o'tgani esa XAVFSIZLIK hodisasi. Ikkalasi bir xil rangda
+   * chizilsa, qizil raqam kulrang (sariq) raqam bilan bir narsani anglatib
+   * qolardi va HR uni «keyinroq qarayman» ro'yxatiga qo'shib yuborardi.
+   *
+   * `count` dan farqli o'laroq bu qiymat STATIK — u bandning o'zida yoziladi:
+   * sanoq jonli so'rovdan keladi, uning MA'NOSI esa band bilan birga
+   * o'zgarmaydi.
+   */
+  countTone?: 'warning' | 'danger'
+  /**
+   * Ochiluvchi guruhning BOLALARI ham `permission` bo'yicha filtrlansinmi.
+   * Sukut — yo'q: bolalar ruxsatdan qat'i nazar chiziladi (menyuning asl
+   * xatti-harakati).
+   *
+   * NEGA ixtiyoriy va faqat «Verifikatsiya» da yoqilgan: u guruhda ikki xil
+   * ruxsatli bandlar bor (`attendance.view` — ko'rish, `attendance.manage` —
+   * sozlash) va faqat ko'radigan foydalanuvchi sozlash bandlarini umuman
+   * ko'rmasligi kerak (ularning `GET` lari ham yopiq). Filtrni HAMMA
+   * guruhlarga birdaniga yoqish esa «Rekruting» va «Ma'lumotnomalar»
+   * menyusining ko'rinishini jimgina o'zgartirardi — egasi davomat moduli
+   * boshqa bo'limlarga tegmasligini aniq talab qilgan. Bayroq guruhning
+   * O'ZIDA yoziladi, shuning uchun uni yoqmagan guruh aynan avvalgidek qoladi.
+   */
+  filterChildrenByPermission?: boolean
   /**
    * Ichki bandlar. Bo'lsa, bu band HAVOLA EMAS — ochiluvchi guruh.
    *
@@ -227,6 +264,79 @@ export const NAV: NavSection[] = [
           */
           { key: 'rejectedCandidates', to: '/nomzodlar', icon: UserRoundX,
             search: { rejected: 'true' }, permission: 'recruiting.view' },
+        ],
+      },
+    ],
+  },
+  {
+    /*
+      Verifikatsiya — davomat (3-bosqich, Verifix o'rnini bosadi). Sarlavhasiz
+      guruh, `recruiting` va `sectionCatalog` bilan bir xil naqsh: bandning
+      o'zi («Verifikatsiya») sarlavha vazifasini bajaradi.
+
+      ⭐ O'RNI — «Rekruting» DAN KEYIN, «Xodimlar» dan OLDIN (SPEC §8.1;
+      egasiga ham aynan shunday aytilgan). Sabab — rekruting guruhidagi
+      qoidaning o'zi: tartib mantiqan emas, AMALDA qancha ishlatilishiga
+      qarab qo'yiladi. «Kim keldi, kim kechikdi, hozir binoda kim bor» —
+      HR ertalab birinchi ochadigan ekran, ya'ni u kundalik ish qatorida,
+      pastdagi ma'lumotnoma va sozlamalar yonida emas.
+
+      NEGA «Xodimlar» guruhining ichida emas: davomat — alohida jarayon
+      (turniket → o'tish → tabel) va o'zining yettita sahifasi bor. Ularni
+      xodimlar bandlari orasiga qo'shish kundalik «Xodimlar / Buyruqlar»
+      ro'yxatini ikki baravar uzaytirardi.
+
+      Bola bandlar tartibi — yana foydalanish chastotasi: avval har kuni
+      ochiladigan to'rttasi (taxta, jurnal, tabel, hisobotlar), keyin bir
+      marta sozlanib, kamdan-kam qaytiladigan uchtasi (moslashtirish,
+      jadvallar, qurilmalar).
+
+      `permission` HAR BIR BOLADA, guruhning o'zida EMAS: ikki xil ruxsat
+      bor. `attendance.view` — ko'rish (taxta, jurnal, tabel, hisobotlar),
+      `attendance.manage` — sozlash (moslik, jadval, qurilma). Faqat
+      ko'radigan foydalanuvchi sozlash bandlarini umuman ko'rmaydi — ularning
+      `GET` lari ham `attendance.manage` bilan himoyalangan, ya'ni ma'lumotni
+      SERVERDAN OLA OLMAYDI (yuqoridagi `permission` izohi). Buning uchun
+      guruhda `filterChildrenByPermission` YOQILGAN (maydon izohi): boshqa
+      guruhlarda u yo'q va ular avvalgidek chiziladi. Ikkala ruxsati ham
+      yo'q foydalanuvchida bironta bola qolmaydi va guruh butunlay
+      chizilmaydi (`sidebar.tsx` dagi `visibleItem`).
+
+      Sanoq belgilari (SPEC §8.7) — `sidebar.tsx` da, jonli so'rovdan:
+      «Statistika» yonida QIZIL raqam — so'nggi 24 soatda turniketdan
+      o'tgan ishdan ketgan odamlar soni; «Moslashtirish» yonida oddiy
+      (sariq) raqam — hali xodimga bog'lanmagan shaxs raqamlari.
+    */
+    items: [
+      {
+        key: 'verification',
+        // Faqat «shu yo'lakdamiz» tekshiruvi uchun (`sectionCatalog` dagi
+        // bilan bir xil naqsh): bu band bosilganda hech qayerga o'tmaydi,
+        // guruhni ochadi. `/verifikatsiya` marshruti ATAYLAB yo'q (SPEC §8.1).
+        to: '/verifikatsiya',
+        icon: ScanFace,
+        filterChildrenByPermission: true,
+        children: [
+          /*
+            Qizil belgi AYNAN shu bandda: ogohlantirishning to'liq ko'rinishi
+            statistika sahifasining eng tepasida turadi (SPEC §8.4), ya'ni
+            raqamni bosgan odam to'g'ri o'sha blokka tushadi. Yo'l eskicha
+            (`/jonli`) — saqlangan havolalar buzilmasin.
+          */
+          { key: 'attendanceBoard',     to: '/verifikatsiya/jonli',         icon: ChartPie,
+            permission: 'attendance.view', countTone: 'danger' },
+          { key: 'attendancePasses',    to: '/verifikatsiya/otishlar',      icon: DoorOpen,
+            permission: 'attendance.view' },
+          { key: 'attendanceTimesheet', to: '/verifikatsiya/tabel',         icon: CalendarDays,
+            permission: 'attendance.view' },
+          { key: 'attendanceReports',   to: '/verifikatsiya/hisobotlar',    icon: ChartColumn,
+            permission: 'attendance.view' },
+          { key: 'attendanceMapping',   to: '/verifikatsiya/moslashtirish', icon: Link2,
+            permission: 'attendance.manage' },
+          { key: 'attendanceSchedules', to: '/verifikatsiya/jadvallar',     icon: Clock,
+            permission: 'attendance.manage' },
+          { key: 'attendanceDevices',   to: '/verifikatsiya/qurilmalar',    icon: Cpu,
+            permission: 'attendance.manage' },
         ],
       },
     ],

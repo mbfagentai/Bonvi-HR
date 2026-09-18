@@ -1,0 +1,102 @@
+using Bonvi.Application.Attendance.Devices;
+using Bonvi.Application.Attendance.Identities;
+using Bonvi.Application.Attendance.Ingest;
+using Bonvi.Application.Attendance.Queries;
+using Bonvi.Application.Attendance.Recompute;
+using Bonvi.Application.Attendance.Retention;
+using Bonvi.Application.Attendance.Schedules;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Bonvi.Application.Attendance;
+
+/// <summary>Davomat (3-bosqich) use-case'larini ro'yxatga oladi — modulning YAGONA kirish nuqtasi.</summary>
+/// <remarks>
+/// <para>
+/// <b>Qabul yo'li o'z faylida</b> (<see cref="IngestRegistration"/>) va shu
+/// yerdan chaqiriladi (SPEC §10.2.1): u boshqaruv use-case'laridan oldin
+/// qurilgan va endpointi paydo bo'lgan lahzadanoq ishlashi kerak edi.
+/// <c>AddApplication</c> endi faqat shu metodni chaqiradi — modul ikki joydan
+/// ro'yxatga olinmaydi.
+/// </para>
+/// <para>
+/// Hisoblash yadrosi (<c>ScheduleResolver</c>, <c>AttendanceDayBuilder</c>)
+/// bu yerda YO'Q va bu ataylab: ular servis emas, bitta to'plam ma'lumoti
+/// ustida quriladi (B4). DI da faqat ularni YURGIZADIGAN
+/// <see cref="AttendanceDayRecomputer"/> turadi.
+/// </para>
+/// <para>
+/// ⚠️ Fon vazifalari (<see cref="AttendanceBackfillJob"/>,
+/// <see cref="AttendanceRecomputeRangeJob"/>) oddiy scoped sinf: navbat
+/// (sinxron yoki Hangfire) ularni DI dan oladi. Ro'yxatdan tushib qolsa,
+/// moslik yaratish so'rovi «vazifa topilmadi» bilan yiqiladi.
+/// </para>
+/// </remarks>
+internal static class AttendanceRegistration
+{
+    public static IServiceCollection AddAttendance(this IServiceCollection services)
+    {
+        services.AddAttendanceIngest();
+
+        // Jurnal, taxta, tabel, hisobotlar va eksport (B5)
+        services.AddScoped<SearchPassesQueryHandler>();
+        services.AddScoped<GetPassQueryHandler>();
+        services.AddScoped<GetPassPhotoQueryHandler>();
+        services.AddScoped<GetBoardQueryHandler>();
+        services.AddScoped<GetFormerEmployeeAlertsQueryHandler>();
+        services.AddScoped<GetAttendanceDashboardQueryHandler>();
+        services.AddScoped<GetTimesheetQueryHandler>();
+        services.AddScoped<GetAttendanceExceptionsQueryHandler>();
+        services.AddScoped<GetAttendanceSummaryQueryHandler>();
+        services.AddScoped<ExportTimesheetQueryHandler>();
+        services.AddScoped<ExportPassesQueryHandler>();
+        services.AddScoped<ExportAttendanceExceptionsQueryHandler>();
+        services.AddScoped<ExportAttendanceSummaryQueryHandler>();
+
+        // Qurilmalar
+        services.AddScoped<AttendanceDeviceRules>();
+        services.AddScoped<AttendanceDeviceMapper>();
+        services.AddScoped<ListDevicesQueryHandler>();
+        services.AddScoped<GetDeviceQueryHandler>();
+        services.AddScoped<RegisterDeviceCommandHandler>();
+        services.AddScoped<UpdateDeviceCommandHandler>();
+        services.AddScoped<RotateDeviceTokenCommandHandler>();
+        services.AddScoped<SetDeviceActiveCommandHandler>();
+        services.AddScoped<DeleteDeviceCommandHandler>();
+
+        // Mosliklar va Verifix importi
+        services.AddScoped<SearchIdentitiesQueryHandler>();
+        services.AddScoped<ListUnmatchedQueryHandler>();
+        services.AddScoped<CreateIdentityCommandHandler>();
+        services.AddScoped<DeleteIdentityCommandHandler>();
+        services.AddScoped<PreviewIdentityImportQueryHandler>();
+        services.AddScoped<ConfirmIdentityImportCommandHandler>();
+
+        // Jadvallar va biriktirmalar
+        services.AddScoped<ListWorkSchedulesQueryHandler>();
+        services.AddScoped<GetWorkScheduleQueryHandler>();
+        services.AddScoped<CreateWorkScheduleCommandHandler>();
+        services.AddScoped<UpdateWorkScheduleCommandHandler>();
+        services.AddScoped<SetWorkScheduleActiveCommandHandler>();
+        services.AddScoped<DeleteWorkScheduleCommandHandler>();
+        services.AddScoped<ListScheduleAssignmentsQueryHandler>();
+        services.AddScoped<CreateScheduleAssignmentCommandHandler>();
+        services.AddScoped<DeleteScheduleAssignmentCommandHandler>();
+        services.AddScoped<ResolveScheduleQueryHandler>();
+
+        // Qayta hisoblash va uning fon vazifalari
+        services.AddScoped<AttendanceDayRecomputer>();
+        services.AddScoped<AttendanceBackfillJob>();
+        services.AddScoped<AttendanceRecomputeRangeJob>();
+        services.AddScoped<RecomputeAttendanceCommandHandler>();
+
+        // Takroriy vazifalar (B7, SPEC §9.2) va saqlash muddati. Recurring
+        // jadvali Api dagi `BackgroundJobs` da — bu yerda faqat sinflar.
+        services.AddScoped<AttendanceRetention>();
+        services.AddScoped<AttendanceDirtyRecomputeJob>();
+        services.AddScoped<AttendanceNightlyRecomputeJob>();
+        services.AddScoped<AttendancePhotoPurgeJob>();
+        services.AddScoped<AttendancePassPurgeJob>();
+
+        return services;
+    }
+}

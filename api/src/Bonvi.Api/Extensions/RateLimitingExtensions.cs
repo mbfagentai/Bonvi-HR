@@ -25,6 +25,16 @@ public static class RateLimitPolicies
 
     /// <summary>Eksport/hisobot — og'ir amallar uchun alohida, kichik chegara.</summary>
     public const string Export = "export";
+
+    /// <summary>
+    /// Turniket/yuz terminallarining hodisa qabuli — manba IP bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Kalit IP, foydalanuvchi emas: bu yo'lda JWT yo'q, token esa bo'linma
+    /// tanlanadigan paytda hali tekshirilmagan — unga qarab bo'lish
+    /// hujumchiga har so'rovda yangi «bo'linma» ochish imkonini berardi.
+    /// </remarks>
+    public const string Ingest = "ingest";
 }
 
 /// <summary>
@@ -51,6 +61,24 @@ public sealed class RateLimitingOptions
     public RateLimitWindow Export { get; set; } = new() { PermitLimit = 5, WindowSeconds = 60 };
 
     /// <summary>
+    /// Qurilma hodisalari qabuli: bitta IP dan daqiqada 300 so'rov.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Hisob: kuniga ~5 400 o'tish, smena almashinuvida sekundiga 4–6 tagacha.
+    /// 300/daqiqa — o'rtacha oqimdan ~50 barobar katta, ya'ni NAT ortidagi
+    /// butun bino bitta manzildan kelsa ham smena almashinuvida o'zini o'zi
+    /// to'smaydi, lekin suiiste'molni baribir chegaralaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Chegaradan oshgan qurilma 429 oladi va hodisani o'z xotirasida
+    /// saqlab, keyinroq qayta yuboradi — o'tish yo'qolmaydi, takror esa
+    /// zararsiz (<c>ux_attendance_passes_device_dedupe</c>).
+    /// </para>
+    /// </remarks>
+    public RateLimitWindow Ingest { get; set; } = new() { PermitLimit = 300, WindowSeconds = 60 };
+
+    /// <summary>
     /// Qat'iy kirish cheklovi avtomatik qo'llanadigan yo'llar.
     /// </summary>
     /// <remarks>
@@ -63,10 +91,19 @@ public sealed class RateLimitingOptions
     /// Cheklovdan butunlay ozod yo'llar.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Sog'liq tekshiruvini cheklab bo'lmaydi: orkestrator uni har necha soniyada
     /// so'raydi va 429 olsa konteynerni "o'lik" deb qayta ishga tushiradi.
+    /// </para>
+    /// <para>
+    /// Qurilma qabuli ham bu yerda — lekin «cheklovsiz» EMAS: uning o'z,
+    /// kengroq siyosati bor (<see cref="RateLimitPolicies.Ingest"/>). Umumiy
+    /// cheklov (daqiqada 120, IP bo'yicha) ustiga qo'shilsa, bitta NAT
+    /// manzilidan chiqadigan barcha terminallar smena almashinuvida bir-birini
+    /// to'sib qo'yardi — va buni aynan eng ko'p odam kirayotgan daqiqada.
+    /// </para>
     /// </remarks>
-    public IList<string> ExcludedPaths { get; } = ["/health"];
+    public IList<string> ExcludedPaths { get; } = ["/health", "/api/attendance/ingest"];
 }
 
 /// <summary>Bitta oyna cheklovining sozlamalari.</summary>
@@ -152,6 +189,15 @@ public static class RateLimitingExtensions
                 RateLimitPartition.GetFixedWindowLimiter(
                     "export:" + Kim(context),
                     _ => QatiyOyna(sozlama.Export)));
+
+            // Qurilma qabuli — faqat manba IP bo'yicha (sababi
+            // `RateLimitPolicies.Ingest` izohida). Umumiy cheklovdan bu yo'l
+            // chiqarilgan (`ExcludedPaths`), ya'ni ikki cheklov ustma-ust
+            // tushmaydi.
+            options.AddPolicy(RateLimitPolicies.Ingest, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    "ingest:" + Manba(context),
+                    _ => QatiyOyna(sozlama.Ingest)));
 
             options.OnRejected = RadEtildiAsync;
         });

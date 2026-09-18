@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Serilog;
+using Serilog.Core;
 using Serilog.Debugging;
 using Serilog.Events;
 using Serilog.Formatting;
@@ -291,7 +292,19 @@ public sealed partial class ErrorLogFormatter : ITextFormatter
         "Path",           // GlobalExceptionHandler va TezlikLoglari shu nomni ishlatadi
         "UserId",         // Guid — F.I.Sh. emas
         "TraceId",        // javobdagi traceId bilan bog'lash uchun
-        "Manba",          // so'rov kelgan IP (TezlikLoglari)
+        "Manba",          // so'rov kelgan IP (TezlikLoglari, qurilma qabuli)
+
+        // Qurilma qabuli (`AttendanceIngestJournal`). Hech biri odamni
+        // tanitmaydi: sabab — sanoq nomi, token boshi — HR ekranda ko'radigan
+        // 8 belgi (to'liq token HECH QACHON log qilinmaydi), qurilma — Guid,
+        // kod — xato kodi, vaqt — qurilma soati da'vo qilgan qiymat.
+        "Sabab",
+        "TokenBoshi",
+        "QurilmaId",
+        "Kod",
+        "QurilmaVaqti",
+        "AsosiyTur",
+        "KichikTur",
     }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Bitta log yozuvini faylga chiqaradi.</summary>
@@ -438,9 +451,16 @@ public sealed partial class ErrorLogFormatter : ITextFormatter
     /// logiga parametr QO'SHMASLIGINI aytadi. Ikkalasi ham kerak, chunki
     /// URL faqat o'sha yerdan emas, istisno matnidan ham kelishi mumkin.
     /// </para>
+    /// <para>
+    /// Qurilma tokeni YO'LNING ichida keladi (<c>/api/attendance/ingest/{token}</c>),
+    /// ya'ni parametr tozalagichi uni ko'rmaydi — u
+    /// <see cref="IngestTokenScrubber"/> bilan alohida yashiriladi. Maydonlar
+    /// faylga yetib kelguncha o'sha boyituvchi ularni allaqachon tozalagan;
+    /// bu yerdagi chaqiruv istisno matni uchun.
+    /// </para>
     /// </remarks>
     private static string TozalaYol(string qiymat)
-        => SorovParametri().Replace(qiymat, "$1" + ParametrBelgisi);
+        => IngestTokenScrubber.Scrub(SorovParametri().Replace(qiymat, "$1" + ParametrBelgisi));
 
     /// <summary>
     /// Istisno matnini tozalaydi: URL parametrlari va uzun raqamlar.
@@ -483,4 +503,98 @@ public sealed partial class ErrorLogFormatter : ITextFormatter
         RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 200)]
     private static partial Regex UzunRaqam();
+}
+
+/// <summary>
+/// Qurilma tokenini log yozuvidan yashiradi — BARCHA chiqishlar uchun (konsol ham, fayl ham).
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Muammo.</b> Hikvision «HTTP Listening» faqat URL sozlay oladi —
+/// sarlavha ham, imzo ham yo'q. Shu sababli qurilma tokeni YO'LGA qo'yiladi
+/// (<c>/api/attendance/ingest/{token}</c>), yo'l esa logning eng oddiy
+/// maydoni: Serilog so'rov logi (<c>RequestPath</c>), ASP.NET «Request
+/// starting» yozuvi (<c>Path</c>), tezlik cheklovi va istisno ishlovchisi
+/// (<c>Path</c>) — hammasi uni yozadi. <c>IncludeQueryInRequestPath = false</c>
+/// faqat <c>?...</c> qismini to'xtatadi, tokenni emas.
+/// </para>
+/// <para>
+/// <b>Nega boyituvchi (enricher), <c>ErrorLogFormatter</c> ning o'zi emas.</b>
+/// Formatter faqat FAYLNI yozadi; konsol (<c>docker logs api</c>) undan
+/// o'tmaydi va token u yerda ochiq qolardi. Boyituvchi esa yozuv har qanday
+/// chiqishga tarqalishidan OLDIN ishlaydi — ya'ni bitta joyda yopilgan
+/// teshik hamma joyda yopiq. U <c>Program.cs</c> da <c>Enrich.FromLogContext</c>
+/// dan KEYIN ulanadi, aks holda kontekstdan kelgan <c>RequestPath</c> ni
+/// ko'rmasdi.
+/// </para>
+/// <para>
+/// <b>Nega yo'l oq ro'yxatdan chiqarilmadi.</b> «Qaysi endpoint yiqildi»
+/// degan savolga yo'lsiz javob yo'q. Yo'l qoladi, faqat token segmenti
+/// <c>***</c> bo'ladi: <c>/api/attendance/ingest/***</c>.
+/// </para>
+/// <para>
+/// Qamrov: satr qiymatli har qanday maydon, nomidan qat'i nazar — kimdir
+/// ertaga yo'lni <c>{Url}</c> degan yangi maydonda log qilsa ham, u
+/// tozalanadi. Katta-kichik harf farqsiz: marshrut ham farqsiz mos keladi,
+/// ya'ni <c>/API/Attendance/Ingest/…</c> ham haqiqiy so'rov.
+/// </para>
+/// </remarks>
+public sealed partial class IngestTokenScrubber : ILogEventEnricher
+{
+    /// <summary>Yashirilgan yo'l shunday ko'rinadi.</summary>
+    public const string MaskedPath = "/api/attendance/ingest/***";
+
+    /// <summary>Tezkor oldindan tekshiruv — regex faqat shu satr bor bo'lsa ishga tushadi.</summary>
+    private const string IngestPrefix = "/api/attendance/ingest/";
+
+    /// <summary>Yozuvdagi barcha satr maydonlaridan tokenni yashiradi.</summary>
+    public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+    {
+        ArgumentNullException.ThrowIfNull(logEvent);
+
+        List<LogEventProperty>? tozalangan = null;
+
+        // Ko'pchilik yozuvda qabul yo'li umuman yo'q: ro'yxat faqat kerak
+        // bo'lganda yasaladi, ya'ni oddiy yozuvlar uchun narx — bitta
+        // `Contains` tekshiruvi.
+        foreach (var (nom, qiymat) in logEvent.Properties)
+        {
+            if (qiymat is ScalarValue { Value: string satr }
+                && satr.Contains(IngestPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                (tozalangan ??= []).Add(new LogEventProperty(nom, new ScalarValue(Scrub(satr))));
+            }
+        }
+
+        if (tozalangan is null)
+        {
+            return;
+        }
+
+        foreach (var xossa in tozalangan)
+        {
+            logEvent.AddOrUpdateProperty(xossa);
+        }
+    }
+
+    /// <summary>
+    /// Matndagi har bir qabul yo'lining token segmentini <c>***</c> bilan almashtiradi.
+    /// </summary>
+    /// <param name="qiymat">Yo'l yoki erkin matn.</param>
+    /// <returns>Tozalangan matn.</returns>
+    public static string Scrub(string qiymat)
+    {
+        ArgumentNullException.ThrowIfNull(qiymat);
+
+        return qiymat.Contains(IngestPrefix, StringComparison.OrdinalIgnoreCase)
+            ? QabulTokeni().Replace(qiymat, "$1***")
+            : qiymat;
+    }
+
+    /// <summary>Qabul yo'lidan keyingi birinchi segment — token.</summary>
+    [GeneratedRegex(
+        @"(/api/attendance/ingest/)[^/\s?#'""]+",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
+        matchTimeoutMilliseconds: 200)]
+    private static partial Regex QabulTokeni();
 }

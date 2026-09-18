@@ -1,4 +1,5 @@
 using System.Reflection;
+using Bonvi.Application.Attendance;
 using Bonvi.Application.Catalog;
 using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
@@ -111,6 +112,11 @@ public static class DependencyInjection
 
         // Baxtsiz hodisalar jurnali (S9/M11)
         services.AddSafety();
+
+        // Davomat (3-bosqich) — qurilmalar, mosliklar, jadvallar, tabel va
+        // hisobotlar. Qabul yo'li (`AddAttendanceIngest`) shu metodning ICHIDAN
+        // chaqiriladi (SPEC §10.2.1), bu yerda ikkinchi marta yozilmaydi.
+        services.AddAttendance();
 
         // Rekruting — 2-bosqich: vakansiya, voronka, nomzod, ishga olish
         services.AddRecruiting();

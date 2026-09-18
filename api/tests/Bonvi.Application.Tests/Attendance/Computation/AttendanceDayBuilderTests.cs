@@ -1,0 +1,489 @@
+using Bonvi.Application.Attendance.Computation;
+using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Attendance;
+using static Bonvi.Application.Tests.Attendance.Computation.AttendanceScenario;
+
+namespace Bonvi.Application.Tests.Attendance.Computation;
+
+/// <summary>
+/// Kun yozuvi — reja, kechikish, holat va «qator bo'lishi kerakmi»:
+/// SPEC §5.4, §5.5 6–10-qadamlar, §5.6, §5.7 jadvali; §11.1 #32–#45, #50.
+/// </summary>
+/// <remarks>
+/// Sukut sahna — ofis 09:00–18:00, yon berish 10/10, tanaffussiz: bu yerdagi
+/// sonlar tanaffus ta'siridan xoli bo'lishi uchun. Tanaffus
+/// <see cref="BreakDeductionTests"/> da.
+/// </remarks>
+public sealed class AttendanceDayBuilderTests
+{
+    // ────────────────────── Kechikish va erta ketish ──────────────────────
+
+    [Fact]
+    public void Togri_navbatlashgan_kun_kelgan_holatida_boladi()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:00", "18:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.Present);
+        kun.ShouldStore.ShouldBeTrue();
+        kun.Facts.WorkedMinutes.ShouldBe(540);
+        kun.Facts.PlannedMinutes.ShouldBe(540);
+        kun.Facts.OvertimeMinutes.ShouldBe(0);
+        kun.Facts.PassCount.ShouldBe(2);
+    }
+
+    /// <summary>#32. Yon berish — chegara emas, ayriladigan qism: 09:15 − (09:00 + 10) = 5.</summary>
+    [Fact]
+    public void Yon_berishdan_keyin_kelgan_kechikish_yon_berishsiz_hisoblanadi()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:15", "18:00");
+
+        sahna.Day(Monday).Facts.LateMinutes.ShouldBe(5);
+    }
+
+    /// <summary>#33.</summary>
+    [Fact]
+    public void Yon_berish_ichida_kelgan_kechikmagan()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:08", "18:00");
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.LateMinutes.ShouldBe(0);
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
+    }
+
+    [Fact]
+    public void Kechikish_ham_kesiladi()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:15:59", "18:00");
+
+        sahna.Day(Monday).Facts.LateMinutes.ShouldBe(5);
+    }
+
+    /// <summary>#34. (18:00 − 10) − 17:40 = 10.</summary>
+    [Fact]
+    public void Erta_ketish_yon_berishdan_keyin_hisoblanadi()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:00", "17:40");
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.EarlyLeaveMinutes.ShouldBe(10);
+        kun.Status.ShouldBe(AttendanceDayStatus.Present, "kechikish va erta ketish — son, holat emas");
+    }
+
+    // ────────────────────── Toq o'tishlar ──────────────────────
+
+    /// <summary>#35. Qachon ketgani noma'lum — erta ketishda ayblanmaydi.</summary>
+    [Fact]
+    public void Chiqishi_yozilmagan_kunda_erta_ketish_nol()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:00", "12:00", "13:00");
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kun.EarlyLeaveMinutes.ShouldBe(0, "12:00 dagi chiqish oxirgi voqea emas");
+        kun.WorkedMinutes.ShouldBe(180);
+    }
+
+    /// <summary>#36.</summary>
+    [Fact]
+    public void Birinchi_otish_chiqish_bolsa_kirish_yozilmagan_holati()
+    {
+        var sahna = Office();
+        sahna.Out(Monday, "18:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.MissingEntry);
+        kun.Facts.WorkedMinutes.ShouldBe(0);
+        kun.ShouldStore.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Kirish_yozilmagani_chiqish_yozilmaganidan_ustun()
+    {
+        var sahna = Office();
+        sahna.Out(Monday, "08:00");
+        sahna.In(Monday, "09:00");
+
+        sahna.Day(Monday).Facts.Status.ShouldBe(AttendanceDayStatus.MissingEntry);
+    }
+
+    // ────────────────────── Tungi smena (#39, #40) ──────────────────────
+
+    /// <summary>
+    /// #39. 20:00–08:00, dushanba 19:52 → seshanba 08:07: BITTA qator, dushanbada.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ SPEC §11.1 #39 «ortiqcha ish 7» deydi, lekin me'yoriy §5.5 10-qadam
+    /// <c>max(0, worked − planned)</c> = 735 − 720 = <b>15</b>. «7» — faqat
+    /// reja tugashidan keyingi qism (08:07 − 08:00), 8 daqiqalik erta kelishni
+    /// unutgan. Me'yoriy formula amalga oshirildi.
+    /// </remarks>
+    [Fact]
+    public void Tungi_smena_bitta_qator_bolib_boshlangan_kunga_tushadi()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("20:00", "08:00"));
+        sahna.In(Monday, "19:52");
+        sahna.Out(Tuesday, "08:07");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+        var dushanba = kunlar[0].Facts;
+
+        dushanba.Status.ShouldBe(AttendanceDayStatus.Present);
+        dushanba.PassCount.ShouldBe(2);
+        dushanba.WorkedMinutes.ShouldBe(735);
+        dushanba.PlannedMinutes.ShouldBe(720);
+        dushanba.OvertimeMinutes.ShouldBe(15);
+        dushanba.LateMinutes.ShouldBe(0);
+        dushanba.EarlyLeaveMinutes.ShouldBe(0);
+        dushanba.PlanStartAt.ShouldBe(At(Monday, "20:00"));
+        dushanba.PlanEndAt.ShouldBe(At(Tuesday, "08:00"));
+        dushanba.PlanEndAt!.Value.TashkentDate().ShouldBe(Tuesday);
+
+        kunlar[1].Facts.PassCount.ShouldBe(0, "08:07 dagi chiqish seshanbaga tushmaydi");
+    }
+
+    /// <summary>SPEC §5.7: tungi smenadan 08:05 da ketdi — kelgan, ortiqcha ish 5.</summary>
+    [Fact]
+    public void Tungi_smenadan_besh_daqiqa_kech_ketgan_ortiqcha_besh_daqiqa()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("20:00", "08:00"));
+        sahna.In(Monday, "20:00");
+        sahna.Out(Tuesday, "08:05");
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
+        kun.OvertimeMinutes.ShouldBe(5);
+    }
+
+    /// <summary>#40. Chiqishi yozilmagan tungi smena: dushanba <c>MissingExit</c>, seshanbada qator yo'q.</summary>
+    [Fact]
+    public void Tungi_smenada_chiqish_yozilmasa_ertangi_kunda_qator_yoq()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("20:00", "08:00", daysOff: [2]));
+        sahna.In(Monday, "19:52");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kunlar[0].ShouldStore.ShouldBeTrue();
+
+        kunlar[1].ShouldStore.ShouldBeFalse();
+        kunlar[1].Facts.Status.ShouldBe(AttendanceDayStatus.DayOff);
+    }
+
+    // ────────────────────── Jadval va dam olish kuni ──────────────────────
+
+    /// <summary>
+    /// #41. Jadval yo'q — ishlangan vaqt baribir hisoblanadi, reja/kechikish/erta ketish 0.
+    /// </summary>
+    /// <remarks>
+    /// Ortiqcha ish 0: normasi noma'lum kunda ortiqcha ish ham noma'lum.
+    /// Aks holda xulosa hisobotidagi ortiqcha ish ustuniga jadvalsiz
+    /// kunlarning HAR BIR daqiqasi tushardi (koordinator qarori,
+    /// 2026-09-17). Hisobotda bu kun «muammoli kun» sifatida ko'rinadi.
+    /// </remarks>
+    [Fact]
+    public void Jadvalsiz_kunda_ishlangan_vaqt_hisoblanadi_reja_nol()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Alternating(Monday, "09:30", "18:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.NoSchedule);
+        kun.ShouldStore.ShouldBeTrue();
+        kun.ScheduleTier.ShouldBeNull();
+        kun.Facts.WorkScheduleId.ShouldBeNull();
+        kun.Facts.PlanStartAt.ShouldBeNull();
+        kun.Facts.WorkedMinutes.ShouldBe(510);
+        kun.Facts.PlannedMinutes.ShouldBe(0);
+        kun.Facts.LateMinutes.ShouldBe(0);
+        kun.Facts.EarlyLeaveMinutes.ShouldBe(0);
+        kun.Facts.OvertimeMinutes.ShouldBe(0);
+    }
+
+    [Fact]
+    public void Jadvalsiz_va_otishsiz_kunda_qator_yoq()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+
+        var kun = sahna.Day(Monday);
+
+        kun.ShouldStore.ShouldBeFalse();
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.NoSchedule);
+    }
+
+    /// <summary>#42.</summary>
+    [Fact]
+    public void Dam_olish_kunida_ishlagan_kechikish_va_erta_ketishsiz()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("09:00", "18:00", daysOff: [1]));
+        sahna.Alternating(Monday, "11:00", "15:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.DayOffWorked);
+        kun.ShouldStore.ShouldBeTrue();
+        kun.Facts.WorkedMinutes.ShouldBe(240);
+        kun.Facts.PlannedMinutes.ShouldBe(0);
+        kun.Facts.LateMinutes.ShouldBe(0);
+        kun.Facts.EarlyLeaveMinutes.ShouldBe(0);
+        kun.Facts.PlanStartAt.ShouldBeNull();
+        kun.Facts.WorkScheduleId.ShouldNotBeNull("jadval topildi — kun shunchaki ish kuni emas");
+    }
+
+    [Fact]
+    public void Dam_olish_kunida_otish_bolmasa_qator_yoq()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("09:00", "18:00", daysOff: [1]));
+
+        var kun = sahna.Day(Monday);
+
+        kun.ShouldStore.ShouldBeFalse();
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.DayOff);
+    }
+
+    /// <summary>#43. Kelmagan odam «bo'sh katak» emas — qator yoziladi.</summary>
+    [Fact]
+    public void Ish_kunida_otish_bolmasa_kelmagan_qatori_yoziladi()
+    {
+        var sahna = Office();
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.Absent);
+        kun.ShouldStore.ShouldBeTrue();
+        kun.Facts.WorkedMinutes.ShouldBe(0);
+        kun.Facts.PlannedMinutes.ShouldBe(540);
+        kun.Facts.LateMinutes.ShouldBe(0);
+        kun.Facts.EarlyLeaveMinutes.ShouldBe(0);
+    }
+
+    // ────────────────────── Mehnat munosabati ──────────────────────
+
+    /// <summary>
+    /// #44. Ishdan ketgan, propuski hamon ishlaydi — qator yoziladi va holati
+    /// <c>NotEmployed</c>: aynan HR ko'rishi kerak bo'lgan anomaliya, yashirilmaydi.
+    /// </summary>
+    [Fact]
+    public void Ishdan_ketganning_otishi_yashirilmaydi_ishlamaydi_holatida_yoziladi()
+    {
+        var sahna = new AttendanceScenario();
+        var munosabat = sahna.Employ();
+        munosabat.Terminate(new DateOnly(2026, 9, 10), reasonId: null).IsSuccess.ShouldBeTrue();
+        sahna.Assign(Schedule("09:00", "18:00"));
+        sahna.Alternating(Monday, "09:00", "18:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.ShouldStore.ShouldBeTrue();
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.NotEmployed);
+        kun.Facts.EmploymentId.ShouldBeNull();
+        kun.Facts.LegalEntityId.ShouldBeNull();
+        kun.Facts.DepartmentId.ShouldBeNull();
+        kun.Facts.WorkScheduleId.ShouldBeNull();
+        kun.Facts.WorkedMinutes.ShouldBe(540, "dalil — soatlar ham ko'rinadi");
+        kun.Facts.LateMinutes.ShouldBe(0);
+    }
+
+    [Fact]
+    public void Ishdan_ketganning_otishsiz_kunida_qator_yoq()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ().Terminate(new DateOnly(2026, 9, 10), reasonId: null).IsSuccess.ShouldBeTrue();
+        sahna.Assign(Schedule("09:00", "18:00"));
+
+        var kun = sahna.Day(Monday);
+
+        kun.ShouldStore.ShouldBeFalse();
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.NotEmployed);
+    }
+
+    [Fact]
+    public void Ishdan_ketgan_kunining_ozi_hali_ish_kuni()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ().Terminate(Monday, reasonId: null).IsSuccess.ShouldBeTrue();
+        sahna.Assign(Schedule("09:00", "18:00"));
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.Absent);
+        kunlar[1].Facts.Status.ShouldBe(AttendanceDayStatus.NotEmployed);
+        kunlar[1].ShouldStore.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Oy_orasida_ishga_kirganning_oldingi_kunlarida_qator_yoq()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ(hired: Tuesday);
+        sahna.Assign(Schedule("09:00", "18:00"));
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].ShouldStore.ShouldBeFalse();
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.NotEmployed);
+        kunlar[1].ShouldStore.ShouldBeTrue();
+        kunlar[1].Facts.Status.ShouldBe(AttendanceDayStatus.Absent);
+    }
+
+    /// <summary>#45. Ikki munosabat — BITTA kun; jadval va surat asosiysidan.</summary>
+    [Fact]
+    public void Ikki_munosabatda_kun_bitta_va_asosiysidan_olinadi()
+    {
+        var sahna = new AttendanceScenario();
+        var asosiyLavozim = Guid.CreateVersion7();
+        var qoshimchaLavozim = Guid.CreateVersion7();
+        var asosiyBolim = Guid.CreateVersion7();
+
+        var asosiy = sahna.Employ(departmentId: asosiyBolim, positionId: asosiyLavozim);
+        var qoshimcha = sahna.Employ(hired: new DateOnly(2025, 6, 1), positionId: qoshimchaLavozim);
+        qoshimcha.SetPrimary(false);
+
+        var ofis = Schedule("09:00", "18:00");
+        var tungi = Schedule("20:00", "08:00");
+        sahna.Assign(ofis, ScheduleScope.Position, asosiyLavozim);
+        sahna.Assign(tungi, ScheduleScope.Position, qoshimchaLavozim);
+        sahna.Alternating(Monday, "09:00", "18:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.EmploymentId.ShouldBe(asosiy.Id);
+        kun.Facts.LegalEntityId.ShouldBe(asosiy.LegalEntityId);
+        kun.Facts.DepartmentId.ShouldBe(asosiyBolim);
+        kun.Facts.PositionId.ShouldBe(asosiyLavozim);
+        kun.Facts.WorkScheduleId.ShouldBe(ofis.Id);
+        kun.ScheduleTier.ShouldBe(ScheduleScope.Position);
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.Present);
+    }
+
+    // ────────────────────── O'tishlar ──────────────────────
+
+    /// <summary>SPEC §5.7: soati 5 daqiqadan ko'p og'gan qurilmaning o'tishi odatdagidek hisoblanadi.</summary>
+    [Fact]
+    public void Soati_oggan_qurilmaning_otishi_odatdagidek_hisoblanadi()
+    {
+        var sahna = Office();
+
+        foreach (var (time, direction) in new[] { ("09:00", PassDirection.In), ("18:00", PassDirection.Out) })
+        {
+            var otish = AttendancePass.Record(
+                Guid.CreateVersion7(),
+                AttendanceIdentityProvider.Verifix,
+                "1001",
+                At(Monday, time),
+                receivedAt: At(Monday, time).AddMinutes(10),
+                dedupeKey: $"kalit-{time}",
+                direction: direction).Value;
+            otish.Resolve(sahna.EmployeeId, At(Monday, time));
+            otish.HasClockDrift.ShouldBeTrue();
+
+            sahna.Pass(PassReading.From(otish));
+        }
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
+        kun.WorkedMinutes.ShouldBe(540);
+    }
+
+    /// <summary>
+    /// SPEC §5.7: bog'lanmagan o'tish hech qaysi kunga tushmaydi. Hisoblovchi uni
+    /// jimgina tashlamaydi ham, qabul ham qilmaydi — chaqiruvchining xatosi baland ovozda chiqadi.
+    /// </summary>
+    [Fact]
+    public void Boglanmagan_otish_kunga_tushmaydi()
+    {
+        var sahna = Office();
+        sahna.Pass(new PassReading(Guid.CreateVersion7(), EmployeeId: null, At(Monday, "09:00"), PassDirection.In));
+
+        Should.Throw<ArgumentException>(() => sahna.Days(Monday));
+    }
+
+    [Fact]
+    public void Boshqa_xodimning_otishi_bu_xodimga_yozilmaydi()
+    {
+        var sahna = Office();
+        sahna.Pass(new PassReading(Guid.CreateVersion7(), Guid.CreateVersion7(), At(Monday, "09:00"), PassDirection.In));
+
+        Should.Throw<ArgumentException>(() => sahna.Days(Monday));
+    }
+
+    // ────────────────────── Natija shakli ──────────────────────
+
+    /// <summary>#50. Ikki marta hisoblash — bir xil natija (qayta hisoblash idempotent).</summary>
+    [Fact]
+    public void Ikki_marta_hisoblash_bir_xil_natija_beradi()
+    {
+        var sahna = Office(breakMinutes: 60, breakStart: "13:00", breakEnd: "14:00");
+        sahna.Alternating(Monday, "09:12", "12:58", "13:44", "17:31");
+        sahna.In(Tuesday, "08:59");
+
+        var birinchi = sahna.Days(Monday, Tuesday);
+        var ikkinchi = sahna.Days(Monday, Tuesday);
+
+        ikkinchi.ShouldBe(birinchi);
+    }
+
+    [Fact]
+    public void Sanalar_takrorsiz_va_tartib_bilan_qaytadi()
+    {
+        var sahna = Office();
+
+        var kunlar = sahna.Days(Tuesday, Monday, Tuesday);
+
+        kunlar.Select(kun => kun.LocalDate).ShouldBe(new[] { Monday, Tuesday });
+    }
+
+    /// <summary>
+    /// Toshkentda 09:00 — UTC 04:00. Yozuvga UTC lahza tushadi: <c>timestamptz</c>
+    /// boshqa siljishni qabul qilmaydi, «bazaga +5 yozish» esa bir lahzani ikki xil
+    /// o'qiladigan qilardi.
+    /// </summary>
+    [Fact]
+    public void Yoziladigan_lahzalar_UTC_da()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:00", "18:00");
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.PlanStartAt.ShouldBe(new DateTimeOffset(2026, 9, 14, 4, 0, 0, TimeSpan.Zero));
+        kun.PlanStartAt!.Value.Offset.ShouldBe(TimeSpan.Zero);
+        kun.PlanEndAt!.Value.Offset.ShouldBe(TimeSpan.Zero);
+        kun.FirstInAt!.Value.Offset.ShouldBe(TimeSpan.Zero);
+        kun.LastOutAt!.Value.Offset.ShouldBe(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void Otish_yuklanadigan_sanalar_ikki_tomonga_bir_kunga_kengayadi()
+    {
+        AttendanceDayBuilder.PassDatesNeeded(Monday, Tuesday).ShouldBe((Monday.AddDays(-1), Tuesday.AddDays(1)));
+    }
+}

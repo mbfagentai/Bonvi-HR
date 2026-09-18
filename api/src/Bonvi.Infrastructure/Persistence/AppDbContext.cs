@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
@@ -231,6 +232,50 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Botda to'ldirilgan anketalar (<c>candidate_questionnaires</c>).</summary>
     public DbSet<CandidateQuestionnaire> CandidateQuestionnaires => Set<CandidateQuestionnaire>();
+
+    // ────────────────────────────────────────────────────────────
+    //  DAVOMAT / VERIFIKATSIYA (3-bosqich)
+    //  Turniket va yuz terminallari to'g'ridan-to'g'ri bizga yozadi.
+    //  Ikkita ajratish butun modulning asosi:
+    //    • XOM O'TISH (`attendance_passes`) — qurilma nima aytgani,
+    //      o'zgarmaydi;
+    //    • HISOBLANGAN KUN (`attendance_days`) — biz undan nima xulosa
+    //      qilganimiz, jadval yoki moslik tuzatilsa qayta yoziladi.
+    //  Qo'lda tahrir YO'Q: noto'g'ri son manbada tuzatiladi
+    //  (moslik, jadval, qurilma soati), keyin kun qayta hisoblanadi.
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Terminallar reyestri (<c>attendance_devices</c>).</summary>
+    public DbSet<AttendanceDevice> AttendanceDevices => Set<AttendanceDevice>();
+
+    /// <summary>Qurilma raqami ↔ xodim mosliklari (<c>attendance_identities</c>).</summary>
+    /// <remarks>
+    /// <c>Employment</c> dagi bitta «Verifix ID» ustunining O'RNIGA turadi
+    /// va u ataylab qurilmadi — sababi <see cref="AttendanceIdentity"/>
+    /// izohida.
+    /// </remarks>
+    public DbSet<AttendanceIdentity> AttendanceIdentities => Set<AttendanceIdentity>();
+
+    /// <summary>Xom o'tishlar (<c>attendance_passes</c>).</summary>
+    public DbSet<AttendancePass> AttendancePasses => Set<AttendancePass>();
+
+    /// <summary>Ish jadvallari (<c>work_schedules</c>).</summary>
+    public DbSet<WorkSchedule> WorkSchedules => Set<WorkSchedule>();
+
+    /// <summary>Jadval kunlari (<c>work_schedule_days</c>).</summary>
+    /// <remarks>
+    /// Yozish DOIM jadval agregati orqali ketadi (yettala kun uning
+    /// invarianti). Bu to'plam o'qish modeli uchun kerak: tabel bir oyga
+    /// yettita kunni bir marta o'qiydi, jadvallarni bolalari bilan
+    /// yuklamasdan — <see cref="CandidateFiles"/> bilan bir xil qaror.
+    /// </remarks>
+    public DbSet<WorkScheduleDay> WorkScheduleDays => Set<WorkScheduleDay>();
+
+    /// <summary>Jadval biriktirmalari (<c>schedule_assignments</c>).</summary>
+    public DbSet<ScheduleAssignment> ScheduleAssignments => Set<ScheduleAssignment>();
+
+    /// <summary>Hisoblangan kunlar — tabelning kataklari (<c>attendance_days</c>).</summary>
+    public DbSet<AttendanceDay> AttendanceDays => Set<AttendanceDay>();
 
     // ────────────────────────────────────────────────────────────
     //  BILDIRISHNOMALAR

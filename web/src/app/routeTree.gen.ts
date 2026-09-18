@@ -36,6 +36,13 @@ import { Route as AppMalumotnomalarYonalishlarRouteImport } from './routes/_app/
 import { Route as AppMalumotnomalarYuridikShaxslarRouteImport } from './routes/_app/malumotnomalar/yuridik-shaxslar'
 import { Route as AppNomzodlarIndexRouteImport } from './routes/_app/nomzodlar/index'
 import { Route as AppNomzodlarCandidateIdRouteImport } from './routes/_app/nomzodlar/$candidateId'
+import { Route as AppVerifikatsiyaHisobotlarRouteImport } from './routes/_app/verifikatsiya/hisobotlar'
+import { Route as AppVerifikatsiyaJadvallarRouteImport } from './routes/_app/verifikatsiya/jadvallar'
+import { Route as AppVerifikatsiyaJonliRouteImport } from './routes/_app/verifikatsiya/jonli'
+import { Route as AppVerifikatsiyaMoslashtirishRouteImport } from './routes/_app/verifikatsiya/moslashtirish'
+import { Route as AppVerifikatsiyaOtishlarRouteImport } from './routes/_app/verifikatsiya/otishlar'
+import { Route as AppVerifikatsiyaQurilmalarRouteImport } from './routes/_app/verifikatsiya/qurilmalar'
+import { Route as AppVerifikatsiyaTabelRouteImport } from './routes/_app/verifikatsiya/tabel'
 import { Route as AppXodimlarIndexRouteImport } from './routes/_app/xodimlar/index'
 import { Route as AppXodimlarEmployeeIdRouteImport } from './routes/_app/xodimlar/$employeeId'
 
@@ -182,6 +189,46 @@ const AppNomzodlarCandidateIdRoute = AppNomzodlarCandidateIdRouteImport.update({
   path: '/nomzodlar/$candidateId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVerifikatsiyaHisobotlarRoute =
+  AppVerifikatsiyaHisobotlarRouteImport.update({
+    id: '/verifikatsiya/hisobotlar',
+    path: '/verifikatsiya/hisobotlar',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppVerifikatsiyaJadvallarRoute =
+  AppVerifikatsiyaJadvallarRouteImport.update({
+    id: '/verifikatsiya/jadvallar',
+    path: '/verifikatsiya/jadvallar',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppVerifikatsiyaJonliRoute = AppVerifikatsiyaJonliRouteImport.update({
+  id: '/verifikatsiya/jonli',
+  path: '/verifikatsiya/jonli',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVerifikatsiyaMoslashtirishRoute =
+  AppVerifikatsiyaMoslashtirishRouteImport.update({
+    id: '/verifikatsiya/moslashtirish',
+    path: '/verifikatsiya/moslashtirish',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppVerifikatsiyaOtishlarRoute =
+  AppVerifikatsiyaOtishlarRouteImport.update({
+    id: '/verifikatsiya/otishlar',
+    path: '/verifikatsiya/otishlar',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppVerifikatsiyaQurilmalarRoute =
+  AppVerifikatsiyaQurilmalarRouteImport.update({
+    id: '/verifikatsiya/qurilmalar',
+    path: '/verifikatsiya/qurilmalar',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppVerifikatsiyaTabelRoute = AppVerifikatsiyaTabelRouteImport.update({
+  id: '/verifikatsiya/tabel',
+  path: '/verifikatsiya/tabel',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppXodimlarIndexRoute = AppXodimlarIndexRouteImport.update({
   id: '/xodimlar/',
   path: '/xodimlar/',
@@ -219,6 +266,13 @@ export interface FileRoutesByFullPath {
   '/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
   '/malumotnomalar/yuridik-shaxslar': typeof AppMalumotnomalarYuridikShaxslarRoute
   '/nomzodlar/$candidateId': typeof AppNomzodlarCandidateIdRoute
+  '/verifikatsiya/hisobotlar': typeof AppVerifikatsiyaHisobotlarRoute
+  '/verifikatsiya/jadvallar': typeof AppVerifikatsiyaJadvallarRoute
+  '/verifikatsiya/jonli': typeof AppVerifikatsiyaJonliRoute
+  '/verifikatsiya/moslashtirish': typeof AppVerifikatsiyaMoslashtirishRoute
+  '/verifikatsiya/otishlar': typeof AppVerifikatsiyaOtishlarRoute
+  '/verifikatsiya/qurilmalar': typeof AppVerifikatsiyaQurilmalarRoute
+  '/verifikatsiya/tabel': typeof AppVerifikatsiyaTabelRoute
   '/xodimlar/$employeeId': typeof AppXodimlarEmployeeIdRoute
   '/nomzodlar/': typeof AppNomzodlarIndexRoute
   '/xodimlar/': typeof AppXodimlarIndexRoute
@@ -249,6 +303,13 @@ export interface FileRoutesByTo {
   '/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
   '/malumotnomalar/yuridik-shaxslar': typeof AppMalumotnomalarYuridikShaxslarRoute
   '/nomzodlar/$candidateId': typeof AppNomzodlarCandidateIdRoute
+  '/verifikatsiya/hisobotlar': typeof AppVerifikatsiyaHisobotlarRoute
+  '/verifikatsiya/jadvallar': typeof AppVerifikatsiyaJadvallarRoute
+  '/verifikatsiya/jonli': typeof AppVerifikatsiyaJonliRoute
+  '/verifikatsiya/moslashtirish': typeof AppVerifikatsiyaMoslashtirishRoute
+  '/verifikatsiya/otishlar': typeof AppVerifikatsiyaOtishlarRoute
+  '/verifikatsiya/qurilmalar': typeof AppVerifikatsiyaQurilmalarRoute
+  '/verifikatsiya/tabel': typeof AppVerifikatsiyaTabelRoute
   '/xodimlar/$employeeId': typeof AppXodimlarEmployeeIdRoute
   '/nomzodlar': typeof AppNomzodlarIndexRoute
   '/xodimlar': typeof AppXodimlarIndexRoute
@@ -281,6 +342,13 @@ export interface FileRoutesById {
   '/_app/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
   '/_app/malumotnomalar/yuridik-shaxslar': typeof AppMalumotnomalarYuridikShaxslarRoute
   '/_app/nomzodlar/$candidateId': typeof AppNomzodlarCandidateIdRoute
+  '/_app/verifikatsiya/hisobotlar': typeof AppVerifikatsiyaHisobotlarRoute
+  '/_app/verifikatsiya/jadvallar': typeof AppVerifikatsiyaJadvallarRoute
+  '/_app/verifikatsiya/jonli': typeof AppVerifikatsiyaJonliRoute
+  '/_app/verifikatsiya/moslashtirish': typeof AppVerifikatsiyaMoslashtirishRoute
+  '/_app/verifikatsiya/otishlar': typeof AppVerifikatsiyaOtishlarRoute
+  '/_app/verifikatsiya/qurilmalar': typeof AppVerifikatsiyaQurilmalarRoute
+  '/_app/verifikatsiya/tabel': typeof AppVerifikatsiyaTabelRoute
   '/_app/xodimlar/$employeeId': typeof AppXodimlarEmployeeIdRoute
   '/_app/nomzodlar/': typeof AppNomzodlarIndexRoute
   '/_app/xodimlar/': typeof AppXodimlarIndexRoute
@@ -313,6 +381,13 @@ export interface FileRouteTypes {
     | '/malumotnomalar/yonalishlar'
     | '/malumotnomalar/yuridik-shaxslar'
     | '/nomzodlar/$candidateId'
+    | '/verifikatsiya/hisobotlar'
+    | '/verifikatsiya/jadvallar'
+    | '/verifikatsiya/jonli'
+    | '/verifikatsiya/moslashtirish'
+    | '/verifikatsiya/otishlar'
+    | '/verifikatsiya/qurilmalar'
+    | '/verifikatsiya/tabel'
     | '/xodimlar/$employeeId'
     | '/nomzodlar/'
     | '/xodimlar/'
@@ -343,6 +418,13 @@ export interface FileRouteTypes {
     | '/malumotnomalar/yonalishlar'
     | '/malumotnomalar/yuridik-shaxslar'
     | '/nomzodlar/$candidateId'
+    | '/verifikatsiya/hisobotlar'
+    | '/verifikatsiya/jadvallar'
+    | '/verifikatsiya/jonli'
+    | '/verifikatsiya/moslashtirish'
+    | '/verifikatsiya/otishlar'
+    | '/verifikatsiya/qurilmalar'
+    | '/verifikatsiya/tabel'
     | '/xodimlar/$employeeId'
     | '/nomzodlar'
     | '/xodimlar'
@@ -374,6 +456,13 @@ export interface FileRouteTypes {
     | '/_app/malumotnomalar/yonalishlar'
     | '/_app/malumotnomalar/yuridik-shaxslar'
     | '/_app/nomzodlar/$candidateId'
+    | '/_app/verifikatsiya/hisobotlar'
+    | '/_app/verifikatsiya/jadvallar'
+    | '/_app/verifikatsiya/jonli'
+    | '/_app/verifikatsiya/moslashtirish'
+    | '/_app/verifikatsiya/otishlar'
+    | '/_app/verifikatsiya/qurilmalar'
+    | '/_app/verifikatsiya/tabel'
     | '/_app/xodimlar/$employeeId'
     | '/_app/nomzodlar/'
     | '/_app/xodimlar/'
@@ -575,6 +664,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNomzodlarCandidateIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/verifikatsiya/hisobotlar': {
+      id: '/_app/verifikatsiya/hisobotlar'
+      path: '/verifikatsiya/hisobotlar'
+      fullPath: '/verifikatsiya/hisobotlar'
+      preLoaderRoute: typeof AppVerifikatsiyaHisobotlarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/verifikatsiya/jadvallar': {
+      id: '/_app/verifikatsiya/jadvallar'
+      path: '/verifikatsiya/jadvallar'
+      fullPath: '/verifikatsiya/jadvallar'
+      preLoaderRoute: typeof AppVerifikatsiyaJadvallarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/verifikatsiya/jonli': {
+      id: '/_app/verifikatsiya/jonli'
+      path: '/verifikatsiya/jonli'
+      fullPath: '/verifikatsiya/jonli'
+      preLoaderRoute: typeof AppVerifikatsiyaJonliRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/verifikatsiya/moslashtirish': {
+      id: '/_app/verifikatsiya/moslashtirish'
+      path: '/verifikatsiya/moslashtirish'
+      fullPath: '/verifikatsiya/moslashtirish'
+      preLoaderRoute: typeof AppVerifikatsiyaMoslashtirishRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/verifikatsiya/otishlar': {
+      id: '/_app/verifikatsiya/otishlar'
+      path: '/verifikatsiya/otishlar'
+      fullPath: '/verifikatsiya/otishlar'
+      preLoaderRoute: typeof AppVerifikatsiyaOtishlarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/verifikatsiya/qurilmalar': {
+      id: '/_app/verifikatsiya/qurilmalar'
+      path: '/verifikatsiya/qurilmalar'
+      fullPath: '/verifikatsiya/qurilmalar'
+      preLoaderRoute: typeof AppVerifikatsiyaQurilmalarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/verifikatsiya/tabel': {
+      id: '/_app/verifikatsiya/tabel'
+      path: '/verifikatsiya/tabel'
+      fullPath: '/verifikatsiya/tabel'
+      preLoaderRoute: typeof AppVerifikatsiyaTabelRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/xodimlar/': {
       id: '/_app/xodimlar/'
       path: '/xodimlar'
@@ -617,6 +755,13 @@ interface AppRouteChildren {
   AppMalumotnomalarYonalishlarRoute: typeof AppMalumotnomalarYonalishlarRoute
   AppMalumotnomalarYuridikShaxslarRoute: typeof AppMalumotnomalarYuridikShaxslarRoute
   AppNomzodlarCandidateIdRoute: typeof AppNomzodlarCandidateIdRoute
+  AppVerifikatsiyaHisobotlarRoute: typeof AppVerifikatsiyaHisobotlarRoute
+  AppVerifikatsiyaJadvallarRoute: typeof AppVerifikatsiyaJadvallarRoute
+  AppVerifikatsiyaJonliRoute: typeof AppVerifikatsiyaJonliRoute
+  AppVerifikatsiyaMoslashtirishRoute: typeof AppVerifikatsiyaMoslashtirishRoute
+  AppVerifikatsiyaOtishlarRoute: typeof AppVerifikatsiyaOtishlarRoute
+  AppVerifikatsiyaQurilmalarRoute: typeof AppVerifikatsiyaQurilmalarRoute
+  AppVerifikatsiyaTabelRoute: typeof AppVerifikatsiyaTabelRoute
   AppXodimlarEmployeeIdRoute: typeof AppXodimlarEmployeeIdRoute
   AppNomzodlarIndexRoute: typeof AppNomzodlarIndexRoute
   AppXodimlarIndexRoute: typeof AppXodimlarIndexRoute
@@ -648,6 +793,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppMalumotnomalarYonalishlarRoute: AppMalumotnomalarYonalishlarRoute,
   AppMalumotnomalarYuridikShaxslarRoute: AppMalumotnomalarYuridikShaxslarRoute,
   AppNomzodlarCandidateIdRoute: AppNomzodlarCandidateIdRoute,
+  AppVerifikatsiyaHisobotlarRoute: AppVerifikatsiyaHisobotlarRoute,
+  AppVerifikatsiyaJadvallarRoute: AppVerifikatsiyaJadvallarRoute,
+  AppVerifikatsiyaJonliRoute: AppVerifikatsiyaJonliRoute,
+  AppVerifikatsiyaMoslashtirishRoute: AppVerifikatsiyaMoslashtirishRoute,
+  AppVerifikatsiyaOtishlarRoute: AppVerifikatsiyaOtishlarRoute,
+  AppVerifikatsiyaQurilmalarRoute: AppVerifikatsiyaQurilmalarRoute,
+  AppVerifikatsiyaTabelRoute: AppVerifikatsiyaTabelRoute,
   AppXodimlarEmployeeIdRoute: AppXodimlarEmployeeIdRoute,
   AppNomzodlarIndexRoute: AppNomzodlarIndexRoute,
   AppXodimlarIndexRoute: AppXodimlarIndexRoute,

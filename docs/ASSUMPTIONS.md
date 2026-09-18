@@ -252,3 +252,394 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   o'n minglarga chiqsa — qisman indeks (`interview_at IS NOT NULL`)
   qo'shiladigan birinchi joy `NotificationReadModel` da izoh bilan
   belgilangan.
+- ~~[2026-09-17] Davomat: tanaffus ishlangan daqiqalardan ayiriladimi (SPEC
+  talabi «tabel qoidalari» degan, javobini bermagan)? → YO'Q, tanafus faqat
+  REJA daqiqalarini kamaytiradi → turniket tushlikka chiqishni allaqachon
+  yozadi, ya'ni oraliq yig'indida yo'q; ikkinchi marta ayirish bir tushlik
+  uchun ikki marta jazolash bo'lardi. Binodan chiqmagan odamda esa dalil
+  umuman yo'q va 1-versiya taxmin qilmaydi.~~
+  ✅ **BEKOR QILINDI (2026-09-17, egasining javobi).** Tanaffus AYIRILADI,
+  lekin faqat belgilangan OYNAGA nisbatan: `work_schedule_days` ga
+  `break_start`/`break_end` qo'shildi va
+  `breakDeduction = max(0, break_minutes − breakTaken)`, bunda `breakTaken`
+  — oyna bilan xodim BINODAN TASHQARIDA bo'lgan oraliqlarning kesishmasi.
+  Oyna berilmagan kunda ayirish YO'Q — shu sababli amendment'dan oldin
+  yaratilgan jadvallar avvalgidek ishlayveradi. Eski qarorning ruhi saqlandi
+  («bir tushlik uchun ikki marta jazolanmaydi»), farqi shundaki endi bu
+  TAXMIN emas, TEKSHIRILADI (`SPEC-verifikatsiya.md` §2.4.0, §5.5.1).
+  ⚠️ **Formula keyin o'zgardi (§13 #14, 2026-09-17):** endi
+  `max(0, min(break_minutes − breakTaken, presentInWindow))` — pastdagi
+  yozuvga qarang.
+- [2026-09-17] `attendance_days` mehnat munosabatiga emas, XODIMGA
+  bog'landi → turniket shaxsni yozadi, bitta jismoniy hozir bo'lishni ikki
+  yuridik shaxsga bo'lib bo'lmaydi; jadval va tashkiliy kesim ASOSIY
+  munosabatdan olinadi va qatorga nusxa qilinadi (§5.1).
+- [2026-09-17] `Employment.ExternalRef` (PLAN.md §8 dagi 3-bosqich ilgagi)
+  qo'shilmaydi → o'rniga `attendance_identities` jadvali → bitta ustun bitta
+  id saqlaydi va tarixni saqlamaydi, talab esa bitta xodimda bir nechta
+  qurilma idsi va bog'lash/uzish tarixi. Id SHAXSGA tegishli, shartnomaga
+  emas: qayta ishga kelgan odamda yangi `Employment` ochiladi, yuzi esa
+  o'sha-o'sha (§2.11).
+- [2026-09-17] `CrossesMidnight` ustun sifatida saqlanmaydi (taklifda
+  «bayroq» deyilgan) → hisoblanadigan xossa (`EndTime <= StartTime`) →
+  saqlangan bayroq o'zi tasvirlagan ikki vaqt bilan zid bo'lib qolishi
+  mumkin va o'shanda tabel manfiy oraliq hisoblab, −16 soatni ma'lumot
+  sifatida ko'rsatardi (§2.4.1).
+- [2026-09-17] Jadval biriktirmasida «lavozim + bo'lim» juftligi darajasi
+  yo'q (taklifda ierarxiya aniq aytilmagan) → to'rt daraja: Xodim →
+  Lavozim → Bo'lim (daraxt bo'ylab yuqoriga) → Standart → beshinchi daraja
+  ustunlik jadvalini ikki barobar qilardi va so'ralgan ehtiyoj yo'q; kerak
+  bo'lsa `scope = 5` bo'lib qo'shiladi (§2.5, §5.2).
+- [2026-09-17] Ingest endpoint'i HMAC imzosini TALAB QILMAYDI (xavfsizlik
+  talabi imzoni so'ragan) → Hikvision «HTTP Listening» faqat URL beradi,
+  sarlavha ham, imzo ham qo'ya olmaydi → qurilmada `auth_mode = Token`
+  (yo'l ichidagi 256-bitli token), imzo esa `TokenAndHmac` rejimida tayyor
+  turadi va kelajakdagi agent/ZKTeco adapteri uchun sozlama bo'lib qoladi
+  (§3.2).
+- [2026-09-17] Yo'ldagi token log'ga tushib ketadimi → `ErrorLogFormatter`
+  ga bitta qoida qo'shiladi: `/api/attendance/ingest/**` →
+  `/api/attendance/ingest/***` → so'rov yo'li Serilog'da yoziladi va
+  `IncludeQueryInRequestPath = false` faqat qidiruv qismini tozalaydi,
+  ya'ni tokenni to'xtatmaydi (§3.3).
+- [2026-09-17] Ingest autentifikatsiyasining TO'RT xil xatosi bitta kod
+  bilan qaytadi (`davomat.ingest_ruxsat_yoq`, 401) → tekshiruvchi qaysi
+  bosqichda yiqilganini bilmasligi kerak; haqiqiy sabab faqat log'da.
+  Faolsiz qurilma esa ATAYLAB ajratilgan (403) — chaqiruvchida yaroqli
+  token bor va o'rnatuvchiga «o'chirilgan» degan javob kerak (§3.2).
+- [2026-09-17] Dedupe kaliti qanday (qurilma `serialNo` bermasligi mumkin)
+  → bitta `dedupe_key` ustuni ikki shaklda: `s:<serialNo>` yoki
+  `t:<shaxs>|<soniyagacha vaqt>|<yo'nalish>`, unikal indeks
+  `(device_id, dedupe_key)` → ikkita alohida indeks bir xil hodisani ikki
+  marta o'tkazib yuborardi; soniyagacha qisqartirish ataylab — ba'zi
+  proshivkalar millisekund farqi bilan qayta yuboradi (§3.6).
+- [2026-09-17] Soat xatosi katta bo'lgan o'tish tashlab yuboriladimi →
+  YO'Q, 30 kungacha SAQLANADI va belgilanadi, 30 kundan oshsa rad etiladi
+  (400) → besh daqiqa shoshayotgan qurilma kim o'tgani haqida rost gapiradi
+  va uni tashlash odamni «kelmagan» hisobotiga tushirardi; 1970-yilni
+  ko'rsatayotgani esa xato emas, buzuq — u `attendance_days` ni ma'nosiz
+  sanalarga sochib yuborardi (§3.8).
+- [2026-09-17] Hangfire faqat paket havolasi edi, hech qayerda ulanmagan →
+  shu modul ulaydi (`Startup/BackgroundJobs.cs`, `hangfire` sxemasi,
+  `WorkerCount = 2`), dashboard marshruti YO'Q va `Testing` muhitida server
+  umuman ishga tushmaydi → dashboard sukut bo'yicha himoyasiz admin sahifa;
+  test muhitida fon oqimi bazani test o'rtasida o'zgartirib turardi (§9.1).
+- [2026-09-17] Hisoblangan kunni HR qo'lda tuzata oladimi → YO'Q, va
+  bunday endpoint umuman yo'q → tabel tahrirlanadigan bo'lsa dalil
+  bo'lishdan to'xtaydi va har bir bahs «kim o'zgartirgan» ga aylanadi;
+  noto'g'ri ma'lumot MANBADA tuzatiladi (moslik, jadval, qurilma soati,
+  ro'yxatdan o'tmagan qurilma) va qayta hisoblanadi (§1.2 #5, §5.8).
+  ⚠️ **QISMAN o'zgardi (2026-09-17, egasining javobi):** o'tish yozuvi
+  QO'LDA o'chirilmaydi va endpoint ham yo'q — bu o'z kuchida. Lekin arxiv
+  endi MUDDAT bilan eskiradi (`attendance.passRetentionDays`, standart 365
+  kun, `0` — hech qachon). Farqi printsipial: muddat siyosati hamma uchun
+  bir xil, oldindan e'lon qilingan va sozlamalar ekranida ko'rinib turadi;
+  qo'lda o'chirish esa tanlab, jimgina va voqeadan keyin bo'ladi. Birinchisi
+  — oddiy arxiv boshqaruvi, ikkinchisi yozuvning ishonchliligini yo'q
+  qiladi. `attendance_days` (tabel, soatlar, kechikish) HECH QACHON
+  o'chirilmaydi (§1.2 #5, §2.9, §9.2.1).
+- [2026-09-17] ~~Faqat~~ `attendance.photoRetentionDays` tizim sozlamasiga
+  chiqariladi, qolgan chegaralar (bounce, skew, oyna) domen konstantasi
+  (`AttendanceRules`) → har bir sozlama ekranda qator, ta'rif, chegara va
+  to'rtta tarjima talab qiladi; boshqasi so'ralmagan va konstantani keyin
+  sozlamaga ko'chirish bir qatorlik ish (§2.8).
+  ✅ **TUZATILDI (2026-09-17):** sozlama endi IKKITA — unga
+  `attendance.passRetentionDays` qo'shildi (egasining qarori). Qolgan
+  chegaralar haqidagi qoida o'zgarmadi.
+- [2026-09-17] Tanaffus oynasi kesib o'tuvchi (tungi) smenada qanday
+  tekshiriladi (egasi «smenaning o'z o'qida» degan, formulani bermagan) →
+  uchala vaqt ham smena boshidan boshlab daqiqaga o'giriladi
+  (`offset(t) = (t − start_time + 1440) mod 1440`) va oyna
+  `0 <= offset(start) < offset(end) <= shiftLength` shartiga tekshiriladi →
+  xom soat qiymatlari solishtirilsa, 20:00→08:00 smenadagi 00:30 tanaffus
+  «smenadan oldin» bo'lib ko'rinardi va yaroqli jadval rad etilardi
+  (`SPEC-verifikatsiya.md` §2.4.0.1).
+- [2026-09-17] `last_out_at` dan keyingi vaqt tanaffus deb hisoblanadimi →
+  YO'Q, u «tashqarida bo'lgan oraliq» emas → aks holda soat 12:55 da uyga
+  ketgan odamga butun tanaffus hisoblanib, ayirish KAMAYARDI, ya'ni erta
+  ketish natijani YAXSHILARDI. Bu yaxlitlash farqi emas, teskari rag'bat —
+  ayirish qila oladigan eng yomon ish (§5.5.1).
+  ⚠️ **Misol eskirdi (2026-09-17):** `presentInWindow` cheklovidan keyin
+  12:55 dagi odamdan ikkala o'qishda ham 0 ayiriladi. Qoida o'z kuchida, chunki
+  tanaffus oynadan QISQA bo'lganda farq qoladi: 13:00–14:00 oynada 30 daqiqalik
+  tanaffus, 13:45 da uyga ketgan — qabul qilingan o'qishda 30, «dum» hisoblansa
+  15 ayirilardi (§5.5.1 da misol yangilandi).
+- [2026-09-17] Tanaffus oynasi belgilanmagan kunda nima bo'ladi →
+  AYIRISH UMUMAN YO'Q → davomiylikni oynasiz kunning biror qismiga bog'lab
+  bo'lmaydi: 13:10 dagi chiqish tushlikmi yoki yumushmi — bilib bo'lmaydi, va
+  taxmin qilish aynan egasi rad etgan narsa. Yon foydasi: amendment'dan
+  oldingi jadvallar hech qanday migratsiyasiz avvalgidek ishlaydi (§5.5.1).
+- [2026-09-17] `passRetentionDays` va `photoRetentionDays` nomuvofiq
+  qo'yilsa (masalan 30 va 60) → saqlash rad etiladi
+  (`davomat.saqlash_muddati_nomuvofiq`), ish esa baribir
+  `max(pass, photo)` bilan ishlaydi → surat FAYLI o'tish qatori orqali
+  topiladi; qator oldin o'chsa fayl abadiy qolib ketardi va uni hech kim
+  topa olmasdi. Ikki qatlam ataylab: bu xato diskni JIMGINA to'ldiradi
+  (§2.9, §9.2.1).
+- [2026-09-17] `passRetentionDays = 0` nimani anglatadi (egasi «0 = never
+  delete» degan, `photoRetentionDays` da esa min 7) → `0` faqat O'TISH
+  muddatida qabul qilinadi va «hech qachon o'chirma» degani; surat
+  muddatida `0` umuman yo'q → ikkalasiga qarama-qarshi himoya kerak:
+  suratda `0` bugungi rasmlarni o'chirardi (u aynan o'sha hafta kerak),
+  o'tishda esa `0` — auditor qo'yishi mumkin bo'lgan qonuniy siyosat (§2.9).
+- [2026-09-17] Ishdan ketgan xodimning o'tishi qayerda ko'rinadi (egasi
+  «jadvalda ko'milgan holat qiymati bo'lmasin» degan, joyini aytmagan) →
+  UCHTA joyda: jonli taxtaning ENG TEPASIDA yopib bo'lmaydigan qizil
+  ogohlantirish, qurilmalar sahifasida qisqa qator, yon menyuda xavf
+  rangidagi sanoq → tuzatish qurilmada bajariladi, ya'ni ogohlantirish
+  qurilmalar sahifasidan ham ko'rinishi kerak; sanoq esa tizimning istalgan
+  ekranidan bilinadi. Hisoblash `attendance_passes` dan, tungi ishdan EMAS —
+  talab «sodir bo'lgan ONDA» edi (§6.5, §8.4, §8.7).
+- [2026-09-17] Ogohlantirishga filtr (bo'lim, qidiruv) qo'llanadimi → YO'Q →
+  ishdan ketgan odamning joriy bo'limi yo'q, va bo'lim filtri yashira
+  oladigan xavfsizlik ogohlantirishi — ogohlantirish emas (§6.5).
+- [2026-09-17] O'tishlarni tozalash ishi `attendance_days` ni «iflos» deb
+  belgilaydimi → YO'Q, va bu bosh harflar bilan yozilgan taqiq →
+  keyin ishga tushgan qayta hisoblash kunni TIRIK QOLGAN o'tishlardan
+  qaytadan yig'ardi va bir yillik tabelni jimgina nolga aylantirardi. Bu
+  moduldagi eng zararli xato (§9.2.1, §11.1 #67).
+- [2026-09-17] SPEC dagi tanaffus xato kodlari (oltita, o'ylab topilgan) B1
+  yozgan koddan farq qiladi → SPEC KODGA moslashtirildi: uchta kod
+  (`davomat.jadval_tanaffus_toliq_emas`, `…_oynasi`, `…_uzunligi`), dam olish
+  kunidagi oyna rad etilmaydi — jimgina tozalanadi, `break_minutes = 0` li oyna
+  qabul qilinadi → B1 ning tanlovi asosli (operator uchun «oyna bo'sh» va
+  «oyna smenadan tashqarida» bitta xato), kod tayyor va tekshirilgan; SPEC ni
+  ushlab turish faqat qayta ish talab qilardi (`SPEC-verifikatsiya.md` §2.4.0,
+  §6.9).
+- [2026-09-17] `ck_work_schedule_days_break_window` da `break_minutes > 0`
+  sharti yo'q (SPEC loyihasida bor edi) → SPEC migratsiyaga moslashtirildi,
+  shart QO'SHILMAYDI → uni qo'shish ikkinchi migratsiya demak, qoida esa
+  zararsiz: davomiyligi 0 bo'lgan oyna hech narsa ayirmaydi (§2.4.0).
+- [2026-09-17] `davomat.xodim_topilmadi` va `davomat.jadval_topilmadi` B1
+  kodida BO'SH id uchun `Error.Validation` (400) bo'lib chiqadi, SPEC da esa
+  «topilmadi» (404) → bu yerda KOD noto'g'ri, SPEC emas; bo'sh id uchun
+  `davomat.xodim_yoq` / `davomat.jadval_yoq` talab qilinadi → butun
+  `api/src` da `*_yoq` = Validation «ko'rsatilmagan», `*_topilmadi` = NotFound
+  «mavjud emas» (`mehnat.xodim_yoq`, `baxtsiz_hodisa.xodim_yoq` /
+  `baxtsiz_hodisa.xodim_topilmadi`); bu ikki qator yagona istisno. Qoldirilsa
+  bitta kod ikki HTTP holati va ikki ma'no oladi, `./bonvi check` esa buni
+  ushlay olmaydi (§6.9.1).
+- [2026-09-17] B1 ning `WorkScheduleDay.ValidateBreakWindow` tungi smenada
+  xato qiladi degan gumon → GUMON NOTO'G'RI chiqdi: `TimeOnly` ayirmasi 24
+  soat bo'yicha aylanadi va natija har doim [0, 24 soat) da, ya'ni kod §2.4.0.1
+  ga aynan mos. Haqiqiy nuqson SPEC ning O'Z matnida edi: §5.5.1 «§2.4.0.1
+  oynani allaqachon lahzaga aylantirgan» deb yozgandi, holbuki u faqat
+  tekshiruv siljishlarini beradi → formula qo'shildi:
+  `breakWindowStart = plan_start_at + (break_start − start_time)` → aks holda
+  quruvchi sanani soat bilan qo'shib (`D + break_start`) dushanba kechasidagi
+  00:30 tanaffusni DUSHANBA 00:30 ga qo'yardi va har bir tungi smena xodimidan
+  har kecha butun tanaffus jimgina ayirilardi (§5.5.1, §11.1 #61).
+- [2026-09-17] Davomat B4: hech bir kun oynasiga tushmagan o'tish (masalan
+  ofis xodimining 01:00 dagi chiqishi) qaysi kunga yoziladi (§5.3 aytmaydi)
+  → o'z `local_date` iga → SPEC «jadval yo'q ⇒ o'z sanasi» deydi; eng
+  yaqin smenaga «yopishtirish» hech kim ko'rmaydigan taxmin bo'lardi.
+- [2026-09-17] Davomat B4: ochiq oraliq ustiga yana kirish (sakrash
+  oynasidan tashqarida) → oldingi oraliq tashlab ketiladi, daqiqa bermaydi,
+  `MissingExit` belgilanadi → ketma-ket ikki chiqishdagi `MissingEntry` bilan
+  simmetrik; oraliqni birinchi kirishdan hisoblash biz bilmagan vaqtni
+  ishlangan deb yozardi.
+- [2026-09-17] Davomat B4: sakrash chegarasi → roppa-rosa 60 s ham sakrash
+  (`<=`), solishtirish oxirgi SAQLANGAN o'tish bilan; `pass_count` sakrashlarni
+  HAM sanaydi → «10 ta o'tishdan 8 tasi sanaldi» savoliga javob shu ikki son
+  (`AttendanceRules.BounceSeconds` izohi).
+- [2026-09-17] Davomat B4: ikki yopilgan oraliq orasida yetim chiqish yoki
+  tashlab ketilgan kirish bo'lsa, «tashqarida o'tgan vaqt» qayerdan boshlanadi
+  → oldingi YOPILGAN oraliqning oxiridan keyingi YOPILGAN oraliqning boshigacha;
+  orasidagi o'tishlar chegarani siljitmaydi → §5.5.1 ta'rifi aynan «ketma-ket
+  yopilgan oraliqlar orasi»; oynadagi borliq faqat yopilgan oraliqlardan
+  sanalgani uchun vaqt ikki marta hisoblanmaydi.
+- [2026-09-17] Davomat B4: munosabati yo'q sanada jadval hal qilinadimi →
+  YO'Q (reja, kechikish, erta ketish 0; holat `NotEmployed`) → §5.2 hal
+  qilishni asosiy munosabat orqali ta'riflaydi; ishdan ketgan odamga
+  «kechikdi» deyish ma'nosiz.
+- [2026-09-17] Davomat B4: `WorkSchedule.IsActive = false` jadval hal
+  qilishda o'tkazib yuboriladimi → YO'Q → §5.2 bunday shart qo'ymaydi;
+  o'tkazib yuborish xodimlarni jimgina pastki pog'onaga tushirib, soatlarini
+  o'zgartirardi. Amaldagi biriktirma biriktirmaning o'zini yopish bilan
+  to'xtatiladi.
+- [2026-09-17] Davomat B4: tirik biriktirma ko'rsatgan jadval yuklanmagan
+  yoki jadval kunlari yuklanmagan bo'lsa → ISTISNO, jim natija emas → jim
+  yo'l xodimni pastki pog'onaga yoki «dam olish kuni» ga tushirib, butun
+  korxonaning `Absent` qatorlarini sezdirmasdan yo'qotardi.
+- [2026-09-17] Davomat B4: bir sanani bir nechta `is_primary` munosabat
+  qamrasa → ular orasida eng erta ishga kirgan, keyin kichik id → §5.1
+  ning 2–3-qoidalari aynan shu tanlov uchun yozilgan; natija hech qachon
+  o'qish tartibiga bog'liq bo'lmaydi.
+- [2026-09-17] Davomat B4: `planned_minutes` manfiy chiqishi mumkinmi (domen
+  smenadan uzun tanaffusni rad etmaydi) → 0 dan pastga tushmaydi → manfiy
+  reja ortiqcha ishni ishlangan vaqtdan ham katta qilib ko'rsatardi.
+- [2026-09-17] §13 #14: tanaffus ayirmasi xodim oyna ICHIDA binoda bo'lgan
+  vaqt bilan cheklanadimi → HA, koordinator qarori (mening tavsiyam «yo'q»
+  edi): `presentInWindow` = yopiq oraliqlarning oyna bilan kesishmasi,
+  `breakDeduction = max(0, min(break_minutes − breakTaken, presentInWindow))`
+  → binoda bo'lmagan odamga tushlik hisoblash egasiga aytilgan «hech kim ikki
+  marta jazolanmaydi» qoidasiga zid. Oqibati: ayirma HECH QACHON ishlangan
+  daqiqadan oshmaydi (`breakDeduction ≤ presentInWindow ≤ yopiq yig'indi`).
+  Qaror egasining o'zi tomonidan emas, uning qoidasi asosida koordinator
+  tomonidan qabul qilingan (`SPEC-verifikatsiya.md` §5.5.1, §13 #14).
+- [2026-09-17] Daqiqaga qisqartirish qanday (formulada aytilmagan) → uchala
+  miqdor (yopiq yig'indi, `breakTaken`, `presentInWindow`) aniq soniyalardan
+  hisoblanib, HAR BIRI BIR MARTA oxirida qisqartiriladi, oraliqma-oraliq emas →
+  aks holda `presentInWindow` bir daqiqaga yopiq yig'indidan oshib, «ayirma
+  ishlangan vaqtdan oshmaydi» degan kafolat ba'zi kunlarda bir daqiqaga
+  buzilardi (§5.5.1).
+- [2026-09-17] `MissingExit` kunida (09:00 kirdi, 13:00 chiqdi, 14:00 kirdi,
+  chiqmadi) `breakTaken` nechaga teng → 0, avvalgi 60 emas → ta'rif «YOPIQ
+  oraliqlar orasidagi bo'shliqlar» deydi va bunda yopiq oraliq bitta; SPEC ning
+  eski qatori va #59 test o'z ta'rifiga zid edi. Natija (240 daqiqa) o'zgarmaydi,
+  lekin endi saqlanadigan `break_taken_minutes` ustuni to'g'ri qiymat oladi
+  (§5.7, §11.1 #59).
+- [2026-09-17] Tabel katagidagi tanaffus izohi nimaga tayanadi → FAQAT
+  saqlangan ikki ustunga (`breakDeductionMinutes`, `breakTakenMinutes`);
+  «tanaffus oynasi belgilanmagan» shakli olib tashlandi → cheklovdan keyin
+  «0 olingan, 0 ayirilgan» ham «oyna yo'q», ham «oyna paytida binoda emas»
+  degani bo'lishi mumkin; bugungi jadvalni o'qib hal qilish esa raqam
+  hisoblanmagan jadvalni tasvirlashi mumkin edi (§8.6).
+- [2026-09-17] Ishdan ketgan xodim ogohlantirishi — har bir O'TISH uchunmi
+  yoki har bir ODAM uchunmi (SPEC §6.5 va §8.4 bir-biriga zid edi) → har bir
+  ODAM uchun bitta yozuv, eng oxirgi o'tishi bilan, `passCount` qo'shildi →
+  §8.4 «har bir odam uchun bitta qator» va qurilmalar sahifasidagi
+  «{{n}} xodim» matni aynan shuni talab qiladi (§6.5).
+- [2026-09-17] `GET /passes/{id}` topilmaganda qaysi kod → yangi
+  `davomat.otish_topilmadi` (404), jami kodlar 41 → uy qoidasi: `*_topilmadi`
+  = NotFound; muddati o'tib o'chirilgan o'tish uchun ham shu kod, chunki
+  ogohlantirishdagi havola eski bo'lishi mumkin (§6.9).
+- [2026-09-17] Qurilma yaratilganda/token almashtirilganda javob shakli (SPEC
+  «qurilma va token» degan, tekis yoki ichma-ichligini aytmagan) → ichma-ich
+  `{ device, token }`, F1 aynan shunday yozgan → qurilma DTO si bitta qayta
+  ishlatiladigan tur bo'lib qoladi va bir martalik sir undan ko'rinib ajralib
+  turadi (§6.2).
+- [2026-09-17] `GET /schedules/resolve` javobida nima bo'lishi kerak (SPEC
+  faqat «jadval va g'olib pog'ona» degan) → F1 maydonlariga qo'shimcha:
+  xodim nomi, asosiy mehnat munosabati va uning yuridik shaxs/bo'lim/lavozimi,
+  `matchedDepartment*` (g'olib bo'lim ota bo'lim bo'lishi mumkin) va sanadagi
+  jadval kuni → «nega unda zavodning jadvali» degan savolga faqat shu maydonlar
+  javob beradi; natija faqat ikki null bilan aniqlanadi: `employmentId` yo'q —
+  ishlamaydi, `scope` yo'q — jadval yo'q (§6.4).
+- [2026-09-17] O'tish DTO sida soat xatosi bayrog'i kim hisoblaydi → server
+  (`skewWarning`), mijoz `clockSkewSeconds` dan qayta hisoblamaydi → aks
+  holda 300 soniyalik chegara TypeScript da ikkinchi nusxa bo'lib qolardi (§6.5).
+- [2026-09-17] Jadvalsiz kunda (NoSchedule/NotEmployed) ortiqcha ish nechaga teng? → 0; jadval bor dam olish kunida esa ishlangan vaqtning hammasi → normasi noma'lum kunda har daqiqa «ortiqcha» bo'lib, xulosa hisobotini shishirardi
+- [2026-09-17] Qayta hisoblashda kun endi saqlanmasligi kerak bo'lsa (jadval o'zgarib dam olish kuniga aylandi, o'tish yo'q), eski qator nima bo'ladi? → o'chiriladi → attendance_days hosila ma'lumot; qayta hisoblash noldan hisoblash bilan bir xil holatga kelishi shart, aks holda dam olish kunida «Kelmadi» qolib ketardi
+- [2026-09-17] Biriktirilgan jadvalni faolsizlantirish mumkinmi? → yo'q, biriktirmalari bor jadval faolsizlantirilmaydi (xato kodi bilan rad etiladi) → hisob mexanizmi IsActive ga qaramaydi; ruxsat berilsa, ekran «o'chdi» deydi, tabel esa uni ishlatishda davom etardi
+- [2026-09-17] O'tishlar jurnalida davr berilmasa nima ko'rsatiladi va 92 kunlik chegara unga ham qo'llanadimi → sukut: bitta kun (`to`, berilmasa bugun); ha, 92 kun → jadval yiliga ~2 mln qator o'sadi, chegarasiz davr butun arxivni saralashga olib kelardi; hisobotlar (chetlanish, xulosa) sukut bo'yicha «shu oy boshidan bugungacha»
+- [2026-09-17] Tabel va xulosadagi `presentDays` «chiqish yozilmagan» kunni ham sanaydimi → yo'q, faqat `Present` holati; kun ustunlari bir-birini kesmaydi → xulosada `problemDays` alohida, ikki joyda sanalsa yig'indi oydagi kunlardan oshib ketardi
+- [2026-09-17] Tabelda kim ro'yxatda turadi → oyda filtrga mos munosabati bo'lgan YOKI filtrga mos kun yozuvi bor xodim; bo'lim filtri ichki bo'limlar bilan → oy o'rtasida ko'chgan odam eski bo'lim tabelida qoladi va ishdan ketib turniketdan o'tgan odam (`NotEmployed` yozuvi) ko'rinadi; xodimlar ro'yxati ham bo'limni ichki bo'limlari bilan filtrlaydi
+- [2026-09-17] Chetlanish va xulosa hisobotlari hosil qilingan kataklarni ham oladimi → yo'q, faqat saqlangan kun yozuvlari, filtr kun SURATI bo'yicha → hosil qilingan «kelmagan» faqat qayta hisoblash hali yetmagan kunda bo'ladi; hisobot ko'chirishdan keyin o'zgarmasligi kerak (§2.6)
+- [2026-09-17] Taxtada yo'nalishi noma'lum o'tish «kelmagan»/«kechikkan» sanog'iga ta'sir qiladimi → ha, faqat «ichkarida» ro'yxatidan chiqariladi; birinchi kelish §5.5 3-qadami bilan olinadi; «bugungi o'tish» = reja boshlanishidan 6 soat oldindan (§5.3 oynasi) → yo'nalishsiz turniketdan kelgan odamni «kelmagan» deyish taxtani yolg'onchi qiladi; tungi smenachining ertalabki chiqishi kechki smenaga «kelgan» bo'lib sanalmasin
+- [2026-09-17] Taxtadagi odamlar kartasi qaysi tartibda → ism bo'yicha → 30 soniyalik yangilanishda kartalar joyida qoladi, stoldan qarab odamni topish mumkin
+- [2026-09-17] Davomat eksportining chegarasi → 20 000 qator (o'tishlar, chetlanishlar, xulosa) va tabelda 2 000 xodim, oshsa yangi `davomat.eksport_juda_kop` → `.xlsx` xotirada to'liq quriladi, server 2 GB; 20 000 qator butun korxonaning ~4 kuni yoki bo'limning bir oyi; umumiy `eksport.juda_kop` tarjimasida «5000 ta» yozilgan
+- [2026-09-17] Tabel Excel fayli qanday shaklda → ikki varaq: «Tabel» (qator — xodim, ustun — kun, katakda ishlangan SOAT soni son bo'lib, ishlanmagan kunda qisqa belgi) va «Kunlar» (har xodim-kun alohida qator, daqiqa son + «soat:daq» matn) → SPEC ning «ikki ustun» qoidasini 31 kunlik katakda qo'llab bo'lmaydi (62 ustun); katak ekrandagidek soat, yig'indi va pivot uchun batafsil varaq
+- [2026-09-17] Qabul yo'lida moslik keshi «topilmadi» javobini ham
+  saqlaydimi (SPEC §4.1 «har bir qidiruv 60 s keshlanadi» degan) → YO'Q, faqat
+  TOPILGAN moslik keshlanadi (`AttendanceIdentityCache`) → «topilmadi» keshga
+  yozilgan lahzada HR moslikni yaratib, to'ldirish o'tib bo'lsa, keyingi 60
+  soniyadagi har bir o'tish bog'lanmagan qolib ketardi va ularni hech narsa
+  qayta ko'rmasdi; salbiy javobsiz poyga oynasi bitta o'tishga qisqaradi.
+- [2026-09-17] Hikvision `subEventType = 76` nima (SPEC «76 — barmoq izi»
+  degan) → Hikvision ISAPI jadvalida 76 = `MINOR_FACE_VERIFY_FAIL` (yuz
+  tasdiqlanMADI), barmoq izi 38 → 76 rad etilganlar ro'yxatida, 38 o'tishlar
+  ro'yxatida → 76 ni o'tish deb olish rad etilgan har bir yuzni «kirdi» qilib
+  yozardi (`HikvisionEventParser`).
+- [2026-09-17] Shaxs raqamisiz Hikvision hodisasi — har doim 400
+  `davomat.shaxs_raqami_bosh` mi (SPEC jadvali shunday) → faqat kichik turi
+  TANISH o'tish turi bo'lsa 400; turi noma'lum/yo'q bo'lsa 200 bilan
+  tashlanadi; `majorEventType` 1/2/3 (signal, nosozlik, amal) ham tashlanadi
+  → terminal eshik ochildi/yopildi kabi shaxssiz hodisalarni ham yuboradi;
+  ularga 400 qaytarilsa terminal ularni cheksiz qayta yuborardi, ulardan esa
+  hech kimning davomatini tiklab bo'lmaydi.
+- [2026-09-17] Ko'p hodisali so'rovda bittasi buzuq bo'lsa → HAMMASI rad
+  etiladi, hech biri yozilmaydi (avval hammasi tekshiriladi, keyin yoziladi)
+  → aks holda 150-hodisada 400 qaytib, 149 tasi yozilgan bo'lardi va agent
+  qayta yuborganda tushunarsiz yarim holat chiqardi.
+- [2026-09-17] Takror kalitidagi yo'nalish — qurilma AYTGANImi yoki rol
+  bo'yicha TO'LDIRILGANImi (SPEC `(int)Direction` degan) → qurilma aytgani →
+  HR qurilma rolini ikki yuborish orasida o'zgartirsa, to'ldirilgan yo'nalish
+  boshqacha chiqib, bitta hodisa ikki marta yozilardi.
+- [2026-09-17] `last_seen_at` qachon yoziladi (SPEC «autentifikatsiyaga
+  yetib kelgan har qanday so'rov» degan) → faqat to'liq tasdiqdan (token,
+  imzo, IP) O'TGAN va FAOL qurilma so'rovida; o'tish rad etilsa ham yoziladi →
+  noto'g'ri token qaysi qurilmaniki ekani noma'lum, imzosi yo'q so'rov esa
+  qurilma kuzatuv ustunlarini yozishga haqli emas; SPEC §11.1 #3 faolsiz
+  qurilmada «hech narsa yozilmaydi» deydi.
+- [2026-09-17] Qabul tokenining xeshi nimadan olinadi → token SATRINING UTF-8
+  baytlaridan (base64url dan ochilmaydi), format bitta joyda —
+  `AttendanceDeviceToken` → ro'yxatga olish va qabul ikki xil xeshlasa hech
+  bir qurilma o'tmaydi va xato faqat «401» bo'lib ko'rinadi; noto'g'ri
+  base64 satr ham istisnosiz «topilmadi» bo'lishi kerak.
+- [2026-09-17] Application qatlamida log yo'q, qabul yo'li esa 401 sababini
+  logga yozishi SHART (§3.2) → `IAttendanceIngestJournal` porti, amalga
+  oshirish Api da (`AttendanceIngestJournal`, EventId 5200–5204) → yozuvga
+  so'rov usuli va tokensiz yo'l kerak — bular HTTP tushunchalari
+  (`ICurrentUser` precedenti); Application ga log kutubxonasini qo'shish esa
+  butun qatlamning qoidasini o'zgartirardi.
+- [2026-09-17] Yo'ldagi token faqat `ErrorLogFormatter` da tozalansa yetadimi
+  (SPEC §3.3 shunday degan) → YO'Q, Serilog boyituvchisi `IngestTokenScrubber`
+  hamma chiqishdan OLDIN tozalaydi, formatter esa istisno matnini → formatter
+  faqat FAYLNI yozadi; `docker logs api` dagi «Request starting …» va
+  «HTTP POST … responded» satrlarida token ochiq qolardi (C3 da tekshirildi).
+- [2026-09-17] B3 fayllar ro'yxatidan tashqari ikki fayl → `Application/Common/DependencyInjection.cs`
+  ga `services.AddAttendanceIngest()` (B6 uni `AddAttendance()` bilan
+  almashtiradi; `TryAdd*` tufayli ikkalasi qolsa ham xavfsiz) va
+  `Infrastructure/DependencyInjection.cs` ga oltita davomat repozitoriysi
+  (B1 ulamagan edi) → usiz qabul endpointi birinchi so'rovdayoq DI xatosi
+  bilan yiqilardi va C3 ni tekshirib bo'lmasdi. `Program.cs` da ham bitta
+  emas, UCHTA qator: endpoint, jurnal ro'yxati va log boyituvchisi.
+- [2026-09-17] Yetim surat fayllarini «attendance/**» ostidan supurish kerakmi? → v1 da yo'q; surat faqat qatordagi `photo_key` bo'yicha o'chiriladi → `LocalFileStorage` kalitlari `yyyy/MM/<guid>.ext` va o'tish suratlari xodim rasmlari hamda hujjatlari bilan BIR jildda turadi; u yerni supurish HR fayllarini o'chirib yuborishi mumkin edi
+- [2026-09-17] Taxtada nechta raqam: SPEC to'rtta (ichkarida/kutilgan/kelmagan/kechikkan), egasi Verifix'dagi beshta (binoda/kelgan/kechikkan/kelmagan/vaqtida %) → beshta; «kutilgan» «kelganlar» kartasining izohida → egasining talabi aniqroq, SPEC ning to'rtala raqami ham ekranda qoladi.
+- [2026-09-17] «Vaqtida %» qanday hisoblanadi → `(expectedCount − lateCount) / expectedCount`, kutilgan 0 bo'lsa «—» → `lateCount` smenasi boshlangan kelmaganlarni ham sanaydi, shuning uchun hamma smena boshlangach bu aynan «vaqtida kelganlar»; «kelganlardan vaqtida kelganlar» esa serverda yo'q ikki raqamni taxmin qilishni talab qilardi.
+- [2026-09-17] O'tishlar oqimida «vaqtida/kechikdi» holati (o'tish DTO'sida yo'q) → faqat «kechikdi»: bugungi `kind=Late` hisobotidan, `firstInAt` o'tish lahzasiga aynan teng bo'lsa; «vaqtida» belgisi qo'yilmaydi → holat kunning xususiyati, rejasi o'tishda yo'q; server hisoblamagan kunni «vaqtida» deyish yolg'on bo'lardi.
+- [2026-09-17] Taxtadagi qizil blok qaysi manbadan: taxta javobidagi `formerEmployeeAlerts` yoki `/former-employee-alerts` → alohida endpoint → menyu nishoni bilan bitta kesh (son va qatorlar hech qachon farq qilmaydi) va taxtaning og'ir hisobi yiqilsa ham xavfsizlik ogohlantirishi qoladi; server ikkalasini bitta metoddan beradi.
+- [2026-09-17] Taxta ko'rinishi: SPEC «ichkaridagilar kartalari», egasi «o'tishlar oqimi» → ikkalasi, segment bilan, sukut — oqim → egasining so'nggi aniq talabi; kartalar SPEC bo'yicha saqlandi.
+- [2026-09-17] Soat banneri rangi: §8.4 bir joyda «qizil», keyinroq «soat og'ishi sariq qoladi» → sariq (`warning`) → tuzatish matni keyinroq va aniqroq; qizil faqat ishdan ketgan xodim uchun.
+- [2026-09-17] Tabel katagi oynachasi qanday ochiladi (SPEC «hover/tap») → bosish/tegish (Radix menyusi, `role="dialog"`), sichqoncha ustiga kelganda emas → zich gridda hover har katakda miltillaydi, planshetda hover yo'q; Radix portal chetda qirqilmaydi va inline `style` bilan koordinata yozishni talab qilmaydi.
+- [2026-09-17] Ishlanmagan kun katagida nima turadi (SPEC «bitta raqam», egasi «qisqa holat kodi») → ishlangan kunda soat, 0 daqiqali kunda holat kodi (K, D, JY…), `NotEmployed` bo'sh → raqam 0 hech narsa aytmaydi; legenda kod va rangni birga tushuntiradi.
+- [2026-09-17] Tanaffus satri qaysi kataklarda → odam binoda bo'lgan kunda (kirish/chiqish yoki daqiqa bor) → «Kelmadi» yoki «Dam olish» katagida «tanaffus ayirilmadi» to'g'ri, lekin hech qanday raqamni tushuntirmaydi.
+- [2026-09-17] Jurnal va hisobotlarda sana maydonlari bo'sh qoldirilsinmi (server bo'shni bugun / oy boshidan bugungacha deb oladi) → ochiq to'ldiriladi → HR ekranda qaysi kunlarni ko'rayotganini o'qishi kerak.
+- [2026-09-17] Jurnaldagi qurilma filtri faqat `attendance.view` egasiga → ko'rsatilmaydi, faqat `attendance.manage` da → `GET /devices` `manage` ostida (§7.3); bo'sh ro'yxatli tanlov «qurilma yo'q» deb yolg'on gapirardi.
+- [2026-09-17] Tabelda «qayta hisoblash» tugmasi (SPEC sahifalar ro'yxatida aytilmagan) → bor, faqat `attendance.manage`, oy uchun, bugundan narisiz → §5.8 dagi tuzatishlar shu sahifada yoziladi va jadval tuzatilgach keyingi qadam aynan shu; kelajak kunni hisoblash hali kelmagan ish kunini «kelmadi» deb yozardi.
+- [2026-09-17] Jadvalni «faolsizlantirish» tugmasi qayerdan (§6.4 da activate/deactivate endpoint'i yo'q, `isActive` esa DTO'da bor) → ekranda faqat O'CHIRISH (`DELETE /schedules/{id}`), `isActive=false` jadval «Nofaol» yorlig'i bilan ko'rinadi → shartnomada yo'q endpoint o'ylab topilmadi; biriktirmasi bor jadvalda tugma oldindan o'chiq va server rad etsa (`davomat.jadval_biriktirilgan`) xuddi shu tushuntirish chiqadi.
+- [2026-09-17] Biriktirmaning xodimi va importdagi aniq moslik taklifi uchun rasm kaliti DTO'da yo'q → rasm `EMPLOYEE_PHOTO_PROBE` belgisi bilan so'rab ko'riladi (404 → bosh harflar) → egasining qoidasi «rasm bor bo'lsa — rasm»; B6 `photoKey` qo'shsa, belgi olib tashlanadi.
+- [2026-09-17] Import tasdig'i noaniq/topilmagan qatorlar hal qilinmaguncha bloklanadimi → ha, lekin «tanlanmaganlarni o'tkazib yuborish» tugmasi bor → noaniq qatorni ko'rmasdan tasdiqlash noto'g'ri odamni turniketga bog'lashning eng oson yo'li; ko'p qatorni o'tkazib yuborish esa ongli bir bosish.
+- [2026-09-17] Moslik uchun xodim tanlashda ishdan ketganlar ham ko'rinadimi → ha, kulrang «Ishdan ketgan» yorlig'i bilan → Verifix ro'yxatida ketganlar ham bor va ularning eski o'tishlari aynan shu bog'lanish orqali tabelga tushadi.
+- [2026-09-17] Jadval muharririda tanaffus oynasi smena ichidami — klient ham tekshiradimi (F1 izohi «takrorlanmaydi» degan edi) → ha, domen ko'zgusi `attendance-schedule-rules.ts` da, server kodlari bilan; «Saqlash» klient xatosi bor paytda o'chiq → egasining talabi: operator muammoni saqlashdan OLDIN ko'rsin; haqiqat manbasi server qoladi.
+- [2026-09-17] Davomat B6: `IBackgroundJobQueue` SPEC dagi `void Enqueue(Expression<Action<TJob>>)` shaklidami → yo'q, `Task<string> EnqueueAsync(Expression<Func<TJob, Task>>)` → vazifalar bazaga yozadi (asinxron), `Action` sinxron variantni `async void` yoki bloklab kutishga majbur qilardi; `/recompute` javobida `jobId` bor; Hangfire aynan shu shaklni qabul qiladi
+- [2026-09-17] Davomat B6: moslik to'ldirishi kunlarni o'zi qayta quradimi yoki iflos navbatni (B7) kutadimi → o'zi: bog'langan o'tishlar sanalari ±1 kun qayta hisoblanadi va FAQAT o'sha o'tishlar `processed_at` oladi → C6 qo'lda turtkisiz ishlashi shart; (2)-qadamda yiqilsa o'tishlar iflos qoladi va navbat tiklaydi
+- [2026-09-17] Davomat B6: qo'lda `/recompute` `processed_at` ni belgilaydimi → yo'q → davr chetidagi o'tish davrdan tashqaridagi qo'shni sanaga tegishli bo'lishi mumkin; belgilash iflos navbatdan haqiqiy ishni yashirardi, belgilamaslik esa faqat bir marta ortiqcha (bir xil) hisoblash
+- [2026-09-17] Davomat B6: `/recompute` javobidagi `dayCount` nima → davrdagi kalendar kunlar (ikki chekka bilan), xodim × kun emas → mijoz «N xodim × M kun» deb o'zi ko'paytiradi; `employeeCount` alohida
+- [2026-09-17] Davomat B6: `FindEmployeeCandidatesAsync` SPEC dagidek bitta qator uchunmi → yo'q, barcha import qatorlari uchun bitta chaqiruv, xodimlar (~2 400, faqat id/ism/JSHSHIR/rasm) bir marta xotiraga → 5 000 qatorlik faylda qatorma-qator 5 000 so'rov bo'lardi; yig'ilgan ism ustida indeks yo'q
+- [2026-09-17] Davomat B6: importdagi ism otasining ismisiz (ikki so'z) bo'lsa moslanadimi → ha, «familiya ism» bo'yicha ANIQ; uch va undan ko'p so'z — to'liq F.I.Sh. bo'yicha → Verifix ro'yxatlarida otasining ismi ko'pincha yo'q; ikkala holatda ham «ichida qidirish» emas, keng tarqalgan ism «noaniq» (2…5) yoki «topilmadi» bo'ladi
+- [2026-09-17] Davomat B6: import faylida shaxs raqami bo'sh qator (yakun, izoh) nima bo'ladi → tashlanadi, `totalRows` ga kirmaydi → uni hech kimga bog'lab bo'lmaydi va oldindan ko'rishda faqat shovqin
+- [2026-09-17] Davomat B6: faolsiz jadvalga yangi biriktirma qilish mumkinmi → yo'q, `davomat.jadval_faolsiz` (409); jadvalni yoqish/o'chirish uchun `POST /schedules/{id}/activate|deactivate` qo'shildi (§6.4 da yo'q) → koordinator qarori (biriktirilgan jadval faolsizlantirilmaydi) ikkala yo'ldan ham buzilmasin: «faolsiz jadvalda tirik biriktirma yo'q»
+- [2026-09-17] Davomat B6: jadvalni o'chirish/faolsizlantirishni to'sadigan «tirik biriktirma» — muddati o'tgani ham sanaladimi → ha, o'chirilmagan har qanday biriktirma → o'tgan davrni qayta hisoblash uni hali ishlatadi; mijoz ham shunday sanaydi
+- [2026-09-17] Davomat B6: o'tish bor-u surati yo'q (yoki tozalangan) bo'lsa `GET /passes/{id}/photo` qaysi kod → yangi `davomat.surat_yoq` (404), `otish_topilmadi` emas → «havola eskirgan» va «o'tish bor, rasm yo'q» ekranda ikki xil holat
+- [2026-09-17] Davomat B6: qurilmaning `allowed_ips` xatosi qanday kod → yangi `davomat.ip_royxati_notogri` (400), saqlashda; bo'sh element («a,,b», oxirgi vergul) ham xato, garchi qabul yo'li uni tashlab yuborsa ham → qabul o'qilmaydigan elementni «hech narsani qamramaydi» deb qurilmani jimgina qulflaydi; saqlashda qat'iyroq bo'lish xavfsiz tomon
+- [2026-09-17] Davomat B6: 64 belgidan uzun shaxs raqami (moslik/import) → yangi `davomat.shaxs_raqami_uzun` (400) → domen uzunlikni tekshirmaydi va bazadagi `varchar(64)` 500 qaytarardi; bunday raqamni hech bir terminal bermaydi — odatda faylda noto'g'ri ustun
+- [2026-09-17] Davomat B6: so'rov tanasidagi enum maydonlari (qurilma provayderi, fazo, yo'nalish roli, tasdiq usuli; moslik/import `provider`) majburiymi → ixtiyoriy, berilmasa domen sukuti (Hikvision / Verifix / ReportsDirection / Token) → tushib qolgan maydon `0` — sanoqda yo'q qiymat — bo'lib bazaga yozilib, qabul yo'lida tahlilchi tanlashni buzardi
+- [2026-09-17] Davomat B6: jadvalni yumshoq o'chirishda uning yetti kuni nima bo'ladi → bazada qoladi (`WorkScheduleRepository.Remove` kunlarni «o'zgarmagan» holatga qaytaradi) → EF `Cascade` ni darhol qo'llab kunlarni HAQIQATAN o'chirardi, o'qish modeli va qayta hisoblash esa o'chirilgan jadvalni kunlari bilan yuklaydi
+- [2026-09-17] Davomat B6: jurnaldagi `lateMinutes` qaysi o'tishga qo'yiladi → faqat `first_in_at` lahzasi o'tishnikiga teng kunning kechikkan birinchi kirishiga; saqlangan qator bo'lsa undan, bugungi qatorsiz kun — taxtadagi AYNAN o'sha hisoblashdan, eski qatorsiz kun — `null` → sana/yo'nalish bo'yicha qayta taxmin qilinmaydi; jurnal bir sahifa uchun oylab o'tish yuklamaydi (so'rovlar soni sahifaga bog'liq emas)
+- [2026-09-17] Davomat B6: moslanmagan guruhning «birinchi/oxirgi ko'rilgan» vaqti → `occurred_at` (odam qachon o'tgan), `received_at` emas; mosliklar ro'yxati xodim familiyasi bo'yicha → HR odamni topadi, raqamni emas
+- [2026-09-17] Davomat F1 gen almashtiruvi: OpenAPI butun sonlarni `integer | string` deb beradi — sahifalarga shundayligicha o'tkazilsinmi → yo'q, generatsiya qilingan tipdan hosil qilingan `AsSent<T>` (`number | string` → `number`) va bitta `asSent` tasdig'i → server yozishda doim JSON son yuboradi (jonli API 15 javobda tekshirildi); runtime'da umumiy o'girish mumkin emas, `rawPersonId` ham raqamga o'xshaydi
+- [2026-09-17] Davomat F1 gen almashtiruvi: import oldindan ko'rish generatsiya qilingan chaqiruv bilanmi → yo'q, axios + generatsiya qilingan javob tipi → generatsiya qilingan kod `Content-Type: multipart/form-data` ni qo'lda qo'yadi, `http-client.ts` esa aynan shu sarlavha chegara (boundary) ni yo'qotib yuklashni buzganini qayd etgan
+- [2026-09-17] Davomat F1: jadvalni yoqish/o'chirish qanday ko'rinishda → kartada «Faol» almashtirgichi; yoqish darhol, o'chirish tasdiq oynasi bilan (biriktirmasi bor jadvalda tugma o'chiq), faolsiz jadvalga «Biriktirish» taklif qilinmaydi → qurilmalar sahifasidagi naqsh; server ikkalasini ham 409 bilan rad etadi, ekran buni bosishdan oldin aytadi
+- [2026-09-17] Davomat B7: o'tish tozalash chegarasi SPEC dagidek `received_at` bo'yichami → yo'q, `local_date` bo'yicha (surat tozalash esa SPEC dagidek `received_at`) → `received_at` da suratsiz qatorlar uchun indeks yo'q — har 2 000 lik to'plam ~2 mln qatorli jadvalni to'liq ko'zdan kechirardi; kun aynan `local_date` bo'yicha quriladi, ya'ni muzlatish chegarasi ham shu sana bilan aniq bo'ladi (30 kungacha soat og'ishi uni noaniq qilmaydi)
+- [2026-09-17] Davomat B7: o'tishlari tozalangan kun keyin qayta hisoblansa (qo'lda `/recompute`, iflos navbatning ±1 qo'shnisi, eski o'tishli kechikkan moslik) → hisoblanmaydi: tozalash birinchi qatorni o'chirishdan OLDIN yashirin `attendance.frozenThrough` ni ko'taradi, `AttendanceDayRecomputer` shu sanagacha (o'zi ham) kunlarga tegmaydi → aks holda bir yillik tabel omon qolgan o'tishlardan jimgina nolga qayta qurilardi (§9.2.1); chegara sozlamadan hisoblanmaydi — muddat keyin uzaytirilsa allaqachon o'chirilgan kunlar yana «ochilib» qolardi
+- [2026-09-17] Davomat B7: bog'lanmagan (moslik kutayotgan) eski o'tish ham `processed_at IS NULL` — o'chiriladimi → HA, surat fayli bilan (koordinator qarori, B7 dagi «yo'q» bekor qilindi; SPEC §9.2.1 AMENDED); faqat bog'langan-u hisobga olinmagan o'tish qoladi va ogohlantirish oladi → egasi xom yozuvlar uchun bir yilni tanlagan; bog'lanmagan o'tish sanasi o'chirishdan oldin muzlatiladi, ya'ni kechikkan moslik ham uni tabelga qo'sha olmaydi — qoldirish jadvalni mehmon/sinov kartalari bilan cheksiz o'stirardi; ro'yxat va o'chirish orasida to'ldirish bog'lab qo'ysa, `DELETE` shartni qayta tekshirib qatorni qoldiradi
+- [2026-09-17] Davomat B7: tor oynada bog'lanmay qolgan o'tish (moslik bor, o'tish bog'lanmagan) qaysi vazifada tuzatiladi → har 15 daqiqalik iflos navbatning BIRINCHI qadami, `AttendanceBackfillJob.RunAsync` ning o'zi chaqiriladi → yangi yozuvchi yo'q; o'tish ko'pi bilan 15 daqiqada tabelga tushadi
+- [2026-09-17] Davomat B7: parallel qayta hisoblash to'qnashuvi qanday yopiladi → `ON CONFLICT` upsert emas: to'plam kuzatuvdan unutilib, bazadan qayta o'qib yoziladi (3 urinishgacha), taniladi `IDatabaseFault.IsConcurrentDayWrite` bilan → upsert xom SQL da `AttendanceDay.Compute` domen xaritasini takrorlardi; ikkalasi bitta eskirgan qatorni o'chirganda (`DbUpdateConcurrencyException`, nol qator) ham xuddi shu yo'l
+- [2026-09-17] Davomat B7: iflos navbatda turli sanali xodimlar bitta qayta hisoblash chaqiruviga tushadimi → yo'q, xodimlar ±1 kengaytirilgan sana TO'PLAMI bo'yicha guruhlanadi → yozuvchi «xodimlar × sanalar» ni hisoblaydi va o'tishlarni chekka sanalar oralig'ida yuklaydi: bugungi xodim bilan bir yillik o'tishi kechikib bog'langan xodim bitta chaqiruvda butun yilni yuklab, bir-birining sanalarida hisoblanardi
+- [2026-09-17] Davomat B7: tozalashda bitta fayl o'chmasa (ruxsat, disk xatosi) → o'sha qator tegilmaydi, qolgani davom etadi, jurnalga ogohlantirish (5307) → vazifa yiqilsa har kecha qaytarilib, disk to'lardi; o'tish qatorini fayli o'chmasdan o'chirish esa faylni yetim qilardi
+- [2026-09-17] Davomat B7: bazada qo'lda buzilgan muddat qiymati → surat muddati quyi chegaradan (7) past bo'lsa 7, manfiy o'tish muddati — «hech qachon»; `frozenThrough` sana bo'lmasa — istisno (qayta hisoblash to'xtaydi, jurnalda ko'rinadi) → uchala holatda ham o'chirmaslik / qayta yozmaslik tomoniga
+- [2026-09-17] Davomat B7: tungi qayta hisoblash oralig'i → bugun − 2 … bugun (B6 taklifi, SPEC «oxirgi 3 kun») → 03:10 da bugungi ish kuni «Kelmadi» bo'lib saqlanadi — tabel hosil qilingan katakda ham xuddi shuni ko'rsatardi; kelganlar iflos navbatda 15 daqiqa ichida tuzaladi
+- [2026-09-17] Davomat paneli (`GET /dashboard`): firma/bo'lim/lavozim filtri asosiy munosabatgami (taxta) yoki sanani qamraydigan istalgan munosabatgami (tabel) → tabeldagidek, istalgan qamraydigan munosabat, bo'lim ichki bo'limlari bilan; ko'rsatiladigan bo'lim/lavozim va jadval esa asosiy munosabatdan → topshiriq «/timesheet dagidek» degan; ikki firmadagi odam ikkala firmaning panelida ham turadi
+- [2026-09-17] Davomat paneli: `arrivedAt`/`leftAt` faqat DayOff da to'ldiriladimi → yo'q, o'tish bo'lsa har qanday holatda (NoSchedule ham), `lateMinutes` esa faqat Late da → shartnoma ularni holatga bog'lamagan; jadvalsiz odam kelgan bo'lsa, HR buni ko'rishi kerak
+- [2026-09-17] Davomat paneli: kechikish chegarasi lahza bo'yicha (09:10:30 — Late, 10 daqiqa), taxtaning `lateCount` i esa butun daqiqa bo'yicha (0 → kechikmagan) va hali kelmaganlarni ham kechikkan sanaydi → taxta o'zgartirilmadi (egasi: «/board stays as is»), panel egasi tasdiqlagan qoidada → ikkala ekranning «kechikdi» soni bir daqiqalik oynada va hali kelmaganlar bo'yicha farq qilishi mumkin — bu ataylab
+- [2026-09-17] Davomat paneli: kirish yo'q-u faqat chiqish bor kunning «birinchi o'tishi» qaysi kunga tegishli → `PassAttribution` bilan, hisoblash taqvimidagi AYNAN o'sha tarkibda (asosiy munosabat → hal qiluvchi → reja) → `AttendanceDayBuilder` birinchi o'tish lahzasini tashqariga bermaydi va dvigatel fayllariga tegilmasin degan qoida bor
+- [2026-09-17] Davomat statistikasi: rasmdagi «✕» (diagramma turini tozalash) doim ko'rinadimi → yo'q, faqat «Ustunli diagramma» tanlanganda → sukut holatida u hech narsani o'zgartirmaydigan tugma bo'lib qolardi
+- [2026-09-17] Davomat statistikasi: «qadash» (pin) nimani eslab qoladi → firma, bo'lim, lavozim, saralash va sahifa hajmi; kun, qidiruv, holat va sahifa raqami EMAS → ular bir martalik savol, ertaga kechagi qidiruv yoki «Kechikkanlar» bo'lagi bilan ochilgan ro'yxat chalg'itardi; qo'llanishi — faqat manzilda shu maydonlarning birortasi ham bo'lmaganda, sahifaga kirishda bir marta
+- [2026-09-17] Davomat statistikasi: qadalgan filtr va ustunlar qayerda → brauzerda (localStorage), kalitda foydalanuvchi id si; ustunlardan YASHIRILGANLAR saqlanadi → bitta kompyuterda ikki HR; keyin qo'shilgan ustun eski sozlamada ham ko'rinsin
+- [2026-09-17] Davomat statistikasi: bugungi kun manzilga yoziladimi → yo'q, `date` faqat o'tgan kun uchun → sahifa kun bo'yi ochiq turadi va yarim tundan keyin o'zi yangi kunga o'tishi kerak (tabeldagi oydan farqli qaror)
+- [2026-09-17] Davomat statistikasi: diagramma animatsiyasi → o'chiq → recharts har 30 soniyalik yangi javobda animatsiyani qayta boshlab, son yorliqlarini ~2 soniyaga yashirardi (SPEC §8.5 «no spinner churn»)
+- [2026-09-17] Davomat statistikasi: xodim ismi havola bo'ladimi → faqat `employees.view` bo'lsa; aks holda oddiy matn va qator bosilmaydi → xodim kartasi serverda shu ruxsat bilan yopiq
+- [2026-09-17] Davomat statistikasi: «ogohlantirishni tekshirib bo'lmadi» degan qizil blok qoladimi → yo'q, faqat ogohlantirish BOR bo'lsa qizil panel → egasi: panel faqat ogohlantirish bo'lganda; eski taxta mantiqi talab bo'yicha tashlandi
+- [2026-09-17] Davomat statistikasi: legenda «qatorda 4 ta» → `sm`–`lg` oralig'ida va `2xl` da 4 ta, `lg`–`xl` da 2 ta → yonma-yon ko'rinishda diagramma ustuni 300–340 px, to'rt ustunda «Ish kuni boshlanmagan» uch qatorga bo'linardi
+- [2026-09-17] Saqlash muddatlari kartasi (Qurilmalar): sozlamalar sahifasidagi tarjima kalitlari o'chiriladimi → faqat ishlatilmay qolganlari (`settings.system.groupAttendance*`, `attendance.passRetentionBelowPhoto`); `attendance.photoRetention*` / `passRetention*` (yorliq, izoh, «0 — hech qachon», qisqartirish ogohlantirishi) kartada QAYTA ishlatildi → bir xil matnni yangi nom bilan nusxalash ikki manba bo'lardi; «surat muddatidan qisqa» qoidasini endi faqat server aytadi (xato kodi tarjimasi bor)

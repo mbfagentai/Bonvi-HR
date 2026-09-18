@@ -65,6 +65,39 @@ public sealed class IdentitySeederPersistenceTests : IClassFixture<BonviApiFacto
         yangilangan.Permissions.Count.ShouldBe(SystemRoles.Defaults[SystemRoles.HrManager].Permissions.Length);
     }
 
+    /// <summary>
+    /// Davomat (SPEC §7.2, §11.1 #78): URUG'DAN KEYIN bazadagi HR menejeri rolida ikkala davomat
+    /// ruxsati bor, bot rolida — hech biri. Modul qo'shilishidan oldingi baza (HR menejeri davomat
+    /// ruxsatlarisiz) urug' bilan tuzaladi — aks holda prod'dagi HR menejerlari bo'limni ko'rmasdi.
+    /// </summary>
+    [Fact]
+    public async Task Urugdan_keyin_HR_menejerida_ikkala_davomat_ruxsati_bor_botda_yoq()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var rol = await kontekst.Roles.SingleAsync(r => r.Code == SystemRoles.HrManager, bekorQilish);
+        rol.Revoke(Permissions.AttendanceView).IsSuccess.ShouldBeTrue();
+        rol.Revoke(Permissions.AttendanceManage).IsSuccess.ShouldBeTrue();
+        await kontekst.SaveChangesAsync(bekorQilish);
+
+        await new IdentitySeeder(kontekst).SeedAsync(bekorQilish);
+
+        kontekst.ChangeTracker.Clear();
+
+        var hr = await kontekst.Roles.AsNoTracking().SingleAsync(r => r.Code == SystemRoles.HrManager, bekorQilish);
+        hr.Has(Permissions.AttendanceView).ShouldBeTrue();
+        hr.Has(Permissions.AttendanceManage).ShouldBeTrue();
+        hr.Has(Permissions.SettingsManage).ShouldBeFalse("saqlash muddatlari — HR menejerining ishi emas (§11.1 #80)");
+
+        var bot = await kontekst.Roles.AsNoTracking().SingleAsync(r => r.Code == SystemRoles.RecruitingBot, bekorQilish);
+        bot.Has(Permissions.AttendanceView).ShouldBeFalse();
+        bot.Has(Permissions.AttendanceManage).ShouldBeFalse();
+        bot.Permissions.ShouldBe([Permissions.RecruitingView, Permissions.RecruitingManage], ignoreOrder: true);
+    }
+
     [Fact]
     public async Task Koddan_olib_tashlangan_ruxsat_tizim_rolidan_ham_olinadi()
     {

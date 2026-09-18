@@ -45,6 +45,16 @@ public static class SettingsErrors
         Error.Validation(
             "sozlama.takror_kalit",
             "Bitta sozlama so'rovda ikki marta ko'rsatilgan.");
+
+    /// <summary>O'tish yozuvining saqlash muddati suratnikidan qisqa.</summary>
+    /// <remarks>
+    /// Prefiksi <c>davomat.</c> — kod SPEC §6.9 ro'yxatida va tarjimasi davomat
+    /// bo'limida turadi; qoida esa sozlamalar ekranida buziladi, shu sababli shu yerda.
+    /// </remarks>
+    public static Error RetentionOrder { get; } =
+        Error.Validation(
+            "davomat.saqlash_muddati_nomuvofiq",
+            "O'tish yozuvlarining saqlash muddati suratlarnikidan qisqa bo'lishi mumkin emas (0 — hech qachon o'chirilmaydi).");
 }
 
 /// <summary>

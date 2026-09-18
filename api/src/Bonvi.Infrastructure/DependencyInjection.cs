@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
@@ -54,6 +55,7 @@ public static class DependencyInjection
         services.AddEmployeeServices();
         services.AddFeedbackServices();
         services.AddSafetyServices();
+        services.AddAttendanceServices();
         services.AddRecruitingServices();
         services.AddNotificationServices();
         services.AddSettingsServices(configuration);
@@ -120,6 +122,86 @@ public static class DependencyInjection
     private static IServiceCollection AddSafetyServices(this IServiceCollection services)
     {
         services.AddScoped<IIncidentRepository, IncidentRepository>();
+
+        return services;
+    }
+
+    /// <summary>Davomat (3-bosqich) bilan ishlaydigan portlar.</summary>
+    /// <remarks>
+    /// <para>
+    /// Oltita repozitoriyning HAMMASI bir joyda, garchi bugun ulardan faqat
+    /// uchtasini qabul yo'li ishlatsa ham: ular bitta sxema bilan birga
+    /// kelgan (<c>DavomatModuli</c> migratsiyasi) va qismini ro'yxatga olish
+    /// keyingi qism muallifini «qolgani qayerda?» deb qidirishga majbur
+    /// qilardi.
+    /// </para>
+    /// <para>
+    /// O'qish tomoni ham shu yerda: <c>IAttendanceReadModel</c> (jurnal, taxta,
+    /// tabel, mosliklar) va <c>IAttendanceComputationSource</c> (qayta hisoblash
+    /// yuklovchisi) — ikkalasi bir xil qoida bilan o'qiydi (o'chirilgan jadval
+    /// va bo'limlar ham), shu sababli yonma-yon turadi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Fon navbati bu yerda YO'Q.</b> Qaysi biri ulanishini
+    /// (<see cref="AddHangfireBackgroundJobQueue"/> yoki
+    /// <see cref="AddInlineBackgroundJobQueue"/>) Hangfire serverini ishga
+    /// tushiradigan AYNAN o'sha shart hal qiladi — Api dagi
+    /// <c>BackgroundJobs.AddBonviBackgroundJobs</c> (SPEC §9.1.1). Ikkalasi bitta
+    /// <c>if</c> da bo'lgani uchun «server yo'q, lekin navbat Hangfire» yoki
+    /// «server bor, lekin ish so'rov ichida» holati tug'ilmaydi.
+    /// </para>
+    /// </remarks>
+    private static IServiceCollection AddAttendanceServices(this IServiceCollection services)
+    {
+        services.AddScoped<IAttendanceDeviceRepository, AttendanceDeviceRepository>();
+        services.AddScoped<IAttendanceIdentityRepository, AttendanceIdentityRepository>();
+        services.AddScoped<IAttendancePassRepository, AttendancePassRepository>();
+        services.AddScoped<IWorkScheduleRepository, WorkScheduleRepository>();
+        services.AddScoped<IScheduleAssignmentRepository, ScheduleAssignmentRepository>();
+        services.AddScoped<IAttendanceDayRepository, AttendanceDayRepository>();
+
+        services.AddScoped<IAttendanceReadModel, AttendanceReadModel>();
+        services.AddScoped<IAttendanceComputationSource, AttendanceComputationSource>();
+
+        // Excel yozuvchi va o'quvchi — holatsiz, bitta nusxa yetarli
+        // (`EmployeeExcelWriter` bilan bir xil).
+        services.AddSingleton<IAttendanceExcelWriter, AttendanceExcelWriter>();
+        services.AddSingleton<IAttendanceImportReader, AttendanceImportReader>();
+
+        // Fon vazifalari jurnali — holatsiz, faqat logger ushlaydi.
+        services.AddSingleton<IAttendanceJobJournal, AttendanceJobJournal>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Fon navbati — Hangfire. <c>Testing</c> dan boshqa hamma muhit uchun.
+    /// </summary>
+    /// <remarks>
+    /// <c>IBackgroundJobClient</c> ning o'zini Api dagi <c>AddHangfire</c> ro'yxatga
+    /// oladi; bu metod faqat Application portini unga ulaydi. Singleton: adapter
+    /// holatsiz, mijoz ham singleton.
+    /// </remarks>
+    /// <param name="services">DI konteyneri.</param>
+    public static IServiceCollection AddHangfireBackgroundJobQueue(this IServiceCollection services)
+    {
+        services.AddSingleton<IBackgroundJobQueue, HangfireBackgroundJobQueue>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Fon navbati — SINXRON, ish shu so'rovning o'zida. FAQAT <c>Testing</c> muhiti uchun.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Ishlab chiqarishda bu navbat qolmasligi SHART: import tasdig'i bitta
+    /// so'rov ichida ~540 × 8 so'rov bo'lardi (sabab <c>HangfireBackgroundJobQueue</c>
+    /// izohida). Scoped: vazifa chaqiruvchining qamrovidan olinadi.
+    /// </remarks>
+    /// <param name="services">DI konteyneri.</param>
+    public static IServiceCollection AddInlineBackgroundJobQueue(this IServiceCollection services)
+    {
+        services.AddScoped<IBackgroundJobQueue, InlineBackgroundJobQueue>();
 
         return services;
     }

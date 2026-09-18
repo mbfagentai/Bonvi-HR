@@ -23,6 +23,667 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("BreakDeductionMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("break_deduction_minutes");
+
+                    b.Property<int>("BreakTakenMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("break_taken_minutes");
+
+                    b.Property<DateTimeOffset>("ComputedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("computed_at");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<int>("EarlyLeaveMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("early_leave_minutes");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<Guid?>("EmploymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employment_id");
+
+                    b.Property<DateTimeOffset?>("FirstInAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_in_at");
+
+                    b.Property<int>("IgnoredPassCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("ignored_pass_count");
+
+                    b.Property<DateTimeOffset?>("LastOutAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_out_at");
+
+                    b.Property<int>("LateMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("late_minutes");
+
+                    b.Property<Guid?>("LegalEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("legal_entity_id");
+
+                    b.Property<DateOnly>("LocalDate")
+                        .HasColumnType("date")
+                        .HasColumnName("local_date");
+
+                    b.Property<int>("OvertimeMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("overtime_minutes");
+
+                    b.Property<int>("PassCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("pass_count");
+
+                    b.Property<DateTimeOffset?>("PlanEndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("plan_end_at");
+
+                    b.Property<DateTimeOffset?>("PlanStartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("plan_start_at");
+
+                    b.Property<int>("PlannedMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("planned_minutes");
+
+                    b.Property<Guid?>("PositionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("position_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("WorkScheduleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_schedule_id");
+
+                    b.Property<int>("WorkedMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("worked_minutes");
+
+                    b.HasKey("Id")
+                        .HasName("pk_attendance_days");
+
+                    b.HasIndex("EmploymentId")
+                        .HasDatabaseName("ix_attendance_days_employment_id");
+
+                    b.HasIndex("WorkScheduleId")
+                        .HasDatabaseName("ix_attendance_days_work_schedule_id");
+
+                    b.HasIndex("DepartmentId", "LocalDate")
+                        .HasDatabaseName("ix_attendance_days_department_date");
+
+                    b.HasIndex("EmployeeId", "LocalDate")
+                        .IsUnique()
+                        .HasDatabaseName("ux_attendance_days_employee_date");
+
+                    b.HasIndex("LegalEntityId", "LocalDate")
+                        .HasDatabaseName("ix_attendance_days_legal_entity_date");
+
+                    b.HasIndex("LocalDate", "Status")
+                        .HasDatabaseName("ix_attendance_days_date_status");
+
+                    b.ToTable("attendance_days", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AllowedIps")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("allowed_ips");
+
+                    b.Property<int>("AuthMode")
+                        .HasColumnType("integer")
+                        .HasColumnName("auth_mode");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<int>("DirectionRole")
+                        .HasColumnType("integer")
+                        .HasColumnName("direction_role");
+
+                    b.Property<string>("HmacSecret")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("hmac_secret");
+
+                    b.Property<int>("IdentityProvider")
+                        .HasColumnType("integer")
+                        .HasColumnName("identity_provider");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTimeOffset?>("LastEventAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_event_at");
+
+                    b.Property<DateTimeOffset?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<string>("LastSeenIp")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("last_seen_ip");
+
+                    b.Property<int?>("LastSkewSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_skew_seconds");
+
+                    b.Property<Guid?>("LegalEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("legal_entity_id");
+
+                    b.Property<string>("LocationNote")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location_note");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("model");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("serial_number");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("token_hash");
+
+                    b.Property<DateTimeOffset>("TokenIssuedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("token_issued_at");
+
+                    b.Property<Guid?>("TokenIssuedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("token_issued_by");
+
+                    b.Property<string>("TokenPrefix")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("token_prefix");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_attendance_devices");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_attendance_devices_department_id");
+
+                    b.HasIndex("LegalEntityId")
+                        .HasDatabaseName("ix_attendance_devices_legal_entity_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_attendance_devices_token_hash");
+
+                    b.ToTable("attendance_devices", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceIdentity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("DisplayNameInDevice")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("display_name_in_device");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("ExternalPersonId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("external_person_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer")
+                        .HasColumnName("provider");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer")
+                        .HasColumnName("source");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_attendance_identities");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_attendance_identities_employee");
+
+                    b.HasIndex("Provider", "ExternalPersonId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_attendance_identities_person")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("attendance_identities", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendancePass", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ClockSkewSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("clock_skew_seconds");
+
+                    b.Property<string>("DedupeKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("dedupe_key");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<DateTime>("DeviceLocalTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("device_local_time");
+
+                    b.Property<short>("DeviceOffsetMinutes")
+                        .HasColumnType("smallint")
+                        .HasColumnName("device_offset_minutes");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("integer")
+                        .HasColumnName("direction");
+
+                    b.Property<int>("DirectionSource")
+                        .HasColumnType("integer")
+                        .HasColumnName("direction_source");
+
+                    b.Property<int>("IdentityProvider")
+                        .HasColumnType("integer")
+                        .HasColumnName("identity_provider");
+
+                    b.Property<DateOnly>("LocalDate")
+                        .HasColumnType("date")
+                        .HasColumnName("local_date");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("integer")
+                        .HasColumnName("method");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<bool>("OffsetAssumed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("offset_assumed");
+
+                    b.Property<string>("PhotoKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("photo_key");
+
+                    b.Property<DateTimeOffset?>("PhotoPurgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("photo_purged_at");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<string>("RawEvent")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("raw_event");
+
+                    b.Property<string>("RawPersonId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("raw_person_id");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<Guid?>("ResolvedEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resolved_employee_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_attendance_passes");
+
+                    b.HasIndex("LocalDate")
+                        .HasDatabaseName("ix_attendance_passes_local_date");
+
+                    b.HasIndex("ProcessedAt")
+                        .HasDatabaseName("ix_attendance_passes_pending")
+                        .HasFilter("processed_at IS NULL");
+
+                    b.HasIndex("ReceivedAt")
+                        .HasDatabaseName("ix_attendance_passes_photo")
+                        .HasFilter("photo_key IS NOT NULL");
+
+                    b.HasIndex("DeviceId", "DedupeKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_attendance_passes_device_dedupe");
+
+                    b.HasIndex("DeviceId", "OccurredAt")
+                        .HasDatabaseName("ix_attendance_passes_device_time");
+
+                    b.HasIndex("IdentityProvider", "RawPersonId")
+                        .HasDatabaseName("ix_attendance_passes_unmatched")
+                        .HasFilter("resolved_employee_id IS NULL");
+
+                    b.HasIndex("ResolvedEmployeeId", "OccurredAt")
+                        .HasDatabaseName("ix_attendance_passes_employee_time");
+
+                    b.ToTable("attendance_passes", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<Guid?>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<Guid?>("PositionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("position_id");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("WorkScheduleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_schedule_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_schedule_assignments");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_schedule_assignments_department_id");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_schedule_assignments_employee_id");
+
+                    b.HasIndex("PositionId")
+                        .HasDatabaseName("ix_schedule_assignments_position_id");
+
+                    b.HasIndex("WorkScheduleId")
+                        .HasDatabaseName("ix_schedule_assignments_work_schedule_id");
+
+                    b.HasIndex("Scope", "EffectiveFrom")
+                        .HasDatabaseName("ix_schedule_assignments_lookup");
+
+                    b.ToTable("schedule_assignments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_schedule_assignments_scope", "(scope = 1 AND employee_id IS NOT NULL AND position_id IS NULL AND department_id IS NULL) OR\n(scope = 2 AND position_id IS NOT NULL AND employee_id IS NULL AND department_id IS NULL) OR\n(scope = 3 AND department_id IS NOT NULL AND employee_id IS NULL AND position_id IS NULL) OR\n(scope = 4 AND employee_id IS NULL AND position_id IS NULL AND department_id IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.WorkSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int?>("CycleLengthDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("cycle_length_days");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("GraceInMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("grace_in_minutes");
+
+                    b.Property<int>("GraceOutMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("grace_out_minutes");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_work_schedules");
+
+                    b.ToTable("work_schedules", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.WorkScheduleDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<TimeOnly?>("BreakEnd")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("break_end");
+
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("break_minutes");
+
+                    b.Property<TimeOnly?>("BreakStart")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("break_start");
+
+                    b.Property<int>("DayIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("day_index");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("end_time");
+
+                    b.Property<bool>("IsWorking")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_working");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("start_time");
+
+                    b.Property<Guid>("WorkScheduleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_schedule_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_work_schedule_days");
+
+                    b.HasIndex("WorkScheduleId", "DayIndex")
+                        .IsUnique()
+                        .HasDatabaseName("ux_work_schedule_days_day");
+
+                    b.ToTable("work_schedule_days", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_work_schedule_days_break_window", "(break_start IS NULL AND break_end IS NULL)\nOR (is_working\n    AND break_start IS NOT NULL\n    AND break_end IS NOT NULL\n    AND break_start <> break_end)");
+                        });
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Auditing.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2513,6 +3174,107 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("system_settings", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceDay", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attendance_days_employees_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employment", null)
+                        .WithMany()
+                        .HasForeignKey("EmploymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_attendance_days_employments_employment_id");
+
+                    b.HasOne("Bonvi.Domain.Attendance.WorkSchedule", null)
+                        .WithMany()
+                        .HasForeignKey("WorkScheduleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_attendance_days_work_schedules_work_schedule_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceDevice", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Organization.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_attendance_devices_departments_department_id");
+
+                    b.HasOne("Bonvi.Domain.Organization.LegalEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LegalEntityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_attendance_devices_legal_entities_legal_entity_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceIdentity", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attendance_identities_employees_employee_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendancePass", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Attendance.AttendanceDevice", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attendance_passes_attendance_devices_device_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("ResolvedEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_attendance_passes_employees_resolved_employee_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleAssignment", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Organization.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_schedule_assignments_departments_department_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_schedule_assignments_employees_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Organization.Position", null)
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_schedule_assignments_positions_position_id");
+
+                    b.HasOne("Bonvi.Domain.Attendance.WorkSchedule", null)
+                        .WithMany()
+                        .HasForeignKey("WorkScheduleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_schedule_assignments_work_schedules_work_schedule_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.WorkScheduleDay", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Attendance.WorkSchedule", null)
+                        .WithMany("Days")
+                        .HasForeignKey("WorkScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_work_schedule_days_work_schedules_work_schedule_id");
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetency", b =>
                 {
                     b.HasOne("Bonvi.Domain.Employees.Employee", null)
@@ -2794,6 +3556,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ResponsibleEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_incidents_employees_responsible_employee_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.WorkSchedule", b =>
+                {
+                    b.Navigation("Days");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetency", b =>
