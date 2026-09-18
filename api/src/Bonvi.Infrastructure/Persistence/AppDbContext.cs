@@ -9,6 +9,7 @@ using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.PublicApi;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Safety;
 using Bonvi.Domain.Settings;
@@ -253,6 +254,20 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Tizim sozlamalari (<c>system_settings</c>).</summary>
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+
+    // ────────────────────────────────────────────────────────────
+    //  TASHQI API
+    //  Holdingning boshqa loyihalariga berilgan FAQAT O'QISH kalitlari.
+    //  ⚠️ Kalitning O'ZI bu yerda YO'Q — faqat prefiksi va xeshi
+    //  (sababi `ApiKey` izohida).
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Tashqi API kalitlari (<c>api_keys</c>).</summary>
+    /// <remarks>
+    /// Yozuvlar HECH QACHON o'chirilmaydi va jadval <c>ISoftDeletable</c>
+    /// ham emas: bekor qilingan kalit tarix bo'lib qoladi.
+    /// </remarks>
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -103,7 +103,12 @@ public sealed partial class TelegramClient
     /// </param>
     /// <param name="timeoutSeconds">So'rov necha soniya ochiq turadi.</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    public async Task<IReadOnlyList<TelegramUpdate>> GetUpdatesAsync(
+    /// <returns>
+    /// Yangiliklar ro'yxati (bo'sh bo'lishi mumkin — kutish vaqti tugadi),
+    /// yoki <c>null</c> — chaqiruvning O'ZI yiqildi (tarmoq yoki Telegram
+    /// xatosi). Sababi asosiy izohda.
+    /// </returns>
+    public async Task<IReadOnlyList<TelegramUpdate>?> GetUpdatesAsync(
         long offset,
         int timeoutSeconds,
         CancellationToken cancellationToken)
@@ -118,10 +123,15 @@ public sealed partial class TelegramClient
             allowed_updates = new[] { "message", "callback_query" },
         };
 
-        var result = await CallAsync<List<TelegramUpdate>>("getUpdates", body, cancellationToken)
+        // ⚠️ `null` — CHAQIRUV YIQILDI, «yangilik yo'q» EMAS. Ikkisini
+        // birlashtirish (ilgari `result ?? []` edi) qimmatga tushgan edi:
+        // Telegram xatosi (masalan 409 «terminated by other getUpdates
+        // request») bo'sh ro'yxatga aylanib, halqa kutish o'rniga darhol
+        // aylanardi. Natija — sekundiga yuzlab so'rov, API'ning tezlik
+        // cheklovi va xato jurnalining to'lib ketishi (kuniga 400 000+
+        // qator). Chaqiruvchi endi farqni ko'radi va orqaga chekinadi.
+        return await CallAsync<List<TelegramUpdate>>("getUpdates", body, cancellationToken)
             .ConfigureAwait(false);
-
-        return result ?? [];
     }
 
     /// <summary>Matnli xabar yuboradi.</summary>

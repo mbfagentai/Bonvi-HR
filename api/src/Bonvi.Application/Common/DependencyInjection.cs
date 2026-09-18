@@ -18,6 +18,7 @@ using Bonvi.Application.Identity.Users.Commands.UpdateUser;
 using Bonvi.Application.Identity.Users.Photos;
 using Bonvi.Application.Identity.Users.Queries.ListUsers;
 using Bonvi.Application.Notifications;
+using Bonvi.Application.PublicApi;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
@@ -126,6 +127,12 @@ public static class DependencyInjection
         // muddati, xodim va nomzod ma'lumotlarini BIRGA o'qiydi.
         // Shu sababli o'z guruhida turadi.
         services.AddNotifications();
+
+        // Tashqi API — holdingning boshqa loyihalari uchun FAQAT O'QISH.
+        // Alohida modul, chunki u alohida YUZA: o'z autentifikatsiyasi,
+        // o'z tezlik cheklovi va ataylab tor maydon to'plami bor
+        // (chegarasi `PublicEmployeeDto` izohida).
+        services.AddPublicApi();
 
         return services;
     }

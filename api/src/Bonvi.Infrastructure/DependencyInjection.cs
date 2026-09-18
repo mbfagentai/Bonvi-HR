@@ -4,6 +4,7 @@ using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Notifications.Abstractions;
+using Bonvi.Application.PublicApi.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.System.Queries.GetSystemInfo;
@@ -57,6 +58,7 @@ public static class DependencyInjection
         services.AddRecruitingServices();
         services.AddNotificationServices();
         services.AddSettingsServices(configuration);
+        services.AddPublicApiServices();
 
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
@@ -104,6 +106,31 @@ public static class DependencyInjection
         // ga qo'shilmagan: sababi `IIncentiveReadModel` izohida (boshqa
         // ruxsat chegarasi — `incentives.view`).
         services.AddScoped<IIncentiveReadModel, IncentiveReadModel>();
+
+        return services;
+    }
+
+    /// <summary>Tashqi API (ommaviy o'qish) bilan ishlaydigan portlar.</summary>
+    /// <remarks>
+    /// <para>
+    /// <c>IApiKeyUsageTracker</c> — YAGONA <c>Singleton</c> bu ro'yxatda va
+    /// bu ataylab: uning ichida «qaysi kalitga qachon yozildi» degan
+    /// xotira jadvali bor va u so'rovlar orasida yashashi kerak. Scoped
+    /// bo'lsa, chegara har so'rovda nolga tushib, «daqiqada bitta yozuv»
+    /// qoidasi umuman ishlamasdi (batafsil — <c>ApiKeyUsageTracker</c>
+    /// izohida).
+    /// </para>
+    /// <para>
+    /// <c>IPublicApiReadModel</c> — repozitoriy EMAS: u agregat qaytarmaydi
+    /// va uning butun mazmuni CHEGARA (qaysi ustunlar tashqariga chiqadi).
+    /// Shu sababli amalga oshirilishi <c>Persistence/ReadModels</c> da.
+    /// </para>
+    /// </remarks>
+    private static IServiceCollection AddPublicApiServices(this IServiceCollection services)
+    {
+        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+        services.AddScoped<IPublicApiReadModel, PublicApiReadModel>();
+        services.AddSingleton<IApiKeyUsageTracker, ApiKeyUsageTracker>();
 
         return services;
     }

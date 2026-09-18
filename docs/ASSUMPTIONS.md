@@ -252,3 +252,45 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   o'n minglarga chiqsa — qisman indeks (`interview_at IS NOT NULL`)
   qo'shiladigan birinchi joy `NotificationReadModel` da izoh bilan
   belgilangan.
+- [2026-09-18] Tashqi API: SPEC §5 «return the **active** employments» nimani
+  anglatadi → YAKUNLANMAGAN munosabatlar (`Status != Terminated`), yangisidan
+  eskisiga → aks holda bitta odamning 2011-yildagi tugagan shartnomasi ham
+  javobga tushib, «hozir kim qayerda ishlaydi» degan savolga shovqin
+  qo'shardi. ⚠️ Oqibati: ishdan KETGAN xodimda `employments` BO'SH bo'ladi.
+  Ma'lumot yo'qolmaydi — yuqori darajadagi `status`, `hireDate` va
+  `terminationDate` ASOSIY munosabatdan olinadi (u tugagan bo'lsa ham) va
+  «asosiy» qoidasi ichki ro'yxat bilan aynan bir xil.
+- [2026-09-18] Tashqi API `updatedAt` faqat `employees.updated_at` dan
+  olinsinmi → YO'Q, xodim kartasi VA uning mehnat munosabatlaridan eng
+  keyingisi → xodimni boshqa bo'limga ko'chirish `employments` ni
+  o'zgartiradi, kartaga esa tegmaydi (alohida agregat). Faqat kartaga
+  qarasak, `?updatedSince=` bilan sinxronlanayotgan iste'molchi ko'chirishni
+  HECH QACHON ko'rmasdi — hech qanday xatosiz, jimgina eskirgan bo'lim bilan
+  qolardi. Narxi: ro'yxat so'rovida munosabatlar bo'yicha korrelyatsiyalangan
+  `MAX(...)` ichki so'rovi (2000+ qatorda bir necha ms).
+- [2026-09-18] `UseRateLimiter()` avtorizatsiyadan OLDINGA ko'chirildi (ilgari
+  keyin edi) → aks holda 401/403 bilan rad etilgan so'rovlar cheklovga umuman
+  sanalmasdi, ya'ni tashqi API kalitini tanlab ko'rish cheksiz bo'lardi.
+  Foydalanuvchi bo'yicha bo'linish buzilmadi: JWT `UseAuthentication` da
+  allaqachon o'qilgan. Kalit prefiksi esa `UseBonviApiKeyAuthentication`
+  bilan cheklovdan oldin aniqlanadi (natija so'rov davomida keshlanadi —
+  baza so'rovi ikki marta ketmaydi). Qo'riqchi test:
+  `PublicApiTests.Kalitsiz_urinishlar_ham_sanaladi`.
+- [2026-09-18] Ommaviy `/employees/{id}/photo` da «xodim yo'q» va «rasmi yo'q»
+  BIRLASHTIRILDI (ikkalasi `tashqi.surat_yoq`) → farqli javob xodimning
+  mavjudligini tasdiqlab, identifikatorlarni tanlab ko'rish uchun arzon
+  tekshirgich bo'lib qolardi. Xodim borligini bilish uchun `/employees/{id}`
+  bor va u o'z ruxsati bilan cheklangan (kalit).
+- [2026-09-18] `/employees/deletions` sahifalanmaydi (SPEC §4), lekin bitta
+  javobda eng ko'pi 5000 yozuv beradi → cheksiz javob vaqt o'tib o'sib
+  ketardi; `?since=` aynan shu uchun bor va tartib `deletedAt` bo'yicha
+  o'sishda, ya'ni davom ettirish mumkin.
+- [2026-09-18] Kalitlar jadvalida «oxirgi ishlatilgan» SPEC §6 aytganidek
+  nisbiy («2 soat oldin») emas, ANIQ sana-vaqt bo'lib chiqadi (Toshkent,
+  `formatDateTime`) → loyihada nisbiy vaqt formatlagichi umuman yo'q va uni
+  shu bitta ustun uchun yaratish 4 tilda «oldin/kun/soat» qoidalarini
+  qo'lda yozishni talab qilardi (`Intl.RelativeTimeFormat` esa `uz-Latn`/
+  `uz-Cyrl` teglarini to'liq bilmaydi — `formatNumber` dagi bilan bir xil
+  muammo). Aniq vaqt bu ustunda foydaliroq ham: u xavfsizlik tekshiruvida
+  o'qiladi va IP bilan yonma-yon turadi. Narxi: «yaqinda ishlatilganmi?»
+  degan savolga ko'z bilan javob berish bir qadam sekinroq.

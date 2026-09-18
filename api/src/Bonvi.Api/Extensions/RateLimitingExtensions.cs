@@ -25,6 +25,16 @@ public static class RateLimitPolicies
 
     /// <summary>Eksport/hisobot — og'ir amallar uchun alohida, kichik chegara.</summary>
     public const string Export = "export";
+
+    /// <summary>
+    /// Tashqi API (<c>/api/public/v1</c>) — kalit PREFIKSI bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Nega IP bo'yicha emas: holdingning bir necha loyihasi bitta ofis
+    /// IP'sidan chiqishi mumkin va o'shanda ular bir-birining chegarasini
+    /// yeb qo'yardi. Kalit esa har bir loyihada o'zi.
+    /// </remarks>
+    public const string PublicApi = "public-api";
 }
 
 /// <summary>
@@ -49,6 +59,29 @@ public sealed class RateLimitingOptions
 
     /// <summary>Eksport/hisobot: daqiqada 5 ta.</summary>
     public RateLimitWindow Export { get; set; } = new() { PermitLimit = 5, WindowSeconds = 60 };
+
+    /// <summary>Tashqi API, KALIT bilan: daqiqada 120 so'rov, siljiydigan oyna (SPEC §3).</summary>
+    public RateLimitWindow PublicApi { get; set; } = new()
+    {
+        PermitLimit = 120,
+        WindowSeconds = 60,
+        SegmentsPerWindow = 6,
+    };
+
+    /// <summary>
+    /// Tashqi API, KALITSIZ: daqiqada 20 urinish, IP bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Ancha kichik chegara ataylab (SPEC §3): kalitsiz so'rov faqat ikki
+    /// holatda bo'ladi — iste'molchi sarlavhani sozlamagan (bir-ikki
+    /// urinish yetadi) yoki kimdir kalit tanlab ko'ryapti. Ikkinchisiga
+    /// 120 ta urinish/daqiqa berish o'rinsiz.
+    /// </remarks>
+    public RateLimitWindow PublicApiAnonymous { get; set; } = new()
+    {
+        PermitLimit = 20,
+        WindowSeconds = 60,
+    };
 
     /// <summary>
     /// Qat'iy kirish cheklovi avtomatik qo'llanadigan yo'llar.
@@ -153,6 +186,33 @@ public static class RateLimitingExtensions
                     "export:" + Kim(context),
                     _ => QatiyOyna(sozlama.Export)));
 
+            /*
+              Tashqi API — IKKITA bo'linma, ikki xil chegara:
+
+                • KALIT bilan kelgan so'rov prefiks bo'yicha ajratiladi va
+                  120 so'rov/daqiqa oladi (SPEC §3). Prefiks o'sha so'rov
+                  uchun `UseBonviApiKeyAuthentication` da allaqachon
+                  aniqlangan — cheklov avtorizatsiyadan OLDIN ishlaydi,
+                  sababi o'sha metodning izohida;
+
+                • KALITSIZ so'rov IP bo'yicha ajratiladi va ancha kichik
+                  chegara oladi. Aynan shu shox kalit tanlab ko'rishni
+                  to'sadi: u avtorizatsiya 401 bergan so'rovlarni ham
+                  sanaydi.
+            */
+            options.AddPolicy(RateLimitPolicies.PublicApi, context =>
+            {
+                var prefiks = context.User.FindFirstValue(ApiKeyClaims.Prefix);
+
+                return string.IsNullOrEmpty(prefiks)
+                    ? RateLimitPartition.GetFixedWindowLimiter(
+                        "tashqi-anonim:" + Manba(context),
+                        _ => QatiyOyna(sozlama.PublicApiAnonymous))
+                    : RateLimitPartition.GetSlidingWindowLimiter(
+                        "tashqi:" + prefiks,
+                        _ => SiljiydiganOyna(sozlama.PublicApi));
+            });
+
             options.OnRejected = RadEtildiAsync;
         });
 
@@ -208,11 +268,25 @@ public static class RateLimitingExtensions
 
     /// <summary>Autentifikatsiyadan o'tgan foydalanuvchi, aks holda manba IP.</summary>
     /// <remarks>
+    /// <para>
     /// Foydalanuvchi bo'yicha ajratish adolatliroq: bitta ofisdagi 50 xodim
     /// bitta NAT IP orqali chiqadi va IP bo'yicha cheklansa bir-birini to'sadi.
+    /// </para>
+    /// <para>
+    /// Tashqi API kaliti ALOHIDA bo'linma oladi va u BIRINCHI tekshiriladi.
+    /// Kalitda <c>ClaimTypes.NameIdentifier</c> ATAYLAB yo'q (sababi
+    /// <see cref="ApiKeyClaims"/> izohida), ya'ni usiz kalit bilan kelgan
+    /// barcha loyihalar bitta ofis IP'siga tushib, umumiy cheklovda
+    /// bir-birini to'sardi.
+    /// </para>
     /// </remarks>
     private static string Kim(HttpContext context)
     {
+        if (context.User.FindFirstValue(ApiKeyClaims.Prefix) is { Length: > 0 } prefiks)
+        {
+            return "k:" + prefiks;
+        }
+
         var foydalanuvchi = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? context.User.FindFirstValue("sub");
 

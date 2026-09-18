@@ -54,6 +54,14 @@ builder.Services.AddHostedService<DatabaseInitializer>();
 builder.Services.AddBonviAuthentication(builder.Configuration);
 builder.Services.AddBonviAuthorization();
 
+// Tashqi API — IKKINCHI autentifikatsiya sxemasi va uning O'Z siyosati.
+// Ular ichki oqimga tegmaydi: standart sxema `Bearer` bo'lib qoladi,
+// ommaviy siyosat esa faqat `X-API-Key` ni sanaydi. Ikkala yo'nalishning
+// yopiqligi test bilan qo'riqlanadi (sabab `ApiKeyAuthenticationHandler`
+// izohida).
+builder.Services.AddBonviApiKeyScheme();
+builder.Services.AddBonviPublicApiAuthorization();
+
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -81,7 +89,31 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // beriladi.
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
-builder.Services.AddOpenApi();
+/*
+  ═══════════════════════════════════════════════════════════
+   IKKITA OpenAPI HUJJATI, IKKI XIL O'QUVCHI UCHUN.
+
+   • `v1`     — ichki API. `./bonvi gen` (Orval) shundan TypeScript
+                klient yasaydi;
+   • `public` — tashqi API. Uni holdingning boshqa loyihasi o'qiydi va
+                u FAQAT o'zi chaqira oladigan endpoint'larni ko'rishi
+                kerak (SPEC §8).
+
+   ⚠️ `ShouldInclude` IKKALA hujjatda ham ATAYLAB qo'lda yozilgan.
+   Standart holatda guruh nomi ko'rsatilmagan endpoint HAR BIR hujjatga
+   tushadi — ya'ni ommaviy hujjatga butun ichki API ham kirib kelardi va
+   iste'molchi o'zi chaqira olmaydigan 150 ta marshrutni ko'rardi.
+  ═══════════════════════════════════════════════════════════
+*/
+builder.Services.AddOpenApi(
+    "v1",
+    options => options.ShouldInclude = api =>
+        !string.Equals(api.GroupName, PublicApiEndpoints.DocumentName, StringComparison.Ordinal));
+
+builder.Services.AddOpenApi(
+    PublicApiEndpoints.DocumentName,
+    options => options.ShouldInclude = api =>
+        string.Equals(api.GroupName, PublicApiEndpoints.DocumentName, StringComparison.Ordinal));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("postgres");
@@ -144,10 +176,17 @@ if (app.Environment.IsDevelopment())
     // Fallback siyosati barcha endpoint'ni himoyalaydi, shu sababli OpenAPI
     // hujjati ham 401 qaytarardi va `./bonvi gen` (Orval) uni o'qiy olmasdi.
     // Bu blok butunlay `IsDevelopment()` ichida — production'da hujjat yo'q.
+    // `/openapi/{documentName}.json` — ikkala hujjat ham shu marshrutdan
+    // beriladi: `/openapi/v1.json` va `/openapi/public.json`.
     app.MapOpenApi().AllowAnonymous();
+
+    // Scalar hujjatlarni O'ZI topmaydi — ular ochiq sanab beriladi.
+    // Ro'yxatga qo'shilmagan hujjat `/scalar` da umuman ko'rinmaydi.
     app.MapScalarApiReference(options => options
         .WithTitle("Bonvi HR API")
-        .WithTheme(ScalarTheme.BluePlanet))
+        .WithTheme(ScalarTheme.BluePlanet)
+        .AddDocument("v1", "Ichki API")
+        .AddDocument(PublicApiEndpoints.DocumentName, "Tashqi API — faqat o'qish"))
         .AllowAnonymous();
 }
 
@@ -156,11 +195,27 @@ app.UseCors("web");
 // Tartib muhim: avval «kimsan» (authentication),
 // keyin «nimaga ruxsating bor» (authorization).
 app.UseAuthentication();
-app.UseAuthorization();
 
-// Tezlik cheklovi autentifikatsiyadan KEYIN: cheklov foydalanuvchi
-// bo'yicha hisoblanadi, u aniqlanmagan bo'lsa — IP bo'yicha.
+// Ommaviy yuzada kalit AVTORIZATSIYADAN OLDIN aniqlanadi: tezlik cheklovi
+// kalit prefiksi bo'yicha bo'linadi va u claim'da yotadi. `UseAuthentication`
+// faqat STANDART sxemani (JWT) bajaradi — batafsil sabab
+// `UseBonviApiKeyAuthentication` izohida. Natija keshlanadi, ya'ni
+// avtorizatsiya bosqichida kalit qayta tekshirilmaydi.
+app.UseBonviApiKeyAuthentication(PublicApiEndpoints.Prefix);
+
+/*
+  Tezlik cheklovi autentifikatsiyadan KEYIN: cheklov foydalanuvchi bo'yicha
+  hisoblanadi, u aniqlanmagan bo'lsa — IP bo'yicha.
+
+  ⚠️ U AVTORIZATSIYADAN OLDIN turadi va bu ataylab. Aks holda 401/403
+  bilan rad etilgan so'rovlar cheklovga umuman SANALMASDI — ya'ni kalit
+  yoki parol tanlab ko'rish urinishlari (aynan cheklov to'sishi kerak
+  bo'lgan narsa) chegarani yemasdi. Foydalanuvchi bo'yicha bo'linish
+  buzilmaydi: JWT `UseAuthentication` da allaqachon o'qilgan.
+*/
 app.UseRateLimiter();
+
+app.UseAuthorization();
 
 app.MapBonviHealthChecks();
 
@@ -195,6 +250,24 @@ app.MapReportsEndpoints();
 // (sababi `Permissions.SettingsManage` izohida). Ichida bitta istisno
 // bor: `/api/settings/bot` botning ruxsati bilan ochiladi.
 app.MapSettingsEndpoints();
+
+// Tashqi API kalitlari — ICHKI boshqaruv (JWT + «settings.manage»).
+// Sozlamalar bilan yonma-yon, chunki ekranda ular bitta bo'limda.
+app.MapApiKeyEndpoints();
+
+/*
+  ═══════════════════════════════════════════════════════════
+   TASHQI API — holdingning boshqa loyihalari uchun, FAQAT `GET`.
+
+   Bu guruh boshqa hammasidan ALOHIDA yuza: o'z autentifikatsiya
+   sxemasi (`X-API-Key`), o'z tezlik cheklovi (kalit prefiksi bo'yicha),
+   o'z OpenAPI hujjati va ataylab tor maydon to'plami bor.
+   Chegara — `PublicEmployeeDto` izohida; unga maydon qo'shish
+   xodimlarning ma'lumotini BonviHR nazorat qilmaydigan bazalarga
+   ko'chiradi.
+  ═══════════════════════════════════════════════════════════
+*/
+app.MapPublicApiEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {

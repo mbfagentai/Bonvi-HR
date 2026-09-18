@@ -82,3 +82,51 @@ Foydalanuvchi uchun bu bitta tugma; qaror va uning narxi
 > `taklif.*` xato kodlari butunlay olib tashlandi
 > (`20260907070127_TaklifOlibTashlandi`). Nomzoddan xodimga o'tishning
 > yagona yo'li — `POST /candidates/{id}/hire`.
+
+---
+
+# Tashqi API — BACKEND TAYYOR, frontend boshqa agentda (2026-09-18)
+
+`docs/SPEC-tashqi-api.md` ning §2–§5 va §7–§9 bo'limlari bajarildi. §6 dagi
+**ichki boshqaruv endpoint'lari ham tayyor** — qolgani sozlamalardagi ekran.
+
+| Nima | Qayerda | Holat |
+|---|---|---|
+| `api_keys` jadvali + migratsiya | `20260918063103_TashqiApiKalitlari` | ✅ |
+| `X-API-Key` sxemasi, ommaviy siyosat | `Bonvi.Api/Extensions/ApiKeyAuthenticationExtensions.cs` | ✅ |
+| `GET /api/public/v1/...` (faqat `GET`) | `Bonvi.Api/Endpoints/PublicApiEndpoints.cs` | ✅ |
+| `GET/POST /api/api-keys`, `POST /{id}/revoke` | `Bonvi.Api/Endpoints/ApiKeyEndpoints.cs` | ✅ |
+| Tezlik cheklovi (prefiks bo'yicha) | `RateLimitingExtensions` + `appsettings.json` | ✅ |
+| Alohida OpenAPI hujjati (`/openapi/public.json`) | `Program.cs` | ✅ |
+| Xato kodlari 4 tilda | `web/src/shared/i18n/locales/*.json` | ✅ |
+| Iste'molchi qo'llanmasi | `docs/API-TASHQI.md` | ✅ |
+
+## Qolgan ish — FRONTEND (boshqa agent)
+
+**Sozlamalar → «Tashqi API» bo'limi** (SPEC §6), ruxsat `settings.manage`:
+
+- kalitlar jadvali: nomi, prefiksi, yaratilgan, oxirgi ishlatilgan
+  (nisbiy, Toshkent vaqti), holati (faol / bekor qilingan);
+- «Yangi kalit» — nom so'raydi, so'ng to'liq kalitni **bir marta**
+  ko'rsatadi: nusxa olish tugmasi va ochiq ogohlantirish bilan;
+- «Bekor qilish» — tasdiqlash oynasi; bekor qilingan kalit jadvalda
+  kulrang bo'lib qoladi.
+
+Kerakli endpoint'lar ichki OpenAPI hujjatida (`/openapi/v1.json`), ya'ni
+`./bonvi gen` ni ishga tushirish yetadi. Xato kodlarining tarjimasi
+allaqachon to'rt tilda.
+
+> ⚠️ Javobdagi `key` maydoni FAQAT `POST /api/api-keys` da keladi va
+> boshqa hech qayerda yo'q. Uni holatga saqlab qo'ymang — oyna
+> yopilganda u yo'qolishi KERAK.
+
+> **Frontend BAJARILDI (2026-09-18).** Sozlamalar sahifasida «Tashqi API»
+> bo'limi bor: kalitlar jadvali (nomi, prefiksi, yaratilgan, oxirgi so'rov
+> + IP, holati), «Yangi kalit» ikki qadamli oynasi (nom → to'liq kalit BIR
+> MARTA, nusxa olish tugmasi bilan) va «Kalitni bekor qilish» tasdiq
+> oynasi. Fayllar: `web/src/features/settings/api/api-keys-api.ts`,
+> `api-keys-queries.ts`, `components/api-keys-section.tsx`,
+> `api-key-create-dialog.tsx`, `api-key-revoke-dialog.tsx`; tarjimalar
+> `settings.apiKeys.*` (4 til). Yangi marshrut ham, menyu bandi ham
+> QO'SHILMADI — bo'lim mavjud `/sozlamalar` sahifasining ichida, ya'ni
+> `App`/`Sidebar` kabi umumiy fayllarga tegilmadi.

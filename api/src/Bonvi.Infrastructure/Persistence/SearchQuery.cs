@@ -201,6 +201,71 @@ internal static class EmployeeSearchQuery
                      """)
                 .Select(employee => employee.Id);
     }
+
+    /// <summary>
+    /// TASHQI API uchun qidiruv — faqat F.I.Sh. va telefon.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega <see cref="Matching"/> dan alohida.</b> Ichki qidiruv
+    /// JSHSHIR va pasport bo'yicha ham topadi va HR uchun bu to'g'ri. Lekin
+    /// tashqarida bu qidiruvning o'zi ma'lumot beradi: kalit egasi qo'lidagi
+    /// JSHSHIR'ni yuborib, «bu odam sizda ishlaydimi?» degan savolga javob
+    /// olardi — va javobda to'liq ismni ko'rardi. Qiymatning javobga
+    /// tushmasligi bunga to'sqinlik qilmaydi, chunki sizib chiqadigan narsa
+    /// qiymat emas, MOSLIK faktining o'zi.
+    /// </para>
+    /// <para>
+    /// Egasining qarori, 2026-09-18: tashqarida faqat ism va telefon.
+    /// Qo'riqchi test — <c>PublicApiLeakTests</c> dagi «JSHSHIR bo'yicha
+    /// topib bo'lmaydi».
+    /// </para>
+    /// <para>
+    /// Ism va telefon shartlari <see cref="MatchingIds"/> dagi bilan AYNAN
+    /// bir xil yozilgan (indeks ifodasi bilan mosligi haqidagi izohlar o'sha
+    /// yerda) — ikkisi birga o'zgaradi.
+    /// </para>
+    /// </remarks>
+    public static IQueryable<Employee> MatchingPublic(AppDbContext context, string? search)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var employees = context.Employees.AsNoTracking();
+
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return employees;
+        }
+
+        var namePattern = SearchPattern.For(SearchFolding.ForName(search));
+        var phoneDigits = SearchFolding.ForPhone(search);
+
+        var matching = phoneDigits.Length == 0
+            ? context.Employees
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM employees AS x
+                     WHERE translate(
+                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
+                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     """)
+                .Select(employee => employee.Id)
+            : context.Employees
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM employees AS x
+                     WHERE translate(
+                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
+                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                        OR regexp_replace(x.phone, '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
+                        OR regexp_replace(x.second_phone, '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
+                     """)
+                .Select(employee => employee.Id);
+
+        return employees.Where(employee => matching.Contains(employee.Id));
+    }
 }
 
 /// <summary>

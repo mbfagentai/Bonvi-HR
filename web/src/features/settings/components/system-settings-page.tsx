@@ -29,6 +29,7 @@ import {
   useSystemSettings,
   useUploadBotLogo,
 } from '../api/settings-queries'
+import { ApiKeysSection } from './api-keys-section'
 
 /**
  * Ekrandagi guruhlar: sarlavha, ikona va ichidagi kalitlar.
@@ -398,6 +399,19 @@ export function SystemSettingsPage() {
               {t('common.save')}
             </Button>
           </div>
+
+          {/*
+            Tashqi API kalitlari — FORMADAN TASHQARI bo'lim, shu sababli
+            «Saqlash» tugmasidan KEYIN turadi.
+
+            Joyi ataylab shunday: tugma yuqoridagi guruhlarni saqlaydi va
+            o'sha yo'lning oxirida qolishi kerak (tugma yonidagi izoh).
+            Kalit esa sozlama emas, YOZUV: u o'z oynasi bilan yaratiladi
+            va bekor qilinadi, «Saqlash» ga hech qanday aloqasi yo'q —
+            bo'limni tugmadan yuqoriga qo'ysak, tugma unga tegishli bo'lib
+            ko'rinardi (logotip maydonidagi bilan bir xil fikr).
+          */}
+          <ApiKeysSection />
         </div>
       )}
 

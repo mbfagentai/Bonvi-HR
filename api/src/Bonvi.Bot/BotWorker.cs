@@ -209,6 +209,13 @@ public sealed partial class BotWorker : BackgroundService
 
     private long _offset;
 
+    /// <summary>Ketma-ket nechta «getUpdates» chaqiruvi yiqildi.</summary>
+    /// <remarks>
+    /// Orqaga chekinish uchun (izohi halqaning ichida): muvaffaqiyatli
+    /// javob kelishi bilan nolga qaytadi.
+    /// </remarks>
+    private int _pollFailures;
+
     /// <summary>Tizimdan olingan sozlama va u qachon o'qilgani.</summary>
     /// <remarks>
     /// Har `/start` da so'rov yuborish kerak emas — matn kamdan-kam
@@ -349,6 +356,36 @@ public sealed partial class BotWorker : BackgroundService
             var updates = await _telegram
                 .GetUpdatesAsync(_offset, _options.PollTimeoutSeconds, stoppingToken)
                 .ConfigureAwait(false);
+
+            /*
+              ⭐ CHAQIRUV YIQILGANDA ORQAGA CHEKINISH.
+
+              `null` — Telegram javob bermadi yoki rad etdi (eng ko'p
+              uchraydigani: 409 «terminated by other getUpdates request»,
+              ya'ni bitta token bilan ikkinchi nusxa ishga tushgan).
+              Bunday paytda uzoq so'rov KUTMAYDI, darhol qaytadi — halqa
+              esa avval bu farqni ko'rmasdi va to'xtovsiz aylanardi.
+
+              Narxi o'lchangan: bot API'ga sekundiga yuzlab so'rov urardi,
+              tezlik cheklovi ishga tushardi va xato jurnaliga kuniga
+              400 000+ ogohlantirish yozilardi — haqiqiy xatolar o'sha
+              shovqin ichida ko'rinmay qolardi.
+
+              Kutish vaqti bosqichma-bosqich o'sadi (5 → 10 → 20 → 30 s):
+              qisqa uzilish tez tiklanadi, uzoq muammo esa tinch kutiladi.
+              Yangilik muvaffaqiyatli olinishi bilan hisob nolga qaytadi.
+            */
+            if (updates is null)
+            {
+                _pollFailures++;
+
+                var kutish = TimeSpan.FromSeconds(Math.Min(5 * Math.Pow(2, _pollFailures - 1), 30));
+
+                await Task.Delay(kutish, stoppingToken).ConfigureAwait(false);
+                continue;
+            }
+
+            _pollFailures = 0;
 
             foreach (var update in updates)
             {

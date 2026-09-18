@@ -1,4 +1,7 @@
+using System.Net;
+using System.Text;
 using Bonvi.Bot.Telegram;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bonvi.Bot.Tests;
 
@@ -74,5 +77,68 @@ public sealed class TelegramClientTests
         path.IsAbsoluteUri.ShouldBeFalse();
         path.OriginalString.ShouldBe(
             "/file/bot8123456789:AAHtestTOKENqiymati_1234567890abcd/photos/file_12.jpg");
+    }
+
+    /// <summary>
+    /// Telegram rad etsa <c>null</c>, yangilik bo'lmasa BO'SH ro'yxat.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Bu farq halqaning tezligini belgilaydi. Ilgari ikkalasi ham bo'sh
+    /// ro'yxat edi (<c>result ?? []</c>) va Telegram 409 bergan paytda
+    /// (<c>terminated by other getUpdates request</c> — bitta token bilan
+    /// ikkinchi nusxa) uzoq so'rov darhol qaytar, <c>BotWorker</c> esa
+    /// kutmasdan aylanaverardi: API'ga sekundiga yuzlab so'rov, tezlik
+    /// cheklovi va xato jurnalida kuniga 400 000+ qator.
+    /// </para>
+    /// <para>
+    /// Test ikkala holatni BIRGA tekshiradi: faqat xatoni tekshirsak,
+    /// «har doim null qaytar» degan «tuzatish» ham yashil bo'lardi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Telegram_rad_etsa_null_qaytadi_yangilik_yoq_bolsa_bosh_royxat()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        // ── Telegram rad etdi (409) ────────────────────────────────
+        var rad = Mijoz(
+            HttpStatusCode.Conflict,
+            """{"ok":false,"error_code":409,"description":"Conflict: terminated by other getUpdates request"}""");
+
+        var natija = await rad.GetUpdatesAsync(offset: 0, timeoutSeconds: 30, bekorQilish);
+
+        natija.ShouldBeNull("chaqiruv yiqilgani «yangilik yo'q» dan farq qilishi kerak");
+
+        // ── Hammasi joyida, lekin yangilik yo'q ────────────────────
+        var jim = Mijoz(HttpStatusCode.OK, """{"ok":true,"result":[]}""");
+
+        var bosh = await jim.GetUpdatesAsync(offset: 0, timeoutSeconds: 30, bekorQilish);
+
+        bosh.ShouldNotBeNull("kutish vaqti tugashi xato emas");
+        bosh.ShouldBeEmpty();
+    }
+
+    /// <summary>Berilgan javobni qaytaradigan mijoz yasaydi.</summary>
+    private static TelegramClient Mijoz(HttpStatusCode holat, string json)
+    {
+        var http = new HttpClient(new SobitJavob(holat, json))
+        {
+            BaseAddress = new Uri("https://api.telegram.org/"),
+        };
+
+        return new TelegramClient(http, new TelegramToken { Value = Token }, NullLogger<TelegramClient>.Instance);
+    }
+
+    /// <summary>Har doim bitta javob qaytaradigan ishlovchi.</summary>
+    private sealed class SobitJavob(HttpStatusCode holat, string json) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage(holat)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
+            });
     }
 }
