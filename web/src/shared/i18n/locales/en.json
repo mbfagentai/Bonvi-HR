@@ -962,6 +962,9 @@
   "documents": {
     "acceptHint": "PDF, JPEG, PNG or WebP · up to 20 MB",
     "add": "Add",
+    "candidateHint": "Files uploaded to the candidate card — application form, passport, diploma. They are not copied into the employee documents: they live on the candidate card, and deleting them there removes them from here too.",
+    "candidateOpen": "Candidate card",
+    "candidateTitle": "Candidate period",
     "choose": "Choose a file",
     "chooseType": "Choose a type",
     "count": "{{n}} documents",
@@ -1322,6 +1325,7 @@
     "filesUploadHint": "PDF or image · up to 20 MB each. Images are downscaled on the server.",
     "filesDeleteTitle": "Delete the file?",
     "filesDeleteText": "The file is removed from both the database and the disk. This cannot be undone.",
+    "filesDeleteHiredWarning": "This candidate became an employee. The file is also shown on their employee card and will disappear from there once deleted.",
     "filesViewTitle": "Image",
     "acceptWarningTitle": "What happens when you confirm",
     "acceptEffectEmployee": "The candidate becomes an EMPLOYEE and their card appears in the Employees list.",

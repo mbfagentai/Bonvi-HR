@@ -442,6 +442,13 @@ export function CandidateFilesCard({
       <DeleteFileDialog
         candidateId={candidate.id}
         file={deleting}
+        /*
+          Nomzod XODIMGA aylangan bo'lsa, bu fayl uning kartasida ham
+          ko'rinib turadi («Hujjatlar» tabidagi «Nomzodlik davridagi
+          fayllar» bo'limi). Fayl QATTIQ o'chadi, ya'ni u yerdan ham
+          yo'qoladi — o'chirayotgan odam buni OLDINDAN bilishi kerak.
+        */
+        alsoOnEmployeeCard={candidate.status === 'Hired'}
         onClose={() => setDeleting(null)}
       />
     </Card>
@@ -556,10 +563,13 @@ function FileImageDialog({
 function DeleteFileDialog({
   candidateId,
   file,
+  alsoOnEmployeeCard,
   onClose,
 }: {
   candidateId: string
   file: CandidateFile | null
+  /** Nomzod xodimga aylangan — fayl uning kartasida ham ko'rinadi. */
+  alsoOnEmployeeCard: boolean
   onClose: () => void
 }) {
   const { t } = useLocale()
@@ -608,6 +618,9 @@ function DeleteFileDialog({
         <p className="text-subhead text-[var(--fg-secondary)]">
           {t('recruiting.filesDeleteText')}
         </p>
+        {alsoOnEmployeeCard && (
+          <Alert tone="warning">{t('recruiting.filesDeleteHiredWarning')}</Alert>
+        )}
       </div>
     </Dialog>
   )

@@ -544,6 +544,60 @@ export interface EmployeeStageEntry {
   recordedAt: string
 }
 
+/**
+ * Nomzodlik davrida yuklangan fayl — anketa surati, pasport varag'i, diplom.
+ *
+ * ⚠️ Bu XODIM HUJJATI EMAS (`EmployeeDocument` bilan adashtirmang):
+ * unda hujjat TURI bor, bu yerda yo'q — nomzod faylida tur tushunchasi
+ * umuman mavjud emas. Fayl ishga qabulda ko'chirilmaydi, u nomzod
+ * kartasida qoladi va xodim kartasida faqat KO'RSATILADI.
+ */
+/**
+ * Xodim kelib chiqqan NOMZOD yozuvi — kartasiga o'tish uchun.
+ *
+ * Ismi ATAYLAB yo'q: xodimning ismi kartada allaqachon tepada turibdi.
+ * Ikkita yozuvni (ketib qaytib kelgan odam) ajratish uchun e'lon nomi
+ * va yopilish sanasi ishlatiladi.
+ */
+export interface EmployeeOriginCandidate {
+  id: string
+  /** Voronkadan chiqqan sana. `null` — hali yopilmagan. */
+  closedAt: string | null
+  /** E'lon nomi. `null` — e'lon o'chirilgan. */
+  vacancy: string | null
+}
+
+/**
+ * Xodimning REKRUTINGDAN kelgan qismi.
+ *
+ * ⭐ Ikki ro'yxat MUSTAQIL: `files` bo'sh bo'lsa ham `candidates` da
+ * yozuv bo'lishi mumkin — «hujjat yo'q» degani «nomzodlik tarixi yo'q»
+ * degani emas (foydalanuvchi talabi, 2026-09-19).
+ */
+export interface EmployeeRecruitingOrigin {
+  candidates: EmployeeOriginCandidate[]
+  files: EmployeeCandidateFile[]
+}
+
+export interface EmployeeCandidateFile {
+  id: string
+  /**
+   * Qaysi nomzod yozuvidan. Yuklab olish AYNAN shu juftlik bilan ketadi —
+   * rekrutingning MAVJUD manzili orqali (xodim bo'limida ikkinchi yuklab
+   * olish yo'li ochilmagan: bir xil bayt, ikkita marshrut va ikkita
+   * ruxsat tekshiruvi degani bo'lardi).
+   */
+  candidateId: string
+  /** Asl nom — FAQAT ko'rsatish uchun. */
+  fileName: string
+  /** MIME turi — server MAZMUNDAN aniqlagan. */
+  contentType: string
+  /** SAQLANGAN hajm. `0` — noma'lum, ekranda chiziqcha bo'lib chiziladi. */
+  sizeBytes: number
+  /** Biriktirilgan VAQT — ISO satr, UTC. */
+  uploadedAt: string
+}
+
 /* ══════════════════════════════════════════════════════════ NORMALIZATSIYA */
 
 /**
@@ -966,6 +1020,42 @@ function toStageEntry(raw: unknown): EmployeeStageEntry {
   }
 }
 
+function toOriginCandidate(raw: unknown): EmployeeOriginCandidate {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  /*
+    Javobdagi `status` ATAYLAB o'qilmaydi. U shartnomada bor (bu havola
+    qanday yozuvga olib borishini hujjatlaydi va test uni qadaydi), lekin
+    ekranda ko'rsatilmaydi: ro'yxatga faqat ishga qabul hodisasi orqali
+    bog'langan yozuvlar tushadi, ya'ni yorliq har doim bir xil bo'lardi.
+    Ikki yozuvni ajratish uchun e'lon nomi va sana ishlatiladi.
+
+    Uni o'qish `CANDIDATE_STATUSES` ni rekrutingdan import qilishni talab
+    qilardi — `recruiting-api.ts` esa shu fayldan `PagedResult` ni oladi,
+    ya'ni ikkisi AYLANMA bog'liqlikka tushardi (tip emas, QIYMAT importi
+    bo'lgani uchun bu modul yuklanish tartibiga bog'liq `undefined`
+    xavfini tug'dirardi).
+  */
+  return {
+    id: text(box['id']) ?? '',
+    closedAt: text(box['closedAt']),
+    vacancy: text(box['vacancy']),
+  }
+}
+
+function toCandidateFile(raw: unknown): EmployeeCandidateFile {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    id: text(box['id']) ?? '',
+    candidateId: text(box['candidateId']) ?? '',
+    fileName: text(box['fileName']) ?? '',
+    contentType: text(box['contentType']) ?? '',
+    sizeBytes: typeof box['sizeBytes'] === 'number' ? box['sizeBytes'] : 0,
+    uploadedAt: text(box['uploadedAt']) ?? '',
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════ SO'ROVLAR */
 
 /**
@@ -1290,6 +1380,32 @@ export async function fetchEmployeeStages(
 ): Promise<EmployeeStageEntry[]> {
   const { data } = await api.get<unknown>(`/api/employees/${id}/stages`, { signal })
   return Array.isArray(data) ? data.map(toStageEntry) : []
+}
+
+/**
+ * Xodimning nomzodlik davri — «Hujjatlar» tabidagi bo'lim.
+ *
+ * Ruxsat `recruiting.view` (bosqichlar bilan bir xil va bir xil sabab
+ * bilan): chaqiruvchi uni OLDINDAN tekshiradi va ruxsat yo'q bo'lsa
+ * so'rov umuman yuborilmaydi.
+ *
+ * Javobda IKKI ro'yxat: nomzod kartasiga havola (`candidates`) va
+ * o'sha davrda yuklangan fayllar (`files`). Fayl baytlari bu yerdan
+ * KELMAYDI — ular rekrutingdan olinadi: `fetchCandidateFile(candidateId, id)`.
+ */
+export async function fetchEmployeeRecruiting(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EmployeeRecruitingOrigin> {
+  const { data } = await api.get<unknown>(`/api/employees/${id}/recruiting`, { signal })
+  const box = (data ?? {}) as Record<string, unknown>
+
+  return {
+    candidates: Array.isArray(box['candidates'])
+      ? box['candidates'].map(toOriginCandidate)
+      : [],
+    files: Array.isArray(box['files']) ? box['files'].map(toCandidateFile) : [],
+  }
 }
 
 /**

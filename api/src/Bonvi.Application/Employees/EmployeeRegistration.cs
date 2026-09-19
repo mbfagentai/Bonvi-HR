@@ -56,8 +56,10 @@ internal static class EmployeeRegistration
         services.AddScoped<UploadMehnatUzScreenshotCommandHandler>();
         services.AddScoped<DeleteMehnatUzScreenshotCommandHandler>();
 
-        // Nomzodlik bosqichlari — FAQAT o'qish (sababi so'rovning izohida)
+        // Nomzodlik bosqichlari va fayllari — FAQAT o'qish (sabablari
+        // so'rovlarning izohida)
         services.AddScoped<GetEmployeeStagesQueryHandler>();
+        services.AddScoped<GetEmployeeRecruitingOriginQueryHandler>();
 
         // Mehnat munosabatlari
         services.AddScoped<HireEmployeeCommandHandler>();

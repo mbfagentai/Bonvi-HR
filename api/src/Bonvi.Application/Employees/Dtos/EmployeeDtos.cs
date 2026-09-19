@@ -157,6 +157,94 @@ public sealed record EmployeeStageEntryDto(
     string? RecordedByName,
     DateTimeOffset RecordedAt);
 
+/// <summary>
+/// Xodimning NOMZODLIK davrida yuklangan fayli — anketa surati, pasport
+/// varag'i, diplom skani.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Bu xodim hujjati EMAS</b> va <c>EmployeeDocumentDto</c> bilan
+/// adashtirilmasligi kerak. Farqi ikkita maydonda ko'rinadi: bu yerda
+/// hujjat TURI yo'q (nomzod faylida u umuman mavjud emas) va
+/// <see cref="CandidateId"/> bor (yuklab olish rekruting manzili orqali
+/// ketadi). Fayl ishga qabulda KO'CHIRILMAYDI — sababi va narxi
+/// <c>IEmployeeReadModel.ListCandidateFilesAsync</c> izohida.
+/// </para>
+/// <para>
+/// <b>Saqlash kaliti qaytarilmaydi</b> — surat va xodim hujjatidagi bilan
+/// bir xil qoida: kalit ichki manzil va u mijozga hech qachon
+/// ko'rsatilmaydi.
+/// </para>
+/// </remarks>
+/// <param name="Id">Fayl yozuvi.</param>
+/// <param name="CandidateId">
+/// Qaysi nomzod yozuvidan. Yuklab olish AYNAN shu juftlik bilan ketadi:
+/// <c>GET /api/recruiting/candidates/{candidateId}/files/{id}</c>.
+/// </param>
+/// <param name="FileName">Asl fayl nomi — faqat ko'rsatish uchun.</param>
+/// <param name="ContentType">MAZMUNDAN aniqlangan MIME turi.</param>
+/// <param name="SizeBytes">
+/// Diskka TUSHGAN hajm, yuklangan fayl hajmi emas. <c>0</c> — noma'lum
+/// (eski ko'chirilgan qatorlar), ekranda chiziqcha bo'lib chiziladi.
+/// </param>
+/// <param name="UploadedAt">Fayl biriktirilgan lahza.</param>
+public sealed record EmployeeCandidateFileDto(
+    Guid Id,
+    Guid CandidateId,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    DateTimeOffset UploadedAt);
+
+/// <summary>
+/// Xodim kelib chiqqan NOMZOD yozuvi — kartasiga o'tish uchun.
+/// </summary>
+/// <remarks>
+/// Bu yerda nomzodning ISMI yo'q va u ataylab: xodim kartasida odamning
+/// ismi allaqachon tepada turibdi, nomzod yozuvidagi ism esa undan
+/// farq qilishi mumkin (ishga qabulda tuzatilgan bo'lsa) — ikkita
+/// turlicha ism bitta ekranda «bu boshqa odammi?» degan savol
+/// tug'dirardi. Havolani ajratish uchun e'lon nomi va sana yetadi.
+/// </remarks>
+/// <param name="Id">Nomzod kartasining identifikatori.</param>
+/// <param name="Status">Yakuniy holati — odatda «ishga olingan».</param>
+/// <param name="ClosedAt">Voronkadan chiqqan sana.</param>
+/// <param name="Vacancy">E'lon nomi. <c>null</c> — e'lon o'chirilgan.</param>
+public sealed record EmployeeOriginCandidateDto(
+    Guid Id,
+    CandidateStatus Status,
+    DateOnly? ClosedAt,
+    string? Vacancy);
+
+/// <summary>
+/// Xodimning REKRUTINGDAN kelgan qismi: qaysi nomzod yozuvlaridan
+/// kelgani va o'sha paytda yuklangan fayllar.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega ikkalasi BITTA javobda.</b> Xodim kartasining «Hujjatlar»
+/// tabi ikkala javobni ham bir vaqtda ko'rsatadi va ular bir-biridan
+/// MUSTAQIL: fayl bo'lmasa ham nomzod kartasiga o'tish tugmasi turishi
+/// kerak (foydalanuvchi talabi, 2026-09-19: «hujjat bo'lmasa ham
+/// nomzodlik paytida qanday edi degan savolga javob topilsin»).
+/// Ikkita alohida endpoint har karta ochilishini ikki murojaatga
+/// aylantirardi.
+/// </para>
+/// <para>
+/// Ikkala ro'yxat ham BO'SH bo'lishi odatiy holat — xodimlarning
+/// ko'pchiligi Excel'dan ko'chirilgan. Bu xato emas, bo'lim shunchaki
+/// chizilmaydi.
+/// </para>
+/// </remarks>
+/// <param name="Candidates">
+/// Qaysi nomzod yozuvlaridan kelgan — yangisidan eskisiga. Bittadan
+/// ko'p bo'lishi mumkin: odam ketib, qaytib kelgan.
+/// </param>
+/// <param name="Files">Nomzodlik davrida yuklangan fayllar.</param>
+public sealed record EmployeeRecruitingOriginDto(
+    IReadOnlyList<EmployeeOriginCandidateDto> Candidates,
+    IReadOnlyList<EmployeeCandidateFileDto> Files);
+
 /// <summary>Belgi — xodim nomi bilan (ro'yxat ekrani uchun).</summary>
 public sealed record FlaggedEmployeeDto(
     Guid Id,
