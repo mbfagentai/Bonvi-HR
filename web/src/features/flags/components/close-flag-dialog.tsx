@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { employeeErrorCode } from '@/features/employees/lib/employee-error'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, TextArea } from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
 import { useCloseFlag } from '../api/flags-queries'
@@ -96,11 +96,10 @@ export function CloseFlagDialog({
       <div className="space-y-4">
         {close.isError && <Alert tone="danger">{errorMessage(employeeErrorCode(close.error))}</Alert>}
 
-        <TextField
+        <DateField
           label={t('flags.closedAt')}
-          type="date"
           value={closedAt}
-          onChange={(event) => setClosedAt(event.target.value)}
+          onChange={setClosedAt}
         />
 
         <TextArea

@@ -2,7 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, TextArea } from '@/shared/ui'
 
 import { useConcludeIncident } from '../api/incidents-queries'
 import type { Incident } from '../api/incidents-api'
@@ -89,12 +89,11 @@ export function IncidentConcludeDialog({
           onChange={(event) => setConclusion(event.target.value)}
         />
 
-        <TextField
+        <DateField
           label={t('safety.concludedAt')}
           hint={t('safety.concludedAtHint')}
-          type="date"
           value={concludedAt}
-          onChange={(event) => setConcludedAt(event.target.value)}
+          onChange={setConcludedAt}
         />
       </div>
     </Dialog>

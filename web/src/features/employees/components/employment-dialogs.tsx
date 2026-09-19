@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
 import type { EmploymentSummary, TimelineEvent } from '../api/employees-api'
@@ -44,11 +44,10 @@ function OrderFields({
         value={orderNo}
         onChange={(event) => onOrderNo(event.target.value)}
       />
-      <TextField
+      <DateField
         label={t('employee.orderDate')}
-        type="date"
         value={orderDate}
-        onChange={(event) => onOrderDate(event.target.value)}
+        onChange={onOrderDate}
       />
     </div>
   )
@@ -188,11 +187,10 @@ export function TransferDialog({
       disabled={effectiveDate === ''}
       error={move.isError && <Alert tone="danger">{errorMessage(employeeErrorCode(move.error))}</Alert>}
     >
-      <TextField
+      <DateField
         label={t('employees.effectiveDate')}
-        type="date"
         value={effectiveDate}
-        onChange={(event) => setEffectiveDate(event.target.value)}
+        onChange={setEffectiveDate}
       />
 
       <Select
@@ -301,11 +299,10 @@ export function AdditionalDutyDialog({
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
+        <DateField
           label={t('employees.effectiveDate')}
-          type="date"
           value={effectiveDate}
-          onChange={(event) => setEffectiveDate(event.target.value)}
+          onChange={setEffectiveDate}
         />
         <TextField
           label={t('employees.extraSalary')}
@@ -397,11 +394,10 @@ export function SalaryDialog({
         onChange={(event) => setAmount(event.target.value)}
       />
 
-      <TextField
+      <DateField
         label={t('employees.effectiveDate')}
-        type="date"
         value={effectiveDate}
-        onChange={(event) => setEffectiveDate(event.target.value)}
+        onChange={setEffectiveDate}
       />
 
       <OrderFields
@@ -511,11 +507,10 @@ export function EmploymentEventEditDialog({
         {t('employees.eventEditHint')}
       </p>
 
-      <TextField
+      <DateField
         label={t('employees.effectiveDate')}
-        type="date"
         value={effectiveDate}
-        onChange={(event_) => setEffectiveDate(event_.target.value)}
+        onChange={setEffectiveDate}
       />
 
       {salaryEditable && (
@@ -640,11 +635,10 @@ export function TerminateDialog({
         ))
       }
     >
-      <TextField
+      <DateField
         label={t('employees.terminationDate')}
-        type="date"
         value={terminationDate}
-        onChange={(event) => setTerminationDate(event.target.value)}
+        onChange={setTerminationDate}
       />
 
       <Select

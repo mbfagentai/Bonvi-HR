@@ -2,7 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, TextArea } from '@/shared/ui'
 import type { Vacancy } from '../api/recruiting-api'
 import { useChangeVacancyStatus, useDeleteVacancy } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
@@ -138,12 +138,11 @@ export function VacancyActionDialog({
         </p>
 
         {action === 'close' && (
-          <TextField
+          <DateField
             label={t('recruiting.closedAt')}
-            type="date"
             value={closedAt}
             disabled={pending}
-            onChange={(event) => setClosedAt(event.target.value)}
+            onChange={setClosedAt}
           />
         )}
 

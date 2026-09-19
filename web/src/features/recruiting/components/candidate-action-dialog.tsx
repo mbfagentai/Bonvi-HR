@@ -2,7 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, Select, TextArea } from '@/shared/ui'
 import type { Candidate } from '../api/recruiting-api'
 import {
   useCloseCandidate,
@@ -281,12 +281,11 @@ export function CandidateActionDialog({
         */}
         {CLOSING.includes(action) && (
           <>
-            <TextField
+            <DateField
               label={t('recruiting.closedAt')}
-              type="date"
               value={at}
               disabled={pending}
-              onChange={(event) => setAt(event.target.value)}
+              onChange={setAt}
             />
 
             {/*
@@ -360,13 +359,12 @@ export function CandidateActionDialog({
           maydondan tuziladi.
         */}
         {WITH_NEXT_CONTACT.includes(action) && (
-          <TextField
+          <DateField
             label={t('recruiting.nextContact')}
             hint={t('recruiting.nextContactHint')}
-            type="date"
             value={nextContact}
             disabled={pending}
-            onChange={(event) => setNextContact(event.target.value)}
+            onChange={setNextContact}
           />
         )}
       </div>

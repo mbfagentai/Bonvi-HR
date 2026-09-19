@@ -195,7 +195,11 @@
     "of": "из",
     "people": "чел.",
     "dateFrom": "С даты",
-    "dateTo": "По дату"
+    "dateTo": "По дату",
+    "today": "Сегодня",
+    "chooseDate": "Выбрать дату",
+    "prevMonth": "Предыдущий месяц",
+    "nextMonth": "Следующий месяц"
   },
   "period": {
     "day": "1 день",

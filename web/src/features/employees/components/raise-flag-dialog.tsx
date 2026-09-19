@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, Select, TextArea } from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
 import type { EmployeeFlag, EmployeeFlagType } from '../api/employees-api'
@@ -272,18 +272,16 @@ export function RaiseFlagDialog({
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextField
+              <DateField
                 label={t('flags.startDate')}
-                type="date"
                 value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
+                onChange={setStartDate}
               />
-              <TextField
+              <DateField
                 label={t('flags.endDate')}
                 hint={t('employees.flagEndHint')}
-                type="date"
                 value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
+                onChange={setEndDate}
               />
             </div>
 

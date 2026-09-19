@@ -8,7 +8,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useForm, type FieldPath } from 'react-hook-form'
+import { Controller, useForm, type FieldPath } from 'react-hook-form'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
@@ -18,6 +18,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  DateField,
   Dialog,
   Select,
   Skeleton,
@@ -100,6 +101,7 @@ export function HireDialog({
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -305,12 +307,20 @@ export function HireDialog({
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label={t('employee.birthDate')}
-              type="date"
-              disabled={isSubmitting}
-              error={message('birthDate')}
-              {...register('birthDate')}
+            <Controller
+              control={control}
+              name="birthDate"
+              render={({ field }) => (
+                <DateField
+                  label={t('employee.birthDate')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  disabled={isSubmitting}
+                  error={message('birthDate')}
+                />
+              )}
             />
             <TextField
               label={t('employee.pinfl')}
@@ -425,12 +435,20 @@ export function HireDialog({
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label={t('employee.hireDate')}
-              type="date"
-              disabled={isSubmitting}
-              error={message('hireDate')}
-              {...register('hireDate')}
+            <Controller
+              control={control}
+              name="hireDate"
+              render={({ field }) => (
+                <DateField
+                  label={t('employee.hireDate')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  disabled={isSubmitting}
+                  error={message('hireDate')}
+                />
+              )}
             />
             <TextField
               label={t('employees.rate')}
@@ -486,12 +504,20 @@ export function HireDialog({
               error={message('orderNo')}
               {...register('orderNo')}
             />
-            <TextField
-              label={t('employee.orderDate')}
-              type="date"
-              disabled={isSubmitting}
-              error={message('orderDate')}
-              {...register('orderDate')}
+            <Controller
+              control={control}
+              name="orderDate"
+              render={({ field }) => (
+                <DateField
+                  label={t('employee.orderDate')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  disabled={isSubmitting}
+                  error={message('orderDate')}
+                />
+              )}
             />
           </div>
 

@@ -2,7 +2,17 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Badge, Button, Dialog, SegmentedControl, Select, TextArea, TextField } from '@/shared/ui'
+import {
+  Alert,
+  Badge,
+  Button,
+  DateField,
+  Dialog,
+  SegmentedControl,
+  Select,
+  TextArea,
+  TextField,
+} from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
 import {
@@ -207,11 +217,10 @@ export function IncentiveDialog({
           onChange={(event) => handleTypeChange(event.target.value)}
         />
 
-        <TextField
+        <DateField
           label={t('incentives.date')}
-          type="date"
           value={date}
-          onChange={(event) => setDate(event.target.value)}
+          onChange={setDate}
         />
 
         {/* Summa — faqat tanlangan tur pul bilan bog'liq bo'lsa
@@ -251,11 +260,10 @@ export function IncentiveDialog({
             value={orderNo}
             onChange={(event) => setOrderNo(event.target.value)}
           />
-          <TextField
+          <DateField
             label={t('employee.orderDate')}
-            type="date"
             value={orderDate}
-            onChange={(event) => setOrderDate(event.target.value)}
+            onChange={setOrderDate}
           />
         </div>
       </div>

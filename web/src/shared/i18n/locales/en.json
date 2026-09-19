@@ -195,7 +195,11 @@
     "of": "of",
     "people": "people",
     "dateFrom": "From",
-    "dateTo": "To"
+    "dateTo": "To",
+    "today": "Today",
+    "chooseDate": "Choose a date",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "period": {
     "day": "1 day",

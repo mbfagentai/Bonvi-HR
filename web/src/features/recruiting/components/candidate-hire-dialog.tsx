@@ -11,14 +11,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '@/features/auth'
 import { SALARY_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Dialog,
-  Select,
-  TextField,
-} from '@/shared/ui'
+import { Alert, Button, Checkbox, DateField, Dialog, Select, TextField } from '@/shared/ui'
 import type { Candidate, HireOutcome } from '../api/recruiting-api'
 import {
   useEmployeeOptions,
@@ -512,13 +505,12 @@ export function CandidateHireDialog({
                   disabled={pending}
                   onChange={(event) => setPassport(event.target.value)}
                 />
-                <TextField
+                <DateField
                   label={t('employee.hireDate')}
                   hint={t('recruiting.hireDateHint')}
-                  type="date"
                   value={hireDate}
                   disabled={pending}
-                  onChange={(event) => setHireDate(event.target.value)}
+                  onChange={setHireDate}
                 />
               </div>
 
@@ -531,12 +523,11 @@ export function CandidateHireDialog({
                   disabled={pending}
                   onChange={(event) => setOrderNo(event.target.value)}
                 />
-                <TextField
+                <DateField
                   label={t('employee.orderDate')}
-                  type="date"
                   value={orderDate}
                   disabled={pending}
-                  onChange={(event) => setOrderDate(event.target.value)}
+                  onChange={setOrderDate}
                 />
               </div>
 

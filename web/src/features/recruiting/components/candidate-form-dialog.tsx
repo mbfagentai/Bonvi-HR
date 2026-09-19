@@ -2,7 +2,16 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField, type SelectOption } from '@/shared/ui'
+import {
+  Alert,
+  Button,
+  DateField,
+  Dialog,
+  Select,
+  TextArea,
+  TextField,
+  type SelectOption,
+} from '@/shared/ui'
 import type { Candidate } from '../api/recruiting-api'
 import { useRegisterCandidate, useUpdateCandidate } from '../api/recruiting-queries'
 import { RECRUITING_ERROR_FIELD, recruitingErrorCode } from '../lib/recruiting-error'
@@ -226,13 +235,12 @@ export function CandidateFormDialog({
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
+          <DateField
             label={t('employee.birthDate')}
-            type="date"
             value={birthDate}
             error={fieldMessage('birthDate')}
             disabled={mutation.isPending}
-            onChange={(event) => setBirthDate(event.target.value)}
+            onChange={setBirthDate}
           />
           {/*
             Telefon oddiy matn maydoni: server «+998…» ni ham, 9 xonali

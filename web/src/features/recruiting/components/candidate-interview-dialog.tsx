@@ -2,7 +2,7 @@ import { LoaderCircle, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, TextArea, TextField } from '@/shared/ui'
 import type { Candidate, PipelineStage } from '../api/recruiting-api'
 import { useInviteToInterview } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
@@ -198,12 +198,11 @@ export function CandidateInterviewDialog({
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
+          <DateField
             label={t('recruiting.interviewDate')}
-            type="date"
             value={date}
             disabled={invite.isPending}
-            onChange={(event) => setDate(event.target.value)}
+            onChange={setDate}
           />
 
           <TextField
@@ -247,13 +246,12 @@ export function CandidateInterviewDialog({
           (SPEC §2.1.3) — «bugun yoki muddati o'tganlar» ro'yxati
           aynan shundan tuziladi.
         */}
-        <TextField
+        <DateField
           label={t('recruiting.nextContact')}
           hint={t('recruiting.nextContactHint')}
-          type="date"
           value={nextContact}
           disabled={invite.isPending}
-          onChange={(event) => setNextContact(event.target.value)}
+          onChange={setNextContact}
         />
       </form>
     </Dialog>

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useForm, type FieldPath } from 'react-hook-form'
+import { Controller, useForm, type FieldPath } from 'react-hook-form'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -10,6 +10,7 @@ import {
   Alert,
   Button,
   Checkbox,
+  DateField,
   Dialog,
   Select,
   Skeleton,
@@ -80,6 +81,7 @@ export function EmployeeEditDialog({
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -125,8 +127,9 @@ export function EmployeeEditDialog({
    */
   const encodedBirthDate = pinflBirthDate(watch('pinfl'))
 
-  // `<input type="date">` ning o'z chegarasi: sanani tanlash oynasida
-  // kelajak umuman ochilmasin — xatoni ko'rsatgandan ko'ra oldini olgan yaxshi
+  // Taqvimda kelajak umuman ochilmasin — xatoni ko'rsatgandan ko'ra
+  // oldini olgan yaxshi (`DateField` `max` dan keyingi kunlarni
+  // o'chirilgan holda chizadi)
   const today = todayIso()
 
   const onSubmit = handleSubmit(async (values) => {
@@ -289,18 +292,26 @@ export function EmployeeEditDialog({
               Izoh esa xatoni kutmasdan aytadi: JSHSHIR ichida qanday
               sana turganini HR 14 xonalik raqamdan o'qiy olmaydi.
             */}
-            <TextField
-              label={t('employee.birthDate')}
-              type="date"
-              max={today}
-              hint={
-                encodedBirthDate === null
-                  ? t('employees.birthDateHint')
-                  : t('employees.birthDateFromPinfl', { date: date(encodedBirthDate) })
-              }
-              disabled={isSubmitting}
-              error={message('birthDate')}
-              {...register('birthDate')}
+            <Controller
+              control={control}
+              name="birthDate"
+              render={({ field }) => (
+                <DateField
+                  label={t('employee.birthDate')}
+                  max={today}
+                  hint={
+                    encodedBirthDate === null
+                      ? t('employees.birthDateHint')
+                      : t('employees.birthDateFromPinfl', { date: date(encodedBirthDate) })
+                  }
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  disabled={isSubmitting}
+                  error={message('birthDate')}
+                />
+              )}
             />
             <Select
               label={t('employees.gender')}

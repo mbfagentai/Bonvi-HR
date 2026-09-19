@@ -2,7 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, Select, TextArea } from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
 import {
@@ -277,11 +277,10 @@ export function ExitInterviewFormDialog({
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
+          <DateField
             label={t('feedback.interviewDate')}
-            type="date"
             value={interviewDate}
-            onChange={(event) => setInterviewDate(event.target.value)}
+            onChange={setInterviewDate}
           />
           <Select
             label={t('feedback.wouldRecommend')}

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { employeeErrorCode } from '@/features/employees/lib/employee-error'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 
 import {
   PROBATION_RESULTS,
@@ -301,16 +301,15 @@ export function ExtendDialog({
       <div className="space-y-4">
         {extend.isError && <Alert tone="danger">{errorMessage(employeeErrorCode(extend.error))}</Alert>}
 
-        <TextField
+        <DateField
           label={t('probation.newEndDate')}
           hint={
             item.endDate === null
               ? undefined
               : t('probation.currentEndDate', { date: date(item.endDate) })
           }
-          type="date"
           value={newEndDate}
-          onChange={(event) => setNewEndDate(event.target.value)}
+          onChange={setNewEndDate}
         />
       </div>
     </Dialog>

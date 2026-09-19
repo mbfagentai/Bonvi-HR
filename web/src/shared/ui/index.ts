@@ -7,6 +7,7 @@ export { Card, CardContent, CardDivider, CardHeader } from './card'
 export { Checkbox } from './checkbox'
 export { DangerRow } from './danger-row'
 export { DataTable } from './data-table'
+export { DateField } from './date-field'
 export {
   dataColumnHelper,
   dataTableFeatures,

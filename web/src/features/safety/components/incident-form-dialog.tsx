@@ -3,7 +3,16 @@ import { useEffect, useState } from 'react'
 
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, Switch, TextArea, TextField } from '@/shared/ui'
+import {
+  Alert,
+  Button,
+  DateField,
+  Dialog,
+  Select,
+  Switch,
+  TextArea,
+  TextField,
+} from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
 import {
@@ -236,11 +245,10 @@ export function IncidentFormDialog({
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
+          <DateField
             label={t('safety.date')}
-            type="date"
             value={incidentDate}
-            onChange={(event) => setIncidentDate(event.target.value)}
+            onChange={setIncidentDate}
           />
           <Select
             label={t('safety.severity')}

@@ -11,11 +11,11 @@ import {
   Button,
   Card,
   DataTable,
+  DateField,
   EmptyState,
   IconTile,
   Input,
   PageHeader,
-  TextField,
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
@@ -298,17 +298,15 @@ export function ExitInterviewsPage() {
         </div>
 
         <div className="grid gap-3 border-b border-[var(--border)] px-4 py-3.5 sm:grid-cols-2 sm:px-5">
-          <TextField
+          <DateField
             label={t('common.dateFrom')}
-            type="date"
             value={filters.from}
-            onChange={(event) => setFilters({ ...filters, from: event.target.value })}
+            onChange={(value) => setFilters({ ...filters, from: value })}
           />
-          <TextField
+          <DateField
             label={t('common.dateTo')}
-            type="date"
             value={filters.to}
-            onChange={(event) => setFilters({ ...filters, to: event.target.value })}
+            onChange={(value) => setFilters({ ...filters, to: value })}
           />
         </div>
 

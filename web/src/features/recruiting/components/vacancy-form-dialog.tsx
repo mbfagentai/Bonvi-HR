@@ -2,7 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 import type { Vacancy } from '../api/recruiting-api'
 import {
   useEmployeeOptions,
@@ -192,12 +192,11 @@ export function VacancyFormDialog({
             onChange={(event) => setOpenings(event.target.value)}
           />
 
-          <TextField
+          <DateField
             label={t('recruiting.openedAt')}
-            type="date"
             value={openedAt}
             disabled={save.isPending}
-            onChange={(event) => setOpenedAt(event.target.value)}
+            onChange={setOpenedAt}
           />
         </div>
 

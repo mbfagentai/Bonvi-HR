@@ -195,7 +195,11 @@
     "of": "dan",
     "people": "ta",
     "dateFrom": "Sanadan",
-    "dateTo": "Sanagacha"
+    "dateTo": "Sanagacha",
+    "today": "Bugun",
+    "chooseDate": "Sanani tanlash",
+    "prevMonth": "Oldingi oy",
+    "nextMonth": "Keyingi oy"
   },
   "period": {
     "day": "1 kun",

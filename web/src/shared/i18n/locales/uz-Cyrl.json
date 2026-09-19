@@ -195,7 +195,11 @@
     "of": "дан",
     "people": "та",
     "dateFrom": "Санадан",
-    "dateTo": "Санагача"
+    "dateTo": "Санагача",
+    "today": "Бугун",
+    "chooseDate": "Санани танлаш",
+    "prevMonth": "Олдинги ой",
+    "nextMonth": "Кейинги ой"
   },
   "period": {
     "day": "1 кун",

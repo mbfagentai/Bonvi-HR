@@ -9,7 +9,7 @@ import {
 import { INCENTIVE_KIND_LOOK } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
-import { Button, Input, Select, TextField } from '@/shared/ui'
+import { Button, DateField, Input, Select } from '@/shared/ui'
 /*
  * Filtr holatining shakli manzil bilan bir joyda turadi
  * (`employments-toolbar.tsx` dagi bilan bir xil sabab).
@@ -151,17 +151,15 @@ export function IncentivesToolbar({
               value={filters.legalEntityId}
               onChange={(event) => set('legalEntityId', event.target.value)}
             />
-            <TextField
+            <DateField
               label={t('common.dateFrom')}
-              type="date"
               value={filters.from}
-              onChange={(event) => set('from', event.target.value)}
+              onChange={(value) => set('from', value)}
             />
-            <TextField
+            <DateField
               label={t('common.dateTo')}
-              type="date"
               value={filters.to}
-              onChange={(event) => set('to', event.target.value)}
+              onChange={(value) => set('to', value)}
             />
           </div>
 

@@ -2,7 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, Select, TextArea } from '@/shared/ui'
 import {
   type Candidate,
   type CandidateStageEntry,
@@ -279,12 +279,11 @@ export function CandidateStageDialog({
           holatni aytadi, natija esa xulosa matnida yoziladi — ikkita
           joy bir xil savolga javob berardi.
         */}
-        <TextField
+        <DateField
           label={t('recruiting.stageDate')}
-          type="date"
           value={date}
           disabled={saving.isPending}
-          onChange={(event) => setDate(event.target.value)}
+          onChange={setDate}
         />
 
         {/*
@@ -318,13 +317,12 @@ export function CandidateStageDialog({
           ro'yxatini berish — suhbat vaqtidagi «kechagi sana — xato»
           qoidasini bu yerga ko'chirib bo'lmaydi.
         */}
-        <TextField
+        <DateField
           label={t('recruiting.nextContact')}
           hint={t('recruiting.nextContactHint')}
-          type="date"
           value={nextContact}
           disabled={saving.isPending}
-          onChange={(event) => setNextContact(event.target.value)}
+          onChange={setNextContact}
         />
       </form>
     </Dialog>
