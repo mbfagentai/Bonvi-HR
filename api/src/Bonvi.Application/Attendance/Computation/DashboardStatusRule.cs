@@ -57,7 +57,13 @@ public static class DashboardStatusRule
     /// </param>
     /// <param name="today">Bugungi Toshkent sanasi.</param>
     /// <param name="now">Hozirgi lahza.</param>
-    public static DashboardVerdict Classify(DayPlan? plan, DateTimeOffset? arrivedAt, DateOnly today, DateTimeOffset now)
+    /// <param name="excused">Shu kunda tasdiqlangan yo'qlik so'rovi bormi (SPEC-so'rovlar §B3).</param>
+    public static DashboardVerdict Classify(
+        DayPlan? plan,
+        DateTimeOffset? arrivedAt,
+        DateOnly today,
+        DateTimeOffset now,
+        bool excused = false)
     {
         if (plan is null)
         {
@@ -78,8 +84,19 @@ public static class DashboardStatusRule
 
         var notStarted = plan.Date > today || (plan.Date == today && now < planStart);
 
+        if (notStarted)
+        {
+            return new DashboardVerdict(AttendanceDashboardStatus.NotStarted, null);
+        }
+
+        /*
+          Tasdiqlangan so'rov «kelmadi» ni oqlaydi — va faqat uni. Smenasi
+          hali boshlanmagan kun tegilmaydi: u hali savol emas, ya'ni javob
+          ham kerak emas (tabeldagi `AttendanceDayBuilder` bilan bir xil
+          tor qoida).
+        */
         return new DashboardVerdict(
-            notStarted ? AttendanceDashboardStatus.NotStarted : AttendanceDashboardStatus.Absent,
+            excused ? AttendanceDashboardStatus.Excused : AttendanceDashboardStatus.Absent,
             null);
     }
 }

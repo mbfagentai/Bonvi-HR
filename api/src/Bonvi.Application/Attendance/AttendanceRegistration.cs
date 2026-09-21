@@ -2,6 +2,7 @@ using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Identities;
 using Bonvi.Application.Attendance.Ingest;
 using Bonvi.Application.Attendance.Queries;
+using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Retention;
 using Bonvi.Application.Attendance.Schedules;
@@ -44,6 +45,20 @@ internal static class AttendanceRegistration
         services.AddScoped<GetBoardQueryHandler>();
         services.AddScoped<GetFormerEmployeeAlertsQueryHandler>();
         services.AddScoped<GetAttendanceDashboardQueryHandler>();
+        services.AddScoped<GetAttendanceTrendQueryHandler>();
+        services.AddScoped<GetUpcomingBirthdaysQueryHandler>();
+
+        // Yillik to'r (SPEC-jadval-to'ri §C)
+        services.AddScoped<GetScheduleYearQueryHandler>();
+        services.AddScoped<SetScheduleDatesCommandHandler>();
+
+        // Yo'qlik so'rovlari (SPEC-so'rovlar §B4)
+        services.AddScoped<CreateAbsenceRequestCommandHandler>();
+        services.AddScoped<UpdateAbsenceRequestCommandHandler>();
+        services.AddScoped<DecideAbsenceRequestCommandHandler>();
+        services.AddScoped<CancelAbsenceRequestCommandHandler>();
+        services.AddScoped<SearchAbsenceRequestsQueryHandler>();
+        services.AddScoped<GetPendingAbsenceRequestCountQueryHandler>();
         services.AddScoped<GetTimesheetQueryHandler>();
         services.AddScoped<GetAttendanceExceptionsQueryHandler>();
         services.AddScoped<GetAttendanceSummaryQueryHandler>();

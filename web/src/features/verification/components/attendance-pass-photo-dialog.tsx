@@ -253,6 +253,7 @@ export function AttendancePassPhotoDialog({
           <Link
             to="/xodimlar/$employeeId"
             params={{ employeeId: data.employeeId }}
+            search={{ tab: 'attendance' }}
             className={buttonVariants({ variant: 'secondary' })}
           >
             <UserRound />

@@ -231,6 +231,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         [
             ("son", "Ishlangan soat (masalan 7.5 — 7 soat 30 daqiqa)"),
             (StatusCode(AttendanceDayStatus.Absent), StatusLabel(AttendanceDayStatus.Absent)),
+            (StatusCode(AttendanceDayStatus.Excused), StatusLabel(AttendanceDayStatus.Excused)),
             (StatusCode(AttendanceDayStatus.DayOff), StatusLabel(AttendanceDayStatus.DayOff)),
             (StatusCode(AttendanceDayStatus.MissingExit), StatusLabel(AttendanceDayStatus.MissingExit)),
             (StatusCode(AttendanceDayStatus.MissingEntry), StatusLabel(AttendanceDayStatus.MissingEntry)),
@@ -558,6 +559,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         AttendanceDayStatus.MissingEntry => "Kirish yozilmagan",
         AttendanceDayStatus.NoSchedule => "Jadval yo'q",
         AttendanceDayStatus.NotEmployed => "Ishlamagan",
+        AttendanceDayStatus.Excused => "Sababli",
         _ => status.ToString(),
     };
 
@@ -570,6 +572,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         AttendanceDayStatus.MissingEntry => "KY",
         AttendanceDayStatus.NoSchedule => "J",
         AttendanceDayStatus.NotEmployed => "—",
+        AttendanceDayStatus.Excused => "S",
         _ => string.Empty,
     };
 

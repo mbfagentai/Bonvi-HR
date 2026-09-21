@@ -22,5 +22,12 @@ export const Route = createFileRoute('/_app/verifikatsiya/jonli')({
    */
   validateSearch: validateDashboardSearch,
 
+  /**
+   * To'liq kenglik (`app-shell.tsx` dagi izoh): diagramma, jadval va
+   * doimiy filtr ustuni yonma-yon turadi — 1400 px chegarasi katta
+   * monitorda jadvalni ezib, o'ngda bo'sh maydon qoldirardi.
+   */
+  staticData: { fullWidth: true },
+
   component: AttendanceDashboardPage,
 })

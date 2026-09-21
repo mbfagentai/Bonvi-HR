@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
@@ -154,6 +155,9 @@ public static class DependencyInjection
     private static IServiceCollection AddAttendanceServices(this IServiceCollection services)
     {
         services.AddScoped<IAttendanceDeviceRepository, AttendanceDeviceRepository>();
+        services.AddScoped<IAbsenceRequestRepository, AbsenceRequestRepository>();
+        services.AddScoped<IWorkScheduleDateRepository, WorkScheduleDateRepository>();
+        services.AddScoped<IAbsenceTypeLookup, AbsenceTypeLookup>();
         services.AddScoped<IAttendanceIdentityRepository, AttendanceIdentityRepository>();
         services.AddScoped<IAttendancePassRepository, AttendancePassRepository>();
         services.AddScoped<IWorkScheduleRepository, WorkScheduleRepository>();

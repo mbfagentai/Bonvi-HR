@@ -120,9 +120,42 @@ public sealed class DayPlan
     /// </remarks>
     /// <param name="schedule">Kunlari bilan birga yuklangan jadval.</param>
     /// <param name="date">Smena boshlanadigan Toshkent sanasi.</param>
-    public static DayPlan For(WorkSchedule schedule, DateOnly date)
+    /// <param name="exact">
+    /// Shu SANAGA yozilgan katak (yillik to'r, SPEC-jadval-to'ri §B2).
+    /// Berilsa, haftalik naqsh o'qilmaydi ham.
+    /// </param>
+    public static DayPlan For(WorkSchedule schedule, DateOnly date, WorkScheduleDate? exact = null)
     {
         ArgumentNullException.ThrowIfNull(schedule);
+
+        /*
+          ⭐ Sana katagi naqshdan USTUN. Bayram, qisqa kun, mavsumiy
+          o'zgarish — hammasi shu qatlamda yashaydi va naqshni
+          o'zgartirmaydi: «dushanba 09:00–18:00» degan qoida joyida
+          qolaveradi, faqat 21-mart boshqacha bo'ladi.
+
+          ⚠️ Tekshiruv naqshdan OLDIN: aks holda haftalik kuni
+          yuklanmagan jadvalda (Cycle turi) sana katagi ham ishlamasdi.
+        */
+        if (exact is not null)
+        {
+            if (exact.WorkScheduleId != schedule.Id)
+            {
+                throw new ArgumentException(
+                    $"«{schedule.Name}» jadvaliga boshqa jadvalning sanasi berildi.", nameof(exact));
+            }
+
+            if (exact.Date != date)
+            {
+                throw new ArgumentException(
+                    $"{date:yyyy-MM-dd} uchun {exact.Date:yyyy-MM-dd} sanasining katagi berildi.", nameof(exact));
+            }
+
+            return exact.IsWorking
+                ? Working(schedule, date, exact.StartTime, exact.EndTime, exact.BreakMinutes, exact.BreakStart, exact.BreakEnd,
+                    $"«{schedule.Name}» jadvalining {date:yyyy-MM-dd} katagi ish kuni, lekin vaqtlari ko'rsatilmagan.")
+                : new DayPlan(date, schedule);
+        }
 
         if (schedule.Kind != WorkScheduleKind.Weekly)
         {
@@ -137,15 +170,31 @@ public sealed class DayPlan
             ?? throw new InvalidOperationException(
                 $"«{schedule.Name}» jadvalining {dayIndex}-kuni yuklanmagan. Jadval kunlari bilan birga o'qilishi shart.");
 
-        if (!day.IsWorking)
-        {
-            return new DayPlan(date, schedule);
-        }
+        return day.IsWorking
+            ? Working(schedule, date, day.StartTime, day.EndTime, day.BreakMinutes, day.BreakStart, day.BreakEnd,
+                $"«{schedule.Name}» jadvalining {dayIndex}-kuni ish kuni, lekin vaqtlari ko'rsatilmagan.")
+            : new DayPlan(date, schedule);
+    }
 
-        if (day.StartTime is not { } start || day.EndTime is not { } end)
+    /// <summary>Ish kunining rejasi — naqshdan ham, sana katagidan ham SHU yerda quriladi.</summary>
+    /// <remarks>
+    /// Ikkala manba uchun bitta metod: hisoblash (tungi smena, tanaffus
+    /// oynasi, rejadagi daqiqalar) ikki joyda yozilsa, ular vaqt o'tib
+    /// ajralib ketardi va bir xil kun ikki xil hisoblanardi.
+    /// </remarks>
+    private static DayPlan Working(
+        WorkSchedule schedule,
+        DateOnly date,
+        TimeOnly? startTime,
+        TimeOnly? endTime,
+        int breakMinutes,
+        TimeOnly? breakStart,
+        TimeOnly? breakEnd,
+        string missingTimesMessage)
+    {
+        if (startTime is not { } start || endTime is not { } end)
         {
-            throw new InvalidOperationException(
-                $"«{schedule.Name}» jadvalining {dayIndex}-kuni ish kuni, lekin vaqtlari ko'rsatilmagan.");
+            throw new InvalidOperationException(missingTimesMessage);
         }
 
         var planStart = new DateTimeOffset(date.ToDateTime(start), BonviTime.TashkentOffset).ToUniversalTime();
@@ -156,10 +205,10 @@ public sealed class DayPlan
             IsWorking = true,
             PlanStartAt = planStart,
             PlanEndAt = planStart + shiftLength,
-            PlannedMinutes = Math.Max(0, WholeMinutes.AtLeastZero(shiftLength) - day.BreakMinutes),
-            BreakMinutes = day.BreakMinutes,
-            BreakWindowStartAt = day.BreakStart is { } breakStart ? planStart + (breakStart - start) : null,
-            BreakWindowEndAt = day.BreakEnd is { } breakEnd ? planStart + (breakEnd - start) : null,
+            PlannedMinutes = Math.Max(0, WholeMinutes.AtLeastZero(shiftLength) - breakMinutes),
+            BreakMinutes = breakMinutes,
+            BreakWindowStartAt = breakStart is { } window ? planStart + (window - start) : null,
+            BreakWindowEndAt = breakEnd is { } windowEnd ? planStart + (windowEnd - start) : null,
         };
     }
 

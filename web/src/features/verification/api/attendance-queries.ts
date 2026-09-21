@@ -29,6 +29,16 @@ import {
   fetchSchedules,
   fetchSummary,
   fetchTimesheet,
+  fetchTrend,
+  fetchAbsenceRequests,
+  fetchScheduleYear,
+  fetchPendingRequestCount,
+  fetchUpcomingBirthdays,
+  postAbsenceCancel,
+  postAbsenceDecision,
+  postAbsenceRequest,
+  putAbsenceRequest,
+  putScheduleDates,
   fetchUnmatched,
   previewIdentityImport,
   resolveSchedule,
@@ -57,6 +67,12 @@ import {
   type SummaryListFilters,
   type TimesheetFilters,
   type TimesheetListFilters,
+  type AbsenceDecisionInput,
+  type AbsenceRequestFilters,
+  type AbsenceRequestInput,
+  type ScheduleDatesInput,
+  type BirthdayFilters,
+  type TrendFilters,
   type WorkScheduleRequest,
 } from './attendance-api'
 import { BOARD_REFRESH_MS, UNMATCHED_COUNT_REFRESH_MS } from '../lib/attendance-presentation'
@@ -101,10 +117,37 @@ export const attendanceKeys = {
   resolution: (employeeId: string, date: string) =>
     ['attendance', 'resolve', employeeId, date] as const,
 
+  /** Jadvalning yillik to'ri — yil kalitning ichida (oy almashganda emas, YIL almashganda so'raladi). */
+  scheduleYear: (scheduleId: string, year: number) =>
+    ['attendance', 'schedule-year', scheduleId, year] as const,
+
   passes: (filters: PassListFilters) => ['attendance', 'passes', filters] as const,
   /** Bitta o'tish — `?passId=` havolasi uchun (ro'yxat keshidan ALOHIDA). */
   pass: (id: string) => ['attendance', 'pass', id] as const,
   dashboard: (filters: DashboardFilters) => ['attendance', 'dashboard', filters] as const,
+  trend: (filters: TrendFilters) => ['attendance', 'dashboard-trend', filters] as const,
+  /**
+   * Tug'ilgan kunlar — kalitda FAQAT org-filtr bor, davr yo'q.
+   *
+   * Davrni qo'shish oson bo'lardi («qo'shnisi bilan bir xil bo'lsin») va
+   * aynan shu xato bo'lardi: endpoint oraliqni umuman qabul qilmaydi,
+   * ya'ni har davr almashtirilganda AYNAN bir xil javob qaytadan
+   * so'ralardi va panel sababsiz miltillardi (`dashboard-queries.ts`
+   * dagi `breakdown` bilan bir xil sabab).
+   */
+  birthdays: (filters: BirthdayFilters) => ['attendance', 'birthdays', filters] as const,
+
+  /** Yo'qlik so'rovlari — filtr kalitning ichida (qolgan ro'yxatlar kabi). */
+  requests: (filters: AbsenceRequestFilters) => ['attendance', 'requests', filters] as const,
+
+  /**
+   * Kutayotgan so'rovlar SONI — nav nishoni uchun ALOHIDA kalit.
+   *
+   * Ro'yxat kaliti bilan bir bo'lsa, nishon har bir ekrandagi filtr
+   * o'zgarganda qayta so'ralardi (`unmatched` sanog'idan farqi shu:
+   * u yerda ro'yxatning o'zi nishonning manbai).
+   */
+  pendingRequests: ['attendance', 'requests', 'pending-count'] as const,
   /**
    * Ishdan ketganlar ogohlantirishi — menyu nishoni va statistika sahifasi
    * BITTA kalitni bo'lishadi: ikkalasi bir vaqtda ekranda turganda
@@ -449,6 +492,148 @@ export function useAttendanceDashboard(filters: DashboardFilters, live: boolean,
     refetchInterval: live ? BOARD_REFRESH_MS : false,
     ...(live ? { staleTime: 0 } : {}),
     placeholderData: (previous) => previous,
+  })
+}
+
+/**
+ * Davr grafigi — panelning ko'p kunlik rejimi.
+ *
+ * Qoidalar panel bilan AYNAN bir xil (`useAttendanceDashboard` izohi):
+ * tanlangan davr BUGUNNI qamrasa 30 soniyada bir yangilanadi va
+ * `staleTime: 0`, o'tgan davr esa o'zgarmaydi — qayta so'ralmaydi.
+ * `placeholderData` shu yerda ham shart: 92 kunlik hisob bir soniyacha
+ * ketadi va davr almashganda grafik BO'SHAB qolmasligi kerak.
+ *
+ * @param enabled `false` — so'rov umuman yuborilmaydi. Sahifa buni ikki
+ * holatda beradi: ruxsat yo'q, yoki tanlangan davr bitta kun (u holda
+ * panelning o'zi so'raladi va ikkita og'ir so'rov yonma-yon ketmaydi).
+ */
+export function useAttendanceTrend(filters: TrendFilters, live: boolean, enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.trend(filters),
+    queryFn: ({ signal }) => fetchTrend(filters, signal),
+    enabled,
+    refetchInterval: live ? BOARD_REFRESH_MS : false,
+    ...(live ? { staleTime: 0 } : {}),
+    placeholderData: (previous) => previous,
+  })
+}
+
+/**
+ * Yaqinlashib kelayotgan tug'ilgan kunlar — filtr ustunidagi karta.
+ *
+ * ⚠️ **Jonli yangilash YO'Q** (paneldan va grafikdan farqi). 30 soniyada
+ * bir so'rash bu yerda bir tiyin ham foyda bermaydi: tug'ilgan kun sanasi
+ * kun davomida ko'chib ketmaydi. Umumiy `staleTime` (60 soniya,
+ * `providers.tsx`) meros bo'yicha olinadi va yetarli.
+ *
+ * `placeholderData` esa BOR: bo'lim almashtirilganda ustun BO'SHAB
+ * qolmasligi kerak — yangi ro'yxat kelguncha eskisi ko'rinib turadi.
+ *
+ * @param enabled `attendance.view` bo'lmaganda `false` — aks holda sahifa
+ * ochilganda ortiqcha 403 ketardi (`useFormerEmployeeAlertsQuery` izohi).
+ */
+export function useAttendanceBirthdays(filters: BirthdayFilters, enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.birthdays(filters),
+    queryFn: ({ signal }) => fetchUpcomingBirthdays(filters, signal),
+    enabled,
+    placeholderData: (previous) => previous,
+  })
+}
+
+/* ═══════════════════════════════════════════ yo'qlik so'rovlari (§B) */
+
+/**
+ * Yo'qlik so'rovlari ro'yxati.
+ *
+ * Xodim kartasida `employeeId` bilan, umumiy navbatda — usiz. Bitta hook
+ * ikkala ekranga: server ham bitta endpoint bilan javob beradi va ikki
+ * ekran bir xil so'rovni har xil tartibda ko'rsata olmaydi.
+ */
+export function useAbsenceRequests(filters: AbsenceRequestFilters, enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.requests(filters),
+    queryFn: ({ signal }) => fetchAbsenceRequests(filters, signal),
+    enabled,
+    placeholderData: (previous) => previous,
+  })
+}
+
+/**
+ * Qaror kutayotgan so'rovlar soni — menyudagi nishon.
+ *
+ * @param enabled `attendance.view` bo'lmaganda `false` — aks holda har
+ * ekran ochilganda ortiqcha 403 ketardi (`useFormerEmployeeAlerts` izohi).
+ */
+export function usePendingRequestCount(enabled = true): number {
+  const query = useQuery({
+    queryKey: attendanceKeys.pendingRequests,
+    queryFn: ({ signal }) => fetchPendingRequestCount(signal),
+    enabled,
+    refetchInterval: BOARD_REFRESH_MS,
+    staleTime: 0,
+  })
+
+  return query.data?.pending ?? 0
+}
+
+/**
+ * Jadvalning yillik to'ri.
+ *
+ * `placeholderData` — yil almashtirilganda to'r BO'SHAB qolmasin: 365
+ * katakli jadval yo'qolib qayta chizilsa, ekran sakraydi (tabeldagi
+ * bilan bir xil sabab).
+ *
+ * @param enabled Oyna OCHIQmi. Yopiq turganda so'rov umuman ketmaydi —
+ * to'r kamdan-kam ochiladi va uni sahifa bilan birga yuklash 365 katakni
+ * har safar bekorga tortib kelardi (`useDashboardBirthdays` naqshi).
+ */
+export function useScheduleYear(scheduleId: string, year: number, enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.scheduleYear(scheduleId, year),
+    queryFn: ({ signal }) => fetchScheduleYear(scheduleId, year, signal),
+    enabled: enabled && scheduleId !== '',
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useSetScheduleDates() {
+  return useMutation({
+    mutationFn: ({ scheduleId, body }: { scheduleId: string; body: ScheduleDatesInput }) =>
+      putScheduleDates(scheduleId, body),
+  })
+}
+
+export function useCreateAbsenceRequest() {
+  return useMutation({
+    mutationFn: (body: AbsenceRequestInput) => postAbsenceRequest(body),
+  })
+}
+
+export function useUpdateAbsenceRequest() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: AbsenceRequestInput }) => putAbsenceRequest(id, body),
+  })
+}
+
+/**
+ * Qaror — tasdiqlash yoki rad etish.
+ *
+ * ⚠️ Serverda qarordan keyin kunlar QAYTA HISOBLANADI, ya'ni tabel,
+ * kalendar va panel javoblari eskiradi. Keshni bu yerda qo'lda bekor
+ * qilish SHART EMAS: `providers.tsx` har qanday muvaffaqiyatli yozuvdan
+ * keyin butun davomat keshini o'zi bekor qiladi (fayl boshidagi izoh).
+ */
+export function useDecideAbsenceRequest() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: AbsenceDecisionInput }) => postAbsenceDecision(id, body),
+  })
+}
+
+export function useCancelAbsenceRequest() {
+  return useMutation({
+    mutationFn: (id: string) => postAbsenceCancel(id),
   })
 }
 

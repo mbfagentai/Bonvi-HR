@@ -3,6 +3,7 @@ import {
   Briefcase,
   BriefcaseBusiness,
   Building2,
+  CalendarCheck,
   CalendarDays,
   ChartColumn,
   ChartPie,
@@ -331,6 +332,13 @@ export const NAV: NavSection[] = [
             permission: 'attendance.view' },
           { key: 'attendanceReports',   to: '/verifikatsiya/hisobotlar',    icon: ChartColumn,
             permission: 'attendance.view' },
+          /*
+            Yo'qlik so'rovlari — sariq sanoq: qaror KUTAYOTGANLAR soni
+            (SPEC-so'rovlar §B5). Qizil emas: bu xavfsizlik hodisasi emas,
+            HR ning navbatdagi ishi.
+          */
+          { key: 'attendanceRequests',  to: '/verifikatsiya/sorovlar',      icon: CalendarCheck,
+            permission: 'attendance.view', countTone: 'warning' },
           { key: 'attendanceMapping',   to: '/verifikatsiya/moslashtirish', icon: Link2,
             permission: 'attendance.manage' },
           { key: 'attendanceSchedules', to: '/verifikatsiya/jadvallar',     icon: Clock,
@@ -414,6 +422,11 @@ export const NAV: NavSection[] = [
           { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
           { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
           { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
+          // Yo'qlik turlari — davomat so'rovlaridagi sabablar
+          // (SPEC-so'rovlar §B1). Davomat moduliniki bo'lsa ham, HR uni
+          // «Ma'lumotnomalar» ichidan qidiradi: u boshqa ma'lumotnomalar
+          // bilan bir xil ishlaydi (faqat nom va faollik).
+          { key: 'absenceTypes',       to: '/malumotnomalar/yoqlik-turlari',   icon: CalendarCheck },
           /*
             Vakansiya nomlari — e'londa turadigan qisqa nomlar
             («Сотувчи-консультант», «Ҳайдовчи»).

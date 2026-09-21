@@ -20,5 +20,8 @@ export const Route = createFileRoute('/_app/verifikatsiya/otishlar')({
    */
   validateSearch: validatePassesSearch,
 
+  /** To'liq kenglik — verifikatsiya bo'limining hamma sahifasi bir xil (`app-shell.tsx`). */
+  staticData: { fullWidth: true },
+
   component: AttendancePassesPage,
 })

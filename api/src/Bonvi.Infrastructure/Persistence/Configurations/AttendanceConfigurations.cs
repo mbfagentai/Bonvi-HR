@@ -1,4 +1,5 @@
 using Bonvi.Domain.Attendance;
+using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
 using Microsoft.EntityFrameworkCore;
@@ -661,5 +662,104 @@ public sealed class AttendanceDayConfiguration : IEntityTypeConfiguration<Attend
 
         builder.HasIndex(day => new { day.LegalEntityId, day.LocalDate })
             .HasDatabaseName("ix_attendance_days_legal_entity_date");
+    }
+}
+
+/// <summary>
+/// <see cref="AbsenceRequest"/> uchun jadval konfiguratsiyasi
+/// (<c>absence_requests</c>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Indeks (xodim, davr).</b> Ikkita so'rov bor: xodim kartasidagi ro'yxat
+/// (xodim bo'yicha) va kun hisoblash paytidagi «shu sanani qamragan
+/// tasdiqlangan so'rov bormi» (xodim + sana). Ikkalasi ham
+/// <c>(employee_id, from_date, to_date)</c> indeksiga tushadi.
+/// </para>
+/// <para>
+/// <b>Holat bo'yicha alohida indeks.</b> Umumiy navbat ekrani «kutayotgan»
+/// so'rovlarni butun tashkilot bo'ylab so'raydi va nav nishonidagi sanoq
+/// ham shu so'rovdan chiqadi — bu eng tez-tez takrorlanadigan so'rov.
+/// </para>
+/// </remarks>
+public sealed class AbsenceRequestConfiguration : IEntityTypeConfiguration<AbsenceRequest>
+{
+    public void Configure(EntityTypeBuilder<AbsenceRequest> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("absence_requests");
+
+        builder.HasKey(request => request.Id);
+
+        builder.Ignore(request => request.DomainEvents);
+        builder.Ignore(request => request.IsWholeDay);
+        builder.Ignore(request => request.IsDecided);
+
+        builder.Property(request => request.FromDate).IsRequired();
+        builder.Property(request => request.ToDate).IsRequired();
+        builder.Property(request => request.Status).IsRequired();
+
+        builder.Property(request => request.Note).HasMaxLength(2000);
+        builder.Property(request => request.DecisionNote).HasMaxLength(2000);
+
+        builder.HasOne<Employee>()
+            .WithMany()
+            .HasForeignKey(request => request.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<AbsenceType>()
+            .WithMany()
+            .HasForeignKey(request => request.AbsenceTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(request => new { request.EmployeeId, request.FromDate, request.ToDate });
+        builder.HasIndex(request => request.Status);
+
+        builder.HasQueryFilter(request => request.DeletedAt == null);
+    }
+}
+
+/// <summary>
+/// <see cref="WorkScheduleDate"/> uchun jadval konfiguratsiyasi
+/// (<c>work_schedule_dates</c>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Unikal kalit — (jadval, sana).</b> Bitta sanada ikkita qiymat
+/// bo'lishi mumkin emas: hisoblash «qaysi biri?» degan savolni berishi
+/// kerak emas. Hisoblash yo'li ham aynan shu indeksdan o'tadi (oraliq
+/// bo'yicha o'qish).
+/// </para>
+/// <para>
+/// Yumshoq o'chirish YO'Q: katak o'chirilsa, kun shunchaki haftalik
+/// naqshga qaytadi — saqlab turadigan tarix emas. Jadvalning o'zi
+/// o'chirilsa, kataklari ham ketadi (<c>Cascade</c>).
+/// </para>
+/// </remarks>
+public sealed class WorkScheduleDateConfiguration : IEntityTypeConfiguration<WorkScheduleDate>
+{
+    public void Configure(EntityTypeBuilder<WorkScheduleDate> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("work_schedule_dates");
+
+        builder.HasKey(date => date.Id);
+
+        builder.Ignore(date => date.DomainEvents);
+
+        builder.Property(date => date.Date).IsRequired();
+        builder.Property(date => date.IsWorking).IsRequired();
+        builder.Property(date => date.BreakMinutes).IsRequired();
+
+        builder.HasOne<WorkSchedule>()
+            .WithMany()
+            .HasForeignKey(date => date.WorkScheduleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(date => new { date.WorkScheduleId, date.Date })
+            .IsUnique()
+            .HasDatabaseName("ux_work_schedule_dates_schedule_date");
     }
 }

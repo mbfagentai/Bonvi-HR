@@ -54,6 +54,9 @@ import {
  * `NotEmployed` — kodi YO'Q: odam bu sanada umuman ishlamagan va katak
  * ATAYLAB bo'sh (§8.6).
  */
+/** Legendadagi «ishlangan kun» namunasi — 8 soat, katakda «8,0» bo'lib chiqadi. */
+const SAMPLE_WORKED_MINUTES = 480
+
 const STATUS_CODE_KEY: Readonly<Record<Exclude<AttendanceDayStatus, 'NotEmployed'>, string>> = {
   Present: 'attendance.codePresent',
   Absent: 'attendance.codeAbsent',
@@ -62,6 +65,7 @@ const STATUS_CODE_KEY: Readonly<Record<Exclude<AttendanceDayStatus, 'NotEmployed
   MissingExit: 'attendance.codeMissingExit',
   MissingEntry: 'attendance.codeMissingEntry',
   NoSchedule: 'attendance.codeNoSchedule',
+  Excused: 'attendance.codeExcused',
 }
 
 /**
@@ -142,14 +146,30 @@ function DesktopGrid({ days, rows }: { days: readonly string[]; rows: readonly T
   const today = todayIso()
 
   return (
-    <div className="max-h-[70dvh] overflow-auto overscroll-contain">
-      <table className="border-separate border-spacing-0">
+    /*
+      ⭐ Konteyner so'rovi (`@container/tabel`), media so'rovi EMAS: yon
+      menyu yig'ilganda ±188 px o'zgaradi va oyna kengligi jadvalga
+      qancha joy qolganini bilmaydi (statistika sahifasida ham shu
+      sabab bilan shunday qilingan).
+    */
+    <div className="@container/tabel max-h-[70dvh] overflow-auto overscroll-contain">
+      {/*
+        `w-full` — o'ng tomonda bo'sh maydon qolmasligi uchun. Kataklar
+        katta ekranda O'ZI ham kattalashadi (`DayCell`), ya'ni ortiqcha
+        kenglik avval jadvalning o'ziga ketadi; undan keyin qolgani
+        XODIM ustuniga tushadi (pastdagi `w-full`) va ismlar kesilmay
+        to'liq ko'rinadi.
+      */}
+      <table className="w-full border-separate border-spacing-0">
         <thead>
           <tr>
             <th
               scope="col"
               className={cn(
-                'sticky top-0 left-0 z-30 bg-[var(--bg-elevated)] pt-3 pr-3 pb-1.5 pl-4 text-left sm:pl-5',
+                // `w-full` + `min-w` — jadval kengaysa ortiqcha joy SHU
+                // ustunga tushadi, torayganda esa 220 px dan pastga
+                // tushmaydi (ism va lavozim o'qilishi kerak).
+                'sticky top-0 left-0 z-30 w-full min-w-[220px] bg-[var(--bg-elevated)] pt-3 pr-3 pb-1.5 pl-4 text-left sm:pl-5',
                 'text-caption2 font-semibold tracking-wider whitespace-nowrap text-[var(--fg-secondary)] uppercase',
               )}
             >
@@ -183,9 +203,9 @@ function DesktopGrid({ days, rows }: { days: readonly string[]; rows: readonly T
             <tr key={row.employeeId}>
               <th
                 scope="row"
-                className="sticky left-0 z-10 bg-[var(--bg-elevated)] py-px pr-3 pl-4 text-left font-normal sm:pl-5"
+                className="sticky left-0 z-10 w-full min-w-[220px] bg-[var(--bg-elevated)] py-px pr-3 pl-4 text-left font-normal sm:pl-5"
               >
-                <EmployeeCell row={row} />
+                <EmployeeCell row={row} wide />
               </th>
 
               {row.cells.map((cell) => (
@@ -275,7 +295,11 @@ function DayNumber({ date, today }: { date: string; today: string }) {
     <span
       title={weekday === null ? undefined : t(WEEKDAY_LABEL_KEY[weekday])}
       className={cn(
-        'tabular grid h-6 w-9 place-items-center rounded-xs text-caption2',
+        'tabular grid h-6 place-items-center rounded-xs',
+        // Kenglik katak bilan BIR XIL bo'lishi shart: aks holda raqam
+        // ustuniga to'g'ri kelmay, grid qiyshiq ko'rinardi.
+        'w-9 text-caption2',
+        '@min-[1500px]/tabel:w-10 @min-[1750px]/tabel:w-11 @min-[1750px]/tabel:text-caption1',
         weekend ? 'bg-[var(--bg)] text-[var(--fg-secondary)]' : 'text-[var(--fg-tertiary)]',
         isToday && 'font-bold text-[var(--accent-text)]',
       )}
@@ -288,10 +312,27 @@ function DayNumber({ date, today }: { date: string; today: string }) {
 function EmployeeCell({ row, wide = false }: { row: TimesheetRow; wide?: boolean }) {
   const detail = row.position ?? row.department
 
+  /*
+    Karta EKRANDAGI oy bilan ochiladi: avgust tabelida ismni bosgan HR
+    avgust kalendarini ko'rishi kerak, joriy oyni emas. Oy qatorning O'Z
+    kataklaridan olinadi — grid'ga qo'shimcha parametr uzatilmaydi va
+    telefon ko'rinishi ham (u `days` ni olmaydi) bir xil ishlaydi.
+  */
+  const first = row.cells[0]?.date
+
   return (
     <Link
       to="/xodimlar/$employeeId"
       params={{ employeeId: row.employeeId }}
+      search={
+        first === undefined
+          ? { tab: 'attendance' as const }
+          : {
+              tab: 'attendance' as const,
+              year: Number(first.slice(0, 4)),
+              month: Number(first.slice(5, 7)),
+            }
+      }
       className={cn('flex items-center gap-2.5 rounded-sm', wide ? 'min-w-0' : 'w-[220px]')}
     >
       <EmployeePhoto
@@ -301,9 +342,13 @@ function EmployeeCell({ row, wide = false }: { row: TimesheetRow; wide?: boolean
         size={wide ? 'md' : 'sm'}
       />
       <span className="min-w-0 leading-tight">
-        <span className="truncate-1 block text-footnote font-medium">{row.fullName}</span>
+        <span className="truncate-1 @min-[1750px]/tabel:text-subhead block text-footnote font-medium">
+          {row.fullName}
+        </span>
         {detail !== null && (
-          <span className="truncate-1 block text-caption2 text-[var(--fg-tertiary)]">{detail}</span>
+          <span className="truncate-1 @min-[1750px]/tabel:text-footnote block text-caption2 text-[var(--fg-tertiary)]">
+            {detail}
+          </span>
         )}
       </span>
     </Link>
@@ -341,7 +386,16 @@ function DayCell({ cell, employeeName }: { cell: TimesheetCell; employeeName: st
           aria-haspopup="dialog"
           aria-label={label}
           className={cn(
-            'tabular grid size-9 place-items-center overflow-hidden rounded-xs text-caption2 font-medium',
+            'tabular grid place-items-center overflow-hidden rounded-xs font-medium',
+            /*
+              Katak katta ekranda O'SADI (egasi, 2026-09-20): faqat
+              kenglik bo'yicha cho'zilish bo'sh joyni xodim ustuniga
+              berardi, jadvalning o'zi esa kichkina bo'lib qolaverardi.
+              36 → 40 → 44 px: 31 kunda bu ~1180 dan ~1430 px gacha,
+              ya'ni 27 dyuymli monitorda jadval maydonni to'ldiradi.
+            */
+            'size-9 text-caption2',
+            '@min-[1500px]/tabel:size-10 @min-[1750px]/tabel:size-11 @min-[1750px]/tabel:text-caption1',
             look.cellClass,
             cell.lateMinutes > 0 && LATE_BAR_CLASS,
             'transition-shadow duration-150 data-[state=open]:ring-2 data-[state=open]:ring-[var(--ring)]',
@@ -503,7 +557,7 @@ function TotalsCell({ row }: { row: TimesheetRow }) {
             'transition-colors hover:bg-[var(--bg-hover)] data-[state=open]:bg-[var(--bg-active)]',
           )}
         >
-          <span className="tabular text-footnote font-semibold">
+          <span className="tabular @min-[1750px]/tabel:text-subhead text-footnote font-semibold">
             {formatDuration(totals.workedMinutes)}
           </span>
           <span className="tabular text-caption2 text-[var(--fg-tertiary)]">
@@ -578,16 +632,33 @@ export function DayStatusBadge({ status }: { status: AttendanceDayStatus }) {
 }
 
 /**
- * Legenda — gridning OSTIDA, DOIM ko'rinib turadi (SPEC §8.6), yuklanish
+ * Legenda — sahifaning TEPASIDA, DOIM ko'rinib turadi (SPEC §8.6), yuklanish
  * va bo'sh holatda ham: rang va kodning ma'nosi tooltip'da yashirinsa,
  * uni hech kim topmaydi.
+ *
+ * ⚠️ Ilgari gridning OSTIDA edi — 50 qatorlik sahifada u ekrandan ancha
+ * pastda qolib, HR uni umuman ko'rmasdi (egasi 2026-09-18: «qaysi belgi
+ * nimani anglatadi — tepaga yozib qo'y»). Endi sarlavha ostida.
+ *
+ * ⭐ NAMUNA KATAKDAGIDEK. Ishlangan kunda katakda harf emas, SOAT turadi
+ * (`cellText`: «7,7»), ya'ni «Ishladi» va «Dam olish kuni ishladi» namunasi
+ * ham soat bilan chiziladi. Birinchi versiyada ular harf kodi («I», «DI»)
+ * bilan chizilardi — gridda esa bunday harf HECH QACHON chiqmaydi.
  *
  * Oq (`Present`) va bo'sh (`NotEmployed`) namunalarga ingichka halqa
  * qo'yilgan — FAQAT legendada: oq kartada ular aks holda ko'rinmasdi.
  * Gridning o'zida chiziq yo'q, u yerda ularni qo'shni kataklar ajratadi.
  */
 export function TimesheetLegend() {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
+
+  /** Namuna matni — katakning o'zi qanday yozsa, shunday (`cellText`). */
+  const sample = (status: AttendanceDayStatus): string =>
+    status === 'NotEmployed'
+      ? ''
+      : status === 'Present' || status === 'DayOffWorked'
+        ? formatHours(SAMPLE_WORKED_MINUTES, locale)
+        : t(STATUS_CODE_KEY[status])
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
@@ -606,9 +677,10 @@ export function TimesheetLegend() {
                 'ring-1 ring-[var(--border)] ring-inset',
             )}
           >
-            {status === 'NotEmployed' ? '' : t(STATUS_CODE_KEY[status])}
+            {sample(status)}
           </span>
-          {t(DAY_STATUS_LOOK[status].labelKey)}
+          {/* Oq katakdagi raqamning ma'nosi aynan shu yerda aytiladi */}
+          {status === 'Present' ? t('attendance.legendPresentHours') : t(DAY_STATUS_LOOK[status].labelKey)}
         </span>
       ))}
 

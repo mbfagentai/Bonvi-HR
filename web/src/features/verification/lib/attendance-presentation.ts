@@ -2,6 +2,7 @@ import {
   AlarmClock,
   BriefcaseBusiness,
   ChartColumn,
+  CalendarCheck,
   CircleCheck,
   CircleHelp,
   CircleSlash,
@@ -56,6 +57,14 @@ import type {
  */
 export const ATTENDANCE_VIEW = 'attendance.view'
 export const ATTENDANCE_MANAGE = 'attendance.manage'
+
+/**
+ * Yo'qlik so'rovlari bo'yicha QAROR — alohida ruxsat (SPEC-so'rovlar §B4).
+ *
+ * `attendance.manage` dan farqi: u qurilma va jadvalni sozlaydi, bu esa
+ * kadrlar qarorini qabul qiladi. Ikkalasi bir odamda bo'lishi shart emas.
+ */
+export const ATTENDANCE_REQUESTS_MANAGE = 'attendance.requests.manage'
 
 /*
  * Excelga yuklash — `attendance.view` EMAS, alohida `reports.export`
@@ -210,6 +219,19 @@ export const DAY_STATUS_LOOK: Readonly<Record<AttendanceDayStatus, DayStatusLook
     labelKey: 'attendance.statusNotEmployed',
     cellClass: 'bg-transparent text-[var(--fg-tertiary)]',
   },
+  /*
+    «Sababli» — ko'k: kelmagan, LEKIN bu muammo emas. Qizil (kelmadi) bilan
+    yonma-yon turganda farq bir qarashda ko'rinishi kerak, kulrang (dam
+    olish kuni) esa «bu kun umuman ish kuni emas» degan boshqa gapni
+    aytardi. Tasdiqlangan so'rov — ma'lum va hujjatlashtirilgan yo'qlik,
+    ya'ni «axborot» ohangida (SPEC-so'rovlar §B3).
+  */
+  Excused: {
+    tone: 'info',
+    icon: CalendarCheck,
+    labelKey: 'attendance.statusExcused',
+    cellClass: 'bg-ios-blue/12 text-ios-blue',
+  },
 }
 
 /**
@@ -228,7 +250,7 @@ export const LATE_BAR_CLASS =
   "relative after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-ios-orange after:content-['']"
 
 /**
- * Legenda tartibi — gridning ostida DOIM ko'rinib turadi (SPEC §8.6).
+ * Legenda tartibi — sahifa tepasida DOIM ko'rinib turadi (SPEC §8.6).
  *
  * Tartib tasodifiy emas: avval kundalik holatlar, keyin muammolar,
  * oxirida «hisoblanmagan» kataklar — ya'ni chapdan o'ngga
@@ -369,6 +391,16 @@ export const DASHBOARD_STATUS_LOOK: Readonly<Record<DashboardStatus, DashboardSt
     dotClass: 'bg-ios-gray',
     textClass: 'text-[var(--fg-secondary)]',
   },
+  // Rang tabeldagi «Sababli» bilan AYNAN bir xil (ko'k): bir kun ikki
+  // ekranda ikki xil rangda ko'rinmasligi kerak.
+  Excused: {
+    count: 'excused',
+    legendKey: 'attendance.statsExcused',
+    rowKey: 'attendance.statsRowExcused',
+    fill: 'var(--color-ios-blue)',
+    dotClass: 'bg-ios-blue',
+    textClass: 'text-ios-blue',
+  },
 }
 
 /**
@@ -382,10 +414,38 @@ export const DASHBOARD_STATUSES: readonly DashboardStatus[] = [
   'OnTime',
   'Late',
   'Absent',
+  // «Sababli» — «Kelmadi» dan keyin: ular bitta savolning ikki javobi.
+  'Excused',
   'NotStarted',
   'DayOff',
   'NoSchedule',
 ]
+
+/**
+ * Panelning ko'rinish turi.
+ *
+ * `donut` — sukut (Verifix'dagi «Круговая диаграмма»), `bars` — ustunli,
+ * `list` — DIAGRAMMASIZ: jadval kartaning butun kengligini oladi.
+ *
+ * ⚠️ `list` «yashirilgan diagramma» EMAS. Diagramma ustuni umuman
+ * chizilmaydi: nol balandlikdagi recharts konteyneri hisoblanishda
+ * davom etardi va jadval o'sha ustunning kengligini baribir yo'qotmasdi.
+ */
+export const DASHBOARD_VIEWS = ['donut', 'bars', 'list'] as const
+
+export type DashboardView = (typeof DASHBOARD_VIEWS)[number]
+
+export const DEFAULT_DASHBOARD_VIEW: DashboardView = 'donut'
+
+/**
+ * Davr grafigida sukut bo'yicha YONIQ qatorlar (egasining qarori, 2026-09-18).
+ *
+ * Oltalasi birdan chizilsa grafik o'qib bo'lmaydigan chigal bo'ladi. Uchtasi
+ * — HR har kuni qaraydigan savol: «vaqtida keldimi, kechikdimi, kelmadimi».
+ * Qolgan uchtasi («boshlanmagan», «dam olish», «grafik yo'q») kunning
+ * SHAKLINI tasvirlaydi va kerak bo'lganda qo'lda yoqiladi.
+ */
+export const DEFAULT_TREND_SERIES: readonly DashboardStatus[] = ['OnTime', 'Late', 'Absent']
 
 /**
  * Ulush, foizda, BITTA kasr xonasi bilan: 75 / 157 → 47.8.
@@ -587,6 +647,23 @@ export const WEEKDAY_LABEL_KEY: Readonly<Record<WeekdayIndex, string>> = {
   7: 'attendance.weekdaySun',
 }
 
+/**
+ * Hafta kunining QISQA yorlig'i — xodim kartasidagi kalendar sarlavhasi.
+ *
+ * NEGA alohida kalitlar, to'liq nomning birinchi ikki harfi emas: ruscha
+ * «Понедельник» dan «По» chiqardi, to'g'risi esa «Пн». Har tilda qisqartma
+ * o'z qoidasiga ega va uni koddan yasab bo'lmaydi.
+ */
+export const WEEKDAY_SHORT_KEY: Readonly<Record<WeekdayIndex, string>> = {
+  1: 'attendance.weekdayShortMon',
+  2: 'attendance.weekdayShortTue',
+  3: 'attendance.weekdayShortWed',
+  4: 'attendance.weekdayShortThu',
+  5: 'attendance.weekdayShortFri',
+  6: 'attendance.weekdayShortSat',
+  7: 'attendance.weekdayShortSun',
+}
+
 /** Shanba va yakshanba — tabelda ustun sarlavhasi kulrang fonda (SPEC §8.6). */
 export function isWeekend(dayIndex: number): boolean {
   return dayIndex === 6 || dayIndex === 7
@@ -762,6 +839,26 @@ export function formatPassTime(value: string | Date | null): string {
 }
 
 /**
+ * Tug'ilgan kun sanasi: «2026-09-20» → «20.09».
+ *
+ * Yil ATAYLAB yo'q: panelda sana yaqin kelajakni bildiradi va yil har
+ * doim joriy (yoki keyingi) — uni chizish ustunda joy egallab, hech
+ * narsa aytmasdi. Shakl tizimning boshqa joylaridagi `dd.MM.yyyy` ning
+ * kesilgani, ya'ni yangi format kiritilmaydi (`format.ts` izohi:
+ * sana barcha tillarda bir xil ko'rinishda).
+ *
+ * ⚠️ Qiymat — server `DateOnly` si («yyyy-MM-dd»), lahza EMAS: bu yerda
+ * mintaqa o'girish YO'Q va bo'lmasligi ham kerak. `new Date(...)` orqali
+ * o'tkazish uni UTC yarim tuniga bog'lab, brauzer mintaqasida bir kunga
+ * siljitib yuborishi mumkin edi.
+ */
+export function formatBirthday(value: string): string {
+  const [, month, day] = value.split('-')
+
+  return month === undefined || day === undefined ? value : `${day}.${month}`
+}
+
+/**
  * Davomiylik: 479 → «7:59».
  *
  * NEGA soat:daqiqa, o'nlik kasr emas: HR «7 soat 59 daqiqa» deb
@@ -792,4 +889,20 @@ export function formatHours(minutes: number, locale: LocaleCode): string {
 
   const hours = (minutes / 60).toFixed(1)
   return locale === 'en' ? hours : hours.replace('.', ',')
+}
+
+/**
+ * Oy yorlig'i: «09.2026», inglizchada «2026-09».
+ *
+ * NEGA oy NOMI emas: o'n ikki nomni to'rt tilga tarjima qilish qirq
+ * sakkizta yangi kalit degani, `Intl` esa `uz-Latn`/`uz-Cyrl` ni to'liq
+ * bilmaydi (`reports-presentation.ts` dagi `monthTick` bilan bir xil
+ * mulohaza va bir xil tartib qoidasi).
+ *
+ * Tabel sahifasida ham, xodim kartasidagi kalendarda ham SHU funksiya —
+ * ikki ekranda oy ikki xil yozilmasin.
+ */
+export function monthLabel(value: { year: number; month: number }, locale: LocaleCode): string {
+  const month = String(value.month).padStart(2, '0')
+  return locale === 'en' ? `${value.year}-${month}` : `${month}.${value.year}`
 }

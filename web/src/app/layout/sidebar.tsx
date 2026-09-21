@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth'
 import { useDashboardStats } from '@/features/dashboard/api/dashboard-queries'
 import {
   useFormerEmployeeAlerts,
+  usePendingRequestCount,
   useUnmatchedCount,
 } from '@/features/verification/api/attendance-queries'
 import {
@@ -85,12 +86,16 @@ export function Sidebar({
    */
   const formerEmployeeAlerts = useFormerEmployeeAlerts(hasPermission(ATTENDANCE_VIEW))
   const unmatchedCount = useUnmatchedCount(hasPermission(ATTENDANCE_MANAGE))
+  const pendingRequests = usePendingRequestCount(hasPermission(ATTENDANCE_VIEW))
 
   if (formerEmployeeAlerts.length > 0) {
     counts['attendanceBoard'] = formerEmployeeAlerts.length
   }
   if (unmatchedCount > 0) {
     counts['attendanceMapping'] = unmatchedCount
+  }
+  if (pendingRequests > 0) {
+    counts['attendanceRequests'] = pendingRequests
   }
 
   /** Band + uning jonli sanog'i (bo'lsa). Statik `NAV` massivi o'zgartirilmaydi. */

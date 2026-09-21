@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   CalendarPlus,
+  CalendarRange,
   CircleCheck,
   Clock,
   LoaderCircle,
@@ -42,7 +43,6 @@ import type {
   ScheduleResolution,
   ScheduleScope,
   WorkSchedule,
-  WorkScheduleDayInput,
 } from '../api/attendance-api'
 import {
   useDeleteAssignment,
@@ -78,6 +78,7 @@ import {
   AttendancePageTitle,
 } from './attendance-manage-states'
 import { AttendanceScheduleFormDialog } from './attendance-schedule-form-dialog'
+import { AttendanceScheduleYearDialog } from './attendance-schedule-year-dialog'
 
 /** Filtrsiz — barcha tirik biriktirmalar. Modul darajasida: kalit barqaror bo'lsin. */
 const ALL_ASSIGNMENTS: AssignmentFilters = {}
@@ -121,6 +122,9 @@ export function AttendanceSchedulesPage() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<WorkSchedule | null>(null)
+
+  /** Yillik to'r oynasi — qaysi jadval uchun ochilgan. */
+  const [yearOf, setYearOf] = useState<WorkSchedule | null>(null)
   const [deleting, setDeleting] = useState<WorkSchedule | null>(null)
   const [deactivating, setDeactivating] = useState<WorkSchedule | null>(null)
 
@@ -260,6 +264,7 @@ export function AttendanceSchedulesPage() {
               onEdit={() => openEdit(schedule)}
               onDelete={() => setDeleting(schedule)}
               onAssign={() => openAssign(schedule.id)}
+              onYear={() => setYearOf(schedule)}
             />
           ))}
         </div>
@@ -280,6 +285,8 @@ export function AttendanceSchedulesPage() {
 
       {canManage && (
         <>
+          <AttendanceScheduleYearDialog schedule={yearOf} onClose={() => setYearOf(null)} />
+
           <AttendanceScheduleFormDialog
             open={formOpen}
             onClose={() => setFormOpen(false)}
@@ -327,6 +334,7 @@ function ScheduleCard({
   onEdit,
   onDelete,
   onAssign,
+  onYear,
 }: {
   schedule: WorkSchedule
   assignmentCount: number
@@ -335,6 +343,7 @@ function ScheduleCard({
   toggling: boolean
   onToggleActive: (next: boolean) => void
   onEdit: () => void
+  onYear: () => void
   onDelete: () => void
   onAssign: () => void
 }) {
@@ -379,6 +388,21 @@ function ScheduleCard({
                 {t('attendance.assignmentCreate')}
               </Button>
             )}
+            {/*
+              Yillik to'r — TAHRIRLASHDAN alohida tugma: naqsh (haftalik
+              qoida) va istisnolar (bayram, qisqa kun) ikki xil ish va
+              ular bitta oynaga sig'masdi (SPEC-jadval-to'ri §D).
+            */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              title={t('attendance.scheduleYearOpen')}
+              aria-label={`${schedule.name} — ${t('attendance.scheduleYear')}`}
+              onClick={onYear}
+            >
+              <CalendarRange />
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -403,8 +427,14 @@ function ScheduleCard({
         )}
       </div>
 
-      <WeekStrip days={schedule.days} className="mt-4" />
-
+      {/*
+        Haftalik yettita quti OLIB TASHLANDI (egasi, 2026-09-20). Sabab:
+        jadvalning kunlari endi ikki joyda ko'rinadi — tahrirlash
+        oynasida (naqsh) va YILLIK TO'RDA (haqiqiy kunlar). Ro'yxatda
+        ular uchinchi nusxa edi va har bir jadval ekranda 150 px joy
+        egallab, ro'yxatni varaqlab bo'lmaydigan qilib qo'yardi
+        (Verifix'da ham ro'yxat faqat nomdan iborat).
+      */}
       <p className="tabular mt-3 text-caption1 text-[var(--fg-tertiary)]">
         {assignmentCount === 0
           ? t('attendance.scheduleNotAssigned')
@@ -412,73 +442,6 @@ function ScheduleCard({
         {schedule.note !== null && ` · ${schedule.note}`}
       </p>
     </Card>
-  )
-}
-
-/**
- * Haftaning yetti kuni — keng ekranda ustunlar, telefonda qatorlar.
- *
- * Har bir kunda uch narsa: smena (yarim tundan o'tsa oy belgisi),
- * rejadagi soat va tanaffus oynasi. Oynasiz, lekin tanaffusli kun SARIQ
- * yozuv bilan: u holda tanaffus ishlangan vaqtdan ayirilmaydi (§5.5.1) va
- * bu ko'pincha operator KUTMAGAN natija.
- */
-function WeekStrip({ days, className }: { days: readonly WorkScheduleDayInput[]; className?: string }) {
-  const { t } = useLocale()
-
-  return (
-    <ul className={cn('grid gap-1.5 md:grid-cols-7', className)}>
-      {days.map((day) => (
-        <li
-          key={day.dayIndex}
-          className={cn(
-            'flex items-center justify-between gap-3 rounded-md px-3 py-2 md:block md:px-2.5',
-            day.isWorking
-              ? 'bg-[var(--bg-sunken)]'
-              : 'border border-dashed border-[var(--border)]',
-          )}
-        >
-          <p className="truncate-1 text-caption1 font-medium text-[var(--fg-secondary)]">
-            {weekdayLabel(day.dayIndex, t)}
-          </p>
-          {day.isWorking ? <WorkingDay day={day} /> : (
-            <p className="text-footnote text-[var(--fg-tertiary)] md:mt-0.5">
-              {t('attendance.dayOff')}
-            </p>
-          )}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function WorkingDay({ day }: { day: WorkScheduleDayInput }) {
-  const { t } = useLocale()
-  const windowRange = breakWindowLabel(day)
-
-  return (
-    <div className="text-right md:mt-0.5 md:text-left">
-      <p className="tabular flex items-center justify-end gap-1 text-footnote font-semibold md:justify-start">
-        {day.startTime ?? '—'}–{day.endTime ?? '—'}
-        {crossesMidnight(day) && (
-          <MoonStar
-            className="size-3.5 shrink-0 text-ios-purple"
-            aria-label={t('attendance.nextDay')}
-          />
-        )}
-      </p>
-      <p className="tabular text-caption2 text-[var(--fg-tertiary)]">
-        {formatDuration(plannedDayMinutes(day))}
-        {' · '}
-        {windowRange !== null ? (
-          windowRange
-        ) : day.breakMinutes > 0 ? (
-          <span className="text-ios-orange">{t('attendance.breakWindowNoneShort')}</span>
-        ) : (
-          t('attendance.noBreak')
-        )}
-      </p>
-    </div>
   )
 }
 
@@ -1152,12 +1115,6 @@ function RemoveAssignmentDialog({
 }
 
 /* ═══════════════════════════════════════════════════════════ yordamchilar */
-
-function weekdayLabel(dayIndex: number, t: (key: string) => string): string {
-  return dayIndex >= 1 && dayIndex <= 7
-    ? t(WEEKDAY_LABEL_KEY[dayIndex as keyof typeof WEEKDAY_LABEL_KEY])
-    : String(dayIndex)
-}
 
 function targetName(item: ScheduleAssignment, t: (key: string) => string): string {
   switch (item.scope) {

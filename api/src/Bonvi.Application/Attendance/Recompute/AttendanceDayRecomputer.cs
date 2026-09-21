@@ -154,9 +154,16 @@ public sealed class AttendanceDayRecomputer
             return new AttendanceRecomputeOutcome(0, 0, 0, frozen);
         }
 
-        var catalog = await _source.LoadScheduleCatalogAsync(cancellationToken).ConfigureAwait(false);
+        var catalog = await _source
+            .LoadScheduleCatalogAsync(ordered[0], ordered[^1], cancellationToken)
+            .ConfigureAwait(false);
+
         var builder = new AttendanceDayBuilder(
-            new ScheduleResolver(catalog.Assignments, catalog.Schedules, new DepartmentTree(catalog.Departments)));
+            new ScheduleResolver(
+                catalog.Assignments,
+                catalog.Schedules,
+                new DepartmentTree(catalog.Departments),
+                catalog.Dates));
 
         var stored = 0;
         var removed = 0;
@@ -210,6 +217,12 @@ public sealed class AttendanceDayRecomputer
             .LoadPassesAsync(batch, passFrom, passTo, cancellationToken)
             .ConfigureAwait(false);
 
+        // Tasdiqlangan yo'qlik so'rovlari: «Kelmadi» ni «Sababli» ga
+        // aylantiradigan YAGONA manba (SPEC-so'rovlar §B3).
+        var excused = await _source
+            .LoadExcusedDatesAsync(batch, from, to, cancellationToken)
+            .ConfigureAwait(false);
+
         var existing = (await _days.ListForUpdateAsync(batch, from, to, cancellationToken).ConfigureAwait(false))
             .Where(day => wanted.Contains(day.LocalDate))
             .ToDictionary(day => (day.EmployeeId, day.LocalDate));
@@ -224,7 +237,8 @@ public sealed class AttendanceDayRecomputer
                 employeeId,
                 employments.GetValueOrDefault(employeeId) ?? [],
                 passes.GetValueOrDefault(employeeId) ?? [],
-                ordered);
+                ordered,
+                excused.GetValueOrDefault(employeeId));
 
             foreach (var result in results)
             {

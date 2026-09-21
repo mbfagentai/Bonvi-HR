@@ -18,7 +18,6 @@ import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { isRateLimited } from '@/features/employees/lib/employee-error'
 import { problemCode } from '@/shared/api/problem-details'
-import type { LocaleCode } from '@/shared/i18n/locales'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import { todayIso } from '@/shared/lib/today'
@@ -41,6 +40,7 @@ import {
   ATTENDANCE_VIEW,
   DEFAULT_PAGE_SIZE,
   REPORTS_EXPORT,
+  monthLabel,
 } from '../lib/attendance-presentation'
 import {
   currentMonth,
@@ -279,6 +279,13 @@ export function AttendanceTimesheetPage() {
         }
       />
 
+      {/*
+        Belgilar — sarlavha OSTIDA, DOIM (yuklanishda ham, bo'sh holatda ham —
+        SPEC §8.6). Ilgari kartaning eng pastida edi va 50 qatordan keyin
+        ko'rinmasdi (`TimesheetLegend` izohi).
+      */}
+      <TimesheetLegend />
+
       {query.isError && data !== undefined && (
         <Alert tone="danger" title={t('employees.loadFailed')}>
           {errorMessage(problemCode(query.error))}
@@ -470,11 +477,6 @@ export function AttendanceTimesheetPage() {
             className="border-t border-[var(--border)]"
           />
         )}
-
-        {/* Legenda DOIM — yuklanishda ham, bo'sh holatda ham (SPEC §8.6) */}
-        <div className="border-t border-[var(--border)] px-4 py-4 sm:px-5">
-          <TimesheetLegend />
-        </div>
       </Card>
 
       {/*
@@ -489,15 +491,3 @@ export function AttendanceTimesheetPage() {
   )
 }
 
-/**
- * Oy yorlig'i: «09.2026», inglizchada «2026-09».
- *
- * NEGA oy NOMI emas: o'n ikki nomni to'rt tilga tarjima qilish qirq
- * sakkizta yangi kalit degani, `Intl` esa `uz-Latn`/`uz-Cyrl` ni to'liq
- * bilmaydi (`reports-presentation.ts` dagi `monthTick` bilan bir xil
- * mulohaza va bir xil tartib qoidasi).
- */
-function monthLabel(value: MonthValue, locale: LocaleCode): string {
-  const month = String(value.month).padStart(2, '0')
-  return locale === 'en' ? `${value.year}-${month}` : `${month}.${value.year}`
-}

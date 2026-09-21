@@ -71,8 +71,15 @@ public sealed class ResolveScheduleQueryHandler
                 MatchedDepartmentId: null, MatchedDepartmentName: null, Day: null);
         }
 
-        var catalog = await _source.LoadScheduleCatalogAsync(cancellationToken).ConfigureAwait(false);
-        var resolver = new ScheduleResolver(catalog.Assignments, catalog.Schedules, new DepartmentTree(catalog.Departments));
+        var catalog = await _source
+            .LoadScheduleCatalogAsync(query.Date, query.Date, cancellationToken)
+            .ConfigureAwait(false);
+
+        var resolver = new ScheduleResolver(
+            catalog.Assignments,
+            catalog.Schedules,
+            new DepartmentTree(catalog.Departments),
+            catalog.Dates);
         var resolution = resolver.Resolve(primary, query.Date);
 
         var matchedDepartmentId = resolution?.Tier == ScheduleScope.Department ? resolution.Assignment.DepartmentId : null;

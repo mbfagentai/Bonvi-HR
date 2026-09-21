@@ -11,5 +11,8 @@ import { AttendanceSchedulesPage } from '@/features/verification/components/atte
  * Manzil holati yo'q — sahifada qidiruv ham, sahifalash ham yo'q.
  */
 export const Route = createFileRoute('/_app/verifikatsiya/jadvallar')({
+  /** To'liq kenglik — verifikatsiya bo'limining hamma sahifasi bir xil (`app-shell.tsx`). */
+  staticData: { fullWidth: true },
+
   component: AttendanceSchedulesPage,
 })

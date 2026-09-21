@@ -1,5 +1,6 @@
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Attendance.Computation;
+using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Employees;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +26,10 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
     /// emas). Jadval va bo'limlar esa <c>IgnoreQueryFilters</c> bilan — sabab
     /// port izohida.
     /// </remarks>
-    public async Task<ScheduleCatalog> LoadScheduleCatalogAsync(CancellationToken cancellationToken = default)
+    public async Task<ScheduleCatalog> LoadScheduleCatalogAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
     {
         var assignments = await _context.ScheduleAssignments
             .AsNoTracking()
@@ -45,7 +49,23 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new ScheduleCatalog(assignments, schedules, departments);
+        /*
+          Yillik to'r kataklari — faqat SO'RALGAN oraliq uchun. Qo'shni
+          kunlar ham kerak: tungi smenaning chiqishi ertangi sanada
+          o'qiladi (`AttendanceDayBuilder.PassDatesNeeded` bilan bir xil
+          mulohaza), shu sababli oraliq ikki tomonga bir kundan
+          kengaytiriladi.
+        */
+        var dateFrom = from.AddDays(-1);
+        var dateTo = to.AddDays(1);
+
+        var dates = await _context.WorkScheduleDates
+            .AsNoTracking()
+            .Where(date => date.Date >= dateFrom && date.Date <= dateTo)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ScheduleCatalog(assignments, schedules, departments, dates);
     }
 
     /// <inheritdoc />
@@ -147,4 +167,15 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    /// <remarks>Shartning O'ZI <see cref="AbsenceQuery"/> da — tabel bilan bitta nusxa.</remarks>
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlySet<DateOnly>>> LoadExcusedDatesAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+        => await AbsenceQuery
+            .ExcusedDatesAsync(_context, employeeIds, from, to, cancellationToken)
+            .ConfigureAwait(false);
 }

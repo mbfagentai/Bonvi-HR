@@ -982,6 +982,395 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
     }
 
     /// <summary>
+    /// Davr grafigi HTTP orqali: tokensiz 401, <c>attendance.view</c> siz 403, u bilan 200;
+    /// davr hisobotlardagi AYNAN o'sha ikki kod bilan tekshiriladi (92 kun — o'tadi, 93 — yo'q);
+    /// javobda oraliqning har bir sanasi tirqishsiz, sanoqlar yig'indisi «total» ga teng va
+    /// bir kunlik oraliq panelning o'zi bilan bir xil son beradi.
+    /// </summary>
+    /// <remarks>
+    /// Holat qoidalarining o'zi <c>AttendanceReadModelTests</c> da, qotirilgan soat bilan
+    /// (paneldagi bilan bir xil bo'linish). Bu yerda soat haqiqiy, shu sababli faqat
+    /// vaqtga bog'liq bo'lmagan narsa tekshiriladi.
+    /// </remarks>
+    [Fact]
+    public async Task Davr_grafigi_401_403_200_va_davr_tekshiriladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+
+        var kecha = Iso(BugunToshkentda().AddDays(-1));
+
+        using (var anonim = _factory.CreateClient())
+        using (var javob = await anonim.GetAsync(Yol($"/dashboard/trend?from={kecha}&to={kecha}"), ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
+
+        using (var ruxsatsiz = _factory.CreateClient())
+        {
+            ruxsatsiz.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", await TokenAsync(Permissions.ReportsExport, Permissions.AttendanceManage));
+
+            using var javob = await ruxsatsiz.GetAsync(Yol($"/dashboard/trend?from={kecha}&to={kecha}"), ct);
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, "attendance.manage ham o'qish ruxsatini bermaydi");
+        }
+
+        using var korish = _factory.CreateClient();
+        korish.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await TokenAsync(Permissions.AttendanceView));
+
+        // ── Davr: teskari, roppa-rosa 92 kun va 93 kun ────────────────
+        using (var teskari = await korish.GetAsync(Yol("/dashboard/trend?from=2026-06-02&to=2026-06-01"), ct))
+        {
+            await XatoKutAsync(teskari, HttpStatusCode.BadRequest, "davomat.davr_notogri");
+        }
+
+        using (var chegara = await korish.GetAsync(Yol("/dashboard/trend?from=2026-01-01&to=2026-04-02"), ct))
+        {
+            chegara.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(chegara));
+            (await JsonAsync(chegara)).GetProperty("days").GetArrayLength().ShouldBe(92);
+        }
+
+        using (var uzun = await korish.GetAsync(Yol("/dashboard/trend?from=2026-01-01&to=2026-04-03"), ct))
+        {
+            await XatoKutAsync(uzun, HttpStatusCode.BadRequest, "davomat.davr_uzun");
+        }
+
+        // Ikkala chegara ham MAJBURIY — «bugun» degan sukut yo'q (panel shu savolga javob beradi).
+        using (var yarim = await korish.GetAsync(Yol("/dashboard/trend?from=2026-06-01"), ct))
+        {
+            yarim.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        // ── Javob shakli: tirqishsiz sanalar, yig'indi «total» ga teng ──
+        var boshi = BugunToshkentda().AddDays(-4);
+        var oxiri = BugunToshkentda().AddDays(-1);
+
+        using var oraliqJavob = await korish.GetAsync(
+            Yol($"/dashboard/trend?from={Iso(boshi)}&to={Iso(oxiri)}&legalEntityId={await FirmaIdAsync(xodim.Id, ct)}"), ct);
+        oraliqJavob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(oraliqJavob));
+        var oraliq = await JsonAsync(oraliqJavob);
+
+        oraliq.GetProperty("from").GetString().ShouldBe(Iso(boshi));
+        oraliq.GetProperty("to").GetString().ShouldBe(Iso(oxiri));
+        oraliq.GetProperty("asOf").GetDateTimeOffset()
+            .ShouldBeInRange(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddMinutes(1));
+
+        string[] holatlar = ["onTime", "late", "absent", "notStarted", "dayOff", "noSchedule"];
+        var kunlar = oraliq.GetProperty("days").EnumerateArray().ToList();
+
+        kunlar.Count.ShouldBe(4);
+        kunlar.Select(kun => kun.GetProperty("date").GetString()).ShouldBe(
+            [.. Enumerable.Range(0, 4).Select(siljish => Iso(boshi.AddDays(siljish)))]);
+
+        foreach (var kun in kunlar)
+        {
+            holatlar.Sum(holat => kun.GetProperty("counts").GetProperty(holat).GetInt32())
+                .ShouldBe(kun.GetProperty("total").GetInt32(), kun.GetProperty("date").GetString());
+        }
+
+        // ── Bitta kun: panelning «counts» i bilan AYNAN bir xil ───────
+        var firma = await FirmaIdAsync(xodim.Id, ct);
+
+        var kunlikGrafik = await JsonAsync(
+            await korish.GetAsync(Yol($"/dashboard/trend?from={kecha}&to={kecha}&legalEntityId={firma}"), ct));
+        var panel = await JsonAsync(
+            await korish.GetAsync(Yol($"/dashboard?date={kecha}&legalEntityId={firma}"), ct));
+
+        var bittaKun = kunlikGrafik.GetProperty("days").EnumerateArray().ShouldHaveSingleItem();
+        bittaKun.GetProperty("total").GetInt32().ShouldBe(panel.GetProperty("total").GetInt32());
+        bittaKun.GetProperty("counts").GetRawText().ShouldBe(panel.GetProperty("counts").GetRawText());
+    }
+
+    /// <summary>
+    /// Tug'ilgan kunlar paneli HTTP orqali: tokensiz 401, <c>attendance.view</c> siz 403, u bilan 200;
+    /// javob eng yaqin sanadan boshlanadi, «limit» qisiladi va sana parametri UMUMAN yo'q.
+    /// </summary>
+    /// <remarks>
+    /// Tartib va 29-fevral qoidasi <c>AttendanceReadModelTests</c> da, qotirilgan soat bilan.
+    /// Bu yerda soat haqiqiy, shu sababli faqat vaqtga bog'liq bo'lmagan narsa tekshiriladi:
+    /// ro'yxat «bugundan oldin» sana bermaydi va «daysUntil» kamaymaydi.
+    /// </remarks>
+    [Fact]
+    public async Task Tugilgan_kunlar_401_403_200_va_limit_qisiladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        var firma = await FirmaIdAsync(xodim.Id, ct);
+
+        using (var anonim = _factory.CreateClient())
+        using (var javob = await anonim.GetAsync(Yol("/dashboard/birthdays"), ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
+
+        using (var ruxsatsiz = _factory.CreateClient())
+        {
+            ruxsatsiz.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", await TokenAsync(Permissions.ReportsExport, Permissions.AttendanceManage));
+
+            using var javob = await ruxsatsiz.GetAsync(Yol("/dashboard/birthdays"), ct);
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, "attendance.manage ham o'qish ruxsatini bermaydi");
+        }
+
+        using var korish = _factory.CreateClient();
+        korish.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await TokenAsync(Permissions.AttendanceView));
+
+        using var javobHammasi = await korish.GetAsync(Yol("/dashboard/birthdays"), ct);
+        javobHammasi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javobHammasi));
+
+        var qatorlar = (await JsonAsync(javobHammasi)).EnumerateArray().ToList();
+        qatorlar.Count.ShouldBeLessThanOrEqualTo(10, "sukut bo'yicha uzunlik — 10");
+
+        var oldingi = -1;
+        foreach (var qator in qatorlar)
+        {
+            var kunlar = qator.GetProperty("daysUntil").GetInt32();
+            kunlar.ShouldBeGreaterThanOrEqualTo(0, "o'tgan sana ro'yxatga tushmaydi");
+            kunlar.ShouldBeGreaterThanOrEqualTo(oldingi, "eng yaqinidan boshlab");
+            oldingi = kunlar;
+
+            DateOnly.Parse(qator.GetProperty("nextBirthday").GetString()!, CultureInfo.InvariantCulture)
+                .ShouldBeGreaterThanOrEqualTo(BugunToshkentda());
+        }
+
+        // «limit» — rad etilmaydi, QISILADI: panel xato ekrani ko'rsatmasligi kerak.
+        using (var koTa = await korish.GetAsync(Yol("/dashboard/birthdays?limit=500"), ct))
+        {
+            koTa.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(koTa));
+            (await JsonAsync(koTa)).GetArrayLength().ShouldBeLessThanOrEqualTo(50);
+        }
+
+        using (var nol = await korish.GetAsync(Yol("/dashboard/birthdays?limit=0"), ct))
+        {
+            nol.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(nol));
+            (await JsonAsync(nol)).GetArrayLength()
+                .ShouldBeLessThanOrEqualTo(1, "0 — bittaga qisiladi, xato emas");
+        }
+
+        // Org-filtr: tug'ilgan sanasi yo'q yagona xodimli firma — bo'sh ro'yxat.
+        using var firmaJavob = await korish.GetAsync(Yol($"/dashboard/birthdays?legalEntityId={firma}"), ct);
+        firmaJavob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(firmaJavob));
+        (await JsonAsync(firmaJavob)).GetArrayLength().ShouldBe(0, "sanasi yo'q xodim ro'yxatda ko'rinmaydi");
+
+        // Sana parametri shartnomada YO'Q — berilgani javobni o'zgartirmaydi.
+        using var sanaBilan = await korish.GetAsync(Yol("/dashboard/birthdays?date=2020-01-01"), ct);
+        sanaBilan.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(sanaBilan));
+    }
+
+    /// <summary>
+    /// Yillik to'r: sanaga yozilgan katak haftalik naqshdan USTUN turadi va
+    /// tozalangach kun naqshga qaytadi — ikkalasi ham TABELDA ko'rinadi.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ Bu wave'ning asosiy isboti (SPEC-jadval-to'ri §E): to'rga yozish
+    /// jadvalning o'zini emas, aniq SANANI o'zgartiradi va kun qayta
+    /// hisoblanadi. Sana — o'tgan kun: kelajakdagi kunning saqlangan yozuvi
+    /// yo'q va qayta hisoblash ham unga tegmaydi.
+    /// </remarks>
+    [Fact]
+    public async Task Yillik_tor_katagi_naqshdan_ustun_turadi_va_tozalangach_qaytadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        var jadvalId = await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+
+        // Ish kuni bo'lgan o'tgan sanani topamiz (jadval dush–juma).
+        var sana = BugunToshkentda().AddDays(-3);
+        while (sana.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            sana = sana.AddDays(-1);
+        }
+
+        var oldin = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodim.Id}"), ct));
+        KunHolati(oldin, sana).ShouldBe("Absent", "sinov sharti: o'tishsiz ish kuni «Kelmadi»");
+
+        // ── To'rda: shu kun DAM OLISH kuniga aylanadi ────────────────
+        using (var yozish = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new { dates = new[] { Iso(sana) }, isWorking = false },
+                   ct))
+        {
+            yozish.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(yozish));
+        }
+
+        var tor = await JsonAsync(await admin.GetAsync(Yol($"/schedules/{jadvalId}/year?year={sana.Year}"), ct));
+        var katak = tor.GetProperty("days").EnumerateArray()
+            .Single(day => day.GetProperty("date").GetString() == Iso(sana));
+
+        katak.GetProperty("isWorking").GetBoolean().ShouldBeFalse();
+        katak.GetProperty("source").GetString().ShouldBe("Date", "katak endi qo'lda yozilgan");
+        katak.GetProperty("plannedMinutes").GetInt32().ShouldBe(0);
+
+        var keyin = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodim.Id}"), ct));
+        KunHolati(keyin, sana).ShouldBe("DayOff", "to'rdagi katak naqshdan ustun turadi");
+
+        // ── Tozalash: kun naqshga qaytadi ────────────────────────────
+        using (var tozalash = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new { dates = new[] { Iso(sana) }, reset = true },
+                   ct))
+        {
+            tozalash.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(tozalash));
+        }
+
+        var qaytgan = await JsonAsync(await admin.GetAsync(Yol($"/schedules/{jadvalId}/year?year={sana.Year}"), ct));
+        qaytgan.GetProperty("days").EnumerateArray()
+            .Single(day => day.GetProperty("date").GetString() == Iso(sana))
+            .GetProperty("source").GetString().ShouldBe("Pattern");
+
+        var oxiri = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodim.Id}"), ct));
+        KunHolati(oxiri, sana).ShouldBe("Absent", "katak o'chirilgach kun yana naqshdan keladi");
+
+        // ── Ish kuni katagida vaqt SHART ─────────────────────────────
+        using (var vaqtsiz = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new { dates = new[] { Iso(sana) }, isWorking = true },
+                   ct))
+        {
+            await XatoKutAsync(vaqtsiz, HttpStatusCode.BadRequest, "davomat.jadval_vaqt_bosh");
+        }
+
+        // Sanasiz so'rov — 400, 500 emas.
+        using (var bosh = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new { dates = Array.Empty<string>(), isWorking = false },
+                   ct))
+        {
+            await XatoKutAsync(bosh, HttpStatusCode.BadRequest, "davomat.jadval_sana_bosh");
+        }
+    }
+
+    /// <summary>
+    /// Yo'qlik so'rovi: yaratish → tasdiqlash → kun «Kelmadi» dan «Sababli» ga o'tadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Bu wave'ning ASOSIY isboti (SPEC-so'rovlar §D): tasdiqlangan so'rov
+    /// TABELDA ham, kunlik PANELDA ham bir xil o'qilishi va «kelmagan kunlar»
+    /// yakunidan chiqib ketishi kerak. Ikkalasi ikki xil hisoblash yo'li
+    /// (saqlangan kun va xom o'tishlar), shu sababli ikkalasi ham tekshiriladi.
+    /// </para>
+    /// <para>
+    /// Sana — O'TGAN kun (bugundan 3 kun oldin): kelajakdagi kun «kelmadi»
+    /// bo'lmasligi mumkin va sinov soatga bog'lanib qolardi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Tasdiqlangan_sorov_kunni_Sababli_qiladi_va_kelmaganlardan_chiqaradi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+
+        var firma = await FirmaIdAsync(xodim.Id, ct);
+        var sana = BugunToshkentda().AddDays(-3);
+
+        // ── Boshlang'ich holat: o'tishsiz ish kuni — «Kelmadi» ──────
+        var oldin = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodim.Id}"), ct));
+        KunHolati(oldin, sana).ShouldBe("Absent", "sinov sharti: o'tishsiz ish kuni «Kelmadi»");
+
+        // ── Yo'qlik turi va so'rov ───────────────────────────────────
+        var turId = await YoqlikTuriAsync(admin, $"Ishxona ishi {belgi}", ct);
+
+        Guid sorovId;
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/requests"),
+                   new
+                   {
+                       employeeId = xodim.Id,
+                       absenceTypeId = turId,
+                       fromDate = Iso(sana),
+                       toDate = Iso(sana),
+                       note = "Propan zavodga borildi",
+                   },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            var yozuv = await JsonAsync(yaratish);
+            yozuv.GetProperty("status").GetString().ShouldBe("Pending");
+            yozuv.GetProperty("absenceTypeName").GetString().ShouldBe($"Ishxona ishi {belgi}");
+            sorovId = yozuv.GetProperty("id").GetGuid();
+        }
+
+        // Kutayotgan so'rov hech narsani o'zgartirmaydi (§B3).
+        var kutayotgan = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodim.Id}"), ct));
+        KunHolati(kutayotgan, sana).ShouldBe("Absent", "qaror qabul qilinmaguncha kun o'zgarmaydi");
+
+        // Shu kunlarga ikkinchi so'rov — 409.
+        using (var takror = await admin.PostAsJsonAsync(
+                   Yol("/requests"),
+                   new { employeeId = xodim.Id, absenceTypeId = turId, fromDate = Iso(sana), toDate = Iso(sana) },
+                   ct))
+        {
+            await XatoKutAsync(takror, HttpStatusCode.Conflict, "davomat.sorov_takroriy");
+        }
+
+        // ── Tasdiqlash ───────────────────────────────────────────────
+        using (var qaror = await admin.PostAsJsonAsync(
+                   Yol($"/requests/{sorovId}/decide"),
+                   new { approve = true, decisionNote = "Tasdiqlandi" },
+                   ct))
+        {
+            qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+            (await JsonAsync(qaror)).GetProperty("status").GetString().ShouldBe("Approved");
+        }
+
+        // Ikkinchi qaror — 409.
+        using (var ikkinchi = await admin.PostAsJsonAsync(
+                   Yol($"/requests/{sorovId}/decide"), new { approve = false }, ct))
+        {
+            await XatoKutAsync(ikkinchi, HttpStatusCode.Conflict, "davomat.sorov_qaror_qabul_qilingan");
+        }
+
+        // ── Tabel: «Sababli», kelmagan kunlar kamaydi ────────────────
+        var keyin = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodim.Id}"), ct));
+
+        KunHolati(keyin, sana).ShouldBe("Excused");
+
+        var kelmaganOldin = oldin.GetProperty("items")[0].GetProperty("totals").GetProperty("absentDays").GetInt32();
+        var kelmaganKeyin = keyin.GetProperty("items")[0].GetProperty("totals").GetProperty("absentDays").GetInt32();
+        kelmaganKeyin.ShouldBe(kelmaganOldin - 1, "sababli kun «kelmagan kunlar» dan chiqadi");
+
+        // ── Panel: AYNAN shu holat (boshqa hisoblash yo'li) ──────────
+        var panel = await JsonAsync(await admin.GetAsync(
+            Yol($"/dashboard?date={Iso(sana)}&legalEntityId={firma}"), ct));
+
+        panel.GetProperty("counts").GetProperty("excused").GetInt32()
+            .ShouldBe(1, "panel ham tabel bilan bir xil o'qishi kerak");
+        panel.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("employeeId").GetGuid() == xodim.Id)
+            .GetProperty("status").GetString().ShouldBe("Excused");
+
+        // ── Bekor qilish — kun qaytadi ───────────────────────────────
+        using (var bekor = await admin.PostAsync(Yol($"/requests/{sorovId}/cancel"), null, ct))
+        {
+            bekor.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(bekor));
+        }
+
+        var bekordanKeyin = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodim.Id}"), ct));
+        KunHolati(bekordanKeyin, sana).ShouldBe("Absent", "bekor qilingan so'rov kunni oqlamaydi");
+    }
+
+    /// <summary>
     /// #77. <c>attendance.view</c> + <c>attendance.manage</c>, lekin <c>reports.export</c> YO'Q — to'rttala
     /// eksportda 403. Qarshi tekshiruv: <c>view</c> + <c>reports.export</c> (manage'siz) — to'rttalasi 200
     /// va Excel; ya'ni 403 aynan eksport ruxsati yo'qligidan, eksport ortiqcha ruxsat so'ragani uchun emas.
@@ -1467,7 +1856,8 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
             "/api/attendance/schedules/{id}/activate", "/api/attendance/schedules/{id}/deactivate",
             "/api/attendance/schedule-assignments", "/api/attendance/schedule-assignments/{id}",
             "/api/attendance/passes", "/api/attendance/passes/{id}", "/api/attendance/passes/{id}/photo",
-            "/api/attendance/board", "/api/attendance/dashboard", "/api/attendance/former-employee-alerts",
+            "/api/attendance/board", "/api/attendance/dashboard", "/api/attendance/dashboard/trend",
+            "/api/attendance/former-employee-alerts",
             "/api/attendance/timesheet",
             "/api/attendance/reports/exceptions", "/api/attendance/reports/summary",
             "/api/attendance/export/timesheet", "/api/attendance/export/passes",
@@ -1505,6 +1895,18 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (HttpMethod.Post, "/schedule-assignments"),
         (HttpMethod.Delete, $"/schedule-assignments/{Birorta}"),
         (HttpMethod.Post, "/recompute"),
+        (HttpMethod.Put, $"/schedules/{Birorta}/dates"),
+
+        /*
+          Yo'qlik so'rovlari — `attendance.requests.manage` ostida, ya'ni
+          `attendance.view` yoki `attendance.manage` bilan kirgan odam
+          ularda ham 403 oladi. Ro'yxat esa (yuqorida) `attendance.view`
+          bilan ochiladi.
+        */
+        (HttpMethod.Post, "/requests"),
+        (HttpMethod.Put, $"/requests/{Birorta}"),
+        (HttpMethod.Post, $"/requests/{Birorta}/decide"),
+        (HttpMethod.Post, $"/requests/{Birorta}/cancel"),
     ];
 
     /// <summary><c>attendance.view</c> + <c>reports.export</c> ostidagi eksportlar.</summary>
@@ -1528,6 +1930,11 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (HttpMethod.Get, $"/passes/{Birorta}/photo"),
         (HttpMethod.Get, "/board"),
         (HttpMethod.Get, "/dashboard"),
+        (HttpMethod.Get, "/dashboard/trend?from=2026-09-01&to=2026-09-07"),
+        (HttpMethod.Get, "/dashboard/birthdays"),
+        (HttpMethod.Get, "/requests"),
+        (HttpMethod.Get, $"/schedules/{Birorta}/year?year=2026"),
+        (HttpMethod.Get, "/requests/pending-count"),
         (HttpMethod.Get, "/former-employee-alerts"),
         (HttpMethod.Get, "/timesheet?year=2026&month=9"),
         (HttpMethod.Get, "/reports/exceptions?kind=Late"),
@@ -1636,6 +2043,25 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         return (sozlamalar.GetValueOrDefault(SystemSettingKeys.PhotoRetentionDays), sozlamalar.GetValueOrDefault(SystemSettingKeys.PassRetentionDays));
     }
 
+    /// <summary>Tabeldagi bitta kunning holati — sinovlar uchun qisqartma.</summary>
+    private static string? KunHolati(JsonElement tabel, DateOnly sana)
+        => tabel.GetProperty("items")[0].GetProperty("cells").EnumerateArray()
+            .Single(cell => cell.GetProperty("date").GetString() == Iso(sana))
+            .GetProperty("status").GetString();
+
+    /// <summary>Yo'qlik turi ma'lumotnomasiga yangi yozuv — so'rov uchun.</summary>
+    private static async Task<Guid> YoqlikTuriAsync(HttpClient mijoz, string nom, CancellationToken ct)
+    {
+        using var javob = await mijoz.PostAsJsonAsync(
+            new Uri("/api/catalog/absence-types", UriKind.Relative),
+            new { name = nom },
+            ct);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        return (await JsonAsync(javob)).GetProperty("id").GetGuid();
+    }
+
     private static Uri Yol(string yol) => new("/api/attendance" + yol, UriKind.Relative);
 
     private static string Belgi() => Guid.NewGuid().ToString("N")[..8];
@@ -1669,6 +2095,21 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         await kontekst.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return new Xodim(xodim.Id, xodim.FullName.Full);
+    }
+
+    /// <summary>Xodimning yagona munosabatidagi firma — grafikni SHU dunyoning odamlari bilan cheklash uchun.</summary>
+    /// <remarks>
+    /// Sinf bazasi umumiy va <c>/dashboard/trend</c> da qidiruv YO'Q (u grafik, ro'yxat emas),
+    /// ya'ni boshqa testlarning xodimlarini chetlab o'tishning yagona yo'li — firma filtri.
+    /// </remarks>
+    private async Task<Guid> FirmaIdAsync(Guid xodimId, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+
+        return await qamrov.ServiceProvider.GetRequiredService<AppDbContext>().Employments.AsNoTracking()
+            .Where(munosabat => munosabat.EmployeeId == xodimId)
+            .Select(munosabat => munosabat.LegalEntityId)
+            .FirstAsync(ct);
     }
 
     private static object JadvalTanasi(string nom, int? dayOff = null) => new

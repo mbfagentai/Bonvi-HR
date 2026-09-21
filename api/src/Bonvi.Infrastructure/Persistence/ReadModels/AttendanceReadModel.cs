@@ -261,7 +261,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             .ToList();
 
         var cards = await EmployeeCardsAsync(employeeIds, cancellationToken).ConfigureAwait(false);
-        var devices = await DeviceNamesAsync(rows.Select(row => row.DeviceId), cancellationToken).ConfigureAwait(false);
+        var devices = await DeviceLabelsAsync(rows.Select(row => row.DeviceId), cancellationToken).ConfigureAwait(false);
 
         var employments = await EmploymentsAsync(employeeIds, cancellationToken).ConfigureAwait(false);
 
@@ -309,7 +309,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     row.DirectionSource,
                     row.Method,
                     row.DeviceId,
-                    devices.GetValueOrDefault(row.DeviceId),
+                    devices.GetValueOrDefault(row.DeviceId)?.Name,
+                    devices.GetValueOrDefault(row.DeviceId)?.Location,
+                    devices.GetValueOrDefault(row.DeviceId)?.Provider,
                     row.IdentityProvider,
                     row.RawPersonId,
                     row.EmployeeId,
@@ -665,7 +667,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var cards = await EmployeeCardsAsync([.. inside.Select(pass => pass.EmployeeId)], cancellationToken)
             .ConfigureAwait(false);
-        var devices = await DeviceNamesAsync(inside.Select(pass => pass.DeviceId), cancellationToken)
+        var devices = await DeviceLabelsAsync(inside.Select(pass => pass.DeviceId), cancellationToken)
             .ConfigureAwait(false);
 
         var insideEmployments = inside
@@ -698,7 +700,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                         names.Position(employment?.PositionId),
                         pass.OccurredAt,
                         pass.Id,
-                        devices.GetValueOrDefault(pass.DeviceId));
+                        devices.GetValueOrDefault(pass.DeviceId)?.Name);
                 })
                 .OrderBy(item => item.FullName, StringComparer.InvariantCulture)
                 .ThenBy(item => item.EmployeeId),
@@ -805,7 +807,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         var employeeIds = newest.Select(entry => entry.Pass.EmployeeId).ToList();
 
         var cards = await EmployeeCardsAsync(employeeIds, cancellationToken).ConfigureAwait(false);
-        var devices = await DeviceNamesAsync(newest.Select(entry => entry.Pass.DeviceId), cancellationToken)
+        var devices = await DeviceLabelsAsync(newest.Select(entry => entry.Pass.DeviceId), cancellationToken)
             .ConfigureAwait(false);
 
         // «Eng so'nggi tugagan munosabat» (SPEC §6.5) — bo'shash sanasi eng
@@ -848,7 +850,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     card?.PhotoKey,
                     pass.OccurredAt,
                     pass.DeviceId,
-                    devices.GetValueOrDefault(pass.DeviceId),
+                    devices.GetValueOrDefault(pass.DeviceId)?.Name,
                     pass.Direction,
                     employment?.TerminationDate,
                     names.LegalEntity(employment?.LegalEntityId),
@@ -942,7 +944,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         if (people.Count == 0)
         {
-            return new DashboardPage(date, date == today, now, 0, new AttendanceDashboardCountsDto(0, 0, 0, 0, 0, 0), [], 0);
+            return new DashboardPage(date, date == today, now, 0, new AttendanceDashboardCountsDto(0, 0, 0, 0, 0, 0, 0), [], 0);
         }
 
         var populationIds = people.Select(person => person.Id).ToList();
@@ -976,6 +978,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var resolver = await LoadScheduleResolverAsync(date, date, cancellationToken).ConfigureAwait(false);
         var builder = new AttendanceDayBuilder(resolver);
+
+        // Tasdiqlangan so'rovlar — tabel bilan BITTA shartdan (`AbsenceQuery`).
+        // Ularsiz panel «Kelmadi», kalendar esa «Sababli» deb ko'rsatardi.
+        var excusedDates = await AbsenceQuery
+            .ExcusedDatesAsync(_context, populationIds, date, date, cancellationToken)
+            .ConfigureAwait(false);
 
         // ── 2. Holatlar — butun to'plam, xotirada, bir marta ─────────
         var rows = new List<DashboardRow>(people.Count);
@@ -1013,7 +1021,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 primary.PositionId,
                 arrivedAt,
                 leftAt,
-                DashboardStatusRule.Classify(resolver.Resolve(primary, date)?.Day, arrivedAt, today, now)));
+                DashboardStatusRule.Classify(
+                    resolver.Resolve(primary, date)?.Day,
+                    arrivedAt,
+                    today,
+                    now,
+                    excusedDates.GetValueOrDefault(person.Id)?.Contains(date) ?? false)));
         }
 
         var byStatus = rows.CountBy(row => row.Verdict.Status).ToDictionary();
@@ -1025,7 +1038,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             CountOf(AttendanceDashboardStatus.Absent),
             CountOf(AttendanceDashboardStatus.NotStarted),
             CountOf(AttendanceDashboardStatus.DayOff),
-            CountOf(AttendanceDashboardStatus.NoSchedule));
+            CountOf(AttendanceDashboardStatus.NoSchedule),
+            CountOf(AttendanceDashboardStatus.Excused));
 
         // ── 3. Jadval — qidiruv va holat faqat SHU yerda ─────────────
         var visible = rows.Where(row =>
@@ -1106,6 +1120,669 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
     }
 
     // ════════════════════════════════════════════════════════════
+    //  2b. Davr grafigi
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>Grafik uchun o'tishlar necha kunlik bo'laklarda o'qiladi.</summary>
+    /// <remarks>
+    /// <para>
+    /// Ikki chekka o'rtasi. Kun bo'yicha aylanish (bo'lak = 1) 92 kunga 92 ta
+    /// so'rov degani — o'lchangan ~150 ms dan ~14 soniya chiqadi va
+    /// shartnomadagi byudjet buziladi. Butun oraliqni bir marta o'qish esa
+    /// 92 × 540 × ~10 ≈ yarim million qatorni bir vaqtda xotirada ushlab
+    /// turardi — serverda jami 2 GB.
+    /// </para>
+    /// <para>
+    /// 14 kun: 92 kunga 7 ta so'rov, xotirada bir vaqtda ~75 ming tor qator
+    /// (bir oylik jurnal sahifasidan og'ir emas). Qo'shni bo'laklar o'tishlarni
+    /// ikki kun bo'yicha qayta o'qiydi — tungi smenaning chiqishi uchun
+    /// (<see cref="AttendanceDayBuilder.PassDatesNeeded"/>), va bu narx
+    /// ataylab to'lanadi: chegaradagi kun ikkala bo'lakda ham to'liq
+    /// ma'lumot bilan hisoblanadi.
+    /// </para>
+    /// </remarks>
+    private const int TrendPassChunkDays = 14;
+
+    /// <summary>To'plam oynasi — org-filtrdan o'tgan BITTA munosabat.</summary>
+    /// <remarks>
+    /// Kunning to'plami panelnikidek aniqlanadi: shu sanani qamraydigan,
+    /// filtrga mos munosabati bor odam. Oraliqning har bir kuni uchun
+    /// so'rov takrorlanmaydi — oynalar bir marta o'qilib, sana ustida
+    /// XOTIRADA tekshiriladi.
+    /// </remarks>
+    private sealed record TrendSpan(Guid EmployeeId, DateOnly HireDate, DateOnly? TerminationDate)
+    {
+        public bool Covers(DateOnly date)
+            => HireDate <= date && (TerminationDate is null || TerminationDate >= date);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Panelning o'zi, faqat ko'p kunga.</b> To'plam, asosiy munosabat,
+    /// kelgan lahza va holat — <see cref="GetDashboardAsync"/> dagi AYNAN
+    /// o'sha to'rt qadam (<see cref="PrimaryEmployment"/>,
+    /// <see cref="AttendanceDayBuilder"/>, <see cref="FirstAttributedPassAt"/>,
+    /// <see cref="DashboardStatusRule"/>). Bir kunlik oraliqda natija
+    /// panelning <c>Counts</c> i bilan teng bo'lishi shu tenglikdan kelib
+    /// chiqadi, testda esa tekshiriladi.
+    /// </para>
+    /// <para>
+    /// <b>So'rovlar</b> — oraliq uzunligiga bog'liq EMAS: to'plam oynalari
+    /// (bo'lim filtrida daraxt uchun yana bittasi), to'plamning barcha
+    /// munosabatlari, jadval hal qiluvchisi (uchtagacha) va har bo'lak
+    /// uchun bittadan o'tishlar so'rovi. 31 kunga 3 ta bo'lak, 92 kunga 7 ta.
+    /// </para>
+    /// <para>
+    /// Natija SANOQQA yig'iladi (kun × oltita son), ya'ni xotira odamlar
+    /// soniga ko'paytirilmaydi — 92 kunlik javob ham 552 ta butun son.
+    /// </para>
+    /// </remarks>
+    public async Task<AttendanceTrendDto> GetDashboardTrendAsync(
+        DashboardTrendFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+
+        var now = _clock.UtcNow.ToUniversalTime();
+        var today = _clock.Today;
+        var from = filter.From;
+        var to = filter.To;
+
+        // Chegaralar ikki tomondan yopiq. Teskari oraliq bu yerga yetib
+        // kelmaydi (`AttendanceQueryParsing.Period` 400 qaytaradi), lekin
+        // manfiy uzunlik massiv o'lchamiga aylanmasligi kerak.
+        var dayCount = Math.Max(0, to.DayNumber - from.DayNumber + 1);
+        if (dayCount == 0)
+        {
+            return new AttendanceTrendDto(from, to, now, []);
+        }
+
+        // Har bir sana uchun oltita sanoq. Holat qiymatlari 1 dan boshlanadi.
+        var tallies = new int[dayCount][];
+        for (var index = 0; index < dayCount; index++)
+        {
+            tallies[index] = new int[7];
+        }
+
+        // ── 1. To'plam oynalari: org-filtr paneldagi bilan bir xil ──────
+        var covering = _context.Employments
+            .AsNoTracking()
+            .Where(employment =>
+                employment.HireDate <= to &&
+                (employment.TerminationDate == null || employment.TerminationDate >= from));
+
+        covering = await ApplyEmploymentOrgFilterAsync(
+                covering,
+                filter.LegalEntityId,
+                filter.DepartmentId,
+                filter.PositionId,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var spans = await covering
+            .Select(employment => new TrendSpan(
+                employment.EmployeeId,
+                employment.HireDate,
+                employment.TerminationDate))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (spans.Count == 0)
+        {
+            // Bo'sh oraliq ham TIRQISHSIZ: grafik o'z o'qini to'qimaydi.
+            return new AttendanceTrendDto(from, to, now, Days(from, tallies));
+        }
+
+        var spansByEmployee = spans
+            .GroupBy(span => span.EmployeeId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        var populationIds = spansByEmployee.Keys.ToList();
+
+        var employments = await EmploymentsAsync(populationIds, cancellationToken).ConfigureAwait(false);
+
+        // Biriktirmalar butun oraliqni bir marta qamraydi — jadval jadvali
+        // kichik va uni bo'lak boshiga qayta o'qish foydasiz so'rov bo'lardi.
+        var resolver = await LoadScheduleResolverAsync(from, to, cancellationToken).ConfigureAwait(false);
+        var builder = new AttendanceDayBuilder(resolver);
+
+        // So'rovlar ham BUTUN oraliq uchun bir marta: ular kam va bo'laklarga
+        // bo'lib o'qish faqat qo'shimcha so'rov bo'lardi.
+        var excusedDates = await AbsenceQuery
+            .ExcusedDatesAsync(_context, populationIds, from, to, cancellationToken)
+            .ConfigureAwait(false);
+
+        // ── 2. Bo'laklab: o'tishlar → holat → sanoq ─────────────────────
+        for (var chunkStart = from; chunkStart <= to; chunkStart = chunkStart.AddDays(TrendPassChunkDays))
+        {
+            var chunkLast = chunkStart.AddDays(TrendPassChunkDays - 1);
+            var chunkEnd = chunkLast > to ? to : chunkLast;
+
+            List<DateOnly> chunkDates =
+            [
+                .. Enumerable
+                    .Range(0, chunkEnd.DayNumber - chunkStart.DayNumber + 1)
+                    .Select(chunkStart.AddDays),
+            ];
+
+            var (passesFrom, passesTo) = AttendanceDayBuilder.PassDatesNeeded(chunkStart, chunkEnd);
+
+            var passes = (await _context.AttendancePasses
+                    .AsNoTracking()
+                    .Where(pass =>
+                        pass.LocalDate >= passesFrom &&
+                        pass.LocalDate <= passesTo &&
+                        pass.ResolvedEmployeeId != null &&
+                        populationIds.Contains(pass.ResolvedEmployeeId.Value))
+                    .Select(pass => new PassReading(pass.Id, pass.ResolvedEmployeeId, pass.OccurredAt, pass.Direction))
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false))
+                .GroupBy(pass => pass.EmployeeId!.Value)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
+            foreach (var employeeId in populationIds)
+            {
+                var personEmployments = employments.GetValueOrDefault(employeeId) ?? [];
+                var personSpans = spansByEmployee[employeeId];
+
+                // Hisoblash faqat o'tishi BOR odam uchun yurgiziladi —
+                // paneldagi bilan bir xil: o'tishsiz kunda kelgan lahza
+                // baribir `null`, holatni esa reja va soat hal qiladi.
+                Dictionary<DateOnly, DateTimeOffset?>? arrivals = null;
+
+                if (passes.TryGetValue(employeeId, out var readings))
+                {
+                    arrivals = [];
+
+                    foreach (var day in builder.Build(employeeId, personEmployments, readings, chunkDates))
+                    {
+                        arrivals[day.LocalDate] = day.Facts.PassCount > 0
+                            ? day.Facts.FirstInAt
+                                ?? FirstAttributedPassAt(readings, personEmployments, resolver, day.LocalDate)
+                            : null;
+                    }
+                }
+
+                foreach (var date in chunkDates)
+                {
+                    if (!personSpans.Exists(span => span.Covers(date)))
+                    {
+                        continue;
+                    }
+
+                    // Panel shartnomasi: munosabatsiz odam holat olmaydi.
+                    if (PrimaryEmployment.Select(personEmployments, date) is not { } primary)
+                    {
+                        continue;
+                    }
+
+                    var arrivedAt = arrivals is null ? null : arrivals.GetValueOrDefault(date);
+                    var verdict = DashboardStatusRule.Classify(
+                        resolver.Resolve(primary, date)?.Day,
+                        arrivedAt,
+                        today,
+                        now,
+                        excusedDates.GetValueOrDefault(employeeId)?.Contains(date) ?? false);
+
+                    tallies[date.DayNumber - from.DayNumber][(int)verdict.Status - 1]++;
+                }
+            }
+        }
+
+        return new AttendanceTrendDto(from, to, now, Days(from, tallies));
+    }
+
+    /// <summary>Sanoq massivini kunlar qatoriga o'giradi — tirqishsiz, o'sish tartibida.</summary>
+    /// <remarks>
+    /// <c>Total</c> alohida sanalmaydi, oltitasining yig'indisidan olinadi:
+    /// shunda «yig'indi jamiga teng» degan shartnoma (§8.4) buzilishining
+    /// yo'li yo'q.
+    /// </remarks>
+    private static IReadOnlyList<AttendanceTrendDayDto> Days(DateOnly from, int[][] tallies)
+    =>
+    [
+        .. tallies.Select((counts, index) => new AttendanceTrendDayDto(
+            from.AddDays(index),
+            counts.Sum(),
+            new AttendanceDashboardCountsDto(
+                counts[(int)AttendanceDashboardStatus.OnTime - 1],
+                counts[(int)AttendanceDashboardStatus.Late - 1],
+                counts[(int)AttendanceDashboardStatus.Absent - 1],
+                counts[(int)AttendanceDashboardStatus.NotStarted - 1],
+                counts[(int)AttendanceDashboardStatus.DayOff - 1],
+                counts[(int)AttendanceDashboardStatus.NoSchedule - 1],
+                counts[(int)AttendanceDashboardStatus.Excused - 1]))),
+    ];
+
+    // ════════════════════════════════════════════════════════════
+    //  2c. Tug'ilgan kunlar paneli
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>Ishonchli deb qabul qilinadigan yoshning yuqori chegarasi.</summary>
+    /// <remarks>
+    /// Qiymat bosh sahifadagi ro'yxat bilan AYNAN bir xil
+    /// (<c>GetBirthdaysTodayQueryHandler.MaxTrustedAge</c>) va bu ataylab:
+    /// bitta xodim ikki ekranda bir xil yoshda ko'rinishi kerak. Chegaradan
+    /// oshgan qiymat — Excel'dan ko'chirilgan yozuvdagi xato, tug'ilgan kun
+    /// emas; shunday holatda yosh umuman chizilmaydi.
+    /// </remarks>
+    private const int MaxTrustedAge = 120;
+
+    /// <summary>Tartiblashdan oldingi qator — nomi yig'ilgan, keyingi sanasi hisoblangan.</summary>
+    private sealed record BirthdayRow(
+        Guid EmployeeId,
+        string FullName,
+        string? PhotoKey,
+        DateOnly BirthDate,
+        DateOnly NextBirthday,
+        int DaysUntil);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <b>So'rovlar</b> — ro'yxat uzunligidan qat'i nazar: to'plam (bugunni
+    /// qamraydigan, org-filtrga mos munosabati bor xodimlarning tug'ilgan
+    /// sanalari; bo'lim filtrida daraxt uchun yana bittasi), CHIQQAN o'nta
+    /// odamning munosabatlari va ularning bo'lim/lavozim nomlari (ikkitagacha).
+    /// </para>
+    /// <para>
+    /// ⚠️ Keyingi sana SQL da emas, XOTIRADA hisoblanadi
+    /// (<see cref="NextBirthday"/>): yil chegarasi va 29-fevral qoidasi
+    /// bazaga ko'chirilsa, u yerda ikkinchi nusxa bo'lib qolardi va
+    /// PostgreSQL'ning kalendar funksiyalari bilan qayta yozilardi. ~950
+    /// tor qatorni tartiblash bundan arzon.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<AttendanceBirthdayDto>> GetUpcomingBirthdaysAsync(
+        BirthdayFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+
+        if (filter.Limit <= 0)
+        {
+            return [];
+        }
+
+        var today = filter.Today;
+
+        // To'plam — paneldagi BUGUNGI to'plamning o'zi (§E4.1).
+        var covering = _context.Employments
+            .AsNoTracking()
+            .Where(employment =>
+                employment.HireDate <= today &&
+                (employment.TerminationDate == null || employment.TerminationDate >= today));
+
+        covering = await ApplyEmploymentOrgFilterAsync(
+                covering,
+                filter.LegalEntityId,
+                filter.DepartmentId,
+                filter.PositionId,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var coveringEmployeeIds = covering.Select(employment => employment.EmployeeId);
+
+        // Sanasi yo'q xodim ro'yxatda umuman qatnashmaydi — «noma'lum» qatori
+        // yo'q: tabriklab bo'lmaydigan yozuv panelda joy egallamasligi kerak.
+        var people = await _context.Employees
+            .AsNoTracking()
+            .Where(employee =>
+                employee.BirthDate != null &&
+                coveringEmployeeIds.Contains(employee.Id))
+            .Select(employee => new
+            {
+                employee.Id,
+                employee.FullName.LastName,
+                employee.FullName.FirstName,
+                employee.FullName.MiddleName,
+                employee.PhotoKey,
+                employee.BirthDate,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var rows = new List<BirthdayRow>(people.Count);
+
+        foreach (var person in people)
+        {
+            var birthDate = person.BirthDate!.Value;
+
+            if (NextBirthday(today, birthDate) is not { } next)
+            {
+                continue;
+            }
+
+            rows.Add(new BirthdayRow(
+                person.Id,
+                FullName.FromTrusted(person.LastName, person.FirstName, person.MiddleName).Full,
+                person.PhotoKey,
+                birthDate,
+                next,
+                next.DayNumber - today.DayNumber));
+        }
+
+        // Ism va id — teng sanalar uchun BARQAROR tartib: har yangilashda
+        // bir xil kunda tug'ilgan ikki odam joyini almashtirmasligi kerak.
+        var nearest = rows
+            .OrderBy(row => row.DaysUntil)
+            .ThenBy(row => row.FullName, StringComparer.InvariantCulture)
+            .ThenBy(row => row.EmployeeId)
+            .Take(filter.Limit)
+            .ToList();
+
+        if (nearest.Count == 0)
+        {
+            return [];
+        }
+
+        var employments = await EmploymentsAsync(
+                [.. nearest.Select(row => row.EmployeeId)],
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        // Bo'lim va lavozim — BUGUNGI asosiy munosabatdan (§5.1), paneldagi
+        // jadval bilan bitta qoidadan.
+        var primary = nearest.ToDictionary(
+            row => row.EmployeeId,
+            row => PrimaryEmployment.Select(employments.GetValueOrDefault(row.EmployeeId) ?? [], today));
+
+        var names = await CatalogNamesAsync(
+                primary.Values.Select(employment => employment?.DepartmentId),
+                primary.Values.Select(employment => employment?.PositionId),
+                [],
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. nearest.Select(row => new AttendanceBirthdayDto(
+                row.EmployeeId,
+                row.FullName,
+                row.PhotoKey,
+                names.Position(primary[row.EmployeeId]?.PositionId),
+                names.Department(primary[row.EmployeeId]?.DepartmentId),
+                row.BirthDate,
+                row.NextBirthday,
+                row.DaysUntil,
+                Age(row.NextBirthday, row.BirthDate))),
+        ];
+    }
+
+    /// <summary>Bugundan boshlab keyingi nishonlanadigan sana — bugun ham kiradi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>29-fevralda tug'ilganlar kabisa bo'lmagan yilda O'TKAZIB
+    /// YUBORILADI</b> va keyingi kabisa yiliga tushadi. Bu <c>BirthdayQuery</c>
+    /// dagi qoidaning o'zi: sun'iy sana tanlash (28-fevral yoki 1-mart)
+    /// tizimning qarori bo'lib qolardi, HR ning emas. Amalda bu odam
+    /// «eng yaqin o'ntalik» dan chiqib ketadi.
+    /// </para>
+    /// <para>
+    /// Aylanish beshta yil bo'yicha: [yil, yil + 4] oralig'ida kabisa yili
+    /// DOIM bor, ya'ni javob topilmasligi mumkin emas. <c>null</c> — faqat
+    /// kutilmagan kalendar holati uchun.
+    /// </para>
+    /// </remarks>
+    private static DateOnly? NextBirthday(DateOnly today, DateOnly birthDate)
+    {
+        for (var year = today.Year; year <= today.Year + 4; year++)
+        {
+            if (birthDate.Day > DateTime.DaysInMonth(year, birthDate.Month))
+            {
+                continue;
+            }
+
+            var candidate = new DateOnly(year, birthDate.Month, birthDate.Day);
+
+            if (candidate >= today)
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Keyingi tug'ilgan kunda to'ladigan yosh — sana ishonchsiz bo'lsa <c>null</c>.</summary>
+    private static int? Age(DateOnly nextBirthday, DateOnly birthDate)
+    {
+        var age = nextBirthday.Year - birthDate.Year;
+
+        return age is > 0 and < MaxTrustedAge ? age : null;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  2d. Yo'qlik so'rovlari
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>So'rov qatorining bazadan olinadigan qismi — nomlarsiz.</summary>
+    private sealed record RequestRow(
+        Guid Id,
+        Guid EmployeeId,
+        Guid AbsenceTypeId,
+        DateOnly FromDate,
+        DateOnly ToDate,
+        TimeOnly? FromTime,
+        TimeOnly? ToTime,
+        string? Note,
+        AbsenceRequestStatus Status,
+        string? DecisionNote,
+        Guid? DecidedBy,
+        DateTimeOffset? DecidedAt,
+        DateTimeOffset CreatedAt);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <b>So'rovlar</b> — sahifa hajmidan qat'i nazar: sanoq, sahifa, qidiruv
+    /// (berilsa), sahifadagi xodimlar, ularning bugungi munosabatlari,
+    /// yo'qlik turlari va qaror qabul qilganlarning ismlari.
+    /// </para>
+    /// <para>
+    /// Lavozim va bo'lim BUGUNGI asosiy munosabatdan olinadi, so'rov
+    /// davridagidan emas: ro'yxat «hozir kim so'rov yubordi» degan ekran va
+    /// undagi odam bugungi bo'limi bilan tanilishi kerak.
+    /// </para>
+    /// </remarks>
+    public async Task<AttendancePage<AbsenceRequestDto>> SearchAbsenceRequestsAsync(
+        AbsenceRequestFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+
+        var query = _context.AbsenceRequests.AsNoTracking();
+
+        if (filter.EmployeeId is { } employeeId)
+        {
+            query = query.Where(request => request.EmployeeId == employeeId);
+        }
+
+        if (filter.Status is { } status)
+        {
+            query = query.Where(request => request.Status == status);
+        }
+
+        if (filter.Decided is { } decided)
+        {
+            query = decided
+                ? query.Where(request => request.Status != AbsenceRequestStatus.Pending)
+                : query.Where(request => request.Status == AbsenceRequestStatus.Pending);
+        }
+
+        // Davr QAMROV bo'yicha: oraliqqa qisman tegadigan so'rov ham kiradi.
+        if (filter.From is { } from)
+        {
+            query = query.Where(request => request.ToDate >= from);
+        }
+
+        if (filter.To is { } to)
+        {
+            query = query.Where(request => request.FromDate <= to);
+        }
+
+        if (filter.Search is { } search)
+        {
+            var matching = EmployeeSearchQuery.Matching(_context, search).Select(employee => employee.Id);
+            query = query.Where(request => matching.Contains(request.EmployeeId));
+        }
+
+        var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+
+        var rows = await query
+            .OrderByDescending(request => request.CreatedAt)
+            .ThenByDescending(request => request.Id)
+            .Skip(filter.Skip)
+            .Take(filter.PageSize)
+            .Select(request => new RequestRow(
+                request.Id,
+                request.EmployeeId,
+                request.AbsenceTypeId,
+                request.FromDate,
+                request.ToDate,
+                request.FromTime,
+                request.ToTime,
+                request.Note,
+                request.Status,
+                request.DecisionNote,
+                request.DecidedBy,
+                request.DecidedAt,
+                request.CreatedAt))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new AttendancePage<AbsenceRequestDto>(
+            await ToRequestDtosAsync(rows, cancellationToken).ConfigureAwait(false),
+            total);
+    }
+
+    /// <inheritdoc />
+    public async Task<AbsenceRequestDto?> FindAbsenceRequestAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await _context.AbsenceRequests
+            .AsNoTracking()
+            .Where(request => request.Id == id)
+            .Select(request => new RequestRow(
+                request.Id,
+                request.EmployeeId,
+                request.AbsenceTypeId,
+                request.FromDate,
+                request.ToDate,
+                request.FromTime,
+                request.ToTime,
+                request.Note,
+                request.Status,
+                request.DecisionNote,
+                request.DecidedBy,
+                request.DecidedAt,
+                request.CreatedAt))
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var items = await ToRequestDtosAsync([row], cancellationToken).ConfigureAwait(false);
+
+        return items[0];
+    }
+
+    /// <inheritdoc />
+    public Task<int> CountPendingAbsenceRequestsAsync(CancellationToken cancellationToken = default)
+        => _context.AbsenceRequests
+            .AsNoTracking()
+            .CountAsync(request => request.Status == AbsenceRequestStatus.Pending, cancellationToken);
+
+    /// <summary>Qatorlarga ism, tur nomi va qaror egasini qo'shadi.</summary>
+    private async Task<IReadOnlyList<AbsenceRequestDto>> ToRequestDtosAsync(
+        List<RequestRow> rows,
+        CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+        {
+            return [];
+        }
+
+        var employeeIds = rows.Select(row => row.EmployeeId).Distinct().ToList();
+
+        var cards = await EmployeeCardsAsync(employeeIds, cancellationToken).ConfigureAwait(false);
+        var employments = await EmploymentsAsync(employeeIds, cancellationToken).ConfigureAwait(false);
+
+        var today = _clock.Today;
+
+        var primaries = employeeIds.ToDictionary(
+            id => id,
+            id => PrimaryEmployment.Select(employments.GetValueOrDefault(id) ?? [], today));
+
+        var names = await CatalogNamesAsync(
+                primaries.Values.Select(employment => employment?.DepartmentId),
+                primaries.Values.Select(employment => employment?.PositionId),
+                [],
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var typeIds = rows.Select(row => row.AbsenceTypeId).Distinct().ToList();
+
+        var types = await _context.AbsenceTypes
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(type => typeIds.Contains(type.Id))
+            .Select(type => new { type.Id, type.Name })
+            .ToDictionaryAsync(type => type.Id, type => type.Name, cancellationToken)
+            .ConfigureAwait(false);
+
+        var deciderIds = rows
+            .Where(row => row.DecidedBy is not null)
+            .Select(row => row.DecidedBy!.Value)
+            .Distinct()
+            .ToList();
+
+        var deciders = deciderIds.Count == 0
+            ? []
+            : await _context.Users
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(user => deciderIds.Contains(user.Id))
+                .Select(user => new { user.Id, Name = user.FullName.Full })
+                .ToDictionaryAsync(user => user.Id, user => user.Name, cancellationToken)
+                .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row =>
+            {
+                var employment = primaries.GetValueOrDefault(row.EmployeeId);
+                var card = cards.GetValueOrDefault(row.EmployeeId);
+
+                return new AbsenceRequestDto(
+                    row.Id,
+                    row.EmployeeId,
+                    card?.FullName ?? string.Empty,
+                    card?.PhotoKey,
+                    names.Position(employment?.PositionId),
+                    names.Department(employment?.DepartmentId),
+                    row.AbsenceTypeId,
+                    types.GetValueOrDefault(row.AbsenceTypeId) ?? string.Empty,
+                    row.FromDate,
+                    row.ToDate,
+                    row.FromTime,
+                    row.ToTime,
+                    row.Note,
+                    row.Status,
+                    row.DecisionNote,
+                    row.DecidedBy is { } decider ? deciders.GetValueOrDefault(decider) : null,
+                    row.DecidedAt,
+                    row.CreatedAt);
+            }),
+        ];
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  3. Tabel
     // ════════════════════════════════════════════════════════════
 
@@ -1122,6 +1799,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         DateTimeOffset? LastOutAt,
         int BreakTakenMinutes,
         int BreakDeductionMinutes,
+        DateTimeOffset? PlanStartAt,
+        DateTimeOffset? PlanEndAt,
         Guid? DepartmentId,
         Guid? PositionId,
         DateTimeOffset ComputedAt);
@@ -1242,6 +1921,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 day.LastOutAt,
                 day.BreakTakenMinutes,
                 day.BreakDeductionMinutes,
+                day.PlanStartAt,
+                day.PlanEndAt,
                 day.DepartmentId,
                 day.PositionId,
                 day.ComputedAt))
@@ -1253,6 +1934,13 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         var employmentsByEmployee = await EmploymentsAsync(pageIds, cancellationToken).ConfigureAwait(false);
         var builder = new AttendanceDayBuilder(
             await LoadScheduleResolverAsync(monthStart, monthEnd, cancellationToken).ConfigureAwait(false));
+
+        // Hosil qilingan katak ham tasdiqlangan so'rovni bilishi kerak: aks
+        // holda hali hisoblanmagan kun «Kelmadi», qo'shnisi esa «Sababli»
+        // bo'lib chiqardi (shart `AbsenceQuery` da — bitta nusxa).
+        var excusedDates = await AbsenceQuery
+            .ExcusedDatesAsync(_context, pageIds, monthStart, monthEnd, cancellationToken)
+            .ConfigureAwait(false);
 
         var displayEmployments = pageIds.ToDictionary(
             id => id,
@@ -1280,7 +1968,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     builder,
                     employee.Id,
                     employmentsByEmployee.GetValueOrDefault(employee.Id) ?? [],
-                    [.. monthDays.Where(date => !storedDays.ContainsKey((employee.Id, date)))]);
+                    [.. monthDays.Where(date => !storedDays.ContainsKey((employee.Id, date)))],
+                    excusedDates.GetValueOrDefault(employee.Id));
 
                 IReadOnlyList<TimesheetCellDto> cells =
                 [
@@ -1294,7 +1983,13 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                             stored.FirstInAt,
                             stored.LastOutAt,
                             stored.BreakTakenMinutes,
-                            stored.BreakDeductionMinutes)
+                            stored.BreakDeductionMinutes,
+                            stored.PlanStartAt,
+                            stored.PlanEndAt)
+                        // Hosil qilingan katakda reja ham YO'Q: u hali
+                        // hisoblanmagan kun (§5.7.1) va rejasini shu yerda
+                        // qayta hisoblash tungi hisoblashning ikkinchi
+                        // nusxasi bo'lardi.
                         : new TimesheetCellDto(
                             date,
                             synthesized[date],
@@ -1304,7 +1999,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                             FirstInAt: null,
                             LastOutAt: null,
                             BreakTakenMinutes: 0,
-                            BreakDeductionMinutes: 0)),
+                            BreakDeductionMinutes: 0,
+                            PlanStartAt: null,
+                            PlanEndAt: null)),
                 ];
 
                 var plannedMinutes = monthDays.Sum(date =>
@@ -1360,11 +2057,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         AttendanceDayBuilder builder,
         Guid employeeId,
         List<Employment> employments,
-        List<DateOnly> dates)
+        List<DateOnly> dates,
+        IReadOnlySet<DateOnly>? excusedDates = null)
         => dates.Count == 0
             ? []
             : builder
-                .Build(employeeId, employments, Array.Empty<PassReading>(), dates)
+                .Build(employeeId, employments, Array.Empty<PassReading>(), dates, excusedDates)
                 .ToDictionary(day => day.LocalDate, day => day.Facts.Status);
 
     /// <summary>Oyning oxiridan boshlab birinchi ishlagan kunidagi asosiy munosabat.</summary>
@@ -1915,7 +2613,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         var lastDevice = lastPasses.ToDictionary(pass => (pass.IdentityProvider, pass.RawPersonId), pass => pass.DeviceId);
         var sample = samplePasses.ToDictionary(pass => (pass.IdentityProvider, pass.RawPersonId), pass => pass.Id);
 
-        var devices = await DeviceNamesAsync(lastDevice.Values, cancellationToken).ConfigureAwait(false);
+        var devices = await DeviceLabelsAsync(lastDevice.Values, cancellationToken).ConfigureAwait(false);
 
         IReadOnlyList<UnmatchedGroupDto> items =
         [
@@ -1931,7 +2629,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     group.FirstSeenAt,
                     group.LastSeenAt,
                     deviceId,
-                    devices.GetValueOrDefault(deviceId),
+                    devices.GetValueOrDefault(deviceId)?.Name,
                     sample.TryGetValue(key, out var passId) ? passId : null);
             }),
         ];
@@ -2357,7 +3055,18 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 .ConfigureAwait(false)
             : [];
 
-        return new ScheduleResolver(assignments, schedules, new DepartmentTree(departments));
+        /*
+          Yillik to'rning kataklari — faqat shu oraliq uchun
+          (SPEC-jadval-to'ri §B2). Ular naqshdan ustun turadi va ularsiz
+          tabel bayram kunini oddiy ish kuni deb ko'rsatardi.
+        */
+        var dates = await _context.WorkScheduleDates
+            .AsNoTracking()
+            .Where(date => date.Date >= coverFrom && date.Date <= coverTo)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ScheduleResolver(assignments, schedules, new DepartmentTree(departments), dates);
     }
 
     /// <summary>Munosabatlarga firma / bo'lim (ichki bo'limlari bilan) / lavozim filtri.</summary>
@@ -2465,7 +3174,19 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
     }
 
     /// <summary>Qurilma nomlari — o'chirilganlari bilan birga (jurnal o'tishning manbasini yo'qotmasin).</summary>
-    private async Task<Dictionary<Guid, string>> DeviceNamesAsync(
+    /// <summary>Qurilmaning ekranga chiqadigan qismi.</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Joy (<paramref name="Location"/>) — QURILMANING erkin matnli
+    /// izohi</b>, ma'lumotnoma emas: tizimda «lokatsiya» degan yozuv turi
+    /// yo'q (SPEC-panel §A, «out of scope»). Shu sababli u shunchaki
+    /// ko'rsatiladi va hech qayerda filtr sifatida ishlatilmaydi.
+    /// </para>
+    /// </remarks>
+    private sealed record DeviceLabel(string Name, string? Location, AttendanceProvider Provider);
+
+    /// <summary>Qurilmalarning nomi, joyi va turi — barcha jurnal ekranlari uchun bitta so'rov.</summary>
+    private async Task<Dictionary<Guid, DeviceLabel>> DeviceLabelsAsync(
         IEnumerable<Guid> deviceIds,
         CancellationToken cancellationToken)
     {
@@ -2479,8 +3200,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(device => ids.Contains(device.Id))
-            .Select(device => new { device.Id, device.Name })
-            .ToDictionaryAsync(device => device.Id, device => device.Name, cancellationToken)
+            .Select(device => new
+            {
+                device.Id,
+                Label = new DeviceLabel(device.Name, device.LocationNote, device.Provider),
+            })
+            .ToDictionaryAsync(device => device.Id, device => device.Label, cancellationToken)
             .ConfigureAwait(false);
     }
 

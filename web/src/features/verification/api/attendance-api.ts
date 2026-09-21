@@ -42,8 +42,17 @@ import {
   getAttendancePass,
   getAttendanceSummary,
   getAttendanceTimesheet,
+  getAttendanceTrend,
   getFormerEmployeeAlerts,
+  cancelAbsenceRequest,
+  createAbsenceRequest,
+  decideAbsenceRequest,
+  getPendingAbsenceRequestCount,
+  getUpcomingBirthdays,
+  searchAbsenceRequests,
+  updateAbsenceRequest,
   getWorkSchedule,
+  getWorkScheduleYear,
   listAttendanceDevices,
   listAttendanceIdentities,
   listScheduleAssignments,
@@ -54,6 +63,7 @@ import {
   resolveWorkSchedule,
   rotateAttendanceDeviceToken,
   searchAttendancePasses,
+  setWorkScheduleDates,
   updateAttendanceDevice,
   updateWorkSchedule,
 } from '@/shared/api/generated/attendance/attendance'
@@ -66,6 +76,12 @@ import {
   IdentityMatchKind,
   PassDirection,
   PassMethod,
+  AbsenceRequestStatus,
+  type AbsenceDecisionBody,
+  type AbsenceRequestBody,
+  type AbsenceRequestCountDto,
+  type AbsenceRequestDto,
+  type AttendanceBirthdayDto,
   type AttendanceDashboardCountsDto,
   type AttendanceDashboardDto,
   type AttendanceDashboardItemDto,
@@ -78,6 +94,8 @@ import {
   type AttendanceRecomputeAcceptedDto,
   type AttendanceSummaryDto,
   type AttendanceTimesheetDto,
+  type AttendanceTrendDayDto,
+  type AttendanceTrendDto,
   type ConfirmIdentityImportRequest,
   type CreateAttendanceIdentityRequest,
   type ExportAttendanceExceptionsParams,
@@ -87,6 +105,9 @@ import {
   type FormerEmployeeAlertDto,
   type FormerEmployeeAlertsDto,
   type GetAttendanceDashboardParams,
+  type GetAttendanceTrendParams,
+  type GetUpcomingBirthdaysParams,
+  type SearchAbsenceRequestsParams,
   type IdentityImportFailureDto,
   type IdentityImportPreviewDto,
   type IdentityImportResultDto,
@@ -96,6 +117,9 @@ import {
   type ListScheduleAssignmentsParams,
   type RecomputeAttendanceRequest,
   type ScheduleAssignmentDto,
+  type ScheduleDatesBody,
+  type ScheduleYearDayDto,
+  type ScheduleYearDto,
   type ScheduleAssignmentRequest as ScheduleAssignmentRequestBody,
   type ScheduleResolutionDto,
   type SearchAttendancePassesParams,
@@ -166,6 +190,7 @@ function asSent<T>(value: T): AsSent<T> {
  * `Record<Sanoq, …>` xaritasi kompilyatsiyada qizaradi.
  */
 export {
+  AbsenceRequestStatus,
   AttendanceDashboardStatus,
   AttendanceDayStatus,
   AttendanceIdentityProvider,
@@ -177,6 +202,7 @@ export {
   IdentitySource,
   PassDirection,
   PassMethod,
+  ScheduleDaySource,
   ScheduleScope,
   WorkScheduleKind,
 } from '@/shared/api/generated/model'
@@ -390,6 +416,46 @@ export type AttendanceDashboard = AsSent<AttendanceDashboardDto>
 export type DashboardFilters = Omit<AsSent<GetAttendanceDashboardParams>, 'sort'> & {
   sort?: DashboardSort
 }
+
+/**
+ * Davr grafigining bitta kuni. `counts` paneldagi bilan AYNAN bir xil
+ * shakl — ikkala ekran bitta rang xaritasidan (`DASHBOARD_STATUS_LOOK`)
+ * o'qiydi va bir holat ikki joyda ikki xil rangda chiqa olmaydi.
+ */
+export type TrendDay = AsSent<AttendanceTrendDayDto>
+
+/**
+ * Davr grafigi. ⚠️ `days` da oraliqning HAR BIR sanasi bor, tirqishsiz
+ * (server shartnomasi) — ya'ni x o'qini klient to'ldirmaydi va ta'til
+ * haftasi grafikdan yo'qolib qolmaydi.
+ */
+export type AttendanceTrend = AsSent<AttendanceTrendDto>
+
+/** So'rov parametrlari — `from` va `to` MAJBURIY (server shartnomasi). */
+export type TrendFilters = AsSent<GetAttendanceTrendParams>
+
+/**
+ * Yaqinlashib kelayotgan bitta tug'ilgan kun.
+ *
+ * ⚠️ Bu bosh sahifadagi `DashboardBirthday` EMAS: u faqat BUGUNGI kunni
+ * biladi va org-filtri yo'q. Ikkalasi bir xil ko'rinsa ham bir xil savolga
+ * javob bermaydi — shu sababli ikkita tip, ikkita endpoint.
+ *
+ * `daysUntil` — bugun uchun 0. Sana klientda HISOBLANMAYDI: «bugun»
+ * serverda, Toshkent vaqti bo'yicha aniqlanadi va brauzer sanasi undan
+ * farq qilishi mumkin.
+ */
+export type UpcomingBirthday = AsSent<AttendanceBirthdayDto>
+
+/**
+ * So'rov parametrlari — DAVRSIZ, ataylab.
+ *
+ * Panel «tanlangan oraliqda kimning tug'ilgan kuni bo'lgan» degan savolga
+ * emas, «keyingi navbatda kim» degan savolga javob beradi: davr
+ * almashtirilganda ro'yxat qayta so'ralmaydi (kesh kaliti
+ * `attendance-queries.ts` da).
+ */
+export type BirthdayFilters = AsSent<GetUpcomingBirthdaysParams>
 
 /* ═════════════════════════════════════════════════════════ hisobotlar (§6.6) */
 
@@ -813,6 +879,144 @@ export async function fetchDashboard(
   signal?: AbortSignal,
 ): Promise<AttendanceDashboard> {
   return asSent(await getAttendanceDashboard(withoutBlanks(filters), signal))
+}
+
+/**
+ * Davr grafigi — bir necha kunlik davr tanlanganda panelning O'RNIGA
+ * so'raladi (ikkalasi birga emas: ekranda yo jadval, yo kunlik chiziq).
+ *
+ * Teskari yoki 92 kundan uzun davr — 400 (`davomat.davr_notogri`,
+ * `davomat.davr_uzun`). Presetlar bunday oraliq yasay olmaydi; qo'lda
+ * kiritilgani esa tugma bosilishidan OLDIN ushlanadi (`isRangeTooLong`,
+ * `isRangeInverted`) — server tekshiruvi baribir joyida qoladi.
+ */
+export async function fetchTrend(
+  filters: TrendFilters,
+  signal?: AbortSignal,
+): Promise<AttendanceTrend> {
+  return asSent(await getAttendanceTrend(withoutBlanks(filters), signal))
+}
+
+/**
+ * Yaqinlashib kelayotgan tug'ilgan kunlar — eng yaqinidan boshlab.
+ *
+ * Tartib SERVERDA qo'yilgan va klientda qayta saralanmaydi: «eng yaqini»
+ * yil chegarasi va 29-fevral qoidasini biladi, ularni ikkinchi marta
+ * yozish esa ikki javobni ajratib yuborardi.
+ *
+ * `limit` chegaradan chiqsa server RAD ETMAYDI, qisadi (sukut 10, eng
+ * ko'pi 50) — panel xato ekraniga aylanmasligi kerak.
+ */
+export async function fetchUpcomingBirthdays(
+  filters: BirthdayFilters,
+  signal?: AbortSignal,
+): Promise<UpcomingBirthday[]> {
+  return asSent(await getUpcomingBirthdays(withoutBlanks(filters), signal))
+}
+
+/* ═══════════════════════════════════════════════ yillik to'r (§C) */
+
+/**
+ * Yillik to'rning bitta katagi.
+ *
+ * `plannedMinutes` — kun normasi, SERVERDA hisoblangan (tanaffus
+ * ayirilgan, tungi smena uzunligi bilan). Klient uni soatga aylantiradi,
+ * lekin QAYTA hisoblamaydi.
+ *
+ * `source` — katak naqshdanmi (`Pattern`) yoki shu sanaga qo'lda
+ * yozilganmi (`Date`). Ekran shu bo'yicha kulrang va to'q kataklarni
+ * ajratadi.
+ */
+export type ScheduleYearDay = AsSent<ScheduleYearDayDto>
+
+/** Jadvalning bir yillik to'ri — 365/366 katak, tirqishsiz. */
+export type ScheduleYear = AsSent<ScheduleYearDto>
+
+/** Kataklarni yozish yoki tozalash tanasi. */
+export type ScheduleDatesInput = AsSent<ScheduleDatesBody>
+
+export async function fetchScheduleYear(
+  scheduleId: string,
+  year: number,
+  signal?: AbortSignal,
+): Promise<ScheduleYear> {
+  return asSent(await getWorkScheduleYear(scheduleId, { year }, signal))
+}
+
+/**
+ * Kataklarni yozish yoki tozalash.
+ *
+ * ⚠️ Serverda yozuvdan keyin BUGUNGACHA bo'lgan kunlar qayta hisoblanadi
+ * — tabel, kalendar va panel javoblari eskiradi. Kesh `providers.tsx`
+ * orqali o'zi bekor qilinadi.
+ */
+export async function putScheduleDates(scheduleId: string, body: ScheduleDatesInput) {
+  await setWorkScheduleDates(scheduleId, body)
+}
+
+/* ═══════════════════════════════════════════ yo'qlik so'rovlari (§B) */
+
+/**
+ * Bitta yo'qlik so'rovi.
+ *
+ * `fromTime`/`toTime` — faqat BIR KUNLIK so'rovda bo'lishi mumkin (server
+ * shartnomasi): ko'p kunlik so'rovda vaqt 400 bilan rad etiladi.
+ */
+export type AbsenceRequest = AsSent<AbsenceRequestDto>
+
+/** Ro'yxat so'rovining parametrlari. */
+export type AbsenceRequestFilters = AsSent<SearchAbsenceRequestsParams>
+
+/** Yaratish va tahrirlash — server uchun BITTA shakl. */
+export type AbsenceRequestInput = AsSent<AbsenceRequestBody>
+
+/** Qaror: tasdiqlash yoki rad etish. */
+export type AbsenceDecisionInput = AsSent<AbsenceDecisionBody>
+
+/** Kutayotgan so'rovlar soni — nav nishoni uchun. */
+export type AbsenceRequestCount = AsSent<AbsenceRequestCountDto>
+
+export const ABSENCE_REQUEST_STATUSES: readonly AbsenceRequestStatus[] =
+  Object.values(AbsenceRequestStatus)
+
+export async function fetchAbsenceRequests(
+  filters: AbsenceRequestFilters,
+  signal?: AbortSignal,
+) {
+  return asSent(await searchAbsenceRequests(withoutBlanks(filters), signal))
+}
+
+/**
+ * Kutayotgan so'rovlar soni.
+ *
+ * Ro'yxat emas, faqat son: nishon har ekranda turadi va ro'yxatni yuklash
+ * unga kerak emas (`fetchFormerEmployeeAlerts` bilan bir xil naqsh).
+ */
+export async function fetchPendingRequestCount(signal?: AbortSignal) {
+  return asSent(await getPendingAbsenceRequestCount(signal))
+}
+
+export async function postAbsenceRequest(body: AbsenceRequestInput) {
+  return asSent(await createAbsenceRequest(body))
+}
+
+export async function putAbsenceRequest(id: string, body: AbsenceRequestInput) {
+  return asSent(await updateAbsenceRequest(id, body))
+}
+
+/**
+ * Qaror — tasdiqlash yoki rad etish.
+ *
+ * ⚠️ Qarordan keyin SERVER so'rov qamragan kunlarni qayta hisoblaydi:
+ * tabel, kalendar va panel javoblari eskiradi, ya'ni chaqiruvchi davomat
+ * keshini bekor qilishi shart (`attendance-queries.ts`).
+ */
+export async function postAbsenceDecision(id: string, body: AbsenceDecisionInput) {
+  return asSent(await decideAbsenceRequest(id, body))
+}
+
+export async function postAbsenceCancel(id: string) {
+  await cancelAbsenceRequest(id)
 }
 
 /* ═════════════════════════════════════════════════════ hisobotlar (§6.6) */

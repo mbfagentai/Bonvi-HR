@@ -261,4 +261,24 @@ public enum AttendanceDayStatus
     /// ishdan ketgan odamning propuski hamon ishlayapti.
     /// </remarks>
     NotEmployed = 8,
+
+    /// <summary>
+    /// Sababli — kelmagan, lekin tasdiqlangan so'rovi bor
+    /// (SPEC-so'rovlar §B3).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Bu holat FAQAT <see cref="Absent"/> ning o'rnini bosadi. Odam
+    /// kelgan kun (hatto kechikib kelgan bo'lsa ham) «Sababli» bo'lmaydi:
+    /// so'rov kelmaslikni oqlaydi, kelishni emas. Shu qoida tufayli
+    /// tasdiqlangan so'rov ishlangan daqiqani ham, kechikishni ham
+    /// o'zgartirmaydi — u faqat «kelmadi» degan ayblovni olib tashlaydi.
+    /// </para>
+    /// <para>
+    /// Sanoqlarda: «kelmagan kunlar» ga KIRMAYDI. Ish kuni bo'lgani uchun
+    /// rejadagi daqiqalar joyida qoladi — aks holda oyning reja soati
+    /// so'rov tasdiqlangani uchun qisqarib ketardi.
+    /// </para>
+    /// </remarks>
+    Excused = 9,
 }

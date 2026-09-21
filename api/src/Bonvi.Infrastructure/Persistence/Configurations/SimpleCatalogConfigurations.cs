@@ -31,6 +31,24 @@ public sealed class TerminationReasonConfiguration : IEntityTypeConfiguration<Te
 }
 
 /// <summary>
+/// <see cref="AbsenceType"/> uchun jadval konfiguratsiyasi (<c>absence_types</c>).
+/// </summary>
+/// <remarks>
+/// Qo'shimcha ustun yo'q: yo'qlik turida nomdan boshqa hech narsa yo'q
+/// (SPEC-so'rovlar §B1 — «ishlangan vaqtga kiradimi» bayrog'i ataylab
+/// qo'shilmagan).
+/// </remarks>
+public sealed class AbsenceTypeConfiguration : IEntityTypeConfiguration<AbsenceType>
+{
+    public void Configure(EntityTypeBuilder<AbsenceType> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ConfigureReference("absence_types");
+    }
+}
+
+/// <summary>
 /// <see cref="AwardType"/> uchun jadval konfiguratsiyasi (<c>award_types</c>).
 /// </summary>
 public sealed class AwardTypeConfiguration : IEntityTypeConfiguration<AwardType>

@@ -104,11 +104,18 @@ public sealed class AttendanceDayBuilder
     /// <param name="employments">Xodimning BARCHA munosabatlari (tugaganlari ham).</param>
     /// <param name="passes">Xodimning o'tishlari — <see cref="PassDatesNeeded"/> oralig'ida.</param>
     /// <param name="dates">Hisoblanadigan sanalar.</param>
+    /// <param name="excusedDates">
+    /// Tasdiqlangan yo'qlik so'rovi qamragan sanalar (SPEC-so'rovlar §B3).
+    /// Shu sanalardagi <see cref="AttendanceDayStatus.Absent"/>
+    /// <see cref="AttendanceDayStatus.Excused"/> ga aylanadi — BOSHQA hech
+    /// narsa o'zgarmaydi. <c>null</c> — so'rovlar hisobga olinmaydi.
+    /// </param>
     public IReadOnlyList<ComputedAttendanceDay> Build(
         Guid employeeId,
         IReadOnlyCollection<Employment> employments,
         IReadOnlyCollection<PassReading> passes,
-        IEnumerable<DateOnly> dates)
+        IEnumerable<DateOnly> dates,
+        IReadOnlySet<DateOnly>? excusedDates = null)
     {
         ArgumentNullException.ThrowIfNull(employments);
         ArgumentNullException.ThrowIfNull(passes);
@@ -137,7 +144,8 @@ public sealed class AttendanceDayBuilder
                 employeeId,
                 date,
                 calendar.For(date),
-                passesByDate.GetValueOrDefault(date) ?? []))
+                passesByDate.GetValueOrDefault(date) ?? [],
+                excusedDates?.Contains(date) ?? false))
             .ToList();
     }
 
@@ -146,7 +154,8 @@ public sealed class AttendanceDayBuilder
         Guid employeeId,
         DateOnly date,
         DayContext context,
-        List<PassReading> passes)
+        List<PassReading> passes,
+        bool excused)
     {
         var employment = context.Employment;
         var schedule = context.Schedule;
@@ -174,6 +183,18 @@ public sealed class AttendanceDayBuilder
         }
 
         var status = StatusOf(employment, plan, pairing);
+
+        /*
+          Tasdiqlangan so'rov FAQAT «kelmadi» ni oqlaydi (§B3). Kelgan kun,
+          dam olish kuni yoki jadvalsiz kun tegilmaydi: so'rov kelmaslikni
+          tushuntiradi, kelishni emas. Shu tor qoida tufayli ishlangan
+          daqiqa ham, kechikish ham o'zgarmaydi — tizim HR kiritmagan
+          raqamni yasamaydi.
+        */
+        if (excused && status == AttendanceDayStatus.Absent)
+        {
+            status = AttendanceDayStatus.Excused;
+        }
 
         var facts = new AttendanceDayFacts(
             EmploymentId: employment?.Id,

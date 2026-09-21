@@ -18,5 +18,8 @@ export const Route = createFileRoute('/_app/verifikatsiya/tabel')({
    */
   validateSearch: validateTimesheetSearch,
 
+  /** To'liq kenglik — verifikatsiya bo'limining hamma sahifasi bir xil (`app-shell.tsx`). */
+  staticData: { fullWidth: true },
+
   component: AttendanceTimesheetPage,
 })

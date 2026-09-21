@@ -435,3 +435,77 @@ public interface IAttendanceDayRepository : IRepository<AttendanceDay>
     /// </remarks>
     void ForgetTracked();
 }
+
+/// <summary>Yo'qlik so'rovlari uchun saqlash porti (SPEC-so'rovlar §B2).</summary>
+/// <remarks>
+/// Ro'yxat ekranlari o'qish modelidan keladi (ular ism va tur nomini
+/// qo'shib beradi); bu port faqat YOZISH yo'li uchun — bitta so'rovni
+/// olish, qo'shish va to'qnashuvni tekshirish.
+/// </remarks>
+public interface IAbsenceRequestRepository : IRepository<AbsenceRequest>
+{
+    /// <summary>
+    /// Shu xodimda, shu davrni QAMRAYDIGAN faol so'rov bormi.
+    /// </summary>
+    /// <remarks>
+    /// «Faol» — kutayotgan yoki tasdiqlangan. Rad etilgan va bekor qilingan
+    /// so'rov yo'lni to'smaydi: HR rad etgan kunga yangisini kiritishi
+    /// mumkin bo'lishi kerak.
+    /// </remarks>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="from">Davr boshi.</param>
+    /// <param name="to">Davr oxiri.</param>
+    /// <param name="exceptId">Tahrirlanayotgan so'rovning o'zi — to'qnashuv sanalmaydi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<bool> OverlapsAsync(
+        Guid employeeId,
+        DateOnly from,
+        DateOnly to,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Berilgan xodimlarning berilgan oraliqdagi TASDIQLANGAN so'rovlari —
+    /// kun hisoblash uchun.
+    /// </summary>
+    /// <remarks>
+    /// Natija «xodim → sanalar» ko'rinishida emas, so'rovlar ro'yxati bo'lib
+    /// qaytadi: chaqiruvchi ularni o'z to'plami bo'yicha yoyadi va shu bilan
+    /// port hisoblash qoidasini bilmaydi.
+    /// </remarks>
+    /// <param name="employeeIds">Xodimlar.</param>
+    /// <param name="from">Davr boshi.</param>
+    /// <param name="to">Davr oxiri.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<AbsenceRequest>> ListApprovedAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>Yillik to'r kataklari uchun saqlash porti (SPEC-jadval-to'ri §B1).</summary>
+/// <remarks>
+/// Jadvalning bolasi EMAS, alohida port: bir jadvalda bir necha yillik
+/// sana bo'lishi mumkin va ularning hammasi hech qachon birga kerak
+/// bo'lmaydi (entity izohi).
+/// </remarks>
+public interface IWorkScheduleDateRepository
+{
+    /// <summary>Bitta jadvalning berilgan oraliqdagi kataklari.</summary>
+    Task<IReadOnlyList<WorkScheduleDate>> ListAsync(
+        Guid workScheduleId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Berilgan SANALARDAGI kataklar — yozish yo'li uchun (kuzatiladi).</summary>
+    Task<IReadOnlyList<WorkScheduleDate>> ListForUpdateAsync(
+        Guid workScheduleId,
+        IReadOnlyCollection<DateOnly> dates,
+        CancellationToken cancellationToken = default);
+
+    void Add(WorkScheduleDate date);
+
+    void Remove(WorkScheduleDate date);
+}

@@ -17,5 +17,8 @@ export const Route = createFileRoute('/_app/verifikatsiya/hisobotlar')({
    */
   validateSearch: validateReportsSearch,
 
+  /** To'liq kenglik — verifikatsiya bo'limining hamma sahifasi bir xil (`app-shell.tsx`). */
+  staticData: { fullWidth: true },
+
   component: AttendanceReportsPage,
 })

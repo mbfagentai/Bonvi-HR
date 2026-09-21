@@ -1,0 +1,62 @@
+# ============================================================
+#  BONVI HR — IKKINCHI (yonma-yon) dev stack
+#
+#  Nima uchun. `docker-compose.yml` dagi `container_name` QATTIQ yozilgan
+#  (postgres, redis, api, web, bot) — Docker'da konteyner nomi butun
+#  mashinada yagona, ya'ni o'sha fayldan ikkita stack ko'tarib bo'lmaydi.
+#  Bu ustama faqat nomlarni almashtiradi; qolgan hamma narsa asosiy
+#  fayldan keladi va u O'ZGARMAYDI.
+#
+#  Qanday ishlatiladi. Hech qanday yangi buyruq yo'q — ustama va portlar
+#  shu papkadagi `.env` orqali ulanadi (u git'ga tushmaydi):
+#
+#      COMPOSE_PROJECT_NAME=bonvi-hr-verif
+#      COMPOSE_FILE=docker-compose.yml:docker-compose.parallel.yml
+#      API_PORT=7180
+#      WEB_PORT=7273
+#      POSTGRES_PORT=7532
+#      REDIS_PORT=7579
+#
+#  Shundan keyin `./bonvi up`, `./bonvi test`, `./bonvi gen` odatdagidek
+#  ishlaydi, lekin SHU stack ustida: `./bonvi` tarmoq va tom nomlarini
+#  `COMPOSE_PROJECT_NAME` dan oladi.
+#
+#  PORT YO'LAGI: 71xx/72xx/75xx — asosiy stack (7080 · 7173 · 7432 · 7379)
+#  bilan to'qnashmaydi, boshqa loyihalar band qilgan portlar ro'yxati
+#  `docker-compose.yml` boshida.
+#
+#  ⚠️ BAZA ALOHIDA. Tomlar loyiha nomi bilan nomlanadi, ya'ni bu stack
+#  o'z `bonvi-hr-verif_postgres-data` tomida ishlaydi va asosiy stack'ning
+#  ma'lumotiga TEGMAYDI. Ikki branch bitta bazani baham ko'rsa,
+#  migratsiyalari bir-birining ustidan yozilardi.
+# ============================================================
+
+services:
+  postgres:
+    container_name: verif-postgres
+
+  redis:
+    container_name: verif-redis
+
+  api:
+    container_name: verif-api
+    environment:
+      # CORS. `appsettings.json` dagi ro'yxatda faqat asosiy stackning
+      # manzili (`http://localhost:7173`) turadi va u YETARLI: production'da
+      # web bilan API bitta domenda (Caddy `/api/*` ni proksi qiladi), ya'ni
+      # CORS umuman ishlamaydi. Ikkinchi stackning web'i esa boshqa portda —
+      # brauzer uning so'rovini to'sib qo'yadi va ekranda «Server javob
+      # bermadi» chiqadi (tarmoq xatosi bilan bir xil ko'rinadi).
+      # Massiv elementi indeks bilan beriladi: `Cors__Origins__0`.
+      Cors__Origins__0: "http://localhost:${WEB_PORT:-7273}"
+
+  web:
+    container_name: verif-web
+
+  # ⚠️ BOT KO'TARILMAYDI. Telegram bitta tokenga bitta long polling
+  # ulanishiga ruxsat beradi: ikkinchi bot ulansa, Telegram birinchisini
+  # 409 bilan uzadi va ikkala stackda ham anketa boti o'lib qoladi.
+  # Bot kerak bo'lsa — faqat bitta stackda.
+  bot:
+    container_name: verif-bot
+    profiles: ["bot"]

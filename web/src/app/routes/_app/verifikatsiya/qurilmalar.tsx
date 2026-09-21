@@ -11,5 +11,8 @@ import { AttendanceDevicesPage } from '@/features/verification/components/attend
  * kamdan-kam almashtiriladi va havolada ma'nosiz.
  */
 export const Route = createFileRoute('/_app/verifikatsiya/qurilmalar')({
+  /** To'liq kenglik — verifikatsiya bo'limining hamma sahifasi bir xil (`app-shell.tsx`). */
+  staticData: { fullWidth: true },
+
   component: AttendanceDevicesPage,
 })

@@ -623,3 +623,109 @@ public sealed class AttendanceDayRepository : Repository<AttendanceDay>, IAttend
         }
     }
 }
+
+/// <summary><see cref="IAbsenceRequestRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
+public sealed class AbsenceRequestRepository : Repository<AbsenceRequest>, IAbsenceRequestRepository
+{
+    public AbsenceRequestRepository(AppDbContext context) : base(context) { }
+
+    /// <inheritdoc />
+    public Task<bool> OverlapsAsync(
+        Guid employeeId,
+        DateOnly from,
+        DateOnly to,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default)
+        => Set
+            .AsNoTracking()
+            .AnyAsync(
+                request =>
+                    request.EmployeeId == employeeId &&
+                    (exceptId == null || request.Id != exceptId) &&
+                    (request.Status == AbsenceRequestStatus.Pending ||
+                     request.Status == AbsenceRequestStatus.Approved) &&
+                    request.FromDate <= to &&
+                    request.ToDate >= from,
+                cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AbsenceRequest>> ListApprovedAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(employeeIds);
+
+        if (employeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = employeeIds.ToList();
+
+        return await Set
+            .AsNoTracking()
+            .Where(request =>
+                ids.Contains(request.EmployeeId) &&
+                request.Status == AbsenceRequestStatus.Approved &&
+                request.FromDate <= to &&
+                request.ToDate >= from)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+}
+
+/// <summary><see cref="IWorkScheduleDateRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
+public sealed class WorkScheduleDateRepository : IWorkScheduleDateRepository
+{
+    private readonly AppDbContext _context;
+
+    public WorkScheduleDateRepository(AppDbContext context) => _context = context;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<WorkScheduleDate>> ListAsync(
+        Guid workScheduleId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+        => await _context.WorkScheduleDates
+            .AsNoTracking()
+            .Where(date => date.WorkScheduleId == workScheduleId && date.Date >= from && date.Date <= to)
+            .OrderBy(date => date.Date)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// ⚠️ <c>AsNoTracking</c> ATAYLAB YO'Q: topilgan katak darhol
+    /// o'zgartiriladi yoki o'chiriladi (`WorkScheduleDateRepository`
+    /// yozish yo'li), kuzatilmagan obyektdagi o'zgarish esa jimgina
+    /// yo'qolardi.
+    /// </remarks>
+    public async Task<IReadOnlyList<WorkScheduleDate>> ListForUpdateAsync(
+        Guid workScheduleId,
+        IReadOnlyCollection<DateOnly> dates,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(dates);
+
+        if (dates.Count == 0)
+        {
+            return [];
+        }
+
+        var wanted = dates.ToList();
+
+        return await _context.WorkScheduleDates
+            .Where(date => date.WorkScheduleId == workScheduleId && wanted.Contains(date.Date))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public void Add(WorkScheduleDate date) => _context.WorkScheduleDates.Add(date);
+
+    /// <inheritdoc />
+    public void Remove(WorkScheduleDate date) => _context.WorkScheduleDates.Remove(date);
+}

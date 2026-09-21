@@ -4,9 +4,11 @@ using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Identities;
 using Bonvi.Application.Attendance.Queries;
+using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Schedules;
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -83,6 +85,65 @@ public sealed record CreateAttendanceIdentityRequest(
     Guid EmployeeId,
     string? DisplayNameInDevice = null,
     string? Note = null);
+
+/// <summary>Yillik to'r kataklarini yozish tanasi.</summary>
+/// <remarks>
+/// ⚠️ Maydonlarda <c>Guid = default</c> YO'Q (OpenAPI tuzog'i, boshqa
+/// tanalardagi bilan bir xil sabab). <c>Dates</c> — ixtiyoriy massiv:
+/// bo'sh kelsa buyruq «kamida bitta sana» xatosini beradi va bu 400,
+/// 500 emas.
+/// </remarks>
+/// <param name="Dates">Qaysi sanalar.</param>
+/// <param name="Reset">Kataklar o'chirilsinmi (kun naqshga qaytadi).</param>
+/// <param name="IsWorking">Ish kunimi.</param>
+/// <param name="StartTime">Boshlanish — ish kunida majburiy.</param>
+/// <param name="EndTime">Tugash — ish kunida majburiy.</param>
+/// <param name="BreakMinutes">Tanaffus (daqiqa).</param>
+/// <param name="BreakStart">Tanaffus oynasining boshi.</param>
+/// <param name="BreakEnd">Tanaffus oynasining oxiri.</param>
+public sealed record ScheduleDatesBody(
+    IReadOnlyList<DateOnly>? Dates,
+    bool Reset = false,
+    bool IsWorking = true,
+    TimeOnly? StartTime = null,
+    TimeOnly? EndTime = null,
+    int BreakMinutes = 0,
+    TimeOnly? BreakStart = null,
+    TimeOnly? BreakEnd = null);
+
+/// <summary>Yo'qlik so'rovining tanasi — yaratish va tahrirlash uchun bitta shakl.</summary>
+/// <remarks>
+/// <para>
+/// ⚠️ <b>Maydonlar <c>Guid = default</c> bilan berilmaydi</b> — bu loyihada
+/// OpenAPI hujjatini butunlay yiqitgan tuzoq (`AttendanceDeviceRequest`
+/// izohi): bo'sh <c>Guid</c> ni standart qiymat qilib yozish hujjat
+/// yaratishda 500 beradi.
+/// </para>
+/// <para>
+/// Tahrirlashda <c>EmployeeId</c> O'QILMAYDI: boshqa odamning so'rovi — bu
+/// boshqa so'rov va uni yangisini yaratib olish kerak.
+/// </para>
+/// </remarks>
+/// <param name="EmployeeId">Kim yo'q bo'ladi (tahrirlashda e'tiborga olinmaydi).</param>
+/// <param name="AbsenceTypeId">Yo'qlik turi.</param>
+/// <param name="FromDate">Davr boshi.</param>
+/// <param name="ToDate">Davr oxiri.</param>
+/// <param name="FromTime">Kun ichidagi boshlanish — faqat bir kunlik so'rovda.</param>
+/// <param name="ToTime">Kun ichidagi tugash — faqat bir kunlik so'rovda.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record AbsenceRequestBody(
+    Guid EmployeeId,
+    Guid AbsenceTypeId,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    TimeOnly? FromTime = null,
+    TimeOnly? ToTime = null,
+    string? Note = null);
+
+/// <summary>Qaror tanasi.</summary>
+/// <param name="Approve">Tasdiqlansinmi (<c>false</c> — rad etish).</param>
+/// <param name="DecisionNote">HR izohi.</param>
+public sealed record AbsenceDecisionBody(bool Approve, string? DecisionNote = null);
 
 /// <summary>Import tasdig'idagi bitta qaror.</summary>
 /// <param name="RawPersonId">Shaxs raqami.</param>
@@ -217,6 +278,7 @@ public static class AttendanceEndpoints
         MapAssignments(group);
         MapPasses(group);
         MapBoard(group);
+        MapAbsenceRequests(group);
         MapReports(group);
         MapExports(group);
         MapRecompute(group);
@@ -683,6 +745,74 @@ public static class AttendanceEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        // Yillik to'r (SPEC-jadval-to'ri §C). O'qish — `attendance.view`:
+        // tabelni o'qiyotgan HR «bu kun nega dam olish?» degan savolga
+        // javobni shu yerdan topadi.
+        group.MapGet("/schedules/{id:guid}/year", async (
+                Guid id,
+                int? year,
+                GetScheduleYearQueryHandler handler,
+                IClock clock,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetScheduleYearQuery(id, year ?? clock.Today.Year), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetWorkScheduleYear")
+            .WithSummary("Davomat — jadvalning yillik to'ri")
+            .WithDescription(
+                "Yilning HAR BIR kuni, o'sish tartibida va TIRQISHSIZ. «plannedMinutes» — kun normasi " +
+                "(tanaffus ayirilgan), ekranda soat bo'lib chiqadi. «source»: Pattern — qiymat haftalik " +
+                "naqshdan keladi, Date — shu sanaga QO'LDA yozilgan katak. «year» berilmasa — joriy yil " +
+                "(Toshkent). Yil 2000–2100 oralig'idan tashqarida bo'lsa — «davomat.jadval_yili_notogri» (400).")
+            .Produces<ScheduleYearDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPut("/schedules/{id:guid}/dates", async (
+                Guid id,
+                ScheduleDatesBody body,
+                SetScheduleDatesCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new SetScheduleDatesCommand(
+                            id,
+                            body.Dates ?? [],
+                            body.Reset,
+                            body.IsWorking,
+                            body.StartTime,
+                            body.EndTime,
+                            body.BreakMinutes,
+                            body.BreakStart,
+                            body.BreakEnd),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceManage)
+            .WithName("SetWorkScheduleDates")
+            .WithSummary("Davomat — yillik to'r kataklarini yozish yoki tozalash")
+            .WithDescription(
+                "Bitta chaqiruv bilan bir nechta sana: bitta katak ham, oyning qatori ham, butun yil ham " +
+                "shu yerdan. «reset: true» — kataklar O'CHIRILADI va kunlar haftalik naqshga qaytadi " +
+                "(qolgan maydonlar e'tiborga olinmaydi). Aks holda ish kuni uchun «startTime» va «endTime» " +
+                "SHART («davomat.jadval_vaqt_bosh»), tanaffus oynasi smena ichida bo'lishi kerak. " +
+                "Eng ko'pi 400 ta sana. ⭐ Yozuvdan keyin BUGUNGACHA bo'lgan kunlar qayta hisoblanadi: " +
+                "jadval o'zgarishi kechagi tabelni ham o'zgartiradi. Kelajakdagi kunlar qayta hisoblanmaydi " +
+                "— ularning saqlangan yozuvi yo'q.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapPost("/schedules/{id:guid}/activate", async (
                 Guid id,
                 SetWorkScheduleActiveCommandHandler handler,
@@ -998,6 +1128,76 @@ public static class AttendanceEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        // Davr grafigi. «from» va «to» MAJBURIY va shu sababli `DateOnly?`
+        // emas: berilmagan oraliq «bugun» degani bo'lardi, u esa
+        // `/dashboard` ning o'zi. Qidiruv, holat, saralash va sahifa YO'Q —
+        // bu grafik, ro'yxat emas.
+        group.MapGet("/dashboard/trend", async (
+                DateOnly from,
+                DateOnly to,
+                Guid? legalEntityId,
+                Guid? departmentId,
+                Guid? positionId,
+                GetAttendanceTrendQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetAttendanceTrendQuery(from, to, legalEntityId, departmentId, positionId),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetAttendanceTrend")
+            .WithSummary("Davomat — davr grafigi (kunma-kun holatlar)")
+            .WithDescription(
+                "Xom o'tishlardan, «/dashboard» bilan AYNAN bir xil qoida bo'yicha: bir kunlik oraliq so'ralsa " +
+                "«days[0].counts» panelning «counts» i bilan teng chiqadi. «from» va «to» majburiy, ikkala " +
+                "chegara ham kiradi va ular TOSHKENT sanasi. ⚠️ «days» da oraliqning HAR BIR sanasi bor, " +
+                "o'sish tartibida, TIRQISHSIZ: hech kim ishlamagan kun ham «total: 0» va oltita nol bilan " +
+                "turadi. Oltita sanoq yig'indisi doim «total». «legalEntityId», «departmentId» (ichki " +
+                "bo'limlari bilan), «positionId» — paneldagi bilan bir xil va HAR BIR kunga alohida qo'llanadi. " +
+                "«from» > «to» — «davomat.davr_notogri»; 92 kundan uzun davr — «davomat.davr_uzun» (ikkalasi 400).")
+            .Produces<AttendanceTrendDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        // Tug'ilgan kunlar paneli. Sana parametri YO'Q: «bugun» serverda
+        // (`IClock`), Toshkent vaqti bo'yicha. Davr ham yo'q — bu «keyingi
+        // navbatda kim» degan savol, tanlangan oraliqning kesimi emas.
+        group.MapGet("/dashboard/birthdays", async (
+                Guid? legalEntityId,
+                Guid? departmentId,
+                Guid? positionId,
+                int? limit,
+                GetUpcomingBirthdaysQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetUpcomingBirthdaysQuery(legalEntityId, departmentId, positionId, limit),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetUpcomingBirthdays")
+            .WithSummary("Davomat — yaqinlashib kelayotgan tug'ilgan kunlar")
+            .WithDescription(
+                "Eng yaqinidan boshlab tartiblangan: «daysUntil» o'sish bo'yicha, teng sanalar ism bo'yicha. " +
+                "Bugungi tug'ilgan kun ham kiradi («daysUntil: 0»). To'plam — BUGUN mehnat munosabati bor " +
+                "xodimlar; «legalEntityId», «departmentId» (ichki bo'limlari bilan), «positionId» paneldagi " +
+                "bilan bir xil ma'noda. Tug'ilgan sanasi yo'q xodim umuman chiqmaydi. «limit» sukut 10, eng " +
+                "ko'pi 50 — chegaradan tashqaridagi qiymat rad etilmaydi, QISILADI. ⚠️ 29-fevralda " +
+                "tug'ilganlar kabisa bo'lmagan yilda ro'yxatga tushmaydi (sun'iy sana tanlanmaydi). " +
+                "«age» — «nextBirthday» da to'ladigan yosh; shubhali sanada (0 dan kichik yoki 120 dan katta) " +
+                "null. ⚠️ Bu «/api/dashboard/birthdays» EMAS: u faqat BUGUNGI kunni biladi va org-filtri yo'q.")
+            .Produces<IReadOnlyList<AttendanceBirthdayDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         group.MapGet("/former-employee-alerts", async (
                 GetFormerEmployeeAlertsQueryHandler handler,
                 CancellationToken cancellationToken) =>
@@ -1017,6 +1217,185 @@ public static class AttendanceEndpoints
                 "ODAM uchun bitta yozuv (eng so'nggi o'tishi bilan); «count» — odamlar, o'tishlar emas.")
             .Produces<FormerEmployeeAlertsDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Yo'qlik so'rovlari (SPEC-so'rovlar §B4)
+    //  O'qish — attendance.view, qaror — attendance.requests.manage
+    // ════════════════════════════════════════════════════════════
+
+    private static void MapAbsenceRequests(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/requests", async (
+                Guid? employeeId,
+                AbsenceRequestStatus? status,
+                bool? decided,
+                DateOnly? from,
+                DateOnly? to,
+                string? search,
+                int? page,
+                int? pageSize,
+                SearchAbsenceRequestsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new SearchAbsenceRequestsQuery(employeeId, status, decided, from, to, search, page, pageSize),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("SearchAbsenceRequests")
+            .WithSummary("Davomat — yo'qlik so'rovlari")
+            .WithDescription(
+                "Yangisi birinchi («createdAt» kamayish bo'yicha). «employeeId» — xodim kartasidagi ro'yxat, " +
+                "usiz — butun tashkilot bo'yicha navbat. «status»: Pending | Approved | Rejected | Cancelled. " +
+                "«from»/«to» so'rovning DAVRI bo'yicha kesadi (yaratilgan sana bo'yicha emas) va oraliqqa " +
+                "QISMAN tegadigan so'rov ham chiqadi. «search» — xodim bo'yicha, boshqa ro'yxatlardagi bilan " +
+                "bir xil shart. «pageSize» sukut 25, eng ko'pi 200.")
+            .Produces<PagedResult<AbsenceRequestDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/requests/pending-count", async (
+                GetPendingAbsenceRequestCountQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetPendingAbsenceRequestCountQuery(), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetPendingAbsenceRequestCount")
+            .WithSummary("Davomat — qaror kutayotgan so'rovlar soni")
+            .WithDescription(
+                "Nav nishoni uchun: faqat SON, ro'yxat emas. Parametr va filtr yo'q — nishon butun " +
+                "tashkilotni ko'rsatadi.")
+            .Produces<AbsenceRequestCountDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/requests", async (
+                AbsenceRequestBody body,
+                CreateAbsenceRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new CreateAbsenceRequestCommand(
+                            body.EmployeeId,
+                            body.AbsenceTypeId,
+                            body.FromDate,
+                            body.ToDate,
+                            body.FromTime,
+                            body.ToTime,
+                            body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("CreateAbsenceRequest")
+            .WithSummary("Davomat — yo'qlik so'rovini yaratish")
+            .WithDescription(
+                "Birinchi bosqichda so'rovni HR xodim nomidan kiritadi. Vaqt oralig'i («fromTime»/«toTime») " +
+                "faqat BIR KUNLIK so'rovda beriladi va ikkalasi birga bo'lishi shart; ko'p kunlik so'rovda " +
+                "vaqt — «davomat.sorov_vaqti_notogri» (400). «fromDate» > «toDate» — «davomat.sorov_davri_notogri»; " +
+                "92 kundan uzun — «davomat.sorov_uzun». Shu kunlarga xodimda FAOL (kutayotgan yoki tasdiqlangan) " +
+                "so'rov bo'lsa — «davomat.sorov_takroriy» (409). ⚠️ Yangi so'rov davomat hisobini O'ZGARTIRMAYDI: " +
+                "kun faqat TASDIQLANGANDA «Sababli» bo'ladi.")
+            .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/requests/{id:guid}", async (
+                Guid id,
+                AbsenceRequestBody body,
+                UpdateAbsenceRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new UpdateAbsenceRequestCommand(
+                            id,
+                            body.AbsenceTypeId,
+                            body.FromDate,
+                            body.ToDate,
+                            body.FromTime,
+                            body.ToTime,
+                            body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("UpdateAbsenceRequest")
+            .WithSummary("Davomat — kutayotgan so'rovni tahrirlash")
+            .WithDescription(
+                "Faqat KUTAYOTGAN so'rov tahrirlanadi: qaror qabul qilingandan keyin — " +
+                "«davomat.sorov_qaror_qabul_qilingan» (409). Xodim o'zgartirilmaydi (bunday maydon yo'q): " +
+                "boshqa odamning so'rovi — bu boshqa so'rov.")
+            .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/requests/{id:guid}/decide", async (
+                Guid id,
+                AbsenceDecisionBody body,
+                DecideAbsenceRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new DecideAbsenceRequestCommand(id, body.Approve, body.DecisionNote),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("DecideAbsenceRequest")
+            .WithSummary("Davomat — so'rovni tasdiqlash yoki rad etish")
+            .WithDescription(
+                "«approve: true» — tasdiqlash, «false» — rad etish. ⭐ Qarordan keyin so'rov qamragan kunlar " +
+                "QAYTA HISOBLANADI: tasdiqlangan so'rov «Kelmadi» ni «Sababli» ga aylantiradi (boshqa hech " +
+                "narsani — ishlangan vaqt ham, kechikish ham o'zgarmaydi). Qaror allaqachon qabul qilingan " +
+                "bo'lsa — «davomat.sorov_qaror_qabul_qilingan» (409).")
+            .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/requests/{id:guid}/cancel", async (
+                Guid id,
+                CancelAbsenceRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new CancelAbsenceRequestCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("CancelAbsenceRequest")
+            .WithSummary("Davomat — so'rovni bekor qilish")
+            .WithDescription(
+                "Tasdiqlangan so'rov ham bekor qilinadi — shunda kunlar qayta hisoblanadi va «Sababli» " +
+                "holati qaytariladi. Allaqachon bekor qilingan so'rov — «davomat.sorov_bekor_qilingan» (409).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     // ════════════════════════════════════════════════════════════

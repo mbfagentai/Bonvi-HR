@@ -37,7 +37,12 @@ public interface IAttendanceComputationSource
     /// shartni (B4: [D − 2, D + 2]) har bir chaqiruvchiga yuklardi.
     /// </remarks>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    Task<ScheduleCatalog> LoadScheduleCatalogAsync(CancellationToken cancellationToken = default);
+    /// <param name="from">Yillik to'r kataklari uchun oraliq boshi.</param>
+    /// <param name="to">Oraliq oxiri.</param>
+    Task<ScheduleCatalog> LoadScheduleCatalogAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Xodimlarning BARCHA mehnat munosabatlari (tugaganlari ham), xodim bo'yicha.</summary>
     /// <param name="employeeIds">Xodimlar.</param>
@@ -57,6 +62,34 @@ public interface IAttendanceComputationSource
     /// <param name="to">Oxirgi <c>local_date</c> (o'zi ham kiradi).</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<PassReading>>> LoadPassesAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tasdiqlangan yo'qlik so'rovlari qamragan sanalar — xodim bo'yicha
+    /// (SPEC-so'rovlar §B3).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Natija sanalar TO'PLAMI bo'lib qaytadi, so'rovlar ro'yxati emas:
+    /// hisoblovchiga faqat «shu kun oqlanadimi» degan javob kerak va u
+    /// so'rovning shaklini (bir kunmi, oraliqmi, vaqti bormi) bilmasligi
+    /// kerak.
+    /// </para>
+    /// <para>
+    /// ⚠️ Vaqt oralig'i (yarim kunlik so'rov) bu yerda E'TIBORGA OLINMAYDI:
+    /// birinchi bosqichda tasdiqlangan so'rov faqat «kelmadi» ni oqlaydi,
+    /// kelgan kunga esa umuman ta'sir qilmaydi — ya'ni yarim kunlik so'rov
+    /// ham xuddi shu qoidaga tushadi.
+    /// </para>
+    /// </remarks>
+    /// <param name="employeeIds">Xodimlar.</param>
+    /// <param name="from">Davr boshi (o'zi ham kiradi).</param>
+    /// <param name="to">Davr oxiri (o'zi ham kiradi).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyDictionary<Guid, IReadOnlySet<DateOnly>>> LoadExcusedDatesAsync(
         IReadOnlyCollection<Guid> employeeIds,
         DateOnly from,
         DateOnly to,
@@ -83,7 +116,13 @@ public interface IAttendanceComputationSource
 /// <param name="Assignments">Tirik biriktirmalar.</param>
 /// <param name="Schedules">Jadvallar — kunlari bilan, o'chirilganlari ham.</param>
 /// <param name="Departments">Bo'limlar — o'chirilganlari ham (daraxt oraliq bo'limda uzilmasin).</param>
+/// <param name="Dates">
+/// Yillik to'rning kataklari — FAQAT so'ralgan oraliq uchun
+/// (SPEC-jadval-to'ri §B2). Biriktirma va jadvaldan farqli o'laroq bu
+/// ro'yxat yillar bo'yicha o'sadi, shu sababli u sana bo'yicha kesiladi.
+/// </param>
 public sealed record ScheduleCatalog(
     IReadOnlyList<ScheduleAssignment> Assignments,
     IReadOnlyList<WorkSchedule> Schedules,
-    IReadOnlyList<Department> Departments);
+    IReadOnlyList<Department> Departments,
+    IReadOnlyList<WorkScheduleDate> Dates);

@@ -117,6 +117,100 @@ public interface IAttendanceReadModel
         DashboardFilter filter,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Davr grafigi: oraliqning HAR BIR kuni uchun holatlar bo'yicha sanoq.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Panelning o'zi bilan BIR XIL qoida — xom o'tishlar, <c>AttendanceDayBuilder</c>
+    /// va <c>DashboardStatusRule</c>. Bir kunlik oraliq so'ralsa, natija
+    /// <see cref="GetDashboardAsync"/> ning <c>Counts</c> i bilan aynan teng
+    /// bo'lishi shart; ikkinchi qoida yozilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Hajm.</b> Kun bo'yicha AYLANMAYDI: 92 kunga 92 ta so'rov ~14 soniya
+    /// bo'lardi. O'tishlar BO'LAKLAB (<c>TrendPassChunkDays</c> kunlik) o'qiladi
+    /// — so'rovlar soni oraliq uzunligiga emas, bo'laklar soniga bog'liq (92
+    /// kunga 7 ta), xotirada esa bir vaqtning o'zida bir bo'lakning o'tishlari
+    /// turadi. Munosabatlar, jadvallar va odamlar ro'yxati BIR MARTA yuklanadi.
+    /// </para>
+    /// <para>
+    /// Jadval qatori qaytmaydi (<see cref="AttendanceTrendDto"/> izohi) —
+    /// natija sanoqlarga yig'iladi, ya'ni xotira oraliq uzunligiga chiziqli
+    /// emas, kunlar soniga teng oltita sondan iborat.
+    /// </para>
+    /// </remarks>
+    /// <param name="filter">Oraliq va org-filtr.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<AttendanceTrendDto> GetDashboardTrendAsync(
+        DashboardTrendFilter filter,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Yaqinlashib kelayotgan tug'ilgan kunlar — eng yaqinidan boshlab.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// To'plam panelning BUGUNGI to'plami bilan bir xil: bugunni qamraydigan,
+    /// org-filtrga mos munosabati bor xodimlar. Shu sababli bo'lim tanlansa
+    /// ro'yxat ham o'sha bo'limnikiga aylanadi (§E2) — ekranda ikki xil
+    /// odamlar to'plami yonma-yon turmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Bosh sahifadagi <c>BirthdayQuery</c> ishlatilmaydi</b> va bu ataylab:
+    /// u FAQAT berilgan kunlarni biladi va org-filtri yo'q. Bu yerda esa
+    /// «keyingi nechta odam» so'raladi — kun oynasi umuman yo'q.
+    /// </para>
+    /// <para>
+    /// <b>Hajm.</b> To'plamning tug'ilgan sanalari (~950 tor qator) bir marta
+    /// o'qiladi va xotirada tartiblanadi: keyingi sanani SQL da hisoblash
+    /// 29-fevral va yil chegarasini bazaga ko'chirardi. Munosabat va
+    /// ma'lumotnoma nomlari faqat CHIQQAN o'nta odam uchun yuklanadi.
+    /// </para>
+    /// </remarks>
+    /// <param name="filter">Bugungi sana, org-filtr va ro'yxat uzunligi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<AttendanceBirthdayDto>> GetUpcomingBirthdaysAsync(
+        BirthdayFilter filter,
+        CancellationToken cancellationToken = default);
+
+    // ── 2d. Yo'qlik so'rovlari ──────────────────────────────────────
+
+    /// <summary>Yo'qlik so'rovlari — xodim kartasi va umumiy navbat uchun.</summary>
+    /// <remarks>
+    /// <para>
+    /// Bitta metod IKKI ekranga xizmat qiladi: xodim kartasida
+    /// <c>EmployeeId</c> berilgan, umumiy navbatda esa yo'q. Ikkinchi metod
+    /// yozilsa, ikkala ekran bir xil so'rovni ikki xil tartibda ko'rsatishi
+    /// mumkin bo'lardi.
+    /// </para>
+    /// <para>
+    /// Tartib: YANGISI birinchi (<c>created_at</c> kamayish bo'yicha).
+    /// Kutayotgan so'rov tepada turishi kerak, HR esa ularni kelish
+    /// tartibida ko'radi.
+    /// </para>
+    /// </remarks>
+    /// <param name="filter">Xodim, holat, davr va sahifa.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<AttendancePage<AbsenceRequestDto>> SearchAbsenceRequestsAsync(
+        AbsenceRequestFilter filter,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Bitta so'rov — qaror qabul qilingandan keyin javob uchun.</summary>
+    /// <param name="id">So'rov.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<AbsenceRequestDto?> FindAbsenceRequestAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Kutayotgan so'rovlar SONI — nav nishoni uchun.</summary>
+    /// <remarks>
+    /// Ro'yxat emas, faqat son: nishon har ekranda turadi va ro'yxatni
+    /// yuklash unga kerak emas (<c>UnmatchedCount</c> bilan bir xil naqsh).
+    /// </remarks>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<int> CountPendingAbsenceRequestsAsync(CancellationToken cancellationToken = default);
+
     // ── 3. Tabel ────────────────────────────────────────────────────
 
     /// <summary>
@@ -378,6 +472,105 @@ public sealed record DashboardPage(
     AttendanceDashboardCountsDto Counts,
     IReadOnlyList<AttendanceDashboardItemDto> Items,
     int TotalItems);
+
+/// <summary>Davr grafigining filtri.</summary>
+/// <remarks>
+/// <para>
+/// Org-filtr <see cref="DashboardFilter"/> dagi bilan AYNAN bir xil ma'noda
+/// va HAR BIR kunga alohida qo'llanadi: 3-sentabrda bo'limga o'tgan odam
+/// 1–2-sentabrda to'plamda yo'q, 3-sentabrdan bor. Kunning suratini bugungi
+/// bo'lim bo'yicha chizish o'tgan oyning grafigini har ko'chirishda
+/// o'zgartirib yuborardi.
+/// </para>
+/// <para>
+/// Qidiruv va holat filtri ATAYLAB yo'q: ular panelda faqat JADVALNI
+/// toraytiradi, grafikda esa jadval yo'q.
+/// </para>
+/// </remarks>
+/// <param name="From">Davr boshi (Toshkent sanasi).</param>
+/// <param name="To">Davr oxiri — ikkala chegara ham kiradi.</param>
+/// <param name="LegalEntityId">Firma.</param>
+/// <param name="DepartmentId">Bo'lim (ichki bo'limlari bilan).</param>
+/// <param name="PositionId">Lavozim.</param>
+public sealed record DashboardTrendFilter(
+    DateOnly From,
+    DateOnly To,
+    Guid? LegalEntityId = null,
+    Guid? DepartmentId = null,
+    Guid? PositionId = null);
+
+/// <summary>Tug'ilgan kunlar panelining filtri.</summary>
+/// <remarks>
+/// <para>
+/// Org-filtr <see cref="DashboardFilter"/> dagi bilan AYNAN bir xil ma'noda.
+/// Davr esa YO'Q: panel «tanlangan oraliqda kimning tug'ilgan kuni bo'lgan»
+/// degan savolga emas, «keyingi navbatda kim» degan savolga javob beradi —
+/// shu sababli u davr almashtirilganda qayta so'ralmaydi.
+/// </para>
+/// <para>
+/// <see cref="Today"/> — Toshkent sanasi va uni HANDLER qo'yadi
+/// (<see cref="Bonvi.Domain.Abstractions.IClock"/> dan): brauzerdagi kun
+/// foydalanuvchi qurilmasining sozlamasi va u bilan «bugun» ikki xil
+/// bo'lib qolardi.
+/// </para>
+/// </remarks>
+/// <param name="Today">Bugungi Toshkent sanasi.</param>
+/// <param name="LegalEntityId">Firma.</param>
+/// <param name="DepartmentId">Bo'lim (ichki bo'limlari bilan).</param>
+/// <param name="PositionId">Lavozim.</param>
+/// <param name="Limit">Nechta odam qaytadi — handler chegaralaydi.</param>
+public sealed record BirthdayFilter(
+    DateOnly Today,
+    Guid? LegalEntityId = null,
+    Guid? DepartmentId = null,
+    Guid? PositionId = null,
+    int Limit = 10);
+
+// ════════════════════════════════════════════════════════════════════
+//  2d. Yo'qlik so'rovlari
+// ════════════════════════════════════════════════════════════════════
+
+/// <summary>Yo'qlik so'rovlari ro'yxatining filtri.</summary>
+/// <remarks>
+/// <para>
+/// <see cref="From"/>/<see cref="To"/> — so'rovning DAVRI bo'yicha kesish
+/// («shu oyga tegishli so'rovlar»), yaratilgan sana bo'yicha emas: HR
+/// «sentabrda kim yo'q bo'lgan» deb qidiradi, «sentabrda kim yozgan» deb
+/// emas. So'rov oraliqqa QISMAN tegsa ham ro'yxatga tushadi.
+/// </para>
+/// <para>
+/// Qidiruv (<see cref="Search"/>) — xodim bo'yicha va u barcha ro'yxatlar
+/// bilan bitta shartdan (<c>EmployeeSearchQuery</c>).
+/// </para>
+/// </remarks>
+/// <param name="EmployeeId">Faqat shu xodim — xodim kartasida.</param>
+/// <param name="Status">Faqat shu holat.</param>
+/// <param name="Decided">
+/// <c>true</c> — qaror qabul qilinganlar (tasdiqlangan, rad etilgan yoki
+/// bekor qilingan), <c>false</c> — faqat kutayotganlar, <c>null</c> — hammasi.
+/// <see cref="Status"/> bilan birga berilsa, ikkalasi ham qo'llanadi.
+/// Ekranda ikkita jadval bor (kutayotganlar va qaror qabul qilinganlar) va
+/// ularning HAR BIRI o'z sahifalashiga ega bo'lishi kerak — klientda
+/// filtrlash «jami» sonini yolg'on qilardi.
+/// </param>
+/// <param name="From">Davr boshi.</param>
+/// <param name="To">Davr oxiri.</param>
+/// <param name="Search">Xodim bo'yicha qidiruv.</param>
+/// <param name="Page">Sahifa, 1 dan.</param>
+/// <param name="PageSize">Sahifa hajmi.</param>
+public sealed record AbsenceRequestFilter(
+    Guid? EmployeeId = null,
+    AbsenceRequestStatus? Status = null,
+    bool? Decided = null,
+    DateOnly? From = null,
+    DateOnly? To = null,
+    string? Search = null,
+    int Page = 1,
+    int PageSize = 25)
+{
+    /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
+    public int Skip => (Page - 1) * PageSize;
+}
 
 // ════════════════════════════════════════════════════════════════════
 //  3. Tabel

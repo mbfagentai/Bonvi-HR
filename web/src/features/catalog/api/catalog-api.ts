@@ -28,6 +28,13 @@ export const SIMPLE_CATALOG_KINDS = [
   'penalty-types',
   'document-types',
   /*
+    Yo'qlik turlari — davomat so'rovlari shu ro'yxatdan tanlanadi
+    (SPEC-so'rovlar §B1). Tuzilishi bo'yicha yuqoridagilar bilan aynan
+    bir xil (faqat nom), shu sababli u ham umumiy `CatalogPage` bilan
+    chiziladi.
+  */
+  'absence-types',
+  /*
     Vakansiya nomlari — e'londa turadigan qisqa nomlar
     («Сотувчи-консультант», «Ҳайдовчи»).
 

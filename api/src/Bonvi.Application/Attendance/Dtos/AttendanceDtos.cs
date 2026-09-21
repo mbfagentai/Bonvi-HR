@@ -63,6 +63,12 @@ namespace Bonvi.Application.Attendance.Dtos;
 /// <param name="Method">Shaxs qanday tasdiqlangan.</param>
 /// <param name="DeviceId">Qaysi qurilma.</param>
 /// <param name="DeviceName">Qurilma nomi — keyin o'chirilgan qurilmaniki ham: jurnal o'tishning manbasini yo'qotmasligi kerak.</param>
+/// <param name="DeviceLocation">
+/// Qurilmaning ERKIN MATNLI joyi («Ofis», «Sex kirishi»). Bu ma'lumotnoma
+/// EMAS — tizimda «lokatsiya» degan yozuv turi yo'q (SPEC-panel §A), ya'ni
+/// maydon faqat ko'rsatish uchun va filtr sifatida ishlatilmaydi.
+/// </param>
+/// <param name="DeviceProvider">Qurilma turi (Hikvision / Generic) — qurilma o'chirilgan bo'lsa <c>null</c>.</param>
 /// <param name="IdentityProvider">Shaxs raqami qaysi raqamlar fazosida.</param>
 /// <param name="RawPersonId">Qurilmadagi shaxs raqami — moslik yo'q bo'lsa ekranda SHU ko'rinadi.</param>
 /// <param name="EmployeeId">Xodim. <c>null</c> — moslanmagan o'tish.</param>
@@ -95,6 +101,8 @@ public sealed record AttendancePassDto(
     PassMethod Method,
     Guid DeviceId,
     string? DeviceName,
+    string? DeviceLocation,
+    AttendanceProvider? DeviceProvider,
     AttendanceIdentityProvider IdentityProvider,
     string RawPersonId,
     Guid? EmployeeId,
@@ -272,6 +280,18 @@ public enum AttendanceDashboardStatus
 
     /// <summary>Munosabat bor, lekin jadval topilmadi.</summary>
     NoSchedule = 6,
+
+    /// <summary>
+    /// Sababli — kelmagan, lekin tasdiqlangan yo'qlik so'rovi bor
+    /// (SPEC-so'rovlar §B3).
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Faqat <see cref="Absent"/> ning o'rnini bosadi va faqat shu:
+    /// kelgan odam (hatto kechikkan bo'lsa ham) «Sababli» bo'lmaydi, smenasi
+    /// boshlanmagan kun ham. Tabeldagi <c>AttendanceDayStatus.Excused</c>
+    /// bilan AYNAN bir xil qoida — bir kun ikki ekranda ikki xil o'qilmasin.
+    /// </remarks>
+    Excused = 7,
 }
 
 /// <summary>Panel diagrammasi: oltita holat bo'yicha odamlar soni.</summary>
@@ -288,13 +308,15 @@ public enum AttendanceDashboardStatus
 /// <param name="NotStarted">Smenasi hali boshlanmaganlar.</param>
 /// <param name="DayOff">Dam olish kunidagilar.</param>
 /// <param name="NoSchedule">Jadvali yo'qlar.</param>
+/// <param name="Excused">Sababli — tasdiqlangan so'rovi borlar.</param>
 public sealed record AttendanceDashboardCountsDto(
     int OnTime,
     int Late,
     int Absent,
     int NotStarted,
     int DayOff,
-    int NoSchedule);
+    int NoSchedule,
+    int Excused);
 
 /// <summary>Panel jadvalidagi bitta xodim.</summary>
 /// <remarks>
@@ -365,6 +387,161 @@ public sealed record AttendanceDashboardDto(
     int TotalItems,
     int PageCount);
 
+/// <summary>Davr grafigining bitta kuni — <see cref="AttendanceTrendDto"/> ning qatori.</summary>
+/// <remarks>
+/// <para>
+/// Sanoqlar panelning O'ZI bilan bir xil qoidadan (<c>DashboardStatusRule</c>):
+/// bir kunlik davr tanlansa grafikning shu kundagi nuqtalari
+/// <c>GET /dashboard</c> ning <c>counts</c> i bilan AYNAN teng chiqadi.
+/// Ikki ekran bitta savolga ikki xil son bermasligi kerak.
+/// </para>
+/// <para>
+/// ⚠️ Jadval qatori YO'Q va bu ataylab: 92 kunlik davrda har kunning har bir
+/// xodimi ~50 ming qator bo'lardi. Grafik faqat kunning suratini ko'rsatadi;
+/// bitta kunni ochish — o'sha kunning paneli.
+/// </para>
+/// </remarks>
+/// <param name="Date">Toshkent sanasi.</param>
+/// <param name="Total">Shu sanada munosabati bor va org-filtrga mos odamlar.</param>
+/// <param name="Counts">Oltita holat — yig'indisi DOIM <paramref name="Total"/>.</param>
+public sealed record AttendanceTrendDayDto(
+    DateOnly Date,
+    int Total,
+    AttendanceDashboardCountsDto Counts);
+
+/// <summary>Davr grafigi: kunma-kun holatlar (<c>GET /dashboard/trend</c>).</summary>
+/// <remarks>
+/// <para>
+/// ⭐ <see cref="Days"/> da oraliqning HAR BIR sanasi bor, o'sish tartibida,
+/// TIRQISHSIZ. Hech kim ishlamagan kun ham qatorda turadi — <c>Total = 0</c>
+/// va oltita nol bilan. Sabab: grafik o'z o'qini o'zi to'qib chiqarmasligi
+/// kerak, aks holda ta'til haftasi kalendarda umuman ko'rinmay, chiziq ikki
+/// uzoq sanani to'g'ri chiziq bilan bog'lab qo'yardi.
+/// </para>
+/// <para>
+/// Qidiruv, holat filtri, saralash va sahifa YO'Q: bu grafik, ro'yxat emas
+/// (<c>GET /dashboard</c> dan farqi shu).
+/// </para>
+/// </remarks>
+/// <param name="From">Davr boshi (Toshkent sanasi).</param>
+/// <param name="To">Davr oxiri — ikkala chegara ham kiradi.</param>
+/// <param name="AsOf">Server butun oraliqni hisoblagan lahza — BITTA qiymat, paneldagi bilan bir ma'noda.</param>
+/// <param name="Days">Har bir sana, tirqishsiz.</param>
+public sealed record AttendanceTrendDto(
+    DateOnly From,
+    DateOnly To,
+    DateTimeOffset AsOf,
+    IReadOnlyList<AttendanceTrendDayDto> Days);
+
+// ────────────────────────────────────────────────────────────────────
+//  2c. Tug'ilgan kunlar paneli (SPEC-panel §E)
+// ────────────────────────────────────────────────────────────────────
+
+/// <summary>Yaqinlashib kelayotgan bitta tug'ilgan kun.</summary>
+/// <remarks>
+/// <para>
+/// <b>Bu bosh sahifadagi ro'yxat EMAS</b> (<c>DashboardBirthdayDto</c>). U
+/// «bugun kimning tug'ilgan kuni» degan savolga javob beradi va filtrsiz;
+/// bu yerdagi esa «keyingi navbatda kim» va u EKRANDAGI org-filtrga
+/// bo'ysunadi (§E2). Ikki javob bir xil ko'rinsa ham bir xil savol emas —
+/// shu sababli ikkita alohida DTO.
+/// </para>
+/// <para>
+/// Lavozim va bo'lim — BUGUNGI asosiy munosabatdan (§5.1), panelning
+/// jadvali bilan bir xil manbadan: bitta ekranda bir odam ikki xil bo'limda
+/// ko'rinmasligi kerak.
+/// </para>
+/// </remarks>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="FullName">To'liq ism.</param>
+/// <param name="PhotoKey">Xodim kartasidagi rasm — turniket surati EMAS.</param>
+/// <param name="PositionName">Bugungi asosiy munosabatning lavozimi.</param>
+/// <param name="DepartmentName">Bugungi asosiy munosabatning bo'limi.</param>
+/// <param name="BirthDate">Tug'ilgan sana, YILI bilan.</param>
+/// <param name="NextBirthday">
+/// Keyingi nishonlanadigan sana — bugun ham kiradi. 29-fevralda tug'ilganlar
+/// uchun bu KEYINGI KABISA yili (§E4.4): sun'iy 28-fevral yoki 1-mart
+/// tanlanmaydi.
+/// </param>
+/// <param name="DaysUntil">Bugundan <paramref name="NextBirthday"/> gacha kunlar; bugun — 0.</param>
+/// <param name="Age">
+/// <paramref name="NextBirthday"/> da to'ladigan yosh — sana SHUBHALI bo'lsa
+/// (<c>&gt; 0 and &lt; 120</c> dan tashqarida) <c>null</c>. Chegara bosh
+/// sahifadagi ro'yxat bilan AYNAN bir xil.
+/// </param>
+public sealed record AttendanceBirthdayDto(
+    Guid EmployeeId,
+    string FullName,
+    string? PhotoKey,
+    string? PositionName,
+    string? DepartmentName,
+    DateOnly BirthDate,
+    DateOnly NextBirthday,
+    int DaysUntil,
+    int? Age);
+
+// ────────────────────────────────────────────────────────────────────
+//  2d. Yo'qlik so'rovlari (SPEC-so'rovlar §B)
+// ────────────────────────────────────────────────────────────────────
+
+/// <summary>Bitta yo'qlik so'rovi.</summary>
+/// <remarks>
+/// <para>
+/// Ism va yo'qlik turining NOMI javobda bor: ro'yxat ularsiz o'qilmaydi va
+/// klient ikkinchi so'rov yuborishga majbur bo'lardi (modulning boshqa
+/// ro'yxatlaridagi bilan bir xil qoida).
+/// </para>
+/// <para>
+/// <see cref="FromTime"/>/<see cref="ToTime"/> — faqat BIR KUNLIK so'rovda
+/// bo'lishi mumkin (§B2). Ikkalasi ham <c>null</c> — butun kun(lar).
+/// </para>
+/// </remarks>
+/// <param name="Id">So'rov.</param>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="EmployeeName">Xodimning F.I.Sh.</param>
+/// <param name="EmployeePhotoKey">Xodim kartasidagi rasm kaliti.</param>
+/// <param name="PositionName">Bugungi asosiy munosabatning lavozimi.</param>
+/// <param name="DepartmentName">Bugungi asosiy munosabatning bo'limi.</param>
+/// <param name="AbsenceTypeId">Yo'qlik turi.</param>
+/// <param name="AbsenceTypeName">Yo'qlik turining nomi.</param>
+/// <param name="FromDate">Davr boshi (Toshkent sanasi), shu kun ham kiradi.</param>
+/// <param name="ToDate">Davr oxiri, shu kun ham kiradi.</param>
+/// <param name="FromTime">Kun ichidagi boshlanish vaqti — faqat bir kunlik so'rovda.</param>
+/// <param name="ToTime">Kun ichidagi tugash vaqti — faqat bir kunlik so'rovda.</param>
+/// <param name="Note">Xodimning izohi.</param>
+/// <param name="Status">Holat.</param>
+/// <param name="DecisionNote">HR ning qarordagi izohi.</param>
+/// <param name="DecidedByName">Qarorni kim qabul qilgan.</param>
+/// <param name="DecidedAt">Qaror lahzasi (UTC).</param>
+/// <param name="CreatedAt">So'rov yaratilgan lahza (UTC) — ro'yxat shu bo'yicha tartiblanadi.</param>
+public sealed record AbsenceRequestDto(
+    Guid Id,
+    Guid EmployeeId,
+    string EmployeeName,
+    string? EmployeePhotoKey,
+    string? PositionName,
+    string? DepartmentName,
+    Guid AbsenceTypeId,
+    string AbsenceTypeName,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    TimeOnly? FromTime,
+    TimeOnly? ToTime,
+    string? Note,
+    AbsenceRequestStatus Status,
+    string? DecisionNote,
+    string? DecidedByName,
+    DateTimeOffset? DecidedAt,
+    DateTimeOffset CreatedAt);
+
+/// <summary>Kutayotgan so'rovlar soni — nav nishoni uchun.</summary>
+/// <remarks>
+/// Ro'yxat emas, faqat son: nishon HAR ekranda turadi
+/// (<c>FormerEmployeeAlertsDto</c> bilan bir xil naqsh).
+/// </remarks>
+/// <param name="Pending">Qaror kutayotgan so'rovlar.</param>
+public sealed record AbsenceRequestCountDto(int Pending);
+
 // ────────────────────────────────────────────────────────────────────
 //  3. Tabel (SPEC §6.6, §5.7.1)
 // ────────────────────────────────────────────────────────────────────
@@ -378,6 +555,16 @@ public sealed record AttendanceDashboardDto(
 /// hosil qilinadi (§5.7.1) va barcha daqiqa maydonlari 0 bo'ladi: klient
 /// bo'shliqni o'zi to'ldirmaydi, chunki «ishlamaydi», «dam olish» va «hali
 /// hisoblanmagan» orasidagi farqni faqat server biladi.
+/// </para>
+/// <para>
+/// <b>Reja vaqtlari ham shu yerda</b> (<see cref="PlanStartAt"/>,
+/// <see cref="PlanEndAt"/>). Ular xodim kartasidagi kalendar uchun: ekran
+/// «08:30–18:00 reja / 08:50–19:19 haqiqiy» degan ikki qatorni yonma-yon
+/// chizadi. Klient ularni jadvaldan O'ZI hisoblay olmaydi va hisoblamasligi
+/// ham kerak — kunning rejasi biriktirma, jadval va bo'lim daraxti orqali
+/// aniqlanadi (<c>ScheduleResolver</c>), va u allaqachon kun yozuvida
+/// SURAT bo'lib saqlangan: keyin jadval o'zgarsa ham o'tgan oyning
+/// kalendari o'zgarmaydi.
 /// </para>
 /// <para>
 /// <b>Tanaffus ikkala soni ham shu yerda.</b> Tanaffus ishlangan vaqtdan
@@ -395,6 +582,15 @@ public sealed record AttendanceDashboardDto(
 /// <param name="LastOutAt">Oxirgi chiqish (UTC) — tungi smenada ertangi kunga tushadi.</param>
 /// <param name="BreakTakenMinutes">Tanaffus oynasi ichida binodan tashqarida o'tgan daqiqalar.</param>
 /// <param name="BreakDeductionMinutes">Ishlangan vaqtdan ayrilgan tanaffus daqiqalari.</param>
+/// <param name="PlanStartAt">
+/// Kun REJASINING boshlanishi (UTC) — jadval bo'yicha, haqiqiy kelish emas.
+/// <c>null</c>: dam olish kuni, jadvali yo'q kun yoki hali hisoblanmagan
+/// (hosil qilingan) katak.
+/// </param>
+/// <param name="PlanEndAt">
+/// Reja tugashi (UTC) — tungi smenada ERTANGI kunga tushadi, xuddi
+/// <paramref name="LastOutAt"/> kabi.
+/// </param>
 public sealed record TimesheetCellDto(
     DateOnly Date,
     AttendanceDayStatus Status,
@@ -404,7 +600,9 @@ public sealed record TimesheetCellDto(
     DateTimeOffset? FirstInAt,
     DateTimeOffset? LastOutAt,
     int BreakTakenMinutes,
-    int BreakDeductionMinutes);
+    int BreakDeductionMinutes,
+    DateTimeOffset? PlanStartAt,
+    DateTimeOffset? PlanEndAt);
 
 /// <summary>
 /// Bir xodimning oy bo'yicha jami ko'rsatkichlari.
@@ -807,6 +1005,57 @@ public sealed record WorkScheduleDayDto(
     TimeOnly? BreakStart,
     TimeOnly? BreakEnd,
     bool BreakCrossesMidnight);
+
+/// <summary>Yillik to'r katagining manbai.</summary>
+public enum ScheduleDaySource
+{
+    /// <summary>Haftalik naqshdan kelgan — bu sanaga hech narsa yozilmagan.</summary>
+    Pattern = 1,
+
+    /// <summary>Shu SANAGA yozilgan katak — naqshni bekor qiladi.</summary>
+    Date = 2,
+}
+
+/// <summary>Yillik to'rning bitta katagi (SPEC-jadval-to'ri §C).</summary>
+/// <remarks>
+/// <para>
+/// <see cref="PlannedMinutes"/> — ekranda soat bo'lib chiqadigan son
+/// (8,5). U SERVERDA hisoblanadi: tanaffus ayirilishi va tungi smenaning
+/// uzunligi qoidalari hisoblash dvigatelida yashaydi va klientda
+/// takrorlanmasligi kerak.
+/// </para>
+/// <para>
+/// <see cref="Source"/> — katak naqshdanmi yoki qo'lda yozilganmi. Ekran
+/// shu bo'yicha kulrang va to'q kataklarni ajratadi: HR qaysi kunni o'zi
+/// o'zgartirganini ko'rib turishi kerak.
+/// </para>
+/// </remarks>
+/// <param name="Date">Toshkent sanasi.</param>
+/// <param name="IsWorking">Ish kunimi.</param>
+/// <param name="StartTime">Boshlanish vaqti — dam olish kunida <c>null</c>.</param>
+/// <param name="EndTime">Tugash vaqti.</param>
+/// <param name="BreakMinutes">Ishlangan vaqtdan ayiriladigan tanaffus.</param>
+/// <param name="PlannedMinutes">Kun normasi (tanaffus ayirilgan).</param>
+/// <param name="Source">Naqshdanmi yoki sanaga yozilganmi.</param>
+public sealed record ScheduleYearDayDto(
+    DateOnly Date,
+    bool IsWorking,
+    TimeOnly? StartTime,
+    TimeOnly? EndTime,
+    int BreakMinutes,
+    int PlannedMinutes,
+    ScheduleDaySource Source);
+
+/// <summary>Jadvalning bir yillik to'ri.</summary>
+/// <param name="ScheduleId">Jadval.</param>
+/// <param name="ScheduleName">Nomi.</param>
+/// <param name="Year">Yil.</param>
+/// <param name="Days">Yilning HAR BIR kuni, o'sish tartibida, tirqishsiz.</param>
+public sealed record ScheduleYearDto(
+    Guid ScheduleId,
+    string ScheduleName,
+    int Year,
+    IReadOnlyList<ScheduleYearDayDto> Days);
 
 /// <summary>Ish jadvali — yettala kuni bilan.</summary>
 /// <param name="Id">Jadval.</param>

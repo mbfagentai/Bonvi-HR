@@ -138,6 +138,9 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Rag'bat turlari (<c>award_types</c>).</summary>
     public DbSet<AwardType> AwardTypes => Set<AwardType>();
 
+    /// <summary>Yo'qlik turlari — davomat so'rovlari shu ro'yxatdan tanlanadi.</summary>
+    public DbSet<AbsenceType> AbsenceTypes => Set<AbsenceType>();
+
     /// <summary>Jarima turlari (<c>penalty_types</c>).</summary>
     public DbSet<PenaltyType> PenaltyTypes => Set<PenaltyType>();
 
@@ -271,11 +274,17 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// </remarks>
     public DbSet<WorkScheduleDay> WorkScheduleDays => Set<WorkScheduleDay>();
 
+    /// <summary>Jadvalning aniq sanaga yozilgan kunlari — yillik to'r.</summary>
+    public DbSet<WorkScheduleDate> WorkScheduleDates => Set<WorkScheduleDate>();
+
     /// <summary>Jadval biriktirmalari (<c>schedule_assignments</c>).</summary>
     public DbSet<ScheduleAssignment> ScheduleAssignments => Set<ScheduleAssignment>();
 
     /// <summary>Hisoblangan kunlar — tabelning kataklari (<c>attendance_days</c>).</summary>
     public DbSet<AttendanceDay> AttendanceDays => Set<AttendanceDay>();
+
+    /// <summary>Yo'qlik so'rovlari (SPEC-so'rovlar §B2).</summary>
+    public DbSet<AbsenceRequest> AbsenceRequests => Set<AbsenceRequest>();
 
     // ────────────────────────────────────────────────────────────
     //  BILDIRISHNOMALAR

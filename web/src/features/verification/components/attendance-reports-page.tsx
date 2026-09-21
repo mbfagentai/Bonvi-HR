@@ -660,6 +660,7 @@ function EmployeeCell({
         <Link
           to="/xodimlar/$employeeId"
           params={{ employeeId }}
+          search={{ tab: 'attendance' }}
           className="truncate-1 font-medium hover:text-[var(--accent-text)]"
         >
           {name}

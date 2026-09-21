@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Attendance.Dtos;
@@ -104,6 +105,12 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         present.BreakDeductionMinutes.ShouldBe(15);
         present.FirstInAt.ShouldBe(new DateTimeOffset(2026, 8, 3, 9, 15, 0, Tashkent));
 
+        // Reja SURATDAN keladi (kun yozuvidan), bugungi jadvaldan qayta
+        // hisoblanmaydi — xodim kartasidagi kalendar «reja / haqiqiy»
+        // ikki qatorini shundan chizadi.
+        present.PlanStartAt.ShouldBe(new DateTimeOffset(2026, 8, 3, 9, 0, 0, Tashkent));
+        present.PlanEndAt.ShouldBe(new DateTimeOffset(2026, 8, 3, 18, 0, 0, Tashkent));
+
         Cell(regular, 4).Status.ShouldBe(AttendanceDayStatus.Absent);          // saqlangan «kelmagan»
 
         var synthesizedAbsent = Cell(regular, 5);                              // yozuv yo'q, ish kuni
@@ -112,6 +119,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         synthesizedAbsent.BreakTakenMinutes.ShouldBe(0);
         synthesizedAbsent.BreakDeductionMinutes.ShouldBe(0);
         synthesizedAbsent.FirstInAt.ShouldBeNull();
+        synthesizedAbsent.PlanStartAt.ShouldBeNull("hali hisoblanmagan kunning rejasi ham yo'q");
 
         Cell(regular, 8).Status.ShouldBe(AttendanceDayStatus.DayOffWorked);    // saqlangan shanba
         Cell(regular, 8).WorkedMinutes.ShouldBe(120);
@@ -347,7 +355,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         panel.AsOf.ShouldBe(new DateTimeOffset(2026, 9, 16, 10, 0, 0, Tashkent));
 
         panel.Total.ShouldBe(6, "ketgan (15-sentabr) va ertaga keladigan odam sanalmaydi");
-        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 1, Late: 1, Absent: 1, NotStarted: 1, DayOff: 1, NoSchedule: 1));
+        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 1, Late: 1, Absent: 1, NotStarted: 1, DayOff: 1, NoSchedule: 1, Excused: 0));
         panel.TotalItems.ShouldBe(6);
         panel.Items.Select(item => item.EmployeeId).ShouldBe(
             [world.OnTime, world.Late, world.Absent, world.NotStarted, world.DayOff, world.NoSchedule]);
@@ -497,7 +505,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         exits.ArrivedAt.ShouldBe(PanelAt(16, 9, 5));
         exits.LeftAt.ShouldBe(PanelAt(16, 12, 0));
 
-        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 2, Late: 1, Absent: 0, NotStarted: 0, DayOff: 0, NoSchedule: 0));
+        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 2, Late: 1, Absent: 0, NotStarted: 0, DayOff: 0, NoSchedule: 0, Excused: 0));
     }
 
     /// <summary>
@@ -577,6 +585,225 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         tonight.Status.ShouldBe(AttendanceDashboardStatus.NotStarted, "bugungi smena 20:00 da boshlanadi");
         tonight.ArrivedAt.ShouldBeNull();
         tonight.LeftAt.ShouldBeNull();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Davr grafigi
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Bir kunlik oraliqda grafik panel bilan AYNAN teng sanaydi; ko'p kunlikda oraliqning
+    /// har bir sanasi o'sish tartibida va tirqishsiz keladi, hech kim ishlamagan kun ham
+    /// qatorda turadi; org-filtr paneldagidek toraytiradi.
+    /// </summary>
+    /// <remarks>
+    /// Tenglik tekshiruvi ataylab ikki ekranni yonma-yon qo'yadi: grafik holatni o'zicha
+    /// hisoblay boshlasa (masalan yon berishni unutsa yoki «boshlanmagan»ni «kelmagan» qilsa),
+    /// aynan shu satr qizaradi.
+    /// </remarks>
+    [Fact]
+    public async Task Davr_grafigi_bir_kunda_panel_bilan_teng_va_har_sanani_tirqishsiz_beradi()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Ketgan va ertaga keladigan odamning o'tishisiz: grafik ularni baribir
+        // sanamaydi, ogohlantirish esa global bo'lgani uchun taxta testiga tushardi.
+        var world = await SeedPanelAsync(cancellationToken, unemployedPasses: false);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var readModel = ReadModel(scope.ServiceProvider, Clock(2026, 9, 16, 10, 0));
+
+        // ── Bitta kun: panelning o'zi ────────────────────────────────
+        var panel = await readModel.GetDashboardAsync(
+            new DashboardFilter(PanelDay, LegalEntityId: world.Firm),
+            cancellationToken);
+
+        var oneDay = await readModel.GetDashboardTrendAsync(
+            new DashboardTrendFilter(PanelDay, PanelDay, LegalEntityId: world.Firm),
+            cancellationToken);
+
+        oneDay.From.ShouldBe(PanelDay);
+        oneDay.To.ShouldBe(PanelDay);
+        oneDay.AsOf.ShouldBe(new DateTimeOffset(2026, 9, 16, 10, 0, 0, Tashkent));
+
+        var single = oneDay.Days.ShouldHaveSingleItem();
+        single.Date.ShouldBe(PanelDay);
+        single.Total.ShouldBe(panel.Total);
+        single.Counts.ShouldBe(panel.Counts);
+
+        // ── Besh kun: tartib, tirqish va kunlik to'plam ──────────────
+        var week = await readModel.GetDashboardTrendAsync(
+            new DashboardTrendFilter(PanelDay.AddDays(-2), PanelDay.AddDays(2), LegalEntityId: world.Firm),
+            cancellationToken);
+
+        week.Days.Select(day => day.Date).ShouldBe(
+            [.. Enumerable.Range(-2, 5).Select(PanelDay.AddDays)]);
+
+        foreach (var day in week.Days)
+        {
+            var counts = day.Counts;
+            (counts.OnTime + counts.Late + counts.Absent + counts.NotStarted + counts.DayOff + counts.NoSchedule)
+                .ShouldBe(day.Total, day.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        }
+
+        // G 15-sentabrda ketgan, H 17-sentabrda keladi — to'plam kundan kunga o'zgaradi.
+        week.Days.Select(day => day.Total).ShouldBe([7, 7, 6, 7, 7]);
+        Day(week, PanelDay).Counts.ShouldBe(panel.Counts, "o'rtadagi kun yolg'iz so'ralgani bilan bir xil");
+
+        // ── Hech kim ishlamagan kun ham qatorda: nol, tushib qolmaydi ──
+        var before = await readModel.GetDashboardTrendAsync(
+            new DashboardTrendFilter(new DateOnly(2023, 12, 30), new DateOnly(2024, 1, 1), LegalEntityId: world.Firm),
+            cancellationToken);
+
+        before.Days.Select(day => day.Date).ShouldBe(
+            [new DateOnly(2023, 12, 30), new DateOnly(2023, 12, 31), new DateOnly(2024, 1, 1)]);
+        before.Days[0].Total.ShouldBe(0);
+        before.Days[0].Counts.ShouldBe(new AttendanceDashboardCountsDto(0, 0, 0, 0, 0, 0, 0));
+        before.Days[2].Total.ShouldBe(7, "1-yanvarda H dan boshqa hamma ishga olingan");
+
+        // ── Org-filtr: ota bo'lim ichki bo'limi bilan, jadvalsizsiz ──
+        var byParent = await readModel.GetDashboardTrendAsync(
+            new DashboardTrendFilter(PanelDay, PanelDay, DepartmentId: world.ParentDepartment),
+            cancellationToken);
+
+        var parentPanel = await readModel.GetDashboardAsync(
+            new DashboardFilter(PanelDay, DepartmentId: world.ParentDepartment),
+            cancellationToken);
+
+        var parentDay = byParent.Days.ShouldHaveSingleItem();
+        parentDay.Total.ShouldBe(parentPanel.Total);
+        parentDay.Counts.ShouldBe(parentPanel.Counts);
+        parentDay.Counts.NoSchedule.ShouldBe(0, "jadvalsiz bo'lim ota bo'limga kirmaydi");
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Tug'ilgan kunlar paneli (SPEC-panel §E)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Ro'yxat eng yaqin sanadan boshlanadi, yil chegarasidan o'tadi, org-filtrga
+    /// bo'ysunadi va uzunlik bilan kesiladi; sanasi yo'q xodim hamda bugun
+    /// ishlamayotgan odam umuman chiqmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Yil chegarasi ataylab tekshiriladi: keyingi sana kalendar yili bo'yicha
+    /// hisoblansa (yoki oy·100 + kun kalitiga qaytilsa), 31-dekabr 5-yanvardan
+    /// KEYIN emas, oldin chiqib qolardi va panel «eng yaqini» degan va'dasini
+    /// jimgina buzardi.
+    /// </remarks>
+    [Fact]
+    public async Task Tugilgan_kunlar_eng_yaqinidan_boshlanadi_va_org_filtrga_boysunadi()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = new PanelWorld("TK");
+
+        // Familiya — belgi + harf, ya'ni teng sanalarda tartib harf bo'yicha.
+        var today = world.Hire("B", world.Child.Id, birthDate: new DateOnly(1990, 9, 16));
+        var todayToo = world.Hire("A", world.Child.Id, birthDate: new DateOnly(2000, 9, 16));
+        var tomorrow = world.Hire("C", world.Child.Id, birthDate: new DateOnly(1985, 9, 17));
+        var yearEnd = world.Hire("D", world.Child.Id, birthDate: new DateOnly(1979, 12, 31));
+        var nextYear = world.Hire("E", world.Child.Id, birthDate: new DateOnly(1999, 1, 5));
+        var leapDay = world.Hire("F", world.Child.Id, birthDate: new DateOnly(2004, 2, 29));
+        var noDate = world.Hire("G", world.Child.Id);
+        var otherDepartment = world.Hire("H", world.Unscheduled.Id, birthDate: new DateOnly(1995, 9, 16));
+        var gone = world.Hire("I", world.Child.Id, terminatedOn: PanelDay.AddDays(-1), birthDate: new DateOnly(1988, 9, 16));
+
+        await world.SaveAsync(_factory.Services, cancellationToken);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var readModel = ReadModel(scope.ServiceProvider, Clock(2026, 9, 16, 10, 0));
+
+        var firm = await readModel.GetUpcomingBirthdaysAsync(
+            new BirthdayFilter(PanelDay, LegalEntityId: world.Firm.Id, Limit: 10),
+            cancellationToken);
+
+        firm.Select(row => row.EmployeeId).ShouldBe(
+            [todayToo, today, otherDepartment, tomorrow, yearEnd, nextYear, leapDay],
+            "eng yaqin sana birinchi; teng sanada ism bo'yicha");
+
+        firm.ShouldNotContain(row => row.EmployeeId == noDate, "tug'ilgan sanasi yo'q xodim chiqmaydi");
+        firm.ShouldNotContain(row => row.EmployeeId == gone, "kecha ketgan odamni tabriklashga chaqirilmaydi");
+
+        var first = firm[0];
+        first.DaysUntil.ShouldBe(0, "bugungi tug'ilgan kun ham ro'yxatda");
+        first.NextBirthday.ShouldBe(PanelDay);
+        first.BirthDate.ShouldBe(new DateOnly(2000, 9, 16));
+        first.Age.ShouldBe(26);
+        first.DepartmentName.ShouldBe(world.Child.Name);
+        first.PositionName.ShouldBe(world.Operator.Name);
+
+        Row(firm, tomorrow).DaysUntil.ShouldBe(1);
+        Row(firm, yearEnd).NextBirthday.ShouldBe(new DateOnly(2026, 12, 31));
+        Row(firm, nextYear).NextBirthday.ShouldBe(new DateOnly(2027, 1, 5), "yil chegarasidan o'tadi");
+        Row(firm, nextYear).DaysUntil.ShouldBe(111);
+
+        // 29-fevral: 2027 va 2028-fevral… — kabisa 2028, ya'ni odam «eng yaqin»lardan tushib qoladi.
+        Row(firm, leapDay).NextBirthday.ShouldBe(new DateOnly(2028, 2, 29), "sun'iy 28-fevral tanlanmaydi");
+        Row(firm, leapDay).Age.ShouldBe(24);
+
+        // ── Uzunlik ─────────────────────────────────────────────────
+        var three = await readModel.GetUpcomingBirthdaysAsync(
+            new BirthdayFilter(PanelDay, LegalEntityId: world.Firm.Id, Limit: 3),
+            cancellationToken);
+
+        three.Select(row => row.EmployeeId).ShouldBe([todayToo, today, otherDepartment]);
+
+        // ── Org-filtr: paneldagi bilan bir xil ma'noda ───────────────
+        var byDepartment = await readModel.GetUpcomingBirthdaysAsync(
+            new BirthdayFilter(PanelDay, DepartmentId: world.Child.Id, Limit: 10),
+            cancellationToken);
+
+        byDepartment.ShouldNotContain(row => row.EmployeeId == otherDepartment, "boshqa bo'lim filtrdan o'tmaydi");
+        byDepartment.Select(row => row.EmployeeId).ShouldBe([todayToo, today, tomorrow, yearEnd, nextYear, leapDay]);
+    }
+
+    /// <summary>
+    /// Tungi smena (20:00–08:00) SMENA kunida sanaladi: ertalabki chiqish ertangi kunni
+    /// «keldi» qilib ko'rsatmaydi — hatto o'sha chiqish o'tishlar BO'LAGINING chegarasidan
+    /// nariga tushsa ham.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ Bu testning asosiy vazifasi — o'tishlarni bo'laklab o'qishni ushlab turish.
+    /// Oraliq 30 kunlik, ya'ni uchta bo'lak (14 + 14 + 2); kirish birinchi bo'lakning
+    /// OXIRGI kunida (14-sentabr 19:55), chiqish esa ikkinchi bo'lakning BIRINCHI kunida
+    /// (15-sentabr 08:05). Bo'lak chegarasi bir kunga surilsa yoki qo'shni kunlarning
+    /// o'tishlari yuklanmay qolsa, 14-sentabr «kelmadi» ga, 15-sentabr esa «keldi» ga
+    /// aylanadi va shu ikki satr qizaradi.
+    /// </remarks>
+    [Fact]
+    public async Task Davr_grafigi_tungi_smenani_bolak_chegarasida_ham_smena_kuniga_yozadi()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = new PanelWorld("DR");
+        var guard = world.Hire("A", world.Child.Id);
+
+        world.OwnSchedule(
+            guard,
+            [.. Enumerable.Range(1, 7).Select(index => new WorkScheduleDayInput(index, IsWorking: true, new TimeOnly(20, 0), new TimeOnly(8, 0)))]);
+
+        world.Pass(guard, PanelAt(14, 19, 55), PassDirection.In);
+        world.Pass(guard, PanelAt(15, 8, 5), PassDirection.Out);
+
+        await world.SaveAsync(_factory.Services, cancellationToken);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var readModel = ReadModel(scope.ServiceProvider, Clock(2026, 9, 16, 10, 0));
+
+        var month = await readModel.GetDashboardTrendAsync(
+            new DashboardTrendFilter(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30), LegalEntityId: world.Firm.Id),
+            cancellationToken);
+
+        month.Days.Count.ShouldBe(30);
+        month.Days.Select(day => day.Date).ShouldBeInOrder();
+        month.Days.ShouldAllBe(day => day.Total == 1);
+
+        Day(month, new DateOnly(2026, 9, 14)).Counts.OnTime.ShouldBe(1, "smena 14-sentabr 20:00 da boshlangan");
+        Day(month, new DateOnly(2026, 9, 15)).Counts.Absent.ShouldBe(1, "ertalabki chiqish 14-sentabrning smenasiniki");
+        Day(month, new DateOnly(2026, 9, 13)).Counts.Absent.ShouldBe(1);
+
+        // Bugun soat 10:00, smena esa 20:00 da — hali boshlanmagan; kelajak kunlar ham.
+        Day(month, PanelDay).Counts.NotStarted.ShouldBe(1);
+        Day(month, new DateOnly(2026, 9, 30)).Counts.NotStarted.ShouldBe(1);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -818,6 +1045,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
             new AttendancePassDto(
                 Guid.NewGuid(), occurred, new DateOnly(2026, 8, 3), occurred, 0, false, false,
                 PassDirection.In, DirectionSource.Device, PassMethod.Face, Guid.NewGuid(), "Kirish",
+                "Ofis", AttendanceProvider.Hikvision,
                 AttendanceIdentityProvider.Verifix, "00731", Guid.NewGuid(), "Karimov Anvar", null,
                 "Sex", "Operator", null, null, null),
         ]);
@@ -948,6 +1176,8 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
             int breakTaken = 0,
             int breakDeduction = 0,
             DateTimeOffset? firstIn = null,
+            DateTimeOffset? planStart = null,
+            DateTimeOffset? planEnd = null,
             bool snapshot = true)
             => AttendanceDay.Compute(
                 employeeId,
@@ -958,8 +1188,8 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
                     DepartmentId: snapshot ? child.Id : null,
                     PositionId: snapshot ? operatorPosition.Id : null,
                     WorkScheduleId: snapshot ? office.Id : null,
-                    PlanStartAt: null,
-                    PlanEndAt: null,
+                    PlanStartAt: planStart?.ToUniversalTime(),
+                    PlanEndAt: planEnd?.ToUniversalTime(),
                     FirstInAt: firstIn?.ToUniversalTime(),
                     LastOutAt: null,
                     PlannedMinutes: planned,
@@ -976,7 +1206,9 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
 
         db.AddRange(
             Day(regular.Id, 3, AttendanceDayStatus.Present, computedAt, worked: 480, planned: 480, lateMinutes: 5,
-                breakTaken: 45, breakDeduction: 15, firstIn: new DateTimeOffset(2026, 8, 3, 9, 15, 0, Tashkent)),
+                breakTaken: 45, breakDeduction: 15, firstIn: new DateTimeOffset(2026, 8, 3, 9, 15, 0, Tashkent),
+                planStart: new DateTimeOffset(2026, 8, 3, 9, 0, 0, Tashkent),
+                planEnd: new DateTimeOffset(2026, 8, 3, 18, 0, 0, Tashkent)),
             Day(regular.Id, 4, AttendanceDayStatus.Absent, computedAt.AddMinutes(-5), planned: 480),
             Day(regular.Id, 8, AttendanceDayStatus.DayOffWorked, computedAt.AddMinutes(-10), worked: 120),
             Day(leaver.Id, 20, AttendanceDayStatus.NotEmployed, computedAt.AddMinutes(-15),
@@ -1010,8 +1242,8 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         => prefix + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
 
     /// <summary>Familiya belgi + harf bilan boshlanadi — tabel tartibi testda oldindan ma'lum bo'lsin.</summary>
-    private static Employee Person(string tag, string suffix)
-        => Employee.Create(FullName.Create($"{tag}{suffix}", "Test", null).Value).Value;
+    private static Employee Person(string tag, string suffix, DateOnly? birthDate = null)
+        => Employee.Create(FullName.Create($"{tag}{suffix}", "Test", null).Value, birthDate).Value;
 
     private static AttendanceDevice Device(string name)
         => AttendanceDevice.Register(
@@ -1046,6 +1278,9 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
     private static AttendanceDashboardItemDto Item(DashboardPage page, Guid employeeId)
         => page.Items.Single(item => item.EmployeeId == employeeId);
 
+    private static AttendanceTrendDayDto Day(AttendanceTrendDto trend, DateOnly date)
+        => trend.Days.Single(day => day.Date == date);
+
     /// <summary>Oltita holat panelining «dunyosi» — har holatda bitta odam, familiya harfi tartibida.</summary>
     private sealed record PanelSeed(
         string Tag,
@@ -1070,7 +1305,19 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
     /// F jadvalsiz bo'limda (08:00). Ketgan va ertaga keladigan odamning o'tishi bor, lekin
     /// ular panelda bo'lmasligi kerak.
     /// </summary>
-    private async Task<PanelSeed> SeedPanelAsync(CancellationToken cancellationToken)
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <param name="unemployedPasses">
+    /// Ketgan va ertaga keladigan odamga ham o'tish yozilsinmi.
+    /// <para>
+    /// ⚠️ <c>false</c> bo'lishi kerak bo'lgan hol bor. Bunday o'tish ishdan ketganlar
+    /// OGOHLANTIRISHIGA tushadi, ogohlantirish esa GLOBAL — na firmaga, na bo'limga
+    /// bo'ysunadi (§8.7, ataylab). Ya'ni bu dunyoni qurgan har bir test shu sinfning
+    /// taxta testiga ikkitadan begona qator qo'shadi. Panel shartnomasini
+    /// («munosabatsiz odam panelga tushmaydi») isbotlaydigan testlarga ular KERAK,
+    /// grafik testiga esa yo'q.
+    /// </para>
+    /// </param>
+    private async Task<PanelSeed> SeedPanelAsync(CancellationToken cancellationToken, bool unemployedPasses = true)
     {
         var world = new PanelWorld("DB");
         var guard = Position.Create($"{world.Tag} Qorovul").Value;
@@ -1099,8 +1346,12 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         world.Pass(late, PanelAt(16, 9, 50), PassDirection.Out);
         world.Pass(dayOff, PanelAt(16, 9, 40), PassDirection.In);
         world.Pass(noSchedule, PanelAt(16, 8, 0), PassDirection.In);
-        world.Pass(terminated, PanelAt(16, 9, 0), PassDirection.In);
-        world.Pass(hiredTomorrow, PanelAt(16, 9, 0), PassDirection.In);
+
+        if (unemployedPasses)
+        {
+            world.Pass(terminated, PanelAt(16, 9, 0), PassDirection.In);
+            world.Pass(hiredTomorrow, PanelAt(16, 9, 0), PassDirection.In);
+        }
 
         await world.SaveAsync(_factory.Services, cancellationToken);
 
@@ -1173,9 +1424,10 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
             Guid departmentId,
             DateOnly? hired = null,
             DateOnly? terminatedOn = null,
-            Guid? positionId = null)
+            Guid? positionId = null,
+            DateOnly? birthDate = null)
         {
-            var employee = Person(Tag, suffix);
+            var employee = Person(Tag, suffix, birthDate);
             var employment = Employment.Hire(
                 employee.Id,
                 Firm.Id,
@@ -1230,6 +1482,9 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
             _pending.Clear();
         }
     }
+
+    private static AttendanceBirthdayDto Row(IReadOnlyList<AttendanceBirthdayDto> rows, Guid employeeId)
+        => rows.Single(row => row.EmployeeId == employeeId);
 
     private static TimesheetRowDto Row(TimesheetPage page, Guid employeeId)
         => page.Items.Single(row => row.EmployeeId == employeeId);

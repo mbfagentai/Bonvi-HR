@@ -3,6 +3,7 @@ import { getRouteApi, Link } from '@tanstack/react-router'
 import {
   ArrowDownAZ,
   ArrowUpZA,
+  CalendarRange,
   ChartBar,
   ChartPie,
   Check,
@@ -13,6 +14,7 @@ import {
   Menu,
   Pin,
   RefreshCw,
+  Rows3,
   Search,
   SearchX,
   Users,
@@ -40,6 +42,7 @@ import {
   Input,
   Select,
   Skeleton,
+  TextField,
   dataColumnHelper,
   type AvatarSize,
   type DataColumn,
@@ -47,12 +50,19 @@ import {
 } from '@/shared/ui'
 
 import type {
+  BirthdayFilters,
   DashboardItem,
   DashboardFilters,
   DashboardSort,
   DashboardStatus,
+  TrendDay,
+  TrendFilters,
 } from '../api/attendance-api'
-import { useAttendanceDashboard, useFormerEmployeeAlerts } from '../api/attendance-queries'
+import {
+  useAttendanceDashboard,
+  useAttendanceTrend,
+  useFormerEmployeeAlerts,
+} from '../api/attendance-queries'
 import {
   DASHBOARD_COLUMNS,
   useDashboardPrefs,
@@ -62,27 +72,39 @@ import {
   ATTENDANCE_VIEW,
   DASHBOARD_STATUSES,
   DASHBOARD_STATUS_LOOK,
+  DEFAULT_TREND_SERIES,
   dashboardPercent,
   formatPassTime,
+  type DashboardView,
 } from '../lib/attendance-presentation'
 import {
   DASHBOARD_PAGE_SIZES,
+  DASHBOARD_PRESETS,
   DEFAULT_DASHBOARD_PAGE_SIZE,
+  dashboardPeriod,
   dashboardPinOf,
   hasPinValues,
+  isRangeInverted,
+  isRangeTooLong,
+  periodHasToday,
   readIsoDate,
   samePin,
   shiftIsoDate,
   type DashboardPageSize,
+  type DashboardPeriod,
+  type DashboardPreset,
   type DashboardSearch,
 } from '../lib/attendance-search'
 import {
   DashboardChart,
   DashboardChartSkeleton,
   DashboardLegend,
-  type DashboardChartType,
+  DashboardTrendChart,
+  DashboardTrendSkeleton,
+  DashboardTrendToggles,
   type DashboardSlice,
 } from './attendance-dashboard-chart'
+import { BirthdaysCard } from './attendance-birthdays-card'
 import { FormerEmployeeAlertPanel } from './attendance-former-employee-alert'
 import { AttendanceLoadError, AttendanceNoAccess } from './attendance-manage-states'
 
@@ -98,6 +120,9 @@ const helper = dataColumnHelper<DashboardItem>()
 
 /** Modul darajasida — har renderda yangi massiv jadval modelini qayta qurardi. */
 const EMPTY_ITEMS: DashboardItem[] = []
+
+/** Shu sabab bilan — grafik uchun. */
+const EMPTY_DAYS: TrendDay[] = []
 
 /** Ochiluvchi menyu bandi — `language-switcher.tsx` va `user-menu.tsx` bilan bir xil shakl. */
 const MENU_ITEM = cn(
@@ -120,27 +145,83 @@ const COLUMN_LABEL_KEY: Readonly<Record<DashboardColumn, string>> = {
   status: 'attendance.statsColStatus',
 }
 
+/*
+ * ⭐ FILTR USTUNI QACHON SIG'ADI — ekran kengligi emas, SAHIFA MAYDONINING
+ * kengligi (container query, `@container/page`).
+ *
+ * Birinchi versiyada ustun `xl` (1280 px ekran) dan chiqardi va jadvalni
+ * EZIB qo'ydi (egasi 2026-09-18 da ushladi). Hisob: 1512 px ekranda ochiq
+ * sidebar (264) va chekkalardan keyin maydon ~1170 px; ustun 344 ni,
+ * diagramma 300 ni oladi — jadvalga ~525 px qoladi, uning ustunlari esa
+ * kamida ~704 px so'raydi (F.I.Sh. 200, lavozim 140, ikki vaqt 92+92,
+ * holat 180). Ekran kengligi bilan tanlab bo'lmaydi: sidebar yig'ilsa
+ * maydon 188 px kengayadi, media query esa buni ko'rmaydi.
+ *
+ * Shu sababli ikki qoida:
+ *   · ustun faqat maydon ≥ 1100 px bo'lganda chiziladi (qolgan ~756 px
+ *     jadvalga yetadi);
+ *   · ustun chizilganda diagramma jadvalning CHAPIDAN TEPASIGA ko'chadi
+ *     (gorizontal tasma: doira + legenda) — uchta ustun yonma-yon sig'maydi.
+ * Tor maydonda hammasi avvalgidek: diagramma chapda, filtrlar ochiluvchi
+ * panelda.
+ *
+ * Qiymat sinf nomlarining ICHIDA takrorlanadi (Tailwind sinfni matndan
+ * o'qiydi, o'zgaruvchidan yig'ib bo'lmaydi) — o'zgartirilsa, `@min-[1100px]`
+ * ni fayl bo'ylab qidiring.
+ */
+
+/**
+ * Davr presetlarining tarjima kalitlari — tanlagich ham, sarlavhadagi
+ * yozuv ham SHU xaritadan o'qiydi: ro'yxatda bir nom, tugmada boshqasi
+ * bo'lib qolmasin.
+ */
+const PERIOD_LABEL_KEY: Readonly<Record<DashboardPreset, string>> = {
+  today: 'attendance.statsToday',
+  yesterday: 'attendance.statsPeriodYesterday',
+  last7: 'attendance.statsPeriodLast7',
+  prevWeek: 'attendance.statsPeriodPrevWeek',
+  firstHalf: 'attendance.statsPeriodFirstHalf',
+  secondHalf: 'attendance.statsPeriodSecondHalf',
+  last30: 'attendance.statsPeriodLast30',
+  thisMonth: 'attendance.statsPeriodThisMonth',
+  prevMonth: 'attendance.statsPeriodPrevMonth',
+  custom: 'attendance.statsPeriodCustom',
+}
+
 /**
  * Davomat statistikasi — Verifix'dagi «Статистика посещений сотрудников»
  * ekranining o'rnini bosadi (egasining talabi, 2026-09-17: «asosiy sahifa
- * rasmdagidek bo'lsin»).
+ * rasmdagidek bo'lsin»; 2026-09-18 da davr ustuni bilan kengaytirildi —
+ * `docs/SPEC-verifikatsiya-panel.md`).
+ *
+ * IKKI REJIM va ular ikki ENDPOINT:
+ *   · BITTA KUN (`GET /dashboard`) — diagramma yoki diagrammasiz ro'yxat,
+ *     tepasida holat chiplari, ostida xodimlar jadvali;
+ *   · DAVR (`GET /dashboard/trend`) — faqat kunlik chiziqli grafik.
+ *     Jadval, chiplar, qidiruv va sahifalash bu rejimda YO'Q (egasining
+ *     qarori: «faqat kunlik grafik») — ular bir kunning savoli.
+ * Rejimni `dashboardPeriod` hal qiladi, sahifa uni tekshirmaydi.
  *
  * Bitta keng karta:
- *   · sarlavha qatori — nom, kun tanlagich va diagramma turi;
+ *   · sarlavha qatori — nom, kun tanlagich, ko'rinish turi, yangilash;
  *   · chapda — diagramma (markazda jami) va legenda;
- *   · o'ngda — asboblar qatori va xodimlar jadvali.
+ *   · o'ngda — asboblar qatori, holat chiplari va xodimlar jadvali;
+ *   · `xl` dan boshlab kartaning O'NGIDA doimiy filtr ustuni turadi.
  * `lg` dan tor ekranda diagramma kartasi jadval ustiga tushadi va jadval
- * kartalarga aylanadi.
+ * kartalarga aylanadi; `xl` dan tor ekranda filtr ustuni chizilmaydi va
+ * filtrlar avvalgidek ochiluvchi panelda qoladi.
  *
  * Holat qayerda:
- *   · kun, qidiruv, holat, firma/bo'lim/lavozim, saralash, sahifa va uning
- *     hajmi — MANZILDA (`validateDashboardSearch`);
+ *   · davr, qidiruv, holat, firma/bo'lim/lavozim, KO'RINISH TURI, saralash,
+ *     sahifa va uning hajmi — MANZILDA (`validateDashboardSearch`);
  *   · qadalgan filtrlar va ustunlar — brauzerda, foydalanuvchi bo'yicha
  *     (`attendance-dashboard-prefs.ts`);
- *   · diagramma turi — sahifaning o'zida: bu bir martalik ko'rinish tanlovi.
+ *   · grafikda qaysi qatorlar yoqilgani — sahifaning o'zida: bu chizmani
+ *     o'qishning bir martalik usuli, filtr emas.
  *
- * ⭐ Tanlangan kun BUGUN bo'lsa sahifa 30 soniyada bir yangilanadi va hech
- * qachon BO'SHAMAYDI (`useAttendanceDashboard` izohi). O'tgan kun so'ralmaydi.
+ * ⭐ Tanlangan davr BUGUNNI qamrasa sahifa 30 soniyada bir yangilanadi va
+ * hech qachon BO'SHAMAYDI (`useAttendanceDashboard` izohi). O'tgan davr
+ * so'ralmaydi.
  */
 export function AttendanceDashboardPage() {
   const { t } = useLocale()
@@ -165,17 +246,36 @@ export function AttendanceDashboardPage() {
     (manzilda sana yo'q — `DashboardSearch.date` izohi).
   */
   const today = todayIso()
-  const selectedDate = search.date ?? today
-  const isToday = selectedDate === today
+
+  /*
+    Manzildagi preset → aniq sanalar. Butun sahifa faqat SHU qiymatga
+    qaraydi: «qaysi endpoint», «kun tanlagich ko'rinadimi», «jadval
+    bormi» — hammasi shundan (`dashboardPeriod` izohi).
+  */
+  const period = dashboardPeriod(search, today)
+  const range = period.kind === 'range'
+  const live = periodHasToday(period, today)
+
+  /*
+    Davrning sanalari — so'rov kaliti uchun ODDIY qiymatga keltirilgan.
+    `useMemo` bog'liqliklarida shartli ifoda yozib bo'lmaydi (lint
+    qoidasi) va har render yangi obyekt bo'lgan `period` ni bog'liqlik
+    qilish keshni har safar bekor qilardi.
+  */
+  const dayDate = period.kind === 'day' ? period.date : null
+  const rangeFrom = period.kind === 'range' ? period.from : null
+  const rangeTo = period.kind === 'range' ? period.to : null
+
   const q = search.q ?? ''
   const status = search.status ?? null
   const sort: DashboardSort = search.sort ?? 'name'
   const pageSize: DashboardPageSize = search.size ?? DEFAULT_DASHBOARD_PAGE_SIZE
   const page = search.page ?? 1
+  const view: DashboardView = search.view ?? 'donut'
 
   /**
    * Manzilni yangilash. Qidiruv, filtr va saralash — `replace` (bitta
-   * ekran ichidagi aniqlashtirish); kun va sahifa — `push`: ular haqiqiy
+   * ekran ichidagi aniqlashtirish); davr va sahifa — `push`: ular haqiqiy
    * qadam va «orqaga» ularni qaytarishi kerak (`employees-page.tsx` qoidasi).
    */
   const setSearch = useCallback(
@@ -192,7 +292,15 @@ export function AttendanceDashboardPage() {
     setSearch((previous) => ({ ...previous, q: toSearchParam(value), page: undefined }))
   })
 
-  const [chartType, setChartType] = useState<DashboardChartType>('donut')
+  /*
+    Grafikda qaysi qatorlar chizilishi. Sukut — uchta kundalik savol
+    (`DEFAULT_TREND_SERIES`). Manzilda TURMAYDI: bu chizmani o'qishning
+    usuli, ko'rsatiladigan ma'lumot emas — havolani ochgan odam baribir
+    o'ziga qulayini yoqadi.
+  */
+  const [series, setSeries] = useState<ReadonlySet<DashboardStatus>>(
+    () => new Set(DEFAULT_TREND_SERIES),
+  )
 
   const prefs = useDashboardPrefs(user?.id ?? 'anonymous')
   const currentPin = dashboardPinOf(search)
@@ -213,7 +321,18 @@ export function AttendanceDashboardPage() {
     const pin = prefs.pin
     if (pin === null || hasPinValues(dashboardPinOf(search))) return
 
-    setSearch((previous) => ({ ...previous, ...pin, page: undefined }))
+    /*
+      ⚠️ Manzilda ANIQ kun bo'lsa (`?date=` — kun tanlagichidan olingan
+      havola), qadalgan DAVR qo'llanmaydi. Aks holda «16-sentabr» degan
+      havola qadalgan «Oxirgi 7 kun» tufayli boshqa ekranni ochardi:
+      preset kunni yutib yuboradi (`dashboardPeriod`). Qolgan qadalgan
+      maydonlar — firma, bo'lim, lavozim, tartib, ko'rinish — baribir
+      qo'llanadi: ular kun bilan ziddiyatga kirmaydi.
+    */
+    const applied =
+      search.date === undefined ? pin : { ...pin, period: undefined, from: undefined, to: undefined }
+
+    setSearch((previous) => ({ ...previous, ...applied, page: undefined }))
     // Faqat birinchi kirishda — keyingi o'zgarishlar foydalanuvchining o'z qarori
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -222,9 +341,11 @@ export function AttendanceDashboardPage() {
 
   const filters = useMemo<DashboardFilters>(
     () => ({
-      // Sana berilmasa server bugunni oladi — yarim tundan keyin kalit ham,
-      // javob ham o'zi yangi kunga o'tadi
-      date: search.date,
+      // Bugun berilmasa server o'zi oladi — yarim tundan keyin kalit ham,
+      // javob ham o'zi yangi kunga o'tadi. Shu sababli bu yerda AYNAN
+      // «bugun emas» shart tekshiriladi, `search.date` emas: «Kecha»
+      // preseti ham sanani yuborishi kerak.
+      date: dayDate !== null && dayDate !== today ? dayDate : undefined,
       search: q.trim() === '' ? undefined : q,
       legalEntityId: search.entity,
       departmentId: search.department,
@@ -235,7 +356,8 @@ export function AttendanceDashboardPage() {
       pageSize,
     }),
     [
-      search.date,
+      dayDate,
+      today,
       q,
       search.entity,
       search.department,
@@ -247,7 +369,45 @@ export function AttendanceDashboardPage() {
     ],
   )
 
-  const query = useAttendanceDashboard(filters, isToday, canView)
+  /*
+    Davr rejimida ishlatiladi. Kun rejimida ham hisoblanadi (hook shartli
+    chaqirilmaydi), lekin so'rov `enabled: false` bilan YUBORILMAYDI —
+    ikkita og'ir hisob yonma-yon ketmasligi kerak.
+  */
+  const trendFilters = useMemo<TrendFilters>(
+    () => ({
+      from: rangeFrom ?? today,
+      to: rangeTo ?? today,
+      legalEntityId: search.entity,
+      departmentId: search.department,
+      positionId: search.position,
+    }),
+    [
+      rangeFrom,
+      rangeTo,
+      today,
+      search.entity,
+      search.department,
+      search.position,
+    ],
+  )
+
+  /*
+    Tug'ilgan kunlar paneli — DAVRSIZ, ataylab (SPEC-panel §E). Faqat
+    org-filtr: davr qo'shilsa, har preset almashtirilganda AYNAN bir xil
+    javob qaytadan so'ralardi (kesh kaliti `attendance-queries.ts` da).
+  */
+  const birthdayFilters = useMemo<BirthdayFilters>(
+    () => ({
+      legalEntityId: search.entity,
+      departmentId: search.department,
+      positionId: search.position,
+    }),
+    [search.entity, search.department, search.position],
+  )
+
+  const query = useAttendanceDashboard(filters, live, canView && !range)
+  const trend = useAttendanceTrend(trendFilters, live, canView && range)
 
   /*
     Ogohlantirish statistikaning O'Z javobidan emas, alohida so'rovdan
@@ -258,6 +418,10 @@ export function AttendanceDashboardPage() {
   const alerts = useFormerEmployeeAlerts(canView)
 
   const data = query.data
+  const trendData = trend.data
+
+  /** Ekranda hozir qaysi so'rov turibdi — holat bayroqlari faqat undan o'qiladi. */
+  const active = range ? trend : query
 
   /*
     Oxirgi sahifadan narida qolib ketmaslik (`employees-page.tsx` dagi
@@ -265,13 +429,13 @@ export function AttendanceDashboardPage() {
     `isPlaceholderData` da eski javobning `pageCount` iga qarab sakralmaydi.
   */
   useEffect(() => {
-    if (data === undefined || query.isPlaceholderData) return
+    if (range || data === undefined || query.isPlaceholderData) return
 
     const lastPage = Math.max(1, data.pageCount)
     if (page <= lastPage) return
 
     setSearch((previous) => ({ ...previous, page: lastPage <= 1 ? undefined : lastPage }))
-  }, [data, query.isPlaceholderData, page, setSearch])
+  }, [range, data, query.isPlaceholderData, page, setSearch])
 
   const columns = useMemo<Array<DataColumn<DashboardItem>>>(() => {
     const list: Array<DataColumn<DashboardItem>> = [
@@ -347,9 +511,18 @@ export function AttendanceDashboardPage() {
 
     // Kelajak kun hali davomat emas — tanlagich bugundan nariga o'tkazmaydi
     const clamped = next > today ? today : next
+
+    /*
+      Kun tanlagich presetni BEKOR QILADI: «Kecha» dan bir kun orqaga
+      surilgan ekran endi «kecha» emas. Preset joyida qolsa, manzil
+      o'zi bilan ziddiyatda bo'lardi.
+    */
     setSearch(
       (previous) => ({
         ...previous,
+        period: undefined,
+        from: undefined,
+        to: undefined,
         date: clamped === today ? undefined : clamped,
         page: undefined,
       }),
@@ -357,7 +530,23 @@ export function AttendanceDashboardPage() {
     )
   }
 
-  /** Bo'lak, ustun yoki legenda: birinchi bosish — filtr, ikkinchisi — olib tashlash. */
+  /** Davr preseti (`custom` da — ikkita sana bilan). */
+  const changePeriod = (next: DashboardPreset, custom?: { from: string; to: string }) => {
+    setSearch(
+      (previous) => ({
+        ...previous,
+        period: next === 'today' ? undefined : next,
+        from: next === 'custom' ? custom?.from : undefined,
+        to: next === 'custom' ? custom?.to : undefined,
+        // Bitta kun tanlagichining qiymati presetga qo'shilib qolmasin
+        date: undefined,
+        page: undefined,
+      }),
+      'push',
+    )
+  }
+
+  /** Bo'lak, ustun, legenda yoki chip: birinchi bosish — filtr, ikkinchisi — olib tashlash. */
   const toggleStatus = (next: DashboardStatus) => {
     setSearch((previous) => ({
       ...previous,
@@ -366,8 +555,16 @@ export function AttendanceDashboardPage() {
     }))
   }
 
+  const clearStatus = () => {
+    setSearch((previous) => ({ ...previous, status: undefined, page: undefined }))
+  }
+
   const changeOrg = (patch: Pick<DashboardSearch, 'entity' | 'department' | 'position'>) => {
     setSearch((previous) => ({ ...previous, ...patch, page: undefined }))
+  }
+
+  const changeView = (next: DashboardView) => {
+    setSearch((previous) => ({ ...previous, view: next === 'donut' ? undefined : next }))
   }
 
   const changeSort = (next: DashboardSort) => {
@@ -407,17 +604,29 @@ export function AttendanceDashboardPage() {
     prefs.savePin(pinned || !hasPinValues(currentPin) ? null : currentPin)
   }
 
+  const toggleSeries = (next: DashboardStatus) => {
+    setSeries((previous) => {
+      const updated = new Set(previous)
+      if (!updated.delete(next)) updated.add(next)
+      return updated
+    })
+  }
+
+  const refresh = () => void active.refetch()
+
   /* ───────────────────────────────────────────────── ko'rinish */
 
-  const firstLoad = query.isPending
-  const loadFailed = query.isError && data === undefined
-  /** Kun, sahifa yoki filtr almashdi — eski surat turibdi, yangisi kelmoqda. */
-  const switching = query.isPlaceholderData && query.isFetching
+  const firstLoad = active.isPending
+  const loadFailed = active.isError && active.data === undefined
+  /** Davr, sahifa yoki filtr almashdi — eski surat turibdi, yangisi kelmoqda. */
+  const switching = active.isPlaceholderData && active.isFetching
 
   const items = data?.items ?? EMPTY_ITEMS
   const total = data?.total ?? 0
   const totalItems = data?.totalItems ?? 0
   const pageCount = Math.max(1, data?.pageCount ?? 1)
+  const days = trendData?.days ?? EMPTY_DAYS
+  const asOf = range ? trendData?.asOf : data?.asOf
 
   const slices: DashboardSlice[] = DASHBOARD_STATUSES.map((item) => {
     const count = data?.counts[DASHBOARD_STATUS_LOOK[item].count] ?? 0
@@ -429,6 +638,9 @@ export function AttendanceDashboardPage() {
   ).length
   const filtered = q.trim() !== '' || status !== null || orgCount > 0
   const pinnable = pinned || prefs.pin !== null || hasPinValues(currentPin)
+
+  /** Diagramma ustuni chizilmaydigan ikki hol: `list` ko'rinishi va davr grafigi. */
+  const wide = range || view === 'list'
 
   const emptyState = filtered ? (
     <EmptyState
@@ -451,7 +663,7 @@ export function AttendanceDashboardPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="@container/page space-y-6">
       {/*
         ⚠️ ENG TEPADA, kartadan YUQORIDA (SPEC §8.4, egasining talabi):
         xavfsizlik hodisasi diagramma ostida «yana bitta raqam» bo'lib
@@ -460,244 +672,372 @@ export function AttendanceDashboardPage() {
       {alerts.length > 0 && <FormerEmployeeAlertPanel alerts={alerts} />}
 
       {/* Keyingi yangilanish yiqildi — eski surat joyida qoladi, sabab tepada */}
-      {query.isError && data !== undefined && (
+      {active.isError && active.data !== undefined && (
         <Alert tone="danger" title={t('employees.loadFailed')}>
-          {errorMessage(problemCode(query.error))}
+          {errorMessage(problemCode(active.error))}
         </Alert>
       )}
 
       {/*
-        Bitta keng karta `lg` dan boshlab; torroq ekranda — ikki karta ustma-ust.
+        Keng maydonda: chapda karta, o'ngda DOIMIY filtr ustuni (Verifix
+        joylashuvi, SPEC C1). Ustun sahifa bilan birga aylanadi va tepada
+        yopishib turadi. Qachon «keng» — fayl boshidagi izoh.
 
-        NEGA `lg:contents`: sarlavha va diagramma tor ekranda BITTA kartada
-        turishi, kengda esa sarlavha ikkala ustun ustiga cho'zilishi kerak.
-        `display: contents` kartaning o'z qutisini (chegara, fon, soya)
-        olib tashlaydi va uning bolalarini to'g'ridan-to'g'ri tashqi
-        gridga beradi — DOM bir xil qoladi, JS da o'lcham o'qilmaydi.
-
-        `overflow-clip`, `hidden` emas: `hidden` o'rovchini aylantiriladigan
-        konteynerga aylantiradi va diagramma ustunining `sticky` xususiyati
-        ishlamay qolardi.
+        Tor maydonda ustun UMUMAN chizilmaydi (`hidden`): filtrlar
+        avvalgidek asboblar qatoridagi ochiluvchi panelda qoladi, ya'ni
+        telefon ko'rinishi o'zgarmaydi.
       */}
-      <section
-        aria-labelledby={titleId}
-        className={cn(
-          'space-y-4',
-          'lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:space-y-0 xl:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[400px_minmax(0,1fr)]',
-          'lg:overflow-clip lg:rounded-lg lg:border lg:border-[var(--border)] lg:bg-[var(--bg-elevated)] lg:shadow-card',
-        )}
-      >
-        <Card className="lg:contents">
-          <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 pt-4 sm:px-5 sm:pt-5 lg:col-span-2 lg:border-b lg:border-[var(--border)] lg:pb-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <IconTile icon={ChartPie} tone="brand" size="lg" />
-              <div className="min-w-0">
-                <h1 id={titleId} className="text-title2 leading-tight font-semibold tracking-tight">
-                  {t('attendance.statsTitle')}
-                </h1>
-                <p className="mt-1 text-footnote text-[var(--fg-secondary)]">
-                  {data === undefined
-                    ? t('common.loading')
-                    : t('attendance.refreshedAt', {
-                        // Server lahzasi — brauzer soati emas: eski javob
-                        // «hozirgina yangilandi» deb yolg'on gapirmasin
-                        time: formatPassTime(data.asOf),
-                      })}
-                </p>
-              </div>
-            </div>
+      <div className="@min-[1100px]/page:grid @min-[1100px]/page:grid-cols-[minmax(0,1fr)_320px] @min-[1100px]/page:items-start @min-[1100px]/page:gap-6">
+        {/*
+          Bitta keng karta `lg` dan boshlab; torroq ekranda — ikki karta ustma-ust.
 
-            <div className="flex flex-wrap items-center gap-2">
-              <DateStepper value={selectedDate} today={today} onChange={changeDate} />
-              <ChartTypePicker value={chartType} onChange={setChartType} />
-            </div>
-          </header>
+          NEGA `lg:contents`: sarlavha va diagramma tor ekranda BITTA kartada
+          turishi, kengda esa sarlavha ikkala ustun ustiga cho'zilishi kerak.
+          `display: contents` kartaning o'z qutisini (chegara, fon, soya)
+          olib tashlaydi va uning bolalarini to'g'ridan-to'g'ri tashqi
+          gridga beradi — DOM bir xil qoladi, JS da o'lcham o'qilmaydi.
 
-          {loadFailed ? (
-            /*
-              Birinchi yuklash yiqildi — bo'sh diagramma («0 xodim») emas,
-              sabab va qayta urinish: nol bu yerda yolg'on bo'lardi.
-            */
-            <AttendanceLoadError
-              className="lg:col-span-2"
-              error={query.error}
-              onRetry={() => void query.refetch()}
-              retrying={query.isFetching}
-            />
-          ) : (
-            <div
-              className={cn(
-                'px-4 pt-2 pb-4 sm:px-5 sm:pb-5',
-                // Uzun jadval aylantirilganda diagramma va legenda ko'z oldida
-                // qoladi — legendani bosib filtrlash uchun tepaga qaytish shart emas
-                'lg:sticky lg:top-0 lg:self-start lg:pt-5',
-              )}
-            >
-              {firstLoad ? (
-                <DashboardChartSkeleton />
-              ) : (
-                <>
-                  <DashboardChart
-                    type={chartType}
-                    slices={slices}
-                    total={total}
-                    active={status}
-                    onToggle={toggleStatus}
-                  />
-                  <div className="mt-3">
-                    <DashboardLegend slices={slices} active={status} onToggle={toggleStatus} />
-                  </div>
-                </>
-              )}
-            </div>
+          `overflow-clip`, `hidden` emas: `hidden` o'rovchini aylantiriladigan
+          konteynerga aylantiradi va diagramma ustunining `sticky` xususiyati
+          ishlamay qolardi.
+
+          ⚠️ Ustunlar `lg:col-span-full` bilan cho'ziladi, `col-span-2`
+          bilan emas: `list` va davr ko'rinishida grid BITTA ustunli
+          bo'ladi va `col-span-2` yo'q joydan ikkinchi ustun ochib yuborardi.
+        */}
+        <section
+          aria-labelledby={titleId}
+          className={cn(
+            'space-y-4',
+            'lg:grid lg:space-y-0',
+            'lg:overflow-clip lg:rounded-lg lg:border lg:border-[var(--border)] lg:bg-[var(--bg-elevated)] lg:shadow-card',
+            // Filtr ustuni chizilganda diagramma jadval TEPASIGA o'tadi
+            // (fayl boshidagi izoh) — grid shunda ham bitta ustunli.
+            wide
+              ? 'lg:grid-cols-[minmax(0,1fr)]'
+              : 'lg:grid-cols-[300px_minmax(0,1fr)] @min-[1100px]/page:grid-cols-[minmax(0,1fr)]',
           )}
-        </Card>
-
-        {!loadFailed && (
-          <div className="min-w-0 space-y-3 lg:space-y-0 lg:border-l lg:border-[var(--border)]">
-            <Card className="lg:rounded-none lg:border-0 lg:border-b lg:border-[var(--border)] lg:bg-transparent lg:shadow-none">
-              <div className="flex flex-wrap items-center gap-2 p-3 sm:px-4">
-                <div className="min-w-[180px] flex-1 basis-[220px]">
-                  <Input
-                    icon={Search}
-                    shape="pill"
-                    type="search"
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder={t('attendance.statsSearch')}
-                    aria-label={t('common.search')}
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-1">
-                  {status !== null && (
-                    <StatusChip status={status} onClear={() => toggleStatus(status)} />
-                  )}
-
-                  <FilterPopover
-                    entity={search.entity}
-                    department={search.department}
-                    position={search.position}
-                    legalEntities={options.legalEntities}
-                    departments={options.departments}
-                    positions={options.positions}
-                    onChange={changeOrg}
-                  />
-
-                  <Button
-                    type="button"
-                    variant={pinned ? 'soft' : 'ghost'}
-                    size="icon"
-                    aria-pressed={pinned}
-                    disabled={!pinnable}
-                    onClick={togglePin}
-                    title={pinned ? t('attendance.statsUnpin') : t('attendance.statsPin')}
-                    aria-label={pinned ? t('attendance.statsUnpin') : t('attendance.statsPin')}
-                  >
-                    <Pin className={cn(pinned && 'fill-current')} />
-                  </Button>
-
-                  {/* Tor ekranda jadval sarlavhasi yo'q — saralash shu tugmada */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="lg:hidden"
-                    onClick={() => changeSort(sort === 'name' ? '-name' : 'name')}
-                    title={sort === 'name' ? t('attendance.statsSortAsc') : t('attendance.statsSortDesc')}
-                    aria-label={sort === 'name' ? t('attendance.statsSortAsc') : t('attendance.statsSortDesc')}
-                  >
-                    {sort === 'name' ? <ArrowDownAZ /> : <ArrowUpZA />}
-                  </Button>
-
-                  <PageSizeMenu pageSize={pageSize} total={totalItems} onChange={changePageSize} />
-
-                  <CompactPager
-                    page={page}
-                    pageCount={pageCount}
-                    onChange={changePage}
-                    disabled={switching}
-                  />
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => void query.refetch()}
-                    title={t('attendance.statsRefresh')}
-                    aria-label={t('attendance.statsRefresh')}
-                  >
-                    <RefreshCw className={cn(query.isFetching && 'animate-spin')} />
-                  </Button>
-
-                  <ColumnsMenu hidden={hidden} onChange={prefs.setColumnVisible} />
+        >
+          <Card className="lg:contents">
+            <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 pt-4 sm:px-5 sm:pt-5 lg:col-span-full lg:border-b lg:border-[var(--border)] lg:pb-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <IconTile icon={ChartPie} tone="brand" size="lg" />
+                <div className="min-w-0">
+                  <h1 id={titleId} className="text-title2 leading-tight font-semibold tracking-tight">
+                    {t('attendance.statsTitle')}
+                  </h1>
+                  <p className="mt-1 text-footnote text-[var(--fg-secondary)]">
+                    {asOf === undefined
+                      ? t('common.loading')
+                      : t('attendance.refreshedAt', {
+                          // Server lahzasi — brauzer soati emas: eski javob
+                          // «hozirgina yangilandi» deb yolg'on gapirmasin
+                          time: formatPassTime(asOf),
+                        })}
+                  </p>
                 </div>
               </div>
-            </Card>
 
-            <div
-              className={cn(
-                'transition-opacity duration-200 ease-[var(--ease-ios)]',
-                switching && 'opacity-60',
-              )}
-              aria-busy={switching || firstLoad}
-            >
-              {/* ---------- lg+: jadval ---------- */}
-              <div className="hidden lg:block">
-                <DataTable
-                  columns={columns}
-                  data={items}
-                  getRowId={(item) => item.employeeId}
-                  loading={firstLoad}
-                  skeletonRows={8}
-                  sorting={sorting}
-                  onSortingChange={(next) => changeSort(next[0]?.desc === true ? '-name' : 'name')}
-                  onRowClick={
-                    canOpenEmployee
-                      ? (item) =>
-                          void navigate({
-                            to: '/xodimlar/$employeeId',
-                            params: { employeeId: item.employeeId },
-                          })
-                      : undefined
-                  }
-                  rowLabel={(item) => item.fullName}
-                  empty={emptyState}
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Kun tanlagich faqat BITTA kunda ma'noli (SPEC C2) */}
+                {period.kind === 'day' && (
+                  <DateStepper value={period.date} today={today} onChange={changeDate} />
+                )}
+
+                {/* Filtr ustuni yo'q maydonda davr tanlagich shu yerda */}
+                <div className="@min-[1100px]/page:hidden">
+                  <PeriodPicker period={period} today={today} onChange={changePeriod} />
+                </div>
+
+                {/* Davrda diagramma bitta — tanlaydigan narsa yo'q (SPEC C5) */}
+                {!range && <ViewPicker value={view} onChange={changeView} />}
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={refresh}
+                  title={t('attendance.statsRefresh')}
+                  aria-label={t('attendance.statsRefresh')}
+                >
+                  <RefreshCw className={cn(active.isFetching && 'animate-spin')} />
+                </Button>
               </div>
+            </header>
 
-              {/* ---------- lg dan tor: kartalar ---------- */}
-              <div className="lg:hidden">
+            {loadFailed ? (
+              /*
+                Birinchi yuklash yiqildi — bo'sh diagramma («0 xodim») emas,
+                sabab va qayta urinish: nol bu yerda yolg'on bo'lardi.
+              */
+              <AttendanceLoadError
+                className="lg:col-span-full"
+                error={active.error}
+                onRetry={refresh}
+                retrying={active.isFetching}
+              />
+            ) : range ? (
+              <div
+                className={cn(
+                  'px-4 pt-2 pb-4 sm:px-5 sm:pb-5 lg:col-span-full lg:pt-5',
+                  'transition-opacity duration-200 ease-[var(--ease-ios)]',
+                  switching && 'opacity-60',
+                )}
+                aria-busy={switching || firstLoad}
+              >
                 {firstLoad ? (
-                  <ul className="grid gap-3 sm:grid-cols-2">
-                    {Array.from({ length: 4 }, (_, index) => (
-                      <li key={`skeleton-${index}`}>
-                        <Card className="flex items-center gap-3 p-4">
-                          <Skeleton className="size-12 rounded-full" />
-                          <span className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-36" />
-                            <Skeleton className="h-3 w-24" />
-                          </span>
-                        </Card>
-                      </li>
-                    ))}
-                  </ul>
-                ) : items.length === 0 ? (
-                  <Card>{emptyState}</Card>
+                  <DashboardTrendSkeleton />
                 ) : (
-                  <ul className="grid gap-3 sm:grid-cols-2">
-                    {items.map((item) => (
-                      <li key={item.employeeId}>
-                        <EmployeeCard item={item} linked={canOpenEmployee} hidden={hidden} />
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <DashboardTrendChart days={days} series={series} />
+                    <div className="mt-4">
+                      <p className="pb-2 text-caption2 font-semibold tracking-wider text-[var(--fg-tertiary)] uppercase">
+                        {t('attendance.statsTrendSeries')}
+                      </p>
+                      <DashboardTrendToggles series={series} onToggle={toggleSeries} />
+                    </div>
+                  </>
                 )}
               </div>
+            ) : view === 'list' ? null : (
+              <div
+                className={cn(
+                  'px-4 pt-2 pb-4 sm:px-5 sm:pb-5',
+                  // Uzun jadval aylantirilganda diagramma va legenda ko'z oldida
+                  // qoladi — legendani bosib filtrlash uchun tepaga qaytish shart emas
+                  'lg:sticky lg:top-0 lg:self-start lg:pt-5',
+                  /*
+                    Keng maydonda diagramma jadval TEPASIDA — endi u tasma:
+                    doira chapda, legenda o'ngda. `sticky` bu yerda O'CHADI:
+                    jadval ustidagi yopishqoq tasma aylantirilganda qatorlarni
+                    yopib qo'yardi.
+                  */
+                  '@min-[1100px]/page:static @min-[1100px]/page:flex @min-[1100px]/page:items-center @min-[1100px]/page:gap-8',
+                )}
+              >
+                {firstLoad ? (
+                  <DashboardChartSkeleton />
+                ) : (
+                  <>
+                    {/*
+                      Tasmada doira 300 px da qoladi (yonida legenda), ustunlar
+                      esa BUTUN kenglikni oladi: ular o'zi yorliqlangan va
+                      legenda ularning ikkinchi nusxasi bo'lardi.
+                    */}
+                    <div
+                      className={cn(
+                        view === 'bars'
+                          ? '@min-[1100px]/page:min-w-0 @min-[1100px]/page:flex-1'
+                          : '@min-[1100px]/page:w-[300px] @min-[1100px]/page:shrink-0',
+                      )}
+                    >
+                      <DashboardChart
+                        type={view}
+                        slices={slices}
+                        total={total}
+                        active={status}
+                        onToggle={toggleStatus}
+                      />
+                    </div>
+
+                    {/*
+                      Legenda faqat DOIRAVIYDA: doira bo'laklarida nom yo'q, ustunlar
+                      esa nomi, soni va foizini o'zi yozadi (`StatusBars` izohi).
+                    */}
+                    {view === 'donut' && (
+                      <div className="mt-3 @min-[1100px]/page:mt-0 @min-[1100px]/page:min-w-0 @min-[1100px]/page:flex-1">
+                        <DashboardLegend slices={slices} active={status} onToggle={toggleStatus} />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </Card>
+
+          {!loadFailed && !range && (
+            <div
+              className={cn(
+                'min-w-0 space-y-3 lg:space-y-0',
+                view !== 'list' &&
+                  'lg:border-l lg:border-[var(--border)] @min-[1100px]/page:border-t @min-[1100px]/page:border-l-0',
+              )}
+            >
+              <Card className="lg:rounded-none lg:border-0 lg:border-b lg:border-[var(--border)] lg:bg-transparent lg:shadow-none">
+                <div className="flex flex-wrap items-center gap-2 p-3 sm:px-4">
+                  {/*
+                    Qidiruv 420 px dan cho'zilmaydi: sahifa endi to'liq kenglikda
+                    (`jonli.tsx`) va katta monitorda maydon ~1000 px bo'lib, asboblar
+                    ko'zdan uzoqlashib ketardi. Asboblar `ml-auto` bilan o'ngga.
+                  */}
+                  <div className="min-w-[180px] flex-1 basis-[220px] sm:max-w-[420px]">
+                    <Input
+                      icon={Search}
+                      shape="pill"
+                      type="search"
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      placeholder={t('attendance.statsSearch')}
+                      aria-label={t('common.search')}
+                    />
+                  </div>
+
+                  <div className="ml-auto flex flex-wrap items-center gap-1">
+                    {/* Filtr ustuni bor maydonda bu tugma ortiqcha */}
+                    <div className="@min-[1100px]/page:hidden">
+                      <FilterPopover
+                        entity={search.entity}
+                        department={search.department}
+                        position={search.position}
+                        legalEntities={options.legalEntities}
+                        departments={options.departments}
+                        positions={options.positions}
+                        onChange={changeOrg}
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant={pinned ? 'soft' : 'ghost'}
+                      size="icon"
+                      aria-pressed={pinned}
+                      disabled={!pinnable}
+                      onClick={togglePin}
+                      title={pinned ? t('attendance.statsUnpin') : t('attendance.statsPin')}
+                      aria-label={pinned ? t('attendance.statsUnpin') : t('attendance.statsPin')}
+                    >
+                      <Pin className={cn(pinned && 'fill-current')} />
+                    </Button>
+
+                    {/* Tor ekranda jadval sarlavhasi yo'q — saralash shu tugmada */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="lg:hidden"
+                      onClick={() => changeSort(sort === 'name' ? '-name' : 'name')}
+                      title={sort === 'name' ? t('attendance.statsSortAsc') : t('attendance.statsSortDesc')}
+                      aria-label={sort === 'name' ? t('attendance.statsSortAsc') : t('attendance.statsSortDesc')}
+                    >
+                      {sort === 'name' ? <ArrowDownAZ /> : <ArrowUpZA />}
+                    </Button>
+
+                    <PageSizeMenu pageSize={pageSize} total={totalItems} onChange={changePageSize} />
+
+                    <CompactPager
+                      page={page}
+                      pageCount={pageCount}
+                      onChange={changePage}
+                      disabled={switching}
+                    />
+
+                    <ColumnsMenu hidden={hidden} onChange={prefs.setColumnVisible} />
+                  </div>
+                </div>
+
+                {/*
+                  Holat chiplari — UCHALA ko'rinishda ham (SPEC C4).
+                  Sanoqlar `counts` dan, ya'ni qidiruv va holat filtridan
+                  OLDINGI to'plamdan: qidiruvga bitta ism yozilgani
+                  «Kechikkanlar 1» degan yolg'onga aylanmasligi kerak.
+                */}
+                <StatusChipRow
+                  total={total}
+                  slices={slices}
+                  active={status}
+                  loading={firstLoad}
+                  onSelect={toggleStatus}
+                  onClear={clearStatus}
+                />
+              </Card>
+
+              <div
+                className={cn(
+                  'transition-opacity duration-200 ease-[var(--ease-ios)]',
+                  switching && 'opacity-60',
+                )}
+                aria-busy={switching || firstLoad}
+              >
+                {/* ---------- lg+: jadval ---------- */}
+                <div className="hidden lg:block">
+                  <DataTable
+                    columns={columns}
+                    data={items}
+                    getRowId={(item) => item.employeeId}
+                    loading={firstLoad}
+                    skeletonRows={8}
+                    sorting={sorting}
+                    onSortingChange={(next) => changeSort(next[0]?.desc === true ? '-name' : 'name')}
+                    onRowClick={
+                      canOpenEmployee
+                        ? (item) =>
+                            void navigate({
+                              to: '/xodimlar/$employeeId',
+                              params: { employeeId: item.employeeId },
+                              // Kartaning DAVOMAT bo'limi ochiladi: bu
+                              // ekrandan odam «bugun nega kelmadi» degan
+                              // savol bilan chiqadi, shartnomasi bilan emas.
+                              search: { tab: 'attendance' },
+                            })
+                        : undefined
+                    }
+                    rowLabel={(item) => item.fullName}
+                    empty={emptyState}
+                  />
+                </div>
+
+                {/* ---------- lg dan tor: kartalar ---------- */}
+                <div className="lg:hidden">
+                  {firstLoad ? (
+                    <ul className="grid gap-3 sm:grid-cols-2">
+                      {Array.from({ length: 4 }, (_, index) => (
+                        <li key={`skeleton-${index}`}>
+                          <Card className="flex items-center gap-3 p-4">
+                            <Skeleton className="size-12 rounded-full" />
+                            <span className="flex-1 space-y-2">
+                              <Skeleton className="h-4 w-36" />
+                              <Skeleton className="h-3 w-24" />
+                            </span>
+                          </Card>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : items.length === 0 ? (
+                    <Card>{emptyState}</Card>
+                  ) : (
+                    <ul className="grid gap-3 sm:grid-cols-2">
+                      {items.map((item) => (
+                        <li key={item.employeeId}>
+                          <EmployeeCard item={item} linked={canOpenEmployee} hidden={hidden} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+
+        <FilterColumn
+          period={period}
+          today={today}
+          birthdays={birthdayFilters}
+          canView={canView}
+          canOpenEmployee={canOpenEmployee}
+          entity={search.entity}
+          department={search.department}
+          position={search.position}
+          legalEntities={options.legalEntities}
+          departments={options.departments}
+          positions={options.positions}
+          orgCount={orgCount}
+          refreshing={active.isFetching}
+          onPeriod={changePeriod}
+          onOrg={changeOrg}
+          onRefresh={refresh}
+        />
+      </div>
     </div>
   )
 }
@@ -771,26 +1111,30 @@ function DateStepper({
   )
 }
 
-const CHART_TYPES: ReadonlyArray<{ value: DashboardChartType; labelKey: string; icon: LucideIcon }> = [
+const VIEWS: ReadonlyArray<{ value: DashboardView; labelKey: string; icon: LucideIcon }> = [
   { value: 'donut', labelKey: 'attendance.statsChartDonut', icon: ChartPie },
   { value: 'bars', labelKey: 'attendance.statsChartBars', icon: ChartBar },
+  { value: 'list', labelKey: 'attendance.statsChartList', icon: Rows3 },
 ]
 
 /**
- * Diagramma turi — ochiluvchi ro'yxat va «✕» (doiraviyga qaytarish).
+ * Ko'rinish turi — ochiluvchi ro'yxat va «✕» (doiraviyga qaytarish).
  *
- * «✕» faqat ustunli tur tanlanganda chiziladi: sukut holatida u hech
- * narsani o'zgartirmaydigan tugma bo'lib qolardi.
+ * «✕» faqat doiraviydan boshqa tur tanlanganda chiziladi: sukut holatida
+ * u hech narsani o'zgartirmaydigan tugma bo'lib qolardi.
+ *
+ * Uchinchi band — `list` — diagrammani UMUMAN olib tashlaydi (SPEC C3).
+ * Shu sababli tugmaning nomi «Diagramma turi» emas, «Ko'rinish».
  */
-function ChartTypePicker({
+function ViewPicker({
   value,
   onChange,
 }: {
-  value: DashboardChartType
-  onChange: (next: DashboardChartType) => void
+  value: DashboardView
+  onChange: (next: DashboardView) => void
 }) {
   const { t } = useLocale()
-  const current = CHART_TYPES.find((item) => item.value === value) ?? CHART_TYPES[0]
+  const current = VIEWS.find((item) => item.value === value) ?? VIEWS[0]
   if (current === undefined) return null
 
   const CurrentIcon = current.icon
@@ -803,7 +1147,7 @@ function ChartTypePicker({
             type="button"
             pill
             className="data-[state=open]:border-[var(--accent)]"
-            aria-label={`${t('attendance.statsChartType')}: ${t(current.labelKey)}`}
+            aria-label={`${t('attendance.statsView')}: ${t(current.labelKey)}`}
           >
             <CurrentIcon />
             <span className="hidden sm:inline">{t(current.labelKey)}</span>
@@ -813,15 +1157,15 @@ function ChartTypePicker({
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" sideOffset={8} className={cn(MENU_PANEL, 'min-w-[220px]')}>
-            <DropdownMenu.Label className={MENU_LABEL}>{t('attendance.statsChartType')}</DropdownMenu.Label>
+            <DropdownMenu.Label className={MENU_LABEL}>{t('attendance.statsView')}</DropdownMenu.Label>
             <DropdownMenu.RadioGroup
               value={value}
               onValueChange={(next) => {
-                const found = CHART_TYPES.find((item) => item.value === next)
+                const found = VIEWS.find((item) => item.value === next)
                 if (found !== undefined) onChange(found.value)
               }}
             >
-              {CHART_TYPES.map((item) => {
+              {VIEWS.map((item) => {
                 const Icon = item.icon
                 return (
                   <DropdownMenu.RadioItem key={item.value} value={item.value} className={MENU_ITEM}>
@@ -854,30 +1198,458 @@ function ChartTypePicker({
   )
 }
 
-/* ═══════════════════════════════════════════════════════════ asboblar */
+/* ═══════════════════════════════════════════════════════════ davr */
 
-/** Tanlangan holat — qidiruv yonidagi olib tashlanadigan chip. */
-function StatusChip({ status, onClear }: { status: DashboardStatus; onClear: () => void }) {
-  const { t } = useLocale()
-  const look = DASHBOARD_STATUS_LOOK[status]
+/**
+ * Davr tanlagich: o'nta preset va «Ixtiyoriy oraliq» ning ikki sanasi
+ * (SPEC C2, Verifix ekranidagi tartib).
+ *
+ * ⭐ Preset bosilishi bilan QO'LLANADI va panel yopiladi — tanlovni
+ * tasdiqlatadigan ikkinchi bosish HR ning kunlik ishida ortiqcha.
+ * Yagona istisno — «Ixtiyoriy oraliq»: u ikkita sana so'raydi, ya'ni
+ * yarim to'ldirilgan holatda qo'llansa manzil ma'nosiz bo'lardi. Shu
+ * sababli unda «Qo'llash» / «Bekor qilish» bor.
+ *
+ * Chegaralar tugma bosilishidan OLDIN tekshiriladi (`isRangeInverted`,
+ * `isRangeTooLong`) — serverning 400 javobini kutib, keyin uni tarjima
+ * qilib ko'rsatishdan ko'ra tushunarliroq (`attendance-search.ts` dagi
+ * bir xil mulohaza). Server tekshiruvi baribir joyida qoladi.
+ */
+function PeriodPicker({
+  period,
+  today,
+  onChange,
+  full = false,
+}: {
+  period: DashboardPeriod
+  today: string
+  onChange: (preset: DashboardPreset, custom?: { from: string; to: string }) => void
+  /** Filtr ustunida tugma butun kenglikni oladi. */
+  full?: boolean
+}) {
+  const { t, date } = useLocale()
+  /*
+    Chegara xatolari SERVERNING kodlari bilan aytiladi
+    (`davomat.davr_notogri`, `davomat.davr_uzun`) — hisobotlar sahifasidagi
+    bilan AYNAN bir xil yo'l. Yangi tarjima kaliti ochilsa, bitta xato
+    ikki joyda ikki xil matn bilan chiqib ketardi.
+  */
+  const errorMessage = useErrorMessage()
+
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(() => periodBounds(period))
+
+  /*
+    Panel har ochilganda joriy davrdan boshlanadi: oldingi, qo'llanmagan
+    urinishning sanalari qolib ketsa, foydalanuvchi ko'rmagan oraliq
+    «Qo'llash» bilan birdan ishlab ketardi.
+  */
+  const openChange = (next: boolean) => {
+    setOpen(next)
+    if (next) {
+      setDraft(periodBounds(period))
+      setEditing(period.preset === 'custom')
+    }
+  }
+
+  const inverted = isRangeInverted(draft.from, draft.to)
+  const tooLong = !inverted && isRangeTooLong(draft.from, draft.to)
+  const invalid = draft.from === '' || draft.to === '' || inverted || tooLong
+
+  const label =
+    period.preset === 'custom'
+      ? period.kind === 'day'
+        ? date(period.date)
+        : `${date(period.from)} — ${date(period.to)}`
+      : t(PERIOD_LABEL_KEY[period.preset])
 
   return (
-    <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--bg-sunken)] pr-1 pl-3 text-footnote font-medium">
-      <span aria-hidden className={cn('size-2 shrink-0 rounded-full', look.dotClass)} />
-      <span className="max-w-[180px] truncate">{t(look.legendKey)}</span>
-      <button
-        type="button"
+    <DropdownMenu.Root modal={false} open={open} onOpenChange={openChange}>
+      <DropdownMenu.Trigger asChild>
+        <Button
+          type="button"
+          pill={!full}
+          className={cn('data-[state=open]:border-[var(--accent)]', full && 'w-full justify-between')}
+          aria-label={`${t('attendance.statsPeriod')}: ${label}`}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <CalendarRange />
+            <span className="truncate">{label}</span>
+          </span>
+          <ChevronDown className="text-[var(--fg-tertiary)]" />
+        </Button>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={8}
+          collisionPadding={12}
+          className={cn(MENU_PANEL, 'w-[264px] max-w-[calc(100vw_-_24px)]')}
+        >
+          <DropdownMenu.Label className={MENU_LABEL}>{t('attendance.statsPeriod')}</DropdownMenu.Label>
+
+          <DropdownMenu.RadioGroup
+            value={period.preset}
+            onValueChange={(next) => {
+              const found = DASHBOARD_PRESETS.find((preset) => preset === next)
+              if (found === undefined) return
+
+              // «Ixtiyoriy oraliq» panelni YOPMAYDI — u hali sana so'raydi
+              if (found === 'custom') {
+                setEditing(true)
+                return
+              }
+
+              onChange(found)
+              setOpen(false)
+            }}
+          >
+            {DASHBOARD_PRESETS.map((preset) => (
+              <DropdownMenu.RadioItem
+                key={preset}
+                value={preset}
+                // Bandni bosish panelni o'zi yopmasin: «Ixtiyoriy oraliq»
+                // da u ochiq qolishi kerak, qolganini biz yopamiz
+                onSelect={(event) => event.preventDefault()}
+                className={MENU_ITEM}
+              >
+                <span className="grid size-4 shrink-0 place-items-center">
+                  <DropdownMenu.ItemIndicator>
+                    <Check className="size-4 text-[var(--accent-on-soft)]" strokeWidth={3} />
+                  </DropdownMenu.ItemIndicator>
+                </span>
+                {t(PERIOD_LABEL_KEY[preset])}
+              </DropdownMenu.RadioItem>
+            ))}
+          </DropdownMenu.RadioGroup>
+
+          {editing && (
+            /*
+              `onKeyDown` dagi `stopPropagation` SHART: Radix menyusi Tab
+              va harfli tugmalarni o'zi ushlaydi (bandlar orasida yurish
+              uchun) — busiz sana maydonlariga klaviatura bilan kirib
+              bo'lmasdi (`FilterPopover` dagi bilan bir xil sabab).
+            */
+            <div
+              className="mt-1 space-y-2 border-t border-[var(--border)] px-2.5 pt-3 pb-1"
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              <TextField
+                label={t('common.dateFrom')}
+                type="date"
+                max={today}
+                value={draft.from}
+                onChange={(event) => setDraft((previous) => ({ ...previous, from: event.target.value }))}
+              />
+              <TextField
+                label={t('common.dateTo')}
+                type="date"
+                max={today}
+                value={draft.to}
+                onChange={(event) => setDraft((previous) => ({ ...previous, to: event.target.value }))}
+              />
+
+              {(inverted || tooLong) && (
+                <p className="text-caption1 text-ios-red">
+                  {errorMessage(inverted ? 'davomat.davr_notogri' : 'davomat.davr_uzun')}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-1.5 pt-1">
+                <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  disabled={invalid}
+                  onClick={() => {
+                    onChange('custom', { from: draft.from, to: draft.to })
+                    setOpen(false)
+                  }}
+                >
+                  {t('attendance.statsApply')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  )
+}
+
+/** Hal qilingan davrning ikki chegarasi — «Ixtiyoriy oraliq» maydonlari uchun. */
+function periodBounds(period: DashboardPeriod): { from: string; to: string } {
+  return period.kind === 'day'
+    ? { from: period.date, to: period.date }
+    : { from: period.from, to: period.to }
+}
+
+/* ══════════════════════════════════════════════════════ filtr ustuni */
+
+/**
+ * O'ngdagi DOIMIY filtr ustuni — Verifix joylashuvi (SPEC C1).
+ *
+ * Faqat sahifa maydoni keng bo'lganda chiziladi (`@min-[1100px]/page`,
+ * fayl boshidagi izoh). Torroq maydonda u umuman
+ * render qilinmaydi (`hidden`, «yashirilgan blok» emas): ichida uchta
+ * `<select>` va ikkita sana maydoni bor va ular yashirin holatda ham
+ * fokus tartibida qolib, klaviatura bilan yurishni buzardi.
+ *
+ * Ustundagi va ochiluvchi paneldagi filtrlar BITTA manba ustida ishlaydi
+ * (manzil) — ikki nusxa holat yo'q, ya'ni ular hech qachon ajralib
+ * ketmaydi.
+ */
+function FilterColumn({
+  period,
+  today,
+  birthdays,
+  canView,
+  canOpenEmployee,
+  entity,
+  department,
+  position,
+  legalEntities,
+  departments,
+  positions,
+  orgCount,
+  refreshing,
+  onPeriod,
+  onOrg,
+  onRefresh,
+}: {
+  period: DashboardPeriod
+  today: string
+  birthdays: BirthdayFilters
+  canView: boolean
+  canOpenEmployee: boolean
+  entity: string | undefined
+  department: string | undefined
+  position: string | undefined
+  legalEntities: readonly SelectOption[]
+  departments: readonly SelectOption[]
+  positions: readonly SelectOption[]
+  orgCount: number
+  refreshing: boolean
+  onPeriod: (preset: DashboardPreset, custom?: { from: string; to: string }) => void
+  onOrg: (patch: Pick<DashboardSearch, 'entity' | 'department' | 'position'>) => void
+  onRefresh: () => void
+}) {
+  const { t } = useLocale()
+
+  return (
+    /*
+      ⚠️ Ustunning O'ZI suriladi.
+
+      `sticky` — «suriladigan oqim ichida vaqtincha qadalib turish» degani
+      (`app-shell.tsx` dagi izoh). Balandligi cheklanmagan qadalgan element
+      esa ekrandan uzun bo'lsa, uning PASTKI qismiga umuman yetib
+      bo'lmaydi: sahifa surilaveradi, ustun tepada turaveradi va oxirgi
+      qatorlar doim ko'rinmas joyda qoladi. Tug'ilgan kunlar kartasi
+      qo'shilgach aynan shu holat yuz berdi.
+
+      Chegara — ilova qobig'ining suriladigan maydoni (`main`) balandligi:
+      ekran − yuqori panel (64 px + chegara). Qolgan ~15 px ataylab bo'sh
+      qoldirilgan, aks holda ustun ekranning eng pastki chekkasiga
+      yopishib turardi.
+
+      `overscroll-contain` ATAYLAB yo'q (tabel katagidan farqi): ustun
+      oxirigacha surilgach, sichqoncha uning ustida turganda ham sahifa
+      surilishda davom etishi kerak.
+    */
+    <aside className="hidden space-y-4 @min-[1100px]/page:sticky @min-[1100px]/page:top-0 @min-[1100px]/page:block @min-[1100px]/page:max-h-[calc(100dvh-5rem)] @min-[1100px]/page:overflow-y-auto">
+      <Card className="space-y-4 p-4">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={ListFilter} tone="gray" size="sm" />
+          <h2 className="text-subhead font-semibold">{t('common.filters')}</h2>
+        </div>
+
+        <div className="space-y-1.5">
+          <span className="block text-footnote font-medium text-[var(--fg-secondary)]">
+            {t('attendance.statsPeriod')}
+          </span>
+          <PeriodPicker period={period} today={today} onChange={onPeriod} full />
+        </div>
+
+        <Select
+          label={t('employee.legalEntity')}
+          placeholder={t('employees.anyLegalEntity')}
+          options={legalEntities}
+          value={entity ?? ''}
+          onChange={(event) =>
+            onOrg({ entity: blankToUndefined(event.target.value), department, position })
+          }
+        />
+        <Select
+          label={t('employee.department')}
+          placeholder={t('employees.anyDepartment')}
+          options={departments}
+          value={department ?? ''}
+          onChange={(event) =>
+            onOrg({ entity, department: blankToUndefined(event.target.value), position })
+          }
+        />
+        <Select
+          label={t('employee.position')}
+          placeholder={t('employees.anyPosition')}
+          options={positions}
+          value={position ?? ''}
+          onChange={(event) =>
+            onOrg({ entity, department, position: blankToUndefined(event.target.value) })
+          }
+        />
+
+        <div className="space-y-1.5 pt-1">
+          <Button type="button" variant="primary" className="w-full" onClick={onRefresh}>
+            <RefreshCw className={cn(refreshing && 'animate-spin')} />
+            {t('attendance.statsRefresh')}
+          </Button>
+
+          {orgCount > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => onOrg({ entity: undefined, department: undefined, position: undefined })}
+            >
+              <X />
+              {t('employees.clearFilters')}
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      {/*
+        Tug'ilgan kunlar — filtrlarning OSTIDA: u filtrga bo'ysunadi
+        (bo'lim tanlansa ro'yxat ham torayadi), ya'ni tartib sababni
+        natijadan oldin qo'yadi. Faqat keng ekranda: tor ekranda ustun
+        umuman chizilmaydi va telefon ko'rinishi o'zgarmaydi (§E5).
+      */}
+      <BirthdaysCard filters={birthdays} enabled={canView} canOpenEmployee={canOpenEmployee} />
+    </aside>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════ asboblar */
+
+/**
+ * Jadval tepasidagi holat chiplari: «Hammasi 81 · Vaqtida 41 · …»
+ * (SPEC C4 — Verifix ekranidagi qator, UCHALA ko'rinishda ham).
+ *
+ * Diagrammaning bo'lagi va legendasi bilan BIR XIL amalni bajaradi
+ * (`toggleStatus`), lekin ular `list` ko'rinishida yo'q — chip qatori esa
+ * doim turadi. Shu sababli holat filtri endi qaysi ko'rinishda bo'lsa
+ * ham bitta bosish masofasida.
+ *
+ * Sanoqlar `counts` dan: qidiruv va holat filtriga BO'YSUNMAYDI (§8.4),
+ * ya'ni «Kechikkanlar» bosilganda qolgan chiplar nolga aylanmaydi.
+ */
+function StatusChipRow({
+  total,
+  slices,
+  active,
+  loading,
+  onSelect,
+  onClear,
+}: {
+  total: number
+  slices: readonly DashboardSlice[]
+  active: DashboardStatus | null
+  loading: boolean
+  onSelect: (status: DashboardStatus) => void
+  onClear: () => void
+}) {
+  const { t, num } = useLocale()
+
+  if (loading) {
+    return (
+      <div className="flex flex-wrap gap-1 px-3 pb-3 sm:px-4">
+        {Array.from({ length: 7 }, (_, index) => (
+          <Skeleton key={index} className="h-7 w-20 rounded-full" />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={t('attendance.statsColStatus')}
+      className="flex flex-wrap gap-1 px-3 pb-3 sm:px-4"
+    >
+      <StatusChip
+        label={t('common.all')}
+        count={num(total)}
+        selected={active === null}
         onClick={onClear}
-        title={t('attendance.statsClearStatus')}
-        aria-label={t('attendance.statsClearStatus')}
-        className={cn(
-          'grid size-6 place-items-center rounded-full text-[var(--fg-tertiary)]',
-          'transition-colors duration-[120ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]',
-        )}
-      >
-        <X className="size-3.5" strokeWidth={2.5} />
-      </button>
-    </span>
+      />
+
+      {slices.map((slice) => {
+        const look = DASHBOARD_STATUS_LOOK[slice.status]
+
+        return (
+          <StatusChip
+            key={slice.status}
+            label={t(look.legendKey)}
+            count={num(slice.count)}
+            dotClass={look.dotClass}
+            selected={active === slice.status}
+            onClick={() => onSelect(slice.status)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * Bitta chip. Tanlangani tint bilan, qolganlari sokin kulrang fonda —
+ * iOS segmentli boshqaruvi ruhida.
+ *
+ * ⚠️ ZICH va CHEGARASIZ (egasi 2026-09-18: «juda yirik»). Birinchi
+ * versiyada har chip 32 px balandlikda, chegarali va 13 px matnli edi —
+ * yettitasi ikki qatorga tushib, jadval ustida legendaning ikkinchi
+ * nusxasidek og'ir turardi. Endi 28 px, 12 px matn va chegara o'rniga
+ * fon: qator odatda bitta satrga sig'adi va ko'z jadvalga tezroq tushadi.
+ * Nom KESILMAYDI («Ish kuni boshlanmag…» — birinchi versiyaning xatosi).
+ */
+function StatusChip({
+  label,
+  count,
+  dotClass,
+  selected,
+  onClick,
+}: {
+  label: string
+  count: string
+  dotClass?: string
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cn(
+        'press flex h-7 items-center gap-1.5 rounded-full px-2.5 text-caption1 font-medium whitespace-nowrap',
+        'transition-colors duration-[120ms] ease-[var(--ease-ios)]',
+        selected
+          ? 'bg-[var(--accent-soft)] text-[var(--accent-on-soft)]'
+          : 'bg-[var(--bg-sunken)] text-[var(--fg-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]',
+      )}
+    >
+      {dotClass !== undefined && (
+        <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', dotClass)} />
+      )}
+      <span>{label}</span>
+      <span className={cn('tabular font-semibold', !selected && 'text-[var(--fg)]')}>{count}</span>
+    </button>
   )
 }
 
@@ -1259,6 +2031,7 @@ function EmployeeName({
     <Link
       to="/xodimlar/$employeeId"
       params={{ employeeId: item.employeeId }}
+      search={{ tab: 'attendance' }}
       // Qatorning o'zi ham kartani ochadi — havola bosilganda ikki marta o'tilmasin
       onClick={(event) => event.stopPropagation()}
       className="press flex min-w-0 items-center gap-3 rounded-md hover:underline"

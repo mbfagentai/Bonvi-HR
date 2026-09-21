@@ -148,6 +148,26 @@ public static class Permissions
     /// </remarks>
     public const string AttendanceManage = "attendance.manage";
 
+    /// <summary>
+    /// Yo'qlik so'rovlari bo'yicha QAROR qabul qilish: yaratish, tahrirlash,
+    /// tasdiqlash, rad etish va bekor qilish (SPEC-so'rovlar §B4).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega <see cref="AttendanceManage"/> ga qo'shilmadi.</b> U qurilma,
+    /// jadval va moslik — TIZIMNI sozlash. Bu esa kadrlar qarori: «bu odamning
+    /// kelmagani oqlanadimi». Ikkalasi bir odamda bo'lishi shart emas va
+    /// ko'pincha bo'lmaydi ham: qurilmalarni texnik xodim, so'rovlarni HR
+    /// yuritadi.
+    /// </para>
+    /// <para>
+    /// So'rovlarni O'QISH esa <see cref="AttendanceView"/> ostida: ular
+    /// davomat ekranlarining bir qismi va ularsiz tabeldagi «Sababli» kun
+    /// tushunarsiz bo'lib qolardi.
+    /// </para>
+    /// </remarks>
+    public const string AttendanceRequestsManage = "attendance.requests.manage";
+
     // ---------- Ma'lumotnomalar ----------
     public const string CatalogView = "catalog.view";
     public const string CatalogManage = "catalog.manage";
@@ -190,7 +210,7 @@ public static class Permissions
         FeedbackView, FeedbackManage,
         SafetyView, SafetyManage,
         RecruitingView, RecruitingManage,
-        AttendanceView, AttendanceManage,
+        AttendanceView, AttendanceManage, AttendanceRequestsManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
         UsersManage, AuditView, SettingsManage,
@@ -371,7 +391,7 @@ public static class SystemRoles
                   aniqlanmagan har bir o'tish rahbarning vaqtini kutib
                   turardi.
                 */
-                Permissions.AttendanceView, Permissions.AttendanceManage,
+                Permissions.AttendanceView, Permissions.AttendanceManage, Permissions.AttendanceRequestsManage,
 
                 Permissions.CatalogView, Permissions.CatalogManage,
                 Permissions.ReportsView, Permissions.ReportsExport,

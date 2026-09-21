@@ -53,6 +53,14 @@ public sealed class ScheduleResolver
     private readonly Dictionary<Guid, WorkSchedule> _schedules;
     private readonly DepartmentTree _departments;
 
+    /// <summary>Yillik to'rning kataklari — (jadval, sana) bo'yicha.</summary>
+    /// <remarks>
+    /// Hal qiluvchi FAQAT so'ralgan oraliqning kataklarini oladi
+    /// (chaqiruvchi shunday yuklaydi): 26 jadval × bir necha yil = o'n
+    /// minglab qator va ularning hammasi hech qachon kerak bo'lmaydi.
+    /// </remarks>
+    private readonly Dictionary<(Guid ScheduleId, DateOnly Date), WorkScheduleDate> _dates;
+
     /// <summary>Hal qiluvchini bir to'plam ma'lumoti ustida quradi.</summary>
     /// <remarks>
     /// <para>
@@ -73,16 +81,22 @@ public sealed class ScheduleResolver
     /// <param name="assignments">To'plam sanalarini qamraydigan biriktirmalar (hammasini berish ham mumkin).</param>
     /// <param name="schedules">Biriktirmalar ko'rsatgan jadvallar — KUNLARI bilan.</param>
     /// <param name="departments">Bo'limlar daraxti.</param>
+    /// <param name="dates">
+    /// Yillik to'rning kataklari — hisoblanadigan oraliq uchun
+    /// (SPEC-jadval-to'ri §B2). Berilmasa, faqat haftalik naqsh ishlaydi.
+    /// </param>
     public ScheduleResolver(
         IEnumerable<ScheduleAssignment> assignments,
         IEnumerable<WorkSchedule> schedules,
-        DepartmentTree departments)
+        DepartmentTree departments,
+        IEnumerable<WorkScheduleDate>? dates = null)
     {
         ArgumentNullException.ThrowIfNull(assignments);
         ArgumentNullException.ThrowIfNull(schedules);
         ArgumentNullException.ThrowIfNull(departments);
 
         _schedules = schedules.ToDictionary(schedule => schedule.Id);
+        _dates = dates?.ToDictionary(date => (date.WorkScheduleId, date.Date)) ?? [];
         _departments = departments;
 
         var live = assignments.Where(assignment => assignment.DeletedAt is null).ToList();
@@ -132,7 +146,11 @@ public sealed class ScheduleResolver
         }
 
         var schedule = _schedules[winner.WorkScheduleId];
-        return new ScheduleResolution(winner, schedule, DayPlan.For(schedule, date));
+
+        return new ScheduleResolution(
+            winner,
+            schedule,
+            DayPlan.For(schedule, date, _dates.GetValueOrDefault((schedule.Id, date))));
     }
 
     /// <summary>Bo'lim pog'onasi: o'zidan boshlab yuqoriga, birinchi mos kelgan bo'lim yutadi.</summary>
