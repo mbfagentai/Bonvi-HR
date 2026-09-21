@@ -3,6 +3,7 @@ import {
   BriefcaseBusiness,
   ChartColumn,
   CalendarCheck,
+  CalendarClock,
   CircleCheck,
   CircleHelp,
   CircleSlash,
@@ -231,6 +232,18 @@ export const DAY_STATUS_LOOK: Readonly<Record<AttendanceDayStatus, DayStatusLook
     icon: CalendarCheck,
     labelKey: 'attendance.statusExcused',
     cellClass: 'bg-ios-blue/12 text-ios-blue',
+  },
+  /*
+    «Kun kelmagan» — kelajakdagi ish kuni. Katak BO'SH ko'rinadi (fon ham,
+    matn rangi ham oddiy), chunki ayta oladigan gapimiz yo'q: ertaga
+    kelmaganini bugun bilmaymiz. Nishon sifatida u deyarli chiqmaydi —
+    bu holat faqat tabel katagida uchraydi.
+  */
+  Planned: {
+    tone: 'neutral',
+    icon: CalendarClock,
+    labelKey: 'attendance.statusPlanned',
+    cellClass: 'bg-[var(--bg-elevated)] text-[var(--fg-quaternary)]',
   },
 }
 

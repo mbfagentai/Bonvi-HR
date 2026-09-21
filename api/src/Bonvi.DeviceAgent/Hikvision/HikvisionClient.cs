@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -27,7 +28,7 @@ namespace Bonvi.DeviceAgent.Hikvision;
 /// yuboradi — shu sababli tana OQIM emas, BAYT bo'lishi shart.
 /// </para>
 /// </remarks>
-internal sealed class HikvisionClient
+internal sealed partial class HikvisionClient
 {
     /// <summary>Bitta so'rovda so'raladigan yozuvlar soni.</summary>
     /// <remarks>
@@ -329,6 +330,37 @@ internal sealed class HikvisionClient
                 cancellationToken);
     }
 
+    /// <summary>
+    /// Terminalning O'Z joriy vaqti.
+    /// </summary>
+    /// <remarks>
+    /// Javob JSON emas, XML (<c>/ISAPI/System/time</c> faqat shu shaklda
+    /// beriladi), shu sababli kerakli bitta qiymat oddiy qidiruv bilan
+    /// olinadi: butun XML modelini yozish bitta satr uchun ortiqcha
+    /// bo'lardi.
+    /// </remarks>
+    public async Task<DateTimeOffset?> ReadClockAsync(CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/ISAPI/System/time", content: null, cancellationToken)
+            .ConfigureAwait(false);
+
+        var xml = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        var match = LocalTime().Match(xml);
+
+        return match.Success
+            && DateTimeOffset.TryParse(
+                match.Groups[1].Value,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed)
+            ? parsed
+            : null;
+    }
+
+    [GeneratedRegex("<localTime>([^<]+)</localTime>", RegexOptions.IgnoreCase)]
+    private static partial Regex LocalTime();
+
     /// <summary>Ismni terminal qabul qiladigan uzunlikka qirqadi.</summary>
     /// <remarks>
     /// Firmware ismni 32 BAYTgacha oladi va undan uzunini butun so'rov
@@ -396,10 +428,21 @@ internal sealed class HikvisionClient
     private async Task<HttpResponseMessage> SendAsync(
         HttpMethod method,
         string path,
-        HttpContent content,
+        HttpContent? content,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(method, path) { Content = content };
+        /*
+          ⚠️ GET so'rovida tana BO'LMAYDI — hatto bo'shi ham. Bo'sh
+          `StringContent` ham `Content-Length: 0` va `Content-Type:
+          text/plain` sarlavhalarini qo'shadi, firmware esa bunday GET
+          so'rovini umuman qabul qilmaydi.
+        */
+        using var request = new HttpRequestMessage(method, path);
+
+        if (content is not null)
+        {
+            request.Content = content;
+        }
 
         var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
 

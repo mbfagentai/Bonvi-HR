@@ -227,7 +227,7 @@ export function AttendanceDevicesPage() {
         ),
       }),
 
-      helper.accessor('lastSkewSeconds', {
+      helper.accessor('clockOffsetSeconds', {
         header: t('attendance.clock'),
         meta: { width: '140px', hideOnMobile: true },
         cell: ({ row }) => <ClockBadge device={row.original} />,
@@ -500,11 +500,19 @@ function LastSeen({ device }: { device: AttendanceDevice }) {
 function ClockBadge({ device }: { device: AttendanceDevice }) {
   const { t, num } = useLocale()
 
-  if (device.lastSkewSeconds === null) {
+  /*
+    ⚠️ `lastSkewSeconds` EMAS. U «qabul qilingan − sodir bo'lgan», ya'ni
+    agent orqali ishlaydigan qurilmada yetkazib berish kechikishini ham
+    o'z ichiga oladi: agent besh daqiqa o'chib tursa, soati soniyagacha
+    to'g'ri terminal «nosoz» bo'lib ko'rinardi. Bu yerda faqat
+    TO'G'RIDAN-TO'G'RI o'lchov ko'rsatiladi (agent terminalning joriy
+    vaqtini so'raydi), o'lchov yo'q bo'lsa — chiziqcha.
+  */
+  if (device.clockOffsetSeconds === null) {
     return <span className="text-[var(--fg-tertiary)]">—</span>
   }
 
-  const seconds = Math.abs(device.lastSkewSeconds)
+  const seconds = Math.abs(device.clockOffsetSeconds)
   const amount =
     seconds >= 60
       ? t('attendance.skewMinutes', { n: num(Math.round(seconds / 60)) })

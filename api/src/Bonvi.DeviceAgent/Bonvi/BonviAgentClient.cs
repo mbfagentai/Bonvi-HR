@@ -72,6 +72,16 @@ internal sealed class BonviAgentClient
         response.EnsureSuccessStatusCode();
     }
 
+    /// <summary>Terminalning joriy vaqtini yuboradi — soat og'ishi shu yerdan hisoblanadi.</summary>
+    public async Task ReportClockAsync(DateTimeOffset deviceTime, CancellationToken cancellationToken)
+    {
+        using var response = await _http
+            .PostAsJsonAsync("api/attendance/agent/clock", new { deviceTime }, Json, cancellationToken)
+            .ConfigureAwait(false);
+
+        response.EnsureSuccessStatusCode();
+    }
+
     /// <summary>O'tish hodisalarini qabul yo'liga yuboradi.</summary>
     /// <remarks>
     /// Marshrut agentniki EMAS, umumiy qabul yo'li: takrorni tashlash,

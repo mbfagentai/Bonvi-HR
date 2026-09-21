@@ -52,12 +52,14 @@ import {
  * tushuntiradi. Ishlangan kunda baribir SOAT turadi.
  *
  * `NotEmployed` — kodi YO'Q: odam bu sanada umuman ishlamagan va katak
- * ATAYLAB bo'sh (§8.6).
+ * ATAYLAB bo'sh (§8.6). `Planned` ham shunday: kun hali kelmagan va
+ * aytadigan gap yo'q — oyning qolgan yarmi harflar bilan to'lmasligi
+ * kerak.
  */
 /** Legendadagi «ishlangan kun» namunasi — 8 soat, katakda «8,0» bo'lib chiqadi. */
 const SAMPLE_WORKED_MINUTES = 480
 
-const STATUS_CODE_KEY: Readonly<Record<Exclude<AttendanceDayStatus, 'NotEmployed'>, string>> = {
+const STATUS_CODE_KEY: Readonly<Record<Exclude<AttendanceDayStatus, 'NotEmployed' | 'Planned'>, string>> = {
   Present: 'attendance.codePresent',
   Absent: 'attendance.codeAbsent',
   DayOff: 'attendance.codeDayOff',
@@ -429,7 +431,8 @@ function cellText(
   locale: Parameters<typeof formatHours>[1],
 ): string {
   if (cell.workedMinutes > 0) return formatHours(cell.workedMinutes, locale)
-  if (cell.status === 'NotEmployed') return ''
+  // Ikkalasi ham ATAYLAB bo'sh: odam ishlamagan sana va hali kelmagan kun.
+  if (cell.status === 'NotEmployed' || cell.status === 'Planned') return ''
   return t(STATUS_CODE_KEY[cell.status])
 }
 
@@ -654,7 +657,7 @@ export function TimesheetLegend() {
 
   /** Namuna matni — katakning o'zi qanday yozsa, shunday (`cellText`). */
   const sample = (status: AttendanceDayStatus): string =>
-    status === 'NotEmployed'
+    status === 'NotEmployed' || status === 'Planned'
       ? ''
       : status === 'Present' || status === 'DayOffWorked'
         ? formatHours(SAMPLE_WORKED_MINUTES, locale)

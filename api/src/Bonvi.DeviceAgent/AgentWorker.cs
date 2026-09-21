@@ -184,6 +184,14 @@ internal sealed partial class AgentWorker : BackgroundService
     /// </summary>
     private async Task ReconcileAsync(CancellationToken cancellationToken)
     {
+        /*
+          Soat o'lchovi shu halqada: u hodisalarga bog'liq emas va
+          daqiqada bir marta yetarli. Xatosi butun tekshiruvni
+          to'xtatmasligi kerak — terminal vaqtni bermasa ham odamlarni
+          yozish davom etadi.
+        */
+        await ReportClockAsync(cancellationToken).ConfigureAwait(false);
+
         var roster = await _bonvi.RosterAsync(cancellationToken).ConfigureAwait(false);
         var people = await _device.ListPersonsAsync(cancellationToken).ConfigureAwait(false);
 
@@ -228,6 +236,29 @@ internal sealed partial class AgentWorker : BackgroundService
         if (report.Count > 0)
         {
             Reconciled(roster.Entries.Count, report.Count);
+        }
+    }
+
+    /// <summary>Terminal soatini o'lchab, serverga yuboradi.</summary>
+    /// <remarks>
+    /// Serverga SOLIShTIRISH uchun terminalning o'z vaqti yuboriladi,
+    /// tayyor farq emas: agentning o'z soati ham adashishi mumkin va
+    /// o'shanda xato ikki marta qo'shilardi.
+    /// </remarks>
+    private async Task ReportClockAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var deviceTime = await _device.ReadClockAsync(cancellationToken).ConfigureAwait(false);
+
+            if (deviceTime is { } time)
+            {
+                await _bonvi.ReportClockAsync(time, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception failure) when (failure is HikvisionException or HttpRequestException)
+        {
+            ClockFailed(failure.Message);
         }
     }
 
@@ -341,6 +372,10 @@ internal sealed partial class AgentWorker : BackgroundService
     [LoggerMessage(EventId = 6106, Level = LogLevel.Warning,
         Message = "Halqa «{Name}» xato bilan tugadi")]
     private partial void LoopFailed(string name, Exception failure);
+
+    [LoggerMessage(EventId = 6107, Level = LogLevel.Warning,
+        Message = "Qurilma soati o'qilmadi: {Error}")]
+    private partial void ClockFailed(string error);
 
     private static string Method(string? verifyMode)
     {

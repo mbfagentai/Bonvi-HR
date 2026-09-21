@@ -442,7 +442,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             .ToDictionary(group => group.Key, group => group.ToList());
 
         var builder = new AttendanceDayBuilder(
-            await LoadScheduleResolverAsync(today.AddDays(-1), today.AddDays(1), cancellationToken).ConfigureAwait(false));
+            await LoadScheduleResolverAsync(today.AddDays(-1), today.AddDays(1), cancellationToken).ConfigureAwait(false),
+            _clock.Today);
 
         foreach (var employeeId in pending)
         {
@@ -612,7 +613,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         }
 
         var resolver = await LoadScheduleResolverAsync(yesterday, tomorrow, cancellationToken).ConfigureAwait(false);
-        var builder = new AttendanceDayBuilder(resolver);
+        var builder = new AttendanceDayBuilder(resolver, _clock.Today);
 
         int expected = 0, absent = 0, late = 0;
 
@@ -977,7 +978,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             .ToDictionary(group => group.Key, group => group.ToList());
 
         var resolver = await LoadScheduleResolverAsync(date, date, cancellationToken).ConfigureAwait(false);
-        var builder = new AttendanceDayBuilder(resolver);
+        var builder = new AttendanceDayBuilder(resolver, _clock.Today);
 
         // Tasdiqlangan so'rovlar — tabel bilan BITTA shartdan (`AbsenceQuery`).
         // Ularsiz panel «Kelmadi», kalendar esa «Sababli» deb ko'rsatardi.
@@ -1245,7 +1246,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         // Biriktirmalar butun oraliqni bir marta qamraydi — jadval jadvali
         // kichik va uni bo'lak boshiga qayta o'qish foydasiz so'rov bo'lardi.
         var resolver = await LoadScheduleResolverAsync(from, to, cancellationToken).ConfigureAwait(false);
-        var builder = new AttendanceDayBuilder(resolver);
+        var builder = new AttendanceDayBuilder(resolver, _clock.Today);
 
         // So'rovlar ham BUTUN oraliq uchun bir marta: ular kam va bo'laklarga
         // bo'lib o'qish faqat qo'shimcha so'rov bo'lardi.
@@ -1933,7 +1934,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var employmentsByEmployee = await EmploymentsAsync(pageIds, cancellationToken).ConfigureAwait(false);
         var builder = new AttendanceDayBuilder(
-            await LoadScheduleResolverAsync(monthStart, monthEnd, cancellationToken).ConfigureAwait(false));
+            await LoadScheduleResolverAsync(monthStart, monthEnd, cancellationToken).ConfigureAwait(false),
+            _clock.Today);
 
         // Hosil qilingan katak ham tasdiqlangan so'rovni bilishi kerak: aks
         // holda hali hisoblanmagan kun «Kelmadi», qo'shnisi esa «Sababli»

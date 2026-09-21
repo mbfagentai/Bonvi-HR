@@ -43,6 +43,15 @@ internal sealed class AttendanceScenario
     private readonly List<Department> _departments = [];
     private readonly List<PassReading> _passes = [];
 
+    /*
+      Sahnaning «bugun»i — sukut bo'yicha ENG UZOQ kelajak, ya'ni
+      tekshirilayotgan hamma kun O'TGAN sanaladi. Sabab: misollarning
+      hammasi o'tmish haqida va ularga kelajak qoidasi
+      (`AttendanceDayStatus.Planned`) tegishli emas. Aynan o'sha qoidani
+      sinaydigan testlar `Today(...)` bilan buni ochiq o'zgartiradi.
+    */
+    private DateOnly _today = DateOnly.MaxValue;
+
     public Guid EmployeeId { get; } = Guid.CreateVersion7();
 
     /// <summary>Ofis xodimi: sukut jadval 09:00–18:00, har kuni ish kuni.</summary>
@@ -165,10 +174,21 @@ internal sealed class AttendanceScenario
 
     public ScheduleResolver Resolver() => new(_assignments, _schedules, new DepartmentTree(_departments));
 
+    /// <summary>Sahnaning «bugun»ini belgilaydi — kelajak kunlar qoidasi uchun.</summary>
+    public AttendanceScenario Today(DateOnly today)
+    {
+        _today = today;
+        return this;
+    }
+
     /// <summary>Bitta sanani hisoblaydi.</summary>
     public ComputedAttendanceDay Day(DateOnly date) => Days(date).ShouldHaveSingleItem();
 
     /// <summary>Bir nechta sanani BITTA chaqiruvda hisoblaydi — qayta hisoblash ishi aynan shunday chaqiradi.</summary>
     public IReadOnlyList<ComputedAttendanceDay> Days(params DateOnly[] dates)
-        => new AttendanceDayBuilder(Resolver()).Build(EmployeeId, _employments, _passes, dates);
+        => new AttendanceDayBuilder(Resolver(), _today).Build(EmployeeId, _employments, _passes, dates);
+
+    /// <summary>Tasdiqlangan yo'qlik so'rovi qamragan sanalar bilan hisoblaydi.</summary>
+    public IReadOnlyList<ComputedAttendanceDay> DaysExcused(IReadOnlySet<DateOnly> excused, params DateOnly[] dates)
+        => new AttendanceDayBuilder(Resolver(), _today).Build(EmployeeId, _employments, _passes, dates, excused);
 }

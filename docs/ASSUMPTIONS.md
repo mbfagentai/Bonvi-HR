@@ -678,3 +678,6 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-21] Vaqtinchalik skript yozgan `9`+hex raqamlar qayta raqamlanadimi? → YO'Q → faza tekshiruvi uzunlik va birinchi belgi bo'yicha; qayta raqamlash qurilmada ikki nusxa odam yaratardi
 - [2026-09-21] «Hammasini sinxronlash» nimani qiladi? → faqat XATO qatorlarni qayta urinishga qo'yadi → egasi o'chirib qayta yozishni istamadi; yetishmagani baribir har tekshiruvda yoziladi
 - [2026-09-21] Agent rasmni qayta siqadimi? → YO'Q → saqlangan rasm allaqachon 512×512 JPEG; chegaradan oshgani XATO sifatida ko'rinishi kerak
+- [2026-09-21] Kelajakdagi ish kuni qanday ko'rsatiladi? → yangi `Planned` holati, katak bo'sh, qator saqlanmaydi → «kelmadi» ni bugun aytib bo'lmaydi; sanoqlar shishmasin
+- [2026-09-21] Kelajakdagi tasdiqlangan so'rov-chi? → «Sababli» bo'lib ko'rinadi va saqlanadi → qaror bugun qabul qilingan, uni yashirishning ma'nosi yo'q
+- [2026-09-21] Soat og'ishi qanday o'lchanadi? → agent terminalning joriy vaqtini yuboradi, server o'z vaqti bilan solishtiradi → o'tishdan olingan ayirmaga yetkazib berish kechikishi qo'shilib, soxta ogohlantirish berardi

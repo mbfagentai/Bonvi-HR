@@ -281,4 +281,29 @@ public enum AttendanceDayStatus
     /// </para>
     /// </remarks>
     Excused = 9,
+
+    /// <summary>
+    /// Kun hali KELMAGAN — bugundan keyingi ish kuni.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega alohida holat, <see cref="Absent"/> emas.</b> Ertaga
+    /// ishga kelmaganini bugun ayta olmaymiz. Bu holatsiz oy o'rtasida
+    /// ochilgan tabelning qolgan yarmi «Kelmadi» bo'lib qizarardi va
+    /// «kelmagan kunlar» sanog'i oy oxiridagi son bilan bir xil bo'lib
+    /// ko'rinardi — HR uchun bu shunchaki noto'g'ri raqam.
+    /// </para>
+    /// <para>
+    /// ⚠️ Bu holat SAQLANMAYDI: kelajak kun uchun <c>attendance_days</c>
+    /// qatori yaratilmaydi (<c>AttendanceDayBuilder.ShouldStore</c>) va
+    /// katak tabel so'rovida hosil qilinadi. Istisno — tasdiqlangan
+    /// yo'qlik so'rovi: u kelajakdagi kunni ham <see cref="Excused"/>
+    /// qiladi va o'sha qator saqlanadi, chunki qaror BUGUN qabul
+    /// qilingan.
+    /// </para>
+    /// <para>
+    /// Sanoqlarda hech qayerga kirmaydi: na kelganga, na kelmaganga.
+    /// </para>
+    /// </remarks>
+    Planned = 10,
 }

@@ -166,10 +166,63 @@ public static class AttendanceAgentEndpoints
                 "«davomat.agent_hisobot_uzun» (400).")
             .Produces<AgentReportResultDto>(StatusCodes.Status200OK);
 
+        group.MapPost("/clock", async (
+                [FromHeader(Name = TokenHeader)] string? token,
+                [FromHeader(Name = SignatureHeader)] string? signature,
+                HttpContext context,
+                ReportDeviceClockCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var body = await ReadBodyAsync(context.Request, cancellationToken).ConfigureAwait(false);
+
+                DeviceClockBody? clock;
+                try
+                {
+                    clock = JsonSerializer.Deserialize<DeviceClockBody>(body, ReportJson);
+                }
+                catch (JsonException)
+                {
+                    clock = null;
+                }
+
+                if (clock?.DeviceTime is not { } deviceTime)
+                {
+                    return Results.Problem(new ProblemDetails
+                    {
+                        Status = StatusCodes.Status400BadRequest,
+                        Title = "davomat.qurilma_vaqti_notogri",
+                        Detail = "Qurilma vaqti ko'rsatilmagan.",
+                    });
+                }
+
+                var natija = await handler
+                    .HandleAsync(
+                        new ReportDeviceClockCommand(token, body, signature, AgentIp(context), deviceTime),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return Respond(natija.IsFailure ? natija.Error : null) ?? natija.ToHttpResult();
+            })
+            .AsAgentRoute()
+            .DisableAntiforgery()
+            .WithName("ReportAttendanceDeviceClock")
+            .WithSummary("Davomat — qurilma soati")
+            .WithDescription(
+                "«{ deviceTime }» — terminalning O'Z joriy vaqti, siljishi bilan. Server uni shu " +
+                "lahzadagi o'z vaqti bilan solishtiradi va farqni qurilma kartasiga yozadi. " +
+                "Bu o'lchov hodisalar navbatiga bog'liq EMAS: agent bir necha daqiqa o'chib tursa " +
+                "ham soat og'ishi ko'rsatkichi to'g'ri qoladi. Ishonarsiz qiymat — " +
+                "«davomat.qurilma_vaqti_notogri» (400).")
+            .Produces<DeviceClockDto>(StatusCodes.Status200OK);
+
         return app;
     }
 
-    /// <summary>Uchala marshrutning umumiy sozlamalari — qabul yo'lidagidek bitta joyda.</summary>
+    /// <summary>Agent yuborgan qurilma vaqti.</summary>
+    /// <param name="DeviceTime">Terminalning joriy vaqti.</param>
+    private sealed record DeviceClockBody(DateTimeOffset? DeviceTime);
+
+    /// <summary>To'rtala marshrutning umumiy sozlamalari — qabul yo'lidagidek bitta joyda.</summary>
     private static RouteHandlerBuilder AsAgentRoute(this RouteHandlerBuilder builder)
         => builder
             // Ochiqlik ATAYLAB — sinf izohiga qarang. Himoya qurilma tokenida.

@@ -63,14 +63,24 @@ public sealed record ComputedAttendanceDay(
 public sealed class AttendanceDayBuilder
 {
     private readonly ScheduleResolver _schedules;
+    private readonly DateOnly _today;
 
     /// <summary>Hisoblovchini to'plamning jadval hal qiluvchisi ustida quradi.</summary>
     /// <param name="schedules">Bir to'plam uchun qurilgan hal qiluvchi.</param>
-    public AttendanceDayBuilder(ScheduleResolver schedules)
+    /// <param name="today">
+    /// Toshkent vaqti bo'yicha BUGUN — kelajak kunlarni ajratish uchun.
+    /// </param>
+    /// <remarks>
+    /// ⭐ «Bugun» tashqaridan beriladi, <c>DateTime.Now</c> dan olinmaydi:
+    /// sinf toza funksiya bo'lib qolishi kerak (sinf izohi), aks holda
+    /// yarim tunda o'tgan test goh o'tib, goh yiqilardi.
+    /// </remarks>
+    public AttendanceDayBuilder(ScheduleResolver schedules, DateOnly today)
     {
         ArgumentNullException.ThrowIfNull(schedules);
 
         _schedules = schedules;
+        _today = today;
     }
 
     /// <summary>[from, to] kunlarini hisoblash uchun qaysi <c>local_date</c> dagi o'tishlar yuklanishi shart.</summary>
@@ -145,7 +155,8 @@ public sealed class AttendanceDayBuilder
                 date,
                 calendar.For(date),
                 passesByDate.GetValueOrDefault(date) ?? [],
-                excusedDates?.Contains(date) ?? false))
+                excusedDates?.Contains(date) ?? false,
+                _today))
             .ToList();
     }
 
@@ -155,7 +166,8 @@ public sealed class AttendanceDayBuilder
         DateOnly date,
         DayContext context,
         List<PassReading> passes,
-        bool excused)
+        bool excused,
+        DateOnly today)
     {
         var employment = context.Employment;
         var schedule = context.Schedule;
@@ -195,6 +207,17 @@ public sealed class AttendanceDayBuilder
         {
             status = AttendanceDayStatus.Excused;
         }
+        else if (date > today && status == AttendanceDayStatus.Absent)
+        {
+            /*
+              Kelajak kun — «kelmadi» EMAS. Tartib muhim: tasdiqlangan
+              so'rov ustun turadi, ya'ni keyingi haftaga ruxsat olingan
+              kun tabelda bugundanoq «Sababli» bo'lib ko'rinadi. Qolgan
+              kelajak ish kunlari esa bo'sh qoladi va hech qaysi sanoqqa
+              kirmaydi.
+            */
+            status = AttendanceDayStatus.Planned;
+        }
 
         var facts = new AttendanceDayFacts(
             EmploymentId: employment?.Id,
@@ -224,7 +247,16 @@ public sealed class AttendanceDayBuilder
 
         // §5.4: o'tish bor — YOKI munosabat bor va jadval shu kunni ish kuni deydi.
         // Ish kunidagi reja faqat munosabat va jadval topilganda bo'ladi.
-        var shouldStore = pairing.PassCount > 0 || plan is { IsWorking: true };
+        /*
+          Kelajak kun uchun qator YARATILMAYDI: u har kecha qayta
+          hisoblanib turadigan minglab bo'sh qatorni keltirib chiqarardi
+          va oy oxirigacha bo'lgan hamma kunni bazaga yozardi. Istisno —
+          tasdiqlangan so'rov: u BUGUN qabul qilingan qaror va yozuvi
+          bo'lishi kerak.
+        */
+        var shouldStore = pairing.PassCount > 0
+            || (plan is { IsWorking: true }
+                && (date <= today || status == AttendanceDayStatus.Excused));
 
         return new ComputedAttendanceDay(
             employeeId,

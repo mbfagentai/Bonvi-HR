@@ -183,3 +183,48 @@ COMPOSE_PROFILES=agent ./bonvi up
 ⚠️ Noto'g'ri parol bilan urinish terminalda hisobni QULFLAYDI
 (`retryLoginTime` kamayadi). Parolni taxmin qilib ko'rmang.
 
+---
+
+## I. Kelajak kunlar va soat og'ishi (2026-09-21, egasining so'rovi)
+
+### I1. Kelajakdagi ish kuni «Kelmadi» EMAS
+
+Muammo: oy o'rtasida ochilgan tabelning qolgan yarmi qizil edi va
+«kelmagan kunlar» sanog'i oy oxiridagi son bilan bir xil ko'rinardi.
+Bazada ertangi kunga allaqachon `Absent` qatorlari yotardi (yo'qlik
+so'rovi qamragan oraliq qayta hisoblanganda yaratilgan).
+
+Yechim — yangi holat `AttendanceDayStatus.Planned` («Kun kelmagan»):
+
+* bugundan keyingi ish kuni, o'tishi yo'q → `Planned`, katak BO'SH;
+* qator SAQLANMAYDI (`ShouldStore = false`) — mavjudlari qayta
+  hisoblashda o'chadi;
+* hech qaysi sanoqqa kirmaydi: na kelgan, na kelmagan;
+* **istisno** — tasdiqlangan yo'qlik so'rovi kelajak qoidasidan USTUN:
+  keyingi haftaga olingan ruxsat bugundanoq «Sababli» bo'lib ko'rinadi
+  va yozuvi saqlanadi, chunki qaror BUGUN qabul qilingan;
+* o'tishi bor kelajak sana (tungi smenaning chiqishi) odatdagidek
+  hisoblanadi.
+
+«Bugun» hisoblovchiga TASHQARIDAN beriladi (`AttendanceDayBuilder`
+konstruktori) — sinf toza funksiya bo'lib qolishi uchun.
+
+### I2. Soat og'ishi — to'g'ridan-to'g'ri o'lchov
+
+Eski o'lchov `qabul qilingan − sodir bo'lgan` edi. Qurilma o'zi push
+qilganda bu soat farqi edi; agent TORTIB olganda esa unga yetkazib
+berish kechikishi ham qo'shiladi. 2026-09-21 da agent 13 daqiqa o'chib
+turdi va qaytganda eski o'tishlarni yubordi — soati soniyagacha to'g'ri
+terminal «nosoz» bo'lib ko'rindi.
+
+Yechim: agent har tekshiruvda terminaldan uning JORIY vaqtini so'raydi
+(`GET /ISAPI/System/time`) va `POST /api/attendance/agent/clock` orqali
+yuboradi. Server uni o'z joriy vaqti bilan solishtiradi va farqni
+`attendance_devices.clock_offset_seconds` ga yozadi. Ekran va
+`HasClockDrift` endi shu ustundan o'qiydi; eski `last_skew_seconds`
+zaxira bo'lib qoladi (o'zi push qiladigan qurilmalar uchun).
+
+⚠️ Yana bitta ISAPI tuzog'i: **GET so'rovida tana bo'lmasligi kerak** —
+bo'sh `StringContent` ham `Content-Length: 0` qo'shadi va firmware
+so'rovni rad etadi.
+

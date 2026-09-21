@@ -804,7 +804,15 @@ public sealed record AttendanceExportFile(byte[] Content, string FileName);
 /// <param name="LastSeenAt">Tasdiqdan o'tgan oxirgi so'rov.</param>
 /// <param name="LastEventAt">Oxirgi qabul qilingan o'tish.</param>
 /// <param name="LastSeenIp">Oxirgi so'rov manzili.</param>
-/// <param name="LastSkewSeconds">Oxirgi o'tishdagi soat og'ishi.</param>
+/// <param name="LastSkewSeconds">
+/// Oxirgi o'tishdagi ayirma: <c>qabul qilingan − sodir bo'lgan</c>. Agent
+/// orqali ishlaydigan qurilmada bunga yetkazib berish kechikishi ham
+/// kiradi, shuning uchun ekran uni ko'rsatmaydi — u faqat zaxira manba.
+/// </param>
+/// <param name="ClockOffsetSeconds">
+/// Qurilma soatining og'ishi — agent o'lchagan TO'G'RIDAN-TO'G'RI qiymat.
+/// </param>
+/// <param name="ClockCheckedAt">Soat oxirgi marta qachon o'lchangan.</param>
 /// <param name="PassCount24h">So'nggi 24 soatda qabul qilingan o'tishlar (<c>received_at</c> bo'yicha).</param>
 /// <param name="SkewWarning">
 /// Soat og'ishi chegaradan oshganmi — SERVERDA hisoblanadi
@@ -833,6 +841,8 @@ public sealed record AttendanceDeviceDto(
     DateTimeOffset? LastEventAt,
     string? LastSeenIp,
     int? LastSkewSeconds,
+    int? ClockOffsetSeconds,
+    DateTimeOffset? ClockCheckedAt,
     int PassCount24h,
     bool SkewWarning);
 
@@ -1331,6 +1341,11 @@ public sealed record DeviceEnrollmentSummaryDto(
 public sealed record DeviceEnrollmentPageDto(
     DeviceEnrollmentSummaryDto Summary,
     IReadOnlyList<DeviceEnrollmentRowDto> Rows);
+
+/// <summary>Qurilma soati o'lchandi.</summary>
+/// <param name="OffsetSeconds">Qurilma vaqti minus server vaqti (ishorali).</param>
+/// <param name="Warning">Chegaradan oshdimi — server qaroriga ko'ra.</param>
+public sealed record DeviceClockDto(int OffsetSeconds, bool Warning);
 
 /// <summary>Qayta yozish so'raldi.</summary>
 /// <param name="Affected">Nechta qatorda majburiyat belgisi ko'tarildi.</param>

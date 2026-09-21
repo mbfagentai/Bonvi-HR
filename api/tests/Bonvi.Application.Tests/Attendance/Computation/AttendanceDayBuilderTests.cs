@@ -481,6 +481,58 @@ public sealed class AttendanceDayBuilderTests
         kun.LastOutAt!.Value.Offset.ShouldBe(TimeSpan.Zero);
     }
 
+    // ────────────────────── Kelajak kunlar ──────────────────────
+
+    /// <summary>
+    /// Bugundan keyingi ish kuni «Kelmadi» EMAS: ertaga kelmaganini bugun
+    /// ayta olmaymiz. Qator ham yozilmaydi.
+    /// </summary>
+    [Fact]
+    public void Kelajakdagi_ish_kuni_kelmagan_deb_belgilanmaydi()
+    {
+        var sahna = Office().Today(Monday);
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.Absent, "bugungi kun odatdagidek baholanadi");
+        kunlar[0].ShouldStore.ShouldBeTrue();
+
+        kunlar[1].Facts.Status.ShouldBe(AttendanceDayStatus.Planned);
+        kunlar[1].ShouldStore.ShouldBeFalse("kelajak kun uchun qator yaratilmaydi");
+    }
+
+    /// <summary>
+    /// Kelajakdagi kunda o'tish bo'lsa (masalan tungi smenaning chiqishi)
+    /// — u odatdagidek hisoblanadi va saqlanadi.
+    /// </summary>
+    [Fact]
+    public void Kelajak_qoidasi_otishi_bor_kunga_tegmaydi()
+    {
+        var sahna = Office().Today(Monday);
+        sahna.Alternating(Tuesday, "09:00", "18:00");
+
+        var kun = sahna.Day(Tuesday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.Present);
+        kun.ShouldStore.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// Tasdiqlangan so'rov kelajak qoidasidan USTUN: keyingi haftaga
+    /// olingan ruxsat tabelda bugundanoq «Sababli» bo'lib ko'rinadi va
+    /// yozuvi saqlanadi — qaror BUGUN qabul qilingan.
+    /// </summary>
+    [Fact]
+    public void Kelajakdagi_tasdiqlangan_sorov_sababli_bolib_saqlanadi()
+    {
+        var sahna = Office().Today(Monday);
+
+        var kun = sahna.DaysExcused(new HashSet<DateOnly> { Tuesday }, Tuesday).ShouldHaveSingleItem();
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.Excused);
+        kun.ShouldStore.ShouldBeTrue();
+    }
+
     [Fact]
     public void Otish_yuklanadigan_sanalar_ikki_tomonga_bir_kunga_kengayadi()
     {

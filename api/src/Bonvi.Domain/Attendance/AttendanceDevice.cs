@@ -160,7 +160,29 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     public string? LastSeenIp { get; private set; }
 
     /// <summary>Oxirgi qabul qilingan o'tishdagi soat og'ishi (soniya, ishorali).</summary>
+    /// <remarks>
+    /// ⚠️ Bu son «qurilma soati» ni o'lchamaydi, u YETKAZIB BERISH
+    /// kechikishini ham o'z ichiga oladi: <c>qabul qilingan − sodir
+    /// bo'lgan</c>. Qurilmaning o'zi push qilganda ikkisi bir xil narsa
+    /// edi; agent orqali tortib olinganda esa agentning bir necha
+    /// daqiqalik uzilishi ham shu songa qo'shiladi. Shuning uchun
+    /// soatning HAQIQIY og'ishi endi <see cref="ClockOffsetSeconds"/> da.
+    /// </remarks>
     public int? LastSkewSeconds { get; private set; }
+
+    /// <summary>
+    /// Qurilma soatining serverdan og'ishi (soniya, ishorali) — TO'G'RIDAN-TO'G'RI o'lchov.
+    /// </summary>
+    /// <remarks>
+    /// Agent terminaldan uning JORIY vaqtini so'raydi va shu lahzadagi
+    /// server vaqti bilan solishtiradi. Bu o'lchov hodisalar navbatiga,
+    /// tarmoq kechikishiga va agentning uzilishiga BOG'LIQ EMAS —
+    /// aynan shuning uchun u alohida ustunda yashaydi.
+    /// </remarks>
+    public int? ClockOffsetSeconds { get; private set; }
+
+    /// <summary>Soat oxirgi marta qachon tekshirilgan.</summary>
+    public DateTimeOffset? ClockCheckedAt { get; private set; }
 
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
@@ -175,8 +197,17 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     /// dagi bilan bir xil sabab: saqlangan bayroq o'zi tasvirlayotgan
     /// songa zid bo'lib qolishi mumkin.
     /// </remarks>
+    /// <remarks>
+    /// ⭐ To'g'ridan-to'g'ri o'lchov (<see cref="ClockOffsetSeconds"/>) bo'lsa
+    /// FAQAT u ishlatiladi: o'tishdan olingan son yetkazib berish
+    /// kechikishini ham o'z ichiga oladi va agent bir necha daqiqa
+    /// o'chgandan keyin soxta «soat nosoz» belgisini yoqib yuborardi.
+    /// O'lchov yo'q qurilmalar (o'zi push qiladiganlar) uchun eski
+    /// manba zaxira bo'lib qoladi.
+    /// </remarks>
     public bool HasClockDrift
-        => LastSkewSeconds is { } skew && Math.Abs(skew) > AttendanceRules.ClockSkewToleranceSeconds;
+        => (ClockOffsetSeconds ?? LastSkewSeconds) is { } skew
+            && Math.Abs(skew) > AttendanceRules.ClockSkewToleranceSeconds;
 
     /// <summary>Yangi qurilmani ro'yxatga oladi.</summary>
     /// <remarks>
@@ -330,6 +361,16 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
         NoteSeen(at, ip);
         LastEventAt = at;
         LastSkewSeconds = skewSeconds;
+    }
+
+    /// <summary>Agent qurilma soatini o'lchadi.</summary>
+    /// <param name="offsetSeconds">Qurilma vaqti minus server vaqti, soniyada.</param>
+    /// <param name="at">O'lchov lahzasi.</param>
+    public void NoteClock(int offsetSeconds, DateTimeOffset at)
+    {
+        NoteSeen(at, ip: null);
+        ClockOffsetSeconds = offsetSeconds;
+        ClockCheckedAt = at;
     }
 
     /// <summary>

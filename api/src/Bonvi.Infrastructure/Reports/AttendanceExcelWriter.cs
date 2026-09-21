@@ -560,6 +560,10 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         AttendanceDayStatus.NoSchedule => "Jadval yo'q",
         AttendanceDayStatus.NotEmployed => "Ishlamagan",
         AttendanceDayStatus.Excused => "Sababli",
+        // Kelajak kun — Excel'da ham bo'sh emas, atayin nomlangan:
+        // eksportni ochgan odam bo'sh katakni «ma'lumot yo'qolgan» deb
+        // o'ylamasligi kerak.
+        AttendanceDayStatus.Planned => "Kun kelmagan",
         _ => status.ToString(),
     };
 
@@ -573,6 +577,8 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         AttendanceDayStatus.NoSchedule => "J",
         AttendanceDayStatus.NotEmployed => "—",
         AttendanceDayStatus.Excused => "S",
+        // Kelajak kunning belgisi YO'Q: tabel katagida u bo'sh turishi
+        // kerak, aks holda oyning qolgan yarmi belgilar bilan to'lardi.
         _ => string.Empty,
     };
 

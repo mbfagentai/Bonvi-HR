@@ -254,6 +254,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("auth_mode");
 
+                    b.Property<DateTimeOffset?>("ClockCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("clock_checked_at");
+
+                    b.Property<int?>("ClockOffsetSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("clock_offset_seconds");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");

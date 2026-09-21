@@ -96,6 +96,8 @@ public sealed class AttendanceDeviceMapper
                 device.LastEventAt,
                 device.LastSeenIp,
                 device.LastSkewSeconds,
+                device.ClockOffsetSeconds,
+                device.ClockCheckedAt,
                 counts.GetValueOrDefault(device.Id),
                 device.HasClockDrift));
         }

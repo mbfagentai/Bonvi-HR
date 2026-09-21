@@ -271,6 +271,41 @@ public sealed class AttendanceAgentApiTests : IClassFixture<BonviApiFactory>
         (await EnrollmentAsync(deviceId, employeeId)).ForceVersion.ShouldBe(1);
     }
 
+    /// <summary>
+    /// Qurilma soati TO'G'RIDAN-TO'G'RI o'lchanadi: o'lchov hodisalar
+    /// navbatiga bog'liq emas va ogohlantirish shundan chiqadi.
+    /// </summary>
+    [Fact]
+    public async Task Qurilma_soati_olchanadi_va_ogohlantirish_shundan_chiqadi()
+    {
+        var cancel = TestContext.Current.CancellationToken;
+        var tag = Tag();
+
+        var (deviceId, token) = await DeviceAsync(tag);
+
+        // O'n daqiqa oldinda yurgan terminal — chegaradan (5 daqiqa) oshadi.
+        var ahead = await ClockAsync(token, DateTimeOffset.UtcNow.AddMinutes(10));
+
+        ahead.OffsetSeconds.ShouldBeInRange(570, 630);
+        ahead.Warning.ShouldBeTrue();
+
+        // Soat to'g'rilandi — belgi darhol tinadi.
+        var fixedClock = await ClockAsync(token, DateTimeOffset.UtcNow);
+
+        Math.Abs(fixedClock.OffsetSeconds).ShouldBeLessThan(60);
+        fixedClock.Warning.ShouldBeFalse();
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var device = await db.AttendanceDevices
+            .AsNoTracking()
+            .SingleAsync(row => row.Id == deviceId, cancel);
+
+        device.ClockCheckedAt.ShouldNotBeNull();
+        device.LastSkewSeconds.ShouldBeNull("o'tish kelmagan — o'tishdan olinadigan son tegilmasligi kerak");
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
@@ -376,6 +411,21 @@ public sealed class AttendanceAgentApiTests : IClassFixture<BonviApiFactory>
         using var response = await client.SendAsync(request, cancel);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(cancel));
+    }
+
+    private async Task<DeviceClockDto> ClockAsync(string token, DateTimeOffset deviceTime)
+    {
+        var cancel = TestContext.Current.CancellationToken;
+
+        using var client = _factory.CreateClient();
+        using var request = Request(HttpMethod.Post, "/api/attendance/agent/clock", token);
+        request.Content = JsonContent.Create(new { deviceTime }, options: Json);
+
+        using var response = await client.SendAsync(request, cancel);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(cancel));
+
+        return (await response.Content.ReadFromJsonAsync<DeviceClockDto>(Json, cancel)).ShouldNotBeNull();
     }
 
     private async Task<DeviceEnrollment> EnrollmentAsync(Guid deviceId, Guid employeeId)

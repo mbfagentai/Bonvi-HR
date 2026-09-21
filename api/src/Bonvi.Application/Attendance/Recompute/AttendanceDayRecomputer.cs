@@ -163,7 +163,8 @@ public sealed class AttendanceDayRecomputer
                 catalog.Assignments,
                 catalog.Schedules,
                 new DepartmentTree(catalog.Departments),
-                catalog.Dates));
+                catalog.Dates),
+            _clock.UtcNow.TashkentDate());
 
         var stored = 0;
         var removed = 0;

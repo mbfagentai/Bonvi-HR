@@ -52,6 +52,7 @@ internal static class AttendanceRegistration
         // Qurilmaga yozish — agent va holat (SPEC-agent §D)
         services.AddScoped<GetAgentRosterQueryHandler>();
         services.AddScoped<ReportAgentEnrollmentsCommandHandler>();
+        services.AddScoped<ReportDeviceClockCommandHandler>();
         services.AddScoped<GetDeviceEnrollmentsQueryHandler>();
         services.AddScoped<GetEmployeeEnrollmentsQueryHandler>();
         services.AddScoped<ResyncEmployeeEnrollmentsCommandHandler>();

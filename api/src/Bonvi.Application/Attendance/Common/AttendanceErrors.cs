@@ -256,4 +256,9 @@ public static class AttendanceErrors
     public static Error AgentReportTooLarge { get; } = Error.Validation(
         "davomat.agent_hisobot_uzun",
         "Hisobotdagi qatorlar soni chegaradan oshdi.");
+
+    /// <summary>Agent yuborgan qurilma vaqti ishonarsiz.</summary>
+    public static Error DeviceClockUnreadable { get; } = Error.Validation(
+        "davomat.qurilma_vaqti_notogri",
+        "Qurilma vaqti o'qib bo'lmaydigan qiymat berdi.");
 }
