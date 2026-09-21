@@ -1,0 +1,47 @@
+# ============================================================
+#  Bonvi HR qurilma agenti — production image
+#
+#  API va bot tasvirlaridan ALOHIDA va bu ataylab: agent
+#  MIJOZning binosida, boshqa mashinada ishlaydi. U yerda
+#  API ning tasviri ham, bazasi ham kerak emas.
+#
+#  Loyihada boshqa loyihaga havola YO'Q (izohi
+#  Bonvi.DeviceAgent.csproj da), shu sababli bu yerda bitta
+#  csproj tiklanadi va tasvir kichik chiqadi.
+# ============================================================
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400-noble AS build
+WORKDIR /src
+
+# Avval faqat loyiha fayllari — NuGet qatlami keshlanadi
+COPY global.json Directory.Build.props Directory.Packages.props ./
+COPY src/Bonvi.DeviceAgent/*.csproj src/Bonvi.DeviceAgent/
+RUN dotnet restore src/Bonvi.DeviceAgent/Bonvi.DeviceAgent.csproj
+
+COPY src/Bonvi.DeviceAgent/ src/Bonvi.DeviceAgent/
+RUN dotnet publish src/Bonvi.DeviceAgent/Bonvi.DeviceAgent.csproj \
+      -c Release \
+      -o /app/publish \
+      --no-restore \
+      /p:UseAppHost=false
+
+# ------------------------------------------------------------
+#  `aspnet` emas, `runtime`: agent HTTP SERVER emas — u faqat
+#  chiquvchi so'rov yuboradi (terminalga va Bonvi API ga).
+#  Hech qayerda kiruvchi port ochilmaydi.
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble AS runtime
+WORKDIR /app
+
+# Root'dan ishlamaydi — API bilan bir xil talab
+RUN groupadd --system --gid 2000 bonvi \
+ && useradd  --system --uid 2000 --gid bonvi bonvi
+
+# Holat fayli (hodisa kursori) shu jildda — TOMga ulanadi
+RUN mkdir -p /data && chown bonvi:bonvi /data
+VOLUME ["/data"]
+
+COPY --from=build --chown=bonvi:bonvi /app/publish .
+
+USER bonvi
+
+ENTRYPOINT ["dotnet", "bonvi-device-agent.dll"]

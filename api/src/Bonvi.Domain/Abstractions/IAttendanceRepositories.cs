@@ -509,3 +509,45 @@ public interface IWorkScheduleDateRepository
 
     void Remove(WorkScheduleDate date);
 }
+
+/// <summary>Xodimning qurilmadagi holati uchun saqlash porti (SPEC-agent §D3).</summary>
+/// <remarks>
+/// Qurilmaning bolasi EMAS, alohida port: bir qurilmada minglab qator
+/// bo'lishi mumkin va ular hech qachon qurilma kartasi bilan birga
+/// yuklanmaydi.
+/// </remarks>
+public interface IDeviceEnrollmentRepository
+{
+    /// <summary>Bitta qurilmaning barcha holatlari — KUZATILADI (agent hisoboti ularni yozadi).</summary>
+    Task<IReadOnlyList<DeviceEnrollment>> ListByDeviceAsync(
+        Guid deviceId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Bitta xodimning barcha qurilmalardagi holati.</summary>
+    Task<IReadOnlyList<DeviceEnrollment>> ListByEmployeeAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default);
+
+    void Add(DeviceEnrollment enrollment);
+}
+
+/// <summary>
+/// Qurilmaga yoziladigan shaxs raqamlarini beradi (SPEC-agent §D1).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Raqam bazadagi KETMA-KETLIKdan olinadi, «eng kattasi + 1» dan emas:
+/// ikkita agent bir vaqtda ro'yxat so'rasa, ikkinchi usul ikkalasiga bir
+/// xil raqam berib, ikkinchi xodimning yozuvini unikal indeksda yiqitardi.
+/// </para>
+/// <para>
+/// Ketma-ketlik faqat SON beradi; «9» prefiksi va uzunligi —
+/// <c>DevicePersonNo</c> ning ishi, chunki ular qurilma bilan emas,
+/// Bonvi ning raqamlar fazosi bilan bog'liq qoida.
+/// </para>
+/// </remarks>
+public interface IDevicePersonNumbers
+{
+    /// <summary>Keyingi bo'sh tartib raqami.</summary>
+    Task<long> NextAsync(CancellationToken cancellationToken = default);
+}

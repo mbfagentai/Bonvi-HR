@@ -163,9 +163,12 @@ public static class DependencyInjection
         services.AddScoped<IWorkScheduleRepository, WorkScheduleRepository>();
         services.AddScoped<IScheduleAssignmentRepository, ScheduleAssignmentRepository>();
         services.AddScoped<IAttendanceDayRepository, AttendanceDayRepository>();
+        services.AddScoped<IDeviceEnrollmentRepository, DeviceEnrollmentRepository>();
+        services.AddScoped<IDevicePersonNumbers, DevicePersonNumbers>();
 
         services.AddScoped<IAttendanceReadModel, AttendanceReadModel>();
         services.AddScoped<IAttendanceComputationSource, AttendanceComputationSource>();
+        services.AddScoped<IEnrollmentReadModel, EnrollmentReadModel>();
 
         // Excel yozuvchi va o'quvchi — holatsiz, bitta nusxa yetarli
         // (`EmployeeExcelWriter` bilan bir xil).

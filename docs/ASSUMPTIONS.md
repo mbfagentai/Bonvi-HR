@@ -673,3 +673,8 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-20] Yillik to'r haftalik naqshni ALMASHTIRADIMI → yo'q, ustidagi ISTISNOLAR qatlami: katak yozilgan sana naqshdan ustun, yozilmagani naqshdan keladi → Verifix'da jadval yilga bog'langan va 31-dekabrdan keyin hamma «jadvalsiz» bo'lib qolardi; bu yechimda ekran bir xil ko'rinadi, lekin yil chegarasida hech narsa sinmaydi
 - [2026-09-20] To'rga yozgandan keyin qaysi kunlar qayta hisoblanadi → faqat BUGUNGACHA bo'lganlari → kelajakdagi kunning saqlangan yozuvi yo'q (tabel uni o'qiyotganda hosil qiladi), ya'ni butun yilni to'ldirish 365 kunlik og'ir vazifa tug'dirmaydi
 - [2026-09-20] Bayramlar ma'lumotnomasi qo'shiladimi → YO'Q (egasi: «bayram kunlariyam odatda bizda dam bo'lmaydi») → kerak bo'lgan kun to'rda qo'lda dam olish kuniga aylantiriladi; uzluksiz ishlaydigan jadvallar tegilmaydi
+- [2026-09-21] Agent ro'yxatiga rasmi yo'q xodim kiradimi? → YO'Q, chetlatiladi → yuz terminaliga rasmsiz yozib bo'lmaydi; HR ekranida «Rasm yo'q» holati serverda hisoblanadi
+- [2026-09-21] Shaxs raqami qayerdan? → PostgreSQL ketma-ketligi `device_person_no_seq`, format `9` + 8 xona → ikkita agent bir vaqtda so'raganda takror raqam bo'lmasin
+- [2026-09-21] Vaqtinchalik skript yozgan `9`+hex raqamlar qayta raqamlanadimi? → YO'Q → faza tekshiruvi uzunlik va birinchi belgi bo'yicha; qayta raqamlash qurilmada ikki nusxa odam yaratardi
+- [2026-09-21] «Hammasini sinxronlash» nimani qiladi? → faqat XATO qatorlarni qayta urinishga qo'yadi → egasi o'chirib qayta yozishni istamadi; yetishmagani baribir har tekshiruvda yoziladi
+- [2026-09-21] Agent rasmni qayta siqadimi? → YO'Q → saqlangan rasm allaqachon 512×512 JPEG; chegaradan oshgani XATO sifatida ko'rinishi kerak

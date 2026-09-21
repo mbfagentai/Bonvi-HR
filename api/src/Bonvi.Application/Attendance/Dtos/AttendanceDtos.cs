@@ -1178,3 +1178,160 @@ public sealed record ScheduleResolutionDto(
 /// <param name="EmployeeCount">Nechta xodim qayta hisoblanadi.</param>
 /// <param name="DayCount">Davrdagi kalendar kunlar soni (ikki chekka ham kiradi).</param>
 public sealed record AttendanceRecomputeAcceptedDto(string JobId, int EmployeeCount, int DayCount);
+
+// ────────────────────────────────────────────────────────────────────
+//  10. Qurilmaga yozish — agent va holat (SPEC-agent §D)
+// ────────────────────────────────────────────────────────────────────
+
+/// <summary>Agent uchun ro'yxatning bitta qatori.</summary>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="PersonNo">Qurilmaga yoziladigan shaxs raqami — server ajratgan.</param>
+/// <param name="FullName">Qurilma ro'yxatida ko'rinadigan ism.</param>
+/// <param name="PhotoVersion">
+/// Rasmning belgisi (rasm kaliti). O'zgarsa — yuz qayta yoziladi; qiymati
+/// qanday tuzilgani agent uchun ahamiyatsiz, u faqat TENGLIKni tekshiradi.
+/// </param>
+/// <param name="Version">
+/// Agent hisobotda qaytaradigan belgi: <c>rasm:majburiyat</c>. Server shu
+/// satrni saqlaydi va keyingi safar hozirgisi bilan solishtiradi — ya'ni
+/// «nima yozilgan» degan savolga bitta maydon javob beradi.
+/// </param>
+/// <param name="Force">
+/// Server biladigan holat joriy belgidan farq qiladi: rasm almashgan yoki
+/// kartadagi «Qayta yozish» bosilgan. Agent bunday xodimni qurilmada bor
+/// bo'lsa ham QAYTA yozadi — o'rniga yozmasdan, o'sha raqam ostida
+/// (SPEC-agent §E). Qolganlarini u qurilmadagi ro'yxat bilan solishtirib
+/// o'zi hal qiladi: raqami yo'q odam yoziladi, yuzi yo'q odam to'ldiriladi.
+/// </param>
+public sealed record AgentRosterEntryDto(
+    Guid EmployeeId,
+    string PersonNo,
+    string FullName,
+    string? PhotoVersion,
+    string Version,
+    bool Force);
+
+/// <summary>Agent so'ragan ro'yxat — qurilmada KIM bo'lishi kerak.</summary>
+/// <param name="DeviceId">Qurilma.</param>
+/// <param name="DeviceName">Qurilma nomi — agent logi uchun.</param>
+/// <param name="GeneratedAt">Ro'yxat qachon tuzilgan.</param>
+/// <param name="Entries">Qatorlar.</param>
+public sealed record AgentRosterDto(
+    Guid DeviceId,
+    string DeviceName,
+    DateTimeOffset GeneratedAt,
+    IReadOnlyList<AgentRosterEntryDto> Entries);
+
+/// <summary>Agent qurilmada nima qilgani.</summary>
+public enum AgentEnrollmentAction
+{
+    /// <summary>Yozildi yoki yangilandi (o'rniga yozish EMAS — SPEC-agent §E).</summary>
+    Upsert = 1,
+
+    /// <summary>Qurilmadan olib tashlandi.</summary>
+    Remove = 2,
+}
+
+/// <summary>Agent hisobotining bitta qatori.</summary>
+/// <param name="EmployeeId">
+/// Xodim. O'CHIRISH qatorida bo'sh bo'lishi mumkin: qurilmada faqat
+/// raqam bor va agent o'chirilgan odamni ro'yxatdan topa olmaydi —
+/// o'shanda server uni <paramref name="PersonNo"/> bo'yicha topadi.
+/// </param>
+/// <param name="PersonNo">Qurilmadagi shaxs raqami — xodim ko'rsatilmaganda.</param>
+/// <param name="Action">Nima qilindi.</param>
+/// <param name="Ok">Qurilma qabul qildimi.</param>
+/// <param name="Version">Qaysi belgi yozildi — ro'yxatdagi <c>version</c>.</param>
+/// <param name="Error">Qurilmaning O'Z xabari (masalan yuz sifati) — bo'lsa.</param>
+public sealed record AgentReportItemDto(
+    Guid EmployeeId,
+    string? PersonNo,
+    AgentEnrollmentAction Action,
+    bool Ok,
+    string? Version,
+    string? Error);
+
+/// <summary>Hisobot qabul qilindi.</summary>
+/// <param name="Accepted">Nechta qator yozildi.</param>
+/// <param name="Ignored">Nechta qator e'tiborsiz qoldi (noma'lum xodim).</param>
+public sealed record AgentReportResultDto(int Accepted, int Ignored);
+
+/// <summary>Xodimning bitta qurilmadagi holati — HR ekranlari uchun.</summary>
+/// <param name="DeviceId">Qurilma.</param>
+/// <param name="DeviceName">Qurilma nomi.</param>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="EmployeeName">Xodim F.I.Sh.</param>
+/// <param name="PersonNo">Shaxs raqami — ajratilgan bo'lsa.</param>
+/// <param name="State">Hisoblangan holat.</param>
+/// <param name="Error">Oxirgi xato matni.</param>
+/// <param name="SyncedAt">Oxirgi muvaffaqiyatli yozuv vaqti.</param>
+public sealed record DeviceEnrollmentRowDto(
+    Guid DeviceId,
+    string DeviceName,
+    Guid EmployeeId,
+    string EmployeeName,
+    string? PersonNo,
+    DeviceEnrollmentState State,
+    string? Error,
+    DateTimeOffset? SyncedAt);
+
+/// <summary>
+/// Ekranda ko'rinadigan holat — bazadagi <see cref="DeviceEnrollmentStatus"/>
+/// dan FARQLI.
+/// </summary>
+/// <remarks>
+/// Bazadagi holat «agent oxirgi marta nima dedi» ni saqlaydi. Ekranga esa
+/// «hozir qanday» kerak: rasmi yo'q odam hech qachon yozilmaydi, yozilgani
+/// esa rasmi almashgan zahoti YANA kutilayotgan bo'lib qoladi. Shu sababli
+/// bu qiymat har so'rovda hisoblanadi va saqlanmaydi.
+/// </remarks>
+public enum DeviceEnrollmentState
+{
+    /// <summary>Navbatda — hali yozilmagan yoki belgisi eskirgan.</summary>
+    Pending = 1,
+
+    /// <summary>Qurilmada bor va hozirgi holatga mos.</summary>
+    Synced = 2,
+
+    /// <summary>Qurilma rad etdi — <c>Error</c> da sababi.</summary>
+    Failed = 3,
+
+    /// <summary>Rasm yo'q — yuz terminaliga yozib bo'lmaydi (SPEC-agent §D2).</summary>
+    PhotoMissing = 4,
+
+    /// <summary>Ro'yxatda emas (ishdan ketgan) — qurilmadan olib tashlangan.</summary>
+    Removed = 5,
+}
+
+/// <summary>Qurilma bo'yicha umumiy holat — qurilmalar sahifasi uchun.</summary>
+/// <param name="DeviceId">Qurilma.</param>
+/// <param name="DeviceName">Qurilma nomi.</param>
+/// <param name="Total">Ro'yxatdagi xodimlar soni.</param>
+/// <param name="Synced">Yozilgan.</param>
+/// <param name="Pending">Navbatda.</param>
+/// <param name="Failed">Xato.</param>
+/// <param name="PhotoMissing">Rasmi yo'q.</param>
+/// <param name="LastContactAt">Agent oxirgi marta qachon murojaat qilgan.</param>
+public sealed record DeviceEnrollmentSummaryDto(
+    Guid DeviceId,
+    string DeviceName,
+    int Total,
+    int Synced,
+    int Pending,
+    int Failed,
+    int PhotoMissing,
+    DateTimeOffset? LastContactAt);
+
+/// <summary>Qurilma sahifasining yozish bo'limi.</summary>
+/// <param name="Summary">Umumiy sanoqlar.</param>
+/// <param name="Rows">
+/// E'tibor talab qiladigan qatorlar — «Yozildi» va «O'chirildi» BO'LMAGANLARI.
+/// Joyida turgan yuzlab xodimni ro'yxatlab chiqishning ma'nosi yo'q.
+/// </param>
+public sealed record DeviceEnrollmentPageDto(
+    DeviceEnrollmentSummaryDto Summary,
+    IReadOnlyList<DeviceEnrollmentRowDto> Rows);
+
+/// <summary>Qayta yozish so'raldi.</summary>
+/// <param name="Affected">Nechta qatorda majburiyat belgisi ko'tarildi.</param>
+public sealed record EnrollmentResyncDto(int Affected);

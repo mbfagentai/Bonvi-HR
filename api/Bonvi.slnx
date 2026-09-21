@@ -3,6 +3,7 @@
     <Project Path="src/Bonvi.Api/Bonvi.Api.csproj" />
     <Project Path="src/Bonvi.Application/Bonvi.Application.csproj" />
     <Project Path="src/Bonvi.Bot/Bonvi.Bot.csproj" />
+    <Project Path="src/Bonvi.DeviceAgent/Bonvi.DeviceAgent.csproj" />
     <Project Path="src/Bonvi.Domain/Bonvi.Domain.csproj" />
     <Project Path="src/Bonvi.Infrastructure/Bonvi.Infrastructure.csproj" />
   </Folder>

@@ -244,4 +244,16 @@ public static class AttendanceErrors
     public static Error AssignmentTargetMismatch { get; } = Error.Validation(
         "davomat.biriktirma_obyekt_yoq",
         "Biriktirma pog'onasi va ko'rsatilgan obyekt bir-biriga mos kelmaydi.");
+
+    // ── Agent (SPEC-agent §D4) ──────────────────────────────────────
+
+    /// <summary>Agent hisobotida juda ko'p qator.</summary>
+    /// <remarks>
+    /// Qurilma sig'imi 3000 kishi. Undan kattasi xato yoki hujum — ikkala
+    /// holda ham qabul qilib, minglab qatorni bitta tranzaksiyada yozishning
+    /// ma'nosi yo'q.
+    /// </remarks>
+    public static Error AgentReportTooLarge { get; } = Error.Validation(
+        "davomat.agent_hisobot_uzun",
+        "Hisobotdagi qatorlar soni chegaradan oshdi.");
 }

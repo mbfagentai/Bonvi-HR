@@ -763,3 +763,52 @@ public sealed class WorkScheduleDateConfiguration : IEntityTypeConfiguration<Wor
             .HasDatabaseName("ux_work_schedule_dates_schedule_date");
     }
 }
+
+/// <summary>
+/// <see cref="DeviceEnrollment"/> uchun jadval konfiguratsiyasi
+/// (<c>device_enrollments</c>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Kalit — (qurilma, xodim): bir xodim bir qurilmada bir marta bo'ladi.
+/// Tekshiruv ham aynan shu bo'yicha o'qiydi.
+/// </para>
+/// <para>
+/// Yumshoq o'chirish YO'Q: yozuv o'chirilsa, holat shunchaki «hech qachon
+/// yozilmagan» ga qaytadi va keyingi tekshiruvda qayta hosil bo'ladi.
+/// Qurilma o'chirilsa, holati ham ketadi (<c>Cascade</c>); xodimda esa
+/// <c>Restrict</c> — xodim yozuvi baribir yumshoq o'chiriladi.
+/// </para>
+/// </remarks>
+public sealed class DeviceEnrollmentConfiguration : IEntityTypeConfiguration<DeviceEnrollment>
+{
+    public void Configure(EntityTypeBuilder<DeviceEnrollment> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("device_enrollments");
+
+        builder.HasKey(row => row.Id);
+
+        builder.Ignore(row => row.DomainEvents);
+
+        builder.Property(row => row.Status).IsRequired();
+        builder.Property(row => row.ForceVersion).IsRequired();
+        builder.Property(row => row.AppliedVersion).HasMaxLength(200);
+        builder.Property(row => row.Error).HasMaxLength(500);
+
+        builder.HasOne<AttendanceDevice>()
+            .WithMany()
+            .HasForeignKey(row => row.DeviceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Employee>()
+            .WithMany()
+            .HasForeignKey(row => row.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(row => new { row.DeviceId, row.EmployeeId })
+            .IsUnique()
+            .HasDatabaseName("ux_device_enrollments_device_employee");
+    }
+}

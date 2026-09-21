@@ -2462,8 +2462,20 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var total = await identities.CountAsync(cancellationToken).ConfigureAwait(false);
 
+        /*
+          ⚠️ `DeletedAt == null` shu yerda QO'LDA takrorlanadi, garchi global
+          filtr allaqachon bo'lsa ham. Sabab: quyidagi birlashmada
+          `IgnoreQueryFilters()` bor va EF uni BUTUN so'rovga qo'llaydi —
+          ya'ni u xodimning filtri bilan birga MOSLIKNING filtrini ham
+          o'chirardi. Natijada uzilgan moslik ro'yxatda ko'rinib turardi,
+          `total` esa uni sanamasdi (sanoq alohida so'rov): bitta ekranda
+          ikkita javob.
+
+          Xodimning filtri esa ataylab o'chirilgan: o'chirilgan xodimning
+          moslik yozuvi TARIX va u ro'yxatdan yo'qolmasligi kerak.
+        */
         var ordered =
-            from identity in identities
+            from identity in identities.Where(identity => identity.DeletedAt == null)
             join employee in _context.Employees.IgnoreQueryFilters() on identity.EmployeeId equals employee.Id
             orderby employee.FullName.LastName, employee.FullName.FirstName, identity.ExternalPersonId, identity.Id
             select identity;

@@ -3,6 +3,7 @@ import { ArrowDownUp, LogIn, LogOut, type LucideIcon } from 'lucide-react'
 import type { BadgeTone } from '@/shared/ui'
 import type {
   AttendanceIdentityProvider,
+  DeviceEnrollmentState,
   AttendanceProvider,
   DeviceAuthMode,
   DeviceDirectionRole,
@@ -90,6 +91,24 @@ export interface SourceLook {
 export const IDENTITY_SOURCE_LOOK: Readonly<Record<IdentitySource, SourceLook>> = {
   Import: { tone: 'neutral', labelKey: 'attendance.sourceImport' },
   Manual: { tone: 'brand', labelKey: 'attendance.sourceManual' },
+}
+
+/**
+ * Qurilmaga yozish holati (SPEC-agent §F).
+ *
+ * ⭐ «Kutilmoqda» SARIQ EMAS, neytral: agent xodimni bir daqiqa ichida
+ * yozadi va bu NORMAL oraliq holat, nosozlik emas. Sariq va qizil faqat
+ * odam aralashuvi kerak bo'lganda: rasm qo'yish yoki xatoni o'qish.
+ *
+ * «O'chirilgan» ham neytral — ishdan ketgan odamning qurilmadan
+ * chiqarilishi kutilgan natija.
+ */
+export const ENROLLMENT_STATE_LOOK: Readonly<Record<DeviceEnrollmentState, SourceLook>> = {
+  Synced: { tone: 'success', labelKey: 'attendance.enrollmentSynced' },
+  Pending: { tone: 'neutral', labelKey: 'attendance.enrollmentPending' },
+  Failed: { tone: 'danger', labelKey: 'attendance.enrollmentFailed' },
+  PhotoMissing: { tone: 'warning', labelKey: 'attendance.enrollmentPhotoMissing' },
+  Removed: { tone: 'neutral', labelKey: 'attendance.enrollmentRemoved' },
 }
 
 /**

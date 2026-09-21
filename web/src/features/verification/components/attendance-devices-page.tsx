@@ -47,6 +47,7 @@ import {
   looksRejected,
 } from '../lib/attendance-manage-presentation'
 import { ATTENDANCE_MANAGE, ATTENDANCE_VIEW } from '../lib/attendance-presentation'
+import { DeviceEnrollmentCard } from './attendance-enrollment-cards'
 import { AttendanceDeviceFormDialog } from './attendance-device-form-dialog'
 import { AttendanceDeviceTokenDialog, type DeviceSecret } from './attendance-device-token-dialog'
 import {
@@ -401,6 +402,17 @@ export function AttendanceDevicesPage() {
           />
         )}
       </Card>
+
+      {/*
+        Qurilmaga yozish — har bir FAOL terminal uchun bitta karta
+        (SPEC-agent §F). Faolsizlantirilgani chizilmaydi: unga agent
+        umuman murojaat qilmaydi, ya'ni sanoqlar muzlab qolardi.
+      */}
+      {rows
+        .filter((device) => device.isActive)
+        .map((device) => (
+          <DeviceEnrollmentCard key={device.id} device={device} />
+        ))}
 
       {/*
         Saqlash muddatlari — ro'yxatdan KEYIN: qurilmalar kundalik ish, muddat

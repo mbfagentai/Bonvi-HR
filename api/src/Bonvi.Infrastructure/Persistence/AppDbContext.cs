@@ -15,6 +15,7 @@ using Bonvi.Domain.Safety;
 using Bonvi.Domain.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Bonvi.Infrastructure.Repositories;
 
 namespace Bonvi.Infrastructure.Persistence;
 
@@ -277,6 +278,9 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Jadvalning aniq sanaga yozilgan kunlari — yillik to'r.</summary>
     public DbSet<WorkScheduleDate> WorkScheduleDates => Set<WorkScheduleDate>();
 
+    /// <summary>Xodimning qurilmadagi holati (agent yozgani).</summary>
+    public DbSet<DeviceEnrollment> DeviceEnrollments => Set<DeviceEnrollment>();
+
     /// <summary>Jadval biriktirmalari (<c>schedule_assignments</c>).</summary>
     public DbSet<ScheduleAssignment> ScheduleAssignments => Set<ScheduleAssignment>();
 
@@ -316,6 +320,18 @@ public class AppDbContext : DbContext, IUnitOfWork
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
         ApplySoftDeleteFilters(modelBuilder);
+
+        /*
+          Qurilmaga yoziladigan shaxs raqamlari (SPEC-agent §D1). Ketma-ketlik
+          entity'ga bog'lanmagan: raqam moslik yozuvida yashaydi va uni
+          «eng kattasi + 1» bilan hisoblash ikki agent bir vaqtda ro'yxat
+          so'raganda bir xil raqam berardi.
+        */
+        modelBuilder
+            .HasSequence<long>(DevicePersonNumbers.SequenceName)
+            .StartsAt(1)
+            .IncrementsBy(1)
+            .HasMax(99_999_999);
 
         base.OnModelCreating(modelBuilder);
     }

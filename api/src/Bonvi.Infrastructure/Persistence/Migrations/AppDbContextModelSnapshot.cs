@@ -23,6 +23,9 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("device_person_no_seq")
+                .HasMax(99999999L);
+
             modelBuilder.Entity("Bonvi.Domain.Attendance.AbsenceRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -571,6 +574,72 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_attendance_passes_employee_time");
 
                     b.ToTable("attendance_passes", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.DeviceEnrollment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AppliedVersion")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("applied_version");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("error");
+
+                    b.Property<int>("ForceVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("force_version");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("SyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("synced_at");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_device_enrollments");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_device_enrollments_employee_id");
+
+                    b.HasIndex("DeviceId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_device_enrollments_device_employee");
+
+                    b.ToTable("device_enrollments", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleAssignment", b =>
@@ -3463,6 +3532,23 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ResolvedEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_attendance_passes_employees_resolved_employee_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.DeviceEnrollment", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Attendance.AttendanceDevice", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_device_enrollments_attendance_devices_device_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_device_enrollments_employees_employee_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleAssignment", b =>

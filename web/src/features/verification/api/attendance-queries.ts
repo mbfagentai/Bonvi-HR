@@ -18,7 +18,9 @@ import {
   fetchAssignments,
   fetchDashboard,
   fetchDevice,
+  fetchDeviceEnrollments,
   fetchDevices,
+  fetchEmployeeEnrollments,
   fetchExceptions,
   fetchFormerEmployeeAlerts,
   fetchIdentities,
@@ -42,6 +44,8 @@ import {
   fetchUnmatched,
   previewIdentityImport,
   resolveSchedule,
+  postDeviceResync,
+  postEmployeeResync,
   rotateDeviceToken,
   saveSchedule,
   setDeviceActive,
@@ -101,6 +105,8 @@ export const attendanceKeys = {
 
   devices: (includeInactive: boolean) => ['attendance', 'devices', includeInactive] as const,
   device: (id: string) => ['attendance', 'device', id] as const,
+  deviceEnrollments: (id: string) => ['attendance', 'device-enrollments', id] as const,
+  employeeEnrollments: (id: string) => ['attendance', 'employee-enrollments', id] as const,
 
   identities: (filters: IdentityListFilters) =>
     ['attendance', 'identities', filters] as const,
@@ -779,5 +785,55 @@ export function useExportSummary() {
 export function useRecompute() {
   return useMutation({
     mutationFn: (body: RecomputeRequest) => startRecompute(body),
+  })
+}
+
+/* ═════════════════════════════════════ qurilmaga yozish (SPEC-agent §D5) */
+
+/**
+ * Qurilmaga kim yozilgan.
+ *
+ * `attendance.manage` ostida — chaqiruvchi ruxsatni o'zi tekshiradi
+ * (`useAttendanceDevices` dagi kelishuv).
+ *
+ * ⚠️ Yangilanish AGENTdan keladi: tugma bosilganda holat darhol
+ * o'zgarmaydi, agent keyingi tekshiruvida (60 soniyagacha) yozadi va
+ * hisobot yuboradi. Shu sababli so'rov oyna fokusga qaytganda qayta
+ * o'qiladi — `refetchOnWindowFocus` ning sukutdagi xatti-harakati aynan
+ * shu holat uchun to'g'ri.
+ */
+export function useDeviceEnrollments(deviceId: string, enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.deviceEnrollments(deviceId),
+    queryFn: ({ signal }) => fetchDeviceEnrollments(deviceId, signal),
+    enabled: enabled && deviceId !== '',
+  })
+}
+
+/** Xodim kartasidagi «Qurilmalar» qatori. */
+export function useEmployeeEnrollments(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.employeeEnrollments(employeeId),
+    queryFn: ({ signal }) => fetchEmployeeEnrollments(employeeId, signal),
+    enabled: enabled && employeeId !== '',
+  })
+}
+
+/**
+ * «Hammasini sinxronlash» — xato qatorlarni qayta urinishga qo'yadi.
+ *
+ * `readOnly` QO'YILMAYDI: holat jadvali o'zgaradi va sahifadagi sanoqlar
+ * haqiqatan eskiradi.
+ */
+export function useResyncDevice() {
+  return useMutation({
+    mutationFn: (deviceId: string) => postDeviceResync(deviceId),
+  })
+}
+
+/** Kartadagi «Qayta yozish» — faqat shu xodim. */
+export function useResyncEmployee() {
+  return useMutation({
+    mutationFn: (employeeId: string) => postEmployeeResync(employeeId),
   })
 }

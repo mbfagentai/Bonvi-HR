@@ -1,3 +1,4 @@
+using Bonvi.Application.Attendance.Agent;
 using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Identities;
 using Bonvi.Application.Attendance.Ingest;
@@ -47,6 +48,14 @@ internal static class AttendanceRegistration
         services.AddScoped<GetAttendanceDashboardQueryHandler>();
         services.AddScoped<GetAttendanceTrendQueryHandler>();
         services.AddScoped<GetUpcomingBirthdaysQueryHandler>();
+
+        // Qurilmaga yozish — agent va holat (SPEC-agent §D)
+        services.AddScoped<GetAgentRosterQueryHandler>();
+        services.AddScoped<ReportAgentEnrollmentsCommandHandler>();
+        services.AddScoped<GetDeviceEnrollmentsQueryHandler>();
+        services.AddScoped<GetEmployeeEnrollmentsQueryHandler>();
+        services.AddScoped<ResyncEmployeeEnrollmentsCommandHandler>();
+        services.AddScoped<ResyncDeviceEnrollmentsCommandHandler>();
 
         // Yillik to'r (SPEC-jadval-to'ri §C)
         services.AddScoped<GetScheduleYearQueryHandler>();

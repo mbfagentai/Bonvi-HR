@@ -1,5 +1,6 @@
 using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
+using Bonvi.Application.Attendance.Agent;
 using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Identities;
@@ -273,6 +274,7 @@ public static class AttendanceEndpoints
         var group = app.MapGroup("/api/attendance").WithTags("Attendance");
 
         MapDevices(group);
+        MapEnrollments(group);
         MapIdentities(group);
         MapSchedules(group);
         MapAssignments(group);
@@ -459,6 +461,102 @@ public static class AttendanceEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Qurilmaga yozish holati (SPEC-agent §D5) — attendance.manage
+    // ════════════════════════════════════════════════════════════
+
+    private static void MapEnrollments(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/devices/{id:guid}/enrollments", async (
+                Guid id,
+                GetDeviceEnrollmentsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetDeviceEnrollmentsQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceManage)
+            .WithName("GetDeviceEnrollments")
+            .WithSummary("Davomat — qurilmaga kim yozilgan")
+            .WithDescription(
+                "«summary» — sanoqlar (ro'yxatda, yozilgan, navbatda, xato, rasmi yo'q) va agentning " +
+                "oxirgi aloqasi. «rows» — faqat E'TIBOR TALAB QILADIGANLARI: joyida turgan yuzlab " +
+                "xodim ro'yxatlanmaydi. Qurilma yo'q — «davomat.qurilma_topilmadi» (404).")
+            .Produces<DeviceEnrollmentPageDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/devices/{id:guid}/enrollments/resync", async (
+                Guid id,
+                ResyncDeviceEnrollmentsCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ResyncDeviceEnrollmentsCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceManage)
+            .WithName("ResyncDeviceEnrollments")
+            .WithSummary("Davomat — hammasini sinxronlash")
+            .WithDescription(
+                "XATO qatorlarni qayta urinishga qo'yadi. Qurilmadagi odam O'CHIRILIB qayta " +
+                "yozilmaydi va joyida turgan xodimga umuman tegilmaydi (SPEC-agent §E) — agent " +
+                "yetishmaganini o'zi tugmasiz ham yozadi. «affected» — qayta urinishga qo'yilgan qator soni.")
+            .Produces<EnrollmentResyncDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/employees/{id:guid}/enrollments", async (
+                Guid id,
+                GetEmployeeEnrollmentsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetEmployeeEnrollmentsQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetEmployeeEnrollments")
+            .WithSummary("Davomat — xodim qaysi qurilmada bor")
+            .WithDescription(
+                "Har bir FAOL qurilma bo'yicha bitta qator. Holat serverda hisoblanadi: «Synced» — " +
+                "qurilmada bor va joriy, «Pending» — navbatda, «Failed» — qurilma rad etgan, " +
+                "«PhotoMissing» — rasmi yo'q, «Removed» — olib tashlangan. " +
+                "Xodim yo'q — «davomat.xodim_topilmadi» (404).")
+            .Produces<IReadOnlyList<DeviceEnrollmentRowDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/employees/{id:guid}/enrollments/resync", async (
+                Guid id,
+                ResyncEmployeeEnrollmentsCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ResyncEmployeeEnrollmentsCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceManage)
+            .WithName("ResyncEmployeeEnrollments")
+            .WithSummary("Davomat — xodimni qurilmaga qayta yozish")
+            .WithDescription(
+                "Xodimning har bir faol qurilmadagi belgisini eskirgan qiladi; agent keyingi " +
+                "tekshiruvida (60 soniyagacha) O'SHA RAQAM ostida qayta yozadi — o'chirib emas. " +
+                "Xodim yo'q — «davomat.xodim_topilmadi» (404).")
+            .Produces<EnrollmentResyncDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     // ════════════════════════════════════════════════════════════

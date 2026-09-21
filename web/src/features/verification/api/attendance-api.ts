@@ -43,6 +43,8 @@ import {
   getAttendanceSummary,
   getAttendanceTimesheet,
   getAttendanceTrend,
+  getDeviceEnrollments,
+  getEmployeeEnrollments,
   getFormerEmployeeAlerts,
   cancelAbsenceRequest,
   createAbsenceRequest,
@@ -61,6 +63,8 @@ import {
   recomputeAttendance,
   registerAttendanceDevice,
   resolveWorkSchedule,
+  resyncDeviceEnrollments,
+  resyncEmployeeEnrollments,
   rotateAttendanceDeviceToken,
   searchAttendancePasses,
   setWorkScheduleDates,
@@ -87,6 +91,10 @@ import {
   type AttendanceDashboardItemDto,
   type AttendanceDeviceCreatedDto,
   type AttendanceDeviceDto,
+  type DeviceEnrollmentPageDto,
+  type DeviceEnrollmentRowDto,
+  type DeviceEnrollmentSummaryDto,
+  type EnrollmentResyncDto,
   type AttendanceDeviceRequest as AttendanceDeviceRequestBody,
   type AttendanceExceptionDto,
   type AttendanceIdentityDto,
@@ -197,6 +205,7 @@ export {
   AttendanceProvider,
   DeviceAuthMode,
   DeviceDirectionRole,
+  DeviceEnrollmentState,
   DirectionSource,
   IdentityMatchKind,
   IdentitySource,
@@ -1164,4 +1173,54 @@ export function exportSummary(
  */
 export async function startRecompute(body: RecomputeRequest): Promise<RecomputeResult> {
   return asSent(await recomputeAttendance(body))
+}
+
+/* ═════════════════════════════════════ qurilmaga yozish (SPEC-agent §D5) */
+
+/**
+ * Xodimning bitta qurilmadagi holati.
+ *
+ * `state` — SERVERDA hisoblanadi: bazadagi «agent oxirgi marta nima dedi»
+ * emas, «hozir qanday». Rasm almashgan yoki «Qayta yozish» bosilgan xodim
+ * shu sababli darhol «Pending» bo'lib ko'rinadi.
+ */
+export type DeviceEnrollmentRow = AsSent<DeviceEnrollmentRowDto>
+
+/** Qurilma bo'yicha sanoqlar. */
+export type DeviceEnrollmentSummary = AsSent<DeviceEnrollmentSummaryDto>
+
+/** Qurilma sahifasining yozish bo'limi: sanoqlar + muammoli qatorlar. */
+export type DeviceEnrollmentPage = AsSent<DeviceEnrollmentPageDto>
+
+/** «Qayta yozish» natijasi. */
+export type EnrollmentResync = AsSent<EnrollmentResyncDto>
+
+export async function fetchDeviceEnrollments(
+  deviceId: string,
+  signal?: AbortSignal,
+): Promise<DeviceEnrollmentPage> {
+  return asSent(await getDeviceEnrollments(deviceId, signal))
+}
+
+export async function fetchEmployeeEnrollments(
+  employeeId: string,
+  signal?: AbortSignal,
+): Promise<DeviceEnrollmentRow[]> {
+  return asSent(await getEmployeeEnrollments(employeeId, signal))
+}
+
+/**
+ * «Hammasini sinxronlash».
+ *
+ * ⚠️ Bu qurilmadagi odamlarni O'CHIRIB qayta yozish EMAS: agent baribir
+ * har tekshiruvda ro'yxatni solishtiradi va yetishmaganini o'zi yozadi.
+ * Tugma faqat XATO qatorlarni qayta urinishga qo'yadi (SPEC-agent §E).
+ */
+export async function postDeviceResync(deviceId: string): Promise<EnrollmentResync> {
+  return asSent(await resyncDeviceEnrollments(deviceId))
+}
+
+/** Kartadagi «Qayta yozish» — faqat SHU xodim, o'sha raqam ostida. */
+export async function postEmployeeResync(employeeId: string): Promise<EnrollmentResync> {
+  return asSent(await resyncEmployeeEnrollments(employeeId))
 }

@@ -729,3 +729,71 @@ public sealed class WorkScheduleDateRepository : IWorkScheduleDateRepository
     /// <inheritdoc />
     public void Remove(WorkScheduleDate date) => _context.WorkScheduleDates.Remove(date);
 }
+
+/// <summary><see cref="IDeviceEnrollmentRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
+/// <remarks>
+/// ⚠️ <c>AsNoTracking</c> ATAYLAB YO'Q: bu portdan o'qilgan qatorlar darhol
+/// o'zgaradi (agent hisoboti, «Qayta yozish»). O'qish uchun alohida yo'l bor
+/// — <c>EnrollmentReadModel</c>.
+/// </remarks>
+public sealed class DeviceEnrollmentRepository : IDeviceEnrollmentRepository
+{
+    private readonly AppDbContext _context;
+
+    public DeviceEnrollmentRepository(AppDbContext context) => _context = context;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<DeviceEnrollment>> ListByDeviceAsync(
+        Guid deviceId,
+        CancellationToken cancellationToken = default)
+        => await _context.DeviceEnrollments
+            .Where(row => row.DeviceId == deviceId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<DeviceEnrollment>> ListByEmployeeAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default)
+        => await _context.DeviceEnrollments
+            .Where(row => row.EmployeeId == employeeId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public void Add(DeviceEnrollment enrollment) => _context.DeviceEnrollments.Add(enrollment);
+}
+
+/// <summary><see cref="IDevicePersonNumbers"/> — PostgreSQL ketma-ketligi.</summary>
+/// <remarks>
+/// <para>
+/// <c>nextval</c> tranzaksiyadan TASHQARIDA ishlaydi: qaytarib olinmaydi va
+/// hech qachon ikki marta bir xil son bermaydi. Ya'ni tranzaksiya
+/// bekor qilinsa raqamda «teshik» qoladi — bu mutlaqo zararsiz, chunki
+/// raqam ketma-ket bo'lishi shart emas, faqat unikal bo'lishi kerak.
+/// </para>
+/// <para>
+/// Chegara ketma-ketlikning O'ZIDA (<c>MAXVALUE</c>): 99 999 999 dan
+/// keyin baza xato beradi va raqam jimgina takrorlanib ketmaydi.
+/// </para>
+/// </remarks>
+public sealed class DevicePersonNumbers : IDevicePersonNumbers
+{
+    /// <summary>Ketma-ketlikning bazadagi nomi.</summary>
+    public const string SequenceName = "device_person_no_seq";
+
+    private readonly AppDbContext _context;
+
+    public DevicePersonNumbers(AppDbContext context) => _context = context;
+
+    /// <inheritdoc />
+    public async Task<long> NextAsync(CancellationToken cancellationToken = default)
+    {
+        var values = await _context.Database
+            .SqlQuery<long>($"SELECT nextval('device_person_no_seq')")
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return values[0];
+    }
+}

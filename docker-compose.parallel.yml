@@ -60,3 +60,12 @@ services:
   bot:
     container_name: verif-bot
     profiles: ["bot"]
+
+  # ⚠️ QURILMA AGENTI ham bitta stackda. Ikkita agent bitta terminalga
+  # yozsa, ular bir xil ro'yxatni ikki marta yozib, terminalni behuda
+  # band qilardi; hodisalarni esa ikkalasi ham uzatib, serverda takror
+  # sanog'ini shishirardi. Asosiy stackdagi nom bilan to'qnashmasligi
+  # uchun konteyner nomi ham boshqa.
+  device-agent:
+    container_name: verif-device-agent
+    profiles: ["agent"]

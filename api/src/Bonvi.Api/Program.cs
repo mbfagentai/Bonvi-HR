@@ -198,6 +198,10 @@ app.MapIncidentEndpoints();
 // (sababi `AttendanceIngestEndpoints` izohida).
 app.MapAttendanceIngestEndpoints();
 
+// Davomat — LAN ichidagi agent: ro'yxat, rasm va hisobot. Ochiqligi va
+// himoyasi qabul yo'lidagidek — qurilma tokeni (SPEC-agent §D4).
+app.MapAttendanceAgentEndpoints();
+
 // Davomat — qurilmalar, mosliklar, jadvallar, jurnal, taxta, tabel, hisobotlar,
 // eksport va qayta hisoblash. Hammasi `attendance.view` / `attendance.manage`
 // ostida (SPEC §7.3, ruxsat jadvali `AttendanceEndpoints` izohida).

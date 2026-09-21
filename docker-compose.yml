@@ -196,6 +196,52 @@ services:
     networks: [bonvi]
 
   # ----------------------------------------------------------
+  #  Qurilma agenti — yuz terminali bilan ishlaydigan jarayon
+  #
+  #  ⚠️ SUKUT BO'YICHA ISHGA TUSHMAYDI (`profiles: agent`). Sabab
+  #  oddiy: terminal MIJOZning tarmog'ida turadi va ishlab
+  #  chiqishdagi mashinada u yo'q. Yoqish uchun:
+  #    ./bonvi up --profile agent      (yoki COMPOSE_PROFILES=agent)
+  #
+  #  ⚠️ Ishlab chiqarishda bu konteyner API bilan BIR XIL serverda
+  #  TURMAYDI: u ofisdagi mashinada ishlaydi va tashqaridagi API ga
+  #  o'zi ulanadi (SPEC-agent §C). Bu yerda u faqat sinov uchun.
+  #
+  #  Agent qurilma SOZLAMASIGA tegmaydi — Verifix bilan parallel
+  #  ishlaydi (izohi `Bonvi.DeviceAgent.csproj` da).
+  # ----------------------------------------------------------
+  device-agent:
+    image: mcr.microsoft.com/dotnet/sdk:10.0.400
+    container_name: device-agent
+    profiles: ["agent"]
+    restart: unless-stopped
+    working_dir: /src
+    command: >
+      dotnet watch run
+        --project src/Bonvi.DeviceAgent/Bonvi.DeviceAgent.csproj
+        --no-launch-profile
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      Agent__ApiBaseUrl: http://api:8080
+      # Qurilma kartasida BIR MARTA ko'rsatilgan token
+      Agent__DeviceToken: ${AGENT__DEVICETOKEN:-}
+      Agent__DeviceHost: ${AGENT__DEVICEHOST:-}
+      Agent__DeviceUser: ${AGENT__DEVICEUSER:-admin}
+      Agent__DevicePassword: ${AGENT__DEVICEPASSWORD:-}
+      Agent__EventsIntervalSeconds: ${AGENT__EVENTSINTERVAL:-5}
+      Agent__RosterIntervalSeconds: ${AGENT__ROSTERINTERVAL:-60}
+      Agent__StatePath: /data/agent-state.json
+    volumes:
+      - ./api:/src
+      - nuget-cache:/root/.nuget/packages
+      - api-artifacts:/src/artifacts
+      - agent-state:/data
+    depends_on:
+      api: { condition: service_started }
+    networks: [bonvi]
+
+  # ----------------------------------------------------------
   #  Frontend — Vite + React (hot reload)
   # ----------------------------------------------------------
   web:
@@ -243,6 +289,7 @@ volumes:
   web-node-modules:
   pnpm-store:
   uploads-data:
+  agent-state:
 
 networks:
   bonvi:
