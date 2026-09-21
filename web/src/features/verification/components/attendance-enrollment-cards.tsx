@@ -1,6 +1,6 @@
 import { Cpu, RefreshCw, ScanFace } from 'lucide-react'
 
-import { useAuth } from '@/features/auth/model/use-auth'
+import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Alert, Badge, Button, Card, IconTile, Skeleton } from '@/shared/ui'
@@ -146,7 +146,7 @@ export function EmployeeEnrollmentsCard({ employeeId }: { employeeId: string }) 
   return (
     <Card className="space-y-3 p-4">
       <div className="flex flex-wrap items-center gap-2.5">
-        <IconTile icon={Cpu} tone="indigo" size="sm" />
+        <IconTile icon={Cpu} tone="teal" size="sm" />
         <h2 className="min-w-0 flex-1 truncate-1 text-subhead font-semibold">
           {t('attendance.enrollmentDevices')}
         </h2>
