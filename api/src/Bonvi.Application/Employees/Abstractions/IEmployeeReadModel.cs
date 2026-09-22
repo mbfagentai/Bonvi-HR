@@ -127,88 +127,6 @@ public interface IEmployeeReadModel
     Task<IReadOnlyList<CandidateStageRow>> ListCandidateStagesAsync(
         Guid employeeId,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Xodim rekrutingdan kelgan bo'lsa — uning NOMZODLIK davrida
-    /// yuklangan fayllari (anketa suratlari, pasport varaqlari, diplom).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// ⭐ <b>Fayllar KO'CHIRILMAYDI, faqat KO'RSATILADI.</b> Ishga qabul
-    /// paytida <c>candidate_files</c> dan <c>employee_documents</c> ga
-    /// nusxa olinmaydi va bu ataylab: nusxa olish har fayl uchun «bu
-    /// qaysi turdagi hujjat» degan javobni talab qiladi
-    /// (<c>employee_documents.document_type_id</c> MAJBURIY), nomzod
-    /// faylida esa tur tushunchasi umuman yo'q. Javobsiz savolni
-    /// taxmin bilan to'ldirish butun tur bo'yicha guruhlashni yolg'on
-    /// qilib qo'yardi. Shu sababli xodim kartasi fayllarni rekrutingdan
-    /// O'QIYDI — bosqich xulosalari bilan aynan bir xil qaror.
-    /// </para>
-    /// <para>
-    /// <b>Bunday o'qishning NARXI bor va u qabul qilingan.</b> Fayl
-    /// rekruting qoidalari ostida qoladi: nomzod fayli qattiq o'chiriladi
-    /// (yozuv ham, diskdagi bayt ham — sababi <c>CandidateFile</c>
-    /// izohida), ya'ni nomzod kartasidan o'chirilgan fayl xodim
-    /// kartasidan ham yo'qoladi. Xodimning O'Z hujjati bunday yo'qolmaydi
-    /// (u yumshoq o'chiriladi). Qaror foydalanuvchiniki (2026-09-19):
-    /// qayta yuklashga majburlashdan ko'ra, hujjatni bor joyidan
-    /// ko'rsatgan afzal.
-    /// </para>
-    /// <para>
-    /// <b>Yo'l — <see cref="ListCandidateStagesAsync"/> dagining AYNAN
-    /// o'zi</b>: munosabat → hodisa → <c>candidate_id</c> → fayllar.
-    /// Nomzodlar jadvaliga birlashtirilmaydi (yumshoq o'chirish filtri
-    /// tarixni jimgina yo'q qilardi) va shu sababli nomzodning bugungi
-    /// holati ham so'ralmaydi — fayl xodimda ko'rinishi uchun nomzod
-    /// «ishga olingan» bo'lishi shart emas.
-    /// </para>
-    /// <para>
-    /// Tartib — YUKLASH tartibida (eskisidan yangisiga), nomzod
-    /// kartasidagi bilan bir xil: pasport uch varaq bo'lib 1-2-3
-    /// tartibda keladi va teskari tartibda o'qilmaydigan bo'lib qoladi.
-    /// Xodimning O'Z hujjatlari esa teskari saralanadi — bu ziddiyat
-    /// emas, ikki boshqa to'plamning ikki boshqa qoidasi
-    /// (<c>CandidateFile.CreatedAt</c> izohiga qarang).
-    /// </para>
-    /// <para>
-    /// Bo'sh ro'yxat — XATO EMAS: xodimlarning ko'pchiligi Excel'dan
-    /// ko'chirilgan va ularda nomzodlik yozuvi umuman yo'q.
-    /// </para>
-    /// </remarks>
-    Task<IReadOnlyList<CandidateFileRow>> ListCandidateFilesAsync(
-        Guid employeeId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Xodim QAYSI nomzod yozuvlaridan kelgan.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// ⭐ <b>Nega fayllardan ALOHIDA so'rov.</b> Savol boshqa: «bu odam
-    /// nomzodlik paytida qanday edi» — va u fayl bor-yo'qligidan
-    /// QAT'I NAZAR beriladi. Fayllar ro'yxatidan identifikator olish
-    /// mumkin edi, lekin o'shanda fayli yo'q xodimda nomzod kartasiga
-    /// o'tish yo'li ham yo'qolardi — aynan shu holat foydalanuvchi
-    /// so'ragan holat (2026-09-19).
-    /// </para>
-    /// <para>
-    /// <b>Ro'yxat, bitta yozuv emas.</b> Odam ketib qaytib kelsa, ikkita
-    /// ishga qabul hodisasi bo'ladi va ular BOSHQA-BOSHQA nomzod
-    /// yozuvlariga ishora qilishi mumkin (ikki marta ariza topshirgan).
-    /// Ikkalasi ham xodimning tarixi.
-    /// </para>
-    /// <para>
-    /// Nomzodlar jadvaliga bu yerda birlashtirishga TO'G'RI KELADI —
-    /// holat va yopilish sanasi o'sha yerda. Farqi
-    /// <see cref="ListCandidateStagesAsync"/> dan shunda: u yerda maqsad
-    /// nomzod yumshoq o'chirilgan bo'lsa ham tarixni ko'rsatish edi, bu
-    /// yerda esa aksincha — o'chirilgan nomzodning KARTASIGA havola
-    /// berish noto'g'ri bo'lardi (havola 404 ga olib borardi).
-    /// </para>
-    /// </remarks>
-    Task<IReadOnlyList<CandidateOriginRow>> ListOriginCandidatesAsync(
-        Guid employeeId,
-        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Xodimlar ro'yxatini saralash ustunlari.</summary>
@@ -523,48 +441,6 @@ public sealed record CandidateStageRow(
     Guid? RecordedBy,
     string? RecordedByName,
     DateTimeOffset RecordedAt);
-
-/// <summary>
-/// Xodimning nomzodlik davrida yuklangan bitta fayli.
-/// </summary>
-/// <remarks>
-/// <see cref="CandidateId"/> qatorning ko'rsatkich qismi emas, ISHCHI
-/// maydoni: faylni yuklab olish rekrutingning MAVJUD manzili orqali
-/// ketadi (<c>GET /api/recruiting/candidates/{candidateId}/files/{id}</c>)
-/// va ikkala identifikator ham o'sha yerda kerak. Xodim bo'limida
-/// ikkinchi yuklab olish yo'li ochilmadi: u bir xil baytni ikkinchi
-/// marshrut bilan berardi va ruxsat tekshiruvi ikki joyda takrorlanardi.
-/// </remarks>
-/// <param name="Id">Fayl yozuvining identifikatori.</param>
-/// <param name="CandidateId">Qaysi nomzod yozuvidan — yuklab olish uchun.</param>
-/// <param name="FileName">Asl fayl nomi — faqat ko'rsatish uchun.</param>
-/// <param name="ContentType">MAZMUNDAN aniqlangan MIME turi.</param>
-/// <param name="SizeBytes">Diskka tushgan hajm. <c>0</c> — noma'lum.</param>
-/// <param name="UploadedAt">Fayl biriktirilgan lahza.</param>
-public sealed record CandidateFileRow(
-    Guid Id,
-    Guid CandidateId,
-    string FileName,
-    string ContentType,
-    long SizeBytes,
-    DateTimeOffset UploadedAt);
-
-/// <summary>
-/// Xodim kelib chiqqan NOMZOD yozuvi — kartasiga havola uchun.
-/// </summary>
-/// <param name="Id">Nomzod kartasining identifikatori.</param>
-/// <param name="Status">Nomzodning yakuniy holati (odatda «ishga olingan»).</param>
-/// <param name="ClosedAt">Voronkadan chiqqan sana. <c>null</c> — hali yopilmagan.</param>
-/// <param name="Vacancy">
-/// E'lon nomi — bitta xodimda IKKI nomzod yozuvi bo'lganda ularni
-/// ajratish uchun (odam ketib, boshqa e'lon bo'yicha qaytib kelgan).
-/// <c>null</c> — e'lon o'chirilgan yoki nomsiz.
-/// </param>
-public sealed record CandidateOriginRow(
-    Guid Id,
-    CandidateStatus Status,
-    DateOnly? ClosedAt,
-    string? Vacancy);
 
 /// <summary>Belgi — xodim nomi bilan birga.</summary>
 public sealed record EmployeeFlagRow(

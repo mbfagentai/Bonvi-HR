@@ -21,7 +21,6 @@ import type {
   PositionItem,
 } from '@/features/catalog/api/catalog-api'
 import { flattenTree } from '@/features/catalog/lib/tree'
-import { fetchCandidateFile } from '@/features/recruiting/api/recruiting-api'
 import { saveBlobAs } from '@/shared/lib/download'
 import type { SelectOption } from '@/shared/ui'
 
@@ -36,7 +35,6 @@ import {
   exportEmployees,
   fetchEmployee,
   fetchEmployeePhoto,
-  fetchEmployeeRecruiting,
   fetchEmployeeStages,
   fetchEmployees,
   fetchFlags,
@@ -52,7 +50,6 @@ import {
   type ChangeSalaryRequest,
   type EditEmploymentEventRequest,
   type CreateFlagRequest,
-  type EmployeeCandidateFile,
   type EmployeeFilterParams,
   type EmployeeListFilters,
   type HireRequest,
@@ -145,9 +142,6 @@ export const employeeKeys = {
 
   /** Nomzodlik bosqichlari — «Kengash xulosasi» (faqat o'qish). */
   stages: (id: string) => ['employees', 'stages', id] as const,
-
-  /** Nomzodlik davri — havola va fayllar, «Hujjatlar» tabida (faqat o'qish). */
-  recruiting: (id: string) => ['employees', 'recruiting', id] as const,
 }
 
 /**
@@ -351,44 +345,6 @@ export function useEmployeeStages(employeeId: string, enabled = true) {
     queryKey: employeeKeys.stages(employeeId),
     queryFn: ({ signal }) => fetchEmployeeStages(employeeId, signal),
     enabled: enabled && employeeId !== '',
-  })
-}
-
-/**
- * Xodimning nomzodlik davri: nomzod kartasiga havola va o'sha davrda
- * yuklangan fayllar — bitta so'rovda (sababi backend DTO izohida).
- *
- * @param enabled - `false` bo'lsa so'rov yuborilmaydi.
- *
- * Bosqichlar bilan bir xil sabab: endpoint `recruiting.view` talab
- * qiladi va bu ruxsat `employees.view` dan MUSTAQIL — ruxsatsiz
- * foydalanuvchida so'rov har karta ochilganda 403 olib kelardi.
- */
-export function useEmployeeRecruiting(employeeId: string, enabled = true) {
-  return useQuery({
-    queryKey: employeeKeys.recruiting(employeeId),
-    queryFn: ({ signal }) => fetchEmployeeRecruiting(employeeId, signal),
-    enabled: enabled && employeeId !== '',
-  })
-}
-
-/**
- * Nomzodlik faylini yuklab olish.
- *
- * ⚠️ Manzil REKRUTINGNIKI (`/api/recruiting/candidates/…`), xodimniki
- * emas — xodim bo'limida ikkinchi yuklab olish yo'li ataylab
- * ochilmagan: bir xil baytni ikkita marshrut bilan berish ruxsat
- * tekshiruvini ikki joyda takrorlardi. Shu sababli qatordagi
- * `candidateId` shunchaki ko'rsatkich emas, ISHCHI maydon.
- *
- * Kesh bilan bog'liq emas (`useDownloadDocument` dagi bilan bir xil):
- * natija ekranga emas, DISKKA tushadi.
- */
-export function useDownloadCandidateFile() {
-  return useMutation({
-    mutationFn: (file: EmployeeCandidateFile) =>
-      fetchCandidateFile(file.candidateId, file.id).then(({ blob }) => ({ blob, file })),
-    onSuccess: ({ blob, file }) => saveBlobAs(blob, file.fileName),
   })
 }
 

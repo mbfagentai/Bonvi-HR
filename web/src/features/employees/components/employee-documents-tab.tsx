@@ -34,9 +34,8 @@ import {
 } from '../api/employees-queries'
 import { fileSizeParts } from '../lib/document-file'
 import { employeeErrorCode } from '../lib/employee-error'
-import { EMPLOYEES_EDIT, RECRUITING_VIEW } from '../lib/employee-presentation'
+import { EMPLOYEES_EDIT } from '../lib/employee-presentation'
 import { DocumentDialog } from './document-dialog'
-import { EmployeeRecruitingCard } from './employee-recruiting-card'
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: EmployeeDocument[] = []
@@ -86,14 +85,6 @@ export function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
   const canManage = hasPermission(EMPLOYEES_EDIT)
-
-  /*
-    Nomzodlik fayllari `recruiting.view` talab qiladi va bu ruxsat
-    `employees.view` dan MUSTAQIL (sababi backend'dagi
-    `Permissions.RecruitingView` izohida). Ruxsatsiz foydalanuvchida
-    bo'lim UMUMAN chizilmaydi — «Kengash xulosasi» bilan bir xil qoida.
-  */
-  const canViewRecruiting = hasPermission(RECRUITING_VIEW)
 
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<EmployeeDocument | null>(null)
@@ -257,17 +248,6 @@ export function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
           </Card>
         ))
       )}
-
-      {/*
-        ───────── Nomzodlik davri ─────────
-
-        Xodimning O'Z hujjatlaridan KEYIN va ALOHIDA karta bo'lib: ular
-        boshqa to'plam, boshqa egasi va boshqa qoidalar (ko'chirilmaydi,
-        turi yo'q, qattiq o'chiriladi) — sabablari kartaning o'z izohida.
-        Ichida nomzod kartasiga o'tish havolasi ham bor va u FAYLDAN
-        MUSTAQIL: hujjat bo'lmasa ham nomzodlik tarixiga yo'l qoladi.
-      */}
-      {canViewRecruiting && <EmployeeRecruitingCard employeeId={employeeId} />}
 
       <DocumentDialog
         employeeId={employeeId}

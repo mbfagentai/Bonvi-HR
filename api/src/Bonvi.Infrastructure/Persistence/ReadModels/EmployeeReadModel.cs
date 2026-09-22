@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Employees;
-using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
@@ -975,115 +974,6 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
                 Assemble(row.RecordedLastName, row.RecordedFirstName, row.RecordedMiddleName),
                 row.RecordedAt)),
         ];
-    }
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// <para>
-    /// Yo'l bosqichlardagi bilan AYNAN bir xil: xodimning MUNOSABATLARI →
-    /// ularning HODISALARI → nomzod identifikatori → o'sha nomzodning
-    /// FAYLLARI. Nomzodlar jadvalining o'zi bu yerda ham so'ralmaydi
-    /// (sababi <c>IEmployeeReadModel</c> izohida): yumshoq o'chirilgan
-    /// nomzodning fayli xodim kartasida ko'rinib turishi kerak, chunki
-    /// hujjatning o'zi diskda joyida.
-    /// </para>
-    /// <para>
-    /// <c>Distinct</c> nomzod identifikatorlariga — bitta odam ketib
-    /// qaytib kelsa ikkita qabul hodisasi bo'ladi va ular AYNI nomzodga
-    /// ishora qilishi mumkin; usiz har fayl ikki marta ko'rinardi.
-    /// </para>
-    /// <para>
-    /// ⚠️ Saralash <c>CreatedAt</c> dan keyin <c>Id</c> bilan uziladi.
-    /// Vaqt <c>DateTimeOffset.UtcNow</c> dan olinadi, ya'ni bitta tick
-    /// ichida yozilgan ikki qatorniki AYNAN teng bo'lishi mumkin va
-    /// o'shanda PostgreSQL ularni har o'qishda boshqa tartibda
-    /// qaytarardi — pasport varaqlari joy almashardi. <c>Id</c> — UUID
-    /// v7, u ham vaqt bo'yicha o'sadi (nomzod kartasidagi bilan bir xil
-    /// yechim, <c>RecruitingRepositories.GetWithStagesAsync</c>).
-    /// </para>
-    /// </remarks>
-    public async Task<IReadOnlyList<CandidateFileRow>> ListCandidateFilesAsync(
-        Guid employeeId,
-        CancellationToken cancellationToken = default)
-    {
-        var candidateIds =
-            from employment in _context.Employments
-            join employmentEvent in _context.EmploymentEvents
-                on employment.Id equals employmentEvent.EmploymentId
-            where employment.EmployeeId == employeeId && employmentEvent.CandidateId != null
-            select employmentEvent.CandidateId!.Value;
-
-        var rows = await _context.CandidateFiles
-            .Where(file => candidateIds.Distinct().Contains(file.CandidateId))
-            .OrderBy(file => file.CreatedAt)
-            .ThenBy(file => file.Id)
-            .Select(file => new CandidateFileRow(
-                file.Id,
-                file.CandidateId,
-                file.FileName,
-                file.ContentType,
-                file.SizeBytes,
-                file.CreatedAt))
-            .AsNoTracking()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return rows;
-    }
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// <para>
-    /// Yo'lning boshi fayllar va bosqichlardagi bilan bir xil (munosabat →
-    /// hodisa → nomzod identifikatori), oxiri esa BOSHQA: bu yerda
-    /// nomzodlar jadvalining O'ZI so'raladi, chunki javob kartaga
-    /// HAVOLA — holat va yopilish sanasi faqat o'sha yerda.
-    /// </para>
-    /// <para>
-    /// ⚠️ Birlashtirish ICHKI (<c>DefaultIfEmpty</c> siz) va bu ataylab:
-    /// yumshoq o'chirilgan nomzod global filtr tufayli so'rovga
-    /// tushmaydi, ya'ni uning kartasiga havola ham berilmaydi. Aks holda
-    /// tugma mavjud bo'lmagan sahifaga olib borardi. E'lon nomi esa
-    /// CHAPDAN qo'shiladi — e'lon o'chirilgan bo'lsa ham havolaning
-    /// o'zi kerak.
-    /// </para>
-    /// <para>
-    /// Tartib — yopilish sanasi bo'yicha, YANGISIDAN eskisiga: ikkita
-    /// yozuv bo'lsa (ketib qaytib kelgan odam) HR ni birinchi navbatda
-    /// oxirgisi qiziqtiradi.
-    /// </para>
-    /// </remarks>
-    public async Task<IReadOnlyList<CandidateOriginRow>> ListOriginCandidatesAsync(
-        Guid employeeId,
-        CancellationToken cancellationToken = default)
-    {
-        var candidateIds =
-            from employment in _context.Employments
-            join employmentEvent in _context.EmploymentEvents
-                on employment.Id equals employmentEvent.EmploymentId
-            where employment.EmployeeId == employeeId && employmentEvent.CandidateId != null
-            select employmentEvent.CandidateId!.Value;
-
-        var rows = await (
-                from candidate in _context.Candidates
-                where candidateIds.Distinct().Contains(candidate.Id)
-                join vacancy in _context.Vacancies
-                    on candidate.VacancyId equals vacancy.Id into vacancyMatch
-                from vacancy in vacancyMatch.DefaultIfEmpty()
-                join title in _context.VacancyTitles
-                    on vacancy.VacancyTitleId equals title.Id into titleMatch
-                from title in titleMatch.DefaultIfEmpty()
-                orderby candidate.ClosedAt descending, candidate.Id descending
-                select new CandidateOriginRow(
-                    candidate.Id,
-                    candidate.Status,
-                    candidate.ClosedAt,
-                    (string?)title!.Name))
-            .AsNoTracking()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return rows;
     }
 
     /// <summary>Chapdan birlashtirilgan xodimning to'liq ismini yig'adi.</summary>

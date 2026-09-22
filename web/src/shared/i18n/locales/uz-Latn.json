@@ -966,9 +966,6 @@
   "documents": {
     "acceptHint": "PDF, JPEG, PNG yoki WebP · 20 MB gacha",
     "add": "Qo‘shish",
-    "candidateHint": "Nomzod kartasiga yuklangan fayllar — anketa, pasport, diplom. Ular xodim hujjatlariga ko‘chirilmaydi: nomzod kartasida turadi va o‘sha yerdan o‘chirilsa, bu yerdan ham yo‘qoladi.",
-    "candidateOpen": "Nomzod kartasi",
-    "candidateTitle": "Nomzodlik davri",
     "choose": "Faylni tanlang",
     "chooseType": "Turni tanlang",
     "count": "{{n}} ta hujjat",
@@ -1329,7 +1326,6 @@
     "filesUploadHint": "PDF yoki rasm · har biri 20 MB gacha. Rasmlar serverda kichiklashtiriladi.",
     "filesDeleteTitle": "Fayl o‘chirilsinmi?",
     "filesDeleteText": "Fayl bazadan ham, diskdan ham butunlay o‘chiriladi. Buni qaytarib bo‘lmaydi.",
-    "filesDeleteHiredWarning": "Bu nomzod xodimga aylangan. Fayl uning xodim kartasida ham ko‘rinib turibdi va o‘chirilsa, u yerdan ham yo‘qoladi.",
     "filesViewTitle": "Rasm",
     "acceptWarningTitle": "Tugma bosilgach nima bo‘ladi",
     "acceptEffectEmployee": "Nomzod XODIMGA aylanadi va uning kartasi «Xodimlar» ro‘yxatida paydo bo‘ladi.",

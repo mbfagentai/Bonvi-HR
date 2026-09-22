@@ -91,7 +91,6 @@ public static class EmployeeEndpoints
         MapPhoto(group);
         MapMehnatUz(group);
         MapStages(group);
-        MapRecruitingOrigin(group);
         MapFlags(group);
         MapCompetency(group);
 
@@ -532,82 +531,6 @@ public static class EmployeeEndpoints
                 "Excel'dan ko'chirilgan xodimlarda bunday yozuv YO'Q — bo'sh ro'yxat qaytadi, " +
                 "bu xato emas.")
             .Produces<IReadOnlyList<EmployeeStageEntryDto>>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
-    }
-
-    // ════════════════════════════════════════════════════════════
-    //  Nomzodlik davri — havola va fayllar
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Xodimning rekrutingdan kelgan qismi: nomzod kartasiga havola va
-    /// o'sha davrda yuklangan fayllar.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// ⭐ <b>Bir javobda IKKI mustaqil ro'yxat.</b> Fayllar bo'lmasa ham
-    /// nomzod kartasiga o'tish yo'li qolishi kerak — «hujjat yo'q»
-    /// degani «nomzodlik tarixi yo'q» degani emas. Sabablari
-    /// <c>EmployeeRecruitingOriginDto</c> izohida.
-    /// </para>
-    /// <para>
-    /// <b>Fayl baytlari BU YERDA emas.</b> Ular rekrutingning mavjud
-    /// manzilidan olinadi
-    /// (<c>GET /api/recruiting/candidates/{candidateId}/files/{fileId}</c>)
-    /// va javobdagi har qatorda <c>candidateId</c> aynan shuning uchun
-    /// qaytadi. Ikkinchi yuklab olish yo'li ochilmadi: u bir xil baytni
-    /// ikkinchi marshrut bilan berardi, ruxsat va «fayl shu odamnikimi»
-    /// tekshiruvi esa ikki joyda takrorlanardi — bunday takror
-    /// ertami-kechmi bir joyda unutiladi.
-    /// </para>
-    /// <para>
-    /// Ruxsat — <see cref="Permissions.RecruitingView"/>, xuddi
-    /// <see cref="MapStages"/> dagidek va aynan bir xil sabab bilan: bu
-    /// rekruting ma'lumoti va uni yuklab olish ham shu ruxsat bilan
-    /// ketadi. Bir marshrutni <c>employees.view</c> bilan ochib, baytni
-    /// <c>recruiting.view</c> ortida qoldirish ro'yxatni ko'rib, hech
-    /// narsani ocha olmaydigan foydalanuvchi yaratardi.
-    /// </para>
-    /// <para>
-    /// <b>Yozish endpoint'i ataylab yo'q</b> — sababi
-    /// <c>GetEmployeeRecruitingOriginQuery</c> izohida.
-    /// </para>
-    /// </remarks>
-    private static void MapRecruitingOrigin(IEndpointRouteBuilder group)
-    {
-        group.MapGet("/{id:guid}/recruiting", async (
-                Guid id,
-                GetEmployeeRecruitingOriginQueryHandler handler,
-                CancellationToken cancellationToken) =>
-            {
-                var natija = await handler
-                    .HandleAsync(new GetEmployeeRecruitingOriginQuery(id), cancellationToken)
-                    .ConfigureAwait(false);
-
-                return natija.ToHttpResult();
-            })
-            .RequireAuthorization(Permissions.RecruitingView)
-            .WithName("GetEmployeeRecruitingOrigin")
-            .WithSummary("Xodim — nomzodlik davri: havola va fayllar")
-            .WithDescription(
-                "Xodim rekruting orqali kelgan bo'lsa, javobda ikki ro'yxat qaytadi. " +
-                "«candidates» — qaysi NOMZOD yozuvlaridan kelgani (yangisidan eskisiga; " +
-                "odam ketib qaytib kelgan bo'lsa bittadan ko'p bo'ladi) — interfeys shundan " +
-                "nomzod kartasiga havola yasaydi. «files» — o'sha davrda yuklangan fayllar " +
-                "(anketa suratlari, pasport varaqlari, diplom), YUKLASH tartibida. " +
-                "Ikkalasi MUSTAQIL: fayl bo'lmasa ham havola qaytadi. " +
-                "Bog'lanish ishga qabul hodisasidagi «candidateId» orqali. " +
-                "⚠️ Fayllar xodim hujjatlariga KO'CHIRILMAYDI va «/documents» ro'yxatida " +
-                "chiqmaydi: nomzod faylida hujjat TURI yo'q, xodim hujjatida esa u majburiy. " +
-                "Ular nomzod kartasida qoladi va shu yerdan faqat ko'rsatiladi — ya'ni " +
-                "nomzod kartasidan o'chirilgan fayl bu ro'yxatdan ham yo'qoladi. " +
-                "Baytlarni olish uchun " +
-                "«GET /api/recruiting/candidates/{candidateId}/files/{id}» ishlatiladi. " +
-                "Yumshoq o'chirilgan nomzod «candidates» ga TUSHMAYDI (havola mavjud " +
-                "bo'lmagan sahifaga olib borardi), lekin uning fayllari «files» da qoladi. " +
-                "Excel'dan ko'chirilgan xodimlarda ikkala ro'yxat ham bo'sh — bu xato emas.")
-            .Produces<EmployeeRecruitingOriginDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
