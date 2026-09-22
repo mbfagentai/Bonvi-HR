@@ -13,7 +13,8 @@
 #      5532 → Nodify                 5173 → zinnur-v2
 #      5174 → NUR, BrokerApp         5180 → BonviZvonki
 #      8000/8010/8011/8020/8080/8081/8082/8090/8200/5080/5280 → turli loyihalar
-#  Shu sababli BonviHR: 7080 (api) · 7173 (web) · 7432 (db) · 7379 (redis)
+#  Shu sababli BonviHR: 7080 (api) · 7173 (web) · 7174 (xodim ilovasi)
+#                       · 7432 (db) · 7379 (redis)
 # ============================================================
 name: bonvi-hr
 
@@ -269,6 +270,36 @@ services:
       - pnpm-store:/root/.local/share/pnpm/store
     networks: [bonvi]
 
+  # ----------------------------------------------------------
+  #  Xodim ilovasi (PWA) — Vite + React 18 (hot reload)
+  #
+  #  ⚠️ `web` dan BUTUNLAY alohida build: HR ilovasi Tailwind 4 +
+  #  React 19 da, u esa Safari 16.4 talab qiladi. Xodimlarning
+  #  telefonlari eski — pol iOS 12.2 / Chrome 80 (SPEC §G). Ikkalasi
+  #  bitta build'da yashay olmaydi, va eng muhimi: bu yerdagi xatolik
+  #  ishlab turgan HR tizimiga tegmasligi kerak.
+  #
+  #  Ilova `/ilova/` yo'lagi ostida turadi — dev'da ham, shu sababli
+  #  brauzerda ochiladigan manzil: http://localhost:7174/ilova/
+  # ----------------------------------------------------------
+  app:
+    image: node:24-alpine
+    container_name: app
+    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install && pnpm dev --host 0.0.0.0 --port 7174"
+    environment:
+      VITE_API_URL: "http://localhost:${API_PORT:-7080}"
+      # macOS bind-mount inotify hodisalarini uzatmaydi — so'rash shart
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "${APP_PORT:-7174}:7174"
+    volumes:
+      - ./app:/app
+      - app-node-modules:/app/node_modules    # bind-mount'dan tashqarida (tezlik)
+      - pnpm-store:/root/.local/share/pnpm/store
+    networks: [bonvi]
+
   # Qo'lda zaxira/tiklash sinash uchun bir martalik vosita (fayllar
   # qismi — rasm, hujjat). `profiles: ["tools"]` tufayli `./bonvi up`
   # uni ISHGA TUSHIRMAYDI — faqat `docker compose run backup-files ...`
@@ -289,6 +320,7 @@ volumes:
   nuget-cache:
   api-artifacts:
   web-node-modules:
+  app-node-modules:
   pnpm-store:
   uploads-data:
   agent-state:

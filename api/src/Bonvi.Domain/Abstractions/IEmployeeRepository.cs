@@ -70,6 +70,30 @@ public interface IEmploymentRepository : IRepository<Employment>
     /// Bir odam bir vaqtda ikki firmada to'liq stavkada ishlay olmaydi.
     /// </remarks>
     Task<decimal> GetTotalActiveRateAsync(Guid employeeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Shu xodimda berilgan SANANI qamrab oluvchi mehnat munosabati bormi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shart terminal ro'yxatidagi bilan AYNAN bir xil
+    /// (<c>EnrollmentReadModel.EmployedOn</c>): qabul sanasi o'tgan VA
+    /// ishdan ketish sanasi yo tegilmagan, yo hali kelmagan. Ishdan ketish
+    /// SANA bo'yicha kuchga kiradi, HR uni yozib qo'ygan lahzada emas.
+    /// </para>
+    /// <para>
+    /// <see cref="GetActiveByEmployeeAsync"/> buning o'rnini BOSMAYDI: u
+    /// munosabat HOLATIGA qaraydi va sana bo'yicha savolga javob bermaydi.
+    /// Bu yerdagi savol esa «shu kunda ishlaganmi», ya'ni davomat savoli.
+    /// </para>
+    /// </remarks>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="date">Tekshiriladigan kun (Toshkent kalendari).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<bool> IsEmployedOnAsync(
+        Guid employeeId,
+        DateOnly date,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Sinov muddatlari uchun saqlash porti.</summary>

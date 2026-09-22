@@ -291,6 +291,37 @@ public class AppDbContext : DbContext, IUnitOfWork
     public DbSet<AbsenceRequest> AbsenceRequests => Set<AbsenceRequest>();
 
     // ────────────────────────────────────────────────────────────
+    //  XODIM ILOVASI (PWA) — telefondan belgilash
+    //  Uchta yangi jadval va bitta mavjud ustun. Ajratish davomat
+    //  modulinikidek: OBYEKT — qayerda qabul qilinadi degan
+    //  ma'lumotnoma, KOORDINATA esa qabul qilingan belgining dalili.
+    //  Belgining o'zi oddiy `attendance_passes` qatori bo'lib yoziladi,
+    //  ya'ni tabel, taxta va hisobotlarga yangi qoida qo'shilmaydi.
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Obyektlar — geo-to'siq ma'lumotnomasi (<c>work_sites</c>).</summary>
+    public DbSet<WorkSite> WorkSites => Set<WorkSite>();
+
+    /// <summary>Telefondan kelgan belgilarning koordinatalari (<c>mobile_check_ins</c>).</summary>
+    /// <remarks>
+    /// Agregat ildizi EMAS: qatorga faqat o'z o'tishi orqali murojaat
+    /// qilinadi. Bu to'plam yozish porti va jurnal o'qishi uchun
+    /// (<c>WorkScheduleDays</c> bilan bir xil qaror).
+    /// </remarks>
+    public DbSet<MobileCheckIn> MobileCheckIns => Set<MobileCheckIn>();
+
+    /// <summary>Xodimlarning ilova hisoblari (<c>employee_accounts</c>).</summary>
+    /// <remarks>
+    /// ⚠️ <see cref="Users"/> dan ATAYLAB alohida: bu hisoblarda rol ham,
+    /// ruxsat ham yo'q va bo'lmasligi ham kerak (sababi
+    /// <see cref="EmployeeAccount"/> izohida).
+    /// </remarks>
+    public DbSet<EmployeeAccount> EmployeeAccounts => Set<EmployeeAccount>();
+
+    /// <summary>Ilova hisoblarining yangilash tokenlari (<c>employee_refresh_tokens</c>).</summary>
+    public DbSet<EmployeeRefreshToken> EmployeeRefreshTokens => Set<EmployeeRefreshToken>();
+
+    // ────────────────────────────────────────────────────────────
     //  BILDIRISHNOMALAR
     //  ⚠️ Bildirishnomalarning O'ZI bu yerda YO'Q va bo'lmaydi ham:
     //  ular saqlanmaydi, so'rov kelganda joriy ma'lumotdan HISOBLANADI
@@ -318,6 +349,7 @@ public class AppDbContext : DbContext, IUnitOfWork
 
         // Har bir entity uchun konfiguratsiya fayllarini avtomatik topadi
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
 
         ApplySoftDeleteFilters(modelBuilder);
 

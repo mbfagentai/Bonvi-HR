@@ -683,3 +683,5 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-21] Soat og'ishi qanday o'lchanadi? → agent terminalning joriy vaqtini yuboradi, server o'z vaqti bilan solishtiradi → o'tishdan olingan ayirmaga yetkazib berish kechikishi qo'shilib, soxta ogohlantirish berardi
 - [2026-09-22] O'tish surati qayerdan? → agent olgan jonli kadr, terminalning `saveCapPic` sozlamasi EMAS → u butun qurilmaga tegishli va Verifix'ga boradigan hodisalarni o'zgartirardi; egasi Verifix uzilmasin dedi
 - [2026-09-22] Eski (kechikib kelgan) o'tishga kadr biriktiriladimi? → YO'Q, faqat 6 soniyadan yangisiga → kadr o'qish lahzasida olinadi; eski o'tishga u boshqa odamni biriktirib qo'yardi
+- [2026-09-22] Xodim ilovasida «Yangiliklar» bo'limi bo'ladimi? → YO'Q (egasi) → ma'lumoti yo'q va kerak emas; «To'lov» va xodim uchun «Hisobotlar» ham shu sababdan qo'shilmaydi
+- [2026-09-22] Verifix'ning ma'lumot mantiqi ko'chiriladimi? → YO'Q, faqat TUZILISHI → kalendar ranglari bizning holatlarimizdan, so'rov turlari «yo'qlik turlari» ma'lumotnomasidan

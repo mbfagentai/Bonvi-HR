@@ -85,7 +85,14 @@ public sealed class RateLimitingOptions
     /// Bu "himoya to'ri": endpoint muallifi <c>RequireRateLimiting</c> yozishni
     /// unutsa ham, parol tanlashga qarshi cheklov baribir ishlaydi.
     /// </remarks>
-    public IList<string> LoginPaths { get; } = ["/api/auth/login"];
+    /// <remarks>
+    /// ⚠️ Xodim ilovasining kirishi HAM shu yerda, va u bu ro'yxatdagi eng
+    /// muhim yozuv: 950 ta hisobning logini bir-biriga ma'lum telefon
+    /// raqamlari, blok esa 5 xatodan keyin yonadi. Ya'ni cheklovsiz
+    /// «istalgan hamkasbni 15 daqiqaga qulflab qo'yish» ochiq kanal bo'lardi
+    /// (ma'lumot modeli §B.3). Sxema buni to'sa olmaydi — faqat shu ro'yxat.
+    /// </remarks>
+    public IList<string> LoginPaths { get; } = ["/api/auth/login", "/api/employee-auth/login"];
 
     /// <summary>
     /// Cheklovdan butunlay ozod yo'llar.

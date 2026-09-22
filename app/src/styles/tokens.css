@@ -1,0 +1,90 @@
+/*
+  Dizayn tokenlari — UX §D dagi jadvalning aynan o'zi.
+
+  ⚠️ Har bir qiymat TAYYOR hex. Hech biri ishlash paytida hisoblanmaydi:
+  `color-mix()` Safari 16.2 dan ishlaydi, bizning pol esa 12.2 (UX §F.2).
+  Shu sababli tintlar ham shaffof emas — karta ustida va sahifa fonida
+  bir xil alfa IKKI XIL rang berardi.
+*/
+
+:root,
+[data-theme='light'] {
+  --bg: #f4f6f9;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #edf0f4;
+  --bg-pressed: #e8edf3;
+
+  --fg: #16191d;
+  --fg-secondary: #5c636e;
+  --fg-tertiary: #98a0ac;
+  --fg-on-accent: #ffffff;
+
+  --border: #e3e8ef;
+  --border-strong: #cfd6e0;
+
+  --accent: #0071e3;
+  --accent-pressed: #0058b1;
+  --accent-text: #0066cc;
+  --accent-soft: #e0efff;
+  --accent-on-soft: #0066cc;
+
+  --danger: #d70015;
+  --danger-text: #d70015;
+  --ring: #007aff;
+
+  --hue-late: #ff9500;
+  --hue-absent: #ff3b30;
+  --hue-excused: #007aff;
+  --hue-dayoff: #8e8e93;
+  --hue-dayoff-worked: #af52de;
+  --hue-success: #34c759;
+
+  --tint-late: #fff2e0;
+  --tint-absent: #ffe7e6;
+  --tint-excused: #e0efff;
+  --tint-dayoff: #edf0f4;
+  --tint-dayoff-worked: #f5eafb;
+  --tint-success: #e7f8eb;
+}
+
+[data-theme='dark'] {
+  --bg: #0e1013;
+  --bg-elevated: #1a1d22;
+  --bg-sunken: #131519;
+  --bg-pressed: #2a2f37;
+
+  --fg: #fafbfc;
+  --fg-secondary: #c6cdd8;
+  --fg-tertiary: #98a2b0;
+  --fg-on-accent: #ffffff;
+
+  --border: #2e343c;
+  --border-strong: #3e4650;
+
+  /* ⚠️ `--accent` va `--danger` mavzu bilan O'ZGARMAYDI: ustida oq matn
+     turadi, ularni yoritish esa matnni AA dan pastga tushirardi.
+     Faqat MATN ranglari yorug'lashadi. */
+  --accent: #0071e3;
+  --accent-pressed: #0058b1;
+  --accent-text: #409cff;
+  --accent-soft: #172d45;
+  --accent-on-soft: #409cff;
+
+  --danger: #d70015;
+  --danger-text: #ff6961;
+  --ring: #0a84ff;
+
+  --hue-late: #ff9500;
+  --hue-absent: #ff3b30;
+  --hue-excused: #007aff;
+  --hue-dayoff: #8e8e93;
+  --hue-dayoff-worked: #af52de;
+  --hue-success: #34c759;
+
+  --tint-late: #3f301d;
+  --tint-absent: #3f2224;
+  --tint-excused: #172d45;
+  --tint-dayoff: #131519;
+  --tint-dayoff-worked: #322540;
+  --tint-success: #1e382b;
+}

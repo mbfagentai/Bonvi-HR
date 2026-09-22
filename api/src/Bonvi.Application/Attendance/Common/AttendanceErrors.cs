@@ -1,3 +1,5 @@
+using Bonvi.Application.Attendance.Mobile;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Common;
 
@@ -261,4 +263,89 @@ public static class AttendanceErrors
     public static Error DeviceClockUnreadable { get; } = Error.Validation(
         "davomat.qurilma_vaqti_notogri",
         "Qurilma vaqti o'qib bo'lmaydigan qiymat berdi.");
+
+    // ── Obyektlar (SPEC-xodim-ilovasi §D1) ──────────────────────────
+
+    /// <summary>Bunday obyekt yo'q.</summary>
+    public static Error WorkSiteNotFound { get; } = Error.NotFound(
+        "davomat.obyekt_topilmadi",
+        "Obyekt topilmadi.");
+
+    // ── «Mobil ilova» sintetik qurilmasi (§D5, K4) ──────────────────
+
+    /// <summary>Qurilma formasida <c>Mobile</c> provayderi tanlangan.</summary>
+    /// <remarks>
+    /// ⚠️ Bu ATAYLAB serverda to'siladi, formada yashirish bilan
+    /// cheklanmasdan. <c>Mobile</c> bilan ro'yxatga olingan HAQIQIY terminal
+    /// qabul yo'lida tahlilchi topolmay <c>InvalidOperationException</c>
+    /// tashlardi, ya'ni HR tushunarli 400 o'rniga 500 olardi — va buni
+    /// faqat terminal jim qolganda sezardi.
+    /// </remarks>
+    public static Error DeviceProviderMobile { get; } = Error.Validation(
+        "davomat.qurilma_mobil_provayder",
+        "«Mobil ilova» provayderi faqat tizimning ichki qatori uchun — terminalga tanlab bo'lmaydi.");
+
+    /// <summary>«Mobil ilova» qatoriga tegishga urinish.</summary>
+    /// <remarks>
+    /// Bitta kod to'rt amalni to'sadi: o'chirish, faollashtirish, tahrirlash
+    /// va tokenni aylantirish. Ular bitta sababdan rad etiladi — bu qator
+    /// terminal emas, ilovaning o'tishlari uchun ushlab turilgan yozuv; uni
+    /// faollashtirish 950 ta xodim kartasida hech qachon bajarilmaydigan
+    /// «Mobil ilova — Rasm yo'q» qatorini yoqardi, tokenini berish esa
+    /// ilovaga ISHLAYDIGAN qabul tokeni yasardi.
+    /// </remarks>
+    public static Error MobileAppDeviceProtected { get; } = Error.Conflict(
+        "davomat.qurilma_mobil_ilova",
+        "«Mobil ilova» — tizimning ichki qatori: uni o'zgartirib, yoqib yoki o'chirib bo'lmaydi.");
+
+    // ── Telefondan belgilash (SPEC-xodim-ilovasi §E) ────────────────
+
+    /// <summary>Xodimga telefondan belgilash ruxsati berilmagan yoki hisobi yopilgan.</summary>
+    /// <remarks>
+    /// 403: so'rov to'g'ri, lekin bu imkoniyat shu odamda YOQILMAGAN. Qayta
+    /// urinish hech qachon yordam bermaydi va ilova aynan shu sababli bu
+    /// xatoda «Qayta urinish» tugmasini ko'rsatmaydi.
+    /// </remarks>
+    public static Error MobileCheckInNotAllowed { get; } = Error.Forbidden(
+        "davomat.mobil_ruxsat_yoq",
+        "Telefondan belgilash sizning hisobingizda yoqilmagan. HR bo'limiga murojaat qiling.");
+
+    /// <summary>Telefon bergan joylashuv juda noaniq.</summary>
+    /// <remarks>
+    /// Chegara <see cref="MobileCheckInRules.MaxAccuracyMeters"/> da. Xabarda
+    /// O'LCHANGAN son ham bor: «qayta urinib ko'ring» dan ko'ra «hozirgi
+    /// aniqlik ±350 m» odamga nima qilishni aniqroq aytadi.
+    /// </remarks>
+    /// <param name="accuracyMeters">Telefon aytgan aniqlik.</param>
+    public static Error LocationTooCoarse(decimal accuracyMeters) => Error.Validation(
+        "davomat.joylashuv_aniq_emas",
+        $"Joylashuv aniqligi ±{accuracyMeters:0.#} m — chegara {MobileCheckInRules.MaxAccuracyMeters} m. " +
+        "Ochiq joyga chiqib qayta urinib ko'ring.");
+
+    /// <summary>Hech bir faol obyektning hududida emas.</summary>
+    /// <remarks>
+    /// ⚠️ Faol obyekt UMUMAN yo'q bo'lgan holat ham SHU kod bilan qaytadi
+    /// (xabari boshqacha). Sabab: SPEC §E belgilash uchun ROPPA-ROSA to'rtta
+    /// kod sanab chiqqan va beshinchisini qo'shish ilovaning xato jadvalini
+    /// SPEC bilan ajratib yuborardi. Ikkalasida ham odam uchun natija bir
+    /// xil: shu joyda belgilab bo'lmaydi.
+    /// </remarks>
+    /// <param name="nearestName">Eng yaqin obyekt nomi; hech biri bo'lmasa <c>null</c>.</param>
+    /// <param name="distanceMeters">Unga qadar masofa.</param>
+    public static Error OutsideWorkSite(string? nearestName, double? distanceMeters) => Error.Validation(
+        "davomat.obyektdan_uzoq",
+        nearestName is null || distanceMeters is null
+            ? "Belgilash uchun faol obyekt topilmadi. HR bo'limiga murojaat qiling."
+            : $"Siz obyekt hududidan tashqaridasiz. Eng yaqin obyekt: {nearestName} — {distanceMeters:0} m.");
+
+    /// <summary>Oxirgi belgidan keyin <see cref="AttendanceRules.BounceSeconds"/> soniya o'tmagan.</summary>
+    /// <remarks>
+    /// Chegara terminal o'tishlarining takror qoidasi bilan AYNAN bir xil
+    /// son: telefon belgisiga boshqa chegara qo'yilsa, bitta kunda ikki xil
+    /// «takror» ta'rifi bo'lib qolardi.
+    /// </remarks>
+    /// <param name="lastAt">Oxirgi qabul qilingan belgi lahzasi.</param>
+    public static Error CheckInTooSoon(DateTimeOffset lastAt) => Error.Conflict(
+        "davomat.takroriy_belgi",
+        $"Siz hozirgina belgilagansiz — oxirgi belgi {lastAt.ToTashkent():HH:mm:ss} da qabul qilingan.");
 }

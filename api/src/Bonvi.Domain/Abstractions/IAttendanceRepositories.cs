@@ -323,6 +323,30 @@ public interface IAttendancePassRepository : IRepository<AttendancePass>
     Task<int> CountExpiredPendingAsync(
         DateOnly localDateBefore,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Shu xodimning <paramref name="since"/> dan keyingi ENG SO'NGGI o'tish lahzasi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Telefondan belgilashning 60 soniyalik takror qoidasi uchun
+    /// (<see cref="AttendanceRules.BounceSeconds"/>). Javob NIMA UCHUN
+    /// lahza, <c>bool</c> emas: ilova xatoda «oxirgi belgi 10:31 da qabul
+    /// qilingan» deb yozadi va «qayta urinib ko'ring» dan ko'ra shu
+    /// foydaliroq.
+    /// </para>
+    /// <para>
+    /// <c>ix_attendance_passes_employee_time</c> ga aniq tushadi: prefiks
+    /// bo'yicha teng, ikkinchi ustun bo'yicha teskari yurish, bitta qator.
+    /// </para>
+    /// </remarks>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="since">Shu lahzadan keyingilari (o'zi kirmaydi).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<DateTimeOffset?> LastPassAtAsync(
+        Guid employeeId,
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Moslik yaratilgach bog'langan bitta o'tish — qayta hisoblash uchun kerakli qismi.</summary>

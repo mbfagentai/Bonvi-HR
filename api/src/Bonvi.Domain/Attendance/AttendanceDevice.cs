@@ -44,6 +44,28 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public const int TokenHashLength = 32;
 
+    /// <summary>
+    /// «Mobil ilova» — SINTETIK qurilma qatorining qat'iy identifikatori.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Telefondan kelgan belgi ham o'tish bo'lib yoziladi, o'tishda esa
+    /// <see cref="AttendancePass.DeviceId"/> MAJBURIY. Rad etilgan muqobil —
+    /// uni <c>null</c> qilish: u jurnal, eksport, panel va o'qish modelining
+    /// o'nlab joyiga tarqalardi, va eng yomoni
+    /// <c>ux_attendance_passes_device_dedupe</c> ga tegardi — PostgreSQL
+    /// unikal indeksda NULL larni BIR-BIRIDAN FARQLI deb hisoblaydi, ya'ni
+    /// modulning eng muhim indeksi telefon belgilarini jimgina takrorlashga
+    /// ruxsat berib qo'yardi.
+    /// </para>
+    /// <para>
+    /// Qiymat qat'iy yozilgan: kodning bu qatorni TANIYDIGAN yagona yo'li shu
+    /// (nom bo'yicha qidirish uni birinchi qayta nomlashda sindirardi).
+    /// Qator migratsiya bilan yaratiladi.
+    /// </para>
+    /// </remarks>
+    public static readonly Guid MobileAppId = Guid.Parse("01996f00-0000-7000-8000-00000000b071");
+
     /// <summary>Ekranda ko'rsatiladigan boshlang'ich belgilar soni.</summary>
     /// <remarks>
     /// Tokenning o'zi bir marta — berilgan lahzada — ko'rsatiladi va
@@ -111,6 +133,14 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     public DeviceAuthMode AuthMode { get; private set; }
 
     /// <summary>Qabul tokenining SHA-256 xeshi. Ochiq token saqlanmaydi.</summary>
+    /// <remarks>
+    /// ⚠️ «Mobil ilova» (<see cref="MobileAppId"/>) qatorida bu yerda 32 ta
+    /// NOL bayt turadi va buni «tuzatish» kerak EMAS. Tasdiqlovchi qurilmani
+    /// <c>SHA256(kelgan token)</c> bo'yicha qidiradi; butunlay nol bo'lgan
+    /// SHA-256 natijasini beradigan satr amalda mavjud emas, ya'ni bu qator
+    /// hech qachon tasdiqdan o'ta olmaydi. Tokenni «aylantirish» esa ilovaga
+    /// ISHLAYDIGAN qabul tokeni berib qo'yardi — SPEC aynan shuni taqiqlaydi.
+    /// </remarks>
     public byte[] TokenHash { get; private set; }
 
     /// <summary>Tokenning birinchi <see cref="TokenPrefixLength"/> belgisi — ekranda ko'rsatish uchun.</summary>

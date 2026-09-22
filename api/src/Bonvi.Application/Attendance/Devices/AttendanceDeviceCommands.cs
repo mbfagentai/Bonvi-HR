@@ -98,6 +98,20 @@ public sealed class AttendanceDeviceRules
     {
         ArgumentNullException.ThrowIfNull(settings);
 
+        /*
+          «Mobil ilova» provayderi formadan KELMASLIGI kerak.
+
+          ⚠️ Bu server tomonidagi haqiqiy to'siq, ro'yxatdagi yashirish esa
+          faqat xushmuomalalik. Shu provayder bilan ro'yxatga olingan
+          HAQIQIY terminal qabul yo'lida `_parsers.Single(…)` ga urilib
+          500 berardi — HR uni «terminal ishlamayapti» deb o'qirdi va
+          sababini hech qachon topmasdi.
+        */
+        if (settings.Provider == AttendanceProvider.Mobile)
+        {
+            return AttendanceErrors.DeviceProviderMobile;
+        }
+
         if (!AllowedIpList.IsValid(settings.AllowedIps))
         {
             return AttendanceErrors.AllowedIpsInvalid;
@@ -252,6 +266,11 @@ public sealed class UpdateDeviceCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        if (command.DeviceId == AttendanceDevice.MobileAppId)
+        {
+            return AttendanceErrors.MobileAppDeviceProtected;
+        }
+
         var device = await _devices.GetByIdAsync(command.DeviceId, cancellationToken).ConfigureAwait(false);
         if (device is null)
         {
@@ -339,6 +358,13 @@ public sealed class RotateDeviceTokenCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        // Tokenni aylantirish ilovaga ISHLAYDIGAN qabul tokeni berib
+        // qo'yardi — SPEC §D5 aynan shuni taqiqlaydi.
+        if (command.DeviceId == AttendanceDevice.MobileAppId)
+        {
+            return AttendanceErrors.MobileAppDeviceProtected;
+        }
+
         var device = await _devices.GetByIdAsync(command.DeviceId, cancellationToken).ConfigureAwait(false);
         if (device is null)
         {
@@ -389,6 +415,16 @@ public sealed class SetDeviceActiveCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        // Faollashtirish ikki teshikni birdan ochardi: qabul endpointi
+        // (tasdiqlovchi faolsiz qurilmani birinchi bo'lib rad etadi) va
+        // xodim kartasi — u har bir xodimga FAOL qurilmalar ro'yxatini
+        // chizadi, ya'ni 950 ta kartada hech qachon bajarilmaydigan
+        // «Mobil ilova — Rasm yo'q» qatori paydo bo'lardi.
+        if (command.DeviceId == AttendanceDevice.MobileAppId)
+        {
+            return AttendanceErrors.MobileAppDeviceProtected;
+        }
+
         var device = await _devices.GetByIdAsync(command.DeviceId, cancellationToken).ConfigureAwait(false);
         if (device is null)
         {
@@ -432,6 +468,14 @@ public sealed class DeleteDeviceCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Pastdagi «o'tishlari bor» tekshiruvi buning o'rnini BOSMAYDI:
+        // birinchi kuni sintetik qatorda hali bitta ham o'tish yo'q va
+        // uni o'chirish telefondan belgilashni jimgina o'ldirib qo'yardi.
+        if (command.DeviceId == AttendanceDevice.MobileAppId)
+        {
+            return AttendanceErrors.MobileAppDeviceProtected;
+        }
 
         var device = await _devices.GetByIdAsync(command.DeviceId, cancellationToken).ConfigureAwait(false);
         if (device is null)

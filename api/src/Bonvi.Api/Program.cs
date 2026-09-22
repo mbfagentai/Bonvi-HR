@@ -48,6 +48,12 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
+// Xodim ilovasining so'rovchisi — `ICurrentUser` dan ALOHIDA port.
+// Ikkalasi bir-birini ko'rmaydi: xodim tokenida `NameIdentifier` da'vosi
+// yo'q, ya'ni audit jurnali mavjud bo'lmagan foydalanuvchiga ishora
+// qilmaydi (sababi `EmployeeJwtTokenService` izohida).
+builder.Services.AddScoped<ICurrentEmployee, CurrentEmployee>();
+
 // Qurilma qabuli jurnali — Application porti, lekin yozuvga so'rov usuli
 // va yo'li kerak, ya'ni amalga oshirish shu qatlamda (`ICurrentUser` kabi).
 // Singleton: holatsiz, `IHttpContextAccessor` ning o'zi ham singleton, va
@@ -206,6 +212,22 @@ app.MapAttendanceAgentEndpoints();
 // eksport va qayta hisoblash. Hammasi `attendance.view` / `attendance.manage`
 // ostida (SPEC §7.3, ruxsat jadvali `AttendanceEndpoints` izohida).
 app.MapAttendanceEndpoints();
+
+// Davomat — OBYEKTLAR ma'lumotnomasi (telefondan belgilashning geo-to'sig'i).
+// Alohida fayl, chunki ruxsati BO'LINGAN: o'qish `catalog.view`, yozish
+// `attendance.manage` — sababi `WorkSiteEndpoints` izohida.
+app.MapWorkSiteEndpoints();
+
+// Xodim ilovasi — HR tomoni: hisob ochish, parol tiklash, yopish va
+// «telefondan belgilash» o'chirgichi. Hammasi `attendance.manage` ostida.
+app.MapEmployeeAccountEndpoints();
+
+// ⭐ Xodim ilovasi — XODIM tomoni. `bonvi-employee` auditoriyasidagi
+// token bilan, ruxsat da'volarisiz: HR tokeni bu endpointlarga KIRA
+// OLMAYDI va xodim tokeni HR endpointlariga o'ta olmaydi (ikki
+// autentifikatsiya sxemasi, `AuthenticationExtensions`).
+app.MapEmployeeAuthEndpoints();
+app.MapMeEndpoints();
 
 // Rekruting (2-bosqich): voronka bosqichlari → vakansiya → nomzod →
 // ishga olish. Oxirgi qadam 1-bosqichning ishga qabul oqimiga ulanadi.

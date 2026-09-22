@@ -126,6 +126,25 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(employee => employee.NeedsReview)
             .IsRequired();
 
+        /*
+          TELEFONDAN BELGILASH RUXSATI — modulning YAGONA mavjud jadvalga
+          qo'shilgan ustuni (SPEC-xodim-ilovasi §C).
+
+          `NOT NULL`, nullable emas: savol ikki holatli va uchinchi holat
+          har bir o'qish joyida `?? false` bo'lib tarjima qilinadigan
+          yolg'on bo'lardi. PostgreSQL 11+ da `NOT NULL DEFAULT false`
+          bilan ustun qo'shish METAMA'LUMOT amali — 950 qator qayta
+          yozilmaydi.
+
+          ⚠️ Indeks ATAYLAB yo'q. Uni birorta so'rov o'qimaydi: ruxsat
+          FAQAT bitta xodimning kartasida va belgilash yo'lida — ikkalasi
+          ham birlamchi kalit bo'yicha. «Ruxsati borlar ro'yxati» ekrani
+          paydo bo'lgan kuni qisman indeks qo'shiladi (`needs_review`
+          uslubida).
+        */
+        builder.Property(employee => employee.MobileCheckInAllowed)
+            .IsRequired();
+
         // Yo'nalishlar — PostgreSQL massivi (uuid[]), join jadval emas.
         //
         // Nega: `Employee` da `Direction` ga navigatsiya xossasi yo'q va

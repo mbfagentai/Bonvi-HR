@@ -19,6 +19,31 @@ public enum AttendanceProvider
 
     /// <summary>Oddiy JSON — vositachi agent, ZKTeco moslamasi va barcha testlar.</summary>
     Generic = 2,
+
+    /// <summary>
+    /// Xodim ilovasi — TAHLILCHISI YO'Q qurilma.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Bu qiymat qoidadan chekinadi: qolgan ikkitasi «hodisani qaysi
+    /// tahlilchi o'qiydi» degan savolga javob beradi, bu esa «hech qaysi» —
+    /// telefondan kelgan belgini qabul yo'li emas, <c>POST /api/me/check-in</c>
+    /// ishlovchisi yozadi va o'tishni O'ZI quradi.
+    /// </para>
+    /// <para>
+    /// <b>Nega baribir alohida qiymat kerak.</b> Sintetik «Mobil ilova»
+    /// qatorini <see cref="Generic"/> deb belgilash jurnalda har bir telefon
+    /// o'tishiga «Generic» chipini chiqarardi va ma'lumotga kichkina yolg'on
+    /// qo'shardi. Bu yerda esa yozuv o'zini o'zi tushuntiradi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Qurilma ro'yxatga olish/tahrirlash formasida bu qiymat RAD ETILADI
+    /// (<c>davomat.qurilma_mobil_provayder</c>): shu provayder bilan
+    /// ro'yxatga olingan HAQIQIY terminal qabul yo'lida tahlilchi topolmay
+    /// 500 berardi (<c>_parsers.Single(…)</c>).
+    /// </para>
+    /// </remarks>
+    Mobile = 3,
 }
 
 /// <summary>
@@ -47,6 +72,29 @@ public enum AttendanceIdentityProvider
 
     /// <summary>Qo'lda kiritilgan raqamlar fazosi (sinov va tuzatish uchun).</summary>
     Manual = 4,
+
+    /// <summary>
+    /// Xodim ilovasi — raqam sifatida XODIMNING O'Z identifikatori turadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Odam terminaldan emas, TIZIMGA KIRGANI uchun tanilgan, ya'ni
+    /// <c>raw_person_id</c> ga yozadigan tabiiy raqam yo'q. Yozilgani —
+    /// <c>employees.id</c> (36 belgilik uuid).
+    /// </para>
+    /// <para>
+    /// <b>Rad etilgan muqobillar.</b> Verifix raqami — rasmi yo'q xodimda
+    /// UMUMAN yo'q, ya'ni aynan shu imkoniyat atalgan dala xodimlari uchun
+    /// maydon to'ldirilmas edi; telefon raqami — modulning eng issiq
+    /// jadvalida shaxsiy ma'lumot va u o'zgaradi; hammaga bitta
+    /// <c>"mobile"</c> satri — <c>(identity_provider, raw_person_id)</c>
+    /// juftligining ma'nosini yo'q qilardi (bog'lanmaganlar ekrani va
+    /// to'ldirish vazifasi aynan shu bo'yicha guruhlaydi);
+    /// <see cref="Manual"/> — u «sinov va tuzatish» fazasi va unga ishlab
+    /// chiqarish belgilarini aralashtirish fazani ishonchsiz qilardi.
+    /// </para>
+    /// </remarks>
+    Mobile = 5,
 }
 
 /// <summary>Qurilma qaysi yo'nalishni bildiradi.</summary>
@@ -135,6 +183,17 @@ public enum DirectionSource
 
     /// <summary>Aniqlanmadi.</summary>
     Unknown = 3,
+
+    /// <summary>
+    /// Yo'nalishni ODAMNING O'ZI aytdi — ilovadagi «Ishga keldim» tugmasi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Device"/> dan ataylab ajratilgan: qurilma o'qigan yo'nalish
+    /// bilan odam bosgan tugma tortishuvda bir xil dalil emas. Telefondan
+    /// kelgan belgi «Kirish» deb yozilgan bo'lsa, buni tasdiqlaydigan
+    /// turniket yo'q — jurnal buni ko'rsatib turishi kerak.
+    /// </remarks>
+    Employee = 4,
 }
 
 /// <summary>Shaxs qanday tasdiqlangan.</summary>
@@ -162,6 +221,17 @@ public enum PassMethod
 
     /// <summary>Qurilma umuman aytmadi.</summary>
     Unknown = 6,
+
+    /// <summary>
+    /// Telefon ilovasi — shaxs TIZIMGA KIRGANI bilan tasdiqlangan.
+    /// </summary>
+    /// <remarks>
+    /// Yuz ham, karta ham emas: dalil — login va parol, ustiga joylashuv
+    /// tekshiruvi. Tabelning katak izohi «bu kun telefondan belgilangan»
+    /// degan qatorni aynan shu ustundan chiqaradi, ya'ni HR terminal
+    /// o'tishini telefon belgisidan qo'shimcha so'rovsiz ajratadi.
+    /// </remarks>
+    Mobile = 7,
 }
 
 /// <summary>Ish jadvalining turi.</summary>

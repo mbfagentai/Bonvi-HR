@@ -7,6 +7,8 @@ using Bonvi.Application.Dashboard.Queries;
 using Bonvi.Application.Employees;
 using Bonvi.Application.Feedback;
 using Bonvi.Application.Identity.Commands.Login;
+using Bonvi.Application.Identity.EmployeeAccounts;
+using Bonvi.Application.Identity.EmployeeAuth;
 using Bonvi.Application.Identity.Commands.Logout;
 using Bonvi.Application.Identity.Commands.RefreshSession;
 using Bonvi.Application.Identity.Photos;
@@ -18,6 +20,7 @@ using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
 using Bonvi.Application.Identity.Users.Commands.UpdateUser;
 using Bonvi.Application.Identity.Users.Photos;
 using Bonvi.Application.Identity.Users.Queries.ListUsers;
+using Bonvi.Application.Me;
 using Bonvi.Application.Notifications;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Reports.Queries;
@@ -100,6 +103,35 @@ public static class DependencyInjection
         services.AddScoped<GetAccountPhotoQueryHandler>();
         services.AddScoped<UploadAccountPhotoCommandHandler>();
         services.AddScoped<DeleteAccountPhotoCommandHandler>();
+
+        /*
+          XODIM ILOVASI (PWA) — ikkita guruh, ikki xil xavfsizlik chegarasi.
+
+          1. HR tomoni (`employee_accounts` boshqaruvi) — oddiy ruxsat
+             kodlari ostida, HR tokeni bilan chaqiriladi.
+          2. `/api/me/*` — XODIM tokeni bilan, `bonvi-employee`
+             auditoriyasida, ruxsat da'volarisiz.
+
+          Ular bitta ro'yxatda turadi, chunki ikkalasi ham bitta
+          imkoniyatning ikki tomoni; chegara esa marshrutlarda
+          (`MeEndpoints` / `EmployeeAccountEndpoints`) qo'yilgan.
+        */
+        services.AddScoped<IssueEmployeeAccountCommandHandler>();
+        services.AddScoped<ResetEmployeeAccountPasswordCommandHandler>();
+        services.AddScoped<SetEmployeeAccountActiveCommandHandler>();
+        services.AddScoped<SetMobileCheckInAllowedCommandHandler>();
+        services.AddScoped<GetEmployeeAppAccessQueryHandler>();
+
+        services.AddScoped<EmployeeLoginCommandHandler>();
+        services.AddScoped<EmployeeRefreshCommandHandler>();
+        services.AddScoped<ChangeEmployeePasswordCommandHandler>();
+
+        services.AddScoped<CurrentEmployeeResolver>();
+        services.AddScoped<GetMeQueryHandler>();
+        services.AddScoped<GetMyAttendanceQueryHandler>();
+        services.AddScoped<GetMyRequestsQueryHandler>();
+        services.AddScoped<CreateMyRequestCommandHandler>();
+        services.AddScoped<CancelMyRequestCommandHandler>();
 
         // Ma'lumotnomalar (S2) — o'z ro'yxatini o'zi olib boradi
         services.AddCatalog();

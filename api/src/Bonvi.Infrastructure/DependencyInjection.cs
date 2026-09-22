@@ -5,6 +5,8 @@ using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Identity.EmployeeAuth;
+using Bonvi.Application.Me;
 using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Reports.Abstractions;
@@ -169,6 +171,17 @@ public static class DependencyInjection
         services.AddScoped<IAttendanceReadModel, AttendanceReadModel>();
         services.AddScoped<IAttendanceComputationSource, AttendanceComputationSource>();
         services.AddScoped<IEnrollmentReadModel, EnrollmentReadModel>();
+
+        /*
+          Telefondan belgilash (SPEC-xodim-ilovasi §E) — bitta yozish porti.
+
+          ⚠️ OBYEKTLARNING repozitoriysi bu yerda YO'Q va kerak ham emas:
+          `WorkSite` — ma'lumotnoma, ya'ni uni ochiq generik
+          `IReferenceRepository<>` ro'yxati (`AddCatalogServices`) allaqachon
+          qoplaydi. Bu yerga qo'shilsa, ikkita ro'yxatga olish bir-birini
+          bosib, qaysi biri ishlayotganini aytib bo'lmas edi.
+        */
+        services.AddScoped<IMobileCheckInRepository, MobileCheckInRepository>();
 
         // Excel yozuvchi va o'quvchi — holatsiz, bitta nusxa yetarli
         // (`EmployeeExcelWriter` bilan bir xil).
@@ -398,12 +411,44 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        /*
+          XODIM ILOVASINING tokenlari — ALOHIDA sozlama bo'limi, ALOHIDA
+          auditoriya, lekin O'SHA imzolash kaliti (sababi
+          `EmployeeJwtOptions` izohida).
+
+          `ValidateOnStart` bor: auditoriya bo'sh qolsa yoki HR
+          auditoriyasi bilan bir xil bo'lib qolsa, tizim ishga tushishda
+          to'xtashi kerak — aks holda xodim tokeni jimgina HR
+          endpointlariga kira boshlardi. Tenglik tekshiruvi Api
+          qatlamida (`AddBonviAuthentication`), chunki u ikkala
+          sozlamani ham ko'radi.
+        */
+        services
+            .AddOptions<EmployeeJwtOptions>()
+            .Bind(configuration.GetSection(EmployeeJwtOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddSingleton<IPasswordHasher, BonviPasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
+
+        // Xodim tokenlari — parolni xeshlagich HR bilan BITTA
+        // (`IPasswordHasher`): ikkinchi amalga oshirish — ikkinchi
+        // xato qilish imkoniyati.
+        services.AddSingleton<IEmployeeTokenService, EmployeeJwtTokenService>();
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
+        // Xodim ilovasining hisoblari va tokenlari
+        services.AddScoped<IEmployeeAccountRepository, EmployeeAccountRepository>();
+        services.AddScoped<IEmployeeRefreshTokenRepository, EmployeeRefreshTokenRepository>();
+        services.AddScoped<IEmployeeAppReadModel, EmployeeAppReadModel>();
+
+        // Kirish jurnali — holatsiz, faqat logger ushlaydi
+        // (`IAttendanceJobJournal` bilan bir xil).
+        services.AddSingleton<IEmployeeAuthJournal, EmployeeAuthJournal>();
 
         services.AddScoped<IdentitySeeder>();
 

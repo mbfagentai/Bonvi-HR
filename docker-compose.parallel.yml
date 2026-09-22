@@ -14,6 +14,7 @@
 #      COMPOSE_FILE=docker-compose.yml:docker-compose.parallel.yml
 #      API_PORT=7180
 #      WEB_PORT=7273
+#      APP_PORT=7274
 #      POSTGRES_PORT=7532
 #      REDIS_PORT=7579
 #
@@ -21,7 +22,7 @@
 #  ishlaydi, lekin SHU stack ustida: `./bonvi` tarmoq va tom nomlarini
 #  `COMPOSE_PROJECT_NAME` dan oladi.
 #
-#  PORT YO'LAGI: 71xx/72xx/75xx — asosiy stack (7080 · 7173 · 7432 · 7379)
+#  PORT YO'LAGI: 71xx/72xx/75xx — asosiy stack (7080 · 7173 · 7174 · 7432 · 7379)
 #  bilan to'qnashmaydi, boshqa loyihalar band qilgan portlar ro'yxati
 #  `docker-compose.yml` boshida.
 #
@@ -52,6 +53,15 @@ services:
 
   web:
     container_name: verif-web
+
+  # Xodim ilovasi (PWA). Portni ATAYLAB shu yerda ochiq yozamiz:
+  # asosiy stackda 7174, bu yerda 7274 — ikkalasi bir vaqtda ko'tarilsa
+  # to'qnashmaydi. Brauzerda ochiladigan manzil:
+  #     http://localhost:7274/ilova/
+  app:
+    container_name: verif-app
+    ports:
+      - "${APP_PORT:-7274}:7174"
 
   # ⚠️ BOT KO'TARILMAYDI. Telegram bitta tokenga bitta long polling
   # ulanishiga ruxsat beradi: ikkinchi bot ulansa, Telegram birinchisini

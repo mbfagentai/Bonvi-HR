@@ -1,0 +1,8 @@
+# esbuild — Vite'ning ichki kompilyatori. O'rnatish skripti platformaga mos
+# ikkilik faylni yuklab oladi; shusiz Vite ishlamaydi.
+# pnpm 11 sukut bo'yicha barcha o'rnatish skriptlarini bloklaydi (xavfsizlik) —
+# bu yerda faqat kerakli bittasiga ataylab ruxsat berilgan.
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - react-i18next@17.0.15

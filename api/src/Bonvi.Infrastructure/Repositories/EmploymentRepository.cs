@@ -101,4 +101,32 @@ public sealed class EmploymentRepository : Repository<Employment>, IEmploymentRe
                 employment.Status != EmploymentStatus.Terminated)
             .SumAsync(employment => employment.Rate, cancellationToken)
             .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Shart <c>Status</c> ga QARAMAYDI, faqat SANALARGA — va bu
+    /// ataylab: <c>EnrollmentReadModel.EmployedOn</c> hamda
+    /// <c>AttendanceComputationSource.ListEmployeesAsync</c> ham aynan
+    /// shunday qaraydi. Terminal ro'yxati, tabel hisoblash va ilovaga
+    /// kirish bitta savolga bitta javob berishi kerak, aks holda odam
+    /// terminaldan o'ta olib, ilovaga kira olmasdi (yoki teskarisi).
+    /// </para>
+    /// <para>
+    /// Global yumshoq o'chirish filtri QOLADI: xato kiritilib o'chirilgan
+    /// munosabat odamni ishlayotgan qilib ko'rsatmasligi kerak.
+    /// </para>
+    /// </remarks>
+    public Task<bool> IsEmployedOnAsync(
+        Guid employeeId,
+        DateOnly date,
+        CancellationToken cancellationToken = default)
+        => Set
+            .AsNoTracking()
+            .AnyAsync(
+                employment =>
+                    employment.EmployeeId == employeeId &&
+                    employment.HireDate <= date &&
+                    (employment.TerminationDate == null || employment.TerminationDate >= date),
+                cancellationToken);
 }

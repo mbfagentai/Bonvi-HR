@@ -1,12 +1,14 @@
 using Bonvi.Application.Attendance.Agent;
 using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Identities;
+using Bonvi.Application.Attendance.Mobile;
 using Bonvi.Application.Attendance.Ingest;
 using Bonvi.Application.Attendance.Queries;
 using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Retention;
 using Bonvi.Application.Attendance.Schedules;
+using Bonvi.Application.Attendance.WorkSites;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Attendance;
@@ -76,6 +78,20 @@ internal static class AttendanceRegistration
         services.AddScoped<ExportPassesQueryHandler>();
         services.AddScoped<ExportAttendanceExceptionsQueryHandler>();
         services.AddScoped<ExportAttendanceSummaryQueryHandler>();
+
+        // Obyektlar — geo-to'siq ma'lumotnomasi (SPEC-xodim-ilovasi §D1).
+        // Umumiy ma'lumotnoma shtampidan FOYDALANILMAYDI: yozish ruxsati
+        // boshqa (`attendance.manage`) va uchta maydon davomatga xos
+        // (sababi `SaveWorkSiteCommand` izohida).
+        services.AddScoped<ListWorkSitesQueryHandler>();
+        services.AddScoped<GetWorkSiteQueryHandler>();
+        services.AddScoped<CreateWorkSiteCommandHandler>();
+        services.AddScoped<UpdateWorkSiteCommandHandler>();
+        services.AddScoped<SetWorkSiteActiveCommandHandler>();
+
+        // Telefondan belgilash — bitta ishlovchi, butun oqim shunda
+        // (SPEC-xodim-ilovasi §E).
+        services.AddScoped<MobileCheckInCommandHandler>();
 
         // Qurilmalar
         services.AddScoped<AttendanceDeviceRules>();

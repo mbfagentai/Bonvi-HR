@@ -447,6 +447,41 @@ public sealed class AttendancePassRepository : Repository<AttendancePass>, IAtte
                     pass.ResolvedEmployeeId != null &&
                     pass.LocalDate < localDateBefore,
                 cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <c>ix_attendance_passes_employee_time</c> ga aniq tushadi: birinchi
+    /// ustun bo'yicha tenglik, ikkinchisi bo'yicha teskari yurish, bitta
+    /// qator. Chegara ochiq (<c>&gt;</c>): «roppa-rosa 60 soniya oldingi»
+    /// belgi endi to'smaydi va bu takror qoidasining ta'rifi bilan mos.
+    /// </para>
+    /// <para>
+    /// ⚠️ Yo'nalish HISOBGA OLINMAYDI: takror qoidasi «shu odam yaqinda
+    /// belgiladimi» degan savolga javob beradi, «shu tomonga belgiladimi»
+    /// emas. Kirishdan keyin darhol bosilgan chiqish ham xatolik, va uni
+    /// o'tkazib yuborish kunga ikkita ma'nosiz o'tish qo'shardi.
+    /// </para>
+    /// </remarks>
+    public async Task<DateTimeOffset?> LastPassAtAsync(
+        Guid employeeId,
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+    {
+        // `Max` emas, tartiblab birinchisi: `Max` bo'sh to'plamda
+        // `DateTimeOffset` uchun istisno tashlardi, nullable ga
+        // o'rash esa so'rovni o'qishni qiyinlashtirardi.
+        var rows = await Set
+            .AsNoTracking()
+            .Where(pass => pass.ResolvedEmployeeId == employeeId && pass.OccurredAt > since)
+            .OrderByDescending(pass => pass.OccurredAt)
+            .Select(pass => pass.OccurredAt)
+            .Take(1)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows.Count == 0 ? null : rows[0];
+    }
 }
 
 /// <summary><see cref="IWorkScheduleRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
