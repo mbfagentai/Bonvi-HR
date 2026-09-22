@@ -1,6 +1,8 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Common.Documents;
+using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Employees.Employments;
+using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Settings;
 using Bonvi.Application.Tests.Employees;
@@ -114,6 +116,21 @@ internal sealed class RecruitingTestContext
     public ScaledDocumentStore Files => new(Employees.Storage, Employees.Inspector, Images);
 
     public IClock Clock => Employees.Clock;
+
+    /// <summary>
+    /// Nomzoddan xodimga ko'chirish — HAQIQIY sinf, mock emas.
+    /// </summary>
+    /// <remarks>
+    /// Ishga qabul handleri bilan bir xil sabab: ko'chirishning O'Z
+    /// qoidalari bor (surat nusxalanadi, fayl ko'chadi, anketa qisman
+    /// tushadi) va aynan ular testda ishlashi kerak.
+    /// </remarks>
+    public CandidateHandover Handover => new(
+        Employees.DocumentTypes,
+        Employees.Documents,
+        Employees.Competencies,
+        new SquarePhotoStore(Employees.Storage, Images),
+        Employees.Clock);
 
     public RecruitingMapper Mapper => new(
         Stages, Vacancies, Candidates, Employees.Employments, Employees.Employees, Titles);

@@ -962,6 +962,47 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     /// <summary>
+    /// Fayllarni XODIM kartasiga topshiradi: ro'yxatdan chiqaradi va
+    /// ularni qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega «o'chirish» emas, TOPSHIRISH.</b> Foydalanuvchi qarori
+    /// (2026-09-20): nomzod xodimga aylanganda uning hujjatlari xodim
+    /// kartasiga o'tsin va «Номзодлик ҳужжатлари» turi bilan saqlansin.
+    /// Ilgari ular nomzodda qolib ketardi va HR hammasini qaytadan
+    /// yuklashga majbur bo'lardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Diskdagi baytlar TEGILMAYDI.</b> Bu
+    /// <see cref="RemoveFile"/> dan asosiy farq: u yerda yozuv ham,
+    /// fayl ham o'chadi, bu yerda esa fayl JOYIDA qoladi va unga endi
+    /// xodim hujjati ishora qiladi (kalit AYNAN o'sha, nusxa
+    /// olinmaydi — disk ikki barobar band bo'lmaydi). Chaqiruvchi
+    /// baytlarni o'chirmasligi SHART: o'chirsa, ko'chirilgan hujjat
+    /// birinchi ochilishdayoq «fayl yo'q» bo'lib chiqardi.
+    /// </para>
+    /// <para>
+    /// Nomzod yozuvining o'zi qoladi — u rekrutingning tarixi (vakansiya
+    /// sanog'i, kengash xulosasi va bosh sahifa statistikasi unga
+    /// tayanadi). Faqat fayllar ko'chadi, chunki hujjatning egasi endi
+    /// xodim kartasi.
+    /// </para>
+    /// <para>
+    /// Holat TEKSHIRILMAYDI: metodni faqat ishga qabul oqimi va eski
+    /// yozuvlarni tuzatuvchi bir martalik ko'chirish chaqiradi,
+    /// ikkalasi ham nomzod xodimga aylanganini allaqachon biladi.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<CandidateFile> HandOverFiles()
+    {
+        var taken = _files.ToArray();
+        _files.Clear();
+
+        return taken;
+    }
+
+    /// <summary>
     /// Faylni olib tashlaydi va uning saqlash kalitini qaytaradi.
     /// </summary>
     /// <remarks>

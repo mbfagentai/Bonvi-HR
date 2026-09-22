@@ -1,4 +1,5 @@
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Recruiting;
@@ -127,6 +128,18 @@ public sealed partial class DatabaseInitializer : IHostedService
         Message = "Ma'lumotnomalar tekshirildi: {Created} qo'shildi, {Skipped} mavjud edi, {MissingFiles} fayl topilmadi")]
     private partial void LogCatalogSeeded(int created, int skipped, int missingFiles);
 
+    [LoggerMessage(
+        EventId = 2010,
+        Level = LogLevel.Information,
+        Message = "Nomzodlik narsalari ko'chirildi: {Employees} xodim, {Files} fayl, {Photos} surat, {Profiles} profil")]
+    private partial void LogHandoverDone(int employees, int files, int photos, int profiles);
+
+    [LoggerMessage(
+        EventId = 2011,
+        Level = LogLevel.Warning,
+        Message = "Nomzodlik narsalarini ko'chirib bo'lmadi: {CandidateId}")]
+    private partial void LogHandoverFailed(Exception error, Guid candidateId);
+
     [LoggerMessage(EventId = 2002, Level = LogLevel.Information, Message = "Birinchi administrator yaratildi: {Login}")]
     private partial void LogAdminCreated(string login);
 
@@ -215,6 +228,10 @@ public sealed partial class DatabaseInitializer : IHostedService
         // ---------- «Umumiy anketa» vakansiyasi ----------
         await SeedGeneralPoolVacancyAsync(provider, cancellationToken).ConfigureAwait(false);
 
+        // Ma'lumotnomalardan KEYIN: ko'chirish «Номзодлик ҳужжатлари»
+        // turini nomi bo'yicha qidiradi va u yuqorida urug'lanadi.
+        await HandOverCandidateBelongingsAsync(provider, cancellationToken).ConfigureAwait(false);
+
         // ---------- Birinchi administrator ----------
         await CreateFirstAdminAsync(provider, options, cancellationToken).ConfigureAwait(false);
 
@@ -225,6 +242,123 @@ public sealed partial class DatabaseInitializer : IHostedService
         if (options.CreateDevUsers && _environment.IsDevelopment())
         {
             await CreateDevUsersAsync(provider, options, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// ⭐ Allaqachon ishga olinganlarning nomzodlik narsalarini
+    /// xodim kartasiga ko'chiradi — BIR MARTALIK tuzatish.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega kerak.</b> Ko'chirish ishga qabul oqimiga 2026-09-20 da
+    /// qo'shildi; undan OLDIN ishga olinganlarning surati, fayllari va
+    /// anketasi nomzod kartasida qolib ketgan. Muammoning o'zi ham aynan
+    /// shundan boshlangan: HR anketa suratlarini qaytadan yuklashga
+    /// majbur bo'lgan. Kod tuzatilgani bilan eski yozuvlar o'z-o'zidan
+    /// tuzalmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Nega migratsiyada emas.</b> Ko'chirish hujjat turini NOMI
+    /// bo'yicha qidiradi, tur esa ma'lumotnoma urug'ida yaratiladi —
+    /// migratsiya paytida u hali mavjud emas. Ustiga-ustak amal diskdagi
+    /// faylga tegadi (surat nusxasi), bu esa SQL ning ishi emas.
+    /// </para>
+    /// <para>
+    /// <b>Amal IDEMPOTENT va O'ZI TUGAYDI.</b> So'rov faqat haqiqatan
+    /// ko'chiriladigan narsasi borlarni tanlaydi: fayli bor, yoki surati
+    /// bor-u xodimda surat yo'q, yoki anketasi bor-u xodimda qobiliyatlar
+    /// profili yo'q. Birinchi yurishdan keyin ro'yxat bo'shab qoladi va
+    /// keyingi ishga tushishlar hech narsa qilmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Bitta yozuv yiqilsa, qolganlari ketaveradi.</b> Har xodim
+    /// alohida saqlanadi: eski ma'lumotda kutilmagan holat bo'lishi
+    /// mumkin (masalan diskda yo'q fayl) va u butun yurishni
+    /// to'xtatmasligi kerak. Ishga tushish esa umuman to'xtamaydi — bu
+    /// tuzatish, tizimning ishlashi uchun shart emas.
+    /// </para>
+    /// </remarks>
+    private async Task HandOverCandidateBelongingsAsync(
+        IServiceProvider provider,
+        CancellationToken cancellationToken)
+    {
+        var context = provider.GetRequiredService<AppDbContext>();
+
+        var pairs = await (
+                from item in context.EmploymentEvents
+                join employment in context.Employments on item.EmploymentId equals employment.Id
+                join candidate in context.Candidates on item.CandidateId!.Value equals candidate.Id
+                where item.CandidateId != null
+                      && (context.CandidateFiles.Any(file => file.CandidateId == candidate.Id)
+                          || (candidate.PhotoKey != null
+                              && context.Employees.Any(
+                                  person => person.Id == employment.EmployeeId && person.PhotoKey == null))
+                          || (context.CandidateQuestionnaires.Any(form => form.CandidateId == candidate.Id)
+                              && !context.EmployeeCompetencies.Any(
+                                  profile => profile.EmployeeId == employment.EmployeeId)))
+                select new { CandidateId = candidate.Id, employment.EmployeeId })
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (pairs.Count == 0)
+        {
+            return;
+        }
+
+        var candidates = provider.GetRequiredService<ICandidateRepository>();
+        var employees = provider.GetRequiredService<IEmployeeRepository>();
+        var handover = provider.GetRequiredService<CandidateHandover>();
+        var unitOfWork = provider.GetRequiredService<IUnitOfWork>();
+
+        var touched = 0;
+        var files = 0;
+        var photos = 0;
+        var profiles = 0;
+
+        foreach (var pair in pairs)
+        {
+            try
+            {
+                var candidate = await candidates
+                    .GetWithStagesAsync(pair.CandidateId, cancellationToken)
+                    .ConfigureAwait(false);
+
+                var employee = await employees
+                    .GetByIdAsync(pair.EmployeeId, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (candidate is null || employee is null)
+                {
+                    continue;
+                }
+
+                var moved = await handover
+                    .ApplyAsync(candidate, employee, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!moved.Photo && moved.Files == 0 && !moved.Competency)
+                {
+                    continue;
+                }
+
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+                touched++;
+                files += moved.Files;
+                photos += moved.Photo ? 1 : 0;
+                profiles += moved.Competency ? 1 : 0;
+            }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                LogHandoverFailed(error, pair.CandidateId);
+            }
+        }
+
+        if (touched > 0)
+        {
+            LogHandoverDone(touched, files, photos, profiles);
         }
     }
 

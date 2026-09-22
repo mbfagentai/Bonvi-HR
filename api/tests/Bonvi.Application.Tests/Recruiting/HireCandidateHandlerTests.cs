@@ -41,8 +41,11 @@ public sealed class HireCandidateHandlerTests
         _context.Candidates,
         _context.Employees.Employments,
         _context.Employees.Departments,
+        _context.Employees.Employees,
         _context.Hire,
+        _context.Handover,
         _context.Mapper,
+        _context.UnitOfWork,
         _context.Clock);
 
     /// <summary>Firma va lavozimsiz bu amal umuman bajarilmaydi.</summary>

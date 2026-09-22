@@ -164,6 +164,54 @@ public sealed class SquarePhotoStore
         return new PhotoContent(version, PhotoLimits.StoredContentType, content);
     }
 
+    /// <summary>
+    /// Saqlangan rasmning NUSXASINI yasaydi va yangi kalitni qaytaradi.
+    /// Manba topilmasa — <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega kerak.</b> Nomzod xodimga aylanganda uning surati ham
+    /// o'tishi kerak (foydalanuvchi qarori, 2026-09-20): aks holda yangi
+    /// xodim kartasida yuz o'rniga bosh harflar turardi va HR rasmni
+    /// qaytadan yuklardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Nega NUSXA, kalitni bo'lishib olish emas.</b> Nomzodning
+    /// suratini o'chirish diskdagi baytni ham o'chiradi
+    /// (<c>DeleteCandidatePhotoCommandHandler</c>). Ikkala karta bitta
+    /// kalitga ishora qilganda, rekrutingda rasm o'chirilishi bilan
+    /// XODIMNING surati ham jimgina yo'qolardi. Hujjatlarda qaror
+    /// teskari (kalit ko'chadi, nusxa olinmaydi), lekin u yerda yozuv
+    /// nomzoddan BUTUNLAY chiqib ketadi — ya'ni egasi bitta bo'lib
+    /// qoladi. Bu yerda esa ikkala kartaga ham yuz kerak.
+    /// </para>
+    /// <para>
+    /// Rasm QAYTA KODLANMAYDI: manba shu quvurdan o'tgan, ya'ni u
+    /// allaqachon kvadrat va JPEG. Baytlar bir joydan ikkinchisiga
+    /// ko'chiriladi, xolos — dekodlash ham, siqish ham yo'q.
+    /// </para>
+    /// </remarks>
+    public async Task<string?> CopyAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var content = await _storage.OpenAsync(key, cancellationToken).ConfigureAwait(false);
+        if (content is null)
+        {
+            return null;
+        }
+
+        await using var source = content;
+
+        var stored = await _storage
+            .SaveAsync(
+                source,
+                PhotoLimits.StoredFileName,
+                PhotoLimits.StoredContentType,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return stored.Key;
+    }
+
     /// <summary>Saqlangan faylni o'chiradi.</summary>
     public Task<bool> DeleteAsync(string key, CancellationToken cancellationToken = default)
         => _storage.DeleteAsync(key, cancellationToken);

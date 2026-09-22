@@ -135,23 +135,32 @@ public sealed class HireCandidateCommandHandler
     private readonly ICandidateRepository _candidates;
     private readonly IEmploymentRepository _employments;
     private readonly IDepartmentRepository _departments;
+    private readonly IEmployeeRepository _employees;
     private readonly HireEmployeeCommandHandler _hire;
+    private readonly CandidateHandover _handover;
     private readonly RecruitingMapper _mapper;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
     public HireCandidateCommandHandler(
         ICandidateRepository candidates,
         IEmploymentRepository employments,
         IDepartmentRepository departments,
+        IEmployeeRepository employees,
         HireEmployeeCommandHandler hire,
+        CandidateHandover handover,
         RecruitingMapper mapper,
+        IUnitOfWork unitOfWork,
         IClock clock)
     {
         _candidates = candidates;
         _employments = employments;
         _departments = departments;
+        _employees = employees;
         _hire = hire;
+        _handover = handover;
         _mapper = mapper;
+        _unitOfWork = unitOfWork;
         _clock = clock;
     }
 
@@ -212,9 +221,55 @@ public sealed class HireCandidateCommandHandler
             return hired.Error;
         }
 
+        await HandOverAsync(candidate, hired.Value.Employment.EmployeeId, cancellationToken)
+            .ConfigureAwait(false);
+
         var candidateDto = await _mapper.ToDtoAsync(candidate, cancellationToken).ConfigureAwait(false);
 
         return Result.Success(new DirectHireResultDto(candidateDto, hired.Value));
+    }
+
+    /// <summary>
+    /// Nomzodning surati, fayllari va anketasini xodimga topshiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega ishga qabuldan KEYIN, ikkinchi saqlash bilan.</b>
+    /// Ko'chirish xodim identifikatorini talab qiladi, u esa faqat ishga
+    /// qabul bajarilgach ma'lum bo'ladi. Ishga qabul oqimi o'z ishini
+    /// o'zi saqlaydi (izohi sinf tepasida), ya'ni bu qadam ikkinchi
+    /// <c>SaveChangesAsync</c> bo'lib tushadi.
+    /// </para>
+    /// <para>
+    /// <b>Ikkinchi saqlash yiqilsa nima bo'ladi.</b> Odam ishga OLINGAN
+    /// bo'lib qoladi, fayllari esa nomzod kartasida turaveradi —
+    /// ya'ni bugungi (tuzatishdan oldingi) xulqning o'zi. Bu yo'qotish
+    /// emas va tuzatiladi: ishga tushishdagi bir martalik ko'chirish
+    /// aynan shunday qolib ketganlarni topib oladi
+    /// (<c>CandidateHandover</c> izohi). Shu sababli xato yuqoriga
+    /// CHIQARILMAYDI: ishga qabulning o'zi muvaffaqiyatli bo'lgan va
+    /// uni «yiqildi» deb ko'rsatish HR ni ikkinchi marta urinishga
+    /// majbur qilardi — u esa takroriy qabul to'sig'iga urilardi.
+    /// </para>
+    /// </remarks>
+    private async Task HandOverAsync(Candidate candidate, Guid employeeId, CancellationToken cancellationToken)
+    {
+        var employee = await _employees.GetByIdAsync(employeeId, cancellationToken).ConfigureAwait(false);
+        if (employee is null)
+        {
+            return;
+        }
+
+        var moved = await _handover.ApplyAsync(candidate, employee, cancellationToken).ConfigureAwait(false);
+
+        // Hech narsa ko'chmagan bo'lsa, bazaga borishning ma'nosi yo'q:
+        // Excel'dan kelgan nomzodlarda na surat, na fayl, na anketa bor.
+        if (!moved.Photo && moved.Files == 0 && !moved.Competency)
+        {
+            return;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

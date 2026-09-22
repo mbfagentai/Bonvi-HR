@@ -58,6 +58,10 @@ internal static class RecruitingRegistration
         // 1-bosqichning oqimi yaratadi, rekruting o'z yo'lini yozmaydi.
         services.AddScoped<HireCandidateCommandHandler>();
 
+        // Nomzoddan xodimga ko'chirish — ishga qabul oqimi ham, ishga
+        // tushishdagi bir martalik yurish ham shu bitta sinfni ishlatadi.
+        services.AddScoped<CandidateHandover>();
+
         // Nomzod fayllari (o'ntagacha) — `ScaledDocumentStore` quvuridan
         // o'tadi va u `Common` da ro'yxatga olingan. Xodim hujjatlarining
         // quvuri ALOHIDA qoladi: u faylni qayta kodlamaydi (sababi
