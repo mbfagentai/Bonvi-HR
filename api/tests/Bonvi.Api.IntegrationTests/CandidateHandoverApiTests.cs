@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using Bonvi.Application.Recruiting.Candidates;
+using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Recruiting;
 using Bonvi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,17 @@ public sealed record HandoverPersonResponse(Guid Id, string? PhotoKey);
 
 /// <summary>Xodim KARTASI — javob konverti («employee» ichma-ich turadi).</summary>
 public sealed record HandoverCardResponse(HandoverPersonResponse Employee);
+
+/// <summary>Profildagi til qatori.</summary>
+public sealed record HandoverLanguageResponse(string Language, string Level);
+
+/// <summary>Qobiliyatlar profili — ko'chirish testiga kerakli qismi.</summary>
+public sealed record HandoverCompetencyResponse(
+    string? Languages,
+    IReadOnlyList<HandoverLanguageResponse> LanguageSkills,
+    int? ComputerLiteracyPercent,
+    string? OtherAbilities,
+    string? CandidateNote);
 
 /// <summary>
 /// ⭐ Nomzoddan xodimga KO'CHIRISH — uchi-uchiga.
@@ -153,6 +166,64 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
+    /// Anketa «Qobiliyatlar» profiliga tushadi — mosi maydonga, qolgani izohga.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Ikkala tomoni ham qadaladi. Rus tili darajasi TUZILGAN qiymat
+    /// bo'lib tushadi (ekranda daraja bilan ko'rinadi), xodim tomonida
+    /// o'rni yo'q javoblar esa tayyor matnga yig'iladi — ta'lim
+    /// darajasi, ish tajribasi, oilaviy holat, oylik kutilmasi va ishni
+    /// qayerdan eshitgani.
+    /// </para>
+    /// <para>
+    /// Matnning O'ZI ham tekshiriladi: yorliqsiz yoki tarjimasiz qator
+    /// chiqib qolsa, HR ekranda «Married» degan so'zni ko'rardi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Anketa_qobiliyatlar_profiliga_kochadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var nomzodId = await NomzodAsync(mijoz);
+        await AnketaBiriktirAsync(nomzodId);
+
+        var xodimId = await IshgaOlAsync(mijoz, nomzodId);
+
+        using var javob = await mijoz.GetAsync(
+            new Uri($"/api/employees/{xodimId}/competency", UriKind.Relative), bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var profil = await javob.Content.ReadFromJsonAsync<HandoverCompetencyResponse>(bekorQilish);
+        profil.ShouldNotBeNull();
+
+        // ── Mos tushadigani — TUZILGAN qiymat ──
+        profil.LanguageSkills.Count.ShouldBe(1, "rus tili darajasi ro'yxatga qator bo'lib tushadi");
+        profil.LanguageSkills[0].Language.ShouldBe("Russian");
+        profil.LanguageSkills[0].Level.ShouldBe("Advanced");
+        profil.Languages.ShouldBe("Ingliz tili — o'rta");
+        profil.OtherAbilities.ShouldNotBeNull();
+        profil.OtherAbilities.ShouldContain("Word, Excel");
+        profil.OtherAbilities.ShouldContain("B, C");
+
+        // ── Qolgani — tayyor MATN ──
+        profil.CandidateNote.ShouldNotBeNullOrWhiteSpace();
+        profil.CandidateNote.ShouldContain("Oliy (bakalavr)", customMessage: "ta'lim darajasi tarjimalangan bo'lishi kerak");
+        profil.CandidateNote.ShouldContain("Oilali");
+        profil.CandidateNote.ShouldContain("3 yil savdoda");
+        profil.CandidateNote.ShouldContain("2-3 mln so'm");
+        profil.CandidateNote.ShouldContain("Tanishlar orqali");
+        profil.CandidateNote.ShouldNotContain("Married", customMessage: "enum nomi ekranga chiqmasligi kerak");
+
+        // ⚠️ Kompyuter FOIZI bo'sh qoladi: anketada bu matn, bu yerda esa
+        // 0-100 foiz — matnni songa aylantirish taxmin bo'lardi.
+        profil.ComputerLiteracyPercent.ShouldBeNull();
+    }
+
+    /// <summary>
     /// Ko'chiradigan narsasi yo'q nomzod ishga qabulni YIQITMAYDI.
     /// </summary>
     /// <remarks>
@@ -277,6 +348,42 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
         var nomzod = await javob.Content.ReadFromJsonAsync<CandidateFileCardResponse>(bekorQilish);
         nomzod.ShouldNotBeNull();
         return nomzod.Id;
+    }
+
+    /// <summary>
+    /// Nomzodga anketa biriktiradi — TO'G'RIDAN-TO'G'RI bazaga.
+    /// </summary>
+    /// <remarks>
+    /// Anketa odatda botdan keladi va uni HTTP orqali yaratadigan yo'l
+    /// yo'q. Testga kerak bo'lgani esa faqat NATIJA: anketasi bor
+    /// nomzod ishga olinganda profil to'ladimi.
+    /// </remarks>
+    private async Task AnketaBiriktirAsync(Guid nomzodId)
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var anketa = CandidateQuestionnaire.Create(
+            nomzodId,
+            EducationLevel.HigherComplete,
+            MaritalStatus.Married,
+            LanguageLevel.Advanced,
+            SalaryExpectation.From2To3Million,
+            ReferralSource.Acquaintance,
+            offerAcceptedAt: null,
+            workExperience: "3 yil savdoda",
+            otherLanguages: "Ingliz tili — o'rta",
+            officeSkills: "Word, Excel",
+            lastSalary: "4 000 000",
+            extraNote: "Kechki smenaga tayyor",
+            hasDriverLicense: true,
+            driverLicenseCategories: "B, C").Value;
+
+        kontekst.Add(anketa);
+
+        await kontekst.SaveChangesAsync(bekorQilish);
     }
 
     private static async Task<CandidateFileResponse> FaylYuklaAsync(

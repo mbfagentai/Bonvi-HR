@@ -925,6 +925,8 @@
     "specialization": "Specialisation",
     "interest": "Interests",
     "otherAbilities": "Other abilities",
+    "candidateNote": "Additional candidate details",
+    "candidateNoteHint": "Carried over from the candidate questionnaire at hire — answers that have no field of their own on the employee card",
     "hint": "Often only partly filled in — little data carried over from Excel",
     "editTitle": "Edit competency profile",
     "languageLabel": "Language",

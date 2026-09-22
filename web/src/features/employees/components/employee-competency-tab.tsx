@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   GraduationCap,
   Heart,
   Laptop,
@@ -144,6 +145,18 @@ export function EmployeeCompetencyTab({ employeeId }: { employeeId: string }) {
               icon={Star}
               label={t('competency.otherAbilities')}
               value={profile?.otherAbilities ?? null}
+              className="sm:col-span-2"
+            />
+            {/*
+              Nomzodlik anketasidan ko'chgan qo'shimcha ma'lumot — ko'p
+              qatorli matn, shu sababli oxirida va butun kenglikda.
+              Bo'lmasa qator umuman chizilmaydi (`InfoRow` ning o'z
+              qoidasi).
+            */}
+            <InfoRow
+              icon={ClipboardList}
+              label={t('competency.candidateNote')}
+              value={profile?.candidateNote ?? null}
               className="sm:col-span-2"
             />
           </dl>

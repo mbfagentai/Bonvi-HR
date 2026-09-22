@@ -22,7 +22,8 @@ public sealed record SaveEmployeeCompetencyCommand(
     string? Specialization = null,
     string? OtherAbilities = null,
     string? Interest = null,
-    string? EducationPlace = null);
+    string? EducationPlace = null,
+    string? CandidateNote = null);
 
 public sealed class SaveEmployeeCompetencyCommandHandler
 {
@@ -88,6 +89,7 @@ public sealed class SaveEmployeeCompetencyCommandHandler
         competency.SetOtherAbilities(command.OtherAbilities);
         competency.SetInterest(command.Interest);
         competency.SetEducationPlace(command.EducationPlace);
+        competency.SetCandidateNote(command.CandidateNote);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

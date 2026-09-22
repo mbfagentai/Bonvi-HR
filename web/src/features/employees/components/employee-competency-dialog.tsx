@@ -50,6 +50,7 @@ export function EmployeeCompetencyDialog({
   const [otherAbilities, setOtherAbilities] = useState('')
   const [interest, setInterest] = useState('')
   const [educationPlace, setEducationPlace] = useState('')
+  const [candidateNote, setCandidateNote] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -64,6 +65,7 @@ export function EmployeeCompetencyDialog({
     setOtherAbilities(profile?.otherAbilities ?? '')
     setInterest(profile?.interest ?? '')
     setEducationPlace(profile?.educationPlace ?? '')
+    setCandidateNote(profile?.candidateNote ?? '')
     save.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -119,6 +121,7 @@ export function EmployeeCompetencyDialog({
         otherAbilities: orNull(otherAbilities),
         interest: orNull(interest),
         educationPlace: orNull(educationPlace),
+        candidateNote: orNull(candidateNote),
       },
       { onSuccess: onClose },
     )
@@ -254,6 +257,19 @@ export function EmployeeCompetencyDialog({
           rows={2}
           value={otherAbilities}
           onChange={(event) => setOtherAbilities(event.target.value)}
+        />
+
+        {/*
+          Nomzodlik anketasidan ko'chgan matn — TAHRIRLANADI: HR uni
+          tuzatishi yoki butunlay o'chirishi mumkin. Qatorlar ko'p
+          bo'lgani uchun boshqalardan balandroq.
+        */}
+        <TextArea
+          label={t('competency.candidateNote')}
+          hint={t('competency.candidateNoteHint')}
+          rows={5}
+          value={candidateNote}
+          onChange={(event) => setCandidateNote(event.target.value)}
         />
       </div>
     </Dialog>

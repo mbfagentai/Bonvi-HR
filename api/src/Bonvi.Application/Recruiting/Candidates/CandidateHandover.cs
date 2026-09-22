@@ -317,8 +317,108 @@ public sealed class CandidateHandover
             }
         }
 
+        // Qolgani — tayyor matn bo'lib alohida maydonga tushadi
+        // (sababi `EmployeeCompetency.CandidateNote` izohida).
+        if (string.IsNullOrWhiteSpace(competency.CandidateNote))
+        {
+            var note = Summary(anketa);
+
+            if (note is not null)
+            {
+                competency.SetCandidateNote(note);
+                filled = true;
+            }
+        }
+
         return filled;
     }
+
+    /// <summary>
+    /// Xodim tomonida o'rni YO'Q anketa javoblarini bitta matnga yig'adi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Har qator — «Yorliq: javob». Bo'sh javob umuman yozilmaydi: «Ish
+    /// tajribasi: —» degan qator matnni uzaytirib, hech narsa aytmaydi.
+    /// Hech biri to'ldirilmagan bo'lsa <c>null</c> qaytadi va maydon
+    /// umuman ochilmaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Yorliqlar va ro'yxat javoblari O'ZBEKCHA (lotin) — sababi va
+    /// qabul qilingan narxi <c>EmployeeCompetency.CandidateNote</c>
+    /// izohida. Matnlar interfeysdagi nomzod anketasi kartasi bilan
+    /// AYNAN bir xil so'zlar bilan yozilgan, ya'ni HR ikkala joyda bir
+    /// xil narsani o'qiydi.
+    /// </para>
+    /// </remarks>
+    private static string? Summary(CandidateQuestionnaire anketa)
+    {
+        var lines = new List<string>(6)
+        {
+            $"Ma'lumoti: {Education(anketa.Education)}",
+            $"Oilaviy holati: {Marital(anketa.MaritalStatus)}",
+            $"Kutilayotgan maosh: {ExpectedSalary(anketa.ExpectedSalary)}",
+            $"Ish haqida qayerdan bilgan: {Referral(anketa.ReferralSource)}",
+        };
+
+        if (!string.IsNullOrWhiteSpace(anketa.WorkExperience))
+        {
+            lines.Insert(1, $"Ish tajribasi: {anketa.WorkExperience.Trim()}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(anketa.LastSalary))
+        {
+            lines.Add($"Oxirgi ish haqi: {anketa.LastSalary.Trim()}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(anketa.ExtraNote))
+        {
+            lines.Add($"Qo'shimcha: {anketa.ExtraNote.Trim()}");
+        }
+
+        var text = string.Join('\n', lines);
+
+        // Chegaradan oshsa oxiri kesiladi: bazaning 2000 belgisi qattiq
+        // chegara va uni buzish butun ishga qabulni yiqitardi.
+        return text.Length <= 2000 ? text : text[..2000];
+    }
+
+    private static string Education(EducationLevel level) => level switch
+    {
+        EducationLevel.SecondarySchool => "O'rta (maktab)",
+        EducationLevel.VocationalSchool => "O'rta maxsus (kollej, litsey)",
+        EducationLevel.HigherComplete => "Oliy (bakalavr)",
+        EducationLevel.HigherIncomplete => "Oliy (tugallanmagan)",
+        _ => "ko'rsatilmagan",
+    };
+
+    private static string Marital(MaritalStatus status) => status switch
+    {
+        MaritalStatus.Married => "Oilali",
+        MaritalStatus.Unmarried => "Bo'ydoq",
+        MaritalStatus.Divorced => "Ajrashgan",
+        _ => "ko'rsatilmagan",
+    };
+
+    private static string ExpectedSalary(SalaryExpectation salary) => salary switch
+    {
+        SalaryExpectation.From1To2Million => "1-2 mln so'm",
+        SalaryExpectation.From2To3Million => "2-3 mln so'm",
+        SalaryExpectation.From3To4Million => "3-4 mln so'm",
+        SalaryExpectation.From5To7Million => "5-7 mln so'm",
+        _ => "ko'rsatilmagan",
+    };
+
+    private static string Referral(ReferralSource source) => source switch
+    {
+        ReferralSource.Acquaintance => "Tanishlar orqali",
+        ReferralSource.SocialNetwork => "Instagram / Facebook",
+        ReferralSource.Olx => "OLX.uz",
+        ReferralSource.HeadHunter => "hh.uz",
+        ReferralSource.Telegram => "Telegram",
+        ReferralSource.Other => "Boshqa manba",
+        _ => "ko'rsatilmagan",
+    };
 
     /// <summary>
     /// Kompyuter va haydovchilik ko'nikmalarini bitta matnga yig'adi.

@@ -71,6 +71,43 @@ public sealed class EmployeeCompetency : AggregateRoot, IAuditable
     /// <summary>Ta'lim olgan joyi (Excel: «Талим олган жойи») — masalan «ТДТУ».</summary>
     public string? EducationPlace { get; private set; }
 
+    /// <summary>
+    /// ⭐ Nomzodlik anketasidan ko'chgan QO'SHIMCHA ma'lumot — tayyor matn.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega alohida maydon, mavjudlari emas.</b> Anketaning bir qismi
+    /// bu yerdagi maydonlarga to'g'ri tushadi (til, kompyuter
+    /// ko'nikmalari), bir qismi esa umuman tushmaydi: ta'lim DARAJASI
+    /// (bu yerda faqat ta'lim JOYI bor), ish tajribasi, oilaviy holat,
+    /// oxirgi va kutilgan oylik, ishni qayerdan eshitgani. Ularni
+    /// «Boshqa qobiliyatlar» ga tiqish ma'noni buzardi — oilaviy holat
+    /// qobiliyat emas.
+    /// </para>
+    /// <para>
+    /// <b>Nega TUZILGAN nusxa emas, matn.</b> Foydalanuvchi qarori
+    /// (2026-09-22): bu ma'lumot xodim kartasida O'QILADI, lekin unga
+    /// tayanib hisobot qurilmaydi va filtr qo'yilmaydi. Har maydon
+    /// uchun ustun ochish (yoki anketani butunlay ikkinchi jadvalga
+    /// nusxalash) hech kim so'ramagan tuzilmani qo'llab-quvvatlashni
+    /// talab qilardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Matn BIR TILDA qotib qoladi</b> — o'zbekcha (lotin), HR
+    /// ishlaydigan til. Anketaning ro'yxatli javoblari (ta'lim, oilaviy
+    /// holat) ekranda to'rt tilga tarjima qilinadi, bu yerda esa
+    /// ko'chirish paytidagi holicha saqlanadi. Bu qabul qilingan narx:
+    /// yozuv TARIXIY nusxa va u ko'chirilgan kundagi holatni bildiradi.
+    /// Nomzod kartasidagi asl anketa esa o'z o'rnida qoladi va u
+    /// avvalgidek tarjimalanadi.
+    /// </para>
+    /// <para>
+    /// Maydon TAHRIRLANADI: HR matnni tuzatishi yoki butunlay
+    /// o'chirishi mumkin — qolgan qobiliyat maydonlari bilan bir xil.
+    /// </para>
+    /// </remarks>
+    public string? CandidateNote { get; private set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -168,6 +205,9 @@ public sealed class EmployeeCompetency : AggregateRoot, IAuditable
     public void SetInterest(string? value) => Interest = Trim(value);
 
     public void SetEducationPlace(string? value) => EducationPlace = Trim(value);
+
+    /// <summary>Nomzodlik anketasidan ko'chgan qo'shimcha ma'lumot.</summary>
+    public void SetCandidateNote(string? value) => CandidateNote = Trim(value);
 
     private static string? Trim(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

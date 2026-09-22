@@ -21,4 +21,8 @@ public sealed record EmployeeCompetencyDto(
     string? Specialization,
     string? OtherAbilities,
     string? Interest,
-    string? EducationPlace);
+    string? EducationPlace,
+
+    // Nomzodlik anketasidan ko'chgan qo'shimcha ma'lumot — tayyor matn
+    // (sababi `EmployeeCompetency.CandidateNote` izohida).
+    string? CandidateNote);

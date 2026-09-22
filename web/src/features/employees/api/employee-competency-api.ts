@@ -95,6 +95,16 @@ export interface EmployeeCompetency {
   otherAbilities: string | null
   interest: string | null
   educationPlace: string | null
+  /**
+   * Nomzodlik anketasidan KO'CHGAN qo'shimcha ma'lumot — tayyor matn.
+   *
+   * Xodim tomonida o'rni yo'q javoblar shu yerda yashaydi: ta'lim
+   * darajasi, ish tajribasi, oilaviy holat, oylik kutilmasi va ishni
+   * qayerdan eshitgani. Matn ko'chirish paytida yig'iladi va
+   * O'ZBEKCHA bo'lib qoladi (sababi backend'dagi
+   * `EmployeeCompetency.CandidateNote` izohida).
+   */
+  candidateNote: string | null
 }
 
 /**
@@ -109,6 +119,7 @@ export interface SaveCompetencyRequest {
   otherAbilities: string | null
   interest: string | null
   educationPlace: string | null
+  candidateNote: string | null
 }
 
 function text(value: unknown): string | null {
@@ -196,6 +207,7 @@ function toCompetency(raw: unknown): EmployeeCompetency {
     otherAbilities: text(box['otherAbilities']),
     interest: text(box['interest']),
     educationPlace: text(box['educationPlace']),
+    candidateNote: text(box['candidateNote']),
   }
 }
 

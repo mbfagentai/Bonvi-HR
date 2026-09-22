@@ -81,7 +81,8 @@ public sealed class EmployeeMapper
             competency.Specialization,
             competency.OtherAbilities,
             competency.Interest,
-            competency.EducationPlace);
+            competency.EducationPlace,
+            competency.CandidateNote);
     }
 
     public static EmployeeFlagDto ToDto(EmployeeFlag flag, DateOnly on)

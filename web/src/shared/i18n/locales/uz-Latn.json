@@ -925,6 +925,8 @@
     "specialization": "Mutaxassisligi",
     "interest": "Qiziqishi",
     "otherAbilities": "Boshqa qobiliyatlar",
+    "candidateNote": "Nomzodlik qo‘shimcha ma’lumotlari",
+    "candidateNoteHint": "Ishga qabulda nomzodlik anketasidan ko‘chirilgan — xodim kartasida alohida maydoni yo‘q javoblar",
     "hint": "Ko‘pincha to‘liq to‘ldirilmagan — Excel‘dan kam ma‘lumot ko‘chgan",
     "editTitle": "Qobiliyatlar profilini tahrirlash",
     "languageLabel": "Til",
