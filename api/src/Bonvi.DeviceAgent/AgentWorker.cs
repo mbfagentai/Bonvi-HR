@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bonvi.DeviceAgent.Bonvi;
 using Bonvi.DeviceAgent.Hikvision;
 using Microsoft.Extensions.Hosting;
@@ -40,6 +41,29 @@ internal sealed partial class AgentWorker : BackgroundService
     /// tuzatilmasligi (loyiha fayli izohi).
     /// </remarks>
     private const int MaxFaceBytes = 200 * 1024;
+
+    /// <summary>
+    /// Hodisa va kadr so'rovlarining muddati.
+    /// </summary>
+    /// <remarks>
+    /// Terminal ikkalasiga 0.1 soniyada javob beradi (2026-09-21 da
+    /// o'lchangan). Sakkiz soniya — sekin tarmoq uchun zaxira bilan, lekin
+    /// umumiy 30 soniyadan ancha qisqa. Yuz yozish esa umumiy muddatda
+    /// qoladi: u haqiqatan sekin.
+    /// </remarks>
+    private static readonly TimeSpan QuickCallTimeout = TimeSpan.FromSeconds(8);
+
+    /// <summary>Bitta qabul so'rovidagi eng ko'p hodisa — suratli hodisa ~110 KB.</summary>
+    private const int IngestChunkSize = 10;
+
+    /// <summary>Kadrning eng katta hajmi — qabul yo'li bitta suratga 1 MB beradi.</summary>
+    private const int MaxSnapshotBytes = 900 * 1024;
+
+    /// <summary>
+    /// Qurilma soati biroz oldinda yursa, yangi hodisa «kelajakda» ko'rinadi —
+    /// shuncha soniyagacha bu normal.
+    /// </summary>
+    private const int FutureToleranceSeconds = 2;
 
     /// <summary>Kursor yo'q bo'lganda qancha orqaga qaraladi.</summary>
     private static readonly TimeSpan ColdStart = TimeSpan.FromHours(1);
@@ -134,8 +158,17 @@ internal sealed partial class AgentWorker : BackgroundService
         var now = DateTimeOffset.UtcNow;
         var since = _state.LastReadAt ?? now - ColdStart;
 
+        /*
+          Qisqa muddat — umumiy 30 soniya EMAS. Osilib qolgan bitta so'rov
+          halqani 30 soniyaga to'xtatib qo'yardi: o'tishlar kechikardi va
+          jonli kadr o'tgan odamni allaqachon ushlay olmasdi. Yiqilgan
+          so'rov keyingi aylanishda (2 soniyadan keyin) qaytariladi.
+        */
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(QuickCallTimeout);
+
         var items = await _device
-            .ReadEventsAsync(since - TimeSpan.FromMinutes(1), now, cancellationToken)
+            .ReadEventsAsync(since - TimeSpan.FromMinutes(1), now, deadline.Token)
             .ConfigureAwait(false);
 
         var fresh = items
@@ -149,23 +182,44 @@ internal sealed partial class AgentWorker : BackgroundService
             return;
         }
 
-        var events = fresh
-            // Bo'sh shaxs raqami — eshik holati yoki tanilmagan yuz,
-            // o'tish EMAS (`AcsEvent.EmployeeNoString` izohi).
+        // Bo'sh shaxs raqami — eshik holati yoki tanilmagan yuz, o'tish
+        // EMAS (`AcsEvent.EmployeeNoString` izohi).
+        var passes = fresh
             .Where(item => !string.IsNullOrWhiteSpace(item.EmployeeNoString) && item.Time is not null)
+            .ToList();
+
+        /*
+          Jonli kadr — BITTA, faqat yangi o'tish bo'lsa. Kadr O'QISH
+          lahzasida olinadi, shu sababli u faqat bir necha soniya oldingi
+          o'tishga biriktiriladi (`SnapshotMaxAgeSeconds` izohi): agent
+          uzilib qaytganda yuboriladigan eski o'tishlar suratsiz qoladi,
+          noto'g'ri surat bilan emas.
+        */
+        var photo = passes.Any(item => IsFresh(item, now))
+            ? await SnapshotAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+
+        var events = passes
             .Select(item => new IngestEvent(
                 item.EmployeeNoString!,
                 item.Time!,
                 "Unknown",
                 Method(item.CurrentVerifyMode),
-                $"minmoe-{item.SerialNo}"))
+                $"minmoe-{item.SerialNo}",
+                photo is not null && IsFresh(item, now) ? photo : null))
             .ToList();
 
-        if (events.Count > 0)
+        /*
+          Bo'laklab: suratli hodisa ~110 KB, qabul yo'lining tana chegarasi
+          esa 2 MB. O'nta hodisa — chegaradan ancha past, ertalabki
+          navbatda ham. Bo'laklardan biri yiqilsa kursor surilmaydi va
+          hammasi qayta yuboriladi — server takrorni o'zi tashlaydi.
+        */
+        foreach (var chunk in events.Chunk(IngestChunkSize))
         {
-            var result = await _bonvi.IngestAsync(events, cancellationToken).ConfigureAwait(false);
+            var result = await _bonvi.IngestAsync(chunk, cancellationToken).ConfigureAwait(false);
 
-            Forwarded(events.Count, result.Stored, result.Duplicates);
+            Forwarded(chunk.Length, result.Stored, result.Duplicates);
         }
 
         /*
@@ -376,6 +430,63 @@ internal sealed partial class AgentWorker : BackgroundService
     [LoggerMessage(EventId = 6107, Level = LogLevel.Warning,
         Message = "Qurilma soati o'qilmadi: {Error}")]
     private partial void ClockFailed(string error);
+
+    [LoggerMessage(EventId = 6108, Level = LogLevel.Warning,
+        Message = "Jonli kadr olinmadi: {Error}")]
+    private partial void SnapshotFailed(string error);
+
+    /// <summary>
+    /// O'tish shunchalik yangimi, jonli kadr unda o'sha odamni ko'rsata oladi.
+    /// </summary>
+    /// <remarks>
+    /// Vaqt o'qib bo'lmasa — YO'Q: shubhali holatda surat biriktirilmaydi.
+    /// Qurilma soati katta og'gan bo'lsa ham shunday: bunda hodisa eski yoki
+    /// uzoq kelajakda ko'rinadi va kadr olinmaydi. Og'ishning o'zi
+    /// qurilmalar sahifasida ko'rinib turadi.
+    /// </remarks>
+    private bool IsFresh(AcsEvent item, DateTimeOffset now)
+    {
+        if (!DateTimeOffset.TryParse(item.Time, CultureInfo.InvariantCulture, DateTimeStyles.None, out var occurred))
+        {
+            return false;
+        }
+
+        var age = (now - occurred).TotalSeconds;
+
+        return age >= -FutureToleranceSeconds && age <= _options.SnapshotMaxAgeSeconds;
+    }
+
+    /// <summary>Jonli kadr — xatosi o'tishni to'xtatmaydi.</summary>
+    private async Task<string?> SnapshotAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.SnapshotChannel))
+        {
+            return null;
+        }
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(QuickCallTimeout);
+
+        try
+        {
+            var bytes = await _device
+                .SnapshotAsync(_options.SnapshotChannel, deadline.Token)
+                .ConfigureAwait(false);
+
+            return bytes is { Length: > 0 and <= MaxSnapshotBytes } ? Convert.ToBase64String(bytes) : null;
+        }
+        catch (HttpRequestException failure)
+        {
+            SnapshotFailed(failure.Message);
+            return null;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Muddat tugadi — o'tish kadrsiz ketadi, lekin KECHIKMAYDI.
+            SnapshotFailed("muddat tugadi");
+            return null;
+        }
+    }
 
     private static string Method(string? verifyMode)
     {

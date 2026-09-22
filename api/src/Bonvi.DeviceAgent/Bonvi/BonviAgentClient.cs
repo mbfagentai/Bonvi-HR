@@ -138,6 +138,7 @@ internal sealed record IngestEvent(
     string OccurredAt,
     string Direction,
     string Method,
-    string EventId);
+    string EventId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PhotoBase64 = null);
 
 internal sealed record IngestResult(bool Ok, int Stored, int Duplicates);

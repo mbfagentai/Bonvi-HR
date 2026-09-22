@@ -358,6 +358,40 @@ internal sealed partial class HikvisionClient
             : null;
     }
 
+    /// <summary>
+    /// Kameradan JONLI kadr — JPEG baytlari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Qurilma sozlamasiga TEGMAYDI — oddiy o'qish so'rovi, xuddi
+    /// veb-interfeysdagi «surat olish» tugmasi kabi.
+    /// </para>
+    /// <para>
+    /// Baytlar <see cref="SendAsync"/> dan o'tmaydi: u javobni matn qilib
+    /// o'qiydi va JPEG buzilib ketardi. Javob JPEG bo'lmasa (masalan XML
+    /// xato) — <c>null</c>: kadrsiz o'tish ham to'liq o'tish.
+    /// </para>
+    /// </remarks>
+    public async Task<byte[]?> SnapshotAsync(string channel, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/ISAPI/Streaming/channels/{Uri.EscapeDataString(channel)}/picture");
+
+        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+
+        // JPEG boshlanishi — FF D8. Boshqa narsa (XML xato, bo'sh javob)
+        // surat sifatida saqlanmasligi kerak.
+        return bytes.Length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8 ? bytes : null;
+    }
+
     [GeneratedRegex("<localTime>([^<]+)</localTime>", RegexOptions.IgnoreCase)]
     private static partial Regex LocalTime();
 

@@ -229,7 +229,9 @@ services:
       Agent__DeviceHost: ${AGENT__DEVICEHOST:-}
       Agent__DeviceUser: ${AGENT__DEVICEUSER:-admin}
       Agent__DevicePassword: ${AGENT__DEVICEPASSWORD:-}
-      Agent__EventsIntervalSeconds: ${AGENT__EVENTSINTERVAL:-5}
+      Agent__EventsIntervalSeconds: ${AGENT__EVENTSINTERVAL:-2}
+      # Jonli kadr kanali — bo'sh bo'lsa kadr olinmaydi (izohi AgentOptions.SnapshotChannel da)
+      Agent__SnapshotChannel: ${AGENT__SNAPSHOTCHANNEL-101}
       Agent__RosterIntervalSeconds: ${AGENT__ROSTERINTERVAL:-60}
       Agent__StatePath: /data/agent-state.json
     volumes:

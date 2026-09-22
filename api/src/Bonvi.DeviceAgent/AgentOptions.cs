@@ -49,10 +49,43 @@ public sealed class AgentOptions
 
     /// <summary>Hodisa halqasining oralig'i (soniya).</summary>
     /// <remarks>
-    /// 5 soniya — jonli taxta uchun yetarli va terminal uchun sezilmaydi.
+    /// 2 soniya — jonli kadr (<see cref="SnapshotChannel"/>) o'tgan odamni
+    /// hali terminal oldida ushlashi uchun. So'rov tor oraliqli va
+    /// terminal uchun sezilmaydi (0.1 soniyadan kam).
     /// </remarks>
-    [Range(2, 120)]
-    public int EventsIntervalSeconds { get; set; } = 5;
+    [Range(1, 120)]
+    public int EventsIntervalSeconds { get; set; } = 2;
+
+    /// <summary>
+    /// Jonli kadr olinadigan kanal — bo'sh bo'lsa kadr olinmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega jonli kadr, terminalning o'z surati emas.</b> O'tish
+    /// suratini terminal faqat <c>saveCapPic</c>/<c>uploadCapPic</c> yoqilganda
+    /// saqlaydi — bu BUTUN qurilmaning sozlamasi va u Verifix'ga
+    /// yuboriladigan hodisalarni ham o'zgartirardi. Egasining sharti:
+    /// Verifix uzilib qolmasin. Jonli kadr esa oddiy o'qish so'rovi —
+    /// qurilma sozlamasiga tegmaydi.
+    /// </para>
+    /// <para>
+    /// MinMoe'da kanal <c>101</c> (2026-09-21 da tekshirilgan: <c>1</c> —
+    /// 404, <c>101</c> — 79 KB JPEG, 0.07 soniya).
+    /// </para>
+    /// </remarks>
+    public string SnapshotChannel { get; set; } = "101";
+
+    /// <summary>
+    /// Hodisa shundan eski bo'lsa, kadr BIRIKTIRILMAYDI (soniya).
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Kadr hodisa o'qilgan lahzada olinadi, o'tish lahzasida emas. Eski
+    /// hodisaga (agent uzilib qaytganda) kadr biriktirilsa, unda boshqa
+    /// odam yoki bo'sh xona bo'lardi — noto'g'ri surat suratsizlikdan
+    /// yomonroq. Shu sababli faqat yangi hodisalar kadr oladi.
+    /// </remarks>
+    [Range(1, 60)]
+    public int SnapshotMaxAgeSeconds { get; set; } = 6;
 
     /// <summary>Ro'yxat tekshiruvining oralig'i (soniya).</summary>
     /// <remarks>

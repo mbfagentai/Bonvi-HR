@@ -228,3 +228,39 @@ zaxira bo'lib qoladi (o'zi push qiladigan qurilmalar uchun).
 bo'sh `StringContent` ham `Content-Length: 0` qo'shadi va firmware
 so'rovni rad etadi.
 
+---
+
+## J. O'tish suratlari — jonli kadr (2026-09-22, egasining so'rovi)
+
+Egasi: suratlar bizning bazaga ham tushsin, **lekin Verifix uzilib
+qolmasin**.
+
+### Nega terminalning o'z surati emas
+
+Terminal o'tish suratini faqat `AcsCfg.saveCapPic` / `uploadCapPic`
+yoqilganda saqlaydi. Bu **butun qurilmaning** sozlamasi — alohida qabul
+qiluvchi uchun yoqib bo'lmaydi. Yoqilsa Verifix'ga boradigan hodisalar
+ham surat bilan keladi va tanasi bir necha yuz kilobaytga o'sadi; Verifix
+qabul chegarasi kichik bo'lsa, hodisalar rad etiladi. Sinab ko'rish
+aynan «qurilma sozlamasiga tegmaymiz» (§A1) va'dasini buzish bo'lardi.
+
+### Yechim
+
+Agent yangi o'tishni o'qigan zahoti kameradan **jonli kadr** oladi
+(`GET /ISAPI/Streaming/channels/101/picture` — oddiy o'qish so'rovi,
+qurilma sozlamasiga tegmaydi) va uni hodisaga `photoBase64` bo'lib
+qo'shadi. Qabul yo'li buni allaqachon qo'llab-quvvatlaydi — serverda
+o'zgarish yo'q.
+
+* MinMoe'da kanal `101` (`1` — 404). 79 KB JPEG, 0.07 soniya.
+* Hodisa halqasi 5 → **2 soniya**: kadr o'tgan odamni hali terminal
+  oldida ushlashi uchun.
+* ⚠️ Kadr faqat **6 soniyadan yangi** o'tishga biriktiriladi. Agent
+  uzilib qaytganda yuboriladigan eski o'tishlar SURATSIZ qoladi —
+  ularning kadrida boshqa odam yoki bo'sh xona bo'lardi, noto'g'ri
+  surat esa suratsizlikdan yomonroq.
+* Bir aylanishda bitta kadr — o'sha 2 soniyadagi hamma yangi o'tishga.
+* Kadr — tanib olish lahzasidan 1–3 soniya keyingi surat, tanib olingan
+  kadrning o'zi emas. Nazorat uchun («rostan u o'tdimi») bu yetarli.
+* Sozlama: `AGENT__SNAPSHOTCHANNEL` (bo'sh — kadr olinmaydi).
+
