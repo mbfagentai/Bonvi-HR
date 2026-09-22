@@ -194,7 +194,21 @@ public sealed class CandidateHandover
         var note = $"Nomzodlik davridan ko'chirildi · {_clock.Today:dd.MM.yyyy}";
         var moved = 0;
 
-        foreach (var file in candidate.HandOverFiles())
+        /*
+          ⚠️ Tartib MUHIM: avval hujjat yasaladi, keyin fayl nomzoddan
+          olib tashlanadi. Teskarisida (ro'yxatni birdan bo'shatib, keyin
+          yasab) hujjat yasash yiqilgan fayl IKKALA joydan yo'qolardi —
+          nomzoddan o'chgan, xodimga qo'shilmagan, diskda esa hech kim
+          ishora qilmaydigan bayt qolgan.
+
+          Bu xayoliy holat emas: `EmployeeDocument.Attach` hajmi 0
+          bo'lgan faylni rad etadi, nomzod faylida esa 0 — «hajmi
+          noma'lum» va eski ko'chirilgan rezyumelarda uchraydi.
+          Bunday fayl NOMZODDA qoladi: ko'rinib turadi va yo'qolmaydi.
+
+          `ToArray()` — ro'yxat aylanish ICHIDA o'zgaradi.
+        */
+        foreach (var file in candidate.Files.ToArray())
         {
             var document = EmployeeDocument.Attach(
                 employee.Id,
@@ -211,6 +225,7 @@ public sealed class CandidateHandover
             }
 
             _documents.Add(document.Value);
+            candidate.ReleaseFile(file);
             moved++;
         }
 

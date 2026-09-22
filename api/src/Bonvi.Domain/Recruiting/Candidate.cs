@@ -962,8 +962,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     /// <summary>
-    /// Fayllarni XODIM kartasiga topshiradi: ro'yxatdan chiqaradi va
-    /// ularni qaytaradi.
+    /// BITTA faylni xodim kartasiga topshiradi — ro'yxatdan chiqaradi.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -989,18 +988,24 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// xodim kartasi.
     /// </para>
     /// <para>
+    /// ⭐ <b>Nega BITTALAB, hammasi birdan emas.</b> Chaqiruvchi avval
+    /// xodim hujjatini yasaydi va faqat U MUVAFFAQIYATLI bo'lgach shu
+    /// metodni chaqiradi. Ilgari metod butun ro'yxatni birdan
+    /// bo'shatardi va hujjat yasash yiqilgan fayl IKKALA joydan ham
+    /// yo'qolardi: nomzoddan o'chgan, xodimga esa qo'shilmagan.
+    /// Bu xayoliy holat emas — <c>EmployeeDocument.Attach</c> hajmi
+    /// <c>0</c> bo'lgan faylni rad etadi, nomzod faylida esa
+    /// <c>0</c> «hajmi noma'lum» degani va eski ko'chirilgan
+    /// rezyumelarda uchraydi (<see cref="CandidateFile.SizeBytes"/>).
+    /// </para>
+    /// <para>
     /// Holat TEKSHIRILMAYDI: metodni faqat ishga qabul oqimi va eski
     /// yozuvlarni tuzatuvchi bir martalik ko'chirish chaqiradi,
     /// ikkalasi ham nomzod xodimga aylanganini allaqachon biladi.
     /// </para>
     /// </remarks>
-    public IReadOnlyList<CandidateFile> HandOverFiles()
-    {
-        var taken = _files.ToArray();
-        _files.Clear();
-
-        return taken;
-    }
+    /// <returns>Fayl ro'yxatda bo'lgan va olib tashlangan bo'lsa — <c>true</c>.</returns>
+    public bool ReleaseFile(CandidateFile file) => _files.Remove(file);
 
     /// <summary>
     /// Faylni olib tashlaydi va uning saqlash kalitini qaytaradi.

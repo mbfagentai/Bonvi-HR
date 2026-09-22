@@ -224,6 +224,53 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
+    /// ⭐ Ko'chirib bo'lmagan fayl NOMZODDA qoladi — yo'qolmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Regressiya testi. Ilgari ko'chirish butun ro'yxatni BIRDAN
+    /// bo'shatardi va faqat keyin hujjat yasardi: yasash yiqilsa, fayl
+    /// ikkala joydan ham yo'qolardi — nomzoddan o'chgan, xodimga
+    /// qo'shilmagan, diskda esa hech kim ishora qilmaydigan bayt
+    /// qolgan. Buni hech kim sezmasdi.
+    /// </para>
+    /// <para>
+    /// Yiqilish sababi xayoliy emas: <c>EmployeeDocument.Attach</c>
+    /// hajmi <c>0</c> bo'lgan faylni rad etadi, nomzod faylida esa
+    /// <c>0</c> — «hajmi noma'lum» va eski ko'chirilgan rezyumelarda
+    /// uchraydi. Shu sababli test bunday qatorni ATAYLAB to'g'ridan-
+    /// to'g'ri bazaga qo'yadi: domen orqali uni yasab bo'lmaydi.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Kochirib_bolmagan_fayl_nomzodda_qoladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var nomzodId = await NomzodAsync(mijoz);
+
+        // Yaroqli fayl — u KO'CHISHI kerak.
+        await FaylYuklaAsync(mijoz, nomzodId, "Diplom.pdf");
+
+        // Hajmi noma'lum fayl — u QOLISHI kerak.
+        await HajmsizFaylQoyAsync(nomzodId);
+
+        var xodimId = await IshgaOlAsync(mijoz, nomzodId);
+
+        var hujjatlar = await HujjatlarAsync(mijoz, xodimId);
+        hujjatlar.Count.ShouldBe(1, "faqat yaroqli fayl hujjatga aylanadi");
+        hujjatlar[0].FileName.ShouldBe("Diplom.pdf");
+
+        var karta = await KartaAsync(mijoz, nomzodId);
+        karta.Files.Count.ShouldBe(
+            1,
+            "ko'chirib bo'lmagan fayl nomzod kartasida QOLADI — jimgina yo'qolmaydi");
+
+        karta.Files[0].SizeBytes.ShouldBe(0);
+    }
+
+    /// <summary>
     /// Ko'chiradigan narsasi yo'q nomzod ishga qabulni YIQITMAYDI.
     /// </summary>
     /// <remarks>
@@ -348,6 +395,30 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
         var nomzod = await javob.Content.ReadFromJsonAsync<CandidateFileCardResponse>(bekorQilish);
         nomzod.ShouldNotBeNull();
         return nomzod.Id;
+    }
+
+    /// <summary>
+    /// Hajmi NOMA'LUM (<c>0</c>) faylni to'g'ridan-to'g'ri bazaga qo'yadi.
+    /// </summary>
+    /// <remarks>
+    /// Domen bunday faylni yasashga ruxsat bermaydi
+    /// (<c>CandidateFile.Create</c> hajmni talab qiladi) — u faqat eski
+    /// rezyumelar ko'chirilganda paydo bo'lgan. Testga esa AYNAN shunday
+    /// qator kerak.
+    /// </remarks>
+    private async Task HajmsizFaylQoyAsync(Guid nomzodId)
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        await kontekst.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO candidate_files (id, candidate_id, file_key, file_name, content_type, size_bytes, created_at)
+            VALUES ({Guid.CreateVersion7()}, {nomzodId}, '2026/09/hajmsiz.pdf', 'Eski rezyume.pdf', 'application/pdf', 0, now())
+            """,
+            bekorQilish);
     }
 
     /// <summary>
