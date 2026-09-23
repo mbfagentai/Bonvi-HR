@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 
@@ -14,10 +15,11 @@ import { useFormat } from '@/lib/format'
 import { monthKey, parseIsoDate, parseMonthKey, shiftMonth, todayIso } from '@/lib/time'
 import { TabScreen } from '@/ui/app-shell'
 import { Card, CardRow } from '@/ui/card'
-import { DayPanel, StatRow } from '@/ui/day-panel'
+import { DayPanel } from '@/ui/day-panel'
 import { EmptyState, ErrorState, SkeletonLines } from '@/ui/feedback'
 import { Icon } from '@/ui/icon'
 import { MarkRow, MarkRowSkeleton } from '@/ui/mark-row'
+import { MonthChart } from '@/ui/month-chart'
 import { MonthGrid } from '@/ui/month-grid'
 import { StatusChip } from '@/ui/status-chip'
 
@@ -65,6 +67,7 @@ export function CalendarScreen() {
   const totals = monthTotals(days)
   const dayRequests = requestsOnDay(requests.data ?? [], selected)
   const legend = statusesInMonth(days)
+  const lateDays = days.filter((item) => item.lateMinutes > 0).length
 
   const canGoForward = year < currentYear || (year === currentYear && month < currentMonth)
 
@@ -200,18 +203,7 @@ export function CalendarScreen() {
           <SkeletonLines rows={4} />
         ) : (
           <>
-            <StatRow label={t('calendar.totalPresent')} value={format.number(totals.presentDays)} />
-            <StatRow label={t('calendar.totalAbsent')} value={format.number(totals.absentDays)} />
-            <StatRow label={t('calendar.totalExcused')} value={format.number(totals.excusedDays)} />
-            <StatRow label={t('calendar.totalLate')} value={format.number(totals.lateDays)} />
-            <StatRow
-              label={t('calendar.totalPlannedHours')}
-              value={format.duration(totals.plannedMinutes)}
-            />
-            <StatRow
-              label={t('calendar.totalWorkedHours')}
-              value={format.duration(totals.workedMinutes)}
-            />
+            <MonthChart totals={totals} />
           </>
         )}
       </Card>
@@ -220,15 +212,52 @@ export function CalendarScreen() {
           har oy bir xil bo'lib, o'qilmay qolardi. */}
       {legend.length > 0 ? (
         <Card title={t('calendar.legendTitle')}>
-          <div className="space-y-2">
+          {/* Each swatch is a miniature of the calendar cell itself, so the
+              legend reads as "this square means that" — not as a list of
+              chips that look nothing like the grid above. */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             {legend.map((status) => (
-              <div key={status}>
-                <StatusChip look={DAY_STATUS_LOOK[status]} size="sm" />
-              </div>
+              <LegendItem
+                key={status}
+                swatchClass={DAY_STATUS_LOOK[status].tintClass}
+                label={t(DAY_STATUS_LOOK[status].labelKey)}
+                count={days.filter((item) => item.status === status).length}
+              />
             ))}
+            {lateDays > 0 ? (
+              <LegendItem swatchClass="bg-bg-elevated" late label={t('home.late')} count={lateDays} />
+            ) : null}
           </div>
         </Card>
       ) : null}
     </TabScreen>
+  )
+}
+
+function LegendItem({
+  swatchClass,
+  label,
+  count,
+  late = false,
+}: {
+  swatchClass: string
+  label: string
+  count: number
+  /** Draw the lateness stripe the grid puts under a late day. */
+  late?: boolean
+}) {
+  return (
+    <div className="flex min-w-0 items-center">
+      <span
+        aria-hidden="true"
+        className={clsx('relative h-5 w-5 shrink-0 rounded-[6px] border border-border', swatchClass)}
+      >
+        {late ? (
+          <span className="absolute bottom-[3px] left-[3px] right-[3px] h-[2px] rounded-pill bg-hue-late" />
+        ) : null}
+      </span>
+      <span className="ml-2 min-w-0 flex-1 truncate text-footnote text-fg">{label}</span>
+      <span className="nums ml-1 shrink-0 text-footnote text-fg-tertiary">{count}</span>
+    </div>
   )
 }

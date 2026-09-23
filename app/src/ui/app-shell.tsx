@@ -96,6 +96,7 @@ export function TabScreen({
   subtitle,
   trailing,
   staleSince,
+  bottomSpace = false,
   children,
 }: {
   title: string
@@ -103,10 +104,17 @@ export function TabScreen({
   trailing?: ReactNode
   /** Ekrandagi ma'lumot qachon olingan — oflayn chizig'i uchun. */
   staleSince?: Date | null
+  /** A BottomAction sits over the tab bar — keep content clear of it too. */
+  bottomSpace?: boolean
   children: ReactNode
 }) {
   return (
-    <div className="mx-auto w-full max-w-app px-4 pb-tabbar pt-safe">
+    <div
+      className={clsx(
+        'mx-auto w-full max-w-app px-4 pt-safe',
+        bottomSpace ? 'pb-tabbar-action' : 'pb-tabbar',
+      )}
+    >
       <header className="mb-4 flex items-start justify-between">
         <div className="min-w-0">
           <h1 className="text-title1 font-bold text-fg">{title}</h1>

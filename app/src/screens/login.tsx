@@ -51,6 +51,11 @@ export function LoginScreen() {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-app flex-col px-4 pb-8 pt-safe">
       <header className="pb-8 pt-12 text-center">
+        <img
+          src={`${import.meta.env.BASE_URL}icons/apple-touch-icon.png`}
+          alt=""
+          className="mx-auto mb-4 h-20 w-20 rounded-[22px]"
+        />
         <h1 className="text-title1 font-bold text-fg">{t('auth.title')}</h1>
         <p className="mt-1 text-subhead text-fg-secondary">{t('auth.subtitle')}</p>
       </header>

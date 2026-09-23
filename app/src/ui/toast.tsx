@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
 
       {toast ? (
-        <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-[calc(88px+env(safe-area-inset-bottom,0px))]">
+        <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-toast">
           <button
             type="button"
             onClick={() => setToast(null)}

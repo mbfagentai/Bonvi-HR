@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 /**
  * Tugma (UX §E.3).
@@ -84,10 +84,30 @@ function Spinner() {
  * (UX §E.3). Shu sababli hech bir formada «saqlash» uzun aylantirish
  * oxirida qolib ketmaydi.
  */
-export function BottomAction({ children }: { children: ReactNode }) {
+export function BottomAction({
+  children,
+  overTabBar = false,
+}: {
+  children: ReactNode
+  /** The screen also shows the tab bar — sit on top of it, not under it. */
+  overTabBar?: boolean
+}) {
+  // Lets toasts float above this block instead of covering it.
+  useEffect(() => {
+    if (!overTabBar) return undefined
+    const root = document.documentElement
+    root.setAttribute('data-tab-action', '')
+    return () => root.removeAttribute('data-tab-action')
+  }, [overTabBar])
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-bg-elevated">
-      <div className="mx-auto w-full max-w-app px-4 pb-safe pt-3">
+    <div
+      className={clsx(
+        'fixed left-0 right-0 z-20 border-t border-border bg-bg-elevated',
+        overTabBar ? 'bottom-tabbar' : 'bottom-0',
+      )}
+    >
+      <div className={clsx('mx-auto w-full max-w-app px-4 pt-3', !overTabBar && 'pb-safe')}>
         <div className="pb-3">{children}</div>
       </div>
     </div>

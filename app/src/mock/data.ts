@@ -7,6 +7,8 @@ import type {
   MeDto,
 } from '@/api/types'
 
+import mockAvatarUrl from './avatar.jpg'
+
 /**
  * Soxta ma'lumot — haqiqiy server ulanmaguncha.
  *
@@ -39,9 +41,10 @@ export const MOCK_ABSENCE_TYPES: AbsenceTypeDto[] = [
 export const MOCK_ME: MeDto = {
   employeeId: 'emp-1',
   fullName: 'Aliyev Sardor Baxtiyorovich',
-  // Rasmsiz xodim ODATIY hol — HR kartasida ham shunday bo'ladi.
-  // Haqiqiy `/api/me` to'liq manzil qaytaradi.
-  photoUrl: null,
+  // Sample portrait so the avatar can be seen on screen. An employee
+  // without a photo is still a normal case — the initials fallback stays.
+  // The real `/api/me` returns a full URL.
+  photoUrl: mockAvatarUrl,
   departmentName: 'Ishlab chiqarish bo‘limi',
   positionName: 'Smena boshlig‘i',
   mobileCheckInAllowed: true,
@@ -96,37 +99,92 @@ function emptyDay(dateIso: string, status: AttendanceDayDto['status']): Attendan
   }
 }
 
+/** Lunch window from the schedule (Tashkent time), minutes since midnight. */
+const BREAK_WINDOW_START = 13 * 60
+const BREAK_WINDOW_END = BREAK_WINDOW_START + BREAK_MINUTES
+
 /**
- * Bitta ishlangan kun: kirish, tushlik uchun chiqib-kirish va chiqish.
- * Verifix'ning «Qaydnoma» kartasi aynan shunday ko'p qatorli bo'ladi —
- * shuning uchun kunda ikkitadan ortiq o'tish bor.
+ * Extra trips out of the building during the day, [out, in] as minutes
+ * since midnight. An employee can go in and out many times a day — the
+ * day card has to show all of it, so days vary between none, one and
+ * two extra trips on top of lunch.
+ */
+const EXTRA_TRIPS: Array<Array<[number, number]>> = [
+  [],
+  [[10 * 60 + 42, 10 * 60 + 58]],
+  [[15 * 60 + 20, 15 * 60 + 34]],
+  [
+    [10 * 60 + 5, 10 * 60 + 17],
+    [16 * 60 + 15, 16 * 60 + 31],
+  ],
+]
+
+/**
+ * Worked minutes the way the server pairs passes (SPEC §5.5): sum of
+ * closed in→out intervals, minus the break deduction
+ * `max(0, min(break − breakTaken, presentInWindow))` — a lunch spent
+ * outside the building is not deducted twice.
+ */
+function workedFromIntervals(intervals: Array<[number, number]>): { worked: number; deduction: number } {
+  let closed = 0
+  let presentInWindow = 0
+
+  intervals.forEach(([from, to]) => {
+    closed += to - from
+    presentInWindow += Math.max(0, Math.min(to, BREAK_WINDOW_END) - Math.max(from, BREAK_WINDOW_START))
+  })
+
+  const breakTaken = BREAK_MINUTES - presentInWindow
+  const deduction = Math.max(0, Math.min(BREAK_MINUTES - breakTaken, presentInWindow))
+  return { worked: closed - deduction, deduction }
+}
+
+/**
+ * One worked day: entry, lunch out/in, possibly extra trips out, exit.
+ * Verifix's day card is multi-row exactly like this — a day has far more
+ * than two passes.
  */
 function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): AttendanceDayDto {
-  const inMinute = PLAN_START_MINUTE + lateMinutes - 5 + jitter(dateIso, 4)
-  const inHour = PLAN_START_HOUR + Math.floor(inMinute / 60)
-  const startMinute = inMinute % 60
+  const inAt = PLAN_START_HOUR * 60 + PLAN_START_MINUTE + lateMinutes - 5 + jitter(dateIso, 4)
+  const outAt = PLAN_END_HOUR * 60 + jitter(dateIso, 12)
 
-  const outMinute = jitter(dateIso, 12)
-  const workedMinutes =
-    (PLAN_END_HOUR * 60 + outMinute - (inHour * 60 + startMinute)) - BREAK_MINUTES
+  // Lunch trip may or may not happen — some days the employee eats inside.
+  const lunch: Array<[number, number]> = jitter(dateIso, 5) === 0 ? [] : [[13 * 60 + 1, 13 * 60 + 56]]
+  const trips = (EXTRA_TRIPS[jitter(`${dateIso}x`, EXTRA_TRIPS.length)] ?? []).concat(lunch)
+  trips.sort((a, b) => a[0] - b[0])
+
+  // Building intervals: from entry to the first trip out, between trips, to the exit.
+  const intervals: Array<[number, number]> = []
+  let cursor = inAt
+  trips.forEach(([out, back]) => {
+    intervals.push([cursor, out])
+    cursor = back
+  })
+  intervals.push([cursor, outAt])
+
+  const { worked, deduction } = workedFromIntervals(intervals)
+  const at = (minutes: number, direction: 'In' | 'Out', source?: 'Terminal' | 'Mobile') =>
+    mark(dateIso, Math.floor(minutes / 60), minutes % 60, direction, source)
+
+  const marks: AttendanceMarkDto[] = [at(inAt, 'In', mobile ? 'Mobile' : 'Terminal')]
+  trips.forEach(([out, back]) => {
+    marks.push(at(out, 'Out'))
+    marks.push(at(back, 'In'))
+  })
+  marks.push(at(outAt, 'Out', mobile ? 'Mobile' : 'Terminal'))
 
   return {
     date: dateIso,
     status: 'Present',
-    workedMinutes,
+    workedMinutes: worked,
     lateMinutes,
     earlyLeaveMinutes: 0,
-    breakDeductionMinutes: BREAK_MINUTES,
-    firstInAt: tashkentToUtcIso(dateIso, inHour, startMinute),
-    lastOutAt: tashkentToUtcIso(dateIso, PLAN_END_HOUR, outMinute),
+    breakDeductionMinutes: deduction,
+    firstInAt: at(inAt, 'In').occurredAt,
+    lastOutAt: at(outAt, 'Out').occurredAt,
     planStartAt: tashkentToUtcIso(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE),
     planEndAt: tashkentToUtcIso(dateIso, PLAN_END_HOUR, 0),
-    marks: [
-      mark(dateIso, PLAN_END_HOUR, outMinute, 'Out', mobile ? 'Mobile' : 'Terminal'),
-      mark(dateIso, 14, 2, 'In'),
-      mark(dateIso, 13, 1, 'Out'),
-      mark(dateIso, inHour, startMinute, 'In', mobile ? 'Mobile' : 'Terminal'),
-    ],
+    marks: marks.reverse(),
   }
 }
 
@@ -191,7 +249,8 @@ export function buildMonth(year: number, month: number, excusedDates: string[]):
         status: 'MissingExit',
         lastOutAt: null,
         workedMinutes: 0,
-        marks: worked.marks.filter((item) => item.direction === 'In'),
+        // The final exit never got read — every other pass stays.
+        marks: worked.marks.slice(1),
       })
       continue
     }
@@ -201,6 +260,33 @@ export function buildMonth(year: number, month: number, excusedDates: string[]):
   }
 
   return days
+}
+
+/**
+ * Sample passes for today so the home screen and today's calendar cell
+ * are not empty on first open: a turnstile entry in the morning and
+ * several trips out and back (a short errand, lunch, another errand).
+ * Only passes already in the past (Tashkent time) are
+ * returned, ascending — check-ins from the app are appended after them.
+ * Weekends stay empty.
+ */
+export function buildTodaySeed(): AttendanceMarkDto[] {
+  const dateIso = todayIso()
+  const parts = parseIsoDate(dateIso)
+  if (!parts || parts.weekday >= 6) return []
+
+  const nowMs = Date.now()
+  const seed = [
+    mark(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE - 4, 'In'),
+    mark(dateIso, 10, 38, 'Out'),
+    mark(dateIso, 10, 51, 'In'),
+    mark(dateIso, 13, 1, 'Out'),
+    mark(dateIso, 13, 56, 'In'),
+    mark(dateIso, 15, 12, 'Out'),
+    mark(dateIso, 15, 27, 'In'),
+  ]
+
+  return seed.filter((item) => new Date(item.occurredAt).getTime() <= nowMs)
 }
 
 /** Bugungi kun — belgilangan o'tishlardan yig'iladi. */
@@ -231,11 +317,21 @@ export function buildToday(marks: AttendanceMarkDto[]): AttendanceDayDto {
   const lastOut = outs.length > 0 ? outs[outs.length - 1] ?? null : null
 
   const firstInMs = firstIn ? new Date(firstIn.occurredAt).getTime() : 0
-  const lastOutMs = lastOut ? new Date(lastOut.occurredAt).getTime() : 0
-  const workedMinutes =
-    firstIn && lastOut && lastOutMs > firstInMs
-      ? Math.round((lastOutMs - firstInMs) / 60_000)
-      : 0
+
+  // Pair passes into closed in→out intervals (minutes since Tashkent midnight).
+  const dayStartMs = new Date(tashkentToUtcIso(dateIso, 0, 0)).getTime()
+  const intervals: Array<[number, number]> = []
+  let openAt: number | null = null
+  sorted.forEach((item) => {
+    const minute = Math.round((new Date(item.occurredAt).getTime() - dayStartMs) / 60_000)
+    if (item.direction === 'In') openAt = openAt ?? minute
+    else if (openAt !== null) {
+      intervals.push([openAt, minute])
+      openAt = null
+    }
+  })
+  const pairing = workedFromIntervals(intervals)
+  const workedMinutes = pairing.worked
 
   const planStartMs = base.planStartAt ? new Date(base.planStartAt).getTime() : 0
   const lateMinutes =
@@ -245,9 +341,10 @@ export function buildToday(marks: AttendanceMarkDto[]): AttendanceDayDto {
 
   return {
     ...base,
-    status: isWeekend ? 'DayOffWorked' : lastOut ? 'Present' : 'MissingExit',
+    status: isWeekend ? 'DayOffWorked' : openAt === null ? 'Present' : 'MissingExit',
     workedMinutes,
     lateMinutes,
+    breakDeductionMinutes: pairing.deduction,
     firstInAt: firstIn ? firstIn.occurredAt : null,
     lastOutAt: lastOut ? lastOut.occurredAt : null,
   }

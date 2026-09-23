@@ -158,6 +158,9 @@
     "totalLate": "Days late",
     "totalPlannedHours": "Planned hours",
     "totalWorkedHours": "Worked hours",
+    "chartHours": "Hours",
+    "chartDays": "Days",
+    "planShare": "{{percent}}% of plan",
     "legendTitle": "Legend",
     "emptyTitle": "No data for this month",
     "emptyText": "Choose another month.",
@@ -242,9 +245,8 @@
     "title": "Location permission",
     "deniedTitle": "Location permission is denied",
     "why": "Marking checks how close you are to the work site.",
-    "check": "Check",
     "granted": "Location permission granted",
-    "stillDenied": "Still no permission. Close the browser and open it again.",
+    "stillDenied": "The phone did not ask: access was denied earlier. Turn it on once using the steps below.",
     "otherDevice": "Another device",
     "iosStandalone": "iPhone, added to the home screen",
     "iosStandalone1": "Open “Settings” on the iPhone.",
@@ -260,7 +262,11 @@
     "androidChrome1": "Tap the lock icon in the address bar.",
     "androidChrome2": "“Permissions” → “Location” → “Allow”.",
     "fallbackTitle": "Cannot grant it?",
-    "fallbackText": "Use the terminal — it is the main way attendance is counted. Or contact the HR department: the day will be corrected by hand."
+    "fallbackText": "Use the terminal — it is the main way attendance is counted. Or contact the HR department: the day will be corrected by hand.",
+    "allow": "Allow location",
+    "allowHint": "Your phone will ask “Allow access to your location?” — choose “Allow”.",
+    "manualTitle": "No prompt appeared? Turn it on in Settings",
+    "insecure": "Location only works on a secure (https) address. Open the app from its official address."
   },
   "install": {
     "androidTitle": "Install the app",

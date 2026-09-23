@@ -18,6 +18,7 @@ import {
   buildMonth,
   buildRequests,
   buildToday,
+  buildTodaySeed,
 } from './data'
 import { readScenario } from './scenario'
 
@@ -37,6 +38,9 @@ const MAX_DELAY_MS = 800
 /** Ikki belgi orasidagi eng kam vaqt — `AttendanceRules.BounceSeconds`. */
 const BOUNCE_SECONDS = 60
 
+/** Mock login phone (local 9 digits). */
+const MOCK_PHONE = '976662675'
+
 interface MockState {
   todayMarks: AttendanceMarkDto[]
   requests: AbsenceRequestDto[]
@@ -45,7 +49,7 @@ interface MockState {
 }
 
 const state: MockState = {
-  todayMarks: [],
+  todayMarks: buildTodaySeed(),
   requests: buildRequests(),
   lastCheckInMs: null,
   nextRequestNo: 5,
@@ -90,9 +94,14 @@ export const mockApi: EmployeeApi = {
     if (!request.password) {
       return fail(MIN_DELAY_MS, new ApiError('rejected', { code: 'auth.parol_bosh', status: 400 }))
     }
-    // Parol «1111» — HR bergan bir martalik parol: undan keyin ilova
-    // parol o'rnatish ekranidan boshqa joyga o'tkazmaydi.
-    if (request.password.length < 4) {
+    // Mock credentials: phone +998 97 666 26 75 (any formatting, with or
+    // without the country code) / password admin. Password «1111»
+    // imitates the one-time password HR hands out — after it the app only
+    // allows the set-password screen.
+    const digits = request.login.replace(/\D/g, '')
+    const phoneOk = digits === MOCK_PHONE || digits === `998${MOCK_PHONE}`
+    const known = request.password === 'admin' || request.password === '1111'
+    if (!phoneOk || !known) {
       return fail(
         MAX_DELAY_MS,
         new ApiError('rejected', { code: 'auth.notogri_malumot', status: 401 }),

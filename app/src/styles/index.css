@@ -87,6 +87,27 @@
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
+  /* Tab screen with a pinned action above the tab bar: tab bar (80) +
+     the action block (76). */
+  .pb-tabbar-action {
+    padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Sits right on top of the tab bar: 48 px buttons + 1 px border. */
+  .bottom-tabbar {
+    bottom: calc(49px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Toasts float above the tab bar; when a pinned action sits over the
+     tab bar too (BottomAction overTabBar), they float above that. */
+  .pb-toast {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html[data-tab-action] .pb-toast {
+    padding-bottom: calc(164px + env(safe-area-inset-bottom, 0px));
+  }
+
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }

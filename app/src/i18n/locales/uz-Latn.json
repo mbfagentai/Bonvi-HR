@@ -158,6 +158,9 @@
     "totalLate": "Kechikkan kunlar",
     "totalPlannedHours": "Rejadagi soat",
     "totalWorkedHours": "Ishlangan soat",
+    "chartHours": "Soatlar",
+    "chartDays": "Kunlar",
+    "planShare": "rejaning {{percent}}%",
     "legendTitle": "Belgilar",
     "emptyTitle": "Bu oyda ma’lumot yo‘q",
     "emptyText": "Boshqa oyni tanlang.",
@@ -242,9 +245,8 @@
     "title": "Joylashuv ruxsati",
     "deniedTitle": "Joylashuvga ruxsat berilmagan",
     "why": "Belgilash uchun obyektga yaqinligingiz tekshiriladi.",
-    "check": "Tekshirish",
     "granted": "Joylashuvga ruxsat berildi",
-    "stillDenied": "Hali ham ruxsat yo‘q. Brauzerni yopib, qaytadan oching.",
+    "stillDenied": "Telefon ruxsat so‘ramadi: oldin rad etilgan. Quyidagi qadamlar bilan bir marta yoqing.",
     "otherDevice": "Boshqa qurilma",
     "iosStandalone": "iPhone, bosh ekranga qo‘shilgan",
     "iosStandalone1": "iPhone’da «Sozlamalar» ni oching.",
@@ -260,7 +262,11 @@
     "androidChrome1": "Manzil satridagi qulf belgisini bosing.",
     "androidChrome2": "«Ruxsatlar» → «Joylashuv» → «Ruxsat berish».",
     "fallbackTitle": "Ruxsat berib bo‘lmayapti?",
-    "fallbackText": "Turniketdan o‘ting — u asosiy hisoblash usuli. Yoki HR bo‘limiga murojaat qiling: kun qo‘lda to‘g‘rilanadi."
+    "fallbackText": "Turniketdan o‘ting — u asosiy hisoblash usuli. Yoki HR bo‘limiga murojaat qiling: kun qo‘lda to‘g‘rilanadi.",
+    "allow": "Ruxsat berish",
+    "allowHint": "Telefon «Joylashuvdan foydalanishga ruxsat berasizmi?» deb so‘raydi — «Ruxsat berish» ni tanlang.",
+    "manualTitle": "Oyna chiqmadimi? Sozlamalardan yoqing",
+    "insecure": "Joylashuv faqat xavfsiz (https) manzilda ishlaydi. Ilovani rasmiy manzildan oching."
   },
   "install": {
     "androidTitle": "Ilovani o‘rnating",

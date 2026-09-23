@@ -53,7 +53,7 @@ export function UpdateToast() {
   if (!needRefresh || checkInBusy) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-[calc(88px+env(safe-area-inset-bottom,0px))]">
+    <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-toast">
       <div className="mx-4 flex w-full max-w-app items-center rounded-control bg-bg-elevated px-4 py-3 shadow-[0_6px_24px_rgba(0,0,0,0.16)]">
         <span className="min-w-0 flex-1 text-subhead text-fg">{t('update.title')}</span>
         <Button variant="plain" size="compact" onClick={update}>

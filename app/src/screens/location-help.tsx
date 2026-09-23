@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 import { deviceKind, type DeviceKind } from '@/lib/device'
-import { permissionState } from '@/lib/geolocation'
+import { readPosition } from '@/lib/geolocation'
 import { PushedScreen } from '@/ui/app-shell'
 import { Button } from '@/ui/button'
 import { Card } from '@/ui/card'
@@ -49,17 +49,31 @@ export function LocationHelpScreen() {
 
   const [showAll, setShowAll] = useState(false)
   const [stillDenied, setStillDenied] = useState(false)
-  const [checking, setChecking] = useState(false)
+  const [asking, setAsking] = useState(false)
 
   const guessed = deviceKind()
   const others = VARIANTS.filter((variant) => variant !== guessed)
 
-  const check = (): void => {
-    setChecking(true)
-    void permissionState().then((state) => {
-      setChecking(false)
+  // Browsers refuse geolocation outright on plain http — no prompt, just
+  // "denied". Saying so beats sending people through settings that
+  // cannot help.
+  const insecure = !window.isSecureContext
 
-      if (state === 'granted' || state === 'prompt') {
+  /*
+    A web page cannot open the phone's Settings — iOS and Android both
+    forbid it. What it CAN do is ask: requesting the position from a tap
+    makes the OS show its own "Allow location?" dialog whenever the
+    permission is not permanently denied. So the first move is always
+    this button; the manual steps only matter when no dialog appears.
+  */
+  const allow = (): void => {
+    setAsking(true)
+    void readPosition().then((result) => {
+      setAsking(false)
+
+      if (result.ok || result.kind === 'timeout' || result.kind === 'unavailable') {
+        // Permission is there — a weak GPS fix is the check-in card's
+        // business, not this screen's.
         toast.show(t('location.granted'), 'success')
         navigate('/', { replace: true })
         return
@@ -74,7 +88,32 @@ export function LocationHelpScreen() {
       <Card>
         <h2 className="text-title3 font-semibold text-fg">{t('location.deniedTitle')}</h2>
         <p className="mt-2 text-subhead text-fg-secondary">{t('location.why')}</p>
+
+        {insecure ? (
+          <div className="mt-4">
+            <InlineMessage tone="warning">{t('location.insecure')}</InlineMessage>
+          </div>
+        ) : (
+          <>
+            <div className="mt-4">
+              <Button block busy={asking} onClick={allow}>
+                {t('location.allow')}
+              </Button>
+            </div>
+            <p className="mt-2 text-footnote text-fg-tertiary">{t('location.allowHint')}</p>
+          </>
+        )}
       </Card>
+
+      {stillDenied ? (
+        <InlineMessage tone="warning" assertive>
+          {t('location.stillDenied')}
+        </InlineMessage>
+      ) : null}
+
+      <h3 className="px-1 pt-2 text-footnote font-semibold uppercase text-fg-secondary">
+        {t('location.manualTitle')}
+      </h3>
 
       <Card title={t(STEPS[guessed].titleKey)}>
         <Steps stepKeys={STEPS[guessed].stepKeys} />
@@ -91,16 +130,6 @@ export function LocationHelpScreen() {
           {t('location.otherDevice')}
         </Button>
       )}
-
-      <Button block busy={checking} onClick={check}>
-        {t('location.check')}
-      </Button>
-
-      {stillDenied ? (
-        <InlineMessage tone="warning" assertive>
-          {t('location.stillDenied')}
-        </InlineMessage>
-      ) : null}
 
       {/* Hech kim bu ekranda YO'LSIZ qolmasligi kerak. Turniket —
           baribir asosiy hisoblash usuli, ya'ni bu taskin emas,

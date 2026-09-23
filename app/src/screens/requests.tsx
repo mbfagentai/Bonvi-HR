@@ -29,7 +29,7 @@ export function RequestsScreen() {
 
   return (
     <>
-      <TabScreen title={t('requests.title')} staleSince={requests.fetchedAt}>
+      <TabScreen title={t('requests.title')} staleSince={requests.fetchedAt} bottomSpace>
         {requests.isLoading ? (
           <Card>
             <SkeletonLines rows={4} />
@@ -68,7 +68,7 @@ export function RequestsScreen() {
 
       {/* Tugma pastda qadalgan: ro'yxat uzayganda ham «So'rov
           yuborish» aylantirish oxirida qolib ketmaydi. */}
-      <BottomAction>
+      <BottomAction overTabBar>
         <Button block onClick={() => navigate('/sorovlar/yangi')}>
           {t('requests.create')}
         </Button>
