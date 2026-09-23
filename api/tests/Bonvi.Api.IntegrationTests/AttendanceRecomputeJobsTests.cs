@@ -272,6 +272,58 @@ public sealed class AttendanceRecomputeJobsTests : IClassFixture<BonviApiFactory
     }
 
     /// <summary>
+    /// Reja tugamaguncha erta ketish 0 yoziladi (egasining qarori, 2026-09-23) — va yangi o'tish kelmasa
+    /// ham tungi vazifa uni reja tugagach TO'LDIRADI. Eng og'ir holat: 20:00–08:00 tungi smena, 02:00 da
+    /// ketgan. Seshanba 03:10 dagi yurishda dushanbaning rejasi hali tugamagan — 0; chorshanba 03:10
+    /// dagisi dushanbani ham qamraydi (bugun − <see cref="AttendanceNightlyRecomputeJob.DaysBack"/>) va
+    /// (08:00 − 10) − 02:00 = 350 ni yozadi.
+    /// </summary>
+    [Fact]
+    public async Task Tungi_hisoblash_tungi_smenaning_erta_ketishini_reja_tugagach_toldiradi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var dushanba = new DateOnly(2026, 7, 6);
+        var seshanba = dushanba.AddDays(1);
+        var belgi = Guid.NewGuid().ToString("N")[..8];
+
+        var firma = LegalEntity.Create("Erta МЧЖ " + belgi).Value;
+        var xodim = Employee.Create(FullName.Create("Эрта" + belgi, "Ходим", null).Value).Value;
+        var munosabat = Employment.Hire(xodim.Id, firma.Id, new DateOnly(2025, 1, 1)).Value;
+        var jadval = WorkSchedule.Create(
+            "Erta jadval " + belgi,
+            [.. Enumerable.Range(1, 7).Select(kun => new WorkScheduleDayInput(kun, true, new TimeOnly(20, 0), new TimeOnly(8, 0)))]).Value;
+        var biriktirma = ScheduleAssignment.Assign(jadval.Id, ScheduleScope.Employee, xodim.Id, new DateOnly(2026, 1, 1)).Value;
+        var qurilma = await QurilmaAsync(ct);
+
+        await SaqlaAsync(
+            ct,
+            firma, xodim, munosabat, jadval, biriktirma,
+            Hisoblangan(Otish(qurilma, xodim.Id, dushanba, 20, 0, PassDirection.In)),
+            Hisoblangan(Otish(qurilma, xodim.Id, seshanba, 2, 0, PassDirection.Out)));
+
+        // Vazifaning soati: Toshkent 03:10 = 22:10 UTC (`BackgroundJobs`); lahza UTC da — timestamptz boshqasini yozmaydi.
+        static QotirilganSoat SoatUchOnda(DateOnly sana)
+            => new(new DateTimeOffset(sana.ToDateTime(new TimeOnly(3, 10)), Tashkent).ToUniversalTime());
+
+        await TungiHisoblashAsync(SoatUchOnda(seshanba), ct);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kun = (await KunAsync(qamrov.ServiceProvider.GetRequiredService<AppDbContext>(), xodim.Id, dushanba, ct)).ShouldNotBeNull();
+            kun.Status.ShouldBe(AttendanceDayStatus.Present);
+            kun.EarlyLeaveMinutes.ShouldBe(0, "seshanba 03:10 — reja 08:00 da tugaydi");
+        }
+
+        await TungiHisoblashAsync(SoatUchOnda(seshanba.AddDays(1)), ct);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            (await KunAsync(qamrov.ServiceProvider.GetRequiredService<AppDbContext>(), xodim.Id, dushanba, ct))
+                .ShouldNotBeNull().EarlyLeaveMinutes.ShouldBe(350, "o'tish kelmadi — qiymatni tungi vazifa to'ldirdi");
+        }
+    }
+
+    /// <summary>
     /// <c>Testing</c> — sinxron navbat, Hangfire yo'q; boshqa HAR QANDAY muhit — Hangfire navbati va serveri.
     /// Sinxron navbat ishlab chiqarishga tushib qolsa, import tasdig'i bitta so'rovda minglab so'rov bo'lardi.
     /// </summary>
@@ -462,6 +514,22 @@ public sealed class AttendanceRecomputeJobsTests : IClassFixture<BonviApiFactory
         var yozuvchi = ActivatorUtilities.CreateInstance<AttendanceDayRecomputer>(qamrov.ServiceProvider, soat);
 
         return await yozuvchi.RecomputeAsync(xodimlar, AttendanceDayRecomputer.DaysBetween(from, to), ct);
+    }
+
+    /// <summary>
+    /// Tungi vazifaning o'zi — qotirilgan soat bilan: sanalarni ham, yozuvchining «hozir»ini ham shu soat beradi.
+    /// </summary>
+    /// <remarks>
+    /// Vazifa HAMMA xodimni qayta hisoblaydi — shu sinfning bazasida, boshqa testlarning qatorlari ham
+    /// qayta yoziladi. Ular faqat o'z xodimini tekshiradi (sinf izohi), ya'ni bu zararsiz.
+    /// </remarks>
+    private async Task TungiHisoblashAsync(IClock soat, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var yozuvchi = ActivatorUtilities.CreateInstance<AttendanceDayRecomputer>(qamrov.ServiceProvider, soat);
+        var oraliq = ActivatorUtilities.CreateInstance<AttendanceRecomputeRangeJob>(qamrov.ServiceProvider, yozuvchi);
+
+        await ActivatorUtilities.CreateInstance<AttendanceNightlyRecomputeJob>(qamrov.ServiceProvider, oraliq, soat).RunAsync(ct);
     }
 
     /// <summary>

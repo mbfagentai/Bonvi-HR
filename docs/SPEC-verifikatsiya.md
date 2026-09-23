@@ -1537,6 +1537,13 @@ ascending, ties broken by `id`.
 9. **`early_leave_minutes`** = `max(0, (plan_end − grace_out_minutes) − last_out_at)`.
    `0` when `MissingExit` — if we do not know when he left we do not accuse
    him of leaving early.
+   *AMENDED 2026-09-23 (owner):* also `0` while `now < plan_end` (UTC instant;
+   a night shift's plan ends the next day). Mid-day, the last `Out` is often
+   just lunch — someone who stepped out at 11:30 was shown "380 min early
+   leave". Once `plan_end` has passed the formula applies unchanged. A row
+   written before `plan_end` keeps `0` until the next recompute; with no new
+   pass that is the nightly job (§9.2), which covers every date `D` on `D`,
+   `D + 1` and `D + 2` — and every plan of `D` ends before `D + 2` 00:00.
 10. **`overtime_minutes`** = `max(0, worked_minutes − planned_minutes)` **when a
     schedule was resolved** (a working day *or* a day off); **`0` when no
     schedule was resolved** (`NoSchedule`, `NotEmployed`).

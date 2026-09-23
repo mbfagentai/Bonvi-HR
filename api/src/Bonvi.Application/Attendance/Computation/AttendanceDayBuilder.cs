@@ -64,23 +64,42 @@ public sealed class AttendanceDayBuilder
 {
     private readonly ScheduleResolver _schedules;
     private readonly DateOnly _today;
+    private readonly DateTimeOffset _now;
 
     /// <summary>Hisoblovchini to'plamning jadval hal qiluvchisi ustida quradi.</summary>
     /// <param name="schedules">Bir to'plam uchun qurilgan hal qiluvchi.</param>
     /// <param name="today">
     /// Toshkent vaqti bo'yicha BUGUN — kelajak kunlarni ajratish uchun.
     /// </param>
+    /// <param name="now">
+    /// Hozirgi lahza — rejasi hali TUGAMAGAN kunda erta ketishni sanamaslik uchun.
+    /// </param>
     /// <remarks>
-    /// ⭐ «Bugun» tashqaridan beriladi, <c>DateTime.Now</c> dan olinmaydi:
-    /// sinf toza funksiya bo'lib qolishi kerak (sinf izohi), aks holda
-    /// yarim tunda o'tgan test goh o'tib, goh yiqilardi.
+    /// <para>
+    /// ⭐ «Bugun» ham, «hozir» ham tashqaridan beriladi (<c>IClock</c>),
+    /// <c>DateTime.Now</c> dan olinmaydi: sinf toza funksiya bo'lib qolishi
+    /// kerak (sinf izohi), aks holda yarim tunda o'tgan test goh o'tib, goh
+    /// yiqilardi.
+    /// </para>
+    /// <para>
+    /// Ikkalasi bitta soatdan: <paramref name="today"/> — <paramref name="now"/>
+    /// ning Toshkent sanasi. Alohida berilishi sababi — ikki xil savol: kelajak
+    /// kun SANA bo'yicha hal qilinadi, «reja tugadimi» esa LAHZA bo'yicha
+    /// (<see cref="DashboardStatusRule.Classify"/> ham shunday oladi).
+    /// </para>
+    /// <para>
+    /// ⚠️ Shu sababli bugungi kunning natijasi hisoblash paytiga bog'liq: reja
+    /// tugashidan oldin yozilgan qatorda erta ketish 0 bo'lib turadi va uni
+    /// keyingi qayta hisoblash to'ldiradi (<c>AttendanceNightlyRecomputeJob</c>).
+    /// </para>
     /// </remarks>
-    public AttendanceDayBuilder(ScheduleResolver schedules, DateOnly today)
+    public AttendanceDayBuilder(ScheduleResolver schedules, DateOnly today, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(schedules);
 
         _schedules = schedules;
         _today = today;
+        _now = now;
     }
 
     /// <summary>[from, to] kunlarini hisoblash uchun qaysi <c>local_date</c> dagi o'tishlar yuklanishi shart.</summary>
@@ -156,7 +175,8 @@ public sealed class AttendanceDayBuilder
                 calendar.For(date),
                 passesByDate.GetValueOrDefault(date) ?? [],
                 excusedDates?.Contains(date) ?? false,
-                _today))
+                _today,
+                _now))
             .ToList();
     }
 
@@ -167,7 +187,8 @@ public sealed class AttendanceDayBuilder
         DayContext context,
         List<PassReading> passes,
         bool excused,
-        DateOnly today)
+        DateOnly today,
+        DateTimeOffset now)
     {
         var employment = context.Employment;
         var schedule = context.Schedule;
@@ -187,8 +208,16 @@ public sealed class AttendanceDayBuilder
                 late = WholeMinutes.AtLeastZero(firstIn - planStart.AddMinutes(plan.GraceInMinutes));
             }
 
-            // Qachon ketgani noma'lum bo'lsa, «erta ketdi» deb ayblanmaydi.
-            if (!pairing.MissingExit && pairing.LastOutAt is { } lastOut)
+            /*
+              Qachon ketgani noma'lum bo'lsa, «erta ketdi» deb ayblanmaydi.
+              Reja hali tugamagan bo'lsa ham (egasining qarori, 2026-09-23):
+              kun o'rtasidagi oxirgi chiqish «ketdi» degani emas — 11:30 da
+              tushlikka chiqqan odam ekranda «380 daqiqa erta ketdi» bo'lib
+              ko'rinardi. Reja tugagach qiymat qayta hisoblashda to'ladi.
+            */
+            var planEnded = now >= planEnd;
+
+            if (planEnded && !pairing.MissingExit && pairing.LastOutAt is { } lastOut)
             {
                 early = WholeMinutes.AtLeastZero(planEnd.AddMinutes(-plan.GraceOutMinutes) - lastOut);
             }

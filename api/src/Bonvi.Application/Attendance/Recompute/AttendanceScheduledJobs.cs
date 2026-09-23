@@ -162,6 +162,15 @@ public sealed class AttendanceDirtyRecomputeJob
 public sealed class AttendanceNightlyRecomputeJob
 {
     /// <summary>Bugundan necha kun orqaga: bugun − 2 … bugun — uch kun.</summary>
+    /// <remarks>
+    /// ⚠️ <b>Erta ketishni ham shu son to'ldiradi.</b> Reja hali tugamagan kunda erta
+    /// ketish 0 yoziladi (<c>AttendanceDayBuilder</c>), va keyin o'tish kelmasa, uni
+    /// faqat shu vazifa qayta hisoblaydi. D sanasi D, D + 1 va D + 2 kunlarining
+    /// 03:10 idagi yurishiga tushadi; smena 24 soatdan qisqa (domen boshlanish =
+    /// tugashni rad etadi), ya'ni D ning rejasi D + 2 yarim tunigacha albatta
+    /// tugaydi — 03:10 dan keyin tugaydigan tungi smena ham. 1 ga tushirilsa, o'sha
+    /// tungi smenalarning erta ketishi abadiy 0 qolardi.
+    /// </remarks>
     public const int DaysBack = 2;
 
     private readonly AttendanceRecomputeRangeJob _range;

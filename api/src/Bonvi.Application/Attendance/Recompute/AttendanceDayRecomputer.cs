@@ -158,13 +158,16 @@ public sealed class AttendanceDayRecomputer
             .LoadScheduleCatalogAsync(ordered[0], ordered[^1], cancellationToken)
             .ConfigureAwait(false);
 
+        var now = _clock.UtcNow;
+
         var builder = new AttendanceDayBuilder(
             new ScheduleResolver(
                 catalog.Assignments,
                 catalog.Schedules,
                 new DepartmentTree(catalog.Departments),
                 catalog.Dates),
-            _clock.UtcNow.TashkentDate());
+            now.TashkentDate(),
+            now);
 
         var stored = 0;
         var removed = 0;

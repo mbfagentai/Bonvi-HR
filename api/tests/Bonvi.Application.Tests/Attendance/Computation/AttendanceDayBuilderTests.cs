@@ -79,6 +79,83 @@ public sealed class AttendanceDayBuilderTests
         kun.Status.ShouldBe(AttendanceDayStatus.Present, "kechikish va erta ketish — son, holat emas");
     }
 
+    // ────────────────────── Reja hali tugamagan kun ──────────────────────
+
+    /// <summary>
+    /// Egasining qarori (2026-09-23): 11:30 da tushlikka chiqqan odam kun o'rtasida «380 daqiqa
+    /// erta ketdi» bo'lib ko'rinmaydi — reja tugamaguncha erta ketish 0. Kechikish va holat odatdagidek.
+    /// </summary>
+    [Fact]
+    public void Reja_tugamaguncha_erta_ketish_sanalmaydi()
+    {
+        var sahna = Office().Now(Monday, "12:00");
+        sahna.Alternating(Monday, "09:15", "11:30");
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.EarlyLeaveMinutes.ShouldBe(0, "18:00 dagi reja hali tugamagan");
+        kun.LastOutAt.ShouldBe(At(Monday, "11:30"));
+        kun.LateMinutes.ShouldBe(5, "kechikish qoidasi reja tugashini kutmaydi");
+        kun.WorkedMinutes.ShouldBe(135);
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
+    }
+
+    /// <summary>
+    /// Reja tugash lahzasidan boshlab — odatdagi formula, yon berish bilan: (18:00 − 10) − 11:30 = 380.
+    /// Bir soniya oldin hali 0.
+    /// </summary>
+    [Fact]
+    public void Reja_tugagach_erta_ketish_odatdagidek_hisoblanadi()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:00", "11:30");
+
+        sahna.Now(Monday, "17:59:59").Day(Monday).Facts.EarlyLeaveMinutes.ShouldBe(0);
+        sahna.Now(Monday, "18:00").Day(Monday).Facts.EarlyLeaveMinutes.ShouldBe(380, "chegara — reja tugash lahzasining o'zi");
+        sahna.Now(Tuesday, "03:10").Day(Monday).Facts.EarlyLeaveMinutes.ShouldBe(380, "tungi qayta hisoblash");
+    }
+
+    /// <summary>
+    /// Tungi smena 20:00–08:00: dushanbaning rejasi seshanba 08:00 da tugaydi. Seshanba 03:10 da
+    /// dushanba O'TGAN sana, lekin reja hali tugamagan — erta ketish 0. Qoida sana bo'yicha emas,
+    /// lahza bo'yicha. 08:00 dan keyin: (08:00 − 10) − 02:00 = 350.
+    /// </summary>
+    [Fact]
+    public void Tungi_smenada_erta_ketish_ertasi_kuni_reja_tugagach_sanaladi()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("20:00", "08:00"));
+        sahna.In(Monday, "20:00");
+        sahna.Out(Tuesday, "02:00");
+
+        var tunda = sahna.Now(Tuesday, "03:10").Day(Monday).Facts;
+
+        tunda.LastOutAt.ShouldBe(At(Tuesday, "02:00"), "chiqish dushanbaning smenasiga tushgan");
+        tunda.EarlyLeaveMinutes.ShouldBe(0);
+        tunda.Status.ShouldBe(AttendanceDayStatus.Present);
+
+        sahna.Now(Tuesday, "08:00").Day(Monday).Facts.EarlyLeaveMinutes.ShouldBe(350);
+        sahna.Now(Tuesday.AddDays(1), "03:10").Day(Monday).Facts.EarlyLeaveMinutes.ShouldBe(350);
+    }
+
+    /// <summary>#35 reja tugashidan oldin ham, keyin ham: chiqishi yozilmagan kunda erta ketish 0.</summary>
+    [Fact]
+    public void Chiqishi_yozilmagan_kunda_reja_tugagach_ham_erta_ketish_nol()
+    {
+        var sahna = Office();
+        sahna.Alternating(Monday, "09:00", "12:00", "13:00");
+
+        var kunduzi = sahna.Now(Monday, "13:30").Day(Monday).Facts;
+        var tunda = sahna.Now(Tuesday, "03:10").Day(Monday).Facts;
+
+        kunduzi.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kunduzi.EarlyLeaveMinutes.ShouldBe(0);
+
+        tunda.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        tunda.EarlyLeaveMinutes.ShouldBe(0, "qachon ketgani noma'lum — reja tugagani buni o'zgartirmaydi");
+    }
+
     // ────────────────────── Toq o'tishlar ──────────────────────
 
     /// <summary>#35. Qachon ketgani noma'lum — erta ketishda ayblanmaydi.</summary>

@@ -52,6 +52,13 @@ internal sealed class AttendanceScenario
     */
     private DateOnly _today = DateOnly.MaxValue;
 
+    /*
+      «Hozir» ham xuddi shunday — ENG UZOQ kelajak: har bir reja allaqachon
+      tugagan, ya'ni erta ketish odatdagidek sanaladi. Reja tugashidan
+      oldingi qoidani sinaydigan testlar `Now(...)` bilan buni o'zgartiradi.
+    */
+    private DateTimeOffset _now = DateTimeOffset.MaxValue;
+
     public Guid EmployeeId { get; } = Guid.CreateVersion7();
 
     /// <summary>Ofis xodimi: sukut jadval 09:00–18:00, har kuni ish kuni.</summary>
@@ -181,14 +188,25 @@ internal sealed class AttendanceScenario
         return this;
     }
 
+    /// <summary>
+    /// Sahnaning «hozir»ini Toshkent soatida belgilaydi — «bugun» ham shu lahzaning sanasiga o'tadi,
+    /// chunki ishlab chiqarishda ikkalasi bitta soatdan olinadi.
+    /// </summary>
+    public AttendanceScenario Now(DateOnly date, string time)
+    {
+        _now = At(date, time);
+        _today = date;
+        return this;
+    }
+
     /// <summary>Bitta sanani hisoblaydi.</summary>
     public ComputedAttendanceDay Day(DateOnly date) => Days(date).ShouldHaveSingleItem();
 
     /// <summary>Bir nechta sanani BITTA chaqiruvda hisoblaydi — qayta hisoblash ishi aynan shunday chaqiradi.</summary>
     public IReadOnlyList<ComputedAttendanceDay> Days(params DateOnly[] dates)
-        => new AttendanceDayBuilder(Resolver(), _today).Build(EmployeeId, _employments, _passes, dates);
+        => new AttendanceDayBuilder(Resolver(), _today, _now).Build(EmployeeId, _employments, _passes, dates);
 
     /// <summary>Tasdiqlangan yo'qlik so'rovi qamragan sanalar bilan hisoblaydi.</summary>
     public IReadOnlyList<ComputedAttendanceDay> DaysExcused(IReadOnlySet<DateOnly> excused, params DateOnly[] dates)
-        => new AttendanceDayBuilder(Resolver(), _today).Build(EmployeeId, _employments, _passes, dates, excused);
+        => new AttendanceDayBuilder(Resolver(), _today, _now).Build(EmployeeId, _employments, _passes, dates, excused);
 }
