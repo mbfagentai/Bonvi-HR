@@ -100,6 +100,7 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
         koordinata.EmployeeId.ShouldBe(xodim.Id, "INV-3: da'vo va moslik bir xil bo'lishi kerak");
         koordinata.SiteRadiusMeters.ShouldBe(200, "qaror lahzasidagi radius muzlatiladi");
         ((double)koordinata.DistanceMeters).ShouldBeInRange(80, 100);
+        koordinata.SiteShape.ShouldBe(WorkSiteShape.Circle, "doirada dalil — markazgacha masofa");
     }
 
     /// <summary>To'siqdan tashqaridagi belgi rad etiladi.</summary>
@@ -152,6 +153,112 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
             markaz);
 
         await XatoKutAsync(javob, HttpStatusCode.BadRequest, "davomat.obyektdan_uzoq");
+        await OtishYoqAsync(xodim.Id);
+    }
+
+    /// <summary>
+    /// Rad etish xabaridagi masofa — CHEGARAGACHA, markazgacha emas (SPEC-joylashuvlar §B).
+    /// </summary>
+    /// <remarks>
+    /// Doira qarori o'zgarmagan (yuqoridagi test), o'zgargani faqat odamga
+    /// aytiladigan son: 500 m markazgacha, 200 m radius → «300 m».
+    /// </remarks>
+    [Fact]
+    public async Task Doiradan_tashqarida_rad_etishda_chegaragacha_masofa_aytiladi()
+    {
+        var belgi = Belgi();
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(belgi);
+        await BelgilashniYoqAsync(admin, xodim.Id);
+        var markaz = Nuqta(8);
+        await ObyektAsync(admin, "Chegara " + belgi, markaz, radius: 200);
+
+        using var javob = await BelgilaAsync(
+            await IlovaMijoziAsync(admin, xodim.Id),
+            "In",
+            Siljit(markaz, metr: 500));
+
+        await XatoKutAsync(javob, HttpStatusCode.BadRequest, "davomat.obyektdan_uzoq");
+        (await AytilganMasofaAsync(javob)).ShouldBeInRange(295, 305);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Geo-to'siq: ko'pburchak (SPEC-joylashuvlar §B)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Ko'pburchak ichidagi belgi qabul qilinadi; dalil qatori — shakl, chetgacha masofa (0) va zaxira.
+    /// </summary>
+    [Fact]
+    public async Task Kopburchak_ichidagi_belgi_qabul_qilinadi_va_dalil_muzlatiladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(belgi);
+        await BelgilashniYoqAsync(admin, xodim.Id);
+        var markaz = Nuqta(9);
+        var obyektId = await KopburchakAsync(admin, "Sex " + belgi, markaz, zaxira: 40);
+
+        using var javob = await BelgilaAsync(await IlovaMijoziAsync(admin, xodim.Id), "In", markaz);
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        (await JsonAsync(javob)).GetProperty("workSiteName").GetString().ShouldBe("Sex " + belgi);
+
+        var koordinata = await KoordinataAsync(xodim.Id, ct);
+
+        koordinata.WorkSiteId.ShouldBe(obyektId);
+        koordinata.SiteShape.ShouldBe(WorkSiteShape.Polygon);
+        koordinata.DistanceMeters.ShouldBe(0m, "ichkarida chetgacha masofa 0");
+        koordinata.SiteRadiusMeters.ShouldBe(40, "ko'pburchakda muzlatiladigan ruxsat — zaxira");
+    }
+
+    /// <summary>Chetdan tashqarida, lekin zaxira ichida — qabul; dalil masofasi ~30 m.</summary>
+    [Fact]
+    public async Task Kopburchakdan_tashqarida_zaxira_ichidagi_belgi_qabul_qilinadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(belgi);
+        await BelgilashniYoqAsync(admin, xodim.Id);
+        var markaz = Nuqta(10);
+        await KopburchakAsync(admin, "Ombor-zaxira " + belgi, markaz, zaxira: 50);
+
+        using var javob = await BelgilaAsync(
+            await IlovaMijoziAsync(admin, xodim.Id),
+            "In",
+            Siljit(ShimoliyQirra(markaz), metr: 30));
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var koordinata = await KoordinataAsync(xodim.Id, ct);
+        koordinata.SiteShape.ShouldBe(WorkSiteShape.Polygon);
+        ((double)koordinata.DistanceMeters).ShouldBeInRange(29, 31);
+        koordinata.SiteRadiusMeters.ShouldBe(50);
+    }
+
+    /// <summary>Zaxiradan tashqarida — rad etiladi va xabarda CHETGACHA masofa (~120 m) turadi.</summary>
+    [Fact]
+    public async Task Kopburchak_zaxirasidan_tashqaridagi_belgi_rad_etiladi_va_chetgacha_masofa_aytiladi()
+    {
+        var belgi = Belgi();
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(belgi);
+        await BelgilashniYoqAsync(admin, xodim.Id);
+        var markaz = Nuqta(11);
+        await KopburchakAsync(admin, "Uzoq-sex " + belgi, markaz, zaxira: 50);
+
+        using var javob = await BelgilaAsync(
+            await IlovaMijoziAsync(admin, xodim.Id),
+            "In",
+            Siljit(ShimoliyQirra(markaz), metr: 120));
+
+        await XatoKutAsync(javob, HttpStatusCode.BadRequest, "davomat.obyektdan_uzoq");
+        (await AytilganMasofaAsync(javob)).ShouldBeInRange(115, 125, "markazgacha (~231 m) emas");
         await OtishYoqAsync(xodim.Id);
     }
 
@@ -445,7 +552,9 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
                 new { from = Iso(kun), to = Iso(kun), employeeId = xodimId },
                 ct);
 
-            hisobla.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(hisobla));
+            // 202 — endpoint shartnomasi (`Produces<AttendanceRecomputeAcceptedDto>(202)`);
+            // `Testing` muhitida navbat sinxron, ya'ni javob qaytganda kun hisoblangan.
+            hisobla.StatusCode.ShouldBe(HttpStatusCode.Accepted, await MatnAsync(hisobla));
         }
 
         var telefonKatak = await KatakAsync(admin, telefonli.Id, kun);
@@ -579,13 +688,52 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
     {
         using var javob = await admin.PostAsJsonAsync(
             Yol("/"),
-            new { name = nom, latitude = markaz.Lat, longitude = markaz.Lon, radiusMeters = radius },
+            new { name = nom, shape = "Circle", latitude = markaz.Lat, longitude = markaz.Lon, radiusMeters = radius },
             TestContext.Current.CancellationToken);
 
         javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
 
         return (await JsonAsync(javob)).GetProperty("id").GetGuid();
     }
+
+    /// <summary>
+    /// ~220 × 170 m kvadrat ko'pburchak obyekt; <paramref name="markaz"/> — uning o'rtasi.
+    /// </summary>
+    /// <remarks>
+    /// Shimoliy qirra markazdan roppa-rosa 0,001° kenglik (~111 m) shimolda —
+    /// testlar nuqtani SHU qirradan <see cref="Siljit"/> bilan suradi.
+    /// </remarks>
+    private static async Task<Guid> KopburchakAsync(
+        HttpClient admin,
+        string nom,
+        (decimal Lat, decimal Lon) markaz,
+        int zaxira)
+    {
+        using var javob = await admin.PostAsJsonAsync(
+            Yol("/"),
+            new
+            {
+                name = nom,
+                shape = "Polygon",
+                edgeBufferMeters = zaxira,
+                polygon = new[]
+                {
+                    new { lat = markaz.Lat - 0.001m, lng = markaz.Lon - 0.001m },
+                    new { lat = markaz.Lat - 0.001m, lng = markaz.Lon + 0.001m },
+                    new { lat = markaz.Lat + 0.001m, lng = markaz.Lon + 0.001m },
+                    new { lat = markaz.Lat + 0.001m, lng = markaz.Lon - 0.001m },
+                },
+            },
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        return (await JsonAsync(javob)).GetProperty("id").GetGuid();
+    }
+
+    /// <summary>Kvadratning shimoliy qirrasi (<see cref="KopburchakAsync"/>).</summary>
+    private static (decimal Lat, decimal Lon) ShimoliyQirra((decimal Lat, decimal Lon) markaz)
+        => (markaz.Lat + 0.001m, markaz.Lon);
 
     /// <summary>HR hisob ochadi va BIR MARTALIK parolni qaytaradi.</summary>
     private static async Task<string> HisobOchAsync(HttpClient admin, Guid xodimId)
@@ -671,6 +819,28 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
             },
             TestContext.Current.CancellationToken);
 
+    /// <summary>Xodimning YAGONA qabul qilingan belgisining dalil qatori.</summary>
+    private async Task<MobileCheckIn> KoordinataAsync(Guid xodimId, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await kontekst.MobileCheckIns.AsNoTracking().SingleAsync(row => row.EmployeeId == xodimId, ct);
+    }
+
+    /// <summary>
+    /// Rad etish xabaridagi masofa: «… Eng yaqin obyekt: X — 120 m.» (<c>AttendanceErrors.OutsideWorkSite</c>).
+    /// </summary>
+    private static async Task<int> AytilganMasofaAsync(HttpResponseMessage javob)
+    {
+        var xabar = JsonDocument.Parse(await MatnAsync(javob)).RootElement.GetProperty("detail").GetString()!;
+        var moslik = System.Text.RegularExpressions.Regex.Match(xabar, @"— (\d+) m\.$");
+
+        moslik.Success.ShouldBeTrue(xabar);
+
+        return int.Parse(moslik.Groups[1].Value, CultureInfo.InvariantCulture);
+    }
+
     private async Task OtishYoqAsync(Guid xodimId)
     {
         await using var qamrov = _factory.Services.CreateAsyncScope();
@@ -713,8 +883,13 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
                 new
                 {
                     personId = shaxs,
+
+                    // Kasr soniyalar BILAN: telefon belgisining lahzasi server
+                    // soatidan olinadi va mikrosoniyagacha saqlanadi. Soniyagacha
+                    // kesilsa, terminal o'tishi «aynan o'sha lahza» bo'lmay qolib,
+                    // `firstInAt` solishtiruvi kasr farqi bilan yiqiladi.
                     occurredAt = lahza.ToOffset(Tashkent)
-                        .ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
+                        .ToString("yyyy-MM-dd'T'HH:mm:ss.fffffffzzz", CultureInfo.InvariantCulture),
                     direction = "In",
                     eventId = $"{shaxs}-{lahza.ToUnixTimeSeconds()}",
                 },

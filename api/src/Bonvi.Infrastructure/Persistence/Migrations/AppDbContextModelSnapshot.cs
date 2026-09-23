@@ -693,6 +693,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("site_radius_meters");
 
+                    b.Property<string>("SiteShape")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("site_shape");
+
                     b.Property<Guid>("WorkSiteId")
                         .HasColumnType("uuid")
                         .HasColumnName("work_site_id");
@@ -716,7 +721,9 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_mobile_check_ins_meters", "accuracy_meters >= 0 AND distance_meters >= 0");
 
-                            t.HasCheckConstraint("ck_mobile_check_ins_radius", "site_radius_meters BETWEEN 50 AND 5000");
+                            t.HasCheckConstraint("ck_mobile_check_ins_radius", "(site_shape = 'circle' AND site_radius_meters BETWEEN 50 AND 5000) OR (site_shape = 'polygon' AND site_radius_meters BETWEEN 0 AND 500)");
+
+                            t.HasCheckConstraint("ck_mobile_check_ins_site_shape", "site_shape IN ('circle', 'polygon')");
                         });
                 });
 
@@ -995,6 +1002,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Address")
+                        .HasColumnType("text")
+                        .HasColumnName("address");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1010,6 +1021,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
+
+                    b.Property<int>("EdgeBufferMeters")
+                        .HasColumnType("integer")
+                        .HasColumnName("edge_buffer_meters");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -1035,9 +1050,18 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("note");
 
+                    b.Property<string>("Polygon")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("polygon");
+
                     b.Property<int>("RadiusMeters")
                         .HasColumnType("integer")
                         .HasColumnName("radius_meters");
+
+                    b.Property<string>("Shape")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("shape");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1057,7 +1081,13 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_work_sites_coordinates", "latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180");
 
+                            t.HasCheckConstraint("ck_work_sites_edge_buffer", "edge_buffer_meters BETWEEN 0 AND 500");
+
+                            t.HasCheckConstraint("ck_work_sites_polygon", "(shape = 'polygon') = (polygon IS NOT NULL)");
+
                             t.HasCheckConstraint("ck_work_sites_radius", "radius_meters BETWEEN 50 AND 5000");
+
+                            t.HasCheckConstraint("ck_work_sites_shape", "shape IN ('circle', 'polygon')");
                         });
                 });
 

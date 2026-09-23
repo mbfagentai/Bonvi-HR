@@ -43,6 +43,8 @@ export function identityProviderLabel(
       return 'ZKTeco'
     case 'Manual':
       return t('attendance.identityProviderManual')
+    case 'Mobile':
+      return t('attendance.identityProviderMobile')
   }
 }
 

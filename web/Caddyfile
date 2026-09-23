@@ -76,8 +76,13 @@
 		# `handle /api/*`), ya'ni tashqi manzilga so'rov kerak emas —
 		# ma'lumot sizib chiqadigan yo'l yopiladi.
 		#
+		# Map tiles (Verifikatsiya → Joylashuvlar, SPEC-joylashuvlar §D):
+		# OSM and Esri satellite images are allowed in `img-src`, and
+		# Nominatim address search in `connect-src` — nothing else
+		# external. Nominatim gets only the search text, never a token.
+		#
 		# `frame-ancestors 'none'` — `X-Frame-Options` ning zamonaviy
 		# shakli; ikkalasi ham qoldirilgan, eski brauzerlar uchun.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	}
 }

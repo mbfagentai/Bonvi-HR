@@ -271,6 +271,37 @@ public static class AttendanceErrors
         "davomat.obyekt_topilmadi",
         "Obyekt topilmadi.");
 
+    /// <summary>Shakl berilmagan yoki noma'lum son yuborilgan (SPEC-joylashuvlar §C).</summary>
+    /// <remarks>
+    /// JSON enum'ni son sifatida ham qabul qiladi, ya'ni <c>"shape": 7</c>
+    /// bog'lashdan o'tib keladi; shakl umuman yuborilmasa esa 0 bo'ladi.
+    /// Ikkalasi ham jimgina «doira» deb o'qilmasligi kerak.
+    /// </remarks>
+    public static Error WorkSiteShapeInvalid { get; } = Error.Validation(
+        "obyekt.shakl_notogri",
+        "Shakl «Circle» (doira) yoki «Polygon» (ko'pburchak) bo'lishi kerak.");
+
+    /// <summary>Doira markazining kengligi berilmagan.</summary>
+    /// <remarks>
+    /// Kod domendagi oraliq xatosi bilan AYNAN bir xil
+    /// (<c>WorkSite.Create</c>): ekran uchun ikkalasi ham «kenglik
+    /// noto'g'ri» degan bitta gap, yangi kod bitta xatoga ikkinchi tarjima
+    /// bo'lardi.
+    /// </remarks>
+    public static Error WorkSiteLatitudeMissing { get; } = Error.Validation(
+        "davomat.obyekt_kenglik",
+        "Doira markazining kengligi kiritilishi shart.");
+
+    /// <summary>Doira markazining uzunligi berilmagan — kodi domendagi bilan bir xil.</summary>
+    public static Error WorkSiteLongitudeMissing { get; } = Error.Validation(
+        "davomat.obyekt_uzunlik",
+        "Doira markazining uzunligi kiritilishi shart.");
+
+    /// <summary>Doira radiusi berilmagan — kodi domendagi bilan bir xil.</summary>
+    public static Error WorkSiteRadiusMissing { get; } = Error.Validation(
+        "davomat.obyekt_radiusi",
+        $"Doira radiusi kiritilishi shart: {WorkSite.MinRadiusMeters} dan {WorkSite.MaxRadiusMeters} metrgacha.");
+
     // ── «Mobil ilova» sintetik qurilmasi (§D5, K4) ──────────────────
 
     /// <summary>Qurilma formasida <c>Mobile</c> provayderi tanlangan.</summary>
@@ -331,7 +362,9 @@ public static class AttendanceErrors
     /// xil: shu joyda belgilab bo'lmaydi.
     /// </remarks>
     /// <param name="nearestName">Eng yaqin obyekt nomi; hech biri bo'lmasa <c>null</c>.</param>
-    /// <param name="distanceMeters">Unga qadar masofa.</param>
+    /// <param name="distanceMeters">
+    /// Uning CHEGARASIGACHA masofa (doirada markazgacha emas — SPEC-joylashuvlar §B).
+    /// </param>
     public static Error OutsideWorkSite(string? nearestName, double? distanceMeters) => Error.Validation(
         "davomat.obyektdan_uzoq",
         nearestName is null || distanceMeters is null

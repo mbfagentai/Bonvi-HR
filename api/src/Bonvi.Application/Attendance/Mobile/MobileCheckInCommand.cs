@@ -137,28 +137,30 @@ public sealed class MobileCheckInCommandHandler
             return Error.Validation("davomat.joylashuv_notogri", "Joylashuv koordinatasi noto'g'ri.");
         }
 
-        // ── 3-qadam: eng yaqin FAOL obyekt (SPEC §E3) ────────────────
+        // ── 3-qadam: qabul qiladigan FAOL obyekt (SPEC §E3, SPEC-joylashuvlar §B) ──
         //
         // Yigirmagacha qator o'qilib, xotirada solishtiriladi: bu hajmda
         // hech qanday indeks «yigirma qatorni olib, siklda yurish» dan
         // tez bo'la olmaydi (sababi ma'lumot modeli §A.4 da). Yumshoq
         // o'chirilganlar global filtr bilan, faolsizlari `onlyActive` bilan
         // chiqib ketadi — ikkalasi ikki xil gap.
+        //
+        // Doira va ko'pburchakni birga tartiblash qoidasi domenda
+        // (`Geofence.Locate`) — bu yerda faqat natija o'qiladi.
         var sites = await _sites.ListAsync(onlyActive: true, cancellationToken).ConfigureAwait(false);
 
-        var nearest = sites
-            .Select(site => (Site: site, Distance: site.DistanceMetersTo(latitude, longitude)))
-            .OrderBy(candidate => candidate.Distance)
-            .FirstOrDefault();
+        var reading = Geofence.Locate(sites, latitude, longitude);
 
-        if (nearest.Site is null)
+        if (reading is null)
         {
             return AttendanceErrors.OutsideWorkSite(null, null);
         }
 
-        if (!nearest.Site.Covers(nearest.Distance))
+        if (!reading.Accepted)
         {
-            return AttendanceErrors.OutsideWorkSite(nearest.Site.Name, nearest.Distance);
+            // CHEGARAGACHA masofa, markazgacha emas: «Zavoddan 120 m
+            // tashqaridasiz» — odamga kerak bo'lgan son shu.
+            return AttendanceErrors.OutsideWorkSite(reading.Site.Name, reading.OutsideMeters);
         }
 
         // ── 4-qadam: takroriy belgi (SPEC §E4) ───────────────────────
@@ -209,15 +211,18 @@ public sealed class MobileCheckInCommandHandler
 
         _passes.Add(pass);
 
+        // Dalil qatoriga QAROR juftligi emas, DALIL juftligi yoziladi —
+        // farqi `GeofenceReading` izohida.
         _checkIns.Add(MobileCheckIn.Record(
             pass.Id,
             employee.Id,
-            nearest.Site.Id,
+            reading.Site.Id,
             latitude,
             longitude,
             accuracy,
-            Round((decimal)nearest.Distance, MobileCheckInRules.MeterScale),
-            nearest.Site.RadiusMeters,
+            Round((decimal)reading.FrozenDistanceMeters, MobileCheckInRules.MeterScale),
+            reading.FrozenAllowanceMeters,
+            reading.Site.Shape,
             now));
 
         // `processed_at` NULL bo'lib qoladi — kun shu bilan qayta hisoblash
@@ -229,7 +234,7 @@ public sealed class MobileCheckInCommandHandler
         return new MobileCheckInResultDto(
             pass.OccurredAt,
             pass.Direction,
-            nearest.Site.Name);
+            reading.Site.Name);
     }
 
     /// <summary>

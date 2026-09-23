@@ -40,6 +40,7 @@ import { Route as AppNomzodlarCandidateIdRouteImport } from './routes/_app/nomzo
 import { Route as AppVerifikatsiyaHisobotlarRouteImport } from './routes/_app/verifikatsiya/hisobotlar'
 import { Route as AppVerifikatsiyaJadvallarRouteImport } from './routes/_app/verifikatsiya/jadvallar'
 import { Route as AppVerifikatsiyaJonliRouteImport } from './routes/_app/verifikatsiya/jonli'
+import { Route as AppVerifikatsiyaJoylashuvlarRouteImport } from './routes/_app/verifikatsiya/joylashuvlar'
 import { Route as AppVerifikatsiyaMoslashtirishRouteImport } from './routes/_app/verifikatsiya/moslashtirish'
 import { Route as AppVerifikatsiyaOtishlarRouteImport } from './routes/_app/verifikatsiya/otishlar'
 import { Route as AppVerifikatsiyaQurilmalarRouteImport } from './routes/_app/verifikatsiya/qurilmalar'
@@ -214,6 +215,12 @@ const AppVerifikatsiyaJonliRoute = AppVerifikatsiyaJonliRouteImport.update({
   path: '/verifikatsiya/jonli',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVerifikatsiyaJoylashuvlarRoute =
+  AppVerifikatsiyaJoylashuvlarRouteImport.update({
+    id: '/verifikatsiya/joylashuvlar',
+    path: '/verifikatsiya/joylashuvlar',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppVerifikatsiyaMoslashtirishRoute =
   AppVerifikatsiyaMoslashtirishRouteImport.update({
     id: '/verifikatsiya/moslashtirish',
@@ -284,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/verifikatsiya/hisobotlar': typeof AppVerifikatsiyaHisobotlarRoute
   '/verifikatsiya/jadvallar': typeof AppVerifikatsiyaJadvallarRoute
   '/verifikatsiya/jonli': typeof AppVerifikatsiyaJonliRoute
+  '/verifikatsiya/joylashuvlar': typeof AppVerifikatsiyaJoylashuvlarRoute
   '/verifikatsiya/moslashtirish': typeof AppVerifikatsiyaMoslashtirishRoute
   '/verifikatsiya/otishlar': typeof AppVerifikatsiyaOtishlarRoute
   '/verifikatsiya/qurilmalar': typeof AppVerifikatsiyaQurilmalarRoute
@@ -323,6 +331,7 @@ export interface FileRoutesByTo {
   '/verifikatsiya/hisobotlar': typeof AppVerifikatsiyaHisobotlarRoute
   '/verifikatsiya/jadvallar': typeof AppVerifikatsiyaJadvallarRoute
   '/verifikatsiya/jonli': typeof AppVerifikatsiyaJonliRoute
+  '/verifikatsiya/joylashuvlar': typeof AppVerifikatsiyaJoylashuvlarRoute
   '/verifikatsiya/moslashtirish': typeof AppVerifikatsiyaMoslashtirishRoute
   '/verifikatsiya/otishlar': typeof AppVerifikatsiyaOtishlarRoute
   '/verifikatsiya/qurilmalar': typeof AppVerifikatsiyaQurilmalarRoute
@@ -364,6 +373,7 @@ export interface FileRoutesById {
   '/_app/verifikatsiya/hisobotlar': typeof AppVerifikatsiyaHisobotlarRoute
   '/_app/verifikatsiya/jadvallar': typeof AppVerifikatsiyaJadvallarRoute
   '/_app/verifikatsiya/jonli': typeof AppVerifikatsiyaJonliRoute
+  '/_app/verifikatsiya/joylashuvlar': typeof AppVerifikatsiyaJoylashuvlarRoute
   '/_app/verifikatsiya/moslashtirish': typeof AppVerifikatsiyaMoslashtirishRoute
   '/_app/verifikatsiya/otishlar': typeof AppVerifikatsiyaOtishlarRoute
   '/_app/verifikatsiya/qurilmalar': typeof AppVerifikatsiyaQurilmalarRoute
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/verifikatsiya/hisobotlar'
     | '/verifikatsiya/jadvallar'
     | '/verifikatsiya/jonli'
+    | '/verifikatsiya/joylashuvlar'
     | '/verifikatsiya/moslashtirish'
     | '/verifikatsiya/otishlar'
     | '/verifikatsiya/qurilmalar'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/verifikatsiya/hisobotlar'
     | '/verifikatsiya/jadvallar'
     | '/verifikatsiya/jonli'
+    | '/verifikatsiya/joylashuvlar'
     | '/verifikatsiya/moslashtirish'
     | '/verifikatsiya/otishlar'
     | '/verifikatsiya/qurilmalar'
@@ -484,6 +496,7 @@ export interface FileRouteTypes {
     | '/_app/verifikatsiya/hisobotlar'
     | '/_app/verifikatsiya/jadvallar'
     | '/_app/verifikatsiya/jonli'
+    | '/_app/verifikatsiya/joylashuvlar'
     | '/_app/verifikatsiya/moslashtirish'
     | '/_app/verifikatsiya/otishlar'
     | '/_app/verifikatsiya/qurilmalar'
@@ -718,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVerifikatsiyaJonliRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/verifikatsiya/joylashuvlar': {
+      id: '/_app/verifikatsiya/joylashuvlar'
+      path: '/verifikatsiya/joylashuvlar'
+      fullPath: '/verifikatsiya/joylashuvlar'
+      preLoaderRoute: typeof AppVerifikatsiyaJoylashuvlarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/verifikatsiya/moslashtirish': {
       id: '/_app/verifikatsiya/moslashtirish'
       path: '/verifikatsiya/moslashtirish'
@@ -799,6 +819,7 @@ interface AppRouteChildren {
   AppVerifikatsiyaHisobotlarRoute: typeof AppVerifikatsiyaHisobotlarRoute
   AppVerifikatsiyaJadvallarRoute: typeof AppVerifikatsiyaJadvallarRoute
   AppVerifikatsiyaJonliRoute: typeof AppVerifikatsiyaJonliRoute
+  AppVerifikatsiyaJoylashuvlarRoute: typeof AppVerifikatsiyaJoylashuvlarRoute
   AppVerifikatsiyaMoslashtirishRoute: typeof AppVerifikatsiyaMoslashtirishRoute
   AppVerifikatsiyaOtishlarRoute: typeof AppVerifikatsiyaOtishlarRoute
   AppVerifikatsiyaQurilmalarRoute: typeof AppVerifikatsiyaQurilmalarRoute
@@ -839,6 +860,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppVerifikatsiyaHisobotlarRoute: AppVerifikatsiyaHisobotlarRoute,
   AppVerifikatsiyaJadvallarRoute: AppVerifikatsiyaJadvallarRoute,
   AppVerifikatsiyaJonliRoute: AppVerifikatsiyaJonliRoute,
+  AppVerifikatsiyaJoylashuvlarRoute: AppVerifikatsiyaJoylashuvlarRoute,
   AppVerifikatsiyaMoslashtirishRoute: AppVerifikatsiyaMoslashtirishRoute,
   AppVerifikatsiyaOtishlarRoute: AppVerifikatsiyaOtishlarRoute,
   AppVerifikatsiyaQurilmalarRoute: AppVerifikatsiyaQurilmalarRoute,

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
@@ -79,6 +80,32 @@ public sealed class WorkSiteConfiguration : IEntityTypeConfiguration<WorkSite>
             table.HasCheckConstraint(
                 "ck_work_sites_radius",
                 $"radius_meters BETWEEN {WorkSite.MinRadiusMeters} AND {WorkSite.MaxRadiusMeters}");
+
+            /*
+              SHAKL CHEKLOVLARI (SPEC-joylashuvlar §A) — yana o'sha sabab:
+              domen `WorkSite.CreatePolygon` / `ReconfigurePolygon` da
+              tekshiradi, baza esa qo'lda yozilgan SQL'ni ushlaydi.
+
+              `ck_work_sites_polygon` — ikki tomonlama: ko'pburchakda uchlar
+              BOR, doirada YO'Q. Bir tomoni yetmaydi: uchsiz «ko'pburchak»
+              qabul qilish yo'lida `InvalidOperationException` beradi,
+              uchli «doira» esa HR xaritada ko'rgan shakl bilan qaror
+              qabul qilingan shaklni ajratib yuborardi. Uchlarning soni,
+              oralig'i va kesishmasligi bu yerda TEKSHIRILMAYDI — JSON
+              ichini SQL'da tahlil qilish domen qoidasining ikkinchi,
+              ajralib ketadigan nusxasi bo'lardi.
+            */
+            table.HasCheckConstraint(
+                "ck_work_sites_shape",
+                $"shape IN ('{WorkSiteShapeColumn.Circle}', '{WorkSiteShapeColumn.Polygon}')");
+
+            table.HasCheckConstraint(
+                "ck_work_sites_polygon",
+                $"(shape = '{WorkSiteShapeColumn.Polygon}') = (polygon IS NOT NULL)");
+
+            table.HasCheckConstraint(
+                "ck_work_sites_edge_buffer",
+                $"edge_buffer_meters BETWEEN {WorkSite.MinEdgeBufferMeters} AND {WorkSite.MaxEdgeBufferMeters}");
         });
 
         // `numeric(9,6)`: uch butun xona (±180 ga yetadi) va olti kasr
@@ -95,7 +122,106 @@ public sealed class WorkSiteConfiguration : IEntityTypeConfiguration<WorkSite>
 
         builder.Property(site => site.RadiusMeters)
             .IsRequired();
+
+        // Uzunlik chegarasi (300) domenda; ustun `text` — SPEC §A.
+        builder.Property(site => site.Address);
+
+        builder.Property(site => site.Shape)
+            .HasConversion(
+                shape => WorkSiteShapeColumn.ToText(shape),
+                text => WorkSiteShapeColumn.FromText(text))
+            .IsRequired();
+
+        // `jsonb`: `[{ "lat": 41.311081, "lng": 69.279737 }, …]`. Ustun
+        // qidirilmaydi va indekslanmaydi — faqat obyekt bilan birga o'qiladi.
+        builder.Property(site => site.Polygon)
+            .HasConversion(
+                vertices => WorkSitePolygonColumn.ToJson(vertices!),
+                json => WorkSitePolygonColumn.FromJson(json),
+                WorkSitePolygonColumn.Comparer)
+            .HasColumnType("jsonb");
+
+        builder.Property(site => site.EdgeBufferMeters)
+            .IsRequired();
     }
+}
+
+/// <summary>
+/// <see cref="WorkSiteShape"/> ning bazadagi matni — <c>'circle'</c> / <c>'polygon'</c>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Enum SONI emas, MATN (SPEC-joylashuvlar §A): <c>work_sites.shape</c> va
+/// <c>mobile_check_ins.site_shape</c> ni qo'lda o'qigan odam <c>2</c> emas,
+/// <c>polygon</c> ni ko'radi. CHECK cheklovlari ham shu sinfdagi
+/// konstantalardan yasaladi — ikki joyda ikki xil yozilish bo'lmasin.
+/// </para>
+/// <para>
+/// ⚠️ Noma'lum qiymat ikkala tomonda ham ISTISNO beradi: jimgina «doira»
+/// deb o'qish bazadagi buzuq qatorni noto'g'ri to'siq bilan ishlatardi.
+/// </para>
+/// </remarks>
+internal static class WorkSiteShapeColumn
+{
+    public const string Circle = "circle";
+
+    public const string Polygon = "polygon";
+
+    public static string ToText(WorkSiteShape shape) => shape switch
+    {
+        WorkSiteShape.Circle => Circle,
+        WorkSiteShape.Polygon => Polygon,
+        _ => throw new InvalidOperationException($"Obyekt shakli bazaga yozilmaydi: {shape}."),
+    };
+
+    public static WorkSiteShape FromText(string text) => text switch
+    {
+        Circle => WorkSiteShape.Circle,
+        Polygon => WorkSiteShape.Polygon,
+        _ => throw new InvalidOperationException($"Bazada noma'lum obyekt shakli: «{text}»."),
+    };
+}
+
+/// <summary>
+/// Ko'pburchak uchlarining <c>jsonb</c> ko'rinishi va taqqoslagichi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// JSON nomlari (<c>lat</c>, <c>lng</c>) SPEC §A dan va ular shu yerda,
+/// domenda emas: domen nuqtasi <see cref="GeoPoint"/> <c>Latitude</c> /
+/// <c>Longitude</c> deb ataladi va saqlash shaklini bilmaydi.
+/// </para>
+/// <para>
+/// Taqqoslagich KETMA-KETLIK bo'yicha: usiz EF ro'yxatni havola bo'yicha
+/// solishtirib, bir xil uchlardan yasalgan yangi massivni «o'zgargan» deb
+/// har saqlashda keraksiz UPDATE yuborardi (<c>PhoneNumber</c>
+/// taqqoslagichlaridagi bilan bir xil sabab).
+/// </para>
+/// </remarks>
+internal static class WorkSitePolygonColumn
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    public static ValueComparer<IReadOnlyList<GeoPoint>?> Comparer { get; } = new(
+        (left, right) => left == null ? right == null : right != null && left.SequenceEqual(right),
+        vertices => vertices == null
+            ? 0
+            : vertices.Aggregate(0, (hash, vertex) => HashCode.Combine(hash, vertex.GetHashCode())),
+        vertices => vertices == null ? null : vertices.ToArray());
+
+    public static string ToJson(IReadOnlyList<GeoPoint> vertices)
+        => JsonSerializer.Serialize(
+            vertices.Select(vertex => new StoredVertex(vertex.Latitude, vertex.Longitude)),
+            Json);
+
+    public static IReadOnlyList<GeoPoint> FromJson(string json)
+        => (JsonSerializer.Deserialize<StoredVertex[]>(json, Json)
+                ?? throw new InvalidOperationException("work_sites.polygon: JSON massiv emas."))
+            .Select(vertex => new GeoPoint(vertex.Lat, vertex.Lng))
+            .ToArray();
+
+    /// <summary>Bazadagi bitta uch — <c>{ "lat": …, "lng": … }</c>.</summary>
+    private sealed record StoredVertex(decimal Lat, decimal Lng);
 }
 
 /// <summary>
@@ -123,9 +249,21 @@ public sealed class MobileCheckInConfiguration : IEntityTypeConfiguration<Mobile
                 "ck_mobile_check_ins_meters",
                 "accuracy_meters >= 0 AND distance_meters >= 0");
 
+            /*
+              RUXSAT — shaklga qarab (SPEC-joylashuvlar §B): doirada bu
+              radius (50–5000), ko'pburchakda chet zaxirasi (0–500). Ustun
+              nomi tarixiy, ma'nosi `site_shape` bilan birga o'qiladi.
+            */
             table.HasCheckConstraint(
                 "ck_mobile_check_ins_radius",
-                $"site_radius_meters BETWEEN {WorkSite.MinRadiusMeters} AND {WorkSite.MaxRadiusMeters}");
+                $"(site_shape = '{WorkSiteShapeColumn.Circle}' AND site_radius_meters " +
+                $"BETWEEN {WorkSite.MinRadiusMeters} AND {WorkSite.MaxRadiusMeters}) OR " +
+                $"(site_shape = '{WorkSiteShapeColumn.Polygon}' AND site_radius_meters " +
+                $"BETWEEN {WorkSite.MinEdgeBufferMeters} AND {WorkSite.MaxEdgeBufferMeters})");
+
+            table.HasCheckConstraint(
+                "ck_mobile_check_ins_site_shape",
+                $"site_shape IN ('{WorkSiteShapeColumn.Circle}', '{WorkSiteShapeColumn.Polygon}')");
         });
 
         builder.HasKey(checkIn => checkIn.Id);
@@ -154,6 +292,12 @@ public sealed class MobileCheckInConfiguration : IEntityTypeConfiguration<Mobile
             .IsRequired();
 
         builder.Property(checkIn => checkIn.SiteRadiusMeters)
+            .IsRequired();
+
+        builder.Property(checkIn => checkIn.SiteShape)
+            .HasConversion(
+                shape => WorkSiteShapeColumn.ToText(shape),
+                text => WorkSiteShapeColumn.FromText(text))
             .IsRequired();
 
         builder.Property(checkIn => checkIn.CreatedAt)

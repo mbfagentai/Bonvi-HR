@@ -377,3 +377,29 @@ public enum AttendanceDayStatus
     /// </remarks>
     Planned = 10,
 }
+
+/// <summary>Obyekt to'sig'ining shakli (SPEC-joylashuvlar §A).</summary>
+/// <remarks>
+/// <para>
+/// Bazada <c>text</c> bo'lib turadi (<c>'circle'</c> / <c>'polygon'</c>),
+/// qolgan enumlardek son emas — SPEC ustunni aynan shunday belgilagan va
+/// <c>ck_work_sites_shape</c> shu ikki satrni tekshiradi. Son bilan saqlash
+/// qo'lda yozilgan SQL'da <c>shape = 2</c> degan sirli shartni tug'dirardi.
+/// </para>
+/// <para>
+/// ⚠️ Nol qiymat ATAYLAB yo'q: so'rovda shakl berilmasa, JSON uni
+/// <c>default</c> (0) qilib o'qiydi va u hech bir shaklga to'g'ri kelmay,
+/// tushunarli 400 bilan rad etiladi — jimgina «doira» bo'lib qolmaydi.
+/// </para>
+/// </remarks>
+public enum WorkSiteShape
+{
+    /// <summary>Markaz va radius — belgi doira ichida bo'lsa qabul qilinadi.</summary>
+    Circle = 1,
+
+    /// <summary>
+    /// Xaritada chizilgan ko'pburchak — belgi uning ichida YOKI chetidan
+    /// <c>edge_buffer_meters</c> ichida bo'lsa qabul qilinadi.
+    /// </summary>
+    Polygon = 2,
+}

@@ -39,6 +39,7 @@ public sealed class MobileCheckIn : Entity
         decimal accuracyMeters,
         decimal distanceMeters,
         int siteRadiusMeters,
+        WorkSiteShape siteShape,
         DateTimeOffset createdAt)
         : base(id)
     {
@@ -50,6 +51,7 @@ public sealed class MobileCheckIn : Entity
         AccuracyMeters = accuracyMeters;
         DistanceMeters = distanceMeters;
         SiteRadiusMeters = siteRadiusMeters;
+        SiteShape = siteShape;
         CreatedAt = createdAt;
     }
 
@@ -91,22 +93,46 @@ public sealed class MobileCheckIn : Entity
     /// </remarks>
     public decimal AccuracyMeters { get; private set; }
 
-    /// <summary>Obyekt markazigacha hisoblangan masofa, metr.</summary>
+    /// <summary>Qaror lahzasida hisoblangan masofa, metr — MUZLATILGAN.</summary>
+    /// <remarks>
+    /// Nimagacha o'lchangani <see cref="SiteShape"/> ga bog'liq: doirada —
+    /// MARKAZGACHA, ko'pburchakda — CHETIGACHA (ichida 0). Ikkala holatda
+    /// ham qabul qilingan qatorda <c>DistanceMeters ≤ SiteRadiusMeters</c>
+    /// (sababi <see cref="GeofenceReading"/> izohida).
+    /// </remarks>
     public decimal DistanceMeters { get; private set; }
 
     /// <summary>
-    /// Qaror qabul qilingan lahzadagi obyekt radiusi — MUZLATILGAN.
+    /// Qaror qabul qilingan lahzadagi RUXSAT — MUZLATILGAN: doirada radius,
+    /// ko'pburchakda chet zaxirasi (SPEC-joylashuvlar §B).
     /// </summary>
     /// <remarks>
-    /// ⭐ Qabul qilish qarori <c>masofa ≤ radius</c>. Faqat masofa
+    /// <para>
+    /// Ustun nomi tarixiy (shakllardan oldin faqat radius bor edi) va
+    /// ataylab o'zgartirilmadi: ma'nosi <see cref="SiteShape"/> bilan birga
+    /// o'qiladi.
+    /// </para>
+    /// <para>
+    /// ⭐ Qabul qilish qarori <c>masofa ≤ ruxsat</c>. Faqat masofa
     /// saqlansa-yu, radius keyinchalik <c>work_sites</c> dan jonli o'qilsa,
     /// HR to'siqni 200 dan 2000 metrga kengaytirgan kunning ertasiga BUTUN
     /// TARIX hukm qilib bo'lmaydigan bo'lib qolardi: «180 m — qabul» va
     /// «1400 m — qabul» yonma-yon turib, qaysi biri o'z vaqtida to'g'ri
     /// bo'lganini ayta olmasdik. <c>AttendancePass</c> qurilmaning raqamlar
     /// fazasini nusxalab olishi bilan bir xil mulohaza.
+    /// </para>
     /// </remarks>
     public int SiteRadiusMeters { get; private set; }
+
+    /// <summary>
+    /// Belgini QAYSI qoida hukm qilgan — o'sha lahzadagi obyekt shakli.
+    /// </summary>
+    /// <remarks>
+    /// Obyekt keyin doiradan ko'pburchakka (yoki aksincha) o'tkazilsa ham,
+    /// tarixiy qator o'zining ikki sonini qanday o'qish kerakligini aytib
+    /// turadi.
+    /// </remarks>
+    public WorkSiteShape SiteShape { get; private set; }
 
     /// <summary>
     /// Server soati bo'yicha belgi lahzasi — o'tishning <c>occurred_at</c> i bilan bir xil.
@@ -134,8 +160,9 @@ public sealed class MobileCheckIn : Entity
     /// <param name="latitude">Kenglik.</param>
     /// <param name="longitude">Uzunlik.</param>
     /// <param name="accuracyMeters">Telefon bergan aniqlik.</param>
-    /// <param name="distanceMeters">Hisoblangan masofa.</param>
-    /// <param name="siteRadiusMeters">Qaror lahzasidagi radius.</param>
+    /// <param name="distanceMeters">Hisoblangan masofa (doirada markazgacha, ko'pburchakda chetgacha).</param>
+    /// <param name="siteRadiusMeters">Qaror lahzasidagi ruxsat (radius yoki chet zaxirasi).</param>
+    /// <param name="siteShape">Qaror lahzasidagi obyekt shakli.</param>
     /// <param name="createdAt">Server lahzasi.</param>
     public static MobileCheckIn Record(
         Guid passId,
@@ -146,6 +173,7 @@ public sealed class MobileCheckIn : Entity
         decimal accuracyMeters,
         decimal distanceMeters,
         int siteRadiusMeters,
+        WorkSiteShape siteShape,
         DateTimeOffset createdAt)
         => new(
             NewId(),
@@ -157,5 +185,6 @@ public sealed class MobileCheckIn : Entity
             accuracyMeters,
             distanceMeters,
             siteRadiusMeters,
+            siteShape,
             createdAt);
 }

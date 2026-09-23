@@ -316,6 +316,7 @@ export const METHOD_LABEL_KEY: Readonly<Record<PassMethod, string>> = {
   Fingerprint: 'attendance.methodFingerprint',
   Password: 'attendance.methodPassword',
   Other: 'attendance.methodOther',
+  Mobile: 'attendance.methodMobile',
   Unknown: 'attendance.methodUnknown',
 }
 

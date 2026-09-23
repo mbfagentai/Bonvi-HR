@@ -21,6 +21,7 @@ import {
   Library,
   Link2,
   LogOut,
+  MapPin,
   Megaphone,
   MessageSquareQuote,
   Network,
@@ -345,6 +346,10 @@ export const NAV: NavSection[] = [
             permission: 'attendance.manage' },
           { key: 'attendanceDevices',   to: '/verifikatsiya/qurilmalar',    icon: Cpu,
             permission: 'attendance.manage' },
+          // Work sites for phone check-ins (SPEC-joylashuvlar §D). `view`, not
+          // `manage`: viewers open a site read-only to see where it is.
+          { key: 'attendanceSites',     to: '/verifikatsiya/joylashuvlar',  icon: MapPin,
+            permission: 'attendance.view' },
         ],
       },
     ],
