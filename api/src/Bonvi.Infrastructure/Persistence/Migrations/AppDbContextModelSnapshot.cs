@@ -496,8 +496,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     b.Property<string>("CandidateNote")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)")
                         .HasColumnName("candidate_note");
 
                     b.Property<int?>("ComputerLiteracyPercent")

@@ -40,12 +40,11 @@ public sealed class EmployeeCompetencyConfiguration : IEntityTypeConfiguration<E
         builder.Property(competency => competency.EducationPlace)
             .HasMaxLength(300);
 
-        // 2000 — anketaning oltita maydoni yorliqlari bilan birga
-        // sig'adigan hajm. Erkin matnlar (ish tajribasi, qo'shimcha izoh)
-        // anketada allaqachon cheklangan, ya'ni chegaraga urilish uchun
-        // nomzod ataylab urinishi kerak bo'ladi.
+        // Anketa javoblari VA HR izohlari (kartadagi izoh, bosqich
+        // xulosalari, izohlar lentasi) bitta matnda — sababi
+        // `EmployeeCompetency.CandidateNoteMaxLength` izohida.
         builder.Property(competency => competency.CandidateNote)
-            .HasMaxLength(2000);
+            .HasMaxLength(EmployeeCompetency.CandidateNoteMaxLength);
 
         builder.HasOne<Employee>()
             .WithMany()

@@ -108,6 +108,15 @@ public sealed class EmployeeCompetency : AggregateRoot, IAuditable
     /// </remarks>
     public string? CandidateNote { get; private set; }
 
+    /// <summary><see cref="CandidateNote"/> ning eng katta uzunligi.</summary>
+    /// <remarks>
+    /// 2026-09-24 da 2000 dan oshirildi: maydonga HR izohlari ham
+    /// tushadigan bo'ldi, bitta bosqich xulosasining o'zi esa 4000
+    /// belgigacha. Sig'magan qism kesiladi — ishga qabulni yiqitmaslik
+    /// uchun (<c>CandidateHandover</c>).
+    /// </remarks>
+    public const int CandidateNoteMaxLength = 10000;
+
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }

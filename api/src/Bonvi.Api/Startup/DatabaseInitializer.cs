@@ -267,7 +267,7 @@ public sealed partial class DatabaseInitializer : IHostedService
     /// <para>
     /// <b>Amal IDEMPOTENT va O'ZI TUGAYDI.</b> So'rov faqat haqiqatan
     /// ko'chiriladigan narsasi borlarni tanlaydi: fayli bor, yoki surati
-    /// bor-u xodimda surat yo'q, yoki anketasi bor-u xodimda qobiliyatlar
+    /// bor-u xodimda surat yo'q, yoki anketasi (yoki HR izohi) bor-u xodimda qobiliyatlar
     /// profili yo'q. Birinchi yurishdan keyin ro'yxat bo'shab qoladi va
     /// keyingi ishga tushishlar hech narsa qilmaydi.
     /// </para>
@@ -294,7 +294,11 @@ public sealed partial class DatabaseInitializer : IHostedService
                           || (candidate.PhotoKey != null
                               && context.Employees.Any(
                                   person => person.Id == employment.EmployeeId && person.PhotoKey == null))
-                          || (context.CandidateQuestionnaires.Any(form => form.CandidateId == candidate.Id)
+                          || ((context.CandidateQuestionnaires.Any(form => form.CandidateId == candidate.Id)
+                                  || candidate.Note != null
+                                  || context.CandidateNotes.Any(note => note.CandidateId == candidate.Id)
+                                  || context.CandidateStageEntries.Any(
+                                      entry => entry.CandidateId == candidate.Id && entry.Conclusion != null))
                               && !context.EmployeeCompetencies.Any(
                                   profile => profile.EmployeeId == employment.EmployeeId)))
                 select new { CandidateId = candidate.Id, employment.EmployeeId })

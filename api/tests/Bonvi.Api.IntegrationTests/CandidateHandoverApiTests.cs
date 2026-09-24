@@ -224,6 +224,59 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
+    /// ⭐ HR izohlari ham xodimga o'tadi — anketa javoblari ORTIDAN.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Foydalanuvchi qarori (2026-09-24). Izoh uch joyda yashaydi va
+    /// uchalasi ham tekshiriladi: kartadagi izoh, bosqich xulosasi va
+    /// izohlar lentasi. Lenta yorlig'i tarjimalangan bo'lishi kerak —
+    /// aks holda HR «InterviewRescheduled» degan so'zni ko'rardi.
+    /// </para>
+    /// <para>
+    /// Nomzodda esa hammasi QOLADI: bu nusxa, ko'chirish emas.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task HR_izohlari_xodimga_otadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var nomzodId = await NomzodAsync(mijoz);
+        await AnketaBiriktirAsync(nomzodId);
+        await IzohlarQoyAsync(nomzodId);
+
+        var xodimId = await IshgaOlAsync(mijoz, nomzodId);
+
+        using var javob = await mijoz.GetAsync(
+            new Uri($"/api/employees/{xodimId}/competency", UriKind.Relative), bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var profil = await javob.Content.ReadFromJsonAsync<HandoverCompetencyResponse>(bekorQilish);
+        var matn = profil!.CandidateNote;
+
+        matn.ShouldNotBeNull();
+        matn.ShouldContain("HR izohi: Tavsiya bilan keldi");
+        matn.ShouldContain("Suhbatda o'zini yaxshi ko'rsatdi", customMessage: "bosqich xulosasi ham o'tishi kerak");
+        matn.ShouldContain(
+            "Suhbat ko'chirildi: Nomzod iltimosi bilan",
+            customMessage: "lenta yorlig'i tarjimalangan bo'lishi kerak");
+        matn.ShouldNotContain("InterviewRescheduled");
+        matn.IndexOf("Oilali", StringComparison.Ordinal).ShouldBeLessThan(
+            matn.IndexOf("HR izohi", StringComparison.Ordinal),
+            "anketa javoblari birinchi, izohlar ortidan");
+
+        // Nomzodda QOLADI — tarix o'chmaydi.
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        (await kontekst.CandidateNotes.CountAsync(note => note.CandidateId == nomzodId, bekorQilish))
+            .ShouldBe(1, "lenta nomzod kartasida qolishi kerak");
+    }
+
+    /// <summary>
     /// ⭐ Ko'chirib bo'lmagan fayl NOMZODDA qoladi — yo'qolmaydi.
     /// </summary>
     /// <remarks>
@@ -417,6 +470,37 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
             $"""
             INSERT INTO candidate_files (id, candidate_id, file_key, file_name, content_type, size_bytes, created_at)
             VALUES ({Guid.CreateVersion7()}, {nomzodId}, '2026/09/hajmsiz.pdf', 'Eski rezyume.pdf', 'application/pdf', 0, now())
+            """,
+            bekorQilish);
+    }
+
+    /// <summary>
+    /// Nomzodga uch xil izoh qo'yadi — TO'G'RIDAN-TO'G'RI bazaga.
+    /// </summary>
+    /// <remarks>
+    /// Test ko'chirishni tekshiradi, izoh yozish oqimlarini emas —
+    /// ularning o'z testlari bor. Bosqich qatori nomzod yaratilganda
+    /// paydo bo'ladi, bu yerda unga faqat xulosa yoziladi.
+    /// </remarks>
+    private async Task IzohlarQoyAsync(Guid nomzodId)
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET note = 'Tavsiya bilan keldi' WHERE id = {nomzodId}",
+            bekorQilish);
+
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidate_stage_entries SET conclusion = 'Suhbatda o''zini yaxshi ko''rsatdi' WHERE candidate_id = {nomzodId}",
+            bekorQilish);
+
+        await kontekst.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO candidate_notes (id, candidate_id, kind, text, created_at)
+            VALUES ({Guid.CreateVersion7()}, {nomzodId}, {(int)CandidateNoteKind.InterviewRescheduled}, 'Nomzod iltimosi bilan', now())
             """,
             bekorQilish);
     }

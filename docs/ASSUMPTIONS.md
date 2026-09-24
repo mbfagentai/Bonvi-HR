@@ -294,3 +294,10 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   muammo). Aniq vaqt bu ustunda foydaliroq ham: u xavfsizlik tekshiruvida
   o'qiladi va IP bilan yonma-yon turadi. Narxi: «yaqinda ishlatilganmi?»
   degan savolga ko'z bilan javob berish bir qadam sekinroq.
+- [2026-09-24] Where do the candidate's HR notes go on hire (the employee has no
+  notes field)? → Appended to the competency profile's «Nomzodlik qo'shimcha
+  ma'lumotlari» text after the questionnaire answers: card note, then stage
+  conclusions and the note feed in date order; the column was widened to 10000.
+  The notes are copied, and the candidate keeps its own. → The owner had already
+  chosen this field for leftover questionnaire answers, and a separate field
+  would have needed new UI for the same kind of read-only text.

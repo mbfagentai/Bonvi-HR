@@ -96,6 +96,7 @@ public sealed class CandidateHandover
     private readonly IReferenceRepository<DocumentType> _documentTypes;
     private readonly IEmployeeDocumentRepository _documents;
     private readonly IEmployeeCompetencyRepository _competencies;
+    private readonly IPipelineStageRepository _stages;
     private readonly SquarePhotoStore _photos;
     private readonly IClock _clock;
 
@@ -103,18 +104,20 @@ public sealed class CandidateHandover
         IReferenceRepository<DocumentType> documentTypes,
         IEmployeeDocumentRepository documents,
         IEmployeeCompetencyRepository competencies,
+        IPipelineStageRepository stages,
         SquarePhotoStore photos,
         IClock clock)
     {
         _documentTypes = documentTypes;
         _documents = documents;
         _competencies = competencies;
+        _stages = stages;
         _photos = photos;
         _clock = clock;
     }
 
     /// <summary>
-    /// Nomzodning surati, fayllari va anketasini xodimga topshiradi.
+    /// Nomzodning surati, fayllari, anketasi va izohlarini xodimga topshiradi.
     /// </summary>
     /// <remarks>
     /// Xato QAYTARMAYDI va ataylab shunday: ko'chirish — ishga qabulning
@@ -279,7 +282,10 @@ public sealed class CandidateHandover
         Employee employee,
         CancellationToken cancellationToken)
     {
-        if (candidate.Questionnaire is not { } anketa)
+        var anketa = candidate.Questionnaire;
+        var remarks = await RemarksAsync(candidate, cancellationToken).ConfigureAwait(false);
+
+        if (anketa is null && remarks is null)
         {
             return false;
         }
@@ -300,6 +306,42 @@ public sealed class CandidateHandover
             _competencies.Add(competency);
         }
 
+        var filled = false;
+
+        if (anketa is not null)
+        {
+            filled = HandOverAnswers(competency, anketa);
+        }
+
+        // Qolgani — tayyor matn bo'lib alohida maydonga tushadi
+        // (sababi `EmployeeCompetency.CandidateNote` izohida). HR
+        // izohlari anketa javoblaridan KEYIN, bo'sh qator bilan.
+        if (string.IsNullOrWhiteSpace(competency.CandidateNote))
+        {
+            var parts = new[] { anketa is null ? null : Summary(anketa), remarks }
+                .Where(part => part is not null)
+                .ToArray();
+
+            if (parts.Length > 0)
+            {
+                var note = string.Join("\n\n", parts);
+
+                // Chegaradan oshsa oxiri kesiladi: ustun chegarasini
+                // buzish butun ishga qabulni yiqitardi.
+                competency.SetCandidateNote(
+                    note.Length <= EmployeeCompetency.CandidateNoteMaxLength
+                        ? note
+                        : note[..EmployeeCompetency.CandidateNoteMaxLength]);
+                filled = true;
+            }
+        }
+
+        return filled;
+    }
+
+    /// <summary>Anketaning profil maydonlariga mos tushadigan javoblari.</summary>
+    private static bool HandOverAnswers(EmployeeCompetency competency, CandidateQuestionnaire anketa)
+    {
         var filled = false;
 
         // Rus tili — TUZILGAN qiymat, ya'ni ro'yxatga qator bo'lib
@@ -332,21 +374,87 @@ public sealed class CandidateHandover
             }
         }
 
-        // Qolgani — tayyor matn bo'lib alohida maydonga tushadi
-        // (sababi `EmployeeCompetency.CandidateNote` izohida).
-        if (string.IsNullOrWhiteSpace(competency.CandidateNote))
-        {
-            var note = Summary(anketa);
+        return filled;
+    }
 
-            if (note is not null)
+    /// <summary>
+    /// ⭐ HR'ning nomzodlik davridagi IZOHLARI — bitta matnga.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Foydalanuvchi qarori (2026-09-24):</b> izohlar ham xodimga
+    /// o'tishi kerak. Ular uch joyda yashaydi va uchalasi ham olinadi:
+    /// kartadagi erkin izoh (<c>Candidate.Note</c>), bosqich xulosalari
+    /// (<c>CandidateStageEntry.Conclusion</c>) va izohlar lentasi
+    /// (<c>CandidateNote</c> — o'tkazish, rad etish va h.k. sabablari).
+    /// </para>
+    /// <para>
+    /// Xulosa va lenta bitta TARIX bo'lib vaqt tartibida yoziladi —
+    /// nomzod kartasidagi «Bosqichlar» lentasi bilan bir xil. Yorliqlar
+    /// o'zbekcha (lotin) va interfeysdagi so'zlarning AYNAN o'zi (sababi
+    /// <c>EmployeeCompetency.CandidateNote</c> izohida).
+    /// </para>
+    /// <para>
+    /// Nomzodda hammasi O'Z O'RNIDA qoladi — bu nusxa, ko'chirish emas:
+    /// lenta nomzod kartasining tarixi va u yerdan hech narsa o'chmaydi.
+    /// </para>
+    /// </remarks>
+    private async Task<string?> RemarksAsync(Candidate candidate, CancellationToken cancellationToken)
+    {
+        var concluded = candidate.StageEntries
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Conclusion))
+            .ToArray();
+
+        var names = new Dictionary<Guid, string>();
+
+        if (concluded.Length > 0)
+        {
+            var stages = await _stages
+                .GetManyAsync([.. concluded.Select(entry => entry.StageId).Distinct()], cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var stage in stages ?? [])
             {
-                competency.SetCandidateNote(note);
-                filled = true;
+                names[stage.Id] = stage.Name;
             }
         }
 
-        return filled;
+        var history = concluded
+            .Select(entry => (
+                At: entry.RecordedAt,
+                Line: $"{entry.Date:dd.MM.yyyy} · {names.GetValueOrDefault(entry.StageId, "Bosqich")}: {entry.Conclusion!.Trim()}"))
+            .Concat(candidate.Notes.Select(note => (
+                At: note.CreatedAt,
+                Line: $"{note.CreatedAt.TashkentDate():dd.MM.yyyy} · {NoteKind(note.Kind)}: {note.Text}")))
+            .OrderBy(item => item.At)
+            .Select(item => item.Line)
+            .ToList();
+
+        var blocks = new List<string>(2);
+
+        if (!string.IsNullOrWhiteSpace(candidate.Note))
+        {
+            blocks.Add($"HR izohi: {candidate.Note.Trim()}");
+        }
+
+        if (history.Count > 0)
+        {
+            blocks.Add("Izohlar tarixi:\n" + string.Join('\n', history));
+        }
+
+        return blocks.Count == 0 ? null : string.Join("\n\n", blocks);
     }
+
+    private static string NoteKind(CandidateNoteKind kind) => kind switch
+    {
+        CandidateNoteKind.Reassign => "Boshqa vakansiyaga o'tkazildi",
+        CandidateNoteKind.ReturnToFunnel => "Voronkaga qaytarildi",
+        CandidateNoteKind.InterviewRescheduled => "Suhbat ko'chirildi",
+        CandidateNoteKind.Rejected => "Rad etildi",
+        CandidateNoteKind.Withdrawn => "O'zi voz kechdi",
+        CandidateNoteKind.Reserved => "Rezervga o'tkazildi",
+        _ => "Izoh",
+    };
 
     /// <summary>
     /// Xodim tomonida o'rni YO'Q anketa javoblarini bitta matnga yig'adi.
@@ -391,11 +499,7 @@ public sealed class CandidateHandover
             lines.Add($"Qo'shimcha: {anketa.ExtraNote.Trim()}");
         }
 
-        var text = string.Join('\n', lines);
-
-        // Chegaradan oshsa oxiri kesiladi: bazaning 2000 belgisi qattiq
-        // chegara va uni buzish butun ishga qabulni yiqitardi.
-        return text.Length <= 2000 ? text : text[..2000];
+        return string.Join('\n', lines);
     }
 
     private static string Education(EducationLevel level) => level switch

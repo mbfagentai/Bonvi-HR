@@ -129,6 +129,7 @@ internal sealed class RecruitingTestContext
         Employees.DocumentTypes,
         Employees.Documents,
         Employees.Competencies,
+        Stages,
         new SquarePhotoStore(Employees.Storage, Images),
         Employees.Clock);
 
