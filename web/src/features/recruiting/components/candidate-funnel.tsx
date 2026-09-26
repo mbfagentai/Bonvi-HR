@@ -21,27 +21,31 @@ import {
   type ScreenReaderInstructions,
   type UniqueIdentifier,
 } from '@dnd-kit/core'
-import { Phone, UserPlus } from 'lucide-react'
+import { BriefcaseBusiness, CalendarClock, Paperclip, Phone, UserPlus } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Alert, Badge, EmptyState, Skeleton } from '@/shared/ui'
+import { formatPhone } from '@/shared/lib/phone'
+import { Alert, Badge, Dialog, EmptyState, Skeleton } from '@/shared/ui'
 import type { CandidateListItem, PipelineStage } from '../api/recruiting-api'
 import {
+  useCandidate,
   useFunnelCardFinder,
   useFunnelColumn,
-  useMoveCandidateToStage,
   type FunnelCard,
   type FunnelFilters,
 } from '../api/recruiting-queries'
-import { recruitingErrorCode } from '../lib/recruiting-error'
 import {
   CANDIDATE_LOOK,
   RECRUITING_MANAGE,
   SOURCE_LOOK,
+  today,
 } from '../lib/recruiting-presentation'
+import { recruitingErrorCode } from '../lib/recruiting-error'
+import { CandidateInterviewDialog } from './candidate-interview-dialog'
+import { CandidateStageDialog } from './candidate-stage-dialog'
 
 /**
  * ⭐ Voronka taxtasi — bosqichlar bo'yicha ustunlar.
@@ -67,12 +71,15 @@ import {
  * qismi emas — yangi nomzod u yerga o'tkazilmaydi (server rad etadi).
  * Ular jadval ko'rinishida, bosqich filtri orqali topiladi.
  *
- * ⭐ <b>Kartani sudrab boshqa bosqichga o'tkazish.</b> Tashlash o'sha
- * bosqichni DARHOL «kutilmoqda» natijasi bilan yozadi va oyna
- * ochmaydi — sudrashning butun qiymati tezlikda, oyna esa uni ikkinchi
- * marta so'rashga aylantirardi. Natija/xulosani HR keyin lentadagi
- * O'SHA qatorni ochib yozadi (`candidate-stages-tab.tsx`).
- * So'rovning o'zi `useMoveCandidateToStage` da.
+ * ⭐ <b>Kartani sudrab boshqa bosqichga o'tkazish OYNA OCHADI</b>
+ * (foydalanuvchi talabi, 2026-09-26). Ilgari tashlash bosqichni darhol
+ * bo'sh xulosa bilan yozardi va xulosani «keyin yozasiz» deb qoldirardi —
+ * nomzod kartasidagi tezkor qator bilan AYNAN bir xil muammo, u yerda
+ * ham amalda keyin yozilmagan edi (`CandidateStageDialog` izohi). Endi
+ * tashlash nomzod kartasidagi bosqich tanlagichi bilan BIR XIL oynani
+ * ochadi (`DroppedCardDialog`). Karta «Saqlash» dan KEYIN ko'chadi
+ * (`providers.tsx` keshni bekor qiladi), «Bekor qilish» esa uni joyida
+ * qoldiradi.
  */
 export function CandidateFunnel({
   stages,
@@ -90,7 +97,6 @@ export function CandidateFunnel({
   onShowAll: (stage: PipelineStage) => void
 }) {
   const { t } = useLocale()
-  const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
 
   /**
@@ -105,10 +111,14 @@ export function CandidateFunnel({
   const canMove = hasPermission(RECRUITING_MANAGE)
 
   const findCard = useFunnelCardFinder(filters, stages)
-  const move = useMoveCandidateToStage(filters)
 
   /** Sudralayotgan karta — `DragOverlay` da ko'tarilgan nusxa chiziladi. */
   const [lifted, setLifted] = useState<FunnelCard | null>(null)
+
+  /** Tashlangan karta va nishon bosqich — oyna shular bilan ochiladi. */
+  const [dropped, setDropped] = useState<{ item: CandidateListItem; stage: PipelineStage } | null>(
+    null,
+  )
 
   const sensors = useSensors(
     /*
@@ -195,6 +205,7 @@ export function CandidateFunnel({
           stage={stage}
           filters={filters}
           draggable={canMove}
+          showVacancy={filters.vacancyId === undefined}
           onOpen={onOpen}
           onShowAll={onShowAll}
         />
@@ -205,8 +216,6 @@ export function CandidateFunnel({
   if (!canMove) return board
 
   const startDrag = ({ active }: DragStartEvent) => {
-    // Oldingi urinishning xatosi yangi sudrashda ekranda qolmaydi
-    move.reset()
     setLifted(findCard(String(active.id)))
   }
 
@@ -223,11 +232,11 @@ export function CandidateFunnel({
       O'Z ustuniga tashlash — hech narsa qilinmaydi va so'rov ham
       ketmaydi. Server buni qabul qilardi (oxirgi «kutilmoqda» yozuvi
       shunchaki qayta to'ldirilardi), lekin foydalanuvchi hech narsani
-      o'zgartirmadi — bekorga so'rov yuborishning ma'nosi yo'q.
+      o'zgartirmadi — bekorga oyna ochishning ma'nosi yo'q.
     */
     if (target === undefined || target.id === card.fromStageId) return
 
-    move.mutate({ card, toStageId: target.id, toStageName: target.name })
+    setDropped({ item: card.item, stage: target })
   }
 
   return (
@@ -239,22 +248,6 @@ export function CandidateFunnel({
       onDragEnd={endDrag}
       onDragCancel={() => setLifted(null)}
     >
-      {/*
-        Xato taxtaning USTIDA: karta o'z ustuniga qaytib ketgan bo'ladi
-        va sababi aytilmasa, HR «sudrash ishlamayapti» deb o'ylardi.
-      */}
-      {move.isError && (
-        <div className="px-4 pt-4 sm:px-5">
-          <Alert
-            tone="danger"
-            title={t('recruiting.funnelMoveFailed')}
-            className="[animation:pop-in_180ms_var(--ease-ios-out)]"
-          >
-            {errorMessage(recruitingErrorCode(move.error))}
-          </Alert>
-        </div>
-      )}
-
       {board}
 
       {/*
@@ -264,9 +257,65 @@ export function CandidateFunnel({
         Tashlash — bir zumda va shu sababli tinch.
       */}
       <DragOverlay dropAnimation={null}>
-        {lifted !== null && <LiftedCard item={lifted.item} />}
+        {lifted !== null && <LiftedCard item={lifted.item} showVacancy={false} />}
       </DragOverlay>
+
+      {/*
+        Xato (masalan bosqich faolsizlantirilgan) oynaning ICHIDA
+        ko'rsatiladi va karta joyida qoladi — oyna o'zi shunday ishlaydi.
+      */}
+      {dropped !== null && (
+        <DroppedCardDialog
+          candidateId={dropped.item.id}
+          stage={dropped.stage}
+          onClose={() => setDropped(null)}
+        />
+      )}
     </DndContext>
+  )
+}
+
+/**
+ * Tashlangandan keyingi oyna — `CandidateStagePicker` dagi tanlov AYNAN.
+ *
+ * «Suhbat taklifi» bayrog'i qo'yilgan bosqich suhbat oynasini ochadi
+ * (sana va vaqt so'raladi, nomzodga Telegram xabari ketadi), qolganlari —
+ * bosqich oynasini. Ikkala oyna ham TO'LIQ nomzodni oladi (suhbat vaqti
+ * ro'yxat qatorida yo'q), shu sababli karta avval yuklanadi. U odatda
+ * keshda bo'lmaydi, lekin so'rov bir zumlik va oyna shundan keyin ochiladi.
+ */
+function DroppedCardDialog({
+  candidateId,
+  stage,
+  onClose,
+}: {
+  candidateId: string
+  stage: PipelineStage
+  onClose: () => void
+}) {
+  const { t } = useLocale()
+  const errorMessage = useErrorMessage()
+  const candidate = useCandidate(candidateId)
+
+  /*
+    Nomzodni yuklab bo'lmadi — jim qolinmaydi: aks holda HR kartani
+    tashlagani «hech narsa bo'lmadi» bo'lib qolardi. Xato oynada, karta
+    esa joyida (hech narsa yozilmagan).
+  */
+  if (candidate.isError) {
+    return (
+      <Dialog open onClose={onClose} title={t('recruiting.funnelMoveFailed')}>
+        <Alert tone="danger">{errorMessage(recruitingErrorCode(candidate.error))}</Alert>
+      </Dialog>
+    )
+  }
+
+  if (candidate.data === undefined) return null
+
+  return stage.invitesToInterview ? (
+    <CandidateInterviewDialog candidate={candidate.data} stage={stage} open onClose={onClose} />
+  ) : (
+    <CandidateStageDialog candidate={candidate.data} lockedStage={stage} open onClose={onClose} />
   )
 }
 
@@ -284,12 +333,15 @@ function FunnelColumn({
   stage,
   filters,
   draggable,
+  showVacancy,
   onOpen,
   onShowAll,
 }: {
   stage: PipelineStage
   filters: FunnelFilters
   draggable: boolean
+  /** Vakansiya filtri qo'yilmagan — kartada vakansiya nomi kerak. */
+  showVacancy: boolean
   onOpen: (candidate: CandidateListItem) => void
   onShowAll: (stage: PipelineStage) => void
 }) {
@@ -304,7 +356,7 @@ function FunnelColumn({
   const body = (
     <>
       {query.isPending &&
-        [0, 1, 2].map((index) => <Skeleton key={index} className="h-[68px] w-full" />)}
+        [0, 1, 2].map((index) => <Skeleton key={index} className="h-[104px] w-full" />)}
 
       {!query.isPending && items.length === 0 && (
         <p className="py-6 text-center text-caption1 text-[var(--fg-tertiary)]">
@@ -314,9 +366,19 @@ function FunnelColumn({
 
       {items.map((item) =>
         draggable ? (
-          <DraggableCard key={item.id} item={item} onOpen={() => onOpen(item)} />
+          <DraggableCard
+            key={item.id}
+            item={item}
+            showVacancy={showVacancy}
+            onOpen={() => onOpen(item)}
+          />
         ) : (
-          <FunnelCardButton key={item.id} item={item} onOpen={() => onOpen(item)} />
+          <FunnelCardButton
+            key={item.id}
+            item={item}
+            showVacancy={showVacancy}
+            onOpen={() => onOpen(item)}
+          />
         ),
       )}
 
@@ -438,10 +500,10 @@ const CARD_SURFACE = cn(
 )
 
 /** Ruxsatsiz foydalanuvchi ko'radigan karta — hech qanday sudrash izi yo'q. */
-function FunnelCardButton({ item, onOpen }: { item: CandidateListItem; onOpen: () => void }) {
+function FunnelCardButton({ item, showVacancy, onOpen }: CardProps & { onOpen: () => void }) {
   return (
     <button type="button" onClick={onOpen} className={CARD_SURFACE}>
-      <CardFace item={item} />
+      <CardFace item={item} showVacancy={showVacancy} />
     </button>
   )
 }
@@ -458,7 +520,7 @@ function FunnelCardButton({ item, onOpen }: { item: CandidateListItem; onOpen: (
  * `touch-none` bo'lsa brauzer surishni butunlay to'xtatardi va
  * ushlab turish sensori (220 ms) o'z ishini qilolmasdi.
  */
-function DraggableCard({ item, onOpen }: { item: CandidateListItem; onOpen: () => void }) {
+function DraggableCard({ item, showVacancy, onOpen }: CardProps & { onOpen: () => void }) {
   const { t } = useLocale()
 
   const drag = useDraggable({
@@ -481,7 +543,7 @@ function DraggableCard({ item, onOpen }: { item: CandidateListItem; onOpen: () =
         drag.isDragging && 'opacity-40',
       )}
     >
-      <CardFace item={item} />
+      <CardFace item={item} showVacancy={showVacancy} />
     </button>
   )
 }
@@ -494,7 +556,7 @@ function DraggableCard({ item, onOpen }: { item: CandidateListItem; onOpen: () =
  * iOS ruhiga zid — u yerda ko'tarilgan element o'zgarmaydi, faqat
  * yuzadan ajraladi.
  */
-function LiftedCard({ item }: { item: CandidateListItem }) {
+function LiftedCard({ item, showVacancy }: CardProps) {
   return (
     <div
       className={cn(
@@ -502,47 +564,71 @@ function LiftedCard({ item }: { item: CandidateListItem }) {
         'rotate-[1.5deg] scale-[1.02] cursor-grabbing shadow-[var(--shadow-floating)]',
       )}
     >
-      <CardFace item={item} />
+      <CardFace item={item} showVacancy={showVacancy} />
     </div>
   )
+}
+
+interface CardProps {
+  item: CandidateListItem
+  /** Vakansiya filtri qo'yilmagan — kartada vakansiya nomi kerak. */
+  showVacancy: boolean
 }
 
 /**
  * Voronkadagi nomzod kartochkasining ichi.
  *
- * Kartada ATAYLAB kam ma'lumot: F.I.Sh., telefon va manba. Vakansiya
- * ko'rsatilmaydi — voronka odatda BITTA vakansiya filtri bilan
- * o'qiladi va u holda har bir kartada bir xil matn takrorlanardi.
- * Qolgan hamma narsa nomzod kartasida.
+ * ⭐ Ma'lumot KO'PAYTIRILDI (foydalanuvchi talabi, 2026-09-26): ilgari
+ * faqat bir qatorga kesilgan F.I.Sh., telefon va manba ikonasi bor edi
+ * va HR kimni ko'rayotganini kartani ochmasdan bilolmasdi. Endi:
+ *
+ * - F.I.Sh. ikki qatorgacha — o'zbekcha to'liq ism odatda sig'adi;
+ * - vakansiya — faqat vakansiya filtri YO'Q bo'lganda (filtr bilan har
+ *   kartada bir xil matn takrorlanardi);
+ * - telefon;
+ * - pastki qator: manba (ikona + nom) va sana — keyingi aloqa rejasi
+ *   bo'lsa o'sha (muddati kelgan bo'lsa ogohlantirish rangida), bo'lmasa
+ *   kiritilgan sana.
  */
-function CardFace({ item }: { item: CandidateListItem }) {
-  const { t } = useLocale()
+function CardFace({ item, showVacancy }: CardProps) {
+  const { t, date } = useLocale()
 
   const look = CANDIDATE_LOOK[item.status]
   const source = SOURCE_LOOK[item.source]
   const SourceIcon = source.icon
 
+  // ISO sanalar (`YYYY-MM-DD`) satr sifatida to'g'ri solishtiriladi
+  const contactDue = item.nextContactDate !== null && item.nextContactDate <= today()
+
   return (
     <>
-      <span className="flex items-center gap-2">
-        <span className="truncate-1 flex-1 text-subhead font-medium">{item.fullName}</span>
+      <span className="flex items-start gap-2">
+        <span className="truncate-2 flex-1 text-subhead font-medium" title={item.fullName}>
+          {item.fullName}
+        </span>
 
-        {/*
-          Manba — kichik ikona, yorliq emas: u kartochkaning yarmini
-          egallamasligi kerak, lekin bot ulangan kuni farq DARHOL
-          ko'rinsin (`SOURCE_LOOK` izohi).
-        */}
-        <SourceIcon
-          className="size-3.5 shrink-0 text-[var(--fg-tertiary)]"
-          strokeWidth={2}
-          aria-label={t(`recruiting.source.${source.key}`)}
-        />
+        {item.hasResume && (
+          <Paperclip
+            className="mt-1 size-3.5 shrink-0 text-[var(--fg-tertiary)]"
+            strokeWidth={2}
+            aria-label={t('recruiting.hasResume')}
+          />
+        )}
       </span>
 
+      {showVacancy && item.vacancy !== null && (
+        <span className="mt-1 flex items-center gap-1.5 text-caption1 text-[var(--fg-secondary)]">
+          <BriefcaseBusiness className="size-3 shrink-0" strokeWidth={2} />
+          <span className="truncate-1" title={item.vacancy}>
+            {item.vacancy}
+          </span>
+        </span>
+      )}
+
       {item.phone !== null && (
-        <span className="tabular mt-1 flex items-center gap-1.5 text-caption2 text-[var(--fg-tertiary)]">
-          <Phone className="size-3" strokeWidth={2} />
-          {item.phone}
+        <span className="tabular mt-1 flex items-center gap-1.5 text-caption1 text-[var(--fg-secondary)]">
+          <Phone className="size-3 shrink-0" strokeWidth={2} />
+          {formatPhone(item.phone)}
         </span>
       )}
 
@@ -558,6 +644,30 @@ function CardFace({ item }: { item: CandidateListItem }) {
           {t(`recruiting.candidateStatus.${look.key}`)}
         </Badge>
       )}
+
+      <span className="mt-2 flex items-center gap-2 border-t border-[var(--border)] pt-2 text-caption2 text-[var(--fg-tertiary)]">
+        <span className="flex min-w-0 items-center gap-1">
+          <SourceIcon className="size-3 shrink-0" strokeWidth={2} />
+          <span className="truncate-1">{t(`recruiting.source.${source.key}`)}</span>
+        </span>
+
+        {item.nextContactDate !== null ? (
+          <span
+            className={cn(
+              'tabular ml-auto flex shrink-0 items-center gap-1',
+              contactDue && 'font-medium text-ios-orange',
+            )}
+            title={t('recruiting.nextContact')}
+          >
+            <CalendarClock className="size-3" strokeWidth={2} />
+            {date(item.nextContactDate)}
+          </span>
+        ) : (
+          <span className="tabular ml-auto shrink-0" title={t('recruiting.createdAt')}>
+            {date(item.createdAt)}
+          </span>
+        )}
+      </span>
     </>
   )
 }

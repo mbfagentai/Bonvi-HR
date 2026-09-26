@@ -18,6 +18,7 @@ import {
   MessageSquareQuote,
   Network,
   ShieldAlert,
+  ShieldCheck,
   SlidersHorizontal,
   ThumbsUp,
   Timer,
@@ -331,6 +332,15 @@ export const NAV: NavSection[] = [
     key: 'sectionSystem',
     items: [
       { key: 'users', to: '/foydalanuvchilar', icon: UserCog, permission: 'users.manage' },
+      /*
+        Rollar — egasi o'zi yaratadi va ruxsatlarini belgilaydi. «Foydalanuvchilar»
+        ning YONIDA: ikkalasi bitta savolga javob beradi — kim tizimda nima
+        qila oladi. Ruxsati alohida (`roles.manage`), `users.manage` emas:
+        hisob ochish va huquq chegarasini belgilash — ikki xil vakolat.
+        `GET /api/roles/catalog` ham shu ruxsat bilan himoyalangan, ya'ni
+        bandni ruxsatsiz odamga ko'rsatish yopiq eshikka boshlash bo'lardi.
+      */
+      { key: 'roles', to: '/rollar', icon: ShieldCheck, permission: 'roles.manage' },
       /*
         Tizim sozlamalari — bot matni va bildirishnoma chegaralari.
 

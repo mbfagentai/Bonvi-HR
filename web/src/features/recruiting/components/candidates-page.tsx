@@ -5,6 +5,7 @@ import type { SortingState } from '@tanstack/react-table'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { formatPhone } from '@/shared/lib/phone'
 import {
   Alert,
   Badge,
@@ -377,11 +378,17 @@ export function CandidatesPage() {
       helper.accessor('phone', {
         header: t('employee.phone'),
         enableSorting: false,
-        meta: { width: '150px', hideOnMobile: true },
+        // 170px — formatlangan raqam («+998 90 123 45 67», 17 belgi) bir
+        // qatorga sig'ishi uchun; 150px da u ikkiga bo'linib qolardi
+        meta: { width: '170px', hideOnMobile: true },
         cell: ({ getValue }) => {
           const value = getValue()
           if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-          return <span className="tabular text-[var(--fg-secondary)]">{value}</span>
+          return (
+            <span className="tabular whitespace-nowrap text-[var(--fg-secondary)]">
+              {formatPhone(value)}
+            </span>
+          )
         },
       }),
 

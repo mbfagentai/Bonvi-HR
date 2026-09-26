@@ -421,9 +421,9 @@ public static class CandidateEndpoints
                 "birinchilari endi xodim va ularning o'rni «Xodimlar» bo'limida, " +
                 "qolganlari voronkadan chiqqan va ularning o'rni «Rad etilganlar» " +
                 "bo'limida. Yozuv o'chirilmaydi — «status=…» tanlansa ular to'liq " +
-                "qaytadi. REZERVGA bu qoida tegmaydi: rezervdagilar sukut ro'yxatda " +
-                "ko'rinadi, chunki rezervning butun ma'nosi «kerak bo'lganda shu " +
-                "yerdan chaqiramiz» degani. «source» — " +
+                "qaytadi. REZERVDAGILAR ham sukut ro'yxatga tushmaydi — ularning " +
+                "o'rni «Rezerv» bo'limi («status=Reserve»); «contactDue=true» esa " +
+                "ularni qaytaradi (kunlik aloqa ro'yxati). «source» — " +
                 "Manual | TelegramBot | Excel (noma'lum qiymat 400: «nomzod.holat_notogri» / " +
                 "«nomzod.manba_notogri»). «sort» — createdAt (sukut, yangidan eskiga), " +
                 "name, stage, nextContact (sanasi yo'q qatorlar IKKALA yo'nalishda ham " +
@@ -1002,9 +1002,8 @@ public static class CandidateEndpoints
             .WithDescription(
                 "«Hozir olinmadi, lekin kerak bo'lsa chaqiramiz». Nomzod voronkadan " +
                 "chiqadi va voronka taxtasida («?status=InProgress») ko'rinmaydi, " +
-                "lekin RAD ETILGAN emas: nomzodlar ro'yxatida SUKUT bo'yicha " +
-                "ko'rinib turadi (ishga olinganlardan farqi shu), «?status=Reserve» " +
-                "bilan alohida ham topiladi va bir amal bilan voronkaga " +
+                "lekin RAD ETILGAN emas: «Rezerv» bo'limida («?status=Reserve») " +
+                "turadi, sukut nomzodlar ro'yxatida esa ko'rinmaydi, va bir amal bilan voronkaga " +
                 "qaytariladi («/return-from-reserve»). Ajratish ataylab — " +
                 "«bizga to'g'ri kelmadi» va «yaxshi odam, lekin bugun o'rin yo'q» " +
                 "butunlay boshqa qaror va ikkinchisiga QAYTILADI. " +
@@ -1115,10 +1114,14 @@ public static class CandidateEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.RecruitingManage)
+            // Ikkala ruxsat ham SHART (siyosatlar «va» bilan birlashadi): bu amal
+            // xodim, mehnat munosabati va buyruq yaratadi, ya'ni «Ishga qabul
+            // qilish» ruxsatini chetlab o'tib bo'lmasligi kerak (2026-09-26).
+            .RequireAuthorization(Permissions.RecruitingManage, Permissions.EmploymentHire, Permissions.EmployeesCreate)
             .WithName("HireCandidate")
             .WithSummary("Nomzod — ishga olish (nomzod XODIMGA aylanadi)")
             .WithDescription(
+                "Ruxsat: «recruiting.manage», «employment.hire» VA «employees.create». " +
                 "Voronkaning yakuniy qadami. BITTA tranzaksiyada: nomzod «ishga " +
                 "olingan» bo'lib voronkadan chiqadi va 1-bosqichning ishga qabul " +
                 "oqimi ishga tushadi — xodim kartasi, mehnat munosabati, ishga qabul " +

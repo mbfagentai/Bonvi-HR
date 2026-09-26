@@ -22,7 +22,7 @@ import { useEmployees, useExportEmployees, useFilterOptions } from '../api/emplo
 import { employeeErrorCode, isRateLimited } from '../lib/employee-error'
 import {
   EMPLOYEES_CREATE,
-  EMPLOYMENT_MANAGE,
+  EMPLOYMENT_HIRE,
   REPORTS_EXPORT,
 } from '../lib/employee-presentation'
 import {
@@ -84,7 +84,7 @@ export function EmployeesPage() {
    * yo'nalmasi faqat ishga qabul qila oladigan odamga ko'rsatiladi.
    * Ko'ra olmaydigan odamni u yerga yuborish — yopiq eshikka boshlash.
    */
-  const canHire = hasPermission(EMPLOYEES_CREATE) && hasPermission(EMPLOYMENT_MANAGE)
+  const canHire = hasPermission(EMPLOYEES_CREATE) && hasPermission(EMPLOYMENT_HIRE)
   const canExport = hasPermission(REPORTS_EXPORT)
 
   const search = route.useSearch()

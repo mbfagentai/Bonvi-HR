@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import type { EmployeeFlagType } from '@/features/employees/api/employees-api'
@@ -56,11 +56,17 @@ export function FlagListPage({
   type,
   search,
   onSearchChange,
+  tabs,
 }: {
   type: EmployeeFlagType
   /** Manzildagi qidiruv matni. Bo'sh satr — qidiruvsiz. */
   search: string
   onSearchChange: (next: string) => void
+  /**
+   * Sarlavhadagi bo'lim almashtirgichi. Hozir faqat «Rezerv» da:
+   * «Nomzodlar | Xodimlar» (sababi `ReserveCandidatesPage` izohida).
+   */
+  tabs?: ReactNode
 }) {
   const { t, num } = useLocale()
   const navigate = useNavigate()
@@ -213,11 +219,14 @@ export function FlagListPage({
             : t(`flags.page.${look.key}.hint`)
         }
         actions={
-          <Switch
-            checked={onlyActive}
-            onChange={setOnlyActive}
-            label={t('flags.onlyActive')}
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            {tabs}
+            <Switch
+              checked={onlyActive}
+              onChange={setOnlyActive}
+              label={t('flags.onlyActive')}
+            />
+          </div>
         }
       />
 

@@ -8,7 +8,9 @@ import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { HireDialog } from '@/features/employees/components/hire-dialog'
 import {
   EMPLOYEES_CREATE,
-  EMPLOYMENT_MANAGE,
+  EMPLOYMENT_HIRE,
+  EMPLOYMENT_PROBATION_COMPLETE,
+  EMPLOYMENT_PROBATION_EXTEND,
 } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
@@ -76,14 +78,20 @@ export function ProbationsPage() {
   const { t, num } = useLocale()
   const { hasPermission } = useAuth()
 
-  const canManage = hasPermission(EMPLOYMENT_MANAGE)
+  /*
+   * «Uzaytirish» va «Yakunlash» — ikki ALOHIDA ruxsat: rol muddatni
+   * uzaytira olib, sinovni yopa olmasligi mumkin (va aksincha). Har bir
+   * tugma faqat o'z ruxsati bilan chiziladi.
+   */
+  const canExtend = hasPermission(EMPLOYMENT_PROBATION_EXTEND)
+  const canComplete = hasPermission(EMPLOYMENT_PROBATION_COMPLETE)
 
   /*
    * Ishga qabul ikki ruxsatni birga talab qiladi: shaxs kartasi
    * yaratiladi VA mehnat munosabati ochiladi. Shart `/xodimlar` dagi bilan
    * AYNAN bir xil qoldi — tugma ko'chdi, huquq emas.
    */
-  const canHire = hasPermission(EMPLOYEES_CREATE) && canManage
+  const canHire = hasPermission(EMPLOYEES_CREATE) && hasPermission(EMPLOYMENT_HIRE)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -259,7 +267,7 @@ export function ProbationsPage() {
           // Yakunlangan muddatni qayta yakunlab yoki uzaytirib bo'lmaydi —
           // domen ham buni rad etadi. Tugmani ko'rsatib, keyin xato
           // chiqarish foydalanuvchini aldash bo'lardi.
-          if (!canManage || item.status !== 'inProgress') return null
+          if ((!canExtend && !canComplete) || item.status !== 'inProgress') return null
 
           return (
             /*
@@ -272,18 +280,22 @@ export function ProbationsPage() {
               className="flex justify-end gap-1.5"
               onClick={(event) => event.stopPropagation()}
             >
-              <Button size="sm" variant="secondary" onClick={() => setExtending(item)}>
-                {t('probation.extend')}
-              </Button>
-              <Button size="sm" onClick={() => setResolving(item)}>
-                {t('probation.resolve')}
-              </Button>
+              {canExtend && (
+                <Button size="sm" variant="secondary" onClick={() => setExtending(item)}>
+                  {t('probation.extend')}
+                </Button>
+              )}
+              {canComplete && (
+                <Button size="sm" onClick={() => setResolving(item)}>
+                  {t('probation.resolve')}
+                </Button>
+              )}
             </span>
           )
         },
       }),
     ],
-    [canManage, t],
+    [canExtend, canComplete, t],
   )
 
   return (
@@ -338,7 +350,7 @@ export function ProbationsPage() {
         yerda topadi; pastda tursa, e'tibordan chetda qolardi.
         Ro'yxat bo'shagach blok butunlay yo'qoladi.
       */}
-      <MissingProbations canManage={canManage} />
+      <MissingProbations canConfirm={canComplete} />
 
       <Card>
         <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] p-4 sm:gap-3">

@@ -1,5 +1,6 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
 
@@ -28,6 +29,33 @@ public static class SalaryAccess
     {
         ArgumentNullException.ThrowIfNull(user);
         return user.HasPermission(Permissions.SalaryView);
+    }
+
+    /// <summary>
+    /// Pul qoidasi: amal ichida summa yuborilgan bo'lsa, <c>employment.salary</c> shart.
+    /// </summary>
+    /// <param name="user">So'rovchi.</param>
+    /// <param name="amountSent">So'rovda summa bormi (<c>null</c> emasmi).</param>
+    /// <remarks>
+    /// <para>
+    /// Ko'rish (<c>salary.view</c>) va O'ZGARTIRISH (<c>employment.salary</c>)
+    /// — ikki xil huquq. Summa ko'chirish, qo'shimcha vazifa, sinov yakuni
+    /// yoki yozuvni tuzatish ICHIDA kelsa ham, u baribir oklad o'zgarishi:
+    /// aks holda «o'sha bo'limga ko'chirib, okladni oshirish» degan aylanma
+    /// yo'l qolardi (sabab <c>Permissions.EmploymentActions</c> oldidagi izohda).
+    /// </para>
+    /// <para>
+    /// Ishga qabuldagi boshlang'ich oklad bu qoidaga TUSHMAYDI — u qabul
+    /// buyrug'ining o'zi, o'zgartiriladigan eski oklad yo'q.
+    /// </para>
+    /// </remarks>
+    public static Result EnsureCanSendSalary(this ICurrentUser user, bool amountSent)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        return !amountSent || user.HasPermission(Permissions.EmploymentSalary)
+            ? Result.Success()
+            : EmployeeErrors.SalaryPermissionRequired;
     }
 
     /// <summary>

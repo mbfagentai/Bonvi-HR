@@ -13,6 +13,10 @@ namespace Bonvi.Application.Identity.Dtos;
 /// </param>
 /// <param name="Roles">Rol kodlari.</param>
 /// <param name="Permissions">Barcha ruxsatlar (rollar orqali yig'ilgan).</param>
+/// <param name="RoleNames">
+/// Rol NOMLARI, <paramref name="Roles"/> bilan bir xil tartibda. Rollarni
+/// egasi o'zi yaratadi — yangi rolning tarjima kaliti yo'q, ekranda nomi chiqadi.
+/// </param>
 public sealed record CurrentUserDto(
     Guid Id,
     string Login,
@@ -21,7 +25,8 @@ public sealed record CurrentUserDto(
     Guid? EmployeeId,
     string? PhotoKey,
     IReadOnlyList<string> Roles,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    IReadOnlyList<string> RoleNames);
 
 /// <summary>Muvaffaqiyatli autentifikatsiya natijasi.</summary>
 /// <param name="AccessToken">Har bir so'rovda `Authorization: Bearer` sifatida yuboriladi.</param>

@@ -151,6 +151,7 @@ public sealed class LoginCommandHandler
         CancellationToken cancellationToken)
     {
         var roleCodes = await _users.GetRoleCodesAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        var roleNames = await _users.GetRoleNamesAsync(user.Id, cancellationToken).ConfigureAwait(false);
         var permissions = await _users.GetPermissionsAsync(user.Id, cancellationToken).ConfigureAwait(false);
 
         var pair = _tokens.CreateTokens(user, roleCodes, permissions);
@@ -173,7 +174,8 @@ public sealed class LoginCommandHandler
                 user.EmployeeId,
                 user.PhotoKey,
                 roleCodes,
-                [.. permissions]));
+                [.. permissions],
+                roleNames));
     }
 
     /// <summary>Soxta xeshni bir marta hisoblab, keshlab qo'yadi.</summary>

@@ -16,6 +16,11 @@ const authUserSchema = z.object({
   fullName: z.string(),
   roles: z.array(z.string()),
   permissions: z.array(z.string()),
+  // Keyinroq qo'shilgan maydon: brauzerdagi eski nusxada yo'q — bo'sh ro'yxat
+  roleNames: z
+    .array(z.string())
+    .nullish()
+    .transform((value) => value ?? []),
 
   /*
    * ATAYLAB ixtiyoriy va `null` ga keltiriladi.

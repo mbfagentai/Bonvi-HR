@@ -80,6 +80,26 @@ public sealed class UserRepository : Repository<User>, IUserRepository
             .ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<string>> GetRoleNamesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var roleIds = await GetRoleIdsAsync(userId, cancellationToken).ConfigureAwait(false);
+
+        if (roleIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await Context.Set<Role>()
+            .AsNoTracking()
+            .Where(r => roleIds.Contains(r.Id))
+            .OrderBy(r => r.Code)
+            .Select(r => r.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlySet<string>> GetPermissionsAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

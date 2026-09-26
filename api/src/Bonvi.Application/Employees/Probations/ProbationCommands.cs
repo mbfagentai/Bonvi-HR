@@ -1,3 +1,4 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Catalog.Common;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
@@ -91,6 +92,7 @@ public sealed class ResolveProbationCommandHandler
     private readonly IPositionRepository _positions;
     private readonly IDepartmentRepository _departments;
     private readonly EmployeeMapper _mapper;
+    private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -100,6 +102,7 @@ public sealed class ResolveProbationCommandHandler
         IPositionRepository positions,
         IDepartmentRepository departments,
         EmployeeMapper mapper,
+        ICurrentUser currentUser,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
@@ -108,6 +111,7 @@ public sealed class ResolveProbationCommandHandler
         _positions = positions;
         _departments = departments;
         _mapper = mapper;
+        _currentUser = currentUser;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -117,6 +121,15 @@ public sealed class ResolveProbationCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Pul qoidasi — hamma narsadan OLDIN: sinov yakunidagi yangi oklad
+        // ham `employment.salary` ni talab qiladi. Sinovni yakunlashning
+        // o'zi (`employment.probation.complete`) okladga huquq bermaydi.
+        var salaryAllowed = _currentUser.EnsureCanSendSalary(command.SalaryAmount is not null);
+        if (salaryAllowed.IsFailure)
+        {
+            return salaryAllowed.Error;
+        }
 
         // Tayinlash maydonlari faqat «o'tdi» bilan ma'noga ega. Sinovdan
         // o'tmagan odamga yangi lavozim yozish — kiritish xatosi, va uni

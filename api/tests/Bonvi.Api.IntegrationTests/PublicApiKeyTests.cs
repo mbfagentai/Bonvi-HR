@@ -405,28 +405,13 @@ public sealed class PublicApiKeyTests : IClassFixture<BonviApiFactory>
     /// bazada faqat administrator bor va unda barcha ruxsat mavjud, shu
     /// sababli token to'g'ridan-to'g'ri token servisidan, bo'sh ruxsat
     /// to'plami bilan olinadi.
+    /// <para>
+    /// 2026-09-26 dan token tekshiruvi ruxsatlarni BAZADAN oladi — tokenga
+    /// bo'sh ro'yxat yozish endi ishlamaydi. Shu sababli ruxsatsiz rolli
+    /// haqiqiy hisob yaratiladi (<see cref="TestAccounts"/>).
+    /// </para>
     /// </remarks>
-    private async Task<string> RuxsatsizTokenAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
-
-        var users = scope.ServiceProvider
-            .GetRequiredService<Bonvi.Domain.Abstractions.IUserRepository>();
-
-        var tokens = scope.ServiceProvider
-            .GetRequiredService<Bonvi.Application.Identity.Abstractions.ITokenService>();
-
-        var login = Bonvi.Domain.ValueObjects.PhoneNumber
-            .Create(BonviApiFactory.TestAdminLogin)
-            .Value;
-
-        var user = await users.GetByLoginAsync(login, TestContext.Current.CancellationToken);
-        user.ShouldNotBeNull();
-
-        var pair = tokens.CreateTokens(user, [], new HashSet<string>(StringComparer.Ordinal));
-
-        return pair.AccessToken;
-    }
+    private Task<string> RuxsatsizTokenAsync() => TestAccounts.TokenAsync(_factory);
 }
 
 /// <summary>Har doim yiqiladigan repozitoriy — nosozlik yo'lini tekshirish uchun.</summary>

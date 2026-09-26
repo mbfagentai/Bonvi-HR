@@ -48,19 +48,18 @@ export interface UserSummary {
    */
   photoKey: string | null
   /**
-   * Rol kodi — AYNAN BITTA (`'hr_manager'`). So'rovlarda ham shu kod
-   * ishlatiladi.
+   * Rol kodi — AYNAN BITTA (`'hr_manager'`, egasi yaratgan rolda
+   * `'custom_…'`). So'rovlarda ham shu kod ishlatiladi.
    *
-   * Ro'yxat emas: uch rolli modelda hisobda bittadan ortiq rol bo'lmaydi
-   * (`User.SetRole` izohiga qarang). Rol berilmagan eski yozuvda `null`
-   * bo'lishi mumkin — amalda bunday hisob yo'q.
+   * Ro'yxat emas: hisobda bittadan ortiq rol bo'lmaydi (`User.SetRole`
+   * izohiga qarang). Rol berilmagan eski yozuvda `null` bo'lishi mumkin —
+   * amalda bunday hisob yo'q.
    */
   roleCode: string | null
   /**
-   * Rol nomi — serverda saqlangan, faqat o'zbek tilida (seed vaqtida
-   * yozilgan). Klient uni KO'RSATISHDA ishlatmaydi: `roles.<code>`
-   * tarjimasi 4 tilda ham bor va joriy tilga mos keladi
-   * (`users-page.tsx` dagi `roleLabel` ga qarang).
+   * Rol nomi — egasi «Rollar» sahifasida yozgan matn. Ekranda AYNAN shu
+   * ko'rsatiladi (tarjimasiz): rollarni endi egasi o'zi nomlaydi va qayta
+   * nomlaydi. Yagona istisno — super administrator (`roleDisplayName`).
    */
   roleName: string | null
 }

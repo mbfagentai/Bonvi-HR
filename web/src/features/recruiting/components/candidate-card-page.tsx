@@ -13,7 +13,9 @@ import {
 import { useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { EMPLOYEES_CREATE, EMPLOYMENT_HIRE } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { formatPhone } from '@/shared/lib/phone'
 import {
   Alert,
   Badge,
@@ -132,7 +134,14 @@ export function CandidateCardPage() {
     (avval voronkaga qaytarish) oynaning o'zida, HR uchun bu bitta
     qaror bo'lib qoladi (`candidate-hire-dialog.tsx`).
   */
-  const canHire = inProgress || inReserve
+  /*
+    «Ishga qabul qilish» va «Xodim qo'shish» ruxsatlari ham SHART: ishga
+    olish xodim kartasi, mehnat munosabati va buyruq yaratadi, server ham
+    shu ruxsatlarni talab qiladi (2026-09-26). Tugma ruxsatsiz odamga
+    umuman chizilmaydi.
+  */
+  const canHire =
+    (inProgress || inReserve) && hasPermission(EMPLOYMENT_HIRE) && hasPermission(EMPLOYEES_CREATE)
 
   return (
     <div className="space-y-5">
@@ -419,7 +428,7 @@ function PersonalCard({ candidate }: { candidate: Candidate }) {
       <CardContent className="py-5">
         <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
           <Field label={t('employee.birthDate')} value={candidate.birthDate === null ? null : date(candidate.birthDate)} />
-          <Field label={t('employee.phone')} value={candidate.phone} tabular />
+          <Field label={t('employee.phone')} value={formatPhone(candidate.phone)} tabular />
           <Field label={t('employee.speciality')} value={candidate.speciality} />
           <Field label={t('employee.address')} value={candidate.address} />
           <Field label={t('recruiting.vacancy')} value={candidate.vacancy} />

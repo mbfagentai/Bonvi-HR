@@ -1,7 +1,10 @@
 using Bonvi.Api.Extensions;
+using Bonvi.Application.Abstractions;
+using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Application.Employees.Probations;
+using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
 
@@ -160,6 +163,15 @@ public sealed record ExtendProbationRequest(DateOnly NewEndDate);
 /// nazoratda). 409 esa — amal BAJARILMADI: qora ro'yxat yoki tasdiqlanmagan
 /// bo'shatish.
 /// </para>
+/// <para>
+/// <b>Har bir yozish amali — o'z ruxsati bilan</b> (<c>employment.hire</c>,
+/// <c>.transfer</c>, <c>.duty</c>, <c>.salary</c>, <c>.terminate</c>,
+/// <c>.probation.extend</c>, <c>.probation.complete</c>, <c>.correct</c>).
+/// Ilgari hammasi bitta <c>employment.manage</c> ostida edi; bo'linish
+/// sababi <see cref="Permissions.EmploymentActions"/> oldidagi izohda.
+/// Amal ICHIDA yuborilgan summa endpoint'da emas, handler'da tekshiriladi:
+/// <c>RequireAuthorization</c> so'rov tanasini ko'rmaydi.
+/// </para>
 /// </remarks>
 public static class EmploymentEndpoints
 {
@@ -182,12 +194,21 @@ public static class EmploymentEndpoints
         group.MapPost("/hire", async (
                 HireEmployeeCommand command,
                 HireEmployeeCommandHandler handler,
+                ICurrentUser currentUser,
                 CancellationToken cancellationToken) =>
             {
+                // «person» — YANGI xodim kartasi: «employment.hire» ning o'zi bunga
+                // yetmaydi, «employees.create» ham shart (xavfsizlik tekshiruvi,
+                // 2026-09-26). Mavjud xodimni qayta qabul qilish esa faqat hire bilan.
+                if (command.Person is not null && !currentUser.HasPermission(Permissions.EmployeesCreate))
+                {
+                    return ((Result)EmployeeErrors.EmployeeCreatePermissionRequired).ToHttpResult();
+                }
+
                 var natija = await handler.HandleAsync(command, cancellationToken).ConfigureAwait(false);
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentHire)
             .WithName("HireEmployee")
             .WithSummary("Ishga qabul — yagona forma")
             .WithDescription(
@@ -200,7 +221,10 @@ public static class EmploymentEndpoints
                 "yoki manfiy qiymat «sinov.majburiy» (400) beradi. " +
                 "Qora ro'yxatdagi xodim: «xodim.qora_royxatda» (409). Nazoratdagi xodim va " +
                 "stavkalar yig'indisi 1.5 dan oshgani — javobdagi «warnings» massivida, " +
-                "amal esa bajariladi. Javobda lavozimning vazifalari ham qaytadi.")
+                "amal esa bajariladi. Javobda lavozimning vazifalari ham qaytadi. " +
+                "Ruxsat: «employment.hire»; «person» bilan YANGI karta ochilsa «employees.create» ham " +
+                "(yo'q bo'lsa 403 «auth.ruxsat_yoq»); boshlang'ich oklad qabul buyrug'ining o'zi, " +
+                "shu sababli «employment.salary» talab qilinmaydi.")
             .Produces<HireResultDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -302,14 +326,17 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentTransfer)
             .WithName("TransferEmployee")
             .WithSummary("Lavozim yoki bo'lim o'zgarishi")
             .WithDescription(
                 "Bo'sh qoldirilgan maydon «o'zgarmadi» degani. Lavozim o'zgarsa hodisa " +
                 "«Promotion», faqat bo'lim o'zgarsa «Transfer» bo'lib yoziladi — hisobotda " +
-                "ular alohida ko'rinadi. Yakunlangan munosabat: «mehnat.tugagan» (409).")
+                "ular alohida ko'rinadi. Yakunlangan munosabat: «mehnat.tugagan» (409). " +
+                "Ruxsat: «employment.transfer»; «salaryAmount» yuborilsa, qo'shimcha " +
+                "«employment.salary» ham kerak — aks holda «auth.ruxsat_yoq» (403).")
             .Produces<EmploymentChangeDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -334,14 +361,17 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentDuty)
             .WithName("AddAdditionalDuty")
             .WithSummary("Qo'shimcha vazifa berish")
             .WithDescription(
                 "Mavjud ish doirasidagi qo'shimcha yuk (yangi mehnat munosabati EMAS). " +
-                "Vazifa matni majburiy: «mehnat.vazifa_bosh» (400).")
+                "Vazifa matni majburiy: «mehnat.vazifa_bosh» (400). " +
+                "Ruxsat: «employment.duty»; «extraSalaryAmount» yuborilsa, qo'shimcha " +
+                "«employment.salary» ham kerak — aks holda «auth.ruxsat_yoq» (403).")
             .Produces<EmploymentChangeDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPost("/{id:guid}/salary", async (
@@ -364,12 +394,12 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentSalary)
             .WithName("ChangeSalary")
             .WithSummary("Oklad o'zgarishi")
             .WithDescription(
                 "Eski va yangi qiymat hodisada saqlanadi — oklad tarixi shundan quriladi. " +
-                "DIQQAT: amalni «employment.manage» bajaradi, lekin javobdagi oklad maydoni " +
+                "DIQQAT: amalni «employment.salary» bajaradi, lekin javobdagi oklad maydoni " +
                 "«salary.view» ruxsatisiz bo'sh qaytadi.")
             .Produces<EmploymentChangeDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -398,7 +428,7 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentCorrect)
             .WithName("EditEmploymentEvent")
             .WithSummary("Mehnat yo'li — yozuvdagi terish xatosini tuzatish")
             .WithDescription(
@@ -416,10 +446,12 @@ public static class EmploymentEndpoints
                 "Ishdan ketgan xodimning yozuvi ham tuzatiladi: arxivdagi xato ham " +
                 "xato. " +
                 "Xatolar: «mehnat.topilmadi» / «mehnat_hodisasi.topilmadi» (404). " +
-                "DIQQAT: amalni «employment.manage» bajaradi, javobdagi oklad esa " +
-                "«salary.view» ruxsatisiz bo'sh qaytadi.")
+                "Ruxsat: «employment.correct»; «amount» yuborilsa, qo'shimcha " +
+                "«employment.salary» ham kerak — aks holda «auth.ruxsat_yoq» (403). " +
+                "Javobdagi oklad «salary.view» ruxsatisiz bo'sh qaytadi.")
             .Produces<EmploymentEventDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/terminate", async (
@@ -444,7 +476,7 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentTerminate)
             .WithName("TerminateEmployment")
             .WithSummary("Ishdan bo'shatish")
             .WithDescription(
@@ -452,7 +484,8 @@ public static class EmploymentEndpoints
                 "409 bilan qaytadi («xodim.qora_royxatda» yoki «xodim.nazoratda»). " +
                 "HR ataylab «?confirm=true» yuborsa amal bajariladi va sabab «warnings» da " +
                 "qayd etiladi. Ochiq sinov muddati «erta ketdi» deb yopiladi. " +
-                "Ketish sanasi ishga kirish sanasidan oldin bo'lolmaydi: «mehnat.ketish_sanasi».")
+                "Ketish sanasi ishga kirish sanasidan oldin bo'lolmaydi: «mehnat.ketish_sanasi». " +
+                "Ruxsat: «employment.terminate».")
             .Produces<EmploymentChangeDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -542,7 +575,7 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentProbationComplete)
             .WithName("ResolveProbation")
             .WithSummary("Sinov muddati — xulosa va doimiy holatga o'tkazish")
             .WithDescription(
@@ -552,8 +585,11 @@ public static class EmploymentEndpoints
                 "tayinlanadi: bo'sh qoldirilgan maydon «o'zgarmadi» degani. Tarixda ikki " +
                 "hodisa qoladi — «sinov natijasi» va «lavozim/oklad o'zgarishi». " +
                 "Tayinlash maydonlari faqat «Passed» bilan ishlaydi: «sinov.tayinlash_otmagan» (400). " +
-                "Yakunlangan sinovni qayta yakunlab bo'lmaydi: «sinov.yakunlangan» (409).")
+                "Yakunlangan sinovni qayta yakunlab bo'lmaydi: «sinov.yakunlangan» (409). " +
+                "Ruxsat: «employment.probation.complete»; «salaryAmount» yuborilsa, " +
+                "qo'shimcha «employment.salary» ham kerak — aks holda «auth.ruxsat_yoq» (403).")
             .Produces<ProbationDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -569,12 +605,13 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentProbationExtend)
             .WithName("ExtendProbation")
             .WithSummary("Sinov muddati — uzaytirish")
             .WithDescription(
                 "Yangi sana joriy tugash sanasidan keyin bo'lishi kerak va umumiy muddat " +
-                "180 kundan oshmasligi kerak (mehnat kodeksi chegarasi): «sinov.muddat» (400).")
+                "180 kundan oshmasligi kerak (mehnat kodeksi chegarasi): «sinov.muddat» (400). " +
+                "Ruxsat: «employment.probation.extend».")
             .Produces<ProbationDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -618,7 +655,7 @@ public static class EmploymentEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.EmploymentManage)
+            .RequireAuthorization(Permissions.EmploymentProbationComplete)
             .WithName("ConfirmMissingProbations")
             .WithSummary("Sinov yozuvisiz qolganlarni doimiy holatga o'tkazish")
             .WithDescription(
@@ -627,7 +664,8 @@ public static class EmploymentEndpoints
                 "QAYTA tekshiriladi — faqat haqiqatan shu ro'yxatda turgan yozuv " +
                 "o'zgaradi. Ro'yxatda qolmaganlari xato bermaydi, «skipped» da sanaladi: " +
                 "HR ekranni ochib turganda boshqa birov o'zgartirgan bo'lishi mumkin. " +
-                "Hammasi bitta tranzaksiyada.")
+                "Hammasi bitta tranzaksiyada. Ruxsat: «employment.probation.complete» — " +
+                "bu ham sinovni yakunlash, faqat yozuvsiz qolganlar uchun.")
             .Produces<ConfirmMissingProbationsResultDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);

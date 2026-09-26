@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using Bonvi.Api.Common;
+using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -67,6 +68,8 @@ public static class AuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    OnTokenValidated = ApplyCurrentAccessAsync,
+
                     OnChallenge = async context =>
                     {
                         // Standart javobni bekor qilamiz va o'z formatimizni beramiz
@@ -102,6 +105,76 @@ public static class AuthenticationExtensions
     }
 
     /// <summary>
+    /// Imzosi to'g'ri tokendagi rol va ruxsatlarni bazadagi JORIY holat bilan almashtiradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega.</b> Ruxsatlar access token ichida yuradi va token 15 daqiqa
+    /// yashaydi. Egasining qarori: rolga kiritilgan o'zgarish (berilgan
+    /// ham, olingan ham) va hisobni faolsizlantirish deploy va qayta
+    /// kirishsiz, KEYINGI so'rovdayoq kuchga kirsin. Shu sababli token endi
+    /// «kim» degan savolga javob beradi, «nimaga ruxsati bor» ga esa baza.
+    /// </para>
+    /// <para>
+    /// Barcha <c>RequireAuthorization(...)</c> tekshiruvlari va
+    /// <c>ICurrentUser.HasPermission</c> o'zgarmaydi — ular hamon
+    /// <c>perm</c> claim'larini o'qiydi, faqat claim'larning manbai endi
+    /// yangi. Narxi — ≤ 30 soniyalik xotira keshi (<see cref="IUserAccessReader"/>).
+    /// </para>
+    /// <para>
+    /// Hisob o'chirilgan yoki faolsizlantirilgan bo'lsa — autentifikatsiya
+    /// RAD ETILADI va javob odatdagi 401 <c>auth.token_yaroqsiz</c>
+    /// (<c>OnChallenge</c>). Klient refresh qilishga urinadi va u yerda
+    /// ham rad etiladi (<c>auth.hisob_faol_emas</c>) — sessiya yopiladi.
+    /// </para>
+    /// </remarks>
+    private static async Task ApplyCurrentAccessAsync(TokenValidatedContext context)
+    {
+        var principal = context.Principal;
+        var raw = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (principal is null || !Guid.TryParse(raw, out var userId))
+        {
+            context.Fail("Tokenda foydalanuvchi identifikatori yo'q.");
+            return;
+        }
+
+        var reader = context.HttpContext.RequestServices.GetRequiredService<IUserAccessReader>();
+
+        var access = await reader
+            .ReadAsync(userId, context.HttpContext.RequestAborted)
+            .ConfigureAwait(false);
+
+        if (access is null)
+        {
+            context.Fail("Hisob topilmadi yoki faol emas.");
+            return;
+        }
+
+        var original = principal.Identity as ClaimsIdentity;
+        var roleClaimType = original?.RoleClaimType ?? ClaimTypes.Role;
+
+        // Tokendagi qolgan claim'lar (sub, login, jti, emp) o'z joyida —
+        // faqat rol va ruxsatlar almashtiriladi.
+        var claims = principal.Claims
+            .Where(claim =>
+                claim.Type != CurrentUser.PermissionClaimType &&
+                claim.Type != roleClaimType)
+            .ToList();
+
+        claims.AddRange(access.RoleCodes.Select(code => new Claim(roleClaimType, code)));
+        claims.AddRange(access.Permissions.Select(permission => new Claim(CurrentUser.PermissionClaimType, permission)));
+
+        var identity = new ClaimsIdentity(
+            claims,
+            original?.AuthenticationType ?? JwtBearerDefaults.AuthenticationScheme,
+            original?.NameClaimType ?? ClaimTypes.Name,
+            roleClaimType);
+
+        context.Principal = new ClaimsPrincipal(identity);
+    }
+
+    /// <summary>
     /// Har bir ruxsat uchun avtorizatsiya siyosatini yaratadi.
     /// </summary>
     /// <remarks>
@@ -111,8 +184,9 @@ public static class AuthenticationExtensions
     /// bir marta ro'yxatga olish kifoya, dinamik siyosat provayderi kerak emas.
     /// </para>
     /// <para>
-    /// Tekshiruv token ichidagi <c>perm</c> claim'lari bo'yicha xotirada
-    /// bajariladi — bazaga so'rov yo'q.
+    /// Tekshiruv <c>perm</c> claim'lari bo'yicha xotirada bajariladi.
+    /// Claim'lar esa tokendan emas, bazadagi joriy roldan olinadi
+    /// (<see cref="ApplyCurrentAccessAsync"/>, ≤ 30 s kesh bilan).
     /// </para>
     /// </remarks>
     /// <summary>
@@ -125,6 +199,19 @@ public static class AuthenticationExtensions
     /// ajratib turish kerak.
     /// </remarks>
     public const string BotServicePolicy = "bot-service";
+
+    /// <summary>
+    /// Rollar RO'YXATI siyosati: <c>users.manage</c> YOKI <c>roles.manage</c>.
+    /// </summary>
+    /// <remarks>
+    /// Ro'yxat ikki ekranga kerak: «Rollar» menyusi (<c>roles.manage</c>) va
+    /// foydalanuvchi formasidagi rol tanlash (<c>users.manage</c>). Ikkala
+    /// ruxsat odatda boshqa-boshqa odamda — bittasini talab qilish
+    /// ikkinchi ekranni buzardi. Rollarni O'ZGARTIRISH esa faqat
+    /// <c>roles.manage</c> bilan. Nomi <see cref="BotServicePolicy"/> kabi
+    /// chiziqchali — ruxsat kodi bilan adashmasligi uchun.
+    /// </remarks>
+    public const string RolesReadPolicy = "roles-read";
 
     public static IServiceCollection AddBonviAuthorization(this IServiceCollection services)
     {
@@ -176,6 +263,12 @@ public static class AuthenticationExtensions
             .AddPolicy(BotServicePolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireRole(SystemRoles.RecruitingBot));
+
+        // `RequireClaim` bir nechta qiymat olsa — ULARDAN BIRI yetarli.
+        services.AddAuthorizationBuilder()
+            .AddPolicy(RolesReadPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireClaim(CurrentUser.PermissionClaimType, Permissions.UsersManage, Permissions.RolesManage));
 
         return services;
     }

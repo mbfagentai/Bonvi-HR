@@ -26,13 +26,13 @@ public sealed class CreateUserCommandHandlerTests
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private readonly Role _superAdminRole =
-        Role.Create(SystemRoles.SuperAdmin, "Super administrator", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.SuperAdmin);
 
     private readonly Role _mainBossRole =
-        Role.Create(SystemRoles.MainBoss, "Bosh rahbar", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.MainBoss);
 
     private readonly Role _hrRole =
-        Role.Create(SystemRoles.HrManager, "HR menejeri", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.HrManager);
 
     private CreateUserCommandHandler Handler
         => new(_currentUser, _users, _roles, _hasher, _auditLogger, _unitOfWork);
@@ -297,4 +297,126 @@ public sealed class CreateUserCommandHandlerTests
 
         await _users.DidNotReceive().ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
+
+    // ─────────────── Egasi yaratgan rollar: ruxsatlar solishtiriladi ───────────────
+
+    /// <summary>
+    /// «Kim kimga rol bera oladi» endi rol KODIGA emas, ruxsatlarga qaraydi:
+    /// beriladigan rolning ruxsatlari so'rovchinikining qism to'plami bo'lsa — mumkin.
+    /// </summary>
+    [Fact]
+    public async Task Maxsus_rol_egasi_ozidan_kuchsiz_rolni_bera_oladi()
+    {
+        var kadrBoshligi = TestRoles.Maxsus(
+            "Kadr bo'limi boshlig'i",
+            Permissions.UsersManage, Permissions.EmployeesView, Permissions.EmploymentView, Permissions.EmploymentSalary);
+        var kuzatuvchi = TestRoles.Maxsus("Kuzatuvchi", Permissions.EmployeesView, Permissions.EmploymentView);
+        BarchaRollar(kadrBoshligi, kuzatuvchi);
+        ActingAs(kadrBoshligi);
+
+        var natija = await Handler.HandleAsync(
+            new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", kuzatuvchi.Code),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
+        natija.Value.RoleCode.ShouldBe(kuzatuvchi.Code);
+    }
+
+    [Fact]
+    public async Task Maxsus_rol_egasi_ozida_yoq_ruxsatli_rolni_bera_olmaydi()
+    {
+        var kadrBoshligi = TestRoles.Maxsus("Kadr bo'limi boshlig'i", Permissions.UsersManage, Permissions.EmployeesView);
+        var ochiruvchi = TestRoles.Maxsus("O'chiruvchi", Permissions.EmployeesView, Permissions.EmployeesDelete);
+        BarchaRollar(kadrBoshligi, ochiruvchi);
+        ActingAs(kadrBoshligi);
+
+        var natija = await Handler.HandleAsync(
+            new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", ochiruvchi.Code),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.rolga_haqqi_yoq");
+        _users.DidNotReceive().Add(Arg.Any<User>());
+    }
+
+    /// <summary>
+    /// O'z rolini berish — teng huquqli hamkasb yaratish: bugun bosh rahbar
+    /// ikkinchi bosh rahbar yarata olmaganidek, maxsus rol ham shunday.
+    /// </summary>
+    [Fact]
+    public async Task Maxsus_rol_egasi_oz_rolini_bera_olmaydi()
+    {
+        var kadrBoshligi = TestRoles.Maxsus("Kadr bo'limi boshlig'i", Permissions.UsersManage, Permissions.EmployeesView);
+        BarchaRollar(kadrBoshligi);
+        ActingAs(kadrBoshligi);
+
+        var natija = await Handler.HandleAsync(
+            new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", kadrBoshligi.Code),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.rolga_haqqi_yoq");
+    }
+
+    [Fact]
+    public async Task Bosh_rahbar_ozidan_kuchsiz_maxsus_rolni_bera_oladi()
+    {
+        var kuzatuvchi = TestRoles.Maxsus("Kuzatuvchi", Permissions.EmployeesView);
+        BarchaRollar(kuzatuvchi);
+        ActingAs(_mainBossRole);
+
+        var natija = await Handler.HandleAsync(
+            new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", kuzatuvchi.Code),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
+    }
+
+    /// <summary>
+    /// Bot roli himoyalangan: uning ruxsatlari bosh rahbarnikiga sig'sa ham,
+    /// uni faqat super administrator beradi.
+    /// </summary>
+    [Fact]
+    public async Task Bot_rolini_faqat_super_administrator_beradi()
+    {
+        var botRoli = TestRoles.Standart(SystemRoles.RecruitingBot);
+        BarchaRollar(botRoli);
+
+        ActingAs(_mainBossRole);
+
+        var rahbardan = await Handler.HandleAsync(
+            new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.RecruitingBot),
+            TestContext.Current.CancellationToken);
+
+        rahbardan.IsFailure.ShouldBeTrue();
+        rahbardan.Error.Code.ShouldBe("foydalanuvchi.rolga_haqqi_yoq");
+
+        ActingAs(_superAdminRole, phone: "905099999");
+
+        var egasidan = await Handler.HandleAsync(
+            new CreateUserCommand("905088866", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.RecruitingBot),
+            TestContext.Current.CancellationToken);
+
+        egasidan.IsSuccess.ShouldBeTrue(egasidan.IsFailure ? egasidan.Error.Message : null);
+    }
+
+    [Fact]
+    public async Task Rolsiz_hisob_hech_kimga_rol_bera_olmaydi()
+    {
+        var rolsiz = YangiFoydalanuvchi("905088888", "Тошматов Акбар");
+        _currentUser.UserId.Returns(rolsiz.Id);
+        _users.GetByIdAsync(rolsiz.Id, Arg.Any<CancellationToken>()).Returns(rolsiz);
+
+        var natija = await Handler.HandleAsync(
+            new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.HrManager),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.rolga_haqqi_yoq");
+    }
+
+    /// <summary>Uchta standart rolga qo'shimcha rollarni «bazada» ko'rsatadi.</summary>
+    private void BarchaRollar(params Role[] qoshimcha)
+        => _roles.GetAllAsync(Arg.Any<CancellationToken>())
+            .Returns([_superAdminRole, _mainBossRole, _hrRole, .. qoshimcha]);
 }

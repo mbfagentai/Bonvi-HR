@@ -23,13 +23,13 @@ public sealed class UpdateUserCommandHandlerTests
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private readonly Role _superAdminRole =
-        Role.Create(SystemRoles.SuperAdmin, "Super administrator", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.SuperAdmin);
 
     private readonly Role _mainBossRole =
-        Role.Create(SystemRoles.MainBoss, "Bosh rahbar", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.MainBoss);
 
     private readonly Role _hrRole =
-        Role.Create(SystemRoles.HrManager, "HR menejeri", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.HrManager);
 
     private UpdateUserCommandHandler Handler => new(_currentUser, _users, _roles, _auditLogger, _unitOfWork);
 
@@ -273,5 +273,76 @@ public sealed class UpdateUserCommandHandlerTests
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("foydalanuvchi.login_band");
+    }
+
+    // ─────────────── Ruxsatlar solishtiriladi (rol kodi emas) ───────────────
+
+    /// <summary>
+    /// HR menejeri o'zidan kuchli (bosh rahbar) hisobga tegolmaydi — hatto
+    /// kelajakda unga <c>users.manage</c> berilsa ham.
+    /// </summary>
+    [Fact]
+    public async Task Hr_menejer_bosh_rahbarga_tegolmaydi()
+    {
+        var acting = Mavjud("905088888", "Тошматов Акбар", _hrRole);
+        ActingAs(acting);
+
+        var target = Mavjud("905011111", "Rahimov Sardor", _mainBossRole);
+
+        var natija = await Handler.HandleAsync(
+            new UpdateUserCommand(target.Id, "905011111", "Rahimov", "Sardor", null, SystemRoles.MainBoss),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.rolga_haqqi_yoq");
+    }
+
+    [Fact]
+    public async Task Maxsus_rol_egasi_ozidan_kuchli_hisobga_tegolmaydi()
+    {
+        var kadrBoshligi = TestRoles.Maxsus("Kadr bo'limi boshlig'i", Permissions.UsersManage, Permissions.EmployeesView);
+        _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([_superAdminRole, _mainBossRole, _hrRole, kadrBoshligi]);
+
+        var acting = Mavjud("905088888", "Тошматов Акбар", kadrBoshligi);
+        ActingAs(acting);
+
+        var target = Mavjud("905088877", "Каримов Жасур", _hrRole);
+
+        var natija = await Handler.HandleAsync(
+            new UpdateUserCommand(target.Id, "905088877", "Каримов", "Жасурбек", null, SystemRoles.HrManager),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("foydalanuvchi.rolga_haqqi_yoq");
+        target.FullName.Full.ShouldNotContain("Жасурбек");
+    }
+
+    /// <summary>
+    /// Rolsiz hisob — bo'sh ruxsatlar to'plami: <c>users.manage</c> li har
+    /// kim unga (o'zidan kuchsiz) rol bera oladi.
+    /// </summary>
+    [Fact]
+    public async Task Rolsiz_hisobga_ozidan_kuchsiz_rol_beriladi()
+    {
+        var kadrBoshligi = TestRoles.Maxsus(
+            "Kadr bo'limi boshlig'i", Permissions.UsersManage, Permissions.EmployeesView, Permissions.EmploymentView);
+        var kuzatuvchi = TestRoles.Maxsus("Kuzatuvchi", Permissions.EmployeesView);
+        _roles.GetAllAsync(Arg.Any<CancellationToken>())
+            .Returns([_superAdminRole, _mainBossRole, _hrRole, kadrBoshligi, kuzatuvchi]);
+
+        var acting = Mavjud("905088888", "Тошматов Акбар", kadrBoshligi);
+        ActingAs(acting);
+
+        var rolsiz = YangiFoydalanuvchi("905088877", "Каримов Жасур");
+        _users.GetByIdAsync(rolsiz.Id, Arg.Any<CancellationToken>()).Returns(rolsiz);
+        _users.LoginExistsAsync(Arg.Any<PhoneNumber>(), rolsiz.Id, Arg.Any<CancellationToken>()).Returns(false);
+        _users.ListAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns([acting, rolsiz]);
+
+        var natija = await Handler.HandleAsync(
+            new UpdateUserCommand(rolsiz.Id, "905088877", "Каримов", "Жасур", null, kuzatuvchi.Code),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
+        rolsiz.RoleId.ShouldBe(kuzatuvchi.Id);
     }
 }

@@ -130,6 +130,13 @@ internal sealed class EmployeeTestContext
     public void AllowSalary(bool allowed)
         => CurrentUser.HasPermission(Permissions.SalaryView).Returns(allowed);
 
+    /// <summary>
+    /// Oklad O'ZGARTIRISH ruxsatini (<c>employment.salary</c>) yoqadi/o'chiradi —
+    /// amal ichida summa yuborish uchun (pul qoidasi).
+    /// </summary>
+    public void AllowSalaryChange(bool allowed)
+        => CurrentUser.HasPermission(Permissions.EmploymentSalary).Returns(allowed);
+
     /// <summary>Xodimga faol belgi qo'yadi.</summary>
     public void GiveFlag(Guid employeeId, EmployeeFlagType type)
         => Flags

@@ -140,8 +140,10 @@ public static class UserEndpoints
             .WithDescription(
                 "Parolni ADMINISTRATOR o'zi kiritadi (kamida 8 belgi) va uni yangi " +
                 "foydalanuvchiga shaxsan yetkazadi — tizimda buni yuboradigan boshqa kanal yo'q. " +
-                "Rol AYNAN BITTA («roleCode»). Bosh rahbar faqat «hr_manager» yarata oladi: " +
-                "«foydalanuvchi.rolga_haqqi_yoq» (403). Super administrator va bosh rahbar " +
+                "Rol AYNAN BITTA («roleCode», «GET /api/roles» dagi kod). Super administratordan " +
+                "boshqa hech kim o'z rolini ham, ruxsatlari o'zinikidan KENG rolni ham bera olmaydi " +
+                "(bosh rahbar amalda HR menejerini beradi): «foydalanuvchi.rolga_haqqi_yoq» (403). " +
+                "Super administrator va bosh rahbar " +
                 "tizimda BITTADAN: «foydalanuvchi.super_admin_mavjud» / " +
                 "«foydalanuvchi.bosh_rahbar_mavjud» (409). Telefon raqami takrorlansa: " +
                 "«foydalanuvchi.login_band» (409).")
@@ -174,8 +176,10 @@ public static class UserEndpoints
             .WithSummary("Foydalanuvchilar — tahrirlash")
             .WithDescription(
                 "Ism, telefon va rolni yangilaydi. Parol BU YERDA o'zgarmaydi — buning uchun " +
-                "alohida «parolni tiklash» amali bor. Bosh rahbar super administratorga " +
-                "tegolmaydi va HR menejerni rahbariyat roliga ko'tara olmaydi: " +
+                "alohida «parolni tiklash» amali bor. Super administratordan boshqa hech kim " +
+                "himoyalangan rol egasiga, o'z roli egasiga yoki ruxsatlari o'zinikidan KENG " +
+                "rol egasiga tegolmaydi va shunday rolni bera olmaydi (bosh rahbar super " +
+                "administratorga tegolmaydi, HR menejerni rahbariyat roliga ko'tara olmaydi): " +
                 "«foydalanuvchi.rolga_haqqi_yoq» (403). Hech kim O'Z rolini o'zgartira olmaydi: " +
                 "«foydalanuvchi.oz_rolini_ozgartirish» (403). Rahbariyat roli tizimda " +
                 "BITTADAN: «foydalanuvchi.super_admin_mavjud» / «foydalanuvchi.bosh_rahbar_mavjud» " +

@@ -98,6 +98,36 @@ public static class EmployeeErrors
     public static Error ProbationNotFound { get; } =
         Error.NotFound("sinov.topilmadi", "Sinov muddati topilmadi.");
 
+    /// <summary>
+    /// Amal ichida summa yuborildi, lekin <c>employment.salary</c> ruxsati yo'q.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kod ATAYLAB umumiy <c>auth.ruxsat_yoq</c> — endpoint'dagi
+    /// <c>RequireAuthorization</c> rad etgandagi bilan bir xil: foydalanuvchi
+    /// uchun ikkalasining ma'nosi bitta («bu amalga ruxsatingiz yo'q»),
+    /// interfeys esa oklad maydonini ruxsatsiz odamga umuman ko'rsatmaydi.
+    /// </para>
+    /// <para>
+    /// Tekshiruv endpoint'da emas, handler'da, chunki u so'rov TANASIGA
+    /// bog'liq (summa bormi-yo'qmi) — <c>RequireAuthorization</c> tanani
+    /// ko'rmaydi. Bu xato har qanday o'zgarishdan OLDIN qaytadi.
+    /// </para>
+    /// </remarks>
+    public static Error SalaryPermissionRequired { get; } =
+        Error.Forbidden(
+            "auth.ruxsat_yoq",
+            "Oklad summasini yuborish uchun «employment.salary» ruxsati kerak.");
+
+    /// <summary>
+    /// Ishga qabul YANGI xodim kartasini yaratmoqchi, lekin foydalanuvchida
+    /// «employees.create» yo'q — «employment.hire» karta yaratishga huquq bermaydi.
+    /// </summary>
+    public static Error EmployeeCreatePermissionRequired { get; } =
+        Error.Forbidden(
+            "auth.ruxsat_yoq",
+            "Yangi xodim kartasini yaratish uchun «employees.create» ruxsati kerak.");
+
     public static Error FlagNotFound { get; } =
         Error.NotFound("belgi.topilmadi", "Belgi topilmadi.");
 

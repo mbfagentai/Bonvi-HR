@@ -3,6 +3,9 @@ import { KeyRound, Lock, Search, UserCheck, UserCog, UserPlus, UserX, Users } fr
 import { useMemo, useState } from 'react'
 
 import { formatFullPhone, useAuth } from '@/features/auth'
+import type { RoleSummary } from '@/features/roles/api/roles-api'
+import { useRoles } from '@/features/roles/api/roles-queries'
+import { roleDisplayName } from '@/features/roles/lib/role-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
@@ -22,7 +25,12 @@ import {
 import type { UserSummary } from '../api/users-api'
 import { useActivateUser, useUsers } from '../api/users-queries'
 import { userErrorCode } from '../lib/user-error'
-import { LEADER_ROLE_CODES, USERS_MANAGE, canActOnRole, currentRoleCode } from '../lib/user-presentation'
+import {
+  LEADER_ROLE_CODES,
+  USERS_MANAGE,
+  actingRoleOf,
+  canActOnUser,
+} from '../lib/user-presentation'
 import { DeactivateUserDialog } from './deactivate-user-dialog'
 import { ResetPasswordDialog } from './reset-password-dialog'
 import { UserFormDialog } from './user-form-dialog'
@@ -32,6 +40,7 @@ const helper = dataColumnHelper<UserSummary>()
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: UserSummary[] = []
+const NO_ROLES: RoleSummary[] = []
 
 /**
  * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
@@ -72,8 +81,20 @@ export function UsersPage() {
 
   const canManage = hasPermission(USERS_MANAGE)
 
+  /*
+    Rollar ro'yxati — «kim kimga tega oladi» qoidasi endi rol KODLARI
+    bilan emas, ruxsatlar TO'PLAMI bilan ishlaydi (`canActOnRole`), ya'ni
+    ikkala tomonning ham ruxsatlari kerak. Server bu ro'yxatni
+    `users.manage` bilan ham beradi — alohida «Rollar» huquqi shart emas.
+  */
+  const roles = useRoles(canManage)
+  const roleList = roles.data ?? NO_ROLES
+
   /** So'rovchining o'z roli — «kim kimga tega oladi» qoidasining birinchi yarmi. */
-  const myRole = currentRoleCode(currentUser?.roles)
+  const myRole = useMemo(
+    () => actingRoleOf(roleList, currentUser?.roles),
+    [roleList, currentUser],
+  )
 
   /**
    * Tahrirlanayotgan hisob — nusxasi emas, IDENTIFIKATORI saqlanadi.
@@ -194,18 +215,23 @@ export function UsersPage() {
         id: 'role',
         header: t('users.columnRole'),
         /*
-          190px − katak to'ldirishi (32px) = 158px matnga. Uchala rol nomi
-          ham shunga sig'adi: «HR menejeri» (11 belgi), «Bosh rahbar»
+          190px − katak to'ldirishi (32px) = 158px matnga. Tizim rollari
+          shunga sig'adi: «HR menejeri» (11 belgi), «Bosh rahbar»
           (11 belgi), «Super administrator» (19 belgi, ~162px 15px shriftda
-          ~8.5px/belgi hisobida) — oxirgisi chegaraga tegib turadi va
-          zarurat bo'lsa kesiladi, to'lig'i esa `title` atributida.
+          ~8.5px/belgi hisobida). Egasi yozgan uzun nom («Kadr bo'limi
+          boshlig'i») kesiladi, to'lig'i esa `title` atributida.
         */
         meta: { width: '190px', hideOnMobile: true },
         cell: ({ row }) => {
           const code = row.original.roleCode
           if (code === null) return <span className="text-[var(--fg-tertiary)]">—</span>
 
-          const label = roleLabel(t, code)
+          /*
+            Serverdagi NOM — egasi rolni qayta nomlasa, shu yerda ham
+            darhol yangisi chiqadi. Tarjima faqat super administratorga
+            (`roleDisplayName` izohi).
+          */
+          const label = roleDisplayName(t, { code, name: row.original.roleName ?? code })
           return (
             <span className="truncate-1 block text-[var(--fg-secondary)]" title={label}>
               {label}
@@ -279,7 +305,7 @@ export function UsersPage() {
             qaytarish foydalanuvchini «nimadir buzilgan» degan xulosaga
             olib borardi.
           */
-          if (!canActOnRole(myRole, item.roleCode)) return null
+          if (!canActOnUser(myRole, roleList, item.roleCode)) return null
 
           const isLastActiveLeader =
             item.isActive &&
@@ -343,7 +369,7 @@ export function UsersPage() {
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, dateTime, errorMessage, currentUser, myRole, activeLeaderCount, activate],
+    [t, dateTime, errorMessage, currentUser, myRole, roleList, activeLeaderCount, activate],
   )
 
   return (
@@ -382,6 +408,16 @@ export function UsersPage() {
             </Alert>
           )}
 
+          {/*
+            Rollarsiz ro'yxat ko'rinadi, lekin amallar tugmalari chizilmaydi:
+            kimga tegish mumkinligini rollarning ruxsatlarisiz bilib bo'lmaydi.
+          */}
+          {roles.isError && (
+            <Alert tone="danger" title={t('roleEditor.loadFailed')}>
+              {errorMessage(userErrorCode(roles.error))}
+            </Alert>
+          )}
+
           <Card className="overflow-hidden">
             {/*
               Qidiruv maydoni jadvaldan yuqorida — boshqa ro'yxatlardagi
@@ -405,7 +441,9 @@ export function UsersPage() {
               columns={columns}
               data={rows}
               getRowId={(item) => item.id}
-              loading={list.isPending}
+              // Rollar kelguncha ham skelet: aks holda amallar tugmalari
+              // bir zumdan keyin «sakrab» paydo bo'lardi.
+              loading={list.isPending || roles.isPending}
               onRowClick={openEdit}
               rowLabel={(item) => item.fullName}
               empty={
@@ -431,18 +469,4 @@ export function UsersPage() {
       <ResetPasswordDialog item={resettingPassword} onClose={() => setResettingPassword(null)} />
     </div>
   )
-}
-
-/**
- * Rol kodini joriy tilga o'giradi.
- *
- * Server `roleName` ni ham qaytaradi, lekin u FAQAT o'zbek tilida
- * (seed vaqtida yozilgan matn) — 4 tilli interfeysda ishlatib bo'lmaydi.
- * Shu sababli kod orqali `roles.<code>` tarjimasi ishlatiladi
- * (`settings-dialog.tsx` dagi bilan bir xil naqsh). Tarjimasi topilmasa —
- * kodning o'zi ko'rsatiladi (yashirilmaydi: bu holat kod xatosini bildiradi).
- */
-function roleLabel(t: (key: string) => string, code: string): string {
-  const translated = t(`roles.${code}`)
-  return translated === `roles.${code}` ? code : translated
 }

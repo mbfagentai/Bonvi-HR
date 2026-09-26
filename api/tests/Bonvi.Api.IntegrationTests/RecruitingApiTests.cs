@@ -1051,20 +1051,24 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             qabul.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qabul));
         }
 
-        // ── 1. SUKUT ro'yxat: ishga olingan yo'q, rezervdagi BOR ──
+        // ── 1. SUKUT ro'yxat: ishga olingan ham, rezervdagi ham yo'q ──
         var sukut = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}");
 
         sukut.Items.ShouldContain(q => q.Id == jarayonda.Id);
-        sukut.Items.ShouldContain(
+        sukut.Items.ShouldNotContain(
             q => q.Id == rezervda.Id,
-            "rezervga qoida TEGMAYDI — uning butun ma'nosi «keyin chaqiramiz» degani");
+            "foydalanuvchi qarori (2026-09-26): rezervdagilar faqat «Rezerv» bo'limida");
         sukut.Items.ShouldNotContain(q => q.Id == ishgaOlingan.Id);
 
         // ── 2. Sanoq qatorlarga MOS: ikkalasi bitta so'rovdan olinadi ──
         sukut.Total.ShouldBe(
             sukut.Items.Count,
             "sanoq va qatorlar bir-biriga zid bo'lmasligi kerak");
-        sukut.Total.ShouldBe(2);
+        sukut.Total.ShouldBe(1);
+
+        // «Rezerv» bo'limi aynan shu so'rov bilan ochiladi
+        var rezervBolimi = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Reserve");
+        rezervBolimi.Items.ShouldContain(q => q.Id == rezervda.Id);
 
         // ── 3. Filtr ataylab tanlansa — qaytadi ──
         var ishgaOlinganlar = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=Hired");
@@ -2126,24 +2130,13 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     /// Haqiqiy, lekin RUXSATSIZ token.
     /// </summary>
     /// <remarks>
-    /// Foydalanuvchi va imzo haqiqiy — faqat ro'llar va ruxsatlar ro'yxati
-    /// bo'sh. Login orqali ruxsatsiz foydalanuvchi yasash butun bir rol
-    /// boshqaruvi ketma-ketligini talab qilardi; tekshiriladigan narsa esa
-    /// bitta — endpoint'dagi <c>RequireAuthorization</c>.
+    /// Foydalanuvchi va imzo haqiqiy — faqat uning rolida bironta ruxsat
+    /// yo'q. Tekshiriladigan narsa bitta — endpoint'dagi
+    /// <c>RequireAuthorization</c>. (Ilgari administrator tokeniga bo'sh
+    /// ro'yxat yozilardi; 2026-09-26 dan ruxsatlar bazadan olinadi, shu
+    /// sababli hisob haqiqatan yaratiladi — <see cref="TestAccounts"/>.)
     /// </remarks>
-    private async Task<string> RuxsatsizTokenAsync()
-    {
-        using var qamrov = _factory.Services.CreateScope();
-
-        var users = qamrov.ServiceProvider.GetRequiredService<IUserRepository>();
-        var tokens = qamrov.ServiceProvider.GetRequiredService<ITokenService>();
-
-        var login = PhoneNumber.Create(BonviApiFactory.TestAdminLogin).Value;
-        var user = await users.GetByLoginAsync(login, TestContext.Current.CancellationToken);
-        user.ShouldNotBeNull();
-
-        return tokens.CreateTokens(user, [], new HashSet<string>(StringComparer.Ordinal)).AccessToken;
-    }
+    private Task<string> RuxsatsizTokenAsync() => TestAccounts.TokenAsync(_factory);
 
     /// <summary>
     /// Haqiqiy token, ichida FAQAT <c>recruiting.view</c>.
@@ -2162,21 +2155,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     /// ruxsatda.
     /// </para>
     /// </remarks>
-    private async Task<string> KoruvchiTokenAsync()
-    {
-        using var qamrov = _factory.Services.CreateScope();
-
-        var users = qamrov.ServiceProvider.GetRequiredService<IUserRepository>();
-        var tokens = qamrov.ServiceProvider.GetRequiredService<ITokenService>();
-
-        var login = PhoneNumber.Create(BonviApiFactory.TestAdminLogin).Value;
-        var user = await users.GetByLoginAsync(login, TestContext.Current.CancellationToken);
-        user.ShouldNotBeNull();
-
-        var ruxsatlar = new HashSet<string>(StringComparer.Ordinal) { Permissions.RecruitingView };
-
-        return tokens.CreateTokens(user, [], ruxsatlar).AccessToken;
-    }
+    private Task<string> KoruvchiTokenAsync() => TestAccounts.TokenAsync(_factory, Permissions.RecruitingView);
 
     /// <summary>Har chaqiruvda BOSHQA telefon raqami.</summary>
     /// <remarks>

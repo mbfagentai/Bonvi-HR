@@ -27,6 +27,12 @@ export interface AuthUser {
   /** Ruxsat kodlari: `employees.view`, `employees.edit`, … */
   permissions: string[]
   /**
+   * Rol NOMLARI, `roles` bilan bir xil tartibda. Rollarni egasi o'zi
+   * yaratadi va nomlaydi — yangi rolning tarjima kaliti yo'q, shu sababli
+   * ekranda nomi ko'rsatiladi. Eski saqlangan nusxada bo'lmasligi mumkin.
+   */
+  roleNames: string[]
+  /**
    * Hisob rasmining saqlash kaliti; rasm yo'q bo'lsa `null`.
    *
    * Rasmning O'ZI emas, kaliti keladi — u kesh kaliti bo'lib xizmat qiladi:

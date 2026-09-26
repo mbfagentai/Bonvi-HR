@@ -222,6 +222,10 @@ app.MapBonviHealthChecks();
 // ---------- Endpoint guruhlari ----------
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
+
+// Rollar muharriri — egasi rollarni o'zi yaratadi va tahrirlaydi
+// («roles.manage»). Foydalanuvchilar yonida: ekranda ham qo'shni.
+app.MapRoleEndpoints();
 app.MapCatalogEndpoints();
 app.MapEmployeeEndpoints();
 app.MapEmploymentEndpoints();

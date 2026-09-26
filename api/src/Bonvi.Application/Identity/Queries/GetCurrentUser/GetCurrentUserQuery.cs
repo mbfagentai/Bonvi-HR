@@ -40,6 +40,7 @@ public sealed class GetCurrentUserQueryHandler
         var user = account.Value;
 
         var roleCodes = await _users.GetRoleCodesAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        var roleNames = await _users.GetRoleNamesAsync(user.Id, cancellationToken).ConfigureAwait(false);
         var permissions = await _users.GetPermissionsAsync(user.Id, cancellationToken).ConfigureAwait(false);
 
         return new CurrentUserDto(
@@ -50,6 +51,7 @@ public sealed class GetCurrentUserQueryHandler
             user.EmployeeId,
             user.PhotoKey,
             roleCodes,
-            [.. permissions]);
+            [.. permissions],
+            roleNames);
     }
 }

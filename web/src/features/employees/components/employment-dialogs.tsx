@@ -1,6 +1,7 @@
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
+import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
@@ -16,6 +17,7 @@ import {
   useTransfer,
 } from '../api/employees-queries'
 import { employeeErrorCode, terminationWarning } from '../lib/employee-error'
+import { EMPLOYMENT_SALARY } from '../lib/employee-presentation'
 
 /**
  * Buyruq maydonlari — to'rtala oynada bir xil.
@@ -165,6 +167,9 @@ export function TransferDialog({
           effectiveDate,
           departmentId: departmentId === '' ? null : departmentId,
           positionId: positionId === '' ? null : positionId,
+          // Ko'chirish oynasida oklad maydoni yo'q — oklad alohida buyruq
+          // (`SalaryDialog`). Summa yuborilmagani uchun bu amal
+          // `employment.salary` siz ham o'tadi (`EMPLOYMENT_SALARY` izohi).
           salaryAmount: null,
           orderNo: orderNo.trim() === '' ? null : orderNo.trim(),
           orderDate: orderDate === '' ? null : orderDate,
@@ -241,6 +246,14 @@ export function AdditionalDutyDialog({
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const duty = useAdditionalDuty(employeeId)
+  const { hasPermission } = useAuth()
+
+  /*
+    Ustama — PUL QOIDASI bo'yicha (`EMPLOYMENT_SALARY` izohi): oklad
+    huquqisiz odamga maydon chizilmaydi va summa yuborilmaydi. Aks holda
+    server vazifaning o'zini ham 403 bilan rad etardi.
+  */
+  const canSetSalary = hasPermission(EMPLOYMENT_SALARY)
 
   const [text, setText] = useState('')
   const [effectiveDate, setEffectiveDate] = useState(todayIso)
@@ -269,7 +282,7 @@ export function AdditionalDutyDialog({
         body: {
           duty: text.trim(),
           effectiveDate,
-          extraSalaryAmount: extra.trim() === '' ? null : Number(extra),
+          extraSalaryAmount: !canSetSalary || extra.trim() === '' ? null : Number(extra),
           orderNo: orderNo.trim() === '' ? null : orderNo.trim(),
           orderDate: orderDate === '' ? null : orderDate,
         },
@@ -304,13 +317,15 @@ export function AdditionalDutyDialog({
           value={effectiveDate}
           onChange={setEffectiveDate}
         />
-        <TextField
-          label={t('employees.extraSalary')}
-          type="number"
-          inputMode="numeric"
-          value={extra}
-          onChange={(event) => setExtra(event.target.value)}
-        />
+        {canSetSalary && (
+          <TextField
+            label={t('employees.extraSalary')}
+            type="number"
+            inputMode="numeric"
+            value={extra}
+            onChange={(event) => setExtra(event.target.value)}
+          />
+        )}
       </div>
 
       <OrderFields
@@ -434,12 +449,16 @@ export function SalaryDialog({
 export function EmploymentEventEditDialog({
   employeeId,
   event,
-  canSeeSalary,
+  canEditSalary,
   onClose,
 }: {
   employeeId: string
   event: TimelineEvent | null
-  canSeeSalary: boolean
+  /**
+   * Summani ko'rish (`salary.view`) VA o'zgartirish (`employment.salary`)
+   * huquqi birga — pul qoidasi (`EMPLOYMENT_SALARY` izohi).
+   */
+  canEditSalary: boolean
   onClose: () => void
 }) {
   const { t } = useLocale()
@@ -468,11 +487,13 @@ export function EmploymentEventEditDialog({
 
   /*
     Summa maydoni yozuvning O'ZIDA summa bo'lgandagina chiziladi va
-    faqat uni ko'rish huquqi bo'lsa: ruxsatsiz odamga bo'sh maydon
-    ko'rsatish «oklad kiritilmagan» degan yolg'on taassurot berardi va
-    saqlashda uni O'CHIRIB yuborardi.
+    faqat uni ko'rish HAM o'zgartirish huquqi bo'lsa: ko'ra olmaydigan
+    odamga bo'sh maydon ko'rsatish «oklad kiritilmagan» degan yolg'on
+    taassurot berardi, o'zgartira olmaydiganga esa server butun tuzatishni
+    rad etadigan forma taklif qilinardi. Maydonsiz so'rovda summa `null` —
+    server uni «o'zgarmadi» deb tushunadi va yozuvdagi oklad saqlanadi.
   */
-  const salaryEditable = event.toSalary !== null && canSeeSalary
+  const salaryEditable = event.toSalary !== null && canEditSalary
 
   const submit = () => {
     edit.mutate(

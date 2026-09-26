@@ -25,12 +25,19 @@ public sealed class ProbationPromotionTests
 {
     private readonly EmployeeTestContext _context = new();
 
+    /// <summary>
+    /// Sukut bo'yicha so'rovchida <c>employment.salary</c> BOR: bu yerdagi
+    /// testlar tayinlash haqida, pul qoidasi esa o'z testlarida (pastda).
+    /// </summary>
+    public ProbationPromotionTests() => _context.AllowSalaryChange(true);
+
     private ResolveProbationCommandHandler Xulosa => new(
         _context.Probations,
         _context.Employments,
         _context.Positions,
         _context.Departments,
         _context.Mapper,
+        _context.CurrentUser,
         _context.Clock,
         _context.UnitOfWork);
 
@@ -282,5 +289,50 @@ public sealed class ProbationPromotionTests
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("pul.valyuta");
         probation.Status.ShouldBe(ProbationStatus.InProgress);
+    }
+
+    // ────────── Pul qoidasi ──────────
+
+    /// <summary>
+    /// Sinov yakunidagi yangi oklad ham okladni o'zgartirish:
+    /// <c>employment.salary</c> siz — 403 va HECH NARSA o'zgarmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Sinovni yakunlash ruxsati (<c>employment.probation.complete</c>)
+    /// okladga huquq bermaydi — aks holda «sinov yakuni» okladni oshirishning
+    /// aylanma yo'liga aylanardi.
+    /// </remarks>
+    [Fact]
+    public async Task Oklad_ruxsatisiz_sinov_yakunida_oklad_berib_bolmaydi()
+    {
+        _context.AllowSalaryChange(false);
+        var (employment, probation) = Sinovdagi(oklad: 4_000_000m);
+
+        var natija = await Xulosa.HandleAsync(
+            new ResolveProbationCommand(probation.Id, ProbationStatus.Passed, SalaryAmount: 6_000_000m),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("auth.ruxsat_yoq");
+        natija.Error.Type.ShouldBe(Bonvi.Domain.Common.ErrorType.Forbidden);
+
+        probation.Status.ShouldBe(ProbationStatus.InProgress, "rad etilgan so'rov sinovni yopmasligi kerak");
+        employment.Salary!.Amount.ShouldBe(4_000_000m);
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Summasiz yakun — oklad ruxsatisiz ham bajariladi.</summary>
+    [Fact]
+    public async Task Oklad_ruxsatisiz_summasiz_yakun_ishlaydi()
+    {
+        _context.AllowSalaryChange(false);
+        var (employment, probation) = Sinovdagi();
+
+        var natija = await Xulosa.HandleAsync(
+            new ResolveProbationCommand(probation.Id, ProbationStatus.Passed, Conclusion: "O'tdi"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        employment.Status.ShouldBe(EmploymentStatus.Active);
     }
 }

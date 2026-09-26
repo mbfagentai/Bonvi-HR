@@ -2,11 +2,13 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { uzPhoneDigits } from '@/shared/lib/phone'
 import {
   Alert,
   Button,
   DateField,
   Dialog,
+  PhoneInput,
   Select,
   TextArea,
   TextField,
@@ -92,7 +94,7 @@ export function CandidateFormDialog({
     setFirstName(item?.firstName ?? '')
     setMiddleName(item?.middleName ?? '')
     setBirthDate(item?.birthDate ?? '')
-    setPhone(item?.phone ?? '')
+    setPhone(uzPhoneDigits(item?.phone ?? ''))
     setAddress(item?.address ?? '')
     setSpeciality(item?.speciality ?? '')
     setNote(item?.note ?? '')
@@ -243,23 +245,18 @@ export function CandidateFormDialog({
             onChange={setBirthDate}
           />
           {/*
-            Telefon oddiy matn maydoni: server «+998…» ni ham, 9 xonali
-            raqamni ham qabul qiladi (`RegisterCandidateRequest` izohi).
-            `PhoneField` (auth moduli) ATAYLAB ishlatilmadi — u kirish
-            formasining maydoni va +998 prefiksini majburlaydi, nomzod
-            telefoni esa IXTIYORIY: bo'sh qoldirilishi kerak bo'lgan
-            maydonni majburiy shaklga solish xato bo'lardi.
+            «+998» o'zgarmas, HR faqat 9 xonani teradi (2026-09-26,
+            foydalanuvchi qarori — tizimdagi hamma telefon maydoni bir xil).
+            Maydon bo'sh qolishi mumkin: nomzod telefoni ixtiyoriy. Holatda
+            9 xona saqlanadi, server uni ham qabul qiladi
+            (`RegisterCandidateRequest` izohi).
           */}
-          <TextField
+          <PhoneInput
             label={t('employee.phone')}
-            type="tel"
-            inputMode="tel"
-            autoComplete="off"
-            placeholder="+998 90 123 45 67"
             value={phone}
             error={fieldMessage('phone')}
             disabled={mutation.isPending}
-            onChange={(event) => setPhone(event.target.value)}
+            onChange={setPhone}
           />
         </div>
 

@@ -34,7 +34,7 @@ import {
 import {
   EMPLOYEES_EDIT,
   EMPLOYEES_VIEW,
-  EMPLOYMENT_MANAGE,
+  EMPLOYMENT_CORRECT,
   INCENTIVES_VIEW,
   employeeStage,
   flagInForce,
@@ -97,7 +97,12 @@ function EmployeeCardPage() {
 
   const { hasPermission } = useAuth()
   const canEdit = hasPermission(EMPLOYEES_EDIT)
-  const canManageEmployment = hasPermission(EMPLOYMENT_MANAGE)
+  /*
+    Mehnat munosabati amallari endi «hammasi yoki hech biri» emas: har
+    bir tugmani uning O'Z ruxsati hal qiladi (`EmployeeOverviewTab` va
+    oynalarning ichida). Bu yerda faqat tarixdagi yozuvni tuzatish qoladi.
+  */
+  const canCorrectEvents = hasPermission(EMPLOYMENT_CORRECT)
   const canViewCompetency = hasPermission(EMPLOYEES_VIEW)
   const canViewDocuments = hasPermission(EMPLOYEES_VIEW)
   const canViewIncentives = hasPermission(INCENTIVES_VIEW)
@@ -290,11 +295,7 @@ function EmployeeCardPage() {
       {tab === 'overview' && (
         <EmployeeOverviewTab
           employee={person}
-          onAction={
-            canManageEmployment
-              ? (kind, employment) => setAction({ kind, employment })
-              : null
-          }
+          onAction={(kind, employment) => setAction({ kind, employment })}
         />
       )}
 
@@ -303,7 +304,7 @@ function EmployeeCardPage() {
           employeeId={employeeId}
           events={timeline.data ?? []}
           loading={timeline.isPending}
-          canManage={canManageEmployment}
+          canCorrect={canCorrectEvents}
         />
       )}
 

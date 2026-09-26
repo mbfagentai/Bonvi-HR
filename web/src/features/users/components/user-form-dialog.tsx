@@ -1,21 +1,34 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth'
+import type { RoleSummary } from '@/features/roles/api/roles-api'
+import { useRoles } from '@/features/roles/api/roles-queries'
+import { roleDisplayName } from '@/features/roles/lib/role-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextField, type SelectOption } from '@/shared/ui'
+import {
+  Alert,
+  Button,
+  Dialog,
+  PhoneInput,
+  Select,
+  Skeleton,
+  TextField,
+  type SelectOption,
+} from '@/shared/ui'
 
 import type { UserSummary } from '../api/users-api'
 import { useSaveUser } from '../api/users-queries'
 import { USER_ERROR_FIELD, userErrorCode } from '../lib/user-error'
 import {
-  ROLE_CODES,
   SINGLE_HOLDER_ROLE_CODES,
+  USERS_MANAGE,
+  actingRoleOf,
   canActOnRole,
-  currentRoleCode,
+  canActOnUser,
 } from '../lib/user-presentation'
 import {
   passwordFieldSchema,
@@ -27,6 +40,9 @@ import {
 import { UserPhotoEditor } from './user-photo-editor'
 
 const FORM_ID = 'user-form'
+
+/** Modul darajasida — har render'da yangi massiv `useMemo` larni buzadi. */
+const NO_ROLES: RoleSummary[] = []
 
 /**
  * `password` maydoni bo'lgan to'liq shakl — tahrirlashda ham TIP darajasida
@@ -64,14 +80,25 @@ export function UserFormDialog({
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, hasPermission } = useAuth()
   const save = useSaveUser()
+
+  /*
+    Rollar — `GET /api/roles` dan, qo'lda yozilgan ro'yxat emas: ularni
+    endi egasi o'zi yaratadi. So'rov ro'yxat sahifasi bilan BIR XIL kesh
+    kalitida, ya'ni oyna ochilganda qayta yuborilmaydi.
+  */
+  const roles = useRoles(hasPermission(USERS_MANAGE))
+  const roleList = roles.data ?? NO_ROLES
 
   const isCreate = item === null
   const isSelf = item !== null && currentUser !== null && currentUser.id === item.id
 
   /** So'rovchining o'z roli — «kim kimga tega oladi» qoidasining birinchi yarmi. */
-  const myRole = currentRoleCode(currentUser?.roles)
+  const myRole = useMemo(
+    () => actingRoleOf(roleList, currentUser?.roles),
+    [roleList, currentUser],
+  )
 
   /**
    * Nishonga umuman tega oladimi.
@@ -79,7 +106,7 @@ export function UserFormDialog({
    * Yangi hisob uchun har doim `true`: nishon hali yo'q, chegara esa
    * beriladigan ROL bo'yicha qo'yiladi (pastdagi `roleOptions`).
    */
-  const canTouch = isCreate || canActOnRole(myRole, item.roleCode)
+  const canTouch = isCreate || canActOnUser(myRole, roleList, item.roleCode)
 
   /** Maydonga bog'lanmagan server xatosi. */
   const [failure, setFailure] = useState<string | null>(null)
@@ -88,6 +115,7 @@ export function UserFormDialog({
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -118,26 +146,35 @@ export function UserFormDialog({
   }, [open, item?.id])
 
   /**
-   * Rol ro'yxati.
+   * Rol ro'yxati — server bergan tartibda, egasi yozgan NOMLAR bilan.
    *
    * Bera OLMAYDIGAN rollar ro'yxatdan olib tashlanmaydi, `disabled`
-   * qilinadi: modelda uchta rol borligi va bu hisob qaysi darajada turgani
+   * qilinadi: qaysi rollar borligi va bu hisob qaysi darajada turgani
    * ko'rinib tursin. Ro'yxatdan yo'qolgan qator «bunday rol yo'q» degan
-   * noto'g'ri taassurot qoldirardi.
+   * noto'g'ri taassurot qoldirardi. Qaysi rolni berish mumkinligi —
+   * «Foydalanuvchilar» dagi qatorlar bilan AYNAN bir xil qoida
+   * (`canActOnRole`, rollar shartnomasi §5).
    *
    * Hisobning O'Z joriy roli har doim yoqiq qoladi: aks holda `<select>`
    * o'zi turgan qiymatni ko'rsata olmay, birinchi qatorga sakrab ketardi
-   * va forma yuborilganda rol jimgina o'zgarib qolardi.
+   * va forma yuborilganda rol jimgina o'zgarib qolardi. Xuddi shu sabab
+   * bilan ro'yxatda YO'Q joriy rol (botning texnik roli — server uni
+   * qaytarmaydi) alohida, o'chiq qator bo'lib qo'shiladi.
    */
-  const roleOptions = useMemo<SelectOption[]>(
-    () =>
-      ROLE_CODES.map((code) => ({
-        value: code,
-        label: t(`roles.${code}`),
-        disabled: !canActOnRole(myRole, code) && code !== item?.roleCode,
-      })),
-    [t, myRole, item],
-  )
+  const roleOptions = useMemo<SelectOption[]>(() => {
+    const options: SelectOption[] = roleList.map((role) => ({
+      value: role.code,
+      label: roleDisplayName(t, role),
+      disabled: !canActOnRole(myRole, role) && role.code !== item?.roleCode,
+    }))
+
+    const current = item?.roleCode ?? null
+    if (current !== null && !roleList.some((role) => role.code === current)) {
+      options.push({ value: current, label: item?.roleName ?? current, disabled: true })
+    }
+
+    return options
+  }, [t, roleList, myRole, item])
 
   const onSubmit = handleSubmit(async (values) => {
     setFailure(null)
@@ -235,17 +272,20 @@ export function UserFormDialog({
           />
         )}
 
-        <TextField
-          label={t('employee.phone')}
-          leading="+998"
-          inputMode="numeric"
-          maxLength={9}
-          placeholder="905088888"
-          autoComplete="off"
-          disabled={isSubmitting || !canTouch}
-          error={message('phone')}
-          inputClassName="tabular"
-          {...register('phone')}
+        <Controller
+          control={control}
+          name="phone"
+          render={({ field }) => (
+            <PhoneInput
+              label={t('employee.phone')}
+              disabled={isSubmitting || !canTouch}
+              error={message('phone')}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+            />
+          )}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -297,20 +337,35 @@ export function UserFormDialog({
           baribir to'xtatadi, lekin tanlatib turib keyin rad etish yomon
           tajriba.
         */}
-        <Select
-          label={t('users.role')}
-          hint={roleHint}
-          options={roleOptions}
-          /*
-            Bo'sh qator DOIM bor: rol berilmagan (eski) yozuvda `<select>`
-            hech qaysi qatorga mos kelmay, JIMGINA birinchisini ko'rsatib
-            qo'yardi — va saqlaganda rol o'zi o'zgarib ketardi.
-          */
-          placeholder={t('users.rolePlaceholder')}
-          disabled={isSubmitting || isSelf || !canTouch}
-          error={message('roleCode')}
-          {...register('roleCode')}
-        />
+        {/*
+          Rollar kelguncha maydon o'rnida SKELET, bo'sh `<select>` emas:
+          qatorlarsiz tanlov joriy rolni ko'rsata olmay, bo'sh qatorda
+          turib qolardi va HR «rol o'chib ketdimi?» deb o'ylardi.
+        */}
+        {roles.isPending ? (
+          <div className="space-y-2" aria-busy>
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : (
+          <Select
+            label={t('users.role')}
+            hint={roleHint}
+            options={roleOptions}
+            /*
+              Bo'sh qator DOIM bor: rol berilmagan (eski) yozuvda `<select>`
+              hech qaysi qatorga mos kelmay, JIMGINA birinchisini ko'rsatib
+              qo'yardi — va saqlaganda rol o'zi o'zgarib ketardi.
+            */
+            placeholder={t('users.rolePlaceholder')}
+            disabled={isSubmitting || isSelf || !canTouch}
+            error={
+              message('roleCode') ??
+              (roles.isError ? errorMessage(userErrorCode(roles.error)) : undefined)
+            }
+            {...register('roleCode')}
+          />
+        )}
 
         {/*
           «Atigi bitta» ogohlantirishi faqat KERAK bo'lganda chiqadi: HR

@@ -301,6 +301,11 @@ public static class DependencyInjection
         services.AddSingleton<IDataChangeSignal, DataChangeSignal>();
         services.AddScoped<DataChangeInterceptor>();
 
+        // Rol yoki hisob huquqi o'zgarganda ruxsatlar keshini eskiradi —
+        // xuddi yuqoridagi signal kabi: interceptor `Scoped`, versiya esa
+        // yagona nusxa (`AddIdentityServices` da).
+        services.AddScoped<AccessChangeInterceptor>();
+
         services.AddDbContext<AppDbContext>((provider, options) =>
         {
             options
@@ -313,7 +318,11 @@ public static class DependencyInjection
                 .UseSnakeCaseNamingConvention()
                 .AddInterceptors(
                     provider.GetRequiredService<AuditableInterceptor>(),
-                    provider.GetRequiredService<DataChangeInterceptor>());
+                    provider.GetRequiredService<DataChangeInterceptor>(),
+
+                    // Oxirida: yumshoq o'chirishni `AuditableInterceptor`
+                    // allaqachon `DeletedAt` ga aylantirgan bo'lishi kerak.
+                    provider.GetRequiredService<AccessChangeInterceptor>());
         });
 
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
@@ -342,6 +351,21 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
+        /*
+          Har so'rovda tokendagi ruxsatlarni bazadagi JORIY holat bilan
+          almashtirish (egasining qarori: rol tahriri keyingi so'rovdayoq
+          kuchga kirsin). Natija jarayon xotirasida ≤ 30 soniya turadi.
+
+          ⚠️ Bu yerda `IDistributedCache` (Redis) EMAS, `IMemoryCache` va
+          bu ataylab: eskirish `AccessVersion` orqali — u shu jarayonning
+          xotirasida. Redis'da saqlangan natijani versiya oshgani bilan
+          boshqa nusxa bilmasdi, har so'rovda tarmoq aylanishi esa bitta
+          birlamchi kalit bo'yicha so'rovdan qimmatroq.
+        */
+        services.AddMemoryCache();
+        services.AddSingleton<AccessVersion>();
+        services.AddScoped<IUserAccessReader, UserAccessReader>();
 
         services.AddScoped<IdentitySeeder>();
 

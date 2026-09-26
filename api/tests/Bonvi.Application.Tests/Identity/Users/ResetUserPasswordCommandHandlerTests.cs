@@ -31,13 +31,13 @@ public sealed class ResetUserPasswordCommandHandlerTests
     private readonly IClock _clock = Substitute.For<IClock>();
 
     private readonly Role _superAdminRole =
-        Role.Create(SystemRoles.SuperAdmin, "Super administrator", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.SuperAdmin);
 
     private readonly Role _mainBossRole =
-        Role.Create(SystemRoles.MainBoss, "Bosh rahbar", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.MainBoss);
 
     private readonly Role _hrRole =
-        Role.Create(SystemRoles.HrManager, "HR menejeri", isSystem: true).Value;
+        TestRoles.Standart(SystemRoles.HrManager);
 
     private ResetUserPasswordCommandHandler Handler
         => new(_currentUser, _users, _roles, _refreshTokens, _hasher, _auditLogger, _unitOfWork, _clock);

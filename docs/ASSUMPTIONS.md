@@ -301,3 +301,10 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   The notes are copied, and the candidate keeps its own. → The owner had already
   chosen this field for leftover questionnaire answers, and a separate field
   would have needed new UI for the same kind of read-only text.
+- [2026-09-26] Should reserved candidates also be hidden under the "contact due
+  today" filter? → No, that filter brings them back; only the default list hides
+  them. → Notifications count reserved candidates too; hiding them would make the
+  notification count larger than the list.
+- [2026-09-26] One table for reserved candidates and reserved employees on the
+  Reserve page? → A "Candidates | Employees" switch, candidates by default. → Their
+  columns and actions differ, and it makes clear a candidate is not an employee.

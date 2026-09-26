@@ -440,22 +440,13 @@ public sealed class CatalogApiTests : IClassFixture<BonviApiFactory>
     /// Shu sababli token to'g'ridan-to'g'ri token servisidan, bo'sh ruxsat
     /// to'plami bilan olinadi — bu «ruxsati kam foydalanuvchi» holatini
     /// yangi rol yaratmasdan aniq takrorlaydi.
+    /// <para>
+    /// 2026-09-26 dan token tekshiruvi ruxsatlarni BAZADAN oladi — tokenga
+    /// bo'sh ro'yxat yozish endi ishlamaydi. Shu sababli ruxsatsiz rolli
+    /// haqiqiy hisob yaratiladi (<see cref="TestAccounts"/>).
+    /// </para>
     /// </remarks>
-    private async Task<string> RuxsatsizTokenAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
-
-        var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
-        var tokens = scope.ServiceProvider.GetRequiredService<ITokenService>();
-
-        var login = PhoneNumber.Create(BonviApiFactory.TestAdminLogin).Value;
-        var user = await users.GetByLoginAsync(login, TestContext.Current.CancellationToken);
-        user.ShouldNotBeNull();
-
-        var pair = tokens.CreateTokens(user, [], new HashSet<string>(StringComparer.Ordinal));
-
-        return pair.AccessToken;
-    }
+    private Task<string> RuxsatsizTokenAsync() => TestAccounts.TokenAsync(_factory);
 
     private static async Task<DepartmentResponse> BolimYaratAsync(HttpClient client, string nom, Guid? otaId)
     {

@@ -24,9 +24,12 @@ namespace Bonvi.Infrastructure.Identity;
 /// tekshiruv xotirada bajariladi.
 /// </para>
 /// <para>
-/// Narxi: administrator ruxsatni o'zgartirsa, u eng ko'pi bilan 15 daqiqadan
-/// keyin (access token muddati) kuchga kiradi. Bu maqbul kelishuv.
-/// Darhol kerak bo'lsa — <c>/api/auth/me</c> bazadan o'qiydi.
+/// Narxi edi: administrator ruxsatni o'zgartirsa, u eng ko'pi bilan 15
+/// daqiqadan keyin (access token muddati) kuchga kirardi. 2026-09-26 dan
+/// bunday emas: token tekshiruvi har so'rovda rol va ruxsatlarni bazadagi
+/// joriy holat bilan ALMASHTIRADI (<c>AuthenticationExtensions</c>,
+/// <c>IUserAccessReader</c>, ≤ 30 s kesh). Tokendagi ro'yxat endi faqat
+/// birinchi so'rovgacha bo'lgan boshlang'ich ma'lumot.
 /// </para>
 /// </remarks>
 public sealed class JwtTokenService : ITokenService

@@ -97,6 +97,7 @@ public sealed class RefreshSessionCommandHandler
         }
 
         var roleCodes = await _users.GetRoleCodesAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        var roleNames = await _users.GetRoleNamesAsync(user.Id, cancellationToken).ConfigureAwait(false);
         var permissions = await _users.GetPermissionsAsync(user.Id, cancellationToken).ConfigureAwait(false);
 
         var pair = _tokens.CreateTokens(user, roleCodes, permissions);
@@ -125,7 +126,8 @@ public sealed class RefreshSessionCommandHandler
                 user.EmployeeId,
                 user.PhotoKey,
                 roleCodes,
-                [.. permissions]));
+                [.. permissions],
+                roleNames));
     }
 
     private static Error InvalidToken()

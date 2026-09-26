@@ -6,7 +6,7 @@ import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Badge, Button, Card, CardContent, EmptyState, IconTile, Skeleton } from '@/shared/ui'
 import type { MoneyValue, TimelineEvent } from '../api/employees-api'
-import { EVENT_LOOK, SALARY_VIEW } from '../lib/employee-presentation'
+import { EMPLOYMENT_SALARY, EVENT_LOOK, SALARY_VIEW } from '../lib/employee-presentation'
 import { EmploymentEventEditDialog } from './employment-dialogs'
 
 /**
@@ -32,12 +32,13 @@ export function EmployeeTimelineTab({
   employeeId,
   events,
   loading,
-  canManage,
+  canCorrect,
 }: {
   employeeId: string
   events: TimelineEvent[]
   loading: boolean
-  canManage: boolean
+  /** «Yozuvni tuzatish» — `employment.correct`. */
+  canCorrect: boolean
 }) {
   const { t } = useLocale()
 
@@ -118,7 +119,7 @@ export function EmployeeTimelineTab({
                 <TimelineRow
                   key={event.id}
                   event={event}
-                  canManage={canManage}
+                  canCorrect={canCorrect}
                   onEdit={() => setEditing(event)}
                 />
               ))}
@@ -130,7 +131,7 @@ export function EmployeeTimelineTab({
       <EmploymentEventEditDialog
         employeeId={employeeId}
         event={editing}
-        canSeeSalary={hasPermission(SALARY_VIEW)}
+        canEditSalary={hasPermission(SALARY_VIEW) && hasPermission(EMPLOYMENT_SALARY)}
         onClose={() => setEditing(null)}
       />
     </Card>
@@ -139,11 +140,11 @@ export function EmployeeTimelineTab({
 
 function TimelineRow({
   event,
-  canManage,
+  canCorrect,
   onEdit,
 }: {
   event: TimelineEvent
-  canManage: boolean
+  canCorrect: boolean
   onEdit: () => void
 }) {
   const { t, date, dateTime } = useLocale()
@@ -189,7 +190,7 @@ function TimelineRow({
             kerak: u qarorni o'zgartirmaydi, noto'g'ri yozib olingan
             hujjatni to'g'rilaydi (oynaning o'zida ham shu yozilgan).
           */}
-          {canManage && (
+          {canCorrect && (
             <Button type="button" size="sm" variant="ghost" onClick={onEdit} className="-my-1">
               <Pencil />
               {t('employees.eventEditTitle')}

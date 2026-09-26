@@ -41,11 +41,10 @@ import { CandidateStageDialog } from './candidate-stage-dialog'
  * Oyna BITTA: alohida «tezkor oyna» yozish rad etildi (sabab shu
  * oynaning izohida, SPEC §5.1.1).
  *
- * <b>Voronka TAXTASIDAGI sudrash esa bir bosishda qoldi</b> va bu ham
- * ataylab: taxta triaj yuzasi, oyna esa sudrashning butun qiymatini —
- * tezligini va optimistik yamog'ini — yo'q qilardi
- * (`useMoveCandidateToStage` izohi, SPEC §5.1.6). Ya'ni ikkita yo'l
- * ikki xil ish uchun: taxtada tez saralash, kartada yozib qo'yish.
+ * <b>Voronka TAXTASIDAGI sudrash ham AYNAN shu oynalarni ochadi</b>
+ * (2026-09-26, foydalanuvchi talabi; ilgari u bir bosishda ko'chirardi
+ * va xulosa yozilmay qolardi). Tanlov `candidate-funnel.tsx` dagi
+ * `DroppedCardDialog` da — shu yerdagi `move` bilan bir xil.
  *
  * <b>Ba'zi bosqich BOSHQA oyna ochadi.</b> Ma'lumotnomada «suhbat
  * taklifi» bayrog'i qo'yilgan bosqich (odatda «Кенгашга чақирилди»)

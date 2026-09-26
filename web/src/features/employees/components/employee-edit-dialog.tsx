@@ -12,6 +12,7 @@ import {
   Checkbox,
   DateField,
   Dialog,
+  PhoneInput,
   Select,
   Skeleton,
   TextArea,
@@ -354,28 +355,36 @@ export function EmployeeEditDialog({
         {/* ───────── Aloqa ───────── */}
         <Section title={t('employees.contacts')}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label={t('employee.phone')}
-              leading="+998"
-              inputMode="numeric"
-              maxLength={9}
-              placeholder="905088888"
-              disabled={isSubmitting}
-              error={message('phone')}
-              inputClassName="tabular"
-              {...register('phone')}
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field }) => (
+                <PhoneInput
+                  label={t('employee.phone')}
+                  disabled={isSubmitting}
+                  error={message('phone')}
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
             />
-            <TextField
-              label={t('employees.secondPhone')}
-              leading="+998"
-              inputMode="numeric"
-              maxLength={9}
-              placeholder="905088888"
-              hint={t('employees.secondPhoneHint')}
-              disabled={isSubmitting}
-              error={message('secondPhone')}
-              inputClassName="tabular"
-              {...register('secondPhone')}
+            <Controller
+              control={control}
+              name="secondPhone"
+              render={({ field }) => (
+                <PhoneInput
+                  label={t('employees.secondPhone')}
+                  hint={t('employees.secondPhoneHint')}
+                  disabled={isSubmitting}
+                  error={message('secondPhone')}
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
             />
           </div>
 

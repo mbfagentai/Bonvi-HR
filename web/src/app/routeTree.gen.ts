@@ -22,6 +22,7 @@ import { Route as AppQobiliyatliRouteImport } from './routes/_app/qobiliyatli'
 import { Route as AppQoraRoyxatRouteImport } from './routes/_app/qora-royxat'
 import { Route as AppRagbatRouteImport } from './routes/_app/ragbat'
 import { Route as AppRezervRouteImport } from './routes/_app/rezerv'
+import { Route as AppRollarRouteImport } from './routes/_app/rollar'
 import { Route as AppSinovRouteImport } from './routes/_app/sinov'
 import { Route as AppSozlamalarRouteImport } from './routes/_app/sozlamalar'
 import { Route as AppVakansiyalarRouteImport } from './routes/_app/vakansiyalar'
@@ -101,6 +102,11 @@ const AppRagbatRoute = AppRagbatRouteImport.update({
 const AppRezervRoute = AppRezervRouteImport.update({
   id: '/rezerv',
   path: '/rezerv',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRollarRoute = AppRollarRouteImport.update({
+  id: '/rollar',
+  path: '/rollar',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSinovRoute = AppSinovRouteImport.update({
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/qora-royxat': typeof AppQoraRoyxatRoute
   '/ragbat': typeof AppRagbatRoute
   '/rezerv': typeof AppRezervRoute
+  '/rollar': typeof AppRollarRoute
   '/sinov': typeof AppSinovRoute
   '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByTo {
   '/qora-royxat': typeof AppQoraRoyxatRoute
   '/ragbat': typeof AppRagbatRoute
   '/rezerv': typeof AppRezervRoute
+  '/rollar': typeof AppRollarRoute
   '/sinov': typeof AppSinovRoute
   '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/_app/qora-royxat': typeof AppQoraRoyxatRoute
   '/_app/ragbat': typeof AppRagbatRoute
   '/_app/rezerv': typeof AppRezervRoute
+  '/_app/rollar': typeof AppRollarRoute
   '/_app/sinov': typeof AppSinovRoute
   '/_app/sozlamalar': typeof AppSozlamalarRoute
   '/_app/vakansiyalar': typeof AppVakansiyalarRoute
@@ -300,6 +309,7 @@ export interface FileRouteTypes {
     | '/qora-royxat'
     | '/ragbat'
     | '/rezerv'
+    | '/rollar'
     | '/sinov'
     | '/sozlamalar'
     | '/vakansiyalar'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/qora-royxat'
     | '/ragbat'
     | '/rezerv'
+    | '/rollar'
     | '/sinov'
     | '/sozlamalar'
     | '/vakansiyalar'
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/_app/qora-royxat'
     | '/_app/ragbat'
     | '/_app/rezerv'
+    | '/_app/rollar'
     | '/_app/sinov'
     | '/_app/sozlamalar'
     | '/_app/vakansiyalar'
@@ -475,6 +487,13 @@ declare module '@tanstack/react-router' {
       path: '/rezerv'
       fullPath: '/rezerv'
       preLoaderRoute: typeof AppRezervRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rollar': {
+      id: '/_app/rollar'
+      path: '/rollar'
+      fullPath: '/rollar'
+      preLoaderRoute: typeof AppRollarRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/sinov': {
@@ -603,6 +622,7 @@ interface AppRouteChildren {
   AppQoraRoyxatRoute: typeof AppQoraRoyxatRoute
   AppRagbatRoute: typeof AppRagbatRoute
   AppRezervRoute: typeof AppRezervRoute
+  AppRollarRoute: typeof AppRollarRoute
   AppSinovRoute: typeof AppSinovRoute
   AppSozlamalarRoute: typeof AppSozlamalarRoute
   AppVakansiyalarRoute: typeof AppVakansiyalarRoute
@@ -633,6 +653,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppQoraRoyxatRoute: AppQoraRoyxatRoute,
   AppRagbatRoute: AppRagbatRoute,
   AppRezervRoute: AppRezervRoute,
+  AppRollarRoute: AppRollarRoute,
   AppSinovRoute: AppSinovRoute,
   AppSozlamalarRoute: AppSozlamalarRoute,
   AppVakansiyalarRoute: AppVakansiyalarRoute,

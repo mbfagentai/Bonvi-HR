@@ -24,6 +24,8 @@ public sealed class CandidateSearchFilterTests
         filter.HideRejected.ShouldBeTrue();
         filter.HideWithdrawn.ShouldBeTrue(
             "foydalanuvchi qarori (2026-09-10): o'zi ketib qolgan odam «hozir kim ish ustida?» degan savolga javob emas");
+        filter.HideReserve.ShouldBeTrue(
+            "foydalanuvchi qarori (2026-09-26): rezervdagilar faqat «Rezerv» bo'limida");
         filter.HideArchive.ShouldBeTrue();
         filter.ContactDueOn.ShouldBeNull("«bugun kim bilan gaplashish kerak» — ATAYLAB tanlanadigan filtr");
         filter.RejectedSection.ShouldBeFalse();
@@ -34,6 +36,7 @@ public sealed class CandidateSearchFilterTests
     [InlineData(CandidateStatus.Hired)]
     [InlineData(CandidateStatus.InProgress)]
     [InlineData(CandidateStatus.Withdrawn)]
+    [InlineData(CandidateStatus.Reserve)]
     public void Holat_ataylab_tanlansa_qoida_ochadi(CandidateStatus status)
     {
         // Menyudagi «Rad etilganlar» bandi aynan shu yo'l bilan ishlaydi:
@@ -44,6 +47,23 @@ public sealed class CandidateSearchFilterTests
         filter.HideRejected.ShouldBeFalse();
         filter.HideWithdrawn.ShouldBeFalse(
             "«status=Withdrawn» tanlagan HR bo'm-bo'sh ro'yxat olmasligi kerak");
+        filter.HideReserve.ShouldBeFalse(
+            "«Rezerv» bo'limi aynan «status=Reserve» bilan so'raydi");
+    }
+
+    [Fact]
+    public void Bugun_aloqa_kerak_filtri_rezervdagilarni_qaytaradi()
+    {
+        /*
+          Kunlik aloqa ro'yxati rezervni ham oladi — bildirishnoma ham
+          ularni sanaydi (`NotificationReadModel`). Yashirilsa, bildirishnoma
+          va ro'yxatdagi son bir-biriga zid chiqardi.
+        */
+        var filter = new CandidateSearchFilter(ContactDueOn: new DateOnly(2026, 9, 26));
+
+        filter.HideReserve.ShouldBeFalse();
+        filter.HideRejected.ShouldBeTrue("boshqa qoidalarga tegilmagan");
+        filter.HideWithdrawn.ShouldBeTrue();
     }
 
     [Fact]
@@ -88,6 +108,7 @@ public sealed class CandidateSearchFilterTests
         manba.HideArchive.ShouldBeFalse();
         manba.HideRejected.ShouldBeFalse("arxivning o'zi ko'rinmas bo'lib qolardi");
         manba.HideWithdrawn.ShouldBeFalse("yangi qoida arxivga ham TEGMASLIGI kerak");
+        manba.HideReserve.ShouldBeFalse("egizak qoida — arxivga tegmaydi");
         manba.HideHired.ShouldBeTrue("mavjud qoida — unga tegilmagan");
 
         var bayroq = new CandidateSearchFilter(IncludeArchive: true);
@@ -110,6 +131,7 @@ public sealed class CandidateSearchFilterTests
 
         bot.HideRejected.ShouldBeTrue();
         bot.HideWithdrawn.ShouldBeTrue("egizak qoida — u ham faqat HOLAT tanlovidan ochiladi");
+        bot.HideReserve.ShouldBeTrue();
         bot.HideHired.ShouldBeTrue();
         bot.HideArchive.ShouldBeFalse("mavjud qoida — unga tegilmagan");
     }

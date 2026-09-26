@@ -1,3 +1,4 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Catalog.Common;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
@@ -90,6 +91,7 @@ public sealed class TransferEmployeeCommandHandler
     private readonly IDepartmentRepository _departments;
     private readonly IProbationRepository _probations;
     private readonly EmployeeMapper _mapper;
+    private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -99,6 +101,7 @@ public sealed class TransferEmployeeCommandHandler
         IDepartmentRepository departments,
         IProbationRepository probations,
         EmployeeMapper mapper,
+        ICurrentUser currentUser,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
@@ -107,6 +110,7 @@ public sealed class TransferEmployeeCommandHandler
         _departments = departments;
         _probations = probations;
         _mapper = mapper;
+        _currentUser = currentUser;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -116,6 +120,14 @@ public sealed class TransferEmployeeCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Pul qoidasi — hamma narsadan OLDIN: ko'chirish bilan birga yangi
+        // oklad ham `employment.salary` ni talab qiladi.
+        var salaryAllowed = _currentUser.EnsureCanSendSalary(command.SalaryAmount is not null);
+        if (salaryAllowed.IsFailure)
+        {
+            return salaryAllowed.Error;
+        }
 
         var employment = await _employments
             .GetWithEventsAsync(command.EmploymentId, cancellationToken)
@@ -195,6 +207,7 @@ public sealed class AddAdditionalDutyCommandHandler
     private readonly IEmploymentRepository _employments;
     private readonly IProbationRepository _probations;
     private readonly EmployeeMapper _mapper;
+    private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -202,12 +215,14 @@ public sealed class AddAdditionalDutyCommandHandler
         IEmploymentRepository employments,
         IProbationRepository probations,
         EmployeeMapper mapper,
+        ICurrentUser currentUser,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
         _employments = employments;
         _probations = probations;
         _mapper = mapper;
+        _currentUser = currentUser;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -217,6 +232,13 @@ public sealed class AddAdditionalDutyCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Qo'shimcha vazifa uchun to'lov ham oklad o'zgarishi (pul qoidasi).
+        var salaryAllowed = _currentUser.EnsureCanSendSalary(command.ExtraSalaryAmount is not null);
+        if (salaryAllowed.IsFailure)
+        {
+            return salaryAllowed.Error;
+        }
 
         var employment = await _employments
             .GetWithEventsAsync(command.EmploymentId, cancellationToken)
@@ -261,7 +283,7 @@ public sealed class AddAdditionalDutyCommandHandler
 
 /// <summary>Oklad o'zgarishini qayd etadi.</summary>
 /// <remarks>
-/// Amal <c>employment.manage</c> ruxsati bilan bajariladi, lekin natijadagi
+/// Amal <c>employment.salary</c> ruxsati bilan bajariladi, lekin natijadagi
 /// oklad maydoni <c>salary.view</c> bo'lmasa ko'rinmaydi: «o'zgartira olish»
 /// va «ko'ra olish» — ikki xil huquq.
 /// </remarks>
@@ -336,10 +358,10 @@ public sealed class ChangeSalaryCommandHandler
 /// <summary>Mehnat yo'lidagi yozuvning terish xatosini tuzatadi.</summary>
 /// <remarks>
 /// <para>
-/// Ruxsat <c>employment.manage</c> — yozuvni kim yozgan bo'lsa, xatosini
-/// ham o'sha tuzatadi. Oklad summasi javobda <c>salary.view</c> siz
-/// ko'rinmaydi (<see cref="ChangeSalaryCommandHandler"/> bilan bir xil
-/// qoida).
+/// Ruxsat <c>employment.correct</c>; summani tuzatish esa qo'shimcha
+/// <c>employment.salary</c> ni ham talab qiladi (pul qoidasi). Oklad summasi
+/// javobda <c>salary.view</c> siz ko'rinmaydi
+/// (<see cref="ChangeSalaryCommandHandler"/> bilan bir xil qoida).
 /// </para>
 /// <para>
 /// ⚠️ Munosabat hodisalari BILAN yuklanadi (<c>GetWithEventsAsync</c>):
@@ -351,17 +373,20 @@ public sealed class EditEmploymentEventCommandHandler
 {
     private readonly IEmploymentRepository _employments;
     private readonly EmployeeMapper _mapper;
+    private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
     public EditEmploymentEventCommandHandler(
         IEmploymentRepository employments,
         EmployeeMapper mapper,
+        ICurrentUser currentUser,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
         _employments = employments;
         _mapper = mapper;
+        _currentUser = currentUser;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -371,6 +396,15 @@ public sealed class EditEmploymentEventCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Summani tuzatish — okladni o'zgartirish (joriy okladni ham
+        // yangilashi mumkin, `Employment.EditEvent`). Summasiz tuzatish
+        // (sana, buyruq raqami, izoh) esa `employment.correct` ning o'zi bilan.
+        var salaryAllowed = _currentUser.EnsureCanSendSalary(command.Amount is not null);
+        if (salaryAllowed.IsFailure)
+        {
+            return salaryAllowed.Error;
+        }
 
         var employment = await _employments
             .GetWithEventsAsync(command.EmploymentId, cancellationToken)
@@ -393,9 +427,29 @@ public sealed class EditEmploymentEventCommandHandler
             salary = money.Value;
         }
 
+        // Summasiz tuzatish ham JORIY okladni o'zgartirishi mumkin: eski oklad
+        // yozuvining sanasi eng keyingisidan keyinga surilsa, joriy oklad o'sha
+        // yozuvnikiga qaytadi (`Employment.EditEvent`). Shu sababli natija
+        // tekshiriladi — oklad o'zgargan bo'lsa, `employment.salary` shart
+        // (xavfsizlik tekshiruvi, 2026-09-26). Saqlashdan OLDIN qaytiladi.
+        var salaryBefore = employment.Salary;
+        var effectiveDate = command.EffectiveDate ?? _clock.Today;
+
+        // Oklad yozuvining SANASINI surish ham oklad amali: u oklad tarixining
+        // tartibini o'zgartiradi va keyingi tuzatishda joriy okladni almashtirib
+        // yuborishi mumkin (ikki qadamli aylanib o'tish). Shu sababli bunday
+        // yozuvda sana o'zgarsa ham «employment.salary» shart.
+        var target = employment.Events.FirstOrDefault(item => item.Id == command.EventId);
+        var salaryDateMoved = target?.ToSalary is not null && target.EffectiveDate != effectiveDate;
+        var dateAllowed = _currentUser.EnsureCanSendSalary(salaryDateMoved);
+        if (dateAllowed.IsFailure)
+        {
+            return dateAllowed.Error;
+        }
+
         var edited = employment.EditEvent(
             command.EventId,
-            command.EffectiveDate ?? _clock.Today,
+            effectiveDate,
             command.OrderNo,
             command.OrderDate,
             command.Note,
@@ -404,6 +458,13 @@ public sealed class EditEmploymentEventCommandHandler
         if (edited.IsFailure)
         {
             return edited.Error;
+        }
+
+        var salaryChanged = !Equals(salaryBefore, employment.Salary);
+        var salaryResult = _currentUser.EnsureCanSendSalary(salaryChanged);
+        if (salaryResult.IsFailure)
+        {
+            return salaryResult.Error;
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

@@ -625,6 +625,15 @@ alohida sahifa mos keladi.
 | **Nazoratda** | `/nazorat` | Bir muddat kuzatiladi |
 | **Qobiliyatli** | `/qobiliyatli` | Qo‘shimcha yuklama ko‘tara oladi |
 
+**Rezerv** sahifasining tepasida ikkita bo‘lim bor:
+
+- **Nomzodlar** — nomzod kartasidagi «Rezervga o‘tkazish» amali bilan shu yerga
+  o‘tganlar. Ular **«Nomzodlar» ro‘yxatida ko‘rinmaydi** va xodim emas —
+  nomzodligicha qoladi. Qatorni bossangiz nomzod kartasi ochiladi: voronkaga
+  qaytarish yoki ishga olish o‘sha yerdan.
+- **Xodimlar** — «Rezerv» belgisi qo‘yilgan sobiq xodimlar (pastdagi qoidalar
+  shularga tegishli).
+
 ## Ikkita guruh: ishlayotgan va ketayotgan
 
 Belgilar **aralashmaydi**. Qaysi biri taklif qilinishi xodimning holatiga

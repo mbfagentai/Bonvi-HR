@@ -1,14 +1,7 @@
-import { CircleDot, CircleSlash, Gavel } from 'lucide-react'
+import { CircleDot, CircleSlash } from 'lucide-react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  EmptyState,
-  IconTile,
-  Skeleton,
-} from '@/shared/ui'
+import { Card, CardContent, CardHeader, IconTile } from '@/shared/ui'
 
 import type { EmployeeStageEntry } from '../api/employees-api'
 import { useEmployeeStages } from '../api/employees-queries'
@@ -35,12 +28,12 @@ import { useEmployeeStages } from '../api/employees-queries'
  * bo'lardi (voronkadagi haqiqiy tarix va kartada keyin yozilgani) va
  * qaysi biri to'g'ri ekanini hech kim ayta olmasdi.
  *
- * <b>Bo'sh holat HALOL bo'lishi SHART.</b> Hozirgi 2347 xodimning
- * deyarli hammasi Excel'dan ko'chirilgan va ularda nomzodlik yozuvi
- * umuman yo'q — ya'ni bu bo'lim ko'pchilik kartada bo'sh turadi.
- * Shu sababli bo'sh holat «ma'lumot yo'q» demaydi, SABABINI aytadi:
- * xodim rekruting orqali qo'shilmagan. Aks holda HR har bo'sh kartada
- * tizimda nuqson bor deb o'ylardi.
+ * <b>Yozuv bo'lmasa bo'lim UMUMAN chizilmaydi</b> (2026-09-26,
+ * foydalanuvchi qarori). Ilgari bo'sh holat sababini aytib turardi
+ * («rekruting orqali qo'shilmagan»), lekin 2347 xodimning deyarli
+ * hammasi Excel'dan ko'chirilgan va bu karta ko'pchilik profilda bo'sh
+ * joy egallab turardi. Yuklanish paytida ham chizilmaydi — aks holda
+ * skelet chiqib, keyin yo'qolib, sahifa sakrardi.
  *
  * Ko'rinishi — vertikal lenta, `employee-timeline-tab.tsx` naqshi:
  * ikona, chap chiziq va o'ngda mazmun. Ikkalasi ham bir xil savolga
@@ -53,39 +46,20 @@ export function EmployeeCouncilSection({ employeeId }: { employeeId: string }) {
   const stages = useEmployeeStages(employeeId)
   const items = stages.data ?? []
 
+  if (items.length === 0) return null
+
   return (
     <Card className="lg:col-span-5">
       <CardHeader title={t('employees.councilTitle')} subtitle={t('employees.councilHint')} />
       <CardContent>
-        {stages.isPending ? (
-          <div className="space-y-4 py-2">
-            {[0, 1].map((index) => (
-              <div key={index} className="flex gap-4">
-                <Skeleton className="size-10 shrink-0 rounded-md" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-64" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={Gavel}
-            title={t('employees.councilEmptyTitle')}
-            description={t('employees.councilEmptyText')}
-            className="py-10"
-          />
-        ) : (
-          <ol className="relative">
-            {/* Vertikal chiziq — ikonalar markazidan o'tadi (lenta naqshi) */}
-            <span aria-hidden className="absolute top-2 bottom-2 left-5 w-px bg-[var(--border)]" />
+        <ol className="relative">
+          {/* Vertikal chiziq — ikonalar markazidan o'tadi (lenta naqshi) */}
+          <span aria-hidden className="absolute top-2 bottom-2 left-5 w-px bg-[var(--border)]" />
 
-            {items.map((entry) => (
-              <StageRow key={entry.id} entry={entry} />
-            ))}
-          </ol>
-        )}
+          {items.map((entry) => (
+            <StageRow key={entry.id} entry={entry} />
+          ))}
+        </ol>
       </CardContent>
     </Card>
   )

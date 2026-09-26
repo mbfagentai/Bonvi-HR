@@ -34,9 +34,10 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// </para>
 /// <para>
 /// Voronka taxtasi <c>InProgress</c> bilan so'raydi: voronkadan chiqqan
-/// nomzodlar u yerda faol bo'lib turmasligi kerak. <c>Reserve</c> esa
-/// sukut ro'yxatda KO'RINADI — rezervning butun ma'nosi «kerak bo'lganda
-/// shu yerdan chaqiramiz» degani.
+/// nomzodlar u yerda faol bo'lib turmasligi kerak. <c>Reserve</c> ham
+/// sukut ro'yxatdan chiqariladi (2026-09-26) — rezervdagilar «Rezerv»
+/// bo'limida, u <c>status=Reserve</c> bilan so'raydi
+/// (<c>CandidateSearchFilter.HideReserve</c>).
 /// </para>
 /// </param>
 /// <param name="Source">

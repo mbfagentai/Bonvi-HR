@@ -462,6 +462,36 @@ const DYNAMIC_KEY_SOURCES = [
       ['rejected', 'withdrawn', 'hired', 'reserve'].map((value) => ({ value, line: 0 })),
     keysFor: (value) => [`recruiting.candidateClosed.${value}`],
   },
+
+  /*
+   * Rol muharriri (`role-editor-dialog.tsx`). Bo'limlar, darajalar va
+   * amallar SERVERDAN keladi (`GET /api/roles/catalog`) va yorliq
+   * yubormaydi — matnni frontend tanlaydi. Kalitlar `roles.` bilan
+   * boshlanadi va shu sababli pastdagi `SKIPPED_DYNAMIC_PREFIXES` ga
+   * tushadi; bu yozuvlarsiz yangi bo'lim yoki amalning tarjimasi hech
+   * qachon tekshirilmasdi. Manba — `role-keys.ts` dagi massivlar: kod
+   * ham AYNAN shulardan tanlaydi (`useRoleLabels`).
+   */
+  {
+    file: 'src/features/roles/lib/role-keys.ts',
+    values: (text) => constArrayValues(text, 'ROLE_MODULE_KEYS'),
+    keysFor: (value) => [`roles.module.${value}`],
+  },
+  {
+    file: 'src/features/roles/lib/role-keys.ts',
+    values: (text) => constArrayValues(text, 'ACCESS_LEVELS'),
+    keysFor: (value) => [`roles.level.${value}`, `roles.levelHint.${value}`],
+  },
+  {
+    file: 'src/features/roles/lib/role-keys.ts',
+    values: (text) => constArrayValues(text, 'ROLE_ACTION_CODES'),
+    keysFor: (value) => [`roles.action.${value}`],
+  },
+  {
+    file: 'src/features/roles/lib/role-keys.ts',
+    values: (text) => constArrayValues(text, 'ROLE_EXTRA_CODES'),
+    keysFor: (value) => [`roles.extra.${value}`],
+  },
 ]
 
 /** `InProgress` → `inProgress`. Kodda ham aynan shu o'girish ishlatiladi. */
@@ -570,6 +600,14 @@ if (potentiallyUnused.length > 0) {
 /** `Error.Validation("kod", ...)` va uning qardoshlari. */
 const ERROR_CALL = /Error\.(?:Validation|Conflict|NotFound|Forbidden|Unauthorized)\s*\(\s*"([^"]+)"/gs
 
+/**
+ * HTTP qatlamida domen `Error` siz qaytadigan kodlar: `ProblemDetails` ning
+ * `title` maydoni (403, 504, ...) va tezlik cheklovining `XatoKodi`
+ * konstantasi (429). Ilgari ular tekshiruvdan tashqarida qolgan va
+ * ekranda xom kod chiqardi (`rate_limit.oshib_ketdi`, 2026-09-26).
+ */
+const PROBLEM_TITLE = /\b(?:[Tt]itle|XatoKodi)\s*=\s*"([a-z][a-z0-9_]*\.[a-z0-9_]+)"/g
+
 function csharpFiles(dir) {
   const found = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -592,9 +630,9 @@ for (const file of apiReachable ? csharpFiles(API_DIR) : []) {
   // ishlatishi mumkin va ular hech qachon ekranga chiqmaydi.
   if (file.includes('/tests/')) continue
 
-  for (const [, code] of readFileSync(file, 'utf8').matchAll(ERROR_CALL)) {
-    errorCodes.add(code)
-  }
+  const source = readFileSync(file, 'utf8')
+  for (const [, code] of source.matchAll(ERROR_CALL)) errorCodes.add(code)
+  for (const [, code] of source.matchAll(PROBLEM_TITLE)) errorCodes.add(code)
 }
 
 const translated = JSON.parse(readFileSync(join(DIR, REFERENCE), 'utf8')).errors ?? {}

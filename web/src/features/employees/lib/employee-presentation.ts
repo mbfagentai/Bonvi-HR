@@ -35,8 +35,38 @@ import type { IncentiveKindValue } from '../api/incentives-api'
 export const EMPLOYEES_VIEW = 'employees.view'
 export const EMPLOYEES_CREATE = 'employees.create'
 export const EMPLOYEES_EDIT = 'employees.edit'
-export const EMPLOYMENT_MANAGE = 'employment.manage'
 export const LISTS_MANAGE = 'lists.manage'
+
+/*
+ * Mehnat munosabatlari amallari — har biri O'Z ruxsati bilan.
+ *
+ * Ilgari hammasi bitta `employment.manage` edi: «bo'shata oladi, lekin
+ * oklad o'zgartira olmaydi» degan rolni tuzib bo'lmasdi. Endi rolni
+ * egasi o'zi yig'adi (rollar shartnomasi §1) va har bir tugma faqat O'Z
+ * amalining ruxsati bilan chiziladi — server ham aynan shu kodlarni
+ * tekshiradi.
+ */
+export const EMPLOYMENT_HIRE = 'employment.hire'
+export const EMPLOYMENT_TRANSFER = 'employment.transfer'
+export const EMPLOYMENT_DUTY = 'employment.duty'
+export const EMPLOYMENT_TERMINATE = 'employment.terminate'
+export const EMPLOYMENT_PROBATION_EXTEND = 'employment.probation.extend'
+/** Sinovni yakunlash VA «yo'qolgan» sinovlarni ommaviy tasdiqlash — ikkalasi ham. */
+export const EMPLOYMENT_PROBATION_COMPLETE = 'employment.probation.complete'
+export const EMPLOYMENT_CORRECT = 'employment.correct'
+
+/**
+ * Oklad o'zgarishi — va PUL QOIDASI (shartnoma §1): boshqa amal ichidagi
+ * har qanday summa ham shu ruxsatni talab qiladi — ko'chirishdagi oklad,
+ * qo'shimcha vazifa uchun ustama, sinov yakunidagi oklad, yozuv
+ * tuzatishdagi summa. Ruxsat yo'q bo'lsa server butun so'rovni 403 bilan
+ * rad etadi, shu sababli oynalar bu maydonlarni UMUMAN chizmaydi — server
+ * rad etadigan formani taklif qilish HR ni aldash bo'lardi.
+ *
+ * Yagona istisno — ishga qabuldagi boshlang'ich oklad: u qabulning bir
+ * qismi va `employment.hire` bilan keladi.
+ */
+export const EMPLOYMENT_SALARY = 'employment.salary'
 
 /**
  * Oklad — ALOHIDA ruxsat.

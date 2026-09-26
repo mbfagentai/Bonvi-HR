@@ -1073,10 +1073,10 @@ export async function updateCandidate(id: string, body: CandidateInput): Promise
  * ⭐ IKKITA maydon, bittasi emas: `nextContactDate` VA `clearNextContact`.
  *
  * NEGA «null — tozalash» QILINMADI. `POST /candidates/{id}/stages` ga
- * ikkita mijoz murojaat qiladi: yangi oyna (formasi bor) va voronkadagi
- * SUDRASH (`useMoveCandidateToStage` — formasi yo'q, u `conclusion: null`
- * yuboradi). «null — tozalash» shartnomasida kartani sudrab qo'yish HR
- * besh daqiqa oldin qo'ygan sanani JIMGINA o'chirib tashlardi.
+ * formasiz mijoz ham murojaat qilishi mumkin (ilgari voronkadagi SUDRASH
+ * shunday edi — `conclusion: null` yuborardi; 2026-09-26 dan u ham oyna
+ * ochadi). «null — tozalash» shartnomasida bunday so'rov HR besh daqiqa
+ * oldin qo'ygan sanani JIMGINA o'chirib tashlardi.
  *
  * Uchta holat, aniq:
  *   `nextContactDate` bor            → sana QO'YILADI

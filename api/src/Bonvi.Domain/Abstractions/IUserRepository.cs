@@ -61,6 +61,16 @@ public interface IUserRepository : IRepository<User>
     /// </remarks>
     Task<IReadOnlySet<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Foydalanuvchining rol NOMLARI — ekranda ko'rsatish uchun.
+    /// </summary>
+    /// <remarks>
+    /// Rollarni egasi o'zi yaratadi va nomlaydi (2026-09-26), ya'ni yangi
+    /// rolning tarjima kaliti yo'q — interfeys uni faqat nomi bilan ko'rsata
+    /// oladi. Tartib <see cref="GetRoleCodesAsync"/> bilan bir xil (kod bo'yicha).
+    /// </remarks>
+    Task<IReadOnlyList<string>> GetRoleNamesAsync(Guid userId, CancellationToken cancellationToken = default);
+
     /// <summary>Foydalanuvchining rol kodlari.</summary>
     Task<IReadOnlyList<string>> GetRoleCodesAsync(Guid userId, CancellationToken cancellationToken = default);
 }

@@ -55,8 +55,13 @@ export function Alert({
         {title !== undefined && (
           <p className={cn('text-subhead font-semibold', accent)}>{title}</p>
         )}
+        {/*
+          `<div>`, `<p>` emas: izoh ichiga tugmali qator ham tushadi
+          («Sinov muddati» ogohlantirishi) va `<p>` ichidagi `<div>`
+          noto'g'ri HTML — React konsolga ogohlantirish yozardi.
+        */}
         {children !== undefined && (
-          <p
+          <div
             className={cn(
               title === undefined
                 ? cn('text-subhead font-medium', accent)
@@ -64,7 +69,7 @@ export function Alert({
             )}
           >
             {children}
-          </p>
+          </div>
         )}
       </div>
     </div>

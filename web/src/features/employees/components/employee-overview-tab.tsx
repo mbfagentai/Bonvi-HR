@@ -28,8 +28,14 @@ import { cn } from '@/shared/lib/cn'
 import { formatPhone } from '@/shared/lib/phone'
 import { Badge, Button, Card, CardContent, CardHeader, EmptyState } from '@/shared/ui'
 import type { EmployeeDetails, EmploymentSummary } from '../api/employees-api'
+import { useEmployeeDirections } from '../api/employees-queries'
 import {
-  EMPLOYMENT_MANAGE,
+  EMPLOYMENT_DUTY,
+  EMPLOYMENT_PROBATION_COMPLETE,
+  EMPLOYMENT_PROBATION_EXTEND,
+  EMPLOYMENT_SALARY,
+  EMPLOYMENT_TERMINATE,
+  EMPLOYMENT_TRANSFER,
   RECRUITING_VIEW,
   SALARY_VIEW,
   formatPinfl,
@@ -72,13 +78,20 @@ export function EmployeeOverviewTab({
   onAction,
 }: {
   employee: EmployeeDetails
-  /** `null` — bo'shatish ruxsati yo'q. */
+  /**
+   * Amal oynasini ochish. `null` — kartada hech qanday amal tugmasi yo'q.
+   *
+   * Qaysi tugma chizilishini bu yer emas, har bir tugmaning O'Z ruxsati
+   * hal qiladi (`EmploymentCard`): amallar endi «hammasi yoki hech biri»
+   * emas.
+   */
   onAction: ((action: EmploymentAction, employment: EmploymentSummary) => void) | null
 }) {
   const { t, date } = useLocale()
   const { hasPermission } = useAuth()
 
   const canViewRecruiting = hasPermission(RECRUITING_VIEW)
+  const directions = useEmployeeDirections(employee)
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
@@ -157,13 +170,13 @@ export function EmployeeOverviewTab({
         <Card>
           <CardHeader title={t('employee.direction')} />
           <CardContent>
-            {employee.directions.length === 0 ? (
+            {directions.length === 0 ? (
               <p className="text-footnote text-[var(--fg-tertiary)]">
                 {t('employees.noDirections')}
               </p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {employee.directions.map((direction) => (
+                {directions.map((direction) => (
                   <DirectionBadge key={direction.id} name={direction.name} size="md" />
                 ))}
               </div>
@@ -282,8 +295,27 @@ function EmploymentCard({
   const { hasPermission } = useAuth()
 
   const canSeeSalary = hasPermission(SALARY_VIEW)
-  const canManage = hasPermission(EMPLOYMENT_MANAGE)
   const closed = employment.status === 'terminated'
+
+  /*
+    Har bir amal — O'Z ruxsati bilan (ilgari hammasi bitta
+    `employment.manage` edi). Tugma faqat bosilganda server qabul
+    qiladigan odamga chiziladi.
+  */
+  const canTransfer = hasPermission(EMPLOYMENT_TRANSFER)
+  const canDuty = hasPermission(EMPLOYMENT_DUTY)
+  const canTerminate = hasPermission(EMPLOYMENT_TERMINATE)
+  const canExtendProbation = hasPermission(EMPLOYMENT_PROBATION_EXTEND)
+  const canCompleteProbation = hasPermission(EMPLOYMENT_PROBATION_COMPLETE)
+
+  /*
+    Oklad tugmasi IKKI ruxsat talab qiladi: o'zgartirish (`employment.salary`)
+    va ko'rish (`salary.view`) — ko'ra olmaydigan odam oynada joriy okladni
+    ko'rmay turib uni o'zgartirmasligi kerak (oyna uni oldindan to'ldiradi).
+  */
+  const canChangeSalary = canSeeSalary && hasPermission(EMPLOYMENT_SALARY)
+
+  const hasAnyAction = canTransfer || canDuty || canChangeSalary || canTerminate
 
   return (
     <li
@@ -377,14 +409,18 @@ function EmploymentCard({
 
         Blok faqat OCHIQ sinovda chiziladi: `probationId` yakunlanganida
         `null` bo'ladi va domen ham yakunlangan muddatni na yopadi, na
-        uzaytiradi. Ruxsat `/sinov` sahifasidagi bilan aynan bir xil —
-        `employment.manage`.
+        uzaytiradi. Ruxsatlar `/sinov` sahifasidagi bilan aynan bir xil:
+        ikki tugma — ikki ALOHIDA ruxsat (`employment.probation.extend` va
+        `.complete`); blok ulardan kamida bittasi bo'lsa chiziladi.
 
         Uchala natija (doimiy xodim · o'tolmadi · o'zi ketdi) va xulosa
         matni bitta oynada tanlanadi — `ResolveDialog`. Uni bu yerda
         takrorlash o'rniga, karta o'sha oynani chaqiradi.
       */}
-      {canManage && !closed && onAction !== null && employment.probationId !== null && (
+      {(canExtendProbation || canCompleteProbation) &&
+        !closed &&
+        onAction !== null &&
+        employment.probationId !== null && (
         <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 rounded-md border border-ios-orange/35 bg-ios-orange/10 px-3 py-2.5">
           {/*
             Sana bu yerda TAKRORLANMAYDI — u yuqoridagi «Sinov muddati
@@ -397,25 +433,29 @@ function EmploymentCard({
           </p>
 
           <span className="flex shrink-0 flex-wrap gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => onAction('probationExtend', employment)}
-            >
-              <CalendarClock />
-              {t('probation.extend')}
-            </Button>
+            {canExtendProbation && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => onAction('probationExtend', employment)}
+              >
+                <CalendarClock />
+                {t('probation.extend')}
+              </Button>
+            )}
 
-            <Button
-              type="button"
-              size="sm"
-              variant="primary"
-              onClick={() => onAction('probationResolve', employment)}
-            >
-              <BadgeCheck />
-              {t('probation.resolve')}
-            </Button>
+            {canCompleteProbation && (
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                onClick={() => onAction('probationResolve', employment)}
+              >
+                <BadgeCheck />
+                {t('probation.resolve')}
+              </Button>
+            )}
           </span>
         </div>
       )}
@@ -441,7 +481,7 @@ function EmploymentCard({
             {t('employees.probationLeftOpen')}
           </p>
 
-          {canManage && onAction !== null && (
+          {canTerminate && onAction !== null && (
             <Button
               type="button"
               size="sm"
@@ -462,37 +502,41 @@ function EmploymentCard({
         Tugmani ko'rsatib, keyin xato chiqarish foydalanuvchini aldash
         bo'lardi.
       */}
-      {canManage && !closed && onAction !== null && (
+      {hasAnyAction && !closed && onAction !== null && (
         <div className="mt-3.5 flex flex-wrap justify-end gap-1.5 border-t border-[var(--border)] pt-3">
-          <Button type="button" size="sm" variant="ghost" onClick={() => onAction('transfer', employment)}>
-            <ArrowRightLeft />
-            {t('employees.transfer')}
-          </Button>
+          {canTransfer && (
+            <Button type="button" size="sm" variant="ghost" onClick={() => onAction('transfer', employment)}>
+              <ArrowRightLeft />
+              {t('employees.transfer')}
+            </Button>
+          )}
 
-          <Button type="button" size="sm" variant="ghost" onClick={() => onAction('duty', employment)}>
-            <ListPlus />
-            {t('employees.duty')}
-          </Button>
+          {canDuty && (
+            <Button type="button" size="sm" variant="ghost" onClick={() => onAction('duty', employment)}>
+              <ListPlus />
+              {t('employees.duty')}
+            </Button>
+          )}
 
-          {/* Oklad tugmasi ham `salary.view` talab qiladi: ko'ra olmaydigan
-              odam uni o'zgartira olmasligi kerak. */}
-          {canSeeSalary && (
+          {canChangeSalary && (
             <Button type="button" size="sm" variant="ghost" onClick={() => onAction('salary', employment)}>
               <Wallet />
               {t('employee.salary')}
             </Button>
           )}
 
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => onAction('terminate', employment)}
-            className="text-ios-red hover:bg-ios-red/10 hover:text-ios-red"
-          >
-            <LogOut />
-            {t('employees.terminate')}
-          </Button>
+          {canTerminate && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => onAction('terminate', employment)}
+              className="text-ios-red hover:bg-ios-red/10 hover:text-ios-red"
+            >
+              <LogOut />
+              {t('employees.terminate')}
+            </Button>
+          )}
         </div>
       )}
     </li>

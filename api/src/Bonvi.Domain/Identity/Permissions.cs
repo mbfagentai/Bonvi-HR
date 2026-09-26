@@ -24,7 +24,88 @@ public static class Permissions
 
     // ---------- Mehnat munosabatlari va buyruqlar ----------
     public const string EmploymentView = "employment.view";
-    public const string EmploymentManage = "employment.manage";
+
+    /*
+      Mehnat munosabatidagi YOZISH amallari — har biri O'Z ruxsati bilan.
+
+      Ilgari bularning hammasi bitta `employment.manage` ostida edi: ruxsati
+      bor odam ishga ham olardi, okladni ham o'zgartirardi, ishdan ham
+      bo'shatardi. Egasining qarori (2026-09-26): «Kadr bo'limi boshlig'i»
+      degan rolni o'zi tuzmoqchi — oklad, bo'shatish va sinovni yakunlash
+      faqat unda, HR menejeri esa ko'chirish, qo'shimcha vazifa va sinovni
+      uzaytirishni qiladi. Bunday bo'linishni bitta ruxsat bilan ifodalab
+      bo'lmaydi, shu sababli har bir endpoint o'z kodini oldi.
+
+      Pul qoidasi: boshqa amal ICHIDAGI summa (ko'chirish bilan yangi oklad,
+      qo'shimcha vazifa to'lovi, sinov yakunidagi oklad, yozuvdagi summani
+      tuzatish) ham `employment.salary` ni talab qiladi — aks holda «bir
+      bo'limdan o'sha bo'limga ko'chirib, okladni oshirish» degan aylanma
+      yo'l qolardi. Yagona istisno — ishga qabuldagi boshlang'ich oklad:
+      o'zgartiriladigan eski oklad yo'q, u qabul buyrug'ining o'zi.
+    */
+
+    /// <summary>Ishga qabul — <c>POST /api/employments/hire</c>.</summary>
+    public const string EmploymentHire = "employment.hire";
+
+    /// <summary>Lavozim yoki bo'lim o'zgarishi.</summary>
+    public const string EmploymentTransfer = "employment.transfer";
+
+    /// <summary>Qo'shimcha vazifa berish.</summary>
+    public const string EmploymentDuty = "employment.duty";
+
+    /// <summary>
+    /// Oklad o'zgarishi — va boshqa amal ichida yuborilgan HAR QANDAY summa.
+    /// </summary>
+    public const string EmploymentSalary = "employment.salary";
+
+    /// <summary>Ishdan bo'shatish.</summary>
+    public const string EmploymentTerminate = "employment.terminate";
+
+    /// <summary>Sinov muddatini uzaytirish.</summary>
+    public const string EmploymentProbationExtend = "employment.probation.extend";
+
+    /// <summary>
+    /// Sinov muddatini yakunlash — xulosa va yozuvsiz qolganlarni tasdiqlash ham.
+    /// </summary>
+    public const string EmploymentProbationComplete = "employment.probation.complete";
+
+    /// <summary>Mehnat yo'li yozuvidagi terish xatosini tuzatish.</summary>
+    public const string EmploymentCorrect = "employment.correct";
+
+    /// <summary>
+    /// Eski yagona mehnat ruxsati — FAQAT ko'chirish uchun.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="All"/> da YO'Q: hech bir endpoint uni talab qilmaydi va
+    /// rolga uni qayta berib bo'lmaydi (<see cref="Role.Grant"/> rad etadi).
+    /// Ishlab turgan bazalardagi rollarda u hali bor — <c>IdentitySeeder</c>
+    /// har ishga tushishda uni sakkizta amal kodiga almashtiradi, shunda
+    /// hech kim deploy paytida bironta huquqini yo'qotmaydi
+    /// (<see cref="SystemRoles.LegacyAdmin"/> bilan bir xil yondashuv).
+    /// </remarks>
+    public const string LegacyEmploymentManage = "employment.manage";
+
+    /// <summary>
+    /// Mehnat munosabatidagi barcha yozish amallari — eski
+    /// <see cref="LegacyEmploymentManage"/> aynan shularga bo'lindi.
+    /// </summary>
+    /// <remarks>
+    /// Bir joyda sanalgan, chunki uchta joy shu ro'yxatga tayanadi:
+    /// ko'chirish (eski kod o'rniga shular beriladi), HR menejerining
+    /// boshlang'ich ruxsatlari va rollar muharriridagi «amallar» qatori.
+    /// Ro'yxatlar alohida yozilsa, yangi amal bir joyda unutilardi.
+    /// </remarks>
+    public static IReadOnlyList<string> EmploymentActions { get; } =
+    [
+        EmploymentHire,
+        EmploymentTransfer,
+        EmploymentDuty,
+        EmploymentSalary,
+        EmploymentTerminate,
+        EmploymentProbationExtend,
+        EmploymentProbationComplete,
+        EmploymentCorrect,
+    ];
 
     /// <summary>
     /// Oylik ish haqini ko'rish. ALOHIDA ruxsat — HR so'ragan talab:
@@ -107,6 +188,26 @@ public static class Permissions
 
     // ---------- Tizim ----------
     public const string UsersManage = "users.manage";
+
+    /// <summary>
+    /// «Rollar» menyusi: rol yaratish, nomini va ruxsatlarini o'zgartirish, o'chirish.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega <see cref="UsersManage"/> dan alohida.</b> Foydalanuvchi
+    /// boshqaruvi TAYYOR rolni odamga beradi, bu ruxsat esa rolning O'ZI
+    /// nima qila olishini belgilaydi — ya'ni tizimdagi eng kuchli huquq.
+    /// Egasining qarori: sukut bo'yicha u faqat super administratorda,
+    /// bosh rahbarda ham yo'q; kerak bo'lsa egasi uni o'zi beradi.
+    /// </para>
+    /// <para>
+    /// Ruxsati bor odam ham O'ZIDA yo'q ruxsatni boshqa rolga bera olmaydi
+    /// va o'z rolini o'zgartira olmaydi — bu cheklovlar use-case'da
+    /// (<c>rol.ortiqcha_ruxsat</c>, <c>rol.oz_roli</c>).
+    /// </para>
+    /// </remarks>
+    public const string RolesManage = "roles.manage";
+
     public const string AuditView = "audit.view";
 
     /// <summary>
@@ -133,7 +234,10 @@ public static class Permissions
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         EmployeesView, EmployeesCreate, EmployeesEdit, EmployeesDelete,
-        EmploymentView, EmploymentManage, SalaryView,
+        EmploymentView,
+        EmploymentHire, EmploymentTransfer, EmploymentDuty, EmploymentSalary,
+        EmploymentTerminate, EmploymentProbationExtend, EmploymentProbationComplete, EmploymentCorrect,
+        SalaryView,
         ListsView, ListsManage,
         IncentivesView, IncentivesManage,
         FeedbackView, FeedbackManage,
@@ -141,7 +245,7 @@ public static class Permissions
         RecruitingView, RecruitingManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
-        UsersManage, AuditView, SettingsManage,
+        UsersManage, RolesManage, AuditView, SettingsManage,
     };
 
     public static bool Exists(string permission) => All.Contains(permission);
@@ -189,6 +293,14 @@ public static class Permissions
 /// Bu ro'yxat birinchi ishga tushirishda bazaga yoziladi (seed).
 /// Keyinchalik administrator rolga ruxsat qo'shishi/olib tashlashi mumkin —
 /// bu yerdagi qiymatlar faqat boshlang'ich holat.
+/// </para>
+/// <para>
+/// <b>2026-09-26 dan: rollarni egasi O'ZI belgilaydi</b> («Rollar» menyusi).
+/// U yangi rol yaratadi, nomini va ruxsatlarini o'zgartiradi, ishlatilmayotgan
+/// rolni o'chiradi — deploy va qayta ishga tushirishsiz. Shu sababli
+/// <see cref="MainBoss"/> va <see cref="HrManager"/> endi ODDIY rollar:
+/// seeder ularni faqat yangi bazada yaratadi va keyin hech qachon
+/// «to'g'rilamaydi». Himoyalangani faqat <see cref="Protected"/> dagilar.
 /// </para>
 /// </remarks>
 public static class SystemRoles
@@ -247,16 +359,47 @@ public static class SystemRoles
     public const string LegacyAdmin = "admin";
 
     /// <summary>
-    /// TO'LIQ huquqli rollar — ulardan ruxsat olib tashlab bo'lmaydi.
+    /// Rahbariyat rollari — «oxirgi rahbar» qoidasi shularni sanaydi.
     /// </summary>
     /// <remarks>
-    /// Nega ikkitasi ham: foydalanuvchi qarori bo'yicha bosh rahbar ruxsatlar
-    /// bo'yicha super administrator bilan TENG. Ularning farqi boshqa
-    /// o'lchamda (kimni boshqara oladi) va u bu yerda emas, use-case
-    /// qatlamida tekshiriladi.
+    /// <para>
+    /// Ilgari bu «ulardan ruxsat olib tashlab bo'lmaydi» degan ro'yxat ham
+    /// edi. Rollar muharriri paydo bo'lgach, bosh rahbar roli oddiy rolga
+    /// aylandi va uning ruxsatlarini egasi o'zgartira oladi; qulflangan
+    /// yagona rol — super administrator (<see cref="Protected"/>).
+    /// </para>
+    /// <para>
+    /// Ro'yxat baribir qoldi: tizimda foydalanuvchi boshqaruviga qodir
+    /// kamida bitta faol hisob qolishi kerak va u shu ikki rol egalari
+    /// orasidan sanaladi (<c>UserRoleRules.EnsureManagerRemains</c>).
+    /// </para>
     /// </remarks>
     public static readonly IReadOnlySet<string> FullAccess =
         new HashSet<string>(StringComparer.Ordinal) { SuperAdmin, MainBoss };
+
+    /// <summary>
+    /// Himoyalangan rollar — rollar muharriri ularni o'zgartirmaydi va o'chirmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b><see cref="SuperAdmin"/></b> — tizim egasi. Uning ruxsatlari
+    /// qo'lda emas, seeder tomonidan har ishga tushishda
+    /// <see cref="Permissions.All"/> ga tenglanadi — kelajakdagi yangi
+    /// ruxsat ham unga o'zi yetib boradi.
+    /// </para>
+    /// <para>
+    /// <b><see cref="RecruitingBot"/></b> — odam emas, xizmat hisobi. Uning
+    /// huquqlari ataylab tor (sababi <see cref="RecruitingBot"/> izohida) va
+    /// rollar muharririda umuman ko'rinmaydi: egasiga u haqda qaror qilish
+    /// kerak emas.
+    /// </para>
+    /// <para>
+    /// Himoya KOD bo'yicha, bazadagi bayroq bo'yicha emas: bazani qo'lda
+    /// tahrirlash rolni «ochib» qo'ya olmasligi kerak.
+    /// </para>
+    /// </remarks>
+    public static readonly IReadOnlySet<string> Protected =
+        new HashSet<string>(StringComparer.Ordinal) { SuperAdmin, RecruitingBot };
 
     /// <summary>
     /// Tizimda ATIGI BITTA FAOL egasi bo'lishi mumkin bo'lgan rollar.
@@ -286,24 +429,36 @@ public static class SystemRoles
             [SuperAdmin] = ("Super administrator", [.. Permissions.All]),
 
             /*
-              Bosh rahbarda `settings.manage` dan TASHQARI hamma ruxsat bor.
+              Bosh rahbarda `settings.manage` va `roles.manage` dan TASHQARI
+              hamma ruxsat bor.
 
               Ilgari ikkala rol ham `Permissions.All` ni olardi va izohda
-              «ruxsatlar bo'yicha AYNAN bir xil» deb yozilgandi. Endi
-              yagona istisno paydo bo'ldi — tizim sozlamalari
-              (foydalanuvchi qarori, sabab `Permissions.SettingsManage`
-              izohida). Ro'yxat baribir qo'lda sanab yozilmaydi: yangi
-              ruxsat qo'shilsa u bosh rahbarga O'ZI yetib boradi va faqat
-              ataylab chiqarib tashlangani qolib ketmaydi.
+              «ruxsatlar bo'yicha AYNAN bir xil» deb yozilgandi. Keyin
+              istisnolar paydo bo'ldi — tizim sozlamalari (sabab
+              `Permissions.SettingsManage` izohida) va rollarni
+              o'zgartirish (sabab `Permissions.RolesManage` izohida).
+              Ro'yxat baribir qo'lda sanab yozilmaydi.
+
+              ⚠️ Bu qiymat faqat YANGI bazada ishlatiladi: bosh rahbar
+              endi oddiy rol va seeder mavjudiga tegmaydi. Ya'ni kodga
+              yangi ruxsat qo'shilsa, u ishlab turgan bazadagi bosh
+              rahbarga O'ZI yetib bormaydi — uni egasi «Rollar» menyusidan
+              beradi (jimgina berilgan huquq — egasi bilmagan huquq).
             */
             [MainBoss] = ("Bosh rahbar",
-                [.. Permissions.All.Where(p => p != Permissions.SettingsManage)]),
+                [.. Permissions.All.Where(p => p != Permissions.SettingsManage && p != Permissions.RolesManage)]),
 
             [HrManager] = ("HR menejeri",
             [
                 Permissions.EmployeesView, Permissions.EmployeesCreate,
                 Permissions.EmployeesEdit, Permissions.EmployeesDelete,
-                Permissions.EmploymentView, Permissions.EmploymentManage,
+                Permissions.EmploymentView,
+
+                // Eski `employment.manage` ning o'rni — sakkizala amal ham.
+                // Bo'linishni (masalan okladni faqat «Kadr bo'limi
+                // boshlig'i» qiladi) egasi o'zi, muharrirdan qiladi.
+                .. Permissions.EmploymentActions,
+
                 Permissions.SalaryView,
                 Permissions.ListsView, Permissions.ListsManage,
                 Permissions.IncentivesView, Permissions.IncentivesManage,

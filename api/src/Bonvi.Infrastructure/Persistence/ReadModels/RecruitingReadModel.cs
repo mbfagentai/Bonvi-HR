@@ -128,6 +128,15 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Withdrawn);
         }
 
+        // ⭐ REZERVDAGILAR ham kundalik ro'yxatda KO'RINMAYDI
+        // (foydalanuvchi qarori, 2026-09-26) — ular «Rezerv» bo'limiga
+        // ko'chadi, u `?status=Reserve` bilan so'raydi. «Bugun aloqa
+        // kerak» filtri qoidani ochadi (`CandidateSearchFilter.HideReserve`).
+        if (filter.HideReserve)
+        {
+            candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Reserve);
+        }
+
         // «Bugun kim bilan gaplashish kerak»: sanasi qo'yilgan VA u
         // berilgan kundan oshmagan qatorlar. Sana o'qish modeliga
         // TASHQARIDAN beriladi — bu yerda soat yo'q (sababi

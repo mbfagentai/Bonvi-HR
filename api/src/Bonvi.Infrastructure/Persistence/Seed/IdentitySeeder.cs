@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Bonvi.Infrastructure.Persistence.Seed;
 
 /// <summary>
-/// Standart rollarni bazaga yozadi va ularning ruxsatlarini koddagi
-/// ta'rif (<see cref="SystemRoles.Defaults"/>) bilan sinxronlaydi.
+/// Standart rollarni bazaga yozadi, himoyalangan rollarni koddagi ta'rif
+/// bilan sinxronlaydi va eski ma'lumotni yangi ruxsat modeliga ko'chiradi.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,87 +14,125 @@ namespace Bonvi.Infrastructure.Persistence.Seed;
 /// qaytarib qo'yardi.
 /// </para>
 /// <para>
-/// Yo'q rollar <b>yaratiladi</b>, mavjud <b>tizim</b> rollarining ruxsatlari
-/// esa koddagi ro'yxatga <b>moslashtiriladi</b>: yetishmagani qo'shiladi,
-/// ortiqchasi olib tashlanadi. Bu qasddan — avvalgi holat faqat qo'shar edi:
-/// <c>Permissions</c> ga yangi konstanta qo'shilsa, allaqachon yaratilgan
-/// rolga u hech qachon yetib bormasdi (masalan <c>incentives.view</c> —
-/// bazada rol bir marta yaratilgach, kod bilan baza abadiy uzoqlashib
-/// ketardi). Amal hamon <b>xavfsiz takrorlanadi</b>: o'zgarish bo'lmasa,
-/// bazaga yozuv ham bo'lmaydi.
+/// <b>2026-09-26 dan seeder ODDIY rollarga tegmaydi.</b> Ilgari u har
+/// ishga tushishda barcha tizim rollarini koddagi ro'yxatga «to'g'rilab»
+/// qo'yardi — ya'ni egasi «HR menejeri» dan olib tashlagan ruxsat keyingi
+/// qayta ishga tushishda jimgina qaytib kelardi. Endi rollarni egasi
+/// o'zi belgilaydi («Rollar» menyusi), shu sababli:
 /// </para>
+/// <list type="bullet">
+///   <item>
+///     <b><see cref="SystemRoles.SuperAdmin"/></b> — har safar
+///     <see cref="Permissions.All"/> ga tenglanadi: kodga qo'shilgan yangi
+///     ruxsat tizim egasiga o'zi yetib boradi.
+///   </item>
+///   <item>
+///     <b><see cref="SystemRoles.RecruitingBot"/></b> — har safar o'zining
+///     qat'iy ro'yxatiga tenglanadi (sababi <see cref="SystemRoles.RecruitingBot"/> izohida).
+///   </item>
+///   <item>
+///     <b><see cref="SystemRoles.MainBoss"/>, <see cref="SystemRoles.HrManager"/></b>
+///     — faqat BIRINCHI ishga tushishda (bazada super administrator hali
+///     yo'q) standart ruxsatlar bilan yaratiladi va keyin HECH QACHON
+///     o'zgartirilmaydi. Egasi ularni o'chirsa — qayta yaratilmaydi
+///     (sababi <see cref="SeedAsync"/> ichida).
+///   </item>
+/// </list>
 /// <para>
-/// Faqat <see cref="Role.IsSystem"/> = <c>true</c> bo'lgan va kodi
-/// <see cref="SystemRoles.Defaults"/> da ro'yxatda turgan rollarga tegiladi.
-/// Administrator qo'lda yaratgan (yoki tizim rolidan nusxa olib o'zgartirgan)
-/// har qanday boshqa rol — <c>IsSystem == false</c> — bu yerda umuman
-/// ko'rilmaydi. Rahbariyat rollaridan ruxsat olib tashlash esa bu yerda ham
-/// so'ralmaydi: <see cref="Role.Revoke"/> buni allaqachon domen qoidasi
-/// sifatida taqiqlaydi (rahbariyat o'zini huquqsiz qoldira olmaydi),
-/// shu bilan birga <c>Defaults</c> ikkalasiga ham aynan
-/// <see cref="Permissions.All"/> berganidan ular doim to'liq ro'yxatni oladi.
-/// </para>
-/// <para>
-/// <b>Uch rolli modelga KO'CHIRISH ham shu yerda</b>
-/// (<see cref="Kochir"/>): allaqachon ishlab turgan bazadagi
-/// <c>admin</c> roli <c>super_admin</c> ga QAYTA NOMLANADI. Ko'chirishning
-/// tabiiy joyi aynan shu, chunki seeder allaqachon rol jadvalini kod bilan
-/// solishtirib turadi va u har ishga tushishda BIR MARTA, migratsiyalardan
-/// KEYIN bajariladi.
+/// <b>Ikki bir martalik ko'chirish ham shu yerda</b>, chunki seeder har
+/// ishga tushishda migratsiyalardan KEYIN bir marta bajariladi va ikkala
+/// holatda ham to'g'ri ishlaydi (yangi bazada ular hech narsa qilmaydi):
+/// <see cref="Kochir"/> (<c>admin</c> → <c>super_admin</c>) va
+/// <see cref="EskiMehnatRuxsatiniBol"/> (<c>employment.manage</c> →
+/// sakkizta amal kodi). Amal <b>xavfsiz takrorlanadi</b>: o'zgarish
+/// bo'lmasa, bazaga yozuv ham bo'lmaydi.
 /// </para>
 /// <para>
 /// Foydalanuvchi bu yerda yaratilmaydi: parol xeshlash Infrastructure'ning
 /// boshqa qismiga tegishli va urug'lantirishni parol siyosatiga bog'lab qo'yardi.
-/// Foydalanuvchilarning rol biriktirmalariga ham tegilmaydi — faqat rol
-/// ICHIDAGI ruxsatlar ro'yxati sinxronlanadi va (bir marta) rol kodi.
+/// Foydalanuvchilarning rol biriktirmalariga ham tegilmaydi.
 /// </para>
 /// </remarks>
 public sealed class IdentitySeeder
 {
+    /// <summary>
+    /// Seeder har safar koddagi ta'rifga TENGLAYDIGAN rollar.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SystemRoles.Protected"/> bilan aynan bir xil to'plam,
+    /// lekin ma'nosi boshqa («muharrir tegmaydi» va «seeder boshqaradi»).
+    /// Ikkalasi hozircha mos keladi, chunki himoyalangan rolning ruxsatlarini
+    /// kimdir boshqarishi kerak va u odam emas, kod.
+    /// </remarks>
+    private static readonly IReadOnlySet<string> SyncedRoles = SystemRoles.Protected;
+
     private readonly AppDbContext _context;
 
     public IdentitySeeder(AppDbContext context) => _context = context;
 
     /// <summary>
-    /// Yetishmayotgan standart rollarni yaratadi va mavjud tizim rollarining
-    /// ruxsatlarini koddagi ta'rifga moslashtiradi.
+    /// Yetishmayotgan rollarni yaratadi, himoyalangan rollarni sinxronlaydi
+    /// va eski ruxsatlarni ko'chiradi.
     /// </summary>
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        // Proyeksiya emas, to'liq obyektlar: ruxsatlarni Grant/Revoke orqali
-        // o'zgartirish uchun EF Core kuzatuvi (change tracking) kerak.
+        // Proyeksiya emas, to'liq obyektlar: ruxsatlarni o'zgartirish uchun
+        // EF Core kuzatuvi (change tracking) kerak.
         var mavjudRollar = await _context.Roles
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        /*
+          «Birinchi ishga tushish» — bazada super administrator HALI yo'q:
+          yangi baza yoki ikki rolli modeldan kelgan eski baza (u yerda
+          `admin` bor, `super_admin` esa yo'q — `Kochir` uni endi yaratadi).
+
+          Oddiy rollar (bosh rahbar, HR menejeri) FAQAT shu holatda
+          yaratiladi. Sabab: endi ularni egasi o'chira oladi. «Yo'q bo'lsa
+          yarat» qoidasi har ishga tushishda ishlasa, egasi o'chirgan rol
+          keyingi deploy'da jimgina qaytib kelardi — va bu aynan egasining
+          «rollarni men o'zim belgilayman» degan qaroriga zid.
+        */
+        var birinchiIshga = !mavjudRollar.Exists(role =>
+            string.Equals(role.Code, SystemRoles.SuperAdmin, StringComparison.Ordinal));
 
         // Ko'chirish SINXRONLASHDAN OLDIN: qayta nomlangandan keyin eski rol
         // `super_admin` kodi bilan topiladi va uning ruxsatlari o'sha yerda,
         // umumiy yo'l bilan tekshiriladi. Teskari tartibda esa seeder ikkinchi
         // `super_admin` yaratib qo'yardi.
-        var kochirildi = Kochir(mavjudRollar);
+        var ozgardimi = Kochir(mavjudRollar);
+
+        if (EskiMehnatRuxsatiniBol(mavjudRollar))
+        {
+            ozgardimi = true;
+        }
 
         var yangiRollar = new List<Role>();
-        var ozgardimi = kochirildi;
 
         foreach (var (kod, tavsif) in SystemRoles.Defaults)
         {
             var mavjud = mavjudRollar.Find(role => string.Equals(role.Code, kod, StringComparison.Ordinal));
+            var sinxronlanadi = SyncedRoles.Contains(kod);
 
             if (mavjud is null)
             {
-                yangiRollar.Add(Yarat(kod, tavsif.Name, tavsif.Permissions));
+                if (sinxronlanadi || birinchiIshga)
+                {
+                    yangiRollar.Add(Yarat(kod, tavsif.Name, tavsif.Permissions));
+                }
+
                 continue;
             }
 
-            if (!mavjud.IsSystem)
+            if (!sinxronlanadi || !mavjud.IsSystem)
             {
-                // Nazariy jihatdan yuz bermaydi: `Code` unikal va o'zgarmas,
-                // tizim rolini faqat shu seeder `isSystem: true` bilan yaratadi.
-                // Baribir — o'zgartirilgan (endi tizim bo'lmagan) rolga tegilmaydi.
+                // Oddiy rol — egasiniki, seeder unga tegmaydi. `IsSystem`
+                // bo'lmagan himoyalangan kod esa nazariy holat: kod unikal
+                // va tizim rolini faqat shu seeder yaratadi.
                 continue;
             }
 
-            if (Muvofiqlashtir(mavjud, tavsif.Permissions))
+            if (Tengla(mavjud, tavsif.Permissions))
             {
                 ozgardimi = true;
             }
@@ -182,52 +220,91 @@ public sealed class IdentitySeeder
     }
 
     /// <summary>
-    /// Mavjud tizim rolining ruxsatlarini <paramref name="kerakli"/> ro'yxatga
-    /// moslashtiradi: yetishmaganini qo'shadi, ortiqchasini olib tashlaydi.
+    /// Eski yagona <c>employment.manage</c> ruxsatini sakkizta amal kodiga
+    /// almashtiradi — BIR MARTALIK ko'chirish.
     /// </summary>
-    /// <returns>Biror ruxsat qo'shilgan yoki olib tashlangan bo'lsa — <c>true</c>.</returns>
+    /// <returns>Biror rol o'zgargan bo'lsa — <c>true</c>.</returns>
     /// <remarks>
-    /// Rahbariyat rollari (<see cref="SystemRoles.FullAccess"/>) uchun olib
-    /// tashlash amalda hech qachon sodir bo'lmaydi: <see cref="Role.Revoke"/>
-    /// uni domen qoidasi sifatida rad etadi — bu yerda alohida tekshirilmaydi,
-    /// natija shunchaki e'tiborsiz qoldiriladi.
+    /// <para>
+    /// <b>Hech kim deploy paytida huquq yo'qotmaydi:</b> eski kodni olgan
+    /// har bir rol (egasi yaratgani ham) uning o'rniga
+    /// <see cref="Permissions.EmploymentActions"/> ning HAMMASINI oladi —
+    /// ya'ni ertalab qila olgan har bir amalini deploy'dan keyin ham qiladi.
+    /// Bo'linishni (masalan okladni faqat «Kadr bo'limi boshlig'i» ga
+    /// qoldirishni) egasi keyin o'zi, muharrirdan qiladi.
+    /// </para>
+    /// <para>
+    /// Birinchi ishdan keyin bironta rolda eski kod qolmaydi, ya'ni bu metod
+    /// hech narsa qilmaydi — alohida «bajarildi» belgisi kerak emas.
+    /// </para>
+    /// <para>
+    /// Super administrator bu yerda o'tkazib yuboriladi: undan ruxsat olib
+    /// tashlab bo'lmaydi (<see cref="Role.Revoke"/>), uning ro'yxati esa
+    /// baribir quyida <see cref="Permissions.All"/> ga tenglanadi — eski
+    /// kod o'sha yerda tushib qoladi.
+    /// </para>
     /// </remarks>
-    private static bool Muvofiqlashtir(Role rol, IReadOnlyList<string> kerakli)
+    private static bool EskiMehnatRuxsatiniBol(List<Role> mavjudRollar)
     {
         var ozgardimi = false;
 
-        foreach (var ruxsat in kerakli)
+        foreach (var rol in mavjudRollar.Where(role => role.Has(Permissions.LegacyEmploymentManage)))
         {
-            if (rol.Has(ruxsat))
+            if (string.Equals(rol.Code, SystemRoles.SuperAdmin, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            var berish = rol.Grant(ruxsat);
-
-            if (berish.IsFailure)
+            var olish = rol.Revoke(Permissions.LegacyEmploymentManage);
+            if (olish.IsFailure)
             {
                 throw new InvalidOperationException(
-                    $"«{rol.Code}» roliga «{ruxsat}» ruxsati berilmadi: {berish.Error}");
+                    $"«{rol.Code}» rolidan «{Permissions.LegacyEmploymentManage}» olinmadi: {olish.Error}");
             }
 
-            ozgardimi = true;
-        }
-
-        var keraklilar = new HashSet<string>(kerakli, StringComparer.Ordinal);
-
-        foreach (var ortiqcha in rol.Permissions.Where(ruxsat => !keraklilar.Contains(ruxsat)).ToList())
-        {
-            if (rol.Revoke(ortiqcha).IsFailure)
+            foreach (var amal in Permissions.EmploymentActions)
             {
-                // Faqat rahbariyat rollari uchun bloklanadi (Role.Revoke qoidasi) — xato emas.
-                continue;
+                var berish = rol.Grant(amal);
+                if (berish.IsFailure)
+                {
+                    throw new InvalidOperationException(
+                        $"«{rol.Code}» roliga «{amal}» ruxsati berilmadi: {berish.Error}");
+                }
             }
 
             ozgardimi = true;
         }
 
         return ozgardimi;
+    }
+
+    /// <summary>
+    /// Seeder boshqaradigan rolning ruxsatlarini <paramref name="kerakli"/>
+    /// ro'yxatga TENGLAYDI: yetishmagani qo'shiladi, ortiqchasi tushadi.
+    /// </summary>
+    /// <returns>Ro'yxat o'zgargan bo'lsa — <c>true</c>.</returns>
+    /// <remarks>
+    /// To'plam sifatida solishtiriladi: faqat tartibi farq qilgan ro'yxat
+    /// qayta yozilmaydi — aks holda har ishga tushish bekorga saqlash va
+    /// ruxsatlar keshini tozalash bilan tugardi.
+    /// </remarks>
+    private static bool Tengla(Role rol, IReadOnlyList<string> kerakli)
+    {
+        if (rol.Permissions.ToHashSet(StringComparer.Ordinal).SetEquals(kerakli))
+        {
+            return false;
+        }
+
+        var natija = rol.ReplacePermissions(kerakli);
+
+        if (natija.IsFailure)
+        {
+            // Kodda yozilgan ro'yxat rad etildi — dastur xatosi, ma'lumot xatosi emas.
+            throw new InvalidOperationException(
+                $"«{rol.Code}» rolining ruxsatlari yangilanmadi: {natija.Error}");
+        }
+
+        return true;
     }
 
     /// <summary>

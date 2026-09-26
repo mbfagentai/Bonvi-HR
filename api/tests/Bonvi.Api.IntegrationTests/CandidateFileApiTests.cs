@@ -740,29 +740,17 @@ public sealed class CandidateFileApiTests : IClassFixture<BonviApiFactory>
     /// endpoint'dagi <c>RequireAuthorization(...)</c>. Shu sababli token
     /// to'g'ridan-to'g'ri yasaladi va u yuklab olish bilan yuklashning
     /// FARQINI ko'rsatadi.
+    /// <para>
+    /// 2026-09-26 dan token tekshiruvi ruxsatlarni BAZADAN oladi — shu
+    /// sababli «token yasash» endi faqat shu ruxsatli haqiqiy hisob bilan
+    /// ishlaydi (<see cref="TestAccounts"/>). Urug'lantirilgan rollarda
+    /// bunday hisob hamon yo'q; u faqat test uchun yaratiladi.
+    /// </para>
     /// </remarks>
     private Task<string> KoruvchiTokenAsync() => TokenAsync(Permissions.RecruitingView);
 
-    private async Task<string> TokenAsync(string? ruxsat)
-    {
-        using var qamrov = _factory.Services.CreateScope();
-
-        var users = qamrov.ServiceProvider.GetRequiredService<IUserRepository>();
-        var tokens = qamrov.ServiceProvider.GetRequiredService<ITokenService>();
-
-        var login = PhoneNumber.Create(BonviApiFactory.TestAdminLogin).Value;
-        var user = await users.GetByLoginAsync(login, TestContext.Current.CancellationToken);
-        user.ShouldNotBeNull();
-
-        var toplam = new HashSet<string>(StringComparer.Ordinal);
-
-        if (ruxsat is not null)
-        {
-            toplam.Add(ruxsat);
-        }
-
-        return tokens.CreateTokens(user, [], toplam).AccessToken;
-    }
+    private Task<string> TokenAsync(string? ruxsat)
+        => ruxsat is null ? TestAccounts.TokenAsync(_factory) : TestAccounts.TokenAsync(_factory, ruxsat);
 
     private Task<HttpClient> MijozAsync(string token)
     {

@@ -152,11 +152,12 @@ public enum VacancySortField
 /// <param name="VacancyId">Vakansiya bo'yicha filtr.</param>
 /// <param name="StageId">Bosqich bo'yicha filtr — voronka ustunini chizish uchun.</param>
 /// <param name="Status">
-/// Holat bo'yicha filtr. Bo'sh — ISHGA OLINGANLAR, RAD ETILGANLAR va O'ZI
-/// VOZ KECHGANLARDAN tashqari hammasi (sabablari
+/// Holat bo'yicha filtr. Bo'sh — ISHGA OLINGANLAR, RAD ETILGANLAR, O'ZI
+/// VOZ KECHGANLAR va REZERVDAGILARDAN tashqari hammasi (sabablari
 /// <see cref="CandidateSearchFilter.HideHired"/>,
-/// <see cref="CandidateSearchFilter.HideRejected"/> va
-/// <see cref="CandidateSearchFilter.HideWithdrawn"/> izohlarida).
+/// <see cref="CandidateSearchFilter.HideRejected"/>,
+/// <see cref="CandidateSearchFilter.HideWithdrawn"/> va
+/// <see cref="CandidateSearchFilter.HideReserve"/> izohlarida).
 /// </param>
 /// <param name="Source">Manba bo'yicha filtr: qo'lda kiritilgan / botdan kelgan.</param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
@@ -244,10 +245,7 @@ public sealed record CandidateSearchFilter(
     /// aynan o'shani ko'rmoqchi va bo'sh ro'yxat olishi mumkin emas.
     /// </para>
     /// <para>
-    /// ⚠️ Qoida FAQAT <see cref="CandidateStatus.Hired"/> ga tegishli.
-    /// Rezervdagi nomzod ro'yxatda KO'RINIB TURADI: uning butun ma'nosi
-    /// «kerak bo'lganda shu yerdan chaqiramiz» degani va ro'yxatdan
-    /// yashirilsa, u ma'no yo'qolardi.
+    /// Rezervdagilar uchun alohida qoida bor — <see cref="HideReserve"/>.
     /// </para>
     /// </remarks>
     public bool HideHired => Status is null;
@@ -296,9 +294,9 @@ public sealed record CandidateSearchFilter(
     /// etdik» va «u ketib qoldi» butunlay boshqa ma'no beradi.
     /// </para>
     /// <para>
-    /// ⚠️ REZERVDAGILAR esa qoidaga TUSHMAYDI va sabab o'zgarmadi:
-    /// rezervning butun ma'nosi «kerak bo'lganda shu ro'yxatdan
-    /// chaqiramiz» degani, ya'ni yashirish ma'noning o'zini yo'q qilardi.
+    /// REZERVDAGILAR bu qoidaga tushmaydi — ularning o'z qoidasi bor
+    /// (<see cref="HideReserve"/>) va sabab boshqa: ular yo'qolmaydi,
+    /// «Rezerv» bo'limiga ko'chadi.
     /// </para>
     /// <para>
     /// ⚠️ <b>Excel ARXIVIDA qoida ishlamaydi.</b> Kengash arxividagi 3110
@@ -343,6 +341,34 @@ public sealed record CandidateSearchFilter(
     /// </para>
     /// </remarks>
     public bool HideWithdrawn => Status is null && !ArchiveRequested && !RejectedSection;
+
+    /// <summary>
+    /// Rezervdagilar ro'yxatdan chiqarilsinmi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Sukut bo'yicha CHIQARILADI</b> (foydalanuvchi qarori,
+    /// 2026-09-26: «резервга олинган номзодлар номзодлар бўлимида
+    /// чиқмаслиги керак, фақат резерв бўлимида бўлиши керак»). Ilgari
+    /// ular ataylab ko'rinib turardi — «kerak bo'lganda shu yerdan
+    /// chaqiramiz». Endi o'sha ma'no «Rezerv» sahifasiga ko'chdi: u
+    /// <c>?status=Reserve</c> bilan so'raydi va qoida holat tanlovida
+    /// ochiladi (<see cref="HideHired"/> bilan bir xil qoida).
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>«Bugun aloqa kerak» filtri qoidani OCHADI.</b> Bu HR ning
+    /// kunlik ish ro'yxati va rezerv uning bir qismi: bildirishnoma
+    /// ham rezervdagilarni sanaydi (<c>NotificationReadModel</c>).
+    /// Yashirilsa, bildirishnomadagi son ro'yxatdagidan ko'p chiqardi.
+    /// </para>
+    /// <para>
+    /// Excel arxivida ishlamaydi — egizak qoidalar bilan bir xil sabab
+    /// (<see cref="HideRejected"/> izohi). <see cref="RejectedSection"/>
+    /// shartga ATAYLAB qo'shilmadi: bo'lim o'zi faqat rad etilgan va voz
+    /// kechganlarni oladi (<see cref="HideWithdrawn"/> izohidagi mulohaza).
+    /// </para>
+    /// </remarks>
+    public bool HideReserve => Status is null && !ArchiveRequested && ContactDueOn is null;
 
     /// <summary>
     /// Excel arxivi ATAYLAB so'ralganmi.

@@ -30,7 +30,16 @@ import { useConfirmMissingProbations, useMissingProbations } from '../api/probat
  * <b>Blok butunlay yo'qoladi</b> ro'yxat bo'shagach: bu bir martalik
  * tozalash ishi, doimiy ekran elementi emas.
  */
-export function MissingProbations({ canManage }: { canManage: boolean }) {
+export function MissingProbations({
+  canConfirm,
+}: {
+  /**
+   * Ommaviy tasdiqlash — sinovni yakunlashning o'zi (server ham
+   * `employment.probation.complete` ni talab qiladi). Ruxsatsiz odam
+   * ro'yxatni KO'RADI, lekin belgilay olmaydi.
+   */
+  canConfirm: boolean
+}) {
   const { t, num } = useLocale()
   const errorMessage = useErrorMessage()
 
@@ -105,13 +114,13 @@ export function MissingProbations({ canManage }: { canManage: boolean }) {
             key={row.employmentId}
             row={row}
             checked={selected.has(row.employmentId)}
-            disabled={!canManage || confirm.isPending}
+            disabled={!canConfirm || confirm.isPending}
             onToggle={() => toggle(row.employmentId)}
           />
         ))}
       </ul>
 
-      {canManage && (
+      {canConfirm && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] p-4">
           <Checkbox
             label={t('probation.missingSelectAll')}

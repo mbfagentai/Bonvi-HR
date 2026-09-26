@@ -50,9 +50,11 @@ import {
   type ChangeSalaryRequest,
   type EditEmploymentEventRequest,
   type CreateFlagRequest,
+  type EmployeeDetails,
   type EmployeeFilterParams,
   type EmployeeListFilters,
   type HireRequest,
+  type NamedRef,
   type TerminateRequest,
   type TransferRequest,
   type UpdateEmployeeRequest,
@@ -776,6 +778,27 @@ export interface FilterOptions {
   /** Lavozim `id` → bo'lim `id`: forma bo'limni o'zi to'ldirishi uchun. */
   positionDepartment: Map<string, string>
   isPending: boolean
+}
+
+/**
+ * Xodim kartasidagi yo'nalishlar — nomi bilan.
+ *
+ * Karta javobi (`EmployeeDto`) yo'nalishlarni faqat `directionIds` bilan
+ * beradi, nomsiz, va shu sababli karta har doim «belgilanmagan» deb
+ * turardi. Nomlar ma'lumotnomadan olinadi. Faolsizlantirilgan yo'nalish
+ * ham xodimda qolishi mumkin, shu sababli HAMMASI so'raladi.
+ */
+export function useEmployeeDirections(employee: EmployeeDetails): NamedRef[] {
+  const catalog = useCatalogList('directions', false)
+
+  return useMemo(() => {
+    if (employee.directions.length > 0) return employee.directions
+    const names = new Map((catalog.data ?? EMPTY_LIST).map((item) => [item.id, item.name]))
+    return employee.directionIds.flatMap((id) => {
+      const name = names.get(id)
+      return name === undefined ? [] : [{ id, name }]
+    })
+  }, [employee.directions, employee.directionIds, catalog.data])
 }
 
 /**

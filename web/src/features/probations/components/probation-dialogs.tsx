@@ -1,8 +1,10 @@
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { employeeErrorCode } from '@/features/employees/lib/employee-error'
+import { EMPLOYMENT_SALARY } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 
@@ -48,6 +50,15 @@ export function ResolveDialog({
   const errorMessage = useErrorMessage()
   const resolve = useResolveProbation()
   const options = useFilterOptions()
+  const { hasPermission } = useAuth()
+
+  /*
+    Oklad maydoni — PUL QOIDASI bo'yicha (`EMPLOYMENT_SALARY` izohi):
+    sinovni yakunlash huquqi bor, oklad huquqi yo'q odamga maydon umuman
+    chizilmaydi va so'rovga summa tushmaydi. Aks holda server butun
+    yakunlashni 403 bilan rad etardi.
+  */
+  const canSetSalary = hasPermission(EMPLOYMENT_SALARY)
 
   const [status, setStatus] = useState<ProbationStatus>('passed')
   const [conclusion, setConclusion] = useState('')
@@ -104,7 +115,9 @@ export function ResolveDialog({
                 positionId: changed(positionId, item.positionId),
                 departmentId: changed(departmentId, item.departmentId),
                 salaryAmount:
-                  salary.trim() === '' || !Number.isFinite(parsedSalary) ? null : parsedSalary,
+                  !canSetSalary || salary.trim() === '' || !Number.isFinite(parsedSalary)
+                    ? null
+                    : parsedSalary,
                 rate: rate.trim() === '' || !Number.isFinite(parsedRate) ? null : parsedRate,
                 orderNo: trimmedOrder === '' ? null : trimmedOrder,
               }
@@ -187,14 +200,16 @@ export function ResolveDialog({
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextField
-                label={t('employee.salary')}
-                placeholder={t('probation.keepCurrent')}
-                type="number"
-                inputMode="numeric"
-                value={salary}
-                onChange={(event) => setSalary(event.target.value)}
-              />
+              {canSetSalary && (
+                <TextField
+                  label={t('employee.salary')}
+                  placeholder={t('probation.keepCurrent')}
+                  type="number"
+                  inputMode="numeric"
+                  value={salary}
+                  onChange={(event) => setSalary(event.target.value)}
+                />
+              )}
 
               <TextField
                 label={t('probation.rate')}

@@ -98,7 +98,7 @@ export function SettingsDialog({
    * ko'ra ko'rsatmagan afzal.
    */
   const roles = (user?.roles ?? [])
-    .map((code) => ({ code, label: t(`roles.${code}`) }))
+    .map((code, index) => ({ code, label: user?.roleNames?.[index] ?? t(`roles.${code}`) }))
     .filter((role) => role.label !== `roles.${role.code}`)
 
   return (

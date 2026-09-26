@@ -14,7 +14,8 @@ namespace Bonvi.Application.Identity.Users.Common;
 /// <list type="number">
 ///   <item>
 ///     <b>Kim kimni boshqara oladi</b> (<see cref="EnsureCanActOn"/>).
-///     Super administrator — hammani; bosh rahbar — faqat HR menejerlarni.
+///     Super administrator — hammani; qolganlar — ruxsatlari O'ZINIKIDAN
+///     oshmaydigan boshqa rol egalarini (qoida <see cref="Allowed"/> da).
 ///   </item>
 ///   <item>
 ///     <b>Atigi bitta</b> (<see cref="EnsureSingleHolder"/>). Ikkinchi super
@@ -42,9 +43,9 @@ namespace Bonvi.Application.Identity.Users.Common;
 internal static class UserRoleRules
 {
     /// <summary>
-    /// Foydalanuvchining rol KODI. Rol berilmagan yoki topilmagan bo'lsa — <c>null</c>.
+    /// Foydalanuvchining roli. Rol berilmagan yoki topilmagan bo'lsa — <c>null</c>.
     /// </summary>
-    public static string? CodeOf(User user, IReadOnlyList<Role> roles)
+    public static Role? RoleOf(User user, IReadOnlyList<Role> roles)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(roles);
@@ -54,8 +55,13 @@ internal static class UserRoleRules
             return null;
         }
 
-        return roles.FirstOrDefault(role => role.Id == roleId)?.Code;
+        return roles.FirstOrDefault(role => role.Id == roleId);
     }
+
+    /// <summary>
+    /// Foydalanuvchining rol KODI. Rol berilmagan yoki topilmagan bo'lsa — <c>null</c>.
+    /// </summary>
+    public static string? CodeOf(User user, IReadOnlyList<Role> roles) => RoleOf(user, roles)?.Code;
 
     /// <summary>
     /// So'rovchi shu foydalanuvchiga (uning JORIY roli bo'yicha) tega oladimi.
@@ -65,7 +71,7 @@ internal static class UserRoleRules
         ArgumentNullException.ThrowIfNull(acting);
         ArgumentNullException.ThrowIfNull(target);
 
-        return Allowed(CodeOf(acting, roles), CodeOf(target, roles));
+        return Allowed(RoleOf(acting, roles), RoleOf(target, roles));
     }
 
     /// <summary>
@@ -76,7 +82,7 @@ internal static class UserRoleRules
         ArgumentNullException.ThrowIfNull(acting);
         ArgumentNullException.ThrowIfNull(role);
 
-        return Allowed(CodeOf(acting, roles), role.Code);
+        return Allowed(RoleOf(acting, roles), role);
     }
 
     /// <summary>
@@ -183,45 +189,85 @@ internal static class UserRoleRules
     }
 
     /// <summary>
-    /// «Kim kimga tega oladi» matritsasi — qoidaning YAGONA nusxasi.
+    /// «Kim kimga tega oladi» — qoidaning YAGONA nusxasi (frontend ham
+    /// aynan shu funksiyani <c>GET /api/roles</c> dagi ruxsatlar bilan takrorlaydi).
     /// </summary>
     /// <remarks>
-    /// <list type="bullet">
+    /// <para>
+    /// Ilgari bu rol KODLARI matritsasi edi (bosh rahbar → faqat HR menejer).
+    /// Rollarni endi egasi o'zi yaratadi, ya'ni kodlar ro'yxati oldindan
+    /// ma'lum emas — qoida RUXSATLARNI solishtirishga o'tdi:
+    /// </para>
+    /// <list type="number">
+    ///   <item>So'rovchining roli yo'q — rad.</item>
+    ///   <item>So'rovchi <b>super_admin</b> — ruxsat: u tizim egasi.</item>
     ///   <item>
-    ///     <b>super_admin</b> — hammaga: bosh rahbarga ham, HR menejerlarga
-    ///     ham. U tizim egasi.
+    ///     Nishon roli himoyalangan (<b>super_admin</b> yoki bot roli) — rad.
+    ///     Bot roli shartnomada alohida sanalmagan, lekin u ham
+    ///     himoyalangan: bot hisobining parolini tiklash yoki uni
+    ///     faolsizlantirish anketa botini to'xtatib qo'yadi, bu esa
+    ///     bugungidek faqat super administratorning qarori bo'lib qoladi.
     ///   </item>
     ///   <item>
-    ///     <b>main_boss</b> — FAQAT HR menejerlarga. Super administratorga
-    ///     ham, boshqa bosh rahbarga ham (ya'ni o'ziga ham, shu ekrandan)
-    ///     tegolmaydi. O'z profilini u «Sozlamalar» oynasidan tahrirlaydi —
-    ///     bu butunlay boshqa yo'l va unga bu qoida taalluqli emas.
+    ///     Nishon roli so'rovchining O'Z roli — rad. Teng huquqli
+    ///     hamkasbini boshqarish (masalan ikkinchi bosh rahbarni
+    ///     faolsizlantirish) bugun ham mumkin emas edi.
     ///   </item>
     ///   <item>
-    ///     <b>Qolganlar</b> (HR menejer, rolsiz hisob) — hech kimga. Ular bu
-    ///     endpoint'larga <c>users.manage</c> yo'qligi sababli baribir
-    ///     yetmaydi; bu yerdagi rad etish — ikkinchi qatlam.
+    ///     Nishon rolining ruxsatlari so'rovchinikining QISM TO'PLAMI —
+    ///     ruxsat; aks holda rad. O'zidan kuchliroq hisobga tegish (yoki
+    ///     odamga o'zidan kuchliroq rol berish) huquqni «qarzga olish» bo'lardi.
     ///   </item>
     /// </list>
     /// <para>
-    /// <b>Rolsiz NISHON ham himoyalangan.</b> <c>targetRole</c> <c>null</c>
-    /// bo'lsa (eski yoki buzilgan yozuv) unga faqat super administrator
-    /// tegadi: noma'lum holatda eng ehtiyotkor javob shu.
+    /// Bu bugungi xatti-harakatni aynan takrorlaydi (bosh rahbar HR
+    /// menejerlarni boshqaradi, boshqa bosh rahbarni emas) va uni egasi
+    /// yaratgan rollarga kengaytiradi.
+    /// </para>
+    /// <para>
+    /// <b>Rolsiz nishon — bo'sh ruxsatlar to'plami</b>: unga
+    /// <c>users.manage</c> li har kim tega oladi (shartnoma qarori).
+    /// Ilgari faqat super administrator tegardi; bunday hisob amalda yo'q.
     /// </para>
     /// </remarks>
-    private static Result Allowed(string? actingRole, string? targetRole)
+    private static Result Allowed(Role? acting, Role? target)
     {
-        if (string.Equals(actingRole, SystemRoles.SuperAdmin, StringComparison.Ordinal))
+        if (acting is null)
+        {
+            return UserErrors.RoleOutOfReach;
+        }
+
+        if (string.Equals(acting.Code, SystemRoles.SuperAdmin, StringComparison.Ordinal))
         {
             return Result.Success();
         }
 
-        if (string.Equals(actingRole, SystemRoles.MainBoss, StringComparison.Ordinal) &&
-            string.Equals(targetRole, SystemRoles.HrManager, StringComparison.Ordinal))
+        if (target is null)
         {
             return Result.Success();
         }
 
-        return UserErrors.RoleOutOfReach;
+        if (target.IsProtected || target.Id == acting.Id)
+        {
+            return UserErrors.RoleOutOfReach;
+        }
+
+        var actingPermissions = acting.Permissions.ToHashSet(StringComparer.Ordinal);
+
+        if (!target.Permissions.All(actingPermissions.Contains))
+        {
+            return UserErrors.RoleOutOfReach;
+        }
+
+        // Foydalanuvchilarni boshqaradigan TENG huquqli boshqa rol — «hamkasb»:
+        // ular bir-birining parolini tiklab, hisobini egallab olmasligi uchun
+        // bunday rol QAT'IY pastda bo'lishi shart (xavfsizlik tekshiruvi, 2026-09-26).
+        if (target.Permissions.Contains(Permissions.UsersManage, StringComparer.Ordinal) &&
+            actingPermissions.SetEquals(target.Permissions))
+        {
+            return UserErrors.RoleOutOfReach;
+        }
+
+        return Result.Success();
     }
 }
