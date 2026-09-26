@@ -68,25 +68,79 @@ internal sealed partial class AgentWorker : BackgroundService
     /// <summary>Kursor yo'q bo'lganda qancha orqaga qaraladi.</summary>
     private static readonly TimeSpan ColdStart = TimeSpan.FromHours(1);
 
+    /// <summary>
+    /// Qidiruv oxirgi uzatilgan hodisadan shuncha OLDINDAN boshlanadi.
+    /// </summary>
+    /// <remarks>
+    /// Bir soniyada bir nechta o'tish yoki terminal soatining ozgina
+    /// orqaga surilishi uchun zaxira. Qayta o'qilganlar tartib raqami
+    /// bo'yicha tashlanadi, serverga yetsa ham — takror sifatida.
+    /// </remarks>
+    private static readonly TimeSpan Overlap = TimeSpan.FromMinutes(2);
+
+    /// <summary>Qidiruv oxiri terminalning «hozir»idan shuncha keyin.</summary>
+    /// <remarks>
+    /// Terminal soatining siljishi hali o'lchanmagan birinchi daqiqada
+    /// ham oldinda yurgan soatning yangi o'tishi oraliqqa tushsin.
+    /// </remarks>
+    private static readonly TimeSpan FutureAllowance = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Bitta bo'lakda uzatiladigan eng ko'p YANGI hodisa.
+    /// </summary>
+    /// <remarks>
+    /// Uzilishdan keyingi qoldiq shunday bo'laklarda ketadi va har
+    /// bo'lakdan keyin kursor saqlanadi: o'rtada yana uzilish bo'lsa,
+    /// keyingi urinish boshidan emas, to'xtagan joyidan davom etadi.
+    /// </remarks>
+    internal const int MaxEventsPerBatch = 300;
+
+    /// <summary>
+    /// Vaqti hozirdan shuncha kundan uzoq hodisa YUBORILMAYDI.
+    /// </summary>
+    /// <remarks>
+    /// Server 30 kundan uzoq og'ishni rad etadi
+    /// (<c>AttendanceRules.MaxClockSkewDays</c>) va bitta shunday hodisa
+    /// BUTUN so'rovni yiqitadi — agent esa o'sha bo'lakni cheksiz qayta
+    /// yuborib, undan keyingi hamma o'tishni ham tiqib qo'yardi. Bunday
+    /// vaqt — buzilgan terminal soati (1970, 2000 yil), va u baribir
+    /// qabul qilinmaydi: tashlanadi va jurnalga yoziladi. Bir kun zaxira —
+    /// agent va server soatlari orasidagi farq uchun.
+    /// </remarks>
+    private const int MaxEventAgeDays = 29;
+
     private readonly HikvisionClient _device;
     private readonly BonviAgentClient _bonvi;
     private readonly AgentOptions _options;
     private readonly ILogger<AgentWorker> _logger;
+    private readonly TimeProvider _time;
 
     private readonly AgentState _state;
+
+    /// <summary>Terminal soati minus agent soati — oxirgi o'lchov (tik).</summary>
+    /// <remarks>
+    /// Ikki halqa ikki xil oqimda: biri yozadi (ro'yxat halqasi soatni
+    /// o'lchaydi), ikkinchisi o'qiydi (hodisalar). Shu sababli
+    /// <see cref="Volatile"/> orqali.
+    /// </remarks>
+    private long _deviceOffsetTicks;
 
     public AgentWorker(
         HikvisionClient device,
         BonviAgentClient bonvi,
         IOptions<AgentOptions> options,
-        ILogger<AgentWorker> logger)
+        ILogger<AgentWorker> logger,
+        TimeProvider time)
     {
         _device = device;
         _bonvi = bonvi;
         _options = options.Value;
         _logger = logger;
+        _time = time;
         _state = AgentState.Load(_options.StatePath);
     }
+
+    private TimeSpan DeviceOffset => TimeSpan.FromTicks(Volatile.Read(ref _deviceOffsetTicks));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -149,44 +203,93 @@ internal sealed partial class AgentWorker : BackgroundService
 
     /// <summary>Terminal jurnalidagi yangi o'tishlarni Bonvi ga uzatadi.</summary>
     /// <remarks>
-    /// Kursor — <c>serialNo</c>: vaqt bo'yicha kesish bir soniyada ikkita
-    /// o'tish bo'lganda bittasini tashlab ketardi. Vaqt esa faqat
-    /// SO'ROVNI toraytirish uchun ishlatiladi.
+    /// <para>
+    /// ⭐ <b>Internet uzilsa o'tish yo'qolmaydi.</b> Terminal hodisani o'z
+    /// jurnalida saqlaydi va o'qilgani uchun o'chirmaydi. Kursor faqat
+    /// server QABUL QILGANDAN keyin suriladi, ya'ni aloqa qaytishi bilan
+    /// qolgan hammasi yuboriladi. Qoldiq katta bo'lsa — bo'lakma-bo'lak
+    /// (<see cref="MaxEventsPerBatch"/>) va TO'XTAMASDAN, 2 soniyalik
+    /// kutishsiz.
+    /// </para>
+    /// <para>
+    /// Kursor ikkita: tartib raqami va oxirgi hodisaning TERMINAL
+    /// vaqti (<see cref="AgentState.LastEventTime"/>). Qidiruv oralig'i
+    /// ikkinchisidan boshlanadi — agent soatidan emas.
+    /// </para>
     /// </remarks>
-    private async Task ForwardEventsAsync(CancellationToken cancellationToken)
+    internal async Task ForwardEventsAsync(CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var since = _state.LastReadAt ?? now - ColdStart;
+        while (await ForwardBatchAsync(cancellationToken).ConfigureAwait(false))
+        {
+            // Terminalda hali o'qilmagan qoldiq bor — keyingi bo'lak darhol.
+        }
+    }
 
-        /*
-          Qisqa muddat — umumiy 30 soniya EMAS. Osilib qolgan bitta so'rov
-          halqani 30 soniyaga to'xtatib qo'yardi: o'tishlar kechikardi va
-          jonli kadr o'tgan odamni allaqachon ushlay olmasdi. Yiqilgan
-          so'rov keyingi aylanishda (2 soniyadan keyin) qaytariladi.
-        */
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(QuickCallTimeout);
+    /// <summary>Bitta bo'lak: o'qish → uzatish → kursorni saqlash.</summary>
+    /// <returns>Terminalda hali o'qilmagan qoldiq qolganmi.</returns>
+    private async Task<bool> ForwardBatchAsync(CancellationToken cancellationToken)
+    {
+        var now = _time.GetUtcNow();
+        var deviceNow = now + DeviceOffset;
 
-        var items = await _device
-            .ReadEventsAsync(since - TimeSpan.FromMinutes(1), now, deadline.Token)
-            .ConfigureAwait(false);
+        var fresh = new List<AcsEvent>();
+        var complete = true;
 
-        var fresh = items
-            .Where(item => item.SerialNo > _state.LastSerialNo)
-            .OrderBy(item => item.SerialNo)
-            .ToList();
+        var pages = _device.SearchEventsAsync(
+            SearchStart(deviceNow) - Overlap,
+            deviceNow + FutureAllowance,
+            QuickCallTimeout,
+            cancellationToken);
+
+        await foreach (var page in pages.ConfigureAwait(false))
+        {
+            fresh.AddRange(page.Where(IsNew));
+
+            if (fresh.Count >= MaxEventsPerBatch)
+            {
+                complete = false;
+                break;
+            }
+        }
 
         if (fresh.Count == 0)
         {
-            _state.LastReadAt = now;
-            return;
+            // Yangi narsa yo'q — kursorga TEGILMAYDI: qidiruvning boshi
+            // oxirgi uzatilgan hodisaga bog'langan, «hozir»ga emas.
+            return false;
         }
+
+        fresh = fresh
+            .DistinctBy(item => (item.SerialNo, item.Time))
+            .OrderBy(item => EventTime(item) ?? DateTimeOffset.MinValue)
+            .ThenBy(item => item.SerialNo)
+            .ToList();
 
         // Bo'sh shaxs raqami — eshik holati yoki tanilmagan yuz, o'tish
         // EMAS (`AcsEvent.EmployeeNoString` izohi).
-        var passes = fresh
-            .Where(item => !string.IsNullOrWhiteSpace(item.EmployeeNoString) && item.Time is not null)
-            .ToList();
+        var passes = new List<(AcsEvent Item, DateTimeOffset Time)>();
+        var implausible = 0;
+
+        foreach (var item in fresh)
+        {
+            if (string.IsNullOrWhiteSpace(item.EmployeeNoString) || EventTime(item) is not { } time)
+            {
+                continue;
+            }
+
+            if (!Plausible(time, now))
+            {
+                implausible++;
+                continue;
+            }
+
+            passes.Add((item, time));
+        }
+
+        if (implausible > 0)
+        {
+            ImplausibleSkipped(implausible, MaxEventAgeDays);
+        }
 
         /*
           Jonli kadr — BITTA, faqat yangi o'tish bo'lsa. Kadr O'QISH
@@ -195,18 +298,18 @@ internal sealed partial class AgentWorker : BackgroundService
           uzilib qaytganda yuboriladigan eski o'tishlar suratsiz qoladi,
           noto'g'ri surat bilan emas.
         */
-        var photo = passes.Any(item => IsFresh(item, now))
+        var photo = passes.Any(pass => IsFresh(pass.Time, deviceNow))
             ? await SnapshotAsync(cancellationToken).ConfigureAwait(false)
             : null;
 
         var events = passes
-            .Select(item => new IngestEvent(
-                item.EmployeeNoString!,
-                item.Time!,
+            .Select(pass => new IngestEvent(
+                pass.Item.EmployeeNoString!,
+                pass.Item.Time!,
                 "Unknown",
-                Method(item.CurrentVerifyMode),
-                $"minmoe-{item.SerialNo}",
-                photo is not null && IsFresh(item, now) ? photo : null))
+                Method(pass.Item.CurrentVerifyMode),
+                EventId(pass.Item.SerialNo, pass.Time),
+                photo is not null && IsFresh(pass.Time, deviceNow) ? photo : null))
             .ToList();
 
         /*
@@ -227,11 +330,80 @@ internal sealed partial class AgentWorker : BackgroundService
           javob bermasa, o'sha hodisalar keyingi urinishda qayta
           yuboriladi. Takror zararsiz (server o'zi tashlaydi), yo'qolgan
           o'tish esa tabelda tuzatib bo'lmaydigan teshik qoldirardi.
+
+          Ikkala qiymat ham faqat O'SADI: terminal soati orqaga surilgan
+          bo'lsa, kursor u bilan birga orqaga qaytmaydi (aks holda eski va
+          yangi hodisa navbat bilan «yangi» bo'lib, cheksiz qayta
+          yuborilardi). Vaqti aql bovar qilmaydiganlari kursorni
+          siljitmaydi — 2106-yilli bitta hodisa qidiruvni kelajakka
+          surib, keyingi hammasini yo'qotardi.
         */
-        _state.LastSerialNo = fresh[^1].SerialNo;
-        _state.LastReadAt = now;
+        _state.LastSerialNo = Math.Max(_state.LastSerialNo, fresh.Max(item => item.SerialNo));
+
+        var newest = fresh
+            .Select(EventTime)
+            .Where(time => time is { } value && Plausible(value, now))
+            .Max();
+
+        if (newest is { } latest && (_state.LastEventTime is not { } last || latest > last))
+        {
+            _state.LastEventTime = latest;
+        }
+
         _state.Save(_options.StatePath);
+
+        return !complete;
     }
+
+    /// <summary>
+    /// Qidiruvning boshi — terminal soatida.
+    /// </summary>
+    /// <remarks>
+    /// Oxirgi uzatilgan hodisa, lekin terminalning «hozir»idan KEYIN emas:
+    /// terminal soati orqaga to'g'rilansa (masalan, bir soatga), yangi
+    /// o'tishlar eski kursordan oldin yoziladi va qidiruv ularni o'tkazib
+    /// yuborardi. Siljish har daqiqada o'lchanadi (<see cref="ReportClockAsync"/>).
+    /// </remarks>
+    private DateTimeOffset SearchStart(DateTimeOffset deviceNow)
+    {
+        var anchor = _state.LastEventTime
+            ?? (_state.LastReadAt is { } read ? read - ColdStart : deviceNow - ColdStart);
+
+        return anchor < deviceNow ? anchor : deviceNow;
+    }
+
+    /// <summary>Hodisa hali uzatilmaganmi.</summary>
+    /// <remarks>
+    /// Tartib raqami kursordan katta — yangi. Vaqti oxirgi uzatilgan
+    /// hodisadan KECH — ham yangi, raqamidan qat'i nazar: jurnal
+    /// tozalanib raqamlar 1 dan qayta boshlansa, aks holda terminal
+    /// hech qachon eski raqamga yetmasdi va hamma o'tish jimgina
+    /// tashlanardi.
+    /// </remarks>
+    private bool IsNew(AcsEvent item)
+        => item.SerialNo > _state.LastSerialNo
+           || (_state.LastEventTime is { } last && EventTime(item) is { } time && time > last);
+
+    /// <summary>
+    /// Qabul yo'liga ketadigan hodisa kaliti — raqam VA vaqt.
+    /// </summary>
+    /// <remarks>
+    /// Server takrorni shu kalit bo'yicha tashlaydi. Faqat raqam bo'lsa,
+    /// jurnal tozalangandan keyingi yangi «5-hodisa» oylar oldingi
+    /// «5-hodisa» ning takrori deb jimgina tashlanardi.
+    /// </remarks>
+    internal static string EventId(long serialNo, DateTimeOffset time)
+        => string.Create(
+            CultureInfo.InvariantCulture,
+            $"minmoe-{serialNo}-{time:yyyyMMddHHmmss}");
+
+    private static DateTimeOffset? EventTime(AcsEvent item)
+        => DateTimeOffset.TryParse(item.Time, CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
+            ? time
+            : null;
+
+    private static bool Plausible(DateTimeOffset time, DateTimeOffset now)
+        => Math.Abs((now - time).TotalDays) <= MaxEventAgeDays;
 
     /// <summary>
     /// Kerakli ro'yxat bilan terminaldagi haqiqiy ro'yxatni solishtiradi.
@@ -299,7 +471,7 @@ internal sealed partial class AgentWorker : BackgroundService
     /// tayyor farq emas: agentning o'z soati ham adashishi mumkin va
     /// o'shanda xato ikki marta qo'shilardi.
     /// </remarks>
-    private async Task ReportClockAsync(CancellationToken cancellationToken)
+    internal async Task ReportClockAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -307,6 +479,11 @@ internal sealed partial class AgentWorker : BackgroundService
 
             if (deviceTime is { } time)
             {
+                // Hodisalar qidiruvi shu siljish bilan terminal soatiga
+                // o'tkaziladi (`SearchStart`). Server bilan aloqa bo'lmasa
+                // ham o'lchov saqlanadi — u agentning o'ziga kerak.
+                Volatile.Write(ref _deviceOffsetTicks, (time - _time.GetUtcNow()).Ticks);
+
                 await _bonvi.ReportClockAsync(time, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -435,23 +612,24 @@ internal sealed partial class AgentWorker : BackgroundService
         Message = "Jonli kadr olinmadi: {Error}")]
     private partial void SnapshotFailed(string error);
 
+    [LoggerMessage(EventId = 6109, Level = LogLevel.Warning,
+        Message = "Vaqti hozirdan {Days} kundan uzoq {Count} ta o'tish yuborilmadi — terminal soatini tekshiring")]
+    private partial void ImplausibleSkipped(int count, int days);
+
     /// <summary>
     /// O'tish shunchalik yangimi, jonli kadr unda o'sha odamni ko'rsata oladi.
     /// </summary>
     /// <remarks>
-    /// Vaqt o'qib bo'lmasa — YO'Q: shubhali holatda surat biriktirilmaydi.
-    /// Qurilma soati katta og'gan bo'lsa ham shunday: bunda hodisa eski yoki
-    /// uzoq kelajakda ko'rinadi va kadr olinmaydi. Og'ishning o'zi
-    /// qurilmalar sahifasida ko'rinib turadi.
+    /// Yosh terminalning O'Z soati bo'yicha o'lchanadi: soati bir necha
+    /// soniya orqada yurgan terminalda ham yangi o'tish kadrsiz qolmasin.
+    /// Siljish hali o'lchanmagan bo'lsa va soat katta og'gan bo'lsa, kadr
+    /// olinmaydi — shubhali holatda surat biriktirilmaydi.
     /// </remarks>
-    private bool IsFresh(AcsEvent item, DateTimeOffset now)
+    /// <param name="occurred">O'tish vaqti — terminal soatida.</param>
+    /// <param name="deviceNow">Terminalning «hozir»i — agent soati + o'lchangan siljish.</param>
+    private bool IsFresh(DateTimeOffset occurred, DateTimeOffset deviceNow)
     {
-        if (!DateTimeOffset.TryParse(item.Time, CultureInfo.InvariantCulture, DateTimeStyles.None, out var occurred))
-        {
-            return false;
-        }
-
-        var age = (now - occurred).TotalSeconds;
+        var age = (deviceNow - occurred).TotalSeconds;
 
         return age >= -FutureToleranceSeconds && age <= _options.SnapshotMaxAgeSeconds;
     }

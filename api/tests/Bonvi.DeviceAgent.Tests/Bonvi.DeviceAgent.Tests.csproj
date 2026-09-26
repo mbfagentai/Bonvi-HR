@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Qurilma agentining sinovlari — TARMOQSIZ.
+
+    Agent haqiqiy `HttpClient` lar bilan yasaladi, ostida esa soxta
+    terminal va soxta Bonvi API turadi (`Bonvi.Bot.Tests` dagi bilan bir
+    xil fikr). Shu sababli uzilish, sahifaga 30 tadan beradigan firmware
+    va soati surilgan terminal ofisga bormasdan tekshiriladi.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.DeviceAgent.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bonvi.DeviceAgent\Bonvi.DeviceAgent.csproj" />
+  </ItemGroup>
+
+</Project>

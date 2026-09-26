@@ -81,6 +81,9 @@ builder.Services.AddHttpClient<BonviAgentClient>((provider, client) =>
 })
 .RemoveAllLoggers();
 
+// Soat — testlar vaqtni boshqara olishi uchun (terminal soati orqada/oldinda).
+builder.Services.AddSingleton(TimeProvider.System);
+
 builder.Services.AddHostedService<AgentWorker>();
 
 var host = builder.Build();

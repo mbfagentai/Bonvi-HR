@@ -264,3 +264,42 @@ o'zgarish yo'q.
   kadrning o'zi emas. Nazorat uchun («rostan u o'tdimi») bu yetarli.
 * Sozlama: `AGENT__SNAPSHOTCHANNEL` (bo'sh — kadr olinmaydi).
 
+
+---
+
+## K. Uzilishdan keyin o'tish yo'qolmasligi (2026-09-26, egasining savoli)
+
+Savol: «internet bo'lmay qolsa, o'tishlar terminalda saqlanib turadimi va
+aloqa qaytgach serverga yuklanadimi?» Asosi to'g'ri edi — terminal
+hodisani o'z jurnalida saqlaydi, o'qilgani uchun o'chirmaydi, kursor faqat
+server qabul qilgandan keyin suriladi. Lekin uchta teshik bor edi va
+ularning har biri o'tishni JIMGINA yo'qotardi:
+
+| # | Teshik | Tuzatish |
+|---|---|---|
+| 1 | Sahifa oxiri «so'ralgan 50 tadan kam keldi» bilan aniqlanardi. Firmware sahifaga 30 tadan bersa, uzilishdan keyin faqat birinchi 30 ta ketardi. Odamlar ro'yxatida ham xuddi shunday. | Oxirini terminal javobi aytadi: `responseStatusStrg` (`MORE`/`OK`/`NO MATCH`), bo'lmasa `totalMatches`, u ham bo'lmasa — bo'sh sahifagacha. |
+| 2 | Butun o'qishga 8 soniya. Bir necha kunlik qoldiq sig'masdi — agent abadiy aylanardi. | Muddat har SO'ROVGA. Qoldiq 300 talik bo'laklarda, to'xtamasdan; har bo'lakdan keyin kursor saqlanadi. |
+| 3 | Qidiruv oralig'i AGENT soatida edi («hozir − 1 daqiqa»). Terminal soati bir daqiqadan ko'proq orqada bo'lsa, uzilishsiz ham o'tish yo'qolardi. | Oraliq oxirgi uzatilgan hodisaning TERMINAL vaqtidan boshlanadi (`LastEventTime`), terminal «hozir»idan keyin emas; terminal soati har daqiqada o'lchanadi. |
+
+Yo'l-yo'lakay yopilgan ikki holat:
+
+* **Buzilgan terminal soati** (2000 yoki kelgusi yil). Server 30 kundan uzoq
+  og'ishni rad etadi va bitta shunday hodisa butun so'rovni yiqitadi —
+  agent o'sha bo'lakni cheksiz qayta yuborib, keyingi hamma o'tishni
+  tiqib qo'yardi. Endi 29 kundan uzoqlari yuborilmaydi va jurnalga
+  yoziladi (6109).
+* **Jurnal tozalanib, raqamlar 1 dan qayta boshlansa.** Oxirgi uzatilgan
+  vaqtdan KECH hodisa raqamidan qat'i nazar yangi hisoblanadi; qabul
+  kaliti endi `minmoe-{raqam}-{vaqt}` — aks holda yangi «5-hodisa» oylar
+  oldingisining takrori deb tashlanardi.
+
+Eski holat fayli bilan birinchi ishga tushishda takror yuborilmaydi
+(faqat tartib raqami bo'yicha, oxirgi o'qishdan bir soat oldindan).
+
+Testlar: `Bonvi.DeviceAgent.Tests` — soxta terminal (sahifaga 30 tadan,
+soati surilgan) va soxta server (uzilgan). Har bir tuzatish vaqtincha
+qaytarilganda o'z testi yiqilishi tekshirilgan.
+
+⚠️ **Tirik terminalda hali sinalmagan** (ofis tarmog'idan tashqarida
+edik). Birinchi sinovda: agentni to'xtatib, 40–50 ta o'tish qiling,
+yoqing — hammasi jurnalga tushishi kerak.

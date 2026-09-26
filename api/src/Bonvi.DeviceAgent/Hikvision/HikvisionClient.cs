@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -32,8 +33,8 @@ internal sealed partial class HikvisionClient
 {
     /// <summary>Bitta so'rovda so'raladigan yozuvlar soni.</summary>
     /// <remarks>
-    /// Firmware ko'pincha 30–50 dan ortig'ini bermaydi; 50 — xavfsiz
-    /// chegara va halqa qolganini keyingi sahifada oladi.
+    /// Firmware ko'pincha 30 dan ortig'ini bermaydi — bu normal: sahifa
+    /// oxirini son emas, terminal javobi aytadi (<see cref="HasMore"/>).
     /// </remarks>
     private const int PageSize = 50;
 
@@ -86,7 +87,7 @@ internal sealed partial class HikvisionClient
     }
 
     /// <summary>
-    /// <paramref name="since"/> dan keyingi o'tish hodisalari.
+    /// <paramref name="since"/> — <paramref name="until"/> oralig'idagi hodisalar, sahifama-sahifa.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -97,16 +98,28 @@ internal sealed partial class HikvisionClient
     /// <para>
     /// Vaqt TOSHKENT siljishi bilan yuboriladi: terminalning soati
     /// mahalliy vaqtda yuradi va <c>Z</c> bilan so'rov bo'sh natija
-    /// qaytarardi.
+    /// qaytarardi. Oraliq TERMINAL soatida o'lchanadi — chaqiruvchi uni
+    /// shunga moslab beradi.
+    /// </para>
+    /// <para>
+    /// ⭐ <b>Sahifa ro'yxat emas, oqim bo'lib qaytadi.</b> Uzilishdan keyin
+    /// terminalda minglab hodisa turgan bo'lishi mumkin: hammasini bitta
+    /// ro'yxatga yig'ish ham, bitta umumiy muddat ichida o'qish ham
+    /// (ilgari 8 soniya edi) agentni abadiy aylanishga solardi — o'qish
+    /// hech qachon tugamasdi va kursor hech qachon surilmasdi. Endi
+    /// muddat HAR SO'ROVGA alohida (<paramref name="pageTimeout"/>) va
+    /// chaqiruvchi yetarlicha yig'gach o'qishni to'xtatib, qolganini
+    /// keyingi bo'lakda oladi.
     /// </para>
     /// </remarks>
-    public async Task<IReadOnlyList<AcsEvent>> ReadEventsAsync(
+    public async IAsyncEnumerable<IReadOnlyList<AcsEvent>> SearchEventsAsync(
         DateTimeOffset since,
         DateTimeOffset until,
-        CancellationToken cancellationToken)
+        TimeSpan pageTimeout,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var events = new List<AcsEvent>();
         var position = 0;
+        var seen = new HashSet<long>();
 
         while (true)
         {
@@ -124,29 +137,47 @@ internal sealed partial class HikvisionClient
                 },
             };
 
-            var page = await PostJsonAsync<AcsEventResponse>(
-                    "/ISAPI/AccessControl/AcsEvent?format=json",
-                    body,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            AcsEventResponse? page;
+
+            using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                deadline.CancelAfter(pageTimeout);
+
+                page = await PostJsonAsync<AcsEventResponse>(
+                        "/ISAPI/AccessControl/AcsEvent?format=json",
+                        body,
+                        deadline.Token)
+                    .ConfigureAwait(false);
+            }
 
             var items = page?.AcsEvent?.InfoList ?? [];
-            events.AddRange(items);
+            var added = items.Count(item => seen.Add(item.SerialNo));
 
-            // Oxirgi sahifa: qaytgan yozuv so'ralganidan kam.
-            if (items.Count < PageSize)
+            if (items.Count > 0)
             {
-                return events;
+                yield return items;
             }
 
             position += items.Count;
+
+            if (added == 0 || !HasMore(page?.AcsEvent?.ResponseStatusStrg, page?.AcsEvent?.TotalMatches, position))
+            {
+                yield break;
+            }
         }
     }
 
     /// <summary>Terminaldagi BARCHA odamlar — raqami, ismi va yuzlari soni.</summary>
+    /// <remarks>
+    /// Sahifa oxiri <see cref="HasMore"/> bilan aniqlanadi. Ilgari «so'ralgan
+    /// 50 tadan kam keldi ⇒ tamom» edi: firmware sahifaga 30 tadan bersa,
+    /// agent faqat birinchi 30 kishini ko'rardi va qolgan Bonvi xodimlarini
+    /// «terminalda yo'q» deb har daqiqada qayta yozishga urinardi.
+    /// </remarks>
     public async Task<IReadOnlyList<DevicePerson>> ListPersonsAsync(CancellationToken cancellationToken)
     {
         var people = new List<DevicePerson>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var position = 0;
 
         while (true)
@@ -168,19 +199,67 @@ internal sealed partial class HikvisionClient
                 .ConfigureAwait(false);
 
             var items = page?.UserInfoSearch?.UserInfo ?? [];
+            var added = 0;
 
-            people.AddRange(items.Select(item => new DevicePerson(
-                item.EmployeeNo ?? string.Empty,
-                item.Name,
-                item.NumOfFace)));
-
-            if (items.Count < PageSize)
+            foreach (var item in items)
             {
-                return people;
+                var number = item.EmployeeNo ?? string.Empty;
+
+                // Bir kishi ikki sahifada kelsa (firmware pozitsiyani
+                // e'tiborsiz qoldirsa) — bir marta.
+                if (seen.Add(number))
+                {
+                    people.Add(new DevicePerson(number, item.Name, item.NumOfFace));
+                    added++;
+                }
             }
 
             position += items.Count;
+
+            if (added == 0 || !HasMore(page?.UserInfoSearch?.ResponseStatusStrg, page?.UserInfoSearch?.TotalMatches, position))
+            {
+                return people;
+            }
         }
+    }
+
+    /// <summary>
+    /// Qidiruvning yana sahifasi bormi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Birinchi navbatda terminalning O'Z javobi: <c>MORE</c> — bor,
+    /// <c>OK</c> / <c>NO MATCH</c> — tamom. Bu maydon bo'lmasa (eski
+    /// firmware) — <c>totalMatches</c>. Ikkalasi ham bo'lmasa, bo'sh
+    /// sahifa kelguncha o'qiladi: bitta ortiqcha so'rov yo'qolgan
+    /// o'tishdan arzon.
+    /// </para>
+    /// <para>
+    /// ⚠️ Sahifadagi yozuvlar soni bilan solishtirish YO'Q: firmware
+    /// <c>maxResults</c> dan kam berishi normal va bu «oxirgi sahifa»
+    /// degani emas. Aynan shu xato uzilishdan keyin 30 tadan keyingi
+    /// hamma o'tishni tashlab ketardi.
+    /// </para>
+    /// <para>
+    /// Chaqiruvchilar yana bir to'siq qo'yadi: sahifada BIRORTA yangi
+    /// yozuv bo'lmasa, o'qish to'xtaydi — pozitsiyani e'tiborsiz
+    /// qoldiradigan firmware bir sahifani cheksiz qaytarmasin.
+    /// </para>
+    /// </remarks>
+    internal static bool HasMore(string? status, int? totalMatches, int read)
+    {
+        if (string.Equals(status, "MORE", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "NO MATCH", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return totalMatches is not { } total || read < total;
     }
 
     /// <summary>Odamni yozadi yoki mavjudini JOYIDA yangilaydi.</summary>

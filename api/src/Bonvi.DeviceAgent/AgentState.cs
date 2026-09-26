@@ -21,10 +21,37 @@ namespace Bonvi.DeviceAgent;
 /// </remarks>
 internal sealed class AgentState
 {
-    /// <summary>Oxirgi o'qilgan hodisaning tartib raqami.</summary>
+    /// <summary>Uzatilgan hodisalarning eng katta tartib raqami.</summary>
     public long LastSerialNo { get; set; }
 
-    /// <summary>Kursor qaysi lahzagacha surilgan.</summary>
+    /// <summary>
+    /// Uzatilgan hodisalarning eng kech vaqti — TERMINAL soatida, u yozganidek.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Qidiruv shu nuqtadan boshlanadi, agent soatidan emas.</b>
+    /// Ilgari oraliq «agentning hozirgi vaqti − 1 daqiqa» edi: terminal
+    /// soati bir daqiqadan ko'proq orqada yursa, yangi o'tish hech qaysi
+    /// oraliqqa tushmasdi va uzilishsiz ham jimgina yo'qolardi.
+    /// Terminal o'z vaqtini o'zi bilan solishtirganda adashmaydi.
+    /// </para>
+    /// <para>
+    /// Shu vaqtdan KEYINGI har qanday hodisa ta'rifi bo'yicha hali
+    /// uzatilmagan — tartib raqami qanday bo'lishidan qat'i nazar.
+    /// Terminal jurnali tozalanib, raqamlar 1 dan qayta boshlansa ham
+    /// o'tishlar shu qoida bilan tutiladi.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? LastEventTime { get; set; }
+
+    /// <summary>
+    /// ESKI kursor — agent soatidagi oxirgi o'qish lahzasi.
+    /// </summary>
+    /// <remarks>
+    /// Endi yozilmaydi. Faqat eski holat faylidan birinchi marta o'tishda
+    /// qidiruvning boshini topish uchun o'qiladi
+    /// (<see cref="LastEventTime"/> hali yo'q paytda).
+    /// </remarks>
     public DateTimeOffset? LastReadAt { get; set; }
 
     public static AgentState Load(string path)

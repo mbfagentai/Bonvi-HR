@@ -24,7 +24,20 @@ internal sealed record AcsEvent(
     string? EmployeeNoString,
     string? CurrentVerifyMode);
 
-internal sealed record AcsEventPayload(IReadOnlyList<AcsEvent>? InfoList);
+/// <summary>Hodisa qidiruvining bitta sahifasi.</summary>
+/// <param name="InfoList">Sahifadagi hodisalar.</param>
+/// <param name="ResponseStatusStrg">
+/// <c>MORE</c> — yana sahifa bor; <c>OK</c> / <c>NO MATCH</c> — tugadi.
+/// Sahifa oxirini FAQAT shu va <paramref name="TotalMatches"/> aytadi:
+/// firmware <c>maxResults</c> dan kam (ko'pincha 30) berishi mumkin va
+/// «so'ralganidan kam keldi ⇒ oxirgi sahifa» qoidasi qoldiqni jimgina
+/// tashlab ketardi (<c>HikvisionClient.HasMore</c>).
+/// </param>
+/// <param name="TotalMatches">Qidiruvga mos jami yozuvlar.</param>
+internal sealed record AcsEventPayload(
+    IReadOnlyList<AcsEvent>? InfoList,
+    string? ResponseStatusStrg = null,
+    int? TotalMatches = null);
 
 internal sealed record AcsEventResponse(AcsEventPayload? AcsEvent);
 
@@ -41,6 +54,10 @@ internal sealed record DevicePerson(string EmployeeNo, string? Name, int? NumOfF
 
 internal sealed record UserInfoItem(string? EmployeeNo, string? Name, int? NumOfFace);
 
-internal sealed record UserInfoSearchPayload(IReadOnlyList<UserInfoItem>? UserInfo);
+/// <summary>Odamlar qidiruvining bitta sahifasi — maydonlar <see cref="AcsEventPayload"/> dagidek.</summary>
+internal sealed record UserInfoSearchPayload(
+    IReadOnlyList<UserInfoItem>? UserInfo,
+    string? ResponseStatusStrg = null,
+    int? TotalMatches = null);
 
 internal sealed record UserInfoSearchResponse(UserInfoSearchPayload? UserInfoSearch);
