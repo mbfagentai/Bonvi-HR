@@ -5,7 +5,6 @@ import type {
   AttendanceIdentityProvider,
   DeviceEnrollmentState,
   AttendanceProvider,
-  DeviceAuthMode,
   DeviceDirectionRole,
   IdentitySource,
 } from '../api/attendance-api'
@@ -71,11 +70,6 @@ export const DIRECTION_ROLE_LOOK: Readonly<Record<DeviceDirectionRole, RoleLook>
   ReportsDirection: { icon: ArrowDownUp, labelKey: 'attendance.roleReports' },
   EntryOnly: { icon: LogIn, labelKey: 'attendance.roleEntryOnly' },
   ExitOnly: { icon: LogOut, labelKey: 'attendance.roleExitOnly' },
-}
-
-export const AUTH_MODE_LABEL_KEY: Readonly<Record<DeviceAuthMode, string>> = {
-  Token: 'attendance.authModeToken',
-  TokenAndHmac: 'attendance.authModeTokenAndHmac',
 }
 
 export interface SourceLook {

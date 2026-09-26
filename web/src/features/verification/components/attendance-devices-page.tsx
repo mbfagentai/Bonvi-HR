@@ -155,25 +155,6 @@ export function AttendanceDevicesPage() {
         },
       }),
 
-      helper.display({
-        id: 'location',
-        header: t('attendance.location'),
-        // Ortgan joyni joylashuv oladi — erkin matn va ma'lumotnoma nomlari
-        meta: { minWidth: '200px', hideOnMobile: true },
-        cell: ({ row }) => {
-          const device = row.original
-          const catalog = [device.departmentName, device.legalEntityName].filter(Boolean).join(' · ')
-          return (
-            <div className="min-w-0">
-              <p className="truncate-1">{device.locationNote ?? '—'}</p>
-              {catalog !== '' && (
-                <p className="truncate-1 text-caption1 text-[var(--fg-secondary)]">{catalog}</p>
-              )}
-            </div>
-          )
-        },
-      }),
-
       helper.accessor('directionRole', {
         header: t('attendance.directionRole'),
         meta: { width: '160px', hideOnMobile: true },

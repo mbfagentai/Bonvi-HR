@@ -666,15 +666,24 @@ export async function deleteDevice(id: string): Promise<void> {
 }
 
 /**
- * Terminalning «HTTP Listening» formasiga qo'yiladigan manzil.
+ * Ofisdagi agentning `.env` qatorlari — token tayyor holda (SPEC-agent §E).
  *
  * NEGA klientda quriladi: server o'z tashqi manzilini bilmaydi (u Caddy
- * ortida), `baseURL` ni esa frontend biladi. Token YO'LDA (§3.1):
- * Hikvision proshivkasi maxsus sarlavha qo'ya olmaydi.
+ * ortida), `baseURL` ni esa frontend biladi. Prod'da `baseURL` bo'sh satr
+ * (bir xil domen) — shuning uchun `??` emas, `||`.
+ *
+ * Terminalning IP manzili va paroli BO'SH qoladi: ular ofis tarmog'iniki
+ * va serverga hech qachon kelmaydi.
  */
-export function buildIngestUrl(token: string): string {
-  const base = api.defaults.baseURL ?? window.location.origin
-  return `${base.replace(/\/+$/u, '')}${BASE}/ingest/${token}`
+export function buildAgentEnv(token: string): string {
+  const base = (api.defaults.baseURL || window.location.origin).replace(/\/+$/u, '')
+  return [
+    `AGENT__APIBASEURL=${base}`,
+    `AGENT__DEVICETOKEN=${token}`,
+    'AGENT__DEVICEHOST=',
+    'AGENT__DEVICEUSER=admin',
+    'AGENT__DEVICEPASSWORD=',
+  ].join('\n')
 }
 
 /* ═══════════════════════════════════════════════════════ mosliklar (§6.3) */

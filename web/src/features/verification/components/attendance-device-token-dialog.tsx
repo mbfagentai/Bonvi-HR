@@ -5,7 +5,7 @@ import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Alert, Button, Dialog } from '@/shared/ui'
 
-import { buildIngestUrl, type AttendanceDeviceCreated } from '../api/attendance-api'
+import { buildAgentEnv, type AttendanceDeviceCreated } from '../api/attendance-api'
 
 /** «Nusxalandi» belgisi qancha turadi — ko'z ilg'ashi uchun yetarli, xalaqit bermaydi. */
 const COPIED_MS = 2000
@@ -14,14 +14,14 @@ const COPIED_MS = 2000
  * Bir martalik sir — qaysi amal natijasida paydo bo'lgan.
  *
  * `rotated` da qo'shimcha ogohlantirish bor: eski token SHU ZAHOTI o'lgan
- * va terminal yangi manzil kiritilguncha o'tishlarni yubora olmaydi.
+ * va agentga yangi token qo'yilguncha o'tishlar kelmaydi.
  */
 export interface DeviceSecret extends AttendanceDeviceCreated {
   reason: 'created' | 'rotated'
 }
 
 /**
- * Qabul manzili va token — HAYOTDA BIR MARTA (SPEC §3.2).
+ * Agent sozlamasi va token — HAYOTDA BIR MARTA (SPEC §3.2).
  *
  * ⚠️ Token faqat shu oynaning xotirasida yashaydi: keshga yozilmaydi,
  * manzilga tushmaydi, localStorage'ga saqlanmaydi. Sahifa oynani yopishi
@@ -30,12 +30,12 @@ export interface DeviceSecret extends AttendanceDeviceCreated {
  * ortiqcha turmasin.
  *
  * Fon bosilganda va Escape bilan YOPILMAYDI: tasodifiy bosish tokenni
- * qaytarib bo'lmas qilib yo'qotadi va terminalni sozlash uchun tokenni
- * yana almashtirishga (ya'ni ishlab turgan boshqa sozlamani buzishga)
- * majbur qiladi. Yopish — faqat ongli tugma.
+ * qaytarib bo'lmas qilib yo'qotadi va agentni sozlash uchun tokenni
+ * yana almashtirishga majbur qiladi. Yopish — faqat ongli tugma.
  *
- * Manzil tayyor holda beriladi (`buildIngestUrl`): Hikvision'ning «HTTP
- * Listening» formasi to'liq URL kutadi va tokenni qo'lda yo'lga yopishtirish
+ * Token alohida emas, agentning `.env` qatorlari ICHIDA beriladi
+ * (`buildAgentEnv`): terminal endi serverga o'zi yubormaydi, ofisdagi
+ * agent tortib oladi (SPEC-agent §C). Tokenni qo'lda qatorga yopishtirish
  * — xato qilishning eng ishonchli usuli.
  */
 export function AttendanceDeviceTokenDialog({
@@ -49,7 +49,7 @@ export function AttendanceDeviceTokenDialog({
 
   if (secret === null) return null
 
-  const url = buildIngestUrl(secret.token)
+  const env = buildAgentEnv(secret.token)
 
   return (
     <Dialog
@@ -74,26 +74,16 @@ export function AttendanceDeviceTokenDialog({
           <Alert tone="danger">{t('attendance.tokenRotatedHint')}</Alert>
         )}
 
-        <SecretField
-          label={t('attendance.ingestUrl')}
-          hint={t('attendance.ingestUrlHint')}
-          value={url}
-        />
-
-        <SecretField
-          label={t('attendance.tokenLabel')}
-          hint={t('attendance.tokenHeaderHint')}
-          value={secret.token}
-        />
+        <SecretField label={t('attendance.agentEnv')} hint={t('attendance.agentEnvHint')} value={env} />
       </div>
     </Dialog>
   )
 }
 
 /**
- * Faqat o'qiladigan maydon + nusxalash tugmasi.
+ * Faqat o'qiladigan ko'p qatorli maydon + nusxalash tugmasi.
  *
- * NEGA `<input readOnly>`, oddiy matn emas: `navigator.clipboard` faqat
+ * NEGA `<textarea readOnly>`, oddiy matn emas: `navigator.clipboard` faqat
  * xavfsiz kontekstda (HTTPS yoki localhost) ishlaydi. Tizim IP manzil
  * orqali oddiy HTTP da ochilsa, tugma ishlamaydi — u holda matn o'zi
  * BELGILANADI va operator Ctrl+C bilan oladi. Belgilanadigan maydon
@@ -101,7 +91,7 @@ export function AttendanceDeviceTokenDialog({
  */
 function SecretField({ label, hint, value }: { label: string; hint: string; value: string }) {
   const { t } = useLocale()
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   useEffect(() => {
@@ -127,23 +117,25 @@ function SecretField({ label, hint, value }: { label: string; hint: string; valu
     <div className="space-y-2">
       <p className="text-footnote font-medium text-[var(--fg-secondary)]">{label}</p>
 
-      <div className="flex items-center gap-2">
-        <input
+      <div className="space-y-2">
+        <textarea
           ref={inputRef}
           readOnly
           value={value}
+          rows={value.split('\n').length}
+          spellCheck={false}
           aria-label={label}
           onFocus={(event) => event.currentTarget.select()}
           className={cn(
-            'h-12 min-w-0 flex-1 rounded-md border border-[var(--border-strong)] px-3.5',
-            'bg-[var(--bg-sunken)] font-mono text-footnote text-[var(--fg)] outline-none',
+            'block w-full resize-none rounded-md border border-[var(--border-strong)] px-3.5 py-3',
+            'bg-[var(--bg-sunken)] font-mono text-footnote break-all text-[var(--fg)] outline-none',
             'focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10',
           )}
         />
         <Button
           type="button"
           variant={state === 'copied' ? 'soft' : 'secondary'}
-          className="h-12 shrink-0"
+          className="w-full"
           onClick={() => void copy()}
         >
           {state === 'copied' ? <Check /> : <Copy />}
