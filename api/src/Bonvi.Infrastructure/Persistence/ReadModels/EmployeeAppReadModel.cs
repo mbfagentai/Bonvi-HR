@@ -1,4 +1,6 @@
+using Bonvi.Application.Attendance.Computation;
 using Bonvi.Application.Me;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -106,16 +108,17 @@ internal sealed class EmployeeAppReadModel : IEmployeeAppReadModel
     /// <inheritdoc />
     /// <remarks>
     /// <para>
-    /// Ikkita so'rov, kun bo'yicha aylanish YO'Q: birinchisi butun oyning
-    /// o'tishlarini (<c>ix_attendance_passes_employee_time</c>), ikkinchisi
-    /// esa FAQAT telefon belgilarining obyekt nomlarini oladi
-    /// (<c>ux_mobile_check_ins_pass</c> bo'yicha
-    /// <c>WHERE pass_id = ANY(…)</c>). 31 ta so'rov o'rniga 2 ta.
+    /// Uchta so'rov, kun bo'yicha aylanish YO'Q: oyning (± bir kun) o'tishlari
+    /// (<c>ix_attendance_passes_employee_time</c>), FAQAT telefon belgilarining
+    /// obyekt nomlari (<c>ux_mobile_check_ins_pass</c> bo'yicha
+    /// <c>WHERE pass_id = ANY(…)</c>) va shu xodimning kun yozuvlaridagi reja
+    /// suratlari. 31 ta so'rov o'rniga 3 ta.
     /// </para>
     /// <para>
-    /// ⚠️ Ikkinchi so'rov faqat <c>method = Mobile</c> bo'lgan o'tishlar
-    /// uchun yuboriladi: terminal o'tishlarida koordinata umuman yo'q va
-    /// ular uchun bo'sh ro'yxat bilan borish bekorga.
+    /// O'tishlar davrdan bir kun KENG o'qiladi: oyning birinchi kuni ertalabki
+    /// chiqish o'tgan oyning oxirgi katagiga, oxirgi kun kechki kirishi esa shu
+    /// oyga tegishli bo'lishi mumkin — qaysi biri qaysi katakka tushishini
+    /// faqat kun oynasi aytadi.
     /// </para>
     /// </remarks>
     public async Task<IReadOnlyDictionary<DateOnly, IReadOnlyList<MyMarkDto>>> MarksAsync(
@@ -124,13 +127,72 @@ internal sealed class EmployeeAppReadModel : IEmployeeAppReadModel
         DateOnly to,
         CancellationToken cancellationToken = default)
     {
-        var passes = await _context.AttendancePasses
+        var marks = await AttributedAsync(
+                employeeId,
+                from.AddDays(-1),
+                to.AddDays(1),
+                since: null,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return marks
+            .Where(mark => mark.Date >= from && mark.Date <= to)
+            .GroupBy(mark => mark.Date)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<MyMarkDto>)[.. group.Select(mark => mark.Mark)]);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<MyAttributedMark>> RecentMarksAsync(
+        Guid employeeId,
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+        => AttributedAsync(employeeId, since.TashkentDate(), passTo: null, since, cancellationToken);
+
+    /// <summary>
+    /// O'tishlar (kalendar sanasi oralig'ida) — har biri tabel qoidasi bo'yicha katagi bilan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Katak kun yozuvidagi REJA SURATIDAN (<c>plan_start_at</c>,
+    /// <c>plan_end_at</c>) va <c>PassAttribution</c> ning o'zi bilan aniqlanadi:
+    /// hisoblash qaysi oynani ishlatgan bo'lsa, belgi aynan o'sha katakka
+    /// tushadi — jadval keyin o'zgargan bo'lsa ham. Jadvallarni qayta yuklab,
+    /// rejani o'zi hisoblash esa ikkinchi, ajralib keta oladigan yo'l bo'lardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <c>IgnoreQueryFilters</c> obyektlarda ATAYLAB: obyekt keyinchalik
+    /// yumshoq o'chirilgan bo'lsa ham, o'sha paytdagi belgi qayerda qabul
+    /// qilinganini aytishda davom etishi kerak — aks holda tarix jimgina
+    /// «obyektsiz» bo'lib qolardi.
+    /// </para>
+    /// </remarks>
+    private async Task<IReadOnlyList<MyAttributedMark>> AttributedAsync(
+        Guid employeeId,
+        DateOnly passFrom,
+        DateOnly? passTo,
+        DateTimeOffset? since,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.AttendancePasses
             .AsNoTracking()
-            .Where(pass =>
-                pass.ResolvedEmployeeId == employeeId &&
-                pass.LocalDate >= from &&
-                pass.LocalDate <= to)
+            .Where(pass => pass.ResolvedEmployeeId == employeeId && pass.LocalDate >= passFrom);
+
+        if (passTo is { } upper)
+        {
+            query = query.Where(pass => pass.LocalDate <= upper);
+        }
+
+        if (since is { } lower)
+        {
+            var lowerUtc = lower.ToUniversalTime();
+            query = query.Where(pass => pass.OccurredAt >= lowerUtc);
+        }
+
+        var passes = await query
             .OrderBy(pass => pass.OccurredAt)
+            .ThenBy(pass => pass.Id)
             .Select(pass => new
             {
                 pass.Id,
@@ -144,7 +206,7 @@ internal sealed class EmployeeAppReadModel : IEmployeeAppReadModel
 
         if (passes.Count == 0)
         {
-            return new Dictionary<DateOnly, IReadOnlyList<MyMarkDto>>();
+            return [];
         }
 
         var mobileIds = passes
@@ -165,22 +227,34 @@ internal sealed class EmployeeAppReadModel : IEmployeeAppReadModel
                 .ToDictionaryAsync(row => row.PassId, row => row.Name, cancellationToken)
                 .ConfigureAwait(false);
 
-        // `IgnoreQueryFilters` yuqorida ATAYLAB: obyekt keyinchalik yumshoq
-        // o'chirilgan bo'lsa ham, o'sha paytdagi belgi qayerda qabul
-        // qilinganini aytishda davom etishi kerak — aks holda tarix
-        // jimgina «obyektsiz» bo'lib qolardi.
+        // Nomzod kunlar o'tishning o'z sanasi ± 1 — reja suratlari shu
+        // oraliq uchun bitta so'rov bilan.
+        var planFrom = passes[0].LocalDate.AddDays(-1);
+        var planTo = passes[^1].LocalDate.AddDays(1);
 
-        return passes
-            .GroupBy(pass => pass.LocalDate)
-            .ToDictionary(
-                group => group.Key,
-                group => (IReadOnlyList<MyMarkDto>)
-                [
-                    .. group.Select(pass => new MyMarkDto(
-                        pass.OccurredAt,
-                        pass.Direction,
-                        pass.Method == PassMethod.Mobile ? MarkSource.Mobile : MarkSource.Terminal,
-                        pass.Method == PassMethod.Mobile ? siteNames.GetValueOrDefault(pass.Id) : null)),
-                ]);
+        var plans = await _context.AttendanceDays
+            .AsNoTracking()
+            .Where(day =>
+                day.EmployeeId == employeeId &&
+                day.LocalDate >= planFrom &&
+                day.LocalDate <= planTo)
+            .Select(day => new { day.LocalDate, day.PlanStartAt, day.PlanEndAt })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var windows = plans.ToDictionary(
+            day => day.LocalDate,
+            day => PassAttribution.WindowOf(day.PlanStartAt, day.PlanEndAt));
+
+        return
+        [
+            .. passes.Select(pass => new MyAttributedMark(
+                PassAttribution.DateFor(pass.LocalDate, pass.OccurredAt, date => windows.GetValueOrDefault(date)),
+                new MyMarkDto(
+                    pass.OccurredAt,
+                    pass.Direction,
+                    pass.Method == PassMethod.Mobile ? MarkSource.Mobile : MarkSource.Terminal,
+                    pass.Method == PassMethod.Mobile ? siteNames.GetValueOrDefault(pass.Id) : null))),
+        ];
     }
 }

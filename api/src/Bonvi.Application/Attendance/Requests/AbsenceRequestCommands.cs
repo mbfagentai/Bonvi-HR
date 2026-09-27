@@ -16,6 +16,7 @@ namespace Bonvi.Application.Attendance.Requests;
 /// <param name="FromTime">Kun ichidagi boshlanish — faqat bir kunlik so'rovda.</param>
 /// <param name="ToTime">Kun ichidagi tugash — faqat bir kunlik so'rovda.</param>
 /// <param name="Note">Izoh.</param>
+/// <param name="SubmittedByAccountId">Xodim ilovadan yuborganda — uning ilova hisobi; HR kiritganda <c>null</c>.</param>
 public sealed record CreateAbsenceRequestCommand(
     Guid EmployeeId,
     Guid AbsenceTypeId,
@@ -23,7 +24,8 @@ public sealed record CreateAbsenceRequestCommand(
     DateOnly ToDate,
     TimeOnly? FromTime = null,
     TimeOnly? ToTime = null,
-    string? Note = null);
+    string? Note = null,
+    Guid? SubmittedByAccountId = null);
 
 /// <summary>Kutayotgan so'rovni tahrirlash.</summary>
 public sealed record UpdateAbsenceRequestCommand(
@@ -112,7 +114,8 @@ public sealed class CreateAbsenceRequestCommandHandler
             command.ToDate,
             command.FromTime,
             command.ToTime,
-            command.Note);
+            command.Note,
+            command.SubmittedByAccountId);
 
         if (created.IsFailure)
         {

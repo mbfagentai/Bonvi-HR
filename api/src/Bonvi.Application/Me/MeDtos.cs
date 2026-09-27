@@ -58,19 +58,60 @@ public sealed record MyMarkDto(
 /// to'g'ri ifodasi.
 /// </remarks>
 /// <param name="Day">Tabel katagi — HR ko'radigan ko'rinishning o'zi.</param>
-/// <param name="Marks">Shu kundagi belgilar, vaqt bo'yicha o'sish tartibida.</param>
+/// <param name="Marks">
+/// Shu KATAKKA tushgan belgilar, vaqt bo'yicha o'sish tartibida — tabel
+/// qo'ygan kun bo'yicha (tungi smenaning ertalabki chiqishi kechagi katakda),
+/// kalendar sanasi bo'yicha emas.
+/// </param>
 public sealed record MyAttendanceDayDto(TimesheetCellDto Day, IReadOnlyList<MyMarkDto> Marks);
+
+/// <summary>
+/// «Hozir» — belgilash kartasi uchun: keyingi tugma, oxirgi belgi va joriy smena kuni.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega server hisoblaydi.</b> Ilova ilgari keyingi yo'nalishni BUGUNGI
+/// kalendar kunining belgilaridan chiqarardi. Tungi smenada bu yolg'on: 22:00
+/// da «Ishga keldim» bosgan odamga soat 06:00 da (yangi kalendar kuni, belgi
+/// yo'q) yana «Ishga keldim» taklif qilinardi va ilova <c>In</c> yuborardi —
+/// tabelda esa smena ikkita kirish va chiqishsiz bo'lib qolardi. Qoida endi
+/// BIR joyda: oxirgi <c>AttendanceRules.BoardLookbackHours</c> soatdagi
+/// belgilar, «Hozir binoda» taxtasidagi bilan bir xil oyna.
+/// </para>
+/// <para>
+/// <see cref="Date"/> — belgilar tushadigan KATAK (tabel qoidasi bo'yicha,
+/// SPEC §5.3), kalendar sanasi emas: ochiq tungi smenada dushanba, garchi
+/// soat seshanba 06:00 bo'lsa ham. Ilova bosh ekranda aynan shu katakni
+/// ko'rsatadi.
+/// </para>
+/// </remarks>
+/// <param name="Date">Joriy smena tegishli bo'lgan katak sanasi (Toshkent).</param>
+/// <param name="NextDirection">Tugma yuboradigan yo'nalish: ichkarida bo'lsa <c>Out</c>, aks holda <c>In</c>.</param>
+/// <param name="LastMark">Oxirgi belgi (qarash oynasi ichida); bo'lmasa <c>null</c>.</param>
+public sealed record MyCurrentStateDto(
+    DateOnly Date,
+    PassDirection NextDirection,
+    MyMarkDto? LastMark);
+
+/// <summary>Belgi va u tushgan katak — o'qish modeli qaytaradigan shakl.</summary>
+/// <param name="Date">Tabel qoidasi bo'yicha tegishli kun (SPEC §5.3), kalendar sanasi emas.</param>
+/// <param name="Mark">Belgining o'zi.</param>
+public sealed record MyAttributedMark(DateOnly Date, MyMarkDto Mark);
 
 /// <summary>Xodimning bir oylik davomati.</summary>
 /// <param name="Year">Yil.</param>
 /// <param name="Month">Oy (1–12).</param>
 /// <param name="Days">Oyning har bir kuni — katak va belgilar bilan.</param>
 /// <param name="Totals">Oy bo'yicha jami — HR tabelidagi bilan bir xil hisob.</param>
+/// <param name="Current">
+/// «Hozir» — so'ralgan oydan qat'i nazar HOZIRGI lahza uchun (belgilash kartasi).
+/// </param>
 public sealed record MyAttendanceDto(
     int Year,
     int Month,
     IReadOnlyList<MyAttendanceDayDto> Days,
-    TimesheetTotalsDto Totals);
+    TimesheetTotalsDto Totals,
+    MyCurrentStateDto Current);
 
 /// <summary>Yo'qlik turi — ilova so'rov yaratishda shu ro'yxatdan tanlaydi.</summary>
 /// <param name="Id">Identifikator.</param>
@@ -98,7 +139,10 @@ public sealed record MyAbsenceTypeDto(Guid Id, string Name);
 /// <param name="EmployeeId">Xodim.</param>
 /// <param name="FullName">To'liq ism-familiya.</param>
 /// <param name="ShortName">Qisqa ko'rinish: «Mamajonov B.F.».</param>
-/// <param name="PhotoKey">Rasm kaliti; rasm yo'q bo'lsa <c>null</c>.</param>
+/// <param name="PhotoKey">
+/// Rasm kaliti; rasm yo'q bo'lsa <c>null</c>. Baytlar — <c>GET /api/me/photo</c>
+/// (tokenga bog'langan); kalit mijozda kesh belgisi sifatida ishlatiladi.
+/// </param>
 /// <param name="Department">Bugungi asosiy bo'lim.</param>
 /// <param name="Position">Bugungi lavozim.</param>
 /// <param name="MobileCheckInAllowed">Telefondan belgilash yoqilganmi.</param>

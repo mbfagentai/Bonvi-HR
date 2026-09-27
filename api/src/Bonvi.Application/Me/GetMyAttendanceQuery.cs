@@ -4,6 +4,7 @@ using Bonvi.Application.Attendance.Common;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Identity.EmployeeAccounts;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Application.Me;
@@ -43,17 +44,20 @@ public sealed class GetMyAttendanceQueryHandler
     private readonly IEmployeeAccountRepository _accounts;
     private readonly IAttendanceReadModel _timesheet;
     private readonly IEmployeeAppReadModel _readModel;
+    private readonly IClock _clock;
 
     public GetMyAttendanceQueryHandler(
         ICurrentEmployee currentEmployee,
         IEmployeeAccountRepository accounts,
         IAttendanceReadModel timesheet,
-        IEmployeeAppReadModel readModel)
+        IEmployeeAppReadModel readModel,
+        IClock clock)
     {
         _currentEmployee = currentEmployee;
         _accounts = accounts;
         _timesheet = timesheet;
         _readModel = readModel;
+        _clock = clock;
     }
 
     public async Task<Result<MyAttendanceDto>> HandleAsync(
@@ -112,11 +116,19 @@ public sealed class GetMyAttendanceQueryHandler
                     marks.TryGetValue(cell.Date, out var list) ? list : [])),
             ];
 
+        // «Hozir» — so'ralgan oydan qat'i nazar: belgilash kartasi keyingi
+        // yo'nalishni va joriy smena katagini shundan oladi (MyCurrentState).
+        var now = _clock.UtcNow;
+        var recent = await _readModel
+            .RecentMarksAsync(account.EmployeeId, now.AddHours(-AttendanceRules.BoardLookbackHours), cancellationToken)
+            .ConfigureAwait(false);
+
         return new MyAttendanceDto(
             query.Year,
             query.Month,
             days,
-            row?.Totals ?? EmptyTotals);
+            row?.Totals ?? EmptyTotals,
+            MyCurrentState.From(recent, now, _clock.Today));
     }
 
     /// <summary>Qatori yo'q oy uchun nollar — <c>null</c> emas.</summary>

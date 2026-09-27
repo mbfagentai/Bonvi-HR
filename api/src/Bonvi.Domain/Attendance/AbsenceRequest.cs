@@ -114,6 +114,35 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Qaror lahzasi (UTC).</summary>
     public DateTimeOffset? DecidedAt { get; private set; }
 
+    /// <summary>
+    /// So'rovni XODIMNING O'ZI ilovadan yuborgan bo'lsa — uning ilova hisobi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Nega <see cref="CreatedBy"/> emas: u <c>users</c> jadvalining
+    /// identifikatori (HR foydalanuvchisi) va audit uni HR tokenidan to'ldiradi.
+    /// Xodim tokenida bunday identifikator yo'q (xodim hisobi ataylab
+    /// <c>users</c> da emas) va ilgari ilovadan kelgan so'rovda
+    /// <see cref="CreatedBy"/> shunchaki <c>null</c> qolardi — «kim yubordi?»
+    /// degan savol (SPEC-verifikatsiya-sorovlar §B2) javobsiz edi. Ikki xil
+    /// identifikator fazosini bitta ustunga qo'shish esa har o'qishni «bu
+    /// foydalanuvchimi yoki xodimmi?» degan taxminga majburlardi.
+    /// </para>
+    /// <para>
+    /// <c>null</c> — so'rovni HR kiritgan (<see cref="CreatedBy"/> da).
+    /// </para>
+    /// </remarks>
+    public Guid? SubmittedByAccountId { get; private set; }
+
+    /// <summary>So'rovni XODIMNING O'ZI ilovadan bekor qilgan bo'lsa — uning ilova hisobi.</summary>
+    /// <remarks>
+    /// Xodim faqat qaror KUTAYOTGAN so'rovni bekor qila oladi
+    /// (<see cref="CancelBySubmitter"/>), ya'ni HR ning qaror yozuvi
+    /// (<see cref="DecidedBy"/>, <see cref="DecidedAt"/>, <see cref="DecisionNote"/>)
+    /// hech qachon ilova tomonidan ustidan yozilmaydi.
+    /// </remarks>
+    public Guid? CancelledByAccountId { get; private set; }
+
     // Audit va yumshoq o'chirish maydonlari — infratuzilma to'ldiradi
     // (`Incentive` dagi bilan bir xil kelishuv).
     public DateTimeOffset CreatedAt { get; set; }
@@ -132,6 +161,18 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>So'rov shu sanani qamraydimi.</summary>
     public bool Covers(DateOnly date) => date >= FromDate && date <= ToDate;
 
+    /// <summary>Yangi so'rov — «Kutilmoqda» holatida.</summary>
+    /// <param name="employeeId">Kim yo'q bo'ladi.</param>
+    /// <param name="absenceTypeId">Yo'qlik turi.</param>
+    /// <param name="fromDate">Davr boshi.</param>
+    /// <param name="toDate">Davr oxiri.</param>
+    /// <param name="fromTime">Kun ichidagi boshlanish — faqat bir kunlik so'rovda.</param>
+    /// <param name="toTime">Kun ichidagi tugash — faqat bir kunlik so'rovda.</param>
+    /// <param name="note">Xodimning izohi.</param>
+    /// <param name="submittedByAccountId">
+    /// Ilovadan yuborilgan bo'lsa — xodimning ilova hisobi
+    /// (<see cref="SubmittedByAccountId"/>); HR kiritganda <c>null</c>.
+    /// </param>
     public static Result<AbsenceRequest> Create(
         Guid employeeId,
         Guid absenceTypeId,
@@ -139,7 +180,8 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
         DateOnly toDate,
         TimeOnly? fromTime = null,
         TimeOnly? toTime = null,
-        string? note = null)
+        string? note = null,
+        Guid? submittedByAccountId = null)
     {
         if (employeeId == Guid.Empty)
         {
@@ -165,7 +207,10 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
             toDate,
             fromTime,
             toTime,
-            Trim(note));
+            Trim(note))
+        {
+            SubmittedByAccountId = submittedByAccountId,
+        };
     }
 
     /// <summary>Kutayotgan so'rovni tahrirlash — qaror qabul qilinmaguncha.</summary>
@@ -220,6 +265,8 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
     /// boshqa yo'li yo'q edi. Bekor qilingandan keyin kun qayta
     /// hisoblanadi (chaqiruvchining mas'uliyati, §B3).
     /// </remarks>
+    /// <param name="cancelledBy">Bekor qilgan HR foydalanuvchisi.</param>
+    /// <param name="at">Lahza.</param>
     public Result Cancel(Guid cancelledBy, DateTimeOffset at)
     {
         if (Status == AbsenceRequestStatus.Cancelled)
@@ -230,6 +277,50 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
         Status = AbsenceRequestStatus.Cancelled;
         DecidedBy = cancelledBy;
         DecidedAt = at;
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Xodimning O'ZI ilovadan qaytarib oladi — faqat qaror KUTAYOTGAN so'rovni.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Faqat <see cref="AbsenceRequestStatus.Pending"/>.</b> HR tasdiqlagan
+    /// yoki rad etgan so'rov HR ning qarori: uni xodim o'z ilovasidan bekor
+    /// qila olsa, (a) rad etilgan so'rov «bekor qilingan» bo'lib, HR ning
+    /// javobi jimgina yo'qolardi va (b) tasdiqlangan so'rov kunlarni
+    /// «Sababli» dan qaytarib, tabelni HR bilmagan holda o'zgartirardi
+    /// (UX §A.3: «cancel while pending»). Qaror yozuvi
+    /// (<see cref="DecidedBy"/>, <see cref="DecisionNote"/>) shu sababli ilova
+    /// yo'lida hech qachon ustidan yozilmaydi.
+    /// </para>
+    /// <para>
+    /// Kim bekor qilgani <see cref="CancelledByAccountId"/> da (xodimning ilova
+    /// hisobi); <see cref="DecidedBy"/> bo'sh qoladi — u HR foydalanuvchisining
+    /// identifikatori va unga xodim hisobini yozish ikki fazoni aralashtirardi
+    /// (ilgari bu yerga <c>Guid.Empty</c> tushardi).
+    /// </para>
+    /// </remarks>
+    /// <param name="accountId">Xodimning ilova hisobi.</param>
+    /// <param name="at">Lahza.</param>
+    public Result CancelBySubmitter(Guid accountId, DateTimeOffset at)
+    {
+        if (Status == AbsenceRequestStatus.Cancelled)
+        {
+            return Error.Conflict("davomat.sorov_bekor_qilingan", "So'rov allaqachon bekor qilingan.");
+        }
+
+        if (Status != AbsenceRequestStatus.Pending)
+        {
+            return Error.Conflict(
+                "davomat.sorov_qaror_qabul_qilingan",
+                "So'rov bo'yicha qaror qabul qilingan — uni endi faqat HR o'zgartira oladi.");
+        }
+
+        Status = AbsenceRequestStatus.Cancelled;
+        DecidedAt = at;
+        CancelledByAccountId = accountId;
 
         return Result.Success();
     }
