@@ -13,6 +13,13 @@ Prod hozir `9184b0b` da. Chiqadiganlar: `git log 9184b0b..origin/main`.
 | `6b17404` | Qo'shimcha vazifa haqi okladga QO'SHILADI (kartada «Jami»), vazifa tugash sanasi, yangi ruxsat `salary.extra.view` |
 | `688a020` | Summa maydonlari uch xonadan ajratiladi (`MoneyInput`), kartadagi oklad bloki |
 | `64e90ab` | Kiritilmagan oklad «kiritilmagan» deb ko'rsatiladi |
+| `6d6c452` | Reliz oldi tekshiruv tuzatishlari: bo'shatishda vazifalar yopiladi, summa maskasi xavfsiz, «Jami» faqat oklad bo'lsa |
+
+**Tayyorlik (2026-09-27):** mustaqil tekshiruvdan o'tgan (to'suvchi topilmadi,
+topilganlar `6d6c452` da tuzatilgan); `./bonvi test` 1653/1653,
+`./bonvi pnpm build`, `./bonvi check` yashil; migratsiya snapshot'i izchil.
+Keyingi o'zgarishlar qo'shilsa — ular ham shu jadvalga yoziladi va
+tekshiruv qaytadan o'tkaziladi.
 
 **Migratsiya:** `20260927105152_QoshimchaVazifaTugashi` — faqat bitta bo'sh
 ustun (`employment_events.duty_end_date`). Eski image uni bilmaydi va
