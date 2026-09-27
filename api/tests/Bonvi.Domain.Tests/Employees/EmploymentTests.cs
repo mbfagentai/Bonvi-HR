@@ -200,6 +200,111 @@ public sealed class EmploymentTests
     }
 
     [Fact]
+    public void Qoshimcha_vazifa_yozuvini_tuzatish_okladga_TEGMAYDI()
+    {
+        /*
+          ⭐ Xato (2026-09-27): qo'shimcha vazifaning HAQI oklad manbai deb
+          olinardi. Vazifa yozuvining buyruq raqami to'g'rilansa, xodimning
+          5 mln okladi jimgina 1 mln ga — vazifa haqiga — almashardi.
+        */
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(5_000_000m).Value, new DateOnly(2026, 3, 1));
+        m.AddAdditionalDuty(new DateOnly(2026, 6, 1), "Omborga mas'ul", Money.Create(1_000_000m).Value, "7-b")
+            .IsSuccess.ShouldBeTrue();
+        var vazifa = m.Events[^1];
+
+        m.EditEvent(vazifa.Id, vazifa.EffectiveDate, "7-k").IsSuccess.ShouldBeTrue();
+        m.Salary!.Amount.ShouldBe(5_000_000m, "buyruq raqamini tuzatish okladga tegmaydi");
+
+        // Vazifa haqining o'zi tuzatilsa ham — bu oklad emas
+        m.EditEvent(vazifa.Id, vazifa.EffectiveDate, "7-k", toSalary: Money.Create(1_200_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+        vazifa.ToSalary!.Amount.ShouldBe(1_200_000m);
+        m.Salary!.Amount.ShouldBe(5_000_000m, "vazifa haqi okladga tushmaydi");
+    }
+
+    [Fact]
+    public void Qoshimcha_vazifadan_keyin_ham_oklad_yozuvi_tuzatilsa_joriy_oklad_yangilanadi()
+    {
+        // Ilgari vazifa «oxirgi summali yozuv» bo'lib turgani uchun haqiqiy
+        // oklad yozuvining xatosini tuzatish kartaga yetib bormasdi.
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(4_000_000m).Value, new DateOnly(2026, 3, 1));
+        var oklad = m.Events[^1];
+        m.AddAdditionalDuty(new DateOnly(2026, 6, 1), "Navbatchilik", Money.Create(500_000m).Value);
+
+        m.EditEvent(oklad.Id, oklad.EffectiveDate, toSalary: Money.Create(4_500_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+
+        m.Salary!.Amount.ShouldBe(4_500_000m);
+    }
+
+    [Fact]
+    public void Okladi_ozgarmagan_kochirishdan_keyin_ham_oklad_yozuvi_tuzatilsa_joriy_oklad_yangilanadi()
+    {
+        // Ko'chirish okladni HAR DOIM nusxa sifatida yozadi — u oklad qarori emas.
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(4_000_000m).Value, new DateOnly(2026, 3, 1));
+        var oklad = m.Events[^1];
+        m.Transfer(new DateOnly(2026, 6, 1), Guid.CreateVersion7(), null).IsSuccess.ShouldBeTrue();
+
+        m.EditEvent(oklad.Id, oklad.EffectiveDate, toSalary: Money.Create(4_200_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+
+        m.Salary!.Amount.ShouldBe(4_200_000m);
+    }
+
+    [Fact]
+    public void Summasiz_tuzatish_joriy_okladga_HECH_QACHON_tegmaydi()
+    {
+        /*
+          Joriy oklad tarixdagi oxirgi yozuv bilan teng bo'lishi shart emas:
+          Excel'dan kelgan xodimda u «91 Умумий» dan keladi. Bu yerda o'sha
+          holat sun'iy yasalgan — oxirgi (sanasi eng keyingi) yozuv 7 mln,
+          joriy oklad esa keyin kiritilgan eskiroq sanali 8 mln.
+        */
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(7_000_000m).Value, new DateOnly(2026, 6, 1));
+        var oxirgi = m.Events[^1];
+        m.SetSalary(Money.Create(8_000_000m).Value, new DateOnly(2026, 3, 1));
+
+        m.EditEvent(oxirgi.Id, oxirgi.EffectiveDate, "99-b").IsSuccess.ShouldBeTrue();
+        m.Salary!.Amount.ShouldBe(8_000_000m, "buyruq raqamini tuzatish okladni almashtirmaydi");
+
+        // Summasi tuzatilganda ham — karta boshqa manbani ko'rsatib turgan edi
+        m.EditEvent(oxirgi.Id, oxirgi.EffectiveDate, "99-b", toSalary: Money.Create(7_100_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+        m.Salary!.Amount.ShouldBe(8_000_000m);
+    }
+
+    [Fact]
+    public void Qaysi_yozuv_okladni_belgilaydi()
+    {
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(4_000_000m).Value, new DateOnly(2026, 3, 1));
+        var oklad = m.Events[^1];
+        m.Transfer(new DateOnly(2026, 4, 1), Guid.CreateVersion7(), null);
+        var nusxa = m.Events[^1];
+        m.Transfer(new DateOnly(2026, 5, 1), Guid.CreateVersion7(), null, Money.Create(5_000_000m).Value);
+        var oshirish = m.Events[^1];
+        m.AddAdditionalDuty(new DateOnly(2026, 6, 1), "Navbatchilik", Money.Create(300_000m).Value);
+        var haqli = m.Events[^1];
+        m.AddAdditionalDuty(new DateOnly(2026, 7, 1), "Navbatchilik");
+        var haqsiz = m.Events[^1];
+
+        m.Events[0].SetsSalary.ShouldBeFalse("qabulda summa yo'q");
+        oklad.SetsSalary.ShouldBeTrue();
+        nusxa.SetsSalary.ShouldBeFalse("okladi o'zgarmagan ko'chirish — faqat nusxa");
+        oshirish.SetsSalary.ShouldBeTrue();
+        haqli.SetsSalary.ShouldBeFalse("vazifa haqi oklad emas");
+
+        nusxa.IsPayDecision.ShouldBeFalse();
+        oshirish.IsPayDecision.ShouldBeTrue();
+        haqli.IsPayDecision.ShouldBeTrue("vazifa haqi ham pul qarori");
+        haqsiz.IsPayDecision.ShouldBeFalse();
+    }
+
+    [Fact]
     public void Notogri_yozuv_tuzatilmaydi()
     {
         var m = YaratilganMunosabat();

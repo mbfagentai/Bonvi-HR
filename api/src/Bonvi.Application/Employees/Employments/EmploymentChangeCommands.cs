@@ -427,20 +427,22 @@ public sealed class EditEmploymentEventCommandHandler
             salary = money.Value;
         }
 
-        // Summasiz tuzatish ham JORIY okladni o'zgartirishi mumkin: eski oklad
-        // yozuvining sanasi eng keyingisidan keyinga surilsa, joriy oklad o'sha
-        // yozuvnikiga qaytadi (`Employment.EditEvent`). Shu sababli natija
-        // tekshiriladi — oklad o'zgargan bo'lsa, `employment.salary` shart
-        // (xavfsizlik tekshiruvi, 2026-09-26). Saqlashdan OLDIN qaytiladi.
+        // Himoyaning oxirgi qatlami: summasiz tuzatish joriy okladga endi
+        // umuman tegmaydi (`Employment.EditEvent`, 2026-09-27), lekin natija
+        // baribir tekshiriladi — oklad qaysidir yo'l bilan o'zgargan bo'lsa,
+        // `employment.salary` shart (xavfsizlik tekshiruvi, 2026-09-26).
+        // Saqlashdan OLDIN qaytiladi.
         var salaryBefore = employment.Salary;
         var effectiveDate = command.EffectiveDate ?? _clock.Today;
 
-        // Oklad yozuvining SANASINI surish ham oklad amali: u oklad tarixining
-        // tartibini o'zgartiradi va keyingi tuzatishda joriy okladni almashtirib
-        // yuborishi mumkin (ikki qadamli aylanib o'tish). Shu sababli bunday
-        // yozuvda sana o'zgarsa ham «employment.salary» shart.
+        // Pul qarorining (oklad yoki qo'shimcha haq) SANASINI surish ham pul
+        // amali: u oklad tarixining tartibini o'zgartiradi. Shu sababli bunday
+        // yozuvda sana o'zgarsa ham «employment.salary» shart. Okladi
+        // o'zgarmagan ko'chirish bunga KIRMAYDI — unda summa faqat o'sha kungi
+        // holatning nusxasi va sanasini tuzatish oddiy hujjat tuzatishi
+        // (`EmploymentEvent.IsPayDecision`).
         var target = employment.Events.FirstOrDefault(item => item.Id == command.EventId);
-        var salaryDateMoved = target?.ToSalary is not null && target.EffectiveDate != effectiveDate;
+        var salaryDateMoved = target is { IsPayDecision: true } && target.EffectiveDate != effectiveDate;
         var dateAllowed = _currentUser.EnsureCanSendSalary(salaryDateMoved);
         if (dateAllowed.IsFailure)
         {

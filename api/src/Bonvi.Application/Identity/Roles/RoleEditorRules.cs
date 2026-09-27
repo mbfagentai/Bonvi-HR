@@ -32,6 +32,12 @@ internal static class RoleEditorRules
     /// bera olmaysiz» qoidasi aynan hozirgi holatga qarab tekshirilishi
     /// kerak. Eski yozuvda bir nechta rol bo'lsa (<see cref="User.RoleIds"/>
     /// izohi), ular birlashtiriladi — xuddi kirishdagi kabi.
+    /// <para>
+    /// Kodda endi yo'q eski kodlar (masalan <c>employment.manage</c>) bu
+    /// to'plamga TUSHMAYDI — nishon rolida ham ular hisobga olinmaydi
+    /// (<see cref="EnsureTargetWithinOwn"/>). Bir tomonda qolib, ikkinchisida
+    /// tashlansa, «teng huquqli» solishtiruvi noto'g'ri natija berardi.
+    /// </para>
     /// </remarks>
     public static IReadOnlySet<string> PermissionsOf(User user, IReadOnlyList<Role> roles)
     {
@@ -42,10 +48,21 @@ internal static class RoleEditorRules
 
         foreach (var role in roles.Where(role => user.RoleIds.Contains(role.Id)))
         {
-            result.UnionWith(role.Permissions);
+            result.UnionWith(role.Permissions.Where(Domain.Identity.Permissions.Exists));
         }
 
         return result;
+    }
+
+    /// <summary>So'rovchi super administratormi.</summary>
+    public static bool IsSuperAdmin(User user, IReadOnlyList<Role> roles)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(roles);
+
+        return roles.Any(role =>
+            user.RoleIds.Contains(role.Id) &&
+            string.Equals(role.Code, SystemRoles.SuperAdmin, StringComparison.Ordinal));
     }
 
     /// <summary>So'rovchi shu rolni egallab turibdimi.</summary>
@@ -81,13 +98,35 @@ internal static class RoleEditorRules
     /// yopardi, server esa yo'q edi (xavfsizlik tekshiruvi, 2026-09-26).
     /// Kodda endi yo'q eski kodlar (masalan <c>employment.manage</c>)
     /// hisobga olinmaydi: ular hech narsa bermaydi.
+    /// <para>
+    /// <b>Teng huquqli boshqaruvchi rol ham yopiq</b> — huquqlari aynan
+    /// so'rovchiniki bilan teng va <c>roles.manage</c> yoki <c>users.manage</c>
+    /// bor rol (<see cref="RoleErrors.PeerRole"/>). Bu foydalanuvchilar
+    /// tomonidagi qoidaning (<c>UserRoleRules.Allowed</c>) aynan juftligi.
+    /// Super administrator bundan ozod: u tizim egasi va barcha huquqli
+    /// rolni ham boshqara olishi kerak.
+    /// </para>
     /// </remarks>
-    public static Result EnsureTargetWithinOwn(IReadOnlySet<string> own, Role target)
+    public static Result EnsureTargetWithinOwn(IReadOnlySet<string> own, Role target, bool actingIsSuperAdmin)
     {
         ArgumentNullException.ThrowIfNull(own);
         ArgumentNullException.ThrowIfNull(target);
 
-        return EnsureWithinOwn(own, [.. target.Permissions.Where(Domain.Identity.Permissions.Exists)]);
+        var current = target.Permissions
+            .Where(Domain.Identity.Permissions.Exists)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var within = EnsureWithinOwn(own, [.. current]);
+        if (within.IsFailure || actingIsSuperAdmin)
+        {
+            return within;
+        }
+
+        var managesAccess =
+            current.Contains(Domain.Identity.Permissions.RolesManage) ||
+            current.Contains(Domain.Identity.Permissions.UsersManage);
+
+        return managesAccess && current.SetEquals(own) ? RoleErrors.PeerRole : Result.Success();
     }
 
     /// <summary>

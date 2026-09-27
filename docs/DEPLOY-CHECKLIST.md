@@ -153,3 +153,47 @@ docker compose -f docker-compose.prod.yml up -d --build
 Baza sxemasini ham qaytarish kerak bo'lsa — `Down` emas, ZAXIRADAN
 tiklash: `./bonvi restore backups/<fayl>.dump`. Yuqoridagi uch xil
 yo'qotish shu sababli.
+
+### ⚠️ `ab2c3ba` (rollar, 2026-09-26) dan OLDINGI versiyaga qaytish
+
+Kod qaytarilsa, **rollar yo'qotishli** bo'ladi — sxema o'zgarmagan, lekin
+ruxsat kodlari o'zgargan:
+
+- eski seeder `hr_manager` va `main_boss` ni har ishga tushishda eski
+  standartga qaytaradi — egasi ekrandan qilgan barcha tahrirlar yo'qoladi;
+- egasi yaratgan rollarda faqat yangi 8 ta amal kodi bor
+  (`employment.hire` … `employment.correct`), eski kod ularni TANIMAYDI —
+  bu rol egalari mehnat amallarining hammasidan mahrum bo'ladi.
+
+Eski image'ni ishga tushirishdan OLDIN rollarga eski kodni qaytaring:
+
+```sql
+UPDATE roles
+   SET permissions = array_append(permissions, 'employment.manage')
+ WHERE permissions && ARRAY['employment.hire','employment.transfer','employment.duty',
+                            'employment.salary','employment.terminate',
+                            'employment.probation.extend','employment.probation.complete',
+                            'employment.correct']
+   AND NOT 'employment.manage' = ANY(permissions);
+```
+
+Yangi versiyaga qaytganda seeder `employment.manage` ni yana 8 ta kodga
+bo'ladi — qo'shimcha qadam kerak emas. Egasiga ogohlantiring: rol
+tahrirlari eski versiyada saqlanmaydi.
+
+## 2026-09-27 tuzatishidan keyin — oklad tekshiruvi
+
+2026-09-16 … 2026-09-27 oralig'ida mehnat yo'li yozuvini tuzatish
+(buyruq raqami, sana, izoh) ba'zi holatda joriy okladni almashtirib
+yuborardi — qo'shimcha vazifa yozuvida okladga vazifa HAQI tushardi.
+Deploy'dan keyin prod'da bir marta tekshiring (faqat o'qiydi):
+
+```
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < infra/sql/oklad-tuzatish-tekshiruvi.sql
+```
+
+Bo'sh natija — xato hech kimga tushmagan. Qator chiqsa, okladni HR
+ekrandan «Oklad» amali bilan to'g'rilaydi (tarixda iz qoladi); bazani
+qo'lda tahrirlamang.

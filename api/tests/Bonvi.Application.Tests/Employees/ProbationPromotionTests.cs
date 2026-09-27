@@ -26,10 +26,15 @@ public sealed class ProbationPromotionTests
     private readonly EmployeeTestContext _context = new();
 
     /// <summary>
-    /// Sukut bo'yicha so'rovchida <c>employment.salary</c> BOR: bu yerdagi
-    /// testlar tayinlash haqida, pul qoidasi esa o'z testlarida (pastda).
+    /// Sukut bo'yicha so'rovchida <c>employment.salary</c> va
+    /// <c>employment.transfer</c> BOR: bu yerdagi testlar tayinlash haqida,
+    /// pul va ko'chirish qoidalari esa o'z testlarida (pastda).
     /// </summary>
-    public ProbationPromotionTests() => _context.AllowSalaryChange(true);
+    public ProbationPromotionTests()
+    {
+        _context.AllowSalaryChange(true);
+        _context.AllowTransfer(true);
+    }
 
     private ResolveProbationCommandHandler Xulosa => new(
         _context.Probations,
@@ -334,5 +339,48 @@ public sealed class ProbationPromotionTests
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
         employment.Status.ShouldBe(EmploymentStatus.Active);
+    }
+
+    /// <summary>
+    /// Sinov yakunidagi yangi lavozim — bu ko'chirish: <c>employment.transfer</c>
+    /// siz 403 va HECH NARSA o'zgarmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Pul qoidasining egizagi: aks holda «sinovni yakunlash» ruxsati
+    /// «ko'chirish» ruxsatini aylanib o'tish yo'li bo'lib qolardi.
+    /// </remarks>
+    [Fact]
+    public async Task Kochirish_ruxsatisiz_sinov_yakunida_lavozim_berib_bolmaydi()
+    {
+        _context.AllowTransfer(false);
+        var (employment, probation) = Sinovdagi();
+        var lavozim = employment.PositionId;
+
+        var natija = await Xulosa.HandleAsync(
+            new ResolveProbationCommand(probation.Id, ProbationStatus.Passed, PositionId: Guid.CreateVersion7()),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("auth.ruxsat_yoq");
+        natija.Error.Type.ShouldBe(Bonvi.Domain.Common.ErrorType.Forbidden);
+
+        probation.Status.ShouldBe(ProbationStatus.InProgress, "rad etilgan so'rov sinovni yopmasligi kerak");
+        employment.PositionId.ShouldBe(lavozim);
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Stavka esa ko'chirish emas — ko'chirish ruxsatisiz ham beriladi.</summary>
+    [Fact]
+    public async Task Kochirish_ruxsatisiz_stavka_bilan_yakun_ishlaydi()
+    {
+        _context.AllowTransfer(false);
+        var (employment, probation) = Sinovdagi();
+
+        var natija = await Xulosa.HandleAsync(
+            new ResolveProbationCommand(probation.Id, ProbationStatus.Passed, Rate: 0.5m),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        employment.Rate.ShouldBe(0.5m);
     }
 }

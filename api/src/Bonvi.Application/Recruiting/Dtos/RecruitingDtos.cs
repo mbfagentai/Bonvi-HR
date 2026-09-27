@@ -549,3 +549,23 @@ public sealed record CandidateDto(
 public sealed record DirectHireResultDto(
     CandidateDto Candidate,
     HireResultDto Hire);
+
+/// <summary>
+/// Shu telefon raqamli mavjud nomzod — qo'lda kiritishdagi ogohlantirish uchun.
+/// </summary>
+/// <remarks>
+/// Kiritish TO'SILMAYDI (<c>RegisterCandidateCommandHandler</c> izohi:
+/// telefon oilada bitta bo'lishi mumkin) — HR ro'yxatni ko'rib, o'zi
+/// hal qiladi. Javob shu qarorga yetadigan darajada qisqa.
+/// </remarks>
+/// <param name="Id">Nomzod.</param>
+/// <param name="FullName">F.I.Sh.</param>
+/// <param name="Status">Holati — rezervda, rad etilgan va h.k.</param>
+/// <param name="VacancyTitle">Qaysi vakansiyaga.</param>
+/// <param name="CreatedAt">Qachon kiritilgan.</param>
+public sealed record CandidatePhoneMatchDto(
+    Guid Id,
+    string FullName,
+    CandidateStatus Status,
+    string? VacancyTitle,
+    DateTimeOffset CreatedAt);

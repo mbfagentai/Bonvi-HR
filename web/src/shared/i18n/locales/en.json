@@ -636,6 +636,7 @@
     "rol.topilmadi": "Role not found.",
     "rol.himoyalangan": "This role is protected — it cannot be changed or deleted.",
     "rol.oz_roli": "You cannot change or delete your own role.",
+    "rol.teng_huquqli": "This role has the same rights as yours — only the super administrator can change or delete it.",
     "rol.ortiqcha_ruxsat": "You cannot grant a permission you do not hold.",
     "rol.nom_uzun": "The role name must be at most 100 characters.",
     "rol.nom_band": "A role with this name already exists.",
@@ -876,6 +877,7 @@
     "effectiveDate": "Effective date",
     "eventEditTitle": "Correct the record",
     "eventEditHint": "This only fixes a mistyped record. If the salary or position actually changed, add a separate record with a new order.",
+    "eventDateLockedHint": "This is a salary or extra-pay record — only a user allowed to change salaries can correct its date.",
     "eventEdited": "corrected",
     "note": "Note",
     "duty": "Additional duty",
@@ -1493,9 +1495,15 @@
       "candidates": "Candidates",
       "employees": "Employees",
       "emptyTitle": "No candidates in reserve",
-      "emptyText": "The “Move to reserve” action on a candidate card brings them here. They stay a candidate, not an employee."
+      "emptyText": "The “Move to reserve” action on a candidate card brings them here. They stay a candidate, not an employee.",
+      "notFoundText": "No candidates in reserve match “{{query}}”. Try a different word."
     },
-    "funnelMoveFailed": "The stage did not change"
+    "funnelMoveFailed": "The stage did not change",
+    "reserveSearchHint": "More candidates matching this search in the “Reserve” section: {{n}}",
+    "reserveSearchOpen": "Show",
+    "phoneMatchTitle": "Candidates with this phone number: {{n}}",
+    "phoneMatchHint": "Saving is not blocked — check the card to make sure it is not the same person.",
+    "phoneMatchFailed": "Could not check whether this number is already in the database — you can still save."
   },
   "notifications": {
     "unreadSummary": "{{n}} unread",

@@ -346,16 +346,190 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
         }
     }
 
+    /// <summary>
+    /// Okladi o'zgarmagan ko'chirishning sanasini tuzatish — oddiy hujjat
+    /// tuzatishi: summa unda faqat o'sha kungi okladning nusxasi. Pul qarori
+    /// (qo'shimcha vazifa haqi) sanasi esa hamon oklad ruxsatini talab qiladi.
+    /// </summary>
+    [Fact]
+    public async Task Kochirish_sanasi_oklad_ruxsatisiz_tuzatiladi_vazifa_haqi_sanasi_esa_yoq()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var urug = await UrugAsync();
+
+        using (var ikkalasi = await MijozAsync(
+            Permissions.EmploymentView, Permissions.EmploymentTransfer, Permissions.EmploymentDuty,
+            Permissions.EmploymentSalary))
+        {
+            using (var javob = await ikkalasi.PostAsJsonAsync(
+                new Uri($"/api/employments/{urug.EmploymentId}/transfer", UriKind.Relative),
+                new { departmentId = urug.IkkinchiBolim, effectiveDate = new DateOnly(2024, 5, 1) },
+                bekorQilish))
+            {
+                javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+            }
+
+            using (var javob = await ikkalasi.PostAsJsonAsync(
+                new Uri($"/api/employments/{urug.EmploymentId}/additional-duty", UriKind.Relative),
+                new { duty = "Navbatchilik", extraSalaryAmount = 1_000_000m, effectiveDate = new DateOnly(2024, 6, 1) },
+                bekorQilish))
+            {
+                javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+            }
+        }
+
+        var hodisalar = (await HodisalarAsync(urug.EmploymentId)).ToDictionary(hodisa => hodisa.Type);
+        var kochirish = hodisalar[EmploymentEventType.Transfer];
+        var vazifa = hodisalar[EmploymentEventType.AdditionalDuty];
+
+        using var faqatTuzatish = await MijozAsync(Permissions.EmploymentView, Permissions.EmploymentCorrect);
+
+        // Lenta interfeysga qaysi yozuvning sanasi qulflanganini aytadi —
+        // «salary.view» siz summa yashirin, klient buni o'zi bila olmaydi.
+        var qulflar = await QulflarAsync(faqatTuzatish, urug.XodimId);
+        qulflar[kochirish.Id].ShouldBeFalse("okladi o'zgarmagan ko'chirish — pul qarori emas");
+        qulflar[vazifa.Id].ShouldBeTrue("vazifa haqi — pul qarori");
+        qulflar[urug.OkladHodisasi].ShouldBeTrue();
+
+        using (var okladli = await MijozAsync(Permissions.EmploymentView, Permissions.EmploymentSalary))
+        {
+            (await QulflarAsync(okladli, urug.XodimId)).Values.ShouldAllBe(qulf => !qulf);
+        }
+
+        using (var javob = await YuborAsync(
+            faqatTuzatish,
+            "PUT",
+            $"/api/employments/{urug.EmploymentId}/events/{kochirish.Id}",
+            """{"effectiveDate":"2024-05-02"}""",
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        using (var javob = await YuborAsync(
+            faqatTuzatish,
+            "PUT",
+            $"/api/employments/{urug.EmploymentId}/events/{vazifa.Id}",
+            """{"effectiveDate":"2024-06-02"}""",
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await MatnAsync(javob));
+            (await XatoKodiAsync(javob)).ShouldBe("auth.ruxsat_yoq");
+        }
+
+        (await HolatAsync(urug.EmploymentId)).Salary!.Amount.ShouldBe(4_500_000m);
+    }
+
+    /// <summary>
+    /// ⭐ Xato (2026-09-27): qo'shimcha vazifa yozuvining buyruq raqamini
+    /// tuzatish xodimning okladini vazifa haqiga almashtirib yuborardi —
+    /// xatosiz, jimgina. Oklad ruxsati bor foydalanuvchida ham bu yuz
+    /// bermasligi kerak.
+    /// </summary>
+    [Fact]
+    public async Task Qoshimcha_vazifa_yozuvini_tuzatish_okladni_almashtirmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var urug = await UrugAsync();
+
+        using var toliq = await MijozAsync(
+            Permissions.EmploymentView, Permissions.EmploymentDuty, Permissions.EmploymentCorrect,
+            Permissions.EmploymentSalary);
+
+        using (var javob = await toliq.PostAsJsonAsync(
+            new Uri($"/api/employments/{urug.EmploymentId}/additional-duty", UriKind.Relative),
+            new { duty = "Omborga mas'ul", extraSalaryAmount = 1_000_000m, effectiveDate = new DateOnly(2024, 6, 1) },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        var vazifa = (await HodisalarAsync(urug.EmploymentId))
+            .Single(hodisa => hodisa.Type == EmploymentEventType.AdditionalDuty);
+
+        using (var javob = await YuborAsync(
+            toliq,
+            "PUT",
+            $"/api/employments/{urug.EmploymentId}/events/{vazifa.Id}",
+            """{"effectiveDate":"2024-06-01","orderNo":"V-7"}""",
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        (await HolatAsync(urug.EmploymentId)).Salary!.Amount.ShouldBe(4_500_000m, "oklad vazifa haqiga almashmaydi");
+    }
+
+    /// <summary>
+    /// Sinov yakunidagi yangi lavozim yoki bo'lim — bu ko'chirish: u
+    /// «employment.transfer» ni talab qiladi, xuddi summa «employment.salary»
+    /// ni talab qilgani kabi. Tekshiruv har qanday o'qishdan OLDIN.
+    /// </summary>
+    [Fact]
+    public async Task Sinov_yakunidagi_yangi_lavozim_kochirish_ruxsatini_talab_qiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var yol = $"/api/probations/{Guid.NewGuid()}/resolve";
+        var tana = $$"""{"status":"Passed","positionId":"{{Guid.NewGuid()}}"}""";
+
+        using (var faqatSinov = await MijozAsync(Permissions.EmploymentView, Permissions.EmploymentProbationComplete))
+        using (var javob = await YuborAsync(faqatSinov, "POST", yol, tana, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await MatnAsync(javob));
+            (await XatoKodiAsync(javob)).ShouldBe("auth.ruxsat_yoq");
+        }
+
+        using (var ikkalasi = await MijozAsync(
+            Permissions.EmploymentView, Permissions.EmploymentProbationComplete, Permissions.EmploymentTransfer))
+        using (var javob = await YuborAsync(ikkalasi, "POST", yol, tana, bekorQilish))
+        {
+            javob.StatusCode.ShouldNotBe(HttpStatusCode.Forbidden, await MatnAsync(javob));
+            ((int)javob.StatusCode).ShouldBeLessThan(500, await MatnAsync(javob));
+        }
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
+
+    /// <summary>Xodim lentasidan: yozuv → sanasi qulflanganmi (so'rovchi uchun).</summary>
+    private static async Task<Dictionary<Guid, bool>> QulflarAsync(HttpClient client, Guid xodimId)
+    {
+        using var javob = await client.GetAsync(
+            new Uri($"/api/employees/{xodimId}/timeline", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        using var hujjat = await System.Text.Json.JsonDocument.ParseAsync(
+            await javob.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        return hujjat.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("event"))
+            .ToDictionary(
+                hodisa => hodisa.GetProperty("id").GetGuid(),
+                hodisa => hodisa.GetProperty("dateLocked").GetBoolean());
+    }
+
+    private async Task<IReadOnlyList<EmploymentEvent>> HodisalarAsync(Guid employmentId)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await kontekst.Set<EmploymentEvent>()
+            .AsNoTracking()
+            .Where(hodisa => hodisa.EmploymentId == employmentId)
+            .ToListAsync(TestContext.Current.CancellationToken);
+    }
 
     private sealed record Urug(
         Guid EmploymentId,
         Guid BirinchiBolim,
         Guid IkkinchiBolim,
         Guid OkladHodisasi,
-        DateOnly OkladSanasi);
+        DateOnly OkladSanasi,
+        Guid XodimId);
 
     /// <summary>Bitta faol munosabat: ikki bo'lim, bitta lavozim, oklad 4,5 mln.</summary>
     private async Task<Urug> UrugAsync()
@@ -389,7 +563,7 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
 
         var okladHodisasi = munosabat.Events.Single(hodisa => hodisa.ToSalary is not null).Id;
 
-        return new Urug(munosabat.Id, birinchi.Id, ikkinchi.Id, okladHodisasi, okladSanasi);
+        return new Urug(munosabat.Id, birinchi.Id, ikkinchi.Id, okladHodisasi, okladSanasi, xodim.Id);
     }
 
     private async Task<Employment> HolatAsync(Guid employmentId)

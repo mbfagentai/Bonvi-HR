@@ -528,10 +528,17 @@ export function EmploymentEventEditDialog({
         {t('employees.eventEditHint')}
       </p>
 
+      {/*
+        Pul qarorining (oklad, vazifa haqi) sanasi ham pul amali — usiz
+        server tuzatishni 403 bilan rad etardi. Maydon ko'rinadi, lekin
+        qulflanadi: HR sanani ko'radi va nega o'zgartira olmasligini biladi.
+      */}
       <DateField
         label={t('employees.effectiveDate')}
+        hint={event.dateLocked ? t('employees.eventDateLockedHint') : undefined}
         value={effectiveDate}
         onChange={setEffectiveDate}
+        disabled={event.dateLocked}
       />
 
       {salaryEditable && (

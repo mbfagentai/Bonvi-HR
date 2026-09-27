@@ -1,5 +1,6 @@
 import type { RoleCatalog, RoleCatalogModule, RoleSummary } from '../api/roles-api'
 import type { AccessLevel, GrantLevel } from './role-keys'
+import { ROLES_MANAGE } from './role-presentation'
 
 /**
  * Rol muharririning holati — ruxsat KODLARI emas, ekrandagi tanlovlar.
@@ -121,4 +122,96 @@ export function droppedPermissions(catalog: RoleCatalog, role: RoleSummary): str
 /** `codes` ning hammasi `held` ichidami — «bu darajani bera olamanmi?» savoli. */
 export function allHeld(codes: readonly string[], held: ReadonlySet<string>): boolean {
   return codes.every((code) => held.has(code))
+}
+
+/**
+ * Katalogdagi BARCHA kodlar — serverdagi `Permissions.All` ning ko'zgusi.
+ *
+ * Katalog har bir ruxsatni aynan bitta joyda saqlaydi (daraja, amal yoki
+ * qo'shimcha) va buni server testi qadab turadi, ya'ni uchala ro'yxatning
+ * birlashmasi — tizim tanigan kodlarning to'liq to'plami.
+ */
+export function catalogCodes(catalog: RoleCatalog): ReadonlySet<string> {
+  const codes = new Set<string>(catalog.extras)
+
+  for (const module of catalog.modules) {
+    for (const level of offeredLevels(module)) {
+      for (const code of module.levels[level] ?? []) codes.add(code)
+    }
+    for (const code of module.actions) codes.add(code)
+  }
+
+  return codes
+}
+
+/**
+ * Faqat tizim TANIYDIGAN kodlar.
+ *
+ * Kodda endi yo'q eski kodlar (masalan `employment.manage`) hech narsa
+ * bermaydi va server ularni solishtirishda IKKI tomonda ham hisobga
+ * olmaydi (`RoleEditorRules.EnsureTargetWithinOwn`,
+ * `UserRoleRules.Allowed`). Klient ham shunday qilmasa, rolda qolib
+ * ketgan bitta eski kod tugmani server ruxsat beradigan joyda o'chirib
+ * qo'yardi — yoki aksincha.
+ *
+ * `known` bo'lmasa (katalog hali kelmagan) — ro'yxat o'zgarishsiz qaytadi:
+ * filtrsiz solishtirish ehtiyotkor tomonga og'adi.
+ *
+ * ⚠️ BO'SH `known` ham «noma'lum» deb olinadi, «hech bir kod tanilmaydi»
+ * emas. Aks holda kutilmagan shakldagi javob (bo'sh katalog) har bir rolni
+ * bo'sh to'plamga aylantirardi va «kengroq rol» tekshiruvi jimgina
+ * HAMMAGA ruxsat berardi — server rad etadigan tugmalar ochilib qolardi.
+ */
+export function knownCodes(
+  codes: Iterable<string>,
+  known: ReadonlySet<string> | null,
+): ReadonlySet<string> {
+  const filter = known !== null && known.size > 0 ? known : null
+  const result = new Set<string>()
+  for (const code of codes) {
+    if (filter === null || filter.has(code)) result.add(code)
+  }
+  return result
+}
+
+/** Ikki to'plam aynan bir xilmi. */
+export function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false
+  for (const code of a) {
+    if (!b.has(code)) return false
+  }
+  return true
+}
+
+/**
+ * Hisoblarni boshqarish ruxsati — «teng huquqli rol» qoidasining ikkinchi
+ * yarmi (birinchisi — `ROLES_MANAGE`).
+ *
+ * `features/users` dagi `USERS_MANAGE` dan import QILINMADI: o'sha modul
+ * shu fayldan o'qiydi (`canActOnRole`) va import aylana hosil bo'lardi.
+ */
+const USERS_MANAGE_CODE = 'users.manage'
+
+/**
+ * ⭐ «Teng huquqli boshqaruvchi rol» — serverdagi `rol.teng_huquqli` (409)
+ * qoidasining ko'zgusi (`RoleEditorRules.EnsureTargetWithinOwn`).
+ *
+ * Rolning TANILGAN ruxsatlari so'rovchinikiga AYNAN teng va ular orasida
+ * `roles.manage` yoki `users.manage` bor bo'lsa — bu rol «hamkasb»: uni
+ * faqat super administrator o'zgartiradi yoki o'chiradi. Usiz ikki teng
+ * boshqaruvchidan biri ikkinchisining rolidan boshqaruv ruxsatini olib,
+ * uni o'z qo'l ostiga tushirib olardi. Foydalanuvchilar tomonidagi
+ * «hamkasb» qoidasining (`canActOnRole`) rollar tomonidagi juftligi.
+ *
+ * Super administrator tekshiruvi CHAQIRUVCHIDA — u bu qoidadan ozod.
+ */
+export function isPeerRole(
+  target: readonly string[],
+  held: ReadonlySet<string>,
+  known: ReadonlySet<string> | null,
+): boolean {
+  const current = knownCodes(target, known)
+  const managesAccess = current.has(ROLES_MANAGE) || current.has(USERS_MANAGE_CODE)
+
+  return managesAccess && sameSet(current, knownCodes(held, known))
 }

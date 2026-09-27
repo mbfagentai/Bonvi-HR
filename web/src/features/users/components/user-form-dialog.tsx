@@ -29,6 +29,7 @@ import {
   actingRoleOf,
   canActOnRole,
   canActOnUser,
+  knownPermissionsOf,
 } from '../lib/user-presentation'
 import {
   passwordFieldSchema,
@@ -100,6 +101,9 @@ export function UserFormDialog({
     [roleList, currentUser],
   )
 
+  /** Tizim taniydigan kodlar — eski kodlar solishtirishga tushmasin (`knownPermissionsOf`). */
+  const known = useMemo(() => knownPermissionsOf(roleList), [roleList])
+
   /**
    * Nishonga umuman tega oladimi.
    *
@@ -165,7 +169,7 @@ export function UserFormDialog({
     const options: SelectOption[] = roleList.map((role) => ({
       value: role.code,
       label: roleDisplayName(t, role),
-      disabled: !canActOnRole(myRole, role) && role.code !== item?.roleCode,
+      disabled: !canActOnRole(myRole, role, known) && role.code !== item?.roleCode,
     }))
 
     const current = item?.roleCode ?? null
@@ -174,7 +178,7 @@ export function UserFormDialog({
     }
 
     return options
-  }, [t, roleList, myRole, item])
+  }, [t, roleList, myRole, known, item])
 
   const onSubmit = handleSubmit(async (values) => {
     setFailure(null)

@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Security.Claims;
+using Bonvi.Api.Common;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Timeouts;
@@ -380,10 +381,12 @@ internal sealed class MalumotnomaCachePolicy : IOutputCachePolicy
         // boradi — qolganlari natijani kutadi ("cache stampede" himoyasi).
         context.AllowLocking = true;
 
-        // Kesh kaliti rollarga bog'lanadi: HR menejeri va oddiy xodim bir xil
+        // Kesh kaliti RUXSATLARGA bog'lanadi: HR menejeri va oddiy xodim bir xil
         // ma'lumotnomani so'raganda ham serverda ro'yxat kesilgan bo'lishi mumkin.
-        // Rol kalitga kirmasa, biri ikkinchisining kengaytirilgan ro'yxatini oladi.
-        context.CacheVaryByRules.VaryByValues["rollar"] = RollarKaliti(context.HttpContext.User);
+        // Ruxsatlar kalitga kirmasa, biri ikkinchisining kengaytirilgan ro'yxatini
+        // oladi. Rol kodi yetmaydi: rollar endi ekrandan tahrirlanadi va bir xil
+        // kodli rolning ruxsatlari ertaga boshqacha bo'lishi mumkin (2026-09-26).
+        context.CacheVaryByRules.VaryByValues["ruxsatlar"] = RuxsatlarKaliti(context.HttpContext.User);
 
         // Sahifalash va filtr parametrlari boshqa natija beradi — hammasi kalitga kiradi.
         context.CacheVaryByRules.QueryKeys = "*";
@@ -409,25 +412,25 @@ internal sealed class MalumotnomaCachePolicy : IOutputCachePolicy
         return ValueTask.CompletedTask;
     }
 
-    private static string RollarKaliti(ClaimsPrincipal? user)
+    private static string RuxsatlarKaliti(ClaimsPrincipal? user)
     {
         if (user?.Identity?.IsAuthenticated != true)
         {
             return "anonim";
         }
 
-        var rollar = user.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray();
+        var ruxsatlar = user.FindAll(CurrentUser.PermissionClaimType).Select(claim => claim.Value).ToArray();
 
-        if (rollar.Length == 0)
+        if (ruxsatlar.Length == 0)
         {
-            return "rolsiz";
+            return "ruxsatsiz";
         }
 
-        // Da'volar tartibi kafolatlanmagan — saralanmasa bir xil rol to'plami
+        // Da'volar tartibi kafolatlanmagan — saralanmasa bir xil ruxsat to'plami
         // uchun har xil kesh kaliti chiqadi va kesh deyarli ishlamay qoladi.
-        Array.Sort(rollar, StringComparer.Ordinal);
+        Array.Sort(ruxsatlar, StringComparer.Ordinal);
 
-        return string.Join('|', rollar);
+        return string.Join('|', ruxsatlar);
     }
 }
 

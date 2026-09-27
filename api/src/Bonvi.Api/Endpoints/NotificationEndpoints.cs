@@ -1,6 +1,9 @@
+using System.Security.Claims;
 using System.Text.Json;
+using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Notifications.Commands;
 using Bonvi.Application.Notifications.Dtos;
 using Bonvi.Application.Notifications.Queries;
@@ -261,6 +264,16 @@ public static class NotificationEndpoints
     /// bajarilayotgan so'rovga bog'langan.
     /// </para>
     /// <para>
+    /// <b>Nega har aylanishda huquq qayta o'qiladi.</b> Autentifikatsiya
+    /// ulanish ochilganda BIR MARTA bajariladi, oqim esa soatlab yashaydi.
+    /// Tekshiruvsiz faolsizlantirilgan hisob yoki huquqi qisqartirilgan rol
+    /// ulanish yopilgunicha bildirishnoma olib turardi — «rol o'zgarishi
+    /// keyingi so'rovdayoq kuchga kiradi» degan qoida shu yerda buzilardi.
+    /// Hisob faol bo'lmasa yoki ruxsatlari o'zgargan bo'lsa, oqim YOPILADI:
+    /// mijoz odatdagidek qayta ulanadi va yangi huquq bilan (yoki 401 bilan)
+    /// qaytadi. Narxi yo'q — <see cref="IUserAccessReader"/> ≤ 30 s keshdan o'qiydi.
+    /// </para>
+    /// <para>
     /// <b>Nega javob solishtiriladi.</b> Signal butun tizim bo'yicha
     /// umumiy: boshqa foydalanuvchining har bir yozuvi ham uni
     /// uyg'otadi. Solishtiruvsiz har bir yozuv HAR BIR ulangan
@@ -288,11 +301,25 @@ public static class NotificationEndpoints
         // Kestrel javobni o'zi ham buferlaydi — oqim uchun bu o'chiriladi.
         http.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
 
+        var userId = Guid.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)
+            ? id
+            : Guid.Empty;
+        var grantedAtConnect = http.User
+            .FindAll(CurrentUser.PermissionClaimType)
+            .Select(claim => claim.Value)
+            .ToHashSet(StringComparer.Ordinal);
+
         var known = signal.Version;
         string? lastSent = null;
 
         while (!cancellationToken.IsCancellationRequested)
         {
+            if (!await StillGrantedAsync(scopes, userId, grantedAtConnect, cancellationToken).ConfigureAwait(false))
+            {
+                // Oqim tugaydi — mijoz qayta ulanadi va yangi huquq bilan qaytadi.
+                return;
+            }
+
             var payload = await ReadAsync(scopes, cancellationToken).ConfigureAwait(false);
 
             if (payload is not null && payload != lastSent)
@@ -330,6 +357,41 @@ public static class NotificationEndpoints
                 await Task.Delay(Debounce, cancellationToken).ConfigureAwait(false);
                 known = signal.Version;
             }
+        }
+    }
+
+    /// <summary>
+    /// Hisob hamon faolmi va ruxsatlari ulanish ochilgandagi bilan bir xilmi.
+    /// </summary>
+    /// <remarks>
+    /// O'qishning o'zi yiqilsa (baza bir lahzaga yo'qoldi) — <c>true</c>:
+    /// oqim bunday holatda uzilmaydi (sababi <see cref="ReadAsync"/> izohida),
+    /// huquq esa keyingi aylanishda yana tekshiriladi.
+    /// </remarks>
+    private static async Task<bool> StillGrantedAsync(
+        IServiceScopeFactory scopes,
+        Guid userId,
+        IReadOnlySet<string> grantedAtConnect,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+
+            var access = await scope.ServiceProvider
+                .GetRequiredService<IUserAccessReader>()
+                .ReadAsync(userId, cancellationToken)
+                .ConfigureAwait(false);
+
+            return access is not null && access.Permissions.SetEquals(grantedAtConnect);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return true;
         }
     }
 

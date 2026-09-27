@@ -224,7 +224,8 @@ public sealed class UpdateRoleCommandHandler
         var own = RoleEditorRules.PermissionsOf(acting.Value, roles);
 
         // Avval rolning HOZIRGI holati: o'zidan yuqori rolni hech kim tahrirlamaydi
-        var targetWithinOwn = RoleEditorRules.EnsureTargetWithinOwn(own, role);
+        var targetWithinOwn = RoleEditorRules.EnsureTargetWithinOwn(
+            own, role, RoleEditorRules.IsSuperAdmin(acting.Value, roles));
         if (targetWithinOwn.IsFailure)
         {
             return targetWithinOwn.Error;
@@ -344,7 +345,9 @@ public sealed class DeleteRoleCommandHandler
         // O'zidan yuqori rolni o'chirib ham bo'lmaydi (tahrirdagi bilan bir xil qoida)
         var roles = await _roles.GetAllAsync(cancellationToken).ConfigureAwait(false);
         var targetWithinOwn = RoleEditorRules.EnsureTargetWithinOwn(
-            RoleEditorRules.PermissionsOf(acting.Value, roles), role);
+            RoleEditorRules.PermissionsOf(acting.Value, roles),
+            role,
+            RoleEditorRules.IsSuperAdmin(acting.Value, roles));
         if (targetWithinOwn.IsFailure)
         {
             return targetWithinOwn.Error;

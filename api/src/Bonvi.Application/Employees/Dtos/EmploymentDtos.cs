@@ -38,9 +38,18 @@ public sealed record EmploymentDto(
 
 /// <summary>Mehnat yo'lidagi bitta hodisa (buyruq).</summary>
 /// <remarks>
+/// <para>
 /// <c>UpdatedAt</c> — terish xatosi tuzatilgan lahza; tegilmagan yozuvda
 /// <c>null</c> va o'shanda interfeys «tahrirlandi» qaydini umuman
 /// chizmaydi (<c>EmploymentEvent.UpdatedAt</c> izohi).
+/// </para>
+/// <para>
+/// <c>DateLocked</c> — so'rovchi shu yozuvning SANASINI tuzata olmaydi:
+/// yozuv pul qarori (<c>EmploymentEvent.IsPayDecision</c>) va unda
+/// <c>employment.salary</c> yo'q. Interfeys buni o'zi hisoblay olmaydi —
+/// <c>salary.view</c> siz summa yashirilgan bo'ladi. Yangi ma'lumot
+/// sizmaydi: server baribir o'sha so'rovni 403 bilan rad etardi.
+/// </para>
 /// </remarks>
 public sealed record EmploymentEventDto(
     Guid Id,
@@ -62,7 +71,8 @@ public sealed record EmploymentEventDto(
     string? Note,
     DateTimeOffset RecordedAt,
     DateTimeOffset? UpdatedAt,
-    bool IsImported);
+    bool IsImported,
+    bool DateLocked);
 
 /// <summary>
 /// Timeline'ning bitta elementi: hodisa + u qaysi firmadagi ishga tegishli.

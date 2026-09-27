@@ -120,6 +120,20 @@ public static class EmployeeErrors
             "Oklad summasini yuborish uchun «employment.salary» ruxsati kerak.");
 
     /// <summary>
+    /// Sinov yakunida yangi lavozim yoki bo'lim yuborildi, lekin
+    /// <c>employment.transfer</c> ruxsati yo'q.
+    /// </summary>
+    /// <remarks>
+    /// Sabab <see cref="SalaryPermissionRequired"/> bilan bir xil: amal
+    /// ichida kelgan ko'chirish baribir ko'chirish. Usiz «sinovni yakunlash»
+    /// ruxsati «ko'chirish» ruxsatini aylanib o'tish yo'li bo'lib qolardi.
+    /// </remarks>
+    public static Error TransferPermissionRequired { get; } =
+        Error.Forbidden(
+            "auth.ruxsat_yoq",
+            "Yangi lavozim yoki bo'lim tayinlash uchun «employment.transfer» ruxsati kerak.");
+
+    /// <summary>
     /// Ishga qabul YANGI xodim kartasini yaratmoqchi, lekin foydalanuvchida
     /// «employees.create» yo'q — «employment.hire» karta yaratishga huquq bermaydi.
     /// </summary>

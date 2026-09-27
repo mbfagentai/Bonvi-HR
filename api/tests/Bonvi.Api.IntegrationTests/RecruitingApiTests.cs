@@ -1443,6 +1443,78 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             "kirill imlo variantlari xodimlar ro'yxatidagi kabi yig'iladi");
     }
 
+    /// <summary>
+    /// ⭐ Qo'lda kiritishdagi ogohlantirish: shu raqamli nomzodlar HAMMA
+    /// holatda topiladi — ro'yxat yashiradigan rezervdagilar ham.
+    /// </summary>
+    /// <remarks>
+    /// 2026-09-26 dan rezervdagilar nomzodlar ro'yxatida (va qidiruvida)
+    /// ko'rinmaydi. HR «topilmadi» ni ko'rib, o'sha odamni ikkinchi marta
+    /// kiritishi mumkin edi — shu endpoint forma uchun «bu raqam bizda bor»
+    /// degan javobni beradi. Kiritish TO'SILMAYDI.
+    /// </remarks>
+    [Fact]
+    public async Task Telefon_boyicha_mavjud_nomzodlar_HAMMA_holatda_topiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var raqam = Raqam();
+
+        var rezervdagi = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Резервдаги", telefon: raqam);
+        using (var javob = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{rezervdagi.Id}/reserve", UriKind.Relative),
+            new { at = new DateOnly(2026, 4, 2), reason = "Ҳозир ўрин йўқ" },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        var jarayondagi = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Жараёндаги", telefon: raqam);
+        var begona = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Бегона", telefon: Raqam());
+
+        // Ro'yxat qidiruvi rezervdagini ko'rsatmaydi — egasining qarori
+        var qidiruv = await NomzodlarAsync(mijoz, "?search=" + raqam);
+        qidiruv.Items.ShouldNotContain(q => q.Id == rezervdagi.Id);
+
+        // Formatlangan raqam bilan ham — jarayondagi birinchi
+        var topilgan = await MosliklarAsync(
+            mijoz, "?phone=" + Uri.EscapeDataString($"+998 {raqam[..2]} {raqam[2..5]} {raqam[5..7]} {raqam[7..]}"));
+
+        topilgan.Select(q => q.Id).ShouldBe([jarayondagi.Id, rezervdagi.Id]);
+        topilgan[1].Status.ShouldBe("Reserve");
+        topilgan[1].FullName.ShouldStartWith("Резервдаги");
+        topilgan.ShouldNotContain(q => q.Id == begona.Id);
+
+        // Tahrirlanayotgan nomzodning o'zi tushmaydi
+        var ozidan = await MosliklarAsync(mijoz, $"?phone={raqam}&exceptId={jarayondagi.Id}");
+        ozidan.Select(q => q.Id).ShouldBe([rezervdagi.Id]);
+
+        // Chala raqam — xato emas, bo'sh ro'yxat
+        (await MosliklarAsync(mijoz, "?phone=" + raqam[..5])).ShouldBeEmpty();
+        (await MosliklarAsync(mijoz, string.Empty)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Telefon_mosliklari_rekruting_korish_ruxsatini_talab_qiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var yol = new Uri("/api/recruiting/candidates/phone-matches?phone=" + Raqam(), UriKind.Relative);
+
+        using (var ruxsatsiz = await RuxsatliMijozAsync(Permissions.EmployeesView))
+        using (var javob = await ruxsatsiz.GetAsync(yol, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await MatnAsync(javob));
+        }
+
+        using (var korish = await RuxsatliMijozAsync(Permissions.RecruitingView))
+        using (var javob = await korish.GetAsync(yol, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+    }
+
     [Fact]
     public async Task Voronka_qayta_tartiblanadi()
     {
@@ -2073,6 +2145,37 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         nomzod.ShouldNotBeNull();
         return nomzod;
+    }
+
+    private sealed record PhoneMatchResponse(
+        Guid Id,
+        string FullName,
+        string Status,
+        string? VacancyTitle,
+        DateTimeOffset CreatedAt);
+
+    private static async Task<List<PhoneMatchResponse>> MosliklarAsync(HttpClient mijoz, string sorov)
+    {
+        using var javob = await mijoz.GetAsync(
+            new Uri("/api/recruiting/candidates/phone-matches" + sorov, UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var natija = await javob.Content.ReadFromJsonAsync<List<PhoneMatchResponse>>(
+            TestContext.Current.CancellationToken);
+
+        natija.ShouldNotBeNull();
+        return natija;
+    }
+
+    private async Task<HttpClient> RuxsatliMijozAsync(params string[] ruxsatlar)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", await TestAccounts.TokenAsync(_factory, ruxsatlar));
+
+        return client;
     }
 
     private static async Task<CandidatePageResponse> NomzodlarAsync(HttpClient mijoz, string sorov)

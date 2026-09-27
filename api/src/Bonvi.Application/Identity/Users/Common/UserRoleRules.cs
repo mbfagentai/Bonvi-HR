@@ -252,9 +252,19 @@ internal static class UserRoleRules
             return UserErrors.RoleOutOfReach;
         }
 
-        var actingPermissions = acting.Permissions.ToHashSet(StringComparer.Ordinal);
+        // Kodda endi yo'q eski kodlar (masalan `employment.manage`) ikki
+        // tomonda ham hisobga olinmaydi — ular hech narsa bermaydi. Rollar
+        // muharriri ham shunday solishtiradi (`RoleEditorRules.EnsureTargetWithinOwn`);
+        // aks holda bitta qolib ketgan eski kod bosh rahbarni HR hisoblaridan
+        // jimgina uzib qo'yardi.
+        var actingPermissions = acting.Permissions
+            .Where(Permissions.Exists)
+            .ToHashSet(StringComparer.Ordinal);
+        var targetPermissions = target.Permissions
+            .Where(Permissions.Exists)
+            .ToHashSet(StringComparer.Ordinal);
 
-        if (!target.Permissions.All(actingPermissions.Contains))
+        if (!targetPermissions.IsSubsetOf(actingPermissions))
         {
             return UserErrors.RoleOutOfReach;
         }
@@ -262,8 +272,8 @@ internal static class UserRoleRules
         // Foydalanuvchilarni boshqaradigan TENG huquqli boshqa rol — «hamkasb»:
         // ular bir-birining parolini tiklab, hisobini egallab olmasligi uchun
         // bunday rol QAT'IY pastda bo'lishi shart (xavfsizlik tekshiruvi, 2026-09-26).
-        if (target.Permissions.Contains(Permissions.UsersManage, StringComparer.Ordinal) &&
-            actingPermissions.SetEquals(target.Permissions))
+        if (targetPermissions.Contains(Permissions.UsersManage) &&
+            actingPermissions.SetEquals(targetPermissions))
         {
             return UserErrors.RoleOutOfReach;
         }

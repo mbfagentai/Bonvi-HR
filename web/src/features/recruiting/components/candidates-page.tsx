@@ -1,5 +1,5 @@
-import { getRouteApi } from '@tanstack/react-router'
-import { Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
+import { Link, getRouteApi } from '@tanstack/react-router'
+import { ArrowRight, Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 
@@ -17,6 +17,7 @@ import {
   PageHeader,
   Pagination,
   SegmentedControl,
+  buttonVariants,
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
@@ -213,6 +214,59 @@ export function CandidatesPage() {
     // so'rov degani.
     view === 'table',
   )
+
+  /**
+   * ⭐ «Rezervda ham bor» izohi — qidiruv REZERVDAGI nomzodga ham mos
+   * kelsa.
+   *
+   * 2026-09-26 dan rezervdagilar bu ro'yxatda KO'RINMAYDI (egasining
+   * qarori) — qidiruvda ham. Natijada HR rezervdagi odamni qidirib
+   * «topilmadi» ni ko'rardi va uni QAYTA kiritardi: takroriy yozuv —
+   * loyihaning eng qimmat muammosi. Rezervni ro'yxatga qaytarish egasining
+   * qaroriga zid, shu sababli jadvalga tegilmaydi: faqat yuqorida qisqa
+   * izoh va «Rezerv» bo'limiga havola chiqadi.
+   *
+   * Ikkinchi so'rov YENGIL — `pageSize: 1`, bizga faqat `total` kerak.
+   * `includeArchive` — rezerv sahifasi ham arxivni oladi
+   * (`reserve-candidates-page.tsx`), ya'ni izohdagi son havola ochadigan
+   * ro'yxat bilan AYNAN bir xil.
+   *
+   * Qachon so'ralMAYDI — rezervdagilar allaqachon ko'rinib turgan yoki
+   * izoh ma'nosiz bo'lgan holatlar:
+   *   · holat tanlangan — server holat tanlovida rezervni yashirmaydi,
+   *     «Rezervda» tanlansa ular jadvalning o'zida;
+   *   · «Bugun aloqa kerak» — bu filtr rezervni o'zi qo'shadi
+   *     (`CandidateSearchFilter.HideReserve` izohi);
+   *   · manba «Excel arxivi» — arxiv tanlovida ham rezerv ko'rinadi;
+   *   · «Rad etilganlar» bo'limi — u boshqa savolga javob beradi;
+   *   · voronka — taxta faqat jarayondagilarni chizadi.
+   */
+  const reserveHintSearch = filters.search.trim()
+  const reserveHintEnabled =
+    view === 'table' &&
+    reserveHintSearch !== '' &&
+    filters.status === '' &&
+    filters.source !== 'Excel' &&
+    !filters.contactDue &&
+    !rejectedSection
+
+  const reserveMatches = useCandidates(
+    {
+      search: reserveHintSearch,
+      status: 'Reserve',
+      includeArchive: true,
+      page: 1,
+      pageSize: 1,
+    },
+    reserveHintEnabled,
+  )
+
+  // Oldingi qidiruvning soni yangi qidiruv ostida bir zum ham turmasin —
+  // `useCandidates` sahifalash uchun eski javobni ushlab turadi
+  const reserveCount =
+    reserveHintEnabled && reserveMatches.isSuccess && !reserveMatches.isPlaceholderData
+      ? reserveMatches.data.total
+      : 0
 
   const setSearch = useCallback(
     (
@@ -479,6 +533,30 @@ export function CandidatesPage() {
 
       {query.isError && (
         <Alert tone="danger">{errorMessage(recruitingErrorCode(query.error))}</Alert>
+      )}
+
+      {/*
+        Asosiy ro'yxat bo'sh bo'lsa ham, to'la bo'lsa ham chiqadi: HR
+        qidirgan odam jadvaldagi boshqa qatorlar orasida bo'lmasligi va
+        aynan rezervda turgan bo'lishi mumkin. Izoh yiqilgan so'rovda
+        jim qoladi — bu yordamchi ma'lumot, asosiy ro'yxatning xatosi
+        yuqorida allaqachon ko'rinadi.
+      */}
+      {reserveCount > 0 && (
+        <Alert tone="info">
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{t('recruiting.reserveSearchHint', { n: num(reserveCount) })}</span>
+
+            <Link
+              to="/rezerv"
+              search={{ q: reserveHintSearch }}
+              className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+            >
+              {t('recruiting.reserveSearchOpen')}
+              <ArrowRight />
+            </Link>
+          </span>
+        </Alert>
       )}
 
       <Card className="overflow-hidden">

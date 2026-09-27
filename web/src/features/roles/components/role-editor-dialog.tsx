@@ -27,8 +27,11 @@ import {
 import { useRoleCatalog, useSaveRole } from '../api/roles-queries'
 import {
   allHeld,
+  catalogCodes,
   droppedPermissions,
   formFromRole,
+  isPeerRole,
+  knownCodes,
   offeredLevels,
   permissionsOf,
   type RoleForm,
@@ -64,7 +67,7 @@ const EMPLOYEES_CREATE = 'employees.create'
 const SALARY_ACTION = 'employment.salary'
 
 /** Muharrir nega faqat o'qish uchun ochilgani — har biriga o'z izohi. */
-type ReadOnlyReason = 'protected' | 'own' | 'above'
+type ReadOnlyReason = 'protected' | 'own' | 'above' | 'peer'
 
 /**
  * Rol muharriri — yaratish, tahrirlash va (faqat o'qish uchun) ko'rish.
@@ -83,7 +86,11 @@ type ReadOnlyReason = 'protected' | 'own' | 'above'
  *     olmasligi kerak;
  *   • rolda so'rovchida YO'Q ruxsat bor — `rol.ortiqcha_ruxsat` ga
  *     yaqin qoida: kengroq rolni faqat undan ham kengroq odam o'zgartiradi
- *     («Foydalanuvchilar» dagi §5 qoidasining ko'zgusi).
+ *     («Foydalanuvchilar» dagi §5 qoidasining ko'zgusi);
+ *   • rol so'rovchinikiga TENG va rollar yoki hisoblarni boshqaradi —
+ *     `rol.teng_huquqli` («hamkasb» rol, `isPeerRole` izohi).
+ * Ikkala solishtirishda ham katalogda yo'q eski kodlar hisobga olinmaydi
+ * — server ham shunday qiladi.
  *
  * Tahrirlash rejimida ham so'rovchida yo'q daraja, amal va qo'shimcha
  * ruxsat TAKLIF qilinmaydi — server ularni baribir rad etardi.
@@ -118,8 +125,20 @@ export function RoleEditorDialog({
     bilan bir xil): u hamma narsani bera oladi, rolda eskidan qolgan
     notanish kod bo'lsa ham — saqlashda u baribir tushib qoladi
     (`droppedPermissions`), ya'ni rolni aynan u tozalay olishi kerak.
+    «Teng huquqli rol» qoidasidan ham ozod: bunday rolni o'zgartira
+    oladigan YAGONA odam — aynan u (`rol.teng_huquqli` matni ham shuni
+    aytadi).
   */
   const isSuperAdmin = user?.roles.includes(SUPER_ADMIN_ROLE_CODE) ?? false
+
+  /*
+    Tizim taniydigan kodlar — katalogdan. U kelmaguncha `null`: solishtirish
+    filtrsiz ketadi (ehtiyotkor tomon), katalog kelgach qayta hisoblanadi.
+  */
+  const known = useMemo(
+    () => (catalog.data === undefined ? null : catalogCodes(catalog.data)),
+    [catalog.data],
+  )
 
   const readOnly: ReadOnlyReason | null =
     role === null
@@ -128,9 +147,13 @@ export function RoleEditorDialog({
         ? 'protected'
         : isOwn
           ? 'own'
-          : isSuperAdmin || allHeld(role.permissions, held)
+          : isSuperAdmin
             ? null
-            : 'above'
+            : !allHeld([...knownCodes(role.permissions, known)], held)
+              ? 'above'
+              : isPeerRole(role.permissions, held, known)
+                ? 'peer'
+                : null
 
   const editable = readOnly === null
 
@@ -332,6 +355,11 @@ export function RoleEditorDialog({
         {readOnly === 'protected' && <Alert tone="info">{t('roleEditor.readOnlyProtected')}</Alert>}
         {readOnly === 'own' && <Alert tone="info">{t('roleEditor.readOnlyOwn')}</Alert>}
         {readOnly === 'above' && <Alert tone="info">{t('roleEditor.readOnlyAbove')}</Alert>}
+        {/*
+          «Hamkasb» rol — izoh serverning O'Z xato matni: tugma bosilganda
+          qaytadigan sabab bilan so'zma-so'z bir xil bo'lsin.
+        */}
+        {readOnly === 'peer' && <Alert tone="info">{errorMessage('rol.teng_huquqli')}</Alert>}
 
         {editable && dropped.length > 0 && (
           <Alert tone="warning">

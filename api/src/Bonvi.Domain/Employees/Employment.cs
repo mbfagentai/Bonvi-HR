@@ -211,10 +211,29 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
     /// </para>
     /// <para>
     /// ⭐ <b>Xodimning JORIY okladi ham yangilanadi</b> — lekin faqat
-    /// tuzatilgan yozuv AYNAN o'sha oklad manbai bo'lsa. Aks holda
-    /// karta va tarix bir-biriga zid bo'lib qolardi: lentada 5 mln,
-    /// kartada esa 4 mln. Eskiroq yozuv tuzatilsa joriy oklad
+    /// yozuvning SUMMASI tuzatilganda va yozuv AYNAN oklad manbai bo'lsa.
+    /// Aks holda karta va tarix bir-biriga zid bo'lib qolardi: lentada
+    /// 5 mln, kartada esa 4 mln. Eskiroq yozuv tuzatilsa joriy oklad
     /// TEGILMAYDI — uni keyingi hodisa allaqachon ustidan yozgan.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Summasiz tuzatish (sana, buyruq raqami, izoh) okladga HECH
+    /// QACHON tegmaydi.</b> Ilgari manba yozuvining buyruq raqamini
+    /// to'g'rilash ham joriy okladni shu yozuvdagi summaga tenglardi.
+    /// Bu ikki holatda jimgina buzardi (xato, 2026-09-27):
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>qo'shimcha vazifa yozuvi — okladga uning qo'shimcha haqi tushardi;</item>
+    ///   <item>
+    ///     Excel'dan kelgan xodim — joriy oklad «91 Умумий» dan keladi va
+    ///     tarixdagi oxirgi yozuv bilan teng bo'lishi shart emas.
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// Shu sababli summa tuzatilganda ham joriy oklad faqat u AYNAN eski
+    /// summaga teng bo'lsa almashtiriladi: karta shu yozuvni ko'rsatib
+    /// turgan bo'lsa — birga tuzatiladi, boshqa manbadan kelgan bo'lsa —
+    /// tegilmaydi.
     /// </para>
     /// <para>
     /// <b>Ishdan ketgan xodimda ham ishlaydi</b> — <see cref="SetSalary"/>
@@ -237,13 +256,15 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
             return Error.NotFound("mehnat_hodisasi.topilmadi", "Mehnat yo'li yozuvi topilmadi.");
         }
 
-        // Joriy oklad manbai — tuzatishdan OLDIN aniqlanadi: tahrir
-        // sanani o'zgartirishi mumkin va o'shanda tartib ham siljiydi.
-        var okladManbai = SalarySource();
+        var eskiSumma = hodisa.ToSalary;
 
         hodisa.Edit(effectiveDate, Normalize(orderNo), orderDate, Normalize(note), toSalary);
 
-        if (okladManbai is not null && okladManbai.Id == hodisa.Id && hodisa.ToSalary is not null)
+        var summaTuzatildi = eskiSumma is not null && !Equals(eskiSumma, hodisa.ToSalary);
+
+        // Manba tuzatishdan KEYIN aniqlanadi: summa tuzatilgach, okladi
+        // o'zgarmagan ko'chirish ham oklad qaroriga aylanishi mumkin.
+        if (summaTuzatildi && Equals(Salary, eskiSumma) && SalarySource()?.Id == hodisa.Id)
         {
             Salary = hodisa.ToSalary;
         }
@@ -251,15 +272,21 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
         return Result.Success();
     }
 
-    /// <summary>Joriy okladni belgilab turgan hodisa — eng oxirgi summali yozuv.</summary>
+    /// <summary>Joriy okladni belgilab turgan hodisa — okladni belgilagan eng oxirgi yozuv.</summary>
     /// <remarks>
+    /// <para>
     /// Tartib <see cref="EmploymentEvent.EffectiveDate"/> bo'yicha, teng
     /// bo'lsa yozilgan vaqt bo'yicha: bir kunda ikkita buyruq bo'lishi
     /// mumkin va o'shanda keyin KIRITILGANI oxirgisi hisoblanadi.
+    /// </para>
+    /// <para>
+    /// Qo'shimcha vazifaning haqi va okladi o'zgarmagan ko'chirish manba
+    /// EMAS (<see cref="EmploymentEvent.SetsSalary"/>).
+    /// </para>
     /// </remarks>
     private EmploymentEvent? SalarySource()
         => _events
-            .Where(item => item.ToSalary is not null)
+            .Where(item => item.SetsSalary)
             .OrderBy(item => item.EffectiveDate)
             .ThenBy(item => item.RecordedAt)
             .LastOrDefault();

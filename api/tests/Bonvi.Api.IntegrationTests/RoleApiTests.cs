@@ -423,6 +423,99 @@ public sealed class RoleApiTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
+    /// Rollar tomonidagi «teng huquqli hamkasb» qoidasi: huquqlari aynan teng
+    /// va rollarni boshqaradigan boshqa rolni tahrirlab ham, o'chirib ham
+    /// bo'lmaydi — aks holda ikki teng boshqaruvchidan biri ikkinchisining
+    /// rolidan <c>roles.manage</c> ni olib, uni qo'l ostiga tushirardi. Super
+    /// administrator esa tega oladi.
+    /// </summary>
+    [Fact]
+    public async Task Teng_huquqli_boshqaruvchi_rolni_tahrirlab_ham_ochirib_ham_bolmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        string[] ruxsatlar = [Permissions.RolesManage, Permissions.EmployeesView];
+        var hamkasb = await YaratAsync(admin, NoyobNom("Hamkasb"), ruxsatlar);
+
+        var hisob = await TestAccounts.CreateAsync(_factory, ruxsatlar);
+        using var client = Mijoz(hisob.AccessToken);
+
+        using (var javob = await client.PutAsJsonAsync(
+            RolUri(hamkasb.Id),
+            RolTanasi(hamkasb.Name, Permissions.EmployeesView),
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(javob));
+            (await XatoKodiAsync(javob)).ShouldBe("rol.teng_huquqli");
+        }
+
+        using (var javob = await client.DeleteAsync(RolUri(hamkasb.Id), bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(javob));
+            (await XatoKodiAsync(javob)).ShouldBe("rol.teng_huquqli");
+        }
+
+        (await RolAsync(admin, hamkasb.Id)).Permissions.ShouldBe(ruxsatlar, ignoreOrder: true);
+
+        // Qat'iy pastdagi rolni (roles.manage siz) esa tahrirlay oladi
+        var past = await YaratAsync(admin, NoyobNom("Past"), [Permissions.EmployeesView]);
+        using (var javob = await client.PutAsJsonAsync(
+            RolUri(past.Id),
+            RolTanasi(past.Name, Permissions.EmployeesView),
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        // Super administrator uchun «teng» tushunchasi yo'q — u tizim egasi
+        using (var javob = await admin.PutAsJsonAsync(
+            RolUri(hamkasb.Id),
+            RolTanasi(hamkasb.Name, Permissions.EmployeesView),
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+    }
+
+    /// <summary>
+    /// Kodda endi yo'q eski ruxsat kodi (<c>employment.manage</c>) hech narsa
+    /// bermaydi — u hisoblarni boshqarish qoidasida ham hisobga olinmaydi.
+    /// Aks holda rolda qolib ketgan bitta eski kod bosh rahbarni o'sha rol
+    /// egalaridan jimgina uzib qo'yardi.
+    /// </summary>
+    [Fact]
+    public async Task Eski_ruxsat_kodi_hisobni_boshqarishga_xalaqit_bermaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        var past = await YaratAsync(admin, NoyobNom("Eski kodli"), [Permissions.EmployeesView]);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            await kontekst.Database.ExecuteSqlRawAsync(
+                "UPDATE roles SET permissions = permissions || ARRAY['employment.manage']::text[] WHERE id = {0}",
+                [past.Id],
+                bekorQilish);
+        }
+
+        var hisob = await TestAccounts.CreateAsync(_factory, Permissions.UsersManage, Permissions.EmployeesView);
+        using var client = Mijoz(hisob.AccessToken);
+
+        var qoldagi = await HisobYaratAsync(admin, past.Code);
+
+        using (var javob = await client.PostAsJsonAsync(
+            new Uri($"/api/users/{qoldagi}/reset-password", UriKind.Relative),
+            new { newPassword = "Yangi_Parol_123" },
+            bekorQilish))
+        {
+            ((int)javob.StatusCode).ShouldBeLessThan(300, await MatnAsync(javob));
+        }
+    }
+
+    /// <summary>
     /// O'zidan YUQORI rolni (JORIY ruxsatlari kengroq) tahrirlab ham, o'chirib
     /// ham bo'lmaydi — faqat yangi ro'yxatni tekshirish yetmaydi: aks holda tor
     /// rol muharriri kengroq rolni «qisqartirib» yoki o'chirib yuborardi.

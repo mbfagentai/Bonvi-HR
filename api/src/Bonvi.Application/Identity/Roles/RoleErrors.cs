@@ -40,6 +40,22 @@ public static class RoleErrors
     public static Error OwnRole { get; } =
         Error.Conflict("rol.oz_roli", "O'zingiz egallab turgan rolni o'zgartira yoki o'chira olmaysiz.");
 
+    /// <summary>
+    /// Huquqlari so'rovchiniki bilan TENG va rollar yoki hisoblarni boshqaradigan
+    /// boshqa rolga tegishga urinish.
+    /// </summary>
+    /// <remarks>
+    /// Foydalanuvchilar tomonidagi «teng huquqli hamkasb» qoidasining
+    /// (<c>foydalanuvchi.rolga_haqqi_yoq</c>) rollar tomonidagi juftligi: usiz
+    /// ikki teng boshqaruvchidan biri ikkinchisining rolidan
+    /// <c>roles.manage</c>/<c>users.manage</c> ni olib, uni o'z qo'l ostiga
+    /// tushirib olardi. Bunday rolni faqat super administrator o'zgartiradi.
+    /// </remarks>
+    public static Error PeerRole { get; } =
+        Error.Conflict(
+            "rol.teng_huquqli",
+            "Bu rolning huquqlari sizniki bilan teng — uni faqat super administrator o'zgartira yoki o'chira oladi.");
+
     /// <summary>Boshqa rolga O'ZIDA yo'q ruxsatni berishga urinish.</summary>
     /// <remarks>
     /// Aks holda <c>roles.manage</c> ruxsati bor har kim yangi rol yaratib,

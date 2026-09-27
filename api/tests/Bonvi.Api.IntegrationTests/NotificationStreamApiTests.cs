@@ -3,9 +3,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Api.IntegrationTests;
@@ -145,6 +147,48 @@ public sealed class NotificationStreamApiTests : IClassFixture<BonviApiFactory>
 
         payload.ShouldNotBeNull("o'zgarish ochiq turgan oqimga yetib bormadi");
         payload.ShouldContain("ProbationEndingSoon");
+    }
+
+    /// <summary>
+    /// Hisob faolsizlantirilsa, OCHIQ turgan oqim ham yopiladi.
+    /// </summary>
+    /// <remarks>
+    /// Autentifikatsiya ulanish ochilganda bir marta bajariladi, oqim esa
+    /// soatlab yashaydi. Tekshiruvsiz faolsizlantirilgan hisob ulanish
+    /// uzilgunicha bildirishnoma olib turardi — «rol yoki hisob o'zgarishi
+    /// keyingi so'rovdayoq kuchga kiradi» degan qoida shu yerda buzilardi.
+    /// </remarks>
+    [Fact]
+    public async Task Faolsizlantirilgan_hisobning_ochiq_oqimi_yopiladi()
+    {
+        using var cts = new CancellationTokenSource(EventTimeout * 3);
+
+        var hisob = await TestAccounts.CreateAsync(_factory, Permissions.EmployeesView);
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", hisob.AccessToken);
+
+        using var response = await OpenStreamAsync(client, cts.Token);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        await using var body = await response.Content.ReadAsStreamAsync(cts.Token);
+        using var reader = new StreamReader(body);
+
+        (await ReadEventAsync(reader, cts.Token)).ShouldNotBeNull();
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var foydalanuvchi = await kontekst.Users.SingleAsync(user => user.Id == hisob.UserId, cts.Token);
+            foydalanuvchi.Deactivate();
+            await kontekst.SaveChangesAsync(cts.Token);
+        }
+
+        // Oqim o'zi TUGASHI kerak — muddat tugab qolsa, test yiqiladi.
+        while (await reader.ReadLineAsync(cts.Token) is not null)
+        {
+        }
+
+        cts.IsCancellationRequested.ShouldBeFalse("oqim faolsizlantirilgan hisob uchun yopilmadi");
     }
 
     // ────────────────────────────────────────────────────────────

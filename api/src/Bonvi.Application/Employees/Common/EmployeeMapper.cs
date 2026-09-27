@@ -2,6 +2,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Identity;
 
 namespace Bonvi.Application.Employees.Common;
 
@@ -181,7 +182,8 @@ public sealed class EmployeeMapper
             employmentEvent.Note,
             employmentEvent.RecordedAt,
             employmentEvent.UpdatedAt,
-            employmentEvent.IsImported);
+            employmentEvent.IsImported,
+            employmentEvent.IsPayDecision && !_currentUser.HasPermission(Permissions.EmploymentSalary));
     }
 
     /// <summary>

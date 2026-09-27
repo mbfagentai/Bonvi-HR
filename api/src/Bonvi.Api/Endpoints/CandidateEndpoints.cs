@@ -449,6 +449,35 @@ public static class CandidateEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        group.MapGet("/phone-matches", async (
+                string? phone,
+                Guid? exceptId,
+                FindCandidatePhoneMatchesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new FindCandidatePhoneMatchesQuery(phone, exceptId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingView)
+            .WithName("FindCandidatePhoneMatches")
+            .WithSummary("Shu telefon raqamli mavjud nomzodlar — qo'lda kiritishdagi ogohlantirish")
+            .WithDescription(
+                "HAMMA holatdagi nomzodlar: jarayonda, rezervda, rad etilgan, voz kechgan, " +
+                "ishga olingan — Excel arxivi ham. Ro'yxat endpoint'idan farqi shu: u " +
+                "sukut bo'yicha rezerv, rad etilgan va ishga olinganlarni yashiradi. " +
+                "«phone» — istalgan ko'rinishda (9 raqam yoki +998 bilan); to'liq " +
+                "O'zbekiston raqami bo'lmasa BO'SH ro'yxat qaytadi, xato emas — forma " +
+                "raqam yozilayotganda ham so'rashi mumkin. «exceptId» — tahrirlanayotgan " +
+                "nomzodning o'zi natijaga tushmaydi. Tartib: avval jarayondagi, keyin " +
+                "eng yangisi; ko'pi bilan 5 ta. ⚠️ Bu faqat OGOHLANTIRISH: qo'lda " +
+                "kiritish to'silmaydi, qarorni HR o'zi qabul qiladi.")
+            .Produces<IReadOnlyList<CandidatePhoneMatchDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         group.MapGet("/{id:guid}", async (
                 Guid id,
                 GetCandidateQueryHandler handler,

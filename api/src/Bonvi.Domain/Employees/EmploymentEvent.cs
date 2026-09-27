@@ -106,6 +106,48 @@ public sealed class EmploymentEvent : Entity
     public Guid? ToPositionId { get; private set; }
     public Money? ToSalary { get; private set; }
 
+    /// <summary>
+    /// Hodisa xodimning OKLADINI belgilaganmi — ya'ni u joriy oklad manbai bo'la oladimi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="ToSalary"/> ning o'zi yetmaydi, chunki u ikki xil ma'noda keladi:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     <b>Qo'shimcha vazifa</b> — bu yerda summa OKLAD EMAS, vazifa uchun
+    ///     qo'shimcha haq. Uni oklad manbai deb olish xodimning 5 mln okladini
+    ///     1 mln qo'shimcha haqqa almashtirib yuborardi (xato, 2026-09-27).
+    ///   </item>
+    ///   <item>
+    ///     <b>Ko'chirish / lavozim o'zgarishi</b> okladni HAR DOIM yozadi —
+    ///     o'zgarmagan bo'lsa ham, eski qiymatni nusxa sifatida. Bunday yozuv
+    ///     okladni belgilamagan: u faqat o'sha kungi holatni aks ettiradi.
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// «Oklad o'zgarishi» esa summasi eskisi bilan teng bo'lsa ham oklad
+    /// qarori — u hisobga olinadi.
+    /// </para>
+    /// </remarks>
+    public bool SetsSalary => ToSalary is not null && Type switch
+    {
+        EmploymentEventType.AdditionalDuty => false,
+        EmploymentEventType.Transfer or EmploymentEventType.Promotion => !Equals(FromSalary, ToSalary),
+        _ => true,
+    };
+
+    /// <summary>
+    /// Hodisa pul qarori ekanmi — oklad yoki qo'shimcha haq.
+    /// </summary>
+    /// <remarks>
+    /// Bunday yozuvning sanasini surish ham pul tarixini o'zgartiradi, shu
+    /// sababli u <c>employment.salary</c> ni talab qiladi. Okladi o'zgarmagan
+    /// ko'chirish bu yerga TUSHMAYDI: uning sanasini tuzatish — oddiy
+    /// hujjat tuzatishi.
+    /// </remarks>
+    public bool IsPayDecision => SetsSalary || (Type == EmploymentEventType.AdditionalDuty && ToSalary is not null);
+
     /// <summary>Izoh. Qo'shimcha vazifada — vazifaning matni.</summary>
     public string? Note { get; private set; }
 

@@ -243,6 +243,12 @@ export interface TimelineEvent {
    * o'shanda lentada «tahrirlandi» qaydi umuman chizilmaydi.
    */
   updatedAt: string | null
+  /**
+   * Sanani tuzatib bo'lmaydi: yozuv pul qarori (oklad yoki vazifa haqi) va
+   * sizda «employment.salary» yo'q. Server hisoblaydi — `salary.view` siz
+   * summa yashirilgani uchun klient buni o'zi bila olmaydi.
+   */
+  dateLocked: boolean
   recordedByName: string | null
   legalEntityName: string | null
 }
@@ -925,6 +931,7 @@ function toTimelineEvent(raw: unknown, legalEntityName: string | null): Timeline
     isImported: bool(box['isImported']),
     recordedAt: text(box['recordedAt']),
     updatedAt: text(box['updatedAt']),
+    dateLocked: bool(box['dateLocked']),
     // Server bu maydonni lentada BERMAYDI (`EmploymentEventDto` da yo'q).
     // `null` — «kim yozgani noma'lum», ekranda u shunday ko'rsatiladi.
     recordedByName: text(box['recordedByName']),

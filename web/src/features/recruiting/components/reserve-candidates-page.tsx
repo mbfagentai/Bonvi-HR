@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { Search, SearchX } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 
 import { FLAG_LOOK } from '@/features/employees/lib/employee-presentation'
@@ -69,8 +69,15 @@ export function ReserveCandidatesPage({
 
   const [draft, setDraft] = useSearchDraft(search, onSearchChange)
 
+  /*
+    `includeArchive` SHART: Excel'dan ko'chirilgan kengash arxivida ham
+    rezervdagilar bor va server arxivni sukut bo'yicha yashiradi. Nomzodlar
+    ro'yxatida rezerv endi umuman ko'rinmaydi, ya'ni bayroqsiz bu qatorlar
+    tizimning hech bir ekranida chiqmasdi.
+  */
   const query = useCandidates({
     status: 'Reserve',
+    includeArchive: true,
     search: search === '' ? undefined : search,
     page,
     pageSize: PAGE_SIZE,
@@ -174,12 +181,33 @@ export function ReserveCandidatesPage({
               params: { candidateId: row.id },
             })
           }
+          /*
+            Uch holat, uchta javob:
+              · so'rov yiqildi — bo'sh holat YO'Q: yuqoridagi xato
+                yetarli, «rezervda hech kim yo'q» esa yolg'on bo'lardi;
+              · qidiruv bor, mos kelmadi — «topilmadi» (HR nimanidir
+                qidirgan, bo'lim bo'sh emas);
+              · qidiruvsiz bo'sh — bo'limning o'z matni: rezervga qanday
+                o'tkaziladi.
+
+            «Topilmadi» izohi nomzodlar ro'yxatinikidan (`candidateNotFoundText`)
+            ATAYLAB boshqa: u «Holati» filtriga yo'naltiradi, bu sahifada esa
+            bunday filtr yo'q.
+          */
           empty={
-            <EmptyState
-              icon={look.icon}
-              title={t('recruiting.reserveSection.emptyTitle')}
-              description={t('recruiting.reserveSection.emptyText')}
-            />
+            query.isError ? null : search !== '' ? (
+              <EmptyState
+                icon={SearchX}
+                title={t('recruiting.candidateNotFoundTitle')}
+                description={t('recruiting.reserveSection.notFoundText', { query: search.trim() })}
+              />
+            ) : (
+              <EmptyState
+                icon={look.icon}
+                title={t('recruiting.reserveSection.emptyTitle')}
+                description={t('recruiting.reserveSection.emptyText')}
+              />
+            )
           }
         />
 

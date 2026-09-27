@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { employeeErrorCode } from '@/features/employees/lib/employee-error'
-import { EMPLOYMENT_SALARY } from '@/features/employees/lib/employee-presentation'
+import {
+  EMPLOYMENT_SALARY,
+  EMPLOYMENT_TRANSFER,
+} from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
 
@@ -60,6 +63,19 @@ export function ResolveDialog({
   */
   const canSetSalary = hasPermission(EMPLOYMENT_SALARY)
 
+  /*
+    Lavozim va bo'lim — KO'CHIRISH qoidasi bo'yicha, okladdagi bilan aynan
+    bir xil naqsh: sinov yakunidagi yangi lavozim yoki bo'lim — bu
+    ko'chirish va server uni `employment.transfer` siz butun yakunlash
+    bilan birga 403 (`auth.ruxsat_yoq`) bilan rad etadi. Ruxsatsiz odamga
+    ikkala maydon umuman chizilmaydi va so'rovga tushmaydi — xodim hozirgi
+    joyida qoladi.
+
+    Stavka bu qoidaga KIRMAYDI: u shartnoma sharti, alohida amali yo'q va
+    sinovni yakunlash huquqi bilan keladi (ishga qabuldagi kabi).
+  */
+  const canTransfer = hasPermission(EMPLOYMENT_TRANSFER)
+
   const [status, setStatus] = useState<ProbationStatus>('passed')
   const [conclusion, setConclusion] = useState('')
   const [positionId, setPositionId] = useState('')
@@ -112,8 +128,8 @@ export function ResolveDialog({
           // yuborish HR ga keraksiz xato ko'rsatmaslik demak.
           ...(promoting
             ? {
-                positionId: changed(positionId, item.positionId),
-                departmentId: changed(departmentId, item.departmentId),
+                positionId: canTransfer ? changed(positionId, item.positionId) : null,
+                departmentId: canTransfer ? changed(departmentId, item.departmentId) : null,
                 salaryAmount:
                   !canSetSalary || salary.trim() === '' || !Number.isFinite(parsedSalary)
                     ? null
@@ -183,21 +199,25 @@ export function ResolveDialog({
               </p>
             </div>
 
-            <Select
-              label={t('employee.position')}
-              options={options.positions}
-              placeholder={t('probation.keepCurrent')}
-              value={positionId}
-              onChange={(event) => setPositionId(event.target.value)}
-            />
+            {canTransfer && (
+              <>
+                <Select
+                  label={t('employee.position')}
+                  options={options.positions}
+                  placeholder={t('probation.keepCurrent')}
+                  value={positionId}
+                  onChange={(event) => setPositionId(event.target.value)}
+                />
 
-            <Select
-              label={t('employee.department')}
-              options={options.departments}
-              placeholder={t('probation.keepCurrent')}
-              value={departmentId}
-              onChange={(event) => setDepartmentId(event.target.value)}
-            />
+                <Select
+                  label={t('employee.department')}
+                  options={options.departments}
+                  placeholder={t('probation.keepCurrent')}
+                  value={departmentId}
+                  onChange={(event) => setDepartmentId(event.target.value)}
+                />
+              </>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               {canSetSalary && (

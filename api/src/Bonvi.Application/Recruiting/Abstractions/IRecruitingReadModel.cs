@@ -69,6 +69,31 @@ public interface IRecruitingReadModel
         long? telegramChatId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Shu telefon raqamli nomzodlar — HAMMA holatda, Excel arxivi ham.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// HR nomzodni qo'lda kiritayotganda «bu odam bizda bormi?» degan
+    /// savolga javob. Ro'yxat endpoint'i bunga yaramaydi: u sukut bo'yicha
+    /// rezervdagi, rad etilgan va ishga olinganlarni yashiradi
+    /// (<see cref="CandidateSearchFilter.HideReserve"/> va egizaklari).
+    /// </para>
+    /// <para>
+    /// Tartib <see cref="FindLatestApplicationAsync"/> bilan bir xil:
+    /// avval jarayondagi, keyin eng yangisi.
+    /// </para>
+    /// </remarks>
+    /// <param name="phoneDigits">Kanonik raqamning faqat raqamlari: <c>998901234567</c>.</param>
+    /// <param name="exceptId">Tahrirlanayotgan nomzodning o'zi — natijaga tushmaydi.</param>
+    /// <param name="limit">Eng ko'p nechta.</param>
+    /// <param name="cancellationToken">Bekor qilish.</param>
+    Task<IReadOnlyList<CandidatePhoneMatchDto>> FindPhoneMatchesAsync(
+        string phoneDigits,
+        Guid? exceptId,
+        int limit,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RejectionNoticeDto>> ListPendingRejectionNoticesAsync(
         int limit,
         CancellationToken cancellationToken = default);

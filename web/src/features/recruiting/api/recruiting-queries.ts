@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import type { PagedResult } from '@/features/employees/api/employees-api'
 import { fileNameFromDisposition, saveBlobAs } from '@/shared/lib/download'
+import { UZ_PHONE_LENGTH, uzPhoneDigits } from '@/shared/lib/phone'
 import type { SelectOption } from '@/shared/ui'
 import {
   changeVacancyStatus,
@@ -13,6 +14,7 @@ import {
   deleteVacancy,
   fetchCandidate,
   fetchCandidateFile,
+  fetchCandidatePhoneMatches,
   fetchCandidatePhoto,
   fetchCandidates,
   fetchStages,
@@ -121,6 +123,8 @@ export const recruitingKeys = {
   vacancies: (filters: VacancyFilters) => ['recruiting', 'vacancies', filters] as const,
   candidates: (filters: CandidateFilters) => ['recruiting', 'candidates', filters] as const,
   candidate: (id: string) => ['recruiting', 'candidate', id] as const,
+  phoneMatches: (phone: string, exceptId: string | null) =>
+    ['recruiting', 'phone-matches', phone, exceptId] as const,
 
   /**
    * Nomzod surati — BINAR kesh va u qolganlaridan ATAYLAB ajratilgan.
@@ -273,6 +277,42 @@ export function useCandidate(id: string) {
   })
 }
 
+/**
+ * ⭐ Shu telefon raqamli boshqa nomzodlar — forma ostidagi OGOHLANTIRISH.
+ *
+ * <b>So'rov faqat TO'LIQ raqamda ketadi</b> (9 xona). Kalit raqamning
+ * o'zi, ya'ni HR har harf terganda so'rov yubormaydi: 1–8 xonali qiymatda
+ * hook o'chiq turadi, to'qqizinchi xona bosilganda BITTA so'rov ketadi.
+ * Alohida kechiktirish (debounce) shu sababli kerak emas — qisman raqam
+ * serverga umuman yetib bormaydi.
+ *
+ * `placeholderData` ATAYLAB yo'q: raqam o'zgarganda eski raqamning
+ * mosliklari yangisining ostida bir zum ham turmasligi kerak — ular
+ * boshqa odamlar haqida yolg'on ogohlantirish bo'lardi.
+ *
+ * @param phone Formadagi qiymat — 9 xona, bo'shliqsiz (`PhoneInput`).
+ * @param exceptId Tahrirlanayotgan nomzod; yangi nomzodda `null`.
+ * @param enabled Oyna ochiqmi. Forma komponenti yopiq holda ham o'rnatilgan
+ *   turadi va oxirgi raqamni eslab qoladi — busiz yopiq oyna fonda so'rov
+ *   yuboraverardi.
+ */
+export function useCandidatePhoneMatches(phone: string, exceptId: string | null, enabled: boolean) {
+  const digits = uzPhoneDigits(phone)
+
+  return useQuery({
+    queryKey: recruitingKeys.phoneMatches(digits, exceptId),
+    queryFn: ({ signal }) =>
+      fetchCandidatePhoneMatches(digits, exceptId ?? undefined, signal),
+    enabled: enabled && digits.length === UZ_PHONE_LENGTH,
+    /*
+      Qayta urinish yo'q: bu yordamchi tekshiruv, forma usiz ham
+      ishlaydi. Yiqilgan so'rov oynada qisqa izoh bo'lib ko'rinadi va
+      saqlashni to'xtatmaydi (`candidate-form-dialog.tsx`).
+    */
+    retry: false,
+  })
+}
+
 export function useRegisterCandidate() {
   return useMutation({ mutationFn: (body: RegisterCandidateInput) => registerCandidate(body) })
 }
@@ -335,9 +375,13 @@ export function useInviteToInterview() {
  *
  * `nextContactDate` va `clearNextContact` IXTIYORIY va uch holatli:
  * sana — qo'yadi, `clearNextContact: true` — tozalaydi, ikkalasi ham
- * yo'q — TEGMAYDI. Aynan shu sababli sudrash (`useMoveCandidateToStage`)
- * o'zgarmasdan qoldi (izoh `recruiting-api.ts` da, «keyingi aloqa
- * sanasi: yozish qoidasi»).
+ * yo'q — TEGMAYDI (izoh `recruiting-api.ts` da, «keyingi aloqa sanasi:
+ * yozish qoidasi»).
+ *
+ * Voronkadagi sudrash ham shu hook'ga keladi, lekin O'ZI yozmaydi:
+ * kartani tashlash bosqich (yoki suhbat) oynasini ochadi va yagona
+ * yozuv — o'sha oynadagi «Saqlash» (`candidate-funnel.tsx`,
+ * `DroppedCardDialog`). Sudrashning alohida mutatsiyasi yo'q.
  */
 export function useRecordStage() {
   return useMutation({
@@ -403,13 +447,16 @@ type CandidatePage = PagedResult<CandidateListItem>
  * ⭐ Ustun so'rovining filtri — YAGONA joyda.
  *
  * NEGA bu funksiya bor va nega u aynan shu faylda. Uni ikkita mijoz
- * ishlatadi: ustunning O'ZI (`useFunnelColumn`) va kartani boshqa
- * bosqichga tashlaganda keshni optimistik yamaydigan mutatsiya
- * (`useMoveCandidateToStage`). Ikkinchisi keshni AYNAN birinchisi
- * yozgan kalit bo'yicha topishi shart — bitta maydon (masalan `sort`)
- * ikki joyda boshqacha yozilsa, yamoq boshqa yozuvga tushar va karta
- * ekranda «ko'chmay» qolardi. Bitta manba bunday xatoni umuman
- * imkonsiz qiladi.
+ * ishlatadi: ustunning O'ZI (`useFunnelColumn`) va sudralayotgan kartani
+ * keshdan topadigan qidiruvchi (`useFunnelCardFinder`). Ikkinchisi keshni
+ * AYNAN birinchisi yozgan kalit bo'yicha o'qishi shart — bitta maydon
+ * (masalan `sort`) ikki joyda boshqacha yozilsa, qidiruv boshqa yozuvga
+ * qarar va tashlangan karta «topilmay» qolardi. Bitta manba bunday
+ * xatoni umuman imkonsiz qiladi.
+ *
+ * Tashlash keshni YAMAMAYDI: u bosqich (yoki suhbat) oynasini ochadi va
+ * yagona yozuv — o'sha oynadagi «Saqlash». Karta yangi ustunga «Saqlash»
+ * dan keyin o'tadi, `providers.tsx` keshni bekor qilganda.
  */
 function funnelColumnFilters(filters: FunnelFilters, stageId: string): CandidateFilters {
   return {

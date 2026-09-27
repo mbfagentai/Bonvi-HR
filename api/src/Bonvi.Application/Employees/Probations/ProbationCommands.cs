@@ -5,6 +5,7 @@ using Bonvi.Application.Employees.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
 
 namespace Bonvi.Application.Employees.Probations;
@@ -129,6 +130,16 @@ public sealed class ResolveProbationCommandHandler
         if (salaryAllowed.IsFailure)
         {
             return salaryAllowed.Error;
+        }
+
+        // Ko'chirish qoidasi ham xuddi shunday: sinov yakunidagi yangi lavozim
+        // yoki bo'lim — bu ko'chirish va u `employment.transfer` ni talab qiladi.
+        // Stavka bu yerga kirmaydi: u shartnoma sharti, alohida amali yo'q
+        // (xuddi ishga qabuldagi kabi).
+        var moves = command.DepartmentId is not null || command.PositionId is not null;
+        if (moves && !_currentUser.HasPermission(Permissions.EmploymentTransfer))
+        {
+            return EmployeeErrors.TransferPermissionRequired;
         }
 
         // Tayinlash maydonlari faqat «o'tdi» bilan ma'noga ega. Sinovdan

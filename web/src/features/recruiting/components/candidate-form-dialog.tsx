@@ -1,10 +1,12 @@
+import { Link } from '@tanstack/react-router'
 import { LoaderCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { uzPhoneDigits } from '@/shared/lib/phone'
 import {
   Alert,
+  Badge,
   Button,
   DateField,
   Dialog,
@@ -14,10 +16,14 @@ import {
   TextField,
   type SelectOption,
 } from '@/shared/ui'
-import type { Candidate } from '../api/recruiting-api'
-import { useRegisterCandidate, useUpdateCandidate } from '../api/recruiting-queries'
+import type { Candidate, CandidatePhoneMatch } from '../api/recruiting-api'
+import {
+  useCandidatePhoneMatches,
+  useRegisterCandidate,
+  useUpdateCandidate,
+} from '../api/recruiting-queries'
 import { RECRUITING_ERROR_FIELD, recruitingErrorCode } from '../lib/recruiting-error'
-import { orNull } from '../lib/recruiting-presentation'
+import { CANDIDATE_LOOK, orNull } from '../lib/recruiting-presentation'
 
 const FORM_ID = 'candidate-form'
 
@@ -82,6 +88,13 @@ export function CandidateFormDialog({
 
   const [failure, setFailure] = useState<string | null>(null)
   const [fieldError, setFieldError] = useState<{ field: string; code: string } | null>(null)
+
+  /*
+    Shu raqamli BOSHQA nomzodlar — faqat ogohlantirish. Hook `return null`
+    dan OLDIN chaqiriladi (hook'lar tartibi), shu sababli oyna ochiqligi
+    unga alohida beriladi.
+  */
+  const phoneMatches = useCandidatePhoneMatches(phone, item?.id ?? null, open)
 
   useEffect(() => {
     if (!open) return
@@ -260,6 +273,24 @@ export function CandidateFormDialog({
           />
         </div>
 
+        {/*
+          ⭐ Takroriy raqam — OGOHLANTIRISH, to'siq EMAS (egasining qarori,
+          `docs/SPEC-qayta-ariza.md`: «HR qo'lda kiritganda to'siq YO'Q —
+          u odamni ko'rib turibdi va qarorni o'zi qabul qiladi»). Shu
+          sababli «Saqlash» bu yerga umuman qaramaydi.
+
+          Telefon qatorining OSTIDA va butun kenglikda: maydon ikki
+          ustunli qatorda tor, ro'yxat esa ism, holat va vakansiyani bir
+          qatorda ko'rsatishi kerak.
+        */}
+        {phoneMatches.isError ? (
+          <p className="text-footnote text-[var(--fg-tertiary)]">
+            {t('recruiting.phoneMatchFailed')}
+          </p>
+        ) : phoneMatches.data !== undefined && phoneMatches.data.length > 0 ? (
+          <PhoneMatchesAlert matches={phoneMatches.data} onOpen={onClose} />
+        ) : null}
+
         <TextField
           label={t('employee.speciality')}
           autoComplete="off"
@@ -285,5 +316,73 @@ export function CandidateFormDialog({
         />
       </form>
     </Dialog>
+  )
+}
+
+/**
+ * Shu raqamli nomzodlar ro'yxati — forma ostidagi ogohlantirish.
+ *
+ * <b>Havola SHU tabda ochiladi</b> — ilovadagi boshqa ichki havolalar
+ * kabi (nomzod kartasidan xodim kartasiga o'tish). Oyna shu bilan
+ * yopiladi: aks holda kartadan kartaga o'tganda tahrirlash oynasi yangi
+ * nomzodning ma'lumoti bilan qayta to'lib qolardi. Kiritilgan forma
+ * kerak bo'lsa, HR havolani yangi tabda ochadi (Ctrl/⌘ bilan yoki
+ * o'rta tugma) — bunday bosishda oyna ataylab YOPILMAYDI.
+ *
+ * Ohang `warning`: bu xato emas, lekin e'tibor talab qiladi — takroriy
+ * yozuv loyihaning eng qimmat muammosi (`nav-items.ts`, «Ishdan
+ * ketganlar» izohi).
+ */
+function PhoneMatchesAlert({
+  matches,
+  onOpen,
+}: {
+  matches: CandidatePhoneMatch[]
+  onOpen: () => void
+}) {
+  const { t, num, date } = useLocale()
+
+  const follow = (event: MouseEvent<HTMLAnchorElement>) => {
+    // Yangi tabda ochish — forma shu yerda qoladi
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+      return
+    }
+    onOpen()
+  }
+
+  return (
+    <Alert tone="warning" title={t('recruiting.phoneMatchTitle', { n: num(matches.length) })}>
+      <ul className="space-y-1.5">
+        {matches.map((match) => {
+          const look = CANDIDATE_LOOK[match.status]
+
+          return (
+            <li key={match.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Link
+                to="/nomzodlar/$candidateId"
+                params={{ candidateId: match.id }}
+                onClick={follow}
+                className="font-medium text-[var(--accent-text)] hover:underline"
+              >
+                {match.fullName}
+              </Link>
+
+              <Badge tone={look.tone} size="sm">
+                {t(`recruiting.candidateStatus.${look.key}`)}
+              </Badge>
+
+              <span className="text-caption1 text-[var(--fg-tertiary)]">
+                {match.vacancyTitle ?? '—'}
+                {match.createdAt !== '' && (
+                  <span className="tabular"> · {date(match.createdAt)}</span>
+                )}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+
+      <p className="mt-2">{t('recruiting.phoneMatchHint')}</p>
+    </Alert>
   )
 }

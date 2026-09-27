@@ -308,3 +308,37 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-26] One table for reserved candidates and reserved employees on the
   Reserve page? → A "Candidates | Employees" switch, candidates by default. → Their
   columns and actions differ, and it makes clear a candidate is not an employee.
+- [2026-09-27] Should correcting an employment record without changing its
+  amount ever change the current salary? → Never. An amount correction
+  updates the current salary only when the record is the salary source AND
+  the card was showing exactly the old amount. → For employees imported from
+  Excel the current salary comes from «91 Умумий» and need not match the
+  history; a silent salary change is worse than a card that needs one manual fix.
+- [2026-09-27] Is a transfer that kept the same salary a salary decision? → No.
+  Such a transfer only snapshots the salary, so it is not a salary source and
+  correcting its date needs only `employment.correct`. An additional-duty pay
+  amount is a pay decision (its date still needs `employment.salary`) but
+  never a salary source. → `Employment.Transfer` always writes `toSalary`;
+  treating that copy as a decision blocked correct-only roles and let the
+  snapshot shadow later salary corrections.
+- [2026-09-27] Does completing probation with a new position/department need
+  `employment.transfer`? → Yes. The rate stays under probation completion. →
+  This mirrors the salary rule; the owner split transfers (HR manager) from
+  probation completion (head of HR), and the rate has no action of its own
+  (same as at hire).
+- [2026-09-27] Should manual candidate registration be blocked on a duplicate
+  phone? → No. The form warns (new `GET /api/recruiting/candidates/phone-matches`,
+  all statuses) and saving stays allowed. → SPEC-qayta-ariza: the owner chose
+  no barrier for manual entry. Since 2026-09-26 reserve candidates are also
+  missing from the list search, so search alone no longer reveals duplicates.
+- [2026-09-27] Should reserve candidates show in the «Nomzodlar» list while
+  searching? → No. A notice says how many matches are in Rezerv and links
+  there. → The owner explicitly wants reserve candidates only in Rezerv.
+- [2026-09-27] Can a role editor change a role with the same rights as their
+  own? → Not when that role has `roles.manage` or `users.manage`: only
+  super_admin can (`rol.teng_huquqli`). → This is the role-side twin of the
+  existing users-side peer rule.
+- [2026-09-27] What happens to an open notification stream when the account's
+  access changes? → The stream ends and the client reconnects with fresh
+  access (or gets 401). → Authentication runs once per connection, and the
+  stream lives for hours.

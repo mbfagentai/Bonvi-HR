@@ -589,6 +589,11 @@ sharoitga o‘tadi.
 Faqat haqiqatan o‘zgartirgan maydonlaringiz yuboriladi — shu sababli tarixda
 bo‘sh «lavozim o‘zgarishi» hodisasi paydo bo‘lmaydi.
 
+**Lavozimi** va **Bo‘limi** maydonlari faqat xodimni ko‘chirish ruxsati bor
+foydalanuvchiga, **Oylik ish haqi** esa faqat oklad o‘zgartirish ruxsati bor
+foydalanuvchiga ko‘rinadi — sinovni yakunlash bu ikki amalni aylanib o‘tish
+yo‘li emas.
+
 >! Bu maydonlarni **«O‘tmadi»** yoki boshqa natija bilan birga to‘ldirib
 >! bo‘lmaydi — tizim rad etadi. Lavozim va oklad faqat sinovdan **o‘tgan**
 >! xodimga tayinlanadi.
@@ -633,6 +638,16 @@ alohida sahifa mos keladi.
   qaytarish yoki ishga olish o‘sha yerdan.
 - **Xodimlar** — «Rezerv» belgisi qo‘yilgan sobiq xodimlar (pastdagi qoidalar
   shularga tegishli).
+
+Rezervdagi nomzod yo‘qolib qolmaydi:
+
+- **«Nomzodlar» ro‘yxatida qidirsangiz** va mos odam rezervda bo‘lsa, jadval
+  tepasida «Qidiruvga mos yana … ta nomzod «Rezerv» bo‘limida» degan eslatma
+  chiqadi — **«Ko‘rish»** ni bossangiz, o‘sha qidiruv bilan «Rezerv» ochiladi.
+- **Yangi nomzod kiritayotganda** shu telefon raqamli nomzod tizimda bo‘lsa
+  (qaysi holatda bo‘lishidan qat’i nazar — rezervda, rad etilgan, ishga
+  olingan), forma telefon maydoni ostida ularni ko‘rsatadi. Bu faqat
+  ogohlantirish: saqlash to‘silmaydi, qaror sizda.
 
 ## Ikkita guruh: ishlayotgan va ketayotgan
 

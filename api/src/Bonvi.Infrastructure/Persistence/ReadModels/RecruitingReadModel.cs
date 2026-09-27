@@ -2,6 +2,7 @@ using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
+using Bonvi.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bonvi.Infrastructure.Persistence.ReadModels;
@@ -392,6 +393,50 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 stage.Name);
 
         return await rows.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<CandidatePhoneMatchDto>> FindPhoneMatchesAsync(
+        string phoneDigits,
+        Guid? exceptId,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var matching = CandidateSearchQuery.WithPhone(_context, phoneDigits);
+
+        var rows = await (
+                from candidate in _context.Candidates.AsNoTracking()
+                where matching.Contains(candidate.Id) && candidate.Id != exceptId
+                join vacancy in _context.Vacancies.AsNoTracking()
+                    on candidate.VacancyId equals vacancy.Id into vacancyGroup
+                from vacancy in vacancyGroup.DefaultIfEmpty()
+                join title in _context.VacancyTitles.AsNoTracking()
+                    on vacancy.VacancyTitleId equals title.Id into titleGroup
+                from title in titleGroup.DefaultIfEmpty()
+                orderby candidate.Status == CandidateStatus.InProgress descending,
+                    candidate.CreatedAt descending
+                select new
+                {
+                    candidate.Id,
+                    candidate.FullName.LastName,
+                    candidate.FullName.FirstName,
+                    candidate.FullName.MiddleName,
+                    candidate.Status,
+                    VacancyTitle = title.Name,
+                    candidate.CreatedAt,
+                })
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new CandidatePhoneMatchDto(
+                row.Id,
+                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
+                row.Status,
+                row.VacancyTitle,
+                row.CreatedAt)),
+        ];
     }
 
     public async Task<IReadOnlyList<RejectionNoticeDto>> ListPendingRejectionNoticesAsync(

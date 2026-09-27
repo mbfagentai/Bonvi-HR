@@ -636,6 +636,7 @@
     "rol.topilmadi": "Rol topilmadi.",
     "rol.himoyalangan": "Bu rol himoyalangan — uni o‘zgartirib ham, o‘chirib ham bo‘lmaydi.",
     "rol.oz_roli": "O‘z rolingizni o‘zgartira yoki o‘chira olmaysiz.",
+    "rol.teng_huquqli": "Bu rolning huquqlari siznikiga teng — uni faqat super administrator o‘zgartira yoki o‘chira oladi.",
     "rol.ortiqcha_ruxsat": "O‘zingizda yo‘q ruxsatni rolga bera olmaysiz.",
     "rol.nom_uzun": "Rol nomi 100 belgidan oshmasin.",
     "rol.nom_band": "Bu nomdagi rol allaqachon bor.",
@@ -876,6 +877,7 @@
     "effectiveDate": "Kuchga kirish sanasi",
     "eventEditTitle": "Yozuvni tuzatish",
     "eventEditHint": "Bu yerda faqat XATO YOZILGANI to‘g‘rilanadi. Oklad yoki lavozim haqiqatan o‘zgargan bo‘lsa, yangi buyruq bilan alohida yozuv kiriting.",
+    "eventDateLockedHint": "Bu oklad yoki qo‘shimcha haq yozuvi — uning sanasini faqat oklad o‘zgartirish ruxsati bor foydalanuvchi tuzatadi.",
     "eventEdited": "tuzatilgan",
     "note": "Izoh",
     "duty": "Qo‘shimcha vazifa",
@@ -1493,9 +1495,15 @@
       "candidates": "Nomzodlar",
       "employees": "Xodimlar",
       "emptyTitle": "Rezervda nomzod yo‘q",
-      "emptyText": "Nomzod kartasidagi «Rezervga o‘tkazish» amali uni shu yerga o‘tkazadi. U nomzod bo‘lib qoladi — xodim emas."
+      "emptyText": "Nomzod kartasidagi «Rezervga o‘tkazish» amali uni shu yerga o‘tkazadi. U nomzod bo‘lib qoladi — xodim emas.",
+      "notFoundText": "Rezervda «{{query}}» bo‘yicha nomzod yo‘q. Boshqa so‘z bilan urinib ko‘ring."
     },
-    "funnelMoveFailed": "Bosqich o‘zgarmadi"
+    "funnelMoveFailed": "Bosqich o‘zgarmadi",
+    "reserveSearchHint": "Qidiruvga mos yana {{n}} ta nomzod «Rezerv» bo‘limida",
+    "reserveSearchOpen": "Ko‘rish",
+    "phoneMatchTitle": "Bu raqam bilan {{n}} ta nomzod bor",
+    "phoneMatchHint": "Saqlash to‘xtatilmaydi — bu o‘sha odam emasligini kartasidan tekshirib ko‘ring.",
+    "phoneMatchFailed": "Bu raqam bazada bor-yo‘qligini tekshirib bo‘lmadi — saqlash baribir mumkin."
   },
   "notifications": {
     "unreadSummary": "{{n}} ta o‘qilmagan",

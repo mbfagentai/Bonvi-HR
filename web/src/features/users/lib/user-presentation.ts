@@ -1,4 +1,5 @@
 import type { RoleSummary } from '@/features/roles/api/roles-api'
+import { knownCodes, sameSet } from '@/features/roles/lib/role-access'
 import { SUPER_ADMIN_ROLE_CODE } from '@/features/roles/lib/role-presentation'
 
 /** `UserEndpoints.cs` dagi guruh ruxsati — GET ham shu bilan himoyalangan. */
@@ -71,22 +72,51 @@ export function actingRoleOf(
  * menejerlarni boshqaradi, boshqa bosh rahbarni emas) va uni egasi
  * yaratgan rollarga ham kengaytiradi.
  */
-export function canActOnRole(acting: RoleSummary | null, target: RoleSummary | null): boolean {
+export function canActOnRole(
+  acting: RoleSummary | null,
+  target: RoleSummary | null,
+  /**
+   * Tizim taniydigan kodlar (`knownPermissionsOf`). Berilsa, katalogda
+   * yo'q eski kodlar IKKI tomonda ham tashlab yuboriladi — serverdagi
+   * `UserRoleRules.Allowed` bilan bir xil. `null` — filtrsiz solishtirish.
+   */
+  known: ReadonlySet<string> | null = null,
+): boolean {
   if (acting === null) return false
   if (acting.code === SUPER_ADMIN_ROLE_CODE) return true
   if (target === null) return true
   if (target.code === SUPER_ADMIN_ROLE_CODE) return false
   if (target.id === acting.id) return false
 
-  const held = new Set(acting.permissions)
-  if (!target.permissions.every((code) => held.has(code))) return false
+  const held = knownCodes(acting.permissions, known)
+  const wanted = knownCodes(target.permissions, known)
+  for (const code of wanted) {
+    if (!held.has(code)) return false
+  }
 
   // Foydalanuvchilarni boshqaradigan TENG rol — «hamkasb»: serverdagi
   // `UserRoleRules` bilan bir xil, u QAT'IY pastda bo'lishi shart
-  const peer =
-    target.permissions.includes('users.manage') &&
-    new Set(target.permissions).size === held.size
+  const peer = wanted.has(USERS_MANAGE) && sameSet(wanted, held)
   return !peer
+}
+
+/**
+ * Tizim taniydigan ruxsat kodlari — SUPER ADMINISTRATOR rolining kodlari.
+ *
+ * NEGA katalogdan emas: katalog (`GET /api/roles/catalog`) faqat
+ * `roles.manage` bilan ochiladi, «Foydalanuvchilar» esa `users.manage`
+ * bilan ishlaydi — katalogni ko'ra olmaydigan odam ham shu qoidaga
+ * muhtoj. Super administrator roli esa `GET /api/roles` ro'yxatida bor va
+ * uning ruxsatlarini server har ishga tushishda `Permissions.All` ga
+ * tenglaydi (`SystemRoles.Protected` izohi) — ya'ni u aynan «tizim
+ * taniydigan kodlar» to'plami, eskisiz va yangisi bilan.
+ *
+ * Ro'yxatda topilmasa `null` — solishtirish filtrsiz ketadi (avvalgi,
+ * ehtiyotkorroq xatti-harakat).
+ */
+export function knownPermissionsOf(roles: readonly RoleSummary[]): ReadonlySet<string> | null {
+  const owner = roles.find((role) => role.code === SUPER_ADMIN_ROLE_CODE)
+  return owner === undefined ? null : new Set(owner.permissions)
 }
 
 /**
@@ -107,5 +137,5 @@ export function canActOnUser(
   const target = roles.find((role) => role.code === targetCode)
   if (target === undefined) return acting?.code === SUPER_ADMIN_ROLE_CODE
 
-  return canActOnRole(acting, target)
+  return canActOnRole(acting, target, knownPermissionsOf(roles))
 }

@@ -613,6 +613,34 @@ export interface CandidateFilters {
    * shu farqqa tayanadi.
    */
   rejected?: boolean
+  /**
+   * Excel'dan ko'chirilgan kengash ARXIVI ham qo'shilsinmi.
+   *
+   * Sukut bo'yicha server arxivni ro'yxatdan chiqaradi (ekran «hozir kim
+   * bor?» degan savolga javob beradi). «Rezerv» bo'limi esa uni SO'RASHI
+   * shart: arxivdagi rezerv qatorlari ham o'sha bo'limning bir qismi va
+   * bayroqsiz ular hech qayerda ko'rinmasdi — na nomzodlar ro'yxatida
+   * (rezerv u yerda yashirin), na rezervda.
+   */
+  includeArchive?: boolean
+}
+
+/**
+ * Telefon bo'yicha topilgan nomzod — `GET /candidates/phone-matches`
+ * javobining bitta qatori.
+ *
+ * Maydonlar ataylab OZ: oyna faqat «kim, qaysi holatda, qaysi vakansiyaga,
+ * qachon» degan savolga javob beradi va karta havolasini qo'yadi. Telefon
+ * raqamining o'zi qaytmaydi — u HR ning o'zi terib turgan raqam.
+ */
+export interface CandidatePhoneMatch {
+  id: string
+  fullName: string
+  /** Hamma holat keladi, Excel arxivi ham — yumshoq o'chirilganlardan tashqari. */
+  status: CandidateStatus
+  vacancyTitle: string | null
+  /** Kiritilgan lahza — ISO satr, UTC. */
+  createdAt: string
 }
 
 /* ═════════════════════════════════════════════════ `unknown` dan o'qish */
@@ -896,6 +924,25 @@ function toCandidate(raw: unknown): Candidate {
   }
 }
 
+/**
+ * Telefon bo'yicha topilgan nomzod.
+ *
+ * Holat uchun zaxira `InProgress` — `toCandidateRow` dagi bilan bir xil
+ * qoida: noma'lum holat qatorni yiqitmaydi. Bu yerda u eng EHTIYOTKOR
+ * qiymat ham: «jarayonda» degan ogohlantirish HR ni tekshirishga undaydi.
+ */
+function toPhoneMatch(raw: unknown): CandidatePhoneMatch {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    id: text(box['id']) ?? '',
+    fullName: text(box['fullName']) ?? '—',
+    status: oneOf(box['status'], CANDIDATE_STATUSES, 'InProgress'),
+    vacancyTitle: text(box['vacancyTitle']),
+    createdAt: text(box['createdAt']) ?? '',
+  }
+}
+
 function toHireOutcome(raw: unknown): HireOutcome {
   const hire = (raw ?? {}) as Record<string, unknown>
   const employment = (hire['employment'] ?? {}) as Record<string, unknown>
@@ -1038,11 +1085,40 @@ export async function fetchCandidates(
       */
       contactDue: filters.contactDue === true ? true : undefined,
       rejected: filters.rejected === true ? true : undefined,
+      includeArchive: filters.includeArchive === true ? true : undefined,
     }),
     signal,
   })
 
   return readPage(data, toCandidateRow, filters)
+}
+
+/**
+ * ⭐ Shu telefon raqamli nomzodlar — takroriy kiritishni OGOHLANTIRISH uchun.
+ *
+ * Server raqamdan faqat xonalarni oladi va 9 xonali (mahalliy) yoki «998»
+ * bilan boshlanadigan 12 xonali raqamni tushunadi. Boshqa har qanday
+ * qiymat XATO EMAS — bo'sh ro'yxat (200). Ya'ni chaqiruvchi to'liq
+ * bo'lmagan raqamni yuborsa ham ekran buzilmaydi; so'rovni faqat to'liq
+ * raqamda yuborish esa uning vazifasi (`useCandidatePhoneMatches`).
+ *
+ * `exceptId` — tahrirlanayotgan nomzodning o'zi: u o'z raqami bilan
+ * «topilib» qolmasligi kerak.
+ *
+ * Javob beshtagacha qator, jarayondagilar birinchi, keyin yangisidan
+ * eskisiga — tartib SERVERNIKI, klientda qayta saralanmaydi.
+ */
+export async function fetchCandidatePhoneMatches(
+  phone: string,
+  exceptId?: string,
+  signal?: AbortSignal,
+): Promise<CandidatePhoneMatch[]> {
+  const { data } = await api.get<unknown>(`${CANDIDATES}/phone-matches`, {
+    params: params({ phone, exceptId }),
+    signal,
+  })
+
+  return Array.isArray(data) ? data.map(toPhoneMatch) : []
 }
 
 export async function fetchCandidate(id: string, signal?: AbortSignal): Promise<Candidate> {

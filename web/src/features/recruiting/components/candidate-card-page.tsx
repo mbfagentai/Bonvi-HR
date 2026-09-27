@@ -145,10 +145,27 @@ export function CandidateCardPage() {
 
   return (
     <div className="space-y-5">
-      <BackButton
-        onClick={() => void navigate({ to: '/nomzodlar' })}
-        label={t('nav.candidates')}
-      />
+      {/*
+        «Orqaga» nomzod HAQIQATAN turgan ro'yxatga olib boradi. Rezervdagi
+        nomzod «Nomzodlar» ro'yxatida KO'RINMAYDI (2026-09-26 dan uning o'rni
+        «Rezerv» bo'limida), rad etilgan va o'zi voz kechgan esa «Rad
+        etilganlar» bo'limida — sukut ro'yxatga qaytarish HR ni bu odam
+        umuman yo'q ro'yxatga olib borardi. Rezerv sahifasining sukut
+        bo'limi — aynan nomzodlar.
+      */}
+      {inReserve ? (
+        <BackButton onClick={() => void navigate({ to: '/rezerv' })} label={t('nav.reserve')} />
+      ) : person.status === 'Rejected' || person.status === 'Withdrawn' ? (
+        <BackButton
+          onClick={() => void navigate({ to: '/nomzodlar', search: { rejected: true } })}
+          label={t('nav.rejectedCandidates')}
+        />
+      ) : (
+        <BackButton
+          onClick={() => void navigate({ to: '/nomzodlar' })}
+          label={t('nav.candidates')}
+        />
+      )}
 
       {/* ───────── Sarlavha kartasi ───────── */}
       <Card className="p-5">

@@ -137,6 +137,13 @@ internal sealed class EmployeeTestContext
     public void AllowSalaryChange(bool allowed)
         => CurrentUser.HasPermission(Permissions.EmploymentSalary).Returns(allowed);
 
+    /// <summary>
+    /// Ko'chirish ruxsatini (<c>employment.transfer</c>) yoqadi/o'chiradi —
+    /// sinov yakunida yangi lavozim yoki bo'lim tayinlash uchun.
+    /// </summary>
+    public void AllowTransfer(bool allowed)
+        => CurrentUser.HasPermission(Permissions.EmploymentTransfer).Returns(allowed);
+
     /// <summary>Xodimga faol belgi qo'yadi.</summary>
     public void GiveFlag(Guid employeeId, EmployeeFlagType type)
         => Flags

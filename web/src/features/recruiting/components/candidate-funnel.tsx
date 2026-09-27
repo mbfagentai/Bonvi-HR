@@ -21,14 +21,21 @@ import {
   type ScreenReaderInstructions,
   type UniqueIdentifier,
 } from '@dnd-kit/core'
-import { BriefcaseBusiness, CalendarClock, Paperclip, Phone, UserPlus } from 'lucide-react'
+import {
+  BriefcaseBusiness,
+  CalendarClock,
+  LoaderCircle,
+  Paperclip,
+  Phone,
+  UserPlus,
+} from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { formatPhone } from '@/shared/lib/phone'
-import { Alert, Badge, Dialog, EmptyState, Skeleton } from '@/shared/ui'
+import { Alert, Badge, Button, Dialog, EmptyState, Skeleton } from '@/shared/ui'
 import type { CandidateListItem, PipelineStage } from '../api/recruiting-api'
 import {
   useCandidate,
@@ -267,6 +274,7 @@ export function CandidateFunnel({
       {dropped !== null && (
         <DroppedCardDialog
           candidateId={dropped.item.id}
+          candidateName={dropped.item.fullName}
           stage={dropped.stage}
           onClose={() => setDropped(null)}
         />
@@ -282,14 +290,22 @@ export function CandidateFunnel({
  * (sana va vaqt so'raladi, nomzodga Telegram xabari ketadi), qolganlari —
  * bosqich oynasini. Ikkala oyna ham TO'LIQ nomzodni oladi (suhbat vaqti
  * ro'yxat qatorida yo'q), shu sababli karta avval yuklanadi. U odatda
- * keshda bo'lmaydi, lekin so'rov bir zumlik va oyna shundan keyin ochiladi.
+ * keshda bo'lmaydi.
+ *
+ * ⭐ Oyna tashlangan ZAHOTI ochiladi — yuklanish holatida. Ilgari u
+ * nomzod kelguncha umuman chizilmasdi va sekin tarmoqda HR kartani
+ * tashlab, hech narsa bo'lmaganini ko'rardi: «tushmadi» deb qayta
+ * sudrardi yoki taxtani tark etardi.
  */
 function DroppedCardDialog({
   candidateId,
+  candidateName,
   stage,
   onClose,
 }: {
   candidateId: string
+  /** Ro'yxat qatoridagi ism — yuklanish paytida sarlavha ostida turadi. */
+  candidateName: string
   stage: PipelineStage
   onClose: () => void
 }) {
@@ -298,19 +314,69 @@ function DroppedCardDialog({
   const candidate = useCandidate(candidateId)
 
   /*
+    Sarlavha keyingi oynanikiga TENG: yuklanish tugagach oyna almashadi,
+    lekin HR ko'zi oldida turgan matn o'zgarmaydi.
+  */
+  const title = stage.invitesToInterview
+    ? t('recruiting.interviewTitle')
+    : t('recruiting.stageMoveTo', { stage: stage.name })
+
+  /*
     Nomzodni yuklab bo'lmadi — jim qolinmaydi: aks holda HR kartani
     tashlagani «hech narsa bo'lmadi» bo'lib qolardi. Xato oynada, karta
     esa joyida (hech narsa yozilmagan).
   */
   if (candidate.isError) {
     return (
-      <Dialog open onClose={onClose} title={t('recruiting.funnelMoveFailed')}>
+      <Dialog
+        open
+        onClose={onClose}
+        title={t('recruiting.funnelMoveFailed')}
+        description={candidateName}
+        footer={
+          <Button type="button" onClick={onClose}>
+            {t('common.close')}
+          </Button>
+        }
+      >
         <Alert tone="danger">{errorMessage(recruitingErrorCode(candidate.error))}</Alert>
       </Dialog>
     )
   }
 
-  if (candidate.data === undefined) return null
+  /*
+    Yuklanish — forma SKELETI (bosqich va suhbat oynalari: bir-ikki qator
+    maydon va katta izoh maydoni). «Saqlash» ko'rinib turadi, lekin
+    o'chiq: tugma joyidan sakramaydi va HR nima kutayotganini biladi.
+  */
+  if (candidate.data === undefined) {
+    return (
+      <Dialog
+        open
+        onClose={onClose}
+        title={title}
+        description={candidateName}
+        footer={
+          <>
+            <Button type="button" onClick={onClose}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" variant="primary" disabled>
+              <LoaderCircle className="animate-spin" />
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4" aria-busy>
+          <span className="sr-only">{t('common.loading')}</span>
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </Dialog>
+    )
+  }
 
   return stage.invitesToInterview ? (
     <CandidateInterviewDialog candidate={candidate.data} stage={stage} open onClose={onClose} />
