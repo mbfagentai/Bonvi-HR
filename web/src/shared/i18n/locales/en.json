@@ -296,6 +296,7 @@
     "conclusionHint": "Optional — later it explains why the decision was made.",
     "promoteTitle": "Make a permanent employee",
     "promoteHint": "A field left empty stays unchanged.",
+    "transferLockedHint": "Changing the position or department requires permission to transfer employees.",
     "keepCurrent": "Unchanged",
     "rate": "Rate",
     "rateHint": "1 — full time, 0.5 — half (secondary job).",

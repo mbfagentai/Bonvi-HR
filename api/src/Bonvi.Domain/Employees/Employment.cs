@@ -258,13 +258,21 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
 
         var eskiSumma = hodisa.ToSalary;
 
+        // Manba tuzatishdan OLDIN ham, KEYIN ham aniqlanadi — ikkala yo'nalish
+        // ham bor:
+        //   · okladi o'zgarmagan ko'chirish summasi tuzatilsa, u oklad
+        //     qaroriga AYLANADI (keyin manba);
+        //   · 4 → 5 mln ko'chirish «aslida o'zgarmagan edi» deb 4 ga
+        //     qaytarilsa, u oklad qarori bo'lishdan CHIQADI (oldin manba) —
+        //     karta ham 4 ga qaytishi shart (tekshiruv, 2026-09-27).
+        var oldinManba = SalarySource()?.Id == hodisa.Id;
+
         hodisa.Edit(effectiveDate, Normalize(orderNo), orderDate, Normalize(note), toSalary);
 
         var summaTuzatildi = eskiSumma is not null && !Equals(eskiSumma, hodisa.ToSalary);
+        var manba = oldinManba || SalarySource()?.Id == hodisa.Id;
 
-        // Manba tuzatishdan KEYIN aniqlanadi: summa tuzatilgach, okladi
-        // o'zgarmagan ko'chirish ham oklad qaroriga aylanishi mumkin.
-        if (summaTuzatildi && Equals(Salary, eskiSumma) && SalarySource()?.Id == hodisa.Id)
+        if (summaTuzatildi && Equals(Salary, eskiSumma) && manba)
         {
             Salary = hodisa.ToSalary;
         }

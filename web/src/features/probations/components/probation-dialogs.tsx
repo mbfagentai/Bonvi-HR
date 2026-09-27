@@ -199,6 +199,15 @@ export function ResolveDialog({
               </p>
             </div>
 
+            {/*
+              Ruxsatsiz foydalanuvchida maydonlar yashiriladi — lekin SABABI
+              aytiladi: aks holda HR «lavozimni qayerdan tanlayman?» deb
+              qidirib qolardi (tekshiruv, 2026-09-27).
+            */}
+            {!canTransfer && (
+              <p className="text-caption1 text-[var(--fg-tertiary)]">{t('probation.transferLockedHint')}</p>
+            )}
+
             {canTransfer && (
               <>
                 <Select

@@ -296,6 +296,7 @@
     "conclusionHint": "Ixtiyoriy — nima uchun shunday qaror qilingani keyin kerak bo‘ladi.",
     "promoteTitle": "Doimiy xodimga o‘tkazish",
     "promoteHint": "Bo‘sh qoldirilgan maydon o‘zgarmaydi.",
+    "transferLockedHint": "Lavozim yoki bo‘limni o‘zgartirish uchun xodimni ko‘chirish ruxsati kerak.",
     "keepCurrent": "O‘zgarmaydi",
     "rate": "Stavka",
     "rateHint": "1 — to‘liq, 0,5 — yarim (o‘rindoshlik).",

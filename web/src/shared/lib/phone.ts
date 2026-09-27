@@ -33,26 +33,29 @@ export const UZ_PHONE_PLACEHOLDER = '90 123 45 67'
 
 export const UZ_PHONE_LENGTH = 9
 
-/** To'liq raqamdagi xonalar soni: «998» + 9 xona. */
-const UZ_FULL_PHONE_LENGTH = 3 + UZ_PHONE_LENGTH
-
 /**
  * Har qanday kiritilgan matndan 9 xonali mahalliy raqamni ajratib oladi.
  * «+998 90 508-88-88» yoki «998905088888» ko'chirib qo'yilsa —
  * mamlakat kodi tashlab yuboriladi.
  *
- * ⚠️ «998» faqat xonalar soni TO'LIQ raqamnikiga (12) yetganda mamlakat
- * kodi deb olinadi. Ilgari chegara «9 dan ko'p» edi va u haqiqiy mahalliy
- * raqamni buzardi: «99 812 34 56» kabi «998» bilan boshlanadigan raqam
- * to'liq terilgan maydonda yana bitta xona bosilsa, 10 xona «998» bilan
- * boshlanardi, `slice(3)` esa operator kodini kesib, 7 xonani qoldirardi.
- * Endi ortiqcha xona oddiy holdagidek kesiladi va raqam o'z joyida qoladi.
+ * ⚠️ «998» xonalar soni 9 dan OSHGAN zahoti mamlakat kodi deb olinadi —
+ * bu ATAYLAB, ikki zid holatdan kichik yomonligi tanlangan:
+ *
+ * · HR raqamni «998» bilan tersa (odat), xonalar 10 taga yetgan lahzada
+ *   «998» kesiladi va raqam to'g'ri yig'iladi. Chegara «12 xona» qilib
+ *   ko'rilgan edi (2026-09-27) — o'shanda maydon 9 xonada to'lib qolib,
+ *   «998901234» JIMGINA saqlanardi: yaroqli ko'rinadigan, lekin boshqa
+ *   odamning raqami. Bu teskari yo'lga qaytarildi.
+ * · Evaziga: «99 812 34 56» kabi «998» bilan boshlanadigan TO'LIQ raqamga
+ *   yana bitta xona bosilsa, operator kodi kesilib, 7 xona qoladi. Bu
+ *   KO'RINIB turadigan xato — maydon qisqaradi, forma esa 9 xonasiz
+ *   raqamni saqlamaydi.
  */
 export function uzPhoneDigits(value: string): string {
   const digits = value.replaceAll(/\D/gu, '')
 
   const local =
-    digits.length >= UZ_FULL_PHONE_LENGTH && digits.startsWith('998') ? digits.slice(3) : digits
+    digits.length > UZ_PHONE_LENGTH && digits.startsWith('998') ? digits.slice(3) : digits
 
   return local.slice(0, UZ_PHONE_LENGTH)
 }

@@ -255,6 +255,29 @@ public sealed class EmploymentTests
     }
 
     [Fact]
+    public void Okladni_oshirgan_kochirish_eski_summaga_qaytarilsa_karta_ham_qaytadi()
+    {
+        /*
+          Ko'chirish 4 → 5 mln yozilgan, HR keyin «oklad aslida o'zgarmagan
+          edi» deb summani 4 mln ga tuzatadi. Yozuv endi oklad qarori emas
+          (dan = gacha), lekin karta 5 mln da qolib ketmasligi kerak
+          (tekshiruv, 2026-09-27).
+        */
+        var m = YaratilganMunosabat();
+        m.SetSalary(Money.Create(4_000_000m).Value, new DateOnly(2026, 3, 1));
+        m.Transfer(new DateOnly(2026, 6, 1), Guid.CreateVersion7(), null, Money.Create(5_000_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+        var kochirish = m.Events[^1];
+        m.Salary!.Amount.ShouldBe(5_000_000m);
+
+        m.EditEvent(kochirish.Id, kochirish.EffectiveDate, toSalary: Money.Create(4_000_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+
+        kochirish.SetsSalary.ShouldBeFalse("endi u faqat nusxa");
+        m.Salary!.Amount.ShouldBe(4_000_000m, "karta tuzatilgan summaga qaytadi");
+    }
+
+    [Fact]
     public void Summasiz_tuzatish_joriy_okladga_HECH_QACHON_tegmaydi()
     {
         /*
