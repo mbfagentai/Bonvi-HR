@@ -69,6 +69,14 @@ export function LoginScreen() {
         </div>
       ) : null}
 
+      {/* Sessiyani SERVER yopgan (yangilash rad etildi) — bir qator, xolos.
+          Safari o'chirib yuborgan token esa bu emas va jim o'tadi. */}
+      {session.expired ? (
+        <div className="mb-4">
+          <InlineMessage tone="info">{t('auth.sessionExpired')}</InlineMessage>
+        </div>
+      ) : null}
+
       <div className="space-y-4">
         <Field label={t('auth.phone')} required>
           <TextInput

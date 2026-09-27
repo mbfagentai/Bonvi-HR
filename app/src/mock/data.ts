@@ -2,20 +2,18 @@ import { addDays, daysInMonth, pad, parseIsoDate, todayIso } from '@/lib/time'
 import type {
   AbsenceRequestDto,
   AbsenceTypeDto,
-  AttendanceDayDto,
   AttendanceMarkDto,
   MeDto,
+  TimesheetCellDto,
 } from '@/api/types'
 
-import mockAvatarUrl from './avatar.jpg'
-
 /**
- * Soxta ma'lumot — haqiqiy server ulanmaguncha.
+ * Soxta ma'lumot — namoyish va qo'lda sinash uchun (`VITE_API_MODE=mock`).
  *
- * ⚠️ Bu fayl BIR MARTALIK: keyingi to'lqinda `src/mock/` butunlay
- * o'chadi va `api/client.ts` dagi bitta qator haqiqiy mijozga
- * almashadi. Shu sababli bu yerda ekranga tegadigan hech narsa yo'q —
- * faqat `api/types.ts` dagi shakllar to'ldiriladi.
+ * ⚠️ Bu yerda ekranga tegadigan hech narsa yo'q — faqat `api/types.ts`
+ * dagi SIM shakllari to'ldiriladi (server bilan aynan bir xil): mock
+ * shartnomadan chetga chiqsa, ekranlar faqat mock'da ishlab, serverda
+ * sinib qolardi.
  *
  * Kunlar SANA bo'yicha hosil qilinadi, qo'lda yozilmaydi: aks holda
  * ertaga taqvim bo'm-bo'sh ochilardi va egasi ilovani o'lik deb
@@ -41,14 +39,20 @@ export const MOCK_ABSENCE_TYPES: AbsenceTypeDto[] = [
 export const MOCK_ME: MeDto = {
   employeeId: 'emp-1',
   fullName: 'Aliyev Sardor Baxtiyorovich',
-  // Sample portrait so the avatar can be seen on screen. An employee
-  // without a photo is still a normal case — the initials fallback stays.
-  // The real `/api/me` returns a full URL.
-  photoUrl: mockAvatarUrl,
-  departmentName: 'Ishlab chiqarish bo‘limi',
-  positionName: 'Smena boshlig‘i',
+  shortName: 'Aliyev S.B.',
+  // Rasm kaliti — baytlar `getPhoto` dan (mock'da `avatar.jpg`). Rasmsiz
+  // xodim ham odatiy hol: `null` bo'lsa bosh harflar chiqadi.
+  photoKey: 'mock/avatar.jpg',
+  department: 'Ishlab chiqarish bo‘limi',
+  position: 'Smena boshlig‘i',
   mobileCheckInAllowed: true,
+  mustChangePassword: false,
   absenceTypes: MOCK_ABSENCE_TYPES,
+}
+
+/** Mock kuni — katak va uning belgilari (simda `{ day, marks }` bo'lib ketadi). */
+export interface MockDay extends TimesheetCellDto {
+  marks: AttendanceMarkDto[]
 }
 
 /** Toshkent vaqtidagi soatni UTC lahzaga aylantiradi (mintaqa +5). */
@@ -67,7 +71,7 @@ function mark(
   source: 'Terminal' | 'Mobile' = 'Terminal',
 ): AttendanceMarkDto {
   return {
-    occurredAt: tashkentToUtcIso(dateIso, hour, minute),
+    at: tashkentToUtcIso(dateIso, hour, minute),
     direction,
     source,
     siteName: source === 'Mobile' ? MOCK_SITE_NAME : null,
@@ -83,20 +87,27 @@ function jitter(dateIso: string, span: number): number {
   return hash % span
 }
 
-function emptyDay(dateIso: string, status: AttendanceDayDto['status']): AttendanceDayDto {
+function emptyDay(dateIso: string, status: MockDay['status']): MockDay {
   return {
     date: dateIso,
     status,
     workedMinutes: 0,
     lateMinutes: 0,
     earlyLeaveMinutes: 0,
+    breakTakenMinutes: 0,
     breakDeductionMinutes: 0,
     firstInAt: null,
     lastOutAt: null,
     planStartAt: null,
     planEndAt: null,
+    mobileMarks: 0,
     marks: [],
   }
+}
+
+/** Kundagi telefon belgilari soni — tabel katagidagi `mobileMarks`. */
+function mobileCount(marks: readonly AttendanceMarkDto[]): number {
+  return marks.filter((item) => item.source === 'Mobile').length
 }
 
 /** Lunch window from the schedule (Tashkent time), minutes since midnight. */
@@ -125,7 +136,9 @@ const EXTRA_TRIPS: Array<Array<[number, number]>> = [
  * `max(0, min(break − breakTaken, presentInWindow))` — a lunch spent
  * outside the building is not deducted twice.
  */
-function workedFromIntervals(intervals: Array<[number, number]>): { worked: number; deduction: number } {
+function workedFromIntervals(
+  intervals: Array<[number, number]>,
+): { worked: number; deduction: number; breakTaken: number } {
   let closed = 0
   let presentInWindow = 0
 
@@ -136,7 +149,7 @@ function workedFromIntervals(intervals: Array<[number, number]>): { worked: numb
 
   const breakTaken = BREAK_MINUTES - presentInWindow
   const deduction = Math.max(0, Math.min(BREAK_MINUTES - breakTaken, presentInWindow))
-  return { worked: closed - deduction, deduction }
+  return { worked: closed - deduction, deduction, breakTaken }
 }
 
 /**
@@ -144,7 +157,7 @@ function workedFromIntervals(intervals: Array<[number, number]>): { worked: numb
  * Verifix's day card is multi-row exactly like this — a day has far more
  * than two passes.
  */
-function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): AttendanceDayDto {
+function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): MockDay {
   const inAt = PLAN_START_HOUR * 60 + PLAN_START_MINUTE + lateMinutes - 5 + jitter(dateIso, 4)
   const outAt = PLAN_END_HOUR * 60 + jitter(dateIso, 12)
 
@@ -162,7 +175,7 @@ function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): Atten
   })
   intervals.push([cursor, outAt])
 
-  const { worked, deduction } = workedFromIntervals(intervals)
+  const { worked, deduction, breakTaken } = workedFromIntervals(intervals)
   const at = (minutes: number, direction: 'In' | 'Out', source?: 'Terminal' | 'Mobile') =>
     mark(dateIso, Math.floor(minutes / 60), minutes % 60, direction, source)
 
@@ -179,12 +192,14 @@ function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): Atten
     workedMinutes: worked,
     lateMinutes,
     earlyLeaveMinutes: 0,
+    breakTakenMinutes: breakTaken,
     breakDeductionMinutes: deduction,
-    firstInAt: at(inAt, 'In').occurredAt,
-    lastOutAt: at(outAt, 'Out').occurredAt,
+    firstInAt: at(inAt, 'In').at,
+    lastOutAt: at(outAt, 'Out').at,
     planStartAt: tashkentToUtcIso(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE),
     planEndAt: tashkentToUtcIso(dateIso, PLAN_END_HOUR, 0),
-    marks: marks.reverse(),
+    mobileMarks: mobileCount(marks),
+    marks,
   }
 }
 
@@ -197,10 +212,10 @@ function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): Atten
  * so'rov tushgan ikki «Sababli» kun bor. Bu to'plam taqvimning barcha
  * katak holatlarini bitta ekranda ko'rsatadi.
  */
-export function buildMonth(year: number, month: number, excusedDates: string[]): AttendanceDayDto[] {
+export function buildMonth(year: number, month: number, excusedDates: string[]): MockDay[] {
   const today = todayIso()
   const total = daysInMonth(year, month)
-  const days: AttendanceDayDto[] = []
+  const days: MockDay[] = []
 
   for (let day = 1; day <= total; day += 1) {
     const dateIso = `${year}-${pad(month)}-${pad(day)}`
@@ -250,7 +265,7 @@ export function buildMonth(year: number, month: number, excusedDates: string[]):
         lastOutAt: null,
         workedMinutes: 0,
         // The final exit never got read — every other pass stays.
-        marks: worked.marks.slice(1),
+        marks: worked.marks.slice(0, -1),
       })
       continue
     }
@@ -286,44 +301,46 @@ export function buildTodaySeed(): AttendanceMarkDto[] {
     mark(dateIso, 15, 27, 'In'),
   ]
 
-  return seed.filter((item) => new Date(item.occurredAt).getTime() <= nowMs)
+  return seed.filter((item) => new Date(item.at).getTime() <= nowMs)
 }
 
 /** Bugungi kun — belgilangan o'tishlardan yig'iladi. */
-export function buildToday(marks: AttendanceMarkDto[]): AttendanceDayDto {
+export function buildToday(marks: AttendanceMarkDto[]): MockDay {
   const dateIso = todayIso()
   const parts = parseIsoDate(dateIso)
   const isWeekend = parts ? parts.weekday >= 6 : false
 
-  const base: AttendanceDayDto = {
+  const base: MockDay = {
     date: dateIso,
     status: isWeekend ? 'DayOff' : 'Planned',
     workedMinutes: 0,
     lateMinutes: 0,
     earlyLeaveMinutes: 0,
+    breakTakenMinutes: 0,
     breakDeductionMinutes: 0,
     firstInAt: null,
     lastOutAt: null,
     planStartAt: isWeekend ? null : tashkentToUtcIso(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE),
     planEndAt: isWeekend ? null : tashkentToUtcIso(dateIso, PLAN_END_HOUR, 0),
+    mobileMarks: mobileCount(marks),
     marks,
   }
 
   if (marks.length === 0) return base
 
-  const sorted = marks.slice().sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+  const sorted = marks.slice().sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   const firstIn = sorted.filter((item) => item.direction === 'In')[0] ?? null
   const outs = sorted.filter((item) => item.direction === 'Out')
   const lastOut = outs.length > 0 ? outs[outs.length - 1] ?? null : null
 
-  const firstInMs = firstIn ? new Date(firstIn.occurredAt).getTime() : 0
+  const firstInMs = firstIn ? new Date(firstIn.at).getTime() : 0
 
   // Pair passes into closed in→out intervals (minutes since Tashkent midnight).
   const dayStartMs = new Date(tashkentToUtcIso(dateIso, 0, 0)).getTime()
   const intervals: Array<[number, number]> = []
   let openAt: number | null = null
   sorted.forEach((item) => {
-    const minute = Math.round((new Date(item.occurredAt).getTime() - dayStartMs) / 60_000)
+    const minute = Math.round((new Date(item.at).getTime() - dayStartMs) / 60_000)
     if (item.direction === 'In') openAt = openAt ?? minute
     else if (openAt !== null) {
       intervals.push([openAt, minute])
@@ -344,9 +361,10 @@ export function buildToday(marks: AttendanceMarkDto[]): AttendanceDayDto {
     status: isWeekend ? 'DayOffWorked' : openAt === null ? 'Present' : 'MissingExit',
     workedMinutes,
     lateMinutes,
+    breakTakenMinutes: pairing.breakTaken,
     breakDeductionMinutes: pairing.deduction,
-    firstInAt: firstIn ? firstIn.occurredAt : null,
-    lastOutAt: lastOut ? lastOut.occurredAt : null,
+    firstInAt: firstIn ? firstIn.at : null,
+    lastOutAt: lastOut ? lastOut.at : null,
   }
 }
 
@@ -354,11 +372,39 @@ export function buildToday(marks: AttendanceMarkDto[]): AttendanceDayDto {
  * So'rovlar. Sanalar bugundan hisoblanadi — ro'yxat hech qachon
  * «o'tgan yilgi» bo'lib qolmaydi.
  */
+/** Mock xodimning so'rov yozuvidagi umumiy maydonlari. */
+function requestOf(fields: {
+  id: string
+  absenceTypeId: string
+  absenceTypeName: string
+  fromDate: string
+  toDate: string
+  fromTime: string | null
+  toTime: string | null
+  note: string | null
+  status: AbsenceRequestDto['status']
+  decisionNote: string | null
+  decidedByName: string | null
+  decidedAt: string | null
+  createdAt: string
+}): AbsenceRequestDto {
+  return {
+    ...fields,
+    employeeId: MOCK_ME.employeeId,
+    employeeName: MOCK_ME.fullName,
+    employeePhotoKey: MOCK_ME.photoKey,
+    positionName: MOCK_ME.position,
+    departmentName: MOCK_ME.department,
+    submittedByEmployee: true,
+    cancelledByEmployee: fields.status === 'Cancelled',
+  }
+}
+
 export function buildRequests(): AbsenceRequestDto[] {
   const today = todayIso()
 
   return [
-    {
+    requestOf({
       id: 'req-1',
       absenceTypeId: 'at-1',
       absenceTypeName: 'Ishxona ishi bilan',
@@ -372,8 +418,8 @@ export function buildRequests(): AbsenceRequestDto[] {
       decidedByName: null,
       decidedAt: null,
       createdAt: tashkentToUtcIso(addDays(today, -1), 9, 14),
-    },
-    {
+    }),
+    requestOf({
       id: 'req-2',
       absenceTypeId: 'at-2',
       absenceTypeName: 'Kasallik',
@@ -387,23 +433,23 @@ export function buildRequests(): AbsenceRequestDto[] {
       decidedByName: 'Karimova Nodira',
       decidedAt: tashkentToUtcIso(addDays(today, -7), 11, 2),
       createdAt: tashkentToUtcIso(addDays(today, -10), 8, 41),
-    },
-    {
+    }),
+    requestOf({
       id: 'req-3',
       absenceTypeId: 'at-4',
       absenceTypeName: 'O‘z hisobidan',
       fromDate: addDays(today, -20),
       toDate: addDays(today, -20),
-      fromTime: '09:00',
-      toTime: '13:00',
+      fromTime: '09:00:00',
+      toTime: '13:00:00',
       note: null,
       status: 'Rejected',
       decisionNote: 'Oy yopilayotgan kun — boshqa kunni tanlang.',
       decidedByName: 'Karimova Nodira',
       decidedAt: tashkentToUtcIso(addDays(today, -21), 16, 30),
       createdAt: tashkentToUtcIso(addDays(today, -22), 15, 5),
-    },
-    {
+    }),
+    requestOf({
       id: 'req-4',
       absenceTypeId: 'at-5',
       absenceTypeName: 'Oilaviy sabab',
@@ -417,6 +463,6 @@ export function buildRequests(): AbsenceRequestDto[] {
       decidedByName: null,
       decidedAt: null,
       createdAt: tashkentToUtcIso(addDays(today, -33), 10, 12),
-    },
+    }),
   ]
 }

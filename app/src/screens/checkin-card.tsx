@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom'
 
 import { api } from '@/api/client'
 import { ApiError, NoAnswerError } from '@/api/errors'
-import type { AttendanceDayDto, CheckInResult, MeDto } from '@/api/types'
+import type { CheckInResult, MeDto, MyCurrentStateDto, PassDirection } from '@/api/types'
 import { setCheckInBusy } from '@/app/checkin-busy'
-import { lastMark, nextDirection } from '@/data/attendance'
+import type { AttendanceDay } from '@/data/attendance'
 import { invalidateAttendance } from '@/data/queries'
 import { useFormat } from '@/lib/format'
 import {
@@ -49,14 +49,26 @@ type Phase =
 
 interface CheckInCardProps {
   me: MeDto | null
-  today: AttendanceDayDto | null
+  /** Joriy smena katagi (tungi smenada — kechagi kun), bo'lmasa `null`. */
+  today: AttendanceDay | null
+  /**
+   * «Hozir» — SERVER hisoblagan keyingi yo'nalish va oxirgi belgi. Kalendar
+   * kunining belgilaridan emas: tungi smenada 06:00 da bugungi katak bo'sh,
+   * odam esa hali ichkarida.
+   */
+  current: MyCurrentStateDto | null
   loading: boolean
   /** `/api/me` yiqilgan — tugma turadi, lekin o'chirilgan. */
   loadFailed: boolean
   onReload: () => void
 }
 
-export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckInCardProps) {
+/** Tugma yuboradigan yo'nalish — noma'lum holat «Kirish» dan boshlanadi. */
+function directionOf(current: MyCurrentStateDto | null): PassDirection {
+  return current && current.nextDirection === 'Out' ? 'Out' : 'In'
+}
+
+export function CheckInCard({ me, today, current, loading, loadFailed, onReload }: CheckInCardProps) {
   const { t } = useTranslation()
   const format = useFormat()
   const navigate = useNavigate()
@@ -70,6 +82,16 @@ export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckI
   const [receipt, setReceipt] = useState<CheckInResult | null>(null)
 
   const settleTimer = useRef<number | null>(null)
+
+  /*
+    ⚠️ SINXRON qayta kirish to'sig'i. `phase` holati React'ning navbatdagi
+    chizilishida yangilanadi, ya'ni tugma o'chgunicha bir-ikki kadr o'tadi
+    va shu oraliqdagi ikkinchi tegish ikkinchi so'rovni yuborardi (server
+    uni endi 409 bilan qaytaradi, lekin xodim «xato» ko'rardi). Ref esa
+    darhol o'zgaradi.
+  */
+  const tappingRef = useRef(false)
+  const sendingRef = useRef(false)
 
   useEffect(
     () => () => {
@@ -93,9 +115,9 @@ export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckI
     return () => window.clearInterval(timer)
   }, [countdown])
 
-  const direction = nextDirection(today)
+  const direction = directionOf(current)
   const allowed = me ? me.mobileCheckInAllowed : false
-  const last = lastMark(today)
+  const last = current ? current.lastMark : null
 
   const busy = phase.kind === 'locating' || phase.kind === 'sending'
   const disabled =
@@ -107,7 +129,7 @@ export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckI
     countdown > 0 ||
     (phase.kind === 'rejected' && phase.error.code === 'davomat.mobil_ruxsat_yoq')
 
-  const send = useCallback(async () => {
+  const sendOnce = useCallback(async (): Promise<void> => {
     setPhase({ kind: 'locating' })
 
     const position = await readPosition()
@@ -157,8 +179,25 @@ export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckI
     }
   }, [direction, navigate, onReload])
 
+  /** Bitta belgilash — parallel ikkinchisi darhol tashlanadi (yuqoridagi ref izohi). */
+  const send = useCallback(async (): Promise<void> => {
+    if (sendingRef.current) return
+    sendingRef.current = true
+
+    try {
+      await sendOnce()
+    } finally {
+      sendingRef.current = false
+    }
+  }, [sendOnce])
+
   const onTap = useCallback(() => {
+    if (tappingRef.current || sendingRef.current) return
+    tappingRef.current = true
+
     void permissionState().then((state) => {
+      tappingRef.current = false
+
       if (shouldPrePrompt(state)) {
         // Varaq ataylab varaq: uning tugmasi O'ZI jest bo'ladi va
         // brauzerning geolokatsiya so'rovi jest zanjiri ichida qoladi.
@@ -180,7 +219,7 @@ export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckI
     <section className="rounded-card bg-bg-elevated p-4">
       <StatusLine
         phase={phase}
-        today={today}
+        current={current}
         loading={loading}
         loadFailed={loadFailed}
         allowed={allowed}
@@ -208,7 +247,7 @@ export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckI
         loadFailed={loadFailed}
         allowed={allowed}
         online={online}
-        lastMarkTime={last ? format.time(last.occurredAt) : null}
+        lastMarkTime={last ? format.time(last.at) : null}
         onReload={onReload}
         onRetry={() => void send()}
         errorText={errorText}
@@ -242,14 +281,14 @@ export function CheckInCard({ me, today, loading, loadFailed, onReload }: CheckI
 
 function StatusLine({
   phase,
-  today,
+  current,
   loading,
   loadFailed,
   allowed,
   online,
 }: {
   phase: Phase
-  today: AttendanceDayDto | null
+  current: MyCurrentStateDto | null
   loading: boolean
   loadFailed: boolean
   allowed: boolean
@@ -264,13 +303,18 @@ function StatusLine({
   if (!online) return <p className="text-subhead text-fg">{t('checkin.offline')}</p>
   if (!allowed) return <p className="text-subhead text-fg">{t('checkin.notAllowed')}</p>
 
-  // 1–3-holatlar MA'LUMOTDAN chiqariladi: bugun belgi yo'q —
-  // «Bugun hali belgilamadingiz»; oxirgisi `Kirish` — «Ish
-  // kunidasiz»; oxirgisi `Chiqish` — «Ish kuningiz yakunlandi».
-  // Uchinchisidan birinchisiga qaytish ODATIY: odamlar tushlikka
-  // chiqib, qaytib keladi va bu hech qachon ogohlantirilmaydi.
-  const last = lastMark(today)
-  const key = !last ? 'checkin.ready' : last.direction === 'In' ? 'checkin.atWork' : 'checkin.done'
+  // 1–3-holatlar SERVERNING «hozir» javobidan chiqariladi (oxirgi 18
+  // soatdagi belgilar, kalendar kuni emas): belgi yo'q — «Bugun hali
+  // belgilamadingiz»; ichkarida — «Ish kunidasiz» (tungi smenada ertalab
+  // ham); chiqqan — «Ish kuningiz yakunlandi». Uchinchisidan birinchisiga
+  // qaytish ODATIY: odamlar tushlikka chiqib, qaytib keladi va bu hech
+  // qachon ogohlantirilmaydi.
+  const last = current ? current.lastMark : null
+  const key = !last
+    ? 'checkin.ready'
+    : directionOf(current) === 'Out'
+      ? 'checkin.atWork'
+      : 'checkin.done'
 
   return <p className="text-subhead text-fg">{t(key)}</p>
 }
@@ -278,7 +322,7 @@ function StatusLine({
 interface ResultLineProps {
   phase: Phase
   receipt: CheckInResult | null
-  today: AttendanceDayDto | null
+  today: AttendanceDay | null
   loading: boolean
   loadFailed: boolean
   allowed: boolean

@@ -40,8 +40,15 @@ export default defineConfig(({ mode }) => ({
       */
       scope: '/ilova/',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,jpg,svg,webmanifest}'],
         navigateFallback: '/ilova/index.html',
+        /*
+          Faqat `/ilova/…` navigatsiyasi ilovaning `index.html` iga tushadi;
+          HR yo'llari (va `/api`) — hech qachon. `start_url` ham shu
+          qamrov ICHIDA (`/ilova/`, oxirida chiziq bilan): `/ilova` bo'lsa,
+          u qamrovdan tashqarida qolib, o'rnatilgan ilova oflayn ochilmasdi —
+          worker o'sha manzilni umuman ushlamasdi.
+        */
         navigateFallbackDenylist: [/^(?!\/ilova\/).*/],
         cleanupOutdatedCaches: true,
       },
@@ -50,7 +57,7 @@ export default defineConfig(({ mode }) => ({
         name: 'Bonvi',
         short_name: 'Bonvi',
         description: 'Bonvi xodim ilovasi',
-        start_url: '/ilova',
+        start_url: '/ilova/',
         scope: '/ilova/',
         display: 'standalone',
         orientation: 'portrait',
@@ -94,6 +101,19 @@ export default defineConfig(({ mode }) => ({
     host: true,
     port: 7174,
     strictPort: true,
+    /*
+      API — xuddi production'dagidek BIR XIL manzildan (`/api/…`): Caddy u
+      yerda `/api/*` ni API konteyneriga uzatadi, dev'da esa shu proksi.
+      Natijada CORS ham, ikkinchi manzil ham kerak emas. Konteyner ichida
+      nishon — `http://api:8080` (compose `VITE_API_PROXY`), xostda —
+      `http://localhost:7080`.
+    */
+    proxy: {
+      '/api': {
+        target: process.env['VITE_API_PROXY'] ?? 'http://localhost:7080',
+        changeOrigin: true,
+      },
+    },
     watch: {
       // macOS + Docker bind-mount inotify hodisalarini uzatmaydi
       usePolling: true,

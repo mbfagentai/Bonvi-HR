@@ -64,7 +64,7 @@ export function CalendarScreen() {
   const days = monthQuery.data?.days ?? []
   const day = findDay(days, selected)
   const marks = marksNewestFirst(day)
-  const totals = monthTotals(days)
+  const totals = monthTotals(days, monthQuery.data ? monthQuery.data.totals : null)
   const dayRequests = requestsOnDay(requests.data ?? [], selected)
   const legend = statusesInMonth(days)
   const lateDays = days.filter((item) => item.lateMinutes > 0).length
@@ -173,7 +173,7 @@ export function CalendarScreen() {
         ) : (
           <div>
             {marks.map((mark) => (
-              <MarkRow key={`${mark.occurredAt}-${mark.direction}`} mark={mark} />
+              <MarkRow key={`${mark.at}-${mark.direction}`} mark={mark} />
             ))}
           </div>
         )}

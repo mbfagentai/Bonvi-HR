@@ -4,16 +4,16 @@ import { readStorage, writeStorage } from '@/lib/storage'
  * Sinov senariysi — ekranlarni ko'z bilan tekshirish uchun.
  *
  * NEGA kerak: belgilashning to'qqizta holati bor (UX §C.2) va ularning
- * yettitasi faqat server rad javobida ko'rinadi. Haqiqiy server
- * ulanmaguncha ularni ko'rsatishning yagona yo'li — mock'ga «bu safar
+ * yettitasi faqat server rad javobida ko'rinadi. Haqiqiy serverda
+ * ularni ataylab chaqirib bo'lmaydi — namoyishda yagona yo'l mock'ga «bu safar
  * shunday javob ber» deb aytish.
  *
  * Brauzer konsolidan almashtiriladi:
  *     localStorage.setItem('bonvi.ilova.senariy', 'uzoq')
  *     location.reload()
  *
- * ⚠️ Bu fayl mock bilan BIRGA o'chadi. Haqiqiy mijoz ulanganda
- * `src/mock/` butunlay olib tashlanadi va bu bilan senariy ham ketadi.
+ * ⚠️ Faqat mock rejimida ishlaydi (`VITE_API_MODE=mock`) — haqiqiy
+ * server bilan yig'ilgan ilovada bu kalit hech narsani o'zgartirmaydi.
  */
 export type CheckInScenario =
   /** Hamma narsa yaxshi — belgi qabul qilinadi. */

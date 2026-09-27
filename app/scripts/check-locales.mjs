@@ -23,12 +23,48 @@ import { join } from 'node:path'
 const DIR = new URL('../src/i18n/locales/', import.meta.url).pathname
 const REFERENCE = 'uz-Latn.json'
 
-/** Belgilash rad kodlari — SPEC §E dagi ro'yxat. */
+/**
+ * Belgilash rad kodlari — SPEC §E dagi ro'yxat. Ular kartada SARLAVHA bilan
+ * chiqadi, ya'ni `<kod>_sarlavha` ham shart.
+ */
 const REQUIRED_CODES = [
   'davomat.mobil_ruxsat_yoq',
   'davomat.joylashuv_aniq_emas',
   'davomat.obyektdan_uzoq',
   'davomat.takroriy_belgi',
+]
+
+/**
+ * Ilova serverdan olishi mumkin bo'lgan BOSHQA kodlar — ilova chaqiradigan
+ * endpointlarning (`/api/employee-auth/*`, `/api/me/*`) barcha rad javoblari
+ * va tezlik cheklovi. Ro'yxat qo'lda: ilova backend manbasini ko'rmaydi, va
+ * bu yerdan tushib qolgan kod ekranda xom «xodim.bloklangan» bo'lib chiqadi.
+ */
+const APP_CODES = [
+  'auth.token_yaroqsiz',
+  'rate_limit.oshib_ketdi',
+  'xodim.notogri_malumot',
+  'xodim.bloklangan',
+  'xodim.hisob_faol_emas',
+  'xodim.token_yaroqsiz',
+  'xodim.parol_notogri',
+  'xodim.parol_almashtirilsin',
+  'foydalanuvchi.parol_bosh',
+  'foydalanuvchi.parol_qisqa',
+  'davomat.yonalish_notogri',
+  'davomat.joylashuv_notogri',
+  'davomat.obyektdan_uzoq_obyektsiz',
+  'davomat.oy_notogri',
+  'davomat.sorov_topilmadi',
+  'davomat.sorov_bekor_qilingan',
+  'davomat.sorov_qaror_qabul_qilingan',
+  'davomat.sorov_takroriy',
+  'davomat.sorov_davri_notogri',
+  'davomat.sorov_uzun',
+  'davomat.sorov_vaqti_notogri',
+  'davomat.sorov_turi_yoq',
+  'davomat.yoqlik_turi_topilmadi',
+  'davomat.yoqlik_turi_faolsiz',
 ]
 
 /** Lotin yozuvidagi matnda ASCII apostrof bo'lmasligi kerak. */
@@ -100,6 +136,13 @@ for (const file of files) {
     if (typeof errors[`${code}_sarlavha`] !== 'string') {
       failed = true
       console.error(`✗ ${file}: «${code}» uchun sarlavha yo'q`)
+    }
+  }
+
+  for (const code of APP_CODES) {
+    if (typeof errors[code] !== 'string') {
+      failed = true
+      console.error(`✗ ${file}: «${code}» xato kodi tarjima qilinmagan`)
     }
   }
 }
