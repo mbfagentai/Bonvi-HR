@@ -55,6 +55,24 @@ public interface IAttendanceComputationSource
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// [from, to] da munosabati bo'lgan HAR BIR xodimning BARCHA munosabatlari (hodisalari bilan), xodim bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Yillik to'r tahririda «bu jadval kimga tegadi» savoli uchun
+    /// (<c>AttendanceScheduleDatesJob</c>): jadval munosabati bor odamgagina
+    /// tegishli bo'ladi, munosabatsiz kun esa jadvaldan qat'i nazar <c>NotEmployed</c>.
+    /// Asosiy munosabat sanaga qarab tanlanadi, shu sababli xodimning qolgan
+    /// munosabatlari ham kerak — <see cref="LoadEmploymentsAsync"/> dagi bilan bir xil shakl.
+    /// </remarks>
+    /// <param name="from">Davr boshi.</param>
+    /// <param name="to">Davr oxiri.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<Employment>>> LoadEmploymentsCoveringAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Xodimlarning BOG'LANGAN o'tishlari — <c>local_date</c> ∈ [from, to], xodim bo'yicha.</summary>
     /// <remarks>
     /// Oraliqni chaqiruvchi <see cref="AttendanceDayBuilder.PassDatesNeeded"/>

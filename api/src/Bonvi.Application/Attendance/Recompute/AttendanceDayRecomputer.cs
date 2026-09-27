@@ -66,10 +66,15 @@ public sealed record AttendanceRecomputeOutcome(int EmployeeCount, int StoredDay
 /// lekin sinxron navbatda (moslik yaratish so'rovi) foydalanuvchi 500 olardi.
 /// </para>
 /// <para>
-/// <b>Hajm.</b> Xodimlar <see cref="EmployeesPerBatch"/> tadan olinadi: har
-/// bir to'plam — o'zgarmas sondagi so'rov (munosabatlar, o'tishlar, kun
-/// yozuvlari) va bitta <c>SaveChanges</c>. 540 xodim × 92 kun ≈ 50 ming kun
-/// va ~500 ming o'tish; bir to'plamda esa buning beshdan biridan kami xotirada.
+/// <b>Hajm.</b> Sanalar <see cref="AttendanceRules.MaxRecomputeDays"/> kunlik
+/// OYNALARGA bo'linadi, har bir oynada xodimlar <see cref="EmployeesPerBatch"/>
+/// tadan olinadi: har bir to'plam — o'zgarmas sondagi so'rov (munosabatlar,
+/// o'tishlar, kun yozuvlari) va bitta <c>SaveChanges</c>, keyin uning qatorlari
+/// KUZATUVDAN UNUTILADI. Ikkalasi ham shart: oynasiz bir yillik chaqiruv (yillik
+/// to'rni «butun yilni to'ldirish») bir to'plam uchun butun yilning o'tishlarini
+/// yuklardi, unutilmagan qatorlar esa kontekstda to'planib, 540 xodim × 270 kunda
+/// ~146 ming obyekt bo'lib 2 GB li serverni bo'g'ardi. Shu tufayli xotirada doim
+/// ko'pi bilan bitta to'plam × bitta oyna turadi.
 /// </para>
 /// </remarks>
 public sealed class AttendanceDayRecomputer
@@ -121,10 +126,44 @@ public sealed class AttendanceDayRecomputer
     /// <param name="employeeIds">Xodimlar.</param>
     /// <param name="dates">Qayta hisoblanadigan sanalar.</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    public async Task<AttendanceRecomputeOutcome> RecomputeAsync(
+    public Task<AttendanceRecomputeOutcome> RecomputeAsync(
         IReadOnlyCollection<Guid> employeeIds,
         IReadOnlyCollection<DateOnly> dates,
         CancellationToken cancellationToken = default)
+        => WriteAsync(employeeIds, dates, WriteMode.Rewrite, cancellationToken);
+
+    /// <summary>
+    /// Faqat YO'Q, lekin bo'lishi kerak bo'lgan qatorlarni qo'shadi — bor qatorga tegmaydi, hech narsani o'chirmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Boshlangan smenalar vazifasi uchun (<c>AttendanceStartedShiftsJob</c>):
+    /// smenasi hali boshlanmagan kun saqlanmaydi (<c>Planned</c>), reja boshlangach esa
+    /// o'tishsiz kun «Kelmadi» qatori bo'lib paydo bo'lishi kerak. Har 15 daqiqada butun
+    /// korxonaning bugungi qatorlarini QAYTA yozish (yangi <c>computed_at</c> bilan)
+    /// bazani behuda aylantirardi va tabeldagi «oxirgi hisoblash» vaqtini ma'nosiz
+    /// qilardi — bor qatorni esa iflos navbat va tungi hisoblash allaqachon yuritadi.
+    /// </para>
+    /// <para>
+    /// Hisoblash, muzlagan sanalar va parallel yozuvchi qoidalari
+    /// <see cref="RecomputeAsync"/> niki bilan AYNAN bir xil — farq faqat yozishda.
+    /// </para>
+    /// </remarks>
+    /// <param name="employeeIds">Xodimlar.</param>
+    /// <param name="dates">Tekshiriladigan sanalar.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    public Task<AttendanceRecomputeOutcome> FillMissingAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        IReadOnlyCollection<DateOnly> dates,
+        CancellationToken cancellationToken = default)
+        => WriteAsync(employeeIds, dates, WriteMode.MissingOnly, cancellationToken);
+
+    /// <summary>Ikkala ochiq metodning umumiy yo'li — sanalar oynalarga, xodimlar to'plamlarga bo'linadi.</summary>
+    private async Task<AttendanceRecomputeOutcome> WriteAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        IReadOnlyCollection<DateOnly> dates,
+        WriteMode mode,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(employeeIds);
         ArgumentNullException.ThrowIfNull(dates);
@@ -154,49 +193,91 @@ public sealed class AttendanceDayRecomputer
             return new AttendanceRecomputeOutcome(0, 0, 0, frozen);
         }
 
-        var catalog = await _source
-            .LoadScheduleCatalogAsync(ordered[0], ordered[^1], cancellationToken)
-            .ConfigureAwait(false);
-
+        // Bitta chaqiruv uchun bitta «hozir»: oynalar orasida soat o'tib, bir
+        // chaqiruvning kunlari ikki xil «bugun» bilan hisoblanmasin.
         var now = _clock.UtcNow;
-
-        var builder = new AttendanceDayBuilder(
-            new ScheduleResolver(
-                catalog.Assignments,
-                catalog.Schedules,
-                new DepartmentTree(catalog.Departments),
-                catalog.Dates),
-            now.TashkentDate(),
-            now);
 
         var stored = 0;
         var removed = 0;
 
-        foreach (var batch in employees.Chunk(EmployeesPerBatch))
+        foreach (var window in Windows(ordered))
         {
-            for (var attempt = 1; ; attempt++)
-            {
-                try
-                {
-                    var (batchStored, batchRemoved) = await WriteBatchAsync(builder, batch, ordered, cancellationToken)
-                        .ConfigureAwait(false);
+            var catalog = await _source
+                .LoadScheduleCatalogAsync(window[0], window[^1], cancellationToken)
+                .ConfigureAwait(false);
 
-                    stored += batchStored;
-                    removed += batchRemoved;
-                    break;
-                }
-                catch (Exception exception) when (
-                    attempt < MaxWriteAttempts && _databaseFault.IsConcurrentDayWrite(exception))
+            var builder = new AttendanceDayBuilder(
+                new ScheduleResolver(
+                    catalog.Assignments,
+                    catalog.Schedules,
+                    new DepartmentTree(catalog.Departments),
+                    catalog.Dates),
+                now.TashkentDate(),
+                now);
+
+            foreach (var batch in employees.Chunk(EmployeesPerBatch))
+            {
+                for (var attempt = 1; ; attempt++)
                 {
-                    // Yiqilgan urinish hech narsa saqlamadi (bitta tranzaksiya).
-                    // Uning kuzatuvdagi nusxalari unutiladi — qayta urinish
-                    // g'olib yozuvchi qoldirgan holatni bazadan o'qiydi.
-                    _days.ForgetTracked();
+                    try
+                    {
+                        var (batchStored, batchRemoved) = await WriteBatchAsync(builder, batch, window, mode, cancellationToken)
+                            .ConfigureAwait(false);
+
+                        stored += batchStored;
+                        removed += batchRemoved;
+                        break;
+                    }
+                    catch (Exception exception) when (
+                        attempt < MaxWriteAttempts && _databaseFault.IsConcurrentDayWrite(exception))
+                    {
+                        // Yiqilgan urinish hech narsa saqlamadi (bitta tranzaksiya).
+                        // Uning kuzatuvdagi nusxalari unutiladi — qayta urinish
+                        // g'olib yozuvchi qoldirgan holatni bazadan o'qiydi.
+                        _days.ForgetTracked();
+                    }
                 }
+
+                // Saqlangan to'plam kuzatuvdan unutiladi: keyingi to'plamga uning
+                // qatorlari kerak emas, qolib ketsa esa kontekst har to'plam bilan
+                // o'sib boraverardi (sinf izohidagi «Hajm»).
+                _days.ForgetTracked();
             }
         }
 
         return new AttendanceRecomputeOutcome(employees.Count, stored, removed, frozen);
+    }
+
+    /// <summary>
+    /// Tartiblangan sanalarni ko'pi bilan <see cref="AttendanceRules.MaxRecomputeDays"/> kunlik oynalarga bo'ladi.
+    /// </summary>
+    /// <remarks>
+    /// Chegara — qo'lda qayta hisoblash va hisobotlardagi AYNAN o'sha chorak: to'plam
+    /// o'tishlari oyna oralig'ida yuklanadi (<see cref="AttendanceDayBuilder.PassDatesNeeded"/>),
+    /// ya'ni bir yillik tarqoq sanalar ham bitta to'plamga yil emas, chorak yuklatadi.
+    /// Har bir oyna hisoblashning yuklash shartnomasini o'zi to'liq bajaradi
+    /// (o'tishlar va to'r kataklari oyna chekkasidan ±1 kun), shuning uchun oyna
+    /// chegarasidagi kun ham bo'linmasdan hisoblangani bilan bir xil chiqadi.
+    /// </remarks>
+    private static IEnumerable<List<DateOnly>> Windows(List<DateOnly> ordered)
+    {
+        var window = new List<DateOnly>();
+
+        foreach (var date in ordered)
+        {
+            if (window.Count > 0 && date.DayNumber - window[0].DayNumber >= AttendanceRules.MaxRecomputeDays)
+            {
+                yield return window;
+                window = [];
+            }
+
+            window.Add(date);
+        }
+
+        if (window.Count > 0)
+        {
+            yield return window;
+        }
     }
 
     /// <summary>Bitta to'plamni o'qiydi, hisoblaydi va BITTA saqlash bilan yozadi.</summary>
@@ -209,6 +290,7 @@ public sealed class AttendanceDayRecomputer
         AttendanceDayBuilder builder,
         Guid[] batch,
         List<DateOnly> ordered,
+        WriteMode mode,
         CancellationToken cancellationToken)
     {
         var from = ordered[0];
@@ -248,6 +330,18 @@ public sealed class AttendanceDayRecomputer
             {
                 existing.TryGetValue((employeeId, result.LocalDate), out var row);
 
+                if (mode == WriteMode.MissingOnly)
+                {
+                    // Faqat yo'q qatorni qo'shish — bor qator ham, eskirgani ham tegilmaydi.
+                    if (result.ShouldStore && row is null)
+                    {
+                        _days.Add(AttendanceDay.Compute(employeeId, result.LocalDate, result.Facts, computedAt));
+                        stored++;
+                    }
+
+                    continue;
+                }
+
                 if (result.ShouldStore)
                 {
                     if (row is null)
@@ -281,4 +375,14 @@ public sealed class AttendanceDayRecomputer
         => from > to
             ? []
             : [.. Enumerable.Range(0, to.DayNumber - from.DayNumber + 1).Select(from.AddDays)];
+
+    /// <summary>Hisoblangan natija bazaga qanday yetkaziladi.</summary>
+    private enum WriteMode
+    {
+        /// <summary>Qayta hisoblash: yo'g'i qo'shiladi, bori yangilanadi, eskirgani o'chiriladi.</summary>
+        Rewrite = 1,
+
+        /// <summary>Faqat yo'q, lekin bo'lishi kerak bo'lgan qator qo'shiladi.</summary>
+        MissingOnly = 2,
+    }
 }

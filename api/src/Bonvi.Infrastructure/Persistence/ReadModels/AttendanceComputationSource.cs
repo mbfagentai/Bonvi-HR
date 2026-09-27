@@ -111,6 +111,36 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
 
     /// <inheritdoc />
     /// <remarks>
+    /// Ikki so'rov: davrda munosabati bo'lgan xodimlar (ichki so'rov) va ularning
+    /// hamma munosabatlari hodisalari bilan — <see cref="LoadEmploymentsAsync"/> bilan
+    /// bir xil shakl va bir xil global filtr.
+    /// </remarks>
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<Employment>>> LoadEmploymentsCoveringAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+    {
+        var employed = _context.Employments
+            .Where(employment =>
+                employment.HireDate <= to &&
+                (employment.TerminationDate == null || employment.TerminationDate >= from))
+            .Select(employment => employment.EmployeeId);
+
+        var employments = await _context.Employments
+            .AsNoTracking()
+            .Include(employment => employment.Events)
+            .AsSplitQuery()
+            .Where(employment => employed.Contains(employment.EmployeeId))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return employments
+            .GroupBy(employment => employment.EmployeeId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<Employment>)[.. group]);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// <c>ix_attendance_passes_employee_time</c> (xodim bo'yicha) va
     /// <c>ix_attendance_passes_local_date</c> — rejalashtiruvchi qaysi biri
     /// torroq bo'lsa, o'shani tanlaydi.
