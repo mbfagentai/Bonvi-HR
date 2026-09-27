@@ -78,7 +78,7 @@ public sealed class GetMyAttendanceQueryHandler
         }
 
         var account = await _accounts.GetByIdAsync(accountId, cancellationToken).ConfigureAwait(false);
-        if (account is null || !account.IsActive)
+        if (account is null)
         {
             return EmployeeAccountErrors.AccountInactive;
         }

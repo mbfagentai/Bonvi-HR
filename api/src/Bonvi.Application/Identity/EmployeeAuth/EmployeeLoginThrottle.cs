@@ -8,7 +8,8 @@ namespace Bonvi.Application.Identity.EmployeeAuth;
 /// <remarks>
 /// <para>
 /// ⭐ <b>Nega hisob qatorida emas.</b> Ilgari blok hisobning o'zida edi
-/// (<see cref="EmployeeAccount.RecordFailedLogin"/>) va ikki muammo bor edi:
+/// (<c>employee_accounts.failed_login_attempts</c>, 2026-09-27 da olib
+/// tashlangan) va ikki muammo bor edi:
 /// </para>
 /// <list type="number">
 ///   <item>
@@ -92,7 +93,7 @@ public sealed class EmployeeLoginThrottle
     /// <summary>Muvaffaqiyatsiz urinishni yozadi; chegaraga yetsa juftlik bloklanadi.</summary>
     /// <remarks>
     /// Hisoblagich blok qo'yilgan lahzada NOLGA tushadi (blok kuchaymaydi) —
-    /// <see cref="EmployeeAccount.RecordFailedLogin"/> dagi ataylabki qaror.
+    /// <see cref="User.RecordFailedLogin"/> dagi ataylabki qaror.
     /// Oxirgi xatodan beri <see cref="EmployeeAccount.LockoutMinutes"/> o'tgan
     /// bo'lsa, eski xatolar hisobga olinmaydi: haftada bir marta adashgan
     /// odam oyning oxirida «bloklanib» qolmasligi kerak.

@@ -355,22 +355,13 @@ public sealed class MobileCheckInConfiguration : IEntityTypeConfiguration<Mobile
 /// <summary>
 /// <see cref="EmployeeAccount"/> uchun jadval konfiguratsiyasi (<c>employee_accounts</c>).
 /// </summary>
+/// <remarks>
+/// ⚠️ <c>login</c> ustuni YO'Q (2026-09-27 dan): login — xodim profilidagi
+/// telefon va hisob kirishda <c>employees.phone</c> orqali topiladi
+/// (sababi <see cref="EmployeeAccount"/> izohida).
+/// </remarks>
 public sealed class EmployeeAccountConfiguration : IEntityTypeConfiguration<EmployeeAccount>
 {
-    /// <summary>
-    /// <see cref="PhoneNumber"/> uchun taqqoslagich.
-    /// </summary>
-    /// <remarks>
-    /// <c>UserConfiguration.LoginComparer</c> ning aynan nusxasi va shunday
-    /// bo'lishi kerak: konvertordan keyin EF qiymatni nusxalab saqlaydi va
-    /// havola bo'yicha taqqoslashda bir xil raqamdan yasalgan ikki obyekt
-    /// «har xil» bo'lib, har saqlashda keraksiz UPDATE yuborilardi.
-    /// </remarks>
-    private static readonly ValueComparer<PhoneNumber> LoginComparer = new(
-        (left, right) => left!.Value == right!.Value,
-        phone => StringComparer.Ordinal.GetHashCode(phone.Value),
-        phone => PhoneNumber.FromTrusted(phone.Value));
-
     public void Configure(EntityTypeBuilder<EmployeeAccount> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -381,29 +372,14 @@ public sealed class EmployeeAccountConfiguration : IEntityTypeConfiguration<Empl
 
         builder.Ignore(account => account.DomainEvents);
 
-        // Login — `users.login` bilan AYNAN bir xil qiymat obyekti, bir xil
-        // konvertor va bir xil taqqoslagich. Bazadan o'qishda tekshiruvsiz
-        // qayta yig'iladi: yozilayotganda allaqachon tekshirilgan.
-        builder.Property(account => account.Login)
-            .HasConversion(
-                login => login.Value,
-                value => PhoneNumber.FromTrusted(value),
-                LoginComparer)
-            .IsRequired();
-
         builder.Property(account => account.PasswordHash)
             .IsRequired();
 
-        builder.Property(account => account.MustChangePassword)
-            .IsRequired();
+        // `text`, nullable: shifrlangan nusxa (`v1.<base64url>`). `null` —
+        // nusxasi yo'q eski parol; HR yangisini yasaydi.
+        builder.Property(account => account.PasswordProtected);
 
         builder.Property(account => account.PasswordSetAt)
-            .IsRequired();
-
-        builder.Property(account => account.IsActive)
-            .IsRequired();
-
-        builder.Property(account => account.FailedLoginAttempts)
             .IsRequired();
 
         // Xodim yumshoq o'chiriladi, ya'ni haqiqiy `DELETE` — yo tasodif,
@@ -415,19 +391,14 @@ public sealed class EmployeeAccountConfiguration : IEntityTypeConfiguration<Empl
             .OnDelete(DeleteBehavior.Restrict);
 
         /*
-          IKKALA UNIKAL INDEKSDA HAM yumshoq o'chirish filtri YO'Q — chunki
-          jadvalda `deleted_at` ustunining o'zi yo'q (sabab domenda).
-          Ma'lumotnomalardan farqi shu: o'chirilgan yozuvning NOMINI qayta
-          ishlatish kerak bo'ladi, band bo'lib qolgan LOGIN esa band
-          bo'lib qolishi kerak.
+          Bitta xodimda bitta hisob. Filtrsiz — jadvalda `deleted_at`
+          ustunining o'zi yo'q (sabab domenda). Avtomatik ochishdagi
+          poygani (fon vazifasi va HR ekrani bir vaqtda) aynan shu indeks
+          tutadi (`PostgresFault.IsDuplicateEmployeeAccount`).
         */
         builder.HasIndex(account => account.EmployeeId)
             .IsUnique()
             .HasDatabaseName("ux_employee_accounts_employee");
-
-        builder.HasIndex(account => account.Login)
-            .IsUnique()
-            .HasDatabaseName("ux_employee_accounts_login");
     }
 }
 

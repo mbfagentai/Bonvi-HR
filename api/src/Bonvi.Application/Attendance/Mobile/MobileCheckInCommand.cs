@@ -161,7 +161,7 @@ public sealed class MobileCheckInCommandHandler
         // turadi va 4-qadamdagi «o'qib, keyin yoz» ni qo'riqlaydi. Qatorning
         // o'zi baribir kerak edi, ya'ni qo'shimcha so'rov qo'shilmayapti.
         var account = await _accounts.LockAsync(accountId, cancellationToken).ConfigureAwait(false);
-        if (account is null || !account.IsActive)
+        if (account is null)
         {
             return AttendanceErrors.MobileCheckInNotAllowed;
         }

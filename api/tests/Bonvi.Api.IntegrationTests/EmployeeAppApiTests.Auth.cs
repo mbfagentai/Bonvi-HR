@@ -8,27 +8,32 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Bonvi.Api.IntegrationTests;
 
 /// <summary>
-/// Xodim ilovasi — autentifikatsiya: majburiy parol, blok, sessiya yangilash va chiqish.
+/// Xodim ilovasi — autentifikatsiya: parol faqat HR da, blok, sessiya yangilash va chiqish.
 /// </summary>
 /// <remarks>
 /// Audit topilmalari (2026-09-27) bo'yicha regressiya testlari: har biri bitta
-/// topilmaning oldingi xulqini aniq yiqitadi.
+/// topilmaning oldingi xulqini aniq yiqitadi. Majburiy parol almashtirish
+/// testlari egasining qaroridan keyin (2026-09-27: parolni faqat HR beradi)
+/// «xodim parolni almashtira olmaydi» va «HR yangi parol bersa eski sessiya
+/// to'xtaydi» testlari bilan ALMASHTIRILDI.
 /// </remarks>
 public sealed partial class EmployeeAppApiTests
 {
     // ════════════════════════════════════════════════════════════
-    //  Majburiy parol — server tomonida
+    //  Parol — faqat HR da
     // ════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Bir martalik parol bilan olingan token <c>/api/me/*</c> ga O'TMAYDI — faqat parolni almashtirish ishlaydi.
+    /// Birinchi kirishdan keyin hamma narsa DARHOL ochiq; xodim parolni almashtira olmaydi (endpoint yo'q).
     /// </summary>
     /// <remarks>
-    /// Ilgari qoida faqat ilovada edi: HR bergan parol belgilash, davomat va
-    /// so'rovlar uchun cheksiz ishlab turardi.
+    /// Ilgari HR bergan parol «bir martalik» edi: <c>/api/me/*</c> 403
+    /// (<c>xodim.parol_almashtirilsin</c>) berardi va faqat
+    /// <c>/api/employee-auth/password</c> ochiq edi. Egasining qarori
+    /// (2026-09-27): parolni faqat HR beradi va ko'radi.
     /// </remarks>
     [Fact]
-    public async Task Bir_martalik_parol_bilan_faqat_parol_almashtirish_ochiq()
+    public async Task Xodim_parolni_almashtira_olmaydi_va_birinchi_kirishdan_hammasi_ochiq()
     {
         var ct = TestContext.Current.CancellationToken;
         var belgi = Belgi();
@@ -39,86 +44,85 @@ public sealed partial class EmployeeAppApiTests
         var markaz = Nuqta(20);
         await ObyektAsync(admin, "Parol " + belgi, markaz, radius: 300);
 
-        var (login, birMartalik) = await HisobVaLoginAsync(admin, xodim.Id);
+        var parol = await ParolAsync(admin, xodim.Id);
+        var juftlik = await KirganJuftlikAsync(admin, xodim.Id);
 
-        using var kirish = await KirishAsync(login, birMartalik);
-        kirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(kirish));
-        var juftlik = await JsonAsync(kirish);
-        juftlik.GetProperty("mustChangePassword").GetBoolean().ShouldBeTrue();
+        juftlik.TryGetProperty("mustChangePassword", out _).ShouldBeFalse("majburiy almashtirish bayrog'i yo'q");
 
         using var mijoz = Mijoz(juftlik.GetProperty("accessToken").GetString()!);
 
-        foreach (var yol in XodimYollari)
+        foreach (var yol in XodimYollari.Where(yol => yol != "/api/me/photo"))
         {
             using var javob = await mijoz.GetAsync(new Uri(yol, UriKind.Relative), ct);
-            await XatoKutAsync(javob, HttpStatusCode.Forbidden, "xodim.parol_almashtirilsin");
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, $"{yol}: {await MatnAsync(javob)}");
         }
 
         using (var belgilash = await BelgilaAsync(mijoz, "In", markaz))
         {
-            await XatoKutAsync(belgilash, HttpStatusCode.Forbidden, "xodim.parol_almashtirilsin");
+            belgilash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(belgilash));
         }
 
-        await OtishYoqAsync(xodim.Id);
+        // Parolni almashtirish yo'li umuman YO'Q. Marshrutsiz so'rovga umumiy
+        // (HR sxemasidagi) siyosat qo'llanadi: xodim tokeni u yerda 401 oladi,
+        // HR tokeni esa marshrut yo'qligini — 404 ni — ko'radi.
+        var tana = new { currentPassword = parol, newPassword = "Boshqa_parol_2026" };
+        var parolYoli = new Uri("/api/employee-auth/password", UriKind.Relative);
 
-        // Joriy parol MAJBURIY — bo'sh yuborilsa (ilova ilgari shunday qilardi) rad etiladi.
-        using (var boshParol = await mijoz.PostAsJsonAsync(
-                   new Uri("/api/employee-auth/password", UriKind.Relative),
-                   new { currentPassword = "", newPassword = YangiParol },
-                   ct))
+        using (var almashtirish = await mijoz.PostAsJsonAsync(parolYoli, tana, ct))
         {
-            await XatoKutAsync(boshParol, HttpStatusCode.BadRequest, "xodim.parol_notogri");
+            almashtirish.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         }
 
-        using var almashtirish = await mijoz.PostAsJsonAsync(
-            new Uri("/api/employee-auth/password", UriKind.Relative),
-            new { currentPassword = birMartalik, newPassword = YangiParol },
-            ct);
+        using (var marshrutYoq = await admin.PostAsJsonAsync(parolYoli, tana, ct))
+        {
+            marshrutYoq.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
 
-        almashtirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(almashtirish));
-        var yangi = await JsonAsync(almashtirish);
-        yangi.GetProperty("mustChangePassword").GetBoolean().ShouldBeFalse();
-        yangi.GetProperty("refreshToken").GetString().ShouldNotBeNullOrWhiteSpace();
+        // HR ko'rgan parol o'zgarmagan — va u hali ham ishlaydi.
+        (await ParolAsync(admin, xodim.Id)).ShouldBe(parol);
 
-        using var keyin = Mijoz(yangi.GetProperty("accessToken").GetString()!);
-        using var men = await keyin.GetAsync(new Uri("/api/me", UriKind.Relative), ct);
-        men.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(men));
-        (await JsonAsync(men)).GetProperty("mustChangePassword").GetBoolean().ShouldBeFalse();
-
-        // Almashtirish javobidagi yangilash tokeni ishlaydi — ilova aynan shuni saqlaydi.
-        using var yangilash = await YangilaAsync(yangi.GetProperty("refreshToken").GetString()!);
-        yangilash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yangilash));
+        using var yana = await KirishAsync(xodim.Login, parol);
+        yana.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yana));
     }
 
     /// <summary>
-    /// HR parolni tiklasa, ESKI (bayroqsiz) token ham darhol to'xtaydi — bayroq bazadan o'qiladi.
+    /// HR yangi parol bersa: eski parol ishlamaydi, yangisi ishlaydi, eski sessiya yangilanmaydi.
     /// </summary>
     [Fact]
-    public async Task HR_parolni_tiklasa_eski_token_ham_toxtaydi()
+    public async Task HR_yangi_parol_bersa_eski_parol_va_sessiya_toxtaydi()
     {
         var ct = TestContext.Current.CancellationToken;
         var belgi = Belgi();
         using var admin = await AdminMijozAsync();
 
         var xodim = await XodimAsync(belgi);
-        using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
+        var eski = await ParolAsync(admin, xodim.Id);
+        var juftlik = await KirganJuftlikAsync(admin, xodim.Id);
 
-        using (var oldin = await ilova.GetAsync(new Uri("/api/me", UriKind.Relative), ct))
-        {
-            oldin.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(oldin));
-        }
-
-        using (var tiklash = await admin.PostAsync(
-                   new Uri($"/api/employees/{xodim.Id}/app-access/reset-password", UriKind.Relative),
+        using (var yasash = await admin.PostAsync(
+                   new Uri($"/api/employees/{xodim.Id}/app-access/password/generate", UriKind.Relative),
                    null,
                    ct))
         {
-            tiklash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tiklash));
+            yasash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yasash));
         }
 
-        // Access token hali 15 daqiqa amal qiladi — lekin endi o'tmaydi.
-        using var keyin = await ilova.GetAsync(new Uri("/api/me/attendance?year=2026&month=9", UriKind.Relative), ct);
-        await XatoKutAsync(keyin, HttpStatusCode.Forbidden, "xodim.parol_almashtirilsin");
+        var yangi = await ParolAsync(admin, xodim.Id);
+        yangi.ShouldNotBe(eski);
+
+        using (var eskiBilan = await KirishAsync(xodim.Login, eski))
+        {
+            await XatoKutAsync(eskiBilan, HttpStatusCode.BadRequest, "xodim.notogri_malumot");
+        }
+
+        using (var yangiBilan = await KirishAsync(xodim.Login, yangi))
+        {
+            yangiBilan.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yangiBilan));
+        }
+
+        // Eski qurilmaning sessiyasi yangilanmaydi — barcha sessiyalar yopilgan.
+        using var yangilash = await YangilaAsync(juftlik.GetProperty("refreshToken").GetString()!);
+        await XatoKutAsync(yangilash, HttpStatusCode.Forbidden, "xodim.token_yaroqsiz");
     }
 
     // ════════════════════════════════════════════════════════════
@@ -140,7 +144,8 @@ public sealed partial class EmployeeAppApiTests
         using var admin = await AdminMijozAsync();
 
         var xodim = await XodimAsync(belgi);
-        var (login, parol) = await HisobVaLoginAsync(admin, xodim.Id);
+        var login = xodim.Login;
+        var parol = await ParolAsync(admin, xodim.Id);
 
         var notanish = TelefonRaqami();
 
@@ -164,43 +169,14 @@ public sealed partial class EmployeeAppApiTests
         await XatoKutAsync(togri, HttpStatusCode.Forbidden, "xodim.bloklangan");
         (await JsonAsync(togri)).GetProperty("retryAfterMinutes").GetInt32().ShouldBeInRange(1, 15);
 
-        // Hisob qatori tegilmagan: blok hisobda EMAS.
+        // Hisob qatori tegilmagan: blok hisobda EMAS (unda blok ustunlarining
+        // o'zi ham yo'q), va hech bir urinish «kirdi» deb yozilmagan.
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
         var hisob = await kontekst.EmployeeAccounts.AsNoTracking()
             .SingleAsync(row => row.EmployeeId == xodim.Id, TestContext.Current.CancellationToken);
 
-        hisob.LockedUntil.ShouldBeNull();
-        hisob.FailedLoginAttempts.ShouldBe(0);
-    }
-
-    /// <summary>Noto'g'ri JORIY parol sanaladi — beshtadan keyin almashtirish bloklanadi.</summary>
-    [Fact]
-    public async Task Parol_almashtirishda_notogri_joriy_parol_bloklaydi()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var belgi = Belgi();
-        using var admin = await AdminMijozAsync();
-
-        var xodim = await XodimAsync(belgi);
-        using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
-
-        for (var i = 0; i < 5; i++)
-        {
-            using var notogri = await ilova.PostAsJsonAsync(
-                new Uri("/api/employee-auth/password", UriKind.Relative),
-                new { currentPassword = "taxmin-" + i, newPassword = "Boshqa_parol_2026" },
-                ct);
-
-            await XatoKutAsync(notogri, HttpStatusCode.BadRequest, "xodim.parol_notogri");
-        }
-
-        using var togri = await ilova.PostAsJsonAsync(
-            new Uri("/api/employee-auth/password", UriKind.Relative),
-            new { currentPassword = YangiParol, newPassword = "Boshqa_parol_2026" },
-            ct);
-
-        await XatoKutAsync(togri, HttpStatusCode.Forbidden, "xodim.bloklangan");
+        hisob.LastLoginAt.ShouldBeNull();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -217,7 +193,7 @@ public sealed partial class EmployeeAppApiTests
         using var admin = await AdminMijozAsync();
 
         var xodim = await XodimAsync(belgi);
-        var birinchi = await ParolOrnatilganJuftlikAsync(admin, xodim.Id);
+        var birinchi = (await KirganJuftlikAsync(admin, xodim.Id)).GetProperty("refreshToken").GetString()!;
 
         using var yangilash = await YangilaAsync(birinchi);
         yangilash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yangilash));
@@ -255,7 +231,7 @@ public sealed partial class EmployeeAppApiTests
         using var admin = await AdminMijozAsync();
 
         var xodim = await XodimAsync(belgi);
-        var token = await ParolOrnatilganJuftlikAsync(admin, xodim.Id);
+        var token = (await KirganJuftlikAsync(admin, xodim.Id)).GetProperty("refreshToken").GetString()!;
 
         using var anonim = _factory.CreateClient();
 
@@ -360,40 +336,6 @@ public sealed partial class EmployeeAppApiTests
     // ════════════════════════════════════════════════════════════
     //  Yordamchilar
     // ════════════════════════════════════════════════════════════
-
-    /// <summary>Hisob ochadi — login va BIR MARTALIK parol.</summary>
-    private static async Task<(string Login, string Parol)> HisobVaLoginAsync(HttpClient admin, Guid xodimId)
-    {
-        var parol = await HisobOchAsync(admin, xodimId);
-
-        using var karta = await admin.GetAsync(
-            new Uri($"/api/employees/{xodimId}/app-access", UriKind.Relative),
-            TestContext.Current.CancellationToken);
-
-        var login = (await JsonAsync(karta)).GetProperty("account").GetProperty("login").GetString()!;
-
-        return (login, parol);
-    }
-
-    /// <summary>Kiradi, parolni o'rnatadi va javobdagi YANGILASH tokenini qaytaradi.</summary>
-    private async Task<string> ParolOrnatilganJuftlikAsync(HttpClient admin, Guid xodimId)
-    {
-        var (login, parol) = await HisobVaLoginAsync(admin, xodimId);
-
-        using var kirish = await KirishAsync(login, parol);
-        kirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(kirish));
-
-        using var mijoz = Mijoz((await JsonAsync(kirish)).GetProperty("accessToken").GetString()!);
-
-        using var almashtirish = await mijoz.PostAsJsonAsync(
-            new Uri("/api/employee-auth/password", UriKind.Relative),
-            new { currentPassword = parol, newPassword = YangiParol },
-            TestContext.Current.CancellationToken);
-
-        almashtirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(almashtirish));
-
-        return (await JsonAsync(almashtirish)).GetProperty("refreshToken").GetString()!;
-    }
 
     private async Task<HttpResponseMessage> YangilaAsync(string refreshToken)
         => await _factory.CreateClient().PostAsJsonAsync(

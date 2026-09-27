@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -145,40 +144,6 @@ public sealed partial class EmployeeAppApiTests
         }
 
         oxirgi.ShouldBe(HttpStatusCode.TooManyRequests);
-    }
-
-    /// <summary>Parolni almashtirish yo'li — hisob bo'yicha qat'iy chegara ostida.</summary>
-    [Fact]
-    public async Task Parol_almashtirish_hisob_boyicha_qatiy_cheklangan()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var belgi = Belgi();
-        using var admin = await AdminMijozAsync();
-
-        var xodim = await XodimAsync(belgi);
-        using var tayyor = await IlovaMijoziAsync(admin, xodim.Id);
-        var token = tayyor.DefaultRequestHeaders.Authorization!.Parameter!;
-
-        using var server = Cheklovli(("RateLimiting:Login:PermitLimit", 2));
-        using var mijoz = server.CreateClient();
-        mijoz.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        for (var i = 0; i < 2; i++)
-        {
-            using var javob = await mijoz.PostAsJsonAsync(
-                new Uri("/api/employee-auth/password", UriKind.Relative),
-                new { currentPassword = "taxmin-" + i, newPassword = "Boshqa_parol_2026" },
-                ct);
-
-            await XatoKutAsync(javob, HttpStatusCode.BadRequest, "xodim.parol_notogri");
-        }
-
-        using var toldi = await mijoz.PostAsJsonAsync(
-            new Uri("/api/employee-auth/password", UriKind.Relative),
-            new { currentPassword = "taxmin-3", newPassword = "Boshqa_parol_2026" },
-            ct);
-
-        await XatoKutAsync(toldi, HttpStatusCode.TooManyRequests, "rate_limit.oshib_ketdi");
     }
 
     /// <summary>Global cheklov yoqilgan, berilgan chegaralar bilan alohida server.</summary>

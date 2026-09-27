@@ -1,5 +1,4 @@
 using Bonvi.Domain.Common;
-using Bonvi.Domain.ValueObjects;
 
 namespace Bonvi.Domain.Identity;
 
@@ -18,37 +17,48 @@ namespace Bonvi.Domain.Identity;
 /// yuborardi.
 /// </para>
 /// <para>
-/// <b>Login — telefon raqami, <see cref="User.Login"/> bilan AYNAN bir xil
-/// qoidada</b> (<see cref="PhoneNumber"/>). Ikki jadvalda bir xil raqam
-/// bo'lishi mumkin va bu to'g'ri: bir vaqtda HR menejer ham, xodim ham
-/// bo'lgan odamning ikkita paroli bo'ladi, qaysi jadval o'qilishini esa
+/// ⭐ <b>Login bu yerda SAQLANMAYDI</b> (egasining qarori, 2026-09-27).
+/// Login — xodim profilidagi ASOSIY telefon (<c>employees.phone</c>), va
+/// hisob kirishda aynan shu ustun orqali topiladi. Sabab: haqiqat bitta
+/// joyda turishi kerak — HR profilda raqamni tuzatsa, ertasi kuni emas,
+/// SHU ZAHOTI yangi raqam bilan kiriladi, eskisi esa ishlamaydi. Ilgari
+/// login shu jadvalda NUSXA edi va ikki raqam jimgina ajralib ketardi.
+/// </para>
+/// <para>
+/// ⚠️ Raqam bo'sh yoki boshqa o'chirilmagan xodimda ham bo'lsa, kirish
+/// RAD etiladi (umumiy javob bilan), hisobning o'zi esa yashayveradi: HR
+/// profilni tuzatgan lahzada u ishlab ketadi. <c>users.login</c> bilan bir
+/// xil raqam bo'lishi mumkin va bu to'g'ri — qaysi jadval o'qilishini
 /// endpoint hal qiladi.
 /// </para>
 /// <para>
-/// ⚠️ <b>Xodimning o'chirilgani yoki ishdan ketgani BU YERDA
-/// ko'rinmaydi.</b> Hisob login bo'yicha topiladi, xodim orqali emas, ya'ni
-/// EF ning yumshoq o'chirish filtri bu yo'lga umuman tushmaydi. Shu sababli
-/// kirish ishlovchisi xodimni ALOHIDA yuklaydi va bugungi mehnat
-/// munosabatini tekshiradi (INV-1, INV-2). <see cref="IsActive"/> esa
-/// BOSHQA savol: «ishlaydi, lekin vaqtincha to'xtatilgan».
+/// ⭐ <b>Hisob AVTOMATIK ochiladi</b> — har bir o'chirilmagan xodimga
+/// (fon vazifasi va HR «Ilova» bo'limini ochgan lahza). Qo'lda «hisob
+/// ochish», «hisobni yopish» va majburiy parol almashtirish YO'Q. Yagona
+/// o'chirgich — ishdan ketish: bugungi mehnat munosabati bo'lmasa kirish,
+/// yangilash va <c>/api/me/*</c> to'xtaydi (INV-1, INV-2), qayta ishga
+/// olinsa — o'sha parol bilan yana ishlaydi.
 /// </para>
 /// <para>
-/// <b>Yumshoq o'chirish YO'Q.</b> <see cref="IsActive"/> — o'chirgich,
-/// <c>IAuditable</c> kimligini yozadi, tarix esa <c>audit_logs</c> da.
-/// <c>deleted_at</c> qo'shilsa, ikkala unikal indeksga
-/// <c>WHERE deleted_at IS NULL</c> kerak bo'lardi — ya'ni «bu login band»
-/// degan haqiqat o'chirilgandan keyin yo'qolardi, holbuki hisob qatorida
-/// u aynan saqlanishi kerak (<c>RefreshToken</c>, <c>AttendancePass</c>
-/// bilan bir xil qaror).
+/// ⭐ <b>Parolni faqat HR beradi</b> va uni HAR DOIM ko'ra oladi: xesh
+/// tekshiruv uchun, <see cref="PasswordProtected"/> esa shifrlangan nusxa —
+/// HR ko'rishi uchun. Xodim parolni almashtira olmaydi.
+/// </para>
+/// <para>
+/// <b>Yumshoq o'chirish YO'Q.</b> Hisobni xodim yashatadi: xodim
+/// o'chirilsa, uning hisobi kirish yo'lida umuman topilmaydi. Tarix —
+/// <c>audit_logs</c> da.
 /// </para>
 /// </remarks>
 public sealed class EmployeeAccount : AggregateRoot, IAuditable
 {
-    /// <summary>Ketma-ket necha xatodan keyin bloklanadi.</summary>
+    /// <summary>Ketma-ket necha xatodan keyin kirish bloklanadi.</summary>
     /// <remarks>
     /// Son <see cref="User.RecordFailedLogin"/> dagi bilan bir xil bo'lishi
     /// SHART: ikki xil hisob turi uchun ikki xil qoida qo'yilsa, «nega meni
-    /// bloklab qo'ydi» degan savolga ikki xil javob bo'lardi.
+    /// bloklab qo'ydi» degan savolga ikki xil javob bo'lardi. Blokning o'zi
+    /// hisob qatorida EMAS — (login, IP) juftligida
+    /// (<c>EmployeeLoginThrottle</c>).
     /// </remarks>
     public const int MaxFailedAttempts = 5;
 
@@ -58,99 +68,74 @@ public sealed class EmployeeAccount : AggregateRoot, IAuditable
     private EmployeeAccount(
         Guid id,
         Guid employeeId,
-        PhoneNumber login,
         string passwordHash,
+        string? passwordProtected,
         DateTimeOffset passwordSetAt)
         : base(id)
     {
         EmployeeId = employeeId;
-        Login = login;
         PasswordHash = passwordHash;
+        PasswordProtected = passwordProtected;
         PasswordSetAt = passwordSetAt;
-        MustChangePassword = true;
-        IsActive = true;
     }
 
     /// <summary>EF Core uchun.</summary>
-    private EmployeeAccount()
-    {
-        Login = null!;
-        PasswordHash = string.Empty;
-    }
+    private EmployeeAccount() => PasswordHash = string.Empty;
 
     /// <summary>Kimning hisobi. Bitta xodimda bitta hisob (unikal indeks).</summary>
     public Guid EmployeeId { get; private set; }
 
-    /// <summary>Kirish uchun telefon raqami. Unikal.</summary>
-    /// <remarks>
-    /// ⚠️ <c>employees.phone</c> dan NUSXA, unga havola emas. HR formasi uni
-    /// xodim kartasidan oldindan to'ldiradi, keyin ikkalasi mustaqil yashaydi.
-    /// Rad etilgan muqobil — loginni o'qish paytida xodimdan olish: u holda
-    /// kadrlar maydonidagi xatoni tuzatish JIMGINA autentifikatsiya hodisasiga
-    /// aylanardi va odam nima uchun kira olmayotganini hech kim bilmasdi.
-    /// </remarks>
-    public PhoneNumber Login { get; private set; }
-
-    /// <summary>Parol xeshi. Ochiq parol hech qayerda saqlanmaydi.</summary>
+    /// <summary>Parol xeshi — kirishda FAQAT shu tekshiriladi.</summary>
     public string PasswordHash { get; private set; }
 
-    /// <summary>Birinchi kirishda parolni almashtirish MAJBURIYmi.</summary>
-    /// <remarks>
-    /// HR bergan bir martalik parol — o'qib yozib olinadigan satr. U
-    /// almashtirilmaguncha hisob faqat parol o'zgartirish endpointiga
-    /// ruxsat beradi.
-    /// </remarks>
-    public bool MustChangePassword { get; private set; }
-
     /// <summary>
-    /// Joriy xesh qachon yozilgan.
+    /// Ochiq parolning SHIFRLANGAN nusxasi (<c>ISecretProtector</c>) — HR ko'rishi uchun.
     /// </summary>
     /// <remarks>
-    /// <c>updated_at</c> buning o'rnini BOSMAYDI: HR hisobni
-    /// faolsizlantirgan lahzada u ham yangilanadi va «parol qachon
-    /// berilgan» degan javob yo'qoladi. Bu ustun bilan esa «berilgan,
-    /// lekin hech kim ishlatmagan bir martalik parollar» ro'yxatini
-    /// tuzish mumkin: <see cref="MustChangePassword"/> va
-    /// <see cref="LastLoginAt"/> <c>null</c>.
+    /// <para>
+    /// Egasining qarori (2026-09-27): parolni HR beradi va uni istalgan
+    /// payt ko'ra oladi — xodim unutsa, HR qaytadan aytib beradi. Xesh
+    /// bir tomonlama, shu sababli ikkinchi, QAYTARILADIGAN nusxa kerak.
+    /// U bazaning nusxasidan himoyalangan (kalit muhitda), serverga to'liq
+    /// kirgan odamdan esa yo'q — Telegram tokeni bilan bir xil chegara.
+    /// </para>
+    /// <para>
+    /// <c>null</c> — nusxa yo'q (bu qaror oldidan berilgan parol). Kalit
+    /// almashsa nusxa ochilmay qoladi; ikkala holatda ham HR «Yangi parol
+    /// yasash» ni bosadi.
+    /// </para>
+    /// </remarks>
+    public string? PasswordProtected { get; private set; }
+
+    /// <summary>
+    /// Joriy parol qachon berilgan.
+    /// </summary>
+    /// <remarks>
+    /// <c>updated_at</c> buning o'rnini BOSMAYDI: u har muvaffaqiyatli
+    /// kirishda ham yangilanadi (<see cref="LastLoginAt"/>) va «parol
+    /// qachon berilgan» degan javob yo'qoladi.
     /// </remarks>
     public DateTimeOffset PasswordSetAt { get; private set; }
 
-    /// <summary>HR ning qo'l o'chirgichi.</summary>
-    public bool IsActive { get; private set; }
-
-    /// <summary><c>null</c> — hech qachon kirmagan. Parol tiklansa ham TOZALANMAYDI.</summary>
+    /// <summary><c>null</c> — hech qachon kirmagan. Parol almashsa ham TOZALANMAYDI.</summary>
     public DateTimeOffset? LastLoginAt { get; private set; }
-
-    /// <summary>Ketma-ket noto'g'ri JORIY parol — parolni almashtirishda.</summary>
-    /// <remarks>
-    /// ⚠️ KIRISHDAGI xatolar bu yerda SANALMAYDI: ular (login, IP) juftligi
-    /// bo'yicha, hisobdan tashqarida olib boriladi (<c>EmployeeLoginThrottle</c>).
-    /// Hisob qatoridagi blok faqat tasdiqlangan sessiya ichidan keladigan
-    /// urinishlarga qo'yiladi — ularni begona odam yoqa olmaydi.
-    /// </remarks>
-    public int FailedLoginAttempts { get; private set; }
-
-    /// <summary>Shu lahzagacha parolni almashtirish bloklangan. <c>null</c> — blok yo'q.</summary>
-    public DateTimeOffset? LockedUntil { get; private set; }
 
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
 
-    /// <summary>HR yangi hisob ochadi — bir martalik parol bilan.</summary>
+    /// <summary>Yangi hisob — xodimga avtomatik ochiladi.</summary>
     /// <param name="employeeId">Kimga.</param>
-    /// <param name="login">Telefon raqami.</param>
     /// <param name="passwordHash">Tayyor xesh (yasash Infrastructure ishi).</param>
-    /// <param name="at">Parol yozilgan lahza.</param>
+    /// <param name="passwordProtected">Ochiq parolning shifrlangan nusxasi.</param>
+    /// <param name="at">Parol berilgan lahza.</param>
     public static Result<EmployeeAccount> Issue(
         Guid employeeId,
-        PhoneNumber login,
         string passwordHash,
+        string? passwordProtected,
         DateTimeOffset at)
     {
-        ArgumentNullException.ThrowIfNull(login);
-
         if (employeeId == Guid.Empty)
         {
             return Error.Validation("xodim_hisobi.xodim_yoq", "Xodim tanlanishi shart.");
@@ -158,110 +143,48 @@ public sealed class EmployeeAccount : AggregateRoot, IAuditable
 
         if (string.IsNullOrWhiteSpace(passwordHash))
         {
-            return Error.Validation("foydalanuvchi.parol_bosh", "Parol kiritilishi shart.");
+            return Error.Validation("xodim.parol_bosh", "Parol kiritilmagan.");
         }
 
-        return new EmployeeAccount(NewId(), employeeId, login, passwordHash, at);
+        return new EmployeeAccount(NewId(), employeeId, passwordHash, passwordProtected, at);
     }
 
     /// <summary>
-    /// HR parolni tiklaydi — yangi bir martalik parol.
+    /// HR yangi parol beradi — avtomatik yasalgan yoki o'zi yozgan.
     /// </summary>
     /// <remarks>
     /// <see cref="LastLoginAt"/> ATAYLAB tegilmaydi: «bu odam umuman kirganmi»
-    /// degan savol parol tiklanganidan keyin ham javobini saqlashi kerak.
+    /// degan savol parol almashganidan keyin ham javobini saqlashi kerak.
     /// </remarks>
     /// <param name="passwordHash">Yangi xesh.</param>
+    /// <param name="passwordProtected">Yangi parolning shifrlangan nusxasi.</param>
     /// <param name="at">Lahza.</param>
-    public void ResetPassword(string passwordHash, DateTimeOffset at)
+    public void SetPassword(string passwordHash, string passwordProtected, DateTimeOffset at)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordProtected);
 
         PasswordHash = passwordHash;
+        PasswordProtected = passwordProtected;
         PasswordSetAt = at;
-        MustChangePassword = true;
-        FailedLoginAttempts = 0;
-        LockedUntil = null;
     }
 
-    /// <summary>Xodimning O'ZI parolni almashtirdi.</summary>
-    /// <param name="passwordHash">Yangi xesh.</param>
-    /// <param name="at">Lahza.</param>
-    public void ChangePassword(string passwordHash, DateTimeOffset at)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
-
-        PasswordHash = passwordHash;
-        PasswordSetAt = at;
-        MustChangePassword = false;
-        FailedLoginAttempts = 0;
-        LockedUntil = null;
-    }
-
-    /// <summary>Loginni (telefon raqamini) almashtiradi.</summary>
+    /// <summary>
+    /// Xeshni yangi algoritm parametrlari bilan qayta yozadi — parolning O'ZI o'zgarmaydi.
+    /// </summary>
     /// <remarks>
-    /// Unikallik BU YERDA tekshirilmaydi — u boshqa qatorni so'rashni talab
-    /// qiladi, ya'ni use-case qatlamining ishi (<see cref="User.ChangeLogin"/>
-    /// dagi bilan bir xil chegara).
+    /// Kirishda xeshlagich «qayta xeshlash kerak» desa chaqiriladi.
+    /// <see cref="PasswordSetAt"/> va shifrlangan nusxa tegilmaydi: HR
+    /// nuqtai nazaridan parol almashmagan.
     /// </remarks>
-    /// <param name="login">Yangi raqam.</param>
-    public void ChangeLogin(PhoneNumber login)
+    /// <param name="passwordHash">Yangi xesh.</param>
+    public void RehashPassword(string passwordHash)
     {
-        ArgumentNullException.ThrowIfNull(login);
-        Login = login;
-    }
-
-    /// <summary>HR hisobni vaqtincha yopadi.</summary>
-    public void Deactivate() => IsActive = false;
-
-    /// <summary>HR hisobni qaytaradi — blok va hisoblagich ham tozalanadi.</summary>
-    public void Activate()
-    {
-        IsActive = true;
-        FailedLoginAttempts = 0;
-        LockedUntil = null;
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+        PasswordHash = passwordHash;
     }
 
     /// <summary>Muvaffaqiyatli kirish.</summary>
     /// <param name="at">Lahza.</param>
-    public void RecordSuccessfulLogin(DateTimeOffset at)
-    {
-        LastLoginAt = at;
-        FailedLoginAttempts = 0;
-        LockedUntil = null;
-    }
-
-    /// <summary>
-    /// Muvaffaqiyatsiz urinish. <see cref="MaxFailedAttempts"/> tadan keyin blok.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// ⚠️ Hisoblagich blok qo'yilgan lahzada NOLGA tushadi, ya'ni blok
-    /// KUCHAYMAYDI — har 15 daqiqada yana 5 ta urinish. Bu <see cref="User"/>
-    /// dan ko'chirilgan ataylabki qaror: cheksiz kuchayadigan blokda raqib
-    /// odamni butunlay qulflab qo'yishi mumkin.
-    /// </para>
-    /// <para>
-    /// Faqat PAROLNI ALMASHTIRISHDA chaqiriladi (noto'g'ri joriy parol):
-    /// ochiq qolgan telefondagi sessiya joriy parolni terib topishning
-    /// cheksiz kanali bo'lmasligi kerak. Kirishdagi xatolar esa hisobdan
-    /// tashqarida, (login, IP) bo'yicha sanaladi — hisob qatoridagi blokni
-    /// begona odam 950 ta ma'lum telefon raqamiga yoqib chiqa olardi.
-    /// </para>
-    /// </remarks>
-    /// <param name="at">Lahza.</param>
-    public void RecordFailedLogin(DateTimeOffset at)
-    {
-        FailedLoginAttempts++;
-
-        if (FailedLoginAttempts >= MaxFailedAttempts)
-        {
-            LockedUntil = at.AddMinutes(LockoutMinutes);
-            FailedLoginAttempts = 0;
-        }
-    }
-
-    /// <summary>Shu lahzada bloklanganmi.</summary>
-    /// <param name="moment">Tekshirish lahzasi.</param>
-    public bool IsLockedAt(DateTimeOffset moment) => LockedUntil is not null && LockedUntil > moment;
+    public void RecordSuccessfulLogin(DateTimeOffset at) => LastLoginAt = at;
 }

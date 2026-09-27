@@ -79,6 +79,12 @@ public sealed partial class EmployeeAppApiTests
     }
 
     /// <summary>Ishdan ketgan xodim — access token hali amal qilsa ham — belgilay olmaydi.</summary>
+    /// <remarks>
+    /// 2026-09-27 dan rad javobini <c>/api/me/*</c> to'sig'i beradi
+    /// (<c>xodim.hisob_faol_emas</c>) — ishlovchigacha yetib bormaydi. Ilgari
+    /// bu yerda belgilash ishlovchisining o'z kodi (<c>davomat.mobil_ruxsat_yoq</c>)
+    /// kutilardi; ishlovchidagi tekshiruv ikkinchi himoya bo'lib qoladi.
+    /// </remarks>
     [Fact]
     public async Task Ishdan_ketgan_xodim_belgilay_olmaydi()
     {
@@ -103,7 +109,7 @@ public sealed partial class EmployeeAppApiTests
         }
 
         using var javob = await BelgilaAsync(ilova, "In", markaz);
-        await XatoKutAsync(javob, HttpStatusCode.Forbidden, "davomat.mobil_ruxsat_yoq");
+        await XatoKutAsync(javob, HttpStatusCode.Forbidden, "xodim.hisob_faol_emas");
         await OtishYoqAsync(xodim.Id);
     }
 

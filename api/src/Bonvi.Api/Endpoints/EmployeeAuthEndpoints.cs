@@ -24,17 +24,12 @@ public sealed record EmployeeRefreshRequest(string? RefreshToken) : IRefreshToke
 /// <param name="RefreshToken">Shu qurilmaning yangilash tokeni — aynan u yopiladi.</param>
 public sealed record EmployeeLogoutRequest(string? RefreshToken) : IRefreshTokenBody;
 
-/// <summary>Parolni almashtirish tanasi.</summary>
-/// <param name="CurrentPassword">Joriy parol.</param>
-/// <param name="NewPassword">Yangi parol.</param>
-public sealed record ChangeEmployeePasswordRequest(string? CurrentPassword, string? NewPassword);
-
 /// <summary>
 /// Xodim ilovasining autentifikatsiya endpointlari.
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⭐ <b>Uchalasi ham <c>bonvi-employee</c> auditoriyasidagi token beradi
+/// ⭐ <b>Kirish va yangilash <c>bonvi-employee</c> auditoriyasidagi token beradi
 /// va uning ichida RUXSAT DA'VOLARI YO'Q</b> (SPEC §D2). Bunday token HR
 /// endpointiga ko'rsatilsa, imzosi to'g'ri bo'lsa ham auditoriya
 /// tekshiruvidan o'tmaydi — «deyarli ruxsatli» degan holat mavjud emas.
@@ -49,6 +44,11 @@ public sealed record ChangeEmployeePasswordRequest(string? CurrentPassword, stri
 /// Parol terib ko'rishga qarshi asosiy to'siq — (login, IP) bo'yicha blok
 /// (<c>EmployeeLoginThrottle</c>). Yangilash va chiqish esa tokenning
 /// xeshi bo'yicha cheklanadi (<see cref="RateLimitingExtensions.RequireRefreshTokenRateLimiting{TBuilder}"/>).
+/// </para>
+/// <para>
+/// ⚠️ <b>Parolni almashtirish endpointi YO'Q</b> (2026-09-27 dan): parolni
+/// faqat HR beradi va ko'radi (<c>EmployeeAccountEndpoints</c>), xodim uni
+/// almashtira olmaydi.
 /// </para>
 /// </remarks>
 public static class EmployeeAuthEndpoints
@@ -77,13 +77,11 @@ public static class EmployeeAuthEndpoints
             .WithName("EmployeeLogin")
             .WithSummary("Xodim ilovasi — kirish")
             .WithDescription(
-                "HR bergan telefon raqami va parol bilan kirish. Javob: token juftligi va " +
-                "«mustChangePassword» — bir martalik parol hali almashtirilmagan bo'lsa «true», " +
-                "u holda ilova faqat parol o'rnatish ekranini ochadi. " +
-                "Xatolar: «xodim.notogri_malumot» (400 — login, parol, ishdan ketgan yoki " +
-                "o'chirilgan xodim; hammasi BITTA javob), «xodim.bloklangan» (403 — shu " +
-                "login va shu manzildan 5 ta xato, 15 daqiqa; javobda «retryAfterMinutes»; " +
-                "hisob bor-yo'qligidan qat'i nazar bir xil), «xodim.hisob_faol_emas» (403).")
+                "Login — xodim profilidagi ASOSIY telefon, parol — HR bergani. Javob: token juftligi. " +
+                "Xatolar: «xodim.notogri_malumot» (400 — noma'lum yoki bir nechta xodimda takror " +
+                "raqam, noto'g'ri parol, ishdan ketgan yoki o'chirilgan xodim; hammasi BITTA javob), " +
+                "«xodim.bloklangan» (403 — shu login va shu manzildan 5 ta xato, 15 daqiqa; javobda " +
+                "«retryAfterMinutes»; hisob bor-yo'qligidan qat'i nazar bir xil).")
             .Produces<EmployeeAuthResultDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
@@ -111,7 +109,7 @@ public static class EmployeeAuthEndpoints
                 "qayta ishlatilsa — o'g'irlik belgisi: hisobning BARCHA sessiyalari yopiladi. " +
                 "ISTISNO: hozirgina (60 soniya ichida) almashtirilgan token, o'rniga " +
                 "berilgani hali ishlatilmagan bo'lsa, AYNAN O'SHA juftlikni qayta oladi — " +
-                "javobi yo'lda yo'qolgan so'rov. Ishdan ketgan yoki hisobi yopilgan xodimda " +
+                "javobi yo'lda yo'qolgan so'rov. Ishdan ketgan yoki o'chirilgan xodimda " +
                 "yangilash ishlamaydi. Xato: «xodim.token_yaroqsiz» (403), " +
                 "«rate_limit.oshib_ketdi» (429).")
             .Produces<EmployeeAuthResultDto>(StatusCodes.Status200OK)
@@ -144,44 +142,6 @@ public static class EmployeeAuthEndpoints
                 "bo'lmasligi uchun).")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
-
-        group.MapPost("/password", async (
-                ChangeEmployeePasswordRequest request,
-                ChangeEmployeePasswordCommandHandler handler,
-                HttpContext http,
-                CancellationToken cancellationToken) =>
-            {
-                var natija = await handler
-                    .HandleAsync(
-                        new ChangeEmployeePasswordCommand(
-                            request.CurrentPassword,
-                            request.NewPassword,
-                            ClientIp(http)),
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                return natija.ToHttpResult();
-            })
-
-            // ⚠️ Xodim SXEMASI, lekin `/api/me/*` dagi «parol almashtirilgan
-            // bo'lsin» filtridan TASHQARIDA — aks holda majburiy birinchi
-            // almashtirish umuman bajarilmas edi (sababi ishlovchida).
-            .RequireAuthorization(AuthenticationExtensions.EmployeePolicy)
-            .WithName("ChangeEmployeePassword")
-            .WithSummary("Xodim ilovasi — parolni almashtirish")
-            .WithDescription(
-                "Joriy parol MAJBURIY, garchi so'rov tasdiqlangan token bilan kelsa ham: " +
-                "ochiq qolgan telefon parolni almashtirishning eng oson yo'li bo'lib qolmasligi kerak " +
-                "(birinchi kirishda — HR bergan bir martalik parol). " +
-                "Almashgandan keyin barcha eski sessiyalar yopiladi va javobda YANGI juftlik keladi — " +
-                "mijoz uni saqlab, eski yangilash tokenini tashlashi SHART. " +
-                "Xatolar: «xodim.parol_notogri», «foydalanuvchi.parol_bosh», «foydalanuvchi.parol_qisqa» (400); " +
-                "«xodim.hisob_faol_emas», «xodim.bloklangan» (403 — 5 ta noto'g'ri joriy parol, " +
-                "15 daqiqa).")
-            .Produces<EmployeeAuthResultDto>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         return app;
     }

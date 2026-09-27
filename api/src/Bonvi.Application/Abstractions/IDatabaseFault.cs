@@ -80,4 +80,15 @@ public interface IDatabaseFault
     /// </para>
     /// </remarks>
     bool IsConcurrentDayWrite(Exception exception);
+
+    /// <summary>
+    /// Istisno xodimga IKKINCHI ilova hisobi ochilmoqchi bo'lgani sababli yuzaga kelganmi.
+    /// </summary>
+    /// <remarks>
+    /// Faqat <c>ux_employee_accounts_employee</c> buzilishi: hisob avtomatik
+    /// ochiladi — fon vazifasi va HR «Ilova» bo'limini ochgan lahza bir
+    /// vaqtga tushishi mumkin. Bu nosozlik emas, poyga: ikkinchisi birinchi
+    /// ochgan hisobni qayta o'qiydi.
+    /// </remarks>
+    bool IsDuplicateEmployeeAccount(Exception exception);
 }

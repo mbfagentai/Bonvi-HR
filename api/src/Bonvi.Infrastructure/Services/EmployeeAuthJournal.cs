@@ -32,6 +32,8 @@ internal sealed partial class EmployeeAuthJournal : IEmployeeAuthJournal
 
     public void RefreshTokenReused(Guid accountId) => LogRefreshTokenReused(accountId);
 
+    public void AccountsProvisioned(int created) => LogAccountsProvisioned(created);
+
     [LoggerMessage(
         EventId = 5400,
         Level = LogLevel.Information,
@@ -49,4 +51,10 @@ internal sealed partial class EmployeeAuthJournal : IEmployeeAuthJournal
         Level = LogLevel.Warning,
         Message = "Xodim hisobi {Hisob}: bekor qilingan yangilash tokeni qayta ishlatildi — barcha sessiyalar yopildi")]
     private partial void LogRefreshTokenReused(Guid hisob);
+
+    [LoggerMessage(
+        EventId = 5403,
+        Level = LogLevel.Information,
+        Message = "Xodim ilovasi hisoblari: {Soni} ta xodimga avtomatik hisob ochildi")]
+    private partial void LogAccountsProvisioned(int soni);
 }

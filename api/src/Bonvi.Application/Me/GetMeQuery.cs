@@ -51,7 +51,7 @@ public sealed class GetMeQueryHandler
         }
 
         var account = await _accounts.GetByIdAsync(accountId, cancellationToken).ConfigureAwait(false);
-        if (account is null || !account.IsActive)
+        if (account is null)
         {
             return EmployeeAccountErrors.AccountInactive;
         }
@@ -62,9 +62,8 @@ public sealed class GetMeQueryHandler
 
         if (profile is null)
         {
-            // Xodim yumshoq o'chirilgan — kirish yo'li buni allaqachon
-            // to'sadi (INV-1), lekin access token 15 daqiqa amal qiladi va
-            // shu oynada bu holat mumkin.
+            // Xodim yumshoq o'chirilgan — `/api/me` to'sig'i buni allaqachon
+            // ushlaydi (`EmployeeAccessGate`); bu — ikkinchi, arzon himoya.
             return EmployeeAccountErrors.AccountInactive;
         }
 
@@ -85,7 +84,6 @@ public sealed class GetMeQueryHandler
             profile.Department,
             profile.Position,
             profile.MobileCheckInAllowed,
-            account.MustChangePassword,
             absenceTypes);
     }
 }

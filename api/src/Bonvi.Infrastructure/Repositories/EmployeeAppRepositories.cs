@@ -1,5 +1,6 @@
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
+using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
@@ -14,23 +15,47 @@ public sealed class EmployeeAccountRepository : Repository<EmployeeAccount>, IEm
 
     /// <inheritdoc />
     /// <remarks>
-    /// ⚠️ <c>AsNoTracking</c> ATAYLAB yo'q: topilgan hisob darhol o'zgaradi —
-    /// muvaffaqiyatli kirishda <c>last_login_at</c>, xatoda esa
-    /// urinishlar hisoblagichi yoziladi. Kuzatilmagan obyektdagi
-    /// o'zgarish jimgina yo'qolardi va blok umuman ishlamas edi.
+    /// <para>
+    /// Ikki so'rov: avval raqam egalari (ko'pi bilan IKKITA o'qiladi — bittadan
+    /// ko'pligini bilish uchun shu yetadi), keyin yagona egasining hisobi
+    /// (<c>ux_employee_accounts_employee</c>). Xodimlar jadvalining yumshoq
+    /// o'chirish filtri BIRINCHI so'rovda ishlaydi — o'chirilgan xodimning
+    /// raqami hech kimga kirish bermaydi va boshqaga «takror» ham sanalmaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <c>AsNoTracking</c> hisob so'rovida ATAYLAB yo'q: topilgan hisob
+    /// darhol o'zgaradi — muvaffaqiyatli kirishda <c>last_login_at</c>
+    /// yoziladi. Kuzatilmagan obyektdagi o'zgarish jimgina yo'qolardi.
+    /// </para>
     /// </remarks>
-    public Task<EmployeeAccount?> FindByLoginAsync(
+    public async Task<EmployeeAccount?> FindByLoginAsync(
         PhoneNumber login,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(login);
 
-        // Qiymat obyektining O'ZI solishtiriladi, `.Value` emas: `Login`
+        // Qiymat obyektining O'ZI solishtiriladi, `.Value` emas: `Phone`
         // konvertor orqali `text` ga tushgan, ya'ni EF uchun u skalyar va
-        // butun obyekt `employee_accounts.login = @p0` ga aylanadi.
-        // `.Value` ga murojaat esa SQL'ga tarjima bo'lmasdi
+        // butun obyekt `employees.phone = @p0` ga aylanadi
         // (`UserRepository.GetByLoginAsync` dagi bilan bir xil to'siq).
-        return Set.FirstOrDefaultAsync(account => account.Login == login, cancellationToken);
+        var holders = await Context.Employees
+            .AsNoTracking()
+            .Where(employee => employee.Phone == login)
+            .Select(employee => employee.Id)
+            .Take(2)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (holders.Count != 1)
+        {
+            return null;
+        }
+
+        var employeeId = holders[0];
+
+        return await Set
+            .FirstOrDefaultAsync(account => account.EmployeeId == employeeId, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -41,21 +66,66 @@ public sealed class EmployeeAccountRepository : Repository<EmployeeAccount>, IEm
         => Set.FirstOrDefaultAsync(account => account.EmployeeId == employeeId, cancellationToken);
 
     /// <inheritdoc />
-    public Task<bool> LoginExistsAsync(
-        PhoneNumber login,
-        Guid? exceptAccountId = null,
+    /// <remarks>
+    /// Identifikator bo'yicha tartiblanadi — ekranda ro'yxat har ochilganda
+    /// bir xil ketma-ketlikda chiqsin.
+    /// </remarks>
+    public async Task<IReadOnlyList<Employee>> PhoneHoldersAsync(
+        PhoneNumber phone,
+        int take,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(login);
+        ArgumentNullException.ThrowIfNull(phone);
 
-        var query = Set.AsNoTracking().Where(account => account.Login == login);
+        return await Context.Employees
+            .AsNoTracking()
+            .Where(employee => employee.Phone == phone)
+            .OrderBy(employee => employee.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
 
-        if (exceptAccountId is { } id)
-        {
-            query = query.Where(account => account.Id != id);
-        }
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>NOT EXISTS</c> — <c>ux_employee_accounts_employee</c> indeksi
+    /// bo'yicha. Tartib — birlamchi kalit: bo'laklar har yurishda bir xil
+    /// ketma-ketlikda olinadi.
+    /// </remarks>
+    public async Task<IReadOnlyList<Guid>> EmployeesWithoutAccountAsync(
+        int take,
+        CancellationToken cancellationToken = default)
+        => await Context.Employees
+            .AsNoTracking()
+            .Where(employee => !Set.Any(account => account.EmployeeId == employee.Id))
+            .OrderBy(employee => employee.Id)
+            .Select(employee => employee.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        return query.AnyAsync(cancellationToken);
+    /// <inheritdoc />
+    /// <remarks>
+    /// Xodimlar jadvaliga qo'shilish (join) — yumshoq o'chirish filtri shu
+    /// yerda ishlaydi, ya'ni o'chirilgan xodimning hisobi <c>null</c> beradi.
+    /// </remarks>
+    public async Task<Guid?> LiveEmployeeIdAsync(
+        Guid accountId,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = await Set
+            .AsNoTracking()
+            .Where(account => account.Id == accountId)
+            .Join(
+                Context.Employees,
+                account => account.EmployeeId,
+                employee => employee.Id,
+                (account, employee) => employee.Id)
+            .Take(1)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return ids.Count == 0 ? null : ids[0];
     }
 
     /// <inheritdoc />
@@ -99,22 +169,6 @@ public sealed class EmployeeAccountRepository : Repository<EmployeeAccount>, IEm
             .ConfigureAwait(false);
 
         return locked.Count == 0 ? null : locked[0];
-    }
-
-    /// <inheritdoc />
-    public async Task<bool?> MustChangePasswordAsync(
-        Guid accountId,
-        CancellationToken cancellationToken = default)
-    {
-        var flags = await Set
-            .AsNoTracking()
-            .Where(account => account.Id == accountId)
-            .Select(account => account.MustChangePassword)
-            .Take(1)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return flags.Count == 0 ? null : flags[0];
     }
 }
 

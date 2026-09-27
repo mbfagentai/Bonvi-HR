@@ -39,4 +39,8 @@ public interface IEmployeeAuthJournal
     /// </remarks>
     /// <param name="accountId">Hisob.</param>
     void RefreshTokenReused(Guid accountId);
+
+    /// <summary>Fon vazifasi hisobi yo'q xodimlarga hisob ochib bo'ldi.</summary>
+    /// <param name="created">Shu yurishda ochilgan hisoblar soni.</param>
+    void AccountsProvisioned(int created);
 }

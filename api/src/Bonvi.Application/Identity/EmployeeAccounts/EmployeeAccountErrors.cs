@@ -18,15 +18,17 @@ public static class EmployeeAccountErrors
     /// </summary>
     /// <remarks>
     /// <para>
-    /// ⭐ Bu kod beshta boshqa-boshqa holatni qoplaydi: bunday login yo'q,
-    /// parol noto'g'ri, hisob yumshoq o'chirilgan xodimga tegishli, xodim
-    /// ishdan ketgan (INV-2) va telefon raqami umuman noto'g'ri formatda.
-    /// Ularni ajratish kirish endpointini «bu raqam Bonvi xodimimi?» degan
-    /// savolga javob beradigan ochiq API ga aylantirardi — 950 ta telefon
-    /// raqamli korxonada bu jiddiy sizib chiqish.
+    /// ⭐ Bu kod bir nechta boshqa-boshqa holatni qoplaydi: bunday raqamli
+    /// xodim yo'q, raqam BIR NECHTA xodimda bor (profilda takror), parol
+    /// noto'g'ri, xodim yumshoq o'chirilgan, xodim ishdan ketgan (INV-2) va
+    /// telefon raqami umuman noto'g'ri formatda. Ularni ajratish kirish
+    /// endpointini «bu raqam Bonvi xodimimi?» degan savolga javob beradigan
+    /// ochiq API ga aylantirardi — 950 ta telefon raqamli korxonada bu
+    /// jiddiy sizib chiqish.
     /// </para>
     /// <para>
-    /// Haqiqiy sabab LOGGA yoziladi, javobga emas.
+    /// Haqiqiy sabab LOGGA yoziladi yoki HR ning «Ilova» bo'limida
+    /// ko'rinadi (raqam yo'q / takror), javobga emas.
     /// </para>
     /// </remarks>
     public static Error InvalidCredentials { get; } = Error.Validation(
@@ -40,12 +42,19 @@ public static class EmployeeAccountErrors
         $"Ko'p marta noto'g'ri urinish. {minutes} daqiqadan keyin qayta urinib ko'ring.")
         .WithDetails(new Dictionary<string, object> { ["retryAfterMinutes"] = minutes });
 
-    /// <summary>HR hisobni yopib qo'ygan.</summary>
+    /// <summary>Hisob endi ishlamaydi — xodim ishdan ketgan yoki o'chirilgan.</summary>
     /// <remarks>
-    /// <see cref="InvalidCredentials"/> dan ATAYLAB ajratilgan va bu oshkorlik
-    /// EMAS: bu javobni faqat TO'G'RI parol kiritgan odam ko'radi, ya'ni
-    /// hisobning egasi. Unga «parolingiz noto'g'ri» deyish uni parolni
-    /// qayta-qayta terishga va oxirida o'zini bloklab qo'yishga olib borardi.
+    /// <para>
+    /// Faqat ALLAQACHON kirgan odam ko'radi: <c>/api/me/*</c> ning har bir
+    /// so'rovidagi to'siq (<c>EmployeeAccessGate</c>) — ishdan bo'shatish
+    /// access token muddati tugashini kutmasdan, SHU ZAHOTI kuchga kiradi.
+    /// Kirishning o'zida esa bu holat <see cref="InvalidCredentials"/>
+    /// bilan qaytadi (oshkor qilmaslik).
+    /// </para>
+    /// <para>
+    /// Qo'lda «hisobni yopish» YO'Q (egasining qarori, 2026-09-27): yagona
+    /// o'chirgich — ishdan ketish.
+    /// </para>
     /// </remarks>
     public static Error AccountInactive { get; } = Error.Forbidden(
         "xodim.hisob_faol_emas",
@@ -61,47 +70,33 @@ public static class EmployeeAccountErrors
         "xodim.token_yaroqsiz",
         "Sessiya muddati tugadi. Qaytadan kiring.");
 
-    /// <summary>Joriy parol noto'g'ri.</summary>
-    public static Error WrongPassword { get; } = Error.Validation(
-        "xodim.parol_notogri",
-        "Joriy parol noto'g'ri.");
+    // ── HR tomoni: parol ────────────────────────────────────────────
 
-    /// <summary>Bir martalik parol hali almashtirilmagan.</summary>
+    /// <summary>HR parolni bo'sh qoldirdi.</summary>
+    public static Error PasswordEmpty { get; } = Error.Validation(
+        "xodim.parol_bosh",
+        "Parol kiritilmagan.");
+
+    /// <summary>HR yozgan parol juda qisqa.</summary>
+    public static Error PasswordTooShort { get; } = Error.Validation(
+        "xodim.parol_qisqa",
+        $"Parol kamida {EmployeePassword.MinLength} belgidan iborat bo'lishi kerak.")
+        .WithDetails(new Dictionary<string, object> { ["min"] = EmployeePassword.MinLength });
+
+    /// <summary>HR yozgan parol juda uzun.</summary>
+    public static Error PasswordTooLong { get; } = Error.Validation(
+        "xodim.parol_uzun",
+        $"Parol {EmployeePassword.MaxLength} belgidan oshmasligi kerak.")
+        .WithDetails(new Dictionary<string, object> { ["max"] = EmployeePassword.MaxLength });
+
+    /// <summary>Saqlangan parolni ko'rsatib bo'lmaydi.</summary>
     /// <remarks>
-    /// HR bergan parol o'qib yozib olinadigan satr — u almashtirilmaguncha
-    /// hisob faqat parol o'zgartirish endpointiga ruxsat beradi. 403:
-    /// autentifikatsiya joyida, faqat amal taqiqlangan.
+    /// Ikki holat: shifrlangan nusxa umuman yo'q (bu qaror oldidan berilgan
+    /// parol) yoki shifrlash kaliti almashgan (<c>JWT__SIGNINGKEY</c>).
+    /// Ikkalasida ham yagona chiqish — yangi parol yasash; xodimning hozirgi
+    /// paroli esa ishlashda davom etadi.
     /// </remarks>
-    public static Error PasswordChangeRequired { get; } = Error.Forbidden(
-        "xodim.parol_almashtirilsin",
-        "Avval bir martalik parolni almashtiring.");
-
-    // ── HR tomoni ───────────────────────────────────────────────────
-
-    /// <summary>Bunday hisob yo'q.</summary>
-    public static Error NotFound { get; } = Error.NotFound(
-        "xodim.hisob_topilmadi",
-        "Bu xodimning ilova hisobi yo'q.");
-
-    /// <summary>Xodimda hisob allaqachon bor.</summary>
-    /// <remarks>
-    /// Bitta xodimda bitta hisob (<c>ux_employee_accounts_employee</c>).
-    /// Parolni unutgan odamga YANGI hisob emas, parol tiklash kerak — aks
-    /// holda «qaysi hisob haqiqiy» degan savol tug'ilardi.
-    /// </remarks>
-    public static Error AlreadyExists { get; } = Error.Conflict(
-        "xodim.hisob_bor",
-        "Bu xodimda ilova hisobi allaqachon bor. Parolni tiklang.");
-
-    /// <summary>Bu telefon raqami boshqa hisobga biriktirilgan.</summary>
-    /// <remarks>
-    /// ⚠️ Bu birinchi haftadayoq uchraydi: <c>employees.phone</c> UNIKAL EMAS
-    /// va ko'chirilgan ma'lumotda takroriy raqamlar bor. Xabar aynan shuni
-    /// aytadi — «to'qnashuv» demaydi — aks holda HR imkoniyatni buzuq deb
-    /// o'ylardi.
-    /// </remarks>
-    public static Error LoginTaken { get; } = Error.Conflict(
-        "xodim.login_band",
-        "Bu telefon raqami boshqa xodimning ilova hisobiga biriktirilgan. " +
-        "Xodim kartasidagi raqamni tekshiring yoki boshqa raqam kiriting.");
+    public static Error PasswordUnavailable { get; } = Error.Conflict(
+        "xodim.parol_korinmaydi",
+        "Parolni ko'rsatib bo'lmaydi. Yangi parol yasang va xodimga ayting.");
 }

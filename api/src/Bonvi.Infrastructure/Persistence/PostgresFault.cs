@@ -54,6 +54,15 @@ internal sealed class PostgresFault : IDatabaseFault
     /// </remarks>
     public const string ManagedNumberIndex = "ux_attendance_identities_managed_employee";
 
+    /// <summary>
+    /// Xodimga bitta ilova hisobi — <c>EmployeeAccountConfiguration</c> dagi nom.
+    /// </summary>
+    /// <remarks>
+    /// Nom o'zgarsa, avtomatik ochishdagi poyga 500 bo'lib qaytadi — shu
+    /// sababli ikkalasi bir vaqtda o'zgartiriladi.
+    /// </remarks>
+    private const string EmployeeAccountIndex = "ux_employee_accounts_employee";
+
     public bool IsDuplicateName(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -96,6 +105,13 @@ internal sealed class PostgresFault : IDatabaseFault
         return exception is DbUpdateConcurrencyException concurrency
             && concurrency.Entries.Count > 0
             && concurrency.Entries.All(entry => entry.Entity is AttendanceDay);
+    }
+
+    public bool IsDuplicateEmployeeAccount(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return string.Equals(UniqueViolation(exception)?.ConstraintName, EmployeeAccountIndex, StringComparison.Ordinal);
     }
 
     /// <summary>Unikallik buzilishi bo'lsa — drayver istisnosi, aks holda <c>null</c>.</summary>

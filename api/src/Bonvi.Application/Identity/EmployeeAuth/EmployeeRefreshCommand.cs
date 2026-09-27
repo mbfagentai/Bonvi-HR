@@ -32,10 +32,10 @@ public sealed record EmployeeRefreshCommand(string? RefreshToken, string? IpAddr
 /// tizimdan chiqarib yuborardi.
 /// </para>
 /// <para>
-/// ⚠️ Yangilash HISOB va XODIM holatini QAYTA tekshiradi: ishdan ketgan yoki
-/// hisobi yopilgan odamda access token muddati tugashi bilan sessiya
-/// o'ladi. Usiz «ishdan bo'shatildi» degan qaror yetti kun davomida
-/// kuchga kirmasdi.
+/// ⚠️ Yangilash XODIM holatini QAYTA tekshiradi: ishdan ketgan yoki
+/// o'chirilgan odamda sessiya o'ladi. Usiz «ishdan bo'shatildi» degan qaror
+/// yetti kun davomida kuchga kirmasdi (access token esa undan oldin —
+/// <c>/api/me/*</c> to'sig'ida — to'xtaydi).
 /// </para>
 /// </remarks>
 public sealed class EmployeeRefreshCommandHandler
@@ -118,7 +118,7 @@ public sealed class EmployeeRefreshCommandHandler
         }
 
         var account = await _accounts.GetByIdAsync(stored.EmployeeAccountId, cancellationToken).ConfigureAwait(false);
-        if (account is null || !account.IsActive)
+        if (account is null)
         {
             return EmployeeAccountErrors.InvalidRefreshToken;
         }
@@ -147,8 +147,7 @@ public sealed class EmployeeRefreshCommandHandler
         var result = new EmployeeAuthResultDto(
             pair.AccessToken,
             pair.AccessTokenExpiresAt,
-            pair.RefreshToken,
-            account.MustChangePassword);
+            pair.RefreshToken);
 
         // Saqlangandan KEYIN: saqlash yiqilsa, eslab qolinadigan javob yo'q.
         _replay.Remember(hash, pair.RefreshTokenHash, result, now);

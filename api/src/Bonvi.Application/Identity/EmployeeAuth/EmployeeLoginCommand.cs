@@ -8,7 +8,9 @@ using Bonvi.Domain.ValueObjects;
 namespace Bonvi.Application.Identity.EmployeeAuth;
 
 /// <summary>Xodim ilovasiga kirish so'rovi.</summary>
-/// <param name="Login">Telefon raqami: 9 xona yoki +998 bilan.</param>
+/// <param name="Login">
+/// Telefon raqami: 9 xona yoki +998 bilan — xodim profilidagi ASOSIY telefon.
+/// </param>
 /// <param name="Password">Ochiq parol. Hech qayerga yozilmaydi va loglanmaydi.</param>
 /// <param name="IpAddress">So'rov kelgan manzil — token zanjiri uchun.</param>
 public sealed record EmployeeLoginCommand(string? Login, string? Password, string? IpAddress);
@@ -20,10 +22,16 @@ public sealed record EmployeeLoginCommand(string? Login, string? Password, strin
 /// <para><b>Tekshiruv tartibi va uning sabablari:</b></para>
 /// <list type="number">
 ///   <item>
-///     <b>Bitta rad javobi.</b> «Bunday login yo'q», «parol noto'g'ri»,
-///     «xodim o'chirilgan» va «xodim ishdan ketgan» — hammasi
-///     <c>xodim.notogri_malumot</c>. Ajratilsa, endpoint «bu raqam Bonvi
-///     xodimimi?» degan savolga javob beradigan ochiq xizmatga aylanardi.
+///     <b>Login — profil telefoni.</b> Hisob <c>employees.phone</c> orqali
+///     topiladi (<see cref="IEmployeeAccountRepository.FindByLoginAsync"/>):
+///     HR profilda raqamni tuzatsa, yangi raqam SHU ZAHOTI ishlaydi, eskisi
+///     esa yo'q. Raqam ikki o'chirilmagan xodimda bo'lsa — hech kim kirmaydi.
+///   </item>
+///   <item>
+///     <b>Bitta rad javobi.</b> «Bunday raqam yo'q», «raqam takror»,
+///     «parol noto'g'ri», «xodim o'chirilgan» va «xodim ishdan ketgan» —
+///     hammasi <c>xodim.notogri_malumot</c>. Ajratilsa, endpoint «bu raqam
+///     Bonvi xodimimi?» degan savolga javob beradigan ochiq xizmatga aylanardi.
 ///   </item>
 ///   <item>
 ///     <b>Vaqt bo'yicha oshkor qilmaslik.</b> Hisob topilmasa ham soxta
@@ -39,11 +47,11 @@ public sealed record EmployeeLoginCommand(string? Login, string? Password, strin
 ///     farqlantirardi.
 ///   </item>
 ///   <item>
-///     ⚠️ <b>INV-2 nega umuman kerak.</b> Hisob LOGIN bo'yicha topiladi,
-///     xodim orqali emas — ya'ni EF ning yumshoq o'chirish filtri bu yo'lga
-///     tushmaydi va ishdan ketgan odam hech qanday to'siqsiz kiraverardi.
-///     Buni hech qanday cheklov (constraint) ifodalay olmaydi; faqat shu
-///     yerdagi tekshiruv va uning testi.
+///     ⚠️ <b>INV-2 nega umuman kerak.</b> Ishdan ketgan odamning yozuvi
+///     o'chirilmaydi — raqami ham, hisobi ham joyida. Qo'lda «hisobni yopish»
+///     yo'q, ya'ni ishdan ketish YAGONA o'chirgich va uni hech qanday cheklov
+///     (constraint) ifodalay olmaydi; faqat shu yerdagi tekshiruv, yangilash
+///     va <c>/api/me/*</c> to'sig'i (<see cref="EmployeeAccessGate"/>).
 ///   </item>
 /// </list>
 /// <para>
@@ -153,7 +161,7 @@ public sealed class EmployeeLoginCommandHandler
         }
 
         // Parol to'g'ri — juftlikning tarixi o'chadi. Quyidagi rad etishlar
-        // (o'chirilgan, ishdan ketgan, yopilgan hisob) parol taxminlash emas.
+        // (o'chirilgan yoki ishdan ketgan xodim) parol taxminlash emas.
         _throttle.RecordSuccess(key, command.IpAddress);
 
         // ── INV-1: xodim o'chirilganmi (global filtr shu yerda ishlaydi) ──
@@ -169,26 +177,17 @@ public sealed class EmployeeLoginCommandHandler
         // Ishdan ketish SANA bo'yicha kuchga kiradi, HR yozib qo'ygan lahzada
         // emas — terminal ro'yxatidagi bilan aynan bir xil qoida. Qayta ishga
         // olingan odamda esa yangi munosabat paydo bo'lishi bilan hisob o'zi
-        // ochiladi (eski paroli bilan): bu uning O'Z paroli, lekin HR ni
-        // tiklashga undash kerak — bu ataylab qoldirilgan, kutilmagan emas.
+        // ochiladi (o'sha parol bilan) — egasining qarori: o'chirgich
+        // faqat ishdan ketish.
         if (!await _employments.IsEmployedOnAsync(employee.Id, now.TashkentDate(), cancellationToken).ConfigureAwait(false))
         {
             _journal.NotEmployed(employee.Id);
             return EmployeeAccountErrors.InvalidCredentials;
         }
 
-        // Hisobning o'zi yopilganmi — BOSHQA savol va BOSHQA javob.
-        // Bu yerga faqat parolni to'g'ri kiritgan odam yetib keladi, ya'ni
-        // hisobning egasi: unga «parol noto'g'ri» deyish uni parolni
-        // qayta-qayta terib, o'zini bloklab qo'yishga olib borardi.
-        if (!account.IsActive)
-        {
-            return EmployeeAccountErrors.AccountInactive;
-        }
-
         if (needsRehash)
         {
-            account.ChangePassword(_passwordHasher.Hash(command.Password!), now);
+            account.RehashPassword(_passwordHasher.Hash(command.Password!));
         }
 
         account.RecordSuccessfulLogin(now);
@@ -207,8 +206,7 @@ public sealed class EmployeeLoginCommandHandler
         return new EmployeeAuthResultDto(
             pair.AccessToken,
             pair.AccessTokenExpiresAt,
-            pair.RefreshToken,
-            account.MustChangePassword);
+            pair.RefreshToken);
     }
 
     /// <summary>Soxta xeshni bir marta hisoblab, keshlab qo'yadi.</summary>

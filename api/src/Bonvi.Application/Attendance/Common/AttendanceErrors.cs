@@ -360,7 +360,7 @@ public static class AttendanceErrors
 
     // ── Telefondan belgilash (SPEC-xodim-ilovasi §E) ────────────────
 
-    /// <summary>Xodimga telefondan belgilash ruxsati berilmagan yoki hisobi yopilgan.</summary>
+    /// <summary>Xodimga telefondan belgilash ruxsati berilmagan yoki u bugun ishlamaydi.</summary>
     /// <remarks>
     /// 403: so'rov to'g'ri, lekin bu imkoniyat shu odamda YOQILMAGAN. Qayta
     /// urinish hech qachon yordam bermaydi va ilova aynan shu sababli bu

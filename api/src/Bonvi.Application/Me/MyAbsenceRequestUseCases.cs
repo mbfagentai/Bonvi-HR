@@ -43,11 +43,9 @@ public sealed record CancelMyRequestCommand(Guid RequestId);
 /// <remarks>
 /// ⭐ <b>Identifikator HISOBDAN o'qiladi, tokendagi <c>emp</c> da'vosidan
 /// emas.</b> Da'vo ham bor va u qulay, lekin u token berilgan lahzadagi
-/// holatning NUSXASI: hisob qayta biriktirilsa yoki yopilsa, eski token
-/// 15 daqiqa davomida eski javobni olib yurardi. Hisob qatori esa har doim
-/// joriy haqiqat, va uning faolligi shu yerda bir joyda tekshiriladi —
-/// uchala use-case ham shu tekshiruvdan o'tadi va birortasi uni
-/// unutishi mumkin emas.
+/// holatning NUSXASI. Hisob qatori esa har doim joriy haqiqat. «Xodim hali
+/// ishlaydimi» degan savol bu yerda EMAS — u butun <c>/api/me/*</c> guruhi
+/// uchun bitta to'siqda (<c>EmployeeAccessGate</c>).
 /// </remarks>
 /// <remarks>
 /// ⚠️ Sinf ATAYLAB <c>public</c>, garchi u faqat shu fayl ichida
@@ -84,7 +82,7 @@ public sealed class CurrentEmployeeResolver
 
         var account = await _accounts.GetByIdAsync(accountId, cancellationToken).ConfigureAwait(false);
 
-        return account is null || !account.IsActive
+        return account is null
             ? EmployeeAccountErrors.AccountInactive
             : new CurrentEmployeeIds(account.Id, account.EmployeeId);
     }

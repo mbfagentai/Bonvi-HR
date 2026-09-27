@@ -80,17 +80,12 @@ public sealed record MyAbsenceRequestBody(
 ///   </item>
 /// </list>
 /// <para>
-/// ⚠️ Parolni almashtirish endpointi bu guruhda EMAS
-/// (<c>/api/employee-auth/password</c>): u bir martalik parol bilan
-/// kirgan odamga ham ochiq bo'lishi kerak.
-/// </para>
-/// <para>
-/// ⭐ <b>«Avval parolni almashtiring» — butun guruhga filtr.</b> Hisobda
-/// <c>must_change_password</c> turgan ekan, har bir <c>/api/me/*</c> so'rovi
-/// <c>xodim.parol_almashtirilsin</c> (403) oladi. Bayroq TOKENDAN emas,
-/// HISOB QATORIDAN o'qiladi: HR parolni tiklaganda eski (bayroqsiz) token
-/// 15 daqiqa amal qilishda davom etadi va da'voga ishonilsa, bir martalik
-/// parol amalda cheksiz ishlab qolardi.
+/// ⭐ <b>«Hali ham xodimmi» — butun guruhga filtr.</b> Har bir
+/// <c>/api/me/*</c> so'rovida hisobning xodimi o'chirilmaganligi va BUGUN
+/// ishlashi bazadan tekshiriladi (<see cref="EmployeeAccessGate"/>);
+/// aks holda <c>xodim.hisob_faol_emas</c> (403). Ishdan bo'shatish access
+/// token muddatini kutmasdan SHU ZAHOTI kuchga kiradi — qo'lda «hisobni
+/// yopish» yo'q, yagona o'chirgich shu.
 /// </para>
 /// </remarks>
 public static partial class MeEndpoints
@@ -102,7 +97,7 @@ public static partial class MeEndpoints
         var group = app.MapGroup("/api/me")
             .WithTags("Me")
             .RequireAuthorization(AuthenticationExtensions.EmployeePolicy)
-            .AddEndpointFilter(RequirePasswordSetAsync)
+            .AddEndpointFilter(RequireAccessAsync)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         MapProfile(group);
@@ -114,19 +109,18 @@ public static partial class MeEndpoints
     }
 
     /// <summary>
-    /// Bir martalik parol almashtirilmaguncha guruhning hech bir endpointi ishlamaydi.
+    /// Ishdan ketgan yoki o'chirilgan xodimning tokeni guruhning hech bir endpointiga o'tmaydi.
     /// </summary>
     /// <remarks>
     /// Filtr avtorizatsiyadan KEYIN ishlaydi — ya'ni bu yerga faqat xodim
-    /// sxemasidan o'tgan so'rov keladi. Hisob yo'q yoki yopilgan bo'lsa filtr
-    /// hech narsa demaydi: bu savolga ishlovchilarning o'zi
-    /// (<c>xodim.hisob_faol_emas</c>) javob beradi.
+    /// sxemasidan o'tgan so'rov keladi. Qaror bazadan, har so'rovda (sababi
+    /// <see cref="EmployeeAccessGate"/> izohida).
     /// </remarks>
-    private static async ValueTask<object?> RequirePasswordSetAsync(
+    private static async ValueTask<object?> RequireAccessAsync(
         EndpointFilterInvocationContext context,
         EndpointFilterDelegate next)
     {
-        var gate = context.HttpContext.RequestServices.GetRequiredService<EmployeePasswordGate>();
+        var gate = context.HttpContext.RequestServices.GetRequiredService<EmployeeAccessGate>();
 
         var natija = await gate.CheckAsync(context.HttpContext.RequestAborted).ConfigureAwait(false);
 
@@ -151,8 +145,8 @@ public static partial class MeEndpoints
             .WithName("GetMe")
             .WithSummary("Xodim — o'zim haqimda")
             .WithDescription(
-                "Ism, rasm kaliti, bugungi bo'lim va lavozim, «telefondan belgilash» bayrog'i va " +
-                "«mustChangePassword». Javobda YO'QLIK TURLARI ro'yxati ham bor: ilova so'rov " +
+                "Ism, rasm kaliti, bugungi bo'lim va lavozim va «telefondan belgilash» bayrog'i. " +
+                "Javobda YO'QLIK TURLARI ro'yxati ham bor: ilova so'rov " +
                 "yaratishi uchun kerak, ma'lumotnoma endpointiga esa uning tokeni yetmaydi. " +
                 "Xato: «xodim.hisob_faol_emas» (403).")
             .Produces<MeDto>(StatusCodes.Status200OK)
@@ -255,14 +249,14 @@ public static partial class MeEndpoints
             .WithDescription(
                 "Javobdagi «occurredAt» — SERVERNING vaqti, telefonniki emas. " +
                 "Tekshiruv tartibi va kodlari: «davomat.mobil_ruxsat_yoq» (403 — imkoniyat " +
-                "yoqilmagan, hisob yopilgan yoki bugun ishlamaydi), «davomat.yonalish_notogri» " +
+                "yoqilmagan yoki bugun ishlamaydi), «davomat.yonalish_notogri» " +
                 "(400), «davomat.joylashuv_notogri» (400 — koordinata yoki aniqlik yo'q, nol " +
                 "yoki chegaradan tashqari), «davomat.joylashuv_aniq_emas» (400 — aniqlik 100 m " +
                 "dan yomon; javobda «accuracyMeters»), «davomat.obyektdan_uzoq» (400 — hech bir " +
                 "faol obyekt hududida emas; javobda «siteName» va «distanceMeters», faol obyekt " +
                 "umuman bo'lmasa ular yo'q), «davomat.takroriy_belgi» (409 — oxirgi belgidan " +
-                "60 soniya o'tmagan; javobda «lastAt»). Bir martalik parol almashtirilmagan " +
-                "bo'lsa — «xodim.parol_almashtirilsin» (403).")
+                "60 soniya o'tmagan; javobda «lastAt»). Xodim ishdan ketgan yoki o'chirilgan " +
+                "bo'lsa — «xodim.hisob_faol_emas» (403).")
             .Produces<MobileCheckInResultDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)

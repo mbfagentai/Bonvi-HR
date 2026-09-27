@@ -441,7 +441,7 @@ public sealed partial class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
         using var admin = await AdminMijozAsync();
 
         var xodim = await XodimAsync(belgi);
-        var parol = await HisobOchAsync(admin, xodim.Id);
+        var parol = await ParolAsync(admin, xodim.Id);
 
         // Avval kirish ISHLAYDI — ya'ni keyingi rad etish aynan ishdan
         // ketish sababli bo'ladi.
@@ -653,9 +653,9 @@ public sealed partial class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
         var firma = LegalEntity.Create("Ilova MCHJ " + belgi).Value;
         var xodim = Employee.Create(FullName.Create("Qodirov", "Ilova", belgi).Value).Value;
 
-        // Login — xodim kartasidagi raqamdan olinadi, ya'ni u unikal
-        // bo'lishi kerak: `ux_employee_accounts_login` bitta raqamga
-        // ikkinchi hisob ochishga yo'l qo'ymaydi (bu ataylab).
+        // Login — xodim profilidagi raqamning O'ZI, ya'ni u unikal bo'lishi
+        // kerak: ikki o'chirilmagan xodimda bir xil raqam bo'lsa, kirish
+        // ikkalasiga ham rad etiladi (bu ataylab).
         var telefon = TelefonRaqami();
         xodim.SetPhones(PhoneNumber.Create(telefon).Value);
 
@@ -736,20 +736,22 @@ public sealed partial class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
     private static (decimal Lat, decimal Lon) ShimoliyQirra((decimal Lat, decimal Lon) markaz)
         => (markaz.Lat + 0.001m, markaz.Lon);
 
-    /// <summary>HR hisob ochadi va BIR MARTALIK parolni qaytaradi.</summary>
-    private static async Task<string> HisobOchAsync(HttpClient admin, Guid xodimId)
+    /// <summary>
+    /// HR «Ilova» bo'limini ochadi (hisob shu zahoti kafolatlanadi) va parolni ko'radi.
+    /// </summary>
+    private static async Task<string> ParolAsync(HttpClient admin, Guid xodimId)
     {
-        using var javob = await admin.PostAsJsonAsync(
-            new Uri($"/api/employees/{xodimId}/app-access", UriKind.Relative),
-            new { },
-            TestContext.Current.CancellationToken);
+        var ct = TestContext.Current.CancellationToken;
 
+        using (var bolim = await admin.GetAsync(new Uri($"/api/employees/{xodimId}/app-access", UriKind.Relative), ct))
+        {
+            bolim.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(bolim));
+        }
+
+        using var javob = await admin.GetAsync(new Uri($"/api/employees/{xodimId}/app-access/password", UriKind.Relative), ct);
         javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
 
-        var natija = await JsonAsync(javob);
-        natija.GetProperty("account").GetProperty("mustChangePassword").GetBoolean().ShouldBeTrue();
-
-        return natija.GetProperty("password").GetString()!;
+        return (await JsonAsync(javob)).GetProperty("password").GetString()!;
     }
 
     private async Task<HttpResponseMessage> KirishAsync(string login, string parol)
@@ -758,70 +760,36 @@ public sealed partial class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
             new { login, password = parol },
             TestContext.Current.CancellationToken);
 
-    /// <summary>Hisob ochadi, kiradi va tayyor mijoz qaytaradi.</summary>
-    private async Task<HttpClient> IlovaMijoziAsync(HttpClient admin, Guid xodimId)
+    /// <summary>Profil telefoni va HR ko'rgan parol bilan kiradi — javobdagi token juftligi.</summary>
+    private async Task<JsonElement> KirganJuftlikAsync(HttpClient admin, Guid xodimId)
     {
         var ct = TestContext.Current.CancellationToken;
+        var parol = await ParolAsync(admin, xodimId);
 
-        var mavjud = await admin.GetAsync(new Uri($"/api/employees/{xodimId}/app-access", UriKind.Relative), ct);
-        var bor = (await JsonAsync(mavjud)).GetProperty("account").ValueKind != JsonValueKind.Null;
-        mavjud.Dispose();
-
-        string parol;
-        string login;
-
-        if (bor)
-        {
-            using var tiklash = await admin.PostAsync(
-                new Uri($"/api/employees/{xodimId}/app-access/reset-password", UriKind.Relative),
-                null,
-                ct);
-
-            tiklash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tiklash));
-            var natija = await JsonAsync(tiklash);
-            parol = natija.GetProperty("password").GetString()!;
-            login = natija.GetProperty("account").GetProperty("login").GetString()!;
-        }
-        else
-        {
-            parol = await HisobOchAsync(admin, xodimId);
-
-            using var karta = await admin.GetAsync(
-                new Uri($"/api/employees/{xodimId}/app-access", UriKind.Relative),
-                ct);
-
-            login = (await JsonAsync(karta)).GetProperty("account").GetProperty("login").GetString()!;
-        }
-
-        var client = _factory.CreateClient();
+        using var karta = await admin.GetAsync(new Uri($"/api/employees/{xodimId}/app-access", UriKind.Relative), ct);
+        var login = (await JsonAsync(karta)).GetProperty("login").GetString()!;
 
         using var kirish = await KirishAsync(login, parol);
         kirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(kirish));
 
-        var token = (await JsonAsync(kirish)).GetProperty("accessToken").GetString()!;
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await JsonAsync(kirish);
+    }
 
-        /*
-          Bir martalik parol bilan olingan token `/api/me/*` da 403
-          (`xodim.parol_almashtirilsin`) oladi — ilovadagi majburiy birinchi
-          qadam kabi, parol shu yerda almashtiriladi va JAVOBDAGI yangi token
-          ishlatiladi (almashtirish eski sessiyalarni yopadi).
-        */
-        using var almashtirish = await client.PostAsJsonAsync(
-            new Uri("/api/employee-auth/password", UriKind.Relative),
-            new { currentPassword = parol, newPassword = YangiParol },
-            ct);
+    /// <summary>
+    /// Kiradi va tayyor mijoz qaytaradi — birinchi kirishdan keyin HECH QANDAY
+    /// qo'shimcha qadam yo'q (majburiy parol almashtirish olib tashlangan).
+    /// </summary>
+    private async Task<HttpClient> IlovaMijoziAsync(HttpClient admin, Guid xodimId)
+    {
+        var juftlik = await KirganJuftlikAsync(admin, xodimId);
 
-        almashtirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(almashtirish));
-
-        var yangi = (await JsonAsync(almashtirish)).GetProperty("accessToken").GetString()!;
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", yangi);
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            juftlik.GetProperty("accessToken").GetString()!);
 
         return client;
     }
-
-    /// <summary>Testlarda xodim o'rnatadigan parol.</summary>
-    private const string YangiParol = "Ilova_parol_2026";
 
     private static Task<HttpResponseMessage> BelgilaAsync(
         HttpClient ilova,

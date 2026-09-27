@@ -143,16 +143,6 @@ public sealed class RateLimitingOptions
     public IList<string> EmployeeLoginPaths { get; } = ["/api/employee-auth/login"];
 
     /// <summary>
-    /// Xodim parolini almashtirish — qat'iy <see cref="Login"/> oynasi, HISOB bo'yicha.
-    /// </summary>
-    /// <remarks>
-    /// Yo'l tasdiqlangan sessiya ichida: kalit IP emas, hisob (<c>sub</c>) —
-    /// ochiq qolgan telefondagi sessiya joriy parolni tinimsiz terib ko'rmasin
-    /// (ishlovchidagi 5 xatolik blokning ustidan ikkinchi to'siq).
-    /// </remarks>
-    public IList<string> EmployeePasswordPaths { get; } = ["/api/employee-auth/password"];
-
-    /// <summary>
     /// Xodim sessiyasini yangilash va chiqish — umumiy bo'linma o'rniga <see cref="EmployeeSession"/>.
     /// </summary>
     public IList<string> EmployeeSessionPaths { get; } = ["/api/employee-auth/refresh", "/api/employee-auth/logout"];
@@ -349,7 +339,7 @@ public static class RateLimitingExtensions
     //  Bo'linmalar (partition)
     // ────────────────────────────────────────────────────────────
 
-    /// <summary>Kirish yo'llari: HR kirishi, xodim kirishi va xodim paroli — har biri o'z bo'linmasida.</summary>
+    /// <summary>Kirish yo'llari: HR kirishi va xodim kirishi — har biri o'z bo'linmasida.</summary>
     private static PartitionedRateLimiter<HttpContext> KirishQoriqchisi(RateLimitingOptions sozlama)
         => PartitionedRateLimiter.Create<HttpContext, string>(context =>
         {
@@ -360,13 +350,6 @@ public static class RateLimitingExtensions
                 return RateLimitPartition.GetFixedWindowLimiter(
                     "employee-login:" + Manba(context),
                     _ => QatiyOyna(sozlama.EmployeeLogin));
-            }
-
-            if (YolMoslashadimi(yol, sozlama.EmployeePasswordPaths))
-            {
-                return RateLimitPartition.GetFixedWindowLimiter(
-                    "employee-password:" + Kim(context),
-                    _ => QatiyOyna(sozlama.Login));
             }
 
             return YolMoslashadimi(yol, sozlama.LoginPaths)

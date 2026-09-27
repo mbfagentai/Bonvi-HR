@@ -1,5 +1,6 @@
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Retention;
+using Bonvi.Application.Identity.EmployeeAccounts;
 using Bonvi.Infrastructure;
 using Bonvi.Infrastructure.Services;
 using Hangfire;
@@ -52,6 +53,9 @@ public static class BackgroundJobs
 
     /// <summary>O'tish qatorlarini tozalash (SPEC §9.2.1).</summary>
     public const string PurgePassesJobId = "attendance:purge-passes";
+
+    /// <summary>Hisobi yo'q xodimlarga ilova hisobini avtomatik ochish.</summary>
+    public const string ProvisionEmployeeAccountsJobId = "employee-app:provision-accounts";
 
     /// <summary>Hangfire serverini va navbat portini ulaydi — yoki <c>Testing</c> da sinxron navbatni.</summary>
     /// <param name="builder">Ilova quruvchisi.</param>
@@ -161,6 +165,22 @@ public static class BackgroundJobs
             job => job.RunAsync(CancellationToken.None),
             "45 22 * * *",
             utc);
+
+        // Har 15 daqiqada (…:08, :23, :38, :53) — davomat vazifalari bilan bir
+        // daqiqaga tushmasin. Yangi qabul qilingan odamning hisobi ko'pi bilan
+        // 15 daqiqada paydo bo'ladi; HR «Ilova» bo'limini ochsa — darhol.
+        jobs.AddOrUpdate<EmployeeAccountProvisioningJob>(
+            ProvisionEmployeeAccountsJobId,
+            job => job.RunAsync(CancellationToken.None),
+            "8-59/15 * * * *",
+            utc);
+
+        // ⭐ Ishga tushishda ham — NAVBATGA qo'yiladi, shu yerda bajarilmaydi:
+        // birinchi yurish ~540 ta parolni xeshlaydi (bir necha o'n soniya) va
+        // u ilovaning ko'tarilishini to'sib qo'ymasligi kerak. Vazifani Hangfire
+        // serveri oladi, u esa bazani tayyorlagichdan (migratsiyalar) KEYIN
+        // ishga tushadi.
+        jobs.Trigger(ProvisionEmployeeAccountsJobId);
 
         return app;
     }

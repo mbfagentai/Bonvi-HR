@@ -1,4 +1,5 @@
 using Bonvi.Domain.Attendance;
+using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
 
@@ -7,11 +8,23 @@ namespace Bonvi.Domain.Abstractions;
 /// <summary>Xodim ilovasining hisoblari uchun saqlash porti.</summary>
 public interface IEmployeeAccountRepository : IRepository<EmployeeAccount>
 {
-    /// <summary>Login bo'yicha topadi — kirish yo'lidagi YAGONA qidiruv.</summary>
+    /// <summary>Kirishdagi login (telefon raqami) bo'yicha hisobni topadi — kirish yo'lidagi YAGONA qidiruv.</summary>
     /// <remarks>
-    /// <c>ux_employee_accounts_login</c> bo'yicha aniq tenglik. Topilgan hisob
-    /// darhol o'zgaradi (muvaffaqiyatli yoki muvaffaqiyatsiz urinish
-    /// yoziladi), shu sababli <c>AsNoTracking</c> ATAYLAB yo'q.
+    /// <para>
+    /// ⭐ Login hisob qatorida YO'Q: raqam o'chirilmagan xodimlarning ASOSIY
+    /// telefonidan (<c>employees.phone</c>) qidiriladi va topilgan xodimning
+    /// hisobi qaytadi. Profil tahrirlangan lahzadan yangi raqam ishlaydi,
+    /// eskisi esa ishlamaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Raqam IKKI yoki undan ko'p o'chirilmagan xodimda bo'lsa —
+    /// <c>null</c>: kimga kirish berilayotgani noaniq, taxmin qilish esa
+    /// begona odamni boshqaning hisobiga kiritishi mumkin edi.
+    /// </para>
+    /// <para>
+    /// Topilgan hisob darhol o'zgaradi (muvaffaqiyatli kirish yoziladi),
+    /// shu sababli <c>AsNoTracking</c> ATAYLAB yo'q.
+    /// </para>
     /// </remarks>
     /// <param name="login">Telefon raqami.</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
@@ -22,19 +35,43 @@ public interface IEmployeeAccountRepository : IRepository<EmployeeAccount>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     Task<EmployeeAccount?> FindByEmployeeAsync(Guid employeeId, CancellationToken cancellationToken = default);
 
-    /// <summary>Bunday login band emasligini tekshiradi.</summary>
+    /// <summary>Asosiy telefoni shu raqam bo'lgan O'CHIRILMAGAN xodimlar (kuzatuvsiz).</summary>
     /// <remarks>
-    /// ⚠️ Bazadagi unikal indeksni ALMASHTIRMAYDI: ikki HR bir vaqtda bir xil
-    /// raqamni kiritsa, tekshiruv ikkalasida ham o'tadi va to'qnashuvni indeks
-    /// tutadi. Maqsad — odatiy holatda 500 emas, tushunarli 409 berish.
+    /// HR «Ilova» bo'limida «bu raqam boshqa xodimda ham bor» degan
+    /// ogohlantirish uchun. Odatda bitta yoki ikkita; <paramref name="take"/>
+    /// ekranni cheksiz ro'yxatdan saqlaydi.
     /// </remarks>
-    /// <param name="login">Telefon raqami.</param>
-    /// <param name="exceptAccountId">Tahrirlanayotgan hisob — o'zi takror sanalmaydi.</param>
+    /// <param name="phone">Telefon raqami.</param>
+    /// <param name="take">Eng ko'p nechta.</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    Task<bool> LoginExistsAsync(
-        PhoneNumber login,
-        Guid? exceptAccountId = null,
+    Task<IReadOnlyList<Employee>> PhoneHoldersAsync(
+        PhoneNumber phone,
+        int take,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Hisobi hali yo'q o'chirilmagan xodimlar — birinchi <paramref name="take"/> tasi.</summary>
+    /// <remarks>
+    /// Fon vazifasi uchun bo'lak: hisob ochilgan xodim keyingi so'rovda
+    /// o'zi tushib qoladi, ya'ni «qayerda to'xtadim» degan holat kerak emas.
+    /// </remarks>
+    /// <param name="take">Bo'lak hajmi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<Guid>> EmployeesWithoutAccountAsync(
+        int take,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hisob bog'langan xodim — faqat u O'CHIRILMAGAN bo'lsa (kuzatuvsiz).
+    /// </summary>
+    /// <remarks>
+    /// Faqat bitta ustun: bu savol <c>/api/me/*</c> ning HAR bir so'rovida
+    /// beriladi (<c>EmployeeAccessGate</c>) va keyingi ishlovchining o'z
+    /// o'qishiga (xususan belgilashdagi qulfga) xalaqit bermasligi kerak.
+    /// </remarks>
+    /// <param name="accountId">Hisob.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <returns>Xodim; hisob yo'q yoki xodim o'chirilgan bo'lsa <c>null</c>.</returns>
+    Task<Guid?> LiveEmployeeIdAsync(Guid accountId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Hisob qatorini SHU TRANZAKSIYA uchun qulflaydi (<c>SELECT … FOR UPDATE</c>).
@@ -65,20 +102,6 @@ public interface IEmployeeAccountRepository : IRepository<EmployeeAccount>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     /// <returns>Qulflangan hisob; topilmasa <c>null</c>.</returns>
     Task<EmployeeAccount?> LockAsync(Guid accountId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Hisobda «bir martalik parolni almashtirish shart» bayrog'i turibdimi.
-    /// </summary>
-    /// <remarks>
-    /// Faqat bitta ustun, kuzatuvsiz (<c>AsNoTracking</c>): bu savol
-    /// <c>/api/me/*</c> ning HAR bir so'rovida beriladi va keyingi
-    /// ishlovchining o'z o'qishiga (xususan belgilashdagi qulfga) xalaqit
-    /// bermasligi kerak.
-    /// </remarks>
-    /// <param name="accountId">Hisob.</param>
-    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    /// <returns>Bayroq; hisob topilmasa <c>null</c>.</returns>
-    Task<bool?> MustChangePasswordAsync(Guid accountId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Xodim ilovasining yangilash tokenlari uchun saqlash porti.</summary>
@@ -95,8 +118,8 @@ public interface IEmployeeRefreshTokenRepository : IRepository<EmployeeRefreshTo
 
     /// <summary>Hisobning barcha tirik tokenlarini bekor qiladi.</summary>
     /// <remarks>
-    /// Uch holatda chaqiriladi: chiqishda, parol almashganda va TOKEN QAYTA
-    /// ISHLATILGANDA — oxirgisi o'g'irlik belgisi.
+    /// Uch holatda chaqiriladi: chiqishda, HR yangi parol berganda va TOKEN
+    /// QAYTA ISHLATILGANDA — oxirgisi o'g'irlik belgisi.
     /// </remarks>
     /// <param name="employeeAccountId">Hisob.</param>
     /// <param name="at">Lahza.</param>

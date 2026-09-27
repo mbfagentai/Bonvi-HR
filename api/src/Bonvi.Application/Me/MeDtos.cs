@@ -146,7 +146,6 @@ public sealed record MyAbsenceTypeDto(Guid Id, string Name);
 /// <param name="Department">Bugungi asosiy bo'lim.</param>
 /// <param name="Position">Bugungi lavozim.</param>
 /// <param name="MobileCheckInAllowed">Telefondan belgilash yoqilganmi.</param>
-/// <param name="MustChangePassword">Bir martalik parol hali almashtirilmaganmi.</param>
 /// <param name="AbsenceTypes">Yo'qlik turlari — so'rov yaratish uchun.</param>
 public sealed record MeDto(
     Guid EmployeeId,
@@ -156,5 +155,4 @@ public sealed record MeDto(
     string? Department,
     string? Position,
     bool MobileCheckInAllowed,
-    bool MustChangePassword,
     IReadOnlyList<MyAbsenceTypeDto> AbsenceTypes);

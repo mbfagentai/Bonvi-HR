@@ -116,17 +116,20 @@ public static class DependencyInjection
           imkoniyatning ikki tomoni; chegara esa marshrutlarda
           (`MeEndpoints` / `EmployeeAccountEndpoints`) qo'yilgan.
         */
-        services.AddScoped<IssueEmployeeAccountCommandHandler>();
-        services.AddScoped<ResetEmployeeAccountPasswordCommandHandler>();
-        services.AddScoped<SetEmployeeAccountActiveCommandHandler>();
-        services.AddScoped<SetMobileCheckInAllowedCommandHandler>();
+        // Hisob HAR BIR xodimga avtomatik ochiladi (fon vazifasi va «Ilova»
+        // bo'limi ochilgan lahza), parolni faqat HR beradi va ko'radi.
+        services.AddScoped<EmployeeAccountProvisioner>();
+        services.AddScoped<EmployeeAccountProvisioningJob>();
+        services.AddScoped<EmployeeAppAccessBuilder>();
         services.AddScoped<GetEmployeeAppAccessQueryHandler>();
+        services.AddScoped<RevealEmployeePasswordQueryHandler>();
+        services.AddScoped<EmployeePasswordCommandHandler>();
+        services.AddScoped<SetMobileCheckInAllowedCommandHandler>();
 
         services.AddScoped<EmployeeLoginCommandHandler>();
         services.AddScoped<EmployeeRefreshCommandHandler>();
-        services.AddScoped<ChangeEmployeePasswordCommandHandler>();
         services.AddScoped<EmployeeLogoutCommandHandler>();
-        services.AddScoped<EmployeePasswordGate>();
+        services.AddScoped<EmployeeAccessGate>();
 
         // Jarayon ichidagi holat — SINGLETON bo'lishi shart: har so'rovda
         // yangi nusxa bo'lsa, urinishlar hisobi ham, yangilash javobining

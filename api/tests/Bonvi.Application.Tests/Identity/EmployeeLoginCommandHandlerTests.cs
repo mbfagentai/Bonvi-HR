@@ -43,9 +43,10 @@ public sealed class EmployeeLoginCommandHandlerTests
         _clock.UtcNow.Returns(Now);
 
         var employee = Employee.Create(FullName.Create("Qodirov", "Ilova", "Testovich").Value).Value;
-        _account = EmployeeAccount.Issue(employee.Id, PhoneNumber.Create("901234567").Value, "xesh", Now).Value;
+        _account = EmployeeAccount.Issue(employee.Id, "xesh", "shifrlangan", Now).Value;
 
-        _accounts.FindByLoginAsync(Arg.Is<PhoneNumber>(login => login.Value == _account.Login.Value), Arg.Any<CancellationToken>())
+        // Login — profil telefoni: ombor uni xodimlar jadvali orqali topadi.
+        _accounts.FindByLoginAsync(Arg.Is<PhoneNumber>(login => login.Value == "+998901234567"), Arg.Any<CancellationToken>())
             .Returns(_account);
 
         _employees.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(employee);
@@ -88,9 +89,8 @@ public sealed class EmployeeLoginCommandHandlerTests
         var egasi = await KirAsync("+998 90 123 45 67", Parol, XodimIp);
         egasi.IsSuccess.ShouldBeTrue(egasi.IsFailure ? egasi.Error.Code : string.Empty);
 
-        // Hisob qatori tegilmagan.
-        _account.LockedUntil.ShouldBeNull();
-        _account.FailedLoginAttempts.ShouldBe(0);
+        // Egasining kirishi yozilgan — hujumchining xatolari hisobga tegmagan.
+        _account.LastLoginAt.ShouldBe(Now);
     }
 
     [Fact]

@@ -2409,35 +2409,18 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("employee_id");
 
-                    b.Property<int>("FailedLoginAttempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("failed_login_attempts");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
                     b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at");
-
-                    b.Property<DateTimeOffset?>("LockedUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("locked_until");
-
-                    b.Property<string>("Login")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("login");
-
-                    b.Property<bool>("MustChangePassword")
-                        .HasColumnType("boolean")
-                        .HasColumnName("must_change_password");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("password_hash");
+
+                    b.Property<string>("PasswordProtected")
+                        .HasColumnType("text")
+                        .HasColumnName("password_protected");
 
                     b.Property<DateTimeOffset>("PasswordSetAt")
                         .HasColumnType("timestamp with time zone")
@@ -2457,10 +2440,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasIndex("EmployeeId")
                         .IsUnique()
                         .HasDatabaseName("ux_employee_accounts_employee");
-
-                    b.HasIndex("Login")
-                        .IsUnique()
-                        .HasDatabaseName("ux_employee_accounts_login");
 
                     b.ToTable("employee_accounts", (string)null);
                 });
