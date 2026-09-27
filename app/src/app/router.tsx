@@ -14,9 +14,7 @@ import { HomeScreen } from '@/screens/home'
 import { LocationHelpScreen } from '@/screens/location-help'
 import { LoginScreen } from '@/screens/login'
 import { NotFoundScreen } from '@/screens/not-found'
-import { PasswordChangeScreen } from '@/screens/password-change'
 import { PasswordHelpScreen } from '@/screens/password-help'
-import { PasswordSetScreen } from '@/screens/password-set'
 import { ProfileScreen } from '@/screens/profile'
 import { RequestDetailScreen } from '@/screens/request-detail'
 import { RequestNewScreen } from '@/screens/request-new'
@@ -53,25 +51,25 @@ export function AppRouter() {
         <Route path="/kirish" element={<LoginScreen />} />
         <Route path="/parol-yordam" element={<PasswordHelpScreen />} />
 
+        {/*
+          Parolni o'rnatish/almashtirish ekranlari YO'Q (2026-09-27): parolni
+          HR beradi, xodim uni almashtirmaydi. Eski `/parol-ornatish` va
+          `/profil/parol` manzillari «topilmadi» ga tushadi.
+        */}
         <Route element={<RequireSession />}>
-          <Route path="/parol-ornatish" element={<PasswordSetScreen />} />
-
-          <Route element={<RequirePasswordSet />}>
-            {/* Tab ildizlari — tab paneli ko'rinadi */}
-            <Route element={<TabLayout />}>
-              <Route path="/" element={<HomeScreen />} />
-              <Route path="/taqvim" element={<CalendarScreen />} />
-              <Route path="/sorovlar" element={<RequestsScreen />} />
-              <Route path="/profil" element={<ProfileScreen />} />
-            </Route>
-
-            {/* Ichkariga ochilgan ekranlar — tab paneli YO'Q */}
-            <Route path="/sorovlar/yangi" element={<RequestNewScreen />} />
-            <Route path="/sorovlar/:id" element={<RequestDetailScreen />} />
-            <Route path="/profil/sozlamalar" element={<SettingsScreen />} />
-            <Route path="/profil/parol" element={<PasswordChangeScreen />} />
-            <Route path="/joylashuv" element={<LocationHelpScreen />} />
+          {/* Tab ildizlari — tab paneli ko'rinadi */}
+          <Route element={<TabLayout />}>
+            <Route path="/" element={<HomeScreen />} />
+            <Route path="/taqvim" element={<CalendarScreen />} />
+            <Route path="/sorovlar" element={<RequestsScreen />} />
+            <Route path="/profil" element={<ProfileScreen />} />
           </Route>
+
+          {/* Ichkariga ochilgan ekranlar — tab paneli YO'Q */}
+          <Route path="/sorovlar/yangi" element={<RequestNewScreen />} />
+          <Route path="/sorovlar/:id" element={<RequestDetailScreen />} />
+          <Route path="/profil/sozlamalar" element={<SettingsScreen />} />
+          <Route path="/joylashuv" element={<LocationHelpScreen />} />
         </Route>
 
         <Route path="*" element={<NotFoundLayout />} />
@@ -110,18 +108,6 @@ function RequireSession() {
     const next = encodeURIComponent(`${location.pathname}${location.search}`)
     return <Navigate to={`/kirish?keyin=${next}`} replace />
   }
-
-  return <Outlet />
-}
-
-/**
- * `must_change_password` — ilovadan chiqishning yagona yo'li parolni
- * o'rnatish yoki hisobdan chiqish (SPEC §D2).
- */
-function RequirePasswordSet() {
-  const session = useSession()
-
-  if (session.mustChangePassword) return <Navigate to="/parol-ornatish" replace />
 
   return <Outlet />
 }

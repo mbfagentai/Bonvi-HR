@@ -49,6 +49,7 @@
     "phonePlaceholder": "905088888",
     "password": "Parol",
     "passwordPlaceholder": "Parolingizni kiriting",
+    "loginHint": "Login — telefon raqamingiz, parolni HR beradi",
     "showPassword": "Parolni ko‘rsatish",
     "hidePassword": "Parolni yashirish",
     "submit": "Kirish",
@@ -60,28 +61,11 @@
     "signOutTitle": "Chiqish",
     "signOutText": "Hisobdan chiqasiz. Keyin telefon raqami va parol bilan qaytadan kirasiz.",
     "helpTitle": "Parolni unutdingizmi?",
-    "helpText": "Parolni ilovaning o‘zida tiklab bo‘lmaydi — yangi parolni HR bo‘limi beradi.",
+    "helpText": "Parolni ilovada tiklab ham, o‘zgartirib ham bo‘lmaydi — parolni HR bo‘limi beradi.",
     "helpStep1": "HR bo‘limiga murojaat qiling.",
-    "helpStep2": "Sizga bir martalik yangi parol beriladi.",
-    "helpStep3": "Shu parol bilan kiring va o‘z parolingizni o‘rnating.",
+    "helpStep2": "HR parolingizni aytib beradi yoki yangisini beradi.",
+    "helpStep3": "Telefon raqamingiz va shu parol bilan kiring.",
     "backToSignIn": "Kirish sahifasiga qaytish"
-  },
-  "password": {
-    "setTitle": "Parolni o‘rnatish",
-    "setText": "HR bergan parol bir martalik. Davom etish uchun o‘z parolingizni o‘rnating.",
-    "changeTitle": "Parolni o‘zgartirish",
-    "current": "Joriy parol",
-    "new": "Yangi parol",
-    "repeat": "Yangi parolni takrorlang",
-    "hint": "Kamida 8 belgi.",
-    "mismatch": "Parollar mos kelmadi.",
-    "tooShort": "Parol kamida 8 belgidan iborat bo‘lishi kerak.",
-    "empty": "Parol kiritilmagan.",
-    "saved": "Parol o‘zgartirildi.",
-    "submit": "Saqlash",
-    "submitting": "Saqlanmoqda…",
-    "oneTime": "HR bergan parol",
-    "oneTimeHint": "Kirishda kiritgan bir martalik parolingiz."
   },
   "home": {
     "title": "Bugun",
@@ -216,7 +200,6 @@
     "mobileOff": "Yoqilmagan",
     "mobileOffText": "Bu imkoniyat hisobingizda o‘chirilgan. HR bo‘limiga murojaat qiling.",
     "settings": "Sozlamalar",
-    "changePassword": "Parolni o‘zgartirish",
     "locationHelp": "Joylashuv ruxsati",
     "signOut": "Chiqish",
     "noDepartment": "Bo‘lim ko‘rsatilmagan"
@@ -394,10 +377,6 @@
     "xodim.bloklangan": "Ko‘p marta noto‘g‘ri urinish. {{minutes}} daqiqadan keyin qayta urinib ko‘ring.",
     "xodim.hisob_faol_emas": "Hisobingiz faol emas. HR bo‘limiga murojaat qiling.",
     "xodim.token_yaroqsiz": "Sessiya tugadi. Qaytadan kiring.",
-    "xodim.parol_notogri": "Joriy parol noto‘g‘ri.",
-    "xodim.parol_almashtirilsin": "Avval HR bergan bir martalik parolni o‘z parolingizga almashtiring.",
-    "foydalanuvchi.parol_bosh": "Parol kiritilmagan.",
-    "foydalanuvchi.parol_qisqa": "Parol kamida 8 belgidan iborat bo‘lishi kerak.",
     "rate_limit.oshib_ketdi": "So‘rovlar juda ko‘p. {{seconds}} soniyadan keyin qayta urinib ko‘ring."
   },
   "language": {

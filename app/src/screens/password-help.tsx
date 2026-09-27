@@ -7,9 +7,10 @@ import { Card } from '@/ui/card'
 /**
  * PAROLNI UNUTDIM — statik ekran (UX §A.3).
  *
- * Bu yerda forma YO'Q va bo'lmaydi ham: parolni o'zi tiklaydigan yo'l
- * yo'q, yangi bir martalik parolni HR beradi (SPEC §D2). Ishlamaydigan
- * «tiklash» tugmasi qo'yish — xodimni behuda kutishga majburlash.
+ * Bu yerda forma YO'Q va bo'lmaydi ham: parolni xodimning o'zi tiklaydigan
+ * yoki almashtiradigan yo'l yo'q — parolni HR beradi va istalgan payt
+ * ko'rib aytib bera oladi (SPEC §D2, 2026-09-27). Ishlamaydigan «tiklash»
+ * tugmasi qo'yish — xodimni behuda kutishga majburlash.
  */
 export function PasswordHelpScreen() {
   const { t } = useTranslation()

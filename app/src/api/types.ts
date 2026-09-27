@@ -67,7 +67,6 @@ export interface MeDto {
   position: string | null
   /** «Telefondan belgilash» bayrog'i (SPEC §C), sukut bo'yicha `false`. */
   mobileCheckInAllowed: boolean
-  mustChangePassword: boolean
   absenceTypes: AbsenceTypeDto[]
 }
 
@@ -213,26 +212,16 @@ export interface CreateAbsenceRequest {
 }
 
 export interface LoginRequest {
-  /** Telefon raqami — HR bergan login. */
+  /** Telefon raqami — xodim profilidagi asosiy raqam. */
   login: string
+  /** HR bergan parol (odatda 6 raqam). Xodim uni almashtirmaydi. */
   password: string
 }
 
-/**
- * Token juftligi — `EmployeeAuthResultDto`. Kirish, yangilash va parolni
- * almashtirish — uchalasi ham shuni qaytaradi.
- */
+/** Token juftligi — `EmployeeAuthResultDto`. Kirish va yangilash shuni qaytaradi. */
 export interface LoginResult {
   accessToken: string
   /** Access token muddati. */
   expiresAt: string
   refreshToken: string
-  /** `true` bo'lsa ilova parol ekranidan boshqa joyga o'tkazmaydi. */
-  mustChangePassword: boolean
-}
-
-export interface ChangePasswordRequest {
-  /** MAJBURIY — birinchi kirishda HR bergan bir martalik parol. */
-  currentPassword: string
-  newPassword: string
 }

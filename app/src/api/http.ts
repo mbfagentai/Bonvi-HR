@@ -16,8 +16,8 @@ import type { LoginResult } from './types'
  *  2. **403 — biznes xatosi**, sessiya tugagani EMAS
  *     (`davomat.mobil_ruxsat_yoq`, `xodim.hisob_faol_emas`,
  *     `xodim.bloklangan`). Kirish ekraniga FAQAT yangilash ham rad
- *     etilganda qaytiladi. Istisno — `xodim.parol_almashtirilsin`: sessiya
- *     «parol o'rnatish» holatiga o'tadi.
+ *     etilganda qaytiladi (ishdan ketgan xodimda — access token
+ *     muddati tugagach).
  *  3. **Javobi kelmagan belgilash** — `NoAnswerError` (UX §C.5): so'rov
  *     ketgan bo'lishi mumkin, qayta yuborilmaydi.
  */
@@ -208,11 +208,7 @@ export function request<T>(path: string, options: RequestOptions = {}): Promise<
           throw new NoAnswerError()
         }
 
-        const error = problemToError(response.status, response.body)
-
-        if (error.code === 'xodim.parol_almashtirilsin') sessionStore.requirePasswordChange()
-
-        throw error
+        throw problemToError(response.status, response.body)
       },
       (cause: unknown) => {
         if (cause instanceof ApiError) throw cause

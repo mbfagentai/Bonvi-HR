@@ -30,9 +30,6 @@ export const realApi: EmployeeApi = {
   logout: (refreshToken) =>
     request<void>('/api/employee-auth/logout', { method: 'POST', body: { refreshToken }, auth: false }),
 
-  changePassword: (body) =>
-    request<LoginResult>('/api/employee-auth/password', { method: 'POST', body }),
-
   getMe: () => request<MeDto>('/api/me'),
 
   getPhoto: () =>

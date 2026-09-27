@@ -14,6 +14,10 @@ import { Icon } from '@/ui/icon'
 /**
  * KIRISH (UX §A.3).
  *
+ * Login — profildagi telefon raqami, parolni HR beradi (2026-09-27): xodim
+ * uni almashtirmaydi va birinchi kirishdan keyin hech qanday «parol
+ * o'rnatish» qadami yo'q. Shu qoida formaning ostida bir qator bo'lib turadi.
+ *
  * ⚠️ Token yo'qolgani uchun shu ekranga tushgan odamga hech qanday
  * qo'rqinchli xabar ko'rsatilmaydi: Safari saqlangan ma'lumotni 7 kun
  * faolsizlikdan keyin o'chirib yuborishi mumkin va bu ODATIY hol.
@@ -108,6 +112,8 @@ export function LoginScreen() {
             </button>
           </div>
         </Field>
+
+        <p className="text-footnote text-fg-secondary">{t('auth.loginHint')}</p>
 
         {error ? (
           <InlineMessage tone="danger" assertive>

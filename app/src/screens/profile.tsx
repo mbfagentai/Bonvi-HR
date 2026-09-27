@@ -78,7 +78,6 @@ export function ProfileScreen() {
 
       <ListGroup>
         <ListRow label={t('profile.settings')} to="/profil/sozlamalar" />
-        <ListRow label={t('profile.changePassword')} to="/profil/parol" />
         <ListRow label={t('profile.locationHelp')} to="/joylashuv" />
       </ListGroup>
 

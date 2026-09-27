@@ -46,7 +46,6 @@ export const MOCK_ME: MeDto = {
   department: 'Ishlab chiqarish bo‘limi',
   position: 'Smena boshlig‘i',
   mobileCheckInAllowed: true,
-  mustChangePassword: false,
   absenceTypes: MOCK_ABSENCE_TYPES,
 }
 

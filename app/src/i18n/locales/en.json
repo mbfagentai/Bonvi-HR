@@ -49,6 +49,7 @@
     "phonePlaceholder": "905088888",
     "password": "Password",
     "passwordPlaceholder": "Enter your password",
+    "loginHint": "Your login is your phone number; HR gives you the password",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "submit": "Sign in",
@@ -60,28 +61,11 @@
     "signOutTitle": "Sign out",
     "signOutText": "You will be signed out. You can sign in again with your phone number and password.",
     "helpTitle": "Forgot your password?",
-    "helpText": "The password cannot be reset in the app — the HR department issues a new one.",
+    "helpText": "The password can’t be reset or changed in the app — the HR department gives it to you.",
     "helpStep1": "Contact the HR department.",
-    "helpStep2": "You will be given a new one-time password.",
-    "helpStep3": "Sign in with it and set your own password.",
+    "helpStep2": "HR will tell you your password or give you a new one.",
+    "helpStep3": "Sign in with your phone number and that password.",
     "backToSignIn": "Back to sign in"
-  },
-  "password": {
-    "setTitle": "Set a password",
-    "setText": "The password from HR is one-time only. Set your own password to continue.",
-    "changeTitle": "Change password",
-    "current": "Current password",
-    "new": "New password",
-    "repeat": "Repeat the new password",
-    "hint": "At least 8 characters.",
-    "mismatch": "The passwords do not match.",
-    "tooShort": "The password must be at least 8 characters long.",
-    "empty": "No password entered.",
-    "saved": "Password changed.",
-    "submit": "Save",
-    "submitting": "Saving…",
-    "oneTime": "Password from HR",
-    "oneTimeHint": "The one-time password you signed in with."
   },
   "home": {
     "title": "Today",
@@ -216,7 +200,6 @@
     "mobileOff": "Not enabled",
     "mobileOffText": "This is switched off for your account. Contact the HR department.",
     "settings": "Settings",
-    "changePassword": "Change password",
     "locationHelp": "Location permission",
     "signOut": "Sign out",
     "noDepartment": "No department given"
@@ -394,10 +377,6 @@
     "xodim.bloklangan": "Too many wrong attempts. Try again in {{minutes}} min.",
     "xodim.hisob_faol_emas": "Your account is not active. Contact the HR department.",
     "xodim.token_yaroqsiz": "Your session has ended. Please sign in again.",
-    "xodim.parol_notogri": "The current password is wrong.",
-    "xodim.parol_almashtirilsin": "First replace the one-time password from HR with your own.",
-    "foydalanuvchi.parol_bosh": "No password entered.",
-    "foydalanuvchi.parol_qisqa": "The password must be at least 8 characters long.",
     "rate_limit.oshib_ketdi": "Too many requests. Try again in {{seconds}} s."
   },
   "language": {

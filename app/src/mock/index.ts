@@ -46,17 +46,14 @@ const BOUNCE_SECONDS = 60
 /** Mock login phone (local 9 digits). */
 const MOCK_PHONE = '976662675'
 
-/** Server kabi: parol kamida 8 belgi (`PasswordPolicy.MinLength`). */
-const PASSWORD_MIN_LENGTH = 8
+/** Mock parol — HR beradigan 6 xonali parol kabi. */
+const MOCK_PASSWORD = '482915'
 
 interface MockState {
   todayMarks: AttendanceMarkDto[]
   requests: AbsenceRequestDto[]
   lastCheckInMs: number | null
   nextRequestNo: number
-  /** Joriy parol — `changePassword` joriy parolni tekshiradi (server kabi). */
-  password: string | null
-  mustChangePassword: boolean
 }
 
 const state: MockState = {
@@ -64,8 +61,6 @@ const state: MockState = {
   requests: buildRequests(),
   lastCheckInMs: null,
   nextRequestNo: 5,
-  password: null,
-  mustChangePassword: false,
 }
 
 function delay<T>(value: T): Promise<T> {
@@ -81,14 +76,13 @@ function rejected(status: number, code: string, details?: Record<string, string 
   return new ApiError('rejected', { code, status, details })
 }
 
-function tokenPair(mustChangePassword: boolean): LoginResult {
+function tokenPair(): LoginResult {
   const now = Date.now()
 
   return {
     accessToken: `mock-access-${now}`,
     expiresAt: new Date(now + 15 * 60_000).toISOString(),
     refreshToken: `mock-refresh-${now}`,
-    mustChangePassword,
   }
 }
 
@@ -142,52 +136,27 @@ function currentOf(): MyCurrentStateDto {
 export const mockApi: EmployeeApi = {
   login: (request) => {
     // Mock credentials: phone +998 97 666 26 75 (any formatting, with or
-    // without the country code) / password admin. Password «1111»
-    // imitates the one-time password HR hands out — after it the app only
-    // allows the set-password screen. Server kabi: bo'sh, noto'g'ri yoki
-    // notanish — hammasi BITTA javob (`xodim.notogri_malumot`, 400).
+    // without the country code) / password 482915 — HR beradigan 6 xonali
+    // parol kabi. Parolni xodim almashtirmaydi. Server kabi: bo'sh,
+    // noto'g'ri yoki notanish — hammasi BITTA javob (`xodim.notogri_malumot`, 400).
     const digits = request.login.replace(/\D/g, '')
     const phoneOk = digits === MOCK_PHONE || digits === `998${MOCK_PHONE}`
-    const known =
-      request.password === (state.password ?? 'admin') ||
-      (state.password === null && request.password === '1111')
 
-    if (!phoneOk || !known) {
+    if (!phoneOk || request.password !== MOCK_PASSWORD) {
       return fail(MAX_DELAY_MS, rejected(400, 'xodim.notogri_malumot'))
     }
 
-    state.password = request.password
-    state.mustChangePassword = request.password === '1111'
-
-    return delay(tokenPair(state.mustChangePassword))
+    return delay(tokenPair())
   },
 
-  refresh: () => delay(tokenPair(state.mustChangePassword)),
+  refresh: () => delay(tokenPair()),
 
   logout: () => delay(undefined),
-
-  changePassword: (request) => {
-    if (!request.newPassword) {
-      return fail(MIN_DELAY_MS, rejected(400, 'foydalanuvchi.parol_bosh'))
-    }
-    if (request.newPassword.length < PASSWORD_MIN_LENGTH) {
-      return fail(MIN_DELAY_MS, rejected(400, 'foydalanuvchi.parol_qisqa'))
-    }
-    if (request.currentPassword !== state.password) {
-      return fail(MIN_DELAY_MS, rejected(400, 'xodim.parol_notogri'))
-    }
-
-    state.password = request.newPassword
-    state.mustChangePassword = false
-
-    return delay(tokenPair(false))
-  },
 
   getMe: () => {
     const me: MeDto = {
       ...MOCK_ME,
       mobileCheckInAllowed: mobileAllowed(),
-      mustChangePassword: state.mustChangePassword,
       absenceTypes: MOCK_ABSENCE_TYPES,
     }
 

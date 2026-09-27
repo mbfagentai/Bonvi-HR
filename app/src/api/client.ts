@@ -4,7 +4,6 @@ import { realApi } from './real'
 import type {
   AbsenceRequestDto,
   AttendanceMonthDto,
-  ChangePasswordRequest,
   CheckInRequest,
   CheckInResult,
   CreateAbsenceRequest,
@@ -35,11 +34,6 @@ export interface EmployeeApi {
   refresh: (refreshToken: string) => Promise<LoginResult>
   /** `POST /api/employee-auth/logout` — shu qurilmaning sessiyasini serverda yopadi (204). */
   logout: (refreshToken: string) => Promise<void>
-  /**
-   * `POST /api/employee-auth/password` — javobda YANGI juftlik: server
-   * barcha eski sessiyalarni yopadi, ya'ni eski yangilash tokeni o'ldi.
-   */
-  changePassword: (request: ChangePasswordRequest) => Promise<LoginResult>
   /** `GET /api/me` */
   getMe: () => Promise<MeDto>
   /** `GET /api/me/photo` — o'z rasmi; rasm yo'q bo'lsa `null`. */
