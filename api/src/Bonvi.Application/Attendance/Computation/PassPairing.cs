@@ -35,11 +35,11 @@ public sealed record PairingResult(
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tartib me'yoriy: saralash (lahza, keyin identifikator) → sakrashlarni
-/// tashlash → noma'lum yo'nalishni navbat bilan to'ldirish → oraliqlar →
-/// tanaffus → ishlangan vaqt. Qadamlarning o'rni almashsa natija
-/// o'zgaradi: masalan navbat sakrash tashlanishidan OLDIN qo'yilsa, ikki
-/// marta o'qilgan bitta kirish «kirdi-chiqdi» bo'lib qolardi.
+/// Tartib me'yoriy: saralash (lahza, keyin identifikator) → yo'nalishi
+/// ma'lum takrorlarni tashlash → noma'lum yo'nalishni navbat bilan
+/// to'ldirish → oraliqlar → tanaffus → ishlangan vaqt. Qadamlarning o'rni
+/// almashsa natija o'zgaradi: masalan navbat takror tashlanishidan OLDIN
+/// qo'yilsa, ikki marta o'qilgan bitta kirish «kirdi-chiqdi» bo'lib qolardi.
 /// </para>
 /// <para>
 /// ⭐ <b>Hech narsa o'tishga qaytib yozilmaydi.</b> Taxmin qilingan
@@ -59,13 +59,14 @@ public static class PassPairing
     /// bo'lmaydi.
     /// </para>
     /// <para>
-    /// <b>Ochiq oraliq ustiga yana kirish</b> (sakrash oynasidan tashqarida)
-    /// — oldingi oraliqning chiqishi yozilmagan. U tashlab ketiladi, daqiqa
-    /// bermaydi va <c>MissingExit</c> belgilanadi; ketma-ket ikki chiqishda
-    /// <c>MissingEntry</c> belgilangani bilan aynan simmetrik. SPEC bu holatni
-    /// alohida aytmaydi. Rad etilgan muqobil — ikkinchi kirishni e'tiborsiz
-    /// qoldirib, oraliqni birinchisidan hisoblash: u biz bilmagan vaqtni
-    /// ishlangan deb yozardi va anomaliyani ham yashirardi.
+    /// <b>Ketma-ket ikki kirish yoki ikki chiqish</b> — yo'nalishi MA'LUM bo'lsa,
+    /// ular 2-qadamda bittaga qisqaradi (birinchi kirish, oxirgi chiqish —
+    /// egasining qarori, 2026-09-27, <see cref="CollapseBounces"/>). Bu yerga
+    /// faqat yo'nalishi navbat bilan TAXMIN qilingan o'tish aralashgan holat
+    /// yetib keladi (masalan telefonda «Kirish», keyin umumiy terminal): ochiq
+    /// oraliq ustiga yana kirish — oldingi oraliq tashlanadi va
+    /// <c>MissingExit</c>, oraliqsiz chiqish — <c>MissingEntry</c>. Bu aralash
+    /// holat ataylab o'zgartirilmagan (ochiq savol).
     /// </para>
     /// <para>
     /// ⭐ <b>Tanaffus</b> (egasining qarori, SPEC §5.5.1 va §13 #14):
@@ -197,27 +198,51 @@ public static class PassPairing
             MissingExit: missingExit);
     }
 
-    /// <summary>2-qadam: sakrashlarni tashlaydi.</summary>
+    /// <summary>2-qadam: yo'nalishi ma'lum ketma-ket takrorlarni tashlaydi — birinchi kirish, oxirgi chiqish.</summary>
     /// <remarks>
-    /// Oxirgi SAQLANGAN o'tish bilan solishtiriladi, oxirgi o'qilgan bilan
-    /// emas: aks holda har 50 soniyada qayta o'qilgan uchta kirish
-    /// zanjir bo'lib, ikki daqiqalik farqni ham «bitta o'tish» qilardi.
-    /// Chegara ichida: roppa-rosa <see cref="AttendanceRules.BounceSeconds"/>
-    /// soniya — hali sakrash. <c>Unknown</c> hech narsani yutmaydi va
-    /// yutilmaydi — yo'nalishi noma'lum ikki o'qish bir xil ekani ma'lum emas.
+    /// <para>
+    /// ⭐ <b>Egasining qarori (2026-09-27).</b> Kirish va chiqish alohida
+    /// terminallarda bo'lsa, «kirish, kirish» yoki «chiqish, chiqish» ketma-ket
+    /// ikki voqea bo'la olmaydi — orasidagi vaqtdan QAT'I NAZAR (ilgari faqat
+    /// 60 soniya ichidagisi tashlanardi). Qoida:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>chiqishsiz takror KIRISH — birinchi kirishning nusxasi: ENG ERTASI
+    ///         qoladi (odam 09:00 da kirgan, 09:40 dagi o'qish uni kechroq kelgan
+    ///         qilmasligi kerak);</item>
+    ///   <item>kirishsiz takror CHIQISH — oldingisining o'rnini oladi: ENG KECHI
+    ///         qoladi (17:00 da chiqib, qaytib, 18:05 da yana chiqqan odam 18:05
+    ///         da ketgan).</item>
+    /// </list>
+    /// <para>
+    /// Tashlangan o'tish o'chirilmaydi: u jurnalda qoladi va
+    /// <see cref="PairingResult.IgnoredPassCount"/> ga tushadi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Yo'nalishi <c>Unknown</c> o'qish hech narsani yutmaydi va yutilmaydi</b>
+    /// — 20 soniya farq bilan bo'lsa ham (egasining qarori, o'sha kuni): bitta
+    /// umumiy terminalda navbat bilan kirish/chiqish bo'laveradi. Ma'lum va
+    /// noma'lum yo'nalish aralash kelgan holat (telefonda «Kirish», keyin
+    /// umumiy terminal) ham o'zgartirilmadi — u ochiq savol
+    /// (<c>docs/ASSUMPTIONS.md</c>, 2026-09-27).
+    /// </para>
     /// </remarks>
     private static List<PassReading> CollapseBounces(List<PassReading> ordered)
     {
-        var bounce = TimeSpan.FromSeconds(AttendanceRules.BounceSeconds);
         var kept = new List<PassReading>(ordered.Count);
 
         foreach (var pass in ordered)
         {
             if (kept.Count > 0
                 && pass.Direction != PassDirection.Unknown
-                && pass.Direction == kept[^1].Direction
-                && pass.OccurredAt - kept[^1].OccurredAt <= bounce)
+                && pass.Direction == kept[^1].Direction)
             {
+                if (pass.Direction == PassDirection.Out)
+                {
+                    // Oxirgi chiqish yutadi — oldingisi tashlanganlar qatoriga o'tadi.
+                    kept[^1] = pass;
+                }
+
                 continue;
             }
 
