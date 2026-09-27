@@ -353,6 +353,59 @@ public sealed partial class EmployeeAppApiTests
     }
 
     /// <summary>
+    /// Kechagi smenaning kech chiqishi ilovada ham kechagi katakda — tabel bilan bir xil.
+    /// </summary>
+    /// <remarks>
+    /// 09:00–18:00 da ishlab seshanba 00:20 da chiqish dushanbaning oynasidan
+    /// (tugash + 6 soat) tashqarida. Tabel uni dushanbaning chiqishi qiladi
+    /// (egasining qarori, 2026-09-27); ilova oynalarning o'zidan hisoblasa,
+    /// belgi seshanbaga tushib, ikki ekran bir-biriga zid bo'lardi.
+    /// </remarks>
+    [Fact]
+    public async Task Kech_chiqish_ilovada_ham_kechagi_katakda()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(belgi);
+        await XodimgaKunduzgiJadvalAsync(admin, xodim.Id, belgi);
+
+        var kun = BugunToshkentda().AddDays(-3);
+        var kirish = new DateTimeOffset(kun.ToDateTime(new TimeOnly(9, 0)), Tashkent);
+        var chiqish = new DateTimeOffset(kun.AddDays(1).ToDateTime(new TimeOnly(0, 20)), Tashkent);
+
+        await TerminalOtishlariAsync(admin, xodim.Id, belgi, (kirish, "In"), (chiqish, "Out"));
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            await qamrov.ServiceProvider.GetRequiredService<AttendanceRecomputeRangeJob>()
+                .ExecuteAsync(kun.AddDays(-1), kun.AddDays(1), xodim.Id, ct);
+        }
+
+        using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
+        using var oy = await ilova.GetAsync(
+            new Uri($"/api/me/attendance?year={kun.Year}&month={kun.Month}", UriKind.Relative),
+            ct);
+
+        oy.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(oy));
+        var kunlar = (await JsonAsync(oy)).GetProperty("days").EnumerateArray().ToList();
+
+        var smena = kunlar.Single(item => item.GetProperty("day").GetProperty("date").GetString() == Iso(kun));
+        smena.GetProperty("marks").EnumerateArray()
+            .Select(item => item.GetProperty("direction").GetString())
+            .ShouldBe(["In", "Out"], "00:20 dagi chiqish dushanbaning katagida");
+
+        var ertasi = kunlar.SingleOrDefault(item =>
+            item.GetProperty("day").GetProperty("date").GetString() == Iso(kun.AddDays(1)));
+
+        if (ertasi.ValueKind != JsonValueKind.Undefined)
+        {
+            ertasi.GetProperty("marks").GetArrayLength().ShouldBe(0, "seshanba toza");
+        }
+    }
+
+    /// <summary>
     /// Keyingi yo'nalish kalendar kunidan emas, oxirgi belgilardan: kechagi kirish — «Chiqish».
     /// </summary>
     [Fact]
@@ -461,6 +514,39 @@ public sealed partial class EmployeeAppApiTests
     }
 
     /// <summary>Har kuni 20:00–08:00 tungi smena — xodim pog'onasida.</summary>
+    private static async Task XodimgaKunduzgiJadvalAsync(HttpClient admin, Guid xodimId, string belgi)
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        using var jadval = await admin.PostAsJsonAsync(
+            new Uri("/api/attendance/schedules", UriKind.Relative),
+            new
+            {
+                name = "Kunduzgi smena " + belgi,
+                graceInMinutes = 10,
+                graceOutMinutes = 10,
+                days = Enumerable.Range(1, 7).Select(kun => new
+                {
+                    dayIndex = kun,
+                    isWorking = true,
+                    startTime = "09:00",
+                    endTime = "18:00",
+                    breakMinutes = 0,
+                }),
+            },
+            ct);
+
+        jadval.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(jadval));
+        var jadvalId = (await JsonAsync(jadval)).GetProperty("id").GetGuid();
+
+        using var biriktirma = await admin.PostAsJsonAsync(
+            new Uri("/api/attendance/schedule-assignments", UriKind.Relative),
+            new { workScheduleId = jadvalId, scope = "Employee", employeeId = xodimId, effectiveFrom = "2025-01-01" },
+            ct);
+
+        biriktirma.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(biriktirma));
+    }
+
     private static async Task XodimgaTungiJadvalAsync(HttpClient admin, Guid xodimId, string belgi)
     {
         var ct = TestContext.Current.CancellationToken;
