@@ -289,7 +289,11 @@ services:
     working_dir: /app
     command: sh -c "corepack enable && pnpm install && pnpm dev --host 0.0.0.0 --port 7174"
     environment:
-      VITE_API_URL: "http://localhost:${API_PORT:-7080}"
+      # API BIR XIL manzildan (`/api/…`) — Vite proksisi konteyner tarmog'i
+      # orqali API'ga uzatadi (production'dagi Caddy bilan bir xil shakl).
+      # `VITE_API_URL` ATAYLAB yo'q: to'liq manzil berilsa, brauzer boshqa
+      # origin'ga so'rov yuborib, CORS'ga (faqat 7173 ruxsat) urilardi.
+      VITE_API_PROXY: "http://api:8080"
       # macOS bind-mount inotify hodisalarini uzatmaydi — so'rash shart
       CHOKIDAR_USEPOLLING: "true"
     ports:
