@@ -234,9 +234,18 @@ public sealed class UpdateAbsenceRequestCommandHandler
 /// <para>
 /// ⭐ <b>Qarordan keyin kunlar QAYTA HISOBLANADI</b> (§B3): tasdiqlangan
 /// so'rov «Kelmadi» ni «Sababli» ga aylantiradi, rad etilgani esa —
-/// teskarisiga. Saqlangan kun qo'lda tahrirlanmaydi, hamma narsa
-/// <see cref="AttendanceRecomputeRangeJob"/> orqali: tabelni qo'lda yozish
-/// modulda umuman yo'q qoida.
+/// teskarisiga. Saqlangan kun qo'lda tahrirlanmaydi, hamma narsa yagona
+/// yozuvchi <see cref="AttendanceDayRecomputer"/> orqali: tabelni qo'lda
+/// yozish modulda umuman yo'q qoida.
+/// </para>
+/// <para>
+/// ⭐ <b>Javobdan OLDIN, shu so'rovning o'zida</b> (bitta xodim, ko'pi bilan
+/// <see cref="AttendanceRules.MaxRecomputeDays"/> kun — bir necha so'rov).
+/// Ilgari qayta hisoblash Hangfire navbatiga qo'yilardi, veb esa javob
+/// kelishi bilan xodim kartasini qayta so'rardi: karta ~bir daqiqa «Kelmadi»
+/// bo'lib turardi va HR tugmani ishlamadi deb o'ylardi. Undan uzun davr
+/// (domen buni hozir rad etadi, lekin ko'chirilgan eski yozuv bo'lishi
+/// mumkin) — navbatga, so'rovni ushlab turmasdan.
 /// </para>
 /// <para>
 /// Tasdiqlash ham, rad etish ham BITTA handler: ikkalasidan keyin ham ayni
@@ -250,6 +259,7 @@ public sealed class DecideAbsenceRequestCommandHandler
     private readonly IAttendanceReadModel _readModel;
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
+    private readonly AttendanceDayRecomputer _recomputer;
     private readonly IBackgroundJobQueue _jobs;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -258,6 +268,7 @@ public sealed class DecideAbsenceRequestCommandHandler
         IAttendanceReadModel readModel,
         ICurrentUser currentUser,
         IClock clock,
+        AttendanceDayRecomputer recomputer,
         IBackgroundJobQueue jobs,
         IUnitOfWork unitOfWork)
     {
@@ -265,6 +276,7 @@ public sealed class DecideAbsenceRequestCommandHandler
         _readModel = readModel;
         _currentUser = currentUser;
         _clock = clock;
+        _recomputer = recomputer;
         _jobs = jobs;
         _unitOfWork = unitOfWork;
     }
@@ -295,24 +307,50 @@ public sealed class DecideAbsenceRequestCommandHandler
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        await EnqueueRecomputeAsync(_jobs, request).ConfigureAwait(false);
+        // Qaror SAQLANGACH: yozuvchi tasdiqlangan so'rovlarni bazadan o'qiydi.
+        await RecomputeDaysAsync(_recomputer, _jobs, request, cancellationToken).ConfigureAwait(false);
 
         var dto = await _readModel.FindAbsenceRequestAsync(request.Id, cancellationToken).ConfigureAwait(false);
 
         return dto!;
     }
 
-    /// <summary>So'rov qamragan kunlarni qayta hisoblashga qo'yadi.</summary>
+    /// <summary>So'rov qamragan kunlarni qayta hisoblaydi — shu yerda yoki (uzun davrda) navbatda.</summary>
     /// <remarks>
+    /// <para>
     /// Bekor qilish ham shu yerdan chaqiriladi (<see cref="CancelAbsenceRequestCommandHandler"/>):
     /// tasdiqlangan so'rov bekor qilinsa, kun «Sababli» dan qaytishi kerak.
+    /// </para>
+    /// <para>
+    /// Faqat so'rov sanalari, qo'shnilarsiz: qaror o'tishlarning qaysi kunga
+    /// tushishini o'zgartirmaydi, faqat «Kelmadi» ↔ «Sababli» ni.
+    /// </para>
     /// </remarks>
-    internal static Task EnqueueRecomputeAsync(IBackgroundJobQueue jobs, AbsenceRequest request)
-        => jobs.EnqueueAsync<AttendanceRecomputeRangeJob>(job => job.RunAsync(
-            request.FromDate,
-            request.ToDate,
-            request.EmployeeId,
-            CancellationToken.None));
+    internal static async Task RecomputeDaysAsync(
+        AttendanceDayRecomputer recomputer,
+        IBackgroundJobQueue jobs,
+        AbsenceRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.ToDate.DayNumber - request.FromDate.DayNumber + 1 <= AttendanceRules.MaxRecomputeDays)
+        {
+            await recomputer
+                .RecomputeAsync(
+                    [request.EmployeeId],
+                    AttendanceDayRecomputer.DaysBetween(request.FromDate, request.ToDate),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        await jobs.EnqueueAsync<AttendanceRecomputeRangeJob>(job => job.RunAsync(
+                request.FromDate,
+                request.ToDate,
+                request.EmployeeId,
+                CancellationToken.None))
+            .ConfigureAwait(false);
+    }
 }
 
 /// <summary><see cref="CancelAbsenceRequestCommand"/> ni bajaradi.</summary>
@@ -326,6 +364,7 @@ public sealed class CancelAbsenceRequestCommandHandler
     private readonly IAbsenceRequestRepository _requests;
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
+    private readonly AttendanceDayRecomputer _recomputer;
     private readonly IBackgroundJobQueue _jobs;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -333,12 +372,14 @@ public sealed class CancelAbsenceRequestCommandHandler
         IAbsenceRequestRepository requests,
         ICurrentUser currentUser,
         IClock clock,
+        AttendanceDayRecomputer recomputer,
         IBackgroundJobQueue jobs,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
         _currentUser = currentUser;
         _clock = clock;
+        _recomputer = recomputer;
         _jobs = jobs;
         _unitOfWork = unitOfWork;
     }
@@ -369,7 +410,9 @@ public sealed class CancelAbsenceRequestCommandHandler
         // qayta hisoblash bir necha yuz kunni sababsiz qayta yozardi.
         if (wasApproved)
         {
-            await DecideAbsenceRequestCommandHandler.EnqueueRecomputeAsync(_jobs, request).ConfigureAwait(false);
+            await DecideAbsenceRequestCommandHandler
+                .RecomputeDaysAsync(_recomputer, _jobs, request, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         return Result.Success();

@@ -16,7 +16,9 @@ using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
 using ClosedXML.Excel;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.OpenApi;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -1494,6 +1496,78 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
     }
 
     /// <summary>
+    /// Qaror (tasdiqlash / bekor qilish) kunlarni JAVOBDAN OLDIN qayta hisoblaydi: navbat hech narsa
+    /// bajarmaydigan muhitda ham (ishlab chiqarishdagi Hangfire kabi) kun darhol «Sababli», bekor
+    /// qilingach darhol «Kelmadi» — veb javob kelishi bilan kartani qayta so'raydi.
+    /// </summary>
+    [Fact]
+    public async Task Sorov_qarori_kunni_javobdan_oldin_qayta_hisoblaydi_navbatga_qoymaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var navbat = new YozibOluvchiNavbat();
+
+        await using var navbatsiz = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services => services.AddSingleton<Bonvi.Application.Abstractions.IBackgroundJobQueue>(navbat)));
+
+        using var admin = await AdminMijozAsync(navbatsiz);
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+        var sana = BugunToshkentda().AddDays(-3);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            await qamrov.ServiceProvider.GetRequiredService<Bonvi.Application.Attendance.Recompute.AttendanceDayRecomputer>()
+                .RecomputeAsync([xodim.Id], [sana], ct);
+        }
+
+        (await KunAsync(xodim.Id, sana, ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.Absent, "sinov sharti");
+
+        var turId = await YoqlikTuriAsync(admin, $"Xizmat safari {belgi}", ct);
+        Guid sorovId;
+
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/requests"),
+                   new { employeeId = xodim.Id, absenceTypeId = turId, fromDate = Iso(sana), toDate = Iso(sana) },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            sorovId = (await JsonAsync(yaratish)).GetProperty("id").GetGuid();
+        }
+
+        using (var qaror = await admin.PostAsJsonAsync(Yol($"/requests/{sorovId}/decide"), new { approve = true }, ct))
+        {
+            qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+        }
+
+        (await KunAsync(xodim.Id, sana, ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.Excused);
+
+        using (var bekor = await admin.PostAsync(Yol($"/requests/{sorovId}/cancel"), null, ct))
+        {
+            bekor.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(bekor));
+        }
+
+        (await KunAsync(xodim.Id, sana, ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.Absent);
+
+        navbat.Soni.ShouldBe(0, "bir kunlik so'rov navbatga tushmaydi — shu so'rovning o'zida hisoblanadi");
+    }
+
+    /// <summary>Navbatga qo'yilganini sanaydi, lekin HECH NARSANI bajarmaydi — ishlab chiqarishdagi kechikishning o'zi.</summary>
+    private sealed class YozibOluvchiNavbat : Bonvi.Application.Abstractions.IBackgroundJobQueue
+    {
+        private int _soni;
+
+        public int Soni => _soni;
+
+        public Task<string> EnqueueAsync<TJob>(System.Linq.Expressions.Expression<Func<TJob, Task>> job)
+            where TJob : class
+        {
+            Interlocked.Increment(ref _soni);
+            return Task.FromResult("yozildi-" + _soni.ToString(CultureInfo.InvariantCulture));
+        }
+    }
+
+    /// <summary>
     /// #77. <c>attendance.view</c> + <c>attendance.manage</c>, lekin <c>reports.export</c> YO'Q — to'rttala
     /// eksportda 403. Qarshi tekshiruv: <c>view</c> + <c>reports.export</c> (manage'siz) — to'rttalasi 200
     /// va Excel; ya'ni 403 aynan eksport ruxsati yo'qligidan, eksport ortiqcha ruxsat so'ragani uchun emas.
@@ -2367,9 +2441,11 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         return tokens.CreateTokens(user, [], ruxsatlar.ToHashSet(StringComparer.Ordinal)).AccessToken;
     }
 
-    private async Task<HttpClient> AdminMijozAsync()
+    private Task<HttpClient> AdminMijozAsync() => AdminMijozAsync(_factory);
+
+    private static async Task<HttpClient> AdminMijozAsync(WebApplicationFactory<Program> factory)
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
 
         using var javob = await client.PostAsJsonAsync(
             new Uri("/api/auth/login", UriKind.Relative),
