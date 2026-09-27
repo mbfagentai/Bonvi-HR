@@ -9,7 +9,16 @@ import {
   EMPLOYMENT_TRANSFER,
 } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import {
+  Alert,
+  Button,
+  DateField,
+  Dialog,
+  MoneyInput,
+  Select,
+  TextArea,
+  TextField,
+} from '@/shared/ui'
 
 import {
   PROBATION_RESULTS,
@@ -230,13 +239,11 @@ export function ResolveDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               {canSetSalary && (
-                <TextField
+                <MoneyInput
                   label={t('employee.salary')}
                   placeholder={t('probation.keepCurrent')}
-                  type="number"
-                  inputMode="numeric"
                   value={salary}
-                  onChange={(event) => setSalary(event.target.value)}
+                  onChange={setSalary}
                 />
               )}
 

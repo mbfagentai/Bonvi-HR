@@ -11,7 +11,16 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '@/features/auth'
 import { SALARY_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Checkbox, DateField, Dialog, Select, TextField } from '@/shared/ui'
+import {
+  Alert,
+  Button,
+  Checkbox,
+  DateField,
+  Dialog,
+  MoneyInput,
+  Select,
+  TextField,
+} from '@/shared/ui'
 import type { Candidate, HireOutcome } from '../api/recruiting-api'
 import {
   useEmployeeOptions,
@@ -81,7 +90,7 @@ export function CandidateHireDialog({
   open: boolean
   onClose: () => void
 }) {
-  const { t, money } = useLocale()
+  const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const navigate = useNavigate()
 
@@ -317,8 +326,6 @@ export function CandidateHireDialog({
 
   /* ───────────────────────── FORMA ───────────────────────── */
 
-  const salaryValue = numberOrNull(salaryAmount)
-
   return (
     <Dialog
       open
@@ -537,18 +544,14 @@ export function CandidateHireDialog({
                 qoldirilsa munosabat oklad yozuvisiz ochiladi.
               */}
               {canSeeSalary ? (
-                <TextField
+                <MoneyInput
                   label={t('employee.salary')}
-                  placeholder="4500000"
-                  inputMode="numeric"
-                  hint={
-                    salaryValue === null ? t('recruiting.hireSalaryHint') : money(salaryValue)
-                  }
+                  placeholder="4 500 000"
+                  hint={t('recruiting.hireSalaryHint')}
                   value={salaryAmount}
                   error={fieldMessage('salaryAmount')}
                   disabled={pending}
-                  inputClassName="tabular"
-                  onChange={(event) => setSalaryAmount(event.target.value)}
+                  onChange={setSalaryAmount}
                 />
               ) : (
                 <Alert tone="info">{t('employees.salaryHidden')}</Alert>

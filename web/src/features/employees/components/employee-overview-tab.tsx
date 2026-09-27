@@ -399,38 +399,18 @@ function EmploymentCard({
 
         {/* ⚠️ Oklad faqat `salary.view` ruxsati bilan. Ruxsat yo'q bo'lsa
             qator umuman chizilmaydi — bo'sh joy ham ma'lumot bermasin */}
-        {canSeeSalary && employment.salary !== null && (
+        {/* Faol vazifa bo'lsa oklad pastdagi «hisob» blokida — ikki marta chizilmaydi */}
+        {canSeeSalary && employment.salary !== null && employment.duties.length === 0 && (
           <MiniRow
             label={t('employee.salary')}
             value={money(employment.salary.amount, employment.salary.currency)}
           />
         )}
-
-        {/*
-          Faol qo'shimcha vazifalar — okladning USTIGA yozilmaydi, unga QO'SHILIB
-          ko'rsatiladi (egasining qarori, 2026-09-27). Vazifaning o'zi hammaga
-          ko'rinadi; haqi — faqat `salary.extra.view` bilan (server yashiradi).
-        */}
-        {employment.duties.map((duty) => (
-          <MiniRow
-            key={duty.eventId}
-            label={t('employees.activeDuty')}
-            value={
-              duty.extraPay === null
-                ? duty.duty
-                : `${duty.duty} · +${money(duty.extraPay.amount, duty.extraPay.currency)}`
-            }
-          />
-        ))}
-
-        {/* Jami — ikkala ruxsat bo'lsa va haqli faol vazifa bo'lsagina keladi */}
-        {employment.totalPay !== null && (
-          <MiniRow
-            label={t('employees.totalPay')}
-            value={money(employment.totalPay.amount, employment.totalPay.currency)}
-          />
-        )}
       </dl>
+
+      {employment.duties.length > 0 && (
+        <PayBreakdown employment={employment} canSeeSalary={canSeeSalary} />
+      )}
 
       {/*
         Sinov muddati bloki — oddiy amallardan YUQORIDA va ajratilgan.
@@ -615,6 +595,95 @@ function InfoRow({
           {empty ? '—' : value}
         </dd>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Oklad + faol qo'shimcha vazifalar + jami — kartaning butun kengligida.
+ *
+ * Egasining qarori (2026-09-27): qo'shimcha haq okladning USTIGA yozilmaydi,
+ * unga QO'SHILIB ko'rsatiladi. Ikki ustunli jadvalda vazifa nomi va summa
+ * sig'masdi va qatorlar sinib ketardi — shu sababli bu alohida, kvitansiya
+ * kabi blok: chapda nom, o'ngda summa, pastda chiziq va jami.
+ *
+ * Vazifaning o'zi hammaga ko'rinadi; haqi va jami — faqat
+ * `salary.extra.view` bilan (server ularni `null` qaytaradi).
+ */
+function PayBreakdown({
+  employment,
+  canSeeSalary,
+}: {
+  employment: EmploymentSummary
+  canSeeSalary: boolean
+}) {
+  const { t, money } = useLocale()
+
+  return (
+    <div className="mt-3 space-y-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2.5">
+      {canSeeSalary && employment.salary !== null && (
+        <PayLine
+          label={t('employee.salary')}
+          value={money(employment.salary.amount, employment.salary.currency)}
+        />
+      )}
+
+      {employment.duties.map((duty) => (
+        <PayLine
+          key={duty.eventId}
+          label={duty.duty}
+          hint={t('employees.activeDuty')}
+          value={
+            duty.extraPay === null
+              ? null
+              : `+${money(duty.extraPay.amount, duty.extraPay.currency)}`
+          }
+        />
+      ))}
+
+      {employment.totalPay !== null && (
+        <div className="border-t border-[var(--border)] pt-1.5">
+          <PayLine
+            label={t('employees.total')}
+            value={money(employment.totalPay.amount, employment.totalPay.currency)}
+            strong
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PayLine({
+  label,
+  hint,
+  value,
+  strong = false,
+}: {
+  label: string
+  hint?: string
+  value: string | null
+  strong?: boolean
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <div className="min-w-0">
+        <p className={cn('truncate text-footnote', strong ? 'font-semibold' : 'text-[var(--fg)]')} title={label}>
+          {label}
+        </p>
+        {hint !== undefined && <p className="text-caption2 text-[var(--fg-tertiary)]">{hint}</p>}
+      </div>
+
+      {value !== null && (
+        <span
+          className={cn(
+            'tabular shrink-0 text-footnote whitespace-nowrap',
+            strong ? 'font-semibold' : 'font-medium',
+          )}
+        >
+          {value}
+        </span>
+      )}
     </div>
   )
 }

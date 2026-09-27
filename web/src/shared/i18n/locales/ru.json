@@ -963,7 +963,7 @@
     "extraPay": "Доплата",
     "extraPayHidden": "Доплата скрыта — нужно право на просмотр",
     "activeDuty": "Доп. обязанность",
-    "totalPay": "Итого (оклад + доплата)",
+    "total": "Итого",
     "dutyOngoing": "Действует",
     "dutyEndedOn": "Завершена {{date}}",
     "dutyEndsOn": "Завершается {{date}}",

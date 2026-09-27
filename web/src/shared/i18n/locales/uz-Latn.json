@@ -963,7 +963,7 @@
     "extraPay": "Qo‘shimcha haq",
     "extraPayHidden": "Qo‘shimcha haq yashirilgan — ko‘rish uchun ruxsat kerak",
     "activeDuty": "Qo‘shimcha vazifa",
-    "totalPay": "Jami (oklad + qo‘shimcha haq)",
+    "total": "Jami",
     "dutyOngoing": "Davom etmoqda",
     "dutyEndedOn": "{{date}} da tugagan",
     "dutyEndsOn": "{{date}} dan tugaydi",

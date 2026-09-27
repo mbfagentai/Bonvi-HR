@@ -8,6 +8,7 @@ import {
   Button,
   DateField,
   Dialog,
+  MoneyInput,
   SegmentedControl,
   Select,
   TextArea,
@@ -227,13 +228,7 @@ export function IncentiveDialog({
             (`hasAmount`). Boshqa turda maydon UMUMAN chizilmaydi: uni
             ko'rsatib, keyin xato qaytarish yomon tajriba bo'lardi. */}
         {hasAmount && (
-          <TextField
-            label={t('incentives.amount')}
-            type="number"
-            inputMode="numeric"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-          />
+          <MoneyInput label={t('incentives.amount')} value={amount} onChange={setAmount} />
         )}
 
         {/* Sovg'a — faqat rag'batda. Jarima yozuvida bu maydon umuman

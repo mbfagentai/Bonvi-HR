@@ -963,7 +963,7 @@
     "extraPay": "Қўшимча ҳақ",
     "extraPayHidden": "Қўшимча ҳақ яширилган — кўриш учун рухсат керак",
     "activeDuty": "Қўшимча вазифа",
-    "totalPay": "Жами (оклад + қўшимча ҳақ)",
+    "total": "Жами",
     "dutyOngoing": "Давом этмоқда",
     "dutyEndedOn": "{{date}} да тугаган",
     "dutyEndsOn": "{{date}} дан тугайди",

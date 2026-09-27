@@ -4,7 +4,16 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import {
+  Alert,
+  Button,
+  DateField,
+  Dialog,
+  MoneyInput,
+  Select,
+  TextArea,
+  TextField,
+} from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
 import type { EmploymentSummary, TimelineEvent } from '../api/employees-api'
@@ -320,13 +329,7 @@ export function AdditionalDutyDialog({
           onChange={setEffectiveDate}
         />
         {canSetSalary && (
-          <TextField
-            label={t('employees.extraSalary')}
-            type="number"
-            inputMode="numeric"
-            value={extra}
-            onChange={(event) => setExtra(event.target.value)}
-          />
+          <MoneyInput label={t('employees.extraSalary')} value={extra} onChange={setExtra} />
         )}
       </div>
 
@@ -402,13 +405,11 @@ export function SalaryDialog({
         salary.isError && <Alert tone="danger">{errorMessage(employeeErrorCode(salary.error))}</Alert>
       }
     >
-      <TextField
+      <MoneyInput
         label={t('employee.salary')}
         hint={t('employees.salaryHint')}
-        type="number"
-        inputMode="numeric"
         value={amount}
-        onChange={(event) => setAmount(event.target.value)}
+        onChange={setAmount}
       />
 
       <DateField
@@ -544,13 +545,7 @@ export function EmploymentEventEditDialog({
       />
 
       {salaryEditable && (
-        <TextField
-          label={t('employee.salary')}
-          type="number"
-          inputMode="numeric"
-          value={amount}
-          onChange={(event_) => setAmount(event_.target.value)}
-        />
+        <MoneyInput label={t('employee.salary')} value={amount} onChange={setAmount} />
       )}
 
       <OrderFields

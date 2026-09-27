@@ -20,6 +20,7 @@ import {
   Checkbox,
   DateField,
   Dialog,
+  MoneyInput,
   PhoneInput,
   Select,
   Skeleton,
@@ -90,7 +91,7 @@ export function HireDialog({
   onClose: () => void
   options: FilterOptions
 }) {
-  const { t, money } = useLocale()
+  const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
   const canSeeSalary = hasPermission(SALARY_VIEW)
@@ -151,15 +152,6 @@ export function HireDialog({
   }, [positionId, departmentId, options.positionDepartment, setValue])
 
   const rateValue = toRate(watch('rate'))
-
-  /**
-   * Kiritilgan summa darhol o'qiladigan ko'rinishda ko'rsatiladi:
-   * «4500000» → «4 500 000 so'm». Nolni ortiqcha yozib yuborish HR
-   * formalarida eng ko'p uchraydigan xato, va uni faqat ajratilgan
-   * raqamda ko'rish mumkin.
-   */
-  const salaryAmount = toAmount(watch('salaryAmount'))
-  const salaryPreview = salaryAmount === null ? null : money(salaryAmount)
 
   const goNext = async () => {
     const fields = STEP_FIELDS[step]
@@ -491,15 +483,27 @@ export function HireDialog({
             degan yolg'on taassurot qoldiradi va HR uni to'ldirmoqchi bo'ladi.
           */}
           {canSeeSalary ? (
-            <TextField
-              label={t('employee.salary')}
-              inputMode="numeric"
-              placeholder="4500000"
-              hint={salaryPreview ?? t('employees.salaryHint')}
-              disabled={isSubmitting}
-              error={message('salaryAmount')}
-              inputClassName="tabular"
-              {...register('salaryAmount')}
+            /*
+              Summa YOZISH paytidayoq uch xonadan ajratiladi («4 500 000»):
+              nolni ortiqcha yozib yuborish HR formalarida eng ko'p uchraydigan
+              xato va uni faqat ajratilgan raqamda ko'rish mumkin (`MoneyInput`).
+            */
+            <Controller
+              control={control}
+              name="salaryAmount"
+              render={({ field }) => (
+                <MoneyInput
+                  label={t('employee.salary')}
+                  placeholder="4 500 000"
+                  hint={t('employees.salaryHint')}
+                  disabled={isSubmitting}
+                  error={message('salaryAmount')}
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                />
+              )}
             />
           ) : (
             <Alert tone="info">{t('employees.salaryHidden')}</Alert>
