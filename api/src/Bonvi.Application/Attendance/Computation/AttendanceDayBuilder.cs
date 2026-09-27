@@ -236,14 +236,23 @@ public sealed class AttendanceDayBuilder
         {
             status = AttendanceDayStatus.Excused;
         }
-        else if (date > today && status == AttendanceDayStatus.Absent)
+        else if (status == AttendanceDayStatus.Absent && DashboardStatusRule.HasNotStarted(plan!, today, now))
         {
             /*
-              Kelajak kun — «kelmadi» EMAS. Tartib muhim: tasdiqlangan
-              so'rov ustun turadi, ya'ni keyingi haftaga ruxsat olingan
-              kun tabelda bugundanoq «Sababli» bo'lib ko'rinadi. Qolgan
-              kelajak ish kunlari esa bo'sh qoladi va hech qaysi sanoqqa
-              kirmaydi.
+              Smenasi hali BOSHLANMAGAN kun — «kelmadi» EMAS: kelajak kun
+              ham, bugungi smenasi hali boshlanmagan kun ham. Qoida
+              paneldagi «Hali boshlanmagan» bilan AYNAN bitta
+              (`DashboardStatusRule.HasNotStarted`): ilgari 08:00 da
+              09:00 lik smenaning odami tabelda, ilovada va hisobotlarda
+              «Kelmadi», panelda esa «Hali boshlanmagan» bo'lib turardi;
+              20:00 lik tungi smena xodimi esa kun bo'yi «Kelmadi» edi.
+              Reja boshlangach kun `AttendanceStartedShiftsJob` bilan 15
+              daqiqa ichida «Kelmadi» bo'lib yoziladi.
+
+              Tartib muhim: tasdiqlangan so'rov ustun turadi, ya'ni
+              keyingi haftaga ruxsat olingan kun tabelda bugundanoq
+              «Sababli» bo'lib ko'rinadi. Qolgan boshlanmagan ish kunlari
+              esa bo'sh qoladi va hech qaysi sanoqqa kirmaydi.
             */
             status = AttendanceDayStatus.Planned;
         }
@@ -280,15 +289,15 @@ public sealed class AttendanceDayBuilder
         // §5.4: o'tish bor — YOKI munosabat bor va jadval shu kunni ish kuni deydi.
         // Ish kunidagi reja faqat munosabat va jadval topilganda bo'ladi.
         /*
-          Kelajak kun uchun qator YARATILMAYDI: u har kecha qayta
-          hisoblanib turadigan minglab bo'sh qatorni keltirib chiqarardi
-          va oy oxirigacha bo'lgan hamma kunni bazaga yozardi. Istisno —
-          tasdiqlangan so'rov: u BUGUN qabul qilingan qaror va yozuvi
-          bo'lishi kerak.
+          Smenasi hali boshlanmagan kun (`Planned`) uchun qator
+          YARATILMAYDI: kelajak kunlar har kecha qayta hisoblanib
+          turadigan minglab bo'sh qatorni keltirib chiqarardi, bugungi
+          boshlanmagan smena esa «Kelmadi» bo'lib yozilib qolardi.
+          Istisno — tasdiqlangan so'rov: u BUGUN qabul qilingan qaror va
+          yozuvi bo'lishi kerak.
         */
         var shouldStore = pairing.PassCount > 0
-            || (plan is { IsWorking: true }
-                && (date <= today || status == AttendanceDayStatus.Excused));
+            || (plan is { IsWorking: true } && status != AttendanceDayStatus.Planned);
 
         return new ComputedAttendanceDay(
             employeeId,

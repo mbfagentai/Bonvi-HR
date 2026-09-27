@@ -57,6 +57,20 @@ internal sealed partial class AttendanceJobJournal : IAttendanceJobJournal
             outcome.FrozenDates);
     }
 
+    public void StartedShiftsFilled(DateOnly from, DateOnly to, AttendanceRecomputeOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+
+        // Har 15 daqiqada — hech narsa qo'shilmagan yurish konsolni to'ldirmasin.
+        if (outcome.StoredDays == 0)
+        {
+            LogStartedShiftsNothing(from, to);
+            return;
+        }
+
+        LogStartedShiftsFilled(from, to, outcome.StoredDays, outcome.EmployeeCount);
+    }
+
     public void PhotoPurgeFinished(PhotoPurgeReport report)
     {
         ArgumentNullException.ThrowIfNull(report);
@@ -139,4 +153,16 @@ internal sealed partial class AttendanceJobJournal : IAttendanceJobJournal
         Level = LogLevel.Warning,
         Message = "{Soni} ta turniket surati fayli o'chirilmadi (ruxsat yoki disk xatosi) — ularning qatori tegilmadi, ertaga qayta urinadi")]
     private partial void LogFilesNotDeleted(int soni);
+
+    [LoggerMessage(
+        EventId = 5309,
+        Level = LogLevel.Information,
+        Message = "Davomat boshlangan smenalar {Dan}…{Gacha}: {Yozildi} ta «Kelmadi» qatori qo'shildi ({Xodimlar} xodim ko'rildi)")]
+    private partial void LogStartedShiftsFilled(DateOnly dan, DateOnly gacha, int yozildi, int xodimlar);
+
+    [LoggerMessage(
+        EventId = 5310,
+        Level = LogLevel.Debug,
+        Message = "Davomat boshlangan smenalar {Dan}…{Gacha}: yangi qator yo'q")]
+    private partial void LogStartedShiftsNothing(DateOnly dan, DateOnly gacha);
 }

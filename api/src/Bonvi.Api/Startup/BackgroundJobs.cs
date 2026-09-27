@@ -41,6 +41,9 @@ public static class BackgroundJobs
     /// <summary>Tungi to'liq qayta hisoblash — oxirgi uch kun.</summary>
     public const string NightlyRecomputeJobId = "attendance:nightly-recompute";
 
+    /// <summary>Smenasi boshlangan, lekin qatori yo'q ish kunlari — «Kelmadi».</summary>
+    public const string StartedShiftsJobId = "attendance:started-shifts";
+
     /// <summary>Surat va xom hodisani tozalash (SPEC §3.10).</summary>
     public const string PurgePhotosJobId = "attendance:purge-photos";
 
@@ -117,6 +120,14 @@ public static class BackgroundJobs
             RecomputeDirtyJobId,
             job => job.RunAsync(CancellationToken.None),
             "*/15 * * * *",
+            utc);
+
+        // Har 15 daqiqada, iflos navbatdan 5 daqiqa keyin (…:05, :20, :35, :50) —
+        // ikki ishchi bir vaqtda uchta vazifaga talashmasin.
+        jobs.AddOrUpdate<AttendanceStartedShiftsJob>(
+            StartedShiftsJobId,
+            job => job.RunAsync(CancellationToken.None),
+            "5-59/15 * * * *",
             utc);
 
         // 22:10 UTC = 03:10 Toshkent.

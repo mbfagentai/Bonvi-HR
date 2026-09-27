@@ -68,6 +68,19 @@ public sealed class DashboardStatusRuleTests
             .Status.ShouldBe(AttendanceDashboardStatus.Absent, "yon berish tugashi kutilmaydi");
     }
 
+    /// <summary>
+    /// «Hali boshlanmagan» — tabel (<c>AttendanceDayBuilder</c>) ham aynan shu metod bilan
+    /// o'tishsiz ish kunini «Kelmadi» emas, <c>Planned</c> deydi (audit #4).
+    /// </summary>
+    [Fact]
+    public void Boshlanmaganlik_qoidasi_panel_va_tabel_uchun_bitta()
+    {
+        DashboardStatusRule.HasNotStarted(Office(Wednesday), Wednesday, At("08:59:59")).ShouldBeTrue();
+        DashboardStatusRule.HasNotStarted(Office(Wednesday), Wednesday, At("09:00:00")).ShouldBeFalse();
+        DashboardStatusRule.HasNotStarted(Office(Wednesday.AddDays(1)), Wednesday, At("23:00")).ShouldBeTrue();
+        DashboardStatusRule.HasNotStarted(Office(Wednesday.AddDays(-1)), Wednesday, At("06:00")).ShouldBeFalse();
+    }
+
     [Fact]
     public void Otgan_sana_hech_qachon_NotStarted_emas_kelajak_sana_doim_NotStarted()
     {

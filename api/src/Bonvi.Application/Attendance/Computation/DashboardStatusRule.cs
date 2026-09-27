@@ -82,9 +82,7 @@ public static class DashboardStatusRule
                 : new DashboardVerdict(AttendanceDashboardStatus.Late, WholeMinutes.AtLeastZero(arrived - planStart));
         }
 
-        var notStarted = plan.Date > today || (plan.Date == today && now < planStart);
-
-        if (notStarted)
+        if (HasNotStarted(plan, today, now))
         {
             return new DashboardVerdict(AttendanceDashboardStatus.NotStarted, null);
         }
@@ -98,5 +96,32 @@ public static class DashboardStatusRule
         return new DashboardVerdict(
             excused ? AttendanceDashboardStatus.Excused : AttendanceDashboardStatus.Absent,
             null);
+    }
+
+    /// <summary>Kunning rejasi hali boshlanmaganmi — «Hali boshlanmagan» ning o'zi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Panel VA tabel uchun BITTA qoida.</b> <see cref="AttendanceDayBuilder"/>
+    /// o'tishsiz ish kunini shu shart bilan «Kelmadi» emas, <c>Planned</c> deb
+    /// hisoblaydi. Ikki joyda ikki xil yozilganda ertalab 08:00 da panel «Hali
+    /// boshlanmagan», tabel, xodim ilovasi va hisobotlar esa «Kelmadi»
+    /// ko'rsatardi.
+    /// </para>
+    /// <para>
+    /// Kelajak sana — doim boshlanmagan. Bugun — reja boshlanishi lahzasigacha
+    /// (yon berish kutilmaydi, <see cref="Classify"/> izohidagi egasining
+    /// qoidasi). O'tgan sana — hech qachon: kechagi reja boshlanishi har doim
+    /// hozirdan oldin.
+    /// </para>
+    /// </remarks>
+    /// <param name="plan">Kun rejasi.</param>
+    /// <param name="today">Bugungi Toshkent sanasi.</param>
+    /// <param name="now">Hozirgi lahza.</param>
+    public static bool HasNotStarted(DayPlan plan, DateOnly today, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+
+        return plan.Date > today
+            || (plan.Date == today && plan.PlanStartAt is { } planStart && now < planStart);
     }
 }

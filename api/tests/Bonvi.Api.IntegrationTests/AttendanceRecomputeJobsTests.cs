@@ -243,6 +243,10 @@ public sealed class AttendanceRecomputeJobsTests : IClassFixture<BonviApiFactory
     // ════════════════════════════════════════════════════════════
 
     /// <summary>Tungi vazifa bugun − 2 … bugun ni yozadi va o'tishlarning «hisobga olindi» belgisiga tegmaydi.</summary>
+    /// <remarks>
+    /// Soat qotirilgan — 12:00, ya'ni bugungi 09:00 lik smena boshlangan: boshlanmagan smenaning kuni
+    /// endi yozilmaydi (audit #4, pastdagi test), va real soatda bu test ertalab yiqilardi.
+    /// </remarks>
     [Fact]
     public async Task Tungi_hisoblash_oxirgi_uch_kunni_yozadi_va_navbat_belgisiga_tegmaydi()
     {
@@ -254,21 +258,41 @@ public sealed class AttendanceRecomputeJobsTests : IClassFixture<BonviApiFactory
         var kirish = Otish(qurilma, xodim, bugun.AddDays(-1), 9, 0, PassDirection.In);
         await SaqlaAsync(ct, kirish);
 
-        await using (var qamrov = _factory.Services.CreateAsyncScope())
-        {
-            await qamrov.ServiceProvider.GetRequiredService<AttendanceNightlyRecomputeJob>().RunAsync(ct);
-        }
+        await TungiHisoblashAsync(new QotirilganSoat(Toshkentda(bugun, 12, 0)), ct);
 
         await using var tekshir = _factory.Services.CreateAsyncScope();
         var db = tekshir.ServiceProvider.GetRequiredService<AppDbContext>();
 
         (await KunAsync(db, xodim, bugun.AddDays(-2), ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.Absent);
         (await KunAsync(db, xodim, bugun.AddDays(-1), ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.MissingExit);
-        (await KunAsync(db, xodim, bugun, ct)).ShouldNotBeNull();
+        (await KunAsync(db, xodim, bugun, ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.Absent);
         (await KunAsync(db, xodim, bugun.AddDays(-3), ct)).ShouldBeNull();
 
         (await db.AttendancePasses.AsNoTracking().SingleAsync(pass => pass.Id == kirish.Id, ct))
             .ProcessedAt.ShouldBeNull("tungi hisoblash navbatdan ishni yashirmaydi (qo'lda qayta hisoblash bilan bir qoida)");
+    }
+
+    /// <summary>
+    /// Audit #4: 03:10 dagi tungi hisoblash bugungi 09:00 lik smenani «Kelmadi» deb YOZMAYDI (panel —
+    /// «Hali boshlanmagan»), ilgari yozilib qolgan shunday qatorni esa o'chiradi.
+    /// </summary>
+    [Fact]
+    public async Task Tungi_hisoblash_bugungi_boshlanmagan_smenani_kelmadi_deb_yozmaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var bugun = BugunToshkentda();
+        var xodim = await XodimAsync("T", ct);
+
+        // Tuzatishdan oldingi kod yozib qo'ygan qator.
+        await SaqlaAsync(ct, AttendanceDay.Compute(xodim, bugun, Faktlar(AttendanceDayStatus.Absent, worked: 0), DateTimeOffset.UtcNow));
+
+        await TungiHisoblashAsync(new QotirilganSoat(Toshkentda(bugun, 3, 10)), ct);
+
+        await using var tekshir = _factory.Services.CreateAsyncScope();
+        var db = tekshir.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        (await KunAsync(db, xodim, bugun, ct)).ShouldBeNull("smena 09:00 da boshlanadi — hali savol emas");
+        (await KunAsync(db, xodim, bugun.AddDays(-1), ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.Absent);
     }
 
     /// <summary>
@@ -487,6 +511,10 @@ public sealed class AttendanceRecomputeJobsTests : IClassFixture<BonviApiFactory
     private static readonly DateOnly Dushanba = new(2026, 6, 8);
 
     private static DateOnly BugunToshkentda() => DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(Tashkent).DateTime);
+
+    /// <summary>Toshkent soatidagi lahza — UTC da (timestamptz boshqasini yozmaydi).</summary>
+    private static DateTimeOffset Toshkentda(DateOnly sana, int soat, int daqiqa)
+        => new DateTimeOffset(sana.ToDateTime(new TimeOnly(soat, daqiqa)), Tashkent).ToUniversalTime();
 
     /// <summary>Qotirilgan soat — <c>computed_at</c> va «bugun» test vaqtiga bog'liq bo'lmasin.</summary>
     private sealed class QotirilganSoat(DateTimeOffset utcNow) : IClock

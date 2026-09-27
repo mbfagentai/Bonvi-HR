@@ -29,6 +29,12 @@ public interface IAttendanceJobJournal
     /// <param name="outcome">Sanoqlar.</param>
     void NightlyRecomputeFinished(DateOnly from, DateOnly to, AttendanceRecomputeOutcome outcome);
 
+    /// <summary>Boshlangan smenalar vazifasi tugadi — yo'q «Kelmadi» qatorlari yozildi.</summary>
+    /// <param name="from">Davr boshi.</param>
+    /// <param name="to">Davr oxiri.</param>
+    /// <param name="outcome">Sanoqlar (<c>StoredDays</c> — qo'shilgan qatorlar).</param>
+    void StartedShiftsFilled(DateOnly from, DateOnly to, AttendanceRecomputeOutcome outcome);
+
     /// <summary>Surat tozalash tugadi.</summary>
     /// <param name="report">Sanoqlar.</param>
     void PhotoPurgeFinished(PhotoPurgeReport report);

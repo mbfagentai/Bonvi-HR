@@ -699,4 +699,70 @@ public sealed class AttendanceDayBuilderTests
         kuchgaKirgach.WorkScheduleId.ShouldBe(yangi.Id);
         kuchgaKirgach.DepartmentId.ShouldBe(yangiBolim);
     }
+
+    // ────────────────────── Bugun, smena boshlanmasidan oldin (audit #4) ──────────────────────
+
+    /// <summary>
+    /// 08:00 da 09:00 lik smenaning odami «Kelmadi» EMAS — panelning «Hali boshlanmagan»i bilan
+    /// bir qoida. Qator ham yozilmaydi; roppa-rosa 09:00 dan — «Kelmadi» va qator.
+    /// </summary>
+    [Fact]
+    public void Bugun_smena_boshlanmasidan_oldin_kelmadi_emas_boshlangach_kelmadi()
+    {
+        var sahna = Office();
+
+        var ertalab = sahna.Now(Monday, "08:00").Day(Monday);
+        ertalab.Facts.Status.ShouldBe(AttendanceDayStatus.Planned);
+        ertalab.ShouldStore.ShouldBeFalse("boshlanmagan smena uchun qator yozilmaydi");
+
+        var tungiHisoblash = sahna.Now(Monday, "03:10").Day(Monday);
+        tungiHisoblash.Facts.Status.ShouldBe(AttendanceDayStatus.Planned, "03:10 dagi tungi hisoblash ham");
+        tungiHisoblash.ShouldStore.ShouldBeFalse();
+
+        var boshlanishda = sahna.Now(Monday, "09:00").Day(Monday);
+        boshlanishda.Facts.Status.ShouldBe(AttendanceDayStatus.Absent, "yon berish kutilmaydi — panel kabi");
+        boshlanishda.ShouldStore.ShouldBeTrue();
+    }
+
+    /// <summary>20:00 lik tungi smena xodimi kun bo'yi «Kelmadi» emas; kechagi smenasi esa o'tgan.</summary>
+    [Fact]
+    public void Tungi_smena_kunduzi_hali_boshlanmagan()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("20:00", "08:00"));
+
+        var kunlar = sahna.Now(Monday, "14:00").Days(Monday.AddDays(-1), Monday);
+
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.Absent, "yakshanba 20:00 da boshlangan smena — o'tgan");
+        kunlar[1].Facts.Status.ShouldBe(AttendanceDayStatus.Planned);
+        kunlar[1].ShouldStore.ShouldBeFalse();
+
+        sahna.Now(Monday, "20:00").Day(Monday).Facts.Status.ShouldBe(AttendanceDayStatus.Absent);
+    }
+
+    /// <summary>Tasdiqlangan so'rov boshlanmagan smenada ham «Sababli» bo'lib saqlanadi (qaror bugun qabul qilingan).</summary>
+    [Fact]
+    public void Boshlanmagan_smenadagi_tasdiqlangan_sorov_sababli()
+    {
+        var sahna = Office().Now(Monday, "08:00");
+
+        var kun = sahna.DaysExcused(new HashSet<DateOnly> { Monday }, Monday).ShouldHaveSingleItem();
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.Excused);
+        kun.ShouldStore.ShouldBeTrue();
+    }
+
+    /// <summary>Smenadan oldin kelgan odam — «Planned» emas, o'tishi bor kun odatdagidek.</summary>
+    [Fact]
+    public void Smenadan_oldin_kelgan_odamning_kuni_odatdagidek()
+    {
+        var sahna = Office().Now(Monday, "08:55");
+        sahna.Unknown(Monday, "08:50");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kun.ShouldStore.ShouldBeTrue();
+    }
 }

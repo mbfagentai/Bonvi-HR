@@ -199,3 +199,63 @@ public sealed class AttendanceNightlyRecomputeJob
         _journal.NightlyRecomputeFinished(from, to, outcome);
     }
 }
+
+/// <summary>
+/// <c>attendance:started-shifts</c> — har 15 daqiqada smenasi BOSHLANGAN, lekin qatori hali yo'q ish kunlarini yozadi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega kerak.</b> Smenasi hali boshlanmagan kun saqlanmaydi (<c>Planned</c> —
+/// panelning «Hali boshlanmagan» qoidasi, <c>DashboardStatusRule.HasNotStarted</c>):
+/// aks holda 03:10 dagi tungi hisoblash bugungi 09:00 lik smenaning HAMMA odamini
+/// «Kelmadi» qilib yozib qo'yardi. Lekin reja boshlangach kelmagan odamning
+/// «Kelmadi» qatori paydo bo'lishi SHART — hisobotlar faqat saqlangan qatorni
+/// o'qiydi. O'tishsiz kunni hech qanday o'tish «iflos» qilmaydi, ya'ni iflos
+/// navbat uni ko'rmaydi; shu vazifa esa uni reja boshlanganidan ko'pi bilan
+/// 15 daqiqa keyin yozadi (20:00 lik tungi smenani ham).
+/// </para>
+/// <para>
+/// <b>Faqat YO'Q qatorlar qo'shiladi</b> (<see cref="AttendanceDayRecomputer.FillMissingAsync"/>):
+/// bor qatorni iflos navbat va tungi hisoblash yuritadi, uni har 15 daqiqada
+/// qayta yozish esa behuda yuk bo'lardi. Kecha ham qaraladi — 23:50 da boshlangan
+/// smena yarim tundan keyingi birinchi yurishda «kecha» bo'lib qoladi.
+/// </para>
+/// </remarks>
+public sealed class AttendanceStartedShiftsJob
+{
+    /// <summary>Bugundan necha kun orqaga qaraladi: kecha va bugun.</summary>
+    public const int DaysBack = 1;
+
+    private readonly IAttendanceComputationSource _source;
+    private readonly AttendanceDayRecomputer _recomputer;
+    private readonly IAttendanceJobJournal _journal;
+    private readonly IClock _clock;
+
+    public AttendanceStartedShiftsJob(
+        IAttendanceComputationSource source,
+        AttendanceDayRecomputer recomputer,
+        IAttendanceJobJournal journal,
+        IClock clock)
+    {
+        _source = source;
+        _recomputer = recomputer;
+        _journal = journal;
+        _clock = clock;
+    }
+
+    /// <summary>Kecha va bugunning boshlangan, lekin yozilmagan ish kunlarini yozadi.</summary>
+    /// <param name="cancellationToken">Bekor qilish belgisi (Hangfire beradi).</param>
+    public async Task RunAsync(CancellationToken cancellationToken)
+    {
+        var to = _clock.Today;
+        var from = to.AddDays(-DaysBack);
+
+        var employees = await _source.ListEmployeesAsync(from, to, cancellationToken).ConfigureAwait(false);
+
+        var outcome = await _recomputer
+            .FillMissingAsync(employees, AttendanceDayRecomputer.DaysBetween(from, to), cancellationToken)
+            .ConfigureAwait(false);
+
+        _journal.StartedShiftsFilled(from, to, outcome);
+    }
+}

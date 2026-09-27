@@ -34,6 +34,43 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
     public AttendanceCatchUpJobsTests(BonviApiFactory factory) => _factory = factory;
 
     // ════════════════════════════════════════════════════════════
+    //  Boshlangan smenalar (#4)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Smena boshlanmaguncha qator yo'q; 09:00 dan keyingi birinchi yurishda «Kelmadi» qatori paydo
+    /// bo'ladi. Bor qatorga (kechagi) va o'zi yozgan qatorga keyingi yurishlar tegmaydi.
+    /// </summary>
+    [Fact]
+    public async Task Boshlangan_smenalar_vazifasi_reja_boshlangach_kelmadi_qatorini_yozadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sana = new DateOnly(2026, 5, 6);
+        var (xodim, _) = await XodimAsync(ct);
+
+        var kechagiLahza = new DateTimeOffset(2026, 5, 5, 16, 0, 0, TimeSpan.Zero);
+        await SaqlaAsync(ct, AttendanceDay.Compute(xodim, sana.AddDays(-1), Faktlar(AttendanceDayStatus.Present, 540), kechagiLahza));
+
+        await BoshlanganSmenalarAsync(Toshkentda(sana, 8, 0), ct);
+
+        (await KunAsync(xodim, sana, ct)).ShouldBeNull("08:00 — 09:00 lik smena hali boshlanmagan");
+
+        await BoshlanganSmenalarAsync(Toshkentda(sana, 9, 5), ct);
+
+        var kun = (await KunAsync(xodim, sana, ct)).ShouldNotBeNull();
+        kun.Status.ShouldBe(AttendanceDayStatus.Absent);
+        var yozilgan = kun.ComputedAt;
+
+        await BoshlanganSmenalarAsync(Toshkentda(sana, 9, 20), ct);
+
+        (await KunAsync(xodim, sana, ct)).ShouldNotBeNull().ComputedAt.ShouldBe(yozilgan, "bor qator qayta yozilmaydi");
+
+        var kecha = (await KunAsync(xodim, sana.AddDays(-1), ct)).ShouldNotBeNull();
+        kecha.Status.ShouldBe(AttendanceDayStatus.Present, "bor qatorga tegilmaydi");
+        kecha.ComputedAt.ShouldBe(kechagiLahza);
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  Chorakdan uzun qayta hisoblash (#3)
     // ════════════════════════════════════════════════════════════
 
@@ -77,11 +114,23 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
     //  Yordamchilar
     // ════════════════════════════════════════════════════════════
 
+    private static DateTimeOffset Toshkentda(DateOnly sana, int soat, int daqiqa)
+        => new DateTimeOffset(sana.ToDateTime(new TimeOnly(soat, daqiqa)), Tashkent).ToUniversalTime();
+
     private sealed class QotirilganSoat(DateTimeOffset utcNow) : IClock
     {
         public DateTimeOffset UtcNow => utcNow;
 
         public DateOnly Today => utcNow.TashkentDate();
+    }
+
+    private async Task BoshlanganSmenalarAsync(DateTimeOffset hozir, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var soat = new QotirilganSoat(hozir);
+        var yozuvchi = ActivatorUtilities.CreateInstance<AttendanceDayRecomputer>(qamrov.ServiceProvider, soat);
+
+        await ActivatorUtilities.CreateInstance<AttendanceStartedShiftsJob>(qamrov.ServiceProvider, yozuvchi, soat).RunAsync(ct);
     }
 
     private static WorkSchedule Jadval(string nom, int boshlanish, int tugash)
@@ -138,6 +187,9 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
         return otish;
     }
 
+    private static AttendanceDayFacts Faktlar(AttendanceDayStatus holat, int worked)
+        => new(null, null, null, null, null, null, null, null, null, 0, worked, 0, 0, 0, 0, 0, 0, 0, holat);
+
     private async Task SaqlaAsync(CancellationToken ct, params object[] yozuvlar)
     {
         await using var qamrov = _factory.Services.CreateAsyncScope();
@@ -145,5 +197,13 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
 
         db.AddRange(yozuvlar);
         await db.SaveChangesAsync(ct);
+    }
+
+    private async Task<AttendanceDay?> KunAsync(Guid xodim, DateOnly sana, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+
+        return await qamrov.ServiceProvider.GetRequiredService<AppDbContext>().AttendanceDays.AsNoTracking()
+            .SingleOrDefaultAsync(day => day.EmployeeId == xodim && day.LocalDate == sana, ct);
     }
 }
