@@ -123,21 +123,33 @@ public sealed class ScheduleResolver
 
     /// <summary>Asosiy munosabat bo'yicha shu sanadagi jadval; topilmasa <c>null</c> (<c>NoSchedule</c>).</summary>
     /// <remarks>
+    /// <para>
     /// Munosabat SHART: SPEC §5.2 hal qilishni asosiy munosabat orqali
     /// ta'riflaydi, munosabati yo'q sana esa <c>NotEmployed</c> — u
     /// uchun jadval so'ralmaydi.
+    /// </para>
+    /// <para>
+    /// ⭐ Lavozim va bo'lim pog'onasi munosabatning JORIY maydonidan emas, shu
+    /// SANADAGI joyidan (<see cref="EmploymentPlacement.On"/>) o'qiladi: ko'chirish
+    /// kuchga kirishidan oldingi kun eski lavozimning jadvali bilan, oldinga
+    /// sanalangan ko'chirish esa faqat o'z sanasidan qo'llanadi. Kun yozuvining
+    /// bo'lim/lavozim surati ham aynan shu qiymatdan — ikkalasi bir-biridan
+    /// ajralib qolmaydi.
+    /// </para>
     /// </remarks>
-    /// <param name="primaryEmployment">Shu sanadagi asosiy munosabat (<see cref="PrimaryEmployment.Select"/>).</param>
+    /// <param name="primaryEmployment">Shu sanadagi asosiy munosabat (<see cref="PrimaryEmployment.Select"/>) — hodisalari bilan.</param>
     /// <param name="date">Smena boshlanadigan Toshkent sanasi.</param>
     public ScheduleResolution? Resolve(Employment primaryEmployment, DateOnly date)
     {
         ArgumentNullException.ThrowIfNull(primaryEmployment);
 
+        var placement = EmploymentPlacement.On(primaryEmployment, date);
+
         var winner = Find(ScheduleScope.Employee, primaryEmployment.EmployeeId, date)
-            ?? (primaryEmployment.PositionId is { } positionId
+            ?? (placement.PositionId is { } positionId
                 ? Find(ScheduleScope.Position, positionId, date)
                 : null)
-            ?? FindInDepartments(primaryEmployment.DepartmentId, date)
+            ?? FindInDepartments(placement.DepartmentId, date)
             ?? Find(ScheduleScope.Default, null, date);
 
         if (winner is null)

@@ -615,4 +615,88 @@ public sealed class AttendanceDayBuilderTests
     {
         AttendanceDayBuilder.PassDatesNeeded(Monday, Tuesday).ShouldBe((Monday.AddDays(-1), Tuesday.AddDays(1)));
     }
+
+    // ────────────────────── Ko'chirish sanasi (audit #1) ──────────────────────
+
+    private static readonly DateOnly Wednesday = Monday.AddDays(2);
+
+    /// <summary>
+    /// Lavozim pog'onasida jadval: eski lavozim 08:00–17:00, yangisi 09:00–18:00; chorshanbadan
+    /// ko'chirilgan. Ko'chirish maydonni joyida almashtiradi — ilgari seshanba ham yangi jadval
+    /// bilan qurilib, 17:00 da ketgan odam «50 daqiqa erta ketdi» bo'lardi va kun yangi bo'limga
+    /// ko'chardi.
+    /// </summary>
+    private static (AttendanceScenario Sahna, Guid EskiBolim, Guid YangiBolim, Guid EskiLavozim, Guid YangiLavozim, WorkSchedule Eski, WorkSchedule Yangi)
+        Kochirilgan(DateOnly kuchgaKiradi)
+    {
+        var sahna = new AttendanceScenario();
+        var eskiBolim = Guid.CreateVersion7();
+        var yangiBolim = Guid.CreateVersion7();
+        var eskiLavozim = Guid.CreateVersion7();
+        var yangiLavozim = Guid.CreateVersion7();
+
+        var munosabat = sahna.Employ(departmentId: eskiBolim, positionId: eskiLavozim);
+        var eski = Schedule("08:00", "17:00");
+        var yangi = Schedule("09:00", "18:00");
+        sahna.Assign(eski, ScheduleScope.Position, eskiLavozim);
+        sahna.Assign(yangi, ScheduleScope.Position, yangiLavozim);
+
+        munosabat.Transfer(kuchgaKiradi, yangiBolim, yangiLavozim).IsSuccess.ShouldBeTrue();
+
+        return (sahna, eskiBolim, yangiBolim, eskiLavozim, yangiLavozim, eski, yangi);
+    }
+
+    [Fact]
+    public void Davr_ortasidagi_kochirishdan_oldingi_kun_eski_jadval_va_eski_bolim_bilan()
+    {
+        var (sahna, eskiBolim, yangiBolim, eskiLavozim, yangiLavozim, eski, yangi) = Kochirilgan(Wednesday);
+        sahna.Alternating(Tuesday, "08:00", "17:00");
+        sahna.Alternating(Wednesday, "09:00", "18:00");
+
+        var kunlar = sahna.Days(Tuesday, Wednesday);
+        var seshanba = kunlar[0].Facts;
+        var chorshanba = kunlar[1].Facts;
+
+        seshanba.WorkScheduleId.ShouldBe(eski.Id);
+        seshanba.PlanStartAt.ShouldBe(At(Tuesday, "08:00"));
+        seshanba.EarlyLeaveMinutes.ShouldBe(0, "17:00 — eski jadvalning oxiri");
+        seshanba.DepartmentId.ShouldBe(eskiBolim, "surat — o'sha kungi bo'lim (SPEC §2.6)");
+        seshanba.PositionId.ShouldBe(eskiLavozim);
+        seshanba.Status.ShouldBe(AttendanceDayStatus.Present);
+
+        chorshanba.WorkScheduleId.ShouldBe(yangi.Id, "kuchga kirish kunining o'zi — yangi joy");
+        chorshanba.DepartmentId.ShouldBe(yangiBolim);
+        chorshanba.PositionId.ShouldBe(yangiLavozim);
+        chorshanba.EarlyLeaveMinutes.ShouldBe(0);
+    }
+
+    /// <summary>Tungi qayta hisoblash ko'chirishdan KEYIN o'tgan kunni yolg'iz hisoblasa ham natija o'sha.</summary>
+    [Fact]
+    public void Kochirishdan_keyin_qayta_hisoblangan_otgan_kun_ozgarmaydi()
+    {
+        var (sahna, eskiBolim, _, _, _, eski, _) = Kochirilgan(Wednesday);
+        sahna.Alternating(Tuesday, "08:00", "17:00");
+
+        var kun = sahna.Now(Wednesday.AddDays(1), "03:10").Day(Tuesday).Facts;
+
+        kun.WorkScheduleId.ShouldBe(eski.Id);
+        kun.EarlyLeaveMinutes.ShouldBe(0);
+        kun.DepartmentId.ShouldBe(eskiBolim);
+    }
+
+    /// <summary>Oldinga sanalangan ko'chirish: buyruq kiritilgan, lekin kuchga kirmagan — bugun ham eski joy.</summary>
+    [Fact]
+    public void Oldinga_sanalangan_kochirish_sanasidan_oldin_qollanmaydi()
+    {
+        var (sahna, eskiBolim, yangiBolim, _, _, eski, yangi) = Kochirilgan(Monday.AddDays(14));
+        sahna.Today(Tuesday);
+
+        var bugun = sahna.Day(Tuesday).Facts;
+        bugun.WorkScheduleId.ShouldBe(eski.Id);
+        bugun.DepartmentId.ShouldBe(eskiBolim);
+
+        var kuchgaKirgach = sahna.Day(Monday.AddDays(14)).Facts;
+        kuchgaKirgach.WorkScheduleId.ShouldBe(yangi.Id);
+        kuchgaKirgach.DepartmentId.ShouldBe(yangiBolim);
+    }
 }

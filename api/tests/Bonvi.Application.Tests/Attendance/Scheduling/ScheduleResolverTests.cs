@@ -192,6 +192,45 @@ public sealed class ScheduleResolverTests
         natija.Day.PlanStartAt.ShouldBe(At(Monday, "09:00"));
     }
 
+    /// <summary>Lavozim pog'onasi SHU SANADAGI lavozim bilan qidiriladi — ko'chirishdan oldingi kun eski lavozimning jadvali.</summary>
+    [Fact]
+    public void Lavozim_pogonasi_sanadagi_lavozim_bilan()
+    {
+        var sahna = new AttendanceScenario();
+        var yangiLavozim = Guid.CreateVersion7();
+        var munosabat = sahna.Employ(positionId: Lavozim);
+        var eski = Schedule("08:00", "17:00");
+        var yangi = Schedule("09:00", "18:00");
+        sahna.Assign(eski, ScheduleScope.Position, Lavozim);
+        sahna.Assign(yangi, ScheduleScope.Position, yangiLavozim);
+        munosabat.Transfer(Tuesday, null, yangiLavozim).IsSuccess.ShouldBeTrue();
+
+        var resolver = sahna.Resolver();
+
+        resolver.Resolve(munosabat, Monday)!.Schedule.ShouldBe(eski);
+        resolver.Resolve(munosabat, Tuesday)!.Schedule.ShouldBe(yangi);
+    }
+
+    /// <summary>Bo'lim pog'onasi ham SHU SANADAGI bo'lim bilan.</summary>
+    [Fact]
+    public void Bolim_pogonasi_sanadagi_bolim_bilan()
+    {
+        var sahna = new AttendanceScenario();
+        var eskiBolim = sahna.Department("Ombor");
+        var yangiBolim = sahna.Department("Sex");
+        var munosabat = sahna.Employ(departmentId: eskiBolim.Id);
+        var eski = Schedule("08:00", "17:00");
+        var yangi = Schedule("09:00", "18:00");
+        sahna.Assign(eski, ScheduleScope.Department, eskiBolim.Id);
+        sahna.Assign(yangi, ScheduleScope.Department, yangiBolim.Id);
+        munosabat.Transfer(Tuesday, yangiBolim.Id, null).IsSuccess.ShouldBeTrue();
+
+        var resolver = sahna.Resolver();
+
+        resolver.Resolve(munosabat, Monday)!.Schedule.ShouldBe(eski);
+        resolver.Resolve(munosabat, Tuesday)!.Schedule.ShouldBe(yangi);
+    }
+
     // ────────────────────── Yuklovchi xatolari ──────────────────────
 
     /// <summary>Jadvali yuklanmagan biriktirma xodimni jimgina pastki pog'onaga tushirmaydi.</summary>

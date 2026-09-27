@@ -251,8 +251,11 @@ public sealed class AttendanceDayBuilder
         var facts = new AttendanceDayFacts(
             EmploymentId: employment?.Id,
             LegalEntityId: employment?.LegalEntityId,
-            DepartmentId: employment?.DepartmentId,
-            PositionId: employment?.PositionId,
+            // Surat SHU SANADAGI joydan — jadval ham aynan shu qiymat bilan
+            // hal qilingan (`ScheduleResolver.Resolve`), ya'ni ko'chirishdan
+            // oldingi kun hisobotda eski bo'limda qoladi (SPEC §2.6).
+            DepartmentId: context.Placement?.DepartmentId,
+            PositionId: context.Placement?.PositionId,
             WorkScheduleId: schedule?.Schedule.Id,
             PlanStartAt: plan?.PlanStartAt,
             PlanEndAt: plan?.PlanEndAt,
@@ -334,8 +337,11 @@ public sealed class AttendanceDayBuilder
         return pairing.MissingExit ? AttendanceDayStatus.MissingExit : AttendanceDayStatus.Present;
     }
 
-    /// <summary>Bir sanadagi asosiy munosabat va hal qilingan jadval.</summary>
-    private readonly record struct DayContext(Employment? Employment, ScheduleResolution? Schedule);
+    /// <summary>Bir sanadagi asosiy munosabat, uning SHU SANADAGI joyi va hal qilingan jadval.</summary>
+    private readonly record struct DayContext(
+        Employment? Employment,
+        EmploymentPlacement? Placement,
+        ScheduleResolution? Schedule);
 
     /// <summary>
     /// Bitta xodim uchun sana → (munosabat, jadval) keshi.
@@ -354,9 +360,10 @@ public sealed class AttendanceDayBuilder
             if (!_days.TryGetValue(date, out var context))
             {
                 var employment = PrimaryEmployment.Select(employments, date);
+                EmploymentPlacement? placement = employment is null ? null : EmploymentPlacement.On(employment, date);
                 var schedule = employment is null ? null : schedules.Resolve(employment, date);
 
-                context = new DayContext(employment, schedule);
+                context = new DayContext(employment, placement, schedule);
                 _days[date] = context;
             }
 

@@ -562,8 +562,11 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         var yesterday = today.AddDays(-1);
         var tomorrow = today.AddDays(1);
 
+        // Hodisalari bilan — jadval sanadagi lavozim/bo'lim bo'yicha hal qilinadi (`EmploymentPlacement`).
         var employments = await _context.Employments
             .AsNoTracking()
+            .Include(employment => employment.Events)
+            .AsSplitQuery()
             .Where(employment =>
                 employment.HireDate <= tomorrow &&
                 (employment.TerminationDate == null || employment.TerminationDate >= yesterday))
@@ -2993,6 +2996,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
     /// Hisoblash shartnomasi (<see cref="AttendanceDayBuilder.Build"/>): asosiy
     /// munosabat qamrov bo'yicha tanlanadi, shuning uchun chaqiruvchi sana
     /// bo'yicha oldindan kesmaydi — bir xodimda odatda bir-uchta yozuv.
+    /// Mehnat yo'li hodisalari BILAN: sanadagi bo'lim/lavozim ulardan o'qiladi
+    /// (<see cref="EmploymentPlacement"/>) — qayta hisoblash yuklovchisi bilan bir xil.
     /// </remarks>
     private async Task<Dictionary<Guid, List<Employment>>> EmploymentsAsync(
         List<Guid> employeeIds,
@@ -3005,6 +3010,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var employments = await _context.Employments
             .AsNoTracking()
+            .Include(employment => employment.Events)
+            .AsSplitQuery()
             .Where(employment => employeeIds.Contains(employment.EmployeeId))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

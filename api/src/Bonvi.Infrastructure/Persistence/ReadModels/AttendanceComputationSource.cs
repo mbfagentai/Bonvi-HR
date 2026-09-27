@@ -70,9 +70,18 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// Global filtr qoladi: o'chirilgan munosabat (kiritish xatosi)
     /// <c>PrimaryEmployment</c> tomonidan baribir e'tiborga olinmaydi.
     /// O'qish modelining <c>EmploymentsAsync</c> i ham aynan shunday.
+    /// </para>
+    /// <para>
+    /// ⚠️ Mehnat yo'li hodisalari BILAN (<c>Include(Events)</c>): sanadagi bo'lim va
+    /// lavozim ko'chirish hodisalaridan o'qiladi (<c>EmploymentPlacement</c>). Ularsiz
+    /// hisoblash jimgina joriy qiymatga qaytib, ko'chirishdan oldingi kunni yangi
+    /// lavozimning jadvali bilan qurardi. <c>AsSplitQuery</c> — munosabat qatori har
+    /// hodisa uchun takrorlanmasin.
+    /// </para>
     /// </remarks>
     public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<Employment>>> LoadEmploymentsAsync(
         IReadOnlyCollection<Guid> employeeIds,
@@ -89,6 +98,8 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
 
         var employments = await _context.Employments
             .AsNoTracking()
+            .Include(employment => employment.Events)
+            .AsSplitQuery()
             .Where(employment => ids.Contains(employment.EmployeeId))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

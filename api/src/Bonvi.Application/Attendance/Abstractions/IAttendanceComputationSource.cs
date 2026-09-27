@@ -45,6 +45,10 @@ public interface IAttendanceComputationSource
         CancellationToken cancellationToken = default);
 
     /// <summary>Xodimlarning BARCHA mehnat munosabatlari (tugaganlari ham), xodim bo'yicha.</summary>
+    /// <remarks>
+    /// Mehnat yo'li hodisalari BILAN: sanadagi bo'lim va lavozim ko'chirish
+    /// hodisalaridan o'qiladi (<c>EmploymentPlacement</c>).
+    /// </remarks>
     /// <param name="employeeIds">Xodimlar.</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<Employment>>> LoadEmploymentsAsync(
