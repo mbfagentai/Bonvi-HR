@@ -109,4 +109,24 @@ public sealed class AgentOptions
     /// <summary>Eshik raqami — yozilgan odamga qaysi eshik ochiladi.</summary>
     [Range(1, 32)]
     public int DoorNo { get; set; } = 1;
+
+    /// <summary>
+    /// Holat fayli YO'Q bo'lganda (yangi o'rnatish, yo'qolgan tom) terminal
+    /// jurnalidan necha soat orqaga o'qiladi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 48 soat — dam olish kunlarini qamraydi: juma kechqurun o'chgan va
+    /// dushanba ertalab yangidan o'rnatilgan agent o'rtadagi o'tishlarni
+    /// ham olib keladi. Ilgari bir soat edi va undan eskisi jimgina
+    /// yo'qolardi.
+    /// </para>
+    /// <para>
+    /// Qayta yuborish ZARARSIZ: qabul kaliti terminal raqami va vaqtidan
+    /// yasaladi (<c>minmoe-{raqam}-{vaqt}</c>) va server takrorni o'zi
+    /// tashlaydi. Kattaroq qiymat faqat birinchi o'qishni uzaytiradi.
+    /// </para>
+    /// </remarks>
+    [Range(1, 24 * 30)]
+    public int ColdStartHours { get; set; } = 48;
 }

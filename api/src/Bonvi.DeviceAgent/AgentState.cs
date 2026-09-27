@@ -45,6 +45,31 @@ internal sealed class AgentState
     public DateTimeOffset? LastEventTime { get; set; }
 
     /// <summary>
+    /// Qidiruvning boshi — oxirgi uzatilgan hodisaning (TARTIB RAQAMI bo'yicha
+    /// eng oxirgisining) terminal vaqti. <see cref="LastEventTime"/> dan farqi:
+    /// bu PASAYISHI mumkin.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega ikkita.</b> <see cref="LastEventTime"/> faqat o'sadi va
+    /// «bu hodisa yangimi» degan savolga javob beradi. Terminal soati orqaga
+    /// to'g'rilansa (masalan bir soatga), yangi o'tishlar undan OLDINGI vaqt
+    /// bilan yoziladi — qidiruv o'sha nuqtadan boshlansa ularni ko'rmasdi.
+    /// Ilgari bu holatda qidiruv «terminalning hozirgi vaqti − 2 daqiqa» ga
+    /// o'tardi, va agent ikki daqiqadan uzoq uzilsa (internet), oradagi
+    /// o'tishlar jimgina yo'qolardi.
+    /// </para>
+    /// <para>
+    /// Endi qidiruv shu belgidan boshlanadi: har bo'lakdan keyin u eng oxirgi
+    /// YOZILGAN hodisaning vaqtiga suriladi (soat orqaga ketgan bo'lsa —
+    /// orqaga ham). Terminal soati bu belgidan ham orqada bo'lib qolsa, belgi
+    /// o'sha lahzadagi terminal vaqtiga QOTIRILADI va keyingi o'tish
+    /// uzatilguncha o'sha yerda turadi — uzilish qancha cho'zilmasin.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? SearchAnchor { get; set; }
+
+    /// <summary>
     /// ESKI kursor — agent soatidagi oxirgi o'qish lahzasi.
     /// </summary>
     /// <remarks>

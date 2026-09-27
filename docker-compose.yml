@@ -234,12 +234,21 @@ services:
       # Jonli kadr kanali — bo'sh bo'lsa kadr olinmaydi (izohi AgentOptions.SnapshotChannel da)
       Agent__SnapshotChannel: ${AGENT__SNAPSHOTCHANNEL-101}
       Agent__RosterIntervalSeconds: ${AGENT__ROSTERINTERVAL:-60}
+      # Holat fayli yo'q bo'lganda jurnaldan necha soat orqaga o'qiladi
+      Agent__ColdStartHours: ${AGENT__COLDSTARTHOURS:-48}
       Agent__StatePath: /data/agent-state.json
     volumes:
       - ./api:/src
       - nuget-cache:/root/.nuget/packages
       - api-artifacts:/src/artifacts
       - agent-state:/data
+    # Jurnal hajmi CHEKLANGAN: terminal uzilgan kechada agent har daqiqada
+    # bir qator yozadi va hech kim tozalamaydigan fayl diskni to'ldirmasin.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       api: { condition: service_started }
     networks: [bonvi]

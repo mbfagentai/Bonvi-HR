@@ -16,11 +16,12 @@ namespace Bonvi.DeviceAgent.Hikvision;
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⚠️ <b>Bu yerda faqat OLTITA chaqiruv bor va bu ro'yxat ataylab
-/// yopiq:</b> hodisalarni o'qish, odamlar ro'yxatini o'qish, odam yozish,
-/// odamni o'zgartirish, odamni o'chirish va yuz yozish. Terminalning
-/// sozlamalariga tegadigan birorta chaqiruv YO'Q — sababi loyiha
-/// faylidagi izohda (Verifix bilan bo'lishilgan HTTP push).
+/// ⚠️ <b>Bu yerda faqat OLTITA yozish/o'qish chaqiruvi bor va bu ro'yxat
+/// ataylab yopiq:</b> hodisalarni o'qish, odamlar ro'yxatini o'qish, odam
+/// yozish, odamni o'zgartirish, odamni o'chirish va yuz yozish — ustiga
+/// uchta faqat-O'QISH so'rovi (soat, jonli kadr, qurilma ma'lumoti).
+/// Terminalning sozlamalariga tegadigan birorta chaqiruv YO'Q — sababi
+/// loyiha faylidagi izohda (Verifix bilan bo'lishilgan HTTP push).
 /// </para>
 /// <para>
 /// Tasdiqlash — <c>Digest</c>, <c>HttpClientHandler.Credentials</c>
@@ -111,6 +112,14 @@ internal sealed partial class HikvisionClient
     /// chaqiruvchi yetarlicha yig'gach o'qishni to'xtatib, qolganini
     /// keyingi bo'lakda oladi.
     /// </para>
+    /// <para>
+    /// ⚠️ Tartib ANIQ so'raladi (<c>timeReverseOrder: false</c> — eskidan
+    /// yangiga). Chaqiruvchi bo'lakni «eng eski N ta» deb hisoblaydi va
+    /// kursorni ularning oxiriga suradi; firmware sukut bo'yicha teskari
+    /// tartibda bersa, eng YANGI N tasi uzatilib, qolgan eskilari kursor
+    /// ortida qolib ketardi. Firmware maydonni e'tiborsiz qoldirsa ham
+    /// chaqiruvchi teskari sahifani o'zi aniqlaydi.
+    /// </para>
     /// </remarks>
     public async IAsyncEnumerable<IReadOnlyList<AcsEvent>> SearchEventsAsync(
         DateTimeOffset since,
@@ -134,6 +143,7 @@ internal sealed partial class HikvisionClient
                     minor = 0,
                     startTime = Local(since),
                     endTime = Local(until),
+                    timeReverseOrder = false,
                 },
             };
 
@@ -438,6 +448,37 @@ internal sealed partial class HikvisionClient
     }
 
     /// <summary>
+    /// Terminalning seriya raqami — <c>/ISAPI/System/deviceInfo</c> dan, faqat O'QISH.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Server tokenni shu seriyaga bog'laydi (birinchi ko'rilgani yoziladi):
+    /// nusxalangan agent sozlamasi boshqa terminalni boshqara olmaydi va
+    /// uning odamlarini «ro'yxatda yo'q» deb o'chirib yubormaydi.
+    /// </para>
+    /// <para>
+    /// Javob XML (<see cref="ReadClockAsync"/> dagi kabi), kerakli bitta
+    /// qiymat oddiy qidiruv bilan olinadi. Bu so'rov har solishtirishning
+    /// BIRINCHI qadami ham: terminal javob bermasa, butun aylanish shu
+    /// yerda to'xtaydi va hech narsa yozilmaydi yoki o'chirilmaydi.
+    /// </para>
+    /// </remarks>
+    /// <returns>Seriya; javobda bo'lmasa <c>null</c>.</returns>
+    public async Task<string?> ReadSerialAsync(CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/ISAPI/System/deviceInfo", content: null, cancellationToken)
+            .ConfigureAwait(false);
+
+        var xml = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        var match = SerialNumber().Match(xml);
+
+        return match.Success && !string.IsNullOrWhiteSpace(match.Groups[1].Value)
+            ? match.Groups[1].Value.Trim()
+            : null;
+    }
+
+    /// <summary>
     /// Kameradan JONLI kadr — JPEG baytlari.
     /// </summary>
     /// <remarks>
@@ -473,6 +514,9 @@ internal sealed partial class HikvisionClient
 
     [GeneratedRegex("<localTime>([^<]+)</localTime>", RegexOptions.IgnoreCase)]
     private static partial Regex LocalTime();
+
+    [GeneratedRegex("<serialNumber>([^<]+)</serialNumber>", RegexOptions.IgnoreCase)]
+    private static partial Regex SerialNumber();
 
     /// <summary>Ismni terminal qabul qiladigan uzunlikka qirqadi.</summary>
     /// <remarks>

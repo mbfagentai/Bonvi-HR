@@ -19,6 +19,10 @@ COPY src/Bonvi.DeviceAgent/*.csproj src/Bonvi.DeviceAgent/
 RUN dotnet restore src/Bonvi.DeviceAgent/Bonvi.DeviceAgent.csproj
 
 COPY src/Bonvi.DeviceAgent/ src/Bonvi.DeviceAgent/
+
+# Hodisa turlari ro'yxati — server bilan UMUMIY bog'langan fayl (izohi csproj da)
+COPY src/Bonvi.Application/Attendance/Ingest/HikvisionEventTypes.cs src/Bonvi.Application/Attendance/Ingest/
+
 RUN dotnet publish src/Bonvi.DeviceAgent/Bonvi.DeviceAgent.csproj \
       -c Release \
       -o /app/publish \
