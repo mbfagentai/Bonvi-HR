@@ -10,11 +10,16 @@ import { DEFAULT_LOCALE, LOCALE_CODES } from './locales'
 
 /**
  * Til sozlamasining kaliti. HR ilovasi `bonvi.lang` ishlatadi — bu yerda
- * `bonvi.ilova.lang`: ikkala ilova bitta domenda yashaydi va bitta
+ * alohida kalit: ikkala ilova bitta domenda yashaydi va bitta
  * `localStorage` ni baham ko'radi, ya'ni umumiy kalit HR xodimining
  * tilini xodim ilovasidan o'zgartirib yuborardi.
+ *
+ * ⚠️ Kalit ataylab yangi (`…lang` emas, `…til`). Eski kalitda odam
+ * tanlagan til emas, BRAUZER tilidan avtomatik aniqlangan qiymat
+ * saqlangan (masalan `en`) — u qolsa, kirill sukuti hech qachon
+ * ko'rinmasdi.
  */
-export const LANG_STORAGE_KEY = 'bonvi.ilova.lang'
+export const LANG_STORAGE_KEY = 'bonvi.ilova.til'
 
 void i18n
   .use(LanguageDetector)
@@ -33,8 +38,11 @@ void i18n
     load: 'currentOnly',
     nonExplicitSupportedLngs: false,
 
+    // Brauzer (`navigator`) tili ATAYLAB o'qilmaydi: telefon ko'pincha
+    // inglizcha yoki ruscha sozlangan bo'ladi, xodim esa kirillni
+    // kutadi. Til faqat odamning o'z tanlovidan yoki sukutdan keladi.
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
       lookupLocalStorage: LANG_STORAGE_KEY,
       caches: ['localStorage'],
     },

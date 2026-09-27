@@ -15,7 +15,12 @@ export const LOCALES = [
 
 export type LocaleCode = (typeof LOCALES)[number]['code']
 
-export const DEFAULT_LOCALE: LocaleCode = 'uz-Latn'
+/**
+ * Sukut bo'yicha — KIRILL (egasining qarori, 2026-09-27): xodimlarning
+ * katta qismi yoshi kattaroq va kirillni yaxshiroq o'qiydi. Lotin, rus va
+ * ingliz tillarini xodim «Sozlamalar» dan o'zi tanlaydi.
+ */
+export const DEFAULT_LOCALE: LocaleCode = 'uz-Cyrl'
 
 export const LOCALE_CODES: readonly LocaleCode[] = LOCALES.map((l) => l.code)
 
