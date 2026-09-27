@@ -13,6 +13,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { isRateLimited } from '@/features/employees/lib/employee-error'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
@@ -117,6 +118,8 @@ export function AttendancePassesPage() {
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canManage = hasPermission(ATTENDANCE_MANAGE)
   const canExport = hasPermission(REPORTS_EXPORT)
+  // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz tugma chizilmaydi
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
 
   const searchParams = route.useSearch()
   const navigate = route.useNavigate()
@@ -546,7 +549,12 @@ export function AttendancePassesPage() {
         )}
       </Card>
 
-      <AttendancePassPhotoDialog passId={passId} pass={selected} onClose={closeDialog} />
+      <AttendancePassPhotoDialog
+        passId={passId}
+        pass={selected}
+        canOpenEmployee={canOpenEmployee}
+        onClose={closeDialog}
+      />
     </div>
   )
 }

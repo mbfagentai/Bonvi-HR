@@ -3,6 +3,8 @@ import { ChevronRight, ShieldAlert } from 'lucide-react'
 
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { tashkentParts } from '@/shared/lib/timezone'
+import { todayIso } from '@/shared/lib/today'
 import { Badge, buttonVariants } from '@/shared/ui'
 
 import type { FormerEmployeeAlert } from '../api/attendance-api'
@@ -28,8 +30,33 @@ import { PassDirectionBadge } from './attendance-pass-photo-dialog'
  * qoidasini buzardi). Ranglar va ikonka joylashuvi `Alert` ning `danger`
  * ohangi bilan AYNAN bir xil.
  */
-export function FormerEmployeeAlertPanel({ alerts }: { alerts: readonly FormerEmployeeAlert[] }) {
-  const { t, num, date } = useLocale()
+export function FormerEmployeeAlertPanel({
+  alerts,
+  canOpenEmployee,
+}: {
+  alerts: readonly FormerEmployeeAlert[]
+  /**
+   * Xodim kartasi ochiladimi (`employees.view`). Yo'q bo'lsa ism HAVOLA
+   * EMAS — oddiy matn: 403 ga olib boradigan havola bajarilmaydigan va'da
+   * bo'lardi (statistika sahifasidagi qoida).
+   */
+  canOpenEmployee: boolean
+}) {
+  const { t, num, dateTime } = useLocale()
+
+  /*
+    Oyna — so'nggi 24 SOAT, ya'ni o'tish kechagi bo'lishi mumkin: kechagi
+    23:40 bugun «23:40» deb o'qilsa, HR uni hozirgina bo'lgan deb
+    o'ylardi. Bugungisi — faqat soat (sana shovqin), boshqasi — sana bilan.
+  */
+  const today = todayIso()
+  const passTime = (occurredAt: string): string => {
+    const instant = new Date(occurredAt)
+    if (Number.isNaN(instant.getTime())) return formatPassTime(occurredAt)
+
+    const { year, month, day } = tashkentParts(instant)
+    return `${year}-${month}-${day}` === today ? formatPassTime(instant) : dateTime(instant)
+  }
 
   return (
     <section role="alert" className="rounded-lg bg-ios-red/10 p-4 sm:p-5">
@@ -54,37 +81,23 @@ export function FormerEmployeeAlertPanel({ alerts }: { alerts: readonly FormerEm
             key={alert.passId}
             className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-md bg-[var(--bg-elevated)] p-3"
           >
-            <Link
-              to="/xodimlar/$employeeId"
-              params={{ employeeId: alert.employeeId }}
-              className="press flex min-w-[220px] flex-1 items-center gap-3 rounded-md"
-            >
-              <EmployeePhoto
-                employeeId={alert.employeeId}
-                photoKey={alert.photoKey}
-                name={alert.fullName}
-                size="md"
-              />
-              <span className="min-w-0">
-                <span className="truncate-1 block font-semibold">{alert.fullName}</span>
-                <span className="truncate-1 block text-caption1 text-[var(--fg-secondary)]">
-                  {[
-                    alert.terminationDate === null
-                      ? null
-                      : t('attendance.formerEmployeeTerminatedOn', {
-                          date: date(alert.terminationDate),
-                        }),
-                    alert.legalEntityName,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
+            {canOpenEmployee ? (
+              <Link
+                to="/xodimlar/$employeeId"
+                params={{ employeeId: alert.employeeId }}
+                className="press flex min-w-[220px] flex-1 items-center gap-3 rounded-md"
+              >
+                <AlertPerson alert={alert} />
+              </Link>
+            ) : (
+              <span className="flex min-w-[220px] flex-1 items-center gap-3">
+                <AlertPerson alert={alert} />
               </span>
-            </Link>
+            )}
 
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-footnote text-[var(--fg-secondary)]">
               <span className="tabular font-semibold text-[var(--fg)]">
-                {formatPassTime(alert.occurredAt)}
+                {passTime(alert.occurredAt)}
               </span>
               <PassDirectionBadge direction={alert.direction} />
               {alert.deviceName !== null && <span>{alert.deviceName}</span>}
@@ -107,5 +120,36 @@ export function FormerEmployeeAlertPanel({ alerts }: { alerts: readonly FormerEm
         ))}
       </ul>
     </section>
+  )
+}
+
+/** Qatordagi odam — rasm, ism, bo'shatilgan sana va firma (havola bo'lsa ham, bo'lmasa ham bir xil). */
+function AlertPerson({ alert }: { alert: FormerEmployeeAlert }) {
+  const { t, date } = useLocale()
+
+  return (
+    <>
+      <EmployeePhoto
+        employeeId={alert.employeeId}
+        photoKey={alert.photoKey}
+        name={alert.fullName}
+        size="md"
+      />
+      <span className="min-w-0">
+        <span className="truncate-1 block font-semibold">{alert.fullName}</span>
+        <span className="truncate-1 block text-caption1 text-[var(--fg-secondary)]">
+          {[
+            alert.terminationDate === null
+              ? null
+              : t('attendance.formerEmployeeTerminatedOn', {
+                  date: date(alert.terminationDate),
+                }),
+            alert.legalEntityName,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+      </span>
+    </>
   )
 }

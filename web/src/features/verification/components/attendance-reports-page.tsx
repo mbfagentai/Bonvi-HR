@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { isRateLimited } from '@/features/employees/lib/employee-error'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -120,6 +121,8 @@ export function AttendanceReportsPage() {
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canExport = hasPermission(REPORTS_EXPORT)
+  // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz ism havola emas
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -244,8 +247,8 @@ export function AttendanceReportsPage() {
     changeFilters({ ...filters, [key]: value })
   }
 
-  const exceptionColumns = useExceptionColumns(exceptionKind)
-  const summaryColumns = useSummaryColumns()
+  const exceptionColumns = useExceptionColumns(exceptionKind, canOpenEmployee)
+  const summaryColumns = useSummaryColumns(canOpenEmployee)
 
   const title = (
     <span className="flex items-center gap-3">
@@ -457,7 +460,10 @@ export function AttendanceReportsPage() {
  * doim bo'sh bo'lardi va HR ning ko'zi bo'sh chiziqchalar orasida
  * adashardi. Server qatori baribir to'liq (§6.6), Excel ham to'liq.
  */
-function useExceptionColumns(kind: ExceptionKind): Array<DataColumn<AttendanceExceptionRow>> {
+function useExceptionColumns(
+  kind: ExceptionKind,
+  canOpenEmployee: boolean,
+): Array<DataColumn<AttendanceExceptionRow>> {
   const { t, date } = useLocale()
 
   return useMemo(() => {
@@ -471,6 +477,7 @@ function useExceptionColumns(kind: ExceptionKind): Array<DataColumn<AttendanceEx
           name={row.original.employeeName}
           photoKey={row.original.photoKey}
           detail={[row.original.department, row.original.position].filter(Boolean).join(' · ')}
+          linked={canOpenEmployee}
         />
       ),
     })
@@ -531,7 +538,7 @@ function useExceptionColumns(kind: ExceptionKind): Array<DataColumn<AttendanceEx
       case 'Missing':
         return [employee, day, planStart, planEnd, firstIn, lastOut, worked, status]
     }
-  }, [kind, t, date])
+  }, [kind, t, date, canOpenEmployee])
 }
 
 /** Vaqt ustuni — TOSHKENT vaqtida, sanasiz (sana alohida ustunda). */
@@ -561,7 +568,7 @@ function timeColumn(
  * Daqiqalar «soat:daqiqa» ko'rinishida — HR «7 soat 59 daqiqa» deb o'qiydi
  * (`formatDuration`). Excel'da esa ular IKKI ustun: son va matn (SPEC §6.7).
  */
-function useSummaryColumns(): Array<DataColumn<AttendanceSummaryRow>> {
+function useSummaryColumns(canOpenEmployee: boolean): Array<DataColumn<AttendanceSummaryRow>> {
   const { t, num } = useLocale()
 
   return useMemo(() => {
@@ -618,6 +625,7 @@ function useSummaryColumns(): Array<DataColumn<AttendanceSummaryRow>> {
             name={row.original.employeeName}
             photoKey={row.original.photoKey}
             detail={[row.original.department, row.original.position].filter(Boolean).join(' · ')}
+            linked={canOpenEmployee}
           />
         ),
       }),
@@ -632,7 +640,7 @@ function useSummaryColumns(): Array<DataColumn<AttendanceSummaryRow>> {
       duration('overtimeMinutes', t('attendance.overtimeMinutes')),
       count('problemDays', t('attendance.problemDays'), 'warning'),
     ]
-  }, [t, num])
+  }, [t, num, canOpenEmployee])
 }
 
 /* ═════════════════════════════════════════════════════════ kataklar */
@@ -640,31 +648,38 @@ function useSummaryColumns(): Array<DataColumn<AttendanceSummaryRow>> {
 /**
  * Xodim — HAQIQIY RASM bilan (bosh harflar faqat rasm yo'q bo'lsa) va
  * ismi kartaga havola: hisobotdan «bu kim edi» degan savolga bir bosishda
- * o'tiladi.
+ * o'tiladi. `employees.view` bo'lmasa ism — oddiy matn: 403 ga olib
+ * boradigan havola bajarilmaydigan va'da bo'lardi.
  */
 function EmployeeCell({
   employeeId,
   name,
   photoKey,
   detail,
+  linked,
 }: {
   employeeId: string
   name: string
   photoKey: string | null
   detail: string
+  linked: boolean
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
       <EmployeePhoto employeeId={employeeId} photoKey={photoKey} name={name} size="lg" />
       <div className="min-w-0">
-        <Link
-          to="/xodimlar/$employeeId"
-          params={{ employeeId }}
-          search={{ tab: 'attendance' }}
-          className="truncate-1 font-medium hover:text-[var(--accent-text)]"
-        >
-          {name}
-        </Link>
+        {linked ? (
+          <Link
+            to="/xodimlar/$employeeId"
+            params={{ employeeId }}
+            search={{ tab: 'attendance' }}
+            className="truncate-1 font-medium hover:text-[var(--accent-text)]"
+          >
+            {name}
+          </Link>
+        ) : (
+          <p className="truncate-1 font-medium">{name}</p>
+        )}
         {detail !== '' && (
           <p className="truncate-1 text-caption1 text-[var(--fg-tertiary)]">{detail}</p>
         )}

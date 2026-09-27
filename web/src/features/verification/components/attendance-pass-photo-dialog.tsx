@@ -215,10 +215,17 @@ function skewMinutes(seconds: number): number {
 export function AttendancePassPhotoDialog({
   passId,
   pass,
+  canOpenEmployee,
   onClose,
 }: {
   passId: string | null
   pass: AttendancePass | null
+  /**
+   * «Xodim kartasi» tugmasi chiziladimi (`employees.view`). Karta server
+   * tomonda shu ruxsat bilan yopiq — ruxsatsiz odamga 403 ga olib boradigan
+   * tugma ko'rsatilmaydi.
+   */
+  canOpenEmployee: boolean
   onClose: () => void
 }) {
   const { t, dateTime } = useLocale()
@@ -249,7 +256,7 @@ export function AttendancePassPhotoDialog({
           : [dateTime(data.occurredAt), data.deviceName].filter(Boolean).join(' · ')
       }
       footer={
-        data?.employeeId != null ? (
+        canOpenEmployee && data?.employeeId != null ? (
           <Link
             to="/xodimlar/$employeeId"
             params={{ employeeId: data.employeeId }}

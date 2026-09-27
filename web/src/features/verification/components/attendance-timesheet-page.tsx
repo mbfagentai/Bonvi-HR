@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { isRateLimited } from '@/features/employees/lib/employee-error'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
@@ -91,6 +92,8 @@ export function AttendanceTimesheetPage() {
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canManage = hasPermission(ATTENDANCE_MANAGE)
   const canExport = hasPermission(REPORTS_EXPORT)
+  // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz ism havola emas
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -462,7 +465,12 @@ export function AttendanceTimesheetPage() {
             />
           )
         ) : (
-          <AttendanceTimesheetGrid days={days} rows={rows} loading={firstLoad} />
+          <AttendanceTimesheetGrid
+            days={days}
+            rows={rows}
+            loading={firstLoad}
+            canOpenEmployee={canOpenEmployee}
+          />
         )}
 
         {total > 0 && (

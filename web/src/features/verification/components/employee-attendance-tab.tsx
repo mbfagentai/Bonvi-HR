@@ -1,6 +1,8 @@
 import { CalendarDays, ChevronLeft, ChevronRight, DoorOpen } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { useAuth } from '@/features/auth'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { todayIso } from '@/shared/lib/today'
@@ -77,6 +79,9 @@ export function EmployeeAttendanceTab({
   onMonth: (value: MonthValue) => void
 }) {
   const { t, locale } = useLocale()
+  const { hasPermission } = useAuth()
+  // O'tish oynasidagi «Xodim kartasi» tugmasi — `employees.view` bo'lmasa chizilmaydi
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
 
   /*
     Ichki ko'rinish — komponent holatida, manzilda EMAS (tab va oydan
@@ -240,6 +245,7 @@ export function EmployeeAttendanceTab({
       <AttendancePassPhotoDialog
         passId={openPass?.id ?? null}
         pass={openPass}
+        canOpenEmployee={canOpenEmployee}
         onClose={() => setOpenPass(null)}
       />
     </div>

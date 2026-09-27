@@ -110,16 +110,26 @@ export function AttendanceTimesheetGrid({
   days,
   rows,
   loading,
+  canOpenEmployee,
 }: {
   days: readonly string[]
   rows: readonly TimesheetRow[]
   loading: boolean
+  /**
+   * Ism xodim kartasiga havolami (`employees.view`). Yo'q bo'lsa — oddiy
+   * matn: 403 ga olib boradigan havola bajarilmaydigan va'da bo'lardi.
+   */
+  canOpenEmployee: boolean
 }) {
   const desktop = useIsDesktop()
 
   if (loading) return <GridSkeleton />
 
-  return desktop ? <DesktopGrid days={days} rows={rows} /> : <MobileList rows={rows} />
+  return desktop ? (
+    <DesktopGrid days={days} rows={rows} linked={canOpenEmployee} />
+  ) : (
+    <MobileList rows={rows} linked={canOpenEmployee} />
+  )
 }
 
 /**
@@ -143,7 +153,15 @@ export function AttendanceTimesheetGrid({
  * O'Z yuzasi bo'lsa, qotirilgan ustunning oq foni uni to'liq yopadi va
  * ostidan surilayotgan kataklar 2 px tirqishdan ko'rinib qolmaydi.
  */
-function DesktopGrid({ days, rows }: { days: readonly string[]; rows: readonly TimesheetRow[] }) {
+function DesktopGrid({
+  days,
+  rows,
+  linked,
+}: {
+  days: readonly string[]
+  rows: readonly TimesheetRow[]
+  linked: boolean
+}) {
   const { t } = useLocale()
   const today = todayIso()
 
@@ -207,7 +225,7 @@ function DesktopGrid({ days, rows }: { days: readonly string[]; rows: readonly T
                 scope="row"
                 className="sticky left-0 z-10 w-full min-w-[220px] bg-[var(--bg-elevated)] py-px pr-3 pl-4 text-left font-normal sm:pl-5"
               >
-                <EmployeeCell row={row} wide />
+                <EmployeeCell row={row} linked={linked} wide />
               </th>
 
               {row.cells.map((cell) => (
@@ -234,7 +252,7 @@ function DesktopGrid({ days, rows }: { days: readonly string[]; rows: readonly T
  * ko'ringan jadval yomon taassurot qoldiradi va bu bor-yo'g'i bitta
  * chegara (SPEC §8.6).
  */
-function MobileList({ rows }: { rows: readonly TimesheetRow[] }) {
+function MobileList({ rows, linked }: { rows: readonly TimesheetRow[]; linked: boolean }) {
   const today = todayIso()
 
   return (
@@ -243,7 +261,7 @@ function MobileList({ rows }: { rows: readonly TimesheetRow[] }) {
         <li key={row.employeeId} className="space-y-3 px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <EmployeeCell row={row} wide />
+              <EmployeeCell row={row} linked={linked} wide />
             </div>
             <TotalsCell row={row} />
           </div>
@@ -311,8 +329,43 @@ function DayNumber({ date, today }: { date: string; today: string }) {
   )
 }
 
-function EmployeeCell({ row, wide = false }: { row: TimesheetRow; wide?: boolean }) {
+function EmployeeCell({
+  row,
+  linked,
+  wide = false,
+}: {
+  row: TimesheetRow
+  /** Xodim kartasiga havolami — `employees.view` bo'lmasa oddiy matn. */
+  linked: boolean
+  wide?: boolean
+}) {
   const detail = row.position ?? row.department
+  const layout = cn('flex items-center gap-2.5 rounded-sm', wide ? 'min-w-0' : 'w-[220px]')
+
+  const content = (
+    <>
+      <EmployeePhoto
+        employeeId={row.employeeId}
+        photoKey={row.photoKey}
+        name={row.fullName}
+        size={wide ? 'md' : 'sm'}
+      />
+      <span className="min-w-0 leading-tight">
+        <span className="truncate-1 @min-[1750px]/tabel:text-subhead block text-footnote font-medium">
+          {row.fullName}
+        </span>
+        {detail !== null && (
+          <span className="truncate-1 @min-[1750px]/tabel:text-footnote block text-caption2 text-[var(--fg-tertiary)]">
+            {detail}
+          </span>
+        )}
+      </span>
+    </>
+  )
+
+  if (!linked) {
+    return <span className={layout}>{content}</span>
+  }
 
   /*
     Karta EKRANDAGI oy bilan ochiladi: avgust tabelida ismni bosgan HR
@@ -335,24 +388,9 @@ function EmployeeCell({ row, wide = false }: { row: TimesheetRow; wide?: boolean
               month: Number(first.slice(5, 7)),
             }
       }
-      className={cn('flex items-center gap-2.5 rounded-sm', wide ? 'min-w-0' : 'w-[220px]')}
+      className={layout}
     >
-      <EmployeePhoto
-        employeeId={row.employeeId}
-        photoKey={row.photoKey}
-        name={row.fullName}
-        size={wide ? 'md' : 'sm'}
-      />
-      <span className="min-w-0 leading-tight">
-        <span className="truncate-1 @min-[1750px]/tabel:text-subhead block text-footnote font-medium">
-          {row.fullName}
-        </span>
-        {detail !== null && (
-          <span className="truncate-1 @min-[1750px]/tabel:text-footnote block text-caption2 text-[var(--fg-tertiary)]">
-            {detail}
-          </span>
-        )}
-      </span>
+      {content}
     </Link>
   )
 }

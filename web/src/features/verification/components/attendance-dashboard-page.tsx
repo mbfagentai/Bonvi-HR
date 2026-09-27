@@ -669,7 +669,9 @@ export function AttendanceDashboardPage() {
         xavfsizlik hodisasi diagramma ostida «yana bitta raqam» bo'lib
         qolmasligi kerak. Faqat ogohlantirish BOR bo'lsa chiziladi.
       */}
-      {alerts.length > 0 && <FormerEmployeeAlertPanel alerts={alerts} />}
+      {alerts.length > 0 && (
+        <FormerEmployeeAlertPanel alerts={alerts} canOpenEmployee={canOpenEmployee} />
+      )}
 
       {/* Keyingi yangilanish yiqildi — eski surat joyida qoladi, sabab tepada */}
       {active.isError && active.data !== undefined && (
