@@ -1792,6 +1792,8 @@
     "resolveInheritedTitle": "Ota bo‘limdan meros",
     "resolveInherited": "Jadval «{{matched}}» bo‘limidan kelgan: «{{own}}» bo‘limining o‘z biriktirmasi yo‘q.",
     "resolveEmployment": "Mehnat munosabati: {{context}}",
+    "resolveDayFromDate": "Yillik to‘rdagi katak",
+    "resolveDayFromPattern": "Haftalik naqsh",
     "tierWon": "Yutdi",
     "tierNoMatch": "mos kelmadi",
     "tierNotChecked": "ko‘rilmadi",

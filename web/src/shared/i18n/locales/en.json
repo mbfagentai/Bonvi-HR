@@ -1792,6 +1792,8 @@
     "resolveInheritedTitle": "Inherited from the parent department",
     "resolveInherited": "The schedule comes from the “{{matched}}” department: “{{own}}” has no assignment of its own.",
     "resolveEmployment": "Employment: {{context}}",
+    "resolveDayFromDate": "Year grid cell",
+    "resolveDayFromPattern": "Weekly pattern",
     "tierWon": "Applied",
     "tierNoMatch": "no match",
     "tierNotChecked": "not checked",

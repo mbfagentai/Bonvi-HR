@@ -68,7 +68,7 @@ public sealed class ResolveScheduleQueryHandler
                 DepartmentId: null, DepartmentName: null, PositionId: null, PositionName: null,
                 Scope: null, AssignmentId: null, EffectiveFrom: null, EffectiveTo: null,
                 WorkScheduleId: null, WorkScheduleName: null,
-                MatchedDepartmentId: null, MatchedDepartmentName: null, Day: null);
+                MatchedDepartmentId: null, MatchedDepartmentName: null, Day: null, DaySource: null);
         }
 
         var catalog = await _source
@@ -84,13 +84,16 @@ public sealed class ResolveScheduleQueryHandler
 
         var matchedDepartmentId = resolution?.Tier == ScheduleScope.Department ? resolution.Assignment.DepartmentId : null;
 
+        // Pog'onalarning kirishi — SHU SANADAGI bo'lim va lavozim: hal qiluvchi
+        // aynan shular bilan qidirgan (ko'chirishdan oldingi sana — eski joy).
+        var placement = EmploymentPlacement.On(primary, query.Date);
+
         var legalEntityName = await _names.LegalEntityAsync(primary.LegalEntityId, cancellationToken).ConfigureAwait(false);
-        var departmentName = await _names.DepartmentAsync(primary.DepartmentId, cancellationToken).ConfigureAwait(false);
-        var positionName = await _names.PositionAsync(primary.PositionId, cancellationToken).ConfigureAwait(false);
+        var departmentName = await _names.DepartmentAsync(placement.DepartmentId, cancellationToken).ConfigureAwait(false);
+        var positionName = await _names.PositionAsync(placement.PositionId, cancellationToken).ConfigureAwait(false);
         var matchedDepartmentName = await _names.DepartmentAsync(matchedDepartmentId, cancellationToken).ConfigureAwait(false);
 
-        var isoWeekday = query.Date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)query.Date.DayOfWeek;
-        var day = resolution?.Schedule.Days.FirstOrDefault(item => item.DayIndex == isoWeekday);
+        var (day, daySource) = ResolvedDay(resolution, query.Date);
 
         return new ScheduleResolutionDto(
             employee.Id,
@@ -99,9 +102,9 @@ public sealed class ResolveScheduleQueryHandler
             primary.Id,
             primary.LegalEntityId,
             legalEntityName,
-            primary.DepartmentId,
+            placement.DepartmentId,
             departmentName,
-            primary.PositionId,
+            placement.PositionId,
             positionName,
             resolution?.Tier,
             resolution?.Assignment.Id,
@@ -111,6 +114,34 @@ public sealed class ResolveScheduleQueryHandler
             resolution?.Schedule.Name,
             matchedDepartmentId,
             matchedDepartmentName,
-            day is null ? null : WorkScheduleMapper.ToDto(day));
+            day,
+            daySource);
+    }
+
+    /// <summary>Shu SANANING kuni — tabel hisoblagan manbadan.</summary>
+    /// <remarks>
+    /// ⚠️ Yillik to'rning katagi haftalik naqshdan USTUN (SPEC-jadval-to'ri §B2) —
+    /// hisoblash ham shunday o'qiydi (<see cref="ScheduleResolution.DateOverride"/>).
+    /// Ilgari javob faqat hafta kunining naqshini berardi: bayram kuni dam olishga
+    /// aylantirilgan odamda ekran «09:00–18:00» der, tabel esa «Dam olish» ko'rsatardi.
+    /// </remarks>
+    private static (WorkScheduleDayDto? Day, ScheduleDaySource? Source) ResolvedDay(
+        ScheduleResolution? resolution,
+        DateOnly date)
+    {
+        if (resolution is null)
+        {
+            return (null, null);
+        }
+
+        if (resolution.DateOverride is { } exact)
+        {
+            return (WorkScheduleMapper.ToDto(exact), ScheduleDaySource.Date);
+        }
+
+        var isoWeekday = date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
+        var day = resolution.Schedule.Days.FirstOrDefault(item => item.DayIndex == isoWeekday);
+
+        return day is null ? (null, null) : (WorkScheduleMapper.ToDto(day), ScheduleDaySource.Pattern);
     }
 }

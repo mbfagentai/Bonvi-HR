@@ -192,6 +192,28 @@ public sealed class ScheduleResolverTests
         natija.Day.PlanStartAt.ShouldBe(At(Monday, "09:00"));
     }
 
+    /// <summary>
+    /// Yillik to'r katagi bor sanada natija qaysi katakdan kelganini aytadi (<c>GET /schedules/resolve</c>
+    /// kunni shundan quradi); katak yo'q sanada — <c>null</c>, ya'ni haftalik naqsh.
+    /// </summary>
+    [Fact]
+    public void Natija_yillik_tor_katagini_korsatadi()
+    {
+        var sahna = new AttendanceScenario();
+        var munosabat = sahna.Employ();
+        var jadval = Schedule("09:00", "18:00");
+        sahna.Assign(jadval);
+        var katak = sahna.ScheduleDate(jadval, new WorkScheduleDateInput(Monday, IsWorking: false));
+
+        var resolver = sahna.Resolver();
+
+        var dushanba = resolver.Resolve(munosabat, Monday).ShouldNotBeNull();
+        dushanba.DateOverride.ShouldBe(katak);
+        dushanba.Day.IsWorking.ShouldBeFalse("katak naqshdan ustun");
+
+        resolver.Resolve(munosabat, Tuesday).ShouldNotBeNull().DateOverride.ShouldBeNull();
+    }
+
     /// <summary>Lavozim pog'onasi SHU SANADAGI lavozim bilan qidiriladi — ko'chirishdan oldingi kun eski lavozimning jadvali.</summary>
     [Fact]
     public void Lavozim_pogonasi_sanadagi_lavozim_bilan()

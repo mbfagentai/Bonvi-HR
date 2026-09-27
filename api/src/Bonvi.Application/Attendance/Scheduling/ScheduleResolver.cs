@@ -15,7 +15,16 @@ namespace Bonvi.Application.Attendance.Scheduling;
 /// <param name="Assignment">Yutgan biriktirma.</param>
 /// <param name="Schedule">Biriktirmadagi jadval.</param>
 /// <param name="Day">Jadvalning shu sanaga qo'yilgan kuni.</param>
-public sealed record ScheduleResolution(ScheduleAssignment Assignment, WorkSchedule Schedule, DayPlan Day)
+/// <param name="DateOverride">
+/// <paramref name="Day"/> yillik to'rning shu SANAGA yozilgan katagidan kelgan bo'lsa — o'sha katak;
+/// haftalik naqshdan kelgan bo'lsa <c>null</c>. «Nega shu soat» savoliga javob beruvchi ekran
+/// (<c>GET /schedules/resolve</c>) kunni aynan shu manbadan ko'rsatadi.
+/// </param>
+public sealed record ScheduleResolution(
+    ScheduleAssignment Assignment,
+    WorkSchedule Schedule,
+    DayPlan Day,
+    WorkScheduleDate? DateOverride = null)
 {
     /// <summary>Qaysi pog'ona yutdi.</summary>
     public ScheduleScope Tier => Assignment.Scope;
@@ -158,11 +167,13 @@ public sealed class ScheduleResolver
         }
 
         var schedule = _schedules[winner.WorkScheduleId];
+        var exact = _dates.GetValueOrDefault((schedule.Id, date));
 
         return new ScheduleResolution(
             winner,
             schedule,
-            DayPlan.For(schedule, date, _dates.GetValueOrDefault((schedule.Id, date))));
+            DayPlan.For(schedule, date, exact),
+            exact);
     }
 
     /// <summary>Bo'lim pog'onasi: o'zidan boshlab yuqoriga, birinchi mos kelgan bo'lim yutadi.</summary>

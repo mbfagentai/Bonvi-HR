@@ -1377,6 +1377,66 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
     // ════════════════════════════════════════════════════════════
 
     /// <summary>
+    /// <c>GET /schedules/resolve</c> kunni tabel hisoblagan MANBADAN beradi: to'rda dam olishga
+    /// aylantirilgan sana — katak (<c>daySource = Date</c>), qolgani — naqsh. Lavozim esa shu SANADAGI
+    /// (ko'chirishdan oldingi sana — eski lavozim; yuklovchi hodisalarni ham o'qiydi).
+    /// </summary>
+    [Fact]
+    public async Task Resolve_yillik_tor_katagini_va_sanadagi_lavozimni_korsatadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        var belgi = Belgi();
+
+        Guid xodimId;
+        Guid eskiLavozim;
+        Guid yangiLavozim;
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var firma = LegalEntity.Create("Резолв МЧЖ " + belgi).Value;
+            var eski = Position.Create("Omborchi " + belgi).Value;
+            var yangi = Position.Create("Haydovchi " + belgi).Value;
+            var xodim = Employee.Create(FullName.Create("Резолвов", "Ходим", belgi).Value).Value;
+            var munosabat = Employment.Hire(xodim.Id, firma.Id, new DateOnly(2025, 1, 1), positionId: eski.Id).Value;
+            munosabat.Transfer(new DateOnly(2026, 6, 15), null, yangi.Id).IsSuccess.ShouldBeTrue();
+
+            kontekst.AddRange(firma, eski, yangi, xodim);
+            kontekst.Add(munosabat);
+            await kontekst.SaveChangesAsync(ct);
+
+            xodimId = xodim.Id;
+            eskiLavozim = eski.Id;
+            yangiLavozim = yangi.Id;
+        }
+
+        var jadvalId = await XodimgaJadvalAsync(admin, xodimId, belgi);
+        var dam = new DateOnly(2026, 6, 10);
+
+        using (var yozish = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new { dates = new[] { Iso(dam) }, isWorking = false },
+                   ct))
+        {
+            yozish.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(yozish));
+        }
+
+        var katakli = await JsonAsync(await admin.GetAsync(Yol($"/schedules/resolve?employeeId={xodimId}&date={Iso(dam)}"), ct));
+        katakli.GetProperty("daySource").GetString().ShouldBe("Date");
+        katakli.GetProperty("day").GetProperty("isWorking").GetBoolean().ShouldBeFalse("to'rdagi katak naqshdan ustun — tabeldagidek");
+        katakli.GetProperty("day").GetProperty("dayIndex").GetInt32().ShouldBe(3);
+        katakli.GetProperty("positionId").GetGuid().ShouldBe(eskiLavozim, "15-iyundagi ko'chirishdan oldin");
+
+        var naqshli = await JsonAsync(await admin.GetAsync(Yol($"/schedules/resolve?employeeId={xodimId}&date=2026-06-11"), ct));
+        naqshli.GetProperty("daySource").GetString().ShouldBe("Pattern");
+        naqshli.GetProperty("day").GetProperty("isWorking").GetBoolean().ShouldBeTrue();
+
+        var keyin = await JsonAsync(await admin.GetAsync(Yol($"/schedules/resolve?employeeId={xodimId}&date=2026-06-16"), ct));
+        keyin.GetProperty("positionId").GetGuid().ShouldBe(yangiLavozim);
+    }
+
+    /// <summary>
     /// To'r tahriri: (1) o'zgargan kunning QO'SHNISI ham qayta hisoblanadi — dushanba tungi smenaga
     /// aylantirilsa, seshanba 07:00 dagi chiqish dushanbaga o'tadi va seshanbada ikkinchi marta
     /// sanalmaydi; (2) boshqa jadvaldagi odamning kuni tegilmaydi.

@@ -839,7 +839,19 @@ function PrecedenceLadder({ resolution }: { resolution: ScheduleResolution }) {
   )
 }
 
-/** Shu sananing hafta kuniga tushgan reja — tanaffus oynasi bilan (§6.4 `day`). */
+/** Kun rejasining manbai — `GET /schedules/resolve` ning `daySource` i. */
+const DAY_SOURCE_LABEL_KEY = {
+  Date: 'attendance.resolveDayFromDate',
+  Pattern: 'attendance.resolveDayFromPattern',
+} as const
+
+/**
+ * Shu SANANING rejasi — tanaffus oynasi bilan (§6.4 `day`).
+ *
+ * Server kunni tabel hisoblagan manbadan beradi: yillik to'rda shu sanaga katak
+ * yozilgan bo'lsa — o'sha katak, aks holda hafta kunining naqshi (`daySource`).
+ * Manba ko'rsatiladi: «nega bugun dam olish?» degan savolning javobi aynan shu.
+ */
 function ResolvedDay({ resolution }: { resolution: ScheduleResolution }) {
   const { t } = useLocale()
   const day = resolution.day
@@ -851,8 +863,13 @@ function ResolvedDay({ resolution }: { resolution: ScheduleResolution }) {
     <div className="flex items-start gap-3 rounded-xl border border-[var(--border)] px-4 py-3">
       <CalendarDays className="mt-0.5 size-4 shrink-0 text-[var(--fg-tertiary)]" />
       <div className="min-w-0 space-y-0.5">
-        <p className="text-footnote font-semibold">
+        <p className="flex flex-wrap items-center gap-1.5 text-footnote font-semibold">
           {weekday === null ? '—' : t(WEEKDAY_LABEL_KEY[weekday])}
+          {resolution.daySource !== null && (
+            <Badge tone={resolution.daySource === 'Date' ? 'info' : 'neutral'} size="sm">
+              {t(DAY_SOURCE_LABEL_KEY[resolution.daySource])}
+            </Badge>
+          )}
         </p>
         {day.isWorking ? (
           <>

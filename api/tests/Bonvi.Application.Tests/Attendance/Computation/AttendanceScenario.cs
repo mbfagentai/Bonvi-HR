@@ -42,6 +42,7 @@ internal sealed class AttendanceScenario
     private readonly List<ScheduleAssignment> _assignments = [];
     private readonly List<Department> _departments = [];
     private readonly List<PassReading> _passes = [];
+    private readonly List<WorkScheduleDate> _dates = [];
 
     /*
       Sahnaning «bugun»i — sukut bo'yicha ENG UZOQ kelajak, ya'ni
@@ -179,7 +180,16 @@ internal sealed class AttendanceScenario
         }
     }
 
-    public ScheduleResolver Resolver() => new(_assignments, _schedules, new DepartmentTree(_departments));
+    /// <summary>Yillik to'rning katagi — jadvalning shu SANAGA yozilgan kuni.</summary>
+    public WorkScheduleDate ScheduleDate(WorkSchedule schedule, WorkScheduleDateInput input)
+    {
+        var created = WorkScheduleDate.Create(schedule.Id, input);
+        created.IsSuccess.ShouldBeTrue("sahnadagi katak domen tekshiruvidan o'tishi kerak");
+        _dates.Add(created.Value);
+        return created.Value;
+    }
+
+    public ScheduleResolver Resolver() => new(_assignments, _schedules, new DepartmentTree(_departments), _dates);
 
     /// <summary>Sahnaning «bugun»ini belgilaydi — kelajak kunlar qoidasi uchun.</summary>
     public AttendanceScenario Today(DateOnly today)
