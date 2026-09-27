@@ -68,12 +68,15 @@ public sealed class EmployeeAccountRepository : Repository<EmployeeAccount>, IEm
     /// yashirardi. Bu yerda qulf so'rovning o'zida ko'rinib turadi.
     /// </para>
     /// <para>
-    /// ⚠️ Qulf JORIY tranzaksiya oxirigacha turadi. Bu yo'lda alohida
-    /// tranzaksiya ochilmaydi: <c>SaveChangesAsync</c> o'zining ichki
-    /// tranzaksiyasini ochadi, qulf esa u yopilgan lahzada bo'shaydi.
-    /// Shu sababli qulf so'rovi bilan saqlash ORASIDA uzoq ish
-    /// bajarilmasligi kerak — chaqiruvchida ular orasida faqat bitta
-    /// indeks bo'yicha o'qish bor.
+    /// ⚠️ Qulf JORIY tranzaksiya oxirigacha turadi — ya'ni u FAQAT
+    /// <c>IUnitOfWork.ExecuteInTransactionAsync</c> ichida ma'noga ega.
+    /// Tranzaksiyasiz chaqirilsa, PostgreSQL so'rovni o'zining yashirin
+    /// tranzaksiyasida bajaradi va qulf so'rov tugashi bilan bo'shaydi:
+    /// keyingi <c>SaveChangesAsync</c> esa BOSHQA tranzaksiya ochadi va
+    /// hech narsa navbatga qo'yilmaydi (ilgari aynan shunday edi — ikki
+    /// bosish 1,2 soniya farq bilan ikkita o'tish yozardi). Chaqiruvchi
+    /// (<c>MobileCheckInCommandHandler</c>) qulfdan saqlashgacha bo'lgan
+    /// hamma ishni bitta tranzaksiyaga o'raydi.
     /// </para>
     /// <para>
     /// ⚠️ <c>AsNoTracking</c> BO'LMASLIGI shart: qulflangan qator
@@ -96,6 +99,22 @@ public sealed class EmployeeAccountRepository : Repository<EmployeeAccount>, IEm
             .ConfigureAwait(false);
 
         return locked.Count == 0 ? null : locked[0];
+    }
+
+    /// <inheritdoc />
+    public async Task<bool?> MustChangePasswordAsync(
+        Guid accountId,
+        CancellationToken cancellationToken = default)
+    {
+        var flags = await Set
+            .AsNoTracking()
+            .Where(account => account.Id == accountId)
+            .Select(account => account.MustChangePassword)
+            .Take(1)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return flags.Count == 0 ? null : flags[0];
     }
 }
 

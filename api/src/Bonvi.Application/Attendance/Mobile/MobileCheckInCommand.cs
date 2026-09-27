@@ -12,11 +12,18 @@ namespace Bonvi.Application.Attendance.Mobile;
 /// <param name="Latitude">Telefon bergan kenglik.</param>
 /// <param name="Longitude">Telefon bergan uzunlik.</param>
 /// <param name="AccuracyMeters">Telefon bergan aniqlik, metr.</param>
+/// <remarks>
+/// ⚠️ Uchala son ham NULLABLE va bu ataylab: yuborilmagan maydon endi
+/// jimgina 0 bo'lib bog'lanmaydi. Ilgari aniqligi yo'q so'rov «±0 m —
+/// mukammal o'lchov» bo'lib 100 metrlik chegaradan o'tib ketardi, yo'q
+/// koordinata esa ekvatordagi (0; 0) nuqtaga aylanardi. Yo'q qiymat —
+/// <c>davomat.joylashuv_notogri</c>.
+/// </remarks>
 public sealed record MobileCheckInCommand(
     PassDirection Direction,
-    decimal Latitude,
-    decimal Longitude,
-    decimal AccuracyMeters);
+    decimal? Latitude,
+    decimal? Longitude,
+    decimal? AccuracyMeters);
 
 /// <summary>
 /// Telefondan kelgan belgini qabul qiladi.
@@ -37,12 +44,29 @@ public sealed record MobileCheckInCommand(
 /// mavjud obyektlar haqida ma'lumot sizib chiqardi.
 /// </para>
 /// <para>
-/// ⭐ <b>Qulf takror tekshiruvidan OLDIN</b> (SPEC §K6). Takror qoidasi
-/// «o'qib, keyin yozadi»: ikki bosish 1,2 soniya farq bilan kelsa, ular
-/// unikal indeksdan o'tib ketadi (kalitdagi vaqt soniyagacha yaxlitlangan)
-/// va ikkala so'rov ham «yaqinda belgi yo'q» degan javobni o'qiy oladi.
-/// Hisob qatoriga qo'yilgan <c>SELECT … FOR UPDATE</c> bitta xodimning
-/// belgilarini faqat bir-biriga nisbatan navbatga qo'yadi.
+/// ⭐ <b>Qulf takror tekshiruvidan OLDIN va BITTA tranzaksiya ichida</b>
+/// (SPEC §K6). Takror qoidasi «o'qib, keyin yozadi»: ikki bosish 1,2 soniya
+/// farq bilan kelsa, ular unikal indeksdan o'tib ketadi (kalitdagi vaqt
+/// soniyagacha yaxlitlangan) va ikkala so'rov ham «yaqinda belgi yo'q»
+/// degan javobni o'qiy oladi. Hisob qatoriga qo'yilgan
+/// <c>SELECT … FOR UPDATE</c> bitta xodimning belgilarini faqat
+/// bir-biriga nisbatan navbatga qo'yadi — lekin faqat qulf <c>COMMIT</c>
+/// gacha tursa. Shu sababli qulfdan saqlashgacha bo'lgan hamma ish
+/// <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/> ichida:
+/// ilgari qulf tranzaksiyasiz olinib, so'rov tugashi bilan bo'shardi va
+/// ikkinchi bosish ikkinchi o'tish yozardi.
+/// </para>
+/// <para>
+/// Unikal indeks (<c>ux_attendance_passes_device_dedupe</c>) to'qnashuvi
+/// shunga qaramay yuz bersa (masalan, saqlash bazada bajarilib, javobi
+/// yo'qolgan va ish qayta urinilgan), u 500 emas —
+/// <c>davomat.takroriy_belgi</c> (409): birinchi belgi baribir saqlangan.
+/// </para>
+/// <para>
+/// ⚠️ <b>Ishdan ketgan xodim ham belgilay olmaydi</b> — mehnat munosabati
+/// BUGUNGI sana bo'yicha tekshiriladi (kirish va yangilashdagi INV-2 bilan
+/// bir xil qoida). Usiz access token amal qiladigan 15 daqiqa davomida
+/// bo'shatilgan odam hali ham «ishga keldim» deb belgilay olardi.
 /// </para>
 /// <para>
 /// ⚠️ <b>Vaqt Toshkent siljishida uzatiladi</b> (<c>BonviTime</c>), UTC da
@@ -53,7 +77,10 @@ public sealed record MobileCheckInCommand(
 /// </para>
 /// <para>
 /// Rad etilgan urinish saqlanmaydi: har bir bosish qator yasaydigan jadval
-/// ochiq suiiste'mol kanali bo'lardi. Sabab logga yoziladi.
+/// ochiq suiiste'mol kanali bo'lardi. Sabab logga yoziladi — endpointda
+/// (<c>MeEndpoints</c>), chunki Application qatlami loglash kutubxonasiga
+/// bog'lanmagan; kod va qiymatlar esa xatoning o'zida
+/// (<see cref="Error.Details"/>).
 /// </para>
 /// </remarks>
 public sealed class MobileCheckInCommandHandler
@@ -61,29 +88,35 @@ public sealed class MobileCheckInCommandHandler
     private readonly ICurrentEmployee _currentEmployee;
     private readonly IEmployeeAccountRepository _accounts;
     private readonly IEmployeeRepository _employees;
+    private readonly IEmploymentRepository _employments;
     private readonly IReferenceRepository<WorkSite> _sites;
     private readonly IAttendancePassRepository _passes;
     private readonly IMobileCheckInRepository _checkIns;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDatabaseFault _databaseFault;
     private readonly IClock _clock;
 
     public MobileCheckInCommandHandler(
         ICurrentEmployee currentEmployee,
         IEmployeeAccountRepository accounts,
         IEmployeeRepository employees,
+        IEmploymentRepository employments,
         IReferenceRepository<WorkSite> sites,
         IAttendancePassRepository passes,
         IMobileCheckInRepository checkIns,
         IUnitOfWork unitOfWork,
+        IDatabaseFault databaseFault,
         IClock clock)
     {
         _currentEmployee = currentEmployee;
         _accounts = accounts;
         _employees = employees;
+        _employments = employments;
         _sites = sites;
         _passes = passes;
         _checkIns = checkIns;
         _unitOfWork = unitOfWork;
+        _databaseFault = databaseFault;
         _clock = clock;
     }
 
@@ -105,6 +138,23 @@ public sealed class MobileCheckInCommandHandler
             return AttendanceErrors.MobileCheckInNotAllowed;
         }
 
+        // Qulf, o'qishlar va saqlash — BITTA tranzaksiyada (sinf izohi).
+        return await _unitOfWork
+            .ExecuteInTransactionAsync(token => CheckInAsync(accountId, command, token), cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Qulfdan saqlashgacha — tranzaksiya ichida bajariladigan qism.</summary>
+    /// <remarks>
+    /// Ish qayta urinilishi mumkin (vaqtinchalik baza nosozligi), shu sababli
+    /// hamma narsa shu yerda boshidan o'qiladi — tashqaridan yuklangan
+    /// obyektga tayanilmaydi.
+    /// </remarks>
+    private async Task<Result<MobileCheckInResultDto>> CheckInAsync(
+        Guid accountId,
+        MobileCheckInCommand command,
+        CancellationToken cancellationToken)
+    {
         // ── 1-qadam: hisob va ruxsat (SPEC §E1) ──────────────────────
         //
         // Qulf AYNAN shu yerda olinadi, keyinroq emas: u tranzaksiya oxirigacha
@@ -122,19 +172,41 @@ public sealed class MobileCheckInCommandHandler
             return AttendanceErrors.MobileCheckInNotAllowed;
         }
 
-        // ── 2-qadam: o'lchov aniqligi (SPEC §E2) ─────────────────────
-        var accuracy = Round(command.AccuracyMeters, MobileCheckInRules.MeterScale);
-        if (accuracy < 0 || accuracy > MobileCheckInRules.MaxAccuracyMeters)
+        var now = _clock.UtcNow;
+
+        // Ishdan ketgan (yoki hali ishga kirmagan) odam — sana bo'yicha,
+        // kirish yo'lidagi INV-2 bilan AYNAN bir xil qoida (sinf izohi).
+        if (!await _employments
+                .IsEmployedOnAsync(employee.Id, now.TashkentDate(), cancellationToken)
+                .ConfigureAwait(false))
         {
-            return AttendanceErrors.LocationTooCoarse(accuracy);
+            return AttendanceErrors.MobileCheckInNotAllowed;
         }
 
-        var latitude = Round(command.Latitude, MobileCheckInRules.CoordinateScale);
-        var longitude = Round(command.Longitude, MobileCheckInRules.CoordinateScale);
-
-        if (latitude is < -90 or > 90 || longitude is < -180 or > 180)
+        // ── 2-qadam: o'lchovning o'zi va aniqligi (SPEC §E2) ─────────
+        //
+        // Yo'q, nol yoki manfiy aniqlik — «mukammal o'lchov» emas, YAROQSIZ
+        // o'lchov. Chegaradan tashqari koordinata ham shu kod bilan.
+        if (command.Latitude is not { } rawLatitude
+            || command.Longitude is not { } rawLongitude
+            || command.AccuracyMeters is not { } rawAccuracy)
         {
-            return Error.Validation("davomat.joylashuv_notogri", "Joylashuv koordinatasi noto'g'ri.");
+            return AttendanceErrors.LocationInvalid;
+        }
+
+        var latitude = Round(rawLatitude, MobileCheckInRules.CoordinateScale);
+        var longitude = Round(rawLongitude, MobileCheckInRules.CoordinateScale);
+        var accuracy = Round(rawAccuracy, MobileCheckInRules.MeterScale);
+
+        // Yaxlitlangandan KEYIN: 0,04 m kabi son 0 bo'ladi — u ham «mukammal» emas.
+        if (accuracy <= 0 || latitude is < -90 or > 90 || longitude is < -180 or > 180)
+        {
+            return AttendanceErrors.LocationInvalid;
+        }
+
+        if (accuracy > MobileCheckInRules.MaxAccuracyMeters)
+        {
+            return AttendanceErrors.LocationTooCoarse(accuracy);
         }
 
         // ── 3-qadam: qabul qiladigan FAOL obyekt (SPEC §E3, SPEC-joylashuvlar §B) ──
@@ -164,7 +236,6 @@ public sealed class MobileCheckInCommandHandler
         }
 
         // ── 4-qadam: takroriy belgi (SPEC §E4) ───────────────────────
-        var now = _clock.UtcNow;
         var bounceFrom = now.AddSeconds(-AttendanceRules.BounceSeconds);
 
         var lastPassAt = await _passes
@@ -229,7 +300,24 @@ public sealed class MobileCheckInCommandHandler
         // navbatiga tushadi, xuddi terminal o'tishi kabi. Alohida navbatga
         // qo'yish chaqiruvi KERAK EMAS va qo'shilmaydi ham: ikkinchi yo'l
         // birinchisidan ajralib ketishi mumkin bo'lgan joy bo'lardi.
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (_databaseFault.IsDuplicatePass(exception))
+        {
+            // Shu soniyadagi belgi allaqachon saqlangan. Qo'shilgan (bazaga
+            // yetmagan) o'tish kuzatuvdan chiqariladi — ingest yo'lidagi bilan
+            // bir xil. Tranzaksiya esa savepoint'ga qaytgan, ya'ni buzilmagan
+            // va keyingi o'qish ishlaydi (`AppDbContext` izohi).
+            _passes.Remove(pass);
+
+            var saved = await _passes
+                .LastPassAtAsync(employee.Id, bounceFrom, cancellationToken)
+                .ConfigureAwait(false);
+
+            return AttendanceErrors.CheckInTooSoon(saved ?? occurredAt);
+        }
 
         return new MobileCheckInResultDto(
             pass.OccurredAt,

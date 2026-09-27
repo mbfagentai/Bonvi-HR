@@ -351,7 +351,29 @@ public static class AttendanceErrors
     public static Error LocationTooCoarse(decimal accuracyMeters) => Error.Validation(
         "davomat.joylashuv_aniq_emas",
         $"Joylashuv aniqligi ±{accuracyMeters:0.#} m — chegara {MobileCheckInRules.MaxAccuracyMeters} m. " +
-        "Ochiq joyga chiqib qayta urinib ko'ring.");
+        "Ochiq joyga chiqib qayta urinib ko'ring.")
+        .WithDetails(new Dictionary<string, object>
+        {
+            ["accuracyMeters"] = accuracyMeters,
+            ["maxAccuracyMeters"] = MobileCheckInRules.MaxAccuracyMeters,
+        });
+
+    /// <summary>Telefon bergan joylashuv yaroqsiz: yo'q, nol yoki chegaradan tashqari.</summary>
+    /// <remarks>
+    /// <para>
+    /// Aniqligi YO'Q o'lchov «mukammal» emas — noma'lum. Ilgari maydon
+    /// yuborilmasa u 0 bo'lib bog'lanardi va 100 metrlik chegaradan jimgina
+    /// o'tib ketardi; endi u shu kod bilan rad etiladi.
+    /// </para>
+    /// <para>
+    /// <c>davomat.joylashuv_aniq_emas</c> ga QO'SHILMADI: u «tashqariga
+    /// chiqib qayta urinib ko'ring» deydi, bu yerda esa odam qayerga
+    /// chiqmasin — o'lchov umuman kelmagan (brauzer yoki ilova nosozligi).
+    /// </para>
+    /// </remarks>
+    public static Error LocationInvalid { get; } = Error.Validation(
+        "davomat.joylashuv_notogri",
+        "Joylashuv koordinatasi yoki aniqligi noto'g'ri.");
 
     /// <summary>Hech bir faol obyektning hududida emas.</summary>
     /// <remarks>
@@ -365,11 +387,24 @@ public static class AttendanceErrors
     /// <param name="distanceMeters">
     /// Uning CHEGARASIGACHA masofa (doirada markazgacha emas — SPEC-joylashuvlar §B).
     /// </param>
-    public static Error OutsideWorkSite(string? nearestName, double? distanceMeters) => Error.Validation(
-        "davomat.obyektdan_uzoq",
-        nearestName is null || distanceMeters is null
-            ? "Belgilash uchun faol obyekt topilmadi. HR bo'limiga murojaat qiling."
-            : $"Siz obyekt hududidan tashqaridasiz. Eng yaqin obyekt: {nearestName} — {distanceMeters:0} m.");
+    public static Error OutsideWorkSite(string? nearestName, double? distanceMeters)
+    {
+        var error = Error.Validation(
+            "davomat.obyektdan_uzoq",
+            nearestName is null || distanceMeters is null
+                ? "Belgilash uchun faol obyekt topilmadi. HR bo'limiga murojaat qiling."
+                : $"Siz obyekt hududidan tashqaridasiz. Eng yaqin obyekt: {nearestName} — {distanceMeters:0} m.");
+
+        // Faol obyekt umuman yo'q bo'lsa qiymat YO'Q — ilova buni «obyekt
+        // topilmadi» degan boshqa jumla bilan aytadi, «— 0 m» bilan emas.
+        return nearestName is null || distanceMeters is not { } distance
+            ? error
+            : error.WithDetails(new Dictionary<string, object>
+            {
+                ["siteName"] = nearestName,
+                ["distanceMeters"] = (int)Math.Round(distance, MidpointRounding.AwayFromZero),
+            });
+    }
 
     /// <summary>Oxirgi belgidan keyin <see cref="AttendanceRules.BounceSeconds"/> soniya o'tmagan.</summary>
     /// <remarks>
@@ -380,5 +415,11 @@ public static class AttendanceErrors
     /// <param name="lastAt">Oxirgi qabul qilingan belgi lahzasi.</param>
     public static Error CheckInTooSoon(DateTimeOffset lastAt) => Error.Conflict(
         "davomat.takroriy_belgi",
-        $"Siz hozirgina belgilagansiz — oxirgi belgi {lastAt.ToTashkent():HH:mm:ss} da qabul qilingan.");
+        $"Siz hozirgina belgilagansiz — oxirgi belgi {lastAt.ToTashkent():HH:mm:ss} da qabul qilingan.")
+        .WithDetails(new Dictionary<string, object>
+        {
+            // UTC — belgilash javobidagi `occurredAt` va ilova API'sining
+            // boshqa lahzalari bilan bir xil; mijoz Toshkent vaqtiga o'zi o'giradi.
+            ["lastAt"] = lastAt.ToUniversalTime(),
+        });
 }

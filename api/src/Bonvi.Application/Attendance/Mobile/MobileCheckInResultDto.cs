@@ -19,7 +19,12 @@ namespace Bonvi.Application.Attendance.Mobile;
 /// berardi.
 /// </para>
 /// </remarks>
-/// <param name="OccurredAt">Belgi lahzasi — SERVER soati bo'yicha, UTC.</param>
+/// <param name="OccurredAt">
+/// Belgi lahzasi — SERVER soati bo'yicha, UTC (<c>…+00:00</c>) — ilova
+/// API'sining boshqa lahzalari (<c>/api/me/attendance</c> dagi belgilar)
+/// bilan bir xil. Mijoz uni <c>Date</c> ga o'girib, Toshkent vaqtida
+/// ko'rsatadi; siljishni satrdan o'qimaydi.
+/// </param>
 /// <param name="Direction">Qabul qilingan yo'nalish.</param>
 /// <param name="WorkSiteName">Belgi qaysi obyektda qabul qilindi.</param>
 public sealed record MobileCheckInResultDto(
