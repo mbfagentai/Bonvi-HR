@@ -84,10 +84,18 @@ are already the thing people trust it for.
 
 ### B4. API
 
-* `GET /api/attendance/requests` — filters: `employeeId`, `status`, `from`,
-  `to`, paging. Read under `attendance.view`.
+* `GET /api/attendance/requests` — filters: `employeeId`, `status`, `decided`
+  (approved + rejected + cancelled together), `from`, `to`, paging. Read under
+  `attendance.view`.
+* `GET /api/attendance/requests/pending-count` — the nav badge. Read under
+  `attendance.view`.
 * `POST /api/attendance/requests` — HR creates on the employee's behalf.
-* `POST /api/attendance/requests/{id}/approve` · `/reject` — body: decision note.
+* `PUT /api/attendance/requests/{id}` — edit a request while it is still
+  pending (`davomat.sorov_qaror_qabul_qilingan`, 409, afterwards).
+* `POST /api/attendance/requests/{id}/decide` — body: `{ approve, decisionNote }`;
+  `approve: true` approves, `false` rejects. *(Amended 2026-09-27 to match the
+  build: one decision endpoint instead of the `/approve` · `/reject` pair — the
+  two differed only in one flag and shared every rule.)*
 * `POST /api/attendance/requests/{id}/cancel` — for a request entered by mistake.
 * Write/decide under a **new permission `attendance.requests.manage`** (A5),
   kept separate from `attendance.manage`: deciding absences is an HR judgement,

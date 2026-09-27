@@ -1,5 +1,5 @@
 import { Check, Inbox, Pencil, Plus, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
@@ -22,6 +22,7 @@ import { useAbsenceRequests } from '../api/attendance-queries'
 import { ATTENDANCE_REQUESTS_MANAGE } from '../lib/attendance-presentation'
 import { AbsenceDecisionDialog, type AbsenceAction } from './absence-decision-dialog'
 import { AbsenceRequestDialog } from './absence-request-dialog'
+import { AttendanceLoadError } from './attendance-manage-states'
 
 const helper = dataColumnHelper<AbsenceRequest>()
 
@@ -101,6 +102,28 @@ export function AbsenceRequestsList({
     page: decidedPage,
     pageSize: PAGE_SIZE,
   })
+
+  /*
+    Sahifa bo'shab qolsa — oxirgi MAVJUD sahifaga qaytiladi
+    (`attendance-mapping-page.tsx` naqshi). 2-sahifadagi yagona so'rov
+    tasdiqlangach navbat «bo'sh» deb ko'rinardi, garchi 1-sahifada yana
+    25 tasi qaror kutsa. Sakrash `total` dan: bir martada to'g'ri sahifaga.
+  */
+  const pendingItems = pending.data?.items
+  const pendingTotal = pending.data?.total
+  useEffect(() => {
+    if (pendingItems !== undefined && pendingItems.length === 0 && pendingPage > 1) {
+      setPendingPage(lastPage(pendingTotal ?? 0))
+    }
+  }, [pendingItems, pendingTotal, pendingPage])
+
+  const decidedItems = decided.data?.items
+  const decidedTotal = decided.data?.total
+  useEffect(() => {
+    if (decidedItems !== undefined && decidedItems.length === 0 && decidedPage > 1) {
+      setDecidedPage(lastPage(decidedTotal ?? 0))
+    }
+  }, [decidedItems, decidedTotal, decidedPage])
 
   const columns = useMemo<Array<DataColumn<AbsenceRequest>>>(() => {
     const list: Array<DataColumn<AbsenceRequest>> = []
@@ -223,29 +246,44 @@ export function AbsenceRequestsList({
           )}
         </div>
 
-        <DataTable
-          columns={columns}
-          data={pending.isPending ? NO_ROWS : (pending.data?.items ?? NO_ROWS)}
-          getRowId={(row) => row.id}
-          loading={pending.isPending}
-          skeletonRows={3}
-          rowLabel={(row) => row.employeeName}
-          empty={
-            <EmptyState
-              icon={Inbox}
-              title={t('attendance.requestsQueueEmpty')}
-              description={t('attendance.requestsQueueEmptyText')}
+        {/*
+          ⚠️ Yuklab bo'lmagani «qaror kutayotgan so'rov yo'q» bo'lib
+          KO'RINMAYDI: HR bo'sh navbatni ko'rib, kutayotgan so'rovlarni
+          tekshirmay qo'yardi (`AttendanceLoadError` izohi).
+        */}
+        {pending.isError ? (
+          <AttendanceLoadError
+            error={pending.error}
+            onRetry={() => void pending.refetch()}
+            retrying={pending.isFetching}
+          />
+        ) : (
+          <>
+            <DataTable
+              columns={columns}
+              data={pending.isPending ? NO_ROWS : (pending.data?.items ?? NO_ROWS)}
+              getRowId={(row) => row.id}
+              loading={pending.isPending}
+              skeletonRows={3}
+              rowLabel={(row) => row.employeeName}
+              empty={
+                <EmptyState
+                  icon={Inbox}
+                  title={t('attendance.requestsQueueEmpty')}
+                  description={t('attendance.requestsQueueEmptyText')}
+                />
+              }
             />
-          }
-        />
 
-        <Pagination
-          page={pendingPage}
-          pageSize={PAGE_SIZE}
-          total={pending.data?.total ?? 0}
-          onPageChange={setPendingPage}
-          className="px-4 pb-4 sm:px-5"
-        />
+            <Pagination
+              page={pendingPage}
+              pageSize={PAGE_SIZE}
+              total={pending.data?.total ?? 0}
+              onPageChange={setPendingPage}
+              className="px-4 pb-4 sm:px-5"
+            />
+          </>
+        )}
       </Card>
 
       <Card className="overflow-hidden">
@@ -259,6 +297,12 @@ export function AbsenceRequestsList({
               <Skeleton key={row} className="h-10" />
             ))}
           </div>
+        ) : decided.isError ? (
+          <AttendanceLoadError
+            error={decided.error}
+            onRetry={() => void decided.refetch()}
+            retrying={decided.isFetching}
+          />
         ) : (
           <>
             <DataTable
@@ -303,6 +347,11 @@ export function AbsenceRequestsList({
       />
     </div>
   )
+}
+
+/** Oxirgi mavjud sahifa — hech bo'lmaganda birinchisi. */
+function lastPage(total: number): number {
+  return Math.max(1, Math.ceil(total / PAGE_SIZE))
 }
 
 /**
