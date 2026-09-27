@@ -225,6 +225,11 @@ codebase, which is why it is flagged rather than assumed.
 
 ### B.1 Shape
 
+> ⚠️ **Superseded in part on 2026-09-27 (§H):** `login`, `must_change_password`,
+> `is_active`, `failed_login_attempts`, `locked_until` and
+> `ux_employee_accounts_login` were dropped, `password_protected` was added.
+> The table below is the original design.
+
 `EmployeeAccount : AggregateRoot, IAuditable` in `Bonvi.Domain.Identity`, table
 `employee_accounts`. **Not** `ISoftDeletable` — see §B.6.
 
@@ -294,7 +299,8 @@ Three consequences that have to be written down:
   passwords, and the endpoint (`/api/auth/login` vs
   `/api/employee-auth/login`) decides which table is consulted. Cross-table
   uniqueness would need a trigger or a shared login table, and would buy nothing.
-* **The login is a *copy* of `employees.phone`, not a reference.** HR's form
+* **The login is a *copy* of `employees.phone`, not a reference.** *(Reversed
+  by the owner on 2026-09-27 — the login is now `employees.phone` itself; §H.)* HR's form
   pre-fills from the employee card; after that the two live separate lives.
   Rejected alternative: derive the login from `employees.phone` at read time —
   then correcting a typo in an HR field silently becomes an authentication
@@ -1051,3 +1057,49 @@ made at 09:00 must not record a 09:00 arrival as an 18:00 one.
 * **Rejected check-ins** are still not stored (§F.4); the reason, accuracy, site
   and distance are logged (warning level, so the file log keeps them). The
   coordinate is not logged.
+
+---
+
+## H. Owner decision (2026-09-27) — migration `EmployeeAccountsFromProfilePhone`
+
+The owner rejected the manual account flow (SPEC §M). One migration changes
+`employee_accounts`; no other table changes shape.
+
+| Column | Type | Null | Note |
+|---|---|---|---|
+| `id` | `uuid` | no | PK |
+| `employee_id` | `uuid` | no | FK → `employees(id)` RESTRICT; `ux_employee_accounts_employee` UNIQUE — also the race guard for automatic creation |
+| `password_hash` | `text` | no | same hasher as `users` |
+| `password_protected` | `text` | **yes** | **new** — `ISecretProtector` (AES-GCM, `v1.<base64url>`) copy of the plain password so HR can view it; `NULL` for rows created before this migration (the plain value is unrecoverable; the old password keeps working until HR generates a new one) |
+| `password_set_at` | `timestamptz` | no | when HR last gave a password |
+| `last_login_at` | `timestamptz` | yes | unchanged |
+| `created_at/by`, `updated_at/by` | | | `IAuditable` |
+
+**Dropped:** `login` + `ux_employee_accounts_login` (the login is
+`employees.phone`, looked up at sign-in over the existing
+`ix_employees_phone` partial index — two point lookups: phone → at most two
+non-deleted employees, then `ux_employee_accounts_employee`);
+`must_change_password` (the employee never changes the password);
+`is_active` (no manual off switch — termination is the switch; existing
+`false` rows are thereby re-opened); `failed_login_attempts` / `locked_until`
+(they only served the removed password-change endpoint; the login lock is
+`EmployeeLoginThrottle`, §G).
+
+**Invariants after the change**
+
+* **INV-1/INV-2 unchanged** and now also enforced on every `/api/me/*` request
+  (`EmployeeAccessGate`: account → non-deleted employee → employment covering
+  today), so termination stops an already-issued access token immediately.
+* A phone held by **two or more non-deleted** employees resolves to no account
+  (sign-in refused, generic error). A soft-deleted employee's phone counts for
+  nobody.
+* Every non-deleted employee gets exactly one account (Hangfire job
+  `employee-app:provision-accounts`, startup + every 15 min, plus
+  ensure-on-read). Creation races end in `ux_employee_accounts_employee`
+  (23505), which `PostgresFault.IsDuplicateEmployeeAccount` turns into "re-read
+  the winner".
+
+**`Down`** restores the columns: `is_active = true`, `must_change_password =
+false`, lockout empty, and `login` rebuilt from `employees.phone` — or the
+account id when the phone is empty or held by another account's employee, so
+the restored unique index cannot fail. `password_protected` is lost.

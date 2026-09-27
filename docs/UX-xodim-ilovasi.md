@@ -158,9 +158,9 @@ call is understandable.
 
 | Screen | Route | Purpose | Data |
 |---|---|---|---|
-| Kirish | `/ilova/kirish` | Sign in with the phone number and the password HR issued | `POST /api/employee-auth/login` |
-| Parolni o‘rnatish | `/ilova/parol-ornatish` | Forced first-run password change | `POST /api/employee-auth/password`, gated on `must_change_password` |
-| Parolni unutdim | `/ilova/parol-yordam` | Static: there is no self-service reset; HR issues a new one-time password | none |
+| Kirish | `/ilova/kirish` | Sign in with the profile phone number and the password HR gave; one line under the form: `Логин — телефон рақамингиз, паролни HR беради` | `POST /api/employee-auth/login` |
+| ~~Parolni o‘rnatish~~ | ~~`/ilova/parol-ornatish`~~ | **Removed 2026-09-27** — the password is set by HR only (SPEC §M4) | — |
+| Parolni unutdim | `/ilova/parol-yordam` | Static: no self-service reset or change; ask HR — HR can view the password or give a new one | none |
 
 **Tab 1 — Asosiy**
 
@@ -188,7 +188,7 @@ call is understandable.
 |---|---|---|---|
 | Profil | `/ilova/profil` | Photo, name, department, whether mobile check-in is on; the settings list; sign out; version | `GET /api/me` |
 | Sozlamalar | `/ilova/profil/sozlamalar` | Theme, language, install, app version / update | local |
-| Parolni o‘zgartirish | `/ilova/profil/parol` | Change my password | `POST /api/employee-auth/password` |
+| ~~Parolni o‘zgartirish~~ | ~~`/ilova/profil/parol`~~ | **Removed 2026-09-27** — the employee cannot change the password (SPEC §M4) | — |
 
 **Cross-cutting screens** — reachable from more than one place, defined once.
 
@@ -197,7 +197,7 @@ call is understandable.
 | Joylashuv ruxsati | `/ilova/joylashuv` | The permission-denied recovery screen (§C.7). Reached from a failed check-in and from Sozlamalar. |
 | Topilmadi | `/ilova/*` fallback | Unknown path inside the app; one button back to `Asosiy`. |
 
-That is **12 screens**, of which 4 are tab roots and 3 are auth. There is no
+That is **12 screens** (10 since 2026-09-27: the two password screens were removed), of which 4 are tab roots and 3 are auth. There is no
 screen in this list that does not serve a `/api/me/*` endpoint from SPEC §E, and
 no `/api/me/*` endpoint that has no screen.
 
@@ -289,7 +289,8 @@ the employee open the app for", most likely answer first.
    of explanation when off. This is the answer to the single most likely support
    question this app will generate, so it is on the profile, not hidden in
    settings.
-3. List group: `Sozlamalar`, `Parolni o‘zgartirish`, `Joylashuv ruxsati`.
+3. List group: `Sozlamalar`, `Joylashuv ruxsati`. (`Parolni o‘zgartirish` was
+   removed on 2026-09-27 — SPEC §M4.)
 4. Danger row: `Chiqish`.
 5. Footer: `Ilova versiyasi 1.0.0`.
 
@@ -307,8 +308,7 @@ the employee open the app for", most likely answer first.
 ### B.1 Shape
 
 ```
-/ilova/kirish ──┐
-/ilova/parol-ornatish ──┤  auth stack: no tab bar, no back
+/ilova/kirish ──┐  auth stack: no tab bar, no back
 /ilova/parol-yordam ──┘
 
 ┌── tab bar (always visible on the four roots) ─────────────┐
@@ -319,7 +319,6 @@ the employee open the app for", most likely answer first.
 └───────────────────────────────────────────────────────────┘
         │                    │                  │
         │                    │                  ├─ push /ilova/profil/sozlamalar
-        │                    │                  ├─ push /ilova/profil/parol
         │                    │                  └─ push /ilova/joylashuv
         │                    ├─ push /ilova/sorovlar/yangi
         │                    └─ push /ilova/sorovlar/:id
@@ -355,7 +354,8 @@ One history stack, not four.
 | Condition | Behaviour |
 |---|---|
 | No token, any `/ilova/*` route | redirect to `/ilova/kirish?keyin=<encoded path>`; after sign-in, go to `keyin` or `/ilova` |
-| `must_change_password` | every route redirects to `/ilova/parol-ornatish`; the only way out is setting a password or `Chiqish` |
+| ~~`must_change_password`~~ | removed 2026-09-27 — there is no forced first-run step |
+| 403 `xodim.hisob_faol_emas` | the employee was terminated (or deleted): every `/api/me/*` call is refused at once; the screen shows the message, and the session ends when the refresh is refused |
 | 401 from any endpoint | clear the token, redirect to `/ilova/kirish`, toast `Sessiya tugadi. Qaytadan kiring.` |
 | 403 / audience mismatch | same as 401 — an employee token that is not accepted is never "almost authorised" |
 | Unknown `/ilova/*` path | `Topilmadi` screen, one button `Asosiyga qaytish` |
@@ -376,7 +376,6 @@ All under `/ilova`, all safe to paste into a chat and open on a phone.
 /ilova/sorovlar/:id                       one request
 /ilova/profil                             profile
 /ilova/profil/sozlamalar                  settings
-/ilova/profil/parol                       change password
 /ilova/joylashuv                          location permission help
 /ilova/kirish?keyin=<path>                sign in, then continue
 ```
@@ -1488,7 +1487,7 @@ recommendation.
 
 ## Summary for `build-frontend`
 
-* **12 screens**, listed in §A.3. Four tab roots, three auth screens, five
+* **12 screens** (10 after the 2026-09-27 removal of the two password screens), listed in §A.3. Four tab roots, three auth screens, five
   pushed. Nothing else exists.
 * **4 tabs**: `Asosiy · Taqvim · So‘rovlar · Profil`, in that order. No news, no
   payroll, no reports, no module grid, no notification bell.

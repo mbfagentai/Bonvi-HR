@@ -1272,3 +1272,47 @@ C7 dev API da (vazifalar koddan `RecurringJobManager.TriggerJob` bilan turtildi,
   tushganda holat yo'qoladi (blok bekor bo'ladi, 60 soniyalik oyna
   ichidagi takror yangilash qayta kirishni talab qiladi). Replika
   qo'shilsa — Redis'ga ko'chirish kerak.
+
+## Xodim ilovasi — hisob avtomatik, login profil telefoni, parol HR da (2026-09-27)
+
+Egasining qarori (SPEC-xodim-ilovasi §M). Yuqoridagi «HR tomoni» bandidagi
+«Ilova» KARTASI (hisob ochish, bir martalik parol, faolsizlantirish) endi
+YO'Q — o'rniga xodim kartasi → «Davomat» → «Ilova» segmenti.
+
+### Deploydan oldin / deploy paytida
+
+- **Migratsiya `EmployeeAccountsFromProfilePhone`** — `employee_accounts`
+  dan `login` (+ `ux_employee_accounts_login`), `must_change_password`,
+  `is_active`, `failed_login_attempts`, `locked_until` TASHLANADI,
+  `password_protected` qo'shiladi. Prod'da bu jadval bo'sh (ilova hali
+  deploy qilinmagan) — ma'lumot yo'qolmaydi; dev'dagi mavjud hisoblarda
+  shifrlangan nusxa yo'q → HR «Yangi parol yasash» ni bosadi (eski parol
+  ishlashda davom etadi).
+- **Dev API'ni qayta ishga tushirish kerak** (migratsiya faqat ishga
+  tushishda qo'llanadi) va keyin `./bonvi gen` — HR veb-klienti yangi
+  endpointlarga (`revealEmployeePassword`, `regenerateEmployeePassword`,
+  `setEmployeePassword`) bog'langan.
+- **Birinchi ishga tushish:** Hangfire `employee-app:provision-accounts`
+  navbatga qo'yiladi va ~540 xodimga hisob ochadi (har biri ~0,1 s xesh →
+  bir necha o'n soniya, fonda; ishga tushishni to'smaydi). Keyin har 15
+  daqiqada (:08/:23/:38/:53 UTC). Log: EventId 5403.
+- **Parolni ko'rsatish shifrlash kalitiga bog'liq** (`SecretProtection:SecretKey`,
+  bo'lmasa `Jwt:SigningKey` dan — Telegram tokeni bilan bir xil kalit).
+  Kalit almashsa, barcha saqlangan parollar «ko'rsatib bo'lmaydi» bo'ladi
+  (parollarning o'zi ishlaydi) — HR kerak bo'lganda yangisini yasaydi.
+- **Telefoni yo'q yoki takror raqamli xodimlar** kira olmaydi — HR «Ilova»
+  segmentida sababni ko'radi va profilni tuzatadi. Prod'dagi takror
+  raqamlar ro'yxatini deploydan oldin chiqarib berish foydali
+  (`SELECT phone, count(*) FROM employees WHERE deleted_at IS NULL AND
+  phone IS NOT NULL GROUP BY phone HAVING count(*) > 1`).
+- **Ilova (PWA):** eski versiya keshda qolgan telefonlarda `/parol-ornatish`
+  ekrani endi hech qachon ochilmaydi (server `mustChangePassword` bermaydi);
+  eski `localStorage['bonvi.ilova.parol-almashsin']` yangi versiyada
+  o'chiriladi.
+
+### Olib tashlangan endpointlar
+
+`POST /api/employees/{id}/app-access`, `…/app-access/reset-password`,
+`…/app-access/deactivate`, `…/app-access/activate`,
+`POST /api/employee-auth/password` (va uning tezlik cheklovi yo'li
+`EmployeePasswordPaths`).

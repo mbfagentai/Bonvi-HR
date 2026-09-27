@@ -14,7 +14,7 @@
 | A1 | The app's purpose is a **remote "I'm at work" mark** — an employee working away from a terminal marks arrival and departure from their phone, and it counts towards attendance. |
 | A2 | **Location is required** for that mark and is checked against a known site. |
 | A3 | **No face**, in any form: no selfie, no matching, no camera. |
-| A4 | It is a **PWA**, not a store app (decided 2026-09-19): employees sign in with a login and password issued by HR. |
+| A4 | It is a **PWA**, not a store app (decided 2026-09-19): employees sign in with a login and password issued by HR. Since 2026-09-27 (§M): the login **is the primary phone in the employee's profile**, the account exists automatically and the password is a 6-digit code HR can always view. |
 
 ## B. What location can and cannot prove — read this first
 
@@ -80,10 +80,14 @@ Separate table, **not** rows in `users` (already decided in
 | Column | Note |
 |---|---|
 | `employee_id` | unique — one account per employee |
-| `login` | phone number, unique, same normalisation as `users` |
 | `password_hash` | same hasher as `users` |
-| `must_change_password` | HR issues a one-time password; the employee replaces it on first sign-in |
-| `is_active`, `last_login_at`, `failed_attempts`, `locked_until` | same lockout rule as `users` |
+| `password_protected` | encrypted copy of the plain password (`ISecretProtector`) so HR can view it; `NULL` for passwords issued before §M |
+| `password_set_at`, `last_login_at` | when HR last gave a password; last successful sign-in |
+
+> Changed 2026-09-27 (§M): `login`, `must_change_password`, `is_active`,
+> `failed_login_attempts` and `locked_until` were dropped. The login is
+> `employees.phone`, looked up at sign-in; the login lockout lives outside the
+> account (§L7).
 
 Tokens for these accounts carry a **separate audience** (`bonvi-employee`) and
 **no permission claims**. An employee token presented to an HR endpoint fails
@@ -125,8 +129,8 @@ its ingest token is never issued: nothing may post events *as* the app.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/employee-auth/login` | login + password → token pair |
-| `POST /api/employee-auth/password` | replace password (required while `must_change_password`) |
+| `POST /api/employee-auth/login` | profile phone + HR-issued password → token pair |
+| `POST /api/employee-auth/refresh`, `POST /api/employee-auth/logout` | rotate / close the session (§L8, §L9) |
 | `GET  /api/me` | name, photo, department, whether mobile check-in is allowed, **and the absence-type catalogue** (the app needs it to create a request and must not call an HR endpoint for it) |
 | `GET  /api/me/attendance?year&month` | my month: the same cells HR sees, **plus the marks behind each day** — `marks: [{ time, direction, source, siteName? }]`, `source` ∈ `Terminal` \| `Mobil ilova`. Without them the app cannot draw the journal card, which is the screen's signature element |
 | `POST /api/me/check-in` | `{ direction, latitude, longitude, accuracyMeters }` → returns the accepted mark's **server** `occurredAt`, `direction` and `workSiteName`. The receipt shows the server's time, never the phone's (§B3) |
@@ -134,7 +138,8 @@ its ingest token is never issued: nothing may post events *as* the app.
 
 `POST /api/me/check-in` validation order, each with its own error code:
 
-1. account active and `mobile_check_in_allowed` → else `davomat.mobil_ruxsat_yoq`;
+0. (group filter, §M5) the account's employee is not deleted and is employed today → else `xodim.hisob_faol_emas` (403);
+1. `mobile_check_in_allowed` → else `davomat.mobil_ruxsat_yoq`;
 2. `accuracyMeters` ≤ 100 → else `davomat.joylashuv_aniq_emas` (asks the
    employee to step outside and retry);
 3. the nearest active site within its radius → else `davomat.obyektdan_uzoq`,
@@ -149,9 +154,12 @@ the dashboard and the reports need no new rules.
 
 ## F. HR side
 
-* Employee card → **Ilova** section: create account (shows the one-time password
-  once, like the device token), reset password, deactivate, and the
-  «Telefondan belgilash» switch (§C).
+* Employee card → «Davomat» tab → **«Ilova»** segment (4th, `attendance.manage`
+  only): login (the profile phone), password (masked, eye to reveal, copy),
+  «Yangi parol yasash», «O'z parolini qo'yish», «Parol berilgan», «Oxirgi
+  kirish», the «Telefondan belgilash» switch (§C), and a warning when the
+  profile has no phone or the phone is shared (§M). No «create» and no
+  «deactivate» — see §M.
 * **Ma'lumotnomalar → Obyektlar**: the sites catalog, with a coordinate field
   and a radius. A small map is **not** in this wave — the coordinate can be
   pasted from any map app; a map component is a separate decision.
@@ -204,8 +212,8 @@ Wave A is useful on its own: HR can already register sites and issue accounts.
   rejected by an HR endpoint **and** an HR token by `/api/me/*`), and a test
   proving a mobile mark lands on the timesheet exactly like a terminal pass.
 * Migration read by hand; `./bonvi check`, typecheck and build green.
-* The one-time password is shown **once** and never retrievable, like the device
-  token.
+* ~~The one-time password is shown **once** and never retrievable~~ — reversed
+  by the owner on 2026-09-27 (§M3): HR can view the password at any time.
 
 
 ---
@@ -238,8 +246,8 @@ reason.
 | L2 | Check-in also requires an employment covering **today** (same rule as login/refresh INV-2) → `davomat.mobil_ruxsat_yoq` | same |
 | L3 | `latitude`, `longitude`, `accuracyMeters` are nullable on the wire; missing, `≤ 0` accuracy or out-of-range coordinates → `davomat.joylashuv_notogri` (400). A missing accuracy used to bind to 0 = "perfect" | `MobileCheckInRequest` |
 | L4 | Rejections carry their values as ProblemDetails fields: `accuracyMeters`, `siteName` + `distanceMeters` (absent when no active site exists at all), `lastAt`; `xodim.bloklangan` carries `retryAfterMinutes`, 429 carries `retryAfterSeconds`. Every rejection is logged (code, account, accuracy, site, distance — never the coordinate) | `Error.Details`, `MeEndpoints.LogRejected` |
-| L5 | While `must_change_password` is set, **every** `/api/me/*` call returns 403 `xodim.parol_almashtirilsin`. The flag is read from the account row, not the token, so an access token issued before an HR reset stops working immediately | `EmployeePasswordGate`, `MeEndpoints` |
-| L6 | `POST /api/employee-auth/password` requires the current password — on first sign-in the one-time password (the app keeps it in memory from the login screen, never in storage) — and returns a **new token pair**; the client must store it (all older sessions are revoked). 5 wrong current passwords lock password changes for 15 min (`xodim.bloklangan`) | `ChangeEmployeePasswordCommandHandler` |
+| L5 | *(Superseded by §M4/§M5.)* While `must_change_password` is set, **every** `/api/me/*` call returns 403 `xodim.parol_almashtirilsin`. The flag is read from the account row, not the token, so an access token issued before an HR reset stops working immediately | `EmployeePasswordGate`, `MeEndpoints` |
+| L6 | *(Superseded by §M4 — the endpoint is gone.)* `POST /api/employee-auth/password` requires the current password — on first sign-in the one-time password (the app keeps it in memory from the login screen, never in storage) — and returns a **new token pair**; the client must store it (all older sessions are revoked). 5 wrong current passwords lock password changes for 15 min (`xodim.bloklangan`) | `ChangeEmployeePasswordCommandHandler` |
 | L7 | Login lockout is per **(typed login, source IP)**, not per account: unknown numbers lock exactly like real ones, the lock is checked before any lookup, and the password is not verified while locked (no oracle). The victim's own phone on another network is unaffected | `EmployeeLoginThrottle` |
 | L8 | Refresh: a token replaced less than 60 s ago, whose successor is still unused, gets the **same** successor pair back (lost response ≠ theft). Outside that window the theft rule is unchanged | `EmployeeRefreshReplayCache` |
 | L9 | New `POST /api/employee-auth/logout {refreshToken}` → always 204; revokes that token only | `EmployeeLogoutCommandHandler` |
@@ -249,3 +257,27 @@ reason.
 | L13 | §F built: the HR pass journal DTO carries `mobile` evidence (site, shape, distance, allowance, accuracy, coordinate); timesheet cells carry `mobileMarks` | `AttendanceReadModel` |
 | L14 | New `GET /api/me/photo` — the caller's own photo (id from the token), `xodim.rasm_yoq` 404 when none, private caching | `GetMyPhotoQueryHandler` |
 | L15 | The app talks to the real API by default (`VITE_API_MODE=mock` only for demos); `start_url` is `/ilova/` (inside the worker scope) so the installed app opens offline | `app/src/api`, `app/vite.config.ts` |
+
+---
+
+## M. Owner decision (2026-09-27) — automatic accounts, profile-phone login, HR-held password
+
+The manual flow (HR opens an account, a one-time password shown once, a forced
+change on first sign-in, «Hisobni yopish») was rejected by the owner. It is
+replaced as follows; the comment at the named place carries the full reason.
+
+| # | Rule | Where |
+|---|---|---|
+| M1 | **Login = the employee's primary profile phone** (`employees.phone`, not the second phone). Nothing is stored on the account: sign-in looks the phone up among non-deleted employees, so an edit in the profile takes effect immediately — the new number works, the old one does not. `employee_accounts.login` was dropped | `EmployeeAccountRepository.FindByLoginAsync`, migration `EmployeeAccountsFromProfilePhone` |
+| M2 | **Every non-deleted employee has an account**, created automatically: a Hangfire job `employee-app:provision-accounts` (enqueued at startup, then every 15 min at :08/:23/:38/:53 UTC) and ensure-on-read when HR opens the «Ilova» segment. Idempotent; a race between the two is resolved by `ux_employee_accounts_employee`. Employee, employment and recruiting code is **not** touched | `EmployeeAccountProvisioner`, `EmployeeAccountProvisioningJob`, `BackgroundJobs` |
+| M3 | **Password = 6 random digits** (CSPRNG; all-same, ascending/descending runs and repeated 2/3-digit blocks are rejected). Verified with the usual hasher; an encrypted copy (`password_protected`, `ISecretProtector`) lets HR **view it at any time** — `GET /api/employees/{id}/app-access/password` (`attendance.manage`, audited, `no-store`). When the copy is missing or the key rotated: `xodim.parol_korinmaydi` (409) and the UI offers «Yangi parol yasash» | `EmployeePassword`, `RevealEmployeePasswordQueryHandler` |
+| M4 | **Only HR sets the password**: `POST …/app-access/password/generate` (new 6 digits) or `PUT …/app-access/password {password}` (6–64 chars, trimmed; `xodim.parol_bosh` / `xodim.parol_qisqa` / `xodim.parol_uzun`). Both revoke every session. The employee cannot change it: `POST /api/employee-auth/password`, `must_change_password`, the `/api/me` password gate and the app's set/change screens are gone | `EmployeePasswordCommandHandler` |
+| M5 | **No «Hisobni yopish»** — `…/app-access/deactivate` / `activate` and `is_active` are gone. The only off switch is termination: login and refresh refuse an employee with no employment today, and every `/api/me/*` call (check-in included) is refused **immediately** by the group filter with `xodim.hisob_faol_emas` (403) — not after the access token expires. Rehire → works again with the same phone and password | `EmployeeAccessGate`, `MeEndpoints` |
+| M6 | No phone, or a phone shared with another non-deleted employee → sign-in refused with the generic `xodim.notogri_malumot` (no oracle). The «Ilova» segment says why (`loginIssue`: `NoPhone` / `SharedPhone`, `sharedWith` names — a link only with `employees.view`). The account and password still exist, so sign-in works as soon as the profile is fixed | `EmployeeAppAccessBuilder` |
+| M7 | «Telefondan belgilash» stays **off by default** for everyone; automatic provisioning does not touch it | `SetMobileCheckInAllowedCommandHandler` |
+
+HR endpoints after §M (all `attendance.manage`): `GET /api/employees/{id}/app-access`,
+`GET|PUT …/app-access/password`, `POST …/app-access/password/generate`,
+`PUT …/mobile-check-in`. Removed: `POST …/app-access`,
+`POST …/app-access/reset-password`, `POST …/app-access/deactivate|activate`,
+`POST /api/employee-auth/password`.
