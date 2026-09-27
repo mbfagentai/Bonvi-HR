@@ -230,22 +230,6 @@ public sealed class EmployeeTests
         x.MehnatUzUrl.ShouldBeNull();
     }
 
-    [Fact]
-    public void Skrinshot_kaliti_va_turi_birga_yashaydi()
-    {
-        // Kalit turisiz saqlansa, faylni qaytarishda mazmunni qaytadan
-        // tekshirishga to'g'ri kelardi — shu sababli ular birga.
-        var x = Yaratilgan();
-
-        x.SetMehnatUzScreenshot("kalit-1", "image/png");
-        x.MehnatUzScreenshotKey.ShouldBe("kalit-1");
-        x.MehnatUzScreenshotContentType.ShouldBe("image/png");
-
-        x.SetMehnatUzScreenshot(null, "image/png");
-        x.MehnatUzScreenshotKey.ShouldBeNull();
-        x.MehnatUzScreenshotContentType.ShouldBeNull();
-    }
-
     /// <summary>
     /// Sudlanganlik JAVOBI va uning TAFSILOTI alohida saqlanadi.
     /// </summary>

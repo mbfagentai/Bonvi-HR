@@ -58,6 +58,7 @@ export function documentFileError(file: File): string | null {
  * chaqiruvchida (`useLocale().num`, tildagi ajratgich bilan).
  */
 export function fileSizeParts(bytes: number): { value: number; unit: 'KB' | 'MB' } {
-  if (bytes < 1024 * 1024) return { value: Math.round(bytes / 1024), unit: 'KB' }
+  // Bir kilobaytdan kichik fayl «0 KB» emas, «1 KB» — nol «bo'sh fayl» deb o'qiladi
+  if (bytes < 1024 * 1024) return { value: Math.max(1, Math.round(bytes / 1024)), unit: 'KB' }
   return { value: Math.round((bytes / 1024 / 1024) * 10) / 10, unit: 'MB' }
 }

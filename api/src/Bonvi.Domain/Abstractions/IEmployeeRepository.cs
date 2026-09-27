@@ -178,3 +178,20 @@ public interface IEmployeeDocumentRepository : IRepository<EmployeeDocument>
         Guid? documentTypeId = null,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>Tekshiruv materiallari («Tekshiruvlar» kartasi) repozitoriysi.</summary>
+public interface IEmployeeCheckFileRepository : IRepository<EmployeeCheckFile>
+{
+    /// <summary>
+    /// Xodimning materiallari — yuklangan tartibda (eng eskisi birinchi).
+    /// </summary>
+    /// <remarks>
+    /// Eskisi birinchi — hujjatlardan farqli: ro'yxat kichik va HR uni
+    /// tekshiruvlar KETMA-KETLIGI sifatida o'qiydi (avval mehnat.uz, keyin
+    /// qarzdorlik va h.k.). Yangi fayl oxiriga qo'shilgani ro'yxatni
+    /// sakratmaydi.
+    /// </remarks>
+    Task<IReadOnlyList<EmployeeCheckFile>> GetByEmployeeAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default);
+}

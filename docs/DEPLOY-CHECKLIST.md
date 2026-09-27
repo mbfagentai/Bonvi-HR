@@ -197,3 +197,23 @@ docker compose -f docker-compose.prod.yml exec -T postgres \
 Bo'sh natija — xato hech kimga tushmagan. Qator chiqsa, okladni HR
 ekrandan «Oklad» amali bilan to'g'rilaydi (tarixda iz qoladi); bazani
 qo'lda tahrirlamang.
+
+## Tekshiruv materiallari (2026-09-27) — migratsiya `TekshiruvMateriallari`
+
+- Yangi jadval `employee_check_files`; har bir mavjud mehnat.uz skrinshoti
+  unga birinchi material bo'lib **nusxalanadi** (fayl diskda o'z joyida,
+  faqat kalit ko'chadi). Deploy'dan keyin tekshirish:
+
+  ```sql
+  SELECT (SELECT count(*) FROM employees WHERE mehnat_uz_screenshot_key IS NOT NULL) AS eski,
+         (SELECT count(*) FROM employee_check_files) AS yangi;
+  ```
+
+  Ikkala son teng bo'lishi kerak.
+- `employees.mehnat_uz_screenshot_*` ustunlari **ataylab o'chirilmagan** —
+  eski image'ga qaytilsa, u shu ustunlarni o'qiydi va ishlayveradi. Ular
+  keyingi relizlardan birida, qo'lda yozilgan migratsiya bilan olib tashlanadi.
+- `Down` faqat yangi jadvalni o'chiradi: deploy'dan KEYIN yuklangan
+  materiallarning yozuvlari yo'qoladi (fayllar diskda qoladi). Ularni saqlash
+  kerak bo'lsa — `Down` emas, zaxiradan tiklash.
+

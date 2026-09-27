@@ -100,48 +100,6 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>mehnat.uz dagi profilga havola. Bo'sh bo'lishi mumkin.</summary>
     public string? MehnatUzUrl { get; private set; }
 
-    /// <summary>
-    /// mehnat.uz profilining skrinshoti (<c>IFileStorage</c> kaliti).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>Nega bu XODIM RASMI quvuridan o'tmaydi.</b> Rasm quvuri
-    /// (<c>SquarePhotoStore</c>) suratni markazdan KVADRAT qirqib, 512×512
-    /// JPEG qilib qayta kodlaydi. Skrinshot esa kvadrat emas va uning
-    /// butun qiymati MATNDA: ism, JSHSHIR, ish joyi. Kvadratga qirqilganda
-    /// chetlari — ya'ni odatda aynan shu matn — yo'qoladi, 512 pikselga
-    /// kichraytirilganda esa qolgani ham o'qilmay qoladi. Ya'ni fayl
-    /// saqlanadi-yu, dalil sifatida yaroqsiz bo'lib qoladi.
-    /// </para>
-    /// <para>
-    /// Shu sababli skrinshot HUJJAT quvuridan o'tadi
-    /// (<c>DocumentFileStore</c>): u faylni faqat tekshiradi (mazmun
-    /// bo'yicha tur aniqlash, 20 MB chegara) va baytlarni O'ZGARISHSIZ
-    /// saqlaydi.
-    /// </para>
-    /// <para>
-    /// <b>Nega alohida maydon, <c>EmployeeDocument</c> emas.</b> Hujjatlar
-    /// — TARIX: bitta xodimda o'nlab shartnoma va buyruq bo'ladi.
-    /// Skrinshot esa bitta joriy HOLAT: yangisi kelsa eskisi o'z ma'nosini
-    /// yo'qotadi (xodim rasmi bilan bir xil mantiq). Uni hujjatlar
-    /// ro'yxatiga qo'shsak, «Tekshiruvlar» kartasi qaysi biri dolzarb
-    /// ekanini bilmasdi va HR uni har safar ro'yxatdan qidirib topishi
-    /// kerak bo'lardi.
-    /// </para>
-    /// </remarks>
-    public string? MehnatUzScreenshotKey { get; private set; }
-
-    /// <summary>
-    /// Skrinshotning ANIQLANGAN MIME turi (mijoz e'lon qilgani emas).
-    /// </summary>
-    /// <remarks>
-    /// Xodim rasmida bunday maydon yo'q, chunki u har doim JPEG bo'lib
-    /// qayta kodlanadi. Bu yerda esa fayl o'zgarishsiz saqlanadi va u
-    /// PNG ham, PDF ham bo'lishi mumkin — turini eslab qolmasak, uni
-    /// qaytarishda mazmunni qaytadan tekshirishga to'g'ri kelardi.
-    /// </remarks>
-    public string? MehnatUzScreenshotContentType { get; private set; }
-
     /// <summary>Yo'nalishlar — ko'p-ga-ko'p («Вело, метан, шина, логистика»).</summary>
     public IReadOnlyList<Guid> DirectionIds => _directionIds.AsReadOnly();
 
@@ -338,22 +296,6 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
 
         MehnatUzUrl = value;
         return Result.Success();
-    }
-
-    /// <summary>
-    /// mehnat.uz skrinshotining kaliti va turini o'rnatadi (yoki bo'shatadi).
-    /// </summary>
-    /// <remarks>
-    /// Ikkalasi BIRGA o'rnatiladi: kalit turisiz saqlansa, faylni qaytarish
-    /// paytida mazmunni qaytadan tekshirishga to'g'ri kelardi. Bo'shatish
-    /// uchun ikkalasiga ham <c>null</c> beriladi.
-    /// </remarks>
-    public void SetMehnatUzScreenshot(string? key, string? contentType)
-    {
-        var storedKey = Trim(key);
-
-        MehnatUzScreenshotKey = storedKey;
-        MehnatUzScreenshotContentType = storedKey is null ? null : Trim(contentType);
     }
 
     public Result SetTelegram(string? url)

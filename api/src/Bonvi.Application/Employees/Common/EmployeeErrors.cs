@@ -78,16 +78,14 @@ public static class EmployeeErrors
         _ => PhotoInvalid,
     };
 
-    /// <summary>
-    /// Xodim bor, lekin mehnat.uz skrinshoti yo'q (yoki fayli yo'qolgan).
-    /// </summary>
+    /// <summary>Tekshiruv materiali topilmadi — yoki u boshqa xodimniki.</summary>
     /// <remarks>
-    /// <see cref="PhotoNotFound"/> bilan bir xil mantiq: «xodim topilmadi»
-    /// dan ajratilgan, chunki interfeys ikkinchi holatda xato ko'rsatmaydi —
-    /// shunchaki skrinshot maydonini bo'sh chizadi.
+    /// Boshqa xodimning materiali ham AYNAN shu javobni oladi: «bor, lekin
+    /// sizniki emas» degan farq marshrutdagi xodim orqali begona faylni
+    /// qidirish yo'lini ochardi.
     /// </remarks>
-    public static Error MehnatUzScreenshotNotFound { get; } =
-        Error.NotFound("xodim.mehnat_rasm_yoq", "Xodimning mehnat.uz skrinshoti yo'q.");
+    public static Error CheckFileNotFound { get; } =
+        Error.NotFound("tekshiruv_fayli.topilmadi", "Tekshiruv materiali topilmadi.");
 
     public static Error EmploymentNotFound { get; } =
         Error.NotFound("mehnat.topilmadi", "Mehnat munosabati topilmadi.");

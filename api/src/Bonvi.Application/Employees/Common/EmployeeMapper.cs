@@ -58,7 +58,6 @@ public sealed class EmployeeMapper
             employee.HasCriminalRecord,
             employee.CriminalRecordNote,
             employee.MehnatUzUrl,
-            employee.MehnatUzScreenshotKey,
             employee.DirectionIds,
             employee.NeedsReview,
             employee.ReviewNote);

@@ -2,29 +2,41 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using Bonvi.Domain.Identity;
+using Bonvi.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Api.IntegrationTests;
 
-/// <summary>mehnat.uz skrinshotini yuklash javobi (test uchun).</summary>
-public sealed record MehnatUzScreenshotResponse(string ScreenshotKey);
+/// <summary>Tekshiruv materiali (test uchun).</summary>
+public sealed record CheckFileResponse(
+    Guid Id,
+    string FileName,
+    string ContentType,
+    long? SizeBytes,
+    DateTimeOffset CreatedAt);
 
 /// <summary>Xodim kartasi — faqat shu testga kerakli maydonlar.</summary>
 public sealed record MehnatUzCardResponse(
     Guid Id,
-    string? MehnatUzUrl,
-    string? MehnatUzScreenshotKey);
+    string? MehnatUzUrl);
 
 /// <summary>
-/// mehnat.uz havolasi va profil skrinshotining uchi-uchiga testlari.
+/// mehnat.uz havolasi va «Tekshiruvlar» kartasi materiallarining uchi-uchiga testlari.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Eng muhim tekshiruv — <see cref="Skrinshot_qirqilmaydi_va_qayta_kodlanmaydi"/>:
-/// skrinshot xodim rasmi quvuridan o'tmasligi KERAK. Rasm quvuri
+/// Eng muhim tekshiruv — <see cref="Materiallar_royxatga_qoshiladi_va_ozgarishsiz_qaytadi"/>:
+/// material xodim rasmi quvuridan o'tmasligi KERAK. Rasm quvuri
 /// (<c>SquarePhotoStore</c>) faylni markazdan kvadrat qirqib 512×512 JPEG
 /// qiladi va u holda skrinshotdagi matn — uning butun qiymati — yo'qoladi.
 /// Bu test aynan shu xatoning qaytib kelishini to'sadi: kvadrat bo'lmagan
 /// PNG yuboriladi va AYNAN o'sha baytlar qaytishi tekshiriladi.
+/// </para>
+/// <para>
+/// 2026-09-27 dan materiallar RO'YXAT (ilgari bitta skrinshot edi va
+/// yangisi eskisini almashtirardi): «фақат битта юклама камлик қилади».
 /// </para>
 /// <para>
 /// <see cref="EmployeeDocumentApiTests"/> bilan bir xil falsafa: mock emas,
@@ -38,75 +50,152 @@ public sealed class MehnatUzApiTests : IClassFixture<BonviApiFactory>
     public MehnatUzApiTests(BonviApiFactory factory) => _factory = factory;
 
     [Fact]
-    public async Task Skrinshot_qirqilmaydi_va_qayta_kodlanmaydi()
+    public async Task Materiallar_royxatga_qoshiladi_va_ozgarishsiz_qaytadi()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
         using var client = await AdminMijozAsync();
-        var xodim = await XodimYaratAsync(client, "Скриншотли");
-        var yol = new Uri($"/api/employees/{xodim.Id}/mehnat-uz-screenshot", UriKind.Relative);
+        var xodim = await XodimYaratAsync(client, "Материалли");
+        var yol = MateriallarUri(xodim.Id);
 
         // Skrinshot KVADRAT EMAS — bu ataylab: rasm quvuri uni qirqib
         // yuborardi va aynan shu farq testning butun ma'nosi.
-        var asl = TestImages.PngYasa(320, 120);
+        var png = TestImages.PngYasa(320, 120);
 
-        using (var yuklash = await FaylYuborAsync(client, yol, asl, "mehnat.png", "image/png"))
-        {
-            yuklash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yuklash));
+        // Skrinshotni PDF bo'lib chop etish HR uchun odatiy yo'l
+        var pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF");
 
-            var javob = await yuklash.Content.ReadFromJsonAsync<MehnatUzScreenshotResponse>(bekorQilish);
-            javob!.ScreenshotKey.ShouldNotBeNullOrWhiteSpace();
-        }
+        var birinchi = await YuklaAsync(client, yol, png, "mehnat.png", "image/png");
+        var ikkinchi = await YuklaAsync(client, yol, pdf, "qarzdorlik.pdf", "application/pdf");
 
-        using (var olish = await client.GetAsync(yol, bekorQilish))
+        birinchi.FileName.ShouldBe("mehnat.png");
+        birinchi.SizeBytes.ShouldBe(png.Length);
+        ikkinchi.ContentType.ShouldBe("application/pdf");
+
+        // Ikkinchi fayl birinchisini ALMASHTIRMAYDI — ro'yxatga qo'shiladi
+        var royxat = await RoyxatAsync(client, xodim.Id);
+        royxat.Select(material => material.Id).ShouldBe([birinchi.Id, ikkinchi.Id], "eng eskisi birinchi");
+
+        using (var olish = await client.GetAsync(FaylUri(xodim.Id, birinchi.Id), bekorQilish))
         {
             olish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(olish));
             olish.Content.Headers.ContentType!.MediaType.ShouldBe(
                 "image/png", "fayl JPEG'ga qayta kodlanmasligi kerak");
 
             var qaytgan = await olish.Content.ReadAsByteArrayAsync(bekorQilish);
-            qaytgan.ShouldBe(asl, "skrinshot baytlari O'ZGARISHSIZ saqlanishi kerak");
+            qaytgan.ShouldBe(png, "material baytlari O'ZGARISHSIZ saqlanishi kerak");
         }
 
-        // Kalit kartada ham ko'rinadi — interfeys so'rovni shunga qarab yuboradi
-        var karta = await KartaAsync(client, xodim.Id);
-        karta.MehnatUzScreenshotKey.ShouldNotBeNull();
+        using (var olish = await client.GetAsync(FaylUri(xodim.Id, ikkinchi.Id), bekorQilish))
+        {
+            olish.Content.Headers.ContentType!.MediaType.ShouldBe("application/pdf");
+        }
+    }
 
-        // O'chirish — idempotent
-        using (var ochirish = await client.DeleteAsync(yol, bekorQilish))
+    /// <summary>
+    /// O'chirish YUMSHOQ: material ro'yxatdan chiqadi, yozuv esa bazada qoladi.
+    /// </summary>
+    [Fact]
+    public async Task Material_ochirilsa_royxatdan_chiqadi_lekin_izi_qoladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var client = await AdminMijozAsync();
+        var xodim = await XodimYaratAsync(client, "Ўчирилган");
+        var material = await YuklaAsync(
+            client, MateriallarUri(xodim.Id), TestImages.PngYasa(40, 20), "eski.png", "image/png");
+
+        using (var ochirish = await client.DeleteAsync(MaterialUri(xodim.Id, material.Id), bekorQilish))
         {
             ochirish.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(ochirish));
         }
 
-        using (var ikkinchiOchirish = await client.DeleteAsync(yol, bekorQilish))
+        (await RoyxatAsync(client, xodim.Id)).ShouldBeEmpty();
+
+        using (var olish = await client.GetAsync(FaylUri(xodim.Id, material.Id), bekorQilish))
         {
-            ikkinchiOchirish.StatusCode.ShouldBe(
-                HttpStatusCode.NoContent, "amal idempotent: fayl yo'q bo'lsa ham muvaffaqiyat");
+            olish.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await XatoKodiAsync(olish)).ShouldBe("tekshiruv_fayli.topilmadi");
         }
 
-        using (var ochirilgandanKeyin = await client.GetAsync(yol, bekorQilish))
-        {
-            ochirilgandanKeyin.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-            (await XatoKodiAsync(ochirilgandanKeyin)).ShouldBe("xodim.mehnat_rasm_yoq");
-        }
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+        var yozuv = await kontekst.EmployeeCheckFiles
+            .IgnoreQueryFilters()
+            .SingleAsync(item => item.Id == material.Id, bekorQilish);
+
+        yozuv.DeletedAt.ShouldNotBeNull("dalil izsiz yo'qolmasligi kerak");
     }
 
+    /// <summary>
+    /// Boshqa xodimning materialini marshrutdagi xodim orqali ochib ham,
+    /// o'chirib ham bo'lmaydi — javob «topilmadi», «sizniki emas» emas.
+    /// </summary>
     [Fact]
-    public async Task Skrinshot_pdf_bolib_ham_saqlanadi()
+    public async Task Boshqa_xodimning_materiali_ochilmaydi_va_ochirilmaydi()
     {
-        // Skrinshotni PDF bo'lib chop etish HR uchun odatiy yo'l —
-        // hujjat quvuri uni allaqachon qabul qiladi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+
         using var client = await AdminMijozAsync();
-        var xodim = await XodimYaratAsync(client, "ПДФли");
-        var yol = new Uri($"/api/employees/{xodim.Id}/mehnat-uz-screenshot", UriKind.Relative);
+        var egasi = await XodimYaratAsync(client, "Эгаси");
+        var begona = await XodimYaratAsync(client, "Бегона");
+        var material = await YuklaAsync(
+            client, MateriallarUri(egasi.Id), TestImages.PngYasa(40, 20), "dalil.png", "image/png");
 
-        var pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF");
+        using (var olish = await client.GetAsync(FaylUri(begona.Id, material.Id), bekorQilish))
+        {
+            olish.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await XatoKodiAsync(olish)).ShouldBe("tekshiruv_fayli.topilmadi");
+        }
 
-        using var yuklash = await FaylYuborAsync(client, yol, pdf, "mehnat.pdf", "application/pdf");
-        yuklash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yuklash));
+        using (var ochirish = await client.DeleteAsync(MaterialUri(begona.Id, material.Id), bekorQilish))
+        {
+            ochirish.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
 
-        using var olish = await client.GetAsync(yol, TestContext.Current.CancellationToken);
-        olish.Content.Headers.ContentType!.MediaType.ShouldBe("application/pdf");
+        (await RoyxatAsync(client, egasi.Id)).ShouldHaveSingleItem().Id.ShouldBe(material.Id);
+    }
+
+    /// <summary>
+    /// Ko'rish — <c>employees.view</c>, yuklash va o'chirish — <c>employees.edit</c>.
+    /// </summary>
+    [Fact]
+    public async Task Materiallar_ruxsatlari()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        var xodim = await XodimYaratAsync(admin, "Рухсатли");
+        var material = await YuklaAsync(
+            admin, MateriallarUri(xodim.Id), TestImages.PngYasa(40, 20), "dalil.png", "image/png");
+
+        using (var ruxsatsiz = Mijoz(await TestAccounts.TokenAsync(_factory)))
+        using (var javob = await ruxsatsiz.GetAsync(MateriallarUri(xodim.Id), bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using var korish = Mijoz(await TestAccounts.TokenAsync(_factory, Permissions.EmployeesView));
+
+        (await RoyxatAsync(korish, xodim.Id)).ShouldHaveSingleItem();
+
+        using (var javob = await korish.GetAsync(FaylUri(xodim.Id, material.Id), bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using (var javob = await FaylYuborAsync(
+            korish, MateriallarUri(xodim.Id), TestImages.PngYasa(40, 20), "yangi.png", "image/png"))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var javob = await korish.DeleteAsync(MaterialUri(xodim.Id, material.Id), bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        (await RoyxatAsync(admin, xodim.Id)).ShouldHaveSingleItem("ruxsatsiz so'rovlar hech narsani o'zgartirmagan");
     }
 
     [Fact]
@@ -114,14 +203,14 @@ public sealed class MehnatUzApiTests : IClassFixture<BonviApiFactory>
     {
         using var client = await AdminMijozAsync();
         var xodim = await XodimYaratAsync(client, "Сохта");
-        var yol = new Uri($"/api/employees/{xodim.Id}/mehnat-uz-screenshot", UriKind.Relative);
 
         var matn = Encoding.UTF8.GetBytes("Bu na PDF, na rasm.");
 
-        using var yuklash = await FaylYuborAsync(client, yol, matn, "mehnat.png", "image/png");
+        using var yuklash = await FaylYuborAsync(client, MateriallarUri(xodim.Id), matn, "mehnat.png", "image/png");
 
         yuklash.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await XatoKodiAsync(yuklash)).ShouldBe("hujjat.yaroqsiz");
+        (await RoyxatAsync(client, xodim.Id)).ShouldBeEmpty();
     }
 
     /// <summary>
@@ -183,6 +272,46 @@ public sealed class MehnatUzApiTests : IClassFixture<BonviApiFactory>
     // ────────────────────────────────────────────────────────────
     //  Muhit tayyorlash
     // ────────────────────────────────────────────────────────────
+
+    private static Uri MateriallarUri(Guid xodimId)
+        => new($"/api/employees/{xodimId}/check-files", UriKind.Relative);
+
+    private static Uri MaterialUri(Guid xodimId, Guid materialId)
+        => new($"/api/employees/{xodimId}/check-files/{materialId}", UriKind.Relative);
+
+    private static Uri FaylUri(Guid xodimId, Guid materialId)
+        => new($"/api/employees/{xodimId}/check-files/{materialId}/content", UriKind.Relative);
+
+    private static async Task<CheckFileResponse> YuklaAsync(
+        HttpClient client,
+        Uri yol,
+        byte[] baytlar,
+        string fileName,
+        string tur)
+    {
+        using var javob = await FaylYuborAsync(client, yol, baytlar, fileName, tur);
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var material = await javob.Content.ReadFromJsonAsync<CheckFileResponse>(TestContext.Current.CancellationToken);
+        return material!;
+    }
+
+    private static async Task<List<CheckFileResponse>> RoyxatAsync(HttpClient client, Guid xodimId)
+    {
+        using var javob = await client.GetAsync(MateriallarUri(xodimId), TestContext.Current.CancellationToken);
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        var royxat = await javob.Content.ReadFromJsonAsync<List<CheckFileResponse>>(
+            TestContext.Current.CancellationToken);
+        return royxat!;
+    }
+
+    private HttpClient Mijoz(string token)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
 
     private static async Task<MehnatUzCardResponse> KartaAsync(HttpClient client, Guid xodimId)
     {

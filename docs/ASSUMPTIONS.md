@@ -342,3 +342,22 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   access changes? → The stream ends and the client reconnects with fresh
   access (or gets 401). → Authentication runs once per connection, and the
   stream lives for hours.
+- [2026-09-27] Multiple check materials: a new entity or employee documents
+  with a special type? → A new `EmployeeCheckFile` (`employee_check_files`),
+  with no type and soft delete. → A document type would have to be found by
+  its catalog NAME, and HR can rename it (the «Номзодлик ҳужжатлари» lookup
+  has the same fragility). Materials belong only to the «Tekshiruvlar» card.
+- [2026-09-27] What happens to the existing single mehnat.uz screenshot? → It
+  is copied into the list as the first material. The old
+  `employees.mehnat_uz_screenshot_*` columns are NOT dropped in this release
+  (expand/contract). → Rollback is done by redeploying the previous image, and
+  that code reads those columns. Drop them in a later release with a
+  hand-written migration.
+- [2026-09-27] Where do the materials sit? → As their own block at the bottom
+  of the «Tekshiruvlar» card, shared by all checks, not inside the mehnat.uz
+  block. → The user's screenshot showed a debt-check page, not a mehnat.uz
+  profile, so the evidence spans every check.
+- [2026-09-27] "Visible only when clicked": expand inline or open a dialog? →
+  A dialog with previous/next (and ←/→). The list shows name, date and size
+  only. → The screenshot's value is its readable text, which needs full size;
+  the old zoom already used a dialog.

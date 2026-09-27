@@ -177,6 +177,7 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Xodimga biriktirilgan fayllar: shartnoma, buyruq, anketa, skan (<c>employee_documents</c>).</summary>
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+    public DbSet<EmployeeCheckFile> EmployeeCheckFiles => Set<EmployeeCheckFile>();
 
     // ────────────────────────────────────────────────────────────
     //  QAYTA ALOQA VA XAVFSIZLIK (S9 — M10/M11)

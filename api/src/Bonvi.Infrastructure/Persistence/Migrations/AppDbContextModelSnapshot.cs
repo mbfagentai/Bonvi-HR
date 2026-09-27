@@ -382,14 +382,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("has_criminal_record");
 
-                    b.Property<string>("MehnatUzScreenshotContentType")
-                        .HasColumnType("text")
-                        .HasColumnName("mehnat_uz_screenshot_content_type");
-
-                    b.Property<string>("MehnatUzScreenshotKey")
-                        .HasColumnType("text")
-                        .HasColumnName("mehnat_uz_screenshot_key");
-
                     b.Property<string>("MehnatUzUrl")
                         .HasColumnType("text")
                         .HasColumnName("mehnat_uz_url");
@@ -486,6 +478,73 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasFilter("pinfl IS NOT NULL AND deleted_at IS NULL");
 
                     b.ToTable("employees", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCheckFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("FileKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_employee_check_files");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_employee_check_files_employee_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("employee_check_files", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetency", b =>
@@ -2584,6 +2643,16 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_system_settings_key");
 
                     b.ToTable("system_settings", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCheckFile", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_check_files_employees_employee_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetency", b =>

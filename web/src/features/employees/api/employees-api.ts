@@ -187,16 +187,6 @@ export interface EmployeeDetails {
    * dalili ham bo'lib xizmat qiladi.
    */
   mehnatUzUrl: string | null
-  /**
-   * Skrinshotning SAQLASH KALITI — havola emas.
-   *
-   * `photoKey` bilan aynan bir xil ma'noda va bir xil sababdan: tizim
-   * `Authorization` sarlavhasi bilan ishlaydi, brauzer esa `<img src>`
-   * so'roviga uni qo'sha olmaydi. Kalit skrinshot bor-yo'qligini bildiradi
-   * (`null` bo'lsa so'rov yuborilmaydi) va kesh kalitiga kirib, fayl
-   * almashtirilganda keshni o'z-o'zidan eskirtiradi.
-   */
-  mehnatUzScreenshotKey: string | null
   directions: NamedRef[]
   /**
    * Yo'nalishlarning faqat `id` lari — tahrirlash formasi uchun.
@@ -878,7 +868,6 @@ function toDetails(raw: unknown): EmployeeDetails {
     criminalRecordNote: text(box['criminalRecordNote']),
     hasCriminalRecord: nullableBool(box['hasCriminalRecord']),
     mehnatUzUrl: text(box['mehnatUzUrl']),
-    mehnatUzScreenshotKey: text(box['mehnatUzScreenshotKey']),
     directions,
     // Server nom bermasa ham `id` lar keladi; nom bergan holatda esa
     // ularni qaytadan so'ramaymiz — `id` o'sha ro'yxatdan olinadi
@@ -1168,55 +1157,84 @@ export async function deleteEmployeePhoto(id: string): Promise<void> {
   await api.delete(`/api/employees/${id}/photo`)
 }
 
-/* ─────────────────────────────────────────────── mehnat.uz skrinshoti */
+/* ─────────────────────────────────────────────── tekshiruv materiallari */
 
 /**
- * mehnat.uz skrinshoti — BAYTLAR.
+ * «Tekshiruvlar» kartasidagi material — mehnat.uz skrinshoti, qarzdorlik
+ * yoki sudlanganlik ma'lumotnomasi va h.k.
  *
- * Xodim rasmidagi bilan aynan bir xil sabab: `Authorization` sarlavhasi
- * `<img src>` so'roviga qo'shilmaydi. `404` — XATO EMAS, «skrinshot yo'q»
- * degani.
- *
- * ⚠️ Rasmdan farqli, tur oldindan MA'LUM EMAS: server faylni qayta
- * kodlamaydi va u PDF ham bo'lishi mumkin (sababi backend'da,
- * `Employee.MehnatUzScreenshotKey` izohida). Shu sababli `blob` ning
- * `type` iga qarab ko'rsatish usuli tanlanadi.
+ * Ro'yxatda faqat METAMA'LUMOT: faylning o'zi HR uni bosgandagina alohida
+ * so'rov bilan olinadi (foydalanuvchi talabi, 2026-09-27 — «файлни устига
+ * босса кўринадиган, бошқа вақт кўринмайдиган»).
  */
-export async function fetchMehnatUzScreenshot(
-  id: string,
-  signal?: AbortSignal,
-): Promise<Blob | null> {
-  try {
-    const { data } = await api.get<Blob>(`/api/employees/${id}/mehnat-uz-screenshot`, {
-      responseType: 'blob',
-      signal,
-    })
-    return data
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) return null
-    throw error
+export interface EmployeeCheckFile {
+  id: string
+  fileName: string
+  /** PDF, JPEG, PNG yoki WebP — ko'rsatish usuli shunga qarab tanlanadi. */
+  contentType: string
+  /** `null` — noma'lum: eski yagona skrinshotdan ko'chirilgan qator. */
+  sizeBytes: number | null
+  createdAt: string
+}
+
+function toCheckFile(raw: unknown): EmployeeCheckFile {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    id: text(box['id']) ?? '',
+    fileName: text(box['fileName']) ?? '',
+    contentType: text(box['contentType']) ?? 'application/octet-stream',
+    sizeBytes: typeof box['sizeBytes'] === 'number' ? box['sizeBytes'] : null,
+    createdAt: text(box['createdAt']) ?? '',
   }
 }
 
+/** Xodimning materiallari — eng eskisi birinchi (server tartibi). */
+export async function fetchEmployeeCheckFiles(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EmployeeCheckFile[]> {
+  const { data } = await api.get<unknown>(`/api/employees/${id}/check-files`, { signal })
+  return Array.isArray(data) ? data.map(toCheckFile) : []
+}
+
 /**
- * Skrinshotni yuklash. Javobdagi yangi kalit qaytariladi.
+ * Bitta materialning BAYTLARI.
+ *
+ * Xodim rasmidagi bilan aynan bir xil sabab: `Authorization` sarlavhasi
+ * `<img src>` so'roviga qo'shilmaydi. Tur oldindan MA'LUM: server faylni
+ * qayta kodlamaydi va u PDF ham bo'lishi mumkin — ko'rsatish usuli
+ * ro'yxatdagi `contentType` ga qarab tanlanadi.
+ */
+export async function fetchEmployeeCheckFileContent(
+  id: string,
+  fileId: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const { data } = await api.get<Blob>(`/api/employees/${id}/check-files/${fileId}/content`, {
+    responseType: 'blob',
+    signal,
+  })
+  return data
+}
+
+/**
+ * Bitta materialni yuklash — ro'yxatga QO'SHILADI, hech narsa almashtirilmaydi.
  *
  * `Content-Type` QO'YILMAYDI — axios `FormData` ni ko'rib chegara
  * (boundary) satri bilan birga o'zi yozadi (sababi `http-client.ts` da).
  */
-export async function uploadMehnatUzScreenshot(id: string, file: File): Promise<string | null> {
+export async function uploadEmployeeCheckFile(id: string, file: File): Promise<EmployeeCheckFile> {
   const form = new FormData()
   form.append('file', file)
 
-  const { data } = await api.post<unknown>(`/api/employees/${id}/mehnat-uz-screenshot`, form)
-
-  const box = (data ?? {}) as Record<string, unknown>
-  return text(box['screenshotKey'])
+  const { data } = await api.post<unknown>(`/api/employees/${id}/check-files`, form)
+  return toCheckFile(data)
 }
 
-/** Skrinshotni o'chirish. Server idempotent: yo'q bo'lsa ham `204`. */
-export async function deleteMehnatUzScreenshot(id: string): Promise<void> {
-  await api.delete(`/api/employees/${id}/mehnat-uz-screenshot`)
+/** Materialni o'chirish — serverda YUMSHOQ: yozuv tarixda, fayl diskda qoladi. */
+export async function deleteEmployeeCheckFile(id: string, fileId: string): Promise<void> {
+  await api.delete(`/api/employees/${id}/check-files/${fileId}`)
 }
 
 /**

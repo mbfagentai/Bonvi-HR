@@ -38,8 +38,8 @@ public sealed record SaveEmployeeCommand(
     IReadOnlyList<Guid>? DirectionIds = null,
     // Ro'yxat OXIRIDA: mavjud chaqiruvlar pozitsion argumentlar bilan
     // yozilgan va o'rtaga maydon qo'shish ularni jimgina siljitib yuborardi.
-    // Skrinshot bu yerda YO'Q — u rasm kabi alohida endpoint bilan
-    // boshqariladi (`MehnatUzScreenshotUseCases`).
+    // Tekshiruv materiallari bu yerda YO'Q — ular alohida endpoint'lar
+    // bilan boshqariladi (`EmployeeCheckFileUseCases`).
     string? MehnatUzUrl = null);
 
 /// <summary>

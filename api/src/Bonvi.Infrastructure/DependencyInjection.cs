@@ -99,6 +99,7 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeCompetencyRepository, EmployeeCompetencyRepository>();
         services.AddScoped<IIncentiveRepository, IncentiveRepository>();
         services.AddScoped<IEmployeeDocumentRepository, EmployeeDocumentRepository>();
+        services.AddScoped<IEmployeeCheckFileRepository, EmployeeCheckFileRepository>();
 
         services.AddScoped<IEmployeeReadModel, EmployeeReadModel>();
 

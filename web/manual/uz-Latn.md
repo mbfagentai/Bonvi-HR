@@ -422,8 +422,24 @@ qachon. U javobni almashtirmaydi — izohlaydi.
 >! javob.
 
 **mehnat.uz havolasi** — xodimning mehnat.uz dagi profiliga manzil. Uni
-kiritsangiz kartada **«Profilni ochish»** tugmasi paydo bo‘ladi. Skrinshot
-esa bu formada emas, kartaning o‘zidan yuklanadi (rasm bilan bir xil yo‘l).
+kiritsangiz kartada **«Profilni ochish»** tugmasi paydo bo‘ladi.
+
+**Tekshiruv materiallari** (skrinshot, qarzdorlik yoki sudlanganlik
+ma’lumotnomasi va boshqa dalillar) bu formada emas, kartadagi
+**«Tekshiruvlar»** blokining **«Materiallar»** ro‘yxatidan yuklanadi:
+
+- **«Material qo‘shish»** — PDF, JPEG, PNG yoki WebP, har biri 20 MB gacha.
+  Bir nechta faylni birdaniga tanlash mumkin; har biri ro‘yxatga
+  **qo‘shiladi**, hech narsa almashtirilmaydi.
+- Ro‘yxatda faqat fayl nomi, sanasi va hajmi turadi. Faylning o‘zi
+  **ustiga bosganda** ochiladi — rasm qirqilmaydi, PDF varaqlanadi. Bir
+  nechta material bo‘lsa, oynaning pastidagi **«Oldingi» / «Keyingi»**
+  tugmalari (yoki ← → klavishalari) bilan varaqlanadi.
+- Qizil savatcha — materialni ro‘yxatdan olib tashlaydi. Uning yozuvi va
+  fayli tarixda saqlanib qoladi.
+
+Ilgari bu yerda bitta skrinshot bo‘lardi — u ro‘yxatning birinchi
+materiali bo‘lib ko‘chirilgan.
 
 >! Ilgari bu yerda **«Xavfsizlik tekshiruvi»** va **«mehnat.uz: ha/yo‘q»**
 >! degan yana ikkita tanlov bor edi. Ikkalasi ham olib tashlandi: birinchisini

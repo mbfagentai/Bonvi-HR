@@ -2,11 +2,11 @@ using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
+using Bonvi.Application.Employees.Checks;
 using Bonvi.Application.Employees.Commands;
 using Bonvi.Application.Employees.Competencies;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Flags;
-using Bonvi.Application.Employees.MehnatUz;
 using Bonvi.Application.Employees.Photos;
 using Bonvi.Application.Employees.Queries;
 using Bonvi.Domain.Employees;
@@ -89,7 +89,7 @@ public static class EmployeeEndpoints
         MapCard(group);
         MapWrites(group);
         MapPhoto(group);
-        MapMehnatUz(group);
+        MapCheckFiles(group);
         MapStages(group);
         MapFlags(group);
         MapCompetency(group);
@@ -372,76 +372,100 @@ public static class EmployeeEndpoints
     }
 
     // ════════════════════════════════════════════════════════════
-    //  mehnat.uz skrinshoti
+    //  Tekshiruv materiallari
     // ════════════════════════════════════════════════════════════
 
     /// <summary>
     /// So'rov chegarasi: hujjat chegarasi + multipart «konverti».
     /// </summary>
     /// <remarks>
-    /// Rasm emas, HUJJAT chegarasi (20 MB): skrinshot qirqilmaydi va
-    /// kichraytirilmaydi, sababi <c>Employee.MehnatUzScreenshotKey</c>
-    /// izohida. Katta monitorning to'liq ekran surati bemalol bir necha
-    /// megabayt bo'ladi.
+    /// Rasm emas, HUJJAT chegarasi (20 MB): material qirqilmaydi va
+    /// kichraytirilmaydi, sababi <c>EmployeeCheckFile</c> izohida. Katta
+    /// monitorning to'liq ekran surati bemalol bir necha megabayt bo'ladi.
     /// </remarks>
-    private const long MaxScreenshotRequestBytes = DocumentLimits.MaxBytes + (64 * 1024);
+    private const long MaxCheckFileRequestBytes = DocumentLimits.MaxBytes + (64 * 1024);
 
     /// <summary>
-    /// mehnat.uz profilining skrinshoti: berish, yuklash, o'chirish.
+    /// «Tekshiruvlar» kartasining materiallari: ro'yxat, fayl, yuklash, o'chirish.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Uchlik xodim rasmidagi bilan bir xil shaklda, lekin ATAYLAB alohida
-    /// marshrutda: bu boshqa fakt (xodimning yuzi emas, tekshiruv dalili)
-    /// va u boshqa quvurdan o'tadi. Ruxsatlar rasm bilan bir xil:
-    /// ko'rish — <c>employees.view</c>, o'zgartirish — <c>employees.edit</c>.
+    /// Ilgari bu yerda BITTA mehnat.uz skrinshoti bor edi va yangisi eskisini
+    /// almashtirardi. 2026-09-27 dan materiallar ro'yxat (foydalanuvchi
+    /// talabi: «фақат битта юклама камлик қилади»); eski skrinshot
+    /// migratsiya bilan ro'yxatning birinchi qatoriga ko'chdi.
     /// </para>
     /// <para>
-    /// <c>ETag</c> bu yerda YO'Q (rasmdan farqli): skrinshot xodimlar
-    /// ro'yxatida 25 marta takrorlanmaydi, u faqat bitta kartada va faqat
-    /// ochilganda so'raladi — shartli so'rov mexanizmini qurishning foydasi
-    /// bo'lmasdi. Kalit o'zgarganda mijozdagi kesh baribir eskiradi:
-    /// so'rov kaliti <c>screenshotKey</c> ni o'z ichiga oladi.
+    /// Ruxsatlar eski skrinshotniki bilan bir xil: ko'rish —
+    /// <c>employees.view</c>, o'zgartirish — <c>employees.edit</c>.
+    /// Material marshrutdagi xodimniki bo'lmasa — 404
+    /// («tekshiruv_fayli.topilmadi»), boshqa xodimning dalilini ochib
+    /// bo'lmaydi.
     /// </para>
     /// </remarks>
-    private static void MapMehnatUz(IEndpointRouteBuilder group)
+    private static void MapCheckFiles(IEndpointRouteBuilder group)
     {
-        group.MapGet("/{id:guid}/mehnat-uz-screenshot", async (
+        group.MapGet("/{id:guid}/check-files", async (
                 Guid id,
-                GetMehnatUzScreenshotQueryHandler handler,
+                GetEmployeeCheckFilesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new GetMehnatUzScreenshotQuery(id), cancellationToken)
+                    .HandleAsync(new GetEmployeeCheckFilesQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmployeesView)
+            .WithName("ListEmployeeCheckFiles")
+            .WithSummary("Xodim — tekshiruv materiallari")
+            .WithDescription(
+                "Faqat metama'lumot (nom, tur, hajm, sana) — fayl baytlari ro'yxatga " +
+                "TUSHMAYDI, ular alohida so'rov bilan olinadi. Tartib: yuklangan " +
+                "vaqt bo'yicha, eng eskisi birinchi. «sizeBytes» eski yagona " +
+                "skrinshotdan ko'chirilgan qatorda null bo'lishi mumkin.")
+            .Produces<IReadOnlyList<EmployeeCheckFileDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/{id:guid}/check-files/{fileId:guid}/content", async (
+                Guid id,
+                Guid fileId,
+                GetEmployeeCheckFileContentQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetEmployeeCheckFileContentQuery(id, fileId), cancellationToken)
                     .ConfigureAwait(false);
 
                 // Bayt qaytaradigan endpoint: `ToHttpResult()` faqat xato
-                // yo'lida (rasm endpoint'idagi bilan bir xil sabab).
+                // yo'lida (hujjat faylidagi bilan bir xil sabab).
                 return natija.IsFailure
                     ? natija.ToHttpResult()
-                    : Results.Stream(natija.Value.Content, natija.Value.ContentType);
+                    : Results.File(natija.Value.Content, natija.Value.ContentType, natija.Value.FileName);
             })
             .RequireAuthorization(Permissions.EmployeesView)
-            .WithName("GetMehnatUzScreenshot")
-            .WithSummary("Xodim — mehnat.uz skrinshoti")
+            .WithName("GetEmployeeCheckFileContent")
+            .WithSummary("Xodim — tekshiruv materialining fayli")
             .WithDescription(
                 "Fayl baytlari SAQLANGAN turida qaytadi (PDF, JPEG, PNG yoki WebP) — " +
-                "skrinshot qayta kodlanmaydi, chunki uning qiymati matnda. " +
-                "Skrinshot yo'q bo'lsa: «xodim.mehnat_rasm_yoq» (404).")
+                "qayta kodlanmaydi, chunki uning qiymati matnda. Material yo'q yoki " +
+                "boshqa xodimniki bo'lsa: «tekshiruv_fayli.topilmadi» (404).")
             .Produces(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPost("/{id:guid}/mehnat-uz-screenshot", async (
+        group.MapPost("/{id:guid}/check-files", async (
                 Guid id,
                 IFormFile file,
-                UploadMehnatUzScreenshotCommandHandler handler,
+                UploadEmployeeCheckFileCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 await using var content = file.OpenReadStream();
 
                 var natija = await handler
                     .HandleAsync(
-                        new UploadMehnatUzScreenshotCommand(id, content, file.Length),
+                        new UploadEmployeeCheckFileCommand(id, content, file.FileName, file.Length),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -452,36 +476,42 @@ public static class EmployeeEndpoints
             // CSRF himoyasi ortiqcha — sabab `MapPhoto` dagi bilan bir xil:
             // sessiya JWT sarlavhasida, cookie'da emas.
             .DisableAntiforgery()
-            .WithMetadata(new RequestSizeLimitAttribute(MaxScreenshotRequestBytes))
-            .WithName("UploadMehnatUzScreenshot")
-            .WithSummary("Xodim — mehnat.uz skrinshotini yuklash")
+            .WithMetadata(new RequestSizeLimitAttribute(MaxCheckFileRequestBytes))
+            .WithName("UploadEmployeeCheckFile")
+            .WithSummary("Xodim — tekshiruv materialini yuklash")
             .WithDescription(
-                "«multipart/form-data», maydon nomi «file». Fayl turi MAZMUNIGA qarab " +
-                "aniqlanadi: PDF, JPEG, PNG yoki WebP, eng ko'pi 20 MB. Rasm QIRQILMAYDI va " +
-                "KICHRAYTIRILMAYDI — skrinshotdagi matn o'qilishi kerak. Eskisi almashtiriladi " +
-                "va diskdan o'chadi. Xatolar: «hujjat.katta», «hujjat.yaroqsiz» (400).")
+                "«multipart/form-data», maydon nomi «file». BITTA so'rov — bitta fayl; " +
+                "bir nechta fayl ketma-ket yuboriladi. Fayl ro'yxatga QO'SHILADI, hech " +
+                "narsa almashtirilmaydi. Turi MAZMUNIGA qarab aniqlanadi: PDF, JPEG, PNG " +
+                "yoki WebP, eng ko'pi 20 MB; rasm qirqilmaydi va kichraytirilmaydi. " +
+                "Xatolar: «hujjat.katta», «hujjat.yaroqsiz» (400).")
             .Accepts<IFormFile>("multipart/form-data")
-            .Produces<MehnatUzScreenshotDto>(StatusCodes.Status200OK)
+            .Produces<EmployeeCheckFileDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapDelete("/{id:guid}/mehnat-uz-screenshot", async (
+        group.MapDelete("/{id:guid}/check-files/{fileId:guid}", async (
                 Guid id,
-                DeleteMehnatUzScreenshotCommandHandler handler,
+                Guid fileId,
+                DeleteEmployeeCheckFileCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new DeleteMehnatUzScreenshotCommand(id), cancellationToken)
+                    .HandleAsync(new DeleteEmployeeCheckFileCommand(id, fileId), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
             })
             .RequireAuthorization(Permissions.EmployeesEdit)
-            .WithName("DeleteMehnatUzScreenshot")
-            .WithSummary("Xodim — mehnat.uz skrinshotini o'chirish")
+            .WithName("DeleteEmployeeCheckFile")
+            .WithSummary("Xodim — tekshiruv materialini o'chirish")
             .WithDescription(
-                "Fayl ham o'chadi. Amal IDEMPOTENT: skrinshot allaqachon yo'q bo'lsa ham 204.")
+                "YUMSHOQ o'chirish: material ro'yxatdan chiqadi, yozuv tarixda va fayl " +
+                "diskda qoladi (xodim hujjatidagi bilan bir xil qoida — bu dalil). " +
+                "Material yo'q yoki boshqa xodimniki bo'lsa: «tekshiruv_fayli.topilmadi» (404).")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 

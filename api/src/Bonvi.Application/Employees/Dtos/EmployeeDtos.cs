@@ -84,21 +84,27 @@ public sealed record EmployeeDto(
     bool? HasCriminalRecord,
     string? CriminalRecordNote,
     string? MehnatUzUrl,
-    // Kalitning O'ZI qaytariladi, rasm emas — `PhotoKey` bilan aynan bir xil
-    // sabab: skrinshot alohida endpoint bilan olinadi va kalit ikki ish
-    // qiladi (bor-yo'qligini bildiradi va mijoz keshini eskirtiradi).
-    string? MehnatUzScreenshotKey,
     IReadOnlyList<Guid> DirectionIds,
     bool NeedsReview,
     string? ReviewNote);
 
-/// <summary>Yuklangan mehnat.uz skrinshotining saqlash kaliti.</summary>
+/// <summary>Tekshiruv materiali — «Tekshiruvlar» kartasidagi ro'yxatning bitta qatori.</summary>
 /// <remarks>
-/// <see cref="EmployeePhotoDto"/> bilan bir xil naqsh: baytlar emas, KALIT
-/// qaytadi — interfeys rasmni odatdagi <c>GET</c> orqali oladi va kalit
-/// o'zgargani kesh uchun signal bo'ladi.
+/// Baytlar emas, metama'lumot: fayl faqat HR uni bosganda alohida
+/// <c>GET</c> bilan olinadi (foydalanuvchi talabi — ro'yxatda fayl
+/// ko'rinmaydi, bosilganda ochiladi).
 /// </remarks>
-public sealed record MehnatUzScreenshotDto(string ScreenshotKey);
+/// <param name="Id">Material.</param>
+/// <param name="FileName">Asl fayl nomi.</param>
+/// <param name="ContentType">PDF, JPEG, PNG yoki WebP.</param>
+/// <param name="SizeBytes">Hajm; eski skrinshotdan ko'chirilganda <c>null</c>.</param>
+/// <param name="CreatedAt">Yuklangan vaqt.</param>
+public sealed record EmployeeCheckFileDto(
+    Guid Id,
+    string FileName,
+    string ContentType,
+    long? SizeBytes,
+    DateTimeOffset CreatedAt);
 
 /// <summary>Yuklangan rasmning saqlash kaliti.</summary>
 /// <remarks>

@@ -31,21 +31,22 @@ import {
   closeFlag,
   createFlag,
   deleteEmployeePhoto,
-  deleteMehnatUzScreenshot,
+  deleteEmployeeCheckFile,
   exportEmployees,
   fetchEmployee,
   fetchEmployeePhoto,
   fetchEmployeeStages,
   fetchEmployees,
   fetchFlags,
-  fetchMehnatUzScreenshot,
+  fetchEmployeeCheckFileContent,
+  fetchEmployeeCheckFiles,
   fetchTimeline,
   hire,
   terminate,
   transfer,
   updateEmployee,
   uploadEmployeePhoto,
-  uploadMehnatUzScreenshot,
+  uploadEmployeeCheckFile,
   type AdditionalDutyRequest,
   type ChangeSalaryRequest,
   type EditEmploymentEventRequest,
@@ -123,24 +124,23 @@ export const employeeKeys = {
   photo: (id: string, photoKey: string | null) =>
     ['employee-photo', id, photoKey] as const,
 
+  /** Tekshiruv materiallari — faqat metama'lumot (nom, tur, hajm, sana). */
+  checkFiles: (id: string) => ['employee-check-files', id] as const,
+
   /**
-   * mehnat.uz skrinshoti — RASM KESHI.
+   * Bitta materialning BAYTLARI — RASM KESHI.
    *
-   * Kalit ildizi ataylab `-photo` bilan tugaydi: `providers.tsx` har
-   * qanday muvaffaqiyatli mutatsiyadan keyin butun keshni bekor qiladi va
-   * shu qoidadan CHETLAB O'TADIGAN yagona guruh — nomi `-photo` ga
-   * tugaydigan binar keshlar (`employee-photo`, `user-photo`,
-   * `account-photo`). Skrinshot ham aynan shunday: bir necha megabaytlik
-   * blob, xodim yozuvidan mustaqil va faqat `mehnatUzScreenshotKey`
-   * o'zgarganda o'zgaradi. Chetlab o'tmasa, kartadagi HAR bir yozuv amali
-   * (masalan belgi qo'yish) uni qaytadan tortib olardi.
-   *
-   * Buning evaziga bekor qilish QO'LDA yoziladi — quyidagi ikki
-   * mutatsiyada; rasm keshlari uchun bu yagona yo'l.
+   * Kalit ildizi ataylab `-photo` bilan tugaydi (PDF bo'lsa ham):
+   * `providers.tsx` har qanday muvaffaqiyatli mutatsiyadan keyin butun
+   * keshni bekor qiladi va shu qoidadan CHETLAB O'TADIGAN yagona guruh —
+   * nomi `-photo` ga tugaydigan binar keshlar. Material ham aynan shunday:
+   * bir necha megabaytlik blob va u HECH QACHON o'zgarmaydi (yangi fayl —
+   * yangi `id`). Chetlab o'tmasa, kartadagi HAR bir yozuv amali ochiq
+   * turgan faylni qaytadan tortib olardi.
    */
-  screenshots: (id: string) => ['employee-mehnat-uz-photo', id] as const,
-  screenshot: (id: string, key: string | null) =>
-    ['employee-mehnat-uz-photo', id, key] as const,
+  checkFileContents: (id: string) => ['employee-check-file-photo', id] as const,
+  checkFileContent: (id: string, fileId: string | null) =>
+    ['employee-check-file-photo', id, fileId] as const,
 
   /** Nomzodlik bosqichlari — «Kengash xulosasi» (faqat o'qish). */
   stages: (id: string) => ['employees', 'stages', id] as const,
@@ -269,63 +269,63 @@ export function useDeleteEmployeePhoto(employeeId: string) {
 /* ═══════════════════════════════════════════════ mehnat.uz (havola + skrinshot) */
 
 /**
- * mehnat.uz skrinshoti.
- *
- * Kalitda `screenshotKey` turadi — rasm keshidagi bilan aynan bir xil
- * hiyla: fayl almashtirilsa kalit ham boshqa bo'ladi va eski blob'ga
- * hech kim murojaat qilmaydi.
+ * «Tekshiruvlar» kartasining materiallari — ro'yxat, baytlarsiz.
  */
-export function useMehnatUzScreenshot(employeeId: string, screenshotKey: string | null) {
+export function useEmployeeCheckFiles(employeeId: string) {
   return useQuery({
-    queryKey: employeeKeys.screenshot(employeeId, screenshotKey),
-    queryFn: ({ signal }) => fetchMehnatUzScreenshot(employeeId, signal),
-    /** Kaliti yo'q — fayli ham yo'q, so'rov umuman yuborilmaydi. */
-    enabled: employeeId !== '' && screenshotKey !== null,
-    /** Bir kalit — bir fayl. U o'zgarmaydi, demak eskirmaydi ham. */
+    queryKey: employeeKeys.checkFiles(employeeId),
+    queryFn: ({ signal }) => fetchEmployeeCheckFiles(employeeId, signal),
+    enabled: employeeId !== '',
+  })
+}
+
+/**
+ * Bitta materialning fayli — faqat HR uni OCHGANDA so'raladi.
+ *
+ * @param fileId - `null` — hech narsa ochilmagan, so'rov yuborilmaydi.
+ */
+export function useEmployeeCheckFileContent(employeeId: string, fileId: string | null) {
+  return useQuery({
+    queryKey: employeeKeys.checkFileContent(employeeId, fileId),
+    queryFn: ({ signal }) => fetchEmployeeCheckFileContent(employeeId, fileId ?? '', signal),
+    enabled: employeeId !== '' && fileId !== null,
+    /** Bir `id` — bir fayl. U o'zgarmaydi, demak eskirmaydi ham. */
     staleTime: Infinity,
     /**
-     * Qayta urinish yo'q — rasmdagi bilan bir xil mulohaza: skrinshot
-     * chiqmasa kartaning qolgan qismi baribir ishlaydi, takroriy so'rov
-     * esa faqat kutishni uzaytiradi.
+     * Qayta urinish yo'q — rasmdagi bilan bir xil mulohaza: fayl chiqmasa
+     * oyna xatoni ko'rsatadi, takroriy so'rov esa faqat kutishni uzaytiradi.
      */
     retry: false,
   })
 }
 
-/**
- * Skrinshotni yuklash.
- *
- * Karta bekor qilinadi (yangi kalit u yerdan keladi) va skrinshot keshi
- * ham — server kalitni o'zgartirmasdan faylni almashtirsa, eskisi
- * ko'rinib qolmasin (`useUploadEmployeePhoto` dagi bilan bir xil ehtiyot).
- */
-export function useUploadMehnatUzScreenshot(employeeId: string) {
+/** Bitta materialni yuklash — ro'yxatga qo'shiladi. */
+export function useUploadEmployeeCheckFile(employeeId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (file: File) => uploadMehnatUzScreenshot(employeeId, file),
+    mutationFn: (file: File) => uploadEmployeeCheckFile(employeeId, file),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: employeeKeys.details(employeeId) })
-      void queryClient.invalidateQueries({ queryKey: employeeKeys.screenshots(employeeId) })
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.checkFiles(employeeId) })
     },
   })
 }
 
 /**
- * Skrinshotni o'chirish.
+ * Materialni o'chirish.
  *
- * Keshdagi blob `invalidate` emas, `remove` qilinadi: kalit `null`
- * bo'lgach unga hech kim murojaat qilmaydi, qayta so'rov esa faqat 404
- * olib kelardi (`useDeleteEmployeePhoto` dagi bilan bir xil).
+ * Keshdagi blob `remove` qilinadi: o'chirilgan `id` ga hech kim murojaat
+ * qilmaydi, qayta so'rov esa faqat 404 olib kelardi
+ * (`useDeleteEmployeePhoto` dagi bilan bir xil).
  */
-export function useDeleteMehnatUzScreenshot(employeeId: string) {
+export function useDeleteEmployeeCheckFile(employeeId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: () => deleteMehnatUzScreenshot(employeeId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: employeeKeys.details(employeeId) })
-      queryClient.removeQueries({ queryKey: employeeKeys.screenshots(employeeId) })
+    mutationFn: (fileId: string) => deleteEmployeeCheckFile(employeeId, fileId),
+    onSuccess: (_, fileId) => {
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.checkFiles(employeeId) })
+      queryClient.removeQueries({ queryKey: employeeKeys.checkFileContent(employeeId, fileId) })
     },
   })
 }

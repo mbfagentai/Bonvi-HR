@@ -42,6 +42,7 @@ import {
   formatRate,
 } from '../lib/employee-presentation'
 import { DirectionBadge, StatusBadge } from './employee-badges'
+import { EmployeeCheckFiles } from './employee-check-files'
 import { EmployeeCouncilSection } from './employee-council-section'
 import { MehnatUzBlock } from './mehnat-uz-block'
 
@@ -198,11 +199,7 @@ export function EmployeeOverviewTab({
               beradi. Ikkinchisi esa bazada bironta ham to'ldirilmagan
               edi: HR uni hech qachon ishlatmagan.
             */}
-            <MehnatUzBlock
-              employeeId={employee.id}
-              url={employee.mehnatUzUrl}
-              screenshotKey={employee.mehnatUzScreenshotKey}
-            />
+            <MehnatUzBlock url={employee.mehnatUzUrl} />
 
             {/*
               Sudlanganlik ikki qismdan: JAVOB (ha / yo'q / noma'lum) va
@@ -235,6 +232,13 @@ export function EmployeeOverviewTab({
                 )}
               </div>
             </div>
+
+            {/*
+              Dalillar — kartaning OXIRIDA va barcha tekshiruvlarga umumiy:
+              mehnat.uz skrinshoti ham, qarzdorlik yoki sudlanganlik
+              ma'lumotnomasi ham shu ro'yxatda (2026-09-27).
+            */}
+            <EmployeeCheckFiles employeeId={employee.id} />
           </CardContent>
         </Card>
       </div>
