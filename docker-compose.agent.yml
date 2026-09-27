@@ -1,0 +1,58 @@
+# ============================================================
+#  BONVI HR — qurilma agenti, OFISDAGI mashina uchun
+#
+#      docker compose -f docker-compose.agent.yml --env-file .env.agent up -d --build
+#
+#  Qo'llanma: docs/AGENT-RUNBOOK.md
+#
+#  Bu fayl `docker-compose.prod.yml` dan ALOHIDA va bu ataylab: agent
+#  serverda (VPS) emas, terminal bilan bitta tarmoqdagi ofis mashinasida
+#  ishlaydi. U yerda na baza, na API bor — agent faqat CHIQUVCHI ulanish
+#  ochadi: terminalning ISAPI siga va Bonvi API ga (SPEC-agent §C).
+#  Hech qanday port ochilmaydi.
+#
+#  Sirlar (`.env.agent`) git'ga TUSHMAYDI: qurilma tokeni kartada bir marta
+#  ko'rsatiladi, terminal paroli esa faqat shu mashinada yashaydi.
+# ============================================================
+name: bonvi-agent
+
+services:
+  device-agent:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.agent
+    image: bonvi-device-agent:local
+    container_name: bonvi-device-agent
+    # Mashina qayta yuklansa ham o'zi ko'tariladi. Xato bilan chiqsa ham
+    # (masalan, noto'g'ri sozlama) qayta urinadi — lekin sozlama xatosida
+    # jarayon darhol va tushunarli xabar bilan to'xtaydi (ValidateOnStart).
+    restart: unless-stopped
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      # Qurilma kartasidagi «.env qatorlari» aynan shu nomlarni beradi.
+      Agent__ApiBaseUrl: ${AGENT__APIBASEURL:?AGENT__APIBASEURL berilmagan (masalan https://hr.bonvi.uz)}
+      Agent__DeviceToken: ${AGENT__DEVICETOKEN:?AGENT__DEVICETOKEN berilmagan — qurilma kartasidan oling}
+      Agent__DeviceHost: ${AGENT__DEVICEHOST:?AGENT__DEVICEHOST berilmagan — terminalning LAN manzili}
+      Agent__DeviceUser: ${AGENT__DEVICEUSER:-admin}
+      Agent__DevicePassword: ${AGENT__DEVICEPASSWORD:?AGENT__DEVICEPASSWORD berilmagan}
+      Agent__EventsIntervalSeconds: ${AGENT__EVENTSINTERVAL:-2}
+      # Jonli kadr kanali — bo'sh qatorda kadr olinmaydi (MinMoe'da 101)
+      Agent__SnapshotChannel: ${AGENT__SNAPSHOTCHANNEL-101}
+      Agent__RosterIntervalSeconds: ${AGENT__ROSTERINTERVAL:-60}
+      # Holat fayli yo'q bo'lganda terminal jurnalidan necha soat orqaga o'qiladi
+      Agent__ColdStartHours: ${AGENT__COLDSTARTHOURS:-48}
+      Agent__StatePath: /data/agent-state.json
+    volumes:
+      # Hodisa kursori. Tom o'chsa falokat emas (takrorni server tashlaydi),
+      # lekin agent 48 soatlik jurnalni qayta o'qiydi.
+      - agent-state:/data
+    # Jurnal CHEKLANGAN: terminal uzilgan kechada agent har daqiqada qator
+    # yozadi va bu mashinada jurnalni hech kim tozalamaydi.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  agent-state:

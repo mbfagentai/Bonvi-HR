@@ -12,12 +12,14 @@ namespace Bonvi.Application.Attendance.Agent;
 /// <param name="Signature">Imzo sarlavhasi.</param>
 /// <param name="SourceIp">So'rov manzili.</param>
 /// <param name="DeviceTime">Terminalning O'Z joriy vaqti (siljishi bilan).</param>
+/// <param name="TerminalSerial">Agent o'qigan terminal seriyasi (<c>X-Bonvi-Terminal-Serial</c>).</param>
 public sealed record ReportDeviceClockCommand(
     string? Token,
     byte[] Body,
     string? Signature,
     string? SourceIp,
-    DateTimeOffset DeviceTime);
+    DateTimeOffset DeviceTime,
+    string? TerminalSerial);
 
 /// <summary>
 /// Qurilma soatining og'ishini TO'G'RIDAN-TO'G'RI yozadi.
@@ -49,15 +51,18 @@ public sealed class ReportDeviceClockCommandHandler
     public const int MaxOffsetSeconds = 366 * 24 * 60 * 60;
 
     private readonly AttendanceDeviceAuthenticator _authenticator;
+    private readonly IAttendanceIngestJournal _journal;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
     public ReportDeviceClockCommandHandler(
         AttendanceDeviceAuthenticator authenticator,
+        IAttendanceIngestJournal journal,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
         _authenticator = authenticator;
+        _journal = journal;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -86,6 +91,16 @@ public sealed class ReportDeviceClockCommandHandler
         }
 
         var device = authenticated.Value;
+
+        // Boshqa terminalning soati bu qurilmaning kartasiga yozilmasin —
+        // va uning «terminal javob beryapti» belgisini yoqmasin.
+        var bound = device.ConfirmTerminal(command.TerminalSerial, required: true);
+        if (bound.IsFailure)
+        {
+            _journal.TerminalMismatch(device.Id, command.TerminalSerial);
+            return bound.Error;
+        }
+
         var seconds = (int)Math.Round(offset);
 
         device.NoteClock(seconds, now);

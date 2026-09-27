@@ -105,6 +105,7 @@ import {
   type DashboardSlice,
 } from './attendance-dashboard-chart'
 import { BirthdaysCard } from './attendance-birthdays-card'
+import { DeviceHealthBanners } from './attendance-device-health'
 import { FormerEmployeeAlertPanel } from './attendance-former-employee-alert'
 import { AttendanceLoadError, AttendanceNoAccess } from './attendance-manage-states'
 
@@ -672,6 +673,15 @@ export function AttendanceDashboardPage() {
       {alerts.length > 0 && (
         <FormerEmployeeAlertPanel alerts={alerts} canOpenEmployee={canOpenEmployee} />
       )}
+
+      {/*
+        Qurilmalar sog'lig'i (SPEC §8.4, §8.7, SPEC-agent §L): agent yoki
+        terminal uzilishi — qizil, soat og'ishi — sariq, hech bir terminal
+        ulanmagan — ma'lumot. «Hozir ishda» taxtasi Statistika bilan
+        almashtirilganda bular yo'qolib qolgan edi. Ikkala rejimda ham:
+        davr rejimida ma'lumot `/dashboard/trend` javobidan keladi.
+      */}
+      <DeviceHealthBanners health={range ? (trendData?.deviceHealth ?? undefined) : data?.deviceHealth} />
 
       {/* Keyingi yangilanish yiqildi — eski surat joyida qoladi, sabab tepada */}
       {active.isError && active.data !== undefined && (

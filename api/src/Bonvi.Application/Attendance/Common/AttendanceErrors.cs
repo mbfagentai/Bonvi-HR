@@ -264,6 +264,35 @@ public static class AttendanceErrors
         "davomat.qurilma_vaqti_notogri",
         "Qurilma vaqti o'qib bo'lmaydigan qiymat berdi.");
 
+    /// <summary>Ikki so'rov bir vaqtda bitta xodimga raqam ajratmoqchi bo'ldi.</summary>
+    /// <remarks>
+    /// Bitta xodimda Bonvi fazasida faqat BITTA raqam bo'lishi mumkin —
+    /// buni bazadagi indeks qo'riqlaydi (<c>ux_attendance_identities_managed_employee</c>).
+    /// Ikkinchi so'rov shu xatoni oladi, agent esa bir necha soniyadan keyin
+    /// qayta so'raydi va o'sha zahoti birinchisi ajratgan raqamni ko'radi.
+    /// Ilgari ikkala so'rov ham o'z raqamini yozib, terminalda bitta odam
+    /// ikki raqam bilan paydo bo'lardi.
+    /// </remarks>
+    public static Error AgentRosterBusy { get; } = Error.Conflict(
+        "davomat.agent_royxat_band",
+        "Ro'yxat shu lahzada boshqa so'rov bilan tuzilyapti — birozdan keyin qayta urinib ko'ring.");
+
+    /// <summary>Bonvi terminalga yozgan raqamni uzib bo'lmaydi.</summary>
+    /// <remarks>
+    /// Raqam o'zgarsa, agent odamni terminalda YANGI raqam bilan qayta
+    /// yaratadi va eski raqamni o'chiradi — ya'ni «raqam hech qachon
+    /// o'zgarmaydi» qoidasi buziladi (SPEC-agent §E) va shu oraliqda odam
+    /// eshikni ocha olmaydi. Bu raqamlarni tizim o'zi boshqaradi.
+    /// </remarks>
+    public static Error ManagedIdentityLocked { get; } = Error.Conflict(
+        "davomat.moslik_bonvi_raqami",
+        "Bu raqamni tizim terminalga o'zi yozgan — uni uzib bo'lmaydi. Xodim ishdan ketsa, raqam terminaldan avtomatik olib tashlanadi.");
+
+    /// <summary>Xodimda Bonvi fazasidagi raqam allaqachon bor.</summary>
+    public static Error ManagedIdentityExists { get; } = Error.Conflict(
+        "davomat.moslik_bonvi_raqami_bor",
+        "Bu xodimda tizim ajratgan terminal raqami allaqachon bor — ikkinchisini qo'shib bo'lmaydi.");
+
     // ── Obyektlar (SPEC-xodim-ilovasi §D1) ──────────────────────────
 
     /// <summary>Bunday obyekt yo'q.</summary>

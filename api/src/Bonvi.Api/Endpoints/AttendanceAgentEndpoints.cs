@@ -43,6 +43,12 @@ public static class AttendanceAgentEndpoints
     private const string TokenHeader = "X-Bonvi-Device-Token";
     private const string SignatureHeader = "X-Bonvi-Signature";
 
+    /// <summary>
+    /// Agent terminaldan o'qigan seriya (<c>/ISAPI/System/deviceInfo</c>) — tokenni
+    /// jismoniy terminalga bog'laydi (SPEC-agent §L).
+    /// </summary>
+    public const string TerminalSerialHeader = "X-Bonvi-Terminal-Serial";
+
     /// <summary>Hisobot tanasining chegarasi — 4000 qator × ~200 bayt dan kengroq.</summary>
     private const int MaxReportBytes = 2 * 1024 * 1024;
 
@@ -69,13 +75,14 @@ public static class AttendanceAgentEndpoints
         group.MapGet("/roster", async (
                 [FromHeader(Name = TokenHeader)] string? token,
                 [FromHeader(Name = SignatureHeader)] string? signature,
+                [FromHeader(Name = TerminalSerialHeader)] string? serial,
                 HttpContext context,
                 GetAgentRosterQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
                     .HandleAsync(
-                        new GetAgentRosterQuery(token, signature, AgentIp(context)),
+                        new GetAgentRosterQuery(token, signature, AgentIp(context), serial),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -86,9 +93,16 @@ public static class AttendanceAgentEndpoints
             .WithSummary("Davomat — agent uchun ro'yxat")
             .WithDescription(
                 "Qurilmada BO'LISHI KERAK bo'lgan xodimlar: bugunni qamrovchi mehnat munosabati bor va " +
-                "rasmi bor. Rasmsiz xodim ro'yxatga TUSHMAYDI. «personNo» — server ajratgan shaxs raqami " +
-                "(9 bilan boshlanadigan 9 belgi), «version» — hisobotda qaytariladigan belgi, «force» — " +
-                "qurilmada bor bo'lsa ham qayta yozish kerak. Noto'g'ri token — «davomat.ingest_ruxsat_yoq» (401).")
+                "rasmi bor (yoki terminalga allaqachon yozilgan — rasmi o'chirilsa ham ishdan ketguncha qoladi). " +
+                "«personNo» — server ajratgan shaxs raqami (9 bilan boshlanadigan 9 belgi), «version» — " +
+                "hisobotda qaytariladigan belgi (rasm, «Qayta yozish» sanog'i va ism izi), «force» — " +
+                "qurilmada bor bo'lsa ham qayta yozish kerak, «hold» — qurilma aynan shu belgini rad etgan, " +
+                "belgi o'zgarguncha yozilmaydi. «removeNumbers» — shu server ajratgan, ro'yxatda yo'q raqamlar " +
+                "(terminalda bo'lsa o'chiriladi); fazadagi boshqa raqamga agent TEGMAYDI. «allowMassRemoval» — " +
+                "HR ushlab qolingan ommaviy o'chirishni tasdiqlagan. «X-Bonvi-Terminal-Serial» — terminal " +
+                "seriyasi: birinchisi yoziladi, keyin boshqasi bilan kelgan so'rov «davomat.terminal_mos_emas» " +
+                "(409). Ikki so'rov bir vaqtda raqam ajratsa — «davomat.agent_royxat_band» (409). " +
+                "Noto'g'ri token — «davomat.ingest_ruxsat_yoq» (401).")
             .Produces<AgentRosterDto>(StatusCodes.Status200OK);
 
         group.MapGet("/photo/{employeeId:guid}", async (
@@ -148,7 +162,13 @@ public static class AttendanceAgentEndpoints
 
                 var natija = await handler
                     .HandleAsync(
-                        new ReportAgentEnrollmentsCommand(token, body, signature, AgentIp(context), items ?? []),
+                        new ReportAgentEnrollmentsCommand(
+                            token,
+                            body,
+                            signature,
+                            AgentIp(context),
+                            items ?? [],
+                            context.Request.Headers[TerminalSerialHeader].FirstOrDefault()),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -160,8 +180,10 @@ public static class AttendanceAgentEndpoints
             .WithName("ReportAttendanceAgentEnrollments")
             .WithSummary("Davomat — agent hisoboti")
             .WithDescription(
-                "«[{ employeeId, action: Upsert|Remove, ok, version, error }]». Holatni FAQAT shu " +
+                "«[{ employeeId, personNo, action: Upsert|Remove, ok, version, error, rejected }]». Holatni FAQAT shu " +
                 "endpoint o'zgartiradi: server hech qachon «yozilgan bo'lsa kerak» deb taxmin qilmaydi. " +
+                "«rejected: true» — qurilma aynan shu belgini qat'iy rad etgan (u o'zgarguncha qayta urinilmaydi); " +
+                "muvaffaqiyatsiz «Remove» — odam hali terminalda (holati «Xato»). " +
                 "Noma'lum xodim jimgina tashlanadi («ignored»). Chegaradan ko'p qator — " +
                 "«davomat.agent_hisobot_uzun» (400).")
             .Produces<AgentReportResultDto>(StatusCodes.Status200OK);
@@ -197,7 +219,13 @@ public static class AttendanceAgentEndpoints
 
                 var natija = await handler
                     .HandleAsync(
-                        new ReportDeviceClockCommand(token, body, signature, AgentIp(context), deviceTime),
+                        new ReportDeviceClockCommand(
+                            token,
+                            body,
+                            signature,
+                            AgentIp(context),
+                            deviceTime,
+                            context.Request.Headers[TerminalSerialHeader].FirstOrDefault()),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -215,6 +243,52 @@ public static class AttendanceAgentEndpoints
                 "«davomat.qurilma_vaqti_notogri» (400).")
             .Produces<DeviceClockDto>(StatusCodes.Status200OK);
 
+        group.MapPost("/status", async (
+                [FromHeader(Name = TokenHeader)] string? token,
+                [FromHeader(Name = SignatureHeader)] string? signature,
+                HttpContext context,
+                ReportAgentStatusCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var body = await ReadBodyAsync(context.Request, cancellationToken).ConfigureAwait(false);
+
+                AgentStatusDto? status;
+                try
+                {
+                    status = JsonSerializer.Deserialize<AgentStatusDto>(body, ReportJson);
+                }
+                catch (JsonException)
+                {
+                    status = null;
+                }
+
+                var natija = await handler
+                    .HandleAsync(
+                        new ReportAgentStatusCommand(
+                            token,
+                            body,
+                            signature,
+                            AgentIp(context),
+                            status?.HeldRemovals ?? 0,
+                            status?.ForeignPersons ?? 0,
+                            context.Request.Headers[TerminalSerialHeader].FirstOrDefault()),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return Respond(natija.IsFailure ? natija.Error : null) ?? natija.ToHttpResult();
+            })
+            .AsAgentRoute()
+            .DisableAntiforgery()
+            .WithName("ReportAttendanceAgentStatus")
+            .WithSummary("Davomat — agentning solishtirish natijasi")
+            .WithDescription(
+                "«{ heldRemovals, foreignPersons }» — har solishtirishdan keyin bir marta. «heldRemovals» — " +
+                "ommaviy o'chirish to'sig'i ushlab qolgan o'chirishlar (ro'yxat bo'sh yoki terminaldagi Bonvi " +
+                "odamlarining beshdan biridan ko'pi); «foreignPersons» — terminaldagi Bonvi fazasidagi, lekin " +
+                "bu server ajratmagan odamlar. Ikkalasi ham qurilma kartasida HR ga ko'rinadi. Boshqa terminal " +
+                "seriyasi — «davomat.terminal_mos_emas» (409).")
+            .Produces(StatusCodes.Status204NoContent);
+
         return app;
     }
 
@@ -222,7 +296,7 @@ public static class AttendanceAgentEndpoints
     /// <param name="DeviceTime">Terminalning joriy vaqti.</param>
     private sealed record DeviceClockBody(DateTimeOffset? DeviceTime);
 
-    /// <summary>To'rtala marshrutning umumiy sozlamalari — qabul yo'lidagidek bitta joyda.</summary>
+    /// <summary>Beshala marshrutning umumiy sozlamalari — qabul yo'lidagidek bitta joyda.</summary>
     private static RouteHandlerBuilder AsAgentRoute(this RouteHandlerBuilder builder)
         => builder
             // Ochiqlik ATAYLAB — sinf izohiga qarang. Himoya qurilma tokenida.
@@ -231,6 +305,7 @@ public static class AttendanceAgentEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
     /// <summary>

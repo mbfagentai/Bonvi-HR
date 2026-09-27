@@ -4,6 +4,7 @@ import {
   FileSpreadsheet,
   Link2,
   LoaderCircle,
+  Lock,
   Plus,
   ScanFace,
   Search,
@@ -44,6 +45,7 @@ import {
 import {
   IDENTITY_SOURCE_LOOK,
   identityProviderLabel,
+  isManagedPersonNo,
 } from '../lib/attendance-manage-presentation'
 import { ATTENDANCE_MANAGE, DEFAULT_PAGE_SIZE } from '../lib/attendance-presentation'
 import { AttendanceIdentityDialog, AttendancePassFace } from './attendance-identity-dialog'
@@ -236,21 +238,35 @@ export function AttendanceMappingPage() {
         header: '',
         // Bitta ikonkali tugma (32px) + katak to'ldirishi (32px) ≈ 64px, zaxira bilan 72px
         meta: { align: 'end', width: '72px' },
-        cell: ({ row }) => (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title={t('attendance.unlink')}
-            aria-label={t('attendance.unlink')}
-            onClick={(event) => {
-              event.stopPropagation()
-              setUnlinking(row.original)
-            }}
-          >
-            <Unlink className="text-[var(--danger-text)]" />
-          </Button>
-        ),
+        cell: ({ row }) =>
+          /*
+            Tizim terminalga o'zi yozgan raqam (Bonvi fazasi) UZILMAYDI — server
+            409 beradi: raqam o'zgarsa odam terminalda qayta yaratilardi va
+            oraliqda eshikni ocha olmasdi (SPEC-agent §E). Tugma o'rniga qulf.
+          */
+          isManagedPersonNo(row.original.externalPersonId) ? (
+            <span
+              className="inline-flex size-8 items-center justify-center text-[var(--fg-tertiary)]"
+              title={t('attendance.managedNumberLocked')}
+              aria-label={t('attendance.managedNumberLocked')}
+            >
+              <Lock className="size-4" />
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              title={t('attendance.unlink')}
+              aria-label={t('attendance.unlink')}
+              onClick={(event) => {
+                event.stopPropagation()
+                setUnlinking(row.original)
+              }}
+            >
+              <Unlink className="text-[var(--danger-text)]" />
+            </Button>
+          ),
       }),
     ],
     [t, date],

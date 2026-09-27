@@ -127,6 +127,7 @@ public static class AttendanceIngestEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
@@ -148,7 +149,11 @@ public static class AttendanceIngestEndpoints
                     token,
                     new AttendanceIngestPayload(body, request.ContentType, parts),
                     signature,
-                    SourceIp(context)),
+                    SourceIp(context),
+
+                    // Faqat agent qo'yadi (SPEC-agent §L); o'zi push qiladigan
+                    // terminalda sarlavha yo'q va tekshiruv o'tkazib yuboriladi.
+                    request.Headers[AttendanceAgentEndpoints.TerminalSerialHeader].FirstOrDefault()),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -352,6 +357,15 @@ internal sealed partial class AttendanceIngestJournal : IAttendanceIngestJournal
     public void UnknownSubTypeSeen(int majorEventType, int subEventType)
         => LogUnknownSubType(majorEventType, subEventType);
 
+    // Seriya agent o'qigan satr — log satrini buzadigan belgi bo'lmasin.
+    public void TerminalMismatch(Guid deviceId, string? presentedSerial)
+    {
+        if (_logger.IsEnabled(LogLevel.Warning))
+        {
+            LogTerminalMismatch(deviceId, SafePrefix(presentedSerial is { Length: > 100 } serial ? serial[..100] : presentedSerial), RequestPath());
+        }
+    }
+
     private string RequestMethod() => _accessor.HttpContext?.Request.Method ?? "-";
 
     private string RequestPath()
@@ -399,4 +413,10 @@ internal sealed partial class AttendanceIngestJournal : IAttendanceIngestJournal
         Level = LogLevel.Information,
         Message = "Hikvision'ning notanish hodisa turi birinchi marta ko'rildi: {AsosiyTur}/{KichikTur}")]
     private partial void LogUnknownSubType(int asosiyTur, int kichikTur);
+
+    [LoggerMessage(
+        EventId = 5205,
+        Level = LogLevel.Warning,
+        Message = "Agent boshqa terminal bilan keldi — rad etildi: {QurilmaId}, seriya {Seriya} — {Path}")]
+    private partial void LogTerminalMismatch(Guid qurilmaId, string seriya, string path);
 }

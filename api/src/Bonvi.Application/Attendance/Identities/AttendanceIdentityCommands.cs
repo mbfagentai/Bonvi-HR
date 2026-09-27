@@ -1,5 +1,6 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Abstractions;
+using Bonvi.Application.Attendance.Agent;
 using Bonvi.Application.Attendance.Common;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Ingest;
@@ -110,6 +111,24 @@ public sealed class CreateIdentityCommandHandler
             return AttendanceErrors.IdentityTaken;
         }
 
+        /*
+          Bonvi fazasidagi raqam xodimga BITTA (bazadagi
+          `ux_attendance_identities_managed_employee` indeksi). Ikkinchisi
+          qo'lda qo'shilsa, indeks uni baribir rad etardi — lekin 500 bilan;
+          bu yerda tushunarli 409.
+        */
+        if (DevicePersonNo.IsManaged(identity.ExternalPersonId))
+        {
+            var existing = await _identities
+                .ListByEmployeeAsync(identity.EmployeeId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (existing.Any(row => row.Provider == identity.Provider && DevicePersonNo.IsManaged(row.ExternalPersonId)))
+            {
+                return AttendanceErrors.ManagedIdentityExists;
+            }
+        }
+
         _identities.Add(identity);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -142,6 +161,14 @@ public sealed class CreateIdentityCommandHandler
 /// Keshdan o'chirish SHART: aks holda uzilgan moslik yana 60 soniya yangi
 /// o'tishlarni eski xodimga yozardi.
 /// </para>
+/// <para>
+/// ⚠️ <b>Tizim terminalga yozgan raqam (Bonvi fazasi) UZILMAYDI</b>
+/// (<see cref="AttendanceErrors.ManagedIdentityLocked"/>). Uzilsa, keyingi
+/// ro'yxatda xodimga YANGI raqam ajratilardi, agent esa odamni terminalda
+/// yangi raqam bilan qayta yaratib, eskisini o'chirardi — «raqam hech qachon
+/// o'zgarmaydi» qoidasi (SPEC-agent §E) buzilardi va oraliqda odam eshikni
+/// ocha olmasdi. Ishdan ketganda raqam terminaldan avtomatik olib tashlanadi.
+/// </para>
 /// </remarks>
 public sealed class DeleteIdentityCommandHandler
 {
@@ -169,6 +196,11 @@ public sealed class DeleteIdentityCommandHandler
         if (identity is null)
         {
             return AttendanceErrors.IdentityNotFound;
+        }
+
+        if (DevicePersonNo.IsManaged(identity.ExternalPersonId))
+        {
+            return AttendanceErrors.ManagedIdentityLocked;
         }
 
         _identities.Remove(identity);

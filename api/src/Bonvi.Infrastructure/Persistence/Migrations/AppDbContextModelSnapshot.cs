@@ -245,6 +245,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTimeOffset?>("AgentSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("agent_seen_at");
+
                     b.Property<string>("AllowedIps")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -286,6 +290,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("direction_role");
 
+                    b.Property<int>("ForeignPersons")
+                        .HasColumnType("integer")
+                        .HasColumnName("foreign_persons");
+
+                    b.Property<int>("HeldRemovals")
+                        .HasColumnType("integer")
+                        .HasColumnName("held_removals");
+
                     b.Property<string>("HmacSecret")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -302,6 +314,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastEventAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_event_at");
+
+                    b.Property<DateTimeOffset?>("LastRejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_rejected_at");
 
                     b.Property<DateTimeOffset?>("LastSeenAt")
                         .HasColumnType("timestamp with time zone")
@@ -340,10 +356,27 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("provider");
 
+                    b.Property<DateTimeOffset?>("ReconciledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reconciled_at");
+
+                    b.Property<DateTimeOffset?>("RemovalsApprovedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removals_approved_until");
+
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("serial_number");
+
+                    b.Property<DateTimeOffset?>("TerminalSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("terminal_seen_at");
+
+                    b.Property<string>("TerminalSerial")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("terminal_serial");
 
                     b.Property<byte[]>("TokenHash")
                         .IsRequired()
@@ -453,6 +486,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasIndex("EmployeeId")
                         .HasDatabaseName("ix_attendance_identities_employee");
 
+                    b.HasIndex("Provider", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_attendance_identities_managed_employee")
+                        .HasFilter("deleted_at IS NULL AND length(external_person_id) = 9 AND left(external_person_id, 1) = '9'");
+
                     b.HasIndex("Provider", "ExternalPersonId")
                         .IsUnique()
                         .HasDatabaseName("ux_attendance_identities_person")
@@ -467,6 +505,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<int?>("ClockOffsetSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("clock_offset_seconds");
 
                     b.Property<int>("ClockSkewSeconds")
                         .HasColumnType("integer")
@@ -620,6 +662,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<int>("ForceVersion")
                         .HasColumnType("integer")
                         .HasColumnName("force_version");
+
+                    b.Property<string>("RejectedVersion")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("rejected_version");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")

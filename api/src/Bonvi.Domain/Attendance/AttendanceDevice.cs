@@ -214,6 +214,102 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Soat oxirgi marta qachon tekshirilgan.</summary>
     public DateTimeOffset? ClockCheckedAt { get; private set; }
 
+    /// <summary>
+    /// Agent oxirgi marta qachon murojaat qilgan — ro'yxat, hisobot, soat yoki holat.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="LastSeenAt"/> dan farqi: u HAR QANDAY tasdiqlangan so'rovda
+    /// yangilanadi (o'zi push qiladigan terminalniki ham). Bu esa faqat
+    /// agent endpointlarida — ya'ni «bu qurilma agent orqali ishlaydi»
+    /// degan belgi ham shu (<c>null</c> ⇒ agent hech qachon gapirmagan).
+    /// </remarks>
+    public DateTimeOffset? AgentSeenAt { get; private set; }
+
+    /// <summary>
+    /// Terminalning O'ZI tasdiqlagan oxirgi aloqa (SPEC-agent §L).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Yangilanadi: agent terminal soatini o'qiganda
+    /// (<see cref="NoteClock"/>), hodisa kelganda (qabul yo'li — hodisa
+    /// terminal jurnalidan o'qilgan yoki terminalning o'zi yuborgan).
+    /// Yangilanmaydi: agent faqat ro'yxat so'raganda — u terminalga yeta
+    /// olmasa ham ro'yxat so'rayveradi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Aynan shu farq yo'qligi sababli uzilgan terminal «hozirgina»
+    /// deb ko'rinib turardi (2026-09-27 tekshiruvi: <c>last_seen_at</c> —
+    /// bugun, soat va hodisa — besh kun oldin).
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? TerminalSeenAt { get; private set; }
+
+    /// <summary>
+    /// Agent terminaldan o'qigan seriya raqami — tokenni JISMONIY terminalga bog'laydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Birinchi ko'rilgani yoziladi, keyin talab qilinadi</b> (trust on
+    /// first use). Boshqa terminal ro'yxatini shu token bilan so'rasa, server
+    /// rad etadi (<c>davomat.terminal_mos_emas</c>): aks holda ikkinchi
+    /// terminaldagi Bonvi odamlari «ro'yxatda yo'q» deb o'chirib tashlanardi.
+    /// </para>
+    /// <para>
+    /// HR kiritadigan <see cref="SerialNumber"/> dan ALOHIDA: u korpusdagi
+    /// yorliqdan qo'lda yoziladi va ISAPI qaytaradigan to'liq satrdan farq
+    /// qiladi — bitta harf xatosi agentni butunlay to'xtatib qo'yardi.
+    /// Terminal almashtirilsa, bog'lanish tokenni aylantirish bilan
+    /// tozalanadi (<see cref="RotateToken"/>).
+    /// </para>
+    /// </remarks>
+    public string? TerminalSerial { get; private set; }
+
+    /// <summary>Oxirgi RAD ETILGAN hodisa so'rovi — o'qib bo'lmadi yoki vaqti yaroqsiz.</summary>
+    /// <remarks>
+    /// «Terminal gaplashyapti-yu, hodisalari rad etilyapti» ogohlantirishi
+    /// shundan chiqadi (<see cref="EventsRejected"/>). Ilgari u
+    /// <c>last_seen_at − last_event_at &gt; 30 daqiqa</c> dan taxmin
+    /// qilinardi va agent qurilmasida HAR KECHASI yolg'on yonardi: agent
+    /// har daqiqada ro'yxat so'raydi, tunda esa hech kim o'tmaydi.
+    /// </remarks>
+    public DateTimeOffset? LastRejectedAt { get; private set; }
+
+    /// <summary>Agentning oxirgi solishtirish hisoboti qachon kelgan.</summary>
+    public DateTimeOffset? ReconciledAt { get; private set; }
+
+    /// <summary>
+    /// Oxirgi solishtirishda agent ATAYLAB bajarmagan o'chirishlar soni.
+    /// </summary>
+    /// <remarks>
+    /// Ro'yxat bo'sh bo'lsa yoki terminaldagi Bonvi odamlarining beshdan
+    /// biridan ko'pi o'chirilishi kerak bo'lsa, agent o'chirmaydi
+    /// (ommaviy o'chirish to'sig'i, SPEC-agent §L) va bu yerga sonini
+    /// yozadi — HR kartada ko'radi va o'zi tasdiqlaydi
+    /// (<see cref="ApproveRemovals"/>).
+    /// </remarks>
+    public int HeldRemovals { get; private set; }
+
+    /// <summary>
+    /// Terminaldagi Bonvi fazasidagi, lekin BU server ajratmagan odamlar soni.
+    /// </summary>
+    /// <remarks>
+    /// Noldan katta bo'lsa — shu terminalga boshqa Bonvi o'rnatmasi (masalan
+    /// sinov serveri) ham yozyapti. Agent ularga tegmaydi, lekin raqamlar
+    /// to'qnashishi mumkin — HR buni ko'rishi shart.
+    /// </remarks>
+    public int ForeignPersons { get; private set; }
+
+    /// <summary>
+    /// HR ushlab qolingan o'chirishlarga shu lahzagacha ruxsat bergan (UTC).
+    /// </summary>
+    /// <remarks>
+    /// Vaqt bilan cheklangan va bu ataylab: ruxsat BIR-IKKI solishtirish
+    /// uchun beriladi (agent har daqiqada tekshiradi), doimiy «to'siqni
+    /// o'chirish» tugmasi esa keyingi xato ro'yxatda ham hammani o'chirib
+    /// yuborardi.
+    /// </remarks>
+    public DateTimeOffset? RemovalsApprovedUntil { get; private set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -238,6 +334,87 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     public bool HasClockDrift
         => (ClockOffsetSeconds ?? LastSkewSeconds) is { } skew
             && Math.Abs(skew) > AttendanceRules.ClockSkewToleranceSeconds;
+
+    /// <summary>
+    /// Sintetik «Mobil ilova» qatori — terminal EMAS (<see cref="MobileAppId"/> izohi).
+    /// </summary>
+    /// <remarks>
+    /// Qurilmalar sog'lig'i sanoqlariga (faol, ulangan, uzilgan) kirmaydi va
+    /// ekranda boshqaruv tugmalarisiz ko'rsatiladi: uni tahrirlab, yoqib
+    /// yoki o'chirib bo'lmaydi.
+    /// </remarks>
+    public bool IsSynthetic => Id == MobileAppId || Provider == AttendanceProvider.Mobile;
+
+    /// <summary>
+    /// Soat ogohlantirishi: faol, so'nggi sutkada gapirgan va soati chegaradan og'gan.
+    /// </summary>
+    /// <remarks>
+    /// Qurilmalar sahifasi, Statistika sahifasi va eski taxta BITTA qoidadan
+    /// o'qiydi — ilgari taxta boshqa o'lchovni (<see cref="LastSkewSeconds"/>)
+    /// ishlatardi va internet uzilishidan keyin soxta banner yoqardi.
+    /// </remarks>
+    /// <param name="now">Hozirgi lahza (UTC).</param>
+    public bool ClockWarningAt(DateTimeOffset now)
+        => IsActive
+            && HasClockDrift
+            && LastSeenAt is { } seen
+            && now - seen <= TimeSpan.FromHours(AttendanceRules.ClockWarningRecentHours);
+
+    /// <summary>
+    /// Terminal gaplashyapti, lekin oxirgi so'rovi rad etilgan va undan keyin
+    /// birorta ham o'tish qabul qilinmagan.
+    /// </summary>
+    public bool EventsRejected
+        => LastRejectedAt is { } rejected && (LastEventAt is not { } accepted || rejected > accepted);
+
+    /// <summary>
+    /// <paramref name="now"/> lahzasidagi aloqa holati va u qachondan beri shunday.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Chegara JADVALGA bog'liq emas (<see cref="AttendanceRules.AgentSilenceMinutes"/>
+    /// izohi): agent o'tish bo'lmasa ham har daqiqada gapiradi, ya'ni tunda
+    /// ham jimlik — uzilish.
+    /// </para>
+    /// <para>
+    /// O'zi push qiladigan terminal (agent hech qachon gapirmagan) uchun
+    /// jimlik hech narsa demaydi — u faqat hodisa bo'lganda yuboradi. Uning
+    /// holati faqat «ulangan» yoki «hech qachon ulanmagan».
+    /// </para>
+    /// </remarks>
+    /// <param name="now">Hozirgi lahza (UTC).</param>
+    /// <returns>Holat va boshlanish lahzasi; noma'lum bo'lsa lahza <c>null</c>.</returns>
+    public (DeviceLinkState State, DateTimeOffset? Since) LinkAt(DateTimeOffset now)
+    {
+        if (LastSeenAt is null)
+        {
+            return (DeviceLinkState.NeverConnected, null);
+        }
+
+        if (AgentSeenAt is not { } agent)
+        {
+            return (DeviceLinkState.Online, LastSeenAt);
+        }
+
+        var limit = TimeSpan.FromMinutes(AttendanceRules.AgentSilenceMinutes);
+
+        if (now - agent > limit)
+        {
+            return (DeviceLinkState.AgentOffline, agent);
+        }
+
+        // Terminal hech qachon javob bermagan bo'lsa ham — uzilish: agent
+        // ro'yxat so'rab turibdi, lekin terminalga birinchi kundan yeta
+        // olmayapti (noto'g'ri IP yoki parol). «Qachondan» — noma'lum.
+        if (TerminalSeenAt is not { } terminal)
+        {
+            return (DeviceLinkState.TerminalUnreachable, null);
+        }
+
+        return now - terminal > limit
+            ? (DeviceLinkState.TerminalUnreachable, terminal)
+            : (DeviceLinkState.Online, terminal);
+    }
 
     /// <summary>Yangi qurilmani ro'yxatga oladi.</summary>
     /// <remarks>
@@ -356,6 +533,11 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     /// <summary>Tokenni almashtiradi — eskisi shu lahzada o'ladi.</summary>
+    /// <remarks>
+    /// Terminal bog'lanishi (<see cref="TerminalSerial"/>) ham TOZALANADI:
+    /// yangi token — yangi o'rnatish, masalan almashtirilgan terminal. Yangi
+    /// agentning birinchi so'rovi yangi seriyani yozadi.
+    /// </remarks>
     public void RotateToken(byte[] tokenHash, string tokenPrefix, DateTimeOffset at, Guid? by)
     {
         EnsureToken(tokenHash, tokenPrefix);
@@ -364,6 +546,7 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
         TokenPrefix = tokenPrefix;
         TokenIssuedAt = at;
         TokenIssuedBy = by;
+        TerminalSerial = null;
     }
 
     public void Activate() => IsActive = true;
@@ -389,19 +572,116 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     public void NoteEvent(DateTimeOffset at, string? ip, int skewSeconds)
     {
         NoteSeen(at, ip);
+        NoteTerminal(at);
         LastEventAt = at;
         LastSkewSeconds = skewSeconds;
     }
 
+    /// <summary>Agent murojaat qildi — ro'yxat, hisobot, soat yoki holat.</summary>
+    public void NoteAgent(DateTimeOffset at, string? ip)
+    {
+        NoteSeen(at, ip);
+        AgentSeenAt = at;
+    }
+
+    /// <summary>Terminalning o'zi javob berdi — hodisasi keldi yoki soati o'qildi.</summary>
+    public void NoteTerminal(DateTimeOffset at)
+    {
+        if (TerminalSeenAt is not { } seen || at > seen)
+        {
+            TerminalSeenAt = at;
+        }
+    }
+
+    /// <summary>Hodisa so'rovi rad etildi (o'qib bo'lmadi, vaqt yaroqsiz).</summary>
+    public void NoteRejected(DateTimeOffset at) => LastRejectedAt = at;
+
     /// <summary>Agent qurilma soatini o'lchadi.</summary>
+    /// <remarks>
+    /// Soat terminaldan o'qilgan — ya'ni bu ham terminalning o'zi javob
+    /// bergani (<see cref="TerminalSeenAt"/>).
+    /// </remarks>
     /// <param name="offsetSeconds">Qurilma vaqti minus server vaqti, soniyada.</param>
     /// <param name="at">O'lchov lahzasi.</param>
     public void NoteClock(int offsetSeconds, DateTimeOffset at)
     {
-        NoteSeen(at, ip: null);
+        NoteAgent(at, ip: null);
+        NoteTerminal(at);
         ClockOffsetSeconds = offsetSeconds;
         ClockCheckedAt = at;
     }
+
+    /// <summary>Terminal seriyasining eng katta uzunligi — ustun sig'imi.</summary>
+    public const int TerminalSerialMaxLength = 100;
+
+    /// <summary>Token boshqa terminal bilan ishlatilmoqda.</summary>
+    public static Error TerminalMismatch { get; } = Error.Conflict(
+        "davomat.terminal_mos_emas",
+        "Bu token boshqa terminalga bog'langan. Terminal almashtirilgan bo'lsa, qurilma tokenini yangilang.");
+
+    /// <summary>
+    /// Agent gapirayotgan terminal shu qurilma yozuviga tegishlimi (trust on first use).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Seriya birinchi marta kelganda YOZILADI; keyin har so'rovda
+    /// solishtiriladi. Farq qilsa — rad: shu token boshqa terminalni
+    /// boshqarmoqchi (nusxalangan agent sozlamasi, almashtirilgan terminal).
+    /// </para>
+    /// <para>
+    /// Seriya kelmasa: qurilma hali bog'lanmagan bo'lsa — o'tadi (eski
+    /// agent yoki terminal hali o'qilmagan); bog'langan bo'lsa va
+    /// <paramref name="required"/> — rad. Qabul yo'li uchun
+    /// <paramref name="required"/> <c>false</c>: u yerga o'zi push qiladigan
+    /// terminal ham keladi va u seriya yubormaydi.
+    /// </para>
+    /// </remarks>
+    /// <param name="serial">Agent o'qigan seriya; berilmagan bo'lsa <c>null</c>.</param>
+    /// <param name="required">Bog'langan qurilmada seriya majburiymi.</param>
+    public Result ConfirmTerminal(string? serial, bool required)
+    {
+        var presented = Trim(serial);
+
+        if (presented is null)
+        {
+            return TerminalSerial is not null && required ? TerminalMismatch : Result.Success();
+        }
+
+        if (presented.Length > TerminalSerialMaxLength)
+        {
+            return TerminalMismatch;
+        }
+
+        if (TerminalSerial is null)
+        {
+            TerminalSerial = presented;
+            return Result.Success();
+        }
+
+        return string.Equals(TerminalSerial, presented, StringComparison.OrdinalIgnoreCase)
+            ? Result.Success()
+            : TerminalMismatch;
+    }
+
+    /// <summary>Agentning solishtirish hisoboti.</summary>
+    /// <param name="at">Hisobot lahzasi.</param>
+    /// <param name="ip">So'rov manzili.</param>
+    /// <param name="heldRemovals">Ommaviy o'chirish to'sig'i ushlab qolgan o'chirishlar.</param>
+    /// <param name="foreignPersons">Terminaldagi begona Bonvi-raqamli odamlar.</param>
+    public void NoteReconcile(DateTimeOffset at, string? ip, int heldRemovals, int foreignPersons)
+    {
+        NoteAgent(at, ip);
+        ReconciledAt = at;
+        HeldRemovals = Math.Max(0, heldRemovals);
+        ForeignPersons = Math.Max(0, foreignPersons);
+    }
+
+    /// <summary>HR ushlab qolingan o'chirishlarni tasdiqladi — bir necha daqiqaga.</summary>
+    /// <param name="until">Ruxsat shu lahzagacha amal qiladi.</param>
+    public void ApproveRemovals(DateTimeOffset until) => RemovalsApprovedUntil = until;
+
+    /// <summary>HR ruxsati <paramref name="now"/> lahzasida amaldami.</summary>
+    public bool RemovalsApprovedAt(DateTimeOffset now) => RemovalsApprovedUntil is { } until && now < until;
 
     /// <summary>
     /// Token xeshining shakli — noto'g'ri bo'lsa ISTISNO.

@@ -32,8 +32,15 @@ public interface IEnrollmentReadModel
 
     /// <summary>Xodimlarning amaldagi shaxs raqamlari — bitta so'rovda.</summary>
     /// <remarks>
+    /// <para>
     /// Xodim boshiga <c>ListByEmployeeAsync</c> chaqirish 950 ta so'rov
     /// degani bo'lardi va ro'yxat har 60 soniyada so'raladi.
+    /// </para>
+    /// <para>
+    /// Har bir xodimning raqamlari YARATILISH tartibida: <c>DevicePersonNo.Prefer</c>
+    /// birinchisini oladi, ya'ni bir xodimda (eski poyga sababli) ikkita Bonvi
+    /// raqami bo'lsa ham, har so'rovda AYNAN o'sha — eng eskisi — tanlanadi.
+    /// </para>
     /// </remarks>
     /// <param name="provider">Raqamlar fazasi.</param>
     /// <param name="employeeIds">Xodimlar; bo'sh bo'lsa — bo'sh natija.</param>
@@ -41,6 +48,20 @@ public interface IEnrollmentReadModel
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<string>>> PersonNumbersAsync(
         AttendanceIdentityProvider provider,
         IReadOnlyCollection<Guid> employeeIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Shu fazada tizim ajratgan (Bonvi fazasidagi) BARCHA raqamlar — ishdan ketganlarniki ham.
+    /// </summary>
+    /// <remarks>
+    /// Agent terminaldan FAQAT shu ro'yxatdagi, lekin kerakli ro'yxatda yo'q
+    /// raqamni o'chiradi. Fazadagi boshqa raqam — begona (boshqa Bonvi
+    /// o'rnatmasi yozgan) va unga tegilmaydi (SPEC-agent §L).
+    /// </remarks>
+    /// <param name="provider">Raqamlar fazasi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<string>> ManagedNumbersAsync(
+        AttendanceIdentityProvider provider,
         CancellationToken cancellationToken = default);
 
     /// <summary>Bitta qurilmaning barcha qatorlari — kerakli va haqiqiy holat birga.</summary>
@@ -99,6 +120,7 @@ public sealed record RosterCandidate(Guid EmployeeId, string FullName, string? P
 /// <param name="ForceVersion">«Qayta yozish» necha marta bosilgan.</param>
 /// <param name="Error">Qurilmaning xato matni.</param>
 /// <param name="SyncedAt">Oxirgi yozuv lahzasi.</param>
+/// <param name="RejectedVersion">Qurilma qat'iy rad etgan belgi — bo'lsa.</param>
 public sealed record EnrollmentRow(
     Guid DeviceId,
     string DeviceName,
@@ -111,4 +133,5 @@ public sealed record EnrollmentRow(
     string? AppliedVersion,
     int ForceVersion,
     string? Error,
-    DateTimeOffset? SyncedAt);
+    DateTimeOffset? SyncedAt,
+    string? RejectedVersion);

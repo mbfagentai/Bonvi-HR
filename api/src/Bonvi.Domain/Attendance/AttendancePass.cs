@@ -130,7 +130,40 @@ public sealed class AttendancePass : AggregateRoot
     public DateTimeOffset ReceivedAt { get; private set; }
 
     /// <summary>Soat og'ishi: <see cref="ReceivedAt"/> − <see cref="OccurredAt"/>, ishorali.</summary>
+    /// <remarks>
+    /// ⚠️ Agent orqali kelgan o'tishda bu son YETKAZIB BERISH kechikishini
+    /// ham o'z ichiga oladi: internet uzilib qaytganda yuborilgan har bir
+    /// o'tishda u daqiqalar, hatto soatlar bo'ladi — soati to'g'ri
+    /// terminalda ham. Soatning o'zi haqidagi hukm
+    /// <see cref="EffectiveClockSkewSeconds"/> dan chiqadi.
+    /// </remarks>
     public int ClockSkewSeconds { get; private set; }
+
+    /// <summary>
+    /// Qabul lahzasida qurilma soatining TO'G'RIDAN-TO'G'RI o'lchangan og'ishi
+    /// (qurilma − server, soniya) — agent o'lchagan bo'lsa.
+    /// </summary>
+    /// <remarks>
+    /// <c>AttendanceDevice.ClockOffsetSeconds</c> ning o'tish kelgan paytdagi
+    /// nusxasi. Nusxa, birlashtirish emas: qurilma soati keyinroq
+    /// to'g'rilansa, eski o'tishlar o'sha paytdagi hukm bilan qolishi kerak.
+    /// <c>null</c> — o'lchov yo'q (o'zi push qiladigan terminal yoki eski
+    /// o'tish); o'shanda <see cref="ClockSkewSeconds"/> ishlatiladi.
+    /// </remarks>
+    public int? ClockOffsetSeconds { get; private set; }
+
+    /// <summary>
+    /// Soatning og'ishi — ekran, Excel va ogohlantirish shu sondan o'qiydi.
+    /// </summary>
+    /// <remarks>
+    /// Qoida qurilmadagi <c>AttendanceDevice.HasClockDrift</c> bilan AYNAN
+    /// bir xil: to'g'ridan-to'g'ri o'lchov bo'lsa — faqat u (ishorasi
+    /// <see cref="ClockSkewSeconds"/> ga moslab teskari: qurilma oldinda
+    /// yursa, o'tish «kelajakda» yozilgan), bo'lmasa — qabul ayirmasi. Ikki
+    /// joyda ikki xil o'lchov ishlatilgani uchun internet uzilishidan keyin
+    /// jurnalda har bir o'tish «Soat adashgan» bo'lib chiqardi.
+    /// </remarks>
+    public int EffectiveClockSkewSeconds => ClockOffsetSeconds is { } offset ? -offset : ClockSkewSeconds;
 
     /// <summary>Yo'nalish.</summary>
     public PassDirection Direction { get; private set; }
@@ -176,7 +209,7 @@ public sealed class AttendancePass : AggregateRoot
     /// <see cref="AttendanceRules.ClockSkewToleranceSeconds"/> izohida.
     /// </remarks>
     public bool HasClockDrift
-        => Math.Abs(ClockSkewSeconds) > AttendanceRules.ClockSkewToleranceSeconds;
+        => Math.Abs(EffectiveClockSkewSeconds) > AttendanceRules.ClockSkewToleranceSeconds;
 
     /// <summary>Qurilmadan kelgan o'tishni yozib oladi.</summary>
     /// <remarks>
@@ -196,7 +229,8 @@ public sealed class AttendancePass : AggregateRoot
         PassMethod method = PassMethod.Unknown,
         bool offsetAssumed = false,
         string? photoKey = null,
-        string? rawEvent = null)
+        string? rawEvent = null,
+        int? deviceClockOffsetSeconds = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dedupeKey);
 
@@ -222,6 +256,7 @@ public sealed class AttendancePass : AggregateRoot
             OffsetAssumed = offsetAssumed,
             PhotoKey = Trim(photoKey),
             RawEvent = rawEvent,
+            ClockOffsetSeconds = deviceClockOffsetSeconds,
         };
     }
 

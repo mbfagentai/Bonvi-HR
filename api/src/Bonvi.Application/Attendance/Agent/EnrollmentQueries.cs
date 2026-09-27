@@ -18,9 +18,16 @@ public static class EnrollmentState
 {
     /// <summary>Qatorning hozirgi holati.</summary>
     /// <remarks>
-    /// Tartib muhim: rasm yo'qligi hamma narsadan ustun (yozib bo'lmaydi),
-    /// keyin ro'yxatdan chiqqanlar, keyin xato, va oxirida belgilar
-    /// solishtiriladi.
+    /// <para>
+    /// Tartib muhim: avval ro'yxatdan chiqqanlar, keyin rasm yo'qligi (yozib
+    /// bo'lmaydi), keyin xato, va oxirida belgilar solishtiriladi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Ro'yxatdan chiqqan odamni o'chirib BO'LMAGAN bo'lsa — «Xato», «Navbatda»
+    /// emas: ishdan ketgan odam hali terminalda va eshikni ocha oladi. Ilgari
+    /// agent muvaffaqiyatsiz o'chirishni ham «bajarildi» deb yuborardi, server
+    /// esa uni «O'chirilgan» deb ko'rsatardi.
+    /// </para>
     /// </remarks>
     public static DeviceEnrollmentState Of(EnrollmentRow row)
     {
@@ -28,11 +35,18 @@ public static class EnrollmentState
 
         if (!row.OnRoster)
         {
-            // Ro'yxatdan chiqqan: agent olib tashlagan bo'lsa «o'chirildi»,
-            // aks holda hali navbatda.
-            return row.Status == DeviceEnrollmentStatus.Removed
-                ? DeviceEnrollmentState.Removed
-                : DeviceEnrollmentState.Pending;
+            return row.Status switch
+            {
+                DeviceEnrollmentStatus.Removed => DeviceEnrollmentState.Removed,
+                DeviceEnrollmentStatus.RemoveFailed => DeviceEnrollmentState.Failed,
+
+                // Terminalga hech qachon yozilmagan (belgisi yo'q) — olib
+                // tashlaydigan narsa yo'q, «navbatda» abadiy turib qolardi.
+                _ when row.AppliedVersion is null => DeviceEnrollmentState.Removed,
+
+                // Yozilgan — agent keyingi tekshiruvda olib tashlaydi.
+                _ => DeviceEnrollmentState.Pending,
+            };
         }
 
         if (row.PhotoKey is null)
@@ -40,19 +54,27 @@ public static class EnrollmentState
             return DeviceEnrollmentState.PhotoMissing;
         }
 
+        // Belgi ichida «Qayta yozish» sanog'i va ism ham bor, shu sababli
+        // tugma bosilgan yoki ism o'zgargan zahoti qator yana «kutilmoqda» bo'ladi.
+        var version = EnrollmentVersion.Of(row.PhotoKey, row.ForceVersion, row.EmployeeName);
+
         if (row.Status == DeviceEnrollmentStatus.Failed)
         {
-            return DeviceEnrollmentState.Failed;
+            // Rad etilgan belgi endi eskirgan (yangi rasm, ism, «Qayta
+            // yozish») — agent qayta urinmoqda.
+            return row.RejectedVersion is { } rejected && !string.Equals(rejected, version, StringComparison.Ordinal)
+                ? DeviceEnrollmentState.Pending
+                : DeviceEnrollmentState.Failed;
         }
 
-        if (row.Status != DeviceEnrollmentStatus.Synced)
+        // O'chirib bo'lmagan-u, qayta ro'yxatga tushgan odam terminalda o'sha
+        // belgi bilan turibdi — «yozilgan» kabi solishtiriladi.
+        if (row.Status is not (DeviceEnrollmentStatus.Synced or DeviceEnrollmentStatus.RemoveFailed))
         {
             return DeviceEnrollmentState.Pending;
         }
 
-        // Belgi ichida «Qayta yozish» sanog'i ham bor, shu sababli
-        // tugma bosilgan zahoti qator yana «kutilmoqda» bo'ladi.
-        return string.Equals(row.AppliedVersion, EnrollmentVersion.Of(row.PhotoKey, row.ForceVersion), StringComparison.Ordinal)
+        return string.Equals(row.AppliedVersion, version, StringComparison.Ordinal)
             ? DeviceEnrollmentState.Synced
             : DeviceEnrollmentState.Pending;
     }
@@ -70,7 +92,8 @@ public static class EnrollmentState
             row.PersonNo,
             Of(row),
             row.Error,
-            row.SyncedAt);
+            row.SyncedAt,
+            row.PhotoKey);
     }
 }
 
@@ -127,7 +150,11 @@ public sealed class GetDeviceEnrollmentsQueryHandler
             Pending: states.Count(entry => entry.State == DeviceEnrollmentState.Pending),
             Failed: states.Count(entry => entry.State == DeviceEnrollmentState.Failed),
             PhotoMissing: states.Count(entry => entry.State == DeviceEnrollmentState.PhotoMissing),
-            device.LastSeenAt);
+            device.AgentSeenAt ?? device.LastSeenAt,
+            device.ReconciledAt,
+            device.HeldRemovals,
+            device.ForeignPersons,
+            device.RemovalsApprovedUntil);
 
         var problems = states
             .Where(entry => entry.State != DeviceEnrollmentState.Synced && entry.State != DeviceEnrollmentState.Removed)

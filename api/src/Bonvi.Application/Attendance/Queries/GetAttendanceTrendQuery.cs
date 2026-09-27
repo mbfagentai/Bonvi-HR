@@ -1,5 +1,6 @@
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Attendance.Common;
+using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
@@ -43,11 +44,16 @@ public sealed record GetAttendanceTrendQuery(
 public sealed class GetAttendanceTrendQueryHandler
 {
     private readonly IAttendanceReadModel _readModel;
+    private readonly IAttendanceDeviceRepository _devices;
     private readonly IClock _clock;
 
-    public GetAttendanceTrendQueryHandler(IAttendanceReadModel readModel, IClock clock)
+    public GetAttendanceTrendQueryHandler(
+        IAttendanceReadModel readModel,
+        IAttendanceDeviceRepository devices,
+        IClock clock)
     {
         _readModel = readModel;
+        _devices = devices;
         _clock = clock;
     }
 
@@ -70,10 +76,16 @@ public sealed class GetAttendanceTrendQueryHandler
 
         var (from, to) = period.Value;
 
-        return await _readModel
+        var trend = await _readModel
             .GetDashboardTrendAsync(
                 new DashboardTrendFilter(from, to, query.LegalEntityId, query.DepartmentId, query.PositionId),
                 cancellationToken)
             .ConfigureAwait(false);
+
+        // Davr rejimida ham qurilma ogohlantirishlari ko'rinsin — Statistika
+        // sahifasi shu rejimda `/dashboard` ni so'ramaydi.
+        var devices = await _devices.ListAsync(includeInactive: false, cancellationToken).ConfigureAwait(false);
+
+        return trend with { DeviceHealth = AttendanceDeviceHealth.Of(devices, _clock.UtcNow) };
     }
 }

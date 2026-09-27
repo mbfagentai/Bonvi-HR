@@ -11,7 +11,8 @@ namespace Bonvi.Application.Attendance.Ingest;
 /// <remarks>
 /// <para>
 /// Shakl (SPEC §3.4.2): <c>{ "events": [ { personId, occurredAt, direction,
-/// method, eventId, photoBase64 } ] }</c>. <c>events</c> o'ramisiz bitta
+/// method, eventId, photoBase64, minor } ] }</c> (<c>minor</c> — ixtiyoriy,
+/// 2026-09-27 dan). <c>events</c> o'ramisiz bitta
 /// obyekt ham qabul qilinadi va bitta elementli ro'yxat deb qaraladi —
 /// Postel qonuni QURILMALARGA nisbatan qo'llanadi, bizga emas, va bu uch
 /// qatorga tushadi. Ildizdagi yalang massiv esa ATAYLAB qabul qilinmaydi:
@@ -90,6 +91,12 @@ public sealed class JsonEventParser : IAttendanceEventParser
             if (item is not JsonObject eventObject)
             {
                 return IngestErrors.Unreadable;
+            }
+
+            // Rad etilgan urinish — o'tish EMAS va tashlanadi (`ReadMinor` izohi).
+            if (HikvisionEventTypes.IsDenied(ReadMinor(eventObject)))
+            {
+                continue;
             }
 
             var parsed = ReadEvent(eventObject);
@@ -205,6 +212,30 @@ public sealed class JsonEventParser : IAttendanceEventParser
             && Enum.TryParse(text, ignoreCase: true, out value)
             && Enum.IsDefined(value);
     }
+
+    /// <summary>
+    /// Ixtiyoriy <c>minor</c> — Hikvision hodisasining kichik turi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Qurilma agenti terminal jurnalidan o'qigan kichik turni shu maydonda
+    /// uzatadi. Agent rad etilgan urinishlarni (ruxsat yo'q, muddatdan
+    /// tashqari, yuz tasdiqlanmadi…) o'zi ham tashlaydi; bu yerda ikkinchi
+    /// marta tekshiriladi — ro'yxati eski agent yoki boshqa vositachi ularni
+    /// yuborsa ham, o'tish sifatida yozilmasin (SPEC §3.4.1, §3.4.2).
+    /// </para>
+    /// <para>
+    /// Maydon yo'q yoki son emas — <c>null</c>, ya'ni hodisa odatdagidek
+    /// o'qiladi: <c>minor</c> ni bilmaydigan manba (ZKTeco moslamasi,
+    /// testlar) shartnomadan tashqariga chiqmaydi.
+    /// </para>
+    /// </remarks>
+    private static int? ReadMinor(JsonObject item)
+        => item["minor"] is JsonValue value
+            && value.GetValueKind() == JsonValueKind.Number
+            && value.TryGetValue<int>(out var minor)
+                ? minor
+                : null;
 
     /// <summary>Matn yoki sonni matn sifatida o'qiydi (<c>personId: 10427</c> ham bo'lishi mumkin).</summary>
     private static string? ReadText(JsonObject item, string name)

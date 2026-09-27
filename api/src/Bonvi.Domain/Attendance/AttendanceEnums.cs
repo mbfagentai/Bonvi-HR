@@ -108,6 +108,14 @@ public enum AttendanceIdentityProvider
 public enum DeviceDirectionRole
 {
     /// <summary>Yo'nalish hodisaning o'zida keladi.</summary>
+    /// <remarks>
+    /// ⚠️ Agent orqali ishlaydigan terminal (SPEC-agent H8) yo'nalishni
+    /// BERMAYDI va doim <see cref="PassDirection.Unknown"/> yuboradi — ekranda
+    /// bu rol «Navbat bilan» deb ataladi va server kirish/chiqishni navbat
+    /// bilan ajratadi. Shu sababli SPEC §3.7 dagi «ReportsDirection qurilmasi
+    /// Unknown yuboryapti» ogohlantirishi QURILMAYDI: agent qurilmasida u
+    /// doimiy yolg'on signal bo'lardi (SPEC §3.7, 2026-09-27 tuzatmasi).
+    /// </remarks>
     ReportsDirection = 1,
 
     /// <summary>Faqat kirish turnigeti.</summary>
@@ -402,4 +410,28 @@ public enum WorkSiteShape
     /// <c>edge_buffer_meters</c> ichida bo'lsa qabul qilinadi.
     /// </summary>
     Polygon = 2,
+}
+
+/// <summary>
+/// Qurilmaning aloqa holati — ekran uchun, HISOBLANADI (SPEC-agent §L).
+/// </summary>
+/// <remarks>
+/// Ikki mustaqil savol: «agent tirikmi?» va «terminal javob beryaptimi?».
+/// Ilgari ikkalasi bitta <c>last_seen_at</c> ga tushardi: agent ro'yxat
+/// so'rab turganda terminal uzilib qolsa ham karta «hozirgina» deb
+/// ko'rsatardi.
+/// </remarks>
+public enum DeviceLinkState
+{
+    /// <summary>Qurilma hali birorta ham so'rov yubormagan.</summary>
+    NeverConnected = 1,
+
+    /// <summary>Ishlayapti: agent ham, terminal ham javob beryapti (yoki o'zi push qiladigan terminal ulangan).</summary>
+    Online = 2,
+
+    /// <summary>Agent <see cref="AttendanceRules.AgentSilenceMinutes"/> daqiqadan beri jim.</summary>
+    AgentOffline = 3,
+
+    /// <summary>Agent tirik, lekin terminal <see cref="AttendanceRules.AgentSilenceMinutes"/> daqiqadan beri javob bermayapti.</summary>
+    TerminalUnreachable = 4,
 }

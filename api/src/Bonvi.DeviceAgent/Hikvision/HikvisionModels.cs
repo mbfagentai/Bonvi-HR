@@ -18,11 +18,19 @@ namespace Bonvi.DeviceAgent.Hikvision;
 /// yuz ham shu turkumda keladi va ular o'tish EMAS.
 /// </param>
 /// <param name="CurrentVerifyMode">Tasdiqlash usuli — «face», «card», «fp» satr ichida.</param>
+/// <param name="Minor">
+/// Kichik tur (<c>MINOR_*</c>): o'tdi (75 — yuz tasdiqlandi) yoki RAD ETILDI
+/// (6 — ruxsat yo'q, 7 — muddatdan tashqari, 76 — yuz tasdiqlanmadi…).
+/// Qidiruv hamma kichik turni oladi (<c>minor = 0</c>), shu sababli rad
+/// etilgan urinish ham shaxs raqami bilan keladi — uni o'tish deb yuborish
+/// navbat bilan kirish/chiqishni kunning qolgan qismiga ag'darardi.
+/// </param>
 internal sealed record AcsEvent(
     long SerialNo,
     string? Time,
     string? EmployeeNoString,
-    string? CurrentVerifyMode);
+    string? CurrentVerifyMode,
+    int? Minor = null);
 
 /// <summary>Hodisa qidiruvining bitta sahifasi.</summary>
 /// <param name="InfoList">Sahifadagi hodisalar.</param>

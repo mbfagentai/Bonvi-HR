@@ -47,9 +47,6 @@ namespace Bonvi.Infrastructure.Persistence.ReadModels;
 /// </remarks>
 public sealed class AttendanceReadModel : IAttendanceReadModel
 {
-    /// <summary>Soati adashgan qurilma «tirik» sanaladigan oraliq (SPEC §6.5).</summary>
-    private const int ClockWarningSeenHours = 24;
-
     private readonly AppDbContext _context;
     private readonly IDepartmentRepository _departments;
     private readonly IClock _clock;
@@ -72,6 +69,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         DateOnly LocalDate,
         DateTimeOffset ReceivedAt,
         int ClockSkewSeconds,
+        int? ClockOffsetSeconds,
         bool OffsetAssumed,
         PassDirection Direction,
         DirectionSource DirectionSource,
@@ -92,6 +90,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         pass.LocalDate,
         pass.ReceivedAt,
         pass.ClockSkewSeconds,
+        pass.ClockOffsetSeconds,
         pass.OffsetAssumed,
         pass.Direction,
         pass.DirectionSource,
@@ -297,13 +296,19 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     employment = primaries[(id, row.LocalDate)];
                 }
 
+                // Soat hukmi `AttendancePass.EffectiveClockSkewSeconds` qoidasi
+                // bilan: agent o'lchagan og'ish bo'lsa — u, bo'lmasa qabul
+                // ayirmasi. Ikkinchisi internet uzilishidan keyin kelgan har
+                // bir o'tishni «soat adashgan» qilib ko'rsatardi.
+                var skew = row.ClockOffsetSeconds is { } offset ? -offset : row.ClockSkewSeconds;
+
                 return new AttendancePassDto(
                     row.Id,
                     row.OccurredAt,
                     row.LocalDate,
                     row.ReceivedAt,
-                    row.ClockSkewSeconds,
-                    Math.Abs(row.ClockSkewSeconds) > AttendanceRules.ClockSkewToleranceSeconds,
+                    skew,
+                    Math.Abs(skew) > AttendanceRules.ClockSkewToleranceSeconds,
                     row.OffsetAssumed,
                     row.Direction,
                     row.DirectionSource,
@@ -708,19 +713,21 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 .ThenBy(item => item.EmployeeId),
         ];
 
-        var seenSince = now.AddHours(-ClockWarningSeenHours);
-        var tolerance = AttendanceRules.ClockSkewToleranceSeconds;
-
-        var clockWarnings = await _context.AttendanceDevices
+        /*
+          Soat ogohlantirishi — qurilmalar va Statistika sahifalari bilan BITTA
+          qoidadan (`AttendanceDevice.ClockWarningAt`). Ilgari bu yerda
+          `last_skew_seconds` (qabul − sodir) sanalardi: agent internet
+          uzilishidan keyin eski o'tishlarni yuborganda soati to'g'ri terminal
+          ham «soat og'ishi» banneriga tushardi. Qurilmalar o'ntadan oshmaydi —
+          xotirada sanash qoidani SQL'da ikkinchi marta yozishdan xavfsizroq.
+        */
+        var activeDevices = await _context.AttendanceDevices
             .AsNoTracking()
-            .CountAsync(
-                device =>
-                    device.IsActive &&
-                    device.LastSeenAt >= seenSince &&
-                    device.LastSkewSeconds != null &&
-                    (device.LastSkewSeconds > tolerance || device.LastSkewSeconds < -tolerance),
-                cancellationToken)
+            .Where(device => device.IsActive)
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var clockWarnings = activeDevices.Count(device => !device.IsSynthetic && device.ClockWarningAt(now));
 
         return new AttendanceBoardDto(
             now,

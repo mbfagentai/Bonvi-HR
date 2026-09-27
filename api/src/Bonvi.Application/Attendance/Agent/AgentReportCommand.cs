@@ -13,12 +13,14 @@ namespace Bonvi.Application.Attendance.Agent;
 /// <param name="Signature">Imzo sarlavhasi.</param>
 /// <param name="SourceIp">So'rov manzili.</param>
 /// <param name="Items">Qatorlar.</param>
+/// <param name="TerminalSerial">Agent o'qigan terminal seriyasi (<c>X-Bonvi-Terminal-Serial</c>).</param>
 public sealed record ReportAgentEnrollmentsCommand(
     string? Token,
     byte[] Body,
     string? Signature,
     string? SourceIp,
-    IReadOnlyList<AgentReportItemDto> Items);
+    IReadOnlyList<AgentReportItemDto> Items,
+    string? TerminalSerial);
 
 /// <summary>
 /// Agent hisobotini holat jadvaliga yozadi (SPEC-agent §D3, §D4).
@@ -51,6 +53,7 @@ public sealed class ReportAgentEnrollmentsCommandHandler
     private readonly IDeviceEnrollmentRepository _enrollments;
     private readonly IEmployeeRepository _employees;
     private readonly IAttendanceIdentityRepository _identities;
+    private readonly IAttendanceIngestJournal _journal;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -59,6 +62,7 @@ public sealed class ReportAgentEnrollmentsCommandHandler
         IDeviceEnrollmentRepository enrollments,
         IEmployeeRepository employees,
         IAttendanceIdentityRepository identities,
+        IAttendanceIngestJournal journal,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
@@ -66,6 +70,7 @@ public sealed class ReportAgentEnrollmentsCommandHandler
         _enrollments = enrollments;
         _employees = employees;
         _identities = identities;
+        _journal = journal;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -94,7 +99,15 @@ public sealed class ReportAgentEnrollmentsCommandHandler
         var device = authenticated.Value;
         var now = _clock.UtcNow;
 
-        device.NoteSeen(now, command.SourceIp);
+        // Boshqa terminal haqidagi hisobot bu qurilmaning holatini yozmasin.
+        var bound = device.ConfirmTerminal(command.TerminalSerial, required: true);
+        if (bound.IsFailure)
+        {
+            _journal.TerminalMismatch(device.Id, command.TerminalSerial);
+            return bound.Error;
+        }
+
+        device.NoteAgent(now, command.SourceIp);
 
         var existing = await _enrollments.ListByDeviceAsync(device.Id, cancellationToken).ConfigureAwait(false);
         var byEmployee = existing.ToDictionary(row => row.EmployeeId);
@@ -166,22 +179,43 @@ public sealed class ReportAgentEnrollmentsCommandHandler
     /// Bitta qatorni holatga o'giradi.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Belgisiz muvaffaqiyat «yozildi» deb sanalmaydi: agent nimani
     /// yozganini aytmagan bo'lsa, server ham nimani saqlashni bilmaydi va
     /// xodim keyingi tekshiruvda qayta yoziladi. Bu zararsiz — yozish
     /// o'rniga qo'yish emas, joyida yangilash.
+    /// </para>
+    /// <para>
+    /// ⚠️ Muvaffaqiyatsiz O'CHIRISH — alohida holat
+    /// (<see cref="DeviceEnrollmentStatus.RemoveFailed"/>): ishdan ketgan
+    /// odam hali terminalda. Uni «xato yozuv» bilan aralashtirish HR ga
+    /// noto'g'ri tuzatishni ko'rsatardi.
+    /// </para>
+    /// <para>
+    /// QAT'IY rad etilgan yozuv (<see cref="AgentReportItemDto.Rejected"/>)
+    /// o'z belgisini eslab qoladi — ro'yxat uni shu belgi o'zgarmaguncha
+    /// qayta yubormaydi (<see cref="AgentRosterEntryDto.Hold"/>).
+    /// </para>
     /// </remarks>
     private static void Apply(DeviceEnrollment row, AgentReportItemDto item, DateTimeOffset now)
     {
-        if (!item.Ok)
+        if (item.Action == AgentEnrollmentAction.Remove)
         {
-            row.MarkFailed(item.Error, now);
+            if (item.Ok)
+            {
+                row.MarkRemoved(now);
+            }
+            else
+            {
+                row.MarkRemoveFailed(item.Error, now);
+            }
+
             return;
         }
 
-        if (item.Action == AgentEnrollmentAction.Remove)
+        if (!item.Ok)
         {
-            row.MarkRemoved(now);
+            row.MarkFailed(item.Error, now, item.Rejected ? item.Version : null);
             return;
         }
 

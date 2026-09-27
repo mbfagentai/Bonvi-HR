@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -48,58 +47,23 @@ namespace Bonvi.Application.Attendance.Ingest;
 public sealed class HikvisionEventParser : IAttendanceEventParser
 {
     /// <summary>Hikvision «hodisa» asosiy turi — o'tishlar faqat shu ichida.</summary>
-    public const int MajorEvent = 5;
+    public const int MajorEvent = HikvisionEventTypes.MajorEvent;
 
     /// <summary>
     /// Tanish bo'lmagan kichik tur o'tish deb qabul qilinsinmi.
     /// </summary>
     /// <remarks>
     /// 1-versiyada <c>true</c>: noma'lum proshivka davomatni YOZADI, tashlamaydi.
-    /// Rad etilgan turlar oilasi (<see cref="DeniedSubTypes"/>) bundan
+    /// Rad etilgan turlar oilasi (<see cref="HikvisionEventTypes.DeniedSubTypes"/>) bundan
     /// qat'i nazar har doim tashlanadi.
     /// </remarks>
     public const bool AcceptUnknownSubTypes = true;
 
-    /// <summary>
-    /// O'tish deb tan olinadigan kichik turlar (<c>majorEventType = 5</c>).
-    /// </summary>
-    /// <remarks>
-    /// Raqamlar Hikvision ISAPI «MINOR_*» jadvalidan. ⚠️ SPEC loyihasida
-    /// <c>76</c> «barmoq izi» deb yozilgan; Hikvision jadvalida 76 —
-    /// <c>MINOR_FACE_VERIFY_FAIL</c> (yuz tasdiqlanMADI), barmoq izi esa 38.
-    /// 76 ni o'tish deb olish rad etilgan har bir yuzni «kirdi» qilib
-    /// yozardi, shu sababli u <see cref="DeniedSubTypes"/> da.
-    /// </remarks>
-    private static readonly FrozenSet<int> PassSubTypes = new[]
-    {
-        1,   // MINOR_LEGAL_CARD_PASS — yaroqli karta
-        2,   // MINOR_CARD_AND_PSW_PASS — karta + parol
-        38,  // MINOR_FINGERPRINT_COMPARE_PASS — barmoq izi mos keldi
-        75,  // MINOR_FACE_VERIFY_PASS — yuz tasdiqlandi
-    }.ToFrozenSet();
-
-    /// <summary>
-    /// Rad etilgan / muvaffaqiyatsiz urinishlar — har doim tashlanadi.
-    /// </summary>
-    /// <remarks>
-    /// Bular «odam o'tmoqchi bo'ldi, terminal o'tkazmadi». Ular o'tish emas:
-    /// ularni yozish ishdan bo'shatilgan odamning har bir rad etilgan
-    /// urinishini «kirdi» qilib ko'rsatardi.
-    /// </remarks>
-    private static readonly FrozenSet<int> DeniedSubTypes = new[]
-    {
-        3,   // MINOR_CARD_AND_PSW_FAIL
-        4,   // MINOR_CARD_AND_PSW_OVER_TIME
-        5,   // MINOR_CARD_AND_PSW_TIMEOUT
-        6,   // MINOR_CARD_NO_RIGHT — ruxsat yo'q
-        7,   // MINOR_CARD_INVALID_PERIOD — muddatdan tashqari
-        8,   // MINOR_CARD_OUT_OF_DATE — karta muddati o'tgan
-        9,   // MINOR_INVALID_CARD — noma'lum karta
-        10,  // MINOR_ANTI_SNEAK_FAIL
-        11,  // MINOR_INTERLOCK_DOOR_NOT_CLOSE
-        39,  // MINOR_FINGERPRINT_COMPARE_FAIL
-        76,  // MINOR_FACE_VERIFY_FAIL — yuz tasdiqlanmadi
-    }.ToFrozenSet();
+    /*
+      O'tish va rad etilgan turlar ro'yxati — `HikvisionEventTypes` da:
+      u agent bilan UMUMIY (agent ham rad etilgan urinishni yubormaydi)
+      va ikki nusxa bir kuni ajralib ketardi.
+    */
 
     private readonly IAttendanceIngestJournal _journal;
 
@@ -193,12 +157,12 @@ public sealed class HikvisionEventParser : IAttendanceEventParser
             return Nothing();
         }
 
-        if (sub is { } subType && DeniedSubTypes.Contains(subType))
+        if (HikvisionEventTypes.IsDenied(sub))
         {
             return Nothing();
         }
 
-        var knownPass = sub is { } known && PassSubTypes.Contains(known);
+        var knownPass = sub is { } known && HikvisionEventTypes.PassSubTypes.Contains(known);
         var unknownSubType = sub is not null && !knownPass;
 
         if (unknownSubType && _reportedUnknown.TryAdd((major ?? MajorEvent, sub!.Value), 0))

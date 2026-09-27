@@ -2087,6 +2087,15 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (HttpMethod.Post, $"/devices/{Birorta}/activate"),
         (HttpMethod.Post, $"/devices/{Birorta}/deactivate"),
         (HttpMethod.Delete, $"/devices/{Birorta}"),
+
+        // Qurilmaga yozish holati (SPEC-agent §D5) — xodim kartasidagi qator
+        // ham: javobda terminal raqami bor (2026-09-27 audit, topilma 13).
+        (HttpMethod.Get, $"/devices/{Birorta}/enrollments"),
+        (HttpMethod.Post, $"/devices/{Birorta}/enrollments/resync"),
+        (HttpMethod.Post, $"/devices/{Birorta}/enrollments/approve-removals"),
+        (HttpMethod.Get, $"/employees/{Birorta}/enrollments"),
+        (HttpMethod.Post, $"/employees/{Birorta}/enrollments/resync"),
+
         (HttpMethod.Get, "/identities"),
         (HttpMethod.Post, "/identities"),
         (HttpMethod.Delete, $"/identities/{Birorta}"),
