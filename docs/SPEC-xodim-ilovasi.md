@@ -223,3 +223,29 @@ the sections above are not silently out of date:
 | K4 | The «Mobil ilova» device row is registered **inactive**, with a token hash of 32 zero bytes | Inactive is the truth (nothing may post events *as* the app) and it closes a hole the first draft missed: the employee card lists every **active** device, so an active synthetic row would print a permanent «Mobil ilova — Rasm yo'q» line on all 950 cards |
 | K5 | `AttendanceProvider.Mobile` and `AttendanceIdentityProvider.Mobile` are added; `raw_person_id` holds the employee's uuid in that new space | The Verifix number is unfillable for photo-less employees — exactly the field workers this feature is for |
 | K6 | The check-in handler takes `SELECT … FOR UPDATE` on the employee's account row before the bounce check | Two taps 1.2 s apart produce different dedupe keys, so the unique index does not catch them; only the 60-second bounce rule does, and it is read-then-write |
+
+---
+
+## L. Audit fixes (2026-09-27) — behaviour that intentionally changed
+
+Recorded here so §C–§G above are not silently out of date. Each row is a
+verified audit finding; the code comment at the named place carries the full
+reason.
+
+| # | Change | Where |
+|---|---|---|
+| L1 | K6 made real: the account-row lock, the bounce read and the save now run in **one transaction** (`IUnitOfWork.ExecuteInTransactionAsync`, through the retrying execution strategy). Before, the lock was taken outside any transaction and released at once — two taps 1.2 s apart wrote two passes. A same-second `ux_attendance_passes_device_dedupe` collision now maps to `davomat.takroriy_belgi` (409), not 500 | `MobileCheckInCommandHandler`, `AppDbContext` |
+| L2 | Check-in also requires an employment covering **today** (same rule as login/refresh INV-2) → `davomat.mobil_ruxsat_yoq` | same |
+| L3 | `latitude`, `longitude`, `accuracyMeters` are nullable on the wire; missing, `≤ 0` accuracy or out-of-range coordinates → `davomat.joylashuv_notogri` (400). A missing accuracy used to bind to 0 = "perfect" | `MobileCheckInRequest` |
+| L4 | Rejections carry their values as ProblemDetails fields: `accuracyMeters`, `siteName` + `distanceMeters` (absent when no active site exists at all), `lastAt`; `xodim.bloklangan` carries `retryAfterMinutes`, 429 carries `retryAfterSeconds`. Every rejection is logged (code, account, accuracy, site, distance — never the coordinate) | `Error.Details`, `MeEndpoints.LogRejected` |
+| L5 | While `must_change_password` is set, **every** `/api/me/*` call returns 403 `xodim.parol_almashtirilsin`. The flag is read from the account row, not the token, so an access token issued before an HR reset stops working immediately | `EmployeePasswordGate`, `MeEndpoints` |
+| L6 | `POST /api/employee-auth/password` requires the current password — on first sign-in the one-time password (the app keeps it in memory from the login screen, never in storage) — and returns a **new token pair**; the client must store it (all older sessions are revoked). 5 wrong current passwords lock password changes for 15 min (`xodim.bloklangan`) | `ChangeEmployeePasswordCommandHandler` |
+| L7 | Login lockout is per **(typed login, source IP)**, not per account: unknown numbers lock exactly like real ones, the lock is checked before any lookup, and the password is not verified while locked (no oracle). The victim's own phone on another network is unaffected | `EmployeeLoginThrottle` |
+| L8 | Refresh: a token replaced less than 60 s ago, whose successor is still unused, gets the **same** successor pair back (lost response ≠ theft). Outside that window the theft rule is unchanged | `EmployeeRefreshReplayCache` |
+| L9 | New `POST /api/employee-auth/logout {refreshToken}` → always 204; revokes that token only | `EmployeeLogoutCommandHandler` |
+| L10 | Rate limiting: employee login has its own partition (60/min per IP), separate from HR login (5/min); refresh/logout leave the general per-IP bucket (own 600/min per-IP ceiling) and are limited per **refresh-token hash** (10/min); the password path is limited per account (5/min); `/api/attendance/agent` is excluded from the general limiter | `RateLimitingExtensions` |
+| L11 | `GET /api/me/attendance`: marks are grouped by the **cell the timesheet attributes them to** (§5.3 window from the stored plan snapshot), not by calendar date — a night shift's 06:00 exit sits under the previous day. New `current: { date, nextDirection, lastMark }` computed from the last 18 h (`BoardLookbackHours`); the app's button and home screen use it | `EmployeeAppReadModel`, `MyCurrentState` |
+| L12 | The employee may cancel only a **Pending** request (`davomat.sorov_qaror_qabul_qilingan` 409 otherwise); HR's decision record is never overwritten. Requests created/cancelled from the app record the employee's account (`submitted_by_account_id`, `cancelled_by_account_id`; DTO `submittedByEmployee`, `cancelledByEmployee`) | `AbsenceRequest.CancelBySubmitter` |
+| L13 | §F built: the HR pass journal DTO carries `mobile` evidence (site, shape, distance, allowance, accuracy, coordinate); timesheet cells carry `mobileMarks` | `AttendanceReadModel` |
+| L14 | New `GET /api/me/photo` — the caller's own photo (id from the token), `xodim.rasm_yoq` 404 when none, private caching | `GetMyPhotoQueryHandler` |
+| L15 | The app talks to the real API by default (`VITE_API_MODE=mock` only for demos); `start_url` is `/ilova/` (inside the worker scope) so the installed app opens offline | `app/src/api`, `app/vite.config.ts` |
