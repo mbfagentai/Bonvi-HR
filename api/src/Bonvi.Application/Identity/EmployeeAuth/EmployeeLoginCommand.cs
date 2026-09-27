@@ -47,10 +47,15 @@ public sealed record EmployeeLoginCommand(string? Login, string? Password, strin
 ///   </item>
 /// </list>
 /// <para>
-/// <b>Blok — <see cref="EmployeeAccount.RecordFailedLogin"/> da</b>, 5 xatodan
-/// keyin 15 daqiqa, <c>users</c> dagi bilan bir xil. Asosiy himoya esa
-/// bu yerda emas: kirish marshrutidagi IP bo'yicha tezlik cheklovi
-/// (950 ta hisobda blokni birovga ataylab yoqish — real xavf).
+/// ⭐ <b>Blok — (kiritilgan login, manba IP) juftligida</b>
+/// (<see cref="EmployeeLoginThrottle"/>), 5 xatodan keyin 15 daqiqa, hisob
+/// qatorida EMAS. Ilgari blok hisobda edi va parol tekshiruvidan OLDIN
+/// <c>xodim.bloklangan</c> qaytarardi: bu (a) raqam Bonvi xodiminiki ekanini
+/// oshkor qilardi — notanish raqam hech qachon bloklanmasdi — va (b) istalgan
+/// hamkasbni hamma joyda 15 daqiqaga qulflab qo'yish imkonini berardi. Endi
+/// notanish raqam ham xuddi shunday bloklanadi, bloklangan esa — hujumchining
+/// IP'si. Blok davomida parol tekshirilmaydi (sababi throttle izohida).
+/// IP bo'yicha umumiy oqimni tezlik cheklovi chegaralaydi.
 /// </para>
 /// </remarks>
 public sealed class EmployeeLoginCommandHandler
@@ -73,6 +78,7 @@ public sealed class EmployeeLoginCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
     private readonly IEmployeeAuthJournal _journal;
+    private readonly EmployeeLoginThrottle _throttle;
 
     public EmployeeLoginCommandHandler(
         IEmployeeAccountRepository accounts,
@@ -83,7 +89,8 @@ public sealed class EmployeeLoginCommandHandler
         IEmployeeTokenService tokens,
         IUnitOfWork unitOfWork,
         IClock clock,
-        IEmployeeAuthJournal journal)
+        IEmployeeAuthJournal journal,
+        EmployeeLoginThrottle throttle)
     {
         _accounts = accounts;
         _refreshTokens = refreshTokens;
@@ -94,6 +101,7 @@ public sealed class EmployeeLoginCommandHandler
         _unitOfWork = unitOfWork;
         _clock = clock;
         _journal = journal;
+        _throttle = throttle;
     }
 
     public async Task<Result<EmployeeAuthResultDto>> HandleAsync(
@@ -102,38 +110,51 @@ public sealed class EmployeeLoginCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        var now = _clock.UtcNow;
         var login = PhoneNumber.Create(command.Login);
+        var key = EmployeeLoginThrottle.Key(login.IsSuccess ? login.Value.Value : null, command.Login);
+
+        // Blok HAMMADAN OLDIN va hisobni qidirmasdan: bloklangan juftlikka
+        // hisob bor-yo'qligidan qat'i nazar bir xil javob, parol esa umuman
+        // tekshirilmaydi — aks holda blok «parol to'g'rimi?» oracle'iga aylanardi.
+        if (_throttle.LockedFor(key, command.IpAddress, now) is { } remaining)
+        {
+            return EmployeeAccountErrors.LockedOut((int)Math.Ceiling(remaining.TotalMinutes));
+        }
+
         if (login.IsFailure)
         {
             // Format xatosi ham umumiy javob bilan qaytadi: «telefon.uzunlik»
             // hujumchiga raqamning tizimda borligi haqida hech narsa
-            // aytmasa-da, javoblarni ikki toifaga ajratib qo'yardi.
+            // aytmasa-da, javoblarni ikki toifaga ajratib qo'yardi. U ham
+            // urinish sifatida sanaladi — xuddi shu sababdan.
+            _throttle.RecordFailure(key, command.IpAddress, now);
             return EmployeeAccountErrors.InvalidCredentials;
         }
 
-        var now = _clock.UtcNow;
         var account = await _accounts.FindByLoginAsync(login.Value, cancellationToken).ConfigureAwait(false);
 
         if (account is null)
         {
             _ = _passwordHasher.Verify(GetDummyHash(), command.Password ?? string.Empty);
-            return EmployeeAccountErrors.InvalidCredentials;
-        }
 
-        if (account.IsLockedAt(now))
-        {
-            var minutes = (int)Math.Ceiling((account.LockedUntil!.Value - now).TotalMinutes);
-            return EmployeeAccountErrors.LockedOut(minutes);
+            // Notanish raqam ham sanaladi va bloklanadi — mavjud hisob bilan
+            // aynan bir xil: blokning o'zi hisob borligini aytib qo'ymasligi kerak.
+            _throttle.RecordFailure(key, command.IpAddress, now);
+            return EmployeeAccountErrors.InvalidCredentials;
         }
 
         var (succeeded, needsRehash) = _passwordHasher.Verify(account.PasswordHash, command.Password ?? string.Empty);
 
         if (!succeeded)
         {
-            account.RecordFailedLogin(now);
-            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _throttle.RecordFailure(key, command.IpAddress, now);
             return EmployeeAccountErrors.InvalidCredentials;
         }
+
+        // Parol to'g'ri — juftlikning tarixi o'chadi. Quyidagi rad etishlar
+        // (o'chirilgan, ishdan ketgan, yopilgan hisob) parol taxminlash emas.
+        _throttle.RecordSuccess(key, command.IpAddress);
 
         // ── INV-1: xodim o'chirilganmi (global filtr shu yerda ishlaydi) ──
         var employee = await _employees.GetByIdAsync(account.EmployeeId, cancellationToken).ConfigureAwait(false);

@@ -4,6 +4,7 @@ using Bonvi.Application.Identity.EmployeeAccounts;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Identity;
 
 namespace Bonvi.Application.Identity.EmployeeAuth;
 
@@ -35,9 +36,20 @@ public sealed record ChangeEmployeePasswordCommand(
 /// </para>
 /// <para>
 /// ⚠️ Bu — <c>must_change_password</c> bayrog'i qo'yilganda XODIM CHAQIRA
-/// OLADIGAN YAGONA endpoint (qolganlari 403 beradi). Shu sababli u
-/// bayroqni tekshirmaydi: tekshirsa, birinchi kirishdagi majburiy
-/// almashtirish umuman ishlamas edi.
+/// OLADIGAN YAGONA endpoint: <c>/api/me/*</c> guruhidagi
+/// <see cref="EmployeePasswordGate"/> filtri qolganlariga
+/// <c>xodim.parol_almashtirilsin</c> (403) beradi. Shu sababli u bayroqni
+/// tekshirmaydi: tekshirsa, birinchi kirishdagi majburiy almashtirish umuman
+/// ishlamas edi.
+/// </para>
+/// <para>
+/// ⭐ <b>Noto'g'ri joriy parol SANALADI</b>
+/// (<see cref="EmployeeAccount.RecordFailedLogin"/>): 5 xatodan keyin
+/// almashtirish 15 daqiqaga bloklanadi (<c>xodim.bloklangan</c>). Aks
+/// holda ochiq qolgan telefondagi sessiya joriy parolni cheksiz terib
+/// topish kanali bo'lardi — topilgan parol bilan esa egasining boshqa
+/// barcha sessiyalari yopiladi. Yo'lning o'zi ham qat'iy tezlik cheklovi
+/// ostida (<c>RateLimitingOptions.EmployeePasswordPaths</c>).
 /// </para>
 /// </remarks>
 public sealed class ChangeEmployeePasswordCommandHandler
@@ -85,6 +97,16 @@ public sealed class ChangeEmployeePasswordCommandHandler
             return EmployeeAccountErrors.AccountInactive;
         }
 
+        var now = _clock.UtcNow;
+
+        // Blok parol tekshiruvidan OLDIN: aks holda blok davomida ham to'g'ri
+        // parolni topish mumkin bo'lardi (javob farqi — oracle).
+        if (account.IsLockedAt(now))
+        {
+            var minutes = (int)Math.Ceiling((account.LockedUntil!.Value - now).TotalMinutes);
+            return EmployeeAccountErrors.LockedOut(minutes);
+        }
+
         // Yangi parolning shakli AVVAL tekshiriladi — xeshlash qimmat amal
         // va uni 3 belgilik parol uchun bajarishning ma'nosi yo'q.
         var policy = PasswordPolicy.Validate(command.NewPassword);
@@ -96,10 +118,12 @@ public sealed class ChangeEmployeePasswordCommandHandler
         var (succeeded, _) = _passwordHasher.Verify(account.PasswordHash, command.CurrentPassword ?? string.Empty);
         if (!succeeded)
         {
+            // Sanaladi — sinf izohi. Beshinchisida almashtirish bloklanadi.
+            account.RecordFailedLogin(now);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
             return EmployeeAccountErrors.WrongPassword;
         }
-
-        var now = _clock.UtcNow;
 
         account.ChangePassword(_passwordHasher.Hash(command.NewPassword!), now);
 
