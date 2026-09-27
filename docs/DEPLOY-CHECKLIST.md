@@ -3,10 +3,13 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏭ Navbatdagi reliz — TAYYOR, deploy qilinmagan
+## ✅ Reliz `7a10e88` — CHIQARILDI 2026-09-27 19:31 (Toshkent)
 
-Egasining qarori (2026-09-27): keyingi o'zgarishlar bilan BIRGA chiqadi.
-Prod hozir `9184b0b` da. Chiqadiganlar: `git log 9184b0b..origin/main`.
+Prod `9184b0b` → `7a10e88`. Rollback: image tegi `rollback-9184b0b`, zaxira
+stamp `2026-09-27_142308`. Prod nusxasida oldindan sinaldi (faqat migratsiya
+va yangi ustun; eski image yangi bazada ishlaydi; zaxiradan tiklash xatosiz,
+sanoqlar aynan bir xil). Deploy'dan keyin: 500 yo'q, bot qayta yaratilmadi.
+Qolgan qadam — egasi «Bosh rahbar» ga «Qo'shimcha haqni ko'rish» ni beradi.
 
 | Commit | Nima |
 |---|---|
