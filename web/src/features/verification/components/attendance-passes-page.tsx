@@ -61,6 +61,7 @@ import {
   passFiltersToQuery,
   type PassFilterState,
 } from '../lib/attendance-search'
+import { MobileEvidenceLine } from './attendance-mobile-evidence'
 import {
   AttendancePassPhotoDialog,
   PassDirectionBadge,
@@ -250,8 +251,14 @@ export function AttendancePassesPage() {
         header: t('attendance.device'),
         enableSorting: false,
         meta: { width: '200px', hideOnMobile: true },
-        cell: ({ getValue }) => (
-          <span className="truncate-1 text-[var(--fg-secondary)]">{getValue() ?? '—'}</span>
+        cell: ({ row }) => (
+          <span className="block min-w-0 leading-tight">
+            <span className="truncate-1 block text-[var(--fg-secondary)]">
+              {row.original.deviceName ?? '—'}
+            </span>
+            {/* Telefon belgisi — obyekt, masofa va aniqlik (SPEC-xodim-ilovasi §F). */}
+            <MobileEvidenceLine pass={row.original} />
+          </span>
         ),
       }),
 

@@ -152,8 +152,18 @@ export function AbsenceRequestsList({
         header: t('attendance.requestNote'),
         enableSorting: false,
         meta: { minWidth: '200px', hideOnMobile: true },
-        cell: ({ getValue }) => (
-          <span className="truncate-2 block text-[var(--fg-secondary)]">{getValue() ?? '—'}</span>
+        cell: ({ row }) => (
+          <span className="block leading-tight">
+            <span className="truncate-2 block text-[var(--fg-secondary)]">
+              {row.original.note ?? '—'}
+            </span>
+            {/* Xodimning O'ZI ilovadan yuborgan — HR kiritmagan (SPEC-so'rovlar §B2). */}
+            {row.original.submittedByEmployee === true && (
+              <span className="mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+                {t('attendance.requestFromApp')}
+              </span>
+            )}
+          </span>
         ),
       }),
 
@@ -169,6 +179,13 @@ export function AbsenceRequestsList({
             {row.original.decidedByName !== null && (
               <span className="truncate-1 mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
                 {row.original.decidedByName}
+                {row.original.decidedAt !== null && ` · ${date(row.original.decidedAt)}`}
+              </span>
+            )}
+            {/* Xodim o'zi ilovadan qaytarib olgan — HR foydalanuvchisi emas. */}
+            {row.original.cancelledByEmployee === true && (
+              <span className="truncate-1 mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+                {t('attendance.requestCancelledByEmployee')}
                 {row.original.decidedAt !== null && ` · ${date(row.original.decidedAt)}`}
               </span>
             )}

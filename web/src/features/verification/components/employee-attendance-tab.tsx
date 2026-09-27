@@ -40,6 +40,8 @@ import {
 } from '../lib/attendance-search'
 import { AbsenceRequestsList } from './absence-requests-list'
 import { EmployeeEnrollmentsCard } from './attendance-enrollment-cards'
+import { MobileEvidenceLine } from './attendance-mobile-evidence'
+import { EmployeeAppAccessCard } from './employee-app-access-card'
 import {
   AttendancePassPhotoDialog,
   PassDirectionBadge,
@@ -236,6 +238,10 @@ export function EmployeeAttendanceTab({
         emas.
       */}
       <EmployeeEnrollmentsCard employeeId={employeeId} />
+
+      {/* Xodim ilovasi (PWA) hisobi va «Telefondan belgilash» — faqat
+          `attendance.manage` uchun (karta o'zi yashiradi). */}
+      <EmployeeAppAccessCard employeeId={employeeId} />
 
       <AttendancePassPhotoDialog
         passId={openPass?.id ?? null}
@@ -560,6 +566,7 @@ function PassMonth({
                 {row.original.deviceLocation}
               </span>
             )}
+            <MobileEvidenceLine pass={row.original} />
           </span>
         ),
       }),
