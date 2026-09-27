@@ -691,7 +691,7 @@ mostly **synthesized by the timesheet query** for dates that have no row
 
 | Constant | Value | Why |
 |---|---|---|
-| `BounceSeconds` | 60 | two reads of the same direction within a minute are one person, one door |
+| `BounceSeconds` | 60 | two reads of the same direction within a minute are one person, one door. **AMENDED 2026-09-27:** now used only by the phone check-in (a second mark within a minute is refused); the day computation drops every known-direction repeat regardless of time (§5.5 step 2) |
 | `ClockSkewToleranceSeconds` | 300 | 5 min; below this a device clock is "fine" |
 | `MaxClockSkewDays` | 30 | beyond this the timestamp is garbage, not skew — reject (§3.8) |
 | `DayWindowPreHours` | 6 | how early before `plan_start` a pass still counts for that day |
@@ -1437,6 +1437,21 @@ Its `legal_entity_id`, `department_id`, `position_id` are snapshotted into the
 `attendance_days` row. If **no** employment covers `D`, the employment fields
 are NULL and the status is `NotEmployed`.
 
+**AMENDED 2026-09-27 — department and position AS OF `D`.** `Employment.Transfer`
+overwrites `department_id` / `position_id` in place; the effective date lives
+only on the `EmploymentEvent`. The computation therefore derives both values
+for `D` from the employment's `Transfer` / `Promotion` events
+(`EmploymentPlacement`), per field and only from events that actually changed
+that field: no such event ⇒ the current value; `D` on or after the last change
+⇒ the current value; otherwise the "to" value of the latest change effective on
+or before `D`, or — before the first change — its "from" value (current value
+when an imported event left it blank). The effective day itself already
+belongs to the new placement. That **one** value feeds both the schedule tiers
+(§5.2) and the snapshot, so a pre-transfer day keeps the old schedule and the
+old department in reports even when recomputed after the transfer, and a
+forward-dated transfer does not apply early. Every loader that hands
+employments to the computation includes their events.
+
 ### 5.2 Schedule resolution — precedence
 
 Evaluated for `E` on `D` using the primary employment. Only assignments with
@@ -1447,8 +1462,8 @@ considered. First tier that yields a match wins; within a tier, the latest
 | # | Tier | Match |
 |---|---|---|
 | 1 | Employee | `scope = Employee AND employee_id = E` |
-| 2 | Position | `scope = Position AND position_id = employment.position_id` |
-| 3 | Department | `scope = Department AND department_id ∈ {employment.department_id, its ancestors}`, **nearest ancestor first** |
+| 2 | Position | `scope = Position AND position_id = ` the employment's position **as of `D`** (§5.1, AMENDED 2026-09-27) |
+| 3 | Department | `scope = Department AND department_id ∈ {`the employment's department **as of `D`**`, its ancestors}`, **nearest ancestor first** |
 | 4 | Default | `scope = Default` |
 | 5 | — | none ⇒ `AttendanceDayStatus.NoSchedule` |
 
@@ -1478,6 +1493,25 @@ the earlier date wins.
 
 With **no** schedule, the pass is attributed to its own `local_date`.
 
+**AMENDED 2026-09-27 (owner's decision) — the late exit of yesterday's open
+shift.** A pass that falls in **no** window normally stays on its own
+`local_date`. Exception: it becomes the exit of the previous day `P =
+local_date − 1` when **all** hold: (1) its direction is not `In`; (2) `P` is a
+working day whose window ended before the pass; (3) today's window
+(`plan_start − DayWindowPreHours`) has not started yet — if today is not a
+working day, the bound is `P`'s window start + 24 h ("as if today started at
+yesterday's time"), so an evening pass on a day off never glues to yesterday;
+(4) `P` ends with an **open** `In` (after steps 2–3 of §5.5). Example:
+09:00–18:00, in Monday 09:00, out Tuesday 00:20 — Monday is 09:00–00:20,
+Tuesday is clean (it used to be Monday "Chiqish yo'q" and Tuesday 00:20 / 08:55
+/ 18:05 = in, out, in). Late passes are examined in time order, so a second
+one does not re-open a day the first one closed. For determinism under the ±1
+day loading contract, "open" is judged only from `P`'s window passes whose
+`local_date ≥ P` plus late exits already attached to `P` — a result must not
+depend on which range is being recomputed, or one pass could be counted on
+two stored days. Every recompute path already covers ±1 day (the dirty queue,
+the nightly range).
+
 *Why ±1 day and ±6 hours.* A night shift starting 20:00 on Monday ends 08:00
 Tuesday; both its passes must land on Monday. Six hours of slack covers early
 arrivals and long overtime without letting a 14:00 pass be claimed by
@@ -1494,16 +1528,37 @@ An `attendance_days` row is created when **either**:
 Everything else is synthesized by the timesheet query (§5.7.1), so the table
 stays proportional to reality rather than to the calendar.
 
+**AMENDED 2026-09-21 / 2026-09-27 — a shift that has not started is not a
+row.** A working day with no passes whose plan has **not started yet** — a
+future date, or today before `plan_start` (the very rule of the daily panel's
+"Hali boshlanmagan", `DashboardStatusRule.HasNotStarted`, no grace) — gets the
+status `Planned` and **no row**; an approved absence request still makes it
+`Excused` and stored. Before this, the 03:10 nightly run stored today's 09:00
+shift as `Absent` for everyone, and a 20:00 night-shift worker was "Kelmadi" all
+day in the timesheet, the employee app and the reports while the panel said
+"not started". Once the plan starts, the `attendance:started-shifts` job (§9.2,
+every 15 min) inserts the missing `Absent` rows for yesterday and today — it
+only inserts, never rewrites.
+
 ### 5.5 The pairing algorithm — normative
 
 Input: the passes attributed to (`E`, `D`), ordered by `occurred_at`
 ascending, ties broken by `id`.
 
 1. **Stamp directions.** `Unknown` stays `Unknown` for now.
-2. **Collapse bounces.** Walk the list; drop any pass whose direction equals
-   the previous *kept* pass's direction and which occurred within
-   `BounceSeconds` (60) of it. Count the drops in `ignored_pass_count`.
-   `Unknown` never collapses anything.
+2. **Collapse repeats — AMENDED 2026-09-27 (owner's decision).** Walk the
+   list; a pass with a **known** direction that equals the previous *kept*
+   pass's direction is a repeat, **whatever the time between them** (the old
+   60-second window is gone): with separate entry and exit terminals two
+   entries can never be back-to-back. **First-In / Last-Out:** a repeated `In`
+   is dropped (the earliest entry stays); a repeated `Out` replaces the
+   previous kept `Out` (the latest exit stays). Count the drops in
+   `ignored_pass_count`; the passes stay in the log.
+   `Unknown` never collapses anything and is never collapsed — on a single
+   shared terminal two reads 20 s apart stay "in, out" (owner, same day,
+   deliberately). A mix of known and `Unknown` directions (phone "Kirish",
+   then the shared terminal) keeps the pre-amendment behaviour — an open
+   question logged in `docs/ASSUMPTIONS.md` (2026-09-27).
 3. **Infer unknown directions by alternation.** If any direction is
    `Unknown`, assign directions left to right: the first event of the day is
    `In`, then alternate `Out`, `In`, `Out`… **Known directions are never
@@ -1734,7 +1789,12 @@ created); it is produced by the timesheet query (§5.7.1).
 | odd number of passes, first is `Out` | `MissingEntry`, same |
 | even number, correctly alternating | `Present` (plus late/early figures) |
 | 10 passes in a day (lunch, smoke breaks) | 5 closed intervals, summed; this is the normal case, not an anomaly |
-| two passes 20 s apart, same direction | second dropped as a bounce, `ignored_pass_count = 1` |
+| two passes 20 s apart, same **known** direction | **AMENDED 2026-09-27:** one event, `ignored_pass_count = 1` — for `In` the first is kept, for `Out` the **last** (§5.5 step 2) |
+| two known `In` (or two `Out`) in a row, any time apart | **AMENDED 2026-09-27:** same rule — First-In / Last-Out; no longer `MissingExit` / `MissingEntry` |
+| two `Unknown` reads 20 s apart (single shared terminal) | **not** merged — alternation makes them in, out (owner's decision 2026-09-27); `09:00:00, 09:00:20, 18:00` ⇒ `worked = 0`, `MissingExit` |
+| pass in no day window after yesterday's open `In`, before today's window | **AMENDED 2026-09-27:** yesterday's exit (§5.3) |
+| today, working day, no passes, before `plan_start` | **AMENDED 2026-09-27:** `Planned`, no row; `Absent` from `plan_start` (§5.4) |
+| department / position transfer effective on `T` | days before `T` keep the old schedule tier and snapshot, `T` onward the new (§5.1) |
 | overnight shift 20:00→08:00 | one `attendance_days` row on the **start** date; `plan_end_at` is on `D+1`; both passes attributed to `D` (§5.3) |
 | overnight shift, employee leaves at 08:05 | `Present`, `overtime_minutes = 5` |
 | no schedule resolved, passes exist | `NoSchedule`; `worked_minutes` still computed from the pairs; `planned/late/early = 0` |
@@ -1945,14 +2005,15 @@ check constraint of §2.5. Names are joined when read.
 | `date` | date | the date asked about |
 | `employmentId` | uuid? | the primary employment covering `date` (§5.1). **NULL ⇒ not employed on that date**; every field below is then NULL too |
 | `legalEntityId`, `legalEntityName` | uuid?, string? | of that employment |
-| `departmentId`, `departmentName` | uuid?, string? | of that employment — the input to tier 3 |
-| `positionId`, `positionName` | uuid?, string? | of that employment — the input to tier 2 |
+| `departmentId`, `departmentName` | uuid?, string? | of that employment **as of `date`** (§5.1, AMENDED 2026-09-27) — the input to tier 3 |
+| `positionId`, `positionName` | uuid?, string? | of that employment **as of `date`** — the input to tier 2 |
 | `scope` | `ScheduleScope`? | the tier that won. **NULL with a non-null `employmentId` ⇒ no schedule resolves** |
 | `assignmentId` | uuid? | the winning assignment |
 | `effectiveFrom`, `effectiveTo` | date?, date? | of the winning assignment |
 | `workScheduleId`, `workScheduleName` | uuid?, string? | the resolved schedule |
 | `matchedDepartmentId`, `matchedDepartmentName` | uuid?, string? | non-null **only** when `scope = Department`: the department whose assignment won, which may be an **ancestor** of `departmentId` (§5.2). This pair is the whole answer to "why does he have the factory's schedule" |
-| `day` | `WorkScheduleDayDto`? | the schedule's day for `date`'s weekday, break window included; NULL when no schedule |
+| `day` | `WorkScheduleDayDto`? | **AMENDED 2026-09-27:** the plan the timesheet actually used for `date`, break window included — the year-grid cell for that date when one exists (`dayIndex` = the date's ISO weekday), otherwise the weekday pattern; NULL when no schedule |
+| `daySource` | `ScheduleDaySource`? | **new 2026-09-27:** `Date` — `day` came from the year grid, `Pattern` — from the weekly pattern; NULL with `day` |
 
 The client decides the outcome from these two nulls only, in this order:
 `employmentId == null` ⇒ not employed; else `scope == null` ⇒ no schedule;
@@ -2759,8 +2820,17 @@ everywhere — which is also exactly what checkpoint C6 relies on.
 | `attendance:nightly-recompute` | `10 22 * * *` (03:10 Tashkent) | full recompute of the last 3 days for all employees — catches schedules, assignments and employments edited after the fact |
 | `attendance:purge-photos` | `30 22 * * *` (03:30 Tashkent) | §3.10 — expires photos, keeps the pass row |
 | `attendance:purge-passes` | `45 22 * * *` (03:45 Tashkent) | **AMENDED 2026-09-17** — §9.2.1, expires whole pass rows |
+| `attendance:started-shifts` | `5-59/15 * * * *` | **new 2026-09-27** — inserts the missing `Absent` rows of yesterday and today whose plan has started (§5.4); only inserts |
+| `attendance:employment-changes` | `12-59/15 * * * *` | **new 2026-09-27** — finds employments / employment events created, edited or deleted since the last run (hidden setting `attendance.employmentChangesCheckedAt`, re-read with a 10-minute overlap) and recomputes each such employee from the earliest affected date (the new event's effective date; the hire date when the employment row itself or an existing event changed) to today, capped at `MaxRecomputeDays`. A backdated termination, hire or transfer reaches the timesheet without touching the employment commands. The first run looks back one quarter |
 | `attendance:backfill-identity` | fire-and-forget | §4.3 |
-| `attendance:recompute-range` | fire-and-forget | `POST /recompute` |
+| `attendance:recompute-range` | fire-and-forget | `POST /recompute`; also an approved / cancelled absence request longer than `MaxRecomputeDays` (shorter ones are recomputed in the request itself, 2026-09-27) |
+| `attendance:schedule-dates` | fire-and-forget | **new 2026-09-27** — year-grid edit (SPEC-jadval-to'ri §B3): only the employees the schedule reaches, only the changed dates ±1 |
+
+**AMENDED 2026-09-27 — the single writer chunks.** `AttendanceDayRecomputer`
+splits the requested dates into windows of at most `MaxRecomputeDays` and the
+employees into batches of 100, and detaches each saved batch from the change
+tracker, so memory holds one batch × one window whatever the caller asks for
+(a whole-year grid fill used to keep ~146 000 tracked rows on a 2 GB VPS).
 
 `RecurringJobOptions { TimeZone = TimeZoneInfo.Utc }` and a comment giving the
 Tashkent time next to each cron string — containers run UTC, and a cron read
