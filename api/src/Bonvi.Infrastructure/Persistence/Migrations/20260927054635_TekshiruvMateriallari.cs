@@ -71,8 +71,13 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
               · Nom saqlanmagan edi — tur bo'yicha yasaladi.
               · Hajm saqlanmagan edi va migratsiya diskni o'qimaydi —
                 `size_bytes` NULL («noma'lum»).
-              · Vaqt — xodim yozuvining oxirgi o'zgarishi: skrinshot
-                yuklanganda aynan u yangilanardi.
+              · Vaqt TAXMINIY — xodim yozuvining oxirgi o'zgarishi:
+                skrinshot yuklanganda u yangilanardi, lekin undan keyingi
+                boshqa tahrir ham uni surgan bo'lishi mumkin. Aniq yuklash
+                vaqti saqlanmagan edi.
+              · Kim yuklagani NOMA'LUM (`created_by` NULL): xodimni oxirgi
+                tahrirlagan odam dalilni yuklagan odam bo'lishi shart emas —
+                uni muallif qilib yozish yolg'on bo'lardi.
               · Yumshoq o'chirilgan xodimlar ham ko'chadi: dalil ular
                 uchun ham yo'qolmasligi kerak.
             */
@@ -92,7 +97,7 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                        coalesce(e.mehnat_uz_screenshot_content_type, 'application/octet-stream'),
                        NULL,
                        coalesce(e.updated_at, e.created_at),
-                       coalesce(e.updated_by, e.created_by)
+                       NULL
                   FROM employees AS e
                  WHERE e.mehnat_uz_screenshot_key IS NOT NULL;
                 """);

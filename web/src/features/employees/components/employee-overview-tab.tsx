@@ -194,8 +194,8 @@ export function EmployeeOverviewTab({
             {/*
               «mehnat.uz: ha/yo'q» va «Xavfsizlik tekshiruvi» qatorlari
               OLIB TASHLANDI (foydalanuvchi qarori). Birinchisi bir xil
-              savolni ikki marta so'rardi — havola va skrinshot bloki
-              uning ostidayoq turibdi va javobni ham, dalilni ham
+              savolni ikki marta so'rardi — havola va «Materiallar»
+              ro'yxati shu kartada turibdi va javobni ham, dalilni ham
               beradi. Ikkinchisi esa bazada bironta ham to'ldirilmagan
               edi: HR uni hech qachon ishlatmagan.
             */}
@@ -238,7 +238,12 @@ export function EmployeeOverviewTab({
               mehnat.uz skrinshoti ham, qarzdorlik yoki sudlanganlik
               ma'lumotnomasi ham shu ro'yxatda (2026-09-27).
             */}
-            <EmployeeCheckFiles employeeId={employee.id} />
+            {/*
+              `key` — xodim almashganda blok QAYTA o'rnatiladi: yuklash
+              jarayoni va xatolar ro'yxati oldingi odamning kartasida qoladi,
+              yangisiga o'tib ketmaydi (sahifa o'zi qayta o'rnatilmaydi).
+            */}
+            <EmployeeCheckFiles key={employee.id} employeeId={employee.id} />
           </CardContent>
         </Card>
       </div>

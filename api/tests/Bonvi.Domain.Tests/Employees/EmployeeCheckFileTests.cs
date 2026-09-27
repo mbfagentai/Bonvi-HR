@@ -41,13 +41,42 @@ public sealed class EmployeeCheckFileTests
     }
 
     [Fact]
-    public void Nomsiz_fayl_standart_nom_oladi_uzuni_esa_qisqaradi()
+    public void Nomsiz_fayl_standart_nom_oladi()
+    {
+        EmployeeCheckFile.Attach(XodimId, "k", "  ", "image/png", 1).Value.FileName.ShouldBe("material");
+        EmployeeCheckFile.Attach(XodimId, "k", "C:\\Users\\hr\\", "image/png", 1).Value.FileName.ShouldBe("material");
+    }
+
+    [Theory]
+    [InlineData("C:\\Users\\hr\\Desktop\\dalil.pdf")]
+    [InlineData("/home/hr/dalil.pdf")]
+    public void Yol_olib_tashlanadi(string nom)
+    {
+        // Mijoz to'liq yo'l yuborishi mumkin — ekranda faqat nom ko'rinadi
+        EmployeeCheckFile.Attach(XodimId, "k", nom, "application/pdf", 1).Value.FileName.ShouldBe("dalil.pdf");
+    }
+
+    [Fact]
+    public void Uzun_nom_qisqaradi_lekin_kengaytma_saqlanadi()
     {
         // Ustun 255 belgi — undan uzun nom saqlashda 500 bilan yiqilardi
-        EmployeeCheckFile.Attach(XodimId, "k", "  ", "image/png", 1).Value.FileName.ShouldBe("material");
+        var nom = EmployeeCheckFile.Attach(XodimId, "k", new string('a', 300) + ".png", "image/png", 1).Value.FileName;
 
-        var uzun = new string('a', 300) + ".png";
-        EmployeeCheckFile.Attach(XodimId, "k", uzun, "image/png", 1).Value.FileName.Length
-            .ShouldBe(EmployeeCheckFile.MaxFileNameLength);
+        nom.Length.ShouldBe(EmployeeCheckFile.MaxFileNameLength);
+        nom.ShouldEndWith(".png");
+    }
+
+    [Fact]
+    public void Kesish_emojini_yarmidan_bolmaydi()
+    {
+        // 250 ta harf + emoji (2 ta UTF-16 birligi) + ... — kesish nuqtasi
+        // aynan emojining o'rtasiga tushadi
+        var asl = new string('a', 250) + "😀" + new string('b', 20) + ".pdf";
+
+        var nom = EmployeeCheckFile.Attach(XodimId, "k", asl, "application/pdf", 1).Value.FileName;
+
+        nom.Length.ShouldBeLessThanOrEqualTo(EmployeeCheckFile.MaxFileNameLength);
+        char.IsHighSurrogate(nom[^5]).ShouldBeFalse("yarim juftlik qolmasligi kerak");
+        nom.ShouldEndWith(".pdf");
     }
 }

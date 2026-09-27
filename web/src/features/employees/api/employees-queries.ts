@@ -299,13 +299,62 @@ export function useEmployeeCheckFileContent(employeeId: string, fileId: string |
   })
 }
 
-/** Bitta materialni yuklash — ro'yxatga qo'shiladi. */
-export function useUploadEmployeeCheckFile(employeeId: string) {
+/** Bir nechta materialni yuklash natijasi — yiqilgan fayllar ro'yxati. */
+export interface CheckFilesUploadResult {
+  failed: { file: File; error: unknown }[]
+}
+
+/**
+ * Bir nechta materialni yuklash — BITTA amal, ichida fayllar KETMA-KET.
+ *
+ * NEGA bitta mutatsiya, har fayl uchun alohida emas. `providers.tsx` har
+ * bir muvaffaqiyatli mutatsiyadan keyin butun keshni bekor qiladi. Fayllar
+ * alohida mutatsiya bo'lsa, besh fayl kartani besh marta qayta yuklatardi
+ * va har yangi bekor qilish oldingisining hali tugamagan so'rovlarini
+ * uzib tashlardi (serverda «bekor qilingan so'rov» jurnali). Bitta amal —
+ * bitta yangilanish.
+ *
+ * NEGA ketma-ket: server bitta so'rovda bitta faylni oladi, parallel
+ * yuborish esa 20 MB lik fayllar bilan tarmoqni bo'g'ib qo'yardi.
+ *
+ * Bitta fayl yiqilsa qolganlari baribir yuklanadi — amal xato bilan
+ * TUGAMAYDI, yiqilganlar natijada qaytadi (HR qaysi fayl o'tmaganini
+ * nomi bilan ko'rishi kerak).
+ *
+ * ⚠️ XODIM O'ZGARUVCHILARDA keladi, hook yopig'idan (closure) emas.
+ * Yuklash davom etayotganda HR boshqa kartaga o'tishi mumkin (bildirishnoma,
+ * «orqaga») — sahifa qayta o'rnatilmaydi, faqat `employeeId` o'zgaradi.
+ * Qolgan fayllar o'shanda boshqa odamga — masalan sudlanganlik
+ * ma'lumotnomasi begona xodimga — yuklanib ketardi (tekshiruv, 2026-09-27).
+ * Xodim amal BOSHLANGAN lahzada qotiriladi.
+ */
+export function useUploadEmployeeCheckFiles() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (file: File) => uploadEmployeeCheckFile(employeeId, file),
-    onSuccess: () => {
+    mutationFn: async ({
+      employeeId,
+      files,
+      onProgress,
+    }: {
+      employeeId: string
+      files: File[]
+      onProgress: (done: number) => void
+    }): Promise<CheckFilesUploadResult> => {
+      const failed: CheckFilesUploadResult['failed'] = []
+
+      for (const [index, file] of files.entries()) {
+        try {
+          await uploadEmployeeCheckFile(employeeId, file)
+        } catch (error) {
+          failed.push({ file, error })
+        }
+        onProgress(index + 1)
+      }
+
+      return { failed }
+    },
+    onSuccess: (_, { employeeId }) => {
       void queryClient.invalidateQueries({ queryKey: employeeKeys.checkFiles(employeeId) })
     },
   })

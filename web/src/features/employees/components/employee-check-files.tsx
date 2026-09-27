@@ -22,7 +22,7 @@ import {
   useDeleteEmployeeCheckFile,
   useEmployeeCheckFileContent,
   useEmployeeCheckFiles,
-  useUploadEmployeeCheckFile,
+  useUploadEmployeeCheckFiles,
 } from '../api/employees-queries'
 import { DOCUMENT_ACCEPT, documentFileError, fileSizeParts } from '../lib/document-file'
 import { employeeErrorCode } from '../lib/employee-error'
@@ -56,7 +56,7 @@ export function EmployeeCheckFiles({ employeeId }: { employeeId: string }) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const files = useEmployeeCheckFiles(employeeId)
-  const upload = useUploadEmployeeCheckFile(employeeId)
+  const upload = useUploadEmployeeCheckFiles()
 
   const [viewingId, setViewingId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<EmployeeCheckFile | null>(null)
@@ -74,39 +74,45 @@ export function EmployeeCheckFiles({ employeeId }: { employeeId: string }) {
     event.target.value = ''
     if (picked.length === 0) return
 
-    /*
-      Fayllar KETMA-KET yuboriladi: server bitta so'rovda bitta faylni
-      oladi, parallel yuborish esa 20 MB lik fayllar bilan tarmoqni
-      bo'g'ib qo'yardi. Bittasi yiqilsa qolganlari baribir yuklanadi —
-      xato o'sha fayl nomi bilan ro'yxatda ko'rsatiladi.
-    */
+    // Turi yoki hajmi yaroqsiz fayl serverga umuman yuborilmaydi — xato
+    // uning nomi bilan darhol ko'rsatiladi, qolganlari yuklanaveradi.
     const problems: string[] = []
-    setFailures([])
-    setProgress({ done: 0, total: picked.length })
+    const accepted: File[] = []
 
-    for (const [index, file] of picked.entries()) {
+    for (const file of picked) {
       const rejected = documentFileError(file)
-
-      if (rejected !== null) {
-        problems.push(t('employees.checkFilesFailedItem', { name: file.name, error: errorMessage(rejected) }))
-      } else {
-        try {
-          await upload.mutateAsync(file)
-        } catch (error) {
-          problems.push(
-            t('employees.checkFilesFailedItem', {
-              name: file.name,
-              error: errorMessage(employeeErrorCode(error)),
-            }),
-          )
-        }
-      }
-
-      setProgress({ done: index + 1, total: picked.length })
+      if (rejected === null) accepted.push(file)
+      else problems.push(t('employees.checkFilesFailedItem', { name: file.name, error: errorMessage(rejected) }))
     }
 
-    setProgress(null)
     setFailures(problems)
+    if (accepted.length === 0) return
+
+    setProgress({ done: 0, total: accepted.length })
+
+    try {
+      const result = await upload.mutateAsync({
+        employeeId,
+        files: accepted,
+        onProgress: (done) => setProgress({ done, total: accepted.length }),
+      })
+
+      for (const { file, error } of result.failed) {
+        problems.push(
+          t('employees.checkFilesFailedItem', {
+            name: file.name,
+            error: errorMessage(employeeErrorCode(error)),
+          }),
+        )
+      }
+    } catch (error) {
+      // Fayl xatolari natijada qaytadi — bu yerga faqat kutilmagan
+      // (masalan tarmoq butunlay uzilgan) holat tushadi.
+      problems.push(errorMessage(employeeErrorCode(error)))
+    } finally {
+      setProgress(null)
+      setFailures([...problems])
+    }
   }
 
   return (
@@ -170,7 +176,7 @@ export function EmployeeCheckFiles({ employeeId }: { employeeId: string }) {
       {/* ───────── Ro'yxat ───────── */}
       {files.isPending ? (
         <Skeleton className="mt-2.5 h-12 w-full" />
-      ) : items.length === 0 && progress === null ? (
+      ) : items.length === 0 && progress === null && !files.isError ? (
         /* Sarlavha matni bilan bir chiziqda — ikona (16px) + oraliq (10px) */
         <p className="mt-2 pl-[26px] text-subhead text-[var(--fg-tertiary)]">{t('employees.checkFilesEmpty')}</p>
       ) : (
@@ -215,7 +221,7 @@ export function EmployeeCheckFiles({ employeeId }: { employeeId: string }) {
                     size="sm"
                     variant="ghost"
                     onClick={() => setDeleting(item)}
-                    aria-label={t('employees.checkFilesDeleteTitle')}
+                    aria-label={`${t('employees.checkFilesDeleteTitle')}: ${item.fileName}`}
                     title={t('employees.checkFilesDeleteTitle')}
                     className="mr-1.5 shrink-0 text-ios-red hover:bg-ios-red/10 hover:text-ios-red"
                   >

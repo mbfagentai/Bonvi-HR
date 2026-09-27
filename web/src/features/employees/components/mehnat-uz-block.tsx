@@ -12,7 +12,6 @@ import { useLocale } from '@/shared/i18n/use-locale'
  * qatoriga ko'chirildi. Ro'yxat mehnat.uz ga bog'lanmagan: qarzdorlik yoki
  * sudlanganlik ma'lumotnomasi ham o'sha yerda.
  */
-
 export function MehnatUzBlock({
   url,
 }: {

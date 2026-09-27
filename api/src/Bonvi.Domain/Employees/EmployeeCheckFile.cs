@@ -111,14 +111,58 @@ public sealed class EmployeeCheckFile : AggregateRoot, IAuditable, ISoftDeletabl
     /// <summary>Ustun chegarasi — undan uzun nom saqlashda 500 bilan yiqilardi.</summary>
     public const int MaxFileNameLength = 255;
 
+    /// <summary>Bundan uzun «kengaytma» — kengaytma emas, nomning bir qismi.</summary>
+    private const int MaxExtensionLength = 16;
+
+    /// <summary>
+    /// Ko'rsatiladigan nom: yo'lsiz, ustunga sig'adigan, kengaytmasi bilan.
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    ///   <item>
+    ///     Mijoz to'liq yo'l yuborishi mumkin («C:\Users\...\dalil.pdf») —
+    ///     saqlashda u ishlatilmaydi, ekranda ham ko'rinmasligi kerak
+    ///     (<c>CandidateFile</c> dagi bilan bir xil qoida).
+    ///   </item>
+    ///   <item>
+    ///     Uzun nom qisqartirilganda KENGAYTMA saqlanadi — HR faylning
+    ///     PDF yoki rasm ekanini nomidan ham ko'radi.
+    ///   </item>
+    ///   <item>
+    ///     Kesish UTF-16 juftligini (emoji) yarmidan bo'lmaydi — yarim
+    ///     juftlik yaroqsiz matn bo'lib, saqlashda yiqilardi.
+    ///   </item>
+    /// </list>
+    /// </remarks>
     private static string NormalizeFileName(string? fileName)
     {
-        if (string.IsNullOrWhiteSpace(fileName))
+        var trimmed = string.IsNullOrWhiteSpace(fileName) ? null : fileName.Trim();
+        var name = trimmed is null ? null : Path.GetFileName(trimmed.Replace('\\', '/')).Trim();
+
+        if (string.IsNullOrEmpty(name))
         {
             return "material";
         }
 
-        var name = fileName.Trim();
-        return name.Length > MaxFileNameLength ? name[..MaxFileNameLength] : name;
+        if (name.Length <= MaxFileNameLength)
+        {
+            return name;
+        }
+
+        var extension = Path.GetExtension(name);
+        if (extension.Length > MaxExtensionLength)
+        {
+            extension = string.Empty;
+        }
+
+        var stem = name[..^extension.Length];
+        var keep = MaxFileNameLength - extension.Length;
+
+        if (char.IsHighSurrogate(stem[keep - 1]))
+        {
+            keep--;
+        }
+
+        return stem[..keep] + extension;
     }
 }

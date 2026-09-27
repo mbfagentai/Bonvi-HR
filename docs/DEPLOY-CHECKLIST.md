@@ -202,14 +202,19 @@ qo'lda tahrirlamang.
 
 - Yangi jadval `employee_check_files`; har bir mavjud mehnat.uz skrinshoti
   unga birinchi material bo'lib **nusxalanadi** (fayl diskda o'z joyida,
-  faqat kalit ko'chadi). Deploy'dan keyin tekshirish:
+  faqat kalit ko'chadi). Deploy'dan keyin tekshirish — faqat KO'CHIRILGAN
+  qatorlar sanaladi (HR yangi fayl yuklasa ham to'g'ri qoladi):
 
   ```sql
   SELECT (SELECT count(*) FROM employees WHERE mehnat_uz_screenshot_key IS NOT NULL) AS eski,
-         (SELECT count(*) FROM employee_check_files) AS yangi;
+         (SELECT count(*) FROM employee_check_files
+           WHERE size_bytes IS NULL AND file_name LIKE 'mehnat-uz-skrinshot%') AS kochgan;
   ```
 
   Ikkala son teng bo'lishi kerak.
+- **HR sahifani yangilasin** (F5 / Cmd+R). Ochiq qolgan eski sahifa
+  skrinshotni «yuklanmagan» deb ko'rsatadi va eski yuklash/o'chirish
+  so'rovlari 404 oladi — ma'lumot yozilmaydi, lekin chalkashtiradi.
 - `employees.mehnat_uz_screenshot_*` ustunlari **ataylab o'chirilmagan** —
   eski image'ga qaytilsa, u shu ustunlarni o'qiydi va ishlayveradi. Ular
   keyingi relizlardan birida, qo'lda yozilgan migratsiya bilan olib tashlanadi.
@@ -217,3 +222,49 @@ qo'lda tahrirlamang.
   materiallarning yozuvlari yo'qoladi (fayllar diskda qoladi). Ularni saqlash
   kerak bo'lsa — `Down` emas, zaxiradan tiklash.
 
+### Eski image'ga qaytib, keyin YANA shu versiyaga chiqilsa
+
+Migratsiya bu holatda qayta ishlamaydi (u allaqachon qo'llangan), eski kod
+esa shu vaqt ichida skrinshotlarni almashtirishi yoki o'chirishi mumkin
+(eski kod eski faylni diskdan ham o'chiradi). Ikkita holat:
+
+- rollback paytida yuklangan skrinshot yangi ro'yxatda yo'q;
+- rollback paytida almashtirilgan yoki o'chirilgan skrinshotning ko'chgan
+  qatori endi yo'q faylga ishora qiladi («Faylni ochib bo'lmadi»).
+
+Shu sababli qayta chiqqandan keyin bir marta (ikkalasi ham idempotent):
+
+```sql
+BEGIN;
+
+-- 1. Rollback paytida yuklangan skrinshotlar ro'yxatga qo'shiladi
+INSERT INTO employee_check_files
+    (id, employee_id, file_key, file_name, content_type, size_bytes, created_at, created_by)
+SELECT gen_random_uuid(), e.id, e.mehnat_uz_screenshot_key,
+       'mehnat-uz-skrinshot' || CASE e.mehnat_uz_screenshot_content_type
+           WHEN 'application/pdf' THEN '.pdf' WHEN 'image/png' THEN '.png'
+           WHEN 'image/webp' THEN '.webp' WHEN 'image/jpeg' THEN '.jpg' ELSE '' END,
+       coalesce(e.mehnat_uz_screenshot_content_type, 'application/octet-stream'),
+       NULL, coalesce(e.updated_at, e.created_at), NULL
+  FROM employees AS e
+ WHERE e.mehnat_uz_screenshot_key IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM employee_check_files f
+                    WHERE f.employee_id = e.id AND f.file_key = e.mehnat_uz_screenshot_key);
+
+-- 2. Eski kod almashtirgan yoki o'chirgan skrinshotning ko'chgan qatori
+--    yumshoq o'chiriladi (fayli diskda yo'q)
+UPDATE employee_check_files AS f
+   SET deleted_at = now()
+  FROM employees AS e
+ WHERE f.employee_id = e.id
+   AND f.deleted_at IS NULL
+   AND f.size_bytes IS NULL
+   AND f.file_name LIKE 'mehnat-uz-skrinshot%'
+   AND f.file_key IS DISTINCT FROM e.mehnat_uz_screenshot_key;
+
+COMMIT;
+```
+
+⚠️ Rollback paytida eski interfeys yangi versiyada yuklangan materiallarni
+KO'RMAYDI (u faqat bitta skrinshotni biladi) — ular yo'qolmagan, qayta
+chiqqach yana ko'rinadi.

@@ -240,7 +240,7 @@ Every fact below was read from the code on 2026-09-26; the design rests on them.
 |---|---|---|
 | None | Yo‘q | Module hidden in the menu; every endpoint returns 403. |
 | View | Ko‘rish | Reads everything in the module. Visibility capabilities may be ticked. |
-| Edit | O‘zgartirish | View + create and update records. No deleting records, no deactivating reference data, no module configuration. Replacing or removing a photo or the mehnat.uz screenshot counts as editing the card, not deleting a record. Operation capabilities are assignable only from this level and apply only when ticked. |
+| Edit | O‘zgartirish | View + create and update records. No deleting records, no deactivating reference data, no module configuration. Replacing or removing a photo, or adding or removing a check material (`EmployeeCheckFile`, which replaced the single mehnat.uz screenshot on 2026-09-27), counts as editing the card, not deleting a record. Operation capabilities are assignable only from this level and apply only when ticked. |
 | Full | To‘liq | Everything the module offers: Edit + delete, deactivate, module configuration, and **all** capabilities of the module (implied, not stored). |
 
 A module offers only the levels that differ in that module (e.g. Lists has
@@ -393,8 +393,8 @@ This table is also the source for `endpoint-permissions.txt` (§12.1).
 | `GET /`, `GET /{id}` | `employees.view` (P1: personal fields masked, §3.10) |
 | `GET /{id}/photo` | `employees.view` (the photo is not personal data) |
 | `POST /` | `employees.create` |
-| `PUT /{id}`, `POST/DELETE /{id}/photo`, `POST/DELETE /{id}/mehnat-uz-screenshot`, `PUT /{id}/competency` | `employees.edit` |
-| `GET /{id}/mehnat-uz-screenshot`, `GET /{id}/competency` | `employees.view` → `employees.personal.view` (P1) |
+| `PUT /{id}`, `POST/DELETE /{id}/photo`, `POST /{id}/check-files`, `DELETE /{id}/check-files/{fileId}`, `PUT /{id}/competency` | `employees.edit` |
+| `GET /{id}/check-files`, `GET /{id}/check-files/{fileId}/content`, `GET /{id}/competency` | `employees.view` → `employees.personal.view` (P1) |
 | `GET /{id}/timeline` | `employment.view` |
 | `GET /{id}/stages` | `recruiting.view` |
 | `GET /flagged`, `GET /{id}/flags` | `lists.view` |
@@ -502,11 +502,11 @@ side, one mapping point per DTO, never per screen. Without the capability:
 
 | Where | Effect |
 |---|---|
-| `EmployeeDto` (card) | `BirthDate`, `Pinfl`, `Passport`, `SecondPhone`, `Address`, `HasCriminalRecord`, `CriminalRecordNote`, `MehnatUzUrl`, `MehnatUzScreenshotKey` = `null` |
+| `EmployeeDto` (card) | `BirthDate`, `Pinfl`, `Passport`, `SecondPhone`, `Address`, `HasCriminalRecord`, `CriminalRecordNote`, `MehnatUzUrl` = `null` |
 | `EmployeeListItemDto` (list, grid, topbar search) | `BirthDate`, `Pinfl`, `Passport` = `null` |
 | `search` on every employee-based list (employees, events, probations, incentives, flagged, exit interviews, incidents) | matches **name and phone only** — the `EmployeeSearchQuery.MatchingPublic` rule. `EmployeeSearchQuery.Matching`/`MatchingIds` gain a `bool includeDocuments` parameter; each Application query handler sets it from `ICurrentUser.HasPermission(employees.personal.view)` and passes it through its read-model filter (Infrastructure never reads the principal). Reason: searching by JSHSHIR would turn the list into an identity oracle (same decision as the public API, 2026-09-18). |
 | Excel export | the JSHSHIR, passport, birth date and address columns are omitted |
-| Documents, competency, mehnat.uz screenshot `GET` | 403 (policy change in §3.8) |
+| Documents, competency, check materials (`GET /{id}/check-files*`) | 403 (policy change in §3.8) — check materials hold criminal-record and debt certificates |
 | Dashboard birthdays, notification types `BirthdayToday`/`BirthdayTomorrow` | policy / `NotificationAccess.RequiredPermission` → `employees.personal.view` |
 
 Phone number, name, photo, legal entity, department, position, status and hire
@@ -1027,13 +1027,14 @@ Module keys are the §3.3 keys; A1 introduces them as string constants in
 | `PipelineStage` | yes | recruiting | — | name | — |
 | `Department` | yes | catalog | — | name | `Level`, `Path` excluded (derived); `ParentId`, `LegalEntityId` ref; `HeadEmployeeId` ref employee |
 | `Position`, `PositionDuty` | yes | catalog | — | name / position name | `DepartmentId`, `PositionId` ref |
-| `Employee` | yes | employees | own `Id` | full name | **personal**: `BirthDate`, `Pinfl`, `Passport`, `SecondPhone`, `Address`, `HasCriminalRecord`, `CriminalRecordNote`, `MehnatUzUrl`, `MehnatUzScreenshotKey`, `MehnatUzScreenshotContentType`; `DirectionIds` ref |
+| `Employee` | yes | employees | own `Id` | full name | **personal**: `BirthDate`, `Pinfl`, `Passport`, `SecondPhone`, `Address`, `HasCriminalRecord`, `CriminalRecordNote`, `MehnatUzUrl`; `DirectionIds` ref |
 | `Employment` | yes | employment | `EmployeeId` | employee name | **salary**: `Salary.*`; refs: `LegalEntityId`, `DepartmentId`, `PositionId`, `TerminationReasonId`, `ResponsibleEmployeeId` |
 | `EmploymentEvent` | yes | employment | via `EmploymentId` | employee name | **salary**: `FromSalary.*`, `ToSalary.*`; refs: department/position ids, `RecordedBy`→user, `CandidateId`→candidate |
 | `Probation` | yes | employment | via `EmploymentId` | employee name | `ReviewerEmployeeId` ref |
 | `EmployeeFlag` | yes | lists | `EmployeeId` | employee name | — |
 | `EmployeeCompetency`, `EmployeeCompetencyLanguage` | yes | employees (read needs `employees.personal.view`) | `EmployeeId` / via competency | employee name | — |
 | `EmployeeDocument` | yes | employees (read needs `employees.personal.view`) | `EmployeeId` | employee name | `DocumentTypeId` ref |
+| `EmployeeCheckFile` | yes | employees (read needs `employees.personal.view`) | `EmployeeId` | employee name | — (soft delete; evidence for the «Tekshiruvlar» card) |
 | `Incentive` | yes | incentives | `EmployeeId` | employee name | `TypeId` ref (award or penalty type by `Kind`) |
 | `ExitInterview` | yes | feedback | via `EmploymentId` | employee name | — |
 | `Incident` | yes | safety | `EmployeeId` | employee name | `ResponsibleEmployeeId` ref |
@@ -1172,8 +1173,8 @@ A row is returned to a viewer only if the viewer has `audit.view` **and** the
 offered level: `employees.view`, `employment.view`, `lists.view`,
 `incentives.view`, `safety.view`, `feedback.view`, `recruiting.view`,
 `reports.view`, `catalog.view`, `users.manage`, `roles.view`, `audit.view`,
-`settings.manage`. Two refinements: rows of `EmployeeCompetency*` and
-`EmployeeDocument` need `employees.personal.view`; security events need
+`settings.manage`. Two refinements: rows of `EmployeeCompetency*`,
+`EmployeeDocument` and `EmployeeCheckFile` need `employees.personal.view`; security events need
 `users.manage`. Within a visible row, `salary` fields need
 `salary.view` and `personal` fields need `employees.personal.view`; otherwise the
 change is returned with `masked: true` and no values. Field **names** stay
@@ -1700,6 +1701,7 @@ list's «nima» column):
 | EmployeeCompetencyLanguage | Til bilish | Тил билиш | Знание языка | Language skill |
 | Incentive | Rag‘bat yoki jarima | Рағбат ёки жарима | Поощрение или взыскание | Reward or penalty |
 | EmployeeDocument | Hujjat | Ҳужжат | Документ | Document |
+| EmployeeCheckFile | Tekshiruv materiali | Текширув материали | Материал проверки | Check material |
 | ExitInterview | Qayta aloqa suhbati | Қайта алоқа суҳбати | Выходное интервью | Exit interview |
 | Incident | Baxtsiz hodisa | Бахтсиз ҳодиса | Несчастный случай | Incident |
 | Vacancy | Vakansiya | Вакансия | Вакансия | Vacancy |
