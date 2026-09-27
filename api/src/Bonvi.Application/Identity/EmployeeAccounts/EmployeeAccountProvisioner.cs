@@ -142,6 +142,23 @@ public sealed class EmployeeAccountProvisioningJob
     /// <summary>Bir so'rovda nechta xodim olinadi.</summary>
     public const int BatchSize = 50;
 
+    /// <summary>
+    /// Bir vaqtda faqat BITTA yurish. Ishga tushishdagi navbat, 15 daqiqalik
+    /// jadval va Hangfire'ning qayta urinishi bir lahzaga tushsa, ikki yurish
+    /// bir xil xodimlarga parallel hisob ochmoqchi bo'lardi: natija baribir
+    /// to'g'ri (noyob indeks + qayta o'qish), lekin har to'qnashuv EF logiga
+    /// ERR bo'lib tushardi. Ikkinchi yurish NAVBAT kutadi: birinchisi tugagach
+    /// u hisobi yo'qlarni qayta so'raydi, odatda hech kim qolmagan bo'ladi.
+    /// (Chiqib ketish emas — testlar va HR «Ilova» dan keyingi yurish
+    /// «bajarildi» deb o'ylab, aslida bajarilmagan ishni kutib qolmasin.)
+    /// </summary>
+    /// <remarks>
+    /// Jarayon ichidagi qulf — bitta API nusxasi sharti bilan (xuddi kirish
+    /// cheklagichidagi kabi, <c>docs/PENDING_WIRING.md</c>). Ikkinchi nusxa
+    /// qo'shilsa ham xato bo'lmaydi: faqat ERR shovqini qaytadi.
+    /// </remarks>
+    private static readonly SemaphoreSlim SingleRun = new(1, 1);
+
     private readonly IEmployeeAccountRepository _accounts;
     private readonly EmployeeAccountProvisioner _provisioner;
     private readonly IEmployeeAuthJournal _journal;
@@ -160,6 +177,20 @@ public sealed class EmployeeAccountProvisioningJob
     /// <param name="cancellationToken">Bekor qilish belgisi (Hangfire beradi).</param>
     /// <returns>Shu yurishda ochilgan hisoblar soni.</returns>
     public async Task<int> RunAsync(CancellationToken cancellationToken)
+    {
+        await SingleRun.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            return await ProvisionAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            SingleRun.Release();
+        }
+    }
+
+    private async Task<int> ProvisionAsync(CancellationToken cancellationToken)
     {
         var created = 0;
 
