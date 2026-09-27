@@ -1,8 +1,44 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+/**
+ * `/ilova` (oxirida chiziqsiz) → `/ilova/` — 308.
+ *
+ * NEGA: ilova asosi `/ilova/`; Vite dev-serveri chiziqsiz manzilga
+ * «The server is configured with a public base URL of /ilova/» deb javob
+ * beradi, xodim esa aynan shu manzilni yozib qo'yadi yoki xatcho'pga oladi.
+ * Production'da xuddi shu yo'naltirishni Caddy qiladi (`web/Caddyfile`,
+ * `handle /ilova`) — dev va prod bir xil xulq.
+ */
+function ilovaTrailingSlash(): Plugin {
+  const redirect = (req: IncomingMessage, res: ServerResponse, next: () => void): void => {
+    const url = req.url ?? ''
+
+    if (url === '/ilova' || url.indexOf('/ilova?') === 0) {
+      res.statusCode = 308
+      res.setHeader('Location', `/ilova/${url.slice('/ilova'.length)}`)
+      res.end()
+      return
+    }
+
+    next()
+  }
+
+  return {
+    name: 'bonvi-ilova-trailing-slash',
+    configureServer: (server) => {
+      server.middlewares.use(redirect)
+    },
+    configurePreviewServer: (server) => {
+      server.middlewares.use(redirect)
+    },
+  }
+}
 
 /**
  * Xodim ilovasi — HR web ilovasidan BUTUNLAY alohida build.
@@ -22,6 +58,8 @@ export default defineConfig(({ mode }) => ({
   base: '/ilova/',
 
   plugins: [
+    ilovaTrailingSlash(),
+
     react(),
 
     VitePWA({
