@@ -221,6 +221,19 @@ qo'lda tahrirlamang.
 - `Down` faqat yangi jadvalni o'chiradi: deploy'dan KEYIN yuklangan
   materiallarning yozuvlari yo'qoladi (fayllar diskda qoladi). Ularni saqlash
   kerak bo'lsa — `Down` emas, zaxiradan tiklash.
+- ⚠️ **Deploy oldi zaxiradan tiklash** (`restore.sh`, `pg_restore --clean`)
+  yangi `employee_check_files` jadvalini O'CHIRMAYDI — u zaxirada yo'q, va
+  uning `employees` ga tashqi kaliti `pk_employees` ni qayta yaratishga
+  xalaqit beradi (5 ta xato, skript `set -e` bilan to'xtaydi). Keyingi
+  deploy'da migratsiya esa jadvalni qayta yaratolmay yiqilardi. Tiklashdan
+  OLDIN:
+
+  ```sql
+  DROP TABLE IF EXISTS employee_check_files CASCADE;
+  ```
+
+  Prod nusxasida sinalgan (2026-09-27): shundan keyin tiklash xatosiz va
+  barcha jadval sanoqlari deploy oldidagi bilan AYNAN bir xil.
 
 ### Eski image'ga qaytib, keyin YANA shu versiyaga chiqilsa
 
