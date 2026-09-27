@@ -964,6 +964,7 @@
     "extraPayHidden": "Extra pay is hidden — permission required",
     "activeDuty": "Additional duty",
     "total": "Total",
+    "salaryNotSet": "not set",
     "dutyOngoing": "Ongoing",
     "dutyEndedOn": "Ended on {{date}}",
     "dutyEndsOn": "Ends on {{date}}",

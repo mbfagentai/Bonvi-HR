@@ -399,11 +399,20 @@ function EmploymentCard({
 
         {/* ⚠️ Oklad faqat `salary.view` ruxsati bilan. Ruxsat yo'q bo'lsa
             qator umuman chizilmaydi — bo'sh joy ham ma'lumot bermasin */}
-        {/* Faol vazifa bo'lsa oklad pastdagi «hisob» blokida — ikki marta chizilmaydi */}
-        {canSeeSalary && employment.salary !== null && employment.duties.length === 0 && (
+        {/*
+          Faol vazifa bo'lsa oklad pastdagi «hisob» blokida — ikki marta
+          chizilmaydi. Oklad KIRITILMAGAN bo'lsa qator yashirilmaydi, «kiritilmagan»
+          deb aytiladi: aks holda HR okladni yo'qolgan deb o'ylardi (2026-09-27).
+        */}
+        {canSeeSalary && employment.duties.length === 0 && (
           <MiniRow
             label={t('employee.salary')}
-            value={money(employment.salary.amount, employment.salary.currency)}
+            value={
+              employment.salary === null
+                ? t('employees.salaryNotSet')
+                : money(employment.salary.amount, employment.salary.currency)
+            }
+            muted={employment.salary === null}
           />
         )}
       </dl>
@@ -621,10 +630,16 @@ function PayBreakdown({
 
   return (
     <div className="mt-3 space-y-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2.5">
-      {canSeeSalary && employment.salary !== null && (
+      {/* Oklad kiritilmagan bo'lsa ham qator bor — jami nimadan iboratligi aniq ko'rinsin */}
+      {canSeeSalary && (
         <PayLine
           label={t('employee.salary')}
-          value={money(employment.salary.amount, employment.salary.currency)}
+          value={
+            employment.salary === null
+              ? t('employees.salaryNotSet')
+              : money(employment.salary.amount, employment.salary.currency)
+          }
+          muted={employment.salary === null}
         />
       )}
 
@@ -659,11 +674,14 @@ function PayLine({
   hint,
   value,
   strong = false,
+  muted = false,
 }: {
   label: string
   hint?: string
   value: string | null
   strong?: boolean
+  /** Qiymat o'rnida izoh («kiritilmagan») — xira rangda. */
+  muted?: boolean
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
@@ -679,6 +697,7 @@ function PayLine({
           className={cn(
             'tabular shrink-0 text-footnote whitespace-nowrap',
             strong ? 'font-semibold' : 'font-medium',
+            muted && 'font-normal text-[var(--fg-tertiary)]',
           )}
         >
           {value}
@@ -692,10 +711,13 @@ function MiniRow({
   label,
   value,
   tone,
+  muted = false,
 }: {
   label: string
   value: string
   tone?: 'warning'
+  /** Qiymat o'rnida izoh («kiritilmagan») — xira rangda. */
+  muted?: boolean
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
@@ -704,6 +726,7 @@ function MiniRow({
         className={cn(
           'tabular text-footnote font-medium',
           tone === 'warning' ? 'text-ios-orange' : 'text-[var(--fg)]',
+          muted && 'font-normal text-[var(--fg-tertiary)]',
         )}
       >
         {value}

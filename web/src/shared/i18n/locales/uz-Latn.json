@@ -964,6 +964,7 @@
     "extraPayHidden": "Qo‘shimcha haq yashirilgan — ko‘rish uchun ruxsat kerak",
     "activeDuty": "Qo‘shimcha vazifa",
     "total": "Jami",
+    "salaryNotSet": "kiritilmagan",
     "dutyOngoing": "Davom etmoqda",
     "dutyEndedOn": "{{date}} da tugagan",
     "dutyEndsOn": "{{date}} dan tugaydi",

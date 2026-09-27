@@ -964,6 +964,7 @@
     "extraPayHidden": "Доплата скрыта — нужно право на просмотр",
     "activeDuty": "Доп. обязанность",
     "total": "Итого",
+    "salaryNotSet": "не указан",
     "dutyOngoing": "Действует",
     "dutyEndedOn": "Завершена {{date}}",
     "dutyEndsOn": "Завершается {{date}}",
