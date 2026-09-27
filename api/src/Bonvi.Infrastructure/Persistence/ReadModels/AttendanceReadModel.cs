@@ -1009,12 +1009,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
             if (passes.TryGetValue(person.Id, out var readings))
             {
-                var facts = builder.Build(person.Id, personEmployments, readings, [date])[0].Facts;
+                var day = builder.Build(person.Id, personEmployments, readings, [date])[0];
 
-                if (facts.PassCount > 0)
+                if (day.Facts.PassCount > 0)
                 {
-                    arrivedAt = facts.FirstInAt ?? FirstAttributedPassAt(readings, personEmployments, resolver, date);
-                    leftAt = facts.LastOutAt;
+                    arrivedAt = ArrivedAt(day);
+                    leftAt = day.Facts.LastOutAt;
                 }
             }
 
@@ -1089,40 +1089,26 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
     }
 
     /// <summary>
-    /// Kirishi yo'q kunning birinchi o'tishi — faqat «chiqish» o'qigan kun uchun.
+    /// Kunning «kelgan» lahzasi: birinchi kirish, kirish bo'lmasa — kunga tushgan birinchi o'tish.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <see cref="AttendanceDayBuilder"/> birinchi KIRISHNI beradi, birinchi
-    /// o'tishni emas. Noma'lum yo'nalish navbat bilan kirishga aylanadi, ya'ni bu
-    /// yerga faqat kunning hamma o'tishi aniq «chiqish» bo'lganda tushiladi
-    /// (masalan, kirish turniketi ishlamagan kun) — shunda ham odam kelgan va
-    /// panel «kelmagan» demasligi kerak.
+    /// <see cref="AttendanceDayBuilder"/> faktlarda birinchi KIRISHNI beradi. Noma'lum
+    /// yo'nalish navbat bilan kirishga aylanadi, ya'ni ikkinchi tarmoqqa faqat
+    /// kunning hamma o'tishi aniq «chiqish» bo'lganda tushiladi (masalan, kirish
+    /// turniketi ishlamagan kun) — shunda ham odam kelgan va panel «kelmagan»
+    /// demasligi kerak.
     /// </para>
     /// <para>
-    /// ⚠️ O'tishning kuni hisoblash ichidagi taqvim bilan AYNAN bir xil tarkibda
-    /// aniqlanadi — asosiy munosabat → <see cref="ScheduleResolver"/> → reja →
-    /// <see cref="PassAttribution"/>. Qoida bu yerda qayta yozilmagan, faqat
-    /// hisoblovchi birinchi o'tish lahzasini tashqariga bermagani uchun
-    /// qismlari shu yerda qayta yig'ilgan.
+    /// ⚠️ Birinchi o'tish hisoblovchining O'ZIDAN
+    /// (<see cref="ComputedAttendanceDay.FirstPassAt"/>): o'tishning qaysi kunga
+    /// tushishi (kechagi smenaning kech chiqishi istisnosi bilan) shu yerda qayta
+    /// yig'ilsa, panel kechaga o'tgan 00:20 dagi chiqishni bugungi «kelish» deb
+    /// ko'rsatishi mumkin edi.
     /// </para>
     /// </remarks>
-    private static DateTimeOffset FirstAttributedPassAt(
-        List<PassReading> readings,
-        List<Employment> employments,
-        ScheduleResolver resolver,
-        DateOnly date)
-    {
-        DayPlan? PlanFor(DateOnly day)
-            => PrimaryEmployment.Select(employments, day) is { } employment
-                ? resolver.Resolve(employment, day)?.Day
-                : null;
-
-        return readings
-            .Where(pass => PassAttribution.DateFor(pass, PlanFor) == date)
-            .Min(pass => pass.OccurredAt)
-            .ToUniversalTime();
-    }
+    private static DateTimeOffset? ArrivedAt(ComputedAttendanceDay day)
+        => day.Facts.PassCount > 0 ? day.Facts.FirstInAt ?? day.FirstPassAt : null;
 
     // ════════════════════════════════════════════════════════════
     //  2b. Davr grafigi
@@ -1167,7 +1153,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
     /// ⭐ <b>Panelning o'zi, faqat ko'p kunga.</b> To'plam, asosiy munosabat,
     /// kelgan lahza va holat — <see cref="GetDashboardAsync"/> dagi AYNAN
     /// o'sha to'rt qadam (<see cref="PrimaryEmployment"/>,
-    /// <see cref="AttendanceDayBuilder"/>, <see cref="FirstAttributedPassAt"/>,
+    /// <see cref="AttendanceDayBuilder"/>, <see cref="ArrivedAt"/>,
     /// <see cref="DashboardStatusRule"/>). Bir kunlik oraliqda natija
     /// panelning <c>Counts</c> i bilan teng bo'lishi shu tenglikdan kelib
     /// chiqadi, testda esa tekshiriladi.
@@ -1302,10 +1288,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
                     foreach (var day in builder.Build(employeeId, personEmployments, readings, chunkDates))
                     {
-                        arrivals[day.LocalDate] = day.Facts.PassCount > 0
-                            ? day.Facts.FirstInAt
-                                ?? FirstAttributedPassAt(readings, personEmployments, resolver, day.LocalDate)
-                            : null;
+                        arrivals[day.LocalDate] = ArrivedAt(day);
                     }
                 }
 

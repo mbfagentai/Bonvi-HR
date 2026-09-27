@@ -765,4 +765,165 @@ public sealed class AttendanceDayBuilderTests
         kun.Facts.Status.ShouldBe(AttendanceDayStatus.MissingExit);
         kun.ShouldStore.ShouldBeTrue();
     }
+
+    // ────────────────────── Kechagi ochiq smenaning kech chiqishi (egasining qarori, 2026-09-27) ──────────────────────
+
+    /// <summary>
+    /// Egasining misoli: 09:00–18:00; dushanba 09:00 kirgan, seshanba 00:20 chiqqan (dushanba
+    /// oynasi 00:00 da tugagan, seshanbaniki 03:00 da boshlanadi). Ilgari dushanba «Chiqish yo'q»,
+    /// seshanba esa 00:20, 08:55, 18:05 — «kirdi, chiqdi, kirdi» bo'lib 515 daqiqa edi.
+    /// </summary>
+    [Fact]
+    public void Oynasiz_chiqish_kechagi_ochiq_kunga_tushadi()
+    {
+        var sahna = Office();
+        sahna.Unknown(Monday, "09:00");
+        sahna.Unknowns(Tuesday, "00:20", "08:55", "18:05");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+        var dushanba = kunlar[0].Facts;
+        var seshanba = kunlar[1].Facts;
+
+        dushanba.Status.ShouldBe(AttendanceDayStatus.Present);
+        dushanba.LastOutAt.ShouldBe(At(Tuesday, "00:20"));
+        dushanba.WorkedMinutes.ShouldBe(920, "09:00 → 00:20");
+        dushanba.PassCount.ShouldBe(2);
+
+        seshanba.Status.ShouldBe(AttendanceDayStatus.Present);
+        seshanba.FirstInAt.ShouldBe(At(Tuesday, "08:55"));
+        seshanba.WorkedMinutes.ShouldBe(550, "08:55 → 18:05");
+        seshanba.PassCount.ShouldBe(2);
+    }
+
+    /// <summary>
+    /// Bir o'tish ikki saqlangan kunda sanalmasligi uchun natija hisoblanayotgan oraliqqa bog'liq
+    /// emas: seshanba yolg'iz (yuklovchi kabi, ±1 kun o'tishlar bilan) hisoblansa ham 00:20 unga
+    /// tushmaydi (iflos navbat ±1 qo'shni bilan ikkalasini qayta hisoblaydi).
+    /// </summary>
+    [Fact]
+    public void Kech_chiqish_qarori_hisoblanayotgan_oraliqqa_bogliq_emas()
+    {
+        var sahna = Office();
+        sahna.Unknown(Monday, "09:00");
+        sahna.Unknowns(Tuesday, "00:20", "08:55", "18:05");
+
+        sahna.DaysAsLoaded(Tuesday).ShouldHaveSingleItem().Facts.PassCount.ShouldBe(2);
+        sahna.DaysAsLoaded(Monday).ShouldHaveSingleItem().Facts.PassCount.ShouldBe(2);
+    }
+
+    /// <summary>
+    /// «Kecha ochiqmi» savoliga kechaning OLDINGI kalendar kunidagi o'tishi javob bermaydi: dushanba
+    /// 02:00 lik smenaning yakshanba 23:30 dagi kirishi seshanbani yolg'iz hisoblayotgan chaqiruvda
+    /// yuklanmaydi (±1 kun). Uni hisobga olish natijani oraliqqa bog'lab, 01:00 dagi o'tishni bir
+    /// hisoblashda dushanbaga, boshqasida seshanbaga yozardi.
+    /// </summary>
+    [Fact]
+    public void Kechaning_oldingi_kungi_otishi_ochiqlik_savoliga_javob_bermaydi()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule(
+        [
+            WorkingDay(1, "02:00", "10:00"),
+            WorkingDay(2, "09:00", "18:00"),
+            new WorkScheduleDayInput(3, IsWorking: false),
+            new WorkScheduleDayInput(4, IsWorking: false),
+            new WorkScheduleDayInput(5, IsWorking: false),
+            new WorkScheduleDayInput(6, IsWorking: false),
+            new WorkScheduleDayInput(7, IsWorking: false),
+        ]));
+        sahna.Unknown(Monday.AddDays(-1), "23:30");
+        sahna.Unknown(Tuesday, "01:00");
+
+        var birga = sahna.Days(Monday, Tuesday);
+        var seshanbaYolgiz = sahna.DaysAsLoaded(Tuesday).ShouldHaveSingleItem();
+
+        birga[0].Facts.PassCount.ShouldBe(1, "23:30 — dushanba oynasida");
+        birga[1].Facts.PassCount.ShouldBe(1, "01:00 o'z sanasida");
+        seshanbaYolgiz.Facts.ShouldBe(birga[1].Facts, "oraliqqa bog'liq emas");
+    }
+
+    /// <summary>Kecha yopilgan bo'lsa (ochiq kirish yo'q) — eski qoida: o'tish o'z sanasida qoladi.</summary>
+    [Fact]
+    public void Kecha_yopilgan_bolsa_oynasiz_otish_oz_sanasida_qoladi()
+    {
+        var sahna = Office();
+        sahna.Unknowns(Monday, "09:00", "18:00");
+        sahna.Unknowns(Tuesday, "00:20", "08:55", "18:05");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].Facts.PassCount.ShouldBe(2);
+        kunlar[0].Facts.WorkedMinutes.ShouldBe(540);
+        kunlar[1].Facts.PassCount.ShouldBe(3, "00:20 seshanbaning o'zida");
+    }
+
+    /// <summary>Kirish kechagi kunning chiqishi bo'la olmaydi — telefondagi «Kirish» o'z sanasida qoladi.</summary>
+    [Fact]
+    public void Malum_kirish_kechaga_otmaydi()
+    {
+        var sahna = Office();
+        sahna.In(Monday, "09:00");
+        sahna.In(Tuesday, "00:20");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kunlar[1].Facts.PassCount.ShouldBe(1);
+    }
+
+    /// <summary>Bugungi smenaning oynasi (03:00) boshlangach o'tish oynaga tushadi — kechaga emas.</summary>
+    [Fact]
+    public void Bugungi_oyna_boshlangach_otish_bugunga_tushadi()
+    {
+        var sahna = Office();
+        sahna.Unknown(Monday, "09:00");
+        sahna.Unknown(Tuesday, "03:00");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kunlar[1].Facts.PassCount.ShouldBe(1);
+    }
+
+    /// <summary>Ikkinchi kech o'tish birinchisi yopgan kechani ochiq deb ko'rmaydi.</summary>
+    [Fact]
+    public void Ikkinchi_kech_otish_yopilgan_kechaga_qoshilmaydi()
+    {
+        var sahna = Office();
+        sahna.Unknown(Monday, "09:00");
+        sahna.Unknowns(Tuesday, "00:20", "00:25");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+
+        kunlar[0].Facts.LastOutAt.ShouldBe(At(Tuesday, "00:20"));
+        kunlar[0].Facts.PassCount.ShouldBe(2);
+        kunlar[1].Facts.PassCount.ShouldBe(1, "00:25 o'z sanasida");
+    }
+
+    /// <summary>
+    /// Bugun dam olish kuni: chegara «bugun ham kechagi vaqtda boshlanardi» (03:00). 00:20 — kechaga,
+    /// kechqurungi 20:00 esa o'z sanasida dam olish kunida ishlash, 35 soatlik «smena» emas.
+    /// </summary>
+    [Fact]
+    public void Bugun_dam_olish_kuni_bolsa_chegara_bir_sutka()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Assign(Schedule("09:00", "18:00", daysOff: [2]));
+        sahna.Unknown(Monday, "09:00");
+        sahna.Unknown(Tuesday, "00:20");
+
+        sahna.Days(Monday, Tuesday)[0].Facts.LastOutAt.ShouldBe(At(Tuesday, "00:20"));
+
+        var boshqa = new AttendanceScenario();
+        boshqa.Employ();
+        boshqa.Assign(Schedule("09:00", "18:00", daysOff: [2]));
+        boshqa.Unknown(Monday, "09:00");
+        boshqa.Unknown(Tuesday, "20:00");
+
+        var kunlar = boshqa.Days(Monday, Tuesday);
+        kunlar[0].Facts.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kunlar[1].Facts.Status.ShouldBe(AttendanceDayStatus.DayOffWorked);
+    }
 }

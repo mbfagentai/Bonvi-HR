@@ -290,6 +290,19 @@ public sealed class PassPairingTests
         natija.MissingExit.ShouldBeFalse("navbat bilan kirish va chiqish bo'ldi");
     }
 
+    /// <summary>Ochiq oraliq tekshiruvi juftlash bilan bir xil qadamlardan o'tadi.</summary>
+    [Fact]
+    public void Ochiq_oraliq_tekshiruvi_takror_va_navbatni_hisobga_oladi()
+    {
+        PassPairing.EndsOpen([]).ShouldBeFalse();
+        PassPairing.EndsOpen([P("09:00", PassDirection.Unknown)]).ShouldBeTrue();
+        PassPairing.EndsOpen([P("09:00", PassDirection.Unknown), P("18:00", PassDirection.Unknown)]).ShouldBeFalse();
+        PassPairing.EndsOpen([P("09:00", PassDirection.In), P("12:00", PassDirection.In)])
+            .ShouldBeTrue("takror kirish bitta — kun ochiq");
+        PassPairing.EndsOpen([P("09:00", PassDirection.In), P("17:00", PassDirection.Out), P("18:00", PassDirection.Out)])
+            .ShouldBeFalse();
+    }
+
     // ────────────────────── Noma'lum yo'nalish (#46, #47) ──────────────────────
 
     /// <summary>#46. Yo'nalish aytmaydigan qurilma: kirish, chiqish, kirish, chiqish.</summary>

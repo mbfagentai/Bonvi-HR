@@ -198,6 +198,26 @@ public static class PassPairing
             MissingExit: missingExit);
     }
 
+    /// <summary>
+    /// O'tishlar OCHIQ oraliq bilan tugaydimi — takrorlar tashlanib, yo'nalish to'ldirilgandan
+    /// keyin oxirgisi kirish.
+    /// </summary>
+    /// <remarks>
+    /// Hech bir kun oynasiga tushmagan o'tish kechagi smenaning chiqishimi degan savol
+    /// uchun (<see cref="PassAttribution.LateExitDateFor"/>). Qadamlar <see cref="Pair"/>
+    /// dagi bilan AYNAN bir xil — «ochiq» ikki joyda ikki xil tushunilmasin.
+    /// </remarks>
+    /// <param name="passes">Bir kunning o'tishlari, istalgan tartibda.</param>
+    public static bool EndsOpen(IEnumerable<PassReading> passes)
+    {
+        ArgumentNullException.ThrowIfNull(passes);
+
+        var ordered = passes.OrderBy(pass => pass.OccurredAt).ThenBy(pass => pass.Id).ToList();
+        var directed = InferDirections(CollapseBounces(ordered));
+
+        return directed.Count > 0 && directed[^1].Direction == PassDirection.In;
+    }
+
     /// <summary>2-qadam: yo'nalishi ma'lum ketma-ket takrorlarni tashlaydi — birinchi kirish, oxirgi chiqish.</summary>
     /// <remarks>
     /// <para>
