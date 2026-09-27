@@ -81,6 +81,47 @@ for (const file of files) {
 console.log(`\n${REFERENCE} (etalon): ${reference.size} kalit`)
 
 // ────────────────────────────────────────────────────────────
+//  Bitta qavsli o'rin belgisi — `{n}`
+// ────────────────────────────────────────────────────────────
+
+/**
+ * i18next o'rin belgisini IKKI qavs bilan kutadi (`{{n}}`). Bitta qavsli
+ * `{n}` xato bermaydi — u ekranga XOM holida chiqadi: «{n} ta qator qayta
+ * yozishga qo'yildi». 2026-09-27 da ikkita kalit to'rt tilda shunday edi va
+ * hech bir tekshiruv buni sezmagan. Bu yerda har bir qiymat qaraladi;
+ * `{{n}}` ning ichidagi qavslar hisobga olinmaydi.
+ */
+const SINGLE_BRACE = /(?<!\{)\{\s*[A-Za-z_][A-Za-z0-9_]*\s*\}(?!\})/
+
+function flattenValues(object, prefix = '') {
+  const entries = []
+  for (const [key, value] of Object.entries(object)) {
+    const path = prefix ? `${prefix}.${key}` : key
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      entries.push(...flattenValues(value, path))
+    } else if (typeof value === 'string') {
+      entries.push([path, value])
+    }
+  }
+  return entries
+}
+
+const singleBrace = []
+for (const file of files) {
+  for (const [key, value] of flattenValues(JSON.parse(readFileSync(join(DIR, file), 'utf8')))) {
+    if (SINGLE_BRACE.test(value)) singleBrace.push(`${file}: ${key} → ${value}`)
+  }
+}
+
+if (singleBrace.length > 0) {
+  failed = true
+  console.error(`\n✗ Bitta qavsli o'rin belgisi — ${singleBrace.length} ta (i18next «{{nom}}» kutadi):`)
+  for (const line of singleBrace) console.error(`    ${line}`)
+} else {
+  console.log('✓ o‘rin belgilari: hammasi «{{nom}}» shaklida')
+}
+
+// ────────────────────────────────────────────────────────────
 //  Frontendda ishlatilgan tarjima kalitlari
 // ────────────────────────────────────────────────────────────
 

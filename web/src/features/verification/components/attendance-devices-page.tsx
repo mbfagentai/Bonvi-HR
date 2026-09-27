@@ -44,9 +44,12 @@ import {
 import {
   DIRECTION_ROLE_LOOK,
   agoParts,
-  looksRejected,
+  isOutage,
+  isSyntheticDevice,
+  linkProblemKey,
 } from '../lib/attendance-manage-presentation'
 import { ATTENDANCE_MANAGE, ATTENDANCE_VIEW } from '../lib/attendance-presentation'
+import { DeviceOutagePanel } from './attendance-device-health'
 import { DeviceEnrollmentCard } from './attendance-enrollment-cards'
 import { AttendanceDeviceFormDialog } from './attendance-device-form-dialog'
 import { AttendanceDeviceTokenDialog, type DeviceSecret } from './attendance-device-token-dialog'
@@ -110,7 +113,24 @@ export function AttendanceDevicesPage() {
   const [deactivating, setDeactivating] = useState<AttendanceDevice | null>(null)
 
   const rows = devices.data ?? EMPTY
-  const skewCount = rows.filter((device) => device.isActive && device.skewWarning).length
+
+  /*
+    Terminallar — «Mobil ilova» qatorisiz (u terminal emas). Banner va
+    qatordagi soat belgisi BITTA manbadan (`skewWarning`, server hisoblaydi):
+    ilgari banner «1 ta qurilma» derdi, qatorda esa «—» turardi.
+  */
+  const terminals = rows.filter((device) => device.isActive && !isSyntheticDevice(device))
+  const skewCount = terminals.filter((device) => device.skewWarning).length
+
+  // Agent o'n daqiqadan beri jim yoki terminal javob bermayapti — QIZIL (SPEC-agent §L).
+  const outages = terminals
+    .filter((device) => isOutage(device.linkState))
+    .map((device) => ({
+      deviceId: device.id,
+      deviceName: device.name,
+      state: device.linkState,
+      since: device.linkSince,
+    }))
 
   const openCreate = () => {
     setEditing(null)
@@ -150,6 +170,18 @@ export function AttendanceDevicesPage() {
               <p className="truncate-1 font-mono text-caption2 text-[var(--fg-tertiary)]">
                 {[device.model, device.serialNumber].filter(Boolean).join(' · ') || '—'}
               </p>
+              {/*
+                Agent o'qigan seriya — token shu terminalga bog'langan (SPEC-agent §L).
+                Terminal almashtirilsa, tokenni yangilash bog'lanishni tozalaydi.
+              */}
+              {device.terminalSerial !== null && (
+                <p
+                  className="truncate-1 font-mono text-caption2 text-[var(--fg-tertiary)]"
+                  title={t('attendance.terminalSerialHint')}
+                >
+                  {t('attendance.terminalSerial', { serial: device.terminalSerial })}
+                </p>
+              )}
             </div>
           )
         },
@@ -174,17 +206,23 @@ export function AttendanceDevicesPage() {
         header: t('attendance.active'),
         // iOS almashtirgichi 51px + katak to'ldirishi (32px) ≈ 83px, zaxira bilan 96px
         meta: { width: '96px' },
-        cell: ({ row }) => (
-          // Qator bosilsa tahrirlash ochiladi — almashtirgich bosilishi unga «oqib» o'tmasin
-          <span onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-            <Switch
-              checked={row.original.isActive}
-              disabled={setActive.isPending && setActive.variables?.id === row.original.id}
-              onChange={(next) => toggleActive(row.original, next)}
-              aria-label={`${row.original.name} — ${t('attendance.active')}`}
-            />
-          </span>
-        ),
+        cell: ({ row }) =>
+          isSyntheticDevice(row.original) ? (
+            // «Mobil ilova» — tizim qatori: yoqib-o'chirib bo'lmaydi (server 409 beradi)
+            <Badge tone="neutral" size="sm">
+              {t('attendance.deviceSystemRow')}
+            </Badge>
+          ) : (
+            // Qator bosilsa tahrirlash ochiladi — almashtirgich bosilishi unga «oqib» o'tmasin
+            <span onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+              <Switch
+                checked={row.original.isActive}
+                disabled={setActive.isPending && setActive.variables?.id === row.original.id}
+                onChange={(next) => toggleActive(row.original, next)}
+                aria-label={`${row.original.name} — ${t('attendance.active')}`}
+              />
+            </span>
+          ),
       }),
 
       helper.accessor('lastSeenAt', {
@@ -232,6 +270,10 @@ export function AttendanceDevicesPage() {
         meta: { align: 'end', width: '150px' },
         cell: ({ row }) => {
           const device = row.original
+
+          // Tizim qatorini tahrirlab, tokenini almashtirib yoki o'chirib bo'lmaydi
+          if (isSyntheticDevice(device)) return null
+
           return (
             <span className="flex justify-end gap-1.5">
               <Button
@@ -328,6 +370,8 @@ export function AttendanceDevicesPage() {
         </Link>
       )}
 
+      <DeviceOutagePanel outages={outages} />
+
       {skewCount > 0 && (
         <Alert tone="warning" title={t('attendance.devicesClockWarningTitle', { n: num(skewCount) })}>
           {t('attendance.devicesClockWarningText')}
@@ -362,6 +406,7 @@ export function AttendanceDevicesPage() {
             getRowId={(device) => device.id}
             loading={devices.isPending}
             onRowClick={openEdit}
+            rowClickable={(device) => !isSyntheticDevice(device)}
             rowLabel={(device) => device.name}
             empty={
               <EmptyState
@@ -389,11 +434,9 @@ export function AttendanceDevicesPage() {
         (SPEC-agent §F). Faolsizlantirilgani chizilmaydi: unga agent
         umuman murojaat qilmaydi, ya'ni sanoqlar muzlab qolardi.
       */}
-      {rows
-        .filter((device) => device.isActive)
-        .map((device) => (
-          <DeviceEnrollmentCard key={device.id} device={device} />
-        ))}
+      {terminals.map((device) => (
+        <DeviceEnrollmentCard key={device.id} device={device} />
+      ))}
 
       {/*
         Saqlash muddatlari — ro'yxatdan KEYIN: qurilmalar kundalik ish, muddat
@@ -436,11 +479,17 @@ export function AttendanceDevicesPage() {
 /* ═══════════════════════════════════════════════════════════ jadval kataklari */
 
 /**
- * Oxirgi ko'rinish — nisbiy vaqt, aniq vaqt esa `title` da.
+ * Oxirgi aloqa — TERMINALNING O'ZI tasdiqlagan (soati o'qildi yoki hodisasi
+ * keldi), agentniki emas. Nisbiy vaqt, aniq vaqt esa `title` da.
  *
- * Terminal gaplashyapti-yu, hodisalari rad etilyapti (`looksRejected`) —
- * sariq izoh: bu holatda qolgan hamma raqam «joyida» ko'rinadi va tabel
- * jimgina bo'shab boradi.
+ * ⚠️ Ilgari bu yerda `lastSeenAt` turardi: agent terminalga yeta olmasa ham
+ * har daqiqada ro'yxat so'raydi va besh kundan beri javob bermayotgan
+ * terminal «hozirgina» deb ko'rinardi (SPEC-agent §L). Endi uzilish qizil
+ * izoh bilan (`linkState`, server hisoblaydi — o'n daqiqa, jadvalga bog'liq
+ * emas).
+ *
+ * Terminal gaplashyapti-yu, hodisalari rad etilyapti (`eventsRejected` —
+ * aynan rad etilgan so'rovdan, jimlikdan taxmin qilinmaydi) — sariq izoh.
  */
 function LastSeen({ device }: { device: AttendanceDevice }) {
   const { t, num, dateTime } = useLocale()
@@ -449,25 +498,34 @@ function LastSeen({ device }: { device: AttendanceDevice }) {
     return <span className="text-footnote text-[var(--fg-tertiary)]">{t('attendance.neverSeen')}</span>
   }
 
-  const parts = agoParts(device.lastSeenAt)
+  const seenAt = device.terminalSeenAt
+  const problem = linkProblemKey(device.linkState)
+
+  const parts = seenAt === null ? null : agoParts(seenAt)
   const label =
-    parts === null
-      ? dateTime(device.lastSeenAt)
-      : parts.unit === 'now'
-        ? t('attendance.agoNow')
-        : parts.unit === 'minutes'
-          ? t('attendance.agoMinutes', { n: num(parts.value) })
-          : t('attendance.agoHours', { n: num(parts.value) })
+    seenAt === null
+      ? t('attendance.terminalNeverReached')
+      : parts === null
+        ? dateTime(seenAt)
+        : parts.unit === 'now'
+          ? t('attendance.agoNow')
+          : parts.unit === 'minutes'
+            ? t('attendance.agoMinutes', { n: num(parts.value) })
+            : t('attendance.agoHours', { n: num(parts.value) })
 
   return (
     <div className="min-w-0">
       <p
-        className={cn('tabular truncate-1', parts === null && 'text-ios-orange')}
-        title={dateTime(device.lastSeenAt)}
+        className={cn(
+          'tabular truncate-1',
+          problem !== null ? 'text-ios-red' : parts === null && 'text-ios-orange',
+        )}
+        title={seenAt === null ? undefined : dateTime(seenAt)}
       >
         {label}
       </p>
-      {looksRejected(device.lastSeenAt, device.lastEventAt) && (
+      {problem !== null && <p className="truncate-1 text-caption1 text-ios-red">{t(problem)}</p>}
+      {device.eventsRejected && (
         <p className="truncate-1 text-caption1 text-ios-orange">{t('attendance.eventsRejected')}</p>
       )}
     </div>
@@ -482,18 +540,19 @@ function ClockBadge({ device }: { device: AttendanceDevice }) {
   const { t, num } = useLocale()
 
   /*
-    ⚠️ `lastSkewSeconds` EMAS. U «qabul qilingan − sodir bo'lgan», ya'ni
-    agent orqali ishlaydigan qurilmada yetkazib berish kechikishini ham
-    o'z ichiga oladi: agent besh daqiqa o'chib tursa, soati soniyagacha
-    to'g'ri terminal «nosoz» bo'lib ko'rinardi. Bu yerda faqat
-    TO'G'RIDAN-TO'G'RI o'lchov ko'rsatiladi (agent terminalning joriy
-    vaqtini so'raydi), o'lchov yo'q bo'lsa — chiziqcha.
+    Qoida serverdagi `HasClockDrift` bilan AYNAN bir xil: TO'G'RIDAN-TO'G'RI
+    o'lchov (agent terminalning joriy vaqtini so'raydi) bo'lsa — faqat u,
+    bo'lmasa (o'zi push qiladigan terminal) — `lastSkewSeconds`. Ilgari
+    o'lchovsiz qatorda chiziqcha turardi, tepadagi banner esa aynan shu
+    qurilmani «soati adashgan» deb sanardi.
   */
-  if (device.clockOffsetSeconds === null) {
+  const measured = device.clockOffsetSeconds ?? device.lastSkewSeconds
+
+  if (measured === null) {
     return <span className="text-[var(--fg-tertiary)]">—</span>
   }
 
-  const seconds = Math.abs(device.clockOffsetSeconds)
+  const seconds = Math.abs(measured)
   const amount =
     seconds >= 60
       ? t('attendance.skewMinutes', { n: num(Math.round(seconds / 60)) })

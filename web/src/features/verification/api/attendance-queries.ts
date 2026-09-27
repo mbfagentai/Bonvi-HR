@@ -44,6 +44,7 @@ import {
   fetchUnmatched,
   previewIdentityImport,
   resolveSchedule,
+  postApproveRemovals,
   postDeviceResync,
   postEmployeeResync,
   rotateDeviceToken,
@@ -810,7 +811,13 @@ export function useDeviceEnrollments(deviceId: string, enabled = true) {
   })
 }
 
-/** Xodim kartasidagi «Qurilmalar» qatori. */
+/**
+ * Xodim kartasidagi «Qurilmalar» qatori.
+ *
+ * `attendance.manage` ostida (SPEC-agent §D5 — javobda terminal raqami bor):
+ * chaqiruvchi ruxsat bo'lmasa `enabled: false` beradi, aks holda so'rov 403
+ * bilan qaytardi.
+ */
 export function useEmployeeEnrollments(employeeId: string, enabled = true) {
   return useQuery({
     queryKey: attendanceKeys.employeeEnrollments(employeeId),
@@ -828,6 +835,19 @@ export function useEmployeeEnrollments(employeeId: string, enabled = true) {
 export function useResyncDevice() {
   return useMutation({
     mutationFn: (deviceId: string) => postDeviceResync(deviceId),
+  })
+}
+
+/**
+ * Ushlab qolingan ommaviy o'chirishni tasdiqlash (SPEC-agent §L).
+ *
+ * Natija DARHOL ko'rinmaydi: agent keyingi tekshiruvida (60 soniyagacha)
+ * o'chiradi va holat hisobotini yuboradi — kartadagi ogohlantirish o'shanda
+ * yo'qoladi.
+ */
+export function useApproveRemovals() {
+  return useMutation({
+    mutationFn: (deviceId: string) => postApproveRemovals(deviceId),
   })
 }
 

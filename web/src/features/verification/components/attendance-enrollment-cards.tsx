@@ -1,13 +1,20 @@
 import { Cpu, RefreshCw, ScanFace } from 'lucide-react'
 
 import { useAuth } from '@/features/auth'
+import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Alert, Badge, Button, Card, IconTile, Skeleton } from '@/shared/ui'
 
 import type { AttendanceDevice, DeviceEnrollmentRow } from '../api/attendance-api'
-import { useDeviceEnrollments, useEmployeeEnrollments, useResyncDevice, useResyncEmployee } from '../api/attendance-queries'
-import { ENROLLMENT_STATE_LOOK } from '../lib/attendance-manage-presentation'
+import {
+  useApproveRemovals,
+  useDeviceEnrollments,
+  useEmployeeEnrollments,
+  useResyncDevice,
+  useResyncEmployee,
+} from '../api/attendance-queries'
+import { ENROLLMENT_STATE_LOOK, linkProblemKey } from '../lib/attendance-manage-presentation'
 import { ATTENDANCE_MANAGE } from '../lib/attendance-presentation'
 
 /**
@@ -31,9 +38,15 @@ export function DeviceEnrollmentCard({ device }: { device: AttendanceDevice }) {
 
   const query = useDeviceEnrollments(device.id, device.isActive)
   const resync = useResyncDevice()
+  const approve = useApproveRemovals()
 
   const page = query.data ?? null
   const summary = page?.summary ?? null
+  const linkProblem = linkProblemKey(device.linkState)
+
+  // HR allaqachon tasdiqlagan — agent keyingi tekshiruvida o'chiradi
+  const approved =
+    summary?.removalsApprovedUntil != null && new Date(summary.removalsApprovedUntil).getTime() > Date.now()
 
   return (
     <Card className="space-y-3.5 p-4">
@@ -96,13 +109,57 @@ export function DeviceEnrollmentCard({ device }: { device: AttendanceDevice }) {
           </p>
 
           {/*
+            Agent tirik bo'lsa ham terminal javob bermasligi mumkin — ilgari
+            bu karta «hozirgina» derdi, holbuki hech kim yozilmayotgan edi.
+          */}
+          {linkProblem !== null && (
+            <p className="text-caption1 font-medium text-ios-red">{t(linkProblem)}</p>
+          )}
+
+          {/*
+            Ommaviy o'chirish to'sig'i (SPEC-agent §L): agent ro'yxat bo'sh
+            bo'lsa yoki terminaldagi Bonvi odamlarining beshdan biridan ko'pi
+            o'chishi kerak bo'lsa, o'chirmaydi. Haqiqatan shunday bo'lsa
+            (filial yopildi) — HR shu yerda tasdiqlaydi.
+          */}
+          {summary.heldRemovals > 0 && (
+            <Alert tone="warning" title={t('attendance.heldRemovalsTitle', { n: num(summary.heldRemovals) })}>
+              {approved ? t('attendance.heldRemovalsApproved') : t('attendance.heldRemovalsText')}
+            </Alert>
+          )}
+          {summary.heldRemovals > 0 && !approved && (
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              disabled={approve.isPending}
+              onClick={() => approve.mutate(device.id, { onSuccess: () => void query.refetch() })}
+            >
+              {t('attendance.heldRemovalsApprove', { n: num(summary.heldRemovals) })}
+            </Button>
+          )}
+
+          {summary.foreignPersons > 0 && (
+            <Alert tone="warning" title={t('attendance.foreignPersonsTitle', { n: num(summary.foreignPersons) })}>
+              {t('attendance.foreignPersonsText')}
+            </Alert>
+          )}
+
+          {/*
             Muammoli qatorlar — joyida turganlari ataylab ro'yxatlanmaydi
             (server ham faqat shularni yuboradi).
           */}
           {page !== null && page.rows.length > 0 && (
             <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
               {page.rows.map((row) => (
-                <li key={row.employeeId} className="flex flex-wrap items-center gap-2 py-2">
+                <li key={row.employeeId} className="flex flex-wrap items-center gap-2.5 py-2">
+                  {/* Haqiqiy rasm, bosh harflar emas — loyiha qoidasi */}
+                  <EmployeePhoto
+                    employeeId={row.employeeId}
+                    photoKey={row.employeePhotoKey}
+                    name={row.employeeName}
+                    size="sm"
+                  />
                   <span className="min-w-0 flex-1 truncate-1 text-footnote">{row.employeeName}</span>
                   <EnrollmentBadge row={row} />
                 </li>
@@ -123,12 +180,26 @@ export function DeviceEnrollmentCard({ device }: { device: AttendanceDevice }) {
   )
 }
 
-/** Xodim kartasidagi «Qurilmalar» qatori — Davomat tabining ostida. */
+/**
+ * Xodim kartasidagi «Qurilmalar» qatori — Davomat tabining ostida.
+ *
+ * FAQAT `attendance.manage` bilan (SPEC-agent §D5): javobda xodimning
+ * terminaldagi shaxs raqami bor — bu terminal boshqaruvining ma'lumoti.
+ * Ruxsatsiz foydalanuvchida karta umuman chizilmaydi va so'rov ham
+ * yuborilmaydi (server 403 beradi).
+ */
 export function EmployeeEnrollmentsCard({ employeeId }: { employeeId: string }) {
-  const { t, num, dateTime } = useLocale()
   const { hasPermission } = useAuth()
 
-  const canManage = hasPermission(ATTENDANCE_MANAGE)
+  if (!hasPermission(ATTENDANCE_MANAGE)) {
+    return null
+  }
+
+  return <ManagedEmployeeEnrollmentsCard employeeId={employeeId} />
+}
+
+function ManagedEmployeeEnrollmentsCard({ employeeId }: { employeeId: string }) {
+  const { t, num, dateTime } = useLocale()
 
   const query = useEmployeeEnrollments(employeeId)
   const resync = useResyncEmployee()
@@ -151,23 +222,21 @@ export function EmployeeEnrollmentsCard({ employeeId }: { employeeId: string }) 
           {t('attendance.enrollmentDevices')}
         </h2>
 
-        {canManage && (
-          <Button
-            type="button"
-            size="sm"
-            variant="soft"
-            pill
-            disabled={resync.isPending || query.isPending}
-            onClick={() =>
-              resync.mutate(employeeId, {
-                onSuccess: () => void query.refetch(),
-              })
-            }
-          >
-            <RefreshCw className={cn(resync.isPending && 'animate-spin')} />
-            {t('attendance.enrollmentResyncOne')}
-          </Button>
-        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="soft"
+          pill
+          disabled={resync.isPending || query.isPending}
+          onClick={() =>
+            resync.mutate(employeeId, {
+              onSuccess: () => void query.refetch(),
+            })
+          }
+        >
+          <RefreshCw className={cn(resync.isPending && 'animate-spin')} />
+          {t('attendance.enrollmentResyncOne')}
+        </Button>
       </div>
 
       {query.isPending ? (

@@ -15,6 +15,7 @@ export function DataTable<TData extends RowData>({
   skeletonRows = 6,
   empty,
   onRowClick,
+  rowClickable,
   rowLabel,
   sorting,
   onSortingChange,
@@ -29,6 +30,12 @@ export function DataTable<TData extends RowData>({
   empty?: ReactNode
   /** Berilmasa — qatorlar bosilmaydi (masalan ruxsat yo'q). */
   onRowClick?: (row: TData) => void
+  /**
+   * Qator bosiladimi — `onRowClick` berilganda ham ALOHIDA qator uchun
+   * o'chirish mumkin (masalan tahrirlab bo'lmaydigan tizim qatori).
+   * Berilmasa — hammasi bosiladi.
+   */
+  rowClickable?: (row: TData) => boolean
   /** Skrinriderlar uchun qator nomi. */
   rowLabel?: (row: TData) => string
   /**
@@ -76,6 +83,7 @@ export function DataTable<TData extends RowData>({
     // Klaviatura bilan yuruvchi uchun qator tugma kabi ishlaydi
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
+    if (rowClickable?.(row) === false) return
     onRowClick?.(row)
   }
 
@@ -196,7 +204,7 @@ export function DataTable<TData extends RowData>({
             {!loading &&
               rows.map((row) => {
                 const original = row.original
-                const clickable = onRowClick !== undefined
+                const clickable = onRowClick !== undefined && rowClickable?.(original) !== false
 
                 return (
                   <tr

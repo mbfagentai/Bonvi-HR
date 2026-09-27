@@ -6,6 +6,7 @@ import type {
   DeviceEnrollmentState,
   AttendanceProvider,
   DeviceDirectionRole,
+  DeviceLinkState,
   IdentitySource,
 } from '../api/attendance-api'
 
@@ -47,12 +48,47 @@ export function identityProviderLabel(
   }
 }
 
-/** Qurilma hodisasini qaysi PARSER o'qiydi — `Generic` so'z, qolgani brend. */
+/**
+ * Qurilma hodisasini qaysi PARSER o'qiydi — `Generic` so'z, qolgani brend.
+ *
+ * `Mobile` — «Mobil ilova» qatori (xodim ilovasidagi belgi): u JSON emas,
+ * telefon. Ilgari u «Umumiy JSON» deb chiqardi va xodim kartasidagi jurnalda
+ * telefondan kelgan har bir belgi terminalnikiga o'xshab ko'rinardi.
+ */
 export function deviceProviderLabel(
   provider: AttendanceProvider,
   t: (key: string) => string,
 ): string {
-  return provider === 'Hikvision' ? 'Hikvision' : t('attendance.providerGeneric')
+  switch (provider) {
+    case 'Hikvision':
+      return 'Hikvision'
+    case 'Mobile':
+      return t('attendance.identityProviderMobile')
+    case 'Generic':
+      return t('attendance.providerGeneric')
+  }
+}
+
+/**
+ * Raqam tizim terminalga o'zi yozgan fazadami — 9 bilan boshlanadigan 9 belgi.
+ *
+ * Qoida serverdagi `DevicePersonNo.IsManaged` bilan AYNAN bir xil. Bunday
+ * moslikni uzib bo'lmaydi (server `davomat.moslik_bonvi_raqami` bilan 409
+ * beradi) — ekran tugmani ko'rsatmaydi.
+ */
+export function isManagedPersonNo(personNo: string): boolean {
+  return personNo.length === 9 && personNo.startsWith('9')
+}
+
+/**
+ * Sintetik «Mobil ilova» qatori — terminal EMAS.
+ *
+ * Uni tahrirlab, yoqib-o'chirib, tokenini almashtirib yoki o'chirib bo'lmaydi
+ * (server har biriga 409 beradi) — shu sababli ro'yxatda u faqat O'QISH
+ * uchun chiziladi: boshqaruv tugmalarisiz va qatori bosilmaydi.
+ */
+export function isSyntheticDevice(device: { provider: AttendanceProvider }): boolean {
+  return device.provider === 'Mobile'
 }
 
 export interface RoleLook {
@@ -135,30 +171,33 @@ export function agoParts(value: string, now: Date = new Date()): AgoParts | null
   return null
 }
 
-/**
- * Terminal «ulangan, lekin hodisalari rad etilyapti» holati.
- *
- * Rad etilgan so'rov (400 — o'qib bo'lmadi, vaqt yaroqsiz) `lastSeenAt`
- * ni yangilaydi, `lastEventAt` ni esa yo'q (B3 izohi, `docs/PENDING_WIRING.md`).
- * Ikkalasining farqi 30 daqiqadan oshsa — terminal gaplashyapti, lekin
- * tabelga hech narsa tushmayapti. Eng yomon nosozlik aynan shu: hamma
- * narsa «ishlayotgandek» ko'rinadi.
- *
- * 30 daqiqa: ish vaqtida turniketdan yarim soat hech kim o'tmasligi
- * kamdan-kam, tunda esa terminal umuman so'rov yubormaydi — ya'ni
- * yolg'on ogohlantirish kam bo'ladi.
+/*
+ * «Ulangan, lekin hodisalari rad etilyapti» belgisi endi SERVERDA
+ * (`AttendanceDevice.eventsRejected`): u aynan rad etilgan so'rovdan
+ * yoqiladi. Ilgari u shu yerda `lastSeenAt − lastEventAt > 30 daqiqa` dan
+ * taxmin qilinardi va agent qurilmasida HAR KECHASI va dam olish kuni
+ * yolg'on yonardi — agent o'tish bo'lmasa ham har daqiqada ro'yxat so'raydi.
  */
-const SILENT_REJECT_MINUTES = 30
 
-export function looksRejected(lastSeenAt: string | null, lastEventAt: string | null): boolean {
-  if (lastSeenAt === null) return false
+/**
+ * Qurilmaning aloqa holati (SPEC-agent §L) — uzilgan bo'lsa qizil izoh kaliti.
+ *
+ * Holatni SERVER hisoblaydi (`linkState`, chegarasi o'n daqiqa, jadvalga
+ * bog'liq emas); bu yerda faqat matn tanlanadi.
+ */
+export function linkProblemKey(state: DeviceLinkState): string | null {
+  switch (state) {
+    case 'AgentOffline':
+      return 'attendance.linkAgentOffline'
+    case 'TerminalUnreachable':
+      return 'attendance.linkTerminalUnreachable'
+    case 'NeverConnected':
+    case 'Online':
+      return null
+  }
+}
 
-  const seen = new Date(lastSeenAt).getTime()
-  if (Number.isNaN(seen)) return false
-  if (lastEventAt === null) return true
-
-  const event = new Date(lastEventAt).getTime()
-  if (Number.isNaN(event)) return false
-
-  return seen - event > SILENT_REJECT_MINUTES * 60_000
+/** Uzilgan (qizil ogohlantirishga tushadigan) holatmi. */
+export function isOutage(state: DeviceLinkState): boolean {
+  return state === 'AgentOffline' || state === 'TerminalUnreachable'
 }

@@ -26,6 +26,7 @@ import axios from 'axios'
 import {
   activateAttendanceDevice,
   activateWorkSchedule,
+  approveDeviceRemovals,
   confirmAttendanceIdentityImport,
   createAttendanceIdentity,
   createScheduleAssignment,
@@ -91,6 +92,8 @@ import {
   type AttendanceDashboardItemDto,
   type AttendanceDeviceCreatedDto,
   type AttendanceDeviceDto,
+  type AttendanceDeviceHealthDto,
+  type DeviceOutageDto,
   type DeviceEnrollmentPageDto,
   type DeviceEnrollmentRowDto,
   type DeviceEnrollmentSummaryDto,
@@ -206,6 +209,7 @@ export {
   DeviceAuthMode,
   DeviceDirectionRole,
   DeviceEnrollmentState,
+  DeviceLinkState,
   DirectionSource,
   IdentityMatchKind,
   IdentitySource,
@@ -256,6 +260,19 @@ export type ExceptionKind = (typeof EXCEPTION_KINDS)[number]
  * yaratish va yangilash javobida bir marta beradi (SPEC §3.2).
  */
 export type AttendanceDevice = AsSent<AttendanceDeviceDto>
+
+/**
+ * Qurilmalar sog'lig'i — Statistika sahifasining yuqorisidagi ogohlantirishlar
+ * (`GET /dashboard` javobining `deviceHealth` qismi, SPEC-agent §L).
+ *
+ * `outages` — agenti o'n daqiqadan beri jim yoki terminali javob bermayotgan
+ * qurilmalar. Chegara SERVERDA (`AttendanceRules.AgentSilenceMinutes`),
+ * klient uni qayta hisoblamaydi.
+ */
+export type AttendanceDeviceHealth = AsSent<AttendanceDeviceHealthDto>
+
+/** Bitta uzilgan qurilma. */
+export type DeviceOutage = AsSent<DeviceOutageDto>
 
 /**
  * Yaratish/token yangilash javobi — `{ device, token }`, ICHMA-ICH (§6.2).
@@ -1227,6 +1244,17 @@ export async function fetchEmployeeEnrollments(
  */
 export async function postDeviceResync(deviceId: string): Promise<EnrollmentResync> {
   return asSent(await resyncDeviceEnrollments(deviceId))
+}
+
+/**
+ * Ushlab qolingan ommaviy o'chirishni tasdiqlash — 10 daqiqaga.
+ *
+ * Agent ro'yxat bo'sh bo'lsa yoki terminaldagi Bonvi odamlarining beshdan
+ * biridan ko'pi o'chishi kerak bo'lsa, o'chirmaydi (SPEC-agent §L). Bu
+ * tugma to'siqni bir martaga ochadi; doimiy o'chirib qo'yish yo'q.
+ */
+export async function postApproveRemovals(deviceId: string): Promise<void> {
+  await approveDeviceRemovals(deviceId)
 }
 
 /** Kartadagi «Qayta yozish» — faqat SHU xodim, o'sha raqam ostida. */
