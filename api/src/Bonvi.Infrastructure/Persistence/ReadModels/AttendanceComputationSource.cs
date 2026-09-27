@@ -70,9 +70,18 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// Global filtr qoladi: o'chirilgan munosabat (kiritish xatosi)
     /// <c>PrimaryEmployment</c> tomonidan baribir e'tiborga olinmaydi.
     /// O'qish modelining <c>EmploymentsAsync</c> i ham aynan shunday.
+    /// </para>
+    /// <para>
+    /// ⚠️ Mehnat yo'li hodisalari BILAN (<c>Include(Events)</c>): sanadagi bo'lim va
+    /// lavozim ko'chirish hodisalaridan o'qiladi (<c>EmploymentPlacement</c>). Ularsiz
+    /// hisoblash jimgina joriy qiymatga qaytib, ko'chirishdan oldingi kunni yangi
+    /// lavozimning jadvali bilan qurardi. <c>AsSplitQuery</c> — munosabat qatori har
+    /// hodisa uchun takrorlanmasin.
+    /// </para>
     /// </remarks>
     public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<Employment>>> LoadEmploymentsAsync(
         IReadOnlyCollection<Guid> employeeIds,
@@ -89,6 +98,8 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
 
         var employments = await _context.Employments
             .AsNoTracking()
+            .Include(employment => employment.Events)
+            .AsSplitQuery()
             .Where(employment => ids.Contains(employment.EmployeeId))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -96,6 +107,97 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
         return employments
             .GroupBy(employment => employment.EmployeeId)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<Employment>)[.. group]);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Ikki so'rov: davrda munosabati bo'lgan xodimlar (ichki so'rov) va ularning
+    /// hamma munosabatlari hodisalari bilan — <see cref="LoadEmploymentsAsync"/> bilan
+    /// bir xil shakl va bir xil global filtr.
+    /// </remarks>
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<Employment>>> LoadEmploymentsCoveringAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+    {
+        var employed = _context.Employments
+            .Where(employment =>
+                employment.HireDate <= to &&
+                (employment.TerminationDate == null || employment.TerminationDate >= from))
+            .Select(employment => employment.EmployeeId);
+
+        var employments = await _context.Employments
+            .AsNoTracking()
+            .Include(employment => employment.Events)
+            .AsSplitQuery()
+            .Where(employment => employed.Contains(employment.EmployeeId))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return employments
+            .GroupBy(employment => employment.EmployeeId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<Employment>)[.. group]);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// Ikki so'rov: hodisalar (yangi yozilgani — <c>recorded_at</c>, tahrirlangani —
+    /// <c>updated_at</c>) va munosabat qatorlarining o'zi (yaratilgan, o'zgargan yoki
+    /// o'chirilgan). Munosabatlar <c>IgnoreQueryFilters</c> bilan: o'chirilgan munosabat
+    /// ham kunlarni o'zgartiradi.
+    /// </para>
+    /// <para>
+    /// Ikkala jadval ham kichik (munosabatlar ~ming, hodisalar o'n minglar) va vaqt
+    /// ustunlarida indeks yo'q — so'rov har 15 daqiqada bir marta ketma-ket o'qiydi,
+    /// bu millisekundlar. Indeks uchun migratsiya shu sababli qo'shilmadi.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<EmploymentChange>> ListEmploymentChangesAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+    {
+        // `timestamptz` parametri faqat UTC lahzani qabul qiladi.
+        var from = since.ToUniversalTime();
+
+        var events = await _context.EmploymentEvents
+            .AsNoTracking()
+            .Where(item => item.RecordedAt >= from || (item.UpdatedAt != null && item.UpdatedAt >= from))
+            .Join(
+                _context.Employments.IgnoreQueryFilters(),
+                item => item.EmploymentId,
+                employment => employment.Id,
+                (item, employment) => new
+                {
+                    employment.EmployeeId,
+                    employment.HireDate,
+                    item.EffectiveDate,
+                    Edited = item.UpdatedAt != null && item.UpdatedAt >= from,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var rows = await _context.Employments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(employment =>
+                employment.CreatedAt >= from ||
+                (employment.UpdatedAt != null && employment.UpdatedAt >= from) ||
+                (employment.DeletedAt != null && employment.DeletedAt >= from))
+            .Select(employment => new { employment.EmployeeId, employment.HireDate })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Tahrirlangan hodisaning ESKI sanasi saqlanmaydi — u qatorning o'zgarishi kabi
+        // «ishga kirgan kundan» deb olinadi (sana `EmploymentChange` izohida).
+        return
+        [
+            .. events.Select(item => new EmploymentChange(
+                item.EmployeeId,
+                item.HireDate,
+                item.Edited ? null : item.EffectiveDate)),
+            .. rows.Select(row => new EmploymentChange(row.EmployeeId, row.HireDate, null)),
+        ];
     }
 
     /// <inheritdoc />

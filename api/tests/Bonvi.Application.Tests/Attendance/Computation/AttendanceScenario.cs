@@ -42,6 +42,7 @@ internal sealed class AttendanceScenario
     private readonly List<ScheduleAssignment> _assignments = [];
     private readonly List<Department> _departments = [];
     private readonly List<PassReading> _passes = [];
+    private readonly List<WorkScheduleDate> _dates = [];
 
     /*
       Sahnaning «bugun»i — sukut bo'yicha ENG UZOQ kelajak, ya'ni
@@ -179,7 +180,28 @@ internal sealed class AttendanceScenario
         }
     }
 
-    public ScheduleResolver Resolver() => new(_assignments, _schedules, new DepartmentTree(_departments));
+    /// <summary>
+    /// Bir kunda yo'nalishi NOMA'LUM o'tishlar — ishlab chiqarishda agent aynan shunday yuboradi
+    /// (SPEC-agent H8): yo'nalishni server navbat bilan beradi.
+    /// </summary>
+    public void Unknowns(DateOnly date, params string[] times)
+    {
+        foreach (var time in times)
+        {
+            Unknown(date, time);
+        }
+    }
+
+    /// <summary>Yillik to'rning katagi — jadvalning shu SANAGA yozilgan kuni.</summary>
+    public WorkScheduleDate ScheduleDate(WorkSchedule schedule, WorkScheduleDateInput input)
+    {
+        var created = WorkScheduleDate.Create(schedule.Id, input);
+        created.IsSuccess.ShouldBeTrue("sahnadagi katak domen tekshiruvidan o'tishi kerak");
+        _dates.Add(created.Value);
+        return created.Value;
+    }
+
+    public ScheduleResolver Resolver() => new(_assignments, _schedules, new DepartmentTree(_departments), _dates);
 
     /// <summary>Sahnaning «bugun»ini belgilaydi — kelajak kunlar qoidasi uchun.</summary>
     public AttendanceScenario Today(DateOnly today)
@@ -205,6 +227,18 @@ internal sealed class AttendanceScenario
     /// <summary>Bir nechta sanani BITTA chaqiruvda hisoblaydi — qayta hisoblash ishi aynan shunday chaqiradi.</summary>
     public IReadOnlyList<ComputedAttendanceDay> Days(params DateOnly[] dates)
         => new AttendanceDayBuilder(Resolver(), _today, _now).Build(EmployeeId, _employments, _passes, dates);
+
+    /// <summary>
+    /// Yuklovchi kabi hisoblaydi: faqat <see cref="AttendanceDayBuilder.PassDatesNeeded"/> oralig'idagi
+    /// o'tishlar beriladi — natija qaysi oraliq hisoblanayotganiga bog'liq emasligini tekshirish uchun.
+    /// </summary>
+    public IReadOnlyList<ComputedAttendanceDay> DaysAsLoaded(params DateOnly[] dates)
+    {
+        var (from, to) = AttendanceDayBuilder.PassDatesNeeded(dates.Min(), dates.Max());
+        var loaded = _passes.Where(pass => pass.LocalDate >= from && pass.LocalDate <= to).ToList();
+
+        return new AttendanceDayBuilder(Resolver(), _today, _now).Build(EmployeeId, _employments, loaded, dates);
+    }
 
     /// <summary>Tasdiqlangan yo'qlik so'rovi qamragan sanalar bilan hisoblaydi.</summary>
     public IReadOnlyList<ComputedAttendanceDay> DaysExcused(IReadOnlySet<DateOnly> excused, params DateOnly[] dates)

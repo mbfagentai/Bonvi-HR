@@ -302,10 +302,15 @@ public sealed class BreakDeductionTests
     }
 
     /// <summary>
-    /// Ikki yopilgan oraliq orasidagi yetim chiqish yoki tashlab ketilgan kirish
-    /// bo'shliq chegarasini siljitmaydi: tashqarida — 13:00 dan keyingi YOPILGAN
-    /// oraliq boshlangan 14:00 gacha.
+    /// Aralash yo'nalishda (egasi o'zgartirmagan) ikki yopilgan oraliq orasidagi yetim
+    /// chiqish yoki tashlab ketilgan kirish bo'shliq chegarasini siljitmaydi: tashqarida —
+    /// 13:00 dan keyingi YOPILGAN oraliq boshlangan 14:00 gacha.
     /// </summary>
+    /// <remarks>
+    /// Yo'nalishi to'liq MA'LUM kunda bu holat endi yo'q: ortiqcha chiqish oldingisining
+    /// o'rnini, ortiqcha kirish keyingisining o'rnini oladi (egasining qarori, 2026-09-27) —
+    /// pastdagi <see cref="Malum_yonalishli_ortiqcha_otish_haqiqiy_chegara_bolib_qoladi"/>.
+    /// </remarks>
     [Theory]
     [InlineData(PassDirection.Out, AttendanceDayStatus.MissingEntry)]
     [InlineData(PassDirection.In, AttendanceDayStatus.MissingExit)]
@@ -314,9 +319,23 @@ public sealed class BreakDeductionTests
         AttendanceDayStatus holat)
     {
         var sahna = Lunch();
-        sahna.Alternating(Monday, "09:00", "13:00");
-        sahna.Pass(Monday, "13:30", ortiqcha);
-        sahna.Alternating(Monday, "14:00", "18:00");
+        sahna.Unknown(Monday, "09:00");
+        sahna.Unknown(Monday, "13:00");
+
+        if (ortiqcha == PassDirection.In)
+        {
+            // Navbat bilan kirish bo'ladigan o'tish, keyin MA'LUM kirish — oraliq tashlanadi.
+            sahna.Unknown(Monday, "13:30");
+            sahna.In(Monday, "14:00");
+        }
+        else
+        {
+            // Navbat bilan chiqish bo'lgan 13:00 dan keyin MA'LUM chiqish — yetim.
+            sahna.Out(Monday, "13:30");
+            sahna.Unknown(Monday, "14:00");
+        }
+
+        sahna.Unknown(Monday, "18:00");
 
         var kun = sahna.Day(Monday).Facts;
 
@@ -324,6 +343,31 @@ public sealed class BreakDeductionTests
         kun.BreakDeductionMinutes.ShouldBe(0);
         kun.WorkedMinutes.ShouldBe(480);
         kun.Status.ShouldBe(holat);
+    }
+
+    /// <summary>
+    /// Egasining qarori (2026-09-27): yo'nalishi MA'LUM ortiqcha o'tish endi haqiqiy chegara —
+    /// 13:00 va 13:30 dagi ikki chiqishdan oxirgisi (odam 13:30 da chiqqan), 13:30 va 14:00
+    /// dagi ikki kirishdan birinchisi (odam 13:30 da qaytgan). Ikkalasida tashqarida 30 daqiqa,
+    /// oynada binoda 30 daqiqa — ushlanma 30, ishlangan 480, kun to'liq.
+    /// </summary>
+    [Theory]
+    [InlineData(PassDirection.Out)]
+    [InlineData(PassDirection.In)]
+    public void Malum_yonalishli_ortiqcha_otish_haqiqiy_chegara_bolib_qoladi(PassDirection ortiqcha)
+    {
+        var sahna = Lunch();
+        sahna.Alternating(Monday, "09:00", "13:00");
+        sahna.Pass(Monday, "13:30", ortiqcha);
+        sahna.Alternating(Monday, "14:00", "18:00");
+
+        var kun = sahna.Day(Monday).Facts;
+
+        kun.BreakTakenMinutes.ShouldBe(30);
+        kun.BreakDeductionMinutes.ShouldBe(30);
+        kun.WorkedMinutes.ShouldBe(480);
+        kun.IgnoredPassCount.ShouldBe(1);
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
     }
 
     [Fact]

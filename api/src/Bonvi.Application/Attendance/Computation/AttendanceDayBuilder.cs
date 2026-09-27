@@ -26,13 +26,19 @@ namespace Bonvi.Application.Attendance.Computation;
 /// ushlanadigan narsa yo'q» saqlangan ikki ustunda bir xil (0, 0) ko'rinadi — katak izohi ularni
 /// ajratishi kerak bo'lsa, bu bayroq ham qatorga yozilishi kerak.
 /// </param>
+/// <param name="FirstPassAt">
+/// Shu KUNGA tushgan birinchi o'tish (UTC), yo'nalishidan qat'i nazar; o'tish yo'q bo'lsa <c>null</c>.
+/// Saqlanmaydi — panel kirishsiz kunning «kelgan» lahzasini shundan oladi, ya'ni o'tishning
+/// qaysi kunga tushishini (kech chiqish istisnosi bilan) ikkinchi marta hisoblamaydi.
+/// </param>
 public sealed record ComputedAttendanceDay(
     Guid EmployeeId,
     DateOnly LocalDate,
     AttendanceDayFacts Facts,
     bool ShouldStore,
     ScheduleScope? ScheduleTier,
-    bool HasBreakWindow);
+    bool HasBreakWindow,
+    DateTimeOffset? FirstPassAt = null);
 
 /// <summary>
 /// Xodimning kunlarini o'tishlar, munosabatlar va jadvallardan hisoblaydi — SPEC §5.
@@ -161,10 +167,7 @@ public sealed class AttendanceDayBuilder
         }
 
         var calendar = new EmployeeCalendar(_schedules, employments);
-
-        var passesByDate = passes
-            .GroupBy(pass => PassAttribution.DateFor(pass, calendar.PlanFor))
-            .ToDictionary(group => group.Key, group => group.ToList());
+        var passesByDate = Attribute(passes, calendar);
 
         return dates
             .Distinct()
@@ -178,6 +181,90 @@ public sealed class AttendanceDayBuilder
                 _today,
                 _now))
             .ToList();
+    }
+
+    /// <summary>Har bir o'tishni o'z kuniga taqsimlaydi — SPEC §5.3 va kech chiqish istisnosi.</summary>
+    /// <remarks>
+    /// <para>
+    /// Avval kun oynalari (<see cref="PassAttribution.WindowDateFor"/>). Hech bir oynaga
+    /// tushmagan, lekin kechagi smenaning kech chiqishi bo'la oladigan o'tish
+    /// (<see cref="PassAttribution.LateExitDateFor"/>) keyin, VAQT TARTIBIDA qaraladi:
+    /// kecha ochiq kirish bilan tugagan bo'lsa — kechaga, aks holda o'z sanasiga
+    /// (egasining qarori, 2026-09-27). Ikkinchi kech o'tish birinchisi yopgan kunni
+    /// ochiq deb ko'rmaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ «Kecha ochiqmi» savoliga faqat shu o'tishlar javob beradi: kechaning
+    /// OYNASIGA tushgan va <c>local_date</c> i kecha yoki undan keyingi o'tishlar,
+    /// hamda kechaga allaqachon qo'shilgan kech chiqishlar. Oynasiz qolib o'z
+    /// sanasiga tushgan o'tish ham, kechagi oynaga tushgan undan oldingi kungi
+    /// o'tish ham hisobga olinmaydi. Sabab — yuklash shartnomasi
+    /// (<see cref="PassDatesNeeded"/>, ±1 kun): o'tishning o'z sanasini hisoblayotgan
+    /// chaqiruv kechaning undan oldingi kunidagi o'tishlarni yuklamagan. Qaror
+    /// qaysi oraliq hisoblanayotganiga bog'liq bo'lib qolsa (masalan ketma-ket ikki
+    /// kechaning kech chiqishlari zanjiri), bitta o'tish ikki saqlangan kunda
+    /// sanalib ketardi. Shu cheklov bilan qaror ikkala hisoblashda ham aynan bir
+    /// xil, yuklangan ma'lumotdan chiqadi.
+    /// </para>
+    /// </remarks>
+    private static Dictionary<DateOnly, List<PassReading>> Attribute(
+        IReadOnlyCollection<PassReading> passes,
+        EmployeeCalendar calendar)
+    {
+        var byDate = new Dictionary<DateOnly, List<PassReading>>();
+
+        // «Kun ochiq kirish bilan tugadimi» savoli uchun o'tishlar (remarks'dagi cheklov).
+        var anchors = new Dictionary<DateOnly, List<PassReading>>();
+        var lateExits = new List<(PassReading Pass, DateOnly Previous)>();
+
+        foreach (var pass in passes)
+        {
+            if (PassAttribution.WindowDateFor(pass, calendar.PlanFor) is { } windowDate)
+            {
+                Add(byDate, windowDate, pass);
+
+                if (pass.LocalDate >= windowDate)
+                {
+                    Add(anchors, windowDate, pass);
+                }
+
+                continue;
+            }
+
+            if (PassAttribution.LateExitDateFor(pass, calendar.PlanFor) is { } previous)
+            {
+                lateExits.Add((pass, previous));
+                continue;
+            }
+
+            Add(byDate, pass.LocalDate, pass);
+        }
+
+        foreach (var (pass, previous) in lateExits.OrderBy(item => item.Pass.OccurredAt).ThenBy(item => item.Pass.Id))
+        {
+            if (PassPairing.EndsOpen(anchors.GetValueOrDefault(previous) ?? []))
+            {
+                Add(byDate, previous, pass);
+                Add(anchors, previous, pass);
+            }
+            else
+            {
+                Add(byDate, pass.LocalDate, pass);
+            }
+        }
+
+        return byDate;
+
+        static void Add(Dictionary<DateOnly, List<PassReading>> target, DateOnly date, PassReading pass)
+        {
+            if (!target.TryGetValue(date, out var list))
+            {
+                list = [];
+                target[date] = list;
+            }
+
+            list.Add(pass);
+        }
     }
 
     /// <summary>§5.5 6–10-qadamlar, §5.6 holati va §5.4 saqlash qoidasi.</summary>
@@ -236,14 +323,23 @@ public sealed class AttendanceDayBuilder
         {
             status = AttendanceDayStatus.Excused;
         }
-        else if (date > today && status == AttendanceDayStatus.Absent)
+        else if (status == AttendanceDayStatus.Absent && DashboardStatusRule.HasNotStarted(plan!, today, now))
         {
             /*
-              Kelajak kun — «kelmadi» EMAS. Tartib muhim: tasdiqlangan
-              so'rov ustun turadi, ya'ni keyingi haftaga ruxsat olingan
-              kun tabelda bugundanoq «Sababli» bo'lib ko'rinadi. Qolgan
-              kelajak ish kunlari esa bo'sh qoladi va hech qaysi sanoqqa
-              kirmaydi.
+              Smenasi hali BOSHLANMAGAN kun — «kelmadi» EMAS: kelajak kun
+              ham, bugungi smenasi hali boshlanmagan kun ham. Qoida
+              paneldagi «Hali boshlanmagan» bilan AYNAN bitta
+              (`DashboardStatusRule.HasNotStarted`): ilgari 08:00 da
+              09:00 lik smenaning odami tabelda, ilovada va hisobotlarda
+              «Kelmadi», panelda esa «Hali boshlanmagan» bo'lib turardi;
+              20:00 lik tungi smena xodimi esa kun bo'yi «Kelmadi» edi.
+              Reja boshlangach kun `AttendanceStartedShiftsJob` bilan 15
+              daqiqa ichida «Kelmadi» bo'lib yoziladi.
+
+              Tartib muhim: tasdiqlangan so'rov ustun turadi, ya'ni
+              keyingi haftaga ruxsat olingan kun tabelda bugundanoq
+              «Sababli» bo'lib ko'rinadi. Qolgan boshlanmagan ish kunlari
+              esa bo'sh qoladi va hech qaysi sanoqqa kirmaydi.
             */
             status = AttendanceDayStatus.Planned;
         }
@@ -251,8 +347,11 @@ public sealed class AttendanceDayBuilder
         var facts = new AttendanceDayFacts(
             EmploymentId: employment?.Id,
             LegalEntityId: employment?.LegalEntityId,
-            DepartmentId: employment?.DepartmentId,
-            PositionId: employment?.PositionId,
+            // Surat SHU SANADAGI joydan — jadval ham aynan shu qiymat bilan
+            // hal qilingan (`ScheduleResolver.Resolve`), ya'ni ko'chirishdan
+            // oldingi kun hisobotda eski bo'limda qoladi (SPEC §2.6).
+            DepartmentId: context.Placement?.DepartmentId,
+            PositionId: context.Placement?.PositionId,
             WorkScheduleId: schedule?.Schedule.Id,
             PlanStartAt: plan?.PlanStartAt,
             PlanEndAt: plan?.PlanEndAt,
@@ -277,15 +376,15 @@ public sealed class AttendanceDayBuilder
         // §5.4: o'tish bor — YOKI munosabat bor va jadval shu kunni ish kuni deydi.
         // Ish kunidagi reja faqat munosabat va jadval topilganda bo'ladi.
         /*
-          Kelajak kun uchun qator YARATILMAYDI: u har kecha qayta
-          hisoblanib turadigan minglab bo'sh qatorni keltirib chiqarardi
-          va oy oxirigacha bo'lgan hamma kunni bazaga yozardi. Istisno —
-          tasdiqlangan so'rov: u BUGUN qabul qilingan qaror va yozuvi
-          bo'lishi kerak.
+          Smenasi hali boshlanmagan kun (`Planned`) uchun qator
+          YARATILMAYDI: kelajak kunlar har kecha qayta hisoblanib
+          turadigan minglab bo'sh qatorni keltirib chiqarardi, bugungi
+          boshlanmagan smena esa «Kelmadi» bo'lib yozilib qolardi.
+          Istisno — tasdiqlangan so'rov: u BUGUN qabul qilingan qaror va
+          yozuvi bo'lishi kerak.
         */
         var shouldStore = pairing.PassCount > 0
-            || (plan is { IsWorking: true }
-                && (date <= today || status == AttendanceDayStatus.Excused));
+            || (plan is { IsWorking: true } && status != AttendanceDayStatus.Planned);
 
         return new ComputedAttendanceDay(
             employeeId,
@@ -293,7 +392,8 @@ public sealed class AttendanceDayBuilder
             facts,
             shouldStore,
             schedule?.Tier,
-            plan?.HasBreakWindow ?? false);
+            plan?.HasBreakWindow ?? false,
+            passes.Count == 0 ? null : passes.Min(pass => pass.OccurredAt).ToUniversalTime());
     }
 
     /// <summary>SPEC §5.6 — birinchi mos kelgani yutadi.</summary>
@@ -334,8 +434,11 @@ public sealed class AttendanceDayBuilder
         return pairing.MissingExit ? AttendanceDayStatus.MissingExit : AttendanceDayStatus.Present;
     }
 
-    /// <summary>Bir sanadagi asosiy munosabat va hal qilingan jadval.</summary>
-    private readonly record struct DayContext(Employment? Employment, ScheduleResolution? Schedule);
+    /// <summary>Bir sanadagi asosiy munosabat, uning SHU SANADAGI joyi va hal qilingan jadval.</summary>
+    private readonly record struct DayContext(
+        Employment? Employment,
+        EmploymentPlacement? Placement,
+        ScheduleResolution? Schedule);
 
     /// <summary>
     /// Bitta xodim uchun sana → (munosabat, jadval) keshi.
@@ -354,9 +457,10 @@ public sealed class AttendanceDayBuilder
             if (!_days.TryGetValue(date, out var context))
             {
                 var employment = PrimaryEmployment.Select(employments, date);
+                EmploymentPlacement? placement = employment is null ? null : EmploymentPlacement.On(employment, date);
                 var schedule = employment is null ? null : schedules.Resolve(employment, date);
 
-                context = new DayContext(employment, schedule);
+                context = new DayContext(employment, placement, schedule);
                 _days[date] = context;
             }
 

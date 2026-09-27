@@ -1,4 +1,5 @@
 using Bonvi.Application.Attendance.Scheduling;
+using Bonvi.Domain.Attendance;
 
 namespace Bonvi.Application.Attendance.Computation;
 
@@ -25,19 +26,41 @@ namespace Bonvi.Application.Attendance.Computation;
 /// <b>Oyna faqat ISH kunida bor.</b> Dam olish kunida reja boshlanishi
 /// yo'q, jadvali yoki munosabati yo'q sanada esa umuman reja yo'q. Hech
 /// bir oyna o'tishni qamramasa, u o'z sanasiga qoladi — SPEC «jadval
-/// yo'q ⇒ o'z sanasi» deydi, va oynalar orasiga tushgan o'tish uchun
-/// ham bu yagona halol javob: uni eng yaqin smenaga «yopishtirish»
-/// hech kim ko'rmaydigan taxmin bo'lardi.
+/// yo'q ⇒ o'z sanasi» deydi.
+/// </para>
+/// <para>
+/// ⭐ <b>Bitta istisno — kechagi ochiq smenaning kech chiqishi</b> (egasining
+/// qarori, 2026-09-27, <see cref="LateExitDateFor"/>). 09:00–18:00 da ishlab,
+/// seshanba 00:20 da chiqqan odamning chiqishi dushanbaning oynasidan (reja
+/// tugashi + 6 soat = 00:00) tashqariga tushadi. Ilgari u seshanbaga qolardi:
+/// dushanba «Chiqish yo'q», seshanba esa 00:20, 08:55, 18:05 — «kirdi, chiqdi,
+/// kirdi» bo'lib 515 daqiqa noto'g'ri hisoblanardi. Endi oynasiz o'tish
+/// kechagi kunning chiqishi bo'ladi — faqat kecha ochiq kirish bilan tugagan
+/// va bugungi smenaning oynasi hali boshlanmagan bo'lsa. Aks holda eski
+/// qoida: o'z sanasi.
 /// </para>
 /// </remarks>
 public static class PassAttribution
 {
-    /// <summary>O'tish tegishli bo'lgan sana.</summary>
+    /// <summary>O'tish tegishli bo'lgan sana — faqat kun oynalari bo'yicha, kech chiqish istisnosisiz.</summary>
+    /// <remarks>
+    /// Kech chiqish istisnosi kunning qolgan o'tishlarini bilishni talab qiladi,
+    /// shu sababli uni <see cref="AttendanceDayBuilder"/> qo'llaydi; bu metod faqat
+    /// oynalarni ko'radi.
+    /// </remarks>
     /// <param name="pass">O'tish.</param>
     /// <param name="planFor">
     /// Xodimning shu sanadagi rejasi; munosabati yoki jadvali yo'q sanada <c>null</c>.
     /// </param>
     public static DateOnly DateFor(PassReading pass, Func<DateOnly, DayPlan?> planFor)
+        => WindowDateFor(pass, planFor) ?? pass.LocalDate;
+
+    /// <summary>
+    /// Oynasi o'tishni qamragan sana; hech bir oyna qamramasa <c>null</c>.
+    /// </summary>
+    /// <param name="pass">O'tish.</param>
+    /// <param name="planFor">Xodimning sanadagi rejasi.</param>
+    public static DateOnly? WindowDateFor(PassReading pass, Func<DateOnly, DayPlan?> planFor)
     {
         ArgumentNullException.ThrowIfNull(planFor);
 
@@ -70,6 +93,59 @@ public static class PassAttribution
             }
         }
 
-        return best ?? own;
+        return best;
+    }
+
+    /// <summary>
+    /// Oynasiz o'tish kechagi smenaning kech chiqishi bo'la oladigan sana (kecha); bo'la olmasa <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Faqat REJA bo'yicha shartlar (chaqiruvchi o'tish hech bir oynaga tushmaganini
+    /// allaqachon bilgan; kechagi kun OCHIQ kirish bilan tugaganini esa u o'zi,
+    /// <see cref="PassPairing.EndsOpen"/> bilan tekshiradi):
+    /// </para>
+    /// <list type="number">
+    ///   <item>o'tish kirish EMAS (noma'lum yoki chiqish) — kirish hech qachon
+    ///         kechagi kunning chiqishi bo'lmaydi;</item>
+    ///   <item>kecha (o'tishning o'z sanasi − 1) ish kuni va uning oynasi
+    ///         o'tishdan oldin tugagan;</item>
+    ///   <item>bugungi smenaning oynasi (reja boshlanishi − <see cref="AttendanceRules.DayWindowPreHours"/>)
+    ///         hali boshlanmagan. Bugun ish kuni bo'lmasa, chegara — kechagi oynaning
+    ///         boshlanishidan roppa-rosa bir sutka keyin, ya'ni «bugun ham xuddi kechagi
+    ///         vaqtda boshlanardi»: aks holda dam olish kunining kechqurungi o'tishi ham
+    ///         bir kun oldingi smenaga yopishib, 30 soatlik «ish» bo'lardi.</item>
+    /// </list>
+    /// <para>
+    /// Faqat bitta sutka orqaga: o'tish o'z sanasida qolsa ham, kechagi kunga o'tsa ham,
+    /// bu faqat yarim tundan oshgan oraliq uchun farq qiladi. Kechagi oyna kechagi
+    /// sanada tugab, o'tish ham o'sha sanada bo'lsa, «kecha» bilan «o'z sanasi» bitta kun.
+    /// </para>
+    /// </remarks>
+    /// <param name="pass">Hech bir kun oynasiga tushmagan o'tish.</param>
+    /// <param name="planFor">Xodimning sanadagi rejasi.</param>
+    public static DateOnly? LateExitDateFor(PassReading pass, Func<DateOnly, DayPlan?> planFor)
+    {
+        ArgumentNullException.ThrowIfNull(planFor);
+
+        if (pass.Direction == PassDirection.In)
+        {
+            return null;
+        }
+
+        var own = pass.LocalDate;
+        var previous = own.AddDays(-1);
+
+        if (planFor(previous) is not { AttributionFrom: { } previousFrom, AttributionTo: { } previousTo }
+            || pass.OccurredAt <= previousTo)
+        {
+            return null;
+        }
+
+        var nextWindowFrom = planFor(own) is { AttributionFrom: { } ownFrom }
+            ? ownFrom
+            : previousFrom.AddDays(1);
+
+        return pass.OccurredAt < nextWindowFrom ? previous : null;
     }
 }

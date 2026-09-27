@@ -1226,9 +1226,12 @@ public sealed record ScheduleAssignmentDto(
 /// <param name="EmploymentId">Sanani qamragan asosiy munosabat (§5.1).</param>
 /// <param name="LegalEntityId">O'sha munosabatning firmasi.</param>
 /// <param name="LegalEntityName">Firma nomi.</param>
-/// <param name="DepartmentId">O'sha munosabatning bo'limi — 3-pog'onaning kirishi.</param>
+/// <param name="DepartmentId">
+/// O'sha munosabatning SHU SANADAGI bo'limi — 3-pog'onaning kirishi (ko'chirish hodisalaridan,
+/// <c>EmploymentPlacement</c>; ko'chirishdan oldingi sana uchun — eski bo'lim).
+/// </param>
 /// <param name="DepartmentName">Bo'lim nomi.</param>
-/// <param name="PositionId">O'sha munosabatning lavozimi — 2-pog'onaning kirishi.</param>
+/// <param name="PositionId">O'sha munosabatning SHU SANADAGI lavozimi — 2-pog'onaning kirishi.</param>
 /// <param name="PositionName">Lavozim nomi.</param>
 /// <param name="Scope">Yutgan pog'ona.</param>
 /// <param name="AssignmentId">Yutgan biriktirma.</param>
@@ -1238,7 +1241,15 @@ public sealed record ScheduleAssignmentDto(
 /// <param name="WorkScheduleName">Jadval nomi.</param>
 /// <param name="MatchedDepartmentId">Faqat bo'lim pog'onasida: biriktirmasi yutgan bo'lim (ota bo'lim bo'lishi mumkin).</param>
 /// <param name="MatchedDepartmentName">O'sha bo'limning nomi.</param>
-/// <param name="Day">Jadvalning shu sana hafta kuniga to'g'ri keladigan kuni.</param>
+/// <param name="Day">
+/// Jadvalning SHU SANADAGI kuni — tabel hisoblagan manbadan: yillik to'rda shu sanaga katak
+/// yozilgan bo'lsa o'sha katak (<c>dayIndex</c> — sananing hafta kuni), aks holda hafta kunining
+/// naqshi. Jadval topilmasa <c>null</c>.
+/// </param>
+/// <param name="DaySource">
+/// <paramref name="Day"/> qayerdan: <see cref="ScheduleDaySource.Date"/> — yillik to'r katagi,
+/// <see cref="ScheduleDaySource.Pattern"/> — haftalik naqsh. <paramref name="Day"/> bilan birga <c>null</c>.
+/// </param>
 public sealed record ScheduleResolutionDto(
     Guid EmployeeId,
     string? EmployeeName,
@@ -1258,7 +1269,8 @@ public sealed record ScheduleResolutionDto(
     string? WorkScheduleName,
     Guid? MatchedDepartmentId,
     string? MatchedDepartmentName,
-    WorkScheduleDayDto? Day);
+    WorkScheduleDayDto? Day,
+    ScheduleDaySource? DaySource);
 
 // ────────────────────────────────────────────────────────────────────
 //  9. Qayta hisoblash (SPEC §6.7)

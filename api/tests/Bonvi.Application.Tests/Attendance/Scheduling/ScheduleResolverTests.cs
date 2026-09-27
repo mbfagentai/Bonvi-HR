@@ -192,6 +192,67 @@ public sealed class ScheduleResolverTests
         natija.Day.PlanStartAt.ShouldBe(At(Monday, "09:00"));
     }
 
+    /// <summary>
+    /// Yillik to'r katagi bor sanada natija qaysi katakdan kelganini aytadi (<c>GET /schedules/resolve</c>
+    /// kunni shundan quradi); katak yo'q sanada — <c>null</c>, ya'ni haftalik naqsh.
+    /// </summary>
+    [Fact]
+    public void Natija_yillik_tor_katagini_korsatadi()
+    {
+        var sahna = new AttendanceScenario();
+        var munosabat = sahna.Employ();
+        var jadval = Schedule("09:00", "18:00");
+        sahna.Assign(jadval);
+        var katak = sahna.ScheduleDate(jadval, new WorkScheduleDateInput(Monday, IsWorking: false));
+
+        var resolver = sahna.Resolver();
+
+        var dushanba = resolver.Resolve(munosabat, Monday).ShouldNotBeNull();
+        dushanba.DateOverride.ShouldBe(katak);
+        dushanba.Day.IsWorking.ShouldBeFalse("katak naqshdan ustun");
+
+        resolver.Resolve(munosabat, Tuesday).ShouldNotBeNull().DateOverride.ShouldBeNull();
+    }
+
+    /// <summary>Lavozim pog'onasi SHU SANADAGI lavozim bilan qidiriladi — ko'chirishdan oldingi kun eski lavozimning jadvali.</summary>
+    [Fact]
+    public void Lavozim_pogonasi_sanadagi_lavozim_bilan()
+    {
+        var sahna = new AttendanceScenario();
+        var yangiLavozim = Guid.CreateVersion7();
+        var munosabat = sahna.Employ(positionId: Lavozim);
+        var eski = Schedule("08:00", "17:00");
+        var yangi = Schedule("09:00", "18:00");
+        sahna.Assign(eski, ScheduleScope.Position, Lavozim);
+        sahna.Assign(yangi, ScheduleScope.Position, yangiLavozim);
+        munosabat.Transfer(Tuesday, null, yangiLavozim).IsSuccess.ShouldBeTrue();
+
+        var resolver = sahna.Resolver();
+
+        resolver.Resolve(munosabat, Monday)!.Schedule.ShouldBe(eski);
+        resolver.Resolve(munosabat, Tuesday)!.Schedule.ShouldBe(yangi);
+    }
+
+    /// <summary>Bo'lim pog'onasi ham SHU SANADAGI bo'lim bilan.</summary>
+    [Fact]
+    public void Bolim_pogonasi_sanadagi_bolim_bilan()
+    {
+        var sahna = new AttendanceScenario();
+        var eskiBolim = sahna.Department("Ombor");
+        var yangiBolim = sahna.Department("Sex");
+        var munosabat = sahna.Employ(departmentId: eskiBolim.Id);
+        var eski = Schedule("08:00", "17:00");
+        var yangi = Schedule("09:00", "18:00");
+        sahna.Assign(eski, ScheduleScope.Department, eskiBolim.Id);
+        sahna.Assign(yangi, ScheduleScope.Department, yangiBolim.Id);
+        munosabat.Transfer(Tuesday, yangiBolim.Id, null).IsSuccess.ShouldBeTrue();
+
+        var resolver = sahna.Resolver();
+
+        resolver.Resolve(munosabat, Monday)!.Schedule.ShouldBe(eski);
+        resolver.Resolve(munosabat, Tuesday)!.Schedule.ShouldBe(yangi);
+    }
+
     // ────────────────────── Yuklovchi xatolari ──────────────────────
 
     /// <summary>Jadvali yuklanmagan biriktirma xodimni jimgina pastki pog'onaga tushirmaydi.</summary>

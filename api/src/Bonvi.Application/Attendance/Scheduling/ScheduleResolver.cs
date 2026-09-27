@@ -15,7 +15,16 @@ namespace Bonvi.Application.Attendance.Scheduling;
 /// <param name="Assignment">Yutgan biriktirma.</param>
 /// <param name="Schedule">Biriktirmadagi jadval.</param>
 /// <param name="Day">Jadvalning shu sanaga qo'yilgan kuni.</param>
-public sealed record ScheduleResolution(ScheduleAssignment Assignment, WorkSchedule Schedule, DayPlan Day)
+/// <param name="DateOverride">
+/// <paramref name="Day"/> yillik to'rning shu SANAGA yozilgan katagidan kelgan bo'lsa — o'sha katak;
+/// haftalik naqshdan kelgan bo'lsa <c>null</c>. «Nega shu soat» savoliga javob beruvchi ekran
+/// (<c>GET /schedules/resolve</c>) kunni aynan shu manbadan ko'rsatadi.
+/// </param>
+public sealed record ScheduleResolution(
+    ScheduleAssignment Assignment,
+    WorkSchedule Schedule,
+    DayPlan Day,
+    WorkScheduleDate? DateOverride = null)
 {
     /// <summary>Qaysi pog'ona yutdi.</summary>
     public ScheduleScope Tier => Assignment.Scope;
@@ -123,21 +132,33 @@ public sealed class ScheduleResolver
 
     /// <summary>Asosiy munosabat bo'yicha shu sanadagi jadval; topilmasa <c>null</c> (<c>NoSchedule</c>).</summary>
     /// <remarks>
+    /// <para>
     /// Munosabat SHART: SPEC §5.2 hal qilishni asosiy munosabat orqali
     /// ta'riflaydi, munosabati yo'q sana esa <c>NotEmployed</c> — u
     /// uchun jadval so'ralmaydi.
+    /// </para>
+    /// <para>
+    /// ⭐ Lavozim va bo'lim pog'onasi munosabatning JORIY maydonidan emas, shu
+    /// SANADAGI joyidan (<see cref="EmploymentPlacement.On"/>) o'qiladi: ko'chirish
+    /// kuchga kirishidan oldingi kun eski lavozimning jadvali bilan, oldinga
+    /// sanalangan ko'chirish esa faqat o'z sanasidan qo'llanadi. Kun yozuvining
+    /// bo'lim/lavozim surati ham aynan shu qiymatdan — ikkalasi bir-biridan
+    /// ajralib qolmaydi.
+    /// </para>
     /// </remarks>
-    /// <param name="primaryEmployment">Shu sanadagi asosiy munosabat (<see cref="PrimaryEmployment.Select"/>).</param>
+    /// <param name="primaryEmployment">Shu sanadagi asosiy munosabat (<see cref="PrimaryEmployment.Select"/>) — hodisalari bilan.</param>
     /// <param name="date">Smena boshlanadigan Toshkent sanasi.</param>
     public ScheduleResolution? Resolve(Employment primaryEmployment, DateOnly date)
     {
         ArgumentNullException.ThrowIfNull(primaryEmployment);
 
+        var placement = EmploymentPlacement.On(primaryEmployment, date);
+
         var winner = Find(ScheduleScope.Employee, primaryEmployment.EmployeeId, date)
-            ?? (primaryEmployment.PositionId is { } positionId
+            ?? (placement.PositionId is { } positionId
                 ? Find(ScheduleScope.Position, positionId, date)
                 : null)
-            ?? FindInDepartments(primaryEmployment.DepartmentId, date)
+            ?? FindInDepartments(placement.DepartmentId, date)
             ?? Find(ScheduleScope.Default, null, date);
 
         if (winner is null)
@@ -146,11 +167,13 @@ public sealed class ScheduleResolver
         }
 
         var schedule = _schedules[winner.WorkScheduleId];
+        var exact = _dates.GetValueOrDefault((schedule.Id, date));
 
         return new ScheduleResolution(
             winner,
             schedule,
-            DayPlan.For(schedule, date, _dates.GetValueOrDefault((schedule.Id, date))));
+            DayPlan.For(schedule, date, exact),
+            exact);
     }
 
     /// <summary>Bo'lim pog'onasi: o'zidan boshlab yuqoriga, birinchi mos kelgan bo'lim yutadi.</summary>

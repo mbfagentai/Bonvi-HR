@@ -612,6 +612,31 @@ public static class SystemSettingKeys
     /// <summary><see cref="AttendanceFrozenThrough"/> qiymatining shakli.</summary>
     public const string FrozenThroughFormat = "yyyy-MM-dd";
 
+    /// <summary>
+    /// Mehnat munosabatlaridagi o'zgarishlar davomatga shu lahzagacha yetkazilgan.
+    /// Serverning O'ZI yozadi (<see cref="SystemSettingKind.Hidden"/>), ISO 8601 UTC
+    /// (<see cref="EmploymentChangesCheckedAtFormat"/>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bor.</b> Orqaga sana bilan kiritilgan ishdan bo'shatish, ishga qabul
+    /// yoki ko'chirish o'tishlarga tegmaydi va iflos navbat ularni ko'rmaydi; tungi
+    /// hisoblash esa faqat oxirgi uch kunni qamraydi. 15-sentabrda 10-sentabr sanasi
+    /// bilan bo'shatilgan odamning 11–13-sentabri shu sababli «Kelmadi» bo'lib
+    /// qolardi. <c>AttendanceEmploymentChangesJob</c> shu qiymatdan beri o'zgargan
+    /// munosabatlarni topib, o'sha xodimning kunlarini qayta hisoblaydi va oxirida
+    /// qiymatni yurish BOSHLANGAN lahzaga suradi.
+    /// </para>
+    /// <para>
+    /// Bo'sh — vazifa hali bir marta ham yurmagan (birinchi yurish oxirgi chorakni
+    /// ko'rib chiqadi).
+    /// </para>
+    /// </remarks>
+    public const string AttendanceEmploymentChangesCheckedAt = "attendance.employmentChangesCheckedAt";
+
+    /// <summary><see cref="AttendanceEmploymentChangesCheckedAt"/> qiymatining shakli — aylanma ISO 8601.</summary>
+    public const string EmploymentChangesCheckedAtFormat = "O";
+
     // ────────────────────────────────────────────────────────────
     //  REKRUTING — nomzod bilan bog'liq qoidalar
     // ────────────────────────────────────────────────────────────
@@ -958,6 +983,9 @@ public static class SystemSettingKeys
         // qo'shayotgan odam guruhlash buzilgan deb o'ylardi.
         new(GeneralPoolVacancyId, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxIdLength),
         new(AttendanceFrozenThrough, SystemSettingKind.Hidden, string.Empty, MaxLength: FrozenThroughFormat.Length),
+
+        // «2026-09-27T10:15:00.0000000+00:00» — 33 belgi.
+        new(AttendanceEmploymentChangesCheckedAt, SystemSettingKind.Hidden, string.Empty, MaxLength: 40),
     ];
 
     /// <summary>

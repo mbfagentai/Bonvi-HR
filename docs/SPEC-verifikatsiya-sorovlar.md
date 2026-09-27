@@ -81,6 +81,13 @@ are already the thing people trust it for.
   being punished for.
 * Approving or rejecting a request **enqueues a recompute** for the days it
   covers, through the existing dirty queue — stored days are not edited by hand.
+  **AMENDED 2026-09-27:** the decision (and the cancellation of an approved
+  request) recomputes that one employee's days **in the request itself, before
+  the response** (≤ `MaxRecomputeDays`, the request's own limit), through the
+  single writer `AttendanceDayRecomputer`; only a longer range goes to the
+  background queue. The web refetches the employee card as soon as the response
+  arrives — with the Hangfire hop the card kept showing «Kelmadi» for up to a
+  minute.
 
 ### B4. API
 

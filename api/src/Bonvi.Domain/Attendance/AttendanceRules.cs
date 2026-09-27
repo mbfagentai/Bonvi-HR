@@ -24,14 +24,22 @@ namespace Bonvi.Domain.Attendance;
 /// </remarks>
 public static class AttendanceRules
 {
-    /// <summary>Bir xil yo'nalishdagi ikki o'qish shu oraliqda BITTA o'tish deb qaraladi.</summary>
+    /// <summary>Telefondagi ikki belgi orasidagi eng kam vaqt (soniya).</summary>
     /// <remarks>
-    /// Turniket oldida odam ikkilanadi, orqasidan ikkinchi odam o'tadi,
-    /// terminal yuzni ikki marta ushlaydi. Bir daqiqa ichidagi takror
-    /// o'qish — bitta odam, bitta eshik. Bunday o'tish o'chirilmaydi:
-    /// u saqlanib qoladi va kun yozuvida <c>ignored_pass_count</c> ga
-    /// tushadi, ya'ni «nega 10 ta o'tishdan 8 tasi sanaldi» degan savol
-    /// javobsiz qolmaydi.
+    /// <para>
+    /// Turniket oldida odam ikkilanadi, terminal yuzni ikki marta ushlaydi,
+    /// telefonda tugma ikki marta bosiladi. Xodim ilovasi shu oraliqdagi
+    /// ikkinchi belgini qabul qilmaydi (<c>davomat.takroriy_belgi</c>).
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Kun hisoblashi bu son bilan ISHLAMAYDI</b> (egasining qarori,
+    /// 2026-09-27). Yo'nalishi MA'LUM ketma-ket takror (ikki kirish yoki ikki
+    /// chiqish) oralig'idan qat'i nazar bitta voqea: birinchi kirish, oxirgi
+    /// chiqish (<c>PassPairing</c>). Yo'nalishi NOMA'LUM o'qishlar (bitta
+    /// umumiy terminal) esa hech qachon birlashtirilmaydi — navbat bilan
+    /// kirish/chiqish. Tashlangan takror o'chirilmaydi: jurnalda qoladi va kun
+    /// yozuvida <c>ignored_pass_count</c> ga tushadi.
+    /// </para>
     /// </remarks>
     public const int BounceSeconds = 60;
 

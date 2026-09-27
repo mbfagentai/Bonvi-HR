@@ -153,9 +153,11 @@ public sealed class GetScheduleYearQueryHandler
 /// qo'lda tahrirlanmaydi — modulda bunday yo'l umuman yo'q.
 /// </para>
 /// <para>
-/// ⚠️ Qayta hisoblash faqat BUGUNGACHA bo'lgan kunlar uchun: kelajakdagi
-/// kunning saqlangan yozuvi yo'q (tabel uni o'qiyotganda hosil qiladi),
-/// ya'ni butun yilni to'ldirish 365 kunlik og'ir vazifa tug'dirmaydi.
+/// ⚠️ Qayta hisoblash FAQAT shu jadval tushadigan xodimlarning FAQAT o'zgargan
+/// sanalari (±1 qo'shni bilan) uchun — <see cref="AttendanceScheduleDatesJob"/>.
+/// Kelajak sanalar ham kiradi: ularda tasdiqlangan so'rovning «Sababli» qatori
+/// turishi mumkin. Butun yilni to'ldirish shu tufayli butun korxonani emas,
+/// jadvaldagi odamlarni chorak oynalarda qayta yozadi.
 /// </para>
 /// </remarks>
 public sealed class SetScheduleDatesCommandHandler
@@ -166,20 +168,17 @@ public sealed class SetScheduleDatesCommandHandler
     private readonly IWorkScheduleRepository _schedules;
     private readonly IWorkScheduleDateRepository _dates;
     private readonly IBackgroundJobQueue _jobs;
-    private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
     public SetScheduleDatesCommandHandler(
         IWorkScheduleRepository schedules,
         IWorkScheduleDateRepository dates,
         IBackgroundJobQueue jobs,
-        IClock clock,
         IUnitOfWork unitOfWork)
     {
         _schedules = schedules;
         _dates = dates;
         _jobs = jobs;
-        _clock = clock;
         _unitOfWork = unitOfWork;
     }
 
@@ -257,39 +256,28 @@ public sealed class SetScheduleDatesCommandHandler
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        await EnqueueRecomputeAsync(wanted, cancellationToken).ConfigureAwait(false);
+        await EnqueueRecomputeAsync(schedule.Id, wanted).ConfigureAwait(false);
 
         return Result.Success();
     }
 
-    /// <summary>O'zgargan kunlarni qayta hisoblashga qo'yadi — faqat o'tgan kunlar.</summary>
-    private async Task EnqueueRecomputeAsync(List<DateOnly> dates, CancellationToken cancellationToken)
+    /// <summary>O'zgargan kunlarni shu jadvaldagi odamlar uchun qayta hisoblashga qo'yadi.</summary>
+    /// <remarks>
+    /// Kimga tegishini vazifaning O'ZI hal qiladi (<see cref="AttendanceScheduleDatesJob"/>):
+    /// jadval bo'limga yoki lavozimga biriktirilgan bo'lishi mumkin, va navbatda kutgan
+    /// vaqt ichida biriktirma o'zgarishi ham mumkin. Sanalar esa ANIQ ro'yxat —
+    /// tarqoq kataklar oralig'i emas (sabab vazifa izohida).
+    /// </remarks>
+    private async Task EnqueueRecomputeAsync(Guid scheduleId, List<DateOnly> dates)
     {
-        var today = _clock.Today;
-        var past = dates.Where(date => date <= today).ToList();
-
-        if (past.Count == 0)
-        {
-            return;
-        }
-
-        /*
-          Xodim ko'rsatilmaydi (`employeeId: null`): jadval bo'limga
-          biriktirilgan bo'lishi mumkin va u kimlarga tegishini hal
-          qiluvchining o'zi biladi. Oraliq — eng erta va eng kech sana:
-          orasidagi tegilmagan kunlar qayta hisoblanadi, lekin natija
-          o'zgarmaydi (hisob determinlashgan).
-        */
-        // Ifoda daraxtida `^1` ishlatib bo'lmaydi (Hangfire chaqiruvni
-        // shunday o'qiydi) — chegaralar oldindan hisoblanadi.
-        var first = past[0];
-        var last = past[past.Count - 1];
+        // Ifoda daraxtida kolleksiya ifodasi yoki metod chaqiruvi emas, tayyor
+        // qiymat bo'lsin — Hangfire argumentni shu yerda o'qib saqlaydi.
+        var changed = dates.ToArray();
 
         await _jobs
-            .EnqueueAsync<AttendanceRecomputeRangeJob>(job => job.RunAsync(
-                first,
-                last,
-                null,
+            .EnqueueAsync<AttendanceScheduleDatesJob>(job => job.RunAsync(
+                scheduleId,
+                changed,
                 CancellationToken.None))
             .ConfigureAwait(false);
     }

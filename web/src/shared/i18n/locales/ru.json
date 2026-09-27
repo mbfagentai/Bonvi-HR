@@ -1796,6 +1796,8 @@
     "resolveInheritedTitle": "Унаследовано от родительского отдела",
     "resolveInherited": "График пришёл из отдела «{{matched}}»: у отдела «{{own}}» нет своего назначения.",
     "resolveEmployment": "Трудовые отношения: {{context}}",
+    "resolveDayFromDate": "Ячейка годовой сетки",
+    "resolveDayFromPattern": "Недельный шаблон",
     "tierWon": "Сработал",
     "tierNoMatch": "не подошёл",
     "tierNotChecked": "не проверялся",

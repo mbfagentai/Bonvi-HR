@@ -44,4 +44,26 @@ public static class WorkScheduleMapper
             day.BreakEnd,
             day.BreakStart is { } start && day.BreakEnd is { } end && end < start);
     }
+
+    /// <summary>Yillik to'rning katagi — hafta kuni shaklida (<c>GET /schedules/resolve</c>).</summary>
+    /// <remarks>
+    /// <c>DayIndex</c> — katak sanasining ISO hafta kuni (1 — dushanba … 7 — yakshanba):
+    /// ekran kun nomini shundan chiqaradi. Qolgan maydonlar naqsh kunidagi bilan bir
+    /// ma'noda, <c>BreakCrossesMidnight</c> ham aynan o'sha qoida bilan.
+    /// </remarks>
+    /// <param name="date">Jadvalning shu sanaga yozilgan katagi.</param>
+    public static WorkScheduleDayDto ToDto(WorkScheduleDate date)
+    {
+        ArgumentNullException.ThrowIfNull(date);
+
+        return new WorkScheduleDayDto(
+            date.Date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.Date.DayOfWeek,
+            date.IsWorking,
+            date.StartTime,
+            date.EndTime,
+            date.BreakMinutes,
+            date.BreakStart,
+            date.BreakEnd,
+            date.BreakStart is { } start && date.BreakEnd is { } end && end < start);
+    }
 }

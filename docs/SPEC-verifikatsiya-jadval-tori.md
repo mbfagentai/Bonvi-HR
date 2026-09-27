@@ -53,6 +53,23 @@ employees the schedule reaches (employee / position / department assignment), vi
 the existing dirty queue. Stored `attendance_days` are never edited by hand — the
 module's standing rule.
 
+**AMENDED 2026-09-27 — as written, not as first built.** The first build enqueued
+`attendance:recompute-range` from the earliest to the latest past date for
+**every** employee: "fill the year" on 27 September recomputed ~270 days × ~540
+people, the neighbours of a changed day were not recomputed, and future dates were
+skipped. Now the edit enqueues `attendance:schedule-dates` (scheduleId + the exact
+dates), which:
+
+1. resolves, date by date, who the schedule actually reaches (the same
+   `ScheduleResolver` the timesheet uses — tier, department walk, transfer date);
+2. recomputes only those people, only the changed dates **and their ±1
+   neighbours** — a day turned into a 20:00–08:00 shift claims the next morning's
+   exit, and without the neighbour that exit was counted on both days;
+3. includes **future** dates — an approved request's «Sababli» row can live there
+   and must disappear when the day becomes a day off;
+4. goes through the single writer, which works in ≤ 92-day windows and 100-employee
+   batches and forgets each saved batch.
+
 ---
 
 ## C. API

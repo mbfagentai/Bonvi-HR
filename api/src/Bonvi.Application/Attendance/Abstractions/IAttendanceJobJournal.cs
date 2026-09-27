@@ -29,6 +29,16 @@ public interface IAttendanceJobJournal
     /// <param name="outcome">Sanoqlar.</param>
     void NightlyRecomputeFinished(DateOnly from, DateOnly to, AttendanceRecomputeOutcome outcome);
 
+    /// <summary>Boshlangan smenalar vazifasi tugadi — yo'q «Kelmadi» qatorlari yozildi.</summary>
+    /// <param name="from">Davr boshi.</param>
+    /// <param name="to">Davr oxiri.</param>
+    /// <param name="outcome">Sanoqlar (<c>StoredDays</c> — qo'shilgan qatorlar).</param>
+    void StartedShiftsFilled(DateOnly from, DateOnly to, AttendanceRecomputeOutcome outcome);
+
+    /// <summary>Mehnat o'zgarishlari vazifasi tugadi.</summary>
+    /// <param name="report">Sanoqlar.</param>
+    void EmploymentChangesRecomputed(EmploymentChangesReport report);
+
     /// <summary>Surat tozalash tugadi.</summary>
     /// <param name="report">Sanoqlar.</param>
     void PhotoPurgeFinished(PhotoPurgeReport report);
@@ -63,6 +73,19 @@ public sealed record DirtyRecomputeReport(
     int RemovedDays,
     int FrozenDates,
     int MarkedPasses);
+
+/// <summary>Mehnat o'zgarishlari vazifasi yurishining sanoqlari.</summary>
+/// <param name="ChangedEmployees">Munosabati yoki mehnat yo'li o'zgargan xodimlar.</param>
+/// <param name="RecomputedEmployees">Kunlari qayta hisoblangan xodimlar (faqat kelajakka ta'sir qilganlari chiqarilgan).</param>
+/// <param name="StoredDays">Yozilgan kun yozuvlari.</param>
+/// <param name="RemovedDays">O'chirilgan eskirgan kun yozuvlari.</param>
+/// <param name="FrozenDates">Muzlagani uchun hisoblanmagan sanalar.</param>
+public sealed record EmploymentChangesReport(
+    int ChangedEmployees,
+    int RecomputedEmployees,
+    int StoredDays,
+    int RemovedDays,
+    int FrozenDates);
 
 /// <summary>Surat tozalash yurishining sanoqlari.</summary>
 /// <param name="RetentionDays">Ishlatilgan muddat.</param>

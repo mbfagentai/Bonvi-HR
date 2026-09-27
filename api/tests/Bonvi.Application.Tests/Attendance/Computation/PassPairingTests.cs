@@ -78,21 +78,75 @@ public sealed class PassPairingTests
     }
 
     /// <summary>
-    /// Ochiq oraliq ustiga yana kirish: oldingi oraliqning chiqishi yozilmagan.
-    /// U daqiqa bermaydi va belgilanadi — biz bilmagan 30 daqiqa «ishlangan» bo'lmaydi.
+    /// Egasining qarori (2026-09-27): yo'nalishi MA'LUM ikki kirish ketma-ket bo'la olmaydi —
+    /// chiqishsiz takror kirish birinchisining nusxasi. Ilgari bu «ochiq oraliq ustiga kirish»
+    /// deb <c>MissingExit</c> bo'lardi va oraliq 09:30 dan boshlanardi; endi oraliq 09:00 dan.
     /// </summary>
     [Fact]
-    public void Ochiq_oraliq_ustiga_kirish_oldingisini_chiqishsiz_deb_belgilaydi()
+    public void Chiqishsiz_takror_kirish_birinchi_kirishning_nusxasi()
     {
         var natija = Pair(
             P("09:00", PassDirection.In),
             P("09:30", PassDirection.In),
             P("18:00", PassDirection.Out));
 
+        natija.MissingExit.ShouldBeFalse();
+        natija.ClosedMinutes.ShouldBe(540, "oraliq BIRINCHI kirishdan");
+        natija.FirstInAt.ShouldBe(At(Monday, "09:00"));
+        natija.IgnoredPassCount.ShouldBe(1, "takror kirish jurnalda qoladi, juftlashda tashlanadi");
+        natija.PassCount.ShouldBe(3);
+    }
+
+    /// <summary>
+    /// Aralash yo'nalish (egasi o'zgartirmagan, ochiq savol): navbat bilan kirish deb taxmin
+    /// qilingan o'tishdan keyin MA'LUM kirish — oldingi oraliqning chiqishi yozilmagan. U daqiqa
+    /// bermaydi va belgilanadi — biz bilmagan 30 daqiqa «ishlangan» bo'lmaydi.
+    /// </summary>
+    [Fact]
+    public void Aralash_yonalishda_ochiq_oraliq_ustiga_kirish_oldingisini_chiqishsiz_deb_belgilaydi()
+    {
+        var natija = Pair(
+            P("09:00", PassDirection.Unknown),
+            P("09:30", PassDirection.In),
+            P("18:00", PassDirection.Out));
+
         natija.MissingExit.ShouldBeTrue();
-        natija.ClosedMinutes.ShouldBe(510, "oraliq ikkinchi kirishdan hisoblanadi");
+        natija.ClosedMinutes.ShouldBe(510, "oraliq ma'lum kirishdan hisoblanadi");
         natija.FirstInAt.ShouldBe(At(Monday, "09:00"), "birinchi kirish baribir birinchi kirish");
-        natija.IgnoredPassCount.ShouldBe(0, "30 daqiqa — sakrash emas");
+        natija.IgnoredPassCount.ShouldBe(0, "noma'lum yo'nalish hech narsani yutmaydi va yutilmaydi");
+    }
+
+    /// <summary>
+    /// Egasining qarori (2026-09-27): kirishsiz takror CHIQISH oldingisining o'rnini oladi —
+    /// odam OXIRGI chiqishda ketgan. Ilgari ikkinchi chiqish yetim bo'lib <c>MissingEntry</c> berardi.
+    /// </summary>
+    [Fact]
+    public void Kirishsiz_takror_chiqish_oxirgisi_yutadi()
+    {
+        var natija = Pair(
+            P("09:00", PassDirection.In),
+            P("17:00", PassDirection.Out),
+            P("18:05", PassDirection.Out));
+
+        natija.MissingEntry.ShouldBeFalse();
+        natija.ClosedMinutes.ShouldBe(545, "09:00–18:05");
+        natija.LastOutAt.ShouldBe(At(Monday, "18:05"));
+        natija.IgnoredPassCount.ShouldBe(1);
+    }
+
+    /// <summary>Kunning boshidagi yetim chiqishlar ham oxirgisiga qisqaradi — lekin yetimligicha qoladi.</summary>
+    [Fact]
+    public void Kirishdan_oldingi_takror_chiqishlar_bitta_yetim_chiqish()
+    {
+        var natija = Pair(
+            P("08:00", PassDirection.Out),
+            P("08:30", PassDirection.Out),
+            P("09:00", PassDirection.In),
+            P("18:00", PassDirection.Out));
+
+        natija.MissingEntry.ShouldBeTrue("kirishsiz chiqish baribir yetim");
+        natija.IgnoredPassCount.ShouldBe(1);
+        natija.ClosedMinutes.ShouldBe(540);
     }
 
     /// <summary>SPEC §5.5, 5-qadam: 7 soat 59 daqiqa 30 soniya — 479, yuvarlanmaydi.</summary>
@@ -135,7 +189,21 @@ public sealed class PassPairingTests
         natija.FirstInAt.Value.ShouldBe(At(Monday, "09:00"), "lahzaning o'zi o'zgarmaydi");
     }
 
-    // ────────────────────── Sakrashlar (#38) ──────────────────────
+    // ────────────────────── Takrorlar (#38; egasining qarori, 2026-09-27) ──────────────────────
+
+    /// <summary>§5.7: 20 soniya farqli ikki CHIQISH — oldingisi tashlanadi, oxirgisi qoladi.</summary>
+    [Fact]
+    public void Yigirma_soniya_ichidagi_ikki_chiqishdan_oxirgisi_qoladi()
+    {
+        var natija = Pair(
+            P("09:00:00", PassDirection.In),
+            P("18:00:00", PassDirection.Out),
+            P("18:00:20", PassDirection.Out));
+
+        natija.IgnoredPassCount.ShouldBe(1);
+        natija.LastOutAt.ShouldBe(At(Monday, "18:00:20"));
+        natija.MissingEntry.ShouldBeFalse();
+    }
 
     [Fact]
     public void Yigirma_soniya_ichidagi_ikki_kirish_bitta_hisoblanadi()
@@ -151,40 +219,54 @@ public sealed class PassPairingTests
         natija.ClosedMinutes.ShouldBe(540);
     }
 
+    /// <summary>
+    /// Egasining qarori (2026-09-27): 60 soniyalik chegara endi yo'q — 20 daqiqa farqli ikki
+    /// ma'lum kirish ham bitta (ilgari ikkalasi qolardi).
+    /// </summary>
     [Fact]
-    public void Yigirma_daqiqa_farqli_ikki_kirish_ikkalasi_ham_qoladi()
+    public void Yigirma_daqiqa_farqli_ikki_kirish_ham_bitta_hisoblanadi()
     {
         var natija = Pair(
             P("09:00", PassDirection.In),
             P("09:20", PassDirection.In),
             P("18:00", PassDirection.Out));
 
-        natija.IgnoredPassCount.ShouldBe(0);
-    }
-
-    [Fact]
-    public void Sakrash_chegarasi_oltmish_soniyani_oz_ichiga_oladi()
-    {
-        Pair(P("09:00:00", PassDirection.In), P("09:01:00", PassDirection.In))
-            .IgnoredPassCount.ShouldBe(1, "roppa-rosa 60 s — hali bitta o'tish");
-
-        Pair(P("09:00:00", PassDirection.In), P("09:01:01", PassDirection.In))
-            .IgnoredPassCount.ShouldBe(0);
+        natija.IgnoredPassCount.ShouldBe(1);
+        natija.ClosedMinutes.ShouldBe(540);
+        natija.MissingExit.ShouldBeFalse();
     }
 
     /// <summary>
-    /// Solishtirish oxirgi SAQLANGAN bilan: 50 soniyalik zanjir ikki daqiqani
-    /// «bitta o'tish» qilib yubormaydi.
+    /// Egasining qarori (2026-09-27): ma'lum yo'nalishli takrorda vaqt chegarasi yo'q — 60 soniya,
+    /// 61 soniya va uch soat bir xil (ilgari 61 soniya ikki o'tish edi).
     /// </summary>
     [Fact]
-    public void Sakrash_oxirgi_saqlangan_otish_bilan_solishtiriladi()
+    public void Malum_yonalishli_takror_uchun_vaqt_chegarasi_yoq()
+    {
+        Pair(P("09:00:00", PassDirection.In), P("09:01:00", PassDirection.In))
+            .IgnoredPassCount.ShouldBe(1);
+
+        Pair(P("09:00:00", PassDirection.In), P("09:01:01", PassDirection.In))
+            .IgnoredPassCount.ShouldBe(1);
+
+        Pair(P("09:00:00", PassDirection.In), P("12:00:00", PassDirection.In))
+            .IgnoredPassCount.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Egasining qarori (2026-09-27): ketma-ket uchta kirishdan faqat BIRINCHISI qoladi (ilgari
+    /// «oxirgi saqlangan bilan 60 soniya» zanjiri uchinchisini alohida o'tish qilardi).
+    /// </summary>
+    [Fact]
+    public void Ketma_ket_uch_kirishdan_faqat_birinchisi_qoladi()
     {
         var natija = Pair(
             P("09:00:00", PassDirection.In),
             P("09:00:50", PassDirection.In),
             P("09:01:40", PassDirection.In));
 
-        natija.IgnoredPassCount.ShouldBe(1);
+        natija.IgnoredPassCount.ShouldBe(2);
+        natija.FirstInAt.ShouldBe(At(Monday, "09:00"));
     }
 
     [Fact]
@@ -195,6 +277,10 @@ public sealed class PassPairingTests
         natija.IgnoredPassCount.ShouldBe(0);
     }
 
+    /// <summary>
+    /// ⭐ Egasining qarori (2026-09-27), ATAYLAB: bitta umumiy terminal (yo'nalish noma'lum) —
+    /// 20 soniya farqli ikki o'qish ham navbat bilan kirish va chiqish bo'laveradi, birlashtirilmaydi.
+    /// </summary>
     [Fact]
     public void Nomalum_yonalish_hech_narsani_yutmaydi()
     {
@@ -202,6 +288,19 @@ public sealed class PassPairingTests
 
         natija.IgnoredPassCount.ShouldBe(0);
         natija.MissingExit.ShouldBeFalse("navbat bilan kirish va chiqish bo'ldi");
+    }
+
+    /// <summary>Ochiq oraliq tekshiruvi juftlash bilan bir xil qadamlardan o'tadi.</summary>
+    [Fact]
+    public void Ochiq_oraliq_tekshiruvi_takror_va_navbatni_hisobga_oladi()
+    {
+        PassPairing.EndsOpen([]).ShouldBeFalse();
+        PassPairing.EndsOpen([P("09:00", PassDirection.Unknown)]).ShouldBeTrue();
+        PassPairing.EndsOpen([P("09:00", PassDirection.Unknown), P("18:00", PassDirection.Unknown)]).ShouldBeFalse();
+        PassPairing.EndsOpen([P("09:00", PassDirection.In), P("12:00", PassDirection.In)])
+            .ShouldBeTrue("takror kirish bitta — kun ochiq");
+        PassPairing.EndsOpen([P("09:00", PassDirection.In), P("17:00", PassDirection.Out), P("18:00", PassDirection.Out)])
+            .ShouldBeFalse();
     }
 
     // ────────────────────── Noma'lum yo'nalish (#46, #47) ──────────────────────

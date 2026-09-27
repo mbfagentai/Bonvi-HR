@@ -131,6 +131,7 @@ internal static class AttendanceRegistration
         services.AddScoped<AttendanceDayRecomputer>();
         services.AddScoped<AttendanceBackfillJob>();
         services.AddScoped<AttendanceRecomputeRangeJob>();
+        services.AddScoped<AttendanceScheduleDatesJob>();
         services.AddScoped<RecomputeAttendanceCommandHandler>();
 
         // Takroriy vazifalar (B7, SPEC §9.2) va saqlash muddati. Recurring
@@ -138,6 +139,8 @@ internal static class AttendanceRegistration
         services.AddScoped<AttendanceRetention>();
         services.AddScoped<AttendanceDirtyRecomputeJob>();
         services.AddScoped<AttendanceNightlyRecomputeJob>();
+        services.AddScoped<AttendanceStartedShiftsJob>();
+        services.AddScoped<AttendanceEmploymentChangesJob>();
         services.AddScoped<AttendancePhotoPurgeJob>();
         services.AddScoped<AttendancePassPurgeJob>();
 

@@ -1796,6 +1796,8 @@
     "resolveInheritedTitle": "Ота бўлимдан мерос",
     "resolveInherited": "Жадвал «{{matched}}» бўлимидан келган: «{{own}}» бўлимининг ўз бириктирмаси йўқ.",
     "resolveEmployment": "Меҳнат муносабати: {{context}}",
+    "resolveDayFromDate": "Йиллик тўрдаги катак",
+    "resolveDayFromPattern": "Ҳафталик нақш",
     "tierWon": "Ютди",
     "tierNoMatch": "мос келмади",
     "tierNotChecked": "кўрилмади",
