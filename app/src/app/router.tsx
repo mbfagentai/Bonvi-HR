@@ -36,10 +36,16 @@ import { UpdateToast } from './update'
  *
  * ⚠️ Ilova `/ilova` ostida yashaydi — `basename` shu yerda beriladi
  * va service worker qamrovi bilan bir xil bo'lishi SHART (UX §G.1).
+ *
+ * ⚠️ OXIRIDAGI CHIZIQ bilan (`/ilova/`). Chiziqsiz bo'lsa bosh sahifa
+ * manzili `/ilova` bo'lib qoladi: u Vite `base` idan ham, service worker
+ * qamrovidan ham TASHQARIDA — sahifani yangilash «public base URL of
+ * /ilova/» xatosini berardi. React Router oxiridagi chiziqni qo'llaydi
+ * (`stripBasename`), boshqa manzillar `/ilova/taqvim` ko'rinishida qoladi.
  */
 export function AppRouter() {
   return (
-    <BrowserRouter basename="/ilova">
+    <BrowserRouter basename="/ilova/">
       <ScrollBehaviour />
 
       <Routes>
