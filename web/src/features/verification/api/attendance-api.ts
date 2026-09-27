@@ -45,7 +45,6 @@ import {
   getAttendanceTimesheet,
   getAttendanceTrend,
   getDeviceEnrollments,
-  getEmployeeEnrollments,
   getFormerEmployeeAlerts,
   fillWorkScheduleYear,
   cancelAbsenceRequest,
@@ -66,7 +65,6 @@ import {
   registerAttendanceDevice,
   resolveWorkSchedule,
   resyncDeviceEnrollments,
-  resyncEmployeeEnrollments,
   rotateAttendanceDeviceToken,
   searchAttendancePasses,
   setWorkScheduleDates,
@@ -1241,13 +1239,6 @@ export async function fetchDeviceEnrollments(
   return asSent(await getDeviceEnrollments(deviceId, signal))
 }
 
-export async function fetchEmployeeEnrollments(
-  employeeId: string,
-  signal?: AbortSignal,
-): Promise<DeviceEnrollmentRow[]> {
-  return asSent(await getEmployeeEnrollments(employeeId, signal))
-}
-
 /**
  * «Hammasini sinxronlash».
  *
@@ -1268,9 +1259,4 @@ export async function postDeviceResync(deviceId: string): Promise<EnrollmentResy
  */
 export async function postApproveRemovals(deviceId: string): Promise<void> {
   await approveDeviceRemovals(deviceId)
-}
-
-/** Kartadagi «Qayta yozish» — faqat SHU xodim, o'sha raqam ostida. */
-export async function postEmployeeResync(employeeId: string): Promise<EnrollmentResync> {
-  return asSent(await resyncEmployeeEnrollments(employeeId))
 }

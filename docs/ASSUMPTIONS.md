@@ -749,3 +749,4 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-27] Does HR setting a password end existing sessions? → yes, all refresh tokens revoked (as the old reset did) → a new password is normally given because the old one leaked or was forgotten
 - [2026-09-27] Employee token on HR «Ilova» endpoints → 401 (audience mismatch), view-only HR user → 403 → existing isolation rule; the RBAC test asserts both
 - [2026-09-27] Check-in by a terminated employee → now `xodim.hisob_faol_emas` from the `/api/me` access gate (was `davomat.mobil_ruxsat_yoq` from the handler) → the gate runs first for every `/api/me/*` call; the handler check stays as a second guard
+- [2026-09-27] Xodim kartasidagi «Qurilmalar» kartasi («Qayta yozish») kerakmi? → yo'q, olib tashlandi (egasi) → Qurilmalar sahifasida xato bergan xodimlar rasmi bilan ko'rinadi va «Hammasini sinxronlash» bor; rasm/ism o'zgarsa agent o'zi qayta yozadi. Server endpointlari qoldi (faqat manage), ekran chaqirmaydi.

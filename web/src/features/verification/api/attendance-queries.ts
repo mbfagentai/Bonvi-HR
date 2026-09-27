@@ -20,7 +20,6 @@ import {
   fetchDevice,
   fetchDeviceEnrollments,
   fetchDevices,
-  fetchEmployeeEnrollments,
   fetchExceptions,
   fetchFormerEmployeeAlerts,
   fetchIdentities,
@@ -47,7 +46,6 @@ import {
   resolveSchedule,
   postApproveRemovals,
   postDeviceResync,
-  postEmployeeResync,
   rotateDeviceToken,
   saveSchedule,
   setDeviceActive,
@@ -108,7 +106,6 @@ export const attendanceKeys = {
   devices: (includeInactive: boolean) => ['attendance', 'devices', includeInactive] as const,
   device: (id: string) => ['attendance', 'device', id] as const,
   deviceEnrollments: (id: string) => ['attendance', 'device-enrollments', id] as const,
-  employeeEnrollments: (id: string) => ['attendance', 'employee-enrollments', id] as const,
 
   identities: (filters: IdentityListFilters) =>
     ['attendance', 'identities', filters] as const,
@@ -821,21 +818,6 @@ export function useDeviceEnrollments(deviceId: string, enabled = true) {
 }
 
 /**
- * Xodim kartasidagi «Qurilmalar» qatori.
- *
- * `attendance.manage` ostida (SPEC-agent §D5 — javobda terminal raqami bor):
- * chaqiruvchi ruxsat bo'lmasa `enabled: false` beradi, aks holda so'rov 403
- * bilan qaytardi.
- */
-export function useEmployeeEnrollments(employeeId: string, enabled = true) {
-  return useQuery({
-    queryKey: attendanceKeys.employeeEnrollments(employeeId),
-    queryFn: ({ signal }) => fetchEmployeeEnrollments(employeeId, signal),
-    enabled: enabled && employeeId !== '',
-  })
-}
-
-/**
  * «Hammasini sinxronlash» — xato qatorlarni qayta urinishga qo'yadi.
  *
  * `readOnly` QO'YILMAYDI: holat jadvali o'zgaradi va sahifadagi sanoqlar
@@ -857,12 +839,5 @@ export function useResyncDevice() {
 export function useApproveRemovals() {
   return useMutation({
     mutationFn: (deviceId: string) => postApproveRemovals(deviceId),
-  })
-}
-
-/** Kartadagi «Qayta yozish» — faqat shu xodim. */
-export function useResyncEmployee() {
-  return useMutation({
-    mutationFn: (employeeId: string) => postEmployeeResync(employeeId),
   })
 }

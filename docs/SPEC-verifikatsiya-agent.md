@@ -120,10 +120,14 @@ device token, device host, device user and password; nothing in git.
 
 ## F. Screens
 
-* Employee card → Davomat → a "Qurilmalar" line per device: `Yozildi` /
-  `Kutilmoqda` / `Xato: …` / `Rasm yo'q`, and **Qayta yozish**.
-* Devices page → per device: enrolled / failed / pending counts, last agent
-  contact, and **Hammasini sinxronlash**.
+* ~~Employee card → Davomat → a "Qurilmalar" line per device, and **Qayta
+  yozish**~~ — **removed 2026-09-27 (owner):** redundant. The devices page
+  lists every failed person with photo, and a new photo or name re-arms the
+  person automatically (§E, §L). The endpoints `GET /employees/{id}/enrollments`
+  and `POST /employees/{id}/enrollments/resync` stay (manage-only, tested) but
+  no screen calls them.
+* Devices page → per device: enrolled / failed / pending counts, the failed
+  people with photos, last agent contact, and **Hammasini sinxronlash**.
 
 ## G. Definition of done
 

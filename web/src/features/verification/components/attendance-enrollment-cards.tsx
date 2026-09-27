@@ -1,6 +1,5 @@
-import { Cpu, RefreshCw, ScanFace } from 'lucide-react'
+import { RefreshCw, ScanFace } from 'lucide-react'
 
-import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -10,16 +9,15 @@ import type { AttendanceDevice, DeviceEnrollmentRow } from '../api/attendance-ap
 import {
   useApproveRemovals,
   useDeviceEnrollments,
-  useEmployeeEnrollments,
   useResyncDevice,
-  useResyncEmployee,
 } from '../api/attendance-queries'
 import { ENROLLMENT_STATE_LOOK, linkProblemKey } from '../lib/attendance-manage-presentation'
-import { ATTENDANCE_MANAGE } from '../lib/attendance-presentation'
 
 /**
- * Qurilmaga yozish holati — qurilmalar sahifasi va xodim kartasi uchun
- * ikkita karta (SPEC-agent §F).
+ * Qurilmaga yozish holati — qurilmalar sahifasidagi karta (SPEC-agent §F).
+ * Xodim kartasidagi alohida «Qurilmalar» kartasi egasining qarori bilan
+ * olib tashlandi (2026-09-27): xato bergan xodimlar shu yerda rasmi bilan
+ * ko'rinadi, rasm yoki ism o'zgarsa agent o'zi qayta yozadi.
  *
  * <b>Bu ekranlar hech qachon terminalga o'zi murojaat qilmaydi.</b> Server
  * ham qilmaydi: ishlab chiqarish serveri ofis tarmog'idagi qurilmaga yeta
@@ -175,99 +173,6 @@ export function DeviceEnrollmentCard({ device }: { device: AttendanceDevice }) {
             </p>
           )}
         </>
-      )}
-    </Card>
-  )
-}
-
-/**
- * Xodim kartasidagi «Qurilmalar» qatori — Davomat tabining ostida.
- *
- * FAQAT `attendance.manage` bilan (SPEC-agent §D5): javobda xodimning
- * terminaldagi shaxs raqami bor — bu terminal boshqaruvining ma'lumoti.
- * Ruxsatsiz foydalanuvchida karta umuman chizilmaydi va so'rov ham
- * yuborilmaydi (server 403 beradi).
- */
-export function EmployeeEnrollmentsCard({ employeeId }: { employeeId: string }) {
-  const { hasPermission } = useAuth()
-
-  if (!hasPermission(ATTENDANCE_MANAGE)) {
-    return null
-  }
-
-  return <ManagedEmployeeEnrollmentsCard employeeId={employeeId} />
-}
-
-function ManagedEmployeeEnrollmentsCard({ employeeId }: { employeeId: string }) {
-  const { t, num, dateTime } = useLocale()
-
-  const query = useEmployeeEnrollments(employeeId)
-  const resync = useResyncEmployee()
-
-  const rows = query.data ?? []
-
-  /*
-    Faol qurilma umuman bo'lmasa, karta CHIZILMAYDI: davomat moduli
-    ishlatilmayotgan korxonada bu qator faqat savol tug'dirardi.
-  */
-  if (!query.isPending && rows.length === 0) {
-    return null
-  }
-
-  return (
-    <Card className="space-y-3 p-4">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <IconTile icon={Cpu} tone="teal" size="sm" />
-        <h2 className="min-w-0 flex-1 truncate-1 text-subhead font-semibold">
-          {t('attendance.enrollmentDevices')}
-        </h2>
-
-        <Button
-          type="button"
-          size="sm"
-          variant="soft"
-          pill
-          disabled={resync.isPending || query.isPending}
-          onClick={() =>
-            resync.mutate(employeeId, {
-              onSuccess: () => void query.refetch(),
-            })
-          }
-        >
-          <RefreshCw className={cn(resync.isPending && 'animate-spin')} />
-          {t('attendance.enrollmentResyncOne')}
-        </Button>
-      </div>
-
-      {query.isPending ? (
-        <Skeleton className="h-10 w-full" />
-      ) : query.isError ? (
-        <Alert tone="danger" title={t('employees.loadFailed')}>
-          {t('dashboard.loadFailedHint')}
-        </Alert>
-      ) : (
-        <ul className="divide-y divide-[var(--border)]">
-          {rows.map((row) => (
-            <li key={row.deviceId} className="flex flex-wrap items-center gap-2 py-2 first:pt-0">
-              <div className="min-w-0 flex-1">
-                <p className="truncate-1 text-footnote">{row.deviceName}</p>
-                <p className="tabular truncate-1 font-mono text-caption2 text-[var(--fg-tertiary)]">
-                  {row.personNo ?? '—'}
-                  {row.syncedAt !== null && ` · ${dateTime(row.syncedAt)}`}
-                </p>
-              </div>
-              <EnrollmentBadge row={row} />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <p className="text-caption1 text-[var(--fg-tertiary)]">{t('attendance.enrollmentHint')}</p>
-
-      {resync.isSuccess && (
-        <p className="text-caption1 text-[var(--fg-secondary)]">
-          {t('attendance.enrollmentResynced', { n: num(resync.data.affected) })}
-        </p>
       )}
     </Card>
   )

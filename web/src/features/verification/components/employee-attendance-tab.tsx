@@ -42,7 +42,6 @@ import {
   type MonthValue,
 } from '../lib/attendance-search'
 import { AbsenceRequestsList } from './absence-requests-list'
-import { EmployeeEnrollmentsCard } from './attendance-enrollment-cards'
 import { MobileEvidenceLine } from './attendance-mobile-evidence'
 import { EmployeeAppAccessTab } from './employee-app-access-tab'
 import {
@@ -249,15 +248,6 @@ export function EmployeeAttendanceTab({
           />
         )}
       </Card>
-
-      {/*
-        Qurilmaga yozish — kalendar va jurnaldan KEYIN: HR kunda o'ndan
-        ko'p marta kalendarga qaraydi, qurilmaga esa xodim qo'shilganda
-        yoki rasm almashganda. Ko'rinishlardan (kalendar/jurnal/so'rovlar)
-        TASHQARIDA, chunki u oyga ham, tanlangan ko'rinishga ham bog'liq
-        emas.
-      */}
-      <EmployeeEnrollmentsCard employeeId={employeeId} />
 
       <AttendancePassPhotoDialog
         passId={openPass?.id ?? null}
