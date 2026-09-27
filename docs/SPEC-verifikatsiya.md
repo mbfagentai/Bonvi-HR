@@ -1109,6 +1109,17 @@ optional and capped by the 2 MB body limit. A bare object (no `events`
 wrapper) is also accepted and treated as a one-element array — Postel's law
 applies to devices, not to us, and this costs three lines.
 
+**AMENDED 2026-09-27 — optional `minor`.** The device agent forwards the
+Hikvision minor event type it read from the terminal log (`"minor": 75`).
+An event whose `minor` is in the denied family of §3.4.1 (6 no right, 7
+invalid period, 10 anti-sneak, 76 face verify failed, …) is **dropped**, not
+stored — the same list the Hikvision parser uses, compiled from one file
+(`HikvisionEventTypes`) into both the server and the agent. The agent already
+drops them; the server check is the second line for an older agent. Absent or
+non-numeric `minor` ⇒ the event is read as before. The request header
+`X-Bonvi-Terminal-Serial` (agent only) binds the token to a physical terminal —
+see SPEC-agent §L.
+
 #### 3.4.3 Which parser runs
 
 Chosen by the **device's** `provider` column, never by sniffing the body.
@@ -1219,6 +1230,16 @@ A device configured `ReportsDirection` that keeps sending `Unknown` shows a
 warning on its card: "qurilma yo‘nalishni bermayapti" with the count over the
 last 7 days. That is the signal to switch its role to `EntryOnly`/`ExitOnly`.
 
+**AMENDED 2026-09-27 — this warning is WITHDRAWN and not built.** Every
+terminal now reaches Bonvi through the device agent, and the agent sends
+`Unknown` *by design* (SPEC-agent H8: the terminal gives no `attendanceStatus`;
+the server alternates In/Out). On the device form the role is labelled
+«Navbat bilan» (alternating), not «terminal aytadi». The rule above would be a
+permanent false warning on every agent device. It is recorded in code on
+`DeviceDirectionRole.ReportsDirection`. If a push terminal that really reports
+direction is ever added, the warning must be limited to devices with no agent
+(`agent_seen_at IS NULL`).
+
 ### 3.8 Time — where the conversion happens, and how a wrong clock is caught
 
 * The device sends **local** time, usually with an offset
@@ -1246,6 +1267,24 @@ on every pass and copied to the device's `last_skew_seconds`.
 | ≤ 300 s (`ClockSkewToleranceSeconds`) | normal |
 | > 300 s, ≤ 30 days | **stored and used**, flagged in the pass log, device card shows a red "soat noto‘g‘ri" badge, live board shows a banner if any active device is in this state within the last 24 h |
 | > 30 days (`MaxClockSkewDays`) | **rejected**, 400 `davomat.vaqt_yaroqsiz`, logged with the claimed value |
+
+**AMENDED 2026-09-27 — one measure everywhere.** For an agent device
+`received − occurred` also contains the delivery delay: after an internet
+outage every buffered pass looked «soat adashgan» and the board showed the
+clock banner. The verdict now follows `AttendanceDevice.HasClockDrift`
+everywhere — the agent's direct measurement (`clock_offset_seconds`) when it
+exists, `received − occurred` only for push terminals that are never measured:
+
+* each pass stores the device's measured offset at ingest
+  (`attendance_passes.clock_offset_seconds`); the pass log flag, the photo
+  dialog and the Excel «Soat adashgan» column read
+  `AttendancePass.EffectiveClockSkewSeconds` (the DTO's `clockSkewSeconds` is
+  that value);
+* the board's `clockWarningDeviceCount`, the devices-page banner and the
+  Statistika banner all count `AttendanceDevice.ClockWarningAt(now)` (active,
+  seen in the last 24 h, `HasClockDrift`); the devices-page badge shows the
+  same number (offset, or `last_skew_seconds` when there is no offset), so the
+  banner never counts a device whose row shows «—».
 
 *Why flagged data is still used.* A terminal five minutes fast is still
 telling the truth about who walked through; discarding it would put people on
@@ -2557,6 +2596,18 @@ No Hangfire dashboard (§1.2 #12). Instead:
 * the **devices page** shows last seen, 24 h pass count and clock badge — the
   three facts that say "ingest is alive";
 * the **board** shows the clock-skew banner;
+
+  **AMENDED 2026-09-27.** The live board page was replaced by Statistika
+  (`/verifikatsiya/jonli`, `attendance-dashboard-page.tsx`) and the banner and
+  the «Qurilma hali ulanmagan» empty state (§8.4, §8.5) were lost with it — no
+  decision dropped them. They are back on Statistika, from
+  `deviceHealth` in `GET /dashboard` and `GET /dashboard/trend`
+  (`attendance.view`): the orange clock banner, an info notice when no
+  terminal has ever connected, and — owner's request of the same day — a
+  **red** outage panel naming each device whose agent has been silent, or
+  whose terminal has not answered, for more than 10 minutes, with «since».
+  The same red panel is on the devices page. The threshold is schedule-free:
+  the agent polls every minute whether or not anyone passes (SPEC-agent §L).
 * a small "Oxirgi hisoblash: HH:mm" line on the timesheet page, from the
   response's `lastComputedAt` (§6.6, **AMENDED 2026-09-17**), so "the tabel
   looks stale" has a one-glance answer.

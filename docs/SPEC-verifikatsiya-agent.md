@@ -74,13 +74,20 @@ agent's report sets `Synced`.
 
 * `GET  /api/attendance/agent/roster` — `[{ employeeId, personNo, name, photoVersion, force }]`
 * `GET  /api/attendance/agent/photo/{employeeId}` — the employee photo bytes
-* `POST /api/attendance/agent/report` — `[{ employeeId, personNo, action: upsert|remove, ok, error }]`
+* `POST /api/attendance/agent/report` — `[{ employeeId, personNo, action: upsert|remove, ok, error, rejected }]`
+* `POST /api/attendance/agent/status` — `{ heldRemovals, foreignPersons }` once per reconcile (§L, 2026-09-27)
 * Events keep using `POST /api/attendance/ingest` (Generic JSON).
+* Every agent call carries `X-Bonvi-Terminal-Serial` (§L).
 
 ### D5. HR endpoints — JWT, `attendance.manage`
 
 * `GET  /api/attendance/devices/{id}/enrollments` — per-device summary and rows
-* `GET  /api/attendance/employees/{id}/enrollments` — per-employee rows (card)
+* `GET  /api/attendance/employees/{id}/enrollments` — per-employee rows (card).
+  Until 2026-09-27 this was wrongly under `attendance.view`; it is `manage` now
+  (the rows carry the terminal person number) and the card is not rendered
+  without it.
+* `POST /api/attendance/devices/{id}/enrollments/approve-removals` — confirm
+  removals held by the mass-removal guard, for 10 minutes (§L)
 * `POST /api/attendance/employees/{id}/enrollments/resync` — the card button
 * `POST /api/attendance/devices/{id}/enrollments/resync` — "sync everything":
   asks the agent to **reconcile now**. It does NOT force-rewrite every person
@@ -97,7 +104,9 @@ device token, device host, device user and password; nothing in git.
   list device users (`UserInfo/Search`); for each Bonvi person missing or with a
   changed `photoVersion` → write user + face; for each Bonvi-range person not in
   the roster → delete; report every outcome.
-* Faces are resized to ≤ 180 KB JPEG before upload.
+* ~~Faces are resized to ≤ 180 KB JPEG before upload.~~ Not done — see H6:
+  the agent checks the size (≤ 200 KB) **before** writing the person and
+  reports a too-large photo as a rejection.
 * **In place, never delete-and-recreate** (owner, 2026-09-21). A person that is
   on the device but stale (photo or name changed, face missing — `numOfFace = 0`,
   or the card's "Qayta yozish") is **modified under the same number**
@@ -180,6 +189,9 @@ AGENT__DEVICEPASSWORD=...
 COMPOSE_PROFILES=agent ./bonvi up
 ```
 
+Ishlab chiqarish (ofisdagi mashina) uchun alohida fayl va qo'llanma:
+`docker-compose.agent.yml` va `docs/AGENT-RUNBOOK.md` (§L).
+
 ⚠️ Noto'g'ri parol bilan urinish terminalda hisobni QULFLAYDI
 (`retryLoginTime` kamayadi). Parolni taxmin qilib ko'rmang.
 
@@ -259,7 +271,10 @@ o'zgarish yo'q.
   uzilib qaytganda yuboriladigan eski o'tishlar SURATSIZ qoladi —
   ularning kadrida boshqa odam yoki bo'sh xona bo'lardi, noto'g'ri
   surat esa suratsizlikdan yomonroq.
-* Bir aylanishda bitta kadr — o'sha 2 soniyadagi hamma yangi o'tishga.
+* Bir aylanishda bitta kadr — va u faqat ENG YANGI o'tishga (2026-09-27 dan).
+  Ilgari o'sha 2 soniyadagi hamma yangi o'tishga biriktirilardi: kadrda esa
+  oxirgi odam turadi, va o'nta o'tishli bo'lakda bir xil kadr o'n marta
+  ketib, qabul yo'lining 2 MB chegarasidan oshardi (413).
 * Kadr — tanib olish lahzasidan 1–3 soniya keyingi surat, tanib olingan
   kadrning o'zi emas. Nazorat uchun («rostan u o'tdimi») bu yetarli.
 * Sozlama: `AGENT__SNAPSHOTCHANNEL` (bo'sh — kadr olinmaydi).
@@ -294,7 +309,8 @@ Yo'l-yo'lakay yopilgan ikki holat:
   oldingisining takrori deb tashlanardi.
 
 Eski holat fayli bilan birinchi ishga tushishda takror yuborilmaydi
-(faqat tartib raqami bo'yicha, oxirgi o'qishdan bir soat oldindan).
+(faqat tartib raqami bo'yicha, oxirgi o'qishdan bir soat oldindan). Holat
+fayli UMUMAN yo'q bo'lsa — 48 soat orqaga (`AGENT__COLDSTARTHOURS`, §L).
 
 Testlar: `Bonvi.DeviceAgent.Tests` — soxta terminal (sahifaga 30 tadan,
 soati surilgan) va soxta server (uzilgan). Har bir tuzatish vaqtincha
@@ -303,3 +319,133 @@ qaytarilganda o'z testi yiqilishi tekshirilgan.
 ⚠️ **Tirik terminalda hali sinalmagan** (ofis tarmog'idan tashqarida
 edik). Birinchi sinovda: agentni to'xtatib, 40–50 ta o'tish qiling,
 yoqing — hammasi jurnalga tushishi kerak.
+
+---
+
+## L. Audit tuzatishlari (2026-09-27)
+
+Terminal yo'li, agent va qurilmalar ekranining auditi. Har bir qator —
+bajarilgan qaror; testlari `Bonvi.DeviceAgent.Tests` (`ReconcileTests`,
+`EventForwardingAuditTests`), `AttendanceAgentHardeningApiTests`,
+`AttendanceDeviceHealthTests`, `EnrollmentStateAndHealthTests` da.
+
+### L1. Solishtirish — hamma-yoki-hech narsa emas
+
+| # | Qaror | Sabab |
+|---|---|---|
+| L1.1 | Har bir xodim ALOHIDA: rasm yuklanmasa (tarmoq, 5xx, muddat) yoki terminal rad etsa — o'sha qator `ok:false`, qolganlari davom etadi. Ketma-ket **3** ta vaqtinchalik xato — aylanish to'xtaydi (terminal/server umuman javob bermayapti) | Ilgari bitta `HttpRequestException` butun aylanishni yiqitardi: hisobot yo'qolar, o'chirish bajarilmas, birinchi o'rnatishdagi ~500 kishi hech qachon oxirigacha yozilmasdi |
+| L1.2 | Tartib: terminal seriyasi → soat → ro'yxat → **o'chirish** → yozish | O'chirish — xavfsizlik (ishdan ketgan odam eshikni ochmasin); yozish o'n daqiqalab cho'zilishi mumkin |
+| L1.3 | Hisobot har **20** qatorda va `finally` da (o'z 8 soniyalik muddati bilan) yuboriladi | Uzilish yoki konteyner to'xtashi bajarilgan ishni yo'qotmasin |
+| L1.4 | Rasm **birinchi** tekshiriladi (yo'q yoki > 200 KB) — terminalga umuman tegilmaydi | Ilgari odam yozilib, keyin rasm rad etilardi: terminalda yuzsiz odam qolardi |
+| L1.5 | Xato ikki xil: **qat'iy** (`rejected: true` — terminal 4xx, rasm yo'q/katta) va **vaqtinchalik**. Server qat'iy rad etilgan belgini eslaydi (`device_enrollments.rejected_version`) va ro'yxat uni `hold: true` qilib beradi — agent uni yozmaydi ham, o'chirmaydi ham. Belgi o'zgarsa (rasm, ism, «Qayta yozish», «Hammasini sinxronlash») — qayta urinadi | Ilgari rad etilgan odam har 60 soniyada, kuniga ~1440 marta qayta urinilardi. «Hammasini sinxronlash» izohidagi «aks holda xato holatida turib qolardi» endi haqiqat |
+| L1.6 | Muvaffaqiyatsiz o'chirish `ok:false` bo'lib keladi → holat `RemoveFailed` → ekranda **«Xato»** | Ilgari har doim «bajarildi» deb kelardi va HR «O'chirilgan» ni ko'rardi, odam esa eshikni ochib yuraverardi |
+| L1.7 | Ro'yxatdan chiqqan, lekin terminalga HECH QACHON yozilmagan odam — «O'chirilgan» (olib tashlaydigan narsa yo'q) | «Navbatda» abadiy turib qolardi |
+
+### L2. Token — jismoniy terminalga bog'langan; ommaviy o'chirish to'sig'i
+
+* Agent har aylanishning boshida `GET /ISAPI/System/deviceInfo` (faqat
+  o'qish) dan seriyani oladi va HAR so'rovda `X-Bonvi-Terminal-Serial`
+  sarlavhasida yuboradi. Server birinchi kelganini yozadi
+  (`attendance_devices.terminal_serial`, trust on first use) va keyin
+  boshqasi yoki seriyasiz kelgan ro'yxat/hisobot/soat/holat so'rovini
+  `davomat.terminal_mos_emas` (409) bilan rad etadi. Qabul yo'lida sarlavha
+  ixtiyoriy (o'zi push qiladigan terminal yubormaydi), lekin berilsa —
+  tekshiriladi. Seriya qurilmalar ro'yxatida ko'rinadi. Terminal
+  almashtirilsa — tokenni yangilash bog'lanishni tozalaydi.
+* HR kiritadigan `serial_number` bilan solishtirilmaydi — u yorliqdan qo'lda
+  yoziladi va bitta xato agentni butunlay to'xtatardi.
+* Ro'yxat endi O'CHIRILADIGAN raqamlarni ham beradi (`removeNumbers`) —
+  faqat SHU server ajratgan, ro'yxatda yo'q raqamlar. Bonvi fazasidagi
+  boshqa raqam **begona**: agent unga tegmaydi va sonini aytadi
+  (`foreignPersons`). Ilgari bitta terminalga ulangan ikki server (ishchi va
+  sinov) bir-birining odamlarini har daqiqada o'chirib turardi.
+* **Ommaviy o'chirish to'sig'i:** ro'yxat bo'sh bo'lsa yoki terminaldagi
+  Bonvi odamlarining **beshdan biridan** ko'pi (kamida 4 ta) bir aylanishda
+  o'chishi kerak bo'lsa — agent o'chirmaydi, sonini `POST /agent/status`
+  bilan yuboradi (`heldRemovals`), HR esa qurilma kartasida sariq
+  ogohlantirishni va «tasdiqlash» tugmasini ko'radi. Tugma to'siqni
+  **10 daqiqaga** ochadi (`removals_approved_until`); doimiy o'chirib qo'yish
+  yo'q.
+* ⚠️ **Qolgan xavf:** ikki server bitta terminalga yozsa, ikkalasi ham bir
+  xil raqam ajratishi mumkin (`900000001`) — agent o'sha raqamdagi odamni
+  «o'ziniki» deb ustiga yozadi. Buni koddan to'liq yopib bo'lmaydi; lekin
+  endi ikkala serverning kartasida ham «begona» ogohlantirishi chiqadi.
+  Qoida: sinov agentini hech qachon ishchi terminalga ulamang.
+
+### L3. Raqam o'zgarmaydi
+
+* Bonvi fazasida xodimga BITTA raqam — bazadagi unikal indeks
+  `ux_attendance_identities_managed_employee` (`provider, employee_id`,
+  faqat 9 belgili «9…» raqamlar). Ikki agent so'rovi bir vaqtda ajratsa,
+  ikkinchisi `davomat.agent_royxat_band` (409) oladi va keyingi so'rovda
+  birinchisining raqamini ko'radi.
+* Raqamlar YARATILISH tartibida o'qiladi — `Prefer` har safar o'sha raqamni
+  tanlaydi.
+* «Mosliklar» sahifasida tizim raqamini uzib bo'lmaydi
+  (`davomat.moslik_bonvi_raqami`, ekranda qulf), xodimga ikkinchisini qo'lda
+  qo'shib ham bo'lmaydi (`davomat.moslik_bonvi_raqami_bor`).
+* Rasmi o'chirilgan, lekin terminalga allaqachon yozilgan xodim ro'yxatda
+  QOLADI (o'sha belgi bilan, qayta yozishsiz) — faqat ishdan ketganda
+  chiqadi. Ilgari rasmni almashtirish uchun o'chirish odamni hamma
+  terminaldan olib tashlardi.
+* Belgi endi ismni ham o'z ichiga oladi: `rasm:majburiyat:ism izi` (8
+  belgili SHA-256). Familiya o'zgarsa, agent odamni o'sha raqam ostida qayta
+  yozadi. ⚠️ Format o'zgargan kuni ilgari yozilgan har bir odam bir marta
+  qayta yoziladi (joyida, zararsiz).
+
+### L4. Hodisalar halqasi
+
+| # | Qaror | Sabab |
+|---|---|---|
+| L4.1 | Qidiruv boshi — alohida kursor `SearchAnchor`: oxirgi uzatilgan (tartib raqami bo'yicha eng oxirgi) hodisaning vaqti, PASAYISHI mumkin. Terminal soati undan ham orqada bo'lsa, boshi o'sha lahzaga QOTIRILADI va saqlanadi. `LastEventTime` faqat o'sadi va faqat «yangimi» savoliga javob beradi | Soat orqaga to'g'rilangandan keyin qidiruv «hozir − 2 daqiqa» ga tushardi; agent ikki daqiqadan uzoq uzilsa, oradagi o'tishlar yo'qolardi |
+| L4.2 | Rad etilgan urinishlar (6, 7, 10, 76 va h.k.) o'tish sifatida YUBORILMAYDI; `minor` qabul yo'liga ham uzatiladi va server ikkinchi marta tashlaydi. Ro'yxat bitta faylda (`HikvisionEventTypes.cs`) — server va agent uni birga kompilyatsiya qiladi | Rad etilgan urinish navbat bilan kirish/chiqishni kunning qolgan qismiga ag'darardi |
+| L4.3 | Holat fayli yo'q bo'lsa 48 soat orqaga o'qiladi (`AGENT__COLDSTARTHOURS`) | Qayta yuborish zararsiz (kalit — raqam + vaqt) |
+| L4.4 | Tartib aniq so'raladi (`timeReverseOrder: false`); teskari sahifa sezilsa — oxirigacha o'qiladi va ENG ESKI 300 tasi uzatiladi | Teskari tartibda eng yangi 300 tasi uzatilib, eskilari kursor ortida qolardi |
+| L4.5 | Jonli kadr faqat eng yangi o'tishga | §J |
+
+### L5. Qayta urinish va jurnal
+
+* Xatodan keyin kutish ikki barobardan o'sadi: 2 → 4 → 8 … **60 soniya**.
+  Stek izi faqat birinchi xatoda; keyingilari bitta qator; tiklanganda
+  «tiklandi».
+* Terminal paroli rad etilsa (401/403), Bonvi tokeni rad etilsa yoki token
+  boshqa terminalga bog'langan bo'lsa — **10 daqiqa**: tez urinish terminal
+  hisobini qulflaydi (§H).
+* `docker-compose` da agent jurnali 10 MB × 3 fayl bilan cheklangan (ilgari
+  10 daqiqada 4281 qator, chegarasiz).
+
+### L6. Aloqa holati — agent va terminal ALOHIDA
+
+* `agent_seen_at` — agent endpointlari (ro'yxat, hisobot, soat, holat);
+  `terminal_seen_at` — terminalning O'ZI javob bergani (soat o'qildi, hodisa
+  keldi). Ilgari hammasi `last_seen_at` ga tushardi: agent ro'yxat so'rab
+  turganda besh kundan beri javob bermayotgan terminal «hozirgina» deb
+  ko'rinardi.
+* Holat (`linkState`) serverda: agent **10 daqiqadan** beri jim —
+  `AgentOffline`; agent tirik-u terminal jim (yoki hech qachon javob
+  bermagan) — `TerminalUnreachable`. Chegara **jadvalga bog'liq emas**:
+  agent o'tish bo'lmasa ham har daqiqada gapiradi, ya'ni tunda va dam olish
+  kunida ham jimlik — uzilish. O'zi push qiladigan terminal uchun jimlik
+  hech narsa demaydi.
+* Uzilish — **QIZIL** (egasi, 2026-09-27): Statistika sahifasida
+  (`deviceHealth.outages`, `GET /dashboard` va `/dashboard/trend`,
+  `attendance.view`) va Qurilmalar sahifasida — qurilma nomi va qachondan
+  beri bilan.
+* «Ulangan, lekin hodisalari rad etilyapti» — endi AYNAN rad etilgan
+  so'rovdan (`last_rejected_at`), `last_seen_at − last_event_at > 30 daqiqa`
+  taxminidan emas: u agent qurilmasida har kechasi yolg'on yonardi.
+
+### L7. Ekran
+
+* «Mobil ilova» qatori qurilmalar ro'yxatida faqat O'QISH uchun: almashtirgich,
+  tahrir, token va o'chirish tugmalari yo'q, qatori bosilmaydi. Jurnaldagi
+  turi «Mobil ilova» (ilgari «Umumiy JSON»).
+* Yozish holati qatorlarida xodimning HAQIQIY rasmi.
+* `enrollmentResynced` / `enrollmentAgentSeen` tarjimalarida `{n}` → `{{n}}`
+  (xom ko'rinardi); `check-locales.mjs` endi bitta qavsli o'rin belgisini
+  xato deb topadi.
+
+### L8. Ishlab chiqarish
+
+`docker-compose.agent.yml` (ofisdagi mashina uchun alohida fayl: tom, qayta
+ishga tushish, jurnal chegarasi, muhit) va `docs/AGENT-RUNBOOK.md`.
