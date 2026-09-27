@@ -46,6 +46,7 @@ import {
   getDeviceEnrollments,
   getEmployeeEnrollments,
   getFormerEmployeeAlerts,
+  fillWorkScheduleYear,
   cancelAbsenceRequest,
   createAbsenceRequest,
   decideAbsenceRequest,
@@ -970,6 +971,18 @@ export async function fetchScheduleYear(
  */
 export async function putScheduleDates(scheduleId: string, body: ScheduleDatesInput) {
   await setWorkScheduleDates(scheduleId, body)
+}
+
+/**
+ * Yilni haftalik naqshdan to'ldirish (SPEC-jadval-to'ri §D).
+ *
+ * Faqat katagi YOZILMAGAN sanalar yoziladi — qo'lda yozilganlari joyida
+ * qoladi. Hisob o'zgarmaydi (katak naqsh bilan bir xil), shu sababli
+ * server qayta hisoblashni navbatga qo'ymaydi. «Yilni tozalash» uchun
+ * alohida chaqiruv yo'q: u `putScheduleDates` ning `reset: true` i.
+ */
+export async function postScheduleYearFill(scheduleId: string, year: number) {
+  await fillWorkScheduleYear(scheduleId, { year })
 }
 
 /* ═══════════════════════════════════════════ yo'qlik so'rovlari (§B) */

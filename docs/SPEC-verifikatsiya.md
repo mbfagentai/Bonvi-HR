@@ -2270,8 +2270,8 @@ import and recompute — i.e. everything that changes what the numbers mean.
 | `GET /api/attendance/identities/unmatched` | `attendance.manage` |
 | `POST /api/attendance/identities/import` | `attendance.manage` |
 | `POST /api/attendance/identities/import/confirm` | `attendance.manage` |
-| `GET /api/attendance/schedules`, `/schedules/{id}`, `/schedules/resolve` | `attendance.view` |
-| `POST`/`PUT`/`DELETE /api/attendance/schedules…` | `attendance.manage` |
+| `GET /api/attendance/schedules`, `/schedules/{id}`, `/schedules/resolve`, `/schedules/{id}/year` | `attendance.view` |
+| `POST`/`PUT`/`DELETE /api/attendance/schedules…` (incl. `PUT …/dates`, `POST …/year/fill`) | `attendance.manage` |
 | `GET /api/attendance/schedule-assignments` | `attendance.view` |
 | `POST`/`DELETE /api/attendance/schedule-assignments…` | `attendance.manage` |
 | `GET /api/attendance/passes` | `attendance.view` |
@@ -2318,7 +2318,7 @@ group header.
     { key: 'attendanceTimesheet', to: '/verifikatsiya/tabel',         icon: CalendarDays, permission: 'attendance.view' },
     { key: 'attendanceReports',   to: '/verifikatsiya/hisobotlar',    icon: ChartColumn,  permission: 'attendance.view' },
     { key: 'attendanceMapping',   to: '/verifikatsiya/moslashtirish', icon: Link2,        permission: 'attendance.manage' },
-    { key: 'attendanceSchedules', to: '/verifikatsiya/jadvallar',     icon: Clock,        permission: 'attendance.manage' },
+    { key: 'attendanceSchedules', to: '/verifikatsiya/jadvallar',     icon: Clock,        permission: 'attendance.view' },   // AMENDED 2026-09-27
     { key: 'attendanceDevices',   to: '/verifikatsiya/qurilmalar',    icon: Cpu,          permission: 'attendance.manage' },
 ] }
 ```
@@ -2464,7 +2464,11 @@ drop file → preview table with a per-row decision (`Tasdiqlash` /
 `AlreadyMapped` rows are pre-set to skip; `ExactPinfl`/`ExactName` pre-set to
 confirm; `Ambiguous`/`None` require a choice and are sorted to the top.
 
-**Jadvallar (schedules)** — `attendance.manage`. Schedule list + a 7-row
+**Jadvallar (schedules)** — read under `attendance.view`, write under
+`attendance.manage` (**AMENDED 2026-09-27**: the page and every `GET` behind it
+were already `view`; only the menu item was `manage`, so view-only users could
+not reach it — now they open it read-only, year grid included, and every
+write control stays hidden without `manage`). Schedule list + a 7-row
 day editor (weekday, working toggle, start, end, break) with a live summary
 line ("Haftada 5 kun · 40 soat"). An overnight day shows a small "→ ertasi
 kuni" marker next to the end time so the operator sees the consequence

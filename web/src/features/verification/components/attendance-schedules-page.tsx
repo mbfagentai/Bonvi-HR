@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -116,6 +117,14 @@ export function AttendanceSchedulesPage() {
   const canView = hasPermission(ATTENDANCE_VIEW)
   // O'qiy olmagan odam tahrirlay ham olmaydi: forma o'qilgan ro'yxat ustida ishlaydi
   const canManage = canView && hasPermission(ATTENDANCE_MANAGE)
+  /*
+    «Kim uchun amal qiladi» xodimni XODIMLAR ro'yxatidan qidiradi
+    (`GET /api/employees` — `employees.view`). Sahifa endi faqat davomatni
+    ko'radiganlarga ham ochiq (menyu `attendance.view`), ular orasida esa
+    xodimlar ro'yxati yopiq odam (masalan davomat mas'uli) bo'lishi mumkin —
+    unga 403 bilan tugaydigan qidiruv ko'rsatilmaydi.
+  */
+  const canPickEmployee = hasPermission(EMPLOYEES_VIEW)
 
   const schedules = useWorkSchedules(canView)
   const assignments = useScheduleAssignments(ALL_ASSIGNMENTS, canView)
@@ -281,12 +290,21 @@ export function AttendanceSchedulesPage() {
       />
 
       {/* ─────────────────────────── kim uchun amal qiladi */}
-      <ResolvePreviewCard />
+      {canPickEmployee && <ResolvePreviewCard />}
+
+      {/*
+        Yillik to'r `attendance.view` bilan ham ochiladi (SPEC-jadval-to'ri §C:
+        o'qish — view): tabelni o'qiyotgan HR «bu kun nega dam olish?» degan
+        savolga javobni shu yerdan topadi. Yozuvchi amallar faqat `manage` da.
+      */}
+      <AttendanceScheduleYearDialog
+        schedule={yearOf}
+        readOnly={!canManage}
+        onClose={() => setYearOf(null)}
+      />
 
       {canManage && (
         <>
-          <AttendanceScheduleYearDialog schedule={yearOf} onClose={() => setYearOf(null)} />
-
           <AttendanceScheduleFormDialog
             open={formOpen}
             onClose={() => setFormOpen(false)}
@@ -371,60 +389,68 @@ function ScheduleCard({
           </p>
         </div>
 
-        {canManage && (
-          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-            <Switch
-              checked={schedule.isActive}
-              disabled={toggling}
-              onChange={onToggleActive}
-              label={t('attendance.active')}
-              aria-label={`${schedule.name} — ${t('attendance.active')}`}
-              className="mr-2"
-            />
-            {/* Faolsiz jadvalni server biriktirmaydi (`davomat.jadval_faolsiz`) — tugma ham yo'q */}
-            {schedule.isActive && (
-              <Button type="button" variant="soft" size="sm" onClick={onAssign}>
-                <CalendarPlus />
-                {t('attendance.assignmentCreate')}
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          {canManage && (
+            <>
+              <Switch
+                checked={schedule.isActive}
+                disabled={toggling}
+                onChange={onToggleActive}
+                label={t('attendance.active')}
+                aria-label={`${schedule.name} — ${t('attendance.active')}`}
+                className="mr-2"
+              />
+              {/* Faolsiz jadvalni server biriktirmaydi (`davomat.jadval_faolsiz`) — tugma ham yo'q */}
+              {schedule.isActive && (
+                <Button type="button" variant="soft" size="sm" onClick={onAssign}>
+                  <CalendarPlus />
+                  {t('attendance.assignmentCreate')}
+                </Button>
+              )}
+            </>
+          )}
+          {/*
+            Yillik to'r — TAHRIRLASHDAN alohida tugma: naqsh (haftalik
+            qoida) va istisnolar (bayram, qisqa kun) ikki xil ish va
+            ular bitta oynaga sig'masdi (SPEC-jadval-to'ri §D). Faqat
+            ko'radigan foydalanuvchiga ham chiziladi — to'r o'qish uchun
+            ochiladi (`readOnly`).
+          */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            title={t('attendance.scheduleYearOpen')}
+            aria-label={`${schedule.name} — ${t('attendance.scheduleYear')}`}
+            onClick={onYear}
+          >
+            <CalendarRange />
+          </Button>
+          {canManage && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                title={t('common.edit')}
+                aria-label={t('common.edit')}
+                onClick={onEdit}
+              >
+                <Pencil />
               </Button>
-            )}
-            {/*
-              Yillik to'r — TAHRIRLASHDAN alohida tugma: naqsh (haftalik
-              qoida) va istisnolar (bayram, qisqa kun) ikki xil ish va
-              ular bitta oynaga sig'masdi (SPEC-jadval-to'ri §D).
-            */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              title={t('attendance.scheduleYearOpen')}
-              aria-label={`${schedule.name} — ${t('attendance.scheduleYear')}`}
-              onClick={onYear}
-            >
-              <CalendarRange />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              title={t('common.edit')}
-              aria-label={t('common.edit')}
-              onClick={onEdit}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              title={t('common.delete')}
-              aria-label={t('common.delete')}
-              onClick={onDelete}
-            >
-              <Trash2 className="text-[var(--danger-text)]" />
-            </Button>
-          </div>
-        )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                title={t('common.delete')}
+                aria-label={t('common.delete')}
+                onClick={onDelete}
+              >
+                <Trash2 className="text-[var(--danger-text)]" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/*

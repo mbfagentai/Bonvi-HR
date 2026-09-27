@@ -343,7 +343,7 @@ export const NAV: NavSection[] = [
           { key: 'attendanceMapping',   to: '/verifikatsiya/moslashtirish', icon: Link2,
             permission: 'attendance.manage' },
           { key: 'attendanceSchedules', to: '/verifikatsiya/jadvallar',     icon: Clock,
-            permission: 'attendance.manage' },
+            permission: 'attendance.view' }, // o'qish — view, yozish sahifada `manage` bilan (SPEC-jadval-to'ri §C)
           { key: 'attendanceDevices',   to: '/verifikatsiya/qurilmalar',    icon: Cpu,
             permission: 'attendance.manage' },
           // Work sites for phone check-ins (SPEC-joylashuvlar §D). `view`, not

@@ -41,6 +41,7 @@ import {
   postAbsenceRequest,
   putAbsenceRequest,
   putScheduleDates,
+  postScheduleYearFill,
   fetchUnmatched,
   previewIdentityImport,
   resolveSchedule,
@@ -608,6 +609,14 @@ export function useSetScheduleDates() {
   return useMutation({
     mutationFn: ({ scheduleId, body }: { scheduleId: string; body: ScheduleDatesInput }) =>
       putScheduleDates(scheduleId, body),
+  })
+}
+
+/** «Yilni naqshdan to'ldirish» — keshni `providers.tsx` o'zi bekor qiladi. */
+export function useFillScheduleYear() {
+  return useMutation({
+    mutationFn: ({ scheduleId, year }: { scheduleId: string; year: number }) =>
+      postScheduleYearFill(scheduleId, year),
   })
 }
 
