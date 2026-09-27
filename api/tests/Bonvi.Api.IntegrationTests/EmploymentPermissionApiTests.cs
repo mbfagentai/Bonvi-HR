@@ -359,7 +359,7 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
 
         using (var ikkalasi = await MijozAsync(
             Permissions.EmploymentView, Permissions.EmploymentTransfer, Permissions.EmploymentDuty,
-            Permissions.EmploymentSalary, Permissions.SalaryExtraView))
+            Permissions.EmploymentSalary, Permissions.SalaryView, Permissions.SalaryExtraView))
         {
             using (var javob = await ikkalasi.PostAsJsonAsync(
                 new Uri($"/api/employments/{urug.EmploymentId}/transfer", UriKind.Relative),
@@ -401,7 +401,8 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
         }
 
         using (var toliqHuquq = await MijozAsync(
-            Permissions.EmploymentView, Permissions.EmploymentSalary, Permissions.SalaryExtraView))
+            Permissions.EmploymentView, Permissions.EmploymentSalary, Permissions.SalaryView,
+            Permissions.SalaryExtraView))
         {
             (await QulflarAsync(toliqHuquq, urug.XodimId)).Values.ShouldAllBe(qulf => !qulf);
         }
@@ -444,7 +445,7 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
 
         using var toliq = await MijozAsync(
             Permissions.EmploymentView, Permissions.EmploymentDuty, Permissions.EmploymentCorrect,
-            Permissions.EmploymentSalary, Permissions.SalaryExtraView);
+            Permissions.EmploymentSalary, Permissions.SalaryView, Permissions.SalaryExtraView);
 
         using (var javob = await toliq.PostAsJsonAsync(
             new Uri($"/api/employments/{urug.EmploymentId}/additional-duty", UriKind.Relative),

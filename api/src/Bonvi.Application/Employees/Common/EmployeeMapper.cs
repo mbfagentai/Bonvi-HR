@@ -119,11 +119,26 @@ public sealed class EmployeeMapper
             probation.NeedsWarning(today));
     }
 
+    /// <remarks>
+    /// Faol vazifalar munosabatning YUKLANGAN hodisalaridan olinadi — o'zgarish
+    /// amallari (vazifa berish, ko'chirish, bo'shatish) javobi shunday to'liq
+    /// bo'ladi. Hodisalarsiz yuklangan munosabatda ro'yxat bo'sh; xodim kartasi
+    /// vazifalarni alohida so'rov bilan beradi (quyidagi overload).
+    /// </remarks>
     public Task<EmploymentDto> ToDtoAsync(
         Employment employment,
         Probation? probation,
         CancellationToken cancellationToken = default)
-        => ToDtoAsync(employment, probation, [], cancellationToken);
+    {
+        ArgumentNullException.ThrowIfNull(employment);
+
+        var today = _clock.Today;
+        return ToDtoAsync(
+            employment,
+            probation,
+            [.. employment.Events.Where(item => item.IsActiveDuty(today))],
+            cancellationToken);
+    }
 
     /// <summary>
     /// Mehnat munosabati — faol qo'shimcha vazifalari va jami haq bilan.
@@ -145,10 +160,16 @@ public sealed class EmployeeMapper
         ArgumentNullException.ThrowIfNull(employment);
         ArgumentNullException.ThrowIfNull(activeDuties);
 
-        var duties = activeDuties
-            .Where(duty => duty.EmploymentId == employment.Id)
-            .OrderBy(duty => duty.EffectiveDate)
-            .ToList();
+        // Ishdan ketgan munosabatda faol vazifa yo'q — eski yozuvlarda tugash
+        // sanasi qo'yilmagan bo'lishi mumkin (`Employment.Terminate` endi o'zi
+        // yopadi, 2026-09-27).
+        List<EmploymentEvent> duties = employment.Status == EmploymentStatus.Terminated
+            ? []
+            : [
+                .. activeDuties
+                    .Where(duty => duty.EmploymentId == employment.Id)
+                    .OrderBy(duty => duty.EffectiveDate),
+            ];
 
         return new EmploymentDto(
             employment.Id,
@@ -204,24 +225,23 @@ public sealed class EmployeeMapper
     /// </remarks>
     private MoneyDto? TotalPay(Money? salary, IReadOnlyList<EmploymentEvent> duties)
     {
-        if (!_currentUser.CanSeeSalary() || !_currentUser.CanSeeExtraPay())
+        // Oklad kiritilmagan bo'lsa jami YO'Q: «oklad: kiritilmagan» ostida
+        // faqat qo'shimcha haqdan iborat «jami» chalg'itardi (tekshiruv, 2026-09-27).
+        if (salary is null || !_currentUser.CanSeeExtraPay())
         {
             return null;
         }
 
-        var currency = salary?.Currency ?? Money.Uzs;
-        var extras = duties
-            .Select(duty => duty.ToSalary)
-            .Where(pay => pay is not null && pay.Currency == currency)
-            .Select(pay => pay!.Amount)
-            .ToList();
+        var pays = duties.Select(duty => duty.ToSalary).OfType<Money>().ToList();
 
-        if (extras.Count == 0)
+        // Boshqa valyutadagi haqni jimgina tashlab, jamini kam ko'rsatgandan
+        // ko'ra uni umuman ko'rsatmaslik to'g'ri — qatorlar baribir ko'rinadi
+        if (pays.Count == 0 || pays.Any(pay => pay.Currency != salary.Currency))
         {
             return null;
         }
 
-        var total = Money.Create((salary?.Amount ?? 0m) + extras.Sum(), currency);
+        var total = Money.Create(salary.Amount + pays.Sum(pay => pay.Amount), salary.Currency);
         return total.IsSuccess ? _currentUser.Mask(total.Value) : null;
     }
 

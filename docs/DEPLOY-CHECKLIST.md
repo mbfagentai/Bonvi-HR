@@ -1,7 +1,41 @@
-# Deploy ro'yxati — nomzod izohi, fayllar, «Rad etilganlar»
+# Deploy ro'yxati
 
-> Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, HTTP (HTTPS hali yo'q).
+> Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
+
+## ⏭ Navbatdagi reliz — TAYYOR, deploy qilinmagan
+
+Egasining qarori (2026-09-27): keyingi o'zgarishlar bilan BIRGA chiqadi.
+Prod hozir `9184b0b` da. Chiqadiganlar: `git log 9184b0b..origin/main`.
+
+| Commit | Nima |
+|---|---|
+| `6b17404` | Qo'shimcha vazifa haqi okladga QO'SHILADI (kartada «Jami»), vazifa tugash sanasi, yangi ruxsat `salary.extra.view` |
+| `688a020` | Summa maydonlari uch xonadan ajratiladi (`MoneyInput`), kartadagi oklad bloki |
+| `64e90ab` | Kiritilmagan oklad «kiritilmagan» deb ko'rsatiladi |
+
+**Migratsiya:** `20260927105152_QoshimchaVazifaTugashi` — faqat bitta bo'sh
+ustun (`employment_events.duty_end_date`). Eski image uni bilmaydi va
+tegmaydi — image rollback xavfsiz. `Down` ustunni o'chiradi (tugash sanalari
+yo'qoladi) — kerak bo'lsa `Down` emas, image rollback.
+
+**Deploy oldidan** (xavfsiz tartib — `bonvi-hr-xavfsiz-deploy`):
+- [ ] Rollback teglari: `docker tag bonvi-hr-prod-{api,bot,web}:latest …:rollback-9184b0b`
+- [ ] Yangi zaxira: `docker compose -f docker-compose.prod.yml exec backup /scripts/run-all.sh`
+- [ ] Disk: `df -h /` — 5 GB dan kam bo'lsa, egasidan so'rab
+      `docker builder prune -f --filter until=168h` (build keshi har deploy'da o'sadi)
+- [ ] Prod nusxasida sinov — dump'ni lokal bazaga tiklash uchun **egasining
+      aniq ruxsati** kerak (ruxsat tizimi buni to'xtatadi)
+- [ ] `nohup ./infra/deploy.sh > /tmp/deploy-<commit>.log 2>&1 < /dev/null &`
+
+**Deploy'dan keyin:**
+- [ ] Egasi: «Rollar» → «Bosh rahbar» → **«Qo'shimcha haqni ko'rish»** ni
+      belgilaydi (mavjud rolga yangi ruxsat jimgina berilmaydi)
+- [ ] HR sahifani yangilaydi (F5)
+- [ ] ⚠️ Kutilgan: HR menejerlar qo'shimcha vazifa SUMMASINI ko'rmay qoladi
+      (egasining qarori) — xato emas
+- [ ] Haqli vazifasi bor xodim kartasi: oklad, vazifa, «Jami» to'g'ri
+
 
 ## Oldindan
 

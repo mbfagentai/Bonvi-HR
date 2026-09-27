@@ -27,7 +27,7 @@ import {
   useTransfer,
 } from '../api/employees-queries'
 import { employeeErrorCode, terminationWarning } from '../lib/employee-error'
-import { EMPLOYMENT_SALARY, SALARY_EXTRA_VIEW } from '../lib/employee-presentation'
+import { EMPLOYMENT_SALARY, SALARY_EXTRA_VIEW, SALARY_VIEW } from '../lib/employee-presentation'
 
 /**
  * Buyruq maydonlari — to'rtala oynada bir xil.
@@ -264,7 +264,8 @@ export function AdditionalDutyDialog({
     ruxsatsiz odamga maydon chizilmaydi va summa yuborilmaydi. Aks holda
     server vazifaning o'zini ham 403 bilan rad etardi.
   */
-  const canSetSalary = hasPermission(EMPLOYMENT_SALARY) && hasPermission(SALARY_EXTRA_VIEW)
+  const canSetSalary =
+    hasPermission(EMPLOYMENT_SALARY) && hasPermission(SALARY_VIEW) && hasPermission(SALARY_EXTRA_VIEW)
 
   const [text, setText] = useState('')
   const [effectiveDate, setEffectiveDate] = useState(todayIso)
@@ -545,7 +546,13 @@ export function EmploymentEventEditDialog({
       />
 
       {salaryEditable && (
-        <MoneyInput label={t('employee.salary')} value={amount} onChange={setAmount} />
+        <MoneyInput
+          // Qo'shimcha vazifaning summasi — oklad emas, qo'shimcha haq
+          label={event.type === 'additionalDuty' ? t('employees.extraPay') : t('employee.salary')}
+          currency={event.toSalary?.currency}
+          value={amount}
+          onChange={setAmount}
+        />
       )}
 
       <OrderFields

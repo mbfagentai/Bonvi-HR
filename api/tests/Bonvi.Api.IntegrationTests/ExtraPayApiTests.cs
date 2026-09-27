@@ -161,13 +161,121 @@ public sealed class ExtraPayApiTests : IClassFixture<BonviApiFactory>
         // Tugash sanasi boshlanishidan oldin bo'lmaydi
         using var toliq = await MijozAsync(
             Permissions.EmploymentView, Permissions.EmploymentDuty, Permissions.EmploymentSalary,
-            Permissions.SalaryExtraView);
+            Permissions.SalaryView, Permissions.SalaryExtraView);
 
         using (var javob = await TugatAsync(toliq, urug, urug.HaqliVazifa, new DateOnly(2020, 1, 1)))
         {
             javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
             (await XatoKodiAsync(javob)).ShouldBe("mehnat.vazifa_tugash_sanasi");
         }
+    }
+
+    /// <summary>
+    /// Haqli vazifa yozuvini TUZATISH (summa yoki sana) ham qo'shimcha haq
+    /// ruxsatini talab qiladi — oklad ruxsati yetmaydi; haqsiz vazifaniki esa yo'q.
+    /// </summary>
+    [Fact]
+    public async Task Haqli_vazifa_yozuvini_tuzatish_qoshimcha_haq_ruxsatini_talab_qiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var urug = await UrugAsync();
+
+        using var okladchi = await MijozAsync(
+            Permissions.EmploymentView, Permissions.EmploymentCorrect, Permissions.EmploymentSalary,
+            Permissions.SalaryView);
+
+        foreach (var tana in new object[]
+        {
+            new { effectiveDate = new DateOnly(2024, 6, 1), amount = 1_200_000m },
+            new { effectiveDate = new DateOnly(2024, 6, 2) },
+        })
+        {
+            using var javob = await okladchi.PutAsJsonAsync(
+                new Uri($"/api/employments/{urug.EmploymentId}/events/{urug.HaqliVazifa}", UriKind.Relative),
+                tana,
+                bekorQilish);
+
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await MatnAsync(javob));
+            (await XatoKodiAsync(javob)).ShouldBe("auth.ruxsat_yoq");
+        }
+
+        using (var javob = await okladchi.PutAsJsonAsync(
+            new Uri($"/api/employments/{urug.EmploymentId}/events/{urug.HaqsizVazifa}", UriKind.Relative),
+            new { effectiveDate = new DateOnly(2024, 7, 2), orderNo = "N-2" },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+    }
+
+    /// <summary>
+    /// Ishdan ketgan munosabatda faol vazifa ham, jami ham yo'q — bo'shatish
+    /// ochiq vazifalarni o'sha kuni yopadi.
+    /// </summary>
+    [Fact]
+    public async Task Ishdan_bushatish_ochiq_vazifalarni_yopadi_va_jami_yoqoladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var urug = await UrugAsync();
+        var sana = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+
+        using var toliq = await MijozAsync(
+            Permissions.EmployeesView, Permissions.EmploymentView, Permissions.SalaryView,
+            Permissions.SalaryExtraView, Permissions.EmploymentTerminate);
+
+        using (var javob = await toliq.PostAsJsonAsync(
+            new Uri($"/api/employments/{urug.EmploymentId}/terminate?confirm=true", UriKind.Relative),
+            new { terminationDate = sana },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        var karta = await MunosabatAsync(toliq, urug.XodimId);
+        karta.GetProperty("duties").EnumerateArray().ShouldBeEmpty("ketgan odamda faol vazifa yo'q");
+        karta.GetProperty("totalPay").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        using var lenta = await toliq.GetAsync(
+            new Uri($"/api/employees/{urug.XodimId}/timeline", UriKind.Relative), bekorQilish);
+        var hodisalar = (await lenta.Content.ReadFromJsonAsync<JsonElement>(bekorQilish))
+            .GetProperty("items").EnumerateArray().Select(item => item.GetProperty("event")).ToList();
+
+        hodisalar
+            .Where(hodisa => hodisa.GetProperty("type").GetString() == "AdditionalDuty")
+            .ShouldAllBe(hodisa => hodisa.GetProperty("dutyEndDate").GetString() ==
+                                   sana.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// Oklad kiritilmagan bo'lsa «jami» yo'q — faqat qo'shimcha haqdan iborat
+    /// jami okladni yo'qolgandek ko'rsatardi.
+    /// </summary>
+    [Fact]
+    public async Task Oklad_kiritilmagan_bolsa_jami_korsatilmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var firma = LegalEntity.Create("Okladsiz MChJ " + Guid.NewGuid().ToString("N")[..8]).Value;
+        var xodim = Employee.Create(FullName.Create("Окладсиз", "Ходим", null).Value).Value;
+        var munosabat = Employment.Hire(xodim.Id, firma.Id, new DateOnly(2024, 1, 15)).Value;
+        munosabat.AddAdditionalDuty(new DateOnly(2024, 6, 1), "Omborga mas'ul", Money.Create(1_000_000m).Value)
+            .IsSuccess.ShouldBeTrue();
+
+        kontekst.AddRange(firma, xodim);
+        kontekst.Add(munosabat);
+        await kontekst.SaveChangesAsync(bekorQilish);
+
+        using var toliq = await MijozAsync(
+            Permissions.EmployeesView, Permissions.SalaryView, Permissions.SalaryExtraView);
+
+        var karta = await MunosabatAsync(toliq, xodim.Id);
+        karta.GetProperty("salary").ValueKind.ShouldBe(JsonValueKind.Null);
+        karta.GetProperty("duties").EnumerateArray().ShouldHaveSingleItem()
+            .GetProperty("extraPay").GetProperty("amount").GetDecimal().ShouldBe(1_000_000m);
+        karta.GetProperty("totalPay").ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
     // ────────────────────────────────────────────────────────────

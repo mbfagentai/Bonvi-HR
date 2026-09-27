@@ -385,3 +385,15 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   correct, date-move or end a paid duty. → The owner: "even HR managers may
   not get access; superadmin and the main director only". The existing rule
   is that new permissions never reach an existing role silently.
+- [2026-09-27] Can `salary.extra.view` work without `salary.view`? → No.
+  Duty pay is visible and editable only with both. → Duty pay is added to
+  the salary. With the extra permission alone, the card, timeline and
+  orders list showed it inconsistently (review finding).
+- [2026-09-27] When is the card "Jami" shown? → Only when a base salary
+  exists and every active duty pay is in the salary's currency; otherwise
+  it is null (the lines are still listed). → A total made of extras alone
+  under «Oklad: kiritilmagan», or one that silently skips another
+  currency, misleads.
+- [2026-09-27] Do duties outlive a termination? → No. `Terminate` and
+  `ImportTermination` set `duty_end_date` = the termination date on open
+  duties, and the card shows no active duties for a terminated employment.

@@ -256,6 +256,15 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
             return Error.NotFound("mehnat_hodisasi.topilmadi", "Mehnat yo'li yozuvi topilmadi.");
         }
 
+        // Qo'shimcha vazifaning boshlanishi uning tugashidan keyin bo'lolmaydi —
+        // `EndAdditionalDuty` dagi qoidaning teskari tomoni (tekshiruv, 2026-09-27)
+        if (hodisa.DutyEndDate is { } dutyEnd && effectiveDate > dutyEnd)
+        {
+            return Error.Validation(
+                "mehnat.vazifa_tugash_sanasi",
+                "Vazifa tugash sanasi uning boshlangan sanasidan oldin bo'lishi mumkin emas.");
+        }
+
         var eskiSumma = hodisa.ToSalary;
 
         // Manba tuzatishdan OLDIN ham, KEYIN ham aniqlanadi — ikkala yo'nalish
@@ -278,6 +287,25 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
         }
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Ishdan ketganda ochiq qo'shimcha vazifalar ham shu kuni tugaydi.
+    /// </summary>
+    /// <remarks>
+    /// Ketgan odamning vazifasi «davom etmoqda» bo'lib, haqi jamiga kirib
+    /// turmasligi kerak (tekshiruv, 2026-09-27). Ishdan ketgandan KEYIN
+    /// boshlanadigan (xato kiritilgan) vazifaga tegilmaydi.
+    /// </remarks>
+    private void CloseOpenDuties(DateOnly terminationDate)
+    {
+        foreach (var duty in _events.Where(item =>
+            item.Type == EmploymentEventType.AdditionalDuty &&
+            item.DutyEndDate is null &&
+            item.EffectiveDate <= terminationDate))
+        {
+            duty.SetDutyEnd(terminationDate);
+        }
     }
 
     /// <summary>Joriy okladni belgilab turgan hodisa — okladni belgilagan eng oxirgi yozuv.</summary>
@@ -481,6 +509,7 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
 
         Status = EmploymentStatus.Terminated;
         TerminationDate = terminationDate;
+        CloseOpenDuties(terminationDate);
         TerminationReasonId = reasonId;
         TerminationOrderNo = Normalize(orderNo);
         TerminationNote = Normalize(note);
@@ -549,6 +578,7 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
 
         Status = EmploymentStatus.Terminated;
         TerminationDate = terminationDate;
+        CloseOpenDuties(terminationDate);
         TerminationReasonId = reasonId;
         TerminationOrderNo = Normalize(orderNo);
         TerminationNote = Normalize(note);

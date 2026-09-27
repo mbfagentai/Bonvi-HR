@@ -335,7 +335,8 @@ function DetailsCell({
       canSeeSalary ? (
         <MoneyChangeLine
           key="salary"
-          label={t('employee.salary')}
+          // Qo'shimcha vazifadagi summa — oklad emas, qo'shimcha haq
+          label={event.type === 'additionalDuty' ? t('employees.extraPay') : t('employee.salary')}
           from={event.fromSalary}
           to={event.toSalary}
         />

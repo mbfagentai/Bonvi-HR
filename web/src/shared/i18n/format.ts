@@ -21,11 +21,16 @@ export function formatMoney(
   locale: LocaleCode,
   currency = 'UZS',
 ): string {
-  const amount = formatNumber(value, locale)
+  return `${formatNumber(value, locale)} ${currencySuffix(locale, currency)}`
+}
 
-  if (currency !== 'UZS') {
-    return `${amount} ${currency}`
-  }
+/**
+ * Valyuta belgisi: so'm — tilga qarab («so'm», «сўм», «сум», «UZS»),
+ * boshqasi — o'z kodi bilan. Summa maydoni (`MoneyInput`) ham shuni
+ * ishlatadi: yozishdagi va ko'rsatishdagi yozuv bir xil bo'lsin.
+ */
+export function currencySuffix(locale: LocaleCode, currency = 'UZS'): string {
+  if (currency !== 'UZS') return currency
 
   const suffix: Record<LocaleCode, string> = {
     'uz-Latn': "so'm",
@@ -34,7 +39,7 @@ export function formatMoney(
     en: 'UZS',
   }
 
-  return `${amount} ${suffix[locale]}`
+  return suffix[locale]
 }
 
 /**

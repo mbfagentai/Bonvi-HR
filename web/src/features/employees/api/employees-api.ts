@@ -1509,8 +1509,6 @@ export async function changeSalary(
   await api.post(`/api/employments/${employmentId}/salary`, body)
 }
 
-/** Mehnat yo'lidagi bitta yozuvning terish xatosini tuzatadi. */
-
 /**
  * Qo'shimcha vazifani tugatish (`endDate`) yoki qayta ochish (`null`).
  *
@@ -1525,6 +1523,7 @@ export async function endAdditionalDuty(
   await api.put(`/api/employments/${employmentId}/events/${eventId}/duty-end`, { endDate })
 }
 
+/** Mehnat yo'lidagi bitta yozuvning terish xatosini tuzatadi. */
 export async function editEmploymentEvent(
   employmentId: string,
   eventId: string,

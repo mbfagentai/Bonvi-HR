@@ -173,7 +173,8 @@ function TimelineRow({
   const { t, date, dateTime, money } = useLocale()
   const { hasPermission } = useAuth()
   const canSeeSalary = hasPermission(SALARY_VIEW)
-  const canSeeExtra = hasPermission(SALARY_EXTRA_VIEW)
+  // Qo'shimcha haq — oklad ustiga qo'shiladigan pul: ikkala ruxsat ham kerak
+  const canSeeExtra = canSeeSalary && hasPermission(SALARY_EXTRA_VIEW)
 
   /*
     Qo'shimcha vazifa — o'z qoidasi bilan: summasi OKLAD emas, qo'shimcha

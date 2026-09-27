@@ -323,6 +323,36 @@ public sealed class EmploymentTests
     }
 
     [Fact]
+    public void Ishdan_ketganda_ochiq_vazifalar_shu_kuni_tugaydi()
+    {
+        var m = YaratilganMunosabat();
+        m.AddAdditionalDuty(new DateOnly(2026, 3, 1), "Omborga mas'ul", Money.Create(1_000_000m).Value);
+        var ochiq = m.Events[^1];
+        m.AddAdditionalDuty(new DateOnly(2026, 4, 1), "Navbatchilik");
+        var tugagan = m.Events[^1];
+        m.EndAdditionalDuty(tugagan.Id, new DateOnly(2026, 5, 1));
+
+        m.Terminate(new DateOnly(2026, 8, 20), null).IsSuccess.ShouldBeTrue();
+
+        ochiq.DutyEndDate.ShouldBe(new DateOnly(2026, 8, 20));
+        tugagan.DutyEndDate.ShouldBe(new DateOnly(2026, 5, 1), "oldin tugagan vazifaning sanasi o'zgarmaydi");
+    }
+
+    [Fact]
+    public void Vazifa_boshlanishini_tugashidan_keyinga_surib_bolmaydi()
+    {
+        var m = YaratilganMunosabat();
+        m.AddAdditionalDuty(new DateOnly(2026, 6, 1), "Navbatchilik");
+        var vazifa = m.Events[^1];
+        m.EndAdditionalDuty(vazifa.Id, new DateOnly(2026, 9, 20));
+
+        m.EditEvent(vazifa.Id, new DateOnly(2026, 9, 25)).Error.Code.ShouldBe("mehnat.vazifa_tugash_sanasi");
+        vazifa.EffectiveDate.ShouldBe(new DateOnly(2026, 6, 1));
+
+        m.EditEvent(vazifa.Id, new DateOnly(2026, 9, 20)).IsSuccess.ShouldBeTrue("tugash kunining o'zi — chegara");
+    }
+
+    [Fact]
     public void Vazifa_bolmagan_yozuv_yoki_oldingi_sana_bilan_tugatilmaydi()
     {
         var m = YaratilganMunosabat();

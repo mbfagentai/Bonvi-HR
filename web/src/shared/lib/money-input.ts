@@ -33,18 +33,14 @@ const MAX_FRACTION_DIGITS = 2
  * summani «5000000.5» ko'rinishida to'ldiradi va nuqtasiz u 50000005 ga —
  * 10 barobar kattaroqqa — aylanardi.
  */
-export function moneyDigits(value: string): string {
-  const separators = [...value.matchAll(/[.,]/gu)]
-  const last = separators.at(-1)
+export function moneyDigits(value: string, decimalKnown = false): string {
+  const decimalIndex = decimalKnown ? knownDecimalIndex(value) : guessedDecimalIndex(value)
 
-  const isDecimal =
-    last !== undefined &&
-    (separators.length === 1 || separators.some((separator) => separator[0] !== last[0]))
-
-  const integerSource = isDecimal ? value.slice(0, last.index) : value
-  const fraction = isDecimal
-    ? value.slice(last.index + 1).replaceAll(/\D/gu, '').slice(0, MAX_FRACTION_DIGITS)
-    : null
+  const integerSource = decimalIndex === -1 ? value : value.slice(0, decimalIndex)
+  const fraction =
+    decimalIndex === -1
+      ? null
+      : value.slice(decimalIndex + 1).replaceAll(/\D/gu, '').slice(0, MAX_FRACTION_DIGITS)
 
   const integer = integerSource
     .replaceAll(/\D/gu, '')
@@ -55,6 +51,34 @@ export function moneyDigits(value: string): string {
 
   // Faqat ajratgichning o'zi terilgan («0,») — butun qism baribir bo'lishi kerak
   return `${integer === '' ? '0' : integer}.${fraction}`
+}
+
+/**
+ * Maydonda kasr ALLAQACHON bor — uning ajratgichi ko'rinishdagi VERGUL.
+ *
+ * ⚠️ Taxminiy qoida (`guessedDecimalIndex`) bu yerda xavfli: «5 000 000,5»
+ * ga yana «,» bosilsa ikkita bir xil ajratgich «minglik» deb o'qilib, summa
+ * jimgina 10 barobar oshardi (tekshiruv, 2026-09-27). Shu sababli birinchi
+ * vergul — kasr, qolgan ajratgichlar tashlab yuboriladi. Vergul o'chirilgan
+ * bo'lsa — nuqta (HR vergulni nuqta bilan almashtirgan).
+ */
+function knownDecimalIndex(value: string): number {
+  const comma = value.indexOf(',')
+  return comma === -1 ? value.indexOf('.') : comma
+}
+
+/**
+ * Qiymat tashqaridan kelganda (dastlabki to'ldirish, joylashtirish) —
+ * kasr ajratgichini taxmin qiladi (qoida `moneyDigits` izohida).
+ */
+function guessedDecimalIndex(value: string): number {
+  const separators = [...value.matchAll(/[.,]/gu)]
+  const last = separators.at(-1)
+
+  if (last === undefined) return -1
+
+  const isDecimal = separators.length === 1 || separators.some((separator) => separator[0] !== last[0])
+  return isDecimal ? last.index : -1
 }
 
 /**

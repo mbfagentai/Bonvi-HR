@@ -1,5 +1,7 @@
-import { useLayoutEffect, useRef, type ChangeEvent, type ComponentProps } from 'react'
+import { useLayoutEffect, useRef, type ChangeEvent, type ComponentProps, type Ref } from 'react'
 
+import { currencySuffix } from '@/shared/i18n/format'
+import { useLocale } from '@/shared/i18n/use-locale'
 import { caretAfterDigit } from '@/shared/lib/phone'
 import { formatMoneyDigits, moneyDigits } from '@/shared/lib/money-input'
 import { TextField } from './text-field'
@@ -12,8 +14,13 @@ type MoneyInputProps = Omit<
   value: string
   /** Faqat raqamlar, bo'shliqsiz — forma va server avvalgidek o'qiydi. */
   onChange: (digits: string) => void
-  /** Maydon oxiridagi valyuta belgisi. */
+  /** Valyuta kodi («UZS») — belgisi tilga qarab chiqadi («so'm», «сум»). */
   currency?: string
+  /**
+   * Ichki `<input>` ga — react-hook-form xato maydonga fokus qila olsin
+   * (`Controller` ning `field.ref`).
+   */
+  ref?: Ref<HTMLInputElement>
 }
 
 /**
@@ -27,12 +34,21 @@ type MoneyInputProps = Omit<
 export function MoneyInput({
   value,
   onChange,
-  currency = "so'm",
+  currency = 'UZS',
   autoComplete = 'off',
   inputClassName,
+  ref,
   ...field
 }: MoneyInputProps) {
+  const { locale } = useLocale()
   const inputRef = useRef<HTMLInputElement>(null)
+
+  /** Ichki ref va tashqaridan berilgani — ikkalasi ham shu `<input>` ni oladi. */
+  const setRefs = (node: HTMLInputElement | null) => {
+    inputRef.current = node
+    if (typeof ref === 'function') ref(node)
+    else if (ref) ref.current = node
+  }
   const caret = useRef<number | null>(null)
 
   useLayoutEffect(() => {
@@ -47,10 +63,14 @@ export function MoneyInput({
     const raw = event.target.value
     const selection = event.target.selectionStart ?? raw.length
 
+    // Kasr bormi — JORIY qiymatdan: bo'lsa, ko'rinishdagi vergul kasr
+    // ajratgichi va qayta bosilgan ajratgich summani o'zgartirmaydi
+    const decimalKnown = moneyDigits(value).includes('.')
+
     // Kursorgacha bo'lgan RAQAMLAR soni saqlanadi (kasr nuqtasi sanalmaydi)
     const prefix = raw.slice(0, selection)
-    const digitsBeforeCaret = moneyDigits(prefix).replace('.', '').length
-    const digits = moneyDigits(raw)
+    const digitsBeforeCaret = moneyDigits(prefix, decimalKnown).replace('.', '').length
+    const digits = moneyDigits(raw, decimalKnown)
     const formatted = formatMoneyDigits(digits)
 
     let position = caretAfterDigit(formatted, digitsBeforeCaret)
@@ -66,13 +86,17 @@ export function MoneyInput({
   return (
     <TextField
       {...field}
-      ref={inputRef}
+      ref={setRefs}
       value={formatMoneyDigits(moneyDigits(value))}
       onChange={handleChange}
       type="text"
       inputMode="numeric"
       autoComplete={autoComplete}
-      trailing={<span className="shrink-0 text-footnote text-[var(--fg-tertiary)] select-none">{currency}</span>}
+      trailing={
+        <span className="shrink-0 text-footnote text-[var(--fg-tertiary)] select-none">
+          {currencySuffix(locale, currency)}
+        </span>
+      }
       inputClassName={inputClassName ?? 'tabular'}
     />
   )

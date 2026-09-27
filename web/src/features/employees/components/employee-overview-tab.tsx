@@ -404,7 +404,7 @@ function EmploymentCard({
           chizilmaydi. Oklad KIRITILMAGAN bo'lsa qator yashirilmaydi, «kiritilmagan»
           deb aytiladi: aks holda HR okladni yo'qolgan deb o'ylardi (2026-09-27).
         */}
-        {canSeeSalary && employment.duties.length === 0 && (
+        {canSeeSalary && (closed || employment.duties.length === 0) && (
           <MiniRow
             label={t('employee.salary')}
             value={
@@ -417,7 +417,8 @@ function EmploymentCard({
         )}
       </dl>
 
-      {employment.duties.length > 0 && (
+      {/* Ishdan ketgan munosabatda faol vazifa yo'q — hisob bloki chizilmaydi */}
+      {!closed && employment.duties.length > 0 && (
         <PayBreakdown employment={employment} canSeeSalary={canSeeSalary} />
       )}
 

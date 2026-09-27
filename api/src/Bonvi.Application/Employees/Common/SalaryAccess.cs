@@ -63,10 +63,16 @@ public static class SalaryAccess
     /// Asosiy okladdan ALOHIDA ruxsat (sababi <see cref="Permissions.SalaryExtraView"/>
     /// izohida): HR okladni ko'rishi, lekin qo'shimcha haqni ko'rmasligi mumkin.
     /// </remarks>
+    /// <remarks>
+    /// Qo'shimcha haq — oklad ustiga qo'shiladigan pul, shu sababli u oklad
+    /// ruxsatini (<c>salary.view</c>) ham talab qiladi: ikkinchisisiz karta,
+    /// mehnat yo'li va buyruqlar ro'yxati uni turlicha ko'rsatib qolardi
+    /// (tekshiruv, 2026-09-27).
+    /// </remarks>
     public static bool CanSeeExtraPay(this ICurrentUser user)
     {
         ArgumentNullException.ThrowIfNull(user);
-        return user.HasPermission(Permissions.SalaryExtraView);
+        return user.CanSeeSalary() && user.HasPermission(Permissions.SalaryExtraView);
     }
 
     /// <summary>

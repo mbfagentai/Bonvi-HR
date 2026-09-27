@@ -502,6 +502,7 @@ export function HireDialog({
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   name={field.name}
+                  ref={field.ref}
                 />
               )}
             />

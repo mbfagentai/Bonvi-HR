@@ -261,6 +261,14 @@ public sealed class EmploymentEvent : Entity
             RecordedAt = DateTimeOffset.UtcNow,
         };
 
+    /// <summary>Qo'shimcha vazifaning tugash sanasini qo'yadi yoki olib tashlaydi.</summary>
+    /// <remarks>Tekshiruvlar agregat ildizida (<c>Employment.EndAdditionalDuty</c>).</remarks>
+    internal void SetDutyEnd(DateOnly? endDate)
+    {
+        DutyEndDate = endDate;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     /// <summary>Terish xatosini tuzatadi — hujjat maydonlari va oklad summasi.</summary>
     /// <remarks>
     /// <para>
@@ -276,14 +284,6 @@ public sealed class EmploymentEvent : Entity
     /// ildizi hisoblay oladi (<c>Employment.EditEvent</c>).
     /// </para>
     /// </remarks>
-    /// <summary>Qo'shimcha vazifaning tugash sanasini qo'yadi yoki olib tashlaydi.</summary>
-    /// <remarks>Tekshiruvlar agregat ildizida (<c>Employment.EndAdditionalDuty</c>).</remarks>
-    internal void SetDutyEnd(DateOnly? endDate)
-    {
-        DutyEndDate = endDate;
-        UpdatedAt = DateTimeOffset.UtcNow;
-    }
-
     internal void Edit(
         DateOnly effectiveDate,
         string? orderNo,
