@@ -8,6 +8,14 @@
     "isRequired": true
   },
   {
+    "name": "Анкета + кенгаш хулосаси",
+    "isRequired": false
+  },
+  {
+    "name": "Анкета + кенгаш хулосаси + тест жавоблари",
+    "isRequired": false
+  },
+  {
     "name": "Меҳнат шартномаси",
     "isRequired": true
   },

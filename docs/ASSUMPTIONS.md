@@ -361,3 +361,12 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   A dialog with previous/next (and ←/→). The list shows name, date and size
   only. → The screenshot's value is its readable text, which needs full size;
   the old zoom already used a dialog.
+- [2026-09-27] HR asked for "one record containing questionnaire + council
+  conclusion + test answers" (and similar for rejected and reserve). What
+  does that mean? → Document types whose NAME lists the contents:
+  «Анкета + кенгаш хулосаси + тест жавоблари» and «Анкета + кенгаш хулосаси»
+  («Анкета» already existed). They are added by migration and in the seed,
+  and are not required. → The paper candidacy folder is scanned as one PDF,
+  and HR wants to know what is inside without opening it. The owner chose
+  combined names over multi-select. A type choice for candidate files
+  (rejected and reserve) is deferred.

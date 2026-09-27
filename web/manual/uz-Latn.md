@@ -782,6 +782,11 @@ sana va izoh ko‘rinadi.
 - **Fayl** — majburiy.
 - **Hujjat turi** — majburiy, **ma’lumotnomadan** tanlanadi (faqat faol
   turlar chiqadi).
+  Bitta PDF ichida bir nechta hujjat bo‘lsa, **birlashgan** turni
+  tanlang — shunda faylni ochmasdan ichida nima borligi ko‘rinadi:
+  - **«Анкета + кенгаш хулосаси + тест жавоблари»** — ishga kirganlar;
+  - **«Анкета + кенгаш хулосаси»** — rad etilganlar va rezerv;
+  - **«Анкета»** — kengashga yetmaganlar.
 - **Izoh** — ixtiyoriy.
 
 **Qabul qilinadigan formatlar: PDF, JPEG, PNG va WebP. Hajmi 20 MB gacha.**
