@@ -141,6 +141,67 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
+    /// Ikki so'rov: hodisalar (yangi yozilgani — <c>recorded_at</c>, tahrirlangani —
+    /// <c>updated_at</c>) va munosabat qatorlarining o'zi (yaratilgan, o'zgargan yoki
+    /// o'chirilgan). Munosabatlar <c>IgnoreQueryFilters</c> bilan: o'chirilgan munosabat
+    /// ham kunlarni o'zgartiradi.
+    /// </para>
+    /// <para>
+    /// Ikkala jadval ham kichik (munosabatlar ~ming, hodisalar o'n minglar) va vaqt
+    /// ustunlarida indeks yo'q — so'rov har 15 daqiqada bir marta ketma-ket o'qiydi,
+    /// bu millisekundlar. Indeks uchun migratsiya shu sababli qo'shilmadi.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<EmploymentChange>> ListEmploymentChangesAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+    {
+        // `timestamptz` parametri faqat UTC lahzani qabul qiladi.
+        var from = since.ToUniversalTime();
+
+        var events = await _context.EmploymentEvents
+            .AsNoTracking()
+            .Where(item => item.RecordedAt >= from || (item.UpdatedAt != null && item.UpdatedAt >= from))
+            .Join(
+                _context.Employments.IgnoreQueryFilters(),
+                item => item.EmploymentId,
+                employment => employment.Id,
+                (item, employment) => new
+                {
+                    employment.EmployeeId,
+                    employment.HireDate,
+                    item.EffectiveDate,
+                    Edited = item.UpdatedAt != null && item.UpdatedAt >= from,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var rows = await _context.Employments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(employment =>
+                employment.CreatedAt >= from ||
+                (employment.UpdatedAt != null && employment.UpdatedAt >= from) ||
+                (employment.DeletedAt != null && employment.DeletedAt >= from))
+            .Select(employment => new { employment.EmployeeId, employment.HireDate })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Tahrirlangan hodisaning ESKI sanasi saqlanmaydi — u qatorning o'zgarishi kabi
+        // «ishga kirgan kundan» deb olinadi (sana `EmploymentChange` izohida).
+        return
+        [
+            .. events.Select(item => new EmploymentChange(
+                item.EmployeeId,
+                item.HireDate,
+                item.Edited ? null : item.EffectiveDate)),
+            .. rows.Select(row => new EmploymentChange(row.EmployeeId, row.HireDate, null)),
+        ];
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// <c>ix_attendance_passes_employee_time</c> (xodim bo'yicha) va
     /// <c>ix_attendance_passes_local_date</c> — rejalashtiruvchi qaysi biri
     /// torroq bo'lsa, o'shani tanlaydi.

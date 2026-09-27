@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -71,6 +73,109 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
     }
 
     // ════════════════════════════════════════════════════════════
+    //  Orqaga sanali mehnat o'zgarishlari (#7, #1)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Auditning misoli: 15-da 10-sanali ishdan bo'shatish kiritilgan — 11–13 «Kelmadi» bo'lib qolardi
+    /// (tungi hisoblash faqat uch kunni qamraydi). Vazifa o'zgarishni topadi va xodimni bo'shatish
+    /// sanasidan bugungacha qayta hisoblaydi; lahzani yashirin sozlamaga yozadi.
+    /// </summary>
+    [Fact]
+    public async Task Mehnat_ozgarishi_vazifasi_orqaga_sanali_ishdan_boshatishni_tabelga_yetkazadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var bugun = BugunToshkentda();
+        var (xodim, munosabat) = await XodimAsync(ct);
+
+        await QaytaHisoblaAsync([xodim], bugun.AddDays(-10), bugun.AddDays(-1), ct);
+        (await KunAsync(xodim, bugun.AddDays(-5), ct)).ShouldNotBeNull().Status.ShouldBe(AttendanceDayStatus.Absent, "sinov sharti");
+
+        await MehnatOzgarishlariAsync(ct);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var db = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var yozuv = await db.Employments.Include(item => item.Events).SingleAsync(item => item.Id == munosabat, ct);
+            yozuv.Terminate(bugun.AddDays(-8), reasonId: null).IsSuccess.ShouldBeTrue();
+            await db.SaveChangesAsync(ct);
+        }
+
+        await MehnatOzgarishlariAsync(ct);
+
+        (await KunAsync(xodim, bugun.AddDays(-8), ct)).ShouldNotBeNull()
+            .Status.ShouldBe(AttendanceDayStatus.Absent, "ishdan ketgan kunning o'zi hali ish kuni");
+
+        for (var sana = bugun.AddDays(-7); sana < bugun; sana = sana.AddDays(1))
+        {
+            (await KunAsync(xodim, sana, ct)).ShouldBeNull($"{sana:yyyy-MM-dd} — ishlamaydi, «Kelmadi» qolmaydi");
+        }
+
+        await using var tekshir = _factory.Services.CreateAsyncScope();
+        var belgi = await tekshir.ServiceProvider.GetRequiredService<AppDbContext>().SystemSettings.AsNoTracking()
+            .SingleAsync(setting => setting.Key == SystemSettingKeys.AttendanceEmploymentChangesCheckedAt, ct);
+
+        DateTimeOffset.Parse(belgi.Value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+            .ShouldBeGreaterThan(DateTimeOffset.UtcNow.AddMinutes(-5));
+    }
+
+    /// <summary>
+    /// Orqaga sanali ko'chirish: vazifa qayta hisoblaydi, hisoblash esa ko'chirish SANASIGA qaraydi —
+    /// undan oldingi kunlar eski lavozimning jadvali va surati bilan, keyingilari yangisi bilan (#1).
+    /// </summary>
+    [Fact]
+    public async Task Mehnat_ozgarishi_vazifasi_orqaga_sanali_kochirishni_sanasidan_qollaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var bugun = BugunToshkentda();
+        var belgi = Guid.NewGuid().ToString("N")[..8];
+
+        var firma = LegalEntity.Create("Ko'chish МЧЖ " + belgi).Value;
+        var eskiLavozim = Position.Create("Omborchi " + belgi).Value;
+        var yangiLavozim = Position.Create("Haydovchi " + belgi).Value;
+        var xodim = Employee.Create(FullName.Create("Кўчишев", "Ходим", belgi).Value).Value;
+        var munosabat = Employment.Hire(xodim.Id, firma.Id, new DateOnly(2025, 1, 1), positionId: eskiLavozim.Id).Value;
+
+        var eskiJadval = Jadval("Eski " + belgi, 8, 17);
+        var yangiJadval = Jadval("Yangi " + belgi, 9, 18);
+
+        await SaqlaAsync(
+            ct,
+            firma, eskiLavozim, yangiLavozim, xodim, munosabat, eskiJadval, yangiJadval,
+            ScheduleAssignment.Assign(eskiJadval.Id, ScheduleScope.Position, eskiLavozim.Id, new DateOnly(2025, 1, 1)).Value,
+            ScheduleAssignment.Assign(yangiJadval.Id, ScheduleScope.Position, yangiLavozim.Id, new DateOnly(2025, 1, 1)).Value);
+
+        await QaytaHisoblaAsync([xodim.Id], bugun.AddDays(-6), bugun.AddDays(-1), ct);
+        await MehnatOzgarishlariAsync(ct);
+
+        var kochish = bugun.AddDays(-3);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var db = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var yozuv = await db.Employments.Include(item => item.Events).SingleAsync(item => item.Id == munosabat.Id, ct);
+            yozuv.Transfer(kochish, null, yangiLavozim.Id).IsSuccess.ShouldBeTrue();
+            await db.SaveChangesAsync(ct);
+        }
+
+        await MehnatOzgarishlariAsync(ct);
+
+        await using var tekshir = _factory.Services.CreateAsyncScope();
+        var kunlar = await tekshir.ServiceProvider.GetRequiredService<AppDbContext>().AttendanceDays.AsNoTracking()
+            .Where(day => day.EmployeeId == xodim.Id && day.LocalDate >= bugun.AddDays(-6) && day.LocalDate < bugun)
+            .ToDictionaryAsync(day => day.LocalDate, ct);
+
+        for (var sana = bugun.AddDays(-6); sana < bugun; sana = sana.AddDays(1))
+        {
+            var kun = kunlar[sana];
+            var yangi = sana >= kochish;
+
+            kun.WorkScheduleId.ShouldBe(yangi ? yangiJadval.Id : eskiJadval.Id, sana.ToString("O", CultureInfo.InvariantCulture));
+            kun.PositionId.ShouldBe(yangi ? yangiLavozim.Id : eskiLavozim.Id, sana.ToString("O", CultureInfo.InvariantCulture));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  Chorakdan uzun qayta hisoblash (#3)
     // ════════════════════════════════════════════════════════════
 
@@ -114,6 +219,8 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
     //  Yordamchilar
     // ════════════════════════════════════════════════════════════
 
+    private static DateOnly BugunToshkentda() => DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(Tashkent).DateTime);
+
     private static DateTimeOffset Toshkentda(DateOnly sana, int soat, int daqiqa)
         => new DateTimeOffset(sana.ToDateTime(new TimeOnly(soat, daqiqa)), Tashkent).ToUniversalTime();
 
@@ -131,6 +238,19 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
         var yozuvchi = ActivatorUtilities.CreateInstance<AttendanceDayRecomputer>(qamrov.ServiceProvider, soat);
 
         await ActivatorUtilities.CreateInstance<AttendanceStartedShiftsJob>(qamrov.ServiceProvider, yozuvchi, soat).RunAsync(ct);
+    }
+
+    private async Task MehnatOzgarishlariAsync(CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        await qamrov.ServiceProvider.GetRequiredService<AttendanceEmploymentChangesJob>().RunAsync(ct);
+    }
+
+    private async Task QaytaHisoblaAsync(Guid[] xodimlar, DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        await qamrov.ServiceProvider.GetRequiredService<AttendanceDayRecomputer>()
+            .RecomputeAsync(xodimlar, AttendanceDayRecomputer.DaysBetween(from, to), ct);
     }
 
     private static WorkSchedule Jadval(string nom, int boshlanish, int tugash)

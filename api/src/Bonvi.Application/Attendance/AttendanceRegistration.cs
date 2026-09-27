@@ -137,6 +137,7 @@ internal static class AttendanceRegistration
         services.AddScoped<AttendanceDirtyRecomputeJob>();
         services.AddScoped<AttendanceNightlyRecomputeJob>();
         services.AddScoped<AttendanceStartedShiftsJob>();
+        services.AddScoped<AttendanceEmploymentChangesJob>();
         services.AddScoped<AttendancePhotoPurgeJob>();
         services.AddScoped<AttendancePassPurgeJob>();
 

@@ -44,6 +44,9 @@ public static class BackgroundJobs
     /// <summary>Smenasi boshlangan, lekin qatori yo'q ish kunlari — «Kelmadi».</summary>
     public const string StartedShiftsJobId = "attendance:started-shifts";
 
+    /// <summary>Orqaga sanali mehnat o'zgarishlari (ishdan bo'shatish, qabul, ko'chirish).</summary>
+    public const string EmploymentChangesJobId = "attendance:employment-changes";
+
     /// <summary>Surat va xom hodisani tozalash (SPEC §3.10).</summary>
     public const string PurgePhotosJobId = "attendance:purge-photos";
 
@@ -128,6 +131,14 @@ public static class BackgroundJobs
             StartedShiftsJobId,
             job => job.RunAsync(CancellationToken.None),
             "5-59/15 * * * *",
+            utc);
+
+        // Har 15 daqiqada, iflos navbatdan 12 daqiqa keyin (…:12, :27, :42, :57) —
+        // 03:10 dagi tungi hisoblash bilan bir daqiqaga tushmasin.
+        jobs.AddOrUpdate<AttendanceEmploymentChangesJob>(
+            EmploymentChangesJobId,
+            job => job.RunAsync(CancellationToken.None),
+            "12-59/15 * * * *",
             utc);
 
         // 22:10 UTC = 03:10 Toshkent.

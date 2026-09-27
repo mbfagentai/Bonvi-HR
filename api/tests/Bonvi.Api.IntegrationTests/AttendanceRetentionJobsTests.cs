@@ -584,6 +584,8 @@ public sealed class AttendanceRetentionJobsTests : IClassFixture<BonviApiFactory
 
         public void StartedShiftsFilled(DateOnly from, DateOnly to, AttendanceRecomputeOutcome outcome) => Yozuvlar.Add(outcome);
 
+        public void EmploymentChangesRecomputed(EmploymentChangesReport report) => Yozuvlar.Add(report);
+
         public void PhotoPurgeFinished(PhotoPurgeReport report) => Yozuvlar.Add(report);
 
         public void PassPurgeDisabled() => Yozuvlar.Add(nameof(PassPurgeDisabled));

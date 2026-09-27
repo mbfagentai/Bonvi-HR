@@ -1,5 +1,8 @@
+using System.Globalization;
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Attendance;
+using Bonvi.Domain.Settings;
 
 namespace Bonvi.Application.Attendance.Recompute;
 
@@ -147,10 +150,13 @@ public sealed class AttendanceDirtyRecomputeJob
 /// </summary>
 /// <remarks>
 /// <para>
-/// Iflos navbat faqat YANGI o'tishni ko'radi. Jadval, biriktirma yoki mehnat
-/// munosabati orqaga sana bilan tahrirlansa, o'tishlar o'zgarmaydi va navbat
-/// jim turadi — shu vazifa o'sha tahrirni uch kun ichida tabelga yetkazadi.
-/// Uzoqroq o'tmish qo'lda qayta hisoblash bilan tuzatiladi (§5.8).
+/// Iflos navbat faqat YANGI o'tishni ko'radi. Jadval yoki biriktirma orqaga
+/// sana bilan tahrirlansa, o'tishlar o'zgarmaydi va navbat jim turadi — shu
+/// vazifa o'sha tahrirni uch kun ichida tabelga yetkazadi. Uzoqroq o'tmish
+/// qo'lda qayta hisoblash bilan tuzatiladi (§5.8). Mehnat munosabatining
+/// orqaga sanali o'zgarishini esa uch kundan uzog'i bilan ham
+/// <see cref="AttendanceEmploymentChangesJob"/> yetkazadi, yillik to'r
+/// tahririni — <see cref="AttendanceScheduleDatesJob"/>.
 /// </para>
 /// <para>
 /// Sanalar YURISH paytida olinadi: takroriy vazifa ifodasi ro'yxatga olinganda
@@ -258,4 +264,171 @@ public sealed class AttendanceStartedShiftsJob
 
         _journal.StartedShiftsFilled(from, to, outcome);
     }
+}
+
+/// <summary>
+/// <c>attendance:employment-changes</c> — orqaga sana bilan kiritilgan mehnat o'zgarishlarini tabelga yetkazadi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega kerak.</b> 15-sentabrda 10-sentabr sanasi bilan kiritilgan ishdan
+/// bo'shatish o'tishlarga tegmaydi (iflos navbat jim), tungi hisoblash esa faqat
+/// oxirgi uch kunni qamraydi — 11–13-sentabr «Kelmadi» bo'lib qolardi. Xuddi
+/// shunday: kechikib kiritilgan ishga qabul, orqaga sanali ko'chirish, asosiy
+/// munosabatni almashtirish, munosabatni o'chirish, mehnat yo'lidagi sanani
+/// tuzatish. Mehnat buyruqlari davomatni bilmaydi va bilmasligi kerak — shu
+/// sababli o'zgarish DAVOMAT tomonidan, yozuv vaqtlari bo'yicha topiladi.
+/// </para>
+/// <para>
+/// <b>Qadamlar.</b> (1) Oxirgi yurish lahzasi yashirin sozlamadan o'qiladi
+/// (<see cref="SystemSettingKeys.AttendanceEmploymentChangesCheckedAt"/>) va
+/// <see cref="OverlapMinutes"/> daqiqa orqaga suriladi: yurish paytida hali
+/// tasdiqlanmagan (commit) tranzaksiyaning yozuvi keyingi yurishda ham ko'rinsin.
+/// Qayta hisoblash idempotent, ya'ni ikki marta ko'rilgan o'zgarish zarar
+/// qilmaydi. (2) O'shandan beri o'zgargan munosabat va hodisalar olinadi.
+/// (3) Har bir xodim uchun ta'sir boshlanadigan eng erta sanadan bugungacha
+/// qayta hisoblanadi — lekin <see cref="AttendanceRules.MaxRecomputeDays"/> kundan
+/// uzoq emas (qo'lda qayta hisoblash chegarasi; undan uzog'i qo'lda). (4) Yurish
+/// boshlangan lahza yoziladi — faqat hammasi muvaffaqiyatli tugagach, ya'ni
+/// yiqilgan yurishning ishi keyingisida takrorlanadi.
+/// </para>
+/// <para>
+/// Birinchi yurish (qiymat yo'q yoki buzilgan) oxirgi chorakni ko'rib chiqadi:
+/// shu vazifadan oldin kiritilgan orqaga sanali o'zgarishlar ham tuzaladi.
+/// </para>
+/// </remarks>
+public sealed class AttendanceEmploymentChangesJob
+{
+    /// <summary>Oldingi yurish lahzasidan necha daqiqa orqadan qaraladi.</summary>
+    public const int OverlapMinutes = 10;
+
+    private readonly IAttendanceComputationSource _source;
+    private readonly AttendanceDayRecomputer _recomputer;
+    private readonly ISystemSettingRepository _settings;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAttendanceJobJournal _journal;
+    private readonly IClock _clock;
+
+    public AttendanceEmploymentChangesJob(
+        IAttendanceComputationSource source,
+        AttendanceDayRecomputer recomputer,
+        ISystemSettingRepository settings,
+        IUnitOfWork unitOfWork,
+        IAttendanceJobJournal journal,
+        IClock clock)
+    {
+        _source = source;
+        _recomputer = recomputer;
+        _settings = settings;
+        _unitOfWork = unitOfWork;
+        _journal = journal;
+        _clock = clock;
+    }
+
+    /// <summary>Oxirgi yurishdan beri o'zgargan munosabatlarning kunlarini qayta hisoblaydi.</summary>
+    /// <param name="cancellationToken">Bekor qilish belgisi (Hangfire beradi).</param>
+    public async Task RunAsync(CancellationToken cancellationToken)
+    {
+        var startedAt = _clock.UtcNow;
+        var today = _clock.Today;
+
+        var mark = await _settings
+            .FindAsync(SystemSettingKeys.AttendanceEmploymentChangesCheckedAt, cancellationToken)
+            .ConfigureAwait(false);
+
+        var since = Parse(mark?.Value) is { } checkedAt
+            ? checkedAt.AddMinutes(-OverlapMinutes)
+            : startedAt.AddDays(-AttendanceRules.MaxRecomputeDays);
+
+        var changes = await _source.ListEmploymentChangesAsync(since, cancellationToken).ConfigureAwait(false);
+
+        // Chorakdan uzoq o'tmish — qo'lda (`POST /recompute` ham shu chegarada).
+        var earliest = today.AddDays(-(AttendanceRules.MaxRecomputeDays - 1));
+
+        var starts = changes
+            .GroupBy(change => change.EmployeeId)
+            .Select(employee => (
+                EmployeeId: employee.Key,
+                From: Later(employee.Min(change => change.AffectsFrom), earliest)))
+            // Faqat kelajakka ta'sir qiladigan o'zgarish (oldinga sanalangan ko'chirish)
+            // hozir hech narsani o'zgartirmaydi: kun kelganda tungi hisoblash uni qamraydi.
+            .Where(employee => employee.From <= today)
+            .ToList();
+
+        int stored = 0, removed = 0, frozen = 0;
+
+        // Bir xil boshlanish sanali xodimlar bitta chaqiruvga (odatda hammasi
+        // `earliest` yoki bitta-ikkita aniq sana).
+        foreach (var group in starts.GroupBy(employee => employee.From))
+        {
+            var outcome = await _recomputer
+                .RecomputeAsync(
+                    [.. group.Select(employee => employee.EmployeeId)],
+                    AttendanceDayRecomputer.DaysBetween(group.Key, today),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            stored += outcome.StoredDays;
+            removed += outcome.RemovedDays;
+            frozen += outcome.FrozenDates;
+        }
+
+        await SaveMarkAsync(mark, startedAt, cancellationToken).ConfigureAwait(false);
+
+        _journal.EmploymentChangesRecomputed(new EmploymentChangesReport(
+            changes.Select(change => change.EmployeeId).Distinct().Count(),
+            starts.Count,
+            stored,
+            removed,
+            frozen));
+    }
+
+    /// <summary>Yurish lahzasini yozadi — yozuv yo'q bo'lsa yaratadi.</summary>
+    private async Task SaveMarkAsync(SystemSetting? mark, DateTimeOffset startedAt, CancellationToken cancellationToken)
+    {
+        var key = SystemSettingKeys.AttendanceEmploymentChangesCheckedAt;
+        var value = startedAt.ToUniversalTime().ToString(
+            SystemSettingKeys.EmploymentChangesCheckedAtFormat,
+            CultureInfo.InvariantCulture);
+
+        if (mark is null)
+        {
+            var created = SystemSetting.CreateServerValue(key, value);
+            if (created.IsFailure)
+            {
+                throw new InvalidOperationException($"«{key}» yozilmadi: {created.Error.Code}");
+            }
+
+            _settings.Add(created.Value);
+        }
+        else
+        {
+            var applied = mark.SetServerValue(value);
+            if (applied.IsFailure)
+            {
+                throw new InvalidOperationException($"«{key}» yozilmadi: {applied.Error.Code}");
+            }
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Saqlangan lahza; yo'q yoki o'qib bo'lmasa <c>null</c>.</summary>
+    /// <remarks>
+    /// Buzilgan qiymat istisno EMAS (<c>attendance.frozenThrough</c> dan farqli): uning
+    /// eng yomon oqibati — oxirgi chorak bir marta qayta ko'rib chiqiladi, bu esa
+    /// idempotent va xavfsiz. To'xtab qolish esa orqaga sanali o'zgarishlarni jimgina
+    /// tabelga yetkazmay qo'yardi.
+    /// </remarks>
+    private static DateTimeOffset? Parse(string? value)
+        => DateTimeOffset.TryParseExact(
+                value,
+                SystemSettingKeys.EmploymentChangesCheckedAtFormat,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var parsed)
+            ? parsed.ToUniversalTime()
+            : null;
+
+    private static DateOnly Later(DateOnly first, DateOnly second) => first > second ? first : second;
 }

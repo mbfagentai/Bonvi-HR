@@ -73,6 +73,25 @@ public interface IAttendanceComputationSource
         DateOnly to,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// <paramref name="since"/> dan beri o'zgargan mehnat munosabatlari va mehnat yo'li hodisalari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Iflos navbat faqat YANGI o'tishni ko'radi; orqaga sana bilan kiritilgan ishdan
+    /// bo'shatish, ishga qabul yoki ko'chirish esa o'tishlarga tegmaydi. Bu ro'yxat
+    /// aynan o'shalarni topadi (<c>AttendanceEmploymentChangesJob</c>).
+    /// </para>
+    /// <para>
+    /// O'chirilgan (soft delete) munosabatlar ham kiradi — o'chirish ham o'zgarish.
+    /// </para>
+    /// </remarks>
+    /// <param name="since">Shu lahzadan (o'zi ham) keyin yozilgan o'zgarishlar.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<EmploymentChange>> ListEmploymentChangesAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Xodimlarning BOG'LANGAN o'tishlari — <c>local_date</c> ∈ [from, to], xodim bo'yicha.</summary>
     /// <remarks>
     /// Oraliqni chaqiruvchi <see cref="AttendanceDayBuilder.PassDatesNeeded"/>
@@ -132,6 +151,20 @@ public interface IAttendanceComputationSource
         DateOnly from,
         DateOnly to,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>Bitta o'zgargan munosabat yoki hodisa — qaysi xodim va qaysi sanadan ta'sir qiladi.</summary>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="HireDate">O'zgargan munosabatning ishga kirgan sanasi.</param>
+/// <param name="EffectiveDate">
+/// YANGI yozilgan hodisaning kuchga kirish sanasi. <c>null</c> — munosabat qatorining o'zi
+/// o'zgargan yoki mavjud hodisa tahrirlangan: bunda o'zgarish qaysi sanadan boshlab ta'sir
+/// qilishi noma'lum (eski sana saqlanmaydi), ya'ni <paramref name="HireDate"/> dan boshlab.
+/// </param>
+public sealed record EmploymentChange(Guid EmployeeId, DateOnly HireDate, DateOnly? EffectiveDate)
+{
+    /// <summary>Shu o'zgarish ta'sir qilishi mumkin bo'lgan eng erta sana.</summary>
+    public DateOnly AffectsFrom => EffectiveDate ?? HireDate;
 }
 
 /// <summary>Jadval hal qiluvchisi quriladigan katalog.</summary>

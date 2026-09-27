@@ -71,6 +71,24 @@ internal sealed partial class AttendanceJobJournal : IAttendanceJobJournal
         LogStartedShiftsFilled(from, to, outcome.StoredDays, outcome.EmployeeCount);
     }
 
+    public void EmploymentChangesRecomputed(EmploymentChangesReport report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+
+        if (report.ChangedEmployees == 0)
+        {
+            LogEmploymentChangesNone();
+            return;
+        }
+
+        LogEmploymentChangesRecomputed(
+            report.ChangedEmployees,
+            report.RecomputedEmployees,
+            report.StoredDays,
+            report.RemovedDays,
+            report.FrozenDates);
+    }
+
     public void PhotoPurgeFinished(PhotoPurgeReport report)
     {
         ArgumentNullException.ThrowIfNull(report);
@@ -165,4 +183,16 @@ internal sealed partial class AttendanceJobJournal : IAttendanceJobJournal
         Level = LogLevel.Debug,
         Message = "Davomat boshlangan smenalar {Dan}…{Gacha}: yangi qator yo'q")]
     private partial void LogStartedShiftsNothing(DateOnly dan, DateOnly gacha);
+
+    [LoggerMessage(
+        EventId = 5311,
+        Level = LogLevel.Information,
+        Message = "Davomat mehnat o'zgarishlari: {Ozgargan} xodim o'zgargan, {Hisoblandi} tasining kunlari qayta hisoblandi — {Yozildi} kun yozildi, {Ochirildi} o'chirildi, {Muzlagan} muzlagan sana")]
+    private partial void LogEmploymentChangesRecomputed(int ozgargan, int hisoblandi, int yozildi, int ochirildi, int muzlagan);
+
+    [LoggerMessage(
+        EventId = 5312,
+        Level = LogLevel.Debug,
+        Message = "Davomat mehnat o'zgarishlari: yangi o'zgarish yo'q")]
+    private partial void LogEmploymentChangesNone();
 }
