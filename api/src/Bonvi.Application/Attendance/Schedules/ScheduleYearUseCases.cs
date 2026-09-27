@@ -104,12 +104,21 @@ public sealed class GetScheduleYearQueryHandler
             var exact = overrides.GetValueOrDefault(date);
             var plan = DayPlan.For(schedule, date, exact);
 
+            /*
+              ⚠️ Vaqtlar katak BOR bo'lsa faqat katakdan: `exact?.X ?? naqsh`
+              oynasiz katakka naqshning oynasini ulab ko'rsatardi — ekran
+              «tanaffus ayiriladi» deb, hisob esa ayirmasdi (§5.5.1).
+            */
+            var pattern = exact is null ? PatternDay(schedule, date) : null;
+
             days.Add(new ScheduleYearDayDto(
                 date,
                 plan.IsWorking,
-                exact?.StartTime ?? PatternTime(schedule, date, start: true),
-                exact?.EndTime ?? PatternTime(schedule, date, start: false),
+                exact is null ? pattern?.StartTime : exact.StartTime,
+                exact is null ? pattern?.EndTime : exact.EndTime,
                 plan.BreakMinutes,
+                exact is null ? pattern?.BreakStart : exact.BreakStart,
+                exact is null ? pattern?.BreakEnd : exact.BreakEnd,
                 plan.PlannedMinutes,
                 exact is null ? ScheduleDaySource.Pattern : ScheduleDaySource.Date));
         }
@@ -117,13 +126,13 @@ public sealed class GetScheduleYearQueryHandler
         return new ScheduleYearDto(schedule.Id, schedule.Name, query.Year, days);
     }
 
-    /// <summary>Naqshdagi vaqt — katak yozilmagan kun uchun.</summary>
+    /// <summary>Naqshdagi kun — katak yozilmagan sana uchun.</summary>
     /// <remarks>
     /// <see cref="DayPlan"/> vaqtni LAHZA qilib beradi (UTC), ekranga esa
     /// Toshkent SOATI kerak. Naqshdan o'qish shu sababli: lahzani qayta
     /// mintaqaga o'girish uchinchi o'girish nuqtasi bo'lardi.
     /// </remarks>
-    private static TimeOnly? PatternTime(WorkSchedule schedule, DateOnly date, bool start)
+    private static WorkScheduleDay? PatternDay(WorkSchedule schedule, DateOnly date)
     {
         if (schedule.Kind != WorkScheduleKind.Weekly)
         {
@@ -131,9 +140,8 @@ public sealed class GetScheduleYearQueryHandler
         }
 
         var dayIndex = date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
-        var day = schedule.Days.FirstOrDefault(item => item.DayIndex == dayIndex);
 
-        return start ? day?.StartTime : day?.EndTime;
+        return schedule.Days.FirstOrDefault(item => item.DayIndex == dayIndex);
     }
 }
 

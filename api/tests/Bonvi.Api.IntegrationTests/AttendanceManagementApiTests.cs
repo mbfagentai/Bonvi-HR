@@ -1253,6 +1253,210 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
     }
 
     /// <summary>
+    /// Yillik to'r katagi tanaffus OYNASI bilan yozilsa, tanaffus ishlangan vaqtdan ayiriladi va
+    /// soxta ortiqcha ish chiqmaydi; to'r esa oynani katak bilan birga qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ Audit topilmasi: to'r oynasi faqat <c>breakMinutes</c> ni yuborardi. Oynasiz kunda tanaffus
+    /// ishlangan vaqtdan UMUMAN ayrilmaydi (SPEC §5.5.1), reja esa uni ayiradi — natijada har bir
+    /// shunday sanada +60 daqiqa soxta ortiqcha ish. Test ikkala holatni yonma-yon ko'rsatadi: qoida
+    /// o'zgarmagan, tuzatish — oynani yuborish va ko'rsatish.
+    /// </remarks>
+    [Fact]
+    public async Task Yillik_tor_katagidagi_tanaffus_oynasi_ishlangan_vaqtdan_ayiriladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        // Har kuni 09:00–18:00, tanaffussiz — naqshda oyna ham yo'q.
+        var jadvalId = await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+
+        using var qurilma = await admin.PostAsJsonAsync(Yol("/devices"), new { name = "Tanaffus " + belgi, provider = "Generic" }, ct);
+        qurilma.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qurilma));
+        var token = (await JsonAsync(qurilma)).GetProperty("token").GetString()!;
+
+        var sana = BugunToshkentda().AddDays(-3);
+        var shaxs = "tn-" + belgi;
+
+        // Binodan chiqmagan kun: 09:00 kirdi, 18:00 chiqdi.
+        using (var mijoz = _factory.CreateClient())
+        {
+            using var qabul = await mijoz.SendAsync(
+                Hodisalar(token, (shaxs, Lahza(sana, 9, 0), "In"), (shaxs, Lahza(sana, 18, 0), "Out")),
+                ct);
+            qabul.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qabul));
+        }
+
+        using (var moslik = await admin.PostAsJsonAsync(Yol("/identities"), new { externalPersonId = shaxs, employeeId = xodim.Id }, ct))
+        {
+            moslik.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(moslik));
+        }
+
+        var naqshda = await KunHisobiAsync(xodim.Id, sana, ct);
+        naqshda.WorkedMinutes.ShouldBe(540, "sinov sharti: naqshda tanaffus yo'q");
+        naqshda.OvertimeMinutes.ShouldBe(0);
+
+        // ── Oynasiz katak: reja tanaffusni ayiradi, fakt — yo'q (§5.5.1) ──
+        using (var oynasiz = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new { dates = new[] { Iso(sana) }, isWorking = true, startTime = "09:00", endTime = "18:00", breakMinutes = 60 },
+                   ct))
+        {
+            oynasiz.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(oynasiz));
+        }
+
+        var oynasizKun = await KunHisobiAsync(xodim.Id, sana, ct);
+        oynasizKun.PlannedMinutes.ShouldBe(480);
+        oynasizKun.WorkedMinutes.ShouldBe(540);
+        oynasizKun.OvertimeMinutes.ShouldBe(60, "oynasiz katak — audit topgan soxta ortiqcha ishning o'zi");
+
+        // ── Oynali katak: tanaffus ishlangan vaqtdan ayiriladi, ortiqcha ish yo'q ──
+        using (var oynali = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new
+                   {
+                       dates = new[] { Iso(sana) },
+                       isWorking = true,
+                       startTime = "09:00",
+                       endTime = "18:00",
+                       breakMinutes = 60,
+                       breakStart = "13:00",
+                       breakEnd = "14:00",
+                   },
+                   ct))
+        {
+            oynali.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(oynali));
+        }
+
+        var oynaliKun = await KunHisobiAsync(xodim.Id, sana, ct);
+        oynaliKun.PlannedMinutes.ShouldBe(480);
+        oynaliKun.WorkedMinutes.ShouldBe(480, "binodan chiqmagan — oynadagi tanaffus to'liq ushlanadi");
+        oynaliKun.BreakDeductionMinutes.ShouldBe(60);
+        oynaliKun.OvertimeMinutes.ShouldBe(0);
+
+        // ── To'r oynani katak bilan birga qaytaradi ──
+        var tor = await JsonAsync(await admin.GetAsync(Yol($"/schedules/{jadvalId}/year?year={sana.Year}"), ct));
+        var kunlar = tor.GetProperty("days").EnumerateArray().ToList();
+
+        var katak = kunlar.Single(day => day.GetProperty("date").GetString() == Iso(sana));
+        katak.GetProperty("source").GetString().ShouldBe("Date");
+        katak.GetProperty("breakMinutes").GetInt32().ShouldBe(60);
+        katak.GetProperty("breakStart").GetString().ShouldBe("13:00:00");
+        katak.GetProperty("breakEnd").GetString().ShouldBe("14:00:00");
+        katak.GetProperty("plannedMinutes").GetInt32().ShouldBe(480);
+
+        var qoshni = kunlar.First(day => day.GetProperty("date").GetString() != Iso(sana));
+        qoshni.GetProperty("source").GetString().ShouldBe("Pattern");
+        qoshni.GetProperty("breakStart").ValueKind.ShouldBe(JsonValueKind.Null, "naqshda oyna yo'q");
+        qoshni.GetProperty("breakEnd").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    /// <summary>
+    /// «Yilni naqshdan to'ldirish»: faqat BO'SH sanalar yoziladi (qo'lda yozilgan katak joyida
+    /// qoladi), naqshning tanaffus oynasi ham nusxalanadi, takror chaqiruv hech narsani o'zgartirmaydi,
+    /// qo'shni yilga tegilmaydi.
+    /// </summary>
+    [Fact]
+    public async Task Yilni_naqshdan_toldirish_faqat_bosh_sanalarni_yozadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        var belgi = Belgi();
+
+        // Dushanba–shanba 09:00–18:00, tushlik 13:00–14:00; yakshanba — dam olish.
+        using var yaratish = await admin.PostAsJsonAsync(
+            Yol("/schedules"),
+            new
+            {
+                name = "To'ldirish " + belgi,
+                graceInMinutes = 10,
+                graceOutMinutes = 10,
+                note = (string?)null,
+                days = Enumerable.Range(1, 7).Select(kun => kun == 7
+                    ? (object)new { dayIndex = kun, isWorking = false }
+                    : new
+                    {
+                        dayIndex = kun,
+                        isWorking = true,
+                        startTime = "09:00",
+                        endTime = "18:00",
+                        breakMinutes = 60,
+                        breakStart = "13:00",
+                        breakEnd = "14:00",
+                    }),
+            },
+            ct);
+        yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+        var jadvalId = (await JsonAsync(yaratish)).GetProperty("id").GetGuid();
+
+        // Qo'lda: 2031-03-21 (juma) — dam olish kuni.
+        var bayramSanasi = new DateOnly(2031, 3, 21);
+        using (var bayram = await admin.PutAsJsonAsync(
+                   Yol($"/schedules/{jadvalId}/dates"),
+                   new { dates = new[] { Iso(bayramSanasi) }, isWorking = false },
+                   ct))
+        {
+            bayram.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(bayram));
+        }
+
+        using (var toldirish = await admin.PostAsJsonAsync(Yol($"/schedules/{jadvalId}/year/fill"), new { year = 2031 }, ct))
+        {
+            toldirish.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(toldirish));
+        }
+
+        var tor = await JsonAsync(await admin.GetAsync(Yol($"/schedules/{jadvalId}/year?year=2031"), ct));
+        var kunlar = tor.GetProperty("days").EnumerateArray()
+            .ToDictionary(day => day.GetProperty("date").GetString()!);
+
+        kunlar.Count.ShouldBe(365);
+        kunlar.Values.ShouldAllBe(day => day.GetProperty("source").GetString() == "Date");
+
+        var qolda = kunlar["2031-03-21"];
+        qolda.GetProperty("isWorking").GetBoolean().ShouldBeFalse("qo'lda yozilgan katak to'ldirishda tegilmaydi");
+        qolda.GetProperty("startTime").ValueKind.ShouldBe(JsonValueKind.Null, "dam olish katagiga naqshning vaqti ulanmaydi");
+        qolda.GetProperty("breakStart").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        var dushanba = kunlar["2031-03-17"];
+        dushanba.GetProperty("isWorking").GetBoolean().ShouldBeTrue();
+        dushanba.GetProperty("startTime").GetString().ShouldBe("09:00:00");
+        dushanba.GetProperty("endTime").GetString().ShouldBe("18:00:00");
+        dushanba.GetProperty("breakMinutes").GetInt32().ShouldBe(60);
+        dushanba.GetProperty("breakStart").GetString().ShouldBe("13:00:00", "naqshning oynasi ham nusxalanadi");
+        dushanba.GetProperty("breakEnd").GetString().ShouldBe("14:00:00");
+        dushanba.GetProperty("plannedMinutes").GetInt32().ShouldBe(480);
+
+        kunlar["2031-03-23"].GetProperty("isWorking").GetBoolean().ShouldBeFalse("yakshanba naqshda dam olish");
+
+        (await SanaKataklariSoniAsync(jadvalId, ct)).ShouldBe(365);
+
+        // Takror — hech narsa qo'shilmaydi (hamma sana allaqachon yozilgan).
+        using (var takror = await admin.PostAsJsonAsync(Yol($"/schedules/{jadvalId}/year/fill"), new { year = 2031 }, ct))
+        {
+            takror.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(takror));
+        }
+
+        (await SanaKataklariSoniAsync(jadvalId, ct)).ShouldBe(365);
+
+        // Qo'shni yil — tegilmagan, naqshdan keladi.
+        var qoshni = await JsonAsync(await admin.GetAsync(Yol($"/schedules/{jadvalId}/year?year=2030"), ct));
+        qoshni.GetProperty("days").EnumerateArray()
+            .ShouldAllBe(day => day.GetProperty("source").GetString() == "Pattern");
+
+        // Xatolar — kod bilan, 500 emas.
+        using (var notogri = await admin.PostAsJsonAsync(Yol($"/schedules/{jadvalId}/year/fill"), new { year = 1999 }, ct))
+        {
+            await XatoKutAsync(notogri, HttpStatusCode.BadRequest, "davomat.jadval_yili_notogri");
+        }
+
+        using (var yoq = await admin.PostAsJsonAsync(Yol($"/schedules/{Guid.NewGuid()}/year/fill"), new { year = 2031 }, ct))
+        {
+            await XatoKutAsync(yoq, HttpStatusCode.NotFound, "davomat.jadval_topilmadi");
+        }
+    }
+
+    /// <summary>
     /// Yo'qlik so'rovi: yaratish → tasdiqlash → kun «Kelmadi» dan «Sababli» ga o'tadi.
     /// </summary>
     /// <remarks>
@@ -1854,6 +2058,8 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
             "/api/attendance/identities/import", "/api/attendance/identities/import/confirm",
             "/api/attendance/schedules", "/api/attendance/schedules/resolve", "/api/attendance/schedules/{id}",
             "/api/attendance/schedules/{id}/activate", "/api/attendance/schedules/{id}/deactivate",
+            "/api/attendance/schedules/{id}/year", "/api/attendance/schedules/{id}/dates",
+            "/api/attendance/schedules/{id}/year/fill",
             "/api/attendance/schedule-assignments", "/api/attendance/schedule-assignments/{id}",
             "/api/attendance/passes", "/api/attendance/passes/{id}", "/api/attendance/passes/{id}/photo",
             "/api/attendance/board", "/api/attendance/dashboard", "/api/attendance/dashboard/trend",
@@ -1896,6 +2102,7 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (HttpMethod.Delete, $"/schedule-assignments/{Birorta}"),
         (HttpMethod.Post, "/recompute"),
         (HttpMethod.Put, $"/schedules/{Birorta}/dates"),
+        (HttpMethod.Post, $"/schedules/{Birorta}/year/fill"),
 
         /*
           Yo'qlik so'rovlari — `attendance.requests.manage` ostida, ya'ni
@@ -2157,6 +2364,32 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
             .Where(day => day.EmployeeId == xodimId && day.LocalDate == sana)
             .Select(day => new KunQatori(day.Status, day.WorkedMinutes))
             .SingleOrDefaultAsync(ct);
+    }
+
+    /// <summary>Bitta kunning hisob raqamlari — tanaffus va ortiqcha ish sinovlari uchun.</summary>
+    private sealed record KunHisobi(int PlannedMinutes, int WorkedMinutes, int OvertimeMinutes, int BreakDeductionMinutes);
+
+    private async Task<KunHisobi> KunHisobiAsync(Guid xodimId, DateOnly sana, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+
+        var kun = await qamrov.ServiceProvider.GetRequiredService<AppDbContext>().AttendanceDays.AsNoTracking()
+            .Where(day => day.EmployeeId == xodimId && day.LocalDate == sana)
+            .Select(day => new KunHisobi(day.PlannedMinutes, day.WorkedMinutes, day.OvertimeMinutes, day.BreakDeductionMinutes))
+            .SingleOrDefaultAsync(ct);
+
+        kun.ShouldNotBeNull($"{Iso(sana)} kuni saqlanmagan — qayta hisoblash ishlamadimi?");
+
+        return kun;
+    }
+
+    /// <summary>Jadvalning sanaga yozilgan kataklari soni.</summary>
+    private async Task<int> SanaKataklariSoniAsync(Guid jadvalId, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+
+        return await qamrov.ServiceProvider.GetRequiredService<AppDbContext>().WorkScheduleDates
+            .CountAsync(date => date.WorkScheduleId == jadvalId, ct);
     }
 
     private static HttpRequestMessage Hodisalar(

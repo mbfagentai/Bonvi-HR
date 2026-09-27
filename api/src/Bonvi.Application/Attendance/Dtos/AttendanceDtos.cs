@@ -1039,12 +1039,21 @@ public enum ScheduleDaySource
 /// shu bo'yicha kulrang va to'q kataklarni ajratadi: HR qaysi kunni o'zi
 /// o'zgartirganini ko'rib turishi kerak.
 /// </para>
+/// <para>
+/// ⭐ <see cref="BreakStart"/>/<see cref="BreakEnd"/> — tanaffus OYNASI.
+/// Oyna yo'q kunda tanaffus ishlangan vaqtdan UMUMAN ayirilmaydi (SPEC
+/// §5.5.1), reja esa uni baribir ayiradi — ekran oynani ko'rmasa, HR
+/// sana katagini «60 daqiqa tanaffus» deb o'ylab, har kuni soxta +60
+/// ortiqcha ishni ko'rardi. Shu sababli oyna katak bilan BIRGA qaytadi.
+/// </para>
 /// </remarks>
 /// <param name="Date">Toshkent sanasi.</param>
 /// <param name="IsWorking">Ish kunimi.</param>
 /// <param name="StartTime">Boshlanish vaqti — dam olish kunida <c>null</c>.</param>
 /// <param name="EndTime">Tugash vaqti.</param>
 /// <param name="BreakMinutes">Ishlangan vaqtdan ayiriladigan tanaffus.</param>
+/// <param name="BreakStart">Tanaffus oynasining boshi — oyna yo'q bo'lsa <c>null</c>.</param>
+/// <param name="BreakEnd">Tanaffus oynasining oxiri — oyna yo'q bo'lsa <c>null</c>.</param>
 /// <param name="PlannedMinutes">Kun normasi (tanaffus ayirilgan).</param>
 /// <param name="Source">Naqshdanmi yoki sanaga yozilganmi.</param>
 public sealed record ScheduleYearDayDto(
@@ -1053,6 +1062,8 @@ public sealed record ScheduleYearDayDto(
     TimeOnly? StartTime,
     TimeOnly? EndTime,
     int BreakMinutes,
+    TimeOnly? BreakStart,
+    TimeOnly? BreakEnd,
     int PlannedMinutes,
     ScheduleDaySource Source);
 

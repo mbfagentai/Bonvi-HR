@@ -112,6 +112,10 @@ public sealed record ScheduleDatesBody(
     TimeOnly? BreakStart = null,
     TimeOnly? BreakEnd = null);
 
+/// <summary>Yilni haftalik naqshdan to'ldirish tanasi.</summary>
+/// <param name="Year">Qaysi yil (2000–2100).</param>
+public sealed record ScheduleYearFillBody(int Year);
+
 /// <summary>Yo'qlik so'rovining tanasi — yaratish va tahrirlash uchun bitta shakl.</summary>
 /// <remarks>
 /// <para>
@@ -906,6 +910,35 @@ public static class AttendanceEndpoints
                 "Eng ko'pi 400 ta sana. ⭐ Yozuvdan keyin BUGUNGACHA bo'lgan kunlar qayta hisoblanadi: " +
                 "jadval o'zgarishi kechagi tabelni ham o'zgartiradi. Kelajakdagi kunlar qayta hisoblanmaydi " +
                 "— ularning saqlangan yozuvi yo'q.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // «Yilni naqshdan to'ldirish» (SPEC-jadval-to'ri §D). «Yilni tozalash»
+        // uchun alohida endpoint YO'Q: u — yilning yozilgan sanalariga
+        // `PUT /dates` bilan `reset: true`, ya'ni bitta imo — bitta chaqiruv.
+        group.MapPost("/schedules/{id:guid}/year/fill", async (
+                Guid id,
+                ScheduleYearFillBody body,
+                FillScheduleYearCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new FillScheduleYearCommand(id, body.Year), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceManage)
+            .WithName("FillWorkScheduleYear")
+            .WithSummary("Davomat — yilni haftalik naqshdan to'ldirish")
+            .WithDescription(
+                "Yilning katagi YOZILMAGAN har bir kuniga haftalik naqshdagi qiymat (vaqtlar, tanaffus va " +
+                "uning oynasi) yoziladi; qo'lda yozilgan kataklarga TEGILMAYDI. Hisob o'zgarmaydi (katak " +
+                "naqsh bilan bir xil), shu sababli qayta hisoblash navbatga qo'yilmaydi. Shundan keyin bu yil " +
+                "haftalik naqshga ergashmaydi. Yil 2000–2100 dan tashqarida — «davomat.jadval_yili_notogri» " +
+                "(400); haftalik bo'lmagan jadval — «davomat.jadval_turi_qollanmaydi» (400).")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)

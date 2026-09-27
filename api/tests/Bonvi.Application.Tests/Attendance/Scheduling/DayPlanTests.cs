@@ -67,6 +67,45 @@ public sealed class DayPlanTests
         reja.BreakMinutes.ShouldBe(60);
     }
 
+    /// <summary>
+    /// Yillik to'r katagi (SPEC-jadval-to'ri §B1) o'z tanaffus OYNASINI beradi: naqshda oyna yo'q
+    /// bo'lsa ham, katakdagisi o'qiladi. Busiz katakdagi tanaffus rejadan ayirilib, faktdan
+    /// ayirilmasdi (§5.5.1) va har bir shunday sanada soxta ortiqcha ish chiqardi.
+    /// </summary>
+    [Fact]
+    public void Sana_katagining_tanaffus_oynasi_naqshdan_ustun()
+    {
+        var jadval = Schedule("09:00", "18:00");
+        var katak = WorkScheduleDate.Create(
+            jadval.Id,
+            new WorkScheduleDateInput(Monday, true, new TimeOnly(9, 0), new TimeOnly(18, 0), 60, new TimeOnly(13, 0), new TimeOnly(14, 0))).Value;
+
+        DayPlan.For(jadval, Monday).HasBreakWindow.ShouldBeFalse("sinov sharti: naqshda oyna yo'q");
+
+        var reja = DayPlan.For(jadval, Monday, katak);
+
+        reja.HasBreakWindow.ShouldBeTrue();
+        reja.BreakWindowStartAt.ShouldBe(At(Monday, "13:00"));
+        reja.BreakWindowEndAt.ShouldBe(At(Monday, "14:00"));
+        reja.BreakMinutes.ShouldBe(60);
+        reja.PlannedMinutes.ShouldBe(480);
+    }
+
+    /// <summary>Oynasiz katak — oyna yo'q, garchi tanaffus daqiqasi bo'lsa ham (§5.5.1).</summary>
+    [Fact]
+    public void Oynasiz_sana_katagida_oyna_yoq()
+    {
+        var jadval = Schedule("09:00", "18:00", 60, "13:00", "14:00");
+        var katak = WorkScheduleDate.Create(
+            jadval.Id,
+            new WorkScheduleDateInput(Monday, true, new TimeOnly(9, 0), new TimeOnly(18, 0), 60)).Value;
+
+        var reja = DayPlan.For(jadval, Monday, katak);
+
+        reja.HasBreakWindow.ShouldBeFalse("katak naqshni butunlay almashtiradi — naqshning oynasi ulanmaydi");
+        reja.PlannedMinutes.ShouldBe(480);
+    }
+
     [Fact]
     public void Kun_oynasi_rejadan_olti_soat_oldin_va_keyin()
     {

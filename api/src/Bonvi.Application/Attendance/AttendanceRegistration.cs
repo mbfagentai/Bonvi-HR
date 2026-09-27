@@ -63,6 +63,7 @@ internal static class AttendanceRegistration
         // Yillik to'r (SPEC-jadval-to'ri §C)
         services.AddScoped<GetScheduleYearQueryHandler>();
         services.AddScoped<SetScheduleDatesCommandHandler>();
+        services.AddScoped<FillScheduleYearCommandHandler>();
 
         // Yo'qlik so'rovlari (SPEC-so'rovlar §B4)
         services.AddScoped<CreateAbsenceRequestCommandHandler>();
