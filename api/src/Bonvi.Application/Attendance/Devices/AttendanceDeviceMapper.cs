@@ -67,9 +67,12 @@ public sealed class AttendanceDeviceMapper
             .ConfigureAwait(false);
 
         var items = new List<AttendanceDeviceDto>(devices.Count);
+        var now = _clock.UtcNow;
 
         foreach (var device in devices)
         {
+            var (linkState, linkSince) = device.LinkAt(now);
+
             var legalEntityName = await _names.LegalEntityAsync(device.LegalEntityId, cancellationToken).ConfigureAwait(false);
             var departmentName = await _names.DepartmentAsync(device.DepartmentId, cancellationToken).ConfigureAwait(false);
 
@@ -99,7 +102,13 @@ public sealed class AttendanceDeviceMapper
                 device.ClockOffsetSeconds,
                 device.ClockCheckedAt,
                 counts.GetValueOrDefault(device.Id),
-                device.HasClockDrift));
+                device.HasClockDrift,
+                device.AgentSeenAt,
+                device.TerminalSeenAt,
+                device.TerminalSerial,
+                device.EventsRejected,
+                linkState,
+                linkSince));
         }
 
         return items;

@@ -55,6 +55,35 @@ public static class AttendanceRules
     /// </remarks>
     public const int MaxClockSkewDays = 30;
 
+    /// <summary>
+    /// Agent yoki terminal shuncha daqiqa jim qolsa — bu NOSOZLIK (SPEC-agent §L).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Jadvalga bog'liq EMAS.</b> Agent o'tish bor-yo'qligidan qat'i
+    /// nazar har daqiqada ro'yxat so'raydi va terminal soatini o'qiydi —
+    /// ya'ni tunda ham, dam olish kunida ham o'n daqiqalik jimlik haqiqiy
+    /// uzilish. Shu sababli bu chegara faqat AGENT orqali ishlaydigan
+    /// qurilmaga qo'llanadi: o'zi push qiladigan terminal hodisa bo'lmasa
+    /// umuman gapirmaydi va uning jimligi hech narsa demaydi.
+    /// </para>
+    /// <para>
+    /// O'n daqiqa — o'nta ketma-ket o'tkazib yuborilgan o'lchov. Undan
+    /// qisqasi agentning qayta ishga tushishi yoki bir-ikki daqiqalik
+    /// tarmoq uzilishida ham qizil ogohlantirish yoqardi.
+    /// </para>
+    /// </remarks>
+    public const int AgentSilenceMinutes = 10;
+
+    /// <summary>
+    /// Soati adashgan qurilma shu soat ichida gapirgan bo'lsagina ogohlantirishga tushadi (SPEC §6.5).
+    /// </summary>
+    /// <remarks>
+    /// Bir haftadan beri jim turgan terminalning eski o'lchovi «hozir soat
+    /// adashgan» degani emas — u uchun alohida «uzilgan» belgisi bor.
+    /// </remarks>
+    public const int ClockWarningRecentHours = 24;
+
     /// <summary>O'tish rejadagi boshlanishdan shuncha soat OLDIN ham shu kunga tegishli.</summary>
     /// <remarks>
     /// Olti soat — erta kelishni qoplaydi, lekin soat 14:00 dagi o'tishni

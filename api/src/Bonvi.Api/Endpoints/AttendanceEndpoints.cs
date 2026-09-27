@@ -513,6 +513,29 @@ public static class AttendanceEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapPost("/devices/{id:guid}/enrollments/approve-removals", async (
+                Guid id,
+                ApproveDeviceRemovalsCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ApproveDeviceRemovalsCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceManage)
+            .WithName("ApproveDeviceRemovals")
+            .WithSummary("Davomat — ushlab qolingan o'chirishlarni tasdiqlash")
+            .WithDescription(
+                "Agent ro'yxat bo'sh bo'lsa yoki terminaldagi Bonvi odamlarining beshdan biridan ko'pi " +
+                "o'chirilishi kerak bo'lsa, o'chirmaydi va sonini kartaga yozadi («heldRemovals»). Bu tugma " +
+                "to'siqni 10 daqiqaga ochadi — agent keyingi tekshiruvida o'chiradi. Doimiy o'chirib qo'yish " +
+                "yo'q. Qurilma yo'q — «davomat.qurilma_topilmadi» (404).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapGet("/employees/{id:guid}/enrollments", async (
                 Guid id,
                 GetEmployeeEnrollmentsQueryHandler handler,
@@ -524,7 +547,9 @@ public static class AttendanceEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.AttendanceView)
+            // `manage`, `view` EMAS (SPEC-agent §D5): javobda qurilmadagi shaxs
+            // raqami bor — bu terminal boshqaruvining ma'lumoti.
+            .RequireAuthorization(Permissions.AttendanceManage)
             .WithName("GetEmployeeEnrollments")
             .WithSummary("Davomat — xodim qaysi qurilmada bor")
             .WithDescription(

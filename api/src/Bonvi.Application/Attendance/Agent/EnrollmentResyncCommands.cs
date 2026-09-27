@@ -97,7 +97,19 @@ public sealed record ResyncDeviceEnrollmentsCommand(Guid DeviceId);
 /// tekshiruvda kerakli ro'yxatni qurilmadagi haqiqiy ro'yxat bilan
 /// solishtiradi va farqini tuzatadi — ya'ni yetishmagan odam tugmasiz ham
 /// yoziladi. Tugmaning yagona ishi — <b>rad etilgan</b> qatorlarni qayta
-/// urinishga qo'yish: ular aks holda xato holatida turib qolardi.
+/// urinishga qo'yish.
+/// </para>
+/// <para>
+/// Nega bu kerak (2026-09-27 dan): qurilma AYNAN bir belgini qat'iy rad
+/// etsa (yuz sifati past, rasm juda katta), server uni eslab qoladi
+/// (<see cref="DeviceEnrollment.RejectedVersion"/>) va ro'yxat shu odamni
+/// «ushlab tur» deb beradi — aks holda agent har 60 soniyada, kuniga ~1440
+/// marta, o'sha xatoni olib turardi. Rasm yoki ism o'zgarsa, qator o'zi
+/// qayta urinishga tushadi; tugma esa belgini (<see cref="DeviceEnrollment.ForceVersion"/>)
+/// o'zgartirib, rasmi o'zgarmagan qatorni ham QAYTA urinishga qo'yadi —
+/// masalan terminal sozlamasi tuzatilgandan keyin. Vaqtinchalik xato
+/// (tarmoq) bilan tugagan qator ushlab turilmaydi va tugmasiz ham qayta
+/// urinadi.
 /// </para>
 /// <para>
 /// Joyida turgan xodimga TEGILMAYDI: ikkinchi marta bosilgan tugma hech

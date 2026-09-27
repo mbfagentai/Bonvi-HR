@@ -48,9 +48,14 @@ internal sealed class EnrollmentReadModel : IEnrollmentReadModel
 
         var ids = employeeIds.ToList();
 
+        // Yaratilish tartibida — `DevicePersonNo.Prefer` birinchisini oladi va u
+        // har so'rovda bir xil bo'lishi shart (interfeys izohi). Tartibsiz
+        // `SELECT` da PostgreSQL qatorlarni istalgan tartibda qaytarishi mumkin.
         var rows = await _context.AttendanceIdentities
             .AsNoTracking()
             .Where(identity => identity.Provider == provider && ids.Contains(identity.EmployeeId))
+            .OrderBy(identity => identity.CreatedAt)
+            .ThenBy(identity => identity.ExternalPersonId)
             .Select(identity => new { identity.EmployeeId, identity.ExternalPersonId })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -61,6 +66,27 @@ internal sealed class EnrollmentReadModel : IEnrollmentReadModel
                 group => group.Key,
                 group => (IReadOnlyList<string>)[.. group.Select(row => row.ExternalPersonId)]);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Faza sharti <c>DevicePersonNo.IsManaged</c> bilan AYNAN bir xil: 9 belgi,
+    /// birinchisi <c>9</c>. Bazada tekshiriladi — ishdan ketganlarning
+    /// raqamlari yillar davomida yig'iladi va hammasini xotiraga olib
+    /// saralashning ma'nosi yo'q.
+    /// </remarks>
+    public async Task<IReadOnlyList<string>> ManagedNumbersAsync(
+        AttendanceIdentityProvider provider,
+        CancellationToken cancellationToken = default)
+        => await _context.AttendanceIdentities
+            .AsNoTracking()
+            .Where(identity =>
+                identity.Provider == provider &&
+                identity.ExternalPersonId.Length == DevicePersonNo.Length &&
+                EF.Functions.Like(identity.ExternalPersonId, DevicePersonNo.Prefix + "%"))
+            .Select(identity => identity.ExternalPersonId)
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EnrollmentRow>> DeviceRowsAsync(
@@ -246,5 +272,6 @@ internal sealed class EnrollmentReadModel : IEnrollmentReadModel
             enrollment?.AppliedVersion,
             enrollment?.ForceVersion ?? 0,
             enrollment?.Error,
-            enrollment?.SyncedAt);
+            enrollment?.SyncedAt,
+            enrollment?.RejectedVersion);
 }

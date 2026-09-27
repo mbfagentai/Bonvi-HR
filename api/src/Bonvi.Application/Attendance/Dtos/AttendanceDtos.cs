@@ -49,8 +49,12 @@ namespace Bonvi.Application.Attendance.Dtos;
 /// <param name="LocalDate">O'tish tushgan Toshkent kalendar sanasi.</param>
 /// <param name="ReceivedAt">Server qabul qilgan lahza.</param>
 /// <param name="ClockSkewSeconds">
-/// <c>received_at − occurred_at</c>, ishorali. Qurilma soati qanchaga
-/// adashganini ko'rsatadi.
+/// Qurilma soati qanchaga adashgani, ishorali (musbat — orqada). Agent
+/// o'lchagan o'tishda — qabul paytidagi TO'G'RIDAN-TO'G'RI o'lchov
+/// (<c>AttendancePass.EffectiveClockSkewSeconds</c>), aks holda
+/// <c>received_at − occurred_at</c>. Ikkinchisi agent orqali kelgan o'tishda
+/// yetkazib berish kechikishini ham o'z ichiga olardi va internet
+/// uzilishidan keyin har bir o'tishni «soat adashgan» qilib ko'rsatardi.
 /// </param>
 /// <param name="SkewWarning">
 /// Og'ish chegaradan (<see cref="AttendanceRules.ClockSkewToleranceSeconds"/>)
@@ -375,6 +379,11 @@ public sealed record AttendanceDashboardItemDto(
 /// <param name="PageSize">Sahifa hajmi.</param>
 /// <param name="TotalItems">Jadvalga tushganlar — org-filtr, qidiruv va holatdan keyin.</param>
 /// <param name="PageCount">Jami sahifalar (<see cref="TotalItems"/> bo'yicha).</param>
+/// <param name="DeviceHealth">
+/// Qurilmalar sog'lig'i — soat ogohlantirishi, «hech bir qurilma ulanmagan»
+/// holati va agent/terminal uzilishlari (SPEC §8.4, §8.7, SPEC-agent §L).
+/// Filtrlarga BO'YSUNMAYDI: qurilma butun korxonaniki.
+/// </param>
 public sealed record AttendanceDashboardDto(
     DateOnly Date,
     bool IsToday,
@@ -385,7 +394,41 @@ public sealed record AttendanceDashboardDto(
     int Page,
     int PageSize,
     int TotalItems,
-    int PageCount);
+    int PageCount,
+    AttendanceDeviceHealthDto DeviceHealth);
+
+/// <summary>
+/// Qurilmalar sog'lig'i — Statistika sahifasining yuqorisidagi ogohlantirishlar uchun.
+/// </summary>
+/// <remarks>
+/// «Hozir ishda» taxtasi Statistika bilan almashtirilganda uning soat banneri va
+/// «qurilma hali ulanmagan» holati (SPEC §8.4, §8.5) yo'qolib qolgan edi — ular
+/// shu yerdan qaytadi. «Mobil ilova» qatori hech qaysi sanoqqa KIRMAYDI: u
+/// terminal emas.
+/// </remarks>
+/// <param name="ActiveDevices">Faol terminallar soni.</param>
+/// <param name="ConnectedDevices">Ulardan kamida bir marta gapirganlari.</param>
+/// <param name="ClockWarningDevices">So'nggi sutkada gapirgan va soati chegaradan og'gan faol terminallar.</param>
+/// <param name="Outages">
+/// Agenti o'n daqiqadan beri jim yoki terminali javob bermayotgan faol
+/// qurilmalar — QIZIL ogohlantirish (egasi, 2026-09-27).
+/// </param>
+public sealed record AttendanceDeviceHealthDto(
+    int ActiveDevices,
+    int ConnectedDevices,
+    int ClockWarningDevices,
+    IReadOnlyList<DeviceOutageDto> Outages);
+
+/// <summary>Bitta uzilgan qurilma.</summary>
+/// <param name="DeviceId">Qurilma.</param>
+/// <param name="DeviceName">Qurilma nomi.</param>
+/// <param name="State"><c>AgentOffline</c> yoki <c>TerminalUnreachable</c>.</param>
+/// <param name="Since">Qachondan beri; terminal hech qachon javob bermagan bo'lsa <c>null</c>.</param>
+public sealed record DeviceOutageDto(
+    Guid DeviceId,
+    string DeviceName,
+    DeviceLinkState State,
+    DateTimeOffset? Since);
 
 /// <summary>Davr grafigining bitta kuni — <see cref="AttendanceTrendDto"/> ning qatori.</summary>
 /// <remarks>
@@ -431,7 +474,18 @@ public sealed record AttendanceTrendDto(
     DateOnly From,
     DateOnly To,
     DateTimeOffset AsOf,
-    IReadOnlyList<AttendanceTrendDayDto> Days);
+    IReadOnlyList<AttendanceTrendDayDto> Days)
+{
+    /// <summary>
+    /// Qurilmalar sog'lig'i — <see cref="AttendanceDashboardDto.DeviceHealth"/> bilan bir xil.
+    /// </summary>
+    /// <remarks>
+    /// So'rov ishlovchisi to'ldiradi: Statistika sahifasi davr rejimida
+    /// <c>/dashboard</c> ni so'ramaydi, uzilish ogohlantirishi esa har doim
+    /// ko'rinishi kerak.
+    /// </remarks>
+    public AttendanceDeviceHealthDto? DeviceHealth { get; init; }
+}
 
 // ────────────────────────────────────────────────────────────────────
 //  2c. Tug'ilgan kunlar paneli (SPEC-panel §E)
@@ -818,6 +872,16 @@ public sealed record AttendanceExportFile(byte[] Content, string FileName);
 /// Soat og'ishi chegaradan oshganmi — SERVERDA hisoblanadi
 /// (<see cref="AttendanceDevice.HasClockDrift"/>), klient qayta hisoblamaydi.
 /// </param>
+/// <param name="AgentSeenAt">Agent oxirgi marta qachon murojaat qilgan; <c>null</c> — agent hech qachon gapirmagan.</param>
+/// <param name="TerminalSeenAt">Terminalning O'ZI tasdiqlagan oxirgi aloqa (soat o'qildi yoki hodisa keldi).</param>
+/// <param name="TerminalSerial">Agent terminaldan o'qigan seriya — token shu terminalga bog'langan.</param>
+/// <param name="EventsRejected">Oxirgi hodisa so'rovi rad etilgan va undan keyin birorta ham o'tish qabul qilinmagan.</param>
+/// <param name="LinkState">
+/// Aloqa holati — SERVERDA hisoblanadi (<see cref="AttendanceDevice.LinkAt"/>):
+/// agent o'n daqiqadan beri jim bo'lsa <c>AgentOffline</c>, agent tirik-u
+/// terminal javob bermasa <c>TerminalUnreachable</c>. Jadvalga bog'liq emas.
+/// </param>
+/// <param name="LinkSince">Holat qachondan beri shunday; noma'lum bo'lsa <c>null</c>.</param>
 public sealed record AttendanceDeviceDto(
     Guid Id,
     string Name,
@@ -844,7 +908,13 @@ public sealed record AttendanceDeviceDto(
     int? ClockOffsetSeconds,
     DateTimeOffset? ClockCheckedAt,
     int PassCount24h,
-    bool SkewWarning);
+    bool SkewWarning,
+    DateTimeOffset? AgentSeenAt,
+    DateTimeOffset? TerminalSeenAt,
+    string? TerminalSerial,
+    bool EventsRejected,
+    DeviceLinkState LinkState,
+    DateTimeOffset? LinkSince);
 
 /// <summary>Yangi qurilma yoki yangilangan token — tokenning YAGONA ko'rinishi.</summary>
 /// <remarks>
@@ -1202,7 +1272,7 @@ public sealed record AttendanceRecomputeAcceptedDto(string JobId, int EmployeeCo
 /// qanday tuzilgani agent uchun ahamiyatsiz, u faqat TENGLIKni tekshiradi.
 /// </param>
 /// <param name="Version">
-/// Agent hisobotda qaytaradigan belgi: <c>rasm:majburiyat</c>. Server shu
+/// Agent hisobotda qaytaradigan belgi: <c>rasm:majburiyat:ism</c>. Server shu
 /// satrni saqlaydi va keyingi safar hozirgisi bilan solishtiradi — ya'ni
 /// «nima yozilgan» degan savolga bitta maydon javob beradi.
 /// </param>
@@ -1213,24 +1283,43 @@ public sealed record AttendanceRecomputeAcceptedDto(string JobId, int EmployeeCo
 /// (SPEC-agent §E). Qolganlarini u qurilmadagi ro'yxat bilan solishtirib
 /// o'zi hal qiladi: raqami yo'q odam yoziladi, yuzi yo'q odam to'ldiriladi.
 /// </param>
+/// <param name="Hold">
+/// Qurilma AYNAN shu belgini qat'iy rad etgan (yuz sifati, rasm hajmi, rasm
+/// yo'q). Agent bu odamni YOZMAYDI — na qayta, na yetishmagan deb — va
+/// o'chirmaydi ham: belgi o'zgarguncha (yangi rasm, ism, «Qayta yozish»)
+/// har daqiqada o'sha xatoni olib turishning ma'nosi yo'q.
+/// </param>
 public sealed record AgentRosterEntryDto(
     Guid EmployeeId,
     string PersonNo,
     string FullName,
     string? PhotoVersion,
     string Version,
-    bool Force);
+    bool Force,
+    bool Hold);
 
 /// <summary>Agent so'ragan ro'yxat — qurilmada KIM bo'lishi kerak.</summary>
 /// <param name="DeviceId">Qurilma.</param>
 /// <param name="DeviceName">Qurilma nomi — agent logi uchun.</param>
 /// <param name="GeneratedAt">Ro'yxat qachon tuzilgan.</param>
 /// <param name="Entries">Qatorlar.</param>
+/// <param name="RemoveNumbers">
+/// Shu server ajratgan, lekin ro'yxatda YO'Q raqamlar — terminalda bo'lsa,
+/// o'chiriladi. Bonvi fazasidagi, ammo bu ro'yxatda ham, <paramref name="Entries"/>
+/// da ham bo'lmagan raqam BEGONA: uni boshqa Bonvi o'rnatmasi (masalan sinov
+/// serveri) yozgan va agent unga tegmaydi (SPEC-agent §L).
+/// </param>
+/// <param name="AllowMassRemoval">
+/// HR ushlab qolingan ommaviy o'chirishni tasdiqlagan — agent to'siqni
+/// shu safar qo'llamaydi.
+/// </param>
 public sealed record AgentRosterDto(
     Guid DeviceId,
     string DeviceName,
     DateTimeOffset GeneratedAt,
-    IReadOnlyList<AgentRosterEntryDto> Entries);
+    IReadOnlyList<AgentRosterEntryDto> Entries,
+    IReadOnlyList<string> RemoveNumbers,
+    bool AllowMassRemoval);
 
 /// <summary>Agent qurilmada nima qilgani.</summary>
 public enum AgentEnrollmentAction
@@ -1253,13 +1342,20 @@ public enum AgentEnrollmentAction
 /// <param name="Ok">Qurilma qabul qildimi.</param>
 /// <param name="Version">Qaysi belgi yozildi — ro'yxatdagi <c>version</c>.</param>
 /// <param name="Error">Qurilmaning O'Z xabari (masalan yuz sifati) — bo'lsa.</param>
+/// <param name="Rejected">
+/// Xato QAT'IY — qurilma yoki rasm qoidasi aynan shu belgini rad etdi.
+/// Server bu belgini eslab qoladi va u o'zgarmaguncha qayta urinishni
+/// to'xtatadi (<see cref="AgentRosterEntryDto.Hold"/>). Tarmoq yoki muddat
+/// xatosida <c>false</c>: keyingi tekshiruvda qayta urinish kerak.
+/// </param>
 public sealed record AgentReportItemDto(
     Guid EmployeeId,
     string? PersonNo,
     AgentEnrollmentAction Action,
     bool Ok,
     string? Version,
-    string? Error);
+    string? Error,
+    bool Rejected = false);
 
 /// <summary>Hisobot qabul qilindi.</summary>
 /// <param name="Accepted">Nechta qator yozildi.</param>
@@ -1275,6 +1371,10 @@ public sealed record AgentReportResultDto(int Accepted, int Ignored);
 /// <param name="State">Hisoblangan holat.</param>
 /// <param name="Error">Oxirgi xato matni.</param>
 /// <param name="SyncedAt">Oxirgi muvaffaqiyatli yozuv vaqti.</param>
+/// <param name="EmployeePhotoKey">
+/// Xodim kartasidagi rasm kaliti — ro'yxatda HAQIQIY rasm ko'rinadi, bosh
+/// harflar emas (loyiha qoidasi). <c>null</c> — rasm yo'q.
+/// </param>
 public sealed record DeviceEnrollmentRowDto(
     Guid DeviceId,
     string DeviceName,
@@ -1283,7 +1383,8 @@ public sealed record DeviceEnrollmentRowDto(
     string? PersonNo,
     DeviceEnrollmentState State,
     string? Error,
-    DateTimeOffset? SyncedAt);
+    DateTimeOffset? SyncedAt,
+    string? EmployeePhotoKey);
 
 /// <summary>
 /// Ekranda ko'rinadigan holat — bazadagi <see cref="DeviceEnrollmentStatus"/>
@@ -1322,6 +1423,17 @@ public enum DeviceEnrollmentState
 /// <param name="Failed">Xato.</param>
 /// <param name="PhotoMissing">Rasmi yo'q.</param>
 /// <param name="LastContactAt">Agent oxirgi marta qachon murojaat qilgan.</param>
+/// <param name="ReconciledAt">Agentning oxirgi solishtirish hisoboti.</param>
+/// <param name="HeldRemovals">
+/// Oxirgi solishtirishda ommaviy o'chirish to'sig'i USHLAB QOLGAN o'chirishlar
+/// (ro'yxat bo'sh yoki terminaldagi Bonvi odamlarining beshdan biridan ko'pi).
+/// Noldan katta bo'lsa — HR tekshirib, tasdiqlashi kerak.
+/// </param>
+/// <param name="ForeignPersons">
+/// Terminaldagi Bonvi fazasidagi, lekin bu server ajratmagan odamlar —
+/// boshqa Bonvi o'rnatmasi shu terminalga yozyapti.
+/// </param>
+/// <param name="RemovalsApprovedUntil">HR ruxsati shu lahzagacha amal qiladi.</param>
 public sealed record DeviceEnrollmentSummaryDto(
     Guid DeviceId,
     string DeviceName,
@@ -1330,7 +1442,11 @@ public sealed record DeviceEnrollmentSummaryDto(
     int Pending,
     int Failed,
     int PhotoMissing,
-    DateTimeOffset? LastContactAt);
+    DateTimeOffset? LastContactAt,
+    DateTimeOffset? ReconciledAt,
+    int HeldRemovals,
+    int ForeignPersons,
+    DateTimeOffset? RemovalsApprovedUntil);
 
 /// <summary>Qurilma sahifasining yozish bo'limi.</summary>
 /// <param name="Summary">Umumiy sanoqlar.</param>
@@ -1341,6 +1457,11 @@ public sealed record DeviceEnrollmentSummaryDto(
 public sealed record DeviceEnrollmentPageDto(
     DeviceEnrollmentSummaryDto Summary,
     IReadOnlyList<DeviceEnrollmentRowDto> Rows);
+
+/// <summary>Agentning solishtirish hisoboti — bitta aylanish natijasi.</summary>
+/// <param name="HeldRemovals">Ommaviy o'chirish to'sig'i ushlab qolgan o'chirishlar soni.</param>
+/// <param name="ForeignPersons">Terminaldagi begona Bonvi-raqamli odamlar soni.</param>
+public sealed record AgentStatusDto(int HeldRemovals, int ForeignPersons);
 
 /// <summary>Qurilma soati o'lchandi.</summary>
 /// <param name="OffsetSeconds">Qurilma vaqti minus server vaqti (ishorali).</param>

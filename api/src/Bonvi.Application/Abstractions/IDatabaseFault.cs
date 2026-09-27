@@ -53,6 +53,16 @@ public interface IDatabaseFault
     bool IsDuplicatePass(Exception exception);
 
     /// <summary>
+    /// Istisno xodimga IKKINCHI Bonvi raqami ajratilmoqchi bo'lgani sababli yuzaga kelganmi.
+    /// </summary>
+    /// <remarks>
+    /// Faqat <c>ux_attendance_identities_managed_employee</c> buzilishi: ikki
+    /// agent so'rovi bir vaqtda bitta xodimga raqam ajratmoqchi bo'ldi.
+    /// Bu nosozlik emas, poyga — ikkinchi so'rov qayta urinadi.
+    /// </remarks>
+    bool IsDuplicateDevicePersonNo(Exception exception);
+
+    /// <summary>
     /// Istisno ikki qayta hisoblash BIR kun yozuviga bir vaqtda yozgani sababli yuzaga kelganmi.
     /// </summary>
     /// <remarks>

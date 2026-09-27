@@ -13,6 +13,18 @@ public enum DeviceEnrollmentStatus
 
     /// <summary>Qurilmadan o'chirilgan (ishdan ketgan yoki ro'yxatdan chiqqan).</summary>
     Removed = 3,
+
+    /// <summary>
+    /// O'CHIRIB bo'lmadi — odam hali ham terminalda va eshikni ocha oladi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Failed"/> dan alohida, chunki ma'nosi teskari: u «yozib
+    /// bo'lmadi» (odam terminalda YO'Q yoki eski holatda), bu esa «olib
+    /// tashlab bo'lmadi» (ishdan ketgan odam HALI terminalda). Ilgari agent
+    /// muvaffaqiyatsiz o'chirishni ham «bajarildi» deb yuborardi va HR
+    /// «O'chirilgan» ni ko'rardi — odam esa eshikni ochib yuraverardi.
+    /// </remarks>
+    RemoveFailed = 4,
 }
 
 /// <summary>
@@ -30,7 +42,7 @@ public enum DeviceEnrollmentStatus
 /// </para>
 /// <para>
 /// <see cref="AppliedVersion"/> — agent QAYSI holatni yozgani
-/// (<c>photoKey:forceVersion</c>). Serverdagi joriy qiymat undan farq qilsa,
+/// (<c>photoKey:forceVersion:ism izi</c>). Serverdagi joriy qiymat undan farq qilsa,
 /// xodim «kutilmoqda» bo'ladi: rasm almashgan yoki HR «Qayta yozish»
 /// bosgan.
 /// </para>
@@ -59,11 +71,29 @@ public sealed class DeviceEnrollment : Entity, IAuditable
 
     public DeviceEnrollmentStatus Status { get; private set; }
 
-    /// <summary>Agent yozgan holat: <c>photoKey:forceVersion</c>.</summary>
+    /// <summary>Agent yozgan holat: <c>photoKey:forceVersion:ism izi</c>.</summary>
     public string? AppliedVersion { get; private set; }
 
     /// <summary>Qurilmaning o'z xato matni — HR ekranda aynan shuni o'qiydi.</summary>
     public string? Error { get; private set; }
+
+    /// <summary>
+    /// Qurilma (yoki rasm qoidasi) aynan qaysi belgini RAD ETGANI.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Bir xil belgi qayta urinilmaydi.</b> Yuz sifati past yoki rasm
+    /// juda katta — bu qat'iy javob: har 60 soniyada qayta urinish kuniga
+    /// ~1440 marta o'sha xatoni olardi va terminalni band qilardi. Belgi
+    /// o'zgarsa (yangi rasm, yangi ism, «Qayta yozish»), qator yana
+    /// urinishga tushadi.
+    /// </para>
+    /// <para>
+    /// Vaqtinchalik xatoda (tarmoq, terminal javob bermadi) <c>null</c>:
+    /// u keyingi tekshiruvda o'zi tuzalishi mumkin va qayta urinilishi kerak.
+    /// </para>
+    /// </remarks>
+    public string? RejectedVersion { get; private set; }
 
     /// <summary>Oxirgi muvaffaqiyatli yozuv lahzasi (UTC).</summary>
     public DateTimeOffset? SyncedAt { get; private set; }
@@ -92,19 +122,27 @@ public sealed class DeviceEnrollment : Entity, IAuditable
         Status = DeviceEnrollmentStatus.Synced;
         AppliedVersion = version;
         Error = null;
+        RejectedVersion = null;
         SyncedAt = at;
     }
 
-    /// <summary>Qurilma rad etdi.</summary>
+    /// <summary>Yozib bo'lmadi.</summary>
     /// <remarks>
     /// <see cref="AppliedVersion"/> TEGILMAYDI: xato bo'lgan urinish
     /// «yozildi» deb sanalmasligi kerak, aks holda keyingi tekshiruvda
     /// xodim qayta urinilmasdan o'tkazib yuborilardi.
     /// </remarks>
-    public void MarkFailed(string? error, DateTimeOffset at)
+    /// <param name="error">Qurilmaning o'z xato matni.</param>
+    /// <param name="at">Hisobot lahzasi.</param>
+    /// <param name="rejectedVersion">
+    /// Qat'iy rad etilgan belgi — shu belgi o'zgarmaguncha qayta urinilmaydi
+    /// (<see cref="RejectedVersion"/>). Vaqtinchalik xatoda <c>null</c>.
+    /// </param>
+    public void MarkFailed(string? error, DateTimeOffset at, string? rejectedVersion = null)
     {
         Status = DeviceEnrollmentStatus.Failed;
         Error = Trim(error);
+        RejectedVersion = Trim(rejectedVersion);
         SyncedAt = at;
     }
 
@@ -114,6 +152,22 @@ public sealed class DeviceEnrollment : Entity, IAuditable
         Status = DeviceEnrollmentStatus.Removed;
         AppliedVersion = null;
         Error = null;
+        RejectedVersion = null;
+        SyncedAt = at;
+    }
+
+    /// <summary>Qurilmadan o'chirib bo'lmadi — odam hali terminalda.</summary>
+    /// <remarks>
+    /// <see cref="AppliedVersion"/> TEGILMAYDI: odam terminalda o'sha holida
+    /// qoldi. Agent keyingi tekshiruvda o'chirishni qayta uradi — bu yerda
+    /// qayta urinishni to'xtatadigan belgi yo'q, chunki ishdan ketgan
+    /// odamning eshigi yopilishi shart.
+    /// </remarks>
+    public void MarkRemoveFailed(string? error, DateTimeOffset at)
+    {
+        Status = DeviceEnrollmentStatus.RemoveFailed;
+        Error = Trim(error);
+        RejectedVersion = null;
         SyncedAt = at;
     }
 

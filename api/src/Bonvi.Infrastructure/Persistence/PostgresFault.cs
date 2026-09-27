@@ -45,6 +45,15 @@ internal sealed class PostgresFault : IDatabaseFault
     /// </remarks>
     private const string DayUniqueIndex = "ux_attendance_days_employee_date";
 
+    /// <summary>
+    /// Xodimga bitta Bonvi raqami — <c>AttendanceIdentityConfiguration</c> dagi nom.
+    /// </summary>
+    /// <remarks>
+    /// Nom o'zgarsa, ikki agentning parallel so'rovi 409 o'rniga 500 bo'lib
+    /// qaytadi — shu sababli ikkalasi bir vaqtda o'zgartiriladi.
+    /// </remarks>
+    public const string ManagedNumberIndex = "ux_attendance_identities_managed_employee";
+
     public bool IsDuplicateName(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -61,6 +70,13 @@ internal sealed class PostgresFault : IDatabaseFault
         ArgumentNullException.ThrowIfNull(exception);
 
         return string.Equals(UniqueViolation(exception)?.ConstraintName, PassDedupeIndex, StringComparison.Ordinal);
+    }
+
+    public bool IsDuplicateDevicePersonNo(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return string.Equals(UniqueViolation(exception)?.ConstraintName, ManagedNumberIndex, StringComparison.Ordinal);
     }
 
     public bool IsConcurrentDayWrite(Exception exception)

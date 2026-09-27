@@ -100,7 +100,10 @@ public sealed class AttendanceAgentApiTests : IClassFixture<BonviApiFactory>
 
         var row = roster.Entries.Single(entry => entry.EmployeeId == ready);
         row.PhotoVersion.ShouldBe($"employees/{tag}-a.jpg");
-        row.Version.ShouldBe($"employees/{tag}-a.jpg:0");
+        // Belgi: rasm, «Qayta yozish» sanog'i va ism izi (SPEC-agent §E, 2026-09-27).
+        row.Version.ShouldBe(EnrollmentVersion.Of($"employees/{tag}-a.jpg", 0, row.FullName));
+        row.Version.ShouldStartWith($"employees/{tag}-a.jpg:0:");
+        row.Hold.ShouldBeFalse();
         row.Force.ShouldBeTrue("hali hech narsa yozilmagan — agent uni yozishi kerak");
     }
 

@@ -53,8 +53,10 @@ public sealed class AttendanceDeviceConfiguration : IEntityTypeConfiguration<Att
 
         builder.Ignore(device => device.DomainEvents);
 
-        // Hisoblanadigan xossa — ustun emas (izohi domenda).
+        // Hisoblanadigan xossalar — ustun emas (izohi domenda).
         builder.Ignore(device => device.HasClockDrift);
+        builder.Ignore(device => device.EventsRejected);
+        builder.Ignore(device => device.IsSynthetic);
 
         builder.Property(device => device.Name)
             .HasMaxLength(200)
@@ -108,6 +110,17 @@ public sealed class AttendanceDeviceConfiguration : IEntityTypeConfiguration<Att
         // 45 — IPv6 ning eng uzun matn ko'rinishi (IPv4 ko'rinishi bilan).
         builder.Property(device => device.LastSeenIp)
             .HasMaxLength(45);
+
+        // Agent o'qigan seriya (SPEC-agent §L) — HR kiritadigan
+        // `serial_number` dan alohida, sababi domenda.
+        builder.Property(device => device.TerminalSerial)
+            .HasMaxLength(AttendanceDevice.TerminalSerialMaxLength);
+
+        builder.Property(device => device.HeldRemovals)
+            .IsRequired();
+
+        builder.Property(device => device.ForeignPersons)
+            .IsRequired();
 
         builder.HasOne<LegalEntity>()
             .WithMany()
@@ -202,6 +215,19 @@ public sealed class AttendanceIdentityConfiguration : IEntityTypeConfiguration<A
         // «Shu xodimning qurilma raqamlari» — xodim kartasi va moslik ekrani.
         builder.HasIndex(identity => identity.EmployeeId)
             .HasDatabaseName("ix_attendance_identities_employee");
+
+        /*
+          Bonvi fazasida xodimga BITTA raqam (SPEC-agent §E: «raqam hech
+          qachon o'zgarmaydi»). Ikki agent so'rovi bir vaqtda raqam
+          ajratsa, ikkinchisi shu indeksga uriladi va 409 oladi
+          (`AttendanceErrors.AgentRosterBusy`) — ikkinchi raqam yozilmaydi.
+          Filtr `DevicePersonNo.IsManaged` bilan AYNAN bir xil: 9 belgi,
+          birinchisi «9». Nom `PostgresFault.ManagedNumberIndex` da ham.
+        */
+        builder.HasIndex(identity => new { identity.Provider, identity.EmployeeId })
+            .IsUnique()
+            .HasFilter("deleted_at IS NULL AND length(external_person_id) = 9 AND left(external_person_id, 1) = '9'")
+            .HasDatabaseName("ux_attendance_identities_managed_employee");
     }
 }
 
@@ -232,6 +258,7 @@ public sealed class AttendancePassConfiguration : IEntityTypeConfiguration<Atten
         builder.Ignore(pass => pass.DomainEvents);
 
         builder.Ignore(pass => pass.HasClockDrift);
+        builder.Ignore(pass => pass.EffectiveClockSkewSeconds);
 
         builder.Property(pass => pass.IdentityProvider)
             .IsRequired();
@@ -795,6 +822,7 @@ public sealed class DeviceEnrollmentConfiguration : IEntityTypeConfiguration<Dev
         builder.Property(row => row.Status).IsRequired();
         builder.Property(row => row.ForceVersion).IsRequired();
         builder.Property(row => row.AppliedVersion).HasMaxLength(200);
+        builder.Property(row => row.RejectedVersion).HasMaxLength(200);
         builder.Property(row => row.Error).HasMaxLength(500);
 
         builder.HasOne<AttendanceDevice>()

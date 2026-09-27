@@ -59,6 +59,8 @@ internal static class AttendanceRegistration
         services.AddScoped<GetEmployeeEnrollmentsQueryHandler>();
         services.AddScoped<ResyncEmployeeEnrollmentsCommandHandler>();
         services.AddScoped<ResyncDeviceEnrollmentsCommandHandler>();
+        services.AddScoped<ReportAgentStatusCommandHandler>();
+        services.AddScoped<ApproveDeviceRemovalsCommandHandler>();
 
         // Yillik to'r (SPEC-jadval-to'ri §C)
         services.AddScoped<GetScheduleYearQueryHandler>();

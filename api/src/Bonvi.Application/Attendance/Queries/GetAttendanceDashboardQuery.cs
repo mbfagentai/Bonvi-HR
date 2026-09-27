@@ -1,5 +1,6 @@
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Attendance.Common;
+using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
@@ -43,11 +44,16 @@ public sealed record GetAttendanceDashboardQuery(
 public sealed class GetAttendanceDashboardQueryHandler
 {
     private readonly IAttendanceReadModel _readModel;
+    private readonly IAttendanceDeviceRepository _devices;
     private readonly IClock _clock;
 
-    public GetAttendanceDashboardQueryHandler(IAttendanceReadModel readModel, IClock clock)
+    public GetAttendanceDashboardQueryHandler(
+        IAttendanceReadModel readModel,
+        IAttendanceDeviceRepository devices,
+        IClock clock)
     {
         _readModel = readModel;
+        _devices = devices;
         _clock = clock;
     }
 
@@ -73,6 +79,10 @@ public sealed class GetAttendanceDashboardQueryHandler
 
         var found = await _readModel.GetDashboardAsync(filter, cancellationToken).ConfigureAwait(false);
 
+        // Qurilmalar sog'lig'i filtrga BO'YSUNMAYDI (DTO izohi) va sana
+        // tanlansa ham «hozir» bo'yicha: uzilish o'tgan kunga tegishli emas.
+        var devices = await _devices.ListAsync(includeInactive: false, cancellationToken).ConfigureAwait(false);
+
         return new AttendanceDashboardDto(
             found.Date,
             found.IsToday,
@@ -83,6 +93,7 @@ public sealed class GetAttendanceDashboardQueryHandler
             page,
             pageSize,
             found.TotalItems,
-            AttendanceQueryParsing.PageCount(found.TotalItems, pageSize));
+            AttendanceQueryParsing.PageCount(found.TotalItems, pageSize),
+            AttendanceDeviceHealth.Of(devices, _clock.UtcNow));
     }
 }

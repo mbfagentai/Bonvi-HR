@@ -16,11 +16,17 @@ namespace Bonvi.Application.Attendance.Ingest;
 /// <param name="Payload">So'rov tanasi.</param>
 /// <param name="Signature"><c>X-Bonvi-Signature</c> sarlavhasi, bo'lsa.</param>
 /// <param name="SourceIp">So'rov manzili.</param>
+/// <param name="TerminalSerial">
+/// Agent o'qigan terminal seriyasi (<c>X-Bonvi-Terminal-Serial</c>). O'zi push
+/// qiladigan terminal uni yubormaydi — shu sababli bu yerda IXTIYORIY:
+/// berilsa va qurilma boshqa terminalga bog'langan bo'lsa, rad etiladi.
+/// </param>
 public sealed record IngestAttendanceEventCommand(
     string? Token,
     AttendanceIngestPayload Payload,
     string? Signature,
-    string? SourceIp);
+    string? SourceIp,
+    string? TerminalSerial = null);
 
 /// <summary>
 /// Qurilma hodisalarini tasdiqlaydi, o'qiydi va o'tish sifatida yozadi.
@@ -105,14 +111,26 @@ public sealed class IngestAttendanceEventCommandHandler
         var device = authenticated.Value;
         var receivedAt = _clock.UtcNow;
 
-        // «Qurilma gapiryapti» — natija qanday bo'lishidan qat'i nazar.
-        // `last_seen_at` bilan `last_event_at` ajralib qolsa, bu HR uchun
-        // aniq tashxis: terminal ulangan, lekin hodisalari rad etilyapti.
+        // Boshqa terminalning o'tishlari bu qurilma nomidan yozilmasin.
+        var bound = device.ConfirmTerminal(command.TerminalSerial, required: false);
+        if (bound.IsFailure)
+        {
+            _journal.TerminalMismatch(device.Id, command.TerminalSerial);
+            return bound.Error;
+        }
+
+        // «Qurilma gapiryapti» — natija qanday bo'lishidan qat'i nazar. Tana
+        // terminalning o'z hodisalari (u o'zi yuborgan yoki agent uning
+        // jurnalidan o'qigan), ya'ni terminal ham javob beryapti.
         device.NoteSeen(receivedAt, command.SourceIp);
+        device.NoteTerminal(receivedAt);
 
         var parsed = await ParseAsync(device, command.Payload, receivedAt, cancellationToken).ConfigureAwait(false);
         if (parsed.IsFailure)
         {
+            // «Gaplashyapti-yu, rad etilyapti» belgisi AYNAN shundan chiqadi
+            // (`AttendanceDevice.EventsRejected`), vaqt farqidan taxmin qilinmaydi.
+            device.NoteRejected(receivedAt);
             _journal.PayloadRejected(device.Id, parsed.Error.Code);
             await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return parsed.Error;
@@ -230,7 +248,8 @@ public sealed class IngestAttendanceEventCommandHandler
             passEvent.Method,
             passEvent.OffsetAssumed,
             photoKey,
-            passEvent.RawEventJson);
+            passEvent.RawEventJson,
+            MeasuredOffset(device));
 
         if (recorded.IsFailure)
         {
@@ -275,6 +294,25 @@ public sealed class IngestAttendanceEventCommandHandler
 
         return pass;
     }
+
+    /// <summary>
+    /// Qurilma soatining agent o'lchagan og'ishi — o'tishga nusxa bo'lib tushadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// O'lchov YOSHIDAN qat'i nazar: internet uzilib qaytganda yuborilgan
+    /// o'tishlar odatda soat o'lchovidan OLDIN keladi (hodisa halqasi 2
+    /// soniyada, soat — daqiqada bir), va aynan ular uchun «qabul − sodir»
+    /// ayirmasi eng yolg'on son. Terminal soati bir necha soatda daqiqalab
+    /// siljimaydi; oxirgi o'lchov — eng yaxshi dalil.
+    /// </para>
+    /// <para>
+    /// Qoida qurilmadagi <c>HasClockDrift</c> bilan bir xil: o'lchov bo'lsa —
+    /// u, bo'lmasa (o'zi push qiladigan terminal) — qabul ayirmasi.
+    /// </para>
+    /// </remarks>
+    private static int? MeasuredOffset(AttendanceDevice device)
+        => device.ClockCheckedAt is not null ? device.ClockOffsetSeconds : null;
 
     /// <summary>
     /// Yo'nalish: avval qurilma aytgani, keyin qurilma roli, keyin «noma'lum».

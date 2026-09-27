@@ -77,4 +77,9 @@ public interface IAttendanceIngestJournal
     /// <param name="majorEventType">Asosiy tur (<c>majorEventType</c>).</param>
     /// <param name="subEventType">Kichik tur (<c>subEventType</c>).</param>
     void UnknownSubTypeSeen(int majorEventType, int subEventType);
+
+    /// <summary>Agent boshqa terminalning seriyasi bilan keldi — so'rov rad etildi.</summary>
+    /// <param name="deviceId">Qurilma yozuvi.</param>
+    /// <param name="presentedSerial">Agent o'qigan seriya; berilmagan bo'lsa <c>null</c>.</param>
+    void TerminalMismatch(Guid deviceId, string? presentedSerial);
 }
