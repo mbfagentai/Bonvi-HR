@@ -28,6 +28,7 @@ import {
   METHOD_LABEL_KEY,
   WEEKDAY_LABEL_KEY,
   WEEKDAY_SHORT_KEY,
+  ATTENDANCE_MANAGE,
   formatDuration,
   formatPassTime,
   isWeekend,
@@ -43,7 +44,7 @@ import {
 import { AbsenceRequestsList } from './absence-requests-list'
 import { EmployeeEnrollmentsCard } from './attendance-enrollment-cards'
 import { MobileEvidenceLine } from './attendance-mobile-evidence'
-import { EmployeeAppAccessCard } from './employee-app-access-card'
+import { EmployeeAppAccessTab } from './employee-app-access-tab'
 import {
   AttendancePassPhotoDialog,
   PassDirectionBadge,
@@ -66,7 +67,9 @@ const PASSES_PAGE_SIZE = 50
  * <b>Ichkarida ikkita ko'rinish</b> — Verifix'dagi «Календарь / Отметки»
  * ning o'zi: oylik kalendar va shu oyning turniket jurnali. Ular bitta
  * yuqori tab ichida, chunki kartada allaqachon oltita tab bor va
- * yettinchisidan keyin qatorning o'zi ro'yxatga aylanardi.
+ * yettinchisidan keyin qatorning o'zi ro'yxatga aylanardi. Uchinchisi —
+ * yo'qlik so'rovlari, to'rtinchisi — «Ilova» (xodim ilovasining login va
+ * paroli; faqat `attendance.manage` ga ko'rinadi).
  *
  * Ma'lumot MAVJUD endpointlardan: `/timesheet?employeeId=` (kalendar va
  * oylik yakun) va `/passes?employeeId=` (jurnal). Yangi endpoint yo'q.
@@ -84,6 +87,8 @@ export function EmployeeAttendanceTab({
   const { hasPermission } = useAuth()
   // O'tish oynasidagi «Xodim kartasi» tugmasi — `employees.view` bo'lmasa chizilmaydi
   const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
+  // «Ilova» segmenti — faqat `attendance.manage` (server ham shu ruxsatni so'raydi)
+  const canManageApp = hasPermission(ATTENDANCE_MANAGE)
 
   /*
     Ichki ko'rinish — komponent holatida, manzilda EMAS (tab va oydan
@@ -92,7 +97,7 @@ export function EmployeeAttendanceTab({
     jurnalmi» esa bir xil oyning ikki ko'rinishi: uni manzilga chiqarish
     xodim kartasining manzilini uchinchi maydon bilan cho'zardi.
   */
-  const [view, setView] = useState<'calendar' | 'passes' | 'requests'>('calendar')
+  const [view, setView] = useState<'calendar' | 'passes' | 'requests' | 'app'>('calendar')
   const [page, setPage] = useState(1)
   const [openPass, setOpenPass] = useState<AttendancePass | null>(null)
 
@@ -181,6 +186,7 @@ export function EmployeeAttendanceTab({
               { value: 'calendar', label: t('attendance.employeeCalendar') },
               { value: 'passes', label: t('attendance.passesTitle') },
               { value: 'requests', label: t('attendance.requests') },
+              ...(canManageApp ? [{ value: 'app' as const, label: t('attendance.appTab') }] : []),
             ]}
           />
         </div>
@@ -193,7 +199,16 @@ export function EmployeeAttendanceTab({
           </div>
         )}
 
-        {view === 'requests' ? (
+        {view === 'app' && canManageApp ? (
+          /*
+            Xodim ilovasi (PWA) — login, parol va «Telefondan belgilash».
+            Oyga bog'liq emas (so'rovlar kabi); ilgari kalendar OSTIDA alohida
+            karta edi, egasining qarori bilan (2026-09-27) o'z segmentida.
+          */
+          <div className="px-4 pb-4 sm:px-5">
+            <EmployeeAppAccessTab employeeId={employeeId} canOpenEmployee={canOpenEmployee} />
+          </div>
+        ) : view === 'requests' ? (
           /*
             So'rovlar oyga BOG'LIQ EMAS: tepadagi oy tanlagichi kalendar
             va jurnal uchun, so'rovlar esa xodimning butun tarixi. Shu
@@ -243,10 +258,6 @@ export function EmployeeAttendanceTab({
         emas.
       */}
       <EmployeeEnrollmentsCard employeeId={employeeId} />
-
-      {/* Xodim ilovasi (PWA) hisobi va «Telefondan belgilash» — faqat
-          `attendance.manage` uchun (karta o'zi yashiradi). */}
-      <EmployeeAppAccessCard employeeId={employeeId} />
 
       <AttendancePassPhotoDialog
         passId={openPass?.id ?? null}

@@ -1,47 +1,47 @@
 /**
- * Xodim ilovasi (PWA) — HR tomoni: hisob va «Telefondan belgilash».
+ * Xodim ilovasi (PWA) — HR tomoni: login, parol va «Telefondan belgilash».
  *
  * `attendance-api.ts` dan ALOHIDA kichik fayl: bu endpointlar xodim
  * kartasining ichida yashaydi (`/api/employees/{id}/app-access`) va
  * davomat jurnali, tabel yoki qurilmalar bilan umumiy hech narsasi yo'q.
  *
+ * Egasining qarori (2026-09-27): hisob HAR BIR xodimga avtomatik ochiladi,
+ * login — profildagi asosiy telefon, parolni faqat HR beradi va ko'radi.
+ * Shu sababli «hisob ochish», «hisobni yopish» chaqiruvlari bu yerda YO'Q.
+ *
  * Tiplar va chaqiruvlar GENERATSIYA QILINGAN (`./bonvi gen`) — bu yerda faqat
- * yupqa o'ramlar va kesh kaliti (`attendance-api.ts` sarlavhasidagi qoida).
+ * yupqa o'ramlar va kesh kalitlari (`attendance-api.ts` sarlavhasidagi qoida).
  * Mutatsiyalar keshni qo'lda bekor qilmaydi: `providers.tsx` har bir
  * muvaffaqiyatli yozuvdan keyin buni o'zi qiladi.
  */
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import {
-  activateEmployeeAccount,
-  deactivateEmployeeAccount,
   getEmployeeAppAccess,
-  issueEmployeeAccount,
-  resetEmployeeAccountPassword,
+  regenerateEmployeePassword,
+  revealEmployeePassword,
+  setEmployeePassword,
   setMobileCheckInAllowed,
 } from '@/shared/api/generated/employee-app/employee-app'
-import type {
-  EmployeeAccountCreatedDto,
-  EmployeeAccountDto,
-  EmployeeAppAccessDto,
-} from '@/shared/api/generated/model'
+import type { EmployeeAppAccessDto, EmployeeLoginIssue } from '@/shared/api/generated/model'
 
-/** Xodimning ilovaga kirish holati: hisob (bo'lmasligi mumkin) va o'chirgich. */
+/** Xodimning ilovaga kirish holati: login, hisob va o'chirgich. */
 export type EmployeeAppAccess = EmployeeAppAccessDto
 
-/** Ilova hisobi — ochiq parolsiz. */
-export type EmployeeAccount = EmployeeAccountDto
-
-/**
- * Hisob va BIR MARTALIK parol — faqat ochish/tiklash javobida.
- *
- * ⚠️ Parol keshga yozilmaydi (mutatsiya natijasi, so'rov emas) va faqat
- * ko'rsatish oynasining xotirasida yashaydi.
- */
-export type EmployeeAccountSecret = EmployeeAccountCreatedDto
+/** Nega bu raqam bilan kirib bo'lmaydi — `None` bo'lsa kirsa bo'ladi. */
+export type AppLoginIssue = EmployeeLoginIssue
 
 export const appAccessKey = (employeeId: string) => ['attendance', 'app-access', employeeId] as const
 
+/**
+ * Parol keshining kaliti — bo'lim kalitidan ALOHIDA ildiz bilan.
+ *
+ * ⚠️ Ochiq parol keshda turmasligi kerak: so'rov faqat ko'z tugmasi bosilganda
+ * yoqiladi va yopilishi bilan (`gcTime: 0`) keshdan o'chadi.
+ */
+const passwordKey = (employeeId: string) => ['attendance', 'app-password', employeeId] as const
+
+/** «Ilova» bo'limi — hisob yo'q bo'lsa server uni SHU so'rovda ochadi. */
 export function useEmployeeAppAccess(employeeId: string, enabled = true) {
   return useQuery({
     queryKey: appAccessKey(employeeId),
@@ -50,26 +50,34 @@ export function useEmployeeAppAccess(employeeId: string, enabled = true) {
   })
 }
 
-/** Hisob ochish — `login` bo'sh bo'lsa server xodim kartasidagi raqamni oladi. */
-export function useIssueEmployeeAccount(employeeId: string) {
-  return useMutation({
-    mutationFn: (login: string | null) =>
-      issueEmployeeAccount(employeeId, { login: login === null || login.trim() === '' ? null : login.trim() }),
+/**
+ * Xodimning parolini ko'rish — faqat `enabled` bo'lganda (ko'z tugmasi).
+ *
+ * Qayta urinish YO'Q: `xodim.parol_korinmaydi` (409) qayta so'rash bilan
+ * tuzalmaydi, yechim — yangi parol yasash.
+ */
+export function useEmployeePassword(employeeId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: passwordKey(employeeId),
+    queryFn: ({ signal }) => revealEmployeePassword(employeeId, signal),
+    enabled: enabled && employeeId !== '',
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
   })
 }
 
-/** Yangi bir martalik parol — xodimning barcha sessiyalari yopiladi. */
-export function useResetEmployeeAccountPassword(employeeId: string) {
+/** Yangi tasodifiy 6 xonali parol — xodimning barcha sessiyalari yopiladi. */
+export function useRegenerateEmployeePassword(employeeId: string) {
   return useMutation({
-    mutationFn: () => resetEmployeeAccountPassword(employeeId),
+    mutationFn: () => regenerateEmployeePassword(employeeId),
   })
 }
 
-/** Hisobni yopish/qaytarish — yopishda ochiq sessiyalar ham bekor bo'ladi. */
-export function useSetEmployeeAccountActive(employeeId: string) {
+/** HR yozgan parol (6–64 belgi) — xodimning barcha sessiyalari yopiladi. */
+export function useSetEmployeePassword(employeeId: string) {
   return useMutation({
-    mutationFn: (active: boolean) =>
-      active ? activateEmployeeAccount(employeeId) : deactivateEmployeeAccount(employeeId),
+    mutationFn: (password: string) => setEmployeePassword(employeeId, { password }),
   })
 }
 
