@@ -26,6 +26,7 @@ import {
   METHOD_LABEL_KEY,
   formatPassTime,
 } from '../lib/attendance-presentation'
+import { MobileEvidenceDetails } from './attendance-mobile-evidence'
 
 /*
  * ⭐ Bo'limning nomi — «Verifikatsiya» — aynan shu fayldagi bitta
@@ -349,6 +350,10 @@ function PassDetails({ pass }: { pass: AttendancePass }) {
           )}
         </Detail>
       </dl>
+
+      {/* Telefon belgisida — qayerda va qanday asosda qabul qilingani
+          (terminal o'tishida hech narsa chizilmaydi). */}
+      <MobileEvidenceDetails pass={pass} />
     </div>
   )
 }

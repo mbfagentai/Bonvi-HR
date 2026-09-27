@@ -26,6 +26,7 @@ import {
   isWeekend,
   isoWeekday,
 } from '../lib/attendance-presentation'
+import { MobileMarksLine } from './attendance-mobile-evidence'
 
 /*
  * ⭐ Tabel — tizimdagi YAGONA zich narsa (SPEC §8.6). Atrofidagi hamma
@@ -539,6 +540,10 @@ function CellDetails({ cell }: { cell: TimesheetCell }) {
           <span>{breakLine(cell, t, num)}</span>
         </p>
       )}
+
+      {/* Belgilarning bir qismi TELEFONDAN (SPEC-xodim-ilovasi §F) — eng
+          zaif dalil, HR buni katakning o'zida bilishi kerak. */}
+      <MobileMarksLine count={cell.mobileMarks} />
     </div>
   )
 }

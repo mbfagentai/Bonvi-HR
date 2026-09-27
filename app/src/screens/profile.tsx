@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { useSession } from '@/app/session'
 import { APP_VERSION } from '@/app/version'
+import { useMyPhoto } from '@/data/photo'
 import { useMe } from '@/data/queries'
 import { TabScreen } from '@/ui/app-shell'
 import { Avatar } from '@/ui/avatar'
@@ -26,6 +27,7 @@ export function ProfileScreen() {
   const toast = useToast()
   const session = useSession()
   const me = useMe()
+  const photoUrl = useMyPhoto(me.data ? me.data.photoKey : null)
 
   const [signOutOpen, setSignOutOpen] = useState(false)
 
@@ -44,13 +46,13 @@ export function ProfileScreen() {
           <ErrorState onRetry={me.refetch} />
         ) : me.data ? (
           <div className="flex items-center">
-            <Avatar photoUrl={me.data.photoUrl} fullName={me.data.fullName} size="lg" />
+            <Avatar photoUrl={photoUrl} fullName={me.data.fullName} size="lg" />
             <div className="ml-4 min-w-0">
               <p className="text-title3 font-semibold text-fg server-text">{me.data.fullName}</p>
               <p className="mt-1 text-footnote text-fg-secondary server-text">
-                {me.data.positionName ?? ''}
-                {me.data.positionName && me.data.departmentName ? ' · ' : ''}
-                {me.data.departmentName ?? t('profile.noDepartment')}
+                {me.data.position ?? ''}
+                {me.data.position && me.data.department ? ' · ' : ''}
+                {me.data.department ?? t('profile.noDepartment')}
               </p>
             </div>
           </div>

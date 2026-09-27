@@ -141,3 +141,17 @@ No UI change. The mock site name stays until the real API is wired.
   can create both shapes; invalid polygon → 400 with the error code.
 * Migration: upgrade on a DB with existing circle rows keeps them intact.
 * Web: `npm run build` passes.
+
+## G. After the audit (2026-09-27)
+
+* The frozen evidence of an accepted phone mark (site, shape, distance,
+  allowance, accuracy, coordinate) is now shown to HR: the pass journal DTO
+  carries `mobile`, and the journal / pass dialog display it; timesheet cells
+  carry `mobileMarks` and the tooltip says the mark came from the phone
+  (SPEC-xodim-ilovasi §F, §L13).
+* A rejection with **no active site at all** keeps the code
+  `davomat.obyektdan_uzoq` but carries no `siteName` / `distanceMeters`; the
+  app shows a separate sentence for it instead of «— m».
+* Missing or non-positive accuracy is rejected (`davomat.joylashuv_notogri`)
+  before the geofence runs — it used to count as a perfect fix.
+* §E is superseded: the app is wired to the real API.

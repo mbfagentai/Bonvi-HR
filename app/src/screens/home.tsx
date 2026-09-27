@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
 import { findDay, marksNewestFirst } from '@/data/attendance'
+import { useMyPhoto } from '@/data/photo'
 import { useMe, useMonth, useRequests } from '@/data/queries'
 import { DAY_STATUS_LOOK, REQUEST_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
@@ -21,6 +22,11 @@ import { CheckInCard } from './checkin-card'
  * Tartib — «xodim ilovani nima uchun ochdi» degan savolga javob,
  * eng ehtimolli javob birinchi: belgilash, bugungi holat, bugungi
  * o'tishlar, kutayotgan so'rovlar.
+ *
+ * ⭐ «Bugun» — JORIY SMENANING katagi, server aytgani (`current.date`):
+ * tungi smenada soat 06:00 da bu kechagi kun — kirish va chiqish o'sha
+ * katakda, tabeldagidek. Katak ko'rinayotgan oyda bo'lmasa (oyning birinchi
+ * tongi) — kalendar kuni.
  */
 export function HomeScreen() {
   const { t } = useTranslation()
@@ -35,7 +41,10 @@ export function HomeScreen() {
   const monthQuery = useMonth(year, month)
   const requests = useRequests()
 
-  const todayCell = findDay(monthQuery.data?.days, today)
+  const current = monthQuery.data ? monthQuery.data.current : null
+  const todayCell =
+    findDay(monthQuery.data?.days, current ? current.date : today) ?? findDay(monthQuery.data?.days, today)
+  const photoUrl = useMyPhoto(me.data ? me.data.photoKey : null)
   const marks = marksNewestFirst(todayCell)
   const pending = (requests.data ?? []).filter((request) => request.status === 'Pending')
 
@@ -69,7 +78,7 @@ export function HomeScreen() {
           className="flex h-11 w-11 items-center justify-center rounded-pill active:bg-bg-pressed"
         >
           {me.data ? (
-            <Avatar photoUrl={me.data.photoUrl} fullName={me.data.fullName} />
+            <Avatar photoUrl={photoUrl} fullName={me.data.fullName} />
           ) : (
             <Skeleton className="h-8 w-8 rounded-pill" />
           )}
@@ -79,6 +88,7 @@ export function HomeScreen() {
       <CheckInCard
         me={me.data}
         today={todayCell}
+        current={current}
         loading={me.isLoading || monthQuery.isLoading}
         loadFailed={me.error !== null && me.data === null}
         onReload={reload}
@@ -140,7 +150,7 @@ export function HomeScreen() {
         ) : (
           <div>
             {marks.map((mark) => (
-              <MarkRow key={`${mark.occurredAt}-${mark.direction}`} mark={mark} />
+              <MarkRow key={`${mark.at}-${mark.direction}`} mark={mark} />
             ))}
           </div>
         )}

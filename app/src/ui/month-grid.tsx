@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 
-import type { AttendanceDayDto } from '@/api/types'
+import type { AttendanceDay } from '@/data/attendance'
 import { DAY_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
 import { daysInMonth, firstWeekdayOfMonth, pad, todayIso } from '@/lib/time'
@@ -23,7 +23,7 @@ import { Skeleton } from './feedback'
 interface MonthGridProps {
   year: number
   month: number
-  days: readonly AttendanceDayDto[]
+  days: readonly AttendanceDay[]
   selected: string
   loading: boolean
   onSelect: (dateIso: string) => void
@@ -38,7 +38,7 @@ export function MonthGrid({ year, month, days, selected, loading, onSelect }: Mo
   const today = todayIso()
 
   const weekdays = [1, 2, 3, 4, 5, 6, 7]
-  const cells: (AttendanceDayDto | null)[] = []
+  const cells: (AttendanceDay | null)[] = []
 
   for (let index = 0; index < leading; index += 1) cells.push(null)
 
@@ -104,18 +104,20 @@ export function MonthGrid({ year, month, days, selected, loading, onSelect }: Mo
   )
 }
 
-function emptyCell(dateIso: string): AttendanceDayDto {
+function emptyCell(dateIso: string): AttendanceDay {
   return {
     date: dateIso,
     status: 'NoSchedule',
     workedMinutes: 0,
     lateMinutes: 0,
     earlyLeaveMinutes: 0,
+    breakTakenMinutes: 0,
     breakDeductionMinutes: 0,
     firstInAt: null,
     lastOutAt: null,
     planStartAt: null,
     planEndAt: null,
+    mobileMarks: 0,
     marks: [],
   }
 }

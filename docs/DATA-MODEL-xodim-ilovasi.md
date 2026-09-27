@@ -1026,3 +1026,28 @@ made at 09:00 must not record a 09:00 arrival as an 18:00 one.
   reason goes to the log.
 * **The lockout is a griefing vector at 950 accounts** (§B.3). Schema cannot fix
   it; the rate limiter must.
+
+---
+
+## G. Changes after the audit (2026-09-27)
+
+* **§B.3 lockout — superseded.** Login failures are no longer counted on the
+  account row. They are counted per *(typed login, source IP)* in process
+  (`EmployeeLoginThrottle`): unknown numbers lock identically (the lock no
+  longer tells anyone that a number is an employee's), and an attacker locks
+  their own IP, not the colleague everywhere. `failed_login_attempts` /
+  `locked_until` stay, but now only count **wrong current passwords** on
+  `POST /api/employee-auth/password` (a session that tries to guess its own
+  password). No schema change. The in-process state assumes one API instance
+  (true today); a second instance means moving it to Redis.
+* **`absence_requests` gains two nullable columns** (migration
+  `AbsenceRequestSubmitter`, additive, no default, no FK — same as
+  `created_by` / `decided_by`): `submitted_by_account_id` and
+  `cancelled_by_account_id` hold the employee's **app account** when the
+  employee created/withdrew the request from the app. `created_by` /
+  `decided_by` stay HR `users` ids only — an employee account id is never
+  written there (a cancel from the app used to write `Guid.Empty` into
+  `decided_by`).
+* **Rejected check-ins** are still not stored (§F.4); the reason, accuracy, site
+  and distance are logged (warning level, so the file log keeps them). The
+  coordinate is not logged.

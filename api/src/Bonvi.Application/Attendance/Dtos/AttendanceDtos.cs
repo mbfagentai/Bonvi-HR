@@ -92,6 +92,11 @@ namespace Bonvi.Application.Attendance.Dtos;
 /// qayta hisoblanmagan o'tishda — taxtadagi AYNAN o'sha hisoblash. Klient kechikishni
 /// «Kechikkanlar» hisobotidan qidirib moslamaydi: bu ikkinchi, mo'rt nusxa bo'lardi.
 /// </param>
+/// <param name="Mobile">
+/// TELEFON belgisining dalili (SPEC-xodim-ilovasi §F) — qaysi obyektda, to'siqdan
+/// qancha masofada, qanday aniqlik bilan qabul qilingan. Faqat
+/// <c>Method = Mobile</c> o'tishda to'ladi; terminal o'tishida <c>null</c>.
+/// </param>
 public sealed record AttendancePassDto(
     Guid Id,
     DateTimeOffset OccurredAt,
@@ -116,7 +121,43 @@ public sealed record AttendancePassDto(
     string? Position,
     string? PhotoKey,
     DateTimeOffset? PhotoPurgedAt,
-    int? LateMinutes);
+    int? LateMinutes,
+    MobilePassEvidenceDto? Mobile = null);
+
+/// <summary>
+/// Telefon belgisining dalili — qaror lahzasidagi MUZLATILGAN sonlar.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Nega HR ga kerak.</b> Telefon belgisi — tizimdagi eng zaif dalil
+/// (SPEC-xodim-ilovasi §B): «u haqiqatan zavodda edimi?» degan savolga HR
+/// faqat shu qatordan javob oladi. Ilgari bu sonlar bazada bor edi
+/// (<c>mobile_check_ins</c>), lekin hech bir HR ekrani ularni o'qimasdi.
+/// </para>
+/// <para>
+/// Sonlar QAROR LAHZASIDAGI — obyekt keyin surilgan yoki radiusi
+/// o'zgartirilgan bo'lsa ham, belgi qanday asosda qabul qilingani o'zgarmaydi.
+/// Doirada <see cref="DistanceMeters"/> — markazgacha, <see cref="AllowanceMeters"/>
+/// — radius; ko'pburchakda — chetgacha (ichkarida 0) va chet zaxirasi.
+/// </para>
+/// </remarks>
+/// <param name="WorkSiteId">Obyekt.</param>
+/// <param name="WorkSiteName">Obyekt nomi — keyin o'chirilgan bo'lsa ham.</param>
+/// <param name="Shape">Qaror lahzasidagi shakl.</param>
+/// <param name="DistanceMeters">Qaror lahzasidagi masofa (shaklga qarab o'qiladi).</param>
+/// <param name="AllowanceMeters">Qaror lahzasidagi ruxsat: radius yoki chet zaxirasi.</param>
+/// <param name="AccuracyMeters">Telefon aytgan aniqlik.</param>
+/// <param name="Latitude">Telefon bergan kenglik.</param>
+/// <param name="Longitude">Telefon bergan uzunlik.</param>
+public sealed record MobilePassEvidenceDto(
+    Guid WorkSiteId,
+    string WorkSiteName,
+    WorkSiteShape Shape,
+    decimal DistanceMeters,
+    int AllowanceMeters,
+    decimal AccuracyMeters,
+    decimal Latitude,
+    decimal Longitude);
 
 // ────────────────────────────────────────────────────────────────────
 //  2. Jonli taxta va ishdan ketganlar ogohlantirishi (SPEC §6.5, §8.7)
@@ -568,6 +609,8 @@ public sealed record AttendanceBirthdayDto(
 /// <param name="DecidedByName">Qarorni kim qabul qilgan.</param>
 /// <param name="DecidedAt">Qaror lahzasi (UTC).</param>
 /// <param name="CreatedAt">So'rov yaratilgan lahza (UTC) — ro'yxat shu bo'yicha tartiblanadi.</param>
+/// <param name="SubmittedByEmployee">So'rovni xodimning O'ZI ilovadan yuborgan (HR kiritmagan).</param>
+/// <param name="CancelledByEmployee">So'rovni xodimning O'ZI ilovadan qaytarib olgan.</param>
 public sealed record AbsenceRequestDto(
     Guid Id,
     Guid EmployeeId,
@@ -586,7 +629,9 @@ public sealed record AbsenceRequestDto(
     string? DecisionNote,
     string? DecidedByName,
     DateTimeOffset? DecidedAt,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool SubmittedByEmployee = false,
+    bool CancelledByEmployee = false);
 
 /// <summary>Kutayotgan so'rovlar soni — nav nishoni uchun.</summary>
 /// <remarks>
@@ -645,6 +690,12 @@ public sealed record AbsenceRequestCountDto(int Pending);
 /// Reja tugashi (UTC) — tungi smenada ERTANGI kunga tushadi, xuddi
 /// <paramref name="LastOutAt"/> kabi.
 /// </param>
+/// <param name="MobileMarks">
+/// Shu katakka tushgan TELEFON belgilari soni (SPEC-xodim-ilovasi §F: «katak
+/// izohida belgi telefondan kelgani»). 0 — hammasi terminaldan yoki belgi yo'q.
+/// Katak o'tishlar tabel qoidasi bilan taqsimlanadi (kun yozuvidagi reja
+/// oynasi), ya'ni tungi smenaning ertalabki telefon chiqishi kechagi katakda.
+/// </param>
 public sealed record TimesheetCellDto(
     DateOnly Date,
     AttendanceDayStatus Status,
@@ -656,7 +707,8 @@ public sealed record TimesheetCellDto(
     int BreakTakenMinutes,
     int BreakDeductionMinutes,
     DateTimeOffset? PlanStartAt,
-    DateTimeOffset? PlanEndAt);
+    DateTimeOffset? PlanEndAt,
+    int MobileMarks = 0);
 
 /// <summary>
 /// Bir xodimning oy bo'yicha jami ko'rsatkichlari.

@@ -186,7 +186,7 @@ public sealed class AttendanceDayBuilder
     /// <summary>Har bir o'tishni o'z kuniga taqsimlaydi — SPEC §5.3 va kech chiqish istisnosi.</summary>
     /// <remarks>
     /// <para>
-    /// Avval kun oynalari (<see cref="PassAttribution.WindowDateFor"/>). Hech bir oynaga
+    /// Avval kun oynalari (<see cref="PassAttribution.WindowDateFor(PassReading, Func{DateOnly, DayPlan})"/>). Hech bir oynaga
     /// tushmagan, lekin kechagi smenaning kech chiqishi bo'la oladigan o'tish
     /// (<see cref="PassAttribution.LateExitDateFor"/>) keyin, VAQT TARTIBIDA qaraladi:
     /// kecha ochiq kirish bilan tugagan bo'lsa — kechaga, aks holda o'z sanasiga

@@ -58,10 +58,15 @@ public interface IEmployeeAppReadModel
     /// so'rov bo'lardi.
     /// </para>
     /// <para>
-    /// Guruhlash <c>local_date</c> bo'yicha — o'tishning O'ZIDAGI Toshkent
-    /// sanasi. Bu tabel katagining sanasi bilan bir xil kalit, ya'ni
-    /// belgilar o'z katagiga tushadi va yarim tundan keyingi belgi ekranda
-    /// «ertangi kunga» ko'chib ketmaydi.
+    /// ⭐ Guruhlash TABEL QOIDASI bo'yicha (SPEC §5.3,
+    /// <c>PassAttribution</c>) — kalendar sanasi (<c>local_date</c>) bo'yicha
+    /// EMAS. Dushanba 22:00 da boshlangan tungi smenaning seshanba 06:00 dagi
+    /// chiqishi DUSHANBA katagiga tushadi, xuddi tabeldagidek; aks holda ilova
+    /// bitta smenani ikki kunga bo'lib ko'rsatardi. Kun oynasi kun yozuvidagi
+    /// reja SURATIDAN olinadi, ya'ni belgi aynan hisoblash qo'ygan katakka
+    /// tushadi. Rejasi yo'q (hali hisoblanmagan, dam olish) kunda belgi o'z
+    /// kalendar sanasida qoladi — tabeldagi bilan bir xil «jadval yo'q ⇒ o'z
+    /// sanasi» qoidasi.
     /// </para>
     /// </remarks>
     /// <param name="employeeId">Xodim.</param>
@@ -72,5 +77,19 @@ public interface IEmployeeAppReadModel
         Guid employeeId,
         DateOnly from,
         DateOnly to,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Shu lahzadan keyingi belgilar — katagi bilan, vaqt tartibida («hozir» holati uchun).
+    /// </summary>
+    /// <remarks>
+    /// Katak <see cref="MarksAsync"/> dagi AYNAN o'sha qoida bilan aniqlanadi.
+    /// </remarks>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="since">Shu lahzadan (kiradi).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<MyAttributedMark>> RecentMarksAsync(
+        Guid employeeId,
+        DateTimeOffset since,
         CancellationToken cancellationToken = default);
 }

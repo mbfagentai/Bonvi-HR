@@ -1193,3 +1193,82 @@ C7 dev API da (vazifalar koddan `RecurringJobManager.TriggerJob` bilan turtildi,
   o'chiriladi (egasining 1 yillik qoidasi; muzlatish tufayli ular hech
   qachon tabelga tusha olmaydi). Faqat bog'langan-u hisoblanmagan eski
   o'tishlar qoladi — navbat buzilganining belgisi.
+
+## Xodim ilovasi (PWA, `/ilova/`) — ulanish holati (2026-09-27, D qism)
+
+### Production'da berish — TAYYORLANGAN, deploy QILINMAGAN
+
+- `web/Caddyfile`: HR SPA blokidan OLDIN ikki blok qo'shildi —
+  `handle /ilova` (aniq yo'l → `/ilova/` ga 308) va `handle /ilova/*`
+  (`/srv/ilova` dan; ilova ichidagi marshrutlar `/ilova/index.html` ga).
+  Kesh: `/ilova/assets/*` (Vite xeshlangan fayllari) — bir yil `immutable`,
+  `try_files` SIZ (eski xesh 404 beradi, HTML bo'lib keshlanmaydi);
+  qolgani (`index.html`, `sw.js`, `manifest.webmanifest`, ikonkalar) —
+  `no-cache`, ya'ni yangilanish darhol ko'rinadi.
+  `Permissions-Policy` ATAYLAB yo'q (geolokatsiya kerak). Umumiy CSP
+  ilovaga yetarli (shu domendagi `/api`, manifest, service worker,
+  `data:`/`blob:` rasm; ilovada inline skript va tashqi manzil yo'q).
+  `/api/*`, `/health/*` va HR SPA xulqi o'zgarmadi — lokal Caddy
+  konteynerida soxta `/srv` bilan tekshirildi (`/`, `/xodimlar`,
+  `/assets/*` → HR; `/ilovax` → HR; `/ilova` → 308; `/ilova/taqvim` →
+  ilova index; `/ilova/assets/yoq.js` → 404).
+- `web/Dockerfile`: yangi `ilova-build` bosqichi (`app/` dan, pnpm
+  `--frozen-lockfile`), natija runtime'da `/srv/ilova` ga. HR `build`
+  bosqichi o'zgarmadi. Manba — nomli kontekst `ilova-src`
+  (`docker-compose.prod.yml` → `web.build.additional_contexts`), image
+  konteksti avvalgidek `./web`. Faqat `ilova-build` bosqichi lokalda
+  (commit qilingan `app/` nusxasidan) qurib ko'rildi — o'tdi; to'liq
+  image (HR build bilan) qurilmadi.
+- `app/.dockerignore` qo'shildi (`node_modules`, `dist` va h.k.).
+- **Talab:** serverda Docker Compose ≥ 2.17 (`additional_contexts`) va
+  BuildKit. Deploy'dan oldin `docker compose version` bilan tekshirilsin.
+- **Deploy — FAQAT egasining aniq ruxsati bilan**, xavfsiz deploy
+  tartibida: rollback tag + baza/fayl zaxirasi + nusxada sinov, keyin
+  deploy. Prod'da 3 HR ishlaydi.
+- Deploy'dan keyin qo'lda tekshiruv: `https://hr.bonvi.uz/ilova` → 308
+  → ilova; HR sahifalari avvalgidek; javobda `Permissions-Policy` yo'q;
+  telefonda «Bosh ekranga qo'shish», keyin oflayn ochilishi
+  (`start_url: '/ilova/'` — manifest tuzatishi D qismda, #14).
+
+### API rejimi
+
+- Build argumenti `APP_API_MODE` (→ `VITE_API_MODE`), sukut `real`:
+  ilova shu domendagi `/api/*` ga so'raydi (`VITE_API_URL` bo'sh — CORS
+  kerak emas). `mock` — faqat namoyish/sinov uchun: prod `.env` da
+  `APP_API_MODE=mock` qo'yib, image qayta quriladi. `.env.example` ga
+  bu o'zgaruvchi qo'shilmadi (sukut yetarli).
+
+### HR tomoni
+
+- Xodim kartasi → «Ilova» kartasi (`employee-app-access-card`,
+  `web/src/features/verification`): hisob ochish (bir martalik parol
+  FAQAT BIR MARTA ko'rsatiladi), parolni tiklash, faolsizlantirish /
+  faollashtirish va «Telefondan belgilash» o'chirgichi — hammasi
+  `attendance.manage` ostida (`/api/employees/{id}/app-access*`,
+  `/api/employees/{id}/mobile-check-in`). Xodim hisoblari tizim
+  foydalanuvchilaridan alohida va rol muharririda ATAYLAB yo'q.
+
+### Dev
+
+- Dev'da ilova `http://localhost:7174/ilova/`. So'rovlar Vite'ning
+  `/api` proksisi orqali (`app/vite.config.ts`: `VITE_API_PROXY` yoki
+  `http://localhost:7080`) — shu domen, CORS kerak emas. Agar
+  `VITE_API_URL` ga ABSOLYUT manzil berilsa, API `Cors:Origins` ga
+  `http://localhost:7174` qo'shilishi shart (hozir faqat 7173 bor).
+- `docker-compose.yml` → `app` xizmati: `VITE_API_URL` olib tashlandi,
+  `VITE_API_PROXY: http://api:8080` qo'shildi (konteyner ichidan API'ga
+  proksi). ⚠️ Ishlab turgan `app` konteyneri eski muhit bilan turibdi —
+  yangi qiymat konteyner QAYTA YARATILGANDA kuchga kiradi
+  (`./bonvi up`); agent konteynerlarga tegmadi.
+- Ilova endi SUKUT bo'yicha haqiqiy API bilan ishlaydi (`VITE_API_MODE`
+  berilmasa — `real`). Mock faqat `VITE_API_MODE=mock` bilan
+  (namoyish, qo'lda sinash; `localStorage['bonvi.ilova.senariy']`).
+
+### Bitta API nusxasi faraz qilingan
+
+- Kirish urinishlari hisoblagichi (login + IP bo'yicha blok) va
+  yangilash tokenining qisqa «qayta javob» keshi JARAYON ICHIDA
+  saqlanadi. API bitta konteynerda ishlaydi — bu yetarli; qayta ishga
+  tushganda holat yo'qoladi (blok bekor bo'ladi, 60 soniyalik oyna
+  ichidagi takror yangilash qayta kirishni talab qiladi). Replika
+  qo'shilsa — Redis'ga ko'chirish kerak.

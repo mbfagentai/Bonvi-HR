@@ -37,7 +37,7 @@ export function MarkRow({ mark }: { mark: AttendanceMarkDto }) {
         </div>
       </div>
 
-      <div className="nums ml-3 shrink-0 text-body text-fg">{format.time(mark.occurredAt)}</div>
+      <div className="nums ml-3 shrink-0 text-body text-fg">{format.time(mark.at)}</div>
     </div>
   )
 }

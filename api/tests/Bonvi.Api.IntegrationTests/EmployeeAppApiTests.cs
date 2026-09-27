@@ -31,7 +31,7 @@ namespace Bonvi.Api.IntegrationTests;
 /// obyekti ikkinchisining belgisiga «eng yaqin» bo'lib chiqardi.
 /// </para>
 /// </remarks>
-public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
+public sealed partial class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
 {
     private static readonly TimeSpan Tashkent = TimeSpan.FromHours(5);
 
@@ -610,6 +610,7 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
         "/api/me",
         "/api/me/attendance?year=2026&month=9",
         "/api/me/requests",
+        "/api/me/photo",
     ];
 
     private sealed record Xodim(Guid Id, string Login);
@@ -800,8 +801,27 @@ public sealed class EmployeeAppApiTests : IClassFixture<BonviApiFactory>
         var token = (await JsonAsync(kirish)).GetProperty("accessToken").GetString()!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        /*
+          Bir martalik parol bilan olingan token `/api/me/*` da 403
+          (`xodim.parol_almashtirilsin`) oladi — ilovadagi majburiy birinchi
+          qadam kabi, parol shu yerda almashtiriladi va JAVOBDAGI yangi token
+          ishlatiladi (almashtirish eski sessiyalarni yopadi).
+        */
+        using var almashtirish = await client.PostAsJsonAsync(
+            new Uri("/api/employee-auth/password", UriKind.Relative),
+            new { currentPassword = parol, newPassword = YangiParol },
+            ct);
+
+        almashtirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(almashtirish));
+
+        var yangi = (await JsonAsync(almashtirish)).GetProperty("accessToken").GetString()!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", yangi);
+
         return client;
     }
+
+    /// <summary>Testlarda xodim o'rnatadigan parol.</summary>
+    private const string YangiParol = "Ilova_parol_2026";
 
     private static Task<HttpResponseMessage> BelgilaAsync(
         HttpClient ilova,

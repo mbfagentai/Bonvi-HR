@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { api } from '@/api/client'
 import { ApiError } from '@/api/errors'
-import { requestDayCount } from '@/data/attendance'
+import { requestDayCount, shortTime } from '@/data/attendance'
 import { invalidateRequests, useRequests } from '@/data/queries'
 import { REQUEST_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
@@ -107,7 +107,7 @@ export function RequestDetailScreen() {
             {request.fromTime && request.toTime ? (
               <CardRow
                 label={t('requests.fromTime')}
-                value={<span className="nums">{`${request.fromTime}–${request.toTime}`}</span>}
+                value={<span className="nums">{`${shortTime(request.fromTime)}–${shortTime(request.toTime)}`}</span>}
               />
             ) : null}
             <CardRow

@@ -99,6 +99,60 @@ public class AppDbContext : DbContext, IUnitOfWork
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Ijro strategiyasi ORQALI</b> — boshqacha bo'lishi mumkin emas:
+    /// ulanish <c>EnableRetryOnFailure</c> bilan sozlangan va bu strategiya
+    /// qo'lda ochilgan tranzaksiyani to'g'ridan-to'g'ri RAD ETADI
+    /// (<c>InvalidOperationException</c>). Strategiya esa butun ishni bitta
+    /// takrorlanadigan birlik sifatida oladi.
+    /// </para>
+    /// <para>
+    /// Takrorda kuzatuv TOZALANADI: birinchi urinishda qo'shilgan (hali
+    /// bazaga yetmagan) qatorlar ikkinchisida yana qo'shilib, ikki nusxa
+    /// bo'lib ketmasligi uchun. Ish esa kerakli hamma narsani o'zi qayta
+    /// o'qiydi (interfeys izohi).
+    /// </para>
+    /// <para>
+    /// <c>SaveChangesAsync</c> ochiq tranzaksiya ichida o'zinikini ochmaydi va
+    /// har saqlashdan oldin savepoint qo'yadi — ya'ni ish ichida tutilgan
+    /// saqlash xatosi (masalan unikal indeks) tranzaksiyani «buzilgan» holda
+    /// qoldirmaydi va ish davom eta oladi.
+    /// </para>
+    /// </remarks>
+    public Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> work,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+
+        if (Database.CurrentTransaction is not null)
+        {
+            return work(cancellationToken);
+        }
+
+        var attempt = 0;
+
+        return Database.CreateExecutionStrategy().ExecuteAsync(
+            async token =>
+            {
+                if (attempt++ > 0)
+                {
+                    ChangeTracker.Clear();
+                }
+
+                await using var transaction = await Database.BeginTransactionAsync(token).ConfigureAwait(false);
+
+                var result = await work(token).ConfigureAwait(false);
+
+                await transaction.CommitAsync(token).ConfigureAwait(false);
+
+                return result;
+            },
+            cancellationToken);
+    }
+
     /// <summary>Tizim foydalanuvchilari (<c>users</c>).</summary>
     public DbSet<User> Users => Set<User>();
 

@@ -121,10 +121,16 @@ public sealed class EmployeeAccount : AggregateRoot, IAuditable
     /// <summary><c>null</c> — hech qachon kirmagan. Parol tiklansa ham TOZALANMAYDI.</summary>
     public DateTimeOffset? LastLoginAt { get; private set; }
 
-    /// <summary>Ketma-ket muvaffaqiyatsiz urinishlar.</summary>
+    /// <summary>Ketma-ket noto'g'ri JORIY parol — parolni almashtirishda.</summary>
+    /// <remarks>
+    /// ⚠️ KIRISHDAGI xatolar bu yerda SANALMAYDI: ular (login, IP) juftligi
+    /// bo'yicha, hisobdan tashqarida olib boriladi (<c>EmployeeLoginThrottle</c>).
+    /// Hisob qatoridagi blok faqat tasdiqlangan sessiya ichidan keladigan
+    /// urinishlarga qo'yiladi — ularni begona odam yoqa olmaydi.
+    /// </remarks>
     public int FailedLoginAttempts { get; private set; }
 
-    /// <summary>Shu lahzagacha kirish bloklangan. <c>null</c> — blok yo'q.</summary>
+    /// <summary>Shu lahzagacha parolni almashtirish bloklangan. <c>null</c> — blok yo'q.</summary>
     public DateTimeOffset? LockedUntil { get; private set; }
 
     public DateTimeOffset CreatedAt { get; set; }
@@ -229,13 +235,19 @@ public sealed class EmployeeAccount : AggregateRoot, IAuditable
     /// Muvaffaqiyatsiz urinish. <see cref="MaxFailedAttempts"/> tadan keyin blok.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// ⚠️ Hisoblagich blok qo'yilgan lahzada NOLGA tushadi, ya'ni blok
     /// KUCHAYMAYDI — har 15 daqiqada yana 5 ta urinish. Bu <see cref="User"/>
     /// dan ko'chirilgan ataylabki qaror: cheksiz kuchayadigan blokda raqib
-    /// odamni butunlay qulflab qo'yishi mumkin. 950 ta hisobda, ularning
-    /// logini esa bir-biriga ma'lum telefon raqamlari bo'lganida, bu
-    /// nazariy xavf emas — shu sababli asosiy himoya kirish endpointidagi
-    /// IP bo'yicha tezlik cheklovi.
+    /// odamni butunlay qulflab qo'yishi mumkin.
+    /// </para>
+    /// <para>
+    /// Faqat PAROLNI ALMASHTIRISHDA chaqiriladi (noto'g'ri joriy parol):
+    /// ochiq qolgan telefondagi sessiya joriy parolni terib topishning
+    /// cheksiz kanali bo'lmasligi kerak. Kirishdagi xatolar esa hisobdan
+    /// tashqarida, (login, IP) bo'yicha sanaladi — hisob qatoridagi blokni
+    /// begona odam 950 ta ma'lum telefon raqamiga yoqib chiqa olardi.
+    /// </para>
     /// </remarks>
     /// <param name="at">Lahza.</param>
     public void RecordFailedLogin(DateTimeOffset at)

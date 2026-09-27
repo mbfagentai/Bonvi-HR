@@ -1,21 +1,53 @@
 import type {
   AbsenceRequestDto,
-  AttendanceDayDto,
   AttendanceDayStatus,
   AttendanceMarkDto,
-  PassDirection,
+  AttendanceMonthDto,
+  MyCurrentStateDto,
+  TimesheetCellDto,
+  TimesheetTotalsDto,
 } from '@/api/types'
 import { daysBetween } from '@/lib/time'
 
 /**
  * Davomat ma'lumotini ekran tushunadigan shaklga keltirish.
  *
- * ⚠️ Bu yerda HECH QANDAY yangi qoida yo'q: holatlar serverda
- * hisoblanadi, bu fayl ularni faqat o'qiydi. Kechikish «holat» emas,
- * SON — odam kechikib kelsa ham `Ishladi` bo'ladi (UX §D.4).
+ * ⚠️ Bu yerda HECH QANDAY yangi qoida yo'q: holatlar, belgilarning qaysi
+ * katakka tushishi va keyingi yo'nalish SERVERDA hisoblanadi, bu fayl
+ * ularni faqat o'qiydi. Kechikish «holat» emas, SON — odam kechikib kelsa
+ * ham `Ishladi` bo'ladi (UX §D.4).
  */
 
-/** Oylik yakun — serverdan alohida so'ralmaydi, kataklardan yig'iladi. */
+/**
+ * Ekrandagi bitta kun: tabel katagi + shu katakka tushgan belgilar.
+ *
+ * Simda katak ichma-ich keladi (`{ day, marks }`); ekranlar esa tekis
+ * obyekt bilan ishlaydi — bu aylantirish SHU YERDA bir marta bajariladi.
+ */
+export interface AttendanceDay extends TimesheetCellDto {
+  marks: AttendanceMarkDto[]
+}
+
+/** Ekrandagi oy. */
+export interface AttendanceMonth {
+  year: number
+  month: number
+  days: AttendanceDay[]
+  totals: TimesheetTotalsDto
+  current: MyCurrentStateDto
+}
+
+export function toMonth(dto: AttendanceMonthDto): AttendanceMonth {
+  return {
+    year: dto.year,
+    month: dto.month,
+    days: dto.days.map((item) => ({ ...item.day, marks: item.marks })),
+    totals: dto.totals,
+    current: dto.current,
+  }
+}
+
+/** Oylik yakun: soatlar SERVERNIKI, kun sanoqlari kataklardan. */
 export interface MonthTotals {
   presentDays: number
   absentDays: number
@@ -25,67 +57,59 @@ export interface MonthTotals {
   workedMinutes: number
 }
 
-export function monthTotals(days: readonly AttendanceDayDto[]): MonthTotals {
-  const totals: MonthTotals = {
+/**
+ * Oylik yakun.
+ *
+ * ⚠️ Rejadagi va ishlangan daqiqalar SERVERNING jami qatoridan
+ * (`totals`) — HR tabelidagi AYNAN o'sha son. Ilgari ilova rejani
+ * `planEnd − planStart − tanaffus` bilan o'zi hisoblardi va HR
+ * ko'rgan «Rejadagi soat» dan farq qilardi (reja surati tanaffusni boshqa
+ * shartda ayiradi). Kunlar esa kataklardan: «Sababli» va «dam olish kuni
+ * ishladi» server jami qatorida alohida yo'q.
+ */
+export function monthTotals(days: readonly AttendanceDay[], totals: TimesheetTotalsDto | null): MonthTotals {
+  const result: MonthTotals = {
     presentDays: 0,
     absentDays: 0,
     excusedDays: 0,
     lateDays: 0,
-    plannedMinutes: 0,
-    workedMinutes: 0,
+    plannedMinutes: totals ? totals.plannedMinutes : 0,
+    workedMinutes: totals ? totals.workedMinutes : 0,
   }
 
   days.forEach((day) => {
-    if (day.status === 'Present' || day.status === 'DayOffWorked') totals.presentDays += 1
-    if (day.status === 'Absent') totals.absentDays += 1
-    if (day.status === 'Excused') totals.excusedDays += 1
-    if (day.lateMinutes > 0) totals.lateDays += 1
-
-    totals.workedMinutes += day.workedMinutes
-
-    if (day.planStartAt && day.planEndAt) {
-      const planned = Math.round(
-        (new Date(day.planEndAt).getTime() - new Date(day.planStartAt).getTime()) / 60_000,
-      )
-      if (planned > 0) totals.plannedMinutes += planned - day.breakDeductionMinutes
-    }
+    if (day.status === 'Present' || day.status === 'DayOffWorked') result.presentDays += 1
+    if (day.status === 'Absent') result.absentDays += 1
+    if (day.status === 'Excused') result.excusedDays += 1
+    if (day.lateMinutes > 0) result.lateDays += 1
   })
 
-  return totals
+  return result
 }
 
 export function findDay(
-  days: readonly AttendanceDayDto[] | undefined,
+  days: readonly AttendanceDay[] | undefined,
   dateIso: string,
-): AttendanceDayDto | null {
+): AttendanceDay | null {
   if (!days) return null
   return days.filter((day) => day.date === dateIso)[0] ?? null
 }
 
-/** Kun ichidagi o'tishlar — yangisi tepada (UX §A.5). */
-export function marksNewestFirst(day: AttendanceDayDto | null): AttendanceMarkDto[] {
-  if (!day) return []
-  return day.marks.slice().sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+/** Lahzani solishtirish uchun — ISO satrning SILJISHI har xil bo'lishi mumkin. */
+function instant(value: string): number {
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 /**
- * Keyingi belgi qaysi yo'nalishda bo'lishi (UX §C.2).
+ * Kun ichidagi o'tishlar — yangisi tepada (UX §A.5).
  *
- * ⚠️ Yo'nalishni XODIM tanlamaydi. Bitta tugma, va ilova qaysi
- * yo'nalish kerakligini o'zi biladi: ikki tugma 08:30 da «Chiqish»
- * bosishga taklif qilardi.
+ * ⚠️ Lahza bo'yicha, satr bo'yicha EMAS: `…+00:00` va `…+05:00` satrlarini
+ * `localeCompare` bilan solishtirish boshqa tartib berardi.
  */
-export function nextDirection(day: AttendanceDayDto | null): PassDirection {
-  const marks = marksNewestFirst(day)
-  const last = marks[0]
-
-  if (!last) return 'In'
-  return last.direction === 'In' ? 'Out' : 'In'
-}
-
-/** Oxirgi qabul qilingan o'tish — tasdiq qatori uchun. */
-export function lastMark(day: AttendanceDayDto | null): AttendanceMarkDto | null {
-  return marksNewestFirst(day)[0] ?? null
+export function marksNewestFirst(day: AttendanceDay | null): AttendanceMarkDto[] {
+  if (!day) return []
+  return day.marks.slice().sort((a, b) => instant(b.at) - instant(a.at))
 }
 
 /** Tanlangan kunni qamrab olgan so'rovlar. */
@@ -102,8 +126,13 @@ export function requestDayCount(request: AbsenceRequestDto): number {
   return daysBetween(request.fromDate, request.toDate)
 }
 
+/** «09:00:00» → «09:00» — ekranda soniya ko'rsatilmaydi. */
+export function shortTime(value: string | null): string | null {
+  return value ? value.slice(0, 5) : null
+}
+
 /** Oyda uchragan holatlar — taqvim ostidagi «Belgilar» ro'yxati uchun. */
-export function statusesInMonth(days: readonly AttendanceDayDto[]): AttendanceDayStatus[] {
+export function statusesInMonth(days: readonly AttendanceDay[]): AttendanceDayStatus[] {
   const seen: AttendanceDayStatus[] = []
 
   days.forEach((day) => {

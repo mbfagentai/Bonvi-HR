@@ -18,6 +18,16 @@ import { useToast } from '@/ui/toast'
  * bor: parolni o'rnatish yoki hisobdan chiqish — boshqa marshrutlar
  * shu yerga qaytariladi (UX §B.3).
  *
+ * ⭐ Joriy parol — HR bergan bir martalik parol — server tomonidan
+ * MAJBURIY tekshiriladi. Xodim uni hozirgina kirish ekranida kiritgan:
+ * sessiya uni XOTIRADA ushlab turadi va bu yerda qayta so'ramaydi.
+ * Sahifa qayta yuklangan (xotira tozalangan) yoki HR parolni ochiq
+ * sessiya davomida tiklagan bo'lsa — bir martalik parol maydoni chiqadi.
+ *
+ * ⭐ Javobda YANGI token juftligi keladi: server barcha eski sessiyalarni
+ * yopadi, ya'ni eski yangilash tokeni endi o'lgan va keyingi yangilash
+ * uni ishlatsa, o'g'irlik deb baholanib hamma sessiya yopilardi.
+ *
  * ⚠️ Ilovada YAGONA avtomatik fokus shu yerda: ekran ochilgan
  * zahoti klaviatura kerak, chunki boshqa qiladigan ish yo'q.
  */
@@ -28,6 +38,8 @@ export function PasswordSetScreen() {
   const session = useSession()
   const errorText = useErrorText()
 
+  const [current, setCurrent] = useState('')
+  const [askCurrent, setAskCurrent] = useState(session.oneTimePassword === null)
   const [next, setNext] = useState('')
   const [repeat, setRepeat] = useState('')
   const [touched, setTouched] = useState(false)
@@ -36,23 +48,27 @@ export function PasswordSetScreen() {
 
   const tooShort = touched && next.length > 0 && next.length < 8
   const mismatch = touched && repeat.length > 0 && repeat !== next
+  const currentMissing = touched && askCurrent && current.length === 0
 
   const save = async (): Promise<void> => {
     setTouched(true)
-    if (next.length < 8 || next !== repeat) return
+    const currentPassword = askCurrent ? current : session.oneTimePassword ?? ''
+    if (next.length < 8 || next !== repeat || currentPassword.length === 0) return
 
     setBusy(true)
     setError(null)
 
     try {
-      // Joriy parol — HR bergan bir martalik parol. Server uni
-      // sessiyadan biladi, shu sababli bu yerda bo'sh yuboriladi.
-      await api.changePassword({ currentPassword: '', newPassword: next })
-      session.passwordChanged()
+      const result = await api.changePassword({ currentPassword, newPassword: next })
+      session.passwordChanged(result)
       toast.show(t('password.saved'), 'success')
       navigate('/', { replace: true })
     } catch (cause: unknown) {
-      setError(ApiError.from(cause))
+      const failure = ApiError.from(cause)
+      setError(failure)
+
+      // Xotiradagi parol mos kelmadi (HR uni shu orada tiklagan) — endi so'raymiz.
+      if (failure.code === 'xodim.parol_notogri') setAskCurrent(true)
     } finally {
       setBusy(false)
     }
@@ -66,6 +82,24 @@ export function PasswordSetScreen() {
       </header>
 
       <div className="space-y-4">
+        {askCurrent ? (
+          <Field
+            label={t('password.oneTime')}
+            required
+            helper={t('password.oneTimeHint')}
+            error={currentMissing ? t('password.empty') : null}
+          >
+            <TextInput
+              type="password"
+              value={current}
+              onChange={setCurrent}
+              invalid={currentMissing}
+              autoFocus
+              autoComplete="current-password"
+            />
+          </Field>
+        ) : null}
+
         <Field
           label={t('password.new')}
           required
@@ -78,7 +112,7 @@ export function PasswordSetScreen() {
             onChange={setNext}
             onBlur={() => setTouched(true)}
             invalid={tooShort}
-            autoFocus
+            autoFocus={!askCurrent}
             autoComplete="new-password"
           />
         </Field>

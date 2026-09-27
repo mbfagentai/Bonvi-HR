@@ -69,6 +69,14 @@ public static class ResultExtensions
             problem.Extensions["warnings"] = error.Related;
         }
 
+        // Xato bilan kelgan QIYMATLAR (masofa, aniqlik, lahza) — mijoz ularni
+        // o'z tilidagi jumlaga qo'yadi. Tayyor matn (`detail`) har doim
+        // o'zbekcha, ya'ni son uchun yagona ishonchli manba shu maydonlar.
+        foreach (var (key, value) in error.Details)
+        {
+            problem.Extensions[key] = value;
+        }
+
         return Results.Problem(problem);
     }
 }

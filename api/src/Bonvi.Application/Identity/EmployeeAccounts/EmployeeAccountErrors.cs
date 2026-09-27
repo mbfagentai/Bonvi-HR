@@ -37,7 +37,8 @@ public static class EmployeeAccountErrors
     /// <param name="minutes">Necha daqiqa qolgani.</param>
     public static Error LockedOut(int minutes) => Error.Forbidden(
         "xodim.bloklangan",
-        $"Ko'p marta noto'g'ri urinish. {minutes} daqiqadan keyin qayta urinib ko'ring.");
+        $"Ko'p marta noto'g'ri urinish. {minutes} daqiqadan keyin qayta urinib ko'ring.")
+        .WithDetails(new Dictionary<string, object> { ["retryAfterMinutes"] = minutes });
 
     /// <summary>HR hisobni yopib qo'ygan.</summary>
     /// <remarks>

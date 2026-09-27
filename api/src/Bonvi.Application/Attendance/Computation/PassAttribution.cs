@@ -64,7 +64,45 @@ public static class PassAttribution
     {
         ArgumentNullException.ThrowIfNull(planFor);
 
-        var own = pass.LocalDate;
+        return WindowDateFor(
+            pass.LocalDate,
+            pass.OccurredAt,
+            date => planFor(date) is { AttributionFrom: { } from, AttributionTo: { } to } ? (from, to) : null);
+    }
+
+    /// <summary>
+    /// Xuddi shu qoida — tayyor kun OYNALARI bo'yicha (masalan kun yozuvidagi reja SURATIDAN).
+    /// </summary>
+    /// <remarks>
+    /// Xodim ilovasi belgilarni kataklarga shu orqali taqsimlaydi: kun
+    /// yozuvida hisoblash paytidagi reja saqlangan (<c>plan_start_at</c>,
+    /// <c>plan_end_at</c>), ya'ni belgi aynan tabel qo'ygan katakka tushadi —
+    /// jadvallarni qayta yuklamasdan. Tanlash qoidasi (qamrov, markazga
+    /// yaqinlik, tengda erta sana) ikkala yo'lda BITTA — shu metodda.
+    /// </remarks>
+    /// <param name="localDate">O'tishning o'z Toshkent sanasi.</param>
+    /// <param name="occurredAt">O'tish lahzasi.</param>
+    /// <param name="windowFor">Sananing kun oynasi; ish kuni bo'lmasa yoki noma'lum bo'lsa <c>null</c>.</param>
+    public static DateOnly DateFor(
+        DateOnly localDate,
+        DateTimeOffset occurredAt,
+        Func<DateOnly, (DateTimeOffset From, DateTimeOffset To)?> windowFor)
+        => WindowDateFor(localDate, occurredAt, windowFor) ?? localDate;
+
+    /// <summary>
+    /// Tanlash qoidasining YADROSI: oynasi o'tishni qamragan sana; hech bir oyna qamramasa <c>null</c>.
+    /// </summary>
+    /// <param name="localDate">O'tishning o'z Toshkent sanasi.</param>
+    /// <param name="occurredAt">O'tish lahzasi.</param>
+    /// <param name="windowFor">Sananing kun oynasi; ish kuni bo'lmasa yoki noma'lum bo'lsa <c>null</c>.</param>
+    public static DateOnly? WindowDateFor(
+        DateOnly localDate,
+        DateTimeOffset occurredAt,
+        Func<DateOnly, (DateTimeOffset From, DateTimeOffset To)?> windowFor)
+    {
+        ArgumentNullException.ThrowIfNull(windowFor);
+
+        var own = localDate;
         DateOnly? best = null;
         var bestDistance = long.MaxValue;
 
@@ -74,9 +112,9 @@ public static class PassAttribution
         {
             var candidate = own.AddDays(offset);
 
-            if (planFor(candidate) is not { AttributionFrom: { } from, AttributionTo: { } to }
-                || pass.OccurredAt < from
-                || pass.OccurredAt > to)
+            if (windowFor(candidate) is not { } window
+                || occurredAt < window.From
+                || occurredAt > window.To)
             {
                 continue;
             }
@@ -84,7 +122,7 @@ public static class PassAttribution
             // Markazgacha masofa IKKI BARAVAR qilib olinadi: markazning o'zi
             // yarim tickka tushishi mumkin, ikki baravar masofa esa butun son
             // bo'lib qoladi va teng holat aniq tutiladi.
-            var distance = Math.Abs((2 * pass.OccurredAt.UtcTicks) - from.UtcTicks - to.UtcTicks);
+            var distance = Math.Abs((2 * occurredAt.UtcTicks) - window.From.UtcTicks - window.To.UtcTicks);
 
             if (distance < bestDistance)
             {
@@ -148,4 +186,22 @@ public static class PassAttribution
 
         return pass.OccurredAt < nextWindowFrom ? previous : null;
     }
+
+    /// <summary>
+    /// Reja lahzalaridan kun oynasi: [boshlanish − 6 soat, tugash + 6 soat] (SPEC §5.3).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DayPlan.AttributionFrom"/> / <see cref="DayPlan.AttributionTo"/>
+    /// bilan AYNAN bir xil sonlar (<see cref="Domain.Attendance.AttendanceRules.DayWindowPreHours"/>,
+    /// <see cref="Domain.Attendance.AttendanceRules.DayWindowPostHours"/>) — bu yerda faqat saqlangan
+    /// reja SURATIGA qo'llanadi. Reja yo'q (dam olish kuni, jadvalsiz yoki
+    /// hali hisoblanmagan kun) — oyna yo'q.
+    /// </remarks>
+    /// <param name="planStartAt">Reja boshlanishi.</param>
+    /// <param name="planEndAt">Reja tugashi.</param>
+    public static (DateTimeOffset From, DateTimeOffset To)? WindowOf(DateTimeOffset? planStartAt, DateTimeOffset? planEndAt)
+        => planStartAt is { } start && planEndAt is { } end
+            ? (start.AddHours(-Domain.Attendance.AttendanceRules.DayWindowPreHours),
+               end.AddHours(Domain.Attendance.AttendanceRules.DayWindowPostHours))
+            : null;
 }

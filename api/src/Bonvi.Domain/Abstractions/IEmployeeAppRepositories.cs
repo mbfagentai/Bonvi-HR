@@ -65,6 +65,20 @@ public interface IEmployeeAccountRepository : IRepository<EmployeeAccount>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     /// <returns>Qulflangan hisob; topilmasa <c>null</c>.</returns>
     Task<EmployeeAccount?> LockAsync(Guid accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hisobda «bir martalik parolni almashtirish shart» bayrog'i turibdimi.
+    /// </summary>
+    /// <remarks>
+    /// Faqat bitta ustun, kuzatuvsiz (<c>AsNoTracking</c>): bu savol
+    /// <c>/api/me/*</c> ning HAR bir so'rovida beriladi va keyingi
+    /// ishlovchining o'z o'qishiga (xususan belgilashdagi qulfga) xalaqit
+    /// bermasligi kerak.
+    /// </remarks>
+    /// <param name="accountId">Hisob.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <returns>Bayroq; hisob topilmasa <c>null</c>.</returns>
+    Task<bool?> MustChangePasswordAsync(Guid accountId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Xodim ilovasining yangilash tokenlari uchun saqlash porti.</summary>

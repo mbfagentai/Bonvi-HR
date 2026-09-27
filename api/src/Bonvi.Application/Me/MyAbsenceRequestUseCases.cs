@@ -68,6 +68,15 @@ public sealed class CurrentEmployeeResolver
 
     public async Task<Result<Guid>> EmployeeIdAsync(CancellationToken cancellationToken)
     {
+        var ids = await ResolveAsync(cancellationToken).ConfigureAwait(false);
+
+        return ids.IsFailure ? ids.Error : Result.Success(ids.Value.EmployeeId);
+    }
+
+    /// <summary>Hisob VA xodim — yozuvda «kim qildi» kerak bo'lganda.</summary>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    public async Task<Result<CurrentEmployeeIds>> ResolveAsync(CancellationToken cancellationToken)
+    {
         if (_currentEmployee.AccountId is not { } accountId)
         {
             return EmployeeAccountErrors.InvalidRefreshToken;
@@ -77,9 +86,14 @@ public sealed class CurrentEmployeeResolver
 
         return account is null || !account.IsActive
             ? EmployeeAccountErrors.AccountInactive
-            : Result.Success(account.EmployeeId);
+            : new CurrentEmployeeIds(account.Id, account.EmployeeId);
     }
 }
+
+/// <summary>So'rov yuborayotgan xodim — ilova hisobi va xodim.</summary>
+/// <param name="AccountId">Ilova hisobi (tokendagi <c>sub</c>).</param>
+/// <param name="EmployeeId">Hisob bog'langan xodim — HISOB QATORIDAN.</param>
+public sealed record CurrentEmployeeIds(Guid AccountId, Guid EmployeeId);
 
 /// <summary>
 /// <see cref="GetMyRequestsQuery"/> ni bajaradi.
@@ -136,11 +150,19 @@ public sealed class GetMyRequestsQueryHandler
 /// <see cref="CreateMyRequestCommand"/> ni bajaradi.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Yozuvning O'ZI HR kiritgani bilan bir xil: bir xil domen tekshiruvlari,
 /// bir xil kesishish qoidasi, bir xil «yaratish hech narsani qayta
 /// hisoblatmaydi» xulqi. Bu ataylab — SPEC-so'rovlar §A8 aynan shuni
 /// ko'zda tutgan: ikkinchi bosqichda o'sha buyruqni ilova chaqiradi va
 /// yozuv o'zgarmaydi.
+/// </para>
+/// <para>
+/// Farqi bitta: kim yuborgani yoziladi (<c>SubmittedByAccountId</c> — SPEC
+/// §B2 «CreatedBy: … or the employee themselves»). Ilgari ilovadan kelgan
+/// so'rovning muallifi bo'sh qolardi, chunki audit uni HR foydalanuvchisidan
+/// oladi.
+/// </para>
 /// </remarks>
 public sealed class CreateMyRequestCommandHandler
 {
@@ -161,22 +183,23 @@ public sealed class CreateMyRequestCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var employeeId = await _resolver.EmployeeIdAsync(cancellationToken).ConfigureAwait(false);
-        if (employeeId.IsFailure)
+        var ids = await _resolver.ResolveAsync(cancellationToken).ConfigureAwait(false);
+        if (ids.IsFailure)
         {
-            return employeeId.Error;
+            return ids.Error;
         }
 
         return await _create
             .HandleAsync(
                 new CreateAbsenceRequestCommand(
-                    employeeId.Value,
+                    ids.Value.EmployeeId,
                     command.AbsenceTypeId,
                     command.FromDate,
                     command.ToDate,
                     command.FromTime,
                     command.ToTime,
-                    command.Note),
+                    command.Note,
+                    SubmittedByAccountId: ids.Value.AccountId),
                 cancellationToken)
             .ConfigureAwait(false);
     }
@@ -194,25 +217,37 @@ public sealed class CreateMyRequestCommandHandler
 /// qanday yo'l bilan tega olmaydi.
 /// </para>
 /// <para>
-/// Bekor qilishning O'ZI HR yo'lidagi ishlovchiga topshiriladi: tasdiqlangan
-/// so'rov bekor qilinganda kunlarni qayta hisoblash navbatiga qo'yish
-/// mantig'i o'sha yerda va uning ikkinchi nusxasi bo'lmasligi kerak.
+/// ⭐ <b>Faqat qaror KUTAYOTGAN so'rov</b>
+/// (<see cref="AbsenceRequest.CancelBySubmitter"/>): HR tasdiqlagan yoki rad
+/// etgani — <c>davomat.sorov_qaror_qabul_qilingan</c> (409). Ilgari bu yo'l
+/// HR ishlovchisiga topshirilardi va u tasdiqlangan so'rovni ham bekor
+/// qilib, HR ning qaror yozuvini <c>Guid.Empty</c> bilan ustidan yozardi —
+/// ya'ni xodim o'zining rad etilgan so'rovini «bekor qilingan» ga,
+/// tasdiqlanganini esa tabeldan jimgina olib tashlay olardi.
+/// </para>
+/// <para>
+/// Qayta hisoblash YO'Q va kerak ham emas: kutayotgan so'rov kunlarga hech
+/// qachon ta'sir qilmagan (SPEC-so'rovlar §B3), ya'ni uni bekor qilish ham
+/// ta'sir qilmaydi.
 /// </para>
 /// </remarks>
 public sealed class CancelMyRequestCommandHandler
 {
     private readonly CurrentEmployeeResolver _resolver;
     private readonly IAbsenceRequestRepository _requests;
-    private readonly CancelAbsenceRequestCommandHandler _cancel;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IClock _clock;
 
     public CancelMyRequestCommandHandler(
         CurrentEmployeeResolver resolver,
         IAbsenceRequestRepository requests,
-        CancelAbsenceRequestCommandHandler cancel)
+        IUnitOfWork unitOfWork,
+        IClock clock)
     {
         _resolver = resolver;
         _requests = requests;
-        _cancel = cancel;
+        _unitOfWork = unitOfWork;
+        _clock = clock;
     }
 
     public async Task<Result> HandleAsync(
@@ -221,14 +256,14 @@ public sealed class CancelMyRequestCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var employeeId = await _resolver.EmployeeIdAsync(cancellationToken).ConfigureAwait(false);
-        if (employeeId.IsFailure)
+        var ids = await _resolver.ResolveAsync(cancellationToken).ConfigureAwait(false);
+        if (ids.IsFailure)
         {
-            return employeeId.Error;
+            return ids.Error;
         }
 
         var request = await _requests.GetByIdAsync(command.RequestId, cancellationToken).ConfigureAwait(false);
-        if (request is null || request.EmployeeId != employeeId.Value)
+        if (request is null || request.EmployeeId != ids.Value.EmployeeId)
         {
             // Mavjud kod qayta ishlatiladi: xodim uchun «bunday so'rov
             // yo'q» va «bu so'rov sizniki emas» bir xil javob bo'lishi
@@ -237,8 +272,14 @@ public sealed class CancelMyRequestCommandHandler
             return AbsenceRequestErrors.NotFound;
         }
 
-        return await _cancel
-            .HandleAsync(new CancelAbsenceRequestCommand(command.RequestId), cancellationToken)
-            .ConfigureAwait(false);
+        var cancelled = request.CancelBySubmitter(ids.Value.AccountId, _clock.UtcNow);
+        if (cancelled.IsFailure)
+        {
+            return cancelled.Error;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success();
     }
 }

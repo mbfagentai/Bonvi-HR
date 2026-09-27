@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import type { AttendanceDayDto } from '@/api/types'
+import type { AttendanceDay } from '@/data/attendance'
 import { DAY_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
 import { Skeleton } from './feedback'
@@ -13,7 +13,7 @@ import { StatusChip } from './status-chip'
  * Raqamlar tabular (`nums`): `08:35` va `11:11` bir xil kenglikda
  * turishi kerak, aks holda kun almashganda ustun titraydi.
  */
-export function DayPanel({ day, loading }: { day: AttendanceDayDto | null; loading: boolean }) {
+export function DayPanel({ day, loading }: { day: AttendanceDay | null; loading: boolean }) {
   const { t } = useTranslation()
   const format = useFormat()
 

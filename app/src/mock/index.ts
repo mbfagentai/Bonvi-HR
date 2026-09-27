@@ -9,8 +9,12 @@ import type {
   CreateAbsenceRequest,
   LoginResult,
   MeDto,
+  MyCurrentStateDto,
+  PassDirection,
+  TimesheetTotalsDto,
 } from '@/api/types'
 import { daysBetween, monthKey, todayIso } from '@/lib/time'
+import mockAvatarUrl from './avatar.jpg'
 import {
   MOCK_ABSENCE_TYPES,
   MOCK_ME,
@@ -19,15 +23,16 @@ import {
   buildRequests,
   buildToday,
   buildTodaySeed,
+  type MockDay,
 } from './data'
 import { readScenario } from './scenario'
 
 /**
- * Mock server.
+ * Mock server — namoyish va qo'lda sinash uchun (`VITE_API_MODE=mock`).
  *
- * ⚠️ Bu papka VAQTINCHA. Haqiqiy mijoz kelganda `api/client.ts` dagi
- * bitta qator almashadi va `src/mock/` o'chadi — shu sababli bu yerda
- * ekranlarga tegishli hech qanday qoida yo'q, faqat javob shakllari.
+ * ⚠️ Javob shakllari va xato KODLARI haqiqiy server bilan AYNAN bir xil
+ * (`api/types.ts`, backend `*Errors`): mock'da ishlagan ekran serverda
+ * ham ishlashi kerak. Bu yerda ekranlarga tegishli hech qanday qoida yo'q.
  *
  * Javoblar ataylab SEKIN (400–800 ms): skelet, «Yuborilmoqda…» va fon
  * yangilanishi kabi holatlarni tez tarmoqda umuman ko'rib bo'lmaydi.
@@ -41,11 +46,17 @@ const BOUNCE_SECONDS = 60
 /** Mock login phone (local 9 digits). */
 const MOCK_PHONE = '976662675'
 
+/** Server kabi: parol kamida 8 belgi (`PasswordPolicy.MinLength`). */
+const PASSWORD_MIN_LENGTH = 8
+
 interface MockState {
   todayMarks: AttendanceMarkDto[]
   requests: AbsenceRequestDto[]
   lastCheckInMs: number | null
   nextRequestNo: number
+  /** Joriy parol — `changePassword` joriy parolni tekshiradi (server kabi). */
+  password: string | null
+  mustChangePassword: boolean
 }
 
 const state: MockState = {
@@ -53,6 +64,8 @@ const state: MockState = {
   requests: buildRequests(),
   lastCheckInMs: null,
   nextRequestNo: 5,
+  password: null,
+  mustChangePassword: false,
 }
 
 function delay<T>(value: T): Promise<T> {
@@ -62,6 +75,21 @@ function delay<T>(value: T): Promise<T> {
 
 function fail(ms: number, error: ApiError): Promise<never> {
   return new Promise((_resolve, reject) => window.setTimeout(() => reject(error), ms))
+}
+
+function rejected(status: number, code: string, details?: Record<string, string | number>): ApiError {
+  return new ApiError('rejected', { code, status, details })
+}
+
+function tokenPair(mustChangePassword: boolean): LoginResult {
+  const now = Date.now()
+
+  return {
+    accessToken: `mock-access-${now}`,
+    expiresAt: new Date(now + 15 * 60_000).toISOString(),
+    refreshToken: `mock-refresh-${now}`,
+    mustChangePassword,
+  }
 }
 
 /** Tasdiqlangan so'rovlar tushgan kunlar — taqvimda «Sababli» bo'ladi. */
@@ -86,57 +114,91 @@ function mobileAllowed(): boolean {
   return readScenario() !== 'ruxsatyoq'
 }
 
+/** Oy jami — server kabi: rejalar va ishlangan daqiqalar yig'indisi. */
+function totalsOf(days: readonly MockDay[]): TimesheetTotalsDto {
+  return {
+    workedMinutes: days.reduce((sum, day) => sum + day.workedMinutes, 0),
+    plannedMinutes: days.reduce((sum, day) => {
+      if (!day.planStartAt || !day.planEndAt) return sum
+      const planned = Math.round((Date.parse(day.planEndAt) - Date.parse(day.planStartAt)) / 60_000)
+      return sum + Math.max(0, planned - 60)
+    }, 0),
+    presentDays: days.filter((day) => day.status === 'Present').length,
+    absentDays: days.filter((day) => day.status === 'Absent').length,
+    lateMinutes: days.reduce((sum, day) => sum + day.lateMinutes, 0),
+    earlyLeaveMinutes: days.reduce((sum, day) => sum + day.earlyLeaveMinutes, 0),
+  }
+}
+
+/** «Hozir» — server kabi: oxirgi belgidan keyingi yo'nalish. */
+function currentOf(): MyCurrentStateDto {
+  const sorted = state.todayMarks.slice().sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  const last = sorted[sorted.length - 1] ?? null
+  const next: PassDirection = last && last.direction === 'In' ? 'Out' : 'In'
+
+  return { date: todayIso(), nextDirection: next, lastMark: last }
+}
+
 export const mockApi: EmployeeApi = {
   login: (request) => {
-    if (!request.login) {
-      return fail(MIN_DELAY_MS, new ApiError('rejected', { code: 'auth.login_bosh', status: 400 }))
-    }
-    if (!request.password) {
-      return fail(MIN_DELAY_MS, new ApiError('rejected', { code: 'auth.parol_bosh', status: 400 }))
-    }
     // Mock credentials: phone +998 97 666 26 75 (any formatting, with or
     // without the country code) / password admin. Password «1111»
     // imitates the one-time password HR hands out — after it the app only
-    // allows the set-password screen.
+    // allows the set-password screen. Server kabi: bo'sh, noto'g'ri yoki
+    // notanish — hammasi BITTA javob (`xodim.notogri_malumot`, 400).
     const digits = request.login.replace(/\D/g, '')
     const phoneOk = digits === MOCK_PHONE || digits === `998${MOCK_PHONE}`
-    const known = request.password === 'admin' || request.password === '1111'
+    const known =
+      request.password === (state.password ?? 'admin') ||
+      (state.password === null && request.password === '1111')
+
     if (!phoneOk || !known) {
-      return fail(
-        MAX_DELAY_MS,
-        new ApiError('rejected', { code: 'auth.notogri_malumot', status: 401 }),
-      )
+      return fail(MAX_DELAY_MS, rejected(400, 'xodim.notogri_malumot'))
     }
 
-    const result: LoginResult = {
-      accessToken: `mock-access-${Date.now()}`,
-      refreshToken: `mock-refresh-${Date.now()}`,
-      mustChangePassword: request.password === '1111',
-    }
+    state.password = request.password
+    state.mustChangePassword = request.password === '1111'
 
-    return delay(result)
+    return delay(tokenPair(state.mustChangePassword))
   },
 
+  refresh: () => delay(tokenPair(state.mustChangePassword)),
+
+  logout: () => delay(undefined),
+
   changePassword: (request) => {
-    if (request.newPassword.length < 8) {
-      return fail(
-        MIN_DELAY_MS,
-        new ApiError('rejected', { code: 'hisob.parol_qisqa', status: 400 }),
-      )
+    if (!request.newPassword) {
+      return fail(MIN_DELAY_MS, rejected(400, 'foydalanuvchi.parol_bosh'))
+    }
+    if (request.newPassword.length < PASSWORD_MIN_LENGTH) {
+      return fail(MIN_DELAY_MS, rejected(400, 'foydalanuvchi.parol_qisqa'))
+    }
+    if (request.currentPassword !== state.password) {
+      return fail(MIN_DELAY_MS, rejected(400, 'xodim.parol_notogri'))
     }
 
-    return delay(undefined)
+    state.password = request.newPassword
+    state.mustChangePassword = false
+
+    return delay(tokenPair(false))
   },
 
   getMe: () => {
     const me: MeDto = {
       ...MOCK_ME,
       mobileCheckInAllowed: mobileAllowed(),
+      mustChangePassword: state.mustChangePassword,
       absenceTypes: MOCK_ABSENCE_TYPES,
     }
 
     return delay(me)
   },
+
+  getPhoto: () =>
+    window
+      .fetch(mockAvatarUrl)
+      .then((response) => (response.ok ? response.blob() : null))
+      .catch(() => null),
 
   getMonth: (year, month) => {
     const today = todayIso()
@@ -148,7 +210,14 @@ export const mockApi: EmployeeApi = {
       days.sort((a, b) => a.date.localeCompare(b.date))
     }
 
-    const result: AttendanceMonthDto = { year, month, days }
+    const result: AttendanceMonthDto = {
+      year,
+      month,
+      days: days.map(({ marks, ...day }) => ({ day, marks })),
+      totals: totalsOf(days),
+      current: currentOf(),
+    }
+
     return delay(result)
   },
 
@@ -156,19 +225,15 @@ export const mockApi: EmployeeApi = {
     const scenario = readScenario()
 
     if (scenario === 'ruxsatyoq') {
-      return fail(
-        MIN_DELAY_MS,
-        new ApiError('rejected', { code: 'davomat.mobil_ruxsat_yoq', status: 403 }),
-      )
+      return fail(MIN_DELAY_MS, rejected(403, 'davomat.mobil_ruxsat_yoq'))
     }
 
     if (scenario === 'aniqemas') {
       return fail(
         MAX_DELAY_MS,
-        new ApiError('rejected', {
-          code: 'davomat.joylashuv_aniq_emas',
-          status: 400,
-          details: { accuracyMeters: Math.round(request.accuracyMeters) },
+        rejected(400, 'davomat.joylashuv_aniq_emas', {
+          accuracyMeters: Math.round(request.accuracyMeters),
+          maxAccuracyMeters: 100,
         }),
       )
     }
@@ -176,11 +241,7 @@ export const mockApi: EmployeeApi = {
     if (scenario === 'uzoq') {
       return fail(
         MAX_DELAY_MS,
-        new ApiError('rejected', {
-          code: 'davomat.obyektdan_uzoq',
-          status: 400,
-          details: { siteName: MOCK_SITE_NAME, distanceMeters: 3420 },
-        }),
+        rejected(400, 'davomat.obyektdan_uzoq', { siteName: MOCK_SITE_NAME, distanceMeters: 3420 }),
       )
     }
 
@@ -206,10 +267,8 @@ export const mockApi: EmployeeApi = {
       const last = state.todayMarks[state.todayMarks.length - 1]
       return fail(
         MIN_DELAY_MS,
-        new ApiError('rejected', {
-          code: 'davomat.takroriy_belgi',
-          status: 409,
-          details: { occurredAt: last ? last.occurredAt : new Date(nowMs).toISOString() },
+        rejected(409, 'davomat.takroriy_belgi', {
+          lastAt: last ? last.at : new Date(nowMs).toISOString(),
         }),
       )
     }
@@ -218,7 +277,7 @@ export const mockApi: EmployeeApi = {
     state.lastCheckInMs = nowMs
 
     const result: CheckInResult = {
-      occurredAt: accepted.occurredAt,
+      occurredAt: accepted.at,
       direction: accepted.direction,
       workSiteName: MOCK_SITE_NAME,
     }
@@ -226,17 +285,47 @@ export const mockApi: EmployeeApi = {
     return delay(result)
   },
 
-  getRequests: () => delay(state.requests.slice()),
+  getRequests: (page, pageSize) => {
+    const total = state.requests.length
+    const start = (page - 1) * pageSize
+
+    return delay({
+      items: state.requests.slice(start, start + pageSize),
+      page,
+      pageSize,
+      total,
+      pageCount: Math.max(1, Math.ceil(total / pageSize)),
+    })
+  },
 
   createRequest: (request: CreateAbsenceRequest) => {
     const type = MOCK_ABSENCE_TYPES.filter((item) => item.id === request.absenceTypeId)[0]
 
     if (!type) {
-      return fail(MIN_DELAY_MS, new ApiError('rejected', { code: 'sorov.turi_bosh', status: 400 }))
+      return fail(MIN_DELAY_MS, rejected(404, 'davomat.yoqlik_turi_topilmadi'))
+    }
+    if (request.fromDate > request.toDate) {
+      return fail(MIN_DELAY_MS, rejected(400, 'davomat.sorov_davri_notogri'))
+    }
+
+    const overlaps = state.requests.some(
+      (item) =>
+        (item.status === 'Pending' || item.status === 'Approved') &&
+        item.fromDate <= request.toDate &&
+        request.fromDate <= item.toDate,
+    )
+
+    if (overlaps) {
+      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_takroriy'))
     }
 
     const created: AbsenceRequestDto = {
       id: `req-${state.nextRequestNo}`,
+      employeeId: MOCK_ME.employeeId,
+      employeeName: MOCK_ME.fullName,
+      employeePhotoKey: MOCK_ME.photoKey,
+      positionName: MOCK_ME.position,
+      departmentName: MOCK_ME.department,
       absenceTypeId: type.id,
       absenceTypeName: type.name,
       fromDate: request.fromDate,
@@ -249,6 +338,8 @@ export const mockApi: EmployeeApi = {
       decidedByName: null,
       decidedAt: null,
       createdAt: new Date().toISOString(),
+      submittedByEmployee: true,
+      cancelledByEmployee: false,
     }
 
     state.nextRequestNo += 1
@@ -261,26 +352,31 @@ export const mockApi: EmployeeApi = {
     const found = state.requests.filter((item) => item.id === id)[0]
 
     if (!found) {
-      return fail(MIN_DELAY_MS, new ApiError('rejected', { code: 'sorov.topilmadi', status: 404 }))
+      return fail(MIN_DELAY_MS, rejected(404, 'davomat.sorov_topilmadi'))
+    }
+    if (found.status === 'Cancelled') {
+      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_bekor_qilingan'))
     }
     if (found.status !== 'Pending') {
-      return fail(
-        MIN_DELAY_MS,
-        new ApiError('rejected', { code: 'sorov.holat_mos_emas', status: 409 }),
-      )
+      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_qaror_qabul_qilingan'))
     }
 
-    const cancelled: AbsenceRequestDto = { ...found, status: 'Cancelled' }
+    const cancelled: AbsenceRequestDto = {
+      ...found,
+      status: 'Cancelled',
+      decidedAt: new Date().toISOString(),
+      cancelledByEmployee: true,
+    }
     state.requests = state.requests.map((item) => (item.id === id ? cancelled : item))
 
-    return delay(cancelled)
+    return delay(undefined)
   },
 }
 
 /** Qabul qilingan belgi — vaqti SERVERNIKI (bu yerda mock'niki). */
 function pushMark(request: CheckInRequest): AttendanceMarkDto {
   const accepted: AttendanceMarkDto = {
-    occurredAt: new Date().toISOString(),
+    at: new Date().toISOString(),
     direction: request.direction === 'Out' ? 'Out' : 'In',
     source: 'Mobile',
     siteName: MOCK_SITE_NAME,

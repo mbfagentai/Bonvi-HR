@@ -283,6 +283,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var lateness = await LateMinutesByPassAsync(rows, employments, cancellationToken).ConfigureAwait(false);
 
+        var evidence = await MobileEvidenceAsync(rows, cancellationToken).ConfigureAwait(false);
+
         return
         [
             .. rows.Select(row =>
@@ -326,9 +328,64 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     names.Position(employment?.PositionId),
                     row.PhotoKey,
                     row.PhotoPurgedAt,
-                    lateness.TryGetValue(row.Id, out var lateMinutes) ? lateMinutes : null);
+                    lateness.TryGetValue(row.Id, out var lateMinutes) ? lateMinutes : null,
+                    evidence.GetValueOrDefault(row.Id));
             }),
         ];
+    }
+
+    /// <summary>
+    /// Sahifadagi TELEFON belgilarining dalili — o'tish → dalil (SPEC-xodim-ilovasi §F).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bitta so'rov (<c>ux_mobile_check_ins_pass</c> bo'yicha
+    /// <c>WHERE pass_id = ANY(…)</c>) va faqat <c>method = Mobile</c> qatorlar
+    /// uchun: terminal o'tishida koordinata umuman yo'q, sahifada telefon
+    /// belgisi bo'lmasa so'rov yuborilmaydi ham.
+    /// </para>
+    /// <para>
+    /// Obyektlar o'chirilganlari bilan (<c>IgnoreQueryFilters</c>): keyin
+    /// yumshoq o'chirilgan obyekt belgining qayerda qabul qilinganini aytishda
+    /// davom etishi kerak — xodim ilovasidagi bilan bir xil qaror.
+    /// </para>
+    /// </remarks>
+    private async Task<Dictionary<Guid, MobilePassEvidenceDto>> MobileEvidenceAsync(
+        List<PassRow> rows,
+        CancellationToken cancellationToken)
+    {
+        var mobileIds = rows
+            .Where(row => row.Method == PassMethod.Mobile)
+            .Select(row => row.Id)
+            .ToList();
+
+        if (mobileIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await _context.MobileCheckIns
+            .AsNoTracking()
+            .Where(checkIn => mobileIds.Contains(checkIn.PassId))
+            .Join(
+                _context.WorkSites.AsNoTracking().IgnoreQueryFilters(),
+                checkIn => checkIn.WorkSiteId,
+                site => site.Id,
+                (checkIn, site) => new
+                {
+                    checkIn.PassId,
+                    Evidence = new MobilePassEvidenceDto(
+                        site.Id,
+                        site.Name,
+                        checkIn.SiteShape,
+                        checkIn.DistanceMeters,
+                        checkIn.SiteRadiusMeters,
+                        checkIn.AccuracyMeters,
+                        checkIn.Latitude,
+                        checkIn.Longitude),
+                })
+            .ToDictionaryAsync(row => row.PassId, row => row.Evidence, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>Kun yozuvining kechikish uchun kerakli qismi.</summary>
@@ -1566,7 +1623,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         string? DecisionNote,
         Guid? DecidedBy,
         DateTimeOffset? DecidedAt,
-        DateTimeOffset CreatedAt);
+        DateTimeOffset CreatedAt,
+        bool SubmittedByEmployee,
+        bool CancelledByEmployee);
 
     /// <inheritdoc />
     /// <remarks>
@@ -1643,7 +1702,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 request.DecisionNote,
                 request.DecidedBy,
                 request.DecidedAt,
-                request.CreatedAt))
+                request.CreatedAt,
+                request.SubmittedByAccountId != null,
+                request.CancelledByAccountId != null))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -1673,7 +1734,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 request.DecisionNote,
                 request.DecidedBy,
                 request.DecidedAt,
-                request.CreatedAt))
+                request.CreatedAt,
+                request.SubmittedByAccountId != null,
+                request.CancelledByAccountId != null))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -1772,7 +1835,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     row.DecisionNote,
                     row.DecidedBy is { } decider ? deciders.GetValueOrDefault(decider) : null,
                     row.DecidedAt,
-                    row.CreatedAt);
+                    row.CreatedAt,
+                    row.SubmittedByEmployee,
+                    row.CancelledByEmployee);
             }),
         ];
     }
@@ -1926,6 +1991,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var storedDays = dayRows.ToDictionary(day => (day.EmployeeId, day.LocalDate));
 
+        var mobileMarks = await MobileMarkCountsAsync(pageIds, monthStart, monthEnd, dayRows, cancellationToken)
+            .ConfigureAwait(false);
+
         var employmentsByEmployee = await EmploymentsAsync(pageIds, cancellationToken).ConfigureAwait(false);
         var builder = new AttendanceDayBuilder(
             await LoadScheduleResolverAsync(monthStart, monthEnd, cancellationToken).ConfigureAwait(false),
@@ -1982,7 +2050,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                             stored.BreakTakenMinutes,
                             stored.BreakDeductionMinutes,
                             stored.PlanStartAt,
-                            stored.PlanEndAt)
+                            stored.PlanEndAt,
+                            mobileMarks.GetValueOrDefault((employee.Id, date)))
                         // Hosil qilingan katakda reja ham YO'Q: u hali
                         // hisoblanmagan kun (§5.7.1) va rejasini shu yerda
                         // qayta hisoblash tungi hisoblashning ikkinchi
@@ -1998,7 +2067,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                             BreakTakenMinutes: 0,
                             BreakDeductionMinutes: 0,
                             PlanStartAt: null,
-                            PlanEndAt: null)),
+                            PlanEndAt: null,
+                            MobileMarks: mobileMarks.GetValueOrDefault((employee.Id, date)))),
                 ];
 
                 var plannedMinutes = monthDays.Sum(date =>
@@ -2029,6 +2099,65 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         DateTimeOffset? lastComputedAt = dayRows.Count == 0 ? null : dayRows.Max(day => day.ComputedAt);
 
         return new TimesheetPage(monthDays, items, total, lastComputedAt);
+    }
+
+    /// <summary>
+    /// Sahifadagi xodimlarning TELEFON belgilari — (xodim, katak) → soni.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Katak tabel qoidasi bilan aniqlanadi (<see cref="PassAttribution"/>) —
+    /// kun yozuvidagi reja SURATI bo'yicha, xuddi xodim ilovasidagi kabi: tungi
+    /// smenaning ertalabki telefon chiqishi kechagi katakda sanaladi. Oyning
+    /// chetidagi (± bir kun) o'tishlar ham o'qiladi, chunki ular shu oyning
+    /// katagiga tegishli bo'lishi mumkin.
+    /// </para>
+    /// <para>
+    /// Bitta tor so'rov: faqat <c>method = Mobile</c> — telefon belgilari
+    /// jami o'tishlarning kichik qismi.
+    /// </para>
+    /// </remarks>
+    private async Task<Dictionary<(Guid EmployeeId, DateOnly Date), int>> MobileMarkCountsAsync(
+        List<Guid> employeeIds,
+        DateOnly monthStart,
+        DateOnly monthEnd,
+        List<DayRow> dayRows,
+        CancellationToken cancellationToken)
+    {
+        var from = monthStart.AddDays(-1);
+        var to = monthEnd.AddDays(1);
+
+        var passes = await _context.AttendancePasses
+            .AsNoTracking()
+            .Where(pass =>
+                pass.Method == PassMethod.Mobile &&
+                pass.ResolvedEmployeeId != null &&
+                employeeIds.Contains(pass.ResolvedEmployeeId.Value) &&
+                pass.LocalDate >= from &&
+                pass.LocalDate <= to)
+            .Select(pass => new { EmployeeId = pass.ResolvedEmployeeId!.Value, pass.LocalDate, pass.OccurredAt })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (passes.Count == 0)
+        {
+            return [];
+        }
+
+        var windows = dayRows.ToDictionary(
+            day => (day.EmployeeId, day.LocalDate),
+            day => PassAttribution.WindowOf(day.PlanStartAt, day.PlanEndAt));
+
+        return passes
+            .Select(pass => (
+                pass.EmployeeId,
+                Date: PassAttribution.DateFor(
+                    pass.LocalDate,
+                    pass.OccurredAt,
+                    date => windows.GetValueOrDefault((pass.EmployeeId, date)))))
+            .Where(mark => mark.Date >= monthStart && mark.Date <= monthEnd)
+            .GroupBy(mark => mark)
+            .ToDictionary(group => group.Key, group => group.Count());
     }
 
     /// <summary>

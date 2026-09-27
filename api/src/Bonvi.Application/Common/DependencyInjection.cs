@@ -125,9 +125,18 @@ public static class DependencyInjection
         services.AddScoped<EmployeeLoginCommandHandler>();
         services.AddScoped<EmployeeRefreshCommandHandler>();
         services.AddScoped<ChangeEmployeePasswordCommandHandler>();
+        services.AddScoped<EmployeeLogoutCommandHandler>();
+        services.AddScoped<EmployeePasswordGate>();
+
+        // Jarayon ichidagi holat — SINGLETON bo'lishi shart: har so'rovda
+        // yangi nusxa bo'lsa, urinishlar hisobi ham, yangilash javobining
+        // qisqa xotirasi ham so'rov bilan birga yo'qolardi (izohlar sinflarda).
+        services.AddSingleton<EmployeeLoginThrottle>();
+        services.AddSingleton<EmployeeRefreshReplayCache>();
 
         services.AddScoped<CurrentEmployeeResolver>();
         services.AddScoped<GetMeQueryHandler>();
+        services.AddScoped<GetMyPhotoQueryHandler>();
         services.AddScoped<GetMyAttendanceQueryHandler>();
         services.AddScoped<GetMyRequestsQueryHandler>();
         services.AddScoped<CreateMyRequestCommandHandler>();

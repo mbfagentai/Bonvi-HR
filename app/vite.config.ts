@@ -1,8 +1,44 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+/**
+ * `/ilova` (oxirida chiziqsiz) → `/ilova/` — 308.
+ *
+ * NEGA: ilova asosi `/ilova/`; Vite dev-serveri chiziqsiz manzilga
+ * «The server is configured with a public base URL of /ilova/» deb javob
+ * beradi, xodim esa aynan shu manzilni yozib qo'yadi yoki xatcho'pga oladi.
+ * Production'da xuddi shu yo'naltirishni Caddy qiladi (`web/Caddyfile`,
+ * `handle /ilova`) — dev va prod bir xil xulq.
+ */
+function ilovaTrailingSlash(): Plugin {
+  const redirect = (req: IncomingMessage, res: ServerResponse, next: () => void): void => {
+    const url = req.url ?? ''
+
+    if (url === '/ilova' || url.indexOf('/ilova?') === 0) {
+      res.statusCode = 308
+      res.setHeader('Location', `/ilova/${url.slice('/ilova'.length)}`)
+      res.end()
+      return
+    }
+
+    next()
+  }
+
+  return {
+    name: 'bonvi-ilova-trailing-slash',
+    configureServer: (server) => {
+      server.middlewares.use(redirect)
+    },
+    configurePreviewServer: (server) => {
+      server.middlewares.use(redirect)
+    },
+  }
+}
 
 /**
  * Xodim ilovasi — HR web ilovasidan BUTUNLAY alohida build.
@@ -22,6 +58,8 @@ export default defineConfig(({ mode }) => ({
   base: '/ilova/',
 
   plugins: [
+    ilovaTrailingSlash(),
+
     react(),
 
     VitePWA({
@@ -40,8 +78,15 @@ export default defineConfig(({ mode }) => ({
       */
       scope: '/ilova/',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,jpg,svg,webmanifest}'],
         navigateFallback: '/ilova/index.html',
+        /*
+          Faqat `/ilova/…` navigatsiyasi ilovaning `index.html` iga tushadi;
+          HR yo'llari (va `/api`) — hech qachon. `start_url` ham shu
+          qamrov ICHIDA (`/ilova/`, oxirida chiziq bilan): `/ilova` bo'lsa,
+          u qamrovdan tashqarida qolib, o'rnatilgan ilova oflayn ochilmasdi —
+          worker o'sha manzilni umuman ushlamasdi.
+        */
         navigateFallbackDenylist: [/^(?!\/ilova\/).*/],
         cleanupOutdatedCaches: true,
       },
@@ -50,7 +95,7 @@ export default defineConfig(({ mode }) => ({
         name: 'Bonvi',
         short_name: 'Bonvi',
         description: 'Bonvi xodim ilovasi',
-        start_url: '/ilova',
+        start_url: '/ilova/',
         scope: '/ilova/',
         display: 'standalone',
         orientation: 'portrait',
@@ -94,6 +139,19 @@ export default defineConfig(({ mode }) => ({
     host: true,
     port: 7174,
     strictPort: true,
+    /*
+      API — xuddi production'dagidek BIR XIL manzildan (`/api/…`): Caddy u
+      yerda `/api/*` ni API konteyneriga uzatadi, dev'da esa shu proksi.
+      Natijada CORS ham, ikkinchi manzil ham kerak emas. Konteyner ichida
+      nishon — `http://api:8080` (compose `VITE_API_PROXY`), xostda —
+      `http://localhost:7080`.
+    */
+    proxy: {
+      '/api': {
+        target: process.env['VITE_API_PROXY'] ?? 'http://localhost:7080',
+        changeOrigin: true,
+      },
+    },
     watch: {
       // macOS + Docker bind-mount inotify hodisalarini uzatmaydi
       usePolling: true,

@@ -37,6 +37,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("absence_type_id");
 
+                    b.Property<Guid?>("CancelledByAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by_account_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -86,6 +90,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
+
+                    b.Property<Guid?>("SubmittedByAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by_account_id");
 
                     b.Property<DateOnly>("ToDate")
                         .HasColumnType("date")

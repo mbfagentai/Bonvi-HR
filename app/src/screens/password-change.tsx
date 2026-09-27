@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { api } from '@/api/client'
 import { ApiError } from '@/api/errors'
+import { useSession } from '@/app/session'
 import { useErrorText } from '@/lib/use-error-message'
 import { PushedScreen } from '@/ui/app-shell'
 import { BottomAction, Button } from '@/ui/button'
@@ -15,6 +16,11 @@ import { useToast } from '@/ui/toast'
 /**
  * PAROLNI O'ZGARTIRISH (UX §A.3).
  *
+ * ⚠️ Javobdagi YANGI token juftligi saqlanadi: server almashtirishdan
+ * keyin barcha eski sessiyalarni (shu telefonnikini ham) yopadi. Eski
+ * yangilash tokeni bilan keyingi yangilash o'g'irlik deb baholanib, hamma
+ * sessiyani yopib yuborardi.
+ *
  * Tekshiruv fokus chiqqanda va yuborishda bo'ladi, HAR BOSISHDA emas:
  * parol yozayotgan odamga to'rtinchi harfdayoq «juda qisqa» deyish —
  * bezovta qilish.
@@ -24,6 +30,7 @@ export function PasswordChangeScreen() {
   const navigate = useNavigate()
   const toast = useToast()
   const errorText = useErrorText()
+  const session = useSession()
 
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -43,7 +50,8 @@ export function PasswordChangeScreen() {
     setError(null)
 
     try {
-      await api.changePassword({ currentPassword: current, newPassword: next })
+      const result = await api.changePassword({ currentPassword: current, newPassword: next })
+      session.passwordChanged(result)
       toast.show(t('password.saved'), 'success')
       navigate(-1)
     } catch (cause: unknown) {
