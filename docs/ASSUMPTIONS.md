@@ -370,3 +370,18 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
   and HR wants to know what is inside without opening it. The owner chose
   combined names over multi-select. A type choice for candidate files
   (rejected and reserve) is deferred.
+- [2026-09-27] Additional-duty pay: overwrite or add? → Add. The base
+  salary stays untouched. The card shows each active duty and a total
+  (salary + active duty pay). Duties get an end date (`duty_end_date`); an
+  ended duty drops out of the total. → Owner's choice ("kartada alohida
+  qo'shilsin"). Folding the pay into the salary field would corrupt the
+  salary history when a duty ends.
+- [2026-09-27] Who sees duty pay? → A separate permission,
+  `salary.extra.view`, as an extra toggle in the role editor. super_admin
+  gets it automatically; on existing databases main_boss does NOT get it
+  automatically (the owner ticks it in «Rollar»). New databases give it to
+  main_boss by default and not to hr_manager. Without it: duties are
+  visible, amounts and the total are hidden, and the user cannot send,
+  correct, date-move or end a paid duty. → The owner: "even HR managers may
+  not get access; superadmin and the main director only". The existing rule
+  is that new permissions never reach an existing role silently.

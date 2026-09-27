@@ -83,7 +83,8 @@
       "employment.correct": "Yozuvni tuzatish"
     },
     "extra": {
-      "salary.view": "Okladni ko‘rish"
+      "salary.view": "Okladni ko‘rish",
+      "salary.extra.view": "Qo‘shimcha haqni ko‘rish"
     }
   },
   "settings": {
@@ -759,7 +760,9 @@
     "bot.logo_yoq": "Bot uchun logotip qo‘yilmagan.",
     "bot.logo_katta": "Logotip hajmi 10 MB dan oshmasligi kerak.",
     "bot.logo_turi": "Faqat JPEG, PNG va WebP rasmlar qabul qilinadi.",
-    "bot.logo_yaroqsiz": "Fayl rasm emas yoki buzilgan."
+    "bot.logo_yaroqsiz": "Fayl rasm emas yoki buzilgan.",
+    "mehnat.vazifa_emas": "Bu yozuv qo‘shimcha vazifa emas.",
+    "mehnat.vazifa_tugash_sanasi": "Vazifa tugash sanasi uning boshlangan sanasidan oldin bo‘lishi mumkin emas."
   },
   "language": {
     "en": "English",
@@ -956,7 +959,20 @@
     "flagReplaceTitle": "Kuchdagi belgi almashtiriladi",
     "flagReplaceText": "Xodimda hozir «{{flag}}» belgisi kuchda. Bir vaqtda atigi bitta belgi bo‘ladi: davom etsangiz eskisi yopiladi (o‘chirilmaydi — tarixda qoladi) va yangisi ochiladi.",
     "flagReplaceUnknown": "Xodimda allaqachon kuchdagi belgi bor. Davom etsangiz u yopiladi va yangisi ochiladi.",
-    "flagReplaceConfirm": "Almashtirish"
+    "flagReplaceConfirm": "Almashtirish",
+    "extraPay": "Qo‘shimcha haq",
+    "extraPayHidden": "Qo‘shimcha haq yashirilgan — ko‘rish uchun ruxsat kerak",
+    "activeDuty": "Qo‘shimcha vazifa",
+    "totalPay": "Jami (oklad + qo‘shimcha haq)",
+    "dutyOngoing": "Davom etmoqda",
+    "dutyEndedOn": "{{date}} da tugagan",
+    "dutyEndsOn": "{{date}} dan tugaydi",
+    "dutyEnd": "Tugatish",
+    "dutyEndChange": "Tugash sanasi",
+    "dutyEndTitle": "Qo‘shimcha vazifani tugatish",
+    "dutyEndHint": "Vazifa {{since}} dan beri davom etmoqda. Tugash sanasidan boshlab vazifa va uning haqi kartadagi jamiga kirmaydi; yozuv mehnat tarixida qoladi.",
+    "dutyEndDate": "Tugash sanasi",
+    "dutyReopen": "Davom etmoqda deb belgilash"
   },
   "employments": {
     "anyType": "Barcha turlar",

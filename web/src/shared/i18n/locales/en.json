@@ -83,7 +83,8 @@
       "employment.correct": "Correct a record"
     },
     "extra": {
-      "salary.view": "See salaries"
+      "salary.view": "See salaries",
+      "salary.extra.view": "View extra pay"
     }
   },
   "settings": {
@@ -759,7 +760,9 @@
     "bot.logo_yoq": "No logo has been set for the bot.",
     "bot.logo_katta": "The logo must not exceed 10 MB.",
     "bot.logo_turi": "Only JPEG, PNG and WebP images are accepted.",
-    "bot.logo_yaroqsiz": "The file is not an image, or it is damaged."
+    "bot.logo_yaroqsiz": "The file is not an image, or it is damaged.",
+    "mehnat.vazifa_emas": "This record is not an additional duty.",
+    "mehnat.vazifa_tugash_sanasi": "The end date cannot be earlier than the duty start date."
   },
   "language": {
     "en": "English",
@@ -956,7 +959,20 @@
     "flagReplaceTitle": "The mark in force will be replaced",
     "flagReplaceText": "This employee currently has the «{{flag}}» mark in force. Only one mark is allowed at a time: if you continue, the old one is closed (not deleted — it stays in the history) and the new one is opened.",
     "flagReplaceUnknown": "This employee already has a mark in force. If you continue, it is closed and the new one is opened.",
-    "flagReplaceConfirm": "Replace"
+    "flagReplaceConfirm": "Replace",
+    "extraPay": "Extra pay",
+    "extraPayHidden": "Extra pay is hidden — permission required",
+    "activeDuty": "Additional duty",
+    "totalPay": "Total (salary + extra pay)",
+    "dutyOngoing": "Ongoing",
+    "dutyEndedOn": "Ended on {{date}}",
+    "dutyEndsOn": "Ends on {{date}}",
+    "dutyEnd": "End",
+    "dutyEndChange": "End date",
+    "dutyEndTitle": "End additional duty",
+    "dutyEndHint": "The duty has been active since {{since}}. From the end date, the duty and its pay no longer count in the card total; the record stays in the history.",
+    "dutyEndDate": "End date",
+    "dutyReopen": "Mark as ongoing"
   },
   "employments": {
     "anyType": "All types",

@@ -18,15 +18,18 @@ public sealed class GetEmploymentQueryHandler
     private readonly IEmploymentRepository _employments;
     private readonly IProbationRepository _probations;
     private readonly EmployeeMapper _mapper;
+    private readonly IClock _clock;
 
     public GetEmploymentQueryHandler(
         IEmploymentRepository employments,
         IProbationRepository probations,
-        EmployeeMapper mapper)
+        EmployeeMapper mapper,
+        IClock clock)
     {
         _employments = employments;
         _probations = probations;
         _mapper = mapper;
+        _clock = clock;
     }
 
     public async Task<Result<EmploymentDetailsDto>> HandleAsync(
@@ -48,7 +51,11 @@ public sealed class GetEmploymentQueryHandler
             .GetByEmploymentAsync(employment.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        var dto = await _mapper.ToDtoAsync(employment, probation, cancellationToken).ConfigureAwait(false);
+        // Hodisalar shu yerda allaqachon yuklangan — faol vazifalar ulardan
+        var today = _clock.Today;
+        var dto = await _mapper
+            .ToDtoAsync(employment, probation, [.. employment.Events.Where(e => e.IsActiveDuty(today))], cancellationToken)
+            .ConfigureAwait(false);
 
         var events = new List<EmploymentEventDto>(employment.Events.Count);
 

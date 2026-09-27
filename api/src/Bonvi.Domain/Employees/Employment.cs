@@ -421,6 +421,44 @@ public sealed class Employment : AggregateRoot, IAuditable, ISoftDeletable
         return Result.Success();
     }
 
+    /// <summary>
+    /// Qo'shimcha vazifani tugatadi (yoki <c>null</c> bilan qayta ochadi).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Vazifa yozuvi O'CHIRILMAYDI — tarixda «falon sanadan falon sanagacha»
+    /// bo'lib qoladi. Tugagan vazifa haqi kartadagi jamiga kirmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Ishdan ketgan xodimda ham ishlaydi</b> — <see cref="EditEvent"/>
+    /// bilan bir xil sabab: arxivdagi yozuv ham to'g'ri bo'lishi kerak.
+    /// </para>
+    /// </remarks>
+    public Result EndAdditionalDuty(Guid eventId, DateOnly? endDate)
+    {
+        var hodisa = _events.FirstOrDefault(item => item.Id == eventId);
+
+        if (hodisa is null)
+        {
+            return Error.NotFound("mehnat_hodisasi.topilmadi", "Mehnat yo'li yozuvi topilmadi.");
+        }
+
+        if (hodisa.Type != EmploymentEventType.AdditionalDuty)
+        {
+            return Error.Validation("mehnat.vazifa_emas", "Bu yozuv qo'shimcha vazifa emas.");
+        }
+
+        if (endDate is { } end && end < hodisa.EffectiveDate)
+        {
+            return Error.Validation(
+                "mehnat.vazifa_tugash_sanasi",
+                "Vazifa tugash sanasi uning boshlangan sanasidan oldin bo'lishi mumkin emas.");
+        }
+
+        hodisa.SetDutyEnd(endDate);
+        return Result.Success();
+    }
+
     /// <summary>Ishdan bo'shatish.</summary>
     public Result Terminate(
         DateOnly terminationDate,

@@ -34,7 +34,24 @@ public sealed record EmploymentDto(
     bool NeedsReview,
     string? ReviewNote,
     int WorkedDays,
-    ProbationDto? Probation);
+    ProbationDto? Probation,
+    // Faol qo'shimcha vazifalar va jami — egasining qarori (2026-09-27):
+    // qo'shimcha haq okladning USTIGA yozilmaydi, unga QO'SHILIB ko'rsatiladi.
+    // Summalar `salary.extra.view` siz `null`; `TotalPay` esa ikkala ruxsat
+    // (oklad va qo'shimcha haq) bo'lsagina va haqli faol vazifa bo'lsagina.
+    IReadOnlyList<EmploymentDutyDto> Duties,
+    MoneyDto? TotalPay);
+
+/// <summary>Hozir davom etayotgan qo'shimcha vazifa — kartadagi oklad ostida.</summary>
+/// <param name="EventId">Vazifa yozuvi (mehnat yo'lida).</param>
+/// <param name="Duty">Vazifa matni.</param>
+/// <param name="Since">Qachondan.</param>
+/// <param name="ExtraPay">Qo'shimcha haq; yo'q yoki ruxsat bo'lmasa <c>null</c>.</param>
+public sealed record EmploymentDutyDto(
+    Guid EventId,
+    string Duty,
+    DateOnly Since,
+    MoneyDto? ExtraPay);
 
 /// <summary>Mehnat yo'lidagi bitta hodisa (buyruq).</summary>
 /// <remarks>
@@ -72,7 +89,8 @@ public sealed record EmploymentEventDto(
     DateTimeOffset RecordedAt,
     DateTimeOffset? UpdatedAt,
     bool IsImported,
-    bool DateLocked);
+    bool DateLocked,
+    DateOnly? DutyEndDate);
 
 /// <summary>
 /// Timeline'ning bitta elementi: hodisa + u qaysi firmadagi ishga tegishli.

@@ -51,6 +51,12 @@ public sealed class GetEmployeeQueryHandler
 
         var cards = new List<EmploymentDto>(employments.Count);
 
+        // Faol qo'shimcha vazifalar — hamma munosabatlar uchun BITTA so'rov
+        // (kartada oklad ostida va «jami» da ko'rinadi).
+        var duties = await _employments
+            .GetActiveDutiesAsync([.. employments.Select(e => e.Id)], _clock.Today, cancellationToken)
+            .ConfigureAwait(false);
+
         // Munosabatlar tartibi: eng yangisi tepada — karta ochilganda HR
         // avvalo hozirgi ishni ko'rishi kerak, arxivni emas.
         foreach (var employment in employments.OrderByDescending(e => e.HireDate).ThenByDescending(e => e.Id))
@@ -62,7 +68,7 @@ public sealed class GetEmployeeQueryHandler
                 .GetByEmploymentAsync(employment.Id, cancellationToken)
                 .ConfigureAwait(false);
 
-            cards.Add(await _mapper.ToDtoAsync(employment, probation, cancellationToken).ConfigureAwait(false));
+            cards.Add(await _mapper.ToDtoAsync(employment, probation, duties, cancellationToken).ConfigureAwait(false));
         }
 
         var flags = await _flags

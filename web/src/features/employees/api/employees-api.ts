@@ -152,6 +152,26 @@ export interface EmploymentSummary {
    */
   probationId: string | null
   needsReview: boolean
+  /**
+   * Hozir davom etayotgan qo'shimcha vazifalar. Egasining qarori
+   * (2026-09-27): qo'shimcha haq okladning ustiga yozilmaydi, kartada unga
+   * QO'SHILIB ko'rsatiladi.
+   */
+  duties: EmploymentDuty[]
+  /**
+   * Oklad + faol qo'shimcha haqlar. `null` — haqli faol vazifa yo'q yoki
+   * ruxsat (oklad VA qo'shimcha haq) yetmaydi.
+   */
+  totalPay: MoneyValue | null
+}
+
+/** Davom etayotgan qo'shimcha vazifa — kartada oklad ostida. */
+export interface EmploymentDuty {
+  eventId: string
+  duty: string
+  since: string
+  /** `null` — haqsiz vazifa yoki `salary.extra.view` yo'q. */
+  extraPay: MoneyValue | null
 }
 
 /** Xodim kartasi — shaxs ma'lumotlari va uning barcha mehnat munosabatlari. */
@@ -239,6 +259,11 @@ export interface TimelineEvent {
    * summa yashirilgani uchun klient buni o'zi bila olmaydi.
    */
   dateLocked: boolean
+  /**
+   * Qo'shimcha vazifa TUGAGAN sana — shu kundan vazifa yo'q. `null` —
+   * davom etmoqda (yoki bu vazifa emas).
+   */
+  dutyEndDate: string | null
   recordedByName: string | null
   legalEntityName: string | null
 }
@@ -820,6 +845,19 @@ function toEmployment(raw: unknown): EmploymentSummary {
     probationId: openProbationId(probation),
     probationEndedByLeaving: probationEndedByLeaving(probation),
     needsReview: bool(box['needsReview']),
+    duties: Array.isArray(box['duties']) ? box['duties'].map(toDuty) : [],
+    totalPay: money(box['totalPay']),
+  }
+}
+
+function toDuty(raw: unknown): EmploymentDuty {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    eventId: text(box['eventId']) ?? '',
+    duty: text(box['duty']) ?? '',
+    since: text(box['since']) ?? '',
+    extraPay: money(box['extraPay']),
   }
 }
 
@@ -921,6 +959,7 @@ function toTimelineEvent(raw: unknown, legalEntityName: string | null): Timeline
     recordedAt: text(box['recordedAt']),
     updatedAt: text(box['updatedAt']),
     dateLocked: bool(box['dateLocked']),
+    dutyEndDate: text(box['dutyEndDate']),
     // Server bu maydonni lentada BERMAYDI (`EmploymentEventDto` da yo'q).
     // `null` — «kim yozgani noma'lum», ekranda u shunday ko'rsatiladi.
     recordedByName: text(box['recordedByName']),
@@ -1471,6 +1510,21 @@ export async function changeSalary(
 }
 
 /** Mehnat yo'lidagi bitta yozuvning terish xatosini tuzatadi. */
+
+/**
+ * Qo'shimcha vazifani tugatish (`endDate`) yoki qayta ochish (`null`).
+ *
+ * Yozuv o'chirilmaydi — tarixda davri bilan qoladi. HAQLI vazifa uchun
+ * server qo'shimcha haqning ruxsatlarini ham talab qiladi.
+ */
+export async function endAdditionalDuty(
+  employmentId: string,
+  eventId: string,
+  endDate: string | null,
+): Promise<void> {
+  await api.put(`/api/employments/${employmentId}/events/${eventId}/duty-end`, { endDate })
+}
+
 export async function editEmploymentEvent(
   employmentId: string,
   eventId: string,

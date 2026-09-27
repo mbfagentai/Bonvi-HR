@@ -491,7 +491,22 @@ Tugma — **«Qo‘shimcha vazifa»**, oyna **«Qo‘shimcha vazifa berish»**.
 - **Vazifa** — **majburiy**. Nima qilishi kerakligini qisqa yozing: buyruqda
   aynan shu matn turadi.
 - **Kuchga kirish sanasi** — majburiy, sukut bugun.
-- **Qo‘shimcha to‘lov** — ixtiyoriy.
+- **Qo‘shimcha to‘lov** — ixtiyoriy. Bu maydon faqat **«Qo‘shimcha haqni
+  ko‘rish»** ruxsati (va oklad o‘zgartirish ruxsati) bor foydalanuvchiga
+  chiqadi.
+
+**Qo‘shimcha haq okladni o‘zgartirmaydi** — u okladga **qo‘shiladi**. Xodim
+kartasida okladdan keyin har bir faol vazifa («Omborga mas’ul · +1 000 000»)
+va **«Jami (oklad + qo‘shimcha haq)»** qatori chiqadi. Qo‘shimcha haqni va
+jamini faqat **«Qo‘shimcha haqni ko‘rish»** ruxsati borlar ko‘radi — bu
+ruxsat «Rollar» bo‘limida alohida belgilanadi (odatda super administrator va
+bosh rahbarda). Boshqalar vazifaning o‘zini ko‘radi, summasini emas.
+
+**Vazifani tugatish.** «Mehnat tarixi» yorlig‘ida vazifa yozuvi yonidagi
+**«Tugatish»** tugmasi: vazifa tugagan sanani kiriting — shu kundan boshlab
+vazifa va uning haqi jamiga kirmaydi, yozuv esa tarixda «… da tugagan» bo‘lib
+qoladi. Xato tugatilgan bo‘lsa, o‘sha oynada **«Davom etmoqda deb
+belgilash»**. Haqli vazifani faqat qo‘shimcha haq ruxsati borlar tugatadi.
 
 >! Bu **o‘rindoshlik emas**. Bu — xodimning mavjud ish doirasidagi qo‘shimcha
 >! yuklama. Boshqa firmadagi ikkinchi ish uchun alohida **ishga qabul** qilinadi

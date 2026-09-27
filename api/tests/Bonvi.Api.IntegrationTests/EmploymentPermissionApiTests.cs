@@ -359,7 +359,7 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
 
         using (var ikkalasi = await MijozAsync(
             Permissions.EmploymentView, Permissions.EmploymentTransfer, Permissions.EmploymentDuty,
-            Permissions.EmploymentSalary))
+            Permissions.EmploymentSalary, Permissions.SalaryExtraView))
         {
             using (var javob = await ikkalasi.PostAsJsonAsync(
                 new Uri($"/api/employments/{urug.EmploymentId}/transfer", UriKind.Relative),
@@ -391,9 +391,19 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
         qulflar[vazifa.Id].ShouldBeTrue("vazifa haqi — pul qarori");
         qulflar[urug.OkladHodisasi].ShouldBeTrue();
 
+        // Oklad ruxsati bor, qo'shimcha haqniki yo'q — vazifa haqi sanasi hamon yopiq
         using (var okladli = await MijozAsync(Permissions.EmploymentView, Permissions.EmploymentSalary))
         {
-            (await QulflarAsync(okladli, urug.XodimId)).Values.ShouldAllBe(qulf => !qulf);
+            var okladQulflari = await QulflarAsync(okladli, urug.XodimId);
+            okladQulflari[urug.OkladHodisasi].ShouldBeFalse();
+            okladQulflari[kochirish.Id].ShouldBeFalse();
+            okladQulflari[vazifa.Id].ShouldBeTrue("qo'shimcha haq — alohida ruxsat (salary.extra.view)");
+        }
+
+        using (var toliqHuquq = await MijozAsync(
+            Permissions.EmploymentView, Permissions.EmploymentSalary, Permissions.SalaryExtraView))
+        {
+            (await QulflarAsync(toliqHuquq, urug.XodimId)).Values.ShouldAllBe(qulf => !qulf);
         }
 
         using (var javob = await YuborAsync(
@@ -434,7 +444,7 @@ public sealed class EmploymentPermissionApiTests : IClassFixture<BonviApiFactory
 
         using var toliq = await MijozAsync(
             Permissions.EmploymentView, Permissions.EmploymentDuty, Permissions.EmploymentCorrect,
-            Permissions.EmploymentSalary);
+            Permissions.EmploymentSalary, Permissions.SalaryExtraView);
 
         using (var javob = await toliq.PostAsJsonAsync(
             new Uri($"/api/employments/{urug.EmploymentId}/additional-duty", UriKind.Relative),

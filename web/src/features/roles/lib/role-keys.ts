@@ -69,4 +69,4 @@ export const ROLE_ACTION_CODES = [
 ] as const
 
 /** Hech qaysi bo'limning darajasiga kirmaydigan alohida ruxsatlar. */
-export const ROLE_EXTRA_CODES = ['salary.view'] as const
+export const ROLE_EXTRA_CODES = ['salary.view', 'salary.extra.view'] as const

@@ -3,6 +3,7 @@ using Bonvi.Application.Employees.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
+using Bonvi.Domain.ValueObjects;
 
 namespace Bonvi.Application.Employees.Common;
 
@@ -118,12 +119,36 @@ public sealed class EmployeeMapper
             probation.NeedsWarning(today));
     }
 
-    public async Task<EmploymentDto> ToDtoAsync(
+    public Task<EmploymentDto> ToDtoAsync(
         Employment employment,
         Probation? probation,
         CancellationToken cancellationToken = default)
+        => ToDtoAsync(employment, probation, [], cancellationToken);
+
+    /// <summary>
+    /// Mehnat munosabati — faol qo'shimcha vazifalari va jami haq bilan.
+    /// </summary>
+    /// <param name="employment">Munosabat.</param>
+    /// <param name="probation">Sinov muddati.</param>
+    /// <param name="activeDuties">
+    /// Shu munosabatning HOZIR davom etayotgan qo'shimcha vazifalari
+    /// (<c>EmploymentEvent.IsActiveDuty</c>). Karta so'rovi ularni alohida
+    /// yuklaydi — munosabat bu yerga hodisalarsiz keladi.
+    /// </param>
+    /// <param name="cancellationToken">Bekor qilish.</param>
+    public async Task<EmploymentDto> ToDtoAsync(
+        Employment employment,
+        Probation? probation,
+        IReadOnlyList<EmploymentEvent> activeDuties,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(employment);
+        ArgumentNullException.ThrowIfNull(activeDuties);
+
+        var duties = activeDuties
+            .Where(duty => duty.EmploymentId == employment.Id)
+            .OrderBy(duty => duty.EffectiveDate)
+            .ToList();
 
         return new EmploymentDto(
             employment.Id,
@@ -152,7 +177,52 @@ public sealed class EmployeeMapper
             employment.NeedsReview,
             employment.ReviewNote,
             employment.WorkedDays(_clock.Today),
-            probation is null ? null : ToDto(probation));
+            probation is null ? null : ToDto(probation),
+            [
+                .. duties.Select(duty => new EmploymentDutyDto(
+                    duty.Id,
+                    duty.Note ?? string.Empty,
+                    duty.EffectiveDate,
+                    _currentUser.MaskExtraPay(duty.ToSalary))),
+            ],
+            TotalPay(employment.Salary, duties));
+    }
+
+    /// <summary>
+    /// Oklad + faol qo'shimcha haqlar — ikkala ruxsat bo'lsagina.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Faqat oklad ruxsati bilan jami ko'rsatilmaydi: jamidan okladni ayirib,
+    /// yopiq qo'shimcha haqni hisoblab olish mumkin edi.
+    /// </para>
+    /// <para>
+    /// Haqli faol vazifa bo'lmasa — <c>null</c> (jami okladning o'zi, uni
+    /// takrorlash ekranni shovqinga to'ldirardi). Valyutasi okladnikidan
+    /// farq qiladigan summa qo'shilmaydi — so'm va dollarni qo'shib bo'lmaydi.
+    /// </para>
+    /// </remarks>
+    private MoneyDto? TotalPay(Money? salary, IReadOnlyList<EmploymentEvent> duties)
+    {
+        if (!_currentUser.CanSeeSalary() || !_currentUser.CanSeeExtraPay())
+        {
+            return null;
+        }
+
+        var currency = salary?.Currency ?? Money.Uzs;
+        var extras = duties
+            .Select(duty => duty.ToSalary)
+            .Where(pay => pay is not null && pay.Currency == currency)
+            .Select(pay => pay!.Amount)
+            .ToList();
+
+        if (extras.Count == 0)
+        {
+            return null;
+        }
+
+        var total = Money.Create((salary?.Amount ?? 0m) + extras.Sum(), currency);
+        return total.IsSuccess ? _currentUser.Mask(total.Value) : null;
     }
 
     public async Task<EmploymentEventDto> ToDtoAsync(
@@ -177,12 +247,35 @@ public sealed class EmployeeMapper
             employmentEvent.ToPositionId,
             await _names.PositionAsync(employmentEvent.ToPositionId, cancellationToken).ConfigureAwait(false),
             _currentUser.Mask(employmentEvent.FromSalary),
-            _currentUser.Mask(employmentEvent.ToSalary),
+
+            // Qo'shimcha vazifadagi summa — okladdan alohida ruxsat bilan
+            employmentEvent.Type == EmploymentEventType.AdditionalDuty
+                ? _currentUser.MaskExtraPay(employmentEvent.ToSalary)
+                : _currentUser.Mask(employmentEvent.ToSalary),
             employmentEvent.Note,
             employmentEvent.RecordedAt,
             employmentEvent.UpdatedAt,
             employmentEvent.IsImported,
-            employmentEvent.IsPayDecision && !_currentUser.HasPermission(Permissions.EmploymentSalary));
+            DateLocked(employmentEvent),
+            employmentEvent.DutyEndDate);
+    }
+
+    /// <summary>So'rovchi shu yozuvning sanasini tuzata olmaydimi.</summary>
+    /// <remarks>
+    /// Pul qarori — <c>employment.salary</c>; qo'shimcha vazifa haqi esa
+    /// undan tashqari <c>salary.extra.view</c> ni ham talab qiladi
+    /// (<c>SalaryAccess.EnsureCanSendExtraPay</c>).
+    /// </remarks>
+    private bool DateLocked(EmploymentEvent employmentEvent)
+    {
+        if (!employmentEvent.IsPayDecision)
+        {
+            return false;
+        }
+
+        return employmentEvent.Type == EmploymentEventType.AdditionalDuty
+            ? _currentUser.EnsureCanSendExtraPay(amountSent: true).IsFailure
+            : !_currentUser.HasPermission(Permissions.EmploymentSalary);
     }
 
     /// <summary>

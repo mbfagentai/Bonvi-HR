@@ -122,7 +122,13 @@ public sealed class ListEmploymentEventsQueryHandler
             row.FromPosition,
             row.ToPosition,
             Salary(row.FromSalaryAmount, row.FromSalaryCurrency),
-            Salary(row.ToSalaryAmount, row.ToSalaryCurrency),
+
+            // Qo'shimcha vazifadagi summa — okladdan alohida ruxsat bilan
+            // (`salary.extra.view`): aks holda buyruqlar ro'yxati uni
+            // ochib beradigan yo'l bo'lib qolardi.
+            row.Type == EmploymentEventType.AdditionalDuty && !_currentUser.CanSeeExtraPay()
+                ? null
+                : Salary(row.ToSalaryAmount, row.ToSalaryCurrency),
             row.Note,
             row.IsImported);
 

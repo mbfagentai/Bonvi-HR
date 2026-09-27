@@ -66,6 +66,7 @@ internal static class EmployeeRegistration
         services.AddScoped<ListEmploymentEventsQueryHandler>();
         services.AddScoped<TransferEmployeeCommandHandler>();
         services.AddScoped<AddAdditionalDutyCommandHandler>();
+        services.AddScoped<EndAdditionalDutyCommandHandler>();
         services.AddScoped<ChangeSalaryCommandHandler>();
         services.AddScoped<EditEmploymentEventCommandHandler>();
         services.AddScoped<TerminateEmploymentCommandHandler>();

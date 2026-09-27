@@ -12,12 +12,13 @@ import {
   useAdditionalDuty,
   useChangeSalary,
   useEditEmploymentEvent,
+  useEndAdditionalDuty,
   useFilterOptions,
   useTerminate,
   useTransfer,
 } from '../api/employees-queries'
 import { employeeErrorCode, terminationWarning } from '../lib/employee-error'
-import { EMPLOYMENT_SALARY } from '../lib/employee-presentation'
+import { EMPLOYMENT_SALARY, SALARY_EXTRA_VIEW } from '../lib/employee-presentation'
 
 /**
  * Buyruq maydonlari — to'rtala oynada bir xil.
@@ -249,11 +250,12 @@ export function AdditionalDutyDialog({
   const { hasPermission } = useAuth()
 
   /*
-    Ustama — PUL QOIDASI bo'yicha (`EMPLOYMENT_SALARY` izohi): oklad
-    huquqisiz odamga maydon chizilmaydi va summa yuborilmaydi. Aks holda
+    Ustama — PUL QOIDASI bo'yicha (`EMPLOYMENT_SALARY` izohi) VA qo'shimcha
+    haqning alohida ruxsati bilan (`SALARY_EXTRA_VIEW` izohi, 2026-09-27):
+    ruxsatsiz odamga maydon chizilmaydi va summa yuborilmaydi. Aks holda
     server vazifaning o'zini ham 403 bilan rad etardi.
   */
-  const canSetSalary = hasPermission(EMPLOYMENT_SALARY)
+  const canSetSalary = hasPermission(EMPLOYMENT_SALARY) && hasPermission(SALARY_EXTRA_VIEW)
 
   const [text, setText] = useState('')
   const [effectiveDate, setEffectiveDate] = useState(todayIso)
@@ -565,6 +567,99 @@ export function EmploymentEventEditDialog({
         onChange={(event_) => setNote(event_.target.value)}
       />
     </ActionDialog>
+  )
+}
+
+/* ═══════════════════════════════════════ Qo'shimcha vazifani tugatish */
+
+/**
+ * Qo'shimcha vazifani tugatish — yoki tugatilganini bekor qilish.
+ *
+ * Yozuv O'CHIRILMAYDI: mehnat yo'lida «falon sanadan falon sanagacha»
+ * bo'lib qoladi, tugagan vazifa haqi esa kartadagi jamiga kirmaydi
+ * (egasining qarori, 2026-09-27). Sana — vazifa BO'LMAGAN birinchi kun
+ * (buyruqdagi «falon sanadan boshlab vazifa olinsin»).
+ */
+export function EndDutyDialog({
+  employeeId,
+  event,
+  onClose,
+}: {
+  employeeId: string
+  event: TimelineEvent | null
+  onClose: () => void
+}) {
+  const { t, date } = useLocale()
+  const errorMessage = useErrorMessage()
+  const end = useEndAdditionalDuty(employeeId, event?.id ?? '')
+
+  const [endDate, setEndDate] = useState(todayIso)
+
+  useEffect(() => {
+    if (event === null) return
+
+    setEndDate(event.dutyEndDate ?? todayIso())
+    end.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event])
+
+  if (event === null) return null
+
+  const save = (value: string | null) =>
+    end.mutate({ employmentId: event.employmentId, body: { endDate: value } }, { onSuccess: onClose })
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      dismissible={!end.isPending}
+      title={t('employees.dutyEndTitle')}
+      description={event.note ?? undefined}
+      footer={
+        <>
+          {/* Tugatilgan vazifani qayta ochish — xato bosilgan tugatishni qaytarish */}
+          {event.dutyEndDate !== null && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => save(null)}
+              disabled={end.isPending}
+              className="mr-auto"
+            >
+              {t('employees.dutyReopen')}
+            </Button>
+          )}
+
+          <Button type="button" variant="ghost" onClick={onClose} disabled={end.isPending}>
+            {t('common.cancel')}
+          </Button>
+
+          <Button
+            type="button"
+            onClick={() => save(endDate)}
+            disabled={end.isPending || endDate === ''}
+          >
+            {end.isPending && <LoaderCircle className="animate-spin" />}
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {end.isError && <Alert tone="danger">{errorMessage(employeeErrorCode(end.error))}</Alert>}
+
+        <p className="text-footnote text-[var(--fg-secondary)]">
+          {t('employees.dutyEndHint', { since: date(event.effectiveDate) })}
+        </p>
+
+        <DateField
+          label={t('employees.dutyEndDate')}
+          value={endDate}
+          min={event.effectiveDate}
+          onChange={setEndDate}
+        />
+      </div>
+    </Dialog>
   )
 }
 

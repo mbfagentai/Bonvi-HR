@@ -121,7 +121,7 @@ public sealed class PermissionCatalogTests
             "recruiting", "catalog", "reports", "users", "roles", "audit", "settings",
         ]);
 
-        PermissionCatalog.Extras.ShouldBe([Permissions.SalaryView]);
+        PermissionCatalog.Extras.ShouldBe([Permissions.SalaryView, Permissions.SalaryExtraView]);
     }
 
     private static PermissionModule Bolim(string key)

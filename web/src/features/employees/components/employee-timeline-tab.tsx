@@ -1,13 +1,20 @@
-import { ArrowRight, FileClock, History, Import, Pencil } from 'lucide-react'
+import { ArrowRight, CircleStop, FileClock, History, Import, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { todayIso } from '@/shared/lib/today'
 import { Badge, Button, Card, CardContent, EmptyState, IconTile, Skeleton } from '@/shared/ui'
 import type { MoneyValue, TimelineEvent } from '../api/employees-api'
-import { EMPLOYMENT_SALARY, EVENT_LOOK, SALARY_VIEW } from '../lib/employee-presentation'
-import { EmploymentEventEditDialog } from './employment-dialogs'
+import {
+  EMPLOYMENT_DUTY,
+  EMPLOYMENT_SALARY,
+  EVENT_LOOK,
+  SALARY_EXTRA_VIEW,
+  SALARY_VIEW,
+} from '../lib/employee-presentation'
+import { EmploymentEventEditDialog, EndDutyDialog } from './employment-dialogs'
 
 /**
  * ⭐ Mehnat tarixi — butun mehnat yo'li bitta vertikal lentada.
@@ -44,7 +51,10 @@ export function EmployeeTimelineTab({
 
   /** Tuzatilayotgan yozuv — `null` bo'lsa oyna yopiq. */
   const [editing, setEditing] = useState<TimelineEvent | null>(null)
+  /** Tugatilayotgan qo'shimcha vazifa — `null` bo'lsa oyna yopiq. */
+  const [ending, setEnding] = useState<TimelineEvent | null>(null)
   const { hasPermission } = useAuth()
+  const canDuty = hasPermission(EMPLOYMENT_DUTY)
 
   /** Yil bo'yicha guruhlab, har birining ichida sana bo'yicha kamayish tartibida. */
   const groups = useMemo(() => {
@@ -121,6 +131,13 @@ export function EmployeeTimelineTab({
                   event={event}
                   canCorrect={canCorrect}
                   onEdit={() => setEditing(event)}
+                  /*
+                    Vazifani tugatish — `employment.duty`. HAQLI vazifani esa
+                    qo'shimcha haqning ruxsatlarisiz tugatib bo'lmaydi: server
+                    buni `dateLocked` bilan aytadi (summa yashirin bo'lsa ham).
+                  */
+                  canEndDuty={canDuty && !event.dateLocked}
+                  onEndDuty={() => setEnding(event)}
                 />
               ))}
             </ol>
@@ -134,6 +151,8 @@ export function EmployeeTimelineTab({
         canEditSalary={hasPermission(SALARY_VIEW) && hasPermission(EMPLOYMENT_SALARY)}
         onClose={() => setEditing(null)}
       />
+
+      <EndDutyDialog employeeId={employeeId} event={ending} onClose={() => setEnding(null)} />
     </Card>
   )
 }
@@ -142,14 +161,27 @@ function TimelineRow({
   event,
   canCorrect,
   onEdit,
+  canEndDuty,
+  onEndDuty,
 }: {
   event: TimelineEvent
   canCorrect: boolean
   onEdit: () => void
+  canEndDuty: boolean
+  onEndDuty: () => void
 }) {
-  const { t, date, dateTime } = useLocale()
+  const { t, date, dateTime, money } = useLocale()
   const { hasPermission } = useAuth()
   const canSeeSalary = hasPermission(SALARY_VIEW)
+  const canSeeExtra = hasPermission(SALARY_EXTRA_VIEW)
+
+  /*
+    Qo'shimcha vazifa — o'z qoidasi bilan: summasi OKLAD emas, qo'shimcha
+    haq (alohida ruxsat), va uning DAVRI bor (tugaguncha kartadagi jamiga
+    kiradi). Egasining qarori, 2026-09-27.
+  */
+  const isDuty = event.type === 'additionalDuty'
+  const dutyEnded = isDuty && event.dutyEndDate !== null && event.dutyEndDate <= todayIso()
 
   const look = EVENT_LOOK[event.type]
 
@@ -196,7 +228,33 @@ function TimelineRow({
               {t('employees.eventEditTitle')}
             </Button>
           )}
+
+          {isDuty && canEndDuty && (
+            <Button type="button" size="sm" variant="ghost" onClick={onEndDuty} className="-my-1">
+              <CircleStop />
+              {event.dutyEndDate === null ? t('employees.dutyEnd') : t('employees.dutyEndChange')}
+            </Button>
+          )}
         </div>
+
+        {/* Vazifa davri — «davom etmoqda» yoki «falon sanada tugagan» */}
+        {isDuty && (
+          <p className="mt-1">
+            {dutyEnded ? (
+              <Badge tone="neutral" size="sm">
+                {t('employees.dutyEndedOn', { date: date(event.dutyEndDate ?? '') })}
+              </Badge>
+            ) : event.dutyEndDate !== null ? (
+              <Badge tone="warning" size="sm">
+                {t('employees.dutyEndsOn', { date: date(event.dutyEndDate) })}
+              </Badge>
+            ) : (
+              <Badge tone="success" size="sm">
+                {t('employees.dutyOngoing')}
+              </Badge>
+            )}
+          </p>
+        )}
 
         <p className="tabular mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption1 text-[var(--fg-secondary)]">
           <span>{date(event.effectiveDate)}</span>
@@ -223,8 +281,22 @@ function TimelineRow({
           />
 
           {/* ⚠️ Oklad o'zgarishi ruxsatsiz ko'rinmaydi. Hodisaning O'ZI
-              ko'rinadi (u mehnat yo'lining bir qismi), faqat summalar yashiriladi */}
-          {canSeeSalary ? (
+              ko'rinadi (u mehnat yo'lining bir qismi), faqat summalar yashiriladi.
+              Qo'shimcha vazifaning summasi — OKLAD emas, alohida ruxsatli
+              qo'shimcha haq; u «oklad →» bo'lib emas, o'z nomi bilan chiqadi */}
+          {isDuty ? (
+            event.toSalary !== null ? (
+              <p className="text-caption1">
+                <span className="text-[var(--fg-tertiary)]">{t('employees.extraPay')}: </span>
+                <span className="tabular font-medium">+{money(event.toSalary.amount, event.toSalary.currency)}</span>
+              </p>
+            ) : (
+              !canSeeExtra &&
+              event.dateLocked && (
+                <p className="text-caption1 text-[var(--fg-tertiary)]">{t('employees.extraPayHidden')}</p>
+              )
+            )
+          ) : canSeeSalary ? (
             <MoneyChange
               label={t('employee.salary')}
               from={event.fromSalary}

@@ -279,6 +279,7 @@ each card renders only when its endpoint's code is present.
 |---|---|---|---|---|---|---|
 | `employees.personal.view` | employees | Visibility | View | Edit, Full | — | Shaxsiy ma’lumotlar |
 | `salary.view` | employment | Visibility | View | Full | — | Okladni ko‘rish |
+| `salary.extra.view` | employment | Visibility | View | Full | — | Qo‘shimcha haqni ko‘rish (2026-09-27: additional-duty pay and the card total; also required, together with `employment.salary`, to send, correct, date-move or end a paid duty) |
 | `employment.hire` | employment | Operation | Edit | Full | module `employees` ≥ Edit | Ishga qabul |
 | `employment.transfer` | employment | Operation | Edit | Full | — | Ko‘chirish (lavozim, bo‘lim) |
 | `employment.duty` | employment | Operation | Edit | Full | — | Qo‘shimcha vazifa |
@@ -496,6 +497,9 @@ extra.
 ### 3.10 Field-level rules
 
 **Salary** — unchanged mechanism: `SalaryAccess.Mask` (`salary.view`).
+**Additional-duty pay** (2026-09-27) — `SalaryAccess.MaskExtraPay`
+(`salary.extra.view`), separate from the base salary: the timeline, the orders
+list, and the card's active duties and total (`EmploymentDto.Duties`/`TotalPay`).
 
 **Personal data (`employees.personal.view`)** — implemented in phase P1, server
 side, one mapping point per DTO, never per screen. Without the capability:

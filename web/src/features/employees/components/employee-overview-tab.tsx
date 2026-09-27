@@ -405,6 +405,31 @@ function EmploymentCard({
             value={money(employment.salary.amount, employment.salary.currency)}
           />
         )}
+
+        {/*
+          Faol qo'shimcha vazifalar — okladning USTIGA yozilmaydi, unga QO'SHILIB
+          ko'rsatiladi (egasining qarori, 2026-09-27). Vazifaning o'zi hammaga
+          ko'rinadi; haqi — faqat `salary.extra.view` bilan (server yashiradi).
+        */}
+        {employment.duties.map((duty) => (
+          <MiniRow
+            key={duty.eventId}
+            label={t('employees.activeDuty')}
+            value={
+              duty.extraPay === null
+                ? duty.duty
+                : `${duty.duty} · +${money(duty.extraPay.amount, duty.extraPay.currency)}`
+            }
+          />
+        ))}
+
+        {/* Jami — ikkala ruxsat bo'lsa va haqli faol vazifa bo'lsagina keladi */}
+        {employment.totalPay !== null && (
+          <MiniRow
+            label={t('employees.totalPay')}
+            value={money(employment.totalPay.amount, employment.totalPay.currency)}
+          />
+        )}
       </dl>
 
       {/*

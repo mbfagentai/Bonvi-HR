@@ -152,6 +152,32 @@ public sealed class EmploymentEvent : Entity
     public string? Note { get; private set; }
 
     /// <summary>
+    /// Qo'shimcha vazifa TUGAGAN sana — shu kundan boshlab vazifa (va uning
+    /// haqi) yo'q. <c>null</c> — davom etmoqda. Boshqa turdagi hodisada doim
+    /// <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// Ilgari vazifaning tugashi umuman yozilmasdi (Excel'dagi «91.4» varag'ida
+    /// ham shunday edi) — ya'ni tizim qaysi qo'shimcha haq hozir to'lanayotganini
+    /// bilmasdi. Egasining qarori (2026-09-27): qo'shimcha haq okladning USTIGA
+    /// yozilmaydi, kartada unga QO'SHILIB ko'rsatiladi — buning uchun esa
+    /// qaysi vazifa hali davom etayotgani ma'lum bo'lishi shart.
+    /// </remarks>
+    public DateOnly? DutyEndDate { get; private set; }
+
+    /// <summary>
+    /// Qo'shimcha vazifa shu kunda amalda bormi: boshlangan va hali tugamagan.
+    /// </summary>
+    /// <remarks>
+    /// Tugash sanasining O'ZIDA vazifa yo'q (<see cref="DutyEndDate"/> izohi) —
+    /// buyruqdagi «falon sanadan boshlab vazifa olinsin» degan ma'no.
+    /// </remarks>
+    public bool IsActiveDuty(DateOnly day)
+        => Type == EmploymentEventType.AdditionalDuty
+           && EffectiveDate <= day
+           && (DutyEndDate is null || DutyEndDate > day);
+
+    /// <summary>
     /// Ishga qabul rekrutingdan kelgan bo'lsa — o'sha nomzod (2-bosqich).
     /// </summary>
     /// <remarks>
@@ -250,6 +276,14 @@ public sealed class EmploymentEvent : Entity
     /// ildizi hisoblay oladi (<c>Employment.EditEvent</c>).
     /// </para>
     /// </remarks>
+    /// <summary>Qo'shimcha vazifaning tugash sanasini qo'yadi yoki olib tashlaydi.</summary>
+    /// <remarks>Tekshiruvlar agregat ildizida (<c>Employment.EndAdditionalDuty</c>).</remarks>
+    internal void SetDutyEnd(DateOnly? endDate)
+    {
+        DutyEndDate = endDate;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     internal void Edit(
         DateOnly effectiveDate,
         string? orderNo,

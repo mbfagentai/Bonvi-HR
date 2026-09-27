@@ -83,6 +83,10 @@ public sealed record EditEmploymentEventRequest(
     DateOnly? OrderDate = null,
     string? Note = null);
 
+/// <summary>Qo'shimcha vazifani tugatish so'rovi tanasi.</summary>
+/// <param name="EndDate">Vazifa tugagan sana; <c>null</c> — vazifa davom etmoqda (qayta ochish).</param>
+public sealed record EndAdditionalDutyRequest(DateOnly? EndDate = null);
+
 /// <summary>Ishdan bo'shatish so'rovi tanasi.</summary>
 /// <param name="TerminationDate">Ketish sanasi. Bo'sh bo'lsa — bugun.</param>
 /// <param name="ReasonId">Ketish sababi (ma'lumotnomadan).</param>
@@ -404,6 +408,35 @@ public static class EmploymentEndpoints
             .Produces<EmploymentChangeDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/{id:guid}/events/{eventId:guid}/duty-end", async (
+                Guid id,
+                Guid eventId,
+                EndAdditionalDutyRequest request,
+                EndAdditionalDutyCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new EndAdditionalDutyCommand(id, eventId, request.EndDate), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.EmploymentDuty)
+            .WithName("EndAdditionalDuty")
+            .WithSummary("Qo'shimcha vazifani tugatish")
+            .WithDescription(
+                "Vazifa yozuvi O'CHIRILMAYDI — unga tugash sanasi qo'yiladi va u tarixda " +
+                "«falon sanadan falon sanagacha» bo'lib qoladi. Shu kundan boshlab vazifa " +
+                "(va uning qo'shimcha haqi) kartadagi jamiga kirmaydi. «endDate»: null — " +
+                "vazifani qayta ochish (davom etmoqda). Ruxsat: «employment.duty»; HAQLI " +
+                "vazifa uchun qo'shimcha «employment.salary» va «salary.extra.view» — aks " +
+                "holda «auth.ruxsat_yoq» (403). Xatolar: «mehnat_hodisasi.topilmadi» (404), " +
+                "«mehnat.vazifa_emas», «mehnat.vazifa_tugash_sanasi» (400).")
+            .Produces<EmploymentEventDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPut("/{id:guid}/events/{eventId:guid}", async (
                 Guid id,

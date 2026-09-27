@@ -118,6 +118,16 @@ public static class EmployeeErrors
             "Oklad summasini yuborish uchun «employment.salary» ruxsati kerak.");
 
     /// <summary>
+    /// Qo'shimcha vazifa haqi yuborildi, lekin <c>employment.salary</c> yoki
+    /// <c>salary.extra.view</c> yo'q.
+    /// </summary>
+    /// <remarks>Kod umumiy <c>auth.ruxsat_yoq</c> — <see cref="SalaryPermissionRequired"/> bilan bir xil sabab.</remarks>
+    public static Error ExtraPayPermissionRequired { get; } =
+        Error.Forbidden(
+            "auth.ruxsat_yoq",
+            "Qo'shimcha haq uchun «employment.salary» va «salary.extra.view» ruxsatlari kerak.");
+
+    /// <summary>
     /// Sinov yakunida yangi lavozim yoki bo'lim yuborildi, lekin
     /// <c>employment.transfer</c> ruxsati yo'q.
     /// </summary>

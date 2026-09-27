@@ -113,6 +113,26 @@ public static class Permissions
     /// </summary>
     public const string SalaryView = "salary.view";
 
+    /// <summary>
+    /// Qo'shimcha vazifa HAQINI ko'rish va boshqarish — asosiy okladdan ALOHIDA.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Egasining qarori (2026-09-27): asosiy okladni HR xodimlari
+    /// (<see cref="SalaryView"/>) ko'radi, qo'shimcha vazifa uchun to'lanadigan
+    /// haqni esa hatto HR menejerlari ham ko'rmasligi mumkin — u odatda
+    /// faqat super administrator va bosh rahbarga beriladi. Shu sababli
+    /// qo'shimcha haq alohida kalit va u «Rollar» muharririda alohida belgilanadi.
+    /// </para>
+    /// <para>
+    /// Ruxsatsiz foydalanuvchi vazifani KO'RADI (matni, sanasi) va haqsiz
+    /// vazifa bera oladi, lekin summani ko'rmaydi, kirita olmaydi va haqli
+    /// vazifani tugata olmaydi. Kartadagi «jami» ham unga ko'rinmaydi —
+    /// jamidan okladni ayirib, qo'shimcha haqni hisoblab olish mumkin edi.
+    /// </para>
+    /// </remarks>
+    public const string SalaryExtraView = "salary.extra.view";
+
     // ---------- Ro'yxatlar va teglar ----------
     public const string ListsView = "lists.view";
     public const string ListsManage = "lists.manage";
@@ -237,7 +257,7 @@ public static class Permissions
         EmploymentView,
         EmploymentHire, EmploymentTransfer, EmploymentDuty, EmploymentSalary,
         EmploymentTerminate, EmploymentProbationExtend, EmploymentProbationComplete, EmploymentCorrect,
-        SalaryView,
+        SalaryView, SalaryExtraView,
         ListsView, ListsManage,
         IncentivesView, IncentivesManage,
         FeedbackView, FeedbackManage,

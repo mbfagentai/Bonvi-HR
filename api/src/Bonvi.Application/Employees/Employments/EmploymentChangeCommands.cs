@@ -233,8 +233,9 @@ public sealed class AddAdditionalDutyCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        // Qo'shimcha vazifa uchun to'lov ham oklad o'zgarishi (pul qoidasi).
-        var salaryAllowed = _currentUser.EnsureCanSendSalary(command.ExtraSalaryAmount is not null);
+        // Qo'shimcha vazifa uchun to'lov — pul qoidasi va undan tashqari
+        // qo'shimcha haqning alohida ruxsati (`salary.extra.view`, 2026-09-27).
+        var salaryAllowed = _currentUser.EnsureCanSendExtraPay(command.ExtraSalaryAmount is not null);
         if (salaryAllowed.IsFailure)
         {
             return salaryAllowed.Error;
@@ -449,6 +450,18 @@ public sealed class EditEmploymentEventCommandHandler
             return dateAllowed.Error;
         }
 
+        // Qo'shimcha vazifa haqining summasi yoki sanasi — qo'shimcha haqning
+        // alohida ruxsati bilan (`salary.extra.view`): ko'rolmaydigan summani
+        // o'zgartirib bo'lmaydi.
+        if (target is { Type: EmploymentEventType.AdditionalDuty })
+        {
+            var extraAllowed = _currentUser.EnsureCanSendExtraPay(command.Amount is not null || salaryDateMoved);
+            if (extraAllowed.IsFailure)
+            {
+                return extraAllowed.Error;
+            }
+        }
+
         var edited = employment.EditEvent(
             command.EventId,
             effectiveDate,
@@ -473,6 +486,76 @@ public sealed class EditEmploymentEventCommandHandler
 
         var hodisa = employment.Events.First(item => item.Id == command.EventId);
 
+        return Result.Success(await _mapper.ToDtoAsync(hodisa, cancellationToken).ConfigureAwait(false));
+    }
+}
+
+/// <summary>Qo'shimcha vazifani tugatish (yoki <c>null</c> bilan qayta ochish).</summary>
+/// <param name="EmploymentId">Mehnat munosabati.</param>
+/// <param name="EventId">Vazifa yozuvi.</param>
+/// <param name="EndDate">Vazifa tugagan sana — shu kundan vazifa yo'q. <c>null</c> — davom etmoqda.</param>
+public sealed record EndAdditionalDutyCommand(Guid EmploymentId, Guid EventId, DateOnly? EndDate);
+
+/// <summary>
+/// Qo'shimcha vazifani tugatadi — tugagan vazifa haqi kartadagi jamiga kirmaydi.
+/// </summary>
+/// <remarks>
+/// Ruxsat — vazifa berish bilan bir xil (<c>employment.duty</c>, endpoint'da).
+/// HAQLI vazifani tugatish esa to'lanadigan pulni o'zgartiradi, shu sababli
+/// u qo'shimcha haqning ruxsatlarini ham talab qiladi
+/// (<c>SalaryAccess.EnsureCanSendExtraPay</c>).
+/// </remarks>
+public sealed class EndAdditionalDutyCommandHandler
+{
+    private readonly IEmploymentRepository _employments;
+    private readonly EmployeeMapper _mapper;
+    private readonly ICurrentUser _currentUser;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public EndAdditionalDutyCommandHandler(
+        IEmploymentRepository employments,
+        EmployeeMapper mapper,
+        ICurrentUser currentUser,
+        IUnitOfWork unitOfWork)
+    {
+        _employments = employments;
+        _mapper = mapper;
+        _currentUser = currentUser;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result<EmploymentEventDto>> HandleAsync(
+        EndAdditionalDutyCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var employment = await _employments
+            .GetWithEventsAsync(command.EmploymentId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (employment is null)
+        {
+            return EmployeeErrors.EmploymentNotFound;
+        }
+
+        var target = employment.Events.FirstOrDefault(item => item.Id == command.EventId);
+
+        var extraAllowed = _currentUser.EnsureCanSendExtraPay(target is { IsPayDecision: true });
+        if (extraAllowed.IsFailure)
+        {
+            return extraAllowed.Error;
+        }
+
+        var ended = employment.EndAdditionalDuty(command.EventId, command.EndDate);
+        if (ended.IsFailure)
+        {
+            return ended.Error;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        var hodisa = employment.Events.First(item => item.Id == command.EventId);
         return Result.Success(await _mapper.ToDtoAsync(hodisa, cancellationToken).ConfigureAwait(false));
     }
 }

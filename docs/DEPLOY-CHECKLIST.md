@@ -281,3 +281,15 @@ COMMIT;
 ⚠️ Rollback paytida eski interfeys yangi versiyada yuklangan materiallarni
 KO'RMAYDI (u faqat bitta skrinshotni biladi) — ular yo'qolmagan, qayta
 chiqqach yana ko'rinadi.
+
+## Qo'shimcha haq alohida ruxsat bilan (2026-09-27) — migratsiya `QoshimchaVazifaTugashi`
+
+- Migratsiya faqat bitta bo'sh ustun qo'shadi (`employment_events.duty_end_date`).
+  Eski image bu ustunni bilmaydi va unga tegmaydi — image rollback xavfsiz.
+- ⚠️ **XATTI-HARAKAT O'ZGARADI:** qo'shimcha vazifa HAQI endi alohida
+  `salary.extra.view` ruxsati bilan ko'rinadi. HR menejerlarida u YO'Q —
+  deploy'dan keyin ular vazifa summalarini ko'rmay qoladi (egasining qarori).
+- **Deploy'dan keyin egasi:** «Rollar» → «Bosh rahbar» → «Qo'shimcha haqni
+  ko'rish» ni belgilaydi. Super administratorga u avtomatik tushadi (seeder
+  uni har ishga tushishda `Permissions.All` ga tenglaydi).
+

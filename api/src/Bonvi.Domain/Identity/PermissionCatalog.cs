@@ -75,9 +75,10 @@ public static class PermissionCatalog
     /// <remarks>
     /// <see cref="Permissions.SalaryView"/> — oklad xodim kartasida ham,
     /// buyruqlarda ham, eksportda ham ko'rinadi, ya'ni u bitta bo'limning
-    /// darajasi emas, ko'rinish bayrog'i.
+    /// darajasi emas, ko'rinish bayrog'i. <see cref="Permissions.SalaryExtraView"/>
+    /// — xuddi shunday, qo'shimcha vazifa haqi uchun (2026-09-27).
     /// </remarks>
-    public static IReadOnlyList<string> Extras { get; } = [Permissions.SalaryView];
+    public static IReadOnlyList<string> Extras { get; } = [Permissions.SalaryView, Permissions.SalaryExtraView];
 
     /// <summary>
     /// Bo'lim yig'uvchisi: har bir daraja faqat O'ZI QO'SHADIGAN kodlarni

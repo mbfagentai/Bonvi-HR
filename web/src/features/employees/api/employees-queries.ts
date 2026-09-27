@@ -28,6 +28,7 @@ import {
   addAdditionalDuty,
   changeSalary,
   editEmploymentEvent,
+  endAdditionalDuty,
   closeFlag,
   createFlag,
   deleteEmployeePhoto,
@@ -545,6 +546,19 @@ export function useEditEmploymentEvent(employeeId: string, eventId: string) {
   return useEmploymentChange<EditEmploymentEventRequest>(
     employeeId,
     (employmentId, body) => editEmploymentEvent(employmentId, eventId, body),
+  )
+}
+
+/**
+ * Qo'shimcha vazifani tugatish yoki qayta ochish.
+ *
+ * `useEmploymentChange` dan — bekor qilinadigan joylar AYNAN o'sha: karta
+ * (faol vazifalar va jami) va mehnat yo'li (vazifa davri).
+ */
+export function useEndAdditionalDuty(employeeId: string, eventId: string) {
+  return useEmploymentChange<{ endDate: string | null }>(
+    employeeId,
+    (employmentId, body) => endAdditionalDuty(employmentId, eventId, body.endDate),
   )
 }
 

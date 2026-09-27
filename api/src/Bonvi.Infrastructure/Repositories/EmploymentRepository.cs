@@ -39,6 +39,36 @@ public sealed class EmploymentRepository : Repository<Employment>, IEmploymentRe
 
     /// <inheritdoc />
     /// <remarks>
+    /// Shart <see cref="EmploymentEvent.IsActiveDuty"/> bilan AYNAN bir xil —
+    /// SQL'ga tarjima qilinishi uchun bu yerda ochib yozilgan. So'rov
+    /// <c>(employment_id, effective_date)</c> indeksiga tushadi.
+    /// </remarks>
+    public async Task<IReadOnlyList<EmploymentEvent>> GetActiveDutiesAsync(
+        IReadOnlyCollection<Guid> employmentIds,
+        DateOnly day,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(employmentIds);
+
+        if (employmentIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await Context.Set<EmploymentEvent>()
+            .AsNoTracking()
+            .Where(item =>
+                employmentIds.Contains(item.EmploymentId) &&
+                item.Type == EmploymentEventType.AdditionalDuty &&
+                item.EffectiveDate <= day &&
+                (item.DutyEndDate == null || item.DutyEndDate > day))
+            .OrderBy(item => item.EffectiveDate)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// «Faol» — hali yakunlanmagan, ya'ni sinovda yoki doimiy. Holat bo'yicha
     /// tekshiriladi, sana bo'yicha emas: ishdan bo'shatish sanasi kelajakka
     /// qo'yilgan bo'lishi mumkin (buyruq oldindan chiqadi), lekin xodim o'sha

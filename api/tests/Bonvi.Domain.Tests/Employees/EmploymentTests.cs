@@ -301,6 +301,42 @@ public sealed class EmploymentTests
     }
 
     [Fact]
+    public void Qoshimcha_vazifa_tugaguncha_faol_tugash_kunidan_yoq()
+    {
+        var m = YaratilganMunosabat();
+        m.AddAdditionalDuty(new DateOnly(2026, 6, 1), "Omborga mas'ul", Money.Create(1_000_000m).Value);
+        var vazifa = m.Events[^1];
+
+        vazifa.IsActiveDuty(new DateOnly(2026, 5, 31)).ShouldBeFalse("hali boshlanmagan");
+        vazifa.IsActiveDuty(new DateOnly(2026, 6, 1)).ShouldBeTrue();
+
+        m.EndAdditionalDuty(vazifa.Id, new DateOnly(2026, 9, 1)).IsSuccess.ShouldBeTrue();
+
+        vazifa.DutyEndDate.ShouldBe(new DateOnly(2026, 9, 1));
+        vazifa.IsActiveDuty(new DateOnly(2026, 8, 31)).ShouldBeTrue();
+        vazifa.IsActiveDuty(new DateOnly(2026, 9, 1)).ShouldBeFalse("tugash kunining o'zida vazifa yo'q");
+        m.Salary.ShouldBeNull("vazifani tugatish okladga tegmaydi");
+
+        // Qayta ochish
+        m.EndAdditionalDuty(vazifa.Id, null).IsSuccess.ShouldBeTrue();
+        vazifa.IsActiveDuty(new DateOnly(2027, 1, 1)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Vazifa_bolmagan_yozuv_yoki_oldingi_sana_bilan_tugatilmaydi()
+    {
+        var m = YaratilganMunosabat();
+        m.AddAdditionalDuty(new DateOnly(2026, 6, 1), "Navbatchilik");
+        var vazifa = m.Events[^1];
+
+        m.EndAdditionalDuty(m.Events[0].Id, new DateOnly(2026, 9, 1)).Error.Code.ShouldBe("mehnat.vazifa_emas");
+        m.EndAdditionalDuty(vazifa.Id, new DateOnly(2026, 5, 31)).Error.Code.ShouldBe("mehnat.vazifa_tugash_sanasi");
+        m.EndAdditionalDuty(Guid.CreateVersion7(), null).Error.Code.ShouldBe("mehnat_hodisasi.topilmadi");
+
+        vazifa.DutyEndDate.ShouldBeNull();
+    }
+
+    [Fact]
     public void Qaysi_yozuv_okladni_belgilaydi()
     {
         var m = YaratilganMunosabat();

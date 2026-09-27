@@ -58,6 +58,47 @@ public static class SalaryAccess
             : EmployeeErrors.SalaryPermissionRequired;
     }
 
+    /// <summary>Foydalanuvchi qo'shimcha vazifa haqini ko'ra oladimi.</summary>
+    /// <remarks>
+    /// Asosiy okladdan ALOHIDA ruxsat (sababi <see cref="Permissions.SalaryExtraView"/>
+    /// izohida): HR okladni ko'rishi, lekin qo'shimcha haqni ko'rmasligi mumkin.
+    /// </remarks>
+    public static bool CanSeeExtraPay(this ICurrentUser user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        return user.HasPermission(Permissions.SalaryExtraView);
+    }
+
+    /// <summary>
+    /// Qo'shimcha haq summasini yuborish (kiritish, tuzatish, haqli vazifani
+    /// tugatish yoki sanasini surish) — <c>employment.salary</c> VA
+    /// <c>salary.extra.view</c> shart.
+    /// </summary>
+    /// <remarks>
+    /// Faqat oklad ruxsati yetmaydi: ko'rolmaydigan summani o'zgartirish —
+    /// ko'r-ko'rona o'zgartirish, va aynan shu yo'l bilan yopiq ma'lumotni
+    /// sinab bilib olish mumkin edi.
+    /// </remarks>
+    public static Result EnsureCanSendExtraPay(this ICurrentUser user, bool amountSent)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (!amountSent)
+        {
+            return Result.Success();
+        }
+
+        return user.HasPermission(Permissions.EmploymentSalary) && user.CanSeeExtraPay()
+            ? Result.Success()
+            : EmployeeErrors.ExtraPayPermissionRequired;
+    }
+
+    /// <summary>Qo'shimcha haq DTO'si — ruxsat bo'lmasa <c>null</c>.</summary>
+    public static MoneyDto? MaskExtraPay(this ICurrentUser user, Money? amount)
+        => user.CanSeeExtraPay() && amount is not null
+            ? new MoneyDto(amount.Amount, amount.Currency, amount.Formatted)
+            : null;
+
     /// <summary>
     /// Oklad DTO'si — ruxsat bo'lmasa <c>null</c>.
     /// </summary>

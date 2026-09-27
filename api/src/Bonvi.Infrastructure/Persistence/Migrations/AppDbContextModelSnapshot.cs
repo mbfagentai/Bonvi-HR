@@ -940,6 +940,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("candidate_id");
 
+                    b.Property<DateOnly?>("DutyEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("duty_end_date");
+
                     b.Property<DateOnly>("EffectiveDate")
                         .HasColumnType("date")
                         .HasColumnName("effective_date");

@@ -38,6 +38,15 @@ public interface IEmploymentRepository : IRepository<Employment>
         Guid employeeId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Shu munosabatlarning shu kunda davom etayotgan qo'shimcha vazifalari
+    /// (<see cref="EmploymentEvent.IsActiveDuty"/>) — xodim kartasi uchun.
+    /// </summary>
+    Task<IReadOnlyList<EmploymentEvent>> GetActiveDutiesAsync(
+        IReadOnlyCollection<Guid> employmentIds,
+        DateOnly day,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Xodimning hozir faol munosabatlari.</summary>
     Task<IReadOnlyList<Employment>> GetActiveByEmployeeAsync(
         Guid employeeId,

@@ -79,6 +79,14 @@ export const EMPLOYMENT_SALARY = 'employment.salary'
 export const SALARY_VIEW = 'salary.view'
 
 /**
+ * Qo'shimcha vazifa HAQI — okladdan ham ALOHIDA ruxsat (egasining qarori,
+ * 2026-09-27): okladni HR ko'radi, qo'shimcha haqni esa odatda faqat super
+ * administrator va bosh rahbar. Ruxsatsiz foydalanuvchiga server summani
+ * `null` qaytaradi; bu yerdagi tekshiruv faqat tugma va maydonlarni yashiradi.
+ */
+export const SALARY_EXTRA_VIEW = 'salary.extra.view'
+
+/**
  * Rag'bat/jarima — ALOHIDA ruxsat guruhi, `employees.*` emas.
  *
  * Sabab backend'dagi bilan bir xil (`Permissions.IncentivesView`
