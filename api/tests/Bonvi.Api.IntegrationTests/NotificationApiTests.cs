@@ -655,22 +655,11 @@ public sealed class NotificationApiTests : IClassFixture<BonviApiFactory>
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
-        Guid nomId;
-
-        using (var nom = await mijoz.PostAsJsonAsync(
-            new Uri("/api/catalog/vacancy-titles", UriKind.Relative),
-            new { name = "Эслатма лавозими " + Belgi() },
-            bekorQilish))
-        {
-            nom.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(nom));
-            nomId = (await nom.Content.ReadFromJsonAsync<VacancyTitleResponse>(bekorQilish))!.Id;
-        }
-
         Guid vakansiyaId;
 
         using (var vakansiya = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/vacancies", UriKind.Relative),
-            new { vacancyTitleId = nomId, openings = 1, openedAt = new DateOnly(2026, 3, 1) },
+            new { title = "Эслатма лавозими " + Belgi(), openings = 1, openedAt = new DateOnly(2026, 3, 1) },
             bekorQilish))
         {
             vakansiya.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(vakansiya));

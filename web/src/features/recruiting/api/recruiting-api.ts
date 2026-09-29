@@ -207,19 +207,24 @@ export interface PipelineStage {
  * nomzod ISHGA OLINAYOTGANDA tanlanadi (`candidate-hire-dialog.tsx`) va
  * o'sha yerdan xodim kartasiga tushadi. Batafsil sabab backend'dagi
  * `Vacancy` domen izohida.
+ *
+ * Mas'ul xodim ham OLIB TASHLANDI (egasining qarori): vakansiya eng sodda
+ * shaklda — nomi, nechta odam, holati, sanasi va izohi.
  */
 export interface Vacancy {
   id: string
-  /** «vacancy-titles» ma'lumotnomasidagi yozuv — LAVOZIM emas. */
-  vacancyTitleId: string
-  /** E'lon nomining matni. */
-  title: string | null
+  /**
+   * E'lon nomi — vakansiyaning O'Z matni (ma'lumotnoma havolasi emas).
+   *
+   * Server uni majburiy qiladi («vakansiya.nom_yoq») va takrorlanishiga
+   * yo'l qo'ymaydi («vakansiya.nom_band»), ya'ni ro'yxatda bitta nom
+   * bitta qator bo'lib turadi.
+   */
+  title: string
   openings: number
   status: VacancyStatus
   openedAt: string
   closedAt: string | null
-  responsibleEmployeeId: string | null
-  responsibleName: string | null
   note: string | null
   candidateCount: number
   /** `openings` bilan birga «2/3 to'ldirildi» ko'rinishini beradi. */
@@ -501,10 +506,10 @@ export interface DirectHireResult {
 /* ═══════════════════════════════════════════════════ so'rov tanalari */
 
 export interface VacancyInput {
-  vacancyTitleId: string
+  /** Majburiy — bo'sh bo'lsa «vakansiya.nom_yoq» (400). */
+  title: string
   openings: number
   openedAt: string | null
-  responsibleEmployeeId: string | null
   note: string | null
 }
 
@@ -565,14 +570,15 @@ export interface HireCandidateInput {
 export interface VacancyFilters {
   status?: VacancyStatus
   /**
-   * E'lon nomi bo'yicha filtr.
+   * E'lon nomi bo'yicha qidiruv — nomning ISTALGAN qismi, katta-kichik
+   * harf farqsiz (serverda).
    *
    * Lavozim, bo'lim va firma filtrlari OLIB TASHLANDI: server ularni
    * endi umuman qabul qilmaydi, chunki vakansiyada bunday maydonlar
    * yo'q. «Qaysi bo'limga kim olindi» degan savolga xodimlar ro'yxati
    * javob beradi.
    */
-  vacancyTitleId?: string
+  search?: string
   page: number
   pageSize: number
   /** `openedAt` (sukut, yangidan eskiga) yoki `title`; `-` — kamayish. */
@@ -766,14 +772,13 @@ function toVacancy(raw: unknown): Vacancy {
 
   return {
     id: text(box['id']) ?? '',
-    vacancyTitleId: text(box['vacancyTitleId']) ?? '',
-    title: text(box['title']),
+    // Server nomni majburiy qiladi — bo'sh satr faqat buzilgan javobga
+    // qarshi sug'urta (formada «—» matni oldindan yozilib qolmasin).
+    title: text(box['title']) ?? '',
     openings: count(box['openings']),
     status: oneOf(box['status'], VACANCY_STATUSES, 'Open'),
     openedAt: text(box['openedAt']) ?? '',
     closedAt: text(box['closedAt']),
-    responsibleEmployeeId: text(box['responsibleEmployeeId']),
-    responsibleName: text(box['responsibleName']),
     note: text(box['note']),
     candidateCount: count(box['candidateCount']),
     hiredCount: count(box['hiredCount']),
@@ -1007,7 +1012,7 @@ export async function fetchVacancies(
   const { data } = await api.get<unknown>(VACANCIES, {
     params: params({
       status: filters.status,
-      vacancyTitleId: filters.vacancyTitleId,
+      search: filters.search,
       page: filters.page,
       pageSize: filters.pageSize,
       sort: filters.sort,
@@ -1028,21 +1033,25 @@ export async function saveVacancy(id: string | null, body: VacancyInput): Promis
 }
 
 /**
- * Yopish va qayta ochish — bitta funksiya: tanasi ham, javobi ham bir xil.
+ * Yopish va qayta ochish — bitta funksiya: ikkalasi ham TANASIZ va javobi
+ * bir xil (yangilangan vakansiya).
  *
  * Amal nomi to'g'ridan-to'g'ri MANZILGA tushadi va bu ataylab: server
- * marshrutlari ham aynan shunday nomlanadi (`/close`, `/reopen`). Ilgari
- * bu yerda `pause` va `resume` ham bor edi — birinchisi butunlay
- * o'chirildi, ikkinchisi esa `reopen` ga qayta nomlandi, chunki
- * «davom ettirish» to'xtatishdan qolgan nom edi va endi hech narsa
- * davom ettirilmaydi.
+ * marshrutlari ham aynan shunday nomlanadi (`/close`, `/reopen`).
+ *
+ * NEGA tana yo'q: holat endi BIR BOSISHDA o'zgaradi (egasining qarori —
+ * vakansiya eng sodda shaklda). `/close` tanasi serverda ixtiyoriy va
+ * u bo'lmasa yopilgan sana — bugun, sababsiz. Qayta ochishda esa tana
+ * umuman kutilmaydi.
+ *
+ * ⚠️ Qayta ochishda «vakansiya.nom_band» (409) kelishi mumkin: shu nomli
+ * BOSHQA ochiq vakansiya allaqachon bor.
  */
 export async function changeVacancyStatus(
   id: string,
   action: 'close' | 'reopen',
-  body: { reason?: string | null; closedAt?: string | null },
 ): Promise<Vacancy> {
-  const { data } = await api.post<unknown>(`${VACANCIES}/${id}/${action}`, body)
+  const { data } = await api.post<unknown>(`${VACANCIES}/${id}/${action}`)
   return toVacancy(data)
 }
 

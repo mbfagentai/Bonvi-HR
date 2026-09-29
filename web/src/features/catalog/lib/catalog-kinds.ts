@@ -6,7 +6,6 @@ import {
   Gavel,
   IdCard,
   LogOut,
-  Megaphone,
   Network,
   type LucideIcon,
 } from 'lucide-react'
@@ -66,25 +65,6 @@ export const CATALOG_META: Readonly<Record<SimpleCatalogKind, CatalogKindMeta>> 
     i18nKey: 'documentTypes',
     icon: FileText,
     tone: 'orange',
-  },
-  /*
-    Vakansiya nomlari — karnay ikonasi: bu E'LON, ichki hujjat emas.
-
-    NEGA `purple` EMAS: o'sha ohang LAVOZIMLARniki (`POSITIONS_META`).
-    Ikkita ro'yxatni bir xil rangda ko'rsatish aynan biz yo'q qilmoqchi
-    bo'lgan chalkashlikni qaytarardi — HR yon menyuda ikkita binafsha
-    bandni ko'rib, ularni bir narsaning ikki ko'rinishi deb o'ylardi.
-
-    `blue` bo'limlar bilan takrorlanadi va bu zarar qilmaydi: ohanglar
-    sakkizta, ma'lumotnomalar to'qqizta — takror muqarrar. Muhimi
-    QO'SHNILAR ajralib tursin, ikonalar esa (tarmoq / karnay) bir-biriga
-    umuman o'xshamaydi.
-  */
-  'vacancy-titles': {
-    kind: 'vacancy-titles',
-    i18nKey: 'vacancyTitles',
-    icon: Megaphone,
-    tone: 'blue',
   },
 }
 

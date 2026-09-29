@@ -2,39 +2,48 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, DateField, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { Alert, Button, DateField, Dialog, TextArea, TextField } from '@/shared/ui'
 import type { Vacancy } from '../api/recruiting-api'
-import {
-  useEmployeeOptions,
-  useSaveVacancy,
-  useVacancyTitleOptions,
-} from '../api/recruiting-queries'
+import { useSaveVacancy } from '../api/recruiting-queries'
 import { RECRUITING_ERROR_FIELD, recruitingErrorCode } from '../lib/recruiting-error'
 import { orNull, today } from '../lib/recruiting-presentation'
 
 const FORM_ID = 'vacancy-form'
 
 /**
+ * Nom uzunligi chegarasi — e'lon sarlavhasi uchun yetarlidan ko'p.
+ *
+ * Serverda bunday chegara YO'Q (ma'lumotnomalardagi kabi) — bu faqat
+ * forma himoyasi: nom maydoniga tasodifan butun e'lon matni joylansa,
+ * u ro'yxatda qatorni buzardi. Tafsilotlar IZOHGA tushadi.
+ */
+const TITLE_MAX_LENGTH = 200
+
+/**
  * Vakansiyani ochish va tahrirlash — BITTA oyna
  * (`incident-form-dialog.tsx` dagi bilan bir xil naqsh: forma bir xil,
  * farq faqat sarlavhada va `item` borligida).
  *
- * <b>⭐ Forma ataylab QISQA: nomi, nechta odam va izoh.</b> Ilgari bu
- * yerda lavozim, bo'lim va yuridik shaxs ham tanlanardi. Uchalasi
- * OLIB TASHLANDI: vakansiya — e'lon, kompaniya tuzilmasidan unda hech
- * narsa saqlanmaydi (backend'dagi `Vacancy` domen izohi). Ular endi
- * nomzod ISHGA OLINAYOTGANDA so'raladi (`candidate-hire-dialog.tsx`) —
- * ya'ni o'sha paytda, qachonki javob haqiqatan ma'lum bo'ladi.
+ * <b>⭐ Forma ataylab QISQA: nomi, nechta odam, sanasi va izoh.</b>
+ * Ilgari bu yerda lavozim, bo'lim va yuridik shaxs ham tanlanardi —
+ * uchalasi OLIB TASHLANDI: vakansiya — e'lon, kompaniya tuzilmasidan
+ * unda hech narsa saqlanmaydi (backend'dagi `Vacancy` domen izohi). Ular
+ * nomzod ISHGA OLINAYOTGANDA so'raladi (`candidate-hire-dialog.tsx`).
+ * «Mas'ul xodim» ham shu sababdan olib tashlandi — egasining qarori:
+ * vakansiya eng sodda shaklda bo'lsin.
  *
- * <b>Nom ERKIN MATN emas, ma'lumotnomadan.</b> Erkin sarlavha bo'lganida
- * «Сотувчи (шошилинч!)», «сотувчи консултант» kabi yozuvlar paydo
- * bo'lardi va bitta e'lon ro'yxatda uch xil nom bilan ko'rinardi.
- * Shoshilinchlik va boshqa tafsilotlar IZOHGA tushadi.
+ * <b>Nom — ERKIN MATN.</b> Ilgari u alohida «Vakansiya nomlari»
+ * ma'lumotnomasidan tanlanardi, faolligi ham o'sha yerda boshqarilardi.
+ * Natijada bitta ish ikki sahifaga bo'lingan edi: nomni bir joyda
+ * yaratish, vakansiyani boshqa joyda ochish. Egasining qarori — hammasi
+ * shu sahifada: nomni shu yerda yozasiz, faolligi esa vakansiyaning
+ * ochiq/yopiq holati. Bir xil nom ikki marta paydo bo'lishini endi
+ * ma'lumotnoma emas, SERVER to'sadi («vakansiya.nom_band» — xato nom
+ * maydoni ostida chiqadi). Shoshilinchlik va boshqa tafsilotlar esa
+ * avvalgidek IZOHGA tushadi, nomga emas.
  *
- * <b>Holat bu yerda o'zgarmaydi.</b> To'xtatish, davom ettirish va
- * yopish — alohida amallar (`VacancyActionDialog`): ularning har biri
- * o'z sanasi va sababi bilan yoziladi, «Saqlash» tugmasining yon
- * ta'siri sifatida emas.
+ * <b>Holat bu yerda o'zgarmaydi.</b> Yopish va qayta ochish — ro'yxatdagi
+ * alohida tugma (`vacancies-page.tsx`), «Saqlash» ning yon ta'siri emas.
  */
 export function VacancyFormDialog({
   open,
@@ -49,19 +58,14 @@ export function VacancyFormDialog({
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const save = useSaveVacancy()
-  const employees = useEmployeeOptions()
-  // Faqat FAOL nomlar: faolsizlantirilgan e'lon nomiga yangi vakansiya
-  // ochilmaydi (ma'lumotnomalarning umumiy qoidasi).
-  const titles = useVacancyTitleOptions(true)
 
-  const [vacancyTitleId, setVacancyTitleId] = useState('')
+  const [title, setTitle] = useState('')
   const [openings, setOpenings] = useState('1')
   const [openedAt, setOpenedAt] = useState(today)
-  const [responsibleEmployeeId, setResponsibleEmployeeId] = useState('')
   const [note, setNote] = useState('')
 
   const [failure, setFailure] = useState<string | null>(null)
-  /** Maydonga bog'langan server xatosi — masalan «o'rin soni noto'g'ri». */
+  /** Maydonga bog'langan server xatosi — masalan «bu nom band». */
   const [fieldError, setFieldError] = useState<{ field: string; code: string } | null>(null)
 
   // Oyna har ochilganda forma qayta to'ldiriladi: oldingi yozuvning
@@ -72,17 +76,16 @@ export function VacancyFormDialog({
     setFieldError(null)
     save.reset()
 
-    setVacancyTitleId(item?.vacancyTitleId ?? '')
+    setTitle(item?.title ?? '')
     setOpenings(String(item?.openings ?? 1))
     setOpenedAt(item?.openedAt ?? today())
-    setResponsibleEmployeeId(item?.responsibleEmployeeId ?? '')
     setNote(item?.note ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item])
 
   if (!open) return null
 
-  const incomplete = vacancyTitleId === ''
+  const incomplete = title.trim() === ''
 
   const fieldMessage = (field: string): string | undefined =>
     fieldError?.field === field ? errorMessage(fieldError.code) : undefined
@@ -96,7 +99,7 @@ export function VacancyFormDialog({
       {
         id: item?.id ?? null,
         body: {
-          vacancyTitleId,
+          title: title.trim(),
           /*
             Bo'sh maydon 1 ga tushadi, `0` ga emas: `Number('')` — 0 va
             server uni «o'rin soni noto'g'ri» deb rad etardi
@@ -105,7 +108,6 @@ export function VacancyFormDialog({
           */
           openings: openings.trim() === '' ? 1 : Number(openings),
           openedAt: orNull(openedAt),
-          responsibleEmployeeId: responsibleEmployeeId === '' ? null : responsibleEmployeeId,
           note: orNull(note),
         },
       },
@@ -127,7 +129,7 @@ export function VacancyFormDialog({
       onClose={onClose}
       dismissible={!save.isPending}
       title={item === null ? t('recruiting.vacancyCreate') : t('recruiting.vacancyEdit')}
-      description={item?.title ?? undefined}
+      description={item?.title}
       footer={
         <>
           <Button type="button" onClick={onClose} disabled={save.isPending}>
@@ -161,22 +163,26 @@ export function VacancyFormDialog({
         )}
 
         {/*
-          Vakansiyaning YAGONA ma'lumotnoma havolasi.
-
           `hint` shu yerda MAJBURIY: HR ilgari bu maydonda lavozimni
-          tanlagan va ro'yxat boshqacha ekanini darhol tushunishi kerak
-          — aks holda u «lavozimim yo'q» deb o'ylab, ma'lumotnomani
-          qidirib yurardi.
+          tanlagan va nom kompaniya lavozimi EMASligini darhol tushunishi
+          kerak — aks holda u shtat jadvalidagi rasmiy nomni yozib
+          qo'yardi.
+
+          Avtofokus faqat YANGI vakansiyada: ochishning birinchi ishi —
+          nom yozish. Tahrirlashda esa ko'pincha o'rin soni yoki izoh
+          o'zgaradi va kursor nomga sakrasa, tasodifiy harf nomni buzardi.
         */}
-        <Select
+        <TextField
           label={t('recruiting.vacancyTitle')}
           hint={t('recruiting.vacancyTitleHint')}
-          placeholder={t('recruiting.chooseVacancyTitle')}
-          options={titles.options}
-          value={vacancyTitleId}
-          error={fieldMessage('vacancyTitleId')}
-          disabled={save.isPending || titles.isPending}
-          onChange={(event) => setVacancyTitleId(event.target.value)}
+          placeholder={t('recruiting.vacancyTitlePlaceholder')}
+          autoComplete="off"
+          autoFocus={item === null}
+          maxLength={TITLE_MAX_LENGTH}
+          value={title}
+          error={fieldMessage('title')}
+          disabled={save.isPending}
+          onChange={(event) => setTitle(event.target.value)}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -199,16 +205,6 @@ export function VacancyFormDialog({
             onChange={setOpenedAt}
           />
         </div>
-
-        <Select
-          label={t('recruiting.responsible')}
-          placeholder={t('safety.noResponsible')}
-          options={employees.options}
-          value={responsibleEmployeeId}
-          error={fieldMessage('responsibleEmployeeId')}
-          disabled={save.isPending || employees.isPending}
-          onChange={(event) => setResponsibleEmployeeId(event.target.value)}
-        />
 
         <TextArea
           label={t('recruiting.note')}

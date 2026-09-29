@@ -2,6 +2,7 @@ import { getRouteApi } from '@tanstack/react-router'
 import {
   BriefcaseBusiness,
   CircleSlash,
+  LoaderCircle,
   Pencil,
   Plus,
   RotateCcw,
@@ -13,6 +14,7 @@ import type { SortingState } from '@tanstack/react-table'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import {
   Alert,
   Badge,
@@ -27,7 +29,7 @@ import {
   type DataColumn,
 } from '@/shared/ui'
 import type { Vacancy } from '../api/recruiting-api'
-import { useVacancies } from '../api/recruiting-queries'
+import { useChangeVacancyStatus, useVacancies } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
 import { RECRUITING_MANAGE, VACANCY_LOOK } from '../lib/recruiting-presentation'
 import {
@@ -40,7 +42,7 @@ import {
   type VacanciesSearch,
 } from '../lib/vacancies-search'
 import { VacanciesToolbar } from './vacancies-toolbar'
-import { VacancyActionDialog, type VacancyAction } from './vacancy-action-dialog'
+import { VacancyDeleteDialog } from './vacancy-delete-dialog'
 import { VacancyFormDialog } from './vacancy-form-dialog'
 
 const helper = dataColumnHelper<Vacancy>()
@@ -100,11 +102,18 @@ export function VacanciesPage() {
 
   const [editing, setEditing] = useState<Vacancy | null>(null)
   const [creating, setCreating] = useState(false)
-  const [action, setAction] = useState<{ kind: VacancyAction; item: Vacancy } | null>(null)
+  const [deleting, setDeleting] = useState<Vacancy | null>(null)
+
+  /*
+    Qidiruv matni serverga QIRQILGAN holda ketadi: manzilda u qirqilmaydi
+    (`vacancies-search.ts` dagi `readText` izohi), lekin «Sotuvchi » va
+    «Sotuvchi» bir xil so'rov — ikkita kesh yozuvi hosil qilmasin.
+  */
+  const searchText = filters.search.trim()
 
   const query = useVacancies({
     ...(filters.status === '' ? {} : { status: filters.status }),
-    ...(filters.vacancyTitleId === '' ? {} : { vacancyTitleId: filters.vacancyTitleId }),
+    ...(searchText === '' ? {} : { search: searchText }),
     page,
     pageSize: PAGE_SIZE,
     sort,
@@ -156,6 +165,42 @@ export function VacanciesPage() {
     [setSearch],
   )
 
+  /*
+    Yopish / qayta ochish — BIR BOSISHDA, tasdiqlash oynasisiz.
+
+    NEGA oyna yo'q: ikkala amal ham qaytariladi va nomzodlarga tegmaydi
+    — yopilgan vakansiya faqat yangi nomzod qabul qilmaydi. Ilgari oyna
+    sana va sabab so'rardi; egasining qarori bilan vakansiya eng sodda
+    shaklga keltirildi va server yopilgan sanani o'zi qo'yadi (bugun).
+
+    Xato (masalan qayta ochishda «vakansiya.nom_band» — shu nomli ochiq
+    vakansiya allaqachon bor) sahifaning tepasida, ro'yxat xatosi bilan
+    bir joyda chiqadi: amal oynasiz, ya'ni xatoni ko'rsatadigan boshqa
+    joy yo'q. Keyingi bosishda o'zi yo'qoladi.
+
+    Bitta amal ketayotganda BOSHQA qatorlardagi holat tugmalari ham
+    o'chiq turadi: bir vaqtda faqat bitta so'rov — shunda xato qaysi
+    vakansiyaga tegishli ekani hech qachon aralashmaydi.
+  */
+  const changeStatus = useChangeVacancyStatus()
+  const mutateStatus = changeStatus.mutate
+  const statusPending = changeStatus.isPending
+  const statusTargetId = changeStatus.isPending ? changeStatus.variables.id : null
+  const [statusFailure, setStatusFailure] = useState<{ code: string; item: Vacancy } | null>(
+    null,
+  )
+
+  const toggleStatus = useCallback(
+    (item: Vacancy) => {
+      setStatusFailure(null)
+      mutateStatus(
+        { id: item.id, action: item.status === 'Closed' ? 'reopen' : 'close' },
+        { onError: (error) => setStatusFailure({ code: recruitingErrorCode(error), item }) },
+      )
+    },
+    [mutateStatus],
+  )
+
   /** Vakansiyaning nomzodlari — bitta bosishda filtrlangan ro'yxat. */
   const openCandidates = useCallback(
     (vacancy: Vacancy) => {
@@ -169,11 +214,12 @@ export function VacanciesPage() {
       /*
         Ustun sarlavhasi «Lavozim» EMAS, «Vakansiya nomi»: bu e'londa
         turadigan nom va u kompaniya lavozimi bilan ataylab
-        aralashtirilmaydi (backend'dagi `VacancyTitle` domen izohi).
+        aralashtirilmaydi — lavozim ishga qabulda tanlanadi.
 
         Ikkinchi qator (bo'lim) ham OLIB TASHLANDI — vakansiyada bo'lim
-        yo'q. Bir xil nomli ikkita ochiq e'lonni ajratadigan narsa
-        endi «Ochilgan» ustuni.
+        yo'q. Bir xil nomli eski e'lonlarni (server yangi takrorga yo'l
+        qo'ymaydi — «vakansiya.nom_band») ajratadigan narsa «Ochilgan»
+        ustuni.
       */
       helper.accessor('title', {
         header: t('recruiting.vacancyTitle'),
@@ -184,9 +230,7 @@ export function VacanciesPage() {
           ustun oladi.
         */
         meta: { minWidth: '260px' },
-        cell: ({ row }) => (
-          <p className="truncate-1 font-medium">{row.original.title ?? '—'}</p>
-        ),
+        cell: ({ row }) => <p className="truncate-1 font-medium">{row.original.title}</p>,
       }),
 
       helper.accessor('status', {
@@ -262,14 +306,9 @@ export function VacanciesPage() {
         «Yuridik shaxs» ustuni O'CHIRILDI: vakansiyada firma yo'q. Xodim
         qaysi firmaga rasmiylashtirilgani ishga qabulda hal qilinadi va
         xodim kartasida ko'rinadi — vakansiya ro'yxatida esa u har doim
-        bo'sh katak bo'lardi.
+        bo'sh katak bo'lardi. «Mas'ul» ustuni ham shu sababdan yo'q:
+        mas'ul xodim vakansiyadan butunlay olib tashlandi.
       */
-      helper.accessor('responsibleName', {
-        header: t('recruiting.responsible'),
-        enableSorting: false,
-        meta: { width: '180px', hideOnMobile: true },
-        cell: ({ getValue }) => <TextCell value={getValue()} />,
-      }),
     ]
 
     // Ruxsat yo'q bo'lsa ustunning O'ZI ham chiqmaydi — bo'sh ustun
@@ -291,8 +330,11 @@ export function VacanciesPage() {
           cell: ({ row }) => (
             <RowActions
               item={row.original}
+              statusBusy={statusTargetId === row.original.id}
+              statusLocked={statusPending}
+              onToggleStatus={() => toggleStatus(row.original)}
               onEdit={() => setEditing(row.original)}
-              onAction={(kind) => setAction({ kind, item: row.original })}
+              onDelete={() => setDeleting(row.original)}
             />
           ),
         }),
@@ -300,7 +342,7 @@ export function VacanciesPage() {
     }
 
     return definitions
-  }, [canManage, num, t])
+  }, [canManage, num, statusPending, statusTargetId, t, toggleStatus])
 
   const rows = query.data?.items ?? EMPTY
   const total = query.data?.total ?? 0
@@ -334,6 +376,23 @@ export function VacanciesPage() {
         <Alert tone="danger">{errorMessage(recruitingErrorCode(query.error))}</Alert>
       )}
 
+      {/*
+        Sarlavha — vakansiya NOMI: xato ro'yxatning tepasida chiqadi va
+        usiz qaysi qatorda bosilgani noma'lum qolardi.
+
+        «vakansiya.nom_band» bu yerda O'Z MATNI bilan: umumiy tarjima
+        forma uchun yozilgan («ro'yxatdan toping va qayta oching») va
+        qayta ochish paytida u teskari maslahat bo'lardi — HR aynan
+        qayta ochmoqchi bo'lgan, band qilgan esa boshqa, OCHIQ vakansiya.
+      */}
+      {statusFailure !== null && (
+        <Alert tone="danger" title={statusFailure.item.title}>
+          {statusFailure.code === 'vakansiya.nom_band'
+            ? t('recruiting.vacancyReopenNameTaken')
+            : errorMessage(statusFailure.code)}
+        </Alert>
+      )}
+
       <Card className="overflow-hidden">
         <VacanciesToolbar filters={filters} onChange={changeFilters} />
 
@@ -344,7 +403,7 @@ export function VacanciesPage() {
           loading={firstLoad}
           skeletonRows={6}
           onRowClick={openCandidates}
-          rowLabel={(item) => item.title ?? '—'}
+          rowLabel={(item) => item.title}
           sorting={sorting}
           onSortingChange={changeSorting}
           empty={
@@ -395,11 +454,7 @@ export function VacanciesPage() {
         }}
       />
 
-      <VacancyActionDialog
-        action={action?.kind ?? null}
-        item={action?.item ?? null}
-        onClose={() => setAction(null)}
-      />
+      <VacancyDeleteDialog item={deleting} onClose={() => setDeleting(null)} />
     </div>
   )
 }
@@ -411,13 +466,11 @@ export function VacanciesPage() {
  * uni shu ish uchun qo'shish qoidaga zid. Ikonalar esa amallar
  * SONI KAM bo'lganda menyudan tez: bir bosish, ikki emas.
  *
- * <b>Yopish va qayta ochish — BITTA tugma, ikki tomonga.</b> Ilgari
- * bu yerda «to'xtatish» ham bor edi va HR to'rtta tugmadan qaysi biri
- * hozir ishlashini har safar o'qib chiqardi. To'xtatish yopish bilan
- * ayni natijani bergani uchun olib tashlandi (backend'dagi
- * `VacancyStatus` izohi), qolgan ikkitasi esa bir-birining teskarisi —
- * ya'ni ular hech qachon birga kerak bo'lmaydi va bitta joyni
- * bo'lishadi. Ikona ham, matn ham holatga qarab almashadi.
+ * <b>Yopish va qayta ochish — BITTA tugma, ikki tomonga</b> va u
+ * oynasiz ishlaydi: bosildi — holat almashdi. Ikkalasi bir-birining
+ * teskarisi, ya'ni ular hech qachon birga kerak bo'lmaydi va bitta
+ * joyni bo'lishadi. Ikona ham, matn ham holatga qarab almashadi; so'rov
+ * ketayotganda ikona o'rnida aylana turadi.
  *
  * <b>«O'chirish» nomzodi bor qatorda UMUMAN chizilmaydi</b> —
  * o'chirilgan holatda emas, butunlay yo'q. Sabab: o'chirilgan tugma
@@ -428,43 +481,57 @@ export function VacanciesPage() {
  * bekorga urinmasin degani. `candidateCount` ro'yxat javobida ALLAQACHON
  * bor, ya'ni bu shart uchun qo'shimcha so'rov kerak emas.
  *
- * `stopPropagation` majburiy: qatorning O'ZI bosiladi (nomzodlarga
- * o'tadi), tugma esa uning ichida turadi.
+ * `stopPropagation` majburiy va u BUTUN katakda, har bir tugmada emas:
+ * qatorning O'ZI bosiladi (nomzodlarga o'tadi), tugmalar esa uning ichida
+ * turadi. O'chiq tugma (`disabled` — `pointer-events-none`) bosishni
+ * o'zi ushlamaydi va u ostidagi qatorga tushardi — ya'ni holat
+ * o'zgarayotganda tugmani yana bosgan HR kutilmaganda nomzodlar
+ * ro'yxatiga o'tib ketardi. Klaviatura ham shu sababli to'xtatiladi:
+ * qator Enter'ni o'zi ushlaydi va tugma o'rniga nomzodlarni ochardi.
  */
 function RowActions({
   item,
+  statusBusy,
+  statusLocked,
+  onToggleStatus,
   onEdit,
-  onAction,
+  onDelete,
 }: {
   item: Vacancy
+  /** Aynan SHU qatorning holati o'zgarmoqda — aylana ko'rsatiladi. */
+  statusBusy: boolean
+  /** Biror qatorning holati o'zgarmoqda — tugma bosilmaydi. */
+  statusLocked: boolean
+  onToggleStatus: () => void
   onEdit: () => void
-  onAction: (kind: VacancyAction) => void
+  onDelete: () => void
 }) {
   const { t } = useLocale()
 
   const closed = item.status === 'Closed'
 
   return (
-    <div className="flex items-center justify-end">
+    <div
+      className="flex items-center justify-end"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
       <ActionButton
-        icon={closed ? RotateCcw : CircleSlash}
+        icon={statusBusy ? LoaderCircle : closed ? RotateCcw : CircleSlash}
+        spin={statusBusy}
+        disabled={statusLocked}
         label={t(
           closed
             ? 'recruiting.vacancyAction.reopenTitle'
             : 'recruiting.vacancyAction.closeTitle',
         )}
-        onClick={() => onAction(closed ? 'reopen' : 'close')}
+        onClick={onToggleStatus}
       />
 
       <ActionButton icon={Pencil} label={t('common.edit')} onClick={onEdit} />
 
       {item.candidateCount === 0 && (
-        <ActionButton
-          icon={Trash2}
-          label={t('common.delete')}
-          danger
-          onClick={() => onAction('delete')}
-        />
+        <ActionButton icon={Trash2} label={t('common.delete')} danger onClick={onDelete} />
       )}
     </div>
   )
@@ -475,11 +542,15 @@ function ActionButton({
   label,
   onClick,
   danger = false,
+  spin = false,
+  disabled = false,
 }: {
   icon: typeof Pencil
   label: string
   onClick: () => void
   danger?: boolean
+  spin?: boolean
+  disabled?: boolean
 }) {
   return (
     <Button
@@ -488,23 +559,13 @@ function ActionButton({
       size="icon-sm"
       title={label}
       aria-label={label}
-      onClick={(event) => {
-        event.stopPropagation()
-        onClick()
-      }}
+      disabled={disabled}
+      onClick={onClick}
     >
-      <Icon className={danger ? 'text-[var(--danger-text)]' : undefined} />
+      <Icon
+        className={cn(danger && 'text-[var(--danger-text)]', spin && 'animate-spin')}
+      />
     </Button>
-  )
-}
-
-/** Bo'sh katak chiziqcha bilan — «yuklanmadimi?» degan savol tug'ilmasin. */
-function TextCell({ value }: { value: string | null }) {
-  if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-  return (
-    <span className="truncate-1 text-[var(--fg-secondary)]" title={value}>
-      {value}
-    </span>
   )
 }
 

@@ -23,10 +23,12 @@ namespace Bonvi.Application.Recruiting.Vacancies;
 /// sabab: minimal API sanoqni registrga sezgir bog'laydi va bo'sh qiymatni
 /// 400 bilan rad etadi, holbuki «filtr tozalandi» oddiy hol.
 /// </param>
-/// <param name="VacancyTitleId">
-/// Vakansiya nomi bo'yicha filtr. Lavozim, bo'lim va firma filtrlari
-/// OLIB TASHLANDI — vakansiyada bunday maydonlar yo'q (sababi
-/// <c>Vacancy</c> izohida).
+/// <param name="Search">
+/// Nom bo'yicha qidiruv — qismiy moslik, registr va «қ/к» kabi
+/// harflar farqi hisobga olinmaydi (xodimlar ro'yxatidagi qoida).
+/// Ilgari o'rnida «vakansiya nomi» ma'lumotnomasi bo'yicha filtr
+/// turardi; ma'lumotnoma olib tashlangach (sababi <c>Vacancy</c>
+/// izohida) nomni yozib izlash qoldi.
 /// </param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
@@ -53,7 +55,7 @@ namespace Bonvi.Application.Recruiting.Vacancies;
 /// </param>
 public sealed record ListVacanciesQuery(
     string? Status = null,
-    Guid? VacancyTitleId = null,
+    string? Search = null,
     int? Page = null,
     int? PageSize = null,
     string? Sort = null,
@@ -68,19 +70,17 @@ public sealed record GetVacancyQuery(Guid VacancyId);
 /// paytidagi qaror (<c>HireCandidateCommand</c>), e'lonning xossasi emas.
 /// </remarks>
 public sealed record OpenVacancyCommand(
-    Guid VacancyTitleId,
+    string? Title,
     int Openings = 1,
     DateOnly? OpenedAt = null,
-    Guid? ResponsibleEmployeeId = null,
     string? Note = null);
 
 /// <summary>Vakansiya tafsilotlarini tuzatish. Holat BU YERDA o'zgarmaydi.</summary>
 public sealed record UpdateVacancyCommand(
     Guid VacancyId,
-    Guid VacancyTitleId,
+    string? Title,
     int Openings = 1,
     DateOnly? OpenedAt = null,
-    Guid? ResponsibleEmployeeId = null,
     string? Note = null);
 
 /// <summary>Vakansiyani yopish.</summary>
@@ -144,7 +144,7 @@ public sealed class ListVacanciesQueryHandler
             .ListVacanciesAsync(
                 new VacancyListFilter(
                     status.Value,
-                    query.VacancyTitleId,
+                    string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
                     page,
                     pageSize,
                     sort,
@@ -157,14 +157,11 @@ public sealed class ListVacanciesQueryHandler
         [
             .. found.Items.Select(row => new VacancyDto(
                 row.Id,
-                row.VacancyTitleId,
-                row.VacancyTitleName,
+                row.Title,
                 row.Openings,
                 row.Status,
                 row.OpenedAt,
                 row.ClosedAt,
-                row.ResponsibleEmployeeId,
-                row.ResponsibleName,
                 row.Note,
                 row.CandidateCount,
                 row.HiredCount)),
@@ -226,27 +223,25 @@ public sealed class GetVacancyQueryHandler
 /// Vakansiya ochadi.
 /// </summary>
 /// <remarks>
-/// Ma'lumotnoma havolalari SHU YERDA tekshiriladi, domenda emas: domen
-/// bazani ko'rmaydi. Tekshiruvsiz qoldirilsa, mavjud bo'lmagan nom bilan
-/// vakansiya ochilib, ro'yxatda nomsiz qator paydo bo'lardi.
+/// Nomning bandligi SHU YERDA tekshiriladi, domenda emas: domen bazani
+/// ko'rmaydi. Yopilgan vakansiya ham nomni band qiladi — HR uni qayta
+/// ochishi kerak, yangisini emas (sababi
+/// <see cref="IVacancyRepository.TitleTakenAsync"/> izohida).
 /// </remarks>
 public sealed class OpenVacancyCommandHandler
 {
     private readonly IVacancyRepository _vacancies;
-    private readonly VacancyReferenceGuard _references;
     private readonly RecruitingMapper _mapper;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
     public OpenVacancyCommandHandler(
         IVacancyRepository vacancies,
-        VacancyReferenceGuard references,
         RecruitingMapper mapper,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
         _vacancies = vacancies;
-        _references = references;
         _mapper = mapper;
         _clock = clock;
         _unitOfWork = unitOfWork;
@@ -258,25 +253,24 @@ public sealed class OpenVacancyCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var references = await _references
-            .CheckAsync(command.VacancyTitleId, command.ResponsibleEmployeeId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (references.IsFailure)
-        {
-            return references.Error;
-        }
-
+        // Avval domen: bo'sh nom va o'rin soni uning qoidalari va xabarlari
+        // o'sha yerda yozilgan. Bandlik esa faqat yaroqli nom uchun so'raladi.
         var opened = Vacancy.Open(
-            command.VacancyTitleId,
+            command.Title,
             command.OpenedAt ?? _clock.Today,
             command.Openings,
-            command.ResponsibleEmployeeId,
             command.Note);
 
         if (opened.IsFailure)
         {
             return opened.Error;
+        }
+
+        if (await _vacancies
+                .TitleTakenAsync(opened.Value.Title, cancellationToken: cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return RecruitingErrors.VacancyTitleTaken;
         }
 
         _vacancies.Add(opened.Value);
@@ -289,18 +283,15 @@ public sealed class OpenVacancyCommandHandler
 public sealed class UpdateVacancyCommandHandler
 {
     private readonly IVacancyRepository _vacancies;
-    private readonly VacancyReferenceGuard _references;
     private readonly RecruitingMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateVacancyCommandHandler(
         IVacancyRepository vacancies,
-        VacancyReferenceGuard references,
         RecruitingMapper mapper,
         IUnitOfWork unitOfWork)
     {
         _vacancies = vacancies;
-        _references = references;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
     }
@@ -317,20 +308,30 @@ public sealed class UpdateVacancyCommandHandler
             return RecruitingErrors.VacancyNotFound;
         }
 
-        var references = await _references
-            .CheckAsync(command.VacancyTitleId, command.ResponsibleEmployeeId, cancellationToken)
-            .ConfigureAwait(false);
+        // Bandlik yozuvga TEGISHDAN OLDIN: rad etilgan nom kuzatilayotgan
+        // obyektda qolib ketmasligi kerak. Bo'sh nomni esa domen rad etadi
+        // (`vakansiya.nom_yoq`) — uning xabari o'sha yerda.
+        //
+        // FAQAT nom o'zgarganda: ko'chirishdan qolgan bir xil nomli
+        // vakansiyalar bor (ilgari bitta nomga bir nechta vakansiya
+        // ochilardi). Har saqlashda tekshirilsa, HR ularning o'rin sonini
+        // ham, izohini ham o'zgartira olmay qolardi.
+        var title = Vacancy.NormalizeTitle(command.Title);
+        var renamed = title is not null
+            && !string.Equals(title, vacancy.Title, StringComparison.OrdinalIgnoreCase);
 
-        if (references.IsFailure)
+        if (renamed
+            && await _vacancies
+                .TitleTakenAsync(title!, vacancy.Id, cancellationToken: cancellationToken)
+                .ConfigureAwait(false))
         {
-            return references.Error;
+            return RecruitingErrors.VacancyTitleTaken;
         }
 
         var updated = vacancy.Update(
-            command.VacancyTitleId,
+            command.Title,
             command.OpenedAt ?? vacancy.OpenedAt,
             command.Openings,
-            command.ResponsibleEmployeeId,
             command.Note);
 
         if (updated.IsFailure)
@@ -369,12 +370,31 @@ public sealed class ChangeVacancyStateCommandHandler
         _unitOfWork = unitOfWork;
     }
 
-    public Task<Result<VacancyDto>> HandleAsync(
+    public async Task<Result<VacancyDto>> HandleAsync(
         ReopenVacancyCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return ApplyAsync(command.VacancyId, vacancy => vacancy.Reopen(), cancellationToken);
+
+        // Faqat OCHIQlar orasidan: ko'chirishdan qolgan bir xil nomli
+        // yopiq vakansiyalar bir-birini to'smasin, lekin ikkitasi bir
+        // vaqtda ochiq turmasin — bot nomzodga ikkita bir xil tugma
+        // ko'rsatardi (izohi `IVacancyRepository.TitleTakenAsync` da).
+        //
+        // Allaqachon ochiq vakansiya tekshirilmaydi: qayta ochish unda hech
+        // narsa yozmaydi va zararsiz bo'lishi va'da qilingan (`Vacancy.Reopen`
+        // izohi) — eskirgan ro'yxatdan kelgan takroriy bosish 409 olmasin.
+        var vacancy = await _vacancies.GetByIdAsync(command.VacancyId, cancellationToken).ConfigureAwait(false);
+        if (vacancy is { Status: VacancyStatus.Closed }
+            && await _vacancies
+                .TitleTakenAsync(vacancy.Title, vacancy.Id, openOnly: true, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return RecruitingErrors.VacancyTitleTaken;
+        }
+
+        return await ApplyAsync(command.VacancyId, vacancy => vacancy.Reopen(), cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public Task<Result<VacancyDto>> HandleAsync(
@@ -433,7 +453,8 @@ public sealed class ChangeVacancyStateCommandHandler
 /// <para>
 /// <b>NEGA tekshiruv BU YERDA, domenda emas.</b> «Nechta nomzod bor» —
 /// boshqa agregatdagi fakt, domen esa bazani ko'rmaydi
-/// (<c>VacancyReferenceGuard</c> dagi bilan bir xil bo'linish).
+/// (<c>OpenVacancyCommandHandler</c> dagi nom bandligi bilan bir xil
+/// bo'linish).
 /// </para>
 /// <para>
 /// <b>NEGA faqat frontend'da yashirish yetarli emas.</b> Tugmani
@@ -488,61 +509,6 @@ public sealed class DeleteVacancyCommandHandler
         // yetim qoladigan havola ham yo'q.
         _vacancies.Remove(vacancy);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        return Result.Success();
-    }
-}
-
-/// <summary>
-/// Vakansiyaning ma'lumotnoma havolalarini tekshiradi.
-/// </summary>
-/// <remarks>
-/// Ochish va tahrirlash AYNAN bir xil tekshiruvni talab qiladi. Ikki joyda
-/// yozilsa, biri o'zgarganda ikkinchisi eskirib qolardi — loyihadagi
-/// <c>flags</c>/<c>activeFlags</c> xatosining aynan o'zi.
-/// </remarks>
-public sealed class VacancyReferenceGuard
-{
-    private readonly IReferenceRepository<VacancyTitle> _titles;
-    private readonly IEmployeeRepository _employees;
-
-    public VacancyReferenceGuard(IReferenceRepository<VacancyTitle> titles, IEmployeeRepository employees)
-    {
-        _titles = titles;
-        _employees = employees;
-    }
-
-    /// <summary>Vakansiya nomi va mas'ul xodim haqiqatan mavjudmi.</summary>
-    /// <remarks>
-    /// Ro'yxat ilgari to'rtta edi (lavozim, firma, bo'lim, mas'ul) va
-    /// endi ikkita: vakansiyada kompaniya tuzilmasidan hech narsa
-    /// qolmadi (sababi <c>Vacancy</c> izohida). Qolgan uchtasi
-    /// yo'qolmadi — ular ishga qabul oqimida tekshiriladi
-    /// (<c>HireCandidateCommandHandler</c> va uning chaqiradigan
-    /// <c>HireEmployeeCommandHandler</c> i).
-    /// </remarks>
-    public async Task<Result> CheckAsync(
-        Guid vacancyTitleId,
-        Guid? responsibleEmployeeId,
-        CancellationToken cancellationToken = default)
-    {
-        // Bo'sh identifikator BU YERDA tekshirilmaydi: «nom ko'rsatilishi
-        // shart» — domenning qoidasi va uning xabari (`vakansiya.nom_yoq`)
-        // domenda yozilgan. Agar bu yerda ham tekshirilsa, foydalanuvchi
-        // bo'sh maydon uchun «nom topilmadi» degan chalg'ituvchi javob
-        // olardi va bitta qoida ikki joyda yashab qolardi (`RecruitingErrors`
-        // izohidagi qat'iy bo'linish).
-        if (vacancyTitleId != Guid.Empty
-            && !await _titles.ExistsAsync(vacancyTitleId, cancellationToken).ConfigureAwait(false))
-        {
-            return RecruitingErrors.VacancyTitleNotFound;
-        }
-
-        if (responsibleEmployeeId is { } responsible
-            && !await _employees.ExistsAsync(responsible, cancellationToken).ConfigureAwait(false))
-        {
-            return RecruitingErrors.ResponsibleNotFound;
-        }
 
         return Result.Success();
     }

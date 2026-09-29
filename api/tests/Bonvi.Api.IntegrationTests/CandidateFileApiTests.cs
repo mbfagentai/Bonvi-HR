@@ -601,27 +601,16 @@ public sealed class CandidateFileApiTests : IClassFixture<BonviApiFactory>
 
     private static string Belgi() => Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
-    /// <summary>Vakansiya nomi, vakansiya va nomzod — bitta qadamda.</summary>
+    /// <summary>Vakansiya va nomzod — bitta qadamda.</summary>
     private static async Task<Guid> NomzodAsync(HttpClient mijoz, string familiya = "Файлли")
     {
         var bekorQilish = TestContext.Current.CancellationToken;
-
-        Guid nomId;
-
-        using (var nom = await mijoz.PostAsJsonAsync(
-            new Uri("/api/catalog/vacancy-titles", UriKind.Relative),
-            new { name = "Сотувчи-консультант " + Belgi() },
-            bekorQilish))
-        {
-            nom.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(nom));
-            nomId = (await nom.Content.ReadFromJsonAsync<VacancyTitleResponse>(bekorQilish))!.Id;
-        }
 
         Guid vakansiyaId;
 
         using (var vakansiya = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/vacancies", UriKind.Relative),
-            new { vacancyTitleId = nomId, openings = 1, openedAt = new DateOnly(2026, 3, 1) },
+            new { title = "Сотувчи-консультант " + Belgi(), openings = 1, openedAt = new DateOnly(2026, 3, 1) },
             bekorQilish))
         {
             vakansiya.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(vakansiya));

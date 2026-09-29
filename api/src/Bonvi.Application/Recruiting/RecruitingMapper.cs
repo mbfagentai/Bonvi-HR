@@ -11,8 +11,9 @@ namespace Bonvi.Application.Recruiting;
 /// <remarks>
 /// <para>
 /// Bitta mapper ikkala agregatga ham xizmat qiladi (vakansiya va
-/// nomzod), chunki ular bir xil manbadan nom oladi: vakansiya nomlari
-/// ma'lumotnomasi, bosqichlar va vakansiyaning o'zi. Ikkita alohida
+/// nomzod), chunki ular bir xil manbadan nom oladi: bosqichlar va
+/// vakansiyaning o'zi (nom vakansiyada yashaydi — sababi <c>Vacancy</c>
+/// izohida). Ikkita alohida
 /// mapper bu bog'liqliklarni ikki marta takrorlardi va nomlar bir kun
 /// ikki xil ko'rinishda chiqib qolardi.
 /// </para>
@@ -38,23 +39,17 @@ public sealed class RecruitingMapper
     private readonly IVacancyRepository _vacancies;
     private readonly ICandidateRepository _candidates;
     private readonly IEmploymentRepository _employments;
-    private readonly IEmployeeRepository _employees;
-    private readonly IReferenceRepository<VacancyTitle> _titles;
 
     public RecruitingMapper(
         IPipelineStageRepository stages,
         IVacancyRepository vacancies,
         ICandidateRepository candidates,
-        IEmploymentRepository employments,
-        IEmployeeRepository employees,
-        IReferenceRepository<VacancyTitle> titles)
+        IEmploymentRepository employments)
     {
         _stages = stages;
         _vacancies = vacancies;
         _candidates = candidates;
         _employments = employments;
-        _employees = employees;
-        _titles = titles;
     }
 
     /// <summary>Bosqich — ma'lumotnoma yozuvi, qo'shimcha so'rovsiz.</summary>
@@ -98,12 +93,6 @@ public sealed class RecruitingMapper
     {
         ArgumentNullException.ThrowIfNull(vacancy);
 
-        var title = await TitleNameAsync(vacancy.VacancyTitleId, cancellationToken).ConfigureAwait(false);
-
-        var responsible = vacancy.ResponsibleEmployeeId is { } responsibleId
-            ? await _employees.GetByIdAsync(responsibleId, cancellationToken).ConfigureAwait(false)
-            : null;
-
         // Sanoqlar bitta so'rovda: «3 ta nomzod, 1 tasi olindi» — vakansiya
         // kartasining asosiy raqami va usiz HR ro'yxatga qarab qaror
         // qabul qila olmaydi.
@@ -113,14 +102,11 @@ public sealed class RecruitingMapper
 
         return new VacancyDto(
             vacancy.Id,
-            vacancy.VacancyTitleId,
-            title,
+            vacancy.Title,
             vacancy.Openings,
             vacancy.Status,
             vacancy.OpenedAt,
             vacancy.ClosedAt,
-            vacancy.ResponsibleEmployeeId,
-            responsible?.FullName.Full,
             vacancy.Note,
             total,
             hired);
@@ -266,7 +252,7 @@ public sealed class RecruitingMapper
     /// <remarks>
     /// Ilgari bu yerda LAVOZIM nomi qaytardi, chunki vakansiyaning o'z
     /// nomi yo'q edi. Endi u bor va u aynan shu maqsad uchun yaratilgan
-    /// (sababi <see cref="VacancyTitle"/> izohida) — ya'ni nomzod
+    /// (sababi <see cref="Vacancy"/> izohida) — ya'ni nomzod
     /// kartasida «bu odam nimaga kelgan» degan savolga endi e'londa
     /// turgan matnning O'ZI javob beradi, shtat jadvalidagi rasmiy nom
     /// emas.
@@ -275,22 +261,6 @@ public sealed class RecruitingMapper
     {
         var vacancy = await _vacancies.GetByIdAsync(vacancyId, cancellationToken).ConfigureAwait(false);
 
-        return vacancy is null
-            ? null
-            : await TitleNameAsync(vacancy.VacancyTitleId, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>Vakansiya nomi ma'lumotnomasidan matnni oladi.</summary>
-    /// <remarks>
-    /// Faolsizlantirilgan yozuv ham topiladi (repozitoriy faollikka
-    /// qaramaydi): eski vakansiyada unga havola qolgan va nomsiz qator
-    /// «ma'lumot yo'qolgan» degan taassurot berardi — bosqich nomlari
-    /// bilan aynan bir xil qoida.
-    /// </remarks>
-    private async Task<string?> TitleNameAsync(Guid titleId, CancellationToken cancellationToken)
-    {
-        var title = await _titles.GetByIdAsync(titleId, cancellationToken).ConfigureAwait(false);
-
-        return title?.Name;
+        return vacancy?.Title;
     }
 }

@@ -397,3 +397,19 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-27] Do duties outlive a termination? → No. `Terminate` and
   `ImportTermination` set `duty_end_date` = the termination date on open
   duties, and the card shows no active duties for a terminated employment.
+- [2026-09-29] Vacancy titles catalog merged into vacancies: what happens to
+  names that have no vacancy yet? → They become CLOSED vacancies (opened =
+  closed = the title's creation day, Tashkent). → Opening them would publish
+  them to candidates in the Telegram bot immediately; closed keeps behaviour
+  unchanged and HR reopens with one click. Inactive titles migrate too
+  (they were visible in the catalog); soft-deleted titles do not.
+- [2026-09-29] Can two vacancies share a name? → No, case- and
+  whitespace-insensitive, closed ones included (HR reopens the old one
+  instead — keeps candidate history in one row). Enforced in the use case,
+  not by a DB index: legacy data may already hold duplicates (several
+  vacancies per title were allowed), which a unique index would reject
+  mid-migration. Reopen only checks OPEN duplicates so legacy closed twins
+  do not block each other.
+- [2026-09-29] Closing a vacancy → one click, closed date = today, no reason
+  prompt. → Owner asked for the simplest form; a reason can still go into
+  the note.

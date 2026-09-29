@@ -46,14 +46,11 @@ public sealed record PipelineStageDto(
 /// </para>
 /// </remarks>
 /// <param name="Id">Identifikator.</param>
-/// <param name="VacancyTitleId">Vakansiya nomi — ma'lumotnoma yozuvi.</param>
-/// <param name="Title">Vakansiya nomining matni.</param>
+/// <param name="Title">Vakansiya nomi — e'londa turadigan matn.</param>
 /// <param name="Openings">Nechta odam kerak.</param>
 /// <param name="Status">Open | Closed.</param>
 /// <param name="OpenedAt">Ochilgan sana.</param>
 /// <param name="ClosedAt">Yopilgan sana.</param>
-/// <param name="ResponsibleEmployeeId">Mas'ul xodim.</param>
-/// <param name="ResponsibleName">Mas'ul xodimning ismi.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="CandidateCount">Vakansiyaga kiritilgan nomzodlar soni (jami).</param>
 /// <param name="HiredCount">
@@ -63,14 +60,11 @@ public sealed record PipelineStageDto(
 /// </param>
 public sealed record VacancyDto(
     Guid Id,
-    Guid VacancyTitleId,
-    string? Title,
+    string Title,
     int Openings,
     VacancyStatus Status,
     DateOnly OpenedAt,
     DateOnly? ClosedAt,
-    Guid? ResponsibleEmployeeId,
-    string? ResponsibleName,
     string? Note,
     int CandidateCount,
     int HiredCount);

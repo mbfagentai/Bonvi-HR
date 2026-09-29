@@ -32,7 +32,6 @@ import { Route as AppMalumotnomalarJarimaTurlariRouteImport } from './routes/_ap
 import { Route as AppMalumotnomalarLavozimlarRouteImport } from './routes/_app/malumotnomalar/lavozimlar'
 import { Route as AppMalumotnomalarRagbatTurlariRouteImport } from './routes/_app/malumotnomalar/ragbat-turlari'
 import { Route as AppMalumotnomalarSabablarRouteImport } from './routes/_app/malumotnomalar/sabablar'
-import { Route as AppMalumotnomalarVakansiyaNomlariRouteImport } from './routes/_app/malumotnomalar/vakansiya-nomlari'
 import { Route as AppMalumotnomalarYonalishlarRouteImport } from './routes/_app/malumotnomalar/yonalishlar'
 import { Route as AppMalumotnomalarYuridikShaxslarRouteImport } from './routes/_app/malumotnomalar/yuridik-shaxslar'
 import { Route as AppNomzodlarIndexRouteImport } from './routes/_app/nomzodlar/index'
@@ -160,12 +159,6 @@ const AppMalumotnomalarSabablarRoute =
     path: '/malumotnomalar/sabablar',
     getParentRoute: () => AppRoute,
   } as any)
-const AppMalumotnomalarVakansiyaNomlariRoute =
-  AppMalumotnomalarVakansiyaNomlariRouteImport.update({
-    id: '/malumotnomalar/vakansiya-nomlari',
-    path: '/malumotnomalar/vakansiya-nomlari',
-    getParentRoute: () => AppRoute,
-  } as any)
 const AppMalumotnomalarYonalishlarRoute =
   AppMalumotnomalarYonalishlarRouteImport.update({
     id: '/malumotnomalar/yonalishlar',
@@ -222,7 +215,6 @@ export interface FileRoutesByFullPath {
   '/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
   '/malumotnomalar/ragbat-turlari': typeof AppMalumotnomalarRagbatTurlariRoute
   '/malumotnomalar/sabablar': typeof AppMalumotnomalarSabablarRoute
-  '/malumotnomalar/vakansiya-nomlari': typeof AppMalumotnomalarVakansiyaNomlariRoute
   '/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
   '/malumotnomalar/yuridik-shaxslar': typeof AppMalumotnomalarYuridikShaxslarRoute
   '/nomzodlar/$candidateId': typeof AppNomzodlarCandidateIdRoute
@@ -253,7 +245,6 @@ export interface FileRoutesByTo {
   '/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
   '/malumotnomalar/ragbat-turlari': typeof AppMalumotnomalarRagbatTurlariRoute
   '/malumotnomalar/sabablar': typeof AppMalumotnomalarSabablarRoute
-  '/malumotnomalar/vakansiya-nomlari': typeof AppMalumotnomalarVakansiyaNomlariRoute
   '/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
   '/malumotnomalar/yuridik-shaxslar': typeof AppMalumotnomalarYuridikShaxslarRoute
   '/nomzodlar/$candidateId': typeof AppNomzodlarCandidateIdRoute
@@ -286,7 +277,6 @@ export interface FileRoutesById {
   '/_app/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
   '/_app/malumotnomalar/ragbat-turlari': typeof AppMalumotnomalarRagbatTurlariRoute
   '/_app/malumotnomalar/sabablar': typeof AppMalumotnomalarSabablarRoute
-  '/_app/malumotnomalar/vakansiya-nomlari': typeof AppMalumotnomalarVakansiyaNomlariRoute
   '/_app/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
   '/_app/malumotnomalar/yuridik-shaxslar': typeof AppMalumotnomalarYuridikShaxslarRoute
   '/_app/nomzodlar/$candidateId': typeof AppNomzodlarCandidateIdRoute
@@ -319,7 +309,6 @@ export interface FileRouteTypes {
     | '/malumotnomalar/lavozimlar'
     | '/malumotnomalar/ragbat-turlari'
     | '/malumotnomalar/sabablar'
-    | '/malumotnomalar/vakansiya-nomlari'
     | '/malumotnomalar/yonalishlar'
     | '/malumotnomalar/yuridik-shaxslar'
     | '/nomzodlar/$candidateId'
@@ -350,7 +339,6 @@ export interface FileRouteTypes {
     | '/malumotnomalar/lavozimlar'
     | '/malumotnomalar/ragbat-turlari'
     | '/malumotnomalar/sabablar'
-    | '/malumotnomalar/vakansiya-nomlari'
     | '/malumotnomalar/yonalishlar'
     | '/malumotnomalar/yuridik-shaxslar'
     | '/nomzodlar/$candidateId'
@@ -382,7 +370,6 @@ export interface FileRouteTypes {
     | '/_app/malumotnomalar/lavozimlar'
     | '/_app/malumotnomalar/ragbat-turlari'
     | '/_app/malumotnomalar/sabablar'
-    | '/_app/malumotnomalar/vakansiya-nomlari'
     | '/_app/malumotnomalar/yonalishlar'
     | '/_app/malumotnomalar/yuridik-shaxslar'
     | '/_app/nomzodlar/$candidateId'
@@ -559,13 +546,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMalumotnomalarSabablarRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/malumotnomalar/vakansiya-nomlari': {
-      id: '/_app/malumotnomalar/vakansiya-nomlari'
-      path: '/malumotnomalar/vakansiya-nomlari'
-      fullPath: '/malumotnomalar/vakansiya-nomlari'
-      preLoaderRoute: typeof AppMalumotnomalarVakansiyaNomlariRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/malumotnomalar/yonalishlar': {
       id: '/_app/malumotnomalar/yonalishlar'
       path: '/malumotnomalar/yonalishlar'
@@ -633,7 +613,6 @@ interface AppRouteChildren {
   AppMalumotnomalarLavozimlarRoute: typeof AppMalumotnomalarLavozimlarRoute
   AppMalumotnomalarRagbatTurlariRoute: typeof AppMalumotnomalarRagbatTurlariRoute
   AppMalumotnomalarSabablarRoute: typeof AppMalumotnomalarSabablarRoute
-  AppMalumotnomalarVakansiyaNomlariRoute: typeof AppMalumotnomalarVakansiyaNomlariRoute
   AppMalumotnomalarYonalishlarRoute: typeof AppMalumotnomalarYonalishlarRoute
   AppMalumotnomalarYuridikShaxslarRoute: typeof AppMalumotnomalarYuridikShaxslarRoute
   AppNomzodlarCandidateIdRoute: typeof AppNomzodlarCandidateIdRoute
@@ -664,8 +643,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppMalumotnomalarLavozimlarRoute: AppMalumotnomalarLavozimlarRoute,
   AppMalumotnomalarRagbatTurlariRoute: AppMalumotnomalarRagbatTurlariRoute,
   AppMalumotnomalarSabablarRoute: AppMalumotnomalarSabablarRoute,
-  AppMalumotnomalarVakansiyaNomlariRoute:
-    AppMalumotnomalarVakansiyaNomlariRoute,
   AppMalumotnomalarYonalishlarRoute: AppMalumotnomalarYonalishlarRoute,
   AppMalumotnomalarYuridikShaxslarRoute: AppMalumotnomalarYuridikShaxslarRoute,
   AppNomzodlarCandidateIdRoute: AppNomzodlarCandidateIdRoute,

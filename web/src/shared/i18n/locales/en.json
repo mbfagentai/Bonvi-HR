@@ -38,8 +38,7 @@
     "recruiting": "Recruiting",
     "vacancies": "Vacancies",
     "candidates": "Candidates",
-    "rejectedCandidates": "Rejected",
-    "vacancyTitles": "Vacancy titles"
+    "rejectedCandidates": "Rejected"
   },
   "roles": {
     "hr_manager": "HR manager",
@@ -449,10 +448,6 @@
       "documentTypes": {
         "title": "Document types",
         "subtitle": "Categories of documents attached to an employee card"
-      },
-      "vacancyTitles": {
-        "title": "Vacancy titles",
-        "subtitle": "Short names used in job ads — a separate list, not the company’s positions"
       }
     },
     "departments": {
@@ -695,7 +690,6 @@
     "bosqich_yozuvi.bosqich_yoq": "Select a stage.",
     "bosqich_yozuvi.topilmadi": "Stage record not found — the page may be out of date.",
     "vakansiya.topilmadi": "Vacancy not found — the record may have been removed.",
-    "vakansiya.masul_topilmadi": "Responsible employee not found.",
     "vakansiya.orin_soni": "The number of openings must be between 1 and 100.",
     "vakansiya.qabul_qilmaydi": "The vacancy is not open: no new candidates can be added.",
     "vakansiya.allaqachon_yopiq": "This vacancy is already closed.",
@@ -732,9 +726,8 @@
     "anketa.til_notogri": "Invalid language level.",
     "anketa.maosh_notogri": "Invalid expected salary range.",
     "anketa.manba_notogri": "Invalid referral source.",
-    "vakansiya_nomi.nom_bosh": "Vacancy title is required.",
-    "vakansiya.nom_yoq": "A vacancy title must be selected.",
-    "vakansiya.nom_topilmadi": "Vacancy title not found — pick one from the “Vacancy titles” reference.",
+    "vakansiya.nom_yoq": "A vacancy title is required.",
+    "vakansiya.nom_band": "A vacancy with this title already exists — find it in the list and reopen it if it is closed.",
     "bildirishnoma.kalit_notogri": "Invalid notification key. Refresh the page.",
     "bildirishnoma.kalit_yoq": "No notifications selected.",
     "bildirishnoma.kalit_kop": "Cannot process more than 200 notifications at once.",
@@ -1272,7 +1265,6 @@
     "viewFunnel": "Funnel",
     "note": "Note",
     "reason": "Reason",
-    "reasonPlaceholder": "Internal note — why this was decided",
     "openedAt": "Opened",
     "closedAt": "Date",
     "closedAtLabel": "Left the funnel on {{date}}",
@@ -1281,7 +1273,6 @@
     "openingsHint": "How many people are needed",
     "filled": "Filled",
     "filledHint": "{{hired}} of {{openings}} openings filled",
-    "responsible": "Owner",
     "rate": "Rate",
     "rateHint": "1 — full-time, 0.5 — part-time",
     "probationDays": "Probation (days)",
@@ -1312,26 +1303,24 @@
     "chooseStage": "— Choose a stage —",
     "noDepartment": "— No department —",
     "vacancySubtitle": "{{n}} vacancies",
+    "vacancySearchPlaceholder": "Vacancy title…",
     "vacancyCreate": "Open a vacancy",
     "vacancyEdit": "Edit vacancy",
     "vacancyNotePlaceholder": "Urgency, requirements, other details",
     "vacancyEmptyTitle": "No vacancies yet",
     "vacancyEmptyText": "The funnel starts with a vacancy: every candidate belongs to exactly one opening.",
     "vacancyNotFoundTitle": "No vacancies found",
-    "vacancyNotFoundText": "Try changing the filters.",
+    "vacancyNotFoundText": "Try changing the search or the filter.",
+    "vacancyReopenNameTaken": "Not reopened: an open vacancy with this title already exists — add new candidates to that one.",
     "vacancyStatus": {
       "open": "Open",
       "closed": "Closed"
     },
     "vacancyAction": {
       "closeTitle": "Close the vacancy",
-      "closeConfirm": "Close",
       "deleteTitle": "Delete the vacancy",
       "deleteConfirm": "Delete",
-      "closeText": "The vacancy closes: no new candidates can be added and it disappears from the vacancy picker. Existing candidates and their stages stay untouched. You can reopen it whenever you need to.",
       "reopenTitle": "Reopen the vacancy",
-      "reopenText": "The vacancy becomes open again and can accept candidates. Its closing date is cleared.",
-      "reopenConfirm": "Reopen",
       "deleteText": "The record is removed from the list (kept in the database). Use this ONLY for a record created by mistake — a typo, a test vacancy. A vacancy that already has candidates cannot be deleted: it is history and should be closed instead."
     },
     "candidateSubtitle": "{{n}} candidates",
@@ -1466,8 +1455,7 @@
     "openEmployee": "Employee card",
     "vacancyTitle": "Vacancy title",
     "vacancyTitleHint": "The name used in the job ad. This is not a company position — the position is chosen when the candidate is hired",
-    "chooseVacancyTitle": "— Choose a vacancy title —",
-    "anyVacancyTitle": "All vacancy titles",
+    "vacancyTitlePlaceholder": "For example: Sales consultant",
     "acceptSectionPlacement": "Placement",
     "acceptPlacementHint": "Which legal entity, department and position the candidate is hired into. The vacancy does not carry this — the decision is made here.",
     "vacancyOpenHint": "Open vacancies only: closed ones do not accept candidates",

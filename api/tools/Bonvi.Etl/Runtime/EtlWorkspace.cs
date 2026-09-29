@@ -85,11 +85,8 @@ public sealed class EtlWorkspace
     /// <summary>Voronka bosqichlari nomi bo'yicha («Кенгаш»).</summary>
     private readonly Dictionary<string, PipelineStage> _stages = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Vakansiya nomlari — arxiv vakansiyasi uchun.</summary>
-    private readonly Dictionary<string, VacancyTitle> _vacancyTitles = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Vakansiyalar nomi identifikatori bo'yicha.</summary>
-    private readonly Dictionary<Guid, Vacancy> _vacanciesByTitle = [];
+    /// <summary>Vakansiyalar NOMI bo'yicha (arxiv vakansiyasi uchun).</summary>
+    private readonly Dictionary<string, Vacancy> _vacanciesByTitle = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Nomzodlar: «vakansiya + ism + tug'ilgan sana» kaliti bo'yicha.
@@ -253,21 +250,11 @@ public sealed class EtlWorkspace
     /// <summary>Bosqichni NOMI bo'yicha topadi («Кенгаш»).</summary>
     public PipelineStage? StageNamed(string name) => _stages.GetValueOrDefault(name);
 
-    /// <summary>Vakansiya nomini ro'yxatga oladi.</summary>
-    public void Register(VacancyTitle title)
-    {
-        ArgumentNullException.ThrowIfNull(title);
-        _vacancyTitles[title.Name] = title;
-    }
-
-    /// <summary>Vakansiya nomini NOMI bo'yicha topadi.</summary>
-    public VacancyTitle? VacancyTitleNamed(string name) => _vacancyTitles.GetValueOrDefault(name);
-
     /// <summary>
     /// Vakansiyani ro'yxatga oladi.
     /// </summary>
     /// <remarks>
-    /// Kalit — vakansiya NOMINING identifikatori. Kengash qadami arxiv
+    /// Kalit — vakansiya NOMI. Kengash qadami arxiv
     /// uchun BITTA vakansiya ochadi va ikkinchi yugurishda aynan
     /// o'shanisini qayta topishi kerak, aks holda har safar yangisi
     /// ochilib, nomzodlar bir necha vakansiyaga tarqab ketardi.
@@ -275,11 +262,11 @@ public sealed class EtlWorkspace
     public void Register(Vacancy vacancy)
     {
         ArgumentNullException.ThrowIfNull(vacancy);
-        _ = _vacanciesByTitle.TryAdd(vacancy.VacancyTitleId, vacancy);
+        _ = _vacanciesByTitle.TryAdd(vacancy.Title, vacancy);
     }
 
     /// <summary>Shu nomdagi vakansiya (bo'lmasa <c>null</c>).</summary>
-    public Vacancy? VacancyOfTitle(Guid vacancyTitleId) => _vacanciesByTitle.GetValueOrDefault(vacancyTitleId);
+    public Vacancy? VacancyNamed(string title) => _vacanciesByTitle.GetValueOrDefault(title);
 
     /// <summary>Nomzodni ro'yxatga oladi.</summary>
     public void Register(Candidate candidate)

@@ -14,7 +14,6 @@ import {
   LayoutGrid,
   Library,
   LogOut,
-  Megaphone,
   MessageSquareQuote,
   Network,
   ShieldAlert,
@@ -305,25 +304,6 @@ export const NAV: NavSection[] = [
           { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
           { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
           { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
-          /*
-            Vakansiya nomlari — e'londa turadigan qisqa nomlar
-            («Сотувчи-консультант», «Ҳайдовчи»).
-
-            ⚠️ Bu «Lavozimlar» ning takrori EMAS va ular ataylab ikkita
-            alohida band. Lavozim — kompaniyaning SHTAT birligi: u
-            buyruqda, mehnat shartnomasida turadi va unga vazifalar
-            biriktirilgan. Vakansiya nomi — E'LON: u tashqariga qaraydi
-            va nomzod tushunadigan tilda yoziladi. Ilgari vakansiya
-            lavozimlar ma'lumotnomasidan tanlanardi va natijada e'lon
-            uchun o'ylab topilgan har bir nom shtat jadvaliga tushib
-            ketardi — Excel'dagi 228 ta lavozimning kelib chiqishi aynan
-            shunday.
-
-            NEGA `permission` YO'Q: yozuv `/api/catalog/vacancy-titles`
-            da yashaydi va u qolgan ma'lumotnomalar bilan bir xil
-            `catalog.view` bilan himoyalangan.
-          */
-          { key: 'vacancyTitles',      to: '/malumotnomalar/vakansiya-nomlari', icon: Megaphone },
         ],
       },
     ],

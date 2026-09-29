@@ -147,19 +147,16 @@ public sealed class NotificationReadModel : INotificationReadModel
                 join vacancy in _context.Vacancies.AsNoTracking()
                     on candidate.VacancyId equals vacancy.Id into vacancyMatch
                 from vacancy in vacancyMatch.DefaultIfEmpty()
-                join title in _context.VacancyTitles.AsNoTracking()
-                    on vacancy.VacancyTitleId equals title.Id into titleMatch
-                from title in titleMatch.DefaultIfEmpty()
                 select new
                 {
                     CandidateId = candidate.Id,
                     candidate.FullName.LastName,
                     candidate.FullName.FirstName,
                     candidate.FullName.MiddleName,
-                    // Vakansiya nomi CHAPDAN qo'shiladi: e'loni o'chirilgan
+                    // Vakansiya CHAPDAN qo'shiladi: e'loni o'chirilgan
                     // nomzod ham ro'yxatdan tushib qolmasligi kerak
                     // (`RecruitingReadModel` dagi bilan bir xil sabab).
-                    VacancyTitle = title!.Name,
+                    VacancyTitle = vacancy!.Title,
                     candidate.Source,
                     candidate.CreatedAt,
                 })

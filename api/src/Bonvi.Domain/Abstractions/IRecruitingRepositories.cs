@@ -38,25 +38,27 @@ public interface IPipelineStageRepository : IReferenceRepository<PipelineStage>
 /// </remarks>
 public interface IVacancyRepository : IRepository<Vacancy>
 {
-    /// <summary>Shu NOM bo'yicha OCHIQ vakansiya bormi (takrorni oldini olish).</summary>
+    /// <summary>Shu NOMLI vakansiya bormi (takrorni oldini olish).</summary>
     /// <remarks>
     /// <para>
-    /// Bir xil nom uchun ikkinchi ochiq vakansiya odatda kiritish xatosi:
-    /// nomzodlar ikkiga bo'linib ketadi va voronka hisoboti ikki qatorga
-    /// yoyiladi. Bu qat'iy TAQIQ emas, use-case darajasidagi ogohlantirish
-    /// uchun ishlatiladi.
+    /// Nom registrga va bo'shliqlarga sezgir EMAS: «Сотувчи» va
+    /// «сотувчи  » — bitta nom (<c>ReferenceRepository.NameExistsAsync</c>
+    /// dagi qoida — nom ilgari o'sha ma'lumotnomada yashardi).
     /// </para>
     /// <para>
-    /// Ilgari tekshiruv «lavozim + firma» juftligi bo'yicha edi. Ikkalasi
-    /// ham vakansiyadan olib tashlangach (sababi <see cref="Vacancy"/>
-    /// izohida), takrorning yagona belgisi NOM bo'lib qoldi — bu esa
-    /// aslida to'g'riroq: bir xil e'lonni ikki marta ochish xato,
-    /// e'lonni ikki xil firmaga bog'lash esa endi umuman ma'noga ega emas.
+    /// <paramref name="openOnly"/> — faqat OCHIQ vakansiyalar orasidan
+    /// izlash. Ochish va tahrirlashda <c>false</c>: yopilgan vakansiya
+    /// ham nomni band qiladi, chunki uni QAYTA OCHISH kerak — yangisi
+    /// nomzodlar tarixini ikkiga bo'lardi (<c>Vacancy.Reopen</c> izohi).
+    /// Qayta ochishda esa <c>true</c>: ko'chirishdan qolgan bir xil nomli
+    /// yopiq vakansiyalar bir-birini to'smasligi kerak, faqat ikkitasi
+    /// BIR VAQTDA ochiq turmasin.
     /// </para>
     /// </remarks>
-    Task<bool> HasOpenAsync(
-        Guid vacancyTitleId,
+    Task<bool> TitleTakenAsync(
+        string title,
         Guid? exceptId = null,
+        bool openOnly = false,
         CancellationToken cancellationToken = default);
 }
 

@@ -38,8 +38,7 @@
     "recruiting": "Rekruting",
     "vacancies": "Vakansiyalar",
     "candidates": "Nomzodlar",
-    "rejectedCandidates": "Rad etilganlar",
-    "vacancyTitles": "Vakansiya nomlari"
+    "rejectedCandidates": "Rad etilganlar"
   },
   "roles": {
     "hr_manager": "HR menejeri",
@@ -449,10 +448,6 @@
       "documentTypes": {
         "title": "Hujjat turlari",
         "subtitle": "Xodim kartasiga biriktiriladigan hujjatlar turkumi"
-      },
-      "vacancyTitles": {
-        "title": "Vakansiya nomlari",
-        "subtitle": "E’londa turadigan qisqa nomlar — kompaniya lavozimlaridan alohida ro‘yxat"
       }
     },
     "departments": {
@@ -695,7 +690,6 @@
     "bosqich_yozuvi.bosqich_yoq": "Bosqich ko‘rsatilishi shart.",
     "bosqich_yozuvi.topilmadi": "Bosqich yozuvi topilmadi — u o‘chirilgan yoki sahifa eskirgan bo‘lishi mumkin.",
     "vakansiya.topilmadi": "Vakansiya topilmadi — u o‘chirilgan bo‘lishi mumkin.",
-    "vakansiya.masul_topilmadi": "Mas’ul xodim topilmadi.",
     "vakansiya.orin_soni": "Kerakli odamlar soni 1 dan 100 gacha bo‘lishi kerak.",
     "vakansiya.qabul_qilmaydi": "Vakansiya ochiq emas: unga yangi nomzod kiritib bo‘lmaydi.",
     "vakansiya.allaqachon_yopiq": "Bu vakansiya allaqachon yopilgan.",
@@ -732,9 +726,8 @@
     "anketa.til_notogri": "Til darajasi noto‘g‘ri.",
     "anketa.maosh_notogri": "Kutilayotgan maosh oralig‘i noto‘g‘ri.",
     "anketa.manba_notogri": "Ish haqida qayerdan bilgani noto‘g‘ri.",
-    "vakansiya_nomi.nom_bosh": "Vakansiya nomi kiritilishi shart.",
     "vakansiya.nom_yoq": "Vakansiya nomi ko‘rsatilishi shart.",
-    "vakansiya.nom_topilmadi": "Vakansiya nomi topilmadi — u «Vakansiya nomlari» ma’lumotnomasidan tanlanadi.",
+    "vakansiya.nom_band": "Bu nomli vakansiya allaqachon bor — uni ro‘yxatdan toping: yopilgan bo‘lsa, qayta oching.",
     "bildirishnoma.kalit_notogri": "Bildirishnoma kaliti noto‘g‘ri. Sahifani yangilang.",
     "bildirishnoma.kalit_yoq": "Birorta bildirishnoma tanlanmagan.",
     "bildirishnoma.kalit_kop": "Bir vaqtda 200 tadan ortiq bildirishnoma bilan ishlab bo‘lmaydi.",
@@ -1272,7 +1265,6 @@
     "viewFunnel": "Voronka",
     "note": "Izoh",
     "reason": "Sababi",
-    "reasonPlaceholder": "Ichki eslatma — nima uchun shunday qilindi",
     "openedAt": "Ochilgan",
     "closedAt": "Sana",
     "closedAtLabel": "Voronkadan chiqqan sana: {{date}}",
@@ -1281,7 +1273,6 @@
     "openingsHint": "Nechta odam kerak",
     "filled": "To‘ldirildi",
     "filledHint": "{{openings}} o‘rindan {{hired}} tasi to‘ldirildi",
-    "responsible": "Mas’ul xodim",
     "rate": "Stavka",
     "rateHint": "1 — to‘liq, 0,5 — o‘rindoshlik",
     "probationDays": "Sinov muddati (kun)",
@@ -1312,26 +1303,24 @@
     "chooseStage": "— Bosqichni tanlang —",
     "noDepartment": "— Bo‘limsiz —",
     "vacancySubtitle": "{{n}} ta vakansiya",
+    "vacancySearchPlaceholder": "Vakansiya nomi…",
     "vacancyCreate": "Vakansiya ochish",
     "vacancyEdit": "Vakansiyani tahrirlash",
     "vacancyNotePlaceholder": "Shoshilinchlik, talablar, boshqa tafsilotlar",
     "vacancyEmptyTitle": "Hali vakansiya ochilmagan",
     "vacancyEmptyText": "Voronka vakansiyadan boshlanadi: har bir nomzod aynan bitta ochiq o‘ringa kiritiladi.",
     "vacancyNotFoundTitle": "Vakansiya topilmadi",
-    "vacancyNotFoundText": "Filtrlarni o‘zgartirib ko‘ring.",
+    "vacancyNotFoundText": "Qidiruvni yoki filtrni o‘zgartirib ko‘ring.",
+    "vacancyReopenNameTaken": "Qayta ochilmadi: shu nomli ochiq vakansiya allaqachon bor — yangi nomzodlarni o‘shanga kiriting.",
     "vacancyStatus": {
       "open": "Ochiq",
       "closed": "Yopilgan"
     },
     "vacancyAction": {
       "closeTitle": "Vakansiyani yopish",
-      "closeConfirm": "Yopish",
       "deleteTitle": "Vakansiyani o‘chirish",
       "deleteConfirm": "O‘chirish",
-      "closeText": "Vakansiya yopiladi: unga yangi nomzod kiritib bo‘lmaydi va u nomzod qo‘shishdagi tanlov ro‘yxatida ko‘rinmaydi. Mavjud nomzodlar va ularning bosqichlari o‘zgarishsiz qoladi. Kerak bo‘lsa qayta ochasiz.",
       "reopenTitle": "Vakansiyani qayta ochish",
-      "reopenText": "Vakansiya yana ochiladi va unga nomzod kiritish mumkin bo‘ladi. Yopilgan sanasi olib tashlanadi.",
-      "reopenConfirm": "Qayta ochish",
       "deleteText": "Yozuv ro‘yxatdan olib tashlanadi (bazada qoladi). Bu amal FAQAT xato kiritilgan yozuv uchun — imlo xatosi, sinov uchun ochilgani. Nomzodi bor vakansiya o‘chirilmaydi: u tarix va uni yopish kerak."
     },
     "candidateSubtitle": "{{n}} ta nomzod",
@@ -1466,8 +1455,7 @@
     "openEmployee": "Xodim kartasi",
     "vacancyTitle": "Vakansiya nomi",
     "vacancyTitleHint": "E’londa turadigan nom. Bu kompaniya lavozimi emas — lavozim ishga qabulda tanlanadi",
-    "chooseVacancyTitle": "— Vakansiya nomini tanlang —",
-    "anyVacancyTitle": "Barcha vakansiya nomlari",
+    "vacancyTitlePlaceholder": "Masalan: Sotuvchi-konsultant",
     "acceptSectionPlacement": "Ish joyi",
     "acceptPlacementHint": "Nomzod qaysi firmaga, bo‘limga va lavozimga olinadi. Vakansiyada bu ma’lumot yo‘q — qaror aynan shu yerda qabul qilinadi.",
     "vacancyOpenHint": "Faqat ochiq vakansiyalar: yopilganiga nomzod kiritilmaydi",

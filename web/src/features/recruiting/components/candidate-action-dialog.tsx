@@ -65,8 +65,7 @@ const WITH_NEXT_CONTACT: readonly CandidateAction[] = [
 const REVERSIBLE: readonly CandidateAction[] = ['reassign', 'reserve', 'returnToFunnel']
 
 /**
- * Nomzod ustidagi OLTITA amal — BITTA oyna
- * (`VacancyActionDialog` bilan bir xil naqsh: tuzilishi bir xil, farq
+ * Nomzod ustidagi OLTITA amal — BITTA oyna (tuzilishi bir xil, farq
  * matnda va yuboriladigan so'rovda).
  *
  * <b>«Rad etdik» va «o'zi voz kechdi» ATAYLAB ajratilgan.</b> Voronka

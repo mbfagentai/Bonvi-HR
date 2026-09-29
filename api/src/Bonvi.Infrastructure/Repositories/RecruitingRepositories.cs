@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Infrastructure.Persistence;
@@ -85,17 +86,41 @@ public sealed class VacancyRepository : Repository<Vacancy>, IVacancyRepository
     public VacancyRepository(AppDbContext context) : base(context) { }
 
     /// <inheritdoc />
-    public Task<bool> HasOpenAsync(
-        Guid vacancyTitleId,
+    /// <remarks>
+    /// <c>ToLower()</c> SQL'dagi <c>lower()</c> ga tarjima qilinadi —
+    /// analizator qoidalari nega o'chirilgani
+    /// <c>ReferenceRepository.NameEquals</c> izohida.
+    /// </remarks>
+    [SuppressMessage(
+        "Globalization",
+        "CA1304:Specify CultureInfo",
+        Justification = "Ifoda daraxti SQL'ga tarjima qilinadi, .NET'da bajarilmaydi.")]
+    [SuppressMessage(
+        "Globalization",
+        "CA1311:Specify a culture or use an invariant version",
+        Justification = "Ifoda daraxti SQL'ga tarjima qilinadi, .NET'da bajarilmaydi.")]
+    [SuppressMessage(
+        "Performance",
+        "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons",
+        Justification = "EF Core StringComparison variantini SQL'ga tarjima qila olmaydi.")]
+    public Task<bool> TitleTakenAsync(
+        string title,
         Guid? exceptId = null,
+        bool openOnly = false,
         CancellationToken cancellationToken = default)
     {
+        var normalized = (Vacancy.NormalizeTitle(title) ?? string.Empty).ToLowerInvariant();
+
         var query = Set
             .AsNoTracking()
-            .Where(vacancy =>
-                vacancy.VacancyTitleId == vacancyTitleId &&
-                vacancy.Status == VacancyStatus.Open);
+            .Where(vacancy => vacancy.Title.ToLower() == normalized);
 
+        if (openOnly)
+        {
+            query = query.Where(vacancy => vacancy.Status == VacancyStatus.Open);
+        }
+
+        // Tahrirlashda yozuvning O'ZI takror hisoblanmasligi kerak
         if (exceptId is { } id)
         {
             query = query.Where(vacancy => vacancy.Id != id);

@@ -63,17 +63,31 @@ public enum VacancyStatus
 /// <para>
 /// <b>⭐ Vakansiyada kompaniya tuzilmasidan HECH NARSA yo'q.</b> Lavozim
 /// yo'q, bo'lim yo'q, yuridik shaxs ham yo'q — faqat
-/// <see cref="VacancyTitleId"/>, ya'ni e'londa turadigan nom. Bu ataylab
+/// <see cref="Title"/>, ya'ni e'londa turadigan nom. Bu ataylab
 /// va bu — foydalanuvchining aniq qarori («vakansiya nomi bilan kompaniya
 /// lavozimi bir-biriga aralashmasin»).
 /// </para>
 /// <para>
-/// <b>NEGA lavozim yo'q.</b> Batafsil sabab <see cref="VacancyTitle"/>
-/// izohida: e'lon tashqariga qaraydi va nomzod tushunadigan tilda
-/// yoziladi, shtat birligi esa ichkariga — buyruqqa va shartnomaga.
-/// Ilgari vakansiya <c>Position</c> ma'lumotnomasidan tanlanardi va
-/// natijada e'lon uchun ochilgan har bir nom shtat jadvaliga tushib
-/// ketardi.
+/// <b>NEGA nom vakansiyaning O'ZIDA, alohida ma'lumotnomada emas.</b>
+/// Ilgari nom «Vakansiya nomlari» ma'lumotnomasidan tanlanardi va HR
+/// bitta e'lonni IKKI joyda boshqarardi: nomini va faolligini
+/// ma'lumotnomada, ochiq/yopiqligini — vakansiyalar ro'yxatida. Egasi
+/// 2026-09-29 da buni ortiqcha ish deb topdi: endi vakansiyalar ro'yxati
+/// nomlar ro'yxatining O'ZI, «faollik» esa <see cref="Status"/> (ochiq
+/// yoki yopiq). Ma'lumotnoma himoya qilgan narsa — bir e'lonning
+/// «Сотувчи», «сотувчи » kabi nusxalari — endi nomning o'zida
+/// tekshiriladi: bir xil nomli ikkinchi vakansiya ochilmaydi
+/// (<c>OpenVacancyCommandHandler</c>), yopilgani esa qayta ochiladi.
+/// </para>
+/// <para>
+/// <b>NEGA lavozim yo'q.</b> E'lon tashqariga qaraydi va nomzod
+/// tushunadigan tilda yoziladi: «Сотувчи-консультант» degan e'longa odam
+/// keladi, shtat jadvalidagi «Сотув бўлими катта мутахассиси, 3-тоифа» ga
+/// hech kim kelmaydi. Shtat birligi esa ichkariga qaraydi — buyruqqa va
+/// shartnomaga. Ilgari vakansiya <c>Position</c> ma'lumotnomasidan
+/// tanlanardi va natijada e'lon uchun ochilgan har bir nom shtat
+/// jadvaliga tushib ketardi; teskarisi ham zarar edi — HR e'lonni
+/// chiroyli yozish uchun SHTAT nomini o'zgartirishga majbur bo'lardi.
 /// </para>
 /// <para>
 /// <b>NEGA bo'lim yo'q.</b> Bitta e'longa kelgan odamlar turli bo'limlarga
@@ -118,10 +132,10 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public const int MaxOpenings = 100;
 
-    private Vacancy(Guid id, Guid vacancyTitleId, int openings, DateOnly openedAt)
+    private Vacancy(Guid id, string title, int openings, DateOnly openedAt)
         : base(id)
     {
-        VacancyTitleId = vacancyTitleId;
+        Title = title;
         Openings = openings;
         OpenedAt = openedAt;
         Status = VacancyStatus.Open;
@@ -130,15 +144,14 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>EF Core uchun.</summary>
     private Vacancy() { }
 
-    /// <summary>
-    /// E'londa turadigan nom — <c>vacancy_titles</c> ma'lumotnomasidan.
-    /// </summary>
+    /// <summary>E'londa turadigan nom: «Сотувчи-консультант», «Ҳайдовчи».</summary>
     /// <remarks>
-    /// Vakansiyaning YAGONA mazmuniy bog'lanishi. Bu <b>lavozim emas</b>:
-    /// shtat birligi ishga qabul paytida alohida tanlanadi (sinf izohiga
-    /// qarang).
+    /// Bu <b>lavozim emas</b>: shtat birligi ishga qabul paytida alohida
+    /// tanlanadi (sinf izohiga qarang). Bo'shliqlar ma'lumotnoma nomidagi
+    /// kabi yig'iladi (<see cref="NormalizeTitle"/>) — aks holda
+    /// «Сотувчи  консультант» takror tekshiruvidan o'tib ketardi.
     /// </remarks>
-    public Guid VacancyTitleId { get; private set; }
+    public string Title { get; private set; } = string.Empty;
 
     /// <summary>Nechta odam kerak.</summary>
     public int Openings { get; private set; }
@@ -150,22 +163,6 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
     public DateOnly? ClosedAt { get; private set; }
 
     public VacancyStatus Status { get; private set; }
-
-    /// <summary>Vakansiya uchun mas'ul xodim (rekruter).</summary>
-    /// <remarks>
-    /// <para>
-    /// Xodimga ishora, foydalanuvchi hisobiga emas — <c>Incident</c> va
-    /// <c>EmployeeFlag</c> dagi bilan bir xil naqsh: mas'ul odam tizimga
-    /// kirmasligi ham mumkin (xodimlarga login berilmaydi).
-    /// </para>
-    /// <para>
-    /// Bu maydon xodimlar jadvaliga ishora qilsa ham, «kompaniya
-    /// tuzilmasi» emas: u e'lonni KIM olib boryapti degan savolga javob
-    /// beradi, nomzod QAYERGA olinadi degan savolga emas. Shu sababli
-    /// lavozim/bo'lim/firma bilan birga olib tashlanmadi.
-    /// </para>
-    /// </remarks>
-    public Guid? ResponsibleEmployeeId { get; private set; }
 
     /// <summary>Erkin izoh: shoshilinchlik, talablar, yopish sababi.</summary>
     public string? Note { get; private set; }
@@ -188,13 +185,13 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
     public bool AcceptsCandidates => Status == VacancyStatus.Open;
 
     public static Result<Vacancy> Open(
-        Guid vacancyTitleId,
+        string? title,
         DateOnly openedAt,
         int openings = 1,
-        Guid? responsibleEmployeeId = null,
         string? note = null)
     {
-        if (vacancyTitleId == Guid.Empty)
+        var normalized = NormalizeTitle(title);
+        if (normalized is null)
         {
             return Error.Validation("vakansiya.nom_yoq", "Vakansiya nomi ko'rsatilishi shart.");
         }
@@ -205,9 +202,8 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
             return checkedOpenings.Error;
         }
 
-        return new Vacancy(NewId(), vacancyTitleId, openings, openedAt)
+        return new Vacancy(NewId(), normalized, openings, openedAt)
         {
-            ResponsibleEmployeeId = responsibleEmployeeId,
             Note = Trim(note),
         };
     }
@@ -225,13 +221,13 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
     /// (<see cref="Close"/> / <see cref="Reopen"/>).
     /// </remarks>
     public Result Update(
-        Guid vacancyTitleId,
+        string? title,
         DateOnly openedAt,
         int openings = 1,
-        Guid? responsibleEmployeeId = null,
         string? note = null)
     {
-        if (vacancyTitleId == Guid.Empty)
+        var normalized = NormalizeTitle(title);
+        if (normalized is null)
         {
             return Error.Validation("vakansiya.nom_yoq", "Vakansiya nomi ko'rsatilishi shart.");
         }
@@ -242,10 +238,9 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
             return checkedOpenings.Error;
         }
 
-        VacancyTitleId = vacancyTitleId;
+        Title = normalized;
         Openings = openings;
         OpenedAt = openedAt;
-        ResponsibleEmployeeId = responsibleEmployeeId;
         Note = Trim(note);
 
         return Result.Success();
@@ -317,6 +312,31 @@ public sealed class Vacancy : AggregateRoot, IAuditable, ISoftDeletable
                 "vakansiya.orin_soni",
                 $"Kerakli odamlar soni 1 dan {MaxOpenings} gacha bo'lishi kerak.")
             : Result.Success();
+
+    /// <summary>
+    /// Nomni takror tekshiruvi uchun bir shaklga keltiradi: chetdagi
+    /// bo'shliqlar kesiladi, ichkaridagi har qanday bo'shliq ketma-ketligi
+    /// bitta probelga aylanadi.
+    /// </summary>
+    /// <remarks>
+    /// <c>ReferenceEntity.Normalize</c> bilan AYNAN bir xil qoida — nom
+    /// ilgari o'sha ma'lumotnomada yashardi va ko'chirilgan nomlar shu
+    /// shaklda saqlangan. Qoida farq qilsa, eski va yangi nomlar takror
+    /// tekshiruvida bir-birini «ko'rmay» qolardi.
+    /// </remarks>
+    public static string? NormalizeTitle(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var parts = value.Split(
+            (char[]?)null,
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return parts.Length == 0 ? null : string.Join(' ', parts);
+    }
 
     private static string? Trim(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

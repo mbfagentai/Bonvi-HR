@@ -85,7 +85,7 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
         // Fabrika ko'tarilganda urug'lantirish ALLAQACHON bir marta o'tgan.
         using var mijoz = await AdminMijozAsync();
 
-        var (avvalgiVakansiyaId, avvalgiNomId) = await UmumiyAnketaAsync();
+        var avvalgiVakansiyaId = await UmumiyAnketaAsync();
 
         // Ikkinchi ishga tushish — xuddi konteyner qayta ko'tarilgandek.
         await UrughniQaytaIshgaTushirAsync(bekorQilish);
@@ -93,20 +93,12 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // Nom ham, vakansiya ham BITTA bo'lib qolishi kerak. O'chirilganlar
-        // ham sanaladi: takror yaratilgan yozuv keyin o'chirilgan bo'lsa
-        // ham, u xato bo'lganicha qoladi.
-        var nomlar = await kontekst.VacancyTitles
-            .IgnoreQueryFilters()
-            .Where(nom => nom.Name == DatabaseInitializer.GeneralPoolTitle)
-            .ToListAsync(bekorQilish);
-
-        var nom = nomlar.ShouldHaveSingleItem();
-        nom.Id.ShouldBe(avvalgiNomId, "mavjud ma'lumotnoma yozuvi qayta ishlatiladi");
-
+        // Vakansiya BITTA bo'lib qolishi kerak. O'chirilganlar ham
+        // sanaladi: takror yaratilgan yozuv keyin o'chirilgan bo'lsa ham,
+        // u xato bo'lganicha qoladi.
         var vakansiyalar = await kontekst.Vacancies
             .IgnoreQueryFilters()
-            .Where(vakansiya => vakansiya.VacancyTitleId == nom.Id)
+            .Where(vakansiya => vakansiya.Title == DatabaseInitializer.GeneralPoolTitle)
             .ToListAsync(bekorQilish);
 
         var vakansiya = vakansiyalar.ShouldHaveSingleItem();
@@ -259,7 +251,7 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
         using var admin = await AdminMijozAsync();
         using var bot = await BotMijozAsync();
 
-        var (umumiyId, _) = await UmumiyAnketaAsync();
+        var umumiyId = await UmumiyAnketaAsync();
 
         // Oddiy e'lon — bot ro'yxati bo'shab qolmaganini ko'rsatadi.
         var oddiyId = await OddiyVakansiyaAsync(admin);
@@ -283,8 +275,8 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
 
-    /// <summary>Sozlamada turgan «Umumiy anketa» vakansiyasi va uning nomi.</summary>
-    private async Task<(Guid VacancyId, Guid TitleId)> UmumiyAnketaAsync()
+    /// <summary>Sozlamada turgan «Umumiy anketa» vakansiyasi.</summary>
+    private async Task<Guid> UmumiyAnketaAsync()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
@@ -302,7 +294,8 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
             .AsNoTracking()
             .SingleAsync(qator => qator.Id == vakansiyaId, bekorQilish);
 
-        return (vakansiya.Id, vakansiya.VacancyTitleId);
+        vakansiya.Title.ShouldBe(DatabaseInitializer.GeneralPoolTitle);
+        return vakansiya.Id;
     }
 
     /// <summary>
@@ -346,19 +339,9 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
-        using var nomJavobi = await mijoz.PostAsJsonAsync(
-            new Uri("/api/catalog/vacancy-titles", UriKind.Relative),
-            new { name = "Омборчи " + Guid.NewGuid().ToString("N")[..6] },
-            bekorQilish);
-
-        nomJavobi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(nomJavobi));
-
-        var nom = await nomJavobi.Content.ReadFromJsonAsync<VacancyTitleResponse>(bekorQilish);
-        nom.ShouldNotBeNull();
-
         using var javob = await mijoz.PostAsJsonAsync(
             VacanciesUri,
-            new { vacancyTitleId = nom.Id },
+            new { title = "Омборчи " + Guid.NewGuid().ToString("N")[..6] },
             bekorQilish);
 
         javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));

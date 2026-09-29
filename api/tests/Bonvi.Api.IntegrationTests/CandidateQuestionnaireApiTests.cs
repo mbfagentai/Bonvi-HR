@@ -698,7 +698,7 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
 
-    /// <summary>Vakansiya nomi + ochiq vakansiya yaratadi va uning identifikatorini beradi.</summary>
+    /// <summary>Ochiq vakansiya yaratadi va uning identifikatorini beradi.</summary>
     /// <remarks>
     /// Har bir test O'Z vakansiyasini oladi: ro'yxat tekshiruvlari
     /// («nechta nomzod bor») shu izolyatsiyaga tayanadi va testlar
@@ -708,21 +708,11 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
-        using var nomJavobi = await mijoz.PostAsJsonAsync(
-            new Uri("/api/catalog/vacancy-titles", UriKind.Relative),
-            new { name = "Анкета синови " + Guid.NewGuid().ToString("N")[..8] },
-            bekorQilish);
-
-        nomJavobi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(nomJavobi));
-
-        var nom = await nomJavobi.Content.ReadFromJsonAsync<VacancyTitleResponse>(bekorQilish);
-        nom.ShouldNotBeNull();
-
         using var vakansiyaJavobi = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/vacancies", UriKind.Relative),
             new
             {
-                vacancyTitleId = nom.Id,
+                title = "Анкета синови " + Guid.NewGuid().ToString("N")[..8],
                 openings = 1,
                 openedAt = new DateOnly(2026, 9, 1),
             },

@@ -40,39 +40,15 @@ public sealed class PipelineStageConfiguration : IEntityTypeConfiguration<Pipeli
 }
 
 /// <summary>
-/// <see cref="VacancyTitle"/> uchun jadval konfiguratsiyasi (<c>vacancy_titles</c>).
-/// </summary>
-/// <remarks>
-/// Butunlay odatiy ma'lumotnoma: <c>ConfigureReference</c> dan boshqa hech
-/// narsa kerak emas. <see cref="PipelineStageConfiguration"/> ga
-/// qo'shimcha indeks kerak edi (voronkadagi tartib uchun), bu yerda esa
-/// yagona so'rov «faol nomlarni alifbo bo'yicha ber» — uni asosdagi
-/// <c>(is_active, name)</c> indeksi to'liq qoplaydi.
-/// </remarks>
-public sealed class VacancyTitleConfiguration : IEntityTypeConfiguration<VacancyTitle>
-{
-    public void Configure(EntityTypeBuilder<VacancyTitle> builder)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        builder.ConfigureReference("vacancy_titles");
-    }
-}
-
-/// <summary>
 /// <see cref="Vacancy"/> uchun jadval konfiguratsiyasi (<c>vacancies</c>).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tashqi kalitlar <c>Restrict</c> — <c>EmploymentConfiguration</c>
-/// dagi bilan bir xil sabab: ma'lumotnomadagi yozuv o'chirilganda uning
-/// ortidan vakansiya tarixi yo'q bo'lib ketishi mumkin emas.
-/// </para>
-/// <para>
-/// <b>Lavozim, bo'lim va firma ustunlari YO'Q.</b> Ular vakansiyadan
-/// butunlay olib tashlandi (sababi <see cref="Vacancy"/> izohida), shu
-/// bilan birga ularning tashqi kalitlari va indekslari ham. Jadvalda
-/// ma'lumotnomaga yagona havola qoldi — <c>vacancy_title_id</c>.
+/// <b>Tashqi kalit YO'Q.</b> Lavozim, bo'lim va firma vakansiyadan
+/// ilgariroq olib tashlangan edi (sababi <see cref="Vacancy"/> izohida);
+/// oxirgi ikki havola — «Vakansiya nomlari» ma'lumotnomasi va mas'ul
+/// xodim — 2026-09-29 da ketdi: nom endi vakansiyaning o'z ustunida
+/// (<c>title</c>), mas'ul esa umuman so'ralmaydi.
 /// </para>
 /// </remarks>
 public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
@@ -99,17 +75,13 @@ public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
         builder.Property(vacancy => vacancy.Note)
             .HasMaxLength(2000);
 
-        builder.HasOne<VacancyTitle>()
-            .WithMany()
-            .HasForeignKey(vacancy => vacancy.VacancyTitleId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // Mas'ul xodim (rekruter) — u keyinchalik ishdan ketsa ham, kim
-        // mas'ul bo'lgani ma'lum qolishi kerak.
-        builder.HasOne<Employee>()
-            .WithMany()
-            .HasForeignKey(vacancy => vacancy.ResponsibleEmployeeId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // Nom ma'lumotnomadan ko'chib kelgan va o'sha yerdagi kabi o'zbek
+        // alifbosi bo'yicha saralanadi (`DatabaseCollations`): «Ҳайдовчи»
+        // «Х» dan keyin emas, o'z joyida turishi kerak. Uzunlik cheklovi
+        // ham ma'lumotnomadagi kabi YO'Q (`ConfigureReference` izohi).
+        builder.Property(vacancy => vacancy.Title)
+            .UseCollation(DatabaseCollations.UzbekNames)
+            .IsRequired();
 
         // ────────────────────────────────────────────────────────────
         //  Indekslar
@@ -119,9 +91,9 @@ public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
         // indeks saralashni ham qoplaydi.
         builder.HasIndex(vacancy => new { vacancy.Status, vacancy.OpenedAt });
 
-        // «Shu nom bo'yicha ochiq vakansiya bormi» (takror tekshiruvi) va
-        // nom bo'yicha filtr — ro'yxatning yagona qolgan filtri.
-        builder.HasIndex(vacancy => vacancy.VacancyTitleId);
+        // Nom bo'yicha indeks ATAYLAB yo'q: takror tekshiruvi
+        // (`lower(title)`) va qidiruv bir necha o'nlab qatorni ko'radi —
+        // to'liq skanerlash millisekunddan ham tez.
     }
 }
 

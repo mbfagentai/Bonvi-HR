@@ -41,11 +41,13 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   // Lavozim, bo'lim va firma xatolari bu yerda YO'Q va bo'lishi ham
   // mumkin emas: vakansiya formasida bunday maydonlar qolmadi. Ular
   // pastdagi «ishga olishda» bo'limiga ko'chdi.
-  'vakansiya.nom_yoq': 'vacancyTitleId',
-  'vakansiya.nom_topilmadi': 'vacancyTitleId',
-  'vakansiya.masul_topilmadi': 'responsibleEmployeeId',
+  //
+  // `vakansiya.nom_band` formada nom maydoniga tushadi. Ro'yxatdagi
+  // «qayta ochish» tugmasida esa u sahifa tepasida o'z matni bilan
+  // chiqadi (`vacancies-page.tsx`) — u yerda maydon yo'q.
+  'vakansiya.nom_yoq': 'title',
+  'vakansiya.nom_band': 'title',
   'vakansiya.orin_soni': 'openings',
-  'vakansiya.yopish_sanasi': 'closedAt',
 
   // ── nomzod
   'ism.familiya_bosh': 'lastName',

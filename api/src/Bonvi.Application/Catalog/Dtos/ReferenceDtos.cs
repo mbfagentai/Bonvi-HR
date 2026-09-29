@@ -85,21 +85,3 @@ public sealed record DocumentTypeDto(
     bool IsActive,
     string? Note,
     bool IsRequired);
-
-/// <summary>
-/// Vakansiya nomi — e'londa turadigan qisqa nom.
-/// </summary>
-/// <remarks>
-/// Boshqa ma'lumotnoma DTO'laridan farqi YO'Q: turga xos maydon ataylab
-/// qo'shilmagan (sababi <c>VacancyTitle</c> izohida — daraja, bo'lim va
-/// sinov muddati lavozimning xossalari, e'lonniki emas).
-/// </remarks>
-/// <param name="Id">Identifikator.</param>
-/// <param name="Name">Nom.</param>
-/// <param name="IsActive">Faolmi — faol emasiga yangi vakansiya ochilmaydi.</param>
-/// <param name="Note">Izoh.</param>
-public sealed record VacancyTitleDto(
-    Guid Id,
-    string Name,
-    bool IsActive,
-    string? Note);

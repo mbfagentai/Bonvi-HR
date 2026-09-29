@@ -694,18 +694,15 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var nom = VacancyTitle.Create($"{belgi} Сотувчи-консультант").Value;
-
             // Ikkita OCHIQ e'lon: jami 3 + 4 = 7 o'rin
-            var uchOrin = Vacancy.Open(nom.Id, new DateOnly(2026, 3, 1), openings: 3).Value;
-            var tortOrin = Vacancy.Open(nom.Id, new DateOnly(2026, 4, 1), openings: 4).Value;
+            var uchOrin = Vacancy.Open($"{belgi} Сотувчи-консультант", new DateOnly(2026, 3, 1), openings: 3).Value;
+            var tortOrin = Vacancy.Open($"{belgi} Омборчи", new DateOnly(2026, 4, 1), openings: 4).Value;
 
             // Yopilgani hech qayerda ko'rinmasligi kerak — o'rinlari ko'p
             // bo'lsa ham (10), u endi kadr ehtiyoji emas.
-            var yopilgan = Vacancy.Open(nom.Id, new DateOnly(2026, 2, 1), openings: 10).Value;
+            var yopilgan = Vacancy.Open($"{belgi} Ҳайдовчи", new DateOnly(2026, 2, 1), openings: 10).Value;
             yopilgan.Close(new DateOnly(2026, 5, 1), "Ўрин тўлди").IsSuccess.ShouldBeTrue();
 
-            kontekst.Add(nom);
             kontekst.AddRange(uchOrin, tortOrin, yopilgan);
             await kontekst.SaveChangesAsync(bekorQilish);
         }
@@ -751,8 +748,7 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var nom = VacancyTitle.Create($"{belgi} Ҳисобчи").Value;
-            var vakansiya = Vacancy.Open(nom.Id, new DateOnly(2026, 3, 1), openings: 5).Value;
+            var vakansiya = Vacancy.Open($"{belgi} Ҳисобчи", new DateOnly(2026, 3, 1), openings: 5).Value;
 
             var birinchi = Nomzod(vakansiya.Id, "Биринчи", belgi);
             var ikkinchi = Nomzod(vakansiya.Id, "Иккинчи", belgi);
@@ -764,7 +760,6 @@ public sealed class DashboardApiTests : IClassFixture<BonviApiFactory>
             // 10 kun oldin kelgan — «1 kun» oynasiga tushmaydi, «15 kun» ga tushadi
             var eski = Nomzod(vakansiya.Id, "Эски", belgi);
 
-            kontekst.Add(nom);
             kontekst.Add(vakansiya);
             kontekst.AddRange(birinchi, ikkinchi, radEtilgan, eski);
             await kontekst.SaveChangesAsync(bekorQilish);

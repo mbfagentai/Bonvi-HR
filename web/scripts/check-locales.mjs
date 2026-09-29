@@ -412,23 +412,13 @@ const DYNAMIC_KEY_SOURCES = [
       `recruiting.candidateAction.${value}Confirm`,
     ],
   },
-  {
-    /*
-     * Vakansiya amallari — UCHTA. Ilgari to'rtta edi: «pause» butunlay
-     * o'chirildi (pauza va yopish ayni natijani berardi — backend'dagi
-     * `VacancyStatus` izohi), «resume» esa «reopen» ga qayta nomlandi.
-     * Ro'yxat shu yerda QO'LDA yozilgani sababli u kod bilan birga
-     * yangilanishi shart: aks holda tekshiruv yo'q kalitlarni talab
-     * qilardi yoki yangilarini umuman ko'rmasdi.
-     */
-    file: 'src/features/recruiting/components/vacancy-action-dialog.tsx',
-    values: () => ['close', 'reopen', 'delete'].map((value) => ({ value, line: 0 })),
-    keysFor: (value) => [
-      `recruiting.vacancyAction.${value}Title`,
-      `recruiting.vacancyAction.${value}Text`,
-      `recruiting.vacancyAction.${value}Confirm`,
-    ],
-  },
+  /*
+   * Vakansiya amallari uchun bu yerda yozuv YO'Q: yopish va qayta ochish
+   * endi ro'yxatda bir bosishda ishlaydi, tasdiqlash oynasi faqat
+   * o'chirishda qoldi (`vacancy-delete-dialog.tsx`) va u kalitlarni
+   * to'g'ridan-to'g'ri yozadi — shablon yo'q, ya'ni ular yuqoridagi
+   * oddiy tekshiruvga o'zi tushadi.
+   */
   /*
    * Bildirishnomalar (qo'ng'iroq oynasi). Har bir yozuv turi uchun
    * sarlavha va matn kerak, tur esa shablonda turadi:

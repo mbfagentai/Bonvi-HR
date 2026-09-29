@@ -28,7 +28,6 @@ internal static class RecruitingRegistration
         services.AddScoped<SetPipelineStageActiveCommandHandler>();
 
         // Vakansiyalar
-        services.AddScoped<VacancyReferenceGuard>();
         services.AddScoped<ListVacanciesQueryHandler>();
         services.AddScoped<GetVacancyQueryHandler>();
         services.AddScoped<OpenVacancyCommandHandler>();

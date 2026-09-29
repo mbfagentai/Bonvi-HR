@@ -211,29 +211,13 @@ public sealed class CouncilStep
     /// </remarks>
     private Vacancy? ArchiveVacancyOf()
     {
-        var title = _workspace.VacancyTitleNamed(ArchiveVacancy);
-
-        if (title is null)
-        {
-            var created = VacancyTitle.Create(ArchiveVacancy);
-
-            if (created.IsFailure)
-            {
-                return null;
-            }
-
-            title = created.Value;
-            _workspace.Register(title);
-            _workspace.Database.Add(title);
-        }
-
-        if (_workspace.VacancyOfTitle(title.Id) is { } existing)
+        if (_workspace.VacancyNamed(ArchiveVacancy) is { } existing)
         {
             return existing;
         }
 
         var opened = Domain.Recruiting.Vacancy.Open(
-            title.Id,
+            ArchiveVacancy,
             openedAt: DateOnly.FromDateTime(DateTime.UtcNow),
             openings: 1,
             note: "Excel «91.1 Кенгаш хулосаси» varag'idan ko'chirilgan tarix. "

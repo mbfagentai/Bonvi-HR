@@ -451,3 +451,43 @@ internal static class CandidateSearchQuery
             .Select(candidate => candidate.Id);
     }
 }
+
+/// <summary>
+/// «Vakansiya bo'yicha qidiruv» sharti — faqat NOM.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Nom ilgari «Vakansiya nomlari» ma'lumotnomasidan TANLANARDI, endi esa
+/// vakansiyaning o'zida yoziladi (sababi <c>Vacancy</c> izohida) — shu
+/// sababli ro'yxat filtri ham tanlovdan qidiruvga aylandi.
+/// </para>
+/// <para>
+/// Yig'ish qoidasi (қ/ғ/ҳ/ў/ё) <see cref="SearchFolding"/> dan keladi —
+/// boshqa ro'yxatlar bilan BITTA joydan. Indeks yo'q: bir vaqtda bir necha
+/// o'nlab vakansiya bo'ladi (<see cref="CandidateSearchQuery"/> izohidagi
+/// mulohaza bu yerda yanada kuchliroq).
+/// </para>
+/// </remarks>
+internal static class VacancySearchQuery
+{
+    /// <summary>Qidiruvga mos keladigan vakansiyalarning identifikatorlari.</summary>
+    /// <remarks>
+    /// ⚠️ Matn bo'sh bo'lganda chaqirilmaydi — qolgan qidiruvlardagi bilan
+    /// bir xil qoida (<see cref="EmployeeSearchQuery.MatchingIds"/>).
+    /// </remarks>
+    public static IQueryable<Guid> MatchingIds(AppDbContext context, string search)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var namePattern = SearchPattern.For(SearchFolding.ForName(search));
+
+        return context.Vacancies
+            .FromSql(
+                $"""
+                 SELECT x.*
+                 FROM vacancies AS x
+                 WHERE translate(lower(x.title), 'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                 """)
+            .Select(vacancy => vacancy.Id);
+    }
+}

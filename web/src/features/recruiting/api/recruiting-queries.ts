@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 
-import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import type { PagedResult } from '@/features/employees/api/employees-api'
 import { fileNameFromDisposition, saveBlobAs } from '@/shared/lib/download'
 import { UZ_PHONE_LENGTH, uzPhoneDigits } from '@/shared/lib/phone'
@@ -36,6 +35,7 @@ import {
   type HireCandidateInput,
   type PipelineStage,
   type RegisterCandidateInput,
+  type Vacancy,
   type VacancyFilters,
   type VacancyInput,
 } from './recruiting-api'
@@ -52,7 +52,8 @@ import {
 export { useFilterOptions } from '@/features/employees/api/employees-queries'
 
 /*
- * Mas'ul xodimni tanlash ro'yxati.
+ * Xodimni tanlash ro'yxati — ishga olishda biriktiriladigan xodim
+ * (`candidate-hire-dialog.tsx`).
  *
  * NEGA `features/safety` dan: bu hook AYNAN shu ish uchun o'sha yerda
  * yozilgan (`useEmployees` ustidagi yupqa qatlam, kesh kaliti xodimlar
@@ -66,40 +67,6 @@ export { useFilterOptions } from '@/features/employees/api/employees-queries'
  * paytida faqat shu qator o'zgaradi.
  */
 export { useEmployeeOptions } from '@/features/safety/api/incidents-queries'
-
-/** Ma'lumotnoma yo'li — bitta joyda, chop etish xatosiga qarshi. */
-const VACANCY_TITLES_KIND = 'vacancy-titles' as const
-
-/**
- * Vakansiya nomlari — TANLASH ro'yxati uchun.
- *
- * ⚠️ Bu LAVOZIMLAR ro'yxati EMAS (`useFilterOptions().positions`). Ikkalasi
- * ataylab ajratilgan: e'lon nomi vakansiya ochilganda tanlanadi, lavozim
- * esa nomzod ishga olinayotganda (`candidate-hire-dialog.tsx`). Nega
- * ular bir narsa emasligi backend'dagi `VacancyTitle` domen izohida.
- *
- * NEGA `useCatalogList` to'g'ridan-to'g'ri qayta ishlatiladi: yozuv
- * `/api/catalog/vacancy-titles` da yashaydi va ma'lumotnomalar moduli
- * uni allaqachon o'qiy oladi (`useIncentiveTypes` bilan aynan bir xil
- * naqsh). Nusxa yozish ikkita kesh kaliti hosil qilardi.
- *
- * @param onlyActive `true` — vakansiya OCHISHDA: faolsizlantirilgan
- *   nomga yangi e'lon berilmaydi. `false` — FILTRDA: eski
- *   vakansiyalarning nomi ro'yxatdan yo'qolib qolmasin.
- */
-export function useVacancyTitleOptions(onlyActive: boolean): {
-  options: SelectOption[]
-  isPending: boolean
-} {
-  const list = useCatalogList(VACANCY_TITLES_KIND, onlyActive)
-
-  const options = useMemo(
-    () => (list.data ?? []).map((item) => ({ value: item.id, label: item.name })),
-    [list.data],
-  )
-
-  return { options, isPending: list.isPending }
-}
 
 /**
  * Kesh kalitlari.
@@ -194,19 +161,36 @@ export function useSaveVacancy() {
   })
 }
 
+/**
+ * Yopish / qayta ochish — ro'yxatdan BIR BOSISHDA.
+ *
+ * <b>Javob keshga DARHOL yoziladi.</b> Umumiy qoida (`providers.tsx`)
+ * keshni bekor qiladi, lekin qayta yuklashni KUTMAYDI: tugmadagi aylana
+ * to'xtagach, ro'yxat yangilanguncha qatorda ESKI holat bir zum qolardi
+ * va HR «bosilmadi» deb ikkinchi marta bosardi — endi esa server
+ * «vakansiya.allaqachon_yopiq» deb rad etardi. Server yangilangan
+ * vakansiyani qaytaradi, shu sababli uni joyiga qo'yish yetarli; qayta
+ * yuklash baribir fonda o'tadi va filtrga tushmay qolgan qatorni
+ * olib tashlaydi.
+ */
 export function useChangeVacancyStatus() {
+  const client = useQueryClient()
+
   return useMutation({
-    mutationFn: ({
-      id,
-      action,
-      reason,
-      closedAt,
-    }: {
-      id: string
-      action: 'close' | 'reopen'
-      reason?: string | null
-      closedAt?: string | null
-    }) => changeVacancyStatus(id, action, { reason, closedAt }),
+    mutationFn: ({ id, action }: { id: string; action: 'close' | 'reopen' }) =>
+      changeVacancyStatus(id, action),
+    onSuccess: (updated) => {
+      client.setQueriesData<PagedResult<Vacancy>>(
+        { queryKey: [...recruitingKeys.root, 'vacancies'] },
+        (page) =>
+          page === undefined
+            ? page
+            : {
+                ...page,
+                items: page.items.map((item) => (item.id === updated.id ? updated : item)),
+              },
+      )
+    },
   })
 }
 
@@ -250,8 +234,12 @@ export function useVacancyOptions(status?: 'Open'): { options: SelectOption[]; i
           izohida), bir xil nomli ikkita ochiq e'lonni ajratadigan yagona
           narsa — qachon ochilgani. Usiz ro'yxatda ikkita bir xil qator
           turardi va HR qaysi birini tanlaganini bilmasdi.
+
+          Server endi YANGI takrorga yo'l qo'ymaydi («vakansiya.nom_band»),
+          lekin ilgari ochilgan bir xil nomli vakansiyalar bazada qoladi —
+          sana shu sababli ham kerak.
         */
-        label: `${item.title ?? '—'} · ${item.openedAt}`,
+        label: `${item.title} · ${item.openedAt}`,
       })),
     [list.data],
   )

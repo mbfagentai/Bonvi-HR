@@ -9,19 +9,40 @@ namespace Bonvi.Domain.Tests.Recruiting;
 /// Shu sababli bu yerdagi «lavozim yo'q» testlari «NOM yo'q» testlariga
 /// aylandi va firma bo'yicha test butunlay olib tashlandi — tekshirish
 /// mumkin bo'lgan maydonning o'zi qolmadi.
+/// <para>
+/// Nom 2026-09-29 dan beri vakansiyaning O'ZIDA — «Vakansiya nomlari»
+/// ma'lumotnomasi olib tashlandi (sababi <see cref="Vacancy"/> izohida).
+/// Nomning bandligi (takror) esa use-case darajasida tekshiriladi —
+/// uning testlari <c>RecruitingApiTests</c> da.
+/// </para>
 /// </remarks>
 public sealed class VacancyTests
 {
-    private static readonly Guid NomId = Guid.CreateVersion7();
+    private const string Nom = "Сотувчи-консультант";
     private static readonly DateOnly Sana = new(2026, 3, 1);
 
-    [Fact]
-    public void Nomsiz_ochilmaydi()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   \t ")]
+    public void Nomsiz_ochilmaydi(string? nom)
     {
-        var natija = Vacancy.Open(Guid.Empty, Sana);
+        var natija = Vacancy.Open(nom, Sana);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("vakansiya.nom_yoq");
+    }
+
+    [Fact]
+    public void Nomdagi_bosh_joylar_yigiladi()
+    {
+        // Ma'lumotnoma nomidagi qoida (`ReferenceEntity.Normalize`): Excel
+        // eksportidagi tabulyatsiya va uzilmaydigan bo'shliq ko'zga oddiy
+        // probeldek ko'rinadi va bir nomni ikki xil yozuvga aylantirardi.
+        var natija = Vacancy.Open("  Сотувчи \t\u00A0 консультант ", Sana);
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.Title.ShouldBe("Сотувчи консультант");
     }
 
     [Theory]
@@ -30,7 +51,7 @@ public sealed class VacancyTests
     [InlineData(Vacancy.MaxOpenings + 1)]
     public void Orin_soni_chegaradan_chiqmaydi(int orinlar)
     {
-        var natija = Vacancy.Open(NomId, Sana, openings: orinlar);
+        var natija = Vacancy.Open(Nom, Sana, openings: orinlar);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("vakansiya.orin_soni");
@@ -39,14 +60,14 @@ public sealed class VacancyTests
     [Fact]
     public void Ochilgan_vakansiya_nomzod_qabul_qiladi()
     {
-        var natija = Vacancy.Open(NomId, Sana, openings: 3);
+        var natija = Vacancy.Open(Nom, Sana, openings: 3);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Status.ShouldBe(VacancyStatus.Open);
         natija.Value.AcceptsCandidates.ShouldBeTrue();
         natija.Value.Openings.ShouldBe(3);
         natija.Value.ClosedAt.ShouldBeNull();
-        natija.Value.VacancyTitleId.ShouldBe(NomId, "vakansiyaning yagona ma'lumotnoma havolasi — NOMI");
+        natija.Value.Title.ShouldBe(Nom);
     }
 
     [Fact]
@@ -56,7 +77,7 @@ public sealed class VacancyTests
         // ham takrorlanardi. Ikkala test bir xil natijani tasdiqlardi —
         // aynan shu sababli holatlardan biri olib tashlandi
         // (`VacancyStatus` izohi).
-        var vakansiya = Vacancy.Open(NomId, Sana).Value;
+        var vakansiya = Vacancy.Open(Nom, Sana).Value;
 
         var natija = vakansiya.Close(Sana.AddDays(10), "Бюджет кутилмоқда");
 
@@ -70,7 +91,7 @@ public sealed class VacancyTests
     [Fact]
     public void Ikki_marta_yopilmaydi()
     {
-        var vakansiya = Vacancy.Open(NomId, Sana).Value;
+        var vakansiya = Vacancy.Open(Nom, Sana).Value;
         vakansiya.Close(Sana.AddDays(10));
 
         var natija = vakansiya.Close(Sana.AddDays(11));
@@ -82,7 +103,7 @@ public sealed class VacancyTests
     [Fact]
     public void Ochilishdan_oldin_yopilmaydi()
     {
-        var vakansiya = Vacancy.Open(NomId, Sana).Value;
+        var vakansiya = Vacancy.Open(Nom, Sana).Value;
 
         var natija = vakansiya.Close(Sana.AddDays(-1));
 
@@ -97,7 +118,7 @@ public sealed class VacancyTests
         // («91.8 Стажировкадан кетганлар»), o'rin esa yana bo'sh qoladi.
         // Yopish oynasidagi «qayta ochish mumkin emas» degan eski yozuv
         // aynan shu sababli YOLG'ON edi.
-        var vakansiya = Vacancy.Open(NomId, Sana).Value;
+        var vakansiya = Vacancy.Open(Nom, Sana).Value;
         vakansiya.Close(Sana.AddDays(10));
 
         var natija = vakansiya.Reopen();
@@ -114,7 +135,7 @@ public sealed class VacancyTests
         // Yopishdan farqli: qayta ochish sana ham, izoh ham yozmaydi,
         // ya'ni takrorlanishi mavjud faktni buzmaydi. Shu sababli
         // «allaqachon ochiq» xatosi ATAYLAB yo'q (`Vacancy.Reopen` izohi).
-        var vakansiya = Vacancy.Open(NomId, Sana, note: "Шошилинч").Value;
+        var vakansiya = Vacancy.Open(Nom, Sana, note: "Шошилинч").Value;
 
         var natija = vakansiya.Reopen();
 
@@ -128,13 +149,11 @@ public sealed class VacancyTests
     {
         // Vakansiya — REJA, fakt emas: «сотувчи эмас, катта сотувчи
         // керак экан» — odatiy tuzatish.
-        var vakansiya = Vacancy.Open(NomId, Sana).Value;
-        var yangiNom = Guid.CreateVersion7();
-
-        var natija = vakansiya.Update(yangiNom, Sana, openings: 2, note: "Шошилинч");
+        var vakansiya = Vacancy.Open(Nom, Sana).Value;
+        var natija = vakansiya.Update("Катта сотувчи", Sana, openings: 2, note: "Шошилинч");
 
         natija.IsSuccess.ShouldBeTrue();
-        vakansiya.VacancyTitleId.ShouldBe(yangiNom);
+        vakansiya.Title.ShouldBe("Катта сотувчи");
         vakansiya.Openings.ShouldBe(2);
         vakansiya.Note.ShouldBe("Шошилинч");
         vakansiya.Status.ShouldBe(VacancyStatus.Open, "holat tahrirlashda o'zgarmaydi");
@@ -143,12 +162,12 @@ public sealed class VacancyTests
     [Fact]
     public void Tahrirlashda_ham_nom_bosh_qolmaydi()
     {
-        var vakansiya = Vacancy.Open(NomId, Sana).Value;
+        var vakansiya = Vacancy.Open(Nom, Sana).Value;
 
-        var natija = vakansiya.Update(Guid.Empty, Sana);
+        var natija = vakansiya.Update("  ", Sana);
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("vakansiya.nom_yoq");
-        vakansiya.VacancyTitleId.ShouldBe(NomId, "rad etilgan tahrir hech narsani o'zgartirmaydi");
+        vakansiya.Title.ShouldBe(Nom, "rad etilgan tahrir hech narsani o'zgartirmaydi");
     }
 }

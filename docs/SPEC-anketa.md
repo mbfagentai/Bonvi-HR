@@ -83,8 +83,9 @@ o'chiradi.
 Ochiq vakansiya bo'lmaganda ham nomzod yozuvi biror vakansiyaga
 tegishli bo'lishi kerak (`Candidate.VacancyId` — `Guid`, nullable emas).
 
-- `DatabaseInitializer` idempotent tarzda `VacancyTitle` = «Umumiy
-  anketa» va unga bog'liq `Vacancy` (holati `Open`) yaratadi.
+- `DatabaseInitializer` idempotent tarzda nomi «Umumiy anketa» bo'lgan
+  `Vacancy` ni (holati `Open`) topadi yoki yaratadi. (2026-09-29 gacha
+  nom alohida `VacancyTitle` ma'lumotnomasida edi.)
 - Uning `Id` si yangi tizim sozlamasida turadi:
   `recruiting.generalPoolVacancyId`.
 - **Bot vakansiyalar ro'yxatida uni KO'RSATMAYDI** — u tanlanadigan

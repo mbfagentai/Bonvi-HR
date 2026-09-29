@@ -231,12 +231,6 @@ public sealed class EtlDatabase : IAsyncDisposable
             ? []
             : await _context.PipelineStages.ToListAsync(cancellationToken).ConfigureAwait(false);
 
-    /// <summary>Vakansiya nomlari — arxiv vakansiyasini yaratish uchun.</summary>
-    public async Task<IReadOnlyList<VacancyTitle>> LoadVacancyTitlesAsync(CancellationToken cancellationToken)
-        => _context is null
-            ? []
-            : await _context.VacancyTitles.ToListAsync(cancellationToken).ConfigureAwait(false);
-
     /// <summary>Vakansiyalar — arxiv vakansiyasi allaqachon bormi.</summary>
     public async Task<IReadOnlyList<Vacancy>> LoadVacanciesAsync(CancellationToken cancellationToken)
         => _context is null

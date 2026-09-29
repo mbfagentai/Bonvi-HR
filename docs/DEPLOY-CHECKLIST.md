@@ -47,6 +47,57 @@ yo'qoladi) — kerak bo'lsa `Down` emas, image rollback.
 - [ ] Haqli vazifasi bor xodim kartasi: oklad, vazifa, «Jami» to'g'ri
 
 
+## ⏳ Navbatdagi reliz — vakansiya nomi vakansiyaning o'zida (2026-09-29) — DEPLOY QILINMAGAN
+
+Migratsiya `20260929061633_VakansiyaNomiVakansiyaningOzida`: «Vakansiya
+nomlari» ma'lumotnomasi (`vacancy_titles`) va mas'ul xodim
+(`vacancies.responsible_employee_id`) olib tashlanadi, nom
+`vacancies.title` ga ko'chadi. Vakansiyasiz nomlar — YOPIQ vakansiya
+bo'lib o'tadi (egasining talabi: ma'lumotnomadagi har bir nom vakansiyalar
+bo'limida bo'lishi kerak).
+
+**Deploy oldidan — prod zaxirasi nusxasida (o'qish uchun, sxema eski):**
+
+```sql
+-- A: nechta nom yopiq vakansiya bo'lib qo'shiladi (ma'lumot uchun)
+select count(*) from vacancy_titles t
+where t.deleted_at is null
+  and not exists (select 1 from vacancies v join vacancy_titles t2 on t2.id = v.vacancy_title_id
+                  where v.deleted_at is null and lower(t2.name) = lower(t.name));
+
+-- B: ⛔ 0 bo'lishi SHART — aks holda migratsiya ataylab to'xtaydi (izoh
+--    2000 belgiga sig'maydi, kesib yozilmaydi). Izohni qo'lda qisqartiring.
+select count(*) from vacancy_titles t
+left join vacancies v on v.vacancy_title_id = t.id
+where btrim(coalesce(t.note, ''), E' \t\r\n') <> ''
+  and (v.id is not null or t.deleted_at is null)
+  and length(case
+        when v.id is null or btrim(coalesce(v.note, ''), E' \t\r\n') = '' then t.note
+        when v.note = t.note then v.note
+        else v.note || E'\n\n' || t.note end) > 2000;
+
+-- D: bir nomda bir nechta TIRIK vakansiya (holatidan qat'i nazar) —
+--    ko'chirishdan keyin ro'yxatda bir xil nomli qatorlar bo'ladi
+--    (tahrirlash ishlaydi; faqat NOMNI o'zgartirish band nomga o'tmaydi)
+select lower(t.name), count(*) from vacancies v join vacancy_titles t on t.id = v.vacancy_title_id
+where v.deleted_at is null group by 1 having count(*) > 1;
+
+-- C: bir nomda bir nechta OCHIQ vakansiya (bot ikkita bir xil tugma
+--    ko'rsatadi) — 0 bo'lmasa, deploy'dan keyin HR ortiqchasini yopadi
+select lower(t.name), count(*) from vacancies v join vacancy_titles t on t.id = v.vacancy_title_id
+where v.deleted_at is null and v.status = 1 group by 1 having count(*) > 1;
+```
+
+**⚠️ Image rollback bu relizdan keyin XAVFSIZ EMAS:** eski image
+`vacancy_titles` va `vacancy_title_id` ni so'raydi. Qaytish — zaxiradan
+tiklash (yoki `Down`: ma'lumotnomani nomlardan qayta yig'adi, mas'ul
+xodimlar qaytmaydi).
+
+**Deploy'dan keyin:**
+- [ ] Ma'lumotnomalar menyusida «Vakansiya nomlari» yo'q
+- [ ] Vakansiyalar ro'yxatida eski nomlar bor (vakansiyasizlari — «Yopiq»)
+- [ ] Yopish / qayta ochish bir bosishda ishlaydi; bot ochiq vakansiyalarni ko'rsatadi
+
 ## Oldindan
 
 - [ ] Lokalda hammasi yashil: `./bonvi build` · `./bonvi test` ·

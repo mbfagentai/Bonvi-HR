@@ -493,8 +493,9 @@ public sealed record CandidateRow(
 /// Vakansiyalar ro'yxatining filtri.
 /// </summary>
 /// <param name="Status">Holat bo'yicha filtr. Bo'sh — hammasi.</param>
-/// <param name="VacancyTitleId">
-/// Vakansiya nomi bo'yicha filtr — «shu e'lon bo'yicha nima bo'lyapti».
+/// <param name="Search">
+/// Nom bo'yicha qidiruv (qismiy, registrga va «қ/к» farqiga sezgir
+/// emas). Bo'sh — hammasi.
 ///
 /// Lavozim, bo'lim va firma filtrlari OLIB TASHLANDI: vakansiyada
 /// bunday maydonlar endi umuman yo'q (sababi <c>Vacancy</c> izohida).
@@ -516,7 +517,7 @@ public sealed record CandidateRow(
 /// </param>
 public sealed record VacancyListFilter(
     VacancyStatus? Status = null,
-    Guid? VacancyTitleId = null,
+    string? Search = null,
     int Page = 1,
     int PageSize = 25,
     VacancySortField Sort = VacancySortField.OpenedAt,
@@ -532,27 +533,21 @@ public sealed record VacancyPage(IReadOnlyList<VacancyRow> Items, int Total);
 
 /// <summary>Vakansiyalar ro'yxatining bitta xom qatori.</summary>
 /// <param name="Id">Identifikator.</param>
-/// <param name="VacancyTitleId">Vakansiya nomi (ma'lumotnoma yozuvi).</param>
-/// <param name="VacancyTitleName">Vakansiya nomining matni.</param>
+/// <param name="Title">Vakansiya nomi.</param>
 /// <param name="Openings">Nechta odam kerak.</param>
 /// <param name="Status">Holati.</param>
 /// <param name="OpenedAt">Ochilgan sana.</param>
 /// <param name="ClosedAt">Yopilgan sana.</param>
-/// <param name="ResponsibleEmployeeId">Mas'ul xodim.</param>
-/// <param name="ResponsibleName">Mas'ul xodimning ismi.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="CandidateCount">Nomzodlar soni.</param>
 /// <param name="HiredCount">Ishga olinganlar soni.</param>
 public sealed record VacancyRow(
     Guid Id,
-    Guid VacancyTitleId,
-    string? VacancyTitleName,
+    string Title,
     int Openings,
     VacancyStatus Status,
     DateOnly OpenedAt,
     DateOnly? ClosedAt,
-    Guid? ResponsibleEmployeeId,
-    string? ResponsibleName,
     string? Note,
     int CandidateCount,
     int HiredCount);

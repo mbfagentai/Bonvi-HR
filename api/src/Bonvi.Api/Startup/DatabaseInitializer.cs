@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Domain.Abstractions;
@@ -82,7 +83,7 @@ public sealed class BootstrapOptions
 public sealed partial class DatabaseInitializer : IHostedService
 {
     /// <summary>
-    /// «Tushadigan joy» vakansiyasining nomi — <c>vacancy_titles</c> dagi yozuv.
+    /// «Tushadigan joy» vakansiyasining nomi (<c>vacancies.title</c>).
     /// </summary>
     /// <remarks>
     /// Nom nomzodga KO'RINMAYDI (bot bu vakansiyani ro'yxatda
@@ -479,12 +480,11 @@ public sealed partial class DatabaseInitializer : IHostedService
     /// esa vakansiya ISHLASHI kerak. O'chirilgan yozuvni «bor» deb
     /// hisoblash tizimni tuzatib bo'lmaydigan holatda qoldirardi: bot
     /// nomzodni ko'rinmaydigan vakansiyaga yozishga urinardi.
-    /// Ma'lumotnoma nomi esa aksincha — u
-    /// <c>IReferenceRepository.FindByNameAsync</c> orqali, ya'ni
-    /// <c>lower(name)</c> ustidagi unikal indeks bilan AYNAN bir xil
-    /// qoida bo'yicha izlanadi: HR «umumiy anketa» nomini qo'lda
-    /// yaratib qo'ygan bo'lsa, registri boshqa deb ikkinchisini
-    /// qo'shishga urinish ilovani UMUMAN ishga tushirmay qo'yardi.
+    /// Nom esa registrga sezgir EMAS holda izlanadi — vakansiya nomining
+    /// bandlik qoidasi bilan AYNAN bir xil
+    /// (<c>IVacancyRepository.TitleTakenAsync</c>): HR «umumiy anketa»
+    /// vakansiyasini qo'lda ochib qo'ygan bo'lsa, registri boshqa deb
+    /// ikkinchisini ochish ro'yxatda ikkita bir xil qator hosil qilardi.
     /// </para>
     /// <para>
     /// Domen tekshiruvi rad etsa, urug' O'TKAZIB YUBORILADI va
@@ -493,6 +493,18 @@ public sealed partial class DatabaseInitializer : IHostedService
     /// anketa qabul qilinmaydi, qolgan hamma narsa avvalgidek.
     /// </para>
     /// </remarks>
+    [SuppressMessage(
+        "Globalization",
+        "CA1304:Specify CultureInfo",
+        Justification = "Nom taqqoslanishi SQL'ga tarjima qilinadi (ReferenceRepository.NameEquals izohi).")]
+    [SuppressMessage(
+        "Globalization",
+        "CA1311:Specify a culture or use an invariant version",
+        Justification = "Nom taqqoslanishi SQL'ga tarjima qilinadi (ReferenceRepository.NameEquals izohi).")]
+    [SuppressMessage(
+        "Performance",
+        "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons",
+        Justification = "EF Core StringComparison variantini SQL'ga tarjima qila olmaydi.")]
     private async Task SeedGeneralPoolVacancyAsync(
         IServiceProvider provider,
         CancellationToken cancellationToken)
@@ -514,39 +526,15 @@ public sealed partial class DatabaseInitializer : IHostedService
             return;
         }
 
-        // ---------- Ma'lumotnomadagi nom ----------
-        var titles = provider.GetRequiredService<IReferenceRepository<VacancyTitle>>();
-
-        var title = await titles
-            .FindByNameAsync(GeneralPoolTitle, cancellationToken)
-            .ConfigureAwait(false);
-
-        VacancyTitle? newTitle = null;
-
-        if (title is null)
-        {
-            var created = VacancyTitle.Create(GeneralPoolTitle);
-            if (created.IsFailure)
-            {
-                LogGeneralPoolSkipped(GeneralPoolTitle, created.Error.Message);
-                return;
-            }
-
-            newTitle = created.Value;
-        }
-
-        // Yangi yozuvning identifikatori bazaga borishdan OLDIN ma'lum
-        // (`Entity.NewId`), shu sababli quyidagi so'rov ikkala holatda
-        // ham bir xil yoziladi.
-        var titleId = (title ?? newTitle!).Id;
-
         // ---------- Vakansiyaning o'zi ----------
         // FAQAT ochig'i: yopilgan vakansiya nomzod qabul qilmaydi
         // (`Vacancy.AcceptsCandidates`), ya'ni unga bog'lanish botni
         // ishlamaydigan holatda qoldirardi. Tartib esa barqarorlik
         // uchun: bir xil bazada har doim bir xil yozuv tanlanadi.
+        var normalizedTitle = GeneralPoolTitle.ToLowerInvariant();
+
         var vacancy = await context.Vacancies
-            .Where(row => row.VacancyTitleId == titleId && row.Status == VacancyStatus.Open)
+            .Where(row => row.Title.ToLower() == normalizedTitle && row.Status == VacancyStatus.Open)
             .OrderBy(row => row.CreatedAt)
             .ThenBy(row => row.Id)
             .FirstOrDefaultAsync(cancellationToken)
@@ -557,7 +545,7 @@ public sealed partial class DatabaseInitializer : IHostedService
         if (vacancy is null)
         {
             var opened = Vacancy.Open(
-                titleId,
+                GeneralPoolTitle,
                 provider.GetRequiredService<IClock>().Today,
                 note: GeneralPoolNote);
 
@@ -606,11 +594,6 @@ public sealed partial class DatabaseInitializer : IHostedService
         // Yuqorida qo'shilganda, tekshiruv yiqilgan yo'lda kontekstda
         // saqlanmagan yozuv qolib ketardi va uni keyingi urug'ning
         // `SaveChanges` i yozib yuborardi.
-        if (newTitle is not null)
-        {
-            titles.Add(newTitle);
-        }
-
         if (newVacancy is not null)
         {
             context.Vacancies.Add(newVacancy);

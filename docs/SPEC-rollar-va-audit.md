@@ -451,15 +451,16 @@ This table is also the source for `endpoint-permissions.txt` (§12.1).
 | `POST /api/recruiting/candidates/{id}/hire` | → `recruiting.manage` AND `employment.hire` AND `employees.create` (the `/api/employments/hire` pair plus recruiting: it creates the person too) |
 | The five bot routes (`application-check`, `rejection-notices`, `…-sent`, `interview-notices`, `…-sent`), `GET /api/settings/bot/token` | `BotServicePolicy` (unchanged) |
 
-**Catalogue** (`/api/catalog`, R1) — 9 kinds: `legal-entities`, `directions`,
+**Catalogue** (`/api/catalog`, R1) — 8 kinds: `legal-entities`, `directions`,
 `termination-reasons`, `award-types`, `penalty-types`, `document-types`,
-`vacancy-titles`, `departments`, `positions`
+`departments`, `positions` (`vacancy-titles` removed 2026-09-29 — the name
+now lives on the vacancy itself)
 
 | Route | Policy |
 |---|---|
 | All `GET` (list, one, `departments/tree`, `positions/{id}/duties`) | `catalog.view` |
 | `POST`, `PUT`, `departments/{id}/move`, duty `POST`/`DELETE`/`PUT order` | `catalog.manage` |
-| `POST /{kind}/{id}/activate`, `POST /{kind}/{id}/deactivate` (18 routes) | → `catalog.deactivate` |
+| `POST /{kind}/{id}/activate`, `POST /{kind}/{id}/deactivate` (16 routes) | → `catalog.deactivate` |
 
 **Reports, users, settings, API keys, public API** — unchanged:
 `GET /api/reports/turnover` `reports.view`; `GET /api/reports/employees/export`
@@ -1027,7 +1028,7 @@ Module keys are the §3.3 keys; A1 introduces them as string constants in
 | `User` | yes | users | — | full name | `PasswordHash` masked (never stored); `LastLoginAt`, `FailedLoginAttempts`, `LockedUntil`, `AccessStamp` excluded; `RoleIds` ref→roles |
 | `Role` | yes | roles | — | name | all kept (`Permissions` shown as technical) |
 | `RefreshToken`, `NotificationState`, `AuditLog` | **no** | | | | |
-| `LegalEntity`, `Direction`, `TerminationReason`, `AwardType`, `PenaltyType`, `DocumentType`, `VacancyTitle` | yes | catalog | — | name | — |
+| `LegalEntity`, `Direction`, `TerminationReason`, `AwardType`, `PenaltyType`, `DocumentType` | yes | catalog | — | name | — |
 | `PipelineStage` | yes | recruiting | — | name | — |
 | `Department` | yes | catalog | — | name | `Level`, `Path` excluded (derived); `ParentId`, `LegalEntityId` ref; `HeadEmployeeId` ref employee |
 | `Position`, `PositionDuty` | yes | catalog | — | name / position name | `DepartmentId`, `PositionId` ref |
@@ -1042,7 +1043,7 @@ Module keys are the §3.3 keys; A1 introduces them as string constants in
 | `Incentive` | yes | incentives | `EmployeeId` | employee name | `TypeId` ref (award or penalty type by `Kind`) |
 | `ExitInterview` | yes | feedback | via `EmploymentId` | employee name | — |
 | `Incident` | yes | safety | `EmployeeId` | employee name | `ResponsibleEmployeeId` ref |
-| `Vacancy` | yes | recruiting | — | vacancy title name | `VacancyTitleId` ref, `ResponsibleEmployeeId` ref |
+| `Vacancy` | yes | recruiting | — | `Title` | — (`VacancyTitle` catalog and `ResponsibleEmployeeId` removed 2026-09-29) |
 | `Candidate`, `CandidateStageEntry`, `CandidateNote`, `CandidateFile`, `CandidateQuestionnaire` | yes | recruiting | — | candidate full name | `StageId` ref, `VacancyId` ref |
 | `SystemSetting` | yes | settings | — | key | `Value` masked when the key's kind is `Secret` |
 | `ApiKey` | yes | settings | — | name | `KeyHash` masked; `LastUsedAt`, `LastUsedIp` excluded (updated on every use) |
@@ -1691,7 +1692,6 @@ list's «nima» column):
 | AwardType | Rag‘bat turi | Рағбат тури | Вид поощрения | Reward type |
 | PenaltyType | Jarima turi | Жарима тури | Вид взыскания | Penalty type |
 | DocumentType | Hujjat turi | Ҳужжат тури | Тип документа | Document type |
-| VacancyTitle | Vakansiya nomi | Вакансия номи | Название вакансии | Vacancy title |
 | PipelineStage | Voronka bosqichi | Воронка босқичи | Этап воронки | Funnel stage |
 | Department | Bo‘lim | Бўлим | Отдел | Department |
 | Position | Lavozim | Лавозим | Должность | Position |

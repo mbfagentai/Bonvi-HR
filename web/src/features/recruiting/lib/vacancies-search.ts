@@ -31,14 +31,18 @@ export interface VacanciesSearch {
    */
   status?: VacancyStatus
   /**
-   * E'lon nomi.
+   * Nom bo'yicha qidiruv matni.
    *
-   * Manzilda qisqa nom — `vacancyTitleId` juda uzun bo'lardi. Ilgari bu
-   * yerda `position`, `department` va `entity` ham bor edi; ular OLIB
-   * TASHLANDI, chunki vakansiyada bunday maydonlar umuman yo'q
-   * (backend'dagi `Vacancy` domen izohi).
+   * Nomi `q` — nomzodlar va boshqa ro'yxatlardagi bilan bir xil
+   * (`candidates-search.ts`, `shared/lib/list-search.ts`): havolani qo'lda
+   * yozgan odam har ekranda bitta nomni kutadi.
+   *
+   * Ilgari bu yerda `title` turardi — «Vakansiya nomlari» ma'lumotnomasidagi
+   * yozuvning identifikatori. Ma'lumotnoma olib tashlandi (nom endi
+   * vakansiyaning o'z matni), eski xatcho'plardagi `?title=…` esa
+   * jimgina tashlanadi: u endi hech narsani bildirmaydi.
    */
-  title?: string
+  q?: string
   sort?: VacanciesSortParam
 }
 
@@ -68,13 +72,13 @@ export const DEFAULT_SORT: VacanciesSortParam = '-openedAt'
 
 /** Toolbar ishlaydigan ko'rinish: bo'sh satr — «filtr qo'yilmagan». */
 export interface VacanciesFilterState {
+  search: string
   status: VacancyStatus | ''
-  vacancyTitleId: string
 }
 
 export const DEFAULT_FILTERS: VacanciesFilterState = {
+  search: '',
   status: '',
-  vacancyTitleId: '',
 }
 
 /**
@@ -88,15 +92,15 @@ export function validateVacanciesSearch(search: Record<string, unknown>): Vacanc
   return {
     page: readPage(search['page']),
     status: readStatus(search['status']),
-    title: readId(search['title']),
+    q: readText(search['q']),
     sort: normalizeSort(search['sort']),
   }
 }
 
 export function searchToFilters(search: VacanciesSearch): VacanciesFilterState {
   return {
+    search: search.q ?? '',
     status: search.status ?? '',
-    vacancyTitleId: search.title ?? '',
   }
 }
 
@@ -107,12 +111,12 @@ export function searchToFilters(search: VacanciesSearch): VacanciesFilterState {
  * ya'ni bo'sh natijaning sababi bo'lolmaydi.
  */
 export function isFiltered(search: VacanciesSearch): boolean {
-  return search.status !== undefined || search.title !== undefined
+  return search.status !== undefined || search.q !== undefined
 }
 
 /**
  * Toolbar → manzil. Bo'sh maydon `undefined` bo'lib qaytadi va manzildan
- * BUTUNLAY yo'qoladi — aks holda tozalangan filtr `?title=` bo'lib
+ * BUTUNLAY yo'qoladi — aks holda tozalangan qidiruv `?q=` bo'lib
  * osilib qolardi.
  */
 export function filtersToSearch(
@@ -120,7 +124,7 @@ export function filtersToSearch(
 ): Omit<VacanciesSearch, 'page' | 'sort'> {
   return {
     status: filters.status === '' ? undefined : filters.status,
-    title: emptyToUndefined(filters.vacancyTitleId),
+    q: readText(filters.search),
   }
 }
 
@@ -175,17 +179,12 @@ function readPage(value: unknown): number | undefined {
   return value
 }
 
-/*
- * Ma'lumotnoma identifikatorlari — UUID. Shaklga tushmagan qiymat shu
- * yerda tashlanadi: u to'g'ridan-to'g'ri so'rovga tushsa server 400
- * qaytarardi va HR «yuklab bo'lmadi» xatosini ko'rardi.
+/**
+ * Qidiruv matni QIRQILMAYDI — faqat butunlay bo'sh qiymat tashlanadi
+ * (`candidates-search.ts` dagi `readText` bilan bir xil sabab: qirqilsa,
+ * «Sotuvchi » dagi probel 350 ms dan keyin manzildan qaytib kelib
+ * maydondan yo'qolardi — HR keyingi so'zni yozib ulgurmasidan).
  */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function readId(value: unknown): string | undefined {
-  return typeof value === 'string' && UUID.test(value) ? value : undefined
-}
-
-function emptyToUndefined(value: string): string | undefined {
-  return value === '' ? undefined : value
+function readText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined
 }

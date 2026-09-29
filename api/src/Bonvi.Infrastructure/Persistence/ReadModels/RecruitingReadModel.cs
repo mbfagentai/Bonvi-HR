@@ -179,9 +179,6 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             join vacancy in _context.Vacancies.AsNoTracking()
                 on candidate.VacancyId equals vacancy.Id into vacancyGroup
             from vacancy in vacancyGroup.DefaultIfEmpty()
-            join title in _context.VacancyTitles.AsNoTracking()
-                on vacancy.VacancyTitleId equals title.Id into titleGroup
-            from title in titleGroup.DefaultIfEmpty()
             join stage in _context.PipelineStages.AsNoTracking()
                 on candidate.CurrentStageId equals stage.Id into stageGroup
             from stage in stageGroup.DefaultIfEmpty()
@@ -191,7 +188,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 // Nomzod qatorida ko'rinadigan «vakansiya» — endi E'LON
                 // NOMI, lavozim emas: vakansiyada lavozim qolmadi
                 // (sababi `Vacancy` izohida).
-                VacancyName = title != null ? title.Name : null,
+                VacancyName = vacancy != null ? vacancy.Title : null,
                 StageName = stage != null ? stage.Name : null,
                 StageOrder = stage != null ? stage.SortOrder : int.MaxValue,
 
@@ -372,9 +369,6 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             join vacancy in _context.Vacancies.AsNoTracking()
                 on candidate.VacancyId equals vacancy.Id into vacancyGroup
             from vacancy in vacancyGroup.DefaultIfEmpty()
-            join title in _context.VacancyTitles.AsNoTracking()
-                on vacancy.VacancyTitleId equals title.Id into titleGroup
-            from title in titleGroup.DefaultIfEmpty()
             join stage in _context.PipelineStages.AsNoTracking()
                 on candidate.CurrentStageId equals stage.Id into stageGroup
             from stage in stageGroup.DefaultIfEmpty()
@@ -389,7 +383,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 candidate.Status,
                 candidate.ClosedAt,
                 candidate.CreatedAt,
-                title.Name,
+                vacancy.Title,
                 stage.Name);
 
         return await rows.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
@@ -409,9 +403,6 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 join vacancy in _context.Vacancies.AsNoTracking()
                     on candidate.VacancyId equals vacancy.Id into vacancyGroup
                 from vacancy in vacancyGroup.DefaultIfEmpty()
-                join title in _context.VacancyTitles.AsNoTracking()
-                    on vacancy.VacancyTitleId equals title.Id into titleGroup
-                from title in titleGroup.DefaultIfEmpty()
                 orderby candidate.Status == CandidateStatus.InProgress descending,
                     candidate.CreatedAt descending
                 select new
@@ -421,7 +412,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                     candidate.FullName.FirstName,
                     candidate.FullName.MiddleName,
                     candidate.Status,
-                    VacancyTitle = title.Name,
+                    VacancyTitle = vacancy.Title,
                     candidate.CreatedAt,
                 })
             .Take(limit)
@@ -451,9 +442,6 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             join vacancy in _context.Vacancies.AsNoTracking()
                 on candidate.VacancyId equals vacancy.Id into vacancyGroup
             from vacancy in vacancyGroup.DefaultIfEmpty()
-            join title in _context.VacancyTitles.AsNoTracking()
-                on vacancy.VacancyTitleId equals title.Id into titleGroup
-            from title in titleGroup.DefaultIfEmpty()
             orderby candidate.ClosedAt, candidate.CreatedAt
             select new RejectionNoticeDto(
                 candidate.Id,
@@ -463,7 +451,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
 
                 // Vakansiya o'chirilgan bo'lishi mumkin — xabar baribir
                 // ketishi kerak, nomsiz bo'lsa ham.
-                title.Name ?? string.Empty);
+                vacancy.Title ?? string.Empty);
 
         return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -489,9 +477,6 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             join vacancy in _context.Vacancies.AsNoTracking()
                 on candidate.VacancyId equals vacancy.Id into vacancyGroup
             from vacancy in vacancyGroup.DefaultIfEmpty()
-            join title in _context.VacancyTitles.AsNoTracking()
-                on vacancy.VacancyTitleId equals title.Id into titleGroup
-            from title in titleGroup.DefaultIfEmpty()
 
             // Eng yaqin suhbat birinchi javob oladi: kechikish narxi
             // aynan shu yerda eng yuqori.
@@ -501,7 +486,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 candidate.TelegramChatId!.Value,
                 candidate.TelegramLanguage,
                 candidate.FullName.LastName + " " + candidate.FullName.FirstName,
-                title.Name ?? string.Empty,
+                vacancy.Title ?? string.Empty,
                 candidate.InterviewAt!.Value);
 
         return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
@@ -522,10 +507,12 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
 
         // Lavozim, bo'lim va firma filtrlari OLIB TASHLANDI: vakansiyada
         // bunday ustunlar endi umuman yo'q (sababi `Vacancy` izohida).
-        // Yagona ma'lumotnoma filtri — e'lon nomi.
-        if (filter.VacancyTitleId is { } vacancyTitleId)
+        // Nom esa ma'lumotnomadan tanlanmaydi, yoziladi — shu sababli
+        // filtr ham tanlov emas, qidiruv.
+        if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            vacancies = vacancies.Where(vacancy => vacancy.VacancyTitleId == vacancyTitleId);
+            var matching = VacancySearchQuery.MatchingIds(_context, filter.Search);
+            vacancies = vacancies.Where(vacancy => matching.Contains(vacancy.Id));
         }
 
         // Chiqarib tashlash SANOQDAN OLDIN: `total` ham, sahifa ham bir
@@ -539,17 +526,9 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
 
         var joined =
             from vacancy in vacancies
-            join title in _context.VacancyTitles.AsNoTracking()
-                on vacancy.VacancyTitleId equals title.Id into titleGroup
-            from title in titleGroup.DefaultIfEmpty()
-            join responsible in _context.Employees.AsNoTracking()
-                on vacancy.ResponsibleEmployeeId equals responsible.Id into responsibleGroup
-            from responsible in responsibleGroup.DefaultIfEmpty()
             select new
             {
                 Vacancy = vacancy,
-                TitleName = title != null ? title.Name : null,
-                Responsible = responsible,
                 CandidateCount = _context.Candidates.Count(c => c.VacancyId == vacancy.Id),
                 HiredCount = _context.Candidates
                     .Count(c => c.VacancyId == vacancy.Id && c.Status == CandidateStatus.Hired),
@@ -560,8 +539,8 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         var ordered = filter.Sort switch
         {
             VacancySortField.Title => filter.Descending
-                ? joined.OrderByDescending(row => row.TitleName)
-                : joined.OrderBy(row => row.TitleName),
+                ? joined.OrderByDescending(row => row.Vacancy.Title)
+                : joined.OrderBy(row => row.Vacancy.Title),
 
             _ => filter.Descending
                 ? joined.OrderByDescending(row => row.Vacancy.OpenedAt)
@@ -579,14 +558,11 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         [
             .. page.Select(row => new VacancyRow(
                 row.Vacancy.Id,
-                row.Vacancy.VacancyTitleId,
-                row.TitleName,
+                row.Vacancy.Title,
                 row.Vacancy.Openings,
                 row.Vacancy.Status,
                 row.Vacancy.OpenedAt,
                 row.Vacancy.ClosedAt,
-                row.Vacancy.ResponsibleEmployeeId,
-                row.Responsible == null ? null : row.Responsible.FullName.Full,
                 row.Vacancy.Note,
                 row.CandidateCount,
                 row.HiredCount)),

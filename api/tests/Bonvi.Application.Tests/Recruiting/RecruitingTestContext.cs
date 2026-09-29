@@ -81,17 +81,6 @@ internal sealed class RecruitingTestContext
     /// </remarks>
     public SystemSettingsReader Settings => new(SettingRows, Substitute.For<ISecretProtector>());
 
-    /// <summary>Vakansiya nomlari ma'lumotnomasi — vakansiyaning yagona havolasi.</summary>
-    /// <remarks>
-    /// Ilgari vakansiya lavozim, bo'lim va firmaga bog'langan edi va ularning
-    /// mock'lari <see cref="EmployeeTestContext"/> dan olinardi. Endi
-    /// vakansiyada kompaniya tuzilmasidan hech narsa yo'q (sababi
-    /// <c>Vacancy</c> izohida), shu sababli bu yerda faqat SHU ma'lumotnoma
-    /// kerak.
-    /// </remarks>
-    public IReferenceRepository<VacancyTitle> Titles { get; } =
-        Substitute.For<IReferenceRepository<VacancyTitle>>();
-
     public IUnitOfWork UnitOfWork => Employees.UnitOfWork;
 
     /// <summary>Rasm qayta ishlovchisining o'rinbosari.</summary>
@@ -134,7 +123,7 @@ internal sealed class RecruitingTestContext
         Employees.Clock);
 
     public RecruitingMapper Mapper => new(
-        Stages, Vacancies, Candidates, Employees.Employments, Employees.Employees, Titles);
+        Stages, Vacancies, Candidates, Employees.Employments);
 
     /// <summary>1-bosqichning HAQIQIY ishga qabul handleri (mock emas).</summary>
     /// <remarks>
@@ -181,17 +170,6 @@ internal sealed class RecruitingTestContext
             .Returns<IReadOnlyList<PipelineStage>>([.. stages.Where(stage => stage.IsActive)]);
     }
 
-    /// <summary>Bazada mavjud vakansiya nomi (ma'lumotnoma yozuvi).</summary>
-    public VacancyTitle ExistingTitle(string name = "Сотувчи-консультант")
-    {
-        var title = VacancyTitle.Create(name).Value;
-
-        Titles.GetByIdAsync(title.Id, Arg.Any<CancellationToken>()).Returns(title);
-        Titles.ExistsAsync(title.Id, Arg.Any<CancellationToken>()).Returns(true);
-
-        return title;
-    }
-
     /// <summary>Bazada mavjud vakansiya.</summary>
     /// <remarks>
     /// Ilgari bu yerda lavozim ATAYLAB haqiqiy lavozim edi: u vakansiyadan
@@ -200,9 +178,9 @@ internal sealed class RecruitingTestContext
     /// <c>HireCandidateCommand</c> izohida), vakansiyada esa faqat e'lon
     /// nomi qoldi.
     /// </remarks>
-    public Vacancy ExistingVacancy(Guid? vacancyTitleId = null, bool open = true)
+    public Vacancy ExistingVacancy(string title = "Сотувчи-консультант", bool open = true)
     {
-        var vacancy = Vacancy.Open(vacancyTitleId ?? ExistingTitle().Id, Today.AddDays(-10)).Value;
+        var vacancy = Vacancy.Open(title, Today.AddDays(-10)).Value;
 
         if (!open)
         {

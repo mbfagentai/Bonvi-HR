@@ -18,9 +18,6 @@ namespace Bonvi.Api.IntegrationTests;
 /// <summary>Voronka bosqichi — testga kerakli qismi.</summary>
 public sealed record StageResponse(Guid Id, string Name, bool IsActive, int SortOrder);
 
-/// <summary>Vakansiya nomi (ma'lumotnoma yozuvi) — testga kerakli qismi.</summary>
-public sealed record VacancyTitleResponse(Guid Id, string Name, bool IsActive);
-
 /// <summary>Vakansiya — testga kerakli qismi.</summary>
 /// <remarks>
 /// Lavozim, bo'lim va firma maydonlari YO'Q: vakansiya faqat e'lon
@@ -29,8 +26,7 @@ public sealed record VacancyTitleResponse(Guid Id, string Name, bool IsActive);
 /// </remarks>
 public sealed record VacancyResponse(
     Guid Id,
-    Guid VacancyTitleId,
-    string? Title,
+    string Title,
     int Openings,
     string Status,
     // Qayta ochish uni TOZALAYDI — shu sababli testga kerak.
@@ -201,8 +197,8 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     {
         using var mijoz = await AdminMijozAsync();
 
-        var nom = await VakansiyaNomiAsync(mijoz);
-        var vakansiya = await VakansiyaAsync(mijoz, nom.Id);
+        var nom = VakansiyaNomi();
+        var vakansiya = await VakansiyaAsync(mijoz, nom);
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
 
         var royxat = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&status=InProgress");
@@ -237,7 +233,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var bosqichlar = await BosqichlarAsync(mijoz);
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Такрорий");
 
         async Task<CandidateResponse> YozAsync(string? xulosa)
@@ -309,16 +305,15 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var anketa = bosqichlar[0];
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
 
-        // ── 1. Vakansiya ochiladi — YANGI ma'lumotnomadagi nom bilan ──
+        // ── 1. Vakansiya ochiladi — nomi o'zida yoziladi ──
         //    ⚠️ E'lon nomi kompaniya lavozimi EMAS: yuqoridagi «lavozimId»
         //    bu yerda umuman ishlatilmaydi, u faqat 5-qadamda — ishga
         //    qabulda kerak bo'ladi.
-        var nom = await VakansiyaNomiAsync(mijoz);
-        var vakansiya = await VakansiyaAsync(mijoz, nom.Id);
+        var nom = VakansiyaNomi();
+        var vakansiya = await VakansiyaAsync(mijoz, nom);
         vakansiya.Status.ShouldBe("Open");
         vakansiya.CandidateCount.ShouldBe(0);
-        vakansiya.VacancyTitleId.ShouldBe(nom.Id);
-        vakansiya.Title.ShouldBe(nom.Name, "nom qatorda tayyor keladi");
+        vakansiya.Title.ShouldBe(nom, "nom qatorda tayyor keladi");
 
         // ── 2. Nomzod kiritiladi — darhol birinchi bosqichga tushadi ──
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
@@ -421,7 +416,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bosqichlar = await BosqichlarAsync(mijoz);
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id, kengash.Id);
 
         using var qabul = await mijoz.PostAsJsonAsync(
@@ -490,7 +485,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var mijoz = await AdminMijozAsync();
 
         var (firmaId, _) = await MalumotnomaAsync();
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
         var yol = new Uri($"/api/recruiting/candidates/{nomzod.Id}/hire", UriKind.Relative);
 
@@ -523,7 +518,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bosqichlar = await BosqichlarAsync(mijoz);
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id, kengash.Id);
 
         // ── 1. Rezervga ──
@@ -594,7 +589,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var bosqichlar = await BosqichlarAsync(mijoz);
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Қайтган");
 
         using (var bosqich = await mijoz.PostAsJsonAsync(
@@ -665,7 +660,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
 
         using var rad = await mijoz.PostAsJsonAsync(
@@ -707,7 +702,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
 
         var jarayonda = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Жараёнда");
         var vozKechgan = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Возкечган");
@@ -812,7 +807,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var bosqichlar = await BosqichlarAsync(mijoz);
         var anketa = bosqichlar[0];
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
 
         var otgan = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Ўтган");
         var kelasi = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Келаси");
@@ -859,7 +854,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var bosqichlar = await BosqichlarAsync(mijoz);
         var anketa = bosqichlar[0];
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
 
         var erta = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Эрта");
         var kech = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id, familiya: "Кеч");
@@ -899,7 +894,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bosqichlar = await BosqichlarAsync(mijoz);
         var anketa = bosqichlar[0];
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id);
 
         // ── 1. Sana qo'yildi ──
@@ -942,8 +937,8 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var bosqichlar = await BosqichlarAsync(mijoz);
         var anketa = bosqichlar[0];
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
-        var boshqa = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
+        var boshqa = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id, anketa.Id);
 
         // ── 1. Boshqa vakansiyaga o'tkazish ──
@@ -998,8 +993,8 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
-        var boshqa = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
+        var boshqa = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id);
 
         // Domen bo'sh matnda ISTISNO tashlaydi — tekshiruv tushib qolsa,
@@ -1029,7 +1024,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var mijoz = await AdminMijozAsync();
 
         var (firmaId, lavozimId) = await MalumotnomaAsync();
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
 
         var jarayonda = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Жараёнда");
         var rezervda = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Резервда");
@@ -1105,7 +1100,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         // Nomzod haqiqiy bo'lsin: 403 «yo'q» degani emas, «ruxsat yo'q» degani.
         using var admin = await AdminMijozAsync();
         var (firmaId, lavozimId) = await MalumotnomaAsync();
-        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
         var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Ҳимояланган");
 
         using var mijoz = _factory.CreateClient();
@@ -1164,8 +1159,8 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var admin = await AdminMijozAsync();
         var bosqichlar = await BosqichlarAsync(admin);
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
-        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
-        var boshqa = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var boshqa = await VakansiyaAsync(admin, VakansiyaNomi());
         var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Ҳимояланган");
 
         using var koruvchi = _factory.CreateClient();
@@ -1242,7 +1237,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
 
         // Sinov uchun ALOHIDA bosqich: urug' fayldagilarni o'chirsak,
         // boshqa testlar buziladi.
@@ -1293,7 +1288,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
 
         using var yopish = await mijoz.PostAsJsonAsync(
             new Uri($"/api/recruiting/vacancies/{vakansiya.Id}/close", UriKind.Relative),
@@ -1343,10 +1338,10 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        var nom = await VakansiyaNomiAsync(mijoz);
+        var nom = VakansiyaNomi();
 
         // ── 1. Nomzodi YO'Q vakansiya o'chiriladi ──
-        var bosh = await VakansiyaAsync(mijoz, nom.Id);
+        var bosh = await VakansiyaAsync(mijoz, nom);
 
         using var boshniOchirish = await mijoz.DeleteAsync(
             new Uri($"/api/recruiting/vacancies/{bosh.Id}", UriKind.Relative), bekorQilish);
@@ -1356,7 +1351,9 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             "xato kiritilgan yozuv o'chiriladi: " + await MatnAsync(boshniOchirish));
 
         // ── 2. Nomzodi BOR vakansiya o'chirilmaydi ──
-        var tolgan = await VakansiyaAsync(mijoz, nom.Id);
+        //    Nom AYNAN o'sha: o'chirilgan vakansiya nomni band qilmaydi —
+        //    aks holda xato kiritilgan yozuv nomni abadiy «egallab» olardi.
+        var tolgan = await VakansiyaAsync(mijoz, nom);
         await NomzodAsync(mijoz, tolgan.Id);
 
         using var ochirish = await mijoz.DeleteAsync(
@@ -1374,54 +1371,115 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         yopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yopish));
     }
 
+    /// <summary>
+    /// ⭐ Vakansiya nomi — MAJBURIY va TAKRORLANMAYDI.
+    /// </summary>
+    /// <remarks>
+    /// 2026-09-29 dan nom vakansiyaning o'zida yoziladi — «Vakansiya
+    /// nomlari» ma'lumotnomasi olib tashlandi (sababi <c>Vacancy</c>
+    /// domen izohida). Ma'lumotnoma himoya qilgan narsa — bitta e'lonning
+    /// «Сотувчи» / «сотувчи » nusxalari — endi shu test bilan qo'riqlanadi.
+    /// </remarks>
     [Fact]
-    public async Task Vakansiya_nomi_MAJBURIY_va_malumotnomadan_olinadi()
+    public async Task Vakansiya_nomi_MAJBURIY_va_takrorlanmaydi()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        // 1. Nomsiz vakansiya ochilmaydi
-        using var nomsiz = await mijoz.PostAsJsonAsync(
+        // 1. Nomsiz — va faqat bo'shliqdan iborat nom bilan — ochilmaydi
+        foreach (var tana in new object[] { new { openings = 1 }, new { title = "  \t ", openings = 1 } })
+        {
+            using var nomsiz = await mijoz.PostAsJsonAsync(
+                new Uri("/api/recruiting/vacancies", UriKind.Relative), tana, bekorQilish);
+
+            nomsiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(nomsiz));
+            (await MatnAsync(nomsiz)).ShouldContain("vakansiya.nom_yoq");
+        }
+
+        // 2. Bir xil nom — registr va bo'shliqlar boshqacha bo'lsa ham — 409
+        var nom = VakansiyaNomi();
+        var vakansiya = await VakansiyaAsync(mijoz, nom);
+        vakansiya.Title.ShouldBe(nom);
+
+        using (var takror = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/vacancies", UriKind.Relative),
-            new { openings = 1 },
-            bekorQilish);
+            new { title = "  " + nom.ToUpperInvariant().Replace(" ", "   ", StringComparison.Ordinal) + " " },
+            bekorQilish))
+        {
+            takror.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(takror));
+            (await MatnAsync(takror)).ShouldContain("vakansiya.nom_band");
+        }
 
-        nomsiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(nomsiz));
-        (await MatnAsync(nomsiz)).ShouldContain("vakansiya.nom_yoq");
+        // 3. YOPILGAN vakansiya ham nomni band qiladi: HR yangisini emas,
+        //    o'shani qayta ochishi kerak (nomzodlar tarixi bitta joyda).
+        using (var yopish = await mijoz.PostAsync(
+            new Uri($"/api/recruiting/vacancies/{vakansiya.Id}/close", UriKind.Relative), null, bekorQilish))
+        {
+            yopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yopish));
+        }
 
-        // 2. Ma'lumotnomada yo'q nom bilan ham ochilmaydi
-        using var notanish = await mijoz.PostAsJsonAsync(
-            new Uri("/api/recruiting/vacancies", UriKind.Relative),
-            new { vacancyTitleId = Guid.CreateVersion7(), openings = 1 },
-            bekorQilish);
+        using (var yopiqQaytadan = await mijoz.PostAsJsonAsync(
+            new Uri("/api/recruiting/vacancies", UriKind.Relative), new { title = nom }, bekorQilish))
+        {
+            yopiqQaytadan.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(yopiqQaytadan));
+        }
 
-        notanish.StatusCode.ShouldBe(HttpStatusCode.NotFound, await MatnAsync(notanish));
-        (await MatnAsync(notanish)).ShouldContain("vakansiya.nom_topilmadi");
+        using (var qaytaOchish = await mijoz.PostAsync(
+            new Uri($"/api/recruiting/vacancies/{vakansiya.Id}/reopen", UriKind.Relative), null, bekorQilish))
+        {
+            qaytaOchish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaytaOchish));
+        }
 
-        // 3. LAVOZIM identifikatori ham ish bermaydi — bu boshqa
-        //    ma'lumotnoma va ular ATAYLAB aralashmaydi.
-        var (_, lavozimId) = await MalumotnomaAsync();
+        // 4. Tahrirlashda boshqa vakansiyaning nomini olib bo'lmaydi,
+        //    o'z nomini qayta saqlash esa xato emas.
+        var boshqa = await VakansiyaAsync(mijoz, VakansiyaNomi());
 
-        using var lavozimBilan = await mijoz.PostAsJsonAsync(
-            new Uri("/api/recruiting/vacancies", UriKind.Relative),
-            new { vacancyTitleId = lavozimId, openings = 1 },
-            bekorQilish);
+        using (var nomOlish = await mijoz.PutAsJsonAsync(
+            new Uri($"/api/recruiting/vacancies/{boshqa.Id}", UriKind.Relative),
+            new { title = nom.ToLowerInvariant(), openings = 1 },
+            bekorQilish))
+        {
+            nomOlish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(nomOlish));
+            (await MatnAsync(nomOlish)).ShouldContain("vakansiya.nom_band");
+        }
 
-        lavozimBilan.StatusCode.ShouldBe(HttpStatusCode.NotFound, await MatnAsync(lavozimBilan));
-        (await MatnAsync(lavozimBilan)).ShouldContain("vakansiya.nom_topilmadi");
+        using (var ozNomi = await mijoz.PutAsJsonAsync(
+            new Uri($"/api/recruiting/vacancies/{vakansiya.Id}", UriKind.Relative),
+            new { title = nom, openings = 3 },
+            bekorQilish))
+        {
+            ozNomi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(ozNomi));
+        }
+    }
 
-        // 4. To'g'ri nom bilan — ochiladi va nom bo'yicha filtrlanadi
-        var nom = await VakansiyaNomiAsync(mijoz);
-        var vakansiya = await VakansiyaAsync(mijoz, nom.Id);
+    /// <summary>Vakansiyalar ro'yxati NOM bo'yicha qidiriladi.</summary>
+    /// <remarks>
+    /// Qidiruv qoidasi boshqa ro'yxatlardagi bilan bir xil: qismiy moslik,
+    /// registr va «қ/к» farqi hisobga olinmaydi (<c>SearchFolding</c>).
+    /// </remarks>
+    [Fact]
+    public async Task Vakansiyalar_nom_boyicha_qidiriladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
 
+        var belgi = Belgi();
+        var topiladigan = await VakansiyaAsync(mijoz, $"Қоровул {belgi}");
+        var begona = await VakansiyaAsync(mijoz, VakansiyaNomi());
+
+        // «қ» o'rniga «к», kichik harflar, nomning faqat bir qismi
         using var royxat = await mijoz.GetAsync(
-            new Uri($"/api/recruiting/vacancies?vacancyTitleId={nom.Id}", UriKind.Relative),
+            new Uri(
+                "/api/recruiting/vacancies?pageSize=200&search="
+                    + Uri.EscapeDataString($"коровул {belgi.ToLowerInvariant()}"),
+                UriKind.Relative),
             bekorQilish);
 
         royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
         var sahifa = await royxat.Content.ReadFromJsonAsync<VacancyPageResponse>(bekorQilish);
-        sahifa!.Items.ShouldContain(q => q.Id == vakansiya.Id);
-        sahifa.Items.ShouldAllBe(q => q.VacancyTitleId == nom.Id);
+        sahifa!.Items.ShouldContain(q => q.Id == topiladigan.Id);
+        sahifa.Items.ShouldNotContain(q => q.Id == begona.Id);
+        sahifa.Total.ShouldBe(sahifa.Items.Count, "sanoq ham filtrlangan to'plamdan olinadi");
     }
 
     [Fact]
@@ -1429,7 +1487,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     {
         using var mijoz = await AdminMijozAsync();
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var nomzod = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Абдуқодиров");
 
         // 1. Telefon — formatlangan holda ham topilishi kerak
@@ -1459,7 +1517,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
-        var vakansiya = await VakansiyaAsync(mijoz, (await VakansiyaNomiAsync(mijoz)).Id);
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
         var raqam = Raqam();
 
         var rezervdagi = await NomzodAsync(mijoz, vakansiya.Id, familiya: "Резервдаги", telefon: raqam);
@@ -1578,7 +1636,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         var eskiRaqam = Raqam();
         var yangiRaqam = Raqam();
 
-        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
         var nomzod = await NomzodAsync(
             admin, vakansiya.Id, familiya: "Иккинчиуриниш", telefon: eskiRaqam, suhbatId: suhbat);
 
@@ -1624,8 +1682,8 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var bot = await BotMijozAsync();
 
         var raqam = Raqam();
-        var nom = await VakansiyaNomiAsync(admin);
-        var vakansiya = await VakansiyaAsync(admin, nom.Id);
+        var nom = VakansiyaNomi();
+        var vakansiya = await VakansiyaAsync(admin, nom);
         var kengash = (await BosqichlarAsync(admin)).First(b => b.Name == "Кенгаш");
 
         await NomzodAsync(admin, vakansiya.Id, kengash.Id, "Жараёнда", raqam);
@@ -1638,7 +1696,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         // Bot xabarni aynan shu uchta maydondan yozadi: «falon kuni
         // falon vakansiyaga ariza bergansiz, hozir falon bosqichda».
         javob.AppliedAt.ShouldNotBeNull();
-        javob.VacancyTitle.ShouldBe(nom.Name);
+        javob.VacancyTitle.ShouldBe(nom);
         javob.StageName.ShouldBe(kengash.Name);
         javob.AvailableFrom.ShouldBeNull("jarayondagi arizada «qachondan keyin» degan javob yo'q");
     }
@@ -1657,8 +1715,8 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var bot = await BotMijozAsync();
 
         var raqam = Raqam();
-        var nom = await VakansiyaNomiAsync(admin);
-        var vakansiya = await VakansiyaAsync(admin, nom.Id);
+        var nom = VakansiyaNomi();
+        var vakansiya = await VakansiyaAsync(admin, nom);
         var kengash = (await BosqichlarAsync(admin)).First(b => b.Name == "Кенгаш");
         var nomzod = await NomzodAsync(admin, vakansiya.Id, kengash.Id, "Муддатичида", raqam);
 
@@ -1681,7 +1739,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             yopilgan.AddMonths(RecruitingRules.ReapplyMonths),
             "hisob YOPILGAN sanadan + sozlamadagi oy");
         javob.AppliedAt.ShouldNotBeNull();
-        javob.VacancyTitle.ShouldBe(nom.Name);
+        javob.VacancyTitle.ShouldBe(nom);
         javob.StageName.ShouldBe(kengash.Name);
     }
 
@@ -1700,7 +1758,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var bot = await BotMijozAsync();
 
         var raqam = Raqam();
-        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
         var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Муддатўтган", telefon: raqam);
 
         using (var rad = await admin.PostAsJsonAsync(
@@ -1734,7 +1792,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         using var bot = await BotMijozAsync();
 
         var raqam = Raqam();
-        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
         var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Созламабўйича", telefon: raqam);
         var yopilgan = Bugun().AddYears(-3);
 
@@ -1912,7 +1970,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         var bosqichlar = await BosqichlarAsync(admin);
         var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
-        var vakansiya = await VakansiyaAsync(admin, (await VakansiyaNomiAsync(admin)).Id);
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
 
         var radEtilgan = await NomzodAsync(
             admin, vakansiya.Id, familiya: "Ботрад", telefon: Raqam(), suhbatId: SuhbatRaqami());
@@ -2050,40 +2108,21 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         return bosqichlar;
     }
 
-    /// <summary>
-    /// Vakansiya nomini MA'LUMOTNOMA ENDPOINT'i orqali yaratadi.
-    /// </summary>
+    /// <summary>Takrorlanmaydigan vakansiya nomi.</summary>
     /// <remarks>
-    /// Yuridik shaxs va lavozimdan farqli, bu yozuv bazaga to'g'ridan-to'g'ri
-    /// QO'YILMAYDI: aynan shu marshrut («/api/catalog/vacancy-titles»)
-    /// bu topshiriqda YANGI qo'shilgan va uning ishlashi ham
-    /// tekshirilishi kerak — ma'lumotnoma umumiy quvurdan to'g'ri
-    /// o'tayotganini boshqa hech narsa ko'rsatmaydi.
+    /// Nom takrorlanmasligi SHART: bir xil nomli ikkinchi vakansiya
+    /// «vakansiya.nom_band» bilan rad etiladi, testlar esa bitta bazani
+    /// baham ko'radi.
     /// </remarks>
-    private static async Task<VacancyTitleResponse> VakansiyaNomiAsync(HttpClient mijoz)
-    {
-        using var javob = await mijoz.PostAsJsonAsync(
-            new Uri("/api/catalog/vacancy-titles", UriKind.Relative),
-            new { name = "Сотувчи-консультант " + Belgi() },
-            TestContext.Current.CancellationToken);
+    private static string VakansiyaNomi() => "Сотувчи-консультант " + Belgi();
 
-        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
-
-        var nom = await javob.Content.ReadFromJsonAsync<VacancyTitleResponse>(
-            TestContext.Current.CancellationToken);
-
-        nom.ShouldNotBeNull();
-        nom.IsActive.ShouldBeTrue();
-        return nom;
-    }
-
-    private static async Task<VacancyResponse> VakansiyaAsync(HttpClient mijoz, Guid nomId)
+    private static async Task<VacancyResponse> VakansiyaAsync(HttpClient mijoz, string nom)
     {
         using var javob = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/vacancies", UriKind.Relative),
             new
             {
-                vacancyTitleId = nomId,
+                title = nom,
                 openings = 2,
                 openedAt = new DateOnly(2026, 3, 1),
                 note = "Шошилинч",

@@ -297,11 +297,6 @@ static async Task LoadExistingAsync(
         workspace.Register(stage);
     }
 
-    foreach (var title in await database.LoadVacancyTitlesAsync(cancellationToken).ConfigureAwait(false))
-    {
-        workspace.Register(title);
-    }
-
     foreach (var vacancy in await database.LoadVacanciesAsync(cancellationToken).ConfigureAwait(false))
     {
         workspace.Register(vacancy);

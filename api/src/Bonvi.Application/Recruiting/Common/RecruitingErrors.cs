@@ -21,21 +21,24 @@ public static class RecruitingErrors
     public static Error VacancyNotFound { get; } =
         Error.NotFound("vakansiya.topilmadi", "Vakansiya topilmadi.");
 
-    /// <summary>E'lon nomi ma'lumotnomada yo'q.</summary>
+    /// <summary>Shu nomli vakansiya allaqachon bor.</summary>
     /// <remarks>
-    /// Ilgari bu yerda <c>vakansiya.lavozim_topilmadi</c>,
-    /// <c>vakansiya.yuridik_shaxs_topilmadi</c> va
-    /// <c>vakansiya.bolim_topilmadi</c> ham turardi. Vakansiyada kompaniya
-    /// tuzilmasidan hech narsa qolmagach (sababi <c>Vacancy</c> izohida),
-    /// ular vakansiyaning emas, ISHGA OLISHNING xatolariga aylandi va
-    /// shu sababli <c>nomzod.*</c> prefiksiga ko'chdi.
-    /// Vakansiyaning yagona ma'lumotnoma havolasi endi shu.
+    /// <para>
+    /// Ochish va nomni o'zgartirishda — har qanday holatdagi (yopilgani
+    /// ham) vakansiya nomni band qiladi; qayta ochishda — faqat OCHIQ
+    /// vakansiya (sababi <c>IVacancyRepository.TitleTakenAsync</c> izohida).
+    /// </para>
+    /// <para>
+    /// Ilgari o'rnida <c>vakansiya.nom_topilmadi</c> («nom ma'lumotnomada
+    /// yo'q») va <c>vakansiya.masul_topilmadi</c> turardi — ma'lumotnoma
+    /// ham, mas'ul xodim ham 2026-09-29 da olib tashlandi. Undan ham oldin
+    /// shu yerda lavozim/firma/bo'lim xatolari bo'lgan; ular ishga olishning
+    /// xatolariga aylanib, <c>nomzod.*</c> prefiksiga ko'chgan.
+    /// </para>
     /// </remarks>
-    public static Error VacancyTitleNotFound { get; } =
-        Error.NotFound("vakansiya.nom_topilmadi", "Vakansiya nomi topilmadi.");
-
-    public static Error ResponsibleNotFound { get; } =
-        Error.NotFound("vakansiya.masul_topilmadi", "Mas'ul xodim topilmadi.");
+    public static Error VacancyTitleTaken { get; } = Error.Conflict(
+        "vakansiya.nom_band",
+        "Bu nomli vakansiya allaqachon bor — yangisini ochish o'rniga uni qayta oching.");
 
     /// <summary>Yopilgan vakansiyaga nomzod kiritilmaydi.</summary>
     public static Error VacancyNotAccepting { get; } = Error.Conflict(
