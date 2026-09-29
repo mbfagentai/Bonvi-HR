@@ -21,7 +21,7 @@ namespace Bonvi.Bot.Tests;
 /// </remarks>
 public sealed class AnketaOqimiTests
 {
-    private static readonly Guid VacancyId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    internal static readonly Guid VacancyId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 
     private const BotLanguage Uz = BotLanguage.Latin;
 
@@ -574,9 +574,9 @@ public sealed class AnketaOqimiTests
     }
 
     /// <summary>Sinov stendi — ochiq vakansiya bilan yoki usiz.</summary>
-    private static BotHarness New(bool withVacancy)
+    internal static BotHarness New(bool withVacancy, IConversationBackup? backup = null)
     {
-        var bot = new BotHarness { OfferUrl = "https://mbf.uz/oferta" };
+        var bot = new BotHarness(backup) { OfferUrl = "https://mbf.uz/oferta" };
 
         if (withVacancy)
         {
@@ -616,7 +616,7 @@ public sealed class AnketaOqimiTests
     }
 
     /// <summary>Anketani to'liq to'ldiradi va yakuniy tasdiqda to'xtaydi.</summary>
-    private static async Task WalkAsync(BotHarness bot, bool chooseVacancy, bool withPhoto)
+    internal static async Task WalkAsync(BotHarness bot, bool chooseVacancy, bool withPhoto)
     {
         await bot.ChooseLanguageAsync();
 

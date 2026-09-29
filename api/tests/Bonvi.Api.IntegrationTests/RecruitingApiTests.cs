@@ -32,7 +32,9 @@ public sealed record VacancyResponse(
     // Qayta ochish uni TOZALAYDI — shu sababli testga kerak.
     DateOnly? ClosedAt,
     int CandidateCount,
-    int HiredCount);
+    int HiredCount,
+    // «Umumiy anketa» — tizim vakansiyasi: yopilmaydi, o'chirilmaydi.
+    bool IsSystem = false);
 
 /// <summary>Nomzodning bosqich yozuvi.</summary>
 public sealed record CandidateStageResponse(

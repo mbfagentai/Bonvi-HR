@@ -271,6 +271,91 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
         botRoyxati.Total.ShouldBe(botsiz.Total - 1);
     }
 
+    /// <summary>
+    /// ⭐ «Umumiy anketa» YOPILMAYDI va O'CHIRILMAYDI.
+    /// </summary>
+    /// <remarks>
+    /// Prod'da u 2026-09-11 da HR tomonidan yopilgan va 18 kun davomida
+    /// botdagi «Anketa to'ldirish» orqali kelgan har bir ariza rad etilgan
+    /// (sababi <c>GeneralPoolVacancy</c> izohida). Ekranda u oddiy
+    /// vakansiyadek ko'rinardi — endi tizim belgisi bilan keladi va server
+    /// uni yopishni ham, o'chirishni ham rad etadi.
+    /// </remarks>
+    [Fact]
+    public async Task Umumiy_anketani_yopib_ham_ochirib_ham_bolmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var umumiyId = await UmumiyAnketaAsync();
+
+        var royxat = await VakansiyalarAsync(admin, "?pageSize=200");
+        royxat.Items.Single(qator => qator.Id == umumiyId).IsSystem.ShouldBeTrue("ekran unda qulf ko'rsatadi");
+        royxat.Items.Where(qator => qator.Id != umumiyId).ShouldAllBe(qator => !qator.IsSystem);
+
+        using (var yopish = await admin.PostAsync(
+            new Uri($"/api/recruiting/vacancies/{umumiyId}/close", UriKind.Relative), null, bekorQilish))
+        {
+            yopish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(yopish));
+            (await MatnAsync(yopish)).ShouldContain("vakansiya.tizim_vakansiyasi");
+        }
+
+        using (var ochirish = await admin.DeleteAsync(
+            new Uri($"/api/recruiting/vacancies/{umumiyId}", UriKind.Relative), bekorQilish))
+        {
+            ochirish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(ochirish));
+            (await MatnAsync(ochirish)).ShouldContain("vakansiya.tizim_vakansiyasi");
+        }
+
+        // Oddiy vakansiya avvalgidek yopiladi
+        var oddiyId = await OddiyVakansiyaAsync(admin);
+
+        using var oddiyYopish = await admin.PostAsync(
+            new Uri($"/api/recruiting/vacancies/{oddiyId}/close", UriKind.Relative), null, bekorQilish);
+
+        oddiyYopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(oddiyYopish));
+    }
+
+    /// <summary>
+    /// Yopiq qolgan «Umumiy anketa» ishga tushishda QAYTA OCHILADI.
+    /// </summary>
+    /// <remarks>
+    /// Prod'dagi holat aynan shunday: yopish taqiqi kiritilishidan oldin
+    /// yopilgan yozuv. Deploy'dan keyin bot darhol ishlashi kerak — HR
+    /// buni o'zi sezib, qo'lda ochishini kutmasdan.
+    /// </remarks>
+    [Fact]
+    public async Task Yopiq_umumiy_anketa_ishga_tushishda_qayta_ochiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        var umumiyId = await UmumiyAnketaAsync();
+
+        // Taqiqdan oldingi holat — to'g'ridan-to'g'ri bazada yopiladi
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vakansiya = await kontekst.Vacancies.SingleAsync(qator => qator.Id == umumiyId, bekorQilish);
+
+            vakansiya.Close(DateOnly.FromDateTime(DateTime.UtcNow)).IsSuccess.ShouldBeTrue();
+            await kontekst.SaveChangesAsync(bekorQilish);
+        }
+
+        await UrughniQaytaIshgaTushirAsync(bekorQilish);
+
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vakansiya = await kontekst.Vacancies
+                .AsNoTracking()
+                .SingleAsync(qator => qator.Id == umumiyId, bekorQilish);
+
+            vakansiya.Status.ShouldBe(VacancyStatus.Open, "tizim vakansiyasi yopiq qolmaydi");
+            vakansiya.ClosedAt.ShouldBeNull();
+        }
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────

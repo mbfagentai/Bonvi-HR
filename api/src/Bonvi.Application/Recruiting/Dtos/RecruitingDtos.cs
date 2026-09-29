@@ -58,6 +58,11 @@ public sealed record PipelineStageDto(
 /// birga «2/3 to'ldirildi» ko'rinishini beradi — vakansiya O'ZI yopilmaydi
 /// (sababi <see cref="Vacancy"/> izohida), qaror HR'niki.
 /// </param>
+/// <param name="IsSystem">
+/// «Umumiy anketa» — tizim vakansiyasi: yopilmaydi va o'chirilmaydi
+/// (sababi <c>GeneralPoolVacancy</c> izohida). Ekran unda almashtirgich
+/// o'rniga qulf ko'rsatadi.
+/// </param>
 public sealed record VacancyDto(
     Guid Id,
     string Title,
@@ -67,7 +72,8 @@ public sealed record VacancyDto(
     DateOnly? ClosedAt,
     string? Note,
     int CandidateCount,
-    int HiredCount);
+    int HiredCount,
+    bool IsSystem);
 
 /// <summary>Nomzodning bitta bosqichdagi yozuvi.</summary>
 /// <param name="Id">Identifikator.</param>

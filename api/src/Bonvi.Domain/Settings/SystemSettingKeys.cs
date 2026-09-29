@@ -724,8 +724,10 @@ public static class SystemSettingKeys
             // AYNAN bir xil: bot sozlamani o'qiy olmaganda (API hali
             // ko'tarilmagan) o'z sukut qiymatiga tushadi va ikkalasi
             // farq qilsa, botning xatti-harakati ishga tushish paytiga
-            // qarab o'zgarardi.
-            Number(60),
+            // qarab o'zgarardi. Bir sutka — egasining talabi (2026-09-29):
+            // anketani yarmida qoldirgan nomzod bir necha soatdan keyin
+            // davom ettira olishi kerak.
+            Number(1440),
             Min: 1,
             // 1440 daqiqa — bir sutka. Undan uzoq «yarim qolgan suhbat»
             // ma'nosiz: nomzod ertasiga kelib, kechagi savolga javob

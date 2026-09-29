@@ -728,6 +728,7 @@
     "anketa.manba_notogri": "Ish haqida qayerdan bilgani noto‘g‘ri.",
     "vakansiya.nom_yoq": "Vakansiya nomi ko‘rsatilishi shart.",
     "vakansiya.nom_band": "Bu nomli vakansiya allaqachon bor — uni ro‘yxatdan toping: yopilgan bo‘lsa, qayta oching.",
+    "vakansiya.tizim_vakansiyasi": "«Umumiy anketa» — tizim vakansiyasi: uni yopib ham, o‘chirib ham bo‘lmaydi. Botdagi «Anketa to‘ldirish» arizalari shu yerga tushadi.",
     "bildirishnoma.kalit_notogri": "Bildirishnoma kaliti noto‘g‘ri. Sahifani yangilang.",
     "bildirishnoma.kalit_yoq": "Birorta bildirishnoma tanlanmagan.",
     "bildirishnoma.kalit_kop": "Bir vaqtda 200 tadan ortiq bildirishnoma bilan ishlab bo‘lmaydi.",
@@ -1312,6 +1313,7 @@
     "vacancyNotFoundTitle": "Vakansiya topilmadi",
     "vacancyNotFoundText": "Qidiruvni yoki filtrni o‘zgartirib ko‘ring.",
     "vacancyReopenNameTaken": "Qayta ochilmadi: shu nomli ochiq vakansiya allaqachon bor — yangi nomzodlarni o‘shanga kiriting.",
+    "systemVacancyHint": "Tizim vakansiyasi — doim ochiq. Botdagi «Anketa to‘ldirish» arizalari shu yerga tushadi.",
     "vacancyStatus": {
       "open": "Ochiq",
       "closed": "Yopilgan"

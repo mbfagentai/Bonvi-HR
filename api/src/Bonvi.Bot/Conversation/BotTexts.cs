@@ -156,6 +156,40 @@ public static class BotTexts
             "Bu boshqa odamning raqami. Iltimos, o‘z raqamingizni yuboring.",
     };
 
+    /// <summary>
+    /// Telegram hisobining raqami O'zbekiston raqami emas — uni QO'LDA
+    /// yozish so'raladi.
+    /// </summary>
+    /// <remarks>
+    /// Odatda raqamni qo'lda yozish qabul qilinmaydi (<see cref="PhoneButtonOnly"/>):
+    /// terish xatosi arizani qidirib bo'lmaydigan qiladi. Bu yagona
+    /// istisno — boshqa yo'l bilan bunday nomzod umuman ariza bera
+    /// olmasdi (server faqat +998 ni qabul qiladi).
+    /// </remarks>
+    public static string ForeignPhone(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Бу рақам Ўзбекистон рақами эмас. Биз фақат +998 рақамларни қабул қиламиз.\n\n"
+            + "Илтимос, Ўзбекистондаги рақамингизни ёзиб юборинг, масалан: +998 90 123 45 67",
+        BotLanguage.Russian =>
+            "Это не узбекский номер. Мы принимаем только номера +998.\n\n"
+            + "Пожалуйста, напишите ваш номер в Узбекистане, например: +998 90 123 45 67",
+        _ =>
+            "Bu raqam O‘zbekiston raqami emas. Biz faqat +998 raqamlarni qabul qilamiz.\n\n"
+            + "Iltimos, O‘zbekistondagi raqamingizni yozib yuboring, masalan: +998 90 123 45 67",
+    };
+
+    /// <summary>Qo'lda yozilgan raqam noto'g'ri.</summary>
+    public static string PhoneFormat(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Рақам нотўғри. Ўзбекистон рақамини тўлиқ ёзинг, масалан: +998 90 123 45 67",
+        BotLanguage.Russian =>
+            "Номер неверный. Напишите полный узбекский номер, например: +998 90 123 45 67",
+        _ =>
+            "Raqam noto‘g‘ri. O‘zbekiston raqamini to‘liq yozing, masalan: +998 90 123 45 67",
+    };
+
     /// <summary>Manzil so'raladi — anketaning 5-qadami.</summary>
     /// <remarks>
     /// <para>
@@ -394,6 +428,46 @@ public static class BotTexts
         _ =>
             "Murojaatingiz uchun tashakkur.\n\n"
             + "Afsuski, hozirda arizangizni qabul qila olmaymiz.\n\n"
+            + Signature(language),
+    };
+
+    /// <summary>
+    /// Server hozir javob bermayapti — bot kutib, qayta urinmoqda.
+    /// </summary>
+    /// <remarks>
+    /// Odatda bu deploy paytidagi bir necha soniyalik uzilish. Xabar
+    /// BIR MARTA, birinchi muvaffaqiyatsiz urinishdan keyin yuboriladi:
+    /// jimlik nomzodni «Yuborish» ni qayta-qayta bosishga majburlardi.
+    /// </remarks>
+    public static string Submitting(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "⏳ Аризангиз юборилмоқда… Бир оз кутинг.",
+        BotLanguage.Russian => "⏳ Отправляем вашу заявку… Подождите немного.",
+        _ => "⏳ Arizangiz yuborilmoqda… Bir oz kuting.",
+    };
+
+    /// <summary>
+    /// Tanlangan vakansiya anketa to'ldirilayotganda yopilgan — ariza
+    /// «Umumiy anketa»ga qabul qilindi.
+    /// </summary>
+    /// <remarks>
+    /// Suhbat endi bir sutka yashaydi va HR vakansiyani bir bosishda
+    /// yopadi — ya'ni bu holat kamdan-kam emas. Nomzodning mehnati
+    /// bekorga ketmasligi kerak: anketa bazaga tushadi, u buni biladi.
+    /// </remarks>
+    public static string AcceptedVacancyClosed(BotLanguage language, string vacancy) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            $"✅ Анкетангиз қабул қилинди!\n\n«{Escape(vacancy)}» вакансияси сиз анкета тўлдираётган пайтда ёпилди. "
+            + "Анкетангиз базада сақланади — мос иш ўрни чиққанда HR бўлими сиз билан боғланади.\n\n"
+            + Signature(language),
+        BotLanguage.Russian =>
+            $"✅ Ваша анкета принята!\n\nВакансия «{Escape(vacancy)}» закрылась, пока вы заполняли анкету. "
+            + "Анкета сохранится в базе — когда появится подходящее место, отдел кадров свяжется с вами.\n\n"
+            + Signature(language),
+        _ =>
+            $"✅ Anketangiz qabul qilindi!\n\n«{Escape(vacancy)}» vakansiyasi siz anketa to‘ldirayotgan paytda yopildi. "
+            + "Anketangiz bazada saqlanadi — mos ish o‘rni chiqqanda HR bo‘limi siz bilan bog‘lanadi.\n\n"
             + Signature(language),
     };
 

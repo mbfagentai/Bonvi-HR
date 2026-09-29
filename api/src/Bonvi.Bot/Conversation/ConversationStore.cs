@@ -216,77 +216,144 @@ public sealed record ConversationState
     /// </remarks>
     public DateTimeOffset? OfferAcceptedAt { get; init; }
 
+    /// <summary>
+    /// Telefonni QO'LDA yozishga ruxsat — Telegram hisobining raqami
+    /// O'zbekiston raqami bo'lmaganda (<c>BotTexts.ForeignPhone</c>).
+    /// </summary>
+    public bool PhoneTypingAllowed { get; init; }
+
+    /// <summary>
+    /// Ariza yuborish QACHON boshlangan — takroriy yuborishdan himoya.
+    /// </summary>
+    /// <remarks>
+    /// Holat Redis'da yashagani uchun bot qayta ishga tushganda Telegram
+    /// tasdiqlanmagan «Yuborish» bosishini qayta yuboradi, holat esa hali
+    /// «tasdiq» qadamida turgan bo'lishi mumkin (server nomzodni yozib
+    /// ulgurgan). Belgi bor bo'lsa, bot qayta yozishdan oldin serverdan
+    /// so'raydi: bu telefonning jarayondagi arizasi bormi
+    /// (<c>BotWorker.SubmitAsync</c>).
+    /// </remarks>
+    public DateTimeOffset? SubmitStartedAt { get; init; }
+
     /// <summary>Oxirgi harakat vaqti — eskirgan suhbatni tozalash uchun.</summary>
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>
-/// Suhbat holatlarini XOTIRADA saqlaydi.
+/// Suhbat holatlarini saqlaydi: XOTIRADA, zaxira nusxasi esa Redis'da.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Nega baza yoki Redis emas.</b> Holatning umri — bir necha daqiqa va
-/// undagi yagona qimmatli narsa yarim yozilgan ariza. Buning evaziga bot
-/// hech qanday saqlash tizimiga bog'lanmaydi va uning ishlashi HR
-/// bazasiga umuman ta'sir qilmaydi.
+/// <b>Nega endi Redis ham (2026-09-29).</b> Ilgari holat faqat xotirada
+/// edi va bot qayta ishga tushsa (har deploy'da) yarim to'ldirilgan anketa
+/// yo'qolardi. Anketa 22 qadamga o'sgach bu narx ko'tarildi, egasi esa
+/// aniq talab qo'ydi: «server o'chib-yonsa ham anketa davom etsin». Redis
+/// prod'da allaqachon bor (API keshi) va diskka yozadi (`appendonly`) —
+/// ya'ni yangi xizmat qo'shilmadi.
 /// </para>
 /// <para>
-/// ⚠️ <b>Narxi anketa 22 qadamga o'sgach oshdi</b> va u ochiq tan
-/// olingan (SPEC-anketa, 4.2): bot qayta ishga tushsa yarim to'ldirilgan
-/// anketa yo'qoladi va nomzod boshidan boshlaydi. Qaror o'zgarmadi —
-/// prod'ga yangi bog'liqlik qo'shish undan qimmatroq. Yumshatilishi:
-/// suhbat muddati 60 daqiqa (anketa ~5 daqiqa) va deploy ish vaqtidan
-/// tashqarida qilinadi.
+/// <b>Xotira — asosiy, Redis — zaxira.</b> O'qish avval xotiradan; u yerda
+/// yo'q bo'lsa (bot endigina qayta ishga tushgan) Redis'dan olinadi va
+/// xotiraga qaytariladi. Redis ishlamasa bot to'xtamaydi: xato jurnalga
+/// yoziladi va suhbat avvalgidek faqat xotirada davom etadi
+/// (<see cref="IConversationBackup"/> izohi).
+/// </para>
+/// <para>
+/// <b>Muddat SOZLAMADAN keladi</b> (<see cref="Lifetime"/>) — «Tizim
+/// sozlamalari» dagi «Suhbat muddati». Ilgari u faqat ishga tushishda
+/// o'qilardi va ekrandagi maydon hech narsaga ta'sir qilmasdi.
+/// </para>
+/// <para>
+/// <b>Eski qaror (tarix uchun).</b> Ilgari holat FAQAT xotirada edi:
+/// «bot hech qanday saqlash tizimiga bog'lanmasin, prod'ga yangi
+/// bog'liqlik qo'shish qimmatroq». Narxi — deploy'da yarim anketa
+/// yo'qolardi — ochiq tan olingan edi (SPEC-anketa, 4.2). Redis prod'da
+/// API uchun paydo bo'lgach, bu narx endi oqlanmadi.
 /// </para>
 /// <para>
 /// <b>Eskirgan suhbatlar tozalanadi.</b> Nomzod ismini yozmasdan ketib
-/// qolsa, uning yarim ma'lumoti xotirada abadiy turmasligi kerak —
-/// bu ham xotira, ham maxfiylik masalasi.
+/// qolsa, uning yarim ma'lumoti abadiy turmasligi kerak — bu ham xotira,
+/// ham maxfiylik masalasi. Redis'dagi nusxa esa o'z muddati (TTL) bilan
+/// o'zi o'chadi.
 /// </para>
 /// </remarks>
 public sealed class ConversationStore
 {
     private readonly ConcurrentDictionary<long, ConversationState> _states = new();
-    private readonly TimeSpan _lifetime;
+    private readonly IConversationBackup? _backup;
+    private long _lifetimeTicks;
 
-    public ConversationStore(TimeSpan lifetime) => _lifetime = lifetime;
+    public ConversationStore(TimeSpan lifetime, IConversationBackup? backup = null)
+    {
+        _lifetimeTicks = lifetime.Ticks;
+        _backup = backup;
+    }
+
+    /// <summary>Yarim qolgan suhbat qancha vaqtdan keyin unutiladi.</summary>
+    /// <remarks>
+    /// Ish paytida o'zgaradi: bot sozlamani har o'qiganda yangilaydi.
+    /// Suhbatlar o'qilayotgan halqa bilan bir vaqtda yozilishi mumkin,
+    /// shu sababli qiymat <see cref="Interlocked"/> orqali saqlanadi.
+    /// </remarks>
+    public TimeSpan Lifetime
+    {
+        get => TimeSpan.FromTicks(Interlocked.Read(ref _lifetimeTicks));
+        set => Interlocked.Exchange(ref _lifetimeTicks, value.Ticks);
+    }
 
     /// <summary>Suhbat holati — muddati o'tgan bo'lsa <c>null</c>.</summary>
     public ConversationState? Find(long chatId)
     {
         if (!_states.TryGetValue(chatId, out var state))
         {
-            return null;
+            // Xotirada yo'q — bot qayta ishga tushgan bo'lishi mumkin
+            if (_backup?.Load(chatId) is not { } restored)
+            {
+                return null;
+            }
+
+            state = restored;
+            _states[chatId] = state;
         }
 
-        if (DateTimeOffset.UtcNow - state.UpdatedAt <= _lifetime)
+        if (DateTimeOffset.UtcNow - state.UpdatedAt <= Lifetime)
         {
             return state;
         }
 
-        _ = _states.TryRemove(chatId, out _);
+        Forget(chatId);
         return null;
     }
 
     /// <summary>Holatni yozadi va vaqt belgisini yangilaydi.</summary>
     public void Save(long chatId, ConversationState state)
-        => _states[chatId] = state with { UpdatedAt = DateTimeOffset.UtcNow };
+    {
+        var saved = state with { UpdatedAt = DateTimeOffset.UtcNow };
+
+        _states[chatId] = saved;
+        _backup?.Store(chatId, saved, Lifetime);
+    }
 
     /// <summary>Suhbatni unutadi — ariza yuborilgach chaqiriladi.</summary>
-    public void Forget(long chatId) => _states.TryRemove(chatId, out _);
+    public void Forget(long chatId)
+    {
+        _ = _states.TryRemove(chatId, out _);
+        _backup?.Remove(chatId);
+    }
 
     /// <summary>
-    /// Muddati o'tgan suhbatlarni tozalaydi.
+    /// Muddati o'tgan suhbatlarni XOTIRADAN tozalaydi.
     /// </summary>
     /// <remarks>
     /// <see cref="Find"/> ham tozalaydi, lekin faqat SO'RALGAN suhbatni:
     /// qaytib kelmagan nomzodning holati hech qachon so'ralmaydi va
     /// o'z-o'zidan ketmasdi. Shu sababli davriy tozalash ham kerak.
+    /// Redis'dagi nusxaga tegilmaydi — u o'z muddati (TTL) bilan o'zi o'chadi.
     /// </remarks>
     /// <returns>Nechta suhbat unutildi.</returns>
     public int RemoveExpired()
     {
-        var deadline = DateTimeOffset.UtcNow - _lifetime;
+        var deadline = DateTimeOffset.UtcNow - Lifetime;
         var removed = 0;
 
         foreach (var (chatId, state) in _states)
@@ -299,4 +366,33 @@ public sealed class ConversationStore
 
         return removed;
     }
+}
+
+/// <summary>
+/// Suhbat holatining xotiradan TASHQARIDAGI nusxasi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⚠️ <b>Bironta metod istisno TASHLAMAYDI.</b> Nusxa — qulaylik:
+/// u ishlamasa bot baribir ishlashi kerak. Xato amalga oshiruvchining
+/// ichida yutiladi va jurnalga yoziladi.
+/// </para>
+/// <para>
+/// Metodlar sinxron — <see cref="ConversationStore"/> ning mavjud
+/// chaqiruvlari shunday va nusxa bir xil xostdagi Redis'ga bir necha
+/// yuz mikrosekundda boradi. Kutish vaqti qisqa qilib qo'yilgan
+/// (<c>RedisConversationBackup</c>), ya'ni Redis o'chiq bo'lsa ham bot
+/// sezilarli sekinlashmaydi.
+/// </para>
+/// </remarks>
+public interface IConversationBackup
+{
+    /// <summary>Saqlangan holat. Yo'q yoki o'qib bo'lmasa — <c>null</c>.</summary>
+    ConversationState? Load(long chatId);
+
+    /// <summary>Holatni <paramref name="lifetime"/> muddatga saqlaydi.</summary>
+    void Store(long chatId, ConversationState state, TimeSpan lifetime);
+
+    /// <summary>Holatni o'chiradi.</summary>
+    void Remove(long chatId);
 }

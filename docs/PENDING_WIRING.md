@@ -18,9 +18,9 @@ bog'landi, quyida yakuniy holat.
   `GET /api/settings` javobiga umuman tushmaydi va ekranda ko'rinmaydi:
   bu tizimning ichki bog'lanishi, foydalanuvchi sozlamasi emas. Botga
   ham ochilmaydi — vakansiyani server o'zi tanlaydi.
-- **Suhbat holati Redis'ga ko'chirilmadi** — xotirada qoladi. Sabab va
-  narxi `docs/ASSUMPTIONS.md` da; qisqasi: bot deploy paytida qayta
-  ishga tushsa, yarim to'ldirilgan anketa yo'qoladi.
+- ~~Suhbat holati Redis'ga ko'chirilmadi~~ — 2026-09-29 dan holatning
+  nusxasi Redis'da, bot qayta ishga tushsa ham anketa davom etadi
+  (`docs/SPEC-anketa.md`, 4.2).
 
 ## Ochiq qolgan yagona nuqta
 

@@ -170,6 +170,40 @@ public sealed partial class BotWorker : BackgroundService
     /// </remarks>
     private const string GeneralPoolLabel = "Umumiy anketa";
 
+    /// <summary>Server kodi: vakansiya yopiq — nomzod qabul qilmaydi.</summary>
+    private const string VacancyNotAcceptingCode = "vakansiya.qabul_qilmaydi";
+
+    /// <summary>Server kodi: vakansiya topilmadi (o'chirilgan).</summary>
+    private const string VacancyNotFoundCode = "vakansiya.topilmadi";
+
+    /// <summary>
+    /// Server vaqtincha javob bermaganda arizani qayta yuborish oraliqlari.
+    /// </summary>
+    /// <remarks>
+    /// Jami ~1 daqiqa — deploy'da API ning qayta ko'tarilishiga (migratsiya
+    /// bilan birga) yetadigan vaqt. Nomzod shu orada «yuborilmoqda» ni
+    /// ko'rib turadi. Uzunroq qilinmaydi: kutish paytida bot boshqa
+    /// nomzodlarga javob bermaydi. <c>internal</c> — testlar kutmasdan
+    /// tekshirishi uchun.
+    /// </remarks>
+    internal IReadOnlyList<TimeSpan> SubmitRetryDelays { get; init; } =
+    [
+        TimeSpan.FromSeconds(2),
+        TimeSpan.FromSeconds(5),
+        TimeSpan.FromSeconds(10),
+        TimeSpan.FromSeconds(15),
+        TimeSpan.FromSeconds(30),
+    ];
+
+    /// <summary>
+    /// To'liq kutishdan keyin ham API javob bermasa, shuncha vaqt yangi
+    /// kutish qilinmaydi (<see cref="RegisterWithRetryAsync"/>).
+    /// </summary>
+    private static readonly TimeSpan ApiDownPause = TimeSpan.FromMinutes(2);
+
+    /// <summary>Shu paytgacha ariza yuborishda kutilmaydi.</summary>
+    private DateTimeOffset _apiDownUntil = DateTimeOffset.MinValue;
+
     /// <summary>
     /// Telegram izohining (caption) eng katta uzunligi.
     /// </summary>
@@ -1487,6 +1521,23 @@ public sealed partial class BotWorker : BackgroundService
     {
         if (message.Contact is not { } contact)
         {
+            // Yagona istisno: Telegram raqami chet elniki — o'zbek raqamini
+            // qo'lda yozish so'ralgan (`BotTexts.ForeignPhone` izohi).
+            if (state.PhoneTypingAllowed)
+            {
+                if (UzbekPhone.Normalize(message.Text) is { } typed)
+                {
+                    await CheckAndAcceptPhoneAsync(chatId, state, typed, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
+                await _telegram
+                    .SendMessageAsync(chatId, BotTexts.PhoneFormat(state.Language), cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                return;
+            }
+
             // Raqam qo'lda yozilgan: qabul qilmaymiz. Terish xatosi
             // butun arizani qidirib bo'lmaydigan qilib qo'yardi va HR
             // nomzodga umuman qo'ng'iroq qila olmasdi.
@@ -1519,8 +1570,35 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        var phone = contact.PhoneNumber;
+        /*
+          Chet el raqami (masalan +7) — server uni oxirida baribir rad
+          etardi va nomzod 22 ta savoldan keyin «ariza yuborilmadi» ni
+          olardi (prod jurnali, 2026-09-29). Endi shu yerning o'zida
+          aytiladi va o'zbek raqamini qo'lda yozish so'raladi.
+        */
+        if (UzbekPhone.Normalize(contact.PhoneNumber) is not { } phone)
+        {
+            _conversations.Save(chatId, state with { PhoneTypingAllowed = true });
 
+            await _telegram
+                .SendMessageAsync(chatId, BotTexts.ForeignPhone(state.Language), cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        await CheckAndAcceptPhoneAsync(chatId, state, phone, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Takroriy arizani tekshiradi va telefonni qabul qiladi.
+    /// </summary>
+    private async Task CheckAndAcceptPhoneAsync(
+        long chatId,
+        ConversationState state,
+        string phone,
+        CancellationToken cancellationToken)
+    {
         /*
           ⭐ TAKRORIY ARIZA AYNAN SHU YERDA tekshiriladi — 6-qadamda,
           telefon raqami ma'lum bo'lgan zahoti.
@@ -1558,7 +1636,11 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        await AcceptAsync(chatId, state with { Phone = phone }, cancellationToken).ConfigureAwait(false);
+        await AcceptAsync(
+                chatId,
+                state with { Phone = phone, PhoneTypingAllowed = false },
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1741,12 +1823,75 @@ public sealed partial class BotWorker : BackgroundService
             BotLanguages.Code(state.Language),
             answers);
 
-        var candidateId = await _bonvi
-            .RegisterCandidateAsync(registration, cancellationToken)
+        /*
+          ⭐ TAKRORIY YUBORISHDAN HIMOYA.
+
+          Yuborish ilgari boshlangan (belgi bor) — demak bot o'sha paytda
+          to'xtatilgan va Telegram «Yuborish» ni qayta yetkazgan, yoki
+          nomzod uni qayta bosgan. Server nomzodni yozib ulgurgan bo'lishi
+          mumkin, u esa takrorni o'zi tekshirmaydi. Shu sababli avval
+          so'raladi: bu telefonning JARAYONDAGI arizasi bormi? Telefon
+          qadamida bu tekshiruv o'tgan edi, ya'ni endi «bor» degan javob —
+          shu suhbatning o'z arizasi.
+        */
+        if (state.SubmitStartedAt is not null)
+        {
+            var check = await _bonvi.CheckApplicationAsync(phone, chatId, cancellationToken).ConfigureAwait(false);
+
+            if (check is { Allowed: false, Reason: ApplicationBlockReason.Active })
+            {
+                _conversations.Forget(chatId);
+
+                await SendWithMenuAsync(
+                        chatId,
+                        state.VacancyId is null
+                            ? BotTexts.AcceptedToGeneralPool(state.Language)
+                            : BotTexts.Accepted(state.Language, state.VacancyTitle),
+                        state.Language,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return;
+            }
+        }
+        else
+        {
+            state = state with { SubmitStartedAt = BotClock.Now };
+            _conversations.Save(chatId, state);
+        }
+
+        var result = await RegisterWithRetryAsync(chatId, state.Language, registration, cancellationToken)
             .ConfigureAwait(false);
 
-        if (candidateId is not { } created)
+        /*
+          Tanlangan vakansiya anketa to'ldirilayotganda YOPILGAN (yoki
+          o'chirilgan) — ariza «Umumiy anketa»ga qabul qilinadi.
+
+          Suhbat endi bir sutka yashaydi va HR vakansiyani bir bosishda
+          yopadi, ya'ni bu holat kutilgan. Ilgari nomzod 22 ta savoldan
+          keyin «ariza yuborilmadi» ni olardi va mehnati bekorga ketardi;
+          HR esa bu odamni umuman ko'rmasdi.
+        */
+        var closedVacancy = false;
+
+        if (result.CandidateId is null
+            && state.VacancyId is not null
+            && result.ErrorCode is VacancyNotAcceptingCode or VacancyNotFoundCode)
         {
+            closedVacancy = true;
+
+            result = await RegisterWithRetryAsync(
+                    chatId,
+                    state.Language,
+                    registration with { VacancyId = null },
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (result.CandidateId is not { } created)
+        {
+            // Suhbat SAQLANADI: nomzod «Yuborish» ni keyinroq qayta bosa
+            // oladi — holat Redis'da, ya'ni bot qayta ishga tushsa ham.
             await _telegram
                 .SendMessageAsync(chatId, BotTexts.Failed(state.Language), cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
@@ -1754,9 +1899,13 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        await TryUploadPhotoAsync(created, state.PhotoFileId, cancellationToken).ConfigureAwait(false);
-
+        // Suhbat DARHOL unutiladi — suratdan OLDIN: surat bir-ikki soniya
+        // oladi va shu orada bot to'xtatilsa, qayta ishga tushgan bot
+        // «tasdiq» qadamidagi holatni topib, arizani ikkinchi marta
+        // yuborardi. Surat belgisi `state` da qoladi.
         _conversations.Forget(chatId);
+
+        await TryUploadPhotoAsync(created, state.PhotoFileId, cancellationToken).ConfigureAwait(false);
 
         /*
           Menyu bilan: telefon so'ralganda Telegram uni kontakt tugmasi
@@ -1764,16 +1913,66 @@ public sealed partial class BotWorker : BackgroundService
           ekran oldida qolardi va ikkinchi vakansiyaga ariza berish
           uchun `/start` yozishi kerak bo'lardi.
         */
-        await SendWithMenuAsync(
-                chatId,
-                state.VacancyId is null
-                    ? BotTexts.AcceptedToGeneralPool(state.Language)
-                    : BotTexts.Accepted(state.Language, state.VacancyTitle),
-                state.Language,
-                cancellationToken)
-            .ConfigureAwait(false);
+        var accepted = closedVacancy
+            ? BotTexts.AcceptedVacancyClosed(state.Language, state.VacancyTitle)
+            : state.VacancyId is null
+                ? BotTexts.AcceptedToGeneralPool(state.Language)
+                : BotTexts.Accepted(state.Language, state.VacancyTitle);
 
-        LogApplication(state.VacancyId is null ? GeneralPoolLabel : state.VacancyTitle);
+        await SendWithMenuAsync(chatId, accepted, state.Language, cancellationToken).ConfigureAwait(false);
+
+        LogApplication(state.VacancyId is null || closedVacancy ? GeneralPoolLabel : state.VacancyTitle);
+    }
+
+    /// <summary>
+    /// Arizani yuboradi — server VAQTINCHA javob bermasa, kutib qayta uradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega.</b> Deploy paytida API bir necha soniyadan bir daqiqagacha
+    /// javob bermaydi. Egasining talabi (2026-09-29): serverning qayta
+    /// ishga tushishi anketa topshirishga ta'sir qilmasligi kerak.
+    /// </para>
+    /// <para>
+    /// Faqat so'rov serverga YETMAGANI aniq bo'lgan xatolar qayta
+    /// yuboriladi (<see cref="CandidateRegistrationResult.Transient"/>) —
+    /// aks holda bitta odam ikki marta yozilib qolishi mumkin edi. Birinchi
+    /// muvaffaqiyatsiz urinishdan keyin nomzodga «yuborilmoqda» deyiladi.
+    /// </para>
+    /// </remarks>
+    private async Task<CandidateRegistrationResult> RegisterWithRetryAsync(
+        long chatId,
+        BotLanguage language,
+        CandidateRegistration registration,
+        CancellationToken cancellationToken)
+    {
+        var result = await _bonvi.RegisterCandidateAsync(registration, cancellationToken).ConfigureAwait(false);
+
+        /*
+          API yaqinda to'liq kutishdan keyin ham javob bermagan — yana
+          kutilmaydi. Bot yangiliklarni birma-bir ishlaydi: har bir
+          «Yuborish» bosilishi boshqa barcha nomzodlarni yana bir daqiqaga
+          to'xtatib qo'yardi (masalan API qayta-qayta yiqilayotganda).
+        */
+        var retries = DateTimeOffset.UtcNow < _apiDownUntil ? 0 : SubmitRetryDelays.Count;
+
+        for (var attempt = 0; result.Transient && attempt < retries; attempt++)
+        {
+            if (attempt == 0)
+            {
+                await _telegram
+                    .SendMessageAsync(chatId, BotTexts.Submitting(language), cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await Task.Delay(SubmitRetryDelays[attempt], cancellationToken).ConfigureAwait(false);
+
+            result = await _bonvi.RegisterCandidateAsync(registration, cancellationToken).ConfigureAwait(false);
+        }
+
+        _apiDownUntil = result.Transient ? DateTimeOffset.UtcNow + ApiDownPause : DateTimeOffset.MinValue;
+
+        return result;
     }
 
     /// <summary>
@@ -1952,6 +2151,14 @@ public sealed partial class BotWorker : BackgroundService
         {
             _settings = fresh;
             _settingsReadAt = DateTimeOffset.UtcNow;
+
+            // «Suhbat muddati» — ekrandagi sozlama ishga tushishdagi
+            // qiymatdan ustun (`ConversationStore.Lifetime` izohi).
+            // Nol yoki manfiy qiymat — buzilgan javob, u qabul qilinmaydi.
+            if (fresh.ConversationTimeoutMinutes > 0)
+            {
+                _conversations.Lifetime = TimeSpan.FromMinutes(Math.Min(fresh.ConversationTimeoutMinutes, 1440));
+            }
         }
 
         return _settings;

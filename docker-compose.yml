@@ -186,13 +186,17 @@ services:
       Bot__Login: ${BOOTSTRAP__BOTLOGIN:-}
       Bot__Password: ${BOOTSTRAP__BOTPASSWORD:-}
       Bot__PollTimeoutSeconds: ${TELEGRAM__POLLTIMEOUT:-30}
-      Bot__ConversationTimeoutMinutes: ${TELEGRAM__CONVERSATIONTIMEOUT:-60}
+      Bot__ConversationTimeoutMinutes: ${TELEGRAM__CONVERSATIONTIMEOUT:-1440}
+      # Yarim to'ldirilgan anketaning nusxasi — bot qayta ishga tushsa
+      # ham anketa davom etadi (`ConversationStore` izohi).
+      ConnectionStrings__Redis: "redis:6379"
     volumes:
       - ./api:/src
       - nuget-cache:/root/.nuget/packages
       - api-artifacts:/src/artifacts
     depends_on:
       api: { condition: service_started }
+      redis: { condition: service_healthy }
     networks: [bonvi]
 
   # ----------------------------------------------------------

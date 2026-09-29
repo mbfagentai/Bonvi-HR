@@ -1,5 +1,7 @@
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Application.Recruiting.Common;
 using Bonvi.Application.Recruiting.Dtos;
+using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Recruiting;
 
@@ -40,16 +42,20 @@ public sealed class RecruitingMapper
     private readonly ICandidateRepository _candidates;
     private readonly IEmploymentRepository _employments;
 
+    private readonly SystemSettingsReader _settings;
+
     public RecruitingMapper(
         IPipelineStageRepository stages,
         IVacancyRepository vacancies,
         ICandidateRepository candidates,
-        IEmploymentRepository employments)
+        IEmploymentRepository employments,
+        SystemSettingsReader settings)
     {
         _stages = stages;
         _vacancies = vacancies;
         _candidates = candidates;
         _employments = employments;
+        _settings = settings;
     }
 
     /// <summary>Bosqich — ma'lumotnoma yozuvi, qo'shimcha so'rovsiz.</summary>
@@ -109,7 +115,8 @@ public sealed class RecruitingMapper
             vacancy.ClosedAt,
             vacancy.Note,
             total,
-            hired);
+            hired,
+            await GeneralPoolVacancy.IdAsync(_settings, cancellationToken).ConfigureAwait(false) == vacancy.Id);
     }
 
     /// <summary>Nomzod kartasi — bosqichlar tarixi, fayllari va izohlari bilan.</summary>

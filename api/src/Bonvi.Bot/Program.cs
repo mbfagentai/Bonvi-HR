@@ -75,10 +75,40 @@ builder.Services.AddHttpClient<BonviClient>((provider, client) =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+/*
+  Suhbat holatining Redis nusxasi — bot qayta ishga tushganda (deploy)
+  yarim to'ldirilgan anketa yo'qolmasligi uchun (`ConversationStore`
+  izohi). Ulanish satri API dagi bilan bir xil kalitda:
+  `ConnectionStrings__Redis`.
+
+  Satr bo'lmasa (masalan lokal `dotnet run`) nusxa umuman ulanmaydi va
+  bot avvalgidek faqat xotirada ishlaydi.
+
+  `abortConnect=false` va qisqa kutish: Redis ko'tarilmagan bo'lsa bot
+  baribir ishga tushadi. O'chiq Redis birinchi xatoda yarim soniyagacha
+  ushlaydi, keyin nusxa 30 soniya chetlab o'tiladi
+  (`RedisConversationBackup` izohi).
+*/
+var redis = builder.Configuration.GetConnectionString("Redis");
+
+if (!string.IsNullOrWhiteSpace(redis))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redis + ",abortConnect=false,connectTimeout=1000,syncTimeout=500";
+        options.InstanceName = "bonvi-bot:";
+    });
+
+    builder.Services.AddSingleton<IConversationBackup, RedisConversationBackup>();
+}
+
 builder.Services.AddSingleton(provider =>
 {
     var options = provider.GetRequiredService<IOptions<BotOptions>>().Value;
-    return new ConversationStore(TimeSpan.FromMinutes(options.ConversationTimeoutMinutes));
+
+    return new ConversationStore(
+        TimeSpan.FromMinutes(options.ConversationTimeoutMinutes),
+        provider.GetService<IConversationBackup>());
 });
 
 builder.Services.AddHostedService<BotWorker>();

@@ -123,7 +123,7 @@ internal sealed class RecruitingTestContext
         Employees.Clock);
 
     public RecruitingMapper Mapper => new(
-        Stages, Vacancies, Candidates, Employees.Employments);
+        Stages, Vacancies, Candidates, Employees.Employments, Settings);
 
     /// <summary>1-bosqichning HAQIQIY ishga qabul handleri (mock emas).</summary>
     /// <remarks>

@@ -87,9 +87,18 @@ public sealed class BotOptions
     /// Yarim qolgan suhbat qancha vaqtdan keyin unutiladi (daqiqa).
     /// </summary>
     /// <remarks>
-    /// Nomzod ismini yozmasdan ketib qolsa, uning holati abadiy xotirada
+    /// <para>
+    /// Nomzod ismini yozmasdan ketib qolsa, uning holati abadiy saqlanib
     /// turmasligi kerak. Muddat o'tgach suhbat boshidan boshlanadi.
+    /// </para>
+    /// <para>
+    /// Bu faqat ISHGA TUSHISHDAGI qiymat: bot «Tizim sozlamalari» ni
+    /// o'qigach, o'sha yerdagi «Suhbat muddati» ustun turadi. Sukut —
+    /// bir sutka (egasining talabi, 2026-09-29: nomzod anketani yarmida
+    /// qoldirib, bir necha soatdan keyin davom ettira olishi kerak).
+    /// Sozlamadagi sukut ham AYNAN shu — <c>SystemSettingKeys</c> izohi.
+    /// </para>
     /// </remarks>
     [Range(1, 1440)]
-    public int ConversationTimeoutMinutes { get; set; } = 60;
+    public int ConversationTimeoutMinutes { get; set; } = 1440;
 }

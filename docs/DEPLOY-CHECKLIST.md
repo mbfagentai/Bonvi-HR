@@ -47,7 +47,7 @@ yo'qoladi) — kerak bo'lsa `Down` emas, image rollback.
 - [ ] Haqli vazifasi bor xodim kartasi: oklad, vazifa, «Jami» to'g'ri
 
 
-## ⏳ Navbatdagi reliz — vakansiya nomi vakansiyaning o'zida (2026-09-29) — DEPLOY QILINMAGAN
+## ⏳ Navbatdagi reliz — vakansiyalar bitta joyda + bot chidamliligi (2026-09-29) — DEPLOY QILINMAGAN
 
 Migratsiya `20260929061633_VakansiyaNomiVakansiyaningOzida`: «Vakansiya
 nomlari» ma'lumotnomasi (`vacancy_titles`) va mas'ul xodim
@@ -82,6 +82,16 @@ where btrim(coalesce(t.note, ''), E' \t\r\n') <> ''
 select lower(t.name), count(*) from vacancies v join vacancy_titles t on t.id = v.vacancy_title_id
 where v.deleted_at is null group by 1 having count(*) > 1;
 
+-- E: sozlamadagi «Suhbat muddati» — qator bo'lmasa sukut 1440 ishlaydi.
+--    1440 dan kichik bo'lsa, «Tizim sozlamalari» da 1440 qiling
+--    (bot endi shu qiymatni HAQIQATAN ishlatadi; ilgari e'tiborsiz edi)
+select value from system_settings where key = 'bot.conversationTimeoutMinutes';
+
+-- F: «Umumiy anketa» nomida bir nechta tirik vakansiya — 1 dan ko'p
+--    bo'lsa, ishga tushishdagi qayta ochish O'TKAZIB yuboriladi, qo'lda hal qiling
+select v.id, v.status from vacancies v join vacancy_titles t on t.id = v.vacancy_title_id
+where v.deleted_at is null and lower(t.name) = 'umumiy anketa';
+
 -- C: bir nomda bir nechta OCHIQ vakansiya (bot ikkita bir xil tugma
 --    ko'rsatadi) — 0 bo'lmasa, deploy'dan keyin HR ortiqchasini yopadi
 select lower(t.name), count(*) from vacancies v join vacancy_titles t on t.id = v.vacancy_title_id
@@ -93,10 +103,22 @@ where v.deleted_at is null and v.status = 1 group by 1 having count(*) > 1;
 tiklash (yoki `Down`: ma'lumotnomani nomlardan qayta yig'adi, mas'ul
 xodimlar qaytmaydi).
 
+**Shu relizga qo'shilgan — bot chidamliligi (2026-09-29):**
+- Bot endi Redis'ga ulanadi (`ConnectionStrings__Redis`, compose'da
+  `depends_on: redis healthy`) — yarim anketa deploy'da yo'qolmaydi.
+- Suhbat muddati sukut 1440 daqiqa; prod `.env` da
+  `TELEGRAM__CONVERSATIONTIMEOUT=` bo'sh — ya'ni compose sukuti ishlaydi.
+- ⚠️ API ishga tushganda YOPIQ «Umumiy anketa» ni QAYTA OCHADI (jurnal:
+  `DatabaseInitializer[2012]`). Prod'da u 2026-09-11 dan yopiq — bu
+  kutilgan va shu relizning maqsadi.
+
 **Deploy'dan keyin:**
 - [ ] Ma'lumotnomalar menyusida «Vakansiya nomlari» yo'q
 - [ ] Vakansiyalar ro'yxatida eski nomlar bor (vakansiyasizlari — «Yopiq»)
 - [ ] Yopish / qayta ochish bir bosishda ishlaydi; bot ochiq vakansiyalarni ko'rsatadi
+- [ ] «Umumiy anketa» — qulf belgisi bilan, ochiq
+- [ ] Bot jurnalida `RedisConversationBackup[3301]` yo'q (Redis nusxasi ishlayapti)
+- [ ] Botda «📋 Anketa to'ldirish» orqali sinov arizasi o'tadi (keyin HR o'chiradi)
 
 ## Oldindan
 

@@ -136,9 +136,8 @@ public sealed class ListVacanciesQueryHandler
 
         var (sort, descending) = RecruitingQueryParsing.ParseVacancySort(query.Sort);
 
-        var excluded = query.ExcludeGeneralPool
-            ? await GeneralPoolVacancyIdAsync(cancellationToken).ConfigureAwait(false)
-            : null;
+        var generalPoolId = await GeneralPoolVacancy.IdAsync(_settings, cancellationToken).ConfigureAwait(false);
+        var excluded = query.ExcludeGeneralPool ? generalPoolId : null;
 
         var found = await _readModel
             .ListVacanciesAsync(
@@ -164,33 +163,13 @@ public sealed class ListVacanciesQueryHandler
                 row.ClosedAt,
                 row.Note,
                 row.CandidateCount,
-                row.HiredCount)),
+                row.HiredCount,
+                row.Id == generalPoolId)),
         ];
 
         var pageCount = (found.Total + pageSize - 1) / pageSize;
 
         return Result.Success(new PagedResult<VacancyDto>(items, page, pageSize, found.Total, pageCount));
-    }
-
-    /// <summary>
-    /// «Umumiy anketa» vakansiyasi. Sozlanmagan bo'lsa — <c>null</c>.
-    /// </summary>
-    /// <remarks>
-    /// ⚠️ <b>Bu yerdan XATO chiqmaydi va chiqmasligi ham kerak.</b>
-    /// Sozlama bo'sh bo'lishi (urug'lantirish hali o'tmagan) yoki
-    /// buzilgan bo'lishi (bazaga qo'lda aralashilgan) mumkin — ikkala
-    /// holatda ham ro'yxat AVVALGIDEK to'liq qaytadi. Botning yagona
-    /// ish yo'li shu so'rovdan o'tadi: filtr tufayli yiqilgan ro'yxat
-    /// «Umumiy anketa» ko'rinib qolganidan ko'ra ancha qimmatga
-    /// tushardi.
-    /// </remarks>
-    private async Task<Guid?> GeneralPoolVacancyIdAsync(CancellationToken cancellationToken)
-    {
-        var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
-
-        return Guid.TryParse(settings.Hidden(SystemSettingKeys.GeneralPoolVacancyId), out var id)
-            ? id
-            : null;
     }
 }
 
@@ -355,17 +334,20 @@ public sealed class ChangeVacancyStateCommandHandler
 {
     private readonly IVacancyRepository _vacancies;
     private readonly RecruitingMapper _mapper;
+    private readonly SystemSettingsReader _settings;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
     public ChangeVacancyStateCommandHandler(
         IVacancyRepository vacancies,
         RecruitingMapper mapper,
+        SystemSettingsReader settings,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
         _vacancies = vacancies;
         _mapper = mapper;
+        _settings = settings;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -397,16 +379,24 @@ public sealed class ChangeVacancyStateCommandHandler
             .ConfigureAwait(false);
     }
 
-    public Task<Result<VacancyDto>> HandleAsync(
+    public async Task<Result<VacancyDto>> HandleAsync(
         CloseVacancyCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        return ApplyAsync(
-            command.VacancyId,
-            vacancy => vacancy.Close(command.ClosedAt ?? _clock.Today, command.Reason),
-            cancellationToken);
+        // «Umumiy anketa» yopilsa, botdagi «Anketa to'ldirish» butunlay
+        // ishlamay qoladi (sababi `GeneralPoolVacancy` izohida).
+        if (await GeneralPoolVacancy.IdAsync(_settings, cancellationToken).ConfigureAwait(false) == command.VacancyId)
+        {
+            return RecruitingErrors.SystemVacancyLocked;
+        }
+
+        return await ApplyAsync(
+                command.VacancyId,
+                vacancy => vacancy.Close(command.ClosedAt ?? _clock.Today, command.Reason),
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async Task<Result<VacancyDto>> ApplyAsync(
@@ -468,15 +458,18 @@ public sealed class DeleteVacancyCommandHandler
 {
     private readonly IVacancyRepository _vacancies;
     private readonly ICandidateRepository _candidates;
+    private readonly SystemSettingsReader _settings;
     private readonly IUnitOfWork _unitOfWork;
 
     public DeleteVacancyCommandHandler(
         IVacancyRepository vacancies,
         ICandidateRepository candidates,
+        SystemSettingsReader settings,
         IUnitOfWork unitOfWork)
     {
         _vacancies = vacancies;
         _candidates = candidates;
+        _settings = settings;
         _unitOfWork = unitOfWork;
     }
 
@@ -490,6 +483,13 @@ public sealed class DeleteVacancyCommandHandler
         if (vacancy is null)
         {
             return RecruitingErrors.VacancyNotFound;
+        }
+
+        // Nomzodsiz bo'lsa ham: sozlama o'chirilgan vakansiyani ko'rsatib
+        // qolardi va botning vakansiyasiz arizalari to'xtardi.
+        if (await GeneralPoolVacancy.IdAsync(_settings, cancellationToken).ConfigureAwait(false) == vacancy.Id)
+        {
+            return RecruitingErrors.SystemVacancyLocked;
         }
 
         // Sanoq allaqachon mavjud metoddan olinadi (ro'yxatdagi

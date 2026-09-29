@@ -1,6 +1,7 @@
 import { getRouteApi } from '@tanstack/react-router'
 import {
   BriefcaseBusiness,
+  Lock,
   Pencil,
   Plus,
   SearchX,
@@ -268,6 +269,34 @@ export function VacanciesPage() {
               <Badge tone={look.tone} size="sm">
                 {label}
               </Badge>
+            )
+          }
+
+          /*
+            «Umumiy anketa» — tizim vakansiyasi: server uni yopishni rad
+            etadi. Almashtirgich o'rniga QULF — o'chirib bo'lmaydigan
+            tugma «nega ishlamayapti?» degan savol tug'dirardi. Prod'da
+            u bir marta yopilgan va botning «Anketa to'ldirish» arizalari
+            18 kun rad etilgan (`GeneralPoolVacancy` izohi, backend).
+
+            Faqat OCHIQ bo'lsa: bazada qo'lda yopilgan bo'lsa, server uni
+            qayta ochishga ruxsat beradi — almashtirgich shu yo'lni beradi.
+          */
+          if (row.original.isSystem && row.original.status === 'Open') {
+            const hint = t('recruiting.systemVacancyHint')
+
+            return (
+              <span
+                className="inline-flex items-center gap-1.5 text-[var(--fg-secondary)]"
+                title={hint}
+                aria-label={`${label}. ${hint}`}
+                role="img"
+              >
+                <Lock className="size-4" aria-hidden />
+                <Badge tone={look.tone} size="sm">
+                  {label}
+                </Badge>
+              </span>
             )
           }
 
@@ -539,7 +568,7 @@ function RowActions({
     >
       <ActionButton icon={Pencil} label={t('common.edit')} onClick={onEdit} />
 
-      {item.candidateCount === 0 && (
+      {item.candidateCount === 0 && !item.isSystem && (
         <ActionButton icon={Trash2} label={t('common.delete')} danger onClick={onDelete} />
       )}
     </div>

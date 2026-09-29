@@ -229,6 +229,13 @@ export interface Vacancy {
   candidateCount: number
   /** `openings` bilan birga «2/3 to'ldirildi» ko'rinishini beradi. */
   hiredCount: number
+  /**
+   * «Umumiy anketa» — tizim vakansiyasi: server uni yopishni ham,
+   * o'chirishni ham rad etadi («vakansiya.tizim_vakansiyasi»). Botdagi
+   * «Anketa to'ldirish» arizalari shu yerga tushadi — u yopilganda
+   * 18 kun davomida har bir bunday ariza rad etilgan (2026-09).
+   */
+  isSystem: boolean
 }
 
 /** `CandidateStageEntryDto` — nomzodning bitta bosqichdagi yozuvi. */
@@ -782,6 +789,7 @@ function toVacancy(raw: unknown): Vacancy {
     note: text(box['note']),
     candidateCount: count(box['candidateCount']),
     hiredCount: count(box['hiredCount']),
+    isSystem: box['isSystem'] === true,
   }
 }
 

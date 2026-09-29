@@ -413,3 +413,19 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-09-29] Closing a vacancy → one click, closed date = today, no reason
   prompt. → Owner asked for the simplest form; a reason can still go into
   the note.
+- [2026-09-29] «Umumiy anketa» (general pool) can it be closed? → No: close
+  and delete return 409 `vakansiya.tizim_vakansiyasi`, the UI shows a lock,
+  and startup reopens it if found closed. → Prod had it closed by HR on
+  2026-09-11; every bot «Anketa to'ldirish» submission failed for 18 days
+  (67 rejections in 5 days of logs). If the owner ever wants to stop
+  general applications, the bot button must be hidden instead.
+- [2026-09-29] Chosen vacancy closed while the candidate filled the form →
+  the application goes to the general pool and the candidate is told so.
+  → 24h conversations + one-click close make this common; losing a finished
+  22-step form is worse than filing it under the general pool.
+- [2026-09-29] Bot retries a submission only when the request surely did not
+  reach the API (connection/name-resolution error, 503), ~2 min total. →
+  Retrying on timeouts could create a duplicate candidate.
+- [2026-09-29] Foreign Telegram number at the phone step → the candidate may
+  TYPE an Uzbek number (the only case where typing is accepted). → The server
+  accepts only +998; otherwise such a person could never apply.

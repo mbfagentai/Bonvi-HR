@@ -235,7 +235,8 @@ public static class VacancyEndpoints
                 "bu HR ning qarori (ro'yxatdagi «hiredCount» unga asos beradi). " +
                 "Yopish QAYTARILADI («/reopen») va nomzodlarga hamda ularning " +
                 "bosqichlariga TEGMAYDI — u faqat yangi nomzod kiritishni to'sadi. " +
-                "Xatolar: «vakansiya.allaqachon_yopiq» (409), «vakansiya.yopish_sanasi» (400).")
+                "Xatolar: «vakansiya.allaqachon_yopiq» (409), «vakansiya.yopish_sanasi» (400), " +
+                "«vakansiya.tizim_vakansiyasi» (409) — «Umumiy anketa» yopilmaydi.")
             .Produces<VacancyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -259,7 +260,8 @@ public static class VacancyEndpoints
                 "uni o'chirish nomzodlarning yozuvini yetim qoldirardi " +
                 "(«vakansiya.nomzodlari_bor», 409; batafsil sabab " +
                 "`DeleteVacancyCommandHandler` izohida). Ish tugagan vakansiya " +
-                "YOPILADI, o'chirilmaydi. Yumshoq o'chirish: yozuv bazada qoladi.")
+                "YOPILADI, o'chirilmaydi. Yumshoq o'chirish: yozuv bazada qoladi. " +
+                "«vakansiya.tizim_vakansiyasi» (409) — «Umumiy anketa» o'chirilmaydi.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);

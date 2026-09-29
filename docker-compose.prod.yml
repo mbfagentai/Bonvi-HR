@@ -297,9 +297,15 @@ services:
       Bot__Password: ${BOOTSTRAP__BOTPASSWORD}
       Bot__Token: ${TELEGRAM__BOTTOKEN:-}
       Bot__PollTimeoutSeconds: ${TELEGRAM__POLLTIMEOUT:-30}
-      Bot__ConversationTimeoutMinutes: ${TELEGRAM__CONVERSATIONTIMEOUT:-60}
+      Bot__ConversationTimeoutMinutes: ${TELEGRAM__CONVERSATIONTIMEOUT:-1440}
+
+      # Yarim to'ldirilgan anketaning nusxasi: deploy'da bot qayta ishga
+      # tushsa ham nomzod anketani to'xtagan joyidan davom ettiradi
+      # (`ConversationStore` izohi). Redis diskka yozadi (`appendonly`).
+      ConnectionStrings__Redis: "redis:6379"
     depends_on:
       api: { condition: service_started }
+      redis: { condition: service_healthy }
     networks: [bonvi]
 
   web:

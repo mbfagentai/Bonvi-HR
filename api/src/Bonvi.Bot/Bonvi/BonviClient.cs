@@ -57,6 +57,21 @@ public sealed record BotSettings(
     string OfferUrl,
     int ConversationTimeoutMinutes);
 
+/// <summary>Arizani yuborish natijasi.</summary>
+/// <param name="CandidateId">Yaratilgan nomzod. Ariza qabul qilinmagan bo'lsa — <c>null</c>.</param>
+/// <param name="ErrorCode">
+/// Server rad etgan bo'lsa — uning xato kodi (ProblemDetails <c>title</c>),
+/// masalan <c>vakansiya.qabul_qilmaydi</c>. Bot unga qarab boshqa yo'l
+/// tanlaydi (<c>BotWorker.SubmitAsync</c>).
+/// </param>
+/// <param name="Transient">
+/// Server VAQTINCHA javob bermadi — so'rov unga yetib bormagani ANIQ
+/// (ulanib bo'lmadi, nom topilmadi, 503). Bunday so'rovni qayta yuborish
+/// xavfsiz: ikkinchi nusxa yaratilmaydi. Deploy paytida API aynan shunday
+/// bir necha soniya javob bermaydi.
+/// </param>
+public sealed record CandidateRegistrationResult(Guid? CandidateId, string? ErrorCode, bool Transient);
+
 /// <summary>Tizimda saqlangan Telegram tokeni. Qo'yilmagan bo'lsa <c>null</c>.</summary>
 /// <remarks>
 /// Yalang'och satr emas, O'RAM: shu tufayli «so'rov bajarilmadi»
@@ -651,18 +666,24 @@ public sealed partial class BonviClient : IDisposable
     /// Nomzodni voronkaga kiritadi — anketasi bilan birga.
     /// </summary>
     /// <remarks>
-    /// ⭐ <b>Nega endi <c>bool</c> emas, <c>Guid?</c>.</b> Suratni
-    /// yuborish uchun yaratilgan nomzodning <c>id</c> si kerak
-    /// (<see cref="UploadCandidatePhotoAsync"/>), ya'ni tartib qat'iy:
-    /// avval yozuv, keyin rasm. «Yaratildimi» degan bayroq bilan
-    /// ikkinchi so'rovni umuman yuborib bo'lmasdi — nomzodni telefon
-    /// raqami bo'yicha qayta izlash esa boshqa odamni topib qo'yish
-    /// xavfi.
+    /// <para>
+    /// ⭐ <b>Nega <c>bool</c> emas.</b> Suratni yuborish uchun yaratilgan
+    /// nomzodning <c>id</c> si kerak (<see cref="UploadCandidatePhotoAsync"/>),
+    /// ya'ni tartib qat'iy: avval yozuv, keyin rasm. Nomzodni telefon
+    /// raqami bo'yicha qayta izlash esa boshqa odamni topib qo'yish xavfi.
+    /// </para>
+    /// <para>
+    /// <b>Rad etilganda — SABABI ham.</b> Ilgari bu yerda faqat <c>null</c>
+    /// qaytardi va nomzod har qanday holatda «ariza yuborilmadi» ni olardi.
+    /// Prod jurnali (2026-09-29) ko'rsatdiki, bu xabarlarning deyarli
+    /// hammasi aniq, tuzatsa bo'ladigan sabablardan edi — yopilgan
+    /// vakansiya yoki deploy paytida bir necha soniya javob bermagan API.
+    /// </para>
     /// </remarks>
     /// <param name="registration">Tayyor ariza.</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    /// <returns>Yaratilgan nomzodning <c>id</c> si, bo'lmasa <c>null</c>.</returns>
-    public async Task<Guid?> RegisterCandidateAsync(
+    /// <returns>Yaratilgan nomzod — yoki nega yaratilmagani (<see cref="CandidateRegistrationResult"/>).</returns>
+    public async Task<CandidateRegistrationResult> RegisterCandidateAsync(
         CandidateRegistration registration,
         CancellationToken cancellationToken)
     {
@@ -725,7 +746,7 @@ public sealed partial class BonviClient : IDisposable
             },
         };
 
-        var created = await SendAsync<JsonElement>(
+        var response = await SendCoreAsync<JsonElement>(
                 () => new HttpRequestMessage(
                     HttpMethod.Post,
                     new Uri("api/recruiting/candidates", UriKind.Relative))
@@ -735,14 +756,13 @@ public sealed partial class BonviClient : IDisposable
                 cancellationToken)
             .ConfigureAwait(false);
 
-        if (created.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
+        var created = response.Value;
 
-        return created.TryGetProperty("id", out var id) && id.TryGetGuid(out var candidateId)
-            ? candidateId
-            : null;
+        return created.ValueKind == JsonValueKind.Object
+            && created.TryGetProperty("id", out var id)
+            && id.TryGetGuid(out var candidateId)
+                ? new CandidateRegistrationResult(candidateId, null, false)
+                : new CandidateRegistrationResult(null, response.ErrorCode, response.Transient);
     }
 
     /// <summary>
@@ -903,6 +923,28 @@ public sealed partial class BonviClient : IDisposable
     private async Task<T?> SendAsync<T>(
         Func<HttpRequestMessage> request,
         CancellationToken cancellationToken)
+        => (await SendCoreAsync<T>(request, cancellationToken).ConfigureAwait(false)).Value;
+
+    /// <summary>
+    /// So'rov yuboradi va natijani XATO SABABI bilan qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ko'p chaqiruvga faqat qiymat kerak (<see cref="SendAsync{T}"/>).
+    /// Ariza esa sababni biladi: server rad etdimi (qaysi kod bilan) yoki
+    /// umuman javob bermadimi — bot ularga boshqa-boshqa javob beradi.
+    /// </para>
+    /// <para>
+    /// <b>«Vaqtincha» faqat so'rov serverga YETMAGANI aniq bo'lganda.</b>
+    /// Ulanib bo'lmadi yoki nom topilmadi — so'rov jo'natilmagan. Javob
+    /// kutish muddati o'tgani esa bunday emas: server arizani yozib
+    /// ulgurgan bo'lishi mumkin va qayta yuborish ikkinchi nomzod
+    /// yaratardi. 503 — server ataylab «hozir emas» degani.
+    /// </para>
+    /// </remarks>
+    private async Task<ApiResponse<T>> SendCoreAsync<T>(
+        Func<HttpRequestMessage> request,
+        CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < 2; attempt++)
         {
@@ -923,7 +965,7 @@ public sealed partial class BonviClient : IDisposable
                 {
                     if (!await SignInAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        return default;
+                        return ApiResponse<T>.Failed(null, transient: false);
                     }
 
                     continue;
@@ -937,25 +979,59 @@ public sealed partial class BonviClient : IDisposable
 
                     LogApiError((int)response.StatusCode, detail.Length > 300 ? detail[..300] : detail);
 
-                    return default;
+                    return ApiResponse<T>.Failed(
+                        ProblemCode(detail),
+                        transient: response.StatusCode == HttpStatusCode.ServiceUnavailable);
                 }
 
-                return await response.Content
+                var value = await response.Content
                     .ReadFromJsonAsync<T>(Json, cancellationToken)
                     .ConfigureAwait(false);
+
+                return new ApiResponse<T>(value, null, false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
+            catch (HttpRequestException ex)
+                when (ex.HttpRequestError is HttpRequestError.ConnectionError or HttpRequestError.NameResolutionError)
+            {
+                LogRequestFailed(ex);
+                return ApiResponse<T>.Failed(null, transient: true);
+            }
             catch (Exception ex)
             {
                 LogRequestFailed(ex);
-                return default;
+                return ApiResponse<T>.Failed(null, transient: false);
             }
         }
 
-        return default;
+        return ApiResponse<T>.Failed(null, transient: false);
+    }
+
+    /// <summary>ProblemDetails'dagi xato kodi (<c>title</c>). Bo'lmasa — <c>null</c>.</summary>
+    private static string? ProblemCode(string body)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("title", out var title)
+                && title.ValueKind == JsonValueKind.String
+                    ? title.GetString()
+                    : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private readonly record struct ApiResponse<T>(T? Value, string? ErrorCode, bool Transient)
+    {
+        public static ApiResponse<T> Failed(string? errorCode, bool transient) => new(default, errorCode, transient);
     }
 
     /// <summary>

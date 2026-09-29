@@ -183,6 +183,12 @@ public sealed partial class DatabaseInitializer : IHostedService
         Message = "«{Title}» vakansiyasi tayyorlanmadi: {Reason}")]
     private partial void LogGeneralPoolSkipped(string title, string reason);
 
+    [LoggerMessage(
+        EventId = 2012,
+        Level = LogLevel.Warning,
+        Message = "«{Title}» vakansiyasi YOPIQ edi — qayta ochildi: {VacancyId}. Tizim vakansiyasi yopilsa botdagi «Anketa to'ldirish» ishlamaydi")]
+    private partial void LogGeneralPoolReopened(string title, Guid vacancyId);
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
@@ -468,10 +474,17 @@ public sealed partial class DatabaseInitializer : IHostedService
     /// <para>
     /// <b>IDEMPOTENT.</b> Odatiy (ikkinchi va undan keyingi) ishga
     /// tushishda bu yerda ikkita <c>SELECT</c> bo'ladi va boshqa hech
-    /// narsa: sozlama vakansiyani ko'rsatib turgan bo'lsa, yo'l shu
-    /// yerda tugaydi. Yozuvni «har ehtimolga qarshi» yangilash HR
-    /// yopgan yoki qayta ochgan vakansiyani jimgina o'zgartirib
-    /// qo'yardi.
+    /// narsa: sozlama OCHIQ vakansiyani ko'rsatib turgan bo'lsa, yo'l shu
+    /// yerda tugaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Yopiq bo'lsa — QAYTA OCHILADI (2026-09-29).</b> Ilgari
+    /// yozuvga tegilmasdi, chunki HR uni ataylab yopgan bo'lishi mumkin
+    /// edi. Amalda prod'da u 2026-09-11 da yopilgan va 18 kun davomida
+    /// botning «Anketa to'ldirish» orqali kelgan har bir arizasi rad
+    /// etilgan. Endi uni yopib bo'lmaydi (<c>GeneralPoolVacancy</c>
+    /// izohi), ya'ni yopiq holat — ruxsat etilmagan holat va u shu
+    /// yerda tuzatiladi. Jurnalga ogohlantirish yoziladi.
     /// </para>
     /// <para>
     /// <b>Nega vakansiya YUMSHOQ O'CHIRILGANLARDAN izlanmaydi</b>
@@ -515,14 +528,32 @@ public sealed partial class DatabaseInitializer : IHostedService
             .FirstOrDefaultAsync(row => row.Key == SystemSettingKeys.GeneralPoolVacancyId, cancellationToken)
             .ConfigureAwait(false);
 
-        var linked = setting is not null
-            && Guid.TryParse(setting.Value, out var known)
-            && await context.Vacancies
-                .AnyAsync(vacancy => vacancy.Id == known, cancellationToken)
-                .ConfigureAwait(false);
+        var linked = setting is not null && Guid.TryParse(setting.Value, out var known)
+            ? await context.Vacancies
+                .FirstOrDefaultAsync(vacancy => vacancy.Id == known, cancellationToken)
+                .ConfigureAwait(false)
+            : null;
 
-        if (linked)
+        if (linked is not null)
         {
+            // Shu nomli BOSHQA ochiq vakansiya bo'lsa (masalan HR yopilgan
+            // tizim vakansiyasi o'rniga qo'lda yangisini ochgan) — qayta
+            // ochilmaydi: ikkita bir xil nom ro'yxatda chalkashlik bo'lardi.
+            // Bunday holat qo'lda hal qilinadi (DEPLOY-CHECKLIST).
+            if (!linked.AcceptsCandidates
+                && !await provider.GetRequiredService<IVacancyRepository>()
+                    .TitleTakenAsync(linked.Title, linked.Id, openOnly: true, cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                _ = linked.Reopen();
+
+                await provider.GetRequiredService<IUnitOfWork>()
+                    .SaveChangesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                LogGeneralPoolReopened(linked.Title, linked.Id);
+            }
+
             return;
         }
 

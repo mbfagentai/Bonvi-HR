@@ -161,17 +161,31 @@ Eski botda ham shunday tuzilgan: «Бўш иш ўринлари» yonida «Ўз�
 
 ### 4.2 Yarim qolgan suhbat
 
-Holat XOTIRADA qoladi (`ConversationStore`) — Redis yoki baza
-QO'SHILMAYDI. Sabab: bot hech qanday saqlash tizimiga bog'lanmasligi
-kerak degan mavjud qoida (izohi `ConversationStore` da) va prod'ga
-yangi bog'liqlik qo'shish aynan hozir xavf.
+> **2026-09-29 dan o'zgardi** (egasining talabi: «server o'chib-yonsa ham
+> anketa davom etsin, deploy anketa topshirishga ta'sir qilmasin»).
+> Quyidagi eski qaror tarix uchun qoldirilgan.
 
-**Narxi va yumshatilishi:** bot qayta ishga tushsa yarim anketa
-yo'qoladi. Deploy paytida bu real. Shu sababli:
-- `TELEGRAM__CONVERSATIONTIMEOUT` 60 daqiqada qoladi (anketa ~5 daqiqa);
-- suhbat topilmaganda bot «/start» emas, darhol til tanlashni
-  ko'rsatadi (mavjud xatti-harakat);
-- deploy'ni ish vaqtidan tashqari qilish tavsiya etiladi.
+**Hozir:**
+- Holat xotirada, NUSXASI esa Redis'da (`RedisConversationBackup`).
+  Bot qayta ishga tushsa, nomzod to'xtagan joyidan davom etadi. Redis
+  ishlamasa, bot xotirada ishlashda davom etadi.
+- Suhbat muddati — «Tizim sozlamalari» dagi «Suhbat muddati», sukut
+  **1440 daqiqa (bir sutka)**. Ilgari ekrandagi bu maydon bot tomonidan
+  o'qilmasdi.
+- Ariza yuborilayotganda API vaqtincha javob bermasa (deploy), bot ~2
+  daqiqa davomida qayta uradi va nomzodga «yuborilmoqda» deydi.
+- Tanlangan vakansiya shu orada yopilgan bo'lsa, ariza «Umumiy
+  anketa»ga qabul qilinadi va nomzodga buni aytadi.
+- Chet el raqami (+998 emas) telefon qadamidayoq aytiladi va o'zbek
+  raqamini qo'lda yozish so'raladi.
+- ⚠️ Shaxsiy ma'lumot (F.I.Sh., tug'ilgan sana, telefon, manzil) endi
+  Redis'ning disk fayllariga ham tushadi (`appendonly`). Kalit o'chirilsa
+  ham u AOF qayta yozilguncha faylda qoladi. Redis tashqariga ochilmagan
+  (port yo'q), zaxiraga kirmaydi.
+
+**Eski qaror (2026-09 boshi):** holat faqat xotirada, Redis
+qo'shilmaydi; bot qayta ishga tushsa yarim anketa yo'qolardi, muddat
+60 daqiqa edi.
 
 ### 4.3 Matnlar
 

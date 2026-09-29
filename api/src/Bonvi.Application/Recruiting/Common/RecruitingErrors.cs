@@ -45,6 +45,13 @@ public static class RecruitingErrors
         "vakansiya.qabul_qilmaydi",
         "Vakansiya ochiq emas: unga yangi nomzod kiritib bo'lmaydi.");
 
+    /// <summary>«Umumiy anketa» — tizim vakansiyasi: yopilmaydi va o'chirilmaydi.</summary>
+    /// <remarks>Sababi <see cref="GeneralPoolVacancy"/> izohida.</remarks>
+    public static Error SystemVacancyLocked { get; } = Error.Conflict(
+        "vakansiya.tizim_vakansiyasi",
+        "«Umumiy anketa» — tizim vakansiyasi: uni yopib ham, o'chirib ham bo'lmaydi. "
+            + "Botdagi «Anketa to'ldirish» arizalari shu yerga tushadi.");
+
     /// <summary>Nomzodi bor vakansiya o'chirilmaydi.</summary>
     /// <remarks>
     /// Batafsil sabab <c>DeleteVacancyCommandHandler</c> izohida: nomzodi

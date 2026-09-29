@@ -48,7 +48,11 @@ public sealed class BotHarness : IDisposable
 
     private long _updateId;
 
-    public BotHarness()
+    /// <summary>
+    /// Sinov stendi. <paramref name="backup"/> — suhbat nusxasi: ikki stend
+    /// BIR nusxani baham ko'rsa, ikkinchisi «qayta ishga tushgan bot» bo'ladi.
+    /// </summary>
+    public BotHarness(IConversationBackup? backup = null)
     {
         var telegramHandler = new FakeHandler(HandleTelegram);
         var bonviHandler = new FakeHandler(HandleBonvi);
@@ -67,9 +71,13 @@ public sealed class BotHarness : IDisposable
         });
 
         _bonvi = new BonviClient(_bonviHttp, options, NullLogger<BonviClient>.Instance);
-        _store = new ConversationStore(TimeSpan.FromMinutes(60));
+        _store = new ConversationStore(TimeSpan.FromMinutes(60), backup);
 
-        _worker = new BotWorker(telegram, token, _bonvi, _store, options, NullLogger<BotWorker>.Instance);
+        // Qayta urinishlar KUTMASDAN: sinovda vaqt emas, urinishlar soni muhim.
+        _worker = new BotWorker(telegram, token, _bonvi, _store, options, NullLogger<BotWorker>.Instance)
+        {
+            SubmitRetryDelays = [TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero],
+        };
     }
 
     /// <summary>Bot yuborgan xabarlar — birinchisidan oxirgisiga.</summary>
@@ -133,6 +141,25 @@ public sealed class BotHarness : IDisposable
 
     /// <summary>Ariza so'rovining TANASI — maydonlar shu yerdan tekshiriladi.</summary>
     public JsonDocument? RegisterBody { get; private set; }
+
+    /// <summary>
+    /// Arizaga navbatdagi javoblar: <see cref="Unreachable"/> — API ga
+    /// ulanib bo'lmaydi (deploy), boshqa qiymat — shu kod bilan 409.
+    /// Navbat bo'shagach <see cref="RegisterSucceeds"/> amal qiladi.
+    /// </summary>
+    public Queue<string> RegisterPlan { get; } = new();
+
+    /// <summary><see cref="RegisterPlan"/> dagi «API ga ulanib bo'lmadi» belgisi.</summary>
+    public const string Unreachable = "UNREACHABLE";
+
+    /// <summary>Har bir ariza urinishidagi <c>vacancyId</c> (bo'lmasa <c>null</c>).</summary>
+    public List<Guid?> RegisterVacancyIds { get; } = [];
+
+    /// <summary>Sozlamadagi «Suhbat muddati» (daqiqa).</summary>
+    public int ConversationTimeoutMinutes { get; set; } = 60;
+
+    /// <summary>Hozirgi suhbat muddati — bot sozlamani o'qigach yangilanadi.</summary>
+    public TimeSpan Lifetime => _store.Lifetime;
 
     /// <summary>Suhbatning hozirgi holati — hech narsa bo'lmasa <c>null</c>.</summary>
     public ConversationState? State => _store.Find(ChatId);
@@ -258,6 +285,27 @@ public sealed class BotHarness : IDisposable
             RegisterBody?.Dispose();
             RegisterBody = JsonDocument.Parse(body);
 
+            RegisterVacancyIds.Add(
+                RegisterBody.RootElement.TryGetProperty("vacancyId", out var vacancy) ? vacancy.GetGuid() : null);
+
+            if (RegisterPlan.TryDequeue(out var planned))
+            {
+                if (planned == Unreachable)
+                {
+                    throw new HttpRequestException(
+                        HttpRequestError.ConnectionError,
+                        "Connection refused (api:8080)");
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.Conflict)
+                {
+                    Content = new StringContent(
+                        $$"""{"title":"{{planned}}","status":409}""",
+                        Encoding.UTF8,
+                        "application/problem+json"),
+                };
+            }
+
             return RegisterSucceeds
                 ? Json($$"""{"id":"{{CreatedCandidateId}}"}""")
                 : new HttpResponseMessage(HttpStatusCode.InternalServerError)
@@ -332,7 +380,7 @@ public sealed class BotHarness : IDisposable
           "location":"","hasLogo":false,
           "instagram":"","telegram":"","facebook":"","website":"",
           "offerUrl":{{JsonSerializer.Serialize(OfferUrl)}},
-          "conversationTimeoutMinutes":60
+          "conversationTimeoutMinutes":{{ConversationTimeoutMinutes}}
         }
         """;
 
