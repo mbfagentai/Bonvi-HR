@@ -47,7 +47,20 @@ yo'qoladi) — kerak bo'lsa `Down` emas, image rollback.
 - [ ] Haqli vazifasi bor xodim kartasi: oklad, vazifa, «Jami» to'g'ri
 
 
-## ⏳ Navbatdagi reliz — vakansiyalar bitta joyda + bot chidamliligi (2026-09-29) — DEPLOY QILINMAGAN
+## ✅ Reliz `75d5f02` — CHIQARILDI 2026-09-29 13:56 (Toshkent)
+
+Prod `7a10e88` → `75d5f02` (`7d816d3` vakansiyalar bitta joyda, `967a943`
+switch, `75d5f02` bot chidamliligi). Rollback: image tegi
+`rollback-7a10e88`, zaxira stamp `2026-09-29_084927`. Migratsiya oldindan
+prod nusxasida (serverning o'zida, `bonvi_migtest`) sinaldi: 8 → 14
+vakansiya (6 ta vakansiyasiz nom yopiq bo'lib o'tdi), 125 nomzod, yetim
+bog'lanish 0. Deploy'dan keyin: «Umumiy anketa» qayta ochildi
+(`DatabaseInitializer` WRN), bot `@Bonvi_HR_bot` ishga tushdi, birinchi
+suhbat Redis'da 24 soat TTL bilan ko'rindi. Kutilgan shovqin:
+`/api/notifications/stream` 500 (web qayta ishga tushishi) va botning
+ishga tushishdagi 3202/3208 (API hali ko'tarilmagan).
+
+### Reliz tafsiloti (tarix uchun)
 
 Migratsiya `20260929061633_VakansiyaNomiVakansiyaningOzida`: «Vakansiya
 nomlari» ma'lumotnomasi (`vacancy_titles`) va mas'ul xodim
