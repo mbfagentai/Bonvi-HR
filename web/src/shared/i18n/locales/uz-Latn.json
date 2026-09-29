@@ -1317,10 +1317,8 @@
       "closed": "Yopilgan"
     },
     "vacancyAction": {
-      "closeTitle": "Vakansiyani yopish",
       "deleteTitle": "Vakansiyani o‘chirish",
       "deleteConfirm": "O‘chirish",
-      "reopenTitle": "Vakansiyani qayta ochish",
       "deleteText": "Yozuv ro‘yxatdan olib tashlanadi (bazada qoladi). Bu amal FAQAT xato kiritilgan yozuv uchun — imlo xatosi, sinov uchun ochilgani. Nomzodi bor vakansiya o‘chirilmaydi: u tarix va uni yopish kerak."
     },
     "candidateSubtitle": "{{n}} ta nomzod",

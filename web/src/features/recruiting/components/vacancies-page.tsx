@@ -1,11 +1,8 @@
 import { getRouteApi } from '@tanstack/react-router'
 import {
   BriefcaseBusiness,
-  CircleSlash,
-  LoaderCircle,
   Pencil,
   Plus,
-  RotateCcw,
   SearchX,
   Trash2,
 } from 'lucide-react'
@@ -25,6 +22,7 @@ import {
   IconTile,
   PageHeader,
   Pagination,
+  Switch,
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
@@ -166,7 +164,8 @@ export function VacanciesPage() {
   )
 
   /*
-    Yopish / qayta ochish — BIR BOSISHDA, tasdiqlash oynasisiz.
+    Yopish / qayta ochish — BIR BOSISHDA, tasdiqlash oynasisiz
+    («Holat» ustunidagi almashtirgich).
 
     NEGA oyna yo'q: ikkala amal ham qaytariladi va nomzodlarga tegmaydi
     — yopilgan vakansiya faqat yangi nomzod qabul qilmaydi. Ilgari oyna
@@ -178,9 +177,10 @@ export function VacanciesPage() {
     bir joyda chiqadi: amal oynasiz, ya'ni xatoni ko'rsatadigan boshqa
     joy yo'q. Keyingi bosishda o'zi yo'qoladi.
 
-    Bitta amal ketayotganda BOSHQA qatorlardagi holat tugmalari ham
-    o'chiq turadi: bir vaqtda faqat bitta so'rov — shunda xato qaysi
-    vakansiyaga tegishli ekani hech qachon aralashmaydi.
+    Bir vaqtda faqat bitta so'rov (`toggleStatus` ichidagi shart) —
+    shunda xato qaysi vakansiyaga tegishli ekani hech qachon aralashmaydi.
+    Boshqa qatorlardagi almashtirgichlar o'chirib qo'yilmaydi: har bosishda
+    butun ustun xiralashib-yorishib turardi.
   */
   const changeStatus = useChangeVacancyStatus()
   const mutateStatus = changeStatus.mutate
@@ -192,13 +192,17 @@ export function VacanciesPage() {
 
   const toggleStatus = useCallback(
     (item: Vacancy) => {
+      // Bir vaqtda bitta so'rov: xato qaysi vakansiyaga tegishli ekani
+      // aralashmasin. So'rov bir necha o'n millisekund davom etadi, ya'ni
+      // shu orada bosilgan boshqa almashtirgich shunchaki e'tiborsiz qoladi.
+      if (statusPending) return
       setStatusFailure(null)
       mutateStatus(
         { id: item.id, action: item.status === 'Closed' ? 'reopen' : 'close' },
         { onError: (error) => setStatusFailure({ code: recruitingErrorCode(error), item }) },
       )
     },
-    [mutateStatus],
+    [mutateStatus, statusPending],
   )
 
   /** Vakansiyaning nomzodlari — bitta bosishda filtrlangan ro'yxat. */
@@ -243,10 +247,46 @@ export function VacanciesPage() {
         meta: { width: '110px' },
         cell: ({ row }) => {
           const look = VACANCY_LOOK[row.original.status]
+          const label = t(`recruiting.vacancyStatus.${look.key}`)
+
+          /*
+            Boshqaruvchi uchun holat — ALMASHTIRGICH (yashil — ochiq):
+            holat ko'rinadigan joyning O'ZIDA o'zgaradi, alohida tugma
+            va yorliq ikki joyda turmaydi. Egasining talabi: «aktiv /
+            aktiv emas — bitta on/off tugma, yashil».
+
+            So'rov ketayotganda almashtirgich YANGI holatda turadi
+            (optimistik) va o'chiq bo'ladi — HR bosganini darhol ko'radi.
+            Xato bo'lsa, javobdan keyin eski holatiga qaytadi va sabab
+            sahifaning tepasida chiqadi.
+
+            `stopPropagation` — qatorning o'zi bosiladi (nomzodlarga
+            o'tadi), almashtirgich esa uning ichida turadi.
+          */
+          if (!canManage) {
+            return (
+              <Badge tone={look.tone} size="sm">
+                {label}
+              </Badge>
+            )
+          }
+
+          const busy = statusTargetId === row.original.id
+          const open = row.original.status === 'Open'
+
           return (
-            <Badge tone={look.tone} size="sm">
-              {t(`recruiting.vacancyStatus.${look.key}`)}
-            </Badge>
+            <div
+              className="inline-flex"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              <Switch
+                checked={busy ? !open : open}
+                disabled={busy}
+                aria-label={`${row.original.title}: ${label}`}
+                onChange={() => toggleStatus(row.original)}
+              />
+            </div>
           )
         },
       }),
@@ -320,19 +360,16 @@ export function VacanciesPage() {
           id: 'actions',
           header: '',
           /*
-            120px: ko'pi bilan UCHTA `icon-sm` tugma (32px) + oraliqlar.
-            Ilgari 152px edi — to'rtta tugma uchun. Kenglik QAT'IY
-            (eng ko'p tugmaga qarab): qatordan qatorga o'zgarsa,
-            o'chirish tugmasi bor-yo'qligiga qarab butun ustun
+            88px: ko'pi bilan IKKITA `icon-sm` tugma (32px) + oraliqlar.
+            Holat tugmasi «Holat» ustuniga almashtirgich bo'lib ko'chdi.
+            Kenglik QAT'IY (eng ko'p tugmaga qarab): qatordan qatorga
+            o'zgarsa, o'chirish tugmasi bor-yo'qligiga qarab butun ustun
             siljib ketardi va ko'z tayanadigan chekka yo'qolardi.
           */
-          meta: { align: 'end', width: '120px' },
+          meta: { align: 'end', width: '88px' },
           cell: ({ row }) => (
             <RowActions
               item={row.original}
-              statusBusy={statusTargetId === row.original.id}
-              statusLocked={statusPending}
-              onToggleStatus={() => toggleStatus(row.original)}
               onEdit={() => setEditing(row.original)}
               onDelete={() => setDeleting(row.original)}
             />
@@ -342,7 +379,7 @@ export function VacanciesPage() {
     }
 
     return definitions
-  }, [canManage, num, statusPending, statusTargetId, t, toggleStatus])
+  }, [canManage, num, statusTargetId, t, toggleStatus])
 
   const rows = query.data?.items ?? EMPTY
   const total = query.data?.total ?? 0
@@ -460,17 +497,14 @@ export function VacanciesPage() {
 }
 
 /**
- * Qator amallari — ko'pi bilan UCHTA tugma.
+ * Qator amallari — ko'pi bilan IKKITA tugma: tahrirlash va o'chirish.
  *
  * NEGA ochiluvchi menyu emas: `shared/ui` da menyu primitivi yo'q va
  * uni shu ish uchun qo'shish qoidaga zid. Ikonalar esa amallar
  * SONI KAM bo'lganda menyudan tez: bir bosish, ikki emas.
  *
- * <b>Yopish va qayta ochish — BITTA tugma, ikki tomonga</b> va u
- * oynasiz ishlaydi: bosildi — holat almashdi. Ikkalasi bir-birining
- * teskarisi, ya'ni ular hech qachon birga kerak bo'lmaydi va bitta
- * joyni bo'lishadi. Ikona ham, matn ham holatga qarab almashadi; so'rov
- * ketayotganda ikona o'rnida aylana turadi.
+ * Yopish / qayta ochish bu yerda EMAS — «Holat» ustunidagi
+ * almashtirgichda (izohi o'sha ustunda).
  *
  * <b>«O'chirish» nomzodi bor qatorda UMUMAN chizilmaydi</b> —
  * o'chirilgan holatda emas, butunlay yo'q. Sabab: o'chirilgan tugma
@@ -483,32 +517,19 @@ export function VacanciesPage() {
  *
  * `stopPropagation` majburiy va u BUTUN katakda, har bir tugmada emas:
  * qatorning O'ZI bosiladi (nomzodlarga o'tadi), tugmalar esa uning ichida
- * turadi. O'chiq tugma (`disabled` — `pointer-events-none`) bosishni
- * o'zi ushlamaydi va u ostidagi qatorga tushardi — ya'ni holat
- * o'zgarayotganda tugmani yana bosgan HR kutilmaganda nomzodlar
- * ro'yxatiga o'tib ketardi. Klaviatura ham shu sababli to'xtatiladi:
- * qator Enter'ni o'zi ushlaydi va tugma o'rniga nomzodlarni ochardi.
+ * turadi. Klaviatura ham shu sababli to'xtatiladi: qator Enter'ni o'zi
+ * ushlaydi va tugma o'rniga nomzodlarni ochardi.
  */
 function RowActions({
   item,
-  statusBusy,
-  statusLocked,
-  onToggleStatus,
   onEdit,
   onDelete,
 }: {
   item: Vacancy
-  /** Aynan SHU qatorning holati o'zgarmoqda — aylana ko'rsatiladi. */
-  statusBusy: boolean
-  /** Biror qatorning holati o'zgarmoqda — tugma bosilmaydi. */
-  statusLocked: boolean
-  onToggleStatus: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
   const { t } = useLocale()
-
-  const closed = item.status === 'Closed'
 
   return (
     <div
@@ -516,18 +537,6 @@ function RowActions({
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <ActionButton
-        icon={statusBusy ? LoaderCircle : closed ? RotateCcw : CircleSlash}
-        spin={statusBusy}
-        disabled={statusLocked}
-        label={t(
-          closed
-            ? 'recruiting.vacancyAction.reopenTitle'
-            : 'recruiting.vacancyAction.closeTitle',
-        )}
-        onClick={onToggleStatus}
-      />
-
       <ActionButton icon={Pencil} label={t('common.edit')} onClick={onEdit} />
 
       {item.candidateCount === 0 && (
@@ -542,15 +551,11 @@ function ActionButton({
   label,
   onClick,
   danger = false,
-  spin = false,
-  disabled = false,
 }: {
   icon: typeof Pencil
   label: string
   onClick: () => void
   danger?: boolean
-  spin?: boolean
-  disabled?: boolean
 }) {
   return (
     <Button
@@ -559,12 +564,9 @@ function ActionButton({
       size="icon-sm"
       title={label}
       aria-label={label}
-      disabled={disabled}
       onClick={onClick}
     >
-      <Icon
-        className={cn(danger && 'text-[var(--danger-text)]', spin && 'animate-spin')}
-      />
+      <Icon className={cn(danger && 'text-[var(--danger-text)]')} />
     </Button>
   )
 }

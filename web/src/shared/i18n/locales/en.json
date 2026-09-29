@@ -1317,10 +1317,8 @@
       "closed": "Closed"
     },
     "vacancyAction": {
-      "closeTitle": "Close the vacancy",
       "deleteTitle": "Delete the vacancy",
       "deleteConfirm": "Delete",
-      "reopenTitle": "Reopen the vacancy",
       "deleteText": "The record is removed from the list (kept in the database). Use this ONLY for a record created by mistake — a typo, a test vacancy. A vacancy that already has candidates cannot be deleted: it is history and should be closed instead."
     },
     "candidateSubtitle": "{{n}} candidates",
