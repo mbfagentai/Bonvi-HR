@@ -3,7 +3,22 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏳ Navbatdagi reliz — Verifikatsiya (davomat) moduli main'ga birlashtirildi
+## ✅ Reliz `90f11d7` — Verifikatsiya (davomat) moduli — CHIQARILDI 2026-09-30 21:08 (Toshkent)
+
+Prod `75d5f02` → `90f11d7`. Rollback: image tegi `rollback-75d5f02` (api, bot,
+web), zaxira stamp `2026-09-30_155838`. Deploy 20:59–21:08, HR faol emas edi
+(oxirgi soatda faqat bot so'rovlari). Natija: tarix 40 → 56, oxirgisi
+`EmployeeMobileFlagSukuti`, sukut `false`; API jurnalida WRN/ERR yo'q;
+Hangfire o'rnatildi; 28 xodimga ilova hisobi; bot qayta yaratilmadi (kodi
+o'zgarmagan), 21:03:00 dagi 4 ta «HTTP request failed» — API qayta ishga
+tushgan soniya. Tashqaridan: `/` va `/ilova/` 200, `/api/employee-auth/login`
+401 (xodim ilovasi yopiq), `/api/me` 401. Disk 75% (9.5 GB bo'sh).
+
+Qolgan qadam — egasi: kerakli rollarga «Verifikatsiya» darajasini beradi
+(xohlaganda). HR sahifani yangilaydi (F5).
+
+### Reliz tafsiloti (tarix uchun)
+
 
 Prod `75d5f02` → `main` (merge `d3d4b34` + tuzatishlar). Egasi 2026-09-30
 da so'radi: HR loyihasiga zarar yetmasin, muammo bo'lsa oson qaytilsin.
