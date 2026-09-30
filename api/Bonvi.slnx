@@ -3,6 +3,7 @@
     <Project Path="src/Bonvi.Api/Bonvi.Api.csproj" />
     <Project Path="src/Bonvi.Application/Bonvi.Application.csproj" />
     <Project Path="src/Bonvi.Bot/Bonvi.Bot.csproj" />
+    <Project Path="src/Bonvi.DeviceAgent/Bonvi.DeviceAgent.csproj" />
     <Project Path="src/Bonvi.Domain/Bonvi.Domain.csproj" />
     <Project Path="src/Bonvi.Infrastructure/Bonvi.Infrastructure.csproj" />
   </Folder>
@@ -13,6 +14,7 @@
     <Project Path="tests/Bonvi.Api.IntegrationTests/Bonvi.Api.IntegrationTests.csproj" />
     <Project Path="tests/Bonvi.Application.Tests/Bonvi.Application.Tests.csproj" />
     <Project Path="tests/Bonvi.Bot.Tests/Bonvi.Bot.Tests.csproj" />
+    <Project Path="tests/Bonvi.DeviceAgent.Tests/Bonvi.DeviceAgent.Tests.csproj" />
     <Project Path="tests/Bonvi.Architecture.Tests/Bonvi.Architecture.Tests.csproj" />
     <Project Path="tests/Bonvi.Domain.Tests/Bonvi.Domain.Tests.csproj" />
     <Project Path="tests/Bonvi.Etl.Tests/Bonvi.Etl.Tests.csproj" />

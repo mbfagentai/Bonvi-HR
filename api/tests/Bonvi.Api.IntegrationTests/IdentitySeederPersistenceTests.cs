@@ -77,6 +77,61 @@ public sealed class IdentitySeederPersistenceTests : IClassFixture<BonviApiFacto
         }
     }
 
+    /// <summary>
+    /// Davomat ruxsatlari MAVJUD bazadagi HR menejeri roliga jimgina
+    /// qo'shilmaydi — egasi ularni «Rollar» dan o'zi beradi. Bot rolida esa
+    /// ular hech qachon bo'lmaydi, super administratorda — har doim.
+    /// </summary>
+    /// <remarks>
+    /// Verifikatsiya branchida bu test TESKARISINI isbotlardi (urug' HR
+    /// menejeriga davomat ruxsatlarini qaytarardi). 2026-09-26 dan seeder
+    /// oddiy rollarga tegmaydi (fayl boshidagi izoh), ya'ni modul prod'ga
+    /// chiqqanda bo'lim HR menejerlariga egasi ruxsat bergandagina ko'rinadi.
+    /// Yangi bazada esa ruxsatlar <see cref="SystemRoles.Defaults"/> dan keladi.
+    /// </remarks>
+    [Fact]
+    public async Task Davomat_ruxsatlari_mavjud_HR_menejeriga_jimgina_berilmaydi_botda_yoq()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var rol = await kontekst.Roles.SingleAsync(r => r.Code == SystemRoles.HrManager, bekorQilish);
+        var asli = rol.Permissions.ToArray();
+
+        try
+        {
+            // «Modul qo'shilishidan oldingi baza»: HR menejerida davomat ruxsatlari yo'q.
+            rol.ReplacePermissions(asli.Where(p => !p.StartsWith("attendance.", StringComparison.Ordinal)))
+                .IsSuccess.ShouldBeTrue();
+            await kontekst.SaveChangesAsync(bekorQilish);
+
+            await new IdentitySeeder(kontekst).SeedAsync(bekorQilish);
+
+            kontekst.ChangeTracker.Clear();
+
+            var hr = await kontekst.Roles.AsNoTracking().SingleAsync(r => r.Code == SystemRoles.HrManager, bekorQilish);
+            hr.Has(Permissions.AttendanceView).ShouldBeFalse("mavjud rolga yangi ruxsat jimgina berilmaydi");
+            hr.Has(Permissions.AttendanceManage).ShouldBeFalse("mavjud rolga yangi ruxsat jimgina berilmaydi");
+            hr.Has(Permissions.AttendanceRequestsManage).ShouldBeFalse("mavjud rolga yangi ruxsat jimgina berilmaydi");
+
+            var bot = await kontekst.Roles.AsNoTracking().SingleAsync(r => r.Code == SystemRoles.RecruitingBot, bekorQilish);
+            bot.Has(Permissions.AttendanceView).ShouldBeFalse();
+            bot.Has(Permissions.AttendanceManage).ShouldBeFalse();
+            bot.Permissions.ShouldBe([Permissions.RecruitingView, Permissions.RecruitingManage], ignoreOrder: true);
+
+            var admin = await kontekst.Roles.AsNoTracking().SingleAsync(r => r.Code == SystemRoles.SuperAdmin, bekorQilish);
+            admin.Has(Permissions.AttendanceView).ShouldBeTrue();
+            admin.Has(Permissions.AttendanceManage).ShouldBeTrue();
+            admin.Has(Permissions.AttendanceRequestsManage).ShouldBeTrue();
+        }
+        finally
+        {
+            await TiklaAsync(SystemRoles.HrManager, asli);
+        }
+    }
+
     /// <summary>Bosh rahbar ham endi oddiy rol — tahriri saqlanib qoladi.</summary>
     [Fact]
     public async Task Tahrirlangan_bosh_rahbar_roli_qayta_ishga_tushishda_tiklanmaydi()

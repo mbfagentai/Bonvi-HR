@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <!--
+    ═══════════════════════════════════════════════════════════
+     QURILMA AGENTI — ofis tarmog'i ichidagi alohida jarayon
+
+     ⚠️ QOIDA: bu loyihada BOSHQA LOYIHAGA HAVOLA YO'Q
+     (`Bonvi.Bot` dagi bilan bir xil). Agent na `Domain`, na
+     `Application`, na `Infrastructure` ni ko'radi va bazaga
+     umuman tegmaydi — u ikkita HTTP bilan gaplashadi:
+     terminalning ISAPI si va Bonvi API.
+
+     Nega shunday: agent MIJOZning binosida, ishlab chiqarish
+     serveridan tashqarida ishlaydi. U yerda baza ulanishi
+     bo'lishi mumkin emas, terminal paroli esa aynan shu
+     jarayonda yashaydi.
+
+     ⚠️ QURILMA SOZLAMASIGA TEGMAYDI. Terminal Verifix bilan
+     bo'lishiladi va uning HTTP push sozlamasi FAQAT bitta
+     manzilni saqlaydi (2026-09-21 da tekshirilgan: ikkinchi
+     slotga yozish Verifix nikini jimgina almashtirib qo'ydi).
+     Shu sababli agent hodisalarni O'QIYDI (`AcsEvent`) va
+     odamlarni YOZADI (`UserInfo`, `FDLib`) — boshqa hech
+     narsa.
+    ═══════════════════════════════════════════════════════════
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Bonvi.DeviceAgent</RootNamespace>
+    <AssemblyName>bonvi-device-agent</AssemblyName>
+    <UserSecretsId>bonvi-hr-device-agent</UserSecretsId>
+
+    <!--
+      CA1031 — umumiy `catch (Exception)`. Ataylab: tarmoq uzilishi,
+      terminalning qayta yuklanishi yoki bitta xodimning xatosi butun
+      agentni to'xtatmasligi kerak. Xato jurnalga yoziladi, halqa davom
+      etadi.
+    -->
+    <NoWarn>$(NoWarn);CA1031</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    UCHINCHI TARAF paketi yo'q — faqat platformaning kengaytmalari.
+    ISAPI uchun tayyor kutubxona ham olinmadi: kerakli chaqiruv oltita
+    va ularning hammasi oddiy JSON (`HttpClient` + `System.Text.Json`).
+
+    Rasm qayta ishlash kutubxonasi ham YO'Q va bu ataylab: Bonvi
+    xodim rasmini 512×512 JPEG (sifat 85) qilib saqlaydi — ya'ni ~40–120
+    KB, terminalning ~200 KB chegarasidan ancha past. Agent rasmni
+    o'zgartirmasdan uzatadi va faqat chegaradan oshganini XATO deb
+    yozadi; bunda tuzatish joyi — kartadagi rasm, agentning ichidagi
+    ikkinchi siqish emas.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bonvi.DeviceAgent.Tests" />
+  </ItemGroup>
+
+  <!--
+    Hikvision hodisa turlari (o'tish / rad etilgan urinish) — serverning
+    O'Z fayli, loyiha havolasi emas, BOG'LANGAN FAYL sifatida. Yuqoridagi
+    qoida buzilmaydi: agent `Bonvi.Application` yig'masini ko'rmaydi, faqat
+    shu bitta, faqat `System` turlaridan iborat faylni o'zi bilan birga
+    kompilyatsiya qiladi. Ro'yxat ikki joyda yozilsa, bir kuni ajralib
+    ketardi: agent rad etilgan urinishni o'tish deb yuborar edi.
+    ⚠️ `Dockerfile.agent` shu faylni ham nusxalaydi.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Bonvi.Application\Attendance\Ingest\HikvisionEventTypes.cs" Link="Hikvision\HikvisionEventTypes.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+  </ItemGroup>
+
+</Project>

@@ -160,12 +160,15 @@ public sealed class CheckFileMigrationTests
     {
         var id = Guid.NewGuid();
 
+        // `mobile_check_in_allowed` — verifikatsiya moduli (`20260922124505_AddEmployeeMobileFlag`):
+        // u `OldingiMigratsiya` dan oldin keladi, ya'ni bu holatda ustun ALLAQACHON bor va
+        // u NOT NULL, sukutsiz.
         await using var buyruq = ulanish.CreateCommand();
         buyruq.CommandText = """
             INSERT INTO employees
                 (id, last_name, first_name, direction_ids, needs_review, created_at, updated_at, updated_by,
-                 deleted_at, mehnat_uz_screenshot_key, mehnat_uz_screenshot_content_type)
-            VALUES ($1, 'Синов', 'Ходим', '{}', false, $2, $3, $4, $5, $6, $7);
+                 deleted_at, mehnat_uz_screenshot_key, mehnat_uz_screenshot_content_type, mobile_check_in_allowed)
+            VALUES ($1, 'Синов', 'Ходим', '{}', false, $2, $3, $4, $5, $6, $7, false);
             """;
         _ = buyruq.Parameters.Add(new NpgsqlParameter { Value = id });
         _ = buyruq.Parameters.Add(new NpgsqlParameter { Value = Yaratilgan });

@@ -97,6 +97,22 @@ public sealed class LayerDependencyTests
             "Use-case'lar ma'lumotlar bazasini bilmasligi kerak — faqat repozitoriy interfeysi orqali ishlaydi");
     }
 
+    /// <summary>
+    /// Fon navbati — port (<c>IBackgroundJobQueue</c>), Hangfire esa faqat Infrastructure va Api da
+    /// (SPEC §9.1.1). Use-case <c>using Hangfire;</c> yozsa, sinov muhitidagi sinxron navbat
+    /// va ishlab chiqarishdagi Hangfire bir-biridan ajralib ketardi.
+    /// </summary>
+    [Fact]
+    public void Application_Hangfire_ga_boglanmasligi_kerak()
+    {
+        var result = Types.InAssembly(ApplicationAssembly)
+            .ShouldNot()
+            .HaveDependencyOn("Hangfire")
+            .GetResult();
+
+        AssertOk(result, "Use-case'lar fon navbati texnologiyasini bilmasligi kerak — faqat IBackgroundJobQueue porti");
+    }
+
     [Fact]
     public void Application_ASP_NET_Core_ga_boglanmasligi_kerak()
     {

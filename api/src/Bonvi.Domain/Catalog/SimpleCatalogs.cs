@@ -41,6 +41,35 @@ public sealed class TerminationReason : ReferenceEntity
     public void SetRehireable(bool value) => IsRehireable = value;
 }
 
+/// <summary>Yo'qlik turi: «Ishxona ishi bilan», «Kasallik», «Shaxsiy sabab».</summary>
+/// <remarks>
+/// <para>
+/// Davomat so'rovlari shu ro'yxatdan tanlanadi (SPEC-so'rovlar §B1). Ro'yxat
+/// KODDA emas, ma'lumotnomada: yangi tur kerak bo'lganda HR uni o'zi
+/// qo'shadi va dasturchi ham, deploy ham kutilmaydi (egasining qarori,
+/// 2026-09-19).
+/// </para>
+/// <para>
+/// «Ishlangan vaqtga kiradimi» degan bayroq ATAYLAB yo'q: tasdiqlangan
+/// so'rov kunni «Sababli» qiladi, ishlangan daqiqa QO'SHMAYDI (§B3). Bayroq
+/// qo'shilsa, tizim HR kiritmagan raqamni o'zi yasay boshlardi.
+/// </para>
+/// </remarks>
+public sealed class AbsenceType : ReferenceEntity
+{
+    private AbsenceType(Guid id, string name) : base(id, name) { }
+
+    private AbsenceType() { }
+
+    public static Result<AbsenceType> Create(string? name)
+    {
+        var normalized = Normalize(name);
+        return normalized is null
+            ? Error.Validation("yoqlik.nom_bosh", "Yo'qlik turining nomi kiritilishi shart.")
+            : new AbsenceType(NewId(), normalized);
+    }
+}
+
 /// <summary>Rag'bat turi: tashakkurnoma, mukofot pul, sovg'a.</summary>
 public sealed class AwardType : ReferenceEntity
 {

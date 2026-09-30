@@ -309,6 +309,103 @@ public sealed class UpdateSettingsCommandHandlerTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    // ────────────────────── Davomat: o'tish saqlash muddati, «0 — hech qachon» ──────────────────────
+
+    /// <summary>
+    /// <c>attendance.passRetentionDays</c> ning chegaralari (B2): 0 ✓, 30 ✓, 3650 ✓.
+    /// </summary>
+    /// <remarks>
+    /// Surat muddati SHU so'rovda eng kichik qiymatga (7) qo'yiladi: aks holda sukut 60
+    /// bilan «30 &lt; 60» juftlik qoidasi (<c>davomat.saqlash_muddati_nomuvofiq</c>)
+    /// ishga tushib, 30 ning chegara sifatida qabul qilinishini tekshirib bo'lmasdi.
+    /// </remarks>
+    [Theory]
+    [InlineData("0")]
+    [InlineData("30")]
+    [InlineData("3650")]
+    public async Task Otish_saqlash_muddatida_nol_va_chegara_ichidagi_qiymat_qabul_qilinadi(string qiymat)
+    {
+        var natija = await Handler.HandleAsync(
+            Command(
+                (SystemSettingKeys.PhotoRetentionDays, "7"),
+                (SystemSettingKeys.PassRetentionDays, qiymat)),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        _rows.Rows.Single(row => row.Key == SystemSettingKeys.PassRetentionDays).Value.ShouldBe(qiymat);
+    }
+
+    /// <summary>
+    /// 0 bilan quyi chegara orasidagi son — «hech qachon» emas, TERISH XATOSI (29 ✗, 1 ✗);
+    /// yuqori chegaradan keyingisi ham (3651 ✗). Hech narsa yozilmaydi.
+    /// </summary>
+    [Theory]
+    [InlineData("1")]
+    [InlineData("29")]
+    [InlineData("3651")]
+    [InlineData("-1")]
+    public async Task Otish_saqlash_muddatida_noldan_boshqa_chegaradan_tashqari_qiymat_rad_etiladi(string qiymat)
+    {
+        var natija = await Handler.HandleAsync(
+            Command(
+                (SystemSettingKeys.PhotoRetentionDays, "7"),
+                (SystemSettingKeys.PassRetentionDays, qiymat)),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("sozlama.chegara");
+        natija.Error.Message.ShouldContain("3650");
+
+        _rows.Rows.ShouldBeEmpty("surat muddati ham saqlanmasligi kerak — hammasi yoki hech narsa");
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// #69 aynan: bazada surat muddati 60 turibdi, so'rovda FAQAT o'tish muddati. 30 — surat
+    /// muddatidan qisqa, <c>davomat.saqlash_muddati_nomuvofiq</c>; 0 — «hech qachon», u kichik son
+    /// EMAS va qabul qilinadi; 60 — teng, qabul.
+    /// </summary>
+    [Theory]
+    [InlineData("30", "davomat.saqlash_muddati_nomuvofiq")]
+    [InlineData("0", null)]
+    [InlineData("60", null)]
+    public async Task Otish_muddati_bazadagi_surat_muddati_bilan_solishtiriladi_nol_istisno(string otish, string? kutilganXato)
+    {
+        _rows.Seed(SystemSettingKeys.PhotoRetentionDays, "60");
+
+        var natija = await Handler.HandleAsync(
+            Command((SystemSettingKeys.PassRetentionDays, otish)),
+            TestContext.Current.CancellationToken);
+
+        if (kutilganXato is null)
+        {
+            natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+            _rows.Rows.Single(row => row.Key == SystemSettingKeys.PassRetentionDays).Value.ShouldBe(otish);
+        }
+        else
+        {
+            natija.Error.Code.ShouldBe(kutilganXato);
+            natija.Error.Type.ShouldBe(ErrorType.Validation);
+            _rows.Rows.ShouldNotContain(row => row.Key == SystemSettingKeys.PassRetentionDays);
+        }
+    }
+
+    /// <summary>
+    /// «0 — hech qachon» faqat o'tish muddatiga tegishli: surat muddatida 0 — oddiy chegara
+    /// xatosi. <c>AllowZero</c> boshqa kalitga «yuqib» qolsa, bugungi suratlar tungi
+    /// tozalashda o'chib ketardi.
+    /// </summary>
+    [Fact]
+    public async Task Surat_saqlash_muddatida_nol_rad_etiladi()
+    {
+        var natija = await Handler.HandleAsync(
+            Command((SystemSettingKeys.PhotoRetentionDays, "0")),
+            TestContext.Current.CancellationToken);
+
+        natija.Error.Code.ShouldBe("sozlama.chegara");
+        _rows.Rows.ShouldBeEmpty();
+    }
+
     private static UpdateSettingsCommand Command(params (string? Key, string? Value)[] items)
         => new([.. items.Select(item => new SystemSettingUpdate(item.Key, item.Value))]);
 }

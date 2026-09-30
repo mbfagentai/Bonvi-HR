@@ -198,6 +198,77 @@ public static class Permissions
 
     public const string RecruitingManage = "recruiting.manage";
 
+    // ---------- Davomat (verifikatsiya) ----------
+
+    /// <summary>
+    /// Davomat (3-bosqich): jonli ro'yxat («hozir kim binoda»), o'tishlar
+    /// jurnali, tabel va davomat hisobotlari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ALOHIDA ruxsat guruhi — <see cref="EmployeesView"/> ostiga
+    /// qo'shilmagan. Sabab <see cref="IncentivesView"/> va
+    /// <see cref="SafetyView"/> dagi bilan bir xil: bu butunlay boshqa
+    /// toifadagi ma'lumot. Xodim kartasi odamning HOLATINI ko'rsatadi,
+    /// davomat esa odam QAYERDA VA QACHON bo'lganini — daqiqama-daqiqa,
+    /// terminal olgan surati bilan birga. Bu kuzatuv darajasidagi yozuv:
+    /// xodimlar ro'yxatini ochgan har bir kishi «kim kecha soat 22:14 da
+    /// chiqib ketdi» ni ham ko'rib turishi kerak emas.
+    /// </para>
+    /// <para>
+    /// Bu ruxsat faqat O'QIYDI: jonli ro'yxat, o'tishlar jurnali (surat
+    /// bilan), tabel va kechikish/erta ketish/kelmaganlar hisoboti. Excel'ga
+    /// chiqarish esa <see cref="ReportsExport"/> ostida qoladi — chiqarish
+    /// bino tashqarisiga fayl bo'lib ketadigan og'ir amal va tizimda unga
+    /// atalgan ruxsat allaqachon bor.
+    /// </para>
+    /// </remarks>
+    public const string AttendanceView = "attendance.view";
+
+    /// <summary>
+    /// Davomatning ISHLASHINI boshqarish: qurilmalar, ish jadvallari va
+    /// ularning biriktirmalari, terminal shaxslarini xodimga moslashtirish,
+    /// import va qayta hisoblash.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="AttendanceView"/> dan farqi shakliy emas: bu yerdagi har
+    /// bir amal RAQAMLARNING MA'NOSINI o'zgartiradi. Jadval yoki moslik
+    /// almashsa, kechagi tabel ham boshqacha bo'lib qoladi — hisobot esa
+    /// tashqi ko'rinishda o'sha-o'sha turaveradi. Tabelning o'zi qo'lda
+    /// tahrirlanmaydi (bunday endpoint umuman yo'q): noto'g'ri kun MANBADA
+    /// tuzatilib, qayta hisoblanadi.
+    /// </para>
+    /// <para>
+    /// Qurilma va moslik ro'yxatlari O'QISH uchun ham aynan shu ruxsat
+    /// ostida. Sabab: qurilma kartasida token boshlanishi, IP ro'yxati va
+    /// binoning kirish nuqtalari turadi, moslik ro'yxati esa terminaldagi
+    /// raqamdan aniq ismga olib boradigan xarita. Ikkalasi ham faqat
+    /// ko'rish uchun kirgan odamga kerak emas.
+    /// </para>
+    /// </remarks>
+    public const string AttendanceManage = "attendance.manage";
+
+    /// <summary>
+    /// Yo'qlik so'rovlari bo'yicha QAROR qabul qilish: yaratish, tahrirlash,
+    /// tasdiqlash, rad etish va bekor qilish (SPEC-so'rovlar §B4).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega <see cref="AttendanceManage"/> ga qo'shilmadi.</b> U qurilma,
+    /// jadval va moslik — TIZIMNI sozlash. Bu esa kadrlar qarori: «bu odamning
+    /// kelmagani oqlanadimi». Ikkalasi bir odamda bo'lishi shart emas va
+    /// ko'pincha bo'lmaydi ham: qurilmalarni texnik xodim, so'rovlarni HR
+    /// yuritadi.
+    /// </para>
+    /// <para>
+    /// So'rovlarni O'QISH esa <see cref="AttendanceView"/> ostida: ular
+    /// davomat ekranlarining bir qismi va ularsiz tabeldagi «Sababli» kun
+    /// tushunarsiz bo'lib qolardi.
+    /// </para>
+    /// </remarks>
+    public const string AttendanceRequestsManage = "attendance.requests.manage";
+
     // ---------- Ma'lumotnomalar ----------
     public const string CatalogView = "catalog.view";
     public const string CatalogManage = "catalog.manage";
@@ -263,6 +334,7 @@ public static class Permissions
         FeedbackView, FeedbackManage,
         SafetyView, SafetyManage,
         RecruitingView, RecruitingManage,
+        AttendanceView, AttendanceManage, AttendanceRequestsManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
         UsersManage, RolesManage, AuditView, SettingsManage,
@@ -485,6 +557,17 @@ public static class SystemRoles
                 Permissions.FeedbackView, Permissions.FeedbackManage,
                 Permissions.SafetyView, Permissions.SafetyManage,
                 Permissions.RecruitingView, Permissions.RecruitingManage,
+
+                /*
+                  Davomat IKKALA ruxsati ham HR menejerida — ataylab
+                  juft. Tabelni o'qiydigan odam aynan o'sha tabelni
+                  buzgan moslikni ham tuzatadi (`safety.*` va
+                  `recruiting.*` bilan bir xil fikr). Ajratilsa, egasi
+                  aniqlanmagan har bir o'tish rahbarning vaqtini kutib
+                  turardi.
+                */
+                Permissions.AttendanceView, Permissions.AttendanceManage, Permissions.AttendanceRequestsManage,
+
                 Permissions.CatalogView, Permissions.CatalogManage,
                 Permissions.ReportsView, Permissions.ReportsExport,
                 Permissions.AuditView,

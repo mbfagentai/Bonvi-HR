@@ -42,6 +42,7 @@ export const ROLE_MODULE_KEYS = [
   'feedback',
   'safety',
   'recruiting',
+  'attendance',
   'catalog',
   'reports',
   'users',

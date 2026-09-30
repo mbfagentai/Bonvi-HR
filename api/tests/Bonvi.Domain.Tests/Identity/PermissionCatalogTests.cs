@@ -115,10 +115,19 @@ public sealed class PermissionCatalogTests
         Bolim("audit").Levels.Single().Key.ShouldBe(PermissionCatalog.View);
         Bolim("settings").Levels.Single().Permissions.ShouldBe([Permissions.SettingsManage]);
 
+        // Davomat (SPEC-rollar-va-audit §14.2): ko'rish → so'rovlar bo'yicha qaror → qurilma, jadval, moslik.
+        var davomat = Bolim("attendance");
+        davomat.Levels.Select(level => level.Key).ShouldBe([PermissionCatalog.View, PermissionCatalog.Edit, PermissionCatalog.Full]);
+        Daraja(davomat, PermissionCatalog.View).ShouldBe([Permissions.AttendanceView]);
+        Daraja(davomat, PermissionCatalog.Edit).ShouldBe([Permissions.AttendanceView, Permissions.AttendanceRequestsManage]);
+        Daraja(davomat, PermissionCatalog.Full).ShouldBe(
+            [Permissions.AttendanceView, Permissions.AttendanceRequestsManage, Permissions.AttendanceManage]);
+        davomat.Actions.ShouldBeEmpty();
+
         PermissionCatalog.Modules.Select(module => module.Key).ShouldBe(
         [
             "employees", "employment", "lists", "incentives", "feedback", "safety",
-            "recruiting", "catalog", "reports", "users", "roles", "audit", "settings",
+            "recruiting", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
         ]);
 
         PermissionCatalog.Extras.ShouldBe([Permissions.SalaryView, Permissions.SalaryExtraView]);

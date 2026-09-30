@@ -5,6 +5,7 @@ using Bonvi.Api.Endpoints;
 using Bonvi.Api.Extensions;
 using Bonvi.Api.Startup;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Ingest;
 using Bonvi.Application.Common;
 using Bonvi.Infrastructure;
 using Bonvi.Infrastructure.Persistence;
@@ -28,9 +29,14 @@ var builder = WebApplication.CreateBuilder(args);
 //     `ErrorLog__Path` berilgan joyda (compose) yoqiladi va faylga faqat
 //     ErrorLogFormatter ruxsat bergan maydonlar tushadi.
 //     Batafsil: Extensions/ErrorLogExtensions.cs.
+//
+// Qurilma tokeni yo'lda keladi (`/api/attendance/ingest/{token}`) va yo'l
+// logning eng oddiy maydoni. `IngestTokenScrubber` uni HAR IKKALA chiqishdan
+// oldin yashiradi — shu sababli u `FromLogContext` dan KEYIN turadi.
 builder.Host.UseSerilog((context, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .Enrich.FromLogContext()
+    .Enrich.With<IngestTokenScrubber>()
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
     .WriteToBonviErrorFile(context.Configuration));
 
@@ -42,6 +48,18 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
+// Xodim ilovasining so'rovchisi — `ICurrentUser` dan ALOHIDA port.
+// Ikkalasi bir-birini ko'rmaydi: xodim tokenida `NameIdentifier` da'vosi
+// yo'q, ya'ni audit jurnali mavjud bo'lmagan foydalanuvchiga ishora
+// qilmaydi (sababi `EmployeeJwtTokenService` izohida).
+builder.Services.AddScoped<ICurrentEmployee, CurrentEmployee>();
+
+// Qurilma qabuli jurnali — Application porti, lekin yozuvga so'rov usuli
+// va yo'li kerak, ya'ni amalga oshirish shu qatlamda (`ICurrentUser` kabi).
+// Singleton: holatsiz, `IHttpContextAccessor` ning o'zi ham singleton, va
+// uni singleton Hikvision tahlilchisi ishlatadi.
+builder.Services.AddSingleton<IAttendanceIngestJournal, AttendanceIngestJournal>();
+
 // ---------- Xavfsizlik va yuklamaga chidamlilik ----------
 builder.AddBonviSecurity();
 builder.AddBonviPerformance();
@@ -50,6 +68,12 @@ builder.Services.AddBonviRateLimiting(builder.Configuration, builder.Environment
 builder.Services.Configure<BootstrapOptions>(
     builder.Configuration.GetSection(BootstrapOptions.SectionName));
 builder.Services.AddHostedService<DatabaseInitializer>();
+
+// ---------- Fon vazifalari ----------
+// Hangfire serveri + navbat porti; `Testing` da — sinxron navbat, server yo'q.
+// Bazani tayyorlagichdan KEYIN: xost xizmatlari ro'yxat tartibida ishga
+// tushadi va vazifalar migratsiya qo'llanmagan bazaga yugurmasin.
+builder.AddBonviBackgroundJobs();
 
 builder.Services.AddBonviAuthentication(builder.Configuration);
 builder.Services.AddBonviAuthorization();
@@ -234,6 +258,36 @@ app.MapEmployeeDocumentEndpoints();
 app.MapExitInterviewEndpoints();
 app.MapIncidentEndpoints();
 
+// Davomat (3-bosqich) — turniket/yuz terminallarining hodisa qabuli.
+// ⚠️ Tizimdagi YAGONA anonim yozish endpointi: himoya — qurilma tokeni
+// (sababi `AttendanceIngestEndpoints` izohida).
+app.MapAttendanceIngestEndpoints();
+
+// Davomat — LAN ichidagi agent: ro'yxat, rasm va hisobot. Ochiqligi va
+// himoyasi qabul yo'lidagidek — qurilma tokeni (SPEC-agent §D4).
+app.MapAttendanceAgentEndpoints();
+
+// Davomat — qurilmalar, mosliklar, jadvallar, jurnal, taxta, tabel, hisobotlar,
+// eksport va qayta hisoblash. Hammasi `attendance.view` / `attendance.manage`
+// ostida (SPEC §7.3, ruxsat jadvali `AttendanceEndpoints` izohida).
+app.MapAttendanceEndpoints();
+
+// Davomat — OBYEKTLAR ma'lumotnomasi (telefondan belgilashning geo-to'sig'i).
+// Alohida fayl, chunki ruxsati BO'LINGAN: o'qish `catalog.view`, yozish
+// `attendance.manage` — sababi `WorkSiteEndpoints` izohida.
+app.MapWorkSiteEndpoints();
+
+// Xodim ilovasi — HR tomoni: hisob ochish, parol tiklash, yopish va
+// «telefondan belgilash» o'chirgichi. Hammasi `attendance.manage` ostida.
+app.MapEmployeeAccountEndpoints();
+
+// ⭐ Xodim ilovasi — XODIM tomoni. `bonvi-employee` auditoriyasidagi
+// token bilan, ruxsat da'volarisiz: HR tokeni bu endpointlarga KIRA
+// OLMAYDI va xodim tokeni HR endpointlariga o'ta olmaydi (ikki
+// autentifikatsiya sxemasi, `AuthenticationExtensions`).
+app.MapEmployeeAuthEndpoints();
+app.MapMeEndpoints();
+
 // Rekruting (2-bosqich): voronka bosqichlari → vakansiya → nomzod →
 // ishga olish. Oxirgi qadam 1-bosqichning ishga qabul oqimiga ulanadi.
 app.MapPipelineStageEndpoints();
@@ -272,6 +326,9 @@ app.MapApiKeyEndpoints();
   ═══════════════════════════════════════════════════════════
 */
 app.MapPublicApiEndpoints();
+
+// Takroriy vazifalar jadvali (SPEC §9.2). Dashboard marshruti ATAYLAB yo'q.
+app.UseBonviRecurringJobs();
 
 app.MapGet("/", () => Results.Ok(new
 {

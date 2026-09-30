@@ -177,8 +177,13 @@ public sealed class RoleApiTests : IClassFixture<BonviApiFactory>
         bolimlar.Select(bolim => bolim.GetProperty("key").GetString()).ShouldBe(
         [
             "employees", "employment", "lists", "incentives", "feedback", "safety",
-            "recruiting", "catalog", "reports", "users", "roles", "audit", "settings",
+            "recruiting", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
         ]);
+
+        var davomat = bolimlar.Single(bolim => bolim.GetProperty("key").GetString() == "attendance");
+        davomat.GetProperty("levels").EnumerateObject().Select(p => p.Name).ShouldBe(["view", "edit", "full"]);
+        Kodlar(davomat.GetProperty("levels").GetProperty("full")).Count.ShouldBe(3);
+        davomat.TryGetProperty("actions", out _).ShouldBeFalse("amali yo'q bo'limda maydon bo'lmasligi kerak");
 
         var xodimlar = bolimlar[0].GetProperty("levels");
         Kodlar(xodimlar.GetProperty("view")).ShouldBe([Permissions.EmployeesView]);

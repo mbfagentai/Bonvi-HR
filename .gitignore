@@ -17,6 +17,8 @@ dist/
 # Muhit
 .env
 .env.local
+# Ofisdagi qurilma agentining sirlari (docker-compose.agent.yml)
+.env.agent
 *.local
 
 # IDE

@@ -19,6 +19,23 @@ ensure_env() {
   [ -f .env ] || { cp .env.example .env; c_y "→ .env yaratildi (.env.example dan)"; }
 }
 
+# ── Qaysi stack ustida ishlayapmiz ──────────────────────────────────────
+#
+# `.env` BIR MARTA, hamma buyruqdan oldin o'qiladi: `COMPOSE_PROJECT_NAME`
+# va `COMPOSE_FILE` u yerda bo'lishi mumkin va ularsiz `docker compose` bir
+# stackni, bir martalik konteynerlar esa BOSHQASINI ko'rardi.
+#
+# Tarmoq va tom nomlarini Docker loyiha nomidan yasaydi. Shu sababli ular
+# bu yerda ham qattiq yozilmaydi — aks holda ikkinchi (yonma-yon) stack
+# ko'tarilgan papkada `./bonvi test` va `./bonvi gen` jimgina BIRINCHI
+# stackning bazasiga va API siga ulanib qolardi
+# (`docker-compose.parallel.yml` boshidagi izoh).
+ensure_env
+set -a; . ./.env; set +a
+
+PROJECT="${COMPOSE_PROJECT_NAME:-bonvi-hr}"
+NETWORK="${PROJECT}_bonvi"
+
 # Interaktiv TTY faqat terminal bo'lsa (skriptda/CI'da -it yiqiladi)
 tty_flag() { [ -t 0 ] && echo "-it" || echo "-i"; }
 
@@ -26,8 +43,8 @@ tty_flag() { [ -t 0 ] && echo "-it" || echo "-i"; }
 dotnet_solo() {
   docker run --rm $(tty_flag) \
     -v "$PWD/api:/src" \
-    -v bonvi-hr_nuget-cache:/root/.nuget/packages \
-    -v bonvi-hr_api-artifacts:/src/artifacts \
+    -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
+    -v ${PROJECT}_api-artifacts:/src/artifacts \
     -w /src \
     -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     -e DOTNET_NOLOGO=1 \
@@ -40,15 +57,15 @@ dotnet_net() {
   set -a; . ./.env; set +a
   docker run --rm $(tty_flag) \
     -v "$PWD/api:/src" \
-    -v bonvi-hr_nuget-cache:/root/.nuget/packages \
-    -v bonvi-hr_api-artifacts:/src/artifacts \
+    -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
+    -v ${PROJECT}_api-artifacts:/src/artifacts \
     -w /src \
     -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     -e DOTNET_NOLOGO=1 \
     -e ConnectionStrings__Default="Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
     -e ConnectionStrings__Redis="redis:6379" \
     -e Jwt__SigningKey="${JWT__SIGNINGKEY}" \
-    --network bonvi-hr_bonvi \
+    --network "$NETWORK" \
     "$SDK_IMAGE" "$@"
 }
 
@@ -63,14 +80,14 @@ ef() {
   set -a; . ./.env; set +a
   docker run --rm $(tty_flag) \
     -v "$PWD/api:/src" \
-    -v bonvi-hr_nuget-cache:/root/.nuget/packages \
-    -v bonvi-hr_api-artifacts:/src/artifacts \
+    -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
+    -v ${PROJECT}_api-artifacts:/src/artifacts \
     -w /src \
     -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
     -e ConnectionStrings__Default="Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
     -e ConnectionStrings__Redis="redis:6379" \
     -e Jwt__SigningKey="${JWT__SIGNINGKEY}" \
-    --network bonvi-hr_bonvi \
+    --network "$NETWORK" \
     "$SDK_IMAGE" \
     bash -c 'dotnet tool restore >/dev/null && dotnet ef "$@"' -- "$@"
 }
@@ -78,8 +95,8 @@ ef() {
 node_run() {
   docker run --rm $(tty_flag) \
     -v "$PWD/web:/app" \
-    -v bonvi-hr_web-node-modules:/app/node_modules \
-    -v bonvi-hr_pnpm-store:/root/.local/share/pnpm/store \
+    -v ${PROJECT}_web-node-modules:/app/node_modules \
+    -v ${PROJECT}_pnpm-store:/root/.local/share/pnpm/store \
     -w /app \
     "$NODE_IMAGE" sh -c "corepack enable >/dev/null 2>&1; $*"
 }
@@ -174,12 +191,12 @@ case "$cmd" in
     fi
     docker run --rm $(tty_flag) \
       -v "$PWD/api:/src" \
-      -v bonvi-hr_nuget-cache:/root/.nuget/packages \
-      -v bonvi-hr_api-artifacts:/src/artifacts \
+      -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
+      -v ${PROJECT}_api-artifacts:/src/artifacts \
       -w /src \
       -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
       -e TEST_POSTGRES="Host=postgres;Port=5432;Database=postgres;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
-      --network bonvi-hr_bonvi \
+      --network "$NETWORK" \
       "$SDK_IMAGE" dotnet test "$@"
     ;;
   ef)         ef "$@" ;;
@@ -206,7 +223,7 @@ case "$cmd" in
     # ikki jildda — tekshiruv ikkalasini birga ko'rishi shart.
     docker run --rm $(tty_flag) \
       -v "$PWD:/repo" \
-      -v bonvi-hr_web-node-modules:/repo/web/node_modules \
+      -v ${PROJECT}_web-node-modules:/repo/web/node_modules \
       -w /repo/web \
       -e BONVI_API_DIR=/repo/api \
       "$NODE_IMAGE" node scripts/check-locales.mjs
@@ -222,11 +239,11 @@ case "$cmd" in
     c_y "→ OpenAPI o'qilmoqda: http://api:8080/openapi/v1.json"
     docker run --rm $(tty_flag) \
       -v "$PWD/web:/app" \
-      -v bonvi-hr_web-node-modules:/app/node_modules \
-      -v bonvi-hr_pnpm-store:/root/.local/share/pnpm/store \
+      -v ${PROJECT}_web-node-modules:/app/node_modules \
+      -v ${PROJECT}_pnpm-store:/root/.local/share/pnpm/store \
       -w /app \
       -e VITE_OPENAPI_URL="http://api:8080/openapi/v1.json" \
-      --network bonvi-hr_bonvi \
+      --network "$NETWORK" \
       "$NODE_IMAGE" sh -c "corepack enable >/dev/null 2>&1; pnpm gen"
     c_g "✅ TypeScript klient yangilandi: web/src/shared/api/generated/"
     ;;
@@ -313,11 +330,11 @@ case "$cmd" in
     docker run --rm $(tty_flag) \
       -v "$PWD/api:/src" \
       -v "$PWD/data:/data" \
-      -v bonvi-hr_nuget-cache:/root/.nuget/packages \
-      -v bonvi-hr_api-artifacts:/src/artifacts \
+      -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
+      -v ${PROJECT}_api-artifacts:/src/artifacts \
       -w /src \
       -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
-      --network bonvi-hr_bonvi \
+      --network "$NETWORK" \
       "$SDK_IMAGE" \
       dotnet run --project tools/Bonvi.Etl -- "${conn_args[@]}" "$@"
     ;;

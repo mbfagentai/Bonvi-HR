@@ -1,0 +1,230 @@
+import { Search, UserRound } from 'lucide-react'
+import { useState } from 'react'
+
+import { useEmployees } from '@/features/employees/api/employees-queries'
+import type { EmployeeListItem } from '@/features/employees/api/employees-api'
+import { EmployeePhoto } from '@/features/employees/components/employee-photo'
+import { STATUS_KEY, STATUS_TONE } from '@/features/employees/lib/employee-presentation'
+import { problemCode } from '@/shared/api/problem-details'
+import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
+import { useSearchDraft } from '@/shared/lib/list-search'
+import { Alert, Badge, Button, Input, Skeleton } from '@/shared/ui'
+
+/**
+ * Tanlangan xodim — ro'yxat qatoridan KERAKLI qismi.
+ *
+ * NEGA faqat `id` emas: qidiruv matni o'zgarsa tanlangan odam
+ * natijalardan chiqib ketadi, lekin uning YUZI va ismi ekranda qolishi
+ * kerak — operator kimni tanlaganini qidiruvni qaytarmasdan ko'rsin.
+ */
+export interface PickedEmployee {
+  id: string
+  fullName: string
+  photoKey: string | null
+  position: string | null
+  department: string | null
+}
+
+export function toPickedEmployee(item: EmployeeListItem): PickedEmployee {
+  return {
+    id: item.id,
+    fullName: item.fullName,
+    photoKey: item.photoKey,
+    position: item.positionName,
+    department: item.departmentName,
+  }
+}
+
+/** Bir so'rovda ko'rsatiladigan qatorlar — qolgani qidiruv bilan toraytiriladi. */
+const PICKER_PAGE_SIZE = 20
+
+/**
+ * Xodim tanlash — RASM va ism bilan, hech qachon faqat ism bilan emas.
+ *
+ * ⭐ NEGA oddiy `<select>` emas (hodisalar formasidagi kabi): egasining
+ * talabi — turniket raqami XODIMGA bog'lanadi va xato bog'lanish oylab
+ * tabelni buzadi (qaytarish qayta hisoblashni talab qiladi, SPEC §4.3).
+ * Ikki kishining ismi bir xil bo'lishi mumkin; ro'yxatda ikkita bir xil
+ * satr ko'rgan operator taxmin qiladi, ikkita YUZ ko'rgan operator esa
+ * taniydi. Shu sababli har bir qatorda rasm, lavozim va bo'lim turadi.
+ *
+ * Ishdan ketganlar ham ro'yxatda (holat filtri yo'q) va bu ataylab:
+ * Verifix ro'yxatida ketgan odamlar ham bor va ularning ESKI o'tishlari
+ * aynan shu bog'lanish orqali tabelga tushadi. Ular kulrang «Ishdan
+ * ketgan» yorlig'i bilan ajralib turadi.
+ *
+ * Qidiruv serverda (`GET /api/employees?search=`) — kirill/lotin
+ * yozuvlarini tenglashtirish qoidalari u yerda, klientda ikkinchi nusxasi
+ * yo'q.
+ */
+export function AttendanceEmployeePicker({
+  value,
+  onChange,
+  label,
+  error,
+  disabled = false,
+}: {
+  value: PickedEmployee | null
+  onChange: (next: PickedEmployee | null) => void
+  label?: string
+  /** Tayyor, tarjima qilingan matn. */
+  error?: string
+  disabled?: boolean
+}) {
+  const { t, num } = useLocale()
+  const errorMessage = useErrorMessage()
+
+  const [search, setSearch] = useState('')
+  // Har harfda so'rov ketmaydi — boshqa ro'yxatlar bilan bir xil 350 ms
+  const [draft, setDraft] = useSearchDraft(search, setSearch)
+
+  const list = useEmployees(
+    {
+      page: 1,
+      pageSize: PICKER_PAGE_SIZE,
+      sort: 'fullName',
+      search: search.trim() === '' ? undefined : search.trim(),
+    },
+    // Tanlov qilingach ro'yxat yashiriladi — so'rov ham to'xtaydi
+    value === null && !disabled,
+  )
+
+  const heading = label ?? t('attendance.employee')
+
+  if (value !== null) {
+    return (
+      <div className="space-y-2">
+        <p className="text-footnote font-medium text-[var(--fg-secondary)]">{heading}</p>
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-3">
+          <EmployeePhoto
+            employeeId={value.id}
+            photoKey={value.photoKey}
+            name={value.fullName}
+            size="lg"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate-1 font-medium">{value.fullName}</p>
+            <p className="truncate-1 text-footnote text-[var(--fg-secondary)]">
+              {[value.position, value.department].filter(Boolean).join(' · ') || '—'}
+            </p>
+          </div>
+          {!disabled && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
+              {t('attendance.chooseAnother')}
+            </Button>
+          )}
+        </div>
+        {error !== undefined && (
+          <p role="alert" className="text-footnote text-ios-red">
+            {error}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  const items = list.data?.items ?? []
+  const total = list.data?.total ?? 0
+  const hidden = Math.max(0, total - items.length)
+
+  return (
+    <div className="space-y-2">
+      <p className="text-footnote font-medium text-[var(--fg-secondary)]">{heading}</p>
+
+      <Input
+        icon={Search}
+        shape="pill"
+        type="search"
+        value={draft}
+        disabled={disabled}
+        onChange={(event) => setDraft(event.target.value)}
+        placeholder={t('attendance.employeeSearchPlaceholder')}
+        aria-label={heading}
+      />
+
+      <div
+        className={cn(
+          'max-h-72 overflow-y-auto rounded-lg border bg-[var(--bg-elevated)]',
+          error !== undefined ? 'border-ios-red' : 'border-[var(--border)]',
+        )}
+      >
+        {list.isPending ? (
+          <div className="space-y-1 p-2" aria-busy>
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={`skeleton-${index}`} className="flex items-center gap-3 px-2 py-2">
+                <Skeleton className="size-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : list.isError ? (
+          <div className="p-3">
+            <Alert tone="danger">{errorMessage(problemCode(list.error))}</Alert>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <UserRound className="size-6 text-[var(--fg-tertiary)]" strokeWidth={1.8} />
+            <p className="text-footnote text-[var(--fg-secondary)]">{t('common.empty')}</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]" role="listbox" aria-label={heading}>
+            {items.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  disabled={disabled}
+                  onClick={() => onChange(toPickedEmployee(item))}
+                  className={cn(
+                    'press flex w-full items-center gap-3 px-3 py-2.5 text-left',
+                    'hover:bg-[var(--bg-hover)] active:bg-[var(--bg-active)]',
+                    'disabled:pointer-events-none disabled:opacity-50',
+                  )}
+                >
+                  <EmployeePhoto
+                    employeeId={item.id}
+                    photoKey={item.photoKey}
+                    name={item.fullName}
+                    size="md"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="truncate-1 block text-subhead font-medium">
+                      {item.fullName}
+                    </span>
+                    <span className="truncate-1 block text-caption1 text-[var(--fg-secondary)]">
+                      {[item.positionName, item.departmentName].filter(Boolean).join(' · ') ||
+                        '—'}
+                    </span>
+                  </span>
+                  {/* Faqat «ishlamaydi» belgilanadi — faol xodim shovqinsiz */}
+                  {item.status === 'terminated' && (
+                    <Badge tone={STATUS_TONE[item.status]} size="sm">
+                      {t(STATUS_KEY[item.status])}
+                    </Badge>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {error !== undefined ? (
+        <p role="alert" className="text-footnote text-ios-red">
+          {error}
+        </p>
+      ) : (
+        hidden > 0 && (
+          <p className="text-footnote text-[var(--fg-tertiary)]">
+            {t('attendance.pickerMore', { n: num(hidden) })}
+          </p>
+        )
+      )}
+    </div>
+  )
+}

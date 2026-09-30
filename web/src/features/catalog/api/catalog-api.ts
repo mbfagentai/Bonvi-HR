@@ -27,6 +27,13 @@ export const SIMPLE_CATALOG_KINDS = [
   'award-types',
   'penalty-types',
   'document-types',
+  /*
+    Yo'qlik turlari — davomat so'rovlari shu ro'yxatdan tanlanadi
+    (SPEC-so'rovlar §B1). Tuzilishi bo'yicha yuqoridagilar bilan aynan
+    bir xil (faqat nom), shu sababli u ham umumiy `CatalogPage` bilan
+    chiziladi.
+  */
+  'absence-types',
 ] as const
 
 export type SimpleCatalogKind = (typeof SIMPLE_CATALOG_KINDS)[number]

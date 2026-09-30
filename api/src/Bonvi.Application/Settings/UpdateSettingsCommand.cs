@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bonvi.Application.Settings.Common;
 using Bonvi.Application.Settings.Dtos;
 using Bonvi.Domain.Abstractions;
@@ -78,6 +79,12 @@ public sealed class UpdateSettingsCommandHandler
             return prepared.Error;
         }
 
+        var retention = await CheckRetentionOrderAsync(prepared.Value, cancellationToken).ConfigureAwait(false);
+        if (retention.IsFailure)
+        {
+            return retention.Error;
+        }
+
         foreach (var (key, value, clearSecret) in prepared.Value)
         {
             var existing = await _settings.FindAsync(key, cancellationToken).ConfigureAwait(false);
@@ -143,6 +150,54 @@ public sealed class UpdateSettingsCommandHandler
         var settings = await _reader.ReadAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(settings.Describe());
+    }
+
+    /// <summary>
+    /// Ikki saqlash muddati bir-biriga mosmi: o'tish yozuvi suratidan OLDIN o'chmasin (SPEC §2.9).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Nega bu qoida ta'rifning o'zida emas.</b> U IKKI kalitni solishtiradi,
+    /// <c>SystemSettingDefinition</c> esa bitta kalitning chegarasini biladi.
+    /// Solishtirish so'rovdagi YANGI qiymat bilan bazadagi JORIY qiymat
+    /// o'rtasida: operator faqat bittasini o'zgartirishi mumkin.
+    /// </para>
+    /// <para>
+    /// Sabab: tozalash suratni o'tish qatori ORQALI topadi. Qator suratdan
+    /// oldin o'chsa, fayl diskda abadiy qoladi va uni hech narsa bilmaydi.
+    /// Tungi vazifa baribir <c>max(pass, photo)</c> ni oladi (B7) — bu yerda esa
+    /// noto'g'ri qaror foydalanuvchiga shu zahoti aytiladi.
+    /// </para>
+    /// <para>
+    /// <c>0</c> — «hech qachon o'chirilmasin», ya'ni har qanday surat muddati bilan
+    /// mos. Hech biri so'rovda bo'lmasa, bazaga murojaat qilinmaydi.
+    /// </para>
+    /// </remarks>
+    private async Task<Result> CheckRetentionOrderAsync(
+        IReadOnlyList<(string Key, string Value, bool ClearSecret)> prepared,
+        CancellationToken cancellationToken)
+    {
+        int? Requested(string key)
+            => prepared.FirstOrDefault(item => item.Key == key) is { Key: not null } item
+                ? int.Parse(item.Value, NumberStyles.Integer, CultureInfo.InvariantCulture)
+                : null;
+
+        var photo = Requested(SystemSettingKeys.PhotoRetentionDays);
+        var pass = Requested(SystemSettingKeys.PassRetentionDays);
+
+        if (photo is null && pass is null)
+        {
+            return Result.Success();
+        }
+
+        var current = await _reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        var photoDays = photo ?? current.Number(SystemSettingKeys.PhotoRetentionDays);
+        var passDays = pass ?? current.Number(SystemSettingKeys.PassRetentionDays);
+
+        return passDays != 0 && passDays < photoDays
+            ? SettingsErrors.RetentionOrder
+            : Result.Success();
     }
 
     /// <summary>

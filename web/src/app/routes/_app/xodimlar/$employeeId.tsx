@@ -45,15 +45,59 @@ import {
   useEmployeeTimeline,
 } from '@/features/employees/api/employees-queries'
 import type { EmploymentSummary } from '@/features/employees/api/employees-api'
+import { EmployeeAttendanceTab } from '@/features/verification/components/employee-attendance-tab'
+import { ATTENDANCE_VIEW } from '@/features/verification/lib/attendance-presentation'
+import { currentMonth, type MonthValue } from '@/features/verification/lib/attendance-search'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Card, SegmentedControl, Skeleton } from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
 
+/**
+ * Kartaning bo'limi va davomat kalendarining oyi — MANZILDA.
+ *
+ * NEGA `useState` emas (ilgari shunday edi): verifikatsiya bo'limidagi
+ * ro'yxatlar endi to'g'ridan-to'g'ri davomat bo'limiga havola qiladi
+ * (`?tab=attendance`), ya'ni bo'lim havolaning bir qismi bo'lishi kerak.
+ * Yon foydasi butun karta uchun: «orqaga» bosgan HR ochgan bo'limiga
+ * qaytadi va «mana bu odamning hujjatlari» degan havola ishlaydi
+ * (`employees-search.ts` dagi bilan bir xil sabab).
+ *
+ * Oy esa tabeldagi qoidani takrorlaydi: standart («joriy oy») manzilga
+ * YOZILMAYDI, lekin foydalanuvchi oyni almashtirgan zahoti tushadi —
+ * sentabrda yuborilgan havola oktabrda boshqa oyni ko'rsatmasligi kerak.
+ */
 export const Route = createFileRoute('/_app/xodimlar/$employeeId')({
+  validateSearch: (search: Record<string, unknown>): EmployeeCardSearch => ({
+    tab: TABS.find((value) => value === search['tab']),
+    year: readNumber(search['year']),
+    month: readNumber(search['month']),
+  }),
   component: EmployeeCardPage,
 })
 
-type Tab = 'overview' | 'timeline' | 'documents' | 'competency' | 'incentives' | 'flags'
+interface EmployeeCardSearch {
+  tab?: Tab
+  /** Davomat kalendarining oyi — `year` va `month` DOIM birga. */
+  year?: number
+  month?: number
+}
+
+function readNumber(value: unknown): number | undefined {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
+}
+
+const TABS = [
+  'overview',
+  'timeline',
+  'documents',
+  'competency',
+  'incentives',
+  'flags',
+  'attendance',
+] as const
+
+type Tab = (typeof TABS)[number]
 
 /**
  * Xodim kartasi.
@@ -82,7 +126,33 @@ function EmployeeCardPage() {
   const { t } = useLocale()
   const navigate = useNavigate()
 
-  const [tab, setTab] = useState<Tab>('overview')
+  const search = Route.useSearch()
+  const tab: Tab = search.tab ?? 'overview'
+
+  const setTab = (value: Tab) => {
+    void navigate({
+      to: '/xodimlar/$employeeId',
+      params: { employeeId },
+      // Standart bo'lim manzilda ko'rinmaydi; oy esa bo'lim almashganda
+      // ham saqlanadi — HR kalendardan jurnalga o'tib qaytganda o'sha oy.
+      search: { ...search, tab: value === 'overview' ? undefined : value },
+      replace: true,
+    })
+  }
+
+  const month: MonthValue =
+    search.year !== undefined && search.month !== undefined
+      ? { year: search.year, month: search.month }
+      : currentMonth()
+
+  const setMonth = (value: MonthValue) => {
+    void navigate({
+      to: '/xodimlar/$employeeId',
+      params: { employeeId },
+      search: { ...search, year: value.year, month: value.month },
+      replace: true,
+    })
+  }
 
   /*
    * Ochiq oyna bitta holatda saqlanadi: to'rt xil `useState<... | null>`
@@ -106,6 +176,7 @@ function EmployeeCardPage() {
   const canViewCompetency = hasPermission(EMPLOYEES_VIEW)
   const canViewDocuments = hasPermission(EMPLOYEES_VIEW)
   const canViewIncentives = hasPermission(INCENTIVES_VIEW)
+  const canViewAttendance = hasPermission(ATTENDANCE_VIEW)
 
   const employee = useEmployee(employeeId)
   const timeline = useEmployeeTimeline(employeeId)
@@ -209,6 +280,14 @@ function EmployeeCardPage() {
     tabOptions.push({ value: 'incentives', label: t('employees.tabIncentives') })
   }
   tabOptions.push({ value: 'flags', label: t('employees.tabFlags') })
+  /*
+    «Davomat» — OXIRIDA va faqat `attendance.view` bilan. Ruxsati yo'q
+    odamda tab umuman chizilmaydi (qolgan uchtasi bilan bir xil qoida),
+    ya'ni faqat kadrlar bilan ishlaydigan HR uchun karta o'zgarmaydi.
+  */
+  if (canViewAttendance) {
+    tabOptions.push({ value: 'attendance', label: t('employees.tabAttendance') })
+  }
 
   return (
     <div className="space-y-5">
@@ -318,6 +397,10 @@ function EmployeeCardPage() {
 
       {tab === 'incentives' && canViewIncentives && (
         <EmployeeIncentivesTab employeeId={person.id} />
+      )}
+
+      {tab === 'attendance' && canViewAttendance && (
+        <EmployeeAttendanceTab employeeId={person.id} month={month} onMonth={setMonth} />
       )}
 
       {tab === 'flags' && (

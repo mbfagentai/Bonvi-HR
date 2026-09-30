@@ -233,6 +233,33 @@ public sealed class TerminationReasonDefinition : ReferenceDefinition<Terminatio
     }
 }
 
+/// <summary>Yo'qlik turi ma'lumotnomasining ta'rifi.</summary>
+/// <remarks>
+/// Qo'shimcha maydoni yo'q — nomdan boshqa hech narsa saqlanmaydi
+/// (SPEC-so'rovlar §B1), shu sababli <c>ApplySpecific</c> ham yo'q.
+/// </remarks>
+public sealed class AbsenceTypeDefinition : ReferenceDefinition<AbsenceType, AbsenceTypeDto>
+{
+    /// <inheritdoc />
+    public override AbsenceTypeDto ToDto(AbsenceType entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        return new AbsenceTypeDto(entity.Id, entity.Name, entity.IsActive, entity.Note);
+    }
+
+    /// <inheritdoc />
+    public override Result<AbsenceType> Create(SaveReferenceCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return AbsenceType.Create(command.Name);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>Turga xos maydon yo'q — nom va izohni asos sinf o'zi qo'yadi.</remarks>
+    protected override Result ApplySpecific(AbsenceType entity, SaveReferenceCommand command) => Result.Success();
+}
+
 /// <summary>Rag'bat turi ma'lumotnomasining ta'rifi.</summary>
 public sealed class AwardTypeDefinition : ReferenceDefinition<AwardType, AwardTypeDto>
 {

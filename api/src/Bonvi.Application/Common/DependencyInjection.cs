@@ -1,4 +1,5 @@
 using System.Reflection;
+using Bonvi.Application.Attendance;
 using Bonvi.Application.Catalog;
 using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
@@ -6,6 +7,8 @@ using Bonvi.Application.Dashboard.Queries;
 using Bonvi.Application.Employees;
 using Bonvi.Application.Feedback;
 using Bonvi.Application.Identity.Commands.Login;
+using Bonvi.Application.Identity.EmployeeAccounts;
+using Bonvi.Application.Identity.EmployeeAuth;
 using Bonvi.Application.Identity.Commands.Logout;
 using Bonvi.Application.Identity.Commands.RefreshSession;
 using Bonvi.Application.Identity.Photos;
@@ -18,6 +21,7 @@ using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
 using Bonvi.Application.Identity.Users.Commands.UpdateUser;
 using Bonvi.Application.Identity.Users.Photos;
 using Bonvi.Application.Identity.Users.Queries.ListUsers;
+using Bonvi.Application.Me;
 using Bonvi.Application.Notifications;
 using Bonvi.Application.PublicApi;
 using Bonvi.Application.Recruiting;
@@ -110,6 +114,47 @@ public static class DependencyInjection
         services.AddScoped<UploadAccountPhotoCommandHandler>();
         services.AddScoped<DeleteAccountPhotoCommandHandler>();
 
+        /*
+          XODIM ILOVASI (PWA) — ikkita guruh, ikki xil xavfsizlik chegarasi.
+
+          1. HR tomoni (`employee_accounts` boshqaruvi) — oddiy ruxsat
+             kodlari ostida, HR tokeni bilan chaqiriladi.
+          2. `/api/me/*` — XODIM tokeni bilan, `bonvi-employee`
+             auditoriyasida, ruxsat da'volarisiz.
+
+          Ular bitta ro'yxatda turadi, chunki ikkalasi ham bitta
+          imkoniyatning ikki tomoni; chegara esa marshrutlarda
+          (`MeEndpoints` / `EmployeeAccountEndpoints`) qo'yilgan.
+        */
+        // Hisob HAR BIR xodimga avtomatik ochiladi (fon vazifasi va «Ilova»
+        // bo'limi ochilgan lahza), parolni faqat HR beradi va ko'radi.
+        services.AddScoped<EmployeeAccountProvisioner>();
+        services.AddScoped<EmployeeAccountProvisioningJob>();
+        services.AddScoped<EmployeeAppAccessBuilder>();
+        services.AddScoped<GetEmployeeAppAccessQueryHandler>();
+        services.AddScoped<RevealEmployeePasswordQueryHandler>();
+        services.AddScoped<EmployeePasswordCommandHandler>();
+        services.AddScoped<SetMobileCheckInAllowedCommandHandler>();
+
+        services.AddScoped<EmployeeLoginCommandHandler>();
+        services.AddScoped<EmployeeRefreshCommandHandler>();
+        services.AddScoped<EmployeeLogoutCommandHandler>();
+        services.AddScoped<EmployeeAccessGate>();
+
+        // Jarayon ichidagi holat — SINGLETON bo'lishi shart: har so'rovda
+        // yangi nusxa bo'lsa, urinishlar hisobi ham, yangilash javobining
+        // qisqa xotirasi ham so'rov bilan birga yo'qolardi (izohlar sinflarda).
+        services.AddSingleton<EmployeeLoginThrottle>();
+        services.AddSingleton<EmployeeRefreshReplayCache>();
+
+        services.AddScoped<CurrentEmployeeResolver>();
+        services.AddScoped<GetMeQueryHandler>();
+        services.AddScoped<GetMyPhotoQueryHandler>();
+        services.AddScoped<GetMyAttendanceQueryHandler>();
+        services.AddScoped<GetMyRequestsQueryHandler>();
+        services.AddScoped<CreateMyRequestCommandHandler>();
+        services.AddScoped<CancelMyRequestCommandHandler>();
+
         // Ma'lumotnomalar (S2) — o'z ro'yxatini o'zi olib boradi
         services.AddCatalog();
 
@@ -121,6 +166,11 @@ public static class DependencyInjection
 
         // Baxtsiz hodisalar jurnali (S9/M11)
         services.AddSafety();
+
+        // Davomat (3-bosqich) — qurilmalar, mosliklar, jadvallar, tabel va
+        // hisobotlar. Qabul yo'li (`AddAttendanceIngest`) shu metodning ICHIDAN
+        // chaqiriladi (SPEC §10.2.1), bu yerda ikkinchi marta yozilmaydi.
+        services.AddAttendance();
 
         // Rekruting — 2-bosqich: vakansiya, voronka, nomzod, ishga olish
         services.AddRecruiting();

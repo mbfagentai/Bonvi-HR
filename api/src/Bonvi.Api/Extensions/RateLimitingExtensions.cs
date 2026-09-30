@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -35,6 +37,16 @@ public static class RateLimitPolicies
     /// yeb qo'yardi. Kalit esa har bir loyihada o'zi.
     /// </remarks>
     public const string PublicApi = "public-api";
+
+    /// <summary>
+    /// Turniket/yuz terminallarining hodisa qabuli — manba IP bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Kalit IP, foydalanuvchi emas: bu yo'lda JWT yo'q, token esa bo'linma
+    /// tanlanadigan paytda hali tekshirilmagan — unga qarab bo'lish
+    /// hujumchiga har so'rovda yangi «bo'linma» ochish imkonini berardi.
+    /// </remarks>
+    public const string Ingest = "ingest";
 }
 
 /// <summary>
@@ -53,6 +65,50 @@ public sealed class RateLimitingOptions
 
     /// <summary>Kirish endpoint'i uchun: daqiqada 5 urinish.</summary>
     public RateLimitWindow Login { get; set; } = new() { PermitLimit = 5, WindowSeconds = 60 };
+
+    /// <summary>
+    /// Xodim ilovasiga kirish: bitta IP dan daqiqada 60 urinish — HR kirishidan ALOHIDA bo'linma.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Zavodning Wi-Fi'si bitta ommaviy IP: smena boshida o'nlab xodim
+    /// bir daqiqada kiradi (birinchi kuni — yuzlab). HR ning daqiqasiga
+    /// beshtalik chegarasi bilan bitta bo'linmada ular bir-birini ham, HR
+    /// ni ham 429 bilan to'sardi, muvaffaqiyatli kirishlar ham hisobga
+    /// tushgani uchun — aynan eng gavjum daqiqada.
+    /// </para>
+    /// <para>
+    /// Parol terib ko'rishga qarshi asosiy to'siq bu son EMAS: bitta login
+    /// bitta IP dan 5 xatodan keyin 15 daqiqaga bloklanadi
+    /// (<c>EmployeeLoginThrottle</c>). Bu chegara faqat bitta manzildan
+    /// ko'p loginlarni ketma-ket sinashni (spraying) sekinlashtiradi.
+    /// </para>
+    /// </remarks>
+    public RateLimitWindow EmployeeLogin { get; set; } = new() { PermitLimit = 60, WindowSeconds = 60 };
+
+    /// <summary>
+    /// Xodim sessiyasini yangilash/chiqish: bitta IP dan daqiqada 600 — umumiy 120 lik bo'linma O'RNIGA.
+    /// </summary>
+    /// <remarks>
+    /// Yangilash anonim so'rov, ya'ni umumiy cheklovda u IP bo'yicha
+    /// sanalardi: 950 xodimning ilovasi bitta zavod manzilidan har 15
+    /// daqiqada yangilanadi va smena boshida 120 lik chegara to'lib qolardi.
+    /// Bu keng «shift» faqat bitta manzildan tasodifiy tokenlar bilan
+    /// bazani band qilishni chegaralaydi; bitta tokenning o'zi esa
+    /// <see cref="RefreshToken"/> bo'yicha cheklanadi.
+    /// </remarks>
+    public RateLimitWindow EmployeeSession { get; set; } = new() { PermitLimit = 600, WindowSeconds = 60 };
+
+    /// <summary>
+    /// Bitta yangilash tokeni bilan daqiqada 10 so'rov — bo'linma kaliti tokenning xeshi.
+    /// </summary>
+    /// <remarks>
+    /// Odatiy mijoz tokenni 15 daqiqada bir marta ishlatadi (javobi
+    /// yo'qolsa — yana bir-ikki marta). Bir xil token bilan tinimsiz
+    /// so'rayotgan mijoz — buzilgan sikl yoki hujum; unga IP emas, aynan
+    /// shu token to'sig'i qo'yiladi va qo'shnilari ishlashda davom etadi.
+    /// </remarks>
+    public RateLimitWindow RefreshToken { get; set; } = new() { PermitLimit = 10, WindowSeconds = 60 };
 
     /// <summary>Umumiy API: daqiqada 120 so'rov, siljiydigan oyna.</summary>
     public RateLimitWindow Api { get; set; } = new() { PermitLimit = 120, WindowSeconds = 60, SegmentsPerWindow = 6 };
@@ -84,22 +140,71 @@ public sealed class RateLimitingOptions
     };
 
     /// <summary>
+    /// Qurilma hodisalari qabuli: bitta IP dan daqiqada 300 so'rov.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Hisob: kuniga ~5 400 o'tish, smena almashinuvida sekundiga 4–6 tagacha.
+    /// 300/daqiqa — o'rtacha oqimdan ~50 barobar katta, ya'ni NAT ortidagi
+    /// butun bino bitta manzildan kelsa ham smena almashinuvida o'zini o'zi
+    /// to'smaydi, lekin suiiste'molni baribir chegaralaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Chegaradan oshgan qurilma 429 oladi va hodisani o'z xotirasida
+    /// saqlab, keyinroq qayta yuboradi — o'tish yo'qolmaydi, takror esa
+    /// zararsiz (<c>ux_attendance_passes_device_dedupe</c>).
+    /// </para>
+    /// </remarks>
+    public RateLimitWindow Ingest { get; set; } = new() { PermitLimit = 300, WindowSeconds = 60 };
+
+    /// <summary>
     /// Qat'iy kirish cheklovi avtomatik qo'llanadigan yo'llar.
     /// </summary>
     /// <remarks>
     /// Bu "himoya to'ri": endpoint muallifi <c>RequireRateLimiting</c> yozishni
     /// unutsa ham, parol tanlashga qarshi cheklov baribir ishlaydi.
     /// </remarks>
+    /// <remarks>
+    /// ⚠️ Xodim ilovasining kirishi bu yerda EMAS — u
+    /// <see cref="EmployeeLoginPaths"/> da, o'z bo'linmasida (sababi
+    /// <see cref="EmployeeLogin"/> izohida). Bitta bo'linmada zavod manzili
+    /// HR ni ham to'sib qo'yardi.
+    /// </remarks>
     public IList<string> LoginPaths { get; } = ["/api/auth/login"];
+
+    /// <summary>Xodim ilovasiga kirish — <see cref="EmployeeLogin"/> bo'linmasi (IP bo'yicha).</summary>
+    public IList<string> EmployeeLoginPaths { get; } = ["/api/employee-auth/login"];
+
+    /// <summary>
+    /// Xodim sessiyasini yangilash va chiqish — umumiy bo'linma o'rniga <see cref="EmployeeSession"/>.
+    /// </summary>
+    public IList<string> EmployeeSessionPaths { get; } = ["/api/employee-auth/refresh", "/api/employee-auth/logout"];
 
     /// <summary>
     /// Cheklovdan butunlay ozod yo'llar.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Sog'liq tekshiruvini cheklab bo'lmaydi: orkestrator uni har necha soniyada
     /// so'raydi va 429 olsa konteynerni "o'lik" deb qayta ishga tushiradi.
+    /// </para>
+    /// <para>
+    /// Qurilma qabuli ham bu yerda — lekin «cheklovsiz» EMAS: uning o'z,
+    /// kengroq siyosati bor (<see cref="RateLimitPolicies.Ingest"/>). Umumiy
+    /// cheklov (daqiqada 120, IP bo'yicha) ustiga qo'shilsa, bitta NAT
+    /// manzilidan chiqadigan barcha terminallar smena almashinuvida bir-birini
+    /// to'sib qo'yardi — va buni aynan eng ko'p odam kirayotgan daqiqada.
+    /// </para>
+    /// <para>
+    /// Qurilma AGENTI ham xuddi shu sababdan (<c>/api/attendance/agent</c>):
+    /// u qurilma tokeni bilan tasdiqlanadi va o'z siyosati bor
+    /// (<see cref="RateLimitPolicies.Ingest"/>). Terminalga odam yozishda u har
+    /// bir yozuv uchun rasmni alohida so'raydi — yuzlab xodimni yozish umumiy
+    /// daqiqasiga 120 lik IP chegarasiga urilib, yarmida 429 bilan to'xtab
+    /// qolardi.
+    /// </para>
     /// </remarks>
-    public IList<string> ExcludedPaths { get; } = ["/health"];
+    public IList<string> ExcludedPaths { get; } = ["/health", "/api/attendance/ingest", "/api/attendance/agent"];
 }
 
 /// <summary>Bitta oyna cheklovining sozlamalari.</summary>
@@ -213,31 +318,134 @@ public static class RateLimitingExtensions
                         _ => SiljiydiganOyna(sozlama.PublicApi));
             });
 
+            // Qurilma qabuli — faqat manba IP bo'yicha (sababi
+            // `RateLimitPolicies.Ingest` izohida). Umumiy cheklovdan bu yo'l
+            // chiqarilgan (`ExcludedPaths`), ya'ni ikki cheklov ustma-ust
+            // tushmaydi.
+            options.AddPolicy(RateLimitPolicies.Ingest, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    "ingest:" + Manba(context),
+                    _ => QatiyOyna(sozlama.Ingest)));
+
             options.OnRejected = RadEtildiAsync;
         });
 
+        // Yangilash tokeni bo'yicha cheklov — endpoint filtri o'qiydi
+        // (`RequireRefreshTokenRateLimiting`). Global cheklovdan farqli
+        // o'laroq har doim yoqiq: u IP ni emas, bitta tokenni to'sadi, ya'ni
+        // testlar bitta «IP» dan kelishi unga xalaqit bermaydi.
+        services.AddSingleton(new RefreshTokenRateLimiter(
+            PartitionedRateLimiter.Create<string, string>(kalit =>
+                RateLimitPartition.GetFixedWindowLimiter(kalit, _ => QatiyOyna(sozlama.RefreshToken)))));
+
         return services;
+    }
+
+    /// <summary>
+    /// Yangilash tokeni bilan keladigan endpointga TOKEN XESHI bo'yicha cheklov qo'yadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega endpoint filtri, bo'linma emas.</b> Tezlik cheklovining
+    /// bo'linma tanlovchisi sinxron va so'rov TANASINI o'qiy olmaydi — token esa
+    /// aynan tanada. Filtr bog'langan argumentni (<see cref="IRefreshTokenBody"/>)
+    /// oladi, ya'ni tana ikkinchi marta o'qilmaydi.
+    /// </para>
+    /// <para>
+    /// Kalit — tokenning SHA-256 xeshi (qisqartirilgan): ochiq token xotiradagi
+    /// lug'atda ham yashamasligi kerak.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TBuilder">Endpoint quruvchisi.</typeparam>
+    /// <param name="builder">Endpoint.</param>
+    public static TBuilder RequireRefreshTokenRateLimiting<TBuilder>(this TBuilder builder)
+        where TBuilder : IEndpointConventionBuilder
+        => builder.AddEndpointFilter(TokenBoyichaCheklovAsync);
+
+    private static async ValueTask<object?> TokenBoyichaCheklovAsync(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        var token = context.Arguments.OfType<IRefreshTokenBody>().FirstOrDefault()?.RefreshToken;
+
+        var kalit = string.IsNullOrWhiteSpace(token)
+            ? "bosh"
+            : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)))[..32];
+
+        var limiter = context.HttpContext.RequestServices.GetRequiredService<RefreshTokenRateLimiter>();
+
+        using var lease = limiter.Limiter.AttemptAcquire(kalit);
+
+        if (lease.IsAcquired)
+        {
+            return await next(context).ConfigureAwait(false);
+        }
+
+        var httpContext = context.HttpContext;
+        var kutish = KutishVaqti(lease);
+
+        httpContext.Response.Headers.RetryAfter = kutish.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture);
+
+        TezlikLoglari.CheklovOshdi(
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Bonvi.Api.RateLimiting"),
+            httpContext.Request.Method,
+            httpContext.Request.Path.Value ?? "/",
+            Manba(httpContext));
+
+        return TypedResults.Problem(RadEtishJavobi(httpContext, kutish));
     }
 
     // ────────────────────────────────────────────────────────────
     //  Bo'linmalar (partition)
     // ────────────────────────────────────────────────────────────
 
+    /// <summary>Kirish yo'llari: HR kirishi va xodim kirishi — har biri o'z bo'linmasida.</summary>
     private static PartitionedRateLimiter<HttpContext> KirishQoriqchisi(RateLimitingOptions sozlama)
         => PartitionedRateLimiter.Create<HttpContext, string>(context =>
-            YolMoslashadimi(context.Request.Path, sozlama.LoginPaths)
+        {
+            var yol = context.Request.Path;
+
+            if (YolMoslashadimi(yol, sozlama.EmployeeLoginPaths))
+            {
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    "employee-login:" + Manba(context),
+                    _ => QatiyOyna(sozlama.EmployeeLogin));
+            }
+
+            return YolMoslashadimi(yol, sozlama.LoginPaths)
                 ? RateLimitPartition.GetFixedWindowLimiter(
                     "login:" + Manba(context),
                     _ => QatiyOyna(sozlama.Login))
-                : RateLimitPartition.GetNoLimiter<string>("chetlab-otildi"));
+                : RateLimitPartition.GetNoLimiter<string>("chetlab-otildi");
+        });
 
+    /// <summary>
+    /// Qolgan hamma so'rov: umumiy bo'linma — xodim kirishi va sessiya yo'llari bundan TASHQARI.
+    /// </summary>
+    /// <remarks>
+    /// Xodim kirishi o'z bo'linmasida allaqachon sanalgan (yuqorida), sessiya
+    /// yo'llari (yangilash, chiqish) esa anonim va umumiy bo'linmada IP bo'yicha
+    /// tushib, zavod manzilining 120 lik chegarasini to'ldirardi — ular o'z
+    /// keng «shift» ida sanaladi.
+    /// </remarks>
     private static PartitionedRateLimiter<HttpContext> UmumiyQoriqchi(RateLimitingOptions sozlama)
         => PartitionedRateLimiter.Create<HttpContext, string>(context =>
-            YolMoslashadimi(context.Request.Path, sozlama.ExcludedPaths)
-                ? RateLimitPartition.GetNoLimiter<string>("chetlab-otildi")
+        {
+            var yol = context.Request.Path;
+
+            if (YolMoslashadimi(yol, sozlama.ExcludedPaths) || YolMoslashadimi(yol, sozlama.EmployeeLoginPaths))
+            {
+                return RateLimitPartition.GetNoLimiter<string>("chetlab-otildi");
+            }
+
+            return YolMoslashadimi(yol, sozlama.EmployeeSessionPaths)
+                ? RateLimitPartition.GetFixedWindowLimiter(
+                    "employee-session:" + Manba(context),
+                    _ => QatiyOyna(sozlama.EmployeeSession))
                 : RateLimitPartition.GetSlidingWindowLimiter(
                     "api:" + Kim(context),
-                    _ => SiljiydiganOyna(sozlama.Api)));
+                    _ => SiljiydiganOyna(sozlama.Api));
+        });
 
     private static FixedWindowRateLimiterOptions QatiyOyna(RateLimitWindow oyna) => new()
     {
@@ -351,6 +559,18 @@ public static class RateLimitingExtensions
             httpContext.Request.Path.Value ?? "/",
             Manba(httpContext));
 
+        await httpContext.Response
+            .WriteAsJsonAsync(
+                RadEtishJavobi(httpContext, kutish),
+                options: null,
+                contentType: "application/problem+json",
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>429 javobining tanasi — global cheklov ham, token filtri ham BIR XIL shaklda.</summary>
+    private static ProblemDetails RadEtishJavobi(HttpContext httpContext, TimeSpan kutish)
+    {
         var problem = new ProblemDetails
         {
             Status = StatusCodes.Status429TooManyRequests,
@@ -362,9 +582,7 @@ public static class RateLimitingExtensions
         problem.Extensions["traceId"] = httpContext.TraceIdentifier;
         problem.Extensions["retryAfterSeconds"] = (int)kutish.TotalSeconds;
 
-        await httpContext.Response
-            .WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json", cancellationToken)
-            .ConfigureAwait(false);
+        return problem;
     }
 
     private static TimeSpan KutishVaqti(RateLimitLease lease)
@@ -372,6 +590,17 @@ public static class RateLimitingExtensions
             ? qiymat
             : TimeSpan.FromSeconds(60);
 }
+
+/// <summary>Tanasida yangilash tokeni bor so'rov — token bo'yicha cheklov shu orqali o'qiydi.</summary>
+public interface IRefreshTokenBody
+{
+    /// <summary>Mijoz yuborgan yangilash tokeni.</summary>
+    string? RefreshToken { get; }
+}
+
+/// <summary>Token xeshi bo'yicha bo'lingan cheklovchi — bitta nusxa (singleton).</summary>
+/// <param name="Limiter">Kalit — tokenning qisqartirilgan xeshi.</param>
+public sealed record RefreshTokenRateLimiter(PartitionedRateLimiter<string> Limiter);
 
 /// <summary>
 /// Tezlik cheklovi loglari.

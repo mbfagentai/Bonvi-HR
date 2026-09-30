@@ -64,6 +64,34 @@ public sealed record Error(string Code, string Message, ErrorType Type = ErrorTy
         };
     }
 
+    /// <summary>
+    /// Xato bilan birga ketadigan QIYMATLAR — masofa, aniqlik, obyekt nomi, lahza.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Matn emas, SONLAR va nomlar: interfeys ularni foydalanuvchi tilida
+    /// o'zi jumlaga qo'yadi («Eng yaqin obyekt: Ombor — 420 m»). Tayyor
+    /// o'zbekcha <see cref="Message"/> ichidagi son esa boshqa tilda o'qib
+    /// bo'lmaydigan bo'lib qolardi, uni matndan qirqib olish esa mo'rt.
+    /// </para>
+    /// <para>
+    /// HTTP javobida ProblemDetails'ning yuqori darajadagi maydonlari bo'lib
+    /// chiqadi (<c>"distanceMeters": 420</c>). Kalitlar camelCase — javobdagi
+    /// qolgan maydonlar bilan bir xil. Sukut bo'yicha bo'sh.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, object> Details { get; init; } =
+        System.Collections.ObjectModel.ReadOnlyDictionary<string, object>.Empty;
+
+    /// <summary>Xatoga qiymatlarni biriktiradi (<see cref="Details"/>).</summary>
+    /// <param name="details">Kalit — camelCase nom, qiymat — son, satr yoki lahza.</param>
+    public Error WithDetails(IReadOnlyDictionary<string, object> details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        return this with { Details = details };
+    }
+
     public static Error Validation(string code, string message) => new(code, message, ErrorType.Validation);
 
     public static Error NotFound(string code, string message) => new(code, message, ErrorType.NotFound);

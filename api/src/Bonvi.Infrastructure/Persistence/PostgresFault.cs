@@ -1,4 +1,5 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Domain.Attendance;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -26,18 +27,103 @@ internal sealed class PostgresFault : IDatabaseFault
     private const string NameIndexPrefix = "ux_";
     private const string NameIndexSuffix = "_name";
 
+    /// <summary>
+    /// O'tishlar takrorini to'suvchi indeks — <c>AttendancePassConfiguration</c> dagi nom.
+    /// </summary>
+    /// <remarks>
+    /// Nom o'zgarsa, takror 200 o'rniga 500 bo'lib qaytadi va qurilma uni
+    /// cheksiz qayta yuboradi — shu sababli ikkalasi bir vaqtda o'zgartiriladi.
+    /// </remarks>
+    private const string PassDedupeIndex = "ux_attendance_passes_device_dedupe";
+
+    /// <summary>
+    /// Kun yozuvining (xodim, sana) unikalligi — <c>AttendanceDayConfiguration</c> dagi nom.
+    /// </summary>
+    /// <remarks>
+    /// Nom o'zgarsa, parallel qayta hisoblashning birinchi yozuvi yana 500 bo'lib
+    /// qaytadi — shu sababli ikkalasi bir vaqtda o'zgartiriladi.
+    /// </remarks>
+    private const string DayUniqueIndex = "ux_attendance_days_employee_date";
+
+    /// <summary>
+    /// Xodimga bitta Bonvi raqami — <c>AttendanceIdentityConfiguration</c> dagi nom.
+    /// </summary>
+    /// <remarks>
+    /// Nom o'zgarsa, ikki agentning parallel so'rovi 409 o'rniga 500 bo'lib
+    /// qaytadi — shu sababli ikkalasi bir vaqtda o'zgartiriladi.
+    /// </remarks>
+    public const string ManagedNumberIndex = "ux_attendance_identities_managed_employee";
+
+    /// <summary>
+    /// Xodimga bitta ilova hisobi — <c>EmployeeAccountConfiguration</c> dagi nom.
+    /// </summary>
+    /// <remarks>
+    /// Nom o'zgarsa, avtomatik ochishdagi poyga 500 bo'lib qaytadi — shu
+    /// sababli ikkalasi bir vaqtda o'zgartiriladi.
+    /// </remarks>
+    private const string EmployeeAccountIndex = "ux_employee_accounts_employee";
+
     public bool IsDuplicateName(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        // Istisno EF ning `DbUpdateException` i ichida keladi, lekin
-        // to'g'ridan-to'g'ri ham berilishi mumkin — ikkalasi ham qaraladi.
+        var postgres = UniqueViolation(exception);
+
+        return postgres?.ConstraintName is { } name
+            && name.StartsWith(NameIndexPrefix, StringComparison.Ordinal)
+            && name.EndsWith(NameIndexSuffix, StringComparison.Ordinal);
+    }
+
+    public bool IsDuplicatePass(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return string.Equals(UniqueViolation(exception)?.ConstraintName, PassDedupeIndex, StringComparison.Ordinal);
+    }
+
+    public bool IsDuplicateDevicePersonNo(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return string.Equals(UniqueViolation(exception)?.ConstraintName, ManagedNumberIndex, StringComparison.Ordinal);
+    }
+
+    public bool IsConcurrentDayWrite(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        if (string.Equals(UniqueViolation(exception)?.ConstraintName, DayUniqueIndex, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // Kun jadvalida parallellik belgisi (concurrency token) YO'Q: EF bu
+        // istisnoni faqat UPDATE/DELETE kutilgan bitta qator o'rniga nolga
+        // tekkanda tashlaydi — ya'ni qatorni boshqa yozuvchi o'chirib ulgurgan.
+        // Faqat kun yozuvlari bo'lsa: boshqa jadvaldagi bunday holat bu
+        // yerda «qayta o'qib yoz» bilan yashirilmasligi kerak.
+        return exception is DbUpdateConcurrencyException concurrency
+            && concurrency.Entries.Count > 0
+            && concurrency.Entries.All(entry => entry.Entity is AttendanceDay);
+    }
+
+    public bool IsDuplicateEmployeeAccount(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return string.Equals(UniqueViolation(exception)?.ConstraintName, EmployeeAccountIndex, StringComparison.Ordinal);
+    }
+
+    /// <summary>Unikallik buzilishi bo'lsa — drayver istisnosi, aks holda <c>null</c>.</summary>
+    /// <remarks>
+    /// Istisno EF ning <c>DbUpdateException</c> i ichida keladi, lekin
+    /// to'g'ridan-to'g'ri ham berilishi mumkin — ikkalasi ham qaraladi.
+    /// </remarks>
+    private static PostgresException? UniqueViolation(Exception exception)
+    {
         var postgres = exception as PostgresException
             ?? (exception as DbUpdateException)?.InnerException as PostgresException;
 
-        return postgres is { SqlState: PostgresErrorCodes.UniqueViolation }
-            && postgres.ConstraintName is { } name
-            && name.StartsWith(NameIndexPrefix, StringComparison.Ordinal)
-            && name.EndsWith(NameIndexSuffix, StringComparison.Ordinal);
+        return postgres is { SqlState: PostgresErrorCodes.UniqueViolation } ? postgres : null;
     }
 }

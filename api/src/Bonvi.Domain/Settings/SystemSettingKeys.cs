@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Recruiting;
@@ -129,6 +130,22 @@ public enum SystemSettingKind
 /// so'rov osilib qolmasin.
 /// </para>
 /// </param>
+/// <param name="AllowZero">
+/// <c>0</c> chegaradan TASHQARIDA turgani holda ham qabul qilinsinmi.
+/// <para>
+/// Faqat <see cref="SystemSettingKind.Number"/> uchun va faqat nol
+/// ALOHIDA MA'NO anglatganda yoqiladi («hech qachon», «o'chirilgan») —
+/// ya'ni u chegaraning bir uchi emas, boshqa javob. Birinchi egasi
+/// <see cref="SystemSettingKeys.PassRetentionDays"/>: u yerda 0 —
+/// «o'tishlar umuman o'chirilmasin».
+/// </para>
+/// <para>
+/// Nega shunchaki <c>Min = 0</c> emas: o'shanda 0 bilan haqiqiy quyi
+/// chegara orasidagi sonlar ham o'tib ketardi va ular ma'noli qiymat
+/// emas, TERISH XATOSI. «365» o'rniga «5» yozilgani bir yillik dalilni
+/// bir kechada o'chirib yuborardi.
+/// </para>
+/// </param>
 public sealed record SystemSettingDefinition(
     string Key,
     SystemSettingKind Kind,
@@ -136,7 +153,8 @@ public sealed record SystemSettingDefinition(
     int? Min = null,
     int? Max = null,
     int? MaxLength = null,
-    string? Pattern = null)
+    string? Pattern = null,
+    bool AllowZero = false)
 {
     /// <summary>Naqsh tekshiruvining eng uzun muddati.</summary>
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(100);
@@ -241,6 +259,17 @@ public sealed record SystemSettingDefinition(
         if (!int.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
         {
             return SystemSettingErrors.NotANumber;
+        }
+
+        /*
+          NOL chegaradan tashqarida, lekin `AllowZero` yoqilgan sozlamada
+          u HAQIQIY qiymat: «hech qachon» degan javob (izohi
+          `AllowZero` da). Oraliqdagi qolgan sonlar esa o'zgarishsiz
+          rad etiladi — aynan shu farq bu yerda bir shart bo'lib turadi.
+        */
+        if (AllowZero && number == 0)
+        {
+            return Result.Success("0");
         }
 
         var min = Min ?? int.MinValue;
@@ -482,6 +511,131 @@ public static class SystemSettingKeys
 
     /// <summary>O'qilgan bildirishnoma ro'yxatda necha kun qoladi.</summary>
     public const string ReadRetentionDays = "notifications.readRetentionDays";
+
+    // ────────────────────────────────────────────────────────────
+    //  DAVOMAT — verifikatsiya moduli
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Turniket surati va xom hodisa yozuvi necha kun saqlanadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Bu sozlama KO'RSATISHNI emas, FAYL O'CHIRISHNI boshqaradi.
+    /// Muddati o'tgan suratni tungi tozalash ishi diskdan o'chiradi va uni
+    /// QAYTARIB BO'LMAYDI: o'tish qatorining o'zi joyida qoladi, faqat
+    /// surat bilan xom hodisa yo'qoladi. Ya'ni qiymatni pasaytirish
+    /// «ro'yxatni qisqartirish» emas — allaqachon yig'ilgan rasmlarni
+    /// keyingi tungi yurishda o'chirib yuborish degani.
+    /// </para>
+    /// <para>
+    /// <b>Nega aynan SHU chegara sozlanadi</b>, davomatning qolgan
+    /// chegaralari esa domen konstantasi bo'lib qoladi
+    /// (<see cref="AttendanceRules"/>): saqlash muddati texnik qoida emas, DISK
+    /// bilan kelishuv. 540 xodim kuniga 10 martagacha o'tadi va bu 60
+    /// kunda ~13 GB surat degani; joyni nazorat qiladigan odam buni
+    /// dasturchisiz o'zgartira olishi kerak.
+    /// </para>
+    /// <para>
+    /// Eng past chegara 7 kun ATAYLAB noldan katta. <c>0</c> deb yozib
+    /// yuborish bugungi rasmlarni ham o'chirardi, holbuki surat aynan
+    /// yangi kunlarda kerak bo'ladi: «bu men emasman» degan bahs o'sha
+    /// hafta ichida chiqadi, bir yildan keyin emas.
+    /// </para>
+    /// </remarks>
+    public const string PhotoRetentionDays = "attendance.photoRetentionDays";
+
+    /// <summary>
+    /// Xom o'tish yozuvi (<c>attendance_passes</c>) necha kun saqlanadi.
+    /// <c>0</c> — hech qachon o'chirilmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Bu sozlama ham KO'RSATISHNI emas, QATOR O'CHIRISHNI boshqaradi:
+    /// muddati o'tgan o'tishlarni tungi ish bazadan olib tashlaydi va uni
+    /// QAYTARIB BO'LMAYDI. Qiymatni pasaytirish keyingi tungi yurishda
+    /// allaqachon yig'ilgan yozuvlarni o'chiradi.
+    /// </para>
+    /// <para>
+    /// <b>Hisobot tarixi bundan ZARAR KO'RMAYDI.</b> O'chadigan narsa —
+    /// xom dalil: turniket yozuvi va uning surati. Hisoblangan kunlar
+    /// (<c>attendance_days</c> — tabel, ishlangan soat, kechikish) SHU
+    /// sozlama bilan hech qachon o'chirilmaydi, ya'ni o'tgan yillarning
+    /// tabeli ham, hisoboti ham joyida qoladi. Yo'qoladigani faqat
+    /// «o'sha kuni soat 08:03 da aynan shu odam o'tgan» degan dalil.
+    /// </para>
+    /// <para>
+    /// Sukut qiymat — 365 kun (egasining qarori, bir yil). Surat esa
+    /// odatda ANCHA erta ketadi (<see cref="PhotoRetentionDays"/>):
+    /// avval rasm, keyin yozuvning o'zi.
+    /// </para>
+    /// <para>
+    /// <b><c>0</c> — «hech qachon o'chirilmasin»</b> va u ATAYLAB
+    /// chegaradan tashqarida turadi (<see cref="SystemSettingDefinition.AllowZero"/>).
+    /// Shu sababli quyi chegara oddiygina «30 dan kam bo'lmasin» emas:
+    /// 0 — aniq aytilgan qaror, 1…29 esa terish xatosi va rad etiladi.
+    /// Yuqori chegara 3650 kun — o'n yil, ya'ni «amalda cheksiz»ning
+    /// sanab ko'rsatilgan ko'rinishi.
+    /// </para>
+    /// </remarks>
+    public const string PassRetentionDays = "attendance.passRetentionDays";
+
+    /// <summary>
+    /// Shu sana va undan OLDINGI kunlar qayta hisoblanmaydi — ularning xom
+    /// o'tishlari saqlash muddati bilan o'chirilgan bo'lishi mumkin. Serverning
+    /// O'ZI yozadi (<see cref="SystemSettingKind.Hidden"/>), <c>yyyy-MM-dd</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Nega bor.</b> O'tish o'chirilgach uning kuni qayta hisoblansa, kun
+    /// OMON QOLGAN o'tishlardan quriladi va bir yillik tabel jimgina nolga
+    /// aylanadi (SPEC §9.2.1). Bunga olib boradigan yo'l bitta emas: qo'lda
+    /// «qayta hisoblash», muddat chegarasidagi o'tishning qo'shni kuni (±1),
+    /// eski o'tishlari kechikib bog'langan moslik. Shu sababli to'siq har bir
+    /// yo'lda emas, YAGONA yozuvchida — <c>AttendanceDayRecomputer</c> shu
+    /// sanagacha bo'lgan kunlarga tegmaydi.
+    /// </para>
+    /// <para>
+    /// <b>Nega sozlamadan hisoblanmaydi, alohida saqlanadi.</b> Tozalash
+    /// ishlagandan keyin muddat UZAYTIRILSA (365 → 730), sozlamadan hisoblangan
+    /// chegara orqaga siljib, allaqachon o'chirilgan kunlarni yana «qayta
+    /// hisoblasa bo'ladi» deb ko'rsatardi. Bu qiymat faqat oshadi va uni
+    /// tozalash vazifasi birinchi qatorni o'chirishdan OLDIN yozadi.
+    /// </para>
+    /// <para>
+    /// Bazada — ma'lumot bilan birga: zaxiradan tiklangan baza o'z o'tishlari
+    /// bilan mos chegarani olib keladi. Bo'sh — hali hech narsa o'chirilmagan.
+    /// </para>
+    /// </remarks>
+    public const string AttendanceFrozenThrough = "attendance.frozenThrough";
+
+    /// <summary><see cref="AttendanceFrozenThrough"/> qiymatining shakli.</summary>
+    public const string FrozenThroughFormat = "yyyy-MM-dd";
+
+    /// <summary>
+    /// Mehnat munosabatlaridagi o'zgarishlar davomatga shu lahzagacha yetkazilgan.
+    /// Serverning O'ZI yozadi (<see cref="SystemSettingKind.Hidden"/>), ISO 8601 UTC
+    /// (<see cref="EmploymentChangesCheckedAtFormat"/>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega bor.</b> Orqaga sana bilan kiritilgan ishdan bo'shatish, ishga qabul
+    /// yoki ko'chirish o'tishlarga tegmaydi va iflos navbat ularni ko'rmaydi; tungi
+    /// hisoblash esa faqat oxirgi uch kunni qamraydi. 15-sentabrda 10-sentabr sanasi
+    /// bilan bo'shatilgan odamning 11–13-sentabri shu sababli «Kelmadi» bo'lib
+    /// qolardi. <c>AttendanceEmploymentChangesJob</c> shu qiymatdan beri o'zgargan
+    /// munosabatlarni topib, o'sha xodimning kunlarini qayta hisoblaydi va oxirida
+    /// qiymatni yurish BOSHLANGAN lahzaga suradi.
+    /// </para>
+    /// <para>
+    /// Bo'sh — vazifa hali bir marta ham yurmagan (birinchi yurish oxirgi chorakni
+    /// ko'rib chiqadi).
+    /// </para>
+    /// </remarks>
+    public const string AttendanceEmploymentChangesCheckedAt = "attendance.employmentChangesCheckedAt";
+
+    /// <summary><see cref="AttendanceEmploymentChangesCheckedAt"/> qiymatining shakli — aylanma ISO 8601.</summary>
+    public const string EmploymentChangesCheckedAtFormat = "O";
 
     // ────────────────────────────────────────────────────────────
     //  REKRUTING — nomzod bilan bog'liq qoidalar
@@ -765,6 +919,56 @@ public static class SystemSettingKeys
             Min: 1,
             Max: MaxDays),
 
+        // Davomat surati — bildirishnomalardan KEYIN, rekrutingdan oldin.
+        // Bu ro'yxatning tartibi ekranga chiqadi (sinf izohi) va sozlama
+        // bildirishnoma chegaralarining qo'shnisi EMAS: u qo'ng'iroqchani
+        // emas, diskdagi FAYLNI boshqaradi — ya'ni o'z guruhi.
+        //
+        // ⚠️ Ekranda ko'rinishi uchun uni `system-settings-page.tsx` dagi
+        // `GROUPS` ga ham qo'shish kerak: u yerda kaliti yo'q sozlama
+        // JIMGINA chizilmaydi.
+        new(
+            PhotoRetentionDays,
+            SystemSettingKind.Number,
+
+            // Sukut qiymat DOMENDAN olinadi — bildirishnoma
+            // sozlamalari `NotificationRules` dan olgani kabi va aynan
+            // shu sabab bilan (sinf izohi): 60 sonini bu yerda qayta
+            // yozish ikkita «60» hosil qilardi va ular bir kun ajralib
+            // ketardi. Sozlama qatori hali yozilmagan tizimda tozalash
+            // ishi o'sha konstantaga tushadi.
+            Number(AttendanceRules.DefaultPhotoRetentionDays),
+
+            // 7 kun — eng past ma'noli qiymat (sabab kalit izohida).
+            Min: 7,
+
+            // 365 kun — bir yil. Chegara `MaxDays` (90) ga TAYANMAYDI:
+            // u bildirishnoma ro'yxati uchun o'ylangan, bu esa arxiv
+            // muddati va «o'tgan yilgi nizo» uchun bir yil real talab.
+            Max: 365),
+
+        // Xom o'tish yozuvining muddati — suratnikidan KEYIN: ekranda
+        // ikkalasi yonma-yon turishi kerak, chunki ular bitta qarorning
+        // ikki qadami (avval rasm ketadi, keyin qatorning o'zi).
+        new(
+            PassRetentionDays,
+            SystemSettingKind.Number,
+
+            // 365 kun — egasining qarori: bir yil.
+            Number(AttendanceRules.DefaultPassRetentionDays),
+
+            // 30 kun — eng qisqa ma'noli muddat: oylik tabel yopilgunicha
+            // xom dalil turishi kerak, aks holda «bu raqam qayerdan
+            // chiqdi?» degan savolga javob qolmaydi. NOL esa bu
+            // chegaradan tashqarida va u ham to'g'ri qiymat — «hech
+            // qachon o'chirilmasin» (sabab kalit izohida).
+            Min: 30,
+
+            // 3650 kun — o'n yil. Undan uzoq muddat «cheksiz» bilan
+            // amalda bir xil, cheksizning o'z qiymati esa allaqachon bor.
+            Max: 3650,
+            AllowZero: true),
+
         new(
             ReapplyMonths,
             SystemSettingKind.Number,
@@ -780,6 +984,10 @@ public static class SystemSettingKeys
         // guruhlarining orasiga tushib qolsa, keyingi sozlama
         // qo'shayotgan odam guruhlash buzilgan deb o'ylardi.
         new(GeneralPoolVacancyId, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxIdLength),
+        new(AttendanceFrozenThrough, SystemSettingKind.Hidden, string.Empty, MaxLength: FrozenThroughFormat.Length),
+
+        // «2026-09-27T10:15:00.0000000+00:00» — 33 belgi.
+        new(AttendanceEmploymentChangesCheckedAt, SystemSettingKind.Hidden, string.Empty, MaxLength: 40),
     ];
 
     /// <summary>

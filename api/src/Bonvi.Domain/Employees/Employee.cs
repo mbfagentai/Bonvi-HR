@@ -112,6 +112,34 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Nima tekshirilishi kerakligi (ETL hisobotidan).</summary>
     public string? ReviewNote { get; private set; }
 
+    /// <summary>
+    /// Bu odam davomatni TELEFONDAN belgilay oladimi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sukut — <c>false</c>, va HR uni xodim kartasida bittalab yoqadi.
+    /// Rad etilgan muqobil — hammaga ochib, faqat geo-to'siqqa tayanish:
+    /// brauzerning joylashuvini soxtalashtirish Android'da root talab
+    /// qilmaydi, ya'ni umumiy o'chirgich yuz terminalini jimgina
+    /// IXTIYORIY qurilmaga aylantirardi.
+    /// </para>
+    /// <para>
+    /// <b>Nega XODIMDA, hisobda emas.</b> Bu bayroq «bu odamning ishi
+    /// terminaldan uzoqda o'tadimi» degan savolga javob beradi — ya'ni
+    /// ishning xossasi, loginniki emas. Hisobda tursa, hisob qayta
+    /// berilganda HR ning qarori jimgina nolga qaytardi va buni haydovchi
+    /// bir hafta belgilay olmagandan keyin sezardik. Ustiga, hisobi hali
+    /// yo'q odamga ham ruxsat berib qo'yish mumkin bo'lishi kerak.
+    /// </para>
+    /// <para>
+    /// <b>Nega <c>bool</c>, <c>bool?</c> emas.</b> Savol ikki holatli.
+    /// Nullable ustun uchinchi holat yaratardi va har bir o'qish joyida
+    /// <c>?? false</c> bo'lib tarjima qilinardi — ya'ni ma'lumotda hech
+    /// qanday ma'no bermaydigan yolg'on.
+    /// </para>
+    /// </remarks>
+    public bool MobileCheckInAllowed { get; private set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -249,6 +277,10 @@ public sealed class Employee : AggregateRoot, IAuditable, ISoftDeletable
     public void SetCriminalRecordNote(string? note) => CriminalRecordNote = Trim(note);
 
     public void SetHasCriminalRecord(bool? value) => HasCriminalRecord = value;
+
+    /// <summary>Telefondan belgilash ruxsatini yoqadi yoki o'chiradi.</summary>
+    /// <param name="allowed">Ruxsat berilsinmi.</param>
+    public void SetMobileCheckInAllowed(bool allowed) => MobileCheckInAllowed = allowed;
 
     /// <summary>
     /// mehnat.uz profiliga havolani o'rnatadi.

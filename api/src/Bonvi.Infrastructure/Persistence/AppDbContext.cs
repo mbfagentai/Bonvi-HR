@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
@@ -15,6 +16,7 @@ using Bonvi.Domain.Safety;
 using Bonvi.Domain.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Bonvi.Infrastructure.Repositories;
 
 namespace Bonvi.Infrastructure.Persistence;
 
@@ -98,6 +100,60 @@ public class AppDbContext : DbContext, IUnitOfWork
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>Ijro strategiyasi ORQALI</b> — boshqacha bo'lishi mumkin emas:
+    /// ulanish <c>EnableRetryOnFailure</c> bilan sozlangan va bu strategiya
+    /// qo'lda ochilgan tranzaksiyani to'g'ridan-to'g'ri RAD ETADI
+    /// (<c>InvalidOperationException</c>). Strategiya esa butun ishni bitta
+    /// takrorlanadigan birlik sifatida oladi.
+    /// </para>
+    /// <para>
+    /// Takrorda kuzatuv TOZALANADI: birinchi urinishda qo'shilgan (hali
+    /// bazaga yetmagan) qatorlar ikkinchisida yana qo'shilib, ikki nusxa
+    /// bo'lib ketmasligi uchun. Ish esa kerakli hamma narsani o'zi qayta
+    /// o'qiydi (interfeys izohi).
+    /// </para>
+    /// <para>
+    /// <c>SaveChangesAsync</c> ochiq tranzaksiya ichida o'zinikini ochmaydi va
+    /// har saqlashdan oldin savepoint qo'yadi — ya'ni ish ichida tutilgan
+    /// saqlash xatosi (masalan unikal indeks) tranzaksiyani «buzilgan» holda
+    /// qoldirmaydi va ish davom eta oladi.
+    /// </para>
+    /// </remarks>
+    public Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> work,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+
+        if (Database.CurrentTransaction is not null)
+        {
+            return work(cancellationToken);
+        }
+
+        var attempt = 0;
+
+        return Database.CreateExecutionStrategy().ExecuteAsync(
+            async token =>
+            {
+                if (attempt++ > 0)
+                {
+                    ChangeTracker.Clear();
+                }
+
+                await using var transaction = await Database.BeginTransactionAsync(token).ConfigureAwait(false);
+
+                var result = await work(token).ConfigureAwait(false);
+
+                await transaction.CommitAsync(token).ConfigureAwait(false);
+
+                return result;
+            },
+            cancellationToken);
+    }
+
     /// <summary>Tizim foydalanuvchilari (<c>users</c>).</summary>
     public DbSet<User> Users => Set<User>();
 
@@ -137,6 +193,9 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Rag'bat turlari (<c>award_types</c>).</summary>
     public DbSet<AwardType> AwardTypes => Set<AwardType>();
+
+    /// <summary>Yo'qlik turlari — davomat so'rovlari shu ro'yxatdan tanlanadi.</summary>
+    public DbSet<AbsenceType> AbsenceTypes => Set<AbsenceType>();
 
     /// <summary>Jarima turlari (<c>penalty_types</c>).</summary>
     public DbSet<PenaltyType> PenaltyTypes => Set<PenaltyType>();
@@ -225,6 +284,90 @@ public class AppDbContext : DbContext, IUnitOfWork
     public DbSet<CandidateQuestionnaire> CandidateQuestionnaires => Set<CandidateQuestionnaire>();
 
     // ────────────────────────────────────────────────────────────
+    //  DAVOMAT / VERIFIKATSIYA (3-bosqich)
+    //  Turniket va yuz terminallari to'g'ridan-to'g'ri bizga yozadi.
+    //  Ikkita ajratish butun modulning asosi:
+    //    • XOM O'TISH (`attendance_passes`) — qurilma nima aytgani,
+    //      o'zgarmaydi;
+    //    • HISOBLANGAN KUN (`attendance_days`) — biz undan nima xulosa
+    //      qilganimiz, jadval yoki moslik tuzatilsa qayta yoziladi.
+    //  Qo'lda tahrir YO'Q: noto'g'ri son manbada tuzatiladi
+    //  (moslik, jadval, qurilma soati), keyin kun qayta hisoblanadi.
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Terminallar reyestri (<c>attendance_devices</c>).</summary>
+    public DbSet<AttendanceDevice> AttendanceDevices => Set<AttendanceDevice>();
+
+    /// <summary>Qurilma raqami ↔ xodim mosliklari (<c>attendance_identities</c>).</summary>
+    /// <remarks>
+    /// <c>Employment</c> dagi bitta «Verifix ID» ustunining O'RNIGA turadi
+    /// va u ataylab qurilmadi — sababi <see cref="AttendanceIdentity"/>
+    /// izohida.
+    /// </remarks>
+    public DbSet<AttendanceIdentity> AttendanceIdentities => Set<AttendanceIdentity>();
+
+    /// <summary>Xom o'tishlar (<c>attendance_passes</c>).</summary>
+    public DbSet<AttendancePass> AttendancePasses => Set<AttendancePass>();
+
+    /// <summary>Ish jadvallari (<c>work_schedules</c>).</summary>
+    public DbSet<WorkSchedule> WorkSchedules => Set<WorkSchedule>();
+
+    /// <summary>Jadval kunlari (<c>work_schedule_days</c>).</summary>
+    /// <remarks>
+    /// Yozish DOIM jadval agregati orqali ketadi (yettala kun uning
+    /// invarianti). Bu to'plam o'qish modeli uchun kerak: tabel bir oyga
+    /// yettita kunni bir marta o'qiydi, jadvallarni bolalari bilan
+    /// yuklamasdan — <see cref="CandidateFiles"/> bilan bir xil qaror.
+    /// </remarks>
+    public DbSet<WorkScheduleDay> WorkScheduleDays => Set<WorkScheduleDay>();
+
+    /// <summary>Jadvalning aniq sanaga yozilgan kunlari — yillik to'r.</summary>
+    public DbSet<WorkScheduleDate> WorkScheduleDates => Set<WorkScheduleDate>();
+
+    /// <summary>Xodimning qurilmadagi holati (agent yozgani).</summary>
+    public DbSet<DeviceEnrollment> DeviceEnrollments => Set<DeviceEnrollment>();
+
+    /// <summary>Jadval biriktirmalari (<c>schedule_assignments</c>).</summary>
+    public DbSet<ScheduleAssignment> ScheduleAssignments => Set<ScheduleAssignment>();
+
+    /// <summary>Hisoblangan kunlar — tabelning kataklari (<c>attendance_days</c>).</summary>
+    public DbSet<AttendanceDay> AttendanceDays => Set<AttendanceDay>();
+
+    /// <summary>Yo'qlik so'rovlari (SPEC-so'rovlar §B2).</summary>
+    public DbSet<AbsenceRequest> AbsenceRequests => Set<AbsenceRequest>();
+
+    // ────────────────────────────────────────────────────────────
+    //  XODIM ILOVASI (PWA) — telefondan belgilash
+    //  Uchta yangi jadval va bitta mavjud ustun. Ajratish davomat
+    //  modulinikidek: OBYEKT — qayerda qabul qilinadi degan
+    //  ma'lumotnoma, KOORDINATA esa qabul qilingan belgining dalili.
+    //  Belgining o'zi oddiy `attendance_passes` qatori bo'lib yoziladi,
+    //  ya'ni tabel, taxta va hisobotlarga yangi qoida qo'shilmaydi.
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Obyektlar — geo-to'siq ma'lumotnomasi (<c>work_sites</c>).</summary>
+    public DbSet<WorkSite> WorkSites => Set<WorkSite>();
+
+    /// <summary>Telefondan kelgan belgilarning koordinatalari (<c>mobile_check_ins</c>).</summary>
+    /// <remarks>
+    /// Agregat ildizi EMAS: qatorga faqat o'z o'tishi orqali murojaat
+    /// qilinadi. Bu to'plam yozish porti va jurnal o'qishi uchun
+    /// (<c>WorkScheduleDays</c> bilan bir xil qaror).
+    /// </remarks>
+    public DbSet<MobileCheckIn> MobileCheckIns => Set<MobileCheckIn>();
+
+    /// <summary>Xodimlarning ilova hisoblari (<c>employee_accounts</c>).</summary>
+    /// <remarks>
+    /// ⚠️ <see cref="Users"/> dan ATAYLAB alohida: bu hisoblarda rol ham,
+    /// ruxsat ham yo'q va bo'lmasligi ham kerak (sababi
+    /// <see cref="EmployeeAccount"/> izohida).
+    /// </remarks>
+    public DbSet<EmployeeAccount> EmployeeAccounts => Set<EmployeeAccount>();
+
+    /// <summary>Ilova hisoblarining yangilash tokenlari (<c>employee_refresh_tokens</c>).</summary>
+    public DbSet<EmployeeRefreshToken> EmployeeRefreshTokens => Set<EmployeeRefreshToken>();
+
+    // ────────────────────────────────────────────────────────────
     //  BILDIRISHNOMALAR
     //  ⚠️ Bildirishnomalarning O'ZI bu yerda YO'Q va bo'lmaydi ham:
     //  ular saqlanmaydi, so'rov kelganda joriy ma'lumotdan HISOBLANADI
@@ -267,7 +410,20 @@ public class AppDbContext : DbContext, IUnitOfWork
         // Har bir entity uchun konfiguratsiya fayllarini avtomatik topadi
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
+
         ApplySoftDeleteFilters(modelBuilder);
+
+        /*
+          Qurilmaga yoziladigan shaxs raqamlari (SPEC-agent §D1). Ketma-ketlik
+          entity'ga bog'lanmagan: raqam moslik yozuvida yashaydi va uni
+          «eng kattasi + 1» bilan hisoblash ikki agent bir vaqtda ro'yxat
+          so'raganda bir xil raqam berardi.
+        */
+        modelBuilder
+            .HasSequence<long>(DevicePersonNumbers.SequenceName)
+            .StartsAt(1)
+            .IncrementsBy(1)
+            .HasMax(99_999_999);
 
         base.OnModelCreating(modelBuilder);
     }

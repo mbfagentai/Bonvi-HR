@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    /* ⚠️ ES2017 — bu qat'iylik emas, POL (UX §F.3). `lib` ham shu yerda
+       to'xtatilgan: shunda `Object.hasOwn`, `Array.prototype.at`,
+       `structuredClone` kabi eski telefonda yo'q API'lar kompilyatsiya
+       xatosi bo'ladi, mijozning telefonidagi oq ekran emas. */
+    "target": "ES2017",
+    "lib": ["ES2017", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+
+    "types": ["vite/client", "vite-plugin-pwa/react"],
+
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

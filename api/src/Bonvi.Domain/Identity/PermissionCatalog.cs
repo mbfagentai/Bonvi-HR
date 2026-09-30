@@ -58,6 +58,15 @@ public static class PermissionCatalog
         Module("feedback", view: [Permissions.FeedbackView], edit: [Permissions.FeedbackManage]),
         Module("safety", view: [Permissions.SafetyView], edit: [Permissions.SafetyManage]),
         Module("recruiting", view: [Permissions.RecruitingView], edit: [Permissions.RecruitingManage]),
+
+        // Davomat (verifikatsiya) — SPEC-rollar-va-audit §14.2: «o'zgartirish» —
+        // yo'qlik so'rovlari bo'yicha qaror; «to'liq» — qurilma, jadval va moslik
+        // (tabelning MA'NOSINI o'zgartiradigan sozlash).
+        Module(
+            "attendance",
+            view: [Permissions.AttendanceView],
+            edit: [Permissions.AttendanceRequestsManage],
+            full: [Permissions.AttendanceManage]),
         Module("catalog", view: [Permissions.CatalogView], edit: [Permissions.CatalogManage]),
 
         // Hisobotda «o'zgartirish» yo'q: ko'rish yoki ko'rish + Excel eksporti.

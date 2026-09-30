@@ -1,6 +1,7 @@
 import {
   Award,
   Building2,
+  CalendarCheck,
   Compass,
   FileText,
   Gavel,
@@ -65,6 +66,12 @@ export const CATALOG_META: Readonly<Record<SimpleCatalogKind, CatalogKindMeta>> 
     i18nKey: 'documentTypes',
     icon: FileText,
     tone: 'orange',
+  },
+  'absence-types': {
+    kind: 'absence-types',
+    i18nKey: 'absenceTypes',
+    icon: CalendarCheck,
+    tone: 'blue',
   },
 }
 

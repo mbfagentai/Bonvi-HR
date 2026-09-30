@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useDashboardStats } from '@/features/dashboard/api/dashboard-queries'
+import {
+  useFormerEmployeeAlerts,
+  usePendingRequestCount,
+  useUnmatchedCount,
+} from '@/features/verification/api/attendance-queries'
+import {
+  ATTENDANCE_MANAGE,
+  ATTENDANCE_VIEW,
+} from '@/features/verification/lib/attendance-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Badge, BonviMark } from '@/shared/ui'
@@ -54,6 +63,44 @@ export function Sidebar({
   if (stats.data && stats.data.onProbation > 0) {
     counts['probation'] = stats.data.onProbation
   }
+
+  /*
+   * Davomat sanoqlari (SPEC §8.7) — sinovdagilar belgisi bilan BIR XIL
+   * mexanizm: xaritaga faqat `0` dan katta qiymat tushadi.
+   *
+   * ⚠️ Har bir so'rov FAQAT o'z ruxsati bor foydalanuvchida yoqiladi
+   * (`enabled`). Yon menyu har bir ekranda turadi va ogohlantirish har
+   * 30 soniyada qayta so'raladi — ruxsatsiz foydalanuvchida bu har 30
+   * soniyada 403 degani bo'lardi (xatolar jurnali shovqinga to'lib,
+   * haqiqiy muammo ko'rinmay qolardi). Ruxsat bo'lmasa hook `[]` / `0`
+   * qaytaradi va belgi chizilmaydi.
+   *
+   * «Statistika» — ODAMLAR soni (`.length`), o'tishlar emas: bitta odam
+   * kuniga o'n marta o'tsa ham HR bitta odamni qurilmadan o'chiradi.
+   * Ogohlantirish ro'yxati statistika sahifasidagi qizil blok bilan BITTA kesh yozuvini
+   * bo'lishadi, ya'ni «menyuda 2, taxtada 1» degan holat bo'lmaydi.
+   *
+   * «Moslashtirish» — hali xodimga bog'lanmagan shaxs raqamlari soni
+   * (`GET /identities/unmatched` ning `total` i). Bu `attendance.manage`
+   * ruxsati: faqat ko'radigan foydalanuvchi bandning o'zini ham ko'rmaydi.
+   */
+  const formerEmployeeAlerts = useFormerEmployeeAlerts(hasPermission(ATTENDANCE_VIEW))
+  const unmatchedCount = useUnmatchedCount(hasPermission(ATTENDANCE_MANAGE))
+  const pendingRequests = usePendingRequestCount(hasPermission(ATTENDANCE_VIEW))
+
+  if (formerEmployeeAlerts.length > 0) {
+    counts['attendanceBoard'] = formerEmployeeAlerts.length
+  }
+  if (unmatchedCount > 0) {
+    counts['attendanceMapping'] = unmatchedCount
+  }
+  if (pendingRequests > 0) {
+    counts['attendanceRequests'] = pendingRequests
+  }
+
+  /** Band + uning jonli sanog'i (bo'lsa). Statik `NAV` massivi o'zgartirilmaydi. */
+  const withCount = (item: NavItem): NavItem =>
+    counts[item.key] ? { ...item, count: counts[item.key] } : item
 
   /**
    * Ochiq guruhlar.
@@ -131,9 +178,7 @@ export function Sidebar({
            * HR menejeri uchun bo'sh sarlavhali («Tizim») guruh osilib
            * qolardi, garchi ichida bironta ham band ko'rinmasa ham.
            */
-          const items = section.items.filter(
-            (item) => item.permission === undefined || hasPermission(item.permission),
-          )
+          const items = section.items.flatMap((item) => visibleItem(item, hasPermission))
 
           if (items.length === 0) return null
 
@@ -154,6 +199,7 @@ export function Sidebar({
                     <li key={item.key}>
                       <GroupRow
                         item={item}
+                        signal={groupSignal(item.children.map(withCount))}
                         collapsed={collapsed}
                         open={openGroups.has(item.key)}
                         onToggle={() => {
@@ -170,7 +216,7 @@ export function Sidebar({
                           {item.children.map((child) => (
                             <li key={child.key}>
                               <LinkRow
-                                item={child}
+                                item={withCount(child)}
                                 collapsed={false}
                                 active={isActive(child, pathname, search)}
                                 nested
@@ -183,7 +229,7 @@ export function Sidebar({
                   ) : (
                     <li key={item.key}>
                       <LinkRow
-                        item={counts[item.key] ? { ...item, count: counts[item.key] } : item}
+                        item={withCount(item)}
                         collapsed={collapsed}
                         active={isActive(item, pathname, search)}
                       />
@@ -282,6 +328,7 @@ function LinkRow({
   const { t, num } = useLocale()
   // `undefined` yoki `0` — belgisiz, oddiy qator (`0` ma'lumot emas, shovqin).
   const count = item.count !== undefined && item.count > 0 ? item.count : null
+  const countTone = item.countTone ?? 'warning'
   const label = t(`nav.${item.key}`)
 
   /*
@@ -374,18 +421,13 @@ function LinkRow({
           Halqa (`ring`) — orqa fondan ajratish uchun, xuddi shu rangda
           bo'lgan ikonaga qo'shilib ketmasin.
         */}
-        {collapsed && count !== null && (
-          <span
-            aria-hidden
-            className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-ios-orange ring-2 ring-[var(--bg-elevated)]"
-          />
-        )}
+        {collapsed && count !== null && <CountDot tone={countTone} />}
       </span>
 
       {!collapsed && <span className="truncate-1 flex-1">{label}</span>}
 
       {!collapsed && count !== null && (
-        <Badge tone="warning" size="sm">
+        <Badge tone={countTone} size="sm">
           {num(count)}
         </Badge>
       )}
@@ -402,17 +444,33 @@ function LinkRow({
  */
 function GroupRow({
   item,
+  signal,
   collapsed,
   open,
   onToggle,
 }: {
   item: NavItem
+  /** Ichki bandlardagi eng jiddiy sanoq (`groupSignal`). */
+  signal: GroupSignal | null
   collapsed: boolean
   open: boolean
   onToggle: () => void
 }) {
-  const { t } = useLocale()
+  const { t, num } = useLocale()
   const label = t(`nav.${item.key}`)
+
+  /*
+   * Guruh YOPIQ (yoki menyu yig'ilgan) bo'lsa, ichidagi sanoq sarlavhaga
+   * ko'tariladi.
+   *
+   * NEGA: guruhlar sukut bo'yicha yopiq. Sanoq faqat ichki bandda qolsa,
+   * «ishdan ketgan odam binoga kirdi» degan qizil raqamni HR guruhni
+   * o'zi ochmaguncha ko'rmasdi — SPEC §8.7 esa uni «har qanday ekrandan
+   * ko'rinadigan» belgi deb talab qiladi. Guruh ochiq bo'lsa sarlavhada
+   * belgi YO'Q: raqam o'z bandining yonida turibdi, ikki marta chizish
+   * shovqin.
+   */
+  const lifted = signal !== null && (collapsed || !open) ? signal : null
 
   return (
     <button
@@ -422,11 +480,19 @@ function GroupRow({
       title={collapsed ? label : undefined}
       className={rowClass(collapsed, false)}
     >
-      <item.icon className={iconClass(false)} strokeWidth={1.9} />
+      <span className="relative shrink-0">
+        <item.icon className={iconClass(false)} strokeWidth={1.9} />
+        {collapsed && lifted !== null && <CountDot tone={lifted.tone} />}
+      </span>
 
       {!collapsed && (
         <>
           <span className="truncate-1 flex-1 text-left">{label}</span>
+          {lifted !== null && (
+            <Badge tone={lifted.tone} size="sm">
+              {num(lifted.count)}
+            </Badge>
+          )}
           {/*
             Burchak belgisi 90° ga aylanadi — iOS'da ochiluvchi ro'yxatning
             odatiy ishorasi. Yangi ikonka almashtirish emas: aylanish
@@ -444,6 +510,78 @@ function GroupRow({
       )}
     </button>
   )
+}
+
+/**
+ * Yig'ilgan menyudagi sanoq nuqtasi (nega raqam emas, nuqta — `LinkRow`
+ * ichidagi izohda).
+ *
+ * Alohida komponent, chunki endi ikki joyda chiziladi: bandning o'zida va
+ * yopiq guruh sarlavhasida (`GroupRow`). Rang `NavItem.countTone` dan —
+ * qizil nuqta sariq nuqta bilan bir xil ma'noni anglatmasligi kerak
+ * (SPEC §8.7).
+ */
+function CountDot({ tone }: { tone: CountTone }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2 ring-[var(--bg-elevated)]',
+        tone === 'danger' ? 'bg-ios-red' : 'bg-ios-orange',
+      )}
+    />
+  )
+}
+
+type CountTone = NonNullable<NavItem['countTone']>
+
+interface GroupSignal {
+  count: number
+  tone: CountTone
+}
+
+/**
+ * Guruh sarlavhasiga ko'tariladigan sanoq — ichki bandlardan ENG JIDDIYSI.
+ *
+ * NEGA yig'indi emas: bitta guruhda ikki xil ma'noli raqam bo'lishi mumkin
+ * (davomatda — ishdan ketganlar va moslanmagan raqamlar). «2 + 15 = 17»
+ * ham rangni, ham ma'noni yo'qotardi. Qizil (`danger`) doim ustun: sariq
+ * raqam kutib tura oladi, qizil esa yo'q. Aniq bo'linish guruh ochilganda
+ * har bir bandning o'z yonida ko'rinadi.
+ */
+function groupSignal(children: readonly NavItem[]): GroupSignal | null {
+  const counted = children.filter((child) => child.count !== undefined && child.count > 0)
+  const strongest =
+    counted.find((child) => child.countTone === 'danger') ?? counted[0]
+
+  return strongest === undefined
+    ? null
+    : { count: strongest.count!, tone: strongest.countTone ?? 'warning' }
+}
+
+/**
+ * Foydalanuvchiga ko'rinadigan band (`[]` — ko'rinmaydi), ruxsat bo'yicha.
+ *
+ * Oddiy band va guruhning o'zi — o'z `permission` i bilan (`nav-items.ts`
+ * dagi izoh), avvalgidek.
+ *
+ * Guruh BOLALARI esa faqat `filterChildrenByPermission` yoqilgan guruhda
+ * filtrlanadi — hozir bu yagona «Verifikatsiya». Filtr ixtiyoriy qilindi,
+ * chunki uni hammaga yoqish «Rekruting» va «Ma'lumotnomalar» menyusini
+ * jimgina o'zgartirardi (egasi davomat moduli boshqa bo'limlarga
+ * tegmasligini talab qilgan). Yoqilgan guruhda birorta bola qolmasa,
+ * guruhning O'ZI ham yo'qoladi: hech narsa ochmaydigan sarlavha tugmasi
+ * bo'lim uchun yuqorida qo'llangan qoidaning aynan o'zi.
+ */
+function visibleItem(item: NavItem, hasPermission: (code: string) => boolean): NavItem[] {
+  if (item.permission !== undefined && !hasPermission(item.permission)) return []
+  if (item.children === undefined || item.filterChildrenByPermission !== true) return [item]
+
+  const children = item.children.filter(
+    (child) => child.permission === undefined || hasPermission(child.permission),
+  )
+
+  return children.length === 0 ? [] : [{ ...item, children }]
 }
 
 /** Ochiluvchi guruhga ega bandlar — barcha bo'limlardan yig'iladi. */

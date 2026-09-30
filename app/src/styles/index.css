@@ -1,0 +1,130 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* Shrift o'lchami rem'da (UX §D.7) — telefonning «katta matn»
+       sozlamasi ishlashi uchun ildiz 16 px da qoladi. */
+    font-size: 16px;
+    background-color: var(--bg);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: theme('fontFamily.sans');
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    /*
+      Brauzerning kulrang «yonishi» olib tashlanadi — LEKIN har bir
+      bosiladigan element o'zining `:active` holatiga ega (UX §F.2).
+      Faqat birinchisini qilish ilovani sekin tarmoqda buzilgandek
+      ko'rsatardi.
+    */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Raqamlar ustunida `08:35` va `11:11` bir xil kenglikda tursin */
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+    Fokus halqasi. `:focus-visible` Safari 15.4 dan, bizning pol esa
+    12.2 — shu sababli AVVAL oddiy `:focus` ga beriladi, keyin uni
+    qo'llab-quvvatlaydigan brauzerda aniqroq qoidaga almashtiriladi.
+    Bosilganda halqa ko'rinib qolishi — kosmetik kamchilik; klaviatura
+    foydalanuvchisi uchun fokus ko'rinmasligi — nuqson.
+  */
+  :focus {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  @supports selector(:focus-visible) {
+    :focus {
+      outline: none;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--ring);
+      outline-offset: 2px;
+    }
+  }
+
+  /* Serverdan kelgan matn (obyekt nomi, yo'qlik turi, HR izohi) bitta
+     uzun so'z bo'lishi mumkin — u sahifani yon tomonga surib yubormasin */
+  .server-text {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  input,
+  textarea,
+  select {
+    /* ⚠️ 16 px — uslub emas, talab: pastroq bo'lsa iOS Safari fokusda
+       sahifani kattalashtiradi va qaytarmaydi (UX §F.4). */
+    font-family: inherit;
+    font-size: 1rem;
+  }
+}
+
+@layer utilities {
+  /* Har bir aylanma ekranning pastki bo'shlig'i: tab paneli kontentning
+     oxirgi qatorini yopib qo'ymasligi uchun (UX §D.6). */
+  .pb-tabbar {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Tab screen with a pinned action above the tab bar: tab bar (80) +
+     the action block (76). */
+  .pb-tabbar-action {
+    padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Sits right on top of the tab bar: 48 px buttons + 1 px border. */
+  .bottom-tabbar {
+    bottom: calc(49px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Toasts float above the tab bar; when a pinned action sits over the
+     tab bar too (BottomAction overTabBar), they float above that. */
+  .pb-toast {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html[data-tab-action] .pb-toast {
+    padding-bottom: calc(164px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* Harakat: 150 ms holat uchun, 250 ms varaq uchun. «Harakat kamaytirilsin»
+   sozlamasida hammasi bir zumda bo'ladi (UX §D.8). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

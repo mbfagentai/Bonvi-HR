@@ -58,6 +58,17 @@ public sealed record AwardTypeDto(
     string? Note,
     bool HasAmount);
 
+/// <summary>Yo'qlik turi — davomat so'rovlari uchun.</summary>
+/// <param name="Id">Identifikator.</param>
+/// <param name="Name">Nom.</param>
+/// <param name="IsActive">Faolmi.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record AbsenceTypeDto(
+    Guid Id,
+    string Name,
+    bool IsActive,
+    string? Note);
+
 /// <summary>Jarima turi.</summary>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Name">Nom.</param>

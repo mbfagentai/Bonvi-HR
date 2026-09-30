@@ -42,6 +42,27 @@ public static class AuthenticationExtensions
                 ".env faylini tekshiring — bu xavfsizlik talabi.");
         }
 
+        var hrAudience = configuration["Jwt:Audience"];
+        var employeeAudience = configuration["EmployeeJwt:Audience"] ?? DefaultEmployeeAudience;
+
+        /*
+          ⭐ IKKI AUDITORIYA TENG BO'LIB QOLMASLIGI — ishga tushishda.
+
+          Butun ajratish shu ikki satrning FARQIGA tayanadi: xodim tokeni
+          HR endpointlariga kira olmasligi ham, HR tokeni `/api/me/*` ga
+          kira olmasligi ham shundan kelib chiqadi. Ular tasodifan (yoki
+          noto'g'ri `.env` bilan) tenglashib qolsa, tizim ochilib ketardi
+          va buni HECH QANDAY test ushlamasdi — chunki testlarda sozlama
+          to'g'ri. Shu sababli tekshiruv shu yerda va u dasturni ishga
+          tushirmaydi.
+        */
+        if (string.Equals(hrAudience, employeeAudience, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "«Jwt:Audience» va «EmployeeJwt:Audience» bir xil bo'lishi mumkin emas — " +
+                "xodim tokeni HR endpointlariga kirib qolardi.");
+        }
+
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -101,8 +122,95 @@ public static class AuthenticationExtensions
                 };
             });
 
+        /*
+          ⭐ XODIM ILOVASI — IKKINCHI SXEMA, alohida auditoriya bilan.
+
+          Nega ikkinchi sxema, bitta sxemaga ikkinchi auditoriyani
+          qo'shish emas: `ValidAudiences` ga ikkalasini yozish har ikkala
+          tokenni HAR BIR endpointda qabul qilardi va ajratish faqat
+          ruxsat da'volariga qolardi. Ruxsat esa «yo'qligi» bilan
+          qo'riqlaydi — ya'ni ruxsat kodisiz e'lon qilingan bitta
+          endpoint (masalan `RequireAuthorization()` bilan) xodimga
+          ochilib qolardi. Ikki sxemada bunday holat tug'ilmaydi: token
+          umuman qabul qilinmaydi.
+
+          Imzolash kaliti bir xil — sababi `EmployeeJwtOptions` izohida.
+        */
+        services
+            .AddAuthentication()
+            .AddJwtBearer(EmployeeScheme, options =>
+            {
+                options.MapInboundClaims = false;
+
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = configuration["Jwt:Issuer"],
+
+                    ValidateAudience = true,
+                    ValidAudience = employeeAudience,
+
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero,
+
+                    // Rol da'vosi bu tokenda YO'Q va bo'lmaydi ham; nom
+                    // turlari baribir aniq ko'rsatiladi, chunki sukut
+                    // qiymatlar `MapInboundClaims = false` bilan boshqa
+                    // natija berardi.
+                    NameClaimType = ClaimTypes.Name,
+                    RoleClaimType = ClaimTypes.Role,
+                };
+
+                // Javob formati HR sxemasi bilan AYNAN bir xil: ilova ham,
+                // HR interfeysi ham xato KODINI o'qiydi va o'zi tarjima
+                // qiladi.
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/problem+json";
+
+                        await context.Response.WriteAsJsonAsync(new
+                        {
+                            status = 401,
+                            title = "auth.token_yaroqsiz",
+                            detail = "Sessiya muddati tugadi yoki token yaroqsiz.",
+                        }).ConfigureAwait(false);
+                    },
+                };
+            });
+
         return services;
     }
+
+    /// <summary>Xodim ilovasi tokenlari uchun autentifikatsiya sxemasining nomi.</summary>
+    /// <remarks>
+    /// Marshrutlarda <c>.RequireAuthorization(EmployeePolicy)</c> orqali
+    /// ishlatiladi — siyosat aynan shu sxemani talab qiladi.
+    /// </remarks>
+    public const string EmployeeScheme = "EmployeeBearer";
+
+    /// <summary>Faqat xodim tokeni o'tadigan siyosat.</summary>
+    /// <remarks>
+    /// Nomida nuqta YO'Q — ruxsat kodlari bilan bir nom fazosida yashaydi
+    /// va ulardan bir qarashda ajralib turishi kerak
+    /// (<see cref="BotServicePolicy"/> bilan bir xil qoida).
+    /// </remarks>
+    public const string EmployeePolicy = "employee-app";
+
+    /// <summary>Sozlama berilmaganda ishlatiladigan xodim auditoriyasi.</summary>
+    /// <remarks>
+    /// <c>EmployeeJwtOptions.Audience</c> ning sukut qiymati bilan bir xil
+    /// bo'lishi SHART: bu yerda tekshiriladigan qiymat bilan tokenga
+    /// yoziladigan qiymat ajralib qolsa, birorta xodim tokeni o'tmasdi.
+    /// </remarks>
+    private const string DefaultEmployeeAudience = "bonvi-employee";
 
     /// <summary>
     /// Imzosi to'g'ri tokendagi rol va ruxsatlarni bazadagi JORIY holat bilan almashtiradi.
@@ -269,6 +377,25 @@ public static class AuthenticationExtensions
             .AddPolicy(RolesReadPolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(CurrentUser.PermissionClaimType, Permissions.UsersManage, Permissions.RolesManage));
+
+        /*
+          ⭐ XODIM SIYOSATI — ruxsat kodi YO'Q, AUDITORIYA bor.
+
+          `/api/me/*` endpointlari ruxsat bilan qo'riqlanmaydi va
+          qo'riqlanishi ham mumkin emas: xodim tokenida ruxsat da'volari
+          umuman yo'q va bo'lmasligi kerak. Ularning butun himoyasi ikki
+          narsada: (1) so'rov AYNAN xodim sxemasi bilan tasdiqlanadi —
+          HR tokeni bu sxemadan o'tmaydi (auditoriya boshqa); (2) har bir
+          ishlovchi xodim identifikatorini TOKENDAN oladi, so'rovdan
+          emas, ya'ni «boshqa odamning ma'lumoti» degan yo'l yo'q.
+
+          `AuthenticationSchemes` — siyosatning eng muhim qatori: usiz
+          sukut sxema (HR) ham sinab ko'rilardi.
+        */
+        services.AddAuthorizationBuilder()
+            .AddPolicy(EmployeePolicy, policy => policy
+                .AddAuthenticationSchemes(EmployeeScheme)
+                .RequireAuthenticatedUser());
 
         return services;
     }

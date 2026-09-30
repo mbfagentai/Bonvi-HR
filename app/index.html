@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="uz-Cyrl">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!--
+      `viewport-fit=cover` SHART: usiz `env(safe-area-inset-*)` nolga
+      teng bo'ladi va pastdagi tab paneli iPhone'ning «home indicator»
+      chizig'i ostida qolib ketadi (UX §F.2).
+
+      `user-scalable=no` ATAYLAB YO'Q — u barmoq bilan kattalashtirishni
+      butunlay o'chiradi; buning o'rniga har bir maydon kamida 16 px
+      (UX §F.4), ya'ni iOS fokusda sahifani o'zi kattalashtirmaydi.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Bonvi" />
+
+    <!--
+      Eski iOS manifest'dagi ikonkani O'QIMAYDI — u faqat shu teglarni
+      ko'radi. Shu sababli 180 px alohida beriladi.
+    -->
+    <link rel="apple-touch-icon" href="/ilova/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/ilova/icons/icon-192.png" />
+
+    <title>Bonvi</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

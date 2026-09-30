@@ -26,6 +26,17 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
   }
+
+  /**
+   * Marshrutning statik belgilari (`createFileRoute(...)({ staticData })`).
+   *
+   * `fullWidth` — sahifa kontenti qobiqning 1400 px chegarasini bekor
+   * qilib, `main` ning butun kengligini oladi (`app-shell.tsx`). Sukut —
+   * YO'Q: faqat ekrani o'zi keng bo'lishi kerak bo'lgan sahifa yoqadi.
+   */
+  interface StaticDataRouteOption {
+    fullWidth?: boolean
+  }
 }
 
 const root = document.getElementById('root')

@@ -75,6 +75,7 @@ internal static class CatalogRegistration
         services.AddSingleton<IReferenceDefinition<Position, PositionDto>, PositionDefinition>();
         services.AddSingleton<IReferenceDefinition<TerminationReason, TerminationReasonDto>, TerminationReasonDefinition>();
         services.AddSingleton<IReferenceDefinition<AwardType, AwardTypeDto>, AwardTypeDefinition>();
+        services.AddSingleton<IReferenceDefinition<AbsenceType, AbsenceTypeDto>, AbsenceTypeDefinition>();
         services.AddSingleton<IReferenceDefinition<PenaltyType, PenaltyTypeDto>, PenaltyTypeDefinition>();
         services.AddSingleton<IReferenceDefinition<DocumentType, DocumentTypeDto>, DocumentTypeDefinition>();
 

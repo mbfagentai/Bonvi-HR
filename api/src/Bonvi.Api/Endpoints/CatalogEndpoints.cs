@@ -71,6 +71,14 @@ public static class CatalogEndpoints
         MapSimpleReference<DocumentType, DocumentTypeDto>(
             group, "document-types", "DocumentTypes", "DocumentType", "Hujjat turlari");
 
+        // Yo'qlik turlari — davomat so'rovlari shu ro'yxatdan tanlanadi
+        // (SPEC-so'rovlar §B1). Mexanikasi yuqoridagilar bilan bir xil, shu
+        // sababli u ham shu yerda: modul boshqa bo'lsa ham, ma'lumotnoma
+        // ma'lumotnoma bo'lib qoladi va HR uni «Ma'lumotnomalar» bo'limida
+        // qidiradi.
+        MapSimpleReference<AbsenceType, AbsenceTypeDto>(
+            group, "absence-types", "AbsenceTypes", "AbsenceType", "Yo'qlik turlari");
+
         // ---------- Daraxt va vazifalar: o'z qoidalari bor ----------
         MapDepartments(group);
         MapPositions(group);

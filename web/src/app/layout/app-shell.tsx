@@ -2,6 +2,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { LiveNotifications } from '@/features/notifications'
+import { cn } from '@/shared/lib/cn'
 
 import { Sidebar } from './sidebar'
 import { Topbar } from './topbar'
@@ -71,6 +72,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const main = useMainScrollReset()
 
+  /*
+    Kontentning 1400 px chegarasi — o'qiladigan sahifalar (karta, forma,
+    ro'yxat) uchun: katta monitorda qator uzunligi ko'zni charchatmasin.
+    Ba'zi sahifa esa aynan ENNI talab qiladi — masalan davomat statistikasi:
+    unda diagramma, jadval va doimiy filtr ustuni yonma-yon turadi va 1400
+    px ga siqilganda katta monitorda o'ngda bo'sh maydon qoladi-yu, jadval
+    ezilib turardi (egasi 2026-09-18). Shunday sahifa marshrutida
+    `staticData: { fullWidth: true }` yoziladi; qolgan hamma sahifa
+    avvalgidek.
+  */
+  const fullWidth = useRouterState({
+    select: (state) => state.matches.some((match) => match.staticData.fullWidth === true),
+  })
+
   return (
     <div className="flex h-dvh overflow-hidden">
       <Sidebar collapsed={collapsed} onToggle={toggle} />
@@ -105,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ref={main}
           className="flex-1 overflow-y-auto px-5 py-6 [scrollbar-gutter:stable] lg:px-8 lg:py-8"
         >
-          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+          <div className={cn('mx-auto w-full', !fullWidth && 'max-w-[1400px]')}>{children}</div>
         </main>
       </div>
     </div>

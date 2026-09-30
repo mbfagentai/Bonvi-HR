@@ -312,6 +312,16 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      # Xodim ilovasi (PWA, `/ilova/`) shu image ichida quriladi
+      # (`web/Dockerfile`, `ilova-build` bosqichi). Kontekst `./web`
+      # bo'lib qoladi — HR build'i o'zgarmaydi; `app/` alohida nomli
+      # kontekst sifatida beriladi (Docker Compose ≥ 2.17).
+      additional_contexts:
+        ilova-src: ./app
+      args:
+        # `real` — haqiqiy API. `mock` faqat namoyish uchun
+        # (`.env` da APP_API_MODE=mock).
+        APP_API_MODE: ${APP_API_MODE:-real}
     restart: always
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}

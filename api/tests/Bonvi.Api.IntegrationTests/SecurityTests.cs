@@ -184,7 +184,9 @@ public sealed class SecurityTests : IClassFixture<BonviApiFactory>
     {
         // Ikki siyosat bir xil nomga ega bo'lsa, biri ikkinchisini jimgina
         // almashtiradi va cheklov kutilganidan boshqacha ishlaydi.
-        var nomlar = new[] { RateLimitPolicies.Login, RateLimitPolicies.Api, RateLimitPolicies.Export };
+        // `Ingest` — qurilma qabuli (davomat): u Export bilan bir nomni olsa, turniketlar
+        // daqiqada 5 ta hodisa bilan cheklanib, smena almashinuvida jimgina 429 olardi.
+        var nomlar = new[] { RateLimitPolicies.Login, RateLimitPolicies.Api, RateLimitPolicies.Export, RateLimitPolicies.Ingest };
 
         nomlar.ShouldAllBe(nom => !string.IsNullOrWhiteSpace(nom));
         nomlar.Distinct(StringComparer.Ordinal).Count().ShouldBe(nomlar.Length);
