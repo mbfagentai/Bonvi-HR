@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -144,6 +145,53 @@ public sealed partial class EmployeeAppApiTests
         }
 
         oxirgi.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    /// <summary>
+    /// Ilova so'rovlari (<c>/api/me/*</c>) XODIM bo'yicha cheklanadi: bitta IP dagi ikki xodim bir-birining
+    /// chegarasini yemaydi, bitta xodimning o'zi esa o'z chegarasida to'xtaydi.
+    /// </summary>
+    /// <remarks>
+    /// main'da <c>UseRateLimiter</c> avtorizatsiyadan OLDINGA ko'chgan (tashqi API kalitini tanlab ko'rish
+    /// sanalsin deb). Xodim sxemasi esa faqat avtorizatsiyada o'qilardi — cheklov paytida so'rov anonim
+    /// ko'rinib, zavoddagi hamma telefon bitta «IP bo'yicha 120» bo'linmasiga tushardi.
+    /// </remarks>
+    [Fact]
+    public async Task Ilova_sorovlari_xodim_boyicha_cheklanadi_IP_boyicha_emas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        var tokenlar = new List<string>();
+
+        foreach (var belgi in new[] { "rl1-" + Belgi(), "rl2-" + Belgi() })
+        {
+            var xodim = await XodimAsync(belgi);
+            tokenlar.Add((await KirganJuftlikAsync(admin, xodim.Id)).GetProperty("accessToken").GetString()!);
+        }
+
+        using var server = Cheklovli(("RateLimiting:Api:PermitLimit", 2));
+        using var mijoz = server.CreateClient();
+
+        async Task<HttpStatusCode> MeningAsync(string token)
+        {
+            using var sorov = new HttpRequestMessage(HttpMethod.Get, new Uri("/api/me", UriKind.Relative));
+            sorov.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var javob = await mijoz.SendAsync(sorov, ct);
+            return javob.StatusCode;
+        }
+
+        // Ikki xodim, bitta IP, har biri ikkitadan — umumiy «IP bo'yicha 2» bo'lsa, uchinchisi 429 bo'lardi.
+        foreach (var token in tokenlar)
+        {
+            for (var i = 0; i < 2; i++)
+            {
+                (await MeningAsync(token)).ShouldBe(HttpStatusCode.OK);
+            }
+        }
+
+        // Nazorat: xodimning o'z chegarasi HAQIQATAN ishlaydi.
+        (await MeningAsync(tokenlar[0])).ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
     /// <summary>Global cheklov yoqilgan, berilgan chegaralar bilan alohida server.</summary>

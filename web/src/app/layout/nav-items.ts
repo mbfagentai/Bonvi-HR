@@ -418,6 +418,10 @@ export const NAV: NavSection[] = [
         // hech qayerga o'tmaydi, guruhni ochadi.
         to: '/malumotnomalar',
         icon: Library,
+        // Faqat «Yo'qlik turlari» uchun: u davomat bo'limi yoqilmagan (egasi
+        // `attendance.view` bermagan) foydalanuvchida ko'rinmasin. Ruxsati
+        // yozilmagan qolgan bandlar avvalgidek chiziladi (`visibleItem`).
+        filterChildrenByPermission: true,
         children: [
           { key: 'legalEntities',      to: '/malumotnomalar/yuridik-shaxslar', icon: Building2 },
           { key: 'directions',         to: '/malumotnomalar/yonalishlar',      icon: Compass },
@@ -431,7 +435,8 @@ export const NAV: NavSection[] = [
           // (SPEC-so'rovlar §B1). Davomat moduliniki bo'lsa ham, HR uni
           // «Ma'lumotnomalar» ichidan qidiradi: u boshqa ma'lumotnomalar
           // bilan bir xil ishlaydi (faqat nom va faollik).
-          { key: 'absenceTypes',       to: '/malumotnomalar/yoqlik-turlari',   icon: CalendarCheck },
+          { key: 'absenceTypes',       to: '/malumotnomalar/yoqlik-turlari',   icon: CalendarCheck,
+            permission: 'attendance.view' },
         ],
       },
     ],

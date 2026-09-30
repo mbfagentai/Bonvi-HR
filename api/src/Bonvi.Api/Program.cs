@@ -227,6 +227,10 @@ app.UseAuthentication();
 // avtorizatsiya bosqichida kalit qayta tekshirilmaydi.
 app.UseBonviApiKeyAuthentication(PublicApiEndpoints.Prefix);
 
+// Xodim ilovasi ham xuddi shunday: cheklov XODIM bo'yicha bo'linsin, zavodning
+// umumiy IP'si bo'yicha emas (sababi `UseBonviEmployeeAuthentication` izohida).
+app.UseBonviEmployeeAuthentication("/api/me");
+
 /*
   Tezlik cheklovi autentifikatsiyadan KEYIN: cheklov foydalanuvchi bo'yicha
   hisoblanadi, u aniqlanmagan bo'lsa — IP bo'yicha.

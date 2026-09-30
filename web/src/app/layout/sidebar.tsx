@@ -566,7 +566,8 @@ function groupSignal(children: readonly NavItem[]): GroupSignal | null {
  * dagi izoh), avvalgidek.
  *
  * Guruh BOLALARI esa faqat `filterChildrenByPermission` yoqilgan guruhda
- * filtrlanadi — hozir bu yagona «Verifikatsiya». Filtr ixtiyoriy qilindi,
+ * filtrlanadi — «Verifikatsiya» va «Ma'lumotnomalar» (faqat «Yo'qlik turlari»
+ * bandi ruxsatli; qolganlari ruxsatsiz, ya'ni o'zgarmaydi). Filtr ixtiyoriy qilindi,
  * chunki uni hammaga yoqish «Rekruting» va «Ma'lumotnomalar» menyusini
  * jimgina o'zgartirardi (egasi davomat moduli boshqa bo'limlarga
  * tegmasligini talab qilgan). Yoqilgan guruhda birorta bola qolmasa,

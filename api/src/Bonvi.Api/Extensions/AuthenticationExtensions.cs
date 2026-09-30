@@ -3,6 +3,7 @@ using System.Text;
 using Bonvi.Api.Common;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Identity;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -398,5 +399,50 @@ public static class AuthenticationExtensions
                 .RequireAuthenticatedUser());
 
         return services;
+    }
+
+    /// <summary>
+    /// Xodim ilovasi yo'llarida xodim tokenini TEZLIK CHEKLOVIDAN OLDIN o'qiydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>UseAuthentication</c> faqat STANDART (HR) sxemani bajaradi, xodim
+    /// sxemasi esa odatda faqat avtorizatsiyada (<see cref="EmployeePolicy"/>)
+    /// o'qiladi. Tezlik cheklovi esa avtorizatsiyadan OLDIN turadi
+    /// (<c>Program.cs</c>) — usiz <c>/api/me/*</c> so'rovi cheklov paytida
+    /// anonim ko'rinib, zavoddagi hamma telefon bitta IP bo'linmasiga tushardi
+    /// va smena boshida bir-birini (va o'sha IP dagi HR ni) 429 bilan to'sardi.
+    /// </para>
+    /// <para>
+    /// Naqsh <c>UseBonviApiKeyAuthentication</c> bilan bir xil: natija
+    /// keshlanadi, ya'ni avtorizatsiyada token qayta tekshirilmaydi. HR tokeni
+    /// bu yerdan o'tmaydi (auditoriya boshqa) — <c>context.User</c> o'zgarmaydi
+    /// va siyosat baribir 401 qaytaradi.
+    /// </para>
+    /// </remarks>
+    /// <param name="app">Ilova quruvchisi.</param>
+    /// <param name="pathPrefix">Xodim ilovasi yo'llarining boshlanishi.</param>
+    public static IApplicationBuilder UseBonviEmployeeAuthentication(
+        this IApplicationBuilder app,
+        string pathPrefix)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var prefix = new PathString(pathPrefix);
+
+        return app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var result = await context.AuthenticateAsync(EmployeeScheme).ConfigureAwait(false);
+
+                if (result.Succeeded)
+                {
+                    context.User = result.Principal;
+                }
+            }
+
+            await next(context).ConfigureAwait(false);
+        });
     }
 }
