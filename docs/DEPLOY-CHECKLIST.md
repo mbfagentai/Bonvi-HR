@@ -3,6 +3,73 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏳ Navbatdagi reliz — Verifikatsiya (davomat) moduli main'ga birlashtirildi
+
+Prod `75d5f02` → `main` (merge `d3d4b34` + tuzatishlar). Egasi 2026-09-30
+da so'radi: HR loyihasiga zarar yetmasin, muammo bo'lsa oson qaytilsin.
+
+**HR menejer uchun deploy'dan keyin HECH NARSA o'zgarmaydi:** seeder oddiy
+rolga tegmaydi, ya'ni «Verifikatsiya» bo'limi, xodim kartasidagi «Davomat»
+yorlig'i va «Yo'qlik turlari» egasi «Rollar» → rol → **Verifikatsiya**
+darajasini bergandagina ko'rinadi (Ko'rish / O'zgartirish = so'rovlar
+bo'yicha qaror / To'liq = qurilma, jadval, moslik). Super administratorda
+bo'lim darhol bor.
+
+**Xodim ilovasi YOPIQ** (`EMPLOYEE_APP_ENABLED` prod `.env` da yo'q →
+`false`): `/api/employee-auth`, `/api/me` marshrutlari yo'q. `/ilova/`
+statik sahifasi ochiladi, lekin kirib bo'lmaydi. Ochishdan oldin xavfsizlik
+tuzatishlari kerak (`docs/ASSUMPTIONS.md`, 2026-09-30).
+
+**Migratsiyalar — 16 ta**, `main` nikidan KEYIN qo'llanadi (sanalari
+oldinroq — EF ID bo'yicha qo'llaydi): 15 ta verifikatsiya (14 yangi jadval,
+`device_person_no_seq`, `employees.mobile_check_in_allowed` ustuni) +
+`20260930094327_EmployeeMobileFlagSukuti` (shu ustunga DEFAULT false —
+image rollback uchun). Mavjud HR jadvallarida birorta qator o'zgarmaydi.
+API ishga tushganda `hangfire` sxemasi yaratiladi va har bir xodimga ilova
+hisobi ochiladi (jurnal: «Xodim ilovasi hisoblari: N ta»).
+
+**Sinalgan (2026-09-30, lokal, dev nusxa — 2217 xodim):** `main` sxemasidan
+ko'tarish xatosiz, 37 jadval sanog'i o'zgarmadi; eski image migratsiyalangan
+bazada o'qish + xodim qo'shish (200); zaxiradan tiklash B banddan keyin
+sanoqlar AYNAN bir xil. `./bonvi test` 2311/2311, web + ilova build, prod
+web image (Caddyfile `validate`).
+
+**Deploy oldidan:**
+- [ ] Rollback teglari: `docker tag bonvi-hr-prod-{api,bot,web}:latest …:rollback-75d5f02`
+- [ ] Yangi zaxira: `docker compose -f docker-compose.prod.yml exec backup /scripts/run-all.sh`
+- [ ] Disk ≥ 5 GB (`df -h /`); web image endi ikkita build (HR + ilova)
+- [ ] Prod nusxasida (serverda, `bonvi_migtest`): idempotent migratsiya
+      skripti, sanoqlar oldin/keyin, eski image ko'tarilishi, B band + tiklash;
+      oxirida `bonvi_migtest` o'chiriladi
+- [ ] Prod oxirgi migratsiyasi `20260929061633_VakansiyaNomiVakansiyaningOzida`
+- [ ] Ish vaqtidan tashqarida (`employees` ga ALTER, `lock_timeout` 3s)
+- [ ] `(nohup ./infra/deploy.sh > /tmp/deploy-<commit>.log 2>&1 < /dev/null &)`
+
+**Deploy'dan keyin:**
+- [ ] `__EFMigrationsHistory` +16, oxirgisi `20260930094327_EmployeeMobileFlagSukuti`
+- [ ] API jurnalida WRN/ERR yo'q; «Hangfire SQL objects installed»; «hisob ochildi»
+- [ ] HR menejer hisobida menyu avvalgidek («Verifikatsiya», «Yo'qlik turlari» yo'q)
+- [ ] Xodim kartasi, nomzodlar, vakansiyalar, rollar ochiladi; bot javob beradi
+- [ ] `curl -s -o /dev/null -w '%{http_code}' https://hr.bonvi.uz/api/employee-auth/login -X POST` → 401 (marshrut yo'q)
+- [ ] Egasi: kerakli rollarga «Verifikatsiya» darajasini beradi (xohlaganda)
+
+**Orqaga qaytish** (`infra/sql/verifikatsiya-rollback.sql`):
+- **Faqat kod** (baza qoladi) — qo'shimcha SQL KERAK EMAS:
+  `docker tag …:rollback-75d5f02 …:latest` (api, bot, web) va
+  `docker compose -f docker-compose.prod.yml up -d`. Eski image yangi
+  jadvallarni ko'rmaydi, `mobile_check_in_allowed` sukuti bilan xodim qo'sha oladi.
+- **Ma'lumot ham** (zaxiradan) — AVVAL fayldagi **B** bandi (yangi jadvallar,
+  `hangfire`, ketma-ketlikni o'chirish), keyin odatdagi `restore.sh`. B siz
+  `pg_restore --clean` bazani YARIM tiklaydi (repetitsiyada ko'rilgan).
+
+**Keyinga (bu relizni to'smaydi, egasi tartibini belgilaydi):**
+- Xodim ilovasini ochishdan oldin: HR bermagan hisob kira olmasin; telefon
+  bo'yicha umumiy xato chegarasi; anonim so'rov hajmi (16 KB) va xeshlashga
+  umumiy navbat; HR qo'ygan zaif parollar rad etilsin.
+- Qurilmalar ulanganda: davomat yozuvlari har bir ochiq HR bildirishnoma
+  oqimini uyg'otadi (`DataChangeInterceptor`) — yuklama; agent tokeniga
+  `AllowedIps`, `/photo` faqat ro'yxatdagilarga.
+
 ## ✅ Reliz `7a10e88` — CHIQARILDI 2026-09-27 19:31 (Toshkent)
 
 Prod `9184b0b` → `7a10e88`. Rollback: image tegi `rollback-9184b0b`, zaxira

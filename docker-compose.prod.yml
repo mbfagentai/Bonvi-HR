@@ -219,6 +219,9 @@ services:
       #  ga zaxira nusxa oling — avtomatik migratsiya orqaga qaytarilmaydi.
       # ----------------------------------------------------------
       Bootstrap__AutoMigrate: ${BOOTSTRAP__AUTOMIGRATE:-true}
+      # Xodim ilovasi (/api/employee-auth, /api/me) — sukut bo'yicha YOPIQ.
+      # Egasi aytganda `.env` da EMPLOYEE_APP_ENABLED=true (Program.cs izohi).
+      EmployeeApp__Enabled: ${EMPLOYEE_APP_ENABLED:-false}
 
       # ----------------------------------------------------------
       #  Xato jurnali (fayl)

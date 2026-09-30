@@ -289,8 +289,17 @@ app.MapEmployeeAccountEndpoints();
 // token bilan, ruxsat da'volarisiz: HR tokeni bu endpointlarga KIRA
 // OLMAYDI va xodim tokeni HR endpointlariga o'ta olmaydi (ikki
 // autentifikatsiya sxemasi, `AuthenticationExtensions`).
-app.MapEmployeeAuthEndpoints();
-app.MapMeEndpoints();
+//
+// ⚠️ Ochiq/yopiq — `EmployeeApp:Enabled`. Prod'da sukut bo'yicha YOPIQ
+// (`docker-compose.prod.yml`, egasining qarori 2026-09-30): ilova xodimlarga
+// berilishidan oldin PIN himoyasi kuchaytiriladi. Yopiq bo'lsa marshrutlar
+// UMUMAN yo'q (404) — internetdan kirish ham, parol taxmin qilish ham, xeshlash
+// yuklamasi ham yo'q. HR tomoni («Ilova» bo'limi, hisoblar) ishlayveradi.
+if (app.Configuration.GetValue(EmployeeAppEnabledKey, defaultValue: true))
+{
+    app.MapEmployeeAuthEndpoints();
+    app.MapMeEndpoints();
+}
 
 // Rekruting (2-bosqich): voronka bosqichlari → vakansiya → nomzod →
 // ishga olish. Oxirgi qadam 1-bosqichning ishga qabul oqimiga ulanadi.
@@ -349,6 +358,9 @@ await app.RunAsync().ConfigureAwait(false);
 /// <summary>Integratsiya testlari uchun (<c>WebApplicationFactory&lt;Program&gt;</c>).</summary>
 public partial class Program
 {
+    /// <summary>Xodim ilovasi marshrutlarining o'chirgichi (env: <c>EmployeeApp__Enabled</c>).</summary>
+    public const string EmployeeAppEnabledKey = "EmployeeApp:Enabled";
+
     protected Program()
     {
     }

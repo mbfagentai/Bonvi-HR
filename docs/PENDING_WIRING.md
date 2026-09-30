@@ -1342,7 +1342,7 @@ YO'Q — o'rniga xodim kartasi → «Davomat» → «Ilova» segmenti.
   navbatga qo'yiladi va ~540 xodimga hisob ochadi (har biri ~0,1 s xesh →
   bir necha o'n soniya, fonda; ishga tushishni to'smaydi). Keyin har 15
   daqiqada (:08/:23/:38/:53 UTC). Log: EventId 5403.
-- **Parolni ko'rsatish shifrlash kalitiga bog'liq** (`SecretProtection:SecretKey`,
+- **Parolni ko'rsatish shifrlash kalitiga bog'liq** (`Settings:SecretKey` — env `SETTINGS__SECRETKEY`,
   bo'lmasa `Jwt:SigningKey` dan — Telegram tokeni bilan bir xil kalit).
   Kalit almashsa, barcha saqlangan parollar «ko'rsatib bo'lmaydi» bo'ladi
   (parollarning o'zi ishlaydi) — HR kerak bo'lganda yangisini yasaydi.
