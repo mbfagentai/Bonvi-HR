@@ -38,9 +38,12 @@ web image (Caddyfile `validate`).
 - [ ] Rollback teglari: `docker tag bonvi-hr-prod-{api,bot,web}:latest …:rollback-75d5f02`
 - [ ] Yangi zaxira: `docker compose -f docker-compose.prod.yml exec backup /scripts/run-all.sh`
 - [ ] Disk ≥ 5 GB (`df -h /`); web image endi ikkita build (HR + ilova)
-- [ ] Prod nusxasida (serverda, `bonvi_migtest`): idempotent migratsiya
-      skripti, sanoqlar oldin/keyin, eski image ko'tarilishi, B band + tiklash;
-      oxirida `bonvi_migtest` o'chiriladi
+- [x] Prod nusxasida (serverda, `bonvi_migtest`, zaxira `2026-09-30_100256`,
+      egasi ruxsat berdi): idempotent skript 2 s, 37 jadval sanog'i
+      o'zgarmadi (tarix 40 → 56); eski image (`75d5f02`) migratsiyalangan
+      nusxada sog'lom, o'qish + xodim qo'shish 200; B band + `restore.sh`
+      uslubida tiklash — 0 xato, sanoqlar AYNAN bir xil. `bonvi_migtest`
+      va vaqtinchalik konteynerlar o'chirildi.
 - [ ] Prod oxirgi migratsiyasi `20260929061633_VakansiyaNomiVakansiyaningOzida`
 - [ ] Ish vaqtidan tashqarida (`employees` ga ALTER, `lock_timeout` 3s)
 - [ ] `(nohup ./infra/deploy.sh > /tmp/deploy-<commit>.log 2>&1 < /dev/null &)`
