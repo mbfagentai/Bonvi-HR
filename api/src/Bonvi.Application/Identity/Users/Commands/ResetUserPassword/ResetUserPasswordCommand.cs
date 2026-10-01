@@ -2,6 +2,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
+using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
@@ -51,6 +52,7 @@ public sealed class ResetUserPasswordCommandHandler
     private readonly IPasswordHasher _hasher;
     private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMcpGrantRevoker _mcpGrants;
     private readonly IClock _clock;
 
     public ResetUserPasswordCommandHandler(
@@ -61,6 +63,7 @@ public sealed class ResetUserPasswordCommandHandler
         IPasswordHasher hasher,
         IAuditLogger auditLogger,
         IUnitOfWork unitOfWork,
+        IMcpGrantRevoker mcpGrants,
         IClock clock)
     {
         _currentUser = currentUser;
@@ -70,6 +73,7 @@ public sealed class ResetUserPasswordCommandHandler
         _hasher = hasher;
         _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
+        _mcpGrants = mcpGrants;
         _clock = clock;
     }
 
@@ -110,6 +114,12 @@ public sealed class ResetUserPasswordCommandHandler
 
         await _refreshTokens
             .RevokeAllForUserAsync(target.Id, _clock.UtcNow, byIp: null, cancellationToken)
+            .ConfigureAwait(false);
+
+        // AI (MCP) ulanishlari ham — eski parol bilan ochilgan ulanish parol
+        // almashgandan keyin ham ishlab turmasin (`IMcpGrantRevoker` izohi).
+        await _mcpGrants
+            .RevokeAllForUserAsync(target.Id, "system:password-reset", cancellationToken)
             .ConfigureAwait(false);
 
         // Parol yoki uning xeshi audit yozuviga HECH QACHON tushmaydi — faqat fakt qayd etiladi

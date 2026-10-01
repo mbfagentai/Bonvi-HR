@@ -203,8 +203,14 @@ public sealed class RateLimitingOptions
     /// daqiqasiga 120 lik IP chegarasiga urilib, yarmida 429 bilan to'xtab
     /// qolardi.
     /// </para>
+    /// <para>
+    /// AI ulanish (<c>/mcp</c>) ham: uning ulanish (grant) bo'yicha o'z siyosati
+    /// bor (daqiqasiga 120, <c>McpSetup.RateLimitPolicy</c>). Umumiy cheklov
+    /// foydalanuvchi bo'yicha bo'linadi — rahbar AI bilan ishlaganda o'zining
+    /// VEB-panel byudjetini yeb, ekranda 429 olardi.
+    /// </para>
     /// </remarks>
-    public IList<string> ExcludedPaths { get; } = ["/health", "/api/attendance/ingest", "/api/attendance/agent"];
+    public IList<string> ExcludedPaths { get; } = ["/health", "/api/attendance/ingest", "/api/attendance/agent", "/mcp"];
 }
 
 /// <summary>Bitta oyna cheklovining sozlamalari.</summary>

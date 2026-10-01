@@ -69,5 +69,10 @@ export const ROLE_ACTION_CODES = [
   'employment.correct',
 ] as const
 
-/** Hech qaysi bo'limning darajasiga kirmaydigan alohida ruxsatlar. */
-export const ROLE_EXTRA_CODES = ['salary.view', 'salary.extra.view'] as const
+/**
+ * Hech qaysi bo'limning darajasiga kirmaydigan alohida ruxsatlar.
+ *
+ * `mcp.connect` — AI orqali o'qish (2026-10-01, `docs/SPEC-mcp.md` §1):
+ * Claude/ChatGPT faqat o'qiydi va faqat egasining o'z ruxsatlari doirasida.
+ */
+export const ROLE_EXTRA_CODES = ['salary.view', 'salary.extra.view', 'mcp.connect'] as const

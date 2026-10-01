@@ -3,6 +3,7 @@ using System.Globalization;
 using Bonvi.Api.Common;
 using Bonvi.Api.Endpoints;
 using Bonvi.Api.Extensions;
+using Bonvi.Api.Mcp;
 using Bonvi.Api.Startup;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Ingest;
@@ -85,6 +86,11 @@ builder.Services.AddBonviAuthorization();
 // izohida).
 builder.Services.AddBonviApiKeyScheme();
 builder.Services.AddBonviPublicApiAuthorization();
+
+// AI ulanish (MCP) — UCHINCHI autentifikatsiya sxemasi (shaffof OAuth tokeni),
+// o'z siyosati, o'z tezlik cheklovlari va o'qish bazasi (`docs/SPEC-mcp.md`).
+// Ichki oqimga tegmaydi: MCP tokeni boshqa hech bir endpointda qabul qilinmaydi.
+builder.AddBonviMcp();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -231,6 +237,10 @@ app.UseBonviApiKeyAuthentication(PublicApiEndpoints.Prefix);
 // umumiy IP'si bo'yicha emas (sababi `UseBonviEmployeeAuthentication` izohida).
 app.UseBonviEmployeeAuthentication("/api/me");
 
+// AI ulanish ham shunday: `/mcp` so'rovining egasi cheklovdan OLDIN aniqlanadi —
+// cheklov ulanish (grant) bo'yicha bo'linsin. Shu yerda MCP yopiq bo'lsa 503.
+app.UseBonviMcpAuthentication();
+
 /*
   Tezlik cheklovi autentifikatsiyadan KEYIN: cheklov foydalanuvchi bo'yicha
   hisoblanadi, u aniqlanmagan bo'lsa — IP bo'yicha.
@@ -325,6 +335,18 @@ app.MapSettingsEndpoints();
 // Tashqi API kalitlari — ICHKI boshqaruv (JWT + «settings.manage»).
 // Sozlamalar bilan yonma-yon, chunki ekranda ular bitta bo'limda.
 app.MapApiKeyEndpoints();
+
+/*
+  ═══════════════════════════════════════════════════════════
+   AI ULANISH (MCP) — FAQAT O'QISH (`docs/SPEC-mcp.md`).
+
+   `/mcp` — vositalar, `/oauth/*` va `/.well-known/oauth-*` — kirish,
+   `/api/mcp/*` — «Tizim sozlamalari» dagi boshqaruv (`settings.manage`).
+   Vositalar alohida PostgreSQL roli bilan o'qiydi: pasport va fayl
+   ustunlari unga baza darajasida berilmagan.
+  ═══════════════════════════════════════════════════════════
+*/
+app.MapBonviMcp();
 
 /*
   ═══════════════════════════════════════════════════════════

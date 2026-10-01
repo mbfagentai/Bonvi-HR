@@ -42,6 +42,15 @@
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
   </ItemGroup>
 
+  <!--
+    AI ulanish (MCP) — rasmiy C# SDK, Streamable HTTP transport
+    (`docs/SPEC-mcp.md`). Versiya QADALGAN: SDK tez o'zgarib turadigan
+    protokolni kuzatadi. 2.2.0 — WunderkindLMS'da .NET 10 bilan sinalgan.
+  -->
+  <ItemGroup Label="MCP">
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Validatsiya va mapping">
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />

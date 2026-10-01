@@ -1,5 +1,6 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Users.Commands.DeactivateUser;
+using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -18,6 +19,7 @@ public sealed class DeactivateUserCommandHandlerTests
     private readonly IRoleRepository _roles = Substitute.For<IRoleRepository>();
     private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly IMcpGrantRevoker _mcpGrants = Substitute.For<IMcpGrantRevoker>();
 
     private readonly Role _superAdminRole =
         TestRoles.Standart(SystemRoles.SuperAdmin);
@@ -28,7 +30,7 @@ public sealed class DeactivateUserCommandHandlerTests
     private readonly Role _hrRole =
         TestRoles.Standart(SystemRoles.HrManager);
 
-    private DeactivateUserCommandHandler Handler => new(_currentUser, _users, _roles, _auditLogger, _unitOfWork);
+    private DeactivateUserCommandHandler Handler => new(_currentUser, _users, _roles, _auditLogger, _unitOfWork, _mcpGrants);
 
     public DeactivateUserCommandHandlerTests()
         => _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([_superAdminRole, _mainBossRole, _hrRole]);
@@ -68,6 +70,7 @@ public sealed class DeactivateUserCommandHandlerTests
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("foydalanuvchi.ozini_blokash");
         acting.IsActive.ShouldBeTrue();
+        await _mcpGrants.DidNotReceive().RevokeAllForUserAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -138,6 +141,10 @@ public sealed class DeactivateUserCommandHandlerTests
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Message : null);
         hrUser.IsActive.ShouldBeFalse();
+
+        // AI (MCP) ulanishlari ham yopiladi — hisob qayta faollashtirilganda
+        // eski ulanish yangi roziliksiz «tirilib» qolmasin.
+        await _mcpGrants.Received(1).RevokeAllForUserAsync(hrUser.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

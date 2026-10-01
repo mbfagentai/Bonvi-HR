@@ -1,4 +1,5 @@
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 
@@ -24,17 +25,20 @@ public sealed class LogoutCommandHandler
     private readonly IRefreshTokenRepository _refreshTokens;
     private readonly ITokenService _tokens;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMcpGrantRevoker _mcpGrants;
     private readonly IClock _clock;
 
     public LogoutCommandHandler(
         IRefreshTokenRepository refreshTokens,
         ITokenService tokens,
         IUnitOfWork unitOfWork,
+        IMcpGrantRevoker mcpGrants,
         IClock clock)
     {
         _refreshTokens = refreshTokens;
         _tokens = tokens;
         _unitOfWork = unitOfWork;
+        _mcpGrants = mcpGrants;
         _clock = clock;
     }
 
@@ -64,6 +68,11 @@ public sealed class LogoutCommandHandler
         {
             await _refreshTokens
                 .RevokeAllForUserAsync(stored.UserId, now, command.IpAddress, cancellationToken)
+                .ConfigureAwait(false);
+
+            // «Barcha sessiyalardan chiqish» — AI ulanishlari ham (`IMcpGrantRevoker` izohi).
+            await _mcpGrants
+                .RevokeAllForUserAsync(stored.UserId, "system:logout-all", cancellationToken)
                 .ConfigureAwait(false);
         }
         else

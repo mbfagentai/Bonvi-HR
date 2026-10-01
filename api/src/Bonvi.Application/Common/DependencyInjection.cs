@@ -21,6 +21,7 @@ using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
 using Bonvi.Application.Identity.Users.Commands.UpdateUser;
 using Bonvi.Application.Identity.Users.Photos;
 using Bonvi.Application.Identity.Users.Queries.ListUsers;
+using Bonvi.Application.Mcp;
 using Bonvi.Application.Me;
 using Bonvi.Application.Notifications;
 using Bonvi.Application.PublicApi;
@@ -79,6 +80,10 @@ public static class DependencyInjection
 
         // Autentifikatsiya
         services.AddScoped<LoginCommandHandler>();
+
+        // AI ulanish (MCP) sahifasidagi kirish — sessiya ochmaydi (sababi
+        // `McpSignInCommandHandler` izohida).
+        services.AddScoped<McpSignInCommandHandler>();
         services.AddScoped<RefreshSessionCommandHandler>();
         services.AddScoped<LogoutCommandHandler>();
         services.AddScoped<GetCurrentUserQueryHandler>();

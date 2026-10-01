@@ -523,6 +523,17 @@ const DYNAMIC_KEY_SOURCES = [
     values: (text) => constArrayValues(text, 'ROLE_EXTRA_CODES'),
     keysFor: (value) => [`roles.extra.${value}`],
   },
+  /*
+   * «AI ulanish» jurnalidagi vosita nomlari (`mcp-section.tsx`:
+   * `` t(`settings.mcp.tool.${tool}`) ``). Server nomni xom yuboradi,
+   * yorliqni frontend tanlaydi — rollardagi bilan bir xil fikr. Manba —
+   * `MCP_TOOL_NAMES`: kod ham AYNAN shu massivdan tanlaydi.
+   */
+  {
+    file: 'src/features/settings/api/mcp-api.ts',
+    values: (text) => constArrayValues(text, 'MCP_TOOL_NAMES'),
+    keysFor: (value) => [`settings.mcp.tool.${value}`],
+  },
 ]
 
 /** `InProgress` → `inProgress`. Kodda ham aynan shu o'girish ishlatiladi. */

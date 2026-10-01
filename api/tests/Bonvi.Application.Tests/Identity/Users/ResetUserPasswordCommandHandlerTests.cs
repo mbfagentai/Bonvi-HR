@@ -1,6 +1,7 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
+using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -29,6 +30,7 @@ public sealed class ResetUserPasswordCommandHandlerTests
     private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IClock _clock = Substitute.For<IClock>();
+    private readonly IMcpGrantRevoker _mcpGrants = Substitute.For<IMcpGrantRevoker>();
 
     private readonly Role _superAdminRole =
         TestRoles.Standart(SystemRoles.SuperAdmin);
@@ -40,7 +42,7 @@ public sealed class ResetUserPasswordCommandHandlerTests
         TestRoles.Standart(SystemRoles.HrManager);
 
     private ResetUserPasswordCommandHandler Handler
-        => new(_currentUser, _users, _roles, _refreshTokens, _hasher, _auditLogger, _unitOfWork, _clock);
+        => new(_currentUser, _users, _roles, _refreshTokens, _hasher, _auditLogger, _unitOfWork, _mcpGrants, _clock);
 
     public ResetUserPasswordCommandHandlerTests()
     {
@@ -102,6 +104,23 @@ public sealed class ResetUserPasswordCommandHandlerTests
         await _refreshTokens.Received(1).RevokeAllForUserAsync(user.Id, Now, null, Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Sizib chiqqan parol bilan ochilgan AI (MCP) ulanishi parol tiklangandan
+    /// keyin ham ishlab turmasligi kerak (xavfsizlik tekshiruvi, 2026-10-01).
+    /// </summary>
+    [Fact]
+    public async Task Parol_tiklanganda_AI_ulanishlari_ham_bekor_qilinadi()
+    {
+        SuperAdminSifatida();
+        var user = Mavjud("905088877", "Каримов Жасур", _hrRole);
+
+        await Handler.HandleAsync(
+            new ResetUserPasswordCommand(user.Id, "Yangi_Parol1"),
+            TestContext.Current.CancellationToken);
+
+        await _mcpGrants.Received(1).RevokeAllForUserAsync(user.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task Qisqa_parol_rad_etiladi_va_sessiyalar_tegilmaydi()
     {
@@ -117,6 +136,8 @@ public sealed class ResetUserPasswordCommandHandlerTests
         user.PasswordHash.ShouldBe("eski_xesh");
         await _refreshTokens.DidNotReceive().RevokeAllForUserAsync(
             Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        await _mcpGrants.DidNotReceive().RevokeAllForUserAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

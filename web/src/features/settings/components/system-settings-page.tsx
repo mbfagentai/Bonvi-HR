@@ -30,6 +30,7 @@ import {
   useUploadBotLogo,
 } from '../api/settings-queries'
 import { ApiKeysSection } from './api-keys-section'
+import { McpSection } from './mcp-section'
 
 /**
  * Ekrandagi guruhlar: sarlavha, ikona va ichidagi kalitlar.
@@ -412,6 +413,13 @@ export function SystemSettingsPage() {
             ko'rinardi (logotip maydonidagi bilan bir xil fikr).
           */}
           <ApiKeysSection />
+
+          {/*
+            AI ulanish (MCP) — «Tashqi API» ostida (SPEC-mcp §8). U ham
+            formadan TASHQARI: o'chirgich darhol saqlanadi, ulanishlar esa
+            o'z oynasi bilan uziladi — «Saqlash» ga aloqasi yo'q.
+          */}
+          <McpSection />
         </div>
       )}
 

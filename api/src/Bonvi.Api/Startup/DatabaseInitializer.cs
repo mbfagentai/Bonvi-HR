@@ -250,6 +250,16 @@ public sealed partial class DatabaseInitializer : IHostedService
         {
             await CreateDevUsersAsync(provider, options, cancellationToken).ConfigureAwait(false);
         }
+
+        /*
+          AI ulanish (MCP) — o'qish rolini MIGRATSIYADAN KEYIN tayyorlash:
+          ruxsat ro'yxati funksiyasini migratsiya yaratadi va har ishga
+          tushishda uni qayta qo'llash yangi jadvallarni ham hisobga oladi.
+          Natija (tayyor / nosoz + sabab) `McpRuntime` da turadi; MCP
+          sozlanmagan bo'lsa bazaga tegilmaydi. Xato ilovani YIQITMAYDI —
+          MCP yopiq qoladi, qolgan tizim ishlayveradi (`docs/SPEC-mcp.md` §2.2).
+        */
+        await _services.GetRequiredService<Mcp.McpRuntime>().CheckAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

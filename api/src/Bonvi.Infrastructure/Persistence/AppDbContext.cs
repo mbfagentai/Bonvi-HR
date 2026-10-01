@@ -8,6 +8,7 @@ using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Identity;
+using Bonvi.Domain.Mcp;
 using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.PublicApi;
@@ -402,6 +403,26 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// ham emas: bekor qilingan kalit tarix bo'lib qoladi.
     /// </remarks>
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+
+    // ────────────────────────────────────────────────────────────
+    //  AI ULANISH (MCP) — `docs/SPEC-mcp.md`.
+    //  ⚠️ Tokenlar va kodlarning O'ZI yo'q — faqat SHA-256 xeshi.
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Ro'yxatdan o'tgan AI mijozlari (<c>mcp_clients</c>).</summary>
+    public DbSet<McpClient> McpClients => Set<McpClient>();
+
+    /// <summary>Ulanishlar — foydalanuvchi mijozga bergan ruxsat (<c>mcp_grants</c>).</summary>
+    public DbSet<McpGrant> McpGrants => Set<McpGrant>();
+
+    /// <summary>Bir martalik avtorizatsiya kodlari (<c>mcp_auth_codes</c>).</summary>
+    public DbSet<McpAuthCode> McpAuthCodes => Set<McpAuthCode>();
+
+    /// <summary>Kirish va yangilash tokenlari (<c>mcp_tokens</c>).</summary>
+    public DbSet<McpToken> McpTokens => Set<McpToken>();
+
+    /// <summary>Har bir vosita chaqiruvining jurnali (<c>mcp_audit</c>).</summary>
+    public DbSet<McpAuditEntry> McpAudit => Set<McpAuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

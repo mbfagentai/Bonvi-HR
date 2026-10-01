@@ -49,6 +49,23 @@
 	}
 
 	# ──────────────────────────────────────────────────────────
+	#  AI ulanish (MCP) — `docs/SPEC-mcp.md` §5.
+	#
+	#  `/mcp` — vositalar (Streamable HTTP), `/oauth/*` — kirish va
+	#  rozilik sahifasi, `/.well-known/oauth-*` — AI mijozi avtorizatsiya
+	#  serverini topadigan metama'lumot (RFC 8414, RFC 9728). Hammasi
+	#  API'ga. MCP o'chiq bo'lsa API o'zi 503/404 qaytaradi — bu yerda
+	#  shart yo'q.
+	#
+	#  Faqat `oauth-*` hujjatlari — `/.well-known/` ning qolgani avvalgidek
+	#  SPA'ga tushadi (masalan `openid-configuration` ATAYLAB yo'q).
+	# ──────────────────────────────────────────────────────────
+	@mcp path /mcp /mcp/* /oauth/* /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/* /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
+	handle @mcp {
+		reverse_proxy api:8080
+	}
+
+	# ──────────────────────────────────────────────────────────
 	#  Xodim ilovasi (PWA) — `/ilova/` ostida, HR ilovasidan ALOHIDA build
 	#
 	#  Fayllar image'da `/srv/ilova` ga ko'chiriladi (`web/Dockerfile`,
@@ -144,6 +161,17 @@
 		#
 		# `frame-ancestors 'none'` — `X-Frame-Options` ning zamonaviy
 		# shakli; ikkalasi ham qoldirilgan, eski brauzerlar uchun.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		#
+		# ⚠️ CSP pastdagi alohida `header @spaCsp` da — `/oauth/*` ga
+		# TEGMAYDI (sababi o'sha yerda).
 	}
+
+	# SPA va xodim ilovasining CSP'si (izohi yuqorida).
+	#
+	# `/oauth/*` CHIQARILGAN: AI ulanish sahifasi o'z CSP'sini API'dan oladi.
+	# Caddy'niki ham qo'shilsa, brauzer IKKALASINI birga qo'llaydi va
+	# `form-action 'self'` rozilik formasidan keyingi AI mijoziga (claude.ai)
+	# yo'naltirishni to'sib qo'yardi — ulanish hech qachon tugamasdi.
+	@spaCsp not path /oauth/*
+	header @spaCsp Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 }

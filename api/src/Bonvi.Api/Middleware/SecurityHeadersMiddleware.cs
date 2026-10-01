@@ -158,9 +158,29 @@ public sealed class SecurityHeadersMiddleware
         headers["X-Permitted-Cross-Domain-Policies"] = "none";
 
         // Boshqa oynadan (window.opener) bu kontekstga tegishni to'xtatadi.
-        headers["Cross-Origin-Opener-Policy"] = "same-origin";
+        // AI ulanish sahifasi (`/oauth/*`) o'zinikini qo'yadi (`unsafe-none`):
+        // AI ilovalari ulanishni popup'da ochadi va `same-origin` popup'ning
+        // ochuvchi bilan aloqasini uzib, ulanishni tugatmay qo'yardi.
+        if (!(request.Path.StartsWithSegments("/oauth", StringComparison.OrdinalIgnoreCase)
+              && headers.ContainsKey("Cross-Origin-Opener-Policy")))
+        {
+            headers["Cross-Origin-Opener-Policy"] = "same-origin";
+        }
 
-        headers["Content-Security-Policy"] = HujjatSahifasimi(request.Path) ? HujjatCsp : ApiCsp;
+        /*
+          AI ulanish sahifasi (`/oauth/authorize`, `docs/SPEC-mcp.md` §5) o'z
+          CSP'sini O'ZI qo'yadi va u saqlanadi: sahifaga ichki uslub kerak, rozilik
+          formasi esa AI mijoziga yo'naltiradi — umumiy `form-action 'none'` formani
+          umuman yubortirmasdi. Istisno tor: faqat `/oauth` ostida va faqat
+          endpoint CSP'ni allaqachon qo'ygan bo'lsa (JSON javoblarda umumiy qoida).
+        */
+        var oauthSahifa = request.Path.StartsWithSegments("/oauth", StringComparison.OrdinalIgnoreCase)
+            && headers.ContainsKey(HeaderNames.ContentSecurityPolicy);
+
+        if (!oauthSahifa)
+        {
+            headers["Content-Security-Policy"] = HujjatSahifasimi(request.Path) ? HujjatCsp : ApiCsp;
+        }
 
         // HSTS faqat HTTPS'da va faqat Production'da. Development'da http://localhost
         // uchun yuborilsa — brauzer domenni eslab qoladi va keyin mahalliy ishlash

@@ -302,7 +302,17 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         first.LastDeviceName.ShouldBe(deviceName);
 
         // ── Ogohlantirish: firma filtri bilan HAM, qidiruv filtri bilan HAM ──
-        var alert = board.FormerEmployeeAlerts.ShouldHaveSingleItem();
+        //
+        // Ogohlantirish ro'yxati filtrga BO'YSUNMAYDI, ya'ni u shu klassning
+        // BOSHQA testlari yozgan ishdan ketganlarni ham ko'radi (baza klass
+        // bo'yicha umumiy, `Tugilgan_kunlar...` ham shu sanaga o'tish yozadi).
+        // Shu sababli faqat SHU test yozgan xodim olinadi — aks holda natija
+        // testlar tartibiga bog'liq bo'lib qolardi (2026-10-01 da tartib
+        // o'zgarib, aynan shu sabab bilan yiqildi).
+        IReadOnlyList<FormerEmployeeAlertDto> Own(IEnumerable<FormerEmployeeAlertDto> alerts)
+            => [.. alerts.Where(item => item.EmployeeId == formerEmployee)];
+
+        var alert = Own(board.FormerEmployeeAlerts).ShouldHaveSingleItem();
         alert.EmployeeId.ShouldBe(formerEmployee);
         alert.OccurredAt.ShouldBe(new DateTimeOffset(2026, 9, 16, 9, 15, 0, Tashkent));
         alert.PassCount.ShouldBe(2);
@@ -318,7 +328,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
 
         searched.ExpectedCount.ShouldBe(0);
         searched.Items.ShouldBeEmpty();
-        searched.FormerEmployeeAlerts.Select(item => item.PassId).ShouldBe([alert.PassId]);
+        Own(searched.FormerEmployeeAlerts).Select(item => item.PassId).ShouldBe([alert.PassId]);
 
         // Nishon uchun alohida so'rov — taxtadagi bilan AYNAN bir xil qatorlar.
         var badge = await readModel.GetFormerEmployeeAlertsAsync(cancellationToken);
@@ -326,7 +336,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
 
         // 30 soatdan keyin eski o'tish oynadan chiqadi — ogohlantirish o'zi yo'qoladi.
         var later = ReadModel(scope.ServiceProvider, new FixedClock(now.AddHours(30).ToUniversalTime()));
-        (await later.GetFormerEmployeeAlertsAsync(cancellationToken)).ShouldBeEmpty();
+        Own(await later.GetFormerEmployeeAlertsAsync(cancellationToken)).ShouldBeEmpty();
     }
 
     // ════════════════════════════════════════════════════════════

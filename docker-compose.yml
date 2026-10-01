@@ -116,6 +116,14 @@ services:
       Bootstrap__CreateDevUsers: ${BOOTSTRAP__CREATEDEVUSERS:-true}
 
       # ----------------------------------------------------------
+      #  AI ulanish (MCP) — `docs/SPEC-mcp.md` §9.
+      #  Parol bo'sh bo'lsa MCP butunlay yopiq («serverda sozlanmagan»).
+      #  Berilsa, API ishga tushganda `bonvi_mcp` o'qish rolini o'zi
+      #  yaratadi. Yoqish/o'chirish — «Tizim sozlamalari» da.
+      # ----------------------------------------------------------
+      Mcp__DbPassword: ${MCP_DB_PASSWORD:-}
+
+      # ----------------------------------------------------------
       #  Xato jurnali (fayl)
       #
       #  `docker logs api` konteyner qayta ishga tushishi bilan tozalanadi —

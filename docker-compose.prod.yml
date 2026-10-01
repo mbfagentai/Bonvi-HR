@@ -137,6 +137,18 @@ services:
       # bu qator qo'shilgan.
       Settings__SecretKey: ${SETTINGS__SECRETKEY:-}
       Storage__RootPath: /data/uploads
+
+      # ----------------------------------------------------------
+      #  AI ulanish (MCP) — `docs/SPEC-mcp.md` §9.
+      #
+      #  ATAYLAB `:-` bilan: `MCP_DB_PASSWORD` berilmasa MCP butunlay yopiq
+      #  va qolgan tizim avvalgidek ishlaydi. Yoqish uchun: `.env` ga parol
+      #  va `MCP_PUBLIC_BASE_URL=https://hr.bonvi.uz`, Caddy'da `/mcp`,
+      #  `/oauth/*`, `/.well-known/oauth-*` yo'llari (DEPLOY-CHECKLIST),
+      #  keyin egasi «Tizim sozlamalari» da o'chirgichni yoqadi.
+      # ----------------------------------------------------------
+      Mcp__DbPassword: ${MCP_DB_PASSWORD:-}
+      Mcp__PublicBaseUrl: ${MCP_PUBLIC_BASE_URL:-}
       # ----------------------------------------------------------
       #  CORS — sukut bo'yicha BO'SH va bu to'g'ri.
       #

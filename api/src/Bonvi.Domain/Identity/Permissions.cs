@@ -321,6 +321,30 @@ public static class Permissions
     /// </remarks>
     public const string SettingsManage = "settings.manage";
 
+    /// <summary>
+    /// AI yordamchini (Claude, ChatGPT…) MCP orqali ulash va tizim
+    /// ma'lumotini FAQAT O'QISH (<c>docs/SPEC-mcp.md</c>, egasining qarori
+    /// 2026-10-01).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Bu ruxsat o'zi hech qanday ma'lumot OCHMAYDI.</b> U faqat «bu odam
+    /// AI mijozga kalit bera oladi» degani. AI ko'radigan narsa — o'sha
+    /// odamning O'Z ruxsatlari: oklad faqat <see cref="SalaryView"/> bilan,
+    /// davomat faqat <see cref="AttendanceView"/> bilan va hokazo. Pasport
+    /// ma'lumoti va yuklangan fayllar esa hech kimga, hech qanday ruxsat
+    /// bilan chiqmaydi — ular baza darajasida yopilgan.
+    /// </para>
+    /// <para>
+    /// <b>Nega alohida ruxsat.</b> AI orqali o'qish — ma'lumotni tizimdan
+    /// TASHQARIGA (AI provayderiga) olib chiqish. Ekranda ko'rish huquqi bor
+    /// har bir odam bunga ham haqli bo'lishi shart emas; egasi kimga
+    /// berishni «Rollar» da o'zi belgilaydi. HR menejerining boshlang'ich
+    /// ruxsatlarida YO'Q.
+    /// </para>
+    /// </remarks>
+    public const string McpConnect = "mcp.connect";
+
     /// <summary>Barcha ruxsatlar — tekshirish va seed uchun.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -338,6 +362,7 @@ public static class Permissions
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
         UsersManage, RolesManage, AuditView, SettingsManage,
+        McpConnect,
     };
 
     public static bool Exists(string permission) => All.Contains(permission);

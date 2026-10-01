@@ -1,6 +1,7 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
+using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
@@ -51,19 +52,22 @@ public sealed class DeactivateUserCommandHandler
     private readonly IRoleRepository _roles;
     private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMcpGrantRevoker _mcpGrants;
 
     public DeactivateUserCommandHandler(
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
         IAuditLogger auditLogger,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IMcpGrantRevoker mcpGrants)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
         _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
+        _mcpGrants = mcpGrants;
     }
 
     public async Task<Result> HandleAsync(
@@ -113,6 +117,12 @@ public sealed class DeactivateUserCommandHandler
         {
             return deactivated.Error;
         }
+
+        // AI (MCP) ulanishlari ham — aks holda hisob qayta faollashtirilganda
+        // eski ulanish yangi roziliksiz «tirilib» qolardi (`IMcpGrantRevoker` izohi).
+        await _mcpGrants
+            .RevokeAllForUserAsync(target.Id, "system:deactivated", cancellationToken)
+            .ConfigureAwait(false);
 
         _auditLogger.Record(AuditAction.Update, "User", target.Id.ToString(), newValues: "{\"isActive\":false}");
 

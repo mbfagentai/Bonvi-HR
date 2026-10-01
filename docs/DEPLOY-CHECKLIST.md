@@ -3,6 +3,47 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏳ Keyingi reliz — AI ulanish (MCP) — HALI CHIQARILMAGAN
+
+Spetsifikatsiya: `docs/SPEC-mcp.md`. Faqat o'qish; pasport ma'lumotlari va
+fayllar baza darajasida yopiq. Deploy faqat egasi aytganda.
+
+**Deploy'dan keyin hech narsa o'z-o'zidan ochilmaydi:** `MCP_DB_PASSWORD`
+berilmasa MCP «serverda sozlanmagan»; berilsa ham o'chirgich sukut bo'yicha
+O'CHIQ — egasi «Tizim sozlamalari» → «AI ulanish» da yoqadi. HR menejeri
+roliga `mcp.connect` berilmaydi (seeder oddiy rolga tegmaydi).
+
+1. Migratsiya `McpReadOnly` — 5 ta yangi `mcp_*` jadval + `mcp_apply_ro_grants`
+   funksiyasi. Hech narsa o'chirilmaydi. (`Bootstrap__AutoMigrate` bilan o'zi.)
+2. Prod `.env`:
+   - `MCP_DB_PASSWORD=` — `openssl rand -base64 24` (yangi, dev'dagidan BOSHQA);
+   - `MCP_PUBLIC_BASE_URL=https://hr.bonvi.uz`.
+3. Caddy — `web/Caddyfile` (web image bilan keladi): `/mcp`, `/oauth/*`,
+   `/.well-known/oauth-*` → `api:8080`; SPA CSP `/oauth/*` ga qo'yilmaydi
+   (aks holda `form-action 'self'` rozilikdan keyingi qaytishni to'sadi).
+   Lokal sinalgan 2026-10-01 (`caddy:2.11.4-alpine`).
+4. API ishga tushgach jurnalda: `AI ulanish (MCP): o'qish roli tayyor — bonvi_mcp`.
+   Yo'q bo'lsa — `AI ulanish (MCP) YOPIQ:`/`tekshiruvi yiqildi:` qatoridagi sabab.
+5. Tekshiruv (tashqaridan): `GET /.well-known/oauth-authorization-server` —
+   o'chirgich o'chiq paytda 404, yoqilgandan keyin 200 va `issuer` =
+   `https://hr.bonvi.uz`; `POST /mcp` tokensiz → 401 + `WWW-Authenticate`.
+6. Deploy'dan OLDIN build konteynerida: `dotnet list package --vulnerable
+   --include-transitive` — `ModelContextProtocol.AspNetCore` 2.2.0 va uning
+   bog'liqliklarida ma'lum zaiflik yo'qligini tekshirish (2026-10-01: toza).
+7. Yoqishdan oldin haqiqiy claude.ai (kompyuter + telefon) va ChatGPT bilan
+   bitta sinov ulanishi: rozilik sahifasi popup'da ochilib, qaytishi va
+   «Uzish» dan keyin 401 bo'lishi (COOP/CSP o'zgarishlari faqat brauzerda ko'rinadi).
+8. Egasi: «Rollar» da kerakli rolga «AI orqali o'qish (MCP)» ni beradi,
+   «Tizim sozlamalari» da o'chirgichni yoqadi, claude.ai → Connectors →
+   `https://hr.bonvi.uz/mcp` (qo'llanma: `docs/MCP.md`).
+
+Rollback: image rollback yetarli — eski image `mcp_*` jadvallarini bilmaydi va
+ularga tegmaydi; `bonvi_mcp` roli faqat o'qiydi. Rollback'dan keyin rol paroli
+tirik qolmasin: `ALTER ROLE bonvi_mcp NOLOGIN;`. To'liq tozalash kerak bo'lsa:
+`DROP OWNED BY bonvi_mcp; DROP ROLE bonvi_mcp;` (`DROP OWNED` bu yerda faqat
+rolga BERILGAN ruxsatlarni oladi — rol hech narsaga ega emas; usiz `DROP ROLE`
+«privileges for table …» bilan rad etiladi).
+
 ## ✅ Reliz `90f11d7` — Verifikatsiya (davomat) moduli — CHIQARILDI 2026-09-30 21:08 (Toshkent)
 
 Prod `75d5f02` → `90f11d7`. Rollback: image tegi `rollback-75d5f02` (api, bot,

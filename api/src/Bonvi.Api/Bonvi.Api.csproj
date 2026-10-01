@@ -28,6 +28,7 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Hangfire.AspNetCore" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
 
 </Project>

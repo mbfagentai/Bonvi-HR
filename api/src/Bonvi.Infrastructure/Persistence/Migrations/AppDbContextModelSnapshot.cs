@@ -2785,6 +2785,294 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Mcp.McpAuditEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Arguments")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("arguments");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("client_id");
+
+                    b.Property<string>("ClientName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("client_name");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<Guid?>("GrantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grant_id");
+
+                    b.Property<string>("Ip")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("ip");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("outcome");
+
+                    b.Property<int?>("RowCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("row_count");
+
+                    b.Property<string>("Tool")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("tool");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("user_name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mcp_audit");
+
+                    b.HasIndex("At")
+                        .HasDatabaseName("ix_mcp_audit_at");
+
+                    b.HasIndex("GrantId")
+                        .HasDatabaseName("ix_mcp_audit_grant_id");
+
+                    b.ToTable("mcp_audit", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Mcp.McpAuthCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("client_id");
+
+                    b.Property<string>("CodeChallenge")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code_challenge");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code_hash");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("GrantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grant_id");
+
+                    b.Property<string>("RedirectUri")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("redirect_uri");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("resource");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mcp_auth_codes");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_mcp_auth_codes_code_hash");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_mcp_auth_codes_expires_at");
+
+                    b.ToTable("mcp_auth_codes", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Mcp.McpClient", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.PrimitiveCollection<string[]>("RedirectUris")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("redirect_uris");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mcp_clients");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_mcp_clients_created_at");
+
+                    b.ToTable("mcp_clients", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Mcp.McpGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("client_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_used_at");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("resource");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("RevokedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("revoked_by");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mcp_grants");
+
+                    b.HasIndex("ClientId")
+                        .HasDatabaseName("ix_mcp_grants_client_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_mcp_grants_user_id");
+
+                    b.ToTable("mcp_grants", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Mcp.McpToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("GrantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grant_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mcp_tokens");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_mcp_tokens_expires_at");
+
+                    b.HasIndex("GrantId")
+                        .HasDatabaseName("ix_mcp_tokens_grant_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_mcp_tokens_token_hash");
+
+                    b.ToTable("mcp_tokens", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Notifications.NotificationState", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4218,6 +4506,26 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_refresh_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Mcp.McpGrant", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Mcp.McpClient", null)
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_mcp_grants_mcp_clients_client_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Mcp.McpToken", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Mcp.McpGrant", null)
+                        .WithMany()
+                        .HasForeignKey("GrantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mcp_tokens_mcp_grants_grant_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Notifications.NotificationState", b =>

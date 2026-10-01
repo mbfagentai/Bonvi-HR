@@ -86,8 +86,12 @@ public static class PermissionCatalog
     /// buyruqlarda ham, eksportda ham ko'rinadi, ya'ni u bitta bo'limning
     /// darajasi emas, ko'rinish bayrog'i. <see cref="Permissions.SalaryExtraView"/>
     /// — xuddi shunday, qo'shimcha vazifa haqi uchun (2026-09-27).
+    /// <see cref="Permissions.McpConnect"/> — AI orqali o'qish (2026-10-01):
+    /// u bironta bo'limni ochmaydi, faqat «egasining o'z ruxsatlari bilan AI
+    /// ulay oladi» degan bayroq.
     /// </remarks>
-    public static IReadOnlyList<string> Extras { get; } = [Permissions.SalaryView, Permissions.SalaryExtraView];
+    public static IReadOnlyList<string> Extras { get; } =
+        [Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect];
 
     /// <summary>
     /// Bo'lim yig'uvchisi: har bir daraja faqat O'ZI QO'SHADIGAN kodlarni

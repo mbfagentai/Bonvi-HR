@@ -3,6 +3,7 @@ using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Api.IntegrationTests;
@@ -49,11 +50,15 @@ internal static class TestAccounts
 
     /// <summary>Faqat shu ruxsatlarga ega yangi hisobning access tokeni.</summary>
     /// <remarks>Ruxsatsiz hisob uchun — argumentsiz chaqiriladi.</remarks>
-    public static async Task<string> TokenAsync(BonviApiFactory factory, params string[] permissions)
+    public static async Task<string> TokenAsync(WebApplicationFactory<Program> factory, params string[] permissions)
         => (await CreateAsync(factory, permissions).ConfigureAwait(false)).AccessToken;
 
     /// <summary>Faqat shu ruxsatlarga ega yangi hisob (rol bilan birga).</summary>
-    public static async Task<TestAccount> CreateAsync(BonviApiFactory factory, params string[] permissions)
+    /// <remarks>
+    /// Hosil qilingan xost (<c>WithWebHostBuilder</c>) ham qabul qilinadi: hisob
+    /// AYNAN so'rovlar boradigan xostda ochilsin (MCP testlari — o'z sozlamali xostida).
+    /// </remarks>
+    public static async Task<TestAccount> CreateAsync(WebApplicationFactory<Program> factory, params string[] permissions)
     {
         ArgumentNullException.ThrowIfNull(factory);
 

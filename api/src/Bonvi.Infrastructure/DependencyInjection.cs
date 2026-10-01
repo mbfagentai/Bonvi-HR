@@ -20,6 +20,7 @@ using Bonvi.Infrastructure.Security;
 using Bonvi.Infrastructure.Repositories;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Infrastructure.Persistence;
+using Bonvi.Infrastructure.Mcp;
 using Bonvi.Infrastructure.Persistence.Interceptors;
 using Bonvi.Infrastructure.Services;
 using Bonvi.Infrastructure.Storage;
@@ -430,6 +431,12 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
         services.AddScoped<IDatabaseProbe, EfDatabaseProbe>();
+
+        // AI ulanish (MCP) — o'qish roli va `mcp_*` yozuvlari uchun alohida
+        // ulanishlar (`docs/SPEC-mcp.md` §3). Singleton: ichida faqat
+        // ulanish satrlari va bir marta quriladigan kontekst opsiyalari bor.
+        services.AddSingleton<McpDatabase>();
+        services.AddScoped<Bonvi.Application.Mcp.IMcpGrantRevoker, McpGrantRevoker>();
 
         return services;
     }

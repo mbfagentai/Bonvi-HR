@@ -701,6 +701,26 @@ public static class SystemSettingKeys
     /// </remarks>
     public const string GeneralPoolVacancyId = "recruiting.generalPoolVacancyId";
 
+    /// <summary>
+    /// AI ulanish (MCP) yoqilganmi: <c>"true"</c> yoki <c>"false"</c>
+    /// (<c>docs/SPEC-mcp.md</c> §2.2, §8).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Sukut — <c>"false"</c>.</b> Deploy'dan keyin AI ulanishi o'z-o'zidan
+    /// ochilib qolmaydi: uni egasi «Tizim sozlamalari» dagi o'chirgich bilan
+    /// ongli ravishda yoqadi.
+    /// </para>
+    /// <para>
+    /// <b>Nega <see cref="SystemSettingKind.Hidden"/>.</b> Umumiy sozlamalar
+    /// formasida turmaydi — uni «AI ulanish» bo'limidagi alohida o'chirgich
+    /// yozadi (<c>PUT /api/mcp/enabled</c>), ruxsati bir xil
+    /// (<c>settings.manage</c>). Formaga qo'shilsa, «Saqlash» bosilganda boshqa
+    /// sozlamalar bilan birga beixtiyor o'zgarib ketishi mumkin edi.
+    /// </para>
+    /// </remarks>
+    public const string McpEnabled = "mcp.enabled";
+
     /// <summary>Sirning eng katta uzunligi.</summary>
     /// <remarks>
     /// Telegram tokeni ~46 belgi. 200 — zaxira bilan: chegara bu yerda
@@ -988,6 +1008,9 @@ public static class SystemSettingKeys
 
         // «2026-09-27T10:15:00.0000000+00:00» — 33 belgi.
         new(AttendanceEmploymentChangesCheckedAt, SystemSettingKind.Hidden, string.Empty, MaxLength: 40),
+
+        // «true» / «false» — 5 belgi.
+        new(McpEnabled, SystemSettingKind.Hidden, "false", MaxLength: 5),
     ];
 
     /// <summary>

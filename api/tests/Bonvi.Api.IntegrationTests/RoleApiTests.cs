@@ -194,7 +194,7 @@ public sealed class RoleApiTests : IClassFixture<BonviApiFactory>
         Kodlar(mehnat.GetProperty("actions")).ShouldBe(Permissions.EmploymentActions);
         mehnat.GetProperty("levels").EnumerateObject().Select(p => p.Name).ShouldBe(["view"]);
 
-        Kodlar(ildiz.GetProperty("extras")).ShouldBe([Permissions.SalaryView, Permissions.SalaryExtraView]);
+        Kodlar(ildiz.GetProperty("extras")).ShouldBe([Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect]);
 
         // Serializatsiyada hech bir kod yo'qolmagan
         var hammasi = bolimlar
