@@ -2353,17 +2353,51 @@ public sealed partial class BotWorker : BackgroundService
             .SendMessageAsync(
                 chatId,
                 text,
-                menu: MenuLabels(settings, language),
+                menu: await MenuLabelsAsync(settings, language, cancellationToken).ConfigureAwait(false),
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 
-    /// <summary>Sozlamaga qarab menyu tugmalarini yig'adi.</summary>
-    private static List<string> MenuLabels(BotSettings? settings, BotLanguage language)
+    /// <summary>Sozlama va «Umumiy anketa» holatiga qarab menyu tugmalarini yig'adi.</summary>
+    private async Task<List<string>> MenuLabelsAsync(
+        BotSettings? settings,
+        BotLanguage language,
+        CancellationToken cancellationToken)
         => BotMenu.Labels(
             language,
             hasAbout: About(settings, language) is not null,
-            hasContacts: Contacts(settings, language) is not null);
+            hasContacts: Contacts(settings, language) is not null,
+            hasQuestionnaire: await GeneralPoolMenuStateAsync(cancellationToken).ConfigureAwait(false) != false);
+
+    /// <summary>
+    /// «Umumiy anketa» ochiqmi — MENYU uchun, qisqa kesh bilan.
+    /// </summary>
+    /// <remarks>
+    /// Menyu deyarli har xabar bilan chiziladi, ya'ni har safar API'ni so'rash
+    /// ortiqcha. 30 soniyalik eskirish xavfsiz: HR anketani yopgandan keyin
+    /// tugmani ko'rgan nomzod bosganda JONLI tekshiruv ishlaydi
+    /// (<see cref="MenuAction.Questionnaire"/>) va bot holatni aytib, menyuni
+    /// yangilaydi. <c>null</c> — noma'lum (tugma ko'rsatiladi).
+    /// </remarks>
+    private async Task<bool?> GeneralPoolMenuStateAsync(CancellationToken cancellationToken)
+    {
+        if (_generalPoolMenuState is { } cached && BotClock.Now - cached.At < GeneralPoolMenuCacheLifetime)
+        {
+            return cached.Open;
+        }
+
+        var open = await _bonvi.IsGeneralPoolOpenAsync(cancellationToken).ConfigureAwait(false);
+
+        _generalPoolMenuState = new GeneralPoolMenuState(open, BotClock.Now);
+        return open;
+    }
+
+    private static readonly TimeSpan GeneralPoolMenuCacheLifetime = TimeSpan.FromSeconds(30);
+
+    private sealed record GeneralPoolMenuState(bool? Open, DateTimeOffset At);
+
+    // Havola turi — almashtirish atomar (yarim yozilgan qiymat o'qilmaydi).
+    private volatile GeneralPoolMenuState? _generalPoolMenuState;
 
     private async Task HandleMenuAsync(
         long chatId,
@@ -2483,7 +2517,7 @@ public sealed partial class BotWorker : BackgroundService
     {
         var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
         var text = About(settings, language) ?? BotTexts.Restart(language);
-        var menu = MenuLabels(settings, language);
+        var menu = await MenuLabelsAsync(settings, language, cancellationToken).ConfigureAwait(false);
         var social = SocialButtons(settings, language);
 
         var caption = text.Length <= MaxCaptionLength ? text : null;
@@ -2579,7 +2613,7 @@ public sealed partial class BotWorker : BackgroundService
     /// </summary>
     /// <remarks>
     /// Bo'lim bo'sh bo'lsa tugma umuman chizilmagan bo'lardi
-    /// (<see cref="MenuLabels"/>), lekin HR matnni bot ochiq turganda
+    /// (<see cref="MenuLabelsAsync"/>), lekin HR matnni bot ochiq turganda
     /// o'chirishi mumkin va eski tugma nomzod ekranida qolib ketadi.
     /// Shunda bo'sh xabar o'rniga menyu qayta ko'rsatiladi.
     /// </remarks>
@@ -2596,7 +2630,7 @@ public sealed partial class BotWorker : BackgroundService
             .SendMessageAsync(
                 chatId,
                 text ?? BotTexts.Restart(language),
-                menu: MenuLabels(settings, language),
+                menu: await MenuLabelsAsync(settings, language, cancellationToken).ConfigureAwait(false),
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }

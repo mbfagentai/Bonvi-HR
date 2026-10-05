@@ -94,6 +94,23 @@ public sealed class BotMenuTests
         ]);
     }
 
+    /// <summary>
+    /// «Umumiy anketa» yopiq bo'lsa «Anketa to'ldirish» chizilmaydi (egasining
+    /// qarori, 2026-10-05) — bosib bo'lmaydigan tugma ko'rinmasin.
+    /// </summary>
+    [Fact]
+    public void Umumiy_anketa_yopiq_bolsa_anketa_tugmasi_chizilmaydi()
+    {
+        var labels = BotMenu.Labels(BotLanguage.Latin, hasAbout: true, hasContacts: true, hasQuestionnaire: false);
+
+        labels.ShouldBe([
+            BotTexts.VacanciesButton(BotLanguage.Latin),
+            BotTexts.AboutButton(BotLanguage.Latin),
+            BotTexts.ContactsButton(BotLanguage.Latin),
+            BotTexts.LanguageButton,
+        ]);
+    }
+
     [Fact]
     public void Sozlangan_bolimlar_tartib_bilan_qoshiladi()
     {

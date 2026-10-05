@@ -223,6 +223,26 @@ public sealed class AnketaChidamliligiTests
     }
 
     [Fact]
+    public async Task Umumiy_anketa_yopiq_bolsa_menyuda_anketa_tugmasi_korinmaydi()
+    {
+        using var yopiq = AnketaOqimiTests.New(withVacancy: false);
+        yopiq.GeneralPoolOpen = false;
+
+        await yopiq.ChooseLanguageAsync();
+
+        var menyu = yopiq.Sent.Last(xabar => xabar.Menu is { Count: > 0 }).Menu!;
+        menyu.ShouldContain(BotTexts.VacanciesButton(Uz));
+        menyu.ShouldNotContain(BotTexts.QuestionnaireButton(Uz), "yopiq anketaning tugmasi ko'rinmaydi");
+
+        using var ochiq = AnketaOqimiTests.New(withVacancy: false);
+
+        await ochiq.ChooseLanguageAsync();
+
+        ochiq.Sent.Last(xabar => xabar.Menu is { Count: > 0 }).Menu!
+            .ShouldContain(BotTexts.QuestionnaireButton(Uz), "ochiq bo'lsa tugma joyida");
+    }
+
+    [Fact]
     public async Task Umumiy_anketa_ham_vakansiya_ham_yopiq_bolsa_aniq_aytiladi()
     {
         using var bot = AnketaOqimiTests.New(withVacancy: false);

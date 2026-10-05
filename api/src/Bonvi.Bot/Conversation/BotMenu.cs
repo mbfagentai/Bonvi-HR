@@ -93,21 +93,33 @@ public static class BotMenu
     /// <param name="language">Tugmalar qaysi tilda yozilishi.</param>
     /// <param name="hasAbout">«Kompaniya haqida» matni sozlanganmi.</param>
     /// <param name="hasContacts">Kontakt matni sozlanganmi.</param>
-    public static List<string> Labels(BotLanguage language, bool hasAbout, bool hasContacts)
+    /// <param name="hasQuestionnaire">
+    /// «Umumiy anketa» ochiqmi — yopiq bo'lsa «Anketa to'ldirish» chizilmaydi.
+    /// </param>
+    public static List<string> Labels(
+        BotLanguage language,
+        bool hasAbout,
+        bool hasContacts,
+        bool hasQuestionnaire = true)
     {
-        var labels = new List<string>
-        {
-            BotTexts.VacanciesButton(language),
+        var labels = new List<string> { BotTexts.VacanciesButton(language) };
 
-            /*
-              «Anketa to'ldirish» SHARTSIZ chiziladi — «Kompaniya
-              haqida» va «Kontaktlar» dan farqli. Sabab: u sozlamaga
-              emas, botning o'z ishiga bog'liq va u har doim bor.
-              Ochiq vakansiya bo'lmaganda ham u ishlaydi (o'shanda
-              «Ariza topshirish» bilan bir xil natija beradi).
-            */
-            BotTexts.QuestionnaireButton(language),
-        };
+        /*
+          «Anketa to'ldirish» faqat «Umumiy anketa» OCHIQ bo'lsa chiziladi
+          (egasining qarori, 2026-10-05: yopiq vakansiyaga anketa
+          topshirilmaydi — bosib bo'lmaydigan tugma ham ko'rinmasin).
+          Ochiq vakansiya bo'lmaganda ham u ishlaydi — ariza «Umumiy
+          anketa»ga tushadi.
+
+          Ilgari u shartsiz chizilardi: «Umumiy anketa» yopilmasdi. Holat
+          noma'lum bo'lsa (server javob bermadi) chaqiruvchi `true` beradi —
+          tugma bosilganda baribir jonli tekshiruv bor va yopiq bo'lsa bot
+          buni aytadi.
+        */
+        if (hasQuestionnaire)
+        {
+            labels.Add(BotTexts.QuestionnaireButton(language));
+        }
 
         if (hasAbout)
         {

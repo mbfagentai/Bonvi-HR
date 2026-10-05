@@ -273,7 +273,10 @@ tuyulmasligi kerak:
 
 Egasining qarori: qaysi vakansiya yopiq bo'lsa, unga anketa topshirib
 bo'lmaydi — «Umumiy anketa» ham. U HR ekranida boshqa vakansiyalar kabi
-yopiladi va ochiladi; yopiq bo'lsa nomzodga bu anketa BOSHIDA aytiladi
+yopiladi va ochiladi; yopiq bo'lsa pastki menyuda **«📋 Anketa to'ldirish»
+tugmasi umuman ko'rinmaydi** (30 soniyagacha kechikish bilan — eski menyu
+nomzod ekranida qolgan bo'lsa, tugma bosilganda bot holatni aytib, menyuni
+yangilaydi), va nomzodga bu anketa BOSHIDA aytiladi
 (`BotTexts.QuestionnaireClosed`, `NoOpenVacanciesNoQuestionnaire`,
 `ApplicationsClosed`).
 

@@ -14,7 +14,12 @@ namespace Bonvi.Bot.Tests;
 /// <param name="Text">Xabar matni.</param>
 /// <param name="Buttons">Xabar ostidagi tugmalarning ma'lumoti.</param>
 /// <param name="RequestsContact">«Raqamni yuborish» tugmasi chizildimi.</param>
-public sealed record SentMessage(string Text, IReadOnlyList<string> Buttons, bool RequestsContact);
+/// <param name="Menu">Pastki menyu (reply keyboard) tugmalarining matni; menyusiz xabarda bo'sh.</param>
+public sealed record SentMessage(
+    string Text,
+    IReadOnlyList<string> Buttons,
+    bool RequestsContact,
+    IReadOnlyList<string>? Menu = null);
 
 /// <summary>
 /// Botni TARMOQSIZ ishga tushiradigan sinov stendi.
@@ -405,6 +410,7 @@ public sealed class BotHarness : IDisposable
 
         var text = root.TryGetProperty("text", out var value) ? value.GetString() ?? string.Empty : string.Empty;
         var buttons = new List<string>();
+        var menu = new List<string>();
         var requestsContact = false;
 
         if (root.TryGetProperty("reply_markup", out var markup) && markup.ValueKind == JsonValueKind.Object)
@@ -423,10 +429,16 @@ public sealed class BotHarness : IDisposable
                 requestsContact = keyboard.EnumerateArray()
                     .SelectMany(row => row.EnumerateArray())
                     .Any(button => button.TryGetProperty("request_contact", out var flag) && flag.GetBoolean());
+
+                menu.AddRange(
+                    from row in keyboard.EnumerateArray()
+                    from button in row.EnumerateArray()
+                    where button.ValueKind == JsonValueKind.Object && button.TryGetProperty("text", out _)
+                    select button.GetProperty("text").GetString() ?? string.Empty);
             }
         }
 
-        return new SentMessage(text, buttons, requestsContact);
+        return new SentMessage(text, buttons, requestsContact, menu);
     }
 
     private static HttpResponseMessage Json(string payload)
