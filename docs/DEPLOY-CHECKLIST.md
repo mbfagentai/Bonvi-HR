@@ -3,7 +3,20 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏳ Keyingi reliz — AI ulanish (MCP) — HALI CHIQARILMAGAN
+## ✅ Reliz `64a1e32` — AI ulanish (MCP) + «Umumiy anketa» — CHIQARILDI 2026-10-05 13:48 (Toshkent)
+
+Prod `90f11d7` → `64a1e32`. Rollback: image tegi `rollback-90f11d7` (api, bot,
+web), zaxira stamp `2026-10-05_083600`. Prod nusxasida sinaldi (Production
+rejimi, prod `Dockerfile`): migratsiya `McpReadOnly` qo'llandi, ma'lumot
+o'zgarmadi, `mcp.connect` faqat super administratorga. Deploy 13:38–13:48,
+ish vaqti, HR faolligi past edi. Natija: API jurnalida ERR yo'q, bot API bilan
+200, sayt/ilova 200, `/mcp` 503 va `/oauth/*` 404 (MCP sozlanmagan — ataylab),
+28 xodim / 230 nomzod, «Umumiy anketa» ochiq.
+
+**MCP hali YOQILMAGAN.** Yoqish — quyidagi 2-, 4–8-qadamlar (egasi aytganda).
+HR sahifani yangilaydi (F5).
+
+### Reliz tafsiloti (tarix uchun)
 
 Spetsifikatsiya: `docs/SPEC-mcp.md`. Faqat o'qish; pasport ma'lumotlari va
 fayllar baza darajasida yopiq. Deploy faqat egasi aytganda.
