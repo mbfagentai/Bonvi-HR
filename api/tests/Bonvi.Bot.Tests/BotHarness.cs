@@ -107,6 +107,33 @@ public sealed class BotHarness : IDisposable
     /// </summary>
     public bool? GeneralPoolOpen { get; set; } = true;
 
+    /// <summary>Navbatdagi rad etish xabarlari (server tartibida — eng eskisi birinchi).</summary>
+    public List<RejectionNotice> PendingRejections { get; } = [];
+
+    /// <summary>Navbatdagi suhbat takliflari.</summary>
+    public List<InterviewNotice> PendingInterviews { get; } = [];
+
+    /// <summary>Bu suhbatlar botni BLOKLAGAN — Telegram 403 qaytaradi.</summary>
+    public HashSet<long> BlockedChats { get; } = [];
+
+    /// <summary>Telegram'ga umuman yetib bo'lmaydi (tarmoq uzilgan).</summary>
+    public bool TelegramUnreachable { get; set; }
+
+    /// <summary>Telegram'ga «sendMessage» urinishlari — chat bo'yicha (muvaffaqiyatsizlari ham).</summary>
+    public List<long> SendAttempts { get; } = [];
+
+    /// <summary>Joylashuv yuborilgan suhbatlar.</summary>
+    public List<long> LocationsSent { get; } = [];
+
+    /// <summary>Belgilangan xabarnomalar: (tur, nomzod, yetkazildimi).</summary>
+    public List<(string Kind, Guid CandidateId, bool Delivered)> Marked { get; } = [];
+
+    /// <summary>Navbat bir so'rovda shuncha yozuv beradi — server bilan bir xil.</summary>
+    public const int NoticeBatch = 20;
+
+    /// <summary>Halqaning bitta aylanishidagi xabarnomalar qadami.</summary>
+    public Task NoticesAsync() => _worker.SendNoticesAsync(CancellationToken.None);
+
     /// <summary>
     /// Server yangi arizani to'sadimi va NEGA.
     /// </summary>
@@ -235,8 +262,36 @@ public sealed class BotHarness : IDisposable
 
         if (path.EndsWith("/sendMessage", StringComparison.Ordinal))
         {
+            using var hujjat = JsonDocument.Parse(body);
+            var chat = hujjat.RootElement.TryGetProperty("chat_id", out var id) ? id.GetInt64() : 0;
+
+            SendAttempts.Add(chat);
+
+            if (TelegramUnreachable)
+            {
+                throw new HttpRequestException(HttpRequestError.ConnectionError, "api.telegram.org ga ulanib bo'lmadi");
+            }
+
+            if (BlockedChats.Contains(chat))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Forbidden)
+                {
+                    Content = new StringContent(
+                        """{"ok":false,"error_code":403,"description":"Forbidden: bot was blocked by the user"}""",
+                        Encoding.UTF8,
+                        "application/json"),
+                };
+            }
+
             Sent.Add(ReadMessage(body));
             return Json("""{"ok":true,"result":{"message_id":1}}""");
+        }
+
+        if (path.EndsWith("/sendLocation", StringComparison.Ordinal))
+        {
+            using var hujjat = JsonDocument.Parse(body);
+            LocationsSent.Add(hujjat.RootElement.GetProperty("chat_id").GetInt64());
+            return Json("""{"ok":true,"result":{"message_id":2}}""");
         }
 
         if (path.EndsWith("/getFile", StringComparison.Ordinal))
@@ -344,7 +399,26 @@ public sealed class BotHarness : IDisposable
 
         if (path.EndsWith("/rejection-notices", StringComparison.Ordinal))
         {
-            return Json("[]");
+            return Json(JsonSerializer.Serialize(PendingRejections.Take(NoticeBatch), WebJson));
+        }
+
+        if (path.EndsWith("/interview-notices", StringComparison.Ordinal))
+        {
+            return Json(JsonSerializer.Serialize(PendingInterviews.Take(NoticeBatch), WebJson));
+        }
+
+        if (path.EndsWith("/rejection-notice-sent", StringComparison.Ordinal)
+            || path.EndsWith("/interview-notice-sent", StringComparison.Ordinal))
+        {
+            var kind = path.EndsWith("/rejection-notice-sent", StringComparison.Ordinal) ? "rejection" : "interview";
+            var candidateId = Guid.Parse(path.Split('/')[^2]);
+            var delivered = !(request.RequestUri?.Query ?? string.Empty).Contains("delivered=false", StringComparison.Ordinal);
+
+            Marked.Add((kind, candidateId, delivered));
+            PendingRejections.RemoveAll(notice => kind == "rejection" && notice.CandidateId == candidateId);
+            PendingInterviews.RemoveAll(notice => kind == "interview" && notice.CandidateId == candidateId);
+
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
 
         return Json("{}");
@@ -440,6 +514,8 @@ public sealed class BotHarness : IDisposable
 
         return new SentMessage(text, buttons, requestsContact, menu);
     }
+
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
     private static HttpResponseMessage Json(string payload)
         => new(HttpStatusCode.OK)

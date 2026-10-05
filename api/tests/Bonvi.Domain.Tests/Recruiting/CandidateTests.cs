@@ -496,6 +496,43 @@ public sealed class CandidateTests
         nomzod.ReturnToFunnel("Ўрин бўшади").IsSuccess.ShouldBeTrue();
 
         nomzod.RejectionNoticeSentAt.ShouldBeNull();
+        nomzod.RejectionNoticeDelivered.ShouldBeNull("yangi rad etishda natija ham yangidan");
+    }
+
+    /// <summary>
+    /// Yetkazilmagan rad xabari ham navbatdan CHIQADI — bitta urinish yetarli
+    /// (egasining qarori, 2026-10-05). Natija saqlanadi va qayta belgilash
+    /// uni o'zgartirmaydi.
+    /// </summary>
+    [Fact]
+    public void Yetkazilmagan_rad_xabari_ham_bir_marta_belgilanadi()
+    {
+        var nomzod = Nomzod();
+        nomzod.Reject(Sana, "Ўрин йўқ");
+
+        var birinchi = DateTimeOffset.UtcNow;
+        nomzod.MarkRejectionNoticeSent(birinchi, delivered: false);
+        nomzod.MarkRejectionNoticeSent(birinchi.AddMinutes(1));
+
+        nomzod.RejectionNoticeSentAt.ShouldBe(birinchi);
+        nomzod.RejectionNoticeDelivered.ShouldBe(false, "takroriy belgilash natijani o'zgartirmaydi");
+    }
+
+    [Fact]
+    public void Suhbat_kochirilsa_taklif_natijasi_ham_tozalanadi()
+    {
+        var nomzod = Nomzod();
+        var bugun = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        nomzod.InviteToInterview(DateTimeOffset.UtcNow.AddDays(2), bugun).IsSuccess.ShouldBeTrue();
+        nomzod.MarkInterviewNoticeSent(DateTimeOffset.UtcNow, delivered: false);
+        nomzod.InterviewNoticeDelivered.ShouldBe(false);
+
+        // Yangi vaqt — yangi taklif: navbatga qaytadi, natija noma'lum
+        nomzod.InviteToInterview(DateTimeOffset.UtcNow.AddDays(3), bugun).IsSuccess.ShouldBeTrue();
+
+        nomzod.InterviewNoticeSentAt.ShouldBeNull();
+        nomzod.InterviewNoticeDelivered.ShouldBeNull();
     }
 
     [Fact]

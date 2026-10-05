@@ -208,6 +208,7 @@ public sealed class RecruitingMapper
             employment?.Id,
             candidate.InterviewAt,
             candidate.InterviewNoticeSentAt,
+            candidate.InterviewNoticeDelivered,
             stages,
             files,
             notes,

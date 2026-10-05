@@ -1617,6 +1617,7 @@
     "interviewNoteHint": "Faqat ichki qayd — nomzodga hech qanday holatda BORMAYDI",
     "interviewQueued": "Xabar navbatda",
     "interviewSent": "Xabar yuborildi",
+    "interviewNotDelivered": "Yetkazilmadi — nomzod botni bloklagan bo‘lishi mumkin, telefon qiling",
     "interviewReschedule": "Vaqtni o‘zgartirish",
     "stageEditTitle": "Yozuvni tahrirlash",
     "stagesEmptyTitle": "Bosqichlar tarixi bo‘sh",

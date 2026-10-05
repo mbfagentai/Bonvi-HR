@@ -820,11 +820,12 @@ public static class CandidateEndpoints
 
         group.MapPost("/{id:guid}/rejection-notice-sent", async (
                 Guid id,
+                bool? delivered,
                 MarkRejectionNoticeSentCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new MarkRejectionNoticeSentCommand(id), cancellationToken)
+                    .HandleAsync(new MarkRejectionNoticeSentCommand(id, delivered ?? true), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -833,6 +834,8 @@ public static class CandidateEndpoints
             .WithName("MarkRejectionNoticeSent")
             .WithSummary("Rad etish xabari yuborildi — faqat botga")
             .WithDescription(
+                "«?delivered=false» — Telegram xabarni ANIQ rad etdi (nomzod botni bloklagan): " +
+                "yozuv baribir navbatdan chiqadi, bitta urinish yetarli (2026-10-05). " +
                 "Bot xabarni HAQIQATAN yuborgandan KEYIN chaqiradi. IDEMPOTENT: ikkinchi " +
                 "marta chaqirilsa hech narsa o'zgarmaydi va 204 qaytadi — javob yo'qolgan " +
                 "bo'lsa bot so'rovni takrorlashi mumkin. Belgi oldindan qo'yilmaydi: " +
@@ -927,11 +930,12 @@ public static class CandidateEndpoints
 
         group.MapPost("/{id:guid}/interview-notice-sent", async (
                 Guid id,
+                bool? delivered,
                 MarkInterviewNoticeSentCommandHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new MarkInterviewNoticeSentCommand(id), cancellationToken)
+                    .HandleAsync(new MarkInterviewNoticeSentCommand(id, delivered ?? true), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();

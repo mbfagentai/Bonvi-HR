@@ -475,6 +475,11 @@ public sealed record CandidatePhotoDto(string PhotoKey);
 /// Taklif Telegram'ga qachon ketgani. Vaqt qo'yilgan, lekin bu bo'sh —
 /// xabar hali navbatda (yoki nomzodning Telegram'i yo'q).
 /// </param>
+/// <param name="InterviewNoticeDelivered">
+/// Taklif nomzodga yetib bordimi: <c>false</c> — Telegram rad etdi (botni
+/// bloklagan va hokazo), HR telefon qilishi kerak; <c>null</c> — hali
+/// urinilmagan yoki eski yozuv (o'shanda faqat yetkazilganlar belgilanardi).
+/// </param>
 /// <param name="Stages">Bosqichlar tarixi — yozilgan tartibda.</param>
 /// <param name="Files">
 /// Biriktirilgan fayllar — YUKLASH tartibida (eskisidan yangisiga).
@@ -522,6 +527,7 @@ public sealed record CandidateDto(
     Guid? HiredEmploymentId,
     DateTimeOffset? InterviewAt,
     DateTimeOffset? InterviewNoticeSentAt,
+    bool? InterviewNoticeDelivered,
     IReadOnlyList<CandidateStageEntryDto> Stages,
     IReadOnlyList<CandidateFileDto> Files,
     IReadOnlyList<CandidateNoteDto> Notes,

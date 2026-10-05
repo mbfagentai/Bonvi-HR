@@ -1617,6 +1617,7 @@
     "interviewNoteHint": "Internal note only — it never reaches the candidate",
     "interviewQueued": "Message queued",
     "interviewSent": "Message sent",
+    "interviewNotDelivered": "Not delivered — the candidate may have blocked the bot, please call",
     "interviewReschedule": "Change time",
     "stageEditTitle": "Edit the record",
     "stagesEmptyTitle": "No stage history yet",

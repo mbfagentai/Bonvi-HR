@@ -231,8 +231,47 @@ public sealed partial class TelegramClient
             reply_markup = markup,
         };
 
-        var result = await CallAsync<JsonElement>("sendMessage", body, cancellationToken).ConfigureAwait(false);
+        var (result, _) = await CallWithOutcomeAsync<JsonElement>("sendMessage", body, cancellationToken).ConfigureAwait(false);
         return result.ValueKind == JsonValueKind.Object;
+    }
+
+    /// <summary>
+    /// Xabarnoma (rad etish, suhbat taklifi) — natijasi bilan.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SendMessageAsync"/> dan farqi: «yuborilmadi» ning SABABI
+    /// ajratiladi. Nomzod botni bloklagan bo'lsa (Telegram 403) qayta urinish
+    /// foydasiz — bitta urinish yetarli (egasining qarori, 2026-10-05).
+    /// Tarmoq uzilishi esa xabar umuman ketmagani — uni keyinroq yuborish
+    /// nomzodga takroriy xabar bermaydi.
+    /// </remarks>
+    public async Task<TelegramDelivery> SendNoticeAsync(
+        long chatId,
+        string text,
+        IReadOnlyList<string> menu,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(menu);
+
+        var body = new
+        {
+            chat_id = chatId,
+            text,
+            parse_mode = "HTML",
+            reply_markup = new
+            {
+                keyboard = menu
+                    .Select((label, index) => (label, index))
+                    .GroupBy(pair => pair.index / 2)
+                    .Select(row => row.Select(pair => new { text = pair.label }).ToArray())
+                    .ToArray(),
+                resize_keyboard = true,
+                is_persistent = true,
+            },
+        };
+
+        var (_, outcome) = await CallWithOutcomeAsync<JsonElement>("sendMessage", body, cancellationToken).ConfigureAwait(false);
+        return outcome;
     }
 
     /// <summary>
@@ -489,6 +528,16 @@ public sealed partial class TelegramClient
             .ConfigureAwait(false);
 
     private async Task<T?> CallAsync<T>(string method, object? body, CancellationToken cancellationToken)
+        => (await CallWithOutcomeAsync<T>(method, body, cancellationToken).ConfigureAwait(false)).Result;
+
+    /// <summary>
+    /// <see cref="CallAsync{T}"/> ning o'zi — natija turi bilan
+    /// (<see cref="TelegramDelivery"/>).
+    /// </summary>
+    private async Task<(T? Result, TelegramDelivery Outcome)> CallWithOutcomeAsync<T>(
+        string method,
+        object? body,
+        CancellationToken cancellationToken)
     {
         /*
           ⚠️ TOKEN MANZIL ICHIDA — Telegram API shunday qurilgan.
@@ -523,12 +572,17 @@ public sealed partial class TelegramClient
 
             if (payload is { Ok: true })
             {
-                return payload.Result;
+                return (payload.Result, TelegramDelivery.Delivered);
             }
 
             LogRejected(method, payload?.Description ?? "sababsiz");
 
-            return default;
+            // 4xx (429 dan tashqari) — Telegram aniq «yo'q» dedi; 429 va 5xx —
+            // vaqtincha. Javobsiz yoki tushunarsiz javob ham vaqtincha.
+            var code = payload?.ErrorCode ?? (int)response.StatusCode;
+            var rejected = payload is not null && code is >= 400 and < 500 and not 429;
+
+            return (default, rejected ? TelegramDelivery.Rejected : TelegramDelivery.Unreachable);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -540,7 +594,7 @@ public sealed partial class TelegramClient
             // Tarmoq uzilishi va vaqt tugashi bot uchun odatiy hol
             // (sinf izohiga qarang): halqa keyingi aylanishda qayta uriniladi.
             LogCallFailed(ex, method);
-            return default;
+            return (default, TelegramDelivery.Unreachable);
         }
     }
 

@@ -354,6 +354,27 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     public DateTimeOffset? RejectionNoticeSentAt { get; private set; }
 
     /// <summary>
+    /// Rad etish xabari nomzodga YETIB BORDIMI — <see cref="RejectionNoticeSentAt"/> bilan juft.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>true</c> — Telegram xabarni qabul qildi; <c>false</c> — Telegram ANIQ
+    /// rad etdi (nomzod botni bloklagan, akkaunt o'chirilgan); <c>null</c> —
+    /// hali urinilmagan yoki bu maydon paydo bo'lishidan oldin yuborilgan
+    /// (o'shanda faqat yetkazilganlar belgilanardi).
+    /// </para>
+    /// <para>
+    /// <b>Nega kerak (egasining qarori, 2026-10-05: «1 marta yuborilsa
+    /// yetadi»).</b> Ilgari yetkazilmagan xabar belgilanmasdi va bot uni har
+    /// ~30 soniyada qayta urardi — kuniga ~6000 marta. Navbat eng eskisidan
+    /// 20 tadan olinardi, ya'ni 20 dan ortiq bloklagan nomzod yig'ilsa YANGI
+    /// rad xabarlari umuman ketmay qolardi. Endi har nomzodga BIR urinish:
+    /// natija shu yerda qoladi va navbat tiqilmaydi.
+    /// </para>
+    /// </remarks>
+    public bool? RejectionNoticeDelivered { get; private set; }
+
+    /// <summary>
     /// Nomzod chaqirilgan SUHBAT VAQTI — nomzodga yuboriladigan taklifda
     /// aynan shu lahza turadi.
     /// </summary>
@@ -387,6 +408,16 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </para>
     /// </remarks>
     public DateTimeOffset? InterviewNoticeSentAt { get; private set; }
+
+    /// <summary>
+    /// Suhbat taklifi nomzodga YETIB BORDIMI — <see cref="InterviewNoticeSentAt"/> bilan juft.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RejectionNoticeDelivered"/> bilan bir xil ma'no. HR ekrani
+    /// <c>false</c> da «yetkazilmadi — telefon qiling» deydi: botni bloklagan
+    /// nomzod suhbat vaqtini bilmaydi va buni faqat HR tuzata oladi.
+    /// </remarks>
+    public bool? InterviewNoticeDelivered { get; private set; }
 
     /// <summary>Voronkadan chiqqan sana (rad etilgan / ishga olingan / voz kechgan / rezerv).</summary>
     public DateOnly? ClosedAt { get; private set; }
@@ -675,8 +706,22 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// «kamida bir marta» yuborishga qurilgan va takroriy xabar
     /// nomzod uchun eng yoqimsiz nosozlik bo'lardi.
     /// </para>
+    /// <para>
+    /// <paramref name="delivered"/> <c>false</c> — Telegram xabarni ANIQ rad
+    /// etdi. Yozuv baribir navbatdan chiqadi: qayta urinish natijani
+    /// o'zgartirmaydi (<see cref="RejectionNoticeDelivered"/> izohi).
+    /// </para>
     /// </remarks>
-    public void MarkRejectionNoticeSent(DateTimeOffset at) => RejectionNoticeSentAt ??= at;
+    public void MarkRejectionNoticeSent(DateTimeOffset at, bool delivered = true)
+    {
+        if (RejectionNoticeSentAt is not null)
+        {
+            return;
+        }
+
+        RejectionNoticeSentAt = at;
+        RejectionNoticeDelivered = delivered;
+    }
 
     /// <summary>
     /// Nomzodni belgilangan vaqtdagi suhbatga chaqiradi.
@@ -717,6 +762,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
 
         InterviewAt = at.ToUniversalTime();
         InterviewNoticeSentAt = null;
+        InterviewNoticeDelivered = null;
 
         return Result.Success();
     }
@@ -731,7 +777,11 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// va navbatga qayta tushadi; <c>??=</c> ikkinchi taklifni yuborilgan
     /// deb hisoblab, nomzodni eski vaqt bilan qoldirardi.
     /// </remarks>
-    public void MarkInterviewNoticeSent(DateTimeOffset at) => InterviewNoticeSentAt = at;
+    public void MarkInterviewNoticeSent(DateTimeOffset at, bool delivered = true)
+    {
+        InterviewNoticeSentAt = at;
+        InterviewNoticeDelivered = delivered;
+    }
 
     /// <summary>Nomzod o'zi voz kechdi.</summary>
     public Result Withdraw(DateOnly at, string? reason = null, Guid? closedBy = null)
@@ -874,6 +924,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         ClosedAt = null;
         ClosingNote = null;
         RejectionNoticeSentAt = null;
+        RejectionNoticeDelivered = null;
 
         if (izoh is not null)
         {

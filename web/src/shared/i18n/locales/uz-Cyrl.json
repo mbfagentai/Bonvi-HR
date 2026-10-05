@@ -1617,6 +1617,7 @@
     "interviewNoteHint": "Фақат ички қайд — номзодга ҳеч қандай ҳолатда БОРМАЙДИ",
     "interviewQueued": "Хабар навбатда",
     "interviewSent": "Хабар юборилди",
+    "interviewNotDelivered": "Етказилмади — номзод ботни блоклаган бўлиши мумкин, телефон қилинг",
     "interviewReschedule": "Вақтни ўзгартириш",
     "stageEditTitle": "Ёзувни таҳрирлаш",
     "stagesEmptyTitle": "Босқичлар тарихи бўш",

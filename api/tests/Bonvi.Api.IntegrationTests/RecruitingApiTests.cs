@@ -11,6 +11,7 @@ using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Api.IntegrationTests;
@@ -2008,6 +2009,106 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         (await BotMaydonlariAsync(bot, "interview-notices", chaqirilgan.Id)).ShouldBe(
             ["candidateId", "chatId", "fullName", "interviewAt", "language", "vacancyTitle"],
             "suhbat taklifi uchun qo'shimcha faqat VAQT");
+    }
+
+    /// <summary>
+    /// ⭐ Yetkazilmagan xabarnoma (nomzod botni bloklagan) ham NAVBATDAN CHIQADI —
+    /// har nomzodga bitta urinish (egasining qarori, 2026-10-05).
+    /// </summary>
+    /// <remarks>
+    /// Ilgari bot yetkazilmagan xabarni belgilamasdi va u navbatda qolib, har
+    /// ~30 soniyada qayta urilardi; 20 dan ortiq bunday nomzod navbatni tiqib,
+    /// YANGI rad xabarlarini to'xtatib qo'yardi. Natija HR uchun saqlanadi:
+    /// suhbat taklifi kartada «yetkazilmadi» bo'lib ko'rinadi.
+    /// </remarks>
+    [Fact]
+    public async Task Yetkazilmagan_xabarnoma_bir_marta_belgilanadi_va_navbatdan_chiqadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var bosqichlar = await BosqichlarAsync(admin);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+
+        var radEtilgan = await NomzodAsync(
+            admin, vakansiya.Id, familiya: "Блоклаган", telefon: Raqam(), suhbatId: SuhbatRaqami());
+
+        var chaqirilgan = await NomzodAsync(
+            admin, vakansiya.Id, familiya: "Блоклаганчақирилган", telefon: Raqam(), suhbatId: SuhbatRaqami());
+
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{radEtilgan.Id}/reject", UriKind.Relative),
+            new { reason = "Тажрибаси етарли эмас" },
+            bekorQilish))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        using (var taklif = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{chaqirilgan.Id}/interview-invite", UriKind.Relative),
+            new { interviewAt = DateTimeOffset.UtcNow.AddDays(3), stageId = kengash.Id },
+            bekorQilish))
+        {
+            taklif.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(taklif));
+        }
+
+        foreach (var (yol, id) in new[] { ("rejection", radEtilgan.Id), ("interview", chaqirilgan.Id) })
+        {
+            (await NavbatdaAsync(bot, $"{yol}-notices", id)).ShouldBeTrue($"{yol}: belgilashdan oldin navbatda");
+
+            using (var belgi = await bot.PostAsync(
+                new Uri($"/api/recruiting/candidates/{id}/{yol}-notice-sent?delivered=false", UriKind.Relative),
+                null,
+                bekorQilish))
+            {
+                belgi.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(belgi));
+            }
+
+            (await NavbatdaAsync(bot, $"{yol}-notices", id)).ShouldBeFalse($"{yol}: yetkazilmagan ham navbatdan chiqadi");
+        }
+
+        // Suhbat taklifining natijasi kartada — HR telefon qilishi kerakligini ko'radi.
+        using var karta = await admin.GetAsync(
+            new Uri($"/api/recruiting/candidates/{chaqirilgan.Id}", UriKind.Relative), bekorQilish);
+
+        using var hujjat = JsonDocument.Parse(await karta.Content.ReadAsStringAsync(bekorQilish));
+        hujjat.RootElement.GetProperty("interviewNoticeSentAt").ValueKind.ShouldBe(JsonValueKind.String);
+        hujjat.RootElement.GetProperty("interviewNoticeDelivered").GetBoolean().ShouldBeFalse();
+
+        // Rad xabari natijasi bazada; takroriy (masalan javob yo'qolgan) belgilash uni o'zgartirmaydi.
+        using (var takror = await bot.PostAsync(
+            new Uri($"/api/recruiting/candidates/{radEtilgan.Id}/rejection-notice-sent", UriKind.Relative),
+            null,
+            bekorQilish))
+        {
+            takror.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(takror));
+        }
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+        var yozuv = await kontekst.Candidates.AsNoTracking()
+            .Where(nomzod => nomzod.Id == radEtilgan.Id)
+            .Select(nomzod => new { nomzod.RejectionNoticeSentAt, nomzod.RejectionNoticeDelivered })
+            .SingleAsync(bekorQilish);
+
+        yozuv.RejectionNoticeSentAt.ShouldNotBeNull();
+        yozuv.RejectionNoticeDelivered.ShouldBe(false);
+    }
+
+    private static async Task<bool> NavbatdaAsync(HttpClient bot, string yol, Guid nomzodId)
+    {
+        using var javob = await bot.GetAsync(
+            new Uri($"/api/recruiting/candidates/{yol}?limit=50", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        using var hujjat = JsonDocument.Parse(await javob.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        return hujjat.RootElement.EnumerateArray().Any(yozuv => yozuv.GetProperty("candidateId").GetGuid() == nomzodId);
     }
 
     // ────────────────────────────────────────────────────────────

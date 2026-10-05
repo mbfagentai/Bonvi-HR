@@ -542,9 +542,15 @@ public sealed partial class BonviClient : IDisposable
     /// TAKRORLANADI — bu yoqimsiz, lekin javobsiz qoldirishdan
     /// yaxshiroq va shu sababli tartib aynan shunday.
     /// </remarks>
-    public async Task<bool> MarkRejectionNoticeSentAsync(Guid candidateId, CancellationToken cancellationToken)
+    public async Task<bool> MarkRejectionNoticeSentAsync(
+        Guid candidateId,
+        CancellationToken cancellationToken,
+        bool delivered = true)
     {
-        var path = $"api/recruiting/candidates/{candidateId:D}/rejection-notice-sent";
+        // `delivered=false` — Telegram xabarni aniq rad etdi; yozuv baribir
+        // navbatdan chiqadi (bitta urinish yetarli, 2026-10-05).
+        var path = $"api/recruiting/candidates/{candidateId:D}/rejection-notice-sent"
+            + (delivered ? string.Empty : "?delivered=false");
 
         return await SendNoContentAsync(
                 () => new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative)),
@@ -571,9 +577,15 @@ public sealed partial class BonviClient : IDisposable
             ?? [];
 
     /// <summary>Suhbat taklifi yuborilganini belgilaydi.</summary>
-    public async Task<bool> MarkInterviewNoticeSentAsync(Guid candidateId, CancellationToken cancellationToken)
+    public async Task<bool> MarkInterviewNoticeSentAsync(
+        Guid candidateId,
+        CancellationToken cancellationToken,
+        bool delivered = true)
     {
-        var path = $"api/recruiting/candidates/{candidateId:D}/interview-notice-sent";
+        // `delivered=false` — Telegram xabarni aniq rad etdi; yozuv baribir
+        // navbatdan chiqadi (bitta urinish yetarli, 2026-10-05).
+        var path = $"api/recruiting/candidates/{candidateId:D}/interview-notice-sent"
+            + (delivered ? string.Empty : "?delivered=false");
 
         return await SendNoContentAsync(
                 () => new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative)),

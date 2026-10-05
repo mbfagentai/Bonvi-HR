@@ -1617,6 +1617,7 @@
     "interviewNoteHint": "Только внутренняя заметка — кандидату она не уходит ни в каком случае",
     "interviewQueued": "Сообщение в очереди",
     "interviewSent": "Сообщение отправлено",
+    "interviewNotDelivered": "Не доставлено — кандидат, возможно, заблокировал бота, позвоните",
     "interviewReschedule": "Изменить время",
     "stageEditTitle": "Редактировать запись",
     "stagesEmptyTitle": "История этапов пуста",

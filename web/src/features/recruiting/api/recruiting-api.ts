@@ -448,6 +448,12 @@ export interface Candidate {
    * xabar hali navbatda (yoki nomzodning Telegram suhbati yo'q).
    */
   interviewNoticeSentAt: string | null
+  /**
+   * Taklif nomzodga yetib bordimi. `false` — Telegram rad etdi (nomzod botni
+   * bloklagan): bot qayta urinmaydi, HR telefon qilishi kerak. `null` — hali
+   * urinilmagan yoki eski yozuv (o'shanda faqat yetkazilganlar belgilanardi).
+   */
+  interviewNoticeDelivered: boolean | null
   /** Yozilgan tartibda. */
   stages: CandidateStageEntry[]
   /**
@@ -927,6 +933,8 @@ function toCandidate(raw: unknown): Candidate {
     hiredEmploymentId: text(box['hiredEmploymentId']),
     interviewAt: text(box['interviewAt']),
     interviewNoticeSentAt: text(box['interviewNoticeSentAt']),
+    interviewNoticeDelivered:
+      typeof box['interviewNoticeDelivered'] === 'boolean' ? box['interviewNoticeDelivered'] : null,
     stages: (Array.isArray(box['stages']) ? box['stages'] : []).map(toStageEntry),
     // Massiv kelmasa BO'SH ro'yxat: «fayl yo'q» va «javob kutilmagan
     // shaklda» ekranda bir xil ko'rinadi va ikkalasi ham kartani

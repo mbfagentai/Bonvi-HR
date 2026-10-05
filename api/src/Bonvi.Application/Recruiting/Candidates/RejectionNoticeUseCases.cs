@@ -74,8 +74,13 @@ public sealed class ListPendingRejectionNoticesQueryHandler
 /// IDEMPOTENT: allaqachon belgilangan bo'lsa hech narsa o'zgarmaydi va
 /// muvaffaqiyat qaytadi — bot bir xil so'rovni takrorlashi mumkin
 /// (javob yo'qolgan bo'lsa) va bu xato bo'lmasligi kerak.
+/// <para>
+/// <c>Delivered = false</c> — Telegram xabarni ANIQ rad etdi (nomzod botni
+/// bloklagan). Yozuv baribir navbatdan chiqadi: bitta urinish yetarli
+/// (egasining qarori, 2026-10-05; <c>Candidate.RejectionNoticeDelivered</c>).
+/// </para>
 /// </remarks>
-public sealed record MarkRejectionNoticeSentCommand(Guid CandidateId);
+public sealed record MarkRejectionNoticeSentCommand(Guid CandidateId, bool Delivered = true);
 
 public sealed class MarkRejectionNoticeSentCommandHandler
 {
@@ -108,7 +113,7 @@ public sealed class MarkRejectionNoticeSentCommandHandler
             return RecruitingErrors.CandidateNotFound;
         }
 
-        candidate.MarkRejectionNoticeSent(_clock.UtcNow);
+        candidate.MarkRejectionNoticeSent(_clock.UtcNow, command.Delivered);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

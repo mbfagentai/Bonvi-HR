@@ -14,7 +14,29 @@ namespace Bonvi.Bot.Telegram;
 public sealed record TelegramResponse<T>(
     [property: JsonPropertyName("ok")] bool Ok,
     [property: JsonPropertyName("result")] T? Result,
-    [property: JsonPropertyName("description")] string? Description);
+    [property: JsonPropertyName("description")] string? Description,
+    [property: JsonPropertyName("error_code")] int? ErrorCode = null);
+
+/// <summary>
+/// Xabar yuborish natijasi — xabarnomalar (rad etish, suhbat taklifi) uchun.
+/// </summary>
+public enum TelegramDelivery
+{
+    /// <summary>Telegram xabarni qabul qildi.</summary>
+    Delivered = 1,
+
+    /// <summary>
+    /// Telegram ANIQ rad etdi (4xx: nomzod botni bloklagan, chat yo'q) —
+    /// qayta urinish natijani o'zgartirmaydi.
+    /// </summary>
+    Rejected = 2,
+
+    /// <summary>
+    /// Telegram'ga yetib bo'lmadi yoki u vaqtincha javob bermadi (tarmoq, 429,
+    /// 5xx) — xabar KETMAGAN, keyinroq yuborish mumkin.
+    /// </summary>
+    Unreachable = 3,
+}
 
 /// <summary>Bir dona yangilik.</summary>
 /// <remarks>

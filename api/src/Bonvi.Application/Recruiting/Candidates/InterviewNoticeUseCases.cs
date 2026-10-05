@@ -232,9 +232,10 @@ public sealed class ListPendingInterviewNoticesQueryHandler
 /// <remarks>
 /// <see cref="MarkRejectionNoticeSentCommand"/> bilan bir xil qoida:
 /// faqat xabar HAQIQATAN ketgandan keyin va takroriy chaqiruvda xato
-/// bermaydi.
+/// bermaydi. <c>Delivered = false</c> — Telegram rad etdi; bitta urinish
+/// yetarli, HR ekranda «yetkazilmadi» ni ko'radi.
 /// </remarks>
-public sealed record MarkInterviewNoticeSentCommand(Guid CandidateId);
+public sealed record MarkInterviewNoticeSentCommand(Guid CandidateId, bool Delivered = true);
 
 public sealed class MarkInterviewNoticeSentCommandHandler
 {
@@ -267,7 +268,7 @@ public sealed class MarkInterviewNoticeSentCommandHandler
             return RecruitingErrors.CandidateNotFound;
         }
 
-        candidate.MarkInterviewNoticeSent(_clock.UtcNow);
+        candidate.MarkInterviewNoticeSent(_clock.UtcNow, command.Delivered);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

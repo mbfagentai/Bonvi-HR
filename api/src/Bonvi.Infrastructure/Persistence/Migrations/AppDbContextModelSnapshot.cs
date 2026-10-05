@@ -3553,6 +3553,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("interview_at");
 
+                    b.Property<bool?>("InterviewNoticeDelivered")
+                        .HasColumnType("boolean")
+                        .HasColumnName("interview_notice_delivered");
+
                     b.Property<DateTimeOffset?>("InterviewNoticeSentAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("interview_notice_sent_at");
@@ -3574,6 +3578,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("photo_key");
+
+                    b.Property<bool?>("RejectionNoticeDelivered")
+                        .HasColumnType("boolean")
+                        .HasColumnName("rejection_notice_delivered");
 
                     b.Property<DateTimeOffset?>("RejectionNoticeSentAt")
                         .HasColumnType("timestamp with time zone")

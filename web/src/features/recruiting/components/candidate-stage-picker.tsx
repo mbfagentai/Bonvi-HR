@@ -260,12 +260,27 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
               <span className="tabular font-medium">{dateTime(candidate.interviewAt)}</span>
             </span>
 
-            <span className="text-caption2 text-[var(--fg-tertiary)]">
+            {/*
+              Yetkazilmagan taklif (nomzod botni bloklagan) — bot qayta
+              urinmaydi (egasining qarori, 2026-10-05: bitta urinish), shu
+              sababli HR'ga ANIQ aytiladi: vaqtni nomzod faqat qo'ng'iroqdan
+              biladi.
+            */}
+            <span
+              className={cn(
+                'text-caption2',
+                candidate.interviewNoticeDelivered === false
+                  ? 'text-[var(--danger-text)]'
+                  : 'text-[var(--fg-tertiary)]',
+              )}
+            >
               {candidate.source !== 'TelegramBot'
                 ? t('recruiting.interviewNoTelegramShort')
                 : candidate.interviewNoticeSentAt === null
                   ? t('recruiting.interviewQueued')
-                  : t('recruiting.interviewSent')}
+                  : candidate.interviewNoticeDelivered === false
+                    ? t('recruiting.interviewNotDelivered')
+                    : t('recruiting.interviewSent')}
             </span>
 
             <Button

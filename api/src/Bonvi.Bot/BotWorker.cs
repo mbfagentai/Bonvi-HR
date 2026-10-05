@@ -78,6 +78,12 @@ public sealed partial class BotWorker : BackgroundService
     [LoggerMessage(EventId = 3205, Level = LogLevel.Debug, Message = "{Count} ta eskirgan suhbat unutildi")]
     private partial void LogExpired(int count);
 
+    [LoggerMessage(
+        EventId = 3221,
+        Level = LogLevel.Information,
+        Message = "Xabarnoma yetkazilmadi (Telegram rad etdi — nomzod botni bloklagan bo'lishi mumkin): «{Vacancy}». Qayta yuborilmaydi")]
+    private partial void LogNoticeUndelivered(string vacancy);
+
     [LoggerMessage(EventId = 3206, Level = LogLevel.Information, Message = "Yangi ariza: «{Vacancy}»")]
     private partial void LogApplication(string vacancy);
 
@@ -474,13 +480,16 @@ public sealed partial class BotWorker : BackgroundService
               nomzod javobni yarim daqiqa ichida oladi. Alohida taymer
               qo'shish ikkita ish jadvalini bir-biriga urishtirardi.
 
-              Xato butun halqani to'xtatmaydi: nomzodlar navbatda
-              qoladi va keyingi aylanishda qayta uriniladi.
+              Xato butun halqani to'xtatmaydi. Har nomzodga BITTA urinish
+              (egasining qarori, 2026-10-05): Telegram aniq rad etsa (botni
+              bloklagan) natija «yetkazilmadi» bo'lib yoziladi va qayta
+              yuborilmaydi; faqat Telegram'ga umuman yetib bo'lmagan xabar
+              (tarmoq, 5xx) keyingi aylanishda yuboriladi — u ketmagan,
+              ya'ni nomzod takroriy xabar olmaydi.
             */
             try
             {
-                await SendRejectionNoticesAsync(stoppingToken).ConfigureAwait(false);
-                await SendInterviewNoticesAsync(stoppingToken).ConfigureAwait(false);
+                await SendNoticesAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -492,6 +501,27 @@ public sealed partial class BotWorker : BackgroundService
             }
         }
     }
+
+    /// <summary>
+    /// Navbatdagi xabarnomalar: rad etish, keyin suhbat taklifi.
+    /// </summary>
+    /// <remarks>⭐ <c>internal</c> — TESTLAR uchun (<c>InternalsVisibleTo</c>).</remarks>
+    internal async Task SendNoticesAsync(CancellationToken cancellationToken)
+    {
+        await SendRejectionNoticesAsync(cancellationToken).ConfigureAwait(false);
+        await SendInterviewNoticesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Xabarnoma bilan ketadigan menyu — «Umumiy anketa» yopiq bo'lsa
+    /// «Anketa to'ldirish» siz (<see cref="MenuLabelsAsync"/> bilan bir qoida).
+    /// </summary>
+    private async Task<List<string>> NoticeMenuAsync(BotLanguage language, CancellationToken cancellationToken)
+        => BotMenu.Labels(
+            language,
+            hasAbout: false,
+            hasContacts: false,
+            hasQuestionnaire: await GeneralPoolMenuStateAsync(cancellationToken).ConfigureAwait(false) != false);
 
     /// <summary>
     /// Rad etilgan nomzodlarga javob yozadi.
@@ -524,29 +554,40 @@ public sealed partial class BotWorker : BackgroundService
             */
             var language = BotLanguages.Parse(notice.Language);
 
-            var sent = await _telegram
-                .SendMessageAsync(
+            var outcome = await _telegram
+                .SendNoticeAsync(
                     notice.ChatId,
                     BotTexts.RejectionNotice(notice.FullName),
-                    menu: BotMenu.Labels(language, hasAbout: false, hasContacts: false),
-                    cancellationToken: cancellationToken)
+                    await NoticeMenuAsync(language, cancellationToken).ConfigureAwait(false),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
-            if (!sent)
+            if (outcome == TelegramDelivery.Unreachable)
             {
-                /*
-                  Nomzod botni BLOKLAGAN bo'lishi mumkin — bu odatiy
-                  hol va u hech qachon tuzalmaydi. Shunga qaramay
-                  belgilanmaydi: «yubordim» deb yozib qo'yish yolg'on
-                  bo'lardi. Bunday yozuv navbatda qolaveradi va u
-                  yerda ko'rinib turadi — bu HR uchun ma'lumot.
-                */
+                // Telegram'ga yetib bo'lmadi — xabar KETMAGAN. Navbatda qoladi
+                // va keyingi aylanishda yuboriladi (nomzod takror olmaydi).
                 continue;
             }
 
+            /*
+              Bitta urinish (egasining qarori, 2026-10-05): Telegram aniq rad
+              etsa ham (nomzod botni bloklagan) yozuv navbatdan chiqadi va
+              natija «yetkazilmadi» bo'lib qoladi. Ilgari u belgilanmasdi va
+              bot uni har ~30 soniyada qayta urardi — kuniga ~6000 marta;
+              20 dan ortiq bloklagan nomzod yig'ilsa navbat (20 tadan)
+              tiqilib, YANGI rad xabarlari umuman ketmay qolardi.
+            */
+            var delivered = outcome == TelegramDelivery.Delivered;
+
             await _bonvi
-                .MarkRejectionNoticeSentAsync(notice.CandidateId, cancellationToken)
+                .MarkRejectionNoticeSentAsync(notice.CandidateId, cancellationToken, delivered)
                 .ConfigureAwait(false);
+
+            if (!delivered)
+            {
+                LogNoticeUndelivered(notice.VacancyTitle);
+                continue;
+            }
 
             LogNoticeSent(notice.VacancyTitle);
         }
@@ -558,9 +599,9 @@ public sealed partial class BotWorker : BackgroundService
     /// <remarks>
     /// <para>
     /// <see cref="SendRejectionNoticesAsync"/> ning aynan naqshi — o'sha
-    /// izohdagi barcha qoidalar (kamida bir marta, belgilash xabardan
-    /// KEYIN, bloklagan nomzod navbatda qolishi) shu yerda ham amal
-    /// qiladi.
+    /// izohdagi barcha qoidalar (belgilash xabardan KEYIN, har nomzodga
+    /// BITTA urinish — bloklagan nomzod «yetkazilmadi» bo'lib navbatdan
+    /// chiqadi) shu yerda ham amal qiladi.
     /// </para>
     /// <para>
     /// <b>Xaritadagi nuqta ALOHIDA xabar bo'lib ketadi</b> — kontaktlar
@@ -586,8 +627,8 @@ public sealed partial class BotWorker : BackgroundService
         {
             var language = BotLanguages.Parse(notice.Language);
 
-            var sent = await _telegram
-                .SendMessageAsync(
+            var outcome = await _telegram
+                .SendNoticeAsync(
                     notice.ChatId,
                     BotTexts.InterviewNotice(
                         language,
@@ -596,16 +637,20 @@ public sealed partial class BotWorker : BackgroundService
                         notice.InterviewAt,
                         settings?.InterviewPhone ?? string.Empty,
                         settings?.InterviewAddress ?? string.Empty),
-                    menu: BotMenu.Labels(language, hasAbout: false, hasContacts: false),
-                    cancellationToken: cancellationToken)
+                    await NoticeMenuAsync(language, cancellationToken).ConfigureAwait(false),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
-            if (!sent)
+            if (outcome == TelegramDelivery.Unreachable)
             {
                 continue;
             }
 
-            if (point is { } place)
+            // Bitta urinish — rad etish xabaridagi qoida. Yetkazilmasa HR
+            // ekranida «yetkazilmadi — telefon qiling» chiqadi.
+            var delivered = outcome == TelegramDelivery.Delivered;
+
+            if (delivered && point is { } place)
             {
                 await _telegram
                     .SendLocationAsync(
@@ -617,8 +662,14 @@ public sealed partial class BotWorker : BackgroundService
             }
 
             await _bonvi
-                .MarkInterviewNoticeSentAsync(notice.CandidateId, cancellationToken)
+                .MarkInterviewNoticeSentAsync(notice.CandidateId, cancellationToken, delivered)
                 .ConfigureAwait(false);
+
+            if (!delivered)
+            {
+                LogNoticeUndelivered(notice.VacancyTitle);
+                continue;
+            }
 
             LogInterviewNoticeSent(notice.VacancyTitle);
         }
