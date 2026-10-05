@@ -37,6 +37,14 @@ roliga `mcp.connect` berilmaydi (seeder oddiy rolga tegmaydi).
    «Tizim sozlamalari» da o'chirgichni yoqadi, claude.ai → Connectors →
    `https://hr.bonvi.uz/mcp` (qo'llanma: `docs/MCP.md`).
 
+**Shu relizda yana — «Umumiy anketa» ochib-yopiladigan bo'ldi (2026-10-05).**
+Egasining qarori: qaysi vakansiya yopiq bo'lsa, unga anketa topshirib
+bo'lmaydi. HR uni boshqalar kabi almashtirgich bilan yopadi (oldin ogohlantirish
+chiqadi); yopiq bo'lsa bot «📋 Anketa to'ldirish» bosilishi bilanoq aytadi.
+API ishga tushganda uni endi QAYTA OCHMAYDI. Deploy'dan keyin: HR sahifani
+yangilaydi (F5); bot ham yangilanishi SHART (yangi `general-pool` so'rovi) —
+eski bot yangi API bilan ishlayveradi, lekin yopiq anketani boshida aytmaydi.
+
 Rollback: image rollback yetarli — eski image `mcp_*` jadvallarini bilmaydi va
 ularga tegmaydi; `bonvi_mcp` roli faqat o'qiydi. Rollback'dan keyin rol paroli
 tirik qolmasin: `ALTER ROLE bonvi_mcp NOLOGIN;`. To'liq tozalash kerak bo'lsa:

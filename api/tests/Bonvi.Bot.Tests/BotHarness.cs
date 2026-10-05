@@ -97,6 +97,12 @@ public sealed class BotHarness : IDisposable
     public string OfferUrl { get; set; } = string.Empty;
 
     /// <summary>
+    /// «Umumiy anketa» ochiqmi (<c>GET /api/recruiting/vacancies/general-pool</c>).
+    /// <c>null</c> — server javob bermaydi (500).
+    /// </summary>
+    public bool? GeneralPoolOpen { get; set; } = true;
+
+    /// <summary>
     /// Server yangi arizani to'sadimi va NEGA.
     /// </summary>
     /// <remarks>
@@ -258,6 +264,13 @@ public sealed class BotHarness : IDisposable
         if (path == "/api/settings/bot")
         {
             return Json(Settings());
+        }
+
+        if (path == "/api/recruiting/vacancies/general-pool")
+        {
+            return GeneralPoolOpen is { } ochiq
+                ? Json($$"""{"vacancyId":"99999999-9999-9999-9999-999999999999","isOpen":{{(ochiq ? "true" : "false")}}}""")
+                : new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("xato") };
         }
 
         if (path == "/api/recruiting/vacancies")

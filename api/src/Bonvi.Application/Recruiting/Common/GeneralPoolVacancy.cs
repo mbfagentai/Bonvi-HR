@@ -13,14 +13,21 @@ namespace Bonvi.Application.Recruiting.Common;
 /// DTO), shu sababli identifikator BITTA joyda olinadi.
 /// </para>
 /// <para>
-/// ⚠️ <b>Nega uni yopib ham, o'chirib ham bo'lmaydi (2026-09-29).</b>
-/// Botdagi «📝 Anketa to'ldirish» tugmasi arizani aynan shu vakansiyaga
-/// yuboradi. Prod'da u 2026-09-11 da HR tomonidan yopilgan va 18 kun
-/// davomida shu tugma orqali kelgan HAR BIR nomzod 22 ta savoldan keyin
-/// «ariza yuborilmadi» ni olgan (jurnalda 5 kunda 67 marta). Ekranda esa
-/// u oddiy vakansiyadek ko'rinardi — uni yopish oqibatini hech kim
-/// bilmagan. Endi server buni rad etadi (<see cref="RecruitingErrors.SystemVacancyLocked"/>),
-/// ekran esa almashtirgich o'rniga qulf ko'rsatadi.
+/// <b>Yopish va o'chirish (egasining qarori, 2026-10-05).</b> «Umumiy anketa»
+/// boshqa vakansiyalar kabi YOPILADI va qayta ochiladi: yopiq bo'lsa botdagi
+/// «📋 Anketa to'ldirish» orqali ariza ham YOPIQ — qaysi vakansiya yopiq
+/// bo'lsa, unga anketa topshirib bo'lmaydi. O'chirish esa hali ham taqiqlangan
+/// (<see cref="RecruitingErrors.SystemVacancyLocked"/>): sozlama o'chirilgan
+/// yozuvni ko'rsatib qolardi.
+/// </para>
+/// <para>
+/// ⚠️ Tarix (2026-09-29 qarori, endi bekor): prod'da HR uni 2026-09-11 da
+/// yopgan va 18 kun davomida bot nomzodga buni 22 ta savoldan KEYIN «ariza
+/// yuborilmadi» deb aytgan — 67 ta ariza yo'qolgan. Shu sababli yopish bir
+/// muddat taqiqlangan edi. Endi qoida — jim yo'qotish yo'q: bot anketa yopiq
+/// ekanini «Anketa to'ldirish» bosilishi bilanoq aytadi
+/// (<c>GET /api/recruiting/vacancies/general-pool</c>), yuborish paytida
+/// yopilib qolgan bo'lsa ham aniq sabab bilan javob beradi.
 /// </para>
 /// </remarks>
 public static class GeneralPoolVacancy

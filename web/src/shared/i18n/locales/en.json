@@ -833,7 +833,7 @@
     "anketa.manba_notogri": "Invalid referral source.",
     "vakansiya.nom_yoq": "A vacancy title is required.",
     "vakansiya.nom_band": "A vacancy with this title already exists — find it in the list and reopen it if it is closed.",
-    "vakansiya.tizim_vakansiyasi": "“Umumiy anketa” is a system vacancy: it cannot be closed or deleted. Applications from the bot’s “Fill in the form” button land here.",
+    "vakansiya.tizim_vakansiyasi": "“Umumiy anketa” is a system vacancy: it cannot be deleted. To stop accepting forms, close it.",
     "bildirishnoma.kalit_notogri": "Invalid notification key. Refresh the page.",
     "bildirishnoma.kalit_yoq": "No notifications selected.",
     "bildirishnoma.kalit_kop": "Cannot process more than 200 notifications at once.",
@@ -1516,7 +1516,12 @@
     "vacancyNotFoundTitle": "No vacancies found",
     "vacancyNotFoundText": "Try changing the search or the filter.",
     "vacancyReopenNameTaken": "Not reopened: an open vacancy with this title already exists — add new candidates to that one.",
-    "systemVacancyHint": "System vacancy — always open. Applications from the bot’s “Fill in the form” button land here.",
+    "systemVacancyHint": "System vacancy: applications from the bot’s “Fill in the form” button land here. Closing it also closes form submission in the bot.",
+    "generalPoolClose": {
+      "title": "Close “Umumiy anketa”?",
+      "text": "Once closed, the bot’s “📋 Fill in the form” is closed too: candidates can’t submit a form without a vacancy — the bot tells them so right away. Applying to open vacancies keeps working. You can reopen it at any time.",
+      "confirm": "Close"
+    },
     "vacancyStatus": {
       "open": "Open",
       "closed": "Closed"

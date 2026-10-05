@@ -458,6 +458,31 @@ public sealed partial class BonviClient : IDisposable
     /// xabarini oladi.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// «Umumiy anketa» ochiqmi — «📋 Anketa to'ldirish» boshlanishidan OLDIN.
+    /// </summary>
+    /// <returns>
+    /// <c>true</c>/<c>false</c>; server javob bermasa <c>null</c> — noma'lum.
+    /// </returns>
+    /// <remarks>
+    /// Egasining qarori (2026-10-05): «Umumiy anketa» yopiq bo'lsa botda
+    /// vakansiyasiz anketa topshirish ham yopiq. Javob noma'lum bo'lsa bot
+    /// anketani TO'XTATMAYDI — qaror baribir serverda (yuborishda yopiq
+    /// vakansiya rad etiladi va nomzodga aniq sabab aytiladi); vaqtincha
+    /// uzilish tufayli ochiq anketani yopiq deb ko'rsatish yomonroq.
+    /// </remarks>
+    public async Task<bool?> IsGeneralPoolOpenAsync(CancellationToken cancellationToken)
+    {
+        var status = await SendAsync<GeneralPoolStatus>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/recruiting/vacancies/general-pool", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return status?.IsOpen;
+    }
+
     public async Task<ApplicationCheck?> CheckApplicationAsync(
         string phone,
         long chatId,
@@ -1046,6 +1071,8 @@ public sealed partial class BonviClient : IDisposable
 
     private sealed record LoginResponse(
         [property: JsonPropertyName("accessToken")] string? AccessToken);
+
+    private sealed record GeneralPoolStatus(Guid? VacancyId, bool? IsOpen);
 
     private sealed record VacancyPage(List<VacancyItem>? Items);
 

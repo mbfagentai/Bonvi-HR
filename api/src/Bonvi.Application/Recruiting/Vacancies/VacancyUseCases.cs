@@ -173,6 +173,56 @@ public sealed class ListVacanciesQueryHandler
     }
 }
 
+/// <summary>«Umumiy anketa» ochiqmi — bot «📋 Anketa to'ldirish» dan oldin so'raydi.</summary>
+public sealed record GetGeneralPoolStatusQuery;
+
+/// <summary>
+/// «Umumiy anketa» holati.
+/// </summary>
+/// <param name="VacancyId">Tizim vakansiyasi; sozlanmagan bo'lsa <c>null</c>.</param>
+/// <param name="IsOpen">Vakansiyasiz anketa hozir qabul qilinadimi.</param>
+public sealed record GeneralPoolStatusDto(Guid? VacancyId, bool IsOpen);
+
+/// <summary>
+/// «Umumiy anketa» ochiqmi (egasining qarori, 2026-10-05: yopiq bo'lsa botda
+/// anketa topshirish ham yopiq).
+/// </summary>
+/// <remarks>
+/// Bot buni anketa BOSHIDA so'raydi — nomzod 22 ta savolga javob berib
+/// bo'lgach «yuborilmadi» ni olmasin (2026-09 dagi jim yo'qotish). Qaror
+/// baribir serverda: yuborishda yopiq vakansiyaga ariza
+/// <c>nomzod.umumiy_anketa_yoq</c> bilan rad etiladi.
+/// </remarks>
+public sealed class GetGeneralPoolStatusQueryHandler
+{
+    private readonly IVacancyRepository _vacancies;
+    private readonly SystemSettingsReader _settings;
+
+    public GetGeneralPoolStatusQueryHandler(IVacancyRepository vacancies, SystemSettingsReader settings)
+    {
+        _vacancies = vacancies;
+        _settings = settings;
+    }
+
+    public async Task<Result<GeneralPoolStatusDto>> HandleAsync(
+        GetGeneralPoolStatusQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var id = await GeneralPoolVacancy.IdAsync(_settings, cancellationToken).ConfigureAwait(false);
+
+        if (id is not { } vacancyId)
+        {
+            return new GeneralPoolStatusDto(null, false);
+        }
+
+        var vacancy = await _vacancies.GetByIdAsync(vacancyId, cancellationToken).ConfigureAwait(false);
+
+        return new GeneralPoolStatusDto(vacancyId, vacancy?.AcceptsCandidates == true);
+    }
+}
+
 public sealed class GetVacancyQueryHandler
 {
     private readonly IVacancyRepository _vacancies;
@@ -334,20 +384,17 @@ public sealed class ChangeVacancyStateCommandHandler
 {
     private readonly IVacancyRepository _vacancies;
     private readonly RecruitingMapper _mapper;
-    private readonly SystemSettingsReader _settings;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
     public ChangeVacancyStateCommandHandler(
         IVacancyRepository vacancies,
         RecruitingMapper mapper,
-        SystemSettingsReader settings,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
         _vacancies = vacancies;
         _mapper = mapper;
-        _settings = settings;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -385,13 +432,9 @@ public sealed class ChangeVacancyStateCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        // «Umumiy anketa» yopilsa, botdagi «Anketa to'ldirish» butunlay
-        // ishlamay qoladi (sababi `GeneralPoolVacancy` izohida).
-        if (await GeneralPoolVacancy.IdAsync(_settings, cancellationToken).ConfigureAwait(false) == command.VacancyId)
-        {
-            return RecruitingErrors.SystemVacancyLocked;
-        }
-
+        // «Umumiy anketa» ham boshqalar kabi yopiladi (egasining qarori,
+        // 2026-10-05): yopiq bo'lsa botdagi «Anketa to'ldirish» ham yopiq —
+        // bot buni nomzodga anketa BOSHIDA aytadi (`GeneralPoolVacancy` izohi).
         return await ApplyAsync(
                 command.VacancyId,
                 vacancy => vacancy.Close(command.ClosedAt ?? _clock.Today, command.Reason),

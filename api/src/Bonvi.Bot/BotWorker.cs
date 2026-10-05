@@ -82,6 +82,12 @@ public sealed partial class BotWorker : BackgroundService
     private partial void LogApplication(string vacancy);
 
     [LoggerMessage(
+        EventId = 3220,
+        Level = LogLevel.Information,
+        Message = "Ariza qabul qilinmadi: anketa to'ldirish paytida qabul yopildi (vakansiya va «Umumiy anketa»)")]
+    private partial void LogApplicationsClosed();
+
+    [LoggerMessage(
         EventId = 3210,
         Level = LogLevel.Information,
         Message = "Rad etish xabari yuborildi: «{Vacancy}»")]
@@ -175,6 +181,11 @@ public sealed partial class BotWorker : BackgroundService
 
     /// <summary>Server kodi: vakansiya topilmadi (o'chirilgan).</summary>
     private const string VacancyNotFoundCode = "vakansiya.topilmadi";
+
+    /// <summary>
+    /// «Umumiy anketa» yopiq (yoki sozlanmagan) — vakansiyasiz ariza qabul qilinmaydi.
+    /// </summary>
+    private const string GeneralPoolUnavailableCode = "nomzod.umumiy_anketa_yoq";
 
     /// <summary>
     /// Server vaqtincha javob bermaganda arizani qayta yuborish oraliqlari.
@@ -904,11 +915,62 @@ public sealed partial class BotWorker : BackgroundService
 
         if (vacancies.Count == 0)
         {
-            await SendWithMenuAsync(chatId, BotTexts.NoOpenVacancies(state.Language), state.Language, cancellationToken)
+            // «Anketa to'ldirish» faqat «Umumiy anketa» ochiq bo'lsa tavsiya
+            // qilinadi — yopiq anketaga yo'naltirish nomzodni boshi berk
+            // ko'chaga olib kirardi.
+            var questionnaireOpen = await _bonvi.IsGeneralPoolOpenAsync(cancellationToken).ConfigureAwait(false) != false;
+
+            await SendWithMenuAsync(
+                    chatId,
+                    questionnaireOpen
+                        ? BotTexts.NoOpenVacancies(state.Language)
+                        : BotTexts.NoOpenVacanciesNoQuestionnaire(state.Language),
+                    state.Language,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             return;
         }
+
+        await SendAsync(
+                chatId,
+                BotTexts.ChooseVacancy(state.Language),
+                VacancyButtons(vacancies),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// «📋 Anketa to'ldirish» bosildi, lekin «Umumiy anketa» yopiq: holat aytiladi
+    /// va ochiq vakansiyalar bo'lsa ular ko'rsatiladi. Holat
+    /// <see cref="ConversationStep.Vacancy"/> da qoladi — nomzod ro'yxatdan
+    /// tanlashi mumkin.
+    /// </summary>
+    private async Task QuestionnaireClosedAsync(
+        long chatId,
+        ConversationState state,
+        CancellationToken cancellationToken)
+    {
+        var vacancies = await _bonvi.GetOpenVacanciesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (vacancies.Count == 0)
+        {
+            await SendWithMenuAsync(
+                    chatId,
+                    BotTexts.NoOpenVacanciesNoQuestionnaire(state.Language),
+                    state.Language,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        await SendWithMenuAsync(
+                chatId,
+                BotTexts.QuestionnaireClosed(state.Language, hasOpenVacancies: true),
+                state.Language,
+                cancellationToken)
+            .ConfigureAwait(false);
 
         await SendAsync(
                 chatId,
@@ -958,6 +1020,26 @@ public sealed partial class BotWorker : BackgroundService
                 if (vacancies.Count > 0)
                 {
                     break;
+                }
+
+                /*
+                  Vakansiya qadami o'tkazib yuborilmoqda — ariza vakansiyasiz,
+                  ya'ni «Umumiy anketa»ga ketadi. U yopiq bo'lsa anketa SHU
+                  YERDA to'xtaydi (egasining qarori, 2026-10-05), 22 ta
+                  savoldan keyin emas.
+                */
+                if (await _bonvi.IsGeneralPoolOpenAsync(cancellationToken).ConfigureAwait(false) == false)
+                {
+                    _conversations.Save(chatId, state with { Step = ConversationStep.Vacancy });
+
+                    await SendWithMenuAsync(
+                            chatId,
+                            BotTexts.NoOpenVacanciesNoQuestionnaire(state.Language),
+                            state.Language,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    return;
                 }
             }
             else if (Applies(current, state, settings))
@@ -1888,6 +1970,25 @@ public sealed partial class BotWorker : BackgroundService
                 .ConfigureAwait(false);
         }
 
+        if (result.CandidateId is null && result.ErrorCode == GeneralPoolUnavailableCode)
+        {
+            /*
+              Qabul YOPIQ: nomzod to'ldirayotgan paytda vakansiya ham,
+              «Umumiy anketa» ham yopilgan (egasining qarori, 2026-10-05 —
+              qaysi vakansiya yopiq bo'lsa, unga anketa topshirib bo'lmaydi).
+              Bu vaqtinchalik nosozlik EMAS: «keyinroq qayta urinib ko'ring»
+              degan umumiy xabar nomzodni bekorga qayta bosishga undardi.
+              Suhbat unutiladi va sabab aniq aytiladi.
+            */
+            _conversations.Forget(chatId);
+
+            await SendWithMenuAsync(chatId, BotTexts.ApplicationsClosed(state.Language), state.Language, cancellationToken)
+                .ConfigureAwait(false);
+
+            LogApplicationsClosed();
+            return;
+        }
+
         if (result.CandidateId is not { } created)
         {
             // Suhbat SAQLANADI: nomzod «Yuborish» ni keyinroq qayta bosa
@@ -2322,7 +2423,19 @@ public sealed partial class BotWorker : BackgroundService
                   Farqi `Apply` dan aynan shu: u vakansiya BO'LSA
                   tanlashni so'raydi, bu esa hech qachon so'ramaydi.
                   Savollarning qolgani ikkalasida bir xil.
+
+                  «Umumiy anketa» YOPIQ bo'lsa anketa BOSHLANMAYDI
+                  (egasining qarori, 2026-10-05): nomzodga darhol aytiladi
+                  va ochiq vakansiyalar bo'lsa ular ko'rsatiladi. Javob
+                  noma'lum bo'lsa (server javob bermadi) anketa davom
+                  etadi — qaror baribir serverda.
                 */
+                if (await _bonvi.IsGeneralPoolOpenAsync(cancellationToken).ConfigureAwait(false) == false)
+                {
+                    await QuestionnaireClosedAsync(chatId, fresh, cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+
                 await ContinueAsync(chatId, fresh, ConversationStep.Name, cancellationToken)
                     .ConfigureAwait(false);
                 break;

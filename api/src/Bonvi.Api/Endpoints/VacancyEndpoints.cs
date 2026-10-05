@@ -110,6 +110,25 @@ public static class VacancyEndpoints
             .Produces<VacancyDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapGet("/general-pool", async (
+                GetGeneralPoolStatusQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetGeneralPoolStatusQuery(), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingView)
+            .WithName("GetGeneralPoolStatus")
+            .WithSummary("«Umumiy anketa» — ochiqmi")
+            .WithDescription(
+                "«{ vacancyId, isOpen }». Bot «📋 Anketa to'ldirish» bosilganda so'raydi: yopiq bo'lsa " +
+                "nomzodga anketa BOSHIDA aytiladi (egasining qarori 2026-10-05 — qaysi vakansiya yopiq " +
+                "bo'lsa, unga anketa topshirib bo'lmaydi). Sozlanmagan bo'lsa «vacancyId»: null, «isOpen»: false.")
+            .Produces<GeneralPoolStatusDto>(StatusCodes.Status200OK);
+
         group.MapPost("/", async (
                 SaveVacancyRequest request,
                 OpenVacancyCommandHandler handler,

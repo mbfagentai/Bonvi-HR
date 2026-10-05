@@ -19,6 +19,9 @@ namespace Bonvi.Api.IntegrationTests;
 /// </remarks>
 public sealed record BotSettingsResponse(string OfferUrl, int ConversationTimeoutMinutes);
 
+/// <summary><c>GET /api/recruiting/vacancies/general-pool</c> javobi.</summary>
+public sealed record GeneralPoolStatusResponse(Guid? VacancyId, bool IsOpen);
+
 /// <summary>
 /// Anketa oqimining tizim sozlamasi: «Umumiy anketa» vakansiyasi
 /// (urug'lantirish, yashirin sozlama, bot ro'yxatidagi filtr) va
@@ -272,88 +275,117 @@ public sealed class GeneralPoolVacancyTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
-    /// ⭐ «Umumiy anketa» YOPILMAYDI va O'CHIRILMAYDI.
+    /// ⭐ «Umumiy anketa» boshqalar kabi YOPILADI va QAYTA OCHILADI, lekin
+    /// O'CHIRILMAYDI (egasining qarori, 2026-10-05).
     /// </summary>
     /// <remarks>
-    /// Prod'da u 2026-09-11 da HR tomonidan yopilgan va 18 kun davomida
-    /// botdagi «Anketa to'ldirish» orqali kelgan har bir ariza rad etilgan
-    /// (sababi <c>GeneralPoolVacancy</c> izohida). Ekranda u oddiy
-    /// vakansiyadek ko'rinardi — endi tizim belgisi bilan keladi va server
-    /// uni yopishni ham, o'chirishni ham rad etadi.
+    /// Yopiq bo'lsa botda anketa topshirish ham yopiq — bot buni
+    /// <c>/general-pool</c> dan so'raydi va nomzodga anketa BOSHIDA aytadi.
+    /// Ilgari (2026-09-29) yopish taqiqlangan edi; bu test o'sha qarorning
+    /// bekor qilinganini qayd etadi. Oxirida qayta ochiladi — baza klass
+    /// bo'yicha umumiy va boshqa testlar ochiq anketaga tayanadi.
     /// </remarks>
     [Fact]
-    public async Task Umumiy_anketani_yopib_ham_ochirib_ham_bolmaydi()
+    public async Task Umumiy_anketa_yopiladi_va_qayta_ochiladi_lekin_ochirilmaydi()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
         using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
 
         var umumiyId = await UmumiyAnketaAsync();
 
         var royxat = await VakansiyalarAsync(admin, "?pageSize=200");
-        royxat.Items.Single(qator => qator.Id == umumiyId).IsSystem.ShouldBeTrue("ekran unda qulf ko'rsatadi");
+        royxat.Items.Single(qator => qator.Id == umumiyId).IsSystem.ShouldBeTrue("ekran unda «botda anketa» belgisini ko'rsatadi");
         royxat.Items.Where(qator => qator.Id != umumiyId).ShouldAllBe(qator => !qator.IsSystem);
 
-        using (var yopish = await admin.PostAsync(
-            new Uri($"/api/recruiting/vacancies/{umumiyId}/close", UriKind.Relative), null, bekorQilish))
+        (await HolatAsync(bot)).ShouldBe(new GeneralPoolStatusResponse(umumiyId, true));
+
+        try
         {
-            yopish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(yopish));
-            (await MatnAsync(yopish)).ShouldContain("vakansiya.tizim_vakansiyasi");
+            using (var yopish = await admin.PostAsync(
+                new Uri($"/api/recruiting/vacancies/{umumiyId}/close", UriKind.Relative), null, bekorQilish))
+            {
+                yopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yopish));
+            }
+
+            (await HolatAsync(bot)).ShouldBe(
+                new GeneralPoolStatusResponse(umumiyId, false),
+                "bot «Anketa to'ldirish» ni boshlamasligi kerak");
+
+            using (var ochirish = await admin.DeleteAsync(
+                new Uri($"/api/recruiting/vacancies/{umumiyId}", UriKind.Relative), bekorQilish))
+            {
+                ochirish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(ochirish));
+                (await MatnAsync(ochirish)).ShouldContain("vakansiya.tizim_vakansiyasi");
+            }
+        }
+        finally
+        {
+            using var ochish = await admin.PostAsync(
+                new Uri($"/api/recruiting/vacancies/{umumiyId}/reopen", UriKind.Relative), null, bekorQilish);
+
+            ochish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(ochish));
         }
 
-        using (var ochirish = await admin.DeleteAsync(
-            new Uri($"/api/recruiting/vacancies/{umumiyId}", UriKind.Relative), bekorQilish))
-        {
-            ochirish.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(ochirish));
-            (await MatnAsync(ochirish)).ShouldContain("vakansiya.tizim_vakansiyasi");
-        }
-
-        // Oddiy vakansiya avvalgidek yopiladi
-        var oddiyId = await OddiyVakansiyaAsync(admin);
-
-        using var oddiyYopish = await admin.PostAsync(
-            new Uri($"/api/recruiting/vacancies/{oddiyId}/close", UriKind.Relative), null, bekorQilish);
-
-        oddiyYopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(oddiyYopish));
+        (await HolatAsync(bot)).ShouldBe(new GeneralPoolStatusResponse(umumiyId, true));
     }
 
     /// <summary>
-    /// Yopiq qolgan «Umumiy anketa» ishga tushishda QAYTA OCHILADI.
+    /// Yopiq «Umumiy anketa» ishga tushishda YOPIQ QOLADI.
     /// </summary>
     /// <remarks>
-    /// Prod'dagi holat aynan shunday: yopish taqiqi kiritilishidan oldin
-    /// yopilgan yozuv. Deploy'dan keyin bot darhol ishlashi kerak — HR
-    /// buni o'zi sezib, qo'lda ochishini kutmasdan.
+    /// Ilgari (2026-09-29) urug'lantirish uni har ishga tushishda qayta
+    /// ochardi — ya'ni har deploy HR yopgan anketani jimgina ochib yuborardi.
+    /// Endi yopish egasining ongli qarori va u saqlanadi.
     /// </remarks>
     [Fact]
-    public async Task Yopiq_umumiy_anketa_ishga_tushishda_qayta_ochiladi()
+    public async Task Yopiq_umumiy_anketa_ishga_tushishda_yopiq_qoladi()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
         using var admin = await AdminMijozAsync();
         var umumiyId = await UmumiyAnketaAsync();
 
-        // Taqiqdan oldingi holat — to'g'ridan-to'g'ri bazada yopiladi
-        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        using (var yopish = await admin.PostAsync(
+            new Uri($"/api/recruiting/vacancies/{umumiyId}/close", UriKind.Relative), null, bekorQilish))
         {
-            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
-            var vakansiya = await kontekst.Vacancies.SingleAsync(qator => qator.Id == umumiyId, bekorQilish);
-
-            vakansiya.Close(DateOnly.FromDateTime(DateTime.UtcNow)).IsSuccess.ShouldBeTrue();
-            await kontekst.SaveChangesAsync(bekorQilish);
+            yopish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yopish));
         }
 
-        await UrughniQaytaIshgaTushirAsync(bekorQilish);
-
-        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        try
         {
+            await UrughniQaytaIshgaTushirAsync(bekorQilish);
+
+            await using var qamrov = _factory.Services.CreateAsyncScope();
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
             var vakansiya = await kontekst.Vacancies
                 .AsNoTracking()
                 .SingleAsync(qator => qator.Id == umumiyId, bekorQilish);
 
-            vakansiya.Status.ShouldBe(VacancyStatus.Open, "tizim vakansiyasi yopiq qolmaydi");
-            vakansiya.ClosedAt.ShouldBeNull();
+            vakansiya.Status.ShouldBe(VacancyStatus.Closed, "egasi yopgan anketa qayta ochilmaydi");
+
+            // Sozlama o'sha yozuvni ko'rsatib turibdi — yangi «Umumiy anketa» yaratilmagan.
+            (await UmumiyAnketaAsync()).ShouldBe(umumiyId);
         }
+        finally
+        {
+            using var ochish = await admin.PostAsync(
+                new Uri($"/api/recruiting/vacancies/{umumiyId}/reopen", UriKind.Relative), null, bekorQilish);
+
+            ochish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(ochish));
+        }
+    }
+
+    private static async Task<GeneralPoolStatusResponse> HolatAsync(HttpClient mijoz)
+    {
+        using var javob = await mijoz.GetAsync(
+            new Uri("/api/recruiting/vacancies/general-pool", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        return (await javob.Content.ReadFromJsonAsync<GeneralPoolStatusResponse>(TestContext.Current.CancellationToken))
+            .ShouldNotBeNull();
     }
 
     // ────────────────────────────────────────────────────────────

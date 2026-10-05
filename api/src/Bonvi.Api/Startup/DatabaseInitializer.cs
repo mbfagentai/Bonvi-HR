@@ -183,12 +183,6 @@ public sealed partial class DatabaseInitializer : IHostedService
         Message = "«{Title}» vakansiyasi tayyorlanmadi: {Reason}")]
     private partial void LogGeneralPoolSkipped(string title, string reason);
 
-    [LoggerMessage(
-        EventId = 2012,
-        Level = LogLevel.Warning,
-        Message = "«{Title}» vakansiyasi YOPIQ edi — qayta ochildi: {VacancyId}. Tizim vakansiyasi yopilsa botdagi «Anketa to'ldirish» ishlamaydi")]
-    private partial void LogGeneralPoolReopened(string title, Guid vacancyId);
-
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
@@ -546,24 +540,14 @@ public sealed partial class DatabaseInitializer : IHostedService
 
         if (linked is not null)
         {
-            // Shu nomli BOSHQA ochiq vakansiya bo'lsa (masalan HR yopilgan
-            // tizim vakansiyasi o'rniga qo'lda yangisini ochgan) — qayta
-            // ochilmaydi: ikkita bir xil nom ro'yxatda chalkashlik bo'lardi.
-            // Bunday holat qo'lda hal qilinadi (DEPLOY-CHECKLIST).
-            if (!linked.AcceptsCandidates
-                && !await provider.GetRequiredService<IVacancyRepository>()
-                    .TitleTakenAsync(linked.Title, linked.Id, openOnly: true, cancellationToken)
-                    .ConfigureAwait(false))
-            {
-                _ = linked.Reopen();
-
-                await provider.GetRequiredService<IUnitOfWork>()
-                    .SaveChangesAsync(cancellationToken)
-                    .ConfigureAwait(false);
-
-                LogGeneralPoolReopened(linked.Title, linked.Id);
-            }
-
+            /*
+              Bog'langan yozuv bor — HOLATIGA tegilmaydi. Yopiq bo'lsa ham
+              yopiq qoladi: «Umumiy anketa» ni yopish egasining ongli qarori
+              (2026-10-05) va u «botda anketa topshirish ham yopiq» degani.
+              Ilgari (2026-09-29) bu yerda yopiq yozuv har ishga tushishda
+              QAYTA OCHILARDI — ya'ni har deploy HR yopgan anketani jimgina
+              ochib yuborardi.
+            */
             return;
         }
 

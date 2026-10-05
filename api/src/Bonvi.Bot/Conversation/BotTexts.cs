@@ -559,6 +559,79 @@ public static class BotTexts
             + "ma’lumotingiz bazada saqlanadi va mos vakansiya chiqqanda HR bo‘limi siz bilan bog‘lanadi.",
     };
 
+    /*
+      «UMUMIY ANKETA» YOPIQ (egasining qarori, 2026-10-05): qaysi vakansiya
+      yopiq bo'lsa, unga anketa topshirib bo'lmaydi. Nomzodga bu anketa
+      BOSHIDA aytiladi — 22 ta savoldan keyin emas (2026-09 da aynan shu
+      jimgina 67 ta arizani yo'qotgan).
+    */
+
+    /// <summary>
+    /// «📋 Anketa to'ldirish» bosildi, lekin «Umumiy anketa» yopiq.
+    /// </summary>
+    /// <param name="language">Nomzod tili.</param>
+    /// <param name="hasOpenVacancies">
+    /// Ochiq vakansiya bor — matn ularni tanlashga yo'naltiradi (ro'yxat shu
+    /// xabardan keyin chiqadi); yo'q bo'lsa — keyinroq qaytishga.
+    /// </param>
+    public static string QuestionnaireClosed(BotLanguage language, bool hasOpenVacancies) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "📋 Ҳозирча умумий анкета қабул қилинмаяпти.\n\n"
+            + (hasOpenVacancies
+                ? "Қуйидаги очиқ вакансиялардан бирини танлаб ариза топширишингиз мумкин."
+                : "Очиқ вакансия чиққанда «💼 Вакансиялар» бўлимида кўринади — ўшанда ариза топширишингиз мумкин."),
+        BotLanguage.Russian =>
+            "📋 Сейчас общая анкета не принимается.\n\n"
+            + (hasOpenVacancies
+                ? "Вы можете выбрать одну из открытых вакансий ниже и подать заявку."
+                : "Когда появится открытая вакансия, она будет в разделе «💼 Вакансии» — тогда вы сможете подать заявку."),
+        _ =>
+            "📋 Hozircha umumiy anketa qabul qilinmayapti.\n\n"
+            + (hasOpenVacancies
+                ? "Quyidagi ochiq vakansiyalardan birini tanlab ariza topshirishingiz mumkin."
+                : "Ochiq vakansiya chiqqanda «💼 Vakansiyalar» bo‘limida ko‘rinadi — o‘shanda ariza topshirishingiz mumkin."),
+    };
+
+    /// <summary>
+    /// Ochiq vakansiya yo'q VA «Umumiy anketa» ham yopiq — «Anketa to'ldirish»
+    /// tavsiya QILINMAYDI (<see cref="NoOpenVacancies"/> dan farqi shu).
+    /// </summary>
+    public static string NoOpenVacanciesNoQuestionnaire(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Ҳозирча очиқ иш ўрни йўқ ва анкета қабул қилинмаяпти. 🙁\n\n"
+            + "Очиқ вакансия чиққанда «💼 Вакансиялар» бўлимида кўринади.",
+        BotLanguage.Russian =>
+            "Сейчас открытых вакансий нет, и анкеты не принимаются. 🙁\n\n"
+            + "Когда появится открытая вакансия, она будет в разделе «💼 Вакансии».",
+        _ =>
+            "Hozircha ochiq ish o‘rni yo‘q va anketa qabul qilinmayapti. 🙁\n\n"
+            + "Ochiq vakansiya chiqqanda «💼 Vakansiyalar» bo‘limida ko‘rinadi.",
+    };
+
+    /// <summary>
+    /// Nomzod anketani to'ldirayotgan paytda qabul YOPILDI (vakansiya ham,
+    /// «Umumiy anketa» ham) — ariza yuborilmadi va qayta urinish foyda bermaydi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Failed"/> dan farqi: u «keyinroq qayta urinib ko'ring»
+    /// deydi va suhbatni SAQLAYDI (vaqtincha nosozlik uchun). Bu yerda sabab
+    /// vaqtinchalik emas — nomzodni bekorga qayta-qayta bosishga undamaslik kerak.
+    /// </remarks>
+    public static string ApplicationsClosed(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "Кечирасиз, сиз анкета тўлдираётган пайтда ариза қабул қилиш ёпилди — аризангиз юборилмади. 😔\n\n"
+            + "Очиқ вакансия чиққанда қайта топширишингиз мумкин.",
+        BotLanguage.Russian =>
+            "Извините, пока вы заполняли анкету, приём заявок закрылся — заявка не отправлена. 😔\n\n"
+            + "Когда появится открытая вакансия, вы сможете подать заявку снова.",
+        _ =>
+            "Kechirasiz, siz anketa to‘ldirayotgan paytda ariza qabul qilish yopildi — arizangiz yuborilmadi. 😔\n\n"
+            + "Ochiq vakansiya chiqqanda qayta topshirishingiz mumkin.",
+    };
+
     /// <summary>Menyudagi «Anketa to'ldirish» tugmasi — vakansiyasiz.</summary>
     /// <remarks>
     /// Matn «Ariza topshirish» dan ANIQ farq qilishi kerak: ikkalasi

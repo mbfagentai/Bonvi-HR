@@ -266,3 +266,31 @@ tuyulmasligi kerak:
 > Кирилл: ✅ Анкетангиз қабул қилинди!<br><br>Ҳозирча очиқ иш ўрни йўқ, лекин анкетангиз базада сақланади. Мос вакансия чиққанда ХР бўлими сиз билан боғланади.
 > Lotin: ✅ Anketangiz qabul qilindi!<br><br>Hozircha ochiq ish o‘rni yo‘q, lekin anketangiz bazada saqlanadi. Mos vakansiya chiqqanda HR bo‘limi siz bilan bog‘lanadi.
 > Русский: ✅ Ваша анкета принята!<br><br>Сейчас открытых вакансий нет, но анкета сохранится в базе. Когда появится подходящая вакансия, отдел кадров свяжется с вами.
+
+---
+
+## «Umumiy anketa» yopiq bo'lsa (2026-10-05)
+
+Egasining qarori: qaysi vakansiya yopiq bo'lsa, unga anketa topshirib
+bo'lmaydi — «Umumiy anketa» ham. U HR ekranida boshqa vakansiyalar kabi
+yopiladi va ochiladi; yopiq bo'lsa nomzodga bu anketa BOSHIDA aytiladi
+(`BotTexts.QuestionnaireClosed`, `NoOpenVacanciesNoQuestionnaire`,
+`ApplicationsClosed`).
+
+**«📋 Anketa to'ldirish» bosildi, ochiq vakansiyalar bor** — matndan keyin ro'yxat chiqadi:
+
+> Кирилл: 📋 Ҳозирча умумий анкета қабул қилинмаяпти.<br><br>Қуйидаги очиқ вакансиялардан бирини танлаб ариза топширишингиз мумкин.
+> Lotin: 📋 Hozircha umumiy anketa qabul qilinmayapti.<br><br>Quyidagi ochiq vakansiyalardan birini tanlab ariza topshirishingiz mumkin.
+> Русский: 📋 Сейчас общая анкета не принимается.<br><br>Вы можете выбрать одну из открытых вакансий ниже и подать заявку.
+
+**Ochiq vakansiya ham yo'q** («Anketa to'ldirish» yoki «Vakansiyalar» bosilganda):
+
+> Кирилл: Ҳозирча очиқ иш ўрни йўқ ва анкета қабул қилинмаяпти. 🙁<br><br>Очиқ вакансия чиққанда «💼 Вакансиялар» бўлимида кўринади.
+> Lotin: Hozircha ochiq ish o‘rni yo‘q va anketa qabul qilinmayapti. 🙁<br><br>Ochiq vakansiya chiqqanda «💼 Vakansiyalar» bo‘limida ko‘rinadi.
+> Русский: Сейчас открытых вакансий нет, и анкеты не принимаются. 🙁<br><br>Когда появится открытая вакансия, она будет в разделе «💼 Вакансии».
+
+**To'ldirish paytida qabul yopilib qoldi** (tanlangan vakansiya ham, «Umumiy anketa» ham) — suhbat unutiladi:
+
+> Кирилл: Кечирасиз, сиз анкета тўлдираётган пайтда ариза қабул қилиш ёпилди — аризангиз юборилмади. 😔<br><br>Очиқ вакансия чиққанда қайта топширишингиз мумкин.
+> Lotin: Kechirasiz, siz anketa to‘ldirayotgan paytda ariza qabul qilish yopildi — arizangiz yuborilmadi. 😔<br><br>Ochiq vakansiya chiqqanda qayta topshirishingiz mumkin.
+> Русский: Извините, пока вы заполняли анкету, приём заявок закрылся — заявка не отправлена. 😔<br><br>Когда появится открытая вакансия, вы сможете подать заявку снова.

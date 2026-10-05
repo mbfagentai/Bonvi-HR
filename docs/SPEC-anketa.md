@@ -80,6 +80,12 @@ o'chiradi.
 
 ## 3. «Umumiy anketa» vakansiyasi
 
+> **2026-10-05 (egasining qarori):** «Umumiy anketa» boshqa vakansiyalar kabi
+> yopiladi va ochiladi (o'chirilmaydi). Yopiq bo'lsa botda vakansiyasiz anketa
+> topshirish ham yopiq — bot buni `GET /api/recruiting/vacancies/general-pool`
+> dan bilib, nomzodga anketa BOSHIDA aytadi (`docs/BOT-ANKETA-MATNLARI.md`).
+> 2026-09-29 dagi «yopilmaydi, ishga tushishda qayta ochiladi» qoidasi bekor.
+
 Ochiq vakansiya bo'lmaganda ham nomzod yozuvi biror vakansiyaga
 tegishli bo'lishi kerak (`Candidate.VacancyId` — `Guid`, nullable emas).
 

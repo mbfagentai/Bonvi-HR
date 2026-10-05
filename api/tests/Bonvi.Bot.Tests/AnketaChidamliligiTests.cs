@@ -193,12 +193,109 @@ public sealed class AnketaChidamliligiTests
         await AnketaOqimiTests.WalkAsync(bot, chooseVacancy: false, withPhoto: false);
 
         // Rad javobi — «vaqtincha» emas: qayta yuborish natijani o'zgartirmaydi
-        bot.RegisterPlan.Enqueue("nomzod.umumiy_anketa_yoq");
+        bot.RegisterPlan.Enqueue("telefon.notogri");
 
         await bot.PressAsync("submit");
 
         bot.RegisterVacancyIds.Count.ShouldBe(1);
         bot.Last.Text.ShouldBe(BotTexts.Failed(Uz));
+    }
+
+    // ────────────────────── «Umumiy anketa» yopiq (2026-10-05) ──────────────────────
+    //
+    // Egasining qarori: qaysi vakansiya yopiq bo'lsa, unga anketa topshirib
+    // bo'lmaydi — «Umumiy anketa» ham. Nomzodga bu anketa BOSHIDA aytiladi.
+
+    [Fact]
+    public async Task Umumiy_anketa_yopiq_bolsa_anketa_boshlanmaydi_va_ochiq_vakansiyalar_korsatiladi()
+    {
+        using var bot = AnketaOqimiTests.New(withVacancy: true);
+        bot.GeneralPoolOpen = false;
+
+        await bot.ChooseLanguageAsync();
+        await bot.QuestionnaireAsync();
+
+        bot.Sent.ShouldContain(xabar => xabar.Text == BotTexts.QuestionnaireClosed(Uz, true));
+        bot.Last.Text.ShouldBe(BotTexts.ChooseVacancy(Uz));
+        bot.HasButton("v:" + AnketaOqimiTests.VacancyId.ToString("N")).ShouldBeTrue("nomzod ochiq vakansiyani tanlay oladi");
+        bot.State.ShouldNotBeNull().Step.ShouldBe(ConversationStep.Vacancy, "ism so'ralmaydi — anketa boshlanmagan");
+        bot.RegisterVacancyIds.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Umumiy_anketa_ham_vakansiya_ham_yopiq_bolsa_aniq_aytiladi()
+    {
+        using var bot = AnketaOqimiTests.New(withVacancy: false);
+        bot.GeneralPoolOpen = false;
+
+        await bot.ChooseLanguageAsync();
+        await bot.QuestionnaireAsync();
+
+        bot.Last.Text.ShouldBe(BotTexts.NoOpenVacanciesNoQuestionnaire(Uz));
+        bot.State.ShouldNotBeNull().Step.ShouldBe(ConversationStep.Vacancy);
+
+        // «Vakansiyalar» bo'limi ham yopiq anketaga yo'naltirmaydi
+        await bot.VacanciesAsync();
+
+        bot.Last.Text.ShouldBe(BotTexts.NoOpenVacanciesNoQuestionnaire(Uz));
+        bot.Last.Text.ShouldNotContain("Anketa to‘ldirish");
+    }
+
+    [Fact]
+    public async Task Umumiy_anketa_ochiq_bolsa_bosh_royxat_anketaga_yonaltiradi()
+    {
+        using var bot = AnketaOqimiTests.New(withVacancy: false);
+
+        await bot.ChooseLanguageAsync();
+        await bot.VacanciesAsync();
+
+        bot.Last.Text.ShouldBe(BotTexts.NoOpenVacancies(Uz));
+    }
+
+    [Fact]
+    public async Task Holat_nomalum_bolsa_anketa_davom_etadi_qaror_serverda()
+    {
+        using var bot = AnketaOqimiTests.New(withVacancy: false);
+        bot.GeneralPoolOpen = null;
+
+        await bot.ChooseLanguageAsync();
+        await bot.QuestionnaireAsync();
+
+        bot.State.ShouldNotBeNull().Step.ShouldBe(ConversationStep.Name, "vaqtincha uzilish anketani yopmaydi");
+    }
+
+    [Fact]
+    public async Task Toldirish_paytida_qabul_yopilsa_aniq_sabab_aytiladi_va_qayta_urinilmaydi()
+    {
+        using var bot = AnketaOqimiTests.New(withVacancy: false);
+
+        await AnketaOqimiTests.WalkAsync(bot, chooseVacancy: false, withPhoto: false);
+
+        // HR «Umumiy anketa» ni nomzod to'ldirayotgan paytda yopdi
+        bot.RegisterPlan.Enqueue("nomzod.umumiy_anketa_yoq");
+
+        await bot.PressAsync("submit");
+
+        bot.RegisterVacancyIds.Count.ShouldBe(1);
+        bot.Last.Text.ShouldBe(BotTexts.ApplicationsClosed(Uz));
+        bot.State.ShouldBeNull("qayta bosish foyda bermaydi — suhbat unutiladi");
+    }
+
+    [Fact]
+    public async Task Tanlangan_vakansiya_ham_umumiy_anketa_ham_yopilsa_ariza_qabul_qilinmaydi()
+    {
+        using var bot = AnketaOqimiTests.New(withVacancy: true);
+
+        await AnketaOqimiTests.WalkAsync(bot, chooseVacancy: true, withPhoto: false);
+
+        bot.RegisterPlan.Enqueue("vakansiya.qabul_qilmaydi");
+        bot.RegisterPlan.Enqueue("nomzod.umumiy_anketa_yoq");
+
+        await bot.PressAsync("submit");
+
+        bot.RegisterVacancyIds.ShouldBe([AnketaOqimiTests.VacancyId, null]);
+        bot.Last.Text.ShouldBe(BotTexts.ApplicationsClosed(Uz));
+        bot.State.ShouldBeNull();
     }
 
     // ────────────────────── Vakansiya yopilgan ──────────────────────

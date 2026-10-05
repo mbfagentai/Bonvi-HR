@@ -30,6 +30,7 @@ internal static class RecruitingRegistration
         // Vakansiyalar
         services.AddScoped<ListVacanciesQueryHandler>();
         services.AddScoped<GetVacancyQueryHandler>();
+        services.AddScoped<GetGeneralPoolStatusQueryHandler>();
         services.AddScoped<OpenVacancyCommandHandler>();
         services.AddScoped<UpdateVacancyCommandHandler>();
         services.AddScoped<ChangeVacancyStateCommandHandler>();

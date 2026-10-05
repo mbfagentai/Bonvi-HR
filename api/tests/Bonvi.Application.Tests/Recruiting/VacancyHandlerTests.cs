@@ -24,7 +24,7 @@ public sealed class VacancyHandlerTests
         _context.Vacancies, _context.Mapper, _context.UnitOfWork);
 
     private ChangeVacancyStateCommandHandler Holat => new(
-        _context.Vacancies, _context.Mapper, _context.Settings, _context.Clock, _context.UnitOfWork);
+        _context.Vacancies, _context.Mapper, _context.Clock, _context.UnitOfWork);
 
     [Fact]
     public async Task Band_nom_bilan_vakansiya_ochilmaydi()
