@@ -3,6 +3,19 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏳ Keyingi reliz — kutilmoqda (egasi boshqa o'zgarishlar bilan birga aytadi)
+
+Prod hozir `64a1e32`. Navbatdagi o'zgarishlar `main` da:
+
+- `69328a5` — bot xabarnomalari: har nomzodga BITTA urinish. Migratsiya
+  `NotificationDeliveryOutcome`: `candidates` ga 2 ta bo'sh ustun
+  (`rejection_notice_delivered`, `interview_notice_delivered`); mavjud qatorlar
+  o'zgarmaydi, rollback xavfsiz (eski kod ustunlarni ko'rmaydi). **Bot API bilan
+  BIRGA yangilanadi** (bot `?delivered=false` yuboradi). Deploy'dan keyin bot
+  jurnalida `BotWorker[3221]` = bloklagan nomzodga yetkazilmagan xabar — xato
+  emas. Prod nusxasida tekshirish: navbatdagi eski bloklangan xabarlar bir marta
+  urinib chiqib ketadi (birinchi siklda ~20 tadan).
+
 ## ✅ Reliz `64a1e32` — AI ulanish (MCP) + «Umumiy anketa» — CHIQARILDI 2026-10-05 13:48 (Toshkent)
 
 Prod `90f11d7` → `64a1e32`. Rollback: image tegi `rollback-90f11d7` (api, bot,
