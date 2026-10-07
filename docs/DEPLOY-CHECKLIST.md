@@ -3,26 +3,41 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏳ Keyingi reliz — kutilmoqda (egasi boshqa o'zgarishlar bilan birga aytadi)
+## ✅ Reliz `54567ad` — xabarnoma bir marta + nomzodlar qora ro'yxati + Jobster importi — CHIQARILDI 2026-10-07 13:54 (Toshkent)
 
-Prod hozir `64a1e32`. Navbatdagi o'zgarishlar `main` da:
+Prod `64a1e32` → `54567ad` (`69328a5` xabarnoma bir urinish, `ec0434c` nomzod
+qora ro'yxati). Rollback: image tegi `rollback-64a1e32` (api, bot, web), zaxira
+stamp `2026-10-07_084557` (deploy oldi). Migratsiya `NotificationDeliveryOutcome`
+qo'llandi (2 ta bo'sh ustun). API jurnalida ERR yo'q, bot API bilan 200, sayt 200.
 
-- `69328a5` — bot xabarnomalari: har nomzodga BITTA urinish. Migratsiya
-  `NotificationDeliveryOutcome`: `candidates` ga 2 ta bo'sh ustun
-  (`rejection_notice_delivered`, `interview_notice_delivered`); mavjud qatorlar
-  o'zgarmaydi, rollback xavfsiz (eski kod ustunlarni ko'rmaydi). **Bot API bilan
-  BIRGA yangilanadi** (bot `?delivered=false` yuboradi). Deploy'dan keyin bot
-  jurnalida `BotWorker[3221]` = bloklagan nomzodga yetkazilmagan xabar — xato
-  emas. Prod nusxasida tekshirish: navbatdagi eski bloklangan xabarlar bir marta
-  urinib chiqib ketadi (birinchi siklda ~20 tadan).
-- `ec0434c` — nomzodlar qora ro'yxati («Qora ro'yxat» → «Nomzodlar | Xodimlar»).
-  Migratsiya YO'Q (holat `int`). Bot API bilan BIRGA (yangi sabab `Blacklisted`).
-  Deploy paytida prod'da qora ro'yxatdagi nomzod yo'q — xavf yo'q.
-- **Deploy'dan KEYIN — Jobster importi** (egasining alohida ruxsati bilan):
-  scratchpad'dagi `jobster-import.sql` (6740 ariza → 4776 karta, bitta
-  tranzaksiya, ikkinchi marta yozilmaydi) va `jobster-rollback.sql`. Oldin
-  zaxira. Natija jadvalidagi «ulardan FAOL — HR qaror qiladi» qatorini egasiga
-  ayting.
+**Jobster importi — 2026-10-07 ~13:56, to'g'ridan-to'g'ri bazaga (egasining
+ruxsati bilan).** Fayllar serverda `/root/jobster-2026-10-07/` (import, rollback,
+oldin/keyin sanoqlari). Import oldi zaxira stamp **`2026-10-07_085539`**.
+Avval prod nusxasida (`bonvi_jbtest`) sinaldi: import → rollback → sanoqlar va
+nomzodlar nazorat yig'indisi AYNAN bir xil; sinov bazasi o'chirildi.
+
+Natija: 6740 ariza → 4722 yangi karta (rad etilgan 4063, ishga olingan 455,
+qora ro'yxat 119, rezerv 85) + 53 ta mavjud kartaga «Jobster тарихи» qo'shildi;
+24 ta yopiq «… (Jobster)» vakansiya. Faol 161 nomzod o'zgarmadi. Rad xabari
+navbati 0 — importdan hech kimga xabar ketmadi.
+
+Egasiga aytilgan: mavjud kartalardan ikkitasi Jobster qora ro'yxatida —
+«Mirolimbekov Jahongir» (yopiq edi → qora ro'yxatga o'tdi) va **«Усмонов
+Исроилжон»** (FAOL, 2026-10-02 dan «Метан ва пропан…» vakansiyasida — tegilmadi,
+HR qaror qiladi).
+
+**Orqaga qaytish:**
+- Faqat Jobster ma'lumoti: `docker compose -f docker-compose.prod.yml exec -T
+  postgres sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB' <
+  /root/jobster-2026-10-07/jobster-rollback.sql` — faqat import qo'shganini
+  oladi (yangi kartalar, vakansiyalar, izoh qo'shimchasi, qora ro'yxat holati).
+  HR o'sha kartalarga fayl/suhbat qo'shgan bo'lsa, skript tranzaksiyani to'xtatadi
+  (FK) — hech narsa yarim qolmaydi.
+- To'liq: zaxira `2026-10-07_085539` dan tiklash (undan keyingi YANGI arizalar
+  ham ketadi — oxirgi chora).
+- Kod: `docker tag …:rollback-64a1e32 …:latest` (api, bot, web) + `up -d`.
+  ⚠️ Eski kod `status = 6` ni bilmaydi — kodni qaytarishdan OLDIN Jobster
+  rollback SQL ni yurgizing (yoki qora ro'yxatdagilar «Jarayonda» bo'lib ko'rinadi).
 
 ## ✅ Reliz `64a1e32` — AI ulanish (MCP) + «Umumiy anketa» — CHIQARILDI 2026-10-05 13:48 (Toshkent)
 
