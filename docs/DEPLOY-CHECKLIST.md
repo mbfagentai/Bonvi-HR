@@ -15,6 +15,14 @@ Prod hozir `64a1e32`. Navbatdagi o'zgarishlar `main` da:
   jurnalida `BotWorker[3221]` = bloklagan nomzodga yetkazilmagan xabar — xato
   emas. Prod nusxasida tekshirish: navbatdagi eski bloklangan xabarlar bir marta
   urinib chiqib ketadi (birinchi siklda ~20 tadan).
+- `ec0434c` — nomzodlar qora ro'yxati («Qora ro'yxat» → «Nomzodlar | Xodimlar»).
+  Migratsiya YO'Q (holat `int`). Bot API bilan BIRGA (yangi sabab `Blacklisted`).
+  Deploy paytida prod'da qora ro'yxatdagi nomzod yo'q — xavf yo'q.
+- **Deploy'dan KEYIN — Jobster importi** (egasining alohida ruxsati bilan):
+  scratchpad'dagi `jobster-import.sql` (6740 ariza → 4776 karta, bitta
+  tranzaksiya, ikkinchi marta yozilmaydi) va `jobster-rollback.sql`. Oldin
+  zaxira. Natija jadvalidagi «ulardan FAOL — HR qaror qiladi» qatorini egasiga
+  ayting.
 
 ## ✅ Reliz `64a1e32` — AI ulanish (MCP) + «Umumiy anketa» — CHIQARILDI 2026-10-05 13:48 (Toshkent)
 
