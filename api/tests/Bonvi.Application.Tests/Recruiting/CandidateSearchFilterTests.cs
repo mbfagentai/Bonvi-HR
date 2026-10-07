@@ -52,6 +52,19 @@ public sealed class CandidateSearchFilterTests
     }
 
     [Fact]
+    public void Qora_royxatdagilar_faqat_holat_tanlanganda_chiqadi()
+    {
+        // 2026-10-07: ularning yagona o'rni — «Qora ro'yxat → Nomzodlar» tabi.
+        new CandidateSearchFilter().HideBlacklisted.ShouldBeTrue();
+        new CandidateSearchFilter(RejectedSection: true).HideBlacklisted.ShouldBeTrue(
+            "«Rad etilganlar» bo'limi qora ro'yxatni olmaydi");
+        new CandidateSearchFilter(IncludeArchive: true).HideBlacklisted.ShouldBeTrue(
+            "arxiv tanlovi ham ochmaydi");
+        new CandidateSearchFilter(ContactDueOn: new DateOnly(2026, 10, 7)).HideBlacklisted.ShouldBeTrue();
+        new CandidateSearchFilter(Status: CandidateStatus.Blacklisted).HideBlacklisted.ShouldBeFalse();
+    }
+
+    [Fact]
     public void Bugun_aloqa_kerak_filtri_rezervdagilarni_qaytaradi()
     {
         /*

@@ -66,6 +66,9 @@ public enum CandidateNoteKind
 
     /// <summary>Rezervga o'tkazildi.</summary>
     Reserved = 6,
+
+    /// <summary>Qora ro'yxatga olindi — sababi bilan (2026-10-07).</summary>
+    Blacklisted = 7,
 }
 
 /// <summary>

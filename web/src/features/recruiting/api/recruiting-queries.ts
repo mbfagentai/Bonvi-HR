@@ -522,7 +522,7 @@ export function useCloseCandidate() {
       nextContactDate,
     }: {
       id: string
-      action: 'reject' | 'withdraw' | 'reserve'
+      action: 'reject' | 'withdraw' | 'reserve' | 'blacklist'
       at: string | null
       reason: string | null
       nextContactDate?: string | null

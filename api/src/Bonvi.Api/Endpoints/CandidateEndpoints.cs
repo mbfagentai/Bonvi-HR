@@ -415,7 +415,8 @@ public static class CandidateEndpoints
                 "«search» — F.I.Sh. yoki TELEFON bo'yicha (nomzodda JSHSHIR va pasport " +
                 "bo'lmaydi); qidiruv xodimlar ro'yxatidagi kabi kirill imlo variantlarini " +
                 "(қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini hisobga oladi. " +
-                "«status» — InProgress | Rejected | Hired | Withdrawn | Reserve. " +
+                "«status» — InProgress | Rejected | Hired | Withdrawn | Reserve | Blacklisted " +
+                "(QORA RO'YXATDAGILAR faqat «status=Blacklisted» bilan chiqadi, hech qaysi bo'limga aralashmaydi). " +
                 "⚠️ Filtr BERILMASA, ISHGA OLINGANLAR, RAD ETILGANLAR va O'ZI VOZ " +
                 "KECHGANLAR ro'yxatga tushmaydi (va sanoqqa ham kirmaydi): " +
                 "birinchilari endi xodim va ularning o'rni «Xodimlar» bo'limida, " +
@@ -1052,6 +1053,38 @@ public static class CandidateEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        group.MapPost("/{id:guid}/blacklist", async (
+                Guid id,
+                CloseCandidateRequest? request,
+                CloseCandidateCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new BlacklistCandidateCommand(id, request?.At, request?.Reason),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("BlacklistCandidate")
+            .WithSummary("Nomzod — qora ro'yxatga olish")
+            .WithDescription(
+                "«Bu odam qayta olinmaydi». Rad etishdan farqi: qaror ARIZA haqida emas, " +
+                "ODAM haqida — bot shu telefon yoki Telegram hisobidan yangi anketani " +
+                "MUDDATSIZ qabul qilmaydi (nomzodga sabab aytilmaydi). Nomzod faqat " +
+                "«Qora ro'yxat → Nomzodlar» tabida ko'rinadi («?status=Blacklisted»); " +
+                "kundalik ro'yxatda ham, «Rad etilganlar» da ham yo'q. " +
+                "Jarayondagi, rad etilgan, voz kechgan va rezervdagi nomzodga qo'yiladi; " +
+                "ishga olingan yoki allaqachon qora ro'yxatdagi — «nomzod.qora_royxatga_olinmaydi» (409). " +
+                "«reason» MAJBURIY — «nomzod.qora_royxat_sababi_yoq» (400). «at» bo'sh — bugun. " +
+                "Keyingi aloqa sanasi tozalanadi. Chiqarish — «/return» (sabab majburiy).")
+            .Produces<CandidateDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         group.MapPost("/{id:guid}/return", async (
                 Guid id,
 
@@ -1076,7 +1109,8 @@ public static class CandidateEndpoints
             .WithSummary("Nomzod — voronkaga qaytarish")
             .WithDescription(
                 "Voronkadan chiqqan nomzodni QAYTARADI: rezervdan, RAD ETILGANDAN " +
-                "va o'zi VOZ KECHGANDAN. Rad etilgan odam ko'pincha o'zi qayta " +
+                "o'zi VOZ KECHGANDAN va QORA RO'YXATDAN (xato qo'yilgan bo'lsa; sabab majburiy). " +
+                "Rad etilgan odam ko'pincha o'zi qayta " +
                 "aloqaga chiqadi yoki sharoit o'zgaradi — noldan kiritish esa butun " +
                 "tarixni, anketani va fayllarni yo'qotardi. " +
                 "Nomzod QAYSI bosqichda to'xtagan bo'lsa, o'sha yerdan davom etadi — " +

@@ -25,7 +25,8 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// qolardi. Bot endi faqat SAVOL beradi.
 /// </para>
 /// <para>
-/// <b>Ikkita to'siq, shu tartibda.</b> Jarayondagi ariza muddatdan
+/// <b>Uchta to'siq, shu tartibda.</b> Qora ro'yxat — muddatsiz
+/// (<c>docs/SPEC-nomzod-qora-royxat.md</c>). Jarayondagi ariza muddatdan
 /// QAT'I NAZAR to'sadi: ikkinchi yozuv ochilsa, HR bir odamni ikki
 /// marta ko'rardi. Muddat esa faqat YOPILGAN arizadan keyin
 /// hisoblanadi.
@@ -78,6 +79,15 @@ public sealed class CheckApplicationQueryHandler
         if (latest is null)
         {
             return ApplicationCheckDto.Allow();
+        }
+
+        // ── 0. Qora ro'yxat — muddatsiz, tafsilotsiz ──
+        // O'qish modeli qora ro'yxatdagi arizani birinchi qaytaradi, ya'ni
+        // keyingi (masalan, yangi raqamdan) arizalar uni yashirmaydi. Nomzodga
+        // hech qanday tafsilot ketmaydi — na sana, na vakansiya.
+        if (latest.Status == CandidateStatus.Blacklisted)
+        {
+            return ApplicationCheckDto.Blocked(ApplicationBlockReason.Blacklisted);
         }
 
         // ── 1. Jarayondagi ariza — muddatdan qat'i nazar ──

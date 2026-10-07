@@ -21,7 +21,7 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// <param name="StageId">Bosqich bo'yicha filtr — voronka ustunini chizish uchun.</param>
 /// <param name="Status">
 /// <c>InProgress</c> | <c>Rejected</c> | <c>Hired</c> | <c>Withdrawn</c> |
-/// <c>Reserve</c>.
+/// <c>Reserve</c> | <c>Blacklisted</c>.
 /// <para>
 /// Bo'sh bo'lsa — ISHGA OLINGANLAR, RAD ETILGANLAR va O'ZI VOZ
 /// KECHGANLARDAN tashqari hammasi. Birinchisi endi xodim, qolgan ikkitasi
@@ -364,10 +364,20 @@ public sealed record ReserveCandidateCommand(
     string? Reason = null,
     DateOnly? NextContactDate = null);
 
+/// <summary>
+/// Nomzodni qora ro'yxatga olish — «bu odam qayta olinmaydi»
+/// (<c>docs/SPEC-nomzod-qora-royxat.md</c>).
+/// </summary>
+/// <param name="CandidateId">Nomzod.</param>
+/// <param name="At">Sana. Bo'sh — bugun.</param>
+/// <param name="Reason">Sabab — MAJBURIY (<c>Candidate.Blacklist</c>).</param>
+public sealed record BlacklistCandidateCommand(Guid CandidateId, DateOnly? At = null, string? Reason = null);
+
 /// <summary>Voronkadan chiqqan nomzodni qaytarish.</summary>
 /// <remarks>
-/// Uchta manbadan: rezervdan, RAD ETILGANDAN va o'zi VOZ KECHGANDAN
-/// (foydalanuvchi talabi, 2026-09-16). Qoidalar domenda —
+/// To'rtta manbadan: rezervdan, RAD ETILGANDAN, o'zi VOZ KECHGANDAN
+/// (foydalanuvchi talabi, 2026-09-16) va QORA RO'YXATDAN (2026-10-07, xato
+/// qo'yilgan bo'lsa — sabab majburiy). Qoidalar domenda —
 /// <c>Candidate.ReturnToFunnel</c>.
 /// </remarks>
 /// <param name="CandidateId">Nomzod.</param>
@@ -512,7 +522,9 @@ public sealed class SearchCandidatesQueryHandler
             row.HasPhoto,
             row.CreatedAt,
             row.HiredEmployeeId,
-            row.NextContactDate);
+            row.NextContactDate,
+            row.ClosedAt,
+            row.ClosingNote);
     }
 }
 
@@ -1270,6 +1282,18 @@ public sealed class CloseCandidateCommandHandler
                 command.At ?? _clock.Today,
                 command.Reason,
                 command.NextContactDate),
+            cancellationToken);
+    }
+
+    public Task<Result<CandidateDto>> HandleAsync(
+        BlacklistCandidateCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        return ApplyAsync(
+            command.CandidateId,
+            candidate => candidate.Blacklist(command.At ?? _clock.Today, command.Reason),
             cancellationToken);
     }
 

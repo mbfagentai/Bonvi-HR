@@ -138,6 +138,14 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Reserve);
         }
 
+        // ⭐ QORA RO'YXATDAGILAR — faqat «Qora ro'yxat → Nomzodlar» tabida
+        // (`?status=Blacklisted`), hech qayerda aralashmaydi
+        // (`CandidateSearchFilter.HideBlacklisted`).
+        if (filter.HideBlacklisted)
+        {
+            candidates = candidates.Where(candidate => candidate.Status != CandidateStatus.Blacklisted);
+        }
+
         // «Bugun kim bilan gaplashish kerak»: sanasi qo'yilgan VA u
         // berilgan kundan oshmagan qatorlar. Sana o'qish modeliga
         // TASHQARIDAN beriladi — bu yerda soat yo'q (sababi
@@ -300,7 +308,9 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 hires.TryGetValue(row.Candidate.Id, out var hiredEmployeeId)
                     ? hiredEmployeeId
                     : null,
-                row.Candidate.NextContactDate)),
+                row.Candidate.NextContactDate,
+                row.Candidate.ClosedAt,
+                row.Candidate.ClosingNote)),
         ];
 
         return new CandidatePage(items, total);
@@ -373,10 +383,12 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 on candidate.CurrentStageId equals stage.Id into stageGroup
             from stage in stageGroup.DefaultIfEmpty()
 
-            // Jarayondagi ariza BIRINCHI — u har qanday muddatdan
-            // kuchliroq. Qolganida eng oxirgi yopilgani (izohi
-            // `IRecruitingReadModel` da).
-            orderby candidate.Status == CandidateStatus.InProgress descending,
+            // Qora ro'yxatdagi ariza ENG BIRINCHI — u odam haqidagi qaror
+            // va keyingi har qanday arizadan kuchli (2026-10-07). Keyin
+            // jarayondagi ariza — u har qanday muddatdan kuchliroq.
+            // Qolganida eng oxirgi yopilgani (izohi `IRecruitingReadModel` da).
+            orderby candidate.Status == CandidateStatus.Blacklisted descending,
+                candidate.Status == CandidateStatus.InProgress descending,
                 candidate.ClosedAt descending,
                 candidate.CreatedAt descending
             select new CandidateApplicationRow(
@@ -436,7 +448,8 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
     {
         var rows =
             from candidate in _context.Candidates.AsNoTracking()
-            where candidate.Status == CandidateStatus.Rejected
+            where (candidate.Status == CandidateStatus.Rejected
+                    || candidate.Status == CandidateStatus.Blacklisted)
                 && candidate.TelegramChatId != null
                 && candidate.RejectionNoticeSentAt == null
             join vacancy in _context.Vacancies.AsNoTracking()

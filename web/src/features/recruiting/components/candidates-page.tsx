@@ -268,6 +268,33 @@ export function CandidatesPage() {
       ? reserveMatches.data.total
       : 0
 
+  /*
+   * ⭐ Qora ro'yxat izohi — rezervdagining egizagi (2026-10-07). Qora
+   * ro'yxatdagi nomzod HECH QAYSI ro'yxatda ko'rinmaydi
+   * (`CandidateSearchFilter.HideBlacklisted`), ya'ni HR ismini qidirib
+   * topmasa, uni yangidan kiritib yuborishi mumkin — aynan qora ro'yxat
+   * oldini olishi kerak bo'lgan holat. Shu sababli izoh «Rad etilganlar»
+   * bo'limida va arxiv tanlovida HAM chiqadi (u yerda ham ular yo'q).
+   */
+  const blacklistHintEnabled =
+    view === 'table' && reserveHintSearch !== '' && filters.status === '' && !filters.contactDue
+
+  const blacklistMatches = useCandidates(
+    {
+      search: reserveHintSearch,
+      status: 'Blacklisted',
+      includeArchive: true,
+      page: 1,
+      pageSize: 1,
+    },
+    blacklistHintEnabled,
+  )
+
+  const blacklistCount =
+    blacklistHintEnabled && blacklistMatches.isSuccess && !blacklistMatches.isPlaceholderData
+      ? blacklistMatches.data.total
+      : 0
+
   const setSearch = useCallback(
     (
       next: (previous: CandidatesSearch) => CandidatesSearch,
@@ -549,6 +576,23 @@ export function CandidatesPage() {
 
             <Link
               to="/rezerv"
+              search={{ q: reserveHintSearch }}
+              className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+            >
+              {t('recruiting.reserveSearchOpen')}
+              <ArrowRight />
+            </Link>
+          </span>
+        </Alert>
+      )}
+
+      {blacklistCount > 0 && (
+        <Alert tone="danger">
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{t('recruiting.blacklistSearchHint', { n: num(blacklistCount) })}</span>
+
+            <Link
+              to="/qora-royxat"
               search={{ q: reserveHintSearch }}
               className={buttonVariants({ variant: 'ghost', size: 'sm' })}
             >

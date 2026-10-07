@@ -958,7 +958,9 @@
     "xodim.parol_korinmaydi": "The password can’t be shown. Generate a new password and tell it to the employee.",
     "xodim_hisobi.xodim_yoq": "An employee must be selected.",
     "mehnat.vazifa_emas": "This record is not an additional duty.",
-    "mehnat.vazifa_tugash_sanasi": "The end date cannot be earlier than the duty start date."
+    "mehnat.vazifa_tugash_sanasi": "The end date cannot be earlier than the duty start date.",
+    "nomzod.qora_royxat_sababi_yoq": "Enter the reason for blacklisting.",
+    "nomzod.qora_royxatga_olinmaydi": "This candidate cannot be blacklisted: they were hired or are already blacklisted."
   },
   "language": {
     "en": "English",
@@ -1550,13 +1552,15 @@
       "rejected": "Rejected",
       "hired": "Hired",
       "withdrawn": "Withdrew",
-      "reserve": "In reserve"
+      "reserve": "In reserve",
+      "blacklisted": "Blacklisted"
     },
     "candidateClosed": {
       "rejected": "Rejected · {{date}}",
       "withdrawn": "Withdrew · {{date}}",
       "hired": "Hired · {{date}}",
-      "reserve": "Moved to reserve · {{date}}"
+      "reserve": "Moved to reserve · {{date}}",
+      "blacklisted": "Blacklisted · {{date}}"
     },
     "candidateAction": {
       "rejectTitle": "Reject",
@@ -1578,7 +1582,11 @@
       "returnToFunnelText": "The candidate returns to the funnel and continues from the stage where they stopped — the stage history is kept. The exit date and reason are cleared, but both stay in the stage timeline.",
       "returnToFunnelConfirm": "Return",
       "returnReason": "Reason for returning",
-      "returnReasonHint": "Why are we returning them — e.g. “reached out again, has more experience now”"
+      "returnReasonHint": "Why are we returning them — e.g. “reached out again, has more experience now”",
+      "blacklistTitle": "Add to blacklist",
+      "blacklistText": "This person will NOT be hired again: the bot will permanently refuse new forms from this phone or Telegram account (the candidate is not told why). The candidate appears only under «Blacklist → Candidates».",
+      "blacklistConfirm": "Blacklist",
+      "blacklistReasonHint": "Required. Why this person is not hired — an internal note, never sent to the candidate."
     },
     "source": {
       "manual": "Manual",
@@ -1628,7 +1636,8 @@
       "interviewRescheduled": "Interview rescheduled",
       "rejected": "Rejected",
       "withdrawn": "Withdrew",
-      "reserved": "Moved to the reserve"
+      "reserved": "Moved to the reserve",
+      "blacklisted": "Added to the blacklist"
     },
     "filesTitle": "Files",
     "filesEmpty": "No files attached",
@@ -1718,9 +1727,16 @@
       "emptyText": "The “Move to reserve” action on a candidate card brings them here. They stay a candidate, not an employee.",
       "notFoundText": "No candidates in reserve match “{{query}}”. Try a different word."
     },
+    "blacklistSection": {
+      "emptyTitle": "No blacklisted candidates",
+      "emptyText": "The «Add to blacklist» action on a candidate card moves them here. The bot will not accept a new form from this person.",
+      "notFoundText": "No blacklisted candidate matches «{{query}}». Try another word.",
+      "reason": "Reason"
+    },
     "funnelMoveFailed": "The stage did not change",
     "reserveSearchHint": "More candidates matching this search in the “Reserve” section: {{n}}",
     "reserveSearchOpen": "Show",
+    "blacklistSearchHint": "⛔ Candidates matching this search in the “Blacklist”: {{n}}",
     "phoneMatchTitle": "Candidates with this phone number: {{n}}",
     "phoneMatchHint": "Saving is not blocked — check the card to make sure it is not the same person.",
     "phoneMatchFailed": "Could not check whether this number is already in the database — you can still save."

@@ -61,7 +61,7 @@ export const VACANCY_STATUSES = ['Open', 'Closed'] as const
 export type VacancyStatus = (typeof VACANCY_STATUSES)[number]
 
 /*
- * Nomzodning yakunlari — BESHTA.
+ * Nomzodning yakunlari — OLTITA (`Blacklisted` 2026-10-07 da qo'shildi).
  *
  * ⚠️ `Reserve` ro'yxatda BO'LISHI SHART, garchi u faqat «yana bitta
  * holat» bo'lib ko'rinsa ham. Pastdagi `oneOf(...)` tanilmagan qiymatni
@@ -79,6 +79,7 @@ export const CANDIDATE_STATUSES = [
   'Hired',
   'Withdrawn',
   'Reserve',
+  'Blacklisted',
 ] as const
 export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number]
 
@@ -122,6 +123,7 @@ export const CANDIDATE_NOTE_KINDS = [
   'Rejected',
   'Withdrawn',
   'Reserved',
+  'Blacklisted',
 ] as const
 export type CandidateNoteKind = (typeof CANDIDATE_NOTE_KINDS)[number]
 
@@ -300,6 +302,13 @@ export interface CandidateListItem {
    * qoldiradi).
    */
   nextContactDate: string | null
+  /** Voronkadan chiqqan sana (`YYYY-MM-DD`); jarayondagida `null`. */
+  closedAt: string | null
+  /**
+   * Chiqish sababi. «Qora ro'yxat → Nomzodlar» tabida asosiy ustun —
+   * «nega bu odam olinmaydi» (2026-10-07).
+   */
+  closingNote: string | null
 }
 
 /**
@@ -834,6 +843,8 @@ function toCandidateRow(raw: unknown): CandidateListItem {
     createdAt: text(box['createdAt']) ?? '',
     hiredEmployeeId: text(box['hiredEmployeeId']),
     nextContactDate: text(box['nextContactDate']),
+    closedAt: text(box['closedAt']),
+    closingNote: text(box['closingNote']),
   }
 }
 
@@ -1345,7 +1356,7 @@ export async function editCandidateStageEntry(
  */
 export async function closeCandidate(
   id: string,
-  action: 'reject' | 'withdraw' | 'reserve',
+  action: 'reject' | 'withdraw' | 'reserve' | 'blacklist',
   body: { at: string | null; reason: string | null; nextContactDate?: string | null },
 ): Promise<Candidate> {
   const { data } = await api.post<unknown>(`${CANDIDATES}/${id}/${action}`, body)

@@ -18,11 +18,12 @@ export type CandidateAction =
   | 'reject'
   | 'withdraw'
   | 'reserve'
+  | 'blacklist'
   | 'returnToFunnel'
   | 'reassign'
 
 /** Sana va sabab so'raladigan amallar — ular voronkadan CHIQARADI. */
-const CLOSING: readonly CandidateAction[] = ['reject', 'withdraw', 'reserve']
+const CLOSING: readonly CandidateAction[] = ['reject', 'withdraw', 'reserve', 'blacklist']
 
 /**
  * BOSQICHI bo'lmagan amallar — izoh so'raladi, CHIQISH sanasi esa yo'q
@@ -174,8 +175,17 @@ export function CandidateActionDialog({
   const reasonRequired =
     action === 'returnToFunnel' && candidate.status !== 'Reserve'
 
+  /*
+    Qora ro'yxat sababi ham MAJBURIY (server: «nomzod.qora_royxat_sababi_yoq»)
+    — jiddiy qaror sababsiz qo'yilmaydi, xodimlar qora ro'yxatidagi bilan
+    bir xil qoida. Bu yagona yopish amali, unda sabab maydoni majburiy.
+  */
+  const closingReasonRequired = action === 'blacklist'
+
   const incomplete =
-    (action === 'reassign' && vacancyId === '') || (reasonRequired && note.trim() === '')
+    (action === 'reassign' && vacancyId === '') ||
+    (reasonRequired && note.trim() === '') ||
+    (closingReasonRequired && reason.trim() === '')
 
   const submit = () => {
     if (incomplete) return
@@ -300,7 +310,11 @@ export function CandidateActionDialog({
             <TextArea
               label={t('recruiting.reason')}
               placeholder={t('recruiting.candidateReasonPlaceholder')}
-              hint={t('recruiting.candidateReasonHint')}
+              hint={
+                closingReasonRequired
+                  ? t('recruiting.candidateAction.blacklistReasonHint')
+                  : t('recruiting.candidateReasonHint')
+              }
               maxLength={2000}
               value={reason}
               disabled={pending}

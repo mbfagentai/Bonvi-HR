@@ -396,6 +396,19 @@ public sealed record CandidateSearchFilter(
     public bool HideReserve => Status is null && !ArchiveRequested && ContactDueOn is null;
 
     /// <summary>
+    /// Qora ro'yxatdagilar ro'yxatdan chiqarilsinmi.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ Holat tanlanmagan bo'lsa DOIM chiqariladi — arxiv tanlovida ham,
+    /// «Rad etilganlar» bo'limida ham (2026-10-07). Ularning yagona o'rni —
+    /// «Qora ro'yxat» menyusining «Nomzodlar» tabi, u
+    /// <c>?status=Blacklisted</c> bilan so'raydi. Kundalik ro'yxat va rad
+    /// etilganlar bo'limi «kim bilan ishlash mumkin» degan savolga javob
+    /// beradi — qora ro'yxatdagi odam bu savolga kirmaydi.
+    /// </remarks>
+    public bool HideBlacklisted => Status is null;
+
+    /// <summary>
     /// Excel arxivi ATAYLAB so'ralganmi.
     /// </summary>
     /// <remarks>
@@ -469,6 +482,8 @@ public sealed record CandidatePage(IReadOnlyList<CandidateRow> Items, int Total)
 /// POZITSIYA bo'yicha yasaladi va o'rtaga qo'yilgan parametr butun
 /// argument qatorini surib yuborardi.
 /// </param>
+/// <param name="ClosedAt">Voronkadan chiqqan sana.</param>
+/// <param name="ClosingNote">Chiqish sababi (qora ro'yxat tabi uchun).</param>
 public sealed record CandidateRow(
     Guid Id,
     string LastName,
@@ -487,7 +502,9 @@ public sealed record CandidateRow(
     bool HasPhoto,
     DateTimeOffset CreatedAt,
     Guid? HiredEmployeeId,
-    DateOnly? NextContactDate);
+    DateOnly? NextContactDate,
+    DateOnly? ClosedAt,
+    string? ClosingNote);
 
 /// <summary>
 /// Vakansiyalar ro'yxatining filtri.

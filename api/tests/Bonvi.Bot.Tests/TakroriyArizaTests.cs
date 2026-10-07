@@ -160,6 +160,21 @@ public sealed class TakroriyArizaTests
     }
 
     [Fact]
+    public async Task Qora_royxatdagi_odamga_umumiy_rad_javobi_chiqadi_va_sabab_aytilmaydi()
+    {
+        // Server «Blacklisted» degan (2026-10-07). Nomzodga sabab ham, sana
+        // ham aytilmaydi — tafsilotsiz to'siq bilan bir xil muloyim javob,
+        // anketa esa to'xtaydi.
+        using var bot = new BotHarness { Block = ApplicationBlockReason.Blacklisted };
+
+        await ReachPhoneAsync(bot);
+
+        bot.Last.Text.ShouldBe(BotTexts.ApplicationNotAccepted(BotLanguage.Latin));
+        bot.State.ShouldBeNull();
+        bot.ApiCalls.ShouldNotContain("POST /api/recruiting/candidates");
+    }
+
+    [Fact]
     public async Task Muddat_ichidagi_odamga_qaytish_sanasi_aytiladi()
     {
         using var bot = new BotHarness

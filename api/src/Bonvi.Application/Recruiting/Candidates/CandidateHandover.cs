@@ -453,6 +453,7 @@ public sealed class CandidateHandover
         CandidateNoteKind.Rejected => "Rad etildi",
         CandidateNoteKind.Withdrawn => "O'zi voz kechdi",
         CandidateNoteKind.Reserved => "Rezervga o'tkazildi",
+        CandidateNoteKind.Blacklisted => "Qora ro'yxatga olindi",
         _ => "Izoh",
     };
 

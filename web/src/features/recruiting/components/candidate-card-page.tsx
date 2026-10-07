@@ -6,6 +6,7 @@ import {
   Bookmark,
   DoorOpen,
   Pencil,
+  ShieldAlert,
   Undo2,
   UserCheck,
   UserRoundX,
@@ -125,8 +126,16 @@ export function CandidateCardPage() {
     «Ishga olingan» bu ro'yxatda YO'Q va server ham uni rad etadi: u
     bir vaqtda ham xodim, ham faol nomzod bo'lib qolardi.
   */
+  const inBlacklist = person.status === 'Blacklisted'
   const canReturn =
-    inReserve || person.status === 'Rejected' || person.status === 'Withdrawn'
+    inReserve || person.status === 'Rejected' || person.status === 'Withdrawn' || inBlacklist
+  /*
+    ⭐ Qora ro'yxatga YOPILGAN nomzod ham olinadi (2026-10-07): amalda HR
+    odamni avval rad etadi, keyin (masalan, stajirovkadagi janjaldan so'ng)
+    qora ro'yxatga oladi. Faqat ishga olingan va allaqachon qora
+    ro'yxatdagi nomzodda tugma yo'q — server ham ularni rad etadi.
+  */
+  const canBlacklist = person.status !== 'Hired' && !inBlacklist
   /*
     ⭐ Ishga olish IKKI holatdan mumkin: voronkadagi nomzod va
     REZERVDAGI. Rezervning butun ma'nosi shu — o'rin bo'shaganda HR
@@ -155,6 +164,11 @@ export function CandidateCardPage() {
       */}
       {inReserve ? (
         <BackButton onClick={() => void navigate({ to: '/rezerv' })} label={t('nav.reserve')} />
+      ) : inBlacklist ? (
+        <BackButton
+          onClick={() => void navigate({ to: '/qora-royxat' })}
+          label={t('nav.blacklist')}
+        />
       ) : person.status === 'Rejected' || person.status === 'Withdrawn' ? (
         <BackButton
           onClick={() => void navigate({ to: '/nomzodlar', search: { rejected: true } })}
@@ -385,6 +399,22 @@ export function CandidateCardPage() {
                 )}
 
                 {/*
+                  Qora ro'yxat — qatorning ENG OXIRIDA: eng og'ir qaror
+                  (odam haqida, ariza haqida emas) va kamdan-kam bosiladi.
+                */}
+                {canBlacklist && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setAction('blacklist')}
+                  >
+                    <ShieldAlert />
+                    {t('recruiting.candidateAction.blacklistTitle')}
+                  </Button>
+                )}
+
+                {/*
                   ⚠️ «O'chirish» tugmasi YO'Q va u ataylab olib
                   tashlangan (foydalanuvchi qarori, 2026-09-07): har bir
                   anketa — nomzodning o'zi to'ldirgan ma'lumot va u
@@ -521,9 +551,10 @@ function Field({
  * chizish yorliqning kulrang («neytral») ma'nosi bilan ham urishib
  * qolardi (`CANDIDATE_LOOK` izohi).
  */
-function closedTone(status: CandidateStatus): 'success' | 'info' | 'warning' {
+function closedTone(status: CandidateStatus): 'success' | 'info' | 'warning' | 'danger' {
   if (status === 'Hired') return 'success'
   if (status === 'Reserve') return 'info'
+  if (status === 'Blacklisted') return 'danger'
   return 'warning'
 }
 

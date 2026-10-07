@@ -91,6 +91,12 @@ public enum ApplicationBlockReason
     None = 0,
     Active = 1,
     Cooldown = 2,
+
+    /// <summary>
+    /// Qora ro'yxat. Alohida matni YO'Q va bu ataylab: nomzodga umumiy
+    /// rad javobi chiqadi (<c>BotWorker.BlockedText</c> dagi oxirgi tarmoq).
+    /// </summary>
+    Blacklisted = 3,
 }
 
 /// <summary>

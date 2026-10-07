@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   Hourglass,
   Keyboard,
+  ShieldAlert,
   UserCheck,
   UserRoundX,
   type LucideIcon,
@@ -97,6 +98,12 @@ export const CANDIDATE_LOOK: Readonly<Record<CandidateStatus, StatusLook>> = {
     shu holat bilan chalkashardi.
   */
   Reserve: { key: 'reserve', tone: 'neutral', icon: Bookmark },
+  /*
+    Qora ro'yxat — QIZIL va xodimlar qora ro'yxatidagi bilan bir xil belgi
+    (`FLAG_LOOK.blacklist`): ikkalasi bitta menyuda, ikki tabda turadi va
+    HR ularni bir xil narsa deb o'qishi kerak (2026-10-07).
+  */
+  Blacklisted: { key: 'blacklisted', tone: 'danger', icon: ShieldAlert },
 }
 
 

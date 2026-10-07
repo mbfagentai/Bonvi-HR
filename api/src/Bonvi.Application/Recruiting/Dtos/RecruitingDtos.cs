@@ -214,6 +214,12 @@ public enum ApplicationBlockReason
 
     /// <summary>Oldingi ariza yopilgan, lekin muddat hali tugamagan.</summary>
     Cooldown = 2,
+
+    /// <summary>
+    /// Odam qora ro'yxatda — muddatsiz (2026-10-07). Nomzodga sabab
+    /// AYTILMAYDI: bot umumiy muloyim rad javobini ko'rsatadi.
+    /// </summary>
+    Blacklisted = 3,
 }
 
 /// <summary>
@@ -346,6 +352,11 @@ public sealed record InterviewNoticeDto(
 /// denormallashtirilgan, aks holda filtr indeksga tushmasdi).
 /// </para>
 /// </param>
+/// <param name="ClosedAt">Voronkadan chiqqan sana — yopilmagan bo'lsa <c>null</c>.</param>
+/// <param name="ClosingNote">
+/// Chiqish sababi. Ro'yxatga «Qora ro'yxat → Nomzodlar» tabi uchun qo'shildi
+/// (2026-10-07): u yerda SABAB — eng muhim ustun («nega bu odam olinmaydi»).
+/// </param>
 public sealed record CandidateListItemDto(
     Guid Id,
     string FullName,
@@ -363,7 +374,9 @@ public sealed record CandidateListItemDto(
     bool HasPhoto,
     DateTimeOffset CreatedAt,
     Guid? HiredEmployeeId,
-    DateOnly? NextContactDate);
+    DateOnly? NextContactDate,
+    DateOnly? ClosedAt,
+    string? ClosingNote);
 
 /// <summary>
 /// Nomzodning botda to'ldirgan anketasi — nomzod kartasining bir qismi.

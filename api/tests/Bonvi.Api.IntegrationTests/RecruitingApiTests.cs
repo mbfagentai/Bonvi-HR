@@ -2098,6 +2098,169 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         yozuv.RejectionNoticeDelivered.ShouldBe(false);
     }
 
+    // ────────────────────────────────────────────────────────────
+    //  Nomzodlar qora ro'yxati (docs/SPEC-nomzod-qora-royxat.md)
+    // ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Qora_royxat_boshqaruv_ruxsatini_va_sababni_talab_qiladi_va_faqat_oz_tabida_korinadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Қоралист", telefon: Raqam());
+        var yol = new Uri($"/api/recruiting/candidates/{nomzod.Id}/blacklist", UriKind.Relative);
+
+        // RBAC: faqat ko'ruvchi qora ro'yxatga ola olmaydi
+        using (var korish = await RuxsatliMijozAsync(Permissions.RecruitingView))
+        using (var javob = await korish.PostAsJsonAsync(yol, new { reason = "Судланган" }, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await MatnAsync(javob));
+        }
+
+        // Sababsiz — 400
+        using (var javob = await admin.PostAsJsonAsync(yol, new { reason = " " }, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            (await MatnAsync(javob)).ShouldContain("nomzod.qora_royxat_sababi_yoq");
+        }
+
+        using (var javob = await admin.PostAsJsonAsync(yol, new { reason = "Судланган" }, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+            var karta = await javob.Content.ReadFromJsonAsync<CandidateResponse>(bekorQilish);
+            karta!.Status.ShouldBe("Blacklisted");
+            karta.ClosingNote.ShouldBe("Судланган");
+            karta.Notes.ShouldContain(izoh => izoh.Kind == "Blacklisted");
+        }
+
+        // Kundalik ro'yxatda ham, «Rad etilganlar» da ham yo'q — faqat o'z tabida
+        (await NomzodlarAsync(admin, $"?vacancyId={vakansiya.Id}")).Items
+            .ShouldNotContain(q => q.Id == nomzod.Id);
+        (await NomzodlarAsync(admin, $"?vacancyId={vakansiya.Id}&rejected=true")).Items
+            .ShouldNotContain(q => q.Id == nomzod.Id);
+        (await NomzodlarAsync(admin, $"?vacancyId={vakansiya.Id}&includeArchive=true")).Items
+            .ShouldNotContain(q => q.Id == nomzod.Id, "arxiv tanlovi ham qora ro'yxatni ochmaydi");
+        (await NomzodlarAsync(admin, $"?vacancyId={vakansiya.Id}&status=Blacklisted")).Items
+            .ShouldContain(q => q.Id == nomzod.Id);
+
+        // Ikkinchi marta — 409
+        using (var javob = await admin.PostAsJsonAsync(yol, new { reason = "Яна" }, bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        }
+    }
+
+    [Fact]
+    public async Task Qora_royxat_tabi_sabab_va_sanani_korsatadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Сабабли", telefon: Raqam());
+
+        using (var javob = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/blacklist", UriKind.Relative),
+            new { at = new DateOnly(2026, 5, 4), reason = "Жанжал билан кетди" },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        using var royxat = await admin.GetAsync(
+            new Uri($"/api/recruiting/candidates?vacancyId={vakansiya.Id}&status=Blacklisted", UriKind.Relative),
+            bekorQilish);
+        royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
+
+        using var hujjat = JsonDocument.Parse(await royxat.Content.ReadAsStringAsync(bekorQilish));
+        var qator = hujjat.RootElement.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == nomzod.Id);
+
+        qator.GetProperty("closingNote").GetString().ShouldBe("Жанжал билан кетди");
+        qator.GetProperty("closedAt").GetString().ShouldBe("2026-05-04");
+    }
+
+    [Fact]
+    public async Task Qora_royxatdagi_odam_botdan_muddatsiz_va_tafsilotsiz_rad_etiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var raqam = Raqam();
+        var suhbat = SuhbatRaqami();
+
+        var eski = await NomzodAsync(admin, vakansiya.Id, familiya: "Эскиқора", telefon: raqam, suhbatId: suhbat);
+        using (var javob = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{eski.Id}/blacklist", UriKind.Relative),
+            new { at = new DateOnly(2024, 1, 10), reason = "Судланган" },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        // Keyinroq HR uni qo'lda yana kiritib, rad etgan — eng OXIRGI ariza
+        // endi oddiy rad etilgan, lekin qora ro'yxat baribir ustun turadi.
+        var yangi = await NomzodAsync(admin, vakansiya.Id, familiya: "Янгиқора", telefon: raqam);
+        using (var javob = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{yangi.Id}/reject", UriKind.Relative),
+            new { at = new DateOnly(2024, 2, 1), reason = "Тажриба йўқ" },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        // Rad etilgan sanadan ancha o'tgan (2024) — oddiy muddat allaqachon
+        // tugagan; to'siqni faqat qora ro'yxat beradi.
+        var telefonBilan = await TekshiruvAsync(bot, Sorov(raqam));
+        telefonBilan.Allowed.ShouldBeFalse();
+        telefonBilan.Reason.ShouldBe("Blacklisted");
+        telefonBilan.AppliedAt.ShouldBeNull("nomzodga hech qanday tafsilot ketmaydi");
+        telefonBilan.VacancyTitle.ShouldBeNull();
+        telefonBilan.StageName.ShouldBeNull();
+        telefonBilan.AvailableFrom.ShouldBeNull("muddat yo'q");
+
+        // Yangi raqam, eski Telegram hisobi — baribir to'siq
+        var hisobBilan = await TekshiruvAsync(bot, Sorov(Raqam(), suhbat));
+        hisobBilan.Reason.ShouldBe("Blacklisted");
+    }
+
+    [Fact]
+    public async Task Qora_royxatga_olingan_bot_nomzodiga_oddiy_rad_xabari_bir_marta_navbatga_tushadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var nomzod = await NomzodAsync(
+            admin, vakansiya.Id, familiya: "Ботқора", telefon: Raqam(), suhbatId: SuhbatRaqami());
+
+        using (var javob = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/blacklist", UriKind.Relative),
+            new { reason = "Судланган" },
+            bekorQilish))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        (await NavbatdaAsync(bot, "rejection-notices", nomzod.Id))
+            .ShouldBeTrue("nomzod javobsiz qolmaydi — oddiy rad xabari, qora ro'yxat aytilmaydi");
+
+        using (var belgi = await bot.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/rejection-notice-sent", UriKind.Relative),
+            content: null,
+            bekorQilish))
+        {
+            belgi.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(belgi));
+        }
+
+        (await NavbatdaAsync(bot, "rejection-notices", nomzod.Id)).ShouldBeFalse("bir marta");
+    }
+
     private static async Task<bool> NavbatdaAsync(HttpClient bot, string yol, Guid nomzodId)
     {
         using var javob = await bot.GetAsync(

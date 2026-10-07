@@ -162,7 +162,7 @@ public sealed class RecruitingTools(McpToolContext t)
         + "Search candidates by vacancy, status, stage, text, questionnaire answers (education, languages, licence, salary), age; paged.")]
     public async Task<string> SearchCandidates(
         [Description("Vakansiya: identifikator yoki nomining bir qismi.")] string? vacancy = null,
-        [Description("Holat: InProgress (jarayonda), Rejected (rad etilgan), Hired (ishga olingan), Withdrawn (o'zi voz kechgan), Reserve (rezerv).")] string? status = null,
+        [Description("Holat: InProgress (jarayonda), Rejected (rad etilgan), Hired (ishga olingan), Withdrawn (o'zi voz kechgan), Reserve (rezerv), Blacklisted (qora ro'yxat — odam qayta olinmaydi).")] string? status = null,
         [Description("Joriy bosqich nomi (qismi yetarli).")] string? stage = null,
         [Description("Matn: ism-familiya, telefon raqami (qismi ham), mutaxassislik, izoh, manzil yoki anketa matnlari. Bir necha so'z — hammasi topilishi kerak.")] string? text = null,
         [Description("Kelgan sana (dan), YYYY-MM-DD.")] string? createdFrom = null,

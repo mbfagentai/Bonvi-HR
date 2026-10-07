@@ -86,7 +86,13 @@ Uchala matn ham uchala tilda (`BotTexts`).
 
 **Nomzodlar uchun qora ro'yxat.** Avval qurilgan, keyin butunlay olib
 tashlangan (foydalanuvchi qarori: «alohida qora ro'yxat degan bo'lim
-qo'shish shart emas»). Talab faqat takroriy arizani to'xtatish edi va
+qo'shish shart emas»).
+
+> ⚠️ **2026-10-07 dan BEKOR:** egasi Jobster importidan keyin qora ro'yxatni
+> qaytardi — alohida bo'lim emas, «Qora ro'yxat» menyusidagi «Nomzodlar» tabi
+> sifatida. Qora ro'yxatdagi odam botdan MUDDATSIZ to'siladi
+> (`docs/SPEC-nomzod-qora-royxat.md`). Quyidagi matn tarix uchun qoldirildi.
+> Talab faqat takroriy arizani to'xtatish edi va
 uni muddat qoidasining o'zi hal qiladi. Migratsiya commit qilinmagani
 uchun bazada bo'sh ustun ham qolmadi.
 

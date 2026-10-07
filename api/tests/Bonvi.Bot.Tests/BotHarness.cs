@@ -458,6 +458,11 @@ public sealed class BotHarness : IDisposable
                 {"allowed":false,"reason":"Cooldown","appliedAt":"{{applied}}",
                  "vacancyTitle":"Kassir","stageName":"Anketa","availableFrom":"{{available}}"}
                 """,
+            // Qora ro'yxat — server hech qanday tafsilot yubormaydi.
+            ApplicationBlockReason.Blacklisted => """
+                {"allowed":false,"reason":"Blacklisted","appliedAt":null,
+                 "vacancyTitle":null,"stageName":null,"availableFrom":null}
+                """,
             _ => """
                 {"allowed":true,"reason":"None","appliedAt":null,
                  "vacancyTitle":null,"stageName":null,"availableFrom":null}

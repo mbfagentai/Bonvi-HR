@@ -327,6 +327,132 @@ public sealed class CandidateTests
         nomzod.CurrentStageId.ShouldBe(AnketaId);
     }
 
+    // ────────────────────── Qora ro'yxat (2026-10-07) ──────────────────────
+
+    [Fact]
+    public void Jarayondagi_nomzod_qora_royxatga_olinadi_va_sabab_lentaga_tushadi()
+    {
+        var nomzod = Nomzod();
+
+        var natija = nomzod.Blacklist(Sana, "Стажировкадан жанжал билан кетди");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.Blacklisted);
+        nomzod.IsActive.ShouldBeFalse();
+        nomzod.ClosedAt.ShouldBe(Sana);
+        nomzod.ClosingNote.ShouldBe("Стажировкадан жанжал билан кетди");
+        nomzod.Notes.ShouldHaveSingleItem().Kind.ShouldBe(CandidateNoteKind.Blacklisted);
+    }
+
+    [Fact]
+    public void Qora_royxat_sababsiz_qoyilmaydi()
+    {
+        var nomzod = Nomzod();
+
+        var natija = nomzod.Blacklist(Sana, "   ");
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("nomzod.qora_royxat_sababi_yoq");
+        nomzod.Status.ShouldBe(CandidateStatus.InProgress, "holat o'zgarmaydi");
+    }
+
+    [Theory]
+    [InlineData(CandidateStatus.Rejected)]
+    [InlineData(CandidateStatus.Withdrawn)]
+    [InlineData(CandidateStatus.Reserve)]
+    public void Yopilgan_nomzod_ham_qora_royxatga_olinadi(CandidateStatus avvalgi)
+    {
+        // Amalda HR avval rad etadi, keyin (masalan, janjaldan so'ng) qora
+        // ro'yxatga oladi — voronkaga qaytarib, yana yopish shart emas.
+        var nomzod = Nomzod();
+        _ = avvalgi switch
+        {
+            CandidateStatus.Rejected => nomzod.Reject(Sana, "Тажриба йўқ"),
+            CandidateStatus.Withdrawn => nomzod.Withdraw(Sana),
+            _ => nomzod.MoveToReserve(Sana, "Ўрин йўқ", Sana.AddDays(10)),
+        };
+
+        var natija = nomzod.Blacklist(Sana.AddDays(5), "Судланган");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.Blacklisted);
+        nomzod.ClosedAt.ShouldBe(Sana.AddDays(5));
+        nomzod.ClosingNote.ShouldBe("Судланган");
+        nomzod.NextContactDate.ShouldBeNull("qora ro'yxatdagiga qo'ng'iroq rejalashtirilmaydi");
+        nomzod.Notes[^1].Kind.ShouldBe(CandidateNoteKind.Blacklisted);
+    }
+
+    [Fact]
+    public void Rad_xabari_yuborilgan_bolsa_qora_royxat_uni_qayta_navbatga_qoymaydi()
+    {
+        var nomzod = Nomzod();
+        nomzod.Reject(Sana);
+        nomzod.MarkRejectionNoticeSent(DateTimeOffset.UtcNow);
+
+        nomzod.Blacklist(Sana.AddDays(1), "Судланган");
+
+        nomzod.RejectionNoticeSentAt.ShouldNotBeNull("nomzod ikkinchi xabar olmaydi");
+    }
+
+    [Theory]
+    [InlineData(CandidateStatus.Withdrawn)]
+    [InlineData(CandidateStatus.Reserve)]
+    public void Voz_kechgan_va_rezervdagi_nomzodga_qora_royxatdan_keyin_rad_xabari_ketmaydi(CandidateStatus avvalgi)
+    {
+        // Oylar oldin ketgan odam to'satdan «sizni taklif qila olmaymiz» degan
+        // xabar olmasligi kerak — belgi «yuborilgan» bo'lib qo'yiladi.
+        var nomzod = Nomzod();
+        nomzod.SetTelegram(5001, "uz-Latn");
+        _ = avvalgi == CandidateStatus.Withdrawn ? nomzod.Withdraw(Sana) : nomzod.MoveToReserve(Sana);
+
+        nomzod.Blacklist(Sana.AddDays(1), "Судланган");
+
+        nomzod.RejectionNoticeSentAt.ShouldNotBeNull();
+        nomzod.RejectionNoticeDelivered.ShouldBeNull("urinish bo'lmagan");
+    }
+
+    [Fact]
+    public void Rad_etilgan_nomzodning_kutilayotgan_rad_xabari_qora_royxatdan_keyin_ham_ketadi()
+    {
+        var nomzod = Nomzod();
+        nomzod.SetTelegram(5001, "uz-Latn");
+        nomzod.Reject(Sana);
+
+        nomzod.Blacklist(Sana.AddDays(1), "Судланган");
+
+        nomzod.RejectionNoticeSentAt.ShouldBeNull("rad etish xabari baribir ketishi kerak edi");
+    }
+
+    [Fact]
+    public void Ishga_olingan_va_qora_royxatdagi_nomzodga_qayta_qoyilmaydi()
+    {
+        var olingan = Nomzod();
+        olingan.MarkHired(Sana);
+        var qoraRoyxatda = Nomzod();
+        qoraRoyxatda.Blacklist(Sana, "Судланган");
+
+        olingan.Blacklist(Sana, "Судланган").Error.Code.ShouldBe("nomzod.qora_royxatga_olinmaydi");
+        qoraRoyxatda.Blacklist(Sana, "Яна").Error.Code.ShouldBe("nomzod.qora_royxatga_olinmaydi");
+        olingan.Status.ShouldBe(CandidateStatus.Hired);
+    }
+
+    [Fact]
+    public void Qora_royxatdan_faqat_sabab_bilan_chiqariladi()
+    {
+        var nomzod = Nomzod();
+        nomzod.RecordStage(KengashId, Sana);
+        nomzod.Blacklist(Sana.AddDays(1), "Адашиб қўйилди");
+
+        nomzod.ReturnToFunnel().Error.Code.ShouldBe("nomzod.qaytarish_sababi_yoq");
+
+        var natija = nomzod.ReturnToFunnel("Бошқа одам экан");
+
+        natija.IsSuccess.ShouldBeTrue();
+        nomzod.Status.ShouldBe(CandidateStatus.InProgress);
+        nomzod.ClosingNote.ShouldBeNull();
+        nomzod.CurrentStageId.ShouldBe(KengashId);
+    }
+
     // ────────────────────── Rezerv ──────────────────────
 
     [Fact]

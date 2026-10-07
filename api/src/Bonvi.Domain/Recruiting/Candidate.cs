@@ -48,6 +48,24 @@ public enum CandidateStatus
     /// </para>
     /// </remarks>
     Reserve = 5,
+
+    /// <summary>Qora ro'yxat — bu odam qayta olinmaydi.</summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Rejected"/> dan ATAYLAB ajratilgan (egasining qarori,
+    /// 2026-10-07): rad etish bitta ARIZA haqidagi qaror va olti oydan
+    /// keyin odam yana topshira oladi; qora ro'yxat esa ODAM haqidagi
+    /// qaror — bot uning yangi anketasini muddatsiz qabul qilmaydi
+    /// (<c>CheckApplicationQueryHandler</c>). Nom xodimlardagi bilan bir
+    /// xil (<c>EmployeeFlagType.Blacklist</c>) va ikkalasi bitta menyuda,
+    /// ikki tabda turadi.
+    /// </para>
+    /// <para>
+    /// Qiymat OXIRIGA qo'shildi — sanoqning umumiy qoidasi; ustun
+    /// <c>integer</c>, migratsiya kerak emas.
+    /// </para>
+    /// </remarks>
+    Blacklisted = 6,
 }
 
 /// <summary>
@@ -783,6 +801,71 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         InterviewNoticeDelivered = delivered;
     }
 
+    /// <summary>
+    /// Qora ro'yxatga oladi — «bu odam qayta olinmaydi».
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Yopilgan nomzodga ham qo'yiladi</b> — qolgan yakunlardan
+    /// farqli. Amalda HR odamni avval rad etadi va keyinroq (masalan,
+    /// stajirovkadagi janjaldan so'ng) qora ro'yxatga oladi; faqat
+    /// jarayondagiga ruxsat berilsa, buning uchun nomzodni avval voronkaga
+    /// qaytarib, keyin yopish kerak bo'lardi — bu tarixga soxta qadam
+    /// yozardi. Faqat ISHGA OLINGAN nomzodga qo'yilmaydi: u endi xodim va
+    /// uning o'rni xodimlar qora ro'yxatida.
+    /// </para>
+    /// <para>
+    /// <b>Sabab MAJBURIY</b> — xodimlar qora ro'yxatidagi qoida bilan bir
+    /// xil (<c>EmployeeFlag.Raise</c>): jiddiy qaror sababsiz qo'yilmaydi
+    /// va bir yildan keyin hech kim nega ekanini eslamaydi.
+    /// </para>
+    /// <para>
+    /// <b>Rad xabari.</b> Jarayondagi nomzodga bot oddiy rad xabarini bir
+    /// marta yuboradi (qora ro'yxat oshkor qilinmaydi). Rad etilgan nomzodda
+    /// belgiga tegilmaydi — xabar ketgan yoki baribir ketadi. O'zi VOZ
+    /// KECHGAN yoki REZERVDAGI nomzodga esa xabar YUBORILMAYDI: oylar oldin
+    /// ketgan odam to'satdan «sizni taklif qila olmaymiz» degan xabar olardi
+    /// va bu faqat «ortimizdan nimadir qaror qilindi» degan ishora bo'lardi.
+    /// Shu sababli ularda belgi «yuborilgan» deb qo'yiladi
+    /// (<see cref="RejectionNoticeDelivered"/> bo'sh — urinish bo'lmagan).
+    /// </para>
+    /// </remarks>
+    public Result Blacklist(DateOnly at, string? reason, Guid? closedBy = null)
+    {
+        var izoh = Trim(reason);
+        if (izoh is null)
+        {
+            return Error.Validation(
+                "nomzod.qora_royxat_sababi_yoq",
+                "Qora ro'yxatga olish sababini yozing.");
+        }
+
+        if (Status == CandidateStatus.InProgress)
+        {
+            return Close(CandidateStatus.Blacklisted, at, izoh, closedBy);
+        }
+
+        if (Status is CandidateStatus.Hired or CandidateStatus.Blacklisted)
+        {
+            return Error.Conflict(
+                "nomzod.qora_royxatga_olinmaydi",
+                $"Nomzodni qora ro'yxatga olib bo'lmaydi (holati: {Status}).");
+        }
+
+        if (Status is CandidateStatus.Withdrawn or CandidateStatus.Reserve)
+        {
+            RejectionNoticeSentAt ??= DateTimeOffset.UtcNow;
+        }
+
+        Status = CandidateStatus.Blacklisted;
+        ClosedAt = at;
+        ClosingNote = izoh;
+        NextContactDate = null;
+        AddNote(CandidateNoteKind.Blacklisted, izoh, closedBy);
+
+        return Result.Success();
+    }
+
     /// <summary>Nomzod o'zi voz kechdi.</summary>
     public Result Withdraw(DateOnly at, string? reason = null, Guid? closedBy = null)
         => Close(CandidateStatus.Withdrawn, at, reason, closedBy);
@@ -851,6 +934,10 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// qolardi. Qayta ishga olish uchun yangi nomzod yozuvi ochiladi.
     /// </para>
     /// <para>
+    /// <b>Qora ro'yxatdan ham qaytariladi</b> (2026-10-07) — xato qo'yilgan
+    /// bo'lsa chiqarishning yagona yo'li; sabab bu yerda ham majburiy.
+    /// </para>
+    /// <para>
     /// ⭐ <b>SABAB — rad etish va voz kechishdan qaytarishda MAJBURIY.</b>
     /// Bu qarorni BEKOR QILISH, ya'ni «nega fikr o'zgardi» degan savol
     /// albatta tug'iladi — olti oydan keyin ham. Rezervdan qaytarishda
@@ -895,7 +982,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </para>
     /// </remarks>
     /// <param name="reason">
-    /// Qaytarish sababi. Rad etilgan va voz kechgan nomzodda MAJBURIY.
+    /// Qaytarish sababi. Rad etilgan, voz kechgan va qora ro'yxatdagi nomzodda MAJBURIY.
     /// </param>
     /// <param name="returnedBy">Kim qaytardi — lentadagi yozuv uchun.</param>
     /// <param name="nextContactDate">Keyingi aloqa sanasi; berilmasa tegilmaydi.</param>
@@ -904,7 +991,8 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         Guid? returnedBy = null,
         DateOnly? nextContactDate = null)
     {
-        if (Status is not (CandidateStatus.Reserve or CandidateStatus.Rejected or CandidateStatus.Withdrawn))
+        if (Status is not (CandidateStatus.Reserve or CandidateStatus.Rejected or CandidateStatus.Withdrawn
+            or CandidateStatus.Blacklisted))
         {
             return Error.Conflict(
                 "nomzod.qaytarilmaydi",
@@ -1262,6 +1350,7 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         CandidateStatus.Rejected => CandidateNoteKind.Rejected,
         CandidateStatus.Withdrawn => CandidateNoteKind.Withdrawn,
         CandidateStatus.Reserve => CandidateNoteKind.Reserved,
+        CandidateStatus.Blacklisted => CandidateNoteKind.Blacklisted,
         _ => null,
     };
 

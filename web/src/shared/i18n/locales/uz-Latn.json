@@ -958,7 +958,9 @@
     "xodim.parol_korinmaydi": "Parolni ko‘rsatib bo‘lmaydi. Yangi parol yasang va xodimga ayting.",
     "xodim_hisobi.xodim_yoq": "Xodim tanlanishi shart.",
     "mehnat.vazifa_emas": "Bu yozuv qo‘shimcha vazifa emas.",
-    "mehnat.vazifa_tugash_sanasi": "Vazifa tugash sanasi uning boshlangan sanasidan oldin bo‘lishi mumkin emas."
+    "mehnat.vazifa_tugash_sanasi": "Vazifa tugash sanasi uning boshlangan sanasidan oldin bo‘lishi mumkin emas.",
+    "nomzod.qora_royxat_sababi_yoq": "Qora ro‘yxatga olish sababini yozing.",
+    "nomzod.qora_royxatga_olinmaydi": "Bu nomzodni qora ro‘yxatga olib bo‘lmaydi: u ishga olingan yoki allaqachon qora ro‘yxatda."
   },
   "language": {
     "en": "English",
@@ -1550,13 +1552,15 @@
       "rejected": "Rad etilgan",
       "hired": "Ishga olingan",
       "withdrawn": "O‘zi voz kechgan",
-      "reserve": "Rezervda"
+      "reserve": "Rezervda",
+      "blacklisted": "Qora ro‘yxatda"
     },
     "candidateClosed": {
       "rejected": "Rad etilgan · {{date}}",
       "withdrawn": "O‘zi voz kechgan · {{date}}",
       "hired": "Ishga olingan · {{date}}",
-      "reserve": "Rezervga o‘tkazilgan · {{date}}"
+      "reserve": "Rezervga o‘tkazilgan · {{date}}",
+      "blacklisted": "Qora ro‘yxatga olingan · {{date}}"
     },
     "candidateAction": {
       "rejectTitle": "Rad etish",
@@ -1578,7 +1582,11 @@
       "returnToFunnelText": "Nomzod voronkaga qaytadi va qaysi bosqichda to‘xtagan bo‘lsa, o‘sha yerdan davom etadi — bosqichlar tarixi saqlanadi. Chiqish sanasi va sababi tozalanadi, lekin ikkalasi ham bosqichlar lentasida qoladi.",
       "returnToFunnelConfirm": "Qaytarish",
       "returnReason": "Qaytarish sababi",
-      "returnReasonHint": "Nega qaytaryapmiz — masalan «o‘zi qayta murojaat qildi, tajriba orttirgan»"
+      "returnReasonHint": "Nega qaytaryapmiz — masalan «o‘zi qayta murojaat qildi, tajriba orttirgan»",
+      "blacklistTitle": "Qora ro‘yxatga olish",
+      "blacklistText": "Bu odam QAYTA OLINMAYDI: bot uning shu telefon yoki Telegram hisobidan yangi anketasini muddatsiz qabul qilmaydi (nomzodga sabab aytilmaydi). Nomzod faqat «Qora ro‘yxat → Nomzodlar» bo‘limida ko‘rinadi.",
+      "blacklistConfirm": "Qora ro‘yxatga",
+      "blacklistReasonHint": "Majburiy. Nega bu odam olinmaydi — ichki izoh, nomzodga bormaydi."
     },
     "source": {
       "manual": "Qo‘lda",
@@ -1628,7 +1636,8 @@
       "interviewRescheduled": "Suhbat ko‘chirildi",
       "rejected": "Rad etildi",
       "withdrawn": "O‘zi voz kechdi",
-      "reserved": "Rezervga o‘tkazildi"
+      "reserved": "Rezervga o‘tkazildi",
+      "blacklisted": "Qora ro‘yxatga olindi"
     },
     "filesTitle": "Fayllar",
     "filesEmpty": "Fayl biriktirilmagan",
@@ -1718,9 +1727,16 @@
       "emptyText": "Nomzod kartasidagi «Rezervga o‘tkazish» amali uni shu yerga o‘tkazadi. U nomzod bo‘lib qoladi — xodim emas.",
       "notFoundText": "Rezervda «{{query}}» bo‘yicha nomzod yo‘q. Boshqa so‘z bilan urinib ko‘ring."
     },
+    "blacklistSection": {
+      "emptyTitle": "Qora ro‘yxatda nomzod yo‘q",
+      "emptyText": "Nomzod kartasidagi «Qora ro‘yxatga olish» amali uni shu yerga o‘tkazadi. Bot bu odamdan yangi anketa qabul qilmaydi.",
+      "notFoundText": "Qora ro‘yxatda «{{query}}» bo‘yicha nomzod yo‘q. Boshqa so‘z bilan urinib ko‘ring.",
+      "reason": "Sababi"
+    },
     "funnelMoveFailed": "Bosqich o‘zgarmadi",
     "reserveSearchHint": "Qidiruvga mos yana {{n}} ta nomzod «Rezerv» bo‘limida",
     "reserveSearchOpen": "Ko‘rish",
+    "blacklistSearchHint": "⛔ Qidiruvga mos {{n}} ta nomzod «Qora ro‘yxat» da",
     "phoneMatchTitle": "Bu raqam bilan {{n}} ta nomzod bor",
     "phoneMatchHint": "Saqlash to‘xtatilmaydi — bu o‘sha odam emasligini kartasidan tekshirib ko‘ring.",
     "phoneMatchFailed": "Bu raqam bazada bor-yo‘qligini tekshirib bo‘lmadi — saqlash baribir mumkin."

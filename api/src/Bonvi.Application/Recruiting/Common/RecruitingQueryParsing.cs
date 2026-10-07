@@ -41,7 +41,7 @@ internal static class RecruitingQueryParsing
         => ParseEnum<CandidateStatus>(
             raw,
             "nomzod.holat_notogri",
-            "Holat noto'g'ri. Ruxsat etilgan qiymatlar: InProgress, Rejected, Hired, Withdrawn, Reserve.");
+            "Holat noto'g'ri. Ruxsat etilgan qiymatlar: InProgress, Rejected, Hired, Withdrawn, Reserve, Blacklisted.");
 
     public static Result<CandidateSource?> ParseCandidateSource(string? raw)
         => ParseEnum<CandidateSource>(
