@@ -3,6 +3,32 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `494c23b` — ISUP shlyuzi (terminallar o'zi ulanadi) — CHIQARILDI 2026-10-10 17:17 (Toshkent)
+
+Prod `54567ad` → `494c23b` (`f2cddf5` taxminlar, `494c23b` ISUP shlyuzi —
+`docs/SPEC-verifikatsiya-isup.md`, ishlatish `docs/ISUP-RUNBOOK.md`). Rollback:
+image tegi `rollback-54567ad` (api, bot, web), zaxira stamp `2026-10-10_120906`
+(deploy oldi). Migratsiya YO'Q; API, bot va veb kodi o'zgarmagan — faqat
+Caddyfile (`/isup-face/*`), shuning uchun prod nusxasida sinash qilinmadi.
+
+* Prod `.env` ga `COMPOSE_PROFILES=isup` qo'shildi (zaxirasi
+  `.env.bak-2026-10-10-isup`). `.env.isup` hali YO'Q — terminal qo'shilganda
+  yaratiladi (shablon `.env.isup.example`).
+* Yangi konteynerlar: `isup-gateway` (~50 MB, faqat ichki `isup` tarmog'ida —
+  internetga chiqishi YO'Q, tekshirildi) va `isup-proxy` (socat, 7660 TCP+UDP).
+  `api` va `web` ichki `isup` tarmog'iga ham ulandi.
+* Tekshirildi: shlyuz «ISUP CMS tinglamoqda: 0.0.0.0:7660», 7660/TCP
+  tashqaridan ochiq, 8091 tashqaridan yopiq, `/isup-face/<noto'g'ri>` → 404,
+  `../health` va `%2e%2e` aylanib o'tishlari Caddy'dan o'tmaydi (SPA), sayt va
+  `/health/{live,ready}` 200, API jurnalida ERR yo'q. Bot qayta yaratilmadi.
+* Ofisdagi 2 terminal (192.168.1.16/.17) hali Verifix'da — tegilmagan.
+
+**Orqaga qaytish:**
+- Faqat ISUP'ni o'chirish: prod `.env` dan `COMPOSE_PROFILES=isup` qatorini olib
+  tashlash, so'ng `docker compose -f docker-compose.prod.yml --profile isup rm -sf
+  isup-gateway isup-proxy`. Qolgan tizimga ta'siri yo'q.
+- Kod: `docker tag …:rollback-54567ad …:latest` (api, bot, web) + `up -d`.
+
 ## ✅ Reliz `54567ad` — xabarnoma bir marta + nomzodlar qora ro'yxati + Jobster importi — CHIQARILDI 2026-10-07 13:54 (Toshkent)
 
 Prod `64a1e32` → `54567ad` (`69328a5` xabarnoma bir urinish, `ec0434c` nomzod
