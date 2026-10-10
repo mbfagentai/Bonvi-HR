@@ -1,0 +1,70 @@
+# ============================================================
+#  Bonvi HR ISUP shlyuzi — production image
+#
+#  Terminal (ofis yoki zavod) hr.bonvi.uz:7660 ga ISUP 5.0 bilan
+#  O'ZI ulanadi; shlyuz uning ichidan agent ishini bajaradi.
+#  Shartnoma: docs/SPEC-verifikatsiya-isup.md
+#
+#  ⚠️ linux/amd64 — Hikvision HCISUPSDK faqat x64 uchun yig'ilgan.
+#  Mac (arm64) da emulyatsiya bilan quriladi va ishlaydi, sekinroq.
+#
+#  ⚠️ Native SDK image ichiga `api/native/hikvision-isup/linux-x64/`
+#  dan ko'chiriladi va SHA256SUMS bilan TEKSHIRILADI — fayl almashgan
+#  yoki buzilgan bo'lsa build to'xtaydi (README o'sha jildda).
+# ============================================================
+
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0.400-noble AS build
+WORKDIR /src
+
+# Avval faqat loyiha fayllari — NuGet qatlami keshlanadi
+COPY global.json Directory.Build.props Directory.Packages.props ./
+COPY src/Bonvi.DeviceAgent/*.csproj src/Bonvi.DeviceAgent/
+COPY src/Bonvi.IsupGateway/*.csproj src/Bonvi.IsupGateway/
+RUN dotnet restore src/Bonvi.IsupGateway/Bonvi.IsupGateway.csproj
+
+COPY src/Bonvi.DeviceAgent/ src/Bonvi.DeviceAgent/
+COPY src/Bonvi.IsupGateway/ src/Bonvi.IsupGateway/
+
+# Agent bilan umumiy bog'langan fayl (izohi Bonvi.DeviceAgent.csproj da)
+COPY src/Bonvi.Application/Attendance/Ingest/HikvisionEventTypes.cs src/Bonvi.Application/Attendance/Ingest/
+
+RUN dotnet publish src/Bonvi.IsupGateway/Bonvi.IsupGateway.csproj \
+      -c Release \
+      -o /app/publish \
+      --no-restore \
+      /p:UseAppHost=false
+
+# ------------------------------------------------------------
+#  `aspnet`: shlyuz ikkita kiruvchi portni tinglaydi — 7660 (ISUP,
+#  native SDK) va 8091 (yuz rasmi havolalari, Caddy orqali).
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
+WORKDIR /app
+
+# SDK bog'liqliklari: libhpr.so → libuuid.so.1; SDK nomi bilan ochadigan
+# `libz.so` — Ubuntu'ning O'Z zlib'i (begona nusxa olinmaydi, quyida havola).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libuuid1 zlib1g \
+ && rm -rf /var/lib/apt/lists/*
+
+# Root'dan ishlamaydi — API va agent bilan bir xil talab
+RUN groupadd --system --gid 2000 bonvi \
+ && useradd  --system --uid 2000 --gid bonvi bonvi
+
+# Agentlar holati (hodisa kursori) va SDK jurnali — TOMga ulanadi
+RUN mkdir -p /data && chown bonvi:bonvi /data
+VOLUME ["/data"]
+
+COPY native/hikvision-isup/linux-x64/ /app/native/
+RUN cd /app/native \
+ && sha256sum -c SHA256SUMS \
+ && ln -s /usr/lib/x86_64-linux-gnu/libz.so.1 /app/native/libz.so \
+ && chmod -R a-w /app/native
+
+COPY --from=build --chown=bonvi:bonvi /app/publish .
+
+ENV ASPNETCORE_HTTP_PORTS=8091
+EXPOSE 7660 8091
+
+USER bonvi
+
+ENTRYPOINT ["dotnet", "bonvi-isup-gateway.dll"]

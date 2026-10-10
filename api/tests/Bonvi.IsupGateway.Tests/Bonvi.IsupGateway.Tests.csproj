@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ISUP shlyuzining sinovlari — TERMINALSIZ va NATIVE SDK'SIZ.
+
+    Native qatlam (`IsupCmsServer`) faqat `IIsapiTunnel` interfeysi ortida;
+    sinovda uning o'rnida soxta terminal turadi. Shu sababli tekshiriladi:
+      • SDK tuzilmalarining o'lchami va maydon joylari (header bilan bayt-bayt);
+      • ro'yxat buferlarini o'qish/yozish (kalit, DAS, yurak urishi);
+      • holat jadvali (ISAPI ResponseStatus → HTTP);
+      • yuz so'rovining multipart → faceURL tarjimasi;
+      • AGENTNING O'ZI tunnel orqali: xodim yozish, yuz, o'tishlar.
+    Haqiqiy terminal bilan ro'yxatdan o'tish — faqat tirik sinovda (SPEC §E).
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.IsupGateway.Tests</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bonvi.IsupGateway\Bonvi.IsupGateway.csproj" />
+  </ItemGroup>
+
+</Project>

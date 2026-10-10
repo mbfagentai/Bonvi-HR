@@ -54,6 +54,13 @@
   -->
   <ItemGroup>
     <InternalsVisibleTo Include="Bonvi.DeviceAgent.Tests" />
+    <!--
+      ISUP shlyuzi har terminal uchun AYNAN shu `AgentWorker` ni ishga
+      tushiradi (docs/SPEC-verifikatsiya-isup.md, G1). Havola teskari
+      yo'nalishda: shlyuz agentni ko'radi, agent shlyuzni ko'rmaydi.
+    -->
+    <InternalsVisibleTo Include="bonvi-isup-gateway" />
+    <InternalsVisibleTo Include="Bonvi.IsupGateway.Tests" />
   </ItemGroup>
 
   <!--

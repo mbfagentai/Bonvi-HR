@@ -275,7 +275,9 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
-    networks: [bonvi]
+    # `isup` — ISUP shlyuzi API'ga faqat shu ichki tarmoq orqali yetadi
+    # (izohi `isup-gateway` xizmatida). API'ning o'z xulqi o'zgarmaydi.
+    networks: [bonvi, isup]
 
   # ----------------------------------------------------------
   #  Telegram anketa boti
@@ -323,6 +325,105 @@ services:
       redis: { condition: service_healthy }
     networks: [bonvi]
 
+  # ----------------------------------------------------------
+  #  ISUP shlyuzi — terminallar (ofis, zavodlar) O'ZI ulanadi
+  #  (docs/SPEC-verifikatsiya-isup.md, ishlatish: docs/ISUP-RUNBOOK.md)
+  #
+  #  ⚠️ SUKUT BO'YICHA ISHGA TUSHMAYDI (`profiles: isup`). Yoqish:
+  #  `.env` da COMPOSE_PROFILES=isup (yoki `--profile isup`).
+  #
+  #  Ulanishni terminal boshlaydi va har bir terminal o'z kaliti bilan
+  #  tasdiqlanadi; ro'yxatda yo'q terminal rad etiladi.
+  #
+  #  ⭐ INTERNETGA CHIQISH YO'Q. Shlyuz ichida Hikvision'ning native
+  #  SDK'si ishlaydi (api/native/hikvision-isup/README.md — xavfsizlik
+  #  tekshiruvi). Unga ishonish shart bo'lmasligi uchun konteyner FAQAT
+  #  `isup` ichki tarmog'ida (`internal: true`): API va Caddy'ga yetadi,
+  #  tashqi dunyoga — yo'q. Ichida biror yashirin kod bo'lsa ham,
+  #  ma'lumotni hech qayerga yubora olmaydi. Ichki tarmoqda port ochib
+  #  bo'lmaydi, shu sababli 7660 ni `isup-proxy` (socat) uzatadi.
+  #  Yuz rasmlari 8091 da — tashqariga faqat Caddy orqali (`/isup-face/*`).
+  #
+  #  Qo'shimcha: fayl tizimi faqat o'qish, hech qanday Linux huquqi
+  #  (capability) yo'q, root emas, imtiyoz oshirish taqiqlangan.
+  #
+  #  ⚠️ SIRLAR `.env.isup` da (git'ga tushmaydi, chmod 600): har
+  #  terminal uchun Isup__Devices__N__DeviceId / __Key / __Token.
+  #  Ularda faqat terminal kalitlari va qurilma tokenlari bor — baza,
+  #  JWT yoki boshqa sir shlyuzga BERILMAYDI.
+  # ----------------------------------------------------------
+  isup-gateway:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.isup
+    profiles: ["isup"]
+    restart: always
+    env_file:
+      - path: .env.isup
+        required: false
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      Isup__ApiBaseUrl: http://api:8080
+      Isup__FaceUrlBase: ${ISUP_FACE_URL_BASE:-https://hr.bonvi.uz/isup-face/}
+      # Terminal qayta yo'naltirish so'rasa beriladigan manzil (bo'sh — javob yo'q)
+      Isup__PublicAddress: ${ISUP_PUBLIC_ADDRESS:-}
+      Isup__PublicDomain: ${ISUP_PUBLIC_DOMAIN:-}
+    volumes:
+      - isup-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 384m
+    depends_on:
+      api: { condition: service_started }
+    networks: [isup]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ----------------------------------------------------------
+  #  7660 (ISUP) uzatuvchisi — tashqi port → ichki tarmoqdagi shlyuz
+  #
+  #  Baytlarni uzatadi, hech narsani o'qimaydi va saqlamaydi. Shlyuz
+  #  o'zi internetga chiqa olmasligi uchun kerak (izohi yuqorida).
+  #  TCP VA UDP: SDK 7660 da ikkalasini tinglaydi (jurnalida — MQTT/TCP
+  #  va HRUDP), terminal qaysi birini tanlashi proshivkaga bog'liq.
+  #  UDP'da `fork` har terminal manziliga alohida jarayon — sessiya
+  #  bitta manbadan qoladi (2026-10-10 da sinov muhitida tekshirilgan).
+  # ----------------------------------------------------------
+  isup-proxy:
+    image: alpine/socat:1.8.0.3
+    profiles: ["isup"]
+    restart: always
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        socat UDP4-LISTEN:7660,fork,reuseaddr UDP4:isup-gateway:7660 &
+        exec socat TCP-LISTEN:7660,fork,reuseaddr TCP:isup-gateway:7660
+    ports:
+      - "7660:7660/tcp"
+      - "7660:7660/udp"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 64m
+    depends_on:
+      isup-gateway: { condition: service_started }
+    networks: [bonvi, isup]
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
   web:
     build:
       context: ./web
@@ -350,9 +451,11 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     depends_on: [api]
-    networks: [bonvi]
+    # `isup` — Caddy yuz rasmi havolalarini (`/isup-face/*`) shlyuzga uzatadi.
+    networks: [bonvi, isup]
 
 volumes:
+  isup-data:
   postgres-data:
   redis-data:
   uploads-data:
@@ -362,3 +465,8 @@ volumes:
 networks:
   bonvi:
     driver: bridge
+  # ISUP shlyuzining tarmog'i — tashqi dunyoga chiqishi YO'Q
+  # (izohi `isup-gateway` xizmatida). A'zolari: shlyuz, uzatuvchi, api, web.
+  isup:
+    driver: bridge
+    internal: true

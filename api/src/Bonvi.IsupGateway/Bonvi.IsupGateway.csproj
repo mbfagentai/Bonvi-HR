@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    ═══════════════════════════════════════════════════════════
+     ISUP SHLYUZI — terminal O'ZI Bonvi'ga ulanadi
+
+     Terminal (ofis yoki zavod, istalgan tarmoqda) hr.bonvi.uz:7660 ga
+     ISUP 5.0 bilan CHIQUVCHI ulanish ochadi. Shlyuz o'sha ulanish
+     ichidan terminalga ISAPI buyruqlarini yuboradi. Ya'ni:
+       • zavodda kompyuter ham, routerda port ham kerak emas;
+       • terminal internetdan ko'rinmaydi.
+
+     ⭐ Agent mantig'i QAYTA YOZILMAGAN: har terminal uchun
+     `Bonvi.DeviceAgent` dagi o'sha `AgentWorker` ishlaydi, faqat uning
+     terminal mijozi (`HikvisionClient`) ostidagi transport boshqa —
+     LAN'dagi digest HTTP o'rniga ISUP tunneli
+     (`IsupPassthroughHandler`). Shartnoma: docs/SPEC-verifikatsiya-isup.md
+
+     ⚠️ Hikvision HCISUPSDK (native, Linux x64) talab qilinadi:
+     api/native/hikvision-isup/linux-x64/ (README o'sha yerda).
+    ═══════════════════════════════════════════════════════════
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Bonvi.IsupGateway</RootNamespace>
+    <AssemblyName>bonvi-isup-gateway</AssemblyName>
+    <UserSecretsId>bonvi-hr-isup-gateway</UserSecretsId>
+
+    <!--
+      Native SDK tuzilmalari baytigacha aniq bo'lishi kerak: `fixed`
+      buferli, blittable struct'lar va funksiya ko'rsatkichli chaqiruv
+      (`delegate* unmanaged`) — marshalling taxminlari YO'Q.
+    -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!--
+      CA1031 — umumiy `catch (Exception)`. Agentdagi bilan bir xil sabab:
+      bitta terminalning xatosi (yoki native chaqiruvning) butun shlyuzni,
+      ya'ni boshqa zavodlarni ham to'xtatmasligi kerak.
+    -->
+    <NoWarn>$(NoWarn);CA1031</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bonvi.IsupGateway.Tests" />
+  </ItemGroup>
+
+  <!--
+    Agentga havola — teskari yo'nalishda (agent shlyuzni ko'rmaydi, uning
+    «boshqa loyihaga havola yo'q» qoidasi buzilmaydi). Agentning ichki
+    turlari shlyuzga `InternalsVisibleTo` bilan ochilgan.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Bonvi.DeviceAgent\Bonvi.DeviceAgent.csproj" />
+  </ItemGroup>
+
+</Project>

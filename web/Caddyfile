@@ -66,6 +66,17 @@
 	}
 
 	# ──────────────────────────────────────────────────────────
+	#  ISUP shlyuzi — terminal yuz rasmini shu yerdan O'ZI yuklab oladi
+	#  (`docs/SPEC-verifikatsiya-isup.md`, G3). Har havola bir martalik,
+	#  128 bitlik token, 5 daqiqa yashaydi; boshqa yo'l shlyuzda 404.
+	#  Shlyuz yoqilmagan bo'lsa (`profiles: isup`) — 502, boshqa narsaga
+	#  ta'siri yo'q.
+	# ──────────────────────────────────────────────────────────
+	handle /isup-face/* {
+		reverse_proxy isup-gateway:8091
+	}
+
+	# ──────────────────────────────────────────────────────────
 	#  Xodim ilovasi (PWA) — `/ilova/` ostida, HR ilovasidan ALOHIDA build
 	#
 	#  Fayllar image'da `/srv/ilova` ga ko'chiriladi (`web/Dockerfile`,

@@ -19,6 +19,8 @@ dist/
 .env.local
 # Ofisdagi qurilma agentining sirlari (docker-compose.agent.yml)
 .env.agent
+# ISUP shlyuzi: terminal kalitlari va qurilma tokenlari (docker-compose.prod.yml)
+.env.isup
 *.local
 
 # IDE
