@@ -109,6 +109,16 @@ ish vaqti, HR faolligi past edi. Natija: API jurnalida ERR yo'q, bot API bilan
 **MCP hali YOQILMAGAN.** Yoqish — quyidagi 2-, 4–8-qadamlar (egasi aytganda).
 HR sahifani yangilaydi (F5).
 
+**2026-10-11 ~20:50 (Toshkent) — server tomoni SOZLANDI** (egasining ruxsati bilan):
+prod `.env` ga `MCP_DB_PASSWORD` (`openssl rand -hex 24`) va
+`MCP_PUBLIC_BASE_URL=https://hr.bonvi.uz` qo'shildi (zaxira `.env.bak-2026-10-11-mcp`),
+faqat `api` qayta yaratildi (`up -d --no-deps --no-build api`, image o'sha). Jurnal:
+«AI ulanish (MCP): o'qish roli tayyor — bonvi_mcp», ERR yo'q, sayt va `/health/*` 200,
+bot 200. Holat «O'chirilgan» (o'chirgich sukut bo'yicha o'chiq): `/mcp` 503,
+`/.well-known/oauth-authorization-server` 404. Qolgani — 8-qadam (egasi yoqadi).
+Qaytarish: `.env` dan ikki qatorni olib tashlash, `up -d --no-deps --no-build api`,
+so'ng `ALTER ROLE bonvi_mcp NOLOGIN;`.
+
 ### Reliz tafsiloti (tarix uchun)
 
 Spetsifikatsiya: `docs/SPEC-mcp.md`. Faqat o'qish; pasport ma'lumotlari va
