@@ -3,6 +3,24 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `3f03319` — tashqi API filtri + №91 tuzatishlari — CHIQARILDI 2026-10-11 21:44 (Toshkent)
+
+Prod `494c23b` → `3f03319` (kod: faqat `PublicApiReadModel` — filtrlar javobda ko'rinadigan
+ish joyiga qaraydi, `status` = asosiy munosabat). Rollback: image tegi `rollback-494c23b`
+(api, bot, web), zaxira stamp `2026-10-11_162855`. Migratsiya YO'Q; prod nusxasida sinash
+qilinmadi (nusxa olish ruxsat tizimida to'xtaydi; o'zgarish faqat o'qish so'rovi, 2502 test
+o'tdi). Egasi `data/f91-import-skriptlar/prod/fix-all.sh` ni o'zi yurgizdi (auto-rejim
+deploy va prod yozuvini to'xtatgan edi):
+1. №91 import qilingan 2001 xodimning `updated_at` := hozir — `updatedSince` bilan
+   sinxronlovchilar (MBF_AGENT, Shef API) ularni oladi.
+2. 158 rasm `uploads-data` ga (158/158 joyida).
+3. `infra/deploy.sh` 21:39–21:44; bot va web qayta yaratilmadi.
+
+Tekshirildi (tashqi kalit bilan): `status=Active/Probation/Terminated` = 426/105/1498
+(yig'indi 2029, yozuvdagi `status` bilan ziddiyat 0; oldin Terminated 1550 edi), rasmlar 200,
+ETag 304, kalitsiz/noto'g'ri kalit 401, yozish 405, JSHSHIR bo'yicha qidiruv 0, sayt va
+`/health/*` 200, API jurnalida ERR yo'q.
+
 ## ✅ Ma'lumot: №91 xodimlar bazasi (toza to'plam) — YOZILDI 2026-10-11 ~20:27 (Toshkent)
 
 Kod o'zgarmadi (prod `494c23b`), faqat bazaga to'g'ridan-to'g'ri yozildi (egasining
@@ -23,8 +41,7 @@ nomzod, ushlab turilgan 70 kishi — ro'yxat `data/f91-kutilayotganlar-2026-10-1
 Yangi ma'lumotnoma: 1 bo'lim («1-Департамент»), 5 lavozim. API jurnalida ERR yo'q;
 xodim ilovasi hisoblarini fon vazifasi o'zi ochdi (15:38 UTC dan).
 
-⚠️ **Rasm fayllari (158 ta) hali serverda YO'Q** — yuklash ruxsat tizimida to'xtadi;
-kartada rasm o'rnida bo'sh joy chiqadi (API 404, xato emas). Qo'yish: README.txt dagi buyruq.
+Rasm fayllari (158 ta) 21:39 da qo'yildi (reliz `3f03319` bo'limiga qarang).
 
 **Orqaga qaytarish:**
 - Faqat №91 ma'lumoti: `docker compose -f docker-compose.prod.yml exec -T postgres sh -c
