@@ -59,8 +59,8 @@ Sahifalangan ro'yxat.
 | `page` | Sahifa raqami, 1 dan. |
 | `pageSize` | Sukut 50, eng ko'pi 200 (kattasi jimgina 200 ga kesiladi). |
 | `search` | F.I.Sh. yoki telefon bo'yicha qidiruv. JSHSHIR va pasport bo'yicha **qidirib bo'lmaydi**: aks holda kalit egasi qo'lidagi raqamni yuborib, «bu odam shu yerda ishlaydimi?» degan savolga javob olardi. |
-| `status` | `Probation` \| `Active` \| `Terminated`. Bo'sh — hammasi. |
-| `legalEntityId`, `departmentId`, `positionId`, `directionId` | Filtrlar. `departmentId` ichki bo'limlari bilan birga qidiradi. |
+| `status` | `Probation` \| `Active` \| `Terminated`. Bo'sh — hammasi. Javobdagi yuqori darajadagi `status` bilan bir xil (asosiy ish joyi): qayta ishga olingan odam eski davri tufayli `Terminated` ro'yxatiga tushmaydi. |
+| `legalEntityId`, `departmentId`, `positionId`, `directionId` | Filtrlar. `departmentId` ichki bo'limlari bilan birga qidiradi. Faqat javobdagi `employments` ga qaraladi (yakunlanmagan ish joylari, ketgan xodimda — oxirgisi): eski, tugagan davr bo'yicha topilmaydi. |
 | `updatedSince` | UTC lahza — 4-bo'limga qarang. |
 
 Bitta yozuv:

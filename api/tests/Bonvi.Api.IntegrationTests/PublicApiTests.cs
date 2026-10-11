@@ -756,6 +756,78 @@ public sealed class PublicApiTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
+    /// Qayta ishga olingan xodim eski (tugagan) davri bo'yicha filtrga tushmaydi.
+    /// </summary>
+    /// <remarks>
+    /// 2026-10-11, prod: №91 importidan keyin <c>status=Terminated</c>
+    /// ishlayotgan 52 kishini ham qaytardi — filtr barcha davrlarga qarar
+    /// edi, javobdagi <c>status</c> esa asosiy munosabatdan olinadi.
+    /// Ishdan ketgan odam esa holati va OXIRGI bo'limi bo'yicha topilaveradi.
+    /// </remarks>
+    [Fact]
+    public async Task Qayta_ishga_olingan_eski_davri_boyicha_filtrga_tushmaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        var belgi = "Қайта" + Guid.NewGuid().ToString("N")[..8];
+
+        var xodimId = await XodimYaratAsync(belgi, ishBilan: true).ConfigureAwait(true);
+        var ketganId = await XodimYaratAsync(belgi + "К", ishBilan: true).ConfigureAwait(true);
+
+        Guid eskiBolim, yangiBolim, ketganBolim;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var eski = context.Employments.First(item => item.EmployeeId == xodimId);
+            eski.Terminate(new DateOnly(2024, 1, 31), null).IsSuccess.ShouldBeTrue();
+            eski.SetPrimary(false);
+            eskiBolim = eski.DepartmentId!.Value;
+
+            var bolim = Department.Create("Янги бўлим " + belgi).Value;
+            context.Departments.Add(bolim);
+            yangiBolim = bolim.Id;
+
+            context.Employments.Add(Employment
+                .Hire(xodimId, eski.LegalEntityId, new DateOnly(2025, 1, 1), bolim.Id, eski.PositionId)
+                .Value);
+
+            var ketgan = context.Employments.First(item => item.EmployeeId == ketganId);
+            ketgan.Terminate(new DateOnly(2026, 9, 1), null).IsSuccess.ShouldBeTrue();
+            ketganBolim = ketgan.DepartmentId!.Value;
+
+            await context.SaveChangesAsync(bekorQilish);
+        }
+
+        using var admin = await PublicApiHarness.AdminMijozAsync(_factory);
+        var kalit = await PublicApiHarness.KalitYaratAsync(admin, PublicApiHarness.NoyobNom("Qayta"));
+        using var mijoz = PublicApiHarness.KalitMijozi(_factory, kalit.Key);
+
+        async Task<List<Guid>> IdlarAsync(string filtr)
+        {
+            using var javob = await mijoz.GetAsync(
+                new Uri($"{PublicApiHarness.Prefix}/employees?search={Uri.EscapeDataString(belgi)}&{filtr}", UriKind.Relative),
+                bekorQilish);
+
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, $"{filtr}: {await PublicApiHarness.MatnAsync(javob)}");
+
+            var sahifa = await javob.Content.ReadFromJsonAsync<PublicPageResponse>(bekorQilish);
+            sahifa.ShouldNotBeNull();
+            return [.. sahifa.Items.Select(item => item.Id)];
+        }
+
+        (await IdlarAsync("status=Terminated")).ShouldBe([ketganId], "ishlayotgan odam «ketganlar»da chiqmasligi kerak");
+        (await IdlarAsync("status=Probation")).ShouldBe([xodimId]);
+        (await IdlarAsync($"departmentId={eskiBolim}")).ShouldBeEmpty("eski bo'lim ro'yxatida qayta ishga olingan odam yo'q");
+        (await IdlarAsync($"departmentId={yangiBolim}")).ShouldBe([xodimId]);
+        (await IdlarAsync($"departmentId={ketganBolim}")).ShouldBe([ketganId], "ketgan odam oxirgi bo'limi bo'yicha topiladi");
+
+        var xodim = await XodimAsync(mijoz, xodimId).ConfigureAwait(true);
+        xodim.Status.ShouldBe("Probation");
+        xodim.Employments.Select(item => item.Department?.Id).ShouldBe([yangiBolim]);
+    }
+
+    /// <summary>
     /// Har bir filtr va ularning birikmasi SQL'ga tarjima bo'ladi.
     /// </summary>
     /// <remarks>

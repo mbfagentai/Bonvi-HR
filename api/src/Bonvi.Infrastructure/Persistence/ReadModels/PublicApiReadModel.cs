@@ -90,7 +90,32 @@ public sealed class PublicApiReadModel : IPublicApiReadModel
             employees = employees.Where(employee => employee.DirectionIds.Contains(directionId));
         }
 
-        var employments = _context.Employments.AsNoTracking();
+        var allEmployments = _context.Employments.AsNoTracking();
+
+        /*
+          ⭐ Filtrlar faqat JAVOBDA KO'RINADIGAN munosabatlarga qo'llanadi
+          (`AssembleAsync` dagi qoida): yakunlanmaganlari, ishdan ketgan
+          xodimda esa ASOSIYSI (oxirgisi).
+
+          Nega: qayta ishga olingan odamning 2021-yildagi tugagan davri ham
+          bazada turadi. Filtr barcha davrlarga qarasa, u «ishdan ketganlar»
+          va eski bo'lim ro'yxatiga ham tushardi, javobida esa `status:
+          "Active"` va yangi bo'lim — iste'molchi ishlayotgan odamni ketgan
+          deb belgilab qo'yardi (2026-10-11, №91 importidan keyin prod'da
+          52 kishi).
+        */
+        var employments = allEmployments.Where(employment =>
+            employment.Status != EmploymentStatus.Terminated
+            || (!allEmployments.Any(other =>
+                    other.EmployeeId == employment.EmployeeId && other.Status != EmploymentStatus.Terminated)
+                && employment.Id == allEmployments
+                    .Where(other => other.EmployeeId == employment.EmployeeId)
+                    .OrderByDescending(other => other.IsPrimary)
+                    .ThenByDescending(other => other.HireDate)
+                    .ThenByDescending(other => other.Id)
+                    .Select(other => other.Id)
+                    .FirstOrDefault()));
+
         var employmentRequired = false;
 
         if (filter.LegalEntityId is { } legalEntityId)
@@ -115,10 +140,19 @@ public sealed class PublicApiReadModel : IPublicApiReadModel
             employmentRequired = true;
         }
 
+        // Holat — javobdagi yuqori darajadagi `status` bilan AYNAN bir xil
+        // manba: ASOSIY munosabat (`AssembleAsync` dagi tartib). Ikkita
+        // yakunlanmagan ish joyidan biri sinovda bo'lsa ham, odam faqat
+        // bitta holat ro'yxatida chiqadi.
         if (filter.Status is { } status)
         {
-            employments = employments.Where(employment => employment.Status == status);
-            employmentRequired = true;
+            employees = employees.Where(employee => allEmployments
+                .Where(employment => employment.EmployeeId == employee.Id)
+                .OrderByDescending(employment => employment.IsPrimary)
+                .ThenByDescending(employment => employment.HireDate)
+                .ThenByDescending(employment => employment.Id)
+                .Select(employment => (EmploymentStatus?)employment.Status)
+                .FirstOrDefault() == status);
         }
 
         // Munosabatga tegishli filtr berilgan bo'lsa, mos munosabati
