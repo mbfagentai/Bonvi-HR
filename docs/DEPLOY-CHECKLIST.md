@@ -3,6 +3,37 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Ma'lumot: №91 xodimlar bazasi (toza to'plam) — YOZILDI 2026-10-11 ~20:27 (Toshkent)
+
+Kod o'zgarmadi (prod `494c23b`), faqat bazaga to'g'ridan-to'g'ri yozildi (egasining
+ruxsati bilan). Import oldi zaxira stamp **`2026-10-11_152636`**. Fayllar serverda
+`/root/f91-2026-10-11/` (import, rollback, dryrun/import jurnali), local nusxasi
+`data/f91-import-skriptlar/prod/` (README.txt).
+
+Sinov: prod nusxasini localga olish ruxsat tizimida to'xtadi, shuning uchun prod'ning
+o'zida bitta tranzaksiyada import → rollback SQL → sanoq/nazorat yig'indisi solishtirildi →
+ROLLBACK (farq 0). Undan oldin local'da prod'ga o'xshatilgan bazada import, takroriy
+himoya («already imported») va rollback sinalgan.
+
+Natija: 2001 xodim (425 faol + 79 sinovda + ketganlar), 2170 mehnat munosabati, 7335
+hodisa, 1301 sinov muddati, 153 ketish suhbati, belgilar (qora ro'yxat 23, rezerv 6,
+vazifa bersa bo'ladi 13), 76 arxiv nomzodi (yopiq «№91 архиви (Excel)» vakansiyasida).
+Qo'shilmadi: HR prod'da kiritgan 26 kishi (kartasiga tegilmadi), telefoni prod'da bor 9
+nomzod, ushlab turilgan 70 kishi — ro'yxat `data/f91-kutilayotganlar-2026-10-11.xlsx`.
+Yangi ma'lumotnoma: 1 bo'lim («1-Департамент»), 5 lavozim. API jurnalida ERR yo'q;
+xodim ilovasi hisoblarini fon vazifasi o'zi ochdi (15:38 UTC dan).
+
+⚠️ **Rasm fayllari (158 ta) hali serverda YO'Q** — yuklash ruxsat tizimida to'xtadi;
+kartada rasm o'rnida bo'sh joy chiqadi (API 404, xato emas). Qo'yish: README.txt dagi buyruq.
+
+**Orqaga qaytarish:**
+- Faqat №91 ma'lumoti: `docker compose -f docker-compose.prod.yml exec -T postgres sh -c
+  'psql -U $POSTGRES_USER -d $POSTGRES_DB' < /root/f91-2026-10-11/rollback.sql` — faqat
+  import qo'shgan ID'larni (va ular uchun ochilgan ilova hisoblarini) o'chiradi; yangi
+  bo'lim/lavozim boshqa joyda ishlatilmagan bo'lsagina o'chadi. HR o'sha xodimlarga
+  davomat/grafik/yo'qlik bog'lagan bo'lsa — tranzaksiya to'xtaydi, hech narsa yarim qolmaydi.
+- To'liq: zaxira `2026-10-11_152636` dan tiklash (undan keyingi HR kiritganlari ham ketadi).
+
 ## ✅ Reliz `494c23b` — ISUP shlyuzi (terminallar o'zi ulanadi) — CHIQARILDI 2026-10-10 17:17 (Toshkent)
 
 Prod `54567ad` → `494c23b` (`f2cddf5` taxminlar, `494c23b` ISUP shlyuzi —
