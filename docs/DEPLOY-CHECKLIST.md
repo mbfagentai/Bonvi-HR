@@ -3,6 +3,16 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `dd4667c` — davomat: grafiksiz kunda 22:00 da avtomatik «ketdi» — 2026-10-12 15:27
+
+Prod `8daadac` → `dd4667c`. Rollback: image tegi `rollback-8daadac` (api, bot, web), zaxira stamp
+`2026-10-12_101925`. Migratsiya YO'Q.
+* Jadvalsiz kunning chiqishsiz oxirgi kirishi 22:00 (Toshkent) da yopiladi, oraliq ishlangan vaqtga
+  qo'shiladi; panel, tabel katagi, xodim kalendarida «avto». Faqat hisoblash — o'tishga yozilmaydi.
+* Terminal o'tish surati ishladi (13880b1, faqat hujjat): terminalda Privacy Settings → «Upload
+  Recognized or Captured Pictures».
+Tekshirildi: sayt va `/health/*` 200, API jurnalida ERR/FTL 0.
+
 ## ✅ Reliz `e2edfe1` — davomat: «Keldi», navbat bilan yo'nalish, rasm kesish, terminal push'i — 2026-10-12 14:37
 
 Prod `93fe7e8` → `e2edfe1` (`45b4fe4` + `e2edfe1`). Rollback: image tegi `rollback-93fe7e8` (api, bot,
