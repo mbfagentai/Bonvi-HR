@@ -9,6 +9,23 @@ namespace Bonvi.IsupGateway.Tests;
 /// <summary>SDK qo'ng'irog'i buferlarini o'qish/yozish — oddiy xotirada.</summary>
 public sealed unsafe class RegistrationCodecTests
 {
+    /// <summary>
+    /// Tirik terminal (2026-10-12): SDK javobni yozadi, lekin <c>dwReturnedXMLLen</c> = 0.
+    /// </summary>
+    [Fact]
+    public void Passthrough_uzunligi_berilmasa_NUL_gacha_oqiladi()
+    {
+        var bufer = new byte[64];
+        var json = """{"AcsEvent":{"numOfMatches":0}}"""u8;
+        json.CopyTo(bufer);
+
+        RegistrationCodec.ResponseLength(bufer, 0).ShouldBe(json.Length);
+        RegistrationCodec.ResponseLength(bufer, 5).ShouldBe(5, "SDK aytgan uzunlik ustun");
+        RegistrationCodec.ResponseLength(bufer, 1000).ShouldBe(bufer.Length, "buferdan oshmaydi");
+        RegistrationCodec.ResponseLength(new byte[8], 0).ShouldBe(0, "bo'sh javob — bo'sh");
+        RegistrationCodec.ResponseLength("12345678"u8, 0).ShouldBe(8, "NUL yo'q — butun bufer");
+    }
+
     [Fact]
     public void Royxat_buferidan_terminal_malumotlari_oqiladi()
     {

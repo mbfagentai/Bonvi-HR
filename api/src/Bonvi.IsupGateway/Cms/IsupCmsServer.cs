@@ -375,7 +375,11 @@ internal sealed partial class IsupCmsServer : IIsapiTunnel, IDisposable
                 return TunnelResponse.Failed($"ISUP tunnel: {method} {RouteOf(pathAndQuery)} — javob {param.dwReturnedXMLLen} bayt, bufer {ResponseCapacity}");
             }
 
-            var text = Encoding.UTF8.GetString(outBuffer, (int)param.dwReturnedXMLLen).TrimEnd('\0');
+            var length = RegistrationCodec.ResponseLength(
+                new ReadOnlySpan<byte>(outBuffer, ResponseCapacity),
+                param.dwReturnedXMLLen);
+
+            var text = Encoding.UTF8.GetString(outBuffer, length).TrimEnd('\0');
 
             return new TunnelResponse(TunnelOutcome.Ok, text);
         }

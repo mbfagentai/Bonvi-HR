@@ -57,6 +57,28 @@ internal static unsafe class RegistrationCodec
             SessionKey: new ReadOnlySpan<byte>(reg->bySessionKey, IsupNative.MasterKeyLength).ToArray());
     }
 
+    /// <summary>
+    /// Passthrough javobining uzunligi.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Tirik terminalda (2026-10-12, DS-K1T341, SDK 2.5.1.35, ISUP 5.0) SDK javobni
+    /// buferga yozadi, lekin <c>dwReturnedXMLLen</c> ni 0 qoldiradi — agent bo'sh javob ko'rib,
+    /// «JSON yo'q» bilan yiqilardi. Hikvision namunalari ham javobni NUL belgisigacha o'qiydi:
+    /// uzunlik berilgan bo'lsa — o'sha, aks holda birinchi NUL gacha (yo'q bo'lsa — butun bufer).
+    /// </remarks>
+    /// <param name="buffer">Chiqish buferi (nol bilan tozalab ajratilgan).</param>
+    /// <param name="reported">SDK aytgan uzunlik.</param>
+    public static int ResponseLength(ReadOnlySpan<byte> buffer, uint reported)
+    {
+        if (reported > 0)
+        {
+            return (int)Math.Min(reported, (uint)buffer.Length);
+        }
+
+        var end = buffer.IndexOf((byte)0);
+        return end < 0 ? buffer.Length : end;
+    }
+
     /// <summary>ISUP 5.0 kalitini kirish buferiga yozadi (<c>ENUM_DEV_AUTH</c>).</summary>
     /// <returns><c>false</c> — bufer yo'q yoki sig'masa (terminal rad etiladi).</returns>
     public static bool WriteKey(IntPtr buffer, uint capacity, string key)
