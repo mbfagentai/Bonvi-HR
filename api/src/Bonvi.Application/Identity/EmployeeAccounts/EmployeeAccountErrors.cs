@@ -89,6 +89,11 @@ public static class EmployeeAccountErrors
         $"Parol {EmployeePassword.MaxLength} belgidan oshmasligi kerak.")
         .WithDetails(new Dictionary<string, object> { ["max"] = EmployeePassword.MaxLength });
 
+    /// <summary>HR yozgan parol arzimas birikma (000000, 123456, 121212…).</summary>
+    public static Error PasswordTooSimple { get; } = Error.Validation(
+        "xodim.parol_oddiy",
+        "Bu parolni taxmin qilish oson (bir xil yoki ketma-ket raqamlar). Boshqasini yozing yoki avtomatik yasang.");
+
     /// <summary>Saqlangan parolni ko'rsatib bo'lmaydi.</summary>
     /// <remarks>
     /// Ikki holat: shifrlangan nusxa umuman yo'q (bu qaror oldidan berilgan

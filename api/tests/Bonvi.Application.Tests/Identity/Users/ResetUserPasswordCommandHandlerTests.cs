@@ -27,7 +27,6 @@ public sealed class ResetUserPasswordCommandHandlerTests
     private readonly IRoleRepository _roles = Substitute.For<IRoleRepository>();
     private readonly IRefreshTokenRepository _refreshTokens = Substitute.For<IRefreshTokenRepository>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
-    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IClock _clock = Substitute.For<IClock>();
     private readonly IMcpGrantRevoker _mcpGrants = Substitute.For<IMcpGrantRevoker>();
@@ -42,7 +41,7 @@ public sealed class ResetUserPasswordCommandHandlerTests
         TestRoles.Standart(SystemRoles.HrManager);
 
     private ResetUserPasswordCommandHandler Handler
-        => new(_currentUser, _users, _roles, _refreshTokens, _hasher, _auditLogger, _unitOfWork, _mcpGrants, _clock);
+        => new(_currentUser, _users, _roles, _refreshTokens, _hasher, _unitOfWork, _mcpGrants, _clock);
 
     public ResetUserPasswordCommandHandlerTests()
     {
@@ -140,23 +139,11 @@ public sealed class ResetUserPasswordCommandHandlerTests
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task Parol_audit_yozuviga_hech_qachon_yozilmaydi()
-    {
-        SuperAdminSifatida();
-        var user = Mavjud("905088877", "Каримов Жасур", _hrRole);
-
-        await Handler.HandleAsync(
-            new ResetUserPasswordCommand(user.Id, "Maxfiy_Parol1"),
-            TestContext.Current.CancellationToken);
-
-        _auditLogger.Received(1).Record(
-            Arg.Any<Domain.Auditing.AuditAction>(),
-            "User",
-            Arg.Any<string>(),
-            Arg.Any<string?>(),
-            Arg.Is<string?>(json => json != null && !json.Contains("Maxfiy_Parol1", StringComparison.Ordinal)));
-    }
+    // «Parol_audit_yozuviga_hech_qachon_yozilmaydi» — ishlovchi endi jurnalga O'ZI
+    // yozmaydi: parol tiklanishini `AuditTrailInterceptor` yozadi (SPEC-rollar-va-audit
+    // §7.6). Vorisi — haqiqiy baza ustida:
+    // `AuditTrailApiTests.Parol_tiklash_xeshni_yashiradi_va_amal_nomini_yozadi`
+    // (yangi parol ham, uning xeshi ham qatorda yo'q, `PasswordHash` — «***»).
 
     /// <summary>
     /// Bosh rahbar super administratorning parolini tiklay olsa, uning

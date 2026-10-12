@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Employees.Common;
@@ -5,6 +7,7 @@ using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Queries;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Application.Reports.Queries;
@@ -35,6 +38,12 @@ public sealed record EmployeeExportFile(byte[] Content, string FileName);
 /// <see cref="MaxExportRows"/> — HR filtrni toraytirmasdan BUTUN mos
 /// ro'yxatni bitta faylda olishi kerak, sahifalab emas.
 /// </para>
+/// <para>
+/// <b>Har bir eksport jurnalga yoziladi</b> (<c>Export</c>, SPEC-rollar-va-audit
+/// §7.6): kim, qachon, qaysi filtr bilan va nechta qator — shaxsiy ma'lumot
+/// BIRORTA HAM. Qidiruv matnining o'zi yozilmaydi, faqat «qidiruv bor edi»:
+/// unda ism yoki JSHSHIR bo'ladi. So'rov GET bo'lsa ham saqlash shu sababli.
+/// </para>
 /// </remarks>
 public sealed class ExportEmployeesQueryHandler
 {
@@ -57,17 +66,23 @@ public sealed class ExportEmployeesQueryHandler
     private readonly IEmployeeReadModel _readModel;
     private readonly IEmployeeExcelWriter _writer;
     private readonly ICurrentUser _currentUser;
+    private readonly IAuditLogger _auditLogger;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
     public ExportEmployeesQueryHandler(
         IEmployeeReadModel readModel,
         IEmployeeExcelWriter writer,
         ICurrentUser currentUser,
+        IAuditLogger auditLogger,
+        IUnitOfWork unitOfWork,
         IClock clock)
     {
         _readModel = readModel;
         _writer = writer;
         _currentUser = currentUser;
+        _auditLogger = auditLogger;
+        _unitOfWork = unitOfWork;
         _clock = clock;
     }
 
@@ -102,6 +117,47 @@ public sealed class ExportEmployeesQueryHandler
         var content = _writer.Write(rows);
         var fileName = $"Bonvi_xodimlar_{_clock.Today:yyyy-MM-dd}.xlsx";
 
+        _auditLogger.Record(
+            AuditAction.Export,
+            "Employee",
+            entityId: null,
+            newValues: JsonSerializer.Serialize(new ExportAuditDetail(ExportAuditFilters.From(query), rows.Count), ExportAuditJson));
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
         return new EmployeeExportFile(content, fileName);
+    }
+
+    /// <summary>Bo'sh filtrlar yozilmaydi — tafsilot qisqa va o'qilarli bo'lsin.</summary>
+    private static readonly JsonSerializerOptions ExportAuditJson = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    /// <summary>Eksport hodisasining tafsiloti.</summary>
+    /// <param name="Filters">Qo'llangan filtrlar (qidiruv matnisiz).</param>
+    /// <param name="Rows">Fayldagi qatorlar soni.</param>
+    private sealed record ExportAuditDetail(ExportAuditFilters Filters, int Rows);
+
+    /// <summary>Filtrlar — shaxsiy ma'lumotsiz.</summary>
+    private sealed record ExportAuditFilters(
+        bool? HasSearch,
+        Guid? DepartmentId,
+        Guid? PositionId,
+        Guid? DirectionId,
+        Guid? LegalEntityId,
+        string? Status,
+        bool? NeedsReview,
+        string? Sort)
+    {
+        public static ExportAuditFilters From(SearchEmployeesQuery query) => new(
+            string.IsNullOrWhiteSpace(query.Search) ? null : true,
+            query.DepartmentId,
+            query.PositionId,
+            query.DirectionId,
+            query.LegalEntityId,
+            query.Status,
+            query.NeedsReview,
+            query.Sort);
     }
 }

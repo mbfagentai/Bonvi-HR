@@ -1,11 +1,9 @@
-using System.Text.Json;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Application.Identity.Users.Dtos;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -63,7 +61,6 @@ public sealed class CreateUserCommandHandler
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
     private readonly IPasswordHasher _hasher;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateUserCommandHandler(
@@ -71,14 +68,12 @@ public sealed class CreateUserCommandHandler
         IUserRepository users,
         IRoleRepository roles,
         IPasswordHasher hasher,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
         _hasher = hasher;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
     }
 
@@ -160,19 +155,8 @@ public sealed class CreateUserCommandHandler
         var user = userResult.Value;
         user.SetRole(role.Id);
 
+        // Jurnal yozuvini `AuditTrailInterceptor` qo'yadi (parol xeshi «***»).
         _users.Add(user);
-
-        _auditLogger.Record(
-            AuditAction.Create,
-            "User",
-            user.Id.ToString(),
-            oldValues: null,
-            newValues: JsonSerializer.Serialize(new
-            {
-                login = user.Login.Value,
-                fullName = user.FullName.Full,
-                role = role.Code,
-            }));
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

@@ -44,6 +44,7 @@ public sealed class EmployeeLoginCommandHandlerTests
 
         var employee = Employee.Create(FullName.Create("Qodirov", "Ilova", "Testovich").Value).Value;
         _account = EmployeeAccount.Issue(employee.Id, "xesh", "shifrlangan", Now).Value;
+        _account.MarkPasswordHandedOut(Now);
 
         // Login — profil telefoni: ombor uni xodimlar jadvali orqali topadi.
         _accounts.FindByLoginAsync(Arg.Is<PhoneNumber>(login => login.Value == "+998901234567"), Arg.Any<CancellationToken>())
@@ -91,6 +92,31 @@ public sealed class EmployeeLoginCommandHandlerTests
 
         // Egasining kirishi yozilgan — hujumchining xatolari hisobga tegmagan.
         _account.LastLoginAt.ShouldBe(Now);
+    }
+
+    /// <summary>
+    /// HR parolini hali bermagan hisob — to'g'ri parol bilan ham kirib bo'lmaydi, javob esa
+    /// notanish raqamnikidan farq qilmaydi (soxta xesh, sanoq, umumiy xato).
+    /// </summary>
+    [Fact]
+    public async Task HR_bermagan_parol_bilan_kirib_bolmaydi_va_javob_farqlanmaydi()
+    {
+        var employee = Employee.Create(FullName.Create("Berilmagan", "Parol", "Testovich").Value).Value;
+        var berilmagan = EmployeeAccount.Issue(employee.Id, "boshqa_xesh", "shifrlangan", Now).Value;
+        _accounts.FindByLoginAsync(Arg.Is<PhoneNumber>(login => login.Value == "+998905550000"), Arg.Any<CancellationToken>())
+            .Returns(berilmagan);
+        _hasher.Verify("boshqa_xesh", Arg.Any<string>()).Returns((true, false));
+
+        var natija = await KirAsync("905550000", "togri-bolsa-ham", XodimIp);
+
+        natija.Error.Code.ShouldBe("xodim.notogri_malumot");
+        _hasher.DidNotReceive().Verify("boshqa_xesh", Arg.Any<string>());
+        _tokens.DidNotReceive().CreateTokens(Arg.Any<EmployeeAccount>());
+
+        // HR parolni ko'rdi — endi o'sha parol ishlaydi.
+        berilmagan.MarkPasswordHandedOut(Now);
+
+        (await KirAsync("905550000", "togri-bolsa-ham", XodimIp)).IsSuccess.ShouldBeTrue();
     }
 
     [Fact]
@@ -152,6 +178,71 @@ public sealed class EmployeeLoginCommandHandlerTests
         {
             (await KirAsync("901234567", "taxmin-" + i, XodimIp)).Error.Code.ShouldBe("xodim.notogri_malumot");
         }
+    }
+
+    /// <summary>
+    /// Ko'p IP'dan aylanish — har IP'da juftlik chegarasidan bitta kam urinish. Login
+    /// bo'yicha umumiy chegara baribir yonadi va login HAMMA joyda bloklanadi.
+    /// </summary>
+    [Fact]
+    public async Task Kop_IP_dan_aylanish_login_boyicha_umumiy_blokni_yoqadi()
+    {
+        var urinish = 0;
+        for (var ip = 1; urinish < EmployeeLoginThrottle.LoginWideMaxFailures; ip++)
+        {
+            for (var i = 0; i < EmployeeAccount.MaxFailedAttempts - 1 && urinish < EmployeeLoginThrottle.LoginWideMaxFailures; i++, urinish++)
+            {
+                (await KirAsync("901234567", "taxmin-" + urinish, $"203.0.113.{ip}")).Error.Code
+                    .ShouldBe("xodim.notogri_malumot");
+            }
+        }
+
+        _hasher.ClearReceivedCalls();
+
+        // Yangi IP — va hatto to'g'ri parol: blok oracle bo'lmasligi uchun parol tekshirilmaydi.
+        var blok = await KirAsync("901234567", Parol, "192.0.2.99");
+
+        blok.Error.Code.ShouldBe("xodim.bloklangan");
+        blok.Error.Details["retryAfterMinutes"].ShouldBe((int)EmployeeLoginThrottle.LoginWideWindow.TotalMinutes);
+        _hasher.DidNotReceive().Verify(Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    /// <summary>
+    /// Umumiy blok yonganda ham xodim OXIRGI muvaffaqiyatli kirgan IP'sidan kiraveradi — begona
+    /// manzillar esa to'siladi (hamkasbni qulflab qo'yishga qarshi).
+    /// </summary>
+    [Fact]
+    public async Task Umumiy_blok_oxirgi_muvaffaqiyatli_IP_ga_tegmaydi()
+    {
+        (await KirAsync("901234567", Parol, XodimIp)).IsSuccess.ShouldBeTrue();
+
+        for (var i = 0; i < EmployeeLoginThrottle.LoginWideMaxFailures; i++)
+        {
+            await KirAsync("901234567", "taxmin-" + i, $"203.0.113.{(i / (EmployeeAccount.MaxFailedAttempts - 1)) + 1}");
+        }
+
+        (await KirAsync("901234567", Parol, "192.0.2.99")).Error.Code.ShouldBe("xodim.bloklangan");
+        (await KirAsync("901234567", Parol, XodimIp)).IsSuccess.ShouldBeTrue("odatdagi tarmog'idan kiraveradi");
+    }
+
+    /// <summary>Umumiy blok notanish raqamda ham xuddi shunday — hisob borligini oshkor qilmaydi.</summary>
+    [Fact]
+    public void Umumiy_blok_notanish_raqamda_ham_bir_xil_va_oz_muddati_bilan_tugaydi()
+    {
+        var throttle = new EmployeeLoginThrottle();
+        var kalit = EmployeeLoginThrottle.Key("998907777777", "907777777");
+
+        for (var i = 0; i < EmployeeLoginThrottle.LoginWideMaxFailures; i++)
+        {
+            // Har urinish boshqa IP'dan — juftlik bloki hech qachon yonmaydi.
+            throttle.RecordFailure(kalit, $"198.51.100.{i + 1}", Now);
+        }
+
+        throttle.LockedFor(kalit, "192.0.2.1", Now).ShouldNotBeNull();
+        throttle.LockedFor(kalit, "192.0.2.1", Now.Add(EmployeeLoginThrottle.LoginWideWindow)).ShouldBeNull();
+
+        // Boshqa raqamga tegmaydi.
+        throttle.LockedFor(EmployeeLoginThrottle.Key("998901234567", "901234567"), "192.0.2.1", Now).ShouldBeNull();
     }
 
     [Fact]

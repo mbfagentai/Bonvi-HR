@@ -382,6 +382,10 @@ public sealed class EmployeeAccountConfiguration : IEntityTypeConfiguration<Empl
         builder.Property(account => account.PasswordSetAt)
             .IsRequired();
 
+        // Nullable: `null` — joriy parolni HR hali bilmaydi va kirib bo'lmaydi
+        // (sababi domenda). Eski hisoblar migratsiyada audit izidan to'ldirilgan.
+        builder.Property(account => account.PasswordHandedOutAt);
+
         // Xodim yumshoq o'chiriladi, ya'ni haqiqiy `DELETE` — yo tasodif,
         // yo tuzatish skripti. Ikkala holatda ham u kirish ma'lumotini
         // jimgina olib ketmasligi, to'xtab so'rashi kerak.

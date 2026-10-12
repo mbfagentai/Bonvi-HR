@@ -1,8 +1,6 @@
-using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Common;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Application.Identity.EmployeeAccounts;
@@ -40,7 +38,9 @@ public sealed record SetMobileCheckInAllowedCommand(Guid EmployeeId, bool Allowe
 /// degan gap yolg'on bo'lardi. <c>last_login_at</c> TEGILMAYDI.
 /// </para>
 /// <para>
-/// Audit yozuviga parol ham, xeshi ham tushmaydi — faqat faktning o'zi.
+/// Audit yozuvini <c>AuditTrailInterceptor</c> qo'yadi: parol xeshi, shifrlangan
+/// parol va o'rnatilgan vaqt «***» bo'lib, amal nomi esa yo'lni aytadi
+/// (<c>RegenerateEmployeePassword</c> yoki <c>SetEmployeePassword</c>).
 /// </para>
 /// </remarks>
 public sealed class EmployeePasswordCommandHandler
@@ -51,7 +51,6 @@ public sealed class EmployeePasswordCommandHandler
     private readonly IEmployeeRefreshTokenRepository _refreshTokens;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ISecretProtector _protector;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
@@ -62,7 +61,6 @@ public sealed class EmployeePasswordCommandHandler
         IEmployeeRefreshTokenRepository refreshTokens,
         IPasswordHasher passwordHasher,
         ISecretProtector protector,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
@@ -72,7 +70,6 @@ public sealed class EmployeePasswordCommandHandler
         _refreshTokens = refreshTokens;
         _passwordHasher = passwordHasher;
         _protector = protector;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
         _clock = clock;
     }
@@ -86,7 +83,8 @@ public sealed class EmployeePasswordCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        return AssignAsync(command.EmployeeId, EmployeePassword.Generate(), "password_generated", cancellationToken);
+        // Avtomatik parolni hali hech kim bilmaydi — HR ko'rmaguncha kirish yopiq.
+        return AssignAsync(command.EmployeeId, EmployeePassword.Generate(), knownToHr: false, cancellationToken);
     }
 
     /// <summary>HR yozgan parol.</summary>
@@ -106,14 +104,15 @@ public sealed class EmployeePasswordCommandHandler
             return password.Error;
         }
 
-        return await AssignAsync(command.EmployeeId, password.Value, "password_set", cancellationToken)
+        // HR o'zi yozdi — allaqachon biladi, kirish darhol ochiq.
+        return await AssignAsync(command.EmployeeId, password.Value, knownToHr: true, cancellationToken)
             .ConfigureAwait(false);
     }
 
     private async Task<Result<EmployeeAppAccessDto>> AssignAsync(
         Guid employeeId,
         string password,
-        string action,
+        bool knownToHr,
         CancellationToken cancellationToken)
     {
         var employee = await _employees.GetByIdAsync(employeeId, cancellationToken).ConfigureAwait(false);
@@ -125,17 +124,11 @@ public sealed class EmployeePasswordCommandHandler
         var account = await _provisioner.EnsureAsync(employee.Id, cancellationToken).ConfigureAwait(false);
         var now = _clock.UtcNow;
 
-        account.SetPassword(_passwordHasher.Hash(password), _protector.Protect(password), now);
+        account.SetPassword(_passwordHasher.Hash(password), _protector.Protect(password), now, knownToHr);
 
         await _refreshTokens
             .RevokeAllForAccountAsync(account.Id, now, byIp: null, cancellationToken)
             .ConfigureAwait(false);
-
-        _auditLogger.Record(
-            AuditAction.Update,
-            "EmployeeAccount",
-            account.Id.ToString(),
-            newValues: "{\"action\":\"" + action + "\"}");
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -155,18 +148,15 @@ public sealed class SetMobileCheckInAllowedCommandHandler
 {
     private readonly IEmployeeRepository _employees;
     private readonly EmployeeAppAccessBuilder _builder;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
 
     public SetMobileCheckInAllowedCommandHandler(
         IEmployeeRepository employees,
         EmployeeAppAccessBuilder builder,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
         _employees = employees;
         _builder = builder;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
     }
 
@@ -182,15 +172,8 @@ public sealed class SetMobileCheckInAllowedCommandHandler
             return AttendanceErrors.EmployeeNotFound;
         }
 
+        // Jurnal yozuvini `AuditTrailInterceptor` qo'yadi (MobileCheckInAllowed: eski → yangi).
         employee.SetMobileCheckInAllowed(command.Allowed);
-
-        _auditLogger.Record(
-            AuditAction.Update,
-            "Employee",
-            employee.Id.ToString(),
-            newValues: command.Allowed
-                ? "{\"mobileCheckInAllowed\":true}"
-                : "{\"mobileCheckInAllowed\":false}");
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

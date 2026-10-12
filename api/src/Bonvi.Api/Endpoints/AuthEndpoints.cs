@@ -52,6 +52,7 @@ public static class AuthEndpoints
                 return natija.ToHttpResult();
             })
             .AllowAnonymous()
+            .RequirePasswordHashingQueue(PasswordHashingLane.Hr)
             .WithName("Login")
             .WithSummary("Tizimga kirish")
             .WithDescription("Telefon raqami va parol bilan kirish. Access va refresh token qaytaradi.")

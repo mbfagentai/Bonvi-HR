@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as KirishRouteImport } from './routes/kirish'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppBuyruqlarRouteImport } from './routes/_app/buyruqlar'
 import { Route as AppFoydalanuvchilarRouteImport } from './routes/_app/foydalanuvchilar'
 import { Route as AppHisobotlarRouteImport } from './routes/_app/hisobotlar'
@@ -61,6 +62,11 @@ const KirishRoute = KirishRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBuyruqlarRoute = AppBuyruqlarRouteImport.update({
@@ -263,6 +269,7 @@ const AppXodimlarEmployeeIdRoute = AppXodimlarEmployeeIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/kirish': typeof KirishRoute
+  '/audit': typeof AppAuditRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/kirish': typeof KirishRoute
+  '/audit': typeof AppAuditRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
@@ -344,6 +352,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/kirish': typeof KirishRoute
+  '/_app/audit': typeof AppAuditRoute
   '/_app/buyruqlar': typeof AppBuyruqlarRoute
   '/_app/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/_app/hisobotlar': typeof AppHisobotlarRoute
@@ -387,6 +396,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/kirish'
+    | '/audit'
     | '/buyruqlar'
     | '/foydalanuvchilar'
     | '/hisobotlar'
@@ -426,6 +436,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/kirish'
+    | '/audit'
     | '/buyruqlar'
     | '/foydalanuvchilar'
     | '/hisobotlar'
@@ -467,6 +478,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/kirish'
+    | '/_app/audit'
     | '/_app/buyruqlar'
     | '/_app/foydalanuvchilar'
     | '/_app/hisobotlar'
@@ -532,6 +544,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/buyruqlar': {
@@ -790,6 +809,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAuditRoute: typeof AppAuditRoute
   AppBuyruqlarRoute: typeof AppBuyruqlarRoute
   AppFoydalanuvchilarRoute: typeof AppFoydalanuvchilarRoute
   AppHisobotlarRoute: typeof AppHisobotlarRoute
@@ -830,6 +850,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAuditRoute: AppAuditRoute,
   AppBuyruqlarRoute: AppBuyruqlarRoute,
   AppFoydalanuvchilarRoute: AppFoydalanuvchilarRoute,
   AppHisobotlarRoute: AppHisobotlarRoute,

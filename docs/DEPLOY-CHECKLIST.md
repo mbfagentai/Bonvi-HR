@@ -3,6 +3,38 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏳ Keyingi reliz — audit jurnali + ilova xavfsizligi (TAYYOR, deploy QILINMAGAN — egasi aytganda)
+
+Skript: `data/deploy/2026-10-13-audit-ilova.sh` (gitignored; `--preflight` — faqat o'qiydi).
+* **O'zgarmas audit** (SPEC-rollar-va-audit A1+A2): har bir saqlash — kim (ism, rol), qachon, qaysi
+  amal, IP, brauzer, eski → yangi qiymat; kirish/xato kirish/403/eksport; buyruqda «Kiritdi».
+  `/audit` sahifasi va xodim kartasida «O'zgarishlar tarixi»; oklad/shaxsiy ma'lumot ruxsatsiz
+  yashiriladi. Yangi ruxsat `employees.personal.view` (mavjud rollar o'zgarmaydi).
+* **Ilova xavfsizligi:** HR parolni ko'rmagan/yozmagan hisob KIRA OLMAYDI; login bo'yicha umumiy
+  blok (20 xato/soat, oxirgi muvaffaqiyatli IP ozod); HR'ning arzimas paroli rad; anonim tana 16 KB;
+  parol tekshiruvi navbati (xodim 2+20, HR 1+5, alohida).
+* **Caddy so'rov jurnali** `./logs/caddy/access.log` (30 kun; token/so'rov satri/sir sarlavhalar
+  yashiriladi) — compose'da web'ga yangi volume, papkani docker o'zi yaratadi.
+* Excel: avtomatik «ketdi» kulrang kursiv + sarlavha izohi.
+* Zaxira nusxasi: `infra/backup/pull-offsite.sh` (egasining kompyuterida; serverga ta'sir yo'q).
+
+**Migratsiyalar — 2 ta** (API ishga tushishida o'zi):
+`20261012115700_AuditJurnaliKengaytirildi` (8 ustun, 2 qisman indeks, UPDATE/DELETE/TRUNCATE ni rad
+etuvchi trigger; qayta bajarilishga chidamli) va `20261012152522_XodimParoliBerilgani` (1 ustun +
+audit izidan to'ldirish: ko'rilgan/yozilgan parol, nusxasiz eski parol, joriy parol bilan kirilgan
+hisob — ochiq qoladi, qolgani yopiladi). Mavjud jadvallardan hech narsa o'chmaydi.
+**Image rollback** qo'shimcha SQL'siz ishlaydi (yangi ustunlar bo'sh/sukutli; eski kod audit
+qatorini faqat qo'shadi). Eski image'da ilova tekshiruvi yo'q — kirish yana hammaga ochiladi.
+
+**Deploy oldidan:**
+- [ ] `bash data/deploy/2026-10-13-audit-ilova.sh --preflight` — nechta ilova hisobi ochiq qolishini
+      ko'rish (egasining hisobi ochiq qolishi shart)
+- [ ] Prod nusxasida sinov (zaxira → vaqtinchalik baza → ikki migratsiya → sanoqlar)
+- [ ] HR'ga aytish: ilova kirishi uchun parolni kartada ko'z tugmasi bilan ko'rib, xodimga aytish kerak
+
+**Deploy'dan keyin:** skriptning 4-qadami (migratsiyalar, trigger, ochiq hisoblar soni,
+`logs/caddy`, ERR yo'q); `/audit` super administratorda ochiladi; ilovaga egasi kiradi.
+
 ## ✅ Xodim ilovasi prod'da OCHILDI — 2026-10-12 18:05 (Toshkent), egasining buyrug'i bilan
 
 Kod o'zgarmadi (prod `dd4667c`). Prod `.env`: `EMPLOYEE_APP_ENABLED=true` (zaxira

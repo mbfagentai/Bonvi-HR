@@ -24,9 +24,12 @@ namespace Bonvi.Application.Identity.EmployeeAccounts;
 /// necha o'nta).
 /// </para>
 /// <para>
-/// HR O'ZI yozgan parol bu tekshiruvdan o'tmaydi — faqat uzunlik
-/// (<see cref="MinLength"/>–<see cref="MaxLength"/>): bu HR ning ongli
-/// qarori, masalan xodimning o'zi so'ragan parol.
+/// HR O'ZI yozgan parol ham shu arzimaslik tekshiruvidan o'tadi (2026-10-12,
+/// ilova internetga ochilgach; 2026-09-30 xavfsizlik ko'rigining bandi). Ilgari
+/// faqat uzunlik tekshirilardi — «xodimning o'zi so'ragan parol» deb. Lekin
+/// 000000 yoki 123456 hujumchi birinchi terib ko'radigan qiymatlar va ular
+/// 15 daqiqada 5 urinishli blokdan ham oldin topiladi. Harfli parol esa
+/// tekshirilmaydi — u raqamli PIN emas.
 /// </para>
 /// </remarks>
 public static class EmployeePassword
@@ -110,6 +113,11 @@ public static class EmployeePassword
         if (value.Length > MaxLength)
         {
             return EmployeeAccountErrors.PasswordTooLong;
+        }
+
+        if (IsTriviallyWeak(value))
+        {
+            return EmployeeAccountErrors.PasswordTooSimple;
         }
 
         return value;

@@ -194,6 +194,89 @@ public sealed partial class EmployeeAppApiTests
         (await MeningAsync(tokenlar[0])).ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
+    /// <summary>
+    /// Xodim kirishining parol tekshiruvi navbati: bir vaqtda faqat ruxsat etilgan son ishlanadi,
+    /// navbat to'lsa qolgani darhol 429 — HAR XIL raqamlar bilan ham. HR kirishi esa O'Z navbatida:
+    /// xodim navbati to'lganda ham u 429 olmaydi.
+    /// </summary>
+    [Fact]
+    public async Task Parol_tekshiruvi_navbatda_ortigi_429_HR_navbati_alohida()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        using var server = Cheklovli(
+            ("RateLimiting:PasswordHashing:PermitLimit", 1),
+            ("RateLimiting:PasswordHashing:QueueLimit", 0),
+            ("RateLimiting:EmployeeLogin:PermitLimit", 1000));
+        using var mijoz = server.CreateClient();
+
+        async Task<HttpStatusCode> KirishAsync(string yol)
+        {
+            using var javob = await mijoz.PostAsJsonAsync(
+                new Uri(yol, UriKind.Relative),
+                new { login = TelefonRaqami(), password = "notogri" },
+                ct);
+            return javob.StatusCode;
+        }
+
+        var xodimlar = Enumerable.Range(0, 16).Select(_ => KirishAsync("/api/employee-auth/login")).ToList();
+        var hr = KirishAsync("/api/auth/login");
+
+        var natijalar = await Task.WhenAll(xodimlar);
+
+        natijalar.ShouldContain(HttpStatusCode.TooManyRequests, "navbat 0 — parallel urinishlarning bir qismi rad etilishi kerak");
+        natijalar.ShouldContain(HttpStatusCode.BadRequest, "ruxsat olganlari odatdagidek tekshiriladi");
+        (await hr).ShouldNotBe(HttpStatusCode.TooManyRequests, "HR kirishi xodim navbatiga bog'liq emas");
+    }
+
+    /// <summary>
+    /// Navbatda KUTGAN so'rov IP oynasining ruxsatini ikkinchi marta yemaydi: oynada 4 ta,
+    /// navbatda 1 ish joyi — bitta IP'dan 3 ta parallel kirish hammasi o'tadi (429 yo'q).
+    /// </summary>
+    [Fact]
+    public async Task Navbatda_kutish_IP_oynasini_ikki_marta_yemaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        using var server = Cheklovli(
+            ("RateLimiting:PasswordHashing:PermitLimit", 1),
+            ("RateLimiting:PasswordHashing:QueueLimit", 20),
+            ("RateLimiting:EmployeeLogin:PermitLimit", 4));
+        using var mijoz = server.CreateClient();
+
+        async Task<HttpStatusCode> KirishAsync()
+        {
+            using var javob = await mijoz.PostAsJsonAsync(
+                new Uri("/api/employee-auth/login", UriKind.Relative),
+                new { login = TelefonRaqami(), password = "notogri" },
+                ct);
+            return javob.StatusCode;
+        }
+
+        var natijalar = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => KirishAsync()));
+
+        natijalar.ShouldAllBe(kod => kod == HttpStatusCode.BadRequest);
+    }
+
+    /// <summary>Tokensiz kirish yo'llarida tana 16 KB dan katta bo'lsa — o'qilmasdan 413.</summary>
+    [Theory]
+    [InlineData("/api/employee-auth/login")]
+    [InlineData("/api/auth/login")]
+    public async Task Kirish_yolida_katta_tana_413(string yol)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var mijoz = _factory.CreateClient();
+
+        // `StringContent` — `Content-Length` sarlavhasi bilan (brauzer va ilova aynan shunday yuboradi).
+        using var tana = new StringContent(
+            System.Text.Json.JsonSerializer.Serialize(new { login = TelefonRaqami(), password = new string('x', 20 * 1024) }),
+            System.Text.Encoding.UTF8,
+            "application/json");
+        using var javob = await mijoz.PostAsync(new Uri(yol, UriKind.Relative), tana, ct);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+    }
+
     /// <summary>Global cheklov yoqilgan, berilgan chegaralar bilan alohida server.</summary>
     private WebApplicationFactory<Program> Cheklovli(params (string Kalit, int Qiymat)[] sozlamalar)
         => _factory.WithWebHostBuilder(builder =>

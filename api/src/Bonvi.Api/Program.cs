@@ -55,6 +55,15 @@ builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 // qilmaydi (sababi `EmployeeJwtTokenService` izohida).
 builder.Services.AddScoped<ICurrentEmployee, CurrentEmployee>();
 
+// Audit jurnalining «qaysi amal, qaysi guruh, qayerdan» va «kim» portlari —
+// HTTP so'rovidan (SPEC-rollar-va-audit §7.4). Bitta nusxa ikkala portga:
+// ishga tushishdagi `IAuditScope.Use(...)` bergan nom `IRequestContext` da
+// ko'rinishi kerak.
+builder.Services.AddScoped<HttpRequestContext>();
+builder.Services.AddScoped<IRequestContext>(provider => provider.GetRequiredService<HttpRequestContext>());
+builder.Services.AddScoped<IAuditScope>(provider => provider.GetRequiredService<HttpRequestContext>());
+builder.Services.AddScoped<IAuditActorSource, HttpAuditActorSource>();
+
 // Qurilma qabuli jurnali — Application porti, lekin yozuvga so'rov usuli
 // va yo'li kerak, ya'ni amalga oshirish shu qatlamda (`ICurrentUser` kabi).
 // Singleton: holatsiz, `IHttpContextAccessor` ning o'zi ham singleton, va
@@ -192,6 +201,9 @@ app.UseBonviSecurity();
 
 app.UseExceptionHandler();
 
+// Tokensiz kirish yo'llarida tana 16 KB dan oshmasin (sababi kengaytma izohida).
+app.UseBonviAnonymousBodyLimit();
+
 // So'rov logi. `IncludeQueryInRequestPath` ATAYLAB va OSHKORA `false`:
 // bu Serilog'ning standart qiymati, lekin u shu tizimda maxfiylik talabi —
 // `?search=Karimov&pinfl=...` dagi hamma narsa foydalanuvchi kiritgan
@@ -264,6 +276,11 @@ app.MapUserEndpoints();
 // Rollar muharriri — egasi rollarni o'zi yaratadi va tahrirlaydi
 // («roles.manage»). Foydalanuvchilar yonida: ekranda ham qo'shni.
 app.MapRoleEndpoints();
+
+// Audit jurnali — faqat O'QISH («audit.view» + qator bo'limining ruxsati).
+// Xodim kartasidagi «O'zgarishlar tarixi» marshruti ham shu yerda (o'z guruhida).
+app.MapAuditEndpoints();
+
 app.MapCatalogEndpoints();
 app.MapEmployeeEndpoints();
 app.MapEmploymentEndpoints();

@@ -8,6 +8,7 @@ using Bonvi.Domain.Organization;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Safety;
 using Bonvi.Infrastructure.Persistence;
+using Bonvi.Infrastructure.Persistence.Auditing;
 using Bonvi.Infrastructure.Persistence.Interceptors;
 using Bonvi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -59,29 +60,70 @@ internal sealed class EtlCurrentUser : ICurrentUser
 public sealed class EtlDatabase : IAsyncDisposable
 {
     private readonly AppDbContext? _context;
+
+    /// <summary>
+    /// Audit jurnalining konteksti — bajaruvchi doim «tizim», amal nomi qadam
+    /// nomi (<see cref="UseAuditScope"/>). Ulanishsiz rejimda yo'q.
+    /// </summary>
+    private readonly SystemAuditContext? _audit;
+
     private IDbContextTransaction? _transaction;
 
-    private EtlDatabase(AppDbContext? context) => _context = context;
+    private EtlDatabase(AppDbContext? context, SystemAuditContext? audit)
+    {
+        _context = context;
+        _audit = audit;
+    }
 
     /// <summary>Bazaga ulanganmi.</summary>
     public bool IsConnected => _context is not null;
 
     /// <summary>Ulanishsiz rejim — baza bo'sh deb qaraladi.</summary>
-    public static EtlDatabase Offline() => new(null);
+    public static EtlDatabase Offline() => new(null, null);
 
     /// <summary>PostgreSQL'ga ulanadi.</summary>
+    /// <remarks>
+    /// Interceptorlar Api bilan BIR XIL tartibda: avval audit maydonlari
+    /// (<see cref="AuditableInterceptor"/>), keyin o'zgarishlar jurnali
+    /// (<see cref="AuditTrailInterceptor"/>, SPEC-rollar-va-audit §7.2). Ko'chirilgan
+    /// har bir yozuv jurnalga «tizim, etl:&lt;qadam&gt;» bo'lib tushadi — to'liq
+    /// yugurish ~20 ming qator (§7.8, qabul qilingan).
+    /// </remarks>
     public static EtlDatabase Connect(string connectionString)
     {
+        var clock = new SystemClock();
+        var audit = new SystemAuditContext();
+
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(connectionString)
 
             // Api bilan BIR XIL nomlash qoidasi. Aks holda ETL
             // «employees» o'rniga «Employees» jadvalini qidirardi.
             .UseSnakeCaseNamingConvention()
-            .AddInterceptors(new AuditableInterceptor(new EtlCurrentUser(), new SystemClock()))
+            .AddInterceptors(
+                new AuditableInterceptor(new EtlCurrentUser(), clock),
+                new AuditTrailInterceptor(audit, audit, clock, new PendingAuditEvents()))
             .Options;
 
-        return new EtlDatabase(new AppDbContext(options));
+        return new EtlDatabase(new AppDbContext(options), audit);
+    }
+
+    /// <summary>
+    /// Shu qamrovdagi yozuvlarning audit amali — masalan <c>etl:employees</c>.
+    /// </summary>
+    /// <param name="operation">Amal nomi.</param>
+    /// <returns>Yopilganda oldingi amal tiklanadi; ulanishsiz rejimda hech narsa qilmaydi.</returns>
+    public IDisposable UseAuditScope(string operation)
+        => _audit?.Use(operation) ?? NoAuditScope.Instance;
+
+    /// <summary>Ulanishsiz rejimdagi bo'sh qamrov.</summary>
+    private sealed class NoAuditScope : IDisposable
+    {
+        public static NoAuditScope Instance { get; } = new();
+
+        public void Dispose()
+        {
+        }
     }
 
     /// <summary>Ulanishni tekshiradi va jadvallar mavjudligiga ishonch hosil qiladi.</summary>

@@ -74,5 +74,16 @@ export const ROLE_ACTION_CODES = [
  *
  * `mcp.connect` — AI orqali o'qish (2026-10-01, `docs/SPEC-mcp.md` §1):
  * Claude/ChatGPT faqat o'qiydi va faqat egasining o'z ruxsatlari doirasida.
+ *
+ * `employees.personal.view` — shaxsiy ma'lumotlar (JSHSHIR, pasport, tug'ilgan
+ * sana…, 2026-10-12): server uni «xodimlar» darajasiga emas, qo'shimchalarga
+ * qo'ygan (`PermissionCatalog.Extras`) — «Ko'rish» darajali rolga alohida
+ * beriladi, «O'zgartirish» da esa o'z-o'zidan bor. Ro'yxatda bo'lmasa,
+ * muharrir uni xom kod bilan ko'rsatardi.
  */
-export const ROLE_EXTRA_CODES = ['salary.view', 'salary.extra.view', 'mcp.connect'] as const
+export const ROLE_EXTRA_CODES = [
+  'salary.view',
+  'salary.extra.view',
+  'mcp.connect',
+  'employees.personal.view',
+] as const

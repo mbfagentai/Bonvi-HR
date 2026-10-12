@@ -252,6 +252,8 @@ public sealed partial class EmployeeAppApiTests
                      ("      ", "xodim.parol_bosh"),
                      ("12345", "xodim.parol_qisqa"),
                      (new string('a', EmployeePassword.MaxLength + 1), "xodim.parol_uzun"),
+                     ("123456", "xodim.parol_oddiy"),
+                     ("000000", "xodim.parol_oddiy"),
                  })
         {
             using var rad = await admin.PutAsJsonAsync(yol, new { password = qiymat }, ct);
@@ -292,6 +294,77 @@ public sealed partial class EmployeeAppApiTests
         yangiBilan.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yangiBilan));
     }
 
+    /// <summary>
+    /// Avtomatik parolni HR ko'rmaguncha u bilan KIRIB BO'LMAYDI (hech kim bilmaydigan parolni
+    /// internetdan taxmin qilish ma'nosiz bo'lsin); ko'rgan zahoti ochiladi. «Yangi parol yasash»
+    /// yana yopadi, HR o'zi yozgan parol esa darhol ishlaydi.
+    /// </summary>
+    [Fact]
+    public async Task HR_bermagan_parol_bilan_kirib_bolmaydi_korgach_ochiladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(Belgi());
+        var bolim = new Uri($"/api/employees/{xodim.Id}/app-access", UriKind.Relative);
+
+        async Task<JsonElement> HisobAsync()
+        {
+            using var javob = await admin.GetAsync(bolim, ct);
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+            return (await JsonAsync(javob)).GetProperty("account");
+        }
+
+        // Parolni HR ko'rmasdan — bazadagi shifrlangan nusxadan (hujumchi taxmin qilgan holat).
+        async Task<string> BazadagiParolAsync()
+        {
+            await using var qamrov = _factory.Services.CreateAsyncScope();
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var hisob = await kontekst.EmployeeAccounts.AsNoTracking().SingleAsync(a => a.EmployeeId == xodim.Id, ct);
+            return qamrov.ServiceProvider.GetRequiredService<ISecretProtector>().Unprotect(hisob.PasswordProtected!)!;
+        }
+
+        (await HisobAsync()).GetProperty("passwordHandedOutAt").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        var avtomatik = await BazadagiParolAsync();
+        using (var yopiq = await KirishAsync(xodim.Login, avtomatik))
+        {
+            await XatoKutAsync(yopiq, HttpStatusCode.BadRequest, "xodim.notogri_malumot");
+        }
+
+        // HR ko'rdi — ochildi.
+        (await ParolAsync(admin, xodim.Id)).ShouldBe(avtomatik);
+        (await HisobAsync()).GetProperty("passwordHandedOutAt").ValueKind.ShouldBe(JsonValueKind.String);
+
+        using (var ochiq = await KirishAsync(xodim.Login, avtomatik))
+        {
+            ochiq.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(ochiq));
+        }
+
+        // «Yangi parol yasash» — yana yopiq, toki HR ko'rmaguncha.
+        using (var yasash = await admin.PostAsync(new Uri($"/api/employees/{xodim.Id}/app-access/password/generate", UriKind.Relative), null, ct))
+        {
+            yasash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yasash));
+            (await JsonAsync(yasash)).GetProperty("account").GetProperty("passwordHandedOutAt").ValueKind.ShouldBe(JsonValueKind.Null);
+        }
+
+        var yangi = await BazadagiParolAsync();
+        using (var yopiqYana = await KirishAsync(xodim.Login, yangi))
+        {
+            await XatoKutAsync(yopiqYana, HttpStatusCode.BadRequest, "xodim.notogri_malumot");
+        }
+
+        // HR o'zi yozgan parol — u allaqachon biladi, darhol ishlaydi.
+        using (var qoyish = await admin.PutAsJsonAsync(new Uri($"/api/employees/{xodim.Id}/app-access/password", UriKind.Relative), new { password = "Bahor2026" }, ct))
+        {
+            qoyish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qoyish));
+            (await JsonAsync(qoyish)).GetProperty("account").GetProperty("passwordHandedOutAt").ValueKind.ShouldBe(JsonValueKind.String);
+        }
+
+        using var hrYozgan = await KirishAsync(xodim.Login, "Bahor2026");
+        hrYozgan.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(hrYozgan));
+    }
+
     /// <summary>Shifrlangan nusxa yo'q (eski parol) — ko'rsatib bo'lmaydi, «yangi parol» yechadi.</summary>
     [Fact]
     public async Task Nusxasi_yoq_parol_korinmaydi_va_yangi_parol_yechadi()
@@ -306,7 +379,12 @@ public sealed partial class EmployeeAppApiTests
         {
             var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
             var xesh = qamrov.ServiceProvider.GetRequiredService<IPasswordHasher>().Hash("eski-parol");
-            kontekst.EmployeeAccounts.Add(EmployeeAccount.Issue(xodim.Id, xesh, null, DateTimeOffset.UtcNow).Value);
+            var eskiHisob = EmployeeAccount.Issue(xodim.Id, xesh, null, DateTimeOffset.UtcNow).Value;
+
+            // `XodimParoliBerilgani` migratsiyasi nusxasiz eski parolni «berilgan» deb belgilaydi
+            // (u paytda parolni HR o'zi berardi) — shu holat.
+            eskiHisob.MarkPasswordHandedOut(eskiHisob.PasswordSetAt);
+            kontekst.EmployeeAccounts.Add(eskiHisob);
             await kontekst.SaveChangesAsync(ct);
         }
 

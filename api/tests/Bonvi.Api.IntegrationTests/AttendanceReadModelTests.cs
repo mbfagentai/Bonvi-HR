@@ -1046,6 +1046,52 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>O'tishlar, chetlanishlar va xulosa fayllari ham xuddi shu ikki qoidaga bo'ysunadi.</summary>
+    /// <summary>
+    /// Jadvalsiz kunning avtomatik 22:00 «ketdi»si Excel'da ham ajralib turadi: vaqt SON bo'lib
+    /// qoladi (formulalar buzilmaydi), katakda izoh va kulrang kursiv; haqiqiy chiqishda izoh yo'q.
+    /// </summary>
+    [Fact]
+    public void Excelda_avtomatik_ketdi_vaqti_son_qoladi_va_izohlanadi()
+    {
+        var date = new DateOnly(2026, 8, 3);
+        var arrived = new DateTimeOffset(2026, 8, 3, 4, 0, 0, TimeSpan.Zero);   // Toshkent 09:00
+        var autoExit = AttendanceRules.NoScheduleAutoExitAt(date);
+        var realExit = arrived.AddHours(9);
+
+        TimesheetCellDto Cell(DateOnly day, DateTimeOffset lastOut, bool auto) => new(
+            day, AttendanceDayStatus.NoSchedule, 600, 0, 0, arrived, lastOut, 0, 0, null, null, AutoExit: auto);
+
+        var timesheet = new AttendanceTimesheetDto(
+            2026, 8, [date, date.AddDays(1)],
+            [
+                new TimesheetRowDto(
+                    Guid.NewGuid(), "Karimov Anvar", null, "Sex", "Operator",
+                    [Cell(date, autoExit, auto: true), Cell(date.AddDays(1), realExit.AddDays(1), auto: false)],
+                    new TimesheetTotalsDto(1200, 0, 0, 0, 0, 0)),
+            ],
+            1, 50, 1, 1, null);
+
+        using var workbook = new XLWorkbook(new MemoryStream(new AttendanceExcelWriter().WriteTimesheet(timesheet)));
+        var days = workbook.Worksheet("Kunlar");
+
+        days.Cell(1, 7).GetString().ShouldBe("Oxirgi chiqish");
+
+        // Ma'nosi — sarlavhadagi BITTA izohda (har katakda izoh faylni og'irlashtiradi).
+        days.Cell(1, 7).HasComment.ShouldBeTrue();
+        days.Cell(1, 7).GetComment().Text.ShouldContain("avto");
+
+        var auto = days.Cell(2, 7);
+        auto.DataType.ShouldBe(XLDataType.DateTime);
+        auto.GetDateTime().ShouldBe(new DateTime(2026, 8, 3, 22, 0, 0));
+        auto.HasComment.ShouldBeFalse();
+        auto.Style.Font.Italic.ShouldBeTrue();
+
+        var real = days.Cell(3, 7);
+        real.DataType.ShouldBe(XLDataType.DateTime);
+        real.HasComment.ShouldBeFalse();
+        real.Style.Font.Italic.ShouldBeFalse();
+    }
+
     [Fact]
     public void Otish_chetlanish_va_xulosa_Excel_turlari_togri()
     {

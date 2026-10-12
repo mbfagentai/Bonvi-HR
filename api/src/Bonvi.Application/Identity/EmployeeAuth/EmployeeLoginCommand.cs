@@ -142,7 +142,13 @@ public sealed class EmployeeLoginCommandHandler
 
         var account = await _accounts.FindByLoginAsync(login.Value, cancellationToken).ConfigureAwait(false);
 
-        if (account is null)
+        // HR parolini hali bermagan hisob (avtomatik yasalgan, hech kim ko'rmagan) —
+        // notanish raqam bilan AYNAN bir xil yo'l: soxta xesh, sanoq, umumiy javob.
+        // Shunda «hisob bor, lekin berilmagan» tashqaridan ko'rinmaydi, va hech kim
+        // bilmaydigan parolni taxmin qilishning ma'nosi qolmaydi
+        // (<see cref="EmployeeAccount.PasswordHandedOutAt"/>). HR esa sababni
+        // kartadagi «Ilova» bo'limida ko'radi — jurnal kerak emas.
+        if (account is null || !account.CanSignIn)
         {
             _ = _passwordHasher.Verify(GetDummyHash(), command.Password ?? string.Empty);
 

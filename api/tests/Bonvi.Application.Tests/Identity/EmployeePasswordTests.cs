@@ -65,8 +65,28 @@ public sealed class EmployeePasswordTests
     public void HR_paroli_chetdagi_boshliqlarsiz_saqlanadi()
     {
         EmployeePassword.Validate("  Bahor 2026 ").Value.ShouldBe("Bahor 2026");
-
-        // HR yozgan paroldagi «arzimas» raqamlar — HR ning qarori, rad etilmaydi.
-        EmployeePassword.Validate("123456").IsSuccess.ShouldBeTrue();
     }
+
+    /// <summary>
+    /// HR yozgan arzimas raqamli parol RAD etiladi — ilova internetga ochiq, bunday
+    /// PIN hujumchi birinchi terib ko'radigan qiymat (2026-10-12).
+    /// </summary>
+    [Theory]
+    [InlineData("000000")]
+    [InlineData("123456")]
+    [InlineData("654321")]
+    [InlineData("121212")]
+    [InlineData("123123")]
+    [InlineData(" 777777 ")]
+    public void HR_yozgan_arzimas_parol_rad_etiladi(string parol)
+        => EmployeePassword.Validate(parol).Error.Code.ShouldBe("xodim.parol_oddiy");
+
+    /// <summary>Oddiy bo'lmagan raqamli va harfli parollar o'tadi.</summary>
+    [Theory]
+    [InlineData("777691")]
+    [InlineData("482913")]
+    [InlineData("4829135")]
+    [InlineData("aaaaaa")]
+    public void HR_yozgan_oddiy_bolmagan_parol_qabul_qilinadi(string parol)
+        => EmployeePassword.Validate(parol).IsSuccess.ShouldBeTrue();
 }

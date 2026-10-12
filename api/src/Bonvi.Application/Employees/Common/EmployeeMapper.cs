@@ -27,12 +27,14 @@ public sealed class EmployeeMapper
     private readonly ICurrentUser _currentUser;
     private readonly CatalogNameResolver _names;
     private readonly IClock _clock;
+    private readonly UserNameResolver _userNames;
 
-    public EmployeeMapper(ICurrentUser currentUser, CatalogNameResolver names, IClock clock)
+    public EmployeeMapper(ICurrentUser currentUser, CatalogNameResolver names, IClock clock, UserNameResolver userNames)
     {
         _currentUser = currentUser;
         _names = names;
         _clock = clock;
+        _userNames = userNames;
     }
 
     public static EmployeeDto ToDto(Employee employee)
@@ -245,6 +247,19 @@ public sealed class EmployeeMapper
         return total.IsSuccess ? _currentUser.Mask(total.Value) : null;
     }
 
+    /// <summary>
+    /// Hodisalarning mualliflarini BITTA so'rov bilan oldindan yuklaydi — keyingi
+    /// <see cref="ToDtoAsync(EmploymentEvent, CancellationToken)"/> chaqiruvlari bazaga bormaydi.
+    /// </summary>
+    /// <remarks>Ro'yxat chizadigan joylar (mehnat yo'li, munosabat kartasi) uchun.</remarks>
+    public Task PreloadAuthorsAsync(
+        IEnumerable<EmploymentEvent> events,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        return _userNames.PreloadAsync(events.Select(item => item.RecordedBy), cancellationToken);
+    }
+
     public async Task<EmploymentEventDto> ToDtoAsync(
         EmploymentEvent employmentEvent,
         CancellationToken cancellationToken = default)
@@ -277,7 +292,8 @@ public sealed class EmployeeMapper
             employmentEvent.UpdatedAt,
             employmentEvent.IsImported,
             DateLocked(employmentEvent),
-            employmentEvent.DutyEndDate);
+            employmentEvent.DutyEndDate,
+            await _userNames.NameAsync(employmentEvent.RecordedBy, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>So'rovchi shu yozuvning sanasini tuzata olmaydimi.</summary>

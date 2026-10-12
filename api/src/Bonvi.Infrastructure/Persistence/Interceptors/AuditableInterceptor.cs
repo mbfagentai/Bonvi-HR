@@ -1,6 +1,7 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Employees;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -75,6 +76,22 @@ public sealed class AuditableInterceptor : SaveChangesInterceptor
                 softDeletable.DeletedAt = now;
                 softDeletable.DeletedBy = userId;
                 continue;
+            }
+
+            /*
+              Buyruqni KIM kiritgani (SPEC-rollar-va-audit §7.9). `EmploymentEvent`
+              `IAuditable` emas va domen uni `recordedBy` siz yaratadi — shu sababli
+              ko'chirish, oklad va ishdan bo'shatish muallifi bugungacha noma'lum
+              edi. Faqat YANGI yozuvga va faqat foydalanuvchi bo'lsa: ETL va urug'
+              qatorlari bo'sh qoladi (ularning ma'nosi — «ko'chirilgan»), eskilarini
+              to'ldiradigan manba esa yo'q. Domen maydonni ochiq o'zgartiruvchisiz
+              saqlaydi — qiymat EF orqali qo'yiladi.
+            */
+            if (entry.State == EntityState.Added
+                && entry.Entity is EmploymentEvent { RecordedBy: null }
+                && userId is not null)
+            {
+                entry.Property(nameof(EmploymentEvent.RecordedBy)).CurrentValue = userId;
             }
 
             if (entry.Entity is not IAuditable auditable)

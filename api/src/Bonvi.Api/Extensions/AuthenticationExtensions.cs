@@ -1,10 +1,17 @@
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bonvi.Api.Common;
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Routing.Patterns;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Bonvi.Api.Extensions;
@@ -12,7 +19,7 @@ namespace Bonvi.Api.Extensions;
 /// <summary>
 /// JWT autentifikatsiyasi va ruxsatga asoslangan avtorizatsiya.
 /// </summary>
-public static class AuthenticationExtensions
+public static partial class AuthenticationExtensions
 {
     /// <summary>
     /// JWT tekshiruvini sozlaydi.
@@ -110,6 +117,8 @@ public static class AuthenticationExtensions
 
                     OnForbidden = async context =>
                     {
+                        await RecordPermissionDeniedAsync(context.HttpContext).ConfigureAwait(false);
+
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         context.Response.ContentType = "application/problem+json";
 
@@ -282,6 +291,138 @@ public static class AuthenticationExtensions
 
         context.Principal = new ClaimsPrincipal(identity);
     }
+
+    /// <summary>
+    /// Siyosat rad etgan so'rovni (403) audit jurnaliga yozadi — <c>PermissionDenied</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// «Kimdir oklad o'zgartirishga urindi, ruxsati yo'q edi» — xavfsizlik uchun
+    /// eng muhim izlardan biri (SPEC-rollar-va-audit §7.6). Tafsilotda faqat usul va
+    /// marshrut NAQSHI (<c>/api/employments/{id:guid}/salary</c>) — haqiqiy yo'l
+    /// ham, so'rov satri ham emas: ularda qidiruv matni (ism, JSHSHIR) bo'lishi mumkin.
+    /// </para>
+    /// <para>
+    /// ⚠️ Yozib bo'lmasa (baza nosoz) — log, va 403 javobi O'ZGARMAYDI. Audit hech
+    /// qachon ruxsat qarorini buzmasligi kerak. Saqlash so'rov bekor qilinishiga
+    /// bog'lanmagan: mijoz uzilsa ham urinish izi qolsin.
+    /// </para>
+    /// <para>
+    /// Faqat siyosat rad etganda chaqiriladi: ishlovchining o'z 403 lari
+    /// (<c>foydalanuvchi.rolga_haqqi_yoq</c> kabi) bu yerdan o'tmaydi — ular
+    /// ruxsat emas, biznes qoidasi.
+    /// </para>
+    /// </remarks>
+    private static async Task RecordPermissionDeniedAsync(HttpContext http)
+    {
+        var services = http.RequestServices;
+
+        try
+        {
+            var method = http.Request.Method;
+            var path = RouteTemplate(http.GetEndpoint());
+
+            if (!FirstDenialInWindow(services.GetRequiredService<IMemoryCache>(), http.User, method, path))
+            {
+                return;
+            }
+
+            var detail = JsonSerializer.Serialize(new PermissionDeniedDetail(method, path));
+
+            services.GetRequiredService<IAuditLogger>()
+                .Record(AuditAction.PermissionDenied, "Endpoint", entityId: null, newValues: detail);
+
+            await services.GetRequiredService<IUnitOfWork>()
+                .SaveChangesAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            LogPermissionDeniedNotRecorded(
+                services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(AuthenticationExtensions)),
+                error);
+        }
+    }
+
+    /// <summary>
+    /// Bir xil rad etilish (bitta hisob, usul va marshrut) <see cref="PermissionDeniedWindow"/>
+    /// ichida faqat BIR MARTA yoziladi.
+    /// </summary>
+    /// <remarks>
+    /// Sahifa ruxsati yo'q so'rovni har 30 soniyada qayta yuborsa (yangilanadigan panel),
+    /// har urinish alohida qator bo'lib jurnalni shishirib yuborardi — 3 HR, kun bo'yi,
+    /// minglab bir xil qator. Birinchisi yoziladi, bu esa «kim, nimaga, qachon urindi»
+    /// savoliga javob beradi. Kesh jarayon xotirasida: qayta ishga tushganda yana
+    /// bittadan yoziladi — bu zararsiz.
+    /// </remarks>
+    private static bool FirstDenialInWindow(IMemoryCache cache, ClaimsPrincipal user, string method, string? path)
+    {
+        var who = user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? user.FindFirstValue("sub")
+            ?? "anonymous";
+        var key = $"audit:denied:{who}:{method}:{path}";
+
+        if (cache.TryGetValue(key, out _))
+        {
+            return false;
+        }
+
+        cache.Set(key, true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = PermissionDeniedWindow,
+            Size = 1,
+        });
+
+        return true;
+    }
+
+    /// <summary>Bir xil rad etilish qayta yozilmaydigan oyna.</summary>
+    private static readonly TimeSpan PermissionDeniedWindow = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Marshrut naqshi — <c>/api/employments/{id:guid}/salary</c> (qiymatlarsiz, so'rov satrisiz).
+    /// </summary>
+    /// <remarks>
+    /// <c>RawText</c> bo'sh bo'lsa — naqsh bo'laklaridan yig'iladi.
+    /// </remarks>
+    private static string? RouteTemplate(Endpoint? endpoint)
+    {
+        if (endpoint is not RouteEndpoint route)
+        {
+            return null;
+        }
+
+        var pattern = route.RoutePattern;
+
+        var template = string.IsNullOrEmpty(pattern.RawText)
+            ? string.Join('/', pattern.PathSegments.Select(segment => string.Concat(segment.Parts.Select(TemplatePart))))
+            : pattern.RawText;
+
+        // Guruh + "/" → "/api/users/": oxirgi chiziq ma'no bermaydi, faqat qidiruvni chalkashtiradi.
+        return "/" + template.Trim('/');
+    }
+
+    private static string TemplatePart(RoutePatternPart part) => part switch
+    {
+        RoutePatternLiteralPart literal => literal.Content,
+        RoutePatternSeparatorPart separator => separator.Content,
+        RoutePatternParameterPart parameter =>
+            "{" + (parameter.IsCatchAll ? "*" : string.Empty) + parameter.Name
+            + string.Concat(parameter.ParameterPolicies.Select(policy => ":" + policy.Content))
+            + (parameter.IsOptional ? "?" : string.Empty) + "}",
+        _ => string.Empty,
+    };
+
+    [LoggerMessage(
+        EventId = 1100,
+        Level = LogLevel.Error,
+        Message = "Ruxsat rad etilishi audit jurnaliga yozilmadi (403 javobi o'zgarmadi)")]
+    private static partial void LogPermissionDeniedNotRecorded(ILogger logger, Exception error);
+
+    /// <summary>Rad etilgan so'rovning tafsiloti — usul va marshrut naqshi.</summary>
+    private sealed record PermissionDeniedDetail(
+        [property: JsonPropertyName("method")] string Method,
+        [property: JsonPropertyName("path")] string? Path);
 
     /// <summary>
     /// Har bir ruxsat uchun avtorizatsiya siyosatini yaratadi.

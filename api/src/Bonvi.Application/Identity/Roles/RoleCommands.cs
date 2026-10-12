@@ -1,8 +1,6 @@
-using System.Text.Json;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Common;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 
@@ -43,20 +41,17 @@ public sealed class CreateRoleCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateRoleCommandHandler(
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
     }
 
@@ -115,14 +110,8 @@ public sealed class CreateRoleCommandHandler
             return granted.Error;
         }
 
+        // Jurnal yozuvini `AuditTrailInterceptor` qo'yadi: kod, nom va ruxsatlar.
         _roles.Add(role);
-
-        _auditLogger.Record(
-            AuditAction.Create,
-            nameof(Role),
-            role.Id.ToString(),
-            oldValues: null,
-            newValues: JsonSerializer.Serialize(RoleEditorRules.Snapshot(role)));
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -163,20 +152,17 @@ public sealed class UpdateRoleCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateRoleCommandHandler(
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
     }
 
@@ -244,8 +230,6 @@ public sealed class UpdateRoleCommandHandler
             return nameFree.Error;
         }
 
-        var oldSnapshot = JsonSerializer.Serialize(RoleEditorRules.Snapshot(role));
-
         // Ikkala chaqiruv ham yuqorida tekshirilgan qiymatni oladi — bu
         // yerda rad etilishi dastur xatosi bo'lardi (himoyalangan rol esa
         // allaqachon qaytarilgan).
@@ -261,13 +245,8 @@ public sealed class UpdateRoleCommandHandler
             return replaced.Error;
         }
 
-        _auditLogger.Record(
-            AuditAction.Update,
-            nameof(Role),
-            role.Id.ToString(),
-            oldValues: oldSnapshot,
-            newValues: JsonSerializer.Serialize(RoleEditorRules.Snapshot(role)));
-
+        // Jurnal yozuvini `AuditTrailInterceptor` qo'yadi — o'zgargan nom va/yoki
+        // ruxsatlar ro'yxati, eski → yangi.
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var users = await _users.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -288,8 +267,8 @@ public sealed class UpdateRoleCommandHandler
 /// <para>
 /// O'chirish yumshoq emas, haqiqiy: rol jadvalida o'chirilganlik belgisi
 /// yo'q va uni qo'shish sxema o'zgarishini talab qilardi. Audit yozuvida
-/// rolning kodi, nomi va ruxsatlari saqlanib qoladi — «kim, qaysi rolni
-/// o'chirdi» degan savolga javob yo'qolmaydi.
+/// (<c>AuditTrailInterceptor</c>) rolning kodi, nomi va ruxsatlari saqlanib
+/// qoladi — «kim, qaysi rolni o'chirdi» degan savolga javob yo'qolmaydi.
 /// </para>
 /// </remarks>
 public sealed class DeleteRoleCommandHandler
@@ -297,20 +276,17 @@ public sealed class DeleteRoleCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
 
     public DeleteRoleCommandHandler(
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
     }
 
@@ -360,13 +336,6 @@ public sealed class DeleteRoleCommandHandler
         {
             return RoleErrors.InUse(holders);
         }
-
-        _auditLogger.Record(
-            AuditAction.Delete,
-            nameof(Role),
-            role.Id.ToString(),
-            oldValues: JsonSerializer.Serialize(RoleEditorRules.Snapshot(role)),
-            newValues: null);
 
         _roles.Remove(role);
 

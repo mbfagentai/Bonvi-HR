@@ -70,7 +70,10 @@ public static class AttendanceAgentEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var group = app.MapGroup("/api/attendance/agent").WithTags("Attendance");
+        // Qurilma belgisi — audit bajaruvchisi «Device» bo'lsin (`DeviceEndpointMetadata`).
+        var group = app.MapGroup("/api/attendance/agent")
+            .WithTags("Attendance")
+            .WithMetadata(DeviceEndpointMetadata.Instance);
 
         group.MapGet("/roster", async (
                 [FromHeader(Name = TokenHeader)] string? token,

@@ -74,6 +74,7 @@ public static class EmployeeAuthEndpoints
                 return natija.ToHttpResult();
             })
             .AllowAnonymous()
+            .RequirePasswordHashingQueue(PasswordHashingLane.Employee)
             .WithName("EmployeeLogin")
             .WithSummary("Xodim ilovasi — kirish")
             .WithDescription(

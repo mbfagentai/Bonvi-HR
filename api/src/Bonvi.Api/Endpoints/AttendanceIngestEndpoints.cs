@@ -1,4 +1,5 @@
 using System.Buffers;
+using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Attendance.Ingest;
 using Bonvi.Domain.Attendance;
@@ -64,7 +65,10 @@ public static class AttendanceIngestEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var group = app.MapGroup("/api/attendance/ingest").WithTags("Attendance");
+        // Qurilma belgisi — audit bajaruvchisi «Device» bo'lsin (`DeviceEndpointMetadata`).
+        var group = app.MapGroup("/api/attendance/ingest")
+            .WithTags("Attendance")
+            .WithMetadata(DeviceEndpointMetadata.Instance);
 
         group.MapPost("/{token}", (
                 string token,

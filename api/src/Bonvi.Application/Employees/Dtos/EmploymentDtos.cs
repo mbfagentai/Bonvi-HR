@@ -67,6 +67,12 @@ public sealed record EmploymentDutyDto(
 /// <c>salary.view</c> siz summa yashirilgan bo'ladi. Yangi ma'lumot
 /// sizmaydi: server baribir o'sha so'rovni 403 bilan rad etardi.
 /// </para>
+/// <para>
+/// <c>RecordedByName</c> — buyruqni tizimga KIM kiritgani (SPEC-rollar-va-audit §7.9):
+/// foydalanuvchining F.I.Sh., ishdan ketgan yoki faolsizlantirilgan bo'lsa ham.
+/// Excel'dan ko'chirilgan, tizim yozgan va 2026-10-12 dan oldingi hodisalarda <c>null</c>
+/// — muallif ilgari umuman yozilmagan va uni tiklab bo'lmaydi.
+/// </para>
 /// </remarks>
 public sealed record EmploymentEventDto(
     Guid Id,
@@ -90,7 +96,8 @@ public sealed record EmploymentEventDto(
     DateTimeOffset? UpdatedAt,
     bool IsImported,
     bool DateLocked,
-    DateOnly? DutyEndDate);
+    DateOnly? DutyEndDate,
+    string? RecordedByName);
 
 /// <summary>
 /// Timeline'ning bitta elementi: hodisa + u qaysi firmadagi ishga tegishli.

@@ -1095,7 +1095,7 @@ flow:
 | Event | Where | Actor | Detail |
 |---|---|---|---|
 | `Login` | `LoginCommandHandler`, success | the user | — |
-| `LoginFailed` | every early return of the handler: unknown login (actor `Anonymous`, `user_login` = the typed login, normalised when parseable, else first 32 chars), wrong password, locked, inactive | the user when known | `{"reason":"credentials"|"locked"|"inactive"}` |
+| `LoginFailed` | every early return of the handler: unknown login (actor `Anonymous`, `user_login` = the normalised phone number; an unparseable login is NOT stored — it may be a password typed into the wrong field), wrong password, locked, inactive | the user when known | `{"reason":"credentials"|"format"|"locked"|"inactive"}` |
 | `Logout` | `LogoutCommandHandler` | token's user | `{"allSessions":true/false}` |
 | `TokenReuse` | `RefreshSessionCommandHandler`, reuse branch | token's user | — |
 | `PermissionDenied` | `JwtBearerEvents.OnForbidden` (policy 403s only): resolve `IAuditLogger` and `IUnitOfWork` from `RequestServices`, record, save, then write the existing 403 body; a failure to save is logged and never changes the 403 | principal | `{"method":"POST","path":"/api/employments/{id:guid}/salary"}` — the route **pattern**, never the query string |

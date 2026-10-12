@@ -1,10 +1,8 @@
-using System.Text.Json;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Application.Identity.Users.Dtos;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -63,20 +61,17 @@ public sealed class UpdateUserCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateUserCommandHandler(
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
     }
 
@@ -171,8 +166,6 @@ public sealed class UpdateUserCommandHandler
             }
         }
 
-        var oldSnapshot = SnapshotJson(target, roles);
-
         // ---------- O'z rolini o'zgartirishdan himoya (domen) ----------
         // Rolni almashtirish ism/telefondan OLDIN: bu yerda rad etilsa,
         // hisobga hech qanday o'zgarish tegmagan bo'lishi kerak.
@@ -182,29 +175,13 @@ public sealed class UpdateUserCommandHandler
             return changed.Error;
         }
 
+        // Jurnal yozuvini `AuditTrailInterceptor` qo'yadi — faqat haqiqatan
+        // o'zgargan maydonlar (rol, ism, telefon), eski → yangi.
         target.Rename(nameResult.Value);
         target.ChangeLogin(loginResult.Value);
-
-        _auditLogger.Record(
-            AuditAction.Update,
-            "User",
-            target.Id.ToString(),
-            oldValues: oldSnapshot,
-            newValues: SnapshotJson(target, roles));
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return UserSummaryDtoFactory.Create(target, roles);
-    }
-
-    /// <summary>Audit uchun holat nusxasi — parolsiz, faqat ko'rinadigan maydonlar.</summary>
-    private static string SnapshotJson(User user, IReadOnlyList<Role> roles)
-    {
-        return JsonSerializer.Serialize(new
-        {
-            login = user.Login.Value,
-            fullName = user.FullName.Full,
-            role = UserRoleRules.CodeOf(user, roles) ?? user.RoleId?.ToString(),
-        });
     }
 }

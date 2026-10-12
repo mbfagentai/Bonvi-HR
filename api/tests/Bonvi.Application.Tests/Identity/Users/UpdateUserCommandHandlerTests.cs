@@ -19,7 +19,6 @@ public sealed class UpdateUserCommandHandlerTests
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IRoleRepository _roles = Substitute.For<IRoleRepository>();
-    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private readonly Role _superAdminRole =
@@ -31,7 +30,7 @@ public sealed class UpdateUserCommandHandlerTests
     private readonly Role _hrRole =
         TestRoles.Standart(SystemRoles.HrManager);
 
-    private UpdateUserCommandHandler Handler => new(_currentUser, _users, _roles, _auditLogger, _unitOfWork);
+    private UpdateUserCommandHandler Handler => new(_currentUser, _users, _roles, _unitOfWork);
 
     public UpdateUserCommandHandlerTests()
         => _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([_superAdminRole, _mainBossRole, _hrRole]);

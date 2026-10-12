@@ -505,6 +505,9 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
+      # So'rovlar jurnali (IP, vaqt, yo'l; sirlar yashirilgan) — `web/Caddyfile` izohi.
+      # Xostda `LOG_DIR/caddy`, 30 kun; konteyner qayta yaratilsa ham saqlanadi.
+      - ${LOG_DIR:-./logs}/caddy:/var/log/caddy
     depends_on: [api]
     # `isup` — Caddy yuz rasmi havolalarini (`/isup-face/*`) shlyuzga uzatadi.
     networks: [bonvi, isup]

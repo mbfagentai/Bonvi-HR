@@ -158,6 +158,43 @@ public sealed class RateLimitingOptions
     public RateLimitWindow Ingest { get; set; } = new() { PermitLimit = 300, WindowSeconds = 60 };
 
     /// <summary>
+    /// Xodim kirishining parol tekshiruvi navbati — IP'dan qat'i nazar, HR nikidan ALOHIDA.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ 2026-10-12, xodim ilovasi internetga ochilgach (2026-09-30 xavfsizlik
+    /// ko'rigining bandi). Har bir kirish urinishi PBKDF2 bilan protsessorni
+    /// o'nlab millisekund to'liq band qiladi. IP bo'yicha oynalar ko'p manzildan
+    /// kelgan oqimni to'xtatmaydi: 2 GB / 2 yadroli serverda yuzlab parallel urinish
+    /// API'ni HR uchun ham sekinlatardi.
+    /// </para>
+    /// <para>
+    /// Bir vaqtda ko'pi bilan <c>PermitLimit</c> ta kirish ishlanadi, <c>QueueLimit</c>
+    /// tasi navbatda kutadi (eng eskisi birinchi), qolgani darhol 429 oladi —
+    /// server esa ishlashda davom etadi. Oddiy kunda (smena boshida o'nlab xodim)
+    /// navbat bir soniyadan kam.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Global zanjirda EMAS, endpoint filtrida</b>
+    /// (<see cref="RateLimitingExtensions.RequirePasswordHashingQueue{TBuilder}"/>).
+    /// Zanjirda turganda navbat band bo'lsa, middleware avval «urinib ko'rish», keyin
+    /// «kutish» bilan chaqiradi va oldingi bo'g'in (IP oynasi) ruxsatni IKKI marta
+    /// yeydi — oynali ruxsatlar qaytarilmaydi. Natijada zavod IP'sining chegarasi
+    /// yarimga tushardi.
+    /// </para>
+    /// </remarks>
+    public RateLimitConcurrency PasswordHashing { get; set; } = new() { PermitLimit = 2, QueueLimit = 20 };
+
+    /// <summary>
+    /// HR kirishining parol tekshiruvi navbati — xodimnikidan ALOHIDA.
+    /// </summary>
+    /// <remarks>
+    /// Internetga ochiq xodim kirishiga tarqoq hujum xodim navbatini to'ldirsa ham, HR
+    /// tizimga kira oladi. HR kirishi kamdan-kam — bitta ish joyi va kichik navbat yetarli.
+    /// </remarks>
+    public RateLimitConcurrency PasswordHashingHr { get; set; } = new() { PermitLimit = 1, QueueLimit = 5 };
+
+    /// <summary>
     /// Qat'iy kirish cheklovi avtomatik qo'llanadigan yo'llar.
     /// </summary>
     /// <remarks>
@@ -211,6 +248,16 @@ public sealed class RateLimitingOptions
     /// </para>
     /// </remarks>
     public IList<string> ExcludedPaths { get; } = ["/health", "/api/attendance/ingest", "/api/attendance/agent", "/mcp"];
+}
+
+/// <summary>Bir vaqtdagi so'rovlar soni va navbat — oynasiz cheklov sozlamalari.</summary>
+public sealed class RateLimitConcurrency
+{
+    /// <summary>Bir vaqtda ishlanadigan so'rovlar soni.</summary>
+    public int PermitLimit { get; set; } = 2;
+
+    /// <summary>Navbatda kutishi mumkin bo'lgan so'rovlar soni; undan ortig'i darhol 429.</summary>
+    public int QueueLimit { get; set; } = 20;
 }
 
 /// <summary>Bitta oyna cheklovining sozlamalari.</summary>
@@ -270,6 +317,8 @@ public static class RateLimitingExtensions
             {
                 // Zanjir: birinchi bo'g'in kirish yo'llarini qo'riqlaydi,
                 // ikkinchisi qolgan hamma so'rovni. Ikkalasi ham hisoblanadi.
+                // Parol tekshiruvi navbati bu yerda EMAS (sababi
+                // `RateLimitingOptions.PasswordHashing` izohida).
                 options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
                     KirishQoriqchisi(sozlama),
                     UmumiyQoriqchi(sozlama));
@@ -340,6 +389,13 @@ public static class RateLimitingExtensions
         // (`RequireRefreshTokenRateLimiting`). Global cheklovdan farqli
         // o'laroq har doim yoqiq: u IP ni emas, bitta tokenni to'sadi, ya'ni
         // testlar bitta «IP» dan kelishi unga xalaqit bermaydi.
+        // Parol tekshiruvi navbatlari — global cheklov bilan birga yoqiladi/o'chadi
+        // (Testing muhitida o'chiq; testlar o'z sozlamasi bilan yoqadi).
+        services.AddSingleton(new PasswordHashingLanes(
+            globalYoqilgan,
+            Navbat(sozlama.PasswordHashing),
+            Navbat(sozlama.PasswordHashingHr)));
+
         services.AddSingleton(new RefreshTokenRateLimiter(
             PartitionedRateLimiter.Create<string, string>(kalit =>
                 RateLimitPartition.GetFixedWindowLimiter(kalit, _ => QatiyOyna(sozlama.RefreshToken)))));
@@ -400,6 +456,64 @@ public static class RateLimitingExtensions
 
         return TypedResults.Problem(RadEtishJavobi(httpContext, kutish));
     }
+
+    /// <summary>
+    /// Kirish endpointini parol tekshiruvi navbatiga qo'yadi — bir vaqtda ishlanadigan
+    /// tekshiruvlar soni chegaralanadi (<see cref="RateLimitingOptions.PasswordHashing"/>).
+    /// </summary>
+    /// <remarks>
+    /// Navbat egasi ishlovchi tugaguncha ruxsatni ushlab turadi; navbat to'lsa — darhol 429
+    /// (global cheklov bilan bir xil javob). Tana allaqachon bog'langan (16 KB chegarasi bilan),
+    /// ya'ni kutishda faqat kichik so'rovlar turadi.
+    /// </remarks>
+    /// <typeparam name="TBuilder">Endpoint quruvchisi.</typeparam>
+    /// <param name="builder">Endpoint.</param>
+    /// <param name="queue">Qaysi navbat — HR yoki xodim.</param>
+    public static TBuilder RequirePasswordHashingQueue<TBuilder>(this TBuilder builder, PasswordHashingLane queue)
+        where TBuilder : IEndpointConventionBuilder
+        => builder.AddEndpointFilter((context, next) => NavbatBilanAsync(context, next, queue));
+
+    private static async ValueTask<object?> NavbatBilanAsync(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next,
+        PasswordHashingLane queue)
+    {
+        var httpContext = context.HttpContext;
+        var navbatlar = httpContext.RequestServices.GetRequiredService<PasswordHashingLanes>();
+
+        if (!navbatlar.Enabled)
+        {
+            return await next(context).ConfigureAwait(false);
+        }
+
+        using var lease = await navbatlar.For(queue)
+            .AcquireAsync(1, httpContext.RequestAborted)
+            .ConfigureAwait(false);
+
+        if (lease.IsAcquired)
+        {
+            return await next(context).ConfigureAwait(false);
+        }
+
+        // Navbat to'lgan — bir necha soniyadan keyin bo'shaydi.
+        var kutish = TimeSpan.FromSeconds(5);
+        httpContext.Response.Headers.RetryAfter = kutish.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture);
+
+        TezlikLoglari.CheklovOshdi(
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Bonvi.Api.RateLimiting"),
+            httpContext.Request.Method,
+            httpContext.Request.Path.Value ?? "/",
+            Manba(httpContext));
+
+        return TypedResults.Problem(RadEtishJavobi(httpContext, kutish));
+    }
+
+    private static ConcurrencyLimiter Navbat(RateLimitConcurrency sozlama) => new(new ConcurrencyLimiterOptions
+    {
+        PermitLimit = sozlama.PermitLimit,
+        QueueLimit = sozlama.QueueLimit,
+        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+    });
 
     // ────────────────────────────────────────────────────────────
     //  Bo'linmalar (partition)
@@ -602,6 +716,27 @@ public interface IRefreshTokenBody
 {
     /// <summary>Mijoz yuborgan yangilash tokeni.</summary>
     string? RefreshToken { get; }
+}
+
+/// <summary>Parol tekshiruvi navbatlaridan qaysi biri.</summary>
+public enum PasswordHashingLane
+{
+    /// <summary>Xodim ilovasiga kirish.</summary>
+    Employee = 1,
+
+    /// <summary>HR tizimiga kirish.</summary>
+    Hr = 2,
+}
+
+/// <summary>Parol tekshiruvi navbatlari — bitta nusxa (singleton).</summary>
+/// <param name="Enabled">O'chiq bo'lsa filtr hech narsani kutdirmaydi (Testing).</param>
+/// <param name="Employee">Xodim kirishi navbati.</param>
+/// <param name="Hr">HR kirishi navbati.</param>
+public sealed record PasswordHashingLanes(bool Enabled, ConcurrencyLimiter Employee, ConcurrencyLimiter Hr)
+{
+    /// <summary>Navbatni tanlaydi.</summary>
+    /// <param name="queue">Qaysi navbat.</param>
+    public ConcurrencyLimiter For(PasswordHashingLane queue) => queue == PasswordHashingLane.Hr ? Hr : Employee;
 }
 
 /// <summary>Token xeshi bo'yicha bo'lingan cheklovchi — bitta nusxa (singleton).</summary>

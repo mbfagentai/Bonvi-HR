@@ -40,7 +40,7 @@ public static class PermissionCatalog
     public static IReadOnlyList<PermissionModule> Modules { get; } =
     [
         Module(
-            "employees",
+            AccessModuleKeys.Employees,
             view: [Permissions.EmployeesView],
             edit: [Permissions.EmployeesCreate, Permissions.EmployeesEdit],
             full: [Permissions.EmployeesDelete]),
@@ -49,33 +49,33 @@ public static class PermissionCatalog
         // bor: egasi har bir buyruq turini alohida beradi (sabab
         // `Permissions.EmploymentActions` izohida).
         Module(
-            "employment",
+            AccessModuleKeys.Employment,
             view: [Permissions.EmploymentView],
             actions: Permissions.EmploymentActions),
 
-        Module("lists", view: [Permissions.ListsView], edit: [Permissions.ListsManage]),
-        Module("incentives", view: [Permissions.IncentivesView], edit: [Permissions.IncentivesManage]),
-        Module("feedback", view: [Permissions.FeedbackView], edit: [Permissions.FeedbackManage]),
-        Module("safety", view: [Permissions.SafetyView], edit: [Permissions.SafetyManage]),
-        Module("recruiting", view: [Permissions.RecruitingView], edit: [Permissions.RecruitingManage]),
+        Module(AccessModuleKeys.Lists, view: [Permissions.ListsView], edit: [Permissions.ListsManage]),
+        Module(AccessModuleKeys.Incentives, view: [Permissions.IncentivesView], edit: [Permissions.IncentivesManage]),
+        Module(AccessModuleKeys.Feedback, view: [Permissions.FeedbackView], edit: [Permissions.FeedbackManage]),
+        Module(AccessModuleKeys.Safety, view: [Permissions.SafetyView], edit: [Permissions.SafetyManage]),
+        Module(AccessModuleKeys.Recruiting, view: [Permissions.RecruitingView], edit: [Permissions.RecruitingManage]),
 
         // Davomat (verifikatsiya) — SPEC-rollar-va-audit §14.2: «o'zgartirish» —
         // yo'qlik so'rovlari bo'yicha qaror; «to'liq» — qurilma, jadval va moslik
         // (tabelning MA'NOSINI o'zgartiradigan sozlash).
         Module(
-            "attendance",
+            AccessModuleKeys.Attendance,
             view: [Permissions.AttendanceView],
             edit: [Permissions.AttendanceRequestsManage],
             full: [Permissions.AttendanceManage]),
-        Module("catalog", view: [Permissions.CatalogView], edit: [Permissions.CatalogManage]),
+        Module(AccessModuleKeys.Catalog, view: [Permissions.CatalogView], edit: [Permissions.CatalogManage]),
 
         // Hisobotda «o'zgartirish» yo'q: ko'rish yoki ko'rish + Excel eksporti.
-        Module("reports", view: [Permissions.ReportsView], full: [Permissions.ReportsExport]),
+        Module(AccessModuleKeys.Reports, view: [Permissions.ReportsView], full: [Permissions.ReportsExport]),
 
-        Module("users", full: [Permissions.UsersManage]),
-        Module("roles", full: [Permissions.RolesManage]),
-        Module("audit", view: [Permissions.AuditView]),
-        Module("settings", full: [Permissions.SettingsManage]),
+        Module(AccessModuleKeys.Users, full: [Permissions.UsersManage]),
+        Module(AccessModuleKeys.Roles, full: [Permissions.RolesManage]),
+        Module(AccessModuleKeys.Audit, view: [Permissions.AuditView]),
+        Module(AccessModuleKeys.Settings, full: [Permissions.SettingsManage]),
     ];
 
     /// <summary>
@@ -88,10 +88,14 @@ public static class PermissionCatalog
     /// — xuddi shunday, qo'shimcha vazifa haqi uchun (2026-09-27).
     /// <see cref="Permissions.McpConnect"/> — AI orqali o'qish (2026-10-01):
     /// u bironta bo'limni ochmaydi, faqat «egasining o'z ruxsatlari bilan AI
-    /// ulay oladi» degan bayroq.
+    /// ulay oladi» degan bayroq. <see cref="Permissions.EmployeesPersonalView"/> — shaxsiy
+    /// ma'lumot (2026-10-12): xodim kartasidagi maydonlar, lekin «xodimlar» bo'limining
+    /// darajasi EMAS — «ko'rish» darajali rolga alohida beriladi, «o'zgartirish» da esa
+    /// o'z-o'zidan bor (sababi konstanta izohida). Darajaga qo'shilsa, bugungi «HR menejeri»
+    /// (u ruxsatsiz saqlangan) muharrirda «o'zgartirish» emas, chala holatda ko'rinardi.
     /// </remarks>
     public static IReadOnlyList<string> Extras { get; } =
-        [Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect];
+        [Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect, Permissions.EmployeesPersonalView];
 
     /// <summary>
     /// Bo'lim yig'uvchisi: har bir daraja faqat O'ZI QO'SHADIGAN kodlarni

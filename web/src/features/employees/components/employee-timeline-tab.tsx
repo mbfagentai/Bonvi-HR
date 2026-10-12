@@ -1,6 +1,9 @@
+import { Link } from '@tanstack/react-router'
 import { ArrowRight, CircleStop, FileClock, History, Import, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { AUDIT_VIEW } from '@/features/audit/lib/audit-keys'
+import { tashkentDateOf } from '@/features/audit/lib/audit-search'
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -173,6 +176,7 @@ function TimelineRow({
   const { t, date, dateTime, money } = useLocale()
   const { hasPermission } = useAuth()
   const canSeeSalary = hasPermission(SALARY_VIEW)
+  const canSeeAudit = hasPermission(AUDIT_VIEW)
   // Qo'shimcha haq — oklad ustiga qo'shiladigan pul: ikkala ruxsat ham kerak
   const canSeeExtra = canSeeSalary && hasPermission(SALARY_EXTRA_VIEW)
 
@@ -331,8 +335,28 @@ function TimelineRow({
             {event.updatedAt !== null && (
               <span className={cn(event.recordedByName !== null && 'ml-1')}>
                 {event.recordedByName !== null && '· '}
-                {t('employees.eventEdited')} · {dateTime(event.updatedAt)}
+                {t('employees.correctedAt', { date: dateTime(event.updatedAt) })}
               </span>
+            )}
+
+            {/*
+              Nima tuzatilgani — audit jurnalida, shu yozuvning o'zi bilan
+              (SPEC §9.6): tuzatish eski qiymat ustidan yozadi va oldingi
+              qiymat faqat jurnalda qoladi. Davr yozuv kiritilgan kundan:
+              jurnalning standart «oxirgi 30 kun»i eski tuzatishni yashirardi.
+            */}
+            {event.updatedAt !== null && canSeeAudit && (
+              <Link
+                to="/audit"
+                search={{
+                  entity: 'EmploymentEvent',
+                  entityId: event.id,
+                  from: tashkentDateOf(event.recordedAt ?? event.updatedAt) ?? undefined,
+                }}
+                className="ml-2 font-medium text-[var(--accent-text)] underline-offset-2 hover:underline"
+              >
+                {t('employees.showCorrections')}
+              </Link>
             )}
           </p>
         )}

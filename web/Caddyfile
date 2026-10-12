@@ -66,6 +66,53 @@
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
+	# ──────────────────────────────────────────────────────────
+	#  So'rovlar jurnali — kim (IP), qachon, qaysi yo'l (2026-10-12)
+	#
+	#  NEGA: konsol logi konteyner qayta yaratilganda (har deploy) yo'qoladi
+	#  va «bu o'zgarish qaysi IP'dan kelgan?» degan savolga javob qolmaydi
+	#  (12-oktabr okladi — IP faqat kirish seanslaridan bilvosita topildi).
+	#  Fayl xostda (`LOG_DIR/caddy`), 30 kun, 20 MB'dan bo'linadi.
+	#
+	#  SIR VA SHAXSIY MA'LUMOT JURNALGA TUSHMAYDI:
+	#  * yo'l ichidagi qurilma tokeni (`/api/attendance/ingest/<token>`) va
+	#    bir martalik rasm tokeni (`/isup-face/<token>`) → `***`;
+	#  * so'rov satri (`?search=<ism|JSHSHIR>`, `?q=`) butunlay olib tashlanadi —
+	#    API'ning Serilog jurnali bilan bir xil qoida (`Program.cs`);
+	#  * `Authorization`, `Cookie`, tashqi API kaliti (`X-Api-Key`), qurilma
+	#    agentining tokeni, imzosi va seriyasi (`X-Bonvi-*`), `Referer` (unda
+	#    sahifa manzili qidiruv matni bilan) o'chiriladi; javob sarlavhalari
+	#    umuman yozilmaydi (OAuth `Location` ichidagi bir martalik kod ham).
+	#  So'rov TANASI Caddy jurnaliga hech qachon yozilmaydi.
+	#
+	#  ⚠️ `request>uri` uchun filtr BITTA bo'lishi shart: bir maydonga ikki
+	#  qator yozilsa, ikkinchisi birinchisini jimgina bekor qiladi (filtrlar
+	#  maydon nomi bo'yicha lug'atda). Shu sababli hammasi `multi_regexp` da.
+	# ──────────────────────────────────────────────────────────
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 20MiB
+			roll_keep 30
+			roll_keep_for 720h
+		}
+		format filter {
+			request>uri multi_regexp {
+				regexp ^/api/attendance/ingest/[^/?]+ /api/attendance/ingest/***
+				regexp ^/isup-face/[^/?]+ /isup-face/***
+				regexp \?.*$ ""
+			}
+			request>headers>Authorization delete
+			request>headers>Cookie delete
+			request>headers>X-Api-Key delete
+			request>headers>X-Bonvi-Device-Token delete
+			request>headers>X-Bonvi-Signature delete
+			request>headers>X-Bonvi-Terminal-Serial delete
+			request>headers>Referer delete
+			resp_headers delete
+			wrap json
+		}
+	}
+
 	# API — backend konteyneriga
 	handle /api/* {
 		reverse_proxy api:8080

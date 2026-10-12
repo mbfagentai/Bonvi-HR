@@ -192,17 +192,4 @@ internal static class RoleEditorRules
             [.. role.Permissions.Order(StringComparer.Ordinal)],
             users.Count(user => user.RoleIds.Contains(role.Id)));
     }
-
-    /// <summary>Audit uchun holat nusxasi: kod, nom va ruxsatlar (alifbo tartibida).</summary>
-    public static object Snapshot(Role role)
-    {
-        ArgumentNullException.ThrowIfNull(role);
-
-        return new
-        {
-            code = role.Code,
-            name = role.Name,
-            permissions = role.Permissions.Order(StringComparer.Ordinal).ToArray(),
-        };
-    }
 }

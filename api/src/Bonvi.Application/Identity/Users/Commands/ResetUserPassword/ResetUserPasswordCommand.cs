@@ -4,7 +4,6 @@ using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Application.Identity.Users.Commands.ResetUserPassword;
@@ -50,7 +49,6 @@ public sealed class ResetUserPasswordCommandHandler
     private readonly IRoleRepository _roles;
     private readonly IRefreshTokenRepository _refreshTokens;
     private readonly IPasswordHasher _hasher;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMcpGrantRevoker _mcpGrants;
     private readonly IClock _clock;
@@ -61,7 +59,6 @@ public sealed class ResetUserPasswordCommandHandler
         IRoleRepository roles,
         IRefreshTokenRepository refreshTokens,
         IPasswordHasher hasher,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork,
         IMcpGrantRevoker mcpGrants,
         IClock clock)
@@ -71,7 +68,6 @@ public sealed class ResetUserPasswordCommandHandler
         _roles = roles;
         _refreshTokens = refreshTokens;
         _hasher = hasher;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
         _mcpGrants = mcpGrants;
         _clock = clock;
@@ -122,13 +118,8 @@ public sealed class ResetUserPasswordCommandHandler
             .RevokeAllForUserAsync(target.Id, "system:password-reset", cancellationToken)
             .ConfigureAwait(false);
 
-        // Parol yoki uning xeshi audit yozuviga HECH QACHON tushmaydi — faqat fakt qayd etiladi
-        _auditLogger.Record(
-            AuditAction.Update,
-            "User",
-            target.Id.ToString(),
-            newValues: "{\"action\":\"password_reset\"}");
-
+        // Jurnal yozuvini `AuditTrailInterceptor` qo'yadi: `PasswordHash` maydoni
+        // «***» bo'lib, amal nomi `ResetUserPassword` — parol ham, xeshi ham emas.
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success();

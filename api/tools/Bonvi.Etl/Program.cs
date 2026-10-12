@@ -205,6 +205,9 @@ static async Task ExecuteAsync(
 
     var summary = workspace.Report.Step(name);
 
+    // Qadamning audit qatorlari «etl:<qadam>» amali va o'z guruhi bilan yoziladi.
+    using var auditScope = workspace.Database.UseAuditScope("etl:" + name);
+
     try
     {
         await workspace.Database.BeginStepAsync(workspace.Options.Apply, cancellationToken).ConfigureAwait(false);

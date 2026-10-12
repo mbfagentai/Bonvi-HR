@@ -1157,9 +1157,35 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("action");
 
+                    b.Property<int>("ActorKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("actor_kind");
+
+                    b.Property<string>("ActorName")
+                        .HasColumnType("text")
+                        .HasColumnName("actor_name");
+
+                    b.Property<string>("ActorRole")
+                        .HasColumnType("text")
+                        .HasColumnName("actor_role");
+
+                    b.PrimitiveCollection<string[]>("ChangedFields")
+                        .HasColumnType("text[]")
+                        .HasColumnName("changed_fields");
+
+                    b.Property<Guid?>("CorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correlation_id");
+
                     b.Property<string>("EntityId")
                         .HasColumnType("text")
                         .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("entity_label");
 
                     b.Property<string>("EntityName")
                         .IsRequired()
@@ -1182,6 +1208,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("old_values");
 
+                    b.Property<string>("Operation")
+                        .HasColumnType("text")
+                        .HasColumnName("operation");
+
+                    b.Property<Guid?>("SubjectEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("subject_employee_id");
+
                     b.Property<string>("UserAgent")
                         .HasColumnType("text")
                         .HasColumnName("user_agent");
@@ -1197,6 +1231,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_audit_logs");
 
+                    b.HasIndex("CorrelationId")
+                        .HasDatabaseName("ix_audit_logs_correlation_id")
+                        .HasFilter("correlation_id IS NOT NULL");
+
                     b.HasIndex("OccurredAt")
                         .IsDescending()
                         .HasDatabaseName("ix_audit_logs_occurred_at");
@@ -1206,6 +1244,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EntityName", "EntityId")
                         .HasDatabaseName("ix_audit_logs_entity_name_entity_id");
+
+                    b.HasIndex("SubjectEmployeeId", "OccurredAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_audit_logs_subject_employee_id_occurred_at")
+                        .HasFilter("subject_employee_id IS NOT NULL");
 
                     b.ToTable("audit_logs", (string)null);
                 });
@@ -2480,6 +2523,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at");
+
+                    b.Property<DateTimeOffset?>("PasswordHandedOutAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("password_handed_out_at");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()

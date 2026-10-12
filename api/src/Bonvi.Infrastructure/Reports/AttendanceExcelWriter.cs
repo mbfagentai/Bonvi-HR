@@ -267,7 +267,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
                 sheet.Cell(excelRow, column++).Value = cell.Date.ToDateTime(TimeOnly.MinValue);
                 sheet.Cell(excelRow, column++).Value = StatusLabel(cell.Status);
                 SetInstant(sheet.Cell(excelRow, column++), cell.FirstInAt);
-                SetInstant(sheet.Cell(excelRow, column++), cell.LastOutAt);
+                SetExit(sheet.Cell(excelRow, column++), cell.LastOutAt, cell.AutoExit);
                 SetDuration(sheet, excelRow, ref column, cell.WorkedMinutes);
                 SetDuration(sheet, excelRow, ref column, cell.LateMinutes);
                 SetDuration(sheet, excelRow, ref column, cell.EarlyLeaveMinutes);
@@ -281,6 +281,9 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         FormatColumn(sheet, 4, excelRow - 1, DateFormat);
         FormatColumn(sheet, 6, excelRow - 1, DateTimeFormat);
         FormatColumn(sheet, 7, excelRow - 1, DateTimeFormat);
+
+        // «avto» ning ma'nosi — ustun sarlavhasida BITTA izoh (har katakda emas, `SetExit`).
+        sheet.Cell(1, 7).CreateComment().AddText(AutoExitNote);
 
         Finish(sheet);
     }
@@ -506,6 +509,28 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
             cell.Value = value.ToTashkent().DateTime;
         }
     }
+
+    /// <summary>Oxirgi chiqish; avtomatik «ketdi» bo'lsa — kulrang kursiv.</summary>
+    /// <remarks>
+    /// Jadvalsiz kunda terminaldan o'tmay ketgan odam 22:00 da yopiladi
+    /// (<see cref="AttendanceRules.NoScheduleAutoExitTime"/>). Vaqt katakda SON bo'lib qoladi
+    /// (Excel formulalari buzilmasin) — «avto» belgisi matn emas, uslub. Ma'nosi ustun
+    /// sarlavhasidagi bitta izohda: har katakka izoh — har biri alohida shakl — grafigi
+    /// yo'q yuzlab xodimning oyida faylni og'irlashtirib, ochilishini sekinlatardi.
+    /// </remarks>
+    private static void SetExit(IXLCell cell, DateTimeOffset? instant, bool auto)
+    {
+        SetInstant(cell, instant);
+
+        if (auto && instant is not null)
+        {
+            cell.Style.Font.Italic = true;
+            cell.Style.Font.FontColor = XLColor.Gray;
+        }
+    }
+
+    private const string AutoExitNote =
+        "Kulrang kursiv vaqt — avto: terminaldan chiqish yozilmagan, grafiksiz kun 22:00 da avtomatik yopildi";
 
     private static void WriteHeaders(IXLWorksheet sheet, string[] headers)
     {

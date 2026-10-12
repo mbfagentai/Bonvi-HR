@@ -111,10 +111,25 @@ internal sealed class EmployeeTestContext
 
     public ICurrentUser CurrentUser { get; } = Substitute.For<ICurrentUser>();
 
+    /// <summary>
+    /// Buyruq mualliflarining ismlari. Sukut bo'yicha bo'sh lug'at — NSubstitute `Task` ichidagi
+    /// lug'atni o'zi to'qib bermaydi va mehnat yo'lini chizadigan har test NRE bilan yiqilardi.
+    /// </summary>
+    public IUserNameLookup UserNameLookup { get; } = CreateUserNameLookup();
+
     public CatalogNameResolver Names => new(
         Departments, Positions, LegalEntities, TerminationReasons, AwardTypes, PenaltyTypes, DocumentTypes);
 
-    public EmployeeMapper Mapper => new(CurrentUser, Names, Clock);
+    public EmployeeMapper Mapper => new(CurrentUser, Names, Clock, new UserNameResolver(UserNameLookup));
+
+    private static IUserNameLookup CreateUserNameLookup()
+    {
+        var lookup = Substitute.For<IUserNameLookup>();
+        lookup
+            .GetNamesAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, string>());
+        return lookup;
+    }
 
     public EmployeeFlagGuard FlagGuard => new(Flags, Clock);
 

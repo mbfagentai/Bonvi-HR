@@ -114,7 +114,8 @@ public sealed class EmployeeAppAccessBuilder
                 account.Id,
                 account.PasswordSetAt,
                 Reveal(account) is not null,
-                account.LastLoginAt));
+                account.LastLoginAt,
+                account.PasswordHandedOutAt));
     }
 
     /// <summary>Saqlangan parolni ochadi; ocha olmasa <c>null</c>.</summary>
@@ -176,6 +177,12 @@ public sealed class GetEmployeeAppAccessQueryHandler
 /// ⭐ Har bir ko'rish AUDITGA yoziladi («kim, qachon, kimning parolini
 /// ko'rdi») — parolning o'zi hech qachon.
 /// </para>
+/// <para>
+/// ⭐ Birinchi ko'rish hisobni OCHADI (<see cref="EmployeeAccount.MarkPasswordHandedOut"/>):
+/// HR parolni bilib oldi, demak uni xodimga bera oladi. Ungacha avtomatik
+/// yasalgan parol bilan kirib bo'lmaydi — hech kim bilmaydigan parolni
+/// internetdan taxmin qilishning ma'nosi qolmasin.
+/// </para>
 /// </remarks>
 public sealed class RevealEmployeePasswordQueryHandler
 {
@@ -184,19 +191,22 @@ public sealed class RevealEmployeePasswordQueryHandler
     private readonly EmployeeAppAccessBuilder _builder;
     private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IClock _clock;
 
     public RevealEmployeePasswordQueryHandler(
         IEmployeeRepository employees,
         EmployeeAccountProvisioner provisioner,
         EmployeeAppAccessBuilder builder,
         IAuditLogger auditLogger,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IClock clock)
     {
         _employees = employees;
         _provisioner = provisioner;
         _builder = builder;
         _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
+        _clock = clock;
     }
 
     public async Task<Result<EmployeePasswordDto>> HandleAsync(
@@ -217,6 +227,8 @@ public sealed class RevealEmployeePasswordQueryHandler
         {
             return EmployeeAccountErrors.PasswordUnavailable;
         }
+
+        account.MarkPasswordHandedOut(_clock.UtcNow);
 
         _auditLogger.Record(
             AuditAction.Export,

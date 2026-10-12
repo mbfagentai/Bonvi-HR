@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Domain.Abstractions;
@@ -206,9 +207,20 @@ public sealed partial class DatabaseInitializer : IHostedService
             }
         }
 
+        /*
+          Har bir urug' o'z audit amali bilan o'raladi (SPEC-rollar-va-audit §7.4):
+          yozgan qatorlari «tizim, startup:<nom>» bo'lib jurnalga tushadi.
+          Odatiy (ikkinchi va keyingi) ishga tushishda urug'lar hech narsa
+          yozmaydi — ya'ni jurnalga ham hech narsa qo'shilmaydi.
+        */
+        var auditScope = provider.GetRequiredService<IAuditScope>();
+
         // ---------- Rollar ----------
-        var seeder = provider.GetRequiredService<IdentitySeeder>();
-        await seeder.SeedAsync(cancellationToken).ConfigureAwait(false);
+        using (auditScope.Use("startup:identity-seed"))
+        {
+            await provider.GetRequiredService<IdentitySeeder>().SeedAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         LogRolesSeeded();
 
         // ---------- Ma'lumotnomalar ----------
@@ -220,29 +232,49 @@ public sealed partial class DatabaseInitializer : IHostedService
         // kerak). Shu sababli har ishga tushishda chaqirish xavfsiz, lekin
         // «yetishmayotgani qo'shiladi» degani emas — bo'lim ro'yxatiga keyin
         // qo'lda bitta qator qo'shilsa ham, seeder uni endi to'ldirmaydi.
-        var catalog = await provider.GetRequiredService<CatalogSeeder>()
-            .SeedAsync(cancellationToken)
-            .ConfigureAwait(false);
+        CatalogSeedResult catalog;
+
+        using (auditScope.Use("startup:catalog-seed"))
+        {
+            catalog = await provider.GetRequiredService<CatalogSeeder>()
+                .SeedAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         LogCatalogSeeded(catalog.Created, catalog.Skipped, catalog.MissingFiles);
 
         // ---------- «Umumiy anketa» vakansiyasi ----------
-        await SeedGeneralPoolVacancyAsync(provider, cancellationToken).ConfigureAwait(false);
+        using (auditScope.Use("startup:general-pool"))
+        {
+            await SeedGeneralPoolVacancyAsync(provider, cancellationToken).ConfigureAwait(false);
+        }
 
         // Ma'lumotnomalardan KEYIN: ko'chirish «Номзодлик ҳужжатлари»
         // turini nomi bo'yicha qidiradi va u yuqorida urug'lanadi.
-        await HandOverCandidateBelongingsAsync(provider, cancellationToken).ConfigureAwait(false);
+        using (auditScope.Use("startup:candidate-handover"))
+        {
+            await HandOverCandidateBelongingsAsync(provider, cancellationToken).ConfigureAwait(false);
+        }
 
         // ---------- Birinchi administrator ----------
-        await CreateFirstAdminAsync(provider, options, cancellationToken).ConfigureAwait(false);
+        using (auditScope.Use("startup:first-admin"))
+        {
+            await CreateFirstAdminAsync(provider, options, cancellationToken).ConfigureAwait(false);
+        }
 
         // ---------- Telegram bot hisobi ----------
-        await CreateBotUserAsync(provider, options, cancellationToken).ConfigureAwait(false);
+        using (auditScope.Use("startup:bot-user"))
+        {
+            await CreateBotUserAsync(provider, options, cancellationToken).ConfigureAwait(false);
+        }
 
         // ---------- Sinov hisoblari (faqat Development) ----------
         if (options.CreateDevUsers && _environment.IsDevelopment())
         {
-            await CreateDevUsersAsync(provider, options, cancellationToken).ConfigureAwait(false);
+            using (auditScope.Use("startup:dev-users"))
+            {
+                await CreateDevUsersAsync(provider, options, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /*

@@ -2,6 +2,7 @@ using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Employees;
 
 namespace Bonvi.Application.Employees.Queries;
 
@@ -50,16 +51,26 @@ public sealed class GetEmployeeTimelineQueryHandler
             .GetByEmployeeAsync(employee.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        var items = new List<(DateOnly Effective, DateTimeOffset Recorded, TimelineItemDto Item)>();
+        var loaded = new List<Employment>(employments.Count);
 
         foreach (var summary in employments)
         {
             // Hodisalar bilan qayta yuklanadi: `GetByEmployeeAsync` munosabatning
             // o'zini beradi, hodisalar esa alohida agregat to'plami.
-            var employment = await _employments
+            loaded.Add(await _employments
                 .GetWithEventsAsync(summary.Id, cancellationToken)
-                .ConfigureAwait(false) ?? summary;
+                .ConfigureAwait(false) ?? summary);
+        }
 
+        // Buyruq mualliflari (§7.9) — barcha munosabatlar uchun bitta so'rov.
+        await _mapper
+            .PreloadAuthorsAsync(loaded.SelectMany(employment => employment.Events), cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = new List<(DateOnly Effective, DateTimeOffset Recorded, TimelineItemDto Item)>();
+
+        foreach (var employment in loaded)
+        {
             var legalEntity = await _names
                 .LegalEntityAsync(employment.LegalEntityId, cancellationToken)
                 .ConfigureAwait(false);

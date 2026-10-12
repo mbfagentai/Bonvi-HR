@@ -1,6 +1,8 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.Commands.Login;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
 using NSubstitute;
@@ -24,10 +26,11 @@ public sealed class LoginCommandHandlerTests
     private readonly IRefreshTokenRepository _refreshTokens = Substitute.For<IRefreshTokenRepository>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
     private readonly ITokenService _tokens = Substitute.For<ITokenService>();
+    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IClock _clock = Substitute.For<IClock>();
 
-    private LoginCommandHandler Handler => new(_users, _refreshTokens, _hasher, _tokens, _unitOfWork, _clock);
+    private LoginCommandHandler Handler => new(_users, _refreshTokens, _hasher, _tokens, _auditLogger, _unitOfWork, _clock);
 
     public LoginCommandHandlerTests()
     {
@@ -219,5 +222,110 @@ public sealed class LoginCommandHandlerTests
 
         natija.IsSuccess.ShouldBeTrue();
         user.PasswordHash.ShouldBe("yangi_kuchli_xesh");
+    }
+
+    // ────────── Audit jurnali (SPEC-rollar-va-audit §7.6) ──────────
+
+    [Fact]
+    public async Task Muvaffaqiyatli_kirish_Login_hodisasini_yozadi()
+    {
+        var user = FaolFoydalanuvchi();
+        _users.GetByLoginAsync(Arg.Any<PhoneNumber>(), Arg.Any<CancellationToken>()).Returns(user);
+        _hasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns((true, false));
+
+        await Handler.HandleAsync(new LoginCommand("905088888", "parol", null), TestContext.Current.CancellationToken);
+
+        _auditLogger.Received(1).RecordSecurityEvent(AuditAction.Login, user.Id, "+998905088888", null);
+    }
+
+    /// <summary>
+    /// Bot har 15 daqiqada qayta kiradi — muvaffaqiyatli kirishi jurnalni to'ldirmasin.
+    /// </summary>
+    [Fact]
+    public async Task Bot_hisobining_muvaffaqiyatli_kirishi_yozilmaydi()
+    {
+        var user = FaolFoydalanuvchi();
+        _users.GetByLoginAsync(Arg.Any<PhoneNumber>(), Arg.Any<CancellationToken>()).Returns(user);
+        _users.GetRoleCodesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>([SystemRoles.RecruitingBot]));
+        _hasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns((true, false));
+
+        var natija = await Handler.HandleAsync(new LoginCommand("905088888", "parol", null), TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue();
+        _auditLogger.DidNotReceiveWithAnyArgs().RecordSecurityEvent(default, default, default, default);
+    }
+
+    [Fact]
+    public async Task Bot_hisobining_xato_paroli_yoziladi()
+    {
+        var user = FaolFoydalanuvchi();
+        _users.GetByLoginAsync(Arg.Any<PhoneNumber>(), Arg.Any<CancellationToken>()).Returns(user);
+        _users.GetRoleCodesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>([SystemRoles.RecruitingBot]));
+        _hasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns((false, false));
+
+        await Handler.HandleAsync(new LoginCommand("905088888", "notogri", null), TestContext.Current.CancellationToken);
+
+        _auditLogger.Received(1).RecordSecurityEvent(
+            AuditAction.LoginFailed, user.Id, "+998905088888", """{"reason":"credentials"}""");
+    }
+
+    [Fact]
+    public async Task Notanish_login_anonim_LoginFailed_va_kiritilgan_loginni_yozadi()
+    {
+        _users.GetByLoginAsync(Arg.Any<PhoneNumber>(), Arg.Any<CancellationToken>()).Returns((User?)null);
+        _hasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns((false, false));
+
+        await Handler.HandleAsync(new LoginCommand("905011111", "parol", null), TestContext.Current.CancellationToken);
+
+        _auditLogger.Received(1).RecordSecurityEvent(
+            AuditAction.LoginFailed, null, "+998905011111", """{"reason":"credentials"}""");
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Raqamga aylanmagan login — matni jurnalga umuman yozilmaydi (parol adashib yozilgan bo'lishi mumkin).</summary>
+    [Fact]
+    public async Task Raqam_bolmagan_login_matni_jurnalga_yozilmaydi()
+    {
+        const string adashibYozilganParol = "MeningMaxfiyParolim2026";
+
+        await Handler.HandleAsync(new LoginCommand(adashibYozilganParol, "parol", null), TestContext.Current.CancellationToken);
+
+        _auditLogger.Received(1).RecordSecurityEvent(
+            AuditAction.LoginFailed, null, null, """{"reason":"format"}""");
+        _auditLogger.DidNotReceive().RecordSecurityEvent(
+            Arg.Any<AuditAction>(), Arg.Any<Guid?>(), Arg.Is<string?>(login => login != null), Arg.Any<string?>());
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Bloklangan_hisob_locked_sababi_bilan_yoziladi()
+    {
+        var user = FaolFoydalanuvchi();
+        for (var i = 0; i < 5; i++)
+        {
+            user.RecordFailedLogin(Now);
+        }
+
+        _users.GetByLoginAsync(Arg.Any<PhoneNumber>(), Arg.Any<CancellationToken>()).Returns(user);
+
+        await Handler.HandleAsync(new LoginCommand("905088888", "parol", null), TestContext.Current.CancellationToken);
+
+        _auditLogger.Received(1).RecordSecurityEvent(
+            AuditAction.LoginFailed, user.Id, "+998905088888", """{"reason":"locked"}""");
+    }
+
+    [Fact]
+    public async Task Faolsiz_hisob_inactive_sababi_bilan_yoziladi()
+    {
+        var user = FaolFoydalanuvchi();
+        user.Deactivate();
+        _users.GetByLoginAsync(Arg.Any<PhoneNumber>(), Arg.Any<CancellationToken>()).Returns(user);
+
+        await Handler.HandleAsync(new LoginCommand("905088888", "parol", null), TestContext.Current.CancellationToken);
+
+        _auditLogger.Received(1).RecordSecurityEvent(
+            AuditAction.LoginFailed, user.Id, "+998905088888", """{"reason":"inactive"}""");
     }
 }

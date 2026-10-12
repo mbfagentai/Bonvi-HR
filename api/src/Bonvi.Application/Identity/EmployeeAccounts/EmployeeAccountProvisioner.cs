@@ -159,18 +159,24 @@ public sealed class EmployeeAccountProvisioningJob
     /// </remarks>
     private static readonly SemaphoreSlim SingleRun = new(1, 1);
 
+    /// <summary>Audit jurnalidagi amal nomi — vazifa identifikatori bilan bir xil.</summary>
+    public const string AuditOperation = "job:employee-app:provision-accounts";
+
     private readonly IEmployeeAccountRepository _accounts;
     private readonly EmployeeAccountProvisioner _provisioner;
     private readonly IEmployeeAuthJournal _journal;
+    private readonly IAuditScope _auditScope;
 
     public EmployeeAccountProvisioningJob(
         IEmployeeAccountRepository accounts,
         EmployeeAccountProvisioner provisioner,
-        IEmployeeAuthJournal journal)
+        IEmployeeAuthJournal journal,
+        IAuditScope auditScope)
     {
         _accounts = accounts;
         _provisioner = provisioner;
         _journal = journal;
+        _auditScope = auditScope;
     }
 
     /// <summary>Hisobi yo'q xodimlarning hammasiga hisob ochadi.</summary>
@@ -182,6 +188,11 @@ public sealed class EmployeeAccountProvisioningJob
 
         try
         {
+            // Ochilgan hisoblarning audit qatorlari «tizim, shu vazifa» bo'lib
+            // yoziladi. Bo'sh yurish (hisobi yo'q xodim qolmagan) hech narsa
+            // saqlamaydi, ya'ni jurnalga ham hech narsa tushmaydi.
+            using var scope = _auditScope.Use(AuditOperation);
+
             return await ProvisionAsync(cancellationToken).ConfigureAwait(false);
         }
         finally

@@ -59,6 +59,8 @@ public sealed class GetEmploymentQueryHandler
 
         var events = new List<EmploymentEventDto>(employment.Events.Count);
 
+        await _mapper.PreloadAuthorsAsync(employment.Events, cancellationToken).ConfigureAwait(false);
+
         // Xronologik tartib: bitta munosabat kartasida buyruqlar «boshidan
         // oxirigacha» o'qiladi. Umumiy lenta (timeline) esa teskari tartibda.
         foreach (var employmentEvent in employment.Events

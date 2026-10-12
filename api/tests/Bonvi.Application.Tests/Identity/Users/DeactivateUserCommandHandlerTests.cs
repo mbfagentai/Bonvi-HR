@@ -17,7 +17,6 @@ public sealed class DeactivateUserCommandHandlerTests
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IRoleRepository _roles = Substitute.For<IRoleRepository>();
-    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IMcpGrantRevoker _mcpGrants = Substitute.For<IMcpGrantRevoker>();
 
@@ -30,7 +29,7 @@ public sealed class DeactivateUserCommandHandlerTests
     private readonly Role _hrRole =
         TestRoles.Standart(SystemRoles.HrManager);
 
-    private DeactivateUserCommandHandler Handler => new(_currentUser, _users, _roles, _auditLogger, _unitOfWork, _mcpGrants);
+    private DeactivateUserCommandHandler Handler => new(_currentUser, _users, _roles, _unitOfWork, _mcpGrants);
 
     public DeactivateUserCommandHandlerTests()
         => _roles.GetAllAsync(Arg.Any<CancellationToken>()).Returns([_superAdminRole, _mainBossRole, _hrRole]);

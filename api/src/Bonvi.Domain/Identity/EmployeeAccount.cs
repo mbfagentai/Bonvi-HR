@@ -117,6 +117,30 @@ public sealed class EmployeeAccount : AggregateRoot, IAuditable
     /// </remarks>
     public DateTimeOffset PasswordSetAt { get; private set; }
 
+    /// <summary>
+    /// Joriy parolni HR birinchi marta QACHON bilib oldi — ko'rdi yoki o'zi yozdi.
+    /// <c>null</c> — parolni hech kim bilmaydi va hisob bilan KIRIB BO'LMAYDI.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega kerak</b> (2026-10-12, ilova internetga ochilgach; 2026-09-30
+    /// xavfsizlik ko'rigining bandi «HR bermagan hisob kira olmasin»). Hisob har
+    /// bir xodimga AVTOMATIK ochiladi va 6 xonali parol oladi — ~2000 hisob.
+    /// Ularning ko'pchiligining parolini hech kim bilmaydi: xodim ilovadan
+    /// foydalanmaydi, HR esa parolni unga aytmagan. Lekin hammasi internetdan
+    /// taxmin qilishga ochiq edi: ko'p raqamga bir vaqtda urinish millionlik
+    /// PIN fazosini tez qisqartiradi. Endi faqat HR haqiqatan bergan (ko'rgan
+    /// yoki o'zi yozgan) parol ishlaydi — hujum yuzasi ilovani ishlatayotgan
+    /// odamlar soniga tushadi.
+    /// </para>
+    /// <para>
+    /// Avtomatik yasalgan parol (<see cref="Issue"/>, HR «Yangi parol yasash»)
+    /// bu belgini TOZALAYDI: yangi parolni hali hech kim bilmaydi — HR uni
+    /// ko'rgan lahzada (<see cref="MarkPasswordHandedOut"/>) kirish ochiladi.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? PasswordHandedOutAt { get; private set; }
+
     /// <summary><c>null</c> — hech qachon kirmagan. Parol almashsa ham TOZALANMAYDI.</summary>
     public DateTimeOffset? LastLoginAt { get; private set; }
 
@@ -159,7 +183,12 @@ public sealed class EmployeeAccount : AggregateRoot, IAuditable
     /// <param name="passwordHash">Yangi xesh.</param>
     /// <param name="passwordProtected">Yangi parolning shifrlangan nusxasi.</param>
     /// <param name="at">Lahza.</param>
-    public void SetPassword(string passwordHash, string passwordProtected, DateTimeOffset at)
+    /// <param name="knownToHr">
+    /// HR parolni o'zi yozdimi (<c>true</c> — u allaqachon biladi, kirish darhol
+    /// ochiq) yoki u avtomatik yasaldimi (<c>false</c> — HR ko'rmaguncha yopiq,
+    /// <see cref="PasswordHandedOutAt"/>).
+    /// </param>
+    public void SetPassword(string passwordHash, string passwordProtected, DateTimeOffset at, bool knownToHr)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordProtected);
@@ -167,7 +196,21 @@ public sealed class EmployeeAccount : AggregateRoot, IAuditable
         PasswordHash = passwordHash;
         PasswordProtected = passwordProtected;
         PasswordSetAt = at;
+        PasswordHandedOutAt = knownToHr ? at : null;
     }
+
+    /// <summary>
+    /// HR joriy parolni ko'rdi — endi uni xodimga aytishi mumkin, kirish ochiladi.
+    /// </summary>
+    /// <remarks>
+    /// Faqat BIRINCHI marta yoziladi: keyingi ko'rishlar «qachondan beri ishlaydi»
+    /// degan javobni o'zgartirmaydi (har bir ko'rish baribir auditda).
+    /// </remarks>
+    /// <param name="at">Lahza.</param>
+    public void MarkPasswordHandedOut(DateTimeOffset at) => PasswordHandedOutAt ??= at;
+
+    /// <summary>Joriy parol bilan kirish mumkinmi — HR uni bilib olganmi.</summary>
+    public bool CanSignIn => PasswordHandedOutAt is not null;
 
     /// <summary>
     /// Xeshni yangi algoritm parametrlari bilan qayta yozadi — parolning O'ZI o'zgarmaydi.

@@ -2,6 +2,7 @@ using System.Reflection;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Abstractions;
+using Bonvi.Application.Audit;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
@@ -13,6 +14,7 @@ using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using Bonvi.Infrastructure.Identity;
+using Bonvi.Infrastructure.Persistence.Auditing;
 using Bonvi.Infrastructure.Persistence.ReadModels;
 using Bonvi.Infrastructure.Persistence.Seed;
 using Bonvi.Infrastructure.Reports;
@@ -51,9 +53,14 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
 
-        // Audit jurnali — barcha bo'limlar uchun umumiy, shu sababli
-        // bironta modulga tegishli emas, shu yerda ro'yxatga olinadi.
+        // Audit jurnalining HODISA yo'li (kirish, eksport, ruxsat rad etilishi) —
+        // barcha bo'limlar uchun umumiy, shu sababli shu yerda. Entity
+        // o'zgarishlarini `AuditTrailInterceptor` o'zi yozadi (`AddPersistence`).
         services.AddScoped<IAuditLogger, AuditLogger>();
+        services.AddSingleton<LoginFailureWindow>();
+
+        // Jurnalni O'QISH (A2) — har bir bo'limning tarixi, so'rovchining ruxsatiga qarab.
+        services.AddScoped<IAuditReadModel, AuditReadModel>();
 
         services.AddIdentityServices(configuration);
         services.AddCatalogServices();
@@ -393,6 +400,20 @@ public static class DependencyInjection
         services.AddScoped<AuditableInterceptor>();
 
         /*
+          O'zgarishlar jurnali (SPEC-rollar-va-audit §7). Interceptor `Scoped` —
+          bajaruvchi keshi so'rov bilan yashaydi. Navbat (`PendingAuditEvents`)
+          `IAuditLogger` va interceptor o'rtasida UMUMIY bo'lishi shart: ikkalasi
+          bitta qamrovdan olinadi, ya'ni kirish yoki eksport hodisasi o'sha so'rovning
+          saqlashida yoziladi.
+
+          ⚠️ `IRequestContext`, `IAuditScope` va `IAuditActorSource` bu yerda
+          RO'YXATGA OLINMAYDI — ular xostga bog'liq (HTTP so'rovi yoki tizim) va
+          `ICurrentUser` kabi Api'da ulanadi (`Program.cs`).
+        */
+        services.AddScoped<PendingAuditEvents>();
+        services.AddScoped<AuditTrailInterceptor>();
+
+        /*
           «Ma'lumot o'zgardi» signali — SINGLETON va boshqacha bo'lishi
           mumkin emas: uni bir tomondan so'rovlar uyg'otadi, ikkinchi
           tomondan soatlab ochiq turgan `stream` kutadi. Har so'rovda
@@ -422,6 +443,10 @@ public static class DependencyInjection
                 .UseSnakeCaseNamingConvention()
                 .AddInterceptors(
                     provider.GetRequiredService<AuditableInterceptor>(),
+
+                    // `AuditableInterceptor` dan KEYIN: yumshoq o'chirish allaqachon
+                    // `DeletedAt` ga aylangan va `UpdatedAt` qo'yilgan bo'lishi kerak.
+                    provider.GetRequiredService<AuditTrailInterceptor>(),
                     provider.GetRequiredService<DataChangeInterceptor>(),
 
                     // Oxirida: yumshoq o'chirishni `AuditableInterceptor`
@@ -499,6 +524,9 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddSingleton<AccessVersion>();
         services.AddScoped<IUserAccessReader, UserAccessReader>();
+
+        // «Kim kiritdi» ismlari (buyruq muallifi) — o'chirilgan hisoblar ham.
+        services.AddScoped<IUserNameLookup, UserNameLookup>();
 
         // Xodim ilovasining hisoblari va tokenlari
         services.AddScoped<IEmployeeAccountRepository, EmployeeAccountRepository>();

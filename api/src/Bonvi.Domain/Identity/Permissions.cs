@@ -22,6 +22,25 @@ public static class Permissions
     public const string EmployeesEdit = "employees.edit";
     public const string EmployeesDelete = "employees.delete";
 
+    /// <summary>
+    /// Xodimning SHAXSIY ma'lumotini ko'rish: tug'ilgan sana, JSHSHIR, pasport, ikkinchi
+    /// telefon, manzil, sudlanganlik va mehnat.uz havolasi; hujjatlar, qobiliyatlar va
+    /// tekshiruv materiallari (SPEC-rollar-va-audit §3.4, §3.10).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>«Ko'rish» darajasida alohida belgilanadi, «O'zgartirish» da esa O'Z-O'ZIDAN bor</b>
+    /// (<c>PersonalDataAccess</c>): kartani tahrirlagan odam JSHSHIR va pasportni qayta
+    /// yozadi — ularni ko'rmasa, bo'sh qiymat yuborib o'chirib yuborardi. Ya'ni shaxsiy
+    /// ma'lumotsiz rol — faqat ko'radigan rol (masalan kelajakdagi davomat xodimi).
+    /// </para>
+    /// <para>
+    /// 2026-10-12 dan audit jurnali shu bo'yicha yashiradi (A2). Xodim kartasi, ro'yxat va
+    /// eksportdagi yashirish — keyingi bosqich (P1); u ham AYNAN shu qoidani ishlatadi.
+    /// </para>
+    /// </remarks>
+    public const string EmployeesPersonalView = "employees.personal.view";
+
     // ---------- Mehnat munosabatlari va buyruqlar ----------
     public const string EmploymentView = "employment.view";
 
@@ -348,7 +367,7 @@ public static class Permissions
     /// <summary>Barcha ruxsatlar — tekshirish va seed uchun.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
-        EmployeesView, EmployeesCreate, EmployeesEdit, EmployeesDelete,
+        EmployeesView, EmployeesCreate, EmployeesEdit, EmployeesDelete, EmployeesPersonalView,
         EmploymentView,
         EmploymentHire, EmploymentTransfer, EmploymentDuty, EmploymentSalary,
         EmploymentTerminate, EmploymentProbationExtend, EmploymentProbationComplete, EmploymentCorrect,

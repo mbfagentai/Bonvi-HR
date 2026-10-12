@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { EmployeeHistoryTab } from '@/features/audit/components/employee-history-tab'
+import { AUDIT_VIEW } from '@/features/audit/lib/audit-keys'
 import { useAuth } from '@/features/auth'
 
 import {
@@ -95,6 +97,7 @@ const TABS = [
   'incentives',
   'flags',
   'attendance',
+  'history',
 ] as const
 
 type Tab = (typeof TABS)[number]
@@ -177,6 +180,11 @@ function EmployeeCardPage() {
   const canViewDocuments = hasPermission(EMPLOYEES_VIEW)
   const canViewIncentives = hasPermission(INCENTIVES_VIEW)
   const canViewAttendance = hasPermission(ATTENDANCE_VIEW)
+  /*
+    «O'zgarishlar tarixi» — server ikkala ruxsatni ham talab qiladi
+    (`GET /api/employees/{id}/history`: `audit.view` VA `employees.view`).
+  */
+  const canViewHistory = hasPermission(AUDIT_VIEW) && hasPermission(EMPLOYEES_VIEW)
 
   const employee = useEmployee(employeeId)
   const timeline = useEmployeeTimeline(employeeId)
@@ -288,6 +296,14 @@ function EmployeeCardPage() {
   if (canViewAttendance) {
     tabOptions.push({ value: 'attendance', label: t('employees.tabAttendance') })
   }
+  /*
+    «O'zgarishlar tarixi» — ENG OXIRIDA (SPEC §9.6) va faqat `audit.view`
+    bilan: ruxsatsiz odamda tab umuman chizilmaydi (qolganlari bilan bir
+    xil qoida).
+  */
+  if (canViewHistory) {
+    tabOptions.push({ value: 'history', label: t('employees.tabHistory') })
+  }
 
   return (
     <div className="space-y-5">
@@ -364,12 +380,20 @@ function EmployeeCardPage() {
         <Alert tone="warning">{person.reviewNote}</Alert>
       )}
 
-      <SegmentedControl
-        value={tab}
-        onChange={setTab}
-        aria-label={t('employees.tabs')}
-        options={tabOptions}
-      />
+      {/*
+        Tablar 8 ta: telefon kengligida ular siqilib, yozuvlar ustma-ust tushardi.
+        Qator o'z kengligida qoladi (`min-w-max`), sig'masa — gorizontal suriladi
+        (iOS segment boshqaruvi kabi); keng ekranda hech narsa o'zgarmaydi.
+      */}
+      <div className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] sm:mx-0 sm:px-0">
+        <SegmentedControl
+          value={tab}
+          onChange={setTab}
+          aria-label={t('employees.tabs')}
+          options={tabOptions}
+          className="min-w-max"
+        />
+      </div>
 
       {tab === 'overview' && (
         <EmployeeOverviewTab
@@ -402,6 +426,8 @@ function EmployeeCardPage() {
       {tab === 'attendance' && canViewAttendance && (
         <EmployeeAttendanceTab employeeId={person.id} month={month} onMonth={setMonth} />
       )}
+
+      {tab === 'history' && canViewHistory && <EmployeeHistoryTab employeeId={person.id} />}
 
       {tab === 'flags' && (
         <EmployeeMarksTab

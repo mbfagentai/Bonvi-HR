@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bonvi.Application.Attendance;
+using Bonvi.Application.Audit;
 using Bonvi.Application.Catalog;
 using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
@@ -191,6 +192,10 @@ public static class DependencyInjection
         // muddati, xodim va nomzod ma'lumotlarini BIRGA o'qiydi.
         // Shu sababli o'z guruhida turadi.
         services.AddNotifications();
+
+        // Audit jurnalini O'QISH (A2) — bironta bo'limga tegishli emas: har bir
+        // bo'limning tarixini o'qiydi va qatorni so'rovchining bo'limlariga qarab ko'rsatadi.
+        services.AddAudit();
 
         // Tashqi API — holdingning boshqa loyihalari uchun FAQAT O'QISH.
         // Alohida modul, chunki u alohida YUZA: o'z autentifikatsiyasi,

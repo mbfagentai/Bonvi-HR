@@ -24,6 +24,29 @@ const COPIED_MS = 2000
 const PASSWORD_MIN = 6
 const PASSWORD_MAX = 64
 
+/**
+ * Arzimas raqamli parol — server qoidasi (`EmployeePassword.IsTriviallyWeak`) bilan bir xil:
+ * bir xil raqamlar, ketma-ket o'suvchi/kamayuvchi qator, 2 yoki 3 xonali bo'lakning takrori.
+ * Harfli parol tekshirilmaydi. Server baribir rad etadi — bu faqat HR ni kutdirmaslik uchun.
+ */
+function isTriviallyWeak(value: string): boolean {
+  if (!/^\d+$/.test(value)) return false
+  const run = (step: number) => {
+    for (let i = 1; i < value.length; i++) {
+      if (value.charCodeAt(i) - value.charCodeAt(i - 1) !== step) return false
+    }
+    return true
+  }
+  const repeated = (size: number) => {
+    if (value.length % size !== 0 || value.length === size) return false
+    for (let i = size; i < value.length; i++) {
+      if (value[i] !== value[i - size]) return false
+    }
+    return true
+  }
+  return run(0) || run(1) || run(-1) || repeated(2) || repeated(3)
+}
+
 /** Yashirilgan parolning o'rnidagi nuqtalar — uzunligi ATAYLAB doimiy (parol uzunligini aytmaydi). */
 const MASK = '••••••'
 
@@ -101,6 +124,17 @@ function AppAccessBody({
   return (
     <div className="space-y-4">
       <LoginIssueAlert access={access} canOpenEmployee={canOpenEmployee} />
+
+      {/*
+        Avtomatik parolni HR ko'rmaguncha u bilan kirib bo'lmaydi (server qoidasi,
+        `EmployeeAccount.PasswordHandedOutAt`). Ko'z tugmasi bosilgan zahoti server
+        hisobni ochadi — ogohlantirish shu sahifada darhol yo'qoladi.
+      */}
+      {account.passwordHandedOutAt === null && !revealed && (
+        <Alert tone="warning" title={t('attendance.appNotHandedOut')}>
+          {t('attendance.appNotHandedOutHint')}
+        </Alert>
+      )}
 
       <dl className="divide-y divide-[var(--border)] overflow-hidden rounded-md bg-[var(--bg-sunken)]">
         <Row label={t('attendance.appLogin')}>
@@ -456,7 +490,9 @@ function CustomPasswordDialog({
         ? errorMessage('xodim.parol_qisqa')
         : trimmed.length > PASSWORD_MAX
           ? errorMessage('xodim.parol_uzun')
-          : undefined
+          : isTriviallyWeak(trimmed)
+            ? errorMessage('xodim.parol_oddiy')
+            : undefined
 
   const submit = () => {
     setTouched(true)

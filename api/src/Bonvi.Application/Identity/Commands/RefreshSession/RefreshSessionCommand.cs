@@ -1,6 +1,8 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.Dtos;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 
@@ -34,6 +36,7 @@ public sealed class RefreshSessionCommandHandler
     private readonly IUserRepository _users;
     private readonly IRefreshTokenRepository _refreshTokens;
     private readonly ITokenService _tokens;
+    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
@@ -41,12 +44,14 @@ public sealed class RefreshSessionCommandHandler
         IUserRepository users,
         IRefreshTokenRepository refreshTokens,
         ITokenService tokens,
+        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
         _users = users;
         _refreshTokens = refreshTokens;
         _tokens = tokens;
+        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
         _clock = clock;
     }
@@ -77,6 +82,9 @@ public sealed class RefreshSessionCommandHandler
             await _refreshTokens
                 .RevokeAllForUserAsync(stored.UserId, now, command.IpAddress, cancellationToken)
                 .ConfigureAwait(false);
+
+            // O'g'irlik belgisi — jurnalga ham (SPEC-rollar-va-audit §7.6).
+            _auditLogger.RecordSecurityEvent(AuditAction.TokenReuse, stored.UserId, login: null, detailJson: null);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

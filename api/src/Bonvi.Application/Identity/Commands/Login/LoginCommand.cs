@@ -1,6 +1,8 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.Dtos;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -37,7 +39,21 @@ public sealed record LoginCommand(string Login, string Password, string? IpAddre
 ///     <b>Xesh yangilash.</b> Parol eski algoritm bilan xeshlangan bo'lsa,
 ///     muvaffaqiyatli kirishdan keyin jimgina yangilanadi.
 ///   </item>
+///   <item>
+///     <b>Audit</b> (SPEC-rollar-va-audit §7.6). Har bir muvaffaqiyatsiz
+///     urinish — <c>LoginFailed</c>, sababi bilan (<c>credentials</c>, <c>format</c>,
+///     <c>locked</c>, <c>inactive</c>); noma'lum login — <c>Anonymous</c> va
+///     kiritilgan login. Muvaffaqiyatli kirish — <c>Login</c>. Javob esa
+///     o'zgarmaydi: jurnal hujumchiga hech narsa aytmaydi.
+///   </item>
 /// </list>
+/// <para>
+/// ⚠️ <b>Bot hisobining MUVAFFAQIYATLI kirishi yozilmaydi.</b> Bot tokenini
+/// har daqiqada o'qiydi va access token har 15 daqiqada eskiradi — u kuniga
+/// ~96 marta qayta kiradi. Bu odam harakati emas, jarayonning nafasi: jurnal
+/// «xavfsizlik» ko'rinishi undan to'lib ketardi. Bot hisobining
+/// MUVAFFAQIYATSIZ urinishi esa yoziladi — parol tanlash aynan shu yerda ko'rinadi.
+/// </para>
 /// </remarks>
 public sealed class LoginCommandHandler
 {
@@ -59,12 +75,18 @@ public sealed class LoginCommandHandler
     /// </para>
     /// </remarks>
     private static readonly Lock DummyHashLock = new();
+
+    private const string FailureCredentials = """{"reason":"credentials"}""";
+    private const string FailureFormat = """{"reason":"format"}""";
+    private const string FailureLocked = """{"reason":"locked"}""";
+    private const string FailureInactive = """{"reason":"inactive"}""";
     private static string? _dummyHash;
 
     private readonly IUserRepository _users;
     private readonly IRefreshTokenRepository _refreshTokens;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokens;
+    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
@@ -73,6 +95,7 @@ public sealed class LoginCommandHandler
         IRefreshTokenRepository refreshTokens,
         IPasswordHasher passwordHasher,
         ITokenService tokens,
+        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
@@ -80,6 +103,7 @@ public sealed class LoginCommandHandler
         _refreshTokens = refreshTokens;
         _passwordHasher = passwordHasher;
         _tokens = tokens;
+        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
         _clock = clock;
     }
@@ -94,7 +118,11 @@ public sealed class LoginCommandHandler
         if (loginResult.IsFailure)
         {
             // Telefon raqami formati noto'g'ri bo'lsa ham umumiy xato beriladi —
-            // hujumchiga qo'shimcha ma'lumot bermaslik uchun
+            // hujumchiga qo'shimcha ma'lumot bermaslik uchun.
+            // Kiritilgan matn jurnalga YOZILMAYDI: odam login maydoniga adashib
+            // parolini yozgan bo'lishi mumkin — u qisqartirilgan holda ham sir.
+            await RecordFailureAsync(null, login: null, FailureFormat, cancellationToken)
+                .ConfigureAwait(false);
             return InvalidCredentials();
         }
 
@@ -106,11 +134,15 @@ public sealed class LoginCommandHandler
             // Vaqt bo'yicha oshkor qilmaslik: foydalanuvchi bo'lmasa ham
             // xesh tekshiruvi bajariladi (u bir necha o'nlab millisekund oladi)
             _ = _passwordHasher.Verify(GetDummyHash(), command.Password);
+            await RecordFailureAsync(null, loginResult.Value.Value, FailureCredentials, cancellationToken)
+                .ConfigureAwait(false);
             return InvalidCredentials();
         }
 
         if (user.IsLockedAt(now))
         {
+            await RecordFailureAsync(user.Id, user.Login.Value, FailureLocked, cancellationToken).ConfigureAwait(false);
+
             var minutes = (int)Math.Ceiling((user.LockedUntil!.Value - now).TotalMinutes);
             return Error.Forbidden(
                 "auth.bloklangan",
@@ -119,6 +151,7 @@ public sealed class LoginCommandHandler
 
         if (!user.IsActive)
         {
+            await RecordFailureAsync(user.Id, user.Login.Value, FailureInactive, cancellationToken).ConfigureAwait(false);
             return Error.Forbidden("auth.hisob_faol_emas", "Hisob faol emas. Administratorga murojaat qiling.");
         }
 
@@ -126,8 +159,10 @@ public sealed class LoginCommandHandler
 
         if (!succeeded)
         {
+            // Hisoblagich (`FailedLoginAttempts`) jurnalga yozilmaydi — o'rniga
+            // shu hodisa: kim, qachon, qaysi IP dan.
             user.RecordFailedLogin(now);
-            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await RecordFailureAsync(user.Id, user.Login.Value, FailureCredentials, cancellationToken).ConfigureAwait(false);
             return InvalidCredentials();
         }
 
@@ -140,9 +175,26 @@ public sealed class LoginCommandHandler
 
         var result = await IssueTokensAsync(user, command.IpAddress, cancellationToken).ConfigureAwait(false);
 
+        // Bot hisobi — istisno (sinf izohida).
+        if (!result.User.Roles.Contains(SystemRoles.RecruitingBot))
+        {
+            _auditLogger.RecordSecurityEvent(AuditAction.Login, user.Id, user.Login.Value, detailJson: null);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return result;
+    }
+
+    /// <summary><c>LoginFailed</c> hodisasini yozadi va saqlaydi.</summary>
+    /// <remarks>
+    /// Shu yo'lning boshqa o'zgarishlari (xato urinishlar sanog'i) ham shu
+    /// saqlashda ketadi — ilgari ular alohida saqlanardi.
+    /// </remarks>
+    private async Task RecordFailureAsync(Guid? userId, string? login, string reasonJson, CancellationToken cancellationToken)
+    {
+        _auditLogger.RecordSecurityEvent(AuditAction.LoginFailed, userId, login, reasonJson);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<AuthResultDto> IssueTokensAsync(

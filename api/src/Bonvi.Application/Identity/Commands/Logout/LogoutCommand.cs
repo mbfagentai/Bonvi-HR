@@ -1,6 +1,8 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 
 namespace Bonvi.Application.Identity.Commands.Logout;
@@ -26,6 +28,7 @@ public sealed class LogoutCommandHandler
     private readonly ITokenService _tokens;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMcpGrantRevoker _mcpGrants;
+    private readonly IAuditLogger _auditLogger;
     private readonly IClock _clock;
 
     public LogoutCommandHandler(
@@ -33,12 +36,14 @@ public sealed class LogoutCommandHandler
         ITokenService tokens,
         IUnitOfWork unitOfWork,
         IMcpGrantRevoker mcpGrants,
+        IAuditLogger auditLogger,
         IClock clock)
     {
         _refreshTokens = refreshTokens;
         _tokens = tokens;
         _unitOfWork = unitOfWork;
         _mcpGrants = mcpGrants;
+        _auditLogger = auditLogger;
         _clock = clock;
     }
 
@@ -79,6 +84,15 @@ public sealed class LogoutCommandHandler
         {
             stored.Revoke(now, command.IpAddress);
         }
+
+        // Chiqish so'rovida access token yo'q bo'lishi mumkin — bajaruvchi
+        // tokenning egasi (SPEC-rollar-va-audit §7.6). Token topilmagan chiqish
+        // (allaqachon chiqqan, eskirgan) yozilmaydi: kim ekani noma'lum.
+        _auditLogger.RecordSecurityEvent(
+            AuditAction.Logout,
+            stored.UserId,
+            login: null,
+            command.AllSessions ? """{"allSessions":true}""" : """{"allSessions":false}""");
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

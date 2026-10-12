@@ -2,7 +2,6 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.Users.Commands.CreateUser;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
 using NSubstitute;
@@ -22,7 +21,6 @@ public sealed class CreateUserCommandHandlerTests
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IRoleRepository _roles = Substitute.For<IRoleRepository>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
-    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private readonly Role _superAdminRole =
@@ -35,7 +33,7 @@ public sealed class CreateUserCommandHandlerTests
         TestRoles.Standart(SystemRoles.HrManager);
 
     private CreateUserCommandHandler Handler
-        => new(_currentUser, _users, _roles, _hasher, _auditLogger, _unitOfWork);
+        => new(_currentUser, _users, _roles, _hasher, _unitOfWork);
 
     public CreateUserCommandHandlerTests()
     {
@@ -168,22 +166,11 @@ public sealed class CreateUserCommandHandlerTests
         _users.DidNotReceive().Add(Arg.Any<User>());
     }
 
-    [Fact]
-    public async Task Muvaffaqiyatli_yaratishda_audit_yozuvi_qoyiladi()
-    {
-        ActingAs(_superAdminRole);
-
-        await Handler.HandleAsync(
-            new CreateUserCommand("905088877", "Каримов", "Жасур", null, "Kuchli_Parol1", SystemRoles.HrManager),
-            TestContext.Current.CancellationToken);
-
-        _auditLogger.Received(1).Record(
-            AuditAction.Create,
-            "User",
-            Arg.Any<string>(),
-            Arg.Any<string?>(),
-            Arg.Is<string?>(json => json != null && !json.Contains("Kuchli_Parol1", StringComparison.Ordinal)));
-    }
+    // «Muvaffaqiyatli_yaratishda_audit_yozuvi_qoyiladi» — ishlovchi endi jurnalga
+    // O'ZI yozmaydi: hisob yaratilishini `AuditTrailInterceptor` yozadi
+    // (SPEC-rollar-va-audit §7.6). Vorisi — haqiqiy baza ustida:
+    // `AuditTrailApiTests.Foydalanuvchi_yaratilishi_parolsiz_va_xesh_yashirilgan_holda_yoziladi`
+    // (parol ham, xesh ham qatorda yo'qligini xom matn bo'yicha tekshiradi).
 
     // ─────────────────────────── Kim kimga rol bera oladi ───────────────────────────
 

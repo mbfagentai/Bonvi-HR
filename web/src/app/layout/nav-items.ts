@@ -16,6 +16,7 @@ import {
   Gauge,
   Gavel,
   HeartPulse,
+  History,
   IdCard,
   LayoutGrid,
   Library,
@@ -454,6 +455,13 @@ export const NAV: NavSection[] = [
         bandni ruxsatsiz odamga ko'rsatish yopiq eshikka boshlash bo'lardi.
       */
       { key: 'roles', to: '/rollar', icon: ShieldCheck, permission: 'roles.manage' },
+      /*
+        Audit jurnali — kim, qachon, nimani o'zgartirdi (SPEC-rollar-va-audit
+        §9.1, §9.5). «Rollar» dan KEYIN: ikkalasi «kim nima qila oladi / kim
+        nima qildi» degan bitta savolning ikki yarmi. `GET /api/audit` ham
+        `audit.view` bilan himoyalangan — ruxsatsiz odamga band ko'rinmaydi.
+      */
+      { key: 'audit', to: '/audit', icon: History, permission: 'audit.view' },
       /*
         Tizim sozlamalari — bot matni va bildirishnoma chegaralari.
 

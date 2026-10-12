@@ -16,11 +16,16 @@ namespace Bonvi.Application.Identity.EmployeeAccounts;
 /// kalit almashgan; ekran «Yangi parol yasash» ni taklif qiladi.
 /// </param>
 /// <param name="LastLoginAt"><c>null</c> — hech qachon kirmagan.</param>
+/// <param name="PasswordHandedOutAt">
+/// HR joriy parolni qachon bilib oldi (ko'rdi yoki o'zi yozdi). <c>null</c> —
+/// hech kim bilmaydi va KIRIB BO'LMAYDI; ekran «parolni ko'rib, xodimga ayting» deydi.
+/// </param>
 public sealed record EmployeeAccountDto(
     Guid Id,
     DateTimeOffset PasswordSetAt,
     bool PasswordAvailable,
-    DateTimeOffset? LastLoginAt);
+    DateTimeOffset? LastLoginAt,
+    DateTimeOffset? PasswordHandedOutAt);
 
 /// <summary>Kirish loginining holati — profil telefoni bo'yicha.</summary>
 public enum EmployeeLoginIssue

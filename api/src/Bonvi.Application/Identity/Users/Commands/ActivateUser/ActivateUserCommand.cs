@@ -2,7 +2,6 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 
@@ -49,20 +48,17 @@ public sealed class ActivateUserCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
 
     public ActivateUserCommandHandler(
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
     }
 
@@ -112,9 +108,8 @@ public sealed class ActivateUserCommandHandler
             }
         }
 
+        // Jurnal yozuvini `AuditTrailInterceptor` o'zi qo'yadi (IsActive: false → true).
         target.Activate();
-
-        _auditLogger.Record(AuditAction.Update, "User", target.Id.ToString(), newValues: "{\"isActive\":true}");
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

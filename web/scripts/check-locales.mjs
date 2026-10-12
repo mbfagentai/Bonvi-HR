@@ -524,6 +524,39 @@ const DYNAMIC_KEY_SOURCES = [
     keysFor: (value) => [`roles.extra.${value}`],
   },
   /*
+   * Audit jurnali (`features/audit/**`, SPEC-rollar-va-audit §9.9). Server
+   * amal, entity, maydon va amal nomini XOM yuboradi, yorliqni frontend
+   * tanlaydi — rollar muharriridagi bilan bir xil fikr. Kod ham AYNAN shu
+   * massivlardan tanlaydi (`audit-format.ts`), massivda yo'q nom esa xom
+   * holida chiqadi. Bu yozuvlarsiz yangi amal yoki maydonning tarjimasi
+   * qolib ketsa, tekshiruv buni sezmasdi.
+   */
+  {
+    file: 'src/features/audit/lib/audit-keys.ts',
+    values: (text) => constArrayValues(text, 'AUDIT_ACTION_KEYS'),
+    keysFor: (value) => [`audit.actions.${value}`],
+  },
+  {
+    file: 'src/features/audit/lib/audit-keys.ts',
+    values: (text) => constArrayValues(text, 'AUDIT_ENTITY_NAMES'),
+    keysFor: (value) => [`audit.entities.${value}`],
+  },
+  {
+    file: 'src/features/audit/lib/audit-keys.ts',
+    values: (text) => constArrayValues(text, 'AUDIT_FIELD_KEYS'),
+    keysFor: (value) => [`audit.fields.${value}`],
+  },
+  {
+    file: 'src/features/audit/lib/audit-keys.ts',
+    values: (text) => constArrayValues(text, 'AUDIT_OPERATION_NAMES'),
+    keysFor: (value) => [`audit.operations.${value}`],
+  },
+  {
+    file: 'src/features/audit/lib/audit-keys.ts',
+    values: (text) => constArrayValues(text, 'AUDIT_LOGIN_REASONS'),
+    keysFor: (value) => [`audit.reasons.${value}`],
+  },
+  /*
    * «AI ulanish» jurnalidagi vosita nomlari (`mcp-section.tsx`:
    * `` t(`settings.mcp.tool.${tool}`) ``). Server nomni xom yuboradi,
    * yorliqni frontend tanlaydi — rollardagi bilan bir xil fikr. Manba —

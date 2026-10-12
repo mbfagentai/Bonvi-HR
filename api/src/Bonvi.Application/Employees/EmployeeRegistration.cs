@@ -35,6 +35,10 @@ internal static class EmployeeRegistration
     {
         // Umumiy yordamchilar — so'rov doirasida yashaydi (nom keshi shu sababli).
         services.AddScoped<CatalogNameResolver>();
+
+        // Buyruqni kim kiritgani (SPEC-rollar-va-audit §7.9) — mehnat yo'lida.
+        services.AddScoped<UserNameResolver>();
+
         services.AddScoped<EmployeeMapper>();
         services.AddScoped<EmployeeFlagGuard>();
 

@@ -3,7 +3,6 @@ using Bonvi.Application.Identity.Common;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Application.Mcp;
 using Bonvi.Domain.Abstractions;
-using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 
@@ -50,7 +49,6 @@ public sealed class DeactivateUserCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
-    private readonly IAuditLogger _auditLogger;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMcpGrantRevoker _mcpGrants;
 
@@ -58,14 +56,12 @@ public sealed class DeactivateUserCommandHandler
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
-        IAuditLogger auditLogger,
         IUnitOfWork unitOfWork,
         IMcpGrantRevoker mcpGrants)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
-        _auditLogger = auditLogger;
         _unitOfWork = unitOfWork;
         _mcpGrants = mcpGrants;
     }
@@ -123,8 +119,6 @@ public sealed class DeactivateUserCommandHandler
         await _mcpGrants
             .RevokeAllForUserAsync(target.Id, "system:deactivated", cancellationToken)
             .ConfigureAwait(false);
-
-        _auditLogger.Record(AuditAction.Update, "User", target.Id.ToString(), newValues: "{\"isActive\":false}");
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
