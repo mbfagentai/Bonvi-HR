@@ -239,6 +239,18 @@ and what to do when a key leaks.
 
 ---
 
+## 10a. Full-read scope (2026-10-11)
+
+Keys now carry a scope (`api_keys.scope`, migration `ApiKeyScope`, existing rows = 1 `Basic`).
+`FullRead` keys additionally reach `GET /api/public/v1/full` (tool catalog) and
+`GET /api/public/v1/full/{tool}` — the MCP read tools (`McpSetup.ToolTypes`) invoked over
+plain HTTP with query-string arguments, acting with `PublicFullReadEndpoints.ReadPermissions`
+(every view permission the tools check, salary included). Same guarantees as MCP: read-only
+DB role, SELECT-only interceptor, response scrubber — passport, PINFL and file keys never leave.
+Each call is written to `mcp_audit` (client `api-key:<prefix>`, tool `api:<name>`). Independent of
+the MCP on/off switch; requires the MCP read-only role to be provisioned (`McpRuntime.IsStoreReady`).
+Basic keys get 403 `tashqi.doira_yetmaydi`. Scope is immutable — widen by issuing a new key.
+
 ## 11. Definition of done
 
 * `./bonvi test` green; `./bonvi check` green; frontend build green.

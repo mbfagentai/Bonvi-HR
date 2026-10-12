@@ -45,12 +45,14 @@ public sealed class ListApiKeysQueryHandler
         key.LastUsedAt,
         key.LastUsedIp,
         key.RevokedAt,
-        !key.IsRevoked);
+        !key.IsRevoked,
+        key.Scope);
 }
 
 /// <summary>Yangi kalit yaratish.</summary>
 /// <param name="Name">Qaysi loyihaga beriladi («BonviCall»).</param>
-public sealed record CreateApiKeyCommand(string? Name);
+/// <param name="Scope">Doira; <c>null</c> — <see cref="ApiKeyScope.Basic"/>.</param>
+public sealed record CreateApiKeyCommand(string? Name, ApiKeyScope? Scope = null);
 
 /// <summary>
 /// Kalit yaratadi va uni <b>bir marta</b> qaytaradi.
@@ -73,11 +75,13 @@ public sealed class CreateApiKeyCommandHandler
 {
     private readonly IApiKeyRepository _keys;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUser _currentUser;
 
-    public CreateApiKeyCommandHandler(IApiKeyRepository keys, IUnitOfWork unitOfWork)
+    public CreateApiKeyCommandHandler(IApiKeyRepository keys, IUnitOfWork unitOfWork, ICurrentUser currentUser)
     {
         _keys = keys;
         _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<ApiKeyCreatedDto>> HandleAsync(
@@ -85,6 +89,16 @@ public sealed class CreateApiKeyCommandHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // «O'zingda yo'q huquqni bera olmaysan»: to'liq kalit barcha «ko'rish» ruxsatlari
+        // bilan ishlaydi (oklad ham), «sozlamalarni boshqarish»ning o'zi esa ularni
+        // bermaydi — maxsus rolga faqat shu ruxsat berilgan odam kalit orqali o'zida
+        // yo'q ma'lumotni o'qiy olmasligi kerak (rol muharriridagi `rol.ortiqcha_ruxsat`).
+        if (command.Scope == ApiKeyScope.FullRead
+            && !ApiKeyScopes.RequiredToIssueFullRead.All(_currentUser.HasPermission))
+        {
+            return PublicApiErrors.FullReadNotAllowed;
+        }
 
         var name = command.Name?.Trim();
 
@@ -96,7 +110,7 @@ public sealed class CreateApiKeyCommandHandler
 
         var secret = ApiKeyFormat.Generate();
 
-        var created = ApiKey.Issue(name, secret);
+        var created = ApiKey.Issue(name, secret, command.Scope ?? ApiKeyScope.Basic);
         if (created.IsFailure)
         {
             return created.Error;
@@ -111,7 +125,8 @@ public sealed class CreateApiKeyCommandHandler
             created.Value.Id,
             created.Value.Name,
             created.Value.KeyPrefix,
-            secret.PlainKey));
+            secret.PlainKey,
+            created.Value.Scope));
     }
 }
 

@@ -36,6 +36,11 @@ public static class PublicApiErrors
     /// <summary>401 javobidagi matn.</summary>
     public const string InvalidKeyMessage = "API kaliti yaroqsiz yoki bekor qilingan.";
 
+    /// <summary>To'liq o'qish kalitini yaratuvchida kalit beradigan ruxsatlarning hammasi yo'q — 403.</summary>
+    public static Error FullReadNotAllowed => Error.Forbidden(
+        "tashqi.doira_ruxsat_yoq",
+        "To'liq o'qish kalitini faqat barcha bo'limlarni ko'rish (oklad ham) va AI ulanish ruxsati bor odam yarata oladi.");
+
     /// <summary>Shu nomdagi kuchdagi kalit allaqachon bor — 409.</summary>
     public static Error NameTaken => Error.Conflict(
         "tashqi.kalit_nomi_band",

@@ -9,13 +9,14 @@ namespace Bonvi.Application.PublicApi.Keys;
 /// </summary>
 /// <remarks>
 /// Bu «foydalanuvchi» EMAS: unda na ruxsatlar, na xodim bog'lanishi bor
-/// va u hech qanday ichki endpoint'ga kira olmaydi. Faqat uchta qiymat
+/// va u hech qanday ichki endpoint'ga kira olmaydi. Faqat to'rtta qiymat
 /// bor, va har biri ishlatiladi: <paramref name="Id"/> — «oxirgi
 /// ishlatilgan» belgisi uchun, <paramref name="Name"/> —
 /// <c>/ping</c> javobi uchun, <paramref name="Prefix"/> — tezlik
 /// cheklovining bo'linmasi va loglar uchun.
+/// <paramref name="Scope"/> — <c>/full</c> (barcha bo'limlarni o'qish) ochiqmi.
 /// </remarks>
-public sealed record ApiKeyIdentity(Guid Id, string Name, string Prefix);
+public sealed record ApiKeyIdentity(Guid Id, string Name, string Prefix, ApiKeyScope Scope = ApiKeyScope.Basic);
 
 /// <summary>
 /// <c>X-API-Key</c> sarlavhasini tekshiradi.
@@ -90,6 +91,6 @@ public sealed class ApiKeyAuthenticator
         // Yozuv so'rovni KUTMAYDI va yiqilsa ham o'qishga tegmaydi.
         _usage.Schedule(key.Id, sourceIp);
 
-        return new ApiKeyIdentity(key.Id, key.Name, key.KeyPrefix);
+        return new ApiKeyIdentity(key.Id, key.Name, key.KeyPrefix, key.Scope);
     }
 }

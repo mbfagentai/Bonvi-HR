@@ -70,6 +70,7 @@ public static class PublicApiEndpoints
         MapPing(group);
         MapEmployees(group);
         MapReference(group);
+        group.MapPublicFullRead();
 
         return app;
     }

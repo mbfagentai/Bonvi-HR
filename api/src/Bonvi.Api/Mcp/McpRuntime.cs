@@ -142,6 +142,18 @@ public sealed partial class McpRuntime : IDisposable
     public async Task<bool> IsOnAsync(CancellationToken cancellationToken = default) =>
         (await GetStatusAsync(cancellationToken).ConfigureAwait(false)).State == McpState.On;
 
+    /// <summary>
+    /// O'qish roli tayyor va o'z-o'zini tekshiruvdan o'tganmi — egasining
+    /// o'chirgichidan QAT'I NAZAR.
+    /// </summary>
+    /// <remarks>
+    /// Tashqi API'ning «to'liq o'qish» kaliti (<c>/api/public/v1/full</c>)
+    /// shu vositalardan foydalanadi, lekin u AI chat ulanishi emas: egasi
+    /// MCP'ni o'chirsa ham rahbarning kaliti ishlayveradi. Himoya (faqat
+    /// o'qish roli) esa aynan bir xil — rol tayyor bo'lmasa ikkalasi ham yopiq.
+    /// </remarks>
+    public bool IsStoreReady => _infrastructure.State == McpState.On;
+
     public void Dispose() => _checkLock.Dispose();
 
     /// <summary>O'chirgich yozilgandan keyin keshni darhol yangilaydi.</summary>

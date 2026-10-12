@@ -100,12 +100,20 @@ export function ApiKeysSection() {
 
           return (
             <div className="min-w-0">
-              <p
-                className={cn('truncate-1 font-medium', !item.isActive && muted)}
-                title={item.name}
-              >
-                {item.name}
-              </p>
+              <div className="flex min-w-0 items-center gap-2">
+                <p
+                  className={cn('truncate-1 font-medium', !item.isActive && muted)}
+                  title={item.name}
+                >
+                  {item.name}
+                </p>
+                {/* Kengroq doira ko'zga tashlansin — u tizimdagi deyarli hamma narsani o'qiydi. */}
+                {item.scope === 'FullRead' && (
+                  <Badge tone="warning" size="sm" className="shrink-0">
+                    {t('settings.apiKeys.badgeFull')}
+                  </Badge>
+                )}
+              </div>
 
               {/*
                 Telefon kengligida prefiks ustuni yashiriladi — u ismning

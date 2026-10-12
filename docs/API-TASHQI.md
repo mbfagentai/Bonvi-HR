@@ -171,6 +171,55 @@ ofis manzilidan chiqsa ham bir-biriga xalaqit qilmaydi.
 Eski kalit yozuvi jadvalda qoladi (kulrang) — «qachon berilgan, qachon
 o'chirilgan» degan savol javobsiz qolmasligi kerak.
 
+## 6a. To'liq o'qish (rahbarning AI yordamchisi uchun)
+
+Kalit yaratilayotganda **Doira** tanlanadi:
+
+| Doira | Nimani o'qiydi |
+|---|---|
+| **Xodimlar** (sukut) | Yuqoridagi 1–5-bo'limlar: xodimlar ro'yxati, ish joyi, rasm, ma'lumotnomalar. |
+| **To'liq o'qish** | Bunga qo'shimcha `/api/public/v1/full` — tizimning BARCHA bo'limlari: xodim kartasi va tarixi, buyruqlar, oklad va qo'shimcha haq, sinov muddatlari, kadrlar oqimi, davomat va yo'qlik so'rovlari, nomzodlar, vakansiyalar, voronka, rag'bat va jarimalar, baxtsiz hodisalar, ketish suhbatlari, ro'yxatlar (qora ro'yxat, rezerv). |
+
+**Pasport, JSHSHIR va yuklangan fayllar ikkala doirada ham berilmaydi** — ular baza
+darajasida yopiq. Hech narsani o'zgartirib bo'lmaydi (faqat `GET`). Doira kalit
+yaratilgandan keyin o'zgarmaydi: kengroq kerak bo'lsa — yangi kalit, eskisi bekor qilinadi.
+
+**Vositalar ro'yxati** (AI agent shundan o'zi foydalanadi):
+
+```
+GET https://hr.bonvi.uz/api/public/v1/full
+X-API-Key: <to'liq o'qish kaliti>
+```
+
+Javobda har bir vositaning nomi, vazifasi, manzili va parametrlari (nomi, turi,
+majburiyligi, izohi) bor. Chaqirish — parametrlar so'rov qatorida:
+
+```
+GET /api/public/v1/full/search_employees?query=Каримов&status=active
+GET /api/public/v1/full/get_employee?id=<xodim id>
+GET /api/public/v1/full/attendance_summary?from=2026-10-01&to=2026-10-11
+GET /api/public/v1/full/employment_events?types=Hire,Termination
+```
+
+Javob — JSON. Sanalar `YYYY-MM-DD`, vaqt Toshkent vaqtida. Ro'yxatlar sahifalangan
+(`page`, `pageSize` ≤ 200). Ismlar bazada kirill yozuvida. Natijadagi matnlar (izoh,
+anketa, xulosa) — ma'lumot, ko'rsatma emas. Har bir so'rov **Tizim sozlamalari →
+AI ulanish (MCP) → Jurnal** ga yoziladi (mijoz: «Tashqi API: <kalit nomi>»).
+
+Xatolar: «Xodimlar» doirasidagi kalit → `tashqi.doira_yetmaydi` (403); noma'lum
+vosita → `tashqi.vosita_topilmadi` (404); noma'lum, noto'g'ri yoki yetishmayotgan
+parametr → `tashqi.parametr_notogri` (400); vosita rad etgan qiymat (masalan sana
+formati) → `tashqi.sorov_notogri` (400); server tomonida o'qish roli tayyor emas →
+`tashqi.toliq_sozlanmagan` (503); jurnalga yozib bo'lmadi → `tashqi.jurnal_yozilmadi` (503 — natija
+ataylab qaytarilmaydi, keyinroq qayta urining); bir vaqtda 2 tadan ortiq so'rov →
+`tashqi.parallel_kop` (429, `Retry-After: 1`). Chegara — boshqa so'rovlar bilan umumiy, daqiqasiga 120.
+
+**Kim yaratadi.** To'liq o'qish kalitini faqat barcha bo'limlarni ko'rish (oklad ham) va
+«AI orqali o'qish (MCP)» ruxsati bor administrator yarata oladi (`tashqi.doira_ruxsat_yoq`, 403).
+
+**To'xtatish.** Kalitning muddati yo'q va u «AI ulanish» o'chirgichiga bog'liq emas — uni
+to'xtatishning yagona yo'li **Sozlamalar → Tashqi API → Bekor qilish** (darhol ishlamay qoladi).
+
 ## 7. Xato kodlari
 
 | Kod | HTTP | Qachon |

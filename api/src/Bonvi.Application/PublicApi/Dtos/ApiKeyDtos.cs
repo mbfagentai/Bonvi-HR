@@ -1,3 +1,5 @@
+using Bonvi.Domain.PublicApi;
+
 namespace Bonvi.Application.PublicApi.Dtos;
 
 /// <summary>
@@ -16,6 +18,7 @@ namespace Bonvi.Application.PublicApi.Dtos;
 /// <param name="LastUsedIp">So'rov kelgan oxirgi IP.</param>
 /// <param name="RevokedAt">Bekor qilingan vaqti. <c>null</c> — kalit kuchda.</param>
 /// <param name="IsActive">Kalit hozir ishlaydimi.</param>
+/// <param name="Scope">Doira: Basic — xodimlar va ma'lumotnomalar; FullRead — barcha bo'limlar (pasport, JSHSHIR, fayllarsiz).</param>
 public sealed record ApiKeyDto(
     Guid Id,
     string Name,
@@ -24,7 +27,8 @@ public sealed record ApiKeyDto(
     DateTimeOffset? LastUsedAt,
     string? LastUsedIp,
     DateTimeOffset? RevokedAt,
-    bool IsActive);
+    bool IsActive,
+    ApiKeyScope Scope);
 
 /// <summary>
 /// Endigina yaratilgan kalit — <b>kalit matni bir marta ko'rinadigan yagona joy</b>.
@@ -44,4 +48,5 @@ public sealed record ApiKeyDto(
 /// <param name="Name">Qaysi loyihaga berilgan.</param>
 /// <param name="Prefix">Kalitning ochiq qismi — keyin ham ko'rinadi.</param>
 /// <param name="Key">TO'LIQ kalit. FAQAT shu javobda.</param>
-public sealed record ApiKeyCreatedDto(Guid Id, string Name, string Prefix, string Key);
+/// <param name="Scope">Kalit doirasi.</param>
+public sealed record ApiKeyCreatedDto(Guid Id, string Name, string Prefix, string Key, ApiKeyScope Scope);

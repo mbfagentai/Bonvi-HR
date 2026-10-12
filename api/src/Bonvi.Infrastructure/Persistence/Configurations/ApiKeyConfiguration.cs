@@ -53,6 +53,13 @@ public sealed class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
         builder.Property(key => key.LastUsedIp)
             .HasMaxLength(ApiKey.MaxIpLength);
 
+        // Butun son sifatida (enum nomi emas) — boshqa enum ustunlari kabi.
+        // Migratsiya mavjud qatorlarni 1 (Basic) bilan to'ldiradi: eski kalitlar
+        // doirasi kengaymasligi kerak.
+        builder.Property(key => key.Scope)
+            .HasConversion<int>()
+            .IsRequired();
+
         // Kalitni tekshirishning YAGONA so'rovi — shu indeks bo'yicha.
         // Unikal: ikkita kalit bir xil prefiks bilan yashasa, tekshiruv
         // qaysi biriga tegishli ekanini bilmasdi.

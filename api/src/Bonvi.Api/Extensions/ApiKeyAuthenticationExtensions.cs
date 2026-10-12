@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Bonvi.Application.PublicApi.Common;
 using Bonvi.Application.PublicApi.Keys;
+using Bonvi.Domain.PublicApi;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
@@ -37,6 +38,9 @@ public static class ApiKeyClaims
 
     /// <summary>Kalit nomi (loyiha nomi) — <c>/ping</c> javobida qaytadi.</summary>
     public const string KeyName = "tashqi.nom";
+
+    /// <summary>Kalit doirasi (<c>Basic</c> yoki <c>FullRead</c>) — <c>/full</c> shu bo'yicha ochiladi.</summary>
+    public const string Scope = "tashqi.doira";
 }
 
 /// <summary>
@@ -136,6 +140,7 @@ public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAu
                 new Claim(ApiKeyClaims.KeyId, identity.Id.ToString()),
                 new Claim(ApiKeyClaims.KeyName, identity.Name),
                 new Claim(ApiKeyClaims.Prefix, identity.Prefix),
+                new Claim(ApiKeyClaims.Scope, identity.Scope.ToString()),
             ],
             SchemeName,
 
@@ -176,6 +181,26 @@ public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAu
             status = StatusCodes.Status401Unauthorized,
             title = PublicApiErrors.InvalidKeyCode,
             detail = PublicApiErrors.InvalidKeyMessage,
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Kalit to'g'ri, lekin doirasi yetmaydi (<c>Basic</c> kalit bilan <c>/full</c>).
+    /// </summary>
+    /// <remarks>
+    /// 401 emas, 403: kalit haqiqiy va iste'molchi buni bilishi kerak — «kalitni
+    /// almashtiring» emas, «kengroq doirali kalit so'rang».
+    /// </remarks>
+    protected override async Task HandleForbiddenAsync(AuthenticationProperties properties)
+    {
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        Response.ContentType = "application/problem+json";
+
+        await Response.WriteAsJsonAsync(new
+        {
+            status = StatusCodes.Status403Forbidden,
+            title = "tashqi.doira_yetmaydi",
+            detail = "Bu kalit faqat xodimlar va ma'lumotnomalarni o'qiydi. Barcha bo'limlar uchun «to'liq o'qish» doirasidagi kalit kerak.",
         }).ConfigureAwait(false);
     }
 }
@@ -250,7 +275,14 @@ public static class ApiKeyAuthenticationExtensions
             .AddPolicy(PublicApiPolicy, policy => policy
                 .AddAuthenticationSchemes(ApiKeyAuthenticationHandler.SchemeName)
                 .RequireAuthenticatedUser()
-                .RequireClaim(ApiKeyClaims.Prefix));
+                .RequireClaim(ApiKeyClaims.Prefix))
+
+            // «To'liq o'qish» — yuqoridagi shartlar USTIGA doira claim'i.
+            .AddPolicy(Endpoints.PublicFullReadEndpoints.Policy, policy => policy
+                .AddAuthenticationSchemes(ApiKeyAuthenticationHandler.SchemeName)
+                .RequireAuthenticatedUser()
+                .RequireClaim(ApiKeyClaims.Prefix)
+                .RequireClaim(ApiKeyClaims.Scope, nameof(ApiKeyScope.FullRead)));
 
         return services;
     }

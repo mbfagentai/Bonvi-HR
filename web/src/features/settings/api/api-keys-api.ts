@@ -18,6 +18,13 @@
 import { api } from '@/shared/api/http-client'
 
 /**
+ * Kalit doirasi: `Basic` — xodimlar va ma'lumotnomalar (holding loyihalari);
+ * `FullRead` — barcha bo'limlar, `/api/public/v1/full` (pasport, JSHSHIR va
+ * fayllarsiz). Yaratilgandan keyin o'zgarmaydi.
+ */
+export type ApiKeyScope = 'Basic' | 'FullRead'
+
+/**
  * Ro'yxatdagi bitta kalit.
  *
  * ⚠️ Kalitning O'ZI bu yerda YO'Q va bo'lishi ham mumkin emas: bazada
@@ -43,6 +50,7 @@ export interface ApiKeySummary {
   revokedAt: string | null
   /** Serverning xulosasi: kalit hozir ishlaydimi. */
   isActive: boolean
+  scope: ApiKeyScope
 }
 
 /**
@@ -58,6 +66,7 @@ export interface CreatedApiKey {
   prefix: string
   /** «bonvi_<prefiks8>_<sir32>». Server bu qiymatni boshqa hech qachon bermaydi. */
   key: string
+  scope: ApiKeyScope
 }
 
 /** Server chegarasi (`CreateApiKeyCommandHandler`) — forma ham shu bilan tekshiradi. */
@@ -68,8 +77,8 @@ export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKeySummary[
   return Array.isArray(data) ? (data as ApiKeySummary[]) : []
 }
 
-export async function createApiKey(name: string): Promise<CreatedApiKey> {
-  const { data } = await api.post<CreatedApiKey>('/api/api-keys', { name })
+export async function createApiKey(name: string, scope: ApiKeyScope): Promise<CreatedApiKey> {
+  const { data } = await api.post<CreatedApiKey>('/api/api-keys', { name, scope })
   return data
 }
 

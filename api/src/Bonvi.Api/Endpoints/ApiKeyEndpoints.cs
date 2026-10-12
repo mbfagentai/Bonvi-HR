@@ -2,6 +2,7 @@ using Bonvi.Api.Extensions;
 using Bonvi.Application.PublicApi.Dtos;
 using Bonvi.Application.PublicApi.Keys;
 using Bonvi.Domain.Identity;
+using Bonvi.Domain.PublicApi;
 
 namespace Bonvi.Api.Endpoints;
 
@@ -10,7 +11,11 @@ namespace Bonvi.Api.Endpoints;
 /// Kalit qaysi loyihaga beriladi («BonviCall»). Bo'sh bo'lmasligi va 120
 /// belgidan oshmasligi kerak.
 /// </param>
-public sealed record CreateApiKeyRequest(string? Name);
+/// <param name="Scope">
+/// Doira: «Basic» (sukut — xodimlar va ma'lumotnomalar) yoki «FullRead» (barcha
+/// bo'limlarni o'qish, «/api/public/v1/full»; pasport, JSHSHIR va fayllarsiz).
+/// </param>
+public sealed record CreateApiKeyRequest(string? Name, ApiKeyScope? Scope);
 
 /// <summary>
 /// Tashqi API kalitlarini boshqarish — <b>ICHKI</b> endpoint'lar.
@@ -76,7 +81,7 @@ public static class ApiKeyEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new CreateApiKeyCommand(request.Name), cancellationToken)
+                    .HandleAsync(new CreateApiKeyCommand(request.Name, request.Scope), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();

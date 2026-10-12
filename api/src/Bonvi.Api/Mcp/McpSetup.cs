@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
@@ -46,6 +45,7 @@ public static class McpSetup
         builder.Services.AddSingleton<McpRuntime>();
         builder.Services.AddSingleton<McpPendingRequests>();
         builder.Services.AddScoped<McpToolContext>();
+        builder.Services.AddSingleton<McpConcurrencyGate>();
 
         builder.Services.AddAuthentication()
             .AddScheme<McpTokenAuthenticationOptions, McpTokenAuthenticationHandler>(
@@ -157,8 +157,8 @@ public static class McpSetup
             McpNet.Partition(context),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = McpLimits.PreAuthPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 
-        var global = new SemaphoreSlim(McpLimits.ConcurrentGlobal, McpLimits.ConcurrentGlobal);
-        var perGrant = new ConcurrentDictionary<string, int>(StringComparer.Ordinal);
+        // Tashqi API'ning «to'liq o'qish» yo'li bilan UMUMIY chegara (bitta hovuz).
+        var gate = app.ApplicationServices.GetRequiredService<McpConcurrencyGate>();
 
         return app.Use(async (context, next) =>
         {
@@ -216,38 +216,17 @@ public static class McpSetup
             // Ulanish bo'yicha 2 ta, butun jarayon bo'yicha 6 ta parallel chaqiruv,
             // navbatsiz: parallel og'ir so'rovlar yoyadigan AI bazani bo'g'ish
             // o'rniga 429 oladi.
-            if (perGrant.AddOrUpdate(grant, 1, (_, count) => count + 1) > McpLimits.ConcurrentPerGrant)
+            if (!gate.TryEnter(grant, out var slot))
             {
-                Release(perGrant, grant);
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                 return;
             }
 
-            if (!await global.WaitAsync(0, context.RequestAborted).ConfigureAwait(false))
-            {
-                Release(perGrant, grant);
-                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                return;
-            }
-
-            try
+            using (slot)
             {
                 await next(context).ConfigureAwait(false);
             }
-            finally
-            {
-                global.Release();
-                Release(perGrant, grant);
-            }
         });
-    }
-
-    private static void Release(ConcurrentDictionary<string, int> perGrant, string grant)
-    {
-        if (perGrant.AddOrUpdate(grant, 0, (_, count) => count - 1) <= 0)
-        {
-            perGrant.TryRemove(new KeyValuePair<string, int>(grant, 0));
-        }
     }
 
     public static WebApplication MapBonviMcp(this WebApplication app)

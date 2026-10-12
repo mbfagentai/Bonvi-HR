@@ -20,11 +20,12 @@ namespace Bonvi.Domain.PublicApi;
 /// so'raladigan savol va unga javob yo'qolmasligi kerak.
 /// </para>
 /// <para>
-/// <b>Doira yo'q (scope).</b> Kalit tizimdagi butun ommaviy yuzaga —
-/// ya'ni <c>/api/public/v1</c> ostidagi barcha <c>GET</c> larga — teng
-/// huquq beradi. Har bir iste'molchiga alohida maydon to'plami berish
-/// v1 doirasidan tashqarida qoldirilgan: bugungi iste'molchilar soni
-/// bir nechta va ularning hammasiga bir xil ma'lumot kerak.
+/// <b>Doira (scope) ikkita</b> (<see cref="ApiKeyScope"/>, 2026-10-11).
+/// <see cref="ApiKeyScope.Basic"/> kalit <c>/api/public/v1</c> ostidagi
+/// xodimlar va ma'lumotnomalarga teng huquq beradi (holding loyihalari).
+/// <see cref="ApiKeyScope.FullRead"/> kalit bunga qo'shimcha
+/// <c>/api/public/v1/full</c> ni ochadi — rahbarning AI yordamchisi uchun
+/// barcha bo'limlarni o'qish. Bundan mayda maydon to'plamlari ataylab yo'q.
 /// </para>
 /// </remarks>
 public sealed class ApiKey : AggregateRoot, IAuditable
@@ -35,12 +36,13 @@ public sealed class ApiKey : AggregateRoot, IAuditable
     /// <summary>Oxirgi ishlatilgan IP uzunligining chegarasi (IPv6 + zona).</summary>
     public const int MaxIpLength = 64;
 
-    private ApiKey(Guid id, string name, string keyPrefix, byte[] keyHash)
+    private ApiKey(Guid id, string name, string keyPrefix, byte[] keyHash, ApiKeyScope scope)
         : base(id)
     {
         Name = name;
         KeyPrefix = keyPrefix;
         KeyHash = keyHash;
+        Scope = scope;
     }
 
     /// <summary>EF Core uchun.</summary>
@@ -59,6 +61,13 @@ public sealed class ApiKey : AggregateRoot, IAuditable
 
     /// <summary>To'liq kalitning SHA-256 xeshi.</summary>
     public byte[] KeyHash { get; private set; }
+
+    /// <summary>Kalit nimani o'qiy oladi (<see cref="ApiKeyScope"/>). Yaratilgandan keyin O'ZGARMAYDI.</summary>
+    /// <remarks>
+    /// O'zgartirish ataylab yo'q: kengroq doira kerak bo'lsa — yangi kalit, eskisi bekor qilinadi.
+    /// Shunda «bu kalit qachondan beri hammasini o'qiydi» degan savolga yaratilgan vaqtning o'zi javob.
+    /// </remarks>
+    public ApiKeyScope Scope { get; private set; } = ApiKeyScope.Basic;
 
     /// <summary>Kalit oxirgi marta qachon ishlatilgan.</summary>
     /// <remarks>
@@ -94,9 +103,14 @@ public sealed class ApiKey : AggregateRoot, IAuditable
     /// use-case qatlamida va bazadagi qisman unikal indeksda
     /// (<c>ix_api_keys_name_active</c>) — ikkalasi birga.
     /// </remarks>
-    public static Result<ApiKey> Issue(string? name, ApiKeySecret secret)
+    public static Result<ApiKey> Issue(string? name, ApiKeySecret secret, ApiKeyScope scope = ApiKeyScope.Basic)
     {
         ArgumentNullException.ThrowIfNull(secret);
+
+        if (!Enum.IsDefined(scope))
+        {
+            return Error.Validation("tashqi.doira_notogri", "Kalit doirasi noto'g'ri: Basic yoki FullRead.");
+        }
 
         var trimmed = name?.Trim();
 
@@ -109,7 +123,7 @@ public sealed class ApiKey : AggregateRoot, IAuditable
             ? Error.Validation(
                 "tashqi.kalit_nomi_uzun",
                 $"Kalit nomi {MaxNameLength} belgidan oshmasligi kerak.")
-            : new ApiKey(NewId(), trimmed, secret.Prefix, secret.Hash);
+            : new ApiKey(NewId(), trimmed, secret.Prefix, secret.Hash, scope);
     }
 
     /// <summary>

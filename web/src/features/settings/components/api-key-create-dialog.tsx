@@ -6,9 +6,9 @@ import { z } from 'zod'
 
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, TextField } from '@/shared/ui'
+import { Alert, Button, Dialog, SegmentedControl, TextField } from '@/shared/ui'
 
-import { API_KEY_NAME_MAX_LENGTH, type CreatedApiKey } from '../api/api-keys-api'
+import { API_KEY_NAME_MAX_LENGTH, type ApiKeyScope, type CreatedApiKey } from '../api/api-keys-api'
 import { useCreateApiKey } from '../api/api-keys-queries'
 
 const FORM_ID = 'api-key-create-form'
@@ -61,6 +61,12 @@ export function ApiKeyCreateDialog({ onClose }: { onClose: () => void }) {
   const errorMessage = useErrorMessage()
   const create = useCreateApiKey()
 
+  /**
+   * Doira. Sukut — `Basic`: kengroq doira ONGLI tanlanadi, tasodifan emas.
+   * Forma maydoni emas, chunki uni tekshiradigan narsa yo'q (ikki qiymatdan biri).
+   */
+  const [scope, setScope] = useState<ApiKeyScope>('Basic')
+
   /** Yaratilgan kalit. `null` — birinchi qadam (nom formasi) ko'rinadi. */
   const [created, setCreated] = useState<CreatedApiKey | null>(null)
 
@@ -93,7 +99,7 @@ export function ApiKeyCreateDialog({ onClose }: { onClose: () => void }) {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      setCreated(await create.mutateAsync(values.name.trim()))
+      setCreated(await create.mutateAsync({ name: values.name.trim(), scope }))
     } catch {
       // Xato `create.error` da — formaning tepasida server kodi bilan chiqadi.
     }
@@ -168,6 +174,33 @@ export function ApiKeyCreateDialog({ onClose }: { onClose: () => void }) {
             error={errors.name ? errorMessage(errors.name.message) : undefined}
             {...register('name')}
           />
+
+          <div className="space-y-2">
+            <span className="block text-footnote font-medium text-[var(--fg-secondary)]">
+              {t('settings.apiKeys.scopeLabel')}
+            </span>
+            <SegmentedControl
+              options={[
+                { value: 'Basic', label: t('settings.apiKeys.scopeBasic') },
+                { value: 'FullRead', label: t('settings.apiKeys.scopeFull') },
+              ]}
+              value={scope}
+              onChange={setScope}
+              className="w-full"
+              aria-label={t('settings.apiKeys.scopeLabel')}
+            />
+            <p className="text-footnote text-[var(--fg-tertiary)]">
+              {scope === 'Basic'
+                ? t('settings.apiKeys.scopeBasicHint')
+                : t('settings.apiKeys.scopeFullHint')}
+            </p>
+          </div>
+
+          {scope === 'FullRead' && (
+            <Alert tone="warning" title={t('settings.apiKeys.scopeFullWarning')}>
+              {t('settings.apiKeys.scopeFullWarningText')}
+            </Alert>
+          )}
         </form>
       ) : (
         <div className="space-y-4">

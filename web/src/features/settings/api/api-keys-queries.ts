@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { createApiKey, fetchApiKeys, revokeApiKey } from './api-keys-api'
+import { type ApiKeyScope, createApiKey, fetchApiKeys, revokeApiKey } from './api-keys-api'
 
 /**
  * Kalitlar ro'yxati BITTA ildizdan: ro'yxat kichik (bir necha yozuv) va
@@ -39,7 +39,7 @@ export function useCreateApiKey() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (name: string) => createApiKey(name),
+    mutationFn: ({ name, scope }: { name: string; scope: ApiKeyScope }) => createApiKey(name, scope),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.root })
     },
