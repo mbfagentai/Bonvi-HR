@@ -15,8 +15,8 @@ Prod `1340f29` → `93fe7e8` faqat ISUP qismlari (api/bot qayta qurilmadi):
 Prod `.env` (zaxiralar `.env.bak-2026-10-12-*`): `ISUP_PUBLIC_ADDRESS=189.74.98.57`,
 `ISUP_PUBLIC_DOMAIN=hr.bonvi.uz` (ularsiz terminal ro'yxatdan o'tmaydi — DAS javobi bo'sh),
 `ISUP_FACE_SITE=isup.bonvi.uz`, `ISUP_FACE_URL_BASE=https://isup.bonvi.uz:7661/isup-face/`.
-`.env.isup`: `device1` (terminal Device ID'da chiziqcha qabul qilmaydi), vaqtincha
-`Isup__SdkLogLevel=3` (sinov tugagach olib tashlanadi).
+`.env.isup`: `device1` (terminal Device ID'da chiziqcha qabul qilmaydi), `Isup__SdkLogLevel` sinovdan keyin olib tashlandi.
+Natija 08:48: 172/172 xodim rasmi bilan terminalga yozildi, xato 0.
 Terminal (seriya J39518971, ofis): ISUP 5.0 → `hr.bonvi.uz:7660`, DNS `8.8.8.8`/`1.1.1.1`.
 
 **Orqaga qaytarish:** `docker compose … rm -sf isup-face-tls`, `.env` dagi `ISUP_FACE_URL_BASE` ni
