@@ -3,6 +3,20 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `1340f29` — tashqi API «to'liq o'qish» kaliti — CHIQARILDI 2026-10-12 09:03 (Toshkent)
+
+Prod `3f03319` → `1340f29`. Rollback: image tegi `rollback-3f03319` (api, bot, web), zaxira stamp
+`2026-10-12_035701`. Migratsiya `ApiKeyScope` qo'llandi (`api_keys.scope`, mavjud kalitlar 1 = Basic).
+Egasi `data/deploy/2026-10-11-toliq-oqish.sh` ni o'zi yurgizdi. Tekshirildi: sayt va `/health/*` 200,
+«o'qish roli tayyor», API jurnalida ERR yo'q, bot qayta yaratilmadi; `/api/public/v1/full` kalitsiz 401,
+eski (Basic) kalit bilan 403 `tashqi.doira_yetmaydi`, `/ping` 200.
+
+Qolgani egasida: Sozlamalar → Tashqi API → yangi kalit «To'liq o'qish» → boshliq botiga; eski «Shef API»
+va «API KEY TESTING» kalitlarini bekor qilish. Qo'llanma: `docs/API-TASHQI.md` 6a-bo'lim.
+
+**Orqaga qaytarish:** `docker tag …:rollback-3f03319 …:latest` (api, bot, web) + `up -d`. Eski kod `scope`
+ustunini bilmaydi va unga tegmaydi — ustun qolaversa ham zararsiz.
+
 ## ✅ Reliz `3f03319` — tashqi API filtri + №91 tuzatishlari — CHIQARILDI 2026-10-11 21:44 (Toshkent)
 
 Prod `494c23b` → `3f03319` (kod: faqat `PublicApiReadModel` — filtrlar javobda ko'rinadigan
