@@ -285,6 +285,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         var evidence = await MobileEvidenceAsync(rows, cancellationToken).ConfigureAwait(false);
 
+        var inferred = await InferredDirectionsAsync(rows, cancellationToken).ConfigureAwait(false);
+
         return
         [
             .. rows.Select(row =>
@@ -304,6 +306,11 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 // bir o'tishni «soat adashgan» qilib ko'rsatardi.
                 var skew = row.ClockOffsetSeconds is { } offset ? -offset : row.ClockSkewSeconds;
 
+                // Yo'nalishi berilmagan terminal — navbat bilan (kunning 1-o'tishi kirish…), faqat ko'rsatish.
+                var (direction, directionSource) = row.Direction == PassDirection.Unknown && inferred.TryGetValue(row.Id, out var guess)
+                    ? (guess, DirectionSource.Alternation)
+                    : (row.Direction, row.DirectionSource);
+
                 return new AttendancePassDto(
                     row.Id,
                     row.OccurredAt,
@@ -312,8 +319,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     skew,
                     Math.Abs(skew) > AttendanceRules.ClockSkewToleranceSeconds,
                     row.OffsetAssumed,
-                    row.Direction,
-                    row.DirectionSource,
+                    direction,
+                    directionSource,
                     row.Method,
                     row.DeviceId,
                     devices.GetValueOrDefault(row.DeviceId)?.Name,
@@ -332,6 +339,64 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     evidence.GetValueOrDefault(row.Id));
             }),
         ];
+    }
+
+    /// <summary>
+    /// Sahifadagi «noma'lum» o'tishlarning navbat bilan aniqlangan yo'nalishi.
+    /// </summary>
+    /// <remarks>
+    /// Hisob-kitob (`PassPairing`) bilan AYNAN bir qoida: xodimning o'sha kalendar
+    /// kunidagi barcha o'tishlari olinadi va navbat shu kun ichida sanaladi. Bitta
+    /// so'rov — sahifa hajmidan qat'i nazar. Tungi smenada (yarim tundan o'tadigan)
+    /// kalendar kuni smena oynasi bilan farq qilishi mumkin — u holda tabeldagi juftlash
+    /// ustun (bu yerda faqat ko'rsatish).
+    /// </remarks>
+    private async Task<Dictionary<Guid, PassDirection>> InferredDirectionsAsync(
+        List<PassRow> rows,
+        CancellationToken cancellationToken)
+    {
+        var keys = rows
+            .Where(row => row.Direction == PassDirection.Unknown && row.EmployeeId is not null)
+            .Select(row => (EmployeeId: row.EmployeeId!.Value, row.LocalDate))
+            .ToHashSet();
+
+        if (keys.Count == 0)
+        {
+            return [];
+        }
+
+        var employeeIds = keys.Select(key => key.EmployeeId).Distinct().ToList();
+        var dates = keys.Select(key => key.LocalDate).Distinct().ToList();
+
+        var passes = await _context.AttendancePasses
+            .AsNoTracking()
+            .Where(pass =>
+                pass.ResolvedEmployeeId != null &&
+                employeeIds.Contains(pass.ResolvedEmployeeId.Value) &&
+                dates.Contains(pass.LocalDate))
+            .Select(pass => new { pass.Id, pass.ResolvedEmployeeId, pass.OccurredAt, pass.Direction, pass.LocalDate })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var result = new Dictionary<Guid, PassDirection>();
+
+        foreach (var day in passes.GroupBy(pass => (EmployeeId: pass.ResolvedEmployeeId!.Value, pass.LocalDate)))
+        {
+            if (!keys.Contains(day.Key))
+            {
+                continue;
+            }
+
+            var directions = PassPairing.EffectiveDirections(
+                day.Select(pass => new PassReading(pass.Id, pass.ResolvedEmployeeId, pass.OccurredAt, pass.Direction)));
+
+            foreach (var (id, direction) in directions)
+            {
+                result[id] = direction;
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -1013,7 +1078,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
         if (people.Count == 0)
         {
-            return new DashboardPage(date, date == today, now, 0, new AttendanceDashboardCountsDto(0, 0, 0, 0, 0, 0, 0), [], 0);
+            return new DashboardPage(date, date == today, now, 0, new AttendanceDashboardCountsDto(0, 0, 0, 0, 0, 0, 0, 0), [], 0);
         }
 
         var populationIds = people.Select(person => person.Id).ToList();
@@ -1108,7 +1173,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             CountOf(AttendanceDashboardStatus.NotStarted),
             CountOf(AttendanceDashboardStatus.DayOff),
             CountOf(AttendanceDashboardStatus.NoSchedule),
-            CountOf(AttendanceDashboardStatus.Excused));
+            CountOf(AttendanceDashboardStatus.Excused),
+            CountOf(AttendanceDashboardStatus.Arrived));
 
         // ── 3. Jadval — qidiruv va holat faqat SHU yerda ─────────────
         var visible = rows.Where(row =>
@@ -1257,7 +1323,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         var tallies = new int[dayCount][];
         for (var index = 0; index < dayCount; index++)
         {
-            tallies[index] = new int[7];
+            tallies[index] = new int[8];
         }
 
         // ── 1. To'plam oynalari: org-filtr paneldagi bilan bir xil ──────
@@ -1404,7 +1470,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 counts[(int)AttendanceDashboardStatus.NotStarted - 1],
                 counts[(int)AttendanceDashboardStatus.DayOff - 1],
                 counts[(int)AttendanceDashboardStatus.NoSchedule - 1],
-                counts[(int)AttendanceDashboardStatus.Excused - 1]))),
+                counts[(int)AttendanceDashboardStatus.Excused - 1],
+                counts[(int)AttendanceDashboardStatus.Arrived - 1]))),
     ];
 
     // ════════════════════════════════════════════════════════════

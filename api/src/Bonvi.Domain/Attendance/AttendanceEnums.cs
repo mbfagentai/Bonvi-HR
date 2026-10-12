@@ -202,6 +202,14 @@ public enum DirectionSource
     /// turniket yo'q — jurnal buni ko'rsatib turishi kerak.
     /// </remarks>
     Employee = 4,
+
+    /// <summary>
+    /// Navbat bilan aniqlangan (kunning 1-o'tishi — kirish, keyin chiqish…) — FAQAT
+    /// ko'rsatish uchun, o'tishga YOZILMAYDI (egasi, 2026-10-12: yo'nalishi
+    /// berilmagan terminalda yo'nalish navbat bilan aniqlansin). Hisob-kitobdagi
+    /// juftlash bilan bir xil qoida (`PassPairing`).
+    /// </summary>
+    Alternation = 5,
 }
 
 /// <summary>Shaxs qanday tasdiqlangan.</summary>

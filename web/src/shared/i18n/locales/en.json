@@ -312,6 +312,8 @@
     "deleteFailed": "The photo could not be removed",
     "failed": "The photo could not be uploaded",
     "none": "No photo uploaded yet",
+    "cropHint": "Drag and zoom the photo — the part inside the square is saved; keep the face inside the circle.",
+    "zoom": "Zoom",
     "squareHint": "The photo is cropped to a 512×512 square — keep the face centred."
   },
   "common": {
@@ -1759,6 +1761,10 @@
     "statsAbsent": "Absent",
     "statsNotStarted": "Workday not started",
     "statsDayOff": "Day off",
+    "statsArrived": "Arrived (no schedule)",
+    "statsRowArrived": "Arrived",
+    "directionInferred": "alternating",
+    "directionInferredHint": "The terminal sent no direction — the day’s passes alternate: 1st in, 2nd out…",
     "statsNoSchedule": "No schedule",
     "statsRowOnTime": "Arrived on time",
     "statsRowLate": "{{n}} min late",

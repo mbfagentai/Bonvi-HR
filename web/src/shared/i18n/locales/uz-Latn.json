@@ -312,6 +312,8 @@
     "deleteFailed": "Rasmni o‘chirib bo‘lmadi",
     "failed": "Rasmni yuklab bo‘lmadi",
     "none": "Rasm hali yuklanmagan",
+    "cropHint": "Rasmni suring va kattalashtiring — kvadrat ichidagi qism saqlanadi, yuz doira ichida bo‘lsin.",
+    "zoom": "Kattalashtirish",
     "squareHint": "Rasm 512×512 kvadratga keltiriladi — yuz markazda bo‘lgani ma’qul."
   },
   "common": {
@@ -1759,6 +1761,10 @@
     "statsAbsent": "Kelmaganlar",
     "statsNotStarted": "Ish kuni boshlanmagan",
     "statsDayOff": "Dam olish kuni",
+    "statsArrived": "Keldi (grafiksiz)",
+    "statsRowArrived": "Keldi",
+    "directionInferred": "navbat",
+    "directionInferredHint": "Terminal yo‘nalish bermagan — kunning o‘tishlari navbat bilan aniqlandi: 1-chi kirish, 2-chi chiqish…",
     "statsNoSchedule": "Grafik yo‘q",
     "statsRowOnTime": "Vaqtida keldi",
     "statsRowLate": "{{n}} daqiqa kechikdi",

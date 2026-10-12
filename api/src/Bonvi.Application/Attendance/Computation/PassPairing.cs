@@ -272,6 +272,35 @@ public static class PassPairing
         return kept;
     }
 
+    /// <summary>
+    /// Har bir o'tishning hisob-kitobdagi yo'nalishi — <see cref="Pair"/> bilan AYNAN bir xil qadamlar.
+    /// </summary>
+    /// <remarks>
+    /// «O'tishlar» ro'yxati uchun (egasi, 2026-10-12): yo'nalishi berilmagan terminalda
+    /// har bir qatorda «Noma'lum» emas, navbat bilan aniqlangan yo'nalish ko'rinsin.
+    /// Bir kishining bir kunlik o'tishlari beriladi. Qurilma aytgan yo'nalish
+    /// o'zgarmaydi; tashlangan takror (bir xil ma'lum yo'nalish) ham o'z yo'nalishida qoladi.
+    /// </remarks>
+    /// <param name="passes">Bitta xodimning bitta kundagi o'tishlari (tartib shart emas).</param>
+    /// <returns>O'tish → yo'nalish.</returns>
+    public static IReadOnlyDictionary<Guid, PassDirection> EffectiveDirections(IEnumerable<PassReading> passes)
+    {
+        ArgumentNullException.ThrowIfNull(passes);
+
+        var ordered = passes.OrderBy(pass => pass.OccurredAt).ThenBy(pass => pass.Id).ToList();
+        var result = ordered.ToDictionary(pass => pass.Id, pass => pass.Direction);
+        var expected = PassDirection.In;
+
+        foreach (var pass in CollapseBounces(ordered))
+        {
+            var direction = pass.Direction == PassDirection.Unknown ? expected : pass.Direction;
+            expected = direction == PassDirection.In ? PassDirection.Out : PassDirection.In;
+            result[pass.Id] = direction;
+        }
+
+        return result;
+    }
+
     /// <summary>3-qadam: noma'lum yo'nalishni navbat bilan to'ldiradi.</summary>
     /// <remarks>
     /// Kunning birinchi hodisasi — kirish, keyin chiqish, kirish… Ma'lum

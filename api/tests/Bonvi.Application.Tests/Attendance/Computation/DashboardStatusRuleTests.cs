@@ -22,10 +22,11 @@ public sealed class DashboardStatusRuleTests
     private static DateTimeOffset At(string time) => AttendanceScenario.At(Wednesday, time);
 
     [Fact]
-    public void Jadval_topilmasa_otish_bolsa_ham_NoSchedule()
+    public void Jadval_topilmasa_otish_bolsa_Keldi_bolmasa_NoSchedule()
     {
+        // Egasining qarori (2026-10-12): jadvalsiz xodimning ham kirdi-chiqdisi olinadi.
         DashboardStatusRule.Classify(null, At("09:30"), Wednesday, At("10:00"))
-            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.NoSchedule, null));
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.Arrived, null));
 
         DashboardStatusRule.Classify(null, null, Wednesday, At("10:00"))
             .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.NoSchedule, null));

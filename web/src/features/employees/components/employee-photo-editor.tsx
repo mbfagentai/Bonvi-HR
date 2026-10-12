@@ -5,8 +5,9 @@ import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { PHOTO_ACCEPT, photoFileError, toMegabytes } from '@/shared/lib/photo'
+import { croppedOrOriginal, type CropArea } from '@/shared/lib/photo-crop'
 import { useObjectUrl } from '@/shared/lib/use-object-url'
-import { Alert, Button, Dialog } from '@/shared/ui'
+import { Alert, Button, Dialog, PhotoCropper } from '@/shared/ui'
 import { useDeleteEmployeePhoto, useUploadEmployeePhoto } from '../api/employees-queries'
 import { employeeErrorCode } from '../lib/employee-error'
 import { EMPLOYEES_EDIT } from '../lib/employee-presentation'
@@ -39,6 +40,8 @@ export function EmployeePhotoEditor({
   const inputRef = useRef<HTMLInputElement>(null)
 
   const [picked, setPicked] = useState<File | null>(null)
+  /** Kvadratning joyi — rasmni surib-kattalashtirib belgilanadi (`PhotoCropper`). */
+  const [crop, setCrop] = useState<CropArea | null>(null)
   /*
    * Ikkita alohida xato holati.
    *
@@ -79,11 +82,13 @@ export function EmployeePhotoEditor({
     }
 
     setUploadFailure(null)
+    setCrop(null)
     setPicked(file)
   }
 
   const closeUpload = () => {
     setPicked(null)
+    setCrop(null)
     setUploadFailure(null)
   }
 
@@ -97,7 +102,7 @@ export function EmployeePhotoEditor({
 
     setUploadFailure(null)
     try {
-      await upload.mutateAsync(picked)
+      await upload.mutateAsync(await croppedOrOriginal(picked, crop))
       closeUpload()
     } catch (error) {
       setUploadFailure(employeeErrorCode(error))
@@ -301,15 +306,17 @@ export function EmployeePhotoEditor({
           {picked !== null && preview !== null ? (
             <>
               {/*
-                Oldindan ko'rish DOIRA shaklida: server rasmni 512×512
-                kvadratga keltiradi va u yumaloq avatarda ko'rinadi. To'g'ri
-                burchakli ko'rinish yolg'on va'da berardi — HR yuzning
-                chetlari kesilganini faqat saqlagandan keyin bilardi.
+                Kvadratni HR o'zi joylashtiradi (2026-10-12): server rasmni
+                markazdan kesardi va bo'yi baland rasmda bosh tushib qolardi —
+                Face ID terminali ham yuzni topa olmasdi. Kvadrat — saqlanadigan
+                qism, doira — kartadagi avatar chegarasi.
               */}
-              <img
+              <PhotoCropper
+                key={preview}
                 src={preview}
-                alt={name}
-                className="size-40 rounded-full border border-[var(--border)] object-cover"
+                onChange={setCrop}
+                zoomLabel={t('photo.zoom')}
+                hint={t('photo.cropHint')}
               />
 
               <p className="text-center text-footnote text-[var(--fg-secondary)]">

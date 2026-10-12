@@ -337,11 +337,18 @@ public enum AttendanceDashboardStatus
     /// bilan AYNAN bir xil qoida — bir kun ikki ekranda ikki xil o'qilmasin.
     /// </remarks>
     Excused = 7,
+
+    /// <summary>
+    /// Kelgan, lekin jadvali yo'q (egasining qarori, 2026-10-12): grafik belgilanmagan
+    /// xodimning kirdi-chiqdisi ham olinadi — kun 24 soat, kelgan = kunning birinchi
+    /// o'tishi, ketgan = navbat bo'yicha oxirgi chiqish. Kechikish yo'q (reja yo'q).
+    /// </summary>
+    Arrived = 8,
 }
 
 /// <summary>Panel diagrammasi: oltita holat bo'yicha odamlar soni.</summary>
 /// <remarks>
-/// Oltitasining yig'indisi DOIM <see cref="AttendanceDashboardDto.Total"/> ga
+/// Hammasining yig'indisi DOIM <see cref="AttendanceDashboardDto.Total"/> ga
 /// teng — har bir odam aynan bitta holatda. Qidiruv va holat filtri bu yerga
 /// TA'SIR QILMAYDI: diagramma «bugun bo'lim qanday» degan savolga javob beradi,
 /// jadvalda bitta odamni qidirish esa uni «vaqtida kelgan: 1» ga aylantirmasligi
@@ -354,6 +361,7 @@ public enum AttendanceDashboardStatus
 /// <param name="DayOff">Dam olish kunidagilar.</param>
 /// <param name="NoSchedule">Jadvali yo'qlar.</param>
 /// <param name="Excused">Sababli — tasdiqlangan so'rovi borlar.</param>
+/// <param name="Arrived">Jadvali yo'q, lekin o'tgan — «Keldi».</param>
 public sealed record AttendanceDashboardCountsDto(
     int OnTime,
     int Late,
@@ -361,7 +369,8 @@ public sealed record AttendanceDashboardCountsDto(
     int NotStarted,
     int DayOff,
     int NoSchedule,
-    int Excused);
+    int Excused,
+    int Arrived);
 
 /// <summary>Panel jadvalidagi bitta xodim.</summary>
 /// <remarks>

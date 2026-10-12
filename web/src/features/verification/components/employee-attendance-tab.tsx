@@ -597,7 +597,10 @@ function PassMonth({
         header: t('attendance.direction'),
         enableSorting: false,
         meta: { width: '136px' },
-        cell: ({ row }) => <PassDirectionBadge direction={row.original.direction} />,
+        cell: ({ row }) => <PassDirectionBadge
+            direction={row.original.direction}
+            inferred={row.original.directionSource === 'Alternation'}
+          />,
       }),
 
       passColumn.accessor('method', {

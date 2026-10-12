@@ -19,6 +19,46 @@ public sealed class PassPairingTests
 
     private static PairingResult Pair(params PassReading[] passes) => PassPairing.Pair(passes, plan: null);
 
+    // ────────────────────── O'tishlar ro'yxati uchun yo'nalish ──────────────────────
+
+    /// <summary>
+    /// Yo'nalishi berilmagan terminal (2026-10-12): ro'yxatda har bir o'tish navbat bilan
+    /// kirish/chiqish bo'lib ko'rinadi; tartibsiz kelsa ham vaqt bo'yicha sanaladi.
+    /// </summary>
+    [Fact]
+    public void EffectiveDirections_noma_lumni_navbat_bilan_toldiradi()
+    {
+        var a = P("09:00", PassDirection.Unknown);
+        var b = P("13:00", PassDirection.Unknown);
+        var c = P("14:00", PassDirection.Unknown);
+        var d = P("18:00", PassDirection.Unknown);
+
+        var natija = PassPairing.EffectiveDirections([d, b, a, c]);
+
+        natija[a.Id].ShouldBe(PassDirection.In);
+        natija[b.Id].ShouldBe(PassDirection.Out);
+        natija[c.Id].ShouldBe(PassDirection.In);
+        natija[d.Id].ShouldBe(PassDirection.Out);
+    }
+
+    [Fact]
+    public void EffectiveDirections_malum_yonalishni_ozgartirmaydi_va_navbatni_undan_davom_ettiradi()
+    {
+        var kirish = P("09:00", PassDirection.In);
+        var takror = P("09:01", PassDirection.In);
+        var noma1 = P("12:00", PassDirection.Unknown);
+        var chiqish = P("13:00", PassDirection.Out);
+        var noma2 = P("14:00", PassDirection.Unknown);
+
+        var natija = PassPairing.EffectiveDirections([kirish, takror, noma1, chiqish, noma2]);
+
+        natija[kirish.Id].ShouldBe(PassDirection.In);
+        natija[takror.Id].ShouldBe(PassDirection.In, "tashlangan takror o'z yo'nalishida qoladi");
+        natija[noma1.Id].ShouldBe(PassDirection.Out);
+        natija[chiqish.Id].ShouldBe(PassDirection.Out);
+        natija[noma2.Id].ShouldBe(PassDirection.In);
+    }
+
     // ────────────────────── Oraliqlar ──────────────────────
 
     [Fact]

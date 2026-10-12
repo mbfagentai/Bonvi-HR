@@ -405,6 +405,15 @@ export const DASHBOARD_STATUS_LOOK: Readonly<Record<DashboardStatus, DashboardSt
     dotClass: 'bg-ios-gray',
     textClass: 'text-[var(--fg-secondary)]',
   },
+  // Jadvalsiz, lekin kelgan (2026-10-12) — kirdi-chiqdi baribir olinadi, kechikish yo'q.
+  Arrived: {
+    count: 'arrived',
+    legendKey: 'attendance.statsArrived',
+    rowKey: 'attendance.statsRowArrived',
+    fill: 'var(--color-ios-purple)',
+    dotClass: 'bg-ios-purple',
+    textClass: 'text-ios-purple',
+  },
   // Rang tabeldagi «Sababli» bilan AYNAN bir xil (ko'k): bir kun ikki
   // ekranda ikki xil rangda ko'rinmasligi kerak.
   Excused: {
@@ -427,6 +436,8 @@ export const DASHBOARD_STATUS_LOOK: Readonly<Record<DashboardStatus, DashboardSt
 export const DASHBOARD_STATUSES: readonly DashboardStatus[] = [
   'OnTime',
   'Late',
+  // «Keldi» — kelganlar guruhida: jadvali yo'q, lekin o'tgan.
+  'Arrived',
   'Absent',
   // «Sababli» — «Kelmadi» dan keyin: ular bitta savolning ikki javobi.
   'Excused',

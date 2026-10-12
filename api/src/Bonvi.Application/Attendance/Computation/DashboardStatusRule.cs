@@ -65,9 +65,12 @@ public static class DashboardStatusRule
         DateTimeOffset now,
         bool excused = false)
     {
+        // Jadvalsiz ham kirdi-chiqdi olinadi (2026-10-12): o'tgan bo'lsa — «Keldi», kechikishsiz.
         if (plan is null)
         {
-            return new DashboardVerdict(AttendanceDashboardStatus.NoSchedule, null);
+            return new DashboardVerdict(
+                arrivedAt is null ? AttendanceDashboardStatus.NoSchedule : AttendanceDashboardStatus.Arrived,
+                null);
         }
 
         if (plan is not { IsWorking: true, PlanStartAt: { } planStart })

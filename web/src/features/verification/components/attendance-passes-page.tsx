@@ -270,7 +270,10 @@ export function AttendancePassesPage() {
         enableSorting: false,
         // «Noma'lum» (eng uzun yorliq) + ikonka + ichki bo'shliq ≈ 100 px + 32 px
         meta: { width: '136px' },
-        cell: ({ row }) => <PassDirectionBadge direction={row.original.direction} />,
+        cell: ({ row }) => <PassDirectionBadge
+            direction={row.original.direction}
+            inferred={row.original.directionSource === 'Alternation'}
+          />,
       }),
 
       helper.accessor('method', {

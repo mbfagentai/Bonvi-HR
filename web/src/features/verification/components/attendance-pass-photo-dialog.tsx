@@ -136,16 +136,28 @@ export function PassFacePair({ pass }: { pass: AttendancePass }) {
   )
 }
 
-/** Yo'nalish yorlig'i — rang `DIRECTION_LOOK` da (kirish yashil, chiqish ko'k, noma'lum kulrang). */
-export function PassDirectionBadge({ direction }: { direction: PassDirection }) {
+/**
+ * Yo'nalish yorlig'i — rang `DIRECTION_LOOK` da (kirish yashil, chiqish ko'k, noma'lum kulrang).
+ *
+ * `inferred` — terminal yo'nalish bermagan, server navbat bilan aniqlagan
+ * (`directionSource = Alternation`, 2026-10-12): yorliq yonida «navbat» izohi.
+ */
+export function PassDirectionBadge({
+  direction,
+  inferred = false,
+}: {
+  direction: PassDirection
+  inferred?: boolean
+}) {
   const { t } = useLocale()
   const look = DIRECTION_LOOK[direction]
   const Icon = look.icon
 
   return (
-    <Badge tone={look.tone} size="sm">
+    <Badge tone={look.tone} size="sm" title={inferred ? t('attendance.directionInferredHint') : undefined}>
       <Icon className="size-3" strokeWidth={2.5} />
       {t(look.labelKey)}
+      {inferred && <span className="opacity-70">· {t('attendance.directionInferred')}</span>}
     </Badge>
   )
 }
@@ -313,7 +325,7 @@ function PassDetails({ pass }: { pass: AttendancePass }) {
         </Detail>
 
         <Detail label={t('attendance.direction')}>
-          <PassDirectionBadge direction={pass.direction} />
+          <PassDirectionBadge direction={pass.direction} inferred={pass.directionSource === 'Alternation'} />
         </Detail>
 
         <Detail label={t('attendance.device')}>{pass.deviceName ?? '—'}</Detail>

@@ -365,7 +365,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         panel.AsOf.ShouldBe(new DateTimeOffset(2026, 9, 16, 10, 0, 0, Tashkent));
 
         panel.Total.ShouldBe(6, "ketgan (15-sentabr) va ertaga keladigan odam sanalmaydi");
-        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 1, Late: 1, Absent: 1, NotStarted: 1, DayOff: 1, NoSchedule: 1, Excused: 0));
+        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 1, Late: 1, Absent: 1, NotStarted: 1, DayOff: 1, NoSchedule: 0, Excused: 0, Arrived: 1));
         panel.TotalItems.ShouldBe(6);
         panel.Items.Select(item => item.EmployeeId).ShouldBe(
             [world.OnTime, world.Late, world.Absent, world.NotStarted, world.DayOff, world.NoSchedule]);
@@ -399,8 +399,9 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         dayOff.ArrivedAt.ShouldBe(PanelAt(16, 9, 40));
         dayOff.LateMinutes.ShouldBeNull();
 
+        // Jadvalsiz, lekin o'tgan — «Keldi» (2026-10-12): kirdi-chiqdi jadvalsiz ham olinadi.
         var noSchedule = Item(panel, world.NoSchedule);
-        noSchedule.Status.ShouldBe(AttendanceDashboardStatus.NoSchedule);
+        noSchedule.Status.ShouldBe(AttendanceDashboardStatus.Arrived);
         noSchedule.ArrivedAt.ShouldBe(PanelAt(16, 8, 0));
         noSchedule.DepartmentName.ShouldBe(world.UnscheduledDepartmentName);
 
@@ -515,7 +516,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         exits.ArrivedAt.ShouldBe(PanelAt(16, 9, 5));
         exits.LeftAt.ShouldBe(PanelAt(16, 12, 0));
 
-        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 2, Late: 1, Absent: 0, NotStarted: 0, DayOff: 0, NoSchedule: 0, Excused: 0));
+        panel.Counts.ShouldBe(new AttendanceDashboardCountsDto(OnTime: 2, Late: 1, Absent: 0, NotStarted: 0, DayOff: 0, NoSchedule: 0, Excused: 0, Arrived: 0));
     }
 
     /// <summary>
@@ -652,7 +653,8 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         foreach (var day in week.Days)
         {
             var counts = day.Counts;
-            (counts.OnTime + counts.Late + counts.Absent + counts.NotStarted + counts.DayOff + counts.NoSchedule)
+            (counts.OnTime + counts.Late + counts.Absent + counts.NotStarted + counts.DayOff + counts.NoSchedule
+             + counts.Excused + counts.Arrived)
                 .ShouldBe(day.Total, day.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         }
 
@@ -668,7 +670,7 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         before.Days.Select(day => day.Date).ShouldBe(
             [new DateOnly(2023, 12, 30), new DateOnly(2023, 12, 31), new DateOnly(2024, 1, 1)]);
         before.Days[0].Total.ShouldBe(0);
-        before.Days[0].Counts.ShouldBe(new AttendanceDashboardCountsDto(0, 0, 0, 0, 0, 0, 0));
+        before.Days[0].Counts.ShouldBe(new AttendanceDashboardCountsDto(0, 0, 0, 0, 0, 0, 0, 0));
         before.Days[2].Total.ShouldBe(7, "1-yanvarda H dan boshqa hamma ishga olingan");
 
         // ── Org-filtr: ota bo'lim ichki bo'limi bilan, jadvalsizsiz ──
