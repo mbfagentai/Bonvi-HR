@@ -28,6 +28,15 @@ the same code; only the transport differs.
    (default `https://hr.bonvi.uz/isup-face/`).
 3. `.env.isup` next to it, `chmod 600`, never in git — template:
    `.env.isup.example`.
+3a. **Face host** (terminals download employee photos from it): DNS A record
+   `isup.bonvi.uz` → server IP (Cloudflare, DNS only) and in `.env`:
+   `ISUP_FACE_SITE=isup.bonvi.uz`, `ISUP_FACE_URL_BASE=https://isup.bonvi.uz/isup-face/`.
+   Caddy gives this name an **RSA** certificate chained to ISRG Root X1 — terminals
+   reject the main site's ECDSA chain (ISRG Root X2 / Root YE, too new for their CA
+   store; found on a live DS-K1T341 on 2026-10-12, `urlDownloadFail`). Verifix uses an
+   RSA DigiCert certificate for the same reason. ISUP itself also needs
+   `ISUP_PUBLIC_ADDRESS` (server IP) / `ISUP_PUBLIC_DOMAIN` — the terminal asks for it
+   (DAS) before registering; with them empty it never registers.
 4. Firewall: allow inbound **TCP and UDP 7660** (nothing else is new; faces go
    through Caddy on 443). The port is published by `isup-proxy`; the gateway
    itself has no route to the internet (SPEC G8).
@@ -79,7 +88,9 @@ the same code; only the transport differs.
 | `Terminal kaliti mos kelmadi` | Encryption key on the terminal ≠ `Key` |
 | Nothing at all from the terminal | Terminal cannot reach `hr.bonvi.uz:7660` (site internet, DNS, server firewall) |
 | `ULANDI` but agent errors `ISAPI 503` | Terminal dropped right after; watch for `UZILDI` (unstable site link) |
-| Agent `ISAPI 400 … downloadPicture…` on faces | Terminal could not fetch `faceURL`. Try `ISUP_FACE_URL_BASE=http://hr.bonvi.uz/isup-face/` (needs an `http://` Caddy block for that path) |
+| Agent `ISAPI 400 … urlDownloadFail` (`faceURL`) on faces | Terminal could not fetch the photo: certificate chain it does not trust, or DNS. Use the RSA face host (step 3a), check `curl -sI https://isup.bonvi.uz/isup-face/x` gives 404, then *Hammasini sinxronlash* on the device card (failed rows are not retried automatically) |
+| Terminal connects (`EHOME50_CRYPTO_DATA_RSP`, `LBS_SEND_DEV_CODE_QUERY_DATA_ERROR`) but never registers | `ISUP_PUBLIC_ADDRESS` empty — the DAS answer is blank (step 3a) |
+| Device ID with `-` rejected by the terminal | Use letters and digits only (`device1`, `zavod1`) |
 | Agent `davomat.terminal_mos_emas` (409) | Token is bound to another terminal's serial (SPEC-agent §L2) — new token on the card |
 | `ISAPI 504` repeating | SDK timeouts — slow site link; raise `Isup__PassthroughTimeoutMs` |
 

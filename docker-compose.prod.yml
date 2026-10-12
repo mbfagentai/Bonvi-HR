@@ -444,6 +444,9 @@ services:
       # Eski IP manzilini domenga uzatish — vaqtincha (`web/Caddyfile` izohi).
       # Sukut `:9999` — tashqariga chiqarilmagan port, ya'ni blok o'lik.
       LEGACY_ADDRESS: ${LEGACY_ADDRESS:-:9999}
+      # ISUP yuz rasmlari uchun alohida nom (RSA sertifikat) — `web/Caddyfile` izohi.
+      # Sukut `:9997` — tashqariga chiqarilmagan port, blok o'lik.
+      ISUP_FACE_SITE: ${ISUP_FACE_SITE:-:9997}
     ports:
       - "80:80"
       - "443:443"

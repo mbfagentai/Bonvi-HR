@@ -24,6 +24,45 @@
 	redir https://hr.bonvi.uz{uri} 302
 }
 
+# ──────────────────────────────────────────────────────────
+#  ISUP yuz rasmlari — alohida nom, RSA sertifikat (2026-10-12)
+#
+#  NEGA: terminal (DS-K1T341, ISUP 5.0) xodimni yozganda rasmni havoladan
+#  O'ZI internet orqali yuklaydi. `hr.bonvi.uz` sertifikati — Let's Encrypt
+#  ECDSA, ildizi ISRG Root X2 / Root YE (2020/2025); terminal ichidagi
+#  ildizlar ro'yxati eski va uni tanimaydi (`urlDownloadFail`). Verifix
+#  RSA (DigiCert) ishlatadi — terminal unga ishonadi. Bu nom uchun RSA
+#  kalit va ISRG Root X1 (2015) zanjiri: shifrlash saqlanadi, HR sayti
+#  sertifikatiga tegilmaydi, zavodlarda ham ichki tarmoq kerak emas.
+#
+#  NIMA OCHIQ: faqat `/isup-face/*` (bir martalik 128 bitlik token,
+#  5 daqiqa), qolgan hamma yo'l — 404.
+#
+#  Sukut `:9997` — tashqariga chiqarilmagan port (blok o'lik, `tls`
+#  qo'llanmaydi). Prod `.env`: `ISUP_FACE_SITE=isup.bonvi.uz` va
+#  `ISUP_FACE_URL_BASE=https://isup.bonvi.uz/isup-face/`; DNS A yozuvi
+#  serverga (Cloudflare, «DNS only»).
+# ──────────────────────────────────────────────────────────
+{$ISUP_FACE_SITE::9997} {
+	tls {
+		key_type rsa2048
+		issuer acme {
+			preferred_chains {
+				root_common_name "ISRG Root X1"
+			}
+		}
+	}
+
+	handle /isup-face/* {
+		header -Server
+		reverse_proxy isup-gateway:8091
+	}
+
+	handle {
+		respond 404
+	}
+}
+
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
