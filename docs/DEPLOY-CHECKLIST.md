@@ -3,6 +3,17 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `e2edfe1` — davomat: «Keldi», navbat bilan yo'nalish, rasm kesish, terminal push'i — 2026-10-12 14:37
+
+Prod `93fe7e8` → `e2edfe1` (`45b4fe4` + `e2edfe1`). Rollback: image tegi `rollback-93fe7e8` (api, bot,
+web), zaxira stamp `2026-10-12_093021`. Migratsiya YO'Q. Birinchi urinish (14:19) `mcr.microsoft.com`
+ga ulanish vaqtinchalik uzilgani uchun build'da to'xtagan — hech narsa o'zgarmagan, qayta urinish o'tdi.
+* Statistika: jadvalsiz, lekin o'tgan — «Keldi (grafiksiz)»; O'tishlar: noma'lum yo'nalish navbat bilan
+  («navbat» izohi); nomzod/xodim/hisob rasmini kvadratga joylashtirish.
+* Terminal push'i (surat bilan) agent qurilmasiga ham: `isup-face-tls` nginx'da
+  `POST /api/attendance/ingest/` yo'li (qayta yaratildi), takror bitta, surat o'tishga biriktiriladi.
+Tekshirildi: sayt va `/health/*` 200, API jurnalida ERR yo'q, `isup.bonvi.uz:7661` rasm 404, ingest API'ga yetadi.
+
 ## ✅ ISUP sinov terminali ulandi, xodimlar rasmi bilan yozilmoqda — 2026-10-12 (Toshkent)
 
 Prod `1340f29` → `93fe7e8` faqat ISUP qismlari (api/bot qayta qurilmadi):

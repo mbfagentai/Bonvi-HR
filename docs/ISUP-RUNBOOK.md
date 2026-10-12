@@ -84,6 +84,17 @@ the same code; only the transport differs.
    on the device card in Bonvi the agent's last contact updates and employees
    start to be written (roster cycle: 60 s).
 
+## 2a. Pass photos (terminal push)
+
+The ISUP tunnel carries text only, so pass snapshots come from the terminal's own HTTP
+push (like Verifix). On the terminal: *Network → Network Service → HTTP Listening* (name
+varies): host `isup.bonvi.uz`, port `7661`, protocol HTTPS, URL
+`/api/attendance/ingest/<device token>` (the same token as in `.env.isup`); and in *Access
+Control → Terminal Parameters* enable *upload / save captured pictures*. The same device card
+receives both channels: the event key is aligned with the agent's (`minmoe-{serialNo}-{time}`),
+so a pass is stored once and the photo is attached to it. Office terminals: the HTTP push slot
+is Verifix's until Verifix is switched off.
+
 ## 3. Troubleshooting
 
 | Symptom (gateway log) | Cause |
