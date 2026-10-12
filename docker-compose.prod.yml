@@ -424,6 +424,58 @@ services:
         max-size: "5m"
         max-file: "3"
 
+  # ----------------------------------------------------------
+  #  ISUP yuz rasmlari — eski terminallar TLS'i uchun (`infra/isup-face/nginx.conf`)
+  #
+  #  NEGA: terminal (DS-K1T341) faqat RSA / DHE-RSA kalit almashuvini biladi, Caddy
+  #  (Go) ikkalasini ham bermaydi — terminal rasmni yuklay olmadi (2026-10-12). Bu
+  #  xizmat Mozilla «intermediate» TLS (ECDHE + DHE-RSA-AES-GCM, oldinga maxfiylik)
+  #  bilan FAQAT `/isup-face/` ni beradi; oddiy RSA kalit almashuvi yoqilmagan.
+  #  Sertifikat — Caddy olgan `isup.bonvi.uz` RSA sertifikati (faqat o'sha papka,
+  #  o'qish uchun); har soatda qayta o'qiladi. Caddy birinchi sertifikatni
+  #  olmaguncha bu konteyner ko'tarilmaydi (papka yo'q) — restart o'zi tuzatadi.
+  # ----------------------------------------------------------
+  isup-face-tls:
+    image: nginx:1.27.3-alpine
+    profiles: ["isup"]
+    restart: always
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        nginx &&
+        while sleep 3600; do
+        kill -0 "$$(cat /tmp/nginx.pid)" || exit 1;
+        nginx -s reload;
+        done
+    volumes:
+      - ./infra/isup-face/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/isup-face/ffdhe2048.pem:/etc/nginx/ffdhe2048.pem:ro
+      - type: volume
+        source: caddy-data
+        target: /certs
+        read_only: true
+        volume:
+          subpath: caddy/certificates/acme-v02.api.letsencrypt.org-directory/isup.bonvi.uz
+    ports:
+      - "7661:7661/tcp"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, CHOWN]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 64m
+    depends_on:
+      isup-gateway: { condition: service_started }
+    networks: [bonvi, isup]
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
   web:
     build:
       context: ./web
