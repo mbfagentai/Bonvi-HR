@@ -3,6 +3,17 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Xodim ilovasi prod'da OCHILDI — 2026-10-12 18:05 (Toshkent), egasining buyrug'i bilan
+
+Kod o'zgarmadi (prod `dd4667c`). Prod `.env`: `EMPLOYEE_APP_ENABLED=true` (zaxira
+`.env.bak-2026-10-12-180311-ilova`), faqat `api` qayta yaratildi (`up -d --no-deps --no-build api`),
+`isup-face-tls` nginx qayta o'qitildi (api manzilini ishga tushishda aniqlaydi). Tekshirildi: `/`,
+`/ilova/`, `/health/*` 200; `POST /api/employee-auth/login` endi `xodim.notogri_malumot` (marshrut bor).
+⚠️ 2026-09-30 xavfsizlik bandlari (HR bermagan hisob kira olmasin, telefon bo'yicha umumiy chegara,
+anonim so'rov hajmi, xeshlash navbati, zaif HR paroli) hali prod'da YO'Q — keyingi relizda.
+**Yopish:** zaxirani qaytarish (yoki qiymatni `false`) va `docker compose -f docker-compose.prod.yml up -d --no-deps --no-build api`,
+keyin `exec -T isup-face-tls nginx -s reload`.
+
 ## ✅ Reliz `dd4667c` — davomat: grafiksiz kunda 22:00 da avtomatik «ketdi» — 2026-10-12 15:27
 
 Prod `8daadac` → `dd4667c`. Rollback: image tegi `rollback-8daadac` (api, bot, web), zaxira stamp
