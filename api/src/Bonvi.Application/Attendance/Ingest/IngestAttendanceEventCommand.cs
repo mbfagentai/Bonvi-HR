@@ -177,10 +177,15 @@ public sealed class IngestAttendanceEventCommandHandler
         DateTimeOffset receivedAt,
         CancellationToken cancellationToken)
     {
+        // Agent qurilmasiga (Generic) terminalning O'Z push'i ham keladi (2026-10-12): u o'tish
+        // SURATINI olib keladi, ISUP tunneli esa rasm o'tkaza olmaydi. Push — Hikvision multipart.
+        var terminalPush = device.Provider == AttendanceProvider.Generic && payload.IsMultipart;
+
         // `Single`: har bir turga aynan bitta tahlilchi. Topilmasa yoki ikkita
         // bo'lsa — bu DI xatosi, so'rov xatosi emas, va 500 bo'lib ko'rinishi
         // kerak (jimgina «o'qib bo'lmadi» emas).
-        var parser = _parsers.Single(candidate => candidate.Provider == device.Provider);
+        var parser = _parsers.Single(candidate =>
+            candidate.Provider == (terminalPush ? AttendanceProvider.Hikvision : device.Provider));
 
         var parsed = await parser.ParseAsync(payload, cancellationToken).ConfigureAwait(false);
         if (parsed.IsFailure)
@@ -188,7 +193,9 @@ public sealed class IngestAttendanceEventCommandHandler
             return parsed;
         }
 
-        var events = parsed.Value;
+        IReadOnlyList<RawAttendanceEvent> events = terminalPush
+            ? [.. parsed.Value.Select(AsAgentEvent)]
+            : parsed.Value;
 
         if (events.Count > IngestLimits.MaxEventsPerRequest)
         {
@@ -280,6 +287,17 @@ public sealed class IngestAttendanceEventCommandHandler
             // `NoteSeen` o'zgarishi esa kuzatuvda qoladi va keyingi saqlashda
             // yoziladi — muvaffaqiyatsiz saqlash uni yo'qotmaydi.
             _passes.Remove(pass);
+
+            // Takror surat bilan keldi (terminal push'i, agent o'sha o'tishni suratsiz
+            // yozgan): surat mavjud o'tishga biriktiriladi, aks holda tashlanadi.
+            if (photoKey is not null
+                && await _passes.FindByDedupeAsync(device.Id, pass.DedupeKey, cancellationToken).ConfigureAwait(false) is { } existing
+                && existing.AttachPhoto(photoKey))
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return null;
+            }
+
             await DiscardPhotoAsync(photoKey, cancellationToken).ConfigureAwait(false);
             return null;
         }
@@ -359,6 +377,27 @@ public sealed class IngestAttendanceEventCommandHandler
     /// yozilardi. Qurilma aytgani esa qayta yuborishda o'zgarmaydi.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Terminal push'idagi hodisa kaliti — agentniki bilan AYNAN bir xil shaklga
+    /// (`AgentWorker.EventId`: «minmoe-{serialNo}-{terminal vaqti}»).
+    /// </summary>
+    /// <remarks>
+    /// Bitta o'tish ikki yo'l bilan keladi: agent (ISUP orqali, suratsiz) va terminalning
+    /// o'z push'i (surat bilan). Kalit bir xil bo'lgani uchun ikkinchisi takror deb
+    /// tutiladi va surati birinchisiga biriktiriladi — o'tish ikki marta sanalmaydi.
+    /// Vaqt satrdagi siljishi bilan (`IngestTime` uni saqlaydi), agent ham shunday o'qiydi.
+    /// </remarks>
+    private static RawAttendanceEvent AsAgentEvent(RawAttendanceEvent passEvent)
+        => passEvent.ExternalEventId is { } serial
+           && long.TryParse(serial, NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+            ? passEvent with
+            {
+                ExternalEventId = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"minmoe-{number}-{passEvent.OccurredAt:yyyyMMddHHmmss}"),
+            }
+            : passEvent;
+
     private static string DedupeKey(RawAttendanceEvent passEvent)
         => passEvent.ExternalEventId is { } eventId
             ? "s:" + eventId

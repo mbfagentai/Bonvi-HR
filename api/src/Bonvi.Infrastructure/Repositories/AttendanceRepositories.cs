@@ -190,6 +190,10 @@ public sealed class AttendancePassRepository : Repository<AttendancePass>, IAtte
     public AttendancePassRepository(AppDbContext context) : base(context) { }
 
     /// <inheritdoc />
+    public Task<AttendancePass?> FindByDedupeAsync(Guid deviceId, string dedupeKey, CancellationToken cancellationToken = default)
+        => Set.FirstOrDefaultAsync(pass => pass.DeviceId == deviceId && pass.DedupeKey == dedupeKey, cancellationToken);
+
+    /// <inheritdoc />
     /// <remarks>
     /// <para>
     /// Ikki qadam: avval bog'lanmaganlarning identifikator va sanasi

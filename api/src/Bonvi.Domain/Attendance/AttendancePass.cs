@@ -290,6 +290,26 @@ public sealed class AttendancePass : AggregateRoot
         PhotoPurgedAt = at;
     }
 
+    /// <summary>
+    /// Takror kelgan hodisaning suratini shu o'tishga biriktiradi (2026-10-12).
+    /// </summary>
+    /// <remarks>
+    /// Bitta o'tish agentdan suratsiz, terminalning o'z push'idan esa surat bilan keladi.
+    /// Faqat surati yo'q va hali tozalanmagan o'tishga — bor suratning ustidan yozilmaydi.
+    /// </remarks>
+    /// <param name="photoKey">Saqlangan surat kaliti.</param>
+    /// <returns><c>true</c> — biriktirildi.</returns>
+    public bool AttachPhoto(string photoKey)
+    {
+        if (PhotoKey is not null || PhotoPurgedAt is not null || string.IsNullOrWhiteSpace(photoKey))
+        {
+            return false;
+        }
+
+        PhotoKey = photoKey.Trim();
+        return true;
+    }
+
     private static string? Trim(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

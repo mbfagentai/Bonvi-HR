@@ -124,6 +124,12 @@ public interface IAttendanceIdentityRepository : IRepository<AttendanceIdentity>
 /// </remarks>
 public interface IAttendancePassRepository : IRepository<AttendancePass>
 {
+    /// <summary>Qurilmaning shu takror kalitli o'tishi (kuzatuv bilan) — takror kelgan suratni biriktirish uchun.</summary>
+    /// <param name="deviceId">Qurilma.</param>
+    /// <param name="dedupeKey">Takror kaliti (`ux_attendance_passes_device_dedupe`).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<AttendancePass?> FindByDedupeAsync(Guid deviceId, string dedupeKey, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Shu shaxs raqamining BOG'LANMAGAN o'tishlarini xodimga bog'laydi — SPEC §4.3.
     /// </summary>

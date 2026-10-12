@@ -415,6 +415,57 @@ public sealed class AttendanceIngestApiTests : IClassFixture<AttendanceIngestHos
     }
 
     /// <summary>
+    /// Agent qurilmasiga (Generic) terminalning o'z push'i ham keladi (2026-10-12): u o'tish
+    /// suratini olib keladi. Bitta o'tish ikki marta yozilmaydi — kalit agentniki bilan bir xil
+    /// («minmoe-{serialNo}-{vaqt}») — va surat agent yozgan o'tishga biriktiriladi, tartib
+    /// qanday bo'lmasin.
+    /// </summary>
+    [Fact]
+    public async Task Agent_qurilmasiga_terminal_push_i_surati_bilan_takrorsiz_qoshiladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (qurilmaId, token) = await QurilmaAsync(AttendanceProvider.Generic);
+        using var mijoz = _host.Factory.CreateClient();
+
+        async Task<IngestResponse> AgentAsync(string shaxs, DateTimeOffset vaqt, long seriya)
+        {
+            var tana = $$"""
+                { "events": [ { "personId": "{{shaxs}}", "occurredAt": "{{IsoVaqt(vaqt)}}", "eventId": "minmoe-{{seriya}}-{{vaqt.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}}" } ] }
+                """;
+            using var javob = await mijoz.SendAsync(SarlavhaliJson(token, tana), ct);
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+            return (await javob.Content.ReadFromJsonAsync<IngestResponse>(ct))!;
+        }
+
+        async Task<IngestResponse> PushAsync(string shaxs, DateTimeOffset vaqt, long seriya)
+        {
+            using var javob = await mijoz.PostAsync(
+                YolTokenBilan(token),
+                HikvisionTanasi(HikvisionXom(IsoVaqt(vaqt), shaxs, seriya), TestImages.JpegYasa(32, 32, 80)),
+                ct);
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+            return (await javob.Content.ReadFromJsonAsync<IngestResponse>(ct))!;
+        }
+
+        // 1) Agent birinchi (suratsiz), keyin push (surat bilan) — surat biriktiriladi.
+        var vaqt1 = HozirToshkentda().AddMinutes(-10);
+        (await AgentAsync("71001", vaqt1, 501)).ShouldBe(new IngestResponse(true, 1, 0));
+        (await PushAsync("71001", vaqt1, 501)).ShouldBe(new IngestResponse(true, 0, 1));
+
+        var birinchi = (await OtishlarAsync(qurilmaId)).ShouldHaveSingleItem();
+        birinchi.PhotoKey.ShouldNotBeNull("push surati agent yozgan o'tishga biriktirilishi kerak");
+        birinchi.DedupeKey.ShouldBe("s:minmoe-501-" + vaqt1.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture));
+
+        // 2) Push birinchi (surat bilan), keyin agent — takror, surat joyida qoladi.
+        var vaqt2 = HozirToshkentda().AddMinutes(-5);
+        (await PushAsync("71002", vaqt2, 502)).ShouldBe(new IngestResponse(true, 1, 0));
+        (await AgentAsync("71002", vaqt2, 502)).ShouldBe(new IngestResponse(true, 0, 1));
+
+        var ikkinchi = (await OtishlarAsync(qurilmaId)).Where(otish => otish.RawPersonId == "71002").ShouldHaveSingleItem();
+        ikkinchi.PhotoKey.ShouldNotBeNull();
+    }
+
+    /// <summary>
     /// O'tish bo'lmagan Hikvision hodisasi (yurak urishi, rad etilgan yuz) —
     /// 200 va <c>stored: 0</c>, 400 emas: aks holda terminal uni cheksiz qayta yuborardi.
     /// </summary>
