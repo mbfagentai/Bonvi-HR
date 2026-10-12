@@ -3,6 +3,25 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ ISUP sinov terminali ulandi, xodimlar rasmi bilan yozilmoqda — 2026-10-12 (Toshkent)
+
+Prod `1340f29` → `93fe7e8` faqat ISUP qismlari (api/bot qayta qurilmadi):
+* `b0fb062` shlyuz: passthrough javobi NUL gacha o'qiladi (SDK `dwReturnedXMLLen` = 0 qoldiradi) —
+  faqat `isup-gateway` qayta qurildi (rollback tegi `bonvi-hr-prod-isup-gateway:rollback-1340f29`).
+* `c5e2bce` Caddy: `isup.bonvi.uz` (RSA sertifikat) — `web` qayta qurildi (rollback tegi
+  `bonvi-hr-prod-web:rollback-b0fb062`). Cloudflare'da A `isup` → server (zona NS: wally/kianchau).
+* `93fe7e8` yangi xizmat `isup-face-tls` (nginx, 7661, ECDHE + DHE-RSA-AES-GCM) — terminal faqat
+  RSA/DHE-RSA kalit almashuvini biladi, Caddy bermaydi (tcpdump'dagi ClientHello bilan aniqlandi).
+Prod `.env` (zaxiralar `.env.bak-2026-10-12-*`): `ISUP_PUBLIC_ADDRESS=189.74.98.57`,
+`ISUP_PUBLIC_DOMAIN=hr.bonvi.uz` (ularsiz terminal ro'yxatdan o'tmaydi — DAS javobi bo'sh),
+`ISUP_FACE_SITE=isup.bonvi.uz`, `ISUP_FACE_URL_BASE=https://isup.bonvi.uz:7661/isup-face/`.
+`.env.isup`: `device1` (terminal Device ID'da chiziqcha qabul qilmaydi), vaqtincha
+`Isup__SdkLogLevel=3` (sinov tugagach olib tashlanadi).
+Terminal (seriya J39518971, ofis): ISUP 5.0 → `hr.bonvi.uz:7660`, DNS `8.8.8.8`/`1.1.1.1`.
+
+**Orqaga qaytarish:** `docker compose … rm -sf isup-face-tls`, `.env` dagi `ISUP_FACE_URL_BASE` ni
+olib tashlash, `up -d isup-gateway`; kod — yuqoridagi rollback teglari.
+
 ## ✅ Reliz `1340f29` — tashqi API «to'liq o'qish» kaliti — CHIQARILDI 2026-10-12 09:03 (Toshkent)
 
 Prod `3f03319` → `1340f29`. Rollback: image tegi `rollback-3f03319` (api, bot, web), zaxira stamp

@@ -30,11 +30,15 @@ the same code; only the transport differs.
    `.env.isup.example`.
 3a. **Face host** (terminals download employee photos from it): DNS A record
    `isup.bonvi.uz` → server IP (Cloudflare, DNS only) and in `.env`:
-   `ISUP_FACE_SITE=isup.bonvi.uz`, `ISUP_FACE_URL_BASE=https://isup.bonvi.uz/isup-face/`.
-   Caddy gives this name an **RSA** certificate chained to ISRG Root X1 — terminals
-   reject the main site's ECDSA chain (ISRG Root X2 / Root YE, too new for their CA
-   store; found on a live DS-K1T341 on 2026-10-12, `urlDownloadFail`). Verifix uses an
-   RSA DigiCert certificate for the same reason. ISUP itself also needs
+   `ISUP_FACE_SITE=isup.bonvi.uz`, `ISUP_FACE_URL_BASE=https://isup.bonvi.uz:7661/isup-face/`.
+   Caddy obtains an **RSA** certificate for that name (chain to ISRG Root X1); the
+   `isup-face-tls` service (nginx, port **7661**, `infra/isup-face/nginx.conf`) serves it.
+   Why (live DS-K1T341, 2026-10-12, `urlDownloadFail`): the terminal's TLS client
+   offers only RSA signatures and RSA / DHE-RSA key exchange — no ECDSA, no ECDHE.
+   Caddy (Go) has neither DHE nor RSA key exchange, and the main site's ECDSA chain
+   (ISRG Root X2 / Root YE) is unknown to it. nginx speaks Mozilla intermediate TLS
+   (ECDHE + DHE-RSA-AES-GCM, forward secrecy); plain RSA key exchange stays off.
+   Verifix (DigiCert RSA, RSA key exchange) works for the same reason. ISUP itself also needs
    `ISUP_PUBLIC_ADDRESS` (server IP) / `ISUP_PUBLIC_DOMAIN` — the terminal asks for it
    (DAS) before registering; with them empty it never registers.
 4. Firewall: allow inbound **TCP and UDP 7660** (nothing else is new; faces go
@@ -91,6 +95,7 @@ the same code; only the transport differs.
 | Agent `ISAPI 400 … urlDownloadFail` (`faceURL`) on faces | Terminal could not fetch the photo: certificate chain it does not trust, or DNS. Use the RSA face host (step 3a), check `curl -sI https://isup.bonvi.uz/isup-face/x` gives 404, then *Hammasini sinxronlash* on the device card (failed rows are not retried automatically) |
 | Terminal connects (`EHOME50_CRYPTO_DATA_RSP`, `LBS_SEND_DEV_CODE_QUERY_DATA_ERROR`) but never registers | `ISUP_PUBLIC_ADDRESS` empty — the DAS answer is blank (step 3a) |
 | Device ID with `-` rejected by the terminal | Use letters and digits only (`device1`, `zavod1`) |
+| Face writes fail right after the face host or DNS record was added | The site router cached «no such name» (up to 30 min). Set the terminal's DNS to `8.8.8.8` / `1.1.1.1` (Network Settings) — recommended for every terminal |
 | Agent `davomat.terminal_mos_emas` (409) | Token is bound to another terminal's serial (SPEC-agent §L2) — new token on the card |
 | `ISAPI 504` repeating | SDK timeouts — slow site link; raise `Isup__PassthroughTimeoutMs` |
 
