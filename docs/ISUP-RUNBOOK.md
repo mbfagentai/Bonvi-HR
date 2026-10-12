@@ -89,8 +89,11 @@ the same code; only the transport differs.
 The ISUP tunnel carries text only, so pass snapshots come from the terminal's own HTTP
 push (like Verifix). On the terminal: *Network → Network Service → HTTP Listening* (name
 varies): host `isup.bonvi.uz`, port `7661`, protocol HTTPS, URL
-`/api/attendance/ingest/<device token>` (the same token as in `.env.isup`); and in *Access
-Control → Terminal Parameters* enable *upload / save captured pictures*. The same device card
+`/api/attendance/ingest/<device token>` (the same token as in `.env.isup`); and in
+*Configuration → Security → Privacy Settings → Picture Uploading and Storage* enable *Upload
+Recognized or Captured Pictures* (+ *Save …*). Without it the push carries only the event text
+(~1 KB, no photo); with it a face pass arrives as ~70 KB multipart (verified 2026-10-12, DS-K1T341
+firmware with the new web UI — *Access Control → Terminal Parameters* has only Working Mode there). The same device card
 receives both channels: the event key is aligned with the agent's (`minmoe-{serialNo}-{time}`),
 so a pass is stored once and the photo is attached to it. Office terminals: the HTTP push slot
 is Verifix's until Verifix is switched off.
