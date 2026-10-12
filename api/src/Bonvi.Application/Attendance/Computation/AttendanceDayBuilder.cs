@@ -280,7 +280,16 @@ public sealed class AttendanceDayBuilder
         var employment = context.Employment;
         var schedule = context.Schedule;
         var plan = schedule?.Day;
-        var pairing = PassPairing.Pair(passes, plan);
+
+        /*
+          Jadvalsiz kun — standart 24 soat (egasining qarori, 2026-10-12): terminaldan
+          o'tmay ketgan odamning ochiq kirishi 22:00 da «ketdi» bo'lib yopiladi. Bugun
+          faqat 22:00 o'tgach — undan oldin u hali ishda bo'lishi mumkin.
+        */
+        var autoExitAt = employment is not null && plan is null
+            ? AttendanceRules.NoScheduleAutoExitAt(date)
+            : (DateTimeOffset?)null;
+        var pairing = PassPairing.Pair(passes, plan, autoExitAt <= now ? autoExitAt : null);
 
         var planned = 0;
         var late = 0;

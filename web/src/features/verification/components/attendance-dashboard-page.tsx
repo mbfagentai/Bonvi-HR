@@ -106,6 +106,7 @@ import {
 } from './attendance-dashboard-chart'
 import { BirthdaysCard } from './attendance-birthdays-card'
 import { DeviceHealthBanners } from './attendance-device-health'
+import { AttendanceExitTime } from './attendance-exit-time'
 import { FormerEmployeeAlertPanel } from './attendance-former-employee-alert'
 import { AttendanceLoadError, AttendanceNoAccess } from './attendance-manage-states'
 
@@ -479,7 +480,7 @@ export function AttendanceDashboardPage() {
           header: t(COLUMN_LABEL_KEY.left),
           enableSorting: false,
           meta: { width: '92px' },
-          cell: ({ row }) => <TimeCell value={row.original.leftAt} />,
+          cell: ({ row }) => <TimeCell value={row.original.leftAt} auto={row.original.leftAuto} />,
         }),
       )
     }
@@ -2054,10 +2055,10 @@ function EmployeeName({
 }
 
 /** «08:03» — Toshkent vaqtida; bo'lmasa «—» (masalan hali ketmagan). */
-function TimeCell({ value }: { value: string | null }) {
+function TimeCell({ value, auto = false }: { value: string | null; auto?: boolean }) {
   return (
     <span className={cn('tabular text-subhead', value === null && 'text-[var(--fg-tertiary)]')}>
-      {formatPassTime(value)}
+      <AttendanceExitTime value={value} auto={auto} />
     </span>
   )
 }
@@ -2127,7 +2128,7 @@ function EmployeeCard({
                 <span>
                   {t(COLUMN_LABEL_KEY.left)}{' '}
                   <span className="tabular font-semibold text-[var(--fg)]">
-                    {formatPassTime(item.leftAt)}
+                    <AttendanceExitTime value={item.leftAt} auto={item.leftAuto} />
                   </span>
                 </span>
               )}

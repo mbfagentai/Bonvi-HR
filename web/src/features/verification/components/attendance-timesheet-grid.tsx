@@ -26,6 +26,7 @@ import {
   isWeekend,
   isoWeekday,
 } from '../lib/attendance-presentation'
+import { AttendanceExitTime } from './attendance-exit-time'
 import { MobileMarksLine } from './attendance-mobile-evidence'
 
 /*
@@ -518,7 +519,9 @@ function CellDetails({ cell }: { cell: TimesheetCell }) {
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-md bg-[var(--bg-sunken)] p-3">
         <Fact label={t('attendance.firstIn')}>{formatPassTime(cell.firstInAt)}</Fact>
-        <Fact label={t('attendance.lastOut')}>{formatPassTime(cell.lastOutAt)}</Fact>
+        <Fact label={t('attendance.lastOut')}>
+          <AttendanceExitTime value={cell.lastOutAt} auto={cell.autoExit} />
+        </Fact>
         <Fact label={t('attendance.worked')}>
           <span className="font-semibold">{formatDuration(cell.workedMinutes)}</span>
         </Fact>

@@ -17,6 +17,10 @@ namespace Bonvi.Application.Attendance.Computation;
 /// <param name="WorkedMinutes">Ishlangan vaqt: <paramref name="ClosedMinutes"/> − <paramref name="BreakDeductionMinutes"/>.</param>
 /// <param name="MissingEntry">Yetim chiqish topildi.</param>
 /// <param name="MissingExit">Yopilmagan oraliq qoldi.</param>
+/// <param name="AutoExitAt">
+/// Oxirgi ochiq oraliq shu lahzada AVTOMATIK yopildi (jadvalsiz kunning 22:00 i —
+/// <see cref="AttendanceRules.NoScheduleAutoExitTime"/>); yopilmagan bo'lsa <c>null</c>.
+/// </param>
 public sealed record PairingResult(
     int PassCount,
     int IgnoredPassCount,
@@ -28,7 +32,8 @@ public sealed record PairingResult(
     int BreakDeductionMinutes,
     int WorkedMinutes,
     bool MissingEntry,
-    bool MissingExit);
+    bool MissingExit,
+    DateTimeOffset? AutoExitAt = null);
 
 /// <summary>
 /// O'tishlarni kirish–chiqish oraliqlariga juftlaydi va ishlangan vaqtni hisoblaydi — SPEC §5.5, §5.5.1.
@@ -108,7 +113,13 @@ public static class PassPairing
     /// </remarks>
     /// <param name="passes">Shu kunga tegishli o'tishlar, istalgan tartibda.</param>
     /// <param name="plan">Kun rejasi; jadval yo'q bo'lsa <c>null</c>. Tanaffus faqat shu yerdan olinadi.</param>
-    public static PairingResult Pair(IEnumerable<PassReading> passes, DayPlan? plan)
+    /// <param name="closeOpenAt">
+    /// Kun OXIRIDAGI ochiq oraliqni shu lahzada yopish (jadvalsiz kunning avtomatik «ketdi»si):
+    /// oraliq ishlangan vaqtga qo'shiladi, lahza <c>LastOutAt</c> bo'ladi. Oraliq bu lahzadan
+    /// keyin ochilgan bo'lsa — yopilmaydi. Kun o'rtasida tashlab ketilgan kirish (ketma-ket ikki
+    /// kirish) bunga tegishli emas: u <c>MissingExit</c> bo'lib qoladi.
+    /// </param>
+    public static PairingResult Pair(IEnumerable<PassReading> passes, DayPlan? plan, DateTimeOffset? closeOpenAt = null)
     {
         ArgumentNullException.ThrowIfNull(passes);
 
@@ -169,9 +180,30 @@ public static class PassPairing
             openedAt = null;
         }
 
-        if (openedAt is not null)
+        DateTimeOffset? autoExitAt = null;
+
+        if (openedAt is { } stillOpen)
         {
-            missingExit = true;
+            if (closeOpenAt is { } closeAt && closeAt > stillOpen)
+            {
+                if (window is { } breakWindow)
+                {
+                    if (leftAt is { } outsideFrom)
+                    {
+                        outsideInWindowTicks += breakWindow.OverlapTicks(outsideFrom, stillOpen);
+                    }
+
+                    presentInWindowTicks += breakWindow.OverlapTicks(stillOpen, closeAt);
+                }
+
+                closedTicks += (closeAt - stillOpen).Ticks;
+                lastOutAt = closeAt;
+                autoExitAt = closeAt;
+            }
+            else
+            {
+                missingExit = true;
+            }
         }
 
         var closedMinutes = WholeMinutes.AtLeastZero(TimeSpan.FromTicks(closedTicks));
@@ -195,7 +227,8 @@ public static class PassPairing
             // u esa yopilgan oraliqlarning bir qismi.
             WorkedMinutes: closedMinutes - breakDeduction,
             MissingEntry: missingEntry,
-            MissingExit: missingExit);
+            MissingExit: missingExit,
+            AutoExitAt: autoExitAt);
     }
 
     /// <summary>

@@ -418,7 +418,9 @@ function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
   const actual =
     cell.firstInAt === null && cell.lastOutAt === null
       ? null
-      : `${formatPassTime(cell.firstInAt)} – ${formatPassTime(cell.lastOutAt)}`
+      : `${formatPassTime(cell.firstInAt)} – ${formatPassTime(cell.lastOutAt)}${
+          cell.autoExit ? ` ${t('attendance.autoExit')}` : ''
+        }`
 
   return (
     <div

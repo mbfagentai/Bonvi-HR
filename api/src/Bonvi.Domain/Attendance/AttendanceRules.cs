@@ -1,3 +1,5 @@
+using Bonvi.Domain.Abstractions;
+
 namespace Bonvi.Domain.Attendance;
 
 /// <summary>
@@ -111,6 +113,40 @@ public static class AttendanceRules
     /// turardi.
     /// </remarks>
     public const int BoardLookbackHours = 18;
+
+    /// <summary>
+    /// Jadvalsiz kunda chiqishi yozilmagan odam shu soatda (Toshkent) «ketdi» deb yopiladi
+    /// (egasining qarori, 2026-10-12).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Grafik biriktirilmagan xodimning kuni — standart 24 soat (kalendar kuni). U terminaldan
+    /// o'tmay ketib qolsa, kun ochiq qolmaydi: oxirgi ochiq kirish 22:00 da yopiladi va shu
+    /// oraliq ishlangan vaqtga qo'shiladi (<c>AttendanceDayBuilder</c>). O'tishga hech narsa
+    /// yozilmaydi — yopilish faqat hisoblashda yashaydi, ya'ni keyin kelgan haqiqiy chiqish
+    /// yoki biriktirilgan jadval uni o'z-o'zidan bekor qiladi.
+    /// </para>
+    /// <para>
+    /// ⚠️ 22:00 dan KEYIN ochilgan oraliq yopilmaydi (chiqish yozilmagan bo'lib qoladi), va
+    /// jadvali bor kunga bu qoida umuman tegmaydi — u yerda reja bor.
+    /// </para>
+    /// </remarks>
+    public static readonly TimeOnly NoScheduleAutoExitTime = new(22, 0);
+
+    /// <summary>Shu sananing avtomatik «ketdi» lahzasi (UTC) — <see cref="NoScheduleAutoExitTime"/> Toshkent vaqtida.</summary>
+    /// <param name="date">Toshkent sanasi.</param>
+    public static DateTimeOffset NoScheduleAutoExitAt(DateOnly date)
+        => new DateTimeOffset(date.ToDateTime(NoScheduleAutoExitTime), BonviTime.TashkentOffset).ToUniversalTime();
+
+    /// <summary>Kunning oxirgi chiqishi avtomatik yopilishmi — faqat KO'RSATISH uchun («avto» belgisi).</summary>
+    /// <remarks>
+    /// Belgi saqlanmaydi: yopilish lahzasi aniq 22:00:00 bo'lgani uchun u shundan taniladi.
+    /// Roppa-rosa 22:00:00 dagi haqiqiy chiqish ham «avto» ko'rinadi — vaqti baribir o'sha.
+    /// </remarks>
+    /// <param name="date">Kun.</param>
+    /// <param name="lastOutAt">Kunning oxirgi chiqishi.</param>
+    public static bool IsNoScheduleAutoExit(DateOnly date, DateTimeOffset? lastOutAt)
+        => lastOutAt is { } at && at == NoScheduleAutoExitAt(date);
 
     /// <summary>Kelishdagi sukut yon berish (daqiqa).</summary>
     public const int DefaultGraceInMinutes = 10;

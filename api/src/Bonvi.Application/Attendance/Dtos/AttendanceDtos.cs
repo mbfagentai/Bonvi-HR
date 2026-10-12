@@ -393,6 +393,10 @@ public sealed record AttendanceDashboardCountsDto(
 /// Faqat <see cref="AttendanceDashboardStatus.Late"/> da: reja boshlanishidan
 /// kelgan lahzagacha butun daqiqalar (kesilgan). Boshqa holatda <c>null</c>.
 /// </param>
+/// <param name="LeftAuto">
+/// <paramref name="LeftAt"/> haqiqiy chiqish emas — jadvalsiz kunning avtomatik 22:00 dagi
+/// «ketdi»si (<see cref="AttendanceRules.NoScheduleAutoExitTime"/>).
+/// </param>
 public sealed record AttendanceDashboardItemDto(
     Guid EmployeeId,
     string FullName,
@@ -402,7 +406,8 @@ public sealed record AttendanceDashboardItemDto(
     DateTimeOffset? ArrivedAt,
     DateTimeOffset? LeftAt,
     AttendanceDashboardStatus Status,
-    int? LateMinutes);
+    int? LateMinutes,
+    bool LeftAuto = false);
 
 /// <summary>Asosiy sahifa paneli: holatlar diagrammasi va sahifalangan xodimlar jadvali.</summary>
 /// <remarks>
@@ -705,6 +710,10 @@ public sealed record AbsenceRequestCountDto(int Pending);
 /// Katak o'tishlar tabel qoidasi bilan taqsimlanadi (kun yozuvidagi reja
 /// oynasi), ya'ni tungi smenaning ertalabki telefon chiqishi kechagi katakda.
 /// </param>
+/// <param name="AutoExit">
+/// <paramref name="LastOutAt"/> haqiqiy chiqish emas — jadvalsiz kunning avtomatik 22:00 dagi
+/// «ketdi»si (<see cref="AttendanceRules.NoScheduleAutoExitTime"/>).
+/// </param>
 public sealed record TimesheetCellDto(
     DateOnly Date,
     AttendanceDayStatus Status,
@@ -717,7 +726,8 @@ public sealed record TimesheetCellDto(
     int BreakDeductionMinutes,
     DateTimeOffset? PlanStartAt,
     DateTimeOffset? PlanEndAt,
-    int MobileMarks = 0);
+    int MobileMarks = 0,
+    bool AutoExit = false);
 
 /// <summary>
 /// Bir xodimning oy bo'yicha jami ko'rsatkichlari.

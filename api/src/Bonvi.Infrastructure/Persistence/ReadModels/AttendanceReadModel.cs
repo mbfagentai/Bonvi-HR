@@ -1212,7 +1212,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 row.ArrivedAt,
                 row.LeftAt,
                 row.Verdict.Status,
-                row.Verdict.LateMinutes)),
+                row.Verdict.LateMinutes,
+                row.Verdict.Status == AttendanceDashboardStatus.Arrived
+                    && AttendanceRules.IsNoScheduleAutoExit(date, row.LeftAt))),
         ];
 
         return new DashboardPage(date, date == today, now, rows.Count, counts, items, ordered.Count);
@@ -2118,7 +2120,9 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                             stored.BreakDeductionMinutes,
                             stored.PlanStartAt,
                             stored.PlanEndAt,
-                            mobileMarks.GetValueOrDefault((employee.Id, date)))
+                            mobileMarks.GetValueOrDefault((employee.Id, date)),
+                            stored.Status == AttendanceDayStatus.NoSchedule
+                                && AttendanceRules.IsNoScheduleAutoExit(date, stored.LastOutAt))
                         // Hosil qilingan katakda reja ham YO'Q: u hali
                         // hisoblanmagan kun (§5.7.1) va rejasini shu yerda
                         // qayta hisoblash tungi hisoblashning ikkinchi

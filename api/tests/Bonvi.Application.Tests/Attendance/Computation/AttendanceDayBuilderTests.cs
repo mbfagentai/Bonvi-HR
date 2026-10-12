@@ -311,6 +311,85 @@ public sealed class AttendanceDayBuilderTests
         kun.Facts.Status.ShouldBe(AttendanceDayStatus.NoSchedule);
     }
 
+    /// <summary>
+    /// Jadvalsiz kun — standart 24 soat (egasining qarori, 2026-10-12): o'tmay ketgan odam
+    /// 22:00 da «ketdi», oraliq ishlangan vaqtga qo'shiladi.
+    /// </summary>
+    [Fact]
+    public void Jadvalsiz_kunda_chiqishsiz_kirish_22_00_da_yopiladi()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Unknowns(Monday, "09:00", "13:00", "14:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.NoSchedule);
+        kun.Facts.FirstInAt.ShouldBe(At(Monday, "09:00"));
+        kun.Facts.LastOutAt.ShouldBe(At(Monday, "22:00"));
+        AttendanceRules.IsNoScheduleAutoExit(Monday, kun.Facts.LastOutAt).ShouldBeTrue();
+        kun.Facts.WorkedMinutes.ShouldBe(240 + 480);
+        kun.Facts.OvertimeMinutes.ShouldBe(0);
+    }
+
+    [Fact]
+    public void Jadvalsiz_bugun_22_00_gacha_kun_ochiq_turadi()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Unknowns(Monday, "09:00");
+        sahna.Now(Monday, "21:59");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.LastOutAt.ShouldBeNull();
+        kun.Facts.WorkedMinutes.ShouldBe(0);
+
+        sahna.Now(Monday, "22:00");
+
+        sahna.Day(Monday).Facts.LastOutAt.ShouldBe(At(Monday, "22:00"));
+    }
+
+    [Fact]
+    public void Jadvalsiz_kunda_haqiqiy_chiqish_bolsa_avtomatik_yopilish_yoq()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.Unknowns(Monday, "09:00", "18:30");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.LastOutAt.ShouldBe(At(Monday, "18:30"));
+        AttendanceRules.IsNoScheduleAutoExit(Monday, kun.Facts.LastOutAt).ShouldBeFalse();
+        kun.Facts.WorkedMinutes.ShouldBe(570);
+    }
+
+    [Fact]
+    public void Jadvalsiz_kunda_22_00_dan_keyingi_kirish_yopilmaydi()
+    {
+        var sahna = new AttendanceScenario();
+        sahna.Employ();
+        sahna.In(Monday, "22:30");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.LastOutAt.ShouldBeNull();
+        kun.Facts.WorkedMinutes.ShouldBe(0);
+    }
+
+    [Fact]
+    public void Jadvali_bor_kunda_chiqishsiz_kirish_avtomatik_yopilmaydi()
+    {
+        var sahna = AttendanceScenario.Office();
+        sahna.In(Monday, "09:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kun.Facts.LastOutAt.ShouldBeNull();
+        kun.Facts.WorkedMinutes.ShouldBe(0);
+    }
+
     /// <summary>#42.</summary>
     [Fact]
     public void Dam_olish_kunida_ishlagan_kechikish_va_erta_ketishsiz()
