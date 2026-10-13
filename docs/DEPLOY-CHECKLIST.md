@@ -3,7 +3,20 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏳ Keyingi reliz — audit jurnali + ilova xavfsizligi (TAYYOR, deploy QILINMAGAN — egasi aytganda)
+## ✅ Reliz `2165698` — audit jurnali + ilova xavfsizligi — 2026-10-13 14:51 (Toshkent)
+
+Prod `dd4667c` → `2165698`. Rollback: image tegi `rollback-dd4667c` (api, bot, web), zaxira stamp
+`2026-10-13_094412`. Ish vaqtida chiqarildi — oldin faollik tekshirildi: HR sessiyasi yo'q, faqat
+egasi (Super administrator) o'qiyotgan edi. Bot konteyneri qayta yaratilmadi.
+Nusxada sinov (serverda, `bonvi_migtest`, prod'ning `pg_dump`i): idempotent EF skript xatosiz,
+56 jadval sanog'i o'zgarmadi (tarix 59 → 61), 2030 hisobdan 3 ochiq (egasiniki ham), trigger
+UPDATE/DELETE/TRUNCATE ni rad etdi; `restore.sh` uslubida tiklash 0 xato, sanoqlar AYNAN bir xil,
+tiklangandan keyin skript yana xatosiz. `bonvi_migtest` o'chirildi.
+Deploy'dan keyin: ikki migratsiya qo'llandi, `/`, `/ilova/`, `/health/*` 200, ERR/FTL 0, ochiq
+hisob 3, trigger ikkalasi joyida, `logs/caddy/access.log` yozilmoqda (sir topilmadi).
+⚠️ Topildi: `hr.bonvi.uz` Cloudflare PROKSI orqali (188.114.96/97.x) — API va audit mijoz IP'si
+o'rniga Cloudflare chekka IP'sini ko'radi; haqiqiy IP faqat Caddy jurnalidagi `Cf-Connecting-Ip`
+sarlavhasida. Tuzatish keyingi ish (Caddy `trusted_proxies` + `client_ip_headers`).
 
 Skript: `data/deploy/2026-10-13-audit-ilova.sh` (gitignored; `--preflight` — faqat o'qiydi).
 * **O'zgarmas audit** (SPEC-rollar-va-audit A1+A2): har bir saqlash — kim (ism, rol), qachon, qaysi
@@ -27,9 +40,9 @@ hisob — ochiq qoladi, qolgani yopiladi). Mavjud jadvallardan hech narsa o'chma
 qatorini faqat qo'shadi). Eski image'da ilova tekshiruvi yo'q — kirish yana hammaga ochiladi.
 
 **Deploy oldidan:**
-- [ ] `bash data/deploy/2026-10-13-audit-ilova.sh --preflight` — nechta ilova hisobi ochiq qolishini
+- [x] `bash data/deploy/2026-10-13-audit-ilova.sh --preflight` — nechta ilova hisobi ochiq qolishini
       ko'rish (egasining hisobi ochiq qolishi shart)
-- [ ] Prod nusxasida sinov (zaxira → vaqtinchalik baza → ikki migratsiya → sanoqlar)
+- [x] Prod nusxasida sinov (zaxira → vaqtinchalik baza → ikki migratsiya → sanoqlar)
 - [ ] HR'ga aytish: ilova kirishi uchun parolni kartada ko'z tugmasi bilan ko'rib, xodimga aytish kerak
 
 **Deploy'dan keyin:** skriptning 4-qadami (migratsiyalar, trigger, ochiq hisoblar soni,
