@@ -138,25 +138,26 @@ internal static class EmployeeSearchQuery
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        // Bitta qidiruv matnidan UCH naqsh: ism ustuni kirillda, pasport/
+        // Bitta qidiruv matnidan UCH shart: ism — lotin yoki kirillda
+        // yozilganidan qat'i nazar, umumiy qidiruv kaliti bo'yicha; pasport/
         // JSHSHIR lotin va raqamda, telefon esa FAQAT raqamda (ajratgichsiz)
-        // saqlanadi va har biri boshqa-boshqa «bir xil ko'rinadigan»
-        // belgilardan aziyat chekadi. To'liq sabab — `SearchFolding` izohida.
-        var namePattern = SearchPattern.For(SearchFolding.ForName(search));
+        // saqlanadi. Kod va telefon qoidalarining sababi — `SearchFolding`
+        // izohida.
+        var namePattern = SearchPattern.For(search);
         var codePattern = SearchPattern.For(SearchFolding.ForCode(search));
         var phoneDigits = SearchFolding.ForPhone(search);
 
-        // ⚠️ `translate(...)` ning ichidagi ikki satr XOM HOLDA yozilgan,
-        // parametr sifatida emas. Bu majburiy: PostgreSQL ifoda ustidagi
-        // indeksni faqat so'rovdagi ifoda indeks ta'rifi bilan AYNAN mos
-        // tushganda ishlatadi, parametr esa moslikni buzadi. Qiymatlar
-        // `SearchFolding` dagi konstantalardan ko'chirilgan va ular
-        // `ix_employees_full_name_fold_trgm` indeksida ham shundayligicha
-        // turibdi — uchalasi birga o'zgaradi.
+        // Ism sharti: `x.search_key` — bazadagi tayyor ustun (to'liq ism
+        // kaliti, qator yozilganda baza o'zi hisoblaydi; trigramma indeksi
+        // shu ustun ustida). Qidiruv matni esa xuddi O'SHA `search_key()`
+        // funksiyasidan o'tadi, ya'ni «Karimov» ham, «Каримов» ham
+        // `karimuv` bo'lib solishtiriladi. Qoida FAQAT shu SQL funksiyada
+        // (migratsiya `IsmQidiruvKaliti`) — C# da uning nusxasi YO'Q, shu
+        // sababli ikki tomon hech qachon ajralib ketmaydi.
         //
-        // FIO ifodasi ham migratsiyadagi trigramma indeksi bilan AYNAN bir
-        // xil: bir belgi farq qilsa ham PostgreSQL indeksni ishlatmaydi va
-        // qidiruv jimgina to'liq skanerlashga tushadi.
+        // Naqsh funksiyadan OLDIN ekranlanadi: funksiya `%`, `_` va `\` ga
+        // tegmaydi. U IMMUTABLE — PostgreSQL uni reja tuzishda parametr
+        // qiymati bilan bir marta hisoblaydi va indeksni ishlatadi.
         //
         // Telefon sharti ESA butunlay boshqa sabab bilan shartli: agar
         // qidiruv matnida bironta ham raqam bo'lmasa (HR ism bilan
@@ -179,9 +180,7 @@ internal static class EmployeeSearchQuery
                     $"""
                      SELECT x.*
                      FROM employees AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE x.search_key LIKE search_key({namePattern})
                         OR x.pinfl ILIKE {codePattern}
                         OR x.passport ILIKE {codePattern}
                      """)
@@ -191,9 +190,7 @@ internal static class EmployeeSearchQuery
                     $"""
                      SELECT x.*
                      FROM employees AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE x.search_key LIKE search_key({namePattern})
                         OR x.pinfl ILIKE {codePattern}
                         OR x.passport ILIKE {codePattern}
                         OR regexp_replace(x.phone, '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
@@ -222,8 +219,9 @@ internal static class EmployeeSearchQuery
     /// </para>
     /// <para>
     /// Ism va telefon shartlari <see cref="MatchingIds"/> dagi bilan AYNAN
-    /// bir xil yozilgan (indeks ifodasi bilan mosligi haqidagi izohlar o'sha
-    /// yerda) — ikkisi birga o'zgaradi.
+    /// bir xil yozilgan (qidiruv kaliti haqidagi izohlar o'sha yerda) —
+    /// ikkisi birga o'zgaradi. Rahbar boti ham shu sababli «Karimov» bilan
+    /// «Каримов» ni topadi.
     /// </para>
     /// </remarks>
     public static IQueryable<Employee> MatchingPublic(AppDbContext context, string? search)
@@ -237,7 +235,7 @@ internal static class EmployeeSearchQuery
             return employees;
         }
 
-        var namePattern = SearchPattern.For(SearchFolding.ForName(search));
+        var namePattern = SearchPattern.For(search);
         var phoneDigits = SearchFolding.ForPhone(search);
 
         var matching = phoneDigits.Length == 0
@@ -246,9 +244,7 @@ internal static class EmployeeSearchQuery
                     $"""
                      SELECT x.*
                      FROM employees AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE x.search_key LIKE search_key({namePattern})
                      """)
                 .Select(employee => employee.Id)
             : context.Employees
@@ -256,9 +252,7 @@ internal static class EmployeeSearchQuery
                     $"""
                      SELECT x.*
                      FROM employees AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE x.search_key LIKE search_key({namePattern})
                         OR regexp_replace(x.phone, '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
                         OR regexp_replace(x.second_phone, '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
                      """)
@@ -288,10 +282,12 @@ internal static class EmployeeSearchQuery
 /// xil raqamga bir xil javob berishi kerak.
 /// </para>
 /// <para>
-/// Ism ustunlari kirillda va ular ham yig'iladi (қ/ғ/ҳ/ў/ё): «Абдуқодиров»
-/// ni rus klaviaturasida yozgan administrator ham hisobni topishi kerak.
-/// Foydalanuvchilar jadvalida bunday ifoda ustida indeks YO'Q va u kerak
-/// ham emas — tizimda bir necha o'nlab hisob bor, yuz minglab emas.
+/// Ism xodimlardagi bilan bir xil qidiruv kaliti (<c>search_key()</c>)
+/// orqali solishtiriladi: «Абдуқодиров» ni rus klaviaturasida yoki lotinda
+/// yozgan administrator ham hisobni topishi kerak. Foydalanuvchilar
+/// jadvalida kalit uchun tayyor ustun ham, indeks ham YO'Q va ular kerak
+/// emas — tizimda bir necha o'nlab hisob bor, funksiya har qatorda
+/// hisoblansa ham sezilmaydi.
 /// </para>
 /// </remarks>
 internal static class UserSearchQuery
@@ -311,7 +307,7 @@ internal static class UserSearchQuery
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var namePattern = SearchPattern.For(SearchFolding.ForName(search));
+        var namePattern = SearchPattern.For(search);
         var phoneDigits = SearchFolding.ForPhone(search);
 
         // Telefon sharti xodimlardagi bilan bir xil sababga ko'ra shartli:
@@ -322,9 +318,7 @@ internal static class UserSearchQuery
                     $"""
                      SELECT x.*
                      FROM users AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE search_key(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')) LIKE search_key({namePattern})
                      """)
                 .Select(user => user.Id)
             : context.Users
@@ -332,9 +326,7 @@ internal static class UserSearchQuery
                     $"""
                      SELECT x.*
                      FROM users AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE search_key(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')) LIKE search_key({namePattern})
                         OR regexp_replace(x.login, '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
                      """)
                 .Select(user => user.Id);
@@ -353,21 +345,19 @@ internal static class UserSearchQuery
 /// qidirishga majbur qilardi.
 /// </para>
 /// <para>
-/// <b>Qoidaning O'ZI esa nusxa ko'chirilmaydi.</b> Ism yig'ilishi
-/// (қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini tozalash
-/// <see cref="SearchFolding"/> dan keladi — xodimlar, foydalanuvchilar va
-/// nomzodlar uchun BITTA joydan. Aks holda HR bitta ismni ikki ekranda
-/// ikki xil natija bilan qidirardi va bu loyihadagi eng qimmat xatoning
-/// (topilmagan odam → yangi dublikat karta) aynan o'zi bo'lardi.
+/// <b>Qoidaning O'ZI esa nusxa ko'chirilmaydi.</b> Ism qidiruv kaliti
+/// (<c>search_key()</c>, lotin/kirill farqsiz) bazadagi bitta funksiyadan,
+/// telefon ajratgichlarini tozalash <see cref="SearchFolding"/> dan keladi
+/// — xodimlar, foydalanuvchilar va nomzodlar uchun BITTA joydan. Aks holda
+/// HR bitta ismni ikki ekranda ikki xil natija bilan qidirardi va bu
+/// loyihadagi eng qimmat xatoning (topilmagan odam → yangi dublikat karta)
+/// aynan o'zi bo'lardi.
 /// </para>
 /// <para>
-/// <b>Nega ifoda ustida indeks YO'Q.</b> Xodimlar jadvalida trigramma
-/// indeksi bor, chunki u yerda 2000+ yozuv va u har bir ekranda
-/// qidiriladi. Nomzodlar jadvali bir yilda bir necha yuz qatorga o'sadi
-/// va PostgreSQL uchun bu to'liq skanerlash ham bir necha millisekund.
-/// Indeks kerak bo'lganda, u xodimlardagi ifoda bilan AYNAN bir xil
-/// yozilishi shart — quyidagi <c>translate(...)</c> ifodasi shu sababli
-/// so'zma-so'z bir xil qoldirilgan.
+/// <b>Kalit tayyor ustunda va indeksli</b> — xodimlardagi kabi. Ilgari
+/// nomzodlar «yiliga bir necha yuz qator» deb indekssiz qoldirilgan edi,
+/// Jobster ko'chirilgach esa ular minglab (sabab migratsiya
+/// <c>IsmQidiruvKaliti</c> izohida).
 /// </para>
 /// </remarks>
 internal static class CandidateSearchQuery
@@ -383,7 +373,7 @@ internal static class CandidateSearchQuery
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var namePattern = SearchPattern.For(SearchFolding.ForName(search));
+        var namePattern = SearchPattern.For(search);
         var phoneDigits = SearchFolding.ForPhone(search);
 
         // Telefon sharti shartli — xodimlardagi bilan bir xil sabab: matnda
@@ -400,9 +390,7 @@ internal static class CandidateSearchQuery
                     $"""
                      SELECT x.*
                      FROM candidates AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE x.search_key LIKE search_key({namePattern})
                      """)
                 .Select(candidate => candidate.Id)
             : context.Candidates
@@ -410,9 +398,7 @@ internal static class CandidateSearchQuery
                     $"""
                      SELECT x.*
                      FROM candidates AS x
-                     WHERE translate(
-                               lower(x.last_name || ' ' || x.first_name || ' ' || coalesce(x.middle_name, '')),
-                               'қғҳўё', 'кгхуе') ILIKE {namePattern}
+                     WHERE x.search_key LIKE search_key({namePattern})
                         OR regexp_replace(coalesce(x.phone, ''), '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
                      """)
                 .Select(candidate => candidate.Id);
@@ -462,10 +448,11 @@ internal static class CandidateSearchQuery
 /// sababli ro'yxat filtri ham tanlovdan qidiruvga aylandi.
 /// </para>
 /// <para>
-/// Yig'ish qoidasi (қ/ғ/ҳ/ў/ё) <see cref="SearchFolding"/> dan keladi —
-/// boshqa ro'yxatlar bilan BITTA joydan. Indeks yo'q: bir vaqtda bir necha
-/// o'nlab vakansiya bo'ladi (<see cref="CandidateSearchQuery"/> izohidagi
-/// mulohaza bu yerda yanada kuchliroq).
+/// Yig'ish qoidasi (қ/ғ/ҳ/ў/ё) <see cref="SearchFolding"/> dan keladi.
+/// Lotin/kirill farqsiz qidiruv kaliti (<c>search_key()</c>) bu yerda
+/// ATAYLAB YO'Q: u odam ismlari uchun qilingan (egasining 2026-10-14 dagi
+/// talabi), vakansiya nomi esa ism emas. Indeks yo'q: bir vaqtda bir necha
+/// o'nlab vakansiya bo'ladi.
 /// </para>
 /// </remarks>
 internal static class VacancySearchQuery

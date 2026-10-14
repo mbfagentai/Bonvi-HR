@@ -1502,6 +1502,16 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         ismBoyicha.Items.ShouldContain(
             q => q.Id == nomzod.Id,
             "kirill imlo variantlari xodimlar ro'yxatidagi kabi yig'iladi");
+
+        // 3. Ism — LOTINDA (bot orqali kelganlar va HR'ning lotin
+        //    klaviaturasi): kirillda saqlangan nomzod ham topiladi
+        foreach (var lotin in new[] { "Abduqodirov", "Abdukodirov" })
+        {
+            var lotinBoyicha = await NomzodlarAsync(mijoz, "?search=" + Uri.EscapeDataString(lotin));
+            lotinBoyicha.Items.ShouldContain(
+                q => q.Id == nomzod.Id,
+                $"«{lotin}» lotinda yozilgan, nomzod kirillda saqlangan — baribir topilishi kerak");
+        }
     }
 
     /// <summary>

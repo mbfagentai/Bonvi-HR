@@ -245,6 +245,36 @@ public sealed class ListSearchApiTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
+    /// Kirillda saqlangan familiya LOTINDA yozilganda ham topiladi.
+    /// </summary>
+    /// <remarks>
+    /// Ismlar bazada aralash (№91 kirillda, bot orqali kelganlar lotinda) va
+    /// HR qaysi yozuvda yozishini bilmaydi (egasining 2026-10-14 dagi
+    /// talabi). Qoida bitta joyda — bazadagi <c>search_key()</c> — va bu test
+    /// uni HAR BIR ro'yxatda talab qiladi: biror ro'yxat o'z shartini
+    /// yozib olgan bo'lsa, aynan shu yerda yiqiladi.
+    /// </remarks>
+    [Theory]
+    [InlineData("Ganiqo'hov")]   // rasmiy lotin
+    [InlineData("Ganiqohov")]    // apostrofsiz
+    [InlineData("Ganikuxov")]    // ruscha lotin uslubi
+    [InlineData("Ganiqo'hov Sherzod")] // familiya + ism
+    public async Task Ism_lotinda_yozilganda_ham_barcha_royxatlarda_topiladi(string kalit)
+    {
+        var urug = await TayyorlaAsync();
+
+        using var client = await AdminMijozAsync();
+
+        foreach (var royxat in Royxatlar)
+        {
+            var topilgan = await XodimlarAsync(client, Manzil(royxat, kalit));
+
+            topilgan.ShouldNotBeEmpty($"«{kalit}» bo'yicha «{royxat}» hech narsa topmadi");
+            topilgan.ShouldAllBe(xodimId => xodimId == urug.XodimId);
+        }
+    }
+
+    /// <summary>
     /// <c>LIKE</c> jokerlari ekranlanadi — «%» butun ro'yxatni olib
     /// kelmaydi.
     /// </summary>
@@ -345,6 +375,7 @@ public sealed class ListSearchApiTests : IClassFixture<BonviApiFactory>
     [Theory]
     [InlineData(Familiya)]              // aynan saqlangani
     [InlineData("Ганикухов")]           // rus klaviaturasi
+    [InlineData("Ganiqo'hov")]          // lotinda
     [InlineData(Telefon)]               // login, ajratgichsiz
     [InlineData(FormatlanganTelefon)]   // login, ekrandagi ko'rinishda
     public async Task Foydalanuvchilar_fio_va_login_boyicha_topiladi(string kalit)

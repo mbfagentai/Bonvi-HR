@@ -600,11 +600,13 @@ public sealed class EmployeePersistenceTests : IClassFixture<BonviApiFactory>
             .SqlQuery<string>($"SELECT indexname AS \"Value\" FROM pg_indexes WHERE tablename = 'employees'")
             .ToListAsync(bekorQilish);
 
-        // Indeks YIG'ILGAN ifoda ustida: `translate(lower(...), 'қғҳўё', 'кгхуе')`.
-        // Sabab `SearchFolding` da — rus klaviaturasida yozilgan ism ham
-        // topilishi kerak. Eski `ix_employees_full_name_trgm` yig'ilmagan
-        // ifoda ustida edi va so'rov o'zgargach ishlatilmay qolgandi.
-        indekslar.ShouldContain("ix_employees_full_name_fold_trgm");
+        // Indeks qidiruv KALITI ustida (`search_key` ustuni — lotin/kirill
+        // farqsiz, migratsiya `IsmQidiruvKaliti`). Undan oldingi ikkalasi —
+        // yig'ilmagan `ix_employees_full_name_trgm` va faqat kirillni
+        // yig'adigan `ix_employees_full_name_fold_trgm` — so'rov o'zgargach
+        // ishlatilmay qolgan va olib tashlangan.
+        indekslar.ShouldContain("ix_employees_search_key_trgm");
+        indekslar.ShouldNotContain("ix_employees_full_name_fold_trgm");
         indekslar.ShouldNotContain("ix_employees_full_name_trgm");
         indekslar.ShouldContain("ix_employees_last_name_first_name");
         indekslar.ShouldContain("ix_employees_pinfl");

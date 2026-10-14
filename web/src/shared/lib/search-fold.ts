@@ -6,17 +6,16 @@
  * «Қўқон» → «Кукон», «Ғаниев» → «Ганиев». Yig'ishsiz bunday qidiruv
  * hech narsa topmaydi va HR yozuv umuman yo'q deb o'ylaydi.
  *
- * ⚠️ BAZADAGI QOIDANING NUSXASI. Backend'da xuddi shu almashtirish
- * ikki joyda takrorlanadi: `SearchFolding.NameFoldFrom/To` (C#) va
- * migratsiyadagi `translate(..., 'қғҳўё', 'кгхуе')` indeksi (SQL).
- * Uchalasi BIRGA o'zgaradi — biri o'zgarib, ikkinchisi qolsa, server
- * qidiruvi bilan ekrandagi qidiruv boshqa natija berardi va sababini
- * topish juda qiyin bo'lardi.
+ * ⚠️ BACKEND QOIDASINING NUSXASI. Xuddi shu almashtirish
+ * `SearchFolding.NameFoldFrom/To` (C#) va vakansiya nomi qidiruvidagi
+ * `translate(..., 'қғҳўё', 'кгхуе')` (SQL) da turadi. Uchalasi BIRGA
+ * o'zgaradi — biri o'zgarib, ikkinchisi qolsa, server qidiruvi bilan
+ * ekrandagi qidiruv boshqa natija berardi.
  *
- * NEGA TRANSLITERATSIYA YO'Q: «Abduqodirov» yozib «Абдуқодиров» ni
- * topish ATAYLAB qilinmagan — foydalanuvchining qarori. Qidiruv matn
- * QANDAY yozilgan bo'lsa, shunday izlaydi; bu yerda faqat bir xil
- * ko'rinadigan kirill harflari birlashtiriladi.
+ * NEGA BU YERDA TRANSLITERATSIYA YO'Q: lotin/kirill farqsiz qidiruv
+ * (2026-10-14) faqat ODAM ISMLARI uchun va u serverda, bazadagi
+ * `search_key()` funksiyasida. Bu fayl esa ma'lumotnoma NOMLARINI
+ * (bo'lim, lavozim, joy) qidiradi — ularga u qo'llanmagan.
  */
 const FOLD_FROM = 'қғҳўё'
 const FOLD_TO = 'кгхуе'

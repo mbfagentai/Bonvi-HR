@@ -37,12 +37,13 @@ namespace Bonvi.Infrastructure.Persistence;
 /// biri o'z ustunlariga qo'llanadi.
 /// </para>
 /// <para>
-/// <b>Diqqat — bazadagi nusxa.</b> <see cref="NameFoldFrom"/> va
-/// <see cref="NameFoldTo"/> SQL dagi <c>translate(...)</c> chaqiruvi va
-/// <c>ix_employees_full_name_fold_trgm</c> indeksi bilan AYNAN bir xil
-/// bo'lishi shart. Ular ajralib ketsa, PostgreSQL indeksni ishlatmaydi
-/// (qidiruv jimgina sekinlashadi) yoki natija noto'g'ri chiqadi. Shu
-/// sababli bu yerda o'zgartirish qilinsa, migratsiya ham yangilanadi.
+/// <b>Odam ismlari bu yerda EMAS.</b> 2026-10-14 dan xodim, nomzod va
+/// foydalanuvchi ismi lotin/kirill farqsiz qidiriladi — bu qoida bazadagi
+/// <c>search_key()</c> funksiyasida (migratsiya <c>IsmQidiruvKaliti</c>) va
+/// uning C# nusxasi ATAYLAB yo'q. <see cref="ForName"/> endi faqat vakansiya
+/// nomi qidiruvida (<c>VacancySearchQuery</c> dagi <c>translate(...)</c> bilan
+/// AYNAN bir xil bo'lishi shart) va davomat faylidagi ismni xodimga ANIQ
+/// moslashda ishlatiladi.
 /// </para>
 /// </remarks>
 internal static class SearchFolding

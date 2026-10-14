@@ -51,6 +51,18 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
     /// <summary>Nazorat raqami to'g'ri JSHSHIR (1990-03-15, erkak).</summary>
     private const string Jshshir = "31503904234561";
 
+    /// <summary>LOTINDA saqlangan test xodimini ajratuvchi ism.</summary>
+    private const string BelgiLotin = "Qidiruvbek";
+
+    /// <summary>
+    /// Lotinda saqlangan familiya — bot orqali kelganlar ismini shunday yozadi.
+    /// </summary>
+    /// <remarks>Kirillda «Жўрақулов»: ў, қ — ikkalasi ham lotinda boshqacha.</remarks>
+    private const string LotinFamiliya = "Jo'raqulov";
+
+    /// <summary>Lotin xodimning JSHSHIR'i — idempotentlik kaliti.</summary>
+    private const string LotinJshshir = "31503905234564";
+
     private readonly BonviApiFactory _factory;
 
     public SearchFoldingTests(BonviApiFactory factory) => _factory = factory;
@@ -195,12 +207,156 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
     }
 
     // ────────────────────────────────────────────────────────────
-    //  Yordamchilar
+    //  Lotin / kirill (2026-10-14)
     // ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Test xodimini yaratadi. Idempotent — u allaqachon bo'lsa hech
-    /// narsa qilmaydi.
+    /// Kirillda saqlangan ism LOTINDA yozilganda ham topiladi.
+    /// </summary>
+    /// <remarks>
+    /// Ismlar bazada aralash: №91 va Jobster'dan kelganlar kirillda, bot
+    /// orqali ariza berganlar lotinda. HR qaysi yozuvda yozishini oldindan
+    /// bilmaydi, shu sababli ikkalasi ham bitta qidiruv kalitiga tushadi
+    /// (<c>search_key()</c>, migratsiya <c>IsmQidiruvKaliti</c>). Lotinning
+    /// o'zi ham har xil: rasmiy («o'», «g'», turli apostroflar), apostrofsiz
+    /// va ruscha uslub («kh», «u»).
+    /// </remarks>
+    [Theory]
+    [InlineData("Ganiqo'hov")]    // rasmiy lotin
+    [InlineData("Gʻaniqoʻhov")]   // boshqa apostrof (U+02BB)
+    [InlineData("Ganiqohov")]     // apostrofsiz
+    [InlineData("Ganikuxov")]     // ruscha lotin uslubi
+    [InlineData("GANIQOHOV")]     // CAPS LOCK
+    [InlineData("niqoh")]         // o'rtadan bo'lak
+    public async Task Kirillda_saqlangan_ism_lotinda_yozilganda_ham_topiladi(string qidiruv)
+    {
+        await TayyorlaAsync();
+
+        var topilgan = await QidirAsync(qidiruv);
+
+        topilgan.ShouldBe(1, $"«{qidiruv}» bo'yicha kirillda saqlangan xodim topilishi kerak edi");
+    }
+
+    /// <summary>
+    /// Lotinda saqlangan ism KIRILLDA yozilganda ham topiladi — teskari yo'l.
+    /// </summary>
+    [Theory]
+    [InlineData("Jo'raqulov")]    // aynan saqlangani
+    [InlineData("Jorakulov")]     // apostrofsiz, q → k
+    [InlineData("Jurakulov")]     // ў → u
+    [InlineData("Жўрақулов")]     // kirill
+    [InlineData("Журакулов")]     // kirill, rus klaviaturasi
+    [InlineData("ЖЎРАҚУЛОВ")]     // kirill, CAPS LOCK
+    public async Task Lotinda_saqlangan_ism_kirillda_yozilganda_ham_topiladi(string qidiruv)
+    {
+        await TayyorlaAsync();
+
+        var topilgan = await QidirAsync(qidiruv, BelgiLotin);
+
+        topilgan.ShouldBe(1, $"«{qidiruv}» bo'yicha lotinda saqlangan xodim topilishi kerak edi");
+    }
+
+    /// <summary>
+    /// Yozuvni birlashtirish qidiruvni «kengaytirib» yubormaydi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Yigish_begona_yozuvni_olib_kelmaydi"/> ning lotin/kirill
+    /// juftligi: o'xshash, lekin BOSHQA familiya ikkala xodimdan hech birini
+    /// olib kelmasligi kerak.
+    /// </remarks>
+    [Theory]
+    [InlineData("Ganiyev")]       // «Ганиев» lotinda
+    [InlineData("Жўраев")]        // Jo'raqulov ga o'xshash, lekin boshqa
+    [InlineData("Jo'rabek")]
+    public async Task Lotin_kirill_birlashuvi_begona_yozuvni_olib_kelmaydi(string qidiruv)
+    {
+        await TayyorlaAsync();
+
+        (await QidirAsync(qidiruv)).ShouldBe(0, $"«{qidiruv}» kirill xodimni topmasligi kerak edi");
+        (await QidirAsync(qidiruv, BelgiLotin)).ShouldBe(0, $"«{qidiruv}» lotin xodimni topmasligi kerak edi");
+    }
+
+    /// <summary>
+    /// Bitta ismning turli yozilishlari bitta kalitga tushadi.
+    /// </summary>
+    /// <remarks>
+    /// Qoidaning o'zi — bazadagi funksiya — to'g'ridan-to'g'ri tekshiriladi.
+    /// Juftliklar haqiqiy ma'lumotdan: dev bazadagi bir xil telefonli
+    /// lotin/kirill yozuvlar (2026-10-14 tahlili, 113 juftdan 109 tasi
+    /// shu qoida bilan topildi).
+    /// </remarks>
+    [Theory]
+    [InlineData("Ёқубов", "Yoqubov")]
+    [InlineData("Ёқубов", "Екубов")]       // eski «ё = е» qoidasi saqlangan
+    [InlineData("Семёнов", "Семенов")]
+    [InlineData("Тўхтаев", "To'xtayev")]
+    [InlineData("Тўхтаев", "Toxtayev")]
+    [InlineData("Тўхтаев", "Tuxtayev")]
+    [InlineData("Ғофуров", "G‘ofurov")]
+    [InlineData("Ҳасанов", "Xasanov")]
+    [InlineData("Ҳасанов", "Khasanov")]
+    [InlineData("Абдуллаев", "Abdullayev")]
+    [InlineData("Шоҳруҳ", "Shohruh")]
+    [InlineData("Шоҳруҳ", "Shoxrux")]
+    [InlineData("Улуғбек", "Uluģbek")]
+    [InlineData("Маъмуров", "Ma'murov")]
+    [InlineData("Жасур", "Zhasur")]
+    [InlineData("Исҳоқ", "Ishoq")]
+    [InlineData("Мамаджанов", "Mamadjanov")]
+    [InlineData("Эргашев", "Ергашев")]
+    [InlineData("Aзимжон", "Азимжон")]     // birinchi «A» — LOTIN harf, kirill ism ichida
+    public async Task Bir_ismning_yozilishlari_bitta_kalitga_tushadi(string birinchi, string ikkinchi)
+    {
+        var kalitlar = await KalitlarAsync(birinchi, ikkinchi);
+
+        kalitlar.Birinchi.ShouldBe(kalitlar.Ikkinchi, $"«{birinchi}» va «{ikkinchi}» bitta odam");
+    }
+
+    /// <summary>
+    /// Boshqa-boshqa ismlar bitta kalitga tushmaydi.
+    /// </summary>
+    /// <remarks>
+    /// «a» va «o» ATAYLAB birlashtirilmaydi: Собиров / Сабиров, Олимов /
+    /// Алимов — boshqa odamlar, birlashsa ro'yxat begona natijaga to'lardi.
+    /// </remarks>
+    [Theory]
+    [InlineData("Собиров", "Сабиров")]
+    [InlineData("Олимов", "Alimov")]
+    [InlineData("Каримов", "Керимов")]
+    [InlineData("Шерзод", "Serzod")]
+    public async Task Boshqa_ismlar_bitta_kalitga_tushmaydi(string birinchi, string ikkinchi)
+    {
+        var kalitlar = await KalitlarAsync(birinchi, ikkinchi);
+
+        kalitlar.Birinchi.ShouldNotBe(kalitlar.Ikkinchi, $"«{birinchi}» va «{ikkinchi}» boshqa ismlar");
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //  Yordamchilar
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Ikki matnning bazadagi qidiruv kalitlari.</summary>
+    private async Task<(string Birinchi, string Ikkinchi)> KalitlarAsync(string birinchi, string ikkinchi)
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Bitta qatorda — ikki qatorli javobning tartibiga tayanmaslik uchun.
+        var juft = await kontekst.Database
+            .SqlQuery<string>($"SELECT search_key({birinchi}) || '|' || search_key({ikkinchi}) AS \"Value\"")
+            .SingleAsync(bekorQilish)
+            .ConfigureAwait(false);
+
+        var qismlar = juft.Split('|');
+
+        return (qismlar[0], qismlar[1]);
+    }
+
+    /// <summary>
+    /// Ikki test xodimini yaratadi — kirillda va lotinda saqlangan.
+    /// Idempotent — xodim allaqachon bo'lsa, unga tegmaydi.
     /// </summary>
     /// <remarks>
     /// Har bir <c>[Theory]</c> qatori alohida test, lekin xodim bitta
@@ -210,12 +366,27 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
     /// </remarks>
     private async Task TayyorlaAsync()
     {
+        await QoyAsync(Jshshir, Familiya, Belgi, xodim =>
+        {
+            xodim.SetPassport(PassportSeries.Create(Pasport).Value);
+            xodim.SetPhones(PhoneNumber.Create("905087412").Value);
+        });
+
+        // Lotin xodimda pasport va telefon ATAYLAB yo'q: u faqat ism
+        // bo'yicha qidiruvni tekshiradi va kirill xodimning kod/telefon
+        // testlariga «ikkinchi topilgan» bo'lib aralashmasligi kerak.
+        await QoyAsync(LotinJshshir, LotinFamiliya, BelgiLotin, _ => { });
+    }
+
+    /// <summary>Bitta test xodimini JSHSHIR bo'yicha idempotent qo'yadi.</summary>
+    private async Task QoyAsync(string jshshir, string familiya, string ism, Action<Employee> toldir)
+    {
         var bekorQilish = TestContext.Current.CancellationToken;
 
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var pinfl = Pinfl.Create(Jshshir).Value;
+        var pinfl = Pinfl.Create(jshshir).Value;
 
         var mavjud = await kontekst.Employees
             .AnyAsync(xodim => xodim.Pinfl == pinfl, bekorQilish)
@@ -226,12 +397,12 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
             return;
         }
 
-        var ism = FullName.Create(Familiya, Belgi, null).Value;
-        var xodimYangi = Employee.Create(ism, new DateOnly(1990, 3, 15)).Value;
+        var xodimYangi = Employee.Create(
+            FullName.Create(familiya, ism, null).Value,
+            new DateOnly(1990, 3, 15)).Value;
 
         _ = xodimYangi.SetPinfl(pinfl);
-        xodimYangi.SetPassport(PassportSeries.Create(Pasport).Value);
-        xodimYangi.SetPhones(PhoneNumber.Create("905087412").Value);
+        toldir(xodimYangi);
 
         _ = kontekst.Employees.Add(xodimYangi);
 
@@ -248,11 +419,11 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
 
     /// <summary>Nechta test xodimi topilganini qaytaradi.</summary>
     /// <remarks>
-    /// Sanoq faqat SHU test yaratgan yozuvlar bo'yicha: baza boshqa
-    /// testlar bilan baham ko'riladi va umumiy <c>total</c> ular
-    /// qo'shgan yozuvlardan ham o'zgarardi.
+    /// Sanoq faqat SHU test yaratgan yozuvlar bo'yicha (<paramref name="belgi"/>
+    /// — xodimning ismi): baza boshqa testlar bilan baham ko'riladi va
+    /// umumiy <c>total</c> ular qo'shgan yozuvlardan ham o'zgarardi.
     /// </remarks>
-    private async Task<int> QidirAsync(string qidiruv)
+    private async Task<int> QidirAsync(string qidiruv, string belgi = Belgi)
     {
         var bekorQilish = TestContext.Current.CancellationToken;
 
@@ -263,6 +434,6 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
             .SearchEmployeesAsync(new EmployeeSearchFilter(qidiruv, PageSize: 200), bekorQilish)
             .ConfigureAwait(false);
 
-        return sahifa.Items.Count(qator => qator.FirstName == Belgi);
+        return sahifa.Items.Count(qator => qator.FirstName == belgi);
     }
 }
