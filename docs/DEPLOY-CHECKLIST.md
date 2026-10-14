@@ -3,6 +3,28 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `27b8301` — sinov natijasi xodim holatiga o'tadi + 49 yozuv tuzatildi — 2026-10-14 17:30 (Toshkent)
+
+Prod `ef3b333` → `27b8301`. Rollback: image tegi `rollback-ef3b333` (api, bot, web), zaxira stamp
+`2026-10-14_122223`. Migratsiya YO'Q. HR 16:16 dan jim edi (egasi «hozir» dedi); bot qayta yaratilmadi.
+
+* «Sinov» sahifasi sukut bo'yicha faqat «Sinovda» (ilgari «Barcha holatlar» — yakunlangan ham qolardi).
+* «O'tmadi» / «O'zi ketdi» → yakunlash oynasining o'zida ishdan bo'shatish (bitta tranzaksiya, oddiy
+  bo'shatish buyrug'i chaqiriladi; `employment.terminate` ham kerak). «Bekor qilindi» olib tashlandi.
+* Muddati kiritilgandayoq tugagan qabul → darhol «o'tdi» (muddat tugagan sana bilan), xodim «faol».
+
+**Ma'lumot tuzatish (egasi tasdiqlagan)** — `/root/sinov-fix-2026-10-14/` (lokal: `data/deploy/2026-10-14-sinov-fix/`):
+A 27 import (sinov «sinovda», xodim «faol») → «o'tdi»; B 2 import («Ишдан кетди», xodim «faol») → bo'shatildi,
+sabab «Синов муддатидан ўтмади»; C Отахонов Шохрух — 09-21 yozuvi yumshoq o'chirildi, 09-23 sinovi qayta ochildi;
+D 18 (2026-10-10 importi, muddat kiritilgandayoq tugagan) → «o'tdi», xodim «faol». +20 mehnat hodisasi,
+87 audit yozuvi (tizim, `DataFix:SinovHolatlari`). Oldingi holat — `fix_20261014` sxemasida (shaxsiy
+ma'lumot bor; bir haftadan keyin o'chirish mumkin). Nusxada sinov: sanoqlar 27/2/1+1/18, takror rad,
+qaytarishdan keyin holat AYNAN boshlang'ich. Natija: nomuvofiq juftlar 0, «Sinovda» 85 (4 tasi muddati o'tgan —
+HR qarori).
+
+**Orqaga qaytarish:** kod — `docker tag …:rollback-ef3b333 …:latest` + `up -d`; ma'lumot —
+`rollback-sinov-2026-10-14.sql` (prodsql bilan), u audit'ga ham yoziladi.
+
 ## ✅ Reliz `ef3b333` — ism qidiruvi lotin/kirill farqsiz — 2026-10-14 13:02 (Toshkent)
 
 Prod `2165698` → `ef3b333` (`dd14e74` + `ef3b333`). Rollback: image tegi `rollback-2165698` (api, bot, web),
