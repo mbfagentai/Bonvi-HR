@@ -13,6 +13,7 @@ import { Controller, useForm, type FieldPath } from 'react-hook-form'
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { todayIso } from '@/shared/lib/today'
 import {
   Alert,
   Badge,
@@ -91,7 +92,7 @@ export function HireDialog({
   onClose: () => void
   options: FilterOptions
 }) {
-  const { t } = useLocale()
+  const { t, date } = useLocale()
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
   const canSeeSalary = hasPermission(SALARY_VIEW)
@@ -152,6 +153,16 @@ export function HireDialog({
   }, [positionId, departmentId, options.positionDepartment, setValue])
 
   const rateValue = toRate(watch('rate'))
+
+  /*
+    Eski sana bilan kiritilganda sinov muddati KIRITILGANDAYOQ tugagan
+    bo'ladi va server xodimni darhol doimiy qiladi (2026-10-14, egasining
+    qarori). HR buni saqlashdan OLDIN ko'rsin — aks holda «sinovga oldim,
+    nega doimiy?» degan savol tug'ilardi. Kunlar serverdagi bilan bir xil
+    tartibda olinadi: lavozimniki, bo'lmasa 90.
+  */
+  const probationEnd = addDaysIso(watch('hireDate'), position?.probationDays ?? DEFAULT_PROBATION_DAYS)
+  const probationAlreadyOver = probationEnd !== null && probationEnd < todayIso()
 
   const goNext = async () => {
     const fields = STEP_FIELDS[step]
@@ -442,6 +453,11 @@ export function HireDialog({
               render={({ field }) => (
                 <DateField
                   label={t('employee.hireDate')}
+                  hint={
+                    probationAlreadyOver && probationEnd !== null
+                      ? t('employees.probationAlreadyOver', { date: date(probationEnd) })
+                      : undefined
+                  }
                   value={field.value}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
@@ -612,6 +628,24 @@ function Steps({
       })}
     </ol>
   )
+}
+
+/** Lavozimda sinov kunlari ko'rsatilmaganda — serverdagi `DefaultProbationDays`. */
+const DEFAULT_PROBATION_DAYS = 90
+
+/**
+ * `YYYY-MM-DD` ga kun qo'shadi; chala yoki bo'sh sana — `null`.
+ *
+ * UTC ichida hisoblanadi: sana — kalendar kuni, vaqt emas, va mahalliy
+ * mintaqa yozgi vaqtga o'tgan kuni bir kunni yutib yuborardi.
+ */
+function addDaysIso(iso: string | undefined, days: number): string | null {
+  if (iso === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+
+  const value = new Date(`${iso}T00:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+
+  return value.toISOString().slice(0, 10)
 }
 
 /**

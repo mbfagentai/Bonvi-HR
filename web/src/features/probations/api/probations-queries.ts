@@ -68,6 +68,10 @@ export function useResolveProbation() {
       // aynan o'sha ro'yxatda paydo bo'ladi. Busiz HR «o'tkazdim, lekin
       // xodimlarda yo'q» degan holatni ko'rardi.
       void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
+
+      // «O'tmadi» / «o'zi ketdi» — bu bo'shatish ham, u esa ishlab turganlar
+      // belgilarini yopadi (`useTerminate` dagi bilan bir xil sabab).
+      void queryClient.invalidateQueries({ queryKey: ['flagged'] })
     },
   })
 }

@@ -428,7 +428,11 @@
     "missingSelectAll": "Select all",
     "missingConfirm": "Confirm as permanent ({{n}})",
     "missingDone": "{{n}} employees are now permanent. They appear in the employee list.",
-    "workedDays": "{{n}} days worked"
+    "workedDays": "{{n}} days worked",
+    "resolveAndTerminate": "Complete and dismiss",
+    "terminateTitle": "Dismissal",
+    "terminateHint": "An employee who failed probation or left on their own is dismissed right here and moves to «Former employees».",
+    "terminateLockedHint": "«Failed» and «Left early» mean dismissal, which requires the permission to dismiss."
   },
   "flags": {
     "subtitle": "{{n}} records",
@@ -979,7 +983,10 @@
     "nomzod.qora_royxatga_olinmaydi": "This candidate cannot be blacklisted: they were hired or are already blacklisted.",
     "audit.topilmadi": "Entry not found.",
     "audit.davr_notogri": "The start date is after the end date.",
-    "audit.filtr_notogri": "Invalid filter value."
+    "audit.filtr_notogri": "Invalid filter value.",
+    "sinov.bekor_qilinmaydi": "Probation cannot be completed as «cancelled»: choose «passed», «failed» or «left early».",
+    "sinov.bosatish_kerak": "An employee who failed probation or left on their own is dismissed right here — enter the termination date.",
+    "sinov.bosatish_otganga_yoq": "Dismissal can only be sent with the «failed» or «left early» result."
   },
   "language": {
     "en": "English",
@@ -1194,7 +1201,8 @@
     "dutyReopen": "Mark as ongoing",
     "tabHistory": "Change history",
     "correctedAt": "Corrected: {{date}}",
-    "showCorrections": "Show corrections"
+    "showCorrections": "Show corrections",
+    "probationAlreadyOver": "The probation period ended on {{date}} — the employee will be added as permanent right away."
   },
   "employments": {
     "anyType": "All types",

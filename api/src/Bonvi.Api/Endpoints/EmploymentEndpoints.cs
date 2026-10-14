@@ -110,8 +110,10 @@ public sealed record TerminateRequest(
 /// Tayinlash maydonlari (<paramref name="PositionId"/> dan
 /// <paramref name="OrderDate"/> gacha) IXTIYORIY va bo'sh qoldirilgani
 /// «o'zgarmadi» degani. Ular faqat <c>Passed</c> bilan ishlaydi.
+/// <c>Failed</c> / <c>LeftEarly</c> esa ishdan bo'shatishdir va
+/// <paramref name="Termination"/> ni talab qiladi.
 /// </remarks>
-/// <param name="Status">Natija: o'tdi / o'tmadi / erta ketdi / bekor qilindi.</param>
+/// <param name="Status">Natija: o'tdi / o'tmadi / erta ketdi. «Bekor qilindi» qabul qilinmaydi.</param>
 /// <param name="ResolvedAt">Yakunlangan sana. Bo'sh bo'lsa — bugun.</param>
 /// <param name="Conclusion">Xulosa matni.</param>
 /// <param name="ReviewerEmployeeId">Xulosa bergan mas'ul.</param>
@@ -122,6 +124,11 @@ public sealed record TerminateRequest(
 /// <param name="Rate">Yangi stavka: 1.0 — to'liq, 0.5 — yarim.</param>
 /// <param name="OrderNo">Buyruq raqami.</param>
 /// <param name="OrderDate">Buyruq sanasi.</param>
+/// <param name="Termination">
+/// Ishdan bo'shatish — faqat <c>Failed</c> / <c>LeftEarly</c> bilan va ular
+/// uchun majburiy. Maydonlar oddiy bo'shatishdagining o'zi
+/// (<see cref="TerminateRequest"/>), <c>confirm</c> ham.
+/// </param>
 public sealed record ResolveProbationRequest(
     ProbationStatus Status,
     DateOnly? ResolvedAt = null,
@@ -133,7 +140,8 @@ public sealed record ResolveProbationRequest(
     string? SalaryCurrency = null,
     decimal? Rate = null,
     string? OrderNo = null,
-    DateOnly? OrderDate = null);
+    DateOnly? OrderDate = null,
+    TerminateRequest? Termination = null);
 
 /// <summary>
 /// Sinov yozuvisiz «sinovda» qolgan munosabatlarni tasdiqlash so'rovi.
@@ -584,6 +592,7 @@ public static class EmploymentEndpoints
 
         group.MapPost("/{id:guid}/resolve", async (
                 Guid id,
+                bool? confirm,
                 ResolveProbationRequest request,
                 ResolveProbationCommandHandler handler,
                 CancellationToken cancellationToken) =>
@@ -602,7 +611,16 @@ public static class EmploymentEndpoints
                             request.SalaryCurrency,
                             request.Rate,
                             request.OrderNo,
-                            request.OrderDate),
+                            request.OrderDate,
+                            request.Termination is { } termination
+                                ? new ProbationTermination(
+                                    termination.TerminationDate,
+                                    termination.ReasonId,
+                                    termination.OrderNo,
+                                    termination.OrderDate,
+                                    termination.Note)
+                                : null,
+                            confirm ?? request.Termination?.Confirm ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -619,6 +637,10 @@ public static class EmploymentEndpoints
                 "hodisa qoladi — «sinov natijasi» va «lavozim/oklad o'zgarishi». " +
                 "Tayinlash maydonlari faqat «Passed» bilan ishlaydi: «sinov.tayinlash_otmagan» (400). " +
                 "Yakunlangan sinovni qayta yakunlab bo'lmaydi: «sinov.yakunlangan» (409). " +
+                "«Failed» / «LeftEarly» — shu so'rovning o'zida ishdan bo'shatish: «termination» " +
+                "(oddiy bo'shatish maydonlari) majburiy — «sinov.bosatish_kerak» (400), qora ro'yxat / " +
+                "nazoratdagi xodim «confirm=true» bilan; qo'shimcha «employment.terminate» ruxsati kerak. " +
+                "«Cancelled» qabul qilinmaydi: «sinov.bekor_qilinmaydi» (400). " +
                 "Ruxsat: «employment.probation.complete»; «salaryAmount» yuborilsa, " +
                 "qo'shimcha «employment.salary» ham kerak — aks holda «auth.ruxsat_yoq» (403).")
             .Produces<ProbationDto>(StatusCodes.Status200OK)

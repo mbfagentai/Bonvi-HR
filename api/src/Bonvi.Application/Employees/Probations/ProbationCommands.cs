@@ -2,6 +2,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Catalog.Common;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Application.Employees.Employments;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
@@ -30,6 +31,14 @@ namespace Bonvi.Application.Employees.Probations;
 /// qatorga tegadi.
 /// </para>
 /// <para>
+/// <b>«O'tmadi» va «o'zi ketdi» — shu amalning o'zida ishdan bo'shatish</b>
+/// (egasining qarori, 2026-10-14). Ilgari natija yozilardi, xodim esa
+/// «sinovda» holatida qolib ketardi: «Xodimlar» ro'yxatida ham, kartada ham
+/// sinovdagi odam bo'lib turardi va bo'shatishni HR alohida eslashi kerak
+/// edi. Endi <see cref="Termination"/> majburiy va munosabat shu
+/// tranzaksiyada yopiladi.
+/// </para>
+/// <para>
 /// <b>Tarixda ikki hodisa qoladi</b>, bitta emas: «sinov natijasi» va
 /// «lavozim o'zgarishi» (yoki «oklad o'zgarishi»). Ular boshqa-boshqa
 /// faktlar va hisobotda ham alohida sanaladi; bittaga qo'shib yuborsak,
@@ -37,7 +46,7 @@ namespace Bonvi.Application.Employees.Probations;
 /// </para>
 /// </remarks>
 /// <param name="ProbationId">Sinov muddati identifikatori.</param>
-/// <param name="Status">Natija: o'tdi / o'tmadi / erta ketdi / bekor qilindi.</param>
+/// <param name="Status">Natija: o'tdi / o'tmadi / erta ketdi. «Bekor qilindi» qo'lda tanlanmaydi.</param>
 /// <param name="ResolvedAt">Yakunlangan sana. Bo'sh bo'lsa — bugun.</param>
 /// <param name="Conclusion">Xulosa matni.</param>
 /// <param name="ReviewerEmployeeId">Xulosa bergan mas'ul.</param>
@@ -48,6 +57,14 @@ namespace Bonvi.Application.Employees.Probations;
 /// <param name="Rate">Yangi stavka (1.0 — to'liq, 0.5 — yarim).</param>
 /// <param name="OrderNo">Buyruq raqami.</param>
 /// <param name="OrderDate">Buyruq sanasi.</param>
+/// <param name="Termination">
+/// Ishdan bo'shatish ma'lumoti — faqat «o'tmadi» / «o'zi ketdi» bilan va ular
+/// uchun MAJBURIY (munosabat allaqachon yopilgan bo'lmasa).
+/// </param>
+/// <param name="ConfirmTermination">
+/// Xodim qora ro'yxatda yoki nazoratda bo'lsa ham bo'shatish — oddiy
+/// bo'shatishdagi <c>confirm</c> bilan aynan bir xil.
+/// </param>
 public sealed record ResolveProbationCommand(
     Guid ProbationId,
     ProbationStatus Status,
@@ -60,8 +77,13 @@ public sealed record ResolveProbationCommand(
     string? SalaryCurrency = null,
     decimal? Rate = null,
     string? OrderNo = null,
-    DateOnly? OrderDate = null)
+    DateOnly? OrderDate = null,
+    ProbationTermination? Termination = null,
+    bool ConfirmTermination = false)
 {
+    /// <summary>Natija xodimning ketishini anglatadimi.</summary>
+    public bool IsLeaving => Status is ProbationStatus.Failed or ProbationStatus.LeftEarly;
+
     /// <summary>Doimiy holatga o'tkazishda biror maydon to'ldirilganmi.</summary>
     /// <remarks>
     /// Ular faqat <see cref="ProbationStatus.Passed"/> bilan ma'noga ega:
@@ -74,6 +96,22 @@ public sealed record ResolveProbationCommand(
         || SalaryAmount is not null
         || Rate is not null;
 }
+
+/// <summary>
+/// Sinov yakunidagi ishdan bo'shatish — <see cref="TerminateEmploymentCommand"/>
+/// maydonlarining o'zi.
+/// </summary>
+/// <param name="Date">Ketish sanasi. Bo'sh bo'lsa — sinov yakunlangan sana.</param>
+/// <param name="ReasonId">Ketish sababi (ma'lumotnoma).</param>
+/// <param name="OrderNo">Bo'shatish buyrug'i raqami.</param>
+/// <param name="OrderDate">Bo'shatish buyrug'i sanasi.</param>
+/// <param name="Note">Izoh. Bo'sh bo'lsa — sinov xulosasi.</param>
+public sealed record ProbationTermination(
+    DateOnly? Date = null,
+    Guid? ReasonId = null,
+    string? OrderNo = null,
+    DateOnly? OrderDate = null,
+    string? Note = null);
 
 /// <summary>Sinov muddatini uzaytiradi.</summary>
 public sealed record ExtendProbationCommand(Guid ProbationId, DateOnly NewEndDate);
@@ -96,6 +134,7 @@ public sealed class ResolveProbationCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly TerminateEmploymentCommandHandler _terminate;
 
     public ResolveProbationCommandHandler(
         IProbationRepository probations,
@@ -105,7 +144,8 @@ public sealed class ResolveProbationCommandHandler
         EmployeeMapper mapper,
         ICurrentUser currentUser,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        TerminateEmploymentCommandHandler terminate)
     {
         _probations = probations;
         _employments = employments;
@@ -115,6 +155,7 @@ public sealed class ResolveProbationCommandHandler
         _currentUser = currentUser;
         _clock = clock;
         _unitOfWork = unitOfWork;
+        _terminate = terminate;
     }
 
     public async Task<Result<ProbationDto>> HandleAsync(
@@ -150,6 +191,37 @@ public sealed class ResolveProbationCommandHandler
             return Error.Validation(
                 "sinov.tayinlash_otmagan",
                 "Lavozim, bo'lim, oklad va stavkani faqat sinovdan O'TGAN xodimga tayinlash mumkin.");
+        }
+
+        // «Bekor qilindi» qo'lda tanlanmaydi (egasi, 2026-10-14). Prod'da u
+        // bir marta ishlatilgan — takror kiritilgan ishga qabulni «bekor
+        // qilish» uchun — va natijada xodim sinovsiz, lekin «sinovda»
+        // holatida ikki marta qolib ketgan. Sinov xato qo'yilgan bo'lsa —
+        // «o'tdi», qabulning o'zi xato bo'lsa — bu ma'lumot tuzatish.
+        if (command.Status == ProbationStatus.Cancelled)
+        {
+            return Error.Validation(
+                "sinov.bekor_qilinmaydi",
+                "Sinovni «bekor qilindi» deb yakunlab bo'lmaydi: «o'tdi», «o'tmadi» yoki «o'zi ketdi» ni tanlang.");
+        }
+
+        // Bo'shatish faqat ketish natijasi bilan — «o'tdi» bilan kelgan
+        // bo'shatish ma'lumoti kiritish xatosi (tayinlash qoidasining
+        // teskarisi).
+        if (command.Termination is not null && !command.IsLeaving)
+        {
+            return Error.Validation(
+                "sinov.bosatish_otganga_yoq",
+                "Ishdan bo'shatish faqat «o'tmadi» yoki «o'zi ketdi» natijasi bilan yuboriladi.");
+        }
+
+        // «O'tmadi» / «o'zi ketdi» = ishdan bo'shatish, va uning ruxsati
+        // alohida (xuddi oklad va ko'chirishdagi kabi). Tekshiruv hamma
+        // narsadan OLDIN — sinov yopilib, bo'shatish ruxsatda to'xtasa,
+        // HR «nima saqlandi» degan holatda qolardi.
+        if (command.IsLeaving && !_currentUser.HasPermission(Permissions.EmploymentTerminate))
+        {
+            return EmployeeErrors.TerminatePermissionRequired;
         }
 
         // Ma'lumotnoma yozuvlari OLDIN tekshiriladi — sinov yopilib,
@@ -188,12 +260,19 @@ public sealed class ResolveProbationCommandHandler
             return EmployeeErrors.ProbationNotFound;
         }
 
-        var at = command.ResolvedAt ?? _clock.Today;
+        // Ketishda sinov ketish kuni yopiladi — «o'tmadi» qarori va
+        // bo'shatish bitta voqea, ikki sana ularni ajratib yuborardi.
+        var at = command.ResolvedAt ?? command.Termination?.Date ?? _clock.Today;
 
         var resolved = probation.Resolve(command.Status, at, command.Conclusion, command.ReviewerEmployeeId);
         if (resolved.IsFailure)
         {
             return resolved.Error;
+        }
+
+        if (command.IsLeaving)
+        {
+            return await TerminateAsync(command, probation, at, cancellationToken).ConfigureAwait(false);
         }
 
         if (command.Status == ProbationStatus.Passed)
@@ -233,6 +312,75 @@ public sealed class ResolveProbationCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(_mapper.ToDto(probation));
+    }
+
+    /// <summary>
+    /// «O'tmadi» / «o'zi ketdi» — munosabatni xuddi shu tranzaksiyada yopadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nega oddiy bo'shatish chaqiriladi, nusxa yozilmaydi.</b> Bo'shatishda
+    /// qimmatga tushgan qoidalar bor: qora ro'yxat / nazorat ogohlantirishi
+    /// va tasdig'i, ishlab turganlar belgilarini yopish, sana tekshiruvi.
+    /// Ikkinchi nusxa ularning birini albatta unutardi
+    /// (<c>HireCandidateCommand</c> dagi naqsh — u ham ishga qabulni
+    /// chaqiradi).
+    /// </para>
+    /// <para>
+    /// <b>Nega bitta tranzaksiya.</b> Ikkalasi bir xil <c>DbContext</c> da:
+    /// sinov xotirada yopilgan, bo'shatishning yakuniy
+    /// <c>SaveChangesAsync</c> i HAR IKKI o'zgarishni birga yozadi. Bo'shatish
+    /// rad etilsa (sana noto'g'ri, xodim qora ro'yxatda va tasdiqlanmagan) —
+    /// hech narsa saqlanmaydi, sinov «sinovda» qoladi. Bo'shatish sinov
+    /// yozuvini qayta o'qiganda EF o'sha kuzatilayotgan nusxani qaytaradi —
+    /// u endi «o'tmadi» va «o'zi ketdi» bilan ustidan yozilmaydi.
+    /// </para>
+    /// <para>
+    /// Munosabat allaqachon yopilgan bo'lsa (bo'shatish oldin qilingan,
+    /// sinov esa ochiq qolgan), qayta bo'shatish yo'q — faqat natija yoziladi.
+    /// </para>
+    /// </remarks>
+    private async Task<Result<ProbationDto>> TerminateAsync(
+        ResolveProbationCommand command,
+        Probation probation,
+        DateOnly at,
+        CancellationToken cancellationToken)
+    {
+        var employment = await _employments
+            .GetWithEventsAsync(probation.EmploymentId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (employment is null or { Status: EmploymentStatus.Terminated })
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            return Result.Success(_mapper.ToDto(probation));
+        }
+
+        if (command.Termination is not { } termination)
+        {
+            return Error.Validation(
+                "sinov.bosatish_kerak",
+                "Sinovdan o'tmagan yoki o'zi ketgan xodim shu yerning o'zida ishdan bo'shatiladi — ketish sanasini kiriting.");
+        }
+
+        var terminated = await _terminate
+            .HandleAsync(
+                new TerminateEmploymentCommand(
+                    employment.Id,
+                    termination.Date ?? at,
+                    termination.ReasonId,
+                    termination.OrderNo,
+                    termination.OrderDate,
+                    termination.Note ?? command.Conclusion,
+                    command.ConfirmTermination),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        // Rad etilsa hech narsa saqlanmagan: sinov faqat xotirada yopilgan.
+        return terminated.IsFailure
+            ? terminated.Error
+            : Result.Success(_mapper.ToDto(probation));
     }
 
     /// <summary>

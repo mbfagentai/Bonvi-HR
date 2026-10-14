@@ -428,9 +428,11 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             {
                 legalEntityId = firmaId,
                 positionId = lavozimId,
-                hireDate = new DateOnly(2026, 4, 15),
+                // Yaqindagi sana: muddati tugagan qabul darhol «o'tdi» bo'ladi
+                // (2026-10-14), bu test esa xodimning «sinovda» ekanini kutadi.
+                hireDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-10),
                 orderNo = "186-b",
-                orderDate = new DateOnly(2026, 4, 10),
+                orderDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-15),
                 salaryAmount = 6_000_000m,
             },
             bekorQilish);

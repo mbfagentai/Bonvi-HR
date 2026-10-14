@@ -142,6 +142,15 @@ public static class EmployeeErrors
             "Yangi lavozim yoki bo'lim tayinlash uchun «employment.transfer» ruxsati kerak.");
 
     /// <summary>
+    /// Sinovni «o'tmadi» / «o'zi ketdi» bilan yakunlash — bu ishdan bo'shatish
+    /// ham, va u «employment.terminate» ni talab qiladi.
+    /// </summary>
+    public static Error TerminatePermissionRequired { get; } =
+        Error.Forbidden(
+            "auth.ruxsat_yoq",
+            "Sinovdan o'tmagan yoki o'zi ketgan xodimni bo'shatish uchun «employment.terminate» ruxsati kerak.");
+
+    /// <summary>
     /// Ishga qabul YANGI xodim kartasini yaratmoqchi, lekin foydalanuvchida
     /// «employees.create» yo'q — «employment.hire» karta yaratishga huquq bermaydi.
     /// </summary>

@@ -44,7 +44,16 @@ public sealed class ProbationPromotionTests
         _context.Mapper,
         _context.CurrentUser,
         _context.Clock,
-        _context.UnitOfWork);
+        _context.UnitOfWork,
+        new(
+            _context.Employments,
+            _context.Probations,
+            _context.TerminationReasons,
+            _context.Flags,
+            _context.FlagGuard,
+            _context.Mapper,
+            _context.Clock,
+            _context.UnitOfWork));
 
     /// <summary>Sinovda turgan munosabat va unga bog'langan sinov muddati.</summary>
     private (Employment Employment, Probation Probation) Sinovdagi(decimal? oklad = null)

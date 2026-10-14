@@ -114,7 +114,13 @@ export function ProbationsPage() {
 
   // Holat sahifaning o'zida, qidiruv esa manzilda — sabab marshrut
   // faylida (`sinov.tsx`) yozilgan.
-  const [status, setStatus] = useState<ProbationFilters['status']>('')
+  //
+  // Sukut — «Sinovda» (2026-10-14, egasining talabi). Ilgari «Barcha
+  // holatlar» edi va sinovi yakunlangan xodim — muddatidan oldin «o'tdi»
+  // yoki «o'tmadi» bo'lsa ham — shu menyuda turib qolardi: HR uni
+  // «ko'chmadi» deb ko'rardi. Menyu xodimning HOZIRGI holatini
+  // ko'rsatadi; yakunlanganlar tarixi filtrda qoladi.
+  const [status, setStatus] = useState<ProbationFilters['status']>('inProgress')
   const [page, setPage] = useState(1)
   const [resolving, setResolving] = useState<ProbationItem | null>(null)
   const [extending, setExtending] = useState<ProbationItem | null>(null)

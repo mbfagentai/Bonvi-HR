@@ -2,13 +2,16 @@ import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
-import { employeeErrorCode } from '@/features/employees/lib/employee-error'
+import { employeeErrorCode, terminationWarning } from '@/features/employees/lib/employee-error'
 import {
   EMPLOYMENT_SALARY,
+  EMPLOYMENT_TERMINATE,
   EMPLOYMENT_TRANSFER,
 } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { todayIso } from '@/shared/lib/today'
 import {
   Alert,
   Button,
@@ -21,6 +24,7 @@ import {
 } from '@/shared/ui'
 
 import {
+  LEAVING_RESULTS,
   PROBATION_RESULTS,
   type ProbationStatus,
   type ProbationTarget,
@@ -39,6 +43,13 @@ import { useExtendProbation, useResolveProbation } from '../api/probations-queri
  * yuborsak». Ilgari bu ikki qadam edi — avval sinov yopilardi, keyin xodim
  * kartasidan lavozim o'zgarishi yozilardi. Ikkinchisi muntazam unutilardi
  * va odam doimiy bo'lgani bilan «stajyor» lavozimida qolib ketardi.
+ *
+ * <b>«O'tmadi» / «o'zi ketdi» — shu oynaning o'zida ishdan bo'shatish</b>
+ * (2026-10-14, egasining qarori). Ilgari natija yozilardi, xodim esa
+ * «sinovda» holatida qolib ketardi va bo'shatishni HR alohida eslashi kerak
+ * edi. Endi ketish sanasi, sababi va buyruq shu yerda so'raladi va server
+ * ikkalasini bitta tranzaksiyada bajaradi. Qora ro'yxat / nazorat
+ * ogohlantirishi oddiy bo'shatishdagi kabi: avval o'qiladi, keyin tasdiqlanadi.
  *
  * <b>Faqat O'ZGARGAN maydon yuboriladi.</b> Lavozim va bo'lim tanlovi
  * hozirgi qiymat bilan to'ldiriladi (HR nima borligini ko'rib tursin),
@@ -85,6 +96,14 @@ export function ResolveDialog({
   */
   const canTransfer = hasPermission(EMPLOYMENT_TRANSFER)
 
+  /*
+    «O'tmadi» / «o'zi ketdi» — bu ishdan bo'shatish va server uni
+    `employment.terminate` siz rad etadi. Ruxsatsiz odamga bu natijalar
+    taklif qilinmaydi, sababi esa aytiladi.
+  */
+  const canTerminate = hasPermission(EMPLOYMENT_TERMINATE)
+  const reasons = useCatalogList('termination-reasons', true)
+
   const [status, setStatus] = useState<ProbationStatus>('passed')
   const [conclusion, setConclusion] = useState('')
   const [positionId, setPositionId] = useState('')
@@ -92,6 +111,9 @@ export function ResolveDialog({
   const [salary, setSalary] = useState('')
   const [rate, setRate] = useState('')
   const [orderNo, setOrderNo] = useState('')
+  const [orderDate, setOrderDate] = useState('')
+  const [terminationDate, setTerminationDate] = useState(todayIso)
+  const [reasonId, setReasonId] = useState('')
 
   // Dialog yopilib qayta ochilganda oldingi xodimning xulosasi qolib
   // ketmasligi kerak — bu boshqa odamga tegishli matn bo'lardi.
@@ -109,6 +131,9 @@ export function ResolveDialog({
       setSalary('')
       setRate('')
       setOrderNo('')
+      setOrderDate('')
+      setTerminationDate(todayIso())
+      setReasonId('')
       resolve.reset()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -117,8 +142,12 @@ export function ResolveDialog({
   if (item === null) return null
 
   const promoting = status === 'passed'
+  const leaving = LEAVING_RESULTS.includes(status)
+  const warning = leaving ? terminationWarning(resolve.error) : null
 
-  const submit = () => {
+  const results = PROBATION_RESULTS.filter((value) => canTerminate || !LEAVING_RESULTS.includes(value))
+
+  const submit = (confirm: boolean) => {
     const trimmedConclusion = conclusion.trim()
     const trimmedOrder = orderNo.trim()
     const parsedSalary = Number(salary)
@@ -147,6 +176,22 @@ export function ResolveDialog({
                 orderNo: trimmedOrder === '' ? null : trimmedOrder,
               }
             : {}),
+
+          // Bo'shatish — faqat ketish natijasi bilan. Izoh ATAYLAB yo'q:
+          // server bo'shatish izohiga sinov xulosasini qo'yadi, ikkinchi
+          // matn maydoni HR ni bir narsani ikki marta yozishga majbur qilardi.
+          ...(leaving
+            ? {
+                termination: {
+                  terminationDate,
+                  reasonId: reasonId === '' ? null : reasonId,
+                  orderNo: trimmedOrder === '' ? null : trimmedOrder,
+                  orderDate: orderDate === '' ? null : orderDate,
+                  note: null,
+                },
+                confirm,
+              }
+            : {}),
         },
       },
       { onSuccess: onClose },
@@ -165,24 +210,50 @@ export function ResolveDialog({
           <Button variant="ghost" onClick={onClose} disabled={resolve.isPending}>
             {t('common.cancel')}
           </Button>
-          <Button variant="primary" onClick={submit} disabled={resolve.isPending}>
+          <Button
+            variant={leaving ? 'danger' : 'primary'}
+            onClick={() => submit(warning !== null)}
+            disabled={resolve.isPending || (leaving && terminationDate === '')}
+          >
             {resolve.isPending && <LoaderCircle className="animate-spin" />}
-            {t('probation.resolve')}
+            {!leaving
+              ? t('probation.resolve')
+              : warning === null
+                ? t('probation.resolveAndTerminate')
+                : t('employees.terminateAnyway')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        {resolve.isError && <Alert tone="danger">{errorMessage(employeeErrorCode(resolve.error))}</Alert>}
+        {resolve.isError &&
+          (warning === null ? (
+            <Alert tone="danger">{errorMessage(employeeErrorCode(resolve.error))}</Alert>
+          ) : (
+            <Alert tone="warning" title={errorMessage(warning.code)}>
+              <ul className="space-y-1">
+                {warning.extra.map((code) => (
+                  <li key={code}>{errorMessage(code)}</li>
+                ))}
+                {warning.detail !== null && <li>{warning.detail}</li>}
+              </ul>
+            </Alert>
+          ))}
 
         <Select
           label={t('probation.result')}
-          options={PROBATION_RESULTS.map((value) => ({
+          hint={canTerminate ? undefined : t('probation.terminateLockedHint')}
+          options={results.map((value) => ({
             value,
             label: t(`probation.status.${value}`),
           }))}
           value={status}
-          onChange={(event) => setStatus(event.target.value as ProbationStatus)}
+          onChange={(event) => {
+            // Boshqa natijaga o'tilganda eski ogohlantirish (qora ro'yxat)
+            // qolib, yangi natijaga tegishlidek ko'rinmasligi kerak.
+            resolve.reset()
+            setStatus(event.target.value as ProbationStatus)
+          }}
         />
 
         <TextArea
@@ -264,6 +335,48 @@ export function ResolveDialog({
               value={orderNo}
               onChange={(event) => setOrderNo(event.target.value)}
             />
+          </div>
+        )}
+
+        {/*
+          Bo'shatish bloki — faqat «o'tmadi» / «o'zi ketdi». Maydonlar oddiy
+          bo'shatish oynasidagining o'zi: sana, sabab, buyruq.
+        */}
+        {leaving && (
+          <div className="space-y-4 rounded-md border border-[var(--border)] bg-[var(--bg-sunken)] p-4">
+            <div>
+              <p className="text-footnote font-medium">{t('probation.terminateTitle')}</p>
+              <p className="mt-0.5 text-caption1 text-[var(--fg-secondary)]">
+                {t('probation.terminateHint')}
+              </p>
+            </div>
+
+            <DateField
+              label={t('employees.terminationDate')}
+              value={terminationDate}
+              onChange={setTerminationDate}
+            />
+
+            <Select
+              label={t('employees.terminationReason')}
+              options={(reasons.data ?? []).map((reason) => ({ value: reason.id, label: reason.name }))}
+              placeholder={t('employees.chooseReason')}
+              value={reasonId}
+              onChange={(event) => setReasonId(event.target.value)}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                label={t('employee.orderNo')}
+                value={orderNo}
+                onChange={(event) => setOrderNo(event.target.value)}
+              />
+              <DateField
+                label={t('employee.orderDate')}
+                value={orderDate}
+                onChange={setOrderDate}
+              />
+            </div>
           </div>
         )}
       </div>

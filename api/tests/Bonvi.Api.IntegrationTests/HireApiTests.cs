@@ -356,13 +356,16 @@ public sealed class HireApiTests : IClassFixture<BonviApiFactory>
             LegalEntityId: firmaId,
             DepartmentId: null,
             PositionId: null,
-            HireDate: new DateOnly(2026, 3, 2),
+            // Yaqindagi sana ATAYLAB: muddati allaqachon tugagan qabul
+            // 2026-10-14 dan darhol «o'tdi» bo'ladi (`ProbationOutcomeApiTests`),
+            // bu testlar esa «qabulda sinov ochiladi» ni tekshiradi.
+            HireDate: YaqindaQabul,
             Rate: 1m,
             IsPrimary: true,
             SalaryAmount: null,
             SalaryCurrency: "UZS",
             OrderNo: "91-b",
-            OrderDate: new DateOnly(2026, 3, 1),
+            OrderDate: YaqindaQabul.AddDays(-1),
             Person: new HirePersonBody(
                 LastName: familiya,
                 FirstName: "Ходим",
@@ -377,6 +380,9 @@ public sealed class HireApiTests : IClassFixture<BonviApiFactory>
                 TelegramUrl: "bonvi_test",
                 DirectionIds: []),
             ProbationDays: sinovKunlari);
+
+    /// <summary>Sinov muddati hali tugamagan qabul sanasi.</summary>
+    private static DateOnly YaqindaQabul => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-10);
 
     private static string Belgi() => Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 

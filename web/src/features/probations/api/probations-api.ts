@@ -25,13 +25,21 @@ export const PROBATION_STATUSES = {
 
 export type ProbationStatus = keyof typeof PROBATION_STATUSES
 
-/** Yakuniy natijalar — «davom etmoqda» ni server rad etadi. */
-export const PROBATION_RESULTS: readonly ProbationStatus[] = [
-  'passed',
-  'failed',
-  'leftEarly',
-  'cancelled',
-]
+/**
+ * Yakuniy natijalar — «davom etmoqda» ni server rad etadi.
+ *
+ * «Bekor qilindi» bu yerda YO'Q (2026-10-14, egasining qarori): u xodimni
+ * «sinovda» holatida, lekin sinovsiz qoldirardi va server uni endi rad
+ * etadi (`sinov.bekor_qilinmaydi`). Holatning o'zi qoladi — eski yozuvlar
+ * ro'yxat filtrida ko'rinadi.
+ */
+export const PROBATION_RESULTS: readonly ProbationStatus[] = ['passed', 'failed', 'leftEarly']
+
+/**
+ * Xodimning KETISHINI anglatuvchi natijalar — ular ishdan bo'shatish bilan
+ * birga yuboriladi va server munosabatni shu so'rovda yopadi.
+ */
+export const LEAVING_RESULTS: readonly ProbationStatus[] = ['failed', 'leftEarly']
 
 /**
  * Yakunlash va uzaytirish oynalari HAQIQATAN ishlatadigan maydonlar.
@@ -116,6 +124,25 @@ export interface ResolveProbationRequest {
   rate?: number | null
   orderNo?: string | null
   orderDate?: string | null
+
+  /**
+   * Ishdan bo'shatish — faqat `LEAVING_RESULTS` bilan va ular uchun
+   * MAJBURIY (`sinov.bosatish_kerak`). Maydonlar oddiy bo'shatishdagining
+   * o'zi.
+   */
+  termination?: ProbationTerminationRequest | null
+
+  /** Qora ro'yxat / nazoratdagi xodimni baribir bo'shatish — oddiy bo'shatishdagi `confirm`. */
+  confirm?: boolean
+}
+
+/** Sinov yakunidagi bo'shatish — `TerminateRequest` bilan bir xil shakl. */
+export interface ProbationTerminationRequest {
+  terminationDate: string
+  reasonId: string | null
+  orderNo: string | null
+  orderDate: string | null
+  note: string | null
 }
 
 /**
@@ -228,7 +255,8 @@ export async function resolveProbation(
     rate: request.rate,
     orderNo: request.orderNo,
     orderDate: request.orderDate,
-  })
+    termination: request.termination,
+  }, request.confirm === true ? { params: { confirm: true } } : undefined)
 }
 
 /** Sinov yozuvisiz «sinovda» qolganlar. Server sahifalamaydi. */

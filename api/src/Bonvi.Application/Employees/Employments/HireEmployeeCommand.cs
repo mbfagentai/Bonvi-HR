@@ -276,6 +276,37 @@ public sealed class HireEmployeeCommandHandler
         var probation = started.Value;
         _probations.Add(probation);
 
+        // ── Eski sana bilan kiritish: muddat ALLAQACHON tugagan ──
+        //
+        // HR ishga qabulni kech kiritadi (Мамажонов 2015-07-01, yoki bir
+        // necha oy oldingi qabul) va sinov muddati kiritilgan paytdayoq
+        // o'tib bo'lgan bo'ladi. Ilgari xodim baribir «sinovda» bo'lib
+        // qolardi va HR uni qo'lda yakunlashi kerak edi — prod'da 18 ta
+        // shunday odam yillab «sinovda» turardi (2026-10-14). Qonun bo'yicha
+        // muddat tugab, xodim ishlashda davom etgan bo'lsa — u sinovdan
+        // o'tgan; egasi ham shunday qaror qildi.
+        //
+        // Tugash kuni ham sinov kuni: faqat ERTASI kundan boshlab o'tgan
+        // hisoblanadi. Natija muddat tugagan sana bilan yoziladi — «bugun»
+        // bilan emas, aks holda tarixda 2015 yilgi xodim 2026 da doimiy
+        // bo'lib qolardi.
+        if (probation.EndDate < _clock.Today)
+        {
+            const string note = "Kiritilganda sinov muddati allaqachon tugagan edi — avtomatik «o'tdi»";
+
+            var passed = probation.Resolve(ProbationStatus.Passed, probation.EndDate, note);
+            if (passed.IsFailure)
+            {
+                return passed.Error;
+            }
+
+            var completed = employment.CompleteProbation(probation.EndDate, note);
+            if (completed.IsFailure)
+            {
+                return completed.Error;
+            }
+        }
+
         // ── Ketish belgisi ishga qabul bilan yopiladi ──
         //
         // Rezerv — «hozir olinmadi, lekin kerak bo'lsa chaqirsa bo'ladi».
