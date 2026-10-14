@@ -66,20 +66,26 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
             //     lower() faqat ASCII harflarni kichraytiradi va «Каримов»
             //     katta «К» bilan qolib, hech narsa topilmasdi.
             //  2. Kirill → lotin, bitta harflilari translate() bilan
-            //     (ў → o, ғ → g, қ → q, ҳ → h), lotin diakritikasi esa
+            //     (ў → u, ғ → g, қ → q, ҳ → h), lotin diakritikasi esa
             //     asosiy harfga (Uluģbek → ulugbek).
             //  3. Ko'p harfli kirill: ш sh, ч ch, ц ts, ю yu, я ya, ё yo.
-            //  4. Apostrofning barcha turlari va ъ/ь tashlanadi:
+            //  4. Lotin «o'» (har qanday apostrof bilan) → u — xuddi ў kabi.
+            //     ⚠️ ў va o' 7-qadamdan OLDIN «u» bo'lishi SHART: aks holda
+            //     «йў» / «yo'» «yo» bo'lib qolib, 7-qadamda «e» ga aylanardi va
+            //     «Йўлдошев» rus klaviaturasidagi «Йулдошев» ni (bugun
+            //     topiladi) ham, «Юлдошев» ni ham topmay qolardi. Prod
+            //     nusxasidagi sinovda aynan shu ushlangan (2026-10-14).
+            //  5. Qolgan apostroflar va ъ/ь tashlanadi:
             //     G'ofurov = Gʻofurov = G‘ofurov = Gofurov.
-            //  5. Ruscha lotin yozuvi: kh → x, dj/zh → j (Khasanov, Mamadjanov).
-            //  6. q = k, h = x — HR rus klaviaturasida қ/ҳ o'rniga к/х yozadi,
+            //  6. Ruscha lotin yozuvi: kh → x, dj/zh → j (Khasanov, Mamadjanov).
+            //  7. q = k, h = x — HR rus klaviaturasida қ/ҳ o'rniga к/х yozadi,
             //     lotinda ham Xasan/Hasan aralash.
-            //  7. ye → e, yo → e: Abdullayev = Абдуллаев, Yoqubov = Ёқубов, va
+            //  8. ye → e, yo → e: Abdullayev = Абдуллаев, Yoqubov = Ёқубов, va
             //     eski «Екубов → Ёқубов» (ё = е) qoidasi saqlanadi.
-            //  8. o = u: ў lotinda o', o yoki u bo'lib yoziladi — Жўраев,
+            //  9. o = u: ў lotinda o', o yoki u bo'lib yoziladi — Жўраев,
             //     Jo'rayev, Jorayev, Jurayev bitta odam.
             //  Bilib turib QILINMAGAN: «Yoldoshev» (apostrofsiz) «Йўлдошев» ni
-            //  topmaydi — buni 7-qadam bilan birga qilib bo'lmaydi; a/o
+            //  topmaydi — buni 8-qadam bilan birga qilib bo'lmaydi; a/o
             //  almashuvi (Тошматов / Tashmatov) ham yo'q — u juda ko'p begona
             //  natija berardi.
             //
@@ -96,12 +102,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         translate(
                             replace(replace(replace(
                                 regexp_replace(
-                                    replace(replace(replace(replace(replace(replace(replace(replace(replace(
-                                        translate(lower(value COLLATE "und-x-icu"),
-                                            'абвгғдежзийкқлмнопрстуўфхҳыэіģğǵöóòüúıé',
-                                            'abvggdejziykqlmnoprstuofxhieigggooouuie'),
-                                        'ш', 'sh'), 'щ', 'sh'), 'ч', 'ch'), 'ц', 'ts'), 'ю', 'yu'),
-                                        'я', 'ya'), 'ё', 'yo'), 'ş', 'sh'), 'ç', 'ch'),
+                                    regexp_replace(
+                                        replace(replace(replace(replace(replace(replace(replace(replace(replace(
+                                            translate(lower(value COLLATE "und-x-icu"),
+                                                'абвгғдежзийкқлмнопрстуўфхҳыэіģğǵöóòüúıé',
+                                                'abvggdejziykqlmnoprstuufxhieigggooouuie'),
+                                            'ш', 'sh'), 'щ', 'sh'), 'ч', 'ch'), 'ц', 'ts'), 'ю', 'yu'),
+                                            'я', 'ya'), 'ё', 'yo'), 'ş', 'sh'), 'ç', 'ch'),
+                                        'o[''ʻʼ‘’`´ʹ]', 'u', 'g'),
                                     '[''ʻʼ‘’`´ʹъь]', '', 'g'),
                                 'kh', 'x'), 'dj', 'j'), 'zh', 'j'),
                             'qh', 'kx'),

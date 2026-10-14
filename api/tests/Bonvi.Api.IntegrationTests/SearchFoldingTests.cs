@@ -292,6 +292,14 @@ public sealed class SearchFoldingTests : IClassFixture<BonviApiFactory>
     [InlineData("Тўхтаев", "To'xtayev")]
     [InlineData("Тўхтаев", "Toxtayev")]
     [InlineData("Тўхтаев", "Tuxtayev")]
+    // «йў» / «yo'»: ў «u» bo'lishi «yo → e» qadamidan OLDIN — aks holda
+    // rus klaviaturasidagi «Йулдошев» bugungidek topilmay qolardi (prod
+    // nusxasidagi sinov ushlagan, 2026-10-14).
+    [InlineData("Йўлдошев", "Йулдошев")]
+    [InlineData("Йўлдошев", "Юлдошев")]
+    [InlineData("Йўлдошев", "Yo'ldoshev")]
+    [InlineData("Йўлдошев", "Yuldoshev")]
+    [InlineData("Тўйчиев", "To'ychiyev")]
     [InlineData("Ғофуров", "G‘ofurov")]
     [InlineData("Ҳасанов", "Xasanov")]
     [InlineData("Ҳасанов", "Khasanov")]
