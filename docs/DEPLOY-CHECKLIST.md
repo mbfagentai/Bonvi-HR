@@ -3,6 +3,34 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `ef3b333` — ism qidiruvi lotin/kirill farqsiz — 2026-10-14 13:02 (Toshkent)
+
+Prod `2165698` → `ef3b333` (`dd14e74` + `ef3b333`). Rollback: image tegi `rollback-2165698` (api, bot, web),
+zaxira stamp `2026-10-14_075206`. Egasining sharti — HR ishiga ta'sir qilmaslik: HR (ofis IP) 12:02 dan,
+egasi 12:09 dan jim, bot'da anketa to'ldirayotgan nomzod yo'q — tushlikda chiqarildi (12:53–13:02).
+Web qayta yaratilmadi (frontend'da faqat izoh), bot qayta yaratildi.
+
+* Ism qidiruvi (xodimlar, nomzodlar, foydalanuvchilar, xodimga tegishli 5 ro'yxat, tashqi API)
+  «Karimov» = «Каримов», «Jo'rayev» = «Жўраев» = «Juraev». Qoida — bazadagi `search_key()`.
+
+**Migratsiya — 1 ta** `20261014063834_IsmQidiruvKaliti`: funksiya, `employees.search_key` va
+`candidates.search_key` (GENERATED STORED), ikki trigramma indeksi; eski `ix_employees_full_name_fold_trgm`
+o'chiriladi. Hech bir qatorning qiymati o'zgarmaydi. Prod'da ~1 s.
+**Image rollback** qo'shimcha SQL'siz ishlaydi: eski kod yangi ustunni ko'rmaydi, qidiruvi indekssiz (≈10 ms).
+To'liq qaytarish kerak bo'lsa — `IsmQidiruvKaliti` ning Down'i (indekslar, ustunlar, funksiya o'chadi,
+eski indeks qaytadi; nusxada sinalgan).
+
+Nusxada sinov (serverda, `bonvi_migtest`, prod `pg_dump`i): nusxa = prod; Up → 55 jadval sanog'i va
+xodim/nomzod/foydalanuvchi nazorat yig'indisi O'ZGARMADI, kalitsiz qator 0/2030 va 0/5108, ikkala indeks
+ishlatiladi (~1–2 ms); Down → yig'indilar bir xil, eski indeks qaytdi, qoldiq 0; qayta Up ikki marta
+(idempotent) → bir xil. ⭐ Birinchi sinov xato ushladi: «йў» «e» ga aylanib, «Йулдошев» → «Йўлдошев»
+(bugun ishlaydigan) qidiruvi buzilardi — `ef3b333` da tuzatildi, sinov qayta o'tdi. `bonvi_migtest` o'chirildi.
+
+Deploy'dan keyin: migratsiya qo'llandi, `/`, `/ilova/`, `/health/*` 200, API ERR/FTL 0; xodim va nomzod
+yig'indisi deploy oldidagi bilan AYNAN bir xil (farq faqat bot qayta kirgani: 2 refresh token, bot
+hisobining `updated_at`i). Prod'da: Karimov/Каримов 17+49, Yuldoshev/Йулдошев/Йўлдошев 4+8,
+Juraev/Жўраев 33+55 (xodim+nomzod).
+
 ## ✅ Reliz `2165698` — audit jurnali + ilova xavfsizligi — 2026-10-13 14:51 (Toshkent)
 
 Prod `dd4667c` → `2165698`. Rollback: image tegi `rollback-dd4667c` (api, bot, web), zaxira stamp
