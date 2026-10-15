@@ -38,7 +38,7 @@ const MAX_BADGE = 99
  * ko'rinish uchun, tugma esa sanoqning davriy so'rovini TO'XTATISH
  * uchun (`useUnreadCount` izohiga qarang). Holatni yuqoriga —
  * `topbar.tsx` ga — chiqarish panelga u umuman ishlatmaydigan holatni
- * yuklardi (`topbar-search.tsx`, `user-menu.tsx` bilan bir xil qoida:
+ * yuklardi (`global-search.tsx`, `user-menu.tsx` bilan bir xil qoida:
  * panel faqat joylashtiradi).
  */
 export function NotificationsBell() {

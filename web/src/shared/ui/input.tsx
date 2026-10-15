@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import type { ComponentPropsWithoutRef } from 'react'
+import type { ComponentProps } from 'react'
 
 import { cn } from '@/shared/lib/cn'
 
@@ -9,7 +9,9 @@ export function Input({
   shape = 'rounded',
   size = 'md',
   ...props
-}: Omit<ComponentPropsWithoutRef<'input'>, 'size'> & {
+}: // `ref` ham o'tadi (React 19 — oddiy prop): global qidiruv maydonni ⌘K
+  // bilan fokuslaydi. U `...props` bilan to'g'ridan-to'g'ri `<input>` ga tushadi.
+  Omit<ComponentProps<'input'>, 'size'> & {
   icon?: LucideIcon
   /** `pill` — to'liq dumaloq burchak (iOS qidiruv maydoni). */
   shape?: 'rounded' | 'pill'

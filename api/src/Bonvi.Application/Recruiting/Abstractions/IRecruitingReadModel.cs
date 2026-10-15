@@ -211,6 +211,9 @@ public enum VacancySortField
 /// beradi.
 /// </para>
 /// </param>
+/// <param name="AllStatuses">
+/// BARCHA holatlar — barcha <c>Hide…</c> qoidalari o'chadi (global qidiruv).
+/// </param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -232,7 +235,15 @@ public sealed record CandidateSearchFilter(
       indamasdi (turlari mos kelib qolgan joyda).
     */
     DateOnly? ContactDueOn = null,
-    bool RejectedSection = false)
+    bool RejectedSection = false,
+    /*
+      ⭐ Global qidiruv uchun (`GlobalSearchQueryHandler`). Sukut bo'yicha
+      ro'yxat ishga olinganlar, qora ro'yxat, rezerv va rad etilganlarni
+      yashiradi (har biri o'z bo'limida). Global qidiruv esa «bu odam bizda
+      qayerda?» degan savolga javob beradi va hech kimni yashirmasligi
+      kerak. Excel arxivi `IncludeArchive` bilan alohida boshqariladi.
+    */
+    bool AllStatuses = false)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
@@ -273,7 +284,7 @@ public sealed record CandidateSearchFilter(
     /// Rezervdagilar uchun alohida qoida bor — <see cref="HideReserve"/>.
     /// </para>
     /// </remarks>
-    public bool HideHired => Status is null;
+    public bool HideHired => Status is null && !AllStatuses;
 
     /// <summary>
     /// Rad etilganlar ro'yxatdan chiqarilsinmi.
@@ -338,7 +349,7 @@ public sealed record CandidateSearchFilter(
     /// unda faqat HOLAT tanlovi qoidani ochadi.
     /// </para>
     /// </remarks>
-    public bool HideRejected => Status is null && !ArchiveRequested && !RejectedSection;
+    public bool HideRejected => Status is null && !ArchiveRequested && !RejectedSection && !AllStatuses;
 
     /// <summary>
     /// O'zi voz kechganlar ro'yxatdan chiqarilsinmi.
@@ -365,7 +376,7 @@ public sealed record CandidateSearchFilter(
     /// natijani o'zgartirmasdi — ya'ni ko'rinmas ta'sirli o'zgarish bo'lardi.
     /// </para>
     /// </remarks>
-    public bool HideWithdrawn => Status is null && !ArchiveRequested && !RejectedSection;
+    public bool HideWithdrawn => Status is null && !ArchiveRequested && !RejectedSection && !AllStatuses;
 
     /// <summary>
     /// Rezervdagilar ro'yxatdan chiqarilsinmi.
@@ -393,7 +404,7 @@ public sealed record CandidateSearchFilter(
     /// kechganlarni oladi (<see cref="HideWithdrawn"/> izohidagi mulohaza).
     /// </para>
     /// </remarks>
-    public bool HideReserve => Status is null && !ArchiveRequested && ContactDueOn is null;
+    public bool HideReserve => Status is null && !ArchiveRequested && ContactDueOn is null && !AllStatuses;
 
     /// <summary>
     /// Qora ro'yxatdagilar ro'yxatdan chiqarilsinmi.
@@ -406,7 +417,7 @@ public sealed record CandidateSearchFilter(
     /// etilganlar bo'limi «kim bilan ishlash mumkin» degan savolga javob
     /// beradi — qora ro'yxatdagi odam bu savolga kirmaydi.
     /// </remarks>
-    public bool HideBlacklisted => Status is null;
+    public bool HideBlacklisted => Status is null && !AllStatuses;
 
     /// <summary>
     /// Excel arxivi ATAYLAB so'ralganmi.

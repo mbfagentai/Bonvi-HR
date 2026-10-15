@@ -354,6 +354,24 @@
     "prevMonth": "Oldingi oy",
     "nextMonth": "Keyingi oy"
   },
+  "search": {
+    "placeholder": "F.I.Sh., JSHSHIR, telefon yoki vakansiya…",
+    "label": "Global qidiruv",
+    "employees": "Xodimlar",
+    "candidates": "Nomzodlar",
+    "vacancies": "Vakansiyalar",
+    "showAllEmployees": "Hammasini ro‘yxatda ko‘rish ({{count}})",
+    "more": "Yana {{count}} ta — aniqroq yozing",
+    "empty": "Hech narsa topilmadi",
+    "emptyHint": "Ism, familiya, JSHSHIR yoki telefonni tekshirib ko‘ring.",
+    "minLength": "Kamida 2 ta belgi kiriting",
+    "loading": "Qidirilmoqda…",
+    "failed": "Qidirib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.",
+    "noEmployment": "Ishga olinmagan",
+    "applied": "ariza {{date}}",
+    "vacancyMeta": "{{openings}} o‘rin · {{candidates}} nomzod",
+    "keyboardHint": "↑↓ — tanlash · Enter — ochish · Esc — yopish · ⌘K — qidiruvga o‘tish"
+  },
   "period": {
     "day": "1 kun",
     "week": "1 hafta",

@@ -205,6 +205,21 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             EmployeeSortField.Position => By(shaped, row => row.PositionName, descending),
             EmployeeSortField.Status => By(shaped, row => row.Employment!.Status, descending),
             EmployeeSortField.BirthDate => By(shaped, row => row.Employee.BirthDate, descending),
+            // Guruh raqami ochiq CASE bo'lib yoziladi: `Status == Terminated`
+            // ning o'zi munosabati yo'q xodimda EF'ning null semantikasi
+            // bilan «false» ga aylanib, uni ishlayotganlar orasiga qo'shardi.
+            EmployeeSortField.EmployedFirst => Then(
+                Then(
+                    By(
+                        shaped,
+                        row => row.Employment == null ? 2
+                            : row.Employment.Status == EmploymentStatus.Terminated ? 1
+                            : 0,
+                        descending),
+                    row => row.Employee.FullName.LastName,
+                    descending),
+                row => row.Employee.FullName.FirstName,
+                descending),
             _ => Then(
                 By(shaped, row => row.Employee.FullName.LastName, descending),
                 row => row.Employee.FullName.FirstName,

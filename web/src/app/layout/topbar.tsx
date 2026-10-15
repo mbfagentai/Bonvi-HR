@@ -1,7 +1,7 @@
 import { NotificationsBell } from '@/features/notifications'
+import { GlobalSearch } from '@/features/search'
 import { LanguageSwitcher } from '@/shared/ui/language-switcher'
 import { ThemeToggle } from '@/shared/ui/theme-toggle'
-import { TopbarSearch } from './topbar-search'
 import { UserMenu } from './user-menu'
 
 /**
@@ -25,8 +25,8 @@ export function Topbar() {
     <header className="blur-bar z-30 shrink-0 border-b border-[var(--border)]">
       <div className="flex h-16 items-center gap-3 px-5 lg:gap-4 lg:px-6">
         {/*
-          Qidiruv — bo'sh kenglikning hammasini egallaydi. Mantiqi
-          `topbar-search.tsx` da: u marshrutga ham, ruxsatga ham bog'liq,
+          Global qidiruv — bo'sh kenglikning hammasini egallaydi. Mantiqi
+          `features/search` da: u marshrutga ham, ruxsatga ham bog'liq,
           panelning o'zi esa faqat joylashtirish bilan shug'ullanadi
           (`user-menu.tsx` bilan bir xil naqsh).
 
@@ -37,7 +37,7 @@ export function Topbar() {
           o'rtasiga sirg'alib tushardi.
         */}
         <div className="min-w-0 flex-1">
-          <TopbarSearch />
+          <GlobalSearch />
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -48,7 +48,7 @@ export function Topbar() {
           {/*
             Qo'ng'iroq — o'z moduli bilan birga keladi (tugma, sanoq va
             oyna bitta komponentda). Panel bu yerda ham faqat
-            JOYLASHTIRADI, mantiqni saqlamaydi — `TopbarSearch` va
+            JOYLASHTIRADI, mantiqni saqlamaydi — `GlobalSearch` va
             `UserMenu` bilan bir xil naqsh.
 
             ⚠️ Ilgari shu o'rinda `onClick` siz tugma va ustida QATTIQ

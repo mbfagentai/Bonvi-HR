@@ -463,6 +463,17 @@ public static partial class AuthenticationExtensions
     /// </remarks>
     public const string RolesReadPolicy = "roles-read";
 
+    /// <summary>
+    /// Global qidiruv siyosati — <c>employees.view</c> YOKI <c>recruiting.view</c>.
+    /// </summary>
+    /// <remarks>
+    /// Qidiruv ikkala bo'limni ham qamraydi va ruxsatlar odatda boshqa-boshqa
+    /// odamda (HR va rekruter). Bittasini talab qilish ikkinchisidan maydonni
+    /// tortib olardi; javob esa handler'da ruxsatga qarab torayadi
+    /// (<c>GlobalSearchQueryHandler</c>).
+    /// </remarks>
+    public const string GlobalSearchPolicy = "global-search";
+
     public static IServiceCollection AddBonviAuthorization(this IServiceCollection services)
     {
         services.AddAuthorizationBuilder()
@@ -519,6 +530,11 @@ public static partial class AuthenticationExtensions
             .AddPolicy(RolesReadPolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(CurrentUser.PermissionClaimType, Permissions.UsersManage, Permissions.RolesManage));
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy(GlobalSearchPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireClaim(CurrentUser.PermissionClaimType, Permissions.EmployeesView, Permissions.RecruitingView));
 
         /*
           ⭐ XODIM SIYOSATI — ruxsat kodi YO'Q, AUDITORIYA bor.

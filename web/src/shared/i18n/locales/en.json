@@ -354,6 +354,24 @@
     "prevMonth": "Previous month",
     "nextMonth": "Next month"
   },
+  "search": {
+    "placeholder": "Name, PINFL, phone or vacancy…",
+    "label": "Global search",
+    "employees": "Employees",
+    "candidates": "Candidates",
+    "vacancies": "Vacancies",
+    "showAllEmployees": "Show all in the list ({{count}})",
+    "more": "{{count}} more — refine your search",
+    "empty": "Nothing found",
+    "emptyHint": "Check the name, surname, PINFL or phone number.",
+    "minLength": "Type at least 2 characters",
+    "loading": "Searching…",
+    "failed": "Search failed. Please try again in a moment.",
+    "noEmployment": "Not hired",
+    "applied": "applied {{date}}",
+    "vacancyMeta": "{{openings}} openings · {{candidates}} candidates",
+    "keyboardHint": "↑↓ — select · Enter — open · Esc — close · ⌘K — jump to search"
+  },
   "period": {
     "day": "1 day",
     "week": "1 week",

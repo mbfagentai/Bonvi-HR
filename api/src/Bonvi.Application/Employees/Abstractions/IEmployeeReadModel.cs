@@ -153,6 +153,19 @@ public enum EmployeeSortField
 
     /// <summary>Tug'ilgan sana.</summary>
     BirthDate = 5,
+
+    /// <summary>
+    /// Avval ishlayotganlar (sinovdagi va doimiy), keyin ishdan ketganlar,
+    /// oxirida munosabati yo'qlar; har guruh ichida familiya, ism.
+    /// </summary>
+    /// <remarks>
+    /// Faqat global qidiruv uchun (<c>GlobalSearchQueryHandler</c>): u
+    /// barcha holatdagi xodimlardan bir nechtasini ko'rsatadi va «Karimov»
+    /// deb yozgan HR avval HOZIR ishlayotgan Karimovni ko'rishi kerak, 30 ta
+    /// arxivdagisini emas. Mijozning <c>sort</c> parametri bu qiymatga
+    /// aylanmaydi (<c>SearchEmployeesQuery</c> dagi satr xaritasida yo'q).
+    /// </remarks>
+    EmployedFirst = 6,
 }
 
 /// <summary>

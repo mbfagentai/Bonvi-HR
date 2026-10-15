@@ -341,6 +341,10 @@ app.MapNotificationEndpoints();
 
 app.MapSystemEndpoints();
 app.MapDashboardEndpoints();
+
+// Global qidiruv — yuqori paneldagi maydon. Bironta bo'limga tegishli
+// emas: xodimlar, nomzodlar va vakansiyalarni birga qidiradi.
+app.MapSearchEndpoints();
 app.MapReportsEndpoints();
 
 // Tizim sozlamalari — bot matni va bildirishnoma chegaralari.

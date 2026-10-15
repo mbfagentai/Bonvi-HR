@@ -29,6 +29,7 @@ using Bonvi.Application.PublicApi;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
+using Bonvi.Application.Search.Queries;
 using Bonvi.Application.Settings;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using FluentValidation;
@@ -53,6 +54,9 @@ public static class DependencyInjection
         services.AddScoped<GetDashboardStatsQueryHandler>();
         services.AddScoped<GetDashboardBreakdownQueryHandler>();
         services.AddScoped<GetBirthdaysTodayQueryHandler>();
+
+        // Global qidiruv — yuqori paneldagi maydon (barcha bo'limlar bo'yicha).
+        services.AddScoped<GlobalSearchQueryHandler>();
 
         // Hisobotlar
         services.AddScoped<GetTurnoverQueryHandler>();

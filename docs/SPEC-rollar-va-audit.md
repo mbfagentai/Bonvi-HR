@@ -386,6 +386,7 @@ This table is also the source for `endpoint-permissions.txt` (§12.1).
 | `GET /api/auth/me`, `GET/POST/DELETE /api/auth/me/photo`, `GET /api/system/info`, all 5 `/api/notifications/*` | authenticated |
 | `GET /api/dashboard/stats`, `/breakdown` | `employees.view` |
 | `GET /api/dashboard/birthdays` | `employees.view` → `employees.personal.view` (P1) |
+| `GET /api/search` (global search, 2026-10-15) | `employees.view` **or** `recruiting.view`; groups narrowed per permission (employees ← `employees.view`, candidates + vacancies ← `recruiting.view`). P1: decide whether PINFL/passport stay searchable without `employees.personal.view` — same decision as the employees list |
 
 **Employees** (`/api/employees`)
 
