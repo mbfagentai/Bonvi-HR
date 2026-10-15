@@ -804,6 +804,67 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
+    public async Task Qidiruvda_RAD_ETILGANLAR_ham_chiqadi()
+    {
+        /*
+          ⭐ Egasi (2026-10-15): «nomzodlar bo'limi ichidagi search barda
+             qidirilsa rad etilgan nomzodlardan ham qidirsin». Sukut ro'yxat
+             ularni yashiradi (yuqoridagi test) — HR esa odamni ismi bilan
+             qidirib «topilmadi» ni ko'rsa, uni QAYTA kiritardi.
+
+          ⚠️ «includeRejected» — BO'LIM emas, KENGAYTMA: jarayondagilar
+             ham qoladi. Rezerv va qora ro'yxatning o'z bo'limi bor va
+             ularning qoidasi o'zgarmaydi.
+        */
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(mijoz, VakansiyaNomi());
+        const string Familiya = "Изланган";
+
+        var jarayonda = await NomzodAsync(mijoz, vakansiya.Id, familiya: Familiya, telefon: Raqam());
+        var radEtilgan = await NomzodAsync(mijoz, vakansiya.Id, familiya: Familiya, telefon: Raqam());
+        var vozKechgan = await NomzodAsync(mijoz, vakansiya.Id, familiya: Familiya, telefon: Raqam());
+        var rezervda = await NomzodAsync(mijoz, vakansiya.Id, familiya: Familiya, telefon: Raqam());
+        var qoraRoyxatda = await NomzodAsync(mijoz, vakansiya.Id, familiya: Familiya, telefon: Raqam());
+
+        foreach (var (id, amal, tana) in new (Guid, string, object)[]
+        {
+            (radEtilgan.Id, "reject", new { reason = "Тажрибаси етарли эмас" }),
+            (vozKechgan.Id, "withdraw", new { reason = "Бошқа жойга ишга кирди" }),
+            (rezervda.Id, "reserve", new { reason = "Ҳозир ўрин йўқ" }),
+            (qoraRoyxatda.Id, "blacklist", new { at = new DateOnly(2026, 5, 4), reason = "Жанжал билан кетди" }),
+        })
+        {
+            using var javob = await mijoz.PostAsJsonAsync(
+                new Uri($"/api/recruiting/candidates/{id}/{amal}", UriKind.Relative),
+                tana,
+                bekorQilish);
+
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        // ── 1. Bayroqsiz qidiruv — avvalgidek: faqat jarayondagi ──
+        var eski = await NomzodlarAsync(mijoz, $"?vacancyId={vakansiya.Id}&search={Familiya}");
+
+        eski.Items.Select(q => q.Id).ShouldBe([jarayonda.Id], "bayroqsiz so'rovning ma'nosi o'zgarmaydi");
+
+        // ── 2. «includeRejected=true» — rad etilgan va voz kechgan ham ──
+        var yangi = await NomzodlarAsync(
+            mijoz, $"?vacancyId={vakansiya.Id}&search={Familiya}&includeRejected=true");
+
+        yangi.Items.Select(q => q.Id).ShouldBe(
+            [jarayonda.Id, radEtilgan.Id, vozKechgan.Id],
+            ignoreOrder: true,
+            "rezerv va qora ro'yxatdagilar o'z bo'limida qoladi");
+        yangi.Total.ShouldBe(3, "sanoq qatorlar bilan bitta so'rovdan");
+
+        // Holatlar ro'yxatda ko'rinadi — HR qatordagi belgidan biladi
+        yangi.Items.First(q => q.Id == radEtilgan.Id).Status.ShouldBe("Rejected");
+        yangi.Items.First(q => q.Id == vozKechgan.Id).Status.ShouldBe("Withdrawn");
+    }
+
+    [Fact]
     public async Task Aloqa_sanasi_KELGAN_nomzodlar_filtr_bilan_qaytadi()
     {
         // «Bugun kim bilan gaplashish kerak» — bu maydonning YAGONA ekrandagi

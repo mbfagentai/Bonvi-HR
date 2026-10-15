@@ -83,6 +83,18 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// sxemasi ko'p qiymatli bo'lib ketardi.
 /// </para>
 /// </param>
+/// <param name="IncludeRejected">
+/// Rad etilganlar VA o'zi voz kechganlar ham ro'yxatga QO'SHILSINMI
+/// (sukut bo'yicha ular yashirin — <see cref="Rejected"/> izohi).
+/// <para>
+/// «Nomzodlar» bo'limidagi QIDIRUV uchun (egasi, 2026-10-15: «qidirilsa
+/// rad etilgan nomzodlardan ham qidirsin»). HR odamni ismi bilan
+/// qidiradi va u rad etilgan bo'lsa ham topishi kerak — aks holda
+/// «topilmadi» ni ko'rib, uni QAYTA kiritardi. Bo'lim emas, kengaytma:
+/// boshqa holatlar (jarayondagi va h.k.) ham qoladi. Ishga olinganlar,
+/// rezerv va qora ro'yxat qoidalariga tegmaydi.
+/// </para>
+/// </param>
 public sealed record SearchCandidatesQuery(
     string? Search = null,
     Guid? VacancyId = null,
@@ -94,7 +106,8 @@ public sealed record SearchCandidatesQuery(
     string? Sort = null,
     bool IncludeArchive = false,
     bool ContactDue = false,
-    bool Rejected = false);
+    bool Rejected = false,
+    bool IncludeRejected = false);
 
 public sealed record GetCandidateQuery(Guid CandidateId);
 
@@ -495,7 +508,8 @@ public sealed class SearchCandidatesQueryHandler
                     // Bayroq SANAGA bu yerda aylanadi — o'qish modelining
                     // soati yo'q (izohi `_clock` maydonida).
                     query.ContactDue ? _clock.Today : null,
-                    query.Rejected),
+                    query.Rejected,
+                    IncludeRejected: query.IncludeRejected),
                 cancellationToken)
             .ConfigureAwait(false);
 

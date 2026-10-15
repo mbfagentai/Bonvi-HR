@@ -174,6 +174,17 @@ export function CandidatesPage() {
       // hech narsani o'zgartirmagan holda kesh kalitini ikkiga bo'lardi.
       ...(filters.contactDue ? { contactDue: true } : {}),
       ...(rejectedSection ? { rejected: true } : {}),
+      /*
+        ⭐ Qidiruvda rad etilganlar va o'zi voz kechganlar HAM chiqadi
+        (egasi, 2026-10-15: «qidirilsa rad etilgan nomzodlardan ham
+        qidirsin»). Sukut ro'yxatda ular yashirin, lekin HR odamni ismi
+        bilan qidirganda «topilmadi» ni ko'rsa, uni qayta kiritardi.
+        Holat tanlangan yoki «Rad etilganlar» bo'limida — kerak emas:
+        u yerda ular allaqachon so'rovning o'zida.
+      */
+      ...(filters.search.trim() !== '' && filters.status === '' && !rejectedSection
+        ? { includeRejected: true }
+        : {}),
     }),
     [filters, rejectedSection],
   )

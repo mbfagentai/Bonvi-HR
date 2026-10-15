@@ -1954,7 +1954,7 @@
     "candidateNoRejectedTitle": "No rejected candidates",
     "candidateNoRejectedText": "Both the candidates we turned down and those who withdrew on their own land here, and nothing is deleted — you may revisit them in a future search.",
     "candidateNotFoundTitle": "No candidates found",
-    "candidateNotFoundText": "Try changing the search or the filters. Hired, rejected and withdrawn candidates are hidden by default — pick them in the “Status” filter.",
+    "candidateNotFoundText": "Try changing the search or the filters. Hired candidates are hidden by default — pick them in the “Status” filter. Rejected and withdrawn candidates are found by search.",
     "candidateStatus": {
       "inProgress": "In progress",
       "rejected": "Rejected",

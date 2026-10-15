@@ -394,6 +394,7 @@ public static class CandidateEndpoints
                 */
                 bool? contactDue,
                 bool? rejected,
+                bool? includeRejected,
                 SearchCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -401,7 +402,8 @@ public static class CandidateEndpoints
                     .HandleAsync(
                         new SearchCandidatesQuery(
                             search, vacancyId, stageId, status, source, page, pageSize, sort,
-                            includeArchive ?? false, contactDue ?? false, rejected ?? false),
+                            includeArchive ?? false, contactDue ?? false, rejected ?? false,
+                            includeRejected ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -443,6 +445,10 @@ public static class CandidateEndpoints
                 "«contactDue=true» — keyingi aloqa sanasi qo'yilgan VA u BUGUN yoki " +
                 "undan oldin bo'lgan nomzodlar («bugun kim bilan gaplashish kerak»); " +
                 "«bugun» ni server Toshkent kalendarida hisoblaydi. " +
+                "«includeRejected=true» — rad etilganlar va o'zi voz kechganlar ham " +
+                "ro'yxatga QO'SHILADI (bo'lim emas, kengaytma: jarayondagilar ham qoladi; " +
+                "ishga olinganlar, rezerv va qora ro'yxat qoidasi o'zgarmaydi) — " +
+                "«Nomzodlar» bo'limidagi qidiruv shu bilan so'raydi. " +
                 "Har qatorda «hasResume» (kamida bitta FAYL biriktirilganmi), " +
                 "«hasPhoto» va «nextContactDate» bor; ANKETA ro'yxatga QO'SHILMAYDI — " +
                 "u og'ir va faqat kartada kerak.")

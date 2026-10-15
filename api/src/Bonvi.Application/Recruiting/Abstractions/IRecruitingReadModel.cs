@@ -214,6 +214,11 @@ public enum VacancySortField
 /// <param name="AllStatuses">
 /// BARCHA holatlar — barcha <c>Hide…</c> qoidalari o'chadi (global qidiruv).
 /// </param>
+/// <param name="IncludeRejected">
+/// Rad etilganlar va o'zi voz kechganlar ham qo'shiladi — faqat
+/// <see cref="HideRejected"/> va <see cref="HideWithdrawn"/> o'chadi
+/// («Nomzodlar» bo'limidagi qidiruv, <c>SearchCandidatesQuery.IncludeRejected</c>).
+/// </param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -243,7 +248,8 @@ public sealed record CandidateSearchFilter(
       qayerda?» degan savolga javob beradi va hech kimni yashirmasligi
       kerak. Excel arxivi `IncludeArchive` bilan alohida boshqariladi.
     */
-    bool AllStatuses = false)
+    bool AllStatuses = false,
+    bool IncludeRejected = false)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
@@ -349,7 +355,8 @@ public sealed record CandidateSearchFilter(
     /// unda faqat HOLAT tanlovi qoidani ochadi.
     /// </para>
     /// </remarks>
-    public bool HideRejected => Status is null && !ArchiveRequested && !RejectedSection && !AllStatuses;
+    public bool HideRejected =>
+        Status is null && !ArchiveRequested && !RejectedSection && !AllStatuses && !IncludeRejected;
 
     /// <summary>
     /// O'zi voz kechganlar ro'yxatdan chiqarilsinmi.
@@ -376,7 +383,8 @@ public sealed record CandidateSearchFilter(
     /// natijani o'zgartirmasdi — ya'ni ko'rinmas ta'sirli o'zgarish bo'lardi.
     /// </para>
     /// </remarks>
-    public bool HideWithdrawn => Status is null && !ArchiveRequested && !RejectedSection && !AllStatuses;
+    public bool HideWithdrawn =>
+        Status is null && !ArchiveRequested && !RejectedSection && !AllStatuses && !IncludeRejected;
 
     /// <summary>
     /// Rezervdagilar ro'yxatdan chiqarilsinmi.

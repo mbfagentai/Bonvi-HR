@@ -1954,7 +1954,7 @@
     "candidateNoRejectedTitle": "Rad etilgan nomzod yo‘q",
     "candidateNoRejectedText": "Rad etganlarimiz ham, o‘zi voz kechganlar ham shu yerga tushadi va o‘chirilmaydi — kelasi izlanishda ular qayta ko‘riladi.",
     "candidateNotFoundTitle": "Nomzod topilmadi",
-    "candidateNotFoundText": "Qidiruvni yoki filtrlarni o‘zgartirib ko‘ring. Ishga olinganlar, rad etilganlar va o‘zi voz kechganlar sukut bo‘yicha ko‘rsatilmaydi — ularni «Holati» filtridan tanlang.",
+    "candidateNotFoundText": "Qidiruvni yoki filtrlarni o‘zgartirib ko‘ring. Ishga olinganlar sukut bo‘yicha ko‘rsatilmaydi — ularni «Holati» filtridan tanlang. Rad etilganlar va o‘zi voz kechganlar qidiruvda chiqadi.",
     "candidateStatus": {
       "inProgress": "Jarayonda",
       "rejected": "Rad etilgan",

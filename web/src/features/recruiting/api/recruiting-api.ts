@@ -642,6 +642,15 @@ export interface CandidateFilters {
    */
   rejected?: boolean
   /**
+   * Rad etilganlar va o'zi voz kechganlar ham ro'yxatga QO'SHILSINMI.
+   *
+   * `rejected` dan farqi: u BO'LIM (faqat shu ikki holat), bu esa
+   * KENGAYTMA — jarayondagilar ham qoladi. «Nomzodlar» bo'limidagi
+   * qidiruv shu bilan so'raydi (egasi, 2026-10-15): HR rad etilgan odamni
+   * ham ismi bilan topishi kerak, aks holda uni qayta kiritardi.
+   */
+  includeRejected?: boolean
+  /**
    * Excel'dan ko'chirilgan kengash ARXIVI ham qo'shilsinmi.
    *
    * Sukut bo'yicha server arxivni ro'yxatdan chiqaradi (ekran «hozir kim
@@ -1121,6 +1130,7 @@ export async function fetchCandidates(
       */
       contactDue: filters.contactDue === true ? true : undefined,
       rejected: filters.rejected === true ? true : undefined,
+      includeRejected: filters.includeRejected === true ? true : undefined,
       includeArchive: filters.includeArchive === true ? true : undefined,
     }),
     signal,
