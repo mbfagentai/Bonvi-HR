@@ -12,6 +12,7 @@ import type { SortingState } from '@tanstack/react-table'
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Badge,
@@ -48,16 +49,6 @@ const helper = dataColumnHelper<Vacancy>()
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: Vacancy[] = []
-
-/**
- * Bir sahifadagi yozuvlar soni.
- *
- * 25 — xodimlar (50) va buyruqlardan (50) KAM va bu ataylab:
- * vakansiyalar ro'yxati o'nlab qatordan iborat bo'ladi, yuzlab emas
- * (kompaniyada bir vaqtda 5–20 ta ochiq o'rin). Katta sahifa hajmi
- * bu yerda faqat bo'sh joyni tortadi.
- */
-const PAGE_SIZE = 25
 
 /**
  * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
@@ -99,6 +90,13 @@ export function VacanciesPage() {
   const sort = search.sort ?? DEFAULT_SORT
   const filters = useMemo(() => searchToFilters(search), [search])
 
+  /*
+    Sahifa hajmi boshqa ro'yxatlar bilan bir xil tanlovdan (sukut 50).
+    Ilgari bu yerda ataylab 25 edi; egasi 2026-10-15 da hamma bo'limda
+    50 + tanlov so'radi.
+  */
+  const { pageSize, setPageSize, allowAll } = usePageSize('vacancies', true)
+
   const [editing, setEditing] = useState<Vacancy | null>(null)
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<Vacancy | null>(null)
@@ -117,7 +115,7 @@ export function VacanciesPage() {
     ...(filters.status === '' ? {} : { status: filters.status }),
     ...(searchText === '' ? {} : { search: searchText }),
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
     sort,
   })
 
@@ -146,6 +144,23 @@ export function VacanciesPage() {
     },
     [setSearch],
   )
+
+  /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa yozuvlar. */
+  const changePageSize = useCallback(
+    (next: number) => {
+      setPageSize(next)
+      setSearch((previous) => ({ ...previous, page: undefined }))
+    },
+    [setPageSize, setSearch],
+  )
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  const clampPage = useCallback(
+    (last: number) =>
+      setSearch((previous) => ({ ...previous, page: last <= 1 ? undefined : last })),
+    [setSearch],
+  )
+  useClampPage(page, pageSize, query.isPlaceholderData ? undefined : query.data?.total, clampPage)
 
   /**
    * SERVER tomonda saralash: jadval o'zi tartiblasa, u faqat joriy
@@ -402,7 +417,7 @@ export function VacanciesPage() {
   const listEmpty = rows.length === 0 && !firstLoad
 
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -444,7 +459,7 @@ export function VacanciesPage() {
         </Alert>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <VacanciesToolbar filters={filters} onChange={changeFilters} />
 
         <DataTable
@@ -457,6 +472,7 @@ export function VacanciesPage() {
           rowLabel={(item) => item.title}
           sorting={sorting}
           onSortingChange={changeSorting}
+          fill
           empty={
             listEmpty ? (
               filtered ? (
@@ -487,9 +503,11 @@ export function VacanciesPage() {
         {total > 0 && (
           <Pagination
             page={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={changePage}
+            onPageSizeChange={changePageSize}
+            allowAll={allowAll}
             disabled={query.isFetching}
             className="border-t border-[var(--border)]"
           />

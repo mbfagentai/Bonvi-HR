@@ -120,7 +120,27 @@ export function AppShell({ children }: { children: ReactNode }) {
           ref={main}
           className="flex-1 overflow-y-auto px-5 py-6 [scrollbar-gutter:stable] lg:px-8 lg:py-8"
         >
-          <div className={cn('mx-auto w-full', !fullWidth && 'max-w-[1400px]')}>{children}</div>
+          {/*
+            Ro'yxat sahifasi (`data-list-frame`) bo'lsa, o'ram `main` ning
+            to'liq balandligini oladi: sahifa sarlavhasi, filtrlar va
+            sahifalash joyida turadi, qatorlar esa jadvalning O'Z ICHIDA
+            aylanadi (`DataTable fill`). Egasi 2026-10-15: «butun sahifa
+            tepaga scroll bo'lib ketmasin, listning o'zi scroll bo'lsin».
+
+            Faqat keng va baland oynada (`frame` varianti, globals.css):
+            telefonda yoki past noutbukda sarlavha va filtrlar ekranning
+            yarmini egallaydi — qatorlar uchun joy qolmaydi, u yerda oddiy
+            oqim qulayroq.
+          */}
+          <div
+            className={cn(
+              'mx-auto w-full',
+              !fullWidth && 'max-w-[1400px]',
+              'frame:has-[>[data-list-frame]]:h-full',
+            )}
+          >
+            {children}
+          </div>
         </main>
       </div>
     </div>
@@ -152,6 +172,9 @@ function useMainScrollReset() {
 
   useEffect(() => {
     ref.current?.scrollTo({ top: 0 })
+    // Ichida aylanadigan ro'yxatlar ham (`DataTable fill`) — yangi sahifa
+    // yoki filtr ham yangi ro'yxat
+    ref.current?.querySelectorAll('[data-list-scroll]').forEach((list) => list.scrollTo({ top: 0 }))
   }, [href])
 
   return ref

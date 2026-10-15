@@ -16,6 +16,15 @@
 /* Qo'lda boshqariladigan tungi rejim (tizim sozlamasiga bog'liq emas) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+  Ro'yxat ramkasi (`data-list-frame`, `DataTable fill`): sarlavha, filtrlar va
+  sahifalash joyida, qatorlar kartaning ichida aylanadi. Faqat keng VA baland
+  oynada — 1366×768 noutbukda (≈640 px) ramka qatorlarga 3–4 qatorlik joy
+  qoldirardi, u yerda oddiy oqim qulayroq. Shu shart `use-page-size.ts` da
+  ham bor («Barchasi» faqat ramka ishlaganda).
+*/
+@custom-variant frame (@media (width >= 64rem) and (height >= 40rem));
+
 @theme {
   /* ---------- BREND ----------
      Logotipdan olingan navy: #154067.

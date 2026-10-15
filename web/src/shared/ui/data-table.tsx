@@ -2,10 +2,27 @@ import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { useTable, type RowData, type SortingState } from '@tanstack/react-table'
+import { useVirtualizer } from '@tanstack/react-virtual'
 
 import { cn } from '@/shared/lib/cn'
 import { dataTableFeatures, type DataColumn, type DataColumnMeta } from './data-table-columns'
 import { Skeleton } from './skeleton'
+import { VirtualRowContext, type VirtualRowState } from './virtual-row'
+
+/**
+ * Shundan ko'p qatorda (faqat `fill` rejimida) qatorlar virtual chiziladi.
+ *
+ * NEGA chegara bor: 20/50/100 qatorli oddiy sahifa avvalgidek to'liq
+ * chiziladi — virtual qatorlarning o'z narxi bor (ustun kengligi ko'rinib
+ * turgan qatorlarga qarab hisoblanadi, brauzerning «sahifadan qidirish»i
+ * ekrandan tashqaridagi qatorni topmaydi). U faqat «Barchasi» tanlanib,
+ * ming-minglab qator kelganda o'zini oqlaydi: 5 000 qatorni birdaniga
+ * chizish HR kompyuterida bir necha soniya «qotish» degani.
+ */
+const VIRTUALIZE_FROM = 150
+
+/** Qator balandligining taxmini — haqiqiy balandlik chizilgach o'lchanadi. */
+const ESTIMATED_ROW_HEIGHT = 53
 
 export function DataTable<TData extends RowData>({
   columns,
@@ -19,6 +36,7 @@ export function DataTable<TData extends RowData>({
   rowLabel,
   sorting,
   onSortingChange,
+  fill = false,
   className,
 }: {
   columns: Array<DataColumn<TData>>
@@ -51,6 +69,22 @@ export function DataTable<TData extends RowData>({
    */
   sorting?: SortingState
   onSortingChange?: (sorting: SortingState) => void
+  /**
+   * Jadval ota konteynerning qolgan balandligini egallaydi va qatorlar
+   * O'Z ICHIDA aylanadi — ustun nomlari tepada qadalib turadi.
+   *
+   * Faqat keng va baland oynada (`frame` varianti, globals.css) va faqat
+   * ota elementlar zanjiri balandlik bergan sahifada ishlaydi
+   * (`data-list-frame`, `app-shell.tsx`). Boshqa joyda jadval avvalgidek
+   * oddiy oqimda chiziladi.
+   *
+   * `[contain:size]` — jadval kartaning «eng kichik balandligi» ga
+   * qo'shilmasin: aks holda karta hamma qatorni sig'dirish uchun cho'zilib,
+   * ichki scroll umuman paydo bo'lmasdi. `min-h-40` esa past oynada ham
+   * bir necha qatorlik joy qoldiradi — joy yetmasa, sahifa butunligicha
+   * aylanadi, sahifalash kesilib qolmaydi.
+   */
+  fill?: boolean
   className?: string
 }) {
   const controlled = sorting !== undefined
@@ -98,8 +132,47 @@ export function DataTable<TData extends RowData>({
 
   const { railRef, bodyRef, railWidth, onRailScroll, onBodyScroll } = useScrollRail()
 
+  /*
+    Virtual qatorlar: faqat ko'rinib turganlari (+ har tomonda 12 ta)
+    DOM'da bo'ladi, qolganining o'rnini ikki bo'sh «oraliq» qator egallaydi.
+    Scroll konteyneri — jadval o'rami (`bodyRef`), `main` emas: `fill`
+    rejimida aynan u aylanadi.
+
+    Kichik ekranda o'ram balandlik olmaydi va hamma qatorni sig'diradi —
+    shunda virtualizator ham hamma qatorni «ko'rinadi» deb chizadi, ya'ni
+    natija to'g'ri, faqat tejash yo'q.
+  */
+  const virtualized = fill && !loading && rows.length > VIRTUALIZE_FROM
+  const virtualizer = useVirtualizer({
+    count: virtualized ? rows.length : 0,
+    getScrollElement: () => bodyRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    // O'lchangan balandlik qator INDEKSIGA emas, yozuvga bog'lanadi —
+    // boshqa sahifa yoki filtrda 7-qator boshqa odam
+    getItemKey: (index) => rows[index]?.id ?? index,
+    overscan: 12,
+    enabled: virtualized,
+  })
+  const virtualItems = virtualized ? virtualizer.getVirtualItems() : null
+  const visibleRows =
+    virtualItems === null
+      ? rows.map((row, index) => ({ row, index }))
+      : virtualItems.flatMap((item) => {
+          const row = rows[item.index]
+          return row === undefined ? [] : [{ row, index: item.index }]
+        })
+  const rowState: VirtualRowState = !virtualized
+    ? 'off'
+    : virtualizer.isScrolling
+      ? 'scrolling'
+      : 'idle'
+  const firstItem = virtualItems?.[0]
+  const lastItem = virtualItems?.[virtualItems.length - 1]
+  const padTop = firstItem?.start ?? 0
+  const padBottom = lastItem === undefined ? 0 : virtualizer.getTotalSize() - lastItem.end
+
   return (
-    <div className={cn('min-w-0', className)}>
+    <div className={cn('min-w-0', fill && 'frame:flex frame:min-h-40 frame:flex-1 frame:flex-col frame:[contain:size]', className)}>
       {/*
         Gorizontal scroll «relsi» — ro'yxatning TEPASIDA.
 
@@ -123,7 +196,22 @@ export function DataTable<TData extends RowData>({
         </div>
       )}
 
-      <div ref={bodyRef} onScroll={onBodyScroll} className="overflow-x-auto">
+      <div
+        ref={bodyRef}
+        onScroll={onBodyScroll}
+        // Yangi sahifa/filtrda ro'yxat tepadan boshlanadi (`app-shell.tsx`)
+        data-list-scroll={fill ? '' : undefined}
+        className={cn(
+          'overflow-x-auto',
+          fill && 'frame:min-h-0 frame:flex-1 frame:overflow-y-auto',
+          /*
+            Brauzerning «scroll langari» o'chiriladi: tepadagi oraliq qator
+            o'lchangan balandlik bilan o'zgarganda virtualizator joyni O'ZI
+            tuzatadi, brauzer ham tuzatsa — ro'yxat ikki marta sakraydi.
+          */
+          virtualized && '[overflow-anchor:none]',
+        )}
+      >
         <table className="w-full border-collapse text-left">
           <thead>
             {headerGroups.map((group) => (
@@ -153,6 +241,14 @@ export function DataTable<TData extends RowData>({
                         'text-[var(--fg-secondary)] uppercase',
                         meta?.align === 'end' && 'text-right',
                         meta?.hideOnMobile === true && 'hidden md:table-cell',
+                        /*
+                          Qadalgan sarlavha. Chiziq SOYA bilan: `border-collapse`
+                          jadvalida chegara katakka emas, jadval to'riga tegishli
+                          va `sticky` katak bilan birga yurmaydi — ro'yxat
+                          aylanganda chiziq tepaga chiqib ketardi.
+                        */
+                        fill &&
+                          'frame:sticky frame:top-0 frame:z-[1] frame:shadow-[inset_0_-1px_0_var(--border)]',
                       )}
                     >
                       {header.isPlaceholder ? null : sortable ? (
@@ -201,14 +297,18 @@ export function DataTable<TData extends RowData>({
               </tr>
             )}
 
+            {padTop > 0 && <SpacerRow height={padTop} columnCount={columnCount} />}
+
             {!loading &&
-              rows.map((row) => {
+              visibleRows.map(({ row, index }) => {
                 const original = row.original
                 const clickable = onRowClick !== undefined && rowClickable?.(original) !== false
 
                 return (
                   <tr
                     key={row.id}
+                    ref={virtualized ? virtualizer.measureElement : undefined}
+                    data-index={index}
                     {...(clickable
                       ? {
                           role: 'button',
@@ -237,17 +337,31 @@ export function DataTable<TData extends RowData>({
                             meta?.hideOnMobile === true && 'hidden md:table-cell',
                           )}
                         >
-                          <table.FlexRender cell={cell} />
+                          {/* Virtual qatorda og'ir so'rov kechiktiriladi (`virtual-row.ts`) */}
+                          <VirtualRowContext value={rowState}>
+                            <table.FlexRender cell={cell} />
+                          </VirtualRowContext>
                         </td>
                       )
                     })}
                   </tr>
                 )
               })}
+
+            {padBottom > 0 && <SpacerRow height={padBottom} columnCount={columnCount} />}
           </tbody>
         </table>
       </div>
     </div>
+  )
+}
+
+/** Virtual ro'yxatda ko'rinmayotgan qatorlar o'rnidagi bo'sh joy. */
+function SpacerRow({ height, columnCount }: { height: number; columnCount: number }) {
+  return (
+    <tr aria-hidden style={{ height }}>
+      <td colSpan={columnCount} className="p-0" />
+    </tr>
   )
 }
 

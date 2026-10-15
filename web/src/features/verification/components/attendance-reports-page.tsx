@@ -11,6 +11,7 @@ import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { todayIso } from '@/shared/lib/today'
+import { usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Button,
@@ -42,7 +43,6 @@ import {
 } from '../api/attendance-queries'
 import {
   ATTENDANCE_VIEW,
-  DEFAULT_PAGE_SIZE,
   REPORTS_EXPORT,
   REPORT_KINDS,
   REPORT_KIND_LOOK,
@@ -196,12 +196,15 @@ export function AttendanceReportsPage() {
 
   const ready = canView && rangeProblem === null
 
+  // «Barchasi» yo'q: istisnolar xodim × kun — oyiga o'n minglab qator
+  const { pageSize, setPageSize, allowAll } = usePageSize('attendance-reports', false)
+
   const exceptions = useAttendanceExceptions(
-    { ...exceptionFilters, page, pageSize: DEFAULT_PAGE_SIZE },
+    { ...exceptionFilters, page, pageSize },
     ready && !isSummary,
   )
   const summary = useAttendanceSummary(
-    { ...summaryFilters, page, pageSize: DEFAULT_PAGE_SIZE },
+    { ...summaryFilters, page, pageSize },
     ready && isSummary,
   )
 
@@ -220,11 +223,11 @@ export function AttendanceReportsPage() {
   useEffect(() => {
     if (active.data === undefined || active.isPlaceholderData) return
 
-    const lastPage = Math.max(1, Math.ceil(active.data.total / DEFAULT_PAGE_SIZE))
+    const lastPage = Math.max(1, Math.ceil(active.data.total / pageSize))
     if (page <= lastPage) return
 
     setSearch((previous) => ({ ...previous, page: lastPage <= 1 ? undefined : lastPage }))
-  }, [active.data, active.isPlaceholderData, page, setSearch])
+  }, [active.data, active.isPlaceholderData, page, pageSize, setSearch])
 
   const changeKind = (next: ReportKind) => {
     /*
@@ -284,7 +287,7 @@ export function AttendanceReportsPage() {
     )
 
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       <PageHeader
         title={title}
         subtitle={
@@ -327,7 +330,7 @@ export function AttendanceReportsPage() {
         </Alert>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         {/*
           Beshta tab — segmentlangan boshqaruv (iOS: o'zaro istisno
           ko'rinishlar). Tor ekranda gorizontal suriladi: beshta o'zbekcha
@@ -405,6 +408,7 @@ export function AttendanceReportsPage() {
 
         {isSummary ? (
           <DataTable
+            fill
             columns={summaryColumns}
             data={rangeProblem === null ? (summary.data?.items ?? EMPTY_SUMMARY) : EMPTY_SUMMARY}
             getRowId={(row) => row.employeeId}
@@ -414,6 +418,7 @@ export function AttendanceReportsPage() {
           />
         ) : (
           <DataTable
+            fill
             columns={exceptionColumns}
             data={
               rangeProblem === null ? (exceptions.data?.items ?? EMPTY_EXCEPTIONS) : EMPTY_EXCEPTIONS
@@ -428,11 +433,16 @@ export function AttendanceReportsPage() {
         {total > 0 && rangeProblem === null && (
           <Pagination
             page={page}
-            pageSize={DEFAULT_PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={(next) =>
               setSearch((previous) => ({ ...previous, page: next <= 1 ? undefined : next }), 'push')
             }
+            onPageSizeChange={(next) => {
+              setPageSize(next)
+              setSearch((previous) => ({ ...previous, page: undefined }))
+            }}
+            allowAll={allowAll}
             disabled={active.isFetching}
             className="border-t border-[var(--border)]"
           />

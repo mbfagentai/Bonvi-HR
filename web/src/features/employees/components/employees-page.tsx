@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Card,
@@ -47,16 +48,6 @@ const helper = dataColumnHelper<EmployeeListItem>()
 const EMPTY: EmployeeListItem[] = []
 
 /**
- * Bir sahifadagi yozuvlar soni.
- *
- * 50 — foydalanuvchi so'ragan miqdor: HR bir ekranda imkon qadar ko'p
- * odamni ko'rishni xohlaydi va «keyingi» tugmasini kamroq bosadi.
- * Serverning yuqori chegarasi 200, ya'ni 50 bemalol o'tadi; kartochka
- * to'rida ham 50 — 2, 3 va 4 ustunda to'liq qatorlar bo'ladi.
- */
-const PAGE_SIZE = 50
-
-/**
  * Marshrut «apisi» — `Route` obyektini import qilmasdan uning
  * qidiruv parametrlariga va navigatsiyasiga tiplashgan kirish.
  *
@@ -94,6 +85,9 @@ export function EmployeesPage() {
   const view = search.view ?? 'table'
   const sortParam = search.sort ?? DEFAULT_SORT
 
+  // «Barchasi» faqat jadvalda: kartochkalar virtual chizilmaydi
+  const { pageSize, setPageSize, allowAll } = usePageSize('employees', view === 'table')
+
   const filters = useMemo(() => searchToFilters(search), [search])
   const sorting = useMemo(() => sortingOf(sortParam), [sortParam])
 
@@ -127,7 +121,7 @@ export function EmployeesPage() {
     [filters, sortParam],
   )
 
-  const query = useEmployees({ ...listFilters, page, pageSize: PAGE_SIZE })
+  const query = useEmployees({ ...listFilters, page, pageSize })
 
   /**
    * Eksport holati.
@@ -190,6 +184,15 @@ export function EmployeesPage() {
     [setSearch],
   )
 
+  /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa odamlar. */
+  const changePageSize = useCallback(
+    (next: number) => {
+      setPageSize(next)
+      setSearch((previous) => ({ ...previous, page: undefined }))
+    },
+    [setPageSize, setSearch],
+  )
+
   const openEmployee = useCallback(
     (employee: EmployeeListItem) => {
       void navigate({ to: '/xodimlar/$employeeId', params: { employeeId: employee.id } })
@@ -217,11 +220,11 @@ export function EmployeesPage() {
   useEffect(() => {
     if (query.data === undefined || query.isPlaceholderData) return
 
-    const lastPage = Math.max(1, Math.ceil(query.data.total / PAGE_SIZE))
+    const lastPage = Math.max(1, Math.ceil(query.data.total / pageSize))
     if (page <= lastPage) return
 
     setSearch((previous) => ({ ...previous, page: lastPage <= 1 ? undefined : lastPage }))
-  }, [query.data, query.isPlaceholderData, page, setSearch])
+  }, [query.data, query.isPlaceholderData, page, pageSize, setSearch])
 
   const columns = useMemo<Array<DataColumn<EmployeeListItem>>>(
     () => [
@@ -428,7 +431,7 @@ export function EmployeesPage() {
   const empty = listEmpty ? emptyState() : null
 
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       {/*
         «Ishga qabul» tugmasi bu sahifada ATAYLAB yo'q — u `/sinov` ga
         ko'chdi (`probations-page.tsx`). Sabab oqimda: bu ro'yxat DOIMIY
@@ -462,7 +465,7 @@ export function EmployeesPage() {
         </Alert>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <EmployeesToolbar
           filters={filters}
           onChange={changeFilters}
@@ -505,24 +508,28 @@ export function EmployeesPage() {
             onRowClick={openEmployee}
             rowLabel={(employee) => employee.fullName}
             empty={empty}
+            fill
           />
         ) : (
-          <>
+          // Kartochkalar ham kartaning ichida aylanadi — sahifalash joyida qoladi
+          <div data-list-scroll className="frame:min-h-40 frame:flex-1 frame:overflow-y-auto frame:[contain:size]">
             <EmployeesGrid
               employees={employees}
               loading={firstLoad}
               onSelect={openEmployee}
             />
             {empty}
-          </>
+          </div>
         )}
 
         {total > 0 && (
           <Pagination
             page={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={changePage}
+            onPageSizeChange={changePageSize}
+            allowAll={allowAll}
             disabled={query.isFetching}
             className="border-t border-[var(--border)]"
           />

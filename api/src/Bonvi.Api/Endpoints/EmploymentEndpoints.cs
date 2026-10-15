@@ -289,7 +289,7 @@ public static class EmploymentEndpoints
                 "bo'limlari bilan birga: hodisaning yangi yoki eski bo'limiga, hodisada bo'lim " +
                 "ko'rsatilmagan bo'lsa (oklad, bo'shatish, qo'shimcha vazifa) munosabatning " +
                 "joriy bo'limiga mos keladi. Ro'yxat kuchga kirish sanasi bo'yicha " +
-                "kamayish tartibida, «pageSize» eng ko'pi 200. " +
+                "kamayish tartibida, «pageSize» eng ko'pi 10 000. " +
                 "Oklad maydonlari faqat «salary.view» ruxsati bilan to'ldiriladi.")
             .Produces<PagedResult<EmploymentEventListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -566,7 +566,7 @@ public static class EmploymentEndpoints
                 "«search» — XODIM bo'yicha (F.I.Sh., JSHSHIR, pasport, telefon), xodimlar " +
                 "ro'yxatidagi bilan aynan bir xil qoida. " +
                 "SERVER tomonda sahifalanadi: «page» (1 dan) va «pageSize» " +
-                "(sukut 25, eng ko'pi 200) — xodimlar ro'yxatidagi bilan bir xil chegaralar.")
+                "(sukut 25, eng ko'pi 10 000) — xodimlar ro'yxatidagi bilan bir xil chegaralar.")
             .Produces<PagedResult<ProbationListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 

@@ -411,7 +411,18 @@ public sealed class SearchCandidatesQueryHandler
     public const int DefaultPageSize = 25;
 
     /// <summary>Eng katta sahifa hajmi.</summary>
-    public const int MaxPageSize = 200;
+    /// <remarks>
+    /// <para>
+    /// 2026-10-15 dan 10 000 (ilgari 200): egasi ro'yxat ostida «20 / 50 /
+    /// 100 / Barchasi» tanlovini so'radi, «Barchasi» esa aynan shu sonni
+    /// yuboradi (`web/src/shared/lib/use-page-size.ts`, <c>PAGE_SIZE_ALL</c>).
+    /// Bu son bazadagi eng katta ro'yxatdan (~5 100 nomzod, ~2 000 xodim)
+    /// ancha katta, lekin baribir chegara — <c>pageSize=10000000</c> ham
+    /// shu yerda to'xtaydi. Brauzer ming-minglab qatorni virtual chizadi
+    /// (`DataTable fill`), javob esa siqilgan holda ketadi (Caddy zstd/gzip).
+    /// </para>
+    /// </remarks>
+    public const int MaxPageSize = 10_000;
 
     private readonly IRecruitingReadModel _readModel;
 

@@ -94,6 +94,7 @@ export function AuditList({
   empty,
   onOpen,
   variant = 'journal',
+  fill = false,
 }: {
   entries: readonly AuditEntry[]
   loading: boolean
@@ -101,6 +102,12 @@ export function AuditList({
   empty: ReactNode
   onOpen: (entry: AuditEntry) => void
   variant?: AuditListVariant
+  /**
+   * Ro'yxat ramkasi (`DataTable fill`, `audit-page.tsx`): jadval ham,
+   * kartalar ham kartaning ichida aylanadi. Xodim kartasidagi tarixda —
+   * yo'q, u yerda ro'yxat sahifaning bir qismi.
+   */
+  fill?: boolean
 }) {
   const fmt = useAuditFormatter()
   const groups = useMemo(() => groupEntries(entries), [entries])
@@ -111,8 +118,15 @@ export function AuditList({
   return (
     <>
       {/* ---------- xl+: jadval ---------- */}
-      <div className="hidden xl:block">
+      <div
+        className={cn(
+          'hidden xl:block',
+          fill &&
+            'xl:frame:flex xl:frame:min-h-40 xl:frame:flex-1 xl:frame:flex-col xl:frame:[contain:size]',
+        )}
+      >
         <DataTable
+          fill={fill}
           columns={columns}
           data={rows}
           getRowId={rowId}
@@ -131,7 +145,13 @@ export function AuditList({
       </div>
 
       {/* ---------- xl dan tor: kartalar ---------- */}
-      <div className="xl:hidden">
+      <div
+        data-list-scroll={fill ? '' : undefined}
+        className={cn(
+          'xl:hidden',
+          fill && 'frame:min-h-40 frame:flex-1 frame:overflow-y-auto frame:[contain:size]',
+        )}
+      >
         {loading ? (
           <ul className="divide-y divide-[var(--border)]">
             {Array.from({ length: 5 }, (_, index) => (

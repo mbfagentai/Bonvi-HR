@@ -7,6 +7,7 @@ import type { MoneyValue } from '@/features/employees/api/employees-api'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { EVENT_LOOK, SALARY_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Card,
   DataTable,
@@ -32,15 +33,6 @@ const helper = dataColumnHelper<EmploymentEventItem>()
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: EmploymentEventItem[] = []
-
-/**
- * Bir sahifadagi yozuvlar soni.
- *
- * Xodimlar ro'yxati bilan bir xil (50) — u yerdagi hisob-kitob bu yerga
- * ham to'g'ri keladi: server chegarasi 200, ekran esa imkon qadar ko'p
- * hodisani bir sahifada ko'rsatishni xohlaydi.
- */
-const PAGE_SIZE = 50
 
 /**
  * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
@@ -69,6 +61,7 @@ export function EmploymentEventsPage() {
   const navigate = route.useNavigate()
 
   const page = search.page ?? 1
+  const { pageSize, setPageSize, allowAll } = usePageSize('employments', true)
   const filters = useMemo(() => searchToFilters(search), [search])
   const options = useFilterOptions()
 
@@ -80,7 +73,7 @@ export function EmploymentEventsPage() {
     departmentId: filters.departmentId === '' ? undefined : filters.departmentId,
     legalEntityId: filters.legalEntityId === '' ? undefined : filters.legalEntityId,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   })
 
   /** Standart holatda `replace` — filtr aniqlashtirish, alohida qadam emas. */
@@ -108,6 +101,23 @@ export function EmploymentEventsPage() {
     },
     [setSearch],
   )
+
+  /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa yozuvlar. */
+  const changePageSize = useCallback(
+    (next: number) => {
+      setPageSize(next)
+      setSearch((previous) => ({ ...previous, page: undefined }))
+    },
+    [setPageSize, setSearch],
+  )
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  const clampPage = useCallback(
+    (last: number) =>
+      setSearch((previous) => ({ ...previous, page: last <= 1 ? undefined : last })),
+    [setSearch],
+  )
+  useClampPage(page, pageSize, query.isPlaceholderData ? undefined : query.data?.total, clampPage)
 
   const columns = useMemo<Array<DataColumn<EmploymentEventItem>>>(
     () => [
@@ -217,7 +227,7 @@ export function EmploymentEventsPage() {
   const listEmpty = events.length === 0 && !firstLoad
 
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -228,10 +238,11 @@ export function EmploymentEventsPage() {
         subtitle={firstLoad ? t('common.loading') : t('employments.subtitle', { n: num(total) })}
       />
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <EmploymentsToolbar filters={filters} onChange={changeFilters} options={options} />
 
         <DataTable
+          fill
           columns={columns}
           data={events}
           getRowId={(event) => event.id}
@@ -260,9 +271,11 @@ export function EmploymentEventsPage() {
         {total > 0 && (
           <Pagination
             page={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={changePage}
+            onPageSizeChange={changePageSize}
+            allowAll={allowAll}
             disabled={query.isFetching}
             className="border-t border-[var(--border)]"
           />

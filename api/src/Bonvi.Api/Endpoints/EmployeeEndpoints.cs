@@ -156,7 +156,7 @@ public static class EmployeeEndpoints
                 "Filtr, saralash va sahifalash SERVERDA bajariladi: arxiv bilan birga " +
                 "2000+ yozuv bo'lishi mumkin. «search» — FIO, JSHSHIR, telefon yoki pasport. " +
                 "«sort» qiymatlari: name, hireDate, department, position, status, birthDate; " +
-                "teskari tartib uchun oldiga «-» qo'yiladi. «pageSize» eng ko'pi 200. " +
+                "teskari tartib uchun oldiga «-» qo'yiladi. «pageSize» eng ko'pi 10 000. " +
                 "Oklad ustuni faqat «salary.view» ruxsati bilan to'ldiriladi.")
             .Produces<PagedResult<EmployeeListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);

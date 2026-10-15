@@ -20,7 +20,7 @@ namespace Bonvi.Application.Employees.Probations;
 /// natija berardi.
 /// </param>
 /// <param name="Page">Sahifa raqami, 1 dan (sukut: 1).</param>
-/// <param name="PageSize">Sahifa hajmi (sukut 25, eng ko'pi 200).</param>
+/// <param name="PageSize">Sahifa hajmi (sukut 25, eng ko'pi 10 000 — «Barchasi»).</param>
 public sealed record ListProbationsQuery(
     ProbationStatus? Status = null,
     int? EndingWithinDays = null,
@@ -49,11 +49,22 @@ public sealed class ListProbationsQueryHandler
 
     /// <summary>Bir so'rovda beriladigan eng katta sahifa.</summary>
     /// <remarks>
+    /// <para>
     /// Chegara ATAYLAB bor: sahifalashdan oldin bu ro'yxat 1342 qatorni
     /// bitta javobda (926 KB) yuborardi va u ma'lumot o'sishi bilan
     /// cheksiz kattalashardi.
+    /// </para>
+    /// <para>
+    /// 2026-10-15 dan 10 000 (ilgari 200): egasi ro'yxat ostida «20 / 50 /
+    /// 100 / Barchasi» tanlovini so'radi, «Barchasi» esa aynan shu sonni
+    /// yuboradi (`web/src/shared/lib/use-page-size.ts`, <c>PAGE_SIZE_ALL</c>).
+    /// Bu son bazadagi eng katta ro'yxatdan (~5 100 nomzod, ~2 000 xodim)
+    /// ancha katta, lekin baribir chegara — <c>pageSize=10000000</c> ham
+    /// shu yerda to'xtaydi. Brauzer ming-minglab qatorni virtual chizadi
+    /// (`DataTable fill`), javob esa siqilgan holda ketadi (Caddy zstd/gzip).
+    /// </para>
     /// </remarks>
-    public const int MaxPageSize = 200;
+    public const int MaxPageSize = 10_000;
 
     public async Task<Result<PagedResult<ProbationListItemDto>>> HandleAsync(
         ListProbationsQuery query,
@@ -138,6 +149,14 @@ public sealed record GetProbationsEndingSoonQuery(int? WithinDays = null);
 
 public sealed class GetProbationsEndingSoonQueryHandler
 {
+    /// <summary>Bir so'rovda olinadigan eng ko'p yozuv.</summary>
+    /// <remarks>
+    /// Ilgari <see cref="ListProbationsQueryHandler.MaxPageSize"/> olinardi;
+    /// u 2026-10-15 da ro'yxatdagi «Barchasi» uchun 10 000 ga ko'tarildi —
+    /// bu blokning chegarasi esa o'zgarmasligi kerak, shu sababli alohida.
+    /// </remarks>
+    private const int Limit = 200;
+
     private readonly IEmployeeReadModel _readModel;
     private readonly IClock _clock;
 
@@ -169,7 +188,7 @@ public sealed class GetProbationsEndingSoonQueryHandler
                     today,
                     Search: null,
                     Page: 1,
-                    PageSize: ListProbationsQueryHandler.MaxPageSize),
+                    PageSize: Limit),
                 cancellationToken)
             .ConfigureAwait(false);
 

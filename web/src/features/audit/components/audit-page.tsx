@@ -7,13 +7,13 @@ import type { ListAuditEntriesParams } from '@/shared/api/generated/model'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { todayIso } from '@/shared/lib/today'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import { Alert, Card, EmptyState, IconTile, PageHeader, Pagination } from '@/shared/ui'
 
 import { useAuditActors, useAuditEntries, type AuditEntry } from '../api/audit-queries'
 import { entityTypeLabel, useAuditFormatter } from '../lib/audit-format'
 import {
   AUDIT_MODULE_KEYS,
-  AUDIT_PAGE_SIZE,
   AUDIT_SECURITY_PERMISSION,
   AUDIT_VIEW,
   auditModuleOfEntity,
@@ -63,6 +63,8 @@ export function AuditPage() {
 
   const today = todayIso()
   const page = search.page ?? 1
+  // «Barchasi» yo'q: jurnal chegarasiz o'sadi (yuz minglab yozuv)
+  const { pageSize, setPageSize, allowAll } = usePageSize('audit', false)
   // `security` segmenti ruxsatsiz yashirin — eski havola ham «O'zgarishlar» ochadi (server ham shunday)
   const kind: AuditKind = search.kind === 'security' && canSeeSecurity ? 'security' : 'changes'
   const security = kind === 'security'
@@ -93,9 +95,9 @@ export function AuditPage() {
       entityId: search.entityId,
       action: search.action,
       page,
-      pageSize: AUDIT_PAGE_SIZE,
+      pageSize,
     }),
-    [from, to, kind, security, search.actor, search.module, search.entity, search.entityId, search.action, page],
+    [from, to, kind, security, search.actor, search.module, search.entity, search.entityId, search.action, page, pageSize],
   )
 
   const list = useAuditEntries(params, canView && !periodInvalid)
@@ -165,6 +167,23 @@ export function AuditPage() {
     [setSearch],
   )
 
+  /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa yozuvlar. */
+  const changePageSize = useCallback(
+    (next: number) => {
+      setPageSize(next)
+      setSearch((previous) => ({ ...previous, page: undefined }))
+    },
+    [setPageSize, setSearch],
+  )
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  const clampPage = useCallback(
+    (last: number) =>
+      setSearch((previous) => ({ ...previous, page: last <= 1 ? undefined : last })),
+    [setSearch],
+  )
+  useClampPage(page, pageSize, list.isPlaceholderData ? undefined : list.data?.total, clampPage)
+
   const header = (
     <PageHeader
       title={
@@ -208,10 +227,10 @@ export function AuditPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       {header}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <AuditToolbar
           kind={kind}
           canSeeSecurity={canSeeSecurity}
@@ -270,15 +289,24 @@ export function AuditPage() {
             description={t('audit.periodHint')}
           />
         ) : (
-          <AuditList entries={entries} loading={firstLoad} empty={empty} onOpen={setOpened} />
+          <AuditList
+            entries={entries}
+            loading={firstLoad}
+            empty={empty}
+            onOpen={setOpened}
+            // Jurnal kartaning ichida aylanadi — sahifalash joyida qoladi
+            fill
+          />
         )}
 
         {!list.isError && !periodInvalid && total > 0 && (
           <Pagination
             page={page}
-            pageSize={AUDIT_PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={changePage}
+            onPageSizeChange={changePageSize}
+            allowAll={allowAll}
             disabled={list.isFetching}
             className="border-t border-[var(--border)]"
           />

@@ -83,7 +83,7 @@ public static class VacancyEndpoints
                 "hisobga olinmaydi); lavozim/bo'lim/firma filtrlari YO'Q, chunki vakansiyada bunday " +
                 "maydonlar yo'q. «sort» — openedAt (sukut, yangidan eskiga) yoki title; " +
                 "teskari tartib «-openedAt» yoki «openedAt:desc». " +
-                "«pageSize» eng ko'pi 200. Har bir qatorda «candidateCount» va " +
+                "«pageSize» eng ko'pi 10 000. Har bir qatorda «candidateCount» va " +
                 "«hiredCount» bor — «2/3 to'ldirildi» ko'rinishi uchun. " +
                 "«excludeGeneralPool=true» — «Umumiy anketa» vakansiyasini ro'yxatdan " +
                 "chiqarib tashlaydi; buni FAQAT bot so'raydi, chunki u nomzodga " +

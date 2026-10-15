@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { INCENTIVES_VIEW, INCENTIVE_KIND_LOOK } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Badge,
   Card,
@@ -36,15 +37,6 @@ const helper = dataColumnHelper<IncentiveListItem>()
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: IncentiveListItem[] = []
-
-/**
- * Bir sahifadagi yozuvlar soni.
- *
- * Xodimlar va buyruqlar ro'yxati bilan bir xil (50) — u yerdagi
- * hisob-kitob bu yerga ham to'g'ri keladi: server chegarasi 200, ekran
- * esa imkon qadar ko'p yozuvni bir sahifada ko'rsatishni xohlaydi.
- */
-const PAGE_SIZE = 50
 
 /**
  * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
@@ -78,6 +70,7 @@ export function IncentivesPage() {
   const navigate = route.useNavigate()
 
   const page = search.page ?? 1
+  const { pageSize, setPageSize, allowAll } = usePageSize('incentives', true)
   const sortParam = search.sort ?? DEFAULT_SORT
 
   const filters = useMemo(() => searchToFilters(search), [search])
@@ -101,7 +94,7 @@ export function IncentivesPage() {
     legalEntityId: filters.legalEntityId === '' ? undefined : filters.legalEntityId,
     sort: sortParam,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   })
 
   /** Standart holatda `replace` — filtr aniqlashtirish, alohida qadam emas. */
@@ -137,6 +130,23 @@ export function IncentivesPage() {
     },
     [setSearch],
   )
+
+  /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa yozuvlar. */
+  const changePageSize = useCallback(
+    (next: number) => {
+      setPageSize(next)
+      setSearch((previous) => ({ ...previous, page: undefined }))
+    },
+    [setPageSize, setSearch],
+  )
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  const clampPage = useCallback(
+    (last: number) =>
+      setSearch((previous) => ({ ...previous, page: last <= 1 ? undefined : last })),
+    [setSearch],
+  )
+  useClampPage(page, pageSize, query.isPlaceholderData ? undefined : query.data?.total, clampPage)
 
   /**
    * Qator bosilsa — EGASINING kartasi ochiladi.
@@ -329,7 +339,7 @@ export function IncentivesPage() {
   const listEmpty = rows.length === 0 && !firstLoad
 
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -340,10 +350,11 @@ export function IncentivesPage() {
         subtitle={firstLoad ? t('common.loading') : t('incentives.subtitle', { n: num(total) })}
       />
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <IncentivesToolbar filters={filters} onChange={changeFilters} options={options} />
 
         <DataTable
+          fill
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
@@ -375,9 +386,11 @@ export function IncentivesPage() {
         {total > 0 && (
           <Pagination
             page={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={changePage}
+            onPageSizeChange={changePageSize}
+            allowAll={allowAll}
             disabled={query.isFetching}
             className="border-t border-[var(--border)]"
           />

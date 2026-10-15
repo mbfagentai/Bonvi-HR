@@ -5,7 +5,9 @@ import type { SortingState } from '@tanstack/react-table'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { formatPhone } from '@/shared/lib/phone'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Badge,
@@ -49,9 +51,6 @@ const helper = dataColumnHelper<CandidateListItem>()
 const EMPTY: CandidateListItem[] = []
 const NO_STAGES: PipelineStage[] = []
 
-/** Xodimlar va buyruqlar ro'yxati bilan bir xil (50). */
-const PAGE_SIZE = 50
-
 const route = getRouteApi('/_app/nomzodlar/')
 
 /**
@@ -85,6 +84,14 @@ export function CandidatesPage() {
   const sort = search.sort ?? DEFAULT_SORT
   const view: CandidatesView = search.view ?? 'table'
   const filters = useMemo(() => searchToFilters(search), [search])
+  const { pageSize, setPageSize, allowAll } = usePageSize('candidates', true)
+
+  /*
+    Ro'yxat ramkasi (sarlavha va sahifalash joyida, qatorlar ichida
+    aylanadi) — faqat jadvalda. Voronka ustunlari o'z balandligida
+    chiziladi va ramkaga qisilsa kesilib qolardi.
+  */
+  const frame = view === 'table'
 
   const [creating, setCreating] = useState(false)
 
@@ -205,7 +212,7 @@ export function CandidatesPage() {
       ...sharedFilters,
       ...(filters.stageId === '' ? {} : { stageId: filters.stageId }),
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       sort,
     },
     // Voronkada bu so'rov KERAK EMAS: ustunlar o'z so'rovlarini
@@ -318,6 +325,23 @@ export function CandidatesPage() {
     },
     [setSearch],
   )
+
+  /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa odamlar. */
+  const changePageSize = useCallback(
+    (next: number) => {
+      setPageSize(next)
+      setSearch((previous) => ({ ...previous, page: undefined }))
+    },
+    [setPageSize, setSearch],
+  )
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  const clampPage = useCallback(
+    (last: number) =>
+      setSearch((previous) => ({ ...previous, page: last <= 1 ? undefined : last })),
+    [setSearch],
+  )
+  useClampPage(page, pageSize, query.isPlaceholderData ? undefined : query.data?.total, clampPage)
 
   const changeView = useCallback(
     (next: CandidatesView) => {
@@ -509,7 +533,10 @@ export function CandidatesPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div
+      data-list-frame={frame ? '' : undefined}
+      className={cn('space-y-6', frame && 'frame:flex frame:h-full frame:flex-col')}
+    >
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -603,7 +630,7 @@ export function CandidatesPage() {
         </Alert>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className={cn('overflow-hidden', frame && 'frame:flex frame:flex-1 frame:flex-col')}>
         <CandidatesToolbar
           filters={filters}
           onChange={changeFilters}
@@ -631,6 +658,7 @@ export function CandidatesPage() {
               rowLabel={(item) => item.fullName}
               sorting={sorting}
               onSortingChange={changeSorting}
+              fill
               empty={
                 listEmpty ? (
                   emptySection ? (
@@ -667,9 +695,11 @@ export function CandidatesPage() {
             {total > 0 && (
               <Pagination
                 page={page}
-                pageSize={PAGE_SIZE}
+                pageSize={pageSize}
                 total={total}
                 onPageChange={changePage}
+                onPageSizeChange={changePageSize}
+                allowAll={allowAll}
                 disabled={query.isFetching}
                 className="border-t border-[var(--border)]"
               />

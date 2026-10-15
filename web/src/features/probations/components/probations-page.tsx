@@ -14,6 +14,7 @@ import {
 } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Badge,
@@ -33,7 +34,6 @@ import {
 
 import {
   PROBATION_STATUSES,
-  PROBATIONS_PAGE_SIZE,
   type ProbationFilters,
   type ProbationItem,
   type ProbationStatus,
@@ -122,11 +122,12 @@ export function ProbationsPage() {
   // ko'rsatadi; yakunlanganlar tarixi filtrda qoladi.
   const [status, setStatus] = useState<ProbationFilters['status']>('inProgress')
   const [page, setPage] = useState(1)
+  const { pageSize, setPageSize, allowAll } = usePageSize('probations', true)
   const [resolving, setResolving] = useState<ProbationItem | null>(null)
   const [extending, setExtending] = useState<ProbationItem | null>(null)
   const [hireOpen, setHireOpen] = useState(false)
 
-  const filters: ProbationFilters = { status, search: search.q ?? '', page }
+  const filters: ProbationFilters = { status, search: search.q ?? '', page, pageSize }
 
   /*
    * Qidiruv har harfda so'rov yubormaydi (350 ms) va matn manzilga
@@ -158,6 +159,9 @@ export function ProbationsPage() {
 
   const rows = list.data?.items ?? EMPTY
   const total = list.data?.total ?? 0
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  useClampPage(page, pageSize, list.isPlaceholderData ? undefined : list.data?.total, setPage)
   const soonCount = warning.data?.length ?? 0
 
   const statusOptions = useMemo(
@@ -305,7 +309,7 @@ export function ProbationsPage() {
   )
 
   return (
-    <div className="space-y-5">
+    <div data-list-frame className="space-y-5 frame:flex frame:h-full frame:flex-col">
       {/*
         «Yangi xodim qabul qilish» tugmasi AYNAN shu sahifada turadi.
 
@@ -358,7 +362,7 @@ export function ProbationsPage() {
       */}
       <MissingProbations canConfirm={canComplete} />
 
-      <Card>
+      <Card className="frame:flex frame:flex-1 frame:flex-col">
         <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] p-4 sm:gap-3">
           {/*
             Qidiruv birinchi va butun bo'sh kenglikni egallaydi: sinovdagi
@@ -389,6 +393,7 @@ export function ProbationsPage() {
         </div>
 
         <DataTable
+          fill
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
@@ -418,12 +423,18 @@ export function ProbationsPage() {
           }
         />
 
-        {total > PROBATIONS_PAGE_SIZE && (
+        {/* `total > 0`: hajm tanlovi kichik ro'yxatda ham topilsin (`Pagination`) */}
+        {total > 0 && (
           <Pagination
             page={page}
-            pageSize={PROBATIONS_PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setPageSize(next)
+              setPage(1)
+            }}
+            allowAll={allowAll}
             disabled={list.isFetching}
             className="border-t border-[var(--border)]"
           />

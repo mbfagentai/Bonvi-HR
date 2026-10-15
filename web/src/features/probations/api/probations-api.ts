@@ -91,6 +91,8 @@ export interface ProbationFilters {
   search: string
   /** Sahifa raqami, 1 dan. */
   page: number
+  /** Sahifa hajmi — ro'yxat ostidagi tanlovdan (`usePageSize`). */
+  pageSize: number
 }
 
 /** Bir sahifa sinov muddati va umumiy soni. */
@@ -98,14 +100,6 @@ export interface ProbationPage {
   items: ProbationItem[]
   total: number
 }
-
-/**
- * Bir ekranda ko'rsatiladigan sinov muddatlari soni.
- *
- * Xodimlar ro'yxatidagi bilan bir xil: ikkita ro'yxat bir xil naqshda
- * chizilgan ekan, ular bir xil his qilishi kerak.
- */
-export const PROBATIONS_PAGE_SIZE = 25
 
 /**
  * Sinov xulosasi — va u «o'tdi» bo'lsa, doimiy xodimga o'tkazish shartlari.
@@ -202,7 +196,7 @@ export async function fetchProbations(
   // ketardi.
   const params: Record<string, string | number> = {
     page: filters.page,
-    pageSize: PROBATIONS_PAGE_SIZE,
+    pageSize: filters.pageSize,
   }
 
   if (filters.status !== '') params['status'] = statusName(filters.status)

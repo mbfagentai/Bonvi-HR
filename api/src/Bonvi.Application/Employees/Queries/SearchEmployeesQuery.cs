@@ -60,11 +60,25 @@ public sealed class SearchEmployeesQueryHandler
     /// Eng katta sahifa hajmi.
     /// </summary>
     /// <remarks>
-    /// Chegara ataylab: <c>pageSize=100000</c> so'rovi butun bazani bitta
+    /// <para>
+    /// Chegara ataylab: cheksiz <c>pageSize</c> so'rovi butun bazani bitta
     /// javobga solib, serverni ham brauzerni ham to'xtatib qo'yardi.
-    /// Eksport uchun alohida yo'l bo'ladi, ro'yxat uchun emas.
+    /// </para>
+    /// <para>
+    /// 2026-10-15 dan 10 000 (ilgari 200): egasi ro'yxat ostida «20 / 50 /
+    /// 100 / Barchasi» tanlovini so'radi, «Barchasi» esa aynan shu sonni
+    /// yuboradi (`web/src/shared/lib/use-page-size.ts`, <c>PAGE_SIZE_ALL</c>).
+    /// Bu son bazadagi eng katta ro'yxatdan (~5 100 nomzod, ~2 000 xodim)
+    /// ancha katta, lekin baribir chegara — <c>pageSize=10000000</c> ham
+    /// shu yerda to'xtaydi. Brauzer ming-minglab qatorni virtual chizadi
+    /// (`DataTable fill`), javob esa siqilgan holda ketadi (Caddy zstd/gzip).
+    /// </para>
+    /// <para>
+    /// Rag'bat va buyruqlar ro'yxatlari ham shu chegarani oladi
+    /// (<c>ListIncentivesQuery</c>, <c>ListEmploymentEventsQuery</c>).
+    /// </para>
     /// </remarks>
-    public const int MaxPageSize = 200;
+    public const int MaxPageSize = 10_000;
 
     private readonly IEmployeeReadModel _readModel;
     private readonly ICurrentUser _currentUser;
@@ -220,8 +234,8 @@ public sealed class SearchEmployeesQueryHandler
     /// bo'lib chiqardi.
     /// </para>
     /// <para>
-    /// <c>page</c>/<c>pageSize</c> tashqaridan keladi: ekran ularni 200 bilan
-    /// cheklaydi, eksport esa o'zining (ancha kattaroq) chegarasi bilan —
+    /// <c>page</c>/<c>pageSize</c> tashqaridan keladi: ekran ularni
+    /// <see cref="MaxPageSize"/> bilan cheklaydi, eksport esa o'zining chegarasi bilan —
     /// ikkalasi ham shu bitta metodni chaqiradi, faqat sonlar boshqa.
     /// </para>
     /// </remarks>

@@ -345,6 +345,8 @@
     "themeLight": "Светлая",
     "themeDark": "Тёмная",
     "language": "Язык",
+    "pageSize": "На странице",
+    "pageSizeAll": "Все",
     "of": "из",
     "people": "чел.",
     "dateFrom": "С даты",

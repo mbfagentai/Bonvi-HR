@@ -199,15 +199,18 @@ export function useEmployeeFlags(id: string) {
  * rasm almashtirilsa kalit ham boshqa bo'ladi va eski blob'ga hech kim
  * murojaat qilmaydi. Ya'ni keshni qo'lda tozalash kerak emas.
  */
-export function useEmployeePhoto(employeeId: string, photoKey: string | null) {
+export function useEmployeePhoto(employeeId: string, photoKey: string | null, enabled = true) {
   return useQuery({
     queryKey: employeeKeys.photo(employeeId, photoKey),
     queryFn: ({ signal }) => fetchEmployeePhoto(employeeId, signal),
     /**
      * Kaliti yo'q — rasmi ham yo'q, so'rov umuman yuborilmaydi.
      * Busiz 25 qatorli sahifa har ochilganda 25 ta keraksiz 404 ketardi.
+     *
+     * `enabled = false` faqat YANGI so'rovni to'xtatadi: keshda bor rasm
+     * baribir darhol qaytadi (`employee-photo.tsx`, virtual ro'yxat).
      */
-    enabled: employeeId !== '' && photoKey !== null,
+    enabled: enabled && employeeId !== '' && photoKey !== null,
     /** Bir kalit — bir rasm. U o'zgarmaydi, demak eskirmaydi ham. */
     staleTime: Infinity,
     /**

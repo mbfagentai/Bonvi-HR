@@ -251,7 +251,7 @@ public static class IncentiveEndpoints
                 "«departmentId» — bo'lim ICHKI bo'limlari bilan birga; bo'lim va yuridik shaxs " +
                 "xodimning MUNOSABATLARI orqali qo'llanadi (o'rindoshlik ham hisobga olinadi). " +
                 "«sort» = date | employee, oldiga «-» qo'yilsa kamayish tartibida; sukut " +
-                "bo'yicha «-date» (yangidan eskiga). «pageSize» eng ko'pi 200. " +
+                "bo'yicha «-date» (yangidan eskiga). «pageSize» eng ko'pi 10 000. " +
                 "Summa faqat pul bilan bog'liq turlarda to'ldiriladi, qolganlarida null — " +
                 "u «salary.view» ga BOG'LIQ EMAS (sababi «ListIncentivesQuery» izohida).")
             .Produces<PagedResult<IncentiveListItemDto>>(StatusCodes.Status200OK)

@@ -18,6 +18,7 @@ import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import { todayIso } from '@/shared/lib/today'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Badge,
@@ -49,7 +50,6 @@ import {
 import {
   ATTENDANCE_MANAGE,
   ATTENDANCE_VIEW,
-  DEFAULT_PAGE_SIZE,
   DIRECTION_LOOK,
   METHOD_LABEL_KEY,
   REPORTS_EXPORT,
@@ -129,6 +129,8 @@ export function AttendancePassesPage() {
 
   const [filters, setFilters] = useState<PassFilterState>(defaultFilters)
   const [page, setPage] = useState(1)
+  // «Barchasi» yo'q: o'tishlar jurnali kuniga yuzlab yozuv bilan o'sadi
+  const { pageSize, setPageSize, allowAll } = usePageSize('attendance-passes', false)
   const [panelOpen, setPanelOpen] = useState(false)
   /** Qatordan tanlangan o'tish — oyna so'rovsiz ochiladi. */
   const [selected, setSelected] = useState<AttendancePass | null>(null)
@@ -173,13 +175,16 @@ export function AttendancePassesPage() {
     yonida aytadi.
   */
   const list = useAttendancePasses(
-    { ...queryFilters, page, pageSize: DEFAULT_PAGE_SIZE },
+    { ...queryFilters, page, pageSize },
     canView && rangeProblem === null,
   )
   const exportList = useExportPasses()
 
   const rows = list.data?.items ?? EMPTY
   const total = list.data?.total ?? 0
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  useClampPage(page, pageSize, list.isPlaceholderData ? undefined : list.data?.total, setPage)
   const firstLoad = list.isPending && rangeProblem === null
 
   const changeFilters = useCallback((next: PassFilterState) => {
@@ -328,7 +333,7 @@ export function AttendancePassesPage() {
   const passId = selected?.id ?? searchParams.passId ?? null
 
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       <PageHeader
         title={<PageTitle />}
         subtitle={
@@ -342,7 +347,7 @@ export function AttendancePassesPage() {
         </Alert>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <div className="border-b border-[var(--border)]">
           <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5 sm:gap-3 sm:px-5">
             <div className="min-w-[200px] flex-1">
@@ -523,6 +528,7 @@ export function AttendancePassesPage() {
         )}
 
         <DataTable
+          fill
           columns={columns}
           data={rangeProblem === null ? rows : EMPTY}
           getRowId={(pass) => pass.id}
@@ -550,9 +556,14 @@ export function AttendancePassesPage() {
         {total > 0 && rangeProblem === null && (
           <Pagination
             page={page}
-            pageSize={DEFAULT_PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setPageSize(next)
+              setPage(1)
+            }}
+            allowAll={allowAll}
             disabled={list.isFetching}
             className="border-t border-[var(--border)]"
           />

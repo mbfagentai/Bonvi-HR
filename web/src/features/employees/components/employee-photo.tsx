@@ -1,5 +1,5 @@
 import { useObjectUrl } from '@/shared/lib/use-object-url'
-import { Avatar, type AvatarSize } from '@/shared/ui'
+import { Avatar, useRowRequestReady, type AvatarSize } from '@/shared/ui'
 import { useEmployeePhoto } from '../api/employees-queries'
 
 /**
@@ -28,7 +28,10 @@ export function EmployeePhoto({
   size?: AvatarSize
   className?: string
 }) {
-  const photo = useEmployeePhoto(employeeId, photoKey)
+  // Virtual ro'yxatda rasm ro'yxat to'xtab, qator ekranda biroz turgandagina
+  // so'raladi — aylantirishda yuzlab so'rov ketmasin (`virtual-row.ts`)
+  const ready = useRowRequestReady()
+  const photo = useEmployeePhoto(employeeId, photoKey, ready)
   const src = useObjectUrl(photo.data ?? null)
 
   return <Avatar name={name} src={src} size={size} className={className} />

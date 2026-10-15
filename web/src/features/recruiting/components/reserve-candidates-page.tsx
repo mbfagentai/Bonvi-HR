@@ -6,6 +6,7 @@ import { FLAG_LOOK } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
 import { formatPhone } from '@/shared/lib/phone'
+import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Card,
@@ -26,9 +27,6 @@ const helper = dataColumnHelper<CandidateListItem>()
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: CandidateListItem[] = []
-
-/** Nomzodlar ro'yxati bilan bir xil (50). */
-const PAGE_SIZE = 50
 
 /**
  * ⭐ «Rezerv» bo'limidagi NOMZODLAR (foydalanuvchi qarori, 2026-09-26).
@@ -68,6 +66,13 @@ export function ReserveCandidatesPage({
   const look = FLAG_LOOK.reserve
 
   const [draft, setDraft] = useSearchDraft(search, onSearchChange)
+  const { pageSize, setPageSize, allowAll } = usePageSize('reserve-candidates', true)
+
+  /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa odamlar. */
+  const changePageSize = (next: number) => {
+    setPageSize(next)
+    onPageChange(1)
+  }
 
   /*
     `includeArchive` SHART: Excel'dan ko'chirilgan kengash arxivida ham
@@ -80,10 +85,13 @@ export function ReserveCandidatesPage({
     includeArchive: true,
     search: search === '' ? undefined : search,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   })
   const rows = query.data?.items ?? EMPTY
   const total = query.data?.total ?? 0
+
+  // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
+  useClampPage(page, pageSize, query.isPlaceholderData ? undefined : query.data?.total, onPageChange)
 
   const columns = useMemo<Array<DataColumn<CandidateListItem>>>(
     () => [
@@ -136,7 +144,7 @@ export function ReserveCandidatesPage({
   )
 
   return (
-    <div className="space-y-5">
+    <div data-list-frame className="space-y-5 frame:flex frame:h-full frame:flex-col">
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -156,7 +164,7 @@ export function ReserveCandidatesPage({
         <Alert tone="danger">{errorMessage(recruitingErrorCode(query.error))}</Alert>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
           <Input
             icon={Search}
@@ -170,6 +178,7 @@ export function ReserveCandidatesPage({
         </div>
 
         <DataTable
+          fill
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
@@ -211,12 +220,15 @@ export function ReserveCandidatesPage({
           }
         />
 
-        {total > PAGE_SIZE && (
+        {/* `total > 0`: hajm tanlovi kichik ro'yxatda ham topilsin (`Pagination`) */}
+        {total > 0 && (
           <Pagination
             page={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
             onPageChange={onPageChange}
+            onPageSizeChange={changePageSize}
+            allowAll={allowAll}
             disabled={query.isFetching}
             className="border-t border-[var(--border)]"
           />
