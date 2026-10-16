@@ -37,7 +37,7 @@ public interface IIncentiveReadModel
     /// Har bir YOZUV alohida qator bo'lib chiqadi, ya'ni bitta xodim
     /// ro'yxatda bir necha marta ko'rinishi mumkin. Bu ataylab: HR
     /// «Каримовга nechta jarima berilgan» degan yig'ma raqamni emas,
-    /// «qachon, nima uchun, qaysi buyruq bilan» degan FAKTlarni izlaydi —
+    /// «qachon, nima uchun, qancha» degan FAKTlarni izlaydi —
     /// yig'ma ko'rinish aynan shu tafsilotni yo'qotardi.
     /// </remarks>
     Task<IncentiveListPage> ListIncentivesAsync(
@@ -145,8 +145,6 @@ public sealed record IncentiveListRow(
     decimal? AmountValue,
     string? AmountCurrency,
     decimal? Percent,
-    string? OrderNo,
-    DateOnly? OrderDate,
     // Sabab va sovg'a ekrandagi ro'yxatga CHIQMAYDI (`IncentiveListItemDto`
     // izohi), lekin Excel eksportida kerak — yozuvning o'zidan, qo'shimcha
     // so'rovsiz keladi.

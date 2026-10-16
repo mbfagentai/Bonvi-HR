@@ -31,6 +31,9 @@ public sealed class JarimaFoizMigrationTests
     /// <summary>Tekshirilayotgan migratsiya.</summary>
     private const string FoizMigratsiyasi = "20261016053617_JarimaFoizVaBuyruqsiz";
 
+    /// <summary>Rag'batdan ham buyruq olib tashlangan holat — ustunlar yo'q.</summary>
+    private const string BuyruqsizMigratsiya = "20261016092521_RagbatJarimaBuyruqsiz";
+
     private const int Ragbat = 1;
     private const int Jarima = 2;
 
@@ -134,6 +137,68 @@ public sealed class JarimaFoizMigrationTests
         (await SanoqAsync(ulanish, "SELECT count(*) FROM incentives WHERE id IN ($1, $2);", bekorQilish, ragbat, jarima))
             .ShouldBe(2);
     }
+
+    /// <summary>
+    /// <c>RagbatJarimaBuyruqsiz</c>: buyruq ustunlari va ularning cheklovi yo'qoladi, yozuvlarning
+    /// o'zi — summa, foiz, sabab — joyida qoladi. <c>Down</c> ustunlarni bo'sh qaytaradi.
+    /// </summary>
+    [Fact]
+    public async Task Buyruqsiz_Up_ustunlarni_olib_tashlaydi_yozuvlar_qoladi_Down_qaytaradi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var baza = await VaqtinchalikBaza.YaratAsync(bekorQilish);
+        await MigratsiyaAsync(baza.UlanishSatri, FoizMigratsiyasi, bekorQilish);
+
+        await using var ulanish = await UlanAsync(baza.UlanishSatri, bekorQilish);
+
+        var ragbat = await YozuvQoshAsync(ulanish, Ragbat, 500_000m, "12-b", Sana, null, bekorQilish);
+        var jarima = await YozuvQoshAsync(ulanish, Jarima, null, null, null, "Kechikish", bekorQilish);
+        await BajarAsync(ulanish, "UPDATE incentives SET percent = 4 WHERE id = $1;", bekorQilish, jarima);
+
+        // ── Up ───────────────────────────────────────────────────
+        await MigratsiyaAsync(baza.UlanishSatri, BuyruqsizMigratsiya, bekorQilish);
+
+        (await UstunBormiAsync(ulanish, "order_no", bekorQilish)).ShouldBeFalse();
+        (await UstunBormiAsync(ulanish, "order_date", bekorQilish)).ShouldBeFalse();
+        (await CheklovlarAsync(ulanish, bekorQilish)).ShouldBe(
+            "ck_incentives_amount_or_percent,ck_incentives_percent_penalty_only,ck_incentives_percent_range");
+
+        (await QiymatAsync(
+                ulanish,
+                "SELECT kind || '|' || coalesce(trunc(amount)::text, '') || '|' || coalesce(percent::text, '') || '|' || coalesce(reason, '') FROM incentives WHERE id = $1;",
+                bekorQilish,
+                ragbat))
+            .ShouldBe("1|500000||");
+        (await QiymatAsync(
+                ulanish,
+                "SELECT kind || '|' || coalesce(trunc(amount)::text, '') || '|' || coalesce(percent::text, '') || '|' || coalesce(reason, '') FROM incentives WHERE id = $1;",
+                bekorQilish,
+                jarima))
+            .ShouldBe("2||4.00|Kechikish");
+
+        // ── Down ─────────────────────────────────────────────────
+        await MigratsiyaAsync(baza.UlanishSatri, FoizMigratsiyasi, bekorQilish);
+
+        (await UstunBormiAsync(ulanish, "order_no", bekorQilish)).ShouldBeTrue();
+        (await SanoqAsync(
+                ulanish,
+                "SELECT count(*) FROM incentives WHERE id IN ($1, $2) AND order_no IS NULL AND order_date IS NULL;",
+                bekorQilish,
+                ragbat,
+                jarima))
+            .ShouldBe(2, "ustunlar bo'sh qaytadi — o'chirilgan qiymat tiklanmaydi");
+        (await CheklovlarAsync(ulanish, bekorQilish)).ShouldContain("ck_incentives_penalty_no_order");
+    }
+
+    private static async Task<string> CheklovlarAsync(NpgsqlConnection ulanish, CancellationToken bekorQilish)
+        => (string?)await QiymatAsync(
+               ulanish,
+               """
+               SELECT string_agg(conname, ',' ORDER BY conname) FROM pg_constraint
+                WHERE conrelid = 'incentives'::regclass AND contype = 'c';
+               """,
+               bekorQilish) ?? string.Empty;
 
     // ════════════════════════════════════════════════════════════
     //  Yordamchilar

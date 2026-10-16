@@ -846,11 +846,9 @@ ko‘rinishi mumkin; xodim bo‘yicha yig‘ma («3 rag‘bat, 1 jarima») atayl
 qilinmagan.
 
 Ustunlar: **Sana**, **F.I.Sh.**, **Tur** (ostida «Rag‘bat» yoki «Jarima»
-nishoni), **Miqdor** (summa yoki foiz: «300 000 so‘m», «4 %»), **Buyruq**
-(faqat rag‘batda).
+nishoni), **Miqdor** (summa yoki foiz: «300 000 so‘m», «4 %»).
 
-Qidiruv **faqat xodim F.I.Sh. bo‘yicha** ishlaydi — buyruq raqami bo‘yicha
-qidirmaydi. Filtrlar: rag‘bat/jarima, bo‘lim, yuridik shaxs, sanadan,
+Qidiruv **faqat xodim F.I.Sh. bo‘yicha** ishlaydi. Filtrlar: rag‘bat/jarima, bo‘lim, yuridik shaxs, sanadan,
 sanagacha. Bir sahifada 50 ta yozuv.
 
 Qatorga bossangiz **yozuv emas, egasining kartasi** ochiladi.
@@ -858,7 +856,7 @@ Qatorga bossangiz **yozuv emas, egasining kartasi** ochiladi.
 **Excelga yuklash** — «Filtrlar» yonidagi tugma. Fayl ekrandagi **aynan
 shu** filtr va tartib bilan, lekin sahifasiz — mos yozuvlarning hammasi
 bitta faylda. Ustunlar: sana, F.I.O., rag‘bat/jarima, tur, summa va valyuta,
-foiz, sabab, sovg‘a, buyruq raqami va sanasi. Summa va foiz Excel’da haqiqiy
+foiz, sabab, sovg‘a. Summa va foiz Excel’da haqiqiy
 son bo‘lib yoziladi — ularni Excel’ning o‘zida jamlash mumkin. Tugma
 **«Rag‘bat va jarima»ni ko‘rish** va **eksport** ruxsati birga bo‘lganda
 chiqadi; bitta faylda ko‘pi bilan 5000 yozuv.
@@ -876,7 +874,6 @@ Xodim kartasi » **«Rag‘bat va jarima»** yorlig‘i » **«Yangi yozuv»**.
 | **Jarima miqdori** | Pulli jarimada: **Summa** yoki **Foiz** — bittasi tanlanadi |
 | **Sovg‘a tavsifi** | Faqat rag‘batda; jarimada bo‘lolmaydi |
 | **Sabab** | **Jarimada majburiy**, rag‘batda ixtiyoriy |
-| **Buyruq raqami / sanasi** | Faqat rag‘batda, ixtiyoriy. **Jarimada yo‘q** |
 
 **Summa maydoni har doim chiqavermaydi.** U tanlangan turga bog‘liq:
 tashakkurnoma yoki hayfsanda summa bo‘lishi mumkin emas, shu sababli maydon
@@ -889,8 +886,8 @@ belgilanadi. Maydonga faqat raqam yoziladi; foiz 0 dan katta va ko‘pi bilan
 «Жарима» — oylikdan, «Мукофотдан маҳрум қилиш» — mukofotdan); tizim uni
 so‘mga aylantirib hisoblamaydi.
 
->! **Jarima uchun buyruq chiqarilmaydi.** Jarima yozuvida buyruq raqami va
->! sanasi maydonlari yo‘q — ular faqat rag‘batda bor.
+>! **Rag‘bat va jarima uchun buyruq chiqarilmaydi.** Yozuvda buyruq raqami
+>! va sanasi maydonlari umuman yo‘q.
 
 # Qayta aloqa va baxtsiz hodisalar
 

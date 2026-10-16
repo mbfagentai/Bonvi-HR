@@ -839,8 +839,6 @@ public sealed class EmployeeTools(McpToolContext t)
                 item.Percent,
                 item.GiftDescription,
                 item.Reason,
-                item.OrderNo,
-                item.OrderDate,
             })
             .Take(SectionLimit)
             .ToListAsync(cancellationToken)
@@ -865,8 +863,6 @@ public sealed class EmployeeTools(McpToolContext t)
             percent = item.Percent,
             gift = item.GiftDescription,
             reason = item.Reason,
-            orderNo = item.OrderNo,
-            orderDate = McpToolContext.Iso(item.OrderDate),
         }).ToList();
     }
 

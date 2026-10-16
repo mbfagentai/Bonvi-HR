@@ -39,7 +39,7 @@ import { todayIso } from '@/shared/lib/today'
  * Xodim kartasidagi `Incentive` dan farqi ikki tomonlama: bu yerda xodim
  * ma'lumoti QO'SHILGAN (har qator boshqa odamniki bo'lishi mumkin),
  * sabab va sovg'a esa OLIB TASHLANGAN — jadval shakli foydalanuvchi
- * bilan kelishilgan: sana · xodim · turi · summa · buyruq.
+ * bilan kelishilgan: sana · xodim · turi · miqdor (summa yoki foiz).
  */
 export interface IncentiveListItem {
   id: string
@@ -59,13 +59,10 @@ export interface IncentiveListItem {
   amount: IncentiveMoney | null
   /** Faqat pulli jarimada, `amount` o'rniga («4 %»). */
   percent: number | null
-  /** Faqat rag'batda — jarima uchun buyruq chiqarilmaydi. */
-  orderNo: string | null
-  orderDate: string | null
 }
 
 export interface IncentiveListFilters {
-  /** Xodim F.I.Sh. bo'yicha (buyruq raqami emas — backend shunday qidiradi). */
+  /** Xodim F.I.Sh. bo'yicha. */
   search?: string
   kind?: IncentiveKindValue
   /** `DateOnly` → «2026-08-26». Ikki tomondan yopiq oraliq. */
@@ -177,8 +174,6 @@ function toItem(raw: unknown): IncentiveListItem {
     date: text(box['date']) ?? '',
     amount: money(box['amount']),
     percent: percentValue(box['percent']),
-    orderNo: text(box['orderNo']),
-    orderDate: text(box['orderDate']),
   }
 }
 

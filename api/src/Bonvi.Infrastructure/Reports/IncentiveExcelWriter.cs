@@ -40,8 +40,6 @@ public sealed class IncentiveExcelWriter : IIncentiveExcelWriter
         "Foiz",
         "Sabab",
         "Sovg'a",
-        "Buyruq raqami",
-        "Buyruq sanasi",
     ];
 
     /// <inheritdoc />
@@ -71,8 +69,7 @@ public sealed class IncentiveExcelWriter : IIncentiveExcelWriter
         sheet.Columns().AdjustToContents();
 
         // Sabab (1000 belgigacha) va sovg'a (300 belgigacha) — erkin matn:
-        // ustun ekrandan chiqib, buyruq ustunlarini uzoqqa surib yubormasin,
-        // qator ichida o'ralsin.
+        // ustun haddan tashqari kengayib ketmasin, qator ichida o'ralsin.
         WrapLongText(sheet.Column(8), maxWidth: 60);
         WrapLongText(sheet.Column(9), maxWidth: 40);
 
@@ -106,9 +103,6 @@ public sealed class IncentiveExcelWriter : IIncentiveExcelWriter
 
         sheet.Cell(excelRow, 8).Value = row.Reason ?? string.Empty;
         sheet.Cell(excelRow, 9).Value = row.GiftDescription ?? string.Empty;
-        sheet.Cell(excelRow, 10).Value = row.OrderNo ?? string.Empty;
-
-        SetDate(sheet.Cell(excelRow, 11), row.OrderDate);
     }
 
     private static void WrapLongText(IXLColumn column, double maxWidth)

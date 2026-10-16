@@ -77,18 +77,15 @@ public sealed class IncentiveTests
         var pul = Money.Create(1_500_000m).Value;
 
         var natija = Incentive.Grant(
-            XodimId, IncentiveKind.Award, TurId, Sana, typeHasAmount: true,
-            amount: pul, orderNo: "45-b", orderDate: Sana);
+            XodimId, IncentiveKind.Award, TurId, Sana, typeHasAmount: true, amount: pul);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Amount.ShouldBe(pul);
         natija.Value.Percent.ShouldBeNull();
-        natija.Value.OrderNo.ShouldBe("45-b");
-        natija.Value.OrderDate.ShouldBe(Sana);
     }
 
     [Fact]
-    public void Pulli_jarima_summa_bilan_buyruqsiz_yaratiladi()
+    public void Pulli_jarima_summa_bilan_yaratiladi()
     {
         var pul = Money.Create(300_000m).Value;
 
@@ -99,62 +96,6 @@ public sealed class IncentiveTests
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Amount.ShouldBe(pul);
         natija.Value.Percent.ShouldBeNull();
-        natija.Value.OrderNo.ShouldBeNull();
-        natija.Value.OrderDate.ShouldBeNull();
-    }
-
-    // ───────────── Jarima: buyruq chiqarilmaydi (egasi, 2026-10-16) ─────────────
-
-    [Fact]
-    public void Jarimada_buyruq_raqami_bolishi_mumkin_emas()
-    {
-        var natija = Incentive.Grant(
-            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false,
-            reason: "Intizom buzilishi", orderNo: "45-b");
-
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
-    }
-
-    [Fact]
-    public void Jarimada_buyruq_sanasi_ham_bolishi_mumkin_emas()
-    {
-        var natija = Incentive.Grant(
-            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false,
-            reason: "Intizom buzilishi", orderDate: Sana);
-
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
-    }
-
-    [Fact]
-    public void Jarimada_faqat_boshliqdan_iborat_buyruq_raqami_hisobga_olinmaydi()
-    {
-        // Bo'sh satr — buyruq emas: eski klient bo'sh maydonni «» qilib yuborsa
-        // ham jarima yozilsin.
-        var natija = Incentive.Grant(
-            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false,
-            reason: "Intizom buzilishi", orderNo: "   ");
-
-        natija.IsSuccess.ShouldBeTrue();
-        natija.Value.OrderNo.ShouldBeNull();
-    }
-
-    [Fact]
-    public void Update_jarimaga_buyruq_qoshishni_rad_etadi_va_eskisini_saqlaydi()
-    {
-        var incentive = Incentive
-            .Grant(XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false, reason: "Sabab")
-            .Value;
-
-        var natija = incentive.Update(
-            TurId, Sana.AddDays(1), typeHasAmount: false, reason: "Yangi sabab", orderNo: "7-b");
-
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
-        incentive.Date.ShouldBe(Sana, "muvaffaqiyatsiz tahrir hech narsani o'zgartirmasligi kerak");
-        incentive.Reason.ShouldBe("Sabab");
-        incentive.OrderNo.ShouldBeNull();
     }
 
     // ───────────── Jarima: summa YOKI foiz ─────────────

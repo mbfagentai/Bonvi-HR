@@ -19,8 +19,8 @@ export interface IncentivesSearch {
   page?: number
   /**
    * Qidiruv matni: XODIM bo'yicha — F.I.Sh., JSHSHIR, pasport yoki
-   * telefon (xodimlar ro'yxatidagi bilan aynan bir xil qoida). Buyruq
-   * raqami bu ekranda qidirilmaydi: savol «kimga nima berilgan».
+   * telefon (xodimlar ro'yxatidagi bilan aynan bir xil qoida): savol
+   * «kimga nima berilgan».
    */
   q?: string
   kind?: IncentiveKindValue

@@ -11,8 +11,8 @@ namespace Bonvi.Application.Employees.Incentives;
 /// Summa kerak-kerakmasligi bu yerda TANLANMAYDI — u tanlangan
 /// <c>Type</c>ning <c>HasAmount</c> belgisidan olinadi va domenga
 /// o'tkaziladi (<see cref="Incentive.Grant"/> izohida sababi bor).
-/// Jarimada summa o'rniga <see cref="Percent"/> berilishi mumkin; buyruq
-/// raqami va sanasi faqat rag'batda.
+/// Jarimada summa o'rniga <see cref="Percent"/> berilishi mumkin. Buyruq
+/// yo'q — rag'bat ham, jarima ham buyruqsiz (egasi, 2026-10-16).
 /// </remarks>
 public sealed record GrantIncentiveCommand(
     Guid EmployeeId,
@@ -22,11 +22,9 @@ public sealed record GrantIncentiveCommand(
     decimal? Amount = null,
     string? GiftDescription = null,
     string? Reason = null,
-    string? OrderNo = null,
-    DateOnly? OrderDate = null,
     decimal? Percent = null);
 
-/// <summary>Xatolik tuzatiladi: tur, sana, summa yoki foiz, sovg'a, sabab, buyruq.</summary>
+/// <summary>Xatolik tuzatiladi: tur, sana, summa yoki foiz, sovg'a, sabab.</summary>
 public sealed record UpdateIncentiveCommand(
     Guid IncentiveId,
     Guid TypeId,
@@ -34,8 +32,6 @@ public sealed record UpdateIncentiveCommand(
     decimal? Amount = null,
     string? GiftDescription = null,
     string? Reason = null,
-    string? OrderNo = null,
-    DateOnly? OrderDate = null,
     decimal? Percent = null);
 
 public sealed record DeleteIncentiveCommand(Guid IncentiveId);
@@ -97,8 +93,6 @@ public sealed class GrantIncentiveCommandHandler
             amount.Value,
             command.GiftDescription,
             command.Reason,
-            command.OrderNo,
-            command.OrderDate,
             command.Percent);
 
         if (granted.IsFailure)
@@ -167,8 +161,6 @@ public sealed class UpdateIncentiveCommandHandler
             amount.Value,
             command.GiftDescription,
             command.Reason,
-            command.OrderNo,
-            command.OrderDate,
             command.Percent);
 
         if (updated.IsFailure)

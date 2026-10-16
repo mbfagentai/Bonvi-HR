@@ -59,9 +59,6 @@ export interface Incentive {
   giftDescription: string | null
   /** Jarima uchun MAJBURIY. */
   reason: string | null
-  /** Buyruq faqat rag'batda — jarima uchun buyruq chiqarilmaydi. */
-  orderNo: string | null
-  orderDate: string | null
 }
 
 /** `POST` tanasi — yangi yozuv berish. */
@@ -74,9 +71,6 @@ export interface GrantIncentiveRequest {
   percent: number | null
   giftDescription: string | null
   reason: string | null
-  /** Faqat rag'batda — jarimada server `buyruq_jarimada` bilan rad etadi. */
-  orderNo: string | null
-  orderDate: string | null
 }
 
 /**
@@ -91,8 +85,6 @@ export interface UpdateIncentiveRequest {
   percent: number | null
   giftDescription: string | null
   reason: string | null
-  orderNo: string | null
-  orderDate: string | null
 }
 
 function text(value: unknown): string | null {
@@ -156,8 +148,6 @@ function toIncentive(raw: unknown): Incentive {
     percent: percentValue(box['percent']),
     giftDescription: text(box['giftDescription']),
     reason: text(box['reason']),
-    orderNo: text(box['orderNo']),
-    orderDate: text(box['orderDate']),
   }
 }
 

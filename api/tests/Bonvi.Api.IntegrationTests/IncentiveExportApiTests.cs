@@ -94,9 +94,11 @@ public sealed class IncentiveExportApiTests : IClassFixture<BonviApiFactory>
         var varaq = kitob.Worksheet(Varaq);
 
         varaq.Cell(1, 1).GetString().ShouldBe("Sana");
+        varaq.LastColumnUsed()!.ColumnNumber().ShouldBe(9, "buyruq ustunlari yo'q — oxirgisi «Sovg'a»");
+        varaq.Cell(1, 9).GetString().ShouldBe("Sovg'a");
         varaq.LastRowUsed()!.RowNumber().ShouldBe(3, "sarlavha + ikki yozuv");
 
-        // 1-qator — jarima (yangisi): foiz, sabab, buyruqsiz.
+        // 1-qator — jarima (yangisi): foiz va sabab.
         varaq.Cell(2, 1).GetDateTime().ShouldBe(new DateTime(2026, 9, 10));
         varaq.Cell(2, 2).GetString().ShouldBe(xodim.FullName);
         varaq.Cell(2, 3).GetString().ShouldBe("Jarima");
@@ -104,15 +106,12 @@ public sealed class IncentiveExportApiTests : IClassFixture<BonviApiFactory>
         varaq.Cell(2, 7).GetDouble().ShouldBe(0.025, 1e-9, "foiz — haqiqiy Excel foizi (2,5 % = 0,025)");
         varaq.Cell(2, 7).Style.NumberFormat.Format.ShouldBe("0.00%");
         varaq.Cell(2, 8).GetString().ShouldBe("Kechikish");
-        varaq.Cell(2, 10).IsEmpty().ShouldBeTrue("jarimada buyruq yo'q");
 
-        // 2-qator — rag'bat: summa son, valyuta alohida, buyruq.
+        // 2-qator — rag'bat: summa son, valyuta alohida.
         varaq.Cell(3, 3).GetString().ShouldBe("Rag'bat");
         varaq.Cell(3, 5).GetDouble().ShouldBe(1_500_000d);
         varaq.Cell(3, 6).GetString().ShouldBe("UZS");
         varaq.Cell(3, 7).IsEmpty().ShouldBeTrue();
-        varaq.Cell(3, 10).GetString().ShouldBe("45-b");
-        varaq.Cell(3, 11).GetDateTime().ShouldBe(new DateTime(2026, 9, 2));
     }
 
     [Fact]
@@ -172,7 +171,7 @@ public sealed class IncentiveExportApiTests : IClassFixture<BonviApiFactory>
     // ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Bitta xodim: 02.09 — pul mukofoti 1 500 000 (buyruq 45-b),
+    /// Bitta xodim: 02.09 — pul mukofoti 1 500 000,
     /// 10.09 — jarima 2,5 % (sabab bilan). HTTP orqali: domen qoidalari ishlaydi.
     /// </summary>
     private async Task<(EmployeeResponse Xodim, Guid RagbatId, Guid JarimaId)> UrugAsync()
@@ -196,8 +195,6 @@ public sealed class IncentiveExportApiTests : IClassFixture<BonviApiFactory>
                 typeId = ragbatTuri,
                 date = new DateOnly(2026, 9, 2),
                 amount = 1_500_000m,
-                orderNo = "45-b",
-                orderDate = new DateOnly(2026, 9, 2),
             },
             Ct);
         ragbat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(ragbat));

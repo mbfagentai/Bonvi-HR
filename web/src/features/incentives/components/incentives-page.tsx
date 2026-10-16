@@ -65,7 +65,7 @@ const route = getRouteApi('/_app/ragbat')
  * ⚠️ HAR BIR YOZUV ALOHIDA QATOR — bitta xodim ro'yxatda bir necha marta
  * ko'rinadi. Bu foydalanuvchi bilan kelishilgan: xodim bo'yicha yig'ma
  * ko'rinish («nechta rag'bat, nechta jarima») ATAYLAB qilinmadi, chunki
- * u «qachon, qaysi buyruq bilan» degan asosiy savolni yo'qotardi.
+ * u «qachon, kimga, nima» degan asosiy savolni yo'qotardi.
  *
  * Xodim kartasidagi «Rag'bat/Jarima» tabidan farqi: u yerda bitta odam
  * va yozuv qo'shish/tahrirlash bor, bu yerda esa hammasi aralash, faqat
@@ -291,36 +291,6 @@ export function IncentivesPage() {
           if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
 
           return <span className="tabular">{money(value.amount, value.currency)}</span>
-        },
-      }),
-
-      helper.display({
-        id: 'order',
-        header: t('incentives.columnOrder'),
-        // 140px, tor ekranda yashiriladi — buyruq ma'lumoti ikkilamchi
-        // (`employee-incentives-tab.tsx` dagi bilan bir xil hajm).
-        meta: { width: '140px', hideOnMobile: true },
-        cell: ({ row }) => {
-          const { orderNo, orderDate } = row.original
-
-          if (orderNo === null && orderDate === null) {
-            return <span className="text-[var(--fg-tertiary)]">—</span>
-          }
-
-          return (
-            <div className="min-w-0">
-              {orderNo !== null && (
-                <p className="truncate-1 text-subhead" title={orderNo}>
-                  {orderNo}
-                </p>
-              )}
-              {orderDate !== null && (
-                <p className="tabular text-caption1 text-[var(--fg-tertiary)]">
-                  {date(orderDate)}
-                </p>
-              )}
-            </div>
-          )
         },
       }),
     ],

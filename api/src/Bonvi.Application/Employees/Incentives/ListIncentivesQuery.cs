@@ -20,8 +20,8 @@ namespace Bonvi.Application.Employees.Incentives;
 /// <para>
 /// <b>Nega yig'ma emas.</b> «Xodim — nechta rag'bat, nechta jarima»
 /// ko'rinishi ham muhokama qilingan va RAD ETILGAN: u «kimda ko'p» degan
-/// savolga javob beradi, HR esa «avgustda nima bo'ldi, qaysi buyruq
-/// bilan» deb so'raydi. Har bir yozuv alohida qator bo'lgani sababli
+/// savolga javob beradi, HR esa «avgustda kimga nima berildi, nima
+/// uchun» deb so'raydi. Har bir yozuv alohida qator bo'lgani sababli
 /// bitta xodim ro'yxatda bir necha marta ko'rinadi — bu kutilgan holat.
 /// </para>
 /// </remarks>
@@ -190,9 +190,7 @@ public sealed class ListIncentivesQueryHandler
             row.TypeName,
             row.Date,
             Amount(row.AmountValue, row.AmountCurrency),
-            row.Percent,
-            row.OrderNo,
-            row.OrderDate);
+            row.Percent);
 
     /// <summary>Xom summani DTO'ga o'giradi.</summary>
     /// <remarks>

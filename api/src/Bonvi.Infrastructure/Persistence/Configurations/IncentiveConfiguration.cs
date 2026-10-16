@@ -44,11 +44,6 @@ public sealed class IncentiveConfiguration : IEntityTypeConfiguration<Incentive>
             table.HasCheckConstraint(
                 "ck_incentives_percent_range",
                 $"percent IS NULL OR (percent > 0 AND percent <= {Incentive.MaxPercent.ToString(System.Globalization.CultureInfo.InvariantCulture)})");
-
-            // Jarima uchun buyruq chiqarilmaydi (egasining qarori, 2026-10-16).
-            table.HasCheckConstraint(
-                "ck_incentives_penalty_no_order",
-                $"kind <> {(int)IncentiveKind.Penalty} OR (order_no IS NULL AND order_date IS NULL)");
         });
 
         builder.HasKey(incentive => incentive.Id);
@@ -69,9 +64,6 @@ public sealed class IncentiveConfiguration : IEntityTypeConfiguration<Incentive>
 
         builder.Property(incentive => incentive.Reason)
             .HasMaxLength(1000);
-
-        builder.Property(incentive => incentive.OrderNo)
-            .HasMaxLength(50);
 
         builder.MapMoney(incentive => incentive.Amount, "amount", "amount_currency");
 

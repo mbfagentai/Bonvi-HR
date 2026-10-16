@@ -16,10 +16,7 @@ public sealed record IncentiveDto(
     // Jarimada summa o'rniga foiz bo'lishi mumkin («4 %») — ikkalasi birga emas.
     decimal? Percent,
     string? GiftDescription,
-    string? Reason,
-    // Buyruq faqat rag'batda — jarima uchun buyruq chiqarilmaydi.
-    string? OrderNo,
-    DateOnly? OrderDate);
+    string? Reason);
 
 /// <summary>
 /// Umumiy ro'yxatning bitta qatori — yozuv va uning EGASI.
@@ -33,11 +30,12 @@ public sealed record IncentiveDto(
 /// </para>
 /// <para>
 /// <b>Nega sabab va sovg'a yo'q.</b> Jadval shakli foydalanuvchi bilan
-/// kelishilgan: sana · xodim · turi · summa · buyruq. Sabab — erkin va
+/// kelishilgan: sana · xodim · turi · miqdor (summa yoki foiz). Sabab — erkin va
 /// ba'zan uzun matn; u yozuvning tafsiloti va xodim kartasidagi tabda
 /// to'liq ko'rinadi. Uni bu yerga qo'shish qatorni ikki barobar
 /// balandlashtirib, ro'yxatning asosiy vazifasini — «qachon, kimga,
-/// qaysi buyruq bilan» ni tez ko'zdan kechirishni — buzardi.
+/// nima» ni tez ko'zdan kechirishni — buzardi. (Buyruq ustuni 2026-10-16
+/// da olib tashlandi — rag'bat va jarima buyruqsiz.)
 /// </para>
 /// <para>
 /// <b>Summa <c>salary.view</c> ga bog'liq EMAS.</b> Xodim kartasidagi tab
@@ -58,6 +56,4 @@ public sealed record IncentiveListItemDto(
     string? TypeName,
     DateOnly Date,
     MoneyDto? Amount,
-    decimal? Percent,
-    string? OrderNo,
-    DateOnly? OrderDate);
+    decimal? Percent);

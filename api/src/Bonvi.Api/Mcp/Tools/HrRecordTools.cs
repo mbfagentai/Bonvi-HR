@@ -31,7 +31,7 @@ public sealed class HrRecordTools(McpToolContext t)
         ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Rag'bat (mukofot) va jarimalar davr bo'yicha: tur, bo'lim yoki xodim filtri bilan. Har qatorda sana, "
         + "rag'bat/jarima, tur nomi, xodim va uning o'sha sanadagi bo'limi, summa yoki foiz (jarimada summa o'rniga foiz "
-        + "bo'lishi mumkin), sovg'a, sabab, buyruq raqami va sanasi (faqat rag'batda — jarimaga buyruq chiqarilmaydi). "
+        + "bo'lishi mumkin), sovg'a, sabab (rag'bat va jarima buyruqsiz rasmiylashtiriladi). "
         + "Tur va rag'bat/jarima bo'yicha jami soni va summasi ham beriladi (foizli jarimalar summaga qo'shilmaydi). "
         + "Awards and penalties in a period with totals per kind and type.")]
     public async Task<string> Incentives(
@@ -95,8 +95,6 @@ public sealed class HrRecordTools(McpToolContext t)
                 incentive.Percent,
                 incentive.GiftDescription,
                 incentive.Reason,
-                incentive.OrderNo,
-                incentive.OrderDate,
                 incentive.EmployeeId,
                 person.FullName,
             };
@@ -191,8 +189,6 @@ public sealed class HrRecordTools(McpToolContext t)
                         percent = row.Percent,
                         gift = row.GiftDescription,
                         reason = row.Reason,
-                        orderNo = row.OrderNo,
-                        orderDate = McpToolContext.Iso(row.OrderDate),
                     };
                 }),
             },

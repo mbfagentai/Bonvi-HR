@@ -33,9 +33,7 @@ public sealed record IncentiveListItemResponse(
     string? TypeName,
     DateOnly Date,
     IncentiveMoneyResponse? Amount,
-    decimal? Percent,
-    string? OrderNo,
-    DateOnly? OrderDate);
+    decimal? Percent);
 
 /// <summary>Sahifalangan rag'bat/jarima javobi (test uchun).</summary>
 public sealed record IncentiveListPageResponse(
@@ -112,7 +110,6 @@ public sealed class IncentiveListApiTests : IClassFixture<BonviApiFactory>
         sahifa.Items.ShouldAllBe(qator => !string.IsNullOrWhiteSpace(qator.TypeName));
 
         sahifa.Items[0].TypeName.ShouldBe(urug.TashakkurNomi);
-        sahifa.Items[0].OrderNo.ShouldBe(belgi + "-142");
         sahifa.Items[0].EmployeeId.ShouldBe(urug.AbduqodirovId);
     }
 
@@ -508,16 +505,14 @@ public sealed class IncentiveListApiTests : IClassFixture<BonviApiFactory>
             pulMukofoti.Id,
             new DateOnly(2026, 7, 2),
             typeHasAmount: true,
-            amount: Money.Create(1_500_000m).Value,
-            orderNo: belgi + "-101").Value;
+            amount: Money.Create(1_500_000m).Value).Value;
 
         var tashakkurnoma = Incentive.Grant(
             abduqodirov.Id,
             IncentiveKind.Award,
             tashakkur.Id,
             new DateOnly(2026, 8, 26),
-            typeHasAmount: false,
-            orderNo: belgi + "-142").Value;
+            typeHasAmount: false).Value;
 
         var jarima = Incentive.Grant(
             karimov.Id,

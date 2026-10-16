@@ -82,7 +82,7 @@ public sealed class IncentiveHandlerTests
         var natija = await Berish.HandleAsync(
             new GrantIncentiveCommand(
                 employee.Id, IncentiveKind.Award, turi.Id, EmployeeTestContext.Today,
-                Amount: 500_000m, OrderNo: "12-b"),
+                Amount: 500_000m),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
@@ -123,28 +123,9 @@ public sealed class IncentiveHandlerTests
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Percent.ShouldBe(4m);
         natija.Value.Amount.ShouldBeNull();
-        natija.Value.OrderNo.ShouldBeNull();
 
         _context.Incentives.Received(1).Add(Arg.Is<Incentive>(item => item.Percent == 4m));
         await _context.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Jarimaga_buyruq_bilan_berish_rad_etiladi_va_saqlanmaydi()
-    {
-        var employee = _context.ExistingEmployee();
-        var turi = _context.ExistingPenaltyType();
-
-        var natija = await Berish.HandleAsync(
-            new GrantIncentiveCommand(
-                employee.Id, IncentiveKind.Penalty, turi.Id, EmployeeTestContext.Today,
-                Reason: "Kechikish", OrderNo: "12-b", OrderDate: EmployeeTestContext.Today),
-            TestContext.Current.CancellationToken);
-
-        natija.IsFailure.ShouldBeTrue();
-        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
-        _context.Incentives.DidNotReceive().Add(Arg.Any<Incentive>());
-        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     // ────────────────────── Tuzatish ──────────────────────

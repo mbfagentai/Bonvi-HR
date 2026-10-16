@@ -337,9 +337,7 @@ public sealed class EmployeeMapper
             incentive.Amount is { } amount ? new MoneyDto(amount.Amount, amount.Currency, amount.Formatted) : null,
             incentive.Percent,
             incentive.GiftDescription,
-            incentive.Reason,
-            incentive.OrderNo,
-            incentive.OrderDate);
+            incentive.Reason);
     }
 
     public async Task<EmployeeDocumentDto> ToDtoAsync(

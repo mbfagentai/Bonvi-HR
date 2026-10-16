@@ -134,17 +134,6 @@ export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
           )
         },
       }),
-
-      helper.display({
-        id: 'order',
-        header: t('incentives.columnOrder'),
-        // 140px, tor ekranda yashiriladi — buyruq ma'lumoti ikkilamchi
-        // (`employments-page.tsx`dagi orderNo/orderDate bilan bir xil hajm).
-        meta: { width: '140px', hideOnMobile: true },
-        cell: ({ row }) => (
-          <OrderText no={row.original.orderNo} date={row.original.orderDate} />
-        ),
-      }),
     ]
 
     if (canManage) {
@@ -253,27 +242,6 @@ export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
 function DateText({ value }: { value: string }) {
   const { date } = useLocale()
   return <span className="tabular">{date(value)}</span>
-}
-
-function OrderText({ no, date }: { no: string | null; date: string | null }) {
-  const { date: formatDate } = useLocale()
-
-  if (no === null && date === null) {
-    return <span className="text-[var(--fg-tertiary)]">—</span>
-  }
-
-  return (
-    <span className="block min-w-0">
-      <span className="truncate-1 block text-subhead" title={no ?? undefined}>
-        {no ?? '—'}
-      </span>
-      {date !== null && (
-        <span className="tabular block text-caption2 text-[var(--fg-tertiary)]">
-          {formatDate(date)}
-        </span>
-      )}
-    </span>
-  )
 }
 
 /**

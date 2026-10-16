@@ -19,7 +19,7 @@ public enum IncentiveKind
 /// <remarks>
 /// <para>
 /// <b>Nega bitta agregat, ikkita emas.</b> Rag'bat va jarima bir xil
-/// shaklga ega: tur, sana, (ehtimol) summa, sabab, buyruq. Farq faqat
+/// shaklga ega: tur, sana, (ehtimol) summa, sabab. Farq faqat
 /// <see cref="Kind"/> da va qaysi ma'lumotnomadan (<c>AwardType</c> /
 /// <c>PenaltyType</c>) tur olinishida — xuddi <c>EmployeeFlag</c>ning
 /// to'rt turi bitta jadvalga yig'ilgani kabi.
@@ -37,11 +37,11 @@ public enum IncentiveKind
 /// mantiq.
 /// </para>
 /// <para>
-/// <b>Jarimada buyruq YO'Q.</b> Egasining qarori (2026-10-16): jarima uchun
-/// buyruq chiqarilmaydi — buyruq raqami va sanasi faqat rag'batda
-/// to'ldiriladi. Domen ham, baza ham (<c>ck_incentives_penalty_no_order</c>)
-/// jarimaga buyruq yozilishini rad etadi: ekranda yashirilgan maydon
-/// boshqa yo'l (eski klient, qo'lda SQL) bilan to'lib qolmasin.
+/// <b>Buyruq YO'Q.</b> Egasining qarori (2026-10-16): rag'bat ham, jarima
+/// ham buyruq bilan rasmiylashtirilmaydi — buyruq raqami va sanasi
+/// maydonlari olib tashlandi (bazadagi ustunlar ham, migratsiya
+/// <c>RagbatJarimaBuyruqsiz</c>). Ilgari ular Excel «91.14» dan kelgan,
+/// lekin prod'da birorta yozuvda to'ldirilmagan edi.
 /// </para>
 /// <para>
 /// <b>Jarima — summa YOKI foiz.</b> Pulli jarima qat'iy summa
@@ -112,12 +112,6 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Sabab. Jarima uchun MAJBURIY.</summary>
     public string? Reason { get; private set; }
 
-    /// <summary>Buyruq raqami — faqat rag'batda; jarima uchun buyruq chiqarilmaydi.</summary>
-    public string? OrderNo { get; private set; }
-
-    /// <summary>Buyruq sanasi — faqat rag'batda.</summary>
-    public DateOnly? OrderDate { get; private set; }
-
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -134,8 +128,6 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
         Money? amount = null,
         string? giftDescription = null,
         string? reason = null,
-        string? orderNo = null,
-        DateOnly? orderDate = null,
         decimal? percent = null)
     {
         if (typeId == Guid.Empty)
@@ -166,26 +158,17 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
             return amountCheck.Error;
         }
 
-        var trimmedOrderNo = Trim(orderNo);
-        var orderCheck = CheckOrder(kind, trimmedOrderNo, orderDate);
-        if (orderCheck.IsFailure)
-        {
-            return orderCheck.Error;
-        }
-
         return new Incentive(NewId(), employeeId, kind, typeId, date)
         {
             Amount = amount,
             Percent = percent,
             GiftDescription = trimmedGift,
             Reason = trimmedReason,
-            OrderNo = trimmedOrderNo,
-            OrderDate = orderDate,
         };
     }
 
     /// <summary>
-    /// Kiritish xatosini tuzatadi: tur, sana, summa yoki foiz, sovg'a, sabab, buyruq.
+    /// Kiritish xatosini tuzatadi: tur, sana, summa yoki foiz, sovg'a, sabab.
     /// </summary>
     /// <remarks>
     /// <see cref="Kind"/> va <see cref="EmployeeId"/> o'zgarmaydi — agar
@@ -200,8 +183,6 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
         Money? amount = null,
         string? giftDescription = null,
         string? reason = null,
-        string? orderNo = null,
-        DateOnly? orderDate = null,
         decimal? percent = null)
     {
         if (typeId == Guid.Empty)
@@ -229,21 +210,12 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
             return amountCheck.Error;
         }
 
-        var trimmedOrderNo = Trim(orderNo);
-        var orderCheck = CheckOrder(Kind, trimmedOrderNo, orderDate);
-        if (orderCheck.IsFailure)
-        {
-            return orderCheck.Error;
-        }
-
         TypeId = typeId;
         Date = date;
         Amount = amount;
         Percent = percent;
         GiftDescription = trimmedGift;
         Reason = trimmedReason;
-        OrderNo = trimmedOrderNo;
-        OrderDate = orderDate;
 
         return Result.Success();
     }
@@ -289,19 +261,6 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
             return Error.Validation(
                 "ragbat_jarima.summa_kerak_emas",
                 "Bu tur summasiz — summa yoki foiz kiritilmasligi kerak.");
-        }
-
-        return Result.Success();
-    }
-
-    /// <summary>Jarima uchun buyruq chiqarilmaydi — raqam ham, sana ham bo'lmaydi.</summary>
-    private static Result CheckOrder(IncentiveKind kind, string? orderNo, DateOnly? orderDate)
-    {
-        if (kind == IncentiveKind.Penalty && (orderNo is not null || orderDate is not null))
-        {
-            return Error.Validation(
-                "ragbat_jarima.buyruq_jarimada",
-                "Jarima uchun buyruq chiqarilmaydi — buyruq raqami va sanasi kiritilmaydi.");
         }
 
         return Result.Success();

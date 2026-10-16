@@ -21,9 +21,7 @@ public sealed record IncentiveResponse(
     IncentiveMoneyResponse? Amount,
     decimal? Percent,
     string? GiftDescription,
-    string? Reason,
-    string? OrderNo,
-    DateOnly? OrderDate);
+    string? Reason);
 
 /// <summary>
 /// Rag'bat va jarima — uchi-uchiga: berish, ro'yxat, tuzatish, o'chirish.
@@ -57,7 +55,6 @@ public sealed class IncentiveApiTests : IClassFixture<BonviApiFactory>
                 typeId = turi.Id,
                 date = new DateOnly(2026, 3, 1),
                 amount = 500_000m,
-                orderNo = "12-b",
             },
             bekorQilish);
 
@@ -111,7 +108,6 @@ public sealed class IncentiveApiTests : IClassFixture<BonviApiFactory>
         var natija = await berish.Content.ReadFromJsonAsync<IncentiveResponse>(bekorQilish);
         natija!.Percent.ShouldBe(2.5m);
         natija.Amount.ShouldBeNull();
-        natija.OrderNo.ShouldBeNull();
 
         // Xodim kartasidagi tab.
         using var tab = await mijoz.GetAsync(
@@ -172,30 +168,38 @@ public sealed class IncentiveApiTests : IClassFixture<BonviApiFactory>
         qator.Percent.ShouldBeNull();
     }
 
+    /// <summary>
+    /// Buyruq maydoni umuman yo'q (egasi, 2026-10-16): eski brauzer oynasi uni yuborsa ham
+    /// yozuv saqlanadi, buyruq esa hech qayerda — javobda ham, ro'yxatda ham — paydo bo'lmaydi.
+    /// </summary>
     [Fact]
-    public async Task Jarimaga_buyruq_bilan_berish_400_qaytaradi()
+    public async Task Eski_klient_buyruq_yuborsa_etiborsiz_qoladi_javobda_buyruq_yoq()
     {
         var bekorQilish = TestContext.Current.CancellationToken;
         using var mijoz = await AdminMijozAsync();
 
         var xodim = await XodimYaratAsync(mijoz);
-        var turi = await TurYaratAsync(hasAmount: false, kind: IncentiveKindSeed.Penalty);
+        var turi = await TurYaratAsync(hasAmount: false);
 
         using var javob = await mijoz.PostAsJsonAsync(
             new Uri($"/api/employees/{xodim.Id}/incentives", UriKind.Relative),
             new
             {
-                kind = "Penalty",
+                kind = "Award",
                 typeId = turi.Id,
                 date = new DateOnly(2026, 3, 1),
-                reason = "Kechikish",
                 orderNo = "45-b",
                 orderDate = new DateOnly(2026, 3, 1),
             },
             bekorQilish);
 
-        javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(javob));
-        (await MatnAsync(javob)).ShouldContain("ragbat_jarima.buyruq_jarimada");
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        (await MatnAsync(javob)).ShouldNotContain("order", Case.Insensitive);
+
+        using var royxat = await mijoz.GetAsync(
+            new Uri($"/api/incentives?search={Uri.EscapeDataString(xodim.FullName)}", UriKind.Relative), bekorQilish);
+        royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
+        (await MatnAsync(royxat)).ShouldNotContain("orderNo", Case.Insensitive);
     }
 
     [Fact]

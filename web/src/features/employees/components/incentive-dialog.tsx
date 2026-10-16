@@ -51,11 +51,12 @@ function orNull(value: string): string | null {
  * (`ragbat_jarima.sovga_jarimada`). Jarimada sabab MAJBURIY
  * (`ragbat_jarima.sabab_bosh`).
  *
- * <b>Jarima — summa YOKI foiz, buyruqsiz</b> (egasi, 2026-10-16). Pulli
- * jarima turida «Summa | Foiz» tanlovi chiqadi: «300 000 so'm» yoki «4 %»,
- * ikkalasi birga emas (`ragbat_jarima.summa_va_foiz`). Jarima uchun buyruq
- * chiqarilmaydi — buyruq raqami va sanasi maydonlari faqat rag'batda
- * (`ragbat_jarima.buyruq_jarimada`).
+ * <b>Jarima — summa YOKI foiz</b> (egasi, 2026-10-16). Pulli jarima
+ * turida «Summa | Foiz» tanlovi chiqadi: «300 000 so'm» yoki «4 %»,
+ * ikkalasi birga emas (`ragbat_jarima.summa_va_foiz`).
+ *
+ * <b>Buyruq yo'q.</b> Rag'bat ham, jarima ham buyruqsiz rasmiylashtiriladi
+ * (egasi, 2026-10-16) — buyruq raqami va sanasi maydonlari olib tashlangan.
  */
 export function IncentiveDialog({
   employeeId,
@@ -84,8 +85,6 @@ export function IncentiveDialog({
   const [percent, setPercent] = useState('')
   const [giftDescription, setGiftDescription] = useState('')
   const [reason, setReason] = useState('')
-  const [orderNo, setOrderNo] = useState('')
-  const [orderDate, setOrderDate] = useState('')
 
   const types = useIncentiveTypes(kind)
   const create = useCreateIncentive(employeeId)
@@ -104,8 +103,6 @@ export function IncentiveDialog({
       setPercent(item.percent === null ? '' : String(item.percent))
       setGiftDescription(item.giftDescription ?? '')
       setReason(item.reason ?? '')
-      setOrderNo(item.orderNo ?? '')
-      setOrderDate(item.orderDate ?? '')
     } else {
       setKind('award')
       setTypeId('')
@@ -115,8 +112,6 @@ export function IncentiveDialog({
       setPercent('')
       setGiftDescription('')
       setReason('')
-      setOrderNo('')
-      setOrderDate('')
     }
 
     create.reset()
@@ -135,8 +130,6 @@ export function IncentiveDialog({
 
   // Rag'bat/jarima YARATISHDA gina almashtiriladi — tur ro'yxati boshqa
   // ma'lumotnomadan (award-types ⇄ penalty-types), eskisi endi ma'nosiz.
-  // Jarimaga o'tilganda buyruq maydonlari ham tozalanadi: ular
-  // yashiriladi va eski qiymat jimgina yuborilib qolmasligi kerak.
   const handleKindChange = (next: IncentiveKindValue) => {
     setKind(next)
     setTypeId('')
@@ -144,8 +137,6 @@ export function IncentiveDialog({
     setPenaltyUnit('amount')
     setPercent('')
     setGiftDescription('')
-    setOrderNo('')
-    setOrderDate('')
   }
 
   // Tur o'zgarganda: yangi tur summasiz bo'lsa, eski summa jimgina
@@ -197,9 +188,6 @@ export function IncentiveDialog({
       percent: usesPercent ? percentValue : null,
       giftDescription: kind === 'award' ? orNull(giftDescription) : null,
       reason: orNull(reason),
-      // Jarima uchun buyruq chiqarilmaydi — server ham rad etadi.
-      orderNo: isPenalty ? null : orNull(orderNo),
-      orderDate: isPenalty || orderDate === '' ? null : orderDate,
     }
 
     if (isEdit && item !== null) {
@@ -340,22 +328,6 @@ export function IncentiveDialog({
           value={reason}
           onChange={(event) => setReason(event.target.value)}
         />
-
-        {/* Buyruq — faqat rag'batda: jarima uchun buyruq chiqarilmaydi. */}
-        {!isPenalty && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label={t('employee.orderNo')}
-              value={orderNo}
-              onChange={(event) => setOrderNo(event.target.value)}
-            />
-            <DateField
-              label={t('employee.orderDate')}
-              value={orderDate}
-              onChange={setOrderDate}
-            />
-          </div>
-        )}
       </div>
     </Dialog>
   )
