@@ -1849,7 +1849,8 @@
       "Login": "Тизимга кириш",
       "Logout": "Тизимдан чиқиш",
       "RefreshSession": "Сессияни янгилаш",
-      "ExportEmployeesToExcel": "Ходимларни Excelга юклаш"
+      "ExportEmployeesToExcel": "Ходимларни Excelга юклаш",
+      "ExportIncentivesToExcel": "Рағбат ва жаримани Excelга юклаш"
     }
   },
   "reports": {

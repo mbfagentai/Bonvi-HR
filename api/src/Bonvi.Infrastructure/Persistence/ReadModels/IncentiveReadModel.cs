@@ -213,7 +213,9 @@ public sealed class IncentiveReadModel : IIncentiveReadModel
                 row.Incentive.Amount?.Currency,
                 row.Incentive.Percent,
                 row.Incentive.OrderNo,
-                row.Incentive.OrderDate)),
+                row.Incentive.OrderDate,
+                row.Incentive.Reason,
+                row.Incentive.GiftDescription)),
         ];
 
         return new IncentiveListPage(items, total);

@@ -71,19 +71,7 @@ public sealed class ListIncentivesQueryHandler
             1,
             SearchEmployeesQueryHandler.MaxPageSize);
 
-        var (sort, descending) = ParseSort(query.Sort);
-
-        var filter = new IncentiveListFilter(
-            Normalize(query.Search),
-            query.Kind,
-            query.From,
-            query.To,
-            query.DepartmentId,
-            query.LegalEntityId,
-            page,
-            pageSize,
-            sort,
-            descending);
+        var filter = BuildFilter(query, page, pageSize);
 
         var found = await _readModel
             .ListIncentivesAsync(filter, cancellationToken)
@@ -99,6 +87,35 @@ public sealed class ListIncentivesQueryHandler
             pageSize,
             found.Total,
             pageCount));
+    }
+
+    /// <summary>
+    /// So'rovdan o'qish modeli filtrini quradi — ro'yxat va Excel eksporti
+    /// UCHUN BITTA yo'l.
+    /// </summary>
+    /// <remarks>
+    /// Eksport (<c>ExportIncentivesQueryHandler</c>) aynan shu metodni
+    /// chaqiradi, faqat sahifasi boshqa: «ekrandagi bilan bir xil qatorlar»
+    /// kafolati shu — yangi filtr shu yerga qo'shilsa, ikkalasiga birga
+    /// qo'shiladi (<c>SearchEmployeesQueryHandler.BuildFilter</c> dagi naqsh).
+    /// </remarks>
+    public static IncentiveListFilter BuildFilter(ListIncentivesQuery query, int page, int pageSize)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var (sort, descending) = ParseSort(query.Sort);
+
+        return new IncentiveListFilter(
+            Normalize(query.Search),
+            query.Kind,
+            query.From,
+            query.To,
+            query.DepartmentId,
+            query.LegalEntityId,
+            page,
+            pageSize,
+            sort,
+            descending);
     }
 
     /// <summary>

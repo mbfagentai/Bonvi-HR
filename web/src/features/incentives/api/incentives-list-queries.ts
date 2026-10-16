@@ -1,6 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
-import { fetchIncentiveList, type IncentiveListFilters } from './incentives-list-api'
+import { saveBlobAs } from '@/shared/lib/download'
+
+import {
+  exportIncentives,
+  fetchIncentiveList,
+  type IncentiveExportFilters,
+  type IncentiveListFilters,
+} from './incentives-list-api'
 
 /*
  * Bo'lim va yuridik shaxs ro'yxatlari filtr paneli uchun kerak, lekin
@@ -43,5 +50,20 @@ export function useIncentiveList(filters: IncentiveListFilters) {
      * xuddi shunday.
      */
     placeholderData: (previous) => previous,
+  })
+}
+
+/**
+ * «Excelga yuklash» — ekrandagi filtr va saralash bilan.
+ *
+ * `useExportEmployees` bilan bir xil: mutatsiya shaklida (tugma bosilganda,
+ * avtomatik takrorlanmaydi), `readOnly` — fayl yuklangani uchun ekran
+ * keshini bekor qilishning ma'nosi yo'q.
+ */
+export function useExportIncentives() {
+  return useMutation({
+    mutationFn: (filters: IncentiveExportFilters) => exportIncentives(filters),
+    onSuccess: ({ blob, fileName }) => saveBlobAs(blob, fileName),
+    meta: { readOnly: true },
   })
 }

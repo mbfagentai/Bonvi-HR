@@ -28,8 +28,10 @@ import {
   type IncentiveKindValue,
   type IncentiveMoney,
 } from '@/features/employees/api/incentives-api'
-import type { PagedResult } from '@/features/employees/api/employees-api'
+import { revealProblemDetails, type PagedResult } from '@/features/employees/api/employees-api'
 import { api } from '@/shared/api/http-client'
+import { fileNameFromDisposition } from '@/shared/lib/download'
+import { todayIso } from '@/shared/lib/today'
 
 /**
  * Umumiy ro'yxatning bitta qatori — yozuv va uning EGASI.
@@ -89,11 +91,57 @@ export async function fetchIncentiveList(
   return readPage(data, toItem, filters.page, filters.pageSize)
 }
 
-function listParams(filters: IncentiveListFilters): Record<string, unknown> {
-  const params: Record<string, unknown> = {
-    page: filters.page,
-    pageSize: filters.pageSize,
+/**
+ * Excel eksportining filtrlari — ro'yxatniki bilan AYNAN bir xil, faqat
+ * sahifasiz: fayl mos yozuvlarning hammasini oladi.
+ */
+export type IncentiveExportFilters = Omit<IncentiveListFilters, 'page' | 'pageSize'>
+
+/** Eksport javobi: baytlar va ular qanday nom bilan saqlanishi. */
+export interface IncentiveExportFile {
+  blob: Blob
+  fileName: string
+}
+
+/**
+ * «Rag'bat va jarima» — ekrandagi filtr va saralash bilan Excel fayl.
+ *
+ * Parametrlar ro'yxat so'rovi bilan BITTA funksiyadan (`filterParams`)
+ * yig'iladi: yangi filtr qo'shilsa, u ikkalasiga birga tushadi va «ekranda
+ * boshqa, faylda boshqa» holati kelib chiqmaydi (`exportEmployees` naqshi).
+ */
+export async function exportIncentives(
+  filters: IncentiveExportFilters,
+  signal?: AbortSignal,
+): Promise<IncentiveExportFile> {
+  try {
+    const response = await api.get<Blob>('/api/incentives/export', {
+      params: filterParams(filters),
+      responseType: 'blob',
+      signal,
+    })
+
+    const disposition = response.headers['content-disposition']
+
+    return {
+      blob: response.data,
+      fileName:
+        fileNameFromDisposition(typeof disposition === 'string' ? disposition : null) ??
+        `Bonvi_ragbat_jarima_${todayIso()}.xlsx`,
+    }
+  } catch (error) {
+    // Xato tanasi ham Blob bo'lib keladi — «eksport.juda_kop» kodi o'qilsin.
+    await revealProblemDetails(error)
+    throw error
   }
+}
+
+function listParams(filters: IncentiveListFilters): Record<string, unknown> {
+  return { page: filters.page, pageSize: filters.pageSize, ...filterParams(filters) }
+}
+
+function filterParams(filters: IncentiveExportFilters): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
 
   if (filters.search) params['search'] = filters.search
   if (filters.from) params['from'] = filters.from

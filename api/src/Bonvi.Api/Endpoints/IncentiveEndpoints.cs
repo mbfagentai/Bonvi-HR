@@ -1,6 +1,7 @@
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Incentives;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
 
@@ -269,5 +270,59 @@ public static class IncentiveEndpoints
             .Produces<PagedResult<IncentiveListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/export", async (
+                string? search,
+                IncentiveKind? kind,
+                DateOnly? from,
+                DateOnly? to,
+                Guid? departmentId,
+                Guid? legalEntityId,
+                string? sort,
+                ExportIncentivesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/incentives» bilan AYNAN bir xil (sahifadan
+                // tashqari): eksport ekrandagi filtrlar bilan mos keladigan
+                // HAMMA yozuvni bitta faylda beradi.
+                var natija = await handler
+                    .HandleAsync(
+                        new ListIncentivesQuery(
+                            search,
+                            kind,
+                            from,
+                            to,
+                            departmentId,
+                            legalEntityId,
+                            Page: null,
+                            PageSize: null,
+                            sort),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(
+                        natija.Value.Content,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ma'lumotni ko'rish (`incentives.view`) va
+            // tizimdan fayl olib chiqish (`reports.export`) — davomat eksporti bilan bir xil.
+            .RequireAuthorization(Permissions.IncentivesView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportIncentivesToExcel")
+            .WithSummary("Rag'bat va jarima — Excel eksport")
+            .WithDescription(
+                "Filtr va saralash parametrlari «GET /api/incentives» bilan AYNAN bir xil — eksport " +
+                "ekranda ko'ringan yozuvlarni, o'sha tartibda, sahifasiz (hammasini bitta faylda) " +
+                "qaytaradi. Ustunlar: sana, F.I.O., rag'bat/jarima, tur, summa va valyuta, foiz, " +
+                "sabab, sovg'a, buyruq raqami va sanasi. Eng ko'pi 5000 qator: kattaroq natija " +
+                "«eksport.juda_kop» (400) bilan rad etiladi. Ruxsat: «incentives.view» VA " +
+                "«reports.export». Har bir eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
     }
 }

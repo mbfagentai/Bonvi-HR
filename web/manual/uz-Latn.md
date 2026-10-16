@@ -855,6 +855,14 @@ sanagacha. Bir sahifada 50 ta yozuv.
 
 Qatorga bossangiz **yozuv emas, egasining kartasi** ochiladi.
 
+**Excelga yuklash** — «Filtrlar» yonidagi tugma. Fayl ekrandagi **aynan
+shu** filtr va tartib bilan, lekin sahifasiz — mos yozuvlarning hammasi
+bitta faylda. Ustunlar: sana, F.I.O., rag‘bat/jarima, tur, summa va valyuta,
+foiz, sabab, sovg‘a, buyruq raqami va sanasi. Summa va foiz Excel’da haqiqiy
+son bo‘lib yoziladi — ularni Excel’ning o‘zida jamlash mumkin. Tugma
+**«Rag‘bat va jarima»ni ko‘rish** va **eksport** ruxsati birga bo‘lganda
+chiqadi; bitta faylda ko‘pi bilan 5000 yozuv.
+
 ## Yozuv qo‘shish
 
 Xodim kartasi » **«Rag‘bat va jarima»** yorlig‘i » **«Yangi yozuv»**.

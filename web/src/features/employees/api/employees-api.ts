@@ -1120,7 +1120,7 @@ function exportFileName(): string {
  * keyin butun mavjud xato zanjiri (`employeeErrorCode` → `useErrorMessage`)
  * hech qanday o'zgarishsiz ishlaydi.
  */
-async function revealProblemDetails(error: unknown): Promise<void> {
+export async function revealProblemDetails(error: unknown): Promise<void> {
   if (!axios.isAxiosError(error)) return
 
   const response = error.response

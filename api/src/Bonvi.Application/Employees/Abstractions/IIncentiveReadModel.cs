@@ -146,4 +146,9 @@ public sealed record IncentiveListRow(
     string? AmountCurrency,
     decimal? Percent,
     string? OrderNo,
-    DateOnly? OrderDate);
+    DateOnly? OrderDate,
+    // Sabab va sovg'a ekrandagi ro'yxatga CHIQMAYDI (`IncentiveListItemDto`
+    // izohi), lekin Excel eksportida kerak — yozuvning o'zidan, qo'shimcha
+    // so'rovsiz keladi.
+    string? Reason,
+    string? GiftDescription);

@@ -61,6 +61,7 @@ public static class DependencyInjection
         // Hisobotlar
         services.AddScoped<GetTurnoverQueryHandler>();
         services.AddScoped<ExportEmployeesQueryHandler>();
+        services.AddScoped<ExportIncentivesQueryHandler>();
 
         // Kvadrat surat quvuri — xodim rasmi ham, hisob rasmi ham shundan o'tadi.
         // Umumiy `Common` da, chunki u bironta bo'limga tegishli emas.

@@ -84,6 +84,7 @@ public static class DependencyInjection
         // Excel eksporti — holatsiz (bitta chaqiruv, bitta fayl), shu
         // sababli bitta nusxa yetarli (xuddi `IImageProcessor` kabi).
         services.AddSingleton<IEmployeeExcelWriter, EmployeeExcelWriter>();
+        services.AddSingleton<IIncentiveExcelWriter, IncentiveExcelWriter>();
 
         return services;
     }

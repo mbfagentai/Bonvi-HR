@@ -1849,7 +1849,8 @@
       "Login": "Вход в систему",
       "Logout": "Выход из системы",
       "RefreshSession": "Обновление сессии",
-      "ExportEmployeesToExcel": "Выгрузка сотрудников в Excel"
+      "ExportEmployeesToExcel": "Выгрузка сотрудников в Excel",
+      "ExportIncentivesToExcel": "Выгрузка поощрений и взысканий в Excel"
     }
   },
   "reports": {

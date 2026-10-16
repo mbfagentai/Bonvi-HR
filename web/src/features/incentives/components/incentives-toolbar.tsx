@@ -1,4 +1,4 @@
-import { ListFilter, Search, X } from 'lucide-react'
+import { FileSpreadsheet, ListFilter, LoaderCircle, Search, X } from 'lucide-react'
 import { useState } from 'react'
 
 import type { FilterOptions } from '@/features/employees/api/employees-queries'
@@ -38,10 +38,19 @@ export function IncentivesToolbar({
   filters,
   onChange,
   options,
+  onExport,
+  exporting = false,
 }: {
   filters: IncentivesFilterState
   onChange: (next: IncentivesFilterState) => void
   options: FilterOptions
+  /**
+   * «Excelga yuklash». `undefined` — tugma umuman chizilmaydi (ruxsat yo'q).
+   * So'rov sahifada: eksport saralashni ham oladi, u esa manzilda yashaydi
+   * (`EmployeesToolbar` dagi izoh).
+   */
+  onExport?: () => void
+  exporting?: boolean
 }) {
   const { t } = useLocale()
 
@@ -124,6 +133,25 @@ export function IncentivesToolbar({
             </span>
           )}
         </Button>
+
+        {/* Eksport — «Filtrlar» yonida: fayl aynan shu filtrlarga tushadi
+            (xodimlar ro'yxatidagi bilan bir xil joy). */}
+        {onExport !== undefined && (
+          <Button
+            type="button"
+            pill
+            onClick={onExport}
+            // Ikki marta bosilsa ikkita fayl va tezlik cheklovi bekorga yeyiladi
+            disabled={exporting}
+            title={t('common.export')}
+            aria-label={t('common.export')}
+          >
+            {exporting ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
+            <span className="hidden lg:inline">
+              {exporting ? t('employees.exporting') : t('common.export')}
+            </span>
+          </Button>
+        )}
       </div>
 
       {open && (

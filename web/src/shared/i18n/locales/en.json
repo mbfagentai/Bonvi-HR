@@ -1849,7 +1849,8 @@
       "Login": "Sign-in",
       "Logout": "Sign-out",
       "RefreshSession": "Session refresh",
-      "ExportEmployeesToExcel": "Employees exported to Excel"
+      "ExportEmployeesToExcel": "Employees exported to Excel",
+      "ExportIncentivesToExcel": "Awards and penalties exported to Excel"
     }
   },
   "reports": {

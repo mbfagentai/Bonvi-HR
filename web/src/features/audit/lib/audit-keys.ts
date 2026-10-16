@@ -557,6 +557,7 @@ export const AUDIT_OPERATION_NAMES = [
   'Logout',
   'RefreshSession',
   'ExportEmployeesToExcel',
+  'ExportIncentivesToExcel',
 ] as const
 
 /* ──────────────────────────────────────────────── hodisa tafsilotlari */

@@ -5,10 +5,16 @@ import { useCallback, useMemo } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
-import { INCENTIVES_VIEW, INCENTIVE_KIND_LOOK } from '@/features/employees/lib/employee-presentation'
-import { useLocale } from '@/shared/i18n/use-locale'
+import { employeeErrorCode, isRateLimited } from '@/features/employees/lib/employee-error'
+import {
+  INCENTIVES_VIEW,
+  INCENTIVE_KIND_LOOK,
+  REPORTS_EXPORT,
+} from '@/features/employees/lib/employee-presentation'
+import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
+  Alert,
   Badge,
   Card,
   DataTable,
@@ -20,7 +26,11 @@ import {
   type DataColumn,
 } from '@/shared/ui'
 import type { IncentiveListItem } from '../api/incentives-list-api'
-import { useFilterOptions, useIncentiveList } from '../api/incentives-list-queries'
+import {
+  useExportIncentives,
+  useFilterOptions,
+  useIncentiveList,
+} from '../api/incentives-list-queries'
 import {
   DEFAULT_SORT,
   filtersToSearch,
@@ -63,8 +73,12 @@ const route = getRouteApi('/_app/ragbat')
  */
 export function IncentivesPage() {
   const { t, num, date, money, percent } = useLocale()
+  const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
   const canView = hasPermission(INCENTIVES_VIEW)
+  // Server ikkalasini talab qiladi: ko'rish VA fayl olib chiqish.
+  const canExport = canView && hasPermission(REPORTS_EXPORT)
+  const exportList = useExportIncentives()
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -356,7 +370,39 @@ export function IncentivesPage() {
       />
 
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
-        <IncentivesToolbar filters={filters} onChange={changeFilters} options={options} />
+        <IncentivesToolbar
+          filters={filters}
+          onChange={changeFilters}
+          options={options}
+          onExport={
+            canExport
+              ? () =>
+                  // Ekrandagi AYNAN shu filtr va saralash — sahifasiz.
+                  exportList.mutate({
+                    search: filters.search,
+                    kind: filters.kind === '' ? undefined : filters.kind,
+                    from: filters.from === '' ? undefined : filters.from,
+                    to: filters.to === '' ? undefined : filters.to,
+                    departmentId: filters.departmentId === '' ? undefined : filters.departmentId,
+                    legalEntityId: filters.legalEntityId === '' ? undefined : filters.legalEntityId,
+                    sort: sortParam,
+                  })
+              : undefined
+          }
+          exporting={exportList.isPending}
+        />
+
+        {/* Eksport xatosi tugmaning ostida (xodimlar ro'yxatidagi kabi); 429 —
+            alohida: yechimi kutish, filtrni o'zgartirish emas. */}
+        {exportList.isError && (
+          <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+            <Alert tone="danger" title={t('employees.exportFailed')}>
+              {isRateLimited(exportList.error)
+                ? t('employees.exportTooOften')
+                : errorMessage(employeeErrorCode(exportList.error))}
+            </Alert>
+          </div>
+        )}
 
         <DataTable
           fill
