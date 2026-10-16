@@ -3,6 +3,26 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `455a1a2` — global qidiruv + sahifa hajmi + nomzod qidiruvi rad etilganlardan — 2026-10-16 10:15 (Toshkent)
+
+Prod `27b8301` → `455a1a2` (`f572e07` + `bd03cdc` + `455a1a2`). Rollback: image tegi `rollback-27b8301`
+(api, web, bot — bot tegi aynan ishlab turgan image'ga qayta qo'yildi, `latest` dan farq qilardi), zaxira stamp
+`2026-10-16_050059`. Migratsiya YO'Q (oxirgisi `20261014063834_IsmQidiruvKaliti`), sanoqlar o'zgarmadi
+(xodim 2030, nomzod 5130, vakansiya 39). HR oxirgi amali 09:11, 09:30 dan beri tizimda yo'q edi (egasi sharti).
+Deploy 10:01–10:15; API 10:10 da ~35 s uzildi — ochiq (yashirin) ikki HR oynasida faqat SSE 502 → token
+yangilandi, foydalanuvchi amali bo'lmagan. Bot qayta yaratildi (suhbatlar Redis'da), API ko'tarilguncha bir
+martalik `BonviClient[3102]` «Connection refused» — zararsiz. `/api/search` kirishsiz → 401.
+
+* Yuqori paneldagi qidiruv barcha bo'limlardan (xodimlar, nomzodlar, vakansiyalar) — `GET /api/search`,
+  `employees.view` YOKI `recruiting.view`.
+* Ro'yxatlarda «20 / 50 / 100 / Barchasi», qatorlar ro'yxat ichida aylanadi; server chegarasi 200 → 10 000.
+* «Nomzodlar» qidiruvi rad etilgan va o'zi voz kechganlarni ham topadi (`includeRejected=true`).
+
+⚠️ Lokal `./bonvi test` da integratsiya testlari 137 bilan o'ldi — Docker VM'da global OOM (boshqa loyiha testlari
+bir vaqtda ishlagan, `dmesg`: `Killed process … Bonvi.Api.Integ`). Alohida qayta yurgizildi: 993/993 o'tdi.
+
+**Orqaga qaytarish:** `docker tag bonvi-hr-prod-{api,web,bot}:rollback-27b8301 …:latest` + `up -d`. Baza o'zgarmagan.
+
 ## ✅ Reliz `27b8301` — sinov natijasi xodim holatiga o'tadi + 49 yozuv tuzatildi — 2026-10-14 17:30 (Toshkent)
 
 Prod `ef3b333` → `27b8301`. Rollback: image tegi `rollback-ef3b333` (api, bot, web), zaxira stamp
