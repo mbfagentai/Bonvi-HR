@@ -211,6 +211,7 @@ public sealed class IncentiveReadModel : IIncentiveReadModel
                 row.Incentive.Date,
                 row.Incentive.Amount?.Amount,
                 row.Incentive.Amount?.Currency,
+                row.Incentive.Percent,
                 row.Incentive.OrderNo,
                 row.Incentive.OrderDate)),
         ];

@@ -50,10 +50,16 @@ export interface Incentive {
   date: string
   /** Faqat tur pul bilan bog'liq bo'lsa (`hasAmount`) to'ldirilgan bo'ladi. */
   amount: IncentiveMoney | null
+  /**
+   * Foiz («4» → «4 %») — faqat pulli JARIMADA, `amount` o'rniga: ikkalasi
+   * hech qachon birga to'lmaydi (server cheklovi).
+   */
+  percent: number | null
   /** Faqat rag'bat uchun ma'noli — jarimada bo'lmaydi. */
   giftDescription: string | null
   /** Jarima uchun MAJBURIY. */
   reason: string | null
+  /** Buyruq faqat rag'batda — jarima uchun buyruq chiqarilmaydi. */
   orderNo: string | null
   orderDate: string | null
 }
@@ -64,8 +70,11 @@ export interface GrantIncentiveRequest {
   typeId: string
   date: string
   amount: number | null
+  /** Faqat jarimada, `amount` o'rniga. */
+  percent: number | null
   giftDescription: string | null
   reason: string | null
+  /** Faqat rag'batda — jarimada server `buyruq_jarimada` bilan rad etadi. */
   orderNo: string | null
   orderDate: string | null
 }
@@ -79,6 +88,7 @@ export interface UpdateIncentiveRequest {
   typeId: string
   date: string
   amount: number | null
+  percent: number | null
   giftDescription: string | null
   reason: string | null
   orderNo: string | null
@@ -126,6 +136,12 @@ function money(value: unknown): IncentiveMoney | null {
   return { amount, currency: text(box['currency']) ?? 'UZS' }
 }
 
+/** Foiz — `decimal`, JSON'da son yoki (ba'zi sozlamalarda) satr. */
+export function percentValue(value: unknown): number | null {
+  const number = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : null
+  return number !== null && Number.isFinite(number) ? number : null
+}
+
 function toIncentive(raw: unknown): Incentive {
   const box = (raw ?? {}) as Record<string, unknown>
 
@@ -137,6 +153,7 @@ function toIncentive(raw: unknown): Incentive {
     typeName: text(box['typeName']),
     date: text(box['date']) ?? '',
     amount: money(box['amount']),
+    percent: percentValue(box['percent']),
     giftDescription: text(box['giftDescription']),
     reason: text(box['reason']),
     orderNo: text(box['orderNo']),

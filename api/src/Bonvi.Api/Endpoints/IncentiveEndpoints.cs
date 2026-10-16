@@ -13,8 +13,9 @@ namespace Bonvi.Api.Endpoints;
 /// <param name="Amount">Summa — faqat tur pul bilan bog'liq bo'lsa.</param>
 /// <param name="GiftDescription">Sovg'a tavsifi (faqat rag'bat uchun).</param>
 /// <param name="Reason">Sabab. Jarima uchun MAJBURIY.</param>
-/// <param name="OrderNo">Buyruq raqami.</param>
-/// <param name="OrderDate">Buyruq sanasi.</param>
+/// <param name="OrderNo">Buyruq raqami — faqat rag'bat uchun.</param>
+/// <param name="OrderDate">Buyruq sanasi — faqat rag'bat uchun.</param>
+/// <param name="Percent">Foiz (0–100, ikki kasr xonagacha) — faqat pulli jarimada, summa o'rniga.</param>
 public sealed record GrantIncentiveRequest(
     IncentiveKind Kind,
     Guid TypeId,
@@ -23,7 +24,8 @@ public sealed record GrantIncentiveRequest(
     string? GiftDescription = null,
     string? Reason = null,
     string? OrderNo = null,
-    DateOnly? OrderDate = null);
+    DateOnly? OrderDate = null,
+    decimal? Percent = null);
 
 /// <summary>Rag'bat/jarima yozuvini tuzatish so'rovi tanasi — <c>Kind</c> o'zgarmaydi.</summary>
 public sealed record UpdateIncentiveRequest(
@@ -33,7 +35,8 @@ public sealed record UpdateIncentiveRequest(
     string? GiftDescription = null,
     string? Reason = null,
     string? OrderNo = null,
-    DateOnly? OrderDate = null);
+    DateOnly? OrderDate = null,
+    decimal? Percent = null);
 
 /// <summary>
 /// Rag'bat va jarima endpoint'lari (M8).
@@ -91,7 +94,8 @@ public static class IncentiveEndpoints
                             request.GiftDescription,
                             request.Reason,
                             request.OrderNo,
-                            request.OrderDate),
+                            request.OrderDate,
+                            request.Percent),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -103,7 +107,12 @@ public static class IncentiveEndpoints
             .WithDescription(
                 "Jarima sababsiz berilmaydi: «ragbat_jarima.sabab_bosh» (400). Tanlangan turning " +
                 "«hasAmount» belgisiga qarab summa MAJBURIY yoki MUMKIN EMAS: " +
-                "«ragbat_jarima.summa_kerak» / «ragbat_jarima.summa_kerak_emas» (400).")
+                "«ragbat_jarima.summa_kerak» / «ragbat_jarima.summa_kerak_emas» (400). " +
+                "Jarimada summa o'rniga «percent» (0 dan katta, ko'pi bilan 100, ikki kasr xona) " +
+                "berilishi mumkin — ikkalasi birga emas: «ragbat_jarima.summa_va_foiz», " +
+                "«ragbat_jarima.foiz_oraligi», rag'batda foiz — «ragbat_jarima.foiz_ragbatda» (400). " +
+                "Jarima uchun buyruq chiqarilmaydi: «orderNo»/«orderDate» bilan — " +
+                "«ragbat_jarima.buyruq_jarimada» (400).")
             .Produces<IncentiveDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
@@ -129,7 +138,8 @@ public static class IncentiveEndpoints
                             request.GiftDescription,
                             request.Reason,
                             request.OrderNo,
-                            request.OrderDate),
+                            request.OrderDate,
+                            request.Percent),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -139,7 +149,8 @@ public static class IncentiveEndpoints
             .WithName("UpdateIncentive")
             .WithSummary("Xodim — rag'bat/jarima yozuvini tuzatish")
             .WithDescription(
-                "Kiritish xatosini tuzatish uchun: tur, sana, summa, sovg'a, sabab, buyruq. " +
+                "Kiritish xatosini tuzatish uchun: tur, sana, summa yoki foiz, sovg'a, sabab, buyruq " +
+                "(buyruq faqat rag'batda; qoidalar «GrantIncentive» dagi bilan bir xil). " +
                 "Rag'bat/jarima (Kind) o'zgartirilmaydi — noto'g'ri turga yozilgan bo'lsa, " +
                 "yozuv o'chirilib yangisi kiritiladi.")
             .Produces<IncentiveDto>(StatusCodes.Status200OK)
@@ -252,8 +263,9 @@ public static class IncentiveEndpoints
                 "xodimning MUNOSABATLARI orqali qo'llanadi (o'rindoshlik ham hisobga olinadi). " +
                 "«sort» = date | employee, oldiga «-» qo'yilsa kamayish tartibida; sukut " +
                 "bo'yicha «-date» (yangidan eskiga). «pageSize» eng ko'pi 10 000. " +
-                "Summa faqat pul bilan bog'liq turlarda to'ldiriladi, qolganlarida null — " +
-                "u «salary.view» ga BOG'LIQ EMAS (sababi «ListIncentivesQuery» izohida).")
+                "Summa faqat pul bilan bog'liq turlarda to'ldiriladi, qolganlarida null; jarimada " +
+                "summa o'rniga «percent» bo'lishi mumkin. Summa «salary.view» ga BOG'LIQ EMAS " +
+                "(sababi «ListIncentivesQuery» izohida). Buyruq faqat rag'batda.")
             .Produces<PagedResult<IncentiveListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);

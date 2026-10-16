@@ -15,6 +15,15 @@ export function formatNumber(value: number, locale: LocaleCode): string {
   return useSpace ? formatted.replaceAll(' ', ' ') : formatted
 }
 
+/**
+ * Foiz: «4 %», «2,5 %» (inglizchada «4%»). Kasr ajratgichi tilga qarab —
+ * `formatNumber` bilan bir xil qoida.
+ */
+export function formatPercent(value: number, locale: LocaleCode): string {
+  const number = formatNumber(value, locale)
+  return locale === 'en' ? `${number}%` : `${number} %`
+}
+
 /** Pul: «4 500 000 so'm». Valyuta yorlig'i tilga qarab o'zgaradi. */
 export function formatMoney(
   value: number,

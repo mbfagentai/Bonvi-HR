@@ -108,7 +108,69 @@ public sealed class IncentiveHandlerTests
         natija.Error.Code.ShouldBe("ragbat_jarima.sabab_bosh");
     }
 
+    [Fact]
+    public async Task Pulli_jarima_foiz_bilan_beriladi_va_foiz_qaytadi()
+    {
+        var employee = _context.ExistingEmployee();
+        var turi = _context.ExistingPenaltyType(hasAmount: true);
+
+        var natija = await Berish.HandleAsync(
+            new GrantIncentiveCommand(
+                employee.Id, IncentiveKind.Penalty, turi.Id, EmployeeTestContext.Today,
+                Reason: "Kechikish", Percent: 4m),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.Percent.ShouldBe(4m);
+        natija.Value.Amount.ShouldBeNull();
+        natija.Value.OrderNo.ShouldBeNull();
+
+        _context.Incentives.Received(1).Add(Arg.Is<Incentive>(item => item.Percent == 4m));
+        await _context.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Jarimaga_buyruq_bilan_berish_rad_etiladi_va_saqlanmaydi()
+    {
+        var employee = _context.ExistingEmployee();
+        var turi = _context.ExistingPenaltyType();
+
+        var natija = await Berish.HandleAsync(
+            new GrantIncentiveCommand(
+                employee.Id, IncentiveKind.Penalty, turi.Id, EmployeeTestContext.Today,
+                Reason: "Kechikish", OrderNo: "12-b", OrderDate: EmployeeTestContext.Today),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
+        _context.Incentives.DidNotReceive().Add(Arg.Any<Incentive>());
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
     // ────────────────────── Tuzatish ──────────────────────
+
+    [Fact]
+    public async Task Jarima_tuzatishda_foizdan_summaga_otkaziladi()
+    {
+        var turi = _context.ExistingPenaltyType(hasAmount: true);
+        var incentive = Incentive
+            .Grant(
+                Guid.CreateVersion7(), IncentiveKind.Penalty, turi.Id, EmployeeTestContext.Today,
+                typeHasAmount: true, reason: "Kechikish", percent: 4m)
+            .Value;
+
+        _context.Incentives.GetByIdAsync(incentive.Id, Arg.Any<CancellationToken>()).Returns(incentive);
+
+        var natija = await Tuzatish.HandleAsync(
+            new UpdateIncentiveCommand(
+                incentive.Id, turi.Id, EmployeeTestContext.Today, Amount: 300_000m, Reason: "Kechikish"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.Amount!.Amount.ShouldBe(300_000m);
+        natija.Value.Percent.ShouldBeNull("summaga o'tganda eski foiz qolib ketmasligi kerak");
+        await _context.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
 
     [Fact]
     public async Task Nomavjud_yozuv_tuzatilmaydi()

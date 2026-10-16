@@ -144,5 +144,6 @@ public sealed record IncentiveListRow(
     DateOnly Date,
     decimal? AmountValue,
     string? AmountCurrency,
+    decimal? Percent,
     string? OrderNo,
     DateOnly? OrderDate);

@@ -846,7 +846,8 @@ ko‘rinishi mumkin; xodim bo‘yicha yig‘ma («3 rag‘bat, 1 jarima») atayl
 qilinmagan.
 
 Ustunlar: **Sana**, **F.I.Sh.**, **Tur** (ostida «Rag‘bat» yoki «Jarima»
-nishoni), **Summa**, **Buyruq**.
+nishoni), **Miqdor** (summa yoki foiz: «300 000 so‘m», «4 %»), **Buyruq**
+(faqat rag‘batda).
 
 Qidiruv **faqat xodim F.I.Sh. bo‘yicha** ishlaydi — buyruq raqami bo‘yicha
 qidirmaydi. Filtrlar: rag‘bat/jarima, bo‘lim, yuridik shaxs, sanadan,
@@ -863,14 +864,25 @@ Xodim kartasi » **«Rag‘bat va jarima»** yorlig‘i » **«Yangi yozuv»**.
 | **Rag‘bat yoki jarima** | Faqat yaratishda tanlanadi, keyin o‘zgarmaydi |
 | **Tur** | Majburiy. Ma’lumotnomadan, faqat faol turlar |
 | **Sana** | Majburiy, sukut — bugun |
-| **Summa** | Faqat pul bilan bog‘liq turlarda chiqadi |
+| **Summa** | Rag‘batda — faqat pul bilan bog‘liq turlarda chiqadi |
+| **Jarima miqdori** | Pulli jarimada: **Summa** yoki **Foiz** — bittasi tanlanadi |
 | **Sovg‘a tavsifi** | Faqat rag‘batda; jarimada bo‘lolmaydi |
 | **Sabab** | **Jarimada majburiy**, rag‘batda ixtiyoriy |
-| **Buyruq raqami / sanasi** | Ixtiyoriy |
+| **Buyruq raqami / sanasi** | Faqat rag‘batda, ixtiyoriy. **Jarimada yo‘q** |
 
 **Summa maydoni har doim chiqavermaydi.** U tanlangan turga bog‘liq:
 tashakkurnoma yoki hayfsanda summa bo‘lishi mumkin emas, shu sababli maydon
 umuman chizilmaydi. Bu xato emas, ma’lumotnomadagi tur sozlamasi.
+
+**Pulli jarima — summa yoki foiz.** «Jarima miqdori» yonidagi tanlovda
+**Summa** (masalan `300 000` so‘m) yoki **Foiz** (masalan `4` yoki `2,5` %)
+belgilanadi. Maydonga faqat raqam yoziladi; foiz 0 dan katta va ko‘pi bilan
+100 bo‘ladi. Foiz nimadan olinishi turning o‘zidan anglashiladi (masalan
+«Жарима» — oylikdan, «Мукофотдан маҳрум қилиш» — mukofotdan); tizim uni
+so‘mga aylantirib hisoblamaydi.
+
+>! **Jarima uchun buyruq chiqarilmaydi.** Jarima yozuvida buyruq raqami va
+>! sanasi maydonlari yo‘q — ular faqat rag‘batda bor.
 
 # Qayta aloqa va baxtsiz hodisalar
 

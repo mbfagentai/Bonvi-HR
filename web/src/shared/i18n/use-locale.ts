@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { formatDate, formatDateTime, formatMoney, formatNumber } from './format'
+import { formatDate, formatDateTime, formatMoney, formatNumber, formatPercent } from './format'
 import { DEFAULT_LOCALE, localeMeta, type LocaleCode } from './locales'
 
 /**
@@ -28,6 +28,7 @@ export function useLocale() {
     meta: localeMeta(locale),
 
     num: useCallback((v: number) => formatNumber(v, locale), [locale]),
+    percent: useCallback((v: number) => formatPercent(v, locale), [locale]),
     money: useCallback(
       (v: number, currency?: string) => formatMoney(v, locale, currency),
       [locale],

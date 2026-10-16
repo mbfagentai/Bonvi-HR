@@ -37,6 +37,21 @@ public enum IncentiveKind
 /// mantiq.
 /// </para>
 /// <para>
+/// <b>Jarimada buyruq YO'Q.</b> Egasining qarori (2026-10-16): jarima uchun
+/// buyruq chiqarilmaydi — buyruq raqami va sanasi faqat rag'batda
+/// to'ldiriladi. Domen ham, baza ham (<c>ck_incentives_penalty_no_order</c>)
+/// jarimaga buyruq yozilishini rad etadi: ekranda yashirilgan maydon
+/// boshqa yo'l (eski klient, qo'lda SQL) bilan to'lib qolmasin.
+/// </para>
+/// <para>
+/// <b>Jarima — summa YOKI foiz.</b> Pulli jarima qat'iy summa
+/// («300 000 so'm») yoki foiz («4 %») bilan beriladi — ikkalasi birga
+/// emas. Foiz nimadan olinishi (oylik maosh, mukofot) TURNING o'zidan
+/// anglashiladi («Жарима», «Мукофотдан маҳрум қилиш») va bu yerda
+/// hisoblanmaydi: tizim ish haqini hisoblamaydi, faqat qarorni qayd etadi.
+/// Rag'bat faqat summa bilan beriladi.
+/// </para>
+/// <para>
 /// <b>Summa — turga bog'liq.</b> <c>AwardType.HasAmount</c> /
 /// <c>PenaltyType.HasAmount</c> allaqachon bor edi (S2 da qo'shilgan),
 /// lekin hech qayerda ishlatilmagan. Shu yerda haqiqiy tekshiruvga
@@ -73,8 +88,23 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Rag'bat/jarima sanasi.</summary>
     public DateOnly Date { get; private set; }
 
-    /// <summary>Summa — faqat tur pul bilan bog'liq bo'lsa to'ldiriladi.</summary>
+    /// <summary>Foizning eng katta qiymati.</summary>
+    public const decimal MaxPercent = 100m;
+
+    /// <summary>Foizdagi kasr xonalar soni — bazada <c>numeric(5,2)</c>.</summary>
+    public const int PercentScale = 2;
+
+    /// <summary>
+    /// Summa — faqat tur pul bilan bog'liq bo'lsa to'ldiriladi. Jarimada
+    /// uning o'rnida <see cref="Percent"/> bo'lishi mumkin, ikkalasi birga emas.
+    /// </summary>
     public Money? Amount { get; private set; }
+
+    /// <summary>
+    /// Foiz (0 dan katta, ko'pi bilan 100, ikki kasr xonagacha) — faqat
+    /// pulli JARIMADA, <see cref="Amount"/> o'rniga.
+    /// </summary>
+    public decimal? Percent { get; private set; }
 
     /// <summary>Sovg'a tavsifi (faqat rag'bat uchun ma'noli).</summary>
     public string? GiftDescription { get; private set; }
@@ -82,9 +112,10 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Sabab. Jarima uchun MAJBURIY.</summary>
     public string? Reason { get; private set; }
 
-    /// <summary>Buyruq raqami.</summary>
+    /// <summary>Buyruq raqami — faqat rag'batda; jarima uchun buyruq chiqarilmaydi.</summary>
     public string? OrderNo { get; private set; }
 
+    /// <summary>Buyruq sanasi — faqat rag'batda.</summary>
     public DateOnly? OrderDate { get; private set; }
 
     public DateTimeOffset CreatedAt { get; set; }
@@ -104,7 +135,8 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
         string? giftDescription = null,
         string? reason = null,
         string? orderNo = null,
-        DateOnly? orderDate = null)
+        DateOnly? orderDate = null,
+        decimal? percent = null)
     {
         if (typeId == Guid.Empty)
         {
@@ -128,24 +160,32 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
                 "Jarima yozuvida sovg'a maydoni bo'lishi mumkin emas.");
         }
 
-        var amountCheck = CheckAmount(typeHasAmount, amount);
+        var amountCheck = CheckAmount(kind, typeHasAmount, amount, percent);
         if (amountCheck.IsFailure)
         {
             return amountCheck.Error;
         }
 
+        var trimmedOrderNo = Trim(orderNo);
+        var orderCheck = CheckOrder(kind, trimmedOrderNo, orderDate);
+        if (orderCheck.IsFailure)
+        {
+            return orderCheck.Error;
+        }
+
         return new Incentive(NewId(), employeeId, kind, typeId, date)
         {
             Amount = amount,
+            Percent = percent,
             GiftDescription = trimmedGift,
             Reason = trimmedReason,
-            OrderNo = Trim(orderNo),
+            OrderNo = trimmedOrderNo,
             OrderDate = orderDate,
         };
     }
 
     /// <summary>
-    /// Kiritish xatosini tuzatadi: tur, sana, summa, sovg'a, sabab, buyruq.
+    /// Kiritish xatosini tuzatadi: tur, sana, summa yoki foiz, sovg'a, sabab, buyruq.
     /// </summary>
     /// <remarks>
     /// <see cref="Kind"/> va <see cref="EmployeeId"/> o'zgarmaydi — agar
@@ -161,7 +201,8 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
         string? giftDescription = null,
         string? reason = null,
         string? orderNo = null,
-        DateOnly? orderDate = null)
+        DateOnly? orderDate = null,
+        decimal? percent = null)
     {
         if (typeId == Guid.Empty)
         {
@@ -182,39 +223,95 @@ public sealed class Incentive : AggregateRoot, IAuditable, ISoftDeletable
                 "Jarima yozuvida sovg'a maydoni bo'lishi mumkin emas.");
         }
 
-        var amountCheck = CheckAmount(typeHasAmount, amount);
+        var amountCheck = CheckAmount(Kind, typeHasAmount, amount, percent);
         if (amountCheck.IsFailure)
         {
             return amountCheck.Error;
         }
 
+        var trimmedOrderNo = Trim(orderNo);
+        var orderCheck = CheckOrder(Kind, trimmedOrderNo, orderDate);
+        if (orderCheck.IsFailure)
+        {
+            return orderCheck.Error;
+        }
+
         TypeId = typeId;
         Date = date;
         Amount = amount;
+        Percent = percent;
         GiftDescription = trimmedGift;
         Reason = trimmedReason;
-        OrderNo = Trim(orderNo);
+        OrderNo = trimmedOrderNo;
         OrderDate = orderDate;
 
         return Result.Success();
     }
 
-    private static Result CheckAmount(bool typeHasAmount, Money? amount)
+    /// <summary>
+    /// Pul qismi: tur pulli bo'lsa summa YOKI foiz (foiz faqat jarimada),
+    /// pulsiz bo'lsa ikkalasi ham yo'q.
+    /// </summary>
+    private static Result CheckAmount(IncentiveKind kind, bool typeHasAmount, Money? amount, decimal? percent)
     {
-        if (typeHasAmount && amount is null)
+        if (percent is not null && kind != IncentiveKind.Penalty)
         {
-            return Error.Validation("ragbat_jarima.summa_kerak", "Bu tur uchun summa ko'rsatilishi shart.");
+            return Error.Validation(
+                "ragbat_jarima.foiz_ragbatda",
+                "Foiz faqat jarima uchun — rag'bat summa bilan beriladi.");
         }
 
-        if (!typeHasAmount && amount is not null)
+        if (amount is not null && percent is not null)
+        {
+            return Error.Validation(
+                "ragbat_jarima.summa_va_foiz",
+                "Summa yoki foizdan faqat bittasi kiritiladi.");
+        }
+
+        if (percent is { } value && !IsValidPercent(value))
+        {
+            return Error.Validation(
+                "ragbat_jarima.foiz_oraligi",
+                "Foiz 0 dan katta va 100 dan oshmasligi kerak (ko'pi bilan ikki kasr xona).");
+        }
+
+        var hasValue = amount is not null || percent is not null;
+
+        if (typeHasAmount && !hasValue)
+        {
+            return Error.Validation(
+                "ragbat_jarima.summa_kerak",
+                "Bu tur uchun summa ko'rsatilishi shart (jarimada — summa yoki foiz).");
+        }
+
+        if (!typeHasAmount && hasValue)
         {
             return Error.Validation(
                 "ragbat_jarima.summa_kerak_emas",
-                "Bu tur summasiz — summa kiritilmasligi kerak.");
+                "Bu tur summasiz — summa yoki foiz kiritilmasligi kerak.");
         }
 
         return Result.Success();
     }
+
+    /// <summary>Jarima uchun buyruq chiqarilmaydi — raqam ham, sana ham bo'lmaydi.</summary>
+    private static Result CheckOrder(IncentiveKind kind, string? orderNo, DateOnly? orderDate)
+    {
+        if (kind == IncentiveKind.Penalty && (orderNo is not null || orderDate is not null))
+        {
+            return Error.Validation(
+                "ragbat_jarima.buyruq_jarimada",
+                "Jarima uchun buyruq chiqarilmaydi — buyruq raqami va sanasi kiritilmaydi.");
+        }
+
+        return Result.Success();
+    }
+
+    // `decimal.Scale` «4.50» ni 2 deb sanaydi — ortiqcha nollar kasr xona emas.
+    private static bool IsValidPercent(decimal value)
+        => value > 0m
+            && value <= MaxPercent
+            && decimal.Round(value, PercentScale) == value;
 
     private static string? Trim(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -39,7 +39,7 @@ type KindFilter = 'all' | IncentiveKindValue
  * so'roviga to'g'ridan-to'g'ri o'tadi.
  */
 export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
-  const { t, money } = useLocale()
+  const { t, money, percent } = useLocale()
   const { hasPermission } = useAuth()
   const canManage = hasPermission(INCENTIVES_MANAGE)
 
@@ -103,9 +103,14 @@ export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
           proporsional ~7px/belgi) = 35px. Jami ~115px + katak to'ldirishi
           (32px) = 147px, kichik zaxira bilan 150px.
         */
-        header: t('incentives.amount'),
+        header: t('incentives.columnAmount'),
         meta: { align: 'end', width: '150px' },
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
+          // Jarima summa o'rniga foiz bilan berilgan bo'lishi mumkin («4 %»).
+          if (row.original.percent !== null) {
+            return <span className="tabular">{percent(row.original.percent)}</span>
+          }
+
           const value = getValue()
           if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
           return <span className="tabular">{money(value.amount, value.currency)}</span>
@@ -188,7 +193,7 @@ export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
     }
 
     return definitions
-  }, [canManage, money, t])
+  }, [canManage, money, percent, t])
 
   return (
     <div className="space-y-4">

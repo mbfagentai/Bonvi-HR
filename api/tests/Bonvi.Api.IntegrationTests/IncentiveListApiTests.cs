@@ -33,6 +33,7 @@ public sealed record IncentiveListItemResponse(
     string? TypeName,
     DateOnly Date,
     IncentiveMoneyResponse? Amount,
+    decimal? Percent,
     string? OrderNo,
     DateOnly? OrderDate);
 
@@ -524,8 +525,7 @@ public sealed class IncentiveListApiTests : IClassFixture<BonviApiFactory>
             hayfsan.Id,
             new DateOnly(2026, 7, 14),
             typeHasAmount: false,
-            reason: "Кечикиш " + belgi,
-            orderNo: belgi + "-118").Value;
+            reason: "Кечикиш " + belgi).Value;
 
         kontekst.AddRange(firma, boshqaFirma);
         kontekst.AddRange(bosh, ichki);

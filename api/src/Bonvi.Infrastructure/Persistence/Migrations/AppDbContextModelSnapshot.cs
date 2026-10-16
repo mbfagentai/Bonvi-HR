@@ -2321,6 +2321,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("order_no");
 
+                    b.Property<decimal?>("Percent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("percent");
+
                     b.Property<string>("Reason")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
@@ -2361,7 +2366,16 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.HasIndex("Kind", "Date")
                         .HasDatabaseName("ix_incentives_kind_date");
 
-                    b.ToTable("incentives", (string)null);
+                    b.ToTable("incentives", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_incentives_amount_or_percent", "amount IS NULL OR percent IS NULL");
+
+                            t.HasCheckConstraint("ck_incentives_penalty_no_order", "kind <> 2 OR (order_no IS NULL AND order_date IS NULL)");
+
+                            t.HasCheckConstraint("ck_incentives_percent_penalty_only", "percent IS NULL OR kind = 2");
+
+                            t.HasCheckConstraint("ck_incentives_percent_range", "percent IS NULL OR (percent > 0 AND percent <= 100)");
+                        });
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Employees.Probation", b =>

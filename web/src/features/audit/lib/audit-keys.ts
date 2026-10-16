@@ -380,6 +380,7 @@ export const AUDIT_FIELD_KEYS = [
   'TypeId',
   'Date',
   'Amount',
+  'Percent',
   'GiftDescription',
   'ParentId',
   'HeadEmployeeId',

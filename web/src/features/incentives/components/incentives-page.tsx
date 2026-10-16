@@ -62,7 +62,7 @@ const route = getRouteApi('/_app/ragbat')
  * O'QISH uchun — yozuvni o'zgartirish egasining kartasida bajariladi.
  */
 export function IncentivesPage() {
-  const { t, num, date, money } = useLocale()
+  const { t, num, date, money, percent } = useLocale()
   const { hasPermission } = useAuth()
   const canView = hasPermission(INCENTIVES_VIEW)
 
@@ -252,11 +252,16 @@ export function IncentivesPage() {
           bir xil (u yerdagi hisob-kitobga qarang: eng uzun realistik
           summa «12 000 000 so'm» ~115px + katak to'ldirishi 32px).
         */
-        header: t('incentives.amount'),
+        header: t('incentives.columnAmount'),
         enableSorting: false,
         meta: { align: 'end', width: '150px' },
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const value = getValue()
+
+          // Jarima summa o'rniga foiz bilan berilgan bo'lishi mumkin («4 %»).
+          if (row.original.percent !== null) {
+            return <span className="tabular">{percent(row.original.percent)}</span>
+          }
 
           // Bo'sh katak chiziqcha bilan. Bu «ma'lumot yo'q» emas, DOMEN
           // QOIDASI: pul bilan bog'liq bo'lmagan turda (tashakkurnoma,
@@ -297,7 +302,7 @@ export function IncentivesPage() {
         },
       }),
     ],
-    [date, money, t],
+    [date, money, percent, t],
   )
 
   /*

@@ -77,12 +77,192 @@ public sealed class IncentiveTests
         var pul = Money.Create(1_500_000m).Value;
 
         var natija = Incentive.Grant(
-            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true,
-            amount: pul, reason: "Intizom buzilishi", orderNo: "45-b", orderDate: Sana);
+            XodimId, IncentiveKind.Award, TurId, Sana, typeHasAmount: true,
+            amount: pul, orderNo: "45-b", orderDate: Sana);
 
         natija.IsSuccess.ShouldBeTrue();
         natija.Value.Amount.ShouldBe(pul);
+        natija.Value.Percent.ShouldBeNull();
         natija.Value.OrderNo.ShouldBe("45-b");
+        natija.Value.OrderDate.ShouldBe(Sana);
+    }
+
+    [Fact]
+    public void Pulli_jarima_summa_bilan_buyruqsiz_yaratiladi()
+    {
+        var pul = Money.Create(300_000m).Value;
+
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true,
+            amount: pul, reason: "Intizom buzilishi");
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.Amount.ShouldBe(pul);
+        natija.Value.Percent.ShouldBeNull();
+        natija.Value.OrderNo.ShouldBeNull();
+        natija.Value.OrderDate.ShouldBeNull();
+    }
+
+    // ───────────── Jarima: buyruq chiqarilmaydi (egasi, 2026-10-16) ─────────────
+
+    [Fact]
+    public void Jarimada_buyruq_raqami_bolishi_mumkin_emas()
+    {
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false,
+            reason: "Intizom buzilishi", orderNo: "45-b");
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
+    }
+
+    [Fact]
+    public void Jarimada_buyruq_sanasi_ham_bolishi_mumkin_emas()
+    {
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false,
+            reason: "Intizom buzilishi", orderDate: Sana);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
+    }
+
+    [Fact]
+    public void Jarimada_faqat_boshliqdan_iborat_buyruq_raqami_hisobga_olinmaydi()
+    {
+        // Bo'sh satr — buyruq emas: eski klient bo'sh maydonni «» qilib yuborsa
+        // ham jarima yozilsin.
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false,
+            reason: "Intizom buzilishi", orderNo: "   ");
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.OrderNo.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Update_jarimaga_buyruq_qoshishni_rad_etadi_va_eskisini_saqlaydi()
+    {
+        var incentive = Incentive
+            .Grant(XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false, reason: "Sabab")
+            .Value;
+
+        var natija = incentive.Update(
+            TurId, Sana.AddDays(1), typeHasAmount: false, reason: "Yangi sabab", orderNo: "7-b");
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.buyruq_jarimada");
+        incentive.Date.ShouldBe(Sana, "muvaffaqiyatsiz tahrir hech narsani o'zgartirmasligi kerak");
+        incentive.Reason.ShouldBe("Sabab");
+        incentive.OrderNo.ShouldBeNull();
+    }
+
+    // ───────────── Jarima: summa YOKI foiz ─────────────
+
+    [Theory]
+    [InlineData("4")]
+    [InlineData("2.5")]
+    [InlineData("0.01")]
+    [InlineData("100")]
+    public void Pulli_jarima_foiz_bilan_yaratiladi(string foiz)
+    {
+        var qiymat = decimal.Parse(foiz, System.Globalization.CultureInfo.InvariantCulture);
+
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true,
+            reason: "Kechikish", percent: qiymat);
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.Percent.ShouldBe(qiymat);
+        natija.Value.Amount.ShouldBeNull("foizli jarimada summa bo'lmaydi");
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("100.01")]
+    [InlineData("150")]
+    [InlineData("4.555")]
+    public void Oraliqdan_tashqari_foiz_rad_etiladi(string foiz)
+    {
+        var qiymat = decimal.Parse(foiz, System.Globalization.CultureInfo.InvariantCulture);
+
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true,
+            reason: "Kechikish", percent: qiymat);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.foiz_oraligi");
+    }
+
+    [Fact]
+    public void Foizdagi_ortiqcha_nollar_kasr_xona_hisoblanmaydi()
+    {
+        // 4.50m ning Scale'i 2, 4.500m niki 3 — lekin qiymat bir xil.
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true,
+            reason: "Kechikish", percent: 4.500m);
+
+        natija.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Jarimada_summa_va_foiz_birga_bolmaydi()
+    {
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true,
+            amount: Money.Create(300_000m).Value, reason: "Kechikish", percent: 4m);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.summa_va_foiz");
+    }
+
+    [Fact]
+    public void Pulli_jarima_summasiz_ham_foizsiz_ham_yaratilmaydi()
+    {
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true, reason: "Kechikish");
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.summa_kerak");
+    }
+
+    [Fact]
+    public void Pulsiz_jarima_turiga_foiz_berilmaydi()
+    {
+        // «Ҳайфсан» — pulsiz tur: unga na summa, na foiz yoziladi.
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: false,
+            reason: "Kechikish", percent: 4m);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.summa_kerak_emas");
+    }
+
+    [Fact]
+    public void Ragbatda_foiz_bolmaydi()
+    {
+        var natija = Incentive.Grant(
+            XodimId, IncentiveKind.Award, TurId, Sana, typeHasAmount: true, percent: 10m);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("ragbat_jarima.foiz_ragbatda");
+    }
+
+    [Fact]
+    public void Update_jarimani_summadan_foizga_otkazadi()
+    {
+        var incentive = Incentive
+            .Grant(
+                XodimId, IncentiveKind.Penalty, TurId, Sana, typeHasAmount: true,
+                amount: Money.Create(300_000m).Value, reason: "Kechikish")
+            .Value;
+
+        var natija = incentive.Update(TurId, Sana, typeHasAmount: true, reason: "Kechikish", percent: 4m);
+
+        natija.IsSuccess.ShouldBeTrue();
+        incentive.Percent.ShouldBe(4m);
+        incentive.Amount.ShouldBeNull("foizga o'tganda eski summa qolib ketmasligi kerak");
     }
 
     [Fact]

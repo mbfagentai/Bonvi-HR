@@ -173,6 +173,7 @@ public sealed class ListIncentivesQueryHandler
             row.TypeName,
             row.Date,
             Amount(row.AmountValue, row.AmountCurrency),
+            row.Percent,
             row.OrderNo,
             row.OrderDate);
 

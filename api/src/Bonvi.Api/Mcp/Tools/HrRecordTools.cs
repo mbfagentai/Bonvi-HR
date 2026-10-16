@@ -30,8 +30,9 @@ public sealed class HrRecordTools(McpToolContext t)
     [McpServerTool(Name = "incentives", Title = "Rag'bat va jarimalar",
         ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Rag'bat (mukofot) va jarimalar davr bo'yicha: tur, bo'lim yoki xodim filtri bilan. Har qatorda sana, "
-        + "rag'bat/jarima, tur nomi, xodim va uning o'sha sanadagi bo'limi, summa, sovg'a, sabab, buyruq raqami va sanasi. "
-        + "Tur va rag'bat/jarima bo'yicha jami soni va summasi ham beriladi. "
+        + "rag'bat/jarima, tur nomi, xodim va uning o'sha sanadagi bo'limi, summa yoki foiz (jarimada summa o'rniga foiz "
+        + "bo'lishi mumkin), sovg'a, sabab, buyruq raqami va sanasi (faqat rag'batda — jarimaga buyruq chiqarilmaydi). "
+        + "Tur va rag'bat/jarima bo'yicha jami soni va summasi ham beriladi (foizli jarimalar summaga qo'shilmaydi). "
         + "Awards and penalties in a period with totals per kind and type.")]
     public async Task<string> Incentives(
         [Description("Davr boshi, YYYY-MM-DD. Bo'sh — so'nggi 365 kun.")] string? from = null,
@@ -91,6 +92,7 @@ public sealed class HrRecordTools(McpToolContext t)
                 incentive.TypeId,
                 incentive.Date,
                 incentive.Amount,
+                incentive.Percent,
                 incentive.GiftDescription,
                 incentive.Reason,
                 incentive.OrderNo,
@@ -186,6 +188,7 @@ public sealed class HrRecordTools(McpToolContext t)
 
                         // Rag'bat/jarima summasi incentives.view ostida — oklad ruxsati emas.
                         amount = McpLookups.Money(row.Amount, visible: true),
+                        percent = row.Percent,
                         gift = row.GiftDescription,
                         reason = row.Reason,
                         orderNo = row.OrderNo,

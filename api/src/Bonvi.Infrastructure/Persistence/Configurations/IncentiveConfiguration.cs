@@ -22,7 +22,34 @@ public sealed class IncentiveConfiguration : IEntityTypeConfiguration<Incentive>
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.ToTable("incentives");
+        /*
+          CHEKLOVLAR — domen (`Incentive.Grant` / `Update`) qoidalarining
+          bazadagi nusxasi: qo'lda yozilgan SQL yoki eski klient ham ularni
+          chetlab o'tolmasin.
+
+          `kind` raqamlari — `IncentiveKind`: Award = 1, Penalty = 2.
+        */
+        builder.ToTable("incentives", table =>
+        {
+            // Jarima — summa YOKI foiz, ikkalasi birga emas.
+            table.HasCheckConstraint(
+                "ck_incentives_amount_or_percent",
+                "amount IS NULL OR percent IS NULL");
+
+            // Foiz faqat jarimada.
+            table.HasCheckConstraint(
+                "ck_incentives_percent_penalty_only",
+                $"percent IS NULL OR kind = {(int)IncentiveKind.Penalty}");
+
+            table.HasCheckConstraint(
+                "ck_incentives_percent_range",
+                $"percent IS NULL OR (percent > 0 AND percent <= {Incentive.MaxPercent.ToString(System.Globalization.CultureInfo.InvariantCulture)})");
+
+            // Jarima uchun buyruq chiqarilmaydi (egasining qarori, 2026-10-16).
+            table.HasCheckConstraint(
+                "ck_incentives_penalty_no_order",
+                $"kind <> {(int)IncentiveKind.Penalty} OR (order_no IS NULL AND order_date IS NULL)");
+        });
 
         builder.HasKey(incentive => incentive.Id);
 
@@ -47,6 +74,11 @@ public sealed class IncentiveConfiguration : IEntityTypeConfiguration<Incentive>
             .HasMaxLength(50);
 
         builder.MapMoney(incentive => incentive.Amount, "amount", "amount_currency");
+
+        // `numeric(5,2)`: 100.00 gacha, ikki kasr xona — domendagi
+        // `Incentive.PercentScale` bilan bir xil.
+        builder.Property(incentive => incentive.Percent)
+            .HasPrecision(5, Incentive.PercentScale);
 
         builder.HasOne<Employee>()
             .WithMany()

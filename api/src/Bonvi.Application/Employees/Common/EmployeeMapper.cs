@@ -335,6 +335,7 @@ public sealed class EmployeeMapper
             typeName,
             incentive.Date,
             incentive.Amount is { } amount ? new MoneyDto(amount.Amount, amount.Currency, amount.Formatted) : null,
+            incentive.Percent,
             incentive.GiftDescription,
             incentive.Reason,
             incentive.OrderNo,

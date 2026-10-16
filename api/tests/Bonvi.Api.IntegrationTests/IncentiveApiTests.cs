@@ -19,6 +19,7 @@ public sealed record IncentiveResponse(
     string? TypeName,
     DateOnly Date,
     IncentiveMoneyResponse? Amount,
+    decimal? Percent,
     string? GiftDescription,
     string? Reason,
     string? OrderNo,
@@ -89,6 +90,138 @@ public sealed class IncentiveApiTests : IClassFixture<BonviApiFactory>
 
         javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(javob));
         (await MatnAsync(javob)).ShouldContain("ragbat_jarima.sabab_bosh");
+    }
+
+    [Fact]
+    public async Task Jarima_foiz_bilan_beriladi_va_ikkala_royxatda_foiz_chiqadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+        var turi = await TurYaratAsync(hasAmount: true, kind: IncentiveKindSeed.Penalty);
+
+        using var berish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/incentives", UriKind.Relative),
+            new { kind = "Penalty", typeId = turi.Id, date = new DateOnly(2026, 3, 1), reason = "Kechikish", percent = 2.5m },
+            bekorQilish);
+
+        berish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(berish));
+
+        var natija = await berish.Content.ReadFromJsonAsync<IncentiveResponse>(bekorQilish);
+        natija!.Percent.ShouldBe(2.5m);
+        natija.Amount.ShouldBeNull();
+        natija.OrderNo.ShouldBeNull();
+
+        // Xodim kartasidagi tab.
+        using var tab = await mijoz.GetAsync(
+            new Uri($"/api/employees/{xodim.Id}/incentives", UriKind.Relative), bekorQilish);
+        var qatorlar = await tab.Content.ReadFromJsonAsync<IReadOnlyList<IncentiveResponse>>(bekorQilish);
+        qatorlar!.Single(q => q.Id == natija.Id).Percent.ShouldBe(2.5m);
+
+        // Umumiy ro'yxat.
+        using var royxat = await mijoz.GetAsync(
+            new Uri($"/api/incentives?kind=Penalty&search={Uri.EscapeDataString(xodim.FullName)}", UriKind.Relative),
+            bekorQilish);
+        royxat.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(royxat));
+        var sahifa = await royxat.Content.ReadFromJsonAsync<IncentiveListPageResponse>(bekorQilish);
+        var qator = sahifa!.Items.Single(q => q.Id == natija.Id);
+        qator.Percent.ShouldBe(2.5m);
+        qator.Amount.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Jarima_tuzatishda_summadan_foizga_va_qaytib_otadi()
+    {
+        // Bitta UPDATE da summa (EF ixtiyoriy murakkab xossasi) null'ga, foiz
+        // qiymatga o'tadi — haqiqiy bazadagi `ck_incentives_amount_or_percent`
+        // bilan. Domen va handler testlari bu yo'lni bazasiz tekshiradi.
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+        var turi = await TurYaratAsync(hasAmount: true, kind: IncentiveKindSeed.Penalty);
+        var sana = new DateOnly(2026, 3, 1);
+
+        using var berish = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/incentives", UriKind.Relative),
+            new { kind = "Penalty", typeId = turi.Id, date = sana, reason = "Kechikish", amount = 300_000m },
+            bekorQilish);
+        berish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(berish));
+        var yaratilgan = await berish.Content.ReadFromJsonAsync<IncentiveResponse>(bekorQilish);
+
+        var manzil = new Uri($"/api/employees/{xodim.Id}/incentives/{yaratilgan!.Id}", UriKind.Relative);
+
+        using var foizga = await mijoz.PutAsJsonAsync(
+            manzil, new { typeId = turi.Id, date = sana, reason = "Kechikish", percent = 4m }, bekorQilish);
+        foizga.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(foizga));
+        var foizli = await foizga.Content.ReadFromJsonAsync<IncentiveResponse>(bekorQilish);
+        foizli!.Percent.ShouldBe(4m);
+        foizli.Amount.ShouldBeNull();
+
+        using var summaga = await mijoz.PutAsJsonAsync(
+            manzil, new { typeId = turi.Id, date = sana, reason = "Kechikish", amount = 250_000m }, bekorQilish);
+        summaga.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(summaga));
+
+        // Bazadan qayta o'qiladi — javob emas, saqlangan holat tekshiriladi.
+        using var royxat = await mijoz.GetAsync(
+            new Uri($"/api/employees/{xodim.Id}/incentives", UriKind.Relative), bekorQilish);
+        var qatorlar = await royxat.Content.ReadFromJsonAsync<IReadOnlyList<IncentiveResponse>>(bekorQilish);
+        var qator = qatorlar!.Single(q => q.Id == yaratilgan.Id);
+        qator.Amount!.Amount.ShouldBe(250_000m);
+        qator.Percent.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Jarimaga_buyruq_bilan_berish_400_qaytaradi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+        var turi = await TurYaratAsync(hasAmount: false, kind: IncentiveKindSeed.Penalty);
+
+        using var javob = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/incentives", UriKind.Relative),
+            new
+            {
+                kind = "Penalty",
+                typeId = turi.Id,
+                date = new DateOnly(2026, 3, 1),
+                reason = "Kechikish",
+                orderNo = "45-b",
+                orderDate = new DateOnly(2026, 3, 1),
+            },
+            bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(javob));
+        (await MatnAsync(javob)).ShouldContain("ragbat_jarima.buyruq_jarimada");
+    }
+
+    [Fact]
+    public async Task Jarimada_summa_va_foiz_birga_400_qaytaradi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+        using var mijoz = await AdminMijozAsync();
+
+        var xodim = await XodimYaratAsync(mijoz);
+        var turi = await TurYaratAsync(hasAmount: true, kind: IncentiveKindSeed.Penalty);
+
+        using var javob = await mijoz.PostAsJsonAsync(
+            new Uri($"/api/employees/{xodim.Id}/incentives", UriKind.Relative),
+            new
+            {
+                kind = "Penalty",
+                typeId = turi.Id,
+                date = new DateOnly(2026, 3, 1),
+                reason = "Kechikish",
+                amount = 300_000m,
+                percent = 4m,
+            },
+            bekorQilish);
+
+        javob.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(javob));
+        (await MatnAsync(javob)).ShouldContain("ragbat_jarima.summa_va_foiz");
     }
 
     [Fact]

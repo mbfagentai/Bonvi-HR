@@ -13,8 +13,11 @@ public sealed record IncentiveDto(
     string? TypeName,
     DateOnly Date,
     MoneyDto? Amount,
+    // Jarimada summa o'rniga foiz bo'lishi mumkin («4 %») — ikkalasi birga emas.
+    decimal? Percent,
     string? GiftDescription,
     string? Reason,
+    // Buyruq faqat rag'batda — jarima uchun buyruq chiqarilmaydi.
     string? OrderNo,
     DateOnly? OrderDate);
 
@@ -55,5 +58,6 @@ public sealed record IncentiveListItemDto(
     string? TypeName,
     DateOnly Date,
     MoneyDto? Amount,
+    decimal? Percent,
     string? OrderNo,
     DateOnly? OrderDate);

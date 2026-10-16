@@ -24,6 +24,7 @@
  */
 import {
   INCENTIVE_KINDS,
+  percentValue,
   type IncentiveKindValue,
   type IncentiveMoney,
 } from '@/features/employees/api/incentives-api'
@@ -54,6 +55,9 @@ export interface IncentiveListItem {
    * backend'dagi `ListIncentivesQueryHandler.Amount` izohida.
    */
   amount: IncentiveMoney | null
+  /** Faqat pulli jarimada, `amount` o'rniga («4 %»). */
+  percent: number | null
+  /** Faqat rag'batda — jarima uchun buyruq chiqarilmaydi. */
   orderNo: string | null
   orderDate: string | null
 }
@@ -124,6 +128,7 @@ function toItem(raw: unknown): IncentiveListItem {
     typeName: text(box['typeName']),
     date: text(box['date']) ?? '',
     amount: money(box['amount']),
+    percent: percentValue(box['percent']),
     orderNo: text(box['orderNo']),
     orderDate: text(box['orderDate']),
   }
