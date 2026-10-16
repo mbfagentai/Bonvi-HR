@@ -3,6 +3,24 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `e99ba4e` — jarima summa yoki foiz, buyruqsiz + rag'bat/jarima Excel eksporti — 2026-10-16 14:07 (Toshkent)
+
+Prod `455a1a2` → `e99ba4e` (`e1f5158` + `274b21e` + `e99ba4e`). Rollback: image tegi `rollback-455a1a2`
+(api, web, bot — ishlab turgan image'larga), zaxira stamp `2026-10-16_085900`. Egasi «hozir deploy qil» dedi
+(HR 13:39 dan jim edi). Deploy 13:59–14:07; bot qayta yaratilmadi.
+
+**Migratsiya `20261016053617_JarimaFoizVaBuyruqsiz`** — 14:03:47 da qo'llandi: `incentives.percent numeric(5,2)` +
+4 CHECK (`ck_incentives_amount_or_percent`, `_penalty_no_order`, `_percent_penalty_only`, `_percent_range`).
+Oldin tekshirilgan: 24 yozuv (hammasi rag'bat, buyruqsiz) — hech biri o'zgarmadi; keyin ham 24/24, percent 0.
+
+* Jarimada buyruq raqami/sanasi yo'q (forma chizmaydi, server `buyruq_jarimada`).
+* Pulli jarima — summa YOKI foiz (0 < foiz ≤ 100); ro'yxatlarda «Miqdor» ustuni.
+* `GET /api/incentives/export` — ekrandagi filtrlar bilan Excel (`incentives.view` + `reports.export`), sahifada
+  «Excelga yuklash». Kirishsiz → 401.
+
+**Orqaga qaytarish:** `docker tag bonvi-hr-prod-{api,web,bot}:rollback-455a1a2 …:latest` + `up -d` VA zaxiradan baza
+(`Down` foizni yo'qotadi; eski UI jarimaga buyruq yozmoqchi bo'lsa CHECK 500 beradi — faqat image'ni qaytarish yetmaydi).
+
 ## ✅ Reliz `455a1a2` — global qidiruv + sahifa hajmi + nomzod qidiruvi rad etilganlardan — 2026-10-16 10:15 (Toshkent)
 
 Prod `27b8301` → `455a1a2` (`f572e07` + `bd03cdc` + `455a1a2`). Rollback: image tegi `rollback-27b8301`
