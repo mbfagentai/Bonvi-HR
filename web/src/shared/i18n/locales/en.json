@@ -818,7 +818,7 @@
     "baxtsiz_hodisa.xodim_topilmadi": "Employee not found — the record may have been removed.",
     "baxtsiz_hodisa.masul_topilmadi": "Responsible employee not found — choose another one from the list.",
     "hisobot.oy_notogri": "The number of months must be between 1 and 24.",
-    "eksport.juda_kop": "Too many records match the selected filter — the export limit is 5,000. Narrow the filter (for example by department or status) and try again.",
+    "eksport.juda_kop": "Too many records match the selected filter — the export limit is 5,000. Narrow the filter and try again.",
     "foydalanuvchi.rolga_haqqi_yoq": "You do not have the right to manage an account with this role.",
     "foydalanuvchi.super_admin_mavjud": "The system already has an active super administrator — there cannot be a second one.",
     "foydalanuvchi.bosh_rahbar_mavjud": "The system already has an active main boss — there cannot be a second one.",

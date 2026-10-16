@@ -99,17 +99,25 @@ export function IncentivesPage() {
    * React qoidasini buzardi, `enabled` esa ruxsat tekshiruvini ikki
    * joyga bo'lib yuborardi.
    */
-  const query = useIncentiveList({
-    search: filters.search,
-    kind: filters.kind === '' ? undefined : filters.kind,
-    from: filters.from === '' ? undefined : filters.from,
-    to: filters.to === '' ? undefined : filters.to,
-    departmentId: filters.departmentId === '' ? undefined : filters.departmentId,
-    legalEntityId: filters.legalEntityId === '' ? undefined : filters.legalEntityId,
-    sort: sortParam,
-    page,
-    pageSize,
-  })
+  /*
+   * Ro'yxat va Excel eksporti BITTA filtr obyektidan: yangi filtr shu yerga
+   * qo'shilsa, u ikkalasiga birga tushadi va «ekranda boshqa, faylda
+   * boshqa» holati kelib chiqmaydi (`employees-page.tsx` dagi naqsh).
+   */
+  const listFilters = useMemo(
+    () => ({
+      search: filters.search,
+      kind: filters.kind === '' ? undefined : filters.kind,
+      from: filters.from === '' ? undefined : filters.from,
+      to: filters.to === '' ? undefined : filters.to,
+      departmentId: filters.departmentId === '' ? undefined : filters.departmentId,
+      legalEntityId: filters.legalEntityId === '' ? undefined : filters.legalEntityId,
+      sort: sortParam,
+    }),
+    [filters, sortParam],
+  )
+
+  const query = useIncentiveList({ ...listFilters, page, pageSize })
 
   /** Standart holatda `replace` — filtr aniqlashtirish, alohida qadam emas. */
   const setSearch = useCallback(
@@ -374,21 +382,8 @@ export function IncentivesPage() {
           filters={filters}
           onChange={changeFilters}
           options={options}
-          onExport={
-            canExport
-              ? () =>
-                  // Ekrandagi AYNAN shu filtr va saralash — sahifasiz.
-                  exportList.mutate({
-                    search: filters.search,
-                    kind: filters.kind === '' ? undefined : filters.kind,
-                    from: filters.from === '' ? undefined : filters.from,
-                    to: filters.to === '' ? undefined : filters.to,
-                    departmentId: filters.departmentId === '' ? undefined : filters.departmentId,
-                    legalEntityId: filters.legalEntityId === '' ? undefined : filters.legalEntityId,
-                    sort: sortParam,
-                  })
-              : undefined
-          }
+          // Ekrandagi AYNAN shu filtr va saralash — sahifasiz.
+          onExport={canExport ? () => exportList.mutate(listFilters) : undefined}
           exporting={exportList.isPending}
         />
 

@@ -70,15 +70,11 @@ public sealed class IncentiveExcelWriter : IIncentiveExcelWriter
         sheet.SheetView.FreezeRows(1);
         sheet.Columns().AdjustToContents();
 
-        // Sabab — erkin, ba'zan uzun matn: ustun ekrandan chiqib ketmasin,
+        // Sabab (1000 belgigacha) va sovg'a (300 belgigacha) — erkin matn:
+        // ustun ekrandan chiqib, buyruq ustunlarini uzoqqa surib yubormasin,
         // qator ichida o'ralsin.
-        var reasonColumn = sheet.Column(8);
-        if (reasonColumn.Width > 60)
-        {
-            reasonColumn.Width = 60;
-        }
-
-        reasonColumn.Style.Alignment.WrapText = true;
+        WrapLongText(sheet.Column(8), maxWidth: 60);
+        WrapLongText(sheet.Column(9), maxWidth: 40);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -113,6 +109,16 @@ public sealed class IncentiveExcelWriter : IIncentiveExcelWriter
         sheet.Cell(excelRow, 10).Value = row.OrderNo ?? string.Empty;
 
         SetDate(sheet.Cell(excelRow, 11), row.OrderDate);
+    }
+
+    private static void WrapLongText(IXLColumn column, double maxWidth)
+    {
+        if (column.Width > maxWidth)
+        {
+            column.Width = maxWidth;
+        }
+
+        column.Style.Alignment.WrapText = true;
     }
 
     private static void SetDate(IXLCell cell, DateOnly? date)
