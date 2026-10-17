@@ -268,6 +268,35 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>
+    /// «Yo'qlik turlari» ham urug'lanadi — aks holda xodim ilovasida so'rov
+    /// yuborib bo'lmaydi.
+    /// </summary>
+    /// <remarks>
+    /// 2026-10-17 dagi xato: ma'lumotnoma urug'lanmasdi va prod'da bo'sh
+    /// qoldi — ilovadagi «Yo'qlik turi» varag'i bo'sh ochilardi. Urug' baza
+    /// bo'sh bo'lgandagina quyiladi va dastur ishga tushganda ishlaydi,
+    /// shuning uchun bu yerda faqat yozuvlar BORLIGI tekshiriladi.
+    /// </remarks>
+    [Fact]
+    public async Task Yoqlik_turlari_urugdan_toldiriladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var nomlar = await kontekst.AbsenceTypes
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Select(tur => tur.Name)
+            .ToListAsync(bekorQilish);
+
+        nomlar.ShouldContain("Ishxona ishi bilan");
+        nomlar.ShouldContain("Kasallik");
+        nomlar.ShouldContain("Shaxsiy sabab");
+    }
+
+    /// <summary>
     /// Urug'lantirishdan keyin bo'limlar daraxti to'liq hisoblangan bo'lishi kerak.
     /// </summary>
     /// <remarks>

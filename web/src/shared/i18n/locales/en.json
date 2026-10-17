@@ -2648,6 +2648,7 @@
     "requestSingleDayHint": "A time range is only allowed on a single-day request",
     "requestSaveFailed": "Could not save the request",
     "requestSelectKind": "Select",
+    "requestNoKinds": "No absence kinds yet — add them under «Catalogue» → «Absence kinds».",
     "requestApproveHint": "Once approved, these days become excused and leave the absent-days count.",
     "requestRejectHint": "If rejected, the days stay marked as absent. Write the reason in the note.",
     "scheduleYear": "Year grid",

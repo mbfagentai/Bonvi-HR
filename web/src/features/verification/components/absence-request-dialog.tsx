@@ -129,6 +129,9 @@ export function AbsenceRequestDialog({
           onChange={(event) => setTypeId(event.target.value)}
           options={(types.data ?? []).map((item) => ({ value: item.id, label: item.name }))}
           placeholder={t('attendance.requestSelectKind')}
+          // Ma'lumotnoma bo'sh bo'lsa ro'yxat jimgina bo'sh ochilardi va
+          // HR nima qilishni bilmasdi (2026-10-17, prod'da shunday bo'ldi).
+          hint={types.data?.length === 0 ? t('attendance.requestNoKinds') : undefined}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">

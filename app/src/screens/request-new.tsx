@@ -12,7 +12,7 @@ import { PushedScreen } from '@/ui/app-shell'
 import { BottomAction, Button } from '@/ui/button'
 import { Card } from '@/ui/card'
 import { ErrorState, InlineMessage, SkeletonLines } from '@/ui/feedback'
-import { DateRow, Field, SelectRow, TextArea } from '@/ui/form'
+import { DateRow, Field, SelectRow, TextArea, TimeRow } from '@/ui/form'
 import { ConfirmSheet } from '@/ui/sheet'
 import { useToast } from '@/ui/toast'
 
@@ -39,6 +39,10 @@ export function RequestNewScreen() {
   const [absenceTypeId, setAbsenceTypeId] = useState<string | null>(null)
   const [fromDate, setFromDate] = useState(prefill)
   const [toDate, setToDate] = useState(prefill)
+  // Vaqt oralig'i — faqat BIR KUNLIK so'rovda (SPEC-so'rovlar A3:
+  // «19.09, 08:30–11:57»). Ikkalasi bo'sh — butun kun.
+  const [fromTime, setFromTime] = useState('')
+  const [toTime, setToTime] = useState('')
   const [note, setNote] = useState('')
 
   const [touched, setTouched] = useState(false)
@@ -48,15 +52,34 @@ export function RequestNewScreen() {
 
   // «Iflos» forma — yozilgan narsa bor. Tasdiq faqat shu holatda
   // so'raladi: bo'sh formadan chiqishda savol berish — bezovta qilish.
-  const dirty = absenceTypeId !== null || note.length > 0 || fromDate !== prefill || toDate !== prefill
+  const dirty =
+    absenceTypeId !== null ||
+    note.length > 0 ||
+    fromDate !== prefill ||
+    toDate !== prefill ||
+    fromTime !== '' ||
+    toTime !== ''
 
   const kindError = touched && !absenceTypeId ? t('requests.kindRequired') : null
   const dateError = touched && toDate < fromDate ? t('requests.dateOrder') : null
   const dayCount = daysBetween(fromDate, toDate)
 
+  // Ko'p kunlik so'rovda vaqt maydonlari chizilmaydi va YUBORILMAYDI —
+  // server ularni baribir rad etardi (`davomat.sorov_vaqti_notogri`).
+  // Qiymat holatda qoladi: xodim sanani qaytarsa, tanlagani yo'qolmaydi.
+  const singleDay = fromDate === toDate
+  const timeError = !touched || !singleDay
+    ? null
+    : (fromTime === '') !== (toTime === '')
+      ? t('requests.timeBoth')
+      : fromTime !== '' && fromTime >= toTime
+        ? t('requests.timeOrder')
+        : null
+
   const submit = async (): Promise<void> => {
     setTouched(true)
     if (!absenceTypeId || toDate < fromDate) return
+    if (singleDay && ((fromTime === '') !== (toTime === '') || (fromTime !== '' && fromTime >= toTime))) return
 
     setSending(true)
     setSendError(null)
@@ -66,8 +89,8 @@ export function RequestNewScreen() {
         absenceTypeId,
         fromDate,
         toDate,
-        fromTime: null,
-        toTime: null,
+        fromTime: singleDay && fromTime !== '' ? `${fromTime}:00` : null,
+        toTime: singleDay && toTime !== '' ? `${toTime}:00` : null,
         note: note.trim() === '' ? null : note.trim(),
       })
 
@@ -105,6 +128,7 @@ export function RequestNewScreen() {
                   value={absenceTypeId}
                   options={me.data?.absenceTypes ?? []}
                   placeholder={t('common.select')}
+                  emptyText={t('requests.kindsEmpty')}
                   invalid={kindError !== null}
                   onChange={(id) => setAbsenceTypeId(id)}
                 />
@@ -138,6 +162,40 @@ export function RequestNewScreen() {
                 />
               </Field>
 
+              {singleDay ? (
+                <>
+                  <Field label={t('requests.fromTime')}>
+                    <TimeRow
+                      sheetTitle={t('requests.fromTime')}
+                      value={fromTime}
+                      placeholder={t('common.empty')}
+                      clearLabel={t('requests.wholeDay')}
+                      invalid={timeError !== null}
+                      onChange={(value) => {
+                        setFromTime(value)
+                        // «Butun kun» — ikkala chegara birga olib tashlanadi,
+                        // aks holda bittasi yolg'iz qolib xato berardi.
+                        if (value === '') setToTime('')
+                      }}
+                    />
+                  </Field>
+
+                  <Field label={t('requests.toTime')} error={timeError}>
+                    <TimeRow
+                      sheetTitle={t('requests.toTime')}
+                      value={toTime}
+                      placeholder={t('common.empty')}
+                      clearLabel={t('requests.wholeDay')}
+                      invalid={timeError !== null}
+                      onChange={(value) => {
+                        setToTime(value)
+                        if (value === '') setFromTime('')
+                      }}
+                    />
+                  </Field>
+                </>
+              ) : null}
+
               <Field label={t('requests.note')}>
                 <TextArea
                   value={note}
@@ -146,7 +204,9 @@ export function RequestNewScreen() {
                 />
               </Field>
 
-              <p className="text-footnote text-fg-tertiary">{t('requests.timeHint')}</p>
+              <p className="text-footnote text-fg-tertiary">
+                {singleDay ? t('requests.timeOptional') : t('requests.timeHint')}
+              </p>
             </div>
           )}
         </Card>
@@ -158,8 +218,10 @@ export function RequestNewScreen() {
         ) : null}
 
         <p className="nums px-1 text-footnote text-fg-tertiary">
-          {fromDate === toDate
-            ? format.dateLong(fromDate)
+          {singleDay
+            ? fromTime !== '' && toTime !== ''
+              ? `${format.dateLong(fromDate)}, ${fromTime}–${toTime}`
+              : format.dateLong(fromDate)
             : `${format.date(fromDate)} — ${format.date(toDate)}`}
         </p>
       </PushedScreen>

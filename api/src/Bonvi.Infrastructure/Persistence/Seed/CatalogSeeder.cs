@@ -125,6 +125,7 @@ public sealed partial class CatalogSeeder
         await SeedPenaltyTypesAsync(stats, cancellationToken).ConfigureAwait(false);
         await SeedDocumentTypesAsync(stats, cancellationToken).ConfigureAwait(false);
         await SeedPipelineStagesAsync(stats, cancellationToken).ConfigureAwait(false);
+        await SeedAbsenceTypesAsync(stats, cancellationToken).ConfigureAwait(false);
 
         LogTotal(stats.Created, stats.Skipped, stats.MissingFiles);
 
@@ -351,6 +352,35 @@ public sealed partial class CatalogSeeder
             "pipeline-stages.json",
             "Voronka bosqichlari",
             row => PipelineStage.Create(row.Name, order++, row.InvitesToInterview ?? false),
+            apply: null,
+            stats,
+            cancellationToken).ConfigureAwait(false);
+
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Yo'qlik turlari — xodim so'rovidagi «Yo'qlik turi» ro'yxati
+    /// (SPEC-verifikatsiya-sorovlar §B1).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Excel'da yo'q: uchta tur Verifix ekranidan olingan, fayl qo'lda
+    /// yozilgan (<c>pipeline-stages.json</c> kabi).
+    /// </para>
+    /// <para>
+    /// ⚠️ Ilgari bu ma'lumotnoma urug'lanmasdi va prod'da bo'sh qoldi:
+    /// ilovada «Yo'qlik turi» varag'i ochilardi-yu, ichida tanlov yo'q edi —
+    /// xodim so'rov yubora olmasdi (2026-10-17). HR ro'yxatni o'zi
+    /// to'ldirgan bo'lsa, umumiy qoida bo'yicha urug' tegmaydi.
+    /// </para>
+    /// </remarks>
+    private async Task SeedAbsenceTypesAsync(SeedStats stats, CancellationToken cancellationToken)
+    {
+        await SeedCatalogAsync<AbsenceType, AbsenceTypeRow>(
+            "absence-types.json",
+            "Yo'qlik turlari",
+            row => AbsenceType.Create(row.Name),
             apply: null,
             stats,
             cancellationToken).ConfigureAwait(false);
@@ -653,6 +683,9 @@ public sealed partial class CatalogSeeder
     {
         public bool? IsRequired { get; init; }
     }
+
+    /// <summary>Yo'qlik turi — faqat umumiy maydonlar (nom, izoh, faollik).</summary>
+    private sealed record AbsenceTypeRow : CatalogRow;
 
     /// <summary>
     /// Voronka bosqichi — faqat nom va izoh.

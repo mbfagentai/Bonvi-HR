@@ -59,6 +59,7 @@ imlo `aliases.json` da kalit bo'lishi shart):
 | Rag'bat turi | 2 | **7** | `award-types.json` |
 | Jazo turi | Excel'da yo'q | **7** | `penalty-types.json` |
 | Hujjat turi | Excel'da yo'q | **15** | `document-types.json` |
+| Yo'qlik turi | Excel'da yo'q — Verifix'dan, **qo'lda** yozilgan | **3** | `absence-types.json` |
 
 ### Qamrov (`aliases.json` bo'yicha to'ldirilgan katakchalar)
 

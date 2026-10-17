@@ -301,6 +301,43 @@ public sealed partial class EmployeeAppApiTests
         bitta.GetProperty("cancelledByEmployee").GetBoolean().ShouldBeTrue();
     }
 
+    /// <summary>
+    /// Ilova bir kunlik so'rovga vaqt oralig'ini yuboradi (SPEC-so'rovlar A3:
+    /// «19.09, 08:30–11:57»); ko'p kunlik so'rovda vaqt rad etiladi.
+    /// </summary>
+    [Fact]
+    public async Task Xodim_bir_kunlik_sorovga_vaqt_oraligini_yuboradi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(belgi);
+        var tur = await YoqlikTuriAsync(admin, "Vaqtli tur " + belgi);
+        using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
+        var kun = BugunToshkentda().AddDays(7);
+
+        using (var javob = await ilova.PostAsJsonAsync(
+            new Uri("/api/me/requests", UriKind.Relative),
+            new { absenceTypeId = tur, fromDate = Iso(kun), toDate = Iso(kun), fromTime = "08:30:00", toTime = "11:57:00" },
+            ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+            var sorov = await JsonAsync(javob);
+            sorov.GetProperty("fromTime").GetString().ShouldStartWith("08:30");
+            sorov.GetProperty("toTime").GetString().ShouldStartWith("11:57");
+        }
+
+        using (var kopKunlik = await ilova.PostAsJsonAsync(
+            new Uri("/api/me/requests", UriKind.Relative),
+            new { absenceTypeId = tur, fromDate = Iso(kun.AddDays(2)), toDate = Iso(kun.AddDays(3)), fromTime = "08:30:00", toTime = "11:57:00" },
+            ct))
+        {
+            await XatoKutAsync(kopKunlik, HttpStatusCode.BadRequest, "davomat.sorov_vaqti_notogri");
+        }
+    }
+
     // ════════════════════════════════════════════════════════════
     //  Tungi smena: belgilar o'z katagida, keyingi yo'nalish
     // ════════════════════════════════════════════════════════════

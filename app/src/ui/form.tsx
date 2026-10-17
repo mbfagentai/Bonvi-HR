@@ -120,6 +120,7 @@ export function SelectRow({
   value,
   options,
   placeholder,
+  emptyText,
   invalid = false,
   onChange,
 }: {
@@ -127,6 +128,12 @@ export function SelectRow({
   value: string | null
   options: readonly SelectOption[]
   placeholder: string
+  /**
+   * Ro'yxat bo'sh bo'lganda varaqda chiqadigan matn. Busiz bo'sh varaq
+   * faqat sarlavha bilan ochilardi va xodim «ilova buzildi» deb o'ylardi
+   * (2026-10-17: prod'da «Yo'qlik turlari» ma'lumotnomasi bo'sh edi).
+   */
+  emptyText?: string
   invalid?: boolean
   onChange: (id: string) => void
 }) {
@@ -155,6 +162,11 @@ export function SelectRow({
       </button>
 
       <Sheet open={open} title={sheetTitle} onClose={() => setOpen(false)}>
+        {options.length === 0 && emptyText ? (
+          <p className="rounded-card bg-bg-elevated px-4 py-5 text-center text-callout text-fg-secondary">
+            {emptyText}
+          </p>
+        ) : null}
         <div className="overflow-hidden rounded-card bg-bg-elevated">
           {options.map((option) => (
             <button
@@ -245,6 +257,98 @@ export function DateRow({
           >
             {t('common.confirm')}
           </Button>
+          <Button variant="plain" block onClick={() => setOpen(false)}>
+            {t('common.cancel')}
+          </Button>
+        </div>
+      </Sheet>
+    </>
+  )
+}
+
+/**
+ * Vaqt tanlash qatori — `DateRow` ning egizagi (UX §E.5).
+ *
+ * Qiymat IXTIYORIY: bo'sh qator «butun kun» degani, shu sababli varaqda
+ * tanlangan vaqtni olib tashlash tugmasi ham bor.
+ */
+export function TimeRow({
+  sheetTitle,
+  value,
+  placeholder,
+  clearLabel,
+  invalid = false,
+  onChange,
+}: {
+  sheetTitle: string
+  /** `HH:mm` yoki bo'sh satr. */
+  value: string
+  placeholder: string
+  /** Tanlangan vaqtni olib tashlash tugmasi — bo'sh qiymat bilan `onChange`. */
+  clearLabel: string
+  invalid?: boolean
+  onChange: (value: string) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(value)
+          setOpen(true)
+        }}
+        className={clsx(
+          'flex h-12 w-full items-center rounded-control border bg-bg-elevated px-3 text-left active:bg-bg-pressed',
+          invalid ? 'border-danger' : 'border-border-strong',
+        )}
+      >
+        <span
+          className={clsx(
+            'nums min-w-0 flex-1 truncate text-callout',
+            value ? 'text-fg' : 'text-fg-tertiary',
+          )}
+        >
+          {value || placeholder}
+        </span>
+        <Icon name="clock" className="ml-2 h-5 w-5 text-fg-tertiary" />
+      </button>
+
+      <Sheet open={open} title={sheetTitle} onClose={() => setOpen(false)}>
+        <input
+          type="time"
+          value={draft}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setDraft(event.target.value)}
+          className="nums h-12 w-full rounded-control border border-border-strong bg-bg-elevated px-3 text-callout text-fg"
+        />
+
+        <div className="mt-4 space-y-2">
+          <Button
+            block
+            onClick={() => {
+              // Brauzer soniyani ham qo'shishi mumkin («08:30:00») —
+              // forma faqat soat va daqiqani saqlaydi.
+              if (draft) onChange(draft.slice(0, 5))
+              setOpen(false)
+            }}
+          >
+            {t('common.confirm')}
+          </Button>
+          {value ? (
+            <Button
+              variant="plain"
+              block
+              onClick={() => {
+                onChange('')
+                setOpen(false)
+              }}
+            >
+              {clearLabel}
+            </Button>
+          ) : null}
           <Button variant="plain" block onClick={() => setOpen(false)}>
             {t('common.cancel')}
           </Button>

@@ -2648,6 +2648,7 @@
     "requestSingleDayHint": "Vaqt oralig‘i faqat bir kunlik so‘rovda ko‘rsatiladi",
     "requestSaveFailed": "So‘rovni saqlab bo‘lmadi",
     "requestSelectKind": "Tanlang",
+    "requestNoKinds": "Yo‘qlik turlari hali kiritilmagan — «Ma’lumotnomalar» → «Yo'qlik turlari» bo‘limida qo‘shing.",
     "requestApproveHint": "Tasdiqlangandan keyin bu kunlar «Sababli» bo‘ladi va «kelmagan kunlar» hisobidan chiqadi.",
     "requestRejectHint": "Rad etilsa, kunlar «Kelmadi» bo‘lib qoladi. Sababini izohda yozib qo‘ying.",
     "scheduleYear": "Yillik to‘r",
