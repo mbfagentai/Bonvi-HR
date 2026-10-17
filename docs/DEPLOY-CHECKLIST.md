@@ -6,7 +6,7 @@
 ## ⏳ Navbatda (prod'da EMAS) — rag'batdan buyruq olib tashlandi + yo'qlik turlari + «ish vaqti» so'rovi
 
 Prod `e99ba4e`. Navbatdagi commit'lar: `35430b2` (rag'bat/jarimada buyruq umuman yo'q), `28a28cb` (yo'qlik
-turlari urug'i, ilovada vaqt oralig'i), «Ish vaqti hisoblanadigan yo'qlik turi» (shu commit).
+turlari urug'i, ilovada vaqt oralig'i), `9df5ca7` («ish vaqti hisoblanadigan» yo'qlik turi).
 
 **Migratsiyalar — 2 ta:**
 * `20261016092521_RagbatJarimaBuyruqsiz` — `incentives.order_no/order_date` va `ck_incentives_penalty_no_order`
