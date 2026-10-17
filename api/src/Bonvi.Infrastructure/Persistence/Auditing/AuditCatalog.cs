@@ -300,9 +300,11 @@ public static class AuditCatalog
                 nameof(ScheduleChangeRequest.CancelledByAccountId)),
 
         // So'rovning kuni — yorlig'i sana: so'rov tahririda qaysi kun o'zgargani shu bilan ko'rinadi.
-        // Ota so'rovga havola yozilmaydi: kun so'rov bilan BIR tranzaksiyada o'zgaradi va jurnalda
-        // so'rov qatori (xodim nomi bilan) uning yonida turadi; so'rov uchun havola turi yo'q.
+        // Xodimi ota so'rovdan: faqat kunlari o'zgargan tahrirda so'rov qatorining o'zi yozilmaydi,
+        // va kunlar xodim tarixida ko'rinmay qolardi. Havola maydon sifatida yozilmaydi — so'rov
+        // uchun havola turi yo'q, xodim esa subyekt bo'lib turibdi.
         Audit<ScheduleChangeDay>(AccessModuleKeys.Attendance)
+            .SubjectVia(AuditLookup.ScheduleChangeRequestEmployee, nameof(ScheduleChangeDay.RequestId))
             .Label(row => row.Date.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture))
             .Exclude(nameof(ScheduleChangeDay.RequestId)),
 
@@ -430,6 +432,9 @@ public enum AuditLookup
 
     /// <summary><c>employee_competencies.id</c> → xodim.</summary>
     CompetencyEmployee = 6,
+
+    /// <summary><c>schedule_change_requests.id</c> → xodim.</summary>
+    ScheduleChangeRequestEmployee = 7,
 }
 
 /// <summary>

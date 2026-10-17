@@ -485,6 +485,7 @@ export function mockPlanOf(dateIso: string): DayPlanDto {
     endTime: working ? `${pad(PLAN_END_HOUR)}:00:00` : null,
     breakStart: working ? `${pad(Math.floor(BREAK_WINDOW_START / 60))}:00:00` : null,
     breakEnd: working ? `${pad(Math.floor(BREAK_WINDOW_END / 60))}:00:00` : null,
+    breakMinutes: working ? BREAK_MINUTES : 0,
   }
 }
 
@@ -536,6 +537,7 @@ export function buildScheduleRequests(): ScheduleChangeRequestDto[] {
           breakStart: '12:20:00',
           breakEnd: '14:20:00',
           swapWith: null,
+          breakMinutes: 120,
         },
       ],
       note: 'Juma namoziga boraman.',
@@ -572,5 +574,6 @@ export function planAsDay(plan: DayPlanDto): ScheduleChangeDayDto {
     breakStart: plan.breakStart,
     breakEnd: plan.breakEnd,
     swapWith: null,
+    breakMinutes: plan.breakMinutes,
   }
 }

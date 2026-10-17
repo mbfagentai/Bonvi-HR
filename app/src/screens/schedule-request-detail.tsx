@@ -6,7 +6,7 @@ import { api } from '@/api/client'
 import { ApiError } from '@/api/errors'
 import { invalidateScheduleRequests, useScheduleRequests } from '@/data/queries'
 import { shortTime } from '@/data/attendance'
-import { scheduleTitleKey } from '@/data/schedule-requests'
+import { dayBreakText, scheduleTitleKey } from '@/data/schedule-requests'
 import { REQUEST_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
 import { useErrorText } from '@/lib/use-error-message'
@@ -97,30 +97,31 @@ export function ScheduleRequestDetailScreen() {
               nusxa olgan), shu sababli juft sanasi ham yoziladi. */}
           <Card title={t('schedule.days')}>
             <div>
-              {request.days.map((day) => (
-                <div key={day.date} className="border-t border-border py-2.5 first:border-t-0 first:pt-0">
-                  <div className="flex min-w-0 items-baseline justify-between">
-                    <span className="mr-3 min-w-0 text-subhead text-fg">{format.dateLong(day.date)}</span>
-                    <span className="nums shrink-0 text-right text-subhead text-fg">
-                      {day.isWorking
-                        ? `${shortTime(day.startTime) ?? '—'}–${shortTime(day.endTime) ?? '—'}`
-                        : t('schedule.dayOff')}
-                    </span>
+              {request.days.map((day) => {
+                // Uzunlik oynadan farq qilsa daqiqasi ham: «Tanaffus 60 daq. (12:00–15:00 oralig‘ida)»
+                const breakText = dayBreakText(t, day)
+
+                return (
+                  <div key={day.date} className="border-t border-border py-2.5 first:border-t-0 first:pt-0">
+                    <div className="flex min-w-0 items-baseline justify-between">
+                      <span className="mr-3 min-w-0 text-subhead text-fg">{format.dateLong(day.date)}</span>
+                      <span className="nums shrink-0 text-right text-subhead text-fg">
+                        {day.isWorking
+                          ? `${shortTime(day.startTime) ?? '—'}–${shortTime(day.endTime) ?? '—'}`
+                          : t('schedule.dayOff')}
+                      </span>
+                    </div>
+                    {breakText ? (
+                      <p className="nums mt-0.5 text-right text-footnote text-fg-secondary">{breakText}</p>
+                    ) : null}
+                    {day.swapWith ? (
+                      <p className="nums mt-0.5 text-footnote text-fg-secondary">
+                        {t('schedule.swapWith', { date: format.date(day.swapWith) })}
+                      </p>
+                    ) : null}
                   </div>
-                  {day.isWorking && day.breakStart && day.breakEnd ? (
-                    <p className="nums mt-0.5 text-right text-footnote text-fg-secondary">
-                      {t('calendar.breakRange', {
-                        range: `${shortTime(day.breakStart) ?? ''}–${shortTime(day.breakEnd) ?? ''}`,
-                      })}
-                    </p>
-                  ) : null}
-                  {day.swapWith ? (
-                    <p className="nums mt-0.5 text-footnote text-fg-secondary">
-                      {t('schedule.swapWith', { date: format.date(day.swapWith) })}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
+                )
+              })}
             </div>
           </Card>
 

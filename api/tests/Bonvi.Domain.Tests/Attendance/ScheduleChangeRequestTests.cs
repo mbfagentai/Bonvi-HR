@@ -32,6 +32,68 @@ public sealed class ScheduleChangeRequestTests
     }
 
     [Fact]
+    public void Berilgan_tanaffus_daqiqasi_oynadan_ustun()
+    {
+        // Almashtirishda jadvaldan ko'chgan kun: 60 daqiqa 12:00–15:00 oynasida.
+        var natija = ScheduleChangeRequest.Create(
+            Xodim,
+            ScheduleChangeKind.Change,
+            [new ScheduleChangeDayInput(Sana, true, T(9), T(18), T(12), T(15), BreakMinutes: 60)]);
+
+        natija.Value.Days.ShouldHaveSingleItem().BreakMinutes.ShouldBe(60);
+    }
+
+    [Fact]
+    public void Dam_olish_kunida_tanaffus_daqiqasi_nol()
+        => ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [new ScheduleChangeDayInput(Sana, false, BreakMinutes: 60)])
+            .Value.Days.ShouldHaveSingleItem().BreakMinutes.ShouldBe(0);
+
+    [Fact]
+    public void Haddan_uzun_tanaffus_daqiqasi_rad_etiladi()
+        => ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [new ScheduleChangeDayInput(Sana, true, T(9), T(18), BreakMinutes: WorkScheduleDay.MaxBreakMinutes + 1)])
+            .Error.Code.ShouldBe("davomat.jadval_tanaffus_uzunligi");
+
+    [Fact]
+    public void Chekka_yildagi_sana_rad_etiladi()
+        => ScheduleChangeRequest.Create(Xodim, ScheduleChangeKind.Change, [IshKuni(DateOnly.MinValue)])
+            .Error.Code.ShouldBe("davomat.jadval_sorovi_sana");
+
+    [Fact]
+    public void Doksan_ikki_kundan_keng_davr_rad_etiladi()
+    {
+        ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [IshKuni(Sana), IshKuni(Sana.AddDays(ScheduleChangeRequest.MaxSpanDays - 1))])
+            .IsSuccess.ShouldBeTrue();
+
+        ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [IshKuni(Sana), IshKuni(Sana.AddDays(ScheduleChangeRequest.MaxSpanDays))])
+            .Error.Code.ShouldBe("davomat.jadval_sorovi_davri");
+    }
+
+    [Fact]
+    public void Uzun_izoh_rad_etiladi()
+    {
+        var uzun = new string('a', ScheduleChangeRequest.MaxNoteLength + 1);
+
+        ScheduleChangeRequest.Create(Xodim, ScheduleChangeKind.Change, [IshKuni(Sana)], uzun)
+            .Error.Code.ShouldBe("davomat.izoh_uzun");
+
+        var sorov = ScheduleChangeRequest.Create(Xodim, ScheduleChangeKind.Change, [IshKuni(Sana)]).Value;
+        sorov.Approve(Guid.CreateVersion7(), DateTimeOffset.UtcNow, uzun).Error.Code.ShouldBe("davomat.izoh_uzun");
+        sorov.Status.ShouldBe(AbsenceRequestStatus.Pending);
+    }
+
+    [Fact]
     public void Dam_olish_kunida_vaqtlar_saqlanmaydi()
     {
         var natija = ScheduleChangeRequest.Create(

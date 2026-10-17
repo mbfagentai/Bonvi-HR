@@ -11,6 +11,7 @@ namespace Bonvi.Application.Attendance.Scheduling;
 /// <param name="EndTime">Tugash — boshlanishdan oldin bo'lsa tungi smena.</param>
 /// <param name="BreakStart">Tanaffus boshi.</param>
 /// <param name="BreakEnd">Tanaffus oxiri.</param>
+/// <param name="BreakMinutes">Ayiriladigan tanaffus (daqiqa) — so'rov kunida saqlangani.</param>
 /// <param name="RequestId">So'rov — «nega shu soat» savoliga javob.</param>
 /// <param name="DecidedAt">Qaror lahzasi — bir sanaga ikki qaror kelsa, oxirgisi yutadi.</param>
 public sealed record EmployeeDayOverride(
@@ -21,11 +22,6 @@ public sealed record EmployeeDayOverride(
     TimeOnly? EndTime,
     TimeOnly? BreakStart,
     TimeOnly? BreakEnd,
+    int BreakMinutes,
     Guid RequestId,
-    DateTimeOffset? DecidedAt = null)
-{
-    /// <summary>Tanaffus uzunligi — oynadan (yarim tundan o'tsa ham to'g'ri).</summary>
-    public int BreakMinutes => IsWorking && BreakStart is { } start && BreakEnd is { } end && end != start
-        ? (int)(end - start).TotalMinutes
-        : 0;
-}
+    DateTimeOffset? DecidedAt = null);

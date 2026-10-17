@@ -26,6 +26,54 @@ public sealed class ScheduleOverrideTests
         kun.Facts.Status.ShouldBe(AttendanceDayStatus.Present);
     }
 
+    /// <summary>
+    /// Almashtirishda jadvaldan ko'chgan kun: 60 daqiqalik tushlik 12:00–15:00 oynasida.
+    /// Uzunlik oynadan qayta hisoblanmaydi — reja 480, 180 dan ayirilmaydi.
+    /// </summary>
+    [Fact]
+    public void Saqlangan_tanaffus_daqiqasi_oynadan_qayta_hisoblanmaydi()
+    {
+        var sahna = Office().Override(Monday, "09:00", "18:00", "12:00", "15:00", breakMinutes: 60);
+        sahna.Alternating(Monday, "09:00", "18:00");
+
+        var kun = sahna.Day(Monday);
+
+        kun.Facts.PlannedMinutes.ShouldBe(480);
+        kun.Facts.WorkedMinutes.ShouldBe(480);
+        kun.Facts.OvertimeMinutes.ShouldBe(0);
+    }
+
+    /// <summary>Oynasiz 60 daqiqa (jadvaldagi «1 soat tushlik») — reja 480, 540 emas.</summary>
+    [Fact]
+    public void Oynasiz_tanaffus_daqiqasi_rejadan_ayiriladi()
+    {
+        var sahna = Office().Override(Monday, "09:00", "18:00", breakMinutes: 60);
+
+        sahna.Day(Monday).Facts.PlannedMinutes.ShouldBe(480);
+    }
+
+    /// <summary>
+    /// Kunduzgi kun so'rov bilan tungi smenaga aylandi: 22:00–06:00, seshanba 06:05 dagi chiqish
+    /// dushanbaga tushadi (smena boshlangan sana).
+    /// </summary>
+    [Fact]
+    public void Tungi_smenaga_aylantirilgan_kunda_ertangi_chiqish_shu_kunga_tushadi()
+    {
+        var sahna = Office().Override(Monday, "22:00", "06:00");
+        sahna.In(Monday, "21:58");
+        sahna.Out(Tuesday, "06:05");
+
+        var kunlar = sahna.Days(Monday, Tuesday);
+        var dushanba = kunlar[0].Facts;
+
+        dushanba.Status.ShouldBe(AttendanceDayStatus.Present);
+        dushanba.PassCount.ShouldBe(2);
+        dushanba.PlannedMinutes.ShouldBe(480);
+        dushanba.PlanEndAt.ShouldBe(At(Tuesday, "06:00"));
+        dushanba.LateMinutes.ShouldBe(0);
+        kunlar[1].Facts.PassCount.ShouldBe(0, "06:05 dagi chiqish seshanbaga tushmaydi");
+    }
+
     [Fact]
     public void Kechroq_boshlanadigan_kunda_kechikish_yangi_rejadan()
     {

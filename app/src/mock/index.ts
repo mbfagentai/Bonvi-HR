@@ -17,6 +17,7 @@ import type {
   ScheduleChangeRequestDto,
   TimesheetTotalsDto,
 } from '@/api/types'
+import { breakWindowMinutes } from '@/data/schedule-requests'
 import { daysBetween, monthKey, todayIso } from '@/lib/time'
 import mockAvatarUrl from './avatar.jpg'
 import {
@@ -96,6 +97,7 @@ function planOf(dateIso: string): DayPlanDto {
     endTime: approved.endTime,
     breakStart: approved.breakStart,
     breakEnd: approved.breakEnd,
+    breakMinutes: approved.breakMinutes,
   }
 }
 
@@ -434,7 +436,12 @@ function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<Sc
 
   const days: ScheduleChangeDayDto[] =
     request.kind === 'Change'
-      ? request.days.map((day) => ({ ...day, swapWith: null }))
+      ? request.days.map((day) => ({
+          ...day,
+          swapWith: null,
+          // Server qoidasi: berilmagan uzunlik — oynaning o'zi, dam olish kunida 0
+          breakMinutes: day.isWorking ? (day.breakMinutes ?? breakWindowMinutes(day.breakStart, day.breakEnd)) : 0,
+        }))
       : request.swaps.reduce<ScheduleChangeDayDto[]>(
           (list, pair) =>
             list.concat([

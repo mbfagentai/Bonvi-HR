@@ -1904,6 +1904,149 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (await KatakAsync(admin, xodim.Id, dushanba, ct)).GetProperty("status").GetString().ShouldBe("DayOff");
     }
 
+    /// <summary>
+    /// Almashtirishda jadval kunining tanaffus daqiqasi ko'chadi — oynadan qayta hisoblanmaydi:
+    /// 60 daqiqalik tushlik 12:00–15:00 oynasida yakshanbada ham 60 (reja 480, 360 emas).
+    /// </summary>
+    [Fact]
+    public async Task Kun_almashtirishda_tanaffus_daqiqasi_jadvaldagidek_qoladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+
+        Guid jadvalId;
+        using (var jadval = await admin.PostAsJsonAsync(
+                   Yol("/schedules"),
+                   new
+                   {
+                       name = "Erkin tushlik " + belgi,
+                       graceInMinutes = 10,
+                       graceOutMinutes = 10,
+                       note = (string?)null,
+                       days = Enumerable.Range(1, 7).Select(kun => kun == 7
+                           ? (object)new { dayIndex = kun, isWorking = false }
+                           : new
+                           {
+                               dayIndex = kun,
+                               isWorking = true,
+                               startTime = "09:00",
+                               endTime = "18:00",
+                               breakMinutes = 60,
+                               breakStart = "12:00",
+                               breakEnd = "15:00",
+                           }),
+                   },
+                   ct))
+        {
+            jadval.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(jadval));
+            jadvalId = (await JsonAsync(jadval)).GetProperty("id").GetGuid();
+        }
+
+        using (var biriktirma = await admin.PostAsJsonAsync(
+                   Yol("/schedule-assignments"),
+                   new { workScheduleId = jadvalId, scope = "Employee", employeeId = xodim.Id, effectiveFrom = "2025-01-01" },
+                   ct))
+        {
+            biriktirma.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(biriktirma));
+        }
+
+        var yakshanba = BugunToshkentda().AddDays(-9);
+        while (yakshanba.DayOfWeek != DayOfWeek.Sunday)
+        {
+            yakshanba = yakshanba.AddDays(1);
+        }
+
+        Guid sorovId;
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/schedule-requests"),
+                   new { employeeId = xodim.Id, kind = "Swap", swaps = new[] { new { date = Iso(yakshanba), withDate = Iso(yakshanba.AddDays(1)) } } },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            var yozuv = await JsonAsync(yaratish);
+            sorovId = yozuv.GetProperty("id").GetGuid();
+
+            var kun = yozuv.GetProperty("days").EnumerateArray().Single(day => day.GetProperty("date").GetString() == Iso(yakshanba));
+            kun.GetProperty("breakMinutes").GetInt32().ShouldBe(60, "oyna 180 daqiqa, lekin jadvalda 60");
+            kun.GetProperty("breakStart").GetString().ShouldStartWith("12:00");
+        }
+
+        using (var qaror = await admin.PostAsJsonAsync(Yol($"/schedule-requests/{sorovId}/decide"), new { approve = true }, ct))
+        {
+            qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+        }
+
+        var reja = (await JsonAsync(await admin.GetAsync(
+                Yol($"/schedules/resolve?employeeId={xodim.Id}&date={Iso(yakshanba)}"), ct)))
+            .GetProperty("day");
+        reja.GetProperty("breakMinutes").GetInt32().ShouldBe(60, "reja 480 — 360 emas");
+        reja.GetProperty("startTime").GetString().ShouldStartWith("09:00");
+    }
+
+    /// <summary>
+    /// Kutayotgan so'rov tahriri: kunlar almashtiriladi (shu sananing o'zi ham — eski qator o'chib, yangisi
+    /// yoziladi), tanaffus daqiqasi berilsa saqlanadi, berilmasa oynadan.
+    /// </summary>
+    [Fact]
+    public async Task Kutayotgan_jadval_sorovi_tahrirlanadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+        var sana = BugunToshkentda().AddDays(-4);
+
+        Guid sorovId;
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/schedule-requests"),
+                   new { employeeId = xodim.Id, kind = "Change", days = new[] { new { date = Iso(sana), isWorking = true, startTime = "10:00:00", endTime = "19:00:00" } } },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            sorovId = (await JsonAsync(yaratish)).GetProperty("id").GetGuid();
+        }
+
+        using (var tahrir = await admin.PutAsJsonAsync(
+                   Yol($"/schedule-requests/{sorovId}"),
+                   new
+                   {
+                       employeeId = xodim.Id,
+                       kind = "Change",
+                       days = new object[]
+                       {
+                           new { date = Iso(sana), isWorking = true, startTime = "11:00:00", endTime = "20:00:00", breakStart = "13:00:00", breakEnd = "16:00:00", breakMinutes = 60 },
+                           new { date = Iso(sana.AddDays(1)), isWorking = true, startTime = "09:00:00", endTime = "18:00:00", breakStart = "13:00:00", breakEnd = "14:30:00" },
+                       },
+                       note = "Tahrir",
+                   },
+                   ct))
+        {
+            tahrir.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tahrir));
+            var yozuv = await JsonAsync(tahrir);
+            yozuv.GetProperty("note").GetString().ShouldBe("Tahrir");
+
+            var kunlar = yozuv.GetProperty("days").EnumerateArray().ToList();
+            kunlar.Count.ShouldBe(2);
+            kunlar[0].GetProperty("startTime").GetString().ShouldStartWith("11:00");
+            kunlar[0].GetProperty("breakMinutes").GetInt32().ShouldBe(60);
+            kunlar[1].GetProperty("breakMinutes").GetInt32().ShouldBe(90, "daqiqa berilmadi — oynadan");
+        }
+
+        using var qaror = await admin.PostAsJsonAsync(Yol($"/schedule-requests/{sorovId}/decide"), new { approve = true }, ct);
+        qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+
+        var reja = (await JsonAsync(await admin.GetAsync(
+                Yol($"/schedules/resolve?employeeId={xodim.Id}&date={Iso(sana)}"), ct)))
+            .GetProperty("day");
+        reja.GetProperty("startTime").GetString().ShouldStartWith("11:00");
+        reja.GetProperty("breakMinutes").GetInt32().ShouldBe(60);
+    }
+
     /// <summary>Jadvali yo'q sanani almashtirib bo'lmaydi; kun o'zi bilan almashtirilmaydi.</summary>
     [Fact]
     public async Task Jadvalsiz_sanani_almashtirish_rad_etiladi()

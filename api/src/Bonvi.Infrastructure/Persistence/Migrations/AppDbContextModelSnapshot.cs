@@ -880,6 +880,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("time without time zone")
                         .HasColumnName("break_end");
 
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("break_minutes");
+
                     b.Property<TimeOnly?>("BreakStart")
                         .HasColumnType("time without time zone")
                         .HasColumnName("break_start");
@@ -921,6 +925,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("schedule_change_request_days", null, t =>
                         {
                             t.HasCheckConstraint("ck_schedule_change_request_days_break", "(break_start IS NULL AND break_end IS NULL) OR (is_working AND break_start IS NOT NULL AND break_end IS NOT NULL AND break_start <> break_end)");
+
+                            t.HasCheckConstraint("ck_schedule_change_request_days_break_minutes", "break_minutes BETWEEN 0 AND 480 AND (is_working OR break_minutes = 0)");
 
                             t.HasCheckConstraint("ck_schedule_change_request_days_times", "(is_working AND start_time IS NOT NULL AND end_time IS NOT NULL) OR (NOT is_working AND start_time IS NULL AND end_time IS NULL)");
                         });

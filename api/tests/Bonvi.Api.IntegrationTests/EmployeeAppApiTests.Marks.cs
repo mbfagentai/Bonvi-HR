@@ -396,6 +396,45 @@ public sealed partial class EmployeeAppApiTests
     }
 
     /// <summary>
+    /// Xodim faqat bugun atrofidagi sanalarni so'raydi (o'tgan 31 kun, oldinda 92); chekka sana —
+    /// 400, 500 emas; cheklanmagan almashtirish ro'yxati rejani o'qishdan OLDIN rad etiladi.
+    /// </summary>
+    [Fact]
+    public async Task Xodim_jadval_sorovi_sana_oynasidan_tashqarida_rad_etiladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(Belgi());
+        using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
+        var bugun = BugunToshkentda();
+
+        using (var eski = await ilova.PostAsJsonAsync(
+                   new Uri("/api/me/schedule-requests", UriKind.Relative),
+                   new { kind = "Change", days = new[] { new { date = Iso(bugun.AddDays(-32)), isWorking = false } } },
+                   ct))
+        {
+            await XatoKutAsync(eski, HttpStatusCode.BadRequest, "davomat.jadval_sorovi_sana_oynasi");
+        }
+
+        using (var reja = await ilova.GetAsync(new Uri("/api/me/plan?date=0001-01-01", UriKind.Relative), ct))
+        {
+            await XatoKutAsync(reja, HttpStatusCode.BadRequest, "davomat.jadval_sorovi_sana_oynasi");
+        }
+
+        var juftlar = Enumerable.Range(0, 200)
+            .Select(i => new { date = Iso(bugun.AddDays(i % 40)), withDate = Iso(bugun.AddDays(41 + (i % 40))) })
+            .ToArray();
+        using (var kop = await ilova.PostAsJsonAsync(
+                   new Uri("/api/me/schedule-requests", UriKind.Relative),
+                   new { kind = "Swap", swaps = juftlar },
+                   ct))
+        {
+            await XatoKutAsync(kop, HttpStatusCode.BadRequest, "davomat.jadval_sorovi_kop");
+        }
+    }
+
+    /// <summary>
     /// «Xodim o'zi so'ray oladi» o'chirilgan tur ilovada chiqmaydi va unga so'rov yuborib bo'lmaydi;
     /// HR esa uni xodim nomidan kirita oladi (SPEC-verifikatsiya-jadval-sorovi §A).
     /// </summary>

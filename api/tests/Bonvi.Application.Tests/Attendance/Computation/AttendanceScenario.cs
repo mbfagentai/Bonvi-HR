@@ -204,8 +204,24 @@ internal sealed class AttendanceScenario
     private readonly List<EmployeeDayOverride> _overrides = [];
 
     /// <summary>Tasdiqlangan jadval so'rovining kuni (SPEC-verifikatsiya-jadval-sorovi §C2).</summary>
-    public AttendanceScenario Override(DateOnly date, string? start, string? end, string? breakStart = null, string? breakEnd = null)
+    /// <param name="date">Sana.</param>
+    /// <param name="start">Boshlanish; <c>null</c> — dam olish kuni.</param>
+    /// <param name="end">Tugash.</param>
+    /// <param name="breakStart">Tanaffus oynasi boshi.</param>
+    /// <param name="breakEnd">Tanaffus oynasi oxiri.</param>
+    /// <param name="breakMinutes">Ayiriladigan tanaffus; <c>null</c> — oynaning uzunligi (Verifix formasidagidek).</param>
+    public AttendanceScenario Override(
+        DateOnly date,
+        string? start,
+        string? end,
+        string? breakStart = null,
+        string? breakEnd = null,
+        int? breakMinutes = null)
     {
+        var windowMinutes = breakStart is not null && breakEnd is not null
+            ? (int)(Time(breakEnd) - Time(breakStart)).TotalMinutes
+            : 0;
+
         _overrides.Add(new EmployeeDayOverride(
             EmployeeId,
             date,
@@ -214,6 +230,7 @@ internal sealed class AttendanceScenario
             end is null ? null : Time(end),
             breakStart is null ? null : Time(breakStart),
             breakEnd is null ? null : Time(breakEnd),
+            start is null ? 0 : breakMinutes ?? windowMinutes,
             Guid.CreateVersion7()));
         return this;
     }

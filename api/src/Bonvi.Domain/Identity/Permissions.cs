@@ -285,6 +285,14 @@ public static class Permissions
     /// davomat ekranlarining bir qismi va ularsiz tabeldagi «Sababli» kun
     /// tushunarsiz bo'lib qolardi.
     /// </para>
+    /// <para>
+    /// ⭐ <b>Jadvalni o'zgartirish so'rovlari ham shu ruxsat ostida</b>
+    /// (SPEC-verifikatsiya-jadval-sorovi §C3). Tasdiqlangan so'rov bitta xodimning
+    /// bitta sanadagi rejasini almashtiradi — bu ham kadrlar qarori, jadvalning
+    /// o'zi (hamma biriktirilganlar uchun) o'zgarmaydi. Ikki xil so'rov HR'da bitta
+    /// navbatda turadi; ularni ikki ruxsatga bo'lish navbatning yarmini qarorsiz
+    /// qoldirardi.
+    /// </para>
     /// </remarks>
     public const string AttendanceRequestsManage = "attendance.requests.manage";
 

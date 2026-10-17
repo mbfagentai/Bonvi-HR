@@ -46,8 +46,19 @@ almashtirish»), `Note`, `Status` (same four values as absence requests),
 
 `schedule_change_request_days` — children, one row per affected date:
 `Date`, `IsWorking`, `StartTime`, `EndTime`, `BreakStart`, `BreakEnd`
-(break both or none), `SwapWith` (the other date of a swap pair, display only).
-Unique `(request_id, date)`.
+(break both or none), `BreakMinutes`, `SwapWith` (the other date of a swap pair,
+display only). Unique `(request_id, date)`.
+
+**AMENDED 2026-10-17 (qa-review before the first deploy) — `BreakMinutes` is stored.**
+As in `work_schedule_days`, the deducted break length and the break window are
+independent (a 60-minute lunch somewhere inside 12:00–15:00). The first cut derived
+the length from the window, so a swap turned that day into a 180-minute break and a
+60-minute break without a window into 0. Now: a swap snapshot copies the schedule's
+`BreakMinutes`; a Change day takes the client's `breakMinutes` when given (the form
+sends the prefilled plan value while the user leaves the break untouched), otherwise
+the window length (Verifix semantics). `0 ≤ BreakMinutes ≤ 480`, 0 on a day off
+(CHECK `ck_schedule_change_request_days_break_minutes`). Migration
+`JadvalSorovTanaffusi` back-fills existing rows with their window length.
 
 * **Change**: 1–31 dates, each «ish kuni» (start*, end*, optional break) or
   «dam olish kuni». End before start = night shift (as in schedules). Break
@@ -59,6 +70,12 @@ Unique `(request_id, date)`.
 * An active (pending/approved) request may not cover a date another active
   schedule request of the same employee covers → 409
   `davomat.jadval_sorovi_takroriy`.
+* **Limits (AMENDED 2026-10-17, qa-security H1)** — checked BEFORE any plan read
+  or overlap query: dates within years 2000–2100 (`davomat.jadval_sorovi_sana`), all
+  dates of one request within 92 days (`davomat.jadval_sorovi_davri`), note and
+  decision note ≤ 2000 chars (`davomat.izoh_uzun`). Employee app only: every date
+  within today −31 … today +92 (`davomat.jadval_sorovi_sana_oynasi`; `GET /api/me/plan`
+  too). Request body ≤ 32 KB on the create/update endpoints.
 
 ### C2. Effect on attendance
 
@@ -80,13 +97,15 @@ the same plan. Grace minutes come from the resolved schedule.
 ### C3. API
 
 HR (`/api/attendance`, read `attendance.view`, write/decide
-`attendance.requests.manage`):
+`attendance.requests.manage` — the same «O'zgartirish» level that decides absence
+requests; both kinds share one HR queue. Confirmed 2026-10-17 after qa-security M1,
+documented in `Permissions.AttendanceRequestsManage` and `PermissionCatalog`):
 
 | Method | Path | Body / query |
 |---|---|---|
 | GET | `/schedule-requests` | `employeeId, status, decided, from, to, search, page, pageSize` |
 | GET | `/schedule-requests/{id}` | — |
-| POST | `/schedule-requests` | `{ employeeId, kind, days: [{ date, isWorking, startTime, endTime, breakStart, breakEnd }], swaps: [{ date, withDate }], note }` |
+| POST | `/schedule-requests` | `{ employeeId, kind, days: [{ date, isWorking, startTime, endTime, breakStart, breakEnd, breakMinutes? }], swaps: [{ date, withDate }], note }` |
 | PUT | `/schedule-requests/{id}` | same, pending only (409 `davomat.sorov_qaror_qabul_qilingan`) |
 | POST | `/schedule-requests/{id}/decide` | `{ approve, decisionNote }` |
 | POST | `/schedule-requests/{id}/cancel` | — |
@@ -104,7 +123,8 @@ Employee app (`/api/me`, employee token):
 `ScheduleChangeRequestDto`: id, employee (id, name, photoKey, position,
 department), kind, status, note, decisionNote, decidedByName, decidedAt,
 createdAt, submittedByEmployee, cancelledByEmployee, days[] (date, isWorking,
-startTime, endTime, breakStart, breakEnd, swapWith).
+startTime, endTime, breakStart, breakEnd, swapWith, breakMinutes). `DayPlanDto` (`/api/me/plan`)
+also carries `breakMinutes`.
 
 ### C4. Screens
 

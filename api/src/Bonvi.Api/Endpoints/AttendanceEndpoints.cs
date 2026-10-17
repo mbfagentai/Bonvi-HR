@@ -153,13 +153,18 @@ public sealed record AbsenceRequestBody(
 /// <param name="EndTime">Tugash — boshlanishdan oldin bo'lsa tungi smena.</param>
 /// <param name="BreakStart">Tanaffus boshi (oxiri bilan birga).</param>
 /// <param name="BreakEnd">Tanaffus oxiri.</param>
+/// <param name="BreakMinutes">
+/// Ayiriladigan tanaffus (daqiqa). Bo'sh — oynaning uzunligi. Forma jadvaldan to'ldirilgan va
+/// tanaffusi o'zgartirilmagan kunda jadvalning qiymatini qaytaradi.
+/// </param>
 public sealed record ScheduleChangeDayBody(
     DateOnly Date,
     bool IsWorking,
     TimeOnly? StartTime = null,
     TimeOnly? EndTime = null,
     TimeOnly? BreakStart = null,
-    TimeOnly? BreakEnd = null);
+    TimeOnly? BreakEnd = null,
+    int? BreakMinutes = null);
 
 /// <summary>Kun almashtirish jufti.</summary>
 /// <param name="Date">Birinchi sana.</param>
@@ -182,7 +187,7 @@ public sealed record ScheduleChangeRequestBody(
     /// <summary>Kunlar — domen tavsifiga.</summary>
     public IReadOnlyList<ScheduleChangeDayInput> DayInputs()
         => [.. (Days ?? []).Select(day => new ScheduleChangeDayInput(
-            day.Date, day.IsWorking, day.StartTime, day.EndTime, day.BreakStart, day.BreakEnd))];
+            day.Date, day.IsWorking, day.StartTime, day.EndTime, day.BreakStart, day.BreakEnd, BreakMinutes: day.BreakMinutes))];
 
     /// <summary>Juftlar — buyruq tavsifiga.</summary>
     public IReadOnlyList<ScheduleSwapInput> SwapInputs()
@@ -314,6 +319,9 @@ public static class AttendanceEndpoints
     /// (<c>davomat.import_fayl_katta</c>) — <c>EmployeeEndpoints</c> dagi rasm bilan bir xil.
     /// </remarks>
     private const long MaxImportRequestBytes = IdentityImportLimits.MaxFileBytes + (64 * 1024);
+
+    /// <summary>Jadval so'rovi tanasining chegarasi — eng katta to'g'ri so'rov 16 KB dan kichik.</summary>
+    internal const long MaxScheduleRequestBytes = 32 * 1024;
 
     public static IEndpointRouteBuilder MapAttendanceEndpoints(this IEndpointRouteBuilder app)
     {
@@ -1496,6 +1504,7 @@ public static class AttendanceEndpoints
                 return natija.ToHttpResult();
             })
             .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithMetadata(new RequestSizeLimitAttribute(MaxScheduleRequestBytes))
             .WithName("CreateScheduleChangeRequest")
             .WithSummary("Davomat — jadval so'rovini yaratish (xodim nomidan)")
             .WithDescription(
@@ -1523,6 +1532,7 @@ public static class AttendanceEndpoints
                 return natija.ToHttpResult();
             })
             .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithMetadata(new RequestSizeLimitAttribute(MaxScheduleRequestBytes))
             .WithName("UpdateScheduleChangeRequest")
             .WithSummary("Davomat — kutayotgan jadval so'rovini tahrirlash")
             .WithDescription(

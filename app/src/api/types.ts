@@ -221,6 +221,11 @@ export interface ScheduleChangeDayDto {
   breakStart: string | null
   breakEnd: string | null
   swapWith: string | null
+  /**
+   * Ayiriladigan tanaffus, daqiqa — oynadan farq qilishi mumkin: jadvaldan
+   * olingan kunda 60 daqiqalik tushlik 12:00–15:00 oynasida.
+   */
+  breakMinutes: number
 }
 
 /** `ScheduleChangeRequestDto` — HR navbatidagi yozuvning o'zi. */
@@ -253,6 +258,8 @@ export interface ScheduleChangeDayInput {
   endTime: string | null
   breakStart: string | null
   breakEnd: string | null
+  /** Tanaffus uzunligi, daqiqa; `null` — server oyna uzunligini oladi. */
+  breakMinutes: number | null
 }
 
 /** Kun almashtirish jufti: `date` ⇄ `withDate`. */
@@ -286,6 +293,12 @@ export interface DayPlanDto {
   endTime: string | null
   breakStart: string | null
   breakEnd: string | null
+  /**
+   * Ayiriladigan tanaffus, daqiqa — jadvalda oynadan alohida. Forma uni
+   * tanaffusi o'zgartirilmagan kun bilan qaytaradi, aks holda server oyna
+   * uzunligini olardi (12:00–15:00 da 60 emas, 180).
+   */
+  breakMinutes: number
 }
 
 /** Sahifalangan ro'yxat — `PagedResult<T>`. */

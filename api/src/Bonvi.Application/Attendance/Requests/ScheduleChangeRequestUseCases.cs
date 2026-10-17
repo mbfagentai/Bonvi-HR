@@ -135,7 +135,8 @@ public sealed class EmployeePlanReader
                     LocalTime(plan.PlanStartAt),
                     LocalTime(plan.PlanEndAt),
                     LocalTime(plan.BreakWindowStartAt),
-                    LocalTime(plan.BreakWindowEndAt));
+                    LocalTime(plan.BreakWindowEndAt),
+                    plan.IsWorking ? plan.BreakMinutes : 0);
         }
 
         return result;
@@ -159,18 +160,32 @@ internal static class ScheduleChangeDays
         IReadOnlyCollection<ScheduleSwapInput>? swaps,
         CancellationToken cancellationToken)
     {
-        if (kind != ScheduleChangeKind.Swap)
+        var isSwap = kind == ScheduleChangeKind.Swap;
+        var pairs = swaps ?? [];
+
+        if (isSwap && pairs.Any(pair => pair.Date == pair.WithDate))
+        {
+            return ScheduleChangeRequestErrors.SwapSameDate;
+        }
+
+        // ⭐ Shakl har qanday o'qishdan OLDIN: rejalar har bir sana uchun o'qiladi, takror
+        // tekshiruvi esa sanalar ro'yxati bilan bazaga boradi — cheklanmagan ro'yxat yoki keng
+        // davr 2 GB serverni og'irlashtirardi (domen ham shu qoidani qaytaradi).
+        var shape = ScheduleChangeRequest.ValidateDates(
+            kind,
+            isSwap
+                ? [.. pairs.SelectMany(pair => new[] { pair.Date, pair.WithDate })]
+                : [.. (days ?? []).Select(day => day.Date)]);
+        if (shape.IsFailure)
+        {
+            return shape.Error;
+        }
+
+        if (!isSwap)
         {
             // Juft maydoni «kunni o'zgartirish» da ma'nosiz — mijoz yuborsa ham olinmaydi.
             return Result.Success<IReadOnlyList<ScheduleChangeDayInput>>(
                 [.. (days ?? []).Select(day => day with { SwapWith = null })]);
-        }
-
-        var pairs = swaps ?? [];
-
-        if (pairs.Any(pair => pair.Date == pair.WithDate))
-        {
-            return ScheduleChangeRequestErrors.SwapSameDate;
         }
 
         var current = await plans
@@ -193,9 +208,11 @@ internal static class ScheduleChangeDays
 
         return built;
 
+        // Tanaffus daqiqasi jadvalnikidek ko'chadi — oynadan qayta hisoblanmaydi.
         static ScheduleChangeDayInput Take(DateOnly date, DayPlanDto from, DateOnly swapWith)
             => from.IsWorking
-                ? new ScheduleChangeDayInput(date, true, from.StartTime, from.EndTime, from.BreakStart, from.BreakEnd, swapWith)
+                ? new ScheduleChangeDayInput(
+                    date, true, from.StartTime, from.EndTime, from.BreakStart, from.BreakEnd, swapWith, from.BreakMinutes)
                 : new ScheduleChangeDayInput(date, false, SwapWith: swapWith);
     }
 

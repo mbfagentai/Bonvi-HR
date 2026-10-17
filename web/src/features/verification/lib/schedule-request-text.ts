@@ -5,6 +5,7 @@ import { todayIso } from '@/shared/lib/today'
 
 import type { ScheduleChangeRequest } from '../api/attendance-api'
 import { formatBirthday, scheduleSwapPairs } from './attendance-presentation'
+import { breakWindowMinutes } from './attendance-schedule-rules'
 
 /**
  * Bir kunning rejasi — so'rov kuni ham, jadval kuni ham (`/schedules/resolve`).
@@ -16,8 +17,19 @@ export interface DayPlanLike {
   endTime: string | null
   breakStart: string | null
   breakEnd: string | null
-  /** Faqat jadval kunida: oynasi belgilanmagan tanaffusning uzunligi. */
-  breakMinutes?: number
+  /** Ayiriladigan tanaffus — oynadan alohida (60 daqiqalik tushlik 12:00–15:00 oynasida). */
+  breakMinutes: number
+}
+
+/**
+ * Ayiriladigan tanaffus oynaning uzunligidan farq qiladimi — farq qilsa
+ * daqiqasi ham ko'rsatiladi. Oynasiz kunda — daqiqa noldan katta bo'lsa.
+ *
+ * Teng bo'lsa (Verifix formasidagi kun: oyna — tanaffusning o'zi) daqiqa
+ * takrorlanmaydi, faqat oyna.
+ */
+export function breakDiffersFromWindow(day: DayPlanLike): boolean {
+  return day.isWorking && day.breakMinutes !== breakWindowMinutes(day.breakStart, day.breakEnd)
 }
 
 /**
@@ -54,9 +66,13 @@ export function useScheduleRequestText() {
       }
 
       if (day.breakStart !== null && day.breakEnd !== null) {
-        text += `, ${t('attendance.scheduleRequestBreakRange', { range: `${day.breakStart}–${day.breakEnd}` })}`
-      } else if ((day.breakMinutes ?? 0) > 0) {
-        text += `, ${t('attendance.scheduleRequestBreakLength', { n: day.breakMinutes ?? 0 })}`
+        const range = `${day.breakStart}–${day.breakEnd}`
+        // «tanaffus 60 daq (12:00–15:00 oralig'ida)» — uzunlik oynadan farq qilsa
+        text += breakDiffersFromWindow(day)
+          ? `, ${t('attendance.scheduleRequestBreakLengthInRange', { n: day.breakMinutes, range })}`
+          : `, ${t('attendance.scheduleRequestBreakRange', { range })}`
+      } else if (day.breakMinutes > 0) {
+        text += `, ${t('attendance.scheduleRequestBreakLength', { n: day.breakMinutes })}`
       }
 
       return text

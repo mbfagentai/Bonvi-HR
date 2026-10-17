@@ -12,7 +12,13 @@ import type {
 } from '@/api/types'
 import { shortTime } from '@/data/attendance'
 import { invalidateScheduleRequests, usePlan } from '@/data/queries'
-import { breakInsideShift, crossesMidnight, dayPlanText, wireTime } from '@/data/schedule-requests'
+import {
+  breakDiffersFromWindow,
+  breakInsideShift,
+  crossesMidnight,
+  dayPlanText,
+  wireTime,
+} from '@/data/schedule-requests'
 import { addDays, parseIsoDate, todayIso } from '@/lib/time'
 import { useErrorText } from '@/lib/use-error-message'
 import { PushedScreen } from '@/ui/app-shell'
@@ -37,6 +43,13 @@ interface DayDraft {
   hasBreak: boolean
   breakStart: string
   breakEnd: string
+  /**
+   * Jadvaldan olingan tanaffus uzunligi, daqiqa. Jadvalda u oynadan alohida
+   * (60 daqiqalik tushlik 12:00–15:00 oynasida) va xodim tanaffusga
+   * tegmaguncha aynan shu yuboriladi. `null` — server oyna uzunligini oladi:
+   * reja qo'yilmagan blok yoki tanaffusni xodim o'zi yozgan.
+   */
+  breakMinutes: number | null
   /**
    * Qaysi sana uchun blok «o'rnashgan»: reja qo'yilgan yoki xodim o'zi
    * tahrirlagan. Sana almashsa `null` bo'ladi va yangi sananing rejasi
@@ -70,16 +83,18 @@ function emptyDay(date: string): DayDraft {
     hasBreak: false,
     breakStart: '',
     breakEnd: '',
+    breakMinutes: null,
     settledFor: null,
   }
 }
 
 /**
  * Rejani blokka qo'yadi. Jadval biriktirilmagan sanada qiymatlar
- * tegilmaydi — to'ldiradigan narsa yo'q, xodim o'zi tanlaydi.
+ * tegilmaydi — to'ldiradigan narsa yo'q, xodim o'zi tanlaydi (tanaffus
+ * uzunligi esa tushiriladi: u «jadvaldagi» deb ko'rsatilardi).
  */
 function applyPlan(draft: DayDraft, plan: DayPlanDto): DayDraft {
-  if (!plan.hasSchedule) return { ...draft, settledFor: draft.date }
+  if (!plan.hasSchedule) return { ...draft, breakMinutes: null, settledFor: draft.date }
 
   const breakStart = shortTime(plan.breakStart) ?? ''
   const breakEnd = shortTime(plan.breakEnd) ?? ''
@@ -92,6 +107,7 @@ function applyPlan(draft: DayDraft, plan: DayPlanDto): DayDraft {
     hasBreak: breakStart !== '' && breakEnd !== '',
     breakStart,
     breakEnd,
+    breakMinutes: plan.breakMinutes,
     settledFor: draft.date,
   }
 }
@@ -185,6 +201,8 @@ function toInput(draft: DayDraft): ScheduleChangeDayInput {
     endTime: draft.isWorking ? wireTime(draft.endTime) : null,
     breakStart: withBreak ? wireTime(draft.breakStart) : null,
     breakEnd: withBreak ? wireTime(draft.breakEnd) : null,
+    // Dam olish kunida server baribir 0 yozadi
+    breakMinutes: draft.isWorking ? draft.breakMinutes : null,
   }
 }
 
@@ -482,6 +500,30 @@ function DayBlock({
   // ustidan yozmaydi.
   const edit = (patch: Partial<DayDraft>): void => onEdit({ ...draft, ...patch, settledFor: draft.date })
 
+  // Tanaffusga tegildi — jadvaldagi uzunlik endi bu oynaga tegishli emas: oynani
+  // o'zi tanlagan xodim uni tanaffusning o'zi deb biladi, server oyna uzunligini
+  // oladi. Varaqni o'sha vaqt bilan tasdiqlash — tegish emas.
+  const editBreak = (patch: Pick<Partial<DayDraft>, 'hasBreak' | 'breakStart' | 'breakEnd'>): void => {
+    const changed =
+      (patch.hasBreak !== undefined && patch.hasBreak !== draft.hasBreak) ||
+      (patch.breakStart !== undefined && patch.breakStart !== draft.breakStart) ||
+      (patch.breakEnd !== undefined && patch.breakEnd !== draft.breakEnd)
+
+    edit(changed ? { ...patch, breakMinutes: null } : patch)
+  }
+
+  // Saqlanayotgan uzunlik oynadan farq qilsa — xodim nima yuborilishini ko'rsin.
+  const keptBreak =
+    draft.breakMinutes !== null &&
+    breakDiffersFromWindow({
+      isWorking: draft.isWorking,
+      breakStart: draft.hasBreak ? draft.breakStart : null,
+      breakEnd: draft.hasBreak ? draft.breakEnd : null,
+      breakMinutes: draft.breakMinutes,
+    })
+      ? draft.breakMinutes
+      : null
+
   const current =
     planForDate && planForDate.hasSchedule ? t('schedule.currentPlan', { plan: dayPlanText(t, planForDate) }) : undefined
 
@@ -563,7 +605,7 @@ function DayBlock({
                 <SwitchRow
                   label={t('schedule.break')}
                   checked={draft.hasBreak}
-                  onChange={(checked) => edit({ hasBreak: checked })}
+                  onChange={(checked) => editBreak({ hasBreak: checked })}
                 />
 
                 {draft.hasBreak ? (
@@ -574,7 +616,7 @@ function DayBlock({
                         value={draft.breakStart}
                         placeholder={t('common.select')}
                         invalid={errors !== null && errors.breakStart !== null}
-                        onChange={(value) => edit({ breakStart: value })}
+                        onChange={(value) => editBreak({ breakStart: value })}
                       />
                     </Field>
 
@@ -584,10 +626,14 @@ function DayBlock({
                         value={draft.breakEnd}
                         placeholder={t('common.select')}
                         invalid={errors !== null && errors.breakEnd !== null}
-                        onChange={(value) => edit({ breakEnd: value })}
+                        onChange={(value) => editBreak({ breakEnd: value })}
                       />
                     </Field>
                   </>
+                ) : null}
+
+                {keptBreak !== null ? (
+                  <p className="nums text-footnote text-fg-tertiary">{t('schedule.breakKept', { n: keptBreak })}</p>
                 ) : null}
               </>
             ) : null}

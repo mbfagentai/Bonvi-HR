@@ -96,6 +96,86 @@ public sealed class IshVaqtiSorovMigrationTests
 
     private const string JadvalMigratsiyasi = "20261017091318_JadvalSorovi";
 
+    private const string TanaffusMigratsiyasi = "20261017163149_JadvalSorovTanaffusi";
+
+    /// <summary>
+    /// <c>JadvalSorovTanaffusi</c>: mavjud kunlarga oynaning uzunligi yoziladi (yarim tundan o'tgani
+    /// ham), oynasiz va dam olish kunlari 0; Down ustunni olib tashlaydi, kunlar joyida.
+    /// </summary>
+    [Fact]
+    public async Task JadvalSorovTanaffusi_mavjud_kunlarga_oyna_uzunligini_yozadi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var baza = await VaqtinchalikBaza.YaratAsync(bekorQilish);
+        await MigratsiyaAsync(baza.UlanishSatri, JadvalMigratsiyasi, bekorQilish);
+
+        await using var ulanish = await UlanAsync(baza.UlanishSatri, bekorQilish);
+
+        var sorov = Guid.NewGuid();
+        await using (var buyruq = Buyruq(
+                         ulanish,
+                         "INSERT INTO schedule_change_requests (id, employee_id, kind, status, created_at) VALUES ($1, $2, 1, 1, now());",
+                         sorov,
+                         Guid.NewGuid()))
+        {
+            _ = await buyruq.ExecuteNonQueryAsync(bekorQilish);
+        }
+
+        var kunduzgi = await SorovKuniQoshAsync(ulanish, sorov, 1, "09:00", "18:00", "12:23", "14:23", bekorQilish);
+        var tungi = await SorovKuniQoshAsync(ulanish, sorov, 2, "20:00", "08:00", "23:30", "00:30", bekorQilish);
+        var oynasiz = await SorovKuniQoshAsync(ulanish, sorov, 3, "09:00", "18:00", null, null, bekorQilish);
+        var damOlish = await SorovKuniQoshAsync(ulanish, sorov, 4, null, null, null, null, bekorQilish);
+
+        await MigratsiyaAsync(baza.UlanishSatri, TanaffusMigratsiyasi, bekorQilish);
+
+        const string Daqiqa = "SELECT break_minutes FROM schedule_change_request_days WHERE id = $1";
+        (await QiymatAsync(ulanish, Daqiqa, bekorQilish, kunduzgi)).ShouldBe(120);
+        (await QiymatAsync(ulanish, Daqiqa, bekorQilish, tungi)).ShouldBe(60, "23:30–00:30 yarim tundan o'tadi");
+        (await QiymatAsync(ulanish, Daqiqa, bekorQilish, oynasiz)).ShouldBe(0);
+        (await QiymatAsync(ulanish, Daqiqa, bekorQilish, damOlish)).ShouldBe(0);
+
+        await MigratsiyaAsync(baza.UlanishSatri, JadvalMigratsiyasi, bekorQilish);
+
+        (await UstunBormiAsync(ulanish, "schedule_change_request_days", "break_minutes", bekorQilish)).ShouldBeFalse();
+        (await QiymatAsync(ulanish, "SELECT count(*) FROM schedule_change_request_days", bekorQilish)).ShouldBe(4L);
+    }
+
+    /// <summary>Migratsiyadan OLDINGI ustunlar bilan so'rov kuni; vaqtsiz — dam olish kuni.</summary>
+    private static async Task<Guid> SorovKuniQoshAsync(
+        NpgsqlConnection ulanish,
+        Guid sorov,
+        int kun,
+        string? boshi,
+        string? oxiri,
+        string? tanaffusBoshi,
+        string? tanaffusOxiri,
+        CancellationToken bekorQilish)
+    {
+        var id = Guid.NewGuid();
+
+        static object Vaqt(string? qiymat)
+            => qiymat is null ? DBNull.Value : TimeOnly.Parse(qiymat, CultureInfo.InvariantCulture);
+
+        await using var buyruq = Buyruq(
+            ulanish,
+            """
+            INSERT INTO schedule_change_request_days (id, request_id, date, is_working, start_time, end_time, break_start, break_end)
+            VALUES ($1, $2, $3, $4, $5::time, $6::time, $7::time, $8::time);
+            """,
+            id,
+            sorov,
+            new DateOnly(2026, 10, kun),
+            boshi is not null,
+            Vaqt(boshi),
+            Vaqt(oxiri),
+            Vaqt(tanaffusBoshi),
+            Vaqt(tanaffusOxiri));
+        _ = await buyruq.ExecuteNonQueryAsync(bekorQilish);
+
+        return id;
+    }
+
     private static async Task MigratsiyaAsync(string ulanishSatri, string nishon, CancellationToken bekorQilish)
     {
         await using var kontekst = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()

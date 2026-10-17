@@ -3,27 +3,45 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏳ Navbatda (prod'da EMAS) — rag'batdan buyruq olib tashlandi + yo'qlik turlari + «ish vaqti» so'rovi
+## ⏳ Navbatda (prod'da EMAS) — rag'batdan buyruq olib tashlandi + yo'qlik turlari + «ish vaqti» so'rovi + jadval so'rovi
 
 Prod `e99ba4e`. Navbatdagi commit'lar: `35430b2` (rag'bat/jarimada buyruq umuman yo'q), `28a28cb` (yo'qlik
-turlari urug'i, ilovada vaqt oralig'i), `9df5ca7` («ish vaqti hisoblanadigan» yo'qlik turi).
+turlari urug'i, ilovada vaqt oralig'i), `9df5ca7` («ish vaqti hisoblanadigan» yo'qlik turi), `fdd1d85` (shu ro'yxat),
+`99f0085` (jadvalni o'zgartirish so'rovi, Verifix uslubidagi yo'qlik formasi, «xodim o'zi so'ray oladi» belgisi)
+va undan keyingi tekshiruv tuzatishlari (qa-review + qa-security: tanaffus daqiqasi saqlanadi, sana/hajm chegaralari,
+kun o'zgarishi xodim auditida).
 
-**Migratsiyalar — 2 ta:**
+**Migratsiyalar — 4 ta:**
 * `20261016092521_RagbatJarimaBuyruqsiz` — `incentives.order_no/order_date` va `ck_incentives_penalty_no_order`
   O'CHADI. Oldin tekshir: `select kind, count(*), count(order_no), count(order_date) from incentives group by kind`
   — buyruqli yozuv bo'lsa egasiga ayt (2026-10-16: 24 ta, buyruqli 0).
 * `20261017072546_IshVaqtiSorovi` — `absence_types.counts_as_work_time` (DEFAULT false) va
   `attendance_days.credited_minutes` (DEFAULT 0). Doimiy sukut — jadval qayta yozilmaydi; sukut bazada qoladi
   (eski image rollback'da ham yoza oladi).
+* `20261017091318_JadvalSorovi` — `absence_types.employee_can_request` (DEFAULT true), yangi jadvallar
+  `schedule_change_requests` va `schedule_change_request_days` (bo'sh). Qatorlar qayta yozilmaydi.
+* `20261017163149_JadvalSorovTanaffusi` — `schedule_change_request_days.break_minutes` (DEFAULT 0, mavjud qatorga
+  oyna uzunligi) + CHECK `ck_schedule_change_request_days_break_minutes`. Prod'da jadval bo'sh.
+
+Nusxada sinov 2026-10-17 21:08 (serverda, `bonvi_migtest`, prod `pg_dump`i, birinchi 3 migratsiya): idempotent skript
+0,7 s, jadval 56 → 58, 33 324 qator va xodim/nomzod/rag'bat/davomat nazorat yig'indilari O'ZGARMADI; ikkinchi Up —
+o'zgarishsiz; Down → 56 jadval, yig'indilar aynan oldingidek; qayta Up = Up. `bonvi_migtest` o'chirildi.
+4-migratsiya qo'shilgandan keyin sinov 4 tasi bilan qayta o'tkaziladi (pastda).
+
+**Orqaga qaytarish:** image tegi + Down skripti (`order_no/order_date` bo'sh holda qaytadi — eski kod ularni o'qiydi,
+faqat image'ni qaytarish YETMAYDI: rag'bat ro'yxati 500 beradi). Down nusxada sinalgan.
 
 **Ishga tushganda:** `absence_types` bo'sh bo'lsa 3 tur quyiladi (Ishxona ishi bilan — ish vaqti ✓, Kasallik,
 Shaxsiy sabab). HR deploy'dan oldin o'zi tur kiritgan bo'lsa urug' tegmaydi va bayroq `false` — egasiga ayt.
 
 **Deploy'dan keyin:**
-- [ ] `__EFMigrationsHistory` oxirgisi `20261017072546_IshVaqtiSorovi`
+- [ ] `__EFMigrationsHistory` oxirgisi `20261017163149_JadvalSorovTanaffusi`
 - [ ] `select name, counts_as_work_time from absence_types` — 3 tur (yoki HR kiritganlari)
 - [ ] `incentives` da `order_no` ustuni yo'q, CHECK'lar 3 ta (`amount_or_percent`, `percent_penalty_only`, `percent_range`)
-- [ ] Ilovada «So'rov yuborish» → «Yo'qlik turi» ro'yxati to'la; bir kunlik so'rovda vaqt maydonlari bor
+- [ ] `select count(*) from absence_types where not employee_can_request` = 0 (hamma tur xodimga ochiq)
+- [ ] Ilovada «So'rov yuborish» → «Yo'qlik» / «Jadvalni o'zgartirish» tanlovi; yo'qlik formasi «Qism kun» da ochiladi
+      (vaqtlar shart), «Yo'qlik turi» ro'yxati to'la
+- [ ] `/api/attendance/schedule-requests` va `/api/me/schedule-requests` kirishsiz → 401
 - [ ] Jurnalda ERR/FTL yo'q
 
 ⚠️ Prod'da 2026-10-17 holatida BIRORTA ish jadvali biriktirilmagan — jadvalsiz kunga «ish vaqti» so'rovi

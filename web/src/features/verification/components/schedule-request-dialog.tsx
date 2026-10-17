@@ -38,8 +38,8 @@ import {
   isoWeekday,
   scheduleSwapPairs,
 } from '../lib/attendance-presentation'
-import { clockMinutes, scheduleOutcome, validateScheduleDay } from '../lib/attendance-schedule-rules'
-import { useScheduleRequestText } from '../lib/schedule-request-text'
+import { breakWindowMinutes, scheduleOutcome, validateScheduleDay } from '../lib/attendance-schedule-rules'
+import { breakDiffersFromWindow, useScheduleRequestText } from '../lib/schedule-request-text'
 
 /** `schedule_change_requests.note` — varchar(2000). */
 const NOTE_MAX = 2000
@@ -57,6 +57,13 @@ interface ChangeRowDraft {
   hasBreak: boolean
   breakStart: string
   breakEnd: string
+  /**
+   * Joriy rejadan olingan tanaffus uzunligi, daqiqa. Jadvalda u oynadan
+   * alohida (60 daqiqalik tushlik 12:00–15:00 oynasida) va HR tanaffus
+   * maydonlariga tegmaguncha aynan shu yuboriladi. `null` — server oyna
+   * uzunligini oladi: qo'lda qo'shilgan qator yoki HR oynani o'zi yozgan.
+   */
+  breakMinutes: number | null
   /**
    * HR shu qatorning kunini o'zi o'zgartirganmi. O'zgartirgan bo'lsa, sana
    * almashganda joriy reja uning qiymatlari ustidan YOZILMAYDI.
@@ -90,6 +97,7 @@ function emptyChangeRow(date: string): ChangeRowDraft {
     hasBreak: false,
     breakStart: '',
     breakEnd: '',
+    breakMinutes: null,
     touched: false,
     filledFor: '',
   }
@@ -102,22 +110,20 @@ function emptySwapRow(): SwapRowDraft {
 /**
  * Qatorni domen tekshiruvining kirishiga aylantiradi (`validateScheduleDay`).
  *
- * Tanaffus uzunligi alohida so'ralmaydi — oynaning o'zidan, serverdagi
- * `ScheduleChangeRequest.BreakMinutes` bilan bir xil (yarim tundan o'tsa ham).
+ * Tanaffus uzunligi alohida so'ralmaydi — rejadan saqlangani bo'lmasa, oynaning
+ * o'zidan: serverdagi `ScheduleChangeRequest.BreakMinutes` bilan bir xil
+ * (yarim tundan o'tsa ham).
  */
 function toDayInput(row: ChangeRowDraft): WorkScheduleDayInput {
   const breakStart = row.isWorking && row.hasBreak && row.breakStart !== '' ? row.breakStart : null
   const breakEnd = row.isWorking && row.hasBreak && row.breakEnd !== '' ? row.breakEnd : null
-
-  const from = clockMinutes(breakStart)
-  const to = clockMinutes(breakEnd)
 
   return {
     dayIndex: isoWeekday(row.date) ?? 1,
     isWorking: row.isWorking,
     startTime: row.isWorking && row.startTime !== '' ? row.startTime : null,
     endTime: row.isWorking && row.endTime !== '' ? row.endTime : null,
-    breakMinutes: from === null || to === null ? 0 : (to - from + 24 * 60) % (24 * 60),
+    breakMinutes: row.isWorking ? (row.breakMinutes ?? breakWindowMinutes(breakStart, breakEnd)) : 0,
     breakStart,
     breakEnd,
   }
@@ -186,7 +192,9 @@ export function ScheduleRequestDialog({
     ko'rib, qaytib kelsa — yozgani joyida turadi.
 
     Tahrirlashda qatorlar `touched` bilan keladi: saqlangan so'rovning
-    vaqtlari joriy reja bilan almashtirilmasin.
+    vaqtlari joriy reja bilan almashtirilmasin. Tanaffus uzunligi ham
+    saqlanganidan: PUT uni qaytarmasa, server oyna uzunligini olib, jadvaldan
+    kelgan 60 daqiqani 12:00–15:00 oynasida 180 ga aylantirardi.
   */
   useEffect(() => {
     if (!open) return
@@ -203,6 +211,7 @@ export function ScheduleRequestDialog({
             hasBreak: day.breakStart !== null && day.breakEnd !== null,
             breakStart: day.breakStart ?? '',
             breakEnd: day.breakEnd ?? '',
+            breakMinutes: day.isWorking ? day.breakMinutes : null,
             touched: true,
             filledFor: day.date,
           }))
@@ -305,6 +314,8 @@ export function ScheduleRequestDialog({
                 endTime: toWire(day.endTime),
                 breakStart: toWire(day.breakStart),
                 breakEnd: toWire(day.breakEnd),
+                // Dam olish kunida server baribir 0 yozadi
+                breakMinutes: row.isWorking ? row.breakMinutes : null,
               }
             }),
           }
@@ -496,7 +507,7 @@ function ChangeRowEditor({
   onChange: (patch: Partial<ChangeRowDraft>) => void
   onRemove: () => void
 }) {
-  const { t } = useLocale()
+  const { t, num } = useLocale()
 
   const resolution = useScheduleResolution(employeeId, row.date, row.date !== '')
   const plan = resolution.data
@@ -504,7 +515,8 @@ function ChangeRowEditor({
   /*
     Joriy reja kelganda qator shu bilan to'ldiriladi — faqat HR qatorga hali
     qo'l tekkizmagan bo'lsa va shu sana uchun hali to'ldirilmagan bo'lsa.
-    Jadvali yo'q sanada qiymatlar o'zgarmaydi: ko'chiradigan reja yo'q.
+    Jadvali yo'q sanada qiymatlar o'zgarmaydi: ko'chiradigan reja yo'q
+    (tanaffus uzunligi esa tushiriladi — u «jadvaldagi» deb ko'rsatilardi).
   */
   useEffect(() => {
     if (plan === undefined || plan.date !== row.date) return
@@ -512,7 +524,7 @@ function ChangeRowEditor({
 
     const day = scheduleOutcome(plan) === 'resolved' ? plan.day : null
     if (day === null) {
-      onChange({ filledFor: row.date })
+      onChange({ filledFor: row.date, breakMinutes: null })
       return
     }
 
@@ -524,14 +536,25 @@ function ChangeRowEditor({
       hasBreak: day.breakStart !== null && day.breakEnd !== null,
       breakStart: day.breakStart ?? '',
       breakEnd: day.breakEnd ?? '',
+      breakMinutes: day.breakMinutes,
     })
   }, [plan, row.date, row.touched, row.filledFor, onChange])
 
   /** HR o'zgartirgan maydon — endi joriy reja uning ustidan yozilmaydi. */
   const edit = (patch: Partial<ChangeRowDraft>) => onChange({ ...patch, touched: true })
 
+  /*
+    Tanaffusga tegildi — rejadagi uzunlik endi bu oynaga tegishli emas: oynani
+    o'zi yozgan HR uni tanaffusning o'zi deb biladi, server oyna uzunligini oladi.
+  */
+  const editBreak = (patch: Pick<Partial<ChangeRowDraft>, 'hasBreak' | 'breakStart' | 'breakEnd'>) =>
+    edit({ ...patch, breakMinutes: null })
+
   const day = toDayInput(row)
   const overnight = crossesMidnight(day)
+
+  /** Saqlanayotgan uzunlik oynadan farq qilsa — HR nima yuborilishini ko'rsin. */
+  const keptBreak = row.breakMinutes !== null && breakDiffersFromWindow(day) ? row.breakMinutes : null
 
   return (
     <li
@@ -609,7 +632,7 @@ function ChangeRowEditor({
           <Checkbox
             checked={row.hasBreak}
             disabled={disabled}
-            onChange={(hasBreak) => edit({ hasBreak })}
+            onChange={(hasBreak) => editBreak({ hasBreak })}
             label={t('attendance.scheduleRequestBreak')}
           />
 
@@ -621,7 +644,7 @@ function ChangeRowEditor({
                 required
                 value={row.breakStart}
                 disabled={disabled}
-                onChange={(event) => edit({ breakStart: event.target.value })}
+                onChange={(event) => editBreak({ breakStart: event.target.value })}
               />
               <TextField
                 label={t('attendance.breakEnd')}
@@ -629,9 +652,15 @@ function ChangeRowEditor({
                 required
                 value={row.breakEnd}
                 disabled={disabled}
-                onChange={(event) => edit({ breakEnd: event.target.value })}
+                onChange={(event) => editBreak({ breakEnd: event.target.value })}
               />
             </div>
+          )}
+
+          {keptBreak !== null && (
+            <p className="tabular text-footnote text-[var(--fg-secondary)]">
+              {t('attendance.scheduleRequestBreakKept', { n: num(keptBreak) })}
+            </p>
           )}
         </div>
       )}

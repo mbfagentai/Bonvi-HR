@@ -753,23 +753,6 @@ public sealed class AbsenceRequestConfiguration : IEntityTypeConfiguration<Absen
 }
 
 /// <summary>
-/// <see cref="WorkScheduleDate"/> uchun jadval konfiguratsiyasi
-/// (<c>work_schedule_dates</c>).
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>Unikal kalit — (jadval, sana).</b> Bitta sanada ikkita qiymat
-/// bo'lishi mumkin emas: hisoblash «qaysi biri?» degan savolni berishi
-/// kerak emas. Hisoblash yo'li ham aynan shu indeksdan o'tadi (oraliq
-/// bo'yicha o'qish).
-/// </para>
-/// <para>
-/// Yumshoq o'chirish YO'Q: katak o'chirilsa, kun shunchaki haftalik
-/// naqshga qaytadi — saqlab turadigan tarix emas. Jadvalning o'zi
-/// o'chirilsa, kataklari ham ketadi (<c>Cascade</c>).
-/// </para>
-/// </remarks>
-/// <summary>
 /// <see cref="ScheduleChangeRequest"/> uchun jadval konfiguratsiyasi
 /// (<c>schedule_change_requests</c>) — <c>absence_requests</c> ning egizagi.
 /// </summary>
@@ -835,12 +818,17 @@ public sealed class ScheduleChangeDayConfiguration : IEntityTypeConfiguration<Sc
                 "ck_schedule_change_request_days_break",
                 "(break_start IS NULL AND break_end IS NULL) " +
                 "OR (is_working AND break_start IS NOT NULL AND break_end IS NOT NULL AND break_start <> break_end)");
+            table.HasCheckConstraint(
+                "ck_schedule_change_request_days_break_minutes",
+                $"break_minutes BETWEEN 0 AND {WorkScheduleDay.MaxBreakMinutes} AND (is_working OR break_minutes = 0)");
         });
 
         builder.HasKey(day => day.Id);
 
         builder.Ignore(day => day.DomainEvents);
-        builder.Ignore(day => day.BreakMinutes);
+
+        // Uzunlik oynadan alohida saqlanadi — jadvaldagidek (60 daqiqa 12:00–15:00 oynasida).
+        builder.Property(day => day.BreakMinutes).IsRequired();
 
         builder.Property(day => day.Date).IsRequired();
         builder.Property(day => day.IsWorking).IsRequired();
@@ -852,6 +840,23 @@ public sealed class ScheduleChangeDayConfiguration : IEntityTypeConfiguration<Sc
     }
 }
 
+/// <summary>
+/// <see cref="WorkScheduleDate"/> uchun jadval konfiguratsiyasi
+/// (<c>work_schedule_dates</c>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Unikal kalit — (jadval, sana).</b> Bitta sanada ikkita qiymat
+/// bo'lishi mumkin emas: hisoblash «qaysi biri?» degan savolni berishi
+/// kerak emas. Hisoblash yo'li ham aynan shu indeksdan o'tadi (oraliq
+/// bo'yicha o'qish).
+/// </para>
+/// <para>
+/// Yumshoq o'chirish YO'Q: katak o'chirilsa, kun shunchaki haftalik
+/// naqshga qaytadi — saqlab turadigan tarix emas. Jadvalning o'zi
+/// o'chirilsa, kataklari ham ketadi (<c>Cascade</c>).
+/// </para>
+/// </remarks>
 public sealed class WorkScheduleDateConfiguration : IEntityTypeConfiguration<WorkScheduleDate>
 {
     public void Configure(EntityTypeBuilder<WorkScheduleDate> builder)

@@ -50,26 +50,75 @@ export function breakInsideShift(start: string, end: string, breakStart: string,
   return fromStart < toStart && toStart <= shiftLength
 }
 
+/**
+ * Tanaffus OYNASINING uzunligi, daqiqa — yarim tundan o'tib (23:30–00:30 = 60);
+ * oyna yo'q yoki to'liq emas — 0. Kunda uzunlik berilmasa server aynan shuni
+ * oladi (`ScheduleChangeRequest.BreakMinutes`).
+ */
+export function breakWindowMinutes(breakStart: string | null, breakEnd: string | null): number {
+  return breakStart && breakEnd ? forward(breakStart, breakEnd) : 0
+}
+
+type DayBreak = Pick<ScheduleChangeDayDto, 'isWorking' | 'breakStart' | 'breakEnd' | 'breakMinutes'>
+
+/**
+ * Ayiriladigan tanaffus oynaning uzunligidan farq qiladimi — farq qilsa
+ * daqiqasi ham ko'rsatiladi. Oynasiz kunda — daqiqa noldan katta bo'lsa.
+ * Teng bo'lsa (oyna — tanaffusning o'zi) faqat oyna.
+ */
+export function breakDiffersFromWindow(day: DayBreak): boolean {
+  return day.isWorking && day.breakMinutes !== breakWindowMinutes(day.breakStart, day.breakEnd)
+}
+
 /** Forma qiymati («08:30» yoki bo'sh) → simdagi `TimeOnly` («08:30:00»). */
 export function wireTime(hhmm: string): string | null {
   return hhmm === '' ? null : `${hhmm}:00`
 }
 
-/** Kunning rejasi bir satrda: «08:30–18:00, tanaffus 12:20–14:20» yoki «Dam olish kuni». */
+/** «12:00–15:00»; oyna yo'q — `null`. */
+function breakWindowText(day: DayBreak): string | null {
+  return day.breakStart && day.breakEnd ? `${shortTime(day.breakStart) ?? ''}–${shortTime(day.breakEnd) ?? ''}` : null
+}
+
+/**
+ * Kunning rejasi bir satrda: «08:30–18:00, tanaffus 12:20–14:20» yoki «Dam olish kuni».
+ * Tanaffus uzunligi oynadan farq qilsa — u ham: «…, tanaffus 60 daq. (12:00–15:00 oralig‘ida)».
+ */
 export function dayPlanText(
   t: TFunction,
-  day: Pick<ScheduleChangeDayDto, 'isWorking' | 'startTime' | 'endTime' | 'breakStart' | 'breakEnd'>,
+  day: Pick<ScheduleChangeDayDto, 'isWorking' | 'startTime' | 'endTime' | 'breakStart' | 'breakEnd' | 'breakMinutes'>,
 ): string {
   if (!day.isWorking) return t('schedule.dayOff')
 
   const range = `${shortTime(day.startTime) ?? '—'}–${shortTime(day.endTime) ?? '—'}`
+  const windowText = breakWindowText(day)
 
-  return day.breakStart && day.breakEnd
-    ? t('schedule.rangeWithBreak', {
-        range,
-        break: `${shortTime(day.breakStart) ?? ''}–${shortTime(day.breakEnd) ?? ''}`,
-      })
-    : range
+  if (windowText === null) {
+    return day.breakMinutes > 0 ? t('schedule.rangeWithBreakLength', { range, n: day.breakMinutes }) : range
+  }
+
+  return breakDiffersFromWindow(day)
+    ? t('schedule.rangeWithBreakInWindow', { range, n: day.breakMinutes, break: windowText })
+    : t('schedule.rangeWithBreak', { range, break: windowText })
+}
+
+/**
+ * Kunning tanaffusi alohida satr uchun: «Tanaffus 12:20–14:20»,
+ * «Tanaffus 60 daq. (12:00–15:00 oralig‘ida)», «Tanaffus 60 daq.»;
+ * tanaffussiz yoki dam olish kuni — `null`.
+ */
+export function dayBreakText(t: TFunction, day: DayBreak): string | null {
+  if (!day.isWorking) return null
+
+  const windowText = breakWindowText(day)
+
+  if (windowText === null) {
+    return day.breakMinutes > 0 ? t('schedule.breakLength', { n: day.breakMinutes }) : null
+  }
+
+  return breakDiffersFromWindow(day)
+    ? t('schedule.breakLengthInWindow', { n: day.breakMinutes, range: windowText })
+    : t('calendar.breakRange', { range: windowText })
 }
 
 /**

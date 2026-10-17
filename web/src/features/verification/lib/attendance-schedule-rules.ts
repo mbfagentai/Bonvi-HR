@@ -57,6 +57,20 @@ export function clockMinutes(value: string | null): number | null {
 }
 
 /**
+ * Tanaffus OYNASINING uzunligi, daqiqa — yarim tundan o'tib (23:30–00:30
+ * = 60); oyna yo'q yoki to'liq emas — 0.
+ *
+ * Jadval so'rovi kunida tanaffus uzunligi berilmasa server aynan shuni oladi
+ * (`ScheduleChangeRequest.BreakMinutes`, Verifix ma'nosi: oyna — tanaffusning o'zi).
+ */
+export function breakWindowMinutes(breakStart: string | null, breakEnd: string | null): number {
+  const from = clockMinutes(breakStart)
+  const to = clockMinutes(breakEnd)
+
+  return from === null || to === null ? 0 : (to - from + DAY_MINUTES) % DAY_MINUTES
+}
+
+/**
  * Tanaffus oynasining SMENA O'QIDAGI o'rni — smena boshidan daqiqalarda
  * (SPEC §2.4.0.1).
  *

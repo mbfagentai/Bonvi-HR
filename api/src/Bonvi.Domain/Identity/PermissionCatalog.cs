@@ -60,8 +60,9 @@ public static class PermissionCatalog
         Module(AccessModuleKeys.Recruiting, view: [Permissions.RecruitingView], edit: [Permissions.RecruitingManage]),
 
         // Davomat (verifikatsiya) — SPEC-rollar-va-audit §14.2: «o'zgartirish» —
-        // yo'qlik so'rovlari bo'yicha qaror; «to'liq» — qurilma, jadval va moslik
-        // (tabelning MA'NOSINI o'zgartiradigan sozlash).
+        // so'rovlar bo'yicha qaror (yo'qlik VA jadvalni o'zgartirish — bitta xodimning
+        // bitta sanasi); «to'liq» — qurilma, jadval va moslik (tabelning MA'NOSINI
+        // hamma uchun o'zgartiradigan sozlash).
         Module(
             AccessModuleKeys.Attendance,
             view: [Permissions.AttendanceView],

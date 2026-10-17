@@ -397,7 +397,13 @@ public static partial class MeEndpoints
                         new CreateMyScheduleRequestCommand(
                             body.Kind,
                             [.. (body.Days ?? []).Select(day => new ScheduleChangeDayInput(
-                                day.Date, day.IsWorking, day.StartTime, day.EndTime, day.BreakStart, day.BreakEnd))],
+                                day.Date,
+                                day.IsWorking,
+                                day.StartTime,
+                                day.EndTime,
+                                day.BreakStart,
+                                day.BreakEnd,
+                                BreakMinutes: day.BreakMinutes))],
                             [.. (body.Swaps ?? []).Select(pair => new ScheduleSwapInput(pair.Date, pair.WithDate))],
                             body.Note),
                         cancellationToken)
@@ -405,6 +411,7 @@ public static partial class MeEndpoints
 
                 return natija.ToHttpResult();
             })
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(AttendanceEndpoints.MaxScheduleRequestBytes))
             .WithName("CreateMyScheduleRequest")
             .WithSummary("Xodim — jadvalni o'zgartirish so'rovi yuborish")
             .WithDescription(

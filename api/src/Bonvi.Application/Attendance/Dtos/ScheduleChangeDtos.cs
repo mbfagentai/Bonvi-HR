@@ -10,6 +10,7 @@ namespace Bonvi.Application.Attendance.Dtos;
 /// <param name="BreakStart">Tanaffus boshi.</param>
 /// <param name="BreakEnd">Tanaffus oxiri.</param>
 /// <param name="SwapWith">Almashtirishda juftining sanasi.</param>
+/// <param name="BreakMinutes">Ayiriladigan tanaffus (daqiqa) — oynadan farq qilishi mumkin.</param>
 public sealed record ScheduleChangeDayDto(
     DateOnly Date,
     bool IsWorking,
@@ -17,7 +18,8 @@ public sealed record ScheduleChangeDayDto(
     TimeOnly? EndTime,
     TimeOnly? BreakStart,
     TimeOnly? BreakEnd,
-    DateOnly? SwapWith);
+    DateOnly? SwapWith,
+    int BreakMinutes);
 
 /// <summary>Jadvalni o'zgartirish so'rovi (SPEC-verifikatsiya-jadval-sorovi §C3).</summary>
 /// <remarks>
@@ -66,6 +68,10 @@ public sealed record ScheduleChangeRequestDto(
 /// <param name="EndTime">Tugash.</param>
 /// <param name="BreakStart">Tanaffus boshi.</param>
 /// <param name="BreakEnd">Tanaffus oxiri.</param>
+/// <param name="BreakMinutes">
+/// Ayiriladigan tanaffus (daqiqa). Jadvalda u oynadan alohida: 60 daqiqalik tushlik 12:00–15:00
+/// oynasida. Forma uni o'zgartirilmagan kun bilan qaytaradi — aks holda oyna uzunligi olinardi.
+/// </param>
 public sealed record DayPlanDto(
     DateOnly Date,
     bool HasSchedule,
@@ -73,4 +79,5 @@ public sealed record DayPlanDto(
     TimeOnly? StartTime,
     TimeOnly? EndTime,
     TimeOnly? BreakStart,
-    TimeOnly? BreakEnd);
+    TimeOnly? BreakEnd,
+    int BreakMinutes = 0);

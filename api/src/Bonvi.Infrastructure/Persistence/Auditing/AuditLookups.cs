@@ -96,7 +96,10 @@ internal sealed class AuditLookups
         _pending.Clear();
     }
 
-    /// <summary>Topilgan xodim (<see cref="AuditLookup.EmploymentEmployee"/>, <see cref="AuditLookup.CompetencyEmployee"/>).</summary>
+    /// <summary>
+    /// Topilgan xodim (<see cref="AuditLookup.EmploymentEmployee"/>, <see cref="AuditLookup.CompetencyEmployee"/>,
+    /// <see cref="AuditLookup.ScheduleChangeRequestEmployee"/>).
+    /// </summary>
     public Guid? EmployeeOf(AuditLookup lookup, Guid key)
         => _resolved.GetValueOrDefault((lookup, key)) as Guid?;
 
@@ -107,7 +110,7 @@ internal sealed class AuditLookups
     private static readonly Type[] IndexedTypes =
     [
         typeof(Employee), typeof(Employment), typeof(EmployeeCompetency),
-        typeof(Candidate), typeof(Position), typeof(WorkSchedule),
+        typeof(Candidate), typeof(Position), typeof(WorkSchedule), typeof(ScheduleChangeRequest),
     ];
 
     private static Dictionary<Type, Dictionary<Guid, object>> Index(IEnumerable<EntityEntry> entries)
@@ -137,6 +140,7 @@ internal sealed class AuditLookups
             AuditLookup.WorkScheduleName => (Tracked<WorkSchedule>() as WorkSchedule)?.Name,
             AuditLookup.EmploymentEmployee => (Tracked<Employment>() as Employment)?.EmployeeId,
             AuditLookup.CompetencyEmployee => (Tracked<EmployeeCompetency>() as EmployeeCompetency)?.EmployeeId,
+            AuditLookup.ScheduleChangeRequestEmployee => (Tracked<ScheduleChangeRequest>() as ScheduleChangeRequest)?.EmployeeId,
             _ => null,
         };
     }
@@ -207,6 +211,16 @@ internal sealed class AuditLookups
             {
                 var rows = await ListAsync(
                     Set<EmployeeCompetency>().Where(row => keys.Contains(row.Id)).Select(row => new LinkRow(row.Id, row.EmployeeId)),
+                    async,
+                    cancellationToken).ConfigureAwait(false);
+
+                return rows.ToDictionary(row => row.Id, row => (object)row.EmployeeId);
+            }
+
+            case AuditLookup.ScheduleChangeRequestEmployee:
+            {
+                var rows = await ListAsync(
+                    Set<ScheduleChangeRequest>().Where(row => keys.Contains(row.Id)).Select(row => new LinkRow(row.Id, row.EmployeeId)),
                     async,
                     cancellationToken).ConfigureAwait(false);
 

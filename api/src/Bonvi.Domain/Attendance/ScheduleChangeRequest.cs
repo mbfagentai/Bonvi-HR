@@ -20,6 +20,11 @@ public enum ScheduleChangeKind
 /// <param name="BreakStart">Tanaffus boshi (ixtiyoriy, oxiri bilan birga).</param>
 /// <param name="BreakEnd">Tanaffus oxiri.</param>
 /// <param name="SwapWith">Almashtirishda juftining sanasi (faqat ko'rsatish uchun).</param>
+/// <param name="BreakMinutes">
+/// Ayiriladigan tanaffus (daqiqa). <c>null</c> — oynaning o'zi (Verifix formasidagidek);
+/// jadvaldan olingan kunda jadvalning o'z qiymati, chunki u yerda uzunlik va oyna alohida
+/// (60 daqiqalik tushlik 12:00–15:00 oynasida).
+/// </param>
 public sealed record ScheduleChangeDayInput(
     DateOnly Date,
     bool IsWorking,
@@ -27,7 +32,8 @@ public sealed record ScheduleChangeDayInput(
     TimeOnly? EndTime = null,
     TimeOnly? BreakStart = null,
     TimeOnly? BreakEnd = null,
-    DateOnly? SwapWith = null);
+    DateOnly? SwapWith = null,
+    int? BreakMinutes = null);
 
 /// <summary>
 /// Jadvalni o'zgartirish so'rovi — Verifix «Запрос на изменение рабочего графика»
@@ -58,6 +64,16 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
 
     /// <summary>«Kun almashtirish» da eng ko'p juft.</summary>
     public const int MaxSwapPairs = 15;
+
+    /// <summary>Bitta so'rov sanalarining eng katta davri (birinchisidan oxirgisigacha, kun).</summary>
+    /// <remarks>Qayta hisoblash oynasi bilan bir xil — tasdiq bitta oynada qayta hisoblanadi.</remarks>
+    public const int MaxSpanDays = AttendanceRules.MaxRecomputeDays;
+
+    /// <summary>Izohning eng katta uzunligi (ustun <c>varchar(2000)</c>).</summary>
+    public const int MaxNoteLength = 2000;
+
+    private const int MinYear = 2000;
+    private const int MaxYear = 2100;
 
     private readonly List<ScheduleChangeDay> _days = [];
 
@@ -122,6 +138,11 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
             return Error.Validation("davomat.sorov_xodim_yoq", "Xodim ko'rsatilishi shart.");
         }
 
+        if (NoteTooLong(note) is { } tooLong)
+        {
+            return tooLong;
+        }
+
         var request = new ScheduleChangeRequest(NewId(), employeeId, kind, Trim(note))
         {
             SubmittedByAccountId = submittedByAccountId,
@@ -139,6 +160,11 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
         if (Status != AbsenceRequestStatus.Pending)
         {
             return Error.Conflict("davomat.sorov_qaror_qabul_qilingan", "Qaror qabul qilingan so'rovni tahrirlab bo'lmaydi.");
+        }
+
+        if (NoteTooLong(note) is { } tooLong)
+        {
+            return tooLong;
         }
 
         var validated = Validate(kind, days);
@@ -217,6 +243,11 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
             return Error.Conflict("davomat.sorov_qaror_qabul_qilingan", "So'rov bo'yicha qaror allaqachon qabul qilingan.");
         }
 
+        if (NoteTooLong(decisionNote) is { } tooLong)
+        {
+            return tooLong;
+        }
+
         Status = status;
         DecidedBy = decidedBy;
         DecidedAt = at;
@@ -225,28 +256,65 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
         return Result.Success();
     }
 
-    /// <summary>Kunlar qoidasi — yaratishda ham, tahrirlashda ham bir xil.</summary>
-    private static Result Validate(ScheduleChangeKind kind, IReadOnlyCollection<ScheduleChangeDayInput> days)
+    /// <summary>
+    /// Sanalar to'plamining shakli: tur, soni, takror, yil va davr — kunlarning ichiga
+    /// qaramasdan.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ Ochiq, chunki use case uni rejani o'qishdan OLDIN chaqiradi: almashtirishda
+    /// rejalar har bir sana uchun bazadan o'qiladi, va cheklanmagan ro'yxat yoki keng
+    /// davr 2 GB serverda xotirani to'ldirardi. Domen tekshiruvi ham shuni chaqiradi —
+    /// qoida bitta joyda.
+    /// </remarks>
+    /// <param name="kind">Tur.</param>
+    /// <param name="dates">So'rovning barcha sanalari (almashtirishda juftlarning ikkala tomoni).</param>
+    public static Result ValidateDates(ScheduleChangeKind kind, IReadOnlyCollection<DateOnly> dates)
     {
+        ArgumentNullException.ThrowIfNull(dates);
+
         if (!Enum.IsDefined(kind))
         {
             return Error.Validation("davomat.jadval_sorovi_turi", "So'rov turi noto'g'ri.");
         }
 
-        if (days.Count == 0)
+        if (dates.Count == 0)
         {
             return Error.Validation("davomat.jadval_sorovi_kun_yoq", "Kamida bitta sana ko'rsatilishi shart.");
         }
 
         var limit = kind == ScheduleChangeKind.Swap ? MaxSwapPairs * 2 : MaxDays;
-        if (days.Count > limit)
+        if (dates.Count > limit)
         {
             return Error.Validation("davomat.jadval_sorovi_kop", $"Bitta so'rovda {limit} tadan ko'p sana bo'lishi mumkin emas.");
         }
 
-        if (days.Select(day => day.Date).Distinct().Count() != days.Count)
+        if (dates.Distinct().Count() != dates.Count)
         {
             return Error.Validation("davomat.jadval_sorovi_sana_takror", "Bitta sana so'rovda ikki marta bo'lishi mumkin emas.");
+        }
+
+        if (dates.Any(date => date.Year is < MinYear or > MaxYear))
+        {
+            return Error.Validation("davomat.jadval_sorovi_sana", "Sana noto'g'ri.");
+        }
+
+        if (dates.Max().DayNumber - dates.Min().DayNumber + 1 > MaxSpanDays)
+        {
+            return Error.Validation(
+                "davomat.jadval_sorovi_davri",
+                $"Bitta so'rov sanalari {MaxSpanDays} kunlik davrdan oshmasligi kerak.");
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>Kunlar qoidasi — yaratishda ham, tahrirlashda ham bir xil.</summary>
+    private static Result Validate(ScheduleChangeKind kind, IReadOnlyCollection<ScheduleChangeDayInput> days)
+    {
+        var shape = ValidateDates(kind, [.. days.Select(day => day.Date)]);
+        if (shape.IsFailure)
+        {
+            return shape;
         }
 
         foreach (var day in days)
@@ -271,15 +339,32 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
         return Result.Success();
     }
 
-    /// <summary>Tanaffus uzunligi — oynaning o'zidan (alohida son so'ralmaydi).</summary>
+    /// <summary>Tanaffus uzunligi — berilgan bo'lsa o'zi, aks holda oynaning o'zidan.</summary>
     /// <remarks>
     /// <c>TimeOnly</c> ayirmasi yarim tundan o'tib hisoblanadi — tungi smenadagi
     /// 23:30–00:30 tanaffus 60 daqiqa (<c>DayPlan</c> dagi bilan bir xil).
     /// </remarks>
     internal static int BreakMinutes(ScheduleChangeDayInput day)
-        => day is { IsWorking: true, BreakStart: { } start, BreakEnd: { } end } && end != start
+    {
+        if (!day.IsWorking)
+        {
+            return 0;
+        }
+
+        if (day.BreakMinutes is { } given)
+        {
+            return given;
+        }
+
+        return day is { BreakStart: { } start, BreakEnd: { } end } && end != start
             ? (int)(end - start).TotalMinutes
             : 0;
+    }
+
+    private static Error? NoteTooLong(string? note)
+        => note?.Trim().Length > MaxNoteLength
+            ? Error.Validation("davomat.izoh_uzun", $"Izoh {MaxNoteLength} belgidan oshmasligi kerak.")
+            : null;
 
     private static int IsoDayIndex(DateOnly date)
         => date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
@@ -321,10 +406,8 @@ public sealed class ScheduleChangeDay : Entity
     /// <summary>Almashtirishda juftining sanasi; «kunni o'zgartirish» da <c>null</c>.</summary>
     public DateOnly? SwapWith { get; private set; }
 
-    /// <summary>Tanaffus uzunligi (daqiqa) — oynadan.</summary>
-    public int BreakMinutes => IsWorking && BreakStart is { } start && BreakEnd is { } end && end != start
-        ? (int)(end - start).TotalMinutes
-        : 0;
+    /// <summary>Ayiriladigan tanaffus (daqiqa); dam olish kunida 0.</summary>
+    public int BreakMinutes { get; private set; }
 
     internal static ScheduleChangeDay Create(Guid requestId, ScheduleChangeDayInput input)
     {
@@ -340,6 +423,7 @@ public sealed class ScheduleChangeDay : Entity
             day.EndTime = input.EndTime;
             day.BreakStart = input.BreakStart;
             day.BreakEnd = input.BreakEnd;
+            day.BreakMinutes = ScheduleChangeRequest.BreakMinutes(input);
         }
 
         return day;

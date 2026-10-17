@@ -70,6 +70,11 @@ const APP_CODES = [
   'davomat.jadval_sorovi_kop',
   'davomat.jadval_sorovi_sana_takror',
   'davomat.jadval_sorovi_turi',
+  'davomat.jadval_sorovi_sana',
+  'davomat.jadval_sorovi_davri',
+  // Xodim uchun sanalar oynasi — `/schedule-requests` va `/plan` ikkalasida
+  'davomat.jadval_sorovi_sana_oynasi',
+  'davomat.izoh_uzun',
   // So'rov kunining smena va tanaffus qoidasi — jadval kunidagi bilan bir xil
   'davomat.jadval_vaqt_bosh',
   'davomat.jadval_vaqt_teng',
