@@ -47,6 +47,18 @@ $C build bot
 echo "### 4/7 backend up $(date +%T)"
 $C up -d postgres redis api bot
 
+# ⚠️ Asosiy API migratsiyani TUGATMAGUNCHA keyingi qadam boshlanmaydi.
+#  5-qadamdagi vaqtinchalik API `Development` da ishlaydi, u yerda esa
+#  migratsiya HAR DOIM qo'llanadi (`DatabaseInitializer` — AutoMigrate
+#  bayrog'idan qat'i nazar). 2026-10-17 da ikkalasi bir vaqtda migratsiya
+#  qildi: asosiy API «ustun allaqachon bor» bilan yiqilib, qayta ko'tarildi
+#  (har migratsiya o'z tranzaksiyasida — ma'lumot buzilmadi). `ready` 200
+#  — migratsiya va urug'lantirish tugagan.
+until docker run --rm --network "$NET" curlimages/curl:latest \
+        -s -o /dev/null -w "%{http_code}" http://api:8080/health/ready | grep -q 200; do
+  sleep 3
+done
+
 # ----------------------------------------------------------
 #  TypeScript klient — web build'dan OLDIN
 #

@@ -3,9 +3,21 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏳ Navbatda (prod'da EMAS) — rag'batdan buyruq olib tashlandi + yo'qlik turlari + «ish vaqti» so'rovi + jadval so'rovi
+## ✅ Reliz `c233722` — rag'batdan buyruq olib tashlandi + yo'qlik turlari + «ish vaqti» so'rovi + jadval so'rovi — 2026-10-17 21:57 (Toshkent)
 
-Prod `e99ba4e`. Navbatdagi commit'lar: `35430b2` (rag'bat/jarimada buyruq umuman yo'q), `28a28cb` (yo'qlik
+Prod `e99ba4e` → `c233722`. Rollback: image tegi `rollback-e99ba4e` — ishlab turgan konteynerlarniki (api `c906c3d9b881`,
+bot `c6f453b4ceee` — `latest` dan farq qilardi, web `77b096771ce4`); zaxira stamp `2026-10-17_164939`. Egasi «hech kim
+ishlamayotgan bo'lsa va muammo qolmagan bo'lsa deploy qil» dedi; HR 19:10 dan jim edi (21:26 dagi — eskirgan tokenli oyna,
+kirish sahifasiga qaytgan, kirilmagan). Oldin qa-review + qa-security o'tkazildi, topilmalar `c233722` da tuzatildi.
+Deploy 21:49–21:57; bot qayta yaratilmadi. Testlar 2896/2896, web build + check, ilova check:locales + build.
+
+⚠️ **Hodisa — migratsiya poygasi.** 5-qadamdagi vaqtinchalik `api-openapi` (Development — migratsiya HAR DOIM) asosiy API
+bilan bir vaqtda migratsiya qildi: asosiy API 21:54:24 da `IshVaqtiSorovi` da «credited_minutes already exists» bilan
+yiqildi va 5 s da o'zi qayta ko'tarildi (~15 s uzilish). Har migratsiya o'z tranzaksiyasida — keyingi tekshiruvda sxema
+nusxada sinalgan bilan AYNAN bir xil (58 jadval, ustunlar, CHECK'lar, indekslar), xodim/rag'bat/davomat yig'indilari
+o'zgarmagan, 5xx 0. Tuzatish: `infra/deploy.sh` endi 5-qadamdan oldin `api:8080/health/ready` ni kutadi.
+
+Navbatdagi commit'lar edi: `35430b2` (rag'bat/jarimada buyruq umuman yo'q), `28a28cb` (yo'qlik
 turlari urug'i, ilovada vaqt oralig'i), `9df5ca7` («ish vaqti hisoblanadigan» yo'qlik turi), `fdd1d85` (shu ro'yxat),
 `99f0085` (jadvalni o'zgartirish so'rovi, Verifix uslubidagi yo'qlik formasi, «xodim o'zi so'ray oladi» belgisi)
 va undan keyingi tekshiruv tuzatishlari (qa-review + qa-security: tanaffus daqiqasi saqlanadi, sana/hajm chegaralari,
@@ -26,23 +38,28 @@ kun o'zgarishi xodim auditida).
 Nusxada sinov 2026-10-17 21:08 (serverda, `bonvi_migtest`, prod `pg_dump`i, birinchi 3 migratsiya): idempotent skript
 0,7 s, jadval 56 → 58, 33 324 qator va xodim/nomzod/rag'bat/davomat nazorat yig'indilari O'ZGARMADI; ikkinchi Up —
 o'zgarishsiz; Down → 56 jadval, yig'indilar aynan oldingidek; qayta Up = Up. `bonvi_migtest` o'chirildi.
-4-migratsiya qo'shilgandan keyin sinov 4 tasi bilan qayta o'tkaziladi (pastda).
+2026-10-17 21:46 da 4 migratsiya bilan qayta: xuddi shunday natija, jadval 56 → 58, CHECK'lar 6 ta.
 
-**Orqaga qaytarish:** image tegi + Down skripti (`order_no/order_date` bo'sh holda qaytadi — eski kod ularni o'qiydi,
-faqat image'ni qaytarish YETMAYDI: rag'bat ro'yxati 500 beradi). Down nusxada sinalgan.
+**Orqaga qaytarish:** `docker tag bonvi-hr-prod-{api,web,bot}:rollback-e99ba4e …:latest` + `up -d` VA Down skripti
+(lokal `data/deploy/2026-10-17-down-to-e99ba4e.sql`, gitignored; qayta yasash: `./bonvi ef migrations script
+20261017163149_JadvalSorovTanaffusi 20261016053617_JarimaFoizVaBuyruqsiz --idempotent ...`). `order_no/order_date` bo'sh
+holda qaytadi — eski kod ularni o'qiydi, faqat image'ni qaytarish YETMAYDI: rag'bat ro'yxati 500 beradi. Down nusxada
+sinalgan. Yangi jadval so'rovlari Down'da yo'qoladi — kiritilgan bo'lsa avval eksport qiling.
 
 **Ishga tushganda:** `absence_types` bo'sh bo'lsa 3 tur quyiladi (Ishxona ishi bilan — ish vaqti ✓, Kasallik,
 Shaxsiy sabab). HR deploy'dan oldin o'zi tur kiritgan bo'lsa urug' tegmaydi va bayroq `false` — egasiga ayt.
 
 **Deploy'dan keyin:**
-- [ ] `__EFMigrationsHistory` oxirgisi `20261017163149_JadvalSorovTanaffusi`
-- [ ] `select name, counts_as_work_time from absence_types` — 3 tur (yoki HR kiritganlari)
-- [ ] `incentives` da `order_no` ustuni yo'q, CHECK'lar 3 ta (`amount_or_percent`, `percent_penalty_only`, `percent_range`)
-- [ ] `select count(*) from absence_types where not employee_can_request` = 0 (hamma tur xodimga ochiq)
+- [x] `__EFMigrationsHistory` oxirgisi `20261017163149_JadvalSorovTanaffusi`
+- [x] `select name, counts_as_work_time from absence_types` — 3 tur (yoki HR kiritganlari)
+- [x] `incentives` da `order_no` ustuni yo'q, CHECK'lar 3 ta (`amount_or_percent`, `percent_penalty_only`, `percent_range`)
+- [x] `select count(*) from absence_types where not employee_can_request` = 0 (hamma tur xodimga ochiq)
 - [ ] Ilovada «So'rov yuborish» → «Yo'qlik» / «Jadvalni o'zgartirish» tanlovi; yo'qlik formasi «Qism kun» da ochiladi
       (vaqtlar shart), «Yo'qlik turi» ro'yxati to'la
-- [ ] `/api/attendance/schedule-requests` va `/api/me/schedule-requests` kirishsiz → 401
-- [ ] Jurnalda ERR/FTL yo'q
+- [x] `/api/attendance/schedule-requests` va `/api/me/schedule-requests` kirishsiz → 401
+- [x] Jurnalda ERR/FTL yo'q — faqat yuqoridagi poyga (2 qator), keyin toza; 5xx 0
+- [x] Natija: 4 migratsiya; turlar «Ishxona ishi bilan» (ish vaqti ✓), «Kasallik», «Shaxsiy sabab» — hammasi xodimga ochiq;
+      rag'bat 141 (o'zgarmadi), xodim 2031, nomzod 5145, jadval so'rovi 0
 
 ⚠️ Prod'da 2026-10-17 holatida BIRORTA ish jadvali biriktirilmagan — jadvalsiz kunga «ish vaqti» so'rovi
 hech narsa qo'shmaydi (faqat «Kelmadi» ni «Sababli» qiladi). Egasiga aytilgan.
