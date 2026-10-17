@@ -145,6 +145,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("computed_at");
 
+                    b.Property<int>("CreditedMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("credited_minutes");
+
                     b.Property<Guid?>("DepartmentId")
                         .HasColumnType("uuid")
                         .HasColumnName("department_id");
@@ -1259,6 +1263,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<bool>("CountsAsWorkTime")
+                        .HasColumnType("boolean")
+                        .HasColumnName("counts_as_work_time");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")

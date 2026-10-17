@@ -103,6 +103,10 @@ internal sealed partial class AttendanceJobJournal : IAttendanceJobJournal
 
     public void PassPurgeDisabled() => LogPassPurgeDisabled();
 
+    // Bayroq saqlangan-u kunlar qayta hisoblanmagan — HR qo'lda «Qayta hisoblash» qilishi kerak.
+    public void WorkTimeRecomputeNotQueued(int periods, Exception error)
+        => LogWorkTimeRecomputeNotQueued(periods, error);
+
     // Bog'langan-u kutayotgan eski o'tish — navbat buzilgan: ogohlantirish.
     public void ExpiredPendingPassesKept(DateOnly localDateBefore, int count)
         => LogPendingPassesKept(count, localDateBefore);
@@ -195,4 +199,10 @@ internal sealed partial class AttendanceJobJournal : IAttendanceJobJournal
         Level = LogLevel.Debug,
         Message = "Davomat mehnat o'zgarishlari: yangi o'zgarish yo'q")]
     private partial void LogEmploymentChangesNone();
+
+    [LoggerMessage(
+        EventId = 5313,
+        Level = LogLevel.Error,
+        Message = "Yo'qlik turining «ish vaqti» bayrog'i saqlandi, lekin {Davrlar} ta so'rov davrini qayta hisoblash navbatga qo'yilmadi — tabelni «Qayta hisoblash» bilan yangilang")]
+    private partial void LogWorkTimeRecomputeNotQueued(int davrlar, Exception xato);
 }

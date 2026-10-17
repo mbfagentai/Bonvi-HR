@@ -714,6 +714,10 @@ public sealed record AbsenceRequestCountDto(int Pending);
 /// <paramref name="LastOutAt"/> haqiqiy chiqish emas — jadvalsiz kunning avtomatik 22:00 dagi
 /// «ketdi»si (<see cref="AttendanceRules.NoScheduleAutoExitTime"/>).
 /// </param>
+/// <param name="CreditedMinutes">
+/// <paramref name="WorkedMinutes"/> ning «ish vaqti hisoblanadigan» tasdiqlangan so'rovdan
+/// kelgan qismi — katakda «so'rov bo'yicha» bo'lib ko'rinadi (SPEC-so'rovlar §B3 AMENDED).
+/// </param>
 public sealed record TimesheetCellDto(
     DateOnly Date,
     AttendanceDayStatus Status,
@@ -727,7 +731,8 @@ public sealed record TimesheetCellDto(
     DateTimeOffset? PlanStartAt,
     DateTimeOffset? PlanEndAt,
     int MobileMarks = 0,
-    bool AutoExit = false);
+    bool AutoExit = false,
+    int CreditedMinutes = 0);
 
 /// <summary>
 /// Bir xodimning oy bo'yicha jami ko'rsatkichlari.

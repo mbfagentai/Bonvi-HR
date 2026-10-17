@@ -128,6 +128,7 @@
     "entry": "in",
     "exit": "out",
     "worked": "Worked",
+    "credited": "Of which by request",
     "late": "{{n}} minutes late",
     "scheduleTitle": "Work schedule",
     "scheduleRange": "Workday {{range}}",

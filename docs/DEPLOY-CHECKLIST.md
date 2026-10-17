@@ -3,6 +3,32 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏳ Navbatda (prod'da EMAS) — rag'batdan buyruq olib tashlandi + yo'qlik turlari + «ish vaqti» so'rovi
+
+Prod `e99ba4e`. Navbatdagi commit'lar: `35430b2` (rag'bat/jarimada buyruq umuman yo'q), `28a28cb` (yo'qlik
+turlari urug'i, ilovada vaqt oralig'i), «Ish vaqti hisoblanadigan yo'qlik turi» (shu commit).
+
+**Migratsiyalar — 2 ta:**
+* `20261016092521_RagbatJarimaBuyruqsiz` — `incentives.order_no/order_date` va `ck_incentives_penalty_no_order`
+  O'CHADI. Oldin tekshir: `select kind, count(*), count(order_no), count(order_date) from incentives group by kind`
+  — buyruqli yozuv bo'lsa egasiga ayt (2026-10-16: 24 ta, buyruqli 0).
+* `20261017072546_IshVaqtiSorovi` — `absence_types.counts_as_work_time` (DEFAULT false) va
+  `attendance_days.credited_minutes` (DEFAULT 0). Doimiy sukut — jadval qayta yozilmaydi; sukut bazada qoladi
+  (eski image rollback'da ham yoza oladi).
+
+**Ishga tushganda:** `absence_types` bo'sh bo'lsa 3 tur quyiladi (Ishxona ishi bilan — ish vaqti ✓, Kasallik,
+Shaxsiy sabab). HR deploy'dan oldin o'zi tur kiritgan bo'lsa urug' tegmaydi va bayroq `false` — egasiga ayt.
+
+**Deploy'dan keyin:**
+- [ ] `__EFMigrationsHistory` oxirgisi `20261017072546_IshVaqtiSorovi`
+- [ ] `select name, counts_as_work_time from absence_types` — 3 tur (yoki HR kiritganlari)
+- [ ] `incentives` da `order_no` ustuni yo'q, CHECK'lar 3 ta (`amount_or_percent`, `percent_penalty_only`, `percent_range`)
+- [ ] Ilovada «So'rov yuborish» → «Yo'qlik turi» ro'yxati to'la; bir kunlik so'rovda vaqt maydonlari bor
+- [ ] Jurnalda ERR/FTL yo'q
+
+⚠️ Prod'da 2026-10-17 holatida BIRORTA ish jadvali biriktirilmagan — jadvalsiz kunga «ish vaqti» so'rovi
+hech narsa qo'shmaydi (faqat «Kelmadi» ni «Sababli» qiladi). Egasiga aytilgan.
+
 ## ✅ Reliz `e99ba4e` — jarima summa yoki foiz, buyruqsiz + rag'bat/jarima Excel eksporti — 2026-10-16 14:07 (Toshkent)
 
 Prod `455a1a2` → `e99ba4e` (`e1f5158` + `274b21e` + `e99ba4e`). Rollback: image tegi `rollback-455a1a2`

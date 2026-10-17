@@ -1576,6 +1576,216 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         KunHolati(bekordanKeyin, sana).ShouldBe("Absent", "bekor qilingan so'rov kunni oqlamaydi");
     }
 
+    /// <summary>
+    /// «Ish vaqti hisoblanadi» turi (SPEC-so'rovlar §B3 AMENDED 2026-10-17): tasdiqlangan
+    /// butun kunlik so'rov o'tishsiz kunni ISHLAGAN qiladi, bayroq o'zgarsa kun o'zi qayta
+    /// hisoblanadi, panel esa odamni «Vaqtida» deb o'qiydi.
+    /// </summary>
+    [Fact]
+    public async Task Ish_vaqti_turidagi_sorov_kunni_ishlagan_qiladi_va_bayroq_ozgarsa_qayta_hisoblanadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+
+        var firma = await FirmaIdAsync(xodim.Id, ct);
+        var sana = BugunToshkentda().AddDays(-3);
+        var nom = $"Boshqa zavod {belgi}";
+
+        // ── Bayroqsiz tur — so'rov faqat «Sababli» qiladi ───────────
+        Guid turId;
+        using (var tur = await admin.PostAsJsonAsync(
+                   new Uri("/api/catalog/absence-types", UriKind.Relative),
+                   new { name = nom, countsAsWorkTime = false },
+                   ct))
+        {
+            tur.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tur));
+            var yozuv = await JsonAsync(tur);
+            yozuv.GetProperty("countsAsWorkTime").GetBoolean().ShouldBeFalse();
+            turId = yozuv.GetProperty("id").GetGuid();
+        }
+
+        Guid sorovId;
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/requests"),
+                   new { employeeId = xodim.Id, absenceTypeId = turId, fromDate = Iso(sana), toDate = Iso(sana) },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            sorovId = (await JsonAsync(yaratish)).GetProperty("id").GetGuid();
+        }
+
+        using (var qaror = await admin.PostAsJsonAsync(Yol($"/requests/{sorovId}/decide"), new { approve = true }, ct))
+        {
+            qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+        }
+
+        var katak = await KatakAsync(admin, xodim.Id, sana, ct);
+        katak.GetProperty("status").GetString().ShouldBe("Excused");
+        katak.GetProperty("creditedMinutes").GetInt32().ShouldBe(0);
+
+        // ── Bayroq yoqildi — kun o'zi qayta hisoblanadi ──────────────
+        using (var yangilash = await admin.PutAsJsonAsync(
+                   new Uri($"/api/catalog/absence-types/{turId}", UriKind.Relative),
+                   new { name = nom, countsAsWorkTime = true },
+                   ct))
+        {
+            yangilash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yangilash));
+            (await JsonAsync(yangilash)).GetProperty("countsAsWorkTime").GetBoolean().ShouldBeTrue();
+        }
+
+        katak = await KatakAsync(admin, xodim.Id, sana, ct);
+        katak.GetProperty("status").GetString().ShouldBe("Present");
+        katak.GetProperty("workedMinutes").GetInt32().ShouldBe(540);
+        katak.GetProperty("creditedMinutes").GetInt32().ShouldBe(540);
+        katak.GetProperty("lateMinutes").GetInt32().ShouldBe(0);
+        katak.GetProperty("firstInAt").ValueKind.ShouldBe(JsonValueKind.Null, "terminal yozmagan vaqt «kirish» emas");
+
+        // Panel — boshqa hisoblash yo'li, AYNAN shu o'qish.
+        var panel = await JsonAsync(await admin.GetAsync(
+            Yol($"/dashboard?date={Iso(sana)}&legalEntityId={firma}"), ct));
+        panel.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("employeeId").GetGuid() == xodim.Id)
+            .GetProperty("status").GetString().ShouldBe("OnTime");
+
+        // Faqat nom o'zgarsa — kunlar qayta hisoblanmaydi (ilgak bayroqqa qaraydi).
+        var hisoblangan = await HisoblanganAsync(xodim.Id, sana, ct);
+        using (var nomi = await admin.PutAsJsonAsync(
+                   new Uri($"/api/catalog/absence-types/{turId}", UriKind.Relative),
+                   new { name = nom + " (zavod)", countsAsWorkTime = true },
+                   ct))
+        {
+            nomi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(nomi));
+        }
+
+        (await HisoblanganAsync(xodim.Id, sana, ct)).ShouldBe(hisoblangan, "bayroq o'zgarmadi — kun tegilmaydi");
+        nom += " (zavod)";
+
+        // ── Bayroq o'chirildi — kun yana «Sababli» ──────────────────
+        using (var qaytarish = await admin.PutAsJsonAsync(
+                   new Uri($"/api/catalog/absence-types/{turId}", UriKind.Relative),
+                   new { name = nom, countsAsWorkTime = false },
+                   ct))
+        {
+            qaytarish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaytarish));
+        }
+
+        katak = await KatakAsync(admin, xodim.Id, sana, ct);
+        katak.GetProperty("status").GetString().ShouldBe("Excused");
+        katak.GetProperty("creditedMinutes").GetInt32().ShouldBe(0);
+    }
+
+    /// <summary>
+    /// Tungi smena (20:00–08:00): ertangi sanadagi 02:00–04:00 «ish vaqti» so'rovi KECHAGI smenaga
+    /// tushadi — qaror kechagi kunni ham qayta hisoblashi kerak (<c>AffectedDays</c>).
+    /// </summary>
+    [Fact]
+    public async Task Tungi_smenaga_tushgan_vaqtli_sorov_kechagi_kunni_ham_qayta_hisoblaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+
+        Guid jadvalId;
+        using (var jadval = await admin.PostAsJsonAsync(
+                   Yol("/schedules"),
+                   new
+                   {
+                       name = "Tungi " + belgi,
+                       graceInMinutes = 10,
+                       graceOutMinutes = 10,
+                       note = (string?)null,
+                       days = Enumerable.Range(1, 7).Select(kun => new
+                       {
+                           dayIndex = kun,
+                           isWorking = true,
+                           startTime = "20:00",
+                           endTime = "08:00",
+                           breakMinutes = 0,
+                       }),
+                   },
+                   ct))
+        {
+            jadval.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(jadval));
+            jadvalId = (await JsonAsync(jadval)).GetProperty("id").GetGuid();
+        }
+
+        using (var biriktirma = await admin.PostAsJsonAsync(
+                   Yol("/schedule-assignments"),
+                   new { workScheduleId = jadvalId, scope = "Employee", employeeId = xodim.Id, effectiveFrom = "2025-01-01" },
+                   ct))
+        {
+            biriktirma.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(biriktirma));
+        }
+
+        var kecha = BugunToshkentda().AddDays(-4);
+        var ertasi = kecha.AddDays(1);
+
+        Guid turId;
+        using (var tur = await admin.PostAsJsonAsync(
+                   new Uri("/api/catalog/absence-types", UriKind.Relative),
+                   new { name = "Tungi zavod " + belgi, countsAsWorkTime = true },
+                   ct))
+        {
+            tur.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tur));
+            turId = (await JsonAsync(tur)).GetProperty("id").GetGuid();
+        }
+
+        Guid sorovId;
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/requests"),
+                   new
+                   {
+                       employeeId = xodim.Id,
+                       absenceTypeId = turId,
+                       fromDate = Iso(ertasi),
+                       toDate = Iso(ertasi),
+                       fromTime = "02:00:00",
+                       toTime = "04:00:00",
+                   },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            sorovId = (await JsonAsync(yaratish)).GetProperty("id").GetGuid();
+        }
+
+        using (var qaror = await admin.PostAsJsonAsync(Yol($"/requests/{sorovId}/decide"), new { approve = true }, ct))
+        {
+            qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+        }
+
+        var katak = await KatakAsync(admin, xodim.Id, kecha, ct);
+        katak.GetProperty("creditedMinutes").GetInt32().ShouldBe(120, "02:00–04:00 kechagi 20:00–08:00 smenasiga tushadi");
+        katak.GetProperty("status").GetString().ShouldBe("Present");
+    }
+
+    /// <summary>Kun yozuvi oxirgi marta qachon hisoblangan.</summary>
+    private async Task<DateTimeOffset> HisoblanganAsync(Guid xodimId, DateOnly sana, CancellationToken ct)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await kontekst.AttendanceDays.AsNoTracking()
+            .Where(day => day.EmployeeId == xodimId && day.LocalDate == sana)
+            .Select(day => day.ComputedAt)
+            .SingleAsync(ct);
+    }
+
+    /// <summary>Tabeldagi bitta xodimning bitta katagi.</summary>
+    private static async Task<JsonElement> KatakAsync(HttpClient admin, Guid xodimId, DateOnly sana, CancellationToken ct)
+    {
+        var tabel = await JsonAsync(await admin.GetAsync(
+            Yol($"/timesheet?year={sana.Year}&month={sana.Month}&employeeId={xodimId}"), ct));
+
+        return tabel.GetProperty("items")[0].GetProperty("cells").EnumerateArray()
+            .Single(cell => cell.GetProperty("date").GetString() == Iso(sana));
+    }
+
     // ════════════════════════════════════════════════════════════
     //  Audit tuzatishlari (B) — to'r, «nega shu jadval», so'rov qarori
     // ════════════════════════════════════════════════════════════

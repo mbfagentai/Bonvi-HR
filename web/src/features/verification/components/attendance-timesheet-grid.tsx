@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Link } from '@tanstack/react-router'
-import { Coffee } from 'lucide-react'
+import { Coffee, FileCheck2 } from 'lucide-react'
 import { useSyncExternalStore, type ReactNode } from 'react'
 
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
@@ -541,6 +541,18 @@ function CellDetails({ cell }: { cell: TimesheetCell }) {
         <p className="flex items-start gap-2 text-footnote text-[var(--fg-secondary)]">
           <Coffee className="mt-0.5 size-4 shrink-0 text-[var(--fg-tertiary)]" strokeWidth={2} />
           <span>{breakLine(cell, t, num)}</span>
+        </p>
+      )}
+
+      {/* Ishlangan vaqtning bir qismi terminaldan emas, tasdiqlangan
+          «ish vaqti» so'rovidan (SPEC-so'rovlar §B3 AMENDED) — HR raqam
+          qayerdan kelganini katakning o'zida ko'rishi kerak. */}
+      {(cell.creditedMinutes ?? 0) > 0 && (
+        <p className="flex items-start gap-2 text-footnote text-[var(--fg-secondary)]">
+          <FileCheck2 className="mt-0.5 size-4 shrink-0 text-ios-blue" strokeWidth={2} />
+          <span>
+            {t('attendance.creditedLine', { duration: formatDuration(cell.creditedMinutes ?? 0) })}
+          </span>
         </p>
       )}
 

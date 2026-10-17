@@ -280,4 +280,14 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
         => await AbsenceQuery
             .ExcusedDatesAsync(_context, employeeIds, from, to, cancellationToken)
             .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyCollection<WorkCredit>>> LoadWorkCreditsAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+        => await AbsenceQuery
+            .WorkCreditsAsync(_context, employeeIds, from, to, cancellationToken)
+            .ConfigureAwait(false);
 }

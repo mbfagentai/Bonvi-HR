@@ -50,9 +50,11 @@ public sealed class TerminationReason : ReferenceEntity
 /// 2026-09-19).
 /// </para>
 /// <para>
-/// «Ishlangan vaqtga kiradimi» degan bayroq ATAYLAB yo'q: tasdiqlangan
-/// so'rov kunni «Sababli» qiladi, ishlangan daqiqa QO'SHMAYDI (§B3). Bayroq
-/// qo'shilsa, tizim HR kiritmagan raqamni o'zi yasay boshlardi.
+/// <see cref="CountsAsWorkTime"/> — egasining qarori (2026-10-17, SPEC-so'rovlar
+/// §B3 AMENDED): ilgari bunday bayroq ataylab yo'q edi va har qanday so'rov
+/// faqat «Kelmadi» ni «Sababli» qilardi. Verifix'da esa «Ишхона иши билан»
+/// so'rovi chiqish va qaytish orasidagi vaqtni yopadi — endi HR qaysi tur
+/// shunday ishlashini o'zi belgilaydi.
 /// </para>
 /// </remarks>
 public sealed class AbsenceType : ReferenceEntity
@@ -60,6 +62,18 @@ public sealed class AbsenceType : ReferenceEntity
     private AbsenceType(Guid id, string name) : base(id, name) { }
 
     private AbsenceType() { }
+
+    /// <summary>
+    /// Tasdiqlangan so'rov vaqti ISHLANGAN vaqt hisoblanadimi («Ishxona ishi bilan»).
+    /// </summary>
+    /// <remarks>
+    /// <c>false</c> (sukut) — so'rov faqat «Kelmadi» ni «Sababli» qiladi
+    /// (kasallik, shaxsiy sabab). <c>true</c> — so'ralgan vaqt xodim binoda
+    /// bo'lgandek hisoblanadi, lekin faqat rejadagi smena ichida.
+    /// </remarks>
+    public bool CountsAsWorkTime { get; private set; }
+
+    public void SetCountsAsWorkTime(bool value) => CountsAsWorkTime = value;
 
     public static Result<AbsenceType> Create(string? name)
     {

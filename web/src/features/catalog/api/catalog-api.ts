@@ -48,6 +48,11 @@ export interface CatalogItem {
   name: string
   isActive: boolean
   note: string | null
+  /**
+   * Faqat yo'qlik turlarida: tasdiqlangan so'rov vaqti ishlangan vaqt
+   * hisoblanadimi (SPEC-so'rovlar §B3 AMENDED 2026-10-17).
+   */
+  countsAsWorkTime?: boolean
 }
 
 /**
@@ -57,6 +62,8 @@ export interface CatalogItem {
 export interface CatalogItemInput {
   name: string
   note?: string | null
+  /** Faqat yo'qlik turi uchun yuboriladi — boshqalarida server e'tiborsiz qoldiradi. */
+  countsAsWorkTime?: boolean
 }
 
 export interface DepartmentItem extends CatalogItem {

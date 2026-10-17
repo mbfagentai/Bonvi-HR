@@ -63,11 +63,13 @@ public sealed record AwardTypeDto(
 /// <param name="Name">Nom.</param>
 /// <param name="IsActive">Faolmi.</param>
 /// <param name="Note">Izoh.</param>
+/// <param name="CountsAsWorkTime">Tasdiqlangan so'rov vaqti ishlangan vaqt hisoblanadimi.</param>
 public sealed record AbsenceTypeDto(
     Guid Id,
     string Name,
     bool IsActive,
-    string? Note);
+    string? Note,
+    bool CountsAsWorkTime);
 
 /// <summary>Jarima turi.</summary>
 /// <param name="Id">Identifikator.</param>

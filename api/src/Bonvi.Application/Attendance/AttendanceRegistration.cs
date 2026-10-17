@@ -9,6 +9,8 @@ using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Retention;
 using Bonvi.Application.Attendance.Schedules;
 using Bonvi.Application.Attendance.WorkSites;
+using Bonvi.Application.Catalog.Common;
+using Bonvi.Domain.Catalog;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Attendance;
@@ -72,6 +74,9 @@ internal static class AttendanceRegistration
         services.AddScoped<UpdateAbsenceRequestCommandHandler>();
         services.AddScoped<DecideAbsenceRequestCommandHandler>();
         services.AddScoped<CancelAbsenceRequestCommandHandler>();
+
+        // Yo'qlik turining «ish vaqti» bayrog'i o'zgarsa — so'rov kunlari qayta hisoblanadi.
+        services.AddScoped<IReferenceSavedHook<AbsenceType>, AbsenceTypeWorkTimeHook>();
         services.AddScoped<SearchAbsenceRequestsQueryHandler>();
         services.AddScoped<GetPendingAbsenceRequestCountQueryHandler>();
         services.AddScoped<GetTimesheetQueryHandler>();

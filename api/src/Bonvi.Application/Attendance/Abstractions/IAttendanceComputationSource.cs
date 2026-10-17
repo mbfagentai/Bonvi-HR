@@ -120,10 +120,9 @@ public interface IAttendanceComputationSource
     /// kerak.
     /// </para>
     /// <para>
-    /// ⚠️ Vaqt oralig'i (yarim kunlik so'rov) bu yerda E'TIBORGA OLINMAYDI:
-    /// birinchi bosqichda tasdiqlangan so'rov faqat «kelmadi» ni oqlaydi,
-    /// kelgan kunga esa umuman ta'sir qilmaydi — ya'ni yarim kunlik so'rov
-    /// ham xuddi shu qoidaga tushadi.
+    /// Vaqt oralig'i bu yerda e'tiborga OLINMAYDI — har qanday tasdiqlangan
+    /// so'rov sanasi «kelmadi» ni oqlaydi. Soatlar faqat «ish vaqti» turida
+    /// (<see cref="LoadWorkCreditsAsync"/>).
     /// </para>
     /// </remarks>
     /// <param name="employeeIds">Xodimlar.</param>
@@ -131,6 +130,19 @@ public interface IAttendanceComputationSource
     /// <param name="to">Davr oxiri (o'zi ham kiradi).</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     Task<IReadOnlyDictionary<Guid, IReadOnlySet<DateOnly>>> LoadExcusedDatesAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// «Ish vaqti hisoblanadigan» turdagi tasdiqlangan so'rovlar (SPEC-so'rovlar §B3 AMENDED).
+    /// </summary>
+    /// <param name="employeeIds">Xodimlar.</param>
+    /// <param name="from">Davr boshi (o'zi ham kiradi).</param>
+    /// <param name="to">Davr oxiri (o'zi ham kiradi).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyCollection<WorkCredit>>> LoadWorkCreditsAsync(
         IReadOnlyCollection<Guid> employeeIds,
         DateOnly from,
         DateOnly to,

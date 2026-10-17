@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
+using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
 using Bonvi.Domain.Settings;
@@ -70,6 +71,38 @@ public sealed class AttendanceCatchUpJobsTests : IClassFixture<BonviApiFactory>
         var kecha = (await KunAsync(xodim, sana.AddDays(-1), ct)).ShouldNotBeNull();
         kecha.Status.ShouldBe(AttendanceDayStatus.Present, "bor qatorga tegilmaydi");
         kecha.ComputedAt.ShouldBe(kechagiLahza);
+    }
+
+    /// <summary>
+    /// Oldindan tasdiqlangan butun kunlik «ish vaqti» so'rovi (SPEC-so'rovlar §B3 AMENDED): smena
+    /// boshlanmasdan kun «Sababli · 0» bo'lib yoziladi, smena boshlangach vazifa uni QAYTA yozadi —
+    /// tabel va ilova butun kun «Sababli» bo'lib qolmasligi kerak (tungi hisoblashni kutmasdan).
+    /// </summary>
+    [Fact]
+    public async Task Boshlangan_smenalar_vazifasi_oldindan_tasdiqlangan_ish_vaqti_sorovini_qollaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sana = new DateOnly(2026, 5, 13);
+        var (xodim, _) = await XodimAsync(ct);
+
+        var tur = AbsenceType.Create("Zavod " + Guid.NewGuid().ToString("N")[..8]).Value;
+        tur.SetCountsAsWorkTime(true);
+        var sorov = AbsenceRequest.Create(xodim, tur.Id, sana, sana).Value;
+        sorov.Approve(Guid.NewGuid(), Toshkentda(sana.AddDays(-1), 17, 0)).IsSuccess.ShouldBeTrue();
+        await SaqlaAsync(ct, tur, sorov);
+
+        await BoshlanganSmenalarAsync(Toshkentda(sana, 8, 0), ct);
+
+        var ertalab = (await KunAsync(xodim, sana, ct)).ShouldNotBeNull("so'rov qamragan kun smenadan oldin ham yoziladi");
+        ertalab.Status.ShouldBe(AttendanceDayStatus.Excused);
+        ertalab.CreditedMinutes.ShouldBe(0);
+
+        await BoshlanganSmenalarAsync(Toshkentda(sana, 11, 0), ct);
+
+        var kunduz = (await KunAsync(xodim, sana, ct)).ShouldNotBeNull();
+        kunduz.Status.ShouldBe(AttendanceDayStatus.Present);
+        kunduz.CreditedMinutes.ShouldBe(120, "09:00–11:00 — hozirgacha");
+        kunduz.LateMinutes.ShouldBe(0);
     }
 
     // ════════════════════════════════════════════════════════════

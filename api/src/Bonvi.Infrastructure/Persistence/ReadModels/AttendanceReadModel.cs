@@ -573,6 +573,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             _clock.Today,
             now);
 
+        // «Ish vaqti» so'rovi kechikishni yopishi mumkin — tabeldagi bilan bir xil (§B3 AMENDED).
+        var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(today, today);
+        var credits = await AbsenceQuery
+            .WorkCreditsAsync(_context, pending, creditFrom, creditTo, cancellationToken)
+            .ConfigureAwait(false);
+
         foreach (var employeeId in pending)
         {
             if (!readings.TryGetValue(employeeId, out var passes))
@@ -580,7 +586,14 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 continue;
             }
 
-            var facts = builder.Build(employeeId, employments.GetValueOrDefault(employeeId) ?? [], passes, [today])[0].Facts;
+            var facts = builder
+                .Build(
+                    employeeId,
+                    employments.GetValueOrDefault(employeeId) ?? [],
+                    passes,
+                    [today],
+                    workCredits: credits.GetValueOrDefault(employeeId))[0]
+                .Facts;
 
             if (facts is not { FirstInAt: { } firstIn, LateMinutes: > 0 })
             {
@@ -746,6 +759,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         var resolver = await LoadScheduleResolverAsync(yesterday, tomorrow, cancellationToken).ConfigureAwait(false);
         var builder = new AttendanceDayBuilder(resolver, _clock.Today, now);
 
+        // «Ish vaqti» so'rovi bilan boshqa zavoddagi odam «kelmagan» ham, «kechikkan» ham emas.
+        var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(today, today);
+        var credits = await AbsenceQuery
+            .WorkCreditsAsync(_context, [.. primaryToday.Keys], creditFrom, creditTo, cancellationToken)
+            .ConfigureAwait(false);
+
         int expected = 0, absent = 0, late = 0;
 
         foreach (var (employeeId, employment) in primaryToday)
@@ -766,11 +785,17 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
             var lateAfter = planStart.AddMinutes(plan.GraceInMinutes);
 
-            var computed = passesByEmployee.TryGetValue(employeeId, out var readings)
-                ? builder.Build(employeeId, employmentsByEmployee[employeeId], readings, [today])[0].Facts
+            var personCredits = credits.GetValueOrDefault(employeeId);
+            var computed = passesByEmployee.TryGetValue(employeeId, out var readings) || personCredits is not null
+                ? builder.Build(
+                    employeeId,
+                    employmentsByEmployee[employeeId],
+                    readings ?? [],
+                    [today],
+                    workCredits: personCredits)[0].Facts
                 : null;
 
-            if (computed is null || computed.PassCount == 0)
+            if (computed is null || (computed.PassCount == 0 && computed.CreditedMinutes == 0))
             {
                 absent++;
 
@@ -1119,6 +1144,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             .ExcusedDatesAsync(_context, populationIds, date, date, cancellationToken)
             .ConfigureAwait(false);
 
+        // «Ish vaqti» so'rovi — boshqa zavodda bo'lgan odam «Kelmadi» emas (§B3 AMENDED).
+        var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(date, date);
+        var credits = await AbsenceQuery
+            .WorkCreditsAsync(_context, populationIds, creditFrom, creditTo, cancellationToken)
+            .ConfigureAwait(false);
+
         // ── 2. Holatlar — butun to'plam, xotirada, bir marta ─────────
         var rows = new List<DashboardRow>(people.Count);
 
@@ -1135,10 +1166,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
 
             DateTimeOffset? arrivedAt = null;
             DateTimeOffset? leftAt = null;
+            ComputedAttendanceDay? day = null;
+            var personCredits = credits.GetValueOrDefault(person.Id);
 
-            if (passes.TryGetValue(person.Id, out var readings))
+            if (passes.TryGetValue(person.Id, out var readings) || personCredits is not null)
             {
-                var day = builder.Build(person.Id, personEmployments, readings, [date])[0];
+                day = builder.Build(person.Id, personEmployments, readings ?? [], [date], workCredits: personCredits)[0];
 
                 if (day.Facts.PassCount > 0)
                 {
@@ -1157,7 +1190,7 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 leftAt,
                 DashboardStatusRule.Classify(
                     resolver.Resolve(primary, date)?.Day,
-                    arrivedAt,
+                    EffectiveArrival(day),
                     today,
                     now,
                     excusedDates.GetValueOrDefault(person.Id)?.Contains(date) ?? false)));
@@ -1241,6 +1274,26 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
     /// </remarks>
     private static DateTimeOffset? ArrivedAt(ComputedAttendanceDay day)
         => day.Facts.PassCount > 0 ? day.Facts.FirstInAt ?? day.FirstPassAt : null;
+
+    /// <summary>
+    /// Panel holati uchun «keldi» lahzasi: o'tish YOKI «ish vaqti» so'rovi boshlangani,
+    /// qaysi biri erta (SPEC-so'rovlar §B3 AMENDED). Ro'yxatda ko'rsatiladigan vaqt
+    /// esa faqat o'tishniki (<see cref="ArrivedAt"/>) — terminal yozmagan vaqt «keldi
+    /// 08:30» bo'lib chiqmasin.
+    /// </summary>
+    private static DateTimeOffset? EffectiveArrival(ComputedAttendanceDay? day)
+    {
+        if (day is null)
+        {
+            return null;
+        }
+
+        var arrived = ArrivedAt(day);
+
+        return day.CreditedFromAt is { } credited && (arrived is null || credited < arrived)
+            ? credited
+            : arrived;
+    }
 
     // ════════════════════════════════════════════════════════════
     //  2b. Davr grafigi
@@ -1376,6 +1429,11 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             .ExcusedDatesAsync(_context, populationIds, from, to, cancellationToken)
             .ConfigureAwait(false);
 
+        var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(from, to);
+        var credits = await AbsenceQuery
+            .WorkCreditsAsync(_context, populationIds, creditFrom, creditTo, cancellationToken)
+            .ConfigureAwait(false);
+
         // ── 2. Bo'laklab: o'tishlar → holat → sanoq ─────────────────────
         for (var chunkStart = from; chunkStart <= to; chunkStart = chunkStart.AddDays(TrendPassChunkDays))
         {
@@ -1413,14 +1471,15 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 // paneldagi bilan bir xil: o'tishsiz kunda kelgan lahza
                 // baribir `null`, holatni esa reja va soat hal qiladi.
                 Dictionary<DateOnly, DateTimeOffset?>? arrivals = null;
+                var personCredits = credits.GetValueOrDefault(employeeId);
 
-                if (passes.TryGetValue(employeeId, out var readings))
+                if (passes.TryGetValue(employeeId, out var readings) || personCredits is not null)
                 {
                     arrivals = [];
 
-                    foreach (var day in builder.Build(employeeId, personEmployments, readings, chunkDates))
+                    foreach (var day in builder.Build(employeeId, personEmployments, readings ?? [], chunkDates, workCredits: personCredits))
                     {
-                        arrivals[day.LocalDate] = ArrivedAt(day);
+                        arrivals[day.LocalDate] = EffectiveArrival(day);
                     }
                 }
 
@@ -1932,7 +1991,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         DateTimeOffset? PlanEndAt,
         Guid? DepartmentId,
         Guid? PositionId,
-        DateTimeOffset ComputedAt);
+        DateTimeOffset ComputedAt,
+        int CreditedMinutes);
 
     /// <inheritdoc />
     /// <remarks>
@@ -2054,7 +2114,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 day.PlanEndAt,
                 day.DepartmentId,
                 day.PositionId,
-                day.ComputedAt))
+                day.ComputedAt,
+                day.CreditedMinutes))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -2074,6 +2135,11 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         // bo'lib chiqardi (shart `AbsenceQuery` da — bitta nusxa).
         var excusedDates = await AbsenceQuery
             .ExcusedDatesAsync(_context, pageIds, monthStart, monthEnd, cancellationToken)
+            .ConfigureAwait(false);
+
+        var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(monthStart, monthEnd);
+        var credits = await AbsenceQuery
+            .WorkCreditsAsync(_context, pageIds, creditFrom, creditTo, cancellationToken)
             .ConfigureAwait(false);
 
         var displayEmployments = pageIds.ToDictionary(
@@ -2103,7 +2169,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                     employee.Id,
                     employmentsByEmployee.GetValueOrDefault(employee.Id) ?? [],
                     [.. monthDays.Where(date => !storedDays.ContainsKey((employee.Id, date)))],
-                    excusedDates.GetValueOrDefault(employee.Id));
+                    excusedDates.GetValueOrDefault(employee.Id),
+                    credits.GetValueOrDefault(employee.Id));
 
                 IReadOnlyList<TimesheetCellDto> cells =
                 [
@@ -2122,7 +2189,8 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                             stored.PlanEndAt,
                             mobileMarks.GetValueOrDefault((employee.Id, date)),
                             stored.Status == AttendanceDayStatus.NoSchedule
-                                && AttendanceRules.IsNoScheduleAutoExit(date, stored.LastOutAt))
+                                && AttendanceRules.IsNoScheduleAutoExit(date, stored.LastOutAt),
+                            stored.CreditedMinutes)
                         // Hosil qilingan katakda reja ham YO'Q: u hali
                         // hisoblanmagan kun (§5.7.1) va rejasini shu yerda
                         // qayta hisoblash tungi hisoblashning ikkinchi
@@ -2255,11 +2323,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
         Guid employeeId,
         List<Employment> employments,
         List<DateOnly> dates,
-        IReadOnlySet<DateOnly>? excusedDates = null)
+        IReadOnlySet<DateOnly>? excusedDates = null,
+        IReadOnlyCollection<WorkCredit>? workCredits = null)
         => dates.Count == 0
             ? []
             : builder
-                .Build(employeeId, employments, Array.Empty<PassReading>(), dates, excusedDates)
+                .Build(employeeId, employments, Array.Empty<PassReading>(), dates, excusedDates, workCredits)
                 .ToDictionary(day => day.LocalDate, day => day.Facts.Status);
 
     /// <summary>Oyning oxiridan boshlab birinchi ishlagan kunidagi asosiy munosabat.</summary>

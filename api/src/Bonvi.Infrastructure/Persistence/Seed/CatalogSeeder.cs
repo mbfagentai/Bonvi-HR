@@ -381,7 +381,7 @@ public sealed partial class CatalogSeeder
             "absence-types.json",
             "Yo'qlik turlari",
             row => AbsenceType.Create(row.Name),
-            apply: null,
+            (entity, row) => entity.SetCountsAsWorkTime(row.CountsAsWorkTime ?? false),
             stats,
             cancellationToken).ConfigureAwait(false);
 
@@ -684,8 +684,12 @@ public sealed partial class CatalogSeeder
         public bool? IsRequired { get; init; }
     }
 
-    /// <summary>Yo'qlik turi — faqat umumiy maydonlar (nom, izoh, faollik).</summary>
-    private sealed record AbsenceTypeRow : CatalogRow;
+    /// <summary>Yo'qlik turi — umumiy maydonlar va «ish vaqti hisoblanadi» bayrog'i.</summary>
+    private sealed record AbsenceTypeRow : CatalogRow
+    {
+        /// <summary>Ko'rsatilmasa — yo'q (so'rov faqat «Kelmadi» ni oqlaydi).</summary>
+        public bool? CountsAsWorkTime { get; init; }
+    }
 
     /// <summary>
     /// Voronka bosqichi — faqat nom va izoh.

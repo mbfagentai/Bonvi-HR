@@ -34,9 +34,8 @@ public sealed class TerminationReasonConfiguration : IEntityTypeConfiguration<Te
 /// <see cref="AbsenceType"/> uchun jadval konfiguratsiyasi (<c>absence_types</c>).
 /// </summary>
 /// <remarks>
-/// Qo'shimcha ustun yo'q: yo'qlik turida nomdan boshqa hech narsa yo'q
-/// (SPEC-so'rovlar §B1 — «ishlangan vaqtga kiradimi» bayrog'i ataylab
-/// qo'shilmagan).
+/// <c>counts_as_work_time</c> — 2026-10-17 da qo'shildi (SPEC-so'rovlar §B3
+/// AMENDED); sukut <c>false</c>, ya'ni mavjud turlar avvalgidek ishlaydi.
 /// </remarks>
 public sealed class AbsenceTypeConfiguration : IEntityTypeConfiguration<AbsenceType>
 {
@@ -45,6 +44,12 @@ public sealed class AbsenceTypeConfiguration : IEntityTypeConfiguration<AbsenceT
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.ConfigureReference("absence_types");
+
+        // Sukut faqat migratsiyada (bazada) — eski image rollback'da ustunni
+        // bilmay qator qo'sha olsin. Modelda `HasDefaultValue` yo'q: loyiha
+        // qoidasi, sababi `AttendanceConfigurations` boshidagi izohda.
+        builder.Property(type => type.CountsAsWorkTime)
+            .IsRequired();
     }
 }
 

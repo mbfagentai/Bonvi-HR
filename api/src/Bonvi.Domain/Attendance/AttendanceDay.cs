@@ -32,6 +32,11 @@ namespace Bonvi.Domain.Attendance;
 /// <param name="PassCount">Shu kunga tegishli o'tishlar soni.</param>
 /// <param name="IgnoredPassCount">Sakrash deb tashlangan takror o'qishlar soni.</param>
 /// <param name="Status">Kunning holati.</param>
+/// <param name="CreditedMinutes">
+/// <paramref name="WorkedMinutes"/> ning «ish vaqti hisoblanadigan» tasdiqlangan
+/// so'rovdan kelgan qismi (SPEC-so'rovlar §B3 AMENDED 2026-10-17). 0 — hammasi
+/// terminal o'tishlaridan.
+/// </param>
 public sealed record AttendanceDayFacts(
     Guid? EmploymentId,
     Guid? LegalEntityId,
@@ -51,7 +56,8 @@ public sealed record AttendanceDayFacts(
     int BreakDeductionMinutes,
     int PassCount,
     int IgnoredPassCount,
-    AttendanceDayStatus Status);
+    AttendanceDayStatus Status,
+    int CreditedMinutes = 0);
 
 /// <summary>
 /// Bir xodimning bir kundagi davomati — tabelning bitta katagi.
@@ -181,6 +187,16 @@ public sealed class AttendanceDay : AggregateRoot
 
     public AttendanceDayStatus Status { get; private set; }
 
+    /// <summary>
+    /// <see cref="WorkedMinutes"/> ning tasdiqlangan so'rovdan kelgan qismi.
+    /// </summary>
+    /// <remarks>
+    /// Alohida saqlanadi: «8 soat ishladi» degan son terminaldan emas, HR
+    /// tasdiqlagan so'rovdan ham kelishi mumkin va tabel katagi buni
+    /// ko'rsatishi shart — aks holda raqam yana «kim yozdi» savoliga aylanardi.
+    /// </remarks>
+    public int CreditedMinutes { get; private set; }
+
     /// <summary>Oxirgi marta qachon hisoblangan.</summary>
     public DateTimeOffset ComputedAt { get; private set; }
 
@@ -227,6 +243,7 @@ public sealed class AttendanceDay : AggregateRoot
         PassCount = facts.PassCount;
         IgnoredPassCount = facts.IgnoredPassCount;
         Status = facts.Status;
+        CreditedMinutes = facts.CreditedMinutes;
         ComputedAt = computedAt;
     }
 }

@@ -31,6 +31,10 @@ namespace Bonvi.Application.Attendance.Computation;
 /// Saqlanmaydi — panel kirishsiz kunning «kelgan» lahzasini shundan oladi, ya'ni o'tishning
 /// qaysi kunga tushishini (kech chiqish istisnosi bilan) ikkinchi marta hisoblamaydi.
 /// </param>
+/// <param name="CreditedFromAt">
+/// «Ish vaqti» so'rovi qamragan birinchi lahza (UTC); so'rov yo'q bo'lsa <c>null</c>.
+/// Saqlanmaydi — panel kelgan lahzani shundan ham oladi (SPEC-so'rovlar §B3 AMENDED).
+/// </param>
 public sealed record ComputedAttendanceDay(
     Guid EmployeeId,
     DateOnly LocalDate,
@@ -38,7 +42,8 @@ public sealed record ComputedAttendanceDay(
     bool ShouldStore,
     ScheduleScope? ScheduleTier,
     bool HasBreakWindow,
-    DateTimeOffset? FirstPassAt = null);
+    DateTimeOffset? FirstPassAt = null,
+    DateTimeOffset? CreditedFromAt = null);
 
 /// <summary>
 /// Xodimning kunlarini o'tishlar, munosabatlar va jadvallardan hisoblaydi — SPEC §5.
@@ -145,12 +150,20 @@ public sealed class AttendanceDayBuilder
     /// <see cref="AttendanceDayStatus.Excused"/> ga aylanadi — BOSHQA hech
     /// narsa o'zgarmaydi. <c>null</c> — so'rovlar hisobga olinmaydi.
     /// </param>
+    /// <param name="workCredits">
+    /// «Ish vaqti hisoblanadigan» turdagi tasdiqlangan so'rovlar
+    /// (<see cref="WorkCreditRule.RequestDatesNeeded"/> oralig'ida). Ularning
+    /// vaqti ishlangan vaqtga qo'shiladi (<see cref="WorkCreditRule"/>);
+    /// <paramref name="excusedDates"/> ga ham kirgan bo'lishi kerak — rejasi
+    /// hali boshlanmagan kun «Sababli» bo'lib turadi.
+    /// </param>
     public IReadOnlyList<ComputedAttendanceDay> Build(
         Guid employeeId,
         IReadOnlyCollection<Employment> employments,
         IReadOnlyCollection<PassReading> passes,
         IEnumerable<DateOnly> dates,
-        IReadOnlySet<DateOnly>? excusedDates = null)
+        IReadOnlySet<DateOnly>? excusedDates = null,
+        IReadOnlyCollection<WorkCredit>? workCredits = null)
     {
         ArgumentNullException.ThrowIfNull(employments);
         ArgumentNullException.ThrowIfNull(passes);
@@ -178,6 +191,7 @@ public sealed class AttendanceDayBuilder
                 calendar.For(date),
                 passesByDate.GetValueOrDefault(date) ?? [],
                 excusedDates?.Contains(date) ?? false,
+                workCredits,
                 _today,
                 _now))
             .ToList();
@@ -274,6 +288,7 @@ public sealed class AttendanceDayBuilder
         DayContext context,
         List<PassReading> passes,
         bool excused,
+        IReadOnlyCollection<WorkCredit>? workCredits,
         DateOnly today,
         DateTimeOffset now)
     {
@@ -295,11 +310,18 @@ public sealed class AttendanceDayBuilder
         var late = 0;
         var early = 0;
 
+        // «Ish vaqti» so'rovi (SPEC-so'rovlar §B3 AMENDED): faqat ish kunining
+        // rejasi ichida va hozirgacha. Yo'q bo'lsa — kun avvalgidek.
+        var credited = plan is null
+            ? null
+            : WorkCreditRule.Apply(pairing, plan, WorkCreditRule.IntervalsFor(date, plan, workCredits, now));
+
         if (plan is { IsWorking: true, PlanStartAt: { } planStart, PlanEndAt: { } planEnd })
         {
             planned = plan.PlannedMinutes;
 
-            if (pairing.FirstInAt is { } firstIn)
+            // So'rov qamragan ertalab — kechikish emas: birinchi «borliq» o'tish yoki so'rov.
+            if ((credited is null ? pairing.FirstInAt : credited.FirstPresenceAt) is { } firstIn)
             {
                 late = WholeMinutes.AtLeastZero(firstIn - planStart.AddMinutes(plan.GraceInMinutes));
             }
@@ -313,7 +335,9 @@ public sealed class AttendanceDayBuilder
             */
             var planEnded = now >= planEnd;
 
-            if (planEnded && !pairing.MissingExit && pairing.LastOutAt is { } lastOut)
+            var lastPresence = credited is null ? pairing.LastOutAt : credited.LastPresenceAt;
+
+            if (planEnded && !pairing.MissingExit && lastPresence is { } lastOut)
             {
                 early = WholeMinutes.AtLeastZero(planEnd.AddMinutes(-plan.GraceOutMinutes) - lastOut);
             }
@@ -321,12 +345,18 @@ public sealed class AttendanceDayBuilder
 
         var status = StatusOf(employment, plan, pairing);
 
+        // O'tishsiz, lekin «ish vaqti» so'rovi qamragan ish kuni — ishlagan kun.
+        if (status == AttendanceDayStatus.Absent && credited is { CreditedMinutes: > 0 })
+        {
+            status = AttendanceDayStatus.Present;
+        }
+
         /*
-          Tasdiqlangan so'rov FAQAT «kelmadi» ni oqlaydi (§B3). Kelgan kun,
+          Tasdiqlangan so'rov «kelmadi» ni oqlaydi (§B3). Kelgan kun,
           dam olish kuni yoki jadvalsiz kun tegilmaydi: so'rov kelmaslikni
-          tushuntiradi, kelishni emas. Shu tor qoida tufayli ishlangan
-          daqiqa ham, kechikish ham o'zgarmaydi — tizim HR kiritmagan
-          raqamni yasamaydi.
+          tushuntiradi, kelishni emas. Ishlangan daqiqa va kechikishni
+          FAQAT «ish vaqti hisoblanadigan» tur o'zgartiradi (yuqorida,
+          `WorkCreditRule`) — qolgan turlar avvalgidek faqat shu qatorda.
         */
         if (excused && status == AttendanceDayStatus.Absent)
         {
@@ -367,7 +397,7 @@ public sealed class AttendanceDayBuilder
             FirstInAt: pairing.FirstInAt,
             LastOutAt: pairing.LastOutAt,
             PlannedMinutes: planned,
-            WorkedMinutes: pairing.WorkedMinutes,
+            WorkedMinutes: credited?.WorkedMinutes ?? pairing.WorkedMinutes,
             LateMinutes: late,
             EarlyLeaveMinutes: early,
             // Ortiqcha ish faqat JADVAL bor kunda: normasi noma'lum kunda
@@ -375,12 +405,13 @@ public sealed class AttendanceDayBuilder
             // chiqardi va xulosa hisobotidagi ortiqcha ish ustunini shu
             // kunlar shishirib yuborardi. Dam olish kunida ishlash esa
             // haqiqiy ortiqcha ish — u yerda reja bor, faqat nolga teng.
-            OvertimeMinutes: plan is null ? 0 : Math.Max(0, pairing.WorkedMinutes - planned),
-            BreakTakenMinutes: pairing.BreakTakenMinutes,
-            BreakDeductionMinutes: pairing.BreakDeductionMinutes,
+            OvertimeMinutes: plan is null ? 0 : Math.Max(0, (credited?.WorkedMinutes ?? pairing.WorkedMinutes) - planned),
+            BreakTakenMinutes: credited?.BreakTakenMinutes ?? pairing.BreakTakenMinutes,
+            BreakDeductionMinutes: credited?.BreakDeductionMinutes ?? pairing.BreakDeductionMinutes,
             PassCount: pairing.PassCount,
             IgnoredPassCount: pairing.IgnoredPassCount,
-            Status: status);
+            Status: status,
+            CreditedMinutes: credited?.CreditedMinutes ?? 0);
 
         // §5.4: o'tish bor — YOKI munosabat bor va jadval shu kunni ish kuni deydi.
         // Ish kunidagi reja faqat munosabat va jadval topilganda bo'ladi.
@@ -402,7 +433,8 @@ public sealed class AttendanceDayBuilder
             shouldStore,
             schedule?.Tier,
             plan?.HasBreakWindow ?? false,
-            passes.Count == 0 ? null : passes.Min(pass => pass.OccurredAt).ToUniversalTime());
+            passes.Count == 0 ? null : passes.Min(pass => pass.OccurredAt).ToUniversalTime(),
+            credited?.CreditedFromAt);
     }
 
     /// <summary>SPEC §5.6 — birinchi mos kelgani yutadi.</summary>

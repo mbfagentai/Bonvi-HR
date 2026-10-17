@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog } from '@/shared/ui'
+import { Alert, Button, Dialog, Switch } from '@/shared/ui'
 import { useSaveCatalogItem } from '../api/catalog-queries'
 import type { CatalogItem, CatalogKind } from '../api/catalog-api'
 import { CATALOG_ERROR_FIELD, catalogErrorCode } from '../lib/catalog-error'
@@ -48,6 +48,14 @@ export function CatalogFormDialog({
   /** Maydonga bog'lanmagan server xatosi (masalan tarmoq uzilishi). */
   const [failure, setFailure] = useState<string | null>(null)
 
+  /*
+    Yo'qlik turining «ish vaqti hisoblanadi» bayrog'i (SPEC-so'rovlar §B3
+    AMENDED). Faol/faolsiz almashtirgichidan farqli o'laroq «Saqlash» bilan
+    birga yuboriladi: bu yozuvning xossasi, alohida amal emas.
+  */
+  const isAbsenceType = kind === 'absence-types'
+  const [countsAsWorkTime, setCountsAsWorkTime] = useState(false)
+
   const {
     register,
     handleSubmit,
@@ -67,6 +75,7 @@ export function CatalogFormDialog({
     if (!open) return
     setFailure(null)
     reset(toValues(item))
+    setCountsAsWorkTime(item?.countsAsWorkTime ?? false)
   }, [open, item, reset])
 
   const onSubmit = handleSubmit(async (values) => {
@@ -78,6 +87,7 @@ export function CatalogFormDialog({
         body: {
           name: values.name.trim(),
           note: toTextOrNull(values.note),
+          ...(isAbsenceType ? { countsAsWorkTime } : {}),
         },
       })
       onClose()
@@ -126,6 +136,18 @@ export function CatalogFormDialog({
             note: errors.note ? errorMessage(errors.note.message) : undefined,
           }}
         />
+
+        {isAbsenceType && (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-3">
+            <Switch
+              checked={countsAsWorkTime}
+              disabled={isSubmitting}
+              onChange={setCountsAsWorkTime}
+              label={t('catalog.workTimeTitle')}
+              hint={countsAsWorkTime ? t('catalog.workTimeHintOn') : t('catalog.workTimeHintOff')}
+            />
+          </div>
+        )}
 
         {/* Yangi yozuv doim faol yaratiladi — holat faqat mavjud yozuvda */}
         {item !== null && (

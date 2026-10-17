@@ -651,6 +651,11 @@ public sealed class AttendanceDayConfiguration : IEntityTypeConfiguration<Attend
         builder.Property(day => day.Status)
             .IsRequired();
 
+        // Bazadagi sukut 0 faqat migratsiyada (mavjud qatorlar so'rovsiz
+        // hisoblangan; eski image rollback'da ustunni bilmay yozadi) — 2-qoida.
+        builder.Property(day => day.CreditedMinutes)
+            .IsRequired();
+
         builder.Property(day => day.ComputedAt)
             .IsRequired();
 

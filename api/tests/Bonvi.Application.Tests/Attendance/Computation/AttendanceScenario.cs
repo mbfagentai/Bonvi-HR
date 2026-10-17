@@ -243,4 +243,39 @@ internal sealed class AttendanceScenario
     /// <summary>Tasdiqlangan yo'qlik so'rovi qamragan sanalar bilan hisoblaydi.</summary>
     public IReadOnlyList<ComputedAttendanceDay> DaysExcused(IReadOnlySet<DateOnly> excused, params DateOnly[] dates)
         => new AttendanceDayBuilder(Resolver(), _today, _now).Build(EmployeeId, _employments, _passes, dates, excused);
+
+    private readonly List<WorkCredit> _credits = [];
+
+    /// <summary>
+    /// «Ish vaqti hisoblanadigan» tasdiqlangan so'rov (SPEC-so'rovlar §B3 AMENDED). Vaqt
+    /// berilmasa — butun kun(lar).
+    /// </summary>
+    public AttendanceScenario WorkCredit(DateOnly from, DateOnly? to = null, string? fromTime = null, string? toTime = null)
+    {
+        _credits.Add(new WorkCredit(
+            from,
+            to ?? from,
+            fromTime is null ? null : Time(fromTime),
+            toTime is null ? null : Time(toTime)));
+        return this;
+    }
+
+    /// <summary>
+    /// Ishlab chiqarishdagidek hisoblaydi: «ish vaqti» so'rovlari ham beriladi, ularning sanalari
+    /// esa «oqlangan» sanalar qatorida ham turadi (har qanday tasdiqlangan so'rov kabi).
+    /// </summary>
+    public IReadOnlyList<ComputedAttendanceDay> DaysCredited(params DateOnly[] dates)
+    {
+        var excused = _credits
+            .SelectMany(credit => Enumerable
+                .Range(0, credit.ToDate.DayNumber - credit.FromDate.DayNumber + 1)
+                .Select(credit.FromDate.AddDays))
+            .ToHashSet();
+
+        return new AttendanceDayBuilder(Resolver(), _today, _now)
+            .Build(EmployeeId, _employments, _passes, dates, excused, _credits);
+    }
+
+    /// <summary>Bitta sanani «ish vaqti» so'rovlari bilan hisoblaydi.</summary>
+    public ComputedAttendanceDay DayCredited(DateOnly date) => DaysCredited(date).ShouldHaveSingleItem();
 }

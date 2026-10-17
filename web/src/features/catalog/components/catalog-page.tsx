@@ -98,6 +98,12 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
                 {row.original.name}
               </p>
 
+              {row.original.countsAsWorkTime === true && (
+                <Badge tone="info" size="sm" className="shrink-0">
+                  {t('catalog.workTimeBadge')}
+                </Badge>
+              )}
+
               {!row.original.isActive && (
                 <Badge tone="neutral" size="sm" className="shrink-0">
                   {t('catalog.statusInactive')}

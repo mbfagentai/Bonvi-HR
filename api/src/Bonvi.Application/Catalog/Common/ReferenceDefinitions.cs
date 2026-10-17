@@ -235,8 +235,9 @@ public sealed class TerminationReasonDefinition : ReferenceDefinition<Terminatio
 
 /// <summary>Yo'qlik turi ma'lumotnomasining ta'rifi.</summary>
 /// <remarks>
-/// Qo'shimcha maydoni yo'q — nomdan boshqa hech narsa saqlanmaydi
-/// (SPEC-so'rovlar §B1), shu sababli <c>ApplySpecific</c> ham yo'q.
+/// Yagona qo'shimcha maydon — «ish vaqti hisoblanadi» (SPEC-so'rovlar §B3
+/// AMENDED 2026-10-17). U o'zgarganda o'sha turdagi tasdiqlangan so'rovlar
+/// kunlari qayta hisoblanadi (<c>AbsenceTypeWorkTimeHook</c>).
 /// </remarks>
 public sealed class AbsenceTypeDefinition : ReferenceDefinition<AbsenceType, AbsenceTypeDto>
 {
@@ -245,7 +246,7 @@ public sealed class AbsenceTypeDefinition : ReferenceDefinition<AbsenceType, Abs
     {
         ArgumentNullException.ThrowIfNull(entity);
 
-        return new AbsenceTypeDto(entity.Id, entity.Name, entity.IsActive, entity.Note);
+        return new AbsenceTypeDto(entity.Id, entity.Name, entity.IsActive, entity.Note, entity.CountsAsWorkTime);
     }
 
     /// <inheritdoc />
@@ -256,8 +257,15 @@ public sealed class AbsenceTypeDefinition : ReferenceDefinition<AbsenceType, Abs
     }
 
     /// <inheritdoc />
-    /// <remarks>Turga xos maydon yo'q — nom va izohni asos sinf o'zi qo'yadi.</remarks>
-    protected override Result ApplySpecific(AbsenceType entity, SaveReferenceCommand command) => Result.Success();
+    protected override Result ApplySpecific(AbsenceType entity, SaveReferenceCommand command)
+    {
+        if (command.CountsAsWorkTime is { } countsAsWorkTime)
+        {
+            entity.SetCountsAsWorkTime(countsAsWorkTime);
+        }
+
+        return Result.Success();
+    }
 }
 
 /// <summary>Rag'bat turi ma'lumotnomasining ta'rifi.</summary>

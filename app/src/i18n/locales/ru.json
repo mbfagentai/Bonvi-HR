@@ -128,6 +128,7 @@
     "entry": "вход",
     "exit": "выход",
     "worked": "Отработано",
+    "credited": "Из них по заявке",
     "late": "опоздание {{n}} мин",
     "scheduleTitle": "График работы",
     "scheduleRange": "Рабочий день {{range}}",

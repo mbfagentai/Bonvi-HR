@@ -21,6 +21,10 @@ namespace Bonvi.Application.Attendance.Computation;
 /// Oxirgi ochiq oraliq shu lahzada AVTOMATIK yopildi (jadvalsiz kunning 22:00 i —
 /// <see cref="AttendanceRules.NoScheduleAutoExitTime"/>); yopilmagan bo'lsa <c>null</c>.
 /// </param>
+/// <param name="ClosedIntervals">
+/// Yopilgan oraliqlarning o'zi (UTC), vaqt tartibida — «ish vaqti» so'rovi shular bilan
+/// birlashtiriladi (<see cref="WorkCreditRule.Apply"/>). Saqlanmaydi.
+/// </param>
 public sealed record PairingResult(
     int PassCount,
     int IgnoredPassCount,
@@ -33,7 +37,8 @@ public sealed record PairingResult(
     int WorkedMinutes,
     bool MissingEntry,
     bool MissingExit,
-    DateTimeOffset? AutoExitAt = null);
+    DateTimeOffset? AutoExitAt = null,
+    IReadOnlyList<(DateTimeOffset From, DateTimeOffset To)>? ClosedIntervals = null);
 
 /// <summary>
 /// O'tishlarni kirish–chiqish oraliqlariga juftlaydi va ishlangan vaqtni hisoblaydi — SPEC §5.5, §5.5.1.
@@ -137,6 +142,7 @@ public static class PassPairing
         DateTimeOffset? firstInAt = null;
         DateTimeOffset? lastOutAt = null;
         long closedTicks = 0;
+        var closedIntervals = new List<(DateTimeOffset From, DateTimeOffset To)>();
         long outsideInWindowTicks = 0;
         long presentInWindowTicks = 0;
         var missingEntry = false;
@@ -176,6 +182,7 @@ public static class PassPairing
             }
 
             closedTicks += (pass.At - enteredAt).Ticks;
+            closedIntervals.Add((enteredAt, pass.At));
             leftAt = pass.At;
             openedAt = null;
         }
@@ -197,6 +204,7 @@ public static class PassPairing
                 }
 
                 closedTicks += (closeAt - stillOpen).Ticks;
+                closedIntervals.Add((stillOpen, closeAt));
                 lastOutAt = closeAt;
                 autoExitAt = closeAt;
             }
@@ -228,7 +236,8 @@ public static class PassPairing
             WorkedMinutes: closedMinutes - breakDeduction,
             MissingEntry: missingEntry,
             MissingExit: missingExit,
-            AutoExitAt: autoExitAt);
+            AutoExitAt: autoExitAt,
+            ClosedIntervals: closedIntervals);
     }
 
     /// <summary>

@@ -52,6 +52,15 @@ export function DayPanel({ day, loading }: { day: AttendanceDay | null; loading:
           <span className="nums text-subhead text-fg">{format.duration(day?.workedMinutes)}</span>
         </div>
 
+        {/* Ishlangan vaqtning bir qismi terminaldan emas, HR tasdiqlagan so'rovdan —
+            xodim «nega 8 soat?» deb so'ramasligi uchun alohida yoziladi. */}
+        {day && (day.creditedMinutes ?? 0) > 0 ? (
+          <div className="flex items-baseline justify-between">
+            <span className="text-footnote text-fg-secondary">{t('calendar.credited')}</span>
+            <span className="nums text-subhead text-fg">{format.duration(day.creditedMinutes)}</span>
+          </div>
+        ) : null}
+
         {day && day.lateMinutes > 0 ? (
           <div className="flex items-baseline justify-between">
             <span className="text-footnote text-fg-secondary">{t('home.late')}</span>

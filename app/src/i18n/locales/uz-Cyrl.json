@@ -128,6 +128,7 @@
     "entry": "кириш",
     "exit": "чиқиш",
     "worked": "Ишланган вақт",
+    "credited": "Шундан сўров бўйича",
     "late": "{{n}} дақиқа кечикди",
     "scheduleTitle": "Иш жадвали",
     "scheduleRange": "Иш куни {{range}}",

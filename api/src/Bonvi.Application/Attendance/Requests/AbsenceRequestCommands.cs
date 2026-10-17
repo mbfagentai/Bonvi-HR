@@ -325,8 +325,8 @@ public sealed class DecideAbsenceRequestCommandHandler
     /// tasdiqlangan so'rov bekor qilinsa, kun «Sababli» dan qaytishi kerak.
     /// </para>
     /// <para>
-    /// Faqat so'rov sanalari, qo'shnilarsiz: qaror o'tishlarning qaysi kunga
-    /// tushishini o'zgartirmaydi, faqat «Kelmadi» ↔ «Sababli» ni.
+    /// So'rov sanalari, qo'shnilarsiz: qaror o'tishlarning qaysi kunga
+    /// tushishini o'zgartirmaydi. Bitta istisno — <see cref="AffectedDays"/>.
     /// </para>
     /// </remarks>
     internal static async Task RecomputeDaysAsync(
@@ -335,12 +335,14 @@ public sealed class DecideAbsenceRequestCommandHandler
         AbsenceRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.ToDate.DayNumber - request.FromDate.DayNumber + 1 <= AttendanceRules.MaxRecomputeDays)
+        var (from, to) = AffectedDays(request);
+
+        if (to.DayNumber - from.DayNumber + 1 <= AttendanceRules.MaxRecomputeDays)
         {
             await recomputer
                 .RecomputeAsync(
                     [request.EmployeeId],
-                    AttendanceDayRecomputer.DaysBetween(request.FromDate, request.ToDate),
+                    AttendanceDayRecomputer.DaysBetween(from, to),
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -348,12 +350,22 @@ public sealed class DecideAbsenceRequestCommandHandler
         }
 
         await jobs.EnqueueAsync<AttendanceRecomputeRangeJob>(job => job.RunAsync(
-                request.FromDate,
-                request.ToDate,
+                from,
+                to,
                 request.EmployeeId,
                 CancellationToken.None))
             .ConfigureAwait(false);
     }
+
+    /// <summary>So'rov qaysi kunlarning hisobiga ta'sir qiladi.</summary>
+    /// <remarks>
+    /// Vaqtli so'rov kechagi TUNGI smenaga ham tushishi mumkin (D + 1 dagi
+    /// 02:00–04:00 — D ning 20:00–08:00 smenasi, <see cref="Computation.WorkCreditRule"/>),
+    /// shuning uchun undan bir kun oldingisi ham qo'shiladi.
+    /// </remarks>
+    /// <param name="request">So'rov.</param>
+    internal static (DateOnly From, DateOnly To) AffectedDays(AbsenceRequest request)
+        => (request.FromTime is null ? request.FromDate : request.FromDate.AddDays(-1), request.ToDate);
 }
 
 /// <summary><see cref="CancelAbsenceRequestCommand"/> ni bajaradi.</summary>

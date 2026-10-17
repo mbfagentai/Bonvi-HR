@@ -512,6 +512,17 @@ public interface IAbsenceRequestRepository : IRepository<AbsenceRequest>
         DateOnly from,
         DateOnly to,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Bitta yo'qlik turining BARCHA tasdiqlangan so'rovlari.</summary>
+    /// <remarks>
+    /// Turning «ish vaqti hisoblanadi» bayrog'i o'zgarganda o'sha so'rovlar
+    /// qamragan kunlar qayta hisoblanadi (SPEC-so'rovlar §B3 AMENDED).
+    /// </remarks>
+    /// <param name="absenceTypeId">Yo'qlik turi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<AbsenceRequest>> ListApprovedByTypeAsync(
+        Guid absenceTypeId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Yillik to'r kataklari uchun saqlash porti (SPEC-jadval-to'ri §B1).</summary>

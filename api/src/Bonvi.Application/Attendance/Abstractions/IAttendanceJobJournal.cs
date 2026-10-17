@@ -57,6 +57,14 @@ public interface IAttendanceJobJournal
     /// <summary>O'tish tozalash tugadi.</summary>
     /// <param name="report">Sanoqlar.</param>
     void PassPurgeFinished(PassPurgeReport report);
+
+    /// <summary>
+    /// Yo'qlik turining «ish vaqti» bayrog'i saqlandi, lekin so'rov kunlarini qayta hisoblash
+    /// navbatga QO'YILMADI — kunlarni qo'lda qayta hisoblash kerak.
+    /// </summary>
+    /// <param name="periods">Navbatga qo'yilmagan davrlar soni.</param>
+    /// <param name="error">Sabab.</param>
+    void WorkTimeRecomputeNotQueued(int periods, Exception error);
 }
 
 /// <summary>Iflos navbat yurishining sanoqlari.</summary>

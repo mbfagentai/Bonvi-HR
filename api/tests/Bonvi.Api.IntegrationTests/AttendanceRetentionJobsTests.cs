@@ -593,6 +593,8 @@ public sealed class AttendanceRetentionJobsTests : IClassFixture<BonviApiFactory
         public void ExpiredPendingPassesKept(DateOnly localDateBefore, int count) => Yozuvlar.Add(new KutayotganQoldi(count));
 
         public void PassPurgeFinished(PassPurgeReport report) => Yozuvlar.Add(report);
+
+        public void WorkTimeRecomputeNotQueued(int periods, Exception error) => Yozuvlar.Add(error);
     }
 
     /// <summary>Bitta kalitni o'chira olmaydigan saqlash — ruxsat xatosi bilan tiklangan faylga o'xshab.</summary>

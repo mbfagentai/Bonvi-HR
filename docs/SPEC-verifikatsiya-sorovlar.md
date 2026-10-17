@@ -66,6 +66,37 @@ request already covers that day for that employee).
 
 ### B3. Effect on attendance (A4)
 
+> **AMENDED 2026-10-17 (owner) — work-time absence kinds.** The owner compared
+> the flow with Verifix, where an hourly request (`Ишхона иши билан`,
+> 12:33–14:22) covers the gap between leaving and coming back. Decision: **by
+> kind**. Each absence kind gets a flag `CountsAsWorkTime` («Ish vaqti
+> hisoblanadi»), set by HR in the catalog; the seed turns it on for
+> `Ishxona ishi bilan` only.
+>
+> * **Kinds without the flag** (`Kasallik`, `Shaxsiy sabab`) — unchanged: the
+>   narrow rule below.
+> * **Kinds with the flag** — the approved request's time is treated **as if
+>   the person were inside**. A whole-day request covers the day's planned
+>   shift `[PlanStartAt, PlanEndAt]`; a timed single-day request covers
+>   `[date FromTime, date ToTime]` (Tashkent). Credit is always **clipped to
+>   the plan window** (a request never creates overtime or work on a day off /
+>   a day without schedule) and **to now** (a future hour is not worked yet).
+> * The credited intervals are merged with the real closed intervals and the
+>   **same** §5.5 / §5.5.1 formulas run on the merged set: worked minutes,
+>   break taken/deducted (a lunch hour inside a credited range is still
+>   deducted), lateness from the first presence (pass or credit), early leave
+>   from the last presence (not when the exit is missing).
+> * A working day with no passes but with credit is `Present`. A future day
+>   (nothing credited yet) stays `Excused` until the nightly recompute.
+> * Passes are untouched: `FirstInAt` / `LastOutAt` stay the real terminal
+>   times. The credited part is stored separately in
+>   `attendance_days.credited_minutes` (`WorkedMinutes` includes it) and shown
+>   as «so'rov bo'yicha» on the timesheet cell and in the employee app.
+> * The daily panel takes the earliest credited moment as the arrival.
+> * Changing the flag recomputes the days of that kind's approved requests.
+> * A separate "forgot to mark" request (Verifix «Belgilash») — **not now**
+>   (owner, same day).
+
 **The rule is deliberately narrow: an approved request turns `Absent` into
 `Excused`, and nothing else.** It does not add worked minutes, does not forgive
 lateness and does not touch a day the person actually attended. The reason is

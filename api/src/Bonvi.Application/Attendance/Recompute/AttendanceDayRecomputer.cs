@@ -309,6 +309,12 @@ public sealed class AttendanceDayRecomputer
             .LoadExcusedDatesAsync(batch, from, to, cancellationToken)
             .ConfigureAwait(false);
 
+        // «Ish vaqti hisoblanadigan» so'rovlar — ishlangan vaqtga qo'shiladi (§B3 AMENDED).
+        var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(from, to);
+        var credits = await _source
+            .LoadWorkCreditsAsync(batch, creditFrom, creditTo, cancellationToken)
+            .ConfigureAwait(false);
+
         var existing = (await _days.ListForUpdateAsync(batch, from, to, cancellationToken).ConfigureAwait(false))
             .Where(day => wanted.Contains(day.LocalDate))
             .ToDictionary(day => (day.EmployeeId, day.LocalDate));
@@ -324,7 +330,8 @@ public sealed class AttendanceDayRecomputer
                 employments.GetValueOrDefault(employeeId) ?? [],
                 passes.GetValueOrDefault(employeeId) ?? [],
                 ordered,
-                excused.GetValueOrDefault(employeeId));
+                excused.GetValueOrDefault(employeeId),
+                credits.GetValueOrDefault(employeeId));
 
             foreach (var result in results)
             {

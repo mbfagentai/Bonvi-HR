@@ -128,6 +128,7 @@
     "entry": "kirish",
     "exit": "chiqish",
     "worked": "Ishlangan vaqt",
+    "credited": "Shundan so‘rov bo‘yicha",
     "late": "{{n}} daqiqa kechikdi",
     "scheduleTitle": "Ish jadvali",
     "scheduleRange": "Ish kuni {{range}}",

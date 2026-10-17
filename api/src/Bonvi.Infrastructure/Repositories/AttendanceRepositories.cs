@@ -713,6 +713,18 @@ public sealed class AbsenceRequestRepository : Repository<AbsenceRequest>, IAbse
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AbsenceRequest>> ListApprovedByTypeAsync(
+        Guid absenceTypeId,
+        CancellationToken cancellationToken = default)
+        => await Set
+            .AsNoTracking()
+            .Where(request =>
+                request.AbsenceTypeId == absenceTypeId &&
+                request.Status == AbsenceRequestStatus.Approved)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 }
 
 /// <summary><see cref="IWorkScheduleDateRepository"/> ning EF Core orqali amalga oshirilishi.</summary>

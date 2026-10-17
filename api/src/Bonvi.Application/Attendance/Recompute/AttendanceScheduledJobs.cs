@@ -1,5 +1,6 @@
 using System.Globalization;
 using Bonvi.Application.Attendance.Abstractions;
+using Bonvi.Application.Attendance.Computation;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Settings;
@@ -226,6 +227,10 @@ public sealed class AttendanceNightlyRecomputeJob
 /// qayta yozish esa behuda yuk bo'lardi. Kecha ham qaraladi — 23:50 da boshlangan
 /// smena yarim tundan keyingi birinchi yurishda «kecha» bo'lib qoladi.
 /// </para>
+/// <para>
+/// Bitta istisno — «ish vaqti» so'rovi bor xodimlar: ularning kecha va bugungi
+/// qatorlari har yurishda QAYTA yoziladi (izoh <see cref="RunAsync"/> ichida).
+/// </para>
 /// </remarks>
 public sealed class AttendanceStartedShiftsJob
 {
@@ -257,10 +262,37 @@ public sealed class AttendanceStartedShiftsJob
         var from = to.AddDays(-DaysBack);
 
         var employees = await _source.ListEmployeesAsync(from, to, cancellationToken).ConfigureAwait(false);
+        var dates = AttendanceDayRecomputer.DaysBetween(from, to);
 
         var outcome = await _recomputer
-            .FillMissingAsync(employees, AttendanceDayRecomputer.DaysBetween(from, to), cancellationToken)
+            .FillMissingAsync(employees, dates, cancellationToken)
             .ConfigureAwait(false);
+
+        /*
+          «Ish vaqti» so'rovi bor odamlarning kecha va bugungi kunlari QAYTA yoziladi
+          (SPEC-so'rovlar §B3 AMENDED). Oldindan tasdiqlangan so'rov kunni smena
+          boshlanmasdan «Sababli · 0» qilib yozadi, va o'tishsiz kunni hech narsa
+          iflos qilmaydi — usiz tabel va ilova butun kun «Sababli» ko'rsatib, panel
+          esa «Vaqtida» derdi. So'rov kam, ya'ni har 15 daqiqada bir necha qator.
+        */
+        var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(from, to);
+        var credits = await _source
+            .LoadWorkCreditsAsync(employees, creditFrom, creditTo, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (credits.Count > 0)
+        {
+            var credited = await _recomputer
+                .RecomputeAsync([.. credits.Keys], dates, cancellationToken)
+                .ConfigureAwait(false);
+
+            outcome = outcome with
+            {
+                StoredDays = outcome.StoredDays + credited.StoredDays,
+                RemovedDays = outcome.RemovedDays + credited.RemovedDays,
+                FrozenDates = Math.Max(outcome.FrozenDates, credited.FrozenDates),
+            };
+        }
 
         _journal.StartedShiftsFilled(from, to, outcome);
     }

@@ -100,6 +100,11 @@ export interface TimesheetCellDto {
   planEndAt: string | null
   /** Shu katakdagi telefon belgilari soni. */
   mobileMarks: number
+  /**
+   * `workedMinutes` ning tasdiqlangan «ish vaqti» so'rovidan kelgan qismi
+   * (masalan boshqa zavodga ish bilan borilgan vaqt). Eski server — yo'q.
+   */
+  creditedMinutes?: number
 }
 
 /**

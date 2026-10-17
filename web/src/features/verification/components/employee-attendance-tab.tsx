@@ -465,6 +465,18 @@ function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
       )}
 
       {/*
+        Ishlangan vaqtning bir qismi tasdiqlangan «ish vaqti» so'rovidan
+        (SPEC-so'rovlar §B3 AMENDED): o'tishsiz kun ham «Ishladi» bo'lishi
+        mumkin va HR uning sababini katakning o'zida ko'rishi kerak.
+      */}
+      {(cell.creditedMinutes ?? 0) > 0 && (
+        <span className="mt-1 block px-1.5 text-caption2 leading-tight text-ios-blue">
+          {t('attendance.creditedShort')}
+          <span className="tabular block font-semibold">{minutes(cell.creditedMinutes ?? 0)}</span>
+        </span>
+      )}
+
+      {/*
         Chetlanish — daqiqada. Kechikish va erta ketish ALOHIDA
         ko'rsatiladi (bitta songa qo'shilmaydi): ular boshqa-boshqa
         suhbat — biri kelishi, ikkinchisi ketishi haqida.

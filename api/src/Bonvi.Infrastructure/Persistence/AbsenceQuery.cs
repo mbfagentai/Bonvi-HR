@@ -1,3 +1,4 @@
+using Bonvi.Application.Attendance.Computation;
 using Bonvi.Domain.Attendance;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,9 +22,10 @@ namespace Bonvi.Infrastructure.Persistence;
 /// rad etilgani esa qarorning o'zi — ikkalasi ham kunni o'zgartirmaydi.
 /// </para>
 /// <para>
-/// <b>Vaqt oralig'i e'tiborga OLINMAYDI</b> (yarim kunlik so'rov):
-/// birinchi bosqichda tasdiqlangan so'rov faqat «kelmadi» ni oqlaydi
-/// (SPEC-so'rovlar §B3), ya'ni kun ichidagi soatlar hisobga kirmaydi.
+/// <see cref="ExcusedDatesAsync"/> da vaqt oralig'i e'tiborga OLINMAYDI: har
+/// qanday tasdiqlangan so'rov qamragan sana «kelmadi» ni oqlaydi. Soatlar
+/// faqat «ish vaqti hisoblanadigan» turda — <see cref="WorkCreditsAsync"/>
+/// (SPEC-so'rovlar §B3 AMENDED 2026-10-17).
 /// </para>
 /// </remarks>
 internal static class AbsenceQuery
@@ -86,5 +88,65 @@ internal static class AbsenceQuery
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// «Ish vaqti hisoblanadigan» turdagi tasdiqlangan so'rovlar — [from, to] ni qamraganlari.
+    /// </summary>
+    /// <remarks>
+    /// Tur faolsizlantirilgan yoki o'chirilgan bo'lsa ham hisoblanadi
+    /// (<c>IgnoreQueryFilters</c>): qaror allaqachon qabul qilingan, tur
+    /// ro'yxatdan olinsa o'tgan kunlar o'zgarib ketmasligi kerak. Chaqiruvchi
+    /// oraliqni <see cref="WorkCreditRule.RequestDatesNeeded"/> dan oladi.
+    /// </remarks>
+    /// <param name="context">Ma'lumotlar bazasi konteksti.</param>
+    /// <param name="employeeIds">Xodimlar.</param>
+    /// <param name="from">Davr boshi (o'zi ham kiradi).</param>
+    /// <param name="to">Davr oxiri (o'zi ham kiradi).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    public static async Task<Dictionary<Guid, IReadOnlyCollection<WorkCredit>>> WorkCreditsAsync(
+        AppDbContext context,
+        IReadOnlyCollection<Guid> employeeIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(employeeIds);
+
+        if (employeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = employeeIds.ToList();
+        var workTypes = context.AbsenceTypes
+            .IgnoreQueryFilters()
+            .Where(type => type.CountsAsWorkTime)
+            .Select(type => type.Id);
+
+        var rows = await context.AbsenceRequests
+            .AsNoTracking()
+            .Where(request =>
+                ids.Contains(request.EmployeeId) &&
+                request.Status == AbsenceRequestStatus.Approved &&
+                request.FromDate <= to &&
+                request.ToDate >= from &&
+                // ⚠️ Ochiq yozilgan: ichki so'rovdagi `IgnoreQueryFilters` EF'da BUTUN
+                // so'rovga tarqaladi va so'rovning o'chirilganlik filtrini ham o'chiradi.
+                request.DeletedAt == null &&
+                workTypes.Contains(request.AbsenceTypeId))
+            .Select(request => new { request.EmployeeId, request.FromDate, request.ToDate, request.FromTime, request.ToTime })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows
+            .GroupBy(row => row.EmployeeId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyCollection<WorkCredit>)
+                [
+                    .. group.Select(row => new WorkCredit(row.FromDate, row.ToDate, row.FromTime, row.ToTime)),
+                ]);
     }
 }
