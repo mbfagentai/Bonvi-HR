@@ -65,7 +65,13 @@ internal sealed class AttendanceComputationSource : IAttendanceComputationSource
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new ScheduleCatalog(assignments, schedules, departments, dates);
+        // Tasdiqlangan jadval so'rovlari — o'tish qo'shni kun rejasiga qarab taqsimlanadi,
+        // shuning uchun ±2 kun (`AttendanceDayBuilder` yuklash shartnomasi).
+        var overrides = await ScheduleOverrideQuery
+            .ApprovedAsync(_context, from.AddDays(-2), to.AddDays(2), cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ScheduleCatalog(assignments, schedules, departments, dates, overrides);
     }
 
     /// <inheritdoc />

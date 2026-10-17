@@ -104,6 +104,16 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
                 </Badge>
               )}
 
+              {/*
+                Faqat `false` da: maydon boshqa ma'lumotnomalarda umuman yo'q
+                (`undefined`) va ular «Faqat HR» bo'lib ko'rinmasligi kerak.
+              */}
+              {row.original.employeeCanRequest === false && (
+                <Badge tone="neutral" size="sm" className="shrink-0">
+                  {t('catalog.employeeRequestBadge')}
+                </Badge>
+              )}
+
               {!row.original.isActive && (
                 <Badge tone="neutral" size="sm" className="shrink-0">
                   {t('catalog.statusInactive')}

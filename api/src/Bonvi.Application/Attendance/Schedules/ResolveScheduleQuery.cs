@@ -79,7 +79,8 @@ public sealed class ResolveScheduleQueryHandler
             catalog.Assignments,
             catalog.Schedules,
             new DepartmentTree(catalog.Departments),
-            catalog.Dates);
+            catalog.Dates,
+            catalog.Overrides);
         var resolution = resolver.Resolve(primary, query.Date);
 
         var matchedDepartmentId = resolution?.Tier == ScheduleScope.Department ? resolution.Assignment.DepartmentId : null;
@@ -132,6 +133,21 @@ public sealed class ResolveScheduleQueryHandler
         if (resolution is null)
         {
             return (null, null);
+        }
+
+        if (resolution.RequestOverride is { } requested)
+        {
+            return (
+                new WorkScheduleDayDto(
+                    date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek,
+                    requested.IsWorking,
+                    requested.StartTime,
+                    requested.EndTime,
+                    requested.BreakMinutes,
+                    requested.BreakStart,
+                    requested.BreakEnd,
+                    requested.BreakStart is { } breakStart && requested.BreakEnd is { } breakEnd && breakEnd < breakStart),
+                ScheduleDaySource.Request);
         }
 
         if (resolution.DateOverride is { } exact)

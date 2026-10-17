@@ -3,7 +3,10 @@ import type {
   AbsenceRequestDto,
   AbsenceTypeDto,
   AttendanceMarkDto,
+  DayPlanDto,
   MeDto,
+  ScheduleChangeDayDto,
+  ScheduleChangeRequestDto,
   TimesheetCellDto,
 } from '@/api/types'
 
@@ -464,4 +467,110 @@ export function buildRequests(): AbsenceRequestDto[] {
       createdAt: tashkentToUtcIso(addDays(today, -33), 10, 12),
     }),
   ]
+}
+
+/**
+ * Mock jadvali — `buildMonth` dagi bilan bir xil: ish kunlari 08:30–18:00,
+ * tanaffus 13:00–14:00, shanba va yakshanba — dam olish kuni.
+ */
+export function mockPlanOf(dateIso: string): DayPlanDto {
+  const parts = parseIsoDate(dateIso)
+  const working = parts ? parts.weekday < 6 : false
+
+  return {
+    date: dateIso,
+    hasSchedule: true,
+    isWorking: working,
+    startTime: working ? `${pad(PLAN_START_HOUR)}:${pad(PLAN_START_MINUTE)}:00` : null,
+    endTime: working ? `${pad(PLAN_END_HOUR)}:00:00` : null,
+    breakStart: working ? `${pad(Math.floor(BREAK_WINDOW_START / 60))}:00:00` : null,
+    breakEnd: working ? `${pad(Math.floor(BREAK_WINDOW_END / 60))}:00:00` : null,
+  }
+}
+
+/** Mock xodimning jadval so'rovi yozuvidagi umumiy maydonlari. */
+export function scheduleRequestOf(fields: {
+  id: string
+  kind: ScheduleChangeRequestDto['kind']
+  days: ScheduleChangeDayDto[]
+  note: string | null
+  status: ScheduleChangeRequestDto['status']
+  decisionNote: string | null
+  decidedByName: string | null
+  decidedAt: string | null
+  createdAt: string
+}): ScheduleChangeRequestDto {
+  return {
+    ...fields,
+    employeeId: MOCK_ME.employeeId,
+    employeeName: MOCK_ME.fullName,
+    employeePhotoKey: MOCK_ME.photoKey,
+    positionName: MOCK_ME.position,
+    departmentName: MOCK_ME.department,
+    submittedByEmployee: true,
+    cancelledByEmployee: fields.status === 'Cancelled',
+  }
+}
+
+/**
+ * Jadval so'rovlari: bittasi qaror kutmoqda (tushlik surilgan kun —
+ * Verifix'dagi eng ko'p uchraydigan holat), bittasi tasdiqlangan
+ * almashtirish.
+ */
+export function buildScheduleRequests(): ScheduleChangeRequestDto[] {
+  const today = todayIso()
+  const moved = addDays(today, 2)
+  const swapA = addDays(today, -6)
+  const swapB = addDays(today, -4)
+
+  return [
+    scheduleRequestOf({
+      id: 'jsr-1',
+      kind: 'Change',
+      days: [
+        {
+          date: moved,
+          isWorking: true,
+          startTime: '08:30:00',
+          endTime: '18:00:00',
+          breakStart: '12:20:00',
+          breakEnd: '14:20:00',
+          swapWith: null,
+        },
+      ],
+      note: 'Juma namoziga boraman.',
+      status: 'Pending',
+      decisionNote: null,
+      decidedByName: null,
+      decidedAt: null,
+      createdAt: tashkentToUtcIso(addDays(today, -1), 17, 40),
+    }),
+    scheduleRequestOf({
+      id: 'jsr-2',
+      kind: 'Swap',
+      days: [
+        { ...planAsDay(mockPlanOf(swapB)), date: swapA, swapWith: swapB },
+        { ...planAsDay(mockPlanOf(swapA)), date: swapB, swapWith: swapA },
+      ],
+      note: null,
+      status: 'Approved',
+      decisionNote: null,
+      decidedByName: 'Karimova Nodira',
+      decidedAt: tashkentToUtcIso(addDays(today, -8), 10, 5),
+      createdAt: tashkentToUtcIso(addDays(today, -9), 9, 30),
+    }),
+  ]
+}
+
+/** Reja → so'rov kuni (almashtirishda server shunday nusxa oladi). */
+export function planAsDay(plan: DayPlanDto): ScheduleChangeDayDto {
+  return {
+    date: plan.date,
+    isWorking: plan.isWorking,
+    startTime: plan.startTime,
+    endTime: plan.endTime,
+    breakStart: plan.breakStart,
+    breakEnd: plan.breakEnd,
+    swapWith: null,
+  }
 }

@@ -39,6 +39,11 @@ import {
   postAbsenceDecision,
   postAbsenceRequest,
   putAbsenceRequest,
+  fetchScheduleChangeRequests,
+  postScheduleChangeCancel,
+  postScheduleChangeDecision,
+  postScheduleChangeRequest,
+  putScheduleChangeRequest,
   putScheduleDates,
   postScheduleYearFill,
   fetchUnmatched,
@@ -74,6 +79,8 @@ import {
   type AbsenceDecisionInput,
   type AbsenceRequestFilters,
   type AbsenceRequestInput,
+  type ScheduleChangeRequestFilters,
+  type ScheduleChangeRequestInput,
   type ScheduleDatesInput,
   type BirthdayFilters,
   type TrendFilters,
@@ -144,6 +151,10 @@ export const attendanceKeys = {
 
   /** Yo'qlik so'rovlari — filtr kalitning ichida (qolgan ro'yxatlar kabi). */
   requests: (filters: AbsenceRequestFilters) => ['attendance', 'requests', filters] as const,
+
+  /** Jadval so'rovlari (SPEC-jadval-sorovi §C) — yo'qlik so'rovlaridan ALOHIDA ildiz. */
+  scheduleRequests: (filters: ScheduleChangeRequestFilters) =>
+    ['attendance', 'schedule-requests', filters] as const,
 
   /**
    * Kutayotgan so'rovlar SONI — nav nishoni uchun ALOHIDA kalit.
@@ -647,6 +658,55 @@ export function useDecideAbsenceRequest() {
 export function useCancelAbsenceRequest() {
   return useMutation({
     mutationFn: (id: string) => postAbsenceCancel(id),
+  })
+}
+
+/* ═════════════════════════════════════ jadval so'rovlari (SPEC-jadval-sorovi §C) */
+
+/**
+ * Jadval so'rovlari ro'yxati — `useAbsenceRequests` ning egizagi: xodim
+ * kartasida `employeeId` bilan, umumiy navbatda — usiz.
+ */
+export function useScheduleChangeRequests(filters: ScheduleChangeRequestFilters, enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.scheduleRequests(filters),
+    queryFn: ({ signal }) => fetchScheduleChangeRequests(filters, signal),
+    enabled,
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useCreateScheduleChangeRequest() {
+  return useMutation({
+    mutationFn: (body: ScheduleChangeRequestInput) => postScheduleChangeRequest(body),
+  })
+}
+
+export function useUpdateScheduleChangeRequest() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ScheduleChangeRequestInput }) =>
+      putScheduleChangeRequest(id, body),
+  })
+}
+
+/**
+ * Qaror — tasdiqlash yoki rad etish.
+ *
+ * Menyu nishoni (`pendingRequests`) endi IKKALA turdagi so'rovni sanaydi.
+ * U ham `['attendance', …]` ostida, ya'ni `providers.tsx` dagi umumiy bekor
+ * qilish uni ham yangilaydi — bu yerda qo'lda `invalidateQueries` kerak emas
+ * (fayl boshidagi izoh).
+ */
+export function useDecideScheduleChangeRequest() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: AbsenceDecisionInput }) =>
+      postScheduleChangeDecision(id, body),
+  })
+}
+
+export function useCancelScheduleChangeRequest() {
+  return useMutation({
+    mutationFn: (id: string) => postScheduleChangeCancel(id),
   })
 }
 

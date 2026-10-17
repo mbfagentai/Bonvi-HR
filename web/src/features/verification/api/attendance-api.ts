@@ -48,12 +48,17 @@ import {
   getFormerEmployeeAlerts,
   fillWorkScheduleYear,
   cancelAbsenceRequest,
+  cancelScheduleChangeRequest,
   createAbsenceRequest,
+  createScheduleChangeRequest,
   decideAbsenceRequest,
+  decideScheduleChangeRequest,
   getPendingAbsenceRequestCount,
   getUpcomingBirthdays,
   searchAbsenceRequests,
+  searchScheduleChangeRequests,
   updateAbsenceRequest,
+  updateScheduleChangeRequest,
   getWorkSchedule,
   getWorkScheduleYear,
   listAttendanceDevices,
@@ -80,7 +85,9 @@ import {
   IdentityMatchKind,
   PassDirection,
   PassMethod,
+  AbsenceRequestMode,
   AbsenceRequestStatus,
+  ScheduleChangeKind,
   type AbsenceDecisionBody,
   type AbsenceRequestBody,
   type AbsenceRequestCountDto,
@@ -131,8 +138,12 @@ import {
   type ScheduleYearDayDto,
   type ScheduleYearDto,
   type ScheduleAssignmentRequest as ScheduleAssignmentRequestBody,
+  type ScheduleChangeDayDto,
+  type ScheduleChangeRequestBody,
+  type ScheduleChangeRequestDto,
   type ScheduleResolutionDto,
   type SearchAttendancePassesParams,
+  type SearchScheduleChangeRequestsParams,
   type TimesheetCellDto,
   type TimesheetRowDto,
   type TimesheetTotalsDto,
@@ -200,6 +211,7 @@ function asSent<T>(value: T): AsSent<T> {
  * `Record<Sanoq, …>` xaritasi kompilyatsiyada qizaradi.
  */
 export {
+  AbsenceRequestMode,
   AbsenceRequestStatus,
   AttendanceDashboardStatus,
   AttendanceDayStatus,
@@ -214,6 +226,7 @@ export {
   IdentitySource,
   PassDirection,
   PassMethod,
+  ScheduleChangeKind,
   ScheduleDaySource,
   ScheduleScope,
   WorkScheduleKind,
@@ -1025,6 +1038,13 @@ export type AbsenceRequestCount = AsSent<AbsenceRequestCountDto>
 export const ABSENCE_REQUEST_STATUSES: readonly AbsenceRequestStatus[] =
   Object.values(AbsenceRequestStatus)
 
+/**
+ * So'rov shakli — Verifix «Часть дня / Весь день / Несколько дней»
+ * (SPEC-jadval-sorovi §B). Server shartnomasi O'ZGARMAGAN: shakl sanalar va
+ * vaqtlardan hosil qilinadi, ro'yxat esa `mode` bo'yicha filtrlanadi.
+ */
+export const ABSENCE_REQUEST_MODES: readonly AbsenceRequestMode[] = Object.values(AbsenceRequestMode)
+
 export async function fetchAbsenceRequests(
   filters: AbsenceRequestFilters,
   signal?: AbortSignal,
@@ -1063,6 +1083,81 @@ export async function postAbsenceDecision(id: string, body: AbsenceDecisionInput
 
 export async function postAbsenceCancel(id: string) {
   await cancelAbsenceRequest(id)
+}
+
+/* ═════════════════════════════════════ jadval so'rovlari (SPEC-jadval-sorovi §C) */
+
+/**
+ * Jadval so'rovining bir kuni — vaqtlar «HH:mm» (o'qishda qirqiladi, `clock`
+ * izohi). `swapWith` — faqat almashtirishda: juftining sanasi.
+ */
+export type ScheduleChangeDay = AsSent<ScheduleChangeDayDto>
+
+/**
+ * Jadvalni o'zgartirish so'rovi. Holat, qaror va bekor qilish qoidalari yo'qlik
+ * so'rovi bilan AYNAN bir xil (holat turi ham o'sha — `AbsenceRequestStatus`).
+ */
+export type ScheduleChangeRequest = AsSent<ScheduleChangeRequestDto>
+
+/** Ro'yxat parametrlari — yo'qlik so'rovlaridagi filtrlar, `absenceTypeId`/`mode` siz. */
+export type ScheduleChangeRequestFilters = AsSent<SearchScheduleChangeRequestsParams>
+
+/**
+ * Yaratish va tahrirlash tanasi. Vaqtlar «HH:mm:ss», sanalar «YYYY-MM-DD».
+ * `kind: Change` da `days`, `kind: Swap` da `swaps` to'ldiriladi.
+ */
+export type ScheduleChangeRequestInput = ScheduleChangeRequestBody
+
+export const SCHEDULE_CHANGE_KINDS: readonly ScheduleChangeKind[] = Object.values(ScheduleChangeKind)
+
+function toScheduleChangeRequest(dto: ScheduleChangeRequestDto): ScheduleChangeRequest {
+  const request = asSent(dto)
+
+  return {
+    ...request,
+    days: request.days.map((day) => ({
+      ...day,
+      startTime: clock(day.startTime),
+      endTime: clock(day.endTime),
+      breakStart: clock(day.breakStart),
+      breakEnd: clock(day.breakEnd),
+    })),
+  }
+}
+
+export async function fetchScheduleChangeRequests(
+  filters: ScheduleChangeRequestFilters,
+  signal?: AbortSignal,
+) {
+  const page = asSent(await searchScheduleChangeRequests(withoutBlanks(filters), signal))
+  return { ...page, items: page.items.map(toScheduleChangeRequest) }
+}
+
+/**
+ * Almashtirishda server ikkala sananing AMALDAGI rejasini suratga oladi —
+ * sanada jadval bo'lmasa `davomat.jadval_sorovi_jadval_yoq` (400).
+ */
+export async function postScheduleChangeRequest(body: ScheduleChangeRequestInput) {
+  return toScheduleChangeRequest(await createScheduleChangeRequest(body))
+}
+
+/** Faqat kutayotgan so'rov (`davomat.sorov_qaror_qabul_qilingan`, 409). */
+export async function putScheduleChangeRequest(id: string, body: ScheduleChangeRequestInput) {
+  return toScheduleChangeRequest(await updateScheduleChangeRequest(id, body))
+}
+
+/**
+ * Qaror. ⚠️ Tasdiqlangan kun xodimning o'sha sanadagi rejasi O'RNIGA turadi va
+ * kunlar serverda qayta hisoblanadi — tabel, kalendar va panel eskiradi
+ * (`postAbsenceDecision` bilan bir xil; kesh `providers.tsx` da bekor qilinadi).
+ */
+export async function postScheduleChangeDecision(id: string, body: AbsenceDecisionInput) {
+  return toScheduleChangeRequest(await decideScheduleChangeRequest(id, body))
+}
+
+/** Tasdiqlangani ham bekor qilinadi — kunlar jadvalning o'z rejasiga qaytadi. */
+export async function postScheduleChangeCancel(id: string) {
+  await cancelScheduleChangeRequest(id)
 }
 
 /* ═════════════════════════════════════════════════════ hisobotlar (§6.6) */

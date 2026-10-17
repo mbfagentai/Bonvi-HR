@@ -381,7 +381,11 @@ public sealed partial class CatalogSeeder
             "absence-types.json",
             "Yo'qlik turlari",
             row => AbsenceType.Create(row.Name),
-            (entity, row) => entity.SetCountsAsWorkTime(row.CountsAsWorkTime ?? false),
+            (entity, row) =>
+            {
+                entity.SetCountsAsWorkTime(row.CountsAsWorkTime ?? false);
+                entity.SetEmployeeCanRequest(row.EmployeeCanRequest ?? true);
+            },
             stats,
             cancellationToken).ConfigureAwait(false);
 
@@ -689,6 +693,9 @@ public sealed partial class CatalogSeeder
     {
         /// <summary>Ko'rsatilmasa — yo'q (so'rov faqat «Kelmadi» ni oqlaydi).</summary>
         public bool? CountsAsWorkTime { get; init; }
+
+        /// <summary>Ko'rsatilmasa — ha (xodim ilovadan so'ray oladi).</summary>
+        public bool? EmployeeCanRequest { get; init; }
     }
 
     /// <summary>

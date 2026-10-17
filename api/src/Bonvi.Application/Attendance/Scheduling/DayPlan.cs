@@ -176,6 +176,30 @@ public sealed class DayPlan
             : new DayPlan(date, schedule);
     }
 
+    /// <summary>
+    /// Tasdiqlangan jadval so'rovining kuni (SPEC-verifikatsiya-jadval-sorovi §C2) — yon
+    /// berish daqiqalari xodimning jadvalidan.
+    /// </summary>
+    /// <param name="schedule">Xodimning shu sanadagi jadvali.</param>
+    /// <param name="requested">So'ralgan kun.</param>
+    public static DayPlan ForOverride(WorkSchedule schedule, EmployeeDayOverride requested)
+    {
+        ArgumentNullException.ThrowIfNull(schedule);
+        ArgumentNullException.ThrowIfNull(requested);
+
+        return requested.IsWorking
+            ? Working(
+                schedule,
+                requested.Date,
+                requested.StartTime,
+                requested.EndTime,
+                requested.BreakMinutes,
+                requested.BreakStart,
+                requested.BreakEnd,
+                $"Jadval so'rovining {requested.Date:yyyy-MM-dd} kuni ish kuni, lekin vaqtlari ko'rsatilmagan.")
+            : new DayPlan(requested.Date, schedule);
+    }
+
     /// <summary>Ish kunining rejasi — naqshdan ham, sana katagidan ham SHU yerda quriladi.</summary>
     /// <remarks>
     /// Ikkala manba uchun bitta metod: hisoblash (tungi smena, tanaffus

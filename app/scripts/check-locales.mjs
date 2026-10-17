@@ -61,6 +61,21 @@ const APP_CODES = [
   'davomat.sorov_turi_yoq',
   'davomat.yoqlik_turi_topilmadi',
   'davomat.yoqlik_turi_faolsiz',
+  'davomat.yoqlik_turi_xodimga_yopiq',
+  // Jadval so'rovlari (`/api/me/schedule-requests`, SPEC-jadval-sorovi §C3)
+  'davomat.jadval_sorovi_takroriy',
+  'davomat.jadval_sorovi_jadval_yoq',
+  'davomat.jadval_sorovi_bir_xil_sana',
+  'davomat.jadval_sorovi_kun_yoq',
+  'davomat.jadval_sorovi_kop',
+  'davomat.jadval_sorovi_sana_takror',
+  'davomat.jadval_sorovi_turi',
+  // So'rov kunining smena va tanaffus qoidasi — jadval kunidagi bilan bir xil
+  'davomat.jadval_vaqt_bosh',
+  'davomat.jadval_vaqt_teng',
+  'davomat.jadval_tanaffus_toliq_emas',
+  'davomat.jadval_tanaffus_oynasi',
+  'davomat.jadval_tanaffus_uzunligi',
 ]
 
 /** Lotin yozuvidagi matnda ASCII apostrof bo'lmasligi kerak. */

@@ -1,7 +1,8 @@
-import { Check, Inbox, Pencil, Plus, X } from 'lucide-react'
+import { Check, Inbox, Pencil, Plus, SearchX, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
 import {
@@ -11,15 +12,23 @@ import {
   DataTable,
   EmptyState,
   Pagination,
+  Select,
   Skeleton,
   dataColumnHelper,
-  type BadgeTone,
   type DataColumn,
 } from '@/shared/ui'
 
-import type { AbsenceRequest, AbsenceRequestStatus } from '../api/attendance-api'
+import {
+  ABSENCE_REQUEST_MODES,
+  type AbsenceRequest,
+  type AbsenceRequestMode,
+} from '../api/attendance-api'
 import { useAbsenceRequests } from '../api/attendance-queries'
-import { ATTENDANCE_REQUESTS_MANAGE } from '../lib/attendance-presentation'
+import {
+  ATTENDANCE_REQUESTS_MANAGE,
+  REQUEST_MODE_LABEL_KEY,
+  REQUEST_STATUS_LOOK,
+} from '../lib/attendance-presentation'
 import { AbsenceDecisionDialog, type AbsenceAction } from './absence-decision-dialog'
 import { AbsenceRequestDialog } from './absence-request-dialog'
 import { AttendanceLoadError } from './attendance-manage-states'
@@ -31,13 +40,16 @@ const NO_ROWS: AbsenceRequest[] = []
 
 const PAGE_SIZE = 25
 
-/** Holat nishonining ohangi va yorlig'i — bitta joyda. */
-const STATUS_LOOK: Readonly<Record<AbsenceRequestStatus, { tone: BadgeTone; labelKey: string }>> = {
-  Pending: { tone: 'warning', labelKey: 'attendance.requestStatusPending' },
-  Approved: { tone: 'info', labelKey: 'attendance.requestStatusApproved' },
-  Rejected: { tone: 'danger', labelKey: 'attendance.requestStatusRejected' },
-  Cancelled: { tone: 'neutral', labelKey: 'attendance.requestStatusCancelled' },
+/**
+ * Navbat filtri (SPEC-jadval-sorovi §B): yo'qlik turi va shakl. Bo'sh satr —
+ * «hammasi»; so'rovga faqat tanlangani ketadi.
+ */
+interface RequestListFilters {
+  absenceTypeId: string
+  mode: AbsenceRequestMode | ''
 }
+
+const NO_FILTERS: RequestListFilters = { absenceTypeId: '', mode: '' }
 
 /**
  * Yo'qlik so'rovlari — IKKITA jadval: qaror kutayotganlar va qaror qabul
@@ -57,11 +69,14 @@ const STATUS_LOOK: Readonly<Record<AbsenceRequestStatus, { tone: BadgeTone; labe
 export function AbsenceRequestsList({
   employeeId = null,
   showEmployee = false,
+  showFilters = false,
 }: {
   /** Faqat shu xodimning so'rovlari — xodim kartasida. */
   employeeId?: string | null
   /** Xodim ustuni ko'rsatilsinmi — umumiy navbatda. */
   showEmployee?: boolean
+  /** Yo'qlik turi va shakl filtri — umumiy navbatda (Verifix filtri kabi). */
+  showFilters?: boolean
 }) {
   const { t, date } = useLocale()
   const { hasPermission } = useAuth()
@@ -83,8 +98,29 @@ export function AbsenceRequestsList({
     null,
   )
 
-  const pending = useAbsenceRequests({
+  /*
+    Filtr IKKALA jadvalga birga qo'llanadi: «Ishxona ishi bilan» tanlangan
+    bo'lsa, HR kutayotganlarni ham, arxivni ham shu tur bo'yicha ko'radi.
+    O'zgarganda ikkala sahifa ham boshidan — 3-sahifa yangi natijada bo'sh
+    bo'lishi mumkin.
+  */
+  const [filters, setFilters] = useState<RequestListFilters>(NO_FILTERS)
+  const filtered = filters.absenceTypeId !== '' || filters.mode !== ''
+
+  const changeFilters = (next: RequestListFilters) => {
+    setFilters(next)
+    setPendingPage(1)
+    setDecidedPage(1)
+  }
+
+  const query = {
     employeeId: employeeId ?? undefined,
+    absenceTypeId: filters.absenceTypeId === '' ? undefined : filters.absenceTypeId,
+    mode: filters.mode === '' ? undefined : filters.mode,
+  }
+
+  const pending = useAbsenceRequests({
+    ...query,
     status: 'Pending',
     page: pendingPage,
     pageSize: PAGE_SIZE,
@@ -97,7 +133,7 @@ export function AbsenceRequestsList({
     ham sanalib, oxirgi sahifa bo'sh chiqardi.
   */
   const decided = useAbsenceRequests({
-    employeeId: employeeId ?? undefined,
+    ...query,
     decided: true,
     page: decidedPage,
     pageSize: PAGE_SIZE,
@@ -221,7 +257,7 @@ export function AbsenceRequestsList({
         enableSorting: false,
         meta: { width: '148px' },
         cell: ({ row }) => {
-          const look = STATUS_LOOK[row.original.status]
+          const look = REQUEST_STATUS_LOOK[row.original.status]
           return <Badge tone={look.tone}>{t(look.labelKey)}</Badge>
         },
       }),
@@ -249,8 +285,35 @@ export function AbsenceRequestsList({
     return list
   }, [t, date, showEmployee, canManage])
 
+  /*
+    Filtrga mos yozuv yo'qligi — «so'rov yo'q» emas: HR bo'sh navbatni ko'rib,
+    kutayotgan so'rovlar yo'q deb o'ylamasligi kerak. Shu sababli boshqa
+    matn va filtrni tozalash tugmasi.
+  */
+  const filteredEmpty = (
+    <EmptyState
+      icon={SearchX}
+      title={t('attendance.requestsFilteredEmpty')}
+      description={t('attendance.requestsFilteredEmptyText')}
+      action={
+        <Button type="button" size="sm" variant="secondary" onClick={() => changeFilters(NO_FILTERS)}>
+          <X />
+          {t('employees.clearFilters')}
+        </Button>
+      }
+    />
+  )
+
   return (
     <div className="space-y-4">
+      {showFilters && (
+        <RequestFilterBar
+          value={filters}
+          onChange={changeFilters}
+          onClear={() => changeFilters(NO_FILTERS)}
+        />
+      )}
+
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
           <h2 className="text-subhead font-semibold">{t('attendance.requestsPending')}</h2>
@@ -284,11 +347,15 @@ export function AbsenceRequestsList({
               skeletonRows={3}
               rowLabel={(row) => row.employeeName}
               empty={
-                <EmptyState
-                  icon={Inbox}
-                  title={t('attendance.requestsQueueEmpty')}
-                  description={t('attendance.requestsQueueEmptyText')}
-                />
+                filtered ? (
+                  filteredEmpty
+                ) : (
+                  <EmptyState
+                    icon={Inbox}
+                    title={t('attendance.requestsQueueEmpty')}
+                    description={t('attendance.requestsQueueEmptyText')}
+                  />
+                )
               }
             />
 
@@ -328,11 +395,15 @@ export function AbsenceRequestsList({
               getRowId={(row) => row.id}
               rowLabel={(row) => row.employeeName}
               empty={
-                <EmptyState
-                  icon={Inbox}
-                  title={t('attendance.requestsEmpty')}
-                  description={t('attendance.requestsEmptyText')}
-                />
+                filtered ? (
+                  filteredEmpty
+                ) : (
+                  <EmptyState
+                    icon={Inbox}
+                    title={t('attendance.requestsEmpty')}
+                    description={t('attendance.requestsEmptyText')}
+                  />
+                )
               }
             />
 
@@ -369,6 +440,77 @@ export function AbsenceRequestsList({
 /** Oxirgi mavjud sahifa — hech bo'lmaganda birinchisi. */
 function lastPage(total: number): number {
   return Math.max(1, Math.ceil(total / PAGE_SIZE))
+}
+
+/**
+ * Navbat filtri — yo'qlik turi va shakl (Verifix «Вид отсутствия» va «Тип
+ * запроса»).
+ *
+ * Alohida komponent: ma'lumotnoma so'rovi faqat filtr ko'rinadigan joyda
+ * (umumiy navbatda) ketadi, xodim kartasida emas. Ro'yxatda FAOL BO'LMAGAN
+ * turlar ham bor — arxivdagi eski so'rovlar aynan shular bilan yozilgan.
+ */
+function RequestFilterBar({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: RequestListFilters
+  onChange: (next: RequestListFilters) => void
+  onClear: () => void
+}) {
+  const { t } = useLocale()
+  const types = useCatalogList('absence-types', false)
+
+  const typeOptions = useMemo(
+    () => (types.data ?? []).map((item) => ({ value: item.id, label: item.name })),
+    [types.data],
+  )
+
+  const modeOptions = ABSENCE_REQUEST_MODES.map((mode) => ({
+    value: mode,
+    label: t(REQUEST_MODE_LABEL_KEY[mode]),
+  }))
+
+  const active = value.absenceTypeId !== '' || value.mode !== ''
+
+  return (
+    <Card className="px-4 py-3.5 sm:px-5">
+      <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]">
+        <Select
+          label={t('attendance.requestKind')}
+          placeholder={t('common.all')}
+          options={typeOptions}
+          value={value.absenceTypeId}
+          disabled={types.isPending}
+          onChange={(event) => onChange({ ...value, absenceTypeId: event.target.value })}
+          // Ma'lumotnomani o'qib bo'lmasa — jimgina bo'sh ro'yxat emas
+          error={types.isError ? t('catalog.loadFailed') : undefined}
+        />
+        <Select
+          label={t('attendance.requestMode')}
+          placeholder={t('common.all')}
+          options={modeOptions}
+          value={value.mode}
+          onChange={(event) => onChange({ ...value, mode: toMode(event.target.value) })}
+        />
+
+        {active && (
+          <div className="flex sm:justify-start">
+            <Button type="button" variant="ghost" onClick={onClear}>
+              <X />
+              {t('employees.clearFilters')}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/** `<select>` qiymati → shakl; tanilmagani — «hammasi». */
+function toMode(value: string): AbsenceRequestMode | '' {
+  return ABSENCE_REQUEST_MODES.find((mode) => mode === value) ?? ''
 }
 
 /**

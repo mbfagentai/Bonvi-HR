@@ -53,6 +53,11 @@ export interface CatalogItem {
    * hisoblanadimi (SPEC-so'rovlar §B3 AMENDED 2026-10-17).
    */
   countsAsWorkTime?: boolean
+  /**
+   * Faqat yo'qlik turlarida: xodim ilovadan o'zi so'ray oladimi
+   * (SPEC-jadval-sorovi §A). `false` — turni faqat HR kiritadi.
+   */
+  employeeCanRequest?: boolean
 }
 
 /**
@@ -64,6 +69,8 @@ export interface CatalogItemInput {
   note?: string | null
   /** Faqat yo'qlik turi uchun yuboriladi — boshqalarida server e'tiborsiz qoldiradi. */
   countsAsWorkTime?: boolean
+  /** Faqat yo'qlik turi uchun — `countsAsWorkTime` bilan bir xil qoida. */
+  employeeCanRequest?: boolean
 }
 
 export interface DepartmentItem extends CatalogItem {

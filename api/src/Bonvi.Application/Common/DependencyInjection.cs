@@ -165,6 +165,10 @@ public static class DependencyInjection
         services.AddScoped<GetMyRequestsQueryHandler>();
         services.AddScoped<CreateMyRequestCommandHandler>();
         services.AddScoped<CancelMyRequestCommandHandler>();
+        services.AddScoped<GetMyScheduleRequestsQueryHandler>();
+        services.AddScoped<CreateMyScheduleRequestCommandHandler>();
+        services.AddScoped<CancelMyScheduleRequestCommandHandler>();
+        services.AddScoped<GetMyPlanQueryHandler>();
 
         // Ma'lumotnomalar (S2) — o'z ro'yxatini o'zi olib boradi
         services.AddCatalog();

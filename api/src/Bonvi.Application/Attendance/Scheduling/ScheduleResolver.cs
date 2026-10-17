@@ -20,11 +20,16 @@ namespace Bonvi.Application.Attendance.Scheduling;
 /// haftalik naqshdan kelgan bo'lsa <c>null</c>. «Nega shu soat» savoliga javob beruvchi ekran
 /// (<c>GET /schedules/resolve</c>) kunni aynan shu manbadan ko'rsatadi.
 /// </param>
+/// <param name="RequestOverride">
+/// <paramref name="Day"/> tasdiqlangan JADVAL SO'ROVIDAN kelgan bo'lsa — o'sha kun
+/// (SPEC-verifikatsiya-jadval-sorovi §C2); u to'r katagidan ham, naqshdan ham ustun.
+/// </param>
 public sealed record ScheduleResolution(
     ScheduleAssignment Assignment,
     WorkSchedule Schedule,
     DayPlan Day,
-    WorkScheduleDate? DateOverride = null)
+    WorkScheduleDate? DateOverride = null,
+    EmployeeDayOverride? RequestOverride = null)
 {
     /// <summary>Qaysi pog'ona yutdi.</summary>
     public ScheduleScope Tier => Assignment.Scope;
@@ -70,6 +75,9 @@ public sealed class ScheduleResolver
     /// </remarks>
     private readonly Dictionary<(Guid ScheduleId, DateOnly Date), WorkScheduleDate> _dates;
 
+    /// <summary>Tasdiqlangan jadval so'rovlarining kunlari — (xodim, sana) bo'yicha.</summary>
+    private readonly Dictionary<(Guid EmployeeId, DateOnly Date), EmployeeDayOverride> _overrides;
+
     /// <summary>Hal qiluvchini bir to'plam ma'lumoti ustida quradi.</summary>
     /// <remarks>
     /// <para>
@@ -94,11 +102,16 @@ public sealed class ScheduleResolver
     /// Yillik to'rning kataklari — hisoblanadigan oraliq uchun
     /// (SPEC-jadval-to'ri §B2). Berilmasa, faqat haftalik naqsh ishlaydi.
     /// </param>
+    /// <param name="overrides">
+    /// Tasdiqlangan jadval so'rovlarining kunlari (SPEC-verifikatsiya-jadval-sorovi §C2).
+    /// Bir xodim-sanaga ikkitasi kelsa (qoida buni taqiqlaydi), oxirgi qaror yutadi.
+    /// </param>
     public ScheduleResolver(
         IEnumerable<ScheduleAssignment> assignments,
         IEnumerable<WorkSchedule> schedules,
         DepartmentTree departments,
-        IEnumerable<WorkScheduleDate>? dates = null)
+        IEnumerable<WorkScheduleDate>? dates = null,
+        IEnumerable<EmployeeDayOverride>? overrides = null)
     {
         ArgumentNullException.ThrowIfNull(assignments);
         ArgumentNullException.ThrowIfNull(schedules);
@@ -107,6 +120,12 @@ public sealed class ScheduleResolver
         _schedules = schedules.ToDictionary(schedule => schedule.Id);
         _dates = dates?.ToDictionary(date => (date.WorkScheduleId, date.Date)) ?? [];
         _departments = departments;
+
+        _overrides = [];
+        foreach (var day in (overrides ?? []).OrderBy(item => item.DecidedAt))
+        {
+            _overrides[(day.EmployeeId, day.Date)] = day;
+        }
 
         var live = assignments.Where(assignment => assignment.DeletedAt is null).ToList();
 
@@ -167,6 +186,22 @@ public sealed class ScheduleResolver
         }
 
         var schedule = _schedules[winner.WorkScheduleId];
+
+        /*
+          ⭐ Tasdiqlangan jadval so'rovi — eng yuqori qatlam: faqat SHU xodimning
+          SHU sanasi, jadvalning o'ziga tegilmaydi. Jadvali yo'q xodimga u
+          qo'llanmaydi (yuqorida `null`): almashtiradigan reja yo'q va yon berish
+          daqiqalari ham jadvaldan olinadi.
+        */
+        if (_overrides.TryGetValue((primaryEmployment.EmployeeId, date), out var requested))
+        {
+            return new ScheduleResolution(
+                winner,
+                schedule,
+                DayPlan.ForOverride(schedule, requested),
+                RequestOverride: requested);
+        }
+
         var exact = _dates.GetValueOrDefault((schedule.Id, date));
 
         return new ScheduleResolution(

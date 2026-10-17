@@ -338,6 +338,110 @@ public sealed partial class EmployeeAppApiTests
         }
     }
 
+    /// <summary>
+    /// Xodim ilovadan jadval so'rovini yuboradi, ro'yxatda ko'radi va qaror kutayotganda qaytarib
+    /// oladi; begona xodim uni bekor qila olmaydi (SPEC-verifikatsiya-jadval-sorovi §C3).
+    /// </summary>
+    [Fact]
+    public async Task Xodim_jadval_sorovi_yuboradi_va_bekor_qiladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var xodim = await XodimAsync(Belgi());
+        using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
+        var kun = BugunToshkentda().AddDays(3);
+
+        // Jadvali yo'q xodim — forma bo'sh to'ladi va buni aytadi.
+        var reja = await JsonAsync(await ilova.GetAsync(new Uri($"/api/me/plan?date={Iso(kun)}", UriKind.Relative), ct));
+        reja.GetProperty("hasSchedule").GetBoolean().ShouldBeFalse();
+
+        Guid sorovId;
+        using (var yuborish = await ilova.PostAsJsonAsync(
+                   new Uri("/api/me/schedule-requests", UriKind.Relative),
+                   new
+                   {
+                       kind = "Change",
+                       days = new[] { new { date = Iso(kun), isWorking = true, startTime = "08:30:00", endTime = "18:00:00", breakStart = "12:30:00", breakEnd = "14:30:00" } },
+                       note = "Tushlikka uyga boraman",
+                   },
+                   ct))
+        {
+            yuborish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yuborish));
+            var yozuv = await JsonAsync(yuborish);
+            yozuv.GetProperty("submittedByEmployee").GetBoolean().ShouldBeTrue();
+            yozuv.GetProperty("days")[0].GetProperty("breakEnd").GetString().ShouldStartWith("14:30");
+            sorovId = yozuv.GetProperty("id").GetGuid();
+        }
+
+        var royxat = await JsonAsync(await ilova.GetAsync(new Uri("/api/me/schedule-requests", UriKind.Relative), ct));
+        royxat.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetGuid()).ShouldContain(sorovId);
+
+        var begona = await XodimAsync(Belgi());
+        using (var boshqa = await IlovaMijoziAsync(admin, begona.Id))
+        using (var urinish = await boshqa.PostAsync(new Uri($"/api/me/schedule-requests/{sorovId}/cancel", UriKind.Relative), null, ct))
+        {
+            await XatoKutAsync(urinish, HttpStatusCode.NotFound, "davomat.sorov_topilmadi");
+        }
+
+        using (var bekor = await ilova.PostAsync(new Uri($"/api/me/schedule-requests/{sorovId}/cancel", UriKind.Relative), null, ct))
+        {
+            bekor.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(bekor));
+        }
+
+        using (var takror = await ilova.PostAsync(new Uri($"/api/me/schedule-requests/{sorovId}/cancel", UriKind.Relative), null, ct))
+        {
+            await XatoKutAsync(takror, HttpStatusCode.Conflict, "davomat.sorov_bekor_qilingan");
+        }
+    }
+
+    /// <summary>
+    /// «Xodim o'zi so'ray oladi» o'chirilgan tur ilovada chiqmaydi va unga so'rov yuborib bo'lmaydi;
+    /// HR esa uni xodim nomidan kirita oladi (SPEC-verifikatsiya-jadval-sorovi §A).
+    /// </summary>
+    [Fact]
+    public async Task Faqat_HR_turi_ilovada_chiqmaydi_va_xodim_yubora_olmaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var belgi = Belgi();
+        using var admin = await AdminMijozAsync();
+
+        Guid turId;
+        using (var tur = await admin.PostAsJsonAsync(
+                   new Uri("/api/catalog/absence-types", UriKind.Relative),
+                   new { name = "Faqat HR " + belgi, employeeCanRequest = false },
+                   ct))
+        {
+            tur.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(tur));
+            var yozuv = await JsonAsync(tur);
+            yozuv.GetProperty("employeeCanRequest").GetBoolean().ShouldBeFalse();
+            turId = yozuv.GetProperty("id").GetGuid();
+        }
+
+        var xodim = await XodimAsync(belgi);
+        using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
+
+        var men = await JsonAsync(await ilova.GetAsync(new Uri("/api/me", UriKind.Relative), ct));
+        men.GetProperty("absenceTypes").EnumerateArray()
+            .Select(item => item.GetProperty("id").GetGuid())
+            .ShouldNotContain(turId);
+
+        var kun = BugunToshkentda().AddDays(9);
+        using (var urinish = await ilova.PostAsJsonAsync(
+                   new Uri("/api/me/requests", UriKind.Relative),
+                   new { absenceTypeId = turId, fromDate = Iso(kun), toDate = Iso(kun) },
+                   ct))
+        {
+            await XatoKutAsync(urinish, HttpStatusCode.BadRequest, "davomat.yoqlik_turi_xodimga_yopiq");
+        }
+
+        using var hr = await admin.PostAsJsonAsync(
+            new Uri("/api/attendance/requests", UriKind.Relative),
+            new { employeeId = xodim.Id, absenceTypeId = turId, fromDate = Iso(kun), toDate = Iso(kun) },
+            ct);
+        hr.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(hr));
+    }
+
     // ════════════════════════════════════════════════════════════
     //  Tungi smena: belgilar o'z katagida, keyingi yo'nalish
     // ════════════════════════════════════════════════════════════

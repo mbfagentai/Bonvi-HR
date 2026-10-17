@@ -869,6 +869,141 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleChangeDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<TimeOnly?>("BreakEnd")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("break_end");
+
+                    b.Property<TimeOnly?>("BreakStart")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("break_start");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("end_time");
+
+                    b.Property<bool>("IsWorking")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_working");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("start_time");
+
+                    b.Property<DateOnly?>("SwapWith")
+                        .HasColumnType("date")
+                        .HasColumnName("swap_with");
+
+                    b.HasKey("Id")
+                        .HasName("pk_schedule_change_request_days");
+
+                    b.HasIndex("Date")
+                        .HasDatabaseName("ix_schedule_change_request_days_date");
+
+                    b.HasIndex("RequestId", "Date")
+                        .IsUnique()
+                        .HasDatabaseName("ix_schedule_change_request_days_request_id_date");
+
+                    b.ToTable("schedule_change_request_days", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_schedule_change_request_days_break", "(break_start IS NULL AND break_end IS NULL) OR (is_working AND break_start IS NOT NULL AND break_end IS NOT NULL AND break_start <> break_end)");
+
+                            t.HasCheckConstraint("ck_schedule_change_request_days_times", "(is_working AND start_time IS NOT NULL AND end_time IS NOT NULL) OR (NOT is_working AND start_time IS NULL AND end_time IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleChangeRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CancelledByAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by_account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("SubmittedByAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by_account_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_schedule_change_requests");
+
+                    b.HasIndex("EmployeeId", "Status")
+                        .HasDatabaseName("ix_schedule_change_requests_employee_id_status");
+
+                    b.ToTable("schedule_change_requests", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Attendance.WorkSchedule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1283,6 +1418,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
+
+                    b.Property<bool>("EmployeeCanRequest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("employee_can_request");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -4384,6 +4523,26 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_schedule_assignments_work_schedules_work_schedule_id");
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleChangeDay", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Attendance.ScheduleChangeRequest", null)
+                        .WithMany("Days")
+                        .HasForeignKey("RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_schedule_change_request_days_schedule_change_requests_reque");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleChangeRequest", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_schedule_change_requests_employees_employee_id");
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Attendance.WorkScheduleDate", b =>
                 {
                     b.HasOne("Bonvi.Domain.Attendance.WorkSchedule", null)
@@ -4719,6 +4878,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ResponsibleEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_incidents_employees_responsible_employee_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.ScheduleChangeRequest", b =>
+                {
+                    b.Navigation("Days");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Attendance.WorkSchedule", b =>

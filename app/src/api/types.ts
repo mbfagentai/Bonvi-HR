@@ -197,6 +197,97 @@ export interface AbsenceRequestDto {
   cancelledByEmployee: boolean
 }
 
+/**
+ * Jadval so'rovining turi (SPEC-jadval-sorovi §C1): `Change` — «Kunni
+ * o'zgartirish», `Swap` — «Kun almashtirish». Simda — enum NOMI.
+ */
+export type ScheduleChangeKind = 'Change' | 'Swap'
+
+/**
+ * Jadval so'rovining bitta kuni — `ScheduleChangeDayDto`.
+ *
+ * Almashtirishda (`Swap`) ham har bir sana alohida qator: server yaratish
+ * paytida ikkala kunning amaldagi rejasini olib, ularni o'rin almashtirib
+ * yozadi. `swapWith` — juftining sanasi, faqat ko'rsatish uchun.
+ */
+export interface ScheduleChangeDayDto {
+  date: string
+  isWorking: boolean
+  /** «08:30:00»; dam olish kunida `null`. */
+  startTime: string | null
+  /** Boshlanishdan oldin bo'lsa — tungi smena, ertasi kuni tugaydi. */
+  endTime: string | null
+  /** Tanaffus — ikkalasi birga yoki ikkalasi ham `null`. */
+  breakStart: string | null
+  breakEnd: string | null
+  swapWith: string | null
+}
+
+/** `ScheduleChangeRequestDto` — HR navbatidagi yozuvning o'zi. */
+export interface ScheduleChangeRequestDto {
+  id: string
+  employeeId: string
+  employeeName: string
+  employeePhotoKey: string | null
+  positionName: string | null
+  departmentName: string | null
+  kind: ScheduleChangeKind
+  /** Sana tartibida. */
+  days: ScheduleChangeDayDto[]
+  note: string | null
+  /** Yo'qlik so'rovidagi to'rtta holatning aynan o'zi. */
+  status: AbsenceRequestStatus
+  decisionNote: string | null
+  decidedByName: string | null
+  decidedAt: string | null
+  createdAt: string
+  submittedByEmployee: boolean
+  cancelledByEmployee: boolean
+}
+
+/** `POST /api/me/schedule-requests` dagi bitta kun — vaqt `HH:mm:ss`. */
+export interface ScheduleChangeDayInput {
+  date: string
+  isWorking: boolean
+  startTime: string | null
+  endTime: string | null
+  breakStart: string | null
+  breakEnd: string | null
+}
+
+/** Kun almashtirish jufti: `date` ⇄ `withDate`. */
+export interface ScheduleSwapInput {
+  date: string
+  withDate: string
+}
+
+/**
+ * `POST /api/me/schedule-requests` tanasi. `Change` da faqat `days`,
+ * `Swap` da faqat `swaps` to'ladi — ikkinchisi bo'sh ro'yxat.
+ */
+export interface CreateScheduleChangeRequest {
+  kind: ScheduleChangeKind
+  days: ScheduleChangeDayInput[]
+  swaps: ScheduleSwapInput[]
+  note: string | null
+}
+
+/**
+ * `GET /api/me/plan?date=` — `DayPlanDto`: sananing AMALDAGI rejasi
+ * (tasdiqlangan jadval so'rovi ham hisobga olingan). Jadval so'rovi
+ * formasini xodimning hozirgi soatlari bilan to'ldirish uchun.
+ */
+export interface DayPlanDto {
+  date: string
+  /** `false` — shu sanada xodimga jadval biriktirilmagan. */
+  hasSchedule: boolean
+  isWorking: boolean
+  startTime: string | null
+  endTime: string | null
+  breakStart: string | null
+  breakEnd: string | null
+}
+
 /** Sahifalangan ro'yxat — `PagedResult<T>`. */
 export interface PagedResult<T> {
   items: T[]

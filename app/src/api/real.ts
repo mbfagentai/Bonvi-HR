@@ -5,9 +5,11 @@ import type {
   AbsenceRequestDto,
   AttendanceMonthDto,
   CheckInResult,
+  DayPlanDto,
   LoginResult,
   MeDto,
   PagedResult,
+  ScheduleChangeRequestDto,
 } from './types'
 
 /**
@@ -53,4 +55,17 @@ export const realApi: EmployeeApi = {
 
   cancelRequest: (id) =>
     request<void>(`/api/me/requests/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+
+  getScheduleRequests: (page, pageSize) =>
+    request<PagedResult<ScheduleChangeRequestDto>>(
+      `/api/me/schedule-requests?page=${page}&pageSize=${pageSize}`,
+    ),
+
+  createScheduleRequest: (body) =>
+    request<ScheduleChangeRequestDto>('/api/me/schedule-requests', { method: 'POST', body }),
+
+  cancelScheduleRequest: (id) =>
+    request<void>(`/api/me/schedule-requests/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+
+  getPlan: (date) => request<DayPlanDto>(`/api/me/plan?date=${encodeURIComponent(date)}`),
 }

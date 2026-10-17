@@ -7,10 +7,13 @@ import type {
   CheckInRequest,
   CheckInResult,
   CreateAbsenceRequest,
+  CreateScheduleChangeRequest,
+  DayPlanDto,
   LoginRequest,
   LoginResult,
   MeDto,
   PagedResult,
+  ScheduleChangeRequestDto,
 } from './types'
 
 /**
@@ -48,6 +51,14 @@ export interface EmployeeApi {
   createRequest: (request: CreateAbsenceRequest) => Promise<AbsenceRequestDto>
   /** `POST /api/me/requests/{id}/cancel` — 204, tanasiz. */
   cancelRequest: (id: string) => Promise<void>
+  /** `GET /api/me/schedule-requests?page&pageSize` — jadval so'rovlari, bitta sahifa. */
+  getScheduleRequests: (page: number, pageSize: number) => Promise<PagedResult<ScheduleChangeRequestDto>>
+  /** `POST /api/me/schedule-requests` */
+  createScheduleRequest: (request: CreateScheduleChangeRequest) => Promise<ScheduleChangeRequestDto>
+  /** `POST /api/me/schedule-requests/{id}/cancel` — 204, tanasiz. */
+  cancelScheduleRequest: (id: string) => Promise<void>
+  /** `GET /api/me/plan?date=YYYY-MM-DD` — sananing amaldagi rejasi. */
+  getPlan: (date: string) => Promise<DayPlanDto>
 }
 
 /** Qaysi amalga oshirish ulangan — ekranlar faqat sinov belgisi uchun o'qiydi. */

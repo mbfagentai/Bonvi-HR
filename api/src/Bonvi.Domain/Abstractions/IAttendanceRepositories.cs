@@ -525,6 +525,24 @@ public interface IAbsenceRequestRepository : IRepository<AbsenceRequest>
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Jadval so'rovlari porti (SPEC-verifikatsiya-jadval-sorovi §C).</summary>
+public interface IScheduleChangeRequestRepository : IRepository<ScheduleChangeRequest>
+{
+    /// <summary>
+    /// Xodimning boshqa FAOL (kutayotgan yoki tasdiqlangan) jadval so'rovi shu sanalardan
+    /// birortasini qamraydimi.
+    /// </summary>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="dates">Sanalar.</param>
+    /// <param name="exceptId">Tahrirlanayotgan so'rovning o'zi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<bool> OverlapsAsync(
+        Guid employeeId,
+        IReadOnlyCollection<DateOnly> dates,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>Yillik to'r kataklari uchun saqlash porti (SPEC-jadval-to'ri §B1).</summary>
 /// <remarks>
 /// Jadvalning bolasi EMAS, alohida port: bir jadvalda bir necha yillik

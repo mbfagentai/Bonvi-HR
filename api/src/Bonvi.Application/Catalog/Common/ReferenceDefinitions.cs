@@ -246,7 +246,13 @@ public sealed class AbsenceTypeDefinition : ReferenceDefinition<AbsenceType, Abs
     {
         ArgumentNullException.ThrowIfNull(entity);
 
-        return new AbsenceTypeDto(entity.Id, entity.Name, entity.IsActive, entity.Note, entity.CountsAsWorkTime);
+        return new AbsenceTypeDto(
+            entity.Id,
+            entity.Name,
+            entity.IsActive,
+            entity.Note,
+            entity.CountsAsWorkTime,
+            entity.EmployeeCanRequest);
     }
 
     /// <inheritdoc />
@@ -262,6 +268,11 @@ public sealed class AbsenceTypeDefinition : ReferenceDefinition<AbsenceType, Abs
         if (command.CountsAsWorkTime is { } countsAsWorkTime)
         {
             entity.SetCountsAsWorkTime(countsAsWorkTime);
+        }
+
+        if (command.EmployeeCanRequest is { } employeeCanRequest)
+        {
+            entity.SetEmployeeCanRequest(employeeCanRequest);
         }
 
         return Result.Success();

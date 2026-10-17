@@ -61,6 +61,41 @@ public sealed class IshVaqtiSorovMigrationTests
         (await QiymatAsync(ulanish, "SELECT count(*) FROM attendance_days", bekorQilish)).ShouldBe(2L, "qatorlar joyida");
     }
 
+    /// <summary>
+    /// <c>JadvalSorovi</c>: mavjud yo'qlik turi xodimlarga ochiq qoladi (sukut TRUE), jadval so'rovlari
+    /// jadvallari yaratiladi; Down ularni olib tashlaydi, turlar joyida.
+    /// </summary>
+    [Fact]
+    public async Task JadvalSorovi_mavjud_turni_ochiq_qoldiradi_Down_jadvallarni_olib_tashlaydi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var baza = await VaqtinchalikBaza.YaratAsync(bekorQilish);
+        await MigratsiyaAsync(baza.UlanishSatri, Migratsiya, bekorQilish);
+
+        await using var ulanish = await UlanAsync(baza.UlanishSatri, bekorQilish);
+        var tur = await TurQoshAsync(ulanish, "Shaxsiy sabab", bekorQilish);
+
+        await MigratsiyaAsync(baza.UlanishSatri, JadvalMigratsiyasi, bekorQilish);
+
+        (await QiymatAsync(ulanish, "SELECT employee_can_request FROM absence_types WHERE id = $1", bekorQilish, tur))
+            .ShouldBe(true, "avval xodimlar so'ray olgan tur — hozir ham so'ray oladi");
+        (await QiymatAsync(ulanish, "SELECT count(*) FROM schedule_change_requests", bekorQilish)).ShouldBe(0L);
+        (await QiymatAsync(ulanish, "SELECT count(*) FROM schedule_change_request_days", bekorQilish)).ShouldBe(0L);
+
+        await MigratsiyaAsync(baza.UlanishSatri, Migratsiya, bekorQilish);
+
+        (await UstunBormiAsync(ulanish, "absence_types", "employee_can_request", bekorQilish)).ShouldBeFalse();
+        (await QiymatAsync(
+                ulanish,
+                "SELECT count(*) FROM information_schema.tables WHERE table_name = 'schedule_change_requests'",
+                bekorQilish))
+            .ShouldBe(0L);
+        (await QiymatAsync(ulanish, "SELECT count(*) FROM absence_types", bekorQilish)).ShouldBe(1L);
+    }
+
+    private const string JadvalMigratsiyasi = "20261017091318_JadvalSorovi";
+
     private static async Task MigratsiyaAsync(string ulanishSatri, string nishon, CancellationToken bekorQilish)
     {
         await using var kontekst = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()

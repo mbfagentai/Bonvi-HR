@@ -72,6 +72,8 @@ public sealed class GetMeQueryHandler
         IReadOnlyList<MyAbsenceTypeDto> absenceTypes =
         [
             .. types
+                // Faqat HR kiritadigan tur ilovada chiqmaydi (SPEC-jadval-so'rovi §A).
+                .Where(type => type.EmployeeCanRequest)
                 .OrderBy(type => type.Name, StringComparer.CurrentCulture)
                 .Select(type => new MyAbsenceTypeDto(type.Id, type.Name)),
         ];

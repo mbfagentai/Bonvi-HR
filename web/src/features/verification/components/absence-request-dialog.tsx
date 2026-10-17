@@ -3,10 +3,26 @@ import { useEffect, useState } from 'react'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, Select, TextArea, TextField } from '@/shared/ui'
+import { todayIso } from '@/shared/lib/today'
+import {
+  Alert,
+  Button,
+  DateField,
+  Dialog,
+  SegmentedControl,
+  Select,
+  TextArea,
+  TextField,
+} from '@/shared/ui'
 
-import type { AbsenceRequest, AbsenceRequestInput } from '../api/attendance-api'
+import {
+  ABSENCE_REQUEST_MODES,
+  type AbsenceRequest,
+  type AbsenceRequestInput,
+  type AbsenceRequestMode,
+} from '../api/attendance-api'
 import { useCreateAbsenceRequest, useUpdateAbsenceRequest } from '../api/attendance-queries'
+import { REQUEST_MODE_LABEL_KEY, absenceRequestMode } from '../lib/attendance-presentation'
 
 /**
  * Yo'qlik so'rovini yaratish va tahrirlash oynasi (SPEC-so'rovlar §B5).
@@ -16,10 +32,12 @@ import { useCreateAbsenceRequest, useUpdateAbsenceRequest } from '../api/attenda
  * yuboradi (§C) va bu oyna HR uchun «xodim nomidan kiritish» yo'li bo'lib
  * qoladi.
  *
- * <b>Vaqt oralig'i faqat BIR KUNLIK so'rovda</b>: sanalar har xil bo'lsa
- * maydonlar umuman chizilmaydi. Server ham shu qoidani tekshiradi
- * (`davomat.sorov_vaqti_notogri`) — bu yerdagisi faqat qo'lni tinchitish
- * uchun emas, ekranda ma'nosiz maydon turmasligi uchun.
+ * <b>Shakl — Verifix'dagi kabi uchta</b> (SPEC-jadval-sorovi §B): «Qism kun»
+ * (bitta sana, boshlanish va tugash — ikkalasi shart), «Butun kun» (bitta
+ * sana) va «Bir necha kun» (oraliq). Ilgari ikki sana va ixtiyoriy vaqt
+ * yonma-yon turardi va HR «bir kunlik, lekin vaqtsiz» so'rovni qanday
+ * kiritishni taxmin qilishi kerak edi. Server shartnomasi O'ZGARMADI —
+ * shakl faqat qaysi maydonlar yuborilishini belgilaydi.
  */
 export function AbsenceRequestDialog({
   open,
@@ -42,6 +60,8 @@ export function AbsenceRequestDialog({
   const update = useUpdateAbsenceRequest()
 
   const [typeId, setTypeId] = useState('')
+  const [mode, setMode] = useState<AbsenceRequestMode>('PartDay')
+  /** Bitta sanali shakllarda — o'sha sana; «Bir necha kun» da — oraliq boshi. */
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [fromTime, setFromTime] = useState('')
@@ -53,12 +73,18 @@ export function AbsenceRequestDialog({
     Oyna ochilganda forma to'ldiriladi. `open` ham bog'liqlikda: bitta
     oyna ketma-ket ikki xil so'rov uchun ochilishi mumkin va ikkinchisida
     eski qiymatlar qolib ketmasligi kerak.
+
+    Yangi so'rov — «Qism kun», bugungi sana bilan: Verifix'dagi so'rovlarning
+    deyarli hammasi soatbay («ish bilan bojxonaga bordi») va HR ularni
+    odatda shu kuni kiritadi. Tahrirlashda shakl so'rovning o'zidan hosil
+    qilinadi (server qoidasi — `absenceRequestMode`).
   */
   useEffect(() => {
     if (!open) return
 
     setTypeId(request?.absenceTypeId ?? '')
-    setFromDate(request?.fromDate ?? '')
+    setMode(request === null ? 'PartDay' : absenceRequestMode(request))
+    setFromDate(request?.fromDate ?? todayIso())
     setToDate(request?.toDate ?? '')
     setFromTime(request?.fromTime?.slice(0, 5) ?? '')
     setToTime(request?.toTime?.slice(0, 5) ?? '')
@@ -66,21 +92,55 @@ export function AbsenceRequestDialog({
     setError(null)
   }, [open, request])
 
-  const singleDay = fromDate !== '' && fromDate === toDate
   const saving = create.isPending || update.isPending
+
+  const changeMode = (next: AbsenceRequestMode) => {
+    setMode(next)
+    // Bir kunlik so'rovdan «Bir necha kun» ga o'tganda oxirgi sana bo'sh yoki
+    // boshi bilan teng qoladi — u keyingi kunga to'ldiriladi (boshlanish
+    // sanasidagi qoida bilan bir xil), HR faqat kerak bo'lsa suradi
+    if (next === 'MultiDay' && fromDate !== '' && (toDate === '' || toDate <= fromDate)) {
+      setToDate(nextDay(fromDate))
+    }
+  }
+
+  /*
+    Tartib xatolari maydon ostida, ikkala qiymat kiritilgandan keyin:
+    bo'sh maydonga «noto'g'ri» deyish ma'nosiz, saqlash tugmasi esa baribir
+    o'chiq turadi. Server ham xuddi shu qoidalarni tekshiradi
+    (`davomat.sorov_vaqti_notogri`, `davomat.sorov_davri_notogri`).
+  */
+  const timeOrderError =
+    mode === 'PartDay' && fromTime !== '' && toTime !== '' && toTime <= fromTime
+      ? t('attendance.requestTimeOrder')
+      : undefined
+  const rangeOrderError =
+    mode === 'MultiDay' && fromDate !== '' && toDate !== '' && toDate <= fromDate
+      ? t('attendance.requestRangeOrder')
+      : undefined
+
+  const complete =
+    typeId !== '' &&
+    fromDate !== '' &&
+    (mode !== 'PartDay' || (fromTime !== '' && toTime !== '')) &&
+    (mode !== 'MultiDay' || toDate !== '') &&
+    timeOrderError === undefined &&
+    rangeOrderError === undefined
 
   const submit = async () => {
     setError(null)
+
+    const single = mode !== 'MultiDay'
 
     const body: AbsenceRequestInput = {
       employeeId: request?.employeeId ?? employeeId ?? '',
       absenceTypeId: typeId,
       fromDate,
-      toDate,
-      // Vaqt faqat bir kunlik so'rovda yuboriladi: ko'p kunlikda server
-      // uni baribir rad etadi va ekranda tushunarsiz xato chiqardi.
-      fromTime: singleDay && fromTime !== '' ? `${fromTime}:00` : undefined,
-      toTime: singleDay && toTime !== '' ? `${toTime}:00` : undefined,
+      toDate: single ? fromDate : toDate,
+      // Vaqt faqat «Qism kun» da yuboriladi: boshqa shaklda u ko'rinmaydi
+      // va eski qiymati (shakl almashtirilgandan keyin) jimgina ketib qolmasin
+      fromTime: mode === 'PartDay' ? `${fromTime}:00` : undefined,
+      toTime: mode === 'PartDay' ? `${toTime}:00` : undefined,
       note: note.trim() === '' ? undefined : note.trim(),
     }
 
@@ -113,7 +173,7 @@ export function AbsenceRequestDialog({
             type="button"
             variant="primary"
             onClick={() => void submit()}
-            disabled={saving || typeId === '' || fromDate === '' || toDate === ''}
+            disabled={saving || !complete}
           >
             {t('common.save')}
           </Button>
@@ -126,6 +186,7 @@ export function AbsenceRequestDialog({
         <Select
           label={t('attendance.requestKind')}
           value={typeId}
+          disabled={saving}
           onChange={(event) => setTypeId(event.target.value)}
           options={(types.data ?? []).map((item) => ({ value: item.id, label: item.name }))}
           placeholder={t('attendance.requestSelectKind')}
@@ -134,42 +195,66 @@ export function AbsenceRequestDialog({
           hint={types.data?.length === 0 ? t('attendance.requestNoKinds') : undefined}
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label={t('common.dateFrom')}
-            type="date"
-            value={fromDate}
-            onChange={(event) => {
-              const next = event.target.value
-              setFromDate(next)
-              // Bir kunlik so'rov — eng ko'p uchraydigani: oxirgi sana
-              // bo'sh bo'lsa, u o'zi to'ladi va HR ikki marta yozmaydi.
-              if (toDate === '' || toDate < next) setToDate(next)
-            }}
-          />
-          <TextField
-            label={t('common.dateTo')}
-            type="date"
-            value={toDate}
-            min={fromDate === '' ? undefined : fromDate}
-            onChange={(event) => setToDate(event.target.value)}
-          />
-        </div>
+        <SegmentedControl
+          className="w-full"
+          value={mode}
+          onChange={changeMode}
+          aria-label={t('attendance.requestMode')}
+          options={ABSENCE_REQUEST_MODES.map((value) => ({
+            value,
+            label: t(REQUEST_MODE_LABEL_KEY[value]),
+          }))}
+        />
 
-        {singleDay && (
+        {mode === 'MultiDay' ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DateField
+              label={t('common.dateFrom')}
+              value={fromDate}
+              disabled={saving}
+              onChange={(next) => {
+                setFromDate(next)
+                // Oxirgi sana boshidan oldin yoki u bilan teng qolib ketmasin —
+                // keyingi kunga suriladi (eng qisqa «bir necha kun» — ikki kun)
+                if (next !== '' && (toDate === '' || toDate <= next)) setToDate(nextDay(next))
+              }}
+            />
+            <DateField
+              label={t('common.dateTo')}
+              value={toDate}
+              disabled={saving}
+              min={fromDate === '' ? undefined : nextDay(fromDate)}
+              onChange={setToDate}
+              error={rangeOrderError}
+            />
+          </div>
+        ) : (
+          <DateField
+            label={t('attendance.requestDate')}
+            value={fromDate}
+            disabled={saving}
+            onChange={setFromDate}
+          />
+        )}
+
+        {mode === 'PartDay' && (
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
-              label={`${t('attendance.requestPeriod')} — ${t('attendance.directionIn')}`}
+              label={t('attendance.startTime')}
               type="time"
+              required
               value={fromTime}
+              disabled={saving}
               onChange={(event) => setFromTime(event.target.value)}
-              hint={t('attendance.requestSingleDayHint')}
             />
             <TextField
-              label={`${t('attendance.requestPeriod')} — ${t('attendance.directionOut')}`}
+              label={t('attendance.endTime')}
               type="time"
+              required
               value={toTime}
+              disabled={saving}
               onChange={(event) => setToTime(event.target.value)}
+              error={timeOrderError}
             />
           </div>
         )}
@@ -177,10 +262,25 @@ export function AbsenceRequestDialog({
         <TextArea
           label={t('attendance.requestNote')}
           value={note}
+          disabled={saving}
           onChange={(event) => setNote(event.target.value)}
           rows={3}
         />
       </div>
     </Dialog>
   )
+}
+
+/**
+ * Keyingi kun: «2026-10-17» → «2026-10-18».
+ *
+ * UTC'da hisoblanadi — `DateOnly` satri lahza emas, brauzer mintaqasi uni
+ * bir kunga siljitib yubormasin (`formatBirthday` izohi).
+ */
+function nextDay(iso: string): string {
+  const parsed = new Date(`${iso}T00:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return iso
+
+  parsed.setUTCDate(parsed.getUTCDate() + 1)
+  return parsed.toISOString().slice(0, 10)
 }

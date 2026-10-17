@@ -75,6 +75,15 @@ internal static class AttendanceRegistration
         services.AddScoped<DecideAbsenceRequestCommandHandler>();
         services.AddScoped<CancelAbsenceRequestCommandHandler>();
 
+        // Jadval so'rovlari (SPEC-verifikatsiya-jadval-sorovi §C).
+        services.AddScoped<EmployeePlanReader>();
+        services.AddScoped<CreateScheduleChangeRequestCommandHandler>();
+        services.AddScoped<UpdateScheduleChangeRequestCommandHandler>();
+        services.AddScoped<DecideScheduleChangeRequestCommandHandler>();
+        services.AddScoped<CancelScheduleChangeRequestCommandHandler>();
+        services.AddScoped<SearchScheduleChangeRequestsQueryHandler>();
+        services.AddScoped<GetScheduleChangeRequestQueryHandler>();
+
         // Yo'qlik turining «ish vaqti» bayrog'i o'zgarsa — so'rov kunlari qayta hisoblanadi.
         services.AddScoped<IReferenceSavedHook<AbsenceType>, AbsenceTypeWorkTimeHook>();
         services.AddScoped<SearchAbsenceRequestsQueryHandler>();

@@ -727,6 +727,42 @@ public sealed class AbsenceRequestRepository : Repository<AbsenceRequest>, IAbse
             .ConfigureAwait(false);
 }
 
+/// <summary><see cref="IScheduleChangeRequestRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
+public sealed class ScheduleChangeRequestRepository : Repository<ScheduleChangeRequest>, IScheduleChangeRequestRepository
+{
+    public ScheduleChangeRequestRepository(AppDbContext context) : base(context) { }
+
+    /// <inheritdoc />
+    /// <remarks>Kunlari bilan — so'rovni ularsiz tahrirlab ham, tasdiqlab ham bo'lmaydi.</remarks>
+    public override Task<ScheduleChangeRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => Set
+            .Include(request => request.Days)
+            .FirstOrDefaultAsync(request => request.Id == id, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<bool> OverlapsAsync(
+        Guid employeeId,
+        IReadOnlyCollection<DateOnly> dates,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(dates);
+
+        var list = dates.ToList();
+
+        return Set
+            .AsNoTracking()
+            .AnyAsync(
+                request =>
+                    request.EmployeeId == employeeId &&
+                    (exceptId == null || request.Id != exceptId) &&
+                    (request.Status == AbsenceRequestStatus.Pending ||
+                     request.Status == AbsenceRequestStatus.Approved) &&
+                    request.Days.Any(day => list.Contains(day.Date)),
+                cancellationToken);
+    }
+}
+
 /// <summary><see cref="IWorkScheduleDateRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
 public sealed class WorkScheduleDateRepository : IWorkScheduleDateRepository
 {

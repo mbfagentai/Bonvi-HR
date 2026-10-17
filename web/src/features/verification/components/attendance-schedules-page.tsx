@@ -56,6 +56,7 @@ import {
 import {
   ATTENDANCE_MANAGE,
   ATTENDANCE_VIEW,
+  DAY_SOURCE_LOOK,
   SCOPE_LOOK,
   SCOPE_ORDER,
   WEEKDAY_LABEL_KEY,
@@ -865,18 +866,13 @@ function PrecedenceLadder({ resolution }: { resolution: ScheduleResolution }) {
   )
 }
 
-/** Kun rejasining manbai — `GET /schedules/resolve` ning `daySource` i. */
-const DAY_SOURCE_LABEL_KEY = {
-  Date: 'attendance.resolveDayFromDate',
-  Pattern: 'attendance.resolveDayFromPattern',
-} as const
-
 /**
  * Shu SANANING rejasi — tanaffus oynasi bilan (§6.4 `day`).
  *
- * Server kunni tabel hisoblagan manbadan beradi: yillik to'rda shu sanaga katak
- * yozilgan bo'lsa — o'sha katak, aks holda hafta kunining naqshi (`daySource`).
- * Manba ko'rsatiladi: «nega bugun dam olish?» degan savolning javobi aynan shu.
+ * Server kunni tabel hisoblagan manbadan beradi: shu sanaga tasdiqlangan jadval
+ * so'rovi bo'lsa — o'sha so'rov kuni, yillik to'rda katak yozilgan bo'lsa — o'sha
+ * katak, aks holda hafta kunining naqshi (`daySource`). Manba ko'rsatiladi:
+ * «nega bugun dam olish?» degan savolning javobi aynan shu.
  */
 function ResolvedDay({ resolution }: { resolution: ScheduleResolution }) {
   const { t } = useLocale()
@@ -892,8 +888,8 @@ function ResolvedDay({ resolution }: { resolution: ScheduleResolution }) {
         <p className="flex flex-wrap items-center gap-1.5 text-footnote font-semibold">
           {weekday === null ? '—' : t(WEEKDAY_LABEL_KEY[weekday])}
           {resolution.daySource !== null && (
-            <Badge tone={resolution.daySource === 'Date' ? 'info' : 'neutral'} size="sm">
-              {t(DAY_SOURCE_LABEL_KEY[resolution.daySource])}
+            <Badge tone={DAY_SOURCE_LOOK[resolution.daySource].tone} size="sm">
+              {t(DAY_SOURCE_LOOK[resolution.daySource].labelKey)}
             </Badge>
           )}
         </p>

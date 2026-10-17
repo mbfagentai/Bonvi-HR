@@ -19,6 +19,8 @@ import { pad, parseIsoDate, tashkentParts } from './time'
 export interface Formatter {
   /** «22.09.2026» (en: «2026-09-22»). */
   date: (value: Date | string | null | undefined) => string
+  /** «22.09» (en: «09-22») — ro'yxat qatoridagi qisqa sana, yil yo'q. */
+  dayMonth: (value: string | null | undefined) => string
   /** «22-sentabr, seshanba». */
   dateLong: (value: Date | string | null | undefined) => string
   /** «Sentabr 2026». */
@@ -56,6 +58,14 @@ export function useFormat(): Formatter {
         : `${pad(parts.day)}.${pad(parts.month)}.${parts.year}`
     }
 
+    // Faqat «2026-09-22» kalitidan: bu yerga lahza emas, KUN keladi.
+    const dayMonth: Formatter['dayMonth'] = (value) => {
+      const parts = parseIsoDate(value)
+      if (!parts) return '—'
+
+      return locale === 'en' ? `${pad(parts.month)}-${pad(parts.day)}` : `${pad(parts.day)}.${pad(parts.month)}`
+    }
+
     const dateLong: Formatter['dateLong'] = (value) => {
       const parts =
         typeof value === 'string' && value.length === 10
@@ -86,6 +96,7 @@ export function useFormat(): Formatter {
     return {
       locale,
       date,
+      dayMonth,
       dateLong,
       number,
 

@@ -45,7 +45,7 @@ namespace Bonvi.Infrastructure.Persistence.ReadModels;
 /// YOZMAYDI — bu yerda faqat o'qiladi.
 /// </para>
 /// </remarks>
-public sealed class AttendanceReadModel : IAttendanceReadModel
+public sealed partial class AttendanceReadModel : IAttendanceReadModel
 {
     private readonly AppDbContext _context;
     private readonly IDepartmentRepository _departments;
@@ -1793,6 +1793,20 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
                 : query.Where(request => request.Status == AbsenceRequestStatus.Pending);
         }
 
+        if (filter.AbsenceTypeId is { } absenceTypeId)
+        {
+            query = query.Where(request => request.AbsenceTypeId == absenceTypeId);
+        }
+
+        // Shakl so'rovning o'zidan: vaqt bor — qism kun; bir sana — butun kun; aks holda — bir necha kun.
+        query = filter.Mode switch
+        {
+            AbsenceRequestMode.PartDay => query.Where(request => request.FromTime != null),
+            AbsenceRequestMode.WholeDay => query.Where(request => request.FromTime == null && request.FromDate == request.ToDate),
+            AbsenceRequestMode.MultiDay => query.Where(request => request.FromDate != request.ToDate),
+            _ => query,
+        };
+
         // Davr QAMROV bo'yicha: oraliqqa qisman tegadigan so'rov ham kiradi.
         if (filter.From is { } from)
         {
@@ -1879,10 +1893,24 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
     }
 
     /// <inheritdoc />
-    public Task<int> CountPendingAbsenceRequestsAsync(CancellationToken cancellationToken = default)
-        => _context.AbsenceRequests
+    /// <remarks>
+    /// Navigatsiya nishoni BITTA son — yo'qlik VA jadval so'rovlari birga
+    /// (SPEC-verifikatsiya-jadval-sorovi §C3): HR uchun ikkalasi ham «qaror kutayotgan so'rov».
+    /// </remarks>
+    public async Task<int> CountPendingAbsenceRequestsAsync(CancellationToken cancellationToken = default)
+    {
+        var absences = await _context.AbsenceRequests
             .AsNoTracking()
-            .CountAsync(request => request.Status == AbsenceRequestStatus.Pending, cancellationToken);
+            .CountAsync(request => request.Status == AbsenceRequestStatus.Pending, cancellationToken)
+            .ConfigureAwait(false);
+
+        var schedules = await _context.ScheduleChangeRequests
+            .AsNoTracking()
+            .CountAsync(request => request.Status == AbsenceRequestStatus.Pending, cancellationToken)
+            .ConfigureAwait(false);
+
+        return absences + schedules;
+    }
 
     /// <summary>Qatorlarga ism, tur nomi va qaror egasini qo'shadi.</summary>
     private async Task<IReadOnlyList<AbsenceRequestDto>> ToRequestDtosAsync(
@@ -3348,7 +3376,12 @@ public sealed class AttendanceReadModel : IAttendanceReadModel
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new ScheduleResolver(assignments, schedules, new DepartmentTree(departments), dates);
+        // Tasdiqlangan jadval so'rovlari — hal qiluvchining eng yuqori qatlami (SPEC-jadval-so'rovi §C2).
+        var overrides = await ScheduleOverrideQuery
+            .ApprovedAsync(_context, coverFrom, coverTo, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ScheduleResolver(assignments, schedules, new DepartmentTree(departments), dates, overrides);
     }
 
     /// <summary>Munosabatlarga firma / bo'lim (ichki bo'limlari bilan) / lavozim filtri.</summary>

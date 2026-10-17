@@ -166,13 +166,16 @@ public sealed class CreateMyRequestCommandHandler
 {
     private readonly CurrentEmployeeResolver _resolver;
     private readonly CreateAbsenceRequestCommandHandler _create;
+    private readonly IAbsenceTypeLookup _types;
 
     public CreateMyRequestCommandHandler(
         CurrentEmployeeResolver resolver,
-        CreateAbsenceRequestCommandHandler create)
+        CreateAbsenceRequestCommandHandler create,
+        IAbsenceTypeLookup types)
     {
         _resolver = resolver;
         _create = create;
+        _types = types;
     }
 
     public async Task<Result<AbsenceRequestDto>> HandleAsync(
@@ -185,6 +188,14 @@ public sealed class CreateMyRequestCommandHandler
         if (ids.IsFailure)
         {
             return ids.Error;
+        }
+
+        // «Faqat HR» turi: ilova uni ko'rsatmaydi, eski ilova yoki qo'lda yuborilgan
+        // so'rov ham o'tmasligi kerak. Yo'q yoki faolsiz turni HR ishlovchisi o'zi rad etadi.
+        if (await _types.FindAsync(command.AbsenceTypeId, cancellationToken).ConfigureAwait(false)
+            is { EmployeeCanRequest: false })
+        {
+            return AbsenceRequestErrors.TypeClosedForEmployees;
         }
 
         return await _create

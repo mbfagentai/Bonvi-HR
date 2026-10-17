@@ -61,6 +61,9 @@ internal static class AbsenceRequestErrors
     public static readonly Error TypeInactive =
         Error.Validation("davomat.yoqlik_turi_faolsiz", "Bu yo'qlik turi faol emas.");
 
+    public static readonly Error TypeClosedForEmployees =
+        Error.Validation("davomat.yoqlik_turi_xodimga_yopiq", "Bu yo'qlik turini faqat HR kirita oladi.");
+
     public static readonly Error Overlaps =
         Error.Conflict("davomat.sorov_takroriy", "Bu kunlar uchun xodimda faol so'rov allaqachon bor.");
 }
@@ -447,4 +450,8 @@ public interface IAbsenceTypeLookup
 }
 
 /// <summary>Yo'qlik turining buyruqlarga kerakli qismi.</summary>
-public sealed record AbsenceTypeState(Guid Id, string Name, bool IsActive);
+/// <param name="Id">Tur.</param>
+/// <param name="Name">Nomi.</param>
+/// <param name="IsActive">Faolmi.</param>
+/// <param name="EmployeeCanRequest">Xodim ilovadan o'zi so'ray oladimi (SPEC-jadval-so'rovi §A).</param>
+public sealed record AbsenceTypeState(Guid Id, string Name, bool IsActive, bool EmployeeCanRequest = true);

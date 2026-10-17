@@ -19,6 +19,8 @@ import { ProfileScreen } from '@/screens/profile'
 import { RequestDetailScreen } from '@/screens/request-detail'
 import { RequestNewScreen } from '@/screens/request-new'
 import { RequestsScreen } from '@/screens/requests'
+import { ScheduleRequestDetailScreen } from '@/screens/schedule-request-detail'
+import { ScheduleRequestNewScreen } from '@/screens/schedule-request-new'
 import { SettingsScreen } from '@/screens/settings'
 import { TabBar } from '@/ui/app-shell'
 import { useSession } from './session'
@@ -67,6 +69,10 @@ export function AppRouter() {
 
           {/* Ichkariga ochilgan ekranlar — tab paneli YO'Q */}
           <Route path="/sorovlar/yangi" element={<RequestNewScreen />} />
+          {/* Jadval so'rovlari (SPEC-jadval-sorovi §C4) — `/sorovlar/:id` bitta
+              bo'lakni oladi, shu sababli ikki bo'lakli manzil unga tushmaydi. */}
+          <Route path="/sorovlar/jadval/yangi" element={<ScheduleRequestNewScreen />} />
+          <Route path="/sorovlar/jadval/:id" element={<ScheduleRequestDetailScreen />} />
           <Route path="/sorovlar/:id" element={<RequestDetailScreen />} />
           <Route path="/profil/sozlamalar" element={<SettingsScreen />} />
           <Route path="/joylashuv" element={<LocationHelpScreen />} />

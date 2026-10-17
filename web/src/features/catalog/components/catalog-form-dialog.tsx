@@ -56,6 +56,13 @@ export function CatalogFormDialog({
   const isAbsenceType = kind === 'absence-types'
   const [countsAsWorkTime, setCountsAsWorkTime] = useState(false)
 
+  /*
+    «Xodim o'zi so'ray oladi» (SPEC-jadval-sorovi §A) — xuddi shu qoida bilan.
+    Yangi tur uchun YOQIQ: Verifix'dagi turlarning hammasida shunday va
+    o'chirish — istisno («bu turni faqat HR kiritadi»).
+  */
+  const [employeeCanRequest, setEmployeeCanRequest] = useState(true)
+
   const {
     register,
     handleSubmit,
@@ -76,6 +83,7 @@ export function CatalogFormDialog({
     setFailure(null)
     reset(toValues(item))
     setCountsAsWorkTime(item?.countsAsWorkTime ?? false)
+    setEmployeeCanRequest(item?.employeeCanRequest ?? true)
   }, [open, item, reset])
 
   const onSubmit = handleSubmit(async (values) => {
@@ -87,7 +95,7 @@ export function CatalogFormDialog({
         body: {
           name: values.name.trim(),
           note: toTextOrNull(values.note),
-          ...(isAbsenceType ? { countsAsWorkTime } : {}),
+          ...(isAbsenceType ? { countsAsWorkTime, employeeCanRequest } : {}),
         },
       })
       onClose()
@@ -138,13 +146,27 @@ export function CatalogFormDialog({
         />
 
         {isAbsenceType && (
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-3">
+          // Ikki almashtirgich bitta guruhda — iOS sozlamalar ro'yxati kabi
+          <div className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)]">
             <Switch
+              className="px-4 py-3"
               checked={countsAsWorkTime}
               disabled={isSubmitting}
               onChange={setCountsAsWorkTime}
               label={t('catalog.workTimeTitle')}
               hint={countsAsWorkTime ? t('catalog.workTimeHintOn') : t('catalog.workTimeHintOff')}
+            />
+            <Switch
+              className="px-4 py-3"
+              checked={employeeCanRequest}
+              disabled={isSubmitting}
+              onChange={setEmployeeCanRequest}
+              label={t('catalog.employeeRequestTitle')}
+              hint={
+                employeeCanRequest
+                  ? t('catalog.employeeRequestHintOn')
+                  : t('catalog.employeeRequestHintOff')
+              }
             />
           </div>
         )}

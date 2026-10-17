@@ -23,6 +23,6 @@ public sealed class AbsenceTypeLookup : IAbsenceTypeLookup
         => _context.AbsenceTypes
             .AsNoTracking()
             .Where(type => type.Id == id)
-            .Select(type => new AbsenceTypeState(type.Id, type.Name, type.IsActive))
+            .Select(type => new AbsenceTypeState(type.Id, type.Name, type.IsActive, type.EmployeeCanRequest))
             .FirstOrDefaultAsync(cancellationToken);
 }

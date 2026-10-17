@@ -1,36 +1,81 @@
 import { CalendarCheck } from 'lucide-react'
+import { useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
-import { PageHeader } from '@/shared/ui'
+import { PageHeader, SegmentedControl } from '@/shared/ui'
 
+import { useAbsenceRequests, useScheduleChangeRequests } from '../api/attendance-queries'
 import { ATTENDANCE_VIEW } from '../lib/attendance-presentation'
 import { AbsenceRequestsList } from './absence-requests-list'
 import { AttendanceNoAccess, AttendancePageTitle } from './attendance-manage-states'
+import { ScheduleRequestsList } from './schedule-requests-list'
+
+/** Sahifadagi ikki navbat — yo'qlik va jadval so'rovlari (SPEC-jadval-sorovi §C4). */
+type RequestQueue = 'absence' | 'schedule'
+
+/** Segment ustidagi sanoq uchun — faqat `total` kerak, qatorlar emas. */
+const COUNT_PAGE = { page: 1, pageSize: 1 } as const
 
 /**
- * Yo'qlik so'rovlari — butun tashkilot bo'yicha navbat (SPEC-so'rovlar §B5).
+ * So'rovlar — butun tashkilot bo'yicha navbat (SPEC-so'rovlar §B5).
  *
- * Xodim kartasidagi ro'yxat bilan BITTA komponentdan
- * (<c>AbsenceRequestsList</c>): faqat xodim ustuni qo'shiladi va filtr
- * olib tashlanadi. Ikkinchi nusxa yozilsa, ikki ekran bir xil so'rovni
+ * Tepada ikki segment: «Yo'qlik» va «Jadval o'zgarishi» (SPEC-jadval-sorovi
+ * §C4). Menyu nishoni IKKALASINI birga sanaydi, shu sababli har segment
+ * yonida o'z kutayotganlari soni turadi — aks holda HR nishonda «3» ni
+ * ko'rib, ochilgan «Yo'qlik» navbatini bo'sh topardi.
+ *
+ * Har navbat xodim kartasidagi ro'yxat bilan BITTA komponentdan
+ * (<c>AbsenceRequestsList</c>, <c>ScheduleRequestsList</c>): faqat xodim
+ * ustuni qo'shiladi. Ikkinchi nusxa yozilsa, ikki ekran bir xil so'rovni
  * har xil tartibda yoki har xil tugmalar bilan ko'rsatishi mumkin edi.
  */
 export function AbsenceRequestsPage() {
-  const { t } = useLocale()
+  const { t, num } = useLocale()
   const { hasPermission } = useAuth()
+  const canView = hasPermission(ATTENDANCE_VIEW)
 
-  if (!hasPermission(ATTENDANCE_VIEW)) {
-    return <AttendanceNoAccess icon={CalendarCheck} title={t('attendance.requestsTitle')} />
+  const [queue, setQueue] = useState<RequestQueue>('absence')
+
+  const absencePending = useAbsenceRequests({ status: 'Pending', ...COUNT_PAGE }, canView)
+  const schedulePending = useScheduleChangeRequests({ status: 'Pending', ...COUNT_PAGE }, canView)
+
+  if (!canView) {
+    return <AttendanceNoAccess icon={CalendarCheck} title={t('attendance.requests')} />
   }
+
+  const label = (text: string, count: number | undefined): string =>
+    count === undefined || count === 0
+      ? text
+      : t('attendance.requestsSegmentCount', { label: text, n: num(count) })
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title={<AttendancePageTitle icon={CalendarCheck} title={t('attendance.requestsTitle')} />}
+        title={<AttendancePageTitle icon={CalendarCheck} title={t('attendance.requests')} />}
       />
 
-      <AbsenceRequestsList showEmployee />
+      <SegmentedControl
+        value={queue}
+        onChange={setQueue}
+        aria-label={t('attendance.requestsQueueSwitch')}
+        options={[
+          {
+            value: 'absence',
+            label: label(t('attendance.requestsQueueAbsence'), absencePending.data?.total),
+          },
+          {
+            value: 'schedule',
+            label: label(t('attendance.requestsQueueSchedule'), schedulePending.data?.total),
+          },
+        ]}
+      />
+
+      {queue === 'absence' ? (
+        <AbsenceRequestsList showEmployee showFilters />
+      ) : (
+        <ScheduleRequestsList showEmployee />
+      )}
     </div>
   )
 }

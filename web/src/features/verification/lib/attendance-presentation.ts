@@ -26,6 +26,8 @@ import { tashkentParts } from '@/shared/lib/timezone'
 import type { LocaleCode } from '@/shared/i18n/locales'
 import type { BadgeTone } from '@/shared/ui'
 import type {
+  AbsenceRequestMode,
+  AbsenceRequestStatus,
   AttendanceDayStatus,
   DashboardCounts,
   DashboardStatus,
@@ -34,6 +36,9 @@ import type {
   ImportPreviewRow,
   PassDirection,
   PassMethod,
+  ScheduleChangeDay,
+  ScheduleChangeKind,
+  ScheduleDaySource,
   ScheduleScope,
   WorkScheduleDayInput,
 } from '../api/attendance-api'
@@ -930,4 +935,95 @@ export function formatHours(minutes: number, locale: LocaleCode): string {
 export function monthLabel(value: { year: number; month: number }, locale: LocaleCode): string {
   const month = String(value.month).padStart(2, '0')
   return locale === 'en' ? `${value.year}-${month}` : `${month}.${value.year}`
+}
+
+/* ═════════════════════════════════════════ so'rovlar (yo'qlik va jadval) */
+
+/**
+ * So'rov holatining nishoni — ohang va yorliq bitta joyda.
+ *
+ * Yo'qlik va jadval so'rovlari BITTA xaritadan o'qiydi: holat turi ham bitta
+ * (`AbsenceRequestStatus`), ya'ni «Kutilmoqda» ikki ro'yxatda ikki xil rangda
+ * chiqa olmaydi.
+ */
+export const REQUEST_STATUS_LOOK: Readonly<
+  Record<AbsenceRequestStatus, { tone: BadgeTone; labelKey: string }>
+> = {
+  Pending: { tone: 'warning', labelKey: 'attendance.requestStatusPending' },
+  Approved: { tone: 'info', labelKey: 'attendance.requestStatusApproved' },
+  Rejected: { tone: 'danger', labelKey: 'attendance.requestStatusRejected' },
+  Cancelled: { tone: 'neutral', labelKey: 'attendance.requestStatusCancelled' },
+}
+
+/** Yo'qlik so'rovining shakli — Verifix «Часть дня / Весь день / Несколько дней». */
+export const REQUEST_MODE_LABEL_KEY: Readonly<Record<AbsenceRequestMode, string>> = {
+  PartDay: 'attendance.requestModePartDay',
+  WholeDay: 'attendance.requestModeWholeDay',
+  MultiDay: 'attendance.requestModeMultiDay',
+}
+
+/**
+ * Saqlangan so'rovning shakli — SERVER qoidasining o'zi (SPEC-jadval-sorovi §B):
+ * vaqt bor → qism kun; bir sana → butun kun; aks holda bir necha kun.
+ *
+ * Shakl bazada saqlanmaydi, sanalar va vaqtlardan hosil qilinadi — shu sababli
+ * tahrirlash oynasi ham, ro'yxatdagi `mode` filtri ham aynan shu tartibda o'qiydi.
+ */
+export function absenceRequestMode(request: {
+  fromDate: string
+  toDate: string
+  fromTime: string | null
+  toTime: string | null
+}): AbsenceRequestMode {
+  if (request.fromTime !== null || request.toTime !== null) return 'PartDay'
+  return request.fromDate === request.toDate ? 'WholeDay' : 'MultiDay'
+}
+
+/** Jadval so'rovining turi — Verifix «Изменение графика / Обмен дней». */
+export const SCHEDULE_KIND_LABEL_KEY: Readonly<Record<ScheduleChangeKind, string>> = {
+  Change: 'attendance.scheduleRequestKindChange',
+  Swap: 'attendance.scheduleRequestKindSwap',
+}
+
+/**
+ * Kun rejasining manbai — `GET /schedules/resolve` ning `daySource` i.
+ * `Request` — shu sanaga tasdiqlangan jadval so'rovi (SPEC-jadval-sorovi §C2).
+ */
+export const DAY_SOURCE_LOOK: Readonly<
+  Record<ScheduleDaySource, { tone: BadgeTone; labelKey: string }>
+> = {
+  Pattern: { tone: 'neutral', labelKey: 'attendance.resolveDayFromPattern' },
+  Date: { tone: 'info', labelKey: 'attendance.resolveDayFromDate' },
+  Request: { tone: 'purple', labelKey: 'attendance.resolveDayFromRequest' },
+}
+
+/** «Kunni o'zgartirish» da eng ko'p sana — `ScheduleChangeRequest.MaxDays`. */
+export const MAX_SCHEDULE_REQUEST_DAYS = 31
+
+/** «Kun almashtirish» da eng ko'p juft — `ScheduleChangeRequest.MaxSwapPairs`. */
+export const MAX_SCHEDULE_SWAP_PAIRS = 15
+
+/** Almashtirish jufti: `date` ⇄ `withDate`. */
+export interface ScheduleSwapPair {
+  date: string
+  withDate: string
+}
+
+/**
+ * Saqlangan almashtirishdan juftlar.
+ *
+ * Server har juftni IKKI qator qilib saqlaydi (A — B ning kuni bilan, B — A
+ * ning kuni bilan, `swapWith` bir-biriga qaraydi). Juft bir marta chiqishi
+ * uchun faqat kichik sanali qator olinadi — kunlar sana tartibida keladi.
+ */
+export function scheduleSwapPairs(days: readonly ScheduleChangeDay[]): ScheduleSwapPair[] {
+  const pairs: ScheduleSwapPair[] = []
+
+  for (const day of days) {
+    if (day.swapWith !== null && day.date < day.swapWith) {
+      pairs.push({ date: day.date, withDate: day.swapWith })
+    }
+  }
+
+  return pairs
 }

@@ -1764,6 +1764,204 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         katak.GetProperty("status").GetString().ShouldBe("Present");
     }
 
+    // ════════════════════════════════════════════════════════════
+    //  Jadval so'rovlari (SPEC-verifikatsiya-jadval-sorovi §C)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// «Kunni o'zgartirish»: kutayotgan so'rov kunga tegmaydi; tasdiqlangan kun xodimning rejasi
+    /// O'RNIGA turadi (dam olish kuniga aylantirildi — «Kelmadi» yo'q), «nega shu reja» ekrani manbani
+    /// «Request» deydi; bekor qilinsa kun jadvalga qaytadi.
+    /// </summary>
+    [Fact]
+    public async Task Jadval_sorovi_tasdiqlansa_kun_xodimning_yangi_rejasi_bilan_hisoblanadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        await XodimgaJadvalAsync(admin, xodim.Id, belgi);
+        var sana = BugunToshkentda().AddDays(-3);
+
+        (await KatakAsync(admin, xodim.Id, sana, ct)).GetProperty("status").GetString().ShouldBe("Absent", "sinov sharti");
+
+        Guid sorovId;
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/schedule-requests"),
+                   new { employeeId = xodim.Id, kind = "Change", days = new[] { new { date = Iso(sana), isWorking = false } }, note = "Dam oldim" },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            var yozuv = await JsonAsync(yaratish);
+            yozuv.GetProperty("status").GetString().ShouldBe("Pending");
+            yozuv.GetProperty("kind").GetString().ShouldBe("Change");
+            yozuv.GetProperty("days").GetArrayLength().ShouldBe(1);
+            sorovId = yozuv.GetProperty("id").GetGuid();
+        }
+
+        (await KatakAsync(admin, xodim.Id, sana, ct)).GetProperty("status").GetString()
+            .ShouldBe("Absent", "kutayotgan so'rov kunga tegmaydi");
+
+        // Shu sanaga ikkinchi faol so'rov — 409.
+        using (var takror = await admin.PostAsJsonAsync(
+                   Yol("/schedule-requests"),
+                   new { employeeId = xodim.Id, kind = "Change", days = new[] { new { date = Iso(sana), isWorking = true, startTime = "10:00:00", endTime = "19:00:00" } } },
+                   ct))
+        {
+            await XatoKutAsync(takror, HttpStatusCode.Conflict, "davomat.jadval_sorovi_takroriy");
+        }
+
+        var royxat = await JsonAsync(await admin.GetAsync(Yol($"/schedule-requests?employeeId={xodim.Id}"), ct));
+        royxat.GetProperty("total").GetInt32().ShouldBe(1);
+
+        using (var qaror = await admin.PostAsJsonAsync(Yol($"/schedule-requests/{sorovId}/decide"), new { approve = true }, ct))
+        {
+            qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+            (await JsonAsync(qaror)).GetProperty("status").GetString().ShouldBe("Approved");
+        }
+
+        (await KatakAsync(admin, xodim.Id, sana, ct)).GetProperty("status").GetString()
+            .ShouldBe("DayOff", "tasdiqlangan so'rov kunni dam olish kuniga aylantirdi");
+
+        var manba = await JsonAsync(await admin.GetAsync(Yol($"/schedules/resolve?employeeId={xodim.Id}&date={Iso(sana)}"), ct));
+        manba.GetProperty("daySource").GetString().ShouldBe("Request");
+
+        using (var bekor = await admin.PostAsync(Yol($"/schedule-requests/{sorovId}/cancel"), null, ct))
+        {
+            bekor.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(bekor));
+        }
+
+        (await KatakAsync(admin, xodim.Id, sana, ct)).GetProperty("status").GetString()
+            .ShouldBe("Absent", "bekor qilingan so'rov — kun jadvalga qaytdi");
+    }
+
+    /// <summary>
+    /// «Kun almashtirish»: server ikkala sananing amaldagi rejasini o'rin almashtirib saqlaydi —
+    /// dam olish kuni (yakshanba) ish kuniga, ish kuni (dushanba) dam olishga aylanadi.
+    /// </summary>
+    [Fact]
+    public async Task Kun_almashtirish_ikki_sananing_rejasini_almashtiradi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+
+        Guid jadvalId;
+        using (var jadval = await admin.PostAsJsonAsync(Yol("/schedules"), JadvalTanasi("Yakshanbasiz " + belgi, dayOff: 7), ct))
+        {
+            jadval.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(jadval));
+            jadvalId = (await JsonAsync(jadval)).GetProperty("id").GetGuid();
+        }
+
+        using (var biriktirma = await admin.PostAsJsonAsync(
+                   Yol("/schedule-assignments"),
+                   new { workScheduleId = jadvalId, scope = "Employee", employeeId = xodim.Id, effectiveFrom = "2025-01-01" },
+                   ct))
+        {
+            biriktirma.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(biriktirma));
+        }
+
+        // Kamida ikki kun oldingi yakshanba va undan keyingi dushanba — ikkalasi o'tmishda.
+        var yakshanba = BugunToshkentda().AddDays(-9);
+        while (yakshanba.DayOfWeek != DayOfWeek.Sunday)
+        {
+            yakshanba = yakshanba.AddDays(1);
+        }
+
+        var dushanba = yakshanba.AddDays(1);
+
+        Guid sorovId;
+        using (var yaratish = await admin.PostAsJsonAsync(
+                   Yol("/schedule-requests"),
+                   new { employeeId = xodim.Id, kind = "Swap", swaps = new[] { new { date = Iso(yakshanba), withDate = Iso(dushanba) } } },
+                   ct))
+        {
+            yaratish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yaratish));
+            var yozuv = await JsonAsync(yaratish);
+            sorovId = yozuv.GetProperty("id").GetGuid();
+
+            var kunlar = yozuv.GetProperty("days").EnumerateArray().ToList();
+            kunlar.Count.ShouldBe(2);
+
+            var yakshanbaKuni = kunlar.Single(kun => kun.GetProperty("date").GetString() == Iso(yakshanba));
+            yakshanbaKuni.GetProperty("isWorking").GetBoolean().ShouldBeTrue("dushanbaning rejasi yakshanbaga o'tdi");
+            yakshanbaKuni.GetProperty("startTime").GetString().ShouldStartWith("09:00");
+            yakshanbaKuni.GetProperty("swapWith").GetString().ShouldBe(Iso(dushanba));
+
+            kunlar.Single(kun => kun.GetProperty("date").GetString() == Iso(dushanba))
+                .GetProperty("isWorking").GetBoolean().ShouldBeFalse();
+        }
+
+        using (var qaror = await admin.PostAsJsonAsync(Yol($"/schedule-requests/{sorovId}/decide"), new { approve = true }, ct))
+        {
+            qaror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(qaror));
+        }
+
+        (await KatakAsync(admin, xodim.Id, yakshanba, ct)).GetProperty("status").GetString().ShouldBe("Absent");
+        (await KatakAsync(admin, xodim.Id, dushanba, ct)).GetProperty("status").GetString().ShouldBe("DayOff");
+    }
+
+    /// <summary>Jadvali yo'q sanani almashtirib bo'lmaydi; kun o'zi bilan almashtirilmaydi.</summary>
+    [Fact]
+    public async Task Jadvalsiz_sanani_almashtirish_rad_etiladi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        var xodim = await XodimAsync(Belgi(), new DateOnly(2025, 1, 1));
+        var sana = BugunToshkentda().AddDays(-5);
+
+        using (var jadvalsiz = await admin.PostAsJsonAsync(
+                   Yol("/schedule-requests"),
+                   new { employeeId = xodim.Id, kind = "Swap", swaps = new[] { new { date = Iso(sana), withDate = Iso(sana.AddDays(1)) } } },
+                   ct))
+        {
+            await XatoKutAsync(jadvalsiz, HttpStatusCode.BadRequest, "davomat.jadval_sorovi_jadval_yoq");
+        }
+
+        using var ozi = await admin.PostAsJsonAsync(
+            Yol("/schedule-requests"),
+            new { employeeId = xodim.Id, kind = "Swap", swaps = new[] { new { date = Iso(sana), withDate = Iso(sana) } } },
+            ct);
+        await XatoKutAsync(ozi, HttpStatusCode.BadRequest, "davomat.jadval_sorovi_bir_xil_sana");
+    }
+
+    /// <summary>Yo'qlik so'rovlari ro'yxati shakl va tur bo'yicha filtrlanadi (SPEC §B).</summary>
+    [Fact]
+    public async Task Yoqlik_sorovlari_shakl_va_tur_boyicha_filtrlanadi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var belgi = Belgi();
+        var xodim = await XodimAsync(belgi, new DateOnly(2025, 1, 1));
+        var tur = await YoqlikTuriAsync(admin, $"Filtr turi {belgi}", ct);
+        var sana = BugunToshkentda().AddDays(-20);
+
+        async Task YaratAsync(object tana)
+        {
+            using var javob = await admin.PostAsJsonAsync(Yol("/requests"), tana, ct);
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+        }
+
+        await YaratAsync(new { employeeId = xodim.Id, absenceTypeId = tur, fromDate = Iso(sana), toDate = Iso(sana), fromTime = "10:00:00", toTime = "12:00:00" });
+        await YaratAsync(new { employeeId = xodim.Id, absenceTypeId = tur, fromDate = Iso(sana.AddDays(2)), toDate = Iso(sana.AddDays(2)) });
+        await YaratAsync(new { employeeId = xodim.Id, absenceTypeId = tur, fromDate = Iso(sana.AddDays(4)), toDate = Iso(sana.AddDays(6)) });
+
+        foreach (var (shakl, kutilgan) in new[] { ("PartDay", 1), ("WholeDay", 1), ("MultiDay", 1) })
+        {
+            var javob = await JsonAsync(await admin.GetAsync(
+                Yol($"/requests?employeeId={xodim.Id}&absenceTypeId={tur}&mode={shakl}"), ct));
+            javob.GetProperty("total").GetInt32().ShouldBe(kutilgan, shakl);
+        }
+
+        var boshqaTur = await JsonAsync(await admin.GetAsync(
+            Yol($"/requests?employeeId={xodim.Id}&absenceTypeId={Guid.NewGuid()}"), ct));
+        boshqaTur.GetProperty("total").GetInt32().ShouldBe(0);
+    }
+
     /// <summary>Kun yozuvi oxirgi marta qachon hisoblangan.</summary>
     private async Task<DateTimeOffset> HisoblanganAsync(Guid xodimId, DateOnly sana, CancellationToken ct)
     {
@@ -2590,6 +2788,12 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (HttpMethod.Put, $"/requests/{Birorta}"),
         (HttpMethod.Post, $"/requests/{Birorta}/decide"),
         (HttpMethod.Post, $"/requests/{Birorta}/cancel"),
+
+        // Jadval so'rovlari — o'sha ruxsat (SPEC-verifikatsiya-jadval-sorovi §C3).
+        (HttpMethod.Post, "/schedule-requests"),
+        (HttpMethod.Put, $"/schedule-requests/{Birorta}"),
+        (HttpMethod.Post, $"/schedule-requests/{Birorta}/decide"),
+        (HttpMethod.Post, $"/schedule-requests/{Birorta}/cancel"),
     ];
 
     /// <summary><c>attendance.view</c> + <c>reports.export</c> ostidagi eksportlar.</summary>
@@ -2618,6 +2822,8 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (HttpMethod.Get, "/requests"),
         (HttpMethod.Get, $"/schedules/{Birorta}/year?year=2026"),
         (HttpMethod.Get, "/requests/pending-count"),
+        (HttpMethod.Get, "/schedule-requests"),
+        (HttpMethod.Get, $"/schedule-requests/{Birorta}"),
         (HttpMethod.Get, "/former-employee-alerts"),
         (HttpMethod.Get, "/timesheet?year=2026&month=9"),
         (HttpMethod.Get, "/reports/exceptions?kind=Late"),

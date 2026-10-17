@@ -201,7 +201,24 @@ internal sealed class AttendanceScenario
         return created.Value;
     }
 
-    public ScheduleResolver Resolver() => new(_assignments, _schedules, new DepartmentTree(_departments), _dates);
+    private readonly List<EmployeeDayOverride> _overrides = [];
+
+    /// <summary>Tasdiqlangan jadval so'rovining kuni (SPEC-verifikatsiya-jadval-sorovi §C2).</summary>
+    public AttendanceScenario Override(DateOnly date, string? start, string? end, string? breakStart = null, string? breakEnd = null)
+    {
+        _overrides.Add(new EmployeeDayOverride(
+            EmployeeId,
+            date,
+            start is not null,
+            start is null ? null : Time(start),
+            end is null ? null : Time(end),
+            breakStart is null ? null : Time(breakStart),
+            breakEnd is null ? null : Time(breakEnd),
+            Guid.CreateVersion7()));
+        return this;
+    }
+
+    public ScheduleResolver Resolver() => new(_assignments, _schedules, new DepartmentTree(_departments), _dates, _overrides);
 
     /// <summary>Sahnaning «bugun»ini belgilaydi — kelajak kunlar qoidasi uchun.</summary>
     public AttendanceScenario Today(DateOnly today)

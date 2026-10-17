@@ -36,6 +36,7 @@ namespace Bonvi.Application.Catalog.Common;
 /// <param name="Grade">Lavozim darajasi 1–5.</param>
 /// <param name="ProbationDays">Standart sinov muddati (kun), 1–180. Bo'sh — 90 kun.</param>
 /// <param name="CountsAsWorkTime">So'rov vaqti ish vaqti hisoblanadimi — faqat yo'qlik turi uchun.</param>
+/// <param name="EmployeeCanRequest">Xodim ilovadan o'zi so'ray oladimi — faqat yo'qlik turi uchun.</param>
 public sealed record SaveReferenceCommand(
     string? Name,
     string? Note = null,
@@ -53,7 +54,8 @@ public sealed record SaveReferenceCommand(
     Guid? DepartmentId = null,
     int? Grade = null,
     int? ProbationDays = null,
-    bool? CountsAsWorkTime = null)
+    bool? CountsAsWorkTime = null,
+    bool? EmployeeCanRequest = null)
 {
     /// <summary>
     /// Tekshiruvdan o'tgan nom.

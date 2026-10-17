@@ -44,6 +44,7 @@ import {
 import { AbsenceRequestsList } from './absence-requests-list'
 import { MobileEvidenceLine } from './attendance-mobile-evidence'
 import { EmployeeAppAccessTab } from './employee-app-access-tab'
+import { ScheduleRequestsList } from './schedule-requests-list'
 import {
   AttendancePassPhotoDialog,
   PassDirectionBadge,
@@ -67,7 +68,7 @@ const PASSES_PAGE_SIZE = 50
  * ning o'zi: oylik kalendar va shu oyning turniket jurnali. Ular bitta
  * yuqori tab ichida, chunki kartada allaqachon oltita tab bor va
  * yettinchisidan keyin qatorning o'zi ro'yxatga aylanardi. Uchinchisi —
- * yo'qlik so'rovlari, to'rtinchisi — «Ilova» (xodim ilovasining login va
+ * so'rovlar (yo'qlik va jadval so'rovlari), to'rtinchisi — «Ilova» (xodim ilovasining login va
  * paroli; faqat `attendance.manage` ga ko'rinadi).
  *
  * Ma'lumot MAVJUD endpointlardan: `/timesheet?employeeId=` (kalendar va
@@ -214,8 +215,26 @@ export function EmployeeAttendanceTab({
             sababli ular kartaning ichida emas, ostida — o'z kartalari
             bilan (`AbsenceRequestsList` ikkita jadval chizadi).
           */
-          <div className="px-4 pb-4 sm:px-5">
-            <AbsenceRequestsList employeeId={employeeId} />
+          <div className="space-y-6 px-4 pb-4 sm:px-5">
+            <section className="space-y-3">
+              <h3 className="text-caption1 font-semibold tracking-wider text-[var(--fg-tertiary)] uppercase">
+                {t('attendance.requestsTitle')}
+              </h3>
+              <AbsenceRequestsList employeeId={employeeId} />
+            </section>
+
+            {/*
+              Jadval so'rovlari yo'qlik so'rovlari OSTIDA (SPEC-jadval-sorovi
+              §C4): ikkalasida ham «Qaror kutmoqda» degan jadval bor, shu
+              sababli har guruhning o'z sarlavhasi — qaysi biri qaysi ekani
+              adashmasin.
+            */}
+            <section className="space-y-3">
+              <h3 className="text-caption1 font-semibold tracking-wider text-[var(--fg-tertiary)] uppercase">
+                {t('attendance.scheduleRequestsTitle')}
+              </h3>
+              <ScheduleRequestsList employeeId={employeeId} />
+            </section>
           </div>
         ) : view === 'calendar' ? (
           timesheet.isPending ? (

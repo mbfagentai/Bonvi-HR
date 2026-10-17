@@ -16,6 +16,8 @@ namespace Bonvi.Application.Attendance.Requests;
 /// <param name="Search">Xodim bo'yicha qidiruv.</param>
 /// <param name="Page">Sahifa.</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
+/// <param name="AbsenceTypeId">Yo'qlik turi bo'yicha (SPEC-jadval-so'rovi §B).</param>
+/// <param name="Mode">Shakl: qism kun / butun kun / bir necha kun.</param>
 public sealed record SearchAbsenceRequestsQuery(
     Guid? EmployeeId = null,
     AbsenceRequestStatus? Status = null,
@@ -24,7 +26,9 @@ public sealed record SearchAbsenceRequestsQuery(
     DateOnly? To = null,
     string? Search = null,
     int? Page = null,
-    int? PageSize = null);
+    int? PageSize = null,
+    Guid? AbsenceTypeId = null,
+    AbsenceRequestMode? Mode = null);
 
 /// <summary><see cref="SearchAbsenceRequestsQuery"/> ni bajaradi.</summary>
 /// <remarks>
@@ -62,7 +66,9 @@ public sealed class SearchAbsenceRequestsQueryHandler
                     query.To,
                     string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
                     page,
-                    pageSize),
+                    pageSize,
+                    query.AbsenceTypeId,
+                    query.Mode),
                 cancellationToken)
             .ConfigureAwait(false);
 

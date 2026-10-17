@@ -530,6 +530,19 @@ public sealed record BirthdayFilter(
 //  2d. Yo'qlik so'rovlari
 // ════════════════════════════════════════════════════════════════════
 
+/// <summary>So'rovning shakli — Verifix «Часть дня / Весь день / Несколько дней» (SPEC-jadval-so'rovi §B).</summary>
+public enum AbsenceRequestMode
+{
+    /// <summary>Bir kunning bir qismi — vaqt oralig'i bor.</summary>
+    PartDay = 1,
+
+    /// <summary>Bitta butun kun.</summary>
+    WholeDay = 2,
+
+    /// <summary>Bir necha kun.</summary>
+    MultiDay = 3,
+}
+
 /// <summary>Yo'qlik so'rovlari ro'yxatining filtri.</summary>
 /// <remarks>
 /// <para>
@@ -558,6 +571,8 @@ public sealed record BirthdayFilter(
 /// <param name="Search">Xodim bo'yicha qidiruv.</param>
 /// <param name="Page">Sahifa, 1 dan.</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
+/// <param name="AbsenceTypeId">Yo'qlik turi bo'yicha (SPEC-jadval-so'rovi §B).</param>
+/// <param name="Mode">Shakl: qism kun / butun kun / bir necha kun.</param>
 public sealed record AbsenceRequestFilter(
     Guid? EmployeeId = null,
     AbsenceRequestStatus? Status = null,
@@ -566,7 +581,9 @@ public sealed record AbsenceRequestFilter(
     DateOnly? To = null,
     string? Search = null,
     int Page = 1,
-    int PageSize = 25)
+    int PageSize = 25,
+    Guid? AbsenceTypeId = null,
+    AbsenceRequestMode? Mode = null)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;

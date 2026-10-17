@@ -1170,6 +1170,12 @@ public enum ScheduleDaySource
 
     /// <summary>Shu SANAGA yozilgan katak — naqshni bekor qiladi.</summary>
     Date = 2,
+
+    /// <summary>
+    /// Xodimning tasdiqlangan JADVAL SO'ROVI — faqat shu xodimning shu sanasi
+    /// (SPEC-verifikatsiya-jadval-sorovi §C2); katakdan ham, naqshdan ham ustun.
+    /// </summary>
+    Request = 3,
 }
 
 /// <summary>Yillik to'rning bitta katagi (SPEC-jadval-to'ri §C).</summary>

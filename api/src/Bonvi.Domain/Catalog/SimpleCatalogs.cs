@@ -75,6 +75,14 @@ public sealed class AbsenceType : ReferenceEntity
 
     public void SetCountsAsWorkTime(bool value) => CountsAsWorkTime = value;
 
+    /// <summary>
+    /// Xodim bu turni ilovadan o'zi so'ray oladimi (Verifix «Разрешить сотрудникам
+    /// создавать запрос»). <c>false</c> — turni faqat HR kiritadi.
+    /// </summary>
+    public bool EmployeeCanRequest { get; private set; } = true;
+
+    public void SetEmployeeCanRequest(bool value) => EmployeeCanRequest = value;
+
     public static Result<AbsenceType> Create(string? name)
     {
         var normalized = Normalize(name);

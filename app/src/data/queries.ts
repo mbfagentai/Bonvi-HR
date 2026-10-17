@@ -1,5 +1,11 @@
 import { api } from '@/api/client'
-import type { AbsenceRequestDto, MeDto } from '@/api/types'
+import type {
+  AbsenceRequestDto,
+  DayPlanDto,
+  MeDto,
+  PagedResult,
+  ScheduleChangeRequestDto,
+} from '@/api/types'
 import { invalidateQuery, useQuery, type QueryResult } from '@/lib/use-query'
 import { monthKey } from '@/lib/time'
 import { toMonth, type AttendanceMonth } from './attendance'
@@ -37,16 +43,40 @@ const REQUESTS_MAX_PAGES = 20
  * yo'qolib qolardi — xodim ularni «o'chib ketdi» deb o'ylardi.
  */
 function fetchAllRequests(): Promise<AbsenceRequestDto[]> {
-  const collected: AbsenceRequestDto[] = []
+  return fetchAllPages((page, pageSize) => api.getRequests(page, pageSize))
+}
 
-  const next = (page: number): Promise<AbsenceRequestDto[]> =>
-    api.getRequests(page, REQUESTS_PAGE_SIZE).then((result) => {
+/** Sahifalarni ketma-ket o'qiydi — yo'qlik va jadval so'rovlari uchun bir xil qoida. */
+function fetchAllPages<T>(load: (page: number, pageSize: number) => Promise<PagedResult<T>>): Promise<T[]> {
+  const collected: T[] = []
+
+  const next = (page: number): Promise<T[]> =>
+    load(page, REQUESTS_PAGE_SIZE).then((result) => {
       result.items.forEach((item) => collected.push(item))
 
       return page < result.pageCount && page < REQUESTS_MAX_PAGES ? next(page + 1) : collected
     })
 
   return next(1)
+}
+
+/**
+ * Jadval so'rovlari (SPEC-jadval-sorovi §C3) — yo'qlik so'rovlaridan
+ * ALOHIDA kesh: ular boshqa endpoint'dan keladi va ro'yxatda faqat
+ * ekranda birlashtiriladi. Sahifalash qoidasi bir xil.
+ */
+export function useScheduleRequests(): QueryResult<ScheduleChangeRequestDto[]> {
+  return useQuery('jadval-sorovlar', () =>
+    fetchAllPages((page, pageSize) => api.getScheduleRequests(page, pageSize)),
+  )
+}
+
+/**
+ * Sananing amaldagi rejasi — jadval so'rovi formasini xodimning hozirgi
+ * soatlari bilan to'ldirish uchun. `null` — sana hali tanlanmagan.
+ */
+export function usePlan(date: string | null): QueryResult<DayPlanDto> {
+  return useQuery(date ? `reja:${date}` : null, () => api.getPlan(date ?? ''))
 }
 
 /**
@@ -62,6 +92,17 @@ export function invalidateAttendance(): void {
 
 export function invalidateRequests(): void {
   invalidateQuery('sorovlar')
+  invalidateQuery('oy')
+}
+
+/**
+ * Jadval so'rovidan keyin: ro'yxat, kun rejalari va oylar. Tasdiqlangan
+ * so'rov kunning REJASINI almashtiradi — taqvim ham, forma ham eski
+ * soatlarni ko'rsatib qolmasin.
+ */
+export function invalidateScheduleRequests(): void {
+  invalidateQuery('jadval-sorovlar')
+  invalidateQuery('reja')
   invalidateQuery('oy')
 }
 

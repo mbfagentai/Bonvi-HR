@@ -195,6 +195,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IAttendanceDeviceRepository, AttendanceDeviceRepository>();
         services.AddScoped<IAbsenceRequestRepository, AbsenceRequestRepository>();
+        services.AddScoped<IScheduleChangeRequestRepository, ScheduleChangeRequestRepository>();
         services.AddScoped<IWorkScheduleDateRepository, WorkScheduleDateRepository>();
         services.AddScoped<IAbsenceTypeLookup, AbsenceTypeLookup>();
         services.AddScoped<IAttendanceIdentityRepository, AttendanceIdentityRepository>();
@@ -206,6 +207,7 @@ public static class DependencyInjection
         services.AddScoped<IDevicePersonNumbers, DevicePersonNumbers>();
 
         services.AddScoped<IAttendanceReadModel, AttendanceReadModel>();
+        services.AddScoped<IScheduleChangeRequestReadModel, AttendanceReadModel>();
         services.AddScoped<IAttendanceComputationSource, AttendanceComputationSource>();
         services.AddScoped<IEnrollmentReadModel, EnrollmentReadModel>();
 

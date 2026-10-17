@@ -7,10 +7,14 @@ import type {
   CheckInRequest,
   CheckInResult,
   CreateAbsenceRequest,
+  CreateScheduleChangeRequest,
+  DayPlanDto,
   LoginResult,
   MeDto,
   MyCurrentStateDto,
   PassDirection,
+  ScheduleChangeDayDto,
+  ScheduleChangeRequestDto,
   TimesheetTotalsDto,
 } from '@/api/types'
 import { daysBetween, monthKey, todayIso } from '@/lib/time'
@@ -21,8 +25,12 @@ import {
   MOCK_SITE_NAME,
   buildMonth,
   buildRequests,
+  buildScheduleRequests,
   buildToday,
   buildTodaySeed,
+  mockPlanOf,
+  planAsDay,
+  scheduleRequestOf,
   type MockDay,
 } from './data'
 import { readScenario } from './scenario'
@@ -52,15 +60,43 @@ const MOCK_PASSWORD = '482915'
 interface MockState {
   todayMarks: AttendanceMarkDto[]
   requests: AbsenceRequestDto[]
+  scheduleRequests: ScheduleChangeRequestDto[]
   lastCheckInMs: number | null
   nextRequestNo: number
+  nextScheduleRequestNo: number
 }
 
 const state: MockState = {
   todayMarks: buildTodaySeed(),
   requests: buildRequests(),
+  scheduleRequests: buildScheduleRequests(),
   lastCheckInMs: null,
   nextRequestNo: 5,
+  nextScheduleRequestNo: 3,
+}
+
+/** Jadval so'rovidagi sanalar soni chegarasi — server bilan bir xil. */
+const MAX_SCHEDULE_DAYS = 31
+const MAX_SWAP_PAIRS = 15
+
+/** Sananing amaldagi rejasi: tasdiqlangan jadval so'rovi jadval ustidan yoziladi (§C2). */
+function planOf(dateIso: string): DayPlanDto {
+  const approved = state.scheduleRequests
+    .filter((request) => request.status === 'Approved')
+    .map((request) => request.days.filter((day) => day.date === dateIso)[0])
+    .filter((day): day is ScheduleChangeDayDto => day !== undefined)[0]
+
+  if (!approved) return mockPlanOf(dateIso)
+
+  return {
+    date: dateIso,
+    hasSchedule: true,
+    isWorking: approved.isWorking,
+    startTime: approved.startTime,
+    endTime: approved.endTime,
+    breakStart: approved.breakStart,
+    breakEnd: approved.breakEnd,
+  }
 }
 
 function delay<T>(value: T): Promise<T> {
@@ -340,6 +376,124 @@ export const mockApi: EmployeeApi = {
 
     return delay(undefined)
   },
+
+  getScheduleRequests: (page, pageSize) => {
+    const total = state.scheduleRequests.length
+    const start = (page - 1) * pageSize
+
+    return delay({
+      items: state.scheduleRequests.slice(start, start + pageSize),
+      page,
+      pageSize,
+      total,
+      pageCount: Math.max(1, Math.ceil(total / pageSize)),
+    })
+  },
+
+  createScheduleRequest: (request) => createScheduleRequest(request),
+
+  cancelScheduleRequest: (id) => {
+    const found = state.scheduleRequests.filter((item) => item.id === id)[0]
+
+    if (!found) {
+      return fail(MIN_DELAY_MS, rejected(404, 'davomat.sorov_topilmadi'))
+    }
+    if (found.status === 'Cancelled') {
+      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_bekor_qilingan'))
+    }
+    if (found.status !== 'Pending') {
+      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_qaror_qabul_qilingan'))
+    }
+
+    const cancelled: ScheduleChangeRequestDto = {
+      ...found,
+      status: 'Cancelled',
+      decidedAt: new Date().toISOString(),
+      cancelledByEmployee: true,
+    }
+    state.scheduleRequests = state.scheduleRequests.map((item) => (item.id === id ? cancelled : item))
+
+    return delay(undefined)
+  },
+
+  getPlan: (date) => delay(planOf(date)),
+}
+
+/**
+ * Jadval so'rovi — server qoidalarining mock nusxasi (tartibi ham bir xil):
+ * tur, kun yo'q, ko'p, sana takrori, keyin faol so'rov bilan to'qnashuv.
+ */
+function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<ScheduleChangeRequestDto> {
+  if (request.kind !== 'Change' && request.kind !== 'Swap') {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_turi'))
+  }
+
+  if (request.kind === 'Swap' && request.swaps.some((pair) => pair.date === pair.withDate)) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_bir_xil_sana'))
+  }
+
+  const days: ScheduleChangeDayDto[] =
+    request.kind === 'Change'
+      ? request.days.map((day) => ({ ...day, swapWith: null }))
+      : request.swaps.reduce<ScheduleChangeDayDto[]>(
+          (list, pair) =>
+            list.concat([
+              { ...planAsDay(planOf(pair.withDate)), date: pair.date, swapWith: pair.withDate },
+              { ...planAsDay(planOf(pair.date)), date: pair.withDate, swapWith: pair.date },
+            ]),
+          [],
+        )
+
+  const limit = request.kind === 'Swap' ? MAX_SWAP_PAIRS * 2 : MAX_SCHEDULE_DAYS
+
+  if (days.length === 0) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_kun_yoq'))
+  }
+  if (days.length > limit) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_kop'))
+  }
+
+  const dates = days.map((day) => day.date)
+  if (dates.some((date, index) => dates.indexOf(date) !== index)) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_sana_takror'))
+  }
+
+  const working = days.filter((day) => day.isWorking)
+  if (working.some((day) => !day.startTime || !day.endTime)) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_vaqt_bosh'))
+  }
+  if (working.some((day) => day.startTime === day.endTime)) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_vaqt_teng'))
+  }
+  if (working.some((day) => (day.breakStart === null) !== (day.breakEnd === null))) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_tanaffus_toliq_emas'))
+  }
+
+  const taken = state.scheduleRequests.some(
+    (item) =>
+      (item.status === 'Pending' || item.status === 'Approved') &&
+      item.days.some((day) => dates.indexOf(day.date) >= 0),
+  )
+  if (taken) {
+    return fail(MIN_DELAY_MS, rejected(409, 'davomat.jadval_sorovi_takroriy'))
+  }
+
+  const created = scheduleRequestOf({
+    id: `jsr-${state.nextScheduleRequestNo}`,
+    kind: request.kind,
+    days: days.slice().sort((a, b) => a.date.localeCompare(b.date)),
+    note: request.note,
+    status: 'Pending',
+    decisionNote: null,
+    decidedByName: null,
+    decidedAt: null,
+    createdAt: new Date().toISOString(),
+  })
+
+  state.nextScheduleRequestNo += 1
+  state.scheduleRequests = [created].concat(state.scheduleRequests)
+
+  return delay(created)
 }
 
 /** Qabul qilingan belgi — vaqti SERVERNIKI (bu yerda mock'niki). */

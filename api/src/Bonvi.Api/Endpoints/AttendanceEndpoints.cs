@@ -1,5 +1,6 @@
 using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
+using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Attendance.Agent;
 using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Dtos;
@@ -145,6 +146,49 @@ public sealed record AbsenceRequestBody(
     TimeOnly? ToTime = null,
     string? Note = null);
 
+/// <summary>Jadval so'rovining bitta kuni (SPEC-verifikatsiya-jadval-sorovi §C3).</summary>
+/// <param name="Date">Sana.</param>
+/// <param name="IsWorking">Ish kunimi.</param>
+/// <param name="StartTime">Boshlanish — ish kunida shart.</param>
+/// <param name="EndTime">Tugash — boshlanishdan oldin bo'lsa tungi smena.</param>
+/// <param name="BreakStart">Tanaffus boshi (oxiri bilan birga).</param>
+/// <param name="BreakEnd">Tanaffus oxiri.</param>
+public sealed record ScheduleChangeDayBody(
+    DateOnly Date,
+    bool IsWorking,
+    TimeOnly? StartTime = null,
+    TimeOnly? EndTime = null,
+    TimeOnly? BreakStart = null,
+    TimeOnly? BreakEnd = null);
+
+/// <summary>Kun almashtirish jufti.</summary>
+/// <param name="Date">Birinchi sana.</param>
+/// <param name="WithDate">U bilan o'rin almashadigan sana.</param>
+public sealed record ScheduleSwapBody(DateOnly Date, DateOnly WithDate);
+
+/// <summary>Jadval so'rovi tanasi (HR).</summary>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="Kind">Change — kunni o'zgartirish, Swap — kun almashtirish.</param>
+/// <param name="Days">Change uchun kunlar.</param>
+/// <param name="Swaps">Swap uchun juftlar.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record ScheduleChangeRequestBody(
+    Guid EmployeeId,
+    ScheduleChangeKind Kind,
+    IReadOnlyList<ScheduleChangeDayBody>? Days = null,
+    IReadOnlyList<ScheduleSwapBody>? Swaps = null,
+    string? Note = null)
+{
+    /// <summary>Kunlar — domen tavsifiga.</summary>
+    public IReadOnlyList<ScheduleChangeDayInput> DayInputs()
+        => [.. (Days ?? []).Select(day => new ScheduleChangeDayInput(
+            day.Date, day.IsWorking, day.StartTime, day.EndTime, day.BreakStart, day.BreakEnd))];
+
+    /// <summary>Juftlar — buyruq tavsifiga.</summary>
+    public IReadOnlyList<ScheduleSwapInput> SwapInputs()
+        => [.. (Swaps ?? []).Select(pair => new ScheduleSwapInput(pair.Date, pair.WithDate))];
+}
+
 /// <summary>Qaror tanasi.</summary>
 /// <param name="Approve">Tasdiqlansinmi (<c>false</c> — rad etish).</param>
 /// <param name="DecisionNote">HR izohi.</param>
@@ -285,6 +329,7 @@ public static class AttendanceEndpoints
         MapPasses(group);
         MapBoard(group);
         MapAbsenceRequests(group);
+        MapScheduleRequests(group);
         MapReports(group);
         MapExports(group);
         MapRecompute(group);
@@ -1376,6 +1421,166 @@ public static class AttendanceEndpoints
     }
 
     // ════════════════════════════════════════════════════════════
+    //  Jadval so'rovlari (SPEC-verifikatsiya-jadval-sorovi §C3)
+    //  O'qish — attendance.view, yozish va qaror — attendance.requests.manage
+    // ════════════════════════════════════════════════════════════
+
+    private static void MapScheduleRequests(IEndpointRouteBuilder group)
+    {
+        const string ErrorCodes =
+            "Xatolar: «davomat.jadval_sorovi_kun_yoq», «davomat.jadval_sorovi_kop», «davomat.jadval_sorovi_sana_takror», " +
+            "«davomat.jadval_vaqt_bosh», «davomat.jadval_vaqt_teng», «davomat.jadval_tanaffus_toliq_emas», " +
+            "«davomat.jadval_tanaffus_oynasi», «davomat.jadval_sorovi_bir_xil_sana», «davomat.jadval_sorovi_jadval_yoq» (400); " +
+            "«davomat.xodim_topilmadi» (404); «davomat.jadval_sorovi_takroriy» (409).";
+
+        group.MapGet("/schedule-requests", async (
+                Guid? employeeId,
+                AbsenceRequestStatus? status,
+                bool? decided,
+                DateOnly? from,
+                DateOnly? to,
+                string? search,
+                int? page,
+                int? pageSize,
+                SearchScheduleChangeRequestsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new SearchScheduleChangeRequestsQuery(employeeId, status, decided, from, to, search, page, pageSize),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("SearchScheduleChangeRequests")
+            .WithSummary("Davomat — jadval so'rovlari")
+            .WithDescription(
+                "Yangisi birinchi. Filtrlar yo'qlik so'rovlaridagi bilan bir xil; «from»/«to» so'rovning KUNLARI " +
+                "bo'yicha (birorta kuni oraliqqa tushsa chiqadi).")
+            .Produces<PagedResult<ScheduleChangeRequestDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/schedule-requests/{id:guid}", async (
+                Guid id,
+                GetScheduleChangeRequestQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetScheduleChangeRequestQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetScheduleChangeRequest")
+            .WithSummary("Davomat — bitta jadval so'rovi")
+            .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/schedule-requests", async (
+                ScheduleChangeRequestBody body,
+                CreateScheduleChangeRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new CreateScheduleChangeRequestCommand(
+                            body.EmployeeId, body.Kind, body.DayInputs(), body.SwapInputs(), body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("CreateScheduleChangeRequest")
+            .WithSummary("Davomat — jadval so'rovini yaratish (xodim nomidan)")
+            .WithDescription(
+                "«kind: Change» — «days» (1–31 sana: ish kuni — boshlanish/tugash, ixtiyoriy tanaffus; yoki dam " +
+                "olish kuni). «kind: Swap» — «swaps» (1–15 juft): server ikkala sananing AMALDAGI rejasini " +
+                "o'rin almashtirib saqlaydi. Yangi so'rov tabelga ta'sir qilmaydi — faqat tasdiqlangach. " + ErrorCodes)
+            .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/schedule-requests/{id:guid}", async (
+                Guid id,
+                ScheduleChangeRequestBody body,
+                UpdateScheduleChangeRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new UpdateScheduleChangeRequestCommand(id, body.Kind, body.DayInputs(), body.SwapInputs(), body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("UpdateScheduleChangeRequest")
+            .WithSummary("Davomat — kutayotgan jadval so'rovini tahrirlash")
+            .WithDescription(
+                "Faqat KUTAYOTGAN so'rov («davomat.sorov_qaror_qabul_qilingan», 409). Xodim o'zgarmaydi — " +
+                "«employeeId» e'tiborsiz qoldiriladi. " + ErrorCodes)
+            .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/schedule-requests/{id:guid}/decide", async (
+                Guid id,
+                AbsenceDecisionBody body,
+                DecideScheduleChangeRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new DecideScheduleChangeRequestCommand(id, body.Approve, body.DecisionNote), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("DecideScheduleChangeRequest")
+            .WithSummary("Davomat — jadval so'rovini tasdiqlash yoki rad etish")
+            .WithDescription(
+                "⭐ Tasdiqlangan kun xodimning o'sha sanadagi rejasi O'RNIGA turadi va kunlar (±1) shu yerning o'zida " +
+                "qayta hisoblanadi. Jadvali yo'q xodimga qo'llanmaydi. «davomat.sorov_qaror_qabul_qilingan» (409).")
+            .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/schedule-requests/{id:guid}/cancel", async (
+                Guid id,
+                CancelScheduleChangeRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new CancelScheduleChangeRequestCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("CancelScheduleChangeRequest")
+            .WithSummary("Davomat — jadval so'rovini bekor qilish")
+            .WithDescription(
+                "Tasdiqlangani ham bekor qilinadi — kunlar jadvalning o'z rejasiga qaytadi va qayta hisoblanadi. " +
+                "Allaqachon bekor qilingan — «davomat.sorov_bekor_qilingan» (409).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  Yo'qlik so'rovlari (SPEC-so'rovlar §B4)
     //  O'qish — attendance.view, qaror — attendance.requests.manage
     // ════════════════════════════════════════════════════════════
@@ -1391,12 +1596,15 @@ public static class AttendanceEndpoints
                 string? search,
                 int? page,
                 int? pageSize,
+                Guid? absenceTypeId,
+                AbsenceRequestMode? mode,
                 SearchAbsenceRequestsQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
                     .HandleAsync(
-                        new SearchAbsenceRequestsQuery(employeeId, status, decided, from, to, search, page, pageSize),
+                        new SearchAbsenceRequestsQuery(
+                            employeeId, status, decided, from, to, search, page, pageSize, absenceTypeId, mode),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1410,7 +1618,8 @@ public static class AttendanceEndpoints
                 "usiz — butun tashkilot bo'yicha navbat. «status»: Pending | Approved | Rejected | Cancelled. " +
                 "«from»/«to» so'rovning DAVRI bo'yicha kesadi (yaratilgan sana bo'yicha emas) va oraliqqa " +
                 "QISMAN tegadigan so'rov ham chiqadi. «search» — xodim bo'yicha, boshqa ro'yxatlardagi bilan " +
-                "bir xil shart. «pageSize» sukut 25, eng ko'pi 200.")
+                "bir xil shart. «absenceTypeId» — yo'qlik turi; «mode»: PartDay | WholeDay | MultiDay " +
+                "(qism kun / butun kun / bir necha kun). «pageSize» sukut 25, eng ko'pi 200.")
             .Produces<PagedResult<AbsenceRequestDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);

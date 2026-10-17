@@ -198,6 +198,11 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Yo'qlik turlari — davomat so'rovlari shu ro'yxatdan tanlanadi.</summary>
     public DbSet<AbsenceType> AbsenceTypes => Set<AbsenceType>();
 
+    /// <summary>Jadval so'rovlari (SPEC-verifikatsiya-jadval-sorovi §C).</summary>
+    public DbSet<ScheduleChangeRequest> ScheduleChangeRequests => Set<ScheduleChangeRequest>();
+
+    public DbSet<ScheduleChangeDay> ScheduleChangeDays => Set<ScheduleChangeDay>();
+
     /// <summary>Jarima turlari (<c>penalty_types</c>).</summary>
     public DbSet<PenaltyType> PenaltyTypes => Set<PenaltyType>();
 

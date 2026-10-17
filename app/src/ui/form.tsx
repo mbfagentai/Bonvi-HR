@@ -14,8 +14,9 @@ import { Sheet } from './sheet'
  * sahifani kattalashtiradi va qaytarmaydi. Global CSS shuni
  * kafolatlaydi — bu yerda `text-callout` ataylab takrorlangan.
  *
- * Xato xabari HAR DOIM maydon OSTIDA, yuqorida umumiy ro'yxat yo'q:
- * bu ilovadagi formalar uch maydondan oshmaydi.
+ * Xato xabari HAR DOIM maydon OSTIDA, yuqorida umumiy ro'yxat yo'q.
+ * Uzun formada (jadval so'rovi — bir necha sana) yuborishda birinchi
+ * xatoli maydonga aylantiriladi: `Field` uni `data-invalid` bilan belgilaydi.
  */
 interface FieldProps {
   label: string
@@ -27,7 +28,8 @@ interface FieldProps {
 
 export function Field({ label, required = false, helper, error, children }: FieldProps) {
   return (
-    <div>
+    // `data-invalid` — yuborishda birinchi xatoli maydonga aylantirish uchun (UX §E.5).
+    <div data-invalid={error ? '' : undefined}>
       <label className="mb-1.5 block text-footnote font-medium text-fg-secondary">
         {label}
         {required ? <span className="text-danger-text"> *</span> : null}
@@ -284,8 +286,11 @@ export function TimeRow({
   /** `HH:mm` yoki bo'sh satr. */
   value: string
   placeholder: string
-  /** Tanlangan vaqtni olib tashlash tugmasi — bo'sh qiymat bilan `onChange`. */
-  clearLabel: string
+  /**
+   * Tanlangan vaqtni olib tashlash tugmasi — bo'sh qiymat bilan `onChange`.
+   * Berilmasa tugma yo'q: MAJBURIY vaqtni bo'shatishning ma'nosi yo'q.
+   */
+  clearLabel?: string
   invalid?: boolean
   onChange: (value: string) => void
 }) {
@@ -337,7 +342,7 @@ export function TimeRow({
           >
             {t('common.confirm')}
           </Button>
-          {value ? (
+          {value && clearLabel ? (
             <Button
               variant="plain"
               block
@@ -355,5 +360,94 @@ export function TimeRow({
         </div>
       </Sheet>
     </>
+  )
+}
+
+/**
+ * Bo'lakli tanlagich — iOS «segmented control» (Verifix'dagi «Часть дня /
+ * Весь день / Несколько дней» radiosi).
+ *
+ * ⚠️ Yorliq QISQARTIRILMAYDI: 320 px ekranda «Bir necha kun» ikki qatorga
+ * tushadi — asosiy yorliqni «…» bilan kesish taqiqlangan (UX §F.5).
+ * Bo'laklar orasida flex `gap` yo'q (Safari 14.1 dan past, UX §F.2).
+ */
+export function SegmentedControl<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  /** Ekran o'quvchi uchun guruh nomi — ko'rinadigan yorliq bo'lmasa ham. */
+  label: string
+  value: T
+  options: ReadonlyArray<{ value: T; label: string }>
+  onChange: (value: T) => void
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex rounded-control bg-bg-sunken p-1">
+      {options.map((option) => {
+        const selected = option.value === value
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => {
+              if (!selected) onChange(option.value)
+            }}
+            className={clsx(
+              'min-h-[40px] min-w-0 flex-1 rounded-chip px-2 py-1.5 text-center text-subhead leading-tight transition-colors duration-150 ease-ios',
+              selected
+                ? 'bg-bg-elevated font-semibold text-fg shadow-[0_1px_3px_rgba(0,0,0,0.12)]'
+                : 'font-medium text-fg-secondary active:bg-bg-pressed',
+            )}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * Yorliqli o'chirgich (UX §E.2, `toggle` qatori). Butun qator bosiladi —
+ * kichik dumaloqni nishonga olish shart emas (UX §D.8, 44 px).
+ */
+export function SwitchRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex min-h-[44px] w-full items-center rounded-control text-left active:bg-bg-pressed"
+    >
+      <span className="min-w-0 flex-1 text-body text-fg">{label}</span>
+      <span
+        aria-hidden="true"
+        className={clsx(
+          'relative ml-3 inline-block h-[31px] w-[51px] shrink-0 rounded-pill transition-colors duration-150 ease-ios',
+          checked ? 'bg-accent' : 'bg-border-strong',
+        )}
+      >
+        <span
+          className={clsx(
+            'absolute left-[2px] top-[2px] h-[27px] w-[27px] rounded-pill bg-fg-on-accent shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform duration-150 ease-ios',
+            checked ? 'translate-x-[20px]' : 'translate-x-0',
+          )}
+        />
+      </span>
+    </button>
   )
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Catalog;
@@ -286,6 +287,24 @@ public static class AuditCatalog
             .Ref(AuditRefTarget.AbsenceType, nameof(AbsenceRequest.AbsenceTypeId))
             .Ref(AuditRefTarget.User, nameof(AbsenceRequest.DecidedBy))
             .Ref(AuditRefTarget.EmployeeAccount, nameof(AbsenceRequest.SubmittedByAccountId), nameof(AbsenceRequest.CancelledByAccountId)),
+
+        // Jadval so'rovi (SPEC-verifikatsiya-jadval-sorovi §C) — yo'qlik so'rovining egizagi.
+        Audit<ScheduleChangeRequest>(AccessModuleKeys.Attendance)
+            .Subject(nameof(ScheduleChangeRequest.EmployeeId))
+            .LabelFromSubject()
+            .Ref(AuditRefTarget.Employee, nameof(ScheduleChangeRequest.EmployeeId))
+            .Ref(AuditRefTarget.User, nameof(ScheduleChangeRequest.DecidedBy))
+            .Ref(
+                AuditRefTarget.EmployeeAccount,
+                nameof(ScheduleChangeRequest.SubmittedByAccountId),
+                nameof(ScheduleChangeRequest.CancelledByAccountId)),
+
+        // So'rovning kuni — yorlig'i sana: so'rov tahririda qaysi kun o'zgargani shu bilan ko'rinadi.
+        // Ota so'rovga havola yozilmaydi: kun so'rov bilan BIR tranzaksiyada o'zgaradi va jurnalda
+        // so'rov qatori (xodim nomi bilan) uning yonida turadi; so'rov uchun havola turi yo'q.
+        Audit<ScheduleChangeDay>(AccessModuleKeys.Attendance)
+            .Label(row => row.Date.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture))
+            .Exclude(nameof(ScheduleChangeDay.RequestId)),
 
         Audit<WorkSchedule>(AccessModuleKeys.Attendance).Label(row => row.Name),
 

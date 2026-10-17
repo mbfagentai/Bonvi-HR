@@ -211,7 +211,8 @@ public sealed class AttendanceDayRecomputer
                     catalog.Assignments,
                     catalog.Schedules,
                     new DepartmentTree(catalog.Departments),
-                    catalog.Dates),
+                    catalog.Dates,
+                    catalog.Overrides),
                 now.TashkentDate(),
                 now);
 

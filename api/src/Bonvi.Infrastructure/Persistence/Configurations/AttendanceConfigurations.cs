@@ -769,6 +769,89 @@ public sealed class AbsenceRequestConfiguration : IEntityTypeConfiguration<Absen
 /// o'chirilsa, kataklari ham ketadi (<c>Cascade</c>).
 /// </para>
 /// </remarks>
+/// <summary>
+/// <see cref="ScheduleChangeRequest"/> uchun jadval konfiguratsiyasi
+/// (<c>schedule_change_requests</c>) — <c>absence_requests</c> ning egizagi.
+/// </summary>
+public sealed class ScheduleChangeRequestConfiguration : IEntityTypeConfiguration<ScheduleChangeRequest>
+{
+    public void Configure(EntityTypeBuilder<ScheduleChangeRequest> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("schedule_change_requests");
+
+        builder.HasKey(request => request.Id);
+
+        builder.Ignore(request => request.DomainEvents);
+
+        builder.Property(request => request.Kind).IsRequired();
+        builder.Property(request => request.Status).IsRequired();
+
+        builder.Property(request => request.Note).HasMaxLength(2000);
+        builder.Property(request => request.DecisionNote).HasMaxLength(2000);
+
+        builder.HasOne<Employee>()
+            .WithMany()
+            .HasForeignKey(request => request.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Kun so'rovsiz ma'noga ega emas — kaskad (`WorkSchedule.Days` bilan bir xil).
+        builder.HasMany(request => request.Days)
+            .WithOne()
+            .HasForeignKey(day => day.RequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(request => request.Days)
+            .HasField("_days")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasIndex(request => new { request.EmployeeId, request.Status });
+
+        builder.HasQueryFilter(request => request.DeletedAt == null);
+    }
+}
+
+/// <summary>
+/// <see cref="ScheduleChangeDay"/> uchun jadval konfiguratsiyasi (<c>schedule_change_request_days</c>).
+/// </summary>
+/// <remarks>
+/// Tanaffus oynasi qoidasi bazada ham — <c>work_schedule_days</c> dagi bilan bir xil sabab
+/// (domen tekshiruvi kod orqali kelmagan yozuvni ushlamaydi).
+/// </remarks>
+public sealed class ScheduleChangeDayConfiguration : IEntityTypeConfiguration<ScheduleChangeDay>
+{
+    public void Configure(EntityTypeBuilder<ScheduleChangeDay> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("schedule_change_request_days", table =>
+        {
+            table.HasCheckConstraint(
+                "ck_schedule_change_request_days_times",
+                "(is_working AND start_time IS NOT NULL AND end_time IS NOT NULL) " +
+                "OR (NOT is_working AND start_time IS NULL AND end_time IS NULL)");
+            table.HasCheckConstraint(
+                "ck_schedule_change_request_days_break",
+                "(break_start IS NULL AND break_end IS NULL) " +
+                "OR (is_working AND break_start IS NOT NULL AND break_end IS NOT NULL AND break_start <> break_end)");
+        });
+
+        builder.HasKey(day => day.Id);
+
+        builder.Ignore(day => day.DomainEvents);
+        builder.Ignore(day => day.BreakMinutes);
+
+        builder.Property(day => day.Date).IsRequired();
+        builder.Property(day => day.IsWorking).IsRequired();
+
+        builder.HasIndex(day => new { day.RequestId, day.Date }).IsUnique();
+
+        // Hal qiluvchi sanalar oralig'i bo'yicha o'qiydi (`LoadScheduleCatalogAsync`).
+        builder.HasIndex(day => day.Date);
+    }
+}
+
 public sealed class WorkScheduleDateConfiguration : IEntityTypeConfiguration<WorkScheduleDate>
 {
     public void Configure(EntityTypeBuilder<WorkScheduleDate> builder)

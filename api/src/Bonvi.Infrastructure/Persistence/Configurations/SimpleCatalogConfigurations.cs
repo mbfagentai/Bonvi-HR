@@ -50,6 +50,10 @@ public sealed class AbsenceTypeConfiguration : IEntityTypeConfiguration<AbsenceT
         // qoidasi, sababi `AttendanceConfigurations` boshidagi izohda.
         builder.Property(type => type.CountsAsWorkTime)
             .IsRequired();
+
+        // Bazadagi sukut `true` faqat migratsiyada (`JadvalSorovi`) — xuddi shu sabab.
+        builder.Property(type => type.EmployeeCanRequest)
+            .IsRequired();
     }
 }
 

@@ -3,6 +3,7 @@ using Bonvi.Api.Extensions;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Mobile;
+using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Identity.EmployeeAuth;
 using Bonvi.Application.Me;
@@ -55,6 +56,17 @@ public sealed record MyAbsenceRequestBody(
     TimeOnly? ToTime = null,
     string? Note = null);
 
+/// <summary>Xodimning jadval so'rovi tanasi (SPEC-verifikatsiya-jadval-sorovi §C3).</summary>
+/// <param name="Kind">Change — kunni o'zgartirish, Swap — kun almashtirish.</param>
+/// <param name="Days">Change uchun kunlar.</param>
+/// <param name="Swaps">Swap uchun juftlar.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record MyScheduleChangeRequestBody(
+    ScheduleChangeKind Kind,
+    IReadOnlyList<ScheduleChangeDayBody>? Days = null,
+    IReadOnlyList<ScheduleSwapBody>? Swaps = null,
+    string? Note = null);
+
 /// <summary>
 /// Xodim ilovasining endpointlari — <c>/api/me/*</c>.
 /// </summary>
@@ -104,6 +116,7 @@ public static partial class MeEndpoints
         MapAttendance(group);
         MapCheckIn(group);
         MapRequests(group);
+        MapScheduleRequests(group);
 
         return app;
     }
@@ -347,6 +360,99 @@ public static partial class MeEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Mening jadval so'rovlarim (SPEC-verifikatsiya-jadval-sorovi §C3)
+    // ════════════════════════════════════════════════════════════
+
+    private static void MapScheduleRequests(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/schedule-requests", async (
+                AbsenceRequestStatus? status,
+                int? page,
+                int? pageSize,
+                GetMyScheduleRequestsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetMyScheduleRequestsQuery(status, page, pageSize), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("GetMyScheduleRequests")
+            .WithSummary("Xodim — mening jadval so'rovlarim")
+            .WithDescription("Faqat O'Z so'rovlari — xodim tokendan aniqlanadi.")
+            .Produces<PagedResult<ScheduleChangeRequestDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        group.MapPost("/schedule-requests", async (
+                MyScheduleChangeRequestBody body,
+                CreateMyScheduleRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new CreateMyScheduleRequestCommand(
+                            body.Kind,
+                            [.. (body.Days ?? []).Select(day => new ScheduleChangeDayInput(
+                                day.Date, day.IsWorking, day.StartTime, day.EndTime, day.BreakStart, day.BreakEnd))],
+                            [.. (body.Swaps ?? []).Select(pair => new ScheduleSwapInput(pair.Date, pair.WithDate))],
+                            body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("CreateMyScheduleRequest")
+            .WithSummary("Xodim — jadvalni o'zgartirish so'rovi yuborish")
+            .WithDescription(
+                "HR tomonidagi «POST /api/attendance/schedule-requests» bilan bir xil qoidalar, xodim tokendan. " +
+                "Tasdiqlanmaguncha tabelga ta'sir qilmaydi.")
+            .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/schedule-requests/{id:guid}/cancel", async (
+                Guid id,
+                CancelMyScheduleRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new CancelMyScheduleRequestCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("CancelMyScheduleRequest")
+            .WithSummary("Xodim — jadval so'rovini bekor qilish")
+            .WithDescription(
+                "Faqat O'Z va faqat QAROR KUTAYOTGAN so'rov. Begona so'rov — «davomat.sorov_topilmadi» (404).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapGet("/plan", async (
+                DateOnly date,
+                GetMyPlanQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetMyPlanQuery(date), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("GetMyPlan")
+            .WithSummary("Xodim — sananing amaldagi rejasi")
+            .WithDescription(
+                "Jadval so'rovi formasini xodimning hozirgi soatlari bilan to'ldirish uchun. Jadval biriktirilmagan " +
+                "bo'lsa «hasSchedule: false».")
+            .Produces<DayPlanDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
     }
 
     // ════════════════════════════════════════════════════════════

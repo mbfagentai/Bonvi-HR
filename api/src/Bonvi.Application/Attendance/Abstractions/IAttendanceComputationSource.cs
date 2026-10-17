@@ -1,4 +1,5 @@
 using Bonvi.Application.Attendance.Computation;
+using Bonvi.Application.Attendance.Scheduling;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
@@ -188,8 +189,13 @@ public sealed record EmploymentChange(Guid EmployeeId, DateOnly HireDate, DateOn
 /// (SPEC-jadval-to'ri §B2). Biriktirma va jadvaldan farqli o'laroq bu
 /// ro'yxat yillar bo'yicha o'sadi, shu sababli u sana bo'yicha kesiladi.
 /// </param>
+/// <param name="Overrides">
+/// Tasdiqlangan jadval so'rovlarining kunlari — xodimning o'sha sanadagi rejasi
+/// o'rniga turadi (SPEC-verifikatsiya-jadval-sorovi §C2). Sana bo'yicha kesiladi.
+/// </param>
 public sealed record ScheduleCatalog(
     IReadOnlyList<ScheduleAssignment> Assignments,
     IReadOnlyList<WorkSchedule> Schedules,
     IReadOnlyList<Department> Departments,
-    IReadOnlyList<WorkScheduleDate> Dates);
+    IReadOnlyList<WorkScheduleDate> Dates,
+    IReadOnlyList<EmployeeDayOverride>? Overrides = null);
