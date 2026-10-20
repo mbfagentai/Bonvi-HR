@@ -69,6 +69,14 @@ export function DayPanel({ day, loading }: { day: AttendanceDay | null; loading:
             </span>
           </div>
         ) : null}
+
+        {/* Erkin kunda kechikish yo'q — normadan kami shu yerda (SPEC-erkin-jadval §2.2) */}
+        {day && (day.shortfallMinutes ?? 0) > 0 ? (
+          <div className="flex items-baseline justify-between">
+            <span className="text-footnote text-fg-secondary">{t('calendar.shortfall')}</span>
+            <span className="nums text-subhead text-fg">{format.duration(day.shortfallMinutes)}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   )

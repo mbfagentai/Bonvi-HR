@@ -93,4 +93,59 @@ public sealed class DashboardStatusRuleTests
         DashboardStatusRule.Classify(Office(Wednesday.AddDays(1)), null, Wednesday, At("23:00"))
             .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.NotStarted, null));
     }
+
+    // ────────────────────── Erkin ish jadvali (SPEC-erkin-jadval §2.2, 13 va 16-qatorlar) ──────────────────────
+
+    /// <summary>08:30–18:00, norma 7:30 — eng kech kelish 10:30.</summary>
+    private static DayPlan Flexible(DateOnly date) => DayPlan.For(AttendanceScenario.FlexibleSchedule(), date);
+
+    /// <summary>Erkin kunda kelgan — doim «Vaqtida», kechikish daqiqasisiz; 11:00 da ham.</summary>
+    [Theory]
+    [InlineData("08:00")]
+    [InlineData("10:00")]
+    [InlineData("11:00")]
+    [InlineData("16:30")]
+    public void Erkin_kunda_kelgan_doim_vaqtida(string arrived)
+        => DashboardStatusRule.Classify(Flexible(Wednesday), At(arrived), Wednesday, At("17:00"))
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.OnTime, null));
+
+    [Fact]
+    public void Erkin_kunda_eng_kech_kelishgacha_NotStarted_keyin_Absent()
+    {
+        var plan = Flexible(Wednesday);
+
+        DashboardStatusRule.Classify(plan, null, Wednesday, At("10:29:59"))
+            .Status.ShouldBe(AttendanceDashboardStatus.NotStarted, "08:30 dan keyin ham — hali kelishi mumkin");
+        DashboardStatusRule.Classify(plan, null, Wednesday, At("10:30:00"))
+            .Status.ShouldBe(AttendanceDashboardStatus.Absent);
+
+        DashboardStatusRule.HasNotStarted(plan, Wednesday, At("10:29:59")).ShouldBeTrue();
+        DashboardStatusRule.HasNotStarted(plan, Wednesday, At("10:30:00")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Erkin_kunda_sababli_kelmagan_Excused()
+        => DashboardStatusRule.Classify(Flexible(Wednesday), null, Wednesday, At("11:00"), excused: true)
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.Excused, null));
+
+    /// <summary>
+    /// Tungi erkin smena 20:00–08:00, norma 4 soat: seshanba 01:00 da dushanba kuni hali boshlanmagan
+    /// (eng kech kelish seshanba 04:00) — SANA o'tgan bo'lsa ham; 04:00 dan keyin «Kelmadi».
+    /// </summary>
+    [Fact]
+    public void Tungi_erkin_smenada_eng_kech_kelish_ertangi_sanada()
+    {
+        var monday = AttendanceScenario.Monday;
+        var tuesday = AttendanceScenario.Tuesday;
+        var plan = DayPlan.For(AttendanceScenario.FlexibleSchedule("20:00", "08:00", 0, null, null, 240), monday);
+
+        DashboardStatusRule.Classify(plan, null, tuesday, AttendanceScenario.At(tuesday, "01:00"))
+            .Status.ShouldBe(AttendanceDashboardStatus.NotStarted);
+        DashboardStatusRule.Classify(plan, null, tuesday, AttendanceScenario.At(tuesday, "04:00"))
+            .Status.ShouldBe(AttendanceDashboardStatus.Absent);
+    }
+
+    [Fact]
+    public void Erkin_kunda_kelajak_sana_doim_NotStarted()
+        => DashboardStatusRule.HasNotStarted(Flexible(Wednesday.AddDays(1)), Wednesday, At("23:00")).ShouldBeTrue();
 }

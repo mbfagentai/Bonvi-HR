@@ -27,6 +27,10 @@ public sealed class WorkScheduleDay : Entity
     /// </remarks>
     public const int MaxBreakMinutes = 480;
 
+    /// <summary>Erkin kundagi «Ish vaqti» ning eng kichik qiymati (daqiqa).</summary>
+    /// <remarks>Eng kattasi — <see cref="MaxRequiredMinutes"/> (smena − tanaffus), SPEC-erkin-jadval §2.5.</remarks>
+    public const int MinRequiredMinutes = 1;
+
     private WorkScheduleDay(Guid id, Guid workScheduleId, int dayIndex)
         : base(id)
     {
@@ -83,6 +87,25 @@ public sealed class WorkScheduleDay : Entity
 
     /// <summary>Tanaffus oynasining tugashi.</summary>
     public TimeOnly? BreakEnd { get; private set; }
+
+    /// <summary>
+    /// «Erkin ish jadvali» — kun boshlanish/tugash vaqti bilan emas, ishlangan vaqt bilan
+    /// baholanadi (SPEC-erkin-jadval §2); boshlanish–tugash faqat yo'l-yo'riq.
+    /// </summary>
+    /// <remarks>
+    /// Faqat ish kunida <c>true</c> bo'ladi: dam olish kunida bayroq yozishda tozalanadi
+    /// (<see cref="Apply"/>), tanaffus oynasi bilan bir xil qoida.
+    /// </remarks>
+    public bool IsFlexible { get; private set; }
+
+    /// <summary>
+    /// «Ish vaqti» — erkin kunning normasi (daqiqa); erkin bo'lmagan kunda <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// Berilmasa server sukutni o'zi yozadi — <see cref="MaxRequiredMinutes"/>
+    /// (08:30–18:00, 120 daqiqa tanaffus → 450, ya'ni 7:30).
+    /// </remarks>
+    public int? RequiredMinutes { get; private set; }
 
     /// <summary>
     /// Smena yarim tundan o'tadimi.
@@ -144,8 +167,30 @@ public sealed class WorkScheduleDay : Entity
                 $"Tanaffus 0 dan {MaxBreakMinutes} daqiqagacha bo'lishi kerak.");
         }
 
-        return ValidateBreakWindow(input.BreakStart, input.BreakEnd, start, end);
+        var window = ValidateBreakWindow(input.BreakStart, input.BreakEnd, start, end);
+        if (window.IsFailure)
+        {
+            return window;
+        }
+
+        // Erkin kun qoidasi OXIRGI (SPEC-erkin-jadval §2.5): avval smena va tanaffus to'g'ri
+        // bo'lishi kerak — norma ularning ayirmasidan chiqadi.
+        return ValidateRequired(input, start, end);
     }
+
+    /// <summary>
+    /// Erkin kundagi «Ish vaqti» ning eng katta qiymati: smena uzunligi − tanaffus (daqiqa).
+    /// </summary>
+    /// <remarks>
+    /// Norma jadvalning o'z oynasiga sig'ishi kerak. Smena uzunligi <c>TimeOnly</c> ayirmasi —
+    /// yarim tundan o'tib hisoblanadi (20:00–08:00 = 720), tanaffus oynasi tekshiruvidagi
+    /// bilan bir xil o'q. Pastki chegara 0: tanaffus smenadan uzun bo'lsa erkin kun mumkin emas.
+    /// </remarks>
+    /// <param name="start">Smena boshlanishi.</param>
+    /// <param name="end">Smena tugashi.</param>
+    /// <param name="breakMinutes">Ayiriladigan tanaffus (daqiqa).</param>
+    public static int MaxRequiredMinutes(TimeOnly start, TimeOnly end, int breakMinutes)
+        => Math.Max(0, (int)(end - start).TotalMinutes - breakMinutes);
 
     /// <summary>Tekshirilgan tavsifdan yangi kun yasaydi.</summary>
     internal static WorkScheduleDay Create(Guid workScheduleId, WorkScheduleDayInput input)
@@ -174,6 +219,8 @@ public sealed class WorkScheduleDay : Entity
             BreakMinutes = 0;
             BreakStart = null;
             BreakEnd = null;
+            IsFlexible = false;
+            RequiredMinutes = null;
             return;
         }
 
@@ -182,6 +229,43 @@ public sealed class WorkScheduleDay : Entity
         BreakMinutes = input.BreakMinutes;
         BreakStart = input.BreakStart;
         BreakEnd = input.BreakEnd;
+        IsFlexible = input.IsFlexible;
+        RequiredMinutes = RequiredFor(input);
+    }
+
+    /// <summary>
+    /// Saqlanadigan «Ish vaqti»: erkin ish kunida berilgani yoki sukut, aks holda <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// Yillik to'r katagi va jadval so'rovi kuni ham shu metoddan oladi — sukut uch joyda
+    /// uch xil hisoblanmasin. Erkin bo'lmagan kunga yuborilgan qiymat tashlanadi (§2.4).
+    /// </remarks>
+    /// <param name="input">Tekshirilgan kun tavsifi.</param>
+    internal static int? RequiredFor(WorkScheduleDayInput input)
+        => input is { IsWorking: true, IsFlexible: true, StartTime: { } start, EndTime: { } end }
+            ? input.RequiredMinutes ?? MaxRequiredMinutes(start, end, input.BreakMinutes)
+            : null;
+
+    /// <summary>Erkin kun normasi 1 … (smena − tanaffus) oralig'idami — SPEC-erkin-jadval §2.5.</summary>
+    /// <remarks>
+    /// Berilmagan norma sukutga (eng kattasiga) teng, ya'ni u ham shu yerdan o'tadi: tanaffus
+    /// smenaga teng yoki undan uzun bo'lsa sukut 0 bo'ladi va erkin kun rad etiladi.
+    /// </remarks>
+    private static Result ValidateRequired(WorkScheduleDayInput input, TimeOnly start, TimeOnly end)
+    {
+        if (!input.IsFlexible)
+        {
+            return Result.Success();
+        }
+
+        var max = MaxRequiredMinutes(start, end, input.BreakMinutes);
+        var required = input.RequiredMinutes ?? max;
+
+        return required < MinRequiredMinutes || required > max
+            ? Error.Validation(
+                "davomat.jadval_erkin_vaqti",
+                "Erkin jadvalda ish vaqti 1 daqiqadan smena − tanaffusgacha bo'lishi kerak.")
+            : Result.Success();
     }
 
     /// <summary>

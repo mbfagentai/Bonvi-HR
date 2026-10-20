@@ -105,6 +105,17 @@ export interface TimesheetCellDto {
    * (masalan boshqa zavodga ish bilan borilgan vaqt). Eski server — yo'q.
    */
   creditedMinutes?: number
+  /**
+   * Kun «Erkin ish jadvali» bo'yicha hisoblangan (SPEC-erkin-jadval §2):
+   * kechikish va erta ketish yo'q, kun ishlangan vaqt va «Ish vaqti»
+   * bo'yicha baholanadi. Oyna faqat ma'lumot uchun — undan tashqaridagi
+   * borliq ham sanaladi (egasi, 2026-10-20). Eski server — yo'q (erkin emas).
+   */
+  isFlexible?: boolean
+  /** Kunning rejadagi daqiqalari — erkin kunda «Ish vaqti» (masalan 450). Hosil qilingan katakda 0. */
+  plannedMinutes?: number
+  /** «Kam ishlangan» — erkin kunda normadan kam ishlangan daqiqalar; boshqa kunda 0. */
+  shortfallMinutes?: number
 }
 
 /**
@@ -125,6 +136,8 @@ export interface TimesheetTotalsDto {
   absentDays: number
   lateMinutes: number
   earlyLeaveMinutes: number
+  /** Kataklardagi «Kam ishlangan» yig'indisi. Eski server — yo'q. */
+  shortfallMinutes?: number
 }
 
 /**
@@ -226,6 +239,10 @@ export interface ScheduleChangeDayDto {
    * olingan kunda 60 daqiqalik tushlik 12:00–15:00 oynasida.
    */
   breakMinutes: number
+  /** «Erkin ish jadvali» kuni. Eski server — yo'q (erkin emas). */
+  isFlexible?: boolean
+  /** «Ish vaqti», daqiqa — faqat erkin kunda, aks holda `null`. */
+  requiredMinutes?: number | null
 }
 
 /** `ScheduleChangeRequestDto` — HR navbatidagi yozuvning o'zi. */
@@ -260,6 +277,13 @@ export interface ScheduleChangeDayInput {
   breakEnd: string | null
   /** Tanaffus uzunligi, daqiqa; `null` — server oyna uzunligini oladi. */
   breakMinutes: number | null
+  /** «Erkin ish jadvali» — faqat ish kunida `true` bo'ladi. */
+  isFlexible: boolean
+  /**
+   * «Ish vaqti», daqiqa. `null` — server sukutni o'zi yozadi: smena −
+   * tanaffus (SPEC-erkin-jadval §2.5). Erkin bo'lmagan kunda doim `null`.
+   */
+  requiredMinutes: number | null
 }
 
 /** Kun almashtirish jufti: `date` ⇄ `withDate`. */
@@ -299,6 +323,10 @@ export interface DayPlanDto {
    * uzunligini olardi (12:00–15:00 da 60 emas, 180).
    */
   breakMinutes: number
+  /** Sana «Erkin ish jadvali» bo'yicha. Eski server — yo'q (erkin emas). */
+  isFlexible?: boolean
+  /** «Ish vaqti», daqiqa — faqat erkin kunda, aks holda `null`. */
+  requiredMinutes?: number | null
 }
 
 /** Sahifalangan ro'yxat — `PagedResult<T>`. */

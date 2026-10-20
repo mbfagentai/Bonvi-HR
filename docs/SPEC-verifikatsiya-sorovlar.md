@@ -36,6 +36,8 @@ solved in phase 2, not hand-waved — see §E.
 
 ### B1. Catalog: `absence_types`
 
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-erkin-jadval.md` §6: the seed is exactly «Ishxona ishi bilan» (counts as work time) and «Shaxsiy» — as in Verifix. Production is aligned in the catalog screen after deploy (`DEPLOY-CHECKLIST.md`).
+
 A `ReferenceEntity` like `termination_reasons` — name, `IsActive`, note. Managed
 under `catalog.manage`, read under `catalog.view`, listed on the existing
 catalogs screen. Seeded with the kinds Verifix shows (`Ishxona ishi bilan`,
@@ -65,6 +67,8 @@ the module's existing period ceiling), `davomat.sorov_takroriy` (an active
 request already covers that day for that employee).
 
 ### B3. Effect on attendance (A4)
+
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-erkin-jadval.md` §2: on a flexible day the credit is judged against «Ish vaqti» (required minutes), and presence is NOT clipped to the window (owner).
 
 > **AMENDED 2026-10-17 (owner) — work-time absence kinds.** The owner compared
 > the flow with Verifix, where an hourly request (`Ишхона иши билан`,

@@ -103,6 +103,8 @@ public sealed record CreateAttendanceIdentityRequest(
 /// <param name="BreakMinutes">Tanaffus (daqiqa).</param>
 /// <param name="BreakStart">Tanaffus oynasining boshi.</param>
 /// <param name="BreakEnd">Tanaffus oynasining oxiri.</param>
+/// <param name="IsFlexible">«Erkin ish jadvali»; dam olish kunida va <c>reset</c> da e'tiborsiz.</param>
+/// <param name="RequiredMinutes">«Ish vaqti» (daqiqa); bo'sh — sukut (smena − tanaffus).</param>
 public sealed record ScheduleDatesBody(
     IReadOnlyList<DateOnly>? Dates,
     bool Reset = false,
@@ -111,7 +113,9 @@ public sealed record ScheduleDatesBody(
     TimeOnly? EndTime = null,
     int BreakMinutes = 0,
     TimeOnly? BreakStart = null,
-    TimeOnly? BreakEnd = null);
+    TimeOnly? BreakEnd = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);
 
 /// <summary>Yilni haftalik naqshdan to'ldirish tanasi.</summary>
 /// <param name="Year">Qaysi yil (2000–2100).</param>
@@ -157,6 +161,8 @@ public sealed record AbsenceRequestBody(
 /// Ayiriladigan tanaffus (daqiqa). Bo'sh — oynaning uzunligi. Forma jadvaldan to'ldirilgan va
 /// tanaffusi o'zgartirilmagan kunda jadvalning qiymatini qaytaradi.
 /// </param>
+/// <param name="IsFlexible">«Erkin ish jadvali» (Verifix formasidagi belgi); berilmasa — yo'q.</param>
+/// <param name="RequiredMinutes">«Ish vaqti» (daqiqa); bo'sh — sukut (smena − tanaffus).</param>
 public sealed record ScheduleChangeDayBody(
     DateOnly Date,
     bool IsWorking,
@@ -164,7 +170,23 @@ public sealed record ScheduleChangeDayBody(
     TimeOnly? EndTime = null,
     TimeOnly? BreakStart = null,
     TimeOnly? BreakEnd = null,
-    int? BreakMinutes = null);
+    int? BreakMinutes = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null)
+{
+    /// <summary>Domen tavsifiga — HR va xodim ilovasi uchun bitta o'girish.</summary>
+    public ScheduleChangeDayInput ToInput()
+        => new(
+            Date,
+            IsWorking,
+            StartTime,
+            EndTime,
+            BreakStart,
+            BreakEnd,
+            BreakMinutes: BreakMinutes,
+            IsFlexible: IsFlexible,
+            RequiredMinutes: RequiredMinutes);
+}
 
 /// <summary>Kun almashtirish jufti.</summary>
 /// <param name="Date">Birinchi sana.</param>
@@ -186,8 +208,7 @@ public sealed record ScheduleChangeRequestBody(
 {
     /// <summary>Kunlar — domen tavsifiga.</summary>
     public IReadOnlyList<ScheduleChangeDayInput> DayInputs()
-        => [.. (Days ?? []).Select(day => new ScheduleChangeDayInput(
-            day.Date, day.IsWorking, day.StartTime, day.EndTime, day.BreakStart, day.BreakEnd, BreakMinutes: day.BreakMinutes))];
+        => [.. (Days ?? []).Select(day => day.ToInput())];
 
     /// <summary>Juftlar — buyruq tavsifiga.</summary>
     public IReadOnlyList<ScheduleSwapInput> SwapInputs()
@@ -223,6 +244,8 @@ public sealed record ConfirmIdentityImportRequest(
 /// <param name="BreakMinutes">Tanaffus uzunligi (0…480).</param>
 /// <param name="BreakStart">Tanaffus oynasining boshlanishi — <paramref name="BreakEnd"/> bilan birga.</param>
 /// <param name="BreakEnd">Tanaffus oynasining tugashi.</param>
+/// <param name="IsFlexible">«Erkin ish jadvali» — kechikish/erta ketish yo'q, kun normaga qarab baholanadi.</param>
+/// <param name="RequiredMinutes">«Ish vaqti» (1 … smena − tanaffus); bo'sh — sukut (eng kattasi).</param>
 public sealed record WorkScheduleDayRequest(
     int DayIndex,
     bool IsWorking,
@@ -230,7 +253,9 @@ public sealed record WorkScheduleDayRequest(
     TimeOnly? EndTime = null,
     int BreakMinutes = 0,
     TimeOnly? BreakStart = null,
-    TimeOnly? BreakEnd = null);
+    TimeOnly? BreakEnd = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);
 
 /// <summary>Jadval yaratish va tahrirlash tanasi.</summary>
 /// <param name="Name">Nom.</param>
@@ -261,7 +286,9 @@ public sealed record WorkScheduleRequest(
                     day.EndTime,
                     day.BreakMinutes,
                     day.BreakStart,
-                    day.BreakEnd)),
+                    day.BreakEnd,
+                    day.IsFlexible,
+                    day.RequiredMinutes)),
             ]);
 }
 
@@ -895,7 +922,9 @@ public static class AttendanceEndpoints
                 "«davomat.jadval_nom_bosh», «davomat.jadval_kun_takror», «davomat.jadval_kun_yetishmaydi», " +
                 "«davomat.jadval_vaqt_bosh», «davomat.jadval_vaqt_teng», «davomat.jadval_yon_berish», " +
                 "«davomat.jadval_tanaffus_toliq_emas», «davomat.jadval_tanaffus_oynasi», " +
-                "«davomat.jadval_tanaffus_uzunligi» (400); «davomat.jadval_nom_takror» (409).")
+                "«davomat.jadval_tanaffus_uzunligi», «davomat.jadval_erkin_vaqti» (400); «davomat.jadval_nom_takror» (409). " +
+                "«isFlexible» — erkin ish jadvali: kechikish va erta ketish yo'q, kun «requiredMinutes» (ish vaqti) " +
+                "bilan baholanadi; «requiredMinutes» bo'sh bo'lsa — smena − tanaffus. Dam olish kunida bayroq tozalanadi.")
             .Produces<WorkScheduleDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -917,7 +946,8 @@ public static class AttendanceEndpoints
             .WithName("UpdateWorkSchedule")
             .WithSummary("Davomat — ish jadvalini tahrirlash")
             .WithDescription(
-                "Tana yaratishdagi bilan bir xil; oynani o'chirish — ikkala maydonni null yuborish. " +
+                "Tana yaratishdagi bilan bir xil (xatolar ham, «davomat.jadval_erkin_vaqti» bilan); oynani o'chirish — " +
+                "ikkala maydonni null yuborish. " +
                 "⚠️ O'tgan kunlar AVTOMATIK qayta hisoblanmaydi — kerakli davr uchun «/recompute» chaqiring.")
             .Produces<WorkScheduleDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -971,7 +1001,9 @@ public static class AttendanceEndpoints
                             body.EndTime,
                             body.BreakMinutes,
                             body.BreakStart,
-                            body.BreakEnd),
+                            body.BreakEnd,
+                            body.IsFlexible,
+                            body.RequiredMinutes),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -984,7 +1016,8 @@ public static class AttendanceEndpoints
                 "Bitta chaqiruv bilan bir nechta sana: bitta katak ham, oyning qatori ham, butun yil ham " +
                 "shu yerdan. «reset: true» — kataklar O'CHIRILADI va kunlar haftalik naqshga qaytadi " +
                 "(qolgan maydonlar e'tiborga olinmaydi). Aks holda ish kuni uchun «startTime» va «endTime» " +
-                "SHART («davomat.jadval_vaqt_bosh»), tanaffus oynasi smena ichida bo'lishi kerak. " +
+                "SHART («davomat.jadval_vaqt_bosh»), tanaffus oynasi smena ichida bo'lishi kerak; erkin katakda " +
+                "«requiredMinutes» 1 … smena − tanaffus («davomat.jadval_erkin_vaqti»). " +
                 "Eng ko'pi 400 ta sana. ⭐ Yozuvdan keyin BUGUNGACHA bo'lgan kunlar qayta hisoblanadi: " +
                 "jadval o'zgarishi kechagi tabelni ham o'zgartiradi. Kelajakdagi kunlar qayta hisoblanmaydi " +
                 "— ularning saqlangan yozuvi yo'q.")
@@ -1438,7 +1471,8 @@ public static class AttendanceEndpoints
         const string ErrorCodes =
             "Xatolar: «davomat.jadval_sorovi_kun_yoq», «davomat.jadval_sorovi_kop», «davomat.jadval_sorovi_sana_takror», " +
             "«davomat.jadval_vaqt_bosh», «davomat.jadval_vaqt_teng», «davomat.jadval_tanaffus_toliq_emas», " +
-            "«davomat.jadval_tanaffus_oynasi», «davomat.jadval_sorovi_bir_xil_sana», «davomat.jadval_sorovi_jadval_yoq» (400); " +
+            "«davomat.jadval_tanaffus_oynasi», «davomat.jadval_erkin_vaqti», «davomat.jadval_sorovi_bir_xil_sana», " +
+            "«davomat.jadval_sorovi_jadval_yoq» (400); " +
             "«davomat.xodim_topilmadi» (404); «davomat.jadval_sorovi_takroriy» (409).";
 
         group.MapGet("/schedule-requests", async (
@@ -1508,8 +1542,9 @@ public static class AttendanceEndpoints
             .WithName("CreateScheduleChangeRequest")
             .WithSummary("Davomat — jadval so'rovini yaratish (xodim nomidan)")
             .WithDescription(
-                "«kind: Change» — «days» (1–31 sana: ish kuni — boshlanish/tugash, ixtiyoriy tanaffus; yoki dam " +
-                "olish kuni). «kind: Swap» — «swaps» (1–15 juft): server ikkala sananing AMALDAGI rejasini " +
+                "«kind: Change» — «days» (1–31 sana: ish kuni — boshlanish/tugash, ixtiyoriy tanaffus va «isFlexible» + " +
+                "«requiredMinutes»; yoki dam olish kuni). «kind: Swap» — «swaps» (1–15 juft): server ikkala sananing " +
+                "AMALDAGI rejasini (erkinligi bilan) " +
                 "o'rin almashtirib saqlaydi. Yangi so'rov tabelga ta'sir qilmaydi — faqat tasdiqlangach. " + ErrorCodes)
             .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -1842,9 +1877,10 @@ public static class AttendanceEndpoints
             .WithName("GetAttendanceExceptions")
             .WithSummary("Davomat — chetlanishlar hisoboti")
             .WithDescription(
-                "«kind» majburiy: Late | EarlyLeave | Absent | Missing (MissingExit + MissingEntry + NoSchedule) " +
-                "— «davomat.hisobot_turi_notogri» (400). Davr berilmasa — shu oy boshidan bugungacha, 92 kundan " +
-                "oshmasin. «minMinutes» faqat Late/EarlyLeave uchun. «sort» — date (sukut) | employee | minutes.")
+                "«kind» majburiy: Late | EarlyLeave | Absent | Missing (MissingExit + MissingEntry + NoSchedule) | " +
+                "Shortfall (erkin kunda kam ishlangan) — «davomat.hisobot_turi_notogri» (400). Davr berilmasa — shu oy " +
+                "boshidan bugungacha, 92 kundan oshmasin. «minMinutes» faqat Late/EarlyLeave/Shortfall uchun. «sort» — " +
+                "date (sukut) | employee | minutes.")
             .Produces<PagedResult<AttendanceExceptionDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);

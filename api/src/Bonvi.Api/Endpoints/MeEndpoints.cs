@@ -396,14 +396,7 @@ public static partial class MeEndpoints
                     .HandleAsync(
                         new CreateMyScheduleRequestCommand(
                             body.Kind,
-                            [.. (body.Days ?? []).Select(day => new ScheduleChangeDayInput(
-                                day.Date,
-                                day.IsWorking,
-                                day.StartTime,
-                                day.EndTime,
-                                day.BreakStart,
-                                day.BreakEnd,
-                                BreakMinutes: day.BreakMinutes))],
+                            [.. (body.Days ?? []).Select(day => day.ToInput())],
                             [.. (body.Swaps ?? []).Select(pair => new ScheduleSwapInput(pair.Date, pair.WithDate))],
                             body.Note),
                         cancellationToken)
@@ -457,7 +450,7 @@ public static partial class MeEndpoints
             .WithSummary("Xodim — sananing amaldagi rejasi")
             .WithDescription(
                 "Jadval so'rovi formasini xodimning hozirgi soatlari bilan to'ldirish uchun. Jadval biriktirilmagan " +
-                "bo'lsa «hasSchedule: false».")
+                "bo'lsa «hasSchedule: false». Erkin kunda «isFlexible: true» va «requiredMinutes» (ish vaqti).")
             .Produces<DayPlanDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
     }

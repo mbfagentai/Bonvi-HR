@@ -12,14 +12,17 @@ namespace Bonvi.Application.Attendance.Queries;
 // ════════════════════════════════════════════════════════════════════
 
 /// <summary>Chetlanishlar hisoboti (SPEC §6.6, <c>GET /reports/exceptions</c>).</summary>
-/// <param name="Kind"><c>Late</c> | <c>EarlyLeave</c> | <c>Absent</c> | <c>Missing</c> — majburiy.</param>
+/// <param name="Kind"><c>Late</c> | <c>EarlyLeave</c> | <c>Absent</c> | <c>Missing</c> | <c>Shortfall</c> — majburiy.</param>
 /// <param name="From">Davr boshi. Berilmasa — <paramref name="To"/> oyining 1-sanasi.</param>
 /// <param name="To">Davr oxiri. Berilmasa — bugun.</param>
 /// <param name="LegalEntityId">Kun yozuvidagi firma.</param>
 /// <param name="DepartmentId">Kun yozuvidagi bo'lim (ichki bo'limlari bilan).</param>
 /// <param name="PositionId">Kun yozuvidagi lavozim.</param>
 /// <param name="EmployeeId">Faqat shu xodim.</param>
-/// <param name="MinMinutes">Kamida shuncha daqiqa — faqat <c>Late</c>/<c>EarlyLeave</c> uchun, boshqalarda e'tiborga olinmaydi.</param>
+/// <param name="MinMinutes">
+/// Kamida shuncha daqiqa — faqat <c>Late</c>/<c>EarlyLeave</c>/<c>Shortfall</c> uchun, boshqalarda
+/// e'tiborga olinmaydi.
+/// </param>
 /// <param name="Page">Sahifa, 1 dan.</param>
 /// <param name="PageSize">Sahifa hajmi (eng ko'pi 200).</param>
 /// <param name="Sort"><c>date</c> (sukut, yangidan eskiga), <c>employee</c>, <c>minutes</c>; teskari uchun <c>-</c>.</param>

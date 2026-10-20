@@ -81,6 +81,8 @@ const APP_CODES = [
   'davomat.jadval_tanaffus_toliq_emas',
   'davomat.jadval_tanaffus_oynasi',
   'davomat.jadval_tanaffus_uzunligi',
+  // «Erkin ish jadvali» kunining «Ish vaqti» chegarasi (SPEC-erkin-jadval §2.5)
+  'davomat.jadval_erkin_vaqti',
 ]
 
 /** Lotin yozuvidagi matnda ASCII apostrof bo'lmasligi kerak. */

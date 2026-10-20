@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Link } from '@tanstack/react-router'
-import { Coffee, FileCheck2 } from 'lucide-react'
+import { Coffee, FileCheck2, Hourglass } from 'lucide-react'
 import { useSyncExternalStore, type ReactNode } from 'react'
 
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
@@ -39,8 +39,8 @@ import { MobileMarksLine } from './attendance-mobile-evidence'
  *     oraliq va yumshoq fon bilan (tizimning umumiy qoidasi);
  *   · katakda BITTA raqam — soat, bitta kasr bilan; qolgan hamma narsa
  *     bosilganda ochiladigan oynachada (iOS: bosqichma-bosqich ochish);
- *   · holat — 12 % li TO'LDIRISH, kechikish — pastki qirradagi 3 px sariq
- *     chiziq (`DAY_STATUS_LOOK`, `LATE_BAR_CLASS`);
+ *   · holat — 12 % li TO'LDIRISH, kechikish (erkin kunda — kam ishlangan)
+ *     — pastki qirradagi 3 px sariq chiziq (`DAY_STATUS_LOOK`, `LATE_BAR_CLASS`);
  *   · xodim va jami ustunlari QOTIRILGAN, kunlar esa suriladi.
  */
 
@@ -439,7 +439,8 @@ function DayCell({ cell, employeeName }: { cell: TimesheetCell; employeeName: st
             'size-9 text-caption2',
             '@min-[1500px]/tabel:size-10 @min-[1750px]/tabel:size-11 @min-[1750px]/tabel:text-caption1',
             look.cellClass,
-            cell.lateMinutes > 0 && LATE_BAR_CLASS,
+            // Erkin kunda kechikish yo'q — chiziq normadan kamini aytadi (SPEC-erkin-jadval §7.1)
+            (cell.lateMinutes > 0 || (cell.shortfallMinutes ?? 0) > 0) && LATE_BAR_CLASS,
             'transition-shadow duration-150 data-[state=open]:ring-2 data-[state=open]:ring-[var(--ring)]',
           )}
         >
@@ -503,6 +504,17 @@ function CellDetails({ cell }: { cell: TimesheetCell }) {
 
   const minutes = (value: number) => (value > 0 ? t('attendance.minutes', { n: num(value) }) : '—')
 
+  /*
+    Erkin kun (SPEC-erkin-jadval §7.1): kechikish va erta ketish yo'q — o'rnida
+    kun normasi («Reja») va undan kami («Kam ishlangan»).
+  */
+  const flexible = cell.isFlexible ?? false
+  const shortfall = cell.shortfallMinutes ?? 0
+  const range =
+    cell.planStartAt === null
+      ? '—'
+      : `${formatPassTime(cell.planStartAt)}–${formatPassTime(cell.planEndAt)}`
+
   return (
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -525,17 +537,37 @@ function CellDetails({ cell }: { cell: TimesheetCell }) {
         <Fact label={t('attendance.worked')}>
           <span className="font-semibold">{formatDuration(cell.workedMinutes)}</span>
         </Fact>
-        <Fact label={t('attendance.lateMinutes')}>
-          <span className={cn(cell.lateMinutes > 0 && 'font-semibold text-ios-orange')}>
-            {minutes(cell.lateMinutes)}
-          </span>
-        </Fact>
-        <Fact label={t('attendance.earlyLeaveMinutes')}>
-          <span className={cn(cell.earlyLeaveMinutes > 0 && 'font-semibold text-ios-orange')}>
-            {minutes(cell.earlyLeaveMinutes)}
-          </span>
-        </Fact>
+        {flexible ? (
+          <>
+            <Fact label={t('attendance.planned')}>{formatDuration(cell.plannedMinutes ?? 0)}</Fact>
+            <Fact label={t('attendance.shortfallMinutes')}>
+              <span className={cn(shortfall > 0 && 'font-semibold text-ios-orange')}>
+                {minutes(shortfall)}
+              </span>
+            </Fact>
+          </>
+        ) : (
+          <>
+            <Fact label={t('attendance.lateMinutes')}>
+              <span className={cn(cell.lateMinutes > 0 && 'font-semibold text-ios-orange')}>
+                {minutes(cell.lateMinutes)}
+              </span>
+            </Fact>
+            <Fact label={t('attendance.earlyLeaveMinutes')}>
+              <span className={cn(cell.earlyLeaveMinutes > 0 && 'font-semibold text-ios-orange')}>
+                {minutes(cell.earlyLeaveMinutes)}
+              </span>
+            </Fact>
+          </>
+        )}
       </dl>
+
+      {flexible && (
+        <p className="flex items-start gap-2 text-footnote text-[var(--fg-secondary)]">
+          <Hourglass className="mt-0.5 size-4 shrink-0 text-[var(--fg-tertiary)]" strokeWidth={2} />
+          <span className="tabular">{t('attendance.flexibleCellLine', { range })}</span>
+        </p>
+      )}
 
       {present && (
         <p className="flex items-start gap-2 text-footnote text-[var(--fg-secondary)]">
@@ -663,6 +695,12 @@ function TotalsDetails({ totals }: { totals: TimesheetTotals }) {
       </Fact>
       <Fact label={t('attendance.lateMinutes')}>{minutes(totals.lateMinutes)}</Fact>
       <Fact label={t('attendance.earlyLeaveMinutes')}>{minutes(totals.earlyLeaveMinutes)}</Fact>
+      {/* Erkin kunlarda normadan kami yig'indisi (SPEC-erkin-jadval §5.3) */}
+      <Fact label={t('attendance.shortfallMinutes')}>
+        <span className={cn((totals.shortfallMinutes ?? 0) > 0 && 'font-semibold text-ios-orange')}>
+          {minutes(totals.shortfallMinutes ?? 0)}
+        </span>
+      </Fact>
     </dl>
   )
 }
@@ -753,7 +791,8 @@ export function TimesheetLegend() {
             LATE_BAR_CLASS,
           )}
         />
-        {t('attendance.late')}
+        {/* Erkin kunda shu chiziq normadan kamini aytadi */}
+        {t('attendance.lateOrShortfall')}
       </span>
     </div>
   )

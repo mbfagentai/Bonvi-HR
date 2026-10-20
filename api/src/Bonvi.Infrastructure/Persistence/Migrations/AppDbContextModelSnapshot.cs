@@ -173,6 +173,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("ignored_pass_count");
 
+                    b.Property<bool>("IsFlexible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_flexible");
+
                     b.Property<DateTimeOffset?>("LastOutAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_out_at");
@@ -212,6 +216,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("PositionId")
                         .HasColumnType("uuid")
                         .HasColumnName("position_id");
+
+                    b.Property<int>("ShortfallMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("shortfall_minutes");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")
@@ -896,6 +904,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("time without time zone")
                         .HasColumnName("end_time");
 
+                    b.Property<bool>("IsFlexible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_flexible");
+
                     b.Property<bool>("IsWorking")
                         .HasColumnType("boolean")
                         .HasColumnName("is_working");
@@ -903,6 +915,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("RequestId")
                         .HasColumnType("uuid")
                         .HasColumnName("request_id");
+
+                    b.Property<int?>("RequiredMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_minutes");
 
                     b.Property<TimeOnly?>("StartTime")
                         .HasColumnType("time without time zone")
@@ -927,6 +943,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_schedule_change_request_days_break", "(break_start IS NULL AND break_end IS NULL) OR (is_working AND break_start IS NOT NULL AND break_end IS NOT NULL AND break_start <> break_end)");
 
                             t.HasCheckConstraint("ck_schedule_change_request_days_break_minutes", "break_minutes BETWEEN 0 AND 480 AND (is_working OR break_minutes = 0)");
+
+                            t.HasCheckConstraint("ck_schedule_change_request_days_flexible", "(NOT is_flexible AND required_minutes IS NULL) OR (is_flexible AND required_minutes IS NOT NULL AND required_minutes BETWEEN 1 AND 1440)");
 
                             t.HasCheckConstraint("ck_schedule_change_request_days_times", "(is_working AND start_time IS NOT NULL AND end_time IS NOT NULL) OR (NOT is_working AND start_time IS NULL AND end_time IS NULL)");
                         });
@@ -1113,9 +1131,17 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("time without time zone")
                         .HasColumnName("end_time");
 
+                    b.Property<bool>("IsFlexible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_flexible");
+
                     b.Property<bool>("IsWorking")
                         .HasColumnType("boolean")
                         .HasColumnName("is_working");
+
+                    b.Property<int?>("RequiredMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_minutes");
 
                     b.Property<TimeOnly?>("StartTime")
                         .HasColumnType("time without time zone")
@@ -1140,7 +1166,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_work_schedule_dates_schedule_date");
 
-                    b.ToTable("work_schedule_dates", (string)null);
+                    b.ToTable("work_schedule_dates", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_work_schedule_dates_flexible", "(NOT is_flexible AND required_minutes IS NULL) OR (is_flexible AND required_minutes IS NOT NULL AND required_minutes BETWEEN 1 AND 1440)");
+                        });
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Attendance.WorkScheduleDay", b =>
@@ -1170,9 +1199,17 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("time without time zone")
                         .HasColumnName("end_time");
 
+                    b.Property<bool>("IsFlexible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_flexible");
+
                     b.Property<bool>("IsWorking")
                         .HasColumnType("boolean")
                         .HasColumnName("is_working");
+
+                    b.Property<int?>("RequiredMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_minutes");
 
                     b.Property<TimeOnly?>("StartTime")
                         .HasColumnType("time without time zone")
@@ -1192,6 +1229,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("work_schedule_days", null, t =>
                         {
                             t.HasCheckConstraint("ck_work_schedule_days_break_window", "(break_start IS NULL AND break_end IS NULL)\nOR (is_working\n    AND break_start IS NOT NULL\n    AND break_end IS NOT NULL\n    AND break_start <> break_end)");
+
+                            t.HasCheckConstraint("ck_work_schedule_days_flexible", "(NOT is_flexible AND required_minutes IS NULL) OR (is_flexible AND required_minutes IS NOT NULL AND required_minutes BETWEEN 1 AND 1440)");
                         });
                 });
 

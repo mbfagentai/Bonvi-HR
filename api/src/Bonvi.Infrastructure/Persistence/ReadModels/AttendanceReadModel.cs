@@ -2020,7 +2020,9 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         Guid? DepartmentId,
         Guid? PositionId,
         DateTimeOffset ComputedAt,
-        int CreditedMinutes);
+        int CreditedMinutes,
+        bool IsFlexible,
+        int ShortfallMinutes);
 
     /// <inheritdoc />
     /// <remarks>
@@ -2143,7 +2145,9 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 day.DepartmentId,
                 day.PositionId,
                 day.ComputedAt,
-                day.CreditedMinutes))
+                day.CreditedMinutes,
+                day.IsFlexible,
+                day.ShortfallMinutes))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -2218,7 +2222,10 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                             mobileMarks.GetValueOrDefault((employee.Id, date)),
                             stored.Status == AttendanceDayStatus.NoSchedule
                                 && AttendanceRules.IsNoScheduleAutoExit(date, stored.LastOutAt),
-                            stored.CreditedMinutes)
+                            stored.CreditedMinutes,
+                            stored.IsFlexible,
+                            stored.PlannedMinutes,
+                            stored.ShortfallMinutes)
                         // Hosil qilingan katakda reja ham YO'Q: u hali
                         // hisoblanmagan kun (§5.7.1) va rejasini shu yerda
                         // qayta hisoblash tungi hisoblashning ikkinchi
@@ -2247,7 +2254,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                     cells.Count(cell => cell.Status == AttendanceDayStatus.Present),
                     cells.Count(cell => cell.Status == AttendanceDayStatus.Absent),
                     cells.Sum(cell => cell.LateMinutes),
-                    cells.Sum(cell => cell.EarlyLeaveMinutes));
+                    cells.Sum(cell => cell.EarlyLeaveMinutes),
+                    cells.Sum(cell => cell.ShortfallMinutes));
 
                 var display = displayEmployments[employee.Id];
                 var snapshot = latestSnapshots.GetValueOrDefault(employee.Id);
@@ -2424,6 +2432,7 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 day.Status == AttendanceDayStatus.MissingExit ||
                 day.Status == AttendanceDayStatus.MissingEntry ||
                 day.Status == AttendanceDayStatus.NoSchedule),
+            ExceptionKind.Shortfall => days.Where(day => day.ShortfallMinutes >= minMinutes),
             _ => throw new ArgumentOutOfRangeException(nameof(filter), filter.Kind, "Noma'lum chetlanish turi."),
         };
 
@@ -2444,7 +2453,7 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         var descending = filter.Descending;
 
         var sortByMinutes = filter.Sort == ExceptionSortField.Minutes
-            && filter.Kind is ExceptionKind.Late or ExceptionKind.EarlyLeave;
+            && filter.Kind is ExceptionKind.Late or ExceptionKind.EarlyLeave or ExceptionKind.Shortfall;
 
         var ordered = filter.Sort switch
         {
@@ -2455,6 +2464,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 .ThenByDescending(row => row.Day.LocalDate),
             _ when sortByMinutes && filter.Kind == ExceptionKind.Late =>
                 By(shaped, row => row.Day.LateMinutes, descending).ThenByDescending(row => row.Day.LocalDate),
+            _ when sortByMinutes && filter.Kind == ExceptionKind.Shortfall =>
+                By(shaped, row => row.Day.ShortfallMinutes, descending).ThenByDescending(row => row.Day.LocalDate),
             _ when sortByMinutes =>
                 By(shaped, row => row.Day.EarlyLeaveMinutes, descending).ThenByDescending(row => row.Day.LocalDate),
             _ => Then(By(shaped, row => row.Day.LocalDate, descending), row => row.LastName, descending: false),
@@ -2485,6 +2496,7 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 row.Day.EarlyLeaveMinutes,
                 row.Day.WorkedMinutes,
                 row.Day.Status,
+                row.Day.ShortfallMinutes,
             })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -2512,7 +2524,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 row.LateMinutes,
                 row.EarlyLeaveMinutes,
                 row.WorkedMinutes,
-                row.Status)),
+                row.Status,
+                row.ShortfallMinutes)),
         ];
 
         return new AttendancePage<AttendanceExceptionDto>(items, total);
@@ -2565,6 +2578,7 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 LateMinutes = group.Sum(day => day.LateMinutes),
                 EarlyLeaveMinutes = group.Sum(day => day.EarlyLeaveMinutes),
                 OvertimeMinutes = group.Sum(day => day.OvertimeMinutes),
+                ShortfallMinutes = group.Sum(day => day.ShortfallMinutes),
             });
 
         var shaped =
@@ -2646,7 +2660,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                     row.Summary.LateMinutes,
                     row.Summary.EarlyLeaveMinutes,
                     row.Summary.OvertimeMinutes,
-                    row.Summary.ProblemDays);
+                    row.Summary.ProblemDays,
+                    row.Summary.ShortfallMinutes);
             }),
         ];
 

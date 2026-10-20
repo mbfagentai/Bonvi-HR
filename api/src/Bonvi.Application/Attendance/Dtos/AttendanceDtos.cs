@@ -718,6 +718,13 @@ public sealed record AbsenceRequestCountDto(int Pending);
 /// <paramref name="WorkedMinutes"/> ning «ish vaqti hisoblanadigan» tasdiqlangan so'rovdan
 /// kelgan qismi — katakda «so'rov bo'yicha» bo'lib ko'rinadi (SPEC-so'rovlar §B3 AMENDED).
 /// </param>
+/// <param name="IsFlexible">
+/// Kun «Erkin ish jadvali» bo'yicha hisoblangan (SPEC-erkin-jadval §5.3): kechikish va erta ketish
+/// o'rnida reja (<paramref name="PlannedMinutes"/>) va <paramref name="ShortfallMinutes"/> ko'rsatiladi.
+/// Hosil qilingan katakda <c>false</c>.
+/// </param>
+/// <param name="PlannedMinutes">Kun rejasi (daqiqa) — erkin kunda norma («Ish vaqti»); hosil qilingan katakda 0.</param>
+/// <param name="ShortfallMinutes">«Kam ishlangan» — erkin kunda normadan kami; qolgan hamma kunda 0.</param>
 public sealed record TimesheetCellDto(
     DateOnly Date,
     AttendanceDayStatus Status,
@@ -732,7 +739,10 @@ public sealed record TimesheetCellDto(
     DateTimeOffset? PlanEndAt,
     int MobileMarks = 0,
     bool AutoExit = false,
-    int CreditedMinutes = 0);
+    int CreditedMinutes = 0,
+    bool IsFlexible = false,
+    int PlannedMinutes = 0,
+    int ShortfallMinutes = 0);
 
 /// <summary>
 /// Bir xodimning oy bo'yicha jami ko'rsatkichlari.
@@ -750,13 +760,15 @@ public sealed record TimesheetCellDto(
 /// <param name="AbsentDays"><c>Absent</c> holatidagi kunlar — hosil qilinganlari bilan birga.</param>
 /// <param name="LateMinutes">Kechikishlar yig'indisi.</param>
 /// <param name="EarlyLeaveMinutes">Erta ketishlar yig'indisi.</param>
+/// <param name="ShortfallMinutes">«Kam ishlangan» yig'indisi (erkin kunlar, SPEC-erkin-jadval §5.3).</param>
 public sealed record TimesheetTotalsDto(
     int WorkedMinutes,
     int PlannedMinutes,
     int PresentDays,
     int AbsentDays,
     int LateMinutes,
-    int EarlyLeaveMinutes);
+    int EarlyLeaveMinutes,
+    int ShortfallMinutes = 0);
 
 /// <summary>Tabelning bitta qatori — bitta xodim, oyning barcha kunlari.</summary>
 /// <param name="EmployeeId">Xodim.</param>
@@ -824,6 +836,7 @@ public sealed record AttendanceTimesheetDto(
 /// <param name="EarlyLeaveMinutes">Erta ketish, daqiqa.</param>
 /// <param name="WorkedMinutes">Ishlangan daqiqalar.</param>
 /// <param name="Status">Kun holati.</param>
+/// <param name="ShortfallMinutes">«Kam ishlangan» (erkin kun), daqiqa — <c>Shortfall</c> ro'yxatining ustuni.</param>
 public sealed record AttendanceExceptionDto(
     DateOnly Date,
     Guid EmployeeId,
@@ -838,7 +851,8 @@ public sealed record AttendanceExceptionDto(
     int LateMinutes,
     int EarlyLeaveMinutes,
     int WorkedMinutes,
-    AttendanceDayStatus Status);
+    AttendanceDayStatus Status,
+    int ShortfallMinutes = 0);
 
 /// <summary>Xulosa hisobotining bitta qatori — bitta xodim, butun davr.</summary>
 /// <remarks>
@@ -868,6 +882,7 @@ public sealed record AttendanceExceptionDto(
 /// <param name="EarlyLeaveMinutes">Erta ketishlar yig'indisi.</param>
 /// <param name="OvertimeMinutes">Ortiqcha ishlangan vaqt — hisoblanadi, HECH QACHON pulga aylanmaydi.</param>
 /// <param name="ProblemDays"><c>MissingExit + MissingEntry + NoSchedule</c> — «hisoblab bo'lmagan» kunlar.</param>
+/// <param name="ShortfallMinutes">«Kam ishlangan» yig'indisi (erkin kunlar, SPEC-erkin-jadval §5.3).</param>
 public sealed record AttendanceSummaryDto(
     Guid EmployeeId,
     string EmployeeName,
@@ -883,7 +898,8 @@ public sealed record AttendanceSummaryDto(
     int LateMinutes,
     int EarlyLeaveMinutes,
     int OvertimeMinutes,
-    int ProblemDays);
+    int ProblemDays,
+    int ShortfallMinutes = 0);
 
 // ────────────────────────────────────────────────────────────────────
 //  5. Eksport (SPEC §6.7)
@@ -1152,6 +1168,8 @@ public sealed record IdentityImportResultDto(
 /// qiymati bo'yicha; oyna yo'q bo'lsa <c>false</c>. Saqlanmaydi, hisoblanadi
 /// (<c>CrossesMidnight</c> bilan bir xil sabab).
 /// </param>
+/// <param name="IsFlexible">«Erkin ish jadvali» (SPEC-erkin-jadval §5.1); dam olish kunida <c>false</c>.</param>
+/// <param name="RequiredMinutes">«Ish vaqti» (daqiqa) — <paramref name="IsFlexible"/> bo'lsagina bor.</param>
 public sealed record WorkScheduleDayDto(
     int DayIndex,
     bool IsWorking,
@@ -1160,7 +1178,9 @@ public sealed record WorkScheduleDayDto(
     int BreakMinutes,
     TimeOnly? BreakStart,
     TimeOnly? BreakEnd,
-    bool BreakCrossesMidnight);
+    bool BreakCrossesMidnight,
+    bool IsFlexible,
+    int? RequiredMinutes);
 
 /// <summary>Yillik to'r katagining manbai.</summary>
 public enum ScheduleDaySource
@@ -1206,8 +1226,10 @@ public enum ScheduleDaySource
 /// <param name="BreakMinutes">Ishlangan vaqtdan ayiriladigan tanaffus.</param>
 /// <param name="BreakStart">Tanaffus oynasining boshi — oyna yo'q bo'lsa <c>null</c>.</param>
 /// <param name="BreakEnd">Tanaffus oynasining oxiri — oyna yo'q bo'lsa <c>null</c>.</param>
-/// <param name="PlannedMinutes">Kun normasi (tanaffus ayirilgan).</param>
+/// <param name="PlannedMinutes">Kun normasi (tanaffus ayirilgan); erkin katakda — «Ish vaqti».</param>
 /// <param name="Source">Naqshdanmi yoki sanaga yozilganmi.</param>
+/// <param name="IsFlexible">«Erkin ish jadvali» — katakdan yoki (katak yo'q bo'lsa) naqshdan.</param>
+/// <param name="RequiredMinutes">«Ish vaqti» — <paramref name="IsFlexible"/> bo'lsagina bor.</param>
 public sealed record ScheduleYearDayDto(
     DateOnly Date,
     bool IsWorking,
@@ -1217,7 +1239,9 @@ public sealed record ScheduleYearDayDto(
     TimeOnly? BreakStart,
     TimeOnly? BreakEnd,
     int PlannedMinutes,
-    ScheduleDaySource Source);
+    ScheduleDaySource Source,
+    bool IsFlexible,
+    int? RequiredMinutes);
 
 /// <summary>Jadvalning bir yillik to'ri.</summary>
 /// <param name="ScheduleId">Jadval.</param>

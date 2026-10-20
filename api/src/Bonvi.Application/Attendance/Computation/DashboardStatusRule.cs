@@ -78,6 +78,12 @@ public static class DashboardStatusRule
             return new DashboardVerdict(AttendanceDashboardStatus.DayOff, null);
         }
 
+        // Erkin kunda kelgan — doim «Vaqtida»: kechikish tushunchasi yo'q (SPEC-erkin-jadval §2.2, 16-qator).
+        if (arrivedAt is not null && plan.IsFlexible)
+        {
+            return new DashboardVerdict(AttendanceDashboardStatus.OnTime, null);
+        }
+
         if (arrivedAt is { } arrived)
         {
             return arrived <= planStart.AddMinutes(plan.GraceInMinutes)
@@ -116,6 +122,15 @@ public static class DashboardStatusRule
     /// qoidasi). O'tgan sana — hech qachon: kechagi reja boshlanishi har doim
     /// hozirdan oldin.
     /// </para>
+    /// <para>
+    /// ⭐ <b>Erkin kun</b> (SPEC-erkin-jadval §2.2, 13-qator) — eng kech kelish lahzasigacha
+    /// (<see cref="DayPlan.LatestStartAt"/> = oyna tugashi − norma): 08:30–18:00, 7:30 da
+    /// 10:30 gacha «Hali boshlanmagan», keyin «Kelmadi». Sana emas, LAHZA bo'yicha: tungi
+    /// smenaning eng kech kelishi ertangi sanaga tushishi mumkin (20:00–08:00, 4 soat →
+    /// seshanba 04:00). Borliq oynaga kesilmasa ham (egasi, 2026-10-20) chegara shu: oynadan
+    /// keyin ham ishlab normani to'ldirish mumkin, lekin kelmagan odam qachondir «Kelmadi»
+    /// bo'lishi kerak — keyinroq kelsa, holat o'tishning o'zidan qayta hisoblanadi.
+    /// </para>
     /// </remarks>
     /// <param name="plan">Kun rejasi.</param>
     /// <param name="today">Bugungi Toshkent sanasi.</param>
@@ -124,7 +139,13 @@ public static class DashboardStatusRule
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        return plan.Date > today
-            || (plan.Date == today && plan.PlanStartAt is { } planStart && now < planStart);
+        if (plan.Date > today)
+        {
+            return true;
+        }
+
+        return plan.IsFlexible
+            ? plan.LatestStartAt is { } latestStart && now < latestStart
+            : plan.Date == today && plan.PlanStartAt is { } planStart && now < planStart;
     }
 }

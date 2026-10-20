@@ -18,6 +18,14 @@ namespace Bonvi.Domain.Attendance;
 /// <param name="BreakMinutes">Haq to'lanmaydigan tanaffus (daqiqa).</param>
 /// <param name="BreakStart">Tanaffus oynasining boshlanishi.</param>
 /// <param name="BreakEnd">Tanaffus oynasining tugashi.</param>
+/// <param name="IsFlexible">
+/// «Erkin ish jadvali» (SPEC-erkin-jadval §2): kechikish va erta ketish yo'q, kun ishlangan
+/// vaqt bilan baholanadi. Faqat ish kunida — dam olish kunida jimgina tozalanadi.
+/// </param>
+/// <param name="RequiredMinutes">
+/// «Ish vaqti» — erkin kunning normasi (daqiqa). <c>null</c> — sukut: smena − tanaffus.
+/// Erkin bo'lmagan kunda e'tiborga olinmaydi.
+/// </param>
 public readonly record struct WorkScheduleDayInput(
     int DayIndex,
     bool IsWorking,
@@ -25,7 +33,9 @@ public readonly record struct WorkScheduleDayInput(
     TimeOnly? EndTime = null,
     int BreakMinutes = 0,
     TimeOnly? BreakStart = null,
-    TimeOnly? BreakEnd = null);
+    TimeOnly? BreakEnd = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);
 
 /// <summary>
 /// Ish jadvali — «odam qachon kutiladi» degan savolning javobi.

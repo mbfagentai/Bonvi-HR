@@ -13,10 +13,14 @@ import type {
 import { shortTime } from '@/data/attendance'
 import { invalidateScheduleRequests, usePlan } from '@/data/queries'
 import {
+  MIN_REQUIRED_MINUTES,
   breakDiffersFromWindow,
   breakInsideShift,
+  breakWindowMinutes,
   crossesMidnight,
   dayPlanText,
+  hoursMinutes,
+  maxRequiredMinutes,
   wireTime,
 } from '@/data/schedule-requests'
 import { addDays, parseIsoDate, todayIso } from '@/lib/time'
@@ -25,7 +29,7 @@ import { PushedScreen } from '@/ui/app-shell'
 import { BottomAction, Button } from '@/ui/button'
 import { Card } from '@/ui/card'
 import { InlineMessage, Skeleton, SkeletonLines } from '@/ui/feedback'
-import { DateRow, Field, SegmentedControl, SwitchRow, TextArea, TimeRow } from '@/ui/form'
+import { DateRow, DurationRow, Field, SegmentedControl, SwitchRow, TextArea, TimeRow } from '@/ui/form'
 import { ConfirmSheet } from '@/ui/sheet'
 import { useToast } from '@/ui/toast'
 
@@ -50,6 +54,14 @@ interface DayDraft {
    * reja qo'yilmagan blok yoki tanaffusni xodim o'zi yozgan.
    */
   breakMinutes: number | null
+  /** «Erkin ish jadvali» (SPEC-erkin-jadval §7.2) — faqat ish kunida yuboriladi. */
+  isFlexible: boolean
+  /**
+   * «Ish vaqti», daqiqa. `null` — SUKUT (smena − tanaffus): ko'rinadigan
+   * qiymat smena yoki tanaffus bilan birga o'zgaradi va server uni o'zi
+   * yozadi. Xodim sukutdan boshqa qiymat tanlasa — u qotadi.
+   */
+  requiredMinutes: number | null
   /**
    * Qaysi sana uchun blok «o'rnashgan»: reja qo'yilgan yoki xodim o'zi
    * tahrirlagan. Sana almashsa `null` bo'ladi va yangi sananing rejasi
@@ -84,8 +96,25 @@ function emptyDay(date: string): DayDraft {
     breakStart: '',
     breakEnd: '',
     breakMinutes: null,
+    isFlexible: false,
+    requiredMinutes: null,
     settledFor: null,
   }
+}
+
+/**
+ * «Ish vaqti» sukuti va eng kattasi — serverning formulasi (SPEC-erkin-jadval
+ * §2.5): smena minus ayiriladigan tanaffus; tanaffus — jadvaldagi uzunlik, u
+ * bo'lmasa oynaning o'zi, oynasiz — 0 (`ScheduleChangeRequest.BreakMinutes`).
+ * Smena to'liq tanlanmagan bo'lsa — `null`: hisoblaydigan narsa yo'q.
+ */
+function defaultRequired(draft: DayDraft): number | null {
+  if (draft.startTime === '' || draft.endTime === '' || draft.startTime === draft.endTime) return null
+
+  const breakMinutes =
+    draft.breakMinutes ?? (draft.hasBreak ? breakWindowMinutes(draft.breakStart, draft.breakEnd) : 0)
+
+  return maxRequiredMinutes(draft.startTime, draft.endTime, breakMinutes)
 }
 
 /**
@@ -99,7 +128,7 @@ function applyPlan(draft: DayDraft, plan: DayPlanDto): DayDraft {
   const breakStart = shortTime(plan.breakStart) ?? ''
   const breakEnd = shortTime(plan.breakEnd) ?? ''
 
-  return {
+  const filled: DayDraft = {
     ...draft,
     isWorking: plan.isWorking,
     startTime: shortTime(plan.startTime) ?? '',
@@ -109,6 +138,17 @@ function applyPlan(draft: DayDraft, plan: DayPlanDto): DayDraft {
     breakEnd,
     breakMinutes: plan.breakMinutes,
     settledFor: draft.date,
+  }
+
+  // Erkinlik ham rejadan (eski server bermaydi — erkin emas). Sukutga teng
+  // «Ish vaqti» `null` bo'lib qoladi: xodim smenani o'zgartirsa, u ham ergashadi.
+  const flexible = plan.isWorking && plan.isFlexible === true
+  const required = plan.requiredMinutes ?? null
+
+  return {
+    ...filled,
+    isFlexible: flexible,
+    requiredMinutes: flexible && required !== null && required !== defaultRequired(filled) ? required : null,
   }
 }
 
@@ -132,12 +172,14 @@ interface DayErrors {
   end: string | null
   breakStart: string | null
   breakEnd: string | null
+  /** «Ish vaqti» — erkin kunda. */
+  required: string | null
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
 function dayErrors(t: Translate, draft: DayDraft, duplicate: boolean): DayErrors {
-  const errors: DayErrors = { date: null, start: null, end: null, breakStart: null, breakEnd: null }
+  const errors: DayErrors = { date: null, start: null, end: null, breakStart: null, breakEnd: null, required: null }
 
   if (duplicate) errors.date = t('schedule.dateDuplicate')
   if (!draft.isWorking) return errors
@@ -148,25 +190,45 @@ function dayErrors(t: Translate, draft: DayDraft, duplicate: boolean): DayErrors
   if (draft.endTime === '') errors.end = t('schedule.timeRequired')
   else if (draft.startTime !== '' && draft.startTime === draft.endTime) errors.end = t('schedule.timesEqual')
 
-  if (!draft.hasBreak) return errors
+  if (draft.hasBreak) {
+    if (draft.breakStart === '') errors.breakStart = t('schedule.timeRequired')
+    if (draft.breakEnd === '') errors.breakEnd = t('schedule.timeRequired')
+    else if (
+      draft.breakStart !== '' &&
+      draft.startTime !== '' &&
+      draft.endTime !== '' &&
+      draft.startTime !== draft.endTime &&
+      !breakInsideShift(draft.startTime, draft.endTime, draft.breakStart, draft.breakEnd)
+    ) {
+      errors.breakEnd = t('schedule.breakOutside')
+    }
+  }
 
-  if (draft.breakStart === '') errors.breakStart = t('schedule.timeRequired')
-  if (draft.breakEnd === '') errors.breakEnd = t('schedule.timeRequired')
-  else if (
-    draft.breakStart !== '' &&
-    draft.startTime !== '' &&
-    draft.endTime !== '' &&
-    draft.startTime !== draft.endTime &&
-    !breakInsideShift(draft.startTime, draft.endTime, draft.breakStart, draft.breakEnd)
-  ) {
-    errors.breakEnd = t('schedule.breakOutside')
+  // «Ish vaqti» — serverdagi tartibda ENG OXIRGI qoida (SPEC-erkin-jadval
+  // §2.5): smena va tanaffus to'g'ri bo'lgandagina, aks holda chegarasi
+  // (smena − tanaffus) hali ma'lum emas.
+  if (draft.isFlexible && !errors.start && !errors.end && !errors.breakStart && !errors.breakEnd) {
+    const max = defaultRequired(draft)
+
+    if (max !== null) {
+      const value = draft.requiredMinutes ?? max
+
+      if (max < MIN_REQUIRED_MINUTES) {
+        // Tanaffus smenadan uzun — bu kunni erkin qilib bo'lmaydi
+        errors.required = t('errors.davomat.jadval_erkin_vaqti')
+      } else if (value < MIN_REQUIRED_MINUTES || value > max) {
+        errors.required = t('schedule.requiredRange', { max: hoursMinutes(max) })
+      }
+    }
   }
 
   return errors
 }
 
 function hasAnyError(errors: DayErrors): boolean {
-  return Boolean(errors.date || errors.start || errors.end || errors.breakStart || errors.breakEnd)
+  return Boolean(
+    errors.date || errors.start || errors.end || errors.breakStart || errors.breakEnd || errors.required,
+  )
 }
 
 /** Juftning xatolari: kun o'zi bilan va boshqa juftda takrorlangan sana. */
@@ -193,6 +255,7 @@ function pairErrors(
 
 function toInput(draft: DayDraft): ScheduleChangeDayInput {
   const withBreak = draft.isWorking && draft.hasBreak
+  const flexible = draft.isWorking && draft.isFlexible
 
   return {
     date: draft.date,
@@ -203,6 +266,9 @@ function toInput(draft: DayDraft): ScheduleChangeDayInput {
     breakEnd: withBreak ? wireTime(draft.breakEnd) : null,
     // Dam olish kunida server baribir 0 yozadi
     breakMinutes: draft.isWorking ? draft.breakMinutes : null,
+    isFlexible: flexible,
+    // `null` — sukut: server smena − tanaffusni o'zi yozadi
+    requiredMinutes: flexible ? draft.requiredMinutes : null,
   }
 }
 
@@ -219,9 +285,13 @@ function scrollToFirstError(): void {
  * «Запрос на изменение рабочего графика».
  *
  * Ikki tur: «Kunni o'zgartirish» — bir yoki bir necha sanaga yangi ish
- * vaqti (yoki dam olish kuni); «Kun almashtirish» — ikki sananing
- * rejalari o'rin almashadi (rejani server o'zi oladi). Tasdiqlanmaguncha
- * hisobga hech narsa ta'sir qilmaydi.
+ * vaqti (yoki dam olish kuni, yoki «Erkin ish jadvali»); «Kun almashtirish» —
+ * ikki sananing rejalari o'rin almashadi (rejani server o'zi oladi).
+ * Tasdiqlanmaguncha hisobga hech narsa ta'sir qilmaydi.
+ *
+ * Varaqdagi ikki qator shu bitta ekranni ochadi (SPEC-erkin-jadval §7.2):
+ * `?tur=almashtirish` — «Kun almashtirish», qolgani — «Jadval o'zgartirish».
+ * Segment joyida qoladi, sarlavha turga ergashadi.
  */
 export function ScheduleRequestNewScreen() {
   const { t } = useTranslation()
@@ -232,7 +302,9 @@ export function ScheduleRequestNewScreen() {
 
   const prefill = parseIsoDate(params.get('kun')) ? `${params.get('kun')}` : todayIso()
 
-  const [kind, setKind] = useState<ScheduleChangeKind>('Change')
+  const [kind, setKind] = useState<ScheduleChangeKind>(() =>
+    params.get('tur') === 'almashtirish' ? 'Swap' : 'Change',
+  )
   const [days, setDays] = useState<DayDraft[]>(() => [emptyDay(prefill)])
   const [pairs, setPairs] = useState<PairDraft[]>(() => [
     { key: nextKey(), date: prefill, withDate: addDays(prefill, 1) },
@@ -343,7 +415,11 @@ export function ScheduleRequestNewScreen() {
 
   return (
     <>
-      <PushedScreen title={t('schedule.newTitle')} onBack={goBack} bottomSpace>
+      <PushedScreen
+        title={kind === 'Swap' ? t('schedule.newTitleSwap') : t('schedule.newTitle')}
+        onBack={goBack}
+        bottomSpace
+      >
         <Card>
           <SegmentedControl<ScheduleChangeKind>
             label={t('schedule.kind')}
@@ -527,6 +603,14 @@ function DayBlock({
   const current =
     planForDate && planForDate.hasSchedule ? t('schedule.currentPlan', { plan: dayPlanText(t, planForDate) }) : undefined
 
+  // «Ish vaqti»: tanlanmagan bo'lsa — sukut (smena − tanaffus), u smena bilan birga o'zgaradi
+  const maxRequired = defaultRequired(draft)
+  const requiredValue = draft.requiredMinutes ?? maxRequired ?? 0
+  const requiredHint =
+    maxRequired !== null
+      ? t('schedule.requiredHint', { range: `${draft.startTime}–${draft.endTime}`, max: hoursMinutes(maxRequired) })
+      : undefined
+
   return (
     <Card>
       {showHeader ? <BlockHeader title={t('schedule.dayNumber', { n: number })} onRemove={onRemove} /> : null}
@@ -634,6 +718,34 @@ function DayBlock({
 
                 {keptBreak !== null ? (
                   <p className="nums text-footnote text-fg-tertiary">{t('schedule.breakKept', { n: keptBreak })}</p>
+                ) : null}
+
+                {/* «Erkin ish jadvali» (SPEC-erkin-jadval §7.2): kun «Ish vaqti» bo'yicha
+                    baholanadi, kechikish va erta ketish hisoblanmaydi. Smena — faqat
+                    ma'lumot uchun oyna: undan tashqaridagi vaqt ham sanaladi (egasi). */}
+                <SwitchRow
+                  label={t('schedule.flexible')}
+                  checked={draft.isFlexible}
+                  onChange={(checked) => edit({ isFlexible: checked })}
+                />
+
+                {draft.isFlexible ? (
+                  <Field
+                    label={t('schedule.required')}
+                    required
+                    error={errors ? errors.required : null}
+                    helper={requiredHint}
+                  >
+                    <DurationRow
+                      sheetTitle={t('schedule.required')}
+                      value={requiredValue}
+                      hoursLabel={t('schedule.durationHours')}
+                      minutesLabel={t('schedule.durationMinutes')}
+                      invalid={errors !== null && errors.required !== null}
+                      // Sukutning o'zi tanlansa — yana sukut (`null`), smenaga ergashadi
+                      onChange={(minutes) => edit({ requiredMinutes: minutes === maxRequired ? null : minutes })}
+                    />
+                  </Field>
                 ) : null}
               </>
             ) : null}

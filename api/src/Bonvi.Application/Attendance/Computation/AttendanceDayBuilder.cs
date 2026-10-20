@@ -316,7 +316,17 @@ public sealed class AttendanceDayBuilder
             ? null
             : WorkCreditRule.Apply(pairing, plan, WorkCreditRule.IntervalsFor(date, plan, workCredits, now));
 
-        if (plan is { IsWorking: true, PlanStartAt: { } planStart, PlanEndAt: { } planEnd })
+        /*
+          Erkin kunda (SPEC-erkin-jadval §2.2, 8–9-qatorlar) kechikish ham, erta ketish
+          ham YO'Q: xodim istalgan payt keladi va BUTUN borlig'i sanaladi (oynaga
+          kesilmaydi — egasining qarori, 2026-10-20). Kun normaga qarab baholanadi —
+          «Kam ishlangan» pastda, holat yakunlangach.
+        */
+        if (plan is { IsWorking: true, IsFlexible: true })
+        {
+            planned = plan.PlannedMinutes;
+        }
+        else if (plan is { IsWorking: true, PlanStartAt: { } planStart, PlanEndAt: { } planEnd })
         {
             planned = plan.PlannedMinutes;
 
@@ -383,6 +393,21 @@ public sealed class AttendanceDayBuilder
             status = AttendanceDayStatus.Planned;
         }
 
+        var worked = credited?.WorkedMinutes ?? pairing.WorkedMinutes;
+
+        /*
+          «Kam ishlangan» — faqat erkin kunda, holat YAKUNIY bo'lgach (so'rov, «Sababli»,
+          «Hali boshlanmagan» hammasi yuqorida) va reja oynasi tugagach (§2.2, 10-qator).
+          Kelmagan, chiqishi yoki kirishi yozilmagan kunni holat aytadi — ikki marta
+          sanalmaydi. Oyna tugashidan oldin yozilgan qatorda 0: erta ketish bilan bir xil
+          shartnoma, tungi qayta hisoblash to'ldiradi.
+        */
+        var shortfall = plan is { IsWorking: true, IsFlexible: true, PlanEndAt: { } flexibleEnd }
+            && status == AttendanceDayStatus.Present
+            && now >= flexibleEnd
+                ? Math.Max(0, plan.PlannedMinutes - worked)
+                : 0;
+
         var facts = new AttendanceDayFacts(
             EmploymentId: employment?.Id,
             LegalEntityId: employment?.LegalEntityId,
@@ -397,7 +422,7 @@ public sealed class AttendanceDayBuilder
             FirstInAt: pairing.FirstInAt,
             LastOutAt: pairing.LastOutAt,
             PlannedMinutes: planned,
-            WorkedMinutes: credited?.WorkedMinutes ?? pairing.WorkedMinutes,
+            WorkedMinutes: worked,
             LateMinutes: late,
             EarlyLeaveMinutes: early,
             // Ortiqcha ish faqat JADVAL bor kunda: normasi noma'lum kunda
@@ -405,13 +430,15 @@ public sealed class AttendanceDayBuilder
             // chiqardi va xulosa hisobotidagi ortiqcha ish ustunini shu
             // kunlar shishirib yuborardi. Dam olish kunida ishlash esa
             // haqiqiy ortiqcha ish — u yerda reja bor, faqat nolga teng.
-            OvertimeMinutes: plan is null ? 0 : Math.Max(0, (credited?.WorkedMinutes ?? pairing.WorkedMinutes) - planned),
+            OvertimeMinutes: plan is null ? 0 : Math.Max(0, worked - planned),
             BreakTakenMinutes: credited?.BreakTakenMinutes ?? pairing.BreakTakenMinutes,
             BreakDeductionMinutes: credited?.BreakDeductionMinutes ?? pairing.BreakDeductionMinutes,
             PassCount: pairing.PassCount,
             IgnoredPassCount: pairing.IgnoredPassCount,
             Status: status,
-            CreditedMinutes: credited?.CreditedMinutes ?? 0);
+            CreditedMinutes: credited?.CreditedMinutes ?? 0,
+            IsFlexible: plan?.IsFlexible ?? false,
+            ShortfallMinutes: shortfall);
 
         // §5.4: o'tish bor — YOKI munosabat bor va jadval shu kunni ish kuni deydi.
         // Ish kunidagi reja faqat munosabat va jadval topilganda bo'ladi.

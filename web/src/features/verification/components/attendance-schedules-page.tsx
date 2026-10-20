@@ -369,6 +369,8 @@ function ScheduleCard({
   const { t, num } = useLocale()
   const summary = weekSummary(schedule.days)
   const hours = Math.round((summary.plannedMinutes / 60) * 10) / 10
+  // Kamida bitta erkin ish kuni — ro'yxatdayoq ko'rinsin (SPEC-erkin-jadval §7.1)
+  const flexible = schedule.days.some((day) => day.isWorking && day.isFlexible)
 
   return (
     <Card className="p-5">
@@ -376,6 +378,11 @@ function ScheduleCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="truncate-1 text-callout font-semibold">{schedule.name}</h2>
+            {flexible && (
+              <Badge tone="info" size="sm">
+                {t('attendance.flexibleBadge')}
+              </Badge>
+            )}
             {!schedule.isActive && (
               <Badge size="sm">{t('attendance.scheduleInactive')}</Badge>
             )}
@@ -905,7 +912,9 @@ function ResolvedDay({ resolution }: { resolution: ScheduleResolution }) {
               )}
             </p>
             <p className="tabular text-footnote text-[var(--fg-secondary)]">
-              {t('attendance.dayPlanned', { hours: formatDuration(plannedDayMinutes(day)) })}
+              {day.isFlexible
+                ? t('attendance.dayPlannedFlexible', { hours: formatDuration(plannedDayMinutes(day)) })
+                : t('attendance.dayPlanned', { hours: formatDuration(plannedDayMinutes(day)) })}
               {' · '}
               {breakWindowLabel(day) !== null
                 ? t('attendance.breakWindow', { range: breakWindowLabel(day) })

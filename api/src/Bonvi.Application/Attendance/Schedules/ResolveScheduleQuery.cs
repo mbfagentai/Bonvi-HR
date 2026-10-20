@@ -146,7 +146,9 @@ public sealed class ResolveScheduleQueryHandler
                     requested.BreakMinutes,
                     requested.BreakStart,
                     requested.BreakEnd,
-                    requested.BreakStart is { } breakStart && requested.BreakEnd is { } breakEnd && breakEnd < breakStart),
+                    requested.BreakStart is { } breakStart && requested.BreakEnd is { } breakEnd && breakEnd < breakStart,
+                    requested.IsWorking && requested.IsFlexible,
+                    requested.IsWorking && requested.IsFlexible ? requested.RequiredMinutes : null),
                 ScheduleDaySource.Request);
         }
 

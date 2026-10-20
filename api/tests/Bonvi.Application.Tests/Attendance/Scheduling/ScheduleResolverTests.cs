@@ -253,6 +253,58 @@ public sealed class ScheduleResolverTests
         resolver.Resolve(munosabat, Tuesday)!.Schedule.ShouldBe(yangi);
     }
 
+    // ────────────────────── Erkin ish jadvali (SPEC-erkin-jadval §4) ──────────────────────
+
+    /// <summary>Tasdiqlangan erkin so'rov kuni qat'iy naqsh ustida — erkinlik so'rovdan.</summary>
+    [Fact]
+    public void Erkin_sorov_kuni_qatiy_naqshdan_ustun()
+    {
+        var sahna = new AttendanceScenario();
+        var munosabat = sahna.Employ();
+        sahna.Assign(Schedule("09:00", "18:00"));
+        sahna.Override(Monday, "08:30", "18:00", isFlexible: true, requiredMinutes: 420);
+
+        var natija = Resolve(sahna, munosabat);
+
+        natija.RequestOverride.ShouldNotBeNull();
+        natija.Day.IsFlexible.ShouldBeTrue();
+        natija.Day.PlannedMinutes.ShouldBe(420);
+    }
+
+    /// <summary>Qat'iy so'rov kuni erkin naqsh ustida — kun butunligicha almashadi, erkinlik pastdan ulanmaydi.</summary>
+    [Fact]
+    public void Qatiy_sorov_kuni_erkin_naqshni_butunlay_almashtiradi()
+    {
+        var sahna = new AttendanceScenario();
+        var munosabat = sahna.Employ();
+        sahna.Assign(FlexibleSchedule());
+        sahna.Override(Monday, "09:00", "18:00");
+
+        var natija = Resolve(sahna, munosabat);
+
+        natija.Day.IsFlexible.ShouldBeFalse();
+        natija.Day.PlannedMinutes.ShouldBe(540);
+        sahna.Resolver().Resolve(munosabat, Tuesday)!.Day.IsFlexible.ShouldBeTrue("boshqa sana — naqshdan");
+    }
+
+    [Fact]
+    public void Erkin_sana_katagi_qatiy_naqshdan_ustun()
+    {
+        var sahna = new AttendanceScenario();
+        var munosabat = sahna.Employ();
+        var jadval = Schedule("09:00", "18:00");
+        sahna.Assign(jadval);
+        var katak = sahna.ScheduleDate(
+            jadval,
+            new WorkScheduleDateInput(Monday, true, Time("09:00"), Time("18:00"), 60, IsFlexible: true, RequiredMinutes: 360));
+
+        var natija = Resolve(sahna, munosabat);
+
+        natija.DateOverride.ShouldBe(katak);
+        natija.Day.IsFlexible.ShouldBeTrue();
+        natija.Day.PlannedMinutes.ShouldBe(360);
+    }
+
     // ────────────────────── Yuklovchi xatolari ──────────────────────
 
     /// <summary>Jadvali yuklanmagan biriktirma xodimni jimgina pastki pog'onaga tushirmaydi.</summary>

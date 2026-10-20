@@ -29,14 +29,18 @@ const PLAN_START_MINUTE = 30
 const PLAN_END_HOUR = 18
 const BREAK_MINUTES = 60
 
+/** Odatiy kunning rejadagi daqiqalari: smena − tanaffus (server `planned_minutes`). */
+const PLANNED_MINUTES = PLAN_END_HOUR * 60 - (PLAN_START_HOUR * 60 + PLAN_START_MINUTE) - BREAK_MINUTES
+
+/** Erkin mock kunining «Ish vaqti» — 7:30 (SPEC-erkin-jadval §7.2). */
+const FLEXIBLE_REQUIRED_MINUTES = 450
+
 export const MOCK_SITE_NAME = 'Bosh ofis'
 
+/** Verifix'dagi ikki tur — aynan shular (SPEC-erkin-jadval §6). */
 export const MOCK_ABSENCE_TYPES: AbsenceTypeDto[] = [
   { id: 'at-1', name: 'Ishxona ishi bilan' },
-  { id: 'at-2', name: 'Kasallik' },
-  { id: 'at-3', name: 'Mehnat ta’tili' },
-  { id: 'at-4', name: 'O‘z hisobidan' },
-  { id: 'at-5', name: 'Oilaviy sabab' },
+  { id: 'at-2', name: 'Shaxsiy' },
 ]
 
 export const MOCK_ME: MeDto = {
@@ -103,6 +107,9 @@ function emptyDay(dateIso: string, status: MockDay['status']): MockDay {
     planStartAt: null,
     planEndAt: null,
     mobileMarks: 0,
+    isFlexible: false,
+    plannedMinutes: 0,
+    shortfallMinutes: 0,
     marks: [],
   }
 }
@@ -201,6 +208,47 @@ function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): MockD
     planStartAt: tashkentToUtcIso(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE),
     planEndAt: tashkentToUtcIso(dateIso, PLAN_END_HOUR, 0),
     mobileMarks: mobileCount(marks),
+    isFlexible: false,
+    plannedMinutes: PLANNED_MINUTES,
+    shortfallMinutes: 0,
+    marks,
+  }
+}
+
+/**
+ * «Erkin ish jadvali» kuni (SPEC-erkin-jadval §2): oyna 08:30–18:00, «Ish
+ * vaqti» 7:30. Xodim 09:40 da keldi — kechikish YO'Q; 17:45 da ketdi va
+ * 7 soat 5 daqiqa ishladi, ya'ni normadan 25 daqiqa kam («Kam ishlangan»).
+ */
+function flexibleDay(dateIso: string): MockDay {
+  const inAt = 9 * 60 + 40
+  const outAt = 17 * 60 + 45
+  const intervals: Array<[number, number]> = [
+    [inAt, 13 * 60 + 1],
+    [13 * 60 + 56, outAt],
+  ]
+  const { worked, deduction, breakTaken } = workedFromIntervals(intervals)
+  const at = (minutes: number, direction: 'In' | 'Out') =>
+    mark(dateIso, Math.floor(minutes / 60), minutes % 60, direction)
+
+  const marks: AttendanceMarkDto[] = [at(inAt, 'In'), at(13 * 60 + 1, 'Out'), at(13 * 60 + 56, 'In'), at(outAt, 'Out')]
+
+  return {
+    date: dateIso,
+    status: 'Present',
+    workedMinutes: worked,
+    lateMinutes: 0,
+    earlyLeaveMinutes: 0,
+    breakTakenMinutes: breakTaken,
+    breakDeductionMinutes: deduction,
+    firstInAt: at(inAt, 'In').at,
+    lastOutAt: at(outAt, 'Out').at,
+    planStartAt: tashkentToUtcIso(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE),
+    planEndAt: tashkentToUtcIso(dateIso, PLAN_END_HOUR, 0),
+    mobileMarks: 0,
+    isFlexible: true,
+    plannedMinutes: FLEXIBLE_REQUIRED_MINUTES,
+    shortfallMinutes: Math.max(0, FLEXIBLE_REQUIRED_MINUTES - worked),
     marks,
   }
 }
@@ -210,14 +258,16 @@ function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): MockD
  *
  * Qoidalar ataylab sodda va takrorlanadigan: hafta oxiri — dam olish,
  * kelajak — «Kun kelmagan», qolgani ishlangan kun; oyning ichida bitta
- * kelmagan kun, ikkita kechikish, bitta «Chiqish yo'q» va tasdiqlangan
- * so'rov tushgan ikki «Sababli» kun bor. Bu to'plam taqvimning barcha
- * katak holatlarini bitta ekranda ko'rsatadi.
+ * kelmagan kun, ikkita kechikish, bitta «Chiqish yo'q», bitta «Erkin ish
+ * jadvali» kuni (kam ishlangan bilan) va tasdiqlangan so'rov tushgan ikki
+ * «Sababli» kun bor. Bu to'plam taqvimning barcha katak holatlarini bitta
+ * ekranda ko'rsatadi.
  */
 export function buildMonth(year: number, month: number, excusedDates: string[]): MockDay[] {
   const today = todayIso()
   const total = daysInMonth(year, month)
   const days: MockDay[] = []
+  let flexibleShown = false
 
   for (let day = 1; day <= total; day += 1) {
     const dateIso = `${year}-${pad(month)}-${pad(day)}`
@@ -273,6 +323,14 @@ export function buildMonth(year: number, month: number, excusedDates: string[]):
     }
 
     const late = day % 7 === 2 ? 12 : day % 13 === 4 ? 25 : 0
+
+    // Oyning birinchi oddiy ish kuni — erkin jadval bo'yicha
+    if (!flexibleShown && late === 0 && day % 9 !== 0) {
+      flexibleShown = true
+      days.push(flexibleDay(dateIso))
+      continue
+    }
+
     days.push(workedDay(dateIso, late, day % 9 === 0))
   }
 
@@ -325,6 +383,9 @@ export function buildToday(marks: AttendanceMarkDto[]): MockDay {
     planStartAt: isWeekend ? null : tashkentToUtcIso(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE),
     planEndAt: isWeekend ? null : tashkentToUtcIso(dateIso, PLAN_END_HOUR, 0),
     mobileMarks: mobileCount(marks),
+    isFlexible: false,
+    plannedMinutes: isWeekend ? 0 : PLANNED_MINUTES,
+    shortfallMinutes: 0,
     marks,
   }
 
@@ -424,7 +485,7 @@ export function buildRequests(): AbsenceRequestDto[] {
     requestOf({
       id: 'req-2',
       absenceTypeId: 'at-2',
-      absenceTypeName: 'Kasallik',
+      absenceTypeName: 'Shaxsiy',
       fromDate: addDays(today, -9),
       toDate: addDays(today, -8),
       fromTime: null,
@@ -438,8 +499,8 @@ export function buildRequests(): AbsenceRequestDto[] {
     }),
     requestOf({
       id: 'req-3',
-      absenceTypeId: 'at-4',
-      absenceTypeName: 'O‘z hisobidan',
+      absenceTypeId: 'at-2',
+      absenceTypeName: 'Shaxsiy',
       fromDate: addDays(today, -20),
       toDate: addDays(today, -20),
       fromTime: '09:00:00',
@@ -453,8 +514,8 @@ export function buildRequests(): AbsenceRequestDto[] {
     }),
     requestOf({
       id: 'req-4',
-      absenceTypeId: 'at-5',
-      absenceTypeName: 'Oilaviy sabab',
+      absenceTypeId: 'at-2',
+      absenceTypeName: 'Shaxsiy',
       fromDate: addDays(today, -31),
       toDate: addDays(today, -31),
       fromTime: null,
@@ -486,6 +547,8 @@ export function mockPlanOf(dateIso: string): DayPlanDto {
     breakStart: working ? `${pad(Math.floor(BREAK_WINDOW_START / 60))}:00:00` : null,
     breakEnd: working ? `${pad(Math.floor(BREAK_WINDOW_END / 60))}:00:00` : null,
     breakMinutes: working ? BREAK_MINUTES : 0,
+    isFlexible: false,
+    requiredMinutes: null,
   }
 }
 
@@ -538,6 +601,8 @@ export function buildScheduleRequests(): ScheduleChangeRequestDto[] {
           breakEnd: '14:20:00',
           swapWith: null,
           breakMinutes: 120,
+          isFlexible: false,
+          requiredMinutes: null,
         },
       ],
       note: 'Juma namoziga boraman.',
@@ -575,5 +640,8 @@ export function planAsDay(plan: DayPlanDto): ScheduleChangeDayDto {
     breakEnd: plan.breakEnd,
     swapWith: null,
     breakMinutes: plan.breakMinutes,
+    // Server kabi: almashtirishda juftining erkinligi ham ko'chadi
+    isFlexible: plan.isFlexible ?? false,
+    requiredMinutes: plan.requiredMinutes ?? null,
   }
 }

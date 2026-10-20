@@ -70,6 +70,42 @@ export function breakDiffersFromWindow(day: DayBreak): boolean {
   return day.isWorking && day.breakMinutes !== breakWindowMinutes(day.breakStart, day.breakEnd)
 }
 
+/**
+ * «Ish vaqti» ning eng kattasi va SUKUTI — serverning o'z formulasi
+ * (`WorkScheduleDay.MaxRequiredMinutes`, SPEC-erkin-jadval §2.5): smena
+ * uzunligi (yarim tundan o'tib) minus ayiriladigan tanaffus. 08:30–18:00,
+ * 120 daq. → 450 (7:30). Tanaffus smenadan uzun bo'lsa — 0 (erkin bo'lmaydi).
+ */
+export function maxRequiredMinutes(start: string, end: string, breakMinutes: number): number {
+  return Math.max(0, forward(start, end) - breakMinutes)
+}
+
+/** «Ish vaqti» ning eng kichigi — `WorkScheduleDay.MinRequiredMinutes`. */
+export const MIN_REQUIRED_MINUTES = 1
+
+/** 450 → «7:30» — «Ish vaqti» shu ko'rinishda (Verifix formasidagi kabi). */
+export function hoursMinutes(minutes: number): string {
+  const whole = Math.max(0, Math.round(minutes))
+  const rest = whole % 60
+  return `${Math.floor(whole / 60)}:${rest < 10 ? '0' : ''}${rest}`
+}
+
+type FlexibleDay = Pick<
+  ScheduleChangeDayDto,
+  'isWorking' | 'startTime' | 'endTime' | 'breakMinutes' | 'isFlexible' | 'requiredMinutes'
+>
+
+/**
+ * Erkin kunning «Ish vaqti», daqiqa; erkin bo'lmagan yoki dam olish kuni —
+ * `null`. Server uni doim yozadi; yozilmagan bo'lsa (bo'lmasligi kerak) —
+ * sukut, ya'ni smena − tanaffus.
+ */
+export function flexibleRequired(day: FlexibleDay): number | null {
+  if (!day.isWorking || day.isFlexible !== true) return null
+  if (day.requiredMinutes !== undefined && day.requiredMinutes !== null) return day.requiredMinutes
+  return day.startTime && day.endTime ? maxRequiredMinutes(day.startTime, day.endTime, day.breakMinutes) : null
+}
+
 /** Forma qiymati («08:30» yoki bo'sh) → simdagi `TimeOnly` («08:30:00»). */
 export function wireTime(hhmm: string): string | null {
   return hhmm === '' ? null : `${hhmm}:00`
@@ -83,13 +119,27 @@ function breakWindowText(day: DayBreak): string | null {
 /**
  * Kunning rejasi bir satrda: «08:30–18:00, tanaffus 12:20–14:20» yoki «Dam olish kuni».
  * Tanaffus uzunligi oynadan farq qilsa — u ham: «…, tanaffus 60 daq. (12:00–15:00 oralig‘ida)».
+ * Erkin kunda oxiriga «Ish vaqti»: «…, erkin 7:30».
  */
 export function dayPlanText(
   t: TFunction,
-  day: Pick<ScheduleChangeDayDto, 'isWorking' | 'startTime' | 'endTime' | 'breakStart' | 'breakEnd' | 'breakMinutes'>,
+  day: Pick<
+    ScheduleChangeDayDto,
+    'isWorking' | 'startTime' | 'endTime' | 'breakStart' | 'breakEnd' | 'breakMinutes' | 'isFlexible' | 'requiredMinutes'
+  >,
 ): string {
   if (!day.isWorking) return t('schedule.dayOff')
 
+  const plan = fixedPlanText(t, day)
+  const required = flexibleRequired(day)
+
+  return required === null ? plan : t('schedule.withFlexible', { plan, hours: hoursMinutes(required) })
+}
+
+function fixedPlanText(
+  t: TFunction,
+  day: Pick<ScheduleChangeDayDto, 'isWorking' | 'startTime' | 'endTime' | 'breakStart' | 'breakEnd' | 'breakMinutes'>,
+): string {
   const range = `${shortTime(day.startTime) ?? '—'}–${shortTime(day.endTime) ?? '—'}`
   const windowText = breakWindowText(day)
 

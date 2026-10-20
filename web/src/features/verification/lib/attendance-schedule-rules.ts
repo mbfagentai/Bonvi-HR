@@ -1,4 +1,4 @@
-import { shiftSpanMinutes } from './attendance-presentation'
+import { formatDuration, shiftSpanMinutes } from './attendance-presentation'
 import type {
   ScheduleAssignment,
   ScheduleResolution,
@@ -24,8 +24,9 @@ import type {
  *
  * Tekshiruv TARTIBI domen bilan bir xil (birinchi buzilgan qoida
  * qaytadi): vaqt bo'sh → vaqt teng → tanaffus uzunligi → yarim oyna →
- * oyna smenadan tashqarida. Tartib boshqacha bo'lsa, bitta kun uchun
- * klient bir xatoni, server boshqasini aytardi.
+ * oyna smenadan tashqarida → erkin kunning ish vaqti (SPEC-erkin-jadval
+ * §2.5). Tartib boshqacha bo'lsa, bitta kun uchun klient bir xatoni,
+ * server boshqasini aytardi.
  */
 
 /** `WorkSchedule.MaxGraceMinutes` (SPEC §2.4). */
@@ -39,6 +40,12 @@ export const SCHEDULE_NAME_MAX = 200
 
 /** `work_schedules.note` — varchar(500). */
 export const SCHEDULE_NOTE_MAX = 500
+
+/** `WorkScheduleDay.MinRequiredMinutes` — erkin kunning eng kam «Ish vaqti» (SPEC-erkin-jadval §2.5). */
+export const MIN_REQUIRED_MINUTES = 1
+
+/** Erkin kunning «Ish vaqti» chegaradan chiqdi — server kodi bilan bir xil. */
+export const FLEXIBLE_REQUIRED_CODE = 'davomat.jadval_erkin_vaqti'
 
 const DAY_MINUTES = 24 * 60
 
@@ -144,11 +151,34 @@ export function validateScheduleDay(day: WorkScheduleDayInput): string | null {
 
   const hasStart = day.breakStart !== null
   const hasEnd = day.breakEnd !== null
-  if (!hasStart && !hasEnd) return null
   if (hasStart !== hasEnd) return 'davomat.jadval_tanaffus_toliq_emas'
 
-  const placement = breakWindowPlacement(day)
-  return placement === null || !placement.inside ? 'davomat.jadval_tanaffus_oynasi' : null
+  if (hasStart) {
+    const placement = breakWindowPlacement(day)
+    if (placement === null || !placement.inside) return 'davomat.jadval_tanaffus_oynasi'
+  }
+
+  return validateRequired(day)
+}
+
+/**
+ * Erkin kunning «Ish vaqti» — `WorkScheduleDay.ValidateRequired` ko'zgusi:
+ * butun son, `1 … smena − tanaffus`. Berilmagan qiymat (`null`) sukutga —
+ * eng kattasiga — teng va u ham shu yerdan o'tadi: tanaffus smenaga teng
+ * yoki undan uzun bo'lsa sukut 0 bo'ladi va erkin kun rad etiladi.
+ *
+ * Forma o'qib bo'lmaydigan matnni `NaN` qilib yuboradi (`requiredMinutesOf`)
+ * — u ham shu kod bilan ushlanadi, maydon esa aniqroq matnni ko'rsatadi.
+ */
+function validateRequired(day: WorkScheduleDayInput): string | null {
+  if (!day.isFlexible) return null
+
+  const max = maxRequiredMinutes(day)
+  const required = day.requiredMinutes ?? max
+
+  return !Number.isInteger(required) || required < MIN_REQUIRED_MINUTES || required > max
+    ? FLEXIBLE_REQUIRED_CODE
+    : null
 }
 
 /** Imtiyoz daqiqalari: butun son, `0 … 120` (`davomat.jadval_yon_berish`). */
@@ -157,15 +187,116 @@ export function isValidGrace(value: number): boolean {
 }
 
 /**
- * Bir kunning REJA daqiqalari: smena − tanaffus, manfiy emas.
+ * Bir kunning REJA daqiqalari: smena − tanaffus, manfiy emas; erkin kunda
+ * esa «Ish vaqti» (R, berilmagan bo'lsa — sukut, ya'ni eng kattasi).
  *
  * `weekSummary` bilan AYNAN bir formula (u shu kunlarning yig'indisi):
  * ekrandagi kunlik raqamlar qo'shilganda haftalik xulosaga teng
  * chiqishi shart, aks holda operator ikkalasidan biriga ishonmay qo'yadi.
+ *
+ * Formada hali o'qib bo'lmaydigan R (`NaN`) — sukut bilan: xatoni maydon
+ * aytadi, sarlavhadagi raqam esa «NaN» bo'lib chiqmasligi kerak.
  */
 export function plannedDayMinutes(day: WorkScheduleDayInput): number {
   if (!day.isWorking) return 0
+  if (!day.isFlexible) return Math.max(0, shiftSpanMinutes(day) - day.breakMinutes)
+
+  const required = day.requiredMinutes
+  return required !== null && Number.isFinite(required) ? required : maxRequiredMinutes(day)
+}
+
+/* ═════════════════════════════════════════════ erkin kun (SPEC-erkin-jadval) */
+
+/**
+ * Erkin kunning eng katta «Ish vaqti» — smena − tanaffus, manfiy emas
+ * (`WorkScheduleDay.MaxRequiredMinutes`, §2.5). Server R berilmaganda
+ * aynan shuni yozadi: 08:30–18:00, 120 daqiqa tanaffus → 450 (7:30).
+ *
+ * Jadval so'rovi kunida `breakMinutes` — samarali tanaffus (berilgan
+ * uzunlik, aks holda oyna uzunligi), ya'ni chaqiruvchi uni shunday beradi.
+ */
+export function maxRequiredMinutes(day: WorkScheduleDayInput): number {
   return Math.max(0, shiftSpanMinutes(day) - day.breakMinutes)
+}
+
+/**
+ * «7:30» → 450. Faqat `soat:daqiqa` (soat 0…23, daqiqa ikki xonali);
+ * boshqasi — `null` (`attendance.durationFormat`).
+ *
+ * NEGA «7.5» yoki «450» qabul qilinmaydi: HR «yetti yarim» ni ikki xil
+ * yozib, ikki xil son olardi; Verifix formasi ham faqat shu shaklni biladi.
+ */
+export function parseDuration(value: string): number | null {
+  const match = /^(\d{1,2}):([0-5]\d)$/u.exec(value.trim())
+  if (match === null) return null
+
+  const hours = Number(match[1])
+  return hours > 23 ? null : hours * 60 + Number(match[2])
+}
+
+/**
+ * «Ish vaqti» maydonining FORMA holati — uchala HR formasida bir xil
+ * (SPEC-erkin-jadval §7.1).
+ *
+ * `requiredAuto` — maydon sukutni (eng kattasini) ko'rsatadi va vaqtlar yoki
+ * tanaffus o'zgarsa u bilan birga o'zgaradi; serverga `null` ketadi va
+ * server R ni o'zi yozadi. HR qiymat yozsa — `false`, aynan eng kattasini
+ * yozsa — yana `true`.
+ */
+export interface FlexibleDraft {
+  isFlexible: boolean
+  /** «7:30» — HR yozgan matn; `requiredAuto` da e'tiborsiz. */
+  required: string
+  requiredAuto: boolean
+}
+
+/** Erkin bo'lmagan kun — yangi qatorlar va dam olish kuni shu bilan boshlanadi. */
+export const NOT_FLEXIBLE: FlexibleDraft = { isFlexible: false, required: '', requiredAuto: true }
+
+/**
+ * Saqlangan kun → forma. `max` — shu kunning eng kattasi (`maxRequiredMinutes`):
+ * saqlangan R unga teng bo'lsa maydon sukutda turadi va vaqtlar o'zgarsa
+ * R ham ergashadi — aks holda R qotib qolib, keyingi saqlashda xato berardi.
+ */
+export function flexibleDraftOf(
+  isFlexible: boolean,
+  requiredMinutes: number | null,
+  max: number,
+): FlexibleDraft {
+  if (!isFlexible) return NOT_FLEXIBLE
+
+  return {
+    isFlexible: true,
+    required: requiredMinutes === null ? '' : formatDuration(requiredMinutes),
+    requiredAuto: requiredMinutes === null || requiredMinutes === max,
+  }
+}
+
+/** Maydonda ko'rinadigan matn: sukutda — eng kattasi, aks holda HR yozgani. */
+export function shownRequired(draft: FlexibleDraft, max: number): string {
+  if (!draft.requiredAuto) return draft.required
+  // «07:30» yozib sukutga qaytgan HR o'z yozganini ko'radi — matn qo'l ostida o'zgarmasin
+  return parseDuration(draft.required) === max ? draft.required : formatDuration(max)
+}
+
+/** HR maydonga yozdi. Aynan eng kattasi — yana sukut (`null` yuboriladi). */
+export function typedRequired(draft: FlexibleDraft, text: string, max: number): FlexibleDraft {
+  return { ...draft, required: text, requiredAuto: parseDuration(text) === max }
+}
+
+/**
+ * Yuboriladigan R: `null` — server sukuti (erkin emas yoki maydon sukutda);
+ * o'qib bo'lmaydigan matn — `NaN`, tekshiruv uni ushlaydi va forma
+ * yubormaydi (`parseMinutes` bilan bir xil qoida).
+ */
+export function requiredMinutesOf(draft: FlexibleDraft): number | null {
+  if (!draft.isFlexible || draft.requiredAuto) return null
+  return parseDuration(draft.required) ?? Number.NaN
+}
+
+/** HR yozgan matn `soat:daqiqa` emas — maydon `attendance.durationFormat` ni ko'rsatadi. */
+export function requiredUnparsable(draft: FlexibleDraft): boolean {
+  return draft.isFlexible && !draft.requiredAuto && parseDuration(draft.required) === null
 }
 
 /* ═════════════════════════════════════════════ «Kim uchun amal qiladi» */

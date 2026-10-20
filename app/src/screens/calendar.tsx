@@ -4,18 +4,20 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import {
   findDay,
+  flexiblePlannedMinutes,
   marksNewestFirst,
   monthTotals,
   requestsOnDay,
   statusesInMonth,
 } from '@/data/attendance'
 import { useMonth, useRequests } from '@/data/queries'
+import { hoursMinutes } from '@/data/schedule-requests'
 import { DAY_STATUS_LOOK, REQUEST_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
 import { monthKey, parseIsoDate, parseMonthKey, shiftMonth, todayIso } from '@/lib/time'
 import { TabScreen } from '@/ui/app-shell'
 import { Card, CardRow } from '@/ui/card'
-import { DayPanel } from '@/ui/day-panel'
+import { DayPanel, StatRow } from '@/ui/day-panel'
 import { EmptyState, ErrorState, SkeletonLines } from '@/ui/feedback'
 import { Icon } from '@/ui/icon'
 import { MarkRow, MarkRowSkeleton } from '@/ui/mark-row'
@@ -68,6 +70,8 @@ export function CalendarScreen() {
   const dayRequests = requestsOnDay(requests.data ?? [], selected)
   const legend = statusesInMonth(days)
   const lateDays = days.filter((item) => item.lateMinutes > 0).length
+  // Erkin kun: reja — «Ish vaqti» (norma), boshlanish soati emas; oyna faqat ma'lumot uchun
+  const flexibleMinutes = flexiblePlannedMinutes(day)
 
   const canGoForward = year < currentYear || (year === currentYear && month < currentMonth)
 
@@ -139,11 +143,24 @@ export function CalendarScreen() {
           <SkeletonLines rows={2} />
         ) : day && day.planStartAt && day.planEndAt ? (
           <>
-            <p className="nums text-subhead text-fg">
-              {t('calendar.scheduleRange', {
-                range: `${format.time(day.planStartAt)}–${format.time(day.planEndAt)}`,
-              })}
-            </p>
+            {flexibleMinutes !== null ? (
+              <>
+                <p className="nums text-subhead text-fg">
+                  {t('calendar.scheduleFlexible', { hours: hoursMinutes(flexibleMinutes) })}
+                </p>
+                <p className="nums mt-0.5 text-footnote text-fg-secondary">
+                  {t('calendar.scheduleFlexibleRange', {
+                    range: `${format.time(day.planStartAt)}–${format.time(day.planEndAt)}`,
+                  })}
+                </p>
+              </>
+            ) : (
+              <p className="nums text-subhead text-fg">
+                {t('calendar.scheduleRange', {
+                  range: `${format.time(day.planStartAt)}–${format.time(day.planEndAt)}`,
+                })}
+              </p>
+            )}
             {/* ⚠️ Tanaffus OYNASI (masalan 13:00–14:00) tabel katagida
                 yo'q — katak faqat ayirilgan daqiqalarni biladi. Shu
                 sababli bu yerda oyna emas, AYIRILGAN vaqt ko'rsatiladi
@@ -204,6 +221,12 @@ export function CalendarScreen() {
         ) : (
           <>
             <MonthChart totals={totals} />
+            {/* Faqat erkin kunlarda bo'ladi — qolgan xodimlarda qator umuman chiqmaydi */}
+            {totals.shortfallMinutes > 0 ? (
+              <div className="mt-3">
+                <StatRow label={t('calendar.totalShortfall')} value={format.duration(totals.shortfallMinutes)} />
+              </div>
+            ) : null}
           </>
         )}
       </Card>

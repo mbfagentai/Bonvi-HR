@@ -11,6 +11,8 @@ namespace Bonvi.Application.Attendance.Dtos;
 /// <param name="BreakEnd">Tanaffus oxiri.</param>
 /// <param name="SwapWith">Almashtirishda juftining sanasi.</param>
 /// <param name="BreakMinutes">Ayiriladigan tanaffus (daqiqa) — oynadan farq qilishi mumkin.</param>
+/// <param name="IsFlexible">«Erkin ish jadvali» (SPEC-erkin-jadval §5.2).</param>
+/// <param name="RequiredMinutes">«Ish vaqti» (daqiqa) — <paramref name="IsFlexible"/> bo'lsagina bor.</param>
 public sealed record ScheduleChangeDayDto(
     DateOnly Date,
     bool IsWorking,
@@ -19,7 +21,9 @@ public sealed record ScheduleChangeDayDto(
     TimeOnly? BreakStart,
     TimeOnly? BreakEnd,
     DateOnly? SwapWith,
-    int BreakMinutes);
+    int BreakMinutes,
+    bool IsFlexible,
+    int? RequiredMinutes);
 
 /// <summary>Jadvalni o'zgartirish so'rovi (SPEC-verifikatsiya-jadval-sorovi §C3).</summary>
 /// <remarks>
@@ -72,6 +76,8 @@ public sealed record ScheduleChangeRequestDto(
 /// Ayiriladigan tanaffus (daqiqa). Jadvalda u oynadan alohida: 60 daqiqalik tushlik 12:00–15:00
 /// oynasida. Forma uni o'zgartirilmagan kun bilan qaytaradi — aks holda oyna uzunligi olinardi.
 /// </param>
+/// <param name="IsFlexible">Amaldagi kun «Erkin ish jadvali»mi — forma belgini shundan to'ldiradi.</param>
+/// <param name="RequiredMinutes">«Ish vaqti» (daqiqa) — faqat erkin kunda; aks holda <c>null</c>.</param>
 public sealed record DayPlanDto(
     DateOnly Date,
     bool HasSchedule,
@@ -80,4 +86,6 @@ public sealed record DayPlanDto(
     TimeOnly? EndTime,
     TimeOnly? BreakStart,
     TimeOnly? BreakEnd,
-    int BreakMinutes = 0);
+    int BreakMinutes = 0,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);

@@ -42,7 +42,10 @@ public static class WorkScheduleMapper
             day.BreakMinutes,
             day.BreakStart,
             day.BreakEnd,
-            day.BreakStart is { } start && day.BreakEnd is { } end && end < start);
+            day.BreakStart is { } start && day.BreakEnd is { } end && end < start,
+            // Dam olish kunida «erkin» yo'q: eski image bilan yozilgan qator ham shunday ko'rinsin.
+            day.IsWorking && day.IsFlexible,
+            day.IsWorking && day.IsFlexible ? day.RequiredMinutes : null);
     }
 
     /// <summary>Yillik to'rning katagi — hafta kuni shaklida (<c>GET /schedules/resolve</c>).</summary>
@@ -64,6 +67,8 @@ public static class WorkScheduleMapper
             date.BreakMinutes,
             date.BreakStart,
             date.BreakEnd,
-            date.BreakStart is { } start && date.BreakEnd is { } end && end < start);
+            date.BreakStart is { } start && date.BreakEnd is { } end && end < start,
+            date.IsWorking && date.IsFlexible,
+            date.IsWorking && date.IsFlexible ? date.RequiredMinutes : null);
     }
 }

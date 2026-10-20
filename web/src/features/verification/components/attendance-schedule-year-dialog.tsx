@@ -21,7 +21,17 @@ import {
   useSetScheduleDates,
 } from '../api/attendance-queries'
 import { formatDuration } from '../lib/attendance-presentation'
-import { MAX_BREAK_MINUTES, validateScheduleDay } from '../lib/attendance-schedule-rules'
+import {
+  FLEXIBLE_REQUIRED_CODE,
+  MAX_BREAK_MINUTES,
+  NOT_FLEXIBLE,
+  flexibleDraftOf,
+  maxRequiredMinutes,
+  requiredMinutesOf,
+  validateScheduleDay,
+  type FlexibleDraft,
+} from '../lib/attendance-schedule-rules'
+import { FlexibleDayFields } from './attendance-flexible-day-fields'
 
 /** Oyning eng ko'p kuni — to'rning ustunlari. */
 const DAY_COLUMNS = Array.from({ length: 31 }, (_, index) => index + 1)
@@ -32,9 +42,10 @@ const NO_DAYS: ScheduleYearDay[] = []
 
 /**
  * Pastdagi panelning FORMA holati — hammasi satr (`attendance-schedule-form-dialog.tsx`
- * dagi `DayDraft` bilan bir xil sabab: `<input>` bo'sh satr beradi).
+ * dagi `DayDraft` bilan bir xil sabab: `<input>` bo'sh satr beradi). Erkinlik —
+ * `FlexibleDraft` maydonlari (SPEC-erkin-jadval §7.1).
  */
-interface CellDraft {
+interface CellDraft extends FlexibleDraft {
   isWorking: boolean
   startTime: string
   endTime: string
@@ -51,6 +62,7 @@ const FALLBACK_DRAFT: CellDraft = {
   breakMinutes: '60',
   breakStart: '13:00',
   breakEnd: '14:00',
+  ...NOT_FLEXIBLE,
 }
 
 /** Sichqoncha bilan tortib tanlash — boshlangan katak va boshlanishdagi tanlov. */
@@ -319,6 +331,9 @@ export function AttendanceScheduleYearDialog({
                 breakMinutes: input.breakMinutes,
                 breakStart: input.breakStart,
                 breakEnd: input.breakEnd,
+                // `requiredMinutes: null` — server sukuti (smena − tanaffus)
+                isFlexible: input.isFlexible,
+                requiredMinutes: input.requiredMinutes,
               }
             : { dates, isWorking: false },
       },
@@ -366,6 +381,10 @@ export function AttendanceScheduleYearDialog({
             ? t('attendance.breakWindowNoneHint')
             : t('attendance.breakWindowNone'),
       )
+      // Katakdagi soat erkin kunda norma (R) — u qayerdan kelgani shu yerda aytiladi
+      if (day.isFlexible) {
+        parts.push(t('attendance.yearCellFlexible', { hours: formatDuration(day.plannedMinutes) }))
+      }
     }
 
     parts.push(
@@ -644,6 +663,22 @@ export function AttendanceScheduleYearDialog({
                     >
                       <Eraser />
                     </Button>
+
+                    {/*
+                      Erkinlik o'z qatorida (`basis-full`): «Ish vaqti» maydonining
+                      izohi bor va u vaqt maydonlari qatorini qiyshaytirardi.
+                      Saqlash tugmalari undan KEYIN — avval kun, keyin amal.
+                    */}
+                    <FlexibleDayFields
+                      className="basis-full"
+                      value={draft}
+                      max={maxRequiredMinutes(input)}
+                      code={draftError}
+                      disabled={busy}
+                      onChange={({ isFlexible, required, requiredAuto }) =>
+                        setDraft((previous) => ({ ...previous, isFlexible, required, requiredAuto }))
+                      }
+                    />
                   </>
                 )}
 
@@ -673,7 +708,8 @@ export function AttendanceScheduleYearDialog({
                 xato bo'lsa — uning o'zi, oynasiz tanaffus bo'lsa — «ayirilmaydi».
               */}
               {draft.isWorking &&
-                (draftError !== null ? (
+                // Erkin kun xatosi «Ish vaqti» maydonining o'zida — bu yerda takrorlanmaydi
+                (draftError !== null && draftError !== FLEXIBLE_REQUIRED_CODE ? (
                   <p role="alert" className="mt-2 text-footnote text-ios-red">
                     {errorMessage(draftError)}
                   </p>
@@ -850,14 +886,18 @@ function patternDraft(schedule: WorkSchedule): CellDraft {
 
   if (day === undefined) return FALLBACK_DRAFT
 
-  return {
-    isWorking: true,
-    startTime: clock(day.startTime),
-    endTime: clock(day.endTime),
-    breakMinutes: String(day.breakMinutes),
-    breakStart: clock(day.breakStart),
-    breakEnd: clock(day.breakEnd),
-  }
+  return withFlexible(
+    {
+      isWorking: true,
+      startTime: clock(day.startTime),
+      endTime: clock(day.endTime),
+      breakMinutes: String(day.breakMinutes),
+      breakStart: clock(day.breakStart),
+      breakEnd: clock(day.breakEnd),
+      ...NOT_FLEXIBLE,
+    },
+    day,
+  )
 }
 
 /**
@@ -867,13 +907,32 @@ function patternDraft(schedule: WorkSchedule): CellDraft {
 function cellDraft(day: ScheduleYearDay, previous: CellDraft): CellDraft {
   if (!day.isWorking) return { ...previous, isWorking: false }
 
+  return withFlexible(
+    {
+      isWorking: true,
+      startTime: clock(day.startTime),
+      endTime: clock(day.endTime),
+      breakMinutes: String(day.breakMinutes),
+      breakStart: clock(day.breakStart),
+      breakEnd: clock(day.breakEnd),
+      ...NOT_FLEXIBLE,
+    },
+    day,
+  )
+}
+
+/**
+ * Saqlangan kunning erkinligi → panel. «Sukutdami» degan savol shu kunning
+ * O'Z vaqtlari bilan hal qilinadi: R eng kattasiga teng bo'lsa, maydon vaqtlar
+ * bilan birga yuradi.
+ */
+function withFlexible(
+  draft: CellDraft,
+  day: { isFlexible: boolean; requiredMinutes: number | null },
+): CellDraft {
   return {
-    isWorking: true,
-    startTime: clock(day.startTime),
-    endTime: clock(day.endTime),
-    breakMinutes: String(day.breakMinutes),
-    breakStart: clock(day.breakStart),
-    breakEnd: clock(day.breakEnd),
+    ...draft,
+    ...flexibleDraftOf(day.isFlexible, day.requiredMinutes, maxRequiredMinutes(toDayInput(draft))),
   }
 }
 
@@ -892,6 +951,8 @@ function toDayInput(draft: CellDraft): WorkScheduleDayInput {
       breakMinutes: 0,
       breakStart: null,
       breakEnd: null,
+      isFlexible: false,
+      requiredMinutes: null,
     }
   }
 
@@ -903,6 +964,8 @@ function toDayInput(draft: CellDraft): WorkScheduleDayInput {
     breakMinutes: parseMinutes(draft.breakMinutes === '' ? '0' : draft.breakMinutes),
     breakStart: draft.breakStart === '' ? null : draft.breakStart,
     breakEnd: draft.breakEnd === '' ? null : draft.breakEnd,
+    isFlexible: draft.isFlexible,
+    requiredMinutes: requiredMinutesOf(draft),
   }
 }
 

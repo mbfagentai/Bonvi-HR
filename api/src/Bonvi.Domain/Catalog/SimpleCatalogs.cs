@@ -41,7 +41,7 @@ public sealed class TerminationReason : ReferenceEntity
     public void SetRehireable(bool value) => IsRehireable = value;
 }
 
-/// <summary>Yo'qlik turi: «Ishxona ishi bilan», «Kasallik», «Shaxsiy sabab».</summary>
+/// <summary>Yo'qlik turi: «Ishxona ishi bilan», «Shaxsiy» — Verifix'dagi ikkitasi (SPEC-erkin-jadval §6).</summary>
 /// <remarks>
 /// <para>
 /// Davomat so'rovlari shu ro'yxatdan tanlanadi (SPEC-so'rovlar §B1). Ro'yxat
@@ -68,7 +68,7 @@ public sealed class AbsenceType : ReferenceEntity
     /// </summary>
     /// <remarks>
     /// <c>false</c> (sukut) — so'rov faqat «Kelmadi» ni «Sababli» qiladi
-    /// (kasallik, shaxsiy sabab). <c>true</c> — so'ralgan vaqt xodim binoda
+    /// («Shaxsiy»). <c>true</c> — so'ralgan vaqt xodim binoda
     /// bo'lgandek hisoblanadi, lekin faqat rejadagi smena ichida.
     /// </remarks>
     public bool CountsAsWorkTime { get; private set; }

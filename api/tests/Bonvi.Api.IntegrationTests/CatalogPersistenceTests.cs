@@ -276,6 +276,9 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
     /// qoldi — ilovadagi «Yo'qlik turi» varag'i bo'sh ochilardi. Urug' baza
     /// bo'sh bo'lgandagina quyiladi va dastur ishga tushganda ishlaydi,
     /// shuning uchun bu yerda faqat yozuvlar BORLIGI tekshiriladi.
+    /// 2026-10-20 dan urug' — Verifix'dagi aynan ikki tur (SPEC-erkin-jadval §6.2):
+    /// eski «Kasallik» va «Shaxsiy sabab» urug'da yo'q. Aniq son tekshirilmaydi —
+    /// boshqa testlar shu bazaga o'z turlarini qo'shadi.
     /// </remarks>
     [Fact]
     public async Task Yoqlik_turlari_urugdan_toldiriladi()
@@ -285,15 +288,19 @@ public sealed class CatalogPersistenceTests : IClassFixture<BonviApiFactory>
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var nomlar = await kontekst.AbsenceTypes
+        var turlar = await kontekst.AbsenceTypes
             .IgnoreQueryFilters()
             .AsNoTracking()
-            .Select(tur => tur.Name)
+            .Select(tur => new { tur.Name, tur.CountsAsWorkTime })
             .ToListAsync(bekorQilish);
+        var nomlar = turlar.Select(tur => tur.Name).ToList();
 
-        nomlar.ShouldContain("Ishxona ishi bilan");
-        nomlar.ShouldContain("Kasallik");
-        nomlar.ShouldContain("Shaxsiy sabab");
+        turlar.ShouldContain(
+            tur => tur.Name == "Ishxona ishi bilan" && tur.CountsAsWorkTime,
+            "«Ishxona ishi bilan» — ish vaqti hisoblanadigan tur");
+        nomlar.ShouldContain("Shaxsiy");
+        nomlar.ShouldNotContain("Kasallik");
+        nomlar.ShouldNotContain("Shaxsiy sabab");
     }
 
     /// <summary>

@@ -73,6 +73,10 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         "Kechikish (soat:daq)",
         "Erta ketish (daq.)",
         "Erta ketish (soat:daq)",
+
+        // Erkin jadval (SPEC-erkin-jadval §5.3) — OXIRIDA: mavjud ustunlar o'rni (HR formulalari) siljimaydi.
+        "Kam ishlangan (daq.)",
+        "Kam ishlangan (soat:daq)",
     ];
 
     private static readonly string[] TimesheetDayHeaders =
@@ -92,6 +96,11 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         "Erta ketish (soat:daq)",
         "Tanaffus olingan (daq.)",
         "Tanaffus ayirilgan (daq.)",
+
+        // Erkin jadval (SPEC-erkin-jadval §5.3) — oxirida, mavjud ustunlar o'rnida qoladi.
+        "Erkin jadval",
+        "Kam ishlangan (daq.)",
+        "Kam ishlangan (soat:daq)",
     ];
 
     /// <inheritdoc />
@@ -178,6 +187,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
             sheet.Cell(excelRow, column++).Value = totals.AbsentDays;
             SetDuration(sheet, excelRow, ref column, totals.LateMinutes);
             SetDuration(sheet, excelRow, ref column, totals.EarlyLeaveMinutes);
+            SetDuration(sheet, excelRow, ref column, totals.ShortfallMinutes);
         }
 
         if (timesheet.Items.Count > 0)
@@ -272,7 +282,9 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
                 SetDuration(sheet, excelRow, ref column, cell.LateMinutes);
                 SetDuration(sheet, excelRow, ref column, cell.EarlyLeaveMinutes);
                 sheet.Cell(excelRow, column++).Value = cell.BreakTakenMinutes;
-                sheet.Cell(excelRow, column).Value = cell.BreakDeductionMinutes;
+                sheet.Cell(excelRow, column++).Value = cell.BreakDeductionMinutes;
+                sheet.Cell(excelRow, column++).Value = cell.IsFlexible ? "Ha" : string.Empty;
+                SetDuration(sheet, excelRow, ref column, cell.ShortfallMinutes);
 
                 excelRow++;
             }
@@ -377,6 +389,10 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         "Ishlangan (daq.)",
         "Ishlangan (soat:daq)",
         "Holat",
+
+        // Erkin jadval (SPEC-erkin-jadval §5.3) — oxirida.
+        "Kam ishlangan (daq.)",
+        "Kam ishlangan (soat:daq)",
     ];
 
     /// <inheritdoc />
@@ -406,7 +422,8 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
             SetDuration(sheet, excelRow, ref column, row.LateMinutes);
             SetDuration(sheet, excelRow, ref column, row.EarlyLeaveMinutes);
             SetDuration(sheet, excelRow, ref column, row.WorkedMinutes);
-            sheet.Cell(excelRow, column).Value = StatusLabel(row.Status);
+            sheet.Cell(excelRow, column++).Value = StatusLabel(row.Status);
+            SetDuration(sheet, excelRow, ref column, row.ShortfallMinutes);
         }
 
         FormatColumn(sheet, 1, rows.Count + 1, DateFormat);
@@ -444,6 +461,10 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         "Erta ketish (soat:daq)",
         "Ortiqcha ish (daq.)",
         "Ortiqcha ish (soat:daq)",
+
+        // Erkin jadval (SPEC-erkin-jadval §5.3) — oxirida.
+        "Kam ishlangan (daq.)",
+        "Kam ishlangan (soat:daq)",
     ];
 
     /// <inheritdoc />
@@ -475,6 +496,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
             SetDuration(sheet, excelRow, ref column, row.LateMinutes);
             SetDuration(sheet, excelRow, ref column, row.EarlyLeaveMinutes);
             SetDuration(sheet, excelRow, ref column, row.OvertimeMinutes);
+            SetDuration(sheet, excelRow, ref column, row.ShortfallMinutes);
         }
 
         Finish(sheet);
@@ -652,6 +674,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         ExceptionKind.EarlyLeave => "Erta ketganlar",
         ExceptionKind.Absent => "Kelmaganlar",
         ExceptionKind.Missing => "Muammoli kunlar",
+        ExceptionKind.Shortfall => "Kam ishlaganlar",
         _ => "Chetlanishlar",
     };
 

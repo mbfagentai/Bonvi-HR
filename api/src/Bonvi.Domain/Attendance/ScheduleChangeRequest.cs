@@ -25,6 +25,11 @@ public enum ScheduleChangeKind
 /// jadvaldan olingan kunda jadvalning o'z qiymati, chunki u yerda uzunlik va oyna alohida
 /// (60 daqiqalik tushlik 12:00–15:00 oynasida).
 /// </param>
+/// <param name="IsFlexible">
+/// «Erkin ish jadvali» (Verifix formasidagi belgi, SPEC-erkin-jadval §1 O1); almashtirishda —
+/// juft sananing rejasidan.
+/// </param>
+/// <param name="RequiredMinutes">«Ish vaqti»; <c>null</c> — sukut (smena − tanaffus).</param>
 public sealed record ScheduleChangeDayInput(
     DateOnly Date,
     bool IsWorking,
@@ -33,7 +38,9 @@ public sealed record ScheduleChangeDayInput(
     TimeOnly? BreakStart = null,
     TimeOnly? BreakEnd = null,
     DateOnly? SwapWith = null,
-    int? BreakMinutes = null);
+    int? BreakMinutes = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);
 
 /// <summary>
 /// Jadvalni o'zgartirish so'rovi — Verifix «Запрос на изменение рабочего графика»
@@ -319,15 +326,8 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
 
         foreach (var day in days)
         {
-            // Smena va tanaffus qoidasi jadval kunidagi bilan AYNAN bir xil — bitta kod.
-            var input = new WorkScheduleDayInput(
-                IsoDayIndex(day.Date),
-                day.IsWorking,
-                day.StartTime,
-                day.EndTime,
-                BreakMinutes(day),
-                day.BreakStart,
-                day.BreakEnd);
+            // Smena, tanaffus va erkin kun qoidasi jadval kunidagi bilan AYNAN bir xil — bitta kod.
+            var input = DayInput(day);
 
             var valid = WorkScheduleDay.Validate(input);
             if (valid.IsFailure)
@@ -360,6 +360,23 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
             ? (int)(end - start).TotalMinutes
             : 0;
     }
+
+    /// <summary>So'ralgan kun — jadval kuni shaklida, AMALDAGI tanaffus daqiqasi bilan.</summary>
+    /// <remarks>
+    /// Erkin kun normasining sukuti (smena − tanaffus) shu daqiqadan chiqadi: berilgan
+    /// <c>breakMinutes</c>, aks holda oynaning uzunligi (SPEC-erkin-jadval §2.5).
+    /// </remarks>
+    internal static WorkScheduleDayInput DayInput(ScheduleChangeDayInput day)
+        => new(
+            IsoDayIndex(day.Date),
+            day.IsWorking,
+            day.StartTime,
+            day.EndTime,
+            BreakMinutes(day),
+            day.BreakStart,
+            day.BreakEnd,
+            day.IsFlexible,
+            day.RequiredMinutes);
 
     private static Error? NoteTooLong(string? note)
         => note?.Trim().Length > MaxNoteLength
@@ -409,6 +426,13 @@ public sealed class ScheduleChangeDay : Entity
     /// <summary>Ayiriladigan tanaffus (daqiqa); dam olish kunida 0.</summary>
     public int BreakMinutes { get; private set; }
 
+    /// <summary>«Erkin ish jadvali» — faqat ish kunida (<see cref="WorkScheduleDay.IsFlexible"/>).</summary>
+    public bool IsFlexible { get; private set; }
+
+    /// <summary>«Ish vaqti» (daqiqa) — berilgani yoki sukut; erkin bo'lmagan kunda <c>null</c>.</summary>
+    /// <remarks>Sukut ham shu yerda yoziladi: HR tasdiqlagan narsa — u ko'rgan son.</remarks>
+    public int? RequiredMinutes { get; private set; }
+
     internal static ScheduleChangeDay Create(Guid requestId, ScheduleChangeDayInput input)
     {
         var day = new ScheduleChangeDay(NewId(), requestId, input.Date)
@@ -424,6 +448,8 @@ public sealed class ScheduleChangeDay : Entity
             day.BreakStart = input.BreakStart;
             day.BreakEnd = input.BreakEnd;
             day.BreakMinutes = ScheduleChangeRequest.BreakMinutes(input);
+            day.IsFlexible = input.IsFlexible;
+            day.RequiredMinutes = WorkScheduleDay.RequiredFor(ScheduleChangeRequest.DayInput(input));
         }
 
         return day;

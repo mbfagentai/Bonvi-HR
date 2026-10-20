@@ -55,6 +55,8 @@ export interface MonthTotals {
   lateDays: number
   plannedMinutes: number
   workedMinutes: number
+  /** «Kam ishlangan» — erkin kunlardagi normadan kami, serverning jami qatoridan. */
+  shortfallMinutes: number
 }
 
 /**
@@ -75,6 +77,8 @@ export function monthTotals(days: readonly AttendanceDay[], totals: TimesheetTot
     lateDays: 0,
     plannedMinutes: totals ? totals.plannedMinutes : 0,
     workedMinutes: totals ? totals.workedMinutes : 0,
+    // Eski server bu maydonni bermaydi — erkin kun ham yo'q
+    shortfallMinutes: totals ? totals.shortfallMinutes ?? 0 : 0,
   }
 
   days.forEach((day) => {
@@ -85,6 +89,17 @@ export function monthTotals(days: readonly AttendanceDay[], totals: TimesheetTot
   })
 
   return result
+}
+
+/**
+ * Erkin kunning «Ish vaqti» (rejadagi daqiqalar), aks holda `null`.
+ * Hosil qilingan katakda reja yo'q (`plannedMinutes = 0`) — u erkin
+ * deb ko'rsatilmaydi: ko'rsatadigan oyna ham, norma ham yo'q.
+ */
+export function flexiblePlannedMinutes(day: TimesheetCellDto | null): number | null {
+  if (!day || day.isFlexible !== true) return null
+  const planned = day.plannedMinutes ?? 0
+  return planned > 0 ? planned : null
 }
 
 export function findDay(

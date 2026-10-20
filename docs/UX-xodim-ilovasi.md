@@ -76,6 +76,8 @@ Consequences that are easy to forget and must not be:
 
 ### A.1 What Verifix has, and what we do with it
 
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-erkin-jadval.md` §8: the request-type sheet now lists all 8 Verifix types in Verifix order; rows 4–8 are visible but disabled («Tez orada») until their forms are specified.
+
 Verifix's employee app is the structural reference. Its shape:
 
 * a **bottom tab bar** with four tabs: `Asosiy · Kalendar · Yangiliklar · Profil`;
@@ -990,6 +992,8 @@ exists.
 **`UpdateToast`** — "a new version is ready", with `Yangilash` (§G.5).
 
 ### E.8 Icons
+
+> **AMENDED 2026-10-20**: seven request-type icons added (shuffle, calendar-edit, person-arrows, map-pin, briefcase-clock, person-minus, umbrella) — `app/src/ui/icon.tsx`.
 
 One icon set, outline style, 24 px default, stroke 1.5 — a family that matches
 SF Symbols in weight. The fifteen icons the app actually uses:

@@ -6,8 +6,9 @@ import { api } from '@/api/client'
 import { ApiError, NoAnswerError } from '@/api/errors'
 import type { CheckInResult, MeDto, MyCurrentStateDto, PassDirection } from '@/api/types'
 import { setCheckInBusy } from '@/app/checkin-busy'
-import type { AttendanceDay } from '@/data/attendance'
+import { flexiblePlannedMinutes, type AttendanceDay } from '@/data/attendance'
 import { invalidateAttendance } from '@/data/queries'
+import { hoursMinutes } from '@/data/schedule-requests'
 import { useFormat } from '@/lib/format'
 import {
   permissionState,
@@ -520,6 +521,19 @@ function ResultLine({
 
   if (lastMarkTime) {
     return <p className="text-footnote text-fg-secondary">{lastMarkTime}</p>
+  }
+
+  // Erkin kunda boshlanish soati — majburiyat emas: oyna va «Ish vaqti» aytiladi
+  const flexibleMinutes = flexiblePlannedMinutes(today)
+  if (today && today.planStartAt && today.planEndAt && flexibleMinutes !== null) {
+    return (
+      <p className="nums text-footnote text-fg-secondary">
+        {t('checkin.hintFlexible', {
+          range: `${format.time(today.planStartAt)}–${format.time(today.planEndAt)}`,
+          hours: hoursMinutes(flexibleMinutes),
+        })}
+      </p>
+    )
   }
 
   if (today && today.planStartAt) {

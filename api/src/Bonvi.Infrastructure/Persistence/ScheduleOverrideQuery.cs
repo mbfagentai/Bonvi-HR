@@ -43,7 +43,9 @@ internal static class ScheduleOverrideQuery
                     day.BreakEnd,
                     day.BreakMinutes,
                     request.Id,
-                    request.DecidedAt))
+                    request.DecidedAt,
+                    day.IsFlexible,
+                    day.RequiredMinutes))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

@@ -121,9 +121,15 @@ export function RequestsScreen() {
 }
 
 /**
- * «So'rov turini tanlang» (INTAKE-verifix-ilova §3.6). Verifix'da sakkizta
- * band; bizda — ma'lumoti bor ikkitasi (UX sarlavhasidagi qamrov qoidasi).
- * Yorliqlar to'liq so'z: Verifix'dagi «Jadval o'zg.» kabi qisqartma yo'q.
+ * «So'rov turini tanlang» (INTAKE-verifix-ilova §3.6, §8) — Verifix'dagi
+ * sakkiz tur, Verifix tartibida (SPEC-erkin-jadval §7.2, §8). Ishlaydigani —
+ * birinchi uchtasi; qolgan beshtasi formalari loyihalanguncha ko'rinadi, lekin
+ * nofaol, «Tez orada» yozuvi bilan (egasi: «hammasi bo'lsin», 2026-10-20).
+ *
+ * «Kun almashtirish» va «Jadval o'zgartirish» — BITTA forma: qator faqat
+ * turni oldindan tanlaydi (`?tur=`). Yorliqlar to'liq so'z: Verifix'dagi
+ * «Jadval o'zg.» kabi qisqartma yo'q; tavsif satri ham yo'q — sakkizta ikki
+ * qatorli qator 320 px ekranga sig'masdi.
  */
 function RequestTypeSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
@@ -137,18 +143,22 @@ function RequestTypeSheet({ open, onClose }: { open: boolean; onClose: () => voi
   return (
     <Sheet open={open} title={t('requests.typeTitle')} onClose={onClose}>
       <div className="overflow-hidden rounded-card bg-bg-elevated">
+        <TypeRow icon="person-running" label={t('requests.typeAbsence')} onClick={() => go('/sorovlar/yangi')} />
         <TypeRow
-          icon="document-text"
-          label={t('requests.typeAbsence')}
-          text={t('requests.typeAbsenceText')}
-          onClick={() => go('/sorovlar/yangi')}
+          icon="arrows-right-left"
+          label={t('requests.typeSwap')}
+          onClick={() => go('/sorovlar/jadval/yangi?tur=almashtirish')}
         />
         <TypeRow
-          icon="calendar"
+          icon="calendar-pencil"
           label={t('requests.typeSchedule')}
-          text={t('requests.typeScheduleText')}
-          onClick={() => go('/sorovlar/jadval/yangi')}
+          onClick={() => go('/sorovlar/jadval/yangi?tur=ozgartirish')}
         />
+        <TypeRow icon="person-walking-arrows" label={t('requests.typeMark')} />
+        <TypeRow icon="map-pin" label={t('requests.typeLocation')} />
+        <TypeRow icon="briefcase-clock" label={t('requests.typeOvertime')} />
+        <TypeRow icon="user-minus" label={t('requests.typeResignation')} />
+        <TypeRow icon="beach-umbrella" label={t('requests.typeVacation')} />
       </div>
 
       <div className="mt-4">
@@ -160,28 +170,36 @@ function RequestTypeSheet({ open, onClose }: { open: boolean; onClose: () => voi
   )
 }
 
-function TypeRow({
-  icon,
-  label,
-  text,
-  onClick,
-}: {
-  icon: IconName
-  label: string
-  text: string
-  onClick: () => void
-}) {
+/**
+ * Varaqning bitta qatori. `onClick` siz — hali formasi yo'q tur: nofaol,
+ * bosilganda hech narsa bo'lmaydi va bosilgan holat ham ko'rinmaydi.
+ */
+function TypeRow({ icon, label, onClick }: { icon: IconName; label: string; onClick?: () => void }) {
+  const { t } = useTranslation()
+
+  if (!onClick) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-disabled="true"
+        className="flex min-h-[52px] w-full items-center border-t border-border px-1 py-2 text-left first:border-t-0"
+      >
+        <Icon name={icon} className="mr-3 h-6 w-6 text-fg-tertiary" />
+        <span className="min-w-0 flex-1 text-body text-fg-tertiary">{label}</span>
+        <span className="ml-2 shrink-0 text-footnote text-fg-tertiary">{t('requests.soon')}</span>
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[64px] w-full items-center border-t border-border px-1 py-3 text-left first:border-t-0 active:bg-bg-pressed"
+      className="flex min-h-[52px] w-full items-center border-t border-border px-1 py-2 text-left first:border-t-0 active:bg-bg-pressed"
     >
       <Icon name={icon} className="mr-3 h-6 w-6 text-fg-secondary" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-body text-fg">{label}</span>
-        <span className="mt-0.5 block text-footnote text-fg-secondary">{text}</span>
-      </span>
+      <span className="min-w-0 flex-1 text-body text-fg">{label}</span>
       <Icon name="chevron-right" className="ml-2 h-5 w-5 text-fg-tertiary" />
     </button>
   )

@@ -38,16 +38,30 @@ import {
   isoWeekday,
   scheduleSwapPairs,
 } from '../lib/attendance-presentation'
-import { breakWindowMinutes, scheduleOutcome, validateScheduleDay } from '../lib/attendance-schedule-rules'
+import {
+  FLEXIBLE_REQUIRED_CODE,
+  NOT_FLEXIBLE,
+  breakWindowMinutes,
+  flexibleDraftOf,
+  maxRequiredMinutes,
+  requiredMinutesOf,
+  requiredUnparsable,
+  scheduleOutcome,
+  validateScheduleDay,
+  type FlexibleDraft,
+} from '../lib/attendance-schedule-rules'
 import { breakDiffersFromWindow, useScheduleRequestText } from '../lib/schedule-request-text'
+import { FlexibleDayFields } from './attendance-flexible-day-fields'
 
 /** `schedule_change_requests.note` — varchar(2000). */
 const NOTE_MAX = 2000
 
 /**
  * Formadagi bitta «kunni o'zgartirish» qatori. Vaqtlar «HH:mm», bo'sh — `''`.
+ * «Erkin ish jadvali» va «Ish vaqti» — `FlexibleDraft` maydonlari
+ * (SPEC-erkin-jadval §7.1, Verifix formasidagi belgi).
  */
-interface ChangeRowDraft {
+interface ChangeRowDraft extends FlexibleDraft {
   /** React kaliti — sana bo'sh yoki takror bo'lishi mumkin, shu sababli alohida. */
   key: string
   date: string
@@ -100,6 +114,7 @@ function emptyChangeRow(date: string): ChangeRowDraft {
     breakMinutes: null,
     touched: false,
     filledFor: '',
+    ...NOT_FLEXIBLE,
   }
 }
 
@@ -126,6 +141,24 @@ function toDayInput(row: ChangeRowDraft): WorkScheduleDayInput {
     breakMinutes: row.isWorking ? (row.breakMinutes ?? breakWindowMinutes(breakStart, breakEnd)) : 0,
     breakStart,
     breakEnd,
+    // Eng kattasi shu samarali tanaffusdan (`maxRequiredMinutes`) — server formulasi (§2.5)
+    isFlexible: row.isWorking && row.isFlexible,
+    requiredMinutes: row.isWorking ? requiredMinutesOf(row) : null,
+  }
+}
+
+/**
+ * Saqlangan erkinlik → qator. R eng kattasiga teng bo'lsa maydon sukutda
+ * turadi va HR vaqtni o'zgartirsa R ham ergashadi.
+ */
+function withFlexible(
+  row: ChangeRowDraft,
+  isFlexible: boolean,
+  requiredMinutes: number | null,
+): ChangeRowDraft {
+  return {
+    ...row,
+    ...flexibleDraftOf(isFlexible, requiredMinutes, maxRequiredMinutes(toDayInput(row))),
   }
 }
 
@@ -202,19 +235,26 @@ export function ScheduleRequestDialog({
     setKind(request?.kind ?? 'Change')
     setChangeRows(
       request !== null && request.kind === 'Change'
-        ? request.days.map((day) => ({
-            key: nextKey(),
-            date: day.date,
-            isWorking: day.isWorking,
-            startTime: day.startTime ?? '',
-            endTime: day.endTime ?? '',
-            hasBreak: day.breakStart !== null && day.breakEnd !== null,
-            breakStart: day.breakStart ?? '',
-            breakEnd: day.breakEnd ?? '',
-            breakMinutes: day.isWorking ? day.breakMinutes : null,
-            touched: true,
-            filledFor: day.date,
-          }))
+        ? request.days.map((day) =>
+            withFlexible(
+              {
+                key: nextKey(),
+                date: day.date,
+                isWorking: day.isWorking,
+                startTime: day.startTime ?? '',
+                endTime: day.endTime ?? '',
+                hasBreak: day.breakStart !== null && day.breakEnd !== null,
+                breakStart: day.breakStart ?? '',
+                breakEnd: day.breakEnd ?? '',
+                breakMinutes: day.isWorking ? day.breakMinutes : null,
+                touched: true,
+                filledFor: day.date,
+                ...NOT_FLEXIBLE,
+              },
+              day.isWorking && day.isFlexible,
+              day.requiredMinutes,
+            ),
+          )
         : // Yangi so'rov — bugungi sana bilan: HR odatda shu kunning tanaffusini ko'chiradi
           [emptyChangeRow(todayIso())],
     )
@@ -242,7 +282,10 @@ export function ScheduleRequestDialog({
     [swapRows],
   )
 
-  const changeProblem = (row: ChangeRowDraft): { message: string; incomplete: boolean } | null => {
+  /** `flexible` — xato «Ish vaqti» maydonida ko'rsatiladi, qatorning pastida emas. */
+  const changeProblem = (
+    row: ChangeRowDraft,
+  ): { message: string; incomplete: boolean; flexible?: boolean } | null => {
     if (row.date === '') {
       return { message: t('attendance.scheduleRequestDateRequired'), incomplete: true }
     }
@@ -251,6 +294,14 @@ export function ScheduleRequestDialog({
     }
 
     const code = validateScheduleDay(toDayInput(row))
+    if (code === FLEXIBLE_REQUIRED_CODE) {
+      return {
+        message: requiredUnparsable(row) ? t('attendance.durationFormat') : errorMessage(code),
+        // Bo'shatilgan maydon — «bo'sh maydon» xatolari kabi faqat «Saqlash» dan keyin
+        incomplete: requiredUnparsable(row) && row.required.trim() === '',
+        flexible: true,
+      }
+    }
     if (code !== null) {
       return { message: errorMessage(code), incomplete: INCOMPLETE_CODES.has(code) }
     }
@@ -316,6 +367,9 @@ export function ScheduleRequestDialog({
                 breakEnd: toWire(day.breakEnd),
                 // Dam olish kunida server baribir 0 yozadi
                 breakMinutes: row.isWorking ? row.breakMinutes : null,
+                // `requiredMinutes: null` — server sukuti (smena − tanaffus)
+                isFlexible: day.isFlexible,
+                requiredMinutes: day.requiredMinutes,
               }
             }),
           }
@@ -381,20 +435,29 @@ export function ScheduleRequestDialog({
         {kind === 'Change' ? (
           <section className="space-y-3">
             <ul className="space-y-3">
-              {changeRows.map((row) => (
-                <ChangeRowEditor
-                  key={row.key}
-                  employeeId={subjectId}
-                  row={row}
-                  error={visible(changeProblem(row))}
-                  disabled={saving}
-                  removable={changeRows.length > 1}
-                  onChange={(patch) => updateChange(row.key, patch)}
-                  onRemove={() =>
-                    setChangeRows((rows) => rows.filter((item) => item.key !== row.key))
-                  }
-                />
-              ))}
+              {changeRows.map((row) => {
+                const problem = changeProblem(row)
+                const shown = visible(problem)
+
+                return (
+                  <ChangeRowEditor
+                    key={row.key}
+                    employeeId={subjectId}
+                    row={row}
+                    // Erkin kun xatosi «Ish vaqti» maydonining o'zida — qator pastida takrorlanmaydi
+                    error={problem?.flexible === true ? null : shown}
+                    flexibleCode={
+                      problem?.flexible === true && shown !== null ? FLEXIBLE_REQUIRED_CODE : null
+                    }
+                    disabled={saving}
+                    removable={changeRows.length > 1}
+                    onChange={(patch) => updateChange(row.key, patch)}
+                    onRemove={() =>
+                      setChangeRows((rows) => rows.filter((item) => item.key !== row.key))
+                    }
+                  />
+                )
+              })}
             </ul>
 
             <AddRowButton
@@ -494,6 +557,7 @@ function ChangeRowEditor({
   employeeId,
   row,
   error,
+  flexibleCode,
   disabled,
   removable,
   onChange,
@@ -502,6 +566,8 @@ function ChangeRowEditor({
   employeeId: string
   row: ChangeRowDraft
   error: string | null
+  /** «Ish vaqti» maydonining xatosi — `FLEXIBLE_REQUIRED_CODE` yoki `null`. */
+  flexibleCode: string | null
   disabled: boolean
   removable: boolean
   onChange: (patch: Partial<ChangeRowDraft>) => void
@@ -537,6 +603,16 @@ function ChangeRowEditor({
       breakStart: day.breakStart ?? '',
       breakEnd: day.breakEnd ?? '',
       breakMinutes: day.breakMinutes,
+      /*
+        Erkinlik ham joriy rejadan: erkin kunning tanaffusini ko'chirayotgan HR
+        uni qayta belgilamasin. Eng kattasi rejaning o'z vaqtlaridan — qator
+        aynan shu vaqtlar bilan to'ladi.
+      */
+      ...flexibleDraftOf(
+        day.isWorking && day.isFlexible,
+        day.requiredMinutes,
+        maxRequiredMinutes(day),
+      ),
     })
   }, [plan, row.date, row.touched, row.filledFor, onChange])
 
@@ -662,6 +738,16 @@ function ChangeRowEditor({
               {t('attendance.scheduleRequestBreakKept', { n: num(keptBreak) })}
             </p>
           )}
+
+          <FlexibleDayFields
+            value={row}
+            max={maxRequiredMinutes(day)}
+            code={flexibleCode}
+            disabled={disabled}
+            onChange={({ isFlexible, required, requiredAuto }) =>
+              edit({ isFlexible, required, requiredAuto })
+            }
+          />
         </div>
       )}
 

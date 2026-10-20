@@ -3,6 +3,24 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏸ Navbatdagi reliz — erkin ish jadvali + 8 turli so'rov varag'i + 2 ta yo'qlik sababi (deploy — EGASI AYTGANDA)
+
+Egasi 2026-10-20: «Verifix'ga oid qism hozircha deploy chiqarmay tur». SPEC: `docs/SPEC-verifikatsiya-erkin-jadval.md`
+(boshidagi «Owner override» — erkin kunda butun vaqt hisoblanadi). Tekshiruv: qa-review «commit'ga tayyor», testlar 2966/2966,
+web typecheck/build/check, ilova typecheck/check:locales/build; migratsiya sinovi — test-migration.
+
+**Migratsiya — 1 ta:** `20261020051430_ErkinJadval` — faqat qo'shadi: 8 ustun (`is_flexible`, `required_minutes`,
+`attendance_days.shortfall_minutes` …) + 3 CHECK, `lock_timeout`; UPDATE/DROP yo'q. Rollback image bilan — sxema qoladi (zararsiz).
+
+**Oldin tekshir (prod):** `select count(*) from schedule_assignments` (2026-10-20: 0 — erkin kun hech kimga ta'sir qilmaydi);
+deploy'dan keyin `select count(*) from work_schedule_days where is_flexible` = 0.
+
+**Deploy'dan keyin — yo'qlik sabablari (SPEC §6.3), urug' prod'ga TUSHMAYDI:** Ma'lumotnomalar → Yo'qlik turlari:
+«Shaxsiy sabab» → «Shaxsiy» deb qayta nomlash, «Kasallik» → faolsiz (o'chirilmaydi; eski so'rovlar o'z turida qoladi).
+«Shaxsiy» allaqachon bo'lsa — to'xta, egasiga ayt (birlashtirilmaydi). Tekshiruv:
+`select name, is_active, counts_as_work_time from absence_types where deleted_at is null order by name` — faol 2 ta:
+«Ishxona ishi bilan» (ish vaqti ✓), «Shaxsiy».
+
 ## ✅ Reliz `c233722` — rag'batdan buyruq olib tashlandi + yo'qlik turlari + «ish vaqti» so'rovi + jadval so'rovi — 2026-10-17 21:57 (Toshkent)
 
 Prod `e99ba4e` → `c233722`. Rollback: image tegi `rollback-e99ba4e` — ishlab turgan konteynerlarniki (api `c906c3d9b881`,

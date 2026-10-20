@@ -70,6 +70,31 @@ public sealed class DayPlan
     /// <summary>Haq to'lanmaydigan tanaffus uzunligi (daqiqa). Dam olish kunida 0.</summary>
     public int BreakMinutes { get; private init; }
 
+    /// <summary>
+    /// «Erkin ish jadvali» — kun boshlanish/tugash vaqti bilan emas, ishlangan vaqt bilan
+    /// baholanadi (SPEC-erkin-jadval §2). Dam olish kunida doim <c>false</c>.
+    /// </summary>
+    /// <remarks>
+    /// Shunda <see cref="PlannedMinutes"/> — normaning o'zi («Ish vaqti»), kechikish va erta
+    /// ketish yo'q. ⭐ Borliq oynaga KESILMAYDI (egasining qarori, 2026-10-20): 08:00 da kelib
+    /// 17:30 da ketgan odam 08:30–18:00 oynasida ham normani bajargan. Oyna
+    /// [<see cref="PlanStartAt"/>, <see cref="PlanEndAt"/>] faqat yo'l-yo'riq: kun oynasi
+    /// (§5.3), tanaffus oynasi va «eng kech kelish» (<see cref="LatestStartAt"/>) shundan.
+    /// </remarks>
+    public bool IsFlexible { get; private init; }
+
+    /// <summary>
+    /// Kelish uchun eng kech lahza: erkin kunda <c>PlanEndAt − PlannedMinutes</c>, qat'iy kunda
+    /// <see cref="PlanStartAt"/>. Dam olish kunida <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// «Hali boshlanmagan» shu lahzagacha (<see cref="DashboardStatusRule.HasNotStarted"/>):
+    /// 08:30–18:00 oynasida 7:30 normali xodim 10:30 gacha «Kelmadi» emas. Tanaffus hisobga
+    /// olinmaydi — optimistik chegara hech kimni erta ayblamaydi (SPEC-erkin-jadval §14 Q3).
+    /// </remarks>
+    public DateTimeOffset? LatestStartAt
+        => IsFlexible && PlanEndAt is { } planEnd ? planEnd.AddMinutes(-PlannedMinutes) : PlanStartAt;
+
     /// <summary>Tanaffus oynasining boshlanish lahzasi (UTC). Oyna yo'q bo'lsa <c>null</c>.</summary>
     public DateTimeOffset? BreakWindowStartAt { get; private init; }
 
@@ -153,6 +178,7 @@ public sealed class DayPlan
 
             return exact.IsWorking
                 ? Working(schedule, date, exact.StartTime, exact.EndTime, exact.BreakMinutes, exact.BreakStart, exact.BreakEnd,
+                    exact.IsFlexible, exact.RequiredMinutes,
                     $"«{schedule.Name}» jadvalining {date:yyyy-MM-dd} katagi ish kuni, lekin vaqtlari ko'rsatilmagan.")
                 : new DayPlan(date, schedule);
         }
@@ -172,6 +198,7 @@ public sealed class DayPlan
 
         return day.IsWorking
             ? Working(schedule, date, day.StartTime, day.EndTime, day.BreakMinutes, day.BreakStart, day.BreakEnd,
+                day.IsFlexible, day.RequiredMinutes,
                 $"«{schedule.Name}» jadvalining {dayIndex}-kuni ish kuni, lekin vaqtlari ko'rsatilmagan.")
             : new DayPlan(date, schedule);
     }
@@ -196,15 +223,25 @@ public sealed class DayPlan
                 requested.BreakMinutes,
                 requested.BreakStart,
                 requested.BreakEnd,
+                requested.IsFlexible,
+                requested.RequiredMinutes,
                 $"Jadval so'rovining {requested.Date:yyyy-MM-dd} kuni ish kuni, lekin vaqtlari ko'rsatilmagan.")
             : new DayPlan(requested.Date, schedule);
     }
 
     /// <summary>Ish kunining rejasi — naqshdan ham, sana katagidan ham SHU yerda quriladi.</summary>
     /// <remarks>
+    /// <para>
     /// Ikkala manba uchun bitta metod: hisoblash (tungi smena, tanaffus
     /// oynasi, rejadagi daqiqalar) ikki joyda yozilsa, ular vaqt o'tib
     /// ajralib ketardi va bir xil kun ikki xil hisoblanardi.
+    /// </para>
+    /// <para>
+    /// Erkin kunda reja — saqlangan norma («Ish vaqti»); u yo'q bo'lsa (faqat qo'lda
+    /// yozilgan qatorda) qat'iy kunning sanog'i. Normaning yuqori chegarasi bu yerda
+    /// QISILMAYDI: saqlangan qiymat ishlatiladi, xato esa keyingi saqlashda chiqadi
+    /// (SPEC-erkin-jadval §2.4).
+    /// </para>
     /// </remarks>
     private static DayPlan Working(
         WorkSchedule schedule,
@@ -214,6 +251,8 @@ public sealed class DayPlan
         int breakMinutes,
         TimeOnly? breakStart,
         TimeOnly? breakEnd,
+        bool isFlexible,
+        int? requiredMinutes,
         string missingTimesMessage)
     {
         if (startTime is not { } start || endTime is not { } end)
@@ -223,16 +262,18 @@ public sealed class DayPlan
 
         var planStart = new DateTimeOffset(date.ToDateTime(start), BonviTime.TashkentOffset).ToUniversalTime();
         var shiftLength = end - start;
+        var fixedMinutes = Math.Max(0, WholeMinutes.AtLeastZero(shiftLength) - breakMinutes);
 
         return new DayPlan(date, schedule)
         {
             IsWorking = true,
             PlanStartAt = planStart,
             PlanEndAt = planStart + shiftLength,
-            PlannedMinutes = Math.Max(0, WholeMinutes.AtLeastZero(shiftLength) - breakMinutes),
+            PlannedMinutes = isFlexible ? requiredMinutes ?? fixedMinutes : fixedMinutes,
             BreakMinutes = breakMinutes,
             BreakWindowStartAt = breakStart is { } window ? planStart + (window - start) : null,
             BreakWindowEndAt = breakEnd is { } windowEnd ? planStart + (windowEnd - start) : null,
+            IsFlexible = isFlexible,
         };
     }
 

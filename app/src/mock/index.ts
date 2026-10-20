@@ -17,7 +17,7 @@ import type {
   ScheduleChangeRequestDto,
   TimesheetTotalsDto,
 } from '@/api/types'
-import { breakWindowMinutes } from '@/data/schedule-requests'
+import { MIN_REQUIRED_MINUTES, breakWindowMinutes, maxRequiredMinutes } from '@/data/schedule-requests'
 import { daysBetween, monthKey, todayIso } from '@/lib/time'
 import mockAvatarUrl from './avatar.jpg'
 import {
@@ -98,6 +98,9 @@ function planOf(dateIso: string): DayPlanDto {
     breakStart: approved.breakStart,
     breakEnd: approved.breakEnd,
     breakMinutes: approved.breakMinutes,
+    // So'rov kuni rejani TO'LIQ almashtiradi — erkinlik ham undan (SPEC-erkin-jadval §4)
+    isFlexible: approved.isFlexible ?? false,
+    requiredMinutes: approved.requiredMinutes ?? null,
   }
 }
 
@@ -146,19 +149,19 @@ function mobileAllowed(): boolean {
   return readScenario() !== 'ruxsatyoq'
 }
 
-/** Oy jami — server kabi: rejalar va ishlangan daqiqalar yig'indisi. */
+/**
+ * Oy jami — server kabi: kataklardagi rejalar (erkin kunda «Ish vaqti»),
+ * ishlangan va «Kam ishlangan» daqiqalar yig'indisi.
+ */
 function totalsOf(days: readonly MockDay[]): TimesheetTotalsDto {
   return {
     workedMinutes: days.reduce((sum, day) => sum + day.workedMinutes, 0),
-    plannedMinutes: days.reduce((sum, day) => {
-      if (!day.planStartAt || !day.planEndAt) return sum
-      const planned = Math.round((Date.parse(day.planEndAt) - Date.parse(day.planStartAt)) / 60_000)
-      return sum + Math.max(0, planned - 60)
-    }, 0),
+    plannedMinutes: days.reduce((sum, day) => sum + (day.plannedMinutes ?? 0), 0),
     presentDays: days.filter((day) => day.status === 'Present').length,
     absentDays: days.filter((day) => day.status === 'Absent').length,
     lateMinutes: days.reduce((sum, day) => sum + day.lateMinutes, 0),
     earlyLeaveMinutes: days.reduce((sum, day) => sum + day.earlyLeaveMinutes, 0),
+    shortfallMinutes: days.reduce((sum, day) => sum + (day.shortfallMinutes ?? 0), 0),
   }
 }
 
@@ -423,7 +426,8 @@ export const mockApi: EmployeeApi = {
 
 /**
  * Jadval so'rovi — server qoidalarining mock nusxasi (tartibi ham bir xil):
- * tur, kun yo'q, ko'p, sana takrori, keyin faol so'rov bilan to'qnashuv.
+ * tur, kun yo'q, ko'p, sana takrori, smena va tanaffus, «Ish vaqti», keyin
+ * faol so'rov bilan to'qnashuv.
  */
 function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<ScheduleChangeRequestDto> {
   if (request.kind !== 'Change' && request.kind !== 'Swap') {
@@ -436,12 +440,24 @@ function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<Sc
 
   const days: ScheduleChangeDayDto[] =
     request.kind === 'Change'
-      ? request.days.map((day) => ({
-          ...day,
-          swapWith: null,
+      ? request.days.map((day) => {
           // Server qoidasi: berilmagan uzunlik — oynaning o'zi, dam olish kunida 0
-          breakMinutes: day.isWorking ? (day.breakMinutes ?? breakWindowMinutes(day.breakStart, day.breakEnd)) : 0,
-        }))
+          const breakMinutes = day.isWorking ? (day.breakMinutes ?? breakWindowMinutes(day.breakStart, day.breakEnd)) : 0
+          // Erkinlik faqat ish kunida; berilmagan «Ish vaqti» — sukut (smena − tanaffus)
+          const flexible = day.isWorking && day.isFlexible
+          const required =
+            flexible && day.startTime && day.endTime
+              ? (day.requiredMinutes ?? maxRequiredMinutes(day.startTime, day.endTime, breakMinutes))
+              : null
+
+          return {
+            ...day,
+            swapWith: null,
+            breakMinutes,
+            isFlexible: flexible,
+            requiredMinutes: required,
+          }
+        })
       : request.swaps.reduce<ScheduleChangeDayDto[]>(
           (list, pair) =>
             list.concat([
@@ -474,6 +490,15 @@ function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<Sc
   }
   if (working.some((day) => (day.breakStart === null) !== (day.breakEnd === null))) {
     return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_tanaffus_toliq_emas'))
+  }
+  if (
+    working.some((day) => {
+      if (!day.isFlexible || day.requiredMinutes === undefined || day.requiredMinutes === null) return false
+      const max = maxRequiredMinutes(day.startTime ?? '', day.endTime ?? '', day.breakMinutes)
+      return day.requiredMinutes < MIN_REQUIRED_MINUTES || day.requiredMinutes > max
+    })
+  ) {
+    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_erkin_vaqti'))
   }
 
   const taken = state.scheduleRequests.some(

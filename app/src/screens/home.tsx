@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
-import { findDay, marksNewestFirst } from '@/data/attendance'
+import { findDay, flexiblePlannedMinutes, marksNewestFirst } from '@/data/attendance'
 import { useMyPhoto } from '@/data/photo'
 import { useMe, useMonth, useRequests } from '@/data/queries'
+import { hoursMinutes } from '@/data/schedule-requests'
 import { DAY_STATUS_LOOK, REQUEST_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
 import { parseIsoDate, todayIso } from '@/lib/time'
@@ -54,11 +55,18 @@ export function HomeScreen() {
     requests.refetch()
   }
 
+  // Erkin kunda — «Ish vaqti» va oyna: «Erkin jadval 7:30 · 08:30–18:00»
+  const flexibleMinutes = flexiblePlannedMinutes(todayCell)
   const scheduleLine =
     todayCell && todayCell.planStartAt && todayCell.planEndAt
-      ? t('home.workday', {
-          range: `${format.time(todayCell.planStartAt)}–${format.time(todayCell.planEndAt)}`,
-        })
+      ? flexibleMinutes !== null
+        ? t('home.workdayFlexible', {
+            hours: hoursMinutes(flexibleMinutes),
+            range: `${format.time(todayCell.planStartAt)}–${format.time(todayCell.planEndAt)}`,
+          })
+        : t('home.workday', {
+            range: `${format.time(todayCell.planStartAt)}–${format.time(todayCell.planEndAt)}`,
+          })
       : null
 
   return (
@@ -124,6 +132,13 @@ export function HomeScreen() {
                 value={
                   <span className="nums">{t('calendar.late', { n: todayCell.lateMinutes })}</span>
                 }
+              />
+            ) : null}
+            {/* Erkin kunda kechikish o'rnida — oyna tugagach hisoblanadi */}
+            {todayCell && (todayCell.shortfallMinutes ?? 0) > 0 ? (
+              <CardRow
+                label={t('calendar.shortfall')}
+                value={<span className="nums">{format.duration(todayCell.shortfallMinutes)}</span>}
               />
             ) : null}
           </>

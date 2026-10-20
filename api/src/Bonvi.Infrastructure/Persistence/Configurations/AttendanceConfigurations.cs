@@ -475,15 +475,22 @@ public sealed class WorkScheduleDayConfiguration : IEntityTypeConfiguration<Work
           o'qni talab qiladi (`CrossesMidnight`), ya'ni SQL ifodasi
           o'qib bo'lmaydigan darajada uzun bo'lardi. U faqat domenda.
         */
-        builder.ToTable("work_schedule_days", table => table.HasCheckConstraint(
-            "ck_work_schedule_days_break_window",
-            """
-            (break_start IS NULL AND break_end IS NULL)
-            OR (is_working
-                AND break_start IS NOT NULL
-                AND break_end IS NOT NULL
-                AND break_start <> break_end)
-            """));
+        builder.ToTable("work_schedule_days", table =>
+        {
+            table.HasCheckConstraint(
+                "ck_work_schedule_days_break_window",
+                """
+                (break_start IS NULL AND break_end IS NULL)
+                OR (is_working
+                    AND break_start IS NOT NULL
+                    AND break_end IS NOT NULL
+                    AND break_start <> break_end)
+                """);
+
+            // Erkin kun ⇔ norma bor (SPEC-erkin-jadval §3.1). Aniq yuqori chegara (smena −
+            // tanaffus) tungi smena o'qini talab qiladi — u faqat domenda, tanaffus oynasi kabi.
+            table.HasCheckConstraint("ck_work_schedule_days_flexible", FlexibleDayCheck.Sql);
+        });
 
         builder.HasKey(day => day.Id);
 
@@ -500,6 +507,10 @@ public sealed class WorkScheduleDayConfiguration : IEntityTypeConfiguration<Work
             .IsRequired();
 
         builder.Property(day => day.BreakMinutes)
+            .IsRequired();
+
+        // Bazadagi sukut `false` faqat migratsiyada (eski image rollback'da ustunni bilmay yozadi) — 2-qoida.
+        builder.Property(day => day.IsFlexible)
             .IsRequired();
 
         // ────────────────────────────────────────────────────────────
@@ -654,6 +665,14 @@ public sealed class AttendanceDayConfiguration : IEntityTypeConfiguration<Attend
         // Bazadagi sukut 0 faqat migratsiyada (mavjud qatorlar so'rovsiz
         // hisoblangan; eski image rollback'da ustunni bilmay yozadi) — 2-qoida.
         builder.Property(day => day.CreditedMinutes)
+            .IsRequired();
+
+        // Erkin kun surati va «Kam ishlangan» (SPEC-erkin-jadval §3.1) — sukutlar (false, 0)
+        // ham faqat migratsiyada, CHECK yo'q: hisoblangan jadval, yagona yozuvchisi bor.
+        builder.Property(day => day.IsFlexible)
+            .IsRequired();
+
+        builder.Property(day => day.ShortfallMinutes)
             .IsRequired();
 
         builder.Property(day => day.ComputedAt)
@@ -821,6 +840,7 @@ public sealed class ScheduleChangeDayConfiguration : IEntityTypeConfiguration<Sc
             table.HasCheckConstraint(
                 "ck_schedule_change_request_days_break_minutes",
                 $"break_minutes BETWEEN 0 AND {WorkScheduleDay.MaxBreakMinutes} AND (is_working OR break_minutes = 0)");
+            table.HasCheckConstraint("ck_schedule_change_request_days_flexible", FlexibleDayCheck.Sql);
         });
 
         builder.HasKey(day => day.Id);
@@ -829,6 +849,7 @@ public sealed class ScheduleChangeDayConfiguration : IEntityTypeConfiguration<Sc
 
         // Uzunlik oynadan alohida saqlanadi — jadvaldagidek (60 daqiqa 12:00–15:00 oynasida).
         builder.Property(day => day.BreakMinutes).IsRequired();
+        builder.Property(day => day.IsFlexible).IsRequired();
 
         builder.Property(day => day.Date).IsRequired();
         builder.Property(day => day.IsWorking).IsRequired();
@@ -863,7 +884,9 @@ public sealed class WorkScheduleDateConfiguration : IEntityTypeConfiguration<Wor
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.ToTable("work_schedule_dates");
+        builder.ToTable(
+            "work_schedule_dates",
+            table => table.HasCheckConstraint("ck_work_schedule_dates_flexible", FlexibleDayCheck.Sql));
 
         builder.HasKey(date => date.Id);
 
@@ -872,6 +895,7 @@ public sealed class WorkScheduleDateConfiguration : IEntityTypeConfiguration<Wor
         builder.Property(date => date.Date).IsRequired();
         builder.Property(date => date.IsWorking).IsRequired();
         builder.Property(date => date.BreakMinutes).IsRequired();
+        builder.Property(date => date.IsFlexible).IsRequired();
 
         builder.HasOne<WorkSchedule>()
             .WithMany()
@@ -932,4 +956,26 @@ public sealed class DeviceEnrollmentConfiguration : IEntityTypeConfiguration<Dev
             .IsUnique()
             .HasDatabaseName("ux_device_enrollments_device_employee");
     }
+}
+
+/// <summary>
+/// Erkin kun cheklovi — uchala kun jadvalida AYNAN bir xil matn (SPEC-erkin-jadval §3.1).
+/// </summary>
+/// <remarks>
+/// <para>
+/// <c>is_working</c> ATAYLAB yo'q: rollback'dan keyin eski image erkin kunni dam olish
+/// kuniga aylantirsa, saqlash yiqilmasligi kerak. Yangi kod ish kuni bo'lmagan kunda
+/// erkinlikni o'qimaydi va keyingi yozuvda tozalaydi. 1440 — sutka; aniq chegara domenda.
+/// </para>
+/// <para>
+/// ⚠️ <c>required_minutes IS NOT NULL</c> erkin tarmoqda SHART: usiz (true, NULL) qatorda
+/// <c>NULL BETWEEN …</c> butun ifodani NULL qiladi, CHECK esa NULL ni «o'tdi» deb oladi —
+/// normasiz erkin kun bazaga tushib qolardi.
+/// </para>
+/// </remarks>
+internal static class FlexibleDayCheck
+{
+    public const string Sql =
+        "(NOT is_flexible AND required_minutes IS NULL) " +
+        "OR (is_flexible AND required_minutes IS NOT NULL AND required_minutes BETWEEN 1 AND 1440)";
 }

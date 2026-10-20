@@ -136,7 +136,9 @@ public sealed class EmployeePlanReader
                     LocalTime(plan.PlanEndAt),
                     LocalTime(plan.BreakWindowStartAt),
                     LocalTime(plan.BreakWindowEndAt),
-                    plan.IsWorking ? plan.BreakMinutes : 0);
+                    plan.IsWorking ? plan.BreakMinutes : 0,
+                    plan.IsFlexible,
+                    plan.IsFlexible ? plan.PlannedMinutes : null);
         }
 
         return result;
@@ -208,11 +210,21 @@ internal static class ScheduleChangeDays
 
         return built;
 
-        // Tanaffus daqiqasi jadvalnikidek ko'chadi — oynadan qayta hisoblanmaydi.
+        // Tanaffus daqiqasi jadvalnikidek ko'chadi — oynadan qayta hisoblanmaydi. Erkinlik va
+        // «Ish vaqti» ham (SPEC-erkin-jadval §4): juft sananing kuni butunligicha o'tadi.
         static ScheduleChangeDayInput Take(DateOnly date, DayPlanDto from, DateOnly swapWith)
             => from.IsWorking
                 ? new ScheduleChangeDayInput(
-                    date, true, from.StartTime, from.EndTime, from.BreakStart, from.BreakEnd, swapWith, from.BreakMinutes)
+                    date,
+                    true,
+                    from.StartTime,
+                    from.EndTime,
+                    from.BreakStart,
+                    from.BreakEnd,
+                    swapWith,
+                    from.BreakMinutes,
+                    from.IsFlexible,
+                    from.RequiredMinutes)
                 : new ScheduleChangeDayInput(date, false, SwapWith: swapWith);
     }
 

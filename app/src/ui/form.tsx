@@ -1,7 +1,8 @@
 import clsx from 'clsx'
-import { useState, type ChangeEvent, type ReactNode } from 'react'
+import { useId, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { hoursMinutes } from '@/data/schedule-requests'
 import { useFormat } from '@/lib/format'
 import { Button } from './button'
 import { Icon } from './icon'
@@ -354,6 +355,121 @@ export function TimeRow({
               {clearLabel}
             </Button>
           ) : null}
+          <Button variant="plain" block onClick={() => setOpen(false)}>
+            {t('common.cancel')}
+          </Button>
+        </div>
+      </Sheet>
+    </>
+  )
+}
+
+/** Soat va daqiqa ro'yxatlari — bir marta: varaq har ochilganda qayta yig'ilmaydi. */
+const DURATION_HOURS: readonly number[] = Array.from({ length: 24 }, (_value, index) => index)
+const DURATION_MINUTES: readonly number[] = Array.from({ length: 60 }, (_value, index) => index)
+
+/**
+ * Davomiylik tanlash qatori — «Ish vaqti» (7:30), `TimeRow` ning egizagi
+ * (SPEC-erkin-jadval §7.2). Qiymat — DAQIQA.
+ *
+ * ⚠️ `<input type="time">` ATAYLAB emas: u kun ichidagi SOATNI tanlaydi va
+ * 12 soatlik telefonda «7:30 AM» bo'lib chiqardi — davomiylik esa soat
+ * emas. Varaqda ikkita native ro'yxat: soat (0–23) va daqiqa (00–59).
+ */
+export function DurationRow({
+  sheetTitle,
+  value,
+  hoursLabel,
+  minutesLabel,
+  invalid = false,
+  onChange,
+}: {
+  sheetTitle: string
+  /** Daqiqa: 450 — «7:30». */
+  value: number
+  /** Varaqdagi ro'yxatlar yorlig'i — «Soat», «Daqiqa». */
+  hoursLabel: string
+  minutesLabel: string
+  invalid?: boolean
+  onChange: (minutes: number) => void
+}) {
+  const { t } = useTranslation()
+  const id = useId()
+  const [open, setOpen] = useState(false)
+  const [hours, setHours] = useState(0)
+  const [minutes, setMinutes] = useState(0)
+
+  const selectClass =
+    'nums h-12 w-full rounded-control border border-border-strong bg-bg-elevated px-3 text-callout text-fg'
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setHours(Math.floor(value / 60))
+          setMinutes(value % 60)
+          setOpen(true)
+        }}
+        className={clsx(
+          'flex h-12 w-full items-center rounded-control border bg-bg-elevated px-3 text-left active:bg-bg-pressed',
+          invalid ? 'border-danger' : 'border-border-strong',
+        )}
+      >
+        <span className="nums min-w-0 flex-1 truncate text-callout text-fg">{hoursMinutes(value)}</span>
+        <Icon name="clock" className="ml-2 h-5 w-5 text-fg-tertiary" />
+      </button>
+
+      <Sheet open={open} title={sheetTitle} onClose={() => setOpen(false)}>
+        {/* Ikki ustun orasida flex `gap` yo'q (Safari 14.1 dan past, UX §F.2) */}
+        <div className="flex">
+          <div className="min-w-0 flex-1">
+            <label htmlFor={`${id}-h`} className="mb-1.5 block text-footnote font-medium text-fg-secondary">
+              {hoursLabel}
+            </label>
+            <select
+              id={`${id}-h`}
+              value={hours}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setHours(Number(event.target.value))}
+              className={selectClass}
+            >
+              {DURATION_HOURS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-3 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <label htmlFor={`${id}-m`} className="mb-1.5 block text-footnote font-medium text-fg-secondary">
+              {minutesLabel}
+            </label>
+            <select
+              id={`${id}-m`}
+              value={minutes}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setMinutes(Number(event.target.value))}
+              className={selectClass}
+            >
+              {DURATION_MINUTES.map((option) => (
+                <option key={option} value={option}>
+                  {option < 10 ? `0${option}` : option}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <Button
+            block
+            onClick={() => {
+              onChange(hours * 60 + minutes)
+              setOpen(false)
+            }}
+          >
+            {t('common.confirm')}
+          </Button>
           <Button variant="plain" block onClick={() => setOpen(false)}>
             {t('common.cancel')}
           </Button>

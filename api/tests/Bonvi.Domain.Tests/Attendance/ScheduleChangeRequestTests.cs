@@ -173,4 +173,61 @@ public sealed class ScheduleChangeRequestTests
         sorov.Cancel(Guid.CreateVersion7(), DateTimeOffset.UtcNow).IsSuccess.ShouldBeTrue();
         sorov.Status.ShouldBe(AbsenceRequestStatus.Cancelled);
     }
+
+    // ────────────────────── Erkin ish jadvali (SPEC-erkin-jadval §2.5, §10.1) ──────────────────────
+
+    /// <summary>Verifix formasi: 08:30–18:00, tanaffus 12:00–14:00, «Erkin» — norma oynadan: 570 − 120 = 450.</summary>
+    [Fact]
+    public void Erkin_kunda_norma_berilmasa_oyna_tanaffusi_bilan_sukut_450()
+    {
+        var kun = ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [new ScheduleChangeDayInput(Sana, true, T(8, 30), T(18), T(12), T(14), IsFlexible: true)])
+            .Value.Days.ShouldHaveSingleItem();
+
+        kun.IsFlexible.ShouldBeTrue();
+        kun.BreakMinutes.ShouldBe(120);
+        kun.RequiredMinutes.ShouldBe(450);
+    }
+
+    /// <summary>Berilgan tanaffus daqiqasi oynadan ustun — norma ham shundan: 540 − 60 = 480 (180 emas).</summary>
+    [Fact]
+    public void Erkin_kunda_sukut_berilgan_tanaffus_daqiqasidan_480()
+        => ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [new ScheduleChangeDayInput(Sana, true, T(9), T(18), T(12), T(15), BreakMinutes: 60, IsFlexible: true)])
+            .Value.Days.ShouldHaveSingleItem().RequiredMinutes.ShouldBe(480);
+
+    [Fact]
+    public void Erkin_kunda_berilgan_norma_saqlanadi_chegaradan_oshsa_rad_etiladi()
+    {
+        ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [new ScheduleChangeDayInput(Sana, true, T(8, 30), T(18), T(12), T(14), IsFlexible: true, RequiredMinutes: 420)])
+            .Value.Days.ShouldHaveSingleItem().RequiredMinutes.ShouldBe(420);
+
+        ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [new ScheduleChangeDayInput(Sana, true, T(8, 30), T(18), T(12), T(14), IsFlexible: true, RequiredMinutes: 451)])
+            .Error.Code.ShouldBe("davomat.jadval_erkin_vaqti");
+    }
+
+    [Fact]
+    public void Dam_olish_kunida_va_erkin_bolmagan_kunda_norma_saqlanmaydi()
+    {
+        var kunlar = ScheduleChangeRequest.Create(
+                Xodim,
+                ScheduleChangeKind.Change,
+                [
+                    new ScheduleChangeDayInput(Sana, false, IsFlexible: true, RequiredMinutes: 450),
+                    new ScheduleChangeDayInput(Sana.AddDays(1), true, T(9), T(18), RequiredMinutes: 300),
+                ])
+            .Value.Days;
+
+        kunlar.ShouldAllBe(kun => !kun.IsFlexible && kun.RequiredMinutes == null);
+    }
 }

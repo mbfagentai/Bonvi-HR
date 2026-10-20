@@ -6,7 +6,7 @@ import { api } from '@/api/client'
 import { ApiError } from '@/api/errors'
 import { invalidateScheduleRequests, useScheduleRequests } from '@/data/queries'
 import { shortTime } from '@/data/attendance'
-import { dayBreakText, scheduleTitleKey } from '@/data/schedule-requests'
+import { dayBreakText, flexibleRequired, hoursMinutes, scheduleTitleKey } from '@/data/schedule-requests'
 import { REQUEST_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
 import { useErrorText } from '@/lib/use-error-message'
@@ -100,6 +100,8 @@ export function ScheduleRequestDetailScreen() {
               {request.days.map((day) => {
                 // Uzunlik oynadan farq qilsa daqiqasi ham: «Tanaffus 60 daq. (12:00–15:00 oralig‘ida)»
                 const breakText = dayBreakText(t, day)
+                // Erkin kunda «Ish vaqti»: «Erkin ish jadvali · 7:30»
+                const required = flexibleRequired(day)
 
                 return (
                   <div key={day.date} className="border-t border-border py-2.5 first:border-t-0 first:pt-0">
@@ -113,6 +115,11 @@ export function ScheduleRequestDetailScreen() {
                     </div>
                     {breakText ? (
                       <p className="nums mt-0.5 text-right text-footnote text-fg-secondary">{breakText}</p>
+                    ) : null}
+                    {required !== null ? (
+                      <p className="nums mt-0.5 text-right text-footnote text-fg-secondary">
+                        {t('schedule.flexibleLine', { hours: hoursMinutes(required) })}
+                      </p>
                     ) : null}
                     {day.swapWith ? (
                       <p className="nums mt-0.5 text-footnote text-fg-secondary">

@@ -32,6 +32,8 @@ public sealed record GetScheduleYearQuery(Guid ScheduleId, int Year);
 /// <param name="BreakMinutes">Tanaffus.</param>
 /// <param name="BreakStart">Tanaffus oynasining boshi.</param>
 /// <param name="BreakEnd">Tanaffus oynasining oxiri.</param>
+/// <param name="IsFlexible">«Erkin ish jadvali» (SPEC-erkin-jadval §5.1).</param>
+/// <param name="RequiredMinutes">«Ish vaqti»; <c>null</c> — sukut (smena − tanaffus).</param>
 public sealed record SetScheduleDatesCommand(
     Guid ScheduleId,
     IReadOnlyList<DateOnly> Dates,
@@ -41,7 +43,9 @@ public sealed record SetScheduleDatesCommand(
     TimeOnly? EndTime = null,
     int BreakMinutes = 0,
     TimeOnly? BreakStart = null,
-    TimeOnly? BreakEnd = null);
+    TimeOnly? BreakEnd = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);
 
 /// <summary><see cref="GetScheduleYearQuery"/> ni bajaradi.</summary>
 /// <remarks>
@@ -120,7 +124,10 @@ public sealed class GetScheduleYearQueryHandler
                 exact is null ? pattern?.BreakStart : exact.BreakStart,
                 exact is null ? pattern?.BreakEnd : exact.BreakEnd,
                 plan.PlannedMinutes,
-                exact is null ? ScheduleDaySource.Pattern : ScheduleDaySource.Date));
+                exact is null ? ScheduleDaySource.Pattern : ScheduleDaySource.Date,
+                // Erkinlik ham vaqtlar kabi — katak bo'lsa faqat katakdan (SPEC-erkin-jadval §4).
+                plan.IsFlexible,
+                plan.IsFlexible ? (exact is null ? pattern?.RequiredMinutes : exact.RequiredMinutes) : null));
         }
 
         return new ScheduleYearDto(schedule.Id, schedule.Name, query.Year, days);
@@ -231,7 +238,9 @@ public sealed class SetScheduleDatesCommandHandler
                     command.EndTime,
                     command.BreakMinutes,
                     command.BreakStart,
-                    command.BreakEnd);
+                    command.BreakEnd,
+                    command.IsFlexible,
+                    command.RequiredMinutes);
 
                 if (existing.TryGetValue(date, out var row))
                 {

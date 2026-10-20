@@ -255,12 +255,12 @@ export const IDENTITY_MATCH_KINDS: readonly IdentityMatchKind[] = Object.values(
  * bog'laydi va noto'g'ri qiymatga `davomat.hisobot_turi_notogri` bilan
  * javob beradi (B5 qarori) — shu sababli OpenAPI hujjatida bu sanoq
  * yo'q (`kind?: string`). Qiymatlar SPEC §6.6 dagi ro'yxatning AYNAN
- * nusxasi.
+ * nusxasi va `Shortfall` (SPEC-erkin-jadval §5.3, `ExceptionKind.Shortfall`).
  *
  * `Missing` UCHTA holatni tanlaydi: `MissingExit`, `MissingEntry` va
  * `NoSchedule` — «bu kunni hisoblab bo'lmadi» degan ro'yxat.
  */
-export const EXCEPTION_KINDS = ['Late', 'EarlyLeave', 'Absent', 'Missing'] as const
+export const EXCEPTION_KINDS = ['Late', 'EarlyLeave', 'Shortfall', 'Absent', 'Missing'] as const
 export type ExceptionKind = (typeof EXCEPTION_KINDS)[number]
 
 /* ════════════════════════════════════════════════════════ qurilmalar (§6.2) */

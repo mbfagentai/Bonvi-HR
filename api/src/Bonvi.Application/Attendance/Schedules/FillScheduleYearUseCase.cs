@@ -18,7 +18,7 @@ public sealed record FillScheduleYearCommand(Guid ScheduleId, int Year);
 /// <para>
 /// ⭐ <b>Faqat BO'SH sanalar yoziladi.</b> Yilning katagi yozilmagan har bir
 /// kuniga naqshdagi hafta kunining qiymati (vaqtlar, tanaffus va uning
-/// OYNASI) nusxalanadi; qo'lda yozilgan katak — bayram, qisqa kun —
+/// OYNASI, erkinlik va «Ish vaqti») nusxalanadi; qo'lda yozilgan katak — bayram, qisqa kun —
 /// TEGILMAYDI. «Hammasini naqshdan qaytadan yozish» kerak bo'lsa, avval
 /// «Yilni tozalash» (u o'chiruvchi amal va tasdiq bilan ketadi).
 /// </para>
@@ -107,7 +107,9 @@ public sealed class FillScheduleYearCommandHandler
                     day.EndTime,
                     day.BreakMinutes,
                     day.BreakStart,
-                    day.BreakEnd));
+                    day.BreakEnd,
+                    day.IsFlexible,
+                    day.RequiredMinutes));
 
             // Naqsh domen tekshiruvidan o'tib saqlangan — bu yerda rad etilishi
             // bazaga qo'lda yozilgan buzuq kunni bildiradi va jim o'tkazilmaydi.

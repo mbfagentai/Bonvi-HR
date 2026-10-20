@@ -677,6 +677,16 @@ public enum ExceptionKind
     /// (SPEC §6.6).
     /// </remarks>
     Missing = 4,
+
+    /// <summary>
+    /// «Kam ishlaganlar» — erkin kunda normadan kam ishlagan kunlar, <c>shortfall_minutes &gt; 0</c>
+    /// (SPEC-erkin-jadval §5.3).
+    /// </summary>
+    /// <remarks>
+    /// Erkin kunda kechikish ham, erta ketish ham yo'q — bu ro'yxatsiz norma bajarilmagan kun
+    /// hech qaysi hisobotda ko'rinmasdi.
+    /// </remarks>
+    Shortfall = 5,
 }
 
 /// <summary>Chetlanishlar hisobotini saralash ustunlari.</summary>
@@ -693,7 +703,8 @@ public enum ExceptionSortField
     Employee = 1,
 
     /// <summary>
-    /// Daqiqalar: kechikkanlarda kechikish, erta ketganlarda erta ketish.
+    /// Daqiqalar: kechikkanlarda kechikish, erta ketganlarda erta ketish, kam ishlaganlarda kam
+    /// ishlangan vaqt.
     /// </summary>
     /// <remarks>
     /// Kelmaganlar va muammoli kunlarda daqiqa yo'q — u yerda sana
@@ -710,7 +721,7 @@ public enum ExceptionSortField
 /// <param name="DepartmentId">Kun yozuvidagi bo'lim (ichki bo'limlari bilan).</param>
 /// <param name="PositionId">Kun yozuvidagi lavozim.</param>
 /// <param name="EmployeeId">Faqat shu xodim.</param>
-/// <param name="MinMinutes">Kamida shuncha daqiqa — faqat <c>Late</c>/<c>EarlyLeave</c> uchun.</param>
+/// <param name="MinMinutes">Kamida shuncha daqiqa — faqat <c>Late</c>/<c>EarlyLeave</c>/<c>Shortfall</c> uchun.</param>
 /// <param name="Sort">Saralash ustuni.</param>
 /// <param name="Descending">Teskari tartib.</param>
 /// <param name="Page">Sahifa, 1 dan.</param>

@@ -74,6 +74,42 @@ internal sealed class AttendanceScenario
         return scenario;
     }
 
+    /// <summary>
+    /// «Erkin ish jadvali» xodimi (SPEC-erkin-jadval §2.3): sukut 08:30–18:00, tanaffus 120 daqiqa
+    /// 12:00–14:00 oynasida, norma berilmasa — sukut (7:30). Har kuni ish kuni.
+    /// </summary>
+    public static AttendanceScenario FlexibleOffice(
+        string start = "08:30",
+        string end = "18:00",
+        int breakMinutes = 120,
+        string? breakStart = "12:00",
+        string? breakEnd = "14:00",
+        int? requiredMinutes = null)
+    {
+        var scenario = new AttendanceScenario();
+        scenario.Employ();
+        scenario.Assign(FlexibleSchedule(start, end, breakMinutes, breakStart, breakEnd, requiredMinutes));
+        return scenario;
+    }
+
+    /// <summary>Hamma kuni bir xil ERKIN smena bo'lgan haftalik jadval.</summary>
+    public static WorkSchedule FlexibleSchedule(
+        string start = "08:30",
+        string end = "18:00",
+        int breakMinutes = 120,
+        string? breakStart = "12:00",
+        string? breakEnd = "14:00",
+        int? requiredMinutes = null)
+        => Schedule(
+        [
+            .. Enumerable.Range(1, WorkSchedule.WeeklyDayCount)
+                .Select(index => WorkingDay(index, start, end, breakMinutes, breakStart, breakEnd) with
+                {
+                    IsFlexible = true,
+                    RequiredMinutes = requiredMinutes,
+                }),
+        ]);
+
     /// <summary>Toshkent soatidagi lahza.</summary>
     public static DateTimeOffset At(DateOnly date, string time)
         => new(date.ToDateTime(Time(time)), BonviTime.TashkentOffset);
@@ -217,21 +253,44 @@ internal sealed class AttendanceScenario
         string? breakStart = null,
         string? breakEnd = null,
         int? breakMinutes = null)
+        => Override(date, start, end, isFlexible: false, requiredMinutes: null, breakStart, breakEnd, breakMinutes);
+
+    /// <summary>
+    /// Tasdiqlangan jadval so'rovining kuni — «Erkin ish jadvali» belgisi bilan (SPEC-erkin-jadval §4).
+    /// Norma berilmasa — bazadagidek sukut yoziladi (smena − tanaffus).
+    /// </summary>
+    public AttendanceScenario Override(
+        DateOnly date,
+        string? start,
+        string? end,
+        bool isFlexible,
+        int? requiredMinutes = null,
+        string? breakStart = null,
+        string? breakEnd = null,
+        int? breakMinutes = null)
     {
         var windowMinutes = breakStart is not null && breakEnd is not null
             ? (int)(Time(breakEnd) - Time(breakStart)).TotalMinutes
             : 0;
 
+        var working = start is not null;
+        var deducted = working ? breakMinutes ?? windowMinutes : 0;
+        var flexible = working && isFlexible;
+
         _overrides.Add(new EmployeeDayOverride(
             EmployeeId,
             date,
-            start is not null,
+            working,
             start is null ? null : Time(start),
             end is null ? null : Time(end),
             breakStart is null ? null : Time(breakStart),
             breakEnd is null ? null : Time(breakEnd),
-            start is null ? 0 : breakMinutes ?? windowMinutes,
-            Guid.CreateVersion7()));
+            deducted,
+            Guid.CreateVersion7(),
+            IsFlexible: flexible,
+            RequiredMinutes: flexible
+                ? requiredMinutes ?? WorkScheduleDay.MaxRequiredMinutes(Time(start!), Time(end!), deducted)
+                : null));
         return this;
     }
 
@@ -257,6 +316,17 @@ internal sealed class AttendanceScenario
 
     /// <summary>Bitta sanani hisoblaydi.</summary>
     public ComputedAttendanceDay Day(DateOnly date) => Days(date).ShouldHaveSingleItem();
+
+    /// <summary>
+    /// Bir kunlik sahnaning juftlash natijasi (SPEC §5.5 1–5-qadamlar) — kun yozuviga tushmaydigan
+    /// oraliq sonlari uchun (yopilgan yig'indi, oynada binoda bo'lgan vaqt). Sahnadagi HAMMA o'tish
+    /// shu kunniki deb olinadi.
+    /// </summary>
+    public PairingResult Pairing(DateOnly date)
+    {
+        var employment = PrimaryEmployment.Select(_employments, date).ShouldNotBeNull();
+        return PassPairing.Pair(_passes, Resolver().Resolve(employment, date)?.Day);
+    }
 
     /// <summary>Bir nechta sanani BITTA chaqiruvda hisoblaydi — qayta hisoblash ishi aynan shunday chaqiradi.</summary>
     public IReadOnlyList<ComputedAttendanceDay> Days(params DateOnly[] dates)

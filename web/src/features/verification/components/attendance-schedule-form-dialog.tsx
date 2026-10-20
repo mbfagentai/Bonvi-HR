@@ -19,16 +19,23 @@ import {
   type WeekdayIndex,
 } from '../lib/attendance-presentation'
 import {
+  FLEXIBLE_REQUIRED_CODE,
   MAX_BREAK_MINUTES,
   MAX_GRACE_MINUTES,
+  NOT_FLEXIBLE,
   SCHEDULE_NAME_MAX,
   SCHEDULE_NOTE_MAX,
   breakWindowPlacement,
   clockMinutes,
+  flexibleDraftOf,
   isValidGrace,
+  maxRequiredMinutes,
   plannedDayMinutes,
+  requiredMinutesOf,
   validateScheduleDay,
+  type FlexibleDraft,
 } from '../lib/attendance-schedule-rules'
+import { FlexibleDayFields } from './attendance-flexible-day-fields'
 
 /**
  * Bir kunning FORMA holati — hammasi satr.
@@ -40,8 +47,11 @@ import {
  *
  * Dam olish kunining qiymatlari ham SAQLANIB turadi (yuborilmaydi):
  * operator kunni o'chirib-yoqsa, yozgan vaqtlari qaytib keladi.
+ *
+ * «Erkin ish jadvali» va «Ish vaqti» — `FlexibleDraft` maydonlari
+ * (SPEC-erkin-jadval §7.1).
  */
-interface DayDraft {
+interface DayDraft extends FlexibleDraft {
   dayIndex: WeekdayIndex
   isWorking: boolean
   startTime: string
@@ -165,7 +175,8 @@ export function AttendanceScheduleFormDialog({
       return
     }
 
-    const template = drafts.find((other) => other.isWorking) ?? { ...DEFAULT_WORKDAY }
+    const template =
+      drafts.find((other) => other.isWorking) ?? { ...DEFAULT_WORKDAY, ...NOT_FLEXIBLE }
     updateDay(draft.dayIndex, {
       isWorking: true,
       startTime: template.startTime,
@@ -173,6 +184,10 @@ export function AttendanceScheduleFormDialog({
       breakMinutes: template.breakMinutes,
       breakStart: template.breakStart,
       breakEnd: template.breakEnd,
+      // Erkinlik ham namunadan: erkin haftaga qo'shilgan kun ham erkin bo'lsin
+      isFlexible: template.isFlexible,
+      required: template.required,
+      requiredAuto: template.requiredAuto,
     })
   }
 
@@ -381,6 +396,8 @@ function DayEditor({
   const windowRange = breakWindowLabel(day)
   const planned = plannedDayMinutes(day)
   const hasWindow = draft.breakStart !== '' || draft.breakEnd !== ''
+  // Erkin kun xatosi «Ish vaqti» maydonining o'zida — pastdagi qatorda takrorlanmaydi
+  const lineError = error === FLEXIBLE_REQUIRED_CODE ? null : error
 
   return (
     <li
@@ -394,9 +411,11 @@ function DayEditor({
         <div className="min-w-0">
           <p className="text-subhead font-semibold">{weekday}</p>
           <p className="tabular text-caption1 text-[var(--fg-secondary)]">
-            {day.isWorking
-              ? t('attendance.dayPlanned', { hours: formatDuration(planned) })
-              : t('attendance.dayOff')}
+            {!day.isWorking
+              ? t('attendance.dayOff')
+              : day.isFlexible
+                ? t('attendance.dayPlannedFlexible', { hours: formatDuration(planned) })
+                : t('attendance.dayPlanned', { hours: formatDuration(planned) })}
           </p>
         </div>
         <Switch
@@ -492,9 +511,19 @@ function DayEditor({
                 : t('attendance.breakWindowNone')}
           </p>
 
-          {error !== null && (
+          <FlexibleDayFields
+            value={draft}
+            max={maxRequiredMinutes(day)}
+            code={error}
+            disabled={disabled}
+            onChange={({ isFlexible, required, requiredAuto }) =>
+              onChange({ isFlexible, required, requiredAuto })
+            }
+          />
+
+          {lineError !== null && (
             <p role="alert" className="text-footnote text-ios-red">
-              {errorMessage(error)}
+              {errorMessage(lineError)}
             </p>
           )}
         </div>
@@ -571,6 +600,7 @@ function defaultDrafts(): DayDraft[] {
     dayIndex,
     isWorking: dayIndex <= 5,
     ...DEFAULT_WORKDAY,
+    ...NOT_FLEXIBLE,
   }))
 }
 
@@ -583,7 +613,7 @@ function draftsOf(schedule: WorkSchedule): DayDraft[] {
       baribir yuboriladi va jadval o'z-o'zidan tuzaladi.
     */
     if (day === undefined) {
-      return { dayIndex, isWorking: false, ...DEFAULT_WORKDAY }
+      return { dayIndex, isWorking: false, ...DEFAULT_WORKDAY, ...NOT_FLEXIBLE }
     }
 
     return {
@@ -594,6 +624,11 @@ function draftsOf(schedule: WorkSchedule): DayDraft[] {
       breakMinutes: String(day.breakMinutes),
       breakStart: day.breakStart ?? '',
       breakEnd: day.breakEnd ?? '',
+      ...flexibleDraftOf(
+        day.isWorking && day.isFlexible,
+        day.requiredMinutes,
+        maxRequiredMinutes(day),
+      ),
     }
   })
 }
@@ -615,6 +650,8 @@ function toDayInput(draft: DayDraft): WorkScheduleDayInput {
       breakMinutes: 0,
       breakStart: null,
       breakEnd: null,
+      isFlexible: false,
+      requiredMinutes: null,
     }
   }
 
@@ -626,6 +663,9 @@ function toDayInput(draft: DayDraft): WorkScheduleDayInput {
     breakMinutes: parseMinutes(draft.breakMinutes === '' ? '0' : draft.breakMinutes),
     breakStart: draft.breakStart === '' ? null : draft.breakStart,
     breakEnd: draft.breakEnd === '' ? null : draft.breakEnd,
+    // `null` — server sukuti (smena − tanaffus); o'qib bo'lmaydigan matn `NaN`, tekshiruv ushlaydi
+    isFlexible: draft.isFlexible,
+    requiredMinutes: requiredMinutesOf(draft),
   }
 }
 

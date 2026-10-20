@@ -8,6 +8,7 @@ import {
   CircleHelp,
   CircleSlash,
   Globe,
+  Hourglass,
   IdCard,
   LogIn,
   LogOut,
@@ -506,10 +507,11 @@ export function formatPercent(value: number | null, locale: LocaleCode): string 
 /* ══════════════════════════════════════════════════════════ HISOBOTLAR */
 
 /**
- * Hisobotlar sahifasidagi BESHTA tab (SPEC §8.4).
+ * Hisobotlar sahifasidagi OLTITA tab (SPEC §8.4; «Kam ishlaganlar» —
+ * SPEC-erkin-jadval §7.1).
  *
- * Birinchi to'rttasi `/reports/exceptions` ga `kind` bilan boradi,
- * beshinchisi esa butunlay boshqa endpoint'ga (`/reports/summary`) —
+ * Birinchi beshtasi `/reports/exceptions` ga `kind` bilan boradi,
+ * oltinchisi esa butunlay boshqa endpoint'ga (`/reports/summary`) —
  * shu sababli ular bitta sanoq emas, balki shu yerda birlashtirilgan
  * ro'yxat. Tab manzilda yashaydi (`attendance-search.ts`), ya'ni
  * havolani bo'lishish mumkin.
@@ -519,6 +521,7 @@ export type ReportKind = ExceptionKind | 'Summary'
 export const REPORT_KINDS: readonly ReportKind[] = [
   'Late',
   'EarlyLeave',
+  'Shortfall',
   'Absent',
   'Missing',
   'Summary',
@@ -527,6 +530,8 @@ export const REPORT_KINDS: readonly ReportKind[] = [
 export const REPORT_KIND_LOOK: Readonly<Record<ReportKind, ChipLook>> = {
   Late: { tone: 'warning', icon: AlarmClock, labelKey: 'attendance.kindLate' },
   EarlyLeave: { tone: 'warning', icon: LogOut, labelKey: 'attendance.kindEarlyLeave' },
+  /* Erkin kunda normadan kam ishlaganlar — u yerda kechikish va erta ketish yo'q. */
+  Shortfall: { tone: 'warning', icon: Hourglass, labelKey: 'attendance.kindShortfall' },
   Absent: { tone: 'danger', icon: UserX, labelKey: 'attendance.kindAbsent' },
   /*
     «Muammoli kunlar» UCHTA holatni qamraydi: `MissingExit`,
@@ -537,9 +542,12 @@ export const REPORT_KIND_LOOK: Readonly<Record<ReportKind, ChipLook>> = {
   Summary: { tone: 'info', icon: ChartColumn, labelKey: 'attendance.kindSummary' },
 }
 
-/** Faqat `Late` va `EarlyLeave` da «eng kam daqiqa» filtri ma'noli (SPEC §6.6). */
+/**
+ * Faqat daqiqasi bor ro'yxatlarda «eng kam daqiqa» filtri ma'noli: `Late`,
+ * `EarlyLeave` (SPEC §6.6) va `Shortfall` (SPEC-erkin-jadval §5.3).
+ */
 export function supportsMinMinutes(kind: ReportKind): boolean {
-  return kind === 'Late' || kind === 'EarlyLeave'
+  return kind === 'Late' || kind === 'EarlyLeave' || kind === 'Shortfall'
 }
 
 /* ══════════════════════════════════════════════════════ MOSLASHTIRISH */
@@ -745,7 +753,11 @@ export interface WeekSummary {
   /** Smenalarning umumiy uzunligi, tanaffus AYIRILMAGAN holda. */
   shiftMinutes: number
   breakMinutes: number
-  /** `shiftMinutes − breakMinutes` — serverdagi `planned_minutes` formulasi. */
+  /**
+   * Serverdagi `planned_minutes` formulasi: oddiy kunlarda smena − tanaffus,
+   * erkin kunlarda «Ish vaqti» (SPEC-erkin-jadval §7.1). Erkin kunsiz
+   * jadvalda — `shiftMinutes − breakMinutes`, ya'ni avvalgi son.
+   */
   plannedMinutes: number
 }
 
@@ -768,20 +780,40 @@ export function weekSummary(days: readonly WorkScheduleDayInput[]): WeekSummary 
   let workingDays = 0
   let shiftMinutes = 0
   let breakMinutes = 0
+  let fixedShift = 0
+  let fixedBreak = 0
+  let flexibleMinutes = 0
 
   for (const day of days) {
     if (!day.isWorking) continue
 
+    const shift = shiftSpanMinutes(day)
     workingDays += 1
-    shiftMinutes += shiftSpanMinutes(day)
+    shiftMinutes += shift
     breakMinutes += day.breakMinutes
+
+    if (day.isFlexible) {
+      /*
+        R berilmagan (yoki formada hali o'qib bo'lmaydigan) bo'lsa — sukut,
+        smena − tanaffus: `maxRequiredMinutes` ning o'zi. Bu yerda qayta
+        yozilgan, chunki qoidalar fayli shu fayldan o'qiydi (aylanma import).
+      */
+      const required = day.requiredMinutes
+      flexibleMinutes +=
+        required !== null && Number.isFinite(required)
+          ? required
+          : Math.max(0, shift - day.breakMinutes)
+    } else {
+      fixedShift += shift
+      fixedBreak += day.breakMinutes
+    }
   }
 
   return {
     workingDays,
     shiftMinutes,
     breakMinutes,
-    plannedMinutes: Math.max(0, shiftMinutes - breakMinutes),
+    plannedMinutes: Math.max(0, fixedShift - fixedBreak) + flexibleMinutes,
   }
 }
 

@@ -2,8 +2,10 @@ import clsx from 'clsx'
 
 /**
  * Yagona nishon to'plami — chiziqli uslub, 24 px, qalinlik 1.5
- * (UX §E.8). O'n beshta nishon butun ilovaga yetadi; o'n oltinchisi
- * kerak bo'lsa, avval ekranning o'zi haqiqatan yangimi — shu savol.
+ * (UX §E.8). Yigirma ikkita nishon: UX dagi o'n beshta va «So'rov turini
+ * tanlang» varag'ining yettitasi (SPEC-erkin-jadval §7.2 — Verifix'dagi
+ * sakkiz turning rasmlariga yaqin, `map-pin` umumiy). Yangisi kerak bo'lsa,
+ * avval ekranning o'zi haqiqatan yangimi — shu savol.
  *
  * ⚠️ Nishon HECH QACHON amalning yagona yorlig'i bo'lmaydi (UX §H.3):
  * yonida so'z turadi yoki `aria-label` beriladi.
@@ -24,6 +26,14 @@ export type IconName =
   | 'x-circle'
   | 'information-circle'
   | 'cog'
+  // So'rov turlari varag'i (SPEC-erkin-jadval §7.2)
+  | 'person-running'
+  | 'arrows-right-left'
+  | 'calendar-pencil'
+  | 'person-walking-arrows'
+  | 'briefcase-clock'
+  | 'user-minus'
+  | 'beach-umbrella'
 
 const PATHS: Record<IconName, string> = {
   home: 'M3 10.5 12 3l9 7.5M5.5 9.5V20h13V9.5M9.5 20v-6h5v6',
@@ -44,6 +54,27 @@ const PATHS: Record<IconName, string> = {
   'x-circle': 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9 9l6 6M15 9l-6 6',
   'information-circle': 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 11v5.5M12 7.7v.3',
   cog: 'M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4ZM19.5 12c0-.6-.1-1.1-.2-1.7l1.7-1.3-1.8-3.1-2 .8a7.6 7.6 0 0 0-2.9-1.7L14 3h-4l-.3 2a7.6 7.6 0 0 0-2.9 1.7l-2-.8-1.8 3.1L4.7 10.3a7.7 7.7 0 0 0 0 3.4l-1.7 1.3 1.8 3.1 2-.8c.8.8 1.8 1.4 2.9 1.7l.3 2h4l.3-2a7.6 7.6 0 0 0 2.9-1.7l2 .8 1.8-3.1-1.7-1.3c.1-.6.2-1.1.2-1.7Z',
+  // «Ish joyida yo'qlik» — yugurayotgan odam
+  'person-running':
+    'M16.75 4.5a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0ZM13.5 8 11 13M13.5 8 10 8.5 8 10.5M13.5 8l2 3h3M11 13l3 2.5v5M11 13l-1.5 3.5L6 18',
+  // «Kun almashtirish» — Verifix'dagi kesishgan ikki strelka (shuffle)
+  'arrows-right-left':
+    'M3 7h4l10 10h4M3 17h4l3.5-3.5M13.5 10.5 17 7h4M18.5 4.5 21 7l-2.5 2.5M18.5 14.5 21 17l-2.5 2.5',
+  // «Jadval o'zgartirish» — qalamli taqvim
+  'calendar-pencil':
+    'M11 20.5H4v-14h16v4.5M4 10.5h16M8.5 3.5v4M15.5 3.5v4M14 20.5l.5-2.5 5-5a1.4 1.4 0 0 1 2 2l-5 5-2.5.5Z',
+  // «Belgilash» — ikki strelkali (kirish / chiqish) yurayotgan odam
+  'person-walking-arrows':
+    'M10.75 4.5a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0ZM9.5 8l-1 5.5M9.5 8l-3 2.5M9.5 8l2 3M8.5 13.5l2.5 3v4M8.5 13.5 7 17l-2.5 3.5M15 8.5h6M19 6.5l2 2-2 2M21 14.5h-6M17 12.5l-2 2 2 2',
+  // «Qo'shimcha ish vaqti» — soatli portfel
+  'briefcase-clock':
+    'M9 6.5V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v1.5M11 19.5H4.5A1.5 1.5 0 0 1 3 18V8a1.5 1.5 0 0 1 1.5-1.5h15A1.5 1.5 0 0 1 21 8v2.5M3 12h7.5M21 17a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM17 15v2l1.5 1',
+  // «Ishdan bo'shatish» — minusli odam
+  'user-minus':
+    'M9.5 12a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5ZM2.5 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5M16.5 10h5',
+  // «Ta'til» — plyaj soyaboni
+  'beach-umbrella':
+    'M3 11a9 8 0 0 1 18 0M3 11c1-1 2-1.3 3-1.3s2 .3 3 1.3c1-1 2-1.3 3-1.3s2 .3 3 1.3c1-1 2-1.3 3-1.3s2 .3 3 1.3M12 3c-2 2-3 4.5-3 8M12 3c2 2 3 4.5 3 8M12 9.7v10.8M6 20.5h12',
 }
 
 interface IconProps {

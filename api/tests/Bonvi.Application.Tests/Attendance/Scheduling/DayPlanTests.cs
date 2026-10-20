@@ -158,4 +158,74 @@ public sealed class DayPlanTests
         DayPlan.For(jadval, Tuesday).PlanStartAt.ShouldBe(At(Tuesday, "10:00"));
         DayPlan.For(jadval, new DateOnly(2026, 9, 18)).PlannedMinutes.ShouldBe(300);
     }
+
+    // ────────────────────── Erkin ish jadvali (SPEC-erkin-jadval §4) ──────────────────────
+
+    [Fact]
+    public void Erkin_naqsh_kunida_reja_normaning_ozi_va_eng_kech_kelish()
+    {
+        var reja = DayPlan.For(FlexibleSchedule(requiredMinutes: 400), Monday);
+
+        reja.IsFlexible.ShouldBeTrue();
+        reja.PlannedMinutes.ShouldBe(400);
+        reja.PlanStartAt.ShouldBe(At(Monday, "08:30"));
+        reja.PlanEndAt.ShouldBe(At(Monday, "18:00"));
+        reja.LatestStartAt.ShouldBe(At(Monday, "11:20"));
+        reja.BreakMinutes.ShouldBe(120, "tanaffus qoidasi o'zgarmaydi");
+    }
+
+    [Fact]
+    public void Qatiy_kunda_eng_kech_kelish_reja_boshlanishi()
+    {
+        var reja = DayPlan.For(Schedule("09:00", "18:00", 60), Monday);
+
+        reja.IsFlexible.ShouldBeFalse();
+        reja.LatestStartAt.ShouldBe(reja.PlanStartAt);
+    }
+
+    [Fact]
+    public void Erkin_sana_katagi_naqshdan_ustun()
+    {
+        var jadval = Schedule("09:00", "18:00", 60);
+        var katak = WorkScheduleDate.Create(
+            jadval.Id,
+            new WorkScheduleDateInput(
+                Monday, true, new TimeOnly(8, 30), new TimeOnly(18, 0), 120, new TimeOnly(12, 0), new TimeOnly(14, 0),
+                IsFlexible: true)).Value;
+
+        var reja = DayPlan.For(jadval, Monday, katak);
+
+        reja.IsFlexible.ShouldBeTrue();
+        reja.PlannedMinutes.ShouldBe(450, "sukut norma katakda yozilgan");
+        reja.LatestStartAt.ShouldBe(At(Monday, "10:30"));
+        DayPlan.For(jadval, Tuesday).IsFlexible.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Erkin_sorov_kunida_reja_normadan()
+    {
+        var jadval = Schedule("09:00", "18:00");
+        var kun = new EmployeeDayOverride(
+            Guid.CreateVersion7(), Monday, true, new TimeOnly(10, 0), new TimeOnly(19, 0), null, null, 0,
+            Guid.CreateVersion7(), IsFlexible: true, RequiredMinutes: 300);
+
+        var reja = DayPlan.ForOverride(jadval, kun);
+
+        reja.IsFlexible.ShouldBeTrue();
+        reja.PlannedMinutes.ShouldBe(300);
+        reja.LatestStartAt.ShouldBe(At(Monday, "14:00"));
+    }
+
+    /// <summary>Erkin naqsh ustidagi dam olish katagi — erkinlik ham, eng kech kelish ham yo'q.</summary>
+    [Fact]
+    public void Dam_olish_katagida_erkinlik_yoq()
+    {
+        var jadval = FlexibleSchedule();
+        var katak = WorkScheduleDate.Create(jadval.Id, new WorkScheduleDateInput(Monday, IsWorking: false)).Value;
+
+        var reja = DayPlan.For(jadval, Monday, katak);
+
+        reja.IsFlexible.ShouldBeFalse();
+        reja.LatestStartAt.ShouldBeNull();
+    }
 }

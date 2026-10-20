@@ -104,10 +104,10 @@ function defaultFilters(): ReportFilterState {
 }
 
 /**
- * Davomat hisobotlari — beshta tab (SPEC §8.4).
+ * Davomat hisobotlari — oltita tab (SPEC §8.4, SPEC-erkin-jadval §7.1).
  *
- * Birinchi to'rttasi `/reports/exceptions` ning `kind` lari (kechikkanlar,
- * erta ketganlar, kelmaganlar, muammoli kunlar), beshinchisi —
+ * Birinchi beshtasi `/reports/exceptions` ning `kind` lari (kechikkanlar,
+ * erta ketganlar, kam ishlaganlar, kelmaganlar, muammoli kunlar), oltinchisi —
  * `/reports/summary` (xodim bo'yicha xulosa). Tab MANZILDA (`?kind=`):
  * «kechikkanlar ro'yxati» havolasini yuborish mumkin.
  *
@@ -163,7 +163,8 @@ export function AttendanceReportsPage() {
   /**
    * So'rov filtrlari — ekrandagi jadval ham, Excel ham AYNAN shulardan.
    *
-   * «Eng kam daqiqa» faqat kechikish va erta ketishda ma'noli (SPEC §6.6);
+   * «Eng kam daqiqa» faqat kechikish, erta ketish va kam ishlanganda ma'noli
+   * (SPEC §6.6, SPEC-erkin-jadval §5.3);
    * boshqa tabda maydon ko'rinmaydi va qiymati ham YUBORILMAYDI — yashirin
    * filtr ro'yxatni tushunarsiz qisqartirardi.
    */
@@ -332,8 +333,8 @@ export function AttendanceReportsPage() {
 
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         {/*
-          Beshta tab — segmentlangan boshqaruv (iOS: o'zaro istisno
-          ko'rinishlar). Tor ekranda gorizontal suriladi: beshta o'zbekcha
+          Oltita tab — segmentlangan boshqaruv (iOS: o'zaro istisno
+          ko'rinishlar). Tor ekranda gorizontal suriladi: oltita o'zbekcha
           yorliq telefon kengligiga sig'maydi, qisqartirish esa ma'noni
           yo'qotardi.
         */}
@@ -520,6 +521,14 @@ function useExceptionColumns(
       cell: ({ row }) => <MinutesCell minutes={row.original.earlyLeaveMinutes} emphasis />,
     })
 
+    // Erkin kunda kechikish va erta ketish yo'q — o'rnida normadan kami
+    const shortfall = exceptionHelper.display({
+      id: 'shortfallMinutes',
+      header: t('attendance.shortfallMinutes'),
+      meta: { width: '132px', align: 'end' },
+      cell: ({ row }) => <MinutesCell minutes={row.original.shortfallMinutes ?? 0} emphasis />,
+    })
+
     const worked = exceptionHelper.display({
       id: 'worked',
       header: t('attendance.worked'),
@@ -543,6 +552,8 @@ function useExceptionColumns(
         return [employee, day, planStart, firstIn, late, worked, status]
       case 'EarlyLeave':
         return [employee, day, planEnd, lastOut, early, worked, status]
+      case 'Shortfall':
+        return [employee, day, firstIn, lastOut, shortfall, worked, status]
       case 'Absent':
         return [employee, day, planStart, planEnd, status]
       case 'Missing':
@@ -647,6 +658,7 @@ function useSummaryColumns(canOpenEmployee: boolean): Array<DataColumn<Attendanc
       duration('plannedMinutes', t('attendance.totalPlanned')),
       duration('lateMinutes', t('attendance.lateMinutes')),
       duration('earlyLeaveMinutes', t('attendance.earlyLeaveMinutes')),
+      duration('shortfallMinutes', t('attendance.shortfallMinutes')),
       duration('overtimeMinutes', t('attendance.overtimeMinutes')),
       count('problemDays', t('attendance.problemDays'), 'warning'),
     ]

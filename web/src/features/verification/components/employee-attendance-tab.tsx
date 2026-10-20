@@ -297,6 +297,12 @@ function MonthTotals({ row, loading }: { row: TimesheetRow | null; loading: bool
   }
 
   const totals = row.totals
+  const shortfall = totals.shortfallMinutes ?? 0
+  /*
+    «Kam ishlangan» faqat erkin kuni bor oyda: oddiy jadvaldagi 99 % xodimda u
+    doim 0 va har kartada «0:00» bo'lib turishi shovqin bo'lardi.
+  */
+  const hasFlexible = shortfall > 0 || row.cells.some((cell) => cell.isFlexible === true)
 
   return (
     <dl className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-footnote">
@@ -315,6 +321,13 @@ function MonthTotals({ row, loading }: { row: TimesheetRow | null; loading: bool
         value={formatDuration(totals.lateMinutes)}
         tone={totals.lateMinutes > 0 ? 'warning' : undefined}
       />
+      {hasFlexible && (
+        <Total
+          label={t('attendance.shortfallMinutes')}
+          value={formatDuration(shortfall)}
+          tone={shortfall > 0 ? 'warning' : undefined}
+        />
+      )}
     </dl>
   )
 }
@@ -349,10 +362,10 @@ function Total({
  *
  * <b>Rang — holatning O'ZI</b> va u tabel gridi bilan BITTA xaritadan
  * (`DAY_STATUS_LOOK`): bir xil kun ikki ekranda ikki xil rangda
- * ko'rinmasligi kerak. Kechikish esa rang emas, katakning pastki
- * qirrasidagi sariq chiziq (`LATE_BAR_CLASS`) — tabeldagi qoidaning
- * o'zi: «kechikdi, lekin keldi» ikki xabar va ular bir-birini
- * bosmasligi kerak.
+ * ko'rinmasligi kerak. Kechikish (erkin kunda — kam ishlangan) esa rang
+ * emas, katakning pastki qirrasidagi sariq chiziq (`LATE_BAR_CLASS`) —
+ * tabeldagi qoidaning o'zi: «kechikdi, lekin keldi» ikki xabar va ular
+ * bir-birini bosmasligi kerak.
  *
  * Katak ichida ikki qator: REJA (ko'k lavha — jadval nima degan) va
  * HAQIQIY (qalin matn — turniket nima degan). Reja kun yozuvidagi
@@ -423,10 +436,19 @@ function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
   const isToday = cell.date === today
   const dayNumber = Number(cell.date.slice(8))
 
+  // Erkin kun (SPEC-erkin-jadval §7.1): reja — norma va oraliq, chetlanish — kam ishlangan
+  const flexible = cell.isFlexible ?? false
+  const shortfall = cell.shortfallMinutes ?? 0
+
   const plan =
     cell.planStartAt === null
       ? null
-      : `${formatPassTime(cell.planStartAt)} – ${formatPassTime(cell.planEndAt)}`
+      : flexible
+        ? t('attendance.planFlexibleLine', {
+            hours: formatDuration(cell.plannedMinutes ?? 0),
+            range: `${formatPassTime(cell.planStartAt)}–${formatPassTime(cell.planEndAt)}`,
+          })
+        : `${formatPassTime(cell.planStartAt)} – ${formatPassTime(cell.planEndAt)}`
 
   /*
     Kirish bor-u chiqish yo'q kun «08:50 – —» bo'lib chiqadi: chiziqcha
@@ -453,7 +475,7 @@ function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
         */
         'min-h-[92px] rounded-md border border-[var(--border)] p-2',
         look.cellClass,
-        cell.lateMinutes > 0 && LATE_BAR_CLASS,
+        (cell.lateMinutes > 0 || shortfall > 0) && LATE_BAR_CLASS,
         isToday && 'ring-2 ring-[var(--accent)] ring-inset',
       )}
     >
@@ -500,15 +522,25 @@ function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
         ko'rsatiladi (bitta songa qo'shilmaydi): ular boshqa-boshqa
         suhbat — biri kelishi, ikkinchisi ketishi haqida.
       */}
-      {cell.lateMinutes > 0 && (
-        <span className="mt-1 block px-1.5 text-caption2 text-ios-orange">
-          {t('attendance.lateMinutes')} {minutes(cell.lateMinutes)}
-        </span>
-      )}
-      {cell.earlyLeaveMinutes > 0 && (
-        <span className="mt-0.5 block px-1.5 text-caption2 text-ios-red">
-          {t('attendance.earlyLeaveMinutes')} {minutes(cell.earlyLeaveMinutes)}
-        </span>
+      {flexible ? (
+        shortfall > 0 && (
+          <span className="mt-1 block px-1.5 text-caption2 text-ios-orange">
+            {t('attendance.shortfallMinutes')} {minutes(shortfall)}
+          </span>
+        )
+      ) : (
+        <>
+          {cell.lateMinutes > 0 && (
+            <span className="mt-1 block px-1.5 text-caption2 text-ios-orange">
+              {t('attendance.lateMinutes')} {minutes(cell.lateMinutes)}
+            </span>
+          )}
+          {cell.earlyLeaveMinutes > 0 && (
+            <span className="mt-0.5 block px-1.5 text-caption2 text-ios-red">
+              {t('attendance.earlyLeaveMinutes')} {minutes(cell.earlyLeaveMinutes)}
+            </span>
+          )}
+        </>
       )}
     </div>
   )

@@ -219,7 +219,8 @@ public sealed class AttendanceNightlyRecomputeJob
 /// «Kelmadi» qatori paydo bo'lishi SHART — hisobotlar faqat saqlangan qatorni
 /// o'qiydi. O'tishsiz kunni hech qanday o'tish «iflos» qilmaydi, ya'ni iflos
 /// navbat uni ko'rmaydi; shu vazifa esa uni reja boshlanganidan ko'pi bilan
-/// 15 daqiqa keyin yozadi (20:00 lik tungi smenani ham).
+/// 15 daqiqa keyin yozadi (20:00 lik tungi smenani ham). Erkin kunda — eng kech
+/// kelish lahzasidan (<c>DayPlan.LatestStartAt</c>) keyin; u ham kecha–bugun ichida.
 /// </para>
 /// <para>
 /// <b>Faqat YO'Q qatorlar qo'shiladi</b> (<see cref="AttendanceDayRecomputer.FillMissingAsync"/>):

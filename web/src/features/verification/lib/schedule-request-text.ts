@@ -4,7 +4,7 @@ import { useLocale } from '@/shared/i18n/use-locale'
 import { todayIso } from '@/shared/lib/today'
 
 import type { ScheduleChangeRequest } from '../api/attendance-api'
-import { formatBirthday, scheduleSwapPairs } from './attendance-presentation'
+import { formatBirthday, formatDuration, scheduleSwapPairs } from './attendance-presentation'
 import { breakWindowMinutes } from './attendance-schedule-rules'
 
 /**
@@ -19,6 +19,10 @@ export interface DayPlanLike {
   breakEnd: string | null
   /** Ayiriladigan tanaffus — oynadan alohida (60 daqiqalik tushlik 12:00–15:00 oynasida). */
   breakMinutes: number
+  /** «Erkin ish jadvali» (SPEC-erkin-jadval §7.1). */
+  isFlexible: boolean
+  /** «Ish vaqti», daqiqa — faqat erkin kunda (server uni doim to'ldiradi). */
+  requiredMinutes: number | null
 }
 
 /**
@@ -35,6 +39,7 @@ export function breakDiffersFromWindow(day: DayPlanLike): boolean {
 /**
  * Jadval so'rovining matni — ro'yxat katagi, qaror oynasi va forma BITTA
  * joydan o'qiydi: «16.10 · 08:30–18:00, tanaffus 12:23–14:23»,
+ * «16.10 · 08:30–18:00, tanaffus 12:00–14:00, erkin 7:30»,
  * «17.10 · Dam olish kuni», «15.10 ⇄ 18.10».
  *
  * NEGA hook: matn tilga bog'liq, `t` ni har chaqiruvchiga uzatib yurish esa
@@ -73,6 +78,11 @@ export function useScheduleRequestText() {
           : `, ${t('attendance.scheduleRequestBreakRange', { range })}`
       } else if (day.breakMinutes > 0) {
         text += `, ${t('attendance.scheduleRequestBreakLength', { n: day.breakMinutes })}`
+      }
+
+      // Erkin kun — norma oxirida: «…, erkin 7:30»
+      if (day.isFlexible && day.requiredMinutes !== null) {
+        text += `, ${t('attendance.scheduleRequestFlexible', { hours: formatDuration(day.requiredMinutes) })}`
       }
 
       return text

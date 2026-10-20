@@ -14,6 +14,8 @@ namespace Bonvi.Application.Attendance.Scheduling;
 /// <param name="BreakMinutes">Ayiriladigan tanaffus (daqiqa) — so'rov kunida saqlangani.</param>
 /// <param name="RequestId">So'rov — «nega shu soat» savoliga javob.</param>
 /// <param name="DecidedAt">Qaror lahzasi — bir sanaga ikki qaror kelsa, oxirgisi yutadi.</param>
+/// <param name="IsFlexible">So'ralgan kun «Erkin ish jadvali»mi (SPEC-erkin-jadval §4).</param>
+/// <param name="RequiredMinutes">«Ish vaqti» — so'rov kunida saqlangani; erkin bo'lmasa <c>null</c>.</param>
 public sealed record EmployeeDayOverride(
     Guid EmployeeId,
     DateOnly Date,
@@ -24,4 +26,6 @@ public sealed record EmployeeDayOverride(
     TimeOnly? BreakEnd,
     int BreakMinutes,
     Guid RequestId,
-    DateTimeOffset? DecidedAt = null);
+    DateTimeOffset? DecidedAt = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);

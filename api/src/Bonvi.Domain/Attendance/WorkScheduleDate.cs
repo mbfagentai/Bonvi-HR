@@ -10,6 +10,8 @@ namespace Bonvi.Domain.Attendance;
 /// <param name="BreakMinutes">Ishlangan vaqtdan ayiriladigan tanaffus.</param>
 /// <param name="BreakStart">Tanaffus oynasining boshi.</param>
 /// <param name="BreakEnd">Tanaffus oynasining oxiri.</param>
+/// <param name="IsFlexible">«Erkin ish jadvali» — haftalik kundagi bilan bir xil ma'no.</param>
+/// <param name="RequiredMinutes">«Ish vaqti»; <c>null</c> — sukut (smena − tanaffus).</param>
 public readonly record struct WorkScheduleDateInput(
     DateOnly Date,
     bool IsWorking,
@@ -17,7 +19,9 @@ public readonly record struct WorkScheduleDateInput(
     TimeOnly? EndTime = null,
     int BreakMinutes = 0,
     TimeOnly? BreakStart = null,
-    TimeOnly? BreakEnd = null);
+    TimeOnly? BreakEnd = null,
+    bool IsFlexible = false,
+    int? RequiredMinutes = null);
 
 /// <summary>
 /// Jadvalning ANIQ SANAGA yozilgan kuni — yillik to'rning katagi
@@ -73,6 +77,12 @@ public sealed class WorkScheduleDate : Entity, IAuditable
 
     public TimeOnly? BreakEnd { get; private set; }
 
+    /// <summary>«Erkin ish jadvali» — faqat ish kunida (<see cref="WorkScheduleDay.IsFlexible"/>).</summary>
+    public bool IsFlexible { get; private set; }
+
+    /// <summary>«Ish vaqti» (daqiqa); erkin bo'lmagan katakda <c>null</c>.</summary>
+    public int? RequiredMinutes { get; private set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -80,16 +90,7 @@ public sealed class WorkScheduleDate : Entity, IAuditable
 
     /// <summary>Kiritilgan qiymatni tekshiradi — haftalik kun bilan bir xil qoida.</summary>
     public static Result Validate(WorkScheduleDateInput input)
-        => WorkScheduleDay.Validate(new WorkScheduleDayInput(
-            // Kun indeksi bu yerda ma'nosiz: tekshiruv uni o'qimaydi
-            // (u haftalik to'plamning butunligini tekshirishda ishlatiladi).
-            DayIndex: 1,
-            input.IsWorking,
-            input.StartTime,
-            input.EndTime,
-            input.BreakMinutes,
-            input.BreakStart,
-            input.BreakEnd));
+        => WorkScheduleDay.Validate(AsDayInput(input));
 
     public static Result<WorkScheduleDate> Create(Guid workScheduleId, WorkScheduleDateInput input)
     {
@@ -130,7 +131,7 @@ public sealed class WorkScheduleDate : Entity, IAuditable
 
         // Dam olish kunida vaqtlar TOZALANADI — haftalik kundagi qoidaning
         // o'zi: saqlab qo'yilgan vaqt keyin «nega dam olish kunining
-        // soati bor?» degan savolni tug'dirardi.
+        // soati bor?» degan savolni tug'dirardi. Erkinlik ham.
         if (!input.IsWorking)
         {
             StartTime = null;
@@ -138,6 +139,8 @@ public sealed class WorkScheduleDate : Entity, IAuditable
             BreakMinutes = 0;
             BreakStart = null;
             BreakEnd = null;
+            IsFlexible = false;
+            RequiredMinutes = null;
             return;
         }
 
@@ -146,5 +149,22 @@ public sealed class WorkScheduleDate : Entity, IAuditable
         BreakMinutes = input.BreakMinutes;
         BreakStart = input.BreakStart;
         BreakEnd = input.BreakEnd;
+        IsFlexible = input.IsFlexible;
+        RequiredMinutes = WorkScheduleDay.RequiredFor(AsDayInput(input));
     }
+
+    /// <summary>Katakni haftalik kun shakliga o'giradi — tekshiruv ham, norma sukuti ham bitta kod.</summary>
+    private static WorkScheduleDayInput AsDayInput(WorkScheduleDateInput input)
+        => new(
+            // Kun indeksi bu yerda ma'nosiz: tekshiruv uni o'qimaydi
+            // (u haftalik to'plamning butunligini tekshirishda ishlatiladi).
+            DayIndex: 1,
+            input.IsWorking,
+            input.StartTime,
+            input.EndTime,
+            input.BreakMinutes,
+            input.BreakStart,
+            input.BreakEnd,
+            input.IsFlexible,
+            input.RequiredMinutes);
 }

@@ -37,6 +37,13 @@ namespace Bonvi.Domain.Attendance;
 /// so'rovdan kelgan qismi (SPEC-so'rovlar §B3 AMENDED 2026-10-17). 0 — hammasi
 /// terminal o'tishlaridan.
 /// </param>
+/// <param name="IsFlexible">
+/// Hisoblashda ishlatilgan reja «Erkin ish jadvali» edimi — SURAT (SPEC-erkin-jadval §2.2, 17-qator).
+/// </param>
+/// <param name="ShortfallMinutes">
+/// «Kam ishlangan»: erkin kunda <c>max(0, norma − ishlangan)</c> — faqat yakuniy holat
+/// <c>Present</c> va reja oynasi tugagan bo'lsa; qolgan hamma kunda 0.
+/// </param>
 public sealed record AttendanceDayFacts(
     Guid? EmploymentId,
     Guid? LegalEntityId,
@@ -57,7 +64,9 @@ public sealed record AttendanceDayFacts(
     int PassCount,
     int IgnoredPassCount,
     AttendanceDayStatus Status,
-    int CreditedMinutes = 0);
+    int CreditedMinutes = 0,
+    bool IsFlexible = false,
+    int ShortfallMinutes = 0);
 
 /// <summary>
 /// Bir xodimning bir kundagi davomati — tabelning bitta katagi.
@@ -197,6 +206,20 @@ public sealed class AttendanceDay : AggregateRoot
     /// </remarks>
     public int CreditedMinutes { get; private set; }
 
+    /// <summary>Kun «Erkin ish jadvali» bo'yicha hisoblanganmi — reja surati.</summary>
+    /// <remarks>
+    /// Saqlanadi, chunki tabel katagi kechikish o'rniga normani va kam ishlanganni
+    /// ko'rsatishi kerak — keyin jadval o'zgarsa ham o'tgan oy o'zgarmaydi.
+    /// </remarks>
+    public bool IsFlexible { get; private set; }
+
+    /// <summary>«Kam ishlangan» daqiqalar — erkin kunda normadan kami (SPEC-erkin-jadval §2.2).</summary>
+    /// <remarks>
+    /// Erkin kunda kechikish ham, erta ketish ham yo'q — xodim normani bajarmaganini
+    /// faqat shu son ko'rsatadi. Qat'iy kunda doim 0.
+    /// </remarks>
+    public int ShortfallMinutes { get; private set; }
+
     /// <summary>Oxirgi marta qachon hisoblangan.</summary>
     public DateTimeOffset ComputedAt { get; private set; }
 
@@ -244,6 +267,8 @@ public sealed class AttendanceDay : AggregateRoot
         IgnoredPassCount = facts.IgnoredPassCount;
         Status = facts.Status;
         CreditedMinutes = facts.CreditedMinutes;
+        IsFlexible = facts.IsFlexible;
+        ShortfallMinutes = facts.ShortfallMinutes;
         ComputedAt = computedAt;
     }
 }
