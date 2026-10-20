@@ -278,6 +278,36 @@ public sealed partial class EmployeeAppApiTests
     }
 
     /// <summary>Global cheklov yoqilgan, berilgan chegaralar bilan alohida server.</summary>
+    /// <summary>Rasm o'qish umumiy bo'linmani yemaydi: ko'p rasmli sahifadan keyin ham API ishlaydi.</summary>
+    [Fact]
+    public async Task Rasm_oqish_umumiy_API_bolinmasini_yemaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var server = Cheklovli(("RateLimiting:Api:PermitLimit", 3), ("RateLimiting:Photos:PermitLimit", 20));
+        using var mijoz = server.CreateClient();
+
+        // Umumiy chegaradan (3) ancha ko'p rasm so'rovi — hech biri 429 emas
+        for (var i = 0; i < 10; i++)
+        {
+            using var rasm = await mijoz.GetAsync(new Uri($"/api/employees/{Guid.NewGuid()}/photo", UriKind.Relative), ct);
+            rasm.StatusCode.ShouldNotBe(HttpStatusCode.TooManyRequests);
+        }
+
+        // Umumiy bo'linma butun: oddiy so'rov hali o'tadi
+        using var oddiy = await mijoz.GetAsync(new Uri("/api/auth/me", UriKind.Relative), ct);
+        oddiy.StatusCode.ShouldNotBe(HttpStatusCode.TooManyRequests, "rasmlar umumiy 3 talik bo'linmani yemasligi kerak");
+
+        // Rasm bo'linmasining o'z chegarasi bor
+        var radEtildi = false;
+        for (var i = 0; i < 15 && !radEtildi; i++)
+        {
+            using var rasm = await mijoz.GetAsync(new Uri($"/api/employees/{Guid.NewGuid()}/photo", UriKind.Relative), ct);
+            radEtildi = rasm.StatusCode == HttpStatusCode.TooManyRequests;
+        }
+
+        radEtildi.ShouldBeTrue("rasm bo'linmasi ham cheksiz emas");
+    }
+
     private WebApplicationFactory<Program> Cheklovli(params (string Kalit, int Qiymat)[] sozlamalar)
         => _factory.WithWebHostBuilder(builder =>
         {

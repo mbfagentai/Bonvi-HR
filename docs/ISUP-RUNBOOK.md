@@ -75,7 +75,7 @@ the same code; only the transport differs.
    | Enable | ✔ |
    | Protocol version | ISUP 5.0 |
    | Address type | Domain name |
-   | Server address | `hr.bonvi.uz` |
+   | Server address | `isup.bonvi.uz` — **not** `hr.bonvi.uz` (see the warning below) |
    | Port | `7660` |
    | Device ID | same as `DeviceId` |
    | Encryption key | same as `Key` |
@@ -83,6 +83,12 @@ the same code; only the transport differs.
 5. **Check:** gateway log `Terminal ULANDI: zavod-1, seriya …` within a minute;
    on the device card in Bonvi the agent's last contact updates and employees
    start to be written (roster cycle: 60 s).
+
+> ⚠️ **ISUP address — `isup.bonvi.uz`, never `hr.bonvi.uz`** (2026-10-19). `hr.bonvi.uz` is proxied by
+> Cloudflare, which forwards only HTTP(S) — TCP 7660 never reaches the server. A terminal configured with
+> `hr.bonvi.uz` keeps working only while it remembers the old IP; after a power cycle or a move it is silent.
+> `isup.bonvi.uz` is DNS-only (straight to the server). Re-entering the address on the terminal screen asks for
+> the ISUP key again («Enter correct parameter»); the key is `Isup__Devices__N__Key` in `.env.isup`.
 
 ## 2a. Pass photos (terminal push)
 
@@ -104,7 +110,7 @@ is Verifix's until Verifix is switched off.
 |---|---|
 | `Noma'lum terminal rad etildi: ID '…'` | Device ID on the terminal ≠ any `Isup__Devices__*__DeviceId` |
 | `Terminal kaliti mos kelmadi` | Encryption key on the terminal ≠ `Key` |
-| Nothing at all from the terminal | Terminal cannot reach `hr.bonvi.uz:7660` (site internet, DNS, server firewall) |
+| Nothing at all from the terminal | Terminal cannot reach `isup.bonvi.uz:7660`: the address is `hr.bonvi.uz` (proxied by Cloudflare — 7660 does not pass), the site has no internet (a cable straight to the provider without a router gives the factory default `192.0.0.64` on DHCP), a static IP/gateway left from another site, DNS, or the server firewall. Check the terminal's Wired Network page first |
 | `ULANDI` but agent errors `ISAPI 503` | Terminal dropped right after; watch for `UZILDI` (unstable site link) |
 | Agent `ISAPI 400 … urlDownloadFail` (`faceURL`) on faces | Terminal could not fetch the photo: certificate chain it does not trust, or DNS. Use the RSA face host (step 3a), check `curl -sI https://isup.bonvi.uz/isup-face/x` gives 404, then *Hammasini sinxronlash* on the device card (failed rows are not retried automatically) |
 | Terminal connects (`EHOME50_CRYPTO_DATA_RSP`, `LBS_SEND_DEV_CODE_QUERY_DATA_ERROR`) but never registers | `ISUP_PUBLIC_ADDRESS` empty — the DAS answer is blank (step 3a) |

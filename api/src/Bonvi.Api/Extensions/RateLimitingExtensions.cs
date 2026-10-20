@@ -113,6 +113,17 @@ public sealed class RateLimitingOptions
     /// <summary>Umumiy API: daqiqada 120 so'rov, siljiydigan oyna.</summary>
     public RateLimitWindow Api { get; set; } = new() { PermitLimit = 120, WindowSeconds = 60, SegmentsPerWindow = 6 };
 
+    /// <summary>
+    /// Rasm o'qish (<c>GET …/photo</c>): daqiqada 600 — umumiy 120 lik bo'linma O'RNIGA.
+    /// </summary>
+    /// <remarks>
+    /// Ro'yxat sahifasi (tabel, biriktirmalar, xodimlar) har qatordagi rasm uchun alohida
+    /// so'rov yuboradi. Ular umumiy bo'linmaga tushsa, yangi rasmli 100 qatorni aylantirish
+    /// shu daqiqadagi qolgan ishni ham 429 bilan to'sardi. Rasm bir kun keshlanadi
+    /// (<c>PhotoHttp</c>) — bu chegara faqat birinchi ochilishda ishlaydi.
+    /// </remarks>
+    public RateLimitWindow Photos { get; set; } = new() { PermitLimit = 600, WindowSeconds = 60, SegmentsPerWindow = 6 };
+
     /// <summary>Eksport/hisobot: daqiqada 5 ta.</summary>
     public RateLimitWindow Export { get; set; } = new() { PermitLimit = 5, WindowSeconds = 60 };
 
@@ -558,6 +569,13 @@ public static class RateLimitingExtensions
                 return RateLimitPartition.GetNoLimiter<string>("chetlab-otildi");
             }
 
+            if (RasmOqishimi(context))
+            {
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    "photo:" + Kim(context),
+                    _ => SiljiydiganOyna(sozlama.Photos));
+            }
+
             return YolMoslashadimi(yol, sozlama.EmployeeSessionPaths)
                 ? RateLimitPartition.GetFixedWindowLimiter(
                     "employee-session:" + Manba(context),
@@ -633,6 +651,12 @@ public static class RateLimitingExtensions
     /// </remarks>
     private static string Manba(HttpContext context)
         => context.Connection.RemoteIpAddress?.ToString() ?? "nomalum";
+
+    /// <summary>Rasm baytlarini o'qish: <c>GET /api/…/photo</c> (xodim, nomzod, o'tish, «men»).</summary>
+    private static bool RasmOqishimi(HttpContext context)
+        => (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+            && context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase)
+            && context.Request.Path.Value!.EndsWith("/photo", StringComparison.OrdinalIgnoreCase);
 
     private static bool YolMoslashadimi(PathString path, IList<string> yollar)
     {

@@ -28,7 +28,7 @@ them; the gateway is proven on a spare terminal first.
 ## B. Architecture
 
 ```
-terminal (any network) ──ISUP 5.0, outbound TCP──▶ hr.bonvi.uz:7660 ┐
+terminal (any network) ──ISUP 5.0, outbound TCP──▶ isup.bonvi.uz:7660 ┐
                                                                     │ isup-gateway (container)
                          ┌──────────────────────────────────────────┘
                          │ CMS listener: per-device key, ISUP ≥ 4.0 only (safe mode)
