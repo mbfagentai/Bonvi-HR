@@ -9,7 +9,17 @@ Egasi 2026-10-20: «Verifix'ga oid qism hozircha deploy chiqarmay tur». SPEC: `
 (boshidagi «Owner override» — erkin kunda butun vaqt hisoblanadi). Tekshiruv: qa-review «commit'ga tayyor», testlar 2966/2966,
 web typecheck/build/check, ilova typecheck/check:locales/build; migratsiya sinovi — test-migration.
 
-**Migratsiya — 1 ta:** `20261020051430_ErkinJadval` — faqat qo'shadi: 8 ustun (`is_flexible`, `required_minutes`,
+**Ikkinchi to'lqin (SPEC `docs/SPEC-verifikatsiya-sorov-tahriri.md`):** xodim kutilayotgan so'rovni o'zgartira oladi
+(`version`, 409 `davomat.sorov_ozgargan`), jadval so'rovida tanaffus qoidasi (12:00–15:00, 60 daq, juma 60–120 — «Ish jadvallari»
+sahifasidagi karta, `attendance.requestBreak*`), tasdiqlangan «Shaxsiy» vaqt ish vaqtidan ayiriladi (`personal_minutes`).
+Testlar 3061/3061; qa-review «commit'ga tayyor».
+
+**Migratsiyalar — 2 ta, shu tartibda:** `20261020051430_ErkinJadval`, keyin `20261020114958_SorovTahririVaShaxsiyVaqt`
+(7 ustun: so'rovlarda `version`, `edited_at`, `edited_by_account_id`; `attendance_days.personal_minutes`; UPDATE/DROP yo'q).
+Oldin (faqat o'qish): `select status, count(*) from schedule_change_requests where deleted_at is null group by status` — qoidaga
+zid kutilayotgan so'rovlarni baribir tasdiqlash mumkin, faqat tahrirda tanaffus qoidaga mos bo'lishi kerak (HR'ga ayt).
+
+**1-migratsiya tafsiloti:** `20261020051430_ErkinJadval` — faqat qo'shadi: 8 ustun (`is_flexible`, `required_minutes`,
 `attendance_days.shortfall_minutes` …) + 3 CHECK, `lock_timeout`; UPDATE/DROP yo'q. Rollback image bilan — sxema qoladi (zararsiz).
 
 **Oldin tekshir (prod):** `select count(*) from schedule_assignments` (2026-10-20: 0 — erkin kun hech kimga ta'sir qilmaydi);

@@ -30,7 +30,8 @@ const TIMEOUT_MS = 20_000
 const REFRESH_AHEAD_MS = 30_000
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST'
+  /** `PUT` — kutayotgan so'rovni o'zgartirish (SPEC-sorov-tahriri §6.1). */
+  method?: 'GET' | 'POST' | 'PUT'
   body?: unknown
   /** Access token bilanmi (sukut — ha). */
   auth?: boolean

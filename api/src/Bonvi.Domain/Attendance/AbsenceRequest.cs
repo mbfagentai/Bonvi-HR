@@ -58,6 +58,13 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public const int MaxDays = 92;
 
+    /// <summary>Izohning eng katta uzunligi (ustun <c>varchar(2000)</c>) — xodim izohi ham, HR qarori izohi ham.</summary>
+    /// <remarks>
+    /// Ilgari uzun izoh bazaga urilib 500 berardi; endi u 400 <c>davomat.izoh_uzun</c> —
+    /// jadval so'rovidagi bilan bir xil son va bir xil kod.
+    /// </remarks>
+    public const int MaxNoteLength = 2000;
+
     private AbsenceRequest(
         Guid id,
         Guid employeeId,
@@ -143,6 +150,35 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public Guid? CancelledByAccountId { get; private set; }
 
+    /// <summary>
+    /// Parallellik hisoblagichi — har bir holat o'zgarishida +1 (EF concurrency token,
+    /// SPEC-sorov-tahriri §3.3).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega kerak.</b> Xodim kutayotgan so'rovni ilovadan o'zgartira oladi, HR esa shu
+    /// paytda uni tasdiqlashi mumkin. Hisoblagichsiz ikkinchi yozuv birinchisini jimgina ustidan
+    /// yozardi: HR ko'rmagan davr tasdiqlangan bo'lib qolardi. Endi bazadagi <c>UPDATE</c>
+    /// <c>version</c> bo'yicha shartli, kechikkan yozuv esa 409 <c>davomat.sorov_ozgargan</c>
+    /// oladi; mijoz ko'rgan <c>version</c> ham tekshiriladi.
+    /// </para>
+    /// <para>
+    /// Qo'lda hech qachon o'zgartirilmaydi — faqat shu agregatning holat o'zgartiruvchi
+    /// metodlari (<see cref="Update"/>, <see cref="Approve"/>, <see cref="Reject"/>,
+    /// <see cref="Cancel"/>, <see cref="CancelBySubmitter"/>).
+    /// </para>
+    /// </remarks>
+    public int Version { get; private set; }
+
+    /// <summary>Kutayotgan so'rov oxirgi marta qachon tahrirlangan (HR yoki xodim), UTC; tahrirlanmagan — <c>null</c>.</summary>
+    public DateTimeOffset? EditedAt { get; private set; }
+
+    /// <summary>
+    /// Oxirgi tahrir ilovadan bo'lsa — xodimning ilova hisobi; HR tahrirlagan yoki hech kim
+    /// tahrirlamagan bo'lsa <c>null</c> (<see cref="SubmittedByAccountId"/> bilan bir xil fazo).
+    /// </summary>
+    public Guid? EditedByAccountId { get; private set; }
+
     // Audit va yumshoq o'chirish maydonlari — infratuzilma to'ldiradi
     // (`Incentive` dagi bilan bir xil kelishuv).
     public DateTimeOffset CreatedAt { get; set; }
@@ -199,6 +235,11 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
             return period.Error;
         }
 
+        if (NoteTooLong(note) is { } tooLong)
+        {
+            return tooLong;
+        }
+
         return new AbsenceRequest(
             NewId(),
             employeeId,
@@ -214,13 +255,25 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     /// <summary>Kutayotgan so'rovni tahrirlash — qaror qabul qilinmaguncha.</summary>
+    /// <param name="absenceTypeId">Yo'qlik turi.</param>
+    /// <param name="fromDate">Davr boshi.</param>
+    /// <param name="toDate">Davr oxiri.</param>
+    /// <param name="fromTime">Kun ichidagi boshlanish.</param>
+    /// <param name="toTime">Kun ichidagi tugash.</param>
+    /// <param name="note">Izoh.</param>
+    /// <param name="at">
+    /// Tahrir lahzasi — berilsa <see cref="EditedAt"/> ga yoziladi (HR va ilova yo'li beradi).
+    /// </param>
+    /// <param name="editedByAccountId">Ilovadan tahrirlagan xodim hisobi; HR tahririda <c>null</c>.</param>
     public Result Update(
         Guid absenceTypeId,
         DateOnly fromDate,
         DateOnly toDate,
         TimeOnly? fromTime,
         TimeOnly? toTime,
-        string? note)
+        string? note,
+        DateTimeOffset? at = null,
+        Guid? editedByAccountId = null)
     {
         if (Status != AbsenceRequestStatus.Pending)
         {
@@ -238,12 +291,24 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
             return period.Error;
         }
 
+        if (NoteTooLong(note) is { } tooLong)
+        {
+            return tooLong;
+        }
+
         AbsenceTypeId = absenceTypeId;
         FromDate = fromDate;
         ToDate = toDate;
         FromTime = fromTime;
         ToTime = toTime;
         Note = Trim(note);
+        Version++;
+
+        if (at is { } editedAt)
+        {
+            EditedAt = editedAt;
+            EditedByAccountId = editedByAccountId;
+        }
 
         return Result.Success();
     }
@@ -277,6 +342,7 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
         Status = AbsenceRequestStatus.Cancelled;
         DecidedBy = cancelledBy;
         DecidedAt = at;
+        Version++;
 
         return Result.Success();
     }
@@ -321,6 +387,7 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
         Status = AbsenceRequestStatus.Cancelled;
         DecidedAt = at;
         CancelledByAccountId = accountId;
+        Version++;
 
         return Result.Success();
     }
@@ -336,10 +403,16 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
             return Error.Conflict("davomat.sorov_qaror_qabul_qilingan", "So'rov bo'yicha qaror allaqachon qabul qilingan.");
         }
 
+        if (NoteTooLong(decisionNote) is { } tooLong)
+        {
+            return tooLong;
+        }
+
         Status = status;
         DecidedBy = decidedBy;
         DecidedAt = at;
         DecisionNote = Trim(decisionNote);
+        Version++;
 
         return Result.Success();
     }
@@ -388,6 +461,11 @@ public sealed class AbsenceRequest : AggregateRoot, IAuditable, ISoftDeletable
 
         return Result.Success();
     }
+
+    private static Error? NoteTooLong(string? note)
+        => note?.Trim().Length > MaxNoteLength
+            ? Error.Validation("davomat.izoh_uzun", $"Izoh {MaxNoteLength} belgidan oshmasligi kerak.")
+            : null;
 
     private static string? Trim(string? value)
     {

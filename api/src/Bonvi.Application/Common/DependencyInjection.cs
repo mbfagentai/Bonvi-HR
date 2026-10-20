@@ -164,9 +164,11 @@ public static class DependencyInjection
         services.AddScoped<GetMyAttendanceQueryHandler>();
         services.AddScoped<GetMyRequestsQueryHandler>();
         services.AddScoped<CreateMyRequestCommandHandler>();
+        services.AddScoped<UpdateMyRequestCommandHandler>();
         services.AddScoped<CancelMyRequestCommandHandler>();
         services.AddScoped<GetMyScheduleRequestsQueryHandler>();
         services.AddScoped<CreateMyScheduleRequestCommandHandler>();
+        services.AddScoped<UpdateMyScheduleRequestCommandHandler>();
         services.AddScoped<CancelMyScheduleRequestCommandHandler>();
         services.AddScoped<GetMyPlanQueryHandler>();
 

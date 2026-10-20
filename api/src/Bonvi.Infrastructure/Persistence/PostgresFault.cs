@@ -63,6 +63,17 @@ internal sealed class PostgresFault : IDatabaseFault
     /// </remarks>
     private const string EmployeeAccountIndex = "ux_employee_accounts_employee";
 
+    /// <summary>
+    /// Jadval so'rovida bir sana bitta kun — <c>ScheduleChangeDayConfiguration</c> dagi (konvensiya) nom.
+    /// </summary>
+    /// <remarks>
+    /// Domen takror sanani rad etadi, ya'ni bu indeksga faqat bitta so'rovni IKKI tahrir bir vaqtda
+    /// almashtirganda uriladi: ikkalasi eski kunni o'chirib, bir xil sanali yangi kun qo'shadi
+    /// (SPEC-sorov-tahriri §3.3). Nom o'zgarsa, parallel tahrir 409 o'rniga 500 bo'ladi — shu
+    /// sababli ikkalasi bir vaqtda o'zgartiriladi.
+    /// </remarks>
+    private const string ScheduleChangeDayIndex = "ix_schedule_change_request_days_request_id_date";
+
     public bool IsDuplicateName(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -112,6 +123,25 @@ internal sealed class PostgresFault : IDatabaseFault
         ArgumentNullException.ThrowIfNull(exception);
 
         return string.Equals(UniqueViolation(exception)?.ConstraintName, EmployeeAccountIndex, StringComparison.Ordinal);
+    }
+
+    public bool IsStaleRequestWrite(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        // Ikki tahrir bir so'rovning kunlarini birga almashtirdi — ikkinchisining yangi kuni
+        // g'olibning o'sha sanali kuniga uriladi (EF buyruqlar tartibida u versiya tekshiruvidan oldin).
+        if (string.Equals(UniqueViolation(exception)?.ConstraintName, ScheduleChangeDayIndex, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // Faqat so'rov agregatlari: boshqa jadvaldagi parallellik xatosi bu yerda 409 bilan
+        // yashirilmasligi kerak (`IsConcurrentDayWrite` dagi bilan bir xil ehtiyot).
+        return exception is DbUpdateConcurrencyException concurrency
+            && concurrency.Entries.Count > 0
+            && concurrency.Entries.All(entry =>
+                entry.Entity is AbsenceRequest or ScheduleChangeRequest or ScheduleChangeDay);
     }
 
     /// <summary>Unikallik buzilishi bo'lsa — drayver istisnosi, aks holda <c>null</c>.</summary>

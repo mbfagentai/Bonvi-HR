@@ -221,10 +221,16 @@ export function CalendarScreen() {
         ) : (
           <>
             <MonthChart totals={totals} />
-            {/* Faqat erkin kunlarda bo'ladi — qolgan xodimlarda qator umuman chiqmaydi */}
-            {totals.shortfallMinutes > 0 ? (
+            {/* Ikkalasi ham faqat bo'lganda: «Kam ishlangan» — erkin kunlarda, «Shaxsiy
+                vaqt» — tasdiqlangan shaxsiy so'rovda; qolgan xodimlarda qator chiqmaydi */}
+            {totals.shortfallMinutes > 0 || totals.personalMinutes > 0 ? (
               <div className="mt-3">
-                <StatRow label={t('calendar.totalShortfall')} value={format.duration(totals.shortfallMinutes)} />
+                {totals.shortfallMinutes > 0 ? (
+                  <StatRow label={t('calendar.totalShortfall')} value={format.duration(totals.shortfallMinutes)} />
+                ) : null}
+                {totals.personalMinutes > 0 ? (
+                  <StatRow label={t('calendar.totalPersonal')} value={format.duration(totals.personalMinutes)} />
+                ) : null}
               </div>
             ) : null}
           </>

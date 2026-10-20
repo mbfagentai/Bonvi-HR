@@ -27,6 +27,12 @@ namespace Bonvi.Infrastructure.Persistence;
 /// faqat «ish vaqti hisoblanadigan» turda — <see cref="WorkCreditsAsync"/>
 /// (SPEC-so'rovlar §B3 AMENDED 2026-10-17).
 /// </para>
+/// <para>
+/// ⚠️ Istisno — vaqtli SHAXSIY so'rov (SPEC-sorov-tahriri §5.2, §5.5): u faqat o'z soatlarini
+/// oqlaydi, ya'ni ikki soatlik shaxsiy so'rov butun kelmagan kunni «Sababli» qilmaydi. U
+/// <see cref="ExcusedDatesAsync"/> dan chiqariladi va <see cref="WorkCreditsAsync"/> da
+/// <c>CountsAsWorkTime = false</c> bilan keladi.
+/// </para>
 /// </remarks>
 internal static class AbsenceQuery
 {
@@ -54,6 +60,7 @@ internal static class AbsenceQuery
         }
 
         var ids = employeeIds.ToList();
+        var workTypes = WorkTypes(context);
 
         var rows = await context.AbsenceRequests
             .AsNoTracking()
@@ -61,7 +68,11 @@ internal static class AbsenceQuery
                 ids.Contains(request.EmployeeId) &&
                 request.Status == AbsenceRequestStatus.Approved &&
                 request.FromDate <= to &&
-                request.ToDate >= from)
+                request.ToDate >= from &&
+                // ⚠️ Ochiq yozilgan — sababi `WorkCreditsAsync` dagi izohda.
+                request.DeletedAt == null &&
+                // Vaqtli shaxsiy so'rov kunni oqlamaydi — faqat o'z soatlarini (SPEC-sorov-tahriri §5.2).
+                (request.FromTime == null || workTypes.Contains(request.AbsenceTypeId)))
             .Select(request => new { request.EmployeeId, request.FromDate, request.ToDate })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -91,13 +102,22 @@ internal static class AbsenceQuery
     }
 
     /// <summary>
-    /// «Ish vaqti hisoblanadigan» turdagi tasdiqlangan so'rovlar — [from, to] ni qamraganlari.
+    /// «Ish vaqti hisoblanadigan» turdagi tasdiqlangan so'rovlar VA vaqtli shaxsiy so'rovlar —
+    /// [from, to] ni qamraganlari.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Tur faolsizlantirilgan yoki o'chirilgan bo'lsa ham hisoblanadi
     /// (<c>IgnoreQueryFilters</c>): qaror allaqachon qabul qilingan, tur
     /// ro'yxatdan olinsa o'tgan kunlar o'zgarib ketmasligi kerak. Chaqiruvchi
     /// oraliqni <see cref="WorkCreditRule.RequestDatesNeeded"/> dan oladi.
+    /// </para>
+    /// <para>
+    /// Shaxsiy (ish vaqti hisoblanmaydigan) turdagi VAQTLI so'rov
+    /// <see cref="WorkCredit.CountsAsWorkTime"/> = <c>false</c> bilan keladi
+    /// (SPEC-sorov-tahriri §5.2): bitta yuklovchi — qayta hisoblash, tungi yurish, iflos navbat,
+    /// boshlangan smenalar, tabel, panel, trend, taxta — hammasi yangi kodsiz oladi.
+    /// </para>
     /// </remarks>
     /// <param name="context">Ma'lumotlar bazasi konteksti.</param>
     /// <param name="employeeIds">Xodimlar.</param>
@@ -120,10 +140,7 @@ internal static class AbsenceQuery
         }
 
         var ids = employeeIds.ToList();
-        var workTypes = context.AbsenceTypes
-            .IgnoreQueryFilters()
-            .Where(type => type.CountsAsWorkTime)
-            .Select(type => type.Id);
+        var workTypes = WorkTypes(context);
 
         var rows = await context.AbsenceRequests
             .AsNoTracking()
@@ -135,8 +152,16 @@ internal static class AbsenceQuery
                 // ⚠️ Ochiq yozilgan: ichki so'rovdagi `IgnoreQueryFilters` EF'da BUTUN
                 // so'rovga tarqaladi va so'rovning o'chirilganlik filtrini ham o'chiradi.
                 request.DeletedAt == null &&
-                workTypes.Contains(request.AbsenceTypeId))
-            .Select(request => new { request.EmployeeId, request.FromDate, request.ToDate, request.FromTime, request.ToTime })
+                (workTypes.Contains(request.AbsenceTypeId) || request.FromTime != null))
+            .Select(request => new
+            {
+                request.EmployeeId,
+                request.FromDate,
+                request.ToDate,
+                request.FromTime,
+                request.ToTime,
+                CountsAsWorkTime = workTypes.Contains(request.AbsenceTypeId),
+            })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -146,7 +171,19 @@ internal static class AbsenceQuery
                 group => group.Key,
                 group => (IReadOnlyCollection<WorkCredit>)
                 [
-                    .. group.Select(row => new WorkCredit(row.FromDate, row.ToDate, row.FromTime, row.ToTime)),
+                    .. group.Select(row => new WorkCredit(
+                        row.FromDate,
+                        row.ToDate,
+                        row.FromTime,
+                        row.ToTime,
+                        row.CountsAsWorkTime)),
                 ]);
     }
+
+    /// <summary>«Ish vaqti hisoblanadigan» turlar — o'chirilgan va faolsizlari ham (qaror allaqachon qabul qilingan).</summary>
+    private static IQueryable<Guid> WorkTypes(AppDbContext context)
+        => context.AbsenceTypes
+            .IgnoreQueryFilters()
+            .Where(type => type.CountsAsWorkTime)
+            .Select(type => type.Id);
 }

@@ -85,6 +85,12 @@ public sealed class UpdateSettingsCommandHandler
             return retention.Error;
         }
 
+        var breakRule = await CheckRequestBreakRuleAsync(prepared.Value, cancellationToken).ConfigureAwait(false);
+        if (breakRule.IsFailure)
+        {
+            return breakRule.Error;
+        }
+
         foreach (var (key, value, clearSecret) in prepared.Value)
         {
             var existing = await _settings.FindAsync(key, cancellationToken).ConfigureAwait(false);
@@ -198,6 +204,46 @@ public sealed class UpdateSettingsCommandHandler
         return passDays != 0 && passDays < photoDays
             ? SettingsErrors.RetentionOrder
             : Result.Success();
+    }
+
+    /// <summary>
+    /// Jadval so'rovidagi tanaffus qoidasining to'rt soni bir-biriga mosmi (SPEC-sorov-tahriri §2.2):
+    /// oraliq boshi oxiridan oldin, oddiy uzunlik jumadagidan oshmaydi, jumadagi esa oraliqqa sig'adi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CheckRetentionOrderAsync"/> bilan bir xil yo'l: so'ralgan qiymat, bo'lmasa joriy qiymat.
+    /// Mos kelmagan qoida bilan birorta tanaffus ham o'tmasdi — xodimlar so'rov yubora olmay qolardi.
+    /// To'rttasidan birortasi ham so'rovda bo'lmasa, bazaga murojaat qilinmaydi.
+    /// </remarks>
+    private async Task<Result> CheckRequestBreakRuleAsync(
+        IReadOnlyList<(string Key, string Value, bool ClearSecret)> prepared,
+        CancellationToken cancellationToken)
+    {
+        int? Requested(string key)
+            => prepared.FirstOrDefault(item => item.Key == key) is { Key: not null } item
+                ? int.Parse(item.Value, NumberStyles.Integer, CultureInfo.InvariantCulture)
+                : null;
+
+        var from = Requested(SystemSettingKeys.RequestBreakFrom);
+        var to = Requested(SystemSettingKeys.RequestBreakTo);
+        var minutes = Requested(SystemSettingKeys.RequestBreakMinutes);
+        var fridayMax = Requested(SystemSettingKeys.RequestBreakFridayMaxMinutes);
+
+        if (from is null && to is null && minutes is null && fridayMax is null)
+        {
+            return Result.Success();
+        }
+
+        var current = await _reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        var fromMinute = from ?? current.Number(SystemSettingKeys.RequestBreakFrom);
+        var toMinute = to ?? current.Number(SystemSettingKeys.RequestBreakTo);
+        var length = minutes ?? current.Number(SystemSettingKeys.RequestBreakMinutes);
+        var fridayLength = fridayMax ?? current.Number(SystemSettingKeys.RequestBreakFridayMaxMinutes);
+
+        return fromMinute < toMinute && length <= fridayLength && fridayLength <= toMinute - fromMinute
+            ? Result.Success()
+            : SettingsErrors.RequestBreakRuleInconsistent;
     }
 
     /// <summary>

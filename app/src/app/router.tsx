@@ -74,6 +74,10 @@ export function AppRouter() {
           <Route path="/sorovlar/jadval/yangi" element={<ScheduleRequestNewScreen />} />
           <Route path="/sorovlar/jadval/:id" element={<ScheduleRequestDetailScreen />} />
           <Route path="/sorovlar/:id" element={<RequestDetailScreen />} />
+          {/* Qaror kutayotgan so'rovni o'zgartirish (SPEC-sorov-tahriri §7.1) — o'sha
+              yaratish formasi, `:id` bo'lgani uchun tahrir rejimida ochiladi. */}
+          <Route path="/sorovlar/jadval/:id/ozgartirish" element={<ScheduleRequestNewScreen />} />
+          <Route path="/sorovlar/:id/ozgartirish" element={<RequestNewScreen />} />
           <Route path="/profil/sozlamalar" element={<SettingsScreen />} />
           <Route path="/joylashuv" element={<LocationHelpScreen />} />
         </Route>

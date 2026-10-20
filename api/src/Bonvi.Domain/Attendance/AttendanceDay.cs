@@ -44,6 +44,11 @@ namespace Bonvi.Domain.Attendance;
 /// «Kam ishlangan»: erkin kunda <c>max(0, norma − ishlangan)</c> — faqat yakuniy holat
 /// <c>Present</c> va reja oynasi tugagan bo'lsa; qolgan hamma kunda 0.
 /// </param>
+/// <param name="PersonalMinutes">
+/// «Shaxsiy vaqt»: rejaga tushgan tasdiqlangan vaqtli shaxsiy so'rov (ish vaqti hisoblanmaydigan
+/// tur) daqiqalari, tanaffus tuzatishidan keyin (SPEC-sorov-tahriri §5.3, 4-qadam). Sababli, lekin
+/// haq to'lanmaydi — <paramref name="WorkedMinutes"/> ga kirmaydi.
+/// </param>
 public sealed record AttendanceDayFacts(
     Guid? EmploymentId,
     Guid? LegalEntityId,
@@ -66,7 +71,8 @@ public sealed record AttendanceDayFacts(
     AttendanceDayStatus Status,
     int CreditedMinutes = 0,
     bool IsFlexible = false,
-    int ShortfallMinutes = 0);
+    int ShortfallMinutes = 0,
+    int PersonalMinutes = 0);
 
 /// <summary>
 /// Bir xodimning bir kundagi davomati — tabelning bitta katagi.
@@ -220,6 +226,13 @@ public sealed class AttendanceDay : AggregateRoot
     /// </remarks>
     public int ShortfallMinutes { get; private set; }
 
+    /// <summary>«Shaxsiy vaqt» daqiqalari — tasdiqlangan vaqtli shaxsiy so'rov (SPEC-sorov-tahriri §5).</summary>
+    /// <remarks>
+    /// Alohida saqlanadi: shaxsiy soatlar ishlangan vaqtdan AYRILADI, va tabel «ishladi 6:00,
+    /// shaxsiy 2:00» deb ko'rsatishi kerak — aks holda kamaygan son yana «nega» savoliga aylanardi.
+    /// </remarks>
+    public int PersonalMinutes { get; private set; }
+
     /// <summary>Oxirgi marta qachon hisoblangan.</summary>
     public DateTimeOffset ComputedAt { get; private set; }
 
@@ -269,6 +282,7 @@ public sealed class AttendanceDay : AggregateRoot
         CreditedMinutes = facts.CreditedMinutes;
         IsFlexible = facts.IsFlexible;
         ShortfallMinutes = facts.ShortfallMinutes;
+        PersonalMinutes = facts.PersonalMinutes;
         ComputedAt = computedAt;
     }
 }

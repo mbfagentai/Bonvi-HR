@@ -27,6 +27,7 @@ import {
 import { useScheduleRequestText } from '../lib/schedule-request-text'
 import type { AbsenceAction } from './absence-decision-dialog'
 import { AttendanceLoadError } from './attendance-manage-states'
+import { RequestEditedNote } from './request-edited-note'
 import { ScheduleDecisionDialog } from './schedule-decision-dialog'
 import { ScheduleRequestDialog } from './schedule-request-dialog'
 
@@ -168,6 +169,8 @@ export function ScheduleRequestsList({
                 {t('attendance.requestFromApp')}
               </span>
             )}
+            {/* Yuborilgandan keyin tahrirlangan (`AbsenceRequestsList` dagi belgi) */}
+            <RequestEditedNote request={row.original} className="mt-0.5" />
           </span>
         ),
       }),

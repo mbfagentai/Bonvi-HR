@@ -1,12 +1,21 @@
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Dialog, TextArea } from '@/shared/ui'
 
 import type { AbsenceRequest } from '../api/attendance-api'
-import { useCancelAbsenceRequest, useDecideAbsenceRequest } from '../api/attendance-queries'
+import {
+  isStaleRequestError,
+  useCancelAbsenceRequest,
+  useDecideAbsenceRequest,
+} from '../api/attendance-queries'
+import { RequestEditedNote } from './request-edited-note'
+
+/** Qaror izohi chegarasi — serverdagi `AbsenceRequest.MaxNoteLength` (`davomat.izoh_uzun`). */
+const NOTE_MAX = 2000
 
 /** Qaysi amal tasdiqlanmoqda. */
 export type AbsenceAction = 'approve' | 'reject' | 'cancel'
@@ -28,6 +37,13 @@ export type AbsenceAction = 'approve' | 'reject' | 'cancel'
  * Uchala amal bitta oynada: ular bir xil savolga javob beradi («shu
  * qarorni qabul qilasizmi?») va ikkita alohida komponent yozilsa,
  * bittasiga izoh qo'shilib, ikkinchisiga qo'shilmay qolishi mumkin edi.
+ *
+ * <b>Eskirgan nusxa</b> (SPEC-sorov-tahriri §3.3). Qaror HR ko'rgan
+ * `version` bilan ketadi: xodim shu orada so'rovni ilovada o'zgartirgan
+ * bo'lsa (yoki boshqa HR hal qilib bo'lgan bo'lsa) server 409 beradi. Oyna
+ * sababini aytadi, tasdiqlash tugmasini olib tashlaydi va faqat «Yopish»
+ * qoldiradi — navbat yangilangan, HR yangi nusxani qayta ochib ko'radi.
+ * Qayta bosish yana o'sha eski nusxani yuborardi.
  */
 export function AbsenceDecisionDialog({
   action,
@@ -68,6 +84,7 @@ export function AbsenceDecisionDialog({
 
   const busy = decide.isPending || cancel.isPending
   const failure = decide.isError ? decide.error : cancel.isError ? cancel.error : null
+  const stale = failure !== null && isStaleRequestError(failure)
 
   const look = {
     approve: {
@@ -112,6 +129,8 @@ export function AbsenceDecisionDialog({
         body: {
           approve: action === 'approve',
           decisionNote: trimmed === '' ? undefined : trimmed,
+          // HR ko'rgan nusxa — xodim shu orada o'zgartirgan bo'lsa server 409 beradi
+          version: request.version,
         },
       },
       { onSuccess: onClose },
@@ -128,27 +147,48 @@ export function AbsenceDecisionDialog({
       // Sarlavha ostida — KIM va QAYSI kunlar haqida gap ketayotgani.
       // Navbatda o'nlab qator bo'lishi mumkin va qaror noto'g'ri qatorga
       // tushib ketmasligi kerak.
-      description={`${request.employeeName} · ${request.absenceTypeName} · ${period}`}
-      footer={
+      description={
         <>
-          <Button type="button" onClick={onClose} disabled={busy}>
-            {t('common.cancel')}
-          </Button>
-          <Button type="button" variant={look.tone} disabled={busy} onClick={submit}>
-            {busy && <LoaderCircle className="animate-spin" />}
-            {look.label}
-          </Button>
+          {`${request.employeeName} · ${request.absenceTypeName} · ${period}`}
+          {/* Yuborilgandan keyin tahrirlangan — HR nima o'zgarganini o'qib chiqsin */}
+          <RequestEditedNote request={request} className="mt-1" />
         </>
+      }
+      footer={
+        stale ? (
+          <Button type="button" onClick={onClose}>
+            {t('common.close')}
+          </Button>
+        ) : (
+          <>
+            <Button type="button" onClick={onClose} disabled={busy}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" variant={look.tone} disabled={busy} onClick={submit}>
+              {busy && <LoaderCircle className="animate-spin" />}
+              {look.label}
+            </Button>
+          </>
+        )
       }
     >
       <div className="space-y-4">
-        {failure !== null && (
-          <Alert tone="danger">
-            {errorMessage(problemCode(failure), t('attendance.requestSaveFailed'))}
-          </Alert>
-        )}
+        {failure !== null &&
+          (stale ? (
+            <Alert tone="warning" title={errorMessage(problemCode(failure))}>
+              {t('attendance.requestStaleHint')}
+            </Alert>
+          ) : (
+            <Alert tone="danger">
+              {errorMessage(problemCode(failure), t('attendance.requestSaveFailed'))}
+            </Alert>
+          ))}
 
-        <p className="text-subhead text-[var(--fg-secondary)]">{look.hint}</p>
+        {action === 'approve' ? (
+          <ApproveHint absenceTypeId={request.absenceTypeId} />
+        ) : (
+          <p className="text-subhead text-[var(--fg-secondary)]">{look.hint}</p>
+        )}
 
         {request.note !== null && (
           <p className="rounded-md bg-[var(--bg-sunken)] p-3 text-footnote text-[var(--fg-secondary)]">
@@ -160,11 +200,43 @@ export function AbsenceDecisionDialog({
           <TextArea
             label={t('attendance.requestDecisionNote')}
             value={note}
+            maxLength={NOTE_MAX}
+            disabled={stale}
             onChange={(event) => setNote(event.target.value)}
             rows={3}
           />
         )}
       </div>
     </Dialog>
+  )
+}
+
+/**
+ * Tasdiqlash oqibati — so'rov TURIGA qarab (SPEC-sorov-tahriri §5).
+ *
+ * «Ish vaqti hisoblanadi» turida so'ralgan vaqt ishlangan vaqtga qo'shiladi;
+ * qolgan har bir tur — shaxsiy: vaqtli so'rov soatlari ishlangan vaqtdan
+ * AYRILADI, butun kunlik so'rov kunni «Sababli» qiladi. Umumiy «kunlar
+ * Sababli bo'ladi» degan gap vaqtli shaxsiy so'rov uchun endi noto'g'ri —
+ * HR tasdiqlashdan oldin raqam nega kamayishini bilishi kerak.
+ *
+ * Alohida komponent: ma'lumotnoma faqat «Tasdiqlash» oynasi ochilganda
+ * so'raladi (navbatdagi filtr bilan bir kesh — faolsizlari ham, chunki eski
+ * so'rov turi faolsizlantirilgan bo'lishi mumkin). Tur topilmasa — umumiy matn.
+ */
+function ApproveHint({ absenceTypeId }: { absenceTypeId: string }) {
+  const { t } = useLocale()
+  const types = useCatalogList('absence-types', false)
+
+  const kind = types.data?.find((item) => item.id === absenceTypeId)
+
+  return (
+    <p className="text-subhead text-[var(--fg-secondary)]">
+      {kind === undefined
+        ? t('attendance.requestApproveHint')
+        : kind.countsAsWorkTime === true
+          ? t('attendance.requestKindWorkTime')
+          : t('attendance.requestKindPersonalTime')}
+    </p>
   )
 }

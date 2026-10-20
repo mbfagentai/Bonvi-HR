@@ -659,6 +659,8 @@ function useSummaryColumns(canOpenEmployee: boolean): Array<DataColumn<Attendanc
       duration('lateMinutes', t('attendance.lateMinutes')),
       duration('earlyLeaveMinutes', t('attendance.earlyLeaveMinutes')),
       duration('shortfallMinutes', t('attendance.shortfallMinutes')),
+      // Shaxsiy vaqt — sababli, lekin ishlangan vaqtga kirmagan (SPEC-sorov-tahriri §5)
+      duration('personalMinutes', t('attendance.personalMinutes')),
       duration('overtimeMinutes', t('attendance.overtimeMinutes')),
       count('problemDays', t('attendance.problemDays'), 'warning'),
     ]

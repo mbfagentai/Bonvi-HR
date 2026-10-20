@@ -1,4 +1,6 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Dtos;
+using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Identity.EmployeeAccounts;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
@@ -23,6 +25,7 @@ public sealed class GetMeQueryHandler
     private readonly IEmployeeAccountRepository _accounts;
     private readonly IEmployeeAppReadModel _readModel;
     private readonly IReferenceRepository<AbsenceType> _absenceTypes;
+    private readonly RequestBreakRuleReader _breakRule;
     private readonly IClock _clock;
 
     public GetMeQueryHandler(
@@ -30,12 +33,14 @@ public sealed class GetMeQueryHandler
         IEmployeeAccountRepository accounts,
         IEmployeeAppReadModel readModel,
         IReferenceRepository<AbsenceType> absenceTypes,
+        RequestBreakRuleReader breakRule,
         IClock clock)
     {
         _currentEmployee = currentEmployee;
         _accounts = accounts;
         _readModel = readModel;
         _absenceTypes = absenceTypes;
+        _breakRule = breakRule;
         _clock = clock;
     }
 
@@ -75,8 +80,11 @@ public sealed class GetMeQueryHandler
                 // Faqat HR kiritadigan tur ilovada chiqmaydi (SPEC-jadval-so'rovi §A).
                 .Where(type => type.EmployeeCanRequest)
                 .OrderBy(type => type.Name, StringComparer.CurrentCulture)
-                .Select(type => new MyAbsenceTypeDto(type.Id, type.Name)),
+                .Select(type => new MyAbsenceTypeDto(type.Id, type.Name, type.CountsAsWorkTime)),
         ];
+
+        // Tanaffus qoidasi ham shu yerda — xodim tokeni HR endpointiga (`attendance.view`) bora olmaydi.
+        var breakRule = await _breakRule.ReadAsync(cancellationToken).ConfigureAwait(false);
 
         return new MeDto(
             account.EmployeeId,
@@ -86,6 +94,7 @@ public sealed class GetMeQueryHandler
             profile.Department,
             profile.Position,
             profile.MobileCheckInAllowed,
-            absenceTypes);
+            absenceTypes,
+            RequestBreakRuleDto.FromRule(breakRule));
     }
 }

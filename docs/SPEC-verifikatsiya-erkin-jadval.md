@@ -99,6 +99,8 @@ code path byte for byte); a flexible day.
 | 16 | daily panel + trend (`DashboardStatusRule.Classify`) | `OnTime` / `Late` by arrival vs `PlanStartAt + grace` | arrived ⇒ **`OnTime`**, `LateMinutes = null`, never `Late`; not arrived ⇒ step 13, then `Absent` / `Excused` as today |
 | 17 | stored flags | `is_flexible = false`, `shortfall_minutes = 0` | `is_flexible = true` (snapshot of the plan used) |
 
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-sorov-tahriri.md` §5.7: on a flexible day with approved personal time, shortfall = max(0, R − personal − worked) — approved personal time is not penalised.
+
 Grace minutes (`grace_in/out_minutes`) are not used on a flexible day.
 
 **Why the clip invariant still holds.** The break window must lie inside the

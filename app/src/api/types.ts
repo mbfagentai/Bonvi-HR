@@ -43,6 +43,27 @@ export type MarkSource = 'Terminal' | 'Mobile'
 export interface AbsenceTypeDto {
   id: string
   name: string
+  /**
+   * `true` — tasdiqlangan so'rov vaqti ish vaqti hisoblanadi («Ishxona ishi
+   * bilan»); `false` — shaxsiy tur: vaqtli so'rov soatlari ishlangan vaqtdan
+   * ayriladi (SPEC-sorov-tahriri §5). Eski server — yo'q (forma izoh chiqarmaydi).
+   */
+  countsAsWorkTime?: boolean
+}
+
+/**
+ * Jadval so'rovidagi tanaffus qoidasi (SPEC-sorov-tahriri §2.2) — tizim
+ * sozlamasidagi to'rt son. Vaqtlar `TimeOnly` («12:00:00»).
+ */
+export interface RequestBreakRuleDto {
+  /** Ruxsat etilgan oraliq boshi. */
+  from: string
+  /** Ruxsat etilgan oraliq oxiri. */
+  to: string
+  /** Tanaffus uzunligi (dushanba–payshanba, shanba, yakshanba); jumada — eng kami. */
+  minutes: number
+  /** Jumada eng ko'pi. */
+  fridayMaxMinutes: number
 }
 
 /**
@@ -68,6 +89,11 @@ export interface MeDto {
   /** «Telefondan belgilash» bayrog'i (SPEC §C), sukut bo'yicha `false`. */
   mobileCheckInAllowed: boolean
   absenceTypes: AbsenceTypeDto[]
+  /**
+   * Jadval so'rovidagi tanaffus qoidasi — forma xodimni serverga borishdan
+   * oldin ogohlantiradi. Eski server — yo'q: tekshiruv faqat serverda.
+   */
+  requestBreakRule?: RequestBreakRuleDto | null
 }
 
 /** Kun ichidagi bitta belgi — `MyMarkDto`. */
@@ -116,6 +142,12 @@ export interface TimesheetCellDto {
   plannedMinutes?: number
   /** «Kam ishlangan» — erkin kunda normadan kam ishlangan daqiqalar; boshqa kunda 0. */
   shortfallMinutes?: number
+  /**
+   * «Shaxsiy vaqt» — tasdiqlangan shaxsiy so'rovning rejaga tushgan daqiqalari
+   * (SPEC-sorov-tahriri §5): sababli, lekin ish vaqti EMAS — `workedMinutes`
+   * ga kirmaydi. Hosil qilingan katakda va eski serverda — 0 / yo'q.
+   */
+  personalMinutes?: number
 }
 
 /**
@@ -138,6 +170,8 @@ export interface TimesheetTotalsDto {
   earlyLeaveMinutes: number
   /** Kataklardagi «Kam ishlangan» yig'indisi. Eski server — yo'q. */
   shortfallMinutes?: number
+  /** Kataklardagi «Shaxsiy vaqt» yig'indisi. Eski server — yo'q. */
+  personalMinutes?: number
 }
 
 /**
@@ -208,6 +242,16 @@ export interface AbsenceRequestDto {
   submittedByEmployee: boolean
   /** So'rovni xodimning o'zi ilovadan qaytarib olgan. */
   cancelledByEmployee: boolean
+  /**
+   * Yozuv versiyasi — har o'zgarishda +1 (SPEC-sorov-tahriri §3.3). Tahrirda
+   * aynan ko'rsatilgani qaytariladi: boshqa joyda o'zgargan bo'lsa server
+   * 409 `davomat.sorov_ozgargan` beradi. Eski server — yo'q.
+   */
+  version?: number
+  /** Qaror kutayotganda oxirgi marta o'zgartirilgan lahza (UTC); o'zgartirilmagan — `null`. */
+  editedAt?: string | null
+  /** Oxirgi o'zgartirish ilovadan, xodimning o'zidan kelgan. */
+  editedByEmployee?: boolean
 }
 
 /**
@@ -265,6 +309,10 @@ export interface ScheduleChangeRequestDto {
   createdAt: string
   submittedByEmployee: boolean
   cancelledByEmployee: boolean
+  /** Yo'qlik so'rovidagi bilan bir xil: versiya va oxirgi o'zgartirish. */
+  version?: number
+  editedAt?: string | null
+  editedByEmployee?: boolean
 }
 
 /** `POST /api/me/schedule-requests` dagi bitta kun — vaqt `HH:mm:ss`. */
@@ -302,6 +350,12 @@ export interface CreateScheduleChangeRequest {
   swaps: ScheduleSwapInput[]
   note: string | null
 }
+
+/**
+ * `PUT /api/me/schedule-requests/{id}` tanasi — butun so'rov qayta yoziladi
+ * (yaratishdagi qoidalar bilan), `version` MAJBURIY.
+ */
+export type UpdateScheduleChangeRequest = CreateScheduleChangeRequest & { version: number }
 
 /**
  * `GET /api/me/plan?date=` — `DayPlanDto`: sananing AMALDAGI rejasi
@@ -347,6 +401,9 @@ export interface CreateAbsenceRequest {
   toTime: string | null
   note: string | null
 }
+
+/** `PUT /api/me/requests/{id}` tanasi — yaratishdagining o'zi va MAJBURIY `version`. */
+export type UpdateAbsenceRequest = CreateAbsenceRequest & { version: number }
 
 export interface LoginRequest {
   /** Telefon raqami — xodim profilidagi asosiy raqam. */

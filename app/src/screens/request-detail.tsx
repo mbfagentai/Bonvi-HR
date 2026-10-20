@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/api/client'
 import { ApiError } from '@/api/errors'
 import { requestDayCount, shortTime } from '@/data/attendance'
-import { invalidateRequests, useRequests } from '@/data/queries'
+import { invalidateRequests, useMe, useRequests } from '@/data/queries'
 import { REQUEST_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
 import { useErrorText } from '@/lib/use-error-message'
@@ -32,7 +32,16 @@ export function RequestDetailScreen() {
   const { id } = useParams<{ id: string }>()
 
   const requests = useRequests()
+  const me = useMe()
   const request = (requests.data ?? []).filter((item) => item.id === id)[0] ?? null
+
+  // O'zgartirish — faqat qaror kutayotganda VA turi xodimga ochiq bo'lsa (ro'yxatda
+  // faqat faol, xodim tanlay oladigan turlar bor). HR tanlagan yopiq turni saqlab
+  // bo'lmasdi: server yaratishdagi qoidani qo'llaydi (SPEC-sorov-tahriri §12 Q8).
+  const canEdit =
+    request !== null &&
+    request.status === 'Pending' &&
+    (me.data?.absenceTypes ?? []).some((kind) => kind.id === request.absenceTypeId)
 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -114,6 +123,12 @@ export function RequestDetailScreen() {
               label={t('requests.createdAt')}
               value={<span className="nums">{format.date(request.createdAt)}</span>}
             />
+            {request.editedAt ? (
+              <CardRow
+                label={t('requests.editedAt')}
+                value={<span className="nums">{format.date(request.editedAt)}</span>}
+              />
+            ) : null}
           </Card>
 
           {request.note ? (
@@ -140,6 +155,15 @@ export function RequestDetailScreen() {
             <InlineMessage tone="danger" title={t('requests.cancelFailed')} assertive>
               {errorText(cancelError).body}
             </InlineMessage>
+          ) : null}
+
+          {/* O'zgartirish — bekor qilishdan YUQORIDA, ikkinchi darajali: so'rovni
+              qaytadan yuborish o'rniga. Tasdiq so'ralmaydi (UX §E.6) — forma o'zi
+              «saqlanmagan o'zgarishlar» ni so'raydi. */}
+          {canEdit ? (
+            <Button variant="secondary" block onClick={() => navigate(`/sorovlar/${request.id}/ozgartirish`)}>
+              {t('requests.edit')}
+            </Button>
           ) : null}
 
           {/* Bekor qilish — faqat qaror kutayotgan so'rovda. Qaror

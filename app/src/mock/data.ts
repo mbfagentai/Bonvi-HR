@@ -37,10 +37,14 @@ const FLEXIBLE_REQUIRED_MINUTES = 450
 
 export const MOCK_SITE_NAME = 'Bosh ofis'
 
-/** Verifix'dagi ikki tur — aynan shular (SPEC-erkin-jadval §6). */
+/**
+ * Verifix'dagi ikki tur — aynan shular (SPEC-erkin-jadval §6). «Shaxsiy» —
+ * ish vaqti EMAS: vaqtli so'rov soatlari ishlangan vaqtdan ayriladi
+ * (SPEC-sorov-tahriri §5).
+ */
 export const MOCK_ABSENCE_TYPES: AbsenceTypeDto[] = [
-  { id: 'at-1', name: 'Ishxona ishi bilan' },
-  { id: 'at-2', name: 'Shaxsiy' },
+  { id: 'at-1', name: 'Ishxona ishi bilan', countsAsWorkTime: true },
+  { id: 'at-2', name: 'Shaxsiy', countsAsWorkTime: false },
 ]
 
 export const MOCK_ME: MeDto = {
@@ -54,6 +58,39 @@ export const MOCK_ME: MeDto = {
   position: 'Smena boshlig‘i',
   mobileCheckInAllowed: true,
   absenceTypes: MOCK_ABSENCE_TYPES,
+  // Kompaniya qoidasi — server sukutlari (SPEC-sorov-tahriri §2.2)
+  requestBreakRule: { from: '12:00:00', to: '15:00:00', minutes: 60, fridayMaxMinutes: 120 },
+}
+
+/**
+ * `from` dan boshlab (shu kun ham), `step` qadam bilan, `accept` ga mos
+ * birinchi sana: «keyingi juma», «oldingi ish kuni». Mock sanalari bugundan
+ * hisoblanadi — hafta kuniga qarab ma'nosini yo'qotmasin.
+ */
+function seekDate(from: string, step: 1 | -1, accept: (weekday: number) => boolean): string {
+  let date = from
+  for (let guard = 0; guard < 7; guard += 1) {
+    const parts = parseIsoDate(date)
+    if (parts && accept(parts.weekday)) return date
+    date = addDays(date, step)
+  }
+  return from
+}
+
+/** Mock'dagi tasdiqlangan shaxsiy vaqt — 14:00–16:00 (egasining misoli, SPEC-sorov-tahriri §1). */
+export const MOCK_PERSONAL_FROM = '14:00:00'
+export const MOCK_PERSONAL_TO = '16:00:00'
+
+/** Shaxsiy vaqt tushgan kun — bugundan oldingi eng yaqin ish kuni (dushanba–juma). */
+export function mockPersonalDate(): string {
+  return seekDate(addDays(todayIso(), -1), -1, (weekday) => weekday < 6)
+}
+
+/** Tasdiqlangan vaqtli shaxsiy so'rov — kun va oraliq (Toshkent, yarim tundan daqiqa). */
+export interface MockPersonalTime {
+  date: string
+  fromMinute: number
+  toMinute: number
 }
 
 /** Mock kuni — katak va uning belgilari (simda `{ day, marks }` bo'lib ketadi). */
@@ -110,6 +147,7 @@ function emptyDay(dateIso: string, status: MockDay['status']): MockDay {
     isFlexible: false,
     plannedMinutes: 0,
     shortfallMinutes: 0,
+    personalMinutes: 0,
     marks: [],
   }
 }
@@ -211,6 +249,7 @@ function workedDay(dateIso: string, lateMinutes: number, mobile: boolean): MockD
     isFlexible: false,
     plannedMinutes: PLANNED_MINUTES,
     shortfallMinutes: 0,
+    personalMinutes: 0,
     marks,
   }
 }
@@ -249,7 +288,58 @@ function flexibleDay(dateIso: string): MockDay {
     isFlexible: true,
     plannedMinutes: FLEXIBLE_REQUIRED_MINUTES,
     shortfallMinutes: Math.max(0, FLEXIBLE_REQUIRED_MINUTES - worked),
+    personalMinutes: 0,
     marks,
+  }
+}
+
+/**
+ * Tasdiqlangan «Shaxsiy» vaqt tushgan kun (SPEC-sorov-tahriri §5.3, egasining
+ * misoli E1): xodim 08:25 da keldi, shaxsiy oraliqda chiqib-kirmadi, 18:05 da
+ * ketdi. Oraliqdagi borliq ishlangan vaqtga KIRMAYDI; qat'iy kunda ishlangan
+ * vaqt «reja − shaxsiy» dan oshmaydi (§12 Q1) — 14:00–16:00 bilan 6:30 va
+ * «Shaxsiy vaqt» 2:00. Kechikish ham, erta ketish ham yo'q.
+ */
+function personalDay(dateIso: string, fromMinute: number, toMinute: number): MockDay {
+  const planStart = PLAN_START_HOUR * 60 + PLAN_START_MINUTE
+  const planEnd = PLAN_END_HOUR * 60
+  // Shaxsiy oraliq rejaga kesiladi; rejadan tashqaridagisi hisobga ta'sir qilmaydi
+  const from = Math.max(fromMinute, planStart)
+  const to = Math.min(toMinute, planEnd)
+  const inAt = planStart - 5
+  const outAt = planEnd + 5
+
+  const intervals: Array<[number, number]> = to > from ? [[inAt, from], [to, outAt]] : [[inAt, outAt]]
+  const { worked, deduction, breakTaken } = workedFromIntervals(intervals)
+
+  // Tushlik oynasining shaxsiy oraliqqa tushgan qismi — tushlik baribir haq
+  // to'lanmaydi, ikki marta sanalmaydi (§5.3, 4-qadam; oyna = tanaffus uzunligi)
+  const personalInBreak =
+    to > from ? Math.max(0, Math.min(to, BREAK_WINDOW_END) - Math.max(from, BREAK_WINDOW_START)) : 0
+  const personal = to > from ? to - from - personalInBreak : 0
+  const cappedWorked = personal > 0 ? Math.min(worked, Math.max(0, PLANNED_MINUTES - personal)) : worked
+
+  const entry = mark(dateIso, Math.floor(inAt / 60), inAt % 60, 'In')
+  const exit = mark(dateIso, Math.floor(outAt / 60), outAt % 60, 'Out')
+
+  return {
+    date: dateIso,
+    status: 'Present',
+    workedMinutes: cappedWorked,
+    lateMinutes: 0,
+    earlyLeaveMinutes: 0,
+    breakTakenMinutes: breakTaken,
+    breakDeductionMinutes: deduction,
+    firstInAt: entry.at,
+    lastOutAt: exit.at,
+    planStartAt: tashkentToUtcIso(dateIso, PLAN_START_HOUR, PLAN_START_MINUTE),
+    planEndAt: tashkentToUtcIso(dateIso, PLAN_END_HOUR, 0),
+    mobileMarks: 0,
+    isFlexible: false,
+    plannedMinutes: PLANNED_MINUTES,
+    shortfallMinutes: 0,
+    personalMinutes: personal,
+    marks: [entry, exit],
   }
 }
 
@@ -263,7 +353,12 @@ function flexibleDay(dateIso: string): MockDay {
  * «Sababli» kun bor. Bu to'plam taqvimning barcha katak holatlarini bitta
  * ekranda ko'rsatadi.
  */
-export function buildMonth(year: number, month: number, excusedDates: string[]): MockDay[] {
+export function buildMonth(
+  year: number,
+  month: number,
+  excusedDates: string[],
+  personalTimes: readonly MockPersonalTime[] = [],
+): MockDay[] {
   const today = todayIso()
   const total = daysInMonth(year, month)
   const days: MockDay[] = []
@@ -279,6 +374,14 @@ export function buildMonth(year: number, month: number, excusedDates: string[]):
 
     if (excusedDates.indexOf(dateIso) >= 0) {
       days.push(emptyDay(dateIso, 'Excused'))
+      continue
+    }
+
+    // Tasdiqlangan vaqtli shaxsiy so'rov — kun «Sababli» EMAS, faqat o'sha soatlar
+    // ishlangan vaqtdan ayriladi (SPEC-sorov-tahriri §5.5)
+    const personal = personalTimes.filter((item) => item.date === dateIso)[0]
+    if (personal && !isWeekend && !isFuture && dateIso !== today) {
+      days.push(personalDay(dateIso, personal.fromMinute, personal.toMinute))
       continue
     }
 
@@ -386,6 +489,7 @@ export function buildToday(marks: AttendanceMarkDto[]): MockDay {
     isFlexible: false,
     plannedMinutes: isWeekend ? 0 : PLANNED_MINUTES,
     shortfallMinutes: 0,
+    personalMinutes: 0,
     marks,
   }
 
@@ -450,8 +554,15 @@ function requestOf(fields: {
   decidedByName: string | null
   decidedAt: string | null
   createdAt: string
+  /** Qaror kutayotganda o'zgartirilgan so'rov — versiya va lahza (SPEC-sorov-tahriri §3). */
+  version?: number
+  editedAt?: string | null
 }): AbsenceRequestDto {
   return {
+    version: 0,
+    editedAt: null,
+    // Mock xodimning so'rovlarini faqat o'zi o'zgartiradi — HR tomoni yo'q
+    editedByEmployee: fields.editedAt !== undefined && fields.editedAt !== null,
     ...fields,
     employeeId: MOCK_ME.employeeId,
     employeeName: MOCK_ME.fullName,
@@ -465,8 +576,28 @@ function requestOf(fields: {
 
 export function buildRequests(): AbsenceRequestDto[] {
   const today = todayIso()
+  const personalDate = mockPersonalDate()
+  // Kutayotgan, bir marta o'zgartirilgan so'rov — «Ishxona ishi bilan» (+3…+4) bilan to'qnashmasin
+  const pendingPersonalDate = seekDate(addDays(today, 6), 1, (weekday) => weekday < 6)
 
   return [
+    requestOf({
+      id: 'req-6',
+      absenceTypeId: 'at-2',
+      absenceTypeName: 'Shaxsiy',
+      fromDate: pendingPersonalDate,
+      toDate: pendingPersonalDate,
+      fromTime: '15:00:00',
+      toTime: '17:00:00',
+      note: 'Farzandimni bog‘chadan olib ketaman.',
+      status: 'Pending',
+      decisionNote: null,
+      decidedByName: null,
+      decidedAt: null,
+      createdAt: tashkentToUtcIso(addDays(today, -2), 18, 3),
+      version: 1,
+      editedAt: tashkentToUtcIso(addDays(today, -1), 8, 12),
+    }),
     requestOf({
       id: 'req-1',
       absenceTypeId: 'at-1',
@@ -496,6 +627,22 @@ export function buildRequests(): AbsenceRequestDto[] {
       decidedByName: 'Karimova Nodira',
       decidedAt: tashkentToUtcIso(addDays(today, -7), 11, 2),
       createdAt: tashkentToUtcIso(addDays(today, -10), 8, 41),
+    }),
+    // Tasdiqlangan vaqtli «Shaxsiy» — taqvimda «Shaxsiy vaqt 2 soat» li kun
+    requestOf({
+      id: 'req-5',
+      absenceTypeId: 'at-2',
+      absenceTypeName: 'Shaxsiy',
+      fromDate: personalDate,
+      toDate: personalDate,
+      fromTime: MOCK_PERSONAL_FROM,
+      toTime: MOCK_PERSONAL_TO,
+      note: 'Shifokorga',
+      status: 'Approved',
+      decisionNote: null,
+      decidedByName: 'Karimova Nodira',
+      decidedAt: tashkentToUtcIso(addDays(personalDate, -1), 16, 20),
+      createdAt: tashkentToUtcIso(addDays(personalDate, -1), 9, 5),
     }),
     requestOf({
       id: 'req-3',
@@ -565,6 +712,9 @@ export function scheduleRequestOf(fields: {
   createdAt: string
 }): ScheduleChangeRequestDto {
   return {
+    version: 0,
+    editedAt: null,
+    editedByEmployee: false,
     ...fields,
     employeeId: MOCK_ME.employeeId,
     employeeName: MOCK_ME.fullName,
@@ -583,7 +733,9 @@ export function scheduleRequestOf(fields: {
  */
 export function buildScheduleRequests(): ScheduleChangeRequestDto[] {
   const today = todayIso()
-  const moved = addDays(today, 2)
+  // Juma namozi — keyingi juma: 120 daqiqalik tanaffus faqat jumada qoidaga mos
+  // (SPEC-sorov-tahriri §4.4, B6), boshqa kunda tahrir uni rad etardi
+  const moved = seekDate(addDays(today, 1), 1, (weekday) => weekday === 5)
   const swapA = addDays(today, -6)
   const swapB = addDays(today, -4)
 

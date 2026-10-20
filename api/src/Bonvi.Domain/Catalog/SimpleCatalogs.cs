@@ -67,9 +67,11 @@ public sealed class AbsenceType : ReferenceEntity
     /// Tasdiqlangan so'rov vaqti ISHLANGAN vaqt hisoblanadimi («Ishxona ishi bilan»).
     /// </summary>
     /// <remarks>
-    /// <c>false</c> (sukut) — so'rov faqat «Kelmadi» ni «Sababli» qiladi
-    /// («Shaxsiy»). <c>true</c> — so'ralgan vaqt xodim binoda
-    /// bo'lgandek hisoblanadi, lekin faqat rejadagi smena ichida.
+    /// <c>false</c> (sukut) — SHAXSIY tur («Shaxsiy»): vaqtli so'rov o'z soatlarini
+    /// ishlangan vaqtdan ayiradi («Shaxsiy vaqt» — sababli, lekin haq to'lanmaydi;
+    /// SPEC-sorov-tahriri §5), butun kunlik so'rov esa «Kelmadi» kunni «Sababli»
+    /// qiladi. <c>true</c> — so'ralgan vaqt xodim binoda bo'lgandek hisoblanadi,
+    /// lekin faqat rejadagi smena ichida.
     /// </remarks>
     public bool CountsAsWorkTime { get; private set; }
 

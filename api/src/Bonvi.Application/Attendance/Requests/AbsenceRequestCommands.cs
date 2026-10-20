@@ -28,6 +28,18 @@ public sealed record CreateAbsenceRequestCommand(
     Guid? SubmittedByAccountId = null);
 
 /// <summary>Kutayotgan so'rovni tahrirlash.</summary>
+/// <param name="RequestId">So'rov.</param>
+/// <param name="AbsenceTypeId">Yo'qlik turi.</param>
+/// <param name="FromDate">Davr boshi.</param>
+/// <param name="ToDate">Davr oxiri.</param>
+/// <param name="FromTime">Kun ichidagi boshlanish.</param>
+/// <param name="ToTime">Kun ichidagi tugash.</param>
+/// <param name="Note">Izoh.</param>
+/// <param name="ExpectedVersion">
+/// Mijoz ko'rgan <c>version</c> (SPEC-sorov-tahriri §3.3, 2-qatlam); farq qilsa — 409
+/// <c>davomat.sorov_ozgargan</c>. <c>null</c> — tekshirilmaydi (eski mijoz).
+/// </param>
+/// <param name="EditedByAccountId">Ilovadan tahrirlagan xodim hisobi; HR tahririda <c>null</c>.</param>
 public sealed record UpdateAbsenceRequestCommand(
     Guid RequestId,
     Guid AbsenceTypeId,
@@ -35,13 +47,20 @@ public sealed record UpdateAbsenceRequestCommand(
     DateOnly ToDate,
     TimeOnly? FromTime = null,
     TimeOnly? ToTime = null,
-    string? Note = null);
+    string? Note = null,
+    int? ExpectedVersion = null,
+    Guid? EditedByAccountId = null);
 
 /// <summary>Qaror: tasdiqlash yoki rad etish.</summary>
 /// <param name="RequestId">So'rov.</param>
 /// <param name="Approve">Tasdiqlansinmi.</param>
 /// <param name="DecisionNote">HR izohi.</param>
-public sealed record DecideAbsenceRequestCommand(Guid RequestId, bool Approve, string? DecisionNote = null);
+/// <param name="ExpectedVersion">HR ko'rgan <c>version</c>; farq qilsa — 409 <c>davomat.sorov_ozgargan</c>.</param>
+public sealed record DecideAbsenceRequestCommand(
+    Guid RequestId,
+    bool Approve,
+    string? DecisionNote = null,
+    int? ExpectedVersion = null);
 
 /// <summary>So'rovni bekor qilish.</summary>
 public sealed record CancelAbsenceRequestCommand(Guid RequestId);
@@ -66,6 +85,33 @@ internal static class AbsenceRequestErrors
 
     public static readonly Error Overlaps =
         Error.Conflict("davomat.sorov_takroriy", "Bu kunlar uchun xodimda faol so'rov allaqachon bor.");
+
+    /// <summary>So'rov endi kutayotgan emas — domenning o'sha kodi (tahrir va qaror uchun).</summary>
+    public static readonly Error NotPending =
+        Error.Conflict("davomat.sorov_qaror_qabul_qilingan", "So'rov bo'yicha qaror allaqachon qabul qilingan yoki u bekor qilingan.");
+
+    /// <summary>
+    /// So'rov boshqa joyda o'zgargan: mijoz ko'rgan versiya eskirgan yoki parallel yozuv
+    /// yutib ketdi (SPEC-sorov-tahriri §3.3). Jadval so'rovida ham AYNAN shu kod.
+    /// </summary>
+    public static readonly Error Stale =
+        Error.Conflict(
+            "davomat.sorov_ozgargan",
+            "So'rov boshqa joyda o'zgartirilgan — yangilangan holatini ko'rib, qaytadan urinib ko'ring.");
+
+    /// <summary>
+    /// Kutayotgan so'rov holati va mijoz ko'rgan versiya — tahrir va qarorning BOSHIDA, shu
+    /// tartibda (§3.3 javoblar ustuvorligi): avval «qaror qabul qilingan», keyin «o'zgargan».
+    /// </summary>
+    public static Error? PendingAt(AbsenceRequestStatus status, int version, int? expectedVersion)
+    {
+        if (status != AbsenceRequestStatus.Pending)
+        {
+            return NotPending;
+        }
+
+        return expectedVersion is { } expected && expected != version ? Stale : null;
+    }
 }
 
 /// <summary><see cref="CreateAbsenceRequestCommand"/> ni bajaradi.</summary>
@@ -170,17 +216,23 @@ public sealed class UpdateAbsenceRequestCommandHandler
     private readonly IAbsenceRequestRepository _requests;
     private readonly IAbsenceTypeLookup _types;
     private readonly IAttendanceReadModel _readModel;
+    private readonly IClock _clock;
+    private readonly IDatabaseFault _fault;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateAbsenceRequestCommandHandler(
         IAbsenceRequestRepository requests,
         IAbsenceTypeLookup types,
         IAttendanceReadModel readModel,
+        IClock clock,
+        IDatabaseFault fault,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
         _types = types;
         _readModel = readModel;
+        _clock = clock;
+        _fault = fault;
         _unitOfWork = unitOfWork;
     }
 
@@ -194,6 +246,13 @@ public sealed class UpdateAbsenceRequestCommandHandler
         if (request is null)
         {
             return AbsenceRequestErrors.NotFound;
+        }
+
+        // Holat va versiya BIRINCHI (SPEC-sorov-tahriri §3.3): qaror qabul qilingan so'rovda
+        // tur yoki kesishish xatosi emas, «qaror qabul qilingan» javobi kerak.
+        if (AbsenceRequestErrors.PendingAt(request.Status, request.Version, command.ExpectedVersion) is { } notEditable)
+        {
+            return notEditable;
         }
 
         var type = await _types.FindAsync(command.AbsenceTypeId, cancellationToken).ConfigureAwait(false);
@@ -220,18 +279,48 @@ public sealed class UpdateAbsenceRequestCommandHandler
             command.ToDate,
             command.FromTime,
             command.ToTime,
-            command.Note);
+            command.Note,
+            _clock.UtcNow,
+            command.EditedByAccountId);
 
         if (updated.IsFailure)
         {
             return updated.Error;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        // Kutayotgan so'rov kunlarga ta'sir qilmaydi — tahrir hech narsani qayta hisoblatmaydi (§3.1).
+        if (await SaveAsync(_unitOfWork, _fault, cancellationToken).ConfigureAwait(false) is { } stale)
+        {
+            return stale;
+        }
 
         var dto = await _readModel.FindAbsenceRequestAsync(request.Id, cancellationToken).ConfigureAwait(false);
 
         return dto!;
+    }
+
+    /// <summary>
+    /// So'rovni saqlaydi; parallel yozuv yutib ketgan bo'lsa — 409 <c>davomat.sorov_ozgargan</c>, 500 emas
+    /// (SPEC-sorov-tahriri §3.3, 1-qatlam). Yo'qlik so'rovining barcha yozuvchilari shu yerdan.
+    /// </summary>
+    /// <remarks>
+    /// Qayta urinish YO'Q: kechikkan yozuv boshqa odamning qarorini ko'rmagan — uni takrorlash o'sha
+    /// qarorni ustidan yozardi. Mijoz yangilangan holatni o'qib, qaytadan uradi.
+    /// </remarks>
+    internal static async Task<Error?> SaveAsync(
+        IUnitOfWork unitOfWork,
+        IDatabaseFault fault,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+        catch (Exception exception) when (fault.IsStaleRequestWrite(exception))
+        {
+            return AbsenceRequestErrors.Stale;
+        }
     }
 }
 
@@ -267,6 +356,7 @@ public sealed class DecideAbsenceRequestCommandHandler
     private readonly IClock _clock;
     private readonly AttendanceDayRecomputer _recomputer;
     private readonly IBackgroundJobQueue _jobs;
+    private readonly IDatabaseFault _fault;
     private readonly IUnitOfWork _unitOfWork;
 
     public DecideAbsenceRequestCommandHandler(
@@ -276,6 +366,7 @@ public sealed class DecideAbsenceRequestCommandHandler
         IClock clock,
         AttendanceDayRecomputer recomputer,
         IBackgroundJobQueue jobs,
+        IDatabaseFault fault,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
@@ -284,6 +375,7 @@ public sealed class DecideAbsenceRequestCommandHandler
         _clock = clock;
         _recomputer = recomputer;
         _jobs = jobs;
+        _fault = fault;
         _unitOfWork = unitOfWork;
     }
 
@@ -299,6 +391,12 @@ public sealed class DecideAbsenceRequestCommandHandler
             return AbsenceRequestErrors.NotFound;
         }
 
+        // HR o'zi ko'rgan nusxa ustida qaror qiladi: xodim shu orada tahrirlagan bo'lsa — 409 (§3.6).
+        if (AbsenceRequestErrors.PendingAt(request.Status, request.Version, command.ExpectedVersion) is { } notDecidable)
+        {
+            return notDecidable;
+        }
+
         var decidedBy = _currentUser.UserId ?? Guid.Empty;
         var now = _clock.UtcNow;
 
@@ -311,7 +409,11 @@ public sealed class DecideAbsenceRequestCommandHandler
             return decision.Error;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        if (await UpdateAbsenceRequestCommandHandler.SaveAsync(_unitOfWork, _fault, cancellationToken).ConfigureAwait(false)
+            is { } stale)
+        {
+            return stale;
+        }
 
         // Qaror SAQLANGACH: yozuvchi tasdiqlangan so'rovlarni bazadan o'qiydi.
         await RecomputeDaysAsync(_recomputer, _jobs, request, cancellationToken).ConfigureAwait(false);
@@ -384,6 +486,7 @@ public sealed class CancelAbsenceRequestCommandHandler
     private readonly IClock _clock;
     private readonly AttendanceDayRecomputer _recomputer;
     private readonly IBackgroundJobQueue _jobs;
+    private readonly IDatabaseFault _fault;
     private readonly IUnitOfWork _unitOfWork;
 
     public CancelAbsenceRequestCommandHandler(
@@ -392,6 +495,7 @@ public sealed class CancelAbsenceRequestCommandHandler
         IClock clock,
         AttendanceDayRecomputer recomputer,
         IBackgroundJobQueue jobs,
+        IDatabaseFault fault,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
@@ -399,6 +503,7 @@ public sealed class CancelAbsenceRequestCommandHandler
         _clock = clock;
         _recomputer = recomputer;
         _jobs = jobs;
+        _fault = fault;
         _unitOfWork = unitOfWork;
     }
 
@@ -422,7 +527,12 @@ public sealed class CancelAbsenceRequestCommandHandler
             return cancelled.Error;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        // Bekor qilish mazmunga bog'liq emas — versiya so'ralmaydi, faqat parallel yozuv (§3.3, 1-qatlam).
+        if (await UpdateAbsenceRequestCommandHandler.SaveAsync(_unitOfWork, _fault, cancellationToken).ConfigureAwait(false)
+            is { } stale)
+        {
+            return stale;
+        }
 
         // Faqat TASDIQLANGAN so'rov kunlarga ta'sir qilgan edi — qolganida
         // qayta hisoblash bir necha yuz kunni sababsiz qayta yozardi.

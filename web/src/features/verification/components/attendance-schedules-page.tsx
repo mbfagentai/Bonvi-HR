@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
+import { SETTINGS_MANAGE } from '@/features/settings/api/settings-api'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -81,6 +82,7 @@ import {
 } from './attendance-manage-states'
 import { AttendanceScheduleFormDialog } from './attendance-schedule-form-dialog'
 import { AttendanceScheduleYearDialog } from './attendance-schedule-year-dialog'
+import { RequestBreakRuleCard } from './request-break-rule-card'
 
 /** Filtrsiz — barcha tirik biriktirmalar. Modul darajasida: kalit barqaror bo'lsin. */
 const ALL_ASSIGNMENTS: AssignmentFilters = {}
@@ -126,6 +128,12 @@ export function AttendanceSchedulesPage() {
     unga 403 bilan tugaydigan qidiruv ko'rsatilmaydi.
   */
   const canPickEmployee = hasPermission(EMPLOYEES_VIEW)
+  /*
+    Jadval so'rovidagi tanaffus qoidasi — tizim sozlamasi (`/api/settings` faqat
+    shu ruxsat bilan ochiq). Ruxsat bo'lmasa karta UMUMAN chizilmaydi
+    (qurilmalar sahifasidagi saqlash muddatlari kartasi bilan bir xil qoida).
+  */
+  const canManageSettings = hasPermission(SETTINGS_MANAGE)
 
   const schedules = useWorkSchedules(canView)
   const assignments = useScheduleAssignments(ALL_ASSIGNMENTS, canView)
@@ -292,6 +300,13 @@ export function AttendanceSchedulesPage() {
 
       {/* ─────────────────────────── kim uchun amal qiladi */}
       {canPickEmployee && <ResolvePreviewCard />}
+
+      {/*
+        ─────────────────────────── jadval so'rovidagi tanaffus qoidasi
+        Eng pastda: jadvallar kundalik ish, qoida esa bir marta sozlanadi
+        (SPEC-sorov-tahriri §7.2).
+      */}
+      {canManageSettings && <RequestBreakRuleCard />}
 
       {/*
         Yillik to'r `attendance.view` bilan ham ochiladi (SPEC-jadval-to'ri §C:

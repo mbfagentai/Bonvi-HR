@@ -90,6 +90,12 @@ export function ScheduleRequestDetailScreen() {
               label={t('requests.createdAt')}
               value={<span className="nums">{format.date(request.createdAt)}</span>}
             />
+            {request.editedAt ? (
+              <CardRow
+                label={t('requests.editedAt')}
+                value={<span className="nums">{format.date(request.editedAt)}</span>}
+              />
+            ) : null}
           </Card>
 
           {/* Har bir sana — so'rov TASDIQLANSA amal qiladigan reja.
@@ -156,6 +162,18 @@ export function ScheduleRequestDetailScreen() {
             <InlineMessage tone="danger" title={t('requests.cancelFailed')} assertive>
               {errorText(cancelError).body}
             </InlineMessage>
+          ) : null}
+
+          {/* O'zgartirish — har qanday kutayotgan jadval so'rovida, bekor qilishdan
+              yuqorida (yo'qlik so'rovidagi kabi). */}
+          {request.status === 'Pending' ? (
+            <Button
+              variant="secondary"
+              block
+              onClick={() => navigate(`/sorovlar/jadval/${request.id}/ozgartirish`)}
+            >
+              {t('requests.edit')}
+            </Button>
           ) : null}
 
           {/* Bekor qilish — faqat qaror kutayotgan so'rovda. */}

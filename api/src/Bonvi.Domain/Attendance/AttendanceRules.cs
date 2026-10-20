@@ -178,6 +178,25 @@ public static class AttendanceRules
     public const int DefaultPassRetentionDays = 365;
 
     /// <summary>
+    /// Jadval so'rovidagi tanaffus oralig'ining boshi (kun daqiqasi) —
+    /// <c>attendance.requestBreakFrom</c> ning SUKUT qiymati: 12:00.
+    /// </summary>
+    /// <remarks>
+    /// To'rttala son birga — <see cref="RequestBreakRule"/> (SPEC-sorov-tahriri §2.2, egasining
+    /// qarori 2026-10-20): tanaffus 12:00–15:00 ichida, 60 daqiqa, jumada 120 gacha.
+    /// </remarks>
+    public const int DefaultRequestBreakFromMinute = 12 * 60;
+
+    /// <summary>Tanaffus oralig'ining oxiri (kun daqiqasi) — <c>attendance.requestBreakTo</c> sukuti: 15:00.</summary>
+    public const int DefaultRequestBreakToMinute = 15 * 60;
+
+    /// <summary>Talab qilingan tanaffus (daqiqa) — <c>attendance.requestBreakMinutes</c> sukuti; jumada eng kami ham shu.</summary>
+    public const int DefaultRequestBreakMinutes = 60;
+
+    /// <summary>Jumadagi eng uzun tanaffus (daqiqa) — <c>attendance.requestBreakFridayMaxMinutes</c> sukuti.</summary>
+    public const int DefaultRequestBreakFridayMaxMinutes = 120;
+
+    /// <summary>
     /// Ishdan ketgan xodimning o'tishi jonli taxtada necha soat qizil
     /// ogohlantirish bo'lib turadi (SPEC §6.5).
     /// </summary>

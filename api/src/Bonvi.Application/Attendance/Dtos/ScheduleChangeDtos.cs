@@ -46,6 +46,9 @@ public sealed record ScheduleChangeDayDto(
 /// <param name="CreatedAt">Yuborilgan lahza.</param>
 /// <param name="SubmittedByEmployee">Xodim o'zi ilovadan yuborgan.</param>
 /// <param name="CancelledByEmployee">Xodim o'zi qaytarib olgan.</param>
+/// <param name="Version">Parallellik hisoblagichi — tahrir va qarorda qaytariladi (<see cref="AbsenceRequestDto.Version"/>).</param>
+/// <param name="EditedAt">Oxirgi tahrir lahzasi (UTC); tahrirlanmagan — <c>null</c>.</param>
+/// <param name="EditedByEmployee">Oxirgi tahrir xodimning ilovasidan.</param>
 public sealed record ScheduleChangeRequestDto(
     Guid Id,
     Guid EmployeeId,
@@ -62,7 +65,10 @@ public sealed record ScheduleChangeRequestDto(
     DateTimeOffset? DecidedAt,
     DateTimeOffset CreatedAt,
     bool SubmittedByEmployee,
-    bool CancelledByEmployee);
+    bool CancelledByEmployee,
+    int Version = 0,
+    DateTimeOffset? EditedAt = null,
+    bool EditedByEmployee = false);
 
 /// <summary>Xodimning bir sanadagi amaldagi rejasi — jadval so'rovi formasini to'ldirish uchun.</summary>
 /// <param name="Date">Sana.</param>
@@ -89,3 +95,23 @@ public sealed record DayPlanDto(
     int BreakMinutes = 0,
     bool IsFlexible = false,
     int? RequiredMinutes = null);
+
+/// <summary>
+/// Jadval so'rovidagi tanaffus qoidasi — formalar uni oldindan tekshiradi
+/// (SPEC-verifikatsiya-sorov-tahriri §4, §6).
+/// </summary>
+/// <remarks>Server baribir o'zi tekshiradi; qoida yuklanmagan forma tekshirmaydi, xolos.</remarks>
+/// <param name="From">Ruxsat etilgan oraliq boshi.</param>
+/// <param name="To">Ruxsat etilgan oraliq oxiri.</param>
+/// <param name="Minutes">Talab qilingan uzunlik (daqiqa); jumada — eng kami.</param>
+/// <param name="FridayMaxMinutes">Jumada eng ko'pi (daqiqa).</param>
+public sealed record RequestBreakRuleDto(TimeOnly From, TimeOnly To, int Minutes, int FridayMaxMinutes)
+{
+    /// <summary>Domen qoidasidan.</summary>
+    public static RequestBreakRuleDto FromRule(RequestBreakRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+
+        return new RequestBreakRuleDto(rule.From, rule.To, rule.Minutes, rule.FridayMaxMinutes);
+    }
+}

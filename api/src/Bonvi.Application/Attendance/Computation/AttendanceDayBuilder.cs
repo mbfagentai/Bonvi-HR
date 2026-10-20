@@ -35,6 +35,10 @@ namespace Bonvi.Application.Attendance.Computation;
 /// «Ish vaqti» so'rovi qamragan birinchi lahza (UTC); so'rov yo'q bo'lsa <c>null</c>.
 /// Saqlanmaydi — panel kelgan lahzani shundan ham oladi (SPEC-so'rovlar §B3 AMENDED).
 /// </param>
+/// <param name="Personal">
+/// Kunning tasdiqlangan shaxsiy vaqti (SPEC-sorov-tahriri §5.6); bo'lmasa <c>null</c>. Saqlanmaydi —
+/// panel kutilgan kelishni, «hali boshlanmagan» chegarasini va kunni oqlashini shundan oladi.
+/// </param>
 public sealed record ComputedAttendanceDay(
     Guid EmployeeId,
     DateOnly LocalDate,
@@ -43,7 +47,8 @@ public sealed record ComputedAttendanceDay(
     ScheduleScope? ScheduleTier,
     bool HasBreakWindow,
     DateTimeOffset? FirstPassAt = null,
-    DateTimeOffset? CreditedFromAt = null);
+    DateTimeOffset? CreditedFromAt = null,
+    PersonalTime? Personal = null);
 
 /// <summary>
 /// Xodimning kunlarini o'tishlar, munosabatlar va jadvallardan hisoblaydi — SPEC §5.
@@ -155,7 +160,10 @@ public sealed class AttendanceDayBuilder
     /// (<see cref="WorkCreditRule.RequestDatesNeeded"/> oralig'ida). Ularning
     /// vaqti ishlangan vaqtga qo'shiladi (<see cref="WorkCreditRule"/>);
     /// <paramref name="excusedDates"/> ga ham kirgan bo'lishi kerak — rejasi
-    /// hali boshlanmagan kun «Sababli» bo'lib turadi.
+    /// hali boshlanmagan kun «Sababli» bo'lib turadi. Shu ro'yxatda vaqtli SHAXSIY
+    /// so'rovlar ham keladi (<see cref="WorkCredit.CountsAsWorkTime"/> = <c>false</c>) — ularning
+    /// soatlari ishlangan vaqtdan ayriladi (<see cref="PersonalTimeRule"/>) va ular
+    /// <paramref name="excusedDates"/> ga KIRMAYDI.
     /// </param>
     public IReadOnlyList<ComputedAttendanceDay> Build(
         Guid employeeId,
@@ -310,11 +318,24 @@ public sealed class AttendanceDayBuilder
         var late = 0;
         var early = 0;
 
+        /*
+          Tasdiqlangan vaqtli SHAXSIY so'rov (SPEC-sorov-tahriri §5): soatlari sababli, lekin
+          ish vaqti emas — ishlangan vaqtdan ayriladi va alohida ko'rsatiladi. ⭐ Shaxsiy oraliq
+          yo'q kun AYNAN avvalgidek: `personal` null bo'lsa pastdagi har bir qator eski yo'ldan
+          ketadi. Bor bo'lsa — «ish vaqti» so'rovi ham shu qoida ichida hisoblanadi (kredit
+          shaxsiy vaqtni qoplamaydi), `credited` esa ishlatilmaydi.
+        */
+        var personalIntervals = PersonalTimeRule.IntervalsFor(date, plan, workCredits);
+        var creditIntervals = plan is null ? [] : WorkCreditRule.IntervalsFor(date, plan, workCredits, now);
+        var personal = plan is not null && personalIntervals.Count > 0
+            ? PersonalTimeRule.Apply(pairing, plan, creditIntervals, personalIntervals)
+            : null;
+
         // «Ish vaqti» so'rovi (SPEC-so'rovlar §B3 AMENDED): faqat ish kunining
         // rejasi ichida va hozirgacha. Yo'q bo'lsa — kun avvalgidek.
-        var credited = plan is null
+        var credited = plan is null || personal is not null
             ? null
-            : WorkCreditRule.Apply(pairing, plan, WorkCreditRule.IntervalsFor(date, plan, workCredits, now));
+            : WorkCreditRule.Apply(pairing, plan, creditIntervals);
 
         /*
           Erkin kunda (SPEC-erkin-jadval §2.2, 8–9-qatorlar) kechikish ham, erta ketish
@@ -330,8 +351,22 @@ public sealed class AttendanceDayBuilder
         {
             planned = plan.PlannedMinutes;
 
+            if (personal is not null)
+            {
+                // Reja boshidagi shaxsiy vaqt kutilgan kelishni suradi, kun o'rtasidagisi esa
+                // kechikishdan ayriladi (SPEC-sorov-tahriri §5.3, 9-qadam).
+                var expectedStart = personal.Personal.ExpectedStartAt ?? planStart;
+
+                if (personal.FirstPresenceAt is { } firstPresence)
+                {
+                    late = PersonalTimeRule.MinutesOutside(
+                        expectedStart.AddMinutes(plan.GraceInMinutes),
+                        firstPresence,
+                        personal.Personal.Intervals);
+                }
+            }
             // So'rov qamragan ertalab — kechikish emas: birinchi «borliq» o'tish yoki so'rov.
-            if ((credited is null ? pairing.FirstInAt : credited.FirstPresenceAt) is { } firstIn)
+            else if ((credited is null ? pairing.FirstInAt : credited.FirstPresenceAt) is { } firstIn)
             {
                 late = WholeMinutes.AtLeastZero(firstIn - planStart.AddMinutes(plan.GraceInMinutes));
             }
@@ -345,18 +380,27 @@ public sealed class AttendanceDayBuilder
             */
             var planEnded = now >= planEnd;
 
-            var lastPresence = credited is null ? pairing.LastOutAt : credited.LastPresenceAt;
+            var lastPresence = personal is not null
+                ? personal.LastPresenceAt
+                : credited is null ? pairing.LastOutAt : credited.LastPresenceAt;
 
             if (planEnded && !pairing.MissingExit && lastPresence is { } lastOut)
             {
-                early = WholeMinutes.AtLeastZero(planEnd.AddMinutes(-plan.GraceOutMinutes) - lastOut);
+                // Reja oxiridagi shaxsiy vaqt kutilgan ketishni oraliq boshiga suradi (10-qadam).
+                early = personal is null
+                    ? WholeMinutes.AtLeastZero(planEnd.AddMinutes(-plan.GraceOutMinutes) - lastOut)
+                    : PersonalTimeRule.MinutesOutside(
+                        lastOut,
+                        (personal.Personal.ExpectedEndAt ?? planEnd).AddMinutes(-plan.GraceOutMinutes),
+                        personal.Personal.Intervals);
             }
         }
 
         var status = StatusOf(employment, plan, pairing);
 
         // O'tishsiz, lekin «ish vaqti» so'rovi qamragan ish kuni — ishlagan kun.
-        if (status == AttendanceDayStatus.Absent && credited is { CreditedMinutes: > 0 })
+        if (status == AttendanceDayStatus.Absent
+            && (credited is { CreditedMinutes: > 0 } || personal is { CreditedMinutes: > 0 }))
         {
             status = AttendanceDayStatus.Present;
         }
@@ -368,11 +412,14 @@ public sealed class AttendanceDayBuilder
           FAQAT «ish vaqti hisoblanadigan» tur o'zgartiradi (yuqorida,
           `WorkCreditRule`) — qolgan turlar avvalgidek faqat shu qatorda.
         */
-        if (excused && status == AttendanceDayStatus.Absent)
+        if ((excused || personal?.Personal.ExcusesDay == true) && status == AttendanceDayStatus.Absent)
         {
+            // Butun rejasi shaxsiy kun ham «Sababli»; qisman shaxsiy vaqt kelmaslikni oqlamaydi —
+            // u faqat o'z soatlarini oqlaydi (SPEC-sorov-tahriri §5.5).
             status = AttendanceDayStatus.Excused;
         }
-        else if (status == AttendanceDayStatus.Absent && DashboardStatusRule.HasNotStarted(plan!, today, now))
+        else if (status == AttendanceDayStatus.Absent
+            && DashboardStatusRule.HasNotStarted(plan!, today, now, personal?.Personal.NotStartedUntil))
         {
             /*
               Smenasi hali BOSHLANMAGAN kun — «kelmadi» EMAS: kelajak kun
@@ -393,19 +440,21 @@ public sealed class AttendanceDayBuilder
             status = AttendanceDayStatus.Planned;
         }
 
-        var worked = credited?.WorkedMinutes ?? pairing.WorkedMinutes;
+        var worked = personal?.WorkedMinutes ?? credited?.WorkedMinutes ?? pairing.WorkedMinutes;
+        var personalMinutes = personal?.Personal.Minutes ?? 0;
 
         /*
           «Kam ishlangan» — faqat erkin kunda, holat YAKUNIY bo'lgach (so'rov, «Sababli»,
           «Hali boshlanmagan» hammasi yuqorida) va reja oynasi tugagach (§2.2, 10-qator).
           Kelmagan, chiqishi yoki kirishi yozilmagan kunni holat aytadi — ikki marta
           sanalmaydi. Oyna tugashidan oldin yozilgan qatorda 0: erta ketish bilan bir xil
-          shartnoma, tungi qayta hisoblash to'ldiradi.
+          shartnoma, tungi qayta hisoblash to'ldiradi. Tasdiqlangan shaxsiy vaqt hech qachon
+          «kam ishlangan» emas — u normadan ayriladi (SPEC-sorov-tahriri §5.4).
         */
         var shortfall = plan is { IsWorking: true, IsFlexible: true, PlanEndAt: { } flexibleEnd }
             && status == AttendanceDayStatus.Present
             && now >= flexibleEnd
-                ? Math.Max(0, plan.PlannedMinutes - worked)
+                ? Math.Max(0, plan.PlannedMinutes - personalMinutes - worked)
                 : 0;
 
         var facts = new AttendanceDayFacts(
@@ -431,14 +480,15 @@ public sealed class AttendanceDayBuilder
             // kunlar shishirib yuborardi. Dam olish kunida ishlash esa
             // haqiqiy ortiqcha ish — u yerda reja bor, faqat nolga teng.
             OvertimeMinutes: plan is null ? 0 : Math.Max(0, worked - planned),
-            BreakTakenMinutes: credited?.BreakTakenMinutes ?? pairing.BreakTakenMinutes,
-            BreakDeductionMinutes: credited?.BreakDeductionMinutes ?? pairing.BreakDeductionMinutes,
+            BreakTakenMinutes: personal?.BreakTakenMinutes ?? credited?.BreakTakenMinutes ?? pairing.BreakTakenMinutes,
+            BreakDeductionMinutes: personal?.BreakDeductionMinutes ?? credited?.BreakDeductionMinutes ?? pairing.BreakDeductionMinutes,
             PassCount: pairing.PassCount,
             IgnoredPassCount: pairing.IgnoredPassCount,
             Status: status,
-            CreditedMinutes: credited?.CreditedMinutes ?? 0,
+            CreditedMinutes: personal?.CreditedMinutes ?? credited?.CreditedMinutes ?? 0,
             IsFlexible: plan?.IsFlexible ?? false,
-            ShortfallMinutes: shortfall);
+            ShortfallMinutes: shortfall,
+            PersonalMinutes: personalMinutes);
 
         // §5.4: o'tish bor — YOKI munosabat bor va jadval shu kunni ish kuni deydi.
         // Ish kunidagi reja faqat munosabat va jadval topilganda bo'ladi.
@@ -461,7 +511,8 @@ public sealed class AttendanceDayBuilder
             schedule?.Tier,
             plan?.HasBreakWindow ?? false,
             passes.Count == 0 ? null : passes.Min(pass => pass.OccurredAt).ToUniversalTime(),
-            credited?.CreditedFromAt);
+            personal is not null ? personal.CreditedFromAt : credited?.CreditedFromAt,
+            personal?.Personal);
     }
 
     /// <summary>SPEC §5.6 — birinchi mos kelgani yutadi.</summary>

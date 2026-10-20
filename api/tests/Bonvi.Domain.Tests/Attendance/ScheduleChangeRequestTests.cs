@@ -230,4 +230,80 @@ public sealed class ScheduleChangeRequestTests
 
         kunlar.ShouldAllBe(kun => !kun.IsFlexible && kun.RequiredMinutes == null);
     }
+
+    // ────────────────────── Tahrir va parallellik (SPEC-sorov-tahriri §2.3, §3.3) ──────────────────────
+
+    private static readonly DateTimeOffset Lahza = new(2026, 10, 20, 9, 0, 0, TimeSpan.Zero);
+
+    private static ScheduleChangeRequest Yangi()
+        => ScheduleChangeRequest.Create(Xodim, ScheduleChangeKind.Change, [IshKuni(Sana)]).Value;
+
+    [Fact]
+    public void Yangi_sorov_nolinchi_versiyada()
+    {
+        var sorov = Yangi();
+
+        sorov.Version.ShouldBe(0);
+        sorov.EditedAt.ShouldBeNull();
+        sorov.EditedByAccountId.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Tahrir_versiyani_oshiradi_va_ilova_belgisini_yozadi()
+    {
+        var sorov = Yangi();
+        var hisob = Guid.CreateVersion7();
+
+        sorov.Update(ScheduleChangeKind.Change, [IshKuni(Sana.AddDays(1))], "yangi", at: Lahza, editedByAccountId: hisob)
+            .IsSuccess.ShouldBeTrue();
+
+        sorov.Version.ShouldBe(1);
+        sorov.EditedAt.ShouldBe(Lahza);
+        sorov.EditedByAccountId.ShouldBe(hisob);
+        sorov.Days.ShouldHaveSingleItem().Date.ShouldBe(Sana.AddDays(1));
+    }
+
+    [Fact]
+    public void HR_tahriri_faqat_lahzani_yozadi()
+    {
+        var sorov = Yangi();
+        sorov.Update(ScheduleChangeKind.Change, [IshKuni(Sana)], null, at: Lahza, editedByAccountId: Guid.CreateVersion7());
+
+        sorov.Update(ScheduleChangeKind.Change, [IshKuni(Sana)], null, at: Lahza.AddHours(1)).IsSuccess.ShouldBeTrue();
+
+        sorov.EditedAt.ShouldBe(Lahza.AddHours(1));
+        sorov.EditedByAccountId.ShouldBeNull();
+        sorov.Version.ShouldBe(2);
+    }
+
+    [Fact]
+    public void Qaror_va_bekor_qilish_versiyani_oshiradi()
+    {
+        var tasdiq = Yangi();
+        tasdiq.Approve(Guid.CreateVersion7(), Lahza).IsSuccess.ShouldBeTrue();
+        tasdiq.Version.ShouldBe(1);
+        tasdiq.Cancel(Guid.CreateVersion7(), Lahza).IsSuccess.ShouldBeTrue();
+        tasdiq.Version.ShouldBe(2);
+
+        var rad = Yangi();
+        rad.Reject(Guid.CreateVersion7(), Lahza).IsSuccess.ShouldBeTrue();
+        rad.Version.ShouldBe(1);
+
+        var qaytarilgan = Yangi();
+        qaytarilgan.CancelBySubmitter(Guid.CreateVersion7(), Lahza).IsSuccess.ShouldBeTrue();
+        qaytarilgan.Version.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Rad_etilgan_amal_versiyaga_tegmaydi()
+    {
+        var sorov = Yangi();
+        var uzun = new string('a', ScheduleChangeRequest.MaxNoteLength + 1);
+
+        sorov.Update(ScheduleChangeKind.Change, [IshKuni(Sana)], uzun, at: Lahza).Error.Code.ShouldBe("davomat.izoh_uzun");
+        sorov.Reject(Guid.CreateVersion7(), Lahza, uzun).Error.Code.ShouldBe("davomat.izoh_uzun");
+
+        sorov.Version.ShouldBe(0);
+        sorov.EditedAt.ShouldBeNull();
+    }
 }

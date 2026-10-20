@@ -70,6 +70,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("edited_at");
+
+                    b.Property<Guid?>("EditedByAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("edited_by_account_id");
+
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uuid")
                         .HasColumnName("employee_id");
@@ -110,6 +118,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_absence_requests");
@@ -200,6 +213,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<int>("PassCount")
                         .HasColumnType("integer")
                         .HasColumnName("pass_count");
+
+                    b.Property<int>("PersonalMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("personal_minutes");
 
                     b.Property<DateTimeOffset?>("PlanEndAt")
                         .HasColumnType("timestamp with time zone")
@@ -990,6 +1007,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("edited_at");
+
+                    b.Property<Guid?>("EditedByAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("edited_by_account_id");
+
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uuid")
                         .HasColumnName("employee_id");
@@ -1018,6 +1043,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_schedule_change_requests");

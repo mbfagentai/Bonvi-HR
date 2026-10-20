@@ -68,6 +68,8 @@ request already covers that day for that employee).
 
 ### B3. Effect on attendance (A4)
 
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-sorov-tahriri.md` §5: an approved TIMED request of a kind without `counts_as_work_time` («Shaxsiy») is excused but unpaid — no lateness/early leave for its interval, presence inside it removed from worked minutes, stored as `attendance_days.personal_minutes`; a whole absent day with only a timed personal request stays `Absent`.
+
 > **AMENDED 2026-10-20** → `SPEC-verifikatsiya-erkin-jadval.md` §2: on a flexible day the credit is judged against «Ish vaqti» (required minutes), and presence is NOT clipped to the window (owner).
 
 > **AMENDED 2026-10-17 (owner) — work-time absence kinds.** The owner compared
@@ -125,6 +127,8 @@ are already the thing people trust it for.
   minute.
 
 ### B4. API
+
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-sorov-tahriri.md` §3, §6: employee `PUT /api/me/requests/{id}` (own, Pending only); `version` concurrency token on requests (409 `davomat.sorov_ozgargan`) for edit, decide and cancel.
 
 * `GET /api/attendance/requests` — filters: `employeeId`, `status`, `decided`
   (approved + rejected + cancelled together), `from`, `to`, paging. Read under

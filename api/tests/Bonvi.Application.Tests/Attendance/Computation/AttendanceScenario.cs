@@ -365,12 +365,24 @@ internal sealed class AttendanceScenario
     }
 
     /// <summary>
+    /// Tasdiqlangan vaqtli SHAXSIY so'rov — ish vaqti hisoblanmaydigan tur (SPEC-sorov-tahriri §5).
+    /// Yuklovchidagidek o'sha ro'yxatga <c>CountsAsWorkTime: false</c> bilan tushadi.
+    /// </summary>
+    public AttendanceScenario PersonalTime(DateOnly date, string fromTime, string toTime)
+    {
+        _credits.Add(new WorkCredit(date, date, Time(fromTime), Time(toTime), CountsAsWorkTime: false));
+        return this;
+    }
+
+    /// <summary>
     /// Ishlab chiqarishdagidek hisoblaydi: «ish vaqti» so'rovlari ham beriladi, ularning sanalari
-    /// esa «oqlangan» sanalar qatorida ham turadi (har qanday tasdiqlangan so'rov kabi).
+    /// esa «oqlangan» sanalar qatorida ham turadi (har qanday tasdiqlangan so'rov kabi). Vaqtli
+    /// shaxsiy so'rov esa oqlangan sanalarga KIRMAYDI — `AbsenceQuery.ExcusedDatesAsync` dagidek.
     /// </summary>
     public IReadOnlyList<ComputedAttendanceDay> DaysCredited(params DateOnly[] dates)
     {
         var excused = _credits
+            .Where(credit => credit.CountsAsWorkTime || credit.FromTime is null)
             .SelectMany(credit => Enumerable
                 .Range(0, credit.ToDate.DayNumber - credit.FromDate.DayNumber + 1)
                 .Select(credit.FromDate.AddDays))

@@ -286,7 +286,14 @@ public static class AuditCatalog
             .Ref(AuditRefTarget.Employee, nameof(AbsenceRequest.EmployeeId))
             .Ref(AuditRefTarget.AbsenceType, nameof(AbsenceRequest.AbsenceTypeId))
             .Ref(AuditRefTarget.User, nameof(AbsenceRequest.DecidedBy))
-            .Ref(AuditRefTarget.EmployeeAccount, nameof(AbsenceRequest.SubmittedByAccountId), nameof(AbsenceRequest.CancelledByAccountId)),
+            .Ref(
+                AuditRefTarget.EmployeeAccount,
+                nameof(AbsenceRequest.SubmittedByAccountId),
+                nameof(AbsenceRequest.CancelledByAccountId),
+                nameof(AbsenceRequest.EditedByAccountId))
+            // Hisoblagich va tahrir lahzasi — texnik: audit yozuvining o'zi lahzani va muallifni
+            // saqlaydi (SPEC-sorov-tahriri §3.5); ularni ko'rsatish har qarorda shovqin bo'lardi.
+            .Exclude(nameof(AbsenceRequest.Version), nameof(AbsenceRequest.EditedAt)),
 
         // Jadval so'rovi (SPEC-verifikatsiya-jadval-sorovi §C) — yo'qlik so'rovining egizagi.
         Audit<ScheduleChangeRequest>(AccessModuleKeys.Attendance)
@@ -297,7 +304,9 @@ public static class AuditCatalog
             .Ref(
                 AuditRefTarget.EmployeeAccount,
                 nameof(ScheduleChangeRequest.SubmittedByAccountId),
-                nameof(ScheduleChangeRequest.CancelledByAccountId)),
+                nameof(ScheduleChangeRequest.CancelledByAccountId),
+                nameof(ScheduleChangeRequest.EditedByAccountId))
+            .Exclude(nameof(ScheduleChangeRequest.Version), nameof(ScheduleChangeRequest.EditedAt)),
 
         // So'rovning kuni — yorlig'i sana: so'rov tahririda qaysi kun o'zgargani shu bilan ko'rinadi.
         // Xodimi ota so'rovdan: faqat kunlari o'zgargan tahrirda so'rov qatorining o'zi yozilmaydi,

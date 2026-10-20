@@ -58,12 +58,17 @@ public static class DashboardStatusRule
     /// <param name="today">Bugungi Toshkent sanasi.</param>
     /// <param name="now">Hozirgi lahza.</param>
     /// <param name="excused">Shu kunda tasdiqlangan yo'qlik so'rovi bormi (SPEC-so'rovlar §B3).</param>
+    /// <param name="personal">
+    /// Kunning tasdiqlangan shaxsiy vaqti (SPEC-sorov-tahriri §5.6) — kutilgan kelish, «hali
+    /// boshlanmagan» chegarasi va kunni oqlashi shundan; <c>null</c> — bugungi qoida aynan.
+    /// </param>
     public static DashboardVerdict Classify(
         DayPlan? plan,
         DateTimeOffset? arrivedAt,
         DateOnly today,
         DateTimeOffset now,
-        bool excused = false)
+        bool excused = false,
+        PersonalTime? personal = null)
     {
         // Jadvalsiz ham kirdi-chiqdi olinadi (2026-10-12): o'tgan bo'lsa — «Keldi», kechikishsiz.
         if (plan is null)
@@ -86,12 +91,20 @@ public static class DashboardStatusRule
 
         if (arrivedAt is { } arrived)
         {
-            return arrived <= planStart.AddMinutes(plan.GraceInMinutes)
+            // Ertalabki shaxsiy vaqt kutilgan kelishni oraliq oxiriga suradi; daqiqa — o'sha
+            // lahzadan, yon berishsiz, kun o'rtasidagi shaxsiy vaqt ayrilib (SPEC-sorov-tahriri §5.6).
+            var expected = personal?.ExpectedStartAt ?? planStart;
+
+            return arrived <= expected.AddMinutes(plan.GraceInMinutes)
                 ? new DashboardVerdict(AttendanceDashboardStatus.OnTime, null)
-                : new DashboardVerdict(AttendanceDashboardStatus.Late, WholeMinutes.AtLeastZero(arrived - planStart));
+                : new DashboardVerdict(
+                    AttendanceDashboardStatus.Late,
+                    personal is null
+                        ? WholeMinutes.AtLeastZero(arrived - planStart)
+                        : PersonalTimeRule.MinutesOutside(expected, arrived, personal.Intervals));
         }
 
-        if (HasNotStarted(plan, today, now))
+        if (HasNotStarted(plan, today, now, personal?.NotStartedUntil))
         {
             return new DashboardVerdict(AttendanceDashboardStatus.NotStarted, null);
         }
@@ -100,10 +113,11 @@ public static class DashboardStatusRule
           Tasdiqlangan so'rov «kelmadi» ni oqlaydi — va faqat uni. Smenasi
           hali boshlanmagan kun tegilmaydi: u hali savol emas, ya'ni javob
           ham kerak emas (tabeldagi `AttendanceDayBuilder` bilan bir xil
-          tor qoida).
+          tor qoida). Butun rejasi shaxsiy kun ham oqlangan; qisman shaxsiy
+          vaqt esa «Kelmadi» (SPEC-sorov-tahriri §5.5).
         */
         return new DashboardVerdict(
-            excused ? AttendanceDashboardStatus.Excused : AttendanceDashboardStatus.Absent,
+            excused || personal?.ExcusesDay == true ? AttendanceDashboardStatus.Excused : AttendanceDashboardStatus.Absent,
             null);
     }
 
@@ -131,17 +145,30 @@ public static class DashboardStatusRule
     /// keyin ham ishlab normani to'ldirish mumkin, lekin kelmagan odam qachondir «Kelmadi»
     /// bo'lishi kerak — keyinroq kelsa, holat o'tishning o'zidan qayta hisoblanadi.
     /// </para>
+    /// <para>
+    /// ⭐ <b>Shaxsiy vaqt</b> (SPEC-sorov-tahriri §5.5): reja boshidagi shaxsiy oraliq tugaguncha
+    /// (erkin kunda: oyna oxiri − (norma − shaxsiy) gacha) ham «Hali boshlanmagan» —
+    /// <paramref name="notStartedUntil"/>; keyin «Kelmadi».
+    /// </para>
     /// </remarks>
     /// <param name="plan">Kun rejasi.</param>
     /// <param name="today">Bugungi Toshkent sanasi.</param>
     /// <param name="now">Hozirgi lahza.</param>
-    public static bool HasNotStarted(DayPlan plan, DateOnly today, DateTimeOffset now)
+    /// <param name="notStartedUntil">
+    /// Shaxsiy vaqt surgan chegara (<see cref="PersonalTime.NotStartedUntil"/>); <c>null</c> — bugungi qoida aynan.
+    /// </param>
+    public static bool HasNotStarted(DayPlan plan, DateOnly today, DateTimeOffset now, DateTimeOffset? notStartedUntil = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
         if (plan.Date > today)
         {
             return true;
+        }
+
+        if (notStartedUntil is { } until)
+        {
+            return now < until;
         }
 
         return plan.IsFlexible

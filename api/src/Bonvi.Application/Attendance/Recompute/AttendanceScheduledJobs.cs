@@ -275,6 +275,8 @@ public sealed class AttendanceStartedShiftsJob
           boshlanmasdan «Sababli · 0» qilib yozadi, va o'tishsiz kunni hech narsa
           iflos qilmaydi — usiz tabel va ilova butun kun «Sababli» ko'rsatib, panel
           esa «Vaqtida» derdi. So'rov kam, ya'ni har 15 daqiqada bir necha qator.
+          Yuklovchi vaqtli SHAXSIY so'rovlarni ham beradi (SPEC-sorov-tahriri §5.2): ertalabki
+          shaxsiy oraliq tugagach kun «Hali boshlanmagan» dan «Kelmadi» ga shu yerda o'tadi.
         */
         var (creditFrom, creditTo) = WorkCreditRule.RequestDatesNeeded(from, to);
         var credits = await _source

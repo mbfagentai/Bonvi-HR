@@ -33,6 +33,27 @@ public sealed record CreateMyRequestCommand(
     TimeOnly? ToTime = null,
     string? Note = null);
 
+/// <summary>
+/// Xodim o'zining KUTAYOTGAN so'rovini o'zgartiradi (SPEC-verifikatsiya-sorov-tahriri §3).
+/// </summary>
+/// <param name="RequestId">So'rov.</param>
+/// <param name="Version">Ilova ko'rsatgan <c>version</c> — majburiy (§3.3, 2-qatlam).</param>
+/// <param name="AbsenceTypeId">Yo'qlik turi.</param>
+/// <param name="FromDate">Davr boshi.</param>
+/// <param name="ToDate">Davr oxiri.</param>
+/// <param name="FromTime">Kun ichidagi boshlanish — faqat bir kunlik so'rovda.</param>
+/// <param name="ToTime">Kun ichidagi tugash — faqat bir kunlik so'rovda.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record UpdateMyRequestCommand(
+    Guid RequestId,
+    int Version,
+    Guid AbsenceTypeId,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    TimeOnly? FromTime = null,
+    TimeOnly? ToTime = null,
+    string? Note = null);
+
 /// <summary>Xodim o'z so'rovini bekor qiladi.</summary>
 /// <param name="RequestId">So'rov.</param>
 public sealed record CancelMyRequestCommand(Guid RequestId);
@@ -215,6 +236,92 @@ public sealed class CreateMyRequestCommandHandler
 }
 
 /// <summary>
+/// <see cref="UpdateMyRequestCommand"/> ni bajaradi.
+/// </summary>
+/// <remarks>
+/// <para>
+/// ⭐ <b>Yaratishdagi qoidalarning O'ZI</b> (SPEC-sorov-tahriri §3.1): xodim tekshiruvi shu yerda
+/// (egalik, holat, versiya, «faqat HR» turi), qolgani — HR tahrir ishlovchisida (tur bor/faolligi,
+/// kesishish so'rovning o'zisiz, domen davr qoidalari, izoh uzunligi). Ikki nusxa yozilsa, ilova va
+/// HR bir so'rovni ikki xil qoidada tahrirlardi.
+/// </para>
+/// <para>
+/// ⭐ <b>Egalik — «topilmadi»</b>, bekor qilishdagi kabi: begona so'rov 404, 403 emas. HR xodim nomidan
+/// kiritgan so'rov ham xodimniki — uni ham o'zgartira oladi (§12 Q8).
+/// </para>
+/// <para>
+/// Tartib (§3.3): 404 → 409 holat → 409 versiya → 400 «faqat HR» turi → HR ishlovchisi. Holat versiyadan
+/// oldin: HR qaror qilgan so'rovni ochgan ilova «qaror qabul qilingan» deb eshitishi kerak, «o'zgargan» emas.
+/// Tahrir hech narsani qayta hisoblatmaydi — kutayotgan so'rov kunlarga ta'sir qilmaydi.
+/// </para>
+/// </remarks>
+public sealed class UpdateMyRequestCommandHandler
+{
+    private readonly CurrentEmployeeResolver _resolver;
+    private readonly IAbsenceRequestRepository _requests;
+    private readonly IAbsenceTypeLookup _types;
+    private readonly UpdateAbsenceRequestCommandHandler _update;
+
+    public UpdateMyRequestCommandHandler(
+        CurrentEmployeeResolver resolver,
+        IAbsenceRequestRepository requests,
+        IAbsenceTypeLookup types,
+        UpdateAbsenceRequestCommandHandler update)
+    {
+        _resolver = resolver;
+        _requests = requests;
+        _types = types;
+        _update = update;
+    }
+
+    public async Task<Result<AbsenceRequestDto>> HandleAsync(
+        UpdateMyRequestCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var ids = await _resolver.ResolveAsync(cancellationToken).ConfigureAwait(false);
+        if (ids.IsFailure)
+        {
+            return ids.Error;
+        }
+
+        var request = await _requests.GetByIdAsync(command.RequestId, cancellationToken).ConfigureAwait(false);
+        if (request is null || request.EmployeeId != ids.Value.EmployeeId)
+        {
+            return AbsenceRequestErrors.NotFound;
+        }
+
+        if (AbsenceRequestErrors.PendingAt(request.Status, request.Version, command.Version) is { } notEditable)
+        {
+            return notEditable;
+        }
+
+        // «Faqat HR» turi: yaratishdagi to'siqning o'zi — ilova bunday turdagi so'rovda tugmani ko'rsatmaydi.
+        if (await _types.FindAsync(command.AbsenceTypeId, cancellationToken).ConfigureAwait(false)
+            is { EmployeeCanRequest: false })
+        {
+            return AbsenceRequestErrors.TypeClosedForEmployees;
+        }
+
+        return await _update
+            .HandleAsync(
+                new UpdateAbsenceRequestCommand(
+                    request.Id,
+                    command.AbsenceTypeId,
+                    command.FromDate,
+                    command.ToDate,
+                    command.FromTime,
+                    command.ToTime,
+                    command.Note,
+                    ExpectedVersion: command.Version,
+                    EditedByAccountId: ids.Value.AccountId),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+}
+
+/// <summary>
 /// <see cref="CancelMyRequestCommand"/> ni bajaradi.
 /// </summary>
 /// <remarks>
@@ -246,17 +353,20 @@ public sealed class CancelMyRequestCommandHandler
     private readonly IAbsenceRequestRepository _requests;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IDatabaseFault _fault;
 
     public CancelMyRequestCommandHandler(
         CurrentEmployeeResolver resolver,
         IAbsenceRequestRepository requests,
         IUnitOfWork unitOfWork,
-        IClock clock)
+        IClock clock,
+        IDatabaseFault fault)
     {
         _resolver = resolver;
         _requests = requests;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _fault = fault;
     }
 
     public async Task<Result> HandleAsync(
@@ -287,7 +397,12 @@ public sealed class CancelMyRequestCommandHandler
             return cancelled.Error;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        // HR shu lahzada qaror qilgan bo'lsa — 409, 500 emas (SPEC-sorov-tahriri §3.3, 1-qatlam).
+        if (await UpdateAbsenceRequestCommandHandler.SaveAsync(_unitOfWork, _fault, cancellationToken).ConfigureAwait(false)
+            is { } stale)
+        {
+            return stale;
+        }
 
         return Result.Success();
     }

@@ -1,5 +1,7 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
+import { problemCode } from '@/shared/api/problem-details'
 import { saveBlobAs } from '@/shared/lib/download'
 
 import {
@@ -40,6 +42,7 @@ import {
   postAbsenceRequest,
   putAbsenceRequest,
   fetchScheduleChangeRequests,
+  fetchScheduleRequestBreakRule,
   postScheduleChangeCancel,
   postScheduleChangeDecision,
   postScheduleChangeRequest,
@@ -155,6 +158,13 @@ export const attendanceKeys = {
   /** Jadval so'rovlari (SPEC-jadval-sorovi §C) — yo'qlik so'rovlaridan ALOHIDA ildiz. */
   scheduleRequests: (filters: ScheduleChangeRequestFilters) =>
     ['attendance', 'schedule-requests', filters] as const,
+
+  /**
+   * Jadval so'rovidagi tanaffus qoidasi (SPEC-sorov-tahriri §4) — bitta
+   * yozuv, filtrsiz. Ro'yxat ildizi ostida: navbat bekor qilinganda u ham
+   * yangilanadi, so'rovi esa arzon.
+   */
+  scheduleRequestBreakRule: ['attendance', 'schedule-requests', 'break-rule'] as const,
 
   /**
    * Kutayotgan so'rovlar SONI — nav nishoni uchun ALOHIDA kalit.
@@ -561,6 +571,48 @@ export function useAttendanceBirthdays(filters: BirthdayFilters, enabled = true)
 /* ═══════════════════════════════════════════ yo'qlik so'rovlari (§B) */
 
 /**
+ * So'rov HR ko'rgandan keyin boshqa joyda o'zgargan: xodim ilovada tahrirladi
+ * (409 `davomat.sorov_ozgargan`, `version` mos emas yoki parallel yozuv
+ * yutqazdi) yoki boshqa HR qaror qabul qilib bo'ldi (409
+ * `davomat.sorov_qaror_qabul_qilingan`) — SPEC-sorov-tahriri §3.3.
+ */
+const STALE_REQUEST_CODES: ReadonlySet<string> = new Set([
+  'davomat.sorov_ozgargan',
+  'davomat.sorov_qaror_qabul_qilingan',
+])
+
+/**
+ * Xato «ekrandagi nusxa eskirgan» degani-mi. Oyna bunda tasdiqlash tugmasini
+ * o'chiradi: qayta bosish yana o'sha eski nusxani yuborardi.
+ */
+export function isStaleRequestError(error: unknown): boolean {
+  return STALE_REQUEST_CODES.has(problemCode(error))
+}
+
+/**
+ * Eskirgan nusxa bo'yicha rad javobidan keyin navbatlarni yangilaydi.
+ *
+ * NEGA qo'lda: `providers.tsx` keshni faqat MUVAFFAQIYATLI yozuvdan keyin
+ * bekor qiladi, bu esa xato. Busiz HR oynani yopgach o'sha eski qatorni
+ * ko'rib, yana o'sha xatoga urilardi. Ikkala navbat ham (yo'qlik va jadval)
+ * va menyu nishoni (`pendingRequests` — `requests` ildizi ostida) birga:
+ * so'rov boshqa HR tomonidan hal qilingan bo'lsa, u kutayotganlardan chiqadi.
+ */
+function useRefreshStaleRequests() {
+  const queryClient = useQueryClient()
+
+  return useCallback(
+    (error: unknown) => {
+      if (!isStaleRequestError(error)) return
+
+      void queryClient.invalidateQueries({ queryKey: ['attendance', 'requests'] })
+      void queryClient.invalidateQueries({ queryKey: ['attendance', 'schedule-requests'] })
+    },
+    [queryClient],
+  )
+}
+
+/**
  * Yo'qlik so'rovlari ro'yxati.
  *
  * Xodim kartasida `employeeId` bilan, umumiy navbatda — usiz. Bitta hook
@@ -635,9 +687,13 @@ export function useCreateAbsenceRequest() {
   })
 }
 
+/** Tanada HR ko'rgan `version`; eskirgan bo'lsa navbatlar yangilanadi (`useRefreshStaleRequests`). */
 export function useUpdateAbsenceRequest() {
+  const refreshStale = useRefreshStaleRequests()
+
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: AbsenceRequestInput }) => putAbsenceRequest(id, body),
+    onError: refreshStale,
   })
 }
 
@@ -650,14 +706,22 @@ export function useUpdateAbsenceRequest() {
  * keyin butun davomat keshini o'zi bekor qiladi (fayl boshidagi izoh).
  */
 export function useDecideAbsenceRequest() {
+  const refreshStale = useRefreshStaleRequests()
+
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: AbsenceDecisionInput }) => postAbsenceDecision(id, body),
+    // Xodim shu orada tahrirlagan yoki boshqa HR hal qilgan — eski qator ekranda qolmasin
+    onError: refreshStale,
   })
 }
 
+/** Versiyasiz (bekor qilish mazmunga bog'liq emas), lekin parallel yozuvda 409 bo'lishi mumkin. */
 export function useCancelAbsenceRequest() {
+  const refreshStale = useRefreshStaleRequests()
+
   return useMutation({
     mutationFn: (id: string) => postAbsenceCancel(id),
+    onError: refreshStale,
   })
 }
 
@@ -683,9 +747,12 @@ export function useCreateScheduleChangeRequest() {
 }
 
 export function useUpdateScheduleChangeRequest() {
+  const refreshStale = useRefreshStaleRequests()
+
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: ScheduleChangeRequestInput }) =>
       putScheduleChangeRequest(id, body),
+    onError: refreshStale,
   })
 }
 
@@ -698,15 +765,41 @@ export function useUpdateScheduleChangeRequest() {
  * (fayl boshidagi izoh).
  */
 export function useDecideScheduleChangeRequest() {
+  const refreshStale = useRefreshStaleRequests()
+
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: AbsenceDecisionInput }) =>
       postScheduleChangeDecision(id, body),
+    onError: refreshStale,
   })
 }
 
 export function useCancelScheduleChangeRequest() {
+  const refreshStale = useRefreshStaleRequests()
+
   return useMutation({
     mutationFn: (id: string) => postScheduleChangeCancel(id),
+    onError: refreshStale,
+  })
+}
+
+/**
+ * Jadval so'rovidagi tanaffus qoidasi — HR formasining oldindan tekshiruvi
+ * uchun (SPEC-sorov-tahriri §7.2).
+ *
+ * `staleTime` 5 daqiqa: qoida kamdan-kam o'zgaradi, oyna esa kuniga o'nlab
+ * marta ochiladi. Qoida kartasi saqlaganda kesh baribir bekor qilinadi
+ * (`RequestBreakRuleCard`). Hali kelmagan yoki o'qib bo'lmagan qoida —
+ * klient tekshiruvi yo'q, server baribir tekshiradi.
+ *
+ * @param enabled `attendance.view` yo'q bo'lsa yoki oyna yopiq bo'lsa `false`.
+ */
+export function useScheduleRequestBreakRule(enabled = true) {
+  return useQuery({
+    queryKey: attendanceKeys.scheduleRequestBreakRule,
+    queryFn: ({ signal }) => fetchScheduleRequestBreakRule(signal),
+    enabled,
+    staleTime: 5 * 60_000,
   })
 }
 

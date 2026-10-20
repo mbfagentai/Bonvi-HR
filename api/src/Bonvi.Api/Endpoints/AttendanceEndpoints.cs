@@ -141,6 +141,10 @@ public sealed record ScheduleYearFillBody(int Year);
 /// <param name="FromTime">Kun ichidagi boshlanish — faqat bir kunlik so'rovda.</param>
 /// <param name="ToTime">Kun ichidagi tugash — faqat bir kunlik so'rovda.</param>
 /// <param name="Note">Izoh.</param>
+/// <param name="Version">
+/// Tahrirda — HR ko'rgan <c>version</c> (SPEC-sorov-tahriri §3.3); farq qilsa 409
+/// «davomat.sorov_ozgargan». Berilmasa tekshirilmaydi (eski mijoz); yaratishda e'tiborsiz.
+/// </param>
 public sealed record AbsenceRequestBody(
     Guid EmployeeId,
     Guid AbsenceTypeId,
@@ -148,7 +152,8 @@ public sealed record AbsenceRequestBody(
     DateOnly ToDate,
     TimeOnly? FromTime = null,
     TimeOnly? ToTime = null,
-    string? Note = null);
+    string? Note = null,
+    int? Version = null);
 
 /// <summary>Jadval so'rovining bitta kuni (SPEC-verifikatsiya-jadval-sorovi §C3).</summary>
 /// <param name="Date">Sana.</param>
@@ -199,12 +204,14 @@ public sealed record ScheduleSwapBody(DateOnly Date, DateOnly WithDate);
 /// <param name="Days">Change uchun kunlar.</param>
 /// <param name="Swaps">Swap uchun juftlar.</param>
 /// <param name="Note">Izoh.</param>
+/// <param name="Version">Tahrirda — HR ko'rgan <c>version</c>; yaratishda e'tiborsiz.</param>
 public sealed record ScheduleChangeRequestBody(
     Guid EmployeeId,
     ScheduleChangeKind Kind,
     IReadOnlyList<ScheduleChangeDayBody>? Days = null,
     IReadOnlyList<ScheduleSwapBody>? Swaps = null,
-    string? Note = null)
+    string? Note = null,
+    int? Version = null)
 {
     /// <summary>Kunlar — domen tavsifiga.</summary>
     public IReadOnlyList<ScheduleChangeDayInput> DayInputs()
@@ -218,7 +225,11 @@ public sealed record ScheduleChangeRequestBody(
 /// <summary>Qaror tanasi.</summary>
 /// <param name="Approve">Tasdiqlansinmi (<c>false</c> — rad etish).</param>
 /// <param name="DecisionNote">HR izohi.</param>
-public sealed record AbsenceDecisionBody(bool Approve, string? DecisionNote = null);
+/// <param name="Version">
+/// HR ko'rgan <c>version</c> (SPEC-sorov-tahriri §3.3): xodim shu orada so'rovni o'zgartirgan bo'lsa —
+/// 409 «davomat.sorov_ozgargan». Berilmasa tekshirilmaydi.
+/// </param>
+public sealed record AbsenceDecisionBody(bool Approve, string? DecisionNote = null, int? Version = null);
 
 /// <summary>Import tasdig'idagi bitta qaror.</summary>
 /// <param name="RawPersonId">Shaxs raqami.</param>
@@ -1472,8 +1483,30 @@ public static class AttendanceEndpoints
             "Xatolar: «davomat.jadval_sorovi_kun_yoq», «davomat.jadval_sorovi_kop», «davomat.jadval_sorovi_sana_takror», " +
             "«davomat.jadval_vaqt_bosh», «davomat.jadval_vaqt_teng», «davomat.jadval_tanaffus_toliq_emas», " +
             "«davomat.jadval_tanaffus_oynasi», «davomat.jadval_erkin_vaqti», «davomat.jadval_sorovi_bir_xil_sana», " +
-            "«davomat.jadval_sorovi_jadval_yoq» (400); " +
+            "«davomat.jadval_sorovi_jadval_yoq», «davomat.jadval_sorovi_tanaffus_oraligi», " +
+            "«davomat.jadval_sorovi_tanaffus_davomiyligi» (tanaffus qoidasi — «Kunni o'zgartirish» ning ish kunida), " +
+            "«davomat.izoh_uzun» (400); " +
             "«davomat.xodim_topilmadi» (404); «davomat.jadval_sorovi_takroriy» (409).";
+
+        group.MapGet("/schedule-requests/break-rule", async (
+                GetRequestBreakRuleQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler.HandleAsync(new GetRequestBreakRuleQuery(), cancellationToken).ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetScheduleRequestBreakRule")
+            .WithSummary("Davomat — jadval so'rovidagi tanaffus qoidasi")
+            .WithDescription(
+                "«Kunni o'zgartirish» so'rovining ish kunida tanaffus «from»–«to» oralig'ida, «minutes» daqiqa " +
+                "(jumada «minutes»–«fridayMaxMinutes»); tanaffussiz kun ham mumkin. Sozlama: " +
+                "«attendance.requestBreakFrom/To/Minutes/FridayMaxMinutes» (PUT /api/settings). Forma oldindan " +
+                "tekshiradi, server baribir o'zi tekshiradi.")
+            .Produces<RequestBreakRuleDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/schedule-requests", async (
                 Guid? employeeId,
@@ -1560,7 +1593,8 @@ public static class AttendanceEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new UpdateScheduleChangeRequestCommand(id, body.Kind, body.DayInputs(), body.SwapInputs(), body.Note),
+                        new UpdateScheduleChangeRequestCommand(
+                            id, body.Kind, body.DayInputs(), body.SwapInputs(), body.Note, ExpectedVersion: body.Version),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1572,7 +1606,8 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — kutayotgan jadval so'rovini tahrirlash")
             .WithDescription(
                 "Faqat KUTAYOTGAN so'rov («davomat.sorov_qaror_qabul_qilingan», 409). Xodim o'zgarmaydi — " +
-                "«employeeId» e'tiborsiz qoldiriladi. " + ErrorCodes)
+                "«employeeId» e'tiborsiz qoldiriladi. «version» berilsa va so'rov boshqa joyda o'zgargan bo'lsa " +
+                "(yoki parallel yozuv yutgan bo'lsa) — «davomat.sorov_ozgargan» (409). " + ErrorCodes)
             .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -1586,7 +1621,9 @@ public static class AttendanceEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new DecideScheduleChangeRequestCommand(id, body.Approve, body.DecisionNote), cancellationToken)
+                    .HandleAsync(
+                        new DecideScheduleChangeRequestCommand(id, body.Approve, body.DecisionNote, body.Version),
+                        cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -1596,7 +1633,10 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — jadval so'rovini tasdiqlash yoki rad etish")
             .WithDescription(
                 "⭐ Tasdiqlangan kun xodimning o'sha sanadagi rejasi O'RNIGA turadi va kunlar (±1) shu yerning o'zida " +
-                "qayta hisoblanadi. Jadvali yo'q xodimga qo'llanmaydi. «davomat.sorov_qaror_qabul_qilingan» (409).")
+                "qayta hisoblanadi. Jadvali yo'q xodimga qo'llanmaydi. Tanaffus qoidasi qarorda qayta tekshirilmaydi. " +
+                "«davomat.sorov_qaror_qabul_qilingan» (409); «version» eskirgan yoki parallel yozuv — " +
+                "«davomat.sorov_ozgargan» (409); «davomat.izoh_uzun» (400).")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -1618,7 +1658,8 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — jadval so'rovini bekor qilish")
             .WithDescription(
                 "Tasdiqlangani ham bekor qilinadi — kunlar jadvalning o'z rejasiga qaytadi va qayta hisoblanadi. " +
-                "Allaqachon bekor qilingan — «davomat.sorov_bekor_qilingan» (409).")
+                "Allaqachon bekor qilingan — «davomat.sorov_bekor_qilingan» (409); parallel yozuv — " +
+                "«davomat.sorov_ozgargan» (409).")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -1716,8 +1757,8 @@ public static class AttendanceEndpoints
                 "faqat BIR KUNLIK so'rovda beriladi va ikkalasi birga bo'lishi shart; ko'p kunlik so'rovda " +
                 "vaqt — «davomat.sorov_vaqti_notogri» (400). «fromDate» > «toDate» — «davomat.sorov_davri_notogri»; " +
                 "92 kundan uzun — «davomat.sorov_uzun». Shu kunlarga xodimda FAOL (kutayotgan yoki tasdiqlangan) " +
-                "so'rov bo'lsa — «davomat.sorov_takroriy» (409). ⚠️ Yangi so'rov davomat hisobini O'ZGARTIRMAYDI: " +
-                "kun faqat TASDIQLANGANDA «Sababli» bo'ladi.")
+                "so'rov bo'lsa — «davomat.sorov_takroriy» (409). Izoh 2000 belgidan uzun — «davomat.izoh_uzun» (400). " +
+                "⚠️ Yangi so'rov davomat hisobini O'ZGARTIRMAYDI: kun faqat TASDIQLANGANDA «Sababli» bo'ladi.")
             .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -1739,7 +1780,8 @@ public static class AttendanceEndpoints
                             body.ToDate,
                             body.FromTime,
                             body.ToTime,
-                            body.Note),
+                            body.Note,
+                            ExpectedVersion: body.Version),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1751,7 +1793,9 @@ public static class AttendanceEndpoints
             .WithDescription(
                 "Faqat KUTAYOTGAN so'rov tahrirlanadi: qaror qabul qilingandan keyin — " +
                 "«davomat.sorov_qaror_qabul_qilingan» (409). Xodim o'zgartirilmaydi (bunday maydon yo'q): " +
-                "boshqa odamning so'rovi — bu boshqa so'rov.")
+                "boshqa odamning so'rovi — bu boshqa so'rov. «version» berilsa va so'rov boshqa joyda o'zgargan " +
+                "bo'lsa (yoki parallel yozuv yutgan bo'lsa) — «davomat.sorov_ozgargan» (409). Izoh 2000 belgidan " +
+                "uzun — «davomat.izoh_uzun» (400).")
             .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -1766,7 +1810,7 @@ public static class AttendanceEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new DecideAbsenceRequestCommand(id, body.Approve, body.DecisionNote),
+                        new DecideAbsenceRequestCommand(id, body.Approve, body.DecisionNote, body.Version),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1777,9 +1821,13 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — so'rovni tasdiqlash yoki rad etish")
             .WithDescription(
                 "«approve: true» — tasdiqlash, «false» — rad etish. ⭐ Qarordan keyin so'rov qamragan kunlar " +
-                "QAYTA HISOBLANADI: tasdiqlangan so'rov «Kelmadi» ni «Sababli» ga aylantiradi (boshqa hech " +
-                "narsani — ishlangan vaqt ham, kechikish ham o'zgarmaydi). Qaror allaqachon qabul qilingan " +
-                "bo'lsa — «davomat.sorov_qaror_qabul_qilingan» (409).")
+                "QAYTA HISOBLANADI: tasdiqlangan so'rov «Kelmadi» ni «Sababli» ga aylantiradi. «Ish vaqti " +
+                "hisoblanadigan» turning soatlari ishlangan vaqtga qo'shiladi; SHAXSIY turning (ish vaqti " +
+                "hisoblanmaydigan) VAQTLI so'rovi esa o'z soatlarini ishlangan vaqtdan ayiradi va «Shaxsiy " +
+                "vaqt» bo'lib ko'rinadi — u butun kunni «Sababli» qilmaydi. Qaror allaqachon qabul qilingan " +
+                "bo'lsa — «davomat.sorov_qaror_qabul_qilingan» (409); «version» eskirgan yoki parallel yozuv — " +
+                "«davomat.sorov_ozgargan» (409); izoh 2000 belgidan uzun — «davomat.izoh_uzun» (400).")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -1801,7 +1849,8 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — so'rovni bekor qilish")
             .WithDescription(
                 "Tasdiqlangan so'rov ham bekor qilinadi — shunda kunlar qayta hisoblanadi va «Sababli» " +
-                "holati qaytariladi. Allaqachon bekor qilingan so'rov — «davomat.sorov_bekor_qilingan» (409).")
+                "holati qaytariladi. Allaqachon bekor qilingan so'rov — «davomat.sorov_bekor_qilingan» (409); " +
+                "parallel yozuv — «davomat.sorov_ozgargan» (409).")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)

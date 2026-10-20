@@ -55,6 +55,13 @@ public static class SettingsErrors
         Error.Validation(
             "davomat.saqlash_muddati_nomuvofiq",
             "O'tish yozuvlarining saqlash muddati suratlarnikidan qisqa bo'lishi mumkin emas (0 — hech qachon o'chirilmaydi).");
+
+    /// <summary>Jadval so'rovidagi tanaffus qoidasining sonlari bir-biriga zid (SPEC-sorov-tahriri §2.2).</summary>
+    /// <remarks>Prefiksi <c>davomat.</c> — <see cref="RetentionOrder"/> dagi sabab bilan.</remarks>
+    public static Error RequestBreakRuleInconsistent { get; } =
+        Error.Validation(
+            "davomat.tanaffus_qoidasi_nomuvofiq",
+            "Tanaffus qoidasi noto'g'ri: oraliq boshi oxiridan oldin, tanaffus jumadagi chegaradan oshmasligi va oraliqqa sig'ishi kerak.");
 }
 
 /// <summary>

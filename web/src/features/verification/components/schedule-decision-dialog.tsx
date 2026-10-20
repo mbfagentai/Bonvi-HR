@@ -7,12 +7,17 @@ import { Alert, Button, Dialog, TextArea } from '@/shared/ui'
 
 import type { ScheduleChangeRequest } from '../api/attendance-api'
 import {
+  isStaleRequestError,
   useCancelScheduleChangeRequest,
   useDecideScheduleChangeRequest,
 } from '../api/attendance-queries'
 import { SCHEDULE_KIND_LABEL_KEY } from '../lib/attendance-presentation'
 import { useScheduleRequestText } from '../lib/schedule-request-text'
 import type { AbsenceAction } from './absence-decision-dialog'
+import { RequestEditedNote } from './request-edited-note'
+
+/** Qaror izohi chegarasi — serverdagi `ScheduleChangeRequest.MaxNoteLength`. */
+const NOTE_MAX = 2000
 
 /**
  * Jadval so'rovi bo'yicha qaror oynasi — `AbsenceDecisionDialog` ning egizagi
@@ -23,6 +28,9 @@ import type { AbsenceAction } from './absence-decision-dialog'
  * ko'rinadi, so'rovda esa 31 tagacha bo'lishi mumkin. HR nimani tasdiqlayotganini
  * shu yerda butunligicha ko'radi: tasdiqlangan kun xodimning o'sha sanadagi
  * rejasi O'RNIGA turadi (SPEC-jadval-sorovi §C2).
+ *
+ * Eskirgan nusxa — `AbsenceDecisionDialog` dagi qoidaning o'zi: qaror HR
+ * ko'rgan `version` bilan ketadi, 409 da faqat «Yopish» qoladi.
  */
 export function ScheduleDecisionDialog({
   action,
@@ -59,6 +67,7 @@ export function ScheduleDecisionDialog({
 
   const busy = decide.isPending || cancel.isPending
   const failure = decide.isError ? decide.error : cancel.isError ? cancel.error : null
+  const stale = failure !== null && isStaleRequestError(failure)
 
   const look = {
     approve: {
@@ -95,6 +104,8 @@ export function ScheduleDecisionDialog({
         body: {
           approve: action === 'approve',
           decisionNote: trimmed === '' ? undefined : trimmed,
+          // HR ko'rgan kunlar — xodim shu orada o'zgartirgan bo'lsa server 409 beradi
+          version: request.version,
         },
       },
       { onSuccess: onClose },
@@ -109,25 +120,41 @@ export function ScheduleDecisionDialog({
       dismissible={!busy}
       title={look.title}
       // KIM va QAYSI tur — qaror noto'g'ri qatorga tushib ketmasin
-      description={`${request.employeeName} · ${t(SCHEDULE_KIND_LABEL_KEY[request.kind])}`}
-      footer={
+      description={
         <>
-          <Button type="button" onClick={onClose} disabled={busy}>
-            {t('common.cancel')}
-          </Button>
-          <Button type="button" variant={look.tone} disabled={busy} onClick={submit}>
-            {busy && <LoaderCircle className="animate-spin" />}
-            {look.title}
-          </Button>
+          {`${request.employeeName} · ${t(SCHEDULE_KIND_LABEL_KEY[request.kind])}`}
+          <RequestEditedNote request={request} className="mt-1" />
         </>
+      }
+      footer={
+        stale ? (
+          <Button type="button" onClick={onClose}>
+            {t('common.close')}
+          </Button>
+        ) : (
+          <>
+            <Button type="button" onClick={onClose} disabled={busy}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" variant={look.tone} disabled={busy} onClick={submit}>
+              {busy && <LoaderCircle className="animate-spin" />}
+              {look.title}
+            </Button>
+          </>
+        )
       }
     >
       <div className="space-y-4">
-        {failure !== null && (
-          <Alert tone="danger">
-            {errorMessage(problemCode(failure), t('attendance.requestSaveFailed'))}
-          </Alert>
-        )}
+        {failure !== null &&
+          (stale ? (
+            <Alert tone="warning" title={errorMessage(problemCode(failure))}>
+              {t('attendance.requestStaleHint')}
+            </Alert>
+          ) : (
+            <Alert tone="danger">
+              {errorMessage(problemCode(failure), t('attendance.requestSaveFailed'))}
+            </Alert>
+          ))}
 
         <p className="text-subhead text-[var(--fg-secondary)]">{look.hint}</p>
 
@@ -149,6 +176,8 @@ export function ScheduleDecisionDialog({
           <TextArea
             label={t('attendance.requestDecisionNote')}
             value={note}
+            maxLength={NOTE_MAX}
+            disabled={stale}
             onChange={(event) => setNote(event.target.value)}
             rows={3}
           />

@@ -148,4 +148,92 @@ public sealed class DashboardStatusRuleTests
     [Fact]
     public void Erkin_kunda_kelajak_sana_doim_NotStarted()
         => DashboardStatusRule.HasNotStarted(Flexible(Wednesday.AddDays(1)), Wednesday, At("23:00")).ShouldBeTrue();
+
+    // ────────────────────── Shaxsiy vaqt (SPEC-sorov-tahriri §5.6, §5.8 panel tekshiruvlari) ──────────────────────
+
+    /// <summary>§5.8 sukut rejasi: 08:30–17:30, tanaffus 60 daqiqa 12:00–15:00, yon berish 10.</summary>
+    private static DayPlan PersonalBase(DateOnly date)
+        => DayPlan.For(AttendanceScenario.Schedule("08:30", "17:30", 60, "12:00", "15:00"), date);
+
+    /// <summary>Kunning shaxsiy vaqti — o'tishsiz, hisoblovchining o'z qoidasi bilan.</summary>
+    private static PersonalTime Personal(DayPlan plan, string from, string to)
+    {
+        var intervals = PersonalTimeRule.IntervalsFor(
+            plan.Date,
+            plan,
+            [new WorkCredit(plan.Date, plan.Date, AttendanceScenario.Time(from), AttendanceScenario.Time(to), CountsAsWorkTime: false)]);
+
+        return PersonalTimeRule.Apply(PassPairing.Pair([], plan), plan, [], intervals).Personal;
+    }
+
+    [Fact]
+    public void E12_ertalabki_shaxsiy_vaqtda_NotStarted_keyin_Absent_kelgan_vaqtida_yoki_kechikkan()
+    {
+        var plan = PersonalBase(Wednesday);
+        var personal = Personal(plan, "08:30", "10:00");
+
+        DashboardStatusRule.Classify(plan, null, Wednesday, At("09:00"), personal: personal)
+            .Status.ShouldBe(AttendanceDashboardStatus.NotStarted);
+        DashboardStatusRule.Classify(plan, null, Wednesday, At("10:01"), personal: personal)
+            .Status.ShouldBe(AttendanceDashboardStatus.Absent);
+
+        DashboardStatusRule.Classify(plan, At("10:05"), Wednesday, At("10:30"), personal: personal)
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.OnTime, null));
+        DashboardStatusRule.Classify(plan, At("10:20"), Wednesday, At("10:30"), personal: personal)
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.Late, 20));
+    }
+
+    [Fact]
+    public void E1_kunduzgi_shaxsiy_vaqt_ertalabki_kelishga_tegmaydi()
+        => DashboardStatusRule.Classify(
+                PersonalBase(Wednesday),
+                At("08:25"),
+                Wednesday,
+                At("18:00"),
+                personal: Personal(PersonalBase(Wednesday), "14:00", "16:00"))
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.OnTime, null));
+
+    [Fact]
+    public void E5_kechikish_oraliq_oxiridan_yon_berishsiz()
+        => DashboardStatusRule.Classify(
+                PersonalBase(Wednesday),
+                At("10:30"),
+                Wednesday,
+                At("18:00"),
+                personal: Personal(PersonalBase(Wednesday), "08:30", "10:00"))
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.Late, 30));
+
+    [Fact]
+    public void E8_kun_ortasidagi_shaxsiy_vaqt_panel_kechikishidan_ayriladi()
+        => DashboardStatusRule.Classify(
+                PersonalBase(Wednesday),
+                At("11:00"),
+                Wednesday,
+                At("18:00"),
+                personal: Personal(PersonalBase(Wednesday), "10:00", "12:00"))
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.Late, 90));
+
+    [Fact]
+    public void E10_butun_reja_shaxsiy_Excused_E9_qisman_Absent()
+    {
+        var plan = PersonalBase(Wednesday);
+
+        DashboardStatusRule.Classify(plan, null, Wednesday, At("18:00"), personal: Personal(plan, "08:00", "18:00"))
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.Excused, null));
+        DashboardStatusRule.Classify(plan, null, Wednesday, At("18:00"), personal: Personal(plan, "14:00", "16:00"))
+            .ShouldBe(new DashboardVerdict(AttendanceDashboardStatus.Absent, null));
+    }
+
+    [Fact]
+    public void Boshlanmaganlik_chegarasi_berilsa_shu_lahzagacha_berilmasa_bugungi_qoida()
+    {
+        var plan = PersonalBase(Wednesday);
+        var until = At("10:00");
+
+        DashboardStatusRule.HasNotStarted(plan, Wednesday, At("09:59:59"), until).ShouldBeTrue();
+        DashboardStatusRule.HasNotStarted(plan, Wednesday, At("10:00"), until).ShouldBeFalse();
+        DashboardStatusRule.HasNotStarted(plan, Wednesday, At("09:59:59")).ShouldBeFalse("odatdagi qoida — reja 08:30 da boshlangan");
+        DashboardStatusRule.HasNotStarted(PersonalBase(Wednesday.AddDays(1)), Wednesday, At("23:00"), until)
+            .ShouldBeTrue("kelajak sana — doim boshlanmagan");
+    }
 }

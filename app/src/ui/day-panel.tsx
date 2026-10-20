@@ -61,6 +61,15 @@ export function DayPanel({ day, loading }: { day: AttendanceDay | null; loading:
           </div>
         ) : null}
 
+        {/* Tasdiqlangan shaxsiy so'rov — sababli, lekin ish vaqti emas: ishlangan
+            vaqtga kirmaydi, shu sababli yonida alohida (SPEC-sorov-tahriri §7.1). */}
+        {day && (day.personalMinutes ?? 0) > 0 ? (
+          <div className="flex items-baseline justify-between">
+            <span className="text-footnote text-fg-secondary">{t('calendar.personal')}</span>
+            <span className="nums text-subhead text-fg">{format.duration(day.personalMinutes)}</span>
+          </div>
+        ) : null}
+
         {day && day.lateMinutes > 0 ? (
           <div className="flex items-baseline justify-between">
             <span className="text-footnote text-fg-secondary">{t('home.late')}</span>

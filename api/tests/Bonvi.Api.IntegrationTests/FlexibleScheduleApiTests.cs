@@ -180,7 +180,10 @@ public sealed class FlexibleScheduleApiTests : IClassFixture<BonviApiFactory>
         var belgi = Belgi();
         var xodim = await XodimAsync(belgi);
         await XodimgaJadvalAsync(admin, xodim.Id, JadvalTanasi("Qat'iy " + belgi));
-        var sana = BugunToshkentda().AddDays(-3);
+
+        // Juma: so'rovdagi 120 daqiqalik tanaffus faqat jumada qoidaga mos (SPEC-sorov-tahriri §4, §8.6);
+        // sinov jadvali haftaning yetti kuni ishlaydi — kutilgan sonlar o'zgarmaydi.
+        var sana = JumaShundanOldin(BugunToshkentda());
 
         await OtishlarAsync(admin, xodim.Id, "ek-" + belgi, (Lahza(sana, 10, 0), "In"), (Lahza(sana, 18, 0), "Out"));
 
@@ -360,7 +363,8 @@ public sealed class FlexibleScheduleApiTests : IClassFixture<BonviApiFactory>
         await XodimgaJadvalAsync(admin, xodim.Id, JadvalTanasi("Hammasi erkin " + belgi, erkinKun: 0));
         using var ilova = await IlovaMijoziAsync(admin, xodim.Id);
 
-        var keyin = BugunToshkentda().AddDays(3);
+        // Juma — 120 daqiqalik tanaffus faqat jumada qoidaga mos (SPEC-sorov-tahriri §8.6); +92 oyna ichida.
+        var keyin = JumaShundanKeyin(BugunToshkentda());
 
         var reja = await JsonAsync(await ilova.GetAsync(new Uri($"/api/me/plan?date={Iso(keyin)}", UriKind.Relative), ct));
         reja.GetProperty("hasSchedule").GetBoolean().ShouldBeTrue();
@@ -662,6 +666,30 @@ public sealed class FlexibleScheduleApiTests : IClassFixture<BonviApiFactory>
     private static string Iso(DateOnly sana) => sana.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static DateOnly BugunToshkentda() => DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(Tashkent).DateTime);
+
+    /// <summary>Bugundan kamida bir kun oldingi eng yaqin juma.</summary>
+    private static DateOnly JumaShundanOldin(DateOnly bugun)
+    {
+        var sana = bugun.AddDays(-1);
+        while (sana.DayOfWeek != DayOfWeek.Friday)
+        {
+            sana = sana.AddDays(-1);
+        }
+
+        return sana;
+    }
+
+    /// <summary>Bugundan kamida bir kun keyingi eng yaqin juma.</summary>
+    private static DateOnly JumaShundanKeyin(DateOnly bugun)
+    {
+        var sana = bugun.AddDays(1);
+        while (sana.DayOfWeek != DayOfWeek.Friday)
+        {
+            sana = sana.AddDays(1);
+        }
+
+        return sana;
+    }
 
     private static DateTimeOffset Lahza(DateOnly sana, int soat, int daqiqa)
         => new(sana.ToDateTime(new TimeOnly(soat, daqiqa)), Tashkent);

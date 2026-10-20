@@ -77,6 +77,10 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         // Erkin jadval (SPEC-erkin-jadval §5.3) — OXIRIDA: mavjud ustunlar o'rni (HR formulalari) siljimaydi.
         "Kam ishlangan (daq.)",
         "Kam ishlangan (soat:daq)",
+
+        // Shaxsiy vaqt (SPEC-sorov-tahriri §6.2) — yana oxirida, xuddi shu sabab bilan.
+        "Shaxsiy vaqt (daq.)",
+        "Shaxsiy vaqt (soat:daq)",
     ];
 
     private static readonly string[] TimesheetDayHeaders =
@@ -101,6 +105,10 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         "Erkin jadval",
         "Kam ishlangan (daq.)",
         "Kam ishlangan (soat:daq)",
+
+        // Shaxsiy vaqt (SPEC-sorov-tahriri §6.2) — oxirida.
+        "Shaxsiy vaqt (daq.)",
+        "Shaxsiy vaqt (soat:daq)",
     ];
 
     /// <inheritdoc />
@@ -188,6 +196,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
             SetDuration(sheet, excelRow, ref column, totals.LateMinutes);
             SetDuration(sheet, excelRow, ref column, totals.EarlyLeaveMinutes);
             SetDuration(sheet, excelRow, ref column, totals.ShortfallMinutes);
+            SetDuration(sheet, excelRow, ref column, totals.PersonalMinutes);
         }
 
         if (timesheet.Items.Count > 0)
@@ -285,6 +294,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
                 sheet.Cell(excelRow, column++).Value = cell.BreakDeductionMinutes;
                 sheet.Cell(excelRow, column++).Value = cell.IsFlexible ? "Ha" : string.Empty;
                 SetDuration(sheet, excelRow, ref column, cell.ShortfallMinutes);
+                SetDuration(sheet, excelRow, ref column, cell.PersonalMinutes);
 
                 excelRow++;
             }
@@ -465,6 +475,10 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
         // Erkin jadval (SPEC-erkin-jadval §5.3) — oxirida.
         "Kam ishlangan (daq.)",
         "Kam ishlangan (soat:daq)",
+
+        // Shaxsiy vaqt (SPEC-sorov-tahriri §6.2) — oxirida.
+        "Shaxsiy vaqt (daq.)",
+        "Shaxsiy vaqt (soat:daq)",
     ];
 
     /// <inheritdoc />
@@ -497,6 +511,7 @@ public sealed class AttendanceExcelWriter : IAttendanceExcelWriter
             SetDuration(sheet, excelRow, ref column, row.EarlyLeaveMinutes);
             SetDuration(sheet, excelRow, ref column, row.OvertimeMinutes);
             SetDuration(sheet, excelRow, ref column, row.ShortfallMinutes);
+            SetDuration(sheet, excelRow, ref column, row.PersonalMinutes);
         }
 
         Finish(sheet);

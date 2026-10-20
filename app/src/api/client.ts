@@ -14,6 +14,8 @@ import type {
   MeDto,
   PagedResult,
   ScheduleChangeRequestDto,
+  UpdateAbsenceRequest,
+  UpdateScheduleChangeRequest,
 } from './types'
 
 /**
@@ -49,12 +51,20 @@ export interface EmployeeApi {
   getRequests: (page: number, pageSize: number) => Promise<PagedResult<AbsenceRequestDto>>
   /** `POST /api/me/requests` */
   createRequest: (request: CreateAbsenceRequest) => Promise<AbsenceRequestDto>
+  /**
+   * `PUT /api/me/requests/{id}` — qaror kutayotgan o'z so'rovini o'zgartiradi
+   * (SPEC-sorov-tahriri §3). 409 `davomat.sorov_ozgargan` — ko'rsatilgan
+   * versiya eskirgan; 409 `davomat.sorov_qaror_qabul_qilingan` — endi kutmayapti.
+   */
+  updateRequest: (id: string, request: UpdateAbsenceRequest) => Promise<AbsenceRequestDto>
   /** `POST /api/me/requests/{id}/cancel` — 204, tanasiz. */
   cancelRequest: (id: string) => Promise<void>
   /** `GET /api/me/schedule-requests?page&pageSize` — jadval so'rovlari, bitta sahifa. */
   getScheduleRequests: (page: number, pageSize: number) => Promise<PagedResult<ScheduleChangeRequestDto>>
   /** `POST /api/me/schedule-requests` */
   createScheduleRequest: (request: CreateScheduleChangeRequest) => Promise<ScheduleChangeRequestDto>
+  /** `PUT /api/me/schedule-requests/{id}` — yo'qlik so'rovidagi qoidaning o'zi. */
+  updateScheduleRequest: (id: string, request: UpdateScheduleChangeRequest) => Promise<ScheduleChangeRequestDto>
   /** `POST /api/me/schedule-requests/{id}/cancel` — 204, tanasiz. */
   cancelScheduleRequest: (id: string) => Promise<void>
   /** `GET /api/me/plan?date=YYYY-MM-DD` — sananing amaldagi rejasi. */

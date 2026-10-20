@@ -116,7 +116,11 @@ public sealed record MyAttendanceDto(
 /// <summary>Yo'qlik turi — ilova so'rov yaratishda shu ro'yxatdan tanlaydi.</summary>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Name">Nom.</param>
-public sealed record MyAbsenceTypeDto(Guid Id, string Name);
+/// <param name="CountsAsWorkTime">
+/// Tasdiqlangan vaqt ish vaqti hisoblanadimi; <c>false</c> — shaxsiy tur: soatlar ishlangan vaqtdan
+/// ayriladi (SPEC-sorov-tahriri §5). Forma tur ostida shuni aytadi.
+/// </param>
+public sealed record MyAbsenceTypeDto(Guid Id, string Name, bool CountsAsWorkTime = false);
 
 /// <summary>
 /// Xodimning o'zi haqidagi ma'lumot — ilovaning birinchi so'rovi.
@@ -147,6 +151,10 @@ public sealed record MyAbsenceTypeDto(Guid Id, string Name);
 /// <param name="Position">Bugungi lavozim.</param>
 /// <param name="MobileCheckInAllowed">Telefondan belgilash yoqilganmi.</param>
 /// <param name="AbsenceTypes">Yo'qlik turlari — so'rov yaratish uchun.</param>
+/// <param name="RequestBreakRule">
+/// Jadval so'rovidagi tanaffus qoidasi (SPEC-sorov-tahriri §4) — forma uni oldindan tekshiradi; yangi
+/// server doim to'ldiradi, <c>null</c> — eski server.
+/// </param>
 public sealed record MeDto(
     Guid EmployeeId,
     string FullName,
@@ -155,4 +163,5 @@ public sealed record MeDto(
     string? Department,
     string? Position,
     bool MobileCheckInAllowed,
-    IReadOnlyList<MyAbsenceTypeDto> AbsenceTypes);
+    IReadOnlyList<MyAbsenceTypeDto> AbsenceTypes,
+    RequestBreakRuleDto? RequestBreakRule = null);

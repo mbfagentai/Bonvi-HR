@@ -3,10 +3,12 @@ import type { TFunction } from 'i18next'
 import type {
   AbsenceRequestDto,
   AbsenceRequestStatus,
+  RequestBreakRuleDto,
   ScheduleChangeDayDto,
   ScheduleChangeRequestDto,
 } from '@/api/types'
 import type { Formatter } from '@/lib/format'
+import { parseIsoDate } from '@/lib/time'
 import { shortTime } from './attendance'
 
 /**
@@ -78,6 +80,62 @@ export function breakDiffersFromWindow(day: DayBreak): boolean {
  */
 export function maxRequiredMinutes(start: string, end: string, breakMinutes: number): number {
   return Math.max(0, forward(start, end) - breakMinutes)
+}
+
+/**
+ * Tanaffus qoidasining buzilishi (SPEC-sorov-tahriri §4.3) — server ikki kod
+ * beradi (`…_tanaffus_oraligi`, `…_tanaffus_davomiyligi`), forma esa aniqroq
+ * gapiradi: oynaga sig'maydi, oddiy kundagi uzunlik, jumadagi chegara.
+ */
+export type BreakRuleProblem = 'window' | 'windowShort' | 'length' | 'lengthFriday'
+
+/** Qoida tekshiradigan kun: oyna «HH:mm» (yo'q — `null`) va AMALDAGI uzunlik. */
+export interface BreakRuleDay {
+  date: string
+  isWorking: boolean
+  breakStart: string | null
+  breakEnd: string | null
+  /**
+   * Saqlanadigan va ayiriladigan uzunlik — serverning `BreakMinutes(day)`:
+   * berilgan `breakMinutes`, bo'lmasa oyna uzunligi, oynasiz 0.
+   */
+  breakMinutes: number
+}
+
+/** Juma — tanaffus `minutes … fridayMaxMinutes` oralig'ida bo'lishi mumkin bo'lgan yagona kun. */
+export function isFriday(dateIso: string): boolean {
+  const parts = parseIsoDate(dateIso)
+  return parts !== null && parts.weekday === 5
+}
+
+/**
+ * Jadval so'rovidagi tanaffus qoidasi — serverdagi `RequestBreakRule.Validate`
+ * ning AYNAN nusxasi, tartibi ham bir xil. Faqat «Kunni o'zgartirish» ning ish
+ * kunida va mavjud kun qoidalaridan KEYIN chaqiriladi; tanaffussiz kun (`L = 0`)
+ * doim o'tadi. Oyna soat qiymatida solishtiriladi: yarim tundan o'tgan oyna
+ * 12:00–15:00 ga hech qachon sig'maydi (tungi smena faqat tanaffussiz, §12 Q2).
+ */
+export function requestBreakProblem(day: BreakRuleDay, rule: RequestBreakRuleDto): BreakRuleProblem | null {
+  if (!day.isWorking) return null
+
+  const length = day.breakMinutes
+  if (length <= 0) return null
+
+  if (day.breakStart && day.breakEnd) {
+    const from = minutesOf(rule.from)
+    const to = minutesOf(rule.to)
+    const start = minutesOf(day.breakStart)
+    const end = minutesOf(day.breakEnd)
+
+    if (!(from <= start && start < end && end <= to)) return 'window'
+    if (length > end - start) return 'windowShort'
+  }
+
+  if (isFriday(day.date)) {
+    return length < rule.minutes || length > rule.fridayMaxMinutes ? 'lengthFriday' : null
+  }
+
+  return length !== rule.minutes ? 'length' : null
 }
 
 /** «Ish vaqti» ning eng kichigi — `WorkScheduleDay.MinRequiredMinutes`. */

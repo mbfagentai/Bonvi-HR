@@ -1,6 +1,7 @@
 import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { useAuth } from '@/features/auth'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -19,17 +20,21 @@ import {
 
 import {
   SCHEDULE_CHANGE_KINDS,
+  type RequestBreakRule,
   type ScheduleChangeKind,
   type ScheduleChangeRequest,
   type ScheduleChangeRequestInput,
   type WorkScheduleDayInput,
 } from '../api/attendance-api'
 import {
+  isStaleRequestError,
   useCreateScheduleChangeRequest,
+  useScheduleRequestBreakRule,
   useScheduleResolution,
   useUpdateScheduleChangeRequest,
 } from '../api/attendance-queries'
 import {
+  ATTENDANCE_VIEW,
   DAY_SOURCE_LOOK,
   MAX_SCHEDULE_REQUEST_DAYS,
   MAX_SCHEDULE_SWAP_PAIRS,
@@ -47,8 +52,10 @@ import {
   requiredMinutesOf,
   requiredUnparsable,
   scheduleOutcome,
+  validateRequestBreak,
   validateScheduleDay,
   type FlexibleDraft,
+  type RequestBreakIssue,
 } from '../lib/attendance-schedule-rules'
 import { breakDiffersFromWindow, useScheduleRequestText } from '../lib/schedule-request-text'
 import { FlexibleDayFields } from './attendance-flexible-day-fields'
@@ -189,6 +196,18 @@ const INCOMPLETE_CODES = new Set(['davomat.jadval_vaqt_bosh', 'davomat.jadval_ta
  * 13 ming so'rovning aksari «shu kungi tanaffusni 12:23–14:23 ga ko'chirish»,
  * ya'ni HR rejaning faqat bitta joyini o'zgartiradi — qolganini qayta
  * terishga majbur bo'lmasligi kerak.
+ *
+ * <b>Tanaffus qoidasi</b> (SPEC-sorov-tahriri §4): «Kunni o'zgartirish» ning
+ * ish kunida tanaffus ruxsat etilgan oraliq ichida va belgilangan uzunlikda,
+ * jumada esa oraliqli uzunlikda (sukut: 12:00–15:00, 60 daqiqa, jumada 60–120;
+ * sonlar sozlamadan, `GET /schedule-requests/break-rule`); tanaffussiz kun
+ * ham mumkin. Qoida HR ga ham amal qiladi (§12 Q6) — forma uni server bilan
+ * bir xil tekshiradi va xatoni yozayotgan paytda aytadi. Qoida hali kelmagan
+ * bo'lsa klient tekshiruvi yo'q, server baribir tekshiradi.
+ *
+ * <b>Tahrir — HR ko'rgan nusxa ustida</b>: tana `version` bilan ketadi, 409
+ * da oyna sababini aytadi va «Saqlash» ni o'chiradi (`AbsenceRequestDialog`
+ * izohi).
  */
 export function ScheduleRequestDialog({
   open,
@@ -205,15 +224,21 @@ export function ScheduleRequestDialog({
 }) {
   const { t, num } = useLocale()
   const errorMessage = useErrorMessage()
+  const { hasPermission } = useAuth()
 
   const create = useCreateScheduleChangeRequest()
   const update = useUpdateScheduleChangeRequest()
+
+  // Endpoint `attendance.view` ostida — busiz so'rov 403 bo'lardi (server baribir tekshiradi)
+  const breakRule = useScheduleRequestBreakRule(open && hasPermission(ATTENDANCE_VIEW)).data
 
   const [kind, setKind] = useState<ScheduleChangeKind>('Change')
   const [changeRows, setChangeRows] = useState<ChangeRowDraft[]>([])
   const [swapRows, setSwapRows] = useState<SwapRowDraft[]>([])
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
+  /** Server «nusxa eskirgan» dedi — saqlash endi ma'nosiz. */
+  const [stale, setStale] = useState(false)
   /** «Saqlash» bosildimi — bo'sh maydon xatolari shundan keyin ko'rinadi. */
   const [attempted, setAttempted] = useState(false)
 
@@ -265,6 +290,7 @@ export function ScheduleRequestDialog({
     )
     setNote(request?.note ?? '')
     setError(null)
+    setStale(false)
     setAttempted(false)
   }, [open, request])
 
@@ -281,6 +307,27 @@ export function ScheduleRequestDialog({
     () => repeated(swapRows.flatMap((row) => [row.date, row.withDate])),
     [swapRows],
   )
+
+  /**
+   * Tanaffus qoidasining buzilishi — so'z bilan, qoidaning o'z sonlari bilan
+   * («aniq 60 daqiqa», «jumada 60–120»). Server ikkita kod bilan javob beradi,
+   * forma esa HR nimani tuzatishi kerakligini aniq aytadi.
+   */
+  const breakRuleMessage = (issue: RequestBreakIssue, rule: RequestBreakRule): string => {
+    switch (issue.reason) {
+      case 'window':
+        return t('attendance.requestBreakWindowRule', { from: rule.from, to: rule.to })
+      case 'windowShort':
+        return t('attendance.requestBreakWindowShort', { n: num(issue.minutes) })
+      case 'lengthFriday':
+        return t('attendance.requestBreakLengthRuleFriday', {
+          min: num(rule.minutes),
+          max: num(rule.fridayMaxMinutes),
+        })
+      case 'length':
+        return t('attendance.requestBreakLengthRule', { n: num(rule.minutes) })
+    }
+  }
 
   /** `flexible` — xato «Ish vaqti» maydonida ko'rsatiladi, qatorning pastida emas. */
   const changeProblem = (
@@ -312,6 +359,12 @@ export function ScheduleRequestDialog({
     */
     if (row.isWorking && row.hasBreak && (row.breakStart === '' || row.breakEnd === '')) {
       return { message: errorMessage('davomat.jadval_tanaffus_toliq_emas'), incomplete: true }
+    }
+
+    // Tanaffus qoidasi — mavjud kun qoidalaridan KEYIN (server tartibi, §4.3)
+    if (breakRule !== undefined) {
+      const issue = validateRequestBreak(toDayInput(row), row.date, breakRule)
+      if (issue !== null) return { message: breakRuleMessage(issue, breakRule), incomplete: false }
     }
 
     return null
@@ -381,11 +434,13 @@ export function ScheduleRequestDialog({
       if (request === null) {
         await create.mutateAsync(body)
       } else {
-        await update.mutateAsync({ id: request.id, body })
+        // HR ko'rgan nusxa — xodim shu orada o'zgartirgan bo'lsa server 409 beradi
+        await update.mutateAsync({ id: request.id, body: { ...body, version: request.version } })
       }
 
       onClose()
     } catch (failure) {
+      setStale(request !== null && isStaleRequestError(failure))
       setError(errorMessage(problemCode(failure), t('attendance.requestSaveFailed')))
     }
   }
@@ -403,16 +458,28 @@ export function ScheduleRequestDialog({
       footer={
         <>
           <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
-            {t('common.cancel')}
+            {stale ? t('common.close') : t('common.cancel')}
           </Button>
-          <Button type="button" variant="primary" onClick={() => void submit()} disabled={saving}>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => void submit()}
+            disabled={saving || stale}
+          >
             {t('common.save')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        {error !== null && <Alert tone="danger">{error}</Alert>}
+        {error !== null &&
+          (stale ? (
+            <Alert tone="warning" title={error}>
+              {t('attendance.requestStaleHint')}
+            </Alert>
+          ) : (
+            <Alert tone="danger">{error}</Alert>
+          ))}
 
         <div className="space-y-2">
           <SegmentedControl
@@ -444,6 +511,7 @@ export function ScheduleRequestDialog({
                     key={row.key}
                     employeeId={subjectId}
                     row={row}
+                    breakRule={breakRule ?? null}
                     // Erkin kun xatosi «Ish vaqti» maydonining o'zida — qator pastida takrorlanmaydi
                     error={problem?.flexible === true ? null : shown}
                     flexibleCode={
@@ -556,6 +624,7 @@ function AddRowButton({
 function ChangeRowEditor({
   employeeId,
   row,
+  breakRule,
   error,
   flexibleCode,
   disabled,
@@ -565,6 +634,8 @@ function ChangeRowEditor({
 }: {
   employeeId: string
   row: ChangeRowDraft
+  /** Tanaffus qoidasi — tanaffus maydonlari ostidagi eslatma uchun; `null` — hali kelmagan. */
+  breakRule: RequestBreakRule | null
   error: string | null
   /** «Ish vaqti» maydonining xatosi — `FLEXIBLE_REQUIRED_CODE` yoki `null`. */
   flexibleCode: string | null
@@ -731,6 +802,18 @@ function ChangeRowEditor({
                 onChange={(event) => editBreak({ breakEnd: event.target.value })}
               />
             </div>
+          )}
+
+          {/* Qoida tanaffus belgilanganda — HR uni xato chiqmasdan OLDIN ko'rsin */}
+          {row.hasBreak && breakRule !== null && (
+            <p className="tabular text-footnote text-[var(--fg-tertiary)]">
+              {t('attendance.requestBreakRuleHint', {
+                from: breakRule.from,
+                to: breakRule.to,
+                n: num(breakRule.minutes),
+                max: num(breakRule.fridayMaxMinutes),
+              })}
+            </p>
           )}
 
           {keptBreak !== null && (

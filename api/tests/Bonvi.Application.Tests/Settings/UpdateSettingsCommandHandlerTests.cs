@@ -406,6 +406,85 @@ public sealed class UpdateSettingsCommandHandlerTests
         _rows.Rows.ShouldBeEmpty();
     }
 
+    // ────────────────────── Jadval so'rovidagi tanaffus qoidasi (SPEC-sorov-tahriri §2.2, §8.3) ──────────────────────
+
+    /// <summary>To'rt son birga: boshi &lt; oxiri, uzunlik ≤ jumadagi, jumadagi ≤ oraliq.</summary>
+    [Theory]
+    [InlineData("900", "720", "60", "120")] // boshi oxiridan keyin
+    [InlineData("720", "720", "60", "120")] // boshi = oxiri
+    [InlineData("720", "900", "90", "60")] // uzunlik jumadagidan katta
+    [InlineData("720", "780", "60", "120")] // jumadagi oraliqqa sig'maydi
+    public async Task Tanaffus_qoidasining_zid_sonlari_rad_etiladi(string from, string to, string minutes, string fridayMax)
+    {
+        var natija = await Handler.HandleAsync(
+            Command(
+                (SystemSettingKeys.RequestBreakFrom, from),
+                (SystemSettingKeys.RequestBreakTo, to),
+                (SystemSettingKeys.RequestBreakMinutes, minutes),
+                (SystemSettingKeys.RequestBreakFridayMaxMinutes, fridayMax)),
+            TestContext.Current.CancellationToken);
+
+        natija.Error.Code.ShouldBe("davomat.tanaffus_qoidasi_nomuvofiq");
+        natija.Error.Type.ShouldBe(ErrorType.Validation);
+        _rows.Rows.ShouldBeEmpty();
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Tanaffus_qoidasi_mos_bolsa_saqlanadi()
+    {
+        var natija = await Handler.HandleAsync(
+            Command(
+                (SystemSettingKeys.RequestBreakFrom, "780"),
+                (SystemSettingKeys.RequestBreakTo, "840"),
+                (SystemSettingKeys.RequestBreakMinutes, "30"),
+                (SystemSettingKeys.RequestBreakFridayMaxMinutes, "45")),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        _rows.Rows.Single(row => row.Key == SystemSettingKeys.RequestBreakMinutes).Value.ShouldBe("30");
+    }
+
+    /// <summary>
+    /// Qisman yangilash JORIY qiymatlar bilan solishtiriladi: bazada 12:00–13:00 / 60 / 60 turibdi,
+    /// jumadagini 120 qilish oraliqqa sig'maydi; sukut qoida ustida esa 120 — joyida.
+    /// </summary>
+    [Fact]
+    public async Task Tanaffus_qoidasining_bitta_soni_joriy_qiymatlar_bilan_tekshiriladi()
+    {
+        _rows.Seed(SystemSettingKeys.RequestBreakTo, "780");
+        _rows.Seed(SystemSettingKeys.RequestBreakFridayMaxMinutes, "60");
+
+        var rad = await Handler.HandleAsync(
+            Command((SystemSettingKeys.RequestBreakFridayMaxMinutes, "120")),
+            TestContext.Current.CancellationToken);
+
+        rad.Error.Code.ShouldBe("davomat.tanaffus_qoidasi_nomuvofiq");
+
+        var boshqa = new FakeSystemSettings();
+        var qabul = await new UpdateSettingsCommandHandler(
+                boshqa,
+                new SystemSettingsReader(boshqa, boshqa.Protector),
+                boshqa.Protector,
+                _unitOfWork)
+            .HandleAsync(Command((SystemSettingKeys.RequestBreakFridayMaxMinutes, "120")), TestContext.Current.CancellationToken);
+
+        qabul.IsSuccess.ShouldBeTrue(qabul.IsFailure ? qabul.Error.Code : null);
+    }
+
+    [Fact]
+    public async Task Tanaffus_kalitlari_bolmasa_bazaga_murojaat_qilinmaydi()
+    {
+        var natija = await Handler.HandleAsync(
+            Command((SystemSettingKeys.ProbationWarningDays, "10")),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue();
+
+        // Bitta o'qish — saqlangandan keyingi javob; tekshiruv uchun alohida o'qish yo'q.
+        _rows.ReadCalls.ShouldBe(1);
+    }
+
     private static UpdateSettingsCommand Command(params (string? Key, string? Value)[] items)
         => new([.. items.Select(item => new SystemSettingUpdate(item.Key, item.Value))]);
 }

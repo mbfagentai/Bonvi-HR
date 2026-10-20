@@ -21,8 +21,15 @@ import {
   type AbsenceRequestInput,
   type AbsenceRequestMode,
 } from '../api/attendance-api'
-import { useCreateAbsenceRequest, useUpdateAbsenceRequest } from '../api/attendance-queries'
+import {
+  isStaleRequestError,
+  useCreateAbsenceRequest,
+  useUpdateAbsenceRequest,
+} from '../api/attendance-queries'
 import { REQUEST_MODE_LABEL_KEY, absenceRequestMode } from '../lib/attendance-presentation'
+
+/** `absence_requests.note` — varchar(2000), `davomat.izoh_uzun` (SPEC-sorov-tahriri §2.3). */
+const NOTE_MAX = 2000
 
 /**
  * Yo'qlik so'rovini yaratish va tahrirlash oynasi (SPEC-so'rovlar §B5).
@@ -38,6 +45,12 @@ import { REQUEST_MODE_LABEL_KEY, absenceRequestMode } from '../lib/attendance-pr
  * yonma-yon turardi va HR «bir kunlik, lekin vaqtsiz» so'rovni qanday
  * kiritishni taxmin qilishi kerak edi. Server shartnomasi O'ZGARMADI —
  * shakl faqat qaysi maydonlar yuborilishini belgilaydi.
+ *
+ * <b>Tahrir — HR ko'rgan nusxa ustida</b> (SPEC-sorov-tahriri §3.3): tana
+ * `version` bilan ketadi. Xodim shu orada so'rovni ilovada o'zgartirgan yoki
+ * unga qaror chiqqan bo'lsa server 409 beradi — oyna sababini aytadi va
+ * «Saqlash» ni o'chiradi: HR eskirgan nusxa bilan xodimning yangi tahririni
+ * jimgina bosib ketmasin. Navbat yangilanadi, HR yangi nusxani qayta ochadi.
  */
 export function AbsenceRequestDialog({
   open,
@@ -68,6 +81,8 @@ export function AbsenceRequestDialog({
   const [toTime, setToTime] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
+  /** Server «nusxa eskirgan» dedi — saqlash endi ma'nosiz (yuqoridagi izoh). */
+  const [stale, setStale] = useState(false)
 
   /*
     Oyna ochilganda forma to'ldiriladi. `open` ham bog'liqlikda: bitta
@@ -90,6 +105,7 @@ export function AbsenceRequestDialog({
     setToTime(request?.toTime?.slice(0, 5) ?? '')
     setNote(request?.note ?? '')
     setError(null)
+    setStale(false)
   }, [open, request])
 
   const saving = create.isPending || update.isPending
@@ -148,14 +164,34 @@ export function AbsenceRequestDialog({
       if (request === null) {
         await create.mutateAsync(body)
       } else {
-        await update.mutateAsync({ id: request.id, body })
+        // HR ko'rgan nusxa — xodim shu orada o'zgartirgan bo'lsa server 409 beradi
+        await update.mutateAsync({ id: request.id, body: { ...body, version: request.version } })
       }
 
       onClose()
     } catch (failure) {
+      setStale(request !== null && isStaleRequestError(failure))
       setError(errorMessage(problemCode(failure), t('attendance.requestSaveFailed')))
     }
   }
+
+  /*
+    Tur tanlanganda — tasdiqlansa raqamlarga nima bo'ladi (SPEC-sorov-tahriri
+    §5): «ish vaqti hisoblanadi» turi vaqtni ishlangan vaqtga qo'shadi, qolgan
+    har biri shaxsiy — soatlar ishlangan vaqtdan AYRILADI. HR kartadagi
+    raqam nega kamayishini oldindan bilsin.
+  */
+  const selectedKind = types.data?.find((item) => item.id === typeId)
+  const kindHint =
+    types.data?.length === 0
+      ? // Ma'lumotnoma bo'sh bo'lsa ro'yxat jimgina bo'sh ochilardi va
+        // HR nima qilishni bilmasdi (2026-10-17, prod'da shunday bo'ldi).
+        t('attendance.requestNoKinds')
+      : selectedKind === undefined
+        ? undefined
+        : selectedKind.countsAsWorkTime === true
+          ? t('attendance.requestKindWorkTime')
+          : t('attendance.requestKindPersonalTime')
 
   return (
     <Dialog
@@ -167,13 +203,13 @@ export function AbsenceRequestDialog({
       footer={
         <>
           <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
-            {t('common.cancel')}
+            {stale ? t('common.close') : t('common.cancel')}
           </Button>
           <Button
             type="button"
             variant="primary"
             onClick={() => void submit()}
-            disabled={saving || !complete}
+            disabled={saving || !complete || stale}
           >
             {t('common.save')}
           </Button>
@@ -181,7 +217,14 @@ export function AbsenceRequestDialog({
       }
     >
       <div className="space-y-4">
-        {error !== null && <Alert tone="danger">{error}</Alert>}
+        {error !== null &&
+          (stale ? (
+            <Alert tone="warning" title={error}>
+              {t('attendance.requestStaleHint')}
+            </Alert>
+          ) : (
+            <Alert tone="danger">{error}</Alert>
+          ))}
 
         <Select
           label={t('attendance.requestKind')}
@@ -190,9 +233,7 @@ export function AbsenceRequestDialog({
           onChange={(event) => setTypeId(event.target.value)}
           options={(types.data ?? []).map((item) => ({ value: item.id, label: item.name }))}
           placeholder={t('attendance.requestSelectKind')}
-          // Ma'lumotnoma bo'sh bo'lsa ro'yxat jimgina bo'sh ochilardi va
-          // HR nima qilishni bilmasdi (2026-10-17, prod'da shunday bo'ldi).
-          hint={types.data?.length === 0 ? t('attendance.requestNoKinds') : undefined}
+          hint={kindHint}
         />
 
         <SegmentedControl
@@ -262,6 +303,7 @@ export function AbsenceRequestDialog({
         <TextArea
           label={t('attendance.requestNote')}
           value={note}
+          maxLength={NOTE_MAX}
           disabled={saving}
           onChange={(event) => setNote(event.target.value)}
           rows={3}

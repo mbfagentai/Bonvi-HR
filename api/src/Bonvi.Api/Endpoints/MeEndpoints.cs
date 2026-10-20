@@ -56,12 +56,43 @@ public sealed record MyAbsenceRequestBody(
     TimeOnly? ToTime = null,
     string? Note = null);
 
+/// <summary>Xodim o'z kutayotgan yo'qlik so'rovini o'zgartiradigan tana (SPEC-verifikatsiya-sorov-tahriri §6.1).</summary>
+/// <remarks>So'rov butunligicha almashtiriladi — yaratishdagi maydonlar va qoidalar, ustiga <c>version</c>.</remarks>
+/// <param name="Version">Ilova ko'rsatgan versiya — MAJBURIY; eskirgan bo'lsa «davomat.sorov_ozgargan» (409).</param>
+/// <param name="AbsenceTypeId">Yo'qlik turi.</param>
+/// <param name="FromDate">Davr boshi.</param>
+/// <param name="ToDate">Davr oxiri.</param>
+/// <param name="FromTime">Kun ichidagi boshlanish — faqat bir kunlik so'rovda.</param>
+/// <param name="ToTime">Kun ichidagi tugash — faqat bir kunlik so'rovda.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record MyAbsenceRequestUpdateBody(
+    int? Version,
+    Guid AbsenceTypeId,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    TimeOnly? FromTime = null,
+    TimeOnly? ToTime = null,
+    string? Note = null);
+
 /// <summary>Xodimning jadval so'rovi tanasi (SPEC-verifikatsiya-jadval-sorovi §C3).</summary>
 /// <param name="Kind">Change — kunni o'zgartirish, Swap — kun almashtirish.</param>
 /// <param name="Days">Change uchun kunlar.</param>
 /// <param name="Swaps">Swap uchun juftlar.</param>
 /// <param name="Note">Izoh.</param>
 public sealed record MyScheduleChangeRequestBody(
+    ScheduleChangeKind Kind,
+    IReadOnlyList<ScheduleChangeDayBody>? Days = null,
+    IReadOnlyList<ScheduleSwapBody>? Swaps = null,
+    string? Note = null);
+
+/// <summary>Xodim o'z kutayotgan jadval so'rovini o'zgartiradigan tana (SPEC-verifikatsiya-sorov-tahriri §6.1).</summary>
+/// <param name="Version">Ilova ko'rsatgan versiya — MAJBURIY.</param>
+/// <param name="Kind">Tur — o'zgarishi mumkin (Change ⇄ Swap).</param>
+/// <param name="Days">Change uchun kunlar.</param>
+/// <param name="Swaps">Swap uchun juftlar.</param>
+/// <param name="Note">Izoh.</param>
+public sealed record MyScheduleChangeRequestUpdateBody(
+    int? Version,
     ScheduleChangeKind Kind,
     IReadOnlyList<ScheduleChangeDayBody>? Days = null,
     IReadOnlyList<ScheduleSwapBody>? Swaps = null,
@@ -159,8 +190,9 @@ public static partial class MeEndpoints
             .WithSummary("Xodim — o'zim haqimda")
             .WithDescription(
                 "Ism, rasm kaliti, bugungi bo'lim va lavozim va «telefondan belgilash» bayrog'i. " +
-                "Javobda YO'QLIK TURLARI ro'yxati ham bor: ilova so'rov " +
-                "yaratishi uchun kerak, ma'lumotnoma endpointiga esa uning tokeni yetmaydi. " +
+                "Javobda YO'QLIK TURLARI ro'yxati («countsAsWorkTime» bilan) va jadval so'rovidagi TANAFFUS " +
+                "QOIDASI («requestBreakRule») ham bor: ilova so'rov yaratishi uchun kerak, ma'lumotnoma va " +
+                "davomat endpointlariga esa uning tokeni yetmaydi. " +
                 "Xato: «xodim.hisob_faol_emas» (403).")
             .Produces<MeDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -329,8 +361,49 @@ public static partial class MeEndpoints
                 "So'rov «Kutilmoqda» holatida yaratiladi va davomat hisobiga HECH QANDAY ta'sir " +
                 "qilmaydi — hisob faqat HR qaroridan keyin o'zgaradi. " +
                 "Xatolar: «davomat.sorov_davri_notogri», «davomat.sorov_uzun», " +
-                "«davomat.sorov_vaqti_notogri» (400); «davomat.yoqlik_turi_topilmadi» (404); " +
+                "«davomat.sorov_vaqti_notogri», «davomat.izoh_uzun» (400); «davomat.yoqlik_turi_topilmadi» (404); " +
                 "«davomat.sorov_takroriy» (409).")
+            .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/requests/{id:guid}", async (
+                Guid id,
+                MyAbsenceRequestUpdateBody body,
+                UpdateMyRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new UpdateMyRequestCommand(
+                            id,
+                            // Versiyasiz tahrir — «ko'rmasdan yozish»: eskirgan deb qaytadi (409).
+                            body.Version ?? -1,
+                            body.AbsenceTypeId,
+                            body.FromDate,
+                            body.ToDate,
+                            body.FromTime,
+                            body.ToTime,
+                            body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("UpdateMyRequest")
+            .WithSummary("Xodim — kutayotgan so'rovni o'zgartirish")
+            .WithDescription(
+                "Faqat O'Z so'rovi (HR uning nomidan kiritgani ham) va faqat «Kutilmoqda» holatida. So'rov tanadagi " +
+                "qiymatlar bilan butunligicha almashtiriladi — yaratishdagi qoidalarning o'zi; holati «Kutilmoqda» " +
+                "bo'lib qoladi, hisob qayta hisoblanmaydi. «version» — ilova ko'rsatgan versiya (majburiy). " +
+                "Xatolar: «davomat.sorov_davri_notogri», «davomat.sorov_uzun», «davomat.sorov_vaqti_notogri», " +
+                "«davomat.sorov_turi_yoq», «davomat.yoqlik_turi_faolsiz», «davomat.yoqlik_turi_xodimga_yopiq», " +
+                "«davomat.izoh_uzun» (400); «davomat.sorov_topilmadi» (404 — begona so'rov ham), " +
+                "«davomat.yoqlik_turi_topilmadi» (404); «davomat.sorov_qaror_qabul_qilingan» (409 — tasdiqlangan, " +
+                "rad etilgan yoki bekor qilingan), «davomat.sorov_ozgargan» (409 — versiya eskirgan yoki HR shu " +
+                "lahzada qaror qildi), «davomat.sorov_takroriy» (409).")
             .Produces<AbsenceRequestDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -355,7 +428,8 @@ public static partial class MeEndpoints
                 "beradi — 403 emas: aks holda javobning o'zi shunday so'rov borligini aytib " +
                 "qo'yardi. Faqat QAROR KUTAYOTGAN so'rov bekor qilinadi: HR tasdiqlagan yoki " +
                 "rad etgan so'rov «davomat.sorov_qaror_qabul_qilingan» (409), allaqachon " +
-                "bekor qilingani «davomat.sorov_bekor_qilingan» (409) beradi.")
+                "bekor qilingani «davomat.sorov_bekor_qilingan» (409) beradi; HR shu lahzada qaror " +
+                "qilgan bo'lsa — «davomat.sorov_ozgargan» (409).")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -415,6 +489,45 @@ public static partial class MeEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        group.MapPut("/schedule-requests/{id:guid}", async (
+                Guid id,
+                MyScheduleChangeRequestUpdateBody body,
+                UpdateMyScheduleRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new UpdateMyScheduleRequestCommand(
+                            id,
+                            // Versiyasiz tahrir — «ko'rmasdan yozish»: eskirgan deb qaytadi (409).
+                            body.Version ?? -1,
+                            body.Kind,
+                            [.. (body.Days ?? []).Select(day => day.ToInput())],
+                            [.. (body.Swaps ?? []).Select(pair => new ScheduleSwapInput(pair.Date, pair.WithDate))],
+                            body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(AttendanceEndpoints.MaxScheduleRequestBytes))
+            .WithName("UpdateMyScheduleRequest")
+            .WithSummary("Xodim — kutayotgan jadval so'rovini o'zgartirish")
+            .WithDescription(
+                "Faqat O'Z va faqat «Kutilmoqda» so'rov; yaratishdagi qoidalarning o'zi (sana oynasi, tanaffus " +
+                "qoidasi, kesishish so'rovning o'zisiz). Tur o'zgarishi mumkin; «Kun almashtirish» kunlari joriy " +
+                "rejalardan qayta suratga olinadi. «version» — majburiy. Xatolar: «davomat.jadval_*», " +
+                "«davomat.jadval_sorovi_sana_oynasi», «davomat.jadval_sorovi_tanaffus_oraligi», " +
+                "«davomat.jadval_sorovi_tanaffus_davomiyligi», «davomat.izoh_uzun» (400); " +
+                "«davomat.sorov_topilmadi» (404); «davomat.sorov_qaror_qabul_qilingan», «davomat.sorov_ozgargan», " +
+                "«davomat.jadval_sorovi_takroriy» (409).")
+            .Produces<ScheduleChangeRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge);
+
         group.MapPost("/schedule-requests/{id:guid}/cancel", async (
                 Guid id,
                 CancelMyScheduleRequestCommandHandler handler,
@@ -429,7 +542,8 @@ public static partial class MeEndpoints
             .WithName("CancelMyScheduleRequest")
             .WithSummary("Xodim — jadval so'rovini bekor qilish")
             .WithDescription(
-                "Faqat O'Z va faqat QAROR KUTAYOTGAN so'rov. Begona so'rov — «davomat.sorov_topilmadi» (404).")
+                "Faqat O'Z va faqat QAROR KUTAYOTGAN so'rov. Begona so'rov — «davomat.sorov_topilmadi» (404); " +
+                "HR shu lahzada qaror qilgan bo'lsa — «davomat.sorov_ozgargan» (409).")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)

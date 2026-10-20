@@ -32,6 +32,7 @@ import {
 import { AbsenceDecisionDialog, type AbsenceAction } from './absence-decision-dialog'
 import { AbsenceRequestDialog } from './absence-request-dialog'
 import { AttendanceLoadError } from './attendance-manage-states'
+import { RequestEditedNote } from './request-edited-note'
 
 const helper = dataColumnHelper<AbsenceRequest>()
 
@@ -222,6 +223,8 @@ export function AbsenceRequestsList({
                 {t('attendance.requestFromApp')}
               </span>
             )}
+            {/* Yuborilgandan keyin tahrirlangan — HR qarordan oldin ko'rsin (SPEC-sorov-tahriri §3.5) */}
+            <RequestEditedNote request={row.original} className="mt-0.5" />
           </span>
         ),
       }),

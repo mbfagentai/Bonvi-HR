@@ -54,6 +54,7 @@ import {
   decideAbsenceRequest,
   decideScheduleChangeRequest,
   getPendingAbsenceRequestCount,
+  getScheduleRequestBreakRule,
   getUpcomingBirthdays,
   searchAbsenceRequests,
   searchScheduleChangeRequests,
@@ -133,6 +134,7 @@ import {
   type ListAttendanceIdentitiesParams,
   type ListScheduleAssignmentsParams,
   type RecomputeAttendanceRequest,
+  type RequestBreakRuleDto,
   type ScheduleAssignmentDto,
   type ScheduleDatesBody,
   type ScheduleYearDayDto,
@@ -1020,6 +1022,12 @@ export async function postScheduleYearFill(scheduleId: string, year: number) {
  *
  * `fromTime`/`toTime` — faqat BIR KUNLIK so'rovda bo'lishi mumkin (server
  * shartnomasi): ko'p kunlik so'rovda vaqt 400 bilan rad etiladi.
+ *
+ * `version` — parallellik hisoblagichi (SPEC-sorov-tahriri §3.3): HR tahrir
+ * va qarorda AYNAN ko'rgan raqamini qaytaradi. Xodim shu orada ilovada
+ * o'zgartirgan bo'lsa server 409 `davomat.sorov_ozgargan` beradi — HR
+ * eskirgan nusxani tasdiqlab qo'ymaydi. `editedAt`/`editedByEmployee` —
+ * «Ilovada o'zgartirilgan» belgisi (navbat qatori va qaror oynasi).
  */
 export type AbsenceRequest = AsSent<AbsenceRequestDto>
 
@@ -1095,7 +1103,8 @@ export type ScheduleChangeDay = AsSent<ScheduleChangeDayDto>
 
 /**
  * Jadvalni o'zgartirish so'rovi. Holat, qaror va bekor qilish qoidalari yo'qlik
- * so'rovi bilan AYNAN bir xil (holat turi ham o'sha — `AbsenceRequestStatus`).
+ * so'rovi bilan AYNAN bir xil (holat turi ham o'sha — `AbsenceRequestStatus`),
+ * `version` va tahrir belgisi ham (`AbsenceRequest` izohi).
  */
 export type ScheduleChangeRequest = AsSent<ScheduleChangeRequestDto>
 
@@ -1141,7 +1150,11 @@ export async function postScheduleChangeRequest(body: ScheduleChangeRequestInput
   return toScheduleChangeRequest(await createScheduleChangeRequest(body))
 }
 
-/** Faqat kutayotgan so'rov (`davomat.sorov_qaror_qabul_qilingan`, 409). */
+/**
+ * Faqat kutayotgan so'rov (`davomat.sorov_qaror_qabul_qilingan`, 409). Tanada
+ * HR ko'rgan `version` — xodim shu orada ilovada o'zgartirgan bo'lsa
+ * `davomat.sorov_ozgargan` (409, SPEC-sorov-tahriri §3.3).
+ */
 export async function putScheduleChangeRequest(id: string, body: ScheduleChangeRequestInput) {
   return toScheduleChangeRequest(await updateScheduleChangeRequest(id, body))
 }
@@ -1158,6 +1171,26 @@ export async function postScheduleChangeDecision(id: string, body: AbsenceDecisi
 /** Tasdiqlangani ham bekor qilinadi — kunlar jadvalning o'z rejasiga qaytadi. */
 export async function postScheduleChangeCancel(id: string) {
   await cancelScheduleChangeRequest(id)
+}
+
+/**
+ * Jadval so'rovidagi tanaffus qoidasi (SPEC-sorov-tahriri §4) — «Kunni
+ * o'zgartirish» ning ish kunida tanaffus `from`–`to` ichida, aniq `minutes`
+ * daqiqa, jumada `minutes`…`fridayMaxMinutes`; tanaffussiz kun ham mumkin.
+ *
+ * Vaqtlar «HH:mm» — o'qishda qirqiladi (`clock` izohi): xabar matnida
+ * «12:00:00» emas, «12:00» chiqishi kerak.
+ *
+ * ⚠️ Forma bu bilan faqat OLDINDAN ogohlantiradi; yakuniy so'z serverda
+ * (`davomat.jadval_sorovi_tanaffus_oraligi`, `…_davomiyligi`).
+ */
+export type RequestBreakRule = AsSent<RequestBreakRuleDto>
+
+export async function fetchScheduleRequestBreakRule(
+  signal?: AbortSignal,
+): Promise<RequestBreakRule> {
+  const rule = asSent(await getScheduleRequestBreakRule(signal))
+  return { ...rule, from: clock(rule.from) ?? rule.from, to: clock(rule.to) ?? rule.to }
 }
 
 /* ═════════════════════════════════════════════════════ hisobotlar (§6.6) */

@@ -2019,8 +2019,9 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
                        kind = "Change",
                        days = new object[]
                        {
-                           new { date = Iso(sana), isWorking = true, startTime = "11:00:00", endTime = "20:00:00", breakStart = "13:00:00", breakEnd = "16:00:00", breakMinutes = 60 },
-                           new { date = Iso(sana.AddDays(1)), isWorking = true, startTime = "09:00:00", endTime = "18:00:00", breakStart = "13:00:00", breakEnd = "14:30:00" },
+                           // Tanaffus qoidasi (SPEC-sorov-tahriri §4, §8.6): oyna 12:00–15:00 ichida, 60 daqiqa.
+                           new { date = Iso(sana), isWorking = true, startTime = "11:00:00", endTime = "20:00:00", breakStart = "12:00:00", breakEnd = "15:00:00", breakMinutes = 60 },
+                           new { date = Iso(sana.AddDays(1)), isWorking = true, startTime = "09:00:00", endTime = "18:00:00", breakStart = "13:00:00", breakEnd = "14:00:00" },
                        },
                        note = "Tahrir",
                    },
@@ -2034,7 +2035,7 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
             kunlar.Count.ShouldBe(2);
             kunlar[0].GetProperty("startTime").GetString().ShouldStartWith("11:00");
             kunlar[0].GetProperty("breakMinutes").GetInt32().ShouldBe(60);
-            kunlar[1].GetProperty("breakMinutes").GetInt32().ShouldBe(90, "daqiqa berilmadi — oynadan");
+            kunlar[1].GetProperty("breakMinutes").GetInt32().ShouldBe(60, "daqiqa berilmadi — oynadan");
         }
 
         using var qaror = await admin.PostAsJsonAsync(Yol($"/schedule-requests/{sorovId}/decide"), new { approve = true }, ct);
@@ -2967,6 +2968,9 @@ public sealed class AttendanceManagementApiTests : IClassFixture<BonviApiFactory
         (HttpMethod.Get, "/requests/pending-count"),
         (HttpMethod.Get, "/schedule-requests"),
         (HttpMethod.Get, $"/schedule-requests/{Birorta}"),
+
+        // Tanaffus qoidasi — HR formasi uchun (SPEC-sorov-tahriri §6.1).
+        (HttpMethod.Get, "/schedule-requests/break-rule"),
         (HttpMethod.Get, "/former-employee-alerts"),
         (HttpMethod.Get, "/timesheet?year=2026&month=9"),
         (HttpMethod.Get, "/reports/exceptions?kind=Late"),

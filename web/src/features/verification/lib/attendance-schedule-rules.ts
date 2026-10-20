@@ -1,5 +1,6 @@
-import { formatDuration, shiftSpanMinutes } from './attendance-presentation'
+import { formatDuration, isoWeekday, shiftSpanMinutes } from './attendance-presentation'
 import type {
+  RequestBreakRule,
   ScheduleAssignment,
   ScheduleResolution,
   WorkScheduleDayInput,
@@ -297,6 +298,85 @@ export function requiredMinutesOf(draft: FlexibleDraft): number | null {
 /** HR yozgan matn `soat:daqiqa` emas — maydon `attendance.durationFormat` ni ko'rsatadi. */
 export function requiredUnparsable(draft: FlexibleDraft): boolean {
   return draft.isFlexible && !draft.requiredAuto && parseDuration(draft.required) === null
+}
+
+/* ═══════════════════════════════ jadval so'rovidagi tanaffus (SPEC-sorov-tahriri §4) */
+
+/** Tanaffus ruxsat etilgan oraliqdan tashqarida — server kodi. */
+export const REQUEST_BREAK_WINDOW_CODE = 'davomat.jadval_sorovi_tanaffus_oraligi'
+
+/** Tanaffus uzunligi qoidaga mos emas yoki oynasiga sig'maydi — server kodi. */
+export const REQUEST_BREAK_LENGTH_CODE = 'davomat.jadval_sorovi_tanaffus_davomiyligi'
+
+/**
+ * Qoidaning qaysi qismi buzilgan. Server ikkita kod bilan javob beradi, forma
+ * esa aniqroq gapiradi: «aniq 60 daqiqa», «jumada 60–120», «oynasiga sig'maydi».
+ */
+export type RequestBreakReason = 'window' | 'windowShort' | 'length' | 'lengthFriday'
+
+export interface RequestBreakIssue {
+  /** Server qaytaradigan kod — `REQUEST_BREAK_WINDOW_CODE` yoki `REQUEST_BREAK_LENGTH_CODE`. */
+  code: string
+  reason: RequestBreakReason
+  /** Amaldagi tanaffus uzunligi (L), daqiqa — «oynasiga sig'maydi» xabari uchun. */
+  minutes: number
+}
+
+/**
+ * «Kunni o'zgartirish» kunining tanaffus qoidasi — `RequestBreakRule.Validate`
+ * ko'zgusi (SPEC-sorov-tahriri §4.3); `null` — kun joyida.
+ *
+ * Mavjud kun qoidalaridan (`validateScheduleDay`) KEYIN chaqiriladi — server
+ * tartibi shu: vaqt, tanaffus uzunligi, yarim oyna, oyna smenadan tashqarida,
+ * erkin kun, keyin shu qoida.
+ *
+ * L — `day.breakMinutes`: forma uni serverning samarali uzunligi bilan bir xil
+ * hisoblaydi (berilgan uzunlik, aks holda oyna uzunligi, oynasiz — 0). 0 —
+ * tanaffussiz kun, tekshirilmaydi. Oyna bo'lsa u qoida oralig'ida va L dan
+ * qisqa bo'lmasin; oynasiz kun faqat uzunligi bo'yicha. Ciferblat qiymatlari
+ * TO'G'RIDAN-TO'G'RI solishtiriladi: yarim tundan o'tgan oyna hech qachon mos
+ * kelmaydi (tungi smena faqat tanaffussiz so'raladi, §12 Q2).
+ *
+ * ⚠️ Faqat `kind === 'Change'` ning qatorlari uchun: almashtirishda kunni
+ * server jadvaldan oladi va tanaffusni xodim tanlamaydi (§4.2). Dam olish
+ * kuni ham tekshirilmaydi.
+ */
+export function validateRequestBreak(
+  day: WorkScheduleDayInput,
+  date: string,
+  rule: RequestBreakRule,
+): RequestBreakIssue | null {
+  if (!day.isWorking) return null
+
+  const length = day.breakMinutes
+  if (!Number.isFinite(length) || length <= 0) return null
+
+  if (day.breakStart !== null && day.breakEnd !== null) {
+    const from = clockMinutes(rule.from)
+    const to = clockMinutes(rule.to)
+    const start = clockMinutes(day.breakStart)
+    const end = clockMinutes(day.breakEnd)
+
+    if (from === null || to === null || start === null || end === null) return null
+
+    if (!(from <= start && start < end && end <= to)) {
+      return { code: REQUEST_BREAK_WINDOW_CODE, reason: 'window', minutes: length }
+    }
+    if (length > end - start) {
+      return { code: REQUEST_BREAK_LENGTH_CODE, reason: 'windowShort', minutes: length }
+    }
+  }
+
+  // Juma — ISO 5; sana `DateOnly` satri, brauzer mintaqasi unga ta'sir qilmaydi
+  if (isoWeekday(date) === 5) {
+    return length < rule.minutes || length > rule.fridayMaxMinutes
+      ? { code: REQUEST_BREAK_LENGTH_CODE, reason: 'lengthFriday', minutes: length }
+      : null
+  }
+
+  return length === rule.minutes
+    ? null
+    : { code: REQUEST_BREAK_LENGTH_CODE, reason: 'length', minutes: length }
 }
 
 /* ═════════════════════════════════════════════ «Kim uchun amal qiladi» */

@@ -16,14 +16,21 @@ import type {
   ScheduleChangeDayDto,
   ScheduleChangeRequestDto,
   TimesheetTotalsDto,
+  UpdateScheduleChangeRequest,
 } from '@/api/types'
-import { MIN_REQUIRED_MINUTES, breakWindowMinutes, maxRequiredMinutes } from '@/data/schedule-requests'
+import {
+  MIN_REQUIRED_MINUTES,
+  breakWindowMinutes,
+  maxRequiredMinutes,
+  requestBreakProblem,
+} from '@/data/schedule-requests'
 import { daysBetween, monthKey, todayIso } from '@/lib/time'
 import mockAvatarUrl from './avatar.jpg'
 import {
   MOCK_ABSENCE_TYPES,
   MOCK_ME,
   MOCK_SITE_NAME,
+  type MockPersonalTime,
   buildMonth,
   buildRequests,
   buildScheduleRequests,
@@ -72,7 +79,7 @@ const state: MockState = {
   requests: buildRequests(),
   scheduleRequests: buildScheduleRequests(),
   lastCheckInMs: null,
-  nextRequestNo: 5,
+  nextRequestNo: 7,
   nextScheduleRequestNo: 3,
 }
 
@@ -127,12 +134,44 @@ function tokenPair(): LoginResult {
   }
 }
 
-/** Tasdiqlangan so'rovlar tushgan kunlar — taqvimda «Sababli» bo'ladi. */
+/** Tur ish vaqti hisoblanadimi (`counts_as_work_time`); `false` — shaxsiy tur. */
+function countsAsWorkTime(absenceTypeId: string): boolean {
+  return MOCK_ABSENCE_TYPES.some((item) => item.id === absenceTypeId && item.countsAsWorkTime === true)
+}
+
+/** Tasdiqlangan VAQTLI shaxsiy so'rov — kunni oqlamaydi, faqat soatlarini (SPEC-sorov-tahriri §5.2). */
+function isPersonalTime(request: AbsenceRequestDto): boolean {
+  return (
+    request.status === 'Approved' &&
+    request.fromTime !== null &&
+    request.toTime !== null &&
+    request.fromDate === request.toDate &&
+    !countsAsWorkTime(request.absenceTypeId)
+  )
+}
+
+/** «14:00:00» → 840. */
+function minuteOfDay(value: string | null): number {
+  return value ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5)) : 0
+}
+
+function personalTimes(): MockPersonalTime[] {
+  return state.requests.filter(isPersonalTime).map((request) => ({
+    date: request.fromDate,
+    fromMinute: minuteOfDay(request.fromTime),
+    toMinute: minuteOfDay(request.toTime),
+  }))
+}
+
+/**
+ * Tasdiqlangan so'rovlar tushgan kunlar — taqvimda «Sababli» bo'ladi.
+ * Vaqtli shaxsiy so'rov bundan mustasno: u kunni emas, soatlarini oqlaydi.
+ */
 function excusedDates(): string[] {
   const dates: string[] = []
 
   state.requests
-    .filter((request) => request.status === 'Approved')
+    .filter((request) => request.status === 'Approved' && !isPersonalTime(request))
     .forEach((request) => {
       const count = daysBetween(request.fromDate, request.toDate)
       for (let index = 0; index < count; index += 1) {
@@ -162,6 +201,7 @@ function totalsOf(days: readonly MockDay[]): TimesheetTotalsDto {
     lateMinutes: days.reduce((sum, day) => sum + day.lateMinutes, 0),
     earlyLeaveMinutes: days.reduce((sum, day) => sum + day.earlyLeaveMinutes, 0),
     shortfallMinutes: days.reduce((sum, day) => sum + (day.shortfallMinutes ?? 0), 0),
+    personalMinutes: days.reduce((sum, day) => sum + (day.personalMinutes ?? 0), 0),
   }
 }
 
@@ -212,7 +252,7 @@ export const mockApi: EmployeeApi = {
 
   getMonth: (year, month) => {
     const today = todayIso()
-    const days = buildMonth(year, month, excusedDates())
+    const days = buildMonth(year, month, excusedDates(), personalTimes())
 
     // Bugungi kun alohida yig'iladi: u belgilash holatiga bog'liq
     if (today.indexOf(monthKey(year, month)) === 0) {
@@ -309,24 +349,11 @@ export const mockApi: EmployeeApi = {
   },
 
   createRequest: (request: CreateAbsenceRequest) => {
+    const problem = absenceProblem(request, null)
     const type = MOCK_ABSENCE_TYPES.filter((item) => item.id === request.absenceTypeId)[0]
 
-    if (!type) {
-      return fail(MIN_DELAY_MS, rejected(404, 'davomat.yoqlik_turi_topilmadi'))
-    }
-    if (request.fromDate > request.toDate) {
-      return fail(MIN_DELAY_MS, rejected(400, 'davomat.sorov_davri_notogri'))
-    }
-
-    const overlaps = state.requests.some(
-      (item) =>
-        (item.status === 'Pending' || item.status === 'Approved') &&
-        item.fromDate <= request.toDate &&
-        request.fromDate <= item.toDate,
-    )
-
-    if (overlaps) {
-      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_takroriy'))
+    if (problem || !type) {
+      return fail(MIN_DELAY_MS, problem ?? rejected(404, 'davomat.yoqlik_turi_topilmadi'))
     }
 
     const created: AbsenceRequestDto = {
@@ -356,6 +383,45 @@ export const mockApi: EmployeeApi = {
     state.requests = [created].concat(state.requests)
 
     return delay(created)
+  },
+
+  updateRequest: (id, request) => {
+    const found = state.requests.filter((item) => item.id === id)[0]
+
+    // Server tartibi (SPEC-sorov-tahriri §3.3): topilmadi → holat → versiya → yaratish qoidalari
+    if (!found) {
+      return fail(MIN_DELAY_MS, rejected(404, 'davomat.sorov_topilmadi'))
+    }
+    if (found.status !== 'Pending') {
+      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_qaror_qabul_qilingan'))
+    }
+    if (request.version !== (found.version ?? 0)) {
+      return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_ozgargan'))
+    }
+
+    const problem = absenceProblem(request, id)
+    const type = MOCK_ABSENCE_TYPES.filter((item) => item.id === request.absenceTypeId)[0]
+
+    if (problem || !type) {
+      return fail(MIN_DELAY_MS, problem ?? rejected(404, 'davomat.yoqlik_turi_topilmadi'))
+    }
+
+    const updated: AbsenceRequestDto = {
+      ...found,
+      absenceTypeId: type.id,
+      absenceTypeName: type.name,
+      fromDate: request.fromDate,
+      toDate: request.toDate,
+      fromTime: request.fromTime,
+      toTime: request.toTime,
+      note: request.note,
+      version: (found.version ?? 0) + 1,
+      editedAt: new Date().toISOString(),
+      editedByEmployee: true,
+    }
+    state.requests = state.requests.map((item) => (item.id === id ? updated : item))
+
+    return delay(updated)
   },
 
   cancelRequest: (id) => {
@@ -397,6 +463,8 @@ export const mockApi: EmployeeApi = {
 
   createScheduleRequest: (request) => createScheduleRequest(request),
 
+  updateScheduleRequest: (id, request) => updateScheduleRequest(id, request),
+
   cancelScheduleRequest: (id) => {
     const found = state.scheduleRequests.filter((item) => item.id === id)[0]
 
@@ -425,17 +493,102 @@ export const mockApi: EmployeeApi = {
 }
 
 /**
+ * Yo'qlik so'rovi — yaratish va tahrirdagi umumiy qoidalar: tur, davr, boshqa
+ * faol so'rov bilan to'qnashuv (tahrirda so'rovning o'zi hisobga olinmaydi).
+ */
+function absenceProblem(request: CreateAbsenceRequest, ignoreId: string | null): ApiError | null {
+  const type = MOCK_ABSENCE_TYPES.filter((item) => item.id === request.absenceTypeId)[0]
+
+  if (!type) return rejected(404, 'davomat.yoqlik_turi_topilmadi')
+  if (request.fromDate > request.toDate) return rejected(400, 'davomat.sorov_davri_notogri')
+
+  const overlaps = state.requests.some(
+    (item) =>
+      item.id !== ignoreId &&
+      (item.status === 'Pending' || item.status === 'Approved') &&
+      item.fromDate <= request.toDate &&
+      request.fromDate <= item.toDate,
+  )
+
+  return overlaps ? rejected(409, 'davomat.sorov_takroriy') : null
+}
+
+/**
  * Jadval so'rovi — server qoidalarining mock nusxasi (tartibi ham bir xil):
- * tur, kun yo'q, ko'p, sana takrori, smena va tanaffus, «Ish vaqti», keyin
- * faol so'rov bilan to'qnashuv.
+ * tur, kun yo'q, ko'p, sana takrori, smena va tanaffus, «Ish vaqti»,
+ * tanaffus qoidasi, keyin faol so'rov bilan to'qnashuv.
  */
 function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<ScheduleChangeRequestDto> {
+  const days = scheduleDaysOf(request, null)
+  if (days instanceof ApiError) return fail(MIN_DELAY_MS, days)
+
+  const created = scheduleRequestOf({
+    id: `jsr-${state.nextScheduleRequestNo}`,
+    kind: request.kind,
+    days,
+    note: request.note,
+    status: 'Pending',
+    decisionNote: null,
+    decidedByName: null,
+    decidedAt: null,
+    createdAt: new Date().toISOString(),
+  })
+
+  state.nextScheduleRequestNo += 1
+  state.scheduleRequests = [created].concat(state.scheduleRequests)
+
+  return delay(created)
+}
+
+/**
+ * Kutayotgan jadval so'rovini o'zgartirish — server tartibi: topilmadi →
+ * holat → versiya → yaratishdagi barcha qoidalar (almashtirish kunlari
+ * JORIY rejadan qayta olinadi). Versiya +1, tahrir belgisi qo'yiladi.
+ */
+function updateScheduleRequest(
+  id: string,
+  request: UpdateScheduleChangeRequest,
+): Promise<ScheduleChangeRequestDto> {
+  const found = state.scheduleRequests.filter((item) => item.id === id)[0]
+
+  if (!found) {
+    return fail(MIN_DELAY_MS, rejected(404, 'davomat.sorov_topilmadi'))
+  }
+  if (found.status !== 'Pending') {
+    return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_qaror_qabul_qilingan'))
+  }
+  if (request.version !== (found.version ?? 0)) {
+    return fail(MIN_DELAY_MS, rejected(409, 'davomat.sorov_ozgargan'))
+  }
+
+  const days = scheduleDaysOf(request, id)
+  if (days instanceof ApiError) return fail(MIN_DELAY_MS, days)
+
+  const updated: ScheduleChangeRequestDto = {
+    ...found,
+    kind: request.kind,
+    days,
+    note: request.note,
+    version: (found.version ?? 0) + 1,
+    editedAt: new Date().toISOString(),
+    editedByEmployee: true,
+  }
+  state.scheduleRequests = state.scheduleRequests.map((item) => (item.id === id ? updated : item))
+
+  return delay(updated)
+}
+
+/** So'rov kunlari (sana tartibida) yoki birinchi buzilgan qoida. */
+function scheduleDaysOf(
+  request: CreateScheduleChangeRequest,
+  ignoreId: string | null,
+): ScheduleChangeDayDto[] | ApiError {
   if (request.kind !== 'Change' && request.kind !== 'Swap') {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_turi'))
+    return rejected(400, 'davomat.jadval_sorovi_turi')
   }
 
   if (request.kind === 'Swap' && request.swaps.some((pair) => pair.date === pair.withDate)) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_bir_xil_sana'))
+    return rejected(400, 'davomat.jadval_sorovi_bir_xil_sana')
   }
 
   const days: ScheduleChangeDayDto[] =
@@ -470,26 +623,26 @@ function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<Sc
   const limit = request.kind === 'Swap' ? MAX_SWAP_PAIRS * 2 : MAX_SCHEDULE_DAYS
 
   if (days.length === 0) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_kun_yoq'))
+    return rejected(400, 'davomat.jadval_sorovi_kun_yoq')
   }
   if (days.length > limit) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_kop'))
+    return rejected(400, 'davomat.jadval_sorovi_kop')
   }
 
   const dates = days.map((day) => day.date)
   if (dates.some((date, index) => dates.indexOf(date) !== index)) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_sorovi_sana_takror'))
+    return rejected(400, 'davomat.jadval_sorovi_sana_takror')
   }
 
   const working = days.filter((day) => day.isWorking)
   if (working.some((day) => !day.startTime || !day.endTime)) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_vaqt_bosh'))
+    return rejected(400, 'davomat.jadval_vaqt_bosh')
   }
   if (working.some((day) => day.startTime === day.endTime)) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_vaqt_teng'))
+    return rejected(400, 'davomat.jadval_vaqt_teng')
   }
   if (working.some((day) => (day.breakStart === null) !== (day.breakEnd === null))) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_tanaffus_toliq_emas'))
+    return rejected(400, 'davomat.jadval_tanaffus_toliq_emas')
   }
   if (
     working.some((day) => {
@@ -498,34 +651,36 @@ function createScheduleRequest(request: CreateScheduleChangeRequest): Promise<Sc
       return day.requiredMinutes < MIN_REQUIRED_MINUTES || day.requiredMinutes > max
     })
   ) {
-    return fail(MIN_DELAY_MS, rejected(400, 'davomat.jadval_erkin_vaqti'))
+    return rejected(400, 'davomat.jadval_erkin_vaqti')
+  }
+
+  // Tanaffus qoidasi (SPEC-sorov-tahriri §4) — faqat «Kunni o'zgartirish» da;
+  // almashtirishda kunni server jadvaldan oladi, xodim tanaffus tanlamaydi
+  const rule = MOCK_ME.requestBreakRule ?? null
+  const breakProblem =
+    request.kind === 'Change' && rule
+      ? days.map((day) => requestBreakProblem(day, rule)).filter((problem) => problem !== null)[0] ?? null
+      : null
+  if (breakProblem) {
+    return rejected(
+      400,
+      breakProblem === 'window'
+        ? 'davomat.jadval_sorovi_tanaffus_oraligi'
+        : 'davomat.jadval_sorovi_tanaffus_davomiyligi',
+    )
   }
 
   const taken = state.scheduleRequests.some(
     (item) =>
+      item.id !== ignoreId &&
       (item.status === 'Pending' || item.status === 'Approved') &&
       item.days.some((day) => dates.indexOf(day.date) >= 0),
   )
   if (taken) {
-    return fail(MIN_DELAY_MS, rejected(409, 'davomat.jadval_sorovi_takroriy'))
+    return rejected(409, 'davomat.jadval_sorovi_takroriy')
   }
 
-  const created = scheduleRequestOf({
-    id: `jsr-${state.nextScheduleRequestNo}`,
-    kind: request.kind,
-    days: days.slice().sort((a, b) => a.date.localeCompare(b.date)),
-    note: request.note,
-    status: 'Pending',
-    decisionNote: null,
-    decidedByName: null,
-    decidedAt: null,
-    createdAt: new Date().toISOString(),
-  })
-
-  state.nextScheduleRequestNo += 1
-  state.scheduleRequests = [created].concat(state.scheduleRequests)
-
-  return delay(created)
+  return days.slice().sort((a, b) => a.date.localeCompare(b.date))
 }
 
 /** Qabul qilingan belgi — vaqti SERVERNIKI (bu yerda mock'niki). */

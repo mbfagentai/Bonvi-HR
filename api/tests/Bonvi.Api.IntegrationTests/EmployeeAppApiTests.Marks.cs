@@ -362,7 +362,8 @@ public sealed partial class EmployeeAppApiTests
                    new
                    {
                        kind = "Change",
-                       days = new[] { new { date = Iso(kun), isWorking = true, startTime = "08:30:00", endTime = "18:00:00", breakStart = "12:30:00", breakEnd = "14:30:00" } },
+                       // Tanaffus qoidasi (SPEC-sorov-tahriri §4): 60 daqiqa 12:00–15:00 ichida — har hafta kuni o'tadi.
+                       days = new[] { new { date = Iso(kun), isWorking = true, startTime = "08:30:00", endTime = "18:00:00", breakStart = "12:30:00", breakEnd = "13:30:00" } },
                        note = "Tushlikka uyga boraman",
                    },
                    ct))
@@ -370,7 +371,7 @@ public sealed partial class EmployeeAppApiTests
             yuborish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yuborish));
             var yozuv = await JsonAsync(yuborish);
             yozuv.GetProperty("submittedByEmployee").GetBoolean().ShouldBeTrue();
-            yozuv.GetProperty("days")[0].GetProperty("breakEnd").GetString().ShouldStartWith("14:30");
+            yozuv.GetProperty("days")[0].GetProperty("breakEnd").GetString().ShouldStartWith("13:30");
             sorovId = yozuv.GetProperty("id").GetGuid();
         }
 

@@ -57,6 +57,8 @@ export interface MonthTotals {
   workedMinutes: number
   /** «Kam ishlangan» — erkin kunlardagi normadan kami, serverning jami qatoridan. */
   shortfallMinutes: number
+  /** «Shaxsiy vaqt» — tasdiqlangan shaxsiy so'rovlar, serverning jami qatoridan. */
+  personalMinutes: number
 }
 
 /**
@@ -79,6 +81,8 @@ export function monthTotals(days: readonly AttendanceDay[], totals: TimesheetTot
     workedMinutes: totals ? totals.workedMinutes : 0,
     // Eski server bu maydonni bermaydi — erkin kun ham yo'q
     shortfallMinutes: totals ? totals.shortfallMinutes ?? 0 : 0,
+    // Eski server — yo'q: shaxsiy vaqt ishlangan vaqtdan ayrilmagan
+    personalMinutes: totals ? totals.personalMinutes ?? 0 : 0,
   }
 
   days.forEach((day) => {

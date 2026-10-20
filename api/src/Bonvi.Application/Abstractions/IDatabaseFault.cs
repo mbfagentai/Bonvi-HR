@@ -91,4 +91,24 @@ public interface IDatabaseFault
     /// ochgan hisobni qayta o'qiydi.
     /// </remarks>
     bool IsDuplicateEmployeeAccount(Exception exception);
+
+    /// <summary>
+    /// Istisno so'rov qatoriga PARALLEL yozuv yutqazgani sababli yuzaga kelganmi
+    /// (SPEC-verifikatsiya-sorov-tahriri §3.3).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Faqat parallellik belgisi (<c>version</c>) bor yo'qlik va jadval so'rovlarida: xodim
+    /// tahriri va HR qarori (yoki ikki qaror) bir vaqtda yozsa, ikkinchisining <c>UPDATE</c> i
+    /// nol qatorga tegadi. Jadval so'rovi tahririda kun qatorlari ham almashadi — ularning
+    /// <c>DELETE</c> i ham shunday yutqazishi mumkin, ikki tahrir bir sanani birga qayta
+    /// qo'shsa esa ikkinchisi (so'rov, sana) unikalligiga uriladi; ikkalasi ham shu yerda.
+    /// </para>
+    /// <para>
+    /// Bu nosozlik emas, javob: yutqazgan tomon 409 <c>davomat.sorov_ozgargan</c> oladi va
+    /// yangilangan holatni ko'rib qayta uradi. Qayta urinish YO'Q — avtomatik takror boshqa
+    /// odamning qarorini ko'rmasdan ustidan yozardi. Boshqa har qanday xato — <c>false</c>.
+    /// </para>
+    /// </remarks>
+    bool IsStaleRequestWrite(Exception exception);
 }

@@ -116,6 +116,15 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
     /// <summary>Xodim ilovadan bekor qilgan bo'lsa — uning hisobi.</summary>
     public Guid? CancelledByAccountId { get; private set; }
 
+    /// <summary>Parallellik hisoblagichi — har bir holat o'zgarishida +1 (<see cref="AbsenceRequest.Version"/> bilan bir xil qoida).</summary>
+    public int Version { get; private set; }
+
+    /// <summary>Kutayotgan so'rov oxirgi marta qachon tahrirlangan (HR yoki xodim), UTC.</summary>
+    public DateTimeOffset? EditedAt { get; private set; }
+
+    /// <summary>Oxirgi tahrir ilovadan bo'lsa — xodimning ilova hisobi; HR tahririda <c>null</c>.</summary>
+    public Guid? EditedByAccountId { get; private set; }
+
     public IReadOnlyList<ScheduleChangeDay> Days => _days.AsReadOnly();
 
     public DateTimeOffset CreatedAt { get; set; }
@@ -131,12 +140,17 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
     /// <param name="days">Kunlar — almashtirishda server suratga olgan ikkala tomon.</param>
     /// <param name="note">Xodim izohi.</param>
     /// <param name="submittedByAccountId">Ilovadan yuborgan xodim hisobi.</param>
+    /// <param name="breakRule">
+    /// «Kunni o'zgartirish» dagi tanaffus qoidasi (SPEC-sorov-tahriri §4) — yozish lahzasidagi
+    /// sozlamadan; <c>null</c> — qoidasiz (eski chaqiruvlar va sinovlar).
+    /// </param>
     public static Result<ScheduleChangeRequest> Create(
         Guid employeeId,
         ScheduleChangeKind kind,
         IReadOnlyCollection<ScheduleChangeDayInput> days,
         string? note = null,
-        Guid? submittedByAccountId = null)
+        Guid? submittedByAccountId = null,
+        RequestBreakRule? breakRule = null)
     {
         ArgumentNullException.ThrowIfNull(days);
 
@@ -155,12 +169,24 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
             SubmittedByAccountId = submittedByAccountId,
         };
 
-        var applied = request.ApplyDays(kind, days);
+        var applied = request.ApplyDays(kind, days, breakRule);
         return applied.IsFailure ? applied.Error : request;
     }
 
     /// <summary>Qaror kutayotgan so'rovni tahrirlaydi.</summary>
-    public Result Update(ScheduleChangeKind kind, IReadOnlyCollection<ScheduleChangeDayInput> days, string? note)
+    /// <param name="kind">Tur.</param>
+    /// <param name="days">Kunlar.</param>
+    /// <param name="note">Izoh.</param>
+    /// <param name="breakRule">Tanaffus qoidasi — yaratishdagi bilan bir xil (<see cref="Create"/>).</param>
+    /// <param name="at">Tahrir lahzasi — berilsa <see cref="EditedAt"/> ga yoziladi.</param>
+    /// <param name="editedByAccountId">Ilovadan tahrirlagan xodim hisobi; HR tahririda <c>null</c>.</param>
+    public Result Update(
+        ScheduleChangeKind kind,
+        IReadOnlyCollection<ScheduleChangeDayInput> days,
+        string? note,
+        RequestBreakRule? breakRule = null,
+        DateTimeOffset? at = null,
+        Guid? editedByAccountId = null)
     {
         ArgumentNullException.ThrowIfNull(days);
 
@@ -174,7 +200,7 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
             return tooLong;
         }
 
-        var validated = Validate(kind, days);
+        var validated = Validate(kind, days, breakRule);
         if (validated.IsFailure)
         {
             return validated;
@@ -184,6 +210,13 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
         Note = Trim(note);
         _days.Clear();
         _days.AddRange(days.OrderBy(day => day.Date).Select(day => ScheduleChangeDay.Create(Id, day)));
+        Version++;
+
+        if (at is { } editedAt)
+        {
+            EditedAt = editedAt;
+            EditedByAccountId = editedByAccountId;
+        }
 
         return Result.Success();
     }
@@ -205,6 +238,7 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
         Status = AbsenceRequestStatus.Cancelled;
         DecidedBy = cancelledBy;
         DecidedAt = at;
+        Version++;
 
         return Result.Success();
     }
@@ -227,13 +261,17 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
         Status = AbsenceRequestStatus.Cancelled;
         DecidedAt = at;
         CancelledByAccountId = accountId;
+        Version++;
 
         return Result.Success();
     }
 
-    private Result ApplyDays(ScheduleChangeKind kind, IReadOnlyCollection<ScheduleChangeDayInput> days)
+    private Result ApplyDays(
+        ScheduleChangeKind kind,
+        IReadOnlyCollection<ScheduleChangeDayInput> days,
+        RequestBreakRule? breakRule)
     {
-        var validated = Validate(kind, days);
+        var validated = Validate(kind, days, breakRule);
         if (validated.IsFailure)
         {
             return validated;
@@ -259,6 +297,7 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
         DecidedBy = decidedBy;
         DecidedAt = at;
         DecisionNote = Trim(decisionNote);
+        Version++;
 
         return Result.Success();
     }
@@ -316,7 +355,15 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
     }
 
     /// <summary>Kunlar qoidasi — yaratishda ham, tahrirlashda ham bir xil.</summary>
-    private static Result Validate(ScheduleChangeKind kind, IReadOnlyCollection<ScheduleChangeDayInput> days)
+    /// <remarks>
+    /// Tanaffus qoidasi (<paramref name="breakRule"/>) har bir kunning MAVJUD qoidalaridan keyin va
+    /// faqat «Kunni o'zgartirish» da: almashtirishda kunni server jadvaldan ko'chiradi, xodim
+    /// tanaffus tanlamaydi (SPEC-sorov-tahriri §4.2).
+    /// </remarks>
+    private static Result Validate(
+        ScheduleChangeKind kind,
+        IReadOnlyCollection<ScheduleChangeDayInput> days,
+        RequestBreakRule? breakRule)
     {
         var shape = ValidateDates(kind, [.. days.Select(day => day.Date)]);
         if (shape.IsFailure)
@@ -333,6 +380,15 @@ public sealed class ScheduleChangeRequest : AggregateRoot, IAuditable, ISoftDele
             if (valid.IsFailure)
             {
                 return valid;
+            }
+
+            if (kind == ScheduleChangeKind.Change && breakRule is not null)
+            {
+                var rule = breakRule.Validate(day);
+                if (rule.IsFailure)
+                {
+                    return rule;
+                }
             }
         }
 

@@ -84,6 +84,10 @@ internal static class AttendanceRegistration
         services.AddScoped<SearchScheduleChangeRequestsQueryHandler>();
         services.AddScoped<GetScheduleChangeRequestQueryHandler>();
 
+        // Jadval so'rovidagi tanaffus qoidasi (SPEC-sorov-tahriri §2.2) — sozlamadan, so'rov davomida.
+        services.AddScoped<RequestBreakRuleReader>();
+        services.AddScoped<GetRequestBreakRuleQueryHandler>();
+
         // Yo'qlik turining «ish vaqti» bayrog'i o'zgarsa — so'rov kunlari qayta hisoblanadi.
         services.AddScoped<IReferenceSavedHook<AbsenceType>, AbsenceTypeWorkTimeHook>();
         services.AddScoped<SearchAbsenceRequestsQueryHandler>();

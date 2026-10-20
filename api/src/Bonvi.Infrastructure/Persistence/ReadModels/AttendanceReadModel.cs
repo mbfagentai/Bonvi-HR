@@ -783,17 +783,19 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
 
             expected++;
 
-            var lateAfter = planStart.AddMinutes(plan.GraceInMinutes);
-
             var personCredits = credits.GetValueOrDefault(employeeId);
-            var computed = passesByEmployee.TryGetValue(employeeId, out var readings) || personCredits is not null
+            var day = passesByEmployee.TryGetValue(employeeId, out var readings) || personCredits is not null
                 ? builder.Build(
                     employeeId,
                     employmentsByEmployee[employeeId],
                     readings ?? [],
                     [today],
-                    workCredits: personCredits)[0].Facts
+                    workCredits: personCredits)[0]
                 : null;
+            var computed = day?.Facts;
+
+            // Ertalabki shaxsiy vaqt kutilgan kelishni suradi (SPEC-sorov-tahriri §5.6).
+            var lateAfter = (day?.Personal?.ExpectedStartAt ?? planStart).AddMinutes(plan.GraceInMinutes);
 
             if (computed is null || (computed.PassCount == 0 && computed.CreditedMinutes == 0))
             {
@@ -1193,7 +1195,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                     EffectiveArrival(day),
                     today,
                     now,
-                    excusedDates.GetValueOrDefault(person.Id)?.Contains(date) ?? false)));
+                    excusedDates.GetValueOrDefault(person.Id)?.Contains(date) ?? false,
+                    day?.Personal)));
         }
 
         var byStatus = rows.CountBy(row => row.Verdict.Status).ToDictionary();
@@ -1471,15 +1474,20 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 // paneldagi bilan bir xil: o'tishsiz kunda kelgan lahza
                 // baribir `null`, holatni esa reja va soat hal qiladi.
                 Dictionary<DateOnly, DateTimeOffset?>? arrivals = null;
+
+                // Shaxsiy vaqt — kelgan lahza yonida (SPEC-sorov-tahriri §5.6): panel bilan bir xil qaror.
+                Dictionary<DateOnly, PersonalTime?>? personalTimes = null;
                 var personCredits = credits.GetValueOrDefault(employeeId);
 
                 if (passes.TryGetValue(employeeId, out var readings) || personCredits is not null)
                 {
                     arrivals = [];
+                    personalTimes = [];
 
                     foreach (var day in builder.Build(employeeId, personEmployments, readings ?? [], chunkDates, workCredits: personCredits))
                     {
                         arrivals[day.LocalDate] = EffectiveArrival(day);
+                        personalTimes[day.LocalDate] = day.Personal;
                     }
                 }
 
@@ -1502,7 +1510,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                         arrivedAt,
                         today,
                         now,
-                        excusedDates.GetValueOrDefault(employeeId)?.Contains(date) ?? false);
+                        excusedDates.GetValueOrDefault(employeeId)?.Contains(date) ?? false,
+                        personalTimes?.GetValueOrDefault(date));
 
                     tallies[date.DayNumber - from.DayNumber][(int)verdict.Status - 1]++;
                 }
@@ -1753,7 +1762,10 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         DateTimeOffset? DecidedAt,
         DateTimeOffset CreatedAt,
         bool SubmittedByEmployee,
-        bool CancelledByEmployee);
+        bool CancelledByEmployee,
+        int Version,
+        DateTimeOffset? EditedAt,
+        bool EditedByEmployee);
 
     /// <inheritdoc />
     /// <remarks>
@@ -1846,7 +1858,10 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 request.DecidedAt,
                 request.CreatedAt,
                 request.SubmittedByAccountId != null,
-                request.CancelledByAccountId != null))
+                request.CancelledByAccountId != null,
+                request.Version,
+                request.EditedAt,
+                request.EditedByAccountId != null))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -1878,7 +1893,10 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 request.DecidedAt,
                 request.CreatedAt,
                 request.SubmittedByAccountId != null,
-                request.CancelledByAccountId != null))
+                request.CancelledByAccountId != null,
+                request.Version,
+                request.EditedAt,
+                request.EditedByAccountId != null))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -1993,7 +2011,10 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                     row.DecidedAt,
                     row.CreatedAt,
                     row.SubmittedByEmployee,
-                    row.CancelledByEmployee);
+                    row.CancelledByEmployee,
+                    row.Version,
+                    row.EditedAt,
+                    row.EditedByEmployee);
             }),
         ];
     }
@@ -2022,7 +2043,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         DateTimeOffset ComputedAt,
         int CreditedMinutes,
         bool IsFlexible,
-        int ShortfallMinutes);
+        int ShortfallMinutes,
+        int PersonalMinutes);
 
     /// <inheritdoc />
     /// <remarks>
@@ -2147,7 +2169,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 day.ComputedAt,
                 day.CreditedMinutes,
                 day.IsFlexible,
-                day.ShortfallMinutes))
+                day.ShortfallMinutes,
+                day.PersonalMinutes))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -2225,7 +2248,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                             stored.CreditedMinutes,
                             stored.IsFlexible,
                             stored.PlannedMinutes,
-                            stored.ShortfallMinutes)
+                            stored.ShortfallMinutes,
+                            stored.PersonalMinutes)
                         // Hosil qilingan katakda reja ham YO'Q: u hali
                         // hisoblanmagan kun (§5.7.1) va rejasini shu yerda
                         // qayta hisoblash tungi hisoblashning ikkinchi
@@ -2255,7 +2279,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                     cells.Count(cell => cell.Status == AttendanceDayStatus.Absent),
                     cells.Sum(cell => cell.LateMinutes),
                     cells.Sum(cell => cell.EarlyLeaveMinutes),
-                    cells.Sum(cell => cell.ShortfallMinutes));
+                    cells.Sum(cell => cell.ShortfallMinutes),
+                    cells.Sum(cell => cell.PersonalMinutes));
 
                 var display = displayEmployments[employee.Id];
                 var snapshot = latestSnapshots.GetValueOrDefault(employee.Id);
@@ -2579,6 +2604,7 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 EarlyLeaveMinutes = group.Sum(day => day.EarlyLeaveMinutes),
                 OvertimeMinutes = group.Sum(day => day.OvertimeMinutes),
                 ShortfallMinutes = group.Sum(day => day.ShortfallMinutes),
+                PersonalMinutes = group.Sum(day => day.PersonalMinutes),
             });
 
         var shaped =
@@ -2661,7 +2687,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                     row.Summary.EarlyLeaveMinutes,
                     row.Summary.OvertimeMinutes,
                     row.Summary.ProblemDays,
-                    row.Summary.ShortfallMinutes);
+                    row.Summary.ShortfallMinutes,
+                    row.Summary.PersonalMinutes);
             }),
         ];
 

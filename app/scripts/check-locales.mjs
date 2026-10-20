@@ -83,6 +83,11 @@ const APP_CODES = [
   'davomat.jadval_tanaffus_uzunligi',
   // «Erkin ish jadvali» kunining «Ish vaqti» chegarasi (SPEC-erkin-jadval §2.5)
   'davomat.jadval_erkin_vaqti',
+  // Kutayotgan so'rovni o'zgartirish va jadval so'rovidagi tanaffus qoidasi
+  // (`PUT /api/me/requests/{id}`, `PUT /api/me/schedule-requests/{id}`, SPEC-sorov-tahriri §6.3)
+  'davomat.sorov_ozgargan',
+  'davomat.jadval_sorovi_tanaffus_oraligi',
+  'davomat.jadval_sorovi_tanaffus_davomiyligi',
 ]
 
 /** Lotin yozuvidagi matnda ASCII apostrof bo'lmasligi kerak. */

@@ -53,6 +53,9 @@ export const realApi: EmployeeApi = {
   createRequest: (body) =>
     request<AbsenceRequestDto>('/api/me/requests', { method: 'POST', body }),
 
+  updateRequest: (id, body) =>
+    request<AbsenceRequestDto>(`/api/me/requests/${encodeURIComponent(id)}`, { method: 'PUT', body }),
+
   cancelRequest: (id) =>
     request<void>(`/api/me/requests/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
 
@@ -63,6 +66,12 @@ export const realApi: EmployeeApi = {
 
   createScheduleRequest: (body) =>
     request<ScheduleChangeRequestDto>('/api/me/schedule-requests', { method: 'POST', body }),
+
+  updateScheduleRequest: (id, body) =>
+    request<ScheduleChangeRequestDto>(`/api/me/schedule-requests/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body,
+    }),
 
   cancelScheduleRequest: (id) =>
     request<void>(`/api/me/schedule-requests/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),

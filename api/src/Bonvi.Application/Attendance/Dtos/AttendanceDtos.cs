@@ -625,6 +625,12 @@ public sealed record AttendanceBirthdayDto(
 /// <param name="CreatedAt">So'rov yaratilgan lahza (UTC) — ro'yxat shu bo'yicha tartiblanadi.</param>
 /// <param name="SubmittedByEmployee">So'rovni xodimning O'ZI ilovadan yuborgan (HR kiritmagan).</param>
 /// <param name="CancelledByEmployee">So'rovni xodimning O'ZI ilovadan qaytarib olgan.</param>
+/// <param name="Version">
+/// Parallellik hisoblagichi (SPEC-sorov-tahriri §3.3) — mijoz tahrir va qarorda shuni qaytaradi;
+/// boshqa joyda o'zgargan bo'lsa server 409 <c>davomat.sorov_ozgargan</c> beradi.
+/// </param>
+/// <param name="EditedAt">Kutayotgan so'rov oxirgi marta qachon tahrirlangan (UTC); tahrirlanmagan — <c>null</c>.</param>
+/// <param name="EditedByEmployee">Oxirgi tahrir xodimning ilovasidan (aks holda HR dan).</param>
 public sealed record AbsenceRequestDto(
     Guid Id,
     Guid EmployeeId,
@@ -645,7 +651,10 @@ public sealed record AbsenceRequestDto(
     DateTimeOffset? DecidedAt,
     DateTimeOffset CreatedAt,
     bool SubmittedByEmployee = false,
-    bool CancelledByEmployee = false);
+    bool CancelledByEmployee = false,
+    int Version = 0,
+    DateTimeOffset? EditedAt = null,
+    bool EditedByEmployee = false);
 
 /// <summary>Kutayotgan so'rovlar soni — nav nishoni uchun.</summary>
 /// <remarks>
@@ -725,6 +734,10 @@ public sealed record AbsenceRequestCountDto(int Pending);
 /// </param>
 /// <param name="PlannedMinutes">Kun rejasi (daqiqa) — erkin kunda norma («Ish vaqti»); hosil qilingan katakda 0.</param>
 /// <param name="ShortfallMinutes">«Kam ishlangan» — erkin kunda normadan kami; qolgan hamma kunda 0.</param>
+/// <param name="PersonalMinutes">
+/// «Shaxsiy vaqt» — tasdiqlangan vaqtli shaxsiy so'rov soatlari (SPEC-sorov-tahriri §5): sababli, lekin
+/// <paramref name="WorkedMinutes"/> ga kirmaydi. Hosil qilingan katakda 0.
+/// </param>
 public sealed record TimesheetCellDto(
     DateOnly Date,
     AttendanceDayStatus Status,
@@ -742,7 +755,8 @@ public sealed record TimesheetCellDto(
     int CreditedMinutes = 0,
     bool IsFlexible = false,
     int PlannedMinutes = 0,
-    int ShortfallMinutes = 0);
+    int ShortfallMinutes = 0,
+    int PersonalMinutes = 0);
 
 /// <summary>
 /// Bir xodimning oy bo'yicha jami ko'rsatkichlari.
@@ -761,6 +775,7 @@ public sealed record TimesheetCellDto(
 /// <param name="LateMinutes">Kechikishlar yig'indisi.</param>
 /// <param name="EarlyLeaveMinutes">Erta ketishlar yig'indisi.</param>
 /// <param name="ShortfallMinutes">«Kam ishlangan» yig'indisi (erkin kunlar, SPEC-erkin-jadval §5.3).</param>
+/// <param name="PersonalMinutes">«Shaxsiy vaqt» yig'indisi — kataklarniki (SPEC-sorov-tahriri §6.2).</param>
 public sealed record TimesheetTotalsDto(
     int WorkedMinutes,
     int PlannedMinutes,
@@ -768,7 +783,8 @@ public sealed record TimesheetTotalsDto(
     int AbsentDays,
     int LateMinutes,
     int EarlyLeaveMinutes,
-    int ShortfallMinutes = 0);
+    int ShortfallMinutes = 0,
+    int PersonalMinutes = 0);
 
 /// <summary>Tabelning bitta qatori — bitta xodim, oyning barcha kunlari.</summary>
 /// <param name="EmployeeId">Xodim.</param>
@@ -883,6 +899,7 @@ public sealed record AttendanceExceptionDto(
 /// <param name="OvertimeMinutes">Ortiqcha ishlangan vaqt — hisoblanadi, HECH QACHON pulga aylanmaydi.</param>
 /// <param name="ProblemDays"><c>MissingExit + MissingEntry + NoSchedule</c> — «hisoblab bo'lmagan» kunlar.</param>
 /// <param name="ShortfallMinutes">«Kam ishlangan» yig'indisi (erkin kunlar, SPEC-erkin-jadval §5.3).</param>
+/// <param name="PersonalMinutes">«Shaxsiy vaqt» yig'indisi — saqlangan kunlardan (SPEC-sorov-tahriri §6.2).</param>
 public sealed record AttendanceSummaryDto(
     Guid EmployeeId,
     string EmployeeName,
@@ -899,7 +916,8 @@ public sealed record AttendanceSummaryDto(
     int EarlyLeaveMinutes,
     int OvertimeMinutes,
     int ProblemDays,
-    int ShortfallMinutes = 0);
+    int ShortfallMinutes = 0,
+    int PersonalMinutes = 0);
 
 // ────────────────────────────────────────────────────────────────────
 //  5. Eksport (SPEC §6.7)

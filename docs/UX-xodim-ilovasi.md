@@ -153,6 +153,8 @@ Tab bar rules (defined once, here):
 
 ### A.3 Full screen list
 
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-sorov-tahriri.md` §7: request detail screens get «O‘zgartirish» (Pending only) opening the form in edit mode; day panel shows «Shaxsiy» time.
+
 Route slugs are Uzbek, matching the labels, so a URL read aloud in a support
 call is understandable.
 

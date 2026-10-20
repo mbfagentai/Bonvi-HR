@@ -675,6 +675,10 @@ public sealed class AttendanceDayConfiguration : IEntityTypeConfiguration<Attend
         builder.Property(day => day.ShortfallMinutes)
             .IsRequired();
 
+        // «Shaxsiy vaqt» (SPEC-sorov-tahriri §2.1) — sukut 0 faqat migratsiyada (2-qoida).
+        builder.Property(day => day.PersonalMinutes)
+            .IsRequired();
+
         builder.Property(day => day.ComputedAt)
             .IsRequired();
 
@@ -754,6 +758,13 @@ public sealed class AbsenceRequestConfiguration : IEntityTypeConfiguration<Absen
         builder.Property(request => request.Note).HasMaxLength(2000);
         builder.Property(request => request.DecisionNote).HasMaxLength(2000);
 
+        // Parallellik belgisi (SPEC-sorov-tahriri §3.3): har bir UPDATE `WHERE version = @yuklangan`
+        // bilan — kechikkan yozuv 0 qatorga tegadi va 409 bo'ladi. Sukut 0 faqat migratsiyada.
+        // `edited_at` / `edited_by_account_id` — konvensiya bo'yicha; FK yo'q (`submitted_by_account_id` kabi).
+        builder.Property(request => request.Version)
+            .IsRequired()
+            .IsConcurrencyToken();
+
         builder.HasOne<Employee>()
             .WithMany()
             .HasForeignKey(request => request.EmployeeId)
@@ -792,6 +803,11 @@ public sealed class ScheduleChangeRequestConfiguration : IEntityTypeConfiguratio
 
         builder.Property(request => request.Note).HasMaxLength(2000);
         builder.Property(request => request.DecisionNote).HasMaxLength(2000);
+
+        // Parallellik belgisi — `absence_requests` dagi bilan bir xil (SPEC-sorov-tahriri §3.3).
+        builder.Property(request => request.Version)
+            .IsRequired()
+            .IsConcurrencyToken();
 
         builder.HasOne<Employee>()
             .WithMany()

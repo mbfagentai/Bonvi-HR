@@ -303,6 +303,8 @@ function MonthTotals({ row, loading }: { row: TimesheetRow | null; loading: bool
     doim 0 va har kartada «0:00» bo'lib turishi shovqin bo'lardi.
   */
   const hasFlexible = shortfall > 0 || row.cells.some((cell) => cell.isFlexible === true)
+  // Shaxsiy vaqt — faqat bo'lsa (SPEC-sorov-tahriri §5): aks holda har kartada «0:00» shovqini
+  const personal = totals.personalMinutes ?? 0
 
   return (
     <dl className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-footnote">
@@ -327,6 +329,9 @@ function MonthTotals({ row, loading }: { row: TimesheetRow | null; loading: bool
           value={formatDuration(shortfall)}
           tone={shortfall > 0 ? 'warning' : undefined}
         />
+      )}
+      {personal > 0 && (
+        <Total label={t('attendance.personalMinutes')} value={formatDuration(personal)} />
       )}
     </dl>
   )
@@ -514,6 +519,17 @@ function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
         <span className="mt-1 block px-1.5 text-caption2 leading-tight text-ios-blue">
           {t('attendance.creditedShort')}
           <span className="tabular block font-semibold">{minutes(cell.creditedMinutes ?? 0)}</span>
+        </span>
+      )}
+
+      {/*
+        Tasdiqlangan shaxsiy so'rov soatlari (SPEC-sorov-tahriri §5): sababli,
+        lekin ishlangan vaqtga kirmaydi — neytral rangda, chetlanish emas.
+      */}
+      {(cell.personalMinutes ?? 0) > 0 && (
+        <span className="mt-1 block px-1.5 text-caption2 leading-tight text-[var(--fg-secondary)]">
+          {t('attendance.personalShort')}{' '}
+          <span className="tabular font-semibold">{formatDuration(cell.personalMinutes ?? 0)}</span>
         </span>
       )}
 

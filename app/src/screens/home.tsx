@@ -126,6 +126,13 @@ export function HomeScreen() {
               label={t('home.worked')}
               value={<span className="nums">{format.duration(todayCell?.workedMinutes)}</span>}
             />
+            {/* Shaxsiy vaqt ishlangan vaqtdan ayrilgan — «nega kam?» degan savolga javob */}
+            {todayCell && (todayCell.personalMinutes ?? 0) > 0 ? (
+              <CardRow
+                label={t('calendar.personal')}
+                value={<span className="nums">{format.duration(todayCell.personalMinutes)}</span>}
+              />
+            ) : null}
             {todayCell && todayCell.lateMinutes > 0 ? (
               <CardRow
                 label={t('home.late')}

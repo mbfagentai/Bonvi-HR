@@ -73,6 +73,17 @@ internal static class ScheduleChangeRequestErrors
 
     public static readonly Error SwapSameDate =
         Error.Validation("davomat.jadval_sorovi_bir_xil_sana", "Kun o'zi bilan almashtirilmaydi.");
+
+    /// <summary>
+    /// Holat, keyin mijoz ko'rgan versiya — tahrir va qarorning boshida (§3.3 ustuvorlik). Kodlar
+    /// yo'qlik so'rovidagining o'zi (<c>davomat.sorov_qaror_qabul_qilingan</c>, <c>davomat.sorov_ozgargan</c>).
+    /// </summary>
+    public static Error? PendingAt(ScheduleChangeRequest request, int? expectedVersion)
+        => AbsenceRequestErrors.PendingAt(request.Status, request.Version, expectedVersion);
+
+    /// <summary>Saqlash; parallel yozuv yutgan bo'lsa — 409 <c>davomat.sorov_ozgargan</c> (§3.3, 1-qatlam).</summary>
+    public static Task<Error?> SaveAsync(IUnitOfWork unitOfWork, IDatabaseFault fault, CancellationToken cancellationToken)
+        => UpdateAbsenceRequestCommandHandler.SaveAsync(unitOfWork, fault, cancellationToken);
 }
 
 /// <summary>
@@ -257,6 +268,7 @@ public sealed class CreateScheduleChangeRequestCommandHandler
     private readonly IScheduleChangeRequestRepository _requests;
     private readonly IEmployeeRepository _employees;
     private readonly EmployeePlanReader _plans;
+    private readonly RequestBreakRuleReader _breakRule;
     private readonly IScheduleChangeRequestReadModel _readModel;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -264,12 +276,14 @@ public sealed class CreateScheduleChangeRequestCommandHandler
         IScheduleChangeRequestRepository requests,
         IEmployeeRepository employees,
         EmployeePlanReader plans,
+        RequestBreakRuleReader breakRule,
         IScheduleChangeRequestReadModel readModel,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
         _employees = employees;
         _plans = plans;
+        _breakRule = breakRule;
         _readModel = readModel;
         _unitOfWork = unitOfWork;
     }
@@ -295,12 +309,14 @@ public sealed class CreateScheduleChangeRequestCommandHandler
             return days.Error;
         }
 
+        // Tanaffus qoidasi yozish lahzasidagi sozlamadan — ilova va HR uchun bitta (SPEC-sorov-tahriri §4.2).
         var created = ScheduleChangeRequest.Create(
             command.EmployeeId,
             command.Kind,
             days.Value,
             command.Note,
-            command.SubmittedByAccountId);
+            command.SubmittedByAccountId,
+            await _breakRule.ReadAsync(cancellationToken).ConfigureAwait(false));
 
         if (created.IsFailure)
         {
@@ -323,36 +339,49 @@ public sealed class CreateScheduleChangeRequestCommandHandler
     }
 }
 
-/// <summary>Qaror kutayotgan jadval so'rovini tahrirlash (faqat HR).</summary>
+/// <summary>Qaror kutayotgan jadval so'rovini tahrirlash — HR yoki (ilova orqali) xodimning o'zi.</summary>
 /// <param name="RequestId">So'rov.</param>
 /// <param name="Kind">Tur.</param>
 /// <param name="Days">Kunlar.</param>
 /// <param name="Swaps">Juftlar.</param>
 /// <param name="Note">Izoh.</param>
+/// <param name="ExpectedVersion">Mijoz ko'rgan <c>version</c>; farq qilsa — 409 <c>davomat.sorov_ozgargan</c>.</param>
+/// <param name="EditedByAccountId">Ilovadan tahrirlagan xodim hisobi; HR tahririda <c>null</c>.</param>
 public sealed record UpdateScheduleChangeRequestCommand(
     Guid RequestId,
     ScheduleChangeKind Kind,
     IReadOnlyList<ScheduleChangeDayInput>? Days,
     IReadOnlyList<ScheduleSwapInput>? Swaps,
-    string? Note);
+    string? Note,
+    int? ExpectedVersion = null,
+    Guid? EditedByAccountId = null);
 
 /// <summary><see cref="UpdateScheduleChangeRequestCommand"/> ni bajaradi.</summary>
 public sealed class UpdateScheduleChangeRequestCommandHandler
 {
     private readonly IScheduleChangeRequestRepository _requests;
     private readonly EmployeePlanReader _plans;
+    private readonly RequestBreakRuleReader _breakRule;
     private readonly IScheduleChangeRequestReadModel _readModel;
+    private readonly IClock _clock;
+    private readonly IDatabaseFault _fault;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateScheduleChangeRequestCommandHandler(
         IScheduleChangeRequestRepository requests,
         EmployeePlanReader plans,
+        RequestBreakRuleReader breakRule,
         IScheduleChangeRequestReadModel readModel,
+        IClock clock,
+        IDatabaseFault fault,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
         _plans = plans;
+        _breakRule = breakRule;
         _readModel = readModel;
+        _clock = clock;
+        _fault = fault;
         _unitOfWork = unitOfWork;
     }
 
@@ -368,6 +397,13 @@ public sealed class UpdateScheduleChangeRequestCommandHandler
             return ScheduleChangeRequestErrors.NotFound;
         }
 
+        // Holat va versiya rejalarni o'qishdan OLDIN (SPEC-sorov-tahriri §3.3 ustuvorlik).
+        if (ScheduleChangeRequestErrors.PendingAt(request, command.ExpectedVersion) is { } notEditable)
+        {
+            return notEditable;
+        }
+
+        // Almashtirish kunlari tahrir lahzasidagi JORIY rejalardan qayta suratga olinadi.
         var days = await ScheduleChangeDays
             .BuildAsync(_plans, request.EmployeeId, command.Kind, command.Days, command.Swaps, cancellationToken)
             .ConfigureAwait(false);
@@ -384,13 +420,24 @@ public sealed class UpdateScheduleChangeRequestCommandHandler
             return ScheduleChangeRequestErrors.Overlaps;
         }
 
-        var updated = request.Update(command.Kind, days.Value, command.Note);
+        var updated = request.Update(
+            command.Kind,
+            days.Value,
+            command.Note,
+            await _breakRule.ReadAsync(cancellationToken).ConfigureAwait(false),
+            _clock.UtcNow,
+            command.EditedByAccountId);
         if (updated.IsFailure)
         {
             return updated.Error;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        // Kutayotgan so'rov tabelga ta'sir qilmaydi — tahrir hech narsani qayta hisoblatmaydi.
+        if (await ScheduleChangeRequestErrors.SaveAsync(_unitOfWork, _fault, cancellationToken).ConfigureAwait(false)
+            is { } stale)
+        {
+            return stale;
+        }
 
         return (await _readModel.FindScheduleChangeRequestAsync(request.Id, cancellationToken).ConfigureAwait(false))!;
     }
@@ -400,7 +447,12 @@ public sealed class UpdateScheduleChangeRequestCommandHandler
 /// <param name="RequestId">So'rov.</param>
 /// <param name="Approve">Tasdiqlansinmi.</param>
 /// <param name="DecisionNote">HR izohi.</param>
-public sealed record DecideScheduleChangeRequestCommand(Guid RequestId, bool Approve, string? DecisionNote);
+/// <param name="ExpectedVersion">HR ko'rgan <c>version</c>; farq qilsa — 409 <c>davomat.sorov_ozgargan</c>.</param>
+public sealed record DecideScheduleChangeRequestCommand(
+    Guid RequestId,
+    bool Approve,
+    string? DecisionNote,
+    int? ExpectedVersion = null);
 
 /// <summary><see cref="DecideScheduleChangeRequestCommand"/> ni bajaradi.</summary>
 public sealed class DecideScheduleChangeRequestCommandHandler
@@ -410,6 +462,7 @@ public sealed class DecideScheduleChangeRequestCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly AttendanceDayRecomputer _recomputer;
+    private readonly IDatabaseFault _fault;
     private readonly IUnitOfWork _unitOfWork;
 
     public DecideScheduleChangeRequestCommandHandler(
@@ -418,6 +471,7 @@ public sealed class DecideScheduleChangeRequestCommandHandler
         ICurrentUser currentUser,
         IClock clock,
         AttendanceDayRecomputer recomputer,
+        IDatabaseFault fault,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
@@ -425,6 +479,7 @@ public sealed class DecideScheduleChangeRequestCommandHandler
         _currentUser = currentUser;
         _clock = clock;
         _recomputer = recomputer;
+        _fault = fault;
         _unitOfWork = unitOfWork;
     }
 
@@ -440,6 +495,12 @@ public sealed class DecideScheduleChangeRequestCommandHandler
             return ScheduleChangeRequestErrors.NotFound;
         }
 
+        // Mavjud so'rovlar tanaffus qoidasi bo'yicha qayta tekshirilmaydi — faqat holat va versiya.
+        if (ScheduleChangeRequestErrors.PendingAt(request, command.ExpectedVersion) is { } notDecidable)
+        {
+            return notDecidable;
+        }
+
         var decidedBy = _currentUser.UserId ?? Guid.Empty;
         var now = _clock.UtcNow;
 
@@ -452,7 +513,11 @@ public sealed class DecideScheduleChangeRequestCommandHandler
             return decision.Error;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        if (await ScheduleChangeRequestErrors.SaveAsync(_unitOfWork, _fault, cancellationToken).ConfigureAwait(false)
+            is { } stale)
+        {
+            return stale;
+        }
 
         // Faqat tasdiq rejani o'zgartiradi; rad etish kunlarga tegmaydi.
         if (command.Approve)
@@ -477,6 +542,7 @@ public sealed class CancelScheduleChangeRequestCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly AttendanceDayRecomputer _recomputer;
+    private readonly IDatabaseFault _fault;
     private readonly IUnitOfWork _unitOfWork;
 
     public CancelScheduleChangeRequestCommandHandler(
@@ -484,12 +550,14 @@ public sealed class CancelScheduleChangeRequestCommandHandler
         ICurrentUser currentUser,
         IClock clock,
         AttendanceDayRecomputer recomputer,
+        IDatabaseFault fault,
         IUnitOfWork unitOfWork)
     {
         _requests = requests;
         _currentUser = currentUser;
         _clock = clock;
         _recomputer = recomputer;
+        _fault = fault;
         _unitOfWork = unitOfWork;
     }
 
@@ -513,7 +581,11 @@ public sealed class CancelScheduleChangeRequestCommandHandler
             return cancelled.Error;
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        if (await ScheduleChangeRequestErrors.SaveAsync(_unitOfWork, _fault, cancellationToken).ConfigureAwait(false)
+            is { } stale)
+        {
+            return stale;
+        }
 
         // Tasdiqlangan reja olib tashlandi — kunlar jadvalning o'z rejasiga qaytadi.
         if (wasApproved)

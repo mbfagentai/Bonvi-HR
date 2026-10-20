@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Link } from '@tanstack/react-router'
-import { Coffee, FileCheck2, Hourglass } from 'lucide-react'
+import { CalendarMinus, Coffee, FileCheck2, Hourglass } from 'lucide-react'
 import { useSyncExternalStore, type ReactNode } from 'react'
 
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
@@ -588,6 +588,21 @@ function CellDetails({ cell }: { cell: TimesheetCell }) {
         </p>
       )}
 
+      {/* Tasdiqlangan shaxsiy so'rov soatlari (SPEC-sorov-tahriri §5): sababli,
+          lekin ishlangan vaqtga KIRMAYDI — HR «6:00» nega 8:00 emasligini
+          shu satrdan ko'radi. */}
+      {(cell.personalMinutes ?? 0) > 0 && (
+        <p className="flex items-start gap-2 text-footnote text-[var(--fg-secondary)]">
+          <CalendarMinus
+            className="mt-0.5 size-4 shrink-0 text-[var(--fg-tertiary)]"
+            strokeWidth={2}
+          />
+          <span>
+            {t('attendance.personalLine', { duration: formatDuration(cell.personalMinutes ?? 0) })}
+          </span>
+        </p>
+      )}
+
       {/* Belgilarning bir qismi TELEFONDAN (SPEC-xodim-ilovasi §F) — eng
           zaif dalil, HR buni katakning o'zida bilishi kerak. */}
       <MobileMarksLine count={cell.mobileMarks} />
@@ -700,6 +715,10 @@ function TotalsDetails({ totals }: { totals: TimesheetTotals }) {
         <span className={cn((totals.shortfallMinutes ?? 0) > 0 && 'font-semibold text-ios-orange')}>
           {minutes(totals.shortfallMinutes ?? 0)}
         </span>
+      </Fact>
+      {/* Shaxsiy vaqt yig'indisi — ishlangan vaqtga kirmagan soatlar (SPEC-sorov-tahriri §5) */}
+      <Fact label={t('attendance.personalMinutes')}>
+        {(totals.personalMinutes ?? 0) > 0 ? formatDuration(totals.personalMinutes ?? 0) : '—'}
       </Fact>
     </dl>
   )

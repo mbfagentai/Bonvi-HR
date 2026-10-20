@@ -38,6 +38,8 @@ day with a moved/extended break («went home for lunch and Friday prayer»).
 
 ### C1. Model
 
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-sorov-tahriri.md` §2, §4: requests gain `version`, `edited_at`, `edited_by_account_id`; «Kunni o'zgartirish» days obey the break rule (12:00–15:00, 60 min, Friday 60–120 — settings `attendance.requestBreak*`).
+
 `schedule_change_requests` — aggregate, mirrors `absence_requests`:
 `EmployeeId`, `Kind` (`Change = 1` «Kunni o'zgartirish», `Swap = 2` «Kun
 almashtirish»), `Note`, `Status` (same four values as absence requests),
@@ -95,6 +97,8 @@ the same plan. Grace minutes come from the resolved schedule.
 * `GET /schedules/resolve` shows `daySource = Request` for such a date.
 
 ### C3. API
+
+> **AMENDED 2026-10-20** → `SPEC-verifikatsiya-sorov-tahriri.md` §6: employee `PUT /api/me/schedule-requests/{id}`; `GET /schedule-requests/break-rule`; break-rule errors `davomat.jadval_sorovi_tanaffus_oraligi`, `…_tanaffus_davomiyligi`.
 
 HR (`/api/attendance`, read `attendance.view`, write/decide
 `attendance.requests.manage` — the same «O'zgartirish» level that decides absence

@@ -173,7 +173,10 @@ public sealed partial class AttendanceReadModel : IScheduleChangeRequestReadMode
                     row.DecidedAt,
                     row.CreatedAt,
                     row.SubmittedByAccountId is not null,
-                    row.CancelledByAccountId is not null);
+                    row.CancelledByAccountId is not null,
+                    row.Version,
+                    row.EditedAt,
+                    row.EditedByAccountId is not null);
             }),
         ];
     }

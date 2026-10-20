@@ -4,14 +4,26 @@ using Bonvi.Domain.Abstractions;
 namespace Bonvi.Application.Attendance.Computation;
 
 /// <summary>
-/// «Ish vaqti hisoblanadigan» turdagi TASDIQLANGAN so'rov — hisob uchun kerakli qismi
-/// (SPEC-so'rovlar §B3 AMENDED 2026-10-17).
+/// Kun hisobiga ta'sir qiladigan TASDIQLANGAN so'rov — hisob uchun kerakli qismi: «ish vaqti
+/// hisoblanadigan» tur (SPEC-so'rovlar §B3 AMENDED 2026-10-17) yoki vaqtli SHAXSIY so'rov
+/// (SPEC-sorov-tahriri §5.2).
 /// </summary>
 /// <param name="FromDate">Boshlanish sanasi (Toshkent).</param>
 /// <param name="ToDate">Tugash sanasi (Toshkent), o'zi ham kiradi.</param>
 /// <param name="FromTime">Kun ichidagi boshlanish — faqat bir kunlik so'rovda; <c>null</c> — butun kun.</param>
 /// <param name="ToTime">Kun ichidagi tugash.</param>
-public sealed record WorkCredit(DateOnly FromDate, DateOnly ToDate, TimeOnly? FromTime, TimeOnly? ToTime);
+/// <param name="CountsAsWorkTime">
+/// Turi «ish vaqti hisoblanadi»mi. <c>false</c> — shaxsiy tur: so'rov ishlangan vaqtga
+/// QO'SHILMAYDI (<see cref="WorkCreditRule.IntervalsFor"/> uni tashlaydi), aksincha o'z soatlarini
+/// ishlangan vaqtdan ayiradi (<see cref="PersonalTimeRule"/>). Yuklovchi bunday so'rovni faqat
+/// vaqtli bo'lsa beradi.
+/// </param>
+public sealed record WorkCredit(
+    DateOnly FromDate,
+    DateOnly ToDate,
+    TimeOnly? FromTime,
+    TimeOnly? ToTime,
+    bool CountsAsWorkTime = true);
 
 /// <summary>Bir kunga tushgan so'rov ulushi — <see cref="WorkCreditRule.Apply"/> natijasi.</summary>
 /// <param name="CreditedMinutes">Ishlangan vaqtga QO'SHILGAN daqiqalar (terminal o'tishlari ustiga).</param>
@@ -97,6 +109,13 @@ public static class WorkCreditRule
 
         foreach (var credit in credits)
         {
+            // ⚠️ Shaxsiy tur — kredit EMAS: uning soatlari ishlangan vaqtdan ayriladi
+            // (`PersonalTimeRule`). Bu yerda olinsa, shaxsiy so'rov ish bo'lib hisoblanardi.
+            if (!credit.CountsAsWorkTime)
+            {
+                continue;
+            }
+
             if (credit.FromTime is { } fromTime && credit.ToTime is { } toTime)
             {
                 // Vaqtli so'rov — o'z sanasining aniq oralig'i; qaysi smenaga
@@ -199,10 +218,10 @@ public static class WorkCreditRule
             CreditedFromAt: firstCredit);
     }
 
-    private static DateTimeOffset At(DateOnly date, TimeOnly time)
+    internal static DateTimeOffset At(DateOnly date, TimeOnly time)
         => new DateTimeOffset(date.ToDateTime(time), BonviTime.TashkentOffset).ToUniversalTime();
 
-    private static long Overlap(DateTimeOffset from, DateTimeOffset to, DateTimeOffset windowFrom, DateTimeOffset windowTo)
+    internal static long Overlap(DateTimeOffset from, DateTimeOffset to, DateTimeOffset windowFrom, DateTimeOffset windowTo)
     {
         var start = from > windowFrom ? from : windowFrom;
         var end = to < windowTo ? to : windowTo;
@@ -210,7 +229,7 @@ public static class WorkCreditRule
     }
 
     /// <summary>Vaqt tartibidagi oraliqlarni kesishgan va tutashganlarini birlashtirib qaytaradi.</summary>
-    private static List<(DateTimeOffset From, DateTimeOffset To)> Merge(List<(DateTimeOffset From, DateTimeOffset To)> ordered)
+    internal static List<(DateTimeOffset From, DateTimeOffset To)> Merge(List<(DateTimeOffset From, DateTimeOffset To)> ordered)
     {
         var result = new List<(DateTimeOffset From, DateTimeOffset To)>(ordered.Count);
 

@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { api } from '@/api/client'
 import { ApiError } from '@/api/errors'
 import type {
   CreateScheduleChangeRequest,
   DayPlanDto,
+  RequestBreakRuleDto,
+  ScheduleChangeDayDto,
   ScheduleChangeDayInput,
   ScheduleChangeKind,
+  ScheduleChangeRequestDto,
 } from '@/api/types'
 import { shortTime } from '@/data/attendance'
-import { invalidateScheduleRequests, usePlan } from '@/data/queries'
+import { invalidateScheduleRequests, useMe, usePlan, useScheduleRequests } from '@/data/queries'
 import {
   MIN_REQUIRED_MINUTES,
   breakDiffersFromWindow,
@@ -20,15 +23,19 @@ import {
   crossesMidnight,
   dayPlanText,
   hoursMinutes,
+  isFriday,
   maxRequiredMinutes,
+  requestBreakProblem,
+  swapPairs,
   wireTime,
+  type BreakRuleProblem,
 } from '@/data/schedule-requests'
 import { addDays, parseIsoDate, todayIso } from '@/lib/time'
 import { useErrorText } from '@/lib/use-error-message'
 import { PushedScreen } from '@/ui/app-shell'
 import { BottomAction, Button } from '@/ui/button'
 import { Card } from '@/ui/card'
-import { InlineMessage, Skeleton, SkeletonLines } from '@/ui/feedback'
+import { EmptyState, ErrorState, InlineMessage, Skeleton, SkeletonLines } from '@/ui/feedback'
 import { DateRow, DurationRow, Field, SegmentedControl, SwitchRow, TextArea, TimeRow } from '@/ui/form'
 import { ConfirmSheet } from '@/ui/sheet'
 import { useToast } from '@/ui/toast'
@@ -111,10 +118,17 @@ function emptyDay(date: string): DayDraft {
 function defaultRequired(draft: DayDraft): number | null {
   if (draft.startTime === '' || draft.endTime === '' || draft.startTime === draft.endTime) return null
 
-  const breakMinutes =
-    draft.breakMinutes ?? (draft.hasBreak ? breakWindowMinutes(draft.breakStart, draft.breakEnd) : 0)
+  return maxRequiredMinutes(draft.startTime, draft.endTime, breakLength(draft))
+}
 
-  return maxRequiredMinutes(draft.startTime, draft.endTime, breakMinutes)
+/**
+ * Kunning AMALDAGI tanaffus uzunligi — server saqlaydigan va ayiradigan son
+ * (`ScheduleChangeRequest.BreakMinutes`): jadvaldagi uzunlik, u bo'lmasa
+ * oynaning o'zi, oynasiz — 0. «Ish vaqti» sukuti ham, tanaffus qoidasi ham
+ * aynan shuni o'qiydi.
+ */
+function breakLength(draft: DayDraft): number {
+  return draft.breakMinutes ?? (draft.hasBreak ? breakWindowMinutes(draft.breakStart, draft.breakEnd) : 0)
 }
 
 /**
@@ -152,6 +166,41 @@ function applyPlan(draft: DayDraft, plan: DayPlanDto): DayDraft {
   }
 }
 
+/**
+ * Tahrirda — saqlangan so'rov kuni (SPEC-sorov-tahriri §7.1). `settledFor` =
+ * sana: joriy reja saqlangan vaqtlarni ustidan yozmaydi. Tanaffus uzunligi ham
+ * saqlanganidan (HR tahriridagi sabab): u qaytarilmasa server oyna uzunligini
+ * olib, 12:00–15:00 oynasidagi 60 daqiqani 180 ga aylantirardi.
+ */
+function dayDraftOf(day: ScheduleChangeDayDto): DayDraft {
+  const breakStart = shortTime(day.breakStart) ?? ''
+  const breakEnd = shortTime(day.breakEnd) ?? ''
+  const flexible = day.isWorking && day.isFlexible === true
+
+  const filled: DayDraft = {
+    key: nextKey(),
+    date: day.date,
+    isWorking: day.isWorking,
+    startTime: shortTime(day.startTime) ?? '',
+    endTime: shortTime(day.endTime) ?? '',
+    hasBreak: breakStart !== '' && breakEnd !== '',
+    breakStart,
+    breakEnd,
+    breakMinutes: day.isWorking ? day.breakMinutes : null,
+    isFlexible: flexible,
+    requiredMinutes: null,
+    settledFor: day.date,
+  }
+
+  // Sukutga teng «Ish vaqti» — `null` (smenaga ergashadi), boshqasi qotadi (`applyPlan` kabi)
+  const required = day.requiredMinutes ?? null
+
+  return {
+    ...filled,
+    requiredMinutes: flexible && required !== null && required !== defaultRequired(filled) ? required : null,
+  }
+}
+
 /** `after` dan keyingi, ro'yxatda hali yo'q birinchi sana. */
 function nextFreeDate(after: string, taken: readonly string[]): string {
   let candidate = addDays(after, 1)
@@ -174,12 +223,39 @@ interface DayErrors {
   breakEnd: string | null
   /** «Ish vaqti» — erkin kunda. */
   required: string | null
+  /** Kompaniyaning tanaffus qoidasi (SPEC-sorov-tahriri §4) — tanaffus bloki ostida. */
+  breakRule: string | null
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
-function dayErrors(t: Translate, draft: DayDraft, duplicate: boolean): DayErrors {
-  const errors: DayErrors = { date: null, start: null, end: null, breakStart: null, breakEnd: null, required: null }
+/** Qoidaning buzilishi — qoidadagi sonlar bilan, xodim nima qilishni bilsin. */
+function breakRuleText(t: Translate, problem: BreakRuleProblem, rule: RequestBreakRuleDto, length: number): string {
+  if (problem === 'window') {
+    return t('schedule.breakRuleWindow', { from: shortTime(rule.from) ?? '', to: shortTime(rule.to) ?? '' })
+  }
+  if (problem === 'windowShort') return t('schedule.breakRuleWindowShort', { n: length })
+  if (problem === 'lengthFriday') {
+    return t('schedule.breakRuleLengthFriday', { min: rule.minutes, max: rule.fridayMaxMinutes })
+  }
+  return t('schedule.breakRuleLength', { n: rule.minutes })
+}
+
+function dayErrors(
+  t: Translate,
+  draft: DayDraft,
+  duplicate: boolean,
+  rule: RequestBreakRuleDto | null,
+): DayErrors {
+  const errors: DayErrors = {
+    date: null,
+    start: null,
+    end: null,
+    breakStart: null,
+    breakEnd: null,
+    required: null,
+    breakRule: null,
+  }
 
   if (duplicate) errors.date = t('schedule.dateDuplicate')
   if (!draft.isWorking) return errors
@@ -222,12 +298,38 @@ function dayErrors(t: Translate, draft: DayDraft, duplicate: boolean): DayErrors
     }
   }
 
+  // Tanaffus qoidasi (12:00–15:00, 60 daqiqa, jumada 60–120) — serverdagi
+  // tartibda mavjud qoidalarning HAMMASIDAN keyin, ya'ni smena, oyna va «Ish
+  // vaqti» to'g'ri bo'lgandagina. Qoida kelmagan bo'lsa (eski server) — faqat
+  // server tekshiradi.
+  if (rule && !errors.start && !errors.end && !errors.breakStart && !errors.breakEnd && !errors.required) {
+    const length = breakLength(draft)
+    const problem = requestBreakProblem(
+      {
+        date: draft.date,
+        isWorking: draft.isWorking,
+        breakStart: draft.hasBreak ? draft.breakStart : null,
+        breakEnd: draft.hasBreak ? draft.breakEnd : null,
+        breakMinutes: length,
+      },
+      rule,
+    )
+
+    if (problem !== null) errors.breakRule = breakRuleText(t, problem, rule, length)
+  }
+
   return errors
 }
 
 function hasAnyError(errors: DayErrors): boolean {
   return Boolean(
-    errors.date || errors.start || errors.end || errors.breakStart || errors.breakEnd || errors.required,
+    errors.date ||
+      errors.start ||
+      errors.end ||
+      errors.breakStart ||
+      errors.breakEnd ||
+      errors.required ||
+      errors.breakRule,
   )
 }
 
@@ -292,24 +394,128 @@ function scrollToFirstError(): void {
  * Varaqdagi ikki qator shu bitta ekranni ochadi (SPEC-erkin-jadval §7.2):
  * `?tur=almashtirish` — «Kun almashtirish», qolgani — «Jadval o'zgartirish».
  * Segment joyida qoladi, sarlavha turga ergashadi.
+ *
+ * Manzilda `:id` bo'lsa (`/sorovlar/jadval/:id/ozgartirish`) — TAHRIR rejimi:
+ * qaror kutayotgan so'rov o'zgartiriladi (SPEC-sorov-tahriri §7.1).
  */
 export function ScheduleRequestNewScreen() {
+  const { id } = useParams<{ id: string }>()
+
+  return id ? <ScheduleRequestEditScreen id={id} /> : <ScheduleRequestForm editing={null} />
+}
+
+/**
+ * Tahrir rejimi — `request-new` dagi `RequestEditScreen` ning egizagi:
+ * so'rov keshdan, forma faqat qaror kutayotgan so'rovda. Skelet faqat
+ * ro'yxat umuman yo'qligida — 409 dan keyingi qayta o'qish formani yopmaydi.
+ */
+function ScheduleRequestEditScreen({ id }: { id: string }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+
+  const requests = useScheduleRequests()
+  const request = (requests.data ?? []).filter((item) => item.id === id)[0] ?? null
+
+  // 409 dan keyin forma so'rovning YANGI holati bilan qayta chiziladi (kalit — versiya) va
+  // xodimga sababi aytiladi: eski qiymatlar ustidan «Saqlash» HR o'zgarishini ko'rmasdan yozib yuborardi.
+  const [staleSeen, setStaleSeen] = useState(false)
+
+  const reload = (): void => {
+    setStaleSeen(true)
+    invalidateScheduleRequests()
+    requests.refetch()
+  }
+
+  if (!requests.data) {
+    return (
+      <PushedScreen title={t('requests.editTitle')}>
+        <Card>{requests.error ? <ErrorState onRetry={requests.refetch} /> : <SkeletonLines rows={5} />}</Card>
+      </PushedScreen>
+    )
+  }
+
+  if (!request) {
+    return (
+      <PushedScreen title={t('requests.editTitle')}>
+        <Card>
+          <EmptyState
+            icon="document-text"
+            title={t('requests.notFound')}
+            text={t('requests.notFoundText')}
+            action={<Button onClick={() => navigate('/sorovlar')}>{t('requests.title')}</Button>}
+          />
+        </Card>
+      </PushedScreen>
+    )
+  }
+
+  if (request.status !== 'Pending') {
+    return (
+      <PushedScreen title={t('requests.editTitle')}>
+        <InlineMessage
+          tone="warning"
+          action={
+            <Button variant="secondary" size="compact" onClick={() => navigate(-1)}>
+              {t('common.back')}
+            </Button>
+          }
+        >
+          {t('requests.notEditable')}
+        </InlineMessage>
+      </PushedScreen>
+    )
+  }
+
+  return <ScheduleRequestForm key={`${request.id}:${request.version ?? 0}`} editing={request} onStale={reload} staleNotice={staleSeen} />
+}
+
+function ScheduleRequestForm({
+  editing,
+  onStale,
+  staleNotice = false,
+}: {
+  editing: ScheduleChangeRequestDto | null
+  onStale?: () => void
+  staleNotice?: boolean
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const toast = useToast()
   const errorText = useErrorText()
   const [params] = useSearchParams()
 
-  const prefill = parseIsoDate(params.get('kun')) ? `${params.get('kun')}` : todayIso()
+  // Tanaffus qoidasi `GET /api/me` dan; kelmaguncha (yoki eski serverda) — faqat server tekshiradi
+  const me = useMe()
+  const rule = me.data?.requestBreakRule ?? null
 
-  const [kind, setKind] = useState<ScheduleChangeKind>(() =>
-    params.get('tur') === 'almashtirish' ? 'Swap' : 'Change',
+  // Tahrirda boshqa turning sukuti — so'rovning birinchi sanasidan
+  const prefill = editing
+    ? editing.days[0]?.date ?? todayIso()
+    : parseIsoDate(params.get('kun'))
+      ? `${params.get('kun')}`
+      : todayIso()
+
+  // Boshlang'ich qiymatlar BIR MARTA: 409 dan keyin qayta o'qilgan so'rov
+  // xodim yozganini ustidan yozmaydi.
+  const [initial] = useState(() => ({
+    kind: editing ? editing.kind : params.get('tur') === 'almashtirish' ? ('Swap' as const) : ('Change' as const),
+    note: editing?.note ?? '',
+  }))
+
+  const [kind, setKind] = useState<ScheduleChangeKind>(initial.kind)
+  const [days, setDays] = useState<DayDraft[]>(() =>
+    editing && editing.kind === 'Change' && editing.days.length > 0
+      ? editing.days.map(dayDraftOf)
+      : [emptyDay(prefill)],
   )
-  const [days, setDays] = useState<DayDraft[]>(() => [emptyDay(prefill)])
-  const [pairs, setPairs] = useState<PairDraft[]>(() => [
-    { key: nextKey(), date: prefill, withDate: addDays(prefill, 1) },
-  ])
-  const [note, setNote] = useState('')
+  const [pairs, setPairs] = useState<PairDraft[]>(() => {
+    const saved = editing && editing.kind === 'Swap' ? swapPairs(editing.days) : []
+
+    return saved.length > 0
+      ? saved.map((pair) => ({ key: nextKey(), date: pair.date, withDate: pair.withDate }))
+      : [{ key: nextKey(), date: prefill, withDate: addDays(prefill, 1) }]
+  })
+  const [note, setNote] = useState(initial.note)
 
   const [edited, setEdited] = useState(false)
   const [touched, setTouched] = useState(false)
@@ -320,7 +526,7 @@ export function ScheduleRequestNewScreen() {
   const tr: Translate = (key, options) => t(key, options)
 
   const dayErrorList = days.map((draft, index) =>
-    dayErrors(tr, draft, days.slice(0, index).some((other) => other.date === draft.date)),
+    dayErrors(tr, draft, days.slice(0, index).some((other) => other.date === draft.date), rule),
   )
   const pairErrorList = pairs.map((_pair, index) => pairErrors(tr, pairs, index))
 
@@ -393,20 +599,37 @@ export function ScheduleRequestNewScreen() {
           }
 
     try {
-      await api.createScheduleRequest(body)
+      if (editing) {
+        // Versiya — xodim ko'rgan nusxaniki (SPEC-sorov-tahriri §3.3)
+        await api.updateScheduleRequest(editing.id, { ...body, version: editing.version ?? 0 })
 
-      invalidateScheduleRequests()
-      toast.show(t('requests.sent'), 'success')
-      navigate('/sorovlar', { replace: true })
+        invalidateScheduleRequests()
+        toast.show(t('requests.saved'), 'success')
+        // Tafsilot ekraniga qaytish — u yangilangan so'rovni qaytadan o'qiydi
+        navigate(-1)
+      } else {
+        await api.createScheduleRequest(body)
+
+        invalidateScheduleRequests()
+        toast.show(t('requests.sent'), 'success')
+        navigate('/sorovlar', { replace: true })
+      }
     } catch (cause: unknown) {
-      setSendError(ApiError.from(cause))
+      const error = ApiError.from(cause)
+      setSendError(error)
+      // 409 — boshqa joyda o'zgargan yoki endi kutmayapti: ro'yxat yangidan,
+      // forma esa yozilganini saqlaydi
+      if (editing && error.status === 409 && onStale) onStale()
     } finally {
       setSending(false)
     }
   }
 
+  // Tahrirda turni almashtirishning o'zi ham saqlangan so'rovni o'zgartiradi
+  const dirty = edited || note !== initial.note || (editing !== null && kind !== initial.kind)
+
   const goBack = (): void => {
-    if (edited || note.length > 0) {
+    if (dirty) {
       setLeaveOpen(true)
       return
     }
@@ -416,10 +639,12 @@ export function ScheduleRequestNewScreen() {
   return (
     <>
       <PushedScreen
-        title={kind === 'Swap' ? t('schedule.newTitleSwap') : t('schedule.newTitle')}
+        title={editing ? t('requests.editTitle') : kind === 'Swap' ? t('schedule.newTitleSwap') : t('schedule.newTitle')}
         onBack={goBack}
         bottomSpace
       >
+        {staleNotice ? <InlineMessage tone="warning">{t('requests.staleReloaded')}</InlineMessage> : null}
+
         <Card>
           <SegmentedControl<ScheduleChangeKind>
             label={t('schedule.kind')}
@@ -444,6 +669,7 @@ export function ScheduleRequestNewScreen() {
                 number={index + 1}
                 showHeader={days.length > 1}
                 errors={touched ? dayErrorList[index] ?? null : null}
+                rule={rule}
                 onSettle={(next) => settleDay(draft.key, next)}
                 onEdit={(next) => editDay(draft.key, next)}
                 onRemove={days.length > 1 ? () => removeDay(draft.key) : undefined}
@@ -489,7 +715,11 @@ export function ScheduleRequestNewScreen() {
         </Card>
 
         {sendError ? (
-          <InlineMessage tone="danger" title={t('requests.sendFailed')} assertive>
+          <InlineMessage
+            tone="danger"
+            title={editing ? t('requests.editFailed') : t('requests.sendFailed')}
+            assertive
+          >
             {errorText(sendError).body}
           </InlineMessage>
         ) : null}
@@ -497,7 +727,7 @@ export function ScheduleRequestNewScreen() {
 
       <BottomAction>
         <Button block busy={sending} onClick={() => void submit()}>
-          {t('common.submit')}
+          {editing ? t('common.save') : t('common.submit')}
         </Button>
       </BottomAction>
 
@@ -548,6 +778,7 @@ function DayBlock({
   number,
   showHeader,
   errors,
+  rule,
   onSettle,
   onEdit,
   onRemove,
@@ -556,6 +787,8 @@ function DayBlock({
   number: number
   showHeader: boolean
   errors: DayErrors | null
+  /** Tanaffus qoidasi — maydonlar ostidagi izoh uchun; `null` — izoh yo'q. */
+  rule: RequestBreakRuleDto | null
   onSettle: (next: DayDraft) => void
   onEdit: (next: DayDraft) => void
   onRemove?: () => void
@@ -602,6 +835,15 @@ function DayBlock({
 
   const current =
     planForDate && planForDate.hasSchedule ? t('schedule.currentPlan', { plan: dayPlanText(t, planForDate) }) : undefined
+
+  // Qoida oldindan aytiladi — xato chiqqandan keyin emas. Jumada uzunlik oralig'i boshqa.
+  const ruleRange = rule ? { from: shortTime(rule.from) ?? '', to: shortTime(rule.to) ?? '' } : null
+  const breakRuleHint =
+    rule && ruleRange
+      ? isFriday(draft.date)
+        ? t('schedule.breakRuleHintFriday', { ...ruleRange, min: rule.minutes, max: rule.fridayMaxMinutes })
+        : t('schedule.breakRuleHint', { ...ruleRange, n: rule.minutes })
+      : null
 
   // «Ish vaqti»: tanlanmagan bo'lsa — sukut (smena − tanaffus), u smena bilan birga o'zgaradi
   const maxRequired = defaultRequired(draft)
@@ -713,11 +955,21 @@ function DayBlock({
                         onChange={(value) => editBreak({ breakEnd: value })}
                       />
                     </Field>
+
+                    {breakRuleHint ? <p className="nums text-footnote text-fg-tertiary">{breakRuleHint}</p> : null}
                   </>
                 ) : null}
 
                 {keptBreak !== null ? (
                   <p className="nums text-footnote text-fg-tertiary">{t('schedule.breakKept', { n: keptBreak })}</p>
+                ) : null}
+
+                {/* Qoida buzilsa — tanaffus blokining o'zi ostida; `data-invalid` bilan,
+                    yuborishda shu yerga aylantiriladi (UX §E.5). */}
+                {errors && errors.breakRule ? (
+                  <p className="nums text-footnote text-danger-text" data-invalid="">
+                    {errors.breakRule}
+                  </p>
                 ) : null}
 
                 {/* «Erkin ish jadvali» (SPEC-erkin-jadval §7.2): kun «Ish vaqti» bo'yicha

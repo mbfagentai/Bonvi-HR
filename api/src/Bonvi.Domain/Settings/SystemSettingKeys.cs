@@ -581,6 +581,34 @@ public static class SystemSettingKeys
     public const string PassRetentionDays = "attendance.passRetentionDays";
 
     /// <summary>
+    /// Jadval so'rovidagi tanaffusning ruxsat etilgan oralig'i — BOSHI, kun daqiqasi
+    /// (720 = 12:00).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// To'rtta kalit bitta qoida: <c>RequestBreakRule</c> (SPEC-sorov-tahriri §2.2, §4). «Kunni
+    /// o'zgartirish» so'rovining ish kunida tanaffus shu oraliqda, <see cref="RequestBreakMinutes"/>
+    /// uzunlikda (jumada <see cref="RequestBreakFridayMaxMinutes"/> gacha) bo'lishi kerak — ilova
+    /// va HR formasida, yaratish va tahrirda. Avval yuborilgan so'rovlar qayta tekshirilmaydi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Sozlamalar sahifasida (<c>GROUPS</c>) EMAS — «Ish jadvallari» sahifasidagi kartada
+    /// tahrirlanadi, saqlash muddatlari kabi. Kalitlararo qoida (boshi &lt; oxiri, uzunlik ≤ jumadagi,
+    /// jumadagi ≤ oraliq) — <c>UpdateSettingsCommandHandler</c> da.
+    /// </para>
+    /// </remarks>
+    public const string RequestBreakFrom = "attendance.requestBreakFrom";
+
+    /// <summary>Tanaffus oralig'ining OXIRI, kun daqiqasi (900 = 15:00).</summary>
+    public const string RequestBreakTo = "attendance.requestBreakTo";
+
+    /// <summary>Talab qilingan tanaffus uzunligi (daqiqa) — dushanba–payshanba, shanba, yakshanba; jumada eng kami.</summary>
+    public const string RequestBreakMinutes = "attendance.requestBreakMinutes";
+
+    /// <summary>Jumadagi eng uzun tanaffus (daqiqa) — juma namozi.</summary>
+    public const string RequestBreakFridayMaxMinutes = "attendance.requestBreakFridayMaxMinutes";
+
+    /// <summary>
     /// Shu sana va undan OLDINGI kunlar qayta hisoblanmaydi — ularning xom
     /// o'tishlari saqlash muddati bilan o'chirilgan bo'lishi mumkin. Serverning
     /// O'ZI yozadi (<see cref="SystemSettingKind.Hidden"/>), <c>yyyy-MM-dd</c>.
@@ -988,6 +1016,34 @@ public static class SystemSettingKeys
             // amalda bir xil, cheksizning o'z qiymati esa allaqachon bor.
             Max: 3650,
             AllowZero: true),
+
+        // Jadval so'rovidagi tanaffus qoidasi — saqlash muddatlaridan KEYIN, davomat guruhida.
+        // Sukutlar domendan (`AttendanceRules`), chegaralar SPEC-sorov-tahriri §2.2 dan:
+        // kun daqiqasi 0…1439, uzunlik 1…480 (jadval kunidagi tanaffus chegarasi bilan bir xil).
+        new(
+            RequestBreakFrom,
+            SystemSettingKind.Number,
+            Number(AttendanceRules.DefaultRequestBreakFromMinute),
+            Min: 0,
+            Max: 1439),
+        new(
+            RequestBreakTo,
+            SystemSettingKind.Number,
+            Number(AttendanceRules.DefaultRequestBreakToMinute),
+            Min: 1,
+            Max: 1439),
+        new(
+            RequestBreakMinutes,
+            SystemSettingKind.Number,
+            Number(AttendanceRules.DefaultRequestBreakMinutes),
+            Min: 1,
+            Max: WorkScheduleDay.MaxBreakMinutes),
+        new(
+            RequestBreakFridayMaxMinutes,
+            SystemSettingKind.Number,
+            Number(AttendanceRules.DefaultRequestBreakFridayMaxMinutes),
+            Min: 1,
+            Max: WorkScheduleDay.MaxBreakMinutes),
 
         new(
             ReapplyMonths,
