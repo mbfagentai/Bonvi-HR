@@ -1276,7 +1276,8 @@
     "subtitle": "{{n}} та буйруқ",
     "title": "Буйруқлар",
     "type": "Тури",
-    "searchAnyPlaceholder": "Буйруқ рақами, Ф.И.Ш., ЖШШИР, телефон…"
+    "searchAnyPlaceholder": "Буйруқ рақами, Ф.И.Ш., ЖШШИР, телефон…",
+    "typeTabs": "Буйруқ тури"
   },
   "competency": {
     "languages": "Тил билиш",

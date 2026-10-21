@@ -10,12 +10,13 @@ import { useLocale } from '@/shared/i18n/use-locale'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Card,
+  dataColumnHelper,
   DataTable,
   EmptyState,
   IconTile,
   PageHeader,
   Pagination,
-  dataColumnHelper,
+  SegmentedControl,
   type DataColumn,
 } from '@/shared/ui'
 import type { EmploymentEventItem } from '../api/employments-api'
@@ -52,6 +53,14 @@ const route = getRouteApi('/_app/buyruqlar')
  * xodimlar aralash, buyruq raqami bo'yicha qidirish va sana oralig'i
  * bilan filtrlash mumkin.
  */
+/**
+ * Sahifa tepasidagi tez tablar (egasi, 2026-10-21: «lavozimi o'zgarganlarni bir bosishda ko'rish»).
+ * Har biri toolbardagi «Turi» filtrining o'zi — alohida holat yo'q, manzil ham o'sha `type`.
+ * Qolgan turlar (oklad, qo'shimcha vazifa, sinov natijasi, qayta qabul) toolbardagi ro'yxatda.
+ */
+const TYPE_TABS = ['hire', 'promotion', 'transfer', 'termination'] as const
+type TypeTab = (typeof TYPE_TABS)[number] | 'all'
+
 export function EmploymentEventsPage() {
   const { t, num } = useLocale()
   const { hasPermission } = useAuth()
@@ -219,6 +228,14 @@ export function EmploymentEventsPage() {
     ],
     [canSeeSalary, t],
   )
+  /*
+    Bitta tur tanlanganda «Turi» ustuni har qatorda bir xil — u joyni «Tafsilot» ga beradi:
+    «Lavozim o'zgarishi» tabida aynan «eski → yangi lavozim» kerak, u esa tor ustunda kesilardi.
+  */
+  const visibleColumns = useMemo(
+    () => (filters.type === '' ? columns : columns.filter((column) => !('accessorKey' in column && column.accessorKey === 'type'))),
+    [columns, filters.type],
+  )
 
   const events = query.data?.items ?? EMPTY
   const total = query.data?.total ?? 0
@@ -238,12 +255,22 @@ export function EmploymentEventsPage() {
         subtitle={firstLoad ? t('common.loading') : t('employments.subtitle', { n: num(total) })}
       />
 
+      <SegmentedControl<TypeTab>
+        value={(TYPE_TABS as readonly string[]).includes(filters.type) ? (filters.type as TypeTab) : 'all'}
+        onChange={(next) => changeFilters({ ...filters, type: next === 'all' ? '' : next })}
+        aria-label={t('employments.typeTabs')}
+        options={[
+          { value: 'all', label: t('common.all') },
+          ...TYPE_TABS.map((type) => ({ value: type, label: t(`employees.events.${type}`) })),
+        ]}
+      />
+
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <EmploymentsToolbar filters={filters} onChange={changeFilters} options={options} />
 
         <DataTable
           fill
-          columns={columns}
+          columns={visibleColumns}
           data={events}
           getRowId={(event) => event.id}
           loading={firstLoad}
@@ -380,9 +407,11 @@ function DetailsCell({
 
 function ChangeLine({ label, from, to }: { label: string; from: string | null; to: string }) {
   return (
-    <p className="truncate-1 flex items-baseline gap-1 text-footnote">
+    // `truncate-1` (-webkit-box) `flex` bilan to'qnashib qiymatni butunlay yashirardi — qator `flex`,
+    // qiymat esa oddiy bir qatorli `truncate`, to'liq matn `title` da
+    <p className="flex min-w-0 items-baseline gap-1 text-footnote" title={`${label}: ${from !== null ? `${from} → ` : ''}${to}`}>
       <span className="shrink-0 text-[var(--fg-tertiary)]">{label}:</span>
-      <span className="truncate-1 font-medium">
+      <span className="min-w-0 truncate font-medium">
         {from !== null && `${from} → `}
         {to}
       </span>
@@ -405,9 +434,9 @@ function MoneyChangeLine({
   const toText = money(to.amount, to.currency)
 
   return (
-    <p className="tabular truncate-1 flex items-baseline gap-1 text-footnote">
+    <p className="tabular flex min-w-0 items-baseline gap-1 text-footnote">
       <span className="shrink-0 text-[var(--fg-tertiary)]">{label}:</span>
-      <span className="truncate-1 font-medium">
+      <span className="min-w-0 truncate font-medium">
         {fromText !== null && fromText !== toText && `${fromText} → `}
         {toText}
       </span>

@@ -1276,7 +1276,8 @@
     "subtitle": "{{n}} приказов",
     "title": "Приказы",
     "type": "Тип",
-    "searchAnyPlaceholder": "Номер приказа, Ф.И.О., ПИНФЛ, телефон…"
+    "searchAnyPlaceholder": "Номер приказа, Ф.И.О., ПИНФЛ, телефон…",
+    "typeTabs": "Тип приказа"
   },
   "competency": {
     "languages": "Знание языков",

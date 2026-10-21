@@ -1276,7 +1276,8 @@
     "subtitle": "{{n}} orders",
     "title": "Orders",
     "type": "Type",
-    "searchAnyPlaceholder": "Order number, name, PINFL, phone…"
+    "searchAnyPlaceholder": "Order number, name, PINFL, phone…",
+    "typeTabs": "Order type"
   },
   "competency": {
     "languages": "Languages",

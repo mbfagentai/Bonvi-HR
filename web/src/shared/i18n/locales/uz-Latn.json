@@ -1276,7 +1276,8 @@
     "subtitle": "{{n}} ta buyruq",
     "title": "Buyruqlar",
     "type": "Turi",
-    "searchAnyPlaceholder": "Buyruq raqami, F.I.Sh., JSHSHIR, telefon…"
+    "searchAnyPlaceholder": "Buyruq raqami, F.I.Sh., JSHSHIR, telefon…",
+    "typeTabs": "Buyruq turi"
   },
   "competency": {
     "languages": "Til bilish",
