@@ -103,6 +103,10 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// joyda — ariza sanasi (ro'yxatdagi «createdAt», Toshkent kuni bo'yicha).
 /// </param>
 /// <param name="To">Sana oralig'ining oxiri (kiradi).</param>
+/// <param name="ByClosedDate">
+/// <c>true</c> — oraliq ro'yxatga TUSHGAN sana (<c>closed_at</c>) bo'yicha: «Rezerv» va «Qora ro'yxat»
+/// bo'limlari (egasi, 2026-10-21). «Rad etilganlar» da (<paramref name="Rejected"/>) u o'zi shunday.
+/// </param>
 public sealed record SearchCandidatesQuery(
     string? Search = null,
     Guid? VacancyId = null,
@@ -117,7 +121,8 @@ public sealed record SearchCandidatesQuery(
     bool Rejected = false,
     bool IncludeRejected = false,
     DateOnly? From = null,
-    DateOnly? To = null);
+    DateOnly? To = null,
+    bool ByClosedDate = false);
 
 public sealed record GetCandidateQuery(Guid CandidateId);
 
@@ -508,7 +513,9 @@ public sealed class SearchCandidatesQueryHandler
           almashib qolardi — HR bir xil maydonga ikki xil savol berayotganini
           sezmasdi.
         */
-        var byClosedDate = query.Rejected;
+        // «Rezerv» va «Qora ro'yxat» bo'limlari ham (egasi, 2026-10-21): o'sha ro'yxatga
+        // TUSHGAN sana — `closed_at` (rezervga o'tkazilgan / qora ro'yxatga qo'yilgan kun).
+        var byClosedDate = query.Rejected || query.ByClosedDate;
 
         // Bo'sh matn `null` ga aylantiriladi: «?search=» — «qidiruvsiz»,
         // «hech narsa topilmasin» emas (barcha ro'yxatlarda bir xil qoida).

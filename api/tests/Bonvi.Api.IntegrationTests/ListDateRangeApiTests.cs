@@ -275,6 +275,48 @@ public sealed class ListDateRangeApiTests : IClassFixture<BonviApiFactory>
         topilgan.ShouldBe(Kutilgan(urug.Idlar, kutilgan), ignoreOrder: true);
     }
 
+    /// <summary>
+    /// «Rezerv» / «Qora ro'yxat» (`closedDate=true`) — ro'yxatga TUSHGAN sana bo'yicha (egasi, 2026-10-21).
+    /// </summary>
+    /// <remarks>
+    /// Ikkalasi 10-oktabrda ariza bergan, lekin Z1 20-sentyabrda rezervga, Q1 25-sentyabrda qora
+    /// ro'yxatga tushgan: `closedDate=true` bilan 10-oktabr oralig'i BO'SH, sentyabr — ular.
+    /// </remarks>
+    [Theory]
+    [InlineData("status=Reserve&closedDate=true&from=2026-09-01&to=2026-09-30", "Z1")]
+    [InlineData("status=Reserve&closedDate=true&from=2026-10-10&to=2026-10-10", "")]
+    [InlineData("status=Reserve&from=2026-10-10&to=2026-10-10", "Z1")]
+    [InlineData("status=Blacklisted&closedDate=true&from=2026-09-25&to=2026-09-25", "Q1")]
+    [InlineData("status=Blacklisted&closedDate=true&to=2026-09-24", "")]
+    public async Task Rezerv_va_qora_royxat_tushgan_sana_boyicha(string sorov, string kutilgan)
+    {
+        var belgi = Belgi();
+
+        Guid vakansiyaId, z1Id, q1Id;
+        await using (var qamrov = _factory.Services.CreateAsyncScope())
+        {
+            var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vakansiya = Vacancy.Open("Рўйхат санаси " + belgi, new DateOnly(2026, 8, 1), openings: 5).Value;
+            var z1 = Candidate.Register(FullName.Create("Номзодов", "Зафар", belgi).Value, vakansiya.Id).Value;
+            z1.MoveToReserve(new DateOnly(2026, 9, 20)).IsSuccess.ShouldBeTrue();
+            var q1 = Candidate.Register(FullName.Create("Номзодов", "Қосим", belgi).Value, vakansiya.Id).Value;
+            q1.Blacklist(new DateOnly(2026, 9, 25), "sinov").IsSuccess.ShouldBeTrue();
+
+            kontekst.Add(vakansiya);
+            kontekst.AddRange(z1, q1);
+            await kontekst.SaveChangesAsync(Ct);
+            await YaratilganAsync(kontekst, z1.Id, new DateTimeOffset(2026, 10, 10, 5, 0, 0, TimeSpan.Zero));
+            await YaratilganAsync(kontekst, q1.Id, new DateTimeOffset(2026, 10, 10, 5, 0, 0, TimeSpan.Zero));
+            (vakansiyaId, z1Id, q1Id) = (vakansiya.Id, z1.Id, q1.Id);
+        }
+
+        using var client = await AdminMijozAsync();
+
+        var topilgan = await IdlarAsync(client, $"/api/recruiting/candidates?vacancyId={vakansiyaId}&includeArchive=true&{sorov}", "id");
+
+        topilgan.ShouldBe(Kutilgan(new Dictionary<string, Guid> { ["Z1"] = z1Id, ["Q1"] = q1Id }, kutilgan), ignoreOrder: true);
+    }
+
     /// <summary>Nomzodlar sanog'i ham oraliqdan keyin.</summary>
     [Fact]
     public async Task Nomzodlar_sanogi_oraliqqa_mos()

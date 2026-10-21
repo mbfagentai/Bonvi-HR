@@ -111,6 +111,7 @@ export function ReserveCandidatesPage({
     {
       status: 'Reserve',
       includeArchive: true,
+      closedDate: true,
       search: search === '' ? undefined : search,
       from: range.from === '' ? undefined : range.from,
       to: range.to === '' ? undefined : range.to,
@@ -233,13 +234,13 @@ export function ReserveCandidatesPage({
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {/* Nomzodlarda oraliq ARIZA kuni bo'yicha — yorliq shuni aytadi */}
               <DateField
-                label={t('recruiting.appliedFrom')}
+                label={t('recruiting.reservedFrom')}
                 value={range.from}
                 max={range.to === '' ? undefined : range.to}
                 onChange={(value) => onRangeChange({ ...range, from: value })}
               />
               <DateField
-                label={t('recruiting.appliedTo')}
+                label={t('recruiting.reservedTo')}
                 value={range.to}
                 min={range.from === '' ? undefined : range.from}
                 onChange={(value) => onRangeChange({ ...range, to: value })}

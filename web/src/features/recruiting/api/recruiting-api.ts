@@ -651,6 +651,11 @@ export interface CandidateFilters {
    */
   includeRejected?: boolean
   /**
+   * `from`/`to` ro'yxatga TUSHGAN sana bo'yicha (`closed_at`) — «Rezerv» va «Qora ro'yxat»
+   * bo'limlari (egasi, 2026-10-21). Bo'lmasa — ariza sanasi.
+   */
+  closedDate?: boolean
+  /**
    * Excel'dan ko'chirilgan kengash ARXIVI ham qo'shilsinmi.
    *
    * Sukut bo'yicha server arxivni ro'yxatdan chiqaradi (ekran «hozir kim
@@ -1142,6 +1147,7 @@ export async function fetchCandidates(
       contactDue: filters.contactDue === true ? true : undefined,
       rejected: filters.rejected === true ? true : undefined,
       includeRejected: filters.includeRejected === true ? true : undefined,
+      closedDate: filters.closedDate === true ? true : undefined,
       includeArchive: filters.includeArchive === true ? true : undefined,
       from: filters.from,
       to: filters.to,

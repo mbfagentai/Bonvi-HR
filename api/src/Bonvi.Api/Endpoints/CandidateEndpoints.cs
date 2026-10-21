@@ -397,6 +397,7 @@ public static class CandidateEndpoints
                 bool? includeRejected,
                 DateOnly? from,
                 DateOnly? to,
+                bool? closedDate,
                 SearchCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -405,7 +406,7 @@ public static class CandidateEndpoints
                         new SearchCandidatesQuery(
                             search, vacancyId, stageId, status, source, page, pageSize, sort,
                             includeArchive ?? false, contactDue ?? false, rejected ?? false,
-                            includeRejected ?? false, from, to),
+                            includeRejected ?? false, from, to, closedDate ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -415,6 +416,8 @@ public static class CandidateEndpoints
             .WithName("SearchCandidates")
             .WithSummary("Nomzodlar — ro'yxat va voronka")
             .WithDescription(
+                "«closedDate=true» — «from/to» ariza sanasi emas, ro'yxatga TUSHGAN sana (`closed_at`) bo'yicha: " +
+                "«Rezerv» va «Qora ro'yxat» bo'limlari shuni yuboradi («rejected=true» da u o'zi shunday). " +
                 "SERVER tomonda sahifalanadi, filtrlanadi va saralanadi. " +
                 "«search» — F.I.Sh. yoki TELEFON bo'yicha (nomzodda JSHSHIR va pasport " +
                 "bo'lmaydi); qidiruv xodimlar ro'yxatidagi kabi kirill imlo variantlarini " +
