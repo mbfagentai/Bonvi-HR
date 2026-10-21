@@ -1,5 +1,14 @@
 import { getRouteApi } from '@tanstack/react-router'
-import { CalendarClock, CircleAlert, Search, Timer, UserPlus } from 'lucide-react'
+import {
+  CalendarClock,
+  CircleAlert,
+  ListFilter,
+  Search,
+  SearchX,
+  Timer,
+  UserPlus,
+  X,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
@@ -12,8 +21,17 @@ import {
   EMPLOYMENT_PROBATION_COMPLETE,
   EMPLOYMENT_PROBATION_EXTEND,
 } from '@/features/employees/lib/employee-presentation'
-import { useLocale } from '@/shared/i18n/use-locale'
-import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
+import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import {
+  NO_DATE_RANGE,
+  dateRangeToSearch,
+  hasDateRange,
+  isDateRangeInverted,
+  searchToDateRange,
+  toSearchParam,
+  useSearchDraft,
+  type DateRange,
+} from '@/shared/lib/list-search'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
@@ -21,6 +39,7 @@ import {
   Button,
   Card,
   DataTable,
+  DateField,
   EmptyState,
   Pagination,
   IconTile,
@@ -76,6 +95,7 @@ const STATUS_TONE: Readonly<Record<ProbationStatus, BadgeTone>> = {
  */
 export function ProbationsPage() {
   const { t, num } = useLocale()
+  const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
 
   /*
@@ -127,7 +147,39 @@ export function ProbationsPage() {
   const [extending, setExtending] = useState<ProbationItem | null>(null)
   const [hireOpen, setHireOpen] = useState(false)
 
-  const filters: ProbationFilters = { status, search: search.q ?? '', page, pageSize }
+  /*
+   * Sinov TUGASH sanasi oralig'i — manzilda (`sinov.tsx`). Yig'ilgan panel
+   * oraliq qo'yilgan bo'lsa ochiq boshlanadi: aks holda HR «nega ro'yxat
+   * qisqa?» degan savolga javob topolmasdi (`IncentivesToolbar` naqshi).
+   */
+  const range = searchToDateRange(search)
+  const rangeCount = [range.from, range.to].filter((value) => value !== '').length
+  const [rangeOpen, setRangeOpen] = useState(rangeCount > 0)
+
+  /*
+   * Teskari oraliq bilan so'rov YUBORILMAYDI: server baribir 400 qaytaradi,
+   * ekran esa sababni toolbar ostida darhol aytadi
+   * (`attendance-passes-page.tsx` naqshi).
+   */
+  const rangeInvalid = isDateRangeInverted(range)
+
+  const filters: ProbationFilters = {
+    status,
+    search: search.q ?? '',
+    from: range.from,
+    to: range.to,
+    page,
+    pageSize,
+  }
+
+  /** Oraliq o'zgarsa birinchi sahifadan — 3-sahifa yangi natijada bo'sh bo'lishi mumkin. */
+  const changeRange = (next: DateRange) => {
+    setPage(1)
+    void navigate({
+      search: (previous) => ({ ...previous, ...dateRangeToSearch(next) }),
+      replace: true,
+    })
+  }
 
   /*
    * Qidiruv har harfda so'rov yubormaydi (350 ms) va matn manzilga
@@ -142,10 +194,14 @@ export function ProbationsPage() {
    */
   const [draft, setDraft] = useSearchDraft(filters.search, (value) => {
     setPage(1)
-    void navigate({ search: { q: toSearchParam(value) }, replace: true })
+    // Avvalgi manzil saqlanadi — qidiruv sana oralig'ini o'chirib yubormasin
+    void navigate({
+      search: (previous) => ({ ...previous, q: toSearchParam(value) }),
+      replace: true,
+    })
   })
 
-  const list = useProbations(filters)
+  const list = useProbations(filters, !rangeInvalid)
   const warning = useEndingSoon()
 
   /*
@@ -157,8 +213,8 @@ export function ProbationsPage() {
    */
   const options = useFilterOptions()
 
-  const rows = list.data?.items ?? EMPTY
-  const total = list.data?.total ?? 0
+  const rows = rangeInvalid ? EMPTY : (list.data?.items ?? EMPTY)
+  const total = rangeInvalid ? 0 : (list.data?.total ?? 0)
 
   // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
   useClampPage(page, pageSize, list.isPlaceholderData ? undefined : list.data?.total, setPage)
@@ -390,36 +446,108 @@ export function ProbationsPage() {
             }}
             className="w-full sm:w-[260px]"
           />
+
+          {/*
+            «Filtrlar» — sana oralig'i yig'ilgan panelda (`IncentivesToolbar`
+            naqshi): qidiruv va holat kundalik, oraliq esa kamdan-kam
+            o'zgaradi va doim ochiq tursa ro'yxatni pastga surardi.
+          */}
+          <Button
+            type="button"
+            pill
+            variant={rangeOpen ? 'soft' : 'secondary'}
+            aria-expanded={rangeOpen}
+            onClick={() => setRangeOpen((previous) => !previous)}
+          >
+            <ListFilter />
+            <span className="hidden sm:inline">{t('common.filters')}</span>
+            {rangeCount > 0 && (
+              <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
+                {num(rangeCount)}
+              </span>
+            )}
+          </Button>
         </div>
+
+        {rangeOpen && (
+          <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {/* Oraliq sinov TUGASH sanasi bo'yicha (`endDate`) — yorliq shuni aytadi */}
+              <DateField
+                label={t('probation.endFrom')}
+                value={range.from}
+                max={range.to === '' ? undefined : range.to}
+                onChange={(value) => changeRange({ ...range, from: value })}
+              />
+              <DateField
+                label={t('probation.endTo')}
+                value={range.to}
+                min={range.from === '' ? undefined : range.from}
+                onChange={(value) => changeRange({ ...range, to: value })}
+              />
+            </div>
+
+            {hasDateRange(range) && (
+              <div className="mt-3.5 flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => changeRange(NO_DATE_RANGE)}
+                >
+                  <X />
+                  {t('employees.clearFilters')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {rangeInvalid && (
+          <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+            <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
+          </div>
+        )}
 
         <DataTable
           fill
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
-          loading={list.isPending}
+          loading={list.isPending && !rangeInvalid}
           onRowClick={openEmployee}
           rowLabel={(row) => row.employeeName}
           empty={
-            <EmptyState
-              icon={CalendarClock}
-              title={t('probation.emptyTitle')}
-              description={t('probation.emptyText')}
-              /*
-                Bo'sh ekran — aynan «boshlash» payti: sinovda hech kim yo'q
-                bo'lsa, HR bu yerga yangi odam qo'shish uchun keladi. Tugma
-                yuqorida ham bor, lekin bo'sh jadval o'rtasida ko'z birinchi
-                shu yerga tushadi.
-              */
-              action={
-                canHire ? (
-                  <Button variant="create" onClick={() => setHireOpen(true)}>
-                    <UserPlus />
-                    {t('employees.hire')}
-                  </Button>
-                ) : undefined
-              }
-            />
+            // Teskari oraliqda bo'sh holat chizilmaydi — sabab ogohlantirishda.
+            // Oraliq qo'yilgan bo'lsa — «topilmadi»: «sinovda hech kim yo'q»
+            // va «qabul qilish» tugmasi bu yerda yolg'on bo'lardi.
+            rangeInvalid ? undefined : hasDateRange(range) ? (
+              <EmptyState
+                icon={SearchX}
+                title={t('common.empty')}
+                description={t('common.dateRangeEmptyText')}
+              />
+            ) : (
+              <EmptyState
+                icon={CalendarClock}
+                title={t('probation.emptyTitle')}
+                description={t('probation.emptyText')}
+                /*
+                  Bo'sh ekran — aynan «boshlash» payti: sinovda hech kim yo'q
+                  bo'lsa, HR bu yerga yangi odam qo'shish uchun keladi. Tugma
+                  yuqorida ham bor, lekin bo'sh jadval o'rtasida ko'z birinchi
+                  shu yerga tushadi.
+                */
+                action={
+                  canHire ? (
+                    <Button variant="create" onClick={() => setHireOpen(true)}>
+                      <UserPlus />
+                      {t('employees.hire')}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )
           }
         />
 

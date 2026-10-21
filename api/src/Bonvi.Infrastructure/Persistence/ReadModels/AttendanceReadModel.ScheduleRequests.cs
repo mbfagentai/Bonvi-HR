@@ -41,15 +41,24 @@ public sealed partial class AttendanceReadModel : IScheduleChangeRequestReadMode
                 : query.Where(request => request.Status == AbsenceRequestStatus.Pending);
         }
 
-        // Davr — so'rov KUNLARI bo'yicha: birorta kuni oraliqqa tushsa kiradi.
-        if (filter.From is { } from)
+        // Davr — so'rov KUNLARI bo'yicha: birorta kuni oraliqqa tushsa kiradi
+        // (almashtirishda ikkala sana ham kun bo'lib saqlanadi).
+        //
+        // ⚠️ Ikkala chegara BITTA `Any` ichida. Ilgari ular ikki alohida `Any`
+        // edi va 1- va 30-oktabr kunli so'rov 10–20-oktabr oralig'ida ham
+        // chiqardi: 30 ≥ 10 va 1 ≤ 20 — har biri o'zicha rost, oraliqda esa
+        // birorta ham kun yo'q (egasi, 2026-10-20).
+        if (filter.From is { } from && filter.To is { } to)
         {
-            query = query.Where(request => request.Days.Any(day => day.Date >= from));
+            query = query.Where(request => request.Days.Any(day => day.Date >= from && day.Date <= to));
         }
-
-        if (filter.To is { } to)
+        else if (filter.From is { } onlyFrom)
         {
-            query = query.Where(request => request.Days.Any(day => day.Date <= to));
+            query = query.Where(request => request.Days.Any(day => day.Date >= onlyFrom));
+        }
+        else if (filter.To is { } onlyTo)
+        {
+            query = query.Where(request => request.Days.Any(day => day.Date <= onlyTo));
         }
 
         if (filter.Search is { } search)

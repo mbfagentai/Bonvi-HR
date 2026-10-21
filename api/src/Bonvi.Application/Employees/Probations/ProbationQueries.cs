@@ -1,3 +1,4 @@
+using Bonvi.Application.Common.Lists;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Domain.Abstractions;
@@ -21,12 +22,16 @@ namespace Bonvi.Application.Employees.Probations;
 /// </param>
 /// <param name="Page">Sahifa raqami, 1 dan (sukut: 1).</param>
 /// <param name="PageSize">Sahifa hajmi (sukut 25, eng ko'pi 10 000 — «Barchasi»).</param>
+/// <param name="From">Sinov TUGASH sanasining quyi chegarasi (kiradi), egasi 2026-10-20.</param>
+/// <param name="To">Sinov tugash sanasining yuqori chegarasi (kiradi).</param>
 public sealed record ListProbationsQuery(
     ProbationStatus? Status = null,
     int? EndingWithinDays = null,
     string? Search = null,
     int? Page = null,
-    int? PageSize = null);
+    int? PageSize = null,
+    DateOnly? From = null,
+    DateOnly? To = null);
 
 public sealed class ListProbationsQueryHandler
 {
@@ -72,6 +77,12 @@ public sealed class ListProbationsQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        var range = ListDateRange.Validate(query.From, query.To);
+        if (range.IsFailure)
+        {
+            return range.Error;
+        }
+
         var today = _clock.Today;
 
         var page = Math.Max(query.Page ?? 1, 1);
@@ -89,7 +100,9 @@ public sealed class ListProbationsQueryHandler
                     today,
                     Normalize(query.Search),
                     page,
-                    pageSize),
+                    pageSize,
+                    query.From,
+                    query.To),
                 cancellationToken)
             .ConfigureAwait(false);
 

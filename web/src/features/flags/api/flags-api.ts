@@ -5,6 +5,7 @@
  *   api/src/Bonvi.Application/Employees/Abstractions/IEmployeeReadModel.cs
  */
 import { api } from '@/shared/api/http-client'
+import type { DateRange } from '@/shared/lib/list-search'
 import {
   EMPLOYEE_FLAG_TYPES,
   type EmployeeFlagType,
@@ -46,11 +47,16 @@ export interface FlaggedEmployee {
  * ajratgichlarini tashlash qoidalarini biladi, klient esa yo'q. Bu
  * ro'yxatda bu ayniqsa muhim: «bu odam qora ro'yxatdami?» degan savolga
  * ismning yozilishiga qarab emas, JSHSHIR bilan javob berish kerak.
+ *
+ * `range` — belgi QO'YILGAN (boshlangan) sana bo'yicha oraliq, ikkala
+ * chegara ham kiradi; `onlyActive` bilan «VA» orqali birlashadi (server
+ * qoidasi). `from > to` — `royxat.sana_oraligi_notogri` (400).
  */
 export async function fetchFlagged(
   type: EmployeeFlagType,
   onlyActive: boolean,
   search: string,
+  range: DateRange,
   signal?: AbortSignal,
 ): Promise<FlaggedEmployee[]> {
   const params: Record<string, unknown> = { type: typeName(type), onlyActive }
@@ -58,6 +64,8 @@ export async function fetchFlagged(
   // Bo'sh qidiruv YUBORILMAYDI: «?search=» manzilni ham, so'rov keshini
   // ham keraksiz shovqin bilan to'ldirardi.
   if (search.trim() !== '') params['search'] = search
+  if (range.from !== '') params['from'] = range.from
+  if (range.to !== '') params['to'] = range.to
 
   const { data } = await api.get<unknown>('/api/employees/flagged', { params, signal })
 

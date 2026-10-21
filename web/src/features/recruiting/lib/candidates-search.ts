@@ -73,6 +73,16 @@ export interface CandidatesSearch {
    * kechgan»ni tanlab, faqat ularni ko'ra oladi.
    */
   rejected?: true
+  /**
+   * Sana oralig'i — `DateOnly` («2026-10-01»), ikkala chegara ham kiradi.
+   *
+   * ⚠️ MA'NOSI bo'limga qarab o'zgaradi (server qoidasi): «Rad etilganlar»
+   * bo'limida (`rejected`) — rad etilgan / voz kechgan kun, qolgan hamma
+   * joyda — ariza kelgan kun. Holat tanlovi ma'noni o'zgartirMAYDI.
+   * Shu sababli toolbar yorlig'i ham bo'limga qarab tanlanadi.
+   */
+  from?: string
+  to?: string
   sort?: CandidatesSortParam
   view?: CandidatesView
 }
@@ -118,6 +128,9 @@ export interface CandidatesFilterState {
    * «filtrlarni tozalash» HR ni bo'limdan chiqarib yuborardi.
    */
   contactDue: boolean
+  /** Sana oralig'i — bo'sh satr «chegara yo'q» (`CandidatesSearch.from` izohi). */
+  from: string
+  to: string
 }
 
 export const DEFAULT_FILTERS: CandidatesFilterState = {
@@ -127,6 +140,8 @@ export const DEFAULT_FILTERS: CandidatesFilterState = {
   status: '',
   source: '',
   contactDue: false,
+  from: '',
+  to: '',
 }
 
 /**
@@ -144,6 +159,8 @@ export function validateCandidatesSearch(search: Record<string, unknown>): Candi
     source: readOneOf(search['source'], CANDIDATE_SOURCES),
     due: readFlag(search['due']),
     rejected: readFlag(search['rejected']),
+    from: readDate(search['from']),
+    to: readDate(search['to']),
     sort: normalizeSort(search['sort']),
     view: readView(search['view']),
   }
@@ -157,6 +174,8 @@ export function searchToFilters(search: CandidatesSearch): CandidatesFilterState
     status: search.status ?? '',
     source: search.source ?? '',
     contactDue: search.due ?? false,
+    from: search.from ?? '',
+    to: search.to ?? '',
   }
 }
 
@@ -179,7 +198,9 @@ export function isFiltered(search: CandidatesSearch): boolean {
     search.stage !== undefined ||
     search.status !== undefined ||
     search.source !== undefined ||
-    search.due !== undefined
+    search.due !== undefined ||
+    search.from !== undefined ||
+    search.to !== undefined
   )
 }
 
@@ -206,6 +227,8 @@ export function filtersToSearch(
     // Katakcha bo'shatilganda `undefined` YOZILISHI kerak — u avvalgi
     // manzildagi `due=true` ni o'chiradi.
     due: filters.contactDue ? true : undefined,
+    from: emptyToUndefined(filters.from),
+    to: emptyToUndefined(filters.to),
   }
 }
 
@@ -284,6 +307,13 @@ function readFlag(value: unknown): true | undefined {
  */
 function readText(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined
+}
+
+/** `DateOnly` shakli — boshqasi backend'ga 400 bilan qaytardi. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/u
+
+function readDate(value: unknown): string | undefined {
+  return typeof value === 'string' && DATE_ONLY.test(value) ? value : undefined
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

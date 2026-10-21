@@ -1,10 +1,11 @@
-import { CalendarClock, Check, Pencil, Plus, X } from 'lucide-react'
+import { CalendarClock, Check, Pencil, Plus, SearchX, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { NO_DATE_RANGE, hasDateRange, type DateRange } from '@/shared/lib/list-search'
 import {
   Badge,
   Button,
@@ -24,10 +25,12 @@ import {
   REQUEST_STATUS_LOOK,
   SCHEDULE_KIND_LABEL_KEY,
 } from '../lib/attendance-presentation'
+import { isRangeInverted } from '../lib/attendance-search'
 import { useScheduleRequestText } from '../lib/schedule-request-text'
 import type { AbsenceAction } from './absence-decision-dialog'
 import { AttendanceLoadError } from './attendance-manage-states'
 import { RequestEditedNote } from './request-edited-note'
+import { RequestRangeFields, RequestRangeNote } from './request-range-fields'
 import { ScheduleDecisionDialog } from './schedule-decision-dialog'
 import { ScheduleRequestDialog } from './schedule-request-dialog'
 
@@ -54,11 +57,21 @@ const VISIBLE_DAYS = 3
 export function ScheduleRequestsList({
   employeeId = null,
   showEmployee = false,
+  range = NO_DATE_RANGE,
+  onRangeChange,
 }: {
   /** Faqat shu xodimning so'rovlari — xodim kartasida. */
   employeeId?: string | null
   /** Xodim ustuni ko'rsatilsinmi — umumiy navbatda. */
   showEmployee?: boolean
+  /**
+   * So'rov KUNLARI oralig'i — umumiy navbatda, manzildan (sahifa egasi):
+   * birorta kuni (almashtirishda — ikkala sanadan biri) oraliq ichiga
+   * tushsa, so'rov chiqadi (server qoidasi).
+   */
+  range?: DateRange
+  /** Berilsa — jadvallar ustida sana filtri chiziladi. */
+  onRangeChange?: (next: DateRange) => void
 }) {
   const { t, date } = useLocale()
   const { hasPermission } = useAuth()
@@ -75,20 +88,44 @@ export function ScheduleRequestsList({
     request: ScheduleChangeRequest
   } | null>(null)
 
-  const pending = useScheduleChangeRequests({
-    employeeId: employeeId ?? undefined,
-    status: 'Pending',
-    page: pendingPage,
-    pageSize: PAGE_SIZE,
-  })
+  /** Oraliq o'zgarsa ikkala sahifa boshidan (`AbsenceRequestsList` dagi qoida). */
+  const changeRange = (next: DateRange) => {
+    onRangeChange?.(next)
+    setPendingPage(1)
+    setDecidedPage(1)
+  }
+
+  const filtered = hasDateRange(range)
+
+  // Teskari oraliq bilan so'rov YUBORILMAYDI (`AbsenceRequestsList` izohi)
+  const rangeInvalid = isRangeInverted(range.from, range.to)
+  const from = range.from === '' ? undefined : range.from
+  const to = range.to === '' ? undefined : range.to
+
+  const pending = useScheduleChangeRequests(
+    {
+      employeeId: employeeId ?? undefined,
+      status: 'Pending',
+      from,
+      to,
+      page: pendingPage,
+      pageSize: PAGE_SIZE,
+    },
+    !rangeInvalid,
+  )
 
   // «Qaror qabul qilingan» — uchta holat birga (`AbsenceRequestsList` izohi)
-  const decided = useScheduleChangeRequests({
-    employeeId: employeeId ?? undefined,
-    decided: true,
-    page: decidedPage,
-    pageSize: PAGE_SIZE,
-  })
+  const decided = useScheduleChangeRequests(
+    {
+      employeeId: employeeId ?? undefined,
+      decided: true,
+      from,
+      to,
+      page: decidedPage,
+      pageSize: PAGE_SIZE,
+    },
+    !rangeInvalid,
+  )
 
   // Sahifa bo'shab qolsa — oxirgi MAVJUD sahifaga (`AbsenceRequestsList` naqshi)
   const pendingItems = pending.data?.items
@@ -233,99 +270,149 @@ export function ScheduleRequestsList({
     return list
   }, [t, date, text, showEmployee, canManage])
 
+  /*
+    Oraliqqa mos so'rov yo'qligi — «so'rov yo'q» emas (`AbsenceRequestsList`
+    dagi sabab): boshqa matn va oraliqni tozalash tugmasi.
+  */
+  const filteredEmpty = (
+    <EmptyState
+      icon={SearchX}
+      title={t('attendance.requestsFilteredEmpty')}
+      description={t('common.dateRangeEmptyText')}
+      action={
+        <Button type="button" size="sm" variant="secondary" onClick={() => changeRange(NO_DATE_RANGE)}>
+          <X />
+          {t('employees.clearFilters')}
+        </Button>
+      }
+    />
+  )
+
   return (
     <div className="space-y-4">
-      <Card className="overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
-          <h2 className="text-subhead font-semibold">{t('attendance.requestsPending')}</h2>
+      {/* Sana filtri — yo'qlik navbatidagi filtr paneli bilan bir xil ko'rinish */}
+      {onRangeChange !== undefined && (
+        <Card className="px-4 py-3.5 sm:px-5">
+          <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,180px)_auto]">
+            <RequestRangeFields range={range} onChange={changeRange} />
 
-          {canManage && employeeId !== null && (
-            <Button type="button" size="sm" variant="secondary" onClick={() => setAdding(true)}>
-              <Plus />
-              {t('attendance.scheduleRequestAdd')}
-            </Button>
-          )}
-        </div>
-
-        {/* Yuklab bo'lmagani «so'rov yo'q» bo'lib ko'rinmaydi (`AttendanceLoadError` izohi) */}
-        {pending.isError ? (
-          <AttendanceLoadError
-            error={pending.error}
-            onRetry={() => void pending.refetch()}
-            retrying={pending.isFetching}
-          />
-        ) : (
-          <>
-            <DataTable
-              columns={columns}
-              data={pending.isPending ? NO_ROWS : (pending.data?.items ?? NO_ROWS)}
-              getRowId={(row) => row.id}
-              loading={pending.isPending}
-              skeletonRows={3}
-              rowLabel={(row) => row.employeeName}
-              empty={
-                <EmptyState
-                  icon={CalendarClock}
-                  title={t('attendance.requestsQueueEmpty')}
-                  description={t('attendance.scheduleRequestsQueueEmptyText')}
-                />
-              }
-            />
-
-            <Pagination
-              page={pendingPage}
-              pageSize={PAGE_SIZE}
-              total={pending.data?.total ?? 0}
-              onPageChange={setPendingPage}
-              className="px-4 pb-4 sm:px-5"
-            />
-          </>
-        )}
-      </Card>
-
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3.5 sm:px-5">
-          <h2 className="text-subhead font-semibold">{t('attendance.requestsDecided')}</h2>
-        </div>
-
-        {decided.isPending ? (
-          <div aria-hidden className="space-y-3 px-4 pb-5 sm:px-5">
-            {[0, 1, 2].map((row) => (
-              <Skeleton key={row} className="h-10" />
-            ))}
+            {filtered && (
+              <div className="flex sm:justify-start">
+                <Button type="button" variant="ghost" onClick={() => changeRange(NO_DATE_RANGE)}>
+                  <X />
+                  {t('employees.clearFilters')}
+                </Button>
+              </div>
+            )}
           </div>
-        ) : decided.isError ? (
-          <AttendanceLoadError
-            error={decided.error}
-            onRetry={() => void decided.refetch()}
-            retrying={decided.isFetching}
-          />
-        ) : (
-          <>
-            <DataTable
-              columns={columns}
-              data={decided.data?.items ?? NO_ROWS}
-              getRowId={(row) => row.id}
-              rowLabel={(row) => row.employeeName}
-              empty={
-                <EmptyState
-                  icon={CalendarClock}
-                  title={t('attendance.requestsEmpty')}
-                  description={t('attendance.scheduleRequestsEmptyText')}
-                />
-              }
-            />
 
-            <Pagination
-              page={decidedPage}
-              pageSize={PAGE_SIZE}
-              total={decided.data?.total ?? 0}
-              onPageChange={setDecidedPage}
-              className="px-4 pb-4 sm:px-5"
-            />
-          </>
-        )}
-      </Card>
+          <RequestRangeNote range={range} />
+        </Card>
+      )}
+
+      {!rangeInvalid && (
+        <>
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
+              <h2 className="text-subhead font-semibold">{t('attendance.requestsPending')}</h2>
+
+              {canManage && employeeId !== null && (
+                <Button type="button" size="sm" variant="secondary" onClick={() => setAdding(true)}>
+                  <Plus />
+                  {t('attendance.scheduleRequestAdd')}
+                </Button>
+              )}
+            </div>
+
+            {/* Yuklab bo'lmagani «so'rov yo'q» bo'lib ko'rinmaydi (`AttendanceLoadError` izohi) */}
+            {pending.isError ? (
+              <AttendanceLoadError
+                error={pending.error}
+                onRetry={() => void pending.refetch()}
+                retrying={pending.isFetching}
+              />
+            ) : (
+              <>
+                <DataTable
+                  columns={columns}
+                  data={pending.isPending ? NO_ROWS : (pending.data?.items ?? NO_ROWS)}
+                  getRowId={(row) => row.id}
+                  loading={pending.isPending}
+                  skeletonRows={3}
+                  rowLabel={(row) => row.employeeName}
+                  empty={
+                    filtered ? (
+                      filteredEmpty
+                    ) : (
+                      <EmptyState
+                        icon={CalendarClock}
+                        title={t('attendance.requestsQueueEmpty')}
+                        description={t('attendance.scheduleRequestsQueueEmptyText')}
+                      />
+                    )
+                  }
+                />
+
+                <Pagination
+                  page={pendingPage}
+                  pageSize={PAGE_SIZE}
+                  total={pending.data?.total ?? 0}
+                  onPageChange={setPendingPage}
+                  className="px-4 pb-4 sm:px-5"
+                />
+              </>
+            )}
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="px-4 py-3.5 sm:px-5">
+              <h2 className="text-subhead font-semibold">{t('attendance.requestsDecided')}</h2>
+            </div>
+
+            {decided.isPending ? (
+              <div aria-hidden className="space-y-3 px-4 pb-5 sm:px-5">
+                {[0, 1, 2].map((row) => (
+                  <Skeleton key={row} className="h-10" />
+                ))}
+              </div>
+            ) : decided.isError ? (
+              <AttendanceLoadError
+                error={decided.error}
+                onRetry={() => void decided.refetch()}
+                retrying={decided.isFetching}
+              />
+            ) : (
+              <>
+                <DataTable
+                  columns={columns}
+                  data={decided.data?.items ?? NO_ROWS}
+                  getRowId={(row) => row.id}
+                  rowLabel={(row) => row.employeeName}
+                  empty={
+                    filtered ? (
+                      filteredEmpty
+                    ) : (
+                      <EmptyState
+                        icon={CalendarClock}
+                        title={t('attendance.requestsEmpty')}
+                        description={t('attendance.scheduleRequestsEmptyText')}
+                      />
+                    )
+                  }
+                />
+
+                <Pagination
+                  page={decidedPage}
+                  pageSize={PAGE_SIZE}
+                  total={decided.data?.total ?? 0}
+                  onPageChange={setDecidedPage}
+                  className="px-4 pb-4 sm:px-5"
+                />
+              </>
+            )}
+          </Card>
+        </>
+      )}
 
       <ScheduleDecisionDialog
         action={decision?.action ?? null}

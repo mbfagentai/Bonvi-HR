@@ -172,6 +172,31 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.Source != CandidateSource.Excel);
         }
 
+        // Sana oralig'i (egasi, 2026-10-20) — chegaralar TAYYOR keladi: ariza
+        // lahzasi uchun Toshkent kunining UTC chegaralari, voronkadan chiqish
+        // uchun kun qiymati. Qaysi juftlik to'lishi — handlerning qarori
+        // (`SearchCandidatesQueryHandler`). Ustun o'girilmaydi, ya'ni shart
+        // `created_at` ni to'g'ridan-to'g'ri solishtiradi.
+        if (filter.CreatedFrom is { } createdFrom)
+        {
+            candidates = candidates.Where(candidate => candidate.CreatedAt >= createdFrom);
+        }
+
+        if (filter.CreatedBefore is { } createdBefore)
+        {
+            candidates = candidates.Where(candidate => candidate.CreatedAt < createdBefore);
+        }
+
+        if (filter.ClosedFrom is { } closedFrom)
+        {
+            candidates = candidates.Where(candidate => candidate.ClosedAt >= closedFrom);
+        }
+
+        if (filter.ClosedTo is { } closedTo)
+        {
+            candidates = candidates.Where(candidate => candidate.ClosedAt <= closedTo);
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             // Qidiruv qoidasi bitta joyda — `CandidateSearchQuery`. Uning

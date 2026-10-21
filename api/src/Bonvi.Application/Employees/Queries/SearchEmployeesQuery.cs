@@ -1,4 +1,5 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Common.Lists;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
@@ -39,6 +40,13 @@ namespace Bonvi.Application.Employees.Queries;
 /// <c>status</c>, <c>birthDate</c>. Teskari tartib uchun oldiga <c>-</c>
 /// qo'yiladi (<c>-hireDate</c>) yoki oxiriga <c>:desc</c>.
 /// </param>
+/// <param name="From">
+/// Sana oralig'ining boshi (kiradi). Qaysi sana — <paramref name="Status"/> ga
+/// bog'liq: <c>Terminated</c> («Ishdan ketganlar») — ishdan ketish sanasi,
+/// qolgan hammasi («Xodimlar») — ro'yxatda ko'rinadigan munosabatning ishga
+/// kirish sanasi (egasi, 2026-10-20; batafsil <see cref="SearchEmployeesQueryHandler.BuildFilter"/>).
+/// </param>
+/// <param name="To">Sana oralig'ining oxiri (kiradi).</param>
 public sealed record SearchEmployeesQuery(
     string? Search = null,
     Guid? DepartmentId = null,
@@ -49,7 +57,9 @@ public sealed record SearchEmployeesQuery(
     bool? NeedsReview = null,
     int? Page = null,
     int? PageSize = null,
-    string? Sort = null);
+    string? Sort = null,
+    DateOnly? From = null,
+    DateOnly? To = null);
 
 public sealed class SearchEmployeesQueryHandler
 {
@@ -249,6 +259,20 @@ public sealed class SearchEmployeesQueryHandler
             return status.Error;
         }
 
+        var range = ListDateRange.Validate(query.From, query.To);
+        if (range.IsFailure)
+        {
+            return range.Error;
+        }
+
+        // ⭐ Sana oralig'i qaysi sanaga qo'llanadi (egasi, 2026-10-20): «Ishdan
+        // ketganlar» bo'limi (`status=Terminated`) — ketish sanasi, qolgan har
+        // qanday holat («Xodimlar»: employed, sinovda, doimiy, bo'sh) — ishga
+        // kirish sanasi. Ikkalasi ham ro'yxatda KO'RINADIGAN munosabatniki
+        // (asosiysi, bo'lmasa oxirgisi): HR filtrlab ko'rgan qatordagi sana
+        // doim oraliq ichida bo'lishi kerak.
+        var byTermination = status.Value == EmploymentStatus.Terminated;
+
         return new EmployeeSearchFilter(
             Normalize(query.Search),
             query.DepartmentId,
@@ -261,7 +285,11 @@ public sealed class SearchEmployeesQueryHandler
             page,
             pageSize,
             sort,
-            descending);
+            descending,
+            HiredFrom: byTermination ? null : query.From,
+            HiredTo: byTermination ? null : query.To,
+            TerminatedFrom: byTermination ? query.From : null,
+            TerminatedTo: byTermination ? query.To : null);
     }
 
     /// <summary>

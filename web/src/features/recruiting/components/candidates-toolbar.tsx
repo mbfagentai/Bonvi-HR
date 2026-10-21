@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
-import { Button, Checkbox, Input, Select, type SelectOption } from '@/shared/ui'
+import { Button, Checkbox, DateField, Input, Select, type SelectOption } from '@/shared/ui'
 import {
   CANDIDATE_SOURCES,
   CANDIDATE_STATUSES,
@@ -21,9 +21,14 @@ import { DEFAULT_FILTERS, type CandidatesFilterState } from '../lib/candidates-s
  * qisqargandek ko'rinardi va HR nima uchun ekanini topa olmasdi.
  */
 function activeFilterCount(filters: CandidatesFilterState): number {
-  const chosen = [filters.vacancyId, filters.stageId, filters.status, filters.source].filter(
-    (value) => value !== '',
-  ).length
+  const chosen = [
+    filters.vacancyId,
+    filters.stageId,
+    filters.status,
+    filters.source,
+    filters.from,
+    filters.to,
+  ].filter((value) => value !== '').length
 
   return filters.contactDue ? chosen + 1 : chosen
 }
@@ -46,11 +51,20 @@ export function CandidatesToolbar({
   onChange,
   vacancies,
   stages,
+  rejectedSection = false,
 }: {
   filters: CandidatesFilterState
   onChange: (next: CandidatesFilterState) => void
   vacancies: SelectOption[]
   stages: SelectOption[]
+  /**
+   * «Rad etilganlar» bo'limimi — faqat sana YORLIG'I uchun: u yerda
+   * oraliq rad etilgan kun bo'yicha, boshqa joyda ariza kelgan kun
+   * bo'yicha kesadi (server qoidasi, `CandidatesSearch.from` izohi).
+   * Yorliq ma'noni aytmasa, HR «oktabrda kelganlar»ni so'rab, «oktabrda
+   * rad etilganlar»ni olardi.
+   */
+  rejectedSection?: boolean
 }) {
   const { t } = useLocale()
 
@@ -180,6 +194,23 @@ export function CandidatesToolbar({
               options={sourceOptions}
               value={filters.source}
               onChange={(event) => set('source', event.target.value as CandidateSource | '')}
+            />
+            {/*
+              Chegaralar bir-birini taqvimda cheklaydi (`min`/`max`); qo'lda
+              terilgan teskari oraliqni esa sahifa ushlaydi va so'rov
+              yubormaydi (`candidates-page.tsx`).
+            */}
+            <DateField
+              label={t(rejectedSection ? 'recruiting.rejectedFrom' : 'recruiting.appliedFrom')}
+              value={filters.from}
+              max={filters.to === '' ? undefined : filters.to}
+              onChange={(value) => set('from', value)}
+            />
+            <DateField
+              label={t(rejectedSection ? 'recruiting.rejectedTo' : 'recruiting.appliedTo')}
+              value={filters.to}
+              min={filters.from === '' ? undefined : filters.from}
+              onChange={(value) => set('to', value)}
             />
           </div>
 

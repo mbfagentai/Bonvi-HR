@@ -148,7 +148,11 @@ public sealed class ExportEmployeesQueryHandler
         Guid? LegalEntityId,
         string? Status,
         bool? NeedsReview,
-        string? Sort)
+        string? Sort,
+
+        // `DateFrom`, `From` emas: bu nom pastdagi `From(...)` fabrikasi bilan to'qnashardi.
+        DateOnly? DateFrom,
+        DateOnly? DateTo)
     {
         public static ExportAuditFilters From(SearchEmployeesQuery query) => new(
             string.IsNullOrWhiteSpace(query.Search) ? null : true,
@@ -158,6 +162,8 @@ public sealed class ExportEmployeesQueryHandler
             query.LegalEntityId,
             query.Status,
             query.NeedsReview,
-            query.Sort);
+            query.Sort,
+            query.From,
+            query.To);
     }
 }

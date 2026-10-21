@@ -128,6 +128,8 @@ public static class EmployeeEndpoints
                 int? page,
                 int? pageSize,
                 string? sort,
+                DateOnly? from,
+                DateOnly? to,
                 SearchEmployeesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -143,7 +145,9 @@ public static class EmployeeEndpoints
                             needsReview,
                             page,
                             pageSize,
-                            sort),
+                            sort,
+                            from,
+                            to),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -157,8 +161,13 @@ public static class EmployeeEndpoints
                 "2000+ yozuv bo'lishi mumkin. «search» — FIO, JSHSHIR, telefon yoki pasport. " +
                 "«sort» qiymatlari: name, hireDate, department, position, status, birthDate; " +
                 "teskari tartib uchun oldiga «-» qo'yiladi. «pageSize» eng ko'pi 10 000. " +
+                "«from»/«to» (yyyy-MM-dd, ikkalasi ham kiradi, istalgani berilmasligi mumkin) — " +
+                "qatorda ko'rinadigan munosabatning sanasi: «status=Terminated» da ISHDAN KETISH " +
+                "sanasi, qolgan hamma holatda ISHGA KIRISH sanasi; «from» > «to» — " +
+                "«royxat.sana_oraligi_notogri» (400). " +
                 "Oklad ustuni faqat «salary.view» ruxsati bilan to'ldiriladi.")
             .Produces<PagedResult<EmployeeListItemDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 
@@ -575,11 +584,13 @@ public static class EmployeeEndpoints
                 EmployeeFlagType type,
                 bool? onlyActive,
                 string? search,
+                DateOnly? from,
+                DateOnly? to,
                 ListFlaggedQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new ListFlaggedQuery(type, onlyActive ?? true, search), cancellationToken)
+                    .HandleAsync(new ListFlaggedQuery(type, onlyActive ?? true, search, from, to), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -591,8 +602,11 @@ public static class EmployeeEndpoints
                 "To'rt ro'yxat bitta endpoint bilan: «type» = Reserve | Blacklist | Monitoring | Capable. " +
                 "Sukut bo'yicha faqat bugun kuchda bo'lgan belgilar; «onlyActive=false» tarixni ham beradi. " +
                 "«search» — XODIM bo'yicha (F.I.Sh., JSHSHIR, pasport, telefon), xodimlar ro'yxatidagi " +
-                "bilan aynan bir xil qoida.")
+                "bilan aynan bir xil qoida. «from»/«to» (yyyy-MM-dd, ikkalasi ham kiradi, istalgani " +
+                "berilmasligi mumkin) — belgi BOSHLANGAN sana bo'yicha, «onlyActive» bilan birga ishlaydi; " +
+                "«from» > «to» — «royxat.sana_oraligi_notogri» (400).")
             .Produces<IReadOnlyList<FlaggedEmployeeDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/{id:guid}/flags", async (

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { closeFlag } from '@/features/employees/api/employees-api'
 import type { EmployeeFlagType } from '@/features/employees/api/employees-api'
 import { employeeKeys } from '@/features/employees/api/employees-queries'
+import type { DateRange } from '@/shared/lib/list-search'
 
 import { fetchFlagged } from './flags-api'
 
@@ -10,14 +11,26 @@ export const flagKeys = {
   root: ['flagged'] as const,
   // Qidiruv kalitning bir qismi: server tomonda filtrlangan natija
   // boshqa natija, ya'ni uni bir xil kalitga yozib bo'lmaydi.
-  list: (type: EmployeeFlagType, onlyActive: boolean, search: string) =>
-    ['flagged', type, onlyActive, search] as const,
+  // Sana oralig'i ham — chegaralari bilan (bo'sh satr «chegara yo'q»).
+  list: (type: EmployeeFlagType, onlyActive: boolean, search: string, range: DateRange) =>
+    ['flagged', type, onlyActive, search, range.from, range.to] as const,
 }
 
-export function useFlagged(type: EmployeeFlagType, onlyActive: boolean, search: string) {
+/**
+ * @param enabled `false` — so'rov yuborilmaydi (teskari sana oralig'ida:
+ * server baribir 400 qaytarardi, sahifa sababni o'zi aytadi).
+ */
+export function useFlagged(
+  type: EmployeeFlagType,
+  onlyActive: boolean,
+  search: string,
+  range: DateRange,
+  enabled = true,
+) {
   return useQuery({
-    queryKey: flagKeys.list(type, onlyActive, search),
-    queryFn: ({ signal }) => fetchFlagged(type, onlyActive, search, signal),
+    queryKey: flagKeys.list(type, onlyActive, search, range),
+    queryFn: ({ signal }) => fetchFlagged(type, onlyActive, search, range, signal),
+    enabled,
 
     // Qidiruv o'zgarganda jadval bo'shab, «hech narsa topilmadi» bo'lib
     // ko'rinmasligi kerak — eski natija yangisi kelguncha turadi

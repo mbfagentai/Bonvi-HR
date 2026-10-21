@@ -395,6 +395,8 @@ public static class CandidateEndpoints
                 bool? contactDue,
                 bool? rejected,
                 bool? includeRejected,
+                DateOnly? from,
+                DateOnly? to,
                 SearchCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -403,7 +405,7 @@ public static class CandidateEndpoints
                         new SearchCandidatesQuery(
                             search, vacancyId, stageId, status, source, page, pageSize, sort,
                             includeArchive ?? false, contactDue ?? false, rejected ?? false,
-                            includeRejected ?? false),
+                            includeRejected ?? false, from, to),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -449,6 +451,10 @@ public static class CandidateEndpoints
                 "ro'yxatga QO'SHILADI (bo'lim emas, kengaytma: jarayondagilar ham qoladi; " +
                 "ishga olinganlar, rezerv va qora ro'yxat qoidasi o'zgarmaydi) — " +
                 "«Nomzodlar» bo'limidagi qidiruv shu bilan so'raydi. " +
+                "«from»/«to» (yyyy-MM-dd, ikkalasi ham kiradi, istalgani berilmasligi mumkin): " +
+                "«rejected=true» bo'limida — voronkadan chiqqan sana («closedAt»: rad etilgan / voz " +
+                "kechgan kun), qolgan hamma joyda — ariza sanasi («createdAt», TOSHKENT kuni bo'yicha); " +
+                "sanoq («total») ham shu filtr bilan. «from» > «to» — «royxat.sana_oraligi_notogri» (400). " +
                 "Har qatorda «hasResume» (kamida bitta FAYL biriktirilganmi), " +
                 "«hasPhoto» va «nextContactDate» bor; ANKETA ro'yxatga QO'SHILMAYDI — " +
                 "u og'ir va faqat kartada kerak.")

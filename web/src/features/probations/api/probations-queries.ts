@@ -33,10 +33,15 @@ export const probationKeys = {
   missing: ['probations', 'missing'] as const,
 }
 
-export function useProbations(filters: ProbationFilters) {
+/**
+ * @param enabled `false` — so'rov yuborilmaydi (teskari sana oralig'ida:
+ * server baribir 400 qaytarardi, sahifa sababni o'zi aytadi).
+ */
+export function useProbations(filters: ProbationFilters, enabled = true) {
   return useQuery({
     queryKey: probationKeys.list(filters),
     queryFn: ({ signal }) => fetchProbations(filters, signal),
+    enabled,
   })
 }
 

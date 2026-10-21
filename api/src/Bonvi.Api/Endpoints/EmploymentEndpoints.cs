@@ -545,12 +545,14 @@ public static class EmploymentEndpoints
                 string? search,
                 int? page,
                 int? pageSize,
+                DateOnly? from,
+                DateOnly? to,
                 ListProbationsQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
                     .HandleAsync(
-                        new ListProbationsQuery(status, endingWithinDays, search, page, pageSize),
+                        new ListProbationsQuery(status, endingWithinDays, search, page, pageSize, from, to),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -566,8 +568,11 @@ public static class EmploymentEndpoints
                 "«search» — XODIM bo'yicha (F.I.Sh., JSHSHIR, pasport, telefon), xodimlar " +
                 "ro'yxatidagi bilan aynan bir xil qoida. " +
                 "SERVER tomonda sahifalanadi: «page» (1 dan) va «pageSize» " +
-                "(sukut 25, eng ko'pi 10 000) — xodimlar ro'yxatidagi bilan bir xil chegaralar.")
+                "(sukut 25, eng ko'pi 10 000) — xodimlar ro'yxatidagi bilan bir xil chegaralar. " +
+                "«from»/«to» (yyyy-MM-dd, ikkalasi ham kiradi, istalgani berilmasligi mumkin) — sinov " +
+                "TUGASH sanasi bo'yicha; «from» > «to» — «royxat.sana_oraligi_notogri» (400).")
             .Produces<PagedResult<ProbationListItemDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/ending-soon", async (

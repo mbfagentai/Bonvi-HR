@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Button, Input, SegmentedControl, Select } from '@/shared/ui'
+import { Button, DateField, Input, SegmentedControl, Select } from '@/shared/ui'
 import type { FilterOptions } from '../api/employees-queries'
 /*
  * Filtr holatining shakli manzil (URL) bilan bir joyda turadi.
@@ -41,6 +41,8 @@ function activeFilterCount(filters: EmployeesFilterState): number {
     filters.positionId,
     filters.directionId,
     filters.legalEntityId,
+    filters.from,
+    filters.to,
   ].filter((value) => value !== '').length
 
   return filters.status === DEFAULT_STATUS ? ids : ids + 1
@@ -62,6 +64,7 @@ export function EmployeesToolbar({
   options,
   onExport,
   exporting = false,
+  exportDisabled = false,
 }: {
   filters: EmployeesFilterState
   onChange: (next: EmployeesFilterState) => void
@@ -81,6 +84,12 @@ export function EmployeesToolbar({
    */
   onExport?: () => void
   exporting?: boolean
+  /**
+   * Tugma ko'rinadi, lekin bosilmaydi — teskari sana oralig'ida: fayl ham
+   * ro'yxat bilan bir xil filtrdan quriladi va server uni 400 bilan rad
+   * etardi (`attendance-passes-page.tsx` dagi naqsh).
+   */
+  exportDisabled?: boolean
 }) {
   const { t, num } = useLocale()
 
@@ -145,6 +154,14 @@ export function EmployeesToolbar({
     { value: 'terminated', label: t('employee.statusTerminated') },
   ]
 
+  /*
+    Sana oralig'ining MA'NOSI holatga bog'liq (server qoidasi): ishdan
+    ketganlarda — ketgan kun, qolganlarida — ishga kirgan kun. Yorliq shuni
+    ochiq aytadi: «Ishdan ketganlar» bo'limida HR «oktabrda ketganlar»ni
+    so'raydi, umumiy ro'yxatda esa «oktabrda kirganlar»ni.
+  */
+  const terminated = filters.status === 'terminated'
+
   return (
     <div className="border-b border-[var(--border)]">
       <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5 sm:gap-3 sm:px-5">
@@ -205,7 +222,7 @@ export function EmployeesToolbar({
             onClick={onExport}
             /* Ikki marta bosilsa ikkita fayl yuklanardi va ikkinchisi
                tezlik cheklovini bekorga yeb qo'yardi */
-            disabled={exporting}
+            disabled={exporting || exportDisabled}
             title={t('common.export')}
             aria-label={t('common.export')}
           >
@@ -268,6 +285,19 @@ export function EmployeesToolbar({
               onChange={(event) =>
                 set('status', event.target.value as EmployeeStatusFilterValue | '')
               }
+            />
+            {/* Teskari oraliqni sahifa ushlaydi va so'rov yubormaydi (`employees-page.tsx`) */}
+            <DateField
+              label={t(terminated ? 'employees.leftFrom' : 'employees.hiredFrom')}
+              value={filters.from}
+              max={filters.to === '' ? undefined : filters.to}
+              onChange={(value) => set('from', value)}
+            />
+            <DateField
+              label={t(terminated ? 'employees.leftTo' : 'employees.hiredTo')}
+              value={filters.to}
+              min={filters.from === '' ? undefined : filters.from}
+              onChange={(value) => set('to', value)}
             />
           </div>
 

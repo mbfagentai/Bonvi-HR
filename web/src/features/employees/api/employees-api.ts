@@ -308,6 +308,15 @@ export interface EmployeeFilterParams {
   needsReview?: boolean
   /** «fullName» — o'sish, «-hireDate» — kamayish tartibida. */
   sort?: string
+  /**
+   * Sana oralig'i — `DateOnly` («2026-10-01»), ikkala chegara ham kiradi,
+   * istalgani berilmasligi mumkin. `status=Terminated` da — ishdan ketish
+   * sanasi, qolgan har qanday holatda — ishga kirish sanasi (server
+   * qoidasi). Shu tipda turgani uchun Excel eksportiga ham O'ZI tushadi.
+   * `from > to` — `royxat.sana_oraligi_notogri` (400).
+   */
+  from?: string
+  to?: string
 }
 
 export interface EmployeeListFilters extends EmployeeFilterParams {
@@ -1029,6 +1038,10 @@ function filterParams(filters: EmployeeFilterParams): Record<string, string | nu
   }
 
   if (filters.needsReview === true) params['needsReview'] = true
+
+  // `DateOnly` — server «yyyy-MM-dd» ni kutadi, maydon shu shaklni beradi
+  if (filters.from) params['from'] = filters.from
+  if (filters.to) params['to'] = filters.to
 
   return params
 }

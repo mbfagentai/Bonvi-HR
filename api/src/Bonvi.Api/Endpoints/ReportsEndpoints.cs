@@ -82,6 +82,8 @@ public static class ReportsEndpoints
                 string? status,
                 bool? needsReview,
                 string? sort,
+                DateOnly? from,
+                DateOnly? to,
                 ExportEmployeesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -101,7 +103,9 @@ public static class ReportsEndpoints
                             needsReview,
                             Page: null,
                             PageSize: null,
-                            sort),
+                            sort,
+                            from,
+                            to),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -120,7 +124,9 @@ public static class ReportsEndpoints
                 "Filtr va saralash parametrlari «GET /api/employees» bilan AYNAN bir xil — " +
                 "eksport ekranda ko'ringan qatorlarni, o'sha tartibda, sahifasiz (hammasini " +
                 "bitta faylda) qaytaradi. Eng ko'pi 5000 qator: kattaroq natija «eksport.juda_kop» " +
-                "(400) bilan rad etiladi — filtrni toraytiring. Sana ustunlari haqiqiy Excel " +
+                "(400) bilan rad etiladi — filtrni toraytiring. «from»/«to» ham ro'yxatdagi kabi " +
+                "(«status=Terminated» da ketish sanasi, aks holda ishga kirish sanasi; teskari oraliq — " +
+                "«royxat.sana_oraligi_notogri», 400). Sana ustunlari haqiqiy Excel " +
                 "sana (dd.mm.yyyy), oklad son va valyuta alohida ustun — HR ularni Excel'ning " +
                 "o'zida yig'indilashi yoki saralashi mumkin.")
             .Produces(StatusCodes.Status200OK, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

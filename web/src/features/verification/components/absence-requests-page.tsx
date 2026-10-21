@@ -1,8 +1,14 @@
+import { getRouteApi } from '@tanstack/react-router'
 import { CalendarCheck } from 'lucide-react'
 import { useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
+import {
+  dateRangeToSearch,
+  searchToDateRange,
+  type DateRange,
+} from '@/shared/lib/list-search'
 import { PageHeader, SegmentedControl } from '@/shared/ui'
 
 import { useAbsenceRequests, useScheduleChangeRequests } from '../api/attendance-queries'
@@ -16,6 +22,12 @@ type RequestQueue = 'absence' | 'schedule'
 
 /** Segment ustidagi sanoq uchun — faqat `total` kerak, qatorlar emas. */
 const COUNT_PAGE = { page: 1, pageSize: 1 } as const
+
+/**
+ * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
+ * (`employees-page.tsx` dagi izohga qarang).
+ */
+const route = getRouteApi('/_app/verifikatsiya/sorovlar')
 
 /**
  * So'rovlar — butun tashkilot bo'yicha navbat (SPEC-so'rovlar §B5).
@@ -36,6 +48,21 @@ export function AbsenceRequestsPage() {
   const canView = hasPermission(ATTENDANCE_VIEW)
 
   const [queue, setQueue] = useState<RequestQueue>('absence')
+
+  /*
+    So'rov davri oralig'i — manzilda va IKKALA navbatga umumiy: HR
+    «oktabrdagi so'rovlar»ni ko'rib, segmentni almashtirsa, savol o'sha
+    qoladi. Segment sanoqlari esa oraliqqa BOG'LANMAYDI — ular menyu
+    nishonidagi bilan bir xil «hozir qaror kutayotganlar».
+  */
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
+  const range = searchToDateRange(search)
+
+  // `replace` — filtrni aniqlashtirish alohida tarix qadami emas
+  const changeRange = (next: DateRange) => {
+    void navigate({ search: dateRangeToSearch(next), replace: true })
+  }
 
   const absencePending = useAbsenceRequests({ status: 'Pending', ...COUNT_PAGE }, canView)
   const schedulePending = useScheduleChangeRequests({ status: 'Pending', ...COUNT_PAGE }, canView)
@@ -72,9 +99,14 @@ export function AbsenceRequestsPage() {
       />
 
       {queue === 'absence' ? (
-        <AbsenceRequestsList showEmployee showFilters />
+        <AbsenceRequestsList
+          showEmployee
+          showFilters
+          range={range}
+          onRangeChange={changeRange}
+        />
       ) : (
-        <ScheduleRequestsList showEmployee />
+        <ScheduleRequestsList showEmployee range={range} onRangeChange={changeRange} />
       )}
     </div>
   )

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { isDateRangeInverted } from '@/shared/lib/list-search'
 import { usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
@@ -117,11 +118,21 @@ export function EmployeesPage() {
       status: filters.status === '' ? undefined : filters.status,
       needsReview: filters.needsReview,
       sort: sortParam,
+      // Sana oralig'i ham shu obyektda — ya'ni Excel fayliga ham O'ZI tushadi
+      from: filters.from,
+      to: filters.to,
     }),
     [filters, sortParam],
   )
 
-  const query = useEmployees({ ...listFilters, page, pageSize })
+  /*
+    Teskari oraliq bilan na ro'yxat, na eksport so'rovi ketadi: server
+    baribir 400 qaytaradi, ekran esa sababni toolbar ostida darhol aytadi
+    (`attendance-passes-page.tsx` naqshi).
+  */
+  const rangeInvalid = isDateRangeInverted(filters)
+
+  const query = useEmployees({ ...listFilters, page, pageSize }, !rangeInvalid)
 
   /**
    * Eksport holati.
@@ -369,15 +380,16 @@ export function EmployeesPage() {
     [t],
   )
 
-  const employees = query.data?.items ?? EMPTY
-  const total = query.data?.total ?? 0
+  // Teskari oraliqda eski sahifa ko'rinib qolmasin — u boshqa filtrniki
+  const employees = rangeInvalid ? EMPTY : (query.data?.items ?? EMPTY)
+  const total = rangeInvalid ? 0 : (query.data?.total ?? 0)
 
   /**
    * `isPending` — hech qachon ma'lumot bo'lmagan, `isFetching` — yangilanmoqda.
    * Sahifadan sahifaga o'tishda eski ro'yxat ko'rinib turadi (skelet emas),
    * shu sababli faqat birinchi yuklashda skelet chiziladi.
    */
-  const firstLoad = query.isPending
+  const firstLoad = query.isPending && !rangeInvalid
 
   const filtered = isFiltered(search)
   const listEmpty = employees.length === 0 && !firstLoad
@@ -428,7 +440,8 @@ export function EmployeesPage() {
     )
   }
 
-  const empty = listEmpty ? emptyState() : null
+  // Teskari oraliqda bo'sh holat chizilmaydi — sabab ogohlantirishda
+  const empty = listEmpty && !rangeInvalid ? emptyState() : null
 
   return (
     <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
@@ -453,7 +466,7 @@ export function EmployeesPage() {
           </span>
         }
         subtitle={
-          query.isPending
+          firstLoad
             ? t('common.loading')
             : t('employees.subtitle', { n: num(total) })
         }
@@ -474,7 +487,14 @@ export function EmployeesPage() {
           options={options}
           onExport={canExport ? () => exportList.mutate(listFilters) : undefined}
           exporting={exportList.isPending}
+          exportDisabled={rangeInvalid}
         />
+
+        {rangeInvalid && (
+          <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+            <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
+          </div>
+        )}
 
         {/*
           Eksport xatosi AYNAN shu yerda — tugmaning ostida, kartaning

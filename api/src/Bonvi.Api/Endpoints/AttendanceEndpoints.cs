@@ -1532,8 +1532,9 @@ public static class AttendanceEndpoints
             .WithName("SearchScheduleChangeRequests")
             .WithSummary("Davomat — jadval so'rovlari")
             .WithDescription(
-                "Yangisi birinchi. Filtrlar yo'qlik so'rovlaridagi bilan bir xil; «from»/«to» so'rovning KUNLARI " +
-                "bo'yicha (birorta kuni oraliqqa tushsa chiqadi).")
+                "Yangisi birinchi. Filtrlar yo'qlik so'rovlaridagi bilan bir xil; «from»/«to» (ikkalasi ham kiradi, " +
+                "istalgani berilmasligi mumkin) so'rovning KUNLARI bo'yicha: birorta kuni (almashtirishda — " +
+                "ikkala sanadan biri) oraliq ICHIGA tushsa chiqadi. «from» > «to» — «davomat.davr_notogri» (400).")
             .Produces<PagedResult<ScheduleChangeRequestDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
@@ -1703,7 +1704,8 @@ public static class AttendanceEndpoints
                 "Yangisi birinchi («createdAt» kamayish bo'yicha). «employeeId» — xodim kartasidagi ro'yxat, " +
                 "usiz — butun tashkilot bo'yicha navbat. «status»: Pending | Approved | Rejected | Cancelled. " +
                 "«from»/«to» so'rovning DAVRI bo'yicha kesadi (yaratilgan sana bo'yicha emas) va oraliqqa " +
-                "QISMAN tegadigan so'rov ham chiqadi. «search» — xodim bo'yicha, boshqa ro'yxatlardagi bilan " +
+                "QISMAN tegadigan so'rov ham chiqadi; ikkala chegara ham kiradi, istalgani berilmasligi mumkin, " +
+                "«from» > «to» — «davomat.davr_notogri» (400). «search» — xodim bo'yicha, boshqa ro'yxatlardagi bilan " +
                 "bir xil shart. «absenceTypeId» — yo'qlik turi; «mode»: PartDay | WholeDay | MultiDay " +
                 "(qism kun / butun kun / bir necha kun). «pageSize» sukut 25, eng ko'pi 200.")
             .Produces<PagedResult<AbsenceRequestDto>>(StatusCodes.Status200OK)

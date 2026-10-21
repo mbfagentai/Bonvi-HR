@@ -6,6 +6,7 @@ import type { SortingState } from '@tanstack/react-table'
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
+import { isDateRangeInverted } from '@/shared/lib/list-search'
 import { formatPhone } from '@/shared/lib/phone'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
@@ -175,6 +176,13 @@ export function CandidatesPage() {
       ...(filters.contactDue ? { contactDue: true } : {}),
       ...(rejectedSection ? { rejected: true } : {}),
       /*
+        Sana oralig'i jadvalga HAM, voronkaga HAM: ikkalasi bitta ro'yxatning
+        ikki chizilishi. Ma'nosini server bo'limga qarab tanlaydi — bu yerda
+        ariza kuni, «Rad etilganlar» da rad etilgan kun.
+      */
+      ...(filters.from === '' ? {} : { from: filters.from }),
+      ...(filters.to === '' ? {} : { to: filters.to }),
+      /*
         ⭐ Qidiruvda rad etilganlar va o'zi voz kechganlar HAM chiqadi
         (egasi, 2026-10-15: «qidirilsa rad etilgan nomzodlardan ham
         qidirsin»). Sukut ro'yxatda ular yashirin, lekin HR odamni ismi
@@ -218,6 +226,13 @@ export function CandidatesPage() {
     [sharedFilters, filters.status, rejectedSection],
   )
 
+  /*
+    Teskari oraliq («20.10 dan 01.10 gacha») bilan so'rov YUBORILMAYDI —
+    na jadval, na voronka: server baribir 400 qaytaradi, ekran esa sababni
+    toolbar ostida darhol aytadi (`attendance-passes-page.tsx` naqshi).
+  */
+  const rangeInvalid = isDateRangeInverted(filters)
+
   const query = useCandidates(
     {
       ...sharedFilters,
@@ -230,7 +245,7 @@ export function CandidatesPage() {
     // yuboradi va bu yerdagi natija hech qayerda chizilmaydi. Uni
     // shunchaki qoldirish har taxta ochilganda 50 qatorlik ortiqcha
     // so'rov degani.
-    view === 'table',
+    view === 'table' && !rangeInvalid,
   )
 
   /**
@@ -517,9 +532,10 @@ export function CandidatesPage() {
     [t],
   )
 
-  const rows = query.data?.items ?? EMPTY
-  const total = query.data?.total ?? 0
-  const firstLoad = query.isPending && view === 'table'
+  // Teskari oraliqda eski sahifa ko'rinib qolmasin — u boshqa filtrniki
+  const rows = rangeInvalid ? EMPTY : (query.data?.items ?? EMPTY)
+  const total = rangeInvalid ? 0 : (query.data?.total ?? 0)
+  const firstLoad = query.isPending && view === 'table' && !rangeInvalid
   const filtered = isFiltered(search)
   const listEmpty = rows.length === 0 && !firstLoad
 
@@ -647,16 +663,25 @@ export function CandidatesPage() {
           onChange={changeFilters}
           vacancies={allVacancies.options}
           stages={stageOptions}
+          rejectedSection={rejectedSection}
         />
 
+        {rangeInvalid && (
+          <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+            <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
+          </div>
+        )}
+
         {view === 'funnel' ? (
-          <CandidateFunnel
-            stages={activeStages.data ?? NO_STAGES}
-            stagesLoading={activeStages.isPending}
-            filters={funnelFilters}
-            onOpen={openCandidate}
-            onShowAll={showStageInTable}
-          />
+          rangeInvalid ? null : (
+            <CandidateFunnel
+              stages={activeStages.data ?? NO_STAGES}
+              stagesLoading={activeStages.isPending}
+              filters={funnelFilters}
+              onOpen={openCandidate}
+              onShowAll={showStageInTable}
+            />
+          )
         ) : (
           <>
             <DataTable
@@ -671,7 +696,9 @@ export function CandidatesPage() {
               onSortingChange={changeSorting}
               fill
               empty={
-                listEmpty ? (
+                // Teskari oraliqda bo'sh holat CHIZILMAYDI — sabab yuqoridagi
+                // ogohlantirishda, «topilmadi» esa yolg'on bo'lardi
+                listEmpty && !rangeInvalid ? (
                   emptySection ? (
                     <EmptyState
                       icon={UserRoundX}

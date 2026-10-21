@@ -34,6 +34,16 @@ export interface EmployeesSearch {
   status?: EmployeesStatusFilter
   /** Faqat «tekshirish kerak» belgisi qo'yilganlar. */
   review?: boolean
+  /**
+   * Sana oralig'i — `DateOnly` («2026-10-01»), ikkala chegara ham kiradi.
+   *
+   * ⚠️ MA'NOSI holatga qarab (server qoidasi): `terminated` da — ishdan
+   * KETGAN sana, qolgan har qanday holatda — ishga KIRGAN sana. Ikkalasi
+   * ham qatorda ko'rinadigan munosabatniki. Toolbar yorlig'i ham shu
+   * qoidaga qarab almashadi.
+   */
+  from?: string
+  to?: string
   sort?: EmployeesSortParam
   view?: EmployeesView
 }
@@ -109,6 +119,9 @@ export interface EmployeesFilterState {
   /** Bo'sh satr — «barcha holatlar» (`Select` dagi placeholder qiymati). */
   status: EmployeeStatusFilterValue | ''
   needsReview: boolean
+  /** Sana oralig'i — bo'sh satr «chegara yo'q» (`EmployeesSearch.from` izohi). */
+  from: string
+  to: string
 }
 
 /**
@@ -126,12 +139,14 @@ export const DEFAULT_FILTERS: EmployeesFilterState = {
   legalEntityId: '',
   status: DEFAULT_STATUS,
   needsReview: false,
+  from: '',
+  to: '',
 }
 
 /** Manzildagi filtr maydonlari — sahifa, saralash va ko'rinishdan tashqarisi. */
 type EmployeesFilterSearch = Pick<
   EmployeesSearch,
-  'q' | 'department' | 'position' | 'direction' | 'entity' | 'status' | 'review'
+  'q' | 'department' | 'position' | 'direction' | 'entity' | 'status' | 'review' | 'from' | 'to'
 >
 
 /**
@@ -152,6 +167,8 @@ export function validateEmployeesSearch(search: Record<string, unknown>): Employ
     entity: readId(search['entity']),
     status: readStatus(search['status']),
     review: readFlag(search['review']),
+    from: readDate(search['from']),
+    to: readDate(search['to']),
     sort: normalizeSort(search['sort']),
     view: readView(search['view']),
   }
@@ -173,6 +190,8 @@ export function searchToFilters(search: EmployeesSearch): EmployeesFilterState {
     legalEntityId: search.entity ?? '',
     status: search.status === 'all' ? '' : (search.status ?? DEFAULT_STATUS),
     needsReview: search.review ?? false,
+    from: search.from ?? '',
+    to: search.to ?? '',
   }
 }
 
@@ -192,7 +211,9 @@ export function isFiltered(search: EmployeesSearch): boolean {
     search.direction !== undefined ||
     search.entity !== undefined ||
     search.status !== undefined ||
-    search.review !== undefined
+    search.review !== undefined ||
+    search.from !== undefined ||
+    search.to !== undefined
   )
 }
 
@@ -214,6 +235,8 @@ export function filtersToSearch(filters: EmployeesFilterState): EmployeesFilterS
     // manzilda `all` bo'lib ko'rinadi; standart `active` esa yozilmaydi
     status: filters.status === '' ? 'all' : statusToSearch(filters.status),
     review: filters.needsReview ? true : undefined,
+    from: emptyToUndefined(filters.from),
+    to: emptyToUndefined(filters.to),
   }
 }
 
@@ -347,6 +370,13 @@ function readView(value: unknown): EmployeesView | undefined {
  */
 function readFlag(value: unknown): boolean | undefined {
   return value === true || value === 'true' ? true : undefined
+}
+
+/** `DateOnly` shakli — boshqasi backend'ga 400 bilan qaytardi. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/u
+
+function readDate(value: unknown): string | undefined {
+  return typeof value === 'string' && DATE_ONLY.test(value) ? value : undefined
 }
 
 function emptyToUndefined(value: string): string | undefined {

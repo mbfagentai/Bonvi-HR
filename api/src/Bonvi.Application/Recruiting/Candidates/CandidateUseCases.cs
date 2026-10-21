@@ -1,4 +1,5 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Common.Lists;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Common;
@@ -95,6 +96,13 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// rezerv va qora ro'yxat qoidalariga tegmaydi.
 /// </para>
 /// </param>
+/// <param name="From">
+/// Sana oralig'ining boshi (kiradi), egasi 2026-10-20. Qaysi sana —
+/// <paramref name="Rejected"/> ga bog'liq: «Rad etilganlar» bo'limida —
+/// voronkadan chiqqan (rad etilgan / voz kechgan) sana, boshqa hamma
+/// joyda — ariza sanasi (ro'yxatdagi «createdAt», Toshkent kuni bo'yicha).
+/// </param>
+/// <param name="To">Sana oralig'ining oxiri (kiradi).</param>
 public sealed record SearchCandidatesQuery(
     string? Search = null,
     Guid? VacancyId = null,
@@ -107,7 +115,9 @@ public sealed record SearchCandidatesQuery(
     bool IncludeArchive = false,
     bool ContactDue = false,
     bool Rejected = false,
-    bool IncludeRejected = false);
+    bool IncludeRejected = false,
+    DateOnly? From = null,
+    DateOnly? To = null);
 
 public sealed record GetCandidateQuery(Guid CandidateId);
 
@@ -481,6 +491,25 @@ public sealed class SearchCandidatesQueryHandler
 
         var (sort, descending) = RecruitingQueryParsing.ParseCandidateSort(query.Sort);
 
+        var range = ListDateRange.Validate(query.From, query.To);
+        if (range.IsFailure)
+        {
+            return range.Error;
+        }
+
+        /*
+          ⭐ Sana oralig'i qaysi sanaga (egasi, 2026-10-20): «Rad etilganlar»
+          bo'limi (`rejected=true`) — voronkadan chiqqan sana (`closed_at`,
+          rad etilgan yoki voz kechgan kun); qolgan hamma joyda — ariza sanasi,
+          ya'ni ro'yxatdagi «createdAt», Toshkent kuni bo'yicha.
+
+          Faqat bo'lim bayrog'i hal qiladi, HOLAT EMAS: «Nomzodlar» sahifasida
+          holat tanlovi ham bor va «Rad etilgan» tanlansa sana ma'nosi jimgina
+          almashib qolardi — HR bir xil maydonga ikki xil savol berayotganini
+          sezmasdi.
+        */
+        var byClosedDate = query.Rejected;
+
         // Bo'sh matn `null` ga aylantiriladi: «?search=» — «qidiruvsiz»,
         // «hech narsa topilmasin» emas (barcha ro'yxatlarda bir xil qoida).
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
@@ -509,7 +538,11 @@ public sealed class SearchCandidatesQueryHandler
                     // soati yo'q (izohi `_clock` maydonida).
                     query.ContactDue ? _clock.Today : null,
                     query.Rejected,
-                    IncludeRejected: query.IncludeRejected),
+                    IncludeRejected: query.IncludeRejected,
+                    CreatedFrom: byClosedDate ? null : ListDateRange.StartUtc(query.From),
+                    CreatedBefore: byClosedDate ? null : ListDateRange.EndUtcExclusive(query.To),
+                    ClosedFrom: byClosedDate ? query.From : null,
+                    ClosedTo: byClosedDate ? query.To : null),
                 cancellationToken)
             .ConfigureAwait(false);
 

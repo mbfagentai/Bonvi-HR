@@ -1,17 +1,25 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { ListFilter, Search, SearchX, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import type { EmployeeFlagType } from '@/features/employees/api/employees-api'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { FLAG_LOOK, LISTS_MANAGE } from '@/features/employees/lib/employee-presentation'
-import { useLocale } from '@/shared/i18n/use-locale'
-import { useSearchDraft } from '@/shared/lib/list-search'
+import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
+  NO_DATE_RANGE,
+  hasDateRange,
+  isDateRangeInverted,
+  useSearchDraft,
+  type DateRange,
+} from '@/shared/lib/list-search'
+import {
+  Alert,
   Button,
   Card,
   DataTable,
+  DateField,
   EmptyState,
   IconTile,
   Input,
@@ -56,6 +64,8 @@ export function FlagListPage({
   type,
   search,
   onSearchChange,
+  range,
+  onRangeChange,
   tabs,
 }: {
   type: EmployeeFlagType
@@ -63,12 +73,20 @@ export function FlagListPage({
   search: string
   onSearchChange: (next: string) => void
   /**
+   * Belgi QO'YILGAN sana oralig'i — manzildan, qidiruv bilan bir xil
+   * sabab bilan props orqali. «Faqat kuchdagilar» bilan birga ishlaydi:
+   * ikkalasi «VA» bilan birlashadi (server qoidasi).
+   */
+  range: DateRange
+  onRangeChange: (next: DateRange) => void
+  /**
    * Sarlavhadagi bo'lim almashtirgichi. Hozir faqat «Rezerv» da:
    * «Nomzodlar | Xodimlar» (sababi `ReserveCandidatesPage` izohida).
    */
   tabs?: ReactNode
 }) {
   const { t, num } = useLocale()
+  const errorMessage = useErrorMessage()
   const navigate = useNavigate()
   const { hasPermission } = useAuth()
 
@@ -84,8 +102,24 @@ export function FlagListPage({
    */
   const [draft, setDraft] = useSearchDraft(search, onSearchChange)
 
-  const list = useFlagged(type, onlyActive, search)
-  const rows = list.data ?? EMPTY
+  /*
+   * Sana oralig'i yig'ilgan panelda (`IncentivesToolbar` naqshi): qidiruv
+   * kundalik, oraliq esa kamdan-kam. Oraliq qo'yilgan bo'lsa panel ochiq
+   * boshlanadi — aks holda HR «nega ro'yxat qisqa?» deb so'rardi.
+   */
+  const rangeCount = [range.from, range.to].filter((value) => value !== '').length
+  const [rangeOpen, setRangeOpen] = useState(rangeCount > 0)
+
+  /*
+   * Teskari oraliq bilan so'rov YUBORILMAYDI: server baribir 400 qaytaradi,
+   * ekran esa sababni qidiruv ostida darhol aytadi
+   * (`attendance-passes-page.tsx` naqshi).
+   */
+  const rangeInvalid = isDateRangeInverted(range)
+
+  const list = useFlagged(type, onlyActive, search, range, !rangeInvalid)
+  // Teskari oraliqda eski natija ko'rinib qolmasin — u boshqa filtrniki
+  const rows = rangeInvalid ? EMPTY : (list.data ?? EMPTY)
 
   const columns = useMemo<Array<DataColumn<FlaggedEmployee>>>(
     () => [
@@ -236,23 +270,81 @@ export function FlagListPage({
           kalitidan farqli o'laroq u kundalik ishlatiladi va sahifa
           sarlavhasiga emas, ro'yxatning o'ziga tegishli.
         */}
-        <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
-          <Input
-            icon={Search}
-            shape="pill"
-            type="search"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t('common.searchPlaceholder')}
-            aria-label={t('common.search')}
-          />
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] px-4 py-3.5 sm:gap-3 sm:px-5">
+          <div className="min-w-[200px] flex-1">
+            <Input
+              icon={Search}
+              shape="pill"
+              type="search"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={t('common.searchPlaceholder')}
+              aria-label={t('common.search')}
+            />
+          </div>
+
+          <Button
+            type="button"
+            pill
+            variant={rangeOpen ? 'soft' : 'secondary'}
+            aria-expanded={rangeOpen}
+            onClick={() => setRangeOpen((previous) => !previous)}
+          >
+            <ListFilter />
+            <span className="hidden sm:inline">{t('common.filters')}</span>
+            {rangeCount > 0 && (
+              <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
+                {num(rangeCount)}
+              </span>
+            )}
+          </Button>
         </div>
+
+        {rangeOpen && (
+          <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {/* Oraliq belgi QO'YILGAN kun bo'yicha — yorliq shuni aytadi */}
+              <DateField
+                label={t('flags.markedFrom')}
+                value={range.from}
+                max={range.to === '' ? undefined : range.to}
+                onChange={(value) => onRangeChange({ ...range, from: value })}
+              />
+              <DateField
+                label={t('flags.markedTo')}
+                value={range.to}
+                min={range.from === '' ? undefined : range.from}
+                onChange={(value) => onRangeChange({ ...range, to: value })}
+              />
+            </div>
+
+            {hasDateRange(range) && (
+              <div className="mt-3.5 flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onRangeChange(NO_DATE_RANGE)}
+                >
+                  <X />
+                  {t('employees.clearFilters')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {rangeInvalid && (
+          <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+            <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
+          </div>
+        )}
 
         <DataTable
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
-          loading={list.isPending}
+          loading={list.isPending && !rangeInvalid}
           rowLabel={(row) => row.employeeName}
           onRowClick={(row) =>
             void navigate({
@@ -261,11 +353,21 @@ export function FlagListPage({
             })
           }
           empty={
-            <EmptyState
-              icon={look.icon}
-              title={t(`flags.page.${look.key}.emptyTitle`)}
-              description={t(`flags.page.${look.key}.hint`)}
-            />
+            // Teskari oraliqda bo'sh holat chizilmaydi — sabab ogohlantirishda.
+            // Oraliq qo'yilgan bo'lsa — «topilmadi», ro'yxat bo'sh EMAS.
+            rangeInvalid ? undefined : hasDateRange(range) ? (
+              <EmptyState
+                icon={SearchX}
+                title={t('common.empty')}
+                description={t('common.dateRangeEmptyText')}
+              />
+            ) : (
+              <EmptyState
+                icon={look.icon}
+                title={t(`flags.page.${look.key}.emptyTitle`)}
+                description={t(`flags.page.${look.key}.hint`)}
+              />
+            )
           }
         />
       </Card>

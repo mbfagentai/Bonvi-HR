@@ -219,6 +219,19 @@ public enum VacancySortField
 /// <see cref="HideRejected"/> va <see cref="HideWithdrawn"/> o'chadi
 /// («Nomzodlar» bo'limidagi qidiruv, <c>SearchCandidatesQuery.IncludeRejected</c>).
 /// </param>
+/// <param name="CreatedFrom">
+/// Ariza (yozuv yaratilgan) lahzasining quyi chegarasi, UTC — KIRADI.
+/// Toshkent kunining boshi handler'da hisoblanadi (<c>ListDateRange</c>):
+/// o'qish modelida mintaqa yo'q (<see cref="ContactDueOn"/> dagi bilan bir
+/// xil sabab).
+/// </param>
+/// <param name="CreatedBefore">Ariza lahzasining yuqori chegarasi, UTC — KIRMAYDI.</param>
+/// <param name="ClosedFrom">
+/// Voronkadan chiqqan sananing (<c>closed_at</c>) quyi chegarasi — kiradi.
+/// «Rad etilganlar» bo'limi shu sana bo'yicha filtrlanadi; qaysi juftlik
+/// to'ldirilishini handler hal qiladi.
+/// </param>
+/// <param name="ClosedTo">Voronkadan chiqqan sananing yuqori chegarasi — kiradi.</param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -249,7 +262,11 @@ public sealed record CandidateSearchFilter(
       kerak. Excel arxivi `IncludeArchive` bilan alohida boshqariladi.
     */
     bool AllStatuses = false,
-    bool IncludeRejected = false)
+    bool IncludeRejected = false,
+    DateTimeOffset? CreatedFrom = null,
+    DateTimeOffset? CreatedBefore = null,
+    DateOnly? ClosedFrom = null,
+    DateOnly? ClosedTo = null)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;

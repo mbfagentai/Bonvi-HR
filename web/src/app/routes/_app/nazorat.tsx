@@ -1,33 +1,56 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { FlagListPage } from '@/features/flags/components/flag-list-page'
-import { toSearchParam, validateListSearch } from '@/shared/lib/list-search'
+import {
+  dateRangeToSearch,
+  searchToDateRange,
+  toSearchParam,
+  validateDateRangeSearch,
+  validateListSearch,
+  type DateRangeSearch,
+  type ListSearch,
+} from '@/shared/lib/list-search'
 
 /** Nazoratdagilar — bir muddat kuzatiladigan xodimlar. */
 export const Route = createFileRoute('/_app/nazorat')({
   /**
-   * Qidiruv matni — manzil satrida (loyihaning qat'iy konvensiyasi).
+   * Qidiruv matni va belgi qo'yilgan sana oralig'i — manzil satrida
+   * (loyihaning qat'iy konvensiyasi).
    * `FlagListPage` to'rtta marshrutga xizmat qiladi, shu sababli holatni
    * marshrut o'qiydi va sahifaga PROPS bilan uzatadi — sabab
    * `flag-list-page.tsx` izohida.
    */
-  validateSearch: validateListSearch,
+  validateSearch: (search: Record<string, unknown>): ListSearch & DateRangeSearch => ({
+    ...validateListSearch(search),
+    ...validateDateRangeSearch(search),
+  }),
 
   component: NazoratSahifasi,
 })
 
 function NazoratSahifasi() {
-  const { q } = Route.useSearch()
+  const search = Route.useSearch()
   const navigate = Route.useNavigate()
 
   return (
     <FlagListPage
       type="monitoring"
-      search={q ?? ''}
+      search={search.q ?? ''}
       // `replace` — qidiruvni aniqlashtirish alohida tarix qadami emas:
       // aks holda «orqaga» tugmasi har bir harfni birma-bir qaytarardi.
+      // Avvalgi manzil saqlanadi — qidiruv sana oralig'ini o'chirmasin.
       onSearchChange={(value) => {
-        void navigate({ search: { q: toSearchParam(value) }, replace: true })
+        void navigate({
+          search: (previous) => ({ ...previous, q: toSearchParam(value) }),
+          replace: true,
+        })
+      }}
+      range={searchToDateRange(search)}
+      onRangeChange={(next) => {
+        void navigate({
+          search: (previous) => ({ ...previous, ...dateRangeToSearch(next) }),
+          replace: true,
+        })
       }}
     />
   )

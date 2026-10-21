@@ -89,6 +89,14 @@ export interface ProbationFilters {
    * Bo'sh satr — «qidiruvsiz» (server ham shunday tushunadi).
    */
   search: string
+  /**
+   * Sinov TUGASH sanasi (`endDate`) bo'yicha oraliq — `DateOnly`, ikkala
+   * chegara ham kiradi. Bo'sh satr — «chegara yo'q». `from > to` —
+   * `royxat.sana_oraligi_notogri` (400); sahifa bunday oraliqni oldindan
+   * ushlaydi va so'rov yubormaydi.
+   */
+  from: string
+  to: string
   /** Sahifa raqami, 1 dan. */
   page: number
   /** Sahifa hajmi — ro'yxat ostidagi tanlovdan (`usePageSize`). */
@@ -201,6 +209,8 @@ export async function fetchProbations(
 
   if (filters.status !== '') params['status'] = statusName(filters.status)
   if (filters.search.trim() !== '') params['search'] = filters.search
+  if (filters.from !== '') params['from'] = filters.from
+  if (filters.to !== '') params['to'] = filters.to
 
   const { data } = await api.get<unknown>('/api/probations', { params, signal })
 

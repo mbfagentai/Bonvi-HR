@@ -1,16 +1,24 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Search, SearchX } from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
+import { ListFilter, Search, SearchX, X } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { FLAG_LOOK } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { useSearchDraft } from '@/shared/lib/list-search'
+import {
+  NO_DATE_RANGE,
+  hasDateRange,
+  isDateRangeInverted,
+  useSearchDraft,
+  type DateRange,
+} from '@/shared/lib/list-search'
 import { formatPhone } from '@/shared/lib/phone'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
+  Button,
   Card,
   DataTable,
+  DateField,
   EmptyState,
   IconTile,
   Input,
@@ -47,6 +55,8 @@ const EMPTY: CandidateListItem[] = []
 export function ReserveCandidatesPage({
   search,
   onSearchChange,
+  range,
+  onRangeChange,
   page,
   onPageChange,
   tabs,
@@ -54,6 +64,13 @@ export function ReserveCandidatesPage({
   /** Manzildagi qidiruv matni. Bo'sh satr — qidiruvsiz. */
   search: string
   onSearchChange: (next: string) => void
+  /**
+   * Ariza KELGAN sana oralig'i — manzildan (qidiruv bilan bir xil sabab).
+   * Server bu holatda oraliqni ariza kuni bo'yicha kesadi, belgi qo'yilgan
+   * kun bo'yicha emas (`SearchCandidatesQueryHandler` qoidasi).
+   */
+  range: DateRange
+  onRangeChange: (next: DateRange) => void
   /** 1 dan. */
   page: number
   onPageChange: (next: number) => void
@@ -66,6 +83,16 @@ export function ReserveCandidatesPage({
   const look = FLAG_LOOK.reserve
 
   const [draft, setDraft] = useSearchDraft(search, onSearchChange)
+
+  /*
+   * Sana oralig'i yig'ilgan panelda — `FlagListPage` dagi bilan bir xil
+   * joy va bir xil xatti-harakat: ikki bo'lim bir xil his qilsin.
+   */
+  const rangeCount = [range.from, range.to].filter((value) => value !== '').length
+  const [rangeOpen, setRangeOpen] = useState(rangeCount > 0)
+
+  // Teskari oraliq bilan so'rov yuborilMAYDI (`candidates-page.tsx` naqshi)
+  const rangeInvalid = isDateRangeInverted(range)
   const { pageSize, setPageSize, allowAll } = usePageSize('reserve-candidates', true)
 
   /** Hajm o'zgarsa birinchi sahifadan — eski raqam yangi hajmda boshqa odamlar. */
@@ -80,15 +107,21 @@ export function ReserveCandidatesPage({
     ro'yxatida rezerv endi umuman ko'rinmaydi, ya'ni bayroqsiz bu qatorlar
     tizimning hech bir ekranida chiqmasdi.
   */
-  const query = useCandidates({
-    status: 'Reserve',
-    includeArchive: true,
-    search: search === '' ? undefined : search,
-    page,
-    pageSize,
-  })
-  const rows = query.data?.items ?? EMPTY
-  const total = query.data?.total ?? 0
+  const query = useCandidates(
+    {
+      status: 'Reserve',
+      includeArchive: true,
+      search: search === '' ? undefined : search,
+      from: range.from === '' ? undefined : range.from,
+      to: range.to === '' ? undefined : range.to,
+      page,
+      pageSize,
+    },
+    !rangeInvalid,
+  )
+  // Teskari oraliqda eski sahifa ko'rinib qolmasin — u boshqa filtrniki
+  const rows = rangeInvalid ? EMPTY : (query.data?.items ?? EMPTY)
+  const total = rangeInvalid ? 0 : (query.data?.total ?? 0)
 
   // Eski sahifa raqami yangi hajmda bo'sh bo'lsa — oxirgi sahifaga (`useClampPage`)
   useClampPage(page, pageSize, query.isPlaceholderData ? undefined : query.data?.total, onPageChange)
@@ -165,24 +198,82 @@ export function ReserveCandidatesPage({
       )}
 
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
-        <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
-          <Input
-            icon={Search}
-            shape="pill"
-            type="search"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t('common.searchPlaceholder')}
-            aria-label={t('common.search')}
-          />
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] px-4 py-3.5 sm:gap-3 sm:px-5">
+          <div className="min-w-[200px] flex-1">
+            <Input
+              icon={Search}
+              shape="pill"
+              type="search"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={t('common.searchPlaceholder')}
+              aria-label={t('common.search')}
+            />
+          </div>
+
+          <Button
+            type="button"
+            pill
+            variant={rangeOpen ? 'soft' : 'secondary'}
+            aria-expanded={rangeOpen}
+            onClick={() => setRangeOpen((previous) => !previous)}
+          >
+            <ListFilter />
+            <span className="hidden sm:inline">{t('common.filters')}</span>
+            {rangeCount > 0 && (
+              <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
+                {num(rangeCount)}
+              </span>
+            )}
+          </Button>
         </div>
+
+        {rangeOpen && (
+          <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {/* Nomzodlarda oraliq ARIZA kuni bo'yicha — yorliq shuni aytadi */}
+              <DateField
+                label={t('recruiting.appliedFrom')}
+                value={range.from}
+                max={range.to === '' ? undefined : range.to}
+                onChange={(value) => onRangeChange({ ...range, from: value })}
+              />
+              <DateField
+                label={t('recruiting.appliedTo')}
+                value={range.to}
+                min={range.from === '' ? undefined : range.from}
+                onChange={(value) => onRangeChange({ ...range, to: value })}
+              />
+            </div>
+
+            {hasDateRange(range) && (
+              <div className="mt-3.5 flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onRangeChange(NO_DATE_RANGE)}
+                >
+                  <X />
+                  {t('employees.clearFilters')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {rangeInvalid && (
+          <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+            <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
+          </div>
+        )}
 
         <DataTable
           fill
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
-          loading={query.isPending}
+          loading={query.isPending && !rangeInvalid}
           rowLabel={(row) => row.fullName}
           onRowClick={(row) =>
             void navigate({
@@ -191,9 +282,11 @@ export function ReserveCandidatesPage({
             })
           }
           /*
-            Uch holat, uchta javob:
-              · so'rov yiqildi — bo'sh holat YO'Q: yuqoridagi xato
-                yetarli, «rezervda hech kim yo'q» esa yolg'on bo'lardi;
+            To'rt holat, to'rtta javob:
+              · so'rov yiqildi yoki oraliq teskari — bo'sh holat YO'Q:
+                yuqoridagi xato yetarli, «rezervda hech kim yo'q» esa yolg'on
+                bo'lardi;
+              · sana oralig'i qo'yilgan, mos kelmadi — «oraliqda yo'q»;
               · qidiruv bor, mos kelmadi — «topilmadi» (HR nimanidir
                 qidirgan, bo'lim bo'sh emas);
               · qidiruvsiz bo'sh — bo'limning o'z matni: rezervga qanday
@@ -204,7 +297,15 @@ export function ReserveCandidatesPage({
             bunday filtr yo'q.
           */
           empty={
-            query.isError ? null : search !== '' ? (
+            // Oraliq qidiruvdan OLDIN: ikkalasi birga bo'lsa, toraytiruvchi
+            // ko'pincha oraliq
+            query.isError || rangeInvalid ? null : hasDateRange(range) ? (
+              <EmptyState
+                icon={SearchX}
+                title={t('common.empty')}
+                description={t('common.dateRangeEmptyText')}
+              />
+            ) : search !== '' ? (
               <EmptyState
                 icon={SearchX}
                 title={t('recruiting.candidateNotFoundTitle')}

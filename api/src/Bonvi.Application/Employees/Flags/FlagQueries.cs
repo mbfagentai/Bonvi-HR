@@ -1,3 +1,4 @@
+using Bonvi.Application.Common.Lists;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
@@ -27,10 +28,17 @@ namespace Bonvi.Application.Employees.Flags;
 /// yozilishi esa manbadan manbaga farq qiladi.
 /// </para>
 /// </param>
+/// <param name="From">
+/// Belgi BOSHLANGAN sananing quyi chegarasi (kiradi), egasi 2026-10-20:
+/// «sentyabrda kim rezervga olindi». <c>OnlyActive</c> bilan birga ishlaydi.
+/// </param>
+/// <param name="To">Belgi boshlangan sananing yuqori chegarasi (kiradi).</param>
 public sealed record ListFlaggedQuery(
     EmployeeFlagType Type,
     bool OnlyActive = true,
-    string? Search = null);
+    string? Search = null,
+    DateOnly? From = null,
+    DateOnly? To = null);
 
 public sealed class ListFlaggedQueryHandler
 {
@@ -49,6 +57,12 @@ public sealed class ListFlaggedQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        var range = ListDateRange.Validate(query.From, query.To);
+        if (range.IsFailure)
+        {
+            return range.Error;
+        }
+
         var today = _clock.Today;
 
         // Bo'sh matn `null` ga aylantiriladi: «?search=» — bu «hech narsa
@@ -56,7 +70,14 @@ public sealed class ListFlaggedQueryHandler
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
 
         var rows = await _readModel
-            .ListFlagsAsync(query.Type, query.OnlyActive, today, search, cancellationToken)
+            .ListFlagsAsync(
+                query.Type,
+                query.OnlyActive,
+                today,
+                search,
+                startFrom: query.From,
+                startTo: query.To,
+                cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
         IReadOnlyList<FlaggedEmployeeDto> items =

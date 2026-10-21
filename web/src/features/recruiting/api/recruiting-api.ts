@@ -660,6 +660,17 @@ export interface CandidateFilters {
    * (rezerv u yerda yashirin), na rezervda.
    */
   includeArchive?: boolean
+  /**
+   * Sana oralig'i — `DateOnly` («2026-10-01»), ikkala chegara ham kiradi,
+   * istalgani berilmasligi mumkin.
+   *
+   * Ma'nosi SERVERDA tanlanadi: `rejected=true` bo'limida — rad etilgan /
+   * voz kechgan kun (`closedAt`), qolgan hamma joyda — ariza kelgan kun
+   * (`createdAt`, Toshkent kuni). `from > to` — `royxat.sana_oraligi_notogri`
+   * (400); ekran bunday oraliqni oldindan ushlaydi va so'rov yubormaydi.
+   */
+  from?: string
+  to?: string
 }
 
 /**
@@ -1132,6 +1143,8 @@ export async function fetchCandidates(
       rejected: filters.rejected === true ? true : undefined,
       includeRejected: filters.includeRejected === true ? true : undefined,
       includeArchive: filters.includeArchive === true ? true : undefined,
+      from: filters.from,
+      to: filters.to,
     }),
     signal,
   })

@@ -106,3 +106,83 @@ export function useSearchDraft(
 
   return [draft, setDraft]
 }
+
+/* ───────────────────────────────────────────────────── sana oralig'i */
+
+/**
+ * Ro'yxatning «sanadan–sanagacha» oralig'i — manzil satrida
+ * (`incentives-search.ts` dagi `from`/`to` naqshi).
+ *
+ * NEGA umumiy modulda: oraliq endi o'z `*-search.ts` fayli YO'Q
+ * ro'yxatlarga ham qo'shildi (sinov, to'rtta belgi sahifasi, davomat
+ * so'rovlari). Har marshrut `readDate` ni qayta yozsa, «?from=abc» ni bir
+ * joy tashlab yuborib, boshqasi serverga 400 bilan olib borardi.
+ *
+ * Ikkala chegara ham IXTIYORIY va ikkalasi ham KIRADI (backend qoidasi);
+ * bo'sh oraliq — «hammasi», ya'ni sukut.
+ */
+export interface DateRangeSearch {
+  /** `DateOnly` → «2026-10-01». */
+  from?: string
+  to?: string
+}
+
+/**
+ * Toolbar ishlaydigan ko'rinish: bo'sh satr — «chegara qo'yilmagan»
+ * (`IncentivesFilterState` dagi kelishuv).
+ */
+export interface DateRange {
+  from: string
+  to: string
+}
+
+export const NO_DATE_RANGE: DateRange = { from: '', to: '' }
+
+/** Manzildan — hech qachon xato tashlamaydi (`validateListSearch` qoidasi). */
+export function validateDateRangeSearch(search: Record<string, unknown>): DateRangeSearch {
+  return {
+    from: readDate(search['from']),
+    to: readDate(search['to']),
+  }
+}
+
+/** Manzil → toolbar. */
+export function searchToDateRange(search: DateRangeSearch): DateRange {
+  return { from: search.from ?? '', to: search.to ?? '' }
+}
+
+/**
+ * Toolbar → manzil. Bo'sh chegara `undefined` bo'lib manzildan BUTUNLAY
+ * yo'qoladi — tozalangan oraliq `?from=` bo'lib osilib qolmasin.
+ */
+export function dateRangeToSearch(range: DateRange): DateRangeSearch {
+  return {
+    from: range.from === '' ? undefined : range.from,
+    to: range.to === '' ? undefined : range.to,
+  }
+}
+
+/** Kamida bitta chegara qo'yilganmi — filtr sanog'i va bo'sh holat matni uchun. */
+export function hasDateRange(range: DateRange): boolean {
+  return range.from !== '' || range.to !== ''
+}
+
+/**
+ * Boshi oxiridan keyinmi (`royxat.sana_oraligi_notogri`, 400).
+ *
+ * Klientda OLDINDAN tekshiriladi va bunday oraliq bilan so'rov umuman
+ * yuborilmaydi (`attendance-passes-page.tsx` dagi naqsh): HR sababni
+ * maydon yonida darhol ko'radi. Server tekshiruvi baribir joyida — bu
+ * qulaylik, himoya emas. ISO satrlar leksik tartibda ham to'g'ri
+ * solishtiriladi.
+ */
+export function isDateRangeInverted(range: DateRange): boolean {
+  return range.from !== '' && range.to !== '' && range.from > range.to
+}
+
+/** `DateOnly` shakli — boshqasi backend'ga 400 bilan qaytardi. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/u
+
+function readDate(value: unknown): string | undefined {
+  return typeof value === 'string' && DATE_ONLY.test(value) ? value : undefined
+}

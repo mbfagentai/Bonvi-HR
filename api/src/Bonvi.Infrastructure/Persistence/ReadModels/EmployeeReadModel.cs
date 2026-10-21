@@ -160,6 +160,33 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             pairs = pairs.Where(pair => pair.Employment != null);
         }
 
+        // Sana oralig'i (egasi, 2026-10-20) TANLANGAN munosabatga qo'llanadi,
+        // ichki so'rovga emas: ekrandagi qatorda ko'rinadigan sana oraliq
+        // ichida bo'lishi shart. Ichki so'rovga qo'yilsa, asosiysi 2015-yilda
+        // boshlangan odam o'rindoshlikdagi yangi munosabati bilan «oktabrda
+        // ishga kirganlar» qatoriga tushardi. Munosabatsiz xodim (sanasi yo'q)
+        // chegara berilganda chiqmaydi. Qaysi juftlik to'ldirilishi —
+        // handlerning qarori (`SearchEmployeesQueryHandler.BuildFilter`).
+        if (filter.HiredFrom is { } hiredFrom)
+        {
+            pairs = pairs.Where(pair => pair.Employment != null && pair.Employment.HireDate >= hiredFrom);
+        }
+
+        if (filter.HiredTo is { } hiredTo)
+        {
+            pairs = pairs.Where(pair => pair.Employment != null && pair.Employment.HireDate <= hiredTo);
+        }
+
+        if (filter.TerminatedFrom is { } terminatedFrom)
+        {
+            pairs = pairs.Where(pair => pair.Employment != null && pair.Employment.TerminationDate >= terminatedFrom);
+        }
+
+        if (filter.TerminatedTo is { } terminatedTo)
+        {
+            pairs = pairs.Where(pair => pair.Employment != null && pair.Employment.TerminationDate <= terminatedTo);
+        }
+
         // Nomlar birlashtirish orqali olinadi, ma'lumotnomaga alohida
         // so'rov bilan emas: 25 qatorlik sahifa uchun 75 ta qo'shimcha
         // so'rov (N+1) bo'lardi. `Employment` da navigatsiya xossalari yo'q
@@ -330,6 +357,20 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
             // Pastki chegara ATAYLAB yo'q: muddati allaqachon o'tib ketganlar
             // ham qaytadi. Aynan ular — HR o'tkazib yuborgan holatlar.
             probations = probations.Where(probation => probation.EndDate <= limit);
+        }
+
+        // Sana oralig'i — sinov TUGASH sanasi bo'yicha (egasi, 2026-10-20):
+        // ro'yxat shu sana bo'yicha tartiblangan va HR «oktabrda kimning sinovi
+        // tugaydi» deb so'raydi. Shart sanoqqa ham, sahifaga ham bir xil kiradi
+        // (pastdagi `moslar` izohi) va `(status, end_date)` indeksiga tushadi.
+        if (filter.EndFrom is { } endFrom)
+        {
+            probations = probations.Where(probation => probation.EndDate >= endFrom);
+        }
+
+        if (filter.EndTo is { } endTo)
+        {
+            probations = probations.Where(probation => probation.EndDate <= endTo);
         }
 
         // Qidiruv XODIMGA qo'llanadi, sinov yozuviga emas: sinovda hech
@@ -519,6 +560,8 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         bool onlyActive,
         DateOnly on,
         string? search = null,
+        DateOnly? startFrom = null,
+        DateOnly? startTo = null,
         CancellationToken cancellationToken = default)
     {
         var flags = _context.EmployeeFlags
@@ -529,6 +572,19 @@ public sealed class EmployeeReadModel : IEmployeeReadModel
         {
             flags = flags.Where(flag =>
                 flag.StartDate <= on && (flag.EndDate == null || flag.EndDate > on));
+        }
+
+        // Sana oralig'i — belgi BOSHLANGAN sana bo'yicha (egasi, 2026-10-20):
+        // «sentyabrda kim qora ro'yxatga tushdi». Faollik sharti bilan birga
+        // ishlaydi va `(type, start_date, end_date)` indeksiga tushadi.
+        if (startFrom is { } earliest)
+        {
+            flags = flags.Where(flag => flag.StartDate >= earliest);
+        }
+
+        if (startTo is { } latest)
+        {
+            flags = flags.Where(flag => flag.StartDate <= latest);
         }
 
         // Qidiruv BELGI EGASIGA qo'llanadi, mas'ulga emas.

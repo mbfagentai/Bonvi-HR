@@ -4,12 +4,21 @@ import { useAuth } from '@/features/auth'
 import { FlagListPage } from '@/features/flags/components/flag-list-page'
 import { RECRUITING_VIEW, ReserveCandidatesPage } from '@/features/recruiting'
 import { useLocale } from '@/shared/i18n/use-locale'
-import { toSearchParam, validateListSearch, type ListSearch } from '@/shared/lib/list-search'
+import {
+  dateRangeToSearch,
+  searchToDateRange,
+  toSearchParam,
+  validateDateRangeSearch,
+  validateListSearch,
+  type DateRange,
+  type DateRangeSearch,
+  type ListSearch,
+} from '@/shared/lib/list-search'
 import { SegmentedControl } from '@/shared/ui'
 
 type RezervTab = 'candidates' | 'employees'
 
-interface RezervSearch extends ListSearch {
+interface RezervSearch extends ListSearch, DateRangeSearch {
   /** Sukut — nomzodlar; manzilda faqat «employees» yoziladi. */
   tab?: 'employees'
   /** Nomzodlar sahifasi, 1 dan. Birinchi sahifa manzilga yozilmaydi. */
@@ -29,15 +38,16 @@ interface RezervSearch extends ListSearch {
  */
 export const Route = createFileRoute('/_app/rezerv')({
   /**
-   * Qidiruv matni, bo'lim va sahifa — manzil satrida (loyihaning qat'iy
-   * konvensiyasi). Holatni marshrut o'qiydi va sahifalarga PROPS bilan
-   * uzatadi — sabab `flag-list-page.tsx` izohida.
+   * Qidiruv matni, sana oralig'i, bo'lim va sahifa — manzil satrida
+   * (loyihaning qat'iy konvensiyasi). Holatni marshrut o'qiydi va
+   * sahifalarga PROPS bilan uzatadi — sabab `flag-list-page.tsx` izohida.
    */
   validateSearch: (search: Record<string, unknown>): RezervSearch => {
     const page = Number(search['page'])
 
     return {
       ...validateListSearch(search),
+      ...validateDateRangeSearch(search),
       tab: search['tab'] === 'employees' ? 'employees' : undefined,
       page: Number.isInteger(page) && page > 1 ? page : undefined,
     }
@@ -47,7 +57,7 @@ export const Route = createFileRoute('/_app/rezerv')({
 })
 
 function RezervSahifasi() {
-  const { q, tab, page } = Route.useSearch()
+  const { q, tab, page, from, to } = Route.useSearch()
   const navigate = Route.useNavigate()
   const { t } = useLocale()
   const { hasPermission } = useAuth()
@@ -61,6 +71,20 @@ function RezervSahifasi() {
   const changeSearch = (value: string) => {
     void navigate({
       search: (previous) => ({ ...previous, q: toSearchParam(value), page: undefined }),
+      replace: true,
+    })
+  }
+
+  /*
+    Sana oralig'i IKKALA bo'limga umumiy (qidiruv kabi), lekin ma'nosi
+    bo'limga qarab: nomzodlarda — ariza kelgan kun, xodimlarda — belgi
+    qo'yilgan kun. Yorliq har bo'limda o'z ma'nosini aytadi. Oraliq
+    o'zgarsa nomzodlar sahifasi birinchisiga qaytadi.
+  */
+  const range = searchToDateRange({ from, to })
+  const changeRange = (next: DateRange) => {
+    void navigate({
+      search: (previous) => ({ ...previous, ...dateRangeToSearch(next), page: undefined }),
       replace: true,
     })
   }
@@ -90,6 +114,8 @@ function RezervSahifasi() {
       <ReserveCandidatesPage
         search={q ?? ''}
         onSearchChange={changeSearch}
+        range={range}
+        onRangeChange={changeRange}
         page={page ?? 1}
         onPageChange={(next) => {
           void navigate({
@@ -102,6 +128,13 @@ function RezervSahifasi() {
   }
 
   return (
-    <FlagListPage type="reserve" search={q ?? ''} onSearchChange={changeSearch} tabs={tabs} />
+    <FlagListPage
+      type="reserve"
+      search={q ?? ''}
+      onSearchChange={changeSearch}
+      range={range}
+      onRangeChange={changeRange}
+      tabs={tabs}
+    />
   )
 }

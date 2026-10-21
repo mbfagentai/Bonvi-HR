@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { NO_DATE_RANGE, hasDateRange, type DateRange } from '@/shared/lib/list-search'
 import {
   Badge,
   Button,
@@ -29,10 +30,12 @@ import {
   REQUEST_MODE_LABEL_KEY,
   REQUEST_STATUS_LOOK,
 } from '../lib/attendance-presentation'
+import { isRangeInverted } from '../lib/attendance-search'
 import { AbsenceDecisionDialog, type AbsenceAction } from './absence-decision-dialog'
 import { AbsenceRequestDialog } from './absence-request-dialog'
 import { AttendanceLoadError } from './attendance-manage-states'
 import { RequestEditedNote } from './request-edited-note'
+import { RequestRangeFields, RequestRangeNote } from './request-range-fields'
 
 const helper = dataColumnHelper<AbsenceRequest>()
 
@@ -71,6 +74,8 @@ export function AbsenceRequestsList({
   employeeId = null,
   showEmployee = false,
   showFilters = false,
+  range = NO_DATE_RANGE,
+  onRangeChange,
 }: {
   /** Faqat shu xodimning so'rovlari — xodim kartasida. */
   employeeId?: string | null
@@ -78,6 +83,14 @@ export function AbsenceRequestsList({
   showEmployee?: boolean
   /** Yo'qlik turi va shakl filtri — umumiy navbatda (Verifix filtri kabi). */
   showFilters?: boolean
+  /**
+   * So'rov DAVRI oralig'i — umumiy navbatda, manzildan (sahifa egasi).
+   * Davri oraliqqa QISMAN tegadigan so'rov ham chiqadi (server qoidasi).
+   * Ikkala navbatga umumiy, shu sababli holat bu yerda emas, sahifada.
+   */
+  range?: DateRange
+  /** Berilsa — filtr panelida sana maydonlari chiziladi. */
+  onRangeChange?: (next: DateRange) => void
 }) {
   const { t, date } = useLocale()
   const { hasPermission } = useAuth()
@@ -106,7 +119,7 @@ export function AbsenceRequestsList({
     bo'lishi mumkin.
   */
   const [filters, setFilters] = useState<RequestListFilters>(NO_FILTERS)
-  const filtered = filters.absenceTypeId !== '' || filters.mode !== ''
+  const filtered = filters.absenceTypeId !== '' || filters.mode !== '' || hasDateRange(range)
 
   const changeFilters = (next: RequestListFilters) => {
     setFilters(next)
@@ -114,18 +127,43 @@ export function AbsenceRequestsList({
     setDecidedPage(1)
   }
 
+  /** Oraliq ham ikkala jadvalga birga — o'zgarsa ikkala sahifa boshidan. */
+  const changeRange = (next: DateRange) => {
+    onRangeChange?.(next)
+    setPendingPage(1)
+    setDecidedPage(1)
+  }
+
+  /** «Filtrlarni tozalash» — tur, shakl VA oraliq birga. */
+  const clearFilters = () => {
+    changeFilters(NO_FILTERS)
+    if (hasDateRange(range)) changeRange(NO_DATE_RANGE)
+  }
+
+  /*
+    Teskari oraliq bilan so'rov YUBORILMAYDI (server baribir
+    `davomat.davr_notogri` qaytaradi), jadvallar o'rnida esa filtr panelidagi
+    izoh qoladi — bo'sh «so'rov yo'q» navbati yolg'on bo'lardi.
+  */
+  const rangeInvalid = isRangeInverted(range.from, range.to)
+
   const query = {
     employeeId: employeeId ?? undefined,
     absenceTypeId: filters.absenceTypeId === '' ? undefined : filters.absenceTypeId,
     mode: filters.mode === '' ? undefined : filters.mode,
+    from: range.from === '' ? undefined : range.from,
+    to: range.to === '' ? undefined : range.to,
   }
 
-  const pending = useAbsenceRequests({
-    ...query,
-    status: 'Pending',
-    page: pendingPage,
-    pageSize: PAGE_SIZE,
-  })
+  const pending = useAbsenceRequests(
+    {
+      ...query,
+      status: 'Pending',
+      page: pendingPage,
+      pageSize: PAGE_SIZE,
+    },
+    !rangeInvalid,
+  )
 
   /*
     «Qaror qabul qilingan» — uchta holat birga (tasdiqlangan, rad etilgan,
@@ -133,12 +171,15 @@ export function AbsenceRequestsList({
     filtrlash sahifalashni yolg'on qilardi: «jami» ichida kutayotganlari
     ham sanalib, oxirgi sahifa bo'sh chiqardi.
   */
-  const decided = useAbsenceRequests({
-    ...query,
-    decided: true,
-    page: decidedPage,
-    pageSize: PAGE_SIZE,
-  })
+  const decided = useAbsenceRequests(
+    {
+      ...query,
+      decided: true,
+      page: decidedPage,
+      pageSize: PAGE_SIZE,
+    },
+    !rangeInvalid,
+  )
 
   /*
     Sahifa bo'shab qolsa — oxirgi MAVJUD sahifaga qaytiladi
@@ -299,7 +340,7 @@ export function AbsenceRequestsList({
       title={t('attendance.requestsFilteredEmpty')}
       description={t('attendance.requestsFilteredEmptyText')}
       action={
-        <Button type="button" size="sm" variant="secondary" onClick={() => changeFilters(NO_FILTERS)}>
+        <Button type="button" size="sm" variant="secondary" onClick={clearFilters}>
           <X />
           {t('employees.clearFilters')}
         </Button>
@@ -313,113 +354,119 @@ export function AbsenceRequestsList({
         <RequestFilterBar
           value={filters}
           onChange={changeFilters}
-          onClear={() => changeFilters(NO_FILTERS)}
+          range={range}
+          onRangeChange={onRangeChange === undefined ? undefined : changeRange}
+          onClear={clearFilters}
         />
       )}
 
-      <Card className="overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
-          <h2 className="text-subhead font-semibold">{t('attendance.requestsPending')}</h2>
+      {!rangeInvalid && (
+        <>
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
+              <h2 className="text-subhead font-semibold">{t('attendance.requestsPending')}</h2>
 
-          {canManage && employeeId !== null && (
-            <Button type="button" size="sm" variant="secondary" onClick={() => setAdding(true)}>
-              <Plus />
-              {t('attendance.requestAdd')}
-            </Button>
-          )}
-        </div>
+              {canManage && employeeId !== null && (
+                <Button type="button" size="sm" variant="secondary" onClick={() => setAdding(true)}>
+                  <Plus />
+                  {t('attendance.requestAdd')}
+                </Button>
+              )}
+            </div>
 
-        {/*
-          ⚠️ Yuklab bo'lmagani «qaror kutayotgan so'rov yo'q» bo'lib
-          KO'RINMAYDI: HR bo'sh navbatni ko'rib, kutayotgan so'rovlarni
-          tekshirmay qo'yardi (`AttendanceLoadError` izohi).
-        */}
-        {pending.isError ? (
-          <AttendanceLoadError
-            error={pending.error}
-            onRetry={() => void pending.refetch()}
-            retrying={pending.isFetching}
-          />
-        ) : (
-          <>
-            <DataTable
-              columns={columns}
-              data={pending.isPending ? NO_ROWS : (pending.data?.items ?? NO_ROWS)}
-              getRowId={(row) => row.id}
-              loading={pending.isPending}
-              skeletonRows={3}
-              rowLabel={(row) => row.employeeName}
-              empty={
-                filtered ? (
-                  filteredEmpty
-                ) : (
-                  <EmptyState
-                    icon={Inbox}
-                    title={t('attendance.requestsQueueEmpty')}
-                    description={t('attendance.requestsQueueEmptyText')}
-                  />
-                )
-              }
-            />
+            {/*
+              ⚠️ Yuklab bo'lmagani «qaror kutayotgan so'rov yo'q» bo'lib
+              KO'RINMAYDI: HR bo'sh navbatni ko'rib, kutayotgan so'rovlarni
+              tekshirmay qo'yardi (`AttendanceLoadError` izohi).
+            */}
+            {pending.isError ? (
+              <AttendanceLoadError
+                error={pending.error}
+                onRetry={() => void pending.refetch()}
+                retrying={pending.isFetching}
+              />
+            ) : (
+              <>
+                <DataTable
+                  columns={columns}
+                  data={pending.isPending ? NO_ROWS : (pending.data?.items ?? NO_ROWS)}
+                  getRowId={(row) => row.id}
+                  loading={pending.isPending}
+                  skeletonRows={3}
+                  rowLabel={(row) => row.employeeName}
+                  empty={
+                    filtered ? (
+                      filteredEmpty
+                    ) : (
+                      <EmptyState
+                        icon={Inbox}
+                        title={t('attendance.requestsQueueEmpty')}
+                        description={t('attendance.requestsQueueEmptyText')}
+                      />
+                    )
+                  }
+                />
 
-            <Pagination
-              page={pendingPage}
-              pageSize={PAGE_SIZE}
-              total={pending.data?.total ?? 0}
-              onPageChange={setPendingPage}
-              className="px-4 pb-4 sm:px-5"
-            />
-          </>
-        )}
-      </Card>
+                <Pagination
+                  page={pendingPage}
+                  pageSize={PAGE_SIZE}
+                  total={pending.data?.total ?? 0}
+                  onPageChange={setPendingPage}
+                  className="px-4 pb-4 sm:px-5"
+                />
+              </>
+            )}
+          </Card>
 
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3.5 sm:px-5">
-          <h2 className="text-subhead font-semibold">{t('attendance.requestsDecided')}</h2>
-        </div>
+          <Card className="overflow-hidden">
+            <div className="px-4 py-3.5 sm:px-5">
+              <h2 className="text-subhead font-semibold">{t('attendance.requestsDecided')}</h2>
+            </div>
 
-        {decided.isPending ? (
-          <div aria-hidden className="space-y-3 px-4 pb-5 sm:px-5">
-            {[0, 1, 2].map((row) => (
-              <Skeleton key={row} className="h-10" />
-            ))}
-          </div>
-        ) : decided.isError ? (
-          <AttendanceLoadError
-            error={decided.error}
-            onRetry={() => void decided.refetch()}
-            retrying={decided.isFetching}
-          />
-        ) : (
-          <>
-            <DataTable
-              columns={columns}
-              data={decided.data?.items ?? NO_ROWS}
-              getRowId={(row) => row.id}
-              rowLabel={(row) => row.employeeName}
-              empty={
-                filtered ? (
-                  filteredEmpty
-                ) : (
-                  <EmptyState
-                    icon={Inbox}
-                    title={t('attendance.requestsEmpty')}
-                    description={t('attendance.requestsEmptyText')}
-                  />
-                )
-              }
-            />
+            {decided.isPending ? (
+              <div aria-hidden className="space-y-3 px-4 pb-5 sm:px-5">
+                {[0, 1, 2].map((row) => (
+                  <Skeleton key={row} className="h-10" />
+                ))}
+              </div>
+            ) : decided.isError ? (
+              <AttendanceLoadError
+                error={decided.error}
+                onRetry={() => void decided.refetch()}
+                retrying={decided.isFetching}
+              />
+            ) : (
+              <>
+                <DataTable
+                  columns={columns}
+                  data={decided.data?.items ?? NO_ROWS}
+                  getRowId={(row) => row.id}
+                  rowLabel={(row) => row.employeeName}
+                  empty={
+                    filtered ? (
+                      filteredEmpty
+                    ) : (
+                      <EmptyState
+                        icon={Inbox}
+                        title={t('attendance.requestsEmpty')}
+                        description={t('attendance.requestsEmptyText')}
+                      />
+                    )
+                  }
+                />
 
-            <Pagination
-              page={decidedPage}
-              pageSize={PAGE_SIZE}
-              total={decided.data?.total ?? 0}
-              onPageChange={setDecidedPage}
-              className="px-4 pb-4 sm:px-5"
-            />
-          </>
-        )}
-      </Card>
+                <Pagination
+                  page={decidedPage}
+                  pageSize={PAGE_SIZE}
+                  total={decided.data?.total ?? 0}
+                  onPageChange={setDecidedPage}
+                  className="px-4 pb-4 sm:px-5"
+                />
+              </>
+            )}
+          </Card>
+        </>
+      )}
 
       <AbsenceDecisionDialog
         action={decision?.action ?? null}
@@ -456,10 +503,15 @@ function lastPage(total: number): number {
 function RequestFilterBar({
   value,
   onChange,
+  range,
+  onRangeChange,
   onClear,
 }: {
   value: RequestListFilters
   onChange: (next: RequestListFilters) => void
+  range: DateRange
+  /** Berilmasa — sana maydonlari chizilmaydi. */
+  onRangeChange: ((next: DateRange) => void) | undefined
   onClear: () => void
 }) {
   const { t } = useLocale()
@@ -475,11 +527,21 @@ function RequestFilterBar({
     label: t(REQUEST_MODE_LABEL_KEY[mode]),
   }))
 
-  const active = value.absenceTypeId !== '' || value.mode !== ''
+  const active = value.absenceTypeId !== '' || value.mode !== '' || hasDateRange(range)
 
   return (
     <Card className="px-4 py-3.5 sm:px-5">
-      <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]">
+      {/*
+        Sana maydonlari bilan beshta katak: telefonda bittadan, planshetda
+        ikkitadan, keng ekranda bitta qatorda (tur, shakl, ikki sana, tozalash).
+      */}
+      <div
+        className={
+          onRangeChange === undefined
+            ? 'grid items-end gap-3 sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]'
+            : 'grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,260px)_minmax(0,220px)_minmax(0,180px)_minmax(0,180px)_auto]'
+        }
+      >
         <Select
           label={t('attendance.requestKind')}
           placeholder={t('common.all')}
@@ -498,6 +560,10 @@ function RequestFilterBar({
           onChange={(event) => onChange({ ...value, mode: toMode(event.target.value) })}
         />
 
+        {onRangeChange !== undefined && (
+          <RequestRangeFields range={range} onChange={onRangeChange} />
+        )}
+
         {active && (
           <div className="flex sm:justify-start">
             <Button type="button" variant="ghost" onClick={onClear}>
@@ -507,6 +573,8 @@ function RequestFilterBar({
           </div>
         )}
       </div>
+
+      {onRangeChange !== undefined && <RequestRangeNote range={range} />}
     </Card>
   )
 }

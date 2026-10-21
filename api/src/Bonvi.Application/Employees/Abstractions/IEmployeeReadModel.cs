@@ -77,12 +77,16 @@ public interface IEmployeeReadModel
     /// «bu odam qora ro'yxatdami?» degan savolga ko'z bilan varaqlab javob
     /// topib bo'lmaydi.
     /// </param>
+    /// <param name="startFrom">Belgi BOSHLANGAN sananing quyi chegarasi (kiradi), <c>null</c> — ochiq.</param>
+    /// <param name="startTo">Belgi boshlangan sananing yuqori chegarasi (kiradi), <c>null</c> — ochiq.</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
     Task<IReadOnlyList<EmployeeFlagRow>> ListFlagsAsync(
         EmployeeFlagType type,
         bool onlyActive,
         DateOnly on,
         string? search = null,
+        DateOnly? startFrom = null,
+        DateOnly? startTo = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Barcha buyruqlar — xodimdan qat'i nazar, bitta oqimda.</summary>
@@ -200,6 +204,19 @@ public enum EmployeeSortField
 /// <param name="PageSize">Sahifadagi yozuvlar soni.</param>
 /// <param name="Sort">Saralash ustuni.</param>
 /// <param name="Descending">Teskari tartib.</param>
+/// <param name="HiredFrom">
+/// Ro'yxatda KO'RINADIGAN munosabatning ishga kirish sanasi — quyi chegara
+/// (kiradi). Shart munosabat TANLANGANIDAN keyin qo'llanadi: o'rindoshlikdagi
+/// yangi munosabat asosiysi eski bo'lgan odamni oraliqqa olib kirmaydi.
+/// </param>
+/// <param name="HiredTo">Ishga kirish sanasi — yuqori chegara (kiradi).</param>
+/// <param name="TerminatedFrom">
+/// Ko'rinadigan munosabatning ishdan ketish sanasi — quyi chegara (kiradi).
+/// Qaysi juftlik to'ldirilishini handler hal qiladi
+/// (<c>SearchEmployeesQueryHandler.BuildFilter</c>), o'qish modeli faqat
+/// berilganini qo'llaydi.
+/// </param>
+/// <param name="TerminatedTo">Ishdan ketish sanasi — yuqori chegara (kiradi).</param>
 public sealed record EmployeeSearchFilter(
     string? Search = null,
     Guid? DepartmentId = null,
@@ -212,7 +229,14 @@ public sealed record EmployeeSearchFilter(
     int Page = 1,
     int PageSize = 25,
     EmployeeSortField Sort = EmployeeSortField.Name,
-    bool Descending = false)
+    bool Descending = false,
+
+    // ⚠️ Yangi parametrlar FAQAT oxiriga: rekord pozitsiya bo'yicha ham
+    // yasaladi (`SearchEmployeesQueryHandler.BuildFilter`).
+    DateOnly? HiredFrom = null,
+    DateOnly? HiredTo = null,
+    DateOnly? TerminatedFrom = null,
+    DateOnly? TerminatedTo = null)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
@@ -278,13 +302,17 @@ public sealed record EmployeeDirectionRow(Guid Id, string Name);
 /// </param>
 /// <param name="Page">Sahifa raqami, 1 dan.</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
+/// <param name="EndFrom">Sinov TUGASH sanasining quyi chegarasi (kiradi).</param>
+/// <param name="EndTo">Sinov tugash sanasining yuqori chegarasi (kiradi).</param>
 public sealed record ProbationListFilter(
     ProbationStatus? Status,
     int? EndingWithinDays,
     DateOnly Today,
     string? Search = null,
     int Page = 1,
-    int PageSize = 25)
+    int PageSize = 25,
+    DateOnly? EndFrom = null,
+    DateOnly? EndTo = null)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
