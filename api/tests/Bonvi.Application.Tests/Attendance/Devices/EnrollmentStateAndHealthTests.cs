@@ -62,6 +62,29 @@ public sealed class EnrollmentStateAndHealthTests
         EnrollmentVersion.Of(Photo, 0, Name).Length.ShouldBeLessThanOrEqualTo(200);
     }
 
+    /// <summary>
+    /// Terminalning o'z yozuvi (SPEC-agent §M) belgidan ustun: rasm yoki ism
+    /// o'zgarsa ham «navbatda» bo'lmaydi — Bonvi u terminalga yozmaydi.
+    /// </summary>
+    [Fact]
+    public void Terminalning_oz_yozuvi_belgi_ozgarsa_ham_navbatga_tushmaydi()
+    {
+        EnrollmentState.Of(Row(onRoster: true, DeviceEnrollmentStatus.Covered, applied: Version()))
+            .ShouldBe(DeviceEnrollmentState.Covered);
+
+        EnrollmentState.Of(Row(onRoster: true, DeviceEnrollmentStatus.Covered, applied: Version(), name: "Aliyev Valijon"))
+            .ShouldBe(DeviceEnrollmentState.Covered);
+    }
+
+    /// <summary>
+    /// Ishdan ketgan bo'lsa ham «O'chirilgan» EMAS: o'sha yozuvni Bonvi o'chirmaydi,
+    /// odam eshikni ocha oladi va HR buni ko'rishi kerak (SPEC-agent §M5).
+    /// </summary>
+    [Fact]
+    public void Terminalning_oz_yozuvi_ishdan_ketganda_ochirilgan_deb_korinmaydi()
+        => EnrollmentState.Of(Row(onRoster: false, DeviceEnrollmentStatus.Covered, applied: Version()))
+            .ShouldBe(DeviceEnrollmentState.Covered);
+
     [Fact]
     public void Qator_xodim_rasmini_beradi()
         => EnrollmentState.ToDto(Row(onRoster: true, DeviceEnrollmentStatus.Synced, applied: Version())).EmployeePhotoKey.ShouldBe(Photo);

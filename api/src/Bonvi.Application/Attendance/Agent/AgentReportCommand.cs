@@ -225,6 +225,13 @@ public sealed class ReportAgentEnrollmentsCommandHandler
             return;
         }
 
+        // Terminalning o'z yozuvi bor — Bonvi yozmadi (SPEC-agent §M).
+        if (item.Action == AgentEnrollmentAction.Covered)
+        {
+            row.MarkCovered(item.Version, now);
+            return;
+        }
+
         row.MarkSynced(item.Version, now);
     }
 }

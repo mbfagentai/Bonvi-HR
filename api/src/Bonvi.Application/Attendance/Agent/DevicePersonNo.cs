@@ -70,4 +70,18 @@ public static class DevicePersonNo
     /// </remarks>
     public static string? Prefer(IEnumerable<string>? personNumbers)
         => personNumbers?.FirstOrDefault(IsManaged);
+
+    /// <summary>
+    /// Xodimning Bonvi fazasidan TASHQARIDAGI raqamlari — boshqa dastur terminalga
+    /// yozgan va «Mosliklar» orqali bog'langan (SPEC-agent §M).
+    /// </summary>
+    /// <remarks>
+    /// Agent bulardan biri terminalda yuzi bilan tursa, xodimni o'z raqami bilan
+    /// yozmaydi. Bo'sh bo'lsa <c>null</c> — ro'yxat javobi ixcham qoladi.
+    /// </remarks>
+    public static IReadOnlyList<string>? Aliases(IEnumerable<string>? personNumbers)
+    {
+        var aliases = personNumbers?.Where(number => !IsManaged(number)).ToList();
+        return aliases is { Count: > 0 } ? aliases : null;
+    }
 }

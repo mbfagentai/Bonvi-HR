@@ -2565,6 +2565,7 @@
     "enrollmentFailed": "Xato",
     "enrollmentPhotoMissing": "Rasm yo‘q",
     "enrollmentRemoved": "O‘chirilgan",
+    "enrollmentCovered": "Terminalning o‘z yozuvi",
     "enrollmentResyncAll": "Hammasini sinxronlash",
     "enrollmentResynced": "{{n}} ta qator qayta yozishga qo‘yildi.",
     "enrollmentResyncNone": "Qayta urinish kerak bo‘lgan qator yo‘q.",

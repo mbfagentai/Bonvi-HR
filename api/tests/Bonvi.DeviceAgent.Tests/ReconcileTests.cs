@@ -321,11 +321,109 @@ public sealed class ReconcileTests
     public void Ommaviy_ochirish_tosigi(int roster, int removals, int managed, bool hold)
         => AgentWorker.ShouldHoldRemovals(roster, removals, managed).ShouldBe(hold);
 
+    /// <summary>
+    /// Terminalda xodimning o'z yozuvi (iVMS raqami) YUZI bilan turibdi — ikkinchi
+    /// yuz yozilmaydi, hisobot «Covered» va o'sha raqam bilan (SPEC-agent §M3, §M4).
+    /// </summary>
+    [Fact]
+    public async Task Terminalning_oz_yozuvi_bor_xodim_yozilmaydi_va_Covered_deb_aytiladi()
+    {
+        using var stand = new AgentHarness();
+
+        var covered = new Entry(Guid.NewGuid(), "900000001", Aliases: ["3092"]);
+        var plain = new Entry(Guid.NewGuid(), "900000002");
+        stand.Terminal.Persons.Add("3092");
+
+        Setup(stand, [covered, plain]);
+
+        await stand.ReconcileAsync();
+
+        stand.Terminal.PersonWrites.ShouldBe(["900000002"], "iVMS yozuvi bor odamga Bonvi raqami yozilmaydi");
+        stand.Terminal.Persons.ShouldContain("3092", "boshqa dasturning yozuviga tegilmaydi");
+
+        var item = stand.Bonvi.ReportItems.Single(row => row.GetProperty("employeeId").GetGuid() == covered.EmployeeId);
+        item.GetProperty("action").GetString().ShouldBe("Covered");
+        item.GetProperty("personNo").GetString().ShouldBe("3092");
+        item.GetProperty("ok").GetBoolean().ShouldBeTrue();
+        item.GetProperty("version").GetString().ShouldNotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>Server allaqachon biladi (belgi joriy) — har daqiqada qayta aytilmaydi (§M4).</summary>
+    [Fact]
+    public async Task Terminalning_oz_yozuvi_server_bilsa_hisobot_yuborilmaydi()
+    {
+        using var stand = new AgentHarness();
+
+        stand.Terminal.Persons.Add("3092");
+        Setup(stand, [new Entry(Guid.NewGuid(), "900000001", Force: false, Aliases: ["3092"])]);
+
+        await stand.ReconcileAsync();
+
+        stand.Terminal.PersonWrites.ShouldBeEmpty();
+        stand.Bonvi.ReportItems.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// Ilgari Bonvi rasmi rad etilgan (<c>hold</c>) — iVMS yozuvi topilgach holat
+    /// «Covered» ga o'tadi, «Xato» da qolib ketmaydi.
+    /// </summary>
+    [Fact]
+    public async Task Rad_etilgan_xodimning_oz_yozuvi_topilsa_Covered_deb_aytiladi()
+    {
+        using var stand = new AgentHarness();
+
+        stand.Terminal.Persons.Add("3092");
+        Setup(stand, [new Entry(Guid.NewGuid(), "900000001", Force: false, Hold: true, Aliases: ["3092"])]);
+
+        await stand.ReconcileAsync();
+
+        stand.Bonvi.ReportItems.Single().GetProperty("action").GetString().ShouldBe("Covered");
+    }
+
+    /// <summary>
+    /// O'z yozuvi YUZSIZ yoki bu terminalda yo'q — Bonvi o'z raqami va rasmi bilan
+    /// yozadi (§M3, §M6): yuzsiz odam yuz bilan o'ta olmaydi, ikki yuz to'qnashuvi ham yo'q.
+    /// </summary>
+    [Fact]
+    public async Task Oz_yozuvi_yuzsiz_yoki_yoq_bolsa_Bonvi_yozadi()
+    {
+        using var stand = new AgentHarness();
+
+        var faceless = new Entry(Guid.NewGuid(), "900000001", Aliases: ["3092"]);
+        var elsewhere = new Entry(Guid.NewGuid(), "900000002", Aliases: ["3093"]);
+        stand.Terminal.Persons.Add("3092");
+        stand.Terminal.WithoutFace.Add("3092");
+
+        Setup(stand, [faceless, elsewhere]);
+
+        await stand.ReconcileAsync();
+
+        stand.Terminal.PersonWrites.ShouldBe(["900000001", "900000002"], ignoreOrder: true);
+        stand.Bonvi.ReportItems.ShouldAllBe(row => row.GetProperty("action").GetString() == "Upsert");
+    }
+
+    [Fact]
+    public void Oz_yozuvi_faqat_yuzi_bilan_hisoblanadi()
+    {
+        var entry = new RosterEntry(Guid.NewGuid(), "900000001", "Sinov", "p", "v", Force: true, AliasNumbers: ["3092", "3093"]);
+
+        AgentWorker.CoveredBy(entry, new Dictionary<string, DevicePerson>()).ShouldBeNull();
+        AgentWorker.CoveredBy(entry, new Dictionary<string, DevicePerson> { ["3092"] = new("3092", null, 0) }).ShouldBeNull();
+        AgentWorker.CoveredBy(entry, new Dictionary<string, DevicePerson> { ["3093"] = new("3093", null, null) }).ShouldBe("3093");
+        AgentWorker.CoveredBy(entry with { AliasNumbers = null }, new Dictionary<string, DevicePerson> { ["3092"] = new("3092", null, 1) })
+            .ShouldBeNull("eski server raqam bermaydi — eski xatti-harakat");
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
 
-    private sealed record Entry(Guid EmployeeId, string PersonNo, bool Force = true, bool Hold = false);
+    private sealed record Entry(
+        Guid EmployeeId,
+        string PersonNo,
+        bool Force = true,
+        bool Hold = false,
+        IReadOnlyList<string>? Aliases = null);
 
     private static List<Entry> People(int count)
         => [.. Enumerable.Range(1, count).Select(index => new Entry(Guid.NewGuid(), $"9{index:D8}"))];
@@ -356,6 +454,7 @@ public sealed class ReconcileTests
                 ["version"] = "employees/x.jpg:0:abcd1234",
                 ["force"] = entry.Force,
                 ["hold"] = entry.Hold,
+                ["aliasNumbers"] = entry.Aliases,
             }).ToList(),
             ["removeNumbers"] = remove,
             ["allowMassRemoval"] = allowMassRemoval,

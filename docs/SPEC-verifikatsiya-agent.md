@@ -453,3 +453,27 @@ bajarilgan qaror; testlari `Bonvi.DeviceAgent.Tests` (`ReconcileTests`,
 
 `docker-compose.agent.yml` (ofisdagi mashina uchun alohida fayl: tom, qayta
 ishga tushish, jurnal chegarasi, muhit) va `docs/AGENT-RUNBOOK.md`.
+
+## M. Terminalning o'z yozuvi ustuvor (2026-10-21, egasining qarori)
+
+**Vaziyat.** Metan zavodining 2 terminalini (kirish/chiqish) Hikvision'ning rasmiy dasturi (iVMS)
+boshqaradi: 411 odam `3xxx` raqamlar bilan, yuzi bilan. Bonvi ulansa, rasmi bor har bir xodimni o'z
+`9…` raqami bilan YANA yozardi — bitta odam ikki yuz bilan, terminal o'tishni ikkisidan biriga
+tasodifan beradi va iVMS o'z o'tishlarini yo'qotadi. Egasining talabi: iVMS ishi ham, eski
+o'tishlar ham buzilmasin; «terminalning o'z rasmi ustuvor bo'lsin».
+
+| # | Qaror | Sabab |
+|---|---|---|
+| M1 | iVMS raqamlari «Mosliklar»da xodimga bog'lanadi (`attendance_identities`, terminal qurilmasining raqam fazasida). Moslik RAQAMGA bog'lanadi, terminalga emas — bir xil raqamli ikki terminalga bitta moslik yetadi | Raqam terminaldan o'tishda keladi va shu jadval orqali xodim topiladi (L3 bilan bir xil) |
+| M2 | Ro'yxat qatoriga `aliasNumbers` qo'shiladi: xodimning Bonvi fazasidan TASHQARIDAGI raqamlari (`DevicePersonNo.Aliases`). `null` — yo'q | Server qaysi terminalda nima borligini bilmaydi — tanlovni agent qiladi |
+| M3 | Agent: `aliasNumbers` dan biri terminalda **yuzi bilan** tursa — xodim YOZILMAYDI (na yangi, na `force`, na `hold`). Yuzsiz yozuv hisobga olinmaydi — Bonvi yozadi | Yuzsiz odam yuz bilan o'tolmaydi; Bonvi yozsa yuz to'qnashuvi ham yo'q |
+| M4 | Hisobot `action: Covered`, `personNo` — o'sha raqam; FAQAT server bilmasa (`force` yoki `hold`) | Har daqiqada 200+ qator yozilmasin |
+| M5 | Server: `device_enrollments.status = 5 (Covered)`, `applied_version` = belgi (ro'yxat keyingi safar `force:false` beradi). Ekranda **«Terminalning o'z yozuvi»**, raqam ustunida o'sha raqam; sanoqda alohida. Ishlayotgan xodimda nosozlik emas; ishdan ketganda muammolar ro'yxatida turadi — Bonvi uni O'CHIRMAYDI (agent faqat `9…` fazasiga tegadi), iVMS o'chirishi kerak | HR eshikni kim ocha olishini ko'rib tursin |
+| M6 | Raqam baribir ajratiladi — xodim BOSHQA terminallarga `9…` raqam va Bonvi rasmi bilan yoziladi | «Barcha xodim barcha terminaldan» qoidasi (ochiq ishlar, 2026-09-21) |
+| M7 | iVMS yozuvni o'chirsa — keyingi tekshiruvda agent xodimni `9…` raqam bilan yozadi | Odam eshik oldida qolmasin |
+
+**Bilib turib qilinmagan:** terminalda ALLAQACHON ikki yozuv bo'lsa (Bonvi `9…` ni moslikdan oldin
+yozgan) — `9…` o'chirilmaydi. Zavod terminallari Bonvi'ga hali ulanmagan, ya'ni bu holat u yerda
+bo'lmaydi. Boshqa zavodda o'z iVMS'i bo'lib, raqamlari (`3092`) boshqa odamga tegishli bo'lsa —
+bitta fazada ikkinchisini bog'lab bo'lmaydi (`ux_attendance_identities_person`); o'shanda alohida faza yoki
+raqamlarni almashtirish kerak bo'ladi.

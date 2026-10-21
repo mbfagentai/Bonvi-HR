@@ -673,6 +673,7 @@ internal sealed partial class AgentWorker : BackgroundService
 
         var report = new List<ReportItem>();
         var streak = 0;
+        var covered = 0;
 
         try
         {
@@ -701,6 +702,29 @@ internal sealed partial class AgentWorker : BackgroundService
             foreach (var entry in roster.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                /*
+                  Terminalning o'z yozuvi ustuvor (SPEC-agent §M): xodim boshqa
+                  dastur (iVMS) yozgan raqam bilan YUZI bilan turibdi — ikkinchi
+                  yuz yozilmaydi, aks holda terminal o'tishni ikki raqamdan biriga
+                  tasodifan berardi. Hisobot faqat server buni hali bilmasa: belgi
+                  eskirgan (`Force`) yoki o'sha belgi ilgari rad etilgan (`Hold`).
+                  `Hold` dan OLDIN — rad etilgan Bonvi rasmi bu odamga endi kerak emas.
+                */
+                if (CoveredBy(entry, onDevice) is { } alias)
+                {
+                    covered++;
+
+                    if (entry.Force || entry.Hold)
+                    {
+                        await AddAsync(
+                            report,
+                            new ReportItem(entry.EmployeeId, alias, AgentEnrollmentAction.Covered, Ok: true, entry.Version, null),
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    continue;
+                }
 
                 // Qurilma aynan shu belgini rad etgan — belgi o'zgarguncha
                 // qayta urinilmaydi (har daqiqada o'sha xato bo'lardi).
@@ -736,8 +760,22 @@ internal sealed partial class AgentWorker : BackgroundService
 
         await _bonvi.StatusAsync(plan.Held, plan.Foreign, cancellationToken).ConfigureAwait(false);
 
-        Reconciled(roster.Entries.Count, plan.Remove.Count, plan.Held, plan.Foreign);
+        Reconciled(roster.Entries.Count, plan.Remove.Count, plan.Held, plan.Foreign, covered);
     }
+
+    /// <summary>
+    /// Xodimning terminaldagi O'Z yozuvi — boshqa dastur yozgan raqam, yuzi bilan (SPEC-agent §M).
+    /// </summary>
+    /// <remarks>
+    /// Yuzsiz yozuv hisobga olinmaydi: u odam terminaldan yuz bilan o'ta olmaydi,
+    /// Bonvi esa uni o'z raqami va rasmi bilan yozib, o'tkaza oladi — ikki yuz
+    /// to'qnashuvi ham bo'lmaydi. Soni noma'lum (<c>null</c>) — bor deb olinadi,
+    /// xuddi «yuzi yo'q» tekshiruvidagidek.
+    /// </remarks>
+    /// <returns>O'sha raqam yoki <c>null</c>.</returns>
+    internal static string? CoveredBy(RosterEntry entry, IReadOnlyDictionary<string, DevicePerson> onDevice)
+        => entry.AliasNumbers?.FirstOrDefault(number =>
+            onDevice.TryGetValue(number, out var person) && person.NumOfFace is not 0);
 
     /// <summary>
     /// Ketma-ket vaqtinchalik xatolarni sanaydi — chegaradan oshsa aylanishni to'xtatadi.
@@ -1053,8 +1091,8 @@ internal sealed partial class AgentWorker : BackgroundService
     private partial void Forwarded(int sent, int stored, int duplicates);
 
     [LoggerMessage(EventId = 6102, Level = LogLevel.Information,
-        Message = "Ro'yxat tekshirildi: {Total} kishi, o'chirildi {Removed}, ushlab qolindi {Held}, begona {Foreign}")]
-    private partial void Reconciled(int total, int removed, int held, int foreign);
+        Message = "Ro'yxat tekshirildi: {Total} kishi, o'chirildi {Removed}, ushlab qolindi {Held}, begona {Foreign}, terminalning o'z yozuvi {Covered}")]
+    private partial void Reconciled(int total, int removed, int held, int foreign, int covered);
 
     [LoggerMessage(EventId = 6103, Level = LogLevel.Information,
         Message = "Qurilmadan olib tashlandi: {PersonNo}")]

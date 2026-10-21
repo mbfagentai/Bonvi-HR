@@ -2565,6 +2565,7 @@
     "enrollmentFailed": "Failed",
     "enrollmentPhotoMissing": "No photo",
     "enrollmentRemoved": "Removed",
+    "enrollmentCovered": "Terminal's own record",
     "enrollmentResyncAll": "Sync everything",
     "enrollmentResynced": "{{n}} row(s) queued for another attempt.",
     "enrollmentResyncNone": "Nothing needs another attempt.",

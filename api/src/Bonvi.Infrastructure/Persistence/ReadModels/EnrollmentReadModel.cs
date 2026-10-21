@@ -253,6 +253,16 @@ internal sealed class EnrollmentReadModel : IEnrollmentReadModel
     }
 
     /// <summary>Uch manbadan bitta qator yig'adi.</summary>
+    /// <summary>Qurilmadagi raqam — HR ekranida ko'rinadigani.</summary>
+    /// <remarks>
+    /// Terminalning o'z yozuvi bo'lsa (SPEC-agent §M) — o'sha raqam: terminalda
+    /// Bonvi raqami yo'q va HR aynan iVMS'dagi raqamni qidiradi.
+    /// </remarks>
+    private static string? PersonNoOf(IReadOnlyList<string>? numbers, DeviceEnrollmentStatus? status)
+        => status == DeviceEnrollmentStatus.Covered
+            ? DevicePersonNo.Aliases(numbers)?[0] ?? DevicePersonNo.Prefer(numbers)
+            : DevicePersonNo.Prefer(numbers);
+
     private static EnrollmentRow Compose(
         Guid deviceId,
         string deviceName,
@@ -267,7 +277,7 @@ internal sealed class EnrollmentReadModel : IEnrollmentReadModel
             person.FullName,
             person.PhotoKey,
             onRoster,
-            numbers.TryGetValue(person.EmployeeId, out var list) ? DevicePersonNo.Prefer(list) : null,
+            PersonNoOf(numbers.GetValueOrDefault(person.EmployeeId), enrollment?.Status),
             enrollment?.Status,
             enrollment?.AppliedVersion,
             enrollment?.ForceVersion ?? 0,

@@ -2565,6 +2565,7 @@
     "enrollmentFailed": "Хато",
     "enrollmentPhotoMissing": "Расм йўқ",
     "enrollmentRemoved": "Ўчирилган",
+    "enrollmentCovered": "Терминалнинг ўз ёзуви",
     "enrollmentResyncAll": "Ҳаммасини синхронлаш",
     "enrollmentResynced": "{{n}} та қатор қайта ёзишга қўйилди.",
     "enrollmentResyncNone": "Қайта уриниш керак бўлган қатор йўқ.",

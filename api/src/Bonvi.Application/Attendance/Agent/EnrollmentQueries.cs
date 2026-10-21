@@ -28,10 +28,21 @@ public static class EnrollmentState
     /// agent muvaffaqiyatsiz o'chirishni ham «bajarildi» deb yuborardi, server
     /// esa uni «O'chirilgan» deb ko'rsatardi.
     /// </para>
+    /// <para>
+    /// «Terminalning o'z yozuvi» (SPEC-agent §M) rasm va belgidan USTUN: terminalda
+    /// boshqa dastur yozgan raqam yuzi bilan turibdi va Bonvi u yerga yozmaydi.
+    /// Ishdan ketgan bo'lsa ham shunday qoladi — o'sha yozuvni Bonvi o'chirmaydi,
+    /// ya'ni odam eshikni ocha oladi va HR buni ko'rishi kerak.
+    /// </para>
     /// </remarks>
     public static DeviceEnrollmentState Of(EnrollmentRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
+
+        if (row.Status == DeviceEnrollmentStatus.Covered)
+        {
+            return DeviceEnrollmentState.Covered;
+        }
 
         if (!row.OnRoster)
         {
@@ -154,10 +165,14 @@ public sealed class GetDeviceEnrollmentsQueryHandler
             device.ReconciledAt,
             device.HeldRemovals,
             device.ForeignPersons,
-            device.RemovalsApprovedUntil);
+            device.RemovalsApprovedUntil,
+            Covered: states.Count(entry => entry.Row.OnRoster && entry.State == DeviceEnrollmentState.Covered));
 
+        // Terminalning o'z yozuvi — ishlayotgan xodimda nosozlik emas; ishdan
+        // ketganda esa ro'yxatda turadi: uni Bonvi o'chirmaydi (SPEC-agent §M).
         var problems = states
             .Where(entry => entry.State != DeviceEnrollmentState.Synced && entry.State != DeviceEnrollmentState.Removed)
+            .Where(entry => !(entry.State == DeviceEnrollmentState.Covered && entry.Row.OnRoster))
             .OrderBy(entry => entry.State)
             .ThenBy(entry => entry.Row.EmployeeName, StringComparer.CurrentCulture)
             .Select(entry => EnrollmentState.ToDto(entry.Row))

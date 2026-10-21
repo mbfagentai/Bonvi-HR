@@ -25,6 +25,16 @@ public enum DeviceEnrollmentStatus
     /// «O'chirilgan» ni ko'rardi — odam esa eshikni ochib yuraverardi.
     /// </remarks>
     RemoveFailed = 4,
+
+    /// <summary>
+    /// Terminalda xodimning O'Z yozuvi bor (boshqa dastur yozgan raqam, yuzi
+    /// bilan) — Bonvi uni ikkinchi marta yozmaydi (SPEC-agent §M).
+    /// </summary>
+    /// <remarks>
+    /// Raqamning o'zi bu yerda saqlanmaydi: u mosliklar jadvalida
+    /// (<see cref="AttendanceIdentity"/>) va o'qishda o'sha yerdan olinadi.
+    /// </remarks>
+    Covered = 5,
 }
 
 /// <summary>
@@ -167,6 +177,21 @@ public sealed class DeviceEnrollment : Entity, IAuditable
     {
         Status = DeviceEnrollmentStatus.RemoveFailed;
         Error = Trim(error);
+        RejectedVersion = null;
+        SyncedAt = at;
+    }
+
+    /// <summary>Terminalda xodimning o'z yozuvi bor — Bonvi yozmadi (SPEC-agent §M).</summary>
+    /// <remarks>
+    /// <see cref="AppliedVersion"/> ga belgi yoziladi: ro'yxat shu bilan
+    /// «hisobot kerak emas» ni biladi va agent har daqiqada qayta aytmaydi.
+    /// Belgi o'zgarsa (rasm, ism, «Qayta yozish») agent holatni qayta tasdiqlaydi.
+    /// </remarks>
+    public void MarkCovered(string version, DateTimeOffset at)
+    {
+        Status = DeviceEnrollmentStatus.Covered;
+        AppliedVersion = version;
+        Error = null;
         RejectedVersion = null;
         SyncedAt = at;
     }

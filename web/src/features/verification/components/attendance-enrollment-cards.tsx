@@ -98,6 +98,9 @@ export function DeviceEnrollmentCard({ device }: { device: AttendanceDevice }) {
               value={num(summary.photoMissing)}
               className={summary.photoMissing > 0 ? 'text-ios-orange' : undefined}
             />
+            {summary.covered > 0 && (
+              <Counter label={t('attendance.enrollmentCovered')} value={num(summary.covered)} />
+            )}
           </dl>
 
           <p className="text-caption1 text-[var(--fg-tertiary)]">

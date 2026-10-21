@@ -141,6 +141,8 @@ export const ENROLLMENT_STATE_LOOK: Readonly<Record<DeviceEnrollmentState, Sourc
   Failed: { tone: 'danger', labelKey: 'attendance.enrollmentFailed' },
   PhotoMissing: { tone: 'warning', labelKey: 'attendance.enrollmentPhotoMissing' },
   Removed: { tone: 'neutral', labelKey: 'attendance.enrollmentRemoved' },
+  // Boshqa dastur (iVMS) yozgan yozuv — Bonvi yozmaydi (SPEC-agent §M).
+  Covered: { tone: 'success', labelKey: 'attendance.enrollmentCovered' },
 }
 
 /**

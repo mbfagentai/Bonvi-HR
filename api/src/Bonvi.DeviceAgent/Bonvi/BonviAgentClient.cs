@@ -208,7 +208,9 @@ internal sealed class BonviApiException(HttpStatusCode status, string? code)
 /// <summary>Ro'yxatning bitta qatori.</summary>
 /// <remarks>
 /// <c>Hold</c> — qurilma aynan shu belgini rad etgan: belgi o'zgarguncha
-/// YOZILMAYDI va O'CHIRILMAYDI ham.
+/// YOZILMAYDI va O'CHIRILMAYDI ham. <c>AliasNumbers</c> — xodimning boshqa
+/// dastur yozgan raqamlari: terminalda shulardan biri yuzi bilan tursa, xodim
+/// yozilmaydi (SPEC-agent §M). Eski server bermaydi — <c>null</c>.
 /// </remarks>
 internal sealed record RosterEntry(
     Guid EmployeeId,
@@ -217,7 +219,8 @@ internal sealed record RosterEntry(
     string? PhotoVersion,
     string Version,
     bool Force,
-    bool Hold = false);
+    bool Hold = false,
+    IReadOnlyList<string>? AliasNumbers = null);
 
 /// <summary>Kerakli ro'yxat.</summary>
 /// <remarks>
@@ -238,6 +241,9 @@ internal enum AgentEnrollmentAction
 {
     Upsert = 1,
     Remove = 2,
+
+    /// <summary>Yozilmadi — terminalda xodimning o'z yozuvi bor (SPEC-agent §M).</summary>
+    Covered = 3,
 }
 
 /// <summary>Hisobotning bitta qatori.</summary>

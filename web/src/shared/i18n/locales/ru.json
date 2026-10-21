@@ -2565,6 +2565,7 @@
     "enrollmentFailed": "Ошибка",
     "enrollmentPhotoMissing": "Нет фото",
     "enrollmentRemoved": "Удалён",
+    "enrollmentCovered": "Своя запись терминала",
     "enrollmentResyncAll": "Синхронизировать всё",
     "enrollmentResynced": "Строк поставлено на повторную запись: {{n}}.",
     "enrollmentResyncNone": "Нет строк, требующих повторной попытки.",

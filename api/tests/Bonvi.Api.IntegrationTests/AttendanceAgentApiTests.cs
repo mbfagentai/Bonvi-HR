@@ -313,6 +313,59 @@ public sealed class AttendanceAgentApiTests : IClassFixture<BonviApiFactory>
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Terminalning o'z yozuvi (SPEC-agent §M): bog'langan iVMS raqami ro'yxatda
+    /// beriladi, Bonvi raqami baribir ajratiladi, «Covered» hisoboti holatni yozadi
+    /// va ekranda o'sha raqam bilan, nosozliklar ro'yxatidan tashqarida ko'rinadi.
+    /// </summary>
+    [Fact]
+    public async Task Terminalning_oz_yozuvi_royxatda_beriladi_va_hisobotda_saqlanadi()
+    {
+        var cancel = TestContext.Current.CancellationToken;
+        var tag = Tag();
+
+        var (deviceId, token) = await DeviceAsync(tag);
+        var employeeId = await EmployedWithPhotoAsync(tag);
+        var other = await EmployedWithPhotoAsync(tag + "b");
+        var alias = $"3{tag}";
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.AttendanceIdentities.Add(AttendanceIdentity.Link(
+                AttendanceIdentityProvider.Verifix, alias, employeeId, IdentitySource.Import, "iVMS ismi").Value);
+            await db.SaveChangesAsync(cancel);
+        }
+
+        var roster = await RosterAsync(token);
+        var entry = roster.Entries.Single(row => row.EmployeeId == employeeId);
+
+        entry.AliasNumbers.ShouldBe([alias]);
+        DevicePersonNo.IsManaged(entry.PersonNo).ShouldBeTrue("raqam baribir ajratiladi — boshqa terminallar uchun");
+        entry.Force.ShouldBeTrue();
+        roster.Entries.Single(row => row.EmployeeId == other).AliasNumbers.ShouldBeNull();
+
+        await ReportAsync(token, [new AgentReportItemDto(employeeId, alias, AgentEnrollmentAction.Covered, Ok: true, entry.Version, null)]);
+
+        var written = await EnrollmentAsync(deviceId, employeeId);
+        written.Status.ShouldBe(DeviceEnrollmentStatus.Covered);
+        written.AppliedVersion.ShouldBe(entry.Version);
+
+        (await RosterAsync(token)).Entries.Single(row => row.EmployeeId == employeeId).Force
+            .ShouldBeFalse("server endi biladi — agent har daqiqada qayta aytmaydi");
+
+        using var hr = await AdminClientAsync();
+
+        var page = await hr.GetFromJsonAsync<DeviceEnrollmentPageDto>($"/api/attendance/devices/{deviceId}/enrollments", Json, cancel);
+        page!.Summary.Covered.ShouldBe(1);
+        page.Rows.ShouldNotContain(row => row.EmployeeId == employeeId, "ishlayotgan xodimda bu nosozlik emas");
+
+        var card = await hr.GetFromJsonAsync<List<DeviceEnrollmentRowDto>>($"/api/attendance/employees/{employeeId}/enrollments", Json, cancel);
+        var mine = card!.Single(row => row.DeviceId == deviceId);
+        mine.State.ShouldBe(DeviceEnrollmentState.Covered);
+        mine.PersonNo.ShouldBe(alias, "HR iVMS'dagi raqamni qidiradi — terminalda Bonvi raqami yo'q");
+    }
+
     private static string Tag() => Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8];
 
     private static Employee Person(string tag, string suffix)

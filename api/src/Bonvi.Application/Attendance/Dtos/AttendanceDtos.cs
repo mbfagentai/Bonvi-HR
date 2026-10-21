@@ -1436,6 +1436,13 @@ public sealed record AttendanceRecomputeAcceptedDto(string JobId, int EmployeeCo
 /// o'chirmaydi ham: belgi o'zgarguncha (yangi rasm, ism, «Qayta yozish»)
 /// har daqiqada o'sha xatoni olib turishning ma'nosi yo'q.
 /// </param>
+/// <param name="AliasNumbers">
+/// Xodimning shu raqam fazasidagi BOSHQA raqamlari — Bonvi ajratmagan,
+/// boshqa dastur (masalan iVMS) terminalga yozgan raqamlar, «Mosliklar»
+/// orqali bog'langan. Terminalda shulardan biri YUZI bilan tursa, agent
+/// xodimni <paramref name="PersonNo"/> bilan yozmaydi — terminalning o'z
+/// yozuvi ustuvor (SPEC-agent §M). <c>null</c> — bunday raqam yo'q.
+/// </param>
 public sealed record AgentRosterEntryDto(
     Guid EmployeeId,
     string PersonNo,
@@ -1443,7 +1450,8 @@ public sealed record AgentRosterEntryDto(
     string? PhotoVersion,
     string Version,
     bool Force,
-    bool Hold);
+    bool Hold,
+    IReadOnlyList<string>? AliasNumbers = null);
 
 /// <summary>Agent so'ragan ro'yxat — qurilmada KIM bo'lishi kerak.</summary>
 /// <param name="DeviceId">Qurilma.</param>
@@ -1476,6 +1484,12 @@ public enum AgentEnrollmentAction
 
     /// <summary>Qurilmadan olib tashlandi.</summary>
     Remove = 2,
+
+    /// <summary>
+    /// Yozilmadi — terminalda xodimning o'z yozuvi bor (<c>personNo</c> — o'sha
+    /// raqam, SPEC-agent §M).
+    /// </summary>
+    Covered = 3,
 }
 
 /// <summary>Agent hisobotining bitta qatori.</summary>
@@ -1559,6 +1573,12 @@ public enum DeviceEnrollmentState
 
     /// <summary>Ro'yxatda emas (ishdan ketgan) — qurilmadan olib tashlangan.</summary>
     Removed = 5,
+
+    /// <summary>
+    /// Terminalda xodimning o'z yozuvi bor (boshqa dastur yozgan raqam va yuz) —
+    /// Bonvi yozmaydi, o'tishlar o'sha raqam orqali keladi (SPEC-agent §M).
+    /// </summary>
+    Covered = 6,
 }
 
 /// <summary>Qurilma bo'yicha umumiy holat — qurilmalar sahifasi uchun.</summary>
@@ -1581,6 +1601,9 @@ public enum DeviceEnrollmentState
 /// boshqa Bonvi o'rnatmasi shu terminalga yozyapti.
 /// </param>
 /// <param name="RemovalsApprovedUntil">HR ruxsati shu lahzagacha amal qiladi.</param>
+/// <param name="Covered">
+/// Terminalda o'z yozuvi bor, Bonvi yozmagan xodimlar (SPEC-agent §M).
+/// </param>
 public sealed record DeviceEnrollmentSummaryDto(
     Guid DeviceId,
     string DeviceName,
@@ -1593,7 +1616,8 @@ public sealed record DeviceEnrollmentSummaryDto(
     DateTimeOffset? ReconciledAt,
     int HeldRemovals,
     int ForeignPersons,
-    DateTimeOffset? RemovalsApprovedUntil);
+    DateTimeOffset? RemovalsApprovedUntil,
+    int Covered);
 
 /// <summary>Qurilma sahifasining yozish bo'limi.</summary>
 /// <param name="Summary">Umumiy sanoqlar.</param>

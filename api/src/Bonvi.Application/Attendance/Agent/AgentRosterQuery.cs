@@ -47,6 +47,14 @@ public sealed record GetAgentRosterQuery(string? Token, string? Signature, strin
 /// faqat ishdan ketganda chiqadi.
 /// </para>
 /// <para>
+/// ⭐ <b>Terminalning o'z yozuvi ustuvor</b> (SPEC-agent §M, 2026-10-21): xodimning
+/// boshqa dastur (iVMS) yozgan raqami «Mosliklar»da bog'langan bo'lsa, u
+/// qatorga <c>aliasNumbers</c> bo'lib qo'shiladi. Server qaysi terminalda
+/// nima borligini bilmaydi — tanlovni agent qiladi: o'sha raqam terminalda
+/// yuzi bilan tursa, xodim ikkinchi marta yozilmaydi. Raqam baribir
+/// ajratiladi — boshqa terminallarga u bilan yoziladi.
+/// </para>
+/// <para>
 /// Raqam ajratilsa ham, ro'yxat qatori qurilmaga hali YOZILGAN emas:
 /// <c>device_enrollments</c> qatorini agentning HISOBOTI yaratadi
 /// (<see cref="ReportAgentEnrollmentsCommandHandler"/>). Shu sababli bu
@@ -148,6 +156,7 @@ public sealed class GetAgentRosterQueryHandler
         {
             var existing = numbers.TryGetValue(candidate.EmployeeId, out var list) ? list : null;
             var personNo = DevicePersonNo.Prefer(existing);
+            var aliases = DevicePersonNo.Aliases(existing);
             var row = byEmployee.GetValueOrDefault(candidate.EmployeeId);
 
             if (candidate.PhotoKey is null)
@@ -168,7 +177,8 @@ public sealed class GetAgentRosterQueryHandler
                     PhotoVersion: null,
                     written,
                     Force: false,
-                    Hold: string.Equals(row.RejectedVersion, written, StringComparison.Ordinal)));
+                    Hold: string.Equals(row.RejectedVersion, written, StringComparison.Ordinal),
+                    aliases));
 
                 continue;
             }
@@ -194,7 +204,8 @@ public sealed class GetAgentRosterQueryHandler
                 candidate.PhotoKey,
                 version,
                 Force: !hold && !string.Equals(row?.AppliedVersion, version, StringComparison.Ordinal),
-                Hold: hold));
+                Hold: hold,
+                aliases));
         }
 
         /*
