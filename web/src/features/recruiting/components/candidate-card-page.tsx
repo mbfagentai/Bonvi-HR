@@ -17,6 +17,7 @@ import { useAuth } from '@/features/auth'
 import { EMPLOYEES_CREATE, EMPLOYMENT_HIRE } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { formatPhone } from '@/shared/lib/phone'
+import { useReturnTo } from '@/shared/lib/return-to'
 import {
   Alert,
   Badge,
@@ -92,6 +93,40 @@ export function CandidateCardPage() {
   const vacancies = useVacancyOptions('Open')
   const stages = useStages(true)
 
+  /*
+    ⭐ «Orqaga» — HR KELGAN ro'yxatga, uning filtrlari, qidiruvi, saralashi
+    va sahifasi bilan (`shared/lib/return-to.ts`, egasi 2026-10-21). Kartada
+    holat o'zgarsa ham (rad etildi, rezervga olindi) qaytish manzili
+    O'ZGARMAYDI: «Nomzodlar» dan kelib rad etgan HR yana o'sha filtrlangan
+    «Nomzodlar» ga qaytadi, «Rad etilganlar» ga emas.
+
+    Kelgan joy bo'lmasa (karta havola yoki yangi tab orqali ochilgan) —
+    nomzod HOZIR turgan ro'yxat. Rezervdagi nomzod «Nomzodlar» ro'yxatida
+    KO'RINMAYDI (2026-09-26 dan uning o'rni «Rezerv» bo'limida), rad
+    etilgan va o'zi voz kechgan esa «Rad etilganlar» bo'limida — sukut
+    ro'yxatga qaytarish HR ni bu odam umuman yo'q ro'yxatga olib borardi.
+    Rezerv sahifasining sukut bo'limi — aynan nomzodlar.
+
+    Hook erta qaytishlardan OLDIN chaqiriladi: xato holatida ham shu tugma
+    (holat noma'lum — «Orqaga» va nomzodlar ro'yxati).
+  */
+  const status = candidate.data?.status
+  const back = useReturnTo(
+    status === 'Reserve'
+      ? { label: t('nav.reserve'), go: () => void navigate({ to: '/rezerv' }) }
+      : status === 'Blacklisted'
+        ? { label: t('nav.blacklist'), go: () => void navigate({ to: '/qora-royxat' }) }
+        : status === 'Rejected' || status === 'Withdrawn'
+          ? {
+              label: t('nav.rejectedCandidates'),
+              go: () => void navigate({ to: '/nomzodlar', search: { rejected: true } }),
+            }
+          : {
+              label: status === undefined ? t('common.back') : t('nav.candidates'),
+              go: () => void navigate({ to: '/nomzodlar' }),
+            },
+  )
+
   if (candidate.isPending) {
     return (
       <div className="space-y-5">
@@ -104,7 +139,7 @@ export function CandidateCardPage() {
   if (candidate.isError || !candidate.data) {
     return (
       <div className="space-y-4">
-        <BackButton onClick={() => void navigate({ to: '/nomzodlar' })} label={t('common.back')} />
+        <BackButton onClick={back.go} label={back.label} />
         <Alert tone="danger">{errorMessage(recruitingErrorCode(candidate.error))}</Alert>
       </div>
     )
@@ -154,32 +189,8 @@ export function CandidateCardPage() {
 
   return (
     <div className="space-y-5">
-      {/*
-        «Orqaga» nomzod HAQIQATAN turgan ro'yxatga olib boradi. Rezervdagi
-        nomzod «Nomzodlar» ro'yxatida KO'RINMAYDI (2026-09-26 dan uning o'rni
-        «Rezerv» bo'limida), rad etilgan va o'zi voz kechgan esa «Rad
-        etilganlar» bo'limida — sukut ro'yxatga qaytarish HR ni bu odam
-        umuman yo'q ro'yxatga olib borardi. Rezerv sahifasining sukut
-        bo'limi — aynan nomzodlar.
-      */}
-      {inReserve ? (
-        <BackButton onClick={() => void navigate({ to: '/rezerv' })} label={t('nav.reserve')} />
-      ) : inBlacklist ? (
-        <BackButton
-          onClick={() => void navigate({ to: '/qora-royxat' })}
-          label={t('nav.blacklist')}
-        />
-      ) : person.status === 'Rejected' || person.status === 'Withdrawn' ? (
-        <BackButton
-          onClick={() => void navigate({ to: '/nomzodlar', search: { rejected: true } })}
-          label={t('nav.rejectedCandidates')}
-        />
-      ) : (
-        <BackButton
-          onClick={() => void navigate({ to: '/nomzodlar' })}
-          label={t('nav.candidates')}
-        />
-      )}
+      {/* Qayerga qaytishi — yuqoridagi `back` izohida */}
+      <BackButton onClick={back.go} label={back.label} />
 
       {/* ───────── Sarlavha kartasi ───────── */}
       <Card className="p-5">

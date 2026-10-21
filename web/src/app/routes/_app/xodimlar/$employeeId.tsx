@@ -53,6 +53,7 @@ import { currentMonth, type MonthValue } from '@/features/verification/lib/atten
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Card, SegmentedControl, Skeleton } from '@/shared/ui'
 import { todayIso } from '@/shared/lib/today'
+import { useReturnTo } from '@/shared/lib/return-to'
 
 /**
  * Kartaning bo'limi va davomat kalendarining oyi — MANZILDA.
@@ -229,6 +230,22 @@ function EmployeeCardPage() {
     */
   }, [action, fullName])
 
+  /*
+    ⭐ «Orqaga» — HR KELGAN ro'yxatga, uning filtrlari, qidiruvi va sahifasi
+    bilan (`shared/lib/return-to.ts`, egasi 2026-10-21): «Ishdan
+    ketganlar», «Sinov muddati», «Rezerv», tabel, so'rovlar, global qidiruv
+    ochilgan sahifa… Ilgari tugma har doim yalang `/xodimlar` ga olib
+    borardi va HR filtrlarini qaytadan tanlardi. Kartaning bo'limlari
+    orasida yurish qaytish manzilini o'zgartirmaydi.
+
+    Kelgan joy bo'lmasa (havola, yangi tab) — avvalgidek xodimlar ro'yxati.
+    Hook erta qaytishlardan OLDIN: xato holatida ham shu tugma.
+  */
+  const back = useReturnTo({
+    label: employee.isError ? t('common.back') : t('nav.employees'),
+    go: () => void navigate({ to: '/xodimlar' }),
+  })
+
   if (employee.isPending) {
     return (
       <div className="space-y-5">
@@ -241,7 +258,7 @@ function EmployeeCardPage() {
   if (employee.isError || !employee.data) {
     return (
       <div className="space-y-4">
-        <BackButton onClick={() => void navigate({ to: '/xodimlar' })} label={t('common.back')} />
+        <BackButton onClick={back.go} label={back.label} />
         <Alert tone="danger">{t('errors.xodim.topilmadi')}</Alert>
       </div>
     )
@@ -307,7 +324,7 @@ function EmployeeCardPage() {
 
   return (
     <div className="space-y-5">
-      <BackButton onClick={() => void navigate({ to: '/xodimlar' })} label={t('nav.employees')} />
+      <BackButton onClick={back.go} label={back.label} />
 
       {/* ───────── Sarlavha kartasi ───────── */}
       <Card className="p-5">
