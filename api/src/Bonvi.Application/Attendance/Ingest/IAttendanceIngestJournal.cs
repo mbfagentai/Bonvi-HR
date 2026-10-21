@@ -73,6 +73,14 @@ public interface IAttendanceIngestJournal
     /// <param name="claimedAt">Qurilma DA'VO qilgan vaqt — soati qanchalik adashganini ko'rish uchun.</param>
     void ClockRejected(Guid deviceId, DateTimeOffset claimedAt);
 
+    /// <summary>
+    /// Terminal push'idagi 30 kundan eski hodisa yozilmadi, lekin qabul qilindi — terminal
+    /// eski jurnalini yuboryapti va xatoda o'sha hodisani qayta yuborardi.
+    /// </summary>
+    /// <param name="deviceId">Qurilma.</param>
+    /// <param name="claimedAt">Hodisa vaqti.</param>
+    void StaleBacklogSkipped(Guid deviceId, DateTimeOffset claimedAt);
+
     /// <summary>Hikvision'ning tanish bo'lmagan hodisa kichik turi BIRINCHI marta ko'rildi.</summary>
     /// <param name="majorEventType">Asosiy tur (<c>majorEventType</c>).</param>
     /// <param name="subEventType">Kichik tur (<c>subEventType</c>).</param>

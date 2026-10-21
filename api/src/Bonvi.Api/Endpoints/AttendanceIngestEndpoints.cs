@@ -358,6 +358,10 @@ internal sealed partial class AttendanceIngestJournal : IAttendanceIngestJournal
     public void ClockRejected(Guid deviceId, DateTimeOffset claimedAt)
         => LogClockRejected(deviceId, claimedAt);
 
+    // Debug: eski jurnal o'n minglab qator bo'lishi mumkin — ogohlantirish jurnalni ko'mib yuborardi.
+    public void StaleBacklogSkipped(Guid deviceId, DateTimeOffset claimedAt)
+        => LogStaleBacklogSkipped(deviceId, claimedAt);
+
     public void UnknownSubTypeSeen(int majorEventType, int subEventType)
         => LogUnknownSubType(majorEventType, subEventType);
 
@@ -411,6 +415,12 @@ internal sealed partial class AttendanceIngestJournal : IAttendanceIngestJournal
         Level = LogLevel.Warning,
         Message = "Qurilma soati ishonchsiz, hodisa rad etildi: {QurilmaId}, qurilma vaqti {QurilmaVaqti}")]
     private partial void LogClockRejected(Guid qurilmaId, DateTimeOffset qurilmaVaqti);
+
+    [LoggerMessage(
+        EventId = 5209,
+        Level = LogLevel.Debug,
+        Message = "Terminal eski jurnalini yuboryapti — hodisa yozilmadi, qabul qilindi: {QurilmaId}, vaqti {QurilmaVaqti}")]
+    private partial void LogStaleBacklogSkipped(Guid qurilmaId, DateTimeOffset qurilmaVaqti);
 
     [LoggerMessage(
         EventId = 5204,

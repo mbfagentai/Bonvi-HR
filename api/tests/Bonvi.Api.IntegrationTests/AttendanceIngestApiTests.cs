@@ -466,6 +466,40 @@ public sealed class AttendanceIngestApiTests : IClassFixture<AttendanceIngestHos
     }
 
     /// <summary>
+    /// Terminal push'i eski jurnalini (30 kundan eski) yuborsa — 200, yozilmaydi va surat diskka
+    /// tushmaydi: 400 da terminal o'sha hodisani to'xtovsiz qayta yuborib, navbatni to'xtatib
+    /// qo'yardi (Metan zavodi, 2026-10-21). Keyingi yangi o'tish odatdagidek suratli yoziladi.
+    /// </summary>
+    [Fact]
+    public async Task Terminal_push_idagi_eski_hodisa_qabul_qilinadi_lekin_yozilmaydi()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (qurilmaId, token) = await QurilmaAsync(AttendanceProvider.Generic);
+        using var mijoz = _host.Factory.CreateClient();
+        var fayllar = _host.FileCount();
+
+        using (var eski = await mijoz.PostAsync(
+            YolTokenBilan(token),
+            HikvisionTanasi(HikvisionXom(IsoVaqt(HozirToshkentda().AddDays(-40)), "72001", 601), TestImages.JpegYasa(32, 32, 80)),
+            ct))
+        {
+            eski.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(eski));
+            (await eski.Content.ReadFromJsonAsync<IngestResponse>(ct)).ShouldBe(new IngestResponse(true, 0, 0));
+        }
+
+        (await OtishlarAsync(qurilmaId)).ShouldBeEmpty();
+        _host.FileCount().ShouldBe(fayllar, "yozilmagan hodisaning surati diskka tushmasligi kerak");
+
+        using var yangi = await mijoz.PostAsync(
+            YolTokenBilan(token),
+            HikvisionTanasi(HikvisionXom(IsoVaqt(HozirToshkentda().AddMinutes(-1)), "72001", 602), TestImages.JpegYasa(32, 32, 80)),
+            ct);
+        yangi.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(yangi));
+
+        (await OtishlarAsync(qurilmaId)).ShouldHaveSingleItem().PhotoKey.ShouldNotBeNull();
+    }
+
+    /// <summary>
     /// O'tish bo'lmagan Hikvision hodisasi (yurak urishi, rad etilgan yuz) —
     /// 200 va <c>stored: 0</c>, 400 emas: aks holda terminal uni cheksiz qayta yuborardi.
     /// </summary>

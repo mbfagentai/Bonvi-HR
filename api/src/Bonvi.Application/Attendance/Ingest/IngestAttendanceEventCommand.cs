@@ -202,6 +202,8 @@ public sealed class IngestAttendanceEventCommandHandler
             return IngestErrors.TooManyEvents;
         }
 
+        var accepted = new List<RawAttendanceEvent>(events.Count);
+
         foreach (var passEvent in events)
         {
             if (passEvent.RawPersonId.Length > AttendanceIdentity.MaxExternalPersonIdLength
@@ -216,12 +218,29 @@ public sealed class IngestAttendanceEventCommandHandler
             // bo'lgach rad etish «hamma-yoki-hech narsa» qoidasini buzardi.
             if (Math.Abs((receivedAt - passEvent.OccurredAt).TotalDays) > AttendanceRules.MaxClockSkewDays)
             {
+                /*
+                  Terminalning O'Z push'i (agent qurilmasi): HTTP manzil sozlangach terminal
+                  butun jurnalini ENG ESKISIDAN boshlab yuboradi va xato javob olgan hodisani
+                  to'xtovsiz QAYTA yuboradi — 400 navbatni abadiy to'xtatib qo'yardi va yangi
+                  o'tishning surati hech qachon kelmasdi (Metan zavodi, 2026-10-21: 147 ming
+                  hodisa, bitta 2025-11-13 dagi hodisa sekundiga bir marta). O'tgan zamondagi
+                  eski hodisa YOZILMAYDI, lekin muvaffaqiyat bilan javob beriladi; tarix agentning
+                  ISUP o'qishidan keladi. Kelajakdagi vaqt (soat buzuq) — avvalgidek 400.
+                */
+                if (terminalPush && passEvent.OccurredAt < receivedAt)
+                {
+                    _journal.StaleBacklogSkipped(device.Id, passEvent.OccurredAt);
+                    continue;
+                }
+
                 _journal.ClockRejected(device.Id, passEvent.OccurredAt);
                 return Error.Validation("davomat.vaqt_yaroqsiz", "Hodisa vaqti haqiqatga to'g'ri kelmaydi.");
             }
+
+            accepted.Add(passEvent);
         }
 
-        return Result.Success(events);
+        return Result.Success<IReadOnlyList<RawAttendanceEvent>>(accepted);
     }
 
     /// <summary>Bitta o'tishni yozadi.</summary>
