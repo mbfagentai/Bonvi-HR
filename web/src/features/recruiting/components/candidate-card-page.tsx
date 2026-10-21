@@ -94,8 +94,9 @@ export function CandidateCardPage() {
   const stages = useStages(true)
 
   /*
-    ⭐ «Orqaga» — HR KELGAN ro'yxatga, uning filtrlari, qidiruvi, saralashi
-    va sahifasi bilan (`shared/lib/return-to.ts`, egasi 2026-10-21). Kartada
+    ⭐ «Orqaga» — brauzerdagi «orqaga» kabi OLDINGI sahifaga, uning filtrlari,
+    qidiruvi, saralashi va sahifasi bilan (`shared/lib/return-to.ts`, egasi
+    2026-10-21: yozuvi hamma joyda shunchaki «Orqaga»). Kartada
     holat o'zgarsa ham (rad etildi, rezervga olindi) qaytish manzili
     O'ZGARMAYDI: «Nomzodlar» dan kelib rad etgan HR yana o'sha filtrlangan
     «Nomzodlar» ga qaytadi, «Rad etilganlar» ga emas.
@@ -111,20 +112,16 @@ export function CandidateCardPage() {
     (holat noma'lum — «Orqaga» va nomzodlar ro'yxati).
   */
   const status = candidate.data?.status
-  const back = useReturnTo(
-    status === 'Reserve'
-      ? { label: t('nav.reserve'), go: () => void navigate({ to: '/rezerv' }) }
-      : status === 'Blacklisted'
-        ? { label: t('nav.blacklist'), go: () => void navigate({ to: '/qora-royxat' }) }
-        : status === 'Rejected' || status === 'Withdrawn'
-          ? {
-              label: t('nav.rejectedCandidates'),
-              go: () => void navigate({ to: '/nomzodlar', search: { rejected: true } }),
-            }
-          : {
-              label: status === undefined ? t('common.back') : t('nav.candidates'),
-              go: () => void navigate({ to: '/nomzodlar' }),
-            },
+  const back = useReturnTo(() =>
+    void navigate(
+      status === 'Reserve'
+        ? { to: '/rezerv' }
+        : status === 'Blacklisted'
+          ? { to: '/qora-royxat' }
+          : status === 'Rejected' || status === 'Withdrawn'
+            ? { to: '/nomzodlar', search: { rejected: true } }
+            : { to: '/nomzodlar' },
+    ),
   )
 
   if (candidate.isPending) {

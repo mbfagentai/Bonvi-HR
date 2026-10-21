@@ -2,10 +2,8 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { navLabelKey } from '@/app/layout/nav-label'
 import { Providers } from '@/app/providers'
 import { routeTree } from '@/app/routeTree.gen'
-import { trackReturnTo } from '@/shared/lib/return-to'
 import '@/styles/globals.css'
 
 /*
@@ -22,12 +20,6 @@ const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
 })
-
-/*
- * Kartadagi «orqaga» — HR kelgan ro'yxatga, filtrlari bilan
- * (`shared/lib/return-to.ts`). Faqat menyudagi sahifalar eslanadi.
- */
-trackReturnTo(router, (location) => navLabelKey(location.pathname, location.search))
 
 // Marshrut tiplarini global ro'yxatga olish — Link va navigate tip-xavfsiz bo'ladi
 declare module '@tanstack/react-router' {

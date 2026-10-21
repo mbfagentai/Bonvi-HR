@@ -241,10 +241,7 @@ function EmployeeCardPage() {
     Kelgan joy bo'lmasa (havola, yangi tab) — avvalgidek xodimlar ro'yxati.
     Hook erta qaytishlardan OLDIN: xato holatida ham shu tugma.
   */
-  const back = useReturnTo({
-    label: employee.isError ? t('common.back') : t('nav.employees'),
-    go: () => void navigate({ to: '/xodimlar' }),
-  })
+  const back = useReturnTo(() => void navigate({ to: '/xodimlar' }))
 
   if (employee.isPending) {
     return (
