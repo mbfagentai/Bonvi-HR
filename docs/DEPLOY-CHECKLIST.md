@@ -3,7 +3,22 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏸ Navbatdagi reliz — erkin ish jadvali + 8 turli so'rov varag'i + 2 ta yo'qlik sababi (deploy — EGASI AYTGANDA)
+## ✅ Reliz `eebe3df` — sana filtrlari, «Buyruqlar» tablari, «Orqaga» tugmasi — 2026-10-22 09:54 (Toshkent)
+
+Prod `fd5b998` → `eebe3df` (1393141, 15529d4, 6afca74, d487b3c, eebe3df). Migratsiya yo'q (oxirgisi
+`20261020114958_SorovTahririVaShaxsiyVaqt`). Rollback: image tegi `rollback-fd5b998` — ishlab turgan konteynerlarniki
+(api `e8d033034c6a`, web `a339e06e107a`, bot `c6f453b4ceee`); zaxira stamp `2026-10-22_044427`. Egasi «muammo bo'lmasa
+deploy qil» dedi; HR ish vaqtida faol edi (09:39 rag'bat), shuning uchun api/bot image'lari OLDINDAN qurildi
+(`build api`, `build bot` — konteynerlarga tegmaydi) va deploy 10 daqiqa jimlikdan keyin boshlandi: API uzilishi
+09:50:44–09:51:06, web 09:54:31 da almashdi. Bot QAYTA YARATILDI (Application o'zgargani uchun image boshqa) —
+09:51:21 da ulandi, anketalar Redis nusxasida. 5xx faqat `/notifications/stream` (restart soniyalarida); ISUP zavod
+terminallari (metankirish, metanchiqish, propanrispetto) o'zi davom etdi; `device1` (sinov terminali) deploy'dan oldin
+ham uzilgan — joyidagi internet.
+
+## ✅ Reliz — erkin ish jadvali + 8 turli so'rov varag'i + 2 ta yo'qlik sababi — 2026-10-21 (boshqa sessiyada, `11e4f0a`/`fd5b998` bilan)
+
+Rollback tegi `rollback-11e4f0a` (api), zaxira `2026-10-21_085138`. ⚠️ **Katalog qadami (pastda) 2026-10-22 holatiga
+QILINMAGAN** — prod'da «Ishxona ishi bilan», «Kasallik», «Shaxsiy sabab» faol; egasining tasdig'i kutilmoqda.
 
 Egasi 2026-10-20: «Verifix'ga oid qism hozircha deploy chiqarmay tur». SPEC: `docs/SPEC-verifikatsiya-erkin-jadval.md`
 (boshidagi «Owner override» — erkin kunda butun vaqt hisoblanadi). Tekshiruv: qa-review «commit'ga tayyor», testlar 2966/2966,
