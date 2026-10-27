@@ -3,7 +3,29 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏸ Navbatdagi reliz — ixcham sarlavha + bir qatorli jadvallar, Excel eksport (11 ro'yxat), sinovni avtomatik «o'tdi» (deploy — EGASI AYTGANDA)
+## ✅ Reliz `02e7d49` — onlayn anketa HR-F02, «Qayerdan bilgan», Excel eksport, haqiqiy IP — 2026-10-27 11:02 (Toshkent)
+
+Prod `eebe3df` → `02e7d49` (9775052, 0c58b34, 02e7d49). Migratsiyalar: `20261026072156_PlanshetAnketasi`,
+`20261026101017_QayerdanBilgan` — prod'da kanallar aynan ko'chdi (1=9, 2=4, 4=2, 5=255, 6=12; boshqalari null 4933).
+Rollback: image tegi `rollback-eebe3df` (api, bot, web), zaxira stamp `2026-10-27_054309`; zaxiradan qaytarish — FAQAT
+DROP/CREATE DATABASE bilan (pastdagi ⚠️). Prod nusxasida sinov: migratsiya Up, API ready, anketa sessiyasi 200
+(12 vakansiya, 8 kanal), DB-qayta-yaratish rollback'i asl holatni berdi. Egasi «HR ishlamayotgan bo'lsa deploy qil»
+dedi: 10:15 dan keyin HR so'rovi yo'q edi, deploy 10:48 da boshlandi, almashish 11:02:27–11:02:42; HR 10:57 va 11:07 da
+ishlagan (bo'shatish amallari) — xato yo'q. Deploy'dan keyin: API/bot jurnalida xato yo'q (bot — faqat Telegram
+getUpdates 45 s kutish ogohlantirishi), audit IP'si endi haqiqiy (11:07 → ofis IP'si; 10:57 → Cloudflare chekkasi),
+ISUP yo'l hiylalari 404 (3 manzilda), `/anketa` 200, Turnstile o'chiq, `ANKETA_SITE` hali sozlanmagan. Terminal
+o'tishlari 09:40 dan keyin kelmagan (kunduzi o'tish kam) — tushlikda tekshirish. Ertalabki ISUP hotfix
+(`/root/hotfix-2026-10-27/`) endi image ichida.
+
+### Bu reliz bo'yicha ochiq qadamlar (egasi)
+- Ofis planshetida bir marta `https://hr.bonvi.uz/anketa?planshet=1`.
+- Ixtiyoriy: Cloudflare'da `anketa` DNS yozuvi → prod `.env` `ANKETA_SITE=anketa.bonvi.uz` va web build'ga
+  `VITE_ANKETA_URL=https://anketa.bonvi.uz` (web qayta quriladi).
+- Ixtiyoriy: Turnstile kalitlari (pastdagi band).
+- «Ma'lumotnomalar → Qayerdan bilgan» nomlarini ko'rib chiqish.
+
+### Shu relizning tayyorlov yozuvlari (tarix uchun)
+
 
 ⚠️ **Deploy'dan OLDIN (2026-10-27 hotfix):** prod'da `infra/isup-face/nginx.conf` qo'lda yangilangan (ISUP yo'l hiylasi
 yopildi; mazmuni `9775052` dan keyingi commit'dagi bilan AYNAN bir xil), shuning uchun `git status` uni o'zgargan
