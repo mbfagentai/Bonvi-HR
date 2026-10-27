@@ -324,6 +324,8 @@
     "notLeadTitle": "Jamoa paneli yopiq",
     "notLeadText": "Bu bo‘lim faqat bo‘lim boshliqlariga ochiq. Boshliqni HR bo‘limi belgilaydi.",
     "memberTitle": "Xodim",
+    "outsideDay": "Jamoada emas",
+    "outsideDayText": "Bu kuni xodim jamoangizda bo‘lmagan — bu kunning ma’lumoti ko‘rsatilmaydi.",
     "status": {
       "onTime": "Vaqtida",
       "late": "Kechikdi",
@@ -544,7 +546,8 @@
     "rate_limit.oshib_ketdi": "So‘rovlar juda ko‘p. {{seconds}} soniyadan keyin qayta urinib ko‘ring.",
     "jamoa.boshliq_emas": "Siz bo‘lim boshlig‘i emassiz — jamoa paneli yopildi. Savol bo‘lsa, HR bo‘limiga murojaat qiling.",
     "jamoa.xodim_topilmadi": "Bu xodim tanlangan oyda jamoangizda bo‘lmagan yoki boshqa bo‘limga o‘tgan.",
-    "jamoa.bolim_topilmadi": "Bu bo‘lim endi jamoangizda emas. Butun jamoani ko‘ring."
+    "jamoa.bolim_topilmadi": "Bu bo‘lim endi jamoangizda emas. Butun jamoani ko‘ring.",
+    "jamoa.sana_notogri": "Sana noto‘g‘ri tanlangan."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

@@ -92,6 +92,7 @@ const APP_CODES = [
   'jamoa.boshliq_emas',
   'jamoa.xodim_topilmadi',
   'jamoa.bolim_topilmadi',
+  'jamoa.sana_notogri',
 ]
 
 /** Lotin yozuvidagi matnda ASCII apostrof bo'lmasligi kerak. */

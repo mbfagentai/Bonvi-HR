@@ -9,6 +9,7 @@ import { useTeamPhoto } from '@/data/photo'
 import { useMe } from '@/data/queries'
 import { TEAM_STATUS_LOOK } from '@/data/status-look'
 import {
+  TEAM_MIN_DATE,
   TEAM_REFRESH_MS,
   TEAM_STATUS_COUNT,
   departmentOptions,
@@ -51,6 +52,7 @@ const SEARCH_DELAY_MS = 350
 export function TeamScreen() {
   const { t } = useTranslation()
   const format = useFormat()
+  const errorText = useErrorText()
   const me = useMe()
   const [params, setParams] = useSearchParams()
 
@@ -59,7 +61,7 @@ export function TeamScreen() {
 
   // Kelajak va noto'g'ri sana — xato emas, shunchaki bugun (taqvimdagi qoida)
   const rawDate = params.get('kun')
-  const date = rawDate && parseIsoDate(rawDate) && rawDate < today ? rawDate : null
+  const date = rawDate && parseIsoDate(rawDate) && rawDate >= TEAM_MIN_DATE && rawDate < today ? rawDate : null
   const departmentId = params.get('bolim') || null
   const status = statusFromSlug(params.get('holat'))
   const search = params.get('qidiruv') ?? ''
@@ -151,6 +153,8 @@ export function TeamScreen() {
 
   // «Ko'proq» — bosilgan lahzadan fon so'rovi tugaguncha
   const [more, setMore] = useState<'idle' | 'loading' | 'failed'>('idle')
+  // Yiqilish sababi — 429 bo'lsa «N soniyadan keyin» matni (keyingi yangilash xatoni o'chirsa ham qoladi)
+  const [moreError, setMoreError] = useState<ApiError | null>(null)
   const moreStarted = useRef(false)
   useEffect(() => {
     if (more !== 'loading') return
@@ -160,6 +164,7 @@ export function TeamScreen() {
     }
     if (moreStarted.current) {
       moreStarted.current = false
+      setMoreError(board.error)
       setMore(board.error ? 'failed' : 'idle')
     }
   }, [more, board.isRefreshing, board.error])
@@ -169,7 +174,7 @@ export function TeamScreen() {
 
   const goDate = (next: string | null): void => {
     setMore('idle')
-    update({ kun: next && next < today ? next : null })
+    update({ kun: next && next >= TEAM_MIN_DATE && next < today ? next : null })
   }
 
   const toggleStatus = (next: TeamBoardStatus): void => {
@@ -226,8 +231,9 @@ export function TeamScreen() {
           <button
             type="button"
             aria-label={t('team.prevDay')}
+            disabled={shownDate <= TEAM_MIN_DATE}
             onClick={() => goDate(addDays(shownDate, -1))}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-accent-text active:bg-bg-pressed"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-accent-text active:bg-bg-pressed disabled:text-fg-tertiary"
           >
             <Icon name="chevron-left" />
           </button>
@@ -315,6 +321,7 @@ export function TeamScreen() {
             error={board.error}
             onRetry={board.refetch}
             onAllDepartments={() => update({ bolim: null })}
+            onToday={() => goDate(null)}
           />
         ) : view && view.items.length === 0 ? (
           filtered ? (
@@ -339,7 +346,7 @@ export function TeamScreen() {
               ))}
             </div>
 
-            {view.loadedPages < view.pageCount ? (
+            {view.hasMore ? (
               <div className="mt-3">
                 <Button
                   variant="secondary"
@@ -354,7 +361,9 @@ export function TeamScreen() {
                 </Button>
                 {more === 'failed' ? (
                   <p className="mt-2 text-center text-footnote text-danger-text" role="status">
-                    {t('state.loadFailed')}
+                    {moreError && moreError.kind === 'rejected' && moreError.code
+                      ? errorText(moreError).body
+                      : t('state.loadFailed')}
                   </p>
                 ) : null}
               </div>
@@ -576,10 +585,12 @@ function BoardError({
   error,
   onRetry,
   onAllDepartments,
+  onToday,
 }: {
   error: ApiError
   onRetry: () => void
   onAllDepartments: () => void
+  onToday: () => void
 }) {
   const { t } = useTranslation()
   const errorText = useErrorText()
@@ -587,6 +598,42 @@ function BoardError({
   if (error.kind === 'network' || error.kind === 'server') return <ErrorState onRetry={onRetry} />
 
   const text = errorText(error)
+
+  // Tezlik chegarasi (429, daqiqasiga ~30 so'rov) — nosozlik emas: «N soniyadan
+  // keyin» matni va qayta urinish. Avtomatik yangilash o'z maromida davom etadi.
+  if (error.code === 'rate_limit.oshib_ketdi') {
+    return (
+      <InlineMessage
+        tone="warning"
+        title={text.title ?? undefined}
+        action={
+          <Button variant="secondary" size="compact" onClick={onRetry}>
+            {t('common.retry')}
+          </Button>
+        }
+      >
+        {text.body}
+      </InlineMessage>
+    )
+  }
+
+  // Sana serverning chegarasidan tashqarida (2000-yildan oldin yoki telefon
+  // soati oldinda — server uchun «ertaga»): qayta urinish befoyda, bugunga qaytiladi
+  if (error.code === 'jamoa.sana_notogri') {
+    return (
+      <InlineMessage
+        tone="warning"
+        title={text.title ?? undefined}
+        action={
+          <Button variant="secondary" size="compact" onClick={onToday}>
+            {t('team.today')}
+          </Button>
+        }
+      >
+        {text.body}
+      </InlineMessage>
+    )
+  }
 
   if (error.code === 'jamoa.bolim_topilmadi') {
     return (

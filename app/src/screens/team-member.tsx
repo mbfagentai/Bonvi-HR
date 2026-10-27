@@ -31,7 +31,13 @@ import { MonthGrid } from '@/ui/month-grid'
  *
  * Sarlavha (ism, rasm, telefon) paneldan ma'lum bo'lsa — darhol chiziladi,
  * oyni kutmaydi.
+ *
+ * ⚠️ Bu yerda «hozir» holati (`current`) YO'Q — u faqat xodimning o'ziga.
+ * Boshliqning qamrovidan tashqari kunlar (boshqa bo'limda ishlagan yoki
+ * hali ishlamagan) `NotEmployed` bo'lib keladi va SOKIN ko'rsatiladi: «Jamoada
+ * emas» yozuvi, jadval ham, o'tishlar ham yo'q.
  */
+const OUTSIDE_LABELS = { NotEmployed: 'team.outsideDay' } as const
 export function TeamMemberScreen() {
   const { t } = useTranslation()
   const format = useFormat()
@@ -73,10 +79,12 @@ export function TeamMemberScreen() {
   }, [revoked])
 
   const failed = query.error !== null && query.data === null
-  const days = query.data ? query.data.month.days : []
+  const days = query.data ? query.data.days : []
   const day = findDay(days, selected)
+  // Jamoada bo'lmagan kun — kun kartasidan tashqari hech narsa chizilmaydi
+  const outside = day !== null && day.status === 'NotEmployed'
   const marks = marksNewestFirst(day)
-  const totals = monthTotals(days, query.data ? query.data.month.totals : null)
+  const totals = monthTotals(days, query.data ? query.data.totals : null)
   const flexibleMinutes = flexiblePlannedMinutes(day)
 
   const canGoForward = year < currentYear || (year === currentYear && month < currentMonth)
@@ -169,6 +177,7 @@ export function TeamMemberScreen() {
             selected={selected}
             loading={query.isLoading}
             onSelect={selectDay}
+            statusLabels={OUTSIDE_LABELS}
           />
         )}
       </Card>
@@ -182,64 +191,70 @@ export function TeamMemberScreen() {
               <DayPanel day={null} loading />
             ) : !day ? (
               <EmptyState icon="calendar" title={t('calendar.emptyTitle')} text={t('calendar.emptyText')} />
+            ) : outside ? (
+              <EmptyState icon="calendar" title={t('team.outsideDay')} text={t('team.outsideDayText')} />
             ) : (
               <DayPanel day={day} loading={false} />
             )}
           </Card>
 
-          <Card title={t('calendar.scheduleTitle')}>
-            {query.isLoading ? (
-              <SkeletonLines rows={2} />
-            ) : day && day.planStartAt && day.planEndAt ? (
-              <>
-                {flexibleMinutes !== null ? (
-                  <>
+          {outside ? null : (
+            <Card title={t('calendar.scheduleTitle')}>
+              {query.isLoading ? (
+                <SkeletonLines rows={2} />
+              ) : day && day.planStartAt && day.planEndAt ? (
+                <>
+                  {flexibleMinutes !== null ? (
+                    <>
+                      <p className="nums text-subhead text-fg">
+                        {t('calendar.scheduleFlexible', { hours: hoursMinutes(flexibleMinutes) })}
+                      </p>
+                      <p className="nums mt-0.5 text-footnote text-fg-secondary">
+                        {t('calendar.scheduleFlexibleRange', {
+                          range: `${format.time(day.planStartAt)}–${format.time(day.planEndAt)}`,
+                        })}
+                      </p>
+                    </>
+                  ) : (
                     <p className="nums text-subhead text-fg">
-                      {t('calendar.scheduleFlexible', { hours: hoursMinutes(flexibleMinutes) })}
-                    </p>
-                    <p className="nums mt-0.5 text-footnote text-fg-secondary">
-                      {t('calendar.scheduleFlexibleRange', {
+                      {t('calendar.scheduleRange', {
                         range: `${format.time(day.planStartAt)}–${format.time(day.planEndAt)}`,
                       })}
                     </p>
-                  </>
-                ) : (
-                  <p className="nums text-subhead text-fg">
-                    {t('calendar.scheduleRange', {
-                      range: `${format.time(day.planStartAt)}–${format.time(day.planEndAt)}`,
-                    })}
-                  </p>
-                )}
-                {day.breakDeductionMinutes > 0 ? (
-                  <div className="mt-2">
-                    <CardRow
-                      label={t('calendar.break')}
-                      value={<span className="nums">{format.duration(day.breakDeductionMinutes)}</span>}
-                    />
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-footnote text-fg-secondary">{t('calendar.noSchedule')}</p>
-            )}
-          </Card>
+                  )}
+                  {day.breakDeductionMinutes > 0 ? (
+                    <div className="mt-2">
+                      <CardRow
+                        label={t('calendar.break')}
+                        value={<span className="nums">{format.duration(day.breakDeductionMinutes)}</span>}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-footnote text-fg-secondary">{t('calendar.noSchedule')}</p>
+              )}
+            </Card>
+          )}
 
-          <Card title={t('calendar.marksTitle')}>
-            {query.isLoading ? (
-              <div>
-                <MarkRowSkeleton />
-                <MarkRowSkeleton />
-              </div>
-            ) : marks.length === 0 ? (
-              <EmptyState icon="clock" title={t('calendar.marksEmpty')} />
-            ) : (
-              <div>
-                {marks.map((mark) => (
-                  <MarkRow key={`${mark.at}-${mark.direction}`} mark={mark} />
-                ))}
-              </div>
-            )}
-          </Card>
+          {outside ? null : (
+            <Card title={t('calendar.marksTitle')}>
+              {query.isLoading ? (
+                <div>
+                  <MarkRowSkeleton />
+                  <MarkRowSkeleton />
+                </div>
+              ) : marks.length === 0 ? (
+                <EmptyState icon="clock" title={t('calendar.marksEmpty')} />
+              ) : (
+                <div>
+                  {marks.map((mark) => (
+                    <MarkRow key={`${mark.at}-${mark.direction}`} mark={mark} />
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
 
           <Card title={t('calendar.totalsTitle')}>
             {query.isLoading ? (

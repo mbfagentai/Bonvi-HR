@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 
+import type { AttendanceDayStatus } from '@/api/types'
 import type { AttendanceDay } from '@/data/attendance'
 import { DAY_STATUS_LOOK } from '@/data/status-look'
 import { useFormat } from '@/lib/format'
@@ -27,9 +28,15 @@ interface MonthGridProps {
   selected: string
   loading: boolean
   onSelect: (dateIso: string) => void
+  /**
+   * Holat so'zini almashtirish (faqat ekran o'quvchi uchun) — jamoa a'zosining
+   * `NotEmployed` kuni «Ishlamagan» emas, «Jamoada emas» deb o'qilsin: u kuni
+   * odam boshqa bo'limda ishlagan bo'lishi mumkin. Rang o'zgarmaydi.
+   */
+  statusLabels?: Partial<Record<AttendanceDayStatus, string>>
 }
 
-export function MonthGrid({ year, month, days, selected, loading, onSelect }: MonthGridProps) {
+export function MonthGrid({ year, month, days, selected, loading, onSelect, statusLabels }: MonthGridProps) {
   const { t } = useTranslation()
   const format = useFormat()
 
@@ -81,7 +88,7 @@ export function MonthGrid({ year, month, days, selected, loading, onSelect }: Mo
               aria-pressed={isSelected}
               aria-label={t('calendar.dayAria', {
                 date: format.dateLong(cell.date),
-                status: t(look.labelKey),
+                status: t((statusLabels ? statusLabels[cell.status] : undefined) ?? look.labelKey),
               })}
               className={clsx(
                 'relative h-11 w-full rounded-card text-subhead transition-colors duration-150 ease-ios',

@@ -3,7 +3,7 @@ import { fileURLToPath, URL } from 'node:url'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Alias, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 /**
@@ -38,6 +38,23 @@ function ilovaTrailingSlash(): Plugin {
       server.middlewares.use(redirect)
     },
   }
+}
+
+/**
+ * Real build'da `@/mock` — bo'sh o'rinbosar (`src/api/mock-disabled.ts`).
+ *
+ * NEGA: `client.ts` dagi `mockApi` obyektini Rollup tashlab yuboradi, lekin
+ * `src/mock/` dagi modul darajasidagi hisob-kitoblar (soxta jamoa, ismlar,
+ * so'rov izohlari, rasm) «yon ta'sirli» deb production bundle'ida QOLARDI.
+ * Faqat AYNAN `@/mock` almashtiriladi — ichidagi fayllarni mock'ning o'zigina
+ * o'qiydi. Rejim — `client.ts` dagi `import.meta.env.VITE_API_MODE` bilan bir
+ * manba (`.env*` fayllar + muhitdagi `VITE_*`); production — `real`
+ * (`web/Dockerfile`, `APP_API_MODE=real`).
+ */
+function mockAlias(mode: string): Alias[] {
+  const appRoot = fileURLToPath(new URL('.', import.meta.url))
+  if (loadEnv(mode, appRoot, 'VITE_')['VITE_API_MODE'] === 'mock') return []
+  return [{ find: /^@\/mock$/, replacement: fileURLToPath(new URL('./src/api/mock-disabled.ts', import.meta.url)) }]
 }
 
 /**
@@ -128,9 +145,8 @@ export default defineConfig(({ mode }) => ({
   ],
 
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    // `@/mock` o'rinbosari `@` dan OLDIN — birinchi mos kelgani oladi
+    alias: [...mockAlias(mode), { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) }],
   },
 
   server: {

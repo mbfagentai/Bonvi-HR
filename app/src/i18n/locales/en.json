@@ -324,6 +324,8 @@
     "notLeadTitle": "Team view is closed",
     "notLeadText": "This section is open to department heads only. The HR department assigns the head.",
     "memberTitle": "Employee",
+    "outsideDay": "Not in your team",
+    "outsideDayText": "This employee was not in your team on this day, so the data for this day is not shown.",
     "status": {
       "onTime": "On time",
       "late": "Late",
@@ -544,7 +546,8 @@
     "rate_limit.oshib_ketdi": "Too many requests. Try again in {{seconds}} s.",
     "jamoa.boshliq_emas": "You are no longer a department head — the team view is closed. Contact the HR department with any questions.",
     "jamoa.xodim_topilmadi": "This employee was not in your team in the selected month, or has moved to another department.",
-    "jamoa.bolim_topilmadi": "This department is no longer in your team. Open the whole team."
+    "jamoa.bolim_topilmadi": "This department is no longer in your team. Open the whole team.",
+    "jamoa.sana_notogri": "The date is not valid."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

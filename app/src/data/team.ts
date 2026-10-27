@@ -9,11 +9,14 @@ import type {
   TeamDepartmentDto,
   TeamMemberDto,
   TeamScopeDto,
+  TimesheetCellDto,
+  TimesheetTotalsDto,
 } from '@/api/types'
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage'
 import { monthKey } from '@/lib/time'
 import { invalidateQuery, useQuery, type QueryResult } from '@/lib/use-query'
-import { toMonth, type AttendanceMonth } from './attendance'
+import type { AttendanceDay } from './attendance'
+import { clearTeamPhotoCache } from './photo'
 
 /**
  * «Jamoa» — bo'lim boshlig'ining o'z odamlari davomati (SPEC-jamoam §F).
@@ -24,8 +27,17 @@ import { toMonth, type AttendanceMonth } from './attendance'
  * ham serverniki — HR paneli bilan bitta qoida (`DashboardStatusRule`).
  */
 
-/** Bitta sahifa — server sukuti bilan bir xil (eng ko'pi 200). */
+/** «Ko'proq» qadami — server sukuti bilan bir xil. */
 export const TEAM_PAGE_SIZE = 50
+
+/** Server bitta sahifada beradigan eng ko'p qator (`pageSize` chegarasi). */
+const TEAM_MAX_PAGE_SIZE = 200
+
+/**
+ * Panelning eng eski sanasi — server chegarasi (`jamoa.sana_notogri`, 400).
+ * Manzilga qo'lda yozilgan undan eski sana so'rov yubormay bugunga tushadi.
+ */
+export const TEAM_MIN_DATE = '2000-01-01'
 
 /** Bugungi panel shuncha vaqtda bir yangilanadi (ekran ko'rinib turganda). */
 export const TEAM_REFRESH_MS = 60_000
@@ -101,7 +113,7 @@ export function statusFromSlug(value: string | null): TeamBoardStatus | null {
 
 /**
  * `tel:` havolasi. Server raqamni ko'rsatish uchun formatlaydi
- * («+998 97 666 26 75») — terish uchun faqat raqamlar va boshidagi `+`.
+ * («+998 90 000 00 01») — terish uchun faqat raqamlar va boshidagi `+`.
  */
 export function phoneHref(phone: string | null): string | null {
   if (!phone) return null
@@ -154,9 +166,11 @@ const knownMembers = new Map<string, TeamMemberDto>()
 
 export function clearTeamCache(): void {
   knownMembers.clear()
-  loadedPages.clear()
-  wantedPages.clear()
+  loadedRows.clear()
+  wantedRows.clear()
   removeStorage(TEAM_HINT_KEY)
+  // A'zolar rasmlari ham — boshqa xodim yoki boshliqligi olib tashlangan odam ularni ko'rmasin
+  clearTeamPhotoCache()
 }
 
 /**
@@ -213,7 +227,7 @@ export interface TeamBoardFilter {
   search: string
 }
 
-/** Ekrandagi panel: o'qilgan sahifalar BIRLASHTIRILGAN, sanoq va lahza — birinchi sahifadan. */
+/** Ekrandagi panel: ro'yxat, sanoq va lahza — bitta (kamdan-kam bir necha) javobdan. */
 export interface TeamBoardView {
   date: string
   isToday: boolean
@@ -222,9 +236,10 @@ export interface TeamBoardView {
   counts: TeamBoardCountsDto
   items: TeamBoardItemDto[]
   totalItems: number
-  /** Nechta sahifa o'qilgan — «Ko'proq» keyingisini so'raydi. */
-  loadedPages: number
-  pageCount: number
+  /** Nechta qator so'ralgan (50, 100, …) — «Ko'proq» yana 50 qo'shadi. */
+  loadedRows: number
+  /** Serverda yana qator bor — «Ko'proq» tugmasi. */
+  hasMore: boolean
 }
 
 export interface TeamBoardResult extends QueryResult<TeamBoardView> {
@@ -243,21 +258,26 @@ function boardKey(filter: TeamBoardFilter): string {
 }
 
 /**
- * Har bir panel kaliti uchun nechta sahifa O'QILGAN va «Ko'proq» bilan nechtasi
+ * Har bir panel kaliti uchun nechta qator O'QILGAN va «Ko'proq» bilan nechtasi
  * SO'RALGAN. Modul darajasida — keshdagi panelga qaytilganda (a'zo ekranidan)
- * birinchi fon yangilanishi ro'yxatni bitta sahifaga qisqartirib yubormasin.
+ * birinchi fon yangilanishi ro'yxatni 50 qatorga qisqartirib yubormasin.
  */
-const loadedPages = new Map<string, number>()
-const wantedPages = new Map<string, number>()
+const loadedRows = new Map<string, number>()
+const wantedRows = new Map<string, number>()
 
 /**
- * Jamoa paneli — «Ko'proq» bilan sahifalangan.
+ * Jamoa paneli — «Ko'proq» bilan.
  *
- * ⭐ Har yangilashda O'QILGAN BARCHA sahifalar qaytadan olinadi (parallel),
- * faqat oxirgisi emas. Sabab: daqiqada bir yangilanadigan ro'yxatda odam
- * holati o'zgarib, saralashda o'rnini almashtiradi — faqat yangi sahifani
- * qo'shib borsak, kimdir ikki marta chiqib, kimdir umuman yo'qolardi. Odatiy
- * jamoa bir-ikki sahifa; besh sahifali bo'lim ham besh qisqa so'rov.
+ * ⭐ Har o'qish — avtomatik yangilash ham, «Ko'proq» ham — BITTA so'rov:
+ * 1-sahifa, `pageSize` = ko'rinib turgan qatorlar soni (50, 100, … 200).
+ * Sabab ikkita: (1) daqiqada bir yangilanadigan ro'yxatda odam holati
+ * o'zgarib, saralashda o'rnini almashtiradi — bitta javob doim izchil, alohida
+ * sahifalarni qo'shib borsak kimdir ikki marta chiqib, kimdir yo'qolardi;
+ * (2) serverda tezlik chegarasi bor (daqiqasiga ~30) — har yangilash bir nechta
+ * parallel so'rov bo'lsa, katta jamoada chegaraga tez yetilardi.
+ *
+ * 200 dan ortiq qator (bitta katta zavod) — 200 talik sahifalar ketma-ket;
+ * odatiy jamoada bu holat yo'q.
  *
  * Kesh `useQuery` niki (modul darajasida): a'zo ekranidan qaytganda ro'yxat
  * skeletsiz, avvalgi joyida turadi — aylantirish holati ham shunga tayanadi.
@@ -267,59 +287,71 @@ export function useTeamBoard(filter: TeamBoardFilter, enabled: boolean): TeamBoa
 
   const query = useQuery<TeamBoardView>(key, () => {
     const id = boardKey(filter)
-    const wanted = wantedPages.get(id)
-    const pages = wanted ?? loadedPages.get(id) ?? 1
+    const wanted = wantedRows.get(id)
+    const rows = wanted ?? loadedRows.get(id) ?? TEAM_PAGE_SIZE
 
-    return loadBoard(filter, pages).then(
+    return loadBoard(filter, rows).then(
       (view) => {
-        loadedPages.set(id, view.loadedPages)
-        if (wantedPages.get(id) === wanted) wantedPages.delete(id)
+        loadedRows.set(id, view.loadedRows)
+        if (wantedRows.get(id) === wanted) wantedRows.delete(id)
         return view
       },
       (cause: unknown) => {
-        // Yiqilgan «Ko'proq» keyingi avtomatik yangilashni ham yiqitmasin
-        if (wantedPages.get(id) === wanted) wantedPages.delete(id)
+        // Yiqilgan «Ko'proq» (masalan 429) keyingi avtomatik yangilashni ham yiqitmasin
+        if (wantedRows.get(id) === wanted) wantedRows.delete(id)
         throw cause
       },
     )
   })
 
   const { refetch } = query
-  const loaded = query.data ? query.data.loadedPages : 1
-  const pageCount = query.data ? query.data.pageCount : 1
+  const rows = query.data ? query.data.loadedRows : TEAM_PAGE_SIZE
+  const hasMore = query.data ? query.data.hasMore : false
 
   const loadMore = useCallback(() => {
-    if (key === null || loaded >= pageCount) return
-    wantedPages.set(key, loaded + 1)
+    if (key === null || !hasMore) return
+    wantedRows.set(key, rows + TEAM_PAGE_SIZE)
     refetch()
-  }, [key, loaded, pageCount, refetch])
+  }, [key, rows, hasMore, refetch])
 
   return { ...query, loadMore }
 }
 
-function loadBoard(filter: TeamBoardFilter, pages: number): Promise<TeamBoardView> {
-  const numbers: number[] = []
-  for (let page = 1; page <= Math.max(1, pages); page += 1) numbers.push(page)
+/**
+ * `rows` gacha qator: 200 gacha — bitta so'rov (`page=1&pageSize=rows`),
+ * undan ko'pi — 200 talik sahifalar KETMA-KET (parallel emas: tezlik chegarasi).
+ */
+function loadBoard(filter: TeamBoardFilter, rows: number): Promise<TeamBoardView> {
+  const wanted = Math.max(TEAM_PAGE_SIZE, rows)
+  const pageSize = Math.min(TEAM_MAX_PAGE_SIZE, wanted)
+  const pages = Math.ceil(wanted / pageSize)
 
-  return Promise.all(
-    numbers.map((page) =>
-      api.getTeamBoard({
-        date: filter.date,
-        departmentId: filter.departmentId,
-        status: filter.status,
-        search: filter.search,
-        page,
-        pageSize: TEAM_PAGE_SIZE,
-      }),
-    ),
-  ).then((results) => merge(results))
+  const read = (page: number): Promise<TeamBoardDto> =>
+    api.getTeamBoard({
+      date: filter.date,
+      departmentId: filter.departmentId,
+      status: filter.status,
+      search: filter.search,
+      page,
+      pageSize,
+    })
+
+  const results: TeamBoardDto[] = []
+  const next = (page: number): Promise<TeamBoardDto[]> =>
+    read(page).then((result) => {
+      results.push(result)
+      // Server sahifalari tugadi — qolganini so'rash befoyda
+      return page < pages && page < result.pageCount ? next(page + 1) : results
+    })
+
+  return next(1).then((all) => merge(all, pageSize * pages))
 }
 
-function merge(results: TeamBoardDto[]): TeamBoardView {
+function merge(results: TeamBoardDto[], requestedRows: number): TeamBoardView {
   const first = results[0]
   if (!first) throw new Error('team board: no pages')
 
-  // Sahifalar orasida kimdir siljigan bo'lsa — bir odam bir marta
+  // Sahifalar orasida kimdir siljigan bo'lsa (faqat 200 dan ortiqda) — bir odam bir marta
   const seen: Record<string, true> = {}
   const items: TeamBoardItemDto[] = []
   results.forEach((result) =>
@@ -339,24 +371,65 @@ function merge(results: TeamBoardDto[]): TeamBoardView {
     counts: first.counts,
     items,
     totalItems: first.totalItems,
-    loadedPages: results.length,
-    pageCount: Math.max(1, first.pageCount),
+    loadedRows: requestedRows,
+    hasMore: items.length < first.totalItems,
   }
 }
 
-/** A'zoning oyi — ekranga qulay shaklda (`toMonth`, taqvimdagining o'zi). */
+/**
+ * A'zoning oyi — ekranga qulay shaklda (kataklar taqvimdagidek tekis).
+ *
+ * ⚠️ `current` YO'Q (tugma holati faqat xodimning o'ziga) — `toMonth`
+ * ataylab ishlatilmaydi, u `current` ni ko'chiradi.
+ */
 export interface TeamMemberMonth {
   employee: TeamMemberDto
-  month: AttendanceMonth
+  year: number
+  month: number
+  days: AttendanceDay[]
+  totals: TimesheetTotalsDto
 }
 
 export function useTeamMemberMonth(employeeId: string, year: number, month: number): QueryResult<TeamMemberMonth> {
   return useQuery(employeeId ? `jamoa-xodim:${employeeId}:${monthKey(year, month)}` : null, () =>
     api.getTeamMemberMonth(employeeId, year, month).then((dto) => {
       remember(dto.employee)
-      return { employee: dto.employee, month: toMonth(dto.attendance) }
+      return {
+        employee: dto.employee,
+        year: dto.attendance.year,
+        month: dto.attendance.month,
+        days: dto.attendance.days.map((item) =>
+          item.day.status === 'NotEmployed' ? outsideDay(item.day) : { ...item.day, marks: item.marks },
+        ),
+        totals: dto.attendance.totals,
+      }
     }),
   )
+}
+
+/**
+ * Qamrovdan tashqari (yoki ishlamagan) kun — faqat sana va holat qoladi.
+ *
+ * Server bunday kunni allaqachon bo'sh yuboradi; bu yerda yana bir bor
+ * tozalanadi: biror sabab bilan vaqt yoki belgi kelib qolsa ham, boshliq
+ * o'z jamoasida bo'lmagan kunni ko'rmasligi kerak.
+ */
+function outsideDay(day: TimesheetCellDto): AttendanceDay {
+  return {
+    date: day.date,
+    status: 'NotEmployed',
+    workedMinutes: 0,
+    lateMinutes: 0,
+    earlyLeaveMinutes: 0,
+    breakTakenMinutes: 0,
+    breakDeductionMinutes: 0,
+    firstInAt: null,
+    lastOutAt: null,
+    planStartAt: null,
+    planEndAt: null,
+    mobileMarks: 0,
+    marks: [],
+  }
 }
 
 /**

@@ -84,7 +84,8 @@ export function useMyPhoto(photoKey: string | null | undefined): string | null {
  * Kalit — xodim, rasm kaliti emas: panel rasm KALITINI ataylab bermaydi
  * (u ichki saqlash nomi, §C2). HR rasmni almashtirsa, yangisi ilova qayta
  * ochilganda ko'rinadi — boshliq uchun bu yetarli. Kesh `clearPhotoCache`
- * bilan birga tozalanadi.
+ * bilan birga va boshliqlik olib tashlanganda (`invalidateTeam` →
+ * `clearTeamCache`) tozalanadi.
  */
 const teamCache = new Map<string, string>()
 const teamPending = new Map<string, Promise<string | null>>()

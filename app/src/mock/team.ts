@@ -12,7 +12,7 @@ import type {
   TimesheetCellDto,
   TimesheetTotalsDto,
 } from '@/api/types'
-import { daysInMonth, monthKey, pad, parseIsoDate, tashkentParts, todayIso } from '@/lib/time'
+import { daysInMonth, monthKey, pad, parseIsoDate, shiftMonth, tashkentParts, todayIso } from '@/lib/time'
 import { MOCK_ME, tashkentToUtcIso } from './data'
 
 /**
@@ -45,6 +45,11 @@ interface MockMember extends TeamMemberDto {
   scheduled: boolean
   /** Necha oy oldin jamoaga kelgan — undan oldingi oy 404 `jamoa.xodim_topilmadi`. */
   joinedMonthsAgo: number
+  /**
+   * Kelgan oyning qaysi kuni jamoaga o'tgan (1 — oy boshidan). Undan oldingi
+   * kunlar — `NotEmployed`: server qamrovdan tashqari kunni shunday beradi.
+   */
+  joinedDay: number
   seed: number
 }
 
@@ -70,13 +75,20 @@ function departmentName(id: string): string {
   return MOCK_TEAM_DEPARTMENTS.filter((item) => item.id === id).map((item) => item.name)[0] ?? ''
 }
 
+/**
+ * ⚠️ Raqamlar ATAYLAB soxta: «+998 90 000 00 NN». Tasodifiy ko'rinadigan
+ * raqam kimningdir haqiqiy telefoni bo'lib chiqishi mumkin — namoyishda
+ * «Qo'ng'iroq qilish» bosilsa, begona odamga qo'ng'iroq ketardi.
+ */
+function fakePhone(n: number): string {
+  const digits = String(10000 + (n % 10000)).slice(1)
+  return `+998 90 000 ${digits.slice(0, 2)} ${digits.slice(2, 4)}`
+}
+
 function phoneOf(index: number): string | null {
   // Har o'n uchinchi odamda raqam yo'q — qo'ng'iroq tugmasi ham yo'q
   if (index % 13 === 7) return null
-  const n = 1000000 + ((index * 7919) % 8999999)
-  const digits = String(n).slice(0, 7)
-  const operator = ['90', '91', '93', '94', '97', '99'][index % 6] ?? '90'
-  return `+998 ${operator} ${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 7)}`
+  return fakePhone(index)
 }
 
 function buildMembers(): MockMember[] {
@@ -86,10 +98,11 @@ function buildMembers(): MockMember[] {
     hasPhoto: true,
     positionName: MOCK_ME.position,
     departmentName: departmentName('dep-1'),
-    phone: '+998 97 666 26 75',
+    phone: fakePhone(0),
     departmentId: 'dep-1',
     scheduled: true,
     joinedMonthsAgo: 36,
+    joinedDay: 1,
     seed: 3,
   }
 
@@ -114,6 +127,8 @@ function buildMembers(): MockMember[] {
       // Har to'rtinchisi jadvalsiz — prod'da jadval hali biriktirilmagan odamlar ko'p
       scheduled: index % 4 !== 1,
       joinedMonthsAgo: index % 9 === 4 ? 0 : 3 + (index % 20),
+      // Bir qismi oy o'rtasida boshqa bo'limdan o'tib kelgan
+      joinedDay: index % 3 === 0 ? 1 + (index % 17) : 1,
       seed: index * 37,
     })
   }
@@ -245,10 +260,20 @@ export function mockTeamScope(): { departments: TeamDepartmentDto[] } {
   return { departments: MOCK_TEAM_DEPARTMENTS.slice() }
 }
 
-/** `GET /api/me/team/board` — server tartibi: bo'lim → sanoq → qidiruv va holat → sahifa. */
+/** Jamoaga o'tgan sana — panel ham, a'zo oyi ham qamrovni bir xil o'qisin. */
+function joinedOn(member: MockMember): string {
+  const parts = parseIsoDate(todayIso())
+  if (!parts) return '2000-01-01'
+  const start = shiftMonth(parts.year, parts.month, -member.joinedMonthsAgo)
+  const day = Math.min(member.joinedDay, daysInMonth(start.year, start.month))
+  return `${monthKey(start.year, start.month)}-${pad(day)}`
+}
+
+/** `GET /api/me/team/board` — server tartibi: sana → bo'lim → sanoq → qidiruv va holat → sahifa. */
 export function mockTeamBoard(query: TeamBoardQuery): MockTeamResult<TeamBoardDto> {
   const today = todayIso()
   const date = query.date ?? today
+  if (date < '2000-01-01' || date > today) return { ok: false, status: 400, code: 'jamoa.sana_notogri' }
 
   let scope = subtree('dep-1')
   if (query.departmentId !== null) {
@@ -256,7 +281,9 @@ export function mockTeamBoard(query: TeamBoardQuery): MockTeamResult<TeamBoardDt
     scope = subtree(query.departmentId)
   }
 
-  const rows: TeamBoardItemDto[] = MEMBERS.filter((member) => scope.indexOf(member.departmentId) >= 0).map(
+  const rows: TeamBoardItemDto[] = MEMBERS.filter(
+    (member) => scope.indexOf(member.departmentId) >= 0 && joinedOn(member) <= date,
+  ).map(
     (member) => {
       const day = memberDay(member, date)
       return {
@@ -406,7 +433,32 @@ function monthsAgo(year: number, month: number): number {
   return (parts.year - year) * 12 + (parts.month - month)
 }
 
-/** `GET /api/me/team/members/{id}/attendance` — qamrovdan tashqari yoki kelmasidan oldingi oy — 404. */
+/** Qamrovdan tashqari kun — server shakli: ishlamagan kundek, belgisiz va vaqtsiz. */
+function outsideCell(dateIso: string): MyAttendanceDayDto {
+  return {
+    day: {
+      date: dateIso,
+      status: 'NotEmployed',
+      workedMinutes: 0,
+      lateMinutes: 0,
+      earlyLeaveMinutes: 0,
+      firstInAt: null,
+      lastOutAt: null,
+      breakTakenMinutes: 0,
+      breakDeductionMinutes: 0,
+      planStartAt: null,
+      planEndAt: null,
+      mobileMarks: 0,
+    },
+    marks: [],
+  }
+}
+
+/**
+ * `GET /api/me/team/members/{id}/attendance` — qamrovdan tashqari yoki
+ * kelmasidan oldingi oy — 404; kelgan oyning o'tishdan oldingi kunlari —
+ * `NotEmployed`. `current` YO'Q: server uni boshliqqa bermaydi.
+ */
 export function mockTeamMemberMonth(
   employeeId: string,
   year: number,
@@ -419,9 +471,11 @@ export function mockTeamMemberMonth(
   if (month < 1 || month > 12 || ago < 0) return { ok: false, status: 400, code: 'davomat.oy_notogri' }
   if (ago > member.joinedMonthsAgo) return { ok: false, status: 404, code: 'jamoa.xodim_topilmadi' }
 
+  const firstDay = ago === member.joinedMonthsAgo ? member.joinedDay : 1
   const days: MyAttendanceDayDto[] = []
   for (let day = 1; day <= daysInMonth(year, month); day += 1) {
-    days.push(memberCell(member, `${monthKey(year, month)}-${pad(day)}`))
+    const dateIso = `${monthKey(year, month)}-${pad(day)}`
+    days.push(day < firstDay ? outsideCell(dateIso) : memberCell(member, dateIso))
   }
 
   return {
@@ -440,8 +494,6 @@ export function mockTeamMemberMonth(
         month,
         days,
         totals: totalsOf(days),
-        // A'zo ekrani «hozir» kartasini ko'rsatmaydi — server shaklini to'ldirish uchun
-        current: { date: todayIso(), nextDirection: 'In', lastMark: null },
       },
     },
   }

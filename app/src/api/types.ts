@@ -214,11 +214,28 @@ export interface TeamMemberDto {
 
 /**
  * `GET /api/me/team/members/{id}/attendance?year&month` — `attendance`
- * `/api/me/attendance` ning AYNAN o'zi: a'zoning oyi uning o'z ilovasidagidek.
+ * `/api/me/attendance` shaklida: a'zoning oyi uning o'z ilovasidagidek.
  */
 export interface TeamMemberAttendanceDto {
   employee: TeamMemberDto
-  attendance: AttendanceMonthDto
+  attendance: TeamMemberMonthDto
+}
+
+/**
+ * A'zoning oyi — `AttendanceMonthDto` dan IKKI farqi bor:
+ *
+ *   1. `current` (tugma holati, oxirgi belgi) YO'Q — u faqat xodimning
+ *      o'ziga. Server endi yubormaydi; eski server yuborsa ham ilova uni
+ *      o'qimaydi — maydon bu turda ataylab e'lon qilinmagan.
+ *   2. Boshliqning qamrovidan tashqari kunlar (boshqa bo'limdan o'tib
+ *      kelishidan oldin, ketganidan keyin) — `NotEmployed` katagi, xuddi
+ *      ishlamagan kundek: belgisiz, vaqtsiz.
+ */
+export interface TeamMemberMonthDto {
+  year: number
+  month: number
+  days: MyAttendanceDayDto[]
+  totals: TimesheetTotalsDto
 }
 
 /** Kun ichidagi bitta belgi — `MyMarkDto`. */
