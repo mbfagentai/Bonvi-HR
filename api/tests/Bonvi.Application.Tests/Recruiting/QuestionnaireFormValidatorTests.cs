@@ -161,6 +161,44 @@ public sealed class QuestionnaireFormValidatorTests
         aniqliksiz.IsSuccess.ShouldBeTrue("so'ramaydigan kanalda aniqlik majburiy emas");
     }
 
+    /// <summary>
+    /// 3.0 sahifa (deploy paytida ochiq qolgan) — yangi savollarsiz, sana bilan: o'sha qoidalar bilan o'tadi;
+    /// 3.1 forma esa sanani yubormaydi, shuning uchun tanlovsiz anketa baribir rad etiladi.
+    /// </summary>
+    [Fact]
+    public void Eski_3_0_sahifa_oz_qoidasi_bilan_otadi_yangisi_tanlovsiz_otmaydi()
+    {
+        var eski = Toliq() with
+        {
+            HasWorkExperience = null,
+            StartAfter = null,
+            AvailableFrom = Bugun.AddDays(5),
+            References = [],
+            HasLoan = null,
+            LoanMonthlyPayment = null,
+            Motivators = null,
+            SuccessDefinition = null,
+            DriverLicenseCategories = ["BE"],
+        };
+
+        QuestionnaireFormValidator.IsLegacy(eski).ShouldBeTrue();
+
+        var natija = QuestionnaireFormValidator.Validate(eski, Bugun, Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code + " @ " + natija.Error.Details["field"] : null);
+        natija.Value.AvailableFrom.ShouldBe(Bugun.AddDays(5));
+        natija.Value.HasWorkExperience.ShouldBeNull();
+        natija.Value.StartAfter.ShouldBeNull();
+        natija.Value.DriverLicenseCategories.ShouldBe(["BE"]);
+        QuestionnaireFormValidator.IsLegacy(natija.Value).ShouldBeTrue();
+
+        var yangi = QuestionnaireFormValidator.Validate(Toliq() with { StartAfter = null, AvailableFrom = null }, Bugun, Kanallar);
+
+        yangi.IsFailure.ShouldBeTrue();
+        yangi.Error.Details["field"].ShouldBe("startAfter");
+        QuestionnaireFormValidator.IsLegacy(Toliq()).ShouldBeFalse();
+    }
+
     /// <summary>Eski sanoq kaliti (<c>referralSource</c>) endi tanilmaydi — kanal yo'q deb hisoblanadi.</summary>
     [Fact]
     public void Eski_referralSource_kaliti_kanal_orniga_otmaydi()
@@ -286,6 +324,159 @@ public sealed class QuestionnaireFormValidatorTests
     }
 
     // ────────────────────────────────────────────────────────────
+    //  Blanka 3.1 (HR rahbari, egasi tasdiqlagan, 2026-10-27)
+    // ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Avval_ishlagan_ish_joyi_tavsiya_beruvchi_va_ishga_oid_savollar_saqlanadi()
+    {
+        var natija = QuestionnaireFormValidator.Validate(Toliq(), Bugun, Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+
+        var a = natija.Value;
+        a.HasWorkExperience.ShouldBe(true);
+        a.Jobs.ShouldHaveSingleItem().Organization.ShouldBe("«Metan Gaz» MChJ");
+        a.References.ShouldHaveSingleItem().FullName.ShouldBe("Karimov Anvar");
+        a.Motivators.ShouldBe("Adolatli baholash");
+        a.SuccessDefinition.ShouldBe("Ishni vaqtida bajarish");
+        a.LastJobAchievement.ShouldBe("Brak ulushini kamaytirdik");
+        a.BestIdea.ShouldBe("Tekshiruv shabloni");
+    }
+
+    /// <summary>
+    /// «Avval ishlaganmisiz?» — «Yo'q»: ish joylari, tavsiya beruvchilar va ishga oid ikki savol
+    /// TEKSHIRILMAYDI va saqlanmaydi — formadan buzuq qoralama kelsa ham anketa o'tadi.
+    /// </summary>
+    [Fact]
+    public void Avval_ishlamagan_ish_joylari_tavsiyalar_va_ishga_oid_savollar_tashlanadi()
+    {
+        var natija = QuestionnaireFormValidator.Validate(Toliq() with
+        {
+            HasWorkExperience = false,
+            Jobs = [new FormJob("MBF\u200B", null, "03.2021")],
+            References = [new FormReference(" ", null, "abc")],
+            LastJobAchievement = "Qoralamada qolgan matn",
+            BestIdea = new string('x', 1001),
+        }, Bugun, Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+
+        var a = natija.Value;
+        a.HasWorkExperience.ShouldBe(false);
+        a.Jobs.ShouldBeEmpty();
+        a.References.ShouldBeEmpty();
+        a.LastJobAchievement.ShouldBeNull();
+        a.BestIdea.ShouldBeNull();
+        a.Motivators.ShouldBe("Adolatli baholash", "rag'bat va muvaffaqiyat ta'rifi — hammaga");
+        a.SuccessDefinition.ShouldBe("Ishni vaqtida bajarish");
+
+        var saqlanadi = QuestionnaireFormJson.Write(a);
+        saqlanadi.ShouldNotContain("MBF");
+        saqlanadi.ShouldNotContain("Qoralamada qolgan matn");
+        saqlanadi.ShouldNotContain("\"lastJobAchievement\"", Case.Sensitive);
+        saqlanadi.ShouldNotContain("\"bestIdea\"", Case.Sensitive);
+        saqlanadi.ShouldContain("\"hasWorkExperience\":false", Case.Sensitive);
+    }
+
+    [Fact]
+    public void Avval_ishlamaganga_ishga_oid_savollar_majburiy_emas()
+    {
+        var natija = QuestionnaireFormValidator.Validate(Toliq() with
+        {
+            HasWorkExperience = false,
+            Jobs = null,
+            References = null,
+            LastJobAchievement = null,
+            BestIdea = null,
+        }, Bugun, Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+    }
+
+    [Theory]
+    [InlineData(FormStartAfter.OnHireDay, "OnHireDay")]
+    [InlineData(FormStartAfter.OneWeek, "OneWeek")]
+    [InlineData(FormStartAfter.TenDays, "TenDays")]
+    [InlineData(FormStartAfter.FifteenDays, "FifteenDays")]
+    public void Ishga_chiqish_tanlovi_matn_bilan_saqlanadi_eski_sana_tashlanadi(FormStartAfter tanlov, string matn)
+    {
+        var natija = QuestionnaireFormValidator.Validate(
+            Toliq() with { StartAfter = tanlov, AvailableFrom = Bugun.AddDays(5) },
+            Bugun,
+            Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        natija.Value.StartAfter.ShouldBe(tanlov);
+        natija.Value.AvailableFrom.ShouldBeNull("eski sana yangi anketaga HECH QACHON o'tmaydi");
+
+        var saqlanadi = QuestionnaireFormJson.Write(natija.Value);
+        saqlanadi.ShouldContain($"\"startAfter\":\"{matn}\"", Case.Sensitive);
+        saqlanadi.ShouldNotContain("\"availableFrom\"", Case.Sensitive);
+
+        QuestionnaireFormJson.Read(saqlanadi)!.StartAfter.ShouldBe(tanlov);
+    }
+
+    /// <summary>Forma enumni faqat nomi bilan yuboradi — son yoki noma'lum nom JSON'ni o'qib bo'lmaydigan qiladi.</summary>
+    [Theory]
+    [InlineData("3")]
+    [InlineData("\"TwoWeeks\"")]
+    public void Ishga_chiqish_soni_yoki_nomalum_nom_bilan_oqilmaydi(string qiymat)
+    {
+        var json = JsonNode.Parse(QuestionnaireFormJson.Write(Toliq()))!.AsObject();
+        json["startAfter"] = JsonNode.Parse(qiymat);
+
+        QuestionnaireFormJson.Read(json.ToJsonString()).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Kredit_bor_bolsa_oylik_tolov_saqlanadi()
+    {
+        var natija = QuestionnaireFormValidator.Validate(Toliq() with { HasLoan = true, LoanMonthlyPayment = 1_200_000 }, Bugun, Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        natija.Value.HasLoan.ShouldBe(true);
+        natija.Value.LoanMonthlyPayment.ShouldBe(1_200_000);
+    }
+
+    [Fact]
+    public void Guvohnoma_toifalari_BE_orniga_BC()
+        => QuestionnaireFormCatalog.DriverLicenseCategories.ShouldBe(["A", "B", "C", "D", "BC", "CE", "DE"]);
+
+    [Fact]
+    public void BC_toifasi_qabul_qilinadi_va_qogozdagi_tartibda_turadi()
+    {
+        var natija = QuestionnaireFormValidator.Validate(Toliq() with { DriverLicenseCategories = ["DE", "bc", "C", "B"] }, Bugun, Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+        natija.Value.DriverLicenseCategories.ShouldBe(["B", "C", "BC", "DE"]);
+    }
+
+    /// <summary>
+    /// 3.0 da bo'lib, 3.1 da olib tashlangan kalitlar (umumiy tajriba, aniq sana) — xato emas,
+    /// lekin saqlanadigan JSON'ga TUSHMAYDI.
+    /// </summary>
+    [Fact]
+    public void Eski_umumiy_tajriba_va_sana_kalitlari_saqlanmaydi()
+    {
+        var eski = JsonNode.Parse(QuestionnaireFormJson.Write(Toliq()))!.AsObject();
+        eski["totalExperienceYears"] = 5;
+        eski["totalExperienceMonths"] = 3;
+        eski["availableFrom"] = "2026-11-03";
+
+        var oqilgan = QuestionnaireFormJson.Read(eski.ToJsonString());
+        oqilgan.ShouldNotBeNull("noma'lum kalit JSON'ni buzuq qilmaydi");
+
+        var natija = QuestionnaireFormValidator.Validate(oqilgan, Bugun, Kanallar);
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+
+        var saqlanadi = QuestionnaireFormJson.Write(natija.Value);
+        saqlanadi.ShouldNotContain("totalExperience", Case.Sensitive);
+        saqlanadi.ShouldNotContain("availableFrom", Case.Sensitive);
+        saqlanadi.ShouldNotContain("2026-11-03");
+    }
+
+    // ────────────────────────────────────────────────────────────
     //  Xatolar — kod va maydon
     // ────────────────────────────────────────────────────────────
 
@@ -316,6 +507,7 @@ public sealed class QuestionnaireFormValidatorTests
         { "harbiy xizmat 0 oy", Toliq() with { MilitaryService = FormMilitaryService.Served, MilitaryServiceMonths = 0 }, "anketa.notogri", "militaryServiceMonths" },
         { "guvohnoma bor, toifa yo'q", Toliq() with { DriverLicenseCategories = [] }, "anketa.majburiy", "driverLicenseCategories" },
         { "noma'lum toifa", Toliq() with { DriverLicenseCategories = ["Z"] }, "anketa.notogri", "driverLicenseCategories" },
+        { "BE toifasi (3.1 da BC bilan almashtirilgan)", Toliq() with { DriverLicenseCategories = ["B", "BE"] }, "anketa.notogri", "driverLicenseCategories" },
         { "o'qish joyi nomsiz", Toliq() with { Educations = [new FormEducation(" ")] }, "anketa.majburiy", "educations[0].institution" },
         { "o'qish yillari teskari", Toliq() with { Educations = [new FormEducation("TATU", null, 2020, 2015)] }, "anketa.notogri", "educations[0].endYear" },
         { "olti o'qish joyi", Toliq() with { Educations = [.. Enumerable.Repeat(new FormEducation("TATU"), 6)] }, "anketa.notogri", "educations" },
@@ -325,6 +517,13 @@ public sealed class QuestionnaireFormValidatorTests
         { "boshqa til nomsiz", Toliq() with { Languages = [new FormLanguageSkill(FormLanguage.Russian, null, 3, 3, 3), new FormLanguageSkill(FormLanguage.Other, null, 1, 1, 1)] }, "anketa.majburiy", "languages[1].otherName" },
         { "noma'lum dastur", Toliq() with { ComputerSkills = new Dictionary<string, int> { ["tiktok"] = 3 } }, "anketa.notogri", "computerSkills.tiktok" },
         { "dastur darajasi 5", Toliq() with { ComputerSkills = new Dictionary<string, int> { ["msExcel"] = 5 } }, "anketa.notogri", "computerSkills.msExcel" },
+        { "avval ishlaganmi — javobsiz", Toliq() with { HasWorkExperience = null }, "anketa.majburiy", "hasWorkExperience" },
+        { "ishlagan, ish joyi yo'q", Toliq() with { Jobs = [] }, "anketa.majburiy", "jobs" },
+        { "ishlagan, ish joylari kelmagan", Toliq() with { Jobs = null }, "anketa.majburiy", "jobs" },
+        { "ishlagan, tavsiya beruvchi yo'q", Toliq() with { References = [] }, "anketa.majburiy", "references" },
+        { "ishlagan, tavsiya beruvchilar kelmagan", Toliq() with { References = null }, "anketa.majburiy", "references" },
+        { "ishlagan, olti ish joyi", Toliq() with { Jobs = [.. Enumerable.Repeat(new FormJob("MBF"), 6)] }, "anketa.notogri", "jobs" },
+        { "ishlagan, to'rt tavsiya beruvchi", Toliq() with { References = [.. Enumerable.Repeat(new FormReference("Anvar"), 4)] }, "anketa.notogri", "references" },
         { "ish oyi formati", Toliq() with { Jobs = [new FormJob("MBF", null, "03.2021")] }, "anketa.notogri", "jobs[0].from" },
         { "ish kelajakda", Toliq() with { Jobs = [new FormJob("MBF", null, "2027-01")] }, "anketa.notogri", "jobs[0].from" },
         { "oila a'zosi yo'q", Toliq() with { FamilyMembers = [] }, "anketa.majburiy", "familyMembers" },
@@ -336,11 +535,24 @@ public sealed class QuestionnaireFormValidatorTests
         { "qayerdan bilgan — faol emas yoki noma'lum", Toliq() with { ReferralChannelId = Guid.CreateVersion7() }, "qayerdan.topilmadi", "referralChannelId" },
         { "maosh yo'q", Toliq() with { ExpectedSalary = null }, "anketa.majburiy", "expectedSalary" },
         { "maosh manfiy", Toliq() with { ExpectedSalary = -1 }, "anketa.notogri", "expectedSalary" },
-        { "ishga kecha", Toliq() with { AvailableFrom = Bugun.AddDays(-1) }, "anketa.notogri", "availableFrom" },
+        { "ishga chiqish tanlanmagan", Toliq() with { StartAfter = null }, "anketa.majburiy", "startAfter" },
+        { "ishga chiqish noma'lum qiymat", Toliq() with { StartAfter = (FormStartAfter)9 }, "anketa.notogri", "startAfter" },
+        { "ishga chiqish — faqat eski sana", Toliq() with { StartAfter = null, AvailableFrom = Bugun.AddDays(3) }, "anketa.majburiy", "startAfter" },
+        { "kredit javobsiz", Toliq() with { HasLoan = null }, "anketa.majburiy", "hasLoan" },
+        { "kredit bor, to'lov yo'q", Toliq() with { HasLoan = true, LoanMonthlyPayment = null }, "anketa.majburiy", "loanMonthlyPayment" },
+        { "kredit bor, to'lov 0", Toliq() with { HasLoan = true, LoanMonthlyPayment = 0 }, "anketa.notogri", "loanMonthlyPayment" },
+        { "kredit bor, to'lov manfiy", Toliq() with { HasLoan = true, LoanMonthlyPayment = -5 }, "anketa.notogri", "loanMonthlyPayment" },
+        { "kredit bor, to'lov chegaradan katta", Toliq() with { HasLoan = true, LoanMonthlyPayment = 1_000_000_001 }, "anketa.notogri", "loanMonthlyPayment" },
         { "boshqa ish tafsilotsiz", Toliq() with { HasOtherJob = true, OtherJobDetail = null }, "anketa.majburiy", "otherJobDetail" },
         { "sudlangan tafsilotsiz", Toliq() with { HasConviction = true }, "anketa.majburiy", "convictionDetail" },
         { "motivatsiya yo'q", Toliq() with { Motivation = null }, "anketa.majburiy", "motivation" },
         { "uzun matn", Toliq() with { Weaknesses = new string('x', 1001) }, "anketa.uzun", "weaknesses" },
+        { "rag'bat yo'q", Toliq() with { Motivators = " " }, "anketa.majburiy", "motivators" },
+        { "muvaffaqiyat ta'rifi yo'q", Toliq() with { SuccessDefinition = null }, "anketa.majburiy", "successDefinition" },
+        { "muvaffaqiyat ta'rifi — avval ishlamagan ham", Toliq() with { HasWorkExperience = false, SuccessDefinition = null }, "anketa.majburiy", "successDefinition" },
+        { "ishlagan, oxirgi ishdagi yutuq yo'q", Toliq() with { LastJobAchievement = null }, "anketa.majburiy", "lastJobAchievement" },
+        { "ishlagan, foydali g'oya yo'q", Toliq() with { BestIdea = "" }, "anketa.majburiy", "bestIdea" },
+        { "ishlagan, foydali g'oya uzun", Toliq() with { BestIdea = new string('x', 1001) }, "anketa.uzun", "bestIdea" },
         { "rozilik yo'q", Toliq() with { ConsentConfidentiality = false }, "anketa.rozilik", "consentConfidentiality" },
         { "imzo ismi yo'q", Toliq() with { SignatureName = null }, "anketa.majburiy", "signatureName" },
         { "imzo boshqa odam", Toliq() with { SignatureName = "Karimov Aziz" }, "anketa.imzo_ism", "signatureName" },
@@ -467,11 +679,35 @@ public sealed class QuestionnaireFormValidatorTests
         q.OfferAcceptedAt.ShouldBe(rozilik);
         q.OfferAcceptedAt!.Value.Offset.ShouldBe(TimeSpan.Zero, "timestamptz faqat UTC qabul qiladi");
         q.HasDriverLicense.ShouldBeTrue();
-        q.DriverLicenseCategories.ShouldBe("BC");
+        q.DriverLicenseCategories.ShouldBe("B, C", "vergul bilan — «BC» endi alohida toifa");
         q.LastSalary.ShouldBe("3 000 000 so‘m");
         q.OfficeSkills.ShouldBe("MS Word — 3, MS Excel — 2, Google Docs / Sheets — 1", "faqat ofis guruhi — 1C bu qatorga tushmaydi");
         q.OtherLanguages.ShouldBe("O‘zbek tili: so‘zlashuv 5, o‘qish 5, yozish 5");
-        q.WorkExperience.ShouldBe("«Metan Gaz» MChJ — Payvandchi (03.2021–hozir)\nUmumiy: 5 yil 3 oy");
+        q.WorkExperience.ShouldBe("«Metan Gaz» MChJ — Payvandchi (03.2021–hozir)", "umumiy tajriba qatori 3.1 da yo'q");
+    }
+
+    [Fact]
+    public void Avval_ishlamagan_nomzod_kartasida_ish_tajribasi_bosh_qolmaydi()
+    {
+        var javoblar = QuestionnaireFormValidator.Validate(Toliq() with { HasWorkExperience = false }, Bugun, Kanallar).Value;
+
+        var anketa = QuestionnaireFormMapping.ToQuestionnaire(Guid.CreateVersion7(), javoblar, DateTimeOffset.UtcNow);
+
+        anketa.IsSuccess.ShouldBeTrue(anketa.IsFailure ? anketa.Error.ToString() : null);
+        anketa.Value.WorkExperience.ShouldBe("Avval ishlamagan");
+    }
+
+    /// <summary>«BC» — alohida toifa (3.1): matnda «B» + «C» dan ajralib tursin.</summary>
+    [Theory]
+    [InlineData(new[] { "BC" }, "BC")]
+    [InlineData(new[] { "B", "C" }, "B, C")]
+    [InlineData(new[] { "B", "C", "BC", "CE" }, "B, C, BC, CE")]
+    public void Toifalar_anketa_matnida_vergul_bilan(string[] toifalar, string matn)
+    {
+        var javoblar = QuestionnaireFormValidator.Validate(Toliq() with { DriverLicenseCategories = toifalar }, Bugun, Kanallar).Value;
+
+        QuestionnaireFormMapping.ToQuestionnaire(Guid.CreateVersion7(), javoblar, DateTimeOffset.UtcNow)
+            .Value.DriverLicenseCategories.ShouldBe(matn);
     }
 
     [Fact]
@@ -500,20 +736,21 @@ public sealed class QuestionnaireFormValidatorTests
             new FormLanguageSkill(FormLanguage.Russian, null, 3, 3, 2),
         ],
         ComputerSkills = new Dictionary<string, int> { ["msWord"] = 3, ["msExcel"] = 2, ["googleWorkspace"] = 1, ["oneC"] = 1 },
+        HasWorkExperience = true,
         Jobs = [new FormJob("«Metan Gaz» MChJ", "Payvandchi", "2021-03", null, true)],
-        TotalExperienceYears = 5,
-        TotalExperienceMonths = 3,
+        References = [new FormReference("Karimov Anvar", "«Metan Gaz» MChJ, sex boshlig‘i", "+998901112233")],
         FamilyMembers = [new FormFamilyMember(FormFamilyRelation.Mother, "G‘ulomova Dilnoza")],
         ReferralChannelId = Tanishlar.Id,
         ReferralDetail = "Karimov Anvar",
         HasAcquaintances = false,
         LastSalary = 3_000_000,
         ExpectedSalary = 4_500_000,
-        AvailableFrom = Bugun,
+        StartAfter = FormStartAfter.OneWeek,
         CanWorkShifts = true,
         CanWorkOvertime = true,
         CanTravel = false,
         HasOtherJob = false,
+        HasLoan = false,
         AgreesToTrial = true,
         HasHealthRestriction = false,
         HasConviction = false,
@@ -521,6 +758,10 @@ public sealed class QuestionnaireFormValidatorTests
         WhyUs = "Barqaror",
         Strengths = "Mas’uliyat",
         Weaknesses = "Shoshqaloqlik",
+        Motivators = "Adolatli baholash",
+        SuccessDefinition = "Ishni vaqtida bajarish",
+        LastJobAchievement = "Brak ulushini kamaytirdik",
+        BestIdea = "Tekshiruv shabloni",
         ConsentAccuracy = true,
         ConsentPersonalData = true,
         ConsentReferenceCheck = true,

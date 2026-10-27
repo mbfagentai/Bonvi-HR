@@ -7,6 +7,7 @@ import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { DEFAULT_LOCALE } from '@/shared/i18n/locales'
 import { Button } from '@/shared/ui'
 import {
+  KIOSK_FORM_VERSION,
   KIOSK_LANGUAGES,
   dropHrSession,
   fetchKioskSession,
@@ -76,13 +77,27 @@ export function KioskPage({
     rules.startIdleMs !== null && phase.name === 'start' && savedDraft !== null,
   )
 
+  const refetchSession = session.refetch
+
   const reset = useCallback(() => {
     draftStorage.clear()
     setSavedDraft(null)
     if (rules.tablet) setLocale(DEFAULT_LOCALE)
     setPhase({ name: 'start' })
     window.scrollTo({ top: 0 })
-  }, [rules.tablet, setLocale])
+    // The next candidate starts here — ask whether a newer form went live meanwhile
+    void refetchSession()
+  }, [rules.tablet, setLocale, refetchSession])
+
+  // A newer blank went live while this page stayed open (the office tablet is
+  // never reloaded by hand): reload on the start screen, where nobody is
+  // mid-answer and a saved draft survives the reload (sessionStorage).
+  const liveVersion = session.data?.formVersion
+  useEffect(() => {
+    if (phase.name === 'start' && liveVersion !== undefined && liveVersion !== KIOSK_FORM_VERSION) {
+      reloadOnceFor(liveVersion)
+    }
+  }, [phase.name, liveVersion])
 
   // No HR session may live in the office tablet's browser: the form does not
   // start until it is ended (security review M5). Asked, not done silently.
@@ -143,6 +158,24 @@ export function KioskPage({
       }}
     />
   )
+}
+
+/**
+ * Reloads the page once per server version. A browser that still gets the old
+ * page after reloading (a stale cache) must not reload forever, so the version
+ * is remembered for this tab first; without storage nothing is risked.
+ */
+function reloadOnceFor(version: string): void {
+  const key = 'bonvi.kiosk.reloadedFor'
+
+  try {
+    if (window.sessionStorage.getItem(key) === version) return
+    window.sessionStorage.setItem(key, version)
+  } catch {
+    return
+  }
+
+  window.location.reload()
 }
 
 function presetVacancy(session: KioskSession, id: string | undefined): { id: string; title: string } | null {

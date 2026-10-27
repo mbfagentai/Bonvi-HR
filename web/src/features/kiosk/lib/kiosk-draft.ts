@@ -6,19 +6,23 @@ import type {
   HousingType,
   MilitaryService,
   QuestionnaireAnswers,
+  StartAfter,
 } from '../api/kiosk-api'
 import {
   ABOUT_QUESTIONS,
   COMPUTER_LEVELS,
   CONSENTS,
+  DRIVER_LICENSE_CATEGORIES,
   FIXED_LANGUAGES,
   REQUIRED_ABOUT,
   SCREEN_FIELDS,
   WIZARD_SCREENS,
+  isAboutAsked,
   isComputerSkillKey,
   type AboutQuestion,
   type ComputerSkillKey,
   type ConsentKey,
+  type DriverLicenseCategory,
   type WizardScreen,
 } from './kiosk-options'
 
@@ -109,9 +113,13 @@ export interface KioskDraft {
   computerSkills: Partial<Record<ComputerSkillKey, number>>
   computerSkillsOther: string
 
+  /**
+   * «Avval biror joyda ishlaganmisiz?» (form v3.1). Rows typed under «Ha»
+   * stay in the draft after «Yo'q» (the candidate may switch back), but they
+   * are neither checked nor sent.
+   */
+  hasWorkExperience: boolean | null
   jobs: DraftJob[]
-  totalExperienceYears: string
-  totalExperienceMonths: string
   references: DraftReference[]
   familyMembers: DraftFamilyMember[]
 
@@ -126,7 +134,7 @@ export interface KioskDraft {
   acquaintancesDetail: string
   lastSalary: string
   expectedSalary: string
-  availableFrom: string
+  startAfter: StartAfter | null
   canWorkShifts: boolean | null
   canWorkOvertime: boolean | null
   canTravel: boolean | null
@@ -251,9 +259,8 @@ export function emptyDraft(): KioskDraft {
     languages: FIXED_LANGUAGES.map(emptyLanguage),
     computerSkills: {},
     computerSkillsOther: '',
+    hasWorkExperience: null,
     jobs: [],
-    totalExperienceYears: '',
-    totalExperienceMonths: '',
     references: [],
     // Rows are added through «+ Qo'shish»; «at least one» is the `familyMin` rule.
     familyMembers: [],
@@ -263,7 +270,7 @@ export function emptyDraft(): KioskDraft {
     acquaintancesDetail: '',
     lastSalary: '',
     expectedSalary: '',
-    availableFrom: '',
+    startAfter: null,
     canWorkShifts: null,
     canWorkOvertime: null,
     canTravel: null,
@@ -301,8 +308,11 @@ const DRAFT_STORAGE = 'bonvi.kiosk.draft'
  * device). Photo and signature are never stored. Only the keys the current
  * draft has are read back: a draft saved by an older build may still carry
  * answers the form no longer asks (gender, passport, JSHSHIR — SPEC §3.1;
- * the computer skills cut on 2026-10-26 — SPEC §3.4), and those must neither
- * reach the payload nor be written back.
+ * the computer skills cut on 2026-10-26 — SPEC §3.4; the total experience and
+ * the `availableFrom` date of form v3.0), and those must neither reach the
+ * payload nor be written back. Questions added later (`hasWorkExperience`,
+ * `startAfter`) start unanswered from the defaults, and a value a list no
+ * longer offers (licence «BE», a dropped skill) is removed.
  */
 export const draftStorage = {
   load(maxAgeMs: number): KioskDraft | null {
@@ -322,7 +332,13 @@ export const draftStorage = {
       // A draft from an older build is merged over the defaults instead of trusted blindly.
       const defaults = emptyDraft()
       const known = Object.fromEntries(Object.entries(parsed).filter(([key]) => Object.hasOwn(defaults, key)))
-      return { ...defaults, ...known, computerSkills: knownComputerSkills(parsed.computerSkills) }
+      return {
+        ...defaults,
+        ...known,
+        driverLicenseCategories: knownLicenseCategories(parsed.driverLicenseCategories),
+        computerSkills: knownComputerSkills(parsed.computerSkills),
+        about: { ...defaults.about, ...knownTexts(parsed.about) },
+      }
     } catch {
       return null
     }
@@ -359,6 +375,26 @@ export function knownComputerSkills(value: unknown): Partial<Record<ComputerSkil
   return skills
 }
 
+/** Licence categories the form still offers, in its order (form v3.1 replaced «BE» with «BC»). */
+export function knownLicenseCategories(value: unknown): DriverLicenseCategory[] {
+  if (!Array.isArray(value)) return []
+
+  const stored: readonly unknown[] = value
+  return DRIVER_LICENSE_CATEGORIES.filter((category) => stored.includes(category))
+}
+
+/** The open answers of a stored draft that are still strings — the rest fall back to empty. */
+function knownTexts(value: unknown): Partial<Record<AboutQuestion, string>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+
+  const texts: Partial<Record<AboutQuestion, string>> = {}
+  for (const key of ABOUT_QUESTIONS) {
+    const text: unknown = (value as Record<string, unknown>)[key]
+    if (typeof text === 'string') texts[key] = text
+  }
+  return texts
+}
+
 /* ─────────────────────────────────────────────────────────── validation */
 
 /**
@@ -370,7 +406,6 @@ export const KIOSK_ERROR_CODES = [
   'tooLong',
   'invalidDate',
   'age',
-  'pastDate',
   'phone',
   'telegram',
   'email',
@@ -382,6 +417,8 @@ export const KIOSK_ERROR_CODES = [
   'languageLevels',
   'otherLanguageName',
   'familyMin',
+  'jobsMin',
+  'referencesMin',
   'consent',
   'signatureName',
   'signature',
@@ -615,7 +652,15 @@ export function validateAll(draft: KioskDraft, context: ValidationContext): Fiel
   check.max('computerSkillsOther', draft.computerSkillsOther, LIMITS.short)
 
   /* ── 5–7. Work, references, family ── */
-  draft.jobs.forEach((row, index) => {
+  // Jobs and referees are asked only after «Ha»; rows left from an earlier «Ha» are not checked.
+  check.chosen('hasWorkExperience', draft.hasWorkExperience)
+  const worked = draft.hasWorkExperience === true
+  const jobs = worked ? draft.jobs : []
+  const references = worked ? draft.references : []
+
+  if (worked && jobs.length === 0) check.add('jobs', 'jobsMin')
+
+  jobs.forEach((row, index) => {
     const base = `jobs.${index}`
     check.required(`${base}.organization`, row.organization, LIMITS.short)
     check.max(`${base}.position`, row.position, LIMITS.short)
@@ -629,10 +674,9 @@ export function validateAll(draft: KioskDraft, context: ValidationContext): Fiel
     if (from && to && from > to) check.add(`${base}.to`, 'monthOrder')
   })
 
-  check.whole('totalExperienceYears', draft.totalExperienceYears, 0, 60)
-  check.whole('totalExperienceMonths', draft.totalExperienceMonths, 0, 11)
+  if (worked && references.length === 0) check.add('references', 'referencesMin')
 
-  draft.references.forEach((row, index) => {
+  references.forEach((row, index) => {
     const base = `references.${index}`
     check.required(`${base}.fullName`, row.fullName, LIMITS.short)
     check.max(`${base}.organizationPosition`, row.organizationPosition, LIMITS.short)
@@ -664,9 +708,7 @@ export function validateAll(draft: KioskDraft, context: ValidationContext): Fiel
   check.money('lastSalary', draft.lastSalary, false)
   check.money('expectedSalary', draft.expectedSalary, true)
 
-  if (draft.availableFrom === '') check.add('availableFrom', 'required')
-  else if (!ISO_DATE.test(draft.availableFrom)) check.add('availableFrom', 'invalidDate')
-  else if (draft.availableFrom < context.today) check.add('availableFrom', 'pastDate')
+  check.chosen('startAfter', draft.startAfter)
 
   check.chosen('canWorkShifts', draft.canWorkShifts)
   check.chosen('canWorkOvertime', draft.canWorkOvertime)
@@ -675,7 +717,14 @@ export function validateAll(draft: KioskDraft, context: ValidationContext): Fiel
   check.chosen('hasOtherJob', draft.hasOtherJob)
   if (draft.hasOtherJob === true) check.required('otherJobDetail', draft.otherJobDetail, LIMITS.short)
 
-  if (draft.hasLoan === true) check.money('loanMonthlyPayment', draft.loanMonthlyPayment, false)
+  check.chosen('hasLoan', draft.hasLoan)
+  if (draft.hasLoan === true) {
+    check.money('loanMonthlyPayment', draft.loanMonthlyPayment, true)
+    // «Ha» with a zero payment is not an answer — the server asks for more than nothing (form v3.1)
+    if (draft.loanMonthlyPayment.trim() !== '' && Number(draft.loanMonthlyPayment) === 0) {
+      check.add('loanMonthlyPayment', 'range', { min: 1, max: '1 000 000 000' })
+    }
+  }
 
   check.chosen('agreesToTrial', draft.agreesToTrial)
   check.max('startConditions', draft.startConditions, LIMITS.long)
@@ -696,6 +745,9 @@ export function validateAll(draft: KioskDraft, context: ValidationContext): Fiel
 
   /* ── 10. About you ── */
   for (const key of ABOUT_QUESTIONS) {
+    // A question about the previous job is not asked of someone who has not worked.
+    if (!isAboutAsked(key, draft.hasWorkExperience)) continue
+
     const limit = key === 'extraNote' ? LIMITS.extraNote : LIMITS.long
     if (REQUIRED_ABOUT.includes(key)) check.required(`about.${key}`, draft.about[key], limit)
     else check.max(`about.${key}`, draft.about[key], limit)
@@ -803,6 +855,7 @@ export function toAnswers(draft: KioskDraft, context: Pick<ValidationContext, 'r
   ) as Record<AboutQuestion, string | undefined>
 
   const served = draft.militaryService === 'Served'
+  const worked = must(draft.hasWorkExperience)
 
   return {
     vacancyId: draft.vacancy === 'general' ? null : draft.vacancy,
@@ -853,22 +906,26 @@ export function toAnswers(draft: KioskDraft, context: Pick<ValidationContext, 'r
     computerSkills: knownComputerSkills(draft.computerSkills),
     computerSkillsOther: opt(draft.computerSkillsOther),
 
-    jobs: draft.jobs.map((row) => ({
-      organization: row.organization.trim(),
-      position: opt(row.position),
-      from: row.from.trim() === '' ? undefined : (monthToIso(row.from) ?? undefined),
-      to: row.current || row.to.trim() === '' ? undefined : (monthToIso(row.to) ?? undefined),
-      current: row.current,
-      leaveReason: opt(row.leaveReason),
-    })),
-    totalExperienceYears: optNumber(draft.totalExperienceYears),
-    totalExperienceMonths: optNumber(draft.totalExperienceMonths),
+    // «Yo'q» sends no jobs and no referees, whatever an earlier «Ha» left in the draft.
+    hasWorkExperience: worked,
+    jobs: worked
+      ? draft.jobs.map((row) => ({
+          organization: row.organization.trim(),
+          position: opt(row.position),
+          from: row.from.trim() === '' ? undefined : (monthToIso(row.from) ?? undefined),
+          to: row.current || row.to.trim() === '' ? undefined : (monthToIso(row.to) ?? undefined),
+          current: row.current,
+          leaveReason: opt(row.leaveReason),
+        }))
+      : [],
 
-    references: draft.references.map((row) => ({
-      fullName: row.fullName.trim(),
-      organizationPosition: opt(row.organizationPosition),
-      phone: optPhone(row.phone),
-    })),
+    references: worked
+      ? draft.references.map((row) => ({
+          fullName: row.fullName.trim(),
+          organizationPosition: opt(row.organizationPosition),
+          phone: optPhone(row.phone),
+        }))
+      : [],
     familyMembers: draft.familyMembers.map((row) => ({
       relation: must(row.relation === '' ? null : row.relation),
       fullName: row.fullName.trim(),
@@ -886,13 +943,13 @@ export function toAnswers(draft: KioskDraft, context: Pick<ValidationContext, 'r
     acquaintancesDetail: draft.hasAcquaintances === true ? opt(draft.acquaintancesDetail) : undefined,
     lastSalary: optNumber(draft.lastSalary),
     expectedSalary: Number(draft.expectedSalary),
-    availableFrom: draft.availableFrom,
+    startAfter: must(draft.startAfter),
     canWorkShifts: must(draft.canWorkShifts),
     canWorkOvertime: must(draft.canWorkOvertime),
     canTravel: must(draft.canTravel),
     hasOtherJob: must(draft.hasOtherJob),
     otherJobDetail: draft.hasOtherJob === true ? opt(draft.otherJobDetail) : undefined,
-    hasLoan: optBool(draft.hasLoan),
+    hasLoan: must(draft.hasLoan),
     loanMonthlyPayment: draft.hasLoan === true ? optNumber(draft.loanMonthlyPayment) : undefined,
     agreesToTrial: must(draft.agreesToTrial),
     agreesParentsInvite: optBool(draft.agreesParentsInvite),
@@ -912,10 +969,10 @@ export function toAnswers(draft: KioskDraft, context: Pick<ValidationContext, 'r
     whyUs: about.whyUs ?? '',
     strengths: about.strengths ?? '',
     weaknesses: about.weaknesses ?? '',
-    motivators: about.motivators,
-    successDefinition: about.successDefinition,
-    lastJobAchievement: about.lastJobAchievement,
-    bestIdea: about.bestIdea,
+    motivators: about.motivators ?? '',
+    successDefinition: about.successDefinition ?? '',
+    lastJobAchievement: worked ? about.lastJobAchievement : undefined,
+    bestIdea: worked ? about.bestIdea : undefined,
     biggestChallenge: about.biggestChallenge,
     stressHandling: about.stressHandling,
     unfairnessToYou: about.unfairnessToYou,

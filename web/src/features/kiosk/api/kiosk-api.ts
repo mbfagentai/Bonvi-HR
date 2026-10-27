@@ -41,7 +41,16 @@ export interface KioskSession {
    * the form is sent without a token.
    */
   turnstileSiteKey: string | null
+  /**
+   * The blank version the server takes (`CandidateForm.HrF02Version`). When it
+   * is not {@link KIOSK_FORM_VERSION} a newer form went live while this page
+   * stayed open — the start screen reloads. Absent on an older server.
+   */
+  formVersion?: string
 }
+
+/** The HR-F02 version this build of the form fills in. */
+export const KIOSK_FORM_VERSION = '3.1'
 
 /**
  * `{ id, name, asksDetail }` — the generated `KioskReferralChannelDto`. Choosing
@@ -71,6 +80,8 @@ export type FormEducationLevel =
   | 'HigherMaster'
 export type FormLanguageName = 'Uzbek' | 'Russian' | 'English' | 'Chinese' | 'Other'
 export type FamilyRelation = 'Father' | 'Mother' | 'Spouse' | 'Brother' | 'Sister' | 'Child' | 'Other'
+/** «Ishga qachondan chiqa olasiz?» — counted from the hire day (form v3.1). */
+export type StartAfter = 'OnHireDay' | 'OneWeek' | 'TenDays' | 'FifteenDays'
 
 export interface EducationRow {
   institution: string
@@ -156,9 +167,13 @@ export interface QuestionnaireAnswers {
   computerSkills: Partial<Record<ComputerSkillKey, number>>
   computerSkillsOther?: string
 
+  /**
+   * «Avval biror joyda ishlaganmisiz?» (form v3.1). `true` — at least one job
+   * and one referee; `false` — `jobs`, `references`, `lastJobAchievement` and
+   * `bestIdea` are not sent (the server drops them anyway).
+   */
+  hasWorkExperience: boolean
   jobs: JobRow[]
-  totalExperienceYears?: number
-  totalExperienceMonths?: number
 
   references: ReferenceRow[]
   familyMembers: FamilyMemberRow[]
@@ -171,13 +186,14 @@ export interface QuestionnaireAnswers {
   acquaintancesDetail?: string
   lastSalary?: number
   expectedSalary: number
-  availableFrom: string
+  startAfter: StartAfter
   canWorkShifts: boolean
   canWorkOvertime: boolean
   canTravel: boolean
   hasOtherJob: boolean
   otherJobDetail?: string
-  hasLoan?: boolean
+  hasLoan: boolean
+  /** Required with `hasLoan`. */
   loanMonthlyPayment?: number
   agreesToTrial: boolean
   agreesParentsInvite?: boolean
@@ -196,8 +212,9 @@ export interface QuestionnaireAnswers {
   whyUs: string
   strengths: string
   weaknesses: string
-  motivators?: string
-  successDefinition?: string
+  motivators: string
+  successDefinition: string
+  /** Required with `hasWorkExperience`, absent without. */
   lastJobAchievement?: string
   bestIdea?: string
   biggestChallenge?: string
@@ -262,6 +279,7 @@ export async function fetchKioskSession(signal?: AbortSignal): Promise<KioskSess
       typeof data?.turnstileSiteKey === 'string' && data.turnstileSiteKey.trim() !== ''
         ? data.turnstileSiteKey.trim()
         : null,
+    ...(typeof data?.formVersion === 'string' && data.formVersion !== '' ? { formVersion: data.formVersion } : {}),
   }
 }
 

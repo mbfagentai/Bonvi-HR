@@ -190,7 +190,8 @@ public sealed class GetCandidateFormPdfQueryHandler
                 form.Language,
                 photoBytes,
                 signatureBytes,
-                QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId)),
+                QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId),
+                form.FormVersion),
             cancellationToken).ConfigureAwait(false);
 
         return new CandidateFormPdf(SubmitQuestionnaireFormCommandHandler.FileName(form.Number, answers), pdf);

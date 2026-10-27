@@ -90,7 +90,7 @@ outside long-text fields → 400 `anketa.belgi`.
 
 | Method / path | Permission | Result |
 |---|---|---|
-| `GET /api/recruiting/candidates/{id}/forms` | `recruiting.view` | `[{ id, number, formCode: "HR-F02", formVersion: "3.0", submittedAt, language, fileId }]` newest first. `fileId` = the attached PDF in candidate files, `null` if it could not be attached or was deleted |
+| `GET /api/recruiting/candidates/{id}/forms` | `recruiting.view` | `[{ id, number, formCode: "HR-F02", formVersion: "3.1", submittedAt, language, fileId }]` newest first (`formVersion` is the row's own version — forms submitted before 2026-10-27 stay `"3.0"`). `fileId` = the attached PDF in candidate files, `null` if it could not be attached or was deleted |
 | `GET /api/recruiting/candidates/{id}/forms/{formId}/pdf` | `recruiting.view` | `application/pdf`, rendered fresh from the stored answers, photo and signature (works even if the attached file was deleted) |
 
 ### 2.3 Hardening (2026-10-27)
@@ -129,10 +129,30 @@ flood it, and that candidates never even see the HR system's address.
    edge: login attempts of unrelated people shared one bucket and audit IPs were useless. Device / ingest /
    ISUP / attendance-agent endpoints keep `RemoteIpAddress` (unchanged behaviour for terminals).
 
-## 3. Answers document (`answers` JSON, form HR-F02 v3.0)
+## 3. Answers document (`answers` JSON, form HR-F02 v3.1)
 
 Keys follow the owner's field list. `?` = optional. Text fields are trimmed; empty string = absent.
 Limits: short text ≤ 200, address ≤ 300, long text ≤ 1000 (`extraNote` ≤ 2000).
+Enums are sent and stored as their names (`"TenDays"`); a number or an unknown name makes the whole
+document unreadable → 400 `anketa.json` (no `field`).
+
+> **Revision 3.1 (2026-10-27, HR manager's changes, owner approved).** Driver licence category `BE` →
+> `BC`; new required `hasWorkExperience` (section 5) that decides whether jobs, references and the two
+> job-related «success» questions are required or dropped; total experience (`totalExperienceYears`,
+> `totalExperienceMonths`) removed; the start date becomes the choice `startAfter`; `hasLoan` required;
+> `motivators` and `successDefinition` required. Forms stored as 3.0 keep `form_version = 3.0` and their
+> answers; the removed keys in them are ignored like any unknown key, and `availableFrom` is kept on the
+> record only so a 3.0 form still prints its date (§6.3). The validator never copies `availableFrom` into a
+> new form.
+>
+> **Open 3.0 pages at deploy time** (owner: «serverga chiqarishda uzilish bo'lmasin»). The form page never
+> reloads by itself, so a tablet or phone opened before the deploy keeps sending the 3.0 shape. Such a
+> submission — no `hasWorkExperience`, no `startAfter`, but `availableFrom` (3.0 always sent it; 3.1 never
+> does) — is validated with the 3.0 rules (`QuestionnaireFormValidator.IsLegacy`: `availableFrom ≥ today`
+> required, jobs/references/loan/success answers optional, category `BE` allowed) and stored with
+> `form_version = 3.0`. From 3.1 the session returns `formVersion`; the form compares it with its own
+> (`KIOSK_FORM_VERSION`) on the start screen and reloads once per server version, so later releases reach
+> an open tablet without a manual refresh.
 
 **0. Vacancy and photo**
 - `vacancyId?` — uuid of an accepting vacancy; `null` = «Umumiy (istalgan lavozim)» → general pool vacancy.
@@ -155,7 +175,9 @@ Limits: short text ≤ 200, address ≤ 300, long text ≤ 1000 (`extraNote` ≤
 - `childrenCount?` 0–20
 - `militaryService?`: `Served | Reserve | Deferred | NotServed` — optional for everyone (no gender any more); the label keeps the paper's «(erkaklar uchun)»
 - `militaryServiceMonths?` 1–60 — only when `Served`
-- `hasDriverLicense` (required bool); `driverLicenseCategories`: subset of `A B C D BE CE DE`, at least one when `true`, empty when `false`
+- `hasDriverLicense` (required bool); `driverLicenseCategories`: subset of `A B C D BC CE DE` (case-insensitive,
+  stored upper-case in this order), at least one when `true`, empty when `false`. `BE` (3.0) is rejected like
+  any unknown category → `anketa.notogri` at `driverLicenseCategories`
 - `hasCar?` bool; `carModel?` only when `hasCar = true`
 
 **2. Education**
@@ -181,10 +203,18 @@ Removed keys: `linux, macos, msAccess, msOutlook, notion, acrobat, sap, powerBi,
 python, javascript, csharp, java, cpp, php, sql, htmlCss, kotlinSwift, oneCLanguage`. A removed or unknown
 key → 400 (nothing is deployed, so no old clients exist).
 
-**5. Work** — `jobs`: 0–5 × `{ organization (required), position?, from? "yyyy-MM", to? "yyyy-MM", current: bool, leaveReason? }`
-(`current = true` → `to` absent; `from ≤ to`; newest first as entered). `totalExperienceYears?` 0–60, `totalExperienceMonths?` 0–11.
+**5. Work**
+- `hasWorkExperience` (required bool) — «Avval biror joyda ishlaganmisiz?». Missing → `anketa.majburiy` at
+  `hasWorkExperience`.
+- `true` → `jobs`: 1–5 × `{ organization (required), position?, from? "yyyy-MM", to? "yyyy-MM", current: bool, leaveReason? }`
+  (`current = true` → `to` absent; `from ≤ to`; newest first as entered). Empty or missing → `anketa.majburiy`
+  at `jobs`; more than 5 → `anketa.notogri` at `jobs`.
+- `false` → whatever came in `jobs`, `references`, `lastJobAchievement` and `bestIdea` is ignored (not
+  checked) and stored as `jobs: []`, `references: []`, the two texts absent.
+- ~~`totalExperienceYears`, `totalExperienceMonths`~~ — **removed in 3.1**.
 
-**6. References** — `references`: 0–3 × `{ fullName (required), organizationPosition?, phone? }`.
+**6. References** — `references`: when `hasWorkExperience = true` 1–3 × `{ fullName (required),
+organizationPosition?, phone? }` (empty or missing → `anketa.majburiy` at `references`); when `false` dropped (§5).
 
 **7. Family** — `familyMembers`: 1–8 × `{ relation, fullName (required), birthYear?, workplace?, phone?, address? }`,
 `relation`: `Father | Mother | Spouse | Brother | Sister | Child | Other` (owner's list: Otasi, Onasi, Turmush o'rtog'i,
@@ -196,10 +226,15 @@ Akasi / ukasi, Opasi / singlisi, Farzandi, Boshqa). `birthYear` 1920–today's y
   `referralDetail?` (≤ 200) required when that channel `asksDetail`, otherwise not stored
 - `hasAcquaintances` (required); `acquaintancesDetail?` required when `true`
 - `lastSalary?`, `expectedSalary` (required) — whole so'm, 0 … 1 000 000 000
-- `availableFrom` (required, ≥ today)
+- `startAfter` (required) — «Ishga qachondan chiqa olasiz?»: `OnHireDay | OneWeek | TenDays | FifteenDays`
+  («Qabul qilingan kundan», «… 1 hafta keyin», «… 10 kun keyin», «… 15 kun keyin»). Missing → `anketa.majburiy`
+  at `startAfter`. ~~`availableFrom`~~ (a date, 3.0) is no longer asked, not required and never stored for a
+  new form.
 - `canWorkShifts`, `canWorkOvertime`, `canTravel` (required bools)
 - `hasOtherJob` (required); `otherJobDetail?` required when `true`
-- `hasLoan?`; `loanMonthlyPayment?` only when `hasLoan = true`
+- `hasLoan` (required, 3.1); `loanMonthlyPayment` required when `hasLoan = true` — whole so'm, 1 … 1 000 000 000
+  (missing → `anketa.majburiy`, 0 / negative / over the cap → `anketa.notogri`, both at `loanMonthlyPayment`);
+  dropped when `false`
 - `agreesToTrial` (required bool), `agreesParentsInvite?`
 - `startConditions?` (long)
 
@@ -210,8 +245,9 @@ Akasi / ukasi, Opasi / singlisi, Farzandi, Boshqa). `birthYear` 1920–today's y
 - `relativesConviction?`; `relativesConvictionDetail?` only when `true` (the paper has «Ha: ____»)
 - `abroadTrips?` (long)
 
-**10. About you** — long texts. Required: `motivation, whyUs, strengths, weaknesses`. Optional: `motivators,
-successDefinition, lastJobAchievement, bestIdea, biggestChallenge, stressHandling, unfairnessToYou,
+**10. About you** — long texts. Required: `motivation, whyUs, strengths, weaknesses`, and (3.1, «Muvaffaqiyat va
+g'oyalar») `motivators, successDefinition`. `lastJobAchievement, bestIdea` — required when
+`hasWorkExperience = true`, dropped when `false`. Optional: `biggestChallenge, stressHandling, unfairnessToYou,
 unfairnessToCompany, teamwork, previousTeamOpinion, studentWorkExperience, fiveYearPlan, extraNote`.
 
 **11. Consent** — `consentAccuracy, consentPersonalData, consentReferenceCheck, consentNotifyChanges,
@@ -255,12 +291,12 @@ Existing candidate: fill **only empty** fields (`BirthDate`, `Address`, photo). 
 | `ExpectedSalary` | amount → range: < 2 M → From1To2, < 3 M → From2To3, < 4 M → From3To4, < 5 M → **From4To5 (new = 5)**, < 7 M → From5To7, ≥ 7 M → **From7 (new = 6)** |
 | ~~`ReferralSource`~~ | removed 2026-10-26 — the channel goes to the candidate itself (`Candidate.ReferralChannelId` + detail), filled only when the candidate has none (`docs/SPEC-qayerdan-bilgan.md` §4–§5) |
 | `OfferAcceptedAt` | submission time (the personal-data consent moment) |
-| `WorkExperience` | one line per job «Tashkilot — Lavozim (MM.yyyy–MM.yyyy / hozir), sabab: …» + «Umumiy: X yil Y oy» |
+| `WorkExperience` | one line per job «Tashkilot — Lavozim (MM.yyyy–MM.yyyy / hozir), sabab: …»; `hasWorkExperience = false` → «Avval ishlamagan» (the «Umumiy: X yil Y oy» line is gone with 3.1) |
 | `OtherLanguages` | non-Russian rows «Ingliz tili: so'zlashuv 2, o'qish 3, yozish 2» |
 | `OfficeSkills` | office group «MS Word — 3, MS Excel — 2, …» |
 | `LastSalary` | `lastSalary` formatted «3 000 000 so'm» |
 | `ExtraNote` | `extraNote` |
-| `HasDriverLicense`, `DriverLicenseCategories` | same; categories joined without separators in the paper order (`BCE`) |
+| `HasDriverLicense`, `DriverLicenseCategories` | same; categories in the paper order joined with «, » (`B, C`, `BC, CE`) — without a separator `B`+`C` and the 3.1 category `BC` would read the same. The bot keeps writing its own button values (`B`, `BC`, `BCE`, `BCED`) unchanged |
 
 Enum additions are appended at the end (existing integer values never move). The bot keeps its buttons and
 never sends the new values. Check that nothing in `Bonvi.Bot` deserializes these enums from API responses;
@@ -280,7 +316,7 @@ notification collector treats it like non-bot (`CandidateNew`).
 | `candidate_id` | uuid | FK → `candidates.id` ON DELETE CASCADE, indexed |
 | `number` | int | from sequence `candidate_form_number_seq`, unique — the «Anketa №» |
 | `form_code` | varchar(16) | `HR-F02` |
-| `form_version` | varchar(8) | `3.0` — the owner's blank v3.0 (2026-10-26: passport, PINFL and gender removed, computer table shortened); 2.0 was never deployed, no rows to migrate |
+| `form_version` | varchar(8) | `3.1` since 2026-10-27 (§3 revision). `3.0` — the owner's blank v3.0 (2026-10-26: passport, PINFL and gender removed, computer table shortened); 3.0 rows stay as they are (no data migration), 2.0 was never deployed |
 | `answers` | jsonb | §3, as validated and normalized |
 | `language` | varchar(8) | |
 | `photo_key` | varchar(500) | the stored photo used in the PDF (a copy independent of the candidate photo, so changing the candidate photo later does not change the signed form) |
@@ -309,10 +345,12 @@ SIL OFL — metric-compatible with Arial, which the blank uses) and DejaVu Sans 
 files go next to the fonts. Logo: the PNG from the docx (`word/media/…png`, MBF Company).
 
 Match the blank (A4, margins ≈ 1.5 cm):
-- Page header: left «MBF Company — HR hujjatlar paketi», right «HR-F02 · Nomzod anketasi · v3.0», gray 8 pt.
+- Page header: left «MBF Company — HR hujjatlar paketi», right «HR-F02 · Nomzod anketasi · v3.1», gray 8 pt.
+  The version printed here and in the title block is the stored form's own `form_version` (a 3.0 form
+  re-rendered later still says 3.0).
   Footer: centered «Sahifa X / Y».
 - Title block: logo left; «NOMZOD ANKETASI» (navy `#1F3A5F`, bold 16 pt), «Ishga qabul qilish uchun»,
-  «Blanka HR-F02 · Versiya 3.0»; photo box 3 × 4 cm on the right with the candidate photo.
+  «Blanka HR-F02 · Versiya 3.1»; photo box 3 × 4 cm on the right with the candidate photo.
 - Info table: Anketa № | Sana | So'rov № (HR-F01) | Lavozim | Bo'lim. Lavozim = vacancy title («Umumiy» for the
   general pool). So'rov № and Bo'lim stay empty (not in the system).
 - Instruction line in gray italic. «A QISM  NOMZOD TOMONIDAN TO'LDIRILADI» navy bar with white bold text.
@@ -320,6 +358,9 @@ Match the blank (A4, margins ≈ 1.5 cm):
   text, borders light gray, section titles navy bold uppercase, hints gray italic (`#6B7686`).
 - Choices print every option: ☒ for the chosen one, ☐ for the rest, exactly the paper's option texts.
   Conditional extras inline («☒ O'tagan, muddati: 12 oy», «☒ Bor, toifasi: B, C»).
+- Section 5 starts with «Avval ishlaganmisiz?» ☐ Ha ☐ Yo‘q; the «Umumiy ish tajribangiz» row is gone (3.1).
+  Section 8 question 5 prints the four `startAfter` choices one per line; a 3.0 form (no `startAfter`, a stored
+  `availableFrom`) prints its date as before.
 - Tables print at least the paper's rows (education 3, jobs 4, references 2, family 5, languages 5,
   computer 3 columns — OS, office, special — × 5 rows, then a «Boshqa dasturlar va dasturlash tillari:
   ____» line) and grow when there are more entries. Language rows: the four fixed

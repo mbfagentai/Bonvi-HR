@@ -19,7 +19,7 @@ public sealed class CandidateFormTests
         anketa.Value.CandidateId.ShouldBe(nomzod);
         anketa.Value.Number.ShouldBe(1024);
         anketa.Value.FormCode.ShouldBe(CandidateForm.HrF02);
-        anketa.Value.FormVersion.ShouldBe("3.0");
+        anketa.Value.FormVersion.ShouldBe("3.1");
         anketa.Value.ClientSubmissionId.ShouldBe(yuborish);
         anketa.Value.Language.ShouldBe("uz-Latn");
         anketa.Value.FileId.ShouldBeNull();

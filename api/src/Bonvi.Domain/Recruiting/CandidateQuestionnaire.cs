@@ -148,8 +148,9 @@ public sealed class CandidateQuestionnaire : Entity
     public const int MaxExtraNoteLength = 2000;
 
     /// <summary>Guvohnoma toifalari matnining eng katta uzunligi.</summary>
-    /// <remarks>«BCED» eng uzuni; zaxira kelajakdagi «BCE + traktor» kabi
-    /// qiymatlar uchun, lekin bu maydon ro'yxat emas — tugmadan keladi.</remarks>
+    /// <remarks>Botdan «BCED» eng uzuni; onlayn anketadan hamma toifa birga —
+    /// «A, B, C, D, BC, CE, DE» (22 belgi, HR-F02 3.1). Zaxira kelajakdagi
+    /// «BCE + traktor» kabi qiymatlar uchun.</remarks>
     public const int MaxDriverLicenseCategoriesLength = 32;
 
     private CandidateQuestionnaire(Guid id, Guid candidateId) : base(id) => CandidateId = candidateId;

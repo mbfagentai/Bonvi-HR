@@ -57,7 +57,7 @@ public sealed partial class QuestionnairePdfRendererTests
     /// <summary>
     /// 4-bo'lim — qisqartirilgan jadval (egasi, 2026-10-26): 3 ustun, 11 dastur darajasi bilan,
     /// ostida «Boshqa dasturlar va dasturlash tillari» qatori. Olib tashlangan dasturlar va
-    /// «Dasturlash» ustuni PDF'da yo'q. Blanka versiyasi — 3.0.
+    /// «Dasturlash» ustuni PDF'da yo'q. Blanka versiyasi — 3.1 (2026-10-27).
     /// </summary>
     [Fact]
     public async Task Kompyuter_jadvali_3_ustun_11_dastur_darajasi_bilan_va_boshqa_dasturlar_qatori()
@@ -66,8 +66,8 @@ public sealed partial class QuestionnairePdfRendererTests
         var pdf = await _renderer.RenderAsync(Model(javoblar, photo: null, signature: null), TestContext.Current.CancellationToken);
         var matn = Matn(pdf);
 
-        matn.ShouldContain("HR-F02 · Nomzod anketasi · v3.0");
-        matn.ShouldContain("Blanka HR-F02 · Versiya 3.0");
+        matn.ShouldContain("HR-F02 · Nomzod anketasi · v3.1");
+        matn.ShouldContain("Blanka HR-F02 · Versiya 3.1");
         matn.ShouldContain("4. KOMPYUTER SAVODXONLIGI");
         matn.ShouldContain("Darajani raqam bilan yozing: 1 – boshlang‘ich, 2 – o‘rta, 3 – yaxshi, 4 – mukammal. Bilmagan dasturingizni bo‘sh qoldiring.");
         matn.ShouldContain("Operatsion tizim Ofis dasturlari Maxsus dasturlar", Case.Sensitive, "uch ustun sarlavhasi, shu tartibda");
@@ -162,9 +162,9 @@ public sealed partial class QuestionnairePdfRendererTests
     /// <c>Tj</c> bilan chizadi (chiziqchadan keyin ham bo'ladi: «HR-» «F02» — ular qayta
     /// qo'shiladi). WinAnsi shriftidagi satr — Windows-1252 baytlari; Identity-H (<c>Type0</c>)
     /// shriftida (kirill, №, ☐ ☒) — ikki baytli glif raqamlari, ular shriftning
-    /// <c>/ToUnicode</c> jadvali orqali harfga aylanadi.
+    /// <c>/ToUnicode</c> jadvali orqali harfga aylanadi. API testlari ham HR yuklagan PDF'ni shu bilan o'qiydi.
     /// </remarks>
-    private static string Matn(byte[] pdf) => string.Join(' ', Sahifalar(pdf));
+    internal static string Matn(byte[] pdf) => string.Join(' ', Sahifalar(pdf));
 
     /// <inheritdoc cref="Matn"/>
     private static List<string> Sahifalar(byte[] pdf)

@@ -1,6 +1,7 @@
 import { useLocale } from '@/shared/i18n/use-locale'
-import { DateField, MoneyInput, Select } from '@/shared/ui'
+import { MoneyInput, Select } from '@/shared/ui'
 import { LIMITS } from '../../lib/kiosk-draft'
+import { START_AFTER_OPTIONS, lowerFirst } from '../../lib/kiosk-options'
 import { ChoiceGroup, KioskField, KioskText, KioskTextArea, Label, YesNo, useFieldError } from '../kiosk-fields'
 import type { ScreenProps } from './screen-props'
 
@@ -85,8 +86,8 @@ export function ReferralScreen({ draft, patch, errors, session }: ScreenProps) {
   )
 }
 
-/** Salary, start date and loans. */
-export function SalaryScreen({ draft, patch, errors, today }: ScreenProps) {
+/** Salary, when the candidate can start (counted from the hire day) and loans. */
+export function SalaryScreen({ draft, patch, errors }: ScreenProps) {
   const { t } = useLocale()
   const fieldError = useFieldError(errors)
 
@@ -110,20 +111,20 @@ export function SalaryScreen({ draft, patch, errors, today }: ScreenProps) {
           error={fieldError('expectedSalary')}
         />
       </KioskField>
-      <KioskField path="availableFrom">
-        <DateField
-          size="lg"
-          label={<Label required>{t('kiosk.field.availableFrom')}</Label>}
-          value={draft.availableFrom}
-          min={today}
-          onChange={(availableFrom) => patch({ availableFrom })}
-          error={fieldError('availableFrom')}
-        />
-      </KioskField>
+      <ChoiceGroup
+        path="startAfter"
+        label={t('kiosk.field.startAfter')}
+        required
+        value={draft.startAfter}
+        onChange={(startAfter) => patch({ startAfter })}
+        error={fieldError('startAfter')}
+        options={START_AFTER_OPTIONS.map((value) => ({ value, label: t(`kiosk.startAfter.${lowerFirst(value)}`) }))}
+      />
 
       <YesNo
         path="hasLoan"
         label={t('kiosk.field.hasLoan')}
+        required
         value={draft.hasLoan}
         onChange={(hasLoan) => patch({ hasLoan })}
         error={fieldError('hasLoan')}
@@ -132,7 +133,7 @@ export function SalaryScreen({ draft, patch, errors, today }: ScreenProps) {
         <KioskField path="loanMonthlyPayment">
           <MoneyInput
             size="lg"
-            label={t('kiosk.field.loanMonthlyPayment')}
+            label={<Label required>{t('kiosk.field.loanMonthlyPayment')}</Label>}
             value={draft.loanMonthlyPayment}
             onChange={(digits) => patch({ loanMonthlyPayment: wholeSom(digits) })}
             error={fieldError('loanMonthlyPayment')}

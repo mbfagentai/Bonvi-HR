@@ -25,7 +25,7 @@ import {
   type ValidationContext,
 } from '../lib/kiosk-draft'
 import type { KioskRules } from '../lib/kiosk-mode'
-import { WIZARD_SCREENS, aboutQuestionsOf, type WizardScreen } from '../lib/kiosk-options'
+import { aboutQuestionsOf, activeScreens, type WizardScreen } from '../lib/kiosk-options'
 import { scrollToFirstError } from '../lib/scroll-to-error'
 import { useIdle } from '../lib/use-idle'
 import { BotCheck, type BotCheckState } from './bot-check'
@@ -64,7 +64,9 @@ const LANGUAGE_SHORT: Readonly<Record<KioskLanguage, string>> = {
 /**
  * The form: short one-topic screens (`WIZARD_SCREENS`) with the section name,
  * «4 / 25» and a progress bar on top and «Orqaga / Keyingi» pinned at the
- * bottom. «Keyingi» validates the screen; after the first failed attempt the
+ * bottom. A screen that does not apply to this candidate is left out of the
+ * walk and of the count (`activeScreens`: no referees after «Avval biror
+ * joyda ishlaganmisiz? — Yo'q»). «Keyingi» validates the screen; after the first failed attempt the
  * screen re-validates as the candidate types, so a fixed field loses its red
  * message at once. Every change is mirrored to session storage (photo and
  * signature stay in memory).
@@ -108,8 +110,11 @@ export function KioskWizard({
   const [awaitingCheck, setAwaitingCheck] = useState(false)
   const botCheckRef = useRef<HTMLDivElement>(null)
 
-  const screen: WizardScreen = WIZARD_SCREENS[index] ?? 'vacancy'
-  const total = WIZARD_SCREENS.length
+  // `index` points into this candidate's screens. The list changes only on the work screen, which
+  // comes before the one it removes, so the current position stays put when it does.
+  const screens = useMemo(() => activeScreens(draft.hasWorkExperience), [draft.hasWorkExperience])
+  const screen: WizardScreen = screens[index] ?? 'vacancy'
+  const total = screens.length
   const last = index === total - 1
   const language: KioskLanguage = (KIOSK_LANGUAGES as readonly string[]).includes(locale)
     ? (locale as KioskLanguage)
@@ -192,7 +197,7 @@ export function KioskWizard({
   const submit = async (freshToken?: string) => {
     // Every screen once more — a draft restored after a reload may have skipped one.
     const everything = validateAll(draft, context)
-    for (const [position, owner] of WIZARD_SCREENS.entries()) {
+    for (const [position, owner] of screens.entries()) {
       const found = screenErrors(owner, everything)
       if (Object.keys(found).length > 0) {
         markAttempted(owner)
@@ -242,7 +247,8 @@ export function KioskWizard({
       } else if (failed.kind === 'rejected') {
         // The server names the field: open its screen so the candidate sees where to fix.
         const owner = failed.detail === null ? null : screenOfPath(failed.detail)
-        if (owner !== null && owner !== screen) setIndex(WIZARD_SCREENS.indexOf(owner))
+        const position = owner === null ? -1 : screens.indexOf(owner)
+        if (position >= 0 && owner !== screen) setIndex(position)
 
         setFailure({ kind: 'rejected', message: errorMessage(failed.code, t('kiosk.submit.rejected')) })
         window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -502,7 +508,13 @@ function ScreenBody({
     case 'aboutSuccess':
     case 'aboutHard':
     case 'aboutTeam':
-      return <AboutScreen {...props} questions={aboutQuestionsOf(screen)} showHint={screen === 'about'} />
+      return (
+        <AboutScreen
+          {...props}
+          questions={aboutQuestionsOf(screen, props.draft.hasWorkExperience)}
+          showHint={screen === 'about'}
+        />
+      )
     case 'consent':
       return <ConsentScreen {...props} />
     case 'signature':

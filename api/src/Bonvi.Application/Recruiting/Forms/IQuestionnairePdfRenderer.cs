@@ -1,4 +1,5 @@
 using Bonvi.Domain.Catalog;
+using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Recruiting.Forms;
 
@@ -48,6 +49,10 @@ public sealed record QuestionnairePdfChoice(string Label, bool Chosen)
 /// 8-bo'limning 1-savoli — «qayerdan bildingiz?» variantlari
 /// (<see cref="QuestionnairePdfChoice.ReferralChannels"/>). Aniqlik javoblarning o'zida.
 /// </param>
+/// <param name="FormVersion">
+/// Sarlavhadagi blanka versiyasi. Bazadagi anketa O'Z versiyasi bilan chiziladi — 3.0 anketasi
+/// keyin ham «v3.0» (nomzod qaysi blankani to'ldirgani o'zgarmasin); sukut — joriy versiya.
+/// </param>
 public sealed record QuestionnairePdfModel(
     QuestionnaireFormAnswers Answers,
     int Number,
@@ -56,7 +61,8 @@ public sealed record QuestionnairePdfModel(
     string Language,
     byte[]? Photo,
     byte[]? Signature,
-    IReadOnlyList<QuestionnairePdfChoice> ReferralChoices);
+    IReadOnlyList<QuestionnairePdfChoice> ReferralChoices,
+    string FormVersion = CandidateForm.HrF02Version);
 
 /// <summary>
 /// HR-F02 anketasini qog'oz blanka ko'rinishida PDF qiladi (SPEC §6.3).

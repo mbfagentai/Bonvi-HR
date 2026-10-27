@@ -6,7 +6,7 @@ namespace Bonvi.Application.Recruiting.Forms;
 
 /*
   ═══════════════════════════════════════════════════════════════════
-   PLANSHET ANKETASI (HR-F02 v3.0) — JAVOBLAR SXEMASI
+   PLANSHET ANKETASI (HR-F02 v3.1) — JAVOBLAR SXEMASI
 
    Manba: egasining maydonlar ro'yxati (HR-F02_Online_forma_maydonlari.xlsx)
    va SPEC-planshet-anketa §3. Kalit nomlari ro'yxatdagidek (camelCase JSON).
@@ -30,6 +30,12 @@ namespace Bonvi.Application.Recruiting.Forms;
    keyin olinadi, anketada esa bu juda shaxsiy ma'lumot. Bu kalitlar
    kelsa ham boshqa noma'lum kalitlar kabi e'tiborsiz qoladi va
    saqlanmaydi (`QuestionnaireFormJson` izohi).
+
+   3.1 (HR rahbari, egasi tasdiqlagan, 2026-10-27): «Avval ishlaganmisiz?»
+   (`hasWorkExperience`) qo'shildi — «Ha» bo'lsa ish joyi, tavsiya beruvchi
+   va ishga oid ikki savol majburiy, «Yo'q» bo'lsa ular saqlanmaydi;
+   «Umumiy ish tajribasi» (yil/oy) olib tashlandi; ishga chiqish sanasi
+   o'rniga to'rt variantli tanlov (`startAfter`); kredit savoli majburiy.
   ═══════════════════════════════════════════════════════════════════
 */
 
@@ -101,6 +107,22 @@ public enum FormFamilyRelation
 
     /// <summary>Boshqa.</summary>
     Other = 7,
+}
+
+/// <summary>«Ishga qachondan chiqa olasiz?» — qabul qilingan kunga nisbatan (3.1 dan, sana o'rniga).</summary>
+public enum FormStartAfter
+{
+    /// <summary>Qabul qilingan kundan.</summary>
+    OnHireDay = 1,
+
+    /// <summary>Qabul qilingandan 1 hafta keyin.</summary>
+    OneWeek = 2,
+
+    /// <summary>Qabul qilingandan 10 kun keyin.</summary>
+    TenDays = 3,
+
+    /// <summary>Qabul qilingandan 15 kun keyin.</summary>
+    FifteenDays = 4,
 }
 
 /// <summary>O'qigan joyi — «Ma'lumoti» jadvalining qatori.</summary>
@@ -223,11 +245,19 @@ public sealed record QuestionnaireFormAnswers
     public string? ComputerSkillsOther { get; init; }
 
     // ── 5. Mehnat faoliyati ──
+
+    /// <summary>
+    /// «Avval biror joyda ishlaganmisiz?» — majburiy (3.1). <c>true</c>: kamida bitta ish joyi va
+    /// bitta tavsiya beruvchi; <c>false</c>: ish joylari, tavsiya beruvchilar va ishga oid ikki
+    /// savol (<see cref="LastJobAchievement"/>, <see cref="BestIdea"/>) saqlanmaydi.
+    /// </summary>
+    /// <remarks>
+    /// «Umumiy ish tajribasi» (<c>totalExperienceYears</c>, <c>totalExperienceMonths</c>) 3.1 da
+    /// olib tashlandi: eski 3.0 yozuvidagi bu kalitlar boshqa noma'lum kalitlar kabi o'qilmaydi.
+    /// </remarks>
+    public bool? HasWorkExperience { get; init; }
+
     public IReadOnlyList<FormJob>? Jobs { get; init; }
-
-    public int? TotalExperienceYears { get; init; }
-
-    public int? TotalExperienceMonths { get; init; }
 
     // ── 6. Tavsiya beruvchilar ──
     public IReadOnlyList<FormReference>? References { get; init; }
@@ -254,6 +284,17 @@ public sealed record QuestionnaireFormAnswers
 
     public long? ExpectedSalary { get; init; }
 
+    /// <summary>«Ishga qachondan chiqa olasiz?» — majburiy tanlov (3.1).</summary>
+    public FormStartAfter? StartAfter { get; init; }
+
+    /// <summary>
+    /// ESKI (3.0) javob — aniq sana. Faqat bazadagi 3.0 anketalari PDF'da qayta chizilishi uchun.
+    /// </summary>
+    /// <remarks>
+    /// Yangi anketada so'ralmaydi: tekshiruvchi uni talab qilmaydi va tozalangan nusxaga
+    /// HECH QACHON o'tkazmaydi (formadan kelsa ham tashlanadi). PDF sanani faqat
+    /// <see cref="StartAfter"/> yo'q bo'lganda chiqaradi.
+    /// </remarks>
     public DateOnly? AvailableFrom { get; init; }
 
     public bool? CanWorkShifts { get; init; }
@@ -266,6 +307,7 @@ public sealed record QuestionnaireFormAnswers
 
     public string? OtherJobDetail { get; init; }
 
+    /// <summary>«Hozirda kredit to'lovlaringiz bormi?» — majburiy (3.1); <c>true</c> bo'lsa oylik to'lov ham.</summary>
     public bool? HasLoan { get; init; }
 
     public long? LoanMonthlyPayment { get; init; }
@@ -356,9 +398,11 @@ public sealed record QuestionnaireFormAnswers
 /// </para>
 /// <para>
 /// Sxemada yo'q kalit (masalan, 2026-10-26 da olib tashlangan <c>passportNumber</c>,
-/// <c>pinfl</c>, <c>gender</c>) RAD ETILMAYDI — e'tiborsiz qoladi (freymvorkning
+/// <c>pinfl</c>, <c>gender</c> yoki 3.1 da olib tashlangan <c>totalExperienceYears</c>,
+/// <c>totalExperienceMonths</c>) RAD ETILMAYDI — e'tiborsiz qoladi (freymvorkning
 /// sukut qoidasi). U baribir hech qayerga yetmaydi: bazaga va PDF'ga tekshiruvchi
-/// qaytargan yozuv boradi, unda bunday xususiyat yo'q.
+/// qaytargan yozuv boradi, unda bunday xususiyat yo'q. Bazadagi eski yozuv ham
+/// shu sababli o'qiladi — faqat o'sha kalitlar PDF'da chiqmaydi.
 /// </para>
 /// </remarks>
 public static class QuestionnaireFormJson

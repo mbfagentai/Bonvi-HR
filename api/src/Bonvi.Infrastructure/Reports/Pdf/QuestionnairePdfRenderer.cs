@@ -295,7 +295,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             right.AddSpace(2);
             right.AddText("·");
             right.AddSpace(2);
-            right.AddText("v" + CandidateForm.HrF02Version);
+            right.AddText("v" + model.FormVersion);
 
             var footer = _section.Footers.Primary.AddParagraph();
             footer.Format.Alignment = ParagraphAlignment.Center;
@@ -338,7 +338,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             form.AddSpace(2);
             form.AddText("·");
             form.AddSpace(2);
-            form.AddText("Versiya " + CandidateForm.HrF02Version);
+            form.AddText("Versiya " + model.FormVersion);
 
             var photo = row.Cells[2];
             photo.Borders.Visible = true;
@@ -609,9 +609,23 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
         // ════════════════════════════════════════════════ 5. mehnat
 
+        /// <remarks>
+        /// 3.1: bo'lim boshida «Avval ishlaganmisiz?» tanlovi. «Yo'q» bo'lsa jadval baribir
+        /// qog'ozdagidek bo'sh qatorlar bilan chiziladi. Blankadagi «Umumiy ish tajribangiz»
+        /// qatori ATAYLAB yo'q (HR rahbari, 2026-10-27) — eski 3.0 javobidagi yil/oy ham chiqmaydi.
+        /// </remarks>
         private void Work()
         {
             Title("5. MEHNAT FAOLIYATI");
+
+            var experience = Grid(3.79, 5.21, 3.79, 5.21);
+            var question = Row(experience);
+            Label(question.Cells[0], "Avval ishlaganmisiz?");
+            YesNo(question.Cells[1], _a.HasWorkExperience);
+            question.Cells[2].Borders.Visible = false;
+            question.Cells[3].Borders.Visible = false;
+
+            Spacer(5);
             Hint("Oxirgi ish joyingizdan boshlab yozing.");
 
             var table = Grid(0.79, 4.76, 3.35, 3.0, 6.1);
@@ -628,17 +642,6 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
                 Value(row.Cells[3], job is null ? null : Period(job));
                 Value(row.Cells[4], job?.LeaveReason);
             }
-
-            Spacer(5);
-
-            var total = Grid(3.79, 5.21, 3.79, 5.21);
-            var line = Row(total);
-            Label(line.Cells[0], "Umumiy ish tajribangiz");
-            var years = _a.TotalExperienceYears?.ToString(Invariant) ?? "______";
-            var months = _a.TotalExperienceMonths?.ToString(Invariant) ?? "______";
-            Value(line.Cells[1], $"{years} yil  {months} oy");
-            line.Cells[2].Borders.Visible = false;
-            line.Cells[3].Borders.Visible = false;
         }
 
         // ════════════════════════════════════════════════ 6. tavsiya
@@ -709,8 +712,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             Question(table, 4, "Qancha oylik maoshga ishlamoqchisiz?", cell =>
                 Text(cell, _a.ExpectedSalary is { } expected ? QuestionnaireFormMapping.Money(expected) : "______________ so‘m"));
 
-            Question(table, 5, "Ishga qachondan chiqa olasiz?", cell =>
-                Text(cell, _a.AvailableFrom is { } from ? Date(from) : "«____» ____________ 20___ y."));
+            Question(table, 5, "Ishga qachondan chiqa olasiz?", cell => StartAfter(cell));
 
             Question(table, 6, "Smenali yoki 12 soatlik ish rejimida ishlay olasizmi?", cell => YesNo(cell, _a.CanWorkShifts));
             Question(table, 7, "Zarurat bo‘lsa, ish vaqtidan keyin qolib ishlay olasizmi?", cell => YesNo(cell, _a.CanWorkOvertime));
@@ -731,6 +733,30 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             Question(table, 11, "1 haftalik amaliy sinov (stajirovka) davrini o‘tashga rozimisiz?", cell => YesNo(cell, _a.AgreesToTrial));
             Question(table, 12, "Zarurat bo‘lsa, ota-onangizni korxonaga taklif qilishimizga rozimisiz?", cell => YesNo(cell, _a.AgreesParentsInvite));
             Question(table, 13, "Ishni boshlash uchun qanday shartlaringiz bor?", cell => Text(cell, _a.StartConditions));
+        }
+
+        /// <summary>
+        /// «Ishga qachondan chiqa olasiz?» — 3.1 dan to'rt variant, har biri alohida qatorda
+        /// (javob katagi ikkitasini yonma-yon sig'dirmaydi).
+        /// </summary>
+        /// <remarks>
+        /// Bazadagi 3.0 anketasida tanlov yo'q, aniq sana bor — o'shanda sana avvalgidek chiqadi.
+        /// </remarks>
+        private void StartAfter(Cell cell)
+        {
+            if (_a.StartAfter is null && _a.AvailableFrom is { } legacy)
+            {
+                Text(cell, Date(legacy));
+                return;
+            }
+
+            Choices(cell,
+            [
+                [("Qabul qilingan kundan", _a.StartAfter == FormStartAfter.OnHireDay)],
+                [("Qabul qilingandan 1 hafta keyin", _a.StartAfter == FormStartAfter.OneWeek)],
+                [("Qabul qilingandan 10 kun keyin", _a.StartAfter == FormStartAfter.TenDays)],
+                [("Qabul qilingandan 15 kun keyin", _a.StartAfter == FormStartAfter.FifteenDays)],
+            ]);
         }
 
         // ════════════════════════════════════════════════ 9. sog'liq
@@ -780,8 +806,8 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
                 ("Zaif tomonlaringiz nimada deb o‘ylaysiz?", _a.Weaknesses),
                 ("Sizni ko‘proq nima rag‘batlantiradi?", _a.Motivators),
                 ("Muvaffaqiyat deganda nimani tushunasiz?", _a.SuccessDefinition),
-                ("Oxirgi ish joyingizdagi eng katta muvaffaqiyatingiz nima bo‘lgan?", _a.LastJobAchievement),
-                ("Avvalgi ish joyingizga qanday foydali g‘oya bergansiz va u qanday natija bergan?", _a.BestIdea),
+                ("Oxirgi ish joyingizdagi eng katta muvaffaqiyatingiz nima bo‘lgan? (avval ishlaganlar uchun)", _a.LastJobAchievement),
+                ("Avvalgi ish joyingizga qanday foydali g‘oya bergansiz va u qanday natija bergan? (avval ishlaganlar uchun)", _a.BestIdea),
                 ("Ishda duch kelgan eng katta qiyinchiligingiz nima bo‘lgan va uni qanday hal qilgansiz?", _a.BiggestChallenge),
                 ("Ishdagi stressga qanday munosabatdasiz, u bilan qanday kurashasiz?", _a.StressHandling),
                 ("Ish joyingizda sizga nisbatan nohaqlik qilinsa, qanday yo‘l tutasiz?", _a.UnfairnessToYou),

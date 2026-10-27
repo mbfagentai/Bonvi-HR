@@ -67,13 +67,12 @@ internal static class QuestionnaireSamples
             ["photoshop"] = 1,
         },
         ComputerSkillsOther = "KOMPAS-3D o‘quv versiyasi",
+        HasWorkExperience = true,
         Jobs =
         [
             new FormJob("«Metan Gaz» MChJ", "Payvandchi", "2021-03", null, true, null),
             new FormJob("«Toshkent Ballon» AJ", "Usta yordamchisi", "2019-08", "2021-02", false, "Oylik kam edi, uyga uzoq"),
         ],
-        TotalExperienceYears = 5,
-        TotalExperienceMonths = 3,
         References =
         [
             new FormReference("Karimov Anvar", "«Metan Gaz» MChJ, sex boshlig‘i", "+998901112233"),
@@ -90,7 +89,7 @@ internal static class QuestionnaireSamples
         AcquaintancesDetail = "Karimov Anvar, payvandlash sexi",
         LastSalary = 4_500_000,
         ExpectedSalary = 6_000_000,
-        AvailableFrom = today.AddDays(10),
+        StartAfter = FormStartAfter.TenDays,
         CanWorkShifts = true,
         CanWorkOvertime = true,
         CanTravel = false,
@@ -132,7 +131,8 @@ internal static class QuestionnaireSamples
 
     /// <summary>
     /// Faqat majburiy maydonlar — PDF bo'sh kataklari qog'ozdagidek qolsin. Harbiy xizmat
-    /// ham yo'q (2026-10-26 dan hammaga ixtiyoriy).
+    /// ham yo'q (2026-10-26 dan hammaga ixtiyoriy). Avval ishlamagan (3.1): ish joyi, tavsiya
+    /// beruvchi va ishga oid ikki savol so'ralmaydi.
     /// </summary>
     public static QuestionnaireFormAnswers Minimal(DateOnly today, string phone = "+998905551199") => new()
     {
@@ -146,15 +146,17 @@ internal static class QuestionnaireSamples
         HasDriverLicense = false,
         EducationLevel = EducationLevel.SecondarySchool,
         Languages = [new FormLanguageSkill(FormLanguage.Russian, null, 1, 1, 0)],
+        HasWorkExperience = false,
         FamilyMembers = [new FormFamilyMember(FormFamilyRelation.Mother, "Каримова Нигора")],
         ReferralChannelId = ReferralSeeds.Telegram,
         HasAcquaintances = false,
         ExpectedSalary = 2_500_000,
-        AvailableFrom = today,
+        StartAfter = FormStartAfter.OnHireDay,
         CanWorkShifts = false,
         CanWorkOvertime = true,
         CanTravel = false,
         HasOtherJob = false,
+        HasLoan = false,
         AgreesToTrial = true,
         HasHealthRestriction = false,
         HasConviction = false,
@@ -162,6 +164,8 @@ internal static class QuestionnaireSamples
         WhyUs = "Уйга яқин.",
         Strengths = "Тиришқоқман.",
         Weaknesses = "Тажрибам кам.",
+        Motivators = "Яхши жамоа.",
+        SuccessDefinition = "Ишни вақтида бажариш.",
         ConsentAccuracy = true,
         ConsentPersonalData = true,
         ConsentReferenceCheck = true,

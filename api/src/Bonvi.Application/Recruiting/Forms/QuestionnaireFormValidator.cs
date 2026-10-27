@@ -71,6 +71,29 @@ public static class QuestionnaireFormValidator
 
     private static readonly Regex MonthPattern = new("^[0-9]{4}-[0-9]{2}$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
+    /// <summary>
+    /// 3.0 formadan kelgan anketami — deploy paytida brauzerda OCHIQ qolgan eski sahifa.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Forma sahifasi o'zini o'zi yangilamaydi: ofis plansheti yoki nomzodning telefoni 3.1 chiqqandan
+    /// keyin ham eski kod bilan anketa yuboradi. Uni 3.1 qoidasi bilan tekshirilsa, eski forma bilmaydigan
+    /// maydonlar («hasWorkExperience», «startAfter») majburiy bo'lib qaytadi va nomzod yigirma daqiqalik
+    /// anketasini yubora olmay qoladi. Shuning uchun bunday anketa 3.0 qoidasi bilan qabul qilinadi va
+    /// «3.0» versiyasi bilan saqlanadi (egasi: «serverga chiqarishda uzilish bo'lmasin», 2026-10-27).
+    /// </para>
+    /// <para>
+    /// Belgisi: 3.0 forma «availableFrom» sanasini HAR DOIM yuboradi (u yerda majburiy edi) va yangi
+    /// ikki savolni bilmaydi; 3.1 forma esa sanani umuman yubormaydi.
+    /// </para>
+    /// </remarks>
+    public static bool IsLegacy(QuestionnaireFormAnswers answers)
+    {
+        ArgumentNullException.ThrowIfNull(answers);
+
+        return answers.HasWorkExperience is null && answers.StartAfter is null && answers.AvailableFrom is not null;
+    }
+
     /// <summary>Javoblarni tekshiradi va tozalangan nusxasini qaytaradi.</summary>
     /// <param name="answers">Formadan kelgan javoblar.</param>
     /// <param name="today">Toshkent bo'yicha bugun (yosh va sana chegaralari uchun).</param>
@@ -258,6 +281,9 @@ public static class QuestionnaireFormValidator
     {
         public Result<QuestionnaireFormAnswers> Run(QuestionnaireFormAnswers a)
         {
+            // Eski (3.0) sahifadan kelganmi — 5, 8 va 10-bo'limlarda o'sha qoidalar (IsLegacy izohi)
+            var legacy = IsLegacy(a);
+
             // ── 1. Shaxsiy ma'lumotlar ──
             var lastName = Required(a.LastName, "lastName", MaxNameLength);
             var firstName = Required(a.FirstName, "firstName", MaxNameLength);
@@ -312,10 +338,14 @@ public static class QuestionnaireFormValidator
                     .Select(category => category?.Trim().ToUpperInvariant() ?? string.Empty)
                     .ToHashSet(StringComparer.Ordinal);
 
-                Ensure(chosen.Count > 0, "driverLicenseCategories", missing: true);
-                Ensure(chosen.All(QuestionnaireFormCatalog.DriverLicenseCategories.Contains), "driverLicenseCategories");
+                var catalog = legacy
+                    ? QuestionnaireFormCatalog.LegacyDriverLicenseCategories
+                    : QuestionnaireFormCatalog.DriverLicenseCategories;
 
-                categories = [.. QuestionnaireFormCatalog.DriverLicenseCategories.Where(chosen.Contains)];
+                Ensure(chosen.Count > 0, "driverLicenseCategories", missing: true);
+                Ensure(chosen.All(catalog.Contains), "driverLicenseCategories");
+
+                categories = [.. catalog.Where(chosen.Contains)];
             }
 
             var carModel = a.HasCar == true ? Optional(a.CarModel, "carModel", MaxShortLength) : null;
@@ -350,29 +380,42 @@ public static class QuestionnaireFormValidator
             var computerOther = Optional(a.ComputerSkillsOther, "computerSkillsOther", MaxShortLength);
 
             // ── 5. Mehnat faoliyati ──
-            var jobs = Rows(a.Jobs, "jobs", MaxJobs, (row, path) =>
+
+            // «Avval ishlaganmisiz?» (3.1, egasi tasdiqlagan): «Ha» — kamida bitta ish joyi va
+            // bitta tavsiya beruvchi; «Yo'q» — kelgan qatorlar TEKSHIRILMAYDI va saqlanmaydi
+            // (forma ularni ko'rsatmaydi; ortda qolgan qoralama imzolangan hujjatga tushmasin).
+            // 3.0 sahifada bu savol yo'q edi — javobsiz qoladi, qatorlar esa avvalgidek ixtiyoriy.
+            bool? hasWorkExperience = legacy ? null : Need(a.HasWorkExperience, "hasWorkExperience");
+            List<FormJob> jobs = [];
+            List<FormReference> references = [];
+
+            if (hasWorkExperience is not false)
             {
-                var from = Month(row.From, $"{path}.from");
-                var to = row.Current ? null : Month(row.To, $"{path}.to");
-                Ensure(from is null || to is null || string.CompareOrdinal(from, to) <= 0, $"{path}.to");
+                Ensure(legacy || a.Jobs is { Count: > 0 }, "jobs", missing: true);
 
-                return new FormJob(
-                    Required(row.Organization, $"{path}.organization", MaxShortLength),
-                    Optional(row.Position, $"{path}.position", MaxShortLength),
-                    from,
-                    to,
-                    row.Current,
-                    Optional(row.LeaveReason, $"{path}.leaveReason", MaxShortLength));
-            });
+                jobs = Rows(a.Jobs, "jobs", MaxJobs, (row, path) =>
+                {
+                    var from = Month(row.From, $"{path}.from");
+                    var to = row.Current ? null : Month(row.To, $"{path}.to");
+                    Ensure(from is null || to is null || string.CompareOrdinal(from, to) <= 0, $"{path}.to");
 
-            Ensure(a.TotalExperienceYears is null or (>= 0 and <= 60), "totalExperienceYears");
-            Ensure(a.TotalExperienceMonths is null or (>= 0 and <= 11), "totalExperienceMonths");
+                    return new FormJob(
+                        Required(row.Organization, $"{path}.organization", MaxShortLength),
+                        Optional(row.Position, $"{path}.position", MaxShortLength),
+                        from,
+                        to,
+                        row.Current,
+                        Optional(row.LeaveReason, $"{path}.leaveReason", MaxShortLength));
+                });
 
-            // ── 6. Tavsiya beruvchilar ──
-            var references = Rows(a.References, "references", MaxReferences, (row, path) => new FormReference(
-                Required(row.FullName, $"{path}.fullName", MaxShortLength),
-                Optional(row.OrganizationPosition, $"{path}.organizationPosition", MaxShortLength),
-                LoosePhone(row.Phone, $"{path}.phone")));
+                // ── 6. Tavsiya beruvchilar — ishlagan bo'lsa kamida bitta ──
+                Ensure(legacy || a.References is { Count: > 0 }, "references", missing: true);
+
+                references = Rows(a.References, "references", MaxReferences, (row, path) => new FormReference(
+                    Required(row.FullName, $"{path}.fullName", MaxShortLength),
+                    Optional(row.OrganizationPosition, $"{path}.organizationPosition", MaxShortLength),
+                    LoosePhone(row.Phone, $"{path}.phone")));
+            }
 
             // ── 7. Oila a'zolari — kamida bitta ──
             Ensure(a.FamilyMembers is { Count: > 0 }, "familyMembers", missing: true);
@@ -415,8 +458,21 @@ public static class QuestionnaireFormValidator
             var lastSalary = Money(a.LastSalary, "lastSalary");
             var expectedSalary = Money(Need(a.ExpectedSalary, "expectedSalary"), "expectedSalary");
 
-            var availableFrom = Need(a.AvailableFrom, "availableFrom");
-            Ensure(availableFrom >= today, "availableFrom");
+            // Sana emas, tanlov (3.1). Eski `availableFrom` talab qilinmaydi va saqlanmaydi —
+            // faqat 3.0 sahifadan kelgan anketada (o'shandagi qoida: bugundan oldin emas).
+            FormStartAfter? startAfter = null;
+            DateOnly? availableFrom = null;
+
+            if (legacy)
+            {
+                availableFrom = a.AvailableFrom;
+                Ensure(availableFrom >= today, "availableFrom");
+            }
+            else
+            {
+                startAfter = Need(a.StartAfter, "startAfter");
+                EnsureDefined(startAfter.Value, "startAfter");
+            }
 
             var shifts = Need(a.CanWorkShifts, "canWorkShifts");
             var overtime = Need(a.CanWorkOvertime, "canWorkOvertime");
@@ -425,7 +481,18 @@ public static class QuestionnaireFormValidator
             var hasOtherJob = Need(a.HasOtherJob, "hasOtherJob");
             var otherJob = hasOtherJob ? Required(a.OtherJobDetail, "otherJobDetail", MaxShortLength) : null;
 
-            var loanPayment = a.HasLoan == true ? Money(a.LoanMonthlyPayment, "loanMonthlyPayment") : null;
+            // Kredit — majburiy savol (3.1); «Ha» bo'lsa oylik to'lov ham majburiy va noldan katta
+            // 3.0 sahifada ixtiyoriy edi — o'shandagidek
+            bool? hasLoan = legacy ? a.HasLoan : Need(a.HasLoan, "hasLoan");
+            long? loanPayment = null;
+
+            if (hasLoan == true)
+            {
+                loanPayment = legacy
+                    ? Money(a.LoanMonthlyPayment, "loanMonthlyPayment")
+                    : Money(Need(a.LoanMonthlyPayment, "loanMonthlyPayment"), "loanMonthlyPayment");
+                Ensure(legacy || loanPayment > 0, "loanMonthlyPayment");
+            }
 
             var trial = Need(a.AgreesToTrial, "agreesToTrial");
             var startConditions = Optional(a.StartConditions, "startConditions", MaxLongLength);
@@ -448,6 +515,28 @@ public static class QuestionnaireFormValidator
             var whyUs = Required(a.WhyUs, "whyUs", MaxLongLength);
             var strengths = Required(a.Strengths, "strengths", MaxLongLength);
             var weaknesses = Required(a.Weaknesses, "weaknesses", MaxLongLength);
+
+            // «Muvaffaqiyat va g'oyalar» (3.1): ikkisi hammaga majburiy, ishga oid ikkisi — faqat
+            // avval ishlaganga (ishlamaganda kelgan matn saqlanmaydi, 5-bo'limdagi qoida)
+            // 3.0 sahifadan kelganda — to'rttasi ham avvalgidek ixtiyoriy
+            var motivators = legacy
+                ? Optional(a.Motivators, "motivators", MaxLongLength)
+                : Required(a.Motivators, "motivators", MaxLongLength);
+            var successDefinition = legacy
+                ? Optional(a.SuccessDefinition, "successDefinition", MaxLongLength)
+                : Required(a.SuccessDefinition, "successDefinition", MaxLongLength);
+            var lastJobAchievement = hasWorkExperience switch
+            {
+                true => Required(a.LastJobAchievement, "lastJobAchievement", MaxLongLength),
+                null => Optional(a.LastJobAchievement, "lastJobAchievement", MaxLongLength),
+                false => null,
+            };
+            var bestIdea = hasWorkExperience switch
+            {
+                true => Required(a.BestIdea, "bestIdea", MaxLongLength),
+                null => Optional(a.BestIdea, "bestIdea", MaxLongLength),
+                false => null,
+            };
 
             // ── 11. Tilxat ──
             Consent(a.ConsentAccuracy, "consentAccuracy");
@@ -490,6 +579,7 @@ public static class QuestionnaireFormValidator
                 Languages = languages,
                 ComputerSkills = computer,
                 ComputerSkillsOther = computerOther,
+                HasWorkExperience = hasWorkExperience,
                 Jobs = jobs,
                 References = references,
                 FamilyMembers = family,
@@ -499,12 +589,17 @@ public static class QuestionnaireFormValidator
                 AcquaintancesDetail = acquaintances,
                 LastSalary = lastSalary,
                 ExpectedSalary = expectedSalary,
+                StartAfter = startAfter,
+
+                // ⚠️ `with` qolgan hamma narsani kirishdan ko'chiradi — eski sana ATAYLAB qayta yoziladi
+                // (3.1 formada doim null, faqat 3.0 sahifadan kelganda tekshirilgan sana)
                 AvailableFrom = availableFrom,
                 CanWorkShifts = shifts,
                 CanWorkOvertime = overtime,
                 CanTravel = travel,
                 HasOtherJob = hasOtherJob,
                 OtherJobDetail = otherJob,
+                HasLoan = hasLoan,
                 LoanMonthlyPayment = loanPayment,
                 AgreesToTrial = trial,
                 StartConditions = startConditions,
@@ -518,10 +613,10 @@ public static class QuestionnaireFormValidator
                 WhyUs = whyUs,
                 Strengths = strengths,
                 Weaknesses = weaknesses,
-                Motivators = Optional(a.Motivators, "motivators", MaxLongLength),
-                SuccessDefinition = Optional(a.SuccessDefinition, "successDefinition", MaxLongLength),
-                LastJobAchievement = Optional(a.LastJobAchievement, "lastJobAchievement", MaxLongLength),
-                BestIdea = Optional(a.BestIdea, "bestIdea", MaxLongLength),
+                Motivators = motivators,
+                SuccessDefinition = successDefinition,
+                LastJobAchievement = lastJobAchievement,
+                BestIdea = bestIdea,
                 BiggestChallenge = Optional(a.BiggestChallenge, "biggestChallenge", MaxLongLength),
                 StressHandling = Optional(a.StressHandling, "stressHandling", MaxLongLength),
                 UnfairnessToYou = Optional(a.UnfairnessToYou, "unfairnessToYou", MaxLongLength),

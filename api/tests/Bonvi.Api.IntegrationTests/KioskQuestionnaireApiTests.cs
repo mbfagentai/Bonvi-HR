@@ -201,7 +201,9 @@ public sealed partial class KioskQuestionnaireApiTests : IClassFixture<BonviApiF
         nomzod.Questionnaire.RussianLevel.ShouldBe(Domain.Employees.LanguageLevel.UpperIntermediate);
         nomzod.ReferralChannelId.ShouldBe(ReferralSeeds.Acquaintance, "«qayerdan bilgan» — nomzodning o'zida");
         nomzod.ReferralDetail.ShouldBe("Karimov Anvar (sex boshlig‘i)");
-        nomzod.Questionnaire.DriverLicenseCategories.ShouldBe("BC");
+        nomzod.Questionnaire.DriverLicenseCategories.ShouldBe("B, C", "vergul bilan — «BC» 3.1 dan alohida toifa");
+        nomzod.Questionnaire.WorkExperience.ShouldBe(
+            "«Metan Gaz» MChJ — Payvandchi (03.2021–hozir)\n«Toshkent Ballon» AJ — Usta yordamchisi (08.2019–02.2021), sabab: Oylik kam edi, uyga uzoq");
         nomzod.Questionnaire.OfficeSkills.ShouldBe("MS Word — 3, MS Excel — 2, MS PowerPoint — 1, Google Docs / Sheets — 2", "faqat ofis guruhi");
         nomzod.Questionnaire.OfferAcceptedAt.ShouldNotBeNull();
 
@@ -230,6 +232,19 @@ public sealed partial class KioskQuestionnaireApiTests : IClassFixture<BonviApiF
             .Select(skill => (skill.Name, skill.Value.GetInt32()))
             .ShouldBe(javoblar.ComputerSkills!.Select(skill => (skill.Key, skill.Value)), ignoreOrder: true, "hamma 11 dastur saqlandi");
         hujjat.RootElement.GetProperty("computerSkillsOther").GetString().ShouldBe("KOMPAS-3D o‘quv versiyasi");
+
+        // Blanka 3.1: avval ishlagan, ishga chiqish — tanlov, kredit to'lovi bilan; eski kalitlar yo'q
+        anketa.FormVersion.ShouldBe("3.1");
+        hujjat.RootElement.GetProperty("hasWorkExperience").GetBoolean().ShouldBeTrue();
+        hujjat.RootElement.GetProperty("jobs").GetArrayLength().ShouldBe(2);
+        hujjat.RootElement.GetProperty("references").GetArrayLength().ShouldBe(1);
+        hujjat.RootElement.GetProperty("startAfter").GetString().ShouldBe("TenDays");
+        hujjat.RootElement.GetProperty("hasLoan").GetBoolean().ShouldBeTrue();
+        hujjat.RootElement.GetProperty("loanMonthlyPayment").GetInt64().ShouldBe(1_200_000);
+        hujjat.RootElement.GetProperty("lastJobAchievement").GetString().ShouldBe(javoblar.LastJobAchievement);
+        hujjat.RootElement.GetProperty("bestIdea").GetString().ShouldBe(javoblar.BestIdea);
+        hujjat.RootElement.TryGetProperty("availableFrom", out _).ShouldBeFalse();
+        hujjat.RootElement.TryGetProperty("totalExperienceYears", out _).ShouldBeFalse();
 
         // Audit — «Onlayn anketa» (Anonymous), mijozning haqiqiy IP'si bilan; javoblar jurnalga tushmaydi
         var audit = await db.AuditLogs.AsNoTracking()
@@ -537,7 +552,7 @@ public sealed partial class KioskQuestionnaireApiTests : IClassFixture<BonviApiF
             qator.Id.ShouldBe(anketa.Id);
             qator.Number.ShouldBe(anketa.Number);
             qator.FormCode.ShouldBe("HR-F02");
-            qator.FormVersion.ShouldBe("3.0");
+            qator.FormVersion.ShouldBe("3.1");
             qator.Language.ShouldBe("uz-Latn");
             qator.FileId.ShouldBe(anketa.FileId);
         }

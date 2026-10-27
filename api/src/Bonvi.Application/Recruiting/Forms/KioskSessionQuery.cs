@@ -28,12 +28,17 @@ public sealed record KioskReferralChannelDto(Guid Id, string Name, bool AsksDeta
 /// Bot tekshiruvi (Cloudflare Turnstile) vidjetining OCHIQ kaliti (SPEC §2.3.2); <c>null</c> —
 /// tekshiruv o'chiq, forma vidjetni chizmaydi va token yubormaydi.
 /// </param>
+/// <param name="FormVersion">
+/// Serverdagi blanka versiyasi. Forma o'zinikidan farq qilsa, bosh ekranda sahifani bir marta
+/// yangilaydi — deploy paytida ochiq qolgan planshet yangi formani o'zi oladi.
+/// </param>
 public sealed record KioskSessionDto(
     DateOnly Today,
     IReadOnlyList<KioskVacancyDto> Vacancies,
     bool GeneralPoolAvailable,
     IReadOnlyList<KioskReferralChannelDto> ReferralChannels,
-    string? TurnstileSiteKey);
+    string? TurnstileSiteKey,
+    string FormVersion);
 
 /// <summary>Onlayn anketa seansi — ochiq (login va kalitsiz).</summary>
 public sealed record GetKioskSessionQuery;
@@ -107,6 +112,7 @@ public sealed class GetKioskSessionQueryHandler
             [.. page.Items.Select(row => new KioskVacancyDto(row.Id, row.Title))],
             pool is { AcceptsCandidates: true },
             [.. channels.Select(channel => new KioskReferralChannelDto(channel.Id, channel.Name, channel.AsksDetail))],
-            _botCheck.SiteKey);
+            _botCheck.SiteKey,
+            CandidateForm.HrF02Version);
     }
 }

@@ -6,13 +6,24 @@
  * so a value added here without its four translations fails the check.
  */
 
+import type { StartAfter } from '../api/kiosk-api'
+
 export const HOUSING_TYPES = ['Apartment', 'House'] as const
 
 export const MARITAL_OPTIONS = ['Married', 'Unmarried', 'Divorced', 'Widowed'] as const
 
 export const MILITARY_OPTIONS = ['Served', 'Reserve', 'Deferred', 'NotServed'] as const
 
-export const DRIVER_LICENSE_CATEGORIES = ['A', 'B', 'C', 'D', 'BE', 'CE', 'DE'] as const
+/** HR changed «BE» to «BC» on 2026-10-27 (form v3.1); a restored draft's «BE» is dropped on load. */
+export const DRIVER_LICENSE_CATEGORIES = ['A', 'B', 'C', 'D', 'BC', 'CE', 'DE'] as const
+export type DriverLicenseCategory = (typeof DRIVER_LICENSE_CATEGORIES)[number]
+
+/**
+ * «Ishga qachondan chiqa olasiz?» — a fixed choice instead of a date since
+ * form v3.1 (2026-10-27): the start depends on the hire day, which the
+ * candidate does not know yet.
+ */
+export const START_AFTER_OPTIONS = ['OnHireDay', 'OneWeek', 'TenDays', 'FifteenDays'] as const satisfies readonly StartAfter[]
 
 export const EDUCATION_OPTIONS = [
   'SecondarySchool',
@@ -100,7 +111,26 @@ export const ABOUT_QUESTIONS = [
 ] as const
 export type AboutQuestion = (typeof ABOUT_QUESTIONS)[number]
 
-export const REQUIRED_ABOUT: readonly AboutQuestion[] = ['motivation', 'whyUs', 'strengths', 'weaknesses']
+/**
+ * Required whenever the question is shown — the first four and, since form
+ * v3.1 (2026-10-27), the whole «Muvaffaqiyat va g'oyalar» screen.
+ */
+export const REQUIRED_ABOUT: readonly AboutQuestion[] = [
+  'motivation',
+  'whyUs',
+  'strengths',
+  'weaknesses',
+  'motivators',
+  'successDefinition',
+  'lastJobAchievement',
+  'bestIdea',
+]
+
+/**
+ * About a previous job: neither shown nor sent when the candidate answered
+ * «Avval biror joyda ishlaganmisiz?» with «Yo'q».
+ */
+export const WORK_ONLY_ABOUT: readonly AboutQuestion[] = ['lastJobAchievement', 'bestIdea']
 
 /** Section 11 — every consent must be ticked. */
 export const CONSENTS = [
@@ -166,11 +196,11 @@ export const SCREEN_FIELDS: Readonly<Record<WizardScreen, readonly string[]>> = 
   school: ['schoolName', 'strongSubjects', 'courses'],
   languages: ['languages'],
   computer: ['computerSkills', 'computerSkillsOther'],
-  work: ['jobs', 'totalExperienceYears', 'totalExperienceMonths'],
+  work: ['hasWorkExperience', 'jobs'],
   references: ['references'],
   family: ['familyMembers'],
   referral: ['referralChannelId', 'referralDetail', 'hasAcquaintances', 'acquaintancesDetail'],
-  salary: ['lastSalary', 'expectedSalary', 'availableFrom', 'hasLoan', 'loanMonthlyPayment'],
+  salary: ['lastSalary', 'expectedSalary', 'startAfter', 'hasLoan', 'loanMonthlyPayment'],
   conditions: ['canWorkShifts', 'canWorkOvertime', 'canTravel', 'agreesToTrial'],
   terms: ['hasOtherJob', 'otherJobDetail', 'agreesParentsInvite', 'startConditions'],
   health: ['hasHealthRestriction', 'healthRestrictionDetail', 'hasFamilyPatient'],
@@ -189,9 +219,30 @@ export const SCREEN_FIELDS: Readonly<Record<WizardScreen, readonly string[]>> = 
   signature: ['signatureName', 'signature'],
 }
 
-/** The open questions of one «O'zingiz haqingizda» screen, in the paper's order. */
-export function aboutQuestionsOf(screen: WizardScreen): readonly AboutQuestion[] {
-  return ABOUT_QUESTIONS.filter((key) => SCREEN_FIELDS[screen].includes(key))
+/**
+ * Screens skipped for this candidate: «Tavsiya beruvchilar» asks for people
+ * from a previous job, so it is left out after «Avval biror joyda
+ * ishlaganmisiz? — Yo'q». Unanswered (`null`) keeps it: the question sits on
+ * an earlier screen and must be answered before this one is reached.
+ */
+export function skippedScreens(hasWorkExperience: boolean | null): ReadonlySet<WizardScreen> {
+  return new Set<WizardScreen>(hasWorkExperience === false ? ['references'] : [])
+}
+
+/** The screens this candidate walks through, in order — the wizard's steps and its «n / total». */
+export function activeScreens(hasWorkExperience: boolean | null): readonly WizardScreen[] {
+  const skipped = skippedScreens(hasWorkExperience)
+  return WIZARD_SCREENS.filter((screen) => !skipped.has(screen))
+}
+
+/** Whether an open question is asked of this candidate (see `WORK_ONLY_ABOUT`). */
+export function isAboutAsked(key: AboutQuestion, hasWorkExperience: boolean | null): boolean {
+  return hasWorkExperience !== false || !WORK_ONLY_ABOUT.includes(key)
+}
+
+/** The open questions of one «O'zingiz haqingizda» screen this candidate is asked, in the paper's order. */
+export function aboutQuestionsOf(screen: WizardScreen, hasWorkExperience: boolean | null): readonly AboutQuestion[] {
+  return ABOUT_QUESTIONS.filter((key) => SCREEN_FIELDS[screen].includes(key) && isAboutAsked(key, hasWorkExperience))
 }
 
 /** `InProgress` → `inProgress` — the same conversion `check-locales.mjs` applies. */

@@ -587,6 +587,11 @@ const DYNAMIC_KEY_SOURCES = [
   },
   {
     file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'START_AFTER_OPTIONS'),
+    keysFor: (value) => [`kiosk.startAfter.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
     values: (text) => constArrayValues(text, 'EDUCATION_OPTIONS'),
     keysFor: (value) => [`kiosk.education.${lowerFirst(value)}`],
   },

@@ -82,10 +82,25 @@ public static class QuestionnaireFormMapping
             lastSalary: answers.LastSalary is { } last ? Money(last) : null,
             extraNote: answers.ExtraNote,
             hasDriverLicense: answers.HasDriverLicense == true,
-            driverLicenseCategories: answers.DriverLicenseCategories is { Count: > 0 } categories
-                ? string.Concat(categories)
-                : null);
+            driverLicenseCategories: DriverLicenseCategories(answers));
     }
+
+    /// <summary>Toifalar matni — qog'ozdagi tartibda, vergul bilan: «B, C», «BC, CE».</summary>
+    /// <remarks>
+    /// <para>
+    /// Ajratgichsiz yozilmaydi (3.1 gacha «BC» edi): endi «BC» o'zi alohida toifa va «B» + «C»
+    /// bilan bir xil satr bo'lib qolardi. PDF'dagi «Bor, toifasi: B, C» bilan bir xil.
+    /// </para>
+    /// <para>
+    /// Bot o'z tugmalarini («B», «BC», «BCE», «BCED» — <c>Bonvi.Bot</c>) shu maydonga o'zgarishsiz
+    /// yozishda davom etadi: u to'plam emas, bitta tugma qiymati. MCP filtri satr ichidan
+    /// qidiradi (<c>ILIKE %C%</c>), ya'ni bitta toifa bo'yicha ikkala yozuvni ham topadi.
+    /// </para>
+    /// </remarks>
+    private static string? DriverLicenseCategories(QuestionnaireFormAnswers answers)
+        => answers.DriverLicenseCategories is { Count: > 0 } categories
+            ? string.Join(", ", categories)
+            : null;
 
     /// <summary>«3 000 000 so'm» — bo'shliq bilan guruhlangan, PDF'dagi bilan bir xil.</summary>
     public static string Money(long amount)
@@ -99,6 +114,12 @@ public static class QuestionnaireFormMapping
 
     private static string? WorkExperience(QuestionnaireFormAnswers answers)
     {
+        // «Avval ishlaganmisiz?» — «Yo'q» (3.1): HR «Anketa» kartasida bo'sh joy emas, javobni ko'rsin
+        if (answers.HasWorkExperience == false)
+        {
+            return "Avval ishlamagan";
+        }
+
         var lines = new List<string>();
 
         foreach (var job in answers.Jobs ?? [])
@@ -129,11 +150,6 @@ public static class QuestionnaireFormMapping
             }
 
             lines.Add(line);
-        }
-
-        if (answers.TotalExperienceYears is not null || answers.TotalExperienceMonths is not null)
-        {
-            lines.Add($"Umumiy: {answers.TotalExperienceYears ?? 0} yil {answers.TotalExperienceMonths ?? 0} oy");
         }
 
         return lines.Count == 0 ? null : string.Join('\n', lines);

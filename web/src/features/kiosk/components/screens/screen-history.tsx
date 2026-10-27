@@ -23,6 +23,7 @@ import {
   Label,
   MonthField,
   ScreenHint,
+  YesNo,
   useFieldError,
 } from '../kiosk-fields'
 import { AddRowButton, RowSheet, SummaryRow } from '../kiosk-rows'
@@ -38,7 +39,11 @@ const joined = (...parts: string[]) =>
     .filter(Boolean)
     .join(' · ')
 
-/** Work history, newest first, and the total experience. */
+/**
+ * «Avval biror joyda ishlaganmisiz?» and, after «Ha», the work history,
+ * newest first — at least one entry. «Yo'q» hides the list and the wizard
+ * skips the referees screen (`activeScreens`).
+ */
 export function WorkScreen(props: ScreenProps) {
   const { draft, patch, errors } = props
   const { t } = useLocale()
@@ -53,52 +58,52 @@ export function WorkScreen(props: ScreenProps) {
     return job.from.trim() === '' && to === '' ? '' : `${job.from.trim() || '…'} – ${to || '…'}`
   }
 
+  const answer = (hasWorkExperience: boolean) => {
+    patch({ hasWorkExperience })
+    // «Ha» with nothing written yet opens the first entry, so the next step is right there.
+    if (hasWorkExperience && editor.rows.length === 0) editor.add()
+  }
+
   return (
     <>
-      <ScreenHint>{t('kiosk.work.hint')}</ScreenHint>
+      <YesNo
+        path="hasWorkExperience"
+        label={t('kiosk.field.hasWorkExperience')}
+        required
+        value={draft.hasWorkExperience}
+        onChange={answer}
+        error={fieldError('hasWorkExperience')}
+      />
 
-      <div className="space-y-2.5">
-        {editor.rows.map((job, index) => (
-          <SummaryRow
-            key={index}
-            path={`jobs.${index}`}
-            title={
-              [job.organization.trim(), job.position.trim()].filter(Boolean).join(' — ') || t('kiosk.row.untitled')
-            }
-            subtitle={joined(period(job), job.leaveReason) || undefined}
-            invalid={Object.keys(entryErrors(errors, `jobs.${index}`)).length > 0}
-            invalidText={t('kiosk.row.invalid')}
-            onOpen={() => editor.edit(index)}
-            onRemove={() => editor.remove(index)}
-          />
-        ))}
+      {draft.hasWorkExperience === true && (
+        <div className="space-y-4">
+          <ScreenHint>{t('kiosk.work.hint')}</ScreenHint>
 
-        {editor.rows.length < MAX_JOBS && <AddRowButton onClick={editor.add}>{t('kiosk.addJob')}</AddRowButton>}
-      </div>
+          <div className="space-y-2.5">
+            {editor.rows.map((job, index) => (
+              <SummaryRow
+                key={index}
+                path={`jobs.${index}`}
+                title={
+                  [job.organization.trim(), job.position.trim()].filter(Boolean).join(' — ') || t('kiosk.row.untitled')
+                }
+                subtitle={joined(period(job), job.leaveReason) || undefined}
+                invalid={Object.keys(entryErrors(errors, `jobs.${index}`)).length > 0}
+                invalidText={t('kiosk.row.invalid')}
+                onOpen={() => editor.edit(index)}
+                onRemove={() => editor.remove(index)}
+              />
+            ))}
 
-      <div className="space-y-2.5">
-        <p className="text-body font-medium">{t('kiosk.field.totalExperience')}</p>
-        <div className="grid grid-cols-2 gap-4 sm:max-w-md">
-          <DigitsField
-            path="totalExperienceYears"
-            aria-label={t('kiosk.field.years')}
-            trailing={<span className="text-callout text-[var(--fg-tertiary)]">{t('kiosk.field.years')}</span>}
-            value={draft.totalExperienceYears}
-            maxLength={2}
-            onChange={(totalExperienceYears) => patch({ totalExperienceYears })}
-            error={fieldError('totalExperienceYears')}
-          />
-          <DigitsField
-            path="totalExperienceMonths"
-            aria-label={t('kiosk.field.months')}
-            trailing={<span className="text-callout text-[var(--fg-tertiary)]">{t('kiosk.field.months')}</span>}
-            value={draft.totalExperienceMonths}
-            maxLength={2}
-            onChange={(totalExperienceMonths) => patch({ totalExperienceMonths })}
-            error={fieldError('totalExperienceMonths')}
-          />
+            {editor.rows.length < MAX_JOBS && <AddRowButton onClick={editor.add}>{t('kiosk.addJob')}</AddRowButton>}
+
+            {/* After the lines, so «scroll to error» reaches an entry's error before this one. */}
+            <div data-field="jobs">
+              <FieldMessage error={fieldError('jobs')} />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       <RowSheet open={editor.isOpen} title={t('kiosk.sheet.job')} onCancel={editor.cancel} onSave={editor.save}>
         {row !== undefined && (
@@ -158,10 +163,11 @@ export function WorkScreen(props: ScreenProps) {
   )
 }
 
-/** People who know the candidate's work. */
+/** People who know the candidate's work — at least one; shown only after «Ha» on the work screen. */
 export function ReferencesScreen(props: ScreenProps) {
   const { errors } = props
   const { t } = useLocale()
+  const fieldError = useFieldError(errors)
   const editor = useRowEditor('references', props, emptyReference)
   const sheetError = useFieldError(editor.errors)
   const { base } = editor
@@ -188,6 +194,10 @@ export function ReferencesScreen(props: ScreenProps) {
         {editor.rows.length < MAX_REFERENCES && (
           <AddRowButton onClick={editor.add}>{t('kiosk.addReference')}</AddRowButton>
         )}
+
+        <div data-field="references">
+          <FieldMessage error={fieldError('references')} />
+        </div>
       </div>
 
       <RowSheet open={editor.isOpen} title={t('kiosk.sheet.reference')} onCancel={editor.cancel} onSave={editor.save}>

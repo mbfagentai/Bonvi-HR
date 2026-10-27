@@ -3125,7 +3125,6 @@
       "tooLong": "At most {{max}} characters",
       "invalidDate": "Invalid date",
       "age": "Age must be between 16 and 70",
-      "pastDate": "The date cannot be before today",
       "phone": "The phone number is incomplete",
       "telegram": "Telegram name: 5–32 Latin letters, digits or _",
       "email": "Invalid e-mail",
@@ -3137,6 +3136,8 @@
       "languageLevels": "Mark all three levels",
       "otherLanguageName": "Enter the language name",
       "familyMin": "Add at least one family member",
+      "jobsMin": "Add at least one job",
+      "referencesMin": "Add at least one referee",
       "consent": "Tick the consent",
       "signatureName": "The name must match the surname and first name above",
       "signature": "Please sign",
@@ -3224,15 +3225,13 @@
       "strongSubjects": "Which school subjects were you good at?",
       "courses": "Courses, certificates, trade grade (welder, machinist, electrician, etc.)",
       "computerSkillsOther": "Other software and programming languages",
+      "hasWorkExperience": "Have you worked anywhere before?",
       "organization": "Organisation",
       "position": "Position",
       "jobFrom": "From (mm.yyyy)",
       "jobTo": "To (mm.yyyy)",
       "jobCurrent": "I still work here",
       "leaveReason": "Reason for leaving",
-      "totalExperience": "Total work experience",
-      "years": "years",
-      "months": "months",
       "fullName": "Full name",
       "organizationPosition": "Organisation, position",
       "relation": "Relation",
@@ -3247,7 +3246,7 @@
       "acquaintancesDetail": "Who are they? (full name, department)",
       "lastSalary": "What was your salary at your last job?",
       "expectedSalary": "What salary do you expect?",
-      "availableFrom": "When can you start?",
+      "startAfter": "When can you start?",
       "canWorkShifts": "Can you work shifts or 12-hour days?",
       "canWorkOvertime": "Can you stay after hours when needed?",
       "canTravel": "Do you agree to business trips?",
@@ -3285,6 +3284,12 @@
       "reserve": "In reserve",
       "deferred": "Deferred",
       "notServed": "Not served"
+    },
+    "startAfter": {
+      "onHireDay": "From the day I am hired",
+      "oneWeek": "1 week after being hired",
+      "tenDays": "10 days after being hired",
+      "fifteenDays": "15 days after being hired"
     },
     "education": {
       "secondarySchool": "Secondary (school)",
@@ -3333,10 +3338,10 @@
       }
     },
     "work": {
-      "hint": "Start with your most recent job. Leave empty if this is your first job."
+      "hint": "Start with your most recent job."
     },
     "references": {
-      "hint": "A manager or colleague who knows you well from a previous job. HR may contact them."
+      "hint": "A manager or colleague who knows you well from a previous job. HR may contact them. At least one person."
     },
     "family": {
       "hint": "Parents, spouse, brothers and sisters. At least one person."

@@ -360,6 +360,11 @@ public sealed class SubmitQuestionnaireFormCommandHandler
 
             var squarePhoto = await ReadAsync(_photos.OpenAsync(formPhotoKey, null, cancellationToken), cancellationToken).ConfigureAwait(false);
 
+            // Deploy paytida ochiq qolgan eski sahifadan kelgan anketa — o'z versiyasi bilan (IsLegacy izohi)
+            var formVersion = QuestionnaireFormValidator.IsLegacy(answers)
+                ? CandidateForm.HrF02LegacyVersion
+                : CandidateForm.HrF02Version;
+
             var pdf = await _pdf.RenderAsync(
                 new QuestionnairePdfModel(
                     answers,
@@ -369,7 +374,8 @@ public sealed class SubmitQuestionnaireFormCommandHandler
                     language,
                     squarePhoto,
                     signature.Value,
-                    QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId)),
+                    QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId),
+                    formVersion),
                 cancellationToken).ConfigureAwait(false);
 
             var fileId = await AttachPdfAsync(candidate, number, answers, pdf, stored, cancellationToken).ConfigureAwait(false);
@@ -383,7 +389,8 @@ public sealed class SubmitQuestionnaireFormCommandHandler
                 signatureFile.Key,
                 submissionId,
                 fileId,
-                submittedAt);
+                submittedAt,
+                formVersion);
 
             if (form.IsFailure)
             {

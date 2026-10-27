@@ -3125,7 +3125,6 @@
       "tooLong": "Eng ko‘pi {{max}} belgi",
       "invalidDate": "Sana noto‘g‘ri",
       "age": "Yosh 16 dan 70 gacha bo‘lishi kerak",
-      "pastDate": "Bugundan oldingi sana bo‘lishi mumkin emas",
       "phone": "Telefon raqami to‘liq emas",
       "telegram": "Telegram nomi: 5–32 ta lotin harfi, raqam yoki _",
       "email": "E-mail noto‘g‘ri",
@@ -3137,6 +3136,8 @@
       "languageLevels": "Uchala darajani ham belgilang",
       "otherLanguageName": "Til nomini yozing",
       "familyMin": "Kamida bitta oila a’zosini yozing",
+      "jobsMin": "Kamida bitta ish joyini yozing",
+      "referencesMin": "Kamida bitta tavsiya beruvchini yozing",
       "consent": "Rozilikni belgilang",
       "signatureName": "Familiya va ismingiz anketadagidek bo‘lishi kerak",
       "signature": "Imzo qo‘ying",
@@ -3224,15 +3225,13 @@
       "strongSubjects": "Maktabda qaysi fanlardan yaxshi o‘qigansiz?",
       "courses": "Kurslar, sertifikatlar, malaka razryadi (payvandchi, stanokchi, elektrik va h.k.)",
       "computerSkillsOther": "Boshqa dasturlar va dasturlash tillari",
+      "hasWorkExperience": "Avval biror joyda ishlaganmisiz?",
       "organization": "Tashkilot nomi",
       "position": "Lavozimi",
       "jobFrom": "Boshlagan (oy.yil)",
       "jobTo": "Tugatgan (oy.yil)",
       "jobCurrent": "Hozir ham shu yerda ishlayman",
       "leaveReason": "Ishdan ketish sababi",
-      "totalExperience": "Umumiy ish tajribangiz",
-      "years": "yil",
-      "months": "oy",
       "fullName": "F.I.Sh.",
       "organizationPosition": "Tashkilot, lavozimi",
       "relation": "Qarindoshligi",
@@ -3247,7 +3246,7 @@
       "acquaintancesDetail": "Ular kim? (F.I.Sh., bo‘limi)",
       "lastSalary": "Oxirgi ish joyingizda oylik maoshingiz qancha bo‘lgan?",
       "expectedSalary": "Qancha oylik maoshga ishlamoqchisiz?",
-      "availableFrom": "Ishga qachondan chiqa olasiz?",
+      "startAfter": "Ishga qachondan chiqa olasiz?",
       "canWorkShifts": "Smenali yoki 12 soatlik ish rejimida ishlay olasizmi?",
       "canWorkOvertime": "Zarurat bo‘lsa, ish vaqtidan keyin qolib ishlay olasizmi?",
       "canTravel": "Xizmat safarlariga (komandirovka) chiqishga rozimisiz?",
@@ -3285,6 +3284,12 @@
       "reserve": "Zaxirada",
       "deferred": "Kechiktirilgan",
       "notServed": "O‘tamagan"
+    },
+    "startAfter": {
+      "onHireDay": "Qabul qilingan kundan",
+      "oneWeek": "Qabul qilingandan 1 hafta keyin",
+      "tenDays": "Qabul qilingandan 10 kun keyin",
+      "fifteenDays": "Qabul qilingandan 15 kun keyin"
     },
     "education": {
       "secondarySchool": "O‘rta (maktab)",
@@ -3333,10 +3338,10 @@
       }
     },
     "work": {
-      "hint": "Oxirgi ish joyingizdan boshlab yozing. Birinchi ishingiz bo‘lsa, bo‘sh qoldiring."
+      "hint": "Oxirgi ish joyingizdan boshlab yozing."
     },
     "references": {
-      "hint": "Sizni avvalgi ish joyingizdan yaxshi taniydigan rahbar yoki hamkasbingiz. HR bo‘limi ular bilan bog‘lanishi mumkin."
+      "hint": "Sizni avvalgi ish joyingizdan yaxshi taniydigan rahbar yoki hamkasbingiz. HR bo‘limi ular bilan bog‘lanishi mumkin. Kamida bitta kishi."
     },
     "family": {
       "hint": "Ota-onangiz, turmush o‘rtog‘ingiz, aka-uka va opa-singillaringiz. Kamida bitta kishi."

@@ -40,12 +40,26 @@ public sealed class CandidateForm : AggregateRoot
     /// <summary>Blankaning kodi — qog'ozdagi «Blanka HR-F02».</summary>
     public const string HrF02 = "HR-F02";
 
-    /// <summary>Blankaning versiyasi — qog'ozdagi «Versiya 3.0».</summary>
+    /// <summary>Blankaning versiyasi — qog'ozdagi «Versiya 3.1».</summary>
     /// <remarks>
+    /// <para>
     /// 3.0 (egasi, 2026-10-26): jinsi, pasport va JSHSHIR olib tashlandi, kompyuter jadvali
     /// qisqardi. 2.0 hech qachon chiqmagan — eski yozuv yo'q.
+    /// </para>
+    /// <para>
+    /// 3.1 (HR rahbari, egasi tasdiqlagan, 2026-10-27): «Avval ishlaganmisiz?», umumiy ish
+    /// tajribasi olib tashlandi, ishga chiqish — tanlov, kredit savoli majburiy, «BE» o'rniga
+    /// «BC». 3.0 yozuvlari bazada QOLADI (<see cref="FormVersion"/> ularda «3.0») va eski
+    /// javoblari bilan qayta chiziladi.
+    /// </para>
     /// </remarks>
-    public const string HrF02Version = "3.0";
+    public const string HrF02Version = "3.1";
+
+    /// <summary>
+    /// Avvalgi versiya — 3.1 chiqqanda brauzerda ochiq qolgan eski forma sahifasidan kelgan anketa
+    /// shu versiya bilan yoziladi (Application'dagi <c>QuestionnaireFormValidator.IsLegacy</c>).
+    /// </summary>
+    public const string HrF02LegacyVersion = "3.0";
 
     /// <summary>Kod ustunining chegarasi.</summary>
     public const int MaxFormCodeLength = 16;
@@ -145,7 +159,8 @@ public sealed class CandidateForm : AggregateRoot
         string signatureKey,
         Guid clientSubmissionId,
         Guid? fileId,
-        DateTimeOffset submittedAt)
+        DateTimeOffset submittedAt,
+        string formVersion = HrF02Version)
     {
         if (candidateId == Guid.Empty)
         {
@@ -158,7 +173,9 @@ public sealed class CandidateForm : AggregateRoot
             || language.Length > MaxLanguageLength
             || string.IsNullOrWhiteSpace(photoKey)
             || string.IsNullOrWhiteSpace(signatureKey)
-            || clientSubmissionId == Guid.Empty)
+            || clientSubmissionId == Guid.Empty
+            || string.IsNullOrWhiteSpace(formVersion)
+            || formVersion.Length > MaxFormVersionLength)
         {
             return Error.Validation("anketa.notogri", "Anketa yozuvi to'liq emas.");
         }
@@ -174,6 +191,7 @@ public sealed class CandidateForm : AggregateRoot
             ClientSubmissionId = clientSubmissionId,
             FileId = fileId,
             SubmittedAt = submittedAt,
+            FormVersion = formVersion,
         };
     }
 }

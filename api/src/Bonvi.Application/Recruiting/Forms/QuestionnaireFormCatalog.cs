@@ -63,7 +63,16 @@ public static class QuestionnaireFormCatalog
     public static ComputerSkillGroup OfficeGroup => ComputerGroups[1];
 
     /// <summary>Haydovchilik guvohnomasi toifalari — qog'ozdagi tartibda.</summary>
-    public static IReadOnlyList<string> DriverLicenseCategories { get; } = ["A", "B", "C", "D", "BE", "CE", "DE"];
+    /// <remarks>
+    /// 3.1 (HR rahbari, 2026-10-27): «BE» o'rniga «BC». Yangi anketada «BE» boshqa noma'lum toifa
+    /// kabi rad etiladi. «BC» bitta toifa bo'lgani uchun <c>CandidateQuestionnaire</c> matnida
+    /// toifalar vergul bilan ajratiladi («B, C» ≠ «BC» — <see cref="QuestionnaireFormMapping"/>).
+    /// </remarks>
+    public static IReadOnlyList<string> DriverLicenseCategories { get; } = ["A", "B", "C", "D", "BC", "CE", "DE"];
+
+    /// <summary>3.0 blankasining toifalari — deploy paytida ochiq qolgan eski sahifa uchun.</summary>
+    /// <remarks><see cref="QuestionnaireFormValidator.IsLegacy"/> izohiga qarang.</remarks>
+    public static IReadOnlyList<string> LegacyDriverLicenseCategories { get; } = ["A", "B", "C", "D", "BE", "CE", "DE"];
 
     /// <summary>Jadvalda doim turadigan to'rt til — qog'ozdagi tartibda.</summary>
     public static IReadOnlyList<FormLanguage> FixedLanguages { get; } =
