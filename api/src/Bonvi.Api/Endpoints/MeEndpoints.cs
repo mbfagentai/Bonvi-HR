@@ -119,7 +119,10 @@ public sealed record MyScheduleChangeRequestUpdateBody(
 ///     hisob orqali topadi; manzilda ham, tanada ham xodim identifikatori
 ///     umuman qatnashmaydi. Ya'ni «boshqa odamning ma'lumotini so'rash»
 ///     degan holat texnik jihatdan mavjud emas — xuddi
-///     <c>/api/auth/me/photo</c> dagidek.
+///     <c>/api/auth/me/photo</c> dagidek. Yagona istisno — «Jamoam»
+///     (<c>/api/me/team/members/{employeeId}/*</c>, SPEC-jamoam §C): u yerda
+///     identifikator bor va har so'rovda boshliqning QAMROVI bilan tekshiriladi
+///     (<see cref="MapTeam"/>).
 ///   </item>
 /// </list>
 /// <para>
@@ -148,6 +151,7 @@ public static partial class MeEndpoints
         MapCheckIn(group);
         MapRequests(group);
         MapScheduleRequests(group);
+        MapTeam(group);
 
         return app;
     }
@@ -567,6 +571,134 @@ public static partial class MeEndpoints
                 "bo'lsa «hasSchedule: false». Erkin kunda «isFlexible: true» va «requiredMinutes» (ish vaqti).")
             .Produces<DayPlanDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Jamoam — bo'lim boshlig'i o'z odamlarini ko'radi (SPEC-jamoam §C)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// <c>/api/me/team/*</c> — faqat o'qish, faqat davomat.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Bu yerda xodim identifikatori manzilda BOR — guruhdagi yagona istisno. Shu sababli
+    /// har bir ishlovchi so'rovchining qamrovini bazadan, har so'rovda hisoblaydi
+    /// (<c>TeamAccess</c>) va qamrovdan tashqaridagi odamga «yo'q» odam bilan BIR XIL javob
+    /// beradi (<c>jamoa.xodim_topilmadi</c>) — identifikatorlarni sinab bo'lmasin.
+    /// </para>
+    /// <para>
+    /// Guruhning qolgani bilan bir xil: faqat xodim sxemasi (HR tokeni — 401), «hali ham
+    /// xodimmi» filtri (ishdan ketgan boshliq — <c>xodim.hisob_faol_emas</c>) va umumiy tezlik
+    /// cheklovi (§C7 — alohida siyosat yo'q).
+    /// </para>
+    /// </remarks>
+    private static void MapTeam(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/team", async (
+                GetMyTeamQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler.HandleAsync(new GetMyTeamQuery(), cancellationToken).ConfigureAwait(false);
+                return natija.ToHttpResult();
+            })
+            .WithName("GetMyTeam")
+            .WithSummary("Jamoam — qamrovim")
+            .WithDescription(
+                "Boshliq boshqaradigan bo'limlar va ularning BARCHA ichki bo'limlari — daraxt tartibida " +
+                "tekislangan ro'yxat (ilovadagi bo'lim tanlagichi uchun). Qamrov serverda, bazadan, har " +
+                "so'rovda hisoblanadi. Xato: «jamoa.boshliq_emas» (403).")
+            .Produces<TeamScopeDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/team/board", async (
+                DateOnly? date,
+                Guid? departmentId,
+                AttendanceDashboardStatus? status,
+                string? search,
+                int? page,
+                int? pageSize,
+                GetTeamBoardQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetTeamBoardQuery(date, departmentId, status, search, page, pageSize),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("GetTeamBoard")
+            .WithSummary("Jamoam — kunlik panel")
+            .WithDescription(
+                "HR panelining («GET /api/attendance/dashboard») AYNAN o'sha hisobi — holat qoidasi va " +
+                "sanoqlar bitta — boshliq qamrovida. «date» — Toshkent sanasi (sukut: bugun); «departmentId» " +
+                "— qamrovdagi bo'lim (ichki bo'limlari bilan, sukut: butun qamrov); «status», «search», " +
+                "«page», «pageSize» (sukut 50, eng ko'pi 200) — paneldagidek. Qatorda rasm KALITI emas, " +
+                "«hasPhoto»; telefon bor. Xatolar: «jamoa.boshliq_emas» (403), «jamoa.bolim_topilmadi» (404).")
+            .Produces<TeamBoardDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/team/members/{employeeId:guid}/attendance", async (
+                Guid employeeId,
+                int year,
+                int month,
+                GetTeamMemberAttendanceQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetTeamMemberAttendanceQuery(employeeId, year, month), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("GetTeamMemberAttendance")
+            .WithSummary("Jamoam — a'zoning oyi")
+            .WithDescription(
+                "«attendance» — «GET /api/me/attendance» ning AYNAN o'zi: a'zoning oyi uning o'z ilovasidagidek. " +
+                "A'zo — shu oyga tegadigan, bo'limi qamrovda bo'lgan munosabati bor xodim. Ko'rish audit " +
+                "jurnaliga yoziladi (boshliq va a'zo bo'yicha 10 daqiqada bir marta). Xatolar: " +
+                "«jamoa.boshliq_emas» (403), «davomat.oy_notogri» (400), «jamoa.xodim_topilmadi» (404 — " +
+                "qamrovdan tashqari ham, umuman yo'q ham).")
+            .Produces<TeamMemberAttendanceDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/team/members/{employeeId:guid}/photo", async (
+                Guid employeeId,
+                HttpContext context,
+                GetTeamMemberPhotoQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetTeamMemberPhotoQuery(employeeId, PhotoHttp.ReadKnownVersion(context.Request)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // JSON emas — BAYT: `ToHttpResult()` faqat xato yo'lida («/api/me/photo» bilan bir xil).
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : PhotoHttp.Write(context, natija.Value);
+            })
+            .WithName("GetTeamMemberPhoto")
+            .WithSummary("Jamoam — a'zoning rasmi")
+            .WithDescription(
+                "A'zo BUGUN qamrovda bo'lishi kerak. Baytlar (image/jpeg), «ETag» + «If-None-Match» → 304, " +
+                "kesh SHAXSIY (private) — «/api/me/photo» dagidek. Xatolar: «jamoa.boshliq_emas» (403), " +
+                "«jamoa.xodim_topilmadi» (404), «xodim.rasm_yoq» (404).")
+            .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
+            .Produces(StatusCodes.Status304NotModified)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     // ════════════════════════════════════════════════════════════

@@ -72,6 +72,28 @@ public sealed class AuditEntryTextTests
     }
 
     [Fact]
+    public void Jamoa_korishlari_excel_eksporti_deb_yozilmaydi_va_ozbekcha_oqiladi()
+    {
+        var azo = Qator(
+            AuditAction.Export,
+            "GetTeamMemberAttendance",
+            Ozgarish("action", AuditValueTypes.Text, null, "\"team_member_viewed\""),
+            Ozgarish("year", AuditValueTypes.Number, null, "2026"),
+            Ozgarish("month", AuditValueTypes.Number, null, "10"));
+
+        AuditEntryText.Action(azo).ShouldBe("Ko'rildi · Jamoa: xodim davomati");
+        AuditEntryText.Summary(azo).ShouldBe("Jamoa: xodim davomati ko'rildi");
+
+        var panel = Qator(
+            AuditAction.Export,
+            "GetTeamBoard",
+            Ozgarish("action", AuditValueTypes.Text, null, "\"team_board_viewed\""));
+
+        AuditEntryText.Action(panel).ShouldBe("Ko'rildi · Jamoa paneli");
+        AuditEntryText.Summary(panel).ShouldBe("Jamoa paneli ko'rildi");
+    }
+
+    [Fact]
     public void Yozuv_turi_ozbekcha_notanishi_xom()
     {
         AuditEntryText.EntityType("EmploymentEvent").ShouldBe("Buyruq");

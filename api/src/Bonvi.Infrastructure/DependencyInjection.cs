@@ -577,6 +577,10 @@ public static class DependencyInjection
         // (`IAttendanceJobJournal` bilan bir xil).
         services.AddSingleton<IEmployeeAuthJournal, EmployeeAuthJournal>();
 
+        // «Jamoam» (SPEC-jamoam §C) — panel qatoriga telefon va ko'rish auditining jurnali.
+        services.AddScoped<ITeamReadModel, TeamReadModel>();
+        services.AddSingleton<ITeamViewJournal, TeamViewJournal>();
+
         services.AddScoped<IdentitySeeder>();
 
         return services;

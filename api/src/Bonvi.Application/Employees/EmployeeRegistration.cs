@@ -42,6 +42,9 @@ internal static class EmployeeRegistration
         services.AddScoped<EmployeeMapper>();
         services.AddScoped<EmployeeFlagGuard>();
 
+        // «Rahbar» — xodim kartasi va ilova profili uchun bitta qoida (SPEC-jamoam §D).
+        services.AddScoped<EmployeeManagerResolver>();
+
         // Xodimlar
         services.AddScoped<SearchEmployeesQueryHandler>();
         services.AddScoped<GetEmployeeQueryHandler>();

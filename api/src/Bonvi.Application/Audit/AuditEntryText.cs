@@ -42,6 +42,16 @@ public static class AuditEntryText
     private const string PasswordViewed = "Xodim ilovasi paroli ko'rildi";
     private const string RevealPasswordOperation = "RevealEmployeePassword";
 
+    /// <summary>
+    /// «Jamoam» ko'rish izlari (SPEC-jamoam §C6) — tafsilotdagi <c>action</c> bo'yicha; ular ham
+    /// <see cref="AuditAction.Export"/> bo'lib yoziladi, xuddi parolni ko'rish kabi.
+    /// </summary>
+    private static readonly Dictionary<string, string> TeamViews = new(StringComparer.Ordinal)
+    {
+        ["team_member_viewed"] = "Jamoa: xodim davomati ko'rildi",
+        ["team_board_viewed"] = "Jamoa paneli ko'rildi",
+    };
+
     /// <summary>Telefon raqami saqlanadigan maydonlar — «+998 90 123 45 67» ko'rinishida.</summary>
     private static readonly HashSet<string> PhoneFields = new(StringComparer.Ordinal) { "Phone", "SecondPhone", "Login" };
 
@@ -98,18 +108,21 @@ public static class AuditEntryText
     /// «Amal» — amal turi va (tanish bo'lsa) biznes amalining nomi: «O'zgartirildi · Ko'chirish».
     /// </summary>
     /// <remarks>
-    /// Ekranda ular yonma-yon (belgi va matn). Yagona istisno ekrandagidek: xodim ilovasi parolini
+    /// Ekranda ular yonma-yon (belgi va matn). Istisno ekrandagidek: xodim ilovasi parolini
     /// KO'RISH ham <see cref="AuditAction.Export"/> bo'lib yoziladi, lekin unga «Excelga yuklandi»
-    /// deyish yolg'on bo'lardi.
+    /// deyish yolg'on bo'lardi. «Jamoam» ko'rishlari ham xuddi shunday — «Ko'rildi».
     /// </remarks>
     /// <param name="entry">Jurnal qatori.</param>
     public static string Action(AuditEntryDto entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        var action = entry.Action == AuditAction.Export && entry.Operation == RevealPasswordOperation
-            ? "Parol ko'rildi"
-            : ActionLabel(entry.Action);
+        var action = entry.Action switch
+        {
+            AuditAction.Export when entry.Operation == RevealPasswordOperation => "Parol ko'rildi",
+            AuditAction.Export when TeamViewOf(entry) is not null => "Ko'rildi",
+            _ => ActionLabel(entry.Action),
+        };
 
         return OperationLabel(entry.Operation) is { } operation ? $"{action} · {operation}" : action;
     }
@@ -201,6 +214,11 @@ public static class AuditEntryText
                     return PasswordViewed;
                 }
 
+                if (TeamViewOf(entry) is { } teamView)
+                {
+                    return teamView;
+                }
+
                 return ValueOf("rows") is { ValueKind: JsonValueKind.Number } rows
                     ? $"{Number(rows)} ta qator"
                     : string.Empty;
@@ -208,6 +226,14 @@ public static class AuditEntryText
             default:
                 return null;
         }
+    }
+
+    /// <summary>«Jamoam» ko'rish izining yorlig'i; boshqa qatorda <see langword="null"/>.</summary>
+    private static string? TeamViewOf(AuditEntryDto entry)
+    {
+        var action = entry.Changes.FirstOrDefault(change => change.Field == "action")?.New;
+
+        return StringOf(action) is { } name && TeamViews.TryGetValue(name, out var label) ? label : null;
     }
 
     // ═══════════════════════════════════════════════════════════ yorliqlar
@@ -327,6 +353,11 @@ public static class AuditEntryText
         if (field == "action" && text == "password_viewed")
         {
             return PasswordViewed;
+        }
+
+        if (field == "action" && TeamViews.TryGetValue(text, out var teamView))
+        {
+            return teamView;
         }
 
         return PhoneFields.Contains(field) ? FormatPhone(text) : text;

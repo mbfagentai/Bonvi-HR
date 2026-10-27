@@ -203,6 +203,10 @@ internal static class AuditLabels
         ["rows"] = "Qatorlar soni",
         ["filters"] = "Filtrlar",
         ["action"] = "Amal",
+
+        // «Jamoam» — boshliq ko'rgan oy (SPEC-jamoam §C6)
+        ["year"] = "Yil",
+        ["month"] = "Oy",
     };
 
     /// <summary>Biznes amallari (endpoint nomi bo'yicha) — <c>audit.operations</c>.</summary>
@@ -293,6 +297,8 @@ internal static class AuditLabels
         ["CreateApiKey"] = "API kalit yaratish",
         ["RevokeApiKey"] = "API kalitni bekor qilish",
         ["RevealEmployeePassword"] = "Xodim parolini ko'rish",
+        ["GetTeamBoard"] = "Jamoa paneli",
+        ["GetTeamMemberAttendance"] = "Jamoa: xodim davomati",
         ["RegenerateEmployeePassword"] = "Xodimga yangi parol",
         ["SetEmployeePassword"] = "Xodim parolini o'rnatish",
         ["SetMobileCheckInAllowed"] = "Telefondan belgilash ruxsati",

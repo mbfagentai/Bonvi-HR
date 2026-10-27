@@ -24,17 +24,20 @@ namespace Bonvi.Application.Catalog.Departments;
 public sealed class CreateDepartmentCommandHandler
 {
     private readonly IDepartmentRepository _departments;
+    private readonly IEmployeeRepository _employees;
     private readonly IReferenceDefinition<Department, DepartmentDto> _definition;
     private readonly IValidator<SaveReferenceCommand> _validator;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateDepartmentCommandHandler(
         IDepartmentRepository departments,
+        IEmployeeRepository employees,
         IReferenceDefinition<Department, DepartmentDto> definition,
         IValidator<SaveReferenceCommand> validator,
         IUnitOfWork unitOfWork)
     {
         _departments = departments;
+        _employees = employees;
         _definition = definition;
         _validator = validator;
         _unitOfWork = unitOfWork;
@@ -59,6 +62,13 @@ public sealed class CreateDepartmentCommandHandler
             {
                 return CatalogErrors.ParentDepartmentNotFound;
             }
+        }
+
+        // Boshliq — mavjud, o'chirilmagan xodim (SPEC-jamoam §E).
+        if (command.HeadEmployeeId is { } headId
+            && !await _employees.ExistsAsync(headId, cancellationToken).ConfigureAwait(false))
+        {
+            return CatalogErrors.HeadEmployeeNotFound;
         }
 
         var taken = await _departments

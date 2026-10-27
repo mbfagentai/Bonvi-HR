@@ -27,17 +27,20 @@ namespace Bonvi.Application.Catalog.Departments;
 public sealed class UpdateDepartmentCommandHandler
 {
     private readonly IDepartmentRepository _departments;
+    private readonly IEmployeeRepository _employees;
     private readonly IReferenceDefinition<Department, DepartmentDto> _definition;
     private readonly IValidator<SaveReferenceCommand> _validator;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateDepartmentCommandHandler(
         IDepartmentRepository departments,
+        IEmployeeRepository employees,
         IReferenceDefinition<Department, DepartmentDto> definition,
         IValidator<SaveReferenceCommand> validator,
         IUnitOfWork unitOfWork)
     {
         _departments = departments;
+        _employees = employees;
         _definition = definition;
         _validator = validator;
         _unitOfWork = unitOfWork;
@@ -60,6 +63,16 @@ public sealed class UpdateDepartmentCommandHandler
         if (department is null)
         {
             return CatalogErrors.DepartmentNotFound;
+        }
+
+        // Boshliq — mavjud, o'chirilmagan xodim (SPEC-jamoam §E). Faqat O'ZGARGANDA tekshiriladi:
+        // forma joriy qiymatni har saqlashda yuboradi, ya'ni keyinroq o'chirilgan boshliq bo'limni
+        // qayta nomlashni to'sib qo'ymasligi kerak.
+        if (command.HeadEmployeeId is { } headId
+            && headId != department.HeadEmployeeId
+            && !await _employees.ExistsAsync(headId, cancellationToken).ConfigureAwait(false))
+        {
+            return CatalogErrors.HeadEmployeeNotFound;
         }
 
         var taken = await _departments

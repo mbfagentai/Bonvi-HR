@@ -47,6 +47,9 @@ public sealed class CatalogWiringTests
         services.AddScoped(_ => Substitute.For<IDepartmentRepository>());
         services.AddScoped(_ => Substitute.For<IPositionRepository>());
 
+        // Bo'lim boshlig'i mavjudligini tekshirish uchun (SPEC-jamoam §E).
+        services.AddScoped(_ => Substitute.For<IEmployeeRepository>());
+
         // Infrastructure buni ochiq generik sifatida ro'yxatga oladi;
         // testda esa har bir tip alohida ko'rsatiladi.
         services.AddScoped(_ => Substitute.For<IReferenceRepository<LegalEntity>>());

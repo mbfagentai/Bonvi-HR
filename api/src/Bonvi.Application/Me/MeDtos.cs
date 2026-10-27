@@ -155,6 +155,11 @@ public sealed record MyAbsenceTypeDto(Guid Id, string Name, bool CountsAsWorkTim
 /// Jadval so'rovidagi tanaffus qoidasi (SPEC-sorov-tahriri §4) — forma uni oldindan tekshiradi; yangi
 /// server doim to'ldiradi, <c>null</c> — eski server.
 /// </param>
+/// <param name="IsTeamLead">
+/// Kamida bitta o'chirilmagan bo'limning boshlig'imi (SPEC-jamoam §C5) — ilova «Jamoa» tabini faqat
+/// shunda ko'rsatadi. Bu faqat KO'RINISH: <c>/api/me/team/*</c> har so'rovda o'zi tekshiradi.
+/// </param>
+/// <param name="Manager">Xodimning «Rahbar»i (§D); topilmasa <c>null</c>.</param>
 public sealed record MeDto(
     Guid EmployeeId,
     string FullName,
@@ -164,4 +169,14 @@ public sealed record MeDto(
     string? Position,
     bool MobileCheckInAllowed,
     IReadOnlyList<MyAbsenceTypeDto> AbsenceTypes,
-    RequestBreakRuleDto? RequestBreakRule = null);
+    RequestBreakRuleDto? RequestBreakRule = null,
+    bool IsTeamLead = false,
+    MyManagerDto? Manager = null);
+
+/// <summary>Xodimning «Rahbar»i — ilova profilidagi qator uchun faqat ism.</summary>
+/// <remarks>
+/// Identifikator ATAYLAB yo'q: ilova rahbarning kartasini ochmaydi, ya'ni unga kerak emas
+/// (HR kartasidagi <c>EmployeeManagerDto</c> dan farqi shu).
+/// </remarks>
+/// <param name="FullName">To'liq ism.</param>
+public sealed record MyManagerDto(string FullName);

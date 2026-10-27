@@ -193,6 +193,16 @@ public static class DependencyInjection
         services.AddScoped<CancelMyScheduleRequestCommandHandler>();
         services.AddScoped<GetMyPlanQueryHandler>();
 
+        // «Jamoam» — bo'lim boshlig'i o'z odamlarining davomatini ko'radi (SPEC-jamoam §C).
+        // Oyna SINGLETON: har so'rovda yangi nusxa bo'lsa, takror yozmaslik ishlamasdi.
+        services.AddSingleton<TeamViewWindow>();
+        services.AddScoped<TeamViewAudit>();
+        services.AddScoped<TeamAccess>();
+        services.AddScoped<GetMyTeamQueryHandler>();
+        services.AddScoped<GetTeamBoardQueryHandler>();
+        services.AddScoped<GetTeamMemberAttendanceQueryHandler>();
+        services.AddScoped<GetTeamMemberPhotoQueryHandler>();
+
         // Ma'lumotnomalar (S2) — o'z ro'yxatini o'zi olib boradi
         services.AddCatalog();
 

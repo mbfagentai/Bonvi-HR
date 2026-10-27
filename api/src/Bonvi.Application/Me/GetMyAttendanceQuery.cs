@@ -83,15 +83,44 @@ public sealed class GetMyAttendanceQueryHandler
             return EmployeeAccountErrors.AccountInactive;
         }
 
+        return await BuildAsync(account.EmployeeId, query.Year, query.Month, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Bitta xodimning oyi — <c>/api/me/attendance</c> ning O'ZI, xodim identifikatori bilan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ Bo'lim boshlig'i a'zoning oyini ham SHU metod orqali oladi
+    /// (SPEC-jamoam §C3): a'zoning oyi uning o'z ilovasidagidek ko'rinishi kerak,
+    /// ikkinchi nusxa esa bir kun kelib boshqacha ko'rsatardi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Ruxsat bu yerda TEKSHIRILMAYDI va oy ham: chaqiruvchi oyni
+    /// (<c>AttendanceQueryParsing.Month</c>) va «bu odamni ko'rishga haqqi borligini»
+    /// o'zi hal qilib bo'lgan bo'lishi shart. Shu sababli metod <c>internal</c> —
+    /// endpoint uni to'g'ridan-to'g'ri chaqira olmaydi.
+    /// </para>
+    /// </remarks>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="year">Yil (tekshirilgan).</param>
+    /// <param name="month">Oy (tekshirilgan).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    internal async Task<MyAttendanceDto> BuildAsync(
+        Guid employeeId,
+        int year,
+        int month,
+        CancellationToken cancellationToken)
+    {
         // Sahifa hajmi 1: filtr bitta xodimga cheklangan, ya'ni natijada
         // ko'pi bilan bitta qator bo'ladi.
         var filter = new TimesheetFilter(
-            query.Year,
-            query.Month,
+            year,
+            month,
             LegalEntityId: null,
             DepartmentId: null,
             PositionId: null,
-            EmployeeId: account.EmployeeId,
+            EmployeeId: employeeId,
             Search: null,
             Page: 1,
             PageSize: 1);
@@ -99,7 +128,7 @@ public sealed class GetMyAttendanceQueryHandler
         var page = await _timesheet.GetTimesheetAsync(filter, cancellationToken).ConfigureAwait(false);
 
         var marks = await _readModel
-            .MarksAsync(account.EmployeeId, filter.MonthStart, filter.MonthEnd, cancellationToken)
+            .MarksAsync(employeeId, filter.MonthStart, filter.MonthEnd, cancellationToken)
             .ConfigureAwait(false);
 
         // Qator yo'q bo'lishi NORMAL holat: odam shu oyda hali ishlamagan
@@ -120,12 +149,12 @@ public sealed class GetMyAttendanceQueryHandler
         // yo'nalishni va joriy smena katagini shundan oladi (MyCurrentState).
         var now = _clock.UtcNow;
         var recent = await _readModel
-            .RecentMarksAsync(account.EmployeeId, now.AddHours(-AttendanceRules.BoardLookbackHours), cancellationToken)
+            .RecentMarksAsync(employeeId, now.AddHours(-AttendanceRules.BoardLookbackHours), cancellationToken)
             .ConfigureAwait(false);
 
         return new MyAttendanceDto(
-            query.Year,
-            query.Month,
+            year,
+            month,
             days,
             row?.Totals ?? EmptyTotals,
             MyCurrentState.From(recent, now, _clock.Today));

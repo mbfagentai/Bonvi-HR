@@ -1,6 +1,7 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Requests;
+using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Identity.EmployeeAccounts;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
@@ -15,9 +16,15 @@ public sealed record GetMeQuery;
 /// <see cref="GetMeQuery"/> ni bajaradi.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Bitta so'rovda ikkita mustaqil narsa qaytadi: profil va yo'qlik turlari
 /// ro'yxati. Sabab <see cref="MeDto"/> izohida — xodim tokenida ruxsat
 /// da'volari yo'q va u ma'lumotnoma endpointiga bora olmaydi.
+/// </para>
+/// <para>
+/// «Boshliqmi» va «Rahbar» (SPEC-jamoam §C5, §D) bitta bo'limlar ro'yxatidan: ikkalasi ham
+/// butun daraxtni talab qiladi, ro'yxat esa yuztacha qator.
+/// </para>
 /// </remarks>
 public sealed class GetMeQueryHandler
 {
@@ -26,6 +33,9 @@ public sealed class GetMeQueryHandler
     private readonly IEmployeeAppReadModel _readModel;
     private readonly IReferenceRepository<AbsenceType> _absenceTypes;
     private readonly RequestBreakRuleReader _breakRule;
+    private readonly IDepartmentRepository _departments;
+    private readonly IEmploymentRepository _employments;
+    private readonly EmployeeManagerResolver _manager;
     private readonly IClock _clock;
 
     public GetMeQueryHandler(
@@ -34,6 +44,9 @@ public sealed class GetMeQueryHandler
         IEmployeeAppReadModel readModel,
         IReferenceRepository<AbsenceType> absenceTypes,
         RequestBreakRuleReader breakRule,
+        IDepartmentRepository departments,
+        IEmploymentRepository employments,
+        EmployeeManagerResolver manager,
         IClock clock)
     {
         _currentEmployee = currentEmployee;
@@ -41,6 +54,9 @@ public sealed class GetMeQueryHandler
         _readModel = readModel;
         _absenceTypes = absenceTypes;
         _breakRule = breakRule;
+        _departments = departments;
+        _employments = employments;
+        _manager = manager;
         _clock = clock;
     }
 
@@ -86,6 +102,13 @@ public sealed class GetMeQueryHandler
         // Tanaffus qoidasi ham shu yerda — xodim tokeni HR endpointiga (`attendance.view`) bora olmaydi.
         var breakRule = await _breakRule.ReadAsync(cancellationToken).ConfigureAwait(false);
 
+        var departments = await _departments.ListAsync(onlyActive: false, cancellationToken).ConfigureAwait(false);
+        var employments = await _employments.GetByEmployeeAsync(account.EmployeeId, cancellationToken).ConfigureAwait(false);
+
+        var manager = await _manager
+            .ResolveAsync(account.EmployeeId, employments, _clock.Today, departments, cancellationToken)
+            .ConfigureAwait(false);
+
         return new MeDto(
             account.EmployeeId,
             profile.FullName,
@@ -95,6 +118,8 @@ public sealed class GetMeQueryHandler
             profile.Position,
             profile.MobileCheckInAllowed,
             absenceTypes,
-            RequestBreakRuleDto.FromRule(breakRule));
+            RequestBreakRuleDto.FromRule(breakRule),
+            TeamScope.Of(account.EmployeeId, departments).IsHead,
+            manager is null ? null : new MyManagerDto(manager.FullName));
     }
 }

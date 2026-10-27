@@ -1087,6 +1087,16 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 cancellationToken)
             .ConfigureAwait(false);
 
+        // Boshliq qamrovi (SPEC-jamoam §C2) — bo'lim filtrining o'zi, bir nechta ildiz bilan.
+        // Bo'sh to'plam bo'sh panel beradi: `Contains` hech kimga rost bo'lmaydi.
+        if (filter.DepartmentRoots is { } roots)
+        {
+            var scope = await BranchUnionAsync(roots, cancellationToken).ConfigureAwait(false);
+
+            covering = covering.Where(employment =>
+                employment.DepartmentId != null && scope.Contains(employment.DepartmentId.Value));
+        }
+
         var coveringEmployeeIds = covering.Select(employment => employment.EmployeeId);
 
         var people = await _context.Employees
@@ -1110,9 +1120,12 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
 
         var populationIds = people.Select(person => person.Id).ToList();
 
-        // Qidiruv sharti barcha ro'yxatlardagi bilan AYNAN bir xil (`EmployeeSearchQuery`).
+        // Qidiruv sharti barcha ro'yxatlardagi bilan AYNAN bir xil (`EmployeeSearchQuery`);
+        // boshliq panelida — JSHSHIR va pasportsiz (`DashboardFilter.SearchNameAndPhoneOnly`).
         HashSet<Guid>? matching = filter.Search is { } search
-            ? [.. await EmployeeSearchQuery.Matching(_context, search)
+            ? [.. await (filter.SearchNameAndPhoneOnly
+                    ? EmployeeSearchQuery.MatchingPublic(_context, search)
+                    : EmployeeSearchQuery.Matching(_context, search))
                 .Where(employee => populationIds.Contains(employee.Id))
                 .Select(employee => employee.Id)
                 .ToListAsync(cancellationToken)
@@ -3496,6 +3509,23 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
             .ConfigureAwait(false);
 
         return [departmentId, .. descendants];
+    }
+
+    /// <summary>Bir nechta ildizning daraxtlari birlashmasi — har biri <see cref="BranchIdsAsync"/> bilan.</summary>
+    /// <remarks>
+    /// Ildiz odatda bitta (bo'lim boshlig'i bitta bo'limni boshqaradi), ya'ni rekursiv
+    /// so'rovlar soni ildizlar soniga teng va amalda bitta.
+    /// </remarks>
+    private async Task<List<Guid>> BranchUnionAsync(IReadOnlyCollection<Guid> roots, CancellationToken cancellationToken)
+    {
+        var union = new HashSet<Guid>();
+
+        foreach (var root in roots)
+        {
+            union.UnionWith(await BranchIdsAsync(root, cancellationToken).ConfigureAwait(false));
+        }
+
+        return [.. union];
     }
 
     /// <summary>Xodimlar ismi va rasmi — o'chirilganlari bilan birga.</summary>

@@ -34,6 +34,15 @@ public static class CatalogErrors
     public static Error ParentDepartmentNotFound { get; } =
         Error.NotFound("bolim.ota_topilmadi", "Ko'rsatilgan ota bo'lim topilmadi.");
 
+    /// <summary>Bo'lim boshlig'i qilib berilgan xodim yo'q yoki o'chirilgan (SPEC-jamoam §E).</summary>
+    /// <remarks>
+    /// <see cref="ErrorType.Validation"/> (400): boshliq — bo'lim formasining maydoni, va noto'g'ri
+    /// qiymat formaning o'zida ko'rsatiladi. Usiz yo'q xodim boshliq bo'lib qolar va «Jamoam»
+    /// eshigini hech kimga ochmasdan jimgina turaverardi.
+    /// </remarks>
+    public static Error HeadEmployeeNotFound { get; } =
+        Error.Validation("bolim.boshliq_topilmadi", "Bo'lim boshlig'i qilib tanlangan xodim topilmadi.");
+
     /// <summary>
     /// Bo'limni o'z avlodiga ko'chirishga urinish — halqa.
     /// </summary>

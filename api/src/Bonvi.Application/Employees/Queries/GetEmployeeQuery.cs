@@ -15,6 +15,7 @@ public sealed class GetEmployeeQueryHandler
     private readonly IProbationRepository _probations;
     private readonly IEmployeeFlagRepository _flags;
     private readonly EmployeeMapper _mapper;
+    private readonly EmployeeManagerResolver _manager;
     private readonly IClock _clock;
 
     public GetEmployeeQueryHandler(
@@ -23,6 +24,7 @@ public sealed class GetEmployeeQueryHandler
         IProbationRepository probations,
         IEmployeeFlagRepository flags,
         EmployeeMapper mapper,
+        EmployeeManagerResolver manager,
         IClock clock)
     {
         _employees = employees;
@@ -30,6 +32,7 @@ public sealed class GetEmployeeQueryHandler
         _probations = probations;
         _flags = flags;
         _mapper = mapper;
+        _manager = manager;
         _clock = clock;
     }
 
@@ -88,10 +91,16 @@ public sealed class GetEmployeeQueryHandler
             .GetTotalActiveRateAsync(employee.Id, cancellationToken)
             .ConfigureAwait(false);
 
+        // Sarlavhadagi «Rahbar: …» (SPEC-jamoam §D) — ilova profilidagi bilan bitta qoida.
+        var manager = await _manager
+            .ResolveAsync(employee.Id, employments, today, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
         return Result.Success(new EmployeeCardDto(
             EmployeeMapper.ToDto(employee),
             cards,
             flagDtos,
-            totalRate));
+            totalRate,
+            manager));
     }
 }

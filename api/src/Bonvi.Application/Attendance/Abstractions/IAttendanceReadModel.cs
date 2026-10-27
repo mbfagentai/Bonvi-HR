@@ -441,6 +441,18 @@ public sealed record BoardFilter(
 /// <param name="Descending">Ism bo'yicha teskari tartib (sukut — A→Z).</param>
 /// <param name="Page">Sahifa, 1 dan.</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
+/// <param name="DepartmentRoots">
+/// Bo'lim boshlig'ining qamrovi (SPEC-jamoam §C2): shu ildizlarning daraxtlari BIRLASHMASI
+/// (har biri ichki bo'limlari bilan, <see cref="DepartmentId"/> dagi ma'noda). <c>null</c> —
+/// cheklov yo'q (HR paneli). ⚠️ BO'SH to'plam — hech kim: «ildiz yo'q» hech qachon «hamma»
+/// degani emas.
+/// </param>
+/// <param name="SearchNameAndPhoneOnly">
+/// Qidiruv FAQAT F.I.Sh. va telefon bo'yicha — JSHSHIR va pasportsiz (tashqi API'dagi
+/// <c>MatchingPublic</c> qoidasi). Bo'lim boshlig'i paneli uchun: aks holda boshliq qo'lidagi
+/// JSHSHIR yoki pasport raqamini yuborib, «bu odam mening jamoamdami» degan savolga javob
+/// olardi — sizib chiqadigan narsa qiymat emas, MOSLIK faktining o'zi.
+/// </param>
 public sealed record DashboardFilter(
     DateOnly Date,
     Guid? LegalEntityId = null,
@@ -450,7 +462,9 @@ public sealed record DashboardFilter(
     AttendanceDashboardStatus? Status = null,
     bool Descending = false,
     int Page = 1,
-    int PageSize = 50)
+    int PageSize = 50,
+    IReadOnlyCollection<Guid>? DepartmentRoots = null,
+    bool SearchNameAndPhoneOnly = false)
 {
     /// <summary>Nechta xodim o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;

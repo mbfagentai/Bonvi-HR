@@ -175,6 +175,11 @@ public sealed record FlaggedEmployeeDto(
     string? Reason,
     bool IsActive);
 
+/// <summary>Xodimning «Rahbar»i — bo'limidan yuqoriga birinchi tirik boshliq (SPEC-jamoam §D).</summary>
+/// <param name="EmployeeId">Rahbar (xodim).</param>
+/// <param name="FullName">To'liq ism.</param>
+public sealed record EmployeeManagerDto(Guid EmployeeId, string FullName);
+
 /// <summary>
 /// Xodim kartasi: shaxs + barcha mehnat munosabatlari + belgilar.
 /// </summary>
@@ -183,8 +188,14 @@ public sealed record FlaggedEmployeeDto(
 /// baribir kerak bo'ladi. Uchta alohida so'rov — uchta kutish va
 /// bir-biriga mos kelmaydigan holat xavfi.
 /// </remarks>
+/// <param name="Employee">Shaxs.</param>
+/// <param name="Employments">Barcha mehnat munosabatlari.</param>
+/// <param name="Flags">Belgilar.</param>
+/// <param name="TotalActiveRate">Faol stavkalar yig'indisi.</param>
+/// <param name="Manager">Sarlavhadagi «Rahbar: …»; topilmasa <c>null</c>.</param>
 public sealed record EmployeeCardDto(
     EmployeeDto Employee,
     IReadOnlyList<EmploymentDto> Employments,
     IReadOnlyList<EmployeeFlagDto> Flags,
-    decimal TotalActiveRate);
+    decimal TotalActiveRate,
+    EmployeeManagerDto? Manager = null);
