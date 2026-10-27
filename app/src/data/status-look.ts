@@ -1,4 +1,4 @@
-import type { AbsenceRequestStatus, AttendanceDayStatus, MarkSource } from '@/api/types'
+import type { AbsenceRequestStatus, AttendanceDayStatus, MarkSource, TeamBoardStatus } from '@/api/types'
 
 /**
  * Holatning ko'rinishi — UX §D.4 jadvalining aynan o'zi.
@@ -50,6 +50,25 @@ export const REQUEST_STATUS_LOOK: Record<AbsenceRequestStatus, StatusLook> = {
   Approved: { labelKey: 'status.approved', dotClass: 'bg-hue-success', tintClass: 'bg-tint-success' },
   Rejected: { labelKey: 'status.rejected', dotClass: 'bg-hue-absent', tintClass: 'bg-tint-absent' },
   Cancelled: { labelKey: 'status.cancelled', dotClass: 'bg-hue-dayoff', tintClass: 'bg-tint-dayoff' },
+}
+
+/**
+ * Jamoa panelidagi holat (SPEC-jamoam §F) — ranglar TAQVIMDAN olinadi, yangi
+ * rang to'qilmaydi: boshliq ko'rgan «Kelmadi» xodimning o'z taqvimidagi
+ * «Kelmadi» bilan bir xil qizil. Kelganlar (vaqtida yoki jadvalsiz) —
+ * `Ishladi` kabi RANGSIZ: rang faqat e'tibor talab qiladigan odamga
+ * sarflanadi; kechikish — taqvimdagi kechikish chizig'ining sariq rangi.
+ */
+export const TEAM_STATUS_LOOK: Record<TeamBoardStatus, StatusLook> = {
+  OnTime: { ...DAY_STATUS_LOOK.Present, labelKey: 'team.status.onTime' },
+  Late: { labelKey: 'team.status.late', dotClass: 'bg-hue-late', tintClass: 'bg-tint-late' },
+  Arrived: { ...DAY_STATUS_LOOK.Present, labelKey: 'team.status.arrived' },
+  Absent: { ...DAY_STATUS_LOOK.Absent, labelKey: 'team.status.absent' },
+  Excused: { ...DAY_STATUS_LOOK.Excused, labelKey: 'team.status.excused' },
+  // Smena hali boshlanmagan — taqvimdagi «Kun kelmagan» kabi sokin
+  NotStarted: { ...DAY_STATUS_LOOK.Planned, labelKey: 'team.status.notStarted' },
+  DayOff: { ...DAY_STATUS_LOOK.DayOff, labelKey: 'team.status.dayOff' },
+  NoSchedule: { ...DAY_STATUS_LOOK.NoSchedule, labelKey: 'team.status.noSchedule' },
 }
 
 /** O'tish manbasi: `Turniket` yoki `Mobil ilova` (UX §F.7). */

@@ -1,8 +1,10 @@
 import clsx from 'clsx'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 
+import { useMe } from '@/data/queries'
+import { onTeamRevoked, readTeamHint, writeTeamHint } from '@/data/team'
 import { useFormat } from '@/lib/format'
 import { useOnline } from '@/lib/use-online'
 import { Icon, type IconName } from './icon'
@@ -17,19 +19,50 @@ import { Icon, type IconName } from './icon'
  * qoldiradi: `pb-tabbar`.
  */
 
-const TABS: Array<{ to: string; labelKey: string; icon: IconName }> = [
+interface Tab {
+  to: string
+  labelKey: string
+  icon: IconName
+}
+
+const TABS: Tab[] = [
   { to: '/', labelKey: 'tab.home', icon: 'home' },
   { to: '/taqvim', labelKey: 'tab.calendar', icon: 'calendar' },
   { to: '/sorovlar', labelKey: 'tab.requests', icon: 'document-text' },
   { to: '/profil', labelKey: 'tab.profile', icon: 'user' },
 ]
 
+/**
+ * «Jamoa» — beshinchi tab, «So'rovlar» va «Profil» orasida, FAQAT bo'lim
+ * boshlig'iga (SPEC-jamoam §F). Boshliq bo'lmagan xodim uchun bu ekran
+ * mavjud emas — «yopiq, sababi …» holati ham emas: unga hech qanday ish
+ * qilib bo'lmaydi va u xodimga tegishli savol ham emas.
+ */
+const TEAM_TAB: Tab = { to: '/jamoa', labelKey: 'tab.team', icon: 'users' }
+
+function tabsFor(isTeamLead: boolean): Tab[] {
+  if (!isTeamLead) return TABS
+  return TABS.slice(0, 3).concat([TEAM_TAB], TABS.slice(3))
+}
+
 export function TabBar() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  // `me` keshdan darhol o'qiladi; tab paneli qayta ulanganda fonda bitta
+  // yangilash ketadi — boshliqlik olib tashlansa tab ham shu yo'l bilan yo'qoladi
+  const me = useMe()
+  const { refetch: refetchMe } = me
+  useEffect(() => onTeamRevoked(refetchMe), [refetchMe])
 
-  const activeTab = TABS.filter((tab) => isTabActive(tab.to, location.pathname))[0] ?? TABS[0]
+  // `me` kelguncha — oldingi ochilishdagi qiymat (tab paneli sakramasin), keyin — serverniki
+  const isTeamLead = me.data ? me.data.isTeamLead === true : readTeamHint()
+  useEffect(() => {
+    if (me.data) writeTeamHint(me.data.isTeamLead === true)
+  }, [me.data])
+
+  const tabs = tabsFor(isTeamLead)
+  const activeTab = tabs.filter((tab) => isTabActive(tab.to, location.pathname))[0] ?? tabs[0]
 
   const go = (to: string): void => {
     if (activeTab && activeTab.to === to) {
@@ -57,7 +90,7 @@ export function TabBar() {
       className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-bg-elevated pb-safe"
     >
       <div className="mx-auto flex w-full max-w-app">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = activeTab === tab
 
           return (

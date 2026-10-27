@@ -7,7 +7,8 @@
     "home": "Asosiy",
     "calendar": "Taqvim",
     "requests": "So‘rovlar",
-    "profile": "Profil"
+    "profile": "Profil",
+    "team": "Jamoa"
   },
   "common": {
     "save": "Saqlash",
@@ -293,6 +294,47 @@
     "swapWith": "{{date}} bilan almashtiriladi",
     "moreItems": "yana {{n}} ta"
   },
+  "team": {
+    "title": "Jamoa",
+    "today": "Bugun",
+    "prevDay": "Oldingi kun",
+    "nextDay": "Keyingi kun",
+    "pickDate": "Sanani tanlang",
+    "pickDateAria": "{{date}}. Boshqa sanani tanlash",
+    "updatedAt": "Yangilandi {{time}}",
+    "department": "Bo‘lim",
+    "allDepartments": "Hammasi",
+    "departmentSheet": "Bo‘limni tanlang",
+    "summaryAria": "Holatlar bo‘yicha",
+    "tileAria": "{{status}}: {{n}}",
+    "search": "Qidirish",
+    "searchPlaceholder": "Ism bo‘yicha qidirish",
+    "listTitle": "Xodimlar · {{n}}",
+    "listTitleEmpty": "Xodimlar",
+    "loadMore": "Ko‘proq",
+    "shownOf": "{{shown}} / {{total}}",
+    "call": "Qo‘ng‘iroq qilish",
+    "callAria": "Qo‘ng‘iroq qilish: {{name}}",
+    "phone": "Telefon",
+    "emptyTitle": "Jamoada hali xodim yo‘q",
+    "emptyText": "Bo‘limingizga xodim biriktirilgach, shu yerda ko‘rinadi.",
+    "notFoundTitle": "Hech kim topilmadi",
+    "notFoundText": "Boshqa holatni tanlang yoki qidiruvni o‘zgartiring.",
+    "clearFilters": "Filtrni tozalash",
+    "notLeadTitle": "Jamoa paneli yopiq",
+    "notLeadText": "Bu bo‘lim faqat bo‘lim boshliqlariga ochiq. Boshliqni HR bo‘limi belgilaydi.",
+    "memberTitle": "Xodim",
+    "status": {
+      "onTime": "Vaqtida",
+      "late": "Kechikdi",
+      "arrived": "Keldi",
+      "absent": "Kelmadi",
+      "excused": "Sababli",
+      "notStarted": "Hali boshlanmagan",
+      "dayOff": "Dam olish",
+      "noSchedule": "Jadval yo‘q"
+    }
+  },
   "profile": {
     "title": "Profil",
     "mobileCheckIn": "Telefondan belgilash",
@@ -302,7 +344,8 @@
     "settings": "Sozlamalar",
     "locationHelp": "Joylashuv ruxsati",
     "signOut": "Chiqish",
-    "noDepartment": "Bo‘lim ko‘rsatilmagan"
+    "noDepartment": "Bo‘lim ko‘rsatilmagan",
+    "manager": "Rahbar"
   },
   "settings": {
     "title": "Sozlamalar",
@@ -498,7 +541,10 @@
     "xodim.bloklangan": "Ko‘p marta noto‘g‘ri urinish. {{minutes}} daqiqadan keyin qayta urinib ko‘ring.",
     "xodim.hisob_faol_emas": "Hisobingiz faol emas. HR bo‘limiga murojaat qiling.",
     "xodim.token_yaroqsiz": "Sessiya tugadi. Qaytadan kiring.",
-    "rate_limit.oshib_ketdi": "So‘rovlar juda ko‘p. {{seconds}} soniyadan keyin qayta urinib ko‘ring."
+    "rate_limit.oshib_ketdi": "So‘rovlar juda ko‘p. {{seconds}} soniyadan keyin qayta urinib ko‘ring.",
+    "jamoa.boshliq_emas": "Siz bo‘lim boshlig‘i emassiz — jamoa paneli yopildi. Savol bo‘lsa, HR bo‘limiga murojaat qiling.",
+    "jamoa.xodim_topilmadi": "Bu xodim tanlangan oyda jamoangizda bo‘lmagan yoki boshqa bo‘limga o‘tgan.",
+    "jamoa.bolim_topilmadi": "Bu bo‘lim endi jamoangizda emas. Butun jamoani ko‘ring."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

@@ -7,7 +7,8 @@
     "home": "Home",
     "calendar": "Calendar",
     "requests": "Requests",
-    "profile": "Profile"
+    "profile": "Profile",
+    "team": "Team"
   },
   "common": {
     "save": "Save",
@@ -293,6 +294,47 @@
     "swapWith": "swapped with {{date}}",
     "moreItems": "{{n}} more"
   },
+  "team": {
+    "title": "Team",
+    "today": "Today",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "pickDate": "Choose a date",
+    "pickDateAria": "{{date}}. Choose another date",
+    "updatedAt": "Updated {{time}}",
+    "department": "Department",
+    "allDepartments": "All",
+    "departmentSheet": "Choose a department",
+    "summaryAria": "By status",
+    "tileAria": "{{status}}: {{n}}",
+    "search": "Search",
+    "searchPlaceholder": "Search by name",
+    "listTitle": "Employees · {{n}}",
+    "listTitleEmpty": "Employees",
+    "loadMore": "Show more",
+    "shownOf": "{{shown}} of {{total}}",
+    "call": "Call",
+    "callAria": "Call {{name}}",
+    "phone": "Phone",
+    "emptyTitle": "No one in your team yet",
+    "emptyText": "Employees appear here once they are assigned to your department.",
+    "notFoundTitle": "No one found",
+    "notFoundText": "Choose another status or change the search.",
+    "clearFilters": "Clear filter",
+    "notLeadTitle": "Team view is closed",
+    "notLeadText": "This section is open to department heads only. The HR department assigns the head.",
+    "memberTitle": "Employee",
+    "status": {
+      "onTime": "On time",
+      "late": "Late",
+      "arrived": "Arrived",
+      "absent": "Absent",
+      "excused": "Excused",
+      "notStarted": "Not started yet",
+      "dayOff": "Day off",
+      "noSchedule": "No schedule"
+    }
+  },
   "profile": {
     "title": "Profile",
     "mobileCheckIn": "Phone check-in",
@@ -302,7 +344,8 @@
     "settings": "Settings",
     "locationHelp": "Location permission",
     "signOut": "Sign out",
-    "noDepartment": "No department given"
+    "noDepartment": "No department given",
+    "manager": "Manager"
   },
   "settings": {
     "title": "Settings",
@@ -498,7 +541,10 @@
     "xodim.bloklangan": "Too many wrong attempts. Try again in {{minutes}} min.",
     "xodim.hisob_faol_emas": "Your account is not active. Contact the HR department.",
     "xodim.token_yaroqsiz": "Your session has ended. Please sign in again.",
-    "rate_limit.oshib_ketdi": "Too many requests. Try again in {{seconds}} s."
+    "rate_limit.oshib_ketdi": "Too many requests. Try again in {{seconds}} s.",
+    "jamoa.boshliq_emas": "You are no longer a department head — the team view is closed. Contact the HR department with any questions.",
+    "jamoa.xodim_topilmadi": "This employee was not in your team in the selected month, or has moved to another department.",
+    "jamoa.bolim_topilmadi": "This department is no longer in your team. Open the whole team."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

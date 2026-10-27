@@ -24,6 +24,7 @@ import {
   maxRequiredMinutes,
   requestBreakProblem,
 } from '@/data/schedule-requests'
+import { readStorage } from '@/lib/storage'
 import { daysBetween, monthKey, todayIso } from '@/lib/time'
 import mockAvatarUrl from './avatar.jpg'
 import {
@@ -42,6 +43,7 @@ import {
   type MockDay,
 } from './data'
 import { readScenario } from './scenario'
+import { mockTeamBoard, mockTeamHasPhoto, mockTeamMemberMonth, mockTeamScope, type MockTeamResult } from './team'
 
 /**
  * Mock server — namoyish va qo'lda sinash uchun (`VITE_API_MODE=mock`).
@@ -189,6 +191,23 @@ function mobileAllowed(): boolean {
 }
 
 /**
+ * Mock xodim boshliqmi (SPEC-jamoam §F). Sukut — ha; boshliq BO'LMAGAN
+ * xodimni ko'rish uchun brauzer konsolidan:
+ *     localStorage.setItem('bonvi.ilova.boshliq', 'yoq'); location.reload()
+ */
+function isTeamLead(): boolean {
+  return readStorage('bonvi.ilova.boshliq') !== 'yoq'
+}
+
+/** Jamoa javobi — boshliq bo'lmasa server kabi 403 `jamoa.boshliq_emas`. */
+function teamReply<T>(result: () => MockTeamResult<T>): Promise<T> {
+  if (!isTeamLead()) return fail(MIN_DELAY_MS, rejected(403, 'jamoa.boshliq_emas'))
+
+  const reply = result()
+  return reply.ok ? delay(reply.value) : fail(MIN_DELAY_MS, rejected(reply.status, reply.code))
+}
+
+/**
  * Oy jami — server kabi: kataklardagi rejalar (erkin kunda «Ish vaqti»),
  * ishlangan va «Kam ishlangan» daqiqalar yig'indisi.
  */
@@ -239,6 +258,7 @@ export const mockApi: EmployeeApi = {
       ...MOCK_ME,
       mobileCheckInAllowed: mobileAllowed(),
       absenceTypes: MOCK_ABSENCE_TYPES,
+      isTeamLead: isTeamLead(),
     }
 
     return delay(me)
@@ -490,6 +510,21 @@ export const mockApi: EmployeeApi = {
   },
 
   getPlan: (date) => delay(planOf(date)),
+
+  getTeam: () => teamReply(() => ({ ok: true, value: mockTeamScope() })),
+
+  getTeamBoard: (query) => teamReply(() => mockTeamBoard(query)),
+
+  getTeamMemberMonth: (employeeId, year, month) => teamReply(() => mockTeamMemberMonth(employeeId, year, month)),
+
+  // Hamma rasmli a'zoga bitta namuna rasm — namoyish uchun yetarli
+  getTeamMemberPhoto: (employeeId) =>
+    isTeamLead() && mockTeamHasPhoto(employeeId)
+      ? window
+          .fetch(mockAvatarUrl)
+          .then((response) => (response.ok ? response.blob() : null))
+          .catch(() => null)
+      : Promise.resolve(null),
 }
 
 /**

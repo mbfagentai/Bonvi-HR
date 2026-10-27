@@ -8,7 +8,7 @@ import { useMyPhoto } from '@/data/photo'
 import { useMe } from '@/data/queries'
 import { TabScreen } from '@/ui/app-shell'
 import { Avatar } from '@/ui/avatar'
-import { Card } from '@/ui/card'
+import { Card, CardRow } from '@/ui/card'
 import { ErrorState, Skeleton, SkeletonLines } from '@/ui/feedback'
 import { ListGroup, ListRow } from '@/ui/list'
 import { ConfirmSheet } from '@/ui/sheet'
@@ -58,6 +58,14 @@ export function ProfileScreen() {
           </div>
         ) : null}
       </Card>
+
+      {/* «Rahbar» (SPEC-jamoam §D) — bo'limlar zanjiri bo'ylab birinchi boshliq;
+          topilmasa qator umuman yo'q: «Rahbar: —» xodimga hech narsa demaydi */}
+      {me.data && me.data.manager ? (
+        <Card>
+          <CardRow label={t('profile.manager')} value={me.data.manager.fullName} />
+        </Card>
+      ) : null}
 
       <Card>
         {me.isLoading ? (

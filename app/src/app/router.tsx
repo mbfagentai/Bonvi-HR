@@ -22,6 +22,8 @@ import { RequestsScreen } from '@/screens/requests'
 import { ScheduleRequestDetailScreen } from '@/screens/schedule-request-detail'
 import { ScheduleRequestNewScreen } from '@/screens/schedule-request-new'
 import { SettingsScreen } from '@/screens/settings'
+import { TeamScreen } from '@/screens/team'
+import { TeamMemberScreen } from '@/screens/team-member'
 import { TabBar } from '@/ui/app-shell'
 import { useSession } from './session'
 import { UpdateToast } from './update'
@@ -64,6 +66,9 @@ export function AppRouter() {
             <Route path="/" element={<HomeScreen />} />
             <Route path="/taqvim" element={<CalendarScreen />} />
             <Route path="/sorovlar" element={<RequestsScreen />} />
+            {/* Bo'lim boshlig'ining jamoasi (SPEC-jamoam §F) — tabi faqat boshliqqa
+                ko'rinadi; manzil ochilsa ham ekran o'zi `me.isTeamLead` ni tekshiradi */}
+            <Route path="/jamoa" element={<TeamScreen />} />
             <Route path="/profil" element={<ProfileScreen />} />
           </Route>
 
@@ -78,6 +83,8 @@ export function AppRouter() {
               yaratish formasi, `:id` bo'lgani uchun tahrir rejimida ochiladi. */}
           <Route path="/sorovlar/jadval/:id/ozgartirish" element={<ScheduleRequestNewScreen />} />
           <Route path="/sorovlar/:id/ozgartirish" element={<RequestNewScreen />} />
+          {/* Jamoa a'zosining oyi — `?oy=YYYY-MM&kun=` taqvimdagidek */}
+          <Route path="/jamoa/:employeeId" element={<TeamMemberScreen />} />
           <Route path="/profil/sozlamalar" element={<SettingsScreen />} />
           <Route path="/joylashuv" element={<LocationHelpScreen />} />
         </Route>

@@ -2,9 +2,10 @@ import clsx from 'clsx'
 
 /**
  * Yagona nishon to'plami — chiziqli uslub, 24 px, qalinlik 1.5
- * (UX §E.8). Yigirma ikkita nishon: UX dagi o'n beshta va «So'rov turini
+ * (UX §E.8). Yigirma to'rtta nishon: UX dagi o'n beshta, «So'rov turini
  * tanlang» varag'ining yettitasi (SPEC-erkin-jadval §7.2 — Verifix'dagi
- * sakkiz turning rasmlariga yaqin, `map-pin` umumiy). Yangisi kerak bo'lsa,
+ * sakkiz turning rasmlariga yaqin, `map-pin` umumiy) va «Jamoa» ning ikkitasi
+ * (SPEC-jamoam §F — tab va qo'ng'iroq). Yangisi kerak bo'lsa,
  * avval ekranning o'zi haqiqatan yangimi — shu savol.
  *
  * ⚠️ Nishon HECH QACHON amalning yagona yorlig'i bo'lmaydi (UX §H.3):
@@ -34,6 +35,9 @@ export type IconName =
   | 'briefcase-clock'
   | 'user-minus'
   | 'beach-umbrella'
+  // «Jamoa» (SPEC-jamoam §F): tab va a'zoga qo'ng'iroq
+  | 'users'
+  | 'phone'
 
 const PATHS: Record<IconName, string> = {
   home: 'M3 10.5 12 3l9 7.5M5.5 9.5V20h13V9.5M9.5 20v-6h5v6',
@@ -75,6 +79,12 @@ const PATHS: Record<IconName, string> = {
   // «Ta'til» — plyaj soyaboni
   'beach-umbrella':
     'M3 11a9 8 0 0 1 18 0M3 11c1-1 2-1.3 3-1.3s2 .3 3 1.3c1-1 2-1.3 3-1.3s2 .3 3 1.3c1-1 2-1.3 3-1.3s2 .3 3 1.3M12 3c-2 2-3 4.5-3 8M12 3c2 2 3 4.5 3 8M12 9.7v10.8M6 20.5h12',
+  // «Jamoa» tabi — `user` ning o'zi, orqasida ikkinchi odam
+  users:
+    'M9.5 11.75a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5ZM3 20c0-3.3 2.9-5 6.5-5s6.5 1.7 6.5 5M15 5.4a3 3 0 0 1 0 6.1M17.5 15.1c2.1.6 3.5 2.2 3.5 4.9',
+  // Qo'ng'iroq — go'shak
+  phone:
+    'M3 6.75c0 7.87 6.38 14.25 14.25 14.25h1.5a2.25 2.25 0 0 0 2.25-2.25v-1.2c0-.52-.35-.97-.85-1.09l-3.6-.9c-.44-.11-.9.05-1.17.42l-.79 1.05a1.13 1.13 0 0 1-1.21.38 11.3 11.3 0 0 1-6.29-6.29 1.13 1.13 0 0 1 .38-1.21l1.05-.79c.37-.27.53-.73.42-1.17l-.9-3.6A1.13 1.13 0 0 0 6.95 3H5.25A2.25 2.25 0 0 0 3 5.25v1.5Z',
 }
 
 interface IconProps {

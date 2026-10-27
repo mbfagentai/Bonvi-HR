@@ -10,6 +10,10 @@ import type {
   MeDto,
   PagedResult,
   ScheduleChangeRequestDto,
+  TeamBoardDto,
+  TeamBoardQuery,
+  TeamMemberAttendanceDto,
+  TeamScopeDto,
 } from './types'
 
 /**
@@ -77,4 +81,45 @@ export const realApi: EmployeeApi = {
     request<void>(`/api/me/schedule-requests/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
 
   getPlan: (date) => request<DayPlanDto>(`/api/me/plan?date=${encodeURIComponent(date)}`),
+
+  getTeam: () => request<TeamScopeDto>('/api/me/team'),
+
+  getTeamBoard: (query) => request<TeamBoardDto>(`/api/me/team/board?${boardParams(query)}`),
+
+  getTeamMemberMonth: (employeeId, year, month) =>
+    request<TeamMemberAttendanceDto>(
+      `/api/me/team/members/${encodeURIComponent(employeeId)}/attendance?year=${year}&month=${month}`,
+    ),
+
+  getTeamMemberPhoto: (employeeId) =>
+    request<Blob | null>(`/api/me/team/members/${encodeURIComponent(employeeId)}/photo`, {
+      as: 'blob',
+    }).catch((cause: unknown) => {
+      // Rasmsiz a'zo (`xodim.rasm_yoq`) va qamrovdan chiqqan a'zo
+      // (`jamoa.xodim_topilmadi`) — ikkalasi ham 404, ikkalasida ham bosh harflar.
+      if (cause instanceof ApiError && cause.status === 404) return null
+      throw cause
+    }),
+}
+
+/**
+ * Panel so'rovining kalitlari. Bo'sh qiymat UMUMAN yuborilmaydi: `date`
+ * yo'q — bugun (Toshkent sanasini server qo'yadi, telefon soati emas),
+ * `departmentId` yo'q — butun qamrov.
+ */
+function boardParams(query: TeamBoardQuery): string {
+  const parts: string[] = []
+  const add = (key: string, value: string | number | null): void => {
+    if (value === null || value === '') return
+    parts.push(`${key}=${encodeURIComponent(String(value))}`)
+  }
+
+  add('date', query.date)
+  add('departmentId', query.departmentId)
+  add('status', query.status)
+  add('search', query.search.trim())
+  add('page', query.page)
+  add('pageSize', query.pageSize)
+
+  return parts.join('&')
 }

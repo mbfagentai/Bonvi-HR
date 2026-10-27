@@ -88,6 +88,10 @@ const APP_CODES = [
   'davomat.sorov_ozgargan',
   'davomat.jadval_sorovi_tanaffus_oraligi',
   'davomat.jadval_sorovi_tanaffus_davomiyligi',
+  // Bo'lim boshlig'ining jamoasi (`/api/me/team/*`, SPEC-jamoam §C)
+  'jamoa.boshliq_emas',
+  'jamoa.xodim_topilmadi',
+  'jamoa.bolim_topilmadi',
 ]
 
 /** Lotin yozuvidagi matnda ASCII apostrof bo'lmasligi kerak. */

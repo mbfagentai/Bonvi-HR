@@ -60,6 +60,9 @@ export const MOCK_ME: MeDto = {
   absenceTypes: MOCK_ABSENCE_TYPES,
   // Kompaniya qoidasi — server sukutlari (SPEC-sorov-tahriri §2.2)
   requestBreakRule: { from: '12:00:00', to: '15:00:00', minutes: 60, fridayMaxMinutes: 120 },
+  // Mock xodim — o'z bo'limining boshlig'i (`mock/team.ts`), ustida zavod direktori (SPEC-jamoam §D)
+  isTeamLead: true,
+  manager: { fullName: 'Karimov Jasur Anvarovich' },
 }
 
 /**

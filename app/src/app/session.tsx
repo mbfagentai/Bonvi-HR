@@ -11,6 +11,7 @@ import {
 import { api } from '@/api/client'
 import { sessionStore } from '@/api/session-store'
 import { clearPhotoCache } from '@/data/photo'
+import { clearTeamCache } from '@/data/team'
 import { clearQueryCache } from '@/lib/use-query'
 import { readStorage, writeStorage } from '@/lib/storage'
 
@@ -54,6 +55,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // xodim navbat bilan kirishi mumkin.
       clearQueryCache()
       clearPhotoCache()
+      clearTeamCache()
 
       sessionStore.setTokens(result)
 
@@ -69,6 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionStore.clear()
     clearQueryCache()
     clearPhotoCache()
+    clearTeamCache()
 
     // Serverdagi sessiya ham yopiladi — javob kutilmaydi: internet yo'q
     // bo'lsa ham odam darhol chiqadi (token 7 kundan keyin o'zi o'ladi).

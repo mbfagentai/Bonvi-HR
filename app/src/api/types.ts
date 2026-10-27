@@ -94,6 +94,131 @@ export interface MeDto {
    * oldin ogohlantiradi. Eski server — yo'q: tekshiruv faqat serverda.
    */
   requestBreakRule?: RequestBreakRuleDto | null
+  /**
+   * Xodim kamida bitta bo'limning boshlig'i (SPEC-jamoam §C5) — «Jamoa»
+   * tabi faqat shunda ko'rinadi. Eski server — yo'q (tab ham yo'q).
+   */
+  isTeamLead?: boolean
+  /** Xodimning «Rahbar»i (SPEC-jamoam §D); `null` — topilmadi. Eski server — yo'q. */
+  manager?: MyManagerDto | null
+}
+
+/** `MeDto.manager` — faqat ism: ilova rahbarning kartasini ochmaydi. */
+export interface MyManagerDto {
+  fullName: string
+}
+
+/**
+ * Jamoa panelidagi odamning shu kundagi holati — HR paneli
+ * (`AttendanceDashboardStatus`) bilan AYNAN bir xil to'plam. Simda — enum NOMI.
+ */
+export type TeamBoardStatus =
+  | 'OnTime'
+  | 'Late'
+  | 'Absent'
+  | 'NotStarted'
+  | 'DayOff'
+  | 'NoSchedule'
+  | 'Excused'
+  | 'Arrived'
+
+/** Boshliq qamrovidagi bitta bo'lim — `GET /api/me/team` (SPEC-jamoam §C1). */
+export interface TeamDepartmentDto {
+  id: string
+  name: string
+  /** «Ishlab chiqarish / 1-smena» — to'liq yo'l. */
+  path: string | null
+  /** Ierarxiyadagi chuqurlik: 0 — eng yuqori. */
+  level: number
+  parentId: string | null
+}
+
+/** `GET /api/me/team` — qamrov, daraxt tartibida tekislangan. */
+export interface TeamScopeDto {
+  departments: TeamDepartmentDto[]
+}
+
+/** Holatlar bo'yicha sanoq — qidiruv va holat filtridan OLDINGI to'plam (`total` bilan bir xil). */
+export interface TeamBoardCountsDto {
+  onTime: number
+  late: number
+  absent: number
+  notStarted: number
+  dayOff: number
+  noSchedule: number
+  excused: number
+  arrived: number
+}
+
+/**
+ * Paneldagi bitta xodim. ⚠️ Faqat davomat va telefon: rasm KALITI, JSHSHIR,
+ * pasport, oklad va boshqa HR maydonlari bu yerga ATAYLAB kelmaydi (§C2).
+ */
+export interface TeamBoardItemDto {
+  employeeId: string
+  fullName: string
+  /** Rasmning o'zi `GET /api/me/team/members/{id}/photo` dan. */
+  hasPhoto: boolean
+  positionName: string | null
+  departmentName: string | null
+  /** Kunning birinchi kirishi (UTC); `null` — o'tish yo'q. */
+  arrivedAt: string | null
+  /** Oxirgi chiqish (UTC); `null` — chiqish yo'q. */
+  leftAt: string | null
+  status: TeamBoardStatus
+  /** Faqat `Late` da: reja boshlanishidan kelgan lahzagacha daqiqalar. */
+  lateMinutes: number | null
+  /** `leftAt` haqiqiy chiqish emas — jadvalsiz kunning avtomatik «ketdi»si. */
+  leftAuto: boolean
+  /** Asosiy telefon — ilovadagi boshqa joylar kabi formatlangan; yo'q bo'lsa `null`. */
+  phone: string | null
+}
+
+/** `GET /api/me/team/board` — HR panelining o'sha hisobi, boshliq qamrovida. */
+export interface TeamBoardDto {
+  /** Qaysi Toshkent sanasi. */
+  date: string
+  isToday: boolean
+  /** Server holatlarni hisoblagan lahza — «yangilandi HH:mm». */
+  asOf: string
+  /** To'plamdagi odamlar (bo'lim filtridan keyin, qidiruv va holatdan oldin). */
+  total: number
+  counts: TeamBoardCountsDto
+  items: TeamBoardItemDto[]
+  page: number
+  pageSize: number
+  /** Qidiruv va holatdan keyingi qatorlar soni. */
+  totalItems: number
+  pageCount: number
+}
+
+/** Panel so'rovi. `date: null` — bugun (sanani server o'zi qo'yadi). */
+export interface TeamBoardQuery {
+  date: string | null
+  departmentId: string | null
+  status: TeamBoardStatus | null
+  search: string
+  page: number
+  pageSize: number
+}
+
+/** Jamoa a'zosi — oy ekranining sarlavhasi uchun (SPEC-jamoam §C3). */
+export interface TeamMemberDto {
+  employeeId: string
+  fullName: string
+  hasPhoto: boolean
+  positionName: string | null
+  departmentName: string | null
+  phone: string | null
+}
+
+/**
+ * `GET /api/me/team/members/{id}/attendance?year&month` — `attendance`
+ * `/api/me/attendance` ning AYNAN o'zi: a'zoning oyi uning o'z ilovasidagidek.
+ */
+export interface TeamMemberAttendanceDto {
+  employee: TeamMemberDto
+  attendance: AttendanceMonthDto
 }
 
 /** Kun ichidagi bitta belgi — `MyMarkDto`. */

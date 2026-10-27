@@ -7,7 +7,8 @@
     "home": "Главная",
     "calendar": "Календарь",
     "requests": "Заявки",
-    "profile": "Профиль"
+    "profile": "Профиль",
+    "team": "Команда"
   },
   "common": {
     "save": "Сохранить",
@@ -293,6 +294,47 @@
     "swapWith": "меняется с {{date}}",
     "moreItems": "ещё {{n}}"
   },
+  "team": {
+    "title": "Команда",
+    "today": "Сегодня",
+    "prevDay": "Предыдущий день",
+    "nextDay": "Следующий день",
+    "pickDate": "Выберите дату",
+    "pickDateAria": "{{date}}. Выбрать другую дату",
+    "updatedAt": "Обновлено в {{time}}",
+    "department": "Отдел",
+    "allDepartments": "Все",
+    "departmentSheet": "Выберите отдел",
+    "summaryAria": "По статусам",
+    "tileAria": "{{status}}: {{n}}",
+    "search": "Поиск",
+    "searchPlaceholder": "Поиск по имени",
+    "listTitle": "Сотрудники · {{n}}",
+    "listTitleEmpty": "Сотрудники",
+    "loadMore": "Показать ещё",
+    "shownOf": "{{shown}} из {{total}}",
+    "call": "Позвонить",
+    "callAria": "Позвонить: {{name}}",
+    "phone": "Телефон",
+    "emptyTitle": "В команде пока нет сотрудников",
+    "emptyText": "Сотрудники появятся здесь, когда их прикрепят к вашему отделу.",
+    "notFoundTitle": "Никого не найдено",
+    "notFoundText": "Выберите другой статус или измените поиск.",
+    "clearFilters": "Сбросить фильтр",
+    "notLeadTitle": "Панель команды закрыта",
+    "notLeadText": "Этот раздел открыт только руководителям отделов. Руководителя назначает отдел HR.",
+    "memberTitle": "Сотрудник",
+    "status": {
+      "onTime": "Вовремя",
+      "late": "Опоздание",
+      "arrived": "Явка",
+      "absent": "Неявка",
+      "excused": "По причине",
+      "notStarted": "Рабочий день не начался",
+      "dayOff": "Выходной",
+      "noSchedule": "Нет графика"
+    }
+  },
   "profile": {
     "title": "Профиль",
     "mobileCheckIn": "Отметка с телефона",
@@ -302,7 +344,8 @@
     "settings": "Настройки",
     "locationHelp": "Разрешение на геолокацию",
     "signOut": "Выйти",
-    "noDepartment": "Отдел не указан"
+    "noDepartment": "Отдел не указан",
+    "manager": "Руководитель"
   },
   "settings": {
     "title": "Настройки",
@@ -498,7 +541,10 @@
     "xodim.bloklangan": "Слишком много неверных попыток. Повторите через {{minutes}} мин.",
     "xodim.hisob_faol_emas": "Ваша учётная запись неактивна. Обратитесь в отдел HR.",
     "xodim.token_yaroqsiz": "Сессия завершена. Войдите заново.",
-    "rate_limit.oshib_ketdi": "Слишком много запросов. Повторите через {{seconds}} с."
+    "rate_limit.oshib_ketdi": "Слишком много запросов. Повторите через {{seconds}} с.",
+    "jamoa.boshliq_emas": "Вы больше не руководитель отдела — панель команды закрыта. По вопросам обратитесь в отдел HR.",
+    "jamoa.xodim_topilmadi": "Этот сотрудник не был в вашей команде в выбранном месяце или перешёл в другой отдел.",
+    "jamoa.bolim_topilmadi": "Этот отдел больше не входит в вашу команду. Откройте всю команду."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

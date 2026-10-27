@@ -9,19 +9,22 @@ import clsx from 'clsx'
  * ko'rinish ham to'liq huquqli: bosh harflar, tashlandiq nishoncha
  * emas.
  *
- * O'lchamlar SANOQLI (32 va 64 px): Tailwind sinflari build paytida
+ * O'lchamlar SANOQLI (32, 40 va 64 px): Tailwind sinflari build paytida
  * topilishi kerak, runtime'da yasalgan sinf nomi tozalagichdan
- * o'tmaydi va uslubsiz qolardi.
+ * o'tmaydi va uslubsiz qolardi. 40 px — jamoa ro'yxati qatori: boshliq
+ * odamni YUZIDAN taniydi, 32 px da yuz ko'rinmaydi.
  */
-type AvatarSize = 'sm' | 'lg'
+type AvatarSize = 'sm' | 'md' | 'lg'
 
 const BOX: Record<AvatarSize, string> = {
   sm: 'h-8 w-8',
+  md: 'h-10 w-10',
   lg: 'h-16 w-16',
 }
 
 const TEXT: Record<AvatarSize, string> = {
   sm: 'text-footnote',
+  md: 'text-subhead',
   lg: 'text-title3',
 }
 

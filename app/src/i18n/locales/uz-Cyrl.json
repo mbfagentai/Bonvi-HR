@@ -7,7 +7,8 @@
     "home": "Асосий",
     "calendar": "Тақвим",
     "requests": "Сўровлар",
-    "profile": "Профил"
+    "profile": "Профил",
+    "team": "Жамоа"
   },
   "common": {
     "save": "Сақлаш",
@@ -293,6 +294,47 @@
     "swapWith": "{{date}} билан алмаштирилади",
     "moreItems": "яна {{n}} та"
   },
+  "team": {
+    "title": "Жамоа",
+    "today": "Бугун",
+    "prevDay": "Олдинги кун",
+    "nextDay": "Кейинги кун",
+    "pickDate": "Санани танланг",
+    "pickDateAria": "{{date}}. Бошқа санани танлаш",
+    "updatedAt": "Янгиланди {{time}}",
+    "department": "Бўлим",
+    "allDepartments": "Ҳаммаси",
+    "departmentSheet": "Бўлимни танланг",
+    "summaryAria": "Ҳолатлар бўйича",
+    "tileAria": "{{status}}: {{n}}",
+    "search": "Қидириш",
+    "searchPlaceholder": "Исм бўйича қидириш",
+    "listTitle": "Ходимлар · {{n}}",
+    "listTitleEmpty": "Ходимлар",
+    "loadMore": "Кўпроқ",
+    "shownOf": "{{shown}} / {{total}}",
+    "call": "Қўнғироқ қилиш",
+    "callAria": "Қўнғироқ қилиш: {{name}}",
+    "phone": "Телефон",
+    "emptyTitle": "Жамоада ҳали ходим йўқ",
+    "emptyText": "Бўлимингизга ходим бириктирилгач, шу ерда кўринади.",
+    "notFoundTitle": "Ҳеч ким топилмади",
+    "notFoundText": "Бошқа ҳолатни танланг ёки қидирувни ўзгартиринг.",
+    "clearFilters": "Филтрни тозалаш",
+    "notLeadTitle": "Жамоа панели ёпиқ",
+    "notLeadText": "Бу бўлим фақат бўлим бошлиқларига очиқ. Бошлиқни HR бўлими белгилайди.",
+    "memberTitle": "Ходим",
+    "status": {
+      "onTime": "Вақтида",
+      "late": "Кечикди",
+      "arrived": "Келди",
+      "absent": "Келмади",
+      "excused": "Сабабли",
+      "notStarted": "Ҳали бошланмаган",
+      "dayOff": "Дам олиш",
+      "noSchedule": "Жадвал йўқ"
+    }
+  },
   "profile": {
     "title": "Профил",
     "mobileCheckIn": "Телефондан белгилаш",
@@ -302,7 +344,8 @@
     "settings": "Созламалар",
     "locationHelp": "Жойлашув рухсати",
     "signOut": "Чиқиш",
-    "noDepartment": "Бўлим кўрсатилмаган"
+    "noDepartment": "Бўлим кўрсатилмаган",
+    "manager": "Раҳбар"
   },
   "settings": {
     "title": "Созламалар",
@@ -498,7 +541,10 @@
     "xodim.bloklangan": "Кўп марта нотўғри уриниш. {{minutes}} дақиқадан кейин қайта уриниб кўринг.",
     "xodim.hisob_faol_emas": "Ҳисобингиз фаол эмас. HR бўлимига мурожаат қилинг.",
     "xodim.token_yaroqsiz": "Сессия тугади. Қайтадан киринг.",
-    "rate_limit.oshib_ketdi": "Сўровлар жуда кўп. {{seconds}} сониядан кейин қайта уриниб кўринг."
+    "rate_limit.oshib_ketdi": "Сўровлар жуда кўп. {{seconds}} сониядан кейин қайта уриниб кўринг.",
+    "jamoa.boshliq_emas": "Сиз бўлим бошлиғи эмассиз — жамоа панели ёпилди. Савол бўлса, HR бўлимига мурожаат қилинг.",
+    "jamoa.xodim_topilmadi": "Бу ходим танланган ойда жамоангизда бўлмаган ёки бошқа бўлимга ўтган.",
+    "jamoa.bolim_topilmadi": "Бу бўлим энди жамоангизда эмас. Бутун жамоани кўринг."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

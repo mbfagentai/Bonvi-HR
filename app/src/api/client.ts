@@ -14,6 +14,10 @@ import type {
   MeDto,
   PagedResult,
   ScheduleChangeRequestDto,
+  TeamBoardDto,
+  TeamBoardQuery,
+  TeamMemberAttendanceDto,
+  TeamScopeDto,
   UpdateAbsenceRequest,
   UpdateScheduleChangeRequest,
 } from './types'
@@ -69,6 +73,18 @@ export interface EmployeeApi {
   cancelScheduleRequest: (id: string) => Promise<void>
   /** `GET /api/me/plan?date=YYYY-MM-DD` — sananing amaldagi rejasi. */
   getPlan: (date: string) => Promise<DayPlanDto>
+  /**
+   * `GET /api/me/team` — boshliqning qamrovi (SPEC-jamoam §C1). Boshliq
+   * bo'lmasa 403 `jamoa.boshliq_emas`. Qamrovni SERVER hisoblaydi — ilova
+   * «qaysi bo'limlarni ko'raman» degan narsani hech qachon yubormaydi.
+   */
+  getTeam: () => Promise<TeamScopeDto>
+  /** `GET /api/me/team/board?date&departmentId&status&search&page&pageSize` — bitta sahifa. */
+  getTeamBoard: (query: TeamBoardQuery) => Promise<TeamBoardDto>
+  /** `GET /api/me/team/members/{id}/attendance?year&month` — 404 `jamoa.xodim_topilmadi`. */
+  getTeamMemberMonth: (employeeId: string, year: number, month: number) => Promise<TeamMemberAttendanceDto>
+  /** `GET /api/me/team/members/{id}/photo` — rasm yo'q bo'lsa `null`. */
+  getTeamMemberPhoto: (employeeId: string) => Promise<Blob | null>
 }
 
 /** Qaysi amalga oshirish ulangan — ekranlar faqat sinov belgisi uchun o'qiydi. */
