@@ -1267,6 +1267,12 @@ public static class BotTexts
     };
 
     /// <summary>20-qadam: ish haqida qayerdan bilgan.</summary>
+    /// <remarks>
+    /// Tugmalar SERVERDAN — «Qayerdan bilgan» ma'lumotnomasining faol kanallari, nomi
+    /// saqlanganidek (SPEC-qayerdan-bilgan §5). Kirill tilida ham shunday: loyihada lotindan
+    /// kirillga o'giruvchi yordamchi yo'q va brend nomlari («Telegram», «OLX.uz») baribir
+    /// o'girilmaydi (<see cref="InstagramButton"/> izohi).
+    /// </remarks>
     public static string AskReferralSource(BotLanguage language) => language switch
     {
         BotLanguage.Cyrillic => "📣 Иш ҳақида қаердан билдингиз?",
@@ -1274,43 +1280,48 @@ public static class BotTexts
         _ => "📣 Ish haqida qayerdan bildingiz?",
     };
 
-    /// <summary>Manbaning tugmadagi va xulosadagi nomi.</summary>
+    /// <summary>
+    /// 20a-qadam: tanlangan kanal aniqlik so'raydi («Tanishlar orqali» — kim?).
+    /// </summary>
     /// <remarks>
-    /// Brend nomlari («Instagram», «OLX.uz», «hh.uz», «Telegram»)
-    /// TARJIMA QILINMAYDI — sabab <see cref="InstagramButton"/> izohida.
+    /// Kanal nomi savolning ichida: nomzod nimani aniqlashtirayotganini ko'radi. «O'tkazib
+    /// yuborish» tugmasi YO'Q — server bu aniqlikni majburiy qiladi
+    /// (<c>qayerdan.izoh_majburiy</c>).
     /// </remarks>
-    public static string ReferralLabel(BotLanguage language, ReferralAnswer answer) => language switch
+    public static string AskReferralDetail(BotLanguage language, string channel) => language switch
     {
-        BotLanguage.Cyrillic => answer switch
-        {
-            ReferralAnswer.Acquaintance => "Танишлар орқали",
-            ReferralAnswer.SocialNetwork => "Instagram, Facebook",
-            ReferralAnswer.Olx => "OLX.uz",
-            ReferralAnswer.HeadHunter => "hh.uz",
-            ReferralAnswer.Telegram => "Telegram",
-            ReferralAnswer.Other => "Бошқа манба",
-            _ => string.Empty,
-        },
-        BotLanguage.Russian => answer switch
-        {
-            ReferralAnswer.Acquaintance => "От знакомых",
-            ReferralAnswer.SocialNetwork => "Instagram, Facebook",
-            ReferralAnswer.Olx => "OLX.uz",
-            ReferralAnswer.HeadHunter => "hh.uz",
-            ReferralAnswer.Telegram => "Telegram",
-            ReferralAnswer.Other => "Другой источник",
-            _ => string.Empty,
-        },
-        _ => answer switch
-        {
-            ReferralAnswer.Acquaintance => "Tanishlar orqali",
-            ReferralAnswer.SocialNetwork => "Instagram, Facebook",
-            ReferralAnswer.Olx => "OLX.uz",
-            ReferralAnswer.HeadHunter => "hh.uz",
-            ReferralAnswer.Telegram => "Telegram",
-            ReferralAnswer.Other => "Boshqa manba",
-            _ => string.Empty,
-        },
+        BotLanguage.Cyrillic =>
+            $"✍️ «{Escape(channel)}» — аниқлаштиринг: ким тавсия қилди ёки қайси манба?\n\n"
+            + "Масалан: <i>Рустамов Баҳодир, омборчи</i>",
+        BotLanguage.Russian =>
+            $"✍️ «{Escape(channel)}» — уточните: кто порекомендовал или какой источник?\n\n"
+            + "Например: <i>Рустамов Баходир, кладовщик</i>",
+        _ =>
+            $"✍️ «{Escape(channel)}» — aniqlashtiring: kim tavsiya qildi yoki qaysi manba?\n\n"
+            + "Masalan: <i>Rustamov Bahodir, omborchi</i>",
+    };
+
+    /// <summary>
+    /// 20-qadam tugmalarini chizib bo'lmadi — server kanallar ro'yxatini bermadi.
+    /// </summary>
+    /// <remarks>
+    /// Kanallar serverdagi ma'lumotnomada (SPEC-qayerdan-bilgan §5) va ular botda qattiq
+    /// yozilmagan: API bir lahzaga javob bermasa, nomzod savolsiz qolmasin — bitta tugma
+    /// savolni qayta so'raydi, javoblar esa joyida.
+    /// </remarks>
+    public static string ReferralUnavailable(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "⚠️ Рўйхатни ҳозир юклаб бўлмади. Бир оздан кейин «Қайта уриниш» тугмасини босинг.",
+        BotLanguage.Russian => "⚠️ Не удалось загрузить список. Через минуту нажмите «Повторить».",
+        _ => "⚠️ Ro‘yxatni hozir yuklab bo‘lmadi. Birozdan keyin «Qayta urinish» tugmasini bosing.",
+    };
+
+    /// <summary>«Qayta urinish» — 20-qadam savolini qayta chizadi.</summary>
+    public static string RetryButton(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic => "🔄 Қайта уриниш",
+        BotLanguage.Russian => "🔄 Повторить",
+        _ => "🔄 Qayta urinish",
     };
 
     /// <summary>

@@ -103,7 +103,15 @@ public sealed class AnketaOqimiTests
         await bot.PressAsync("sal:From2To3Million");
         bot.Last.Text.ShouldBe(BotTexts.AskReferralSource(Uz));
 
-        await bot.PressAsync("src:Telegram");
+        // Tugmalar serverdagi «Qayerdan bilgan» ma'lumotnomasidan, o'sha tartibda
+        bot.Last.Buttons.ShouldBe(
+        [
+            BotHarness.Referral(BotHarness.OlxChannel),
+            BotHarness.Referral(BotHarness.AcquaintanceChannel),
+            BotHarness.Referral(BotHarness.TelegramChannel),
+        ]);
+
+        await bot.PressAsync(BotHarness.Referral(BotHarness.TelegramChannel));
         bot.Last.Text.ShouldBe(BotTexts.Offer(Uz, "https://mbf.uz/oferta"));
 
         await bot.PressAsync("offer");
@@ -144,7 +152,11 @@ public sealed class AnketaOqimiTests
         form.GetProperty("maritalStatus").GetString().ShouldBe("Married");
         form.GetProperty("russianLevel").GetString().ShouldBe("Advanced");
         form.GetProperty("expectedSalary").GetString().ShouldBe("From2To3Million");
-        form.GetProperty("referralSource").GetString().ShouldBe("Telegram");
+
+        // «Qayerdan bilgan» — nomzodning O'Z maydoni, anketa blokida emas (SPEC-qayerdan-bilgan §5)
+        body.GetProperty("referralChannelId").GetGuid().ShouldBe(BotHarness.TelegramChannel);
+        body.TryGetProperty("referralDetail", out _).ShouldBeFalse("kanal aniqlik so'ramaydi — maydon yuborilmaydi");
+        form.TryGetProperty("referralSource", out _).ShouldBeFalse("eski sanoq maydoni endi yo'q");
         form.GetProperty("hasDriverLicense").GetBoolean().ShouldBeTrue();
         form.GetProperty("driverLicenseCategories").GetString().ShouldBe("BC");
         form.GetProperty("offerAcceptedAt").GetDateTimeOffset().ShouldBeGreaterThan(default);
@@ -257,7 +269,7 @@ public sealed class AnketaOqimiTests
         await bot.PressAsync("lic:no");
         await bot.PressAsync("skip");
         await bot.PressAsync("sal:From2To3Million");
-        await bot.PressAsync("src:Telegram");
+        await bot.PressAsync(BotHarness.Referral(BotHarness.TelegramChannel));
         await bot.PressAsync("offer");
         await bot.PressAsync("submit");
 
@@ -293,7 +305,7 @@ public sealed class AnketaOqimiTests
         await bot.PressAsync("lic:no");
         await bot.PressAsync("skip");
         await bot.PressAsync("sal:From1To2Million");
-        await bot.PressAsync("src:Olx");
+        await bot.PressAsync(BotHarness.Referral(BotHarness.OlxChannel));
         await bot.PressAsync("offer");
 
         var summary = bot.Last.Text;
@@ -376,7 +388,8 @@ public sealed class AnketaOqimiTests
         bot.OfferUrl = string.Empty;
 
         await ReachReferralAsync(bot);
-        await bot.PressAsync("src:Acquaintance");
+        await bot.PressAsync(BotHarness.Referral(BotHarness.AcquaintanceChannel));
+        await bot.TextAsync("Rustamov Bahodir");
 
         // 21-qadam yo'q — to'g'ridan-to'g'ri yakuniy tasdiq.
         bot.Last.Text.ShouldContain(BotTexts.ConfirmQuestion(Uz));
@@ -417,7 +430,8 @@ public sealed class AnketaOqimiTests
         using var bot = New(withVacancy: false);
 
         await ReachReferralAsync(bot);
-        await bot.PressAsync("src:Acquaintance");
+        await bot.PressAsync(BotHarness.Referral(BotHarness.AcquaintanceChannel));
+        await bot.TextAsync("Rustamov Bahodir");
 
         bot.Last.Text.ShouldBe(BotTexts.Offer(Uz, "https://mbf.uz/oferta"));
 
@@ -607,7 +621,7 @@ public sealed class AnketaOqimiTests
     }
 
     /// <summary>20-qadamgacha (manba) olib boradi.</summary>
-    private static async Task ReachReferralAsync(BotHarness bot)
+    internal static async Task ReachReferralAsync(BotHarness bot)
     {
         await ReachDriverLicenseAsync(bot);
         await bot.PressAsync("lic:no");
@@ -660,7 +674,7 @@ public sealed class AnketaOqimiTests
         }
 
         await bot.PressAsync("sal:From2To3Million");
-        await bot.PressAsync("src:Telegram");
+        await bot.PressAsync(BotHarness.Referral(BotHarness.TelegramChannel));
         await bot.PressAsync("offer");
     }
 }

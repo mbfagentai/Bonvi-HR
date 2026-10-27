@@ -1,3 +1,4 @@
+using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Identity.EmployeeAuth;
 
@@ -67,7 +68,7 @@ public static class EmployeeAuthEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new EmployeeLoginCommand(request.Login, request.Password, ClientIp(http)),
+                        new EmployeeLoginCommand(request.Login, request.Password, MijozIp(http)),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -95,7 +96,7 @@ public static class EmployeeAuthEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new EmployeeRefreshCommand(request.RefreshToken, ClientIp(http)),
+                        new EmployeeRefreshCommand(request.RefreshToken, MijozIp(http)),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -124,7 +125,7 @@ public static class EmployeeAuthEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new EmployeeLogoutCommand(request.RefreshToken, ClientIp(http)), cancellationToken)
+                    .HandleAsync(new EmployeeLogoutCommand(request.RefreshToken, MijozIp(http)), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -147,12 +148,12 @@ public static class EmployeeAuthEndpoints
         return app;
     }
 
-    /// <summary>Mijozning haqiqiy IP manzili.</summary>
+    /// <summary>Mijozning haqiqiy IP manzili — kirish to'sig'i kaliti va sessiya yozuviga.</summary>
     /// <remarks>
-    /// Caddy orqasida <c>ForwardedHeaders</c> middleware'i uni allaqachon
-    /// to'g'rilagan — bu yerda tayyor qiymat o'qiladi (<c>AuthEndpoints</c>
-    /// dagi bilan bir xil).
+    /// <see cref="ClientIp"/> dan (<c>AuthEndpoints</c> dagi bilan bir xil, SPEC-planshet-anketa
+    /// §2.3.3). Ilgari prod'da Cloudflare chekkasi edi: «bitta login bitta IP dan 5 xato → 15 daqiqa»
+    /// to'sig'i bir chekkadan kelgan begona odamlarni ham birga to'sardi.
     /// </remarks>
-    private static string? ClientIp(HttpContext http)
-        => http.Connection.RemoteIpAddress?.ToString();
+    private static string? MijozIp(HttpContext http)
+        => ClientIp.Resolve(http)?.ToString();
 }

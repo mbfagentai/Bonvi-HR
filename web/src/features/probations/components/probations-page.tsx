@@ -20,7 +20,11 @@ import {
   EMPLOYMENT_HIRE,
   EMPLOYMENT_PROBATION_COMPLETE,
   EMPLOYMENT_PROBATION_EXTEND,
+  EMPLOYMENT_VIEW,
+  REPORTS_EXPORT,
 } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   NO_DATE_RANGE,
@@ -39,7 +43,7 @@ import {
   Button,
   Card,
   DataTable,
-  DateField,
+  DateRangeField,
   EmptyState,
   Pagination,
   IconTile,
@@ -53,8 +57,10 @@ import {
 
 import {
   PROBATION_STATUSES,
+  probationListParams,
   type ProbationFilters,
   type ProbationItem,
+  type ProbationListFilters,
   type ProbationStatus,
 } from '../api/probations-api'
 import { WARNING_DAYS, useEndingSoon, useProbations } from '../api/probations-queries'
@@ -113,6 +119,9 @@ export function ProbationsPage() {
    */
   const canHire = hasPermission(EMPLOYEES_CREATE) && hasPermission(EMPLOYMENT_HIRE)
 
+  // Eksport — ro'yxatni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = hasPermission(EMPLOYMENT_VIEW) && hasPermission(REPORTS_EXPORT)
+
   const search = route.useSearch()
   const navigate = route.useNavigate()
 
@@ -163,14 +172,18 @@ export function ProbationsPage() {
    */
   const rangeInvalid = isDateRangeInverted(range)
 
-  const filters: ProbationFilters = {
+  /*
+    Filtr sahifasiz — ro'yxat ham, Excel eksporti ham AYNAN shundan
+    (`employees-page.tsx` dagi `listFilters` naqshi).
+  */
+  const listFilters: ProbationListFilters = {
     status,
     search: search.q ?? '',
     from: range.from,
     to: range.to,
-    page,
-    pageSize,
   }
+
+  const filters: ProbationFilters = { ...listFilters, page, pageSize }
 
   /** Oraliq o'zgarsa birinchi sahifadan — 3-sahifa yangi natijada bo'sh bo'lishi mumkin. */
   const changeRange = (next: DateRange) => {
@@ -202,6 +215,9 @@ export function ProbationsPage() {
   })
 
   const list = useProbations(filters, !rangeInvalid)
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
   const warning = useEndingSoon()
 
   /*
@@ -236,21 +252,17 @@ export function ProbationsPage() {
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
         /*
-          Aniq kenglik yo'q edi — ustun brauzer xohlagancha torayardi.
-          Hisob-kitob: 300px − katak to'ldirishi (`px-4` = 32px) = 268px;
-          rasm (`size="lg"` = 48px) + `gap-3` (12px) = 60px; qolgan
-          ~208px matnga — bitta qatorli ism (~26 belgi) va ostidagi
-          lavozim qatori (~32 belgi, kichikroq shriftda) shu joyga
-          sig'adi. Uzunroq ism/lavozim uchida uchta nuqta bilan kesiladi
-          (`truncate-1`), bu boshqa matn ustunlaridagi kabi qabul
-          qilingan yechim.
+          ⭐ BIR QATOR (egasi 2026-10-22): rasm va to'liq ism bir chiziqda,
+          lavozim — o'z ustunida. Ilgari lavozim ism ostida ikkinchi qator
+          bo'lib, ism esa 300px da kesilardi — bitta odam ikki odamlik joy
+          olardi. Endi ustun eng uzun ismgacha kengayadi (`DataTable` —
+          `whitespace-nowrap`).
         */
-        meta: { width: '300px' },
         cell: ({ row }) => {
           const item = row.original
 
           return (
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex items-center gap-3">
               {/*
                 Rasm shu yerda ham ko'rsatiladi: HR xodimni ismidan emas,
                 yuzidan taniydi va ro'yxatdan ro'yxatga o'tganda bir xil
@@ -260,73 +272,75 @@ export function ProbationsPage() {
                 employeeId={item.employeeId}
                 photoKey={item.photoKey}
                 name={item.employeeName}
-                size="lg"
+                size="md"
               />
 
-              <div className="min-w-0">
-                <p className="truncate-1 font-medium">{item.employeeName}</p>
-                {item.position !== null && (
-                  <p className="truncate-1 mt-0.5 text-caption1 text-[var(--fg-tertiary)]">
-                    {item.position}
-                  </p>
-                )}
-              </div>
+              <span className="font-medium">{item.employeeName}</span>
             </div>
           )
         },
       }),
 
+      helper.accessor('position', {
+        header: t('employee.position'),
+        enableSorting: false,
+        // Juda uzun lavozim «…» bilan (to'liq nomi `title` da) — aks holda harakat tugmalari ekrandan chiqadi
+        meta: { maxWidth: '260px' },
+        cell: ({ getValue }) => <Muted value={getValue()} />,
+      }),
+
       helper.accessor('department', {
         header: t('employee.department'),
         enableSorting: false,
-        // 216px — xodimlar ro'yxatidagi shu ustun bilan bir xil qiymat:
-        // bo'lim nomi bir xil katalogdan keladi, demak bir xil joy kerak.
-        meta: { width: '216px', hideOnMobile: true },
+        meta: { maxWidth: '260px', hideOnMobile: true },
         cell: ({ getValue }) => <Muted value={getValue()} />,
       }),
 
       helper.accessor('startDate', {
         header: t('probation.startDate'),
-        meta: { width: '130px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ getValue }) => <DateText value={getValue()} />,
       }),
 
       helper.accessor('endDate', {
         header: t('probation.endDate'),
-        meta: { width: '130px' },
         cell: ({ getValue }) => <DateText value={getValue()} />,
       }),
 
       helper.accessor('daysLeft', {
         header: t('probation.daysLeft'),
         /*
-          150px ikkinchi qatorga tushirardi: muddati o'tgan holat oddiy
-          "12 kun" emas, to'liq jumla — ruscha "просрочено на 12 дн."
-          belgi bilan birga eng uzun matn. 210px shu jumlani bir qatorda
-          ushlab turadi, qolgan holatlar (qisqa "N kun") esa erkin joy
-          qoladi.
+          Kenglik mazmundan: muddati o'tgan holat oddiy "12 kun" emas,
+          to'liq jumla — ruscha "просрочено на 12 дн." belgi bilan. Katak
+          qatorga bo'linmaydi, ustun shu jumlagacha kengayadi.
         */
-        meta: { width: '210px' },
         cell: ({ row }) => <DaysLeft item={row.original} />,
       }),
 
-      helper.accessor('status', {
-        header: t('employee.status'),
-        meta: { width: '150px' },
-        cell: ({ row }) => (
-          <Badge tone={STATUS_TONE[row.original.status]} size="sm">
-            {t(`probation.status.${row.original.status}`)}
-          </Badge>
-        ),
-      }),
+      /*
+        Holat ustuni — faqat «Barcha holatlar» filtrida. Bitta holat tanlanganda
+        (sukut — «Davom etmoqda») u har qatorda bir xil yorliq: ortiqcha
+        ma'lumot (egasi 2026-10-22).
+      */
+      ...(status === ''
+        ? [
+            helper.accessor('status', {
+              header: t('employee.status'),
+              cell: ({ row }) => (
+                <Badge tone={STATUS_TONE[row.original.status]} size="sm">
+                  {t(`probation.status.${row.original.status}`)}
+                </Badge>
+              ),
+            }),
+          ]
+        : []),
 
       helper.display({
         id: 'actions',
         header: '',
-        // 210px — ikkita tugma yonma-yon: "Uzaytirish"/"Продлить" va
-        // "Yakunlash"/"Завершить". Ruscha va o'zbekcha kirill juftligi
-        // eng keng, 190px ularni bir-biriga qisib qo'yardi.
-        meta: { width: '210px', align: 'end' },
+        // Kenglik mazmundan: ikkala tugma yonma-yon, katak qatorga bo'linmaydi
+        // (`DataTable`) — qat'iy 210px yakunlangan muddatlar sahifasida bo'sh turardi
+        meta: { align: 'end' },
         cell: ({ row }) => {
           const item = row.original
 
@@ -361,7 +375,7 @@ export function ProbationsPage() {
         },
       }),
     ],
-    [canExtend, canComplete, t],
+    [canExtend, canComplete, status, t],
   )
 
   return (
@@ -438,6 +452,7 @@ export function ProbationsPage() {
           </div>
 
           <Select
+            size="sm"
             options={statusOptions}
             value={status}
             onChange={(event) => {
@@ -467,39 +482,55 @@ export function ProbationsPage() {
               </span>
             )}
           </Button>
+
+          {/*
+            Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+            alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+          */}
+          {hasDateRange(range) && (
+            <Button
+              type="button"
+              pill
+              variant="ghost"
+              title={t('employees.clearFilters')}
+              aria-label={t('employees.clearFilters')}
+              onClick={() => changeRange(NO_DATE_RANGE)}
+            >
+              <X />
+              <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+            </Button>
+          )}
+
+          {/* Eksport — «Filtrlar» yonida: fayl aynan shu qidiruv, holat va oraliqqa tushadi */}
+          {canExport && (
+            <ListExportButton
+              onClick={() =>
+                exportList.mutate({
+                  path: '/api/probations/export',
+                  params: probationListParams(listFilters),
+                  slug: 'sinov_muddati',
+                })
+              }
+              pending={exportList.isPending}
+              disabled={rangeInvalid}
+            />
+          )}
         </div>
 
         {rangeOpen && (
           <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {/* Oraliq sinov TUGASH sanasi bo'yicha (`endDate`) — yorliq shuni aytadi */}
-              <DateField
-                label={t('probation.endFrom')}
-                value={range.from}
-                max={range.to === '' ? undefined : range.to}
-                onChange={(value) => changeRange({ ...range, from: value })}
-              />
-              <DateField
-                label={t('probation.endTo')}
-                value={range.to}
-                min={range.from === '' ? undefined : range.from}
-                onChange={(value) => changeRange({ ...range, to: value })}
+              <DateRangeField
+                label={t('dateRange.probationEnd')}
+                fromLabel={t('probation.endFrom')}
+                toLabel={t('probation.endTo')}
+                from={range.from}
+                to={range.to}
+                onFromChange={(value) => changeRange({ ...range, from: value })}
+                onToChange={(value) => changeRange({ ...range, to: value })}
               />
             </div>
-
-            {hasDateRange(range) && (
-              <div className="mt-3.5 flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => changeRange(NO_DATE_RANGE)}
-                >
-                  <X />
-                  {t('employees.clearFilters')}
-                </Button>
-              </div>
-            )}
           </div>
         )}
 
@@ -508,6 +539,8 @@ export function ProbationsPage() {
             <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
           </div>
         )}
+
+        <ListExportError error={exportList.error} />
 
         <DataTable
           fill
@@ -578,7 +611,7 @@ export function ProbationsPage() {
 
 function Muted({ value }: { value: string | null }) {
   if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-  return <span className="truncate-1 text-[var(--fg-secondary)]">{value}</span>
+  return <span className="text-[var(--fg-secondary)]">{value}</span>
 }
 
 function DateText({ value }: { value: string | null }) {

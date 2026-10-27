@@ -5,8 +5,16 @@ import { useCallback, useMemo, type ReactNode } from 'react'
 import { useAuth } from '@/features/auth'
 import type { MoneyValue } from '@/features/employees/api/employees-api'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
-import { EVENT_LOOK, SALARY_VIEW } from '@/features/employees/lib/employee-presentation'
+import {
+  EMPLOYMENT_VIEW,
+  EVENT_LOOK,
+  REPORTS_EXPORT,
+  SALARY_VIEW,
+} from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportError } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { isDateRangeInverted } from '@/shared/lib/list-search'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Card,
@@ -19,7 +27,11 @@ import {
   SegmentedControl,
   type DataColumn,
 } from '@/shared/ui'
-import type { EmploymentEventItem } from '../api/employments-api'
+import {
+  employmentEventListParams,
+  type EmploymentEventItem,
+  type EmploymentEventListFilters,
+} from '../api/employments-api'
 import { useEmploymentEvents, useFilterOptions } from '../api/employments-queries'
 import {
   filtersToSearch,
@@ -65,6 +77,8 @@ export function EmploymentEventsPage() {
   const { t, num } = useLocale()
   const { hasPermission } = useAuth()
   const canSeeSalary = hasPermission(SALARY_VIEW)
+  // Eksport — ro'yxatni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = hasPermission(EMPLOYMENT_VIEW) && hasPermission(REPORTS_EXPORT)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -74,16 +88,27 @@ export function EmploymentEventsPage() {
   const filters = useMemo(() => searchToFilters(search), [search])
   const options = useFilterOptions()
 
-  const query = useEmploymentEvents({
+  /*
+    Filtr sahifasiz — ro'yxat ham, Excel eksporti ham AYNAN shundan
+    (`employees-page.tsx` dagi `listFilters` naqshi).
+  */
+  const listFilters: EmploymentEventListFilters = {
     search: filters.search,
     type: filters.type === '' ? undefined : filters.type,
     from: filters.from === '' ? undefined : filters.from,
     to: filters.to === '' ? undefined : filters.to,
     departmentId: filters.departmentId === '' ? undefined : filters.departmentId,
     legalEntityId: filters.legalEntityId === '' ? undefined : filters.legalEntityId,
-    page,
-    pageSize,
-  })
+  }
+
+  const query = useEmploymentEvents({ ...listFilters, page, pageSize })
+
+  /*
+    Excelga yuklash. Teskari oraliqda tugma bosilmaydi — server fayl o'rniga
+    400 qaytarardi. Xato mutatsiyada qoladi (`employees-page.tsx` izohi).
+  */
+  const exportList = useListExport()
+  const exportDisabled = isDateRangeInverted(filters)
 
   /** Standart holatda `replace` — filtr aniqlashtirish, alohida qadam emas. */
   const setSearch = useCallback(
@@ -133,21 +158,20 @@ export function EmploymentEventsPage() {
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
         /*
-          Boshqa ro'yxatlar (flags, probations) bilan BIR XIL 300px:
-          300px − katak to'ldirishi (px-4 × 2 = 32px) = 268px; − rasm
-          (size="lg" = 48px) − oraliq (gap-3 = 12px) = 208px sof matnga.
-          Uch ro'yxatda bir xil odam bir xil kenglikda ko'rinsin.
+          ⭐ BIR QATOR (egasi 2026-10-22): rasm va to'liq ism bir chiziqda,
+          ism kesilmaydi — ustun eng uzun ismgacha kengayadi (`DataTable` —
+          `whitespace-nowrap`). Boshqa ro'yxatlar (flags, probations) bilan
+          bir xil ko'rinish.
         */
-        meta: { width: '300px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-3">
             <EmployeePhoto
               employeeId={row.original.employeeId}
               photoKey={row.original.photoKey}
               name={row.original.employeeName}
-              size="lg"
+              size="md"
             />
-            <p className="truncate-1 font-medium">{row.original.employeeName}</p>
+            <span className="font-medium">{row.original.employeeName}</span>
           </div>
         ),
       }),
@@ -155,24 +179,15 @@ export function EmploymentEventsPage() {
       helper.accessor('type', {
         header: t('employments.type'),
         enableSorting: false,
-        /*
-          216px. Hisob: katak to'ldirishi (32px) + IconTile "sm" (32px) +
-          oraliq (gap-2.5 = 10px) = 74px xizmat uchun, 142px matnga qoladi.
-          Eng uzun tarjima — o'zbekcha «Lavozim o'zgarishi» / «Qayta ishga
-          qabul» (18 belgi). Sarlavha kichik shriftda (`text-caption2`,
-          uppercase, tracking-wider) bo'lgani uchun sig'adi; matn esa
-          `text-subhead` (~8px/belgi) da 142px ga ~17-18 belgi sig'adi —
-          chetki holatlar `truncate-1` + `title` bilan qoplanadi.
-        */
-        meta: { width: '216px' },
+        // Kenglik mazmundan: eng uzun tarjima («Lavozim o'zgarishi») ham bir qatorda
         cell: ({ row }) => {
           const look = EVENT_LOOK[row.original.type]
           const label = t(`employees.events.${row.original.type}`)
 
           return (
-            <span className="flex min-w-0 items-center gap-2.5" title={label}>
+            <span className="flex items-center gap-2.5">
               <IconTile icon={look.icon} tone={look.tone} size="sm" />
-              <span className="truncate-1 text-subhead">{label}</span>
+              <span className="text-subhead">{label}</span>
             </span>
           )
         },
@@ -196,8 +211,8 @@ export function EmploymentEventsPage() {
         // odatda qisqa qator, uzun sarlavhaga o'ralib ketmasin.
         header: t('employees.orderShort'),
         enableSorting: false,
-        // 130px: erkin matn (HR qo'lda kiritadi), uzunroq qiymatlar
-        // `truncate-1` + `title` bilan qoplanadi.
+        // 130px — pastki chegara: erkin matn (HR qo'lda kiritadi), uzunrog'i
+        // ustunni kengaytiradi, qatorga bo'linmaydi.
         meta: { width: '130px' },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
@@ -218,7 +233,8 @@ export function EmploymentEventsPage() {
           YAGONA `minWidth`li ustun — qoidaga ko'ra jadvalda bittadan
           ortiq bo'lmasligi kerak. Bo'lim, lavozim, oklad va izoh —
           uzunligi oldindan noma'lum matnlar, shu sababli ortgan joyni
-          aynan shu ustun oladi (`data-table.tsx` qoidasi).
+          aynan shu ustun oladi (`data-table.tsx` qoidasi). Hammasi BIR
+          qatorda (`DetailsCell`).
         */
         meta: { minWidth: '260px' },
         cell: ({ row }) => (
@@ -266,7 +282,25 @@ export function EmploymentEventsPage() {
       />
 
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
-        <EmploymentsToolbar filters={filters} onChange={changeFilters} options={options} />
+        <EmploymentsToolbar
+          filters={filters}
+          onChange={changeFilters}
+          options={options}
+          onExport={
+            canExport
+              ? () =>
+                  exportList.mutate({
+                    path: '/api/employments/events/export',
+                    params: employmentEventListParams(listFilters),
+                    slug: 'buyruqlar',
+                  })
+              : undefined
+          }
+          exporting={exportList.isPending}
+          exportDisabled={exportDisabled}
+        />
+
+        <ListExportError error={exportList.error} />
 
         <DataTable
           fill
@@ -315,11 +349,7 @@ export function EmploymentEventsPage() {
 /** Bo'sh katak chiziqcha bilan — «yuklanmadimi?» degan savol tug'ilmasin. */
 function TextCell({ value }: { value: string | null }) {
   if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-  return (
-    <span className="truncate-1 text-[var(--fg-secondary)]" title={value}>
-      {value}
-    </span>
-  )
+  return <span className="text-[var(--fg-secondary)]">{value}</span>
 }
 
 function DateCell({ value }: { value: string | null }) {
@@ -334,8 +364,10 @@ function DateCell({ value }: { value: string | null }) {
  * har bir hodisa turi bularning faqat bir qismini to'ldiradi
  * (`employee-timeline-tab.tsx` dagi lentaning ixcham ko'rinishi).
  *
- * Ko'pi bilan IKKITA qator: qator ichida ustun kengligi cheklangan,
- * uchinchisi bo'lganda ham ekran «to'lib toshgan» taassurot bermasin.
+ * Ko'pi bilan IKKITA qism, BITTA qatorda nuqta bilan ajratilgan (egasi
+ * 2026-10-22: jadval qatori bir qator). O'zgarish qiymatlari to'liq —
+ * «Lavozim o'zgarganlar» tabida aynan «eski → yangi» kerak; faqat izoh
+ * (erkin matn) 280px da kesiladi, to'lig'i `title` da.
  */
 function DetailsCell({
   event,
@@ -381,7 +413,7 @@ function DetailsCell({
           to={event.toSalary}
         />
       ) : (
-        <span key="salary" className="truncate-1 text-caption1 text-[var(--fg-tertiary)]">
+        <span key="salary" className="text-caption1 text-[var(--fg-tertiary)]">
           {t('employees.salaryHiddenShort')}
         </span>
       ),
@@ -392,7 +424,7 @@ function DetailsCell({
     lines.push(
       <span
         key="note"
-        className="truncate-1 text-caption1 text-[var(--fg-secondary)]"
+        className="block max-w-[280px] truncate text-caption1 text-[var(--fg-secondary)]"
         title={event.note}
       >
         {event.note}
@@ -402,16 +434,26 @@ function DetailsCell({
 
   if (lines.length === 0) return <span className="text-[var(--fg-tertiary)]">—</span>
 
-  return <div className="space-y-0.5">{lines.slice(0, 2)}</div>
+  const [first, second] = lines
+  return (
+    <div className="flex items-center gap-2">
+      {first}
+      {second !== undefined && (
+        <>
+          <span aria-hidden className="text-[var(--fg-tertiary)]">·</span>
+          {second}
+        </>
+      )}
+    </div>
+  )
 }
 
 function ChangeLine({ label, from, to }: { label: string; from: string | null; to: string }) {
   return (
-    // `truncate-1` (-webkit-box) `flex` bilan to'qnashib qiymatni butunlay yashirardi — qator `flex`,
-    // qiymat esa oddiy bir qatorli `truncate`, to'liq matn `title` da
-    <p className="flex min-w-0 items-baseline gap-1 text-footnote" title={`${label}: ${from !== null ? `${from} → ` : ''}${to}`}>
-      <span className="shrink-0 text-[var(--fg-tertiary)]">{label}:</span>
-      <span className="min-w-0 truncate font-medium">
+    // Qiymat to'liq — katak qatorga bo'linmaydi, ustun kengayadi (`DataTable`)
+    <p className="flex items-baseline gap-1 text-footnote">
+      <span className="text-[var(--fg-tertiary)]">{label}:</span>
+      <span className="font-medium">
         {from !== null && `${from} → `}
         {to}
       </span>
@@ -434,9 +476,9 @@ function MoneyChangeLine({
   const toText = money(to.amount, to.currency)
 
   return (
-    <p className="tabular flex min-w-0 items-baseline gap-1 text-footnote">
-      <span className="shrink-0 text-[var(--fg-tertiary)]">{label}:</span>
-      <span className="min-w-0 truncate font-medium">
+    <p className="tabular flex items-baseline gap-1 text-footnote">
+      <span className="text-[var(--fg-tertiary)]">{label}:</span>
+      <span className="font-medium">
         {fromText !== null && fromText !== toText && `${fromText} → `}
         {toText}
       </span>

@@ -102,7 +102,8 @@ export function PassSnapshot({
 }
 
 /**
- * Juftlik: turniket surati + xodim rasmi (48 px).
+ * Juftlik: turniket surati + xodim rasmi (40 px — jadval qatori bir qatorli,
+ * egasi 2026-10-22).
  *
  * Moslanmagan o'tishda o'ng tomonda bosh harflar EMAS, «noma'lum shaxs»
  * belgisi turadi: bosh harflar uchun ism kerak, ism esa yo'q — va
@@ -113,23 +114,23 @@ export function PassFacePair({ pass }: { pass: AttendancePass }) {
 
   return (
     <span className="flex items-center gap-2">
-      <PassSnapshot pass={pass} />
+      <PassSnapshot pass={pass} className="size-10" />
 
       {pass.employeeId === null ? (
         <span
           role="img"
           aria-label={t('attendance.unknownPerson')}
           title={t('attendance.unknownPerson')}
-          className="grid size-12 shrink-0 place-items-center rounded-full border border-dashed border-[var(--border-strong)] text-[var(--fg-tertiary)]"
+          className="grid size-10 shrink-0 place-items-center rounded-full border border-dashed border-[var(--border-strong)] text-[var(--fg-tertiary)]"
         >
-          <UserSearch className="size-5" strokeWidth={1.8} />
+          <UserSearch className="size-[18px]" strokeWidth={1.8} />
         </span>
       ) : (
         <EmployeePhoto
           employeeId={pass.employeeId}
           photoKey={pass.employeePhotoKey}
           name={pass.employeeName ?? ''}
-          size="lg"
+          size="md"
         />
       )}
     </span>
@@ -180,7 +181,7 @@ export function PassFlags({ pass }: { pass: AttendancePass }) {
   }
 
   return (
-    <span className="flex flex-wrap items-center gap-1.5">
+    <span className="flex items-center gap-1.5">
       {pass.skewWarning && (
         <Badge
           tone="warning"

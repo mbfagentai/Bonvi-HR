@@ -79,6 +79,10 @@ builder.Services.Configure<BootstrapOptions>(
     builder.Configuration.GetSection(BootstrapOptions.SectionName));
 builder.Services.AddHostedService<DatabaseInitializer>();
 
+// Onlayn anketaning bot tekshiruvi: faqat bitta kalit berilgan bo'lsa (tekshiruv o'chiq qoladi) —
+// ishga tushishda ogohlantirish (SPEC-planshet-anketa §2.3.2).
+builder.Services.AddHostedService<TurnstileStartupCheck>();
+
 // ---------- Fon vazifalari ----------
 // Hangfire serveri + navbat porti; `Testing` da — sinxron navbat, server yo'q.
 // Bazani tayyorlagichdan KEYIN: xost xizmatlari ro'yxat tartibida ishga
@@ -333,6 +337,11 @@ if (app.Configuration.GetValue(EmployeeAppEnabledKey, defaultValue: true))
 app.MapPipelineStageEndpoints();
 app.MapVacancyEndpoints();
 app.MapCandidateEndpoints();
+
+// Nomzod anketasi HR-F02: ochiq onlayn forma (login ham, kalit ham yo'q — ofis
+// plansheti va nomzodning o'z telefoni) va nomzod kartasidagi anketa PDF'i
+// (SPEC-planshet-anketa).
+app.MapKioskEndpoints();
 
 // Bildirishnomalar — yuqori paneldagi qo'ng'iroq. Bironta bo'limga
 // tegishli emas: sinov, xodim va nomzod ma'lumotlarini BIRGA

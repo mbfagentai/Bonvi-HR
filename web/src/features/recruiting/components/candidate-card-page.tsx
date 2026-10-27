@@ -37,6 +37,7 @@ import {
 } from '../lib/recruiting-presentation'
 import { CandidateActionDialog, type CandidateAction } from './candidate-action-dialog'
 import { CandidateFilesCard } from './candidate-files-card'
+import { CandidateFormsCard } from './candidate-forms-card'
 import { CandidateFormDialog } from './candidate-form-dialog'
 import { CandidateHireDialog } from './candidate-hire-dialog'
 import { CandidatePhotoEditor } from './candidate-photo-editor'
@@ -296,7 +297,10 @@ export function CandidateCardPage() {
             bittasi emas, o'ntagacha). Nomzodda anketa bo'lmasa karta
             umuman chizilmaydi.
           */}
-          <CandidateQuestionnaireCard questionnaire={person.questionnaire} />
+          <CandidateQuestionnaireCard questionnaire={person.questionnaire} source={person.source} />
+
+          {/* The tablet HR-F02 form (PDF) — right after the answers it was mapped into. */}
+          <CandidateFormsCard candidateId={person.id} />
 
           <CandidateFilesCard candidate={person} canManage={canManage} />
 
@@ -489,6 +493,12 @@ function PersonalCard({ candidate }: { candidate: Candidate }) {
           <Field label={t('recruiting.vacancy')} value={candidate.vacancy} />
           <Field label={t('recruiting.stage')} value={candidate.currentStage} />
           {/*
+            Every candidate, whatever the channel (bot, online anketa, HR) —
+            «—» for legacy and Excel rows. The detail follows after a dash:
+            «Tanishlar orqali — Rustamov Bahodir» (SPEC-qayerdan-bilgan §6).
+          */}
+          <Field label={t('recruiting.referralLabel')} value={referralText(candidate)} />
+          {/*
             ⭐ Keyingi aloqa sanasi SHU KARTADA, bosqich qatorida emas.
             Sabab ruxsatda: bosqich kartasi faqat `recruiting.manage`
             bo'lganda chiziladi (`canManage && inProgress`), ya'ni
@@ -523,6 +533,14 @@ function PersonalCard({ candidate }: { candidate: Candidate }) {
       </CardContent>
     </Card>
   )
+}
+
+/** «Tanishlar orqali — Rustamov Bahodir», or just the channel; `null` when none was recorded. */
+function referralText(candidate: Candidate): string | null {
+  if (candidate.referralChannelName === null) return null
+  return candidate.referralDetail === null
+    ? candidate.referralChannelName
+    : `${candidate.referralChannelName} — ${candidate.referralDetail}`
 }
 
 function Field({

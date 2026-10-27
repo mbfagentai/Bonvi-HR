@@ -18,7 +18,41 @@ public interface IReportsReadModel
 {
     /// <summary>Kadrlar oqimi: oylik kelgan/ketgan dinamikasi va ketish sabablari.</summary>
     Task<TurnoverReport> GetTurnoverAsync(TurnoverRange range, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// «Nomzodlar qayerdan bilgan»: kanal bo'yicha nomzodlar va ishga olinganlar soni
+    /// (SPEC-qayerdan-bilgan §7). Excel kengash arxivi kirmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Tartib va bo'sh qatorlarni tashlash — use-case'ning ishi; bu yerda faqat sanoq.
+    /// Kanalsiz nomzodlar — <c>ChannelId = null</c> bo'lagi.
+    /// </remarks>
+    Task<IReadOnlyList<CandidateReferralBucket>> GetCandidateReferralsAsync(
+        CandidateReferralFilter filter,
+        CancellationToken cancellationToken = default);
 }
+
+/// <summary>«Qayerdan bilgan» hisobotining filtri.</summary>
+/// <param name="CreatedFrom">Ariza lahzasining quyi chegarasi, UTC — kiradi (Toshkent kuni boshi).</param>
+/// <param name="CreatedBefore">Ariza lahzasining yuqori chegarasi, UTC — kirmaydi.</param>
+/// <param name="VacancyId">Faqat shu vakansiya.</param>
+public sealed record CandidateReferralFilter(
+    DateTimeOffset? CreatedFrom,
+    DateTimeOffset? CreatedBefore,
+    Guid? VacancyId);
+
+/// <summary>Bitta kanal bo'yicha sanoq.</summary>
+/// <param name="ChannelId">Kanal; <c>null</c> — ko'rsatilmagan.</param>
+/// <param name="ChannelName">Kanal nomi (faolsizlantirilgani ham); kanalsiz bo'lakda <c>null</c>.</param>
+/// <param name="IsActive">Kanal faolmi; kanalsiz bo'lakda <c>false</c>.</param>
+/// <param name="Candidates">Nomzodlar soni.</param>
+/// <param name="Hired">Ulardan holati «ishga olingan».</param>
+public sealed record CandidateReferralBucket(
+    Guid? ChannelId,
+    string? ChannelName,
+    bool IsActive,
+    int Candidates,
+    int Hired);
 
 /// <summary>So'ralgan davr — ikki tomondan yopiq (<c>From</c> va <c>To</c> ham kiradi).</summary>
 public sealed record TurnoverRange(DateOnly From, DateOnly To);

@@ -319,7 +319,7 @@ export function SystemSettingsPage() {
             {t('settings.system.title')}
           </span>
         }
-        subtitle={t('settings.system.subtitle')}
+        description={t('settings.system.subtitle')}
       />
 
       {!canManage ? (

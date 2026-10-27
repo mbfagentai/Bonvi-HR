@@ -288,6 +288,49 @@ public sealed class CatalogTests
         natija.Error.Code.ShouldBe("lavozim.vazifa_bosh");
     }
 
+    // ────────────────────── «Qayerdan bilgan» (SPEC-qayerdan-bilgan §3) ──────────────────────
+
+    [Fact]
+    public void Qayerdan_bilgan_kanali_faol_va_aniqliksiz_yaratiladi()
+    {
+        var kanal = ReferralChannel.Create("  Instagram   /  Facebook ").Value;
+
+        kanal.Name.ShouldBe("Instagram / Facebook");
+        kanal.IsActive.ShouldBeTrue();
+        kanal.AsksDetail.ShouldBeFalse("sukut — aniqlik so'ralmaydi");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Qayerdan_bilgan_kanali_nomsiz_yaratilmaydi(string? nom)
+    {
+        var natija = ReferralChannel.Create(nom);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("qayerdan.nom_bosh");
+    }
+
+    [Fact]
+    public void Qayerdan_bilgan_kanali_qayta_nomlanadi_aniqlik_bayrogi_va_faolligi_ozgaradi()
+    {
+        // HR «Tanishlar orqali» ni o'zi qo'shadi va «kim tavsiya qildi» ni so'raydigan qiladi
+        var kanal = ReferralChannel.Create("Tanishlar").Value;
+
+        kanal.Rename("Tanishlar orqali").IsSuccess.ShouldBeTrue();
+        kanal.SetAsksDetail(true);
+        kanal.Deactivate("2027 dan ishlatilmaydi");
+
+        kanal.Name.ShouldBe("Tanishlar orqali");
+        kanal.AsksDetail.ShouldBeTrue();
+        kanal.IsActive.ShouldBeFalse("faolsizlantirilgan kanal eski nomzodlarda qoladi, yangisida taklif qilinmaydi");
+        kanal.Note.ShouldBe("2027 dan ishlatilmaydi");
+
+        kanal.Activate();
+        kanal.IsActive.ShouldBeTrue();
+    }
+
     // ────────────────────── Ishdan ketish sababi ──────────────────────
 
     [Fact]

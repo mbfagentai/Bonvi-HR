@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Card, CardContent, CardDivider, CardHeader } from '@/shared/ui'
-import type { CandidateQuestionnaire } from '../api/recruiting-api'
+import type { CandidateQuestionnaire, CandidateSource } from '../api/recruiting-api'
 import { lowerFirst } from '../lib/recruiting-presentation'
 
 /**
@@ -29,12 +29,17 @@ import { lowerFirst } from '../lib/recruiting-presentation'
  */
 export function CandidateQuestionnaireCard({
   questionnaire,
+  source,
 }: {
   questionnaire: CandidateQuestionnaire | null
+  /** Where the answers came from — an online-form candidate's questionnaire is mapped from the HR-F02 form. */
+  source: CandidateSource
 }) {
   const { t, dateTime } = useLocale()
 
   if (questionnaire === null) return null
+
+  const fromOnlineForm = source === 'OnlineForm'
 
   const {
     education,
@@ -48,7 +53,6 @@ export function CandidateQuestionnaireCard({
     hasDriverLicense,
     driverLicenseCategories,
     expectedSalary,
-    referralSource,
     offerAcceptedAt,
   } = questionnaire
 
@@ -67,7 +71,7 @@ export function CandidateQuestionnaireCard({
     <Card>
       <CardHeader
         title={t('recruiting.questionnaire')}
-        subtitle={t('recruiting.questionnaireHint')}
+        subtitle={t(fromOnlineForm ? 'recruiting.questionnaireHintOnlineForm' : 'recruiting.questionnaireHint')}
       />
 
       <CardDivider />
@@ -112,14 +116,11 @@ export function CandidateQuestionnaireCard({
             }
           />
 
-          <Answer
-            label={t('recruiting.referralLabel')}
-            value={
-              referralSource === null
-                ? null
-                : t(`recruiting.referral.${lowerFirst(referralSource)}`)
-            }
-          />
+          {/*
+            «Ish haqida qayerdan bilgan» is not here any more: it belongs to the
+            candidate (every channel, not only the bot) and sits in the personal
+            card (docs/SPEC-qayerdan-bilgan.md §6).
+          */}
         </dl>
 
         {/*
@@ -147,7 +148,9 @@ export function CandidateQuestionnaireCard({
         */}
         {offerAcceptedAt !== null && (
           <p className="tabular mt-4 text-caption2 text-[var(--fg-tertiary)]">
-            {t('recruiting.offerAccepted', { date: dateTime(offerAcceptedAt) })}
+            {t(fromOnlineForm ? 'recruiting.consentGivenOnlineForm' : 'recruiting.offerAccepted', {
+              date: dateTime(offerAcceptedAt),
+            })}
           </p>
         )}
       </CardContent>
@@ -168,7 +171,7 @@ function Answer({ label, value }: { label: string; value: string | null }): Reac
   return (
     <div className="min-w-0">
       <dt className="text-caption1 text-[var(--fg-tertiary)]">{label}</dt>
-      <dd className="mt-0.5 text-subhead break-words">{value}</dd>
+      <dd className="mt-0.5 text-subhead break-words whitespace-pre-line">{value}</dd>
     </div>
   )
 }

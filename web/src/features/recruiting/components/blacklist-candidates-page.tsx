@@ -2,7 +2,10 @@ import { useNavigate } from '@tanstack/react-router'
 import { ListFilter, Search, SearchX, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
-import { FLAG_LOOK } from '@/features/employees/lib/employee-presentation'
+import { useAuth } from '@/features/auth'
+import { FLAG_LOOK, REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   NO_DATE_RANGE,
@@ -18,7 +21,7 @@ import {
   Button,
   Card,
   DataTable,
-  DateField,
+  DateRangeField,
   EmptyState,
   IconTile,
   Input,
@@ -27,9 +30,14 @@ import {
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
-import type { CandidateListItem } from '../api/recruiting-api'
+import {
+  candidateListParams,
+  type CandidateListFilters,
+  type CandidateListItem,
+} from '../api/recruiting-api'
 import { useCandidates } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
+import { RECRUITING_VIEW } from '../lib/recruiting-presentation'
 
 const helper = dataColumnHelper<CandidateListItem>()
 
@@ -80,6 +88,9 @@ export function BlacklistCandidatesPage({
   const errorMessage = useErrorMessage()
   const navigate = useNavigate()
   const look = FLAG_LOOK.blacklist
+  const { hasPermission } = useAuth()
+  // Eksport — nomzodlarni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = hasPermission(RECRUITING_VIEW) && hasPermission(REPORTS_EXPORT)
 
   const [draft, setDraft] = useSearchDraft(search, onSearchChange)
 
@@ -102,19 +113,23 @@ export function BlacklistCandidatesPage({
 
   // `includeArchive` — rezerv sahifasidagi bilan bir xil sabab: arxiv
   // manbasidagi yozuv ham shu yerda ko'rinishi kerak.
-  const query = useCandidates(
-    {
-      status: 'Blacklisted',
-      includeArchive: true,
-      closedDate: true,
-      search: search === '' ? undefined : search,
-      from: range.from === '' ? undefined : range.from,
-      to: range.to === '' ? undefined : range.to,
-      page,
-      pageSize,
-    },
-    !rangeInvalid,
-  )
+  /*
+    Filtr sahifasiz — ro'yxat ham, Excel eksporti ham AYNAN shundan: fayl
+    ekrandagi bo'limdan boshqa nomzodni olib ketolmaydi.
+  */
+  const listFilters: CandidateListFilters = {
+    status: 'Blacklisted',
+    includeArchive: true,
+    closedDate: true,
+    search: search === '' ? undefined : search,
+    from: range.from === '' ? undefined : range.from,
+    to: range.to === '' ? undefined : range.to,
+  }
+
+  const query = useCandidates({ ...listFilters, page, pageSize }, !rangeInvalid)
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
   // Teskari oraliqda eski sahifa ko'rinib qolmasin — u boshqa filtrniki
   const rows = rangeInvalid ? EMPTY : (query.data?.items ?? EMPTY)
   const total = rangeInvalid ? 0 : (query.data?.total ?? 0)
@@ -127,21 +142,22 @@ export function BlacklistCandidatesPage({
       helper.accessor('fullName', {
         header: t('employee.fullName'),
         enableSorting: false,
+        // Ism to'liq, bir qatorda (egasi 2026-10-22) — ustun ismgacha kengayadi
         meta: { minWidth: '240px' },
-        cell: ({ getValue }) => <p className="truncate-1 font-medium">{getValue()}</p>,
+        cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
       }),
 
       helper.accessor('closingNote', {
         header: t('recruiting.blacklistSection.reason'),
         enableSorting: false,
-        meta: { minWidth: '260px' },
-        cell: ({ getValue }) => <TextCell value={getValue()} />,
+        // Sabab — erkin matn: bir qatorda kesiladi, to'liq matn sichqoncha ustida
+        cell: ({ getValue }) => <TextCell value={getValue()} long />,
       }),
 
       helper.accessor('vacancy', {
         header: t('recruiting.vacancy'),
         enableSorting: false,
-        meta: { width: '200px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
@@ -176,7 +192,8 @@ export function BlacklistCandidatesPage({
             ? t('flags.subtitle', { n: num(total) })
             : t('flags.page.blacklist.hint')
         }
-        actions={tabs}
+        // Tablar sahifada, avvalgi joyida qoladi (egasi 2026-10-22)
+        toolbar={tabs}
       />
 
       {query.isError && (
@@ -212,39 +229,55 @@ export function BlacklistCandidatesPage({
               </span>
             )}
           </Button>
+
+          {/*
+            Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+            alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+          */}
+          {hasDateRange(range) && (
+            <Button
+              type="button"
+              pill
+              variant="ghost"
+              title={t('employees.clearFilters')}
+              aria-label={t('employees.clearFilters')}
+              onClick={() => onRangeChange(NO_DATE_RANGE)}
+            >
+              <X />
+              <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+            </Button>
+          )}
+
+          {/* Eksport — «Filtrlar» yonida: fayl aynan shu qidiruv va oraliqqa tushadi */}
+          {canExport && (
+            <ListExportButton
+              onClick={() =>
+                exportList.mutate({
+                  path: '/api/recruiting/candidates/export',
+                  params: candidateListParams(listFilters),
+                  slug: 'qora_royxat_nomzodlar',
+                })
+              }
+              pending={exportList.isPending}
+              disabled={rangeInvalid}
+            />
+          )}
         </div>
 
         {rangeOpen && (
           <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {/* Nomzodlarda oraliq ARIZA kuni bo'yicha — yorliq shuni aytadi */}
-              <DateField
-                label={t('recruiting.blacklistedFrom')}
-                value={range.from}
-                max={range.to === '' ? undefined : range.to}
-                onChange={(value) => onRangeChange({ ...range, from: value })}
-              />
-              <DateField
-                label={t('recruiting.blacklistedTo')}
-                value={range.to}
-                min={range.from === '' ? undefined : range.from}
-                onChange={(value) => onRangeChange({ ...range, to: value })}
+              <DateRangeField
+                label={t('dateRange.blacklisted')}
+                fromLabel={t('recruiting.blacklistedFrom')}
+                toLabel={t('recruiting.blacklistedTo')}
+                from={range.from}
+                to={range.to}
+                onFromChange={(value) => onRangeChange({ ...range, from: value })}
+                onToChange={(value) => onRangeChange({ ...range, to: value })}
               />
             </div>
-
-            {hasDateRange(range) && (
-              <div className="mt-3.5 flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onRangeChange(NO_DATE_RANGE)}
-                >
-                  <X />
-                  {t('employees.clearFilters')}
-                </Button>
-              </div>
-            )}
           </div>
         )}
 
@@ -253,6 +286,8 @@ export function BlacklistCandidatesPage({
             <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
           </div>
         )}
+
+        <ListExportError error={exportList.error} />
 
         <DataTable
           fill
@@ -310,20 +345,28 @@ export function BlacklistCandidatesPage({
   )
 }
 
-function TextCell({ value, tabular = false }: { value: string | null; tabular?: boolean }) {
+/**
+ * Bir qatorli katak (egasi 2026-10-22). Qiymat to'liq chiziladi; faqat uzun
+ * erkin matn (`long` — sabab) 320px da kesiladi va to'liq holda `title` da.
+ */
+function TextCell({
+  value,
+  tabular = false,
+  long = false,
+}: {
+  value: string | null
+  tabular?: boolean
+  long?: boolean
+}) {
   if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-  return (
-    <span
-      className={
-        tabular
-          ? 'tabular whitespace-nowrap text-[var(--fg-secondary)]'
-          : 'truncate-1 text-[var(--fg-secondary)]'
-      }
-      title={value}
-    >
-      {value}
-    </span>
-  )
+  if (long) {
+    return (
+      <span className="block max-w-[320px] truncate text-[var(--fg-secondary)]" title={value}>
+        {value}
+      </span>
+    )
+  }
+  return <span className={tabular ? 'tabular text-[var(--fg-secondary)]' : 'text-[var(--fg-secondary)]'}>{value}</span>
 }
 
 function DateCell({ value }: { value: string | null }) {

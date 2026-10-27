@@ -116,7 +116,8 @@ nothing, and `SELECT pinfl FROM employees LIMIT 0` **fails** with
 `employee_competency_languages`, `employee_flags`, `employment_events`,
 `employments`, `exit_interviews`, `incentives`, `incidents`,
 `legal_entities`, `mobile_check_ins`, `penalty_types`, `pipeline_stages`,
-`position_duties`, `positions`, `probations`, `roles`,
+`position_duties`, `positions`, `probations`, `referral_channels` (added 2026-10-26,
+migration `QayerdanBilgan`), `roles`,
 `schedule_assignments`, `termination_reasons`, `vacancies`,
 `work_schedule_dates`, `work_schedule_days`, `work_schedules`, `work_sites`.
 
@@ -125,7 +126,7 @@ nothing, and `SELECT pinfl FROM employees LIMIT 0` **fails** with
 | Table | Granted | Withheld (why) |
 |---|---|---|
 | `employees` | every column except → | `pinfl`, `passport` (passport data), `photo_key`, `mehnat_uz_screenshot_key`, `mehnat_uz_screenshot_content_type` (files) |
-| `candidates` | every column except → | `photo_key` (file), `telegram_chat_id` (a contact handle for the bot, not data) |
+| `candidates` | every column except → (incl. `referral_channel_id`, `referral_detail` since 2026-10-26) | `photo_key` (file), `telegram_chat_id` (a contact handle for the bot, not data) |
 | `employee_documents` | `id, employee_id, document_type_id, created_at, created_by, deleted_at` | `file_key, file_name, content_type, size_bytes, note` (file) |
 | `attendance_passes` | `id, device_id, resolved_employee_id, occurred_at, local_date, direction, direction_source, method, received_at` | `photo_key, photo_purged_at, raw_event, raw_person_id, dedupe_key, …` (snapshot file, raw device payload) |
 | `attendance_devices` | `id, name, model, provider, direction_role, legal_entity_id, department_id, location_note, is_active, last_seen_at, last_event_at, deleted_at` | tokens, HMAC secret, IPs, serials |

@@ -9,7 +9,7 @@ import {
 import { INCENTIVE_KIND_LOOK } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
-import { Button, DateField, Input, Select } from '@/shared/ui'
+import { Button, DateRangeField, Input, Select } from '@/shared/ui'
 /*
  * Filtr holatining shakli manzil bilan bir joyda turadi
  * (`employments-toolbar.tsx` dagi bilan bir xil sabab).
@@ -134,6 +134,24 @@ export function IncentivesToolbar({
           )}
         </Button>
 
+        {/*
+          Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+          alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+        */}
+        {(count > 0 || filters.search !== '') && (
+          <Button
+            type="button"
+            pill
+            variant="ghost"
+            title={t('employees.clearFilters')}
+            aria-label={t('employees.clearFilters')}
+            onClick={clearAll}
+          >
+            <X />
+            <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+          </Button>
+        )}
+
         {/* Eksport — «Filtrlar» yonida: fayl aynan shu filtrlarga tushadi
             (xodimlar ro'yxatidagi bilan bir xil joy). */}
         {onExport !== undefined && (
@@ -158,6 +176,7 @@ export function IncentivesToolbar({
         <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Select
+              size="sm"
               label={t('incentives.kind')}
               options={kindOptions}
               value={filters.kind}
@@ -166,6 +185,7 @@ export function IncentivesToolbar({
               }
             />
             <Select
+              size="sm"
               label={t('employee.department')}
               placeholder={t('employees.anyDepartment')}
               options={options.departments}
@@ -173,32 +193,23 @@ export function IncentivesToolbar({
               onChange={(event) => set('departmentId', event.target.value)}
             />
             <Select
+              size="sm"
               label={t('employee.legalEntity')}
               placeholder={t('employees.anyLegalEntity')}
               options={options.legalEntities}
               value={filters.legalEntityId}
               onChange={(event) => set('legalEntityId', event.target.value)}
             />
-            <DateField
-              label={t('common.dateFrom')}
-              value={filters.from}
-              onChange={(value) => set('from', value)}
-            />
-            <DateField
-              label={t('common.dateTo')}
-              value={filters.to}
-              onChange={(value) => set('to', value)}
+            <DateRangeField
+              label={t('dateRange.date')}
+              fromLabel={t('common.dateFrom')}
+              toLabel={t('common.dateTo')}
+              from={filters.from}
+              to={filters.to}
+              onFromChange={(value) => set('from', value)}
+              onToChange={(value) => set('to', value)}
             />
           </div>
-
-          {(count > 0 || filters.search !== '') && (
-            <div className="mt-3.5 flex justify-end">
-              <Button type="button" size="sm" variant="ghost" onClick={clearAll}>
-                <X />
-                {t('employees.clearFilters')}
-              </Button>
-            </div>
-          )}
         </div>
       )}
     </div>

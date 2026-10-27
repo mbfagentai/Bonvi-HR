@@ -618,18 +618,21 @@ function PassMonth({
 
   const columns = useMemo<Array<DataColumn<AttendancePass>>>(
     () => [
+      /*
+        ⭐ BIR QATOR (egasi 2026-10-22): surat 40 px, qurilma, joy va telefon
+        belgisi bitta chiziqda (ilgari qurilma ostida yana ikki qator edi).
+      */
       passColumn.display({
         id: 'snapshot',
         header: '',
-        // 48 px surat + katak to'ldirishi (32 px) = 80 px.
-        meta: { width: '80px' },
-        cell: ({ row }) => <PassSnapshot pass={row.original} />,
+        // 40 px surat + katak to'ldirishi (28 px) ≈ 68 px.
+        meta: { width: '68px' },
+        cell: ({ row }) => <PassSnapshot pass={row.original} className="size-10" />,
       }),
 
       passColumn.accessor('occurredAt', {
         header: t('attendance.time'),
         enableSorting: false,
-        meta: { width: '168px' },
         cell: ({ getValue }) => (
           <span className="tabular block font-semibold">
             {date(getValue())} {formatPassTime(getValue())}
@@ -640,21 +643,23 @@ function PassMonth({
       passColumn.accessor('deviceName', {
         header: t('attendance.device'),
         enableSorting: false,
-        meta: { minWidth: '180px' },
         cell: ({ row }) => (
-          <span className="block leading-tight">
-            <span className="truncate-1 block">{row.original.deviceName ?? '—'}</span>
+          <span className="flex items-center gap-2">
+            <span>{row.original.deviceName ?? '—'}</span>
             {/*
               Joy — qurilmaning erkin matnli izohi, ya'ni u BO'LMASLIGI
-              odatiy hol. Bo'lmaganda chiziqcha chizilmaydi: ikkinchi
-              qator umuman ko'rinmaydi va jadval tinch turadi.
+              odatiy hol. Bo'lmaganda chiziqcha chizilmaydi: nom yonida
+              hech narsa qolmaydi va jadval tinch turadi.
             */}
             {row.original.deviceLocation !== null && (
-              <span className="truncate-1 mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+              <span
+                className="block max-w-[240px] truncate text-caption1 text-[var(--fg-tertiary)]"
+                title={row.original.deviceLocation}
+              >
                 {row.original.deviceLocation}
               </span>
             )}
-            <MobileEvidenceLine pass={row.original} />
+            <MobileEvidenceLine pass={row.original} className="mt-0" />
           </span>
         ),
       }),
@@ -662,7 +667,7 @@ function PassMonth({
       passColumn.accessor('deviceProvider', {
         header: t('attendance.provider'),
         enableSorting: false,
-        meta: { width: '132px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ getValue }) => {
           const provider = getValue()
 
@@ -677,7 +682,6 @@ function PassMonth({
       passColumn.accessor('direction', {
         header: t('attendance.direction'),
         enableSorting: false,
-        meta: { width: '136px' },
         cell: ({ row }) => <PassDirectionBadge
             direction={row.original.direction}
             inferred={row.original.directionSource === 'Alternation'}
@@ -687,7 +691,7 @@ function PassMonth({
       passColumn.accessor('method', {
         header: t('attendance.method'),
         enableSorting: false,
-        meta: { width: '128px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
           <span className="text-[var(--fg-secondary)]">
             {t(METHOD_LABEL_KEY[row.original.method])}

@@ -28,6 +28,18 @@
     <EmbeddedResource Include="Persistence/Seed/data/*.json" />
   </ItemGroup>
 
+  <!--
+    Planshet anketasi PDF'i uchun shriftlar va logotip — yig'malaning ICHIDA
+    (urug' ma'lumotlari bilan bir xil sabab: Docker tasviriga nusxalash
+    unutilmasin). Konteynerda tizim shriftlari YO'Q (SkiaSharp
+    `NoDependencies` tanlangan), ya'ni shriftsiz PDF umuman chizilmasdi.
+    Litsenziyalar fayllar yonida (Reports/Pdf/Fonts/*.txt).
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Reports/Pdf/Fonts/*.ttf" />
+    <EmbeddedResource Include="Reports/Pdf/Assets/*.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
@@ -41,6 +53,12 @@
     <PackageReference Include="Hangfire.Core" />
     <PackageReference Include="Hangfire.PostgreSql" />
     <PackageReference Include="ClosedXML" />
+
+    <!-- Onlayn anketaning bot tekshiruvi (Cloudflare Turnstile) — nomli HttpClient, 5 s muddat -->
+    <PackageReference Include="Microsoft.Extensions.Http" />
+
+    <!-- Planshet anketasi PDF'i (sabab va litsenziya: Directory.Packages.props) -->
+    <PackageReference Include="PDFsharp-MigraDoc" />
 
     <!-- Xodim rasmini kvadrat qilib kichraytirish (sabab: Directory.Packages.props) -->
     <PackageReference Include="SkiaSharp" />

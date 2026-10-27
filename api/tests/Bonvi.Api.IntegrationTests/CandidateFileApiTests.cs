@@ -625,6 +625,7 @@ public sealed class CandidateFileApiTests : IClassFixture<BonviApiFactory>
                 lastName = familiya + " " + Belgi(),
                 firstName = "Азиз",
                 phone = "905088888",
+                referralChannelId = ReferralSeeds.Telegram,
             },
             bekorQilish);
 

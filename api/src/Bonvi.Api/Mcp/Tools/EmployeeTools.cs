@@ -970,8 +970,16 @@ public sealed class EmployeeTools(McpToolContext t)
                 item.InterviewAt,
                 item.ClosedAt,
                 item.ClosingNote,
+                item.ReferralChannelId,
+                item.ReferralDetail,
             })
             .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // «Qayerdan bilgan» — nomzodning o'zida (anketada emas), faolsizlantirilgan kanal ham
+        var referralNames = await db.ReferralChannels.IgnoreQueryFilters()
+            .Select(item => new { item.Id, item.Name })
+            .ToDictionaryAsync(item => item.Id, item => item.Name, cancellationToken)
             .ConfigureAwait(false);
 
         var vacancies = await db.Vacancies.IgnoreQueryFilters()
@@ -1018,7 +1026,6 @@ public sealed class EmployeeTools(McpToolContext t)
                 item.HasDriverLicense,
                 item.DriverLicenseCategories,
                 item.ExpectedSalary,
-                item.ReferralSource,
                 item.OfferAcceptedAt,
             })
             .ToListAsync(cancellationToken)
@@ -1046,6 +1053,9 @@ public sealed class EmployeeTools(McpToolContext t)
                 closedAt = McpToolContext.Iso(item.ClosedAt),
                 closingNote = item.ClosingNote,
                 note = item.Note,
+                referral = referralNames.Name(item.ReferralChannelId) is { } referral
+                    ? (string.IsNullOrWhiteSpace(item.ReferralDetail) ? referral : $"{referral} — {item.ReferralDetail}")
+                    : null,
                 stages = entries.Where(row => row.CandidateId == item.Id).Select(row => new
                 {
                     stage = stages.Name(row.StageId),
@@ -1075,7 +1085,6 @@ public sealed class EmployeeTools(McpToolContext t)
                         hasDriverLicense = questionnaire.HasDriverLicense,
                         driverLicenseCategories = questionnaire.DriverLicenseCategories,
                         expectedSalary = questionnaire.ExpectedSalary,
-                        referralSource = questionnaire.ReferralSource,
                         offerAcceptedAt = McpToolContext.Local(questionnaire.OfferAcceptedAt),
                     },
             };

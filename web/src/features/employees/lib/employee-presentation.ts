@@ -35,7 +35,12 @@ import type { IncentiveKindValue } from '../api/incentives-api'
 export const EMPLOYEES_VIEW = 'employees.view'
 export const EMPLOYEES_CREATE = 'employees.create'
 export const EMPLOYEES_EDIT = 'employees.edit'
+/** Belgi ro'yxatlari (rezerv, qora ro'yxat, nazorat, qobiliyatli) — ko'rish; Excel eksporti ham shu bilan. */
+export const LISTS_VIEW = 'lists.view'
 export const LISTS_MANAGE = 'lists.manage'
+
+/** Sinov muddati va buyruqlar ro'yxatlarini ko'rish — Excel eksporti ham shu bilan (SPEC-excel-eksport §2). */
+export const EMPLOYMENT_VIEW = 'employment.view'
 
 /*
  * Mehnat munosabatlari amallari — har biri O'Z ruxsati bilan.

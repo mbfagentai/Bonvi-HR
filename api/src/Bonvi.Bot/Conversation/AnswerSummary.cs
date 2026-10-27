@@ -200,9 +200,15 @@ public static class AnswerSummary
             Add(lines, language, SummaryLine.ExpectedSalary, BotTexts.SalaryLabel(language, salary));
         }
 
-        if (state.ReferralSource is { } referral)
+        // Kanal nomi ma'lumotnomadagidek (tarjima qilinmaydi), aniqlik — tire bilan:
+        // «Tanishlar orqali — Rustamov Bahodir» (nomzod kartasidagi shakl)
+        if (state.ReferralChannelName is { } referral)
         {
-            Add(lines, language, SummaryLine.ReferralSource, BotTexts.ReferralLabel(language, referral));
+            Add(
+                lines,
+                language,
+                SummaryLine.ReferralSource,
+                string.IsNullOrWhiteSpace(state.ReferralDetail) ? referral : $"{referral} — {state.ReferralDetail}");
         }
 
         if (state.OfferAcceptedAt is not null)

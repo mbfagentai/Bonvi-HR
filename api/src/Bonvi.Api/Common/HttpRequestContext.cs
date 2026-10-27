@@ -21,8 +21,15 @@ namespace Bonvi.Api.Common;
 /// va guruh; hech biri berilmasa nom bo'sh, guruh esa shu qamrov uchun bitta.
 /// </para>
 /// <para>
-/// IP — <c>Connection.RemoteIpAddress</c>: proksi sarlavhalari konveyer boshida
-/// qo'llangan (<c>UseBonviSecurity</c>), ya'ni bu Caddy emas, mijozning manzili.
+/// IP — <see cref="ClientIp"/>: Caddy bergan HAQIQIY mijoz (SPEC-planshet-anketa §2.3.3). Ilgari
+/// <c>Connection.RemoteIpAddress</c> edi va prod'da u Cloudflare chekkasi — 2026-10-12 dan audit
+/// IP'lari tergovga yaramasdi. Ushbu IP kirish xatolari oynasining kalitiga ham tushadi
+/// (<c>AuditLogger</c>).
+/// </para>
+/// <para>
+/// Yagona istisno — qurilma endpointlari (<see cref="DeviceEndpointMetadata"/>: terminal qabuli va
+/// davomat agenti): u yerda avvalgidek ulanish manzili (terminallarning xulqi o'zgarmasin, qurilma
+/// kartasidagi IP ro'yxati ham shunga qarab tekshiriladi).
 /// </para>
 /// </remarks>
 public sealed class HttpRequestContext : IRequestContext, IAuditScope
@@ -44,7 +51,22 @@ public sealed class HttpRequestContext : IRequestContext, IAuditScope
     public Guid? CorrelationId => _scopes.CorrelationId ?? RequestCorrelation() ?? (_detachedCorrelation ??= Guid.CreateVersion7());
 
     /// <inheritdoc />
-    public string? IpAddress => _accessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+    public string? IpAddress
+    {
+        get
+        {
+            var http = _accessor.HttpContext;
+
+            if (http is null)
+            {
+                return null;
+            }
+
+            return http.GetEndpoint()?.Metadata.GetMetadata<DeviceEndpointMetadata>() is not null
+                ? http.Connection.RemoteIpAddress?.ToString()
+                : ClientIp.Resolve(http)?.ToString();
+        }
+    }
 
     /// <inheritdoc />
     public string? UserAgent

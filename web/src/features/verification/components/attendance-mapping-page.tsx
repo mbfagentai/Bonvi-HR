@@ -150,53 +150,52 @@ export function AttendanceMappingPage() {
 
   const columns = useMemo<Array<DataColumn<AttendanceIdentity>>>(
     () => [
+      /*
+        ⭐ BIR QATOR (egasi 2026-10-22): rasm, ism va qurilmadagi F.I.Sh.
+        bitta chiziqda; raqam yonida tizim nomi. Ilgari har katak ikki
+        qatorli edi.
+      */
       helper.accessor('employeeName', {
         header: t('attendance.employee'),
-        // `incidents-page.tsx` dagi hisob: rasm (48) + oraliq (12) + matn — 320px
-        meta: { width: '320px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-3">
             <EmployeePhoto
               employeeId={row.original.employeeId}
               photoKey={row.original.photoKey}
               name={row.original.employeeName ?? ''}
-              size="lg"
+              size="md"
             />
-            <div className="min-w-0">
-              <p className="truncate-1 font-medium">{row.original.employeeName ?? '—'}</p>
-              {/*
-                Qurilmadagi F.I.Sh. — xodim ismi bilan YONMA-YON: ikkalasi
-                farq qilsa, noto'g'ri bog'lanish bir qarashda ko'rinadi.
-              */}
-              {row.original.displayNameInDevice !== null && (
-                <p className="truncate-1 text-caption1 text-[var(--fg-secondary)]">
-                  {t('attendance.inDeviceAs', { name: row.original.displayNameInDevice })}
-                </p>
-              )}
-            </div>
+            <span className="font-medium">{row.original.employeeName ?? '—'}</span>
+            {/*
+              Qurilmadagi F.I.Sh. — xodim ismi bilan YONMA-YON: ikkalasi
+              farq qilsa, noto'g'ri bog'lanish bir qarashda ko'rinadi.
+            */}
+            {row.original.displayNameInDevice !== null && (
+              <span className="text-caption1 text-[var(--fg-secondary)]">
+                {t('attendance.inDeviceAs', { name: row.original.displayNameInDevice })}
+              </span>
+            )}
           </div>
         ),
       }),
 
       helper.accessor('externalPersonId', {
         header: t('attendance.personId'),
-        // Verifix raqamlari 5–10 belgi, monoshrift: ~110px + belgi ichki bo'shlig'i + katak
-        meta: { width: '180px' },
         cell: ({ row }) => (
-          <div className="min-w-0 space-y-1">
+          <span className="flex items-center gap-2">
             <Badge size="sm" className="font-mono">
               {row.original.externalPersonId}
             </Badge>
-            <p className="text-caption2 text-[var(--fg-tertiary)]">
+            <span className="text-caption2 text-[var(--fg-tertiary)]">
               {identityProviderLabel(row.original.provider, t)}
-            </p>
-          </div>
+            </span>
+          </span>
         ),
       }),
 
       helper.accessor('source', {
         header: t('attendance.source'),
-        meta: { width: '130px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => {
           const look = IDENTITY_SOURCE_LOOK[row.original.source]
           return (
@@ -221,11 +220,11 @@ export function AttendanceMappingPage() {
       helper.accessor('note', {
         header: t('employees.note'),
         enableSorting: false,
-        // Ortgan joyni izoh oladi — erkin matn, uzunligi oldindan noma'lum
-        meta: { minWidth: '180px', hideOnMobile: true },
+        // Erkin matn, uzunligi oldindan noma'lum — bir qatorda kesiladi, to'liq matn `title` da
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
           <span
-            className="truncate-1 block text-[var(--fg-secondary)]"
+            className="block max-w-[320px] truncate text-[var(--fg-secondary)]"
             title={row.original.note ?? undefined}
           >
             {row.original.note ?? '—'}
@@ -284,6 +283,7 @@ export function AttendanceMappingPage() {
     <div className="space-y-6">
       <PageHeader
         title={<AttendancePageTitle icon={Link2} title={t('attendance.mappingTitle')} />}
+        // Subtitle, tavsif emas: «bog'lanmagan o'tish tabelga tushmaydi» — ish ogohlantirishi, panelda ko'rinsin
         subtitle={t('attendance.mappingSubtitle')}
         actions={
           <Button variant="create" onClick={() => setImportOpen(true)}>

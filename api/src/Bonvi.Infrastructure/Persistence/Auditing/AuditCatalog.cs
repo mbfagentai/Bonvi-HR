@@ -139,6 +139,7 @@ public static class AuditCatalog
         Audit<PenaltyType>(AccessModuleKeys.Catalog).Label(row => row.Name),
         Audit<DocumentType>(AccessModuleKeys.Catalog).Label(row => row.Name),
         Audit<AbsenceType>(AccessModuleKeys.Catalog).Label(row => row.Name),
+        Audit<ReferralChannel>(AccessModuleKeys.Catalog).Label(row => row.Name),
 
         // `Level` va `Path` — daraxtdan HISOBLANADI (xom SQL bilan qayta quriladi).
         Audit<Department>(AccessModuleKeys.Catalog)
@@ -262,7 +263,8 @@ public static class AuditCatalog
         Audit<Candidate>(AccessModuleKeys.Recruiting)
             .Label(row => row.FullName.Full)
             .Ref(AuditRefTarget.Vacancy, nameof(Candidate.VacancyId))
-            .Ref(AuditRefTarget.PipelineStage, nameof(Candidate.CurrentStageId)),
+            .Ref(AuditRefTarget.PipelineStage, nameof(Candidate.CurrentStageId))
+            .Ref(AuditRefTarget.ReferralChannel, nameof(Candidate.ReferralChannelId)),
 
         Audit<CandidateStageEntry>(AccessModuleKeys.Recruiting)
             .LabelFrom(AuditLookup.CandidateName, nameof(CandidateStageEntry.CandidateId))
@@ -278,6 +280,22 @@ public static class AuditCatalog
         Audit<CandidateQuestionnaire>(AccessModuleKeys.Recruiting)
             .LabelFrom(AuditLookup.CandidateName, nameof(CandidateQuestionnaire.CandidateId))
             .Ref(AuditRefTarget.Candidate, nameof(CandidateQuestionnaire.CandidateId)),
+
+        // Onlayn anketa (SPEC-planshet-anketa): yozuv «qachon, qaysi IP'dan, №» bilan jurnalga
+        // tushadi (bajaruvchi — «Onlayn anketa», Anonymous), JAVOBLAR esa yo'q — ularda
+        // sudlanganlik, sog'liq va kredit haqidagi ma'lumot bor, jurnal esa boshqa ruxsat
+        // (audit.view) bilan o'qiladi. Hujjat o'zgarmaydi — faqat «yaratildi» qatori bo'ladi.
+        Audit<CandidateForm>(AccessModuleKeys.Recruiting)
+            .LabelFrom(AuditLookup.CandidateName, nameof(CandidateForm.CandidateId))
+            .Exclude(
+                nameof(CandidateForm.Answers),
+                nameof(CandidateForm.PhotoKey),
+                nameof(CandidateForm.SignatureKey),
+
+                // Texnik identifikatorlar: fayl nomi jurnalda bor (CandidateFile qatori)
+                nameof(CandidateForm.ClientSubmissionId),
+                nameof(CandidateForm.FileId))
+            .Ref(AuditRefTarget.Candidate, nameof(CandidateForm.CandidateId)),
 
         // ---------- Davomat (SPEC §14.5) ----------
         Audit<AbsenceRequest>(AccessModuleKeys.Attendance)
@@ -537,6 +555,9 @@ public enum AuditRefTarget
 
     /// <summary><c>employee_accounts</c> → xodimning F.I.Sh.</summary>
     EmployeeAccount = 18,
+
+    /// <summary><c>referral_channels</c> → nom.</summary>
+    ReferralChannel = 19,
 }
 
 /// <summary>

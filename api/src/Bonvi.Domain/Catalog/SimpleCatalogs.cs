@@ -94,6 +94,51 @@ public sealed class AbsenceType : ReferenceEntity
     }
 }
 
+/// <summary>
+/// «Ish haqida qayerdan bilgan» — nomzod kanali: «Telegram», «Tanishlar orqali», «OLX.uz»
+/// (SPEC-qayerdan-bilgan §3).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Ilgari bu kodda yopiq sanoq edi (<c>ReferralSource</c>, sakkizta qiymat) va faqat bot
+/// anketasida turardi. Egasi (2026-10-26): ro'yxatni HR o'zi tahrirlasin, maydon esa HAR
+/// BIR yangi nomzodda majburiy bo'lsin — statistika uchun. Ro'yxat endi ma'lumotnomada:
+/// yangi kanal kerak bo'lganda HR uni o'zi qo'shadi, dasturchi ham, deploy ham kutilmaydi
+/// (<see cref="AbsenceType"/> bilan bir xil qaror).
+/// </para>
+/// <para>
+/// Nomzodda havola bo'lib turadi (<c>Candidate.ReferralChannelId</c>). Faolsizlantirilgan
+/// kanal eski nomzodlarda va hisobotda qoladi, faqat yangi tanlovda taklif qilinmaydi.
+/// </para>
+/// </remarks>
+public sealed class ReferralChannel : ReferenceEntity
+{
+    private ReferralChannel(Guid id, string name) : base(id, name) { }
+
+    private ReferralChannel() { }
+
+    /// <summary>
+    /// Shu kanal tanlanganda aniqlik so'raladimi («Kim tavsiya qildi / qaysi manba?»).
+    /// </summary>
+    /// <remarks>
+    /// «Tanishlar orqali» va «Boshqa» uchun <c>true</c>: kanalning o'zi statistikaga yetadi,
+    /// lekin HR «kim tavsiya qildi» ni bilishi kerak. Bayroq yoqilgan kanalda aniqlik
+    /// MAJBURIY (tekshiruv use-case qatlamida — u ma'lumotnomani ko'radi). Sukut —
+    /// <c>false</c>: yangi kanal aniqliksiz.
+    /// </remarks>
+    public bool AsksDetail { get; private set; }
+
+    public void SetAsksDetail(bool value) => AsksDetail = value;
+
+    public static Result<ReferralChannel> Create(string? name)
+    {
+        var normalized = Normalize(name);
+        return normalized is null
+            ? Error.Validation("qayerdan.nom_bosh", "Kanal nomi kiritilishi shart.")
+            : new ReferralChannel(NewId(), normalized);
+    }
+}
+
 /// <summary>Rag'bat turi: tashakkurnoma, mukofot pul, sovg'a.</summary>
 public sealed class AwardType : ReferenceEntity
 {

@@ -195,14 +195,26 @@ Lotin tilida «mln», ruschada «млн».
 > Lotin: 📣 Ish haqida qayerdan bildingiz?
 > Русский: 📣 Откуда вы узнали о вакансии?
 
-| Enum | Кирилл | Lotin | Русский |
-|---|---|---|---|
-| `Acquaintance` | Танишлар орқали | Tanishlar orqali | От знакомых |
-| `SocialNetwork` | Instagram, Facebook | Instagram, Facebook | Instagram, Facebook |
-| `Olx` | OLX.uz | OLX.uz | OLX.uz |
-| `HeadHunter` | hh.uz | hh.uz | hh.uz |
-| `Telegram` | Telegram | Telegram | Telegram |
-| `Other` | Бошқа манба | Boshqa manba | Другой источник |
+**Tugmalar SERVERDAN** (2026-10-26, `docs/SPEC-qayerdan-bilgan.md` §5): «Ma'lumotnomalar → Qayerdan bilgan»
+dagi FAOL kanallar, alifbo tartibida, nomi saqlanganidek — uchala tilda ham bir xil (lotindan kirillga o'giruvchi
+yordamchi yo'q). HR kanal qo'shsa yoki faolsizlantirsa, bot o'zgarishsiz yangi ro'yxatni ko'rsatadi. Boshlang'ich
+kanallar: Telegram, Instagram / Facebook, OLX.uz, hh.uz, E’lon, Kollej / OTM, Tanishlar orqali, Boshqa.
+
+Ro'yxat yuklanmasa:
+
+> Кирилл: ⚠️ Рўйхатни ҳозир юклаб бўлмади. Бир оздан кейин «Қайта уриниш» тугмасини босинг. — tugma «🔄 Қайта уриниш»
+> Lotin: ⚠️ Ro‘yxatni hozir yuklab bo‘lmadi. Birozdan keyin «Qayta urinish» tugmasini bosing. — tugma «🔄 Qayta urinish»
+> Русский: ⚠️ Не удалось загрузить список. Через минуту нажмите «Повторить». — tugma «🔄 Повторить»
+
+### 20a. Aniqlik — faqat kanal so'rasa («Aniqlik so'ralsin», masalan «Tanishlar orqali», «Boshqa»)
+
+Majburiy erkin matn (≤ 200 belgi), «O'tkazib yuborish» tugmasi yo'q:
+
+> Кирилл: ✍️ «{kanal}» — аниқлаштиринг: ким тавсия қилди ёки қайси манба?<br><br>Масалан: <i>Рустамов Баҳодир, омборчи</i>
+> Lotin: ✍️ «{kanal}» — aniqlashtiring: kim tavsiya qildi yoki qaysi manba?<br><br>Masalan: <i>Rustamov Bahodir, omborchi</i>
+> Русский: ✍️ «{kanal}» — уточните: кто порекомендовал или какой источник?<br><br>Например: <i>Рустамов Баходир, кладовщик</i>
+
+Xulosada: «📣 Qayerdan bildi: Tanishlar orqali — Rustamov Bahodir».
 
 ---
 

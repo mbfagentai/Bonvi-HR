@@ -406,8 +406,9 @@ const DYNAMIC_KEY_SOURCES = [
   },
 
   /*
-   * Nomzod ANKETASI (`candidate-questionnaire-card.tsx`). To'rtta yopiq
-   * to'plam — javoblar botda tugmadan tanlanadi. Beshinchisi,
+   * Nomzod ANKETASI (`candidate-questionnaire-card.tsx`). Uchta yopiq
+   * to'plam — javoblar botda tugmadan tanlanadi («Qayerdan bilgan» endi
+   * ma'lumotnoma, SPEC-qayerdan-bilgan). Beshinchisi,
    * `russianLevel`, bu yerda YO'Q va bo'lishi ham kerak emas: u xodim
    * kartasidagi bilan bir xil sanoq va yuqoridagi `LANGUAGE_LEVELS`
    * yozuvi uni allaqachon qamrab oladi (`competency.languageLevel.*`).
@@ -426,11 +427,6 @@ const DYNAMIC_KEY_SOURCES = [
     file: 'src/features/recruiting/api/recruiting-api.ts',
     values: (text) => constArrayValues(text, 'SALARY_EXPECTATIONS'),
     keysFor: (value) => [`recruiting.expectedSalary.${lowerFirst(value)}`],
-  },
-  {
-    file: 'src/features/recruiting/api/recruiting-api.ts',
-    values: (text) => constArrayValues(text, 'REFERRAL_SOURCES'),
-    keysFor: (value) => [`recruiting.referral.${lowerFirst(value)}`],
   },
 
   /*
@@ -566,6 +562,78 @@ const DYNAMIC_KEY_SOURCES = [
     file: 'src/features/settings/api/mcp-api.ts',
     values: (text) => constArrayValues(text, 'MCP_TOOL_NAMES'),
     keysFor: (value) => [`settings.mcp.tool.${value}`],
+  },
+  /*
+   * Public candidate questionnaire HR-F02 (`features/kiosk`, SPEC-planshet-anketa §7).
+   * Option labels and validation messages are picked by value in a template
+   * (`` t(`kiosk.marital.${lowerFirst(value)}`) ``); the lists live in
+   * `kiosk-options.ts` / `kiosk-draft.ts`, so a new option without its four
+   * translations fails here.
+   */
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'HOUSING_TYPES'),
+    keysFor: (value) => [`kiosk.housing.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'MARITAL_OPTIONS'),
+    keysFor: (value) => [`kiosk.marital.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'MILITARY_OPTIONS'),
+    keysFor: (value) => [`kiosk.military.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'EDUCATION_OPTIONS'),
+    keysFor: (value) => [`kiosk.education.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'FORM_LANGUAGE_NAMES'),
+    keysFor: (value) => [`kiosk.language.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'LANGUAGE_ASPECTS'),
+    keysFor: (value) => [`kiosk.languages.${value}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'FAMILY_RELATIONS'),
+    keysFor: (value) => [`kiosk.relation.${lowerFirst(value)}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'COMPUTER_GROUPS'),
+    keysFor: (value) => [`kiosk.computer.group.${value}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'COMPUTER_SKILL_KEYS'),
+    keysFor: (value) => [`kiosk.computer.skill.${value}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'ABOUT_QUESTIONS'),
+    keysFor: (value) => [`kiosk.about.q.${value}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'CONSENTS'),
+    keysFor: (value) => [`kiosk.consent.${value}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-options.ts',
+    values: (text) => constArrayValues(text, 'WIZARD_SCREENS'),
+    keysFor: (value) => [`kiosk.screen.${value}`],
+  },
+  {
+    file: 'src/features/kiosk/lib/kiosk-draft.ts',
+    values: (text) => constArrayValues(text, 'KIOSK_ERROR_CODES'),
+    keysFor: (value) => [`kiosk.error.${value}`],
   },
 ]
 

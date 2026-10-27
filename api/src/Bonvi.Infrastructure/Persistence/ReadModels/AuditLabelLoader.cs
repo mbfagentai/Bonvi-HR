@@ -181,6 +181,9 @@ internal sealed class AuditLabelLoader
             case AuditRefTarget.AbsenceType:
                 return await NamesAsync<AbsenceType>(ids, cancellationToken).ConfigureAwait(false);
 
+            case AuditRefTarget.ReferralChannel:
+                return await NamesAsync<ReferralChannel>(ids, cancellationToken).ConfigureAwait(false);
+
             // `Incentive.TypeId` — rag'bat YOKI jarima turi; identifikatorlar takrorlanmaydi
             // (Guid v7), ya'ni ikkala jadvaldan qidirish bir ma'noli.
             case AuditRefTarget.IncentiveType:

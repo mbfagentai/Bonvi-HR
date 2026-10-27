@@ -17,6 +17,68 @@ public sealed class CandidateTests
     private static FullName Ism(string familiya = "Каримов", string ism = "Азиз")
         => FullName.Create(familiya, ism, null).Value;
 
+    // ────────────────────── «Qayerdan bilgan» (SPEC-qayerdan-bilgan §4) ──────────────────────
+
+    [Fact]
+    public void Yangi_nomzodda_qayerdan_bilgan_bosh()
+    {
+        // Majburiylik use-case'da (u ma'lumotnomani ko'radi) — domen bo'sh holatni taqiqlamaydi:
+        // eski yozuvlar va Excel arxivi kanalsiz.
+        var nomzod = Nomzod();
+
+        nomzod.ReferralChannelId.ShouldBeNull();
+        nomzod.ReferralDetail.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Qayerdan_bilgan_qoyiladi_va_aniqlik_tozalanadi()
+    {
+        var nomzod = Nomzod();
+        var kanal = Guid.CreateVersion7();
+
+        nomzod.SetReferral(kanal, "  Рустамов Баҳодир ").IsSuccess.ShouldBeTrue();
+
+        nomzod.ReferralChannelId.ShouldBe(kanal);
+        nomzod.ReferralDetail.ShouldBe("Рустамов Баҳодир");
+    }
+
+    [Fact]
+    public void Qayerdan_bilgan_almashtiriladi_lekin_kanalsiz_qoldirilmaydi()
+    {
+        var nomzod = Nomzod();
+        var tanishlar = Guid.CreateVersion7();
+        var telegram = Guid.CreateVersion7();
+
+        nomzod.SetReferral(tanishlar, "Рустамов").IsSuccess.ShouldBeTrue();
+
+        // HR xatoni tuzatadi — boshqa kanal, aniqliksiz
+        nomzod.SetReferral(telegram, " ").IsSuccess.ShouldBeTrue();
+        nomzod.ReferralChannelId.ShouldBe(telegram);
+        nomzod.ReferralDetail.ShouldBeNull();
+
+        // Tozalash yo'li yo'q: bo'sh kanal rad etiladi va qiymat joyida qoladi
+        var tozalash = nomzod.SetReferral(Guid.Empty, null);
+
+        tozalash.IsFailure.ShouldBeTrue();
+        tozalash.Error.Code.ShouldBe("qayerdan.majburiy");
+        nomzod.ReferralChannelId.ShouldBe(telegram);
+    }
+
+    [Fact]
+    public void Qayerdan_bilgan_aniqligi_200_belgidan_oshmaydi()
+    {
+        var nomzod = Nomzod();
+        var kanal = Guid.CreateVersion7();
+
+        nomzod.SetReferral(kanal, new string('a', Candidate.MaxReferralDetailLength)).IsSuccess.ShouldBeTrue();
+
+        var uzun = nomzod.SetReferral(Guid.CreateVersion7(), new string('a', Candidate.MaxReferralDetailLength + 1));
+
+        uzun.IsFailure.ShouldBeTrue();
+        uzun.Error.Code.ShouldBe("qayerdan.izoh_uzun");
+        nomzod.ReferralChannelId.ShouldBe(kanal, "xato bo'lsa hech narsa o'zgarmaydi");
+    }
+
     // ────────────────────── Kiritish ──────────────────────
 
     [Fact]

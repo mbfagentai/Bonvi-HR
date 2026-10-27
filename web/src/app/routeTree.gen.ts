@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AnketaRouteImport } from './routes/anketa'
 import { Route as KirishRouteImport } from './routes/kirish'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
@@ -31,6 +32,7 @@ import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/mal
 import { Route as AppMalumotnomalarHujjatTurlariRouteImport } from './routes/_app/malumotnomalar/hujjat-turlari'
 import { Route as AppMalumotnomalarJarimaTurlariRouteImport } from './routes/_app/malumotnomalar/jarima-turlari'
 import { Route as AppMalumotnomalarLavozimlarRouteImport } from './routes/_app/malumotnomalar/lavozimlar'
+import { Route as AppMalumotnomalarQayerdanBilganRouteImport } from './routes/_app/malumotnomalar/qayerdan-bilgan'
 import { Route as AppMalumotnomalarRagbatTurlariRouteImport } from './routes/_app/malumotnomalar/ragbat-turlari'
 import { Route as AppMalumotnomalarSabablarRouteImport } from './routes/_app/malumotnomalar/sabablar'
 import { Route as AppMalumotnomalarYonalishlarRouteImport } from './routes/_app/malumotnomalar/yonalishlar'
@@ -52,6 +54,11 @@ import { Route as AppXodimlarEmployeeIdRouteImport } from './routes/_app/xodimla
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnketaRoute = AnketaRouteImport.update({
+  id: '/anketa',
+  path: '/anketa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KirishRoute = KirishRouteImport.update({
@@ -163,6 +170,12 @@ const AppMalumotnomalarLavozimlarRoute =
     path: '/malumotnomalar/lavozimlar',
     getParentRoute: () => AppRoute,
   } as any)
+const AppMalumotnomalarQayerdanBilganRoute =
+  AppMalumotnomalarQayerdanBilganRouteImport.update({
+    id: '/malumotnomalar/qayerdan-bilgan',
+    path: '/malumotnomalar/qayerdan-bilgan',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppMalumotnomalarRagbatTurlariRoute =
   AppMalumotnomalarRagbatTurlariRouteImport.update({
     id: '/malumotnomalar/ragbat-turlari',
@@ -268,6 +281,7 @@ const AppXodimlarEmployeeIdRoute = AppXodimlarEmployeeIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/audit': typeof AppAuditRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
@@ -288,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
   '/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
+  '/malumotnomalar/qayerdan-bilgan': typeof AppMalumotnomalarQayerdanBilganRoute
   '/malumotnomalar/ragbat-turlari': typeof AppMalumotnomalarRagbatTurlariRoute
   '/malumotnomalar/sabablar': typeof AppMalumotnomalarSabablarRoute
   '/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
@@ -308,6 +323,7 @@ export interface FileRoutesByFullPath {
   '/xodimlar/': typeof AppXodimlarIndexRoute
 }
 export interface FileRoutesByTo {
+  '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/audit': typeof AppAuditRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
@@ -329,6 +345,7 @@ export interface FileRoutesByTo {
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
   '/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
+  '/malumotnomalar/qayerdan-bilgan': typeof AppMalumotnomalarQayerdanBilganRoute
   '/malumotnomalar/ragbat-turlari': typeof AppMalumotnomalarRagbatTurlariRoute
   '/malumotnomalar/sabablar': typeof AppMalumotnomalarSabablarRoute
   '/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
@@ -351,6 +368,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/buyruqlar': typeof AppBuyruqlarRoute
@@ -372,6 +390,7 @@ export interface FileRoutesById {
   '/_app/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/_app/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
   '/_app/malumotnomalar/lavozimlar': typeof AppMalumotnomalarLavozimlarRoute
+  '/_app/malumotnomalar/qayerdan-bilgan': typeof AppMalumotnomalarQayerdanBilganRoute
   '/_app/malumotnomalar/ragbat-turlari': typeof AppMalumotnomalarRagbatTurlariRoute
   '/_app/malumotnomalar/sabablar': typeof AppMalumotnomalarSabablarRoute
   '/_app/malumotnomalar/yonalishlar': typeof AppMalumotnomalarYonalishlarRoute
@@ -395,6 +414,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/anketa'
     | '/kirish'
     | '/audit'
     | '/buyruqlar'
@@ -415,6 +435,7 @@ export interface FileRouteTypes {
     | '/malumotnomalar/hujjat-turlari'
     | '/malumotnomalar/jarima-turlari'
     | '/malumotnomalar/lavozimlar'
+    | '/malumotnomalar/qayerdan-bilgan'
     | '/malumotnomalar/ragbat-turlari'
     | '/malumotnomalar/sabablar'
     | '/malumotnomalar/yonalishlar'
@@ -435,6 +456,7 @@ export interface FileRouteTypes {
     | '/xodimlar/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/anketa'
     | '/kirish'
     | '/audit'
     | '/buyruqlar'
@@ -456,6 +478,7 @@ export interface FileRouteTypes {
     | '/malumotnomalar/hujjat-turlari'
     | '/malumotnomalar/jarima-turlari'
     | '/malumotnomalar/lavozimlar'
+    | '/malumotnomalar/qayerdan-bilgan'
     | '/malumotnomalar/ragbat-turlari'
     | '/malumotnomalar/sabablar'
     | '/malumotnomalar/yonalishlar'
@@ -477,6 +500,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/anketa'
     | '/kirish'
     | '/_app/audit'
     | '/_app/buyruqlar'
@@ -498,6 +522,7 @@ export interface FileRouteTypes {
     | '/_app/malumotnomalar/hujjat-turlari'
     | '/_app/malumotnomalar/jarima-turlari'
     | '/_app/malumotnomalar/lavozimlar'
+    | '/_app/malumotnomalar/qayerdan-bilgan'
     | '/_app/malumotnomalar/ragbat-turlari'
     | '/_app/malumotnomalar/sabablar'
     | '/_app/malumotnomalar/yonalishlar'
@@ -520,6 +545,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AnketaRoute: typeof AnketaRoute
   KirishRoute: typeof KirishRoute
 }
 
@@ -530,6 +556,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/anketa': {
+      id: '/anketa'
+      path: '/anketa'
+      fullPath: '/anketa'
+      preLoaderRoute: typeof AnketaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kirish': {
@@ -677,6 +710,13 @@ declare module '@tanstack/react-router' {
       path: '/malumotnomalar/lavozimlar'
       fullPath: '/malumotnomalar/lavozimlar'
       preLoaderRoute: typeof AppMalumotnomalarLavozimlarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/malumotnomalar/qayerdan-bilgan': {
+      id: '/_app/malumotnomalar/qayerdan-bilgan'
+      path: '/malumotnomalar/qayerdan-bilgan'
+      fullPath: '/malumotnomalar/qayerdan-bilgan'
+      preLoaderRoute: typeof AppMalumotnomalarQayerdanBilganRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/malumotnomalar/ragbat-turlari': {
@@ -829,6 +869,7 @@ interface AppRouteChildren {
   AppMalumotnomalarHujjatTurlariRoute: typeof AppMalumotnomalarHujjatTurlariRoute
   AppMalumotnomalarJarimaTurlariRoute: typeof AppMalumotnomalarJarimaTurlariRoute
   AppMalumotnomalarLavozimlarRoute: typeof AppMalumotnomalarLavozimlarRoute
+  AppMalumotnomalarQayerdanBilganRoute: typeof AppMalumotnomalarQayerdanBilganRoute
   AppMalumotnomalarRagbatTurlariRoute: typeof AppMalumotnomalarRagbatTurlariRoute
   AppMalumotnomalarSabablarRoute: typeof AppMalumotnomalarSabablarRoute
   AppMalumotnomalarYonalishlarRoute: typeof AppMalumotnomalarYonalishlarRoute
@@ -870,6 +911,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMalumotnomalarHujjatTurlariRoute: AppMalumotnomalarHujjatTurlariRoute,
   AppMalumotnomalarJarimaTurlariRoute: AppMalumotnomalarJarimaTurlariRoute,
   AppMalumotnomalarLavozimlarRoute: AppMalumotnomalarLavozimlarRoute,
+  AppMalumotnomalarQayerdanBilganRoute: AppMalumotnomalarQayerdanBilganRoute,
   AppMalumotnomalarRagbatTurlariRoute: AppMalumotnomalarRagbatTurlariRoute,
   AppMalumotnomalarSabablarRoute: AppMalumotnomalarSabablarRoute,
   AppMalumotnomalarYonalishlarRoute: AppMalumotnomalarYonalishlarRoute,
@@ -894,6 +936,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AnketaRoute: AnketaRoute,
   KirishRoute: KirishRoute,
 }
 export const routeTree = rootRouteImport

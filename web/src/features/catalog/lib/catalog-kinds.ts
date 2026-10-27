@@ -7,6 +7,7 @@ import {
   Gavel,
   IdCard,
   LogOut,
+  Megaphone,
   Network,
   type LucideIcon,
 } from 'lucide-react'
@@ -72,6 +73,12 @@ export const CATALOG_META: Readonly<Record<SimpleCatalogKind, CatalogKindMeta>> 
     i18nKey: 'absenceTypes',
     icon: CalendarCheck,
     tone: 'blue',
+  },
+  'referral-channels': {
+    kind: 'referral-channels',
+    i18nKey: 'referralChannels',
+    icon: Megaphone,
+    tone: 'purple',
   },
 }
 

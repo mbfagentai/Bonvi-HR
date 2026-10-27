@@ -17,6 +17,14 @@ import { MAX_TURNOVER_MONTHS } from '../api/turnover-api'
  */
 export interface ReportsSearch {
   months?: TurnoverPeriod
+  /**
+   * «Nomzodlar qayerdan bilgan» section (SPEC-qayerdan-bilgan §7): application
+   * date range and vacancy. Prefixed — they belong to that section only, not
+   * to the whole page like `months` might suggest.
+   */
+  referralFrom?: string
+  referralTo?: string
+  referralVacancy?: string
 }
 
 /**
@@ -54,7 +62,36 @@ export const DEFAULT_PERIOD: TurnoverPeriod = 12
  * yerdayoq to'siladi, ya'ni HR «yuklab bo'lmadi» xatosini umuman ko'rmaydi.
  */
 export function validateReportsSearch(search: Record<string, unknown>): ReportsSearch {
-  return { months: readPeriod(search['months']) }
+  return {
+    months: readPeriod(search['months']),
+    referralFrom: readDate(search['referralFrom']),
+    referralTo: readDate(search['referralTo']),
+    referralVacancy: readId(search['referralVacancy']),
+  }
+}
+
+/** The referral section's filters as the form keeps them: `''` — not set. */
+export interface ReferralFilters {
+  from: string
+  to: string
+  vacancyId: string
+}
+
+export function referralFiltersFromSearch(search: ReportsSearch): ReferralFilters {
+  return {
+    from: search.referralFrom ?? '',
+    to: search.referralTo ?? '',
+    vacancyId: search.referralVacancy ?? '',
+  }
+}
+
+/** Filters → address; an empty value leaves the address entirely. */
+export function referralFiltersToSearch(filters: ReferralFilters): ReportsSearch {
+  return {
+    referralFrom: filters.from === '' ? undefined : filters.from,
+    referralTo: filters.to === '' ? undefined : filters.to,
+    referralVacancy: filters.vacancyId === '' ? undefined : filters.vacancyId,
+  }
 }
 
 /** Manzil → almashtirgich. Manzilda qiymat bo'lmasa — standart davr. */
@@ -124,4 +161,17 @@ function readPeriod(value: unknown): TurnoverPeriod | undefined {
   if (!Number.isInteger(parsed) || !isPeriod(parsed)) return undefined
 
   return parsed === DEFAULT_PERIOD ? undefined : parsed
+}
+
+/** `DateOnly` — anything else would come back from the server as a 400. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/u
+
+function readDate(value: unknown): string | undefined {
+  return typeof value === 'string' && DATE_ONLY.test(value) ? value : undefined
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+
+function readId(value: unknown): string | undefined {
+  return typeof value === 'string' && UUID.test(value) ? value : undefined
 }

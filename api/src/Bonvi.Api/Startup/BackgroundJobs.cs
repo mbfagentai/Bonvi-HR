@@ -1,5 +1,6 @@
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Retention;
+using Bonvi.Application.Employees.Probations;
 using Bonvi.Application.Identity.EmployeeAccounts;
 using Bonvi.Infrastructure;
 using Bonvi.Infrastructure.Services;
@@ -56,6 +57,9 @@ public static class BackgroundJobs
 
     /// <summary>Hisobi yo'q xodimlarga ilova hisobini avtomatik ochish.</summary>
     public const string ProvisionEmployeeAccountsJobId = "employee-app:provision-accounts";
+
+    /// <summary>Muddati tugagan sinovni avtomatik «o'tdi» qilish (<c>ProbationAutoPassJob</c>).</summary>
+    public const string ProbationAutoPassJobId = "probations:auto-pass";
 
     /// <summary>Hangfire serverini va navbat portini ulaydi — yoki <c>Testing</c> da sinxron navbatni.</summary>
     /// <param name="builder">Ilova quruvchisi.</param>
@@ -173,6 +177,15 @@ public static class BackgroundJobs
             ProvisionEmployeeAccountsJobId,
             job => job.RunAsync(CancellationToken.None),
             "8-59/15 * * * *",
+            utc);
+
+        // 19:05 UTC = 00:05 Toshkent — kun almashgach, kechagi kun tugagan sinovlar.
+        // Server o'sha paytda o'chiq bo'lsa, Hangfire o'tkazib yuborilgan yurishni
+        // ko'tarilishda o'zi bajaradi; natija sanasi baribir tugash kuni.
+        jobs.AddOrUpdate<ProbationAutoPassJob>(
+            ProbationAutoPassJobId,
+            job => job.RunAsync(CancellationToken.None),
+            "5 19 * * *",
             utc);
 
         // ⭐ Ishga tushishda ham — NAVBATGA qo'yiladi, shu yerda bajarilmaydi:

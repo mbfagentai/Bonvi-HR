@@ -3,6 +3,9 @@ import { FileSearch, History, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportError } from '@/features/reports/components/list-export'
 import type { ListAuditEntriesParams } from '@/shared/api/generated/model'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
@@ -57,6 +60,8 @@ export function AuditPage() {
 
   const canView = hasPermission(AUDIT_VIEW)
   const canSeeSecurity = hasPermission(AUDIT_SECURITY_PERMISSION)
+  // Eksport — jurnalni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = canView && hasPermission(REPORTS_EXPORT)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -83,7 +88,13 @@ export function AuditPage() {
     [hasPermission],
   )
 
-  const params = useMemo<ListAuditEntriesParams>(
+  /*
+    Filtr SAHIFASIZ — jurnal ham, Excel eksporti ham AYNAN shundan
+    (`employees-page.tsx` dagi `listFilters` naqshi). Xavfsizlik ko'rinishi
+    (`kind`) ham shu yerda: uni ruxsatsiz odam tanlay olmaydi (yuqorida), server
+    esa faylga ham o'sha qoidani qo'llaydi.
+  */
+  const filterParams = useMemo<Omit<ListAuditEntriesParams, 'page' | 'pageSize'>>(
     () => ({
       from,
       to,
@@ -94,13 +105,19 @@ export function AuditPage() {
       entity: security ? undefined : search.entity,
       entityId: search.entityId,
       action: search.action,
-      page,
-      pageSize,
     }),
-    [from, to, kind, security, search.actor, search.module, search.entity, search.entityId, search.action, page, pageSize],
+    [from, to, kind, security, search.actor, search.module, search.entity, search.entityId, search.action],
+  )
+
+  const params = useMemo<ListAuditEntriesParams>(
+    () => ({ ...filterParams, page, pageSize }),
+    [filterParams, page, pageSize],
   )
 
   const list = useAuditEntries(params, canView && !periodInvalid)
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
   const actors = useAuditActors(canView)
 
   /** Ochiq yozuv — `null` bo'lsa oyna yopiq. */
@@ -192,7 +209,7 @@ export function AuditPage() {
           {t('audit.title')}
         </span>
       }
-      subtitle={t('audit.subtitle')}
+      description={t('audit.subtitle')}
     />
   )
 
@@ -248,7 +265,21 @@ export function AuditPage() {
           onKind={changeKind}
           onChange={changeFilters}
           onClear={clearFilters}
+          onExport={
+            canExport
+              ? () =>
+                  exportList.mutate({
+                    path: '/api/audit/export',
+                    params: filterParams,
+                    slug: 'audit',
+                  })
+              : undefined
+          }
+          exporting={exportList.isPending}
+          exportDisabled={periodInvalid}
         />
+
+        <ListExportError error={exportList.error} />
 
         {/*
           «Bitta yozuv» — kartadagi havoladan kelgan identifikator. Uni olib

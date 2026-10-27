@@ -5,7 +5,14 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { useAuth } from '@/features/auth'
 import type { EmployeeFlagType } from '@/features/employees/api/employees-api'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
-import { FLAG_LOOK, LISTS_MANAGE } from '@/features/employees/lib/employee-presentation'
+import {
+  FLAG_LOOK,
+  LISTS_MANAGE,
+  LISTS_VIEW,
+  REPORTS_EXPORT,
+} from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   NO_DATE_RANGE,
@@ -19,7 +26,7 @@ import {
   Button,
   Card,
   DataTable,
-  DateField,
+  DateRangeField,
   EmptyState,
   IconTile,
   Input,
@@ -29,7 +36,7 @@ import {
   type DataColumn,
 } from '@/shared/ui'
 
-import type { FlaggedEmployee } from '../api/flags-api'
+import { flaggedListParams, type FlaggedEmployee } from '../api/flags-api'
 import { useFlagged } from '../api/flags-queries'
 import { CloseFlagDialog } from './close-flag-dialog'
 
@@ -37,6 +44,17 @@ const helper = dataColumnHelper<FlaggedEmployee>()
 
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: FlaggedEmployee[] = []
+
+/**
+ * Fayl nomi server bermasa — belgi turidan (SPEC-excel-eksport §2:
+ * «slug from the flag type»). Odatda nomni server `Content-Disposition` da beradi.
+ */
+const EXPORT_SLUG: Readonly<Record<EmployeeFlagType, string>> = {
+  reserve: 'rezerv_xodimlar',
+  blacklist: 'qora_royxat_xodimlar',
+  monitoring: 'nazoratdagilar',
+  capable: 'qobiliyatli',
+}
 
 /**
  * Belgi ro'yxati — rezerv, qora ro'yxat va nazorat uchun BITTA komponent.
@@ -91,6 +109,8 @@ export function FlagListPage({
   const { hasPermission } = useAuth()
 
   const canManage = hasPermission(LISTS_MANAGE)
+  // Eksport — ro'yxatni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = hasPermission(LISTS_VIEW) && hasPermission(REPORTS_EXPORT)
   const look = FLAG_LOOK[type]
 
   const [onlyActive, setOnlyActive] = useState(true)
@@ -121,33 +141,27 @@ export function FlagListPage({
   // Teskari oraliqda eski natija ko'rinib qolmasin — u boshqa filtrniki
   const rows = rangeInvalid ? EMPTY : (list.data ?? EMPTY)
 
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
+
   const columns = useMemo<Array<DataColumn<FlaggedEmployee>>>(
     () => [
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
         /*
-          Pastki chegara ATAYLAB qo'yildi — avval umuman yo'q edi. Hisob:
-          300px − katak to'ldirishi (px-4 × 2 = 32px) = 268px; 268px −
-          rasm (size-12 = 48px) − oraliq (gap-3 = 12px) = 208px sof matnga
-          qoladi. `text-subhead` (15px) da bu ~24-26 belgi — o'zbekcha
-          uch so'zli to'liq ism («Абдуқодиров Шерзод Нурмат ўғли», 30
-          belgi) baribir kesiladi (title yo'q, to'liq ism qatorni bosib
-          profilga o'tishda ko'rinadi), lekin odatiy ikki-uch so'zli ism
-          endi sig'adi. 260px yetarli emas edi — sof matnga atigi 168px
-          (~20 belgi) qolardi. Xodimlar ro'yxatida xuddi shu konstruksiya
-          (rasm+ism) 340px, sinov ro'yxatida 300px — bu yerda ham 300px,
-          uch ro'yxatda bir xil odam bir xil kenglikda ko'rinsin.
+          ⭐ BIR QATOR (egasi 2026-10-22): rasm va to'liq ism bir chiziqda,
+          ism kesilmaydi — ustun eng uzun ismgacha kengayadi (`DataTable` —
+          `whitespace-nowrap`). Ilgari 300px da uch so'zli ism kesilardi.
         */
-        meta: { width: '300px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-3">
             <EmployeePhoto
               employeeId={row.original.employeeId}
               photoKey={row.original.photoKey}
               name={row.original.employeeName}
-              size="lg"
+              size="md"
             />
-            <p className="truncate-1 font-medium">{row.original.employeeName}</p>
+            <span className="font-medium">{row.original.employeeName}</span>
           </div>
         ),
       }),
@@ -156,15 +170,10 @@ export function FlagListPage({
         header: t('flags.reason'),
         enableSorting: false,
         /*
-          Bu yerda ham pastki chegara yo'q edi. «Sabab» — Excel'dan kelgan
-          erkin matn, ba'zan bir necha jumla; kengligi belgilanmasa
-          avtomatik jadval uni ENG UZUN qiymatning o'ralmagan kengligiga
-          qarab o'lchaydi va butun jadvalni cho'zib yuboradi. 220px — ikki
-          qatorda ~40-45 belgi ko'rsatadi (line-clamp-2 pastda), bu odatiy
-          sababni tanib olish uchun yetarli; to'lig'i `title` atributida
-          turibdi (pastdagi kod, o'zgarmagan).
+          «Sabab» — Excel'dan kelgan erkin matn, ba'zan bir necha jumla.
+          Bir qatorda, 360px da kesiladi; to'lig'i `title` da (sichqoncha
+          ustida). Kesilmasa butun jadval eng uzun sabab eniga cho'zilardi.
         */
-        meta: { width: '220px' },
         cell: ({ getValue }) => {
           const reason = getValue()
 
@@ -172,10 +181,8 @@ export function FlagListPage({
             return <span className="text-[var(--fg-tertiary)]">—</span>
           }
 
-          // Sabab uzun bo'lishi mumkin (Excel'dan kelgan matnlar bir necha
-          // jumla). Ikki qatorda kesiladi, to'lig'i esa `title` da qoladi.
           return (
-            <span className="truncate-2 text-[var(--fg-secondary)]" title={reason}>
+            <span className="block max-w-[360px] truncate text-[var(--fg-secondary)]" title={reason}>
               {reason}
             </span>
           )
@@ -239,7 +246,8 @@ export function FlagListPage({
   )
 
   return (
-    <div className="space-y-5">
+    // Ekranning butun eni — jadval bir qatorli, ustunlari ko'p (`app-shell.tsx`)
+    <div data-wide-list className="space-y-5">
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -252,7 +260,8 @@ export function FlagListPage({
             ? t('flags.subtitle', { n: num(rows.length) })
             : t(`flags.page.${look.key}.hint`)
         }
-        actions={
+        // Tablar va «faqat kuchdagilar» — sahifada, avvalgi joyida (egasi 2026-10-22)
+        toolbar={
           <div className="flex flex-wrap items-center gap-3">
             {tabs}
             <Switch
@@ -298,39 +307,58 @@ export function FlagListPage({
               </span>
             )}
           </Button>
+
+          {/*
+            Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+            alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+          */}
+          {hasDateRange(range) && (
+            <Button
+              type="button"
+              pill
+              variant="ghost"
+              title={t('employees.clearFilters')}
+              aria-label={t('employees.clearFilters')}
+              onClick={() => onRangeChange(NO_DATE_RANGE)}
+            >
+              <X />
+              <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+            </Button>
+          )}
+
+          {/*
+            Eksport — «Filtrlar» yonida. «Faqat kuchdagilar» ham faylga tushadi:
+            parametrlar ro'yxat so'rovi bilan bitta funksiyadan.
+          */}
+          {canExport && (
+            <ListExportButton
+              onClick={() =>
+                exportList.mutate({
+                  path: '/api/employees/flagged/export',
+                  params: flaggedListParams(type, onlyActive, search, range),
+                  slug: EXPORT_SLUG[type],
+                })
+              }
+              pending={exportList.isPending}
+              disabled={rangeInvalid}
+            />
+          )}
         </div>
 
         {rangeOpen && (
           <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {/* Oraliq belgi QO'YILGAN kun bo'yicha — yorliq shuni aytadi */}
-              <DateField
-                label={t('flags.markedFrom')}
-                value={range.from}
-                max={range.to === '' ? undefined : range.to}
-                onChange={(value) => onRangeChange({ ...range, from: value })}
-              />
-              <DateField
-                label={t('flags.markedTo')}
-                value={range.to}
-                min={range.from === '' ? undefined : range.from}
-                onChange={(value) => onRangeChange({ ...range, to: value })}
+              <DateRangeField
+                label={t('dateRange.marked')}
+                fromLabel={t('flags.markedFrom')}
+                toLabel={t('flags.markedTo')}
+                from={range.from}
+                to={range.to}
+                onFromChange={(value) => onRangeChange({ ...range, from: value })}
+                onToChange={(value) => onRangeChange({ ...range, to: value })}
               />
             </div>
-
-            {hasDateRange(range) && (
-              <div className="mt-3.5 flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onRangeChange(NO_DATE_RANGE)}
-                >
-                  <X />
-                  {t('employees.clearFilters')}
-                </Button>
-              </div>
-            )}
           </div>
         )}
 
@@ -339,6 +367,8 @@ export function FlagListPage({
             <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
           </div>
         )}
+
+        <ListExportError error={exportList.error} />
 
         <DataTable
           columns={columns}

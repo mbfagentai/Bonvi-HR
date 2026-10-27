@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using Bonvi.Api.Common;
 using Bonvi.Domain.Mcp;
 using Bonvi.Infrastructure.Mcp;
 using Microsoft.AspNetCore.Authentication;
@@ -301,7 +302,8 @@ internal static partial class McpAudit
                 outcome,
                 state?.RowCount,
                 durationMs,
-                context?.Connection.RemoteIpAddress?.ToString(),
+                // Mijozning haqiqiy IP'si (ClientIp) — Cloudflare chekkasi tergovga yaramaydi
+                context is null ? null : ClientIp.Resolve(context)?.ToString(),
                 context?.Request.Headers.UserAgent.ToString()));
 
             await store.SaveChangesAsync().ConfigureAwait(false);

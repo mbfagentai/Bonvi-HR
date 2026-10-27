@@ -1,4 +1,5 @@
 using Bonvi.Api.Extensions;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Application.Safety;
 using Bonvi.Application.Safety.Dtos;
 using Bonvi.Domain.Identity;
@@ -59,6 +60,8 @@ public sealed record ConcludeIncidentRequest(string? Conclusion, DateOnly? Concl
 /// </remarks>
 public static class IncidentEndpoints
 {
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     public static IEndpointRouteBuilder MapIncidentEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -89,6 +92,44 @@ public static class IncidentEndpoints
                 "pasport, telefon); hodisa tavsifi va mas'ul shaxs qidiruvga kirmaydi.")
             .Produces<IReadOnlyList<IncidentDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        // «/export» «/{id:guid}» bilan to'qnashmaydi (marshrut cheklovi GUID talab qiladi).
+        group.MapGet("/export", async (
+                DateOnly? from,
+                DateOnly? to,
+                IncidentSeverity? severity,
+                string? search,
+                ExportIncidentsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/safety/incidents» bilan AYNAN bir xil.
+                var natija = await handler
+                    .HandleAsync(new ListIncidentsQuery(from, to, severity, search), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(
+                        natija.Value.Content,
+                        XlsxContentType,
+                        natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ko'rish (`safety.view`) va tizimdan fayl olib chiqish
+            // (`reports.export`) — boshqa eksportlar bilan bir xil.
+            .RequireAuthorization(Permissions.SafetyView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportIncidentsToExcel")
+            .WithSummary("Baxtsiz hodisalar — Excel eksport")
+            .WithDescription(
+                "Parametrlar «GET /api/safety/incidents» bilan AYNAN bir xil — ekrandagi hodisalar, o'sha " +
+                "tartibda (hodisa sanasi bo'yicha kamayish), bitta faylda. Ustunlar: F.I.Sh., sana, " +
+                "jabrlanish darajasi, joyi, xulosa (Yakunlangan / Kutilmoqda), tavsif, komissiya xulosasi, " +
+                "xulosa sanasi. Eng ko'pi 5000 qator — «eksport.juda_kop» (400). Ruxsat: «safety.view» VA " +
+                "«reports.export». Har bir eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/by-employee/{employeeId:guid}", async (
                 Guid employeeId,

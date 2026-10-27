@@ -606,6 +606,18 @@ function withoutBlanks<T extends object>(source: T): T {
 }
 
 /**
+ * Ro'yxatning Excel eksporti parametrlari (`docs/SPEC-excel-eksport.md` §3).
+ *
+ * Ro'yxat `fetch…` lari ham AYNAN shu tozalashdan o'tadi (`withoutBlanks`):
+ * chaqiruvchi ro'yxat so'roviga bergan filtr obyektini sahifasiz bersa, fayl
+ * ekrandagi qatorlarning o'zi bo'ladi — ikkinchi nusxa yo'q.
+ */
+export function attendanceExportParams<T extends object>(filters: T): Record<string, unknown> {
+  // Generik: chaqiruvchi ro'yxatning tiplashgan filtrini beradi — tip mosligi kompilyatorda tekshiriladi
+  return withoutBlanks(filters) as Record<string, unknown>
+}
+
+/**
  * `TimeOnly` → «HH:mm».
  *
  * Server «09:00:00» yuboradi, forma esa `<input type="time">` da aynan

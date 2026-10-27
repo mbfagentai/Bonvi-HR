@@ -181,6 +181,32 @@ export interface ExtendProbationRequest {
 
 /* ─────────────────────────────────────────────────────────── so'rovlar */
 
+/** Ro'yxat filtri sahifasiz — Excel eksporti shu bilan so'raladi. */
+export type ProbationListFilters = Omit<ProbationFilters, 'page' | 'pageSize'>
+
+/**
+ * Ro'yxat so'rovining filtr parametrlari — ro'yxat ham, Excel eksporti ham
+ * AYNAN shu funksiyadan (`docs/SPEC-excel-eksport.md` §3).
+ */
+export function probationListParams(filters: ProbationListFilters): Record<string, string> {
+  // Bo'sh filtr YUBORILMAYDI: `?status=` server uchun «noto'g'ri qiymat»,
+  // «hammasi» emas.
+  //
+  // Qidiruv SERVERGA yuboriladi, klientda `filter()` qilinmaydi: server
+  // ism yig'ish (қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini tashlash
+  // qoidalarini biladi, klient esa yo'q. Bu qoidani bu yerda takrorlash
+  // ikkinchi nusxa yaratardi va u vaqt o'tib birinchisidan ajralib
+  // ketardi.
+  const params: Record<string, string> = {}
+
+  if (filters.status !== '') params['status'] = statusName(filters.status)
+  if (filters.search.trim() !== '') params['search'] = filters.search
+  if (filters.from !== '') params['from'] = filters.from
+  if (filters.to !== '') params['to'] = filters.to
+
+  return params
+}
+
 /**
  * Sinov muddatlari ro'yxati — SERVER tomonda sahifalanadi.
  *
@@ -194,23 +220,7 @@ export async function fetchProbations(
   filters: ProbationFilters,
   signal?: AbortSignal,
 ): Promise<ProbationPage> {
-  // Bo'sh filtr YUBORILMAYDI: `?status=` server uchun «noto'g'ri qiymat»,
-  // «hammasi» emas.
-  //
-  // Qidiruv SERVERGA yuboriladi, klientda `filter()` qilinmaydi: server
-  // ism yig'ish (қ/ғ/ҳ/ў/ё) va telefon ajratgichlarini tashlash
-  // qoidalarini biladi, klient esa yo'q. Bu qoidani bu yerda takrorlash
-  // ikkinchi nusxa yaratardi va u vaqt o'tib birinchisidan ajralib
-  // ketardi.
-  const params: Record<string, string | number> = {
-    page: filters.page,
-    pageSize: filters.pageSize,
-  }
-
-  if (filters.status !== '') params['status'] = statusName(filters.status)
-  if (filters.search.trim() !== '') params['search'] = filters.search
-  if (filters.from !== '') params['from'] = filters.from
-  if (filters.to !== '') params['to'] = filters.to
+  const params = { ...probationListParams(filters), page: filters.page, pageSize: filters.pageSize }
 
   const { data } = await api.get<unknown>('/api/probations', { params, signal })
 

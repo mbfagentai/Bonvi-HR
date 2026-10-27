@@ -4,6 +4,7 @@ using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Application.Employees.Probations;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
@@ -187,6 +188,8 @@ public sealed record ExtendProbationRequest(DateOnly NewEndDate);
 /// </remarks>
 public static class EmploymentEndpoints
 {
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     public static IEndpointRouteBuilder MapEmploymentEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -294,6 +297,58 @@ public static class EmploymentEndpoints
             .Produces<PagedResult<EmploymentEventListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/events/export", async (
+                string? search,
+                EmploymentEventType? type,
+                DateOnly? from,
+                DateOnly? to,
+                Guid? departmentId,
+                Guid? legalEntityId,
+                ExportEmploymentEventsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/employments/events» bilan AYNAN bir xil
+                // (sahifadan tashqari).
+                var natija = await handler
+                    .HandleAsync(
+                        new ListEmploymentEventsQuery(
+                            search,
+                            type,
+                            from,
+                            to,
+                            departmentId,
+                            legalEntityId,
+                            Page: null,
+                            PageSize: null),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ro'yxatni ko'rish (`employment.view`) va
+            // tizimdan fayl olib chiqish (`reports.export`). Oklad esa ro'yxatdagi
+            // kabi alohida — `salary.view` (handler qatorni ro'yxat handler'idan oladi).
+            .RequireAuthorization(Permissions.EmploymentView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportEmploymentEventsToExcel")
+            .WithSummary("Buyruqlar — Excel eksport")
+            .WithDescription(
+                "Filtr parametrlari «GET /api/employments/events» bilan AYNAN bir xil — eksport " +
+                "ekranda ko'ringan buyruqlarni, o'sha tartibda (kuchga kirish sanasi bo'yicha, " +
+                "yangidan eskiga), sahifasiz qaytaradi. Ustunlar: F.I.Sh., turi, kuchga kirish, " +
+                "buyruq raqami va sanasi, tafsilot («eski → yangi» bitta qatorda), lavozim, bo'lim, " +
+                "izoh. Oklad va qo'shimcha haq ro'yxatdagi bilan bir xil qoida bo'yicha: " +
+                "«salary.view» (qo'shimcha haq uchun «salary.extra.view» ham) bo'lmasa faylda ham " +
+                "yo'q. Eng ko'pi 5000 qator: kattaroq natija «eksport.juda_kop» (400) bilan rad " +
+                "etiladi. Ruxsat: «employment.view» VA «reports.export». Har bir eksport audit " +
+                "jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/{id:guid}", async (
                 Guid id,
@@ -574,6 +629,45 @@ public static class EmploymentEndpoints
             .Produces<PagedResult<ProbationListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/export", async (
+                ProbationStatus? status,
+                int? endingWithinDays,
+                string? search,
+                DateOnly? from,
+                DateOnly? to,
+                ExportProbationsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/probations» bilan AYNAN bir xil (sahifadan tashqari).
+                var natija = await handler
+                    .HandleAsync(
+                        new ListProbationsQuery(status, endingWithinDays, search, Page: null, PageSize: null, from, to),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ro'yxatni ko'rish (`employment.view`) va
+            // tizimdan fayl olib chiqish (`reports.export`).
+            .RequireAuthorization(Permissions.EmploymentView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportProbationsToExcel")
+            .WithSummary("Sinov muddatlari — Excel eksport")
+            .WithDescription(
+                "Filtr parametrlari «GET /api/probations» bilan AYNAN bir xil — eksport ekranda " +
+                "ko'ringan sinov muddatlarini, o'sha tartibda (tugash sanasi bo'yicha), sahifasiz " +
+                "qaytaradi. Ustunlar: F.I.Sh., lavozim, bo'lim, boshlangan va tugaydigan sana, " +
+                "qolgan kun (SON, manfiy — muddati o'tgan; faqat davom etayotgan sinovda), holat, " +
+                "xulosa. Eng ko'pi 5000 qator: kattaroq natija «eksport.juda_kop» (400) bilan rad " +
+                "etiladi. Ruxsat: «employment.view» VA «reports.export». Har bir eksport audit " +
+                "jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/ending-soon", async (
                 int? withinDays,

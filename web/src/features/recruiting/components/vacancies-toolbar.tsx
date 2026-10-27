@@ -1,5 +1,6 @@
 import { Search, X } from 'lucide-react'
 
+import { ListExportButton } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
 import { Button, Input, Select } from '@/shared/ui'
@@ -36,9 +37,17 @@ import { DEFAULT_FILTERS, type VacanciesFilterState } from '../lib/vacancies-sea
 export function VacanciesToolbar({
   filters,
   onChange,
+  onExport,
+  exporting = false,
 }: {
   filters: VacanciesFilterState
   onChange: (next: VacanciesFilterState) => void
+  /**
+   * «Excelga yuklash». `undefined` — tugma umuman chizilmaydi (ruxsat yo'q).
+   * So'rov sahifada: fayl ro'yxat bilan bitta filtr va saralashdan quriladi.
+   */
+  onExport?: () => void
+  exporting?: boolean
 }) {
   const { t } = useLocale()
 
@@ -80,6 +89,7 @@ export function VacanciesToolbar({
       </div>
 
       <Select
+        size="sm"
         options={statusOptions}
         value={filters.status}
         aria-label={t('recruiting.status')}
@@ -99,6 +109,9 @@ export function VacanciesToolbar({
           {t('employees.clearFilters')}
         </Button>
       )}
+
+      {/* Eksport — qatorning oxirida: «Filtrlar» tugmasi bu ro'yxatda yo'q */}
+      {onExport !== undefined && <ListExportButton onClick={onExport} pending={exporting} />}
     </div>
   )
 }

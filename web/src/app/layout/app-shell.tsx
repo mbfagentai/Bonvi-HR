@@ -1,8 +1,9 @@
 import { useRouterState } from '@tanstack/react-router'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 
 import { LiveNotifications } from '@/features/notifications'
 import { cn } from '@/shared/lib/cn'
+import { PageHeaderSlotContext, type PageHeaderSlots } from '@/shared/ui'
 
 import { Sidebar } from './sidebar'
 import { Topbar } from './topbar'
@@ -73,6 +74,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   const main = useMainScrollReset()
 
   /*
+    Sahifa sarlavhasi va harakatlari yuqori panelga chiqadi (`PageHeader`,
+    egasi 2026-10-22) — faqat keng ekranda. Joylar DOM element sifatida
+    holatda turadi: panel chizilgach ular paydo bo'ladi va sahifalar shu
+    paytda portal orqali o'z sarlavhasini u yerga ko'chiradi.
+  */
+  const wide = useWideScreen()
+  const [titleSlot, setTitleSlot] = useState<HTMLElement | null>(null)
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null)
+  const slots = useMemo<PageHeaderSlots | null>(
+    () =>
+      wide && titleSlot !== null && actionsSlot !== null
+        ? { title: titleSlot, actions: actionsSlot }
+        : null,
+    [wide, titleSlot, actionsSlot],
+  )
+
+  /*
     Kontentning 1400 px chegarasi — o'qiladigan sahifalar (karta, forma,
     ro'yxat) uchun: katta monitorda qator uzunligi ko'zni charchatmasin.
     Ba'zi sahifa esa aynan ENNI talab qiladi — masalan davomat statistikasi:
@@ -90,8 +108,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh overflow-hidden">
       <Sidebar collapsed={collapsed} onToggle={toggle} />
 
+      <PageHeaderSlotContext value={slots}>
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
+        <Topbar titleSlotRef={setTitleSlot} actionsSlotRef={setActionsSlot} />
 
         {/*
           Butun ilovadagi YAGONA suriladigan maydon.
@@ -118,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main
           ref={main}
-          className="flex-1 overflow-y-auto px-5 py-6 [scrollbar-gutter:stable] lg:px-8 lg:py-8"
+          className="flex-1 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable] lg:px-6"
         >
           {/*
             Ro'yxat sahifasi (`data-list-frame`) bo'lsa, o'ram `main` ning
@@ -131,11 +150,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             telefonda yoki past noutbukda sarlavha va filtrlar ekranning
             yarmini egallaydi — qatorlar uchun joy qolmaydi, u yerda oddiy
             oqim qulayroq.
+
+            Ro'yxat sahifasi 1400 px chegarasiz — ekranning butun eni
+            (egasi 2026-10-22: «katta ekranda ishlatishadi, eniga keng
+            bo'lishi muammo emas»). Jadval qatorlari bir qatorli, ustunlar
+            esa ko'p — chegara katta monitorda o'ngda bo'sh maydon qoldirib,
+            jadvalni gorizontal aylantirishga majbur qilardi.
           */}
           <div
             className={cn(
               'mx-auto w-full',
-              !fullWidth && 'max-w-[1400px]',
+              // `data-wide-list` — ichida aylanmaydigan, lekin keng ro'yxat (belgilar ro'yxatlari)
+              !fullWidth && 'max-w-[1400px] has-[>[data-list-frame]]:max-w-none has-[>[data-wide-list]]:max-w-none',
               'frame:has-[>[data-list-frame]]:h-full',
             )}
           >
@@ -143,6 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </main>
       </div>
+      </PageHeaderSlotContext>
     </div>
   )
 }
@@ -178,4 +205,21 @@ function useMainScrollReset() {
   }, [href])
 
   return ref
+}
+
+/** Keng ekran (`lg`, 64rem) — yuqori panelda sahifa sarlavhasiga joy bor. */
+const WIDE_QUERY = '(min-width: 64rem)'
+
+function subscribeWide(onChange: () => void): () => void {
+  const media = globalThis.matchMedia?.(WIDE_QUERY)
+  media?.addEventListener('change', onChange)
+  return () => media?.removeEventListener('change', onChange)
+}
+
+function useWideScreen(): boolean {
+  return useSyncExternalStore(
+    subscribeWide,
+    () => globalThis.matchMedia?.(WIDE_QUERY).matches ?? true,
+    () => true,
+  )
 }

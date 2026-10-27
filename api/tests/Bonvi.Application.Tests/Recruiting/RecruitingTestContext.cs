@@ -4,9 +4,11 @@ using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Employees.Employments;
 using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Application.Recruiting;
+using Bonvi.Application.Recruiting.Referrals;
 using Bonvi.Application.Settings;
 using Bonvi.Application.Tests.Employees;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
@@ -67,6 +69,12 @@ internal sealed class RecruitingTestContext
 
     public ICandidateRepository Candidates { get; } = Substitute.For<ICandidateRepository>();
 
+    /// <summary>«Qayerdan bilgan» ma'lumotnomasi — kanal <see cref="ExistingReferralChannel"/> bilan qo'shiladi.</summary>
+    public IReferenceRepository<ReferralChannel> ReferralChannels { get; } = Substitute.For<IReferenceRepository<ReferralChannel>>();
+
+    /// <summary>«Qayerdan bilgan» tanlovi qoidasi — HAQIQIY sinf (mock emas), ma'lumotnoma o'rinbosar.</summary>
+    public ReferralChannelChoice ReferralChoice => new(ReferralChannels);
+
     /// <summary>Sozlamalar jadvali — «Umumiy anketa» havolasi shu yerda yashaydi.</summary>
     public ISystemSettingRepository SettingRows { get; } = Substitute.For<ISystemSettingRepository>();
 
@@ -116,6 +124,7 @@ internal sealed class RecruitingTestContext
     /// </remarks>
     public CandidateHandover Handover => new(
         Employees.DocumentTypes,
+        ReferralChannels,
         Employees.Documents,
         Employees.Competencies,
         Stages,
@@ -123,7 +132,7 @@ internal sealed class RecruitingTestContext
         Employees.Clock);
 
     public RecruitingMapper Mapper => new(
-        Stages, Vacancies, Candidates, Employees.Employments, Settings);
+        Stages, Vacancies, Candidates, Employees.Employments, ReferralChannels, Settings);
 
     /// <summary>1-bosqichning HAQIQIY ishga qabul handleri (mock emas).</summary>
     /// <remarks>
@@ -142,6 +151,22 @@ internal sealed class RecruitingTestContext
         Employees.Mapper,
         Employees.Clock,
         Employees.UnitOfWork);
+
+    /// <summary>«Qayerdan bilgan» ma'lumotnomasidagi kanal.</summary>
+    public ReferralChannel ExistingReferralChannel(string name = "Telegram", bool asksDetail = false, bool active = true)
+    {
+        var channel = ReferralChannel.Create(name).Value;
+        channel.SetAsksDetail(asksDetail);
+
+        if (!active)
+        {
+            channel.Deactivate();
+        }
+
+        ReferralChannels.GetByIdAsync(channel.Id, Arg.Any<CancellationToken>()).Returns(channel);
+
+        return channel;
+    }
 
     /// <summary>Bazada mavjud faol bosqich.</summary>
     public PipelineStage ExistingStage(string name = "Анкета", int sortOrder = 0, bool active = true)

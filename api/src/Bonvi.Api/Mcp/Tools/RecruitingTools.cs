@@ -167,16 +167,16 @@ public sealed class RecruitingTools(McpToolContext t)
         [Description("Matn: ism-familiya, telefon raqami (qismi ham), mutaxassislik, izoh, manzil yoki anketa matnlari. Bir necha so'z — hammasi topilishi kerak.")] string? text = null,
         [Description("Kelgan sana (dan), YYYY-MM-DD.")] string? createdFrom = null,
         [Description("Kelgan sana (gacha), YYYY-MM-DD.")] string? createdTo = null,
-        [Description("Manba: Manual (HR kiritgan), TelegramBot (bot anketasi), Excel (2023–2024 kengash arxivi).")] string? source = null,
+        [Description("Manba: Manual (HR kiritgan), TelegramBot (bot anketasi), Excel (2023–2024 kengash arxivi), OnlineForm (onlayn anketa HR-F02 — ofis plansheti yoki nomzodning o'z telefoni).")] string? source = null,
         [Description("Excel kengash arxivini ham qo'shish (sukut: yo'q; source=Excel bo'lsa avtomatik qo'shiladi).")] bool? includeArchive = null,
         [Description("Anketa bormi: true — faqat anketasi borlar, false — anketasizlar.")] bool? hasQuestionnaire = null,
-        [Description("Ma'lumoti (vergul bilan bir nechta): SecondarySchool (o'rta), VocationalSchool (o'rta maxsus), HigherComplete (oliy), HigherIncomplete (oliy, tugallanmagan).")] string? education = null,
+        [Description("Ma'lumoti (vergul bilan bir nechta): SecondarySchool (o'rta), VocationalSchool (o'rta maxsus), HigherComplete (oliy), HigherIncomplete (oliy, tugallanmagan), HigherMaster (oliy, magistr).")] string? education = null,
         [Description("Rus tili darajasi kamida: Elementary, Intermediate, UpperIntermediate, Advanced, Native.")] string? minRussianLevel = null,
         [Description("Anketadagi «boshqa tillar» matnida qidiruv (masalan «ingliz», «english», «турк»).")] string? otherLanguages = null,
         [Description("Haydovchilik guvohnomasi bormi.")] bool? hasDriverLicense = null,
         [Description("Guvohnoma toifasi (masalan B yoki C).")] string? driverLicenseCategory = null,
-        [Description("Kutilayotgan maosh oralig'i (vergul bilan): From1To2Million, From2To3Million, From3To4Million, From5To7Million.")] string? expectedSalary = null,
-        [Description("Ish haqida qayerdan bilgan (vergul bilan): Acquaintance (tanishlar), SocialNetwork (Instagram/Facebook), Olx, HeadHunter (hh.uz), Telegram, Other.")] string? referralSource = null,
+        [Description("Kutilayotgan maosh oralig'i (vergul bilan): From1To2Million, From2To3Million, From3To4Million, From4To5Million, From5To7Million, From7Million (7 mln dan yuqori).")] string? expectedSalary = null,
+        [Description("Ish haqida qayerdan bilgan: «Qayerdan bilgan» ma'lumotnomasidagi kanal nomi (qismi yetarli, vergul bilan bir nechta — masalan «telegram, tanish») yoki «none» — kanali ko'rsatilmagan (eski) nomzodlar.")] string? referralChannel = null,
         [Description("Yoshi kamida (tug'ilgan sanasi yo'q nomzodlar yosh filtrida chiqmaydi).")] int? minAge = null,
         [Description("Yoshi ko'pi bilan.")] int? maxAge = null,
         [Description("Saralash: created (sukut, yangilari birinchi), name, nextContact (keyingi aloqa sanasi), interview (suhbat vaqti).")] string? sort = null,
@@ -283,9 +283,14 @@ public sealed class RecruitingTools(McpToolContext t)
             query = query.Where(candidate => candidate.Questionnaire != null && salaries.Contains(candidate.Questionnaire.ExpectedSalary));
         }
 
-        if (ParseEnumList<ReferralSource>(referralSource, "referralSource") is { } referrals)
+        if (await ResolveReferralChannelsAsync(referralChannel, cancellationToken).ConfigureAwait(false) is { } referrals)
         {
-            query = query.Where(candidate => candidate.Questionnaire != null && referrals.Contains(candidate.Questionnaire.ReferralSource));
+            var channelIds = referrals.ChannelIds;
+            var withoutChannel = referrals.WithoutChannel;
+
+            query = query.Where(candidate =>
+                (candidate.ReferralChannelId != null && channelIds.Contains(candidate.ReferralChannelId.Value))
+                || (withoutChannel && candidate.ReferralChannelId == null));
         }
 
         // Yosh — tug'ilgan sana chegarasiga aylanadi (indeksga tushadigan oddiy taqqoslash).
@@ -339,6 +344,8 @@ public sealed class RecruitingTools(McpToolContext t)
                 candidate.NextContactDate,
                 candidate.InterviewAt,
                 candidate.ClosedAt,
+                candidate.ReferralChannelId,
+                candidate.ReferralDetail,
                 Form = candidate.Questionnaire == null
                     ? null
                     : new
@@ -349,7 +356,6 @@ public sealed class RecruitingTools(McpToolContext t)
                         candidate.Questionnaire.HasDriverLicense,
                         candidate.Questionnaire.DriverLicenseCategories,
                         candidate.Questionnaire.ExpectedSalary,
-                        candidate.Questionnaire.ReferralSource,
                         candidate.Questionnaire.WorkExperience,
                     },
             })
@@ -357,6 +363,7 @@ public sealed class RecruitingTools(McpToolContext t)
             .ConfigureAwait(false);
 
         var vacancyTitles = await VacancyTitlesAsync(rows.Select(row => row.VacancyId), cancellationToken).ConfigureAwait(false);
+        var referralNames = await ReferralChannelNamesAsync(cancellationToken).ConfigureAwait(false);
 
         var items = rows.Select(row => new
         {
@@ -373,6 +380,7 @@ public sealed class RecruitingTools(McpToolContext t)
             nextContactDate = McpToolContext.Iso(row.NextContactDate),
             interviewAt = McpToolContext.Local(row.InterviewAt),
             closedAt = McpToolContext.Iso(row.ClosedAt),
+            referral = ReferralText(referralNames, row.ReferralChannelId, row.ReferralDetail),
             questionnaire = row.Form is null
                 ? null
                 : new
@@ -382,7 +390,6 @@ public sealed class RecruitingTools(McpToolContext t)
                     otherLanguages = row.Form.OtherLanguages,
                     driverLicense = row.Form.HasDriverLicense ? row.Form.DriverLicenseCategories ?? "bor" : null,
                     expectedSalary = row.Form.ExpectedSalary,
-                    referralSource = row.Form.ReferralSource,
                     workExperience = Shorten(row.Form.WorkExperience, 200),
                 },
         }).ToList();
@@ -408,7 +415,7 @@ public sealed class RecruitingTools(McpToolContext t)
         ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Bitta nomzodning to'liq kartasi: shaxsiy ma'lumot (ism, tug'ilgan sana, yosh, telefon, manzil, mutaxassislik, "
         + "izoh, manba), vakansiya, holat va joriy bosqich, bosqichlar tarixi (sana, xulosa, kim yozgan), amallar izohlari, "
-        + "bot anketasining barcha javoblari, suhbat vaqti, keyingi aloqa sanasi, yopilish sanasi va sababi; ishga olingan "
+        + "ish haqida qayerdan bilgani, bot anketasining barcha javoblari, suhbat vaqti, keyingi aloqa sanasi, yopilish sanasi va sababi; ishga olingan "
         + "bo'lsa — xodim identifikatori (get_employee uchun); shu telefon bilan kelgan boshqa arizalar. Fayl va rasm berilmaydi. "
         + "Full candidate card: personal data, stage history, notes, questionnaire, hire link.")]
     public async Task<string> GetCandidate(
@@ -449,6 +456,8 @@ public sealed class RecruitingTools(McpToolContext t)
                 candidate.ClosedAt,
                 candidate.ClosingNote,
                 candidate.RejectionNoticeSentAt,
+                candidate.ReferralChannelId,
+                candidate.ReferralDetail,
             })
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false)
@@ -492,11 +501,12 @@ public sealed class RecruitingTools(McpToolContext t)
                 item.HasDriverLicense,
                 item.DriverLicenseCategories,
                 item.ExpectedSalary,
-                item.ReferralSource,
                 item.OfferAcceptedAt,
             })
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var referralNames = await ReferralChannelNamesAsync(cancellationToken).ConfigureAwait(false);
 
         // Nomzod → xodim havolasi ishga qabul HODISASIDA saqlanadi (EmploymentEvent.CandidateId).
         var hire = await (
@@ -552,6 +562,7 @@ public sealed class RecruitingTools(McpToolContext t)
                 nextContactDate = McpToolContext.Iso(card.NextContactDate),
                 closedAt = McpToolContext.Iso(card.ClosedAt),
                 closingNote = card.ClosingNote,
+                referral = ReferralText(referralNames, card.ReferralChannelId, card.ReferralDetail),
                 rejectionNoticeSentAt = McpToolContext.Local(card.RejectionNoticeSentAt),
                 hiredEmployee = hire is null ? null : new { employeeId = hire.EmployeeId, hireDate = McpToolContext.Iso(hire.EffectiveDate) },
                 stageHistory = history.Select(entry => new
@@ -584,7 +595,6 @@ public sealed class RecruitingTools(McpToolContext t)
                         hasDriverLicense = form.HasDriverLicense,
                         driverLicenseCategories = form.DriverLicenseCategories,
                         expectedSalary = form.ExpectedSalary,
-                        referralSource = form.ReferralSource,
                         offerAcceptedAt = McpToolContext.Local(form.OfferAcceptedAt),
                     },
                 otherApplications = otherApplications.Count == 0
@@ -608,7 +618,7 @@ public sealed class RecruitingTools(McpToolContext t)
     [McpServerTool(Name = "recruiting_funnel", Title = "Rekruting voronkasi",
         ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Davrda kelgan arizalar (nomzodlar) bo'yicha voronka: har bosqichga yetganlar va hozir turganlar (bosqich tartibida), "
-        + "holatlar, manbalar, botda «qayerdan bildi» javoblari, ishga olish konversiyasi va ishga olishgacha o'tgan kunlar "
+        + "holatlar, manbalar, «qayerdan bilgan» kanallari, ishga olish konversiyasi va ishga olishgacha o'tgan kunlar "
         + "(mediana). Vakansiya berilmasa — vakansiyalar kesimi ham. Sukut: oxirgi 90 kun. "
         + "Recruiting funnel for a period/vacancy: stage reach, statuses, sources, conversion, median days to hire.")]
     public async Task<string> RecruitingFunnel(
@@ -654,12 +664,13 @@ public sealed class RecruitingTools(McpToolContext t)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var byReferral = await db.CandidateQuestionnaires
-            .Where(form => cohortIds.Contains(form.CandidateId))
-            .GroupBy(form => form.ReferralSource)
-            .Select(group => new { Referral = group.Key, Count = group.Count() })
+        var byReferral = await cohort
+            .GroupBy(candidate => candidate.ReferralChannelId)
+            .Select(group => new { ChannelId = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var referralNames = await ReferralChannelNamesAsync(cancellationToken).ConfigureAwait(false);
 
         // «Yetgan» — shu bosqichga kamida bir marta yozuvi bor nomzodlar (takrorlar bitta).
         var reached = await db.CandidateStageEntries
@@ -771,7 +782,11 @@ public sealed class RecruitingTools(McpToolContext t)
                     .GroupBy(row => row.Status)
                     .ToDictionary(group => group.Key.ToString(), group => group.Sum(row => row.Count)),
                 bySource = bySource.ToDictionary(item => item.Source.ToString(), item => item.Count),
-                byReferralSource = byReferral.Count == 0 ? null : byReferral.ToDictionary(item => item.Referral.ToString(), item => item.Count),
+                byReferralChannel = byReferral.Count == 0
+                    ? null
+                    : byReferral
+                        .OrderByDescending(item => item.Count)
+                        .ToDictionary(item => referralNames.Name(item.ChannelId) ?? MissingReferral, item => item.Count),
                 stages = stageRows,
                 withoutStage = noStage == 0 ? (int?)null : noStage,
                 daysToHire = daysToHire.Count == 0
@@ -871,6 +886,59 @@ public sealed class RecruitingTools(McpToolContext t)
             ? found
             : throw new McpException($"«{vacancy.Trim()}» vakansiyasi topilmadi. Ro'yxat uchun vacancies vositasini chaqiring (status=all).");
     }
+
+    /// <summary>Kanalsiz (eski) nomzodlar — «qayerdan bilgan» bo'yicha sanoqdagi kalit.</summary>
+    private const string MissingReferral = "Ko'rsatilmagan";
+
+    /// <summary>
+    /// «Qayerdan bilgan»: kanal nomi bo'laklari (vergul bilan) va «none» → kanal identifikatorlari
+    /// va «kanalsizlar ham» belgisi; bo'sh bo'lsa <c>null</c> (filtr yo'q).
+    /// </summary>
+    private async Task<(List<Guid> ChannelIds, bool WithoutChannel)?> ResolveReferralChannelsAsync(
+        string? referral,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(referral))
+        {
+            return null;
+        }
+
+        var parts = referral.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var withoutChannel = parts.Any(part => string.Equals(part, "none", StringComparison.OrdinalIgnoreCase));
+        var ids = new List<Guid>();
+
+        foreach (var part in parts.Where(part => !string.Equals(part, "none", StringComparison.OrdinalIgnoreCase)))
+        {
+            var pattern = Like(part);
+            var matched = await t.Db.ReferralChannels.IgnoreQueryFilters()
+                .Where(item => EF.Functions.ILike(item.Name, pattern, Escape))
+                .Select(item => item.Id)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (matched.Count == 0)
+            {
+                var names = string.Join(", ", (await ReferralChannelNamesAsync(cancellationToken).ConfigureAwait(false)).Values.Order());
+                throw new McpException($"«{part}» kanali topilmadi. Kanallar: {names}.");
+            }
+
+            ids.AddRange(matched);
+        }
+
+        return (ids, withoutChannel);
+    }
+
+    /// <summary>«Qayerdan bilgan» kanallari: identifikator → nom (faolsizlantirilganlari ham).</summary>
+    private Task<Dictionary<Guid, string>> ReferralChannelNamesAsync(CancellationToken cancellationToken)
+        => t.Db.ReferralChannels.IgnoreQueryFilters()
+            .Select(item => new { item.Id, item.Name })
+            .ToDictionaryAsync(item => item.Id, item => item.Name, cancellationToken);
+
+    /// <summary>«Tanishlar orqali — Rustamov Bahodir»; kanalsiz nomzodda <c>null</c>.</summary>
+    private static string? ReferralText(Dictionary<Guid, string> names, Guid? channelId, string? detail)
+        => names.Name(channelId) is not { } name
+            ? null
+            : string.IsNullOrWhiteSpace(detail) ? name : $"{name} — {detail}";
 
     private async Task<Dictionary<Guid, string>> VacancyTitlesAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken)
     {

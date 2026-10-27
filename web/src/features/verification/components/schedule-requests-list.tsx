@@ -1,10 +1,12 @@
-import { CalendarClock, Check, Pencil, Plus, SearchX, X } from 'lucide-react'
+import { CalendarClock, Check, Pencil, Plus, SearchX, Smartphone, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
-import { cn } from '@/shared/lib/cn'
 import { NO_DATE_RANGE, hasDateRange, type DateRange } from '@/shared/lib/list-search'
 import {
   Badge,
@@ -18,10 +20,15 @@ import {
   type DataColumn,
 } from '@/shared/ui'
 
-import type { ScheduleChangeRequest } from '../api/attendance-api'
+import {
+  attendanceExportParams,
+  type ScheduleChangeRequestFilters,
+  type ScheduleChangeRequest,
+} from '../api/attendance-api'
 import { useScheduleChangeRequests } from '../api/attendance-queries'
 import {
   ATTENDANCE_REQUESTS_MANAGE,
+  ATTENDANCE_VIEW,
   REQUEST_STATUS_LOOK,
   SCHEDULE_KIND_LABEL_KEY,
 } from '../lib/attendance-presentation'
@@ -41,8 +48,11 @@ const NO_ROWS: ScheduleChangeRequest[] = []
 
 const PAGE_SIZE = 25
 
-/** Katakda shuncha sana — qolgani «yana N ta», to'liq ro'yxat qaror oynasida. */
-const VISIBLE_DAYS = 3
+/**
+ * Katakda shuncha sana — qolgani «yana N ta», to'liq ro'yxat sichqoncha
+ * ostida va qaror oynasida. Bitta: qator bir chiziq (egasi 2026-10-22).
+ */
+const VISIBLE_DAYS = 1
 
 /**
  * Jadval so'rovlari — `AbsenceRequestsList` ning egizagi (SPEC-jadval-sorovi
@@ -78,6 +88,12 @@ export function ScheduleRequestsList({
   const text = useScheduleRequestText()
 
   const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE)
+  /*
+    Excelga yuklash — faqat umumiy navbatda (sana filtri kartasi bor joyda),
+    ro'yxatni ko'rish VA `reports.export` bilan (`AbsenceRequestsList` dagi qoida).
+  */
+  const canExport =
+    onRangeChange !== undefined && hasPermission(ATTENDANCE_VIEW) && hasPermission(REPORTS_EXPORT)
 
   const [pendingPage, setPendingPage] = useState(1)
   const [decidedPage, setDecidedPage] = useState(1)
@@ -102,12 +118,23 @@ export function ScheduleRequestsList({
   const from = range.from === '' ? undefined : range.from
   const to = range.to === '' ? undefined : range.to
 
+  /*
+    Ikkala jadvalga umumiy filtr — holatsiz va sahifasiz. Excel fayli AYNAN
+    shundan: kutayotganlar ham, qaror qabul qilinganlar ham
+    (`AbsenceRequestsList` dagi eksport izohi).
+  */
+  const query: ScheduleChangeRequestFilters = {
+    employeeId: employeeId ?? undefined,
+    from,
+    to,
+  }
+
+  const exportList = useListExport()
+
   const pending = useScheduleChangeRequests(
     {
-      employeeId: employeeId ?? undefined,
+      ...query,
       status: 'Pending',
-      from,
-      to,
       page: pendingPage,
       pageSize: PAGE_SIZE,
     },
@@ -117,10 +144,8 @@ export function ScheduleRequestsList({
   // «Qaror qabul qilingan» — uchta holat birga (`AbsenceRequestsList` izohi)
   const decided = useScheduleChangeRequests(
     {
-      employeeId: employeeId ?? undefined,
+      ...query,
       decided: true,
-      from,
-      to,
       page: decidedPage,
       pageSize: PAGE_SIZE,
     },
@@ -147,30 +172,34 @@ export function ScheduleRequestsList({
   const columns = useMemo<Array<DataColumn<ScheduleChangeRequest>>>(() => {
     const list: Array<DataColumn<ScheduleChangeRequest>> = []
 
+    /*
+      ⭐ BIR QATOR (egasi 2026-10-22) — `AbsenceRequestsList` dagi qoida:
+      bo'lim o'z ustunida, izohlar bir chiziqda, «ilovadan» — telefon
+      belgisi, sanalardan birinchisi va «yana N ta».
+    */
     if (showEmployee) {
       list.push(
         helper.display({
           id: 'employee',
           header: t('attendance.requestEmployee'),
-          meta: { minWidth: '220px' },
           cell: ({ row }) => (
-            <span className="flex min-w-0 items-center gap-2.5">
+            <span className="flex items-center gap-2.5">
               <EmployeePhoto
                 employeeId={row.original.employeeId}
                 photoKey={row.original.employeePhotoKey}
                 name={row.original.employeeName}
                 size="sm"
               />
-              <span className="min-w-0">
-                <span className="truncate-1 block font-medium">{row.original.employeeName}</span>
-                {(row.original.departmentName ?? row.original.positionName) !== null && (
-                  <span className="truncate-1 block text-caption2 text-[var(--fg-tertiary)]">
-                    {row.original.departmentName ?? row.original.positionName}
-                  </span>
-                )}
-              </span>
+              <span className="font-medium">{row.original.employeeName}</span>
             </span>
           ),
+        }),
+
+        helper.accessor('departmentName', {
+          header: t('employee.department'),
+          enableSorting: false,
+          meta: { maxWidth: '260px', hideOnMobile: true },
+          cell: ({ getValue }) => <PlainCell value={getValue()} />,
         }),
       )
     }
@@ -179,35 +208,34 @@ export function ScheduleRequestsList({
       helper.accessor('kind', {
         header: t('attendance.scheduleRequestKind'),
         enableSorting: false,
-        meta: { width: '168px' },
-        cell: ({ row }) => (
-          <span className="truncate-1 block">{t(SCHEDULE_KIND_LABEL_KEY[row.original.kind])}</span>
-        ),
+        cell: ({ row }) => t(SCHEDULE_KIND_LABEL_KEY[row.original.kind]),
       }),
 
       helper.display({
         id: 'days',
         header: t('attendance.scheduleRequestDays'),
-        meta: { minWidth: '260px' },
         cell: ({ row }) => <DaysCell lines={text.lines(row.original)} />,
       }),
 
       helper.accessor('note', {
         header: t('attendance.requestNote'),
         enableSorting: false,
-        meta: { minWidth: '200px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
-          <span className="block leading-tight">
-            <span className="truncate-2 block text-[var(--fg-secondary)]">
-              {row.original.note ?? '—'}
-            </span>
+          <span className="flex items-center gap-2">
+            <NoteText value={row.original.note} />
             {row.original.submittedByEmployee && (
-              <span className="mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
-                {t('attendance.requestFromApp')}
+              <span
+                role="img"
+                title={t('attendance.requestFromApp')}
+                aria-label={t('attendance.requestFromApp')}
+                className="text-[var(--fg-tertiary)]"
+              >
+                <Smartphone className="size-3.5" strokeWidth={2} />
               </span>
             )}
             {/* Yuborilgandan keyin tahrirlangan (`AbsenceRequestsList` dagi belgi) */}
-            <RequestEditedNote request={row.original} className="mt-0.5" />
+            <RequestEditedNote request={row.original} />
           </span>
         ),
       }),
@@ -215,20 +243,22 @@ export function ScheduleRequestsList({
       helper.display({
         id: 'decision',
         header: t('attendance.requestDecisionNote'),
-        meta: { minWidth: '180px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
-          <span className="block leading-tight">
-            <span className="truncate-2 block text-[var(--fg-secondary)]">
-              {row.original.decisionNote ?? '—'}
-            </span>
+          <span className="flex items-center gap-2">
+            {/* Izohsiz qarorda chiziqcha yo'q — kim va qachon yozuvining o'zi yetadi */}
+            {(row.original.decisionNote !== null && row.original.decisionNote !== '') ||
+            row.original.decidedByName === null ? (
+              <NoteText value={row.original.decisionNote} />
+            ) : null}
             {row.original.decidedByName !== null && (
-              <span className="truncate-1 mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+              <span className="text-caption2 text-[var(--fg-tertiary)]">
                 {row.original.decidedByName}
                 {row.original.decidedAt !== null && ` · ${date(row.original.decidedAt)}`}
               </span>
             )}
             {row.original.cancelledByEmployee && (
-              <span className="truncate-1 mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+              <span className="text-caption2 text-[var(--fg-tertiary)]">
                 {t('attendance.requestCancelledByEmployee')}
                 {row.original.decidedAt !== null && ` · ${date(row.original.decidedAt)}`}
               </span>
@@ -240,7 +270,6 @@ export function ScheduleRequestsList({
       helper.accessor('status', {
         header: t('attendance.statsColStatus'),
         enableSorting: false,
-        meta: { width: '148px' },
         cell: ({ row }) => {
           const look = REQUEST_STATUS_LOOK[row.original.status]
           return <Badge tone={look.tone}>{t(look.labelKey)}</Badge>
@@ -253,7 +282,7 @@ export function ScheduleRequestsList({
         helper.display({
           id: 'actions',
           header: '',
-          meta: { width: '180px' },
+          meta: { align: 'end' },
           cell: ({ row }) => (
             <RowActions
               request={row.original}
@@ -293,20 +322,39 @@ export function ScheduleRequestsList({
       {/* Sana filtri — yo'qlik navbatidagi filtr paneli bilan bir xil ko'rinish */}
       {onRangeChange !== undefined && (
         <Card className="px-4 py-3.5 sm:px-5">
-          <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,180px)_auto]">
+          <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,340px)_auto]">
             <RequestRangeFields range={range} onChange={changeRange} />
 
-            {filtered && (
-              <div className="flex sm:justify-start">
-                <Button type="button" variant="ghost" onClick={() => changeRange(NO_DATE_RANGE)}>
-                  <X />
-                  {t('employees.clearFilters')}
-                </Button>
+            {/* Tozalash va eksport — qatorning oxirida, bitta katakda */}
+            {(filtered || canExport) && (
+              <div className="flex flex-wrap items-center gap-2 sm:justify-start">
+                {filtered && (
+                  <Button type="button" variant="ghost" onClick={() => changeRange(NO_DATE_RANGE)}>
+                    <X />
+                    {t('employees.clearFilters')}
+                  </Button>
+                )}
+
+                {canExport && (
+                  <ListExportButton
+                    onClick={() =>
+                      exportList.mutate({
+                        path: '/api/attendance/schedule-requests/export',
+                        params: attendanceExportParams(query),
+                        slug: 'jadval_sorovlari',
+                      })
+                    }
+                    pending={exportList.isPending}
+                    disabled={rangeInvalid}
+                  />
+                )}
               </div>
             )}
           </div>
 
           <RequestRangeNote range={range} />
+
+          <ListExportError error={exportList.error} className="mt-3.5" />
         </Card>
       )}
 
@@ -441,10 +489,10 @@ function lastPage(total: number): number {
 }
 
 /**
- * Sanalar katagi: «16.10 · 08:30–18:00, tanaffus 12:23–14:23»,
- * «17.10 · Dam olish kuni», «15.10 ⇄ 18.10» — har biri o'z qatorida.
- * Ko'p bo'lsa — birinchi uchtasi va «yana N ta»; to'liq ro'yxat sichqoncha
- * ostida (`title`) va qaror oynasida.
+ * Sanalar katagi, BIR QATORDA: «16.10 · 08:30–18:00, tanaffus 12:23–14:23»,
+ * «17.10 · Dam olish kuni», «15.10 ⇄ 18.10». Ko'p bo'lsa — birinchisi va
+ * yonida «yana N ta»; to'liq ro'yxat sichqoncha ostida (`title`) va qaror
+ * oynasida.
  */
 function DaysCell({ lines }: { lines: readonly string[] }) {
   const { t, num } = useLocale()
@@ -453,17 +501,33 @@ function DaysCell({ lines }: { lines: readonly string[] }) {
   const rest = lines.length - shown.length
 
   return (
-    <span className="block leading-tight" title={lines.join('\n')}>
+    <span className="flex items-center gap-2" title={lines.join('\n')}>
       {shown.map((line, index) => (
-        <span key={index} className={cn('tabular block', index > 0 && 'mt-0.5')}>
+        <span key={index} className="tabular">
           {line}
         </span>
       ))}
       {rest > 0 && (
-        <span className="mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+        <span className="text-caption2 text-[var(--fg-tertiary)]">
           {t('attendance.scheduleRequestMoreDays', { n: num(rest) })}
         </span>
       )}
+    </span>
+  )
+}
+
+/** Bo'sh katak chiziqcha bilan — «yuklanmadimi?» degan savol tug'ilmasin. */
+function PlainCell({ value }: { value: string | null }) {
+  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
+  return <span className="text-[var(--fg-secondary)]">{value}</span>
+}
+
+/** Erkin matn — bir qatorda, uzun bo'lsa kesiladi, to'liq matn `title` da. */
+function NoteText({ value }: { value: string | null }) {
+  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
+  return (
+    <span className="block max-w-[220px] truncate text-[var(--fg-secondary)]" title={value}>
+      {value}
     </span>
   )
 }

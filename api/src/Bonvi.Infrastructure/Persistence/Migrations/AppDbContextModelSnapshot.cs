@@ -23,6 +23,8 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("candidate_form_number_seq");
+
             modelBuilder.HasSequence("device_person_no_seq")
                 .HasMax(99999999L);
 
@@ -1709,6 +1711,64 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_penalty_types_is_active_name");
 
                     b.ToTable("penalty_types", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Catalog.ReferralChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AsksDetail")
+                        .HasColumnType("boolean")
+                        .HasColumnName("asks_detail");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name")
+                        .UseCollation("uz-Cyrl-x-icu");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_referral_channels");
+
+                    b.HasIndex("IsActive", "Name")
+                        .HasDatabaseName("ix_referral_channels_is_active_name");
+
+                    b.ToTable("referral_channels", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Catalog.TerminationReason", b =>
@@ -3855,6 +3915,15 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("photo_key");
 
+                    b.Property<Guid?>("ReferralChannelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("referral_channel_id");
+
+                    b.Property<string>("ReferralDetail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("referral_detail");
+
                     b.Property<bool?>("RejectionNoticeDelivered")
                         .HasColumnType("boolean")
                         .HasColumnName("rejection_notice_delivered");
@@ -3934,6 +4003,9 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_candidates_phone")
                         .HasFilter("phone IS NOT NULL");
 
+                    b.HasIndex("ReferralChannelId")
+                        .HasDatabaseName("ix_candidates_referral_channel_id");
+
                     b.HasIndex("Source")
                         .HasDatabaseName("ix_candidates_source");
 
@@ -3998,6 +4070,85 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_candidate_files_candidate_id_created_at");
 
                     b.ToTable("candidate_files", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateForm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Answers")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("answers");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<Guid>("ClientSubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_submission_id");
+
+                    b.Property<Guid?>("FileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("file_id");
+
+                    b.Property<string>("FormCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("form_code");
+
+                    b.Property<string>("FormVersion")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("form_version");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("language");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<string>("PhotoKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("photo_key");
+
+                    b.Property<string>("SignatureKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("signature_key");
+
+                    b.Property<DateTimeOffset>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_candidate_forms");
+
+                    b.HasIndex("ClientSubmissionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_candidate_forms_client_submission_id");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_candidate_forms_number");
+
+                    b.HasIndex("CandidateId", "SubmittedAt")
+                        .HasDatabaseName("ix_candidate_forms_candidate_id_submitted_at");
+
+                    b.ToTable("candidate_forms", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateNote", b =>
@@ -4093,10 +4244,6 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("other_languages");
-
-                    b.Property<int>("ReferralSource")
-                        .HasColumnType("integer")
-                        .HasColumnName("referral_source");
 
                     b.Property<int>("RussianLevel")
                         .HasColumnType("integer")
@@ -4884,6 +5031,12 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_candidates_pipeline_stages_current_stage_id");
 
+                    b.HasOne("Bonvi.Domain.Catalog.ReferralChannel", null)
+                        .WithMany()
+                        .HasForeignKey("ReferralChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_candidates_referral_channels_referral_channel_id");
+
                     b.HasOne("Bonvi.Domain.Recruiting.Vacancy", null)
                         .WithMany()
                         .HasForeignKey("VacancyId")
@@ -4900,6 +5053,16 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_candidate_files_candidates_candidate_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateForm", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_candidate_forms_candidates_candidate_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateNote", b =>

@@ -3,6 +3,72 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏸ Navbatdagi reliz — ixcham sarlavha + bir qatorli jadvallar, Excel eksport (11 ro'yxat), sinovni avtomatik «o'tdi» (deploy — EGASI AYTGANDA)
+
+Migratsiya YO'Q. Yangi Hangfire vazifasi `probations:auto-pass` (har kuni 19:05 UTC = 00:05 Toshkent): deploy'dan keyin
+birinchi yurishda oxirgi kuni o'tib ketgan HAMMA «sinovda»gi sinov «o'tdi» bo'ladi va xodim «faol»ga o'tadi (2026-10-22 da
+prod'da muddati o'tgan 0 ta, 7 kun ichida tugaydigan 10 ta). Oldin (faqat o'qish):
+`select count(*) from probations where status = 1 and end_date < current_date` — sonini egasiga ayting.
+Web: `cn` shrift shkalasi tuzatilgani tugma/yorliq ranglarini ham tiklaydi (ASSUMPTIONS 2026-10-22) — deploy'dan keyin
+bir nechta ekranni ko'zdan kechiring. Eksport: 5/daq tezlik cheklovi umumiy; buyruqlar prod'da ~7500 > 5000 chegara.
+
+**Onlayn anketa (HR-F02, SPEC `docs/SPEC-planshet-anketa.md`, 2026-10-26 tahriri) — shu relizga qo'shildi.** Ochiq
+havola, Google Forms kabi: `https://hr.bonvi.uz/anketa` — login, kalit, planshet ulash YO'Q. Migratsiya BOR:
+`20261026072156_PlanshetAnketasi` — faqat qo'shadi (`candidate_forms` jadvali + `candidate_form_number_seq`), DROP/UPDATE
+yo'q, `api_keys` ga tegmaydi. Yangi NuGet `PDFsharp-MigraDoc` 6.2.4 (MIT; 6.5+ AGPL — YANGILAMANG) va ichiga joylangan
+shriftlar — image qayta quriladi. Rollback: image + migratsiya Down (faqat `candidate_forms` o'chadi; nomzodlar va
+biriktirilgan PDF'lar qoladi) — qo'shimcha SQL kerak emas.
+**Caddyfile o'zgardi** (`web/Caddyfile`): global `servers { trusted_proxies static <Cloudflare diapazonlari>;
+client_ip_headers Cf-Connecting-Ip }`, har API proksisida `header_up X-Bonvi-Client-Ip {client_ip}` (mijoz yuborgani sayt
+boshida o'chiriladi), HR va anketa sayti uchun umumiy snippet'lar (`site_common`, `api_proxy`, `spa_files`), CSP'da
+`script-src`/`frame-src` ga `https://challenges.cloudflare.com` (Turnstile). API'ning `X-Forwarded-For` qoidasi o'zgarmagan.
+**2026-10-27 dan API haqiqiy mijoz IP'sini (`ClientIp`) odamga tegishli hamma joyda o'qiydi** (SPEC §2.3.3): HR va xodim
+kirishi cheklovlari, xodim sessiyasi yangilash cheklovi, umumiy cheklovning anonim qismi, `audit_logs.ip_address`,
+yangilash tokenlari va xodim sessiyalaridagi IP, AI ulanish (MCP) cheklovlari va jurnali. Qurilma qabuli, davomat agenti,
+ISUP va kalitsiz tashqi API — avvalgidek ulanish manzili. Oldin (faqat o'qish) prod'da API porti tashqariga chiqmaganini
+tekshiring: `docker compose -f docker-compose.prod.yml ps api` — PORTS ustuni bo'sh bo'lishi shart (aks holda sarlavhaga
+ishonib bo'lmaydi — to'xta, egasiga ayt). **Prod nusxasida sinov:** (1) HR login ishlaydi; login cheklovi endi HAQIQIY IP
+bo'yicha (bitta IP 5/daq to'lsa, boshqa IP'dan kirish ishlaydi); (2) yangi audit qatorlarining IP'si — haqiqiy mijoz
+(Cloudflare chekkasi EMAS), `/audit` da ko'rinadi; (3) ISUP, `/api/attendance/ingest/*` va qurilma agenti yo'llari
+avvalgidek ishlaydi (qurilma kartasidagi IP ro'yxati o'zgarmagan); (4) ikki xil IP'dan anketa yuborilsa, ular ALOHIDA
+cheklanadi (bitta IP'ga soatiga 20 ta, hammaga kuniga 500 ta).
+**Faqat anketa sayti (SPEC §2.3.1):** prod `.env` da `ANKETA_SITE=anketa.bonvi.uz` — o'sha nomda FAQAT forma: `/` → 302
+`/anketa`, forma sahifasi, `/assets/*`, `/brand/*`, `/api/kiosk/*`; qolgan hamma yo'l 404 (`/kirish`, boshqa `/api/*`,
+`/mcp`, `/oauth/*`, `/health/*`, `/ilova/*` …; yo'l hiylalari ham — API'ga faqat harfma-harf toza `/api/kiosk/…` o'tadi).
+Avval EGASI Cloudflare'da `anketa` DNS yozuvini qo'shadi (proksi YOQIQ). Web build'da `VITE_ANKETA_URL=https://anketa.bonvi.uz`
+— HR «Anketa havolasi» oynasidagi manzil (berilmasa `<origin>/anketa`). `hr.bonvi.uz/anketa` ishlashda davom etadi.
+Deploy'dan keyin: `curl -s -o /dev/null -w '%{http_code}' https://anketa.bonvi.uz/kirish` → 404,
+`…/api/auth/login` → 404, `…/anketa` → 200, `…/` → 302.
+**Bot tekshiruvi — Cloudflare Turnstile (SPEC §2.3.2, ixtiyoriy):** EGASI Cloudflare panelida (Turnstile → Add widget)
+`hr.bonvi.uz` va `anketa.bonvi.uz` uchun vidjet yaratadi va IKKALA kalitni prod `.env` ga O'ZI yozadi:
+`TURNSTILE__SITEKEY=…`, `TURNSTILE__SECRETKEY=…` — maxfiy kalit chat orqali O'TMAYDI. Ikkalasi bo'sh — tekshiruv o'chiq
+(anketa avvalgidek); faqat bittasi — ham o'chiq, API jurnalida «bot tekshiruvi (Turnstile) O'CHIQ» ogohlantirishi
+(EventId 4702). Yoqilgach: API jurnalida «… yoqiq» (4703), `GET /api/kiosk/questionnaire/session` javobida
+`turnstileSiteKey` to'lgan, sinov anketasi o'tadi; jurnalda 4705 (maxfiy kalit rad etildi) chiqsa — kalit noto'g'ri,
+HAMMA anketa rad etilmoqda. Cloudflare javob bermasa anketa rad etiladi (yopiq-sukut, `anketa.bot_tekshiruvi`).
+**Deploy'dan keyin:** (1) HR ofis planshetida
+bir marta `https://hr.bonvi.uz/anketa?planshet=1` ni ochadi (planshet rejimi — qat'iy kutish/tozalash; boshlang'ich
+ekran pastida «Planshet rejimi» yozuvi); (2) prod'da «Umumiy anketa» YOPIQ (2026-10-24: ochiq vakansiya 12 ta) — forma
+faqat ochiq vakansiyalarni ko'rsatadi, hammasi yopiq bo'lsa «Hozir ochiq vakansiya yo'q» deydi; (3) bitta sinov anketasi
+to'ldirib, nomzod kartasida PDF, «Onlayn anketa» manbasini va auditda «Onlayn anketa» qatorini (haqiqiy IP bilan)
+tekshiring, keyin sinov nomzodini rad eting. Planshetda ekranni mahkamlash (Android «Ekranni mahkamlash» / iPad «Guided
+Access») tavsiya qilinadi.
+
+**«Ish haqida qayerdan bilgan» — ma'lumotnoma + majburiy maydon + hisobot (SPEC `docs/SPEC-qayerdan-bilgan.md`) — shu
+relizga qo'shildi.** Migratsiya BOR, MA'LUMOT KO'CHADI: `20261026101017_QayerdanBilgan` (`PlanshetAnketasi` dan keyin) —
+`referral_channels` (8 ta seed, qat'iy GUID `0199f0a0-5e1d-7c00-8000-00000000000N`, N = eski qiymat) + `candidates.
+referral_channel_id`/`referral_detail`, bot anketalaridagi `referral_source` → nomzodga ko'chiriladi va **`candidate_
+questionnaires.referral_source` O'CHIRILADI**; MCP o'qish roli funksiyasi qayta yaratiladi. Oldin (faqat o'qish):
+`select referral_source, count(*) from candidate_questionnaires group by 1` (2026-10-26: 275 — Telegram 249, Other 11,
+Acquaintance 9, SocialNetwork 4, HeadHunter 2) — deploy'dan keyin `select referral_channel_id, count(*) from candidates
+group by 1` da aynan shu sonlar chiqishi shart. **API va BOT BIRGA** (bot kanallarni API dan oladi va arizaga
+`referralChannelId` yozadi; eski bot yangi API'da 400 `qayerdan.majburiy` oladi — orada nomzod «Yuborish» ni qayta bosadi,
+suhbat Redis'da saqlanadi). Deploy paytida yarim qolgan bot suhbatlari yiqilmaydi — yuborishda faqat «qayerdan bildingiz»
+qayta so'raladi. **Prod nusxasida sinov:** migratsiya Up → sonlar mos; Down → `referral_source` qaytadi (seed → o'z qiymati,
+boshqa kanal → 6), keyin yana Up. Rollback: image + migratsiya Down (aniqlik matnlari va anketasiz nomzodlarning kanali
+yo'qoladi — eski sxemada joyi yo'q) yoki zaxira. Deploy'dan keyin: HR «Ma'lumotnomalar → Qayerdan bilgan» da nomlarni
+ko'rib chiqadi (masalan «Instagram» va «Facebook» ni ajratish); egasining admin roli `catalog.*` ga ega.
+
 ## ✅ Reliz `eebe3df` — sana filtrlari, «Buyruqlar» tablari, «Orqaga» tugmasi — 2026-10-22 09:54 (Toshkent)
 
 Prod `fd5b998` → `eebe3df` (1393141, 15529d4, 6afca74, d487b3c, eebe3df). Migratsiya yo'q (oxirgisi

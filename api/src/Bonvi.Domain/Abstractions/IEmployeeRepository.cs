@@ -117,6 +117,12 @@ public interface IProbationRepository : IRepository<Probation>
         DateOnly today,
         int withinDays,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Muddati TUGAGAN (oxirgi kuni <paramref name="today"/> dan oldin), lekin hali
+    /// «sinovda» turgan sinovlarning identifikatorlari — avtomatik «o'tdi» vazifasi uchun.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetExpiredIdsAsync(DateOnly today, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Xodim belgilari uchun saqlash porti.</summary>

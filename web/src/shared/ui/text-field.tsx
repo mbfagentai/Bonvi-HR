@@ -43,14 +43,15 @@ export function TextField({
    * chuqurcha bo'lib botadi, chegara chizig'i bilan ajratilmaydi.
    */
   variant?: 'outlined' | 'filled'
-  size?: 'md' | 'lg'
+  /** `sm` — ro'yxatning filtr paneli (h-10, 15 px; `Select size="sm"` bilan bir xil). */
+  size?: 'sm' | 'md' | 'lg'
 }) {
   const generatedId = useId()
   const fieldId = id ?? generatedId
   const messageId = `${fieldId}-message`
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn(size === 'sm' ? 'space-y-1.5' : 'space-y-2', className)}>
       {label !== undefined && (
         <label
           htmlFor={fieldId}
@@ -63,7 +64,7 @@ export function TextField({
       <div
         className={cn(
           'flex items-center gap-2.5 rounded-md border transition-all duration-200 ease-[var(--ease-ios)]',
-          size === 'lg' ? 'h-[52px] px-4' : 'h-12 px-3.5',
+          size === 'lg' ? 'h-[52px] px-4' : size === 'sm' ? 'h-10 px-3' : 'h-12 px-3.5',
 
           variant === 'filled'
             ? [
@@ -96,7 +97,8 @@ export function TextField({
           aria-invalid={error ? true : undefined}
           aria-describedby={error || hint ? messageId : undefined}
           className={cn(
-            'min-w-0 flex-1 bg-transparent text-body outline-none',
+            'min-w-0 flex-1 bg-transparent outline-none',
+            size === 'sm' ? 'text-subhead' : 'text-body',
             'placeholder:text-[var(--fg-tertiary)]',
             'disabled:cursor-not-allowed',
             inputClassName,

@@ -108,7 +108,7 @@ export function DepartmentsPage() {
             {t('catalog.kinds.departments.title')}
           </span>
         }
-        subtitle={t('catalog.kinds.departments.subtitle')}
+        description={t('catalog.kinds.departments.subtitle')}
         actions={
           canManage ? (
             <Button variant="create" onClick={() => openCreate(null)}>

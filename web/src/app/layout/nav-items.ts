@@ -23,6 +23,7 @@ import {
   Link2,
   LogOut,
   MapPin,
+  Megaphone,
   MessageSquareQuote,
   Network,
   ScanFace,
@@ -432,6 +433,9 @@ export const NAV: NavSection[] = [
           { key: 'awardTypes',         to: '/malumotnomalar/ragbat-turlari',   icon: Award },
           { key: 'penaltyTypes',       to: '/malumotnomalar/jarima-turlari',   icon: Gavel },
           { key: 'documentTypes',      to: '/malumotnomalar/hujjat-turlari',   icon: FileText },
+          // Where candidates heard about the job — the bot, the online anketa
+          // and HR's «Nomzod qo'shish» choose from it (SPEC-qayerdan-bilgan §3).
+          { key: 'referralChannels',   to: '/malumotnomalar/qayerdan-bilgan',  icon: Megaphone },
           // Yo'qlik turlari — davomat so'rovlaridagi sabablar
           // (SPEC-so'rovlar §B1). Davomat moduliniki bo'lsa ham, HR uni
           // «Ma'lumotnomalar» ichidan qidiradi: u boshqa ma'lumotnomalar

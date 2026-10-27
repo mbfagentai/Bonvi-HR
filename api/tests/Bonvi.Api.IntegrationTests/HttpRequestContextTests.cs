@@ -33,6 +33,43 @@ public sealed class HttpRequestContextTests
         kontekst.UserAgent.ShouldNotBeNull().Length.ShouldBe(400, "qisqartirishni yozuvning o'zi qiladi (300)");
     }
 
+    /// <summary>
+    /// Audit IP'si — Caddy bergan haqiqiy mijoz (SPEC-planshet-anketa §2.3.3), Cloudflare chekkasi emas.
+    /// </summary>
+    [Fact]
+    public void HR_amalida_IP_Caddy_bergan_mijoz_IPsi()
+    {
+        var http = Sorov(endpointNomi: "CreateVacancy");
+        http.Connection.RemoteIpAddress = IPAddress.Parse("172.70.1.9");
+        http.Request.Headers[ClientIp.HeaderName] = "203.0.113.21";
+
+        new HttpRequestContext(new HttpContextAccessor { HttpContext = http }).IpAddress.ShouldBe("203.0.113.21");
+    }
+
+    [Theory]
+    [InlineData("salom")]
+    [InlineData("203.0.113.21, 6.6.6.6")]
+    [InlineData("")]
+    public void Buzuq_sarlavhada_IP_ulanish_manzili(string sarlavha)
+    {
+        var http = Sorov(endpointNomi: "CreateVacancy");
+        http.Connection.RemoteIpAddress = IPAddress.Parse("172.70.1.9");
+        http.Request.Headers[ClientIp.HeaderName] = sarlavha;
+
+        new HttpRequestContext(new HttpContextAccessor { HttpContext = http }).IpAddress.ShouldBe("172.70.1.9");
+    }
+
+    /// <summary>Qurilma endpointida — avvalgidek ulanish manzili, sarlavha bo'lsa ham (terminallar xulqi o'zgarmaydi).</summary>
+    [Fact]
+    public void Qurilma_endpointida_IP_ulanish_manzili_sarlavha_bolsa_ham()
+    {
+        var http = Sorov(endpointNomi: "IngestAttendanceEvent", DeviceEndpointMetadata.Instance);
+        http.Connection.RemoteIpAddress = IPAddress.Parse("198.51.100.5");
+        http.Request.Headers[ClientIp.HeaderName] = "6.6.6.6";
+
+        new HttpRequestContext(new HttpContextAccessor { HttpContext = http }).IpAddress.ShouldBe("198.51.100.5");
+    }
+
     /// <summary>Bitta so'rovda guruh BITTA — kontekst nusxasi boshqa bo'lsa ham.</summary>
     [Fact]
     public void Bitta_sorovda_guruh_bir_xil()

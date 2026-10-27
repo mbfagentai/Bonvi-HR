@@ -113,6 +113,19 @@ public enum CandidateSource
     /// </para>
     /// </remarks>
     Excel = 3,
+
+    /// <summary>
+    /// Ochiq onlayn anketa HR-F02 — ofisdagi planshetda yoki nomzodning o'z
+    /// telefonida to'ldirilgan (2026-10-26; birinchi versiyada <c>Tablet</c>,
+    /// qiymati o'sha, hech qachon deploy qilinmagan).
+    /// </summary>
+    /// <remarks>
+    /// Haqiqiy YANGI ariza — sanoqlarda <see cref="Manual"/> kabi hisoblanadi
+    /// (<see cref="Excel"/> dan farqi shunda). Bildirishnoma uchun esa bot
+    /// EMAS (<c>CandidateNew</c>): botning «javob kutayotgan odam» degan sariq
+    /// ogohlantirishi bu manbaga tegishli emas.
+    /// </remarks>
+    OnlineForm = 4,
 }
 
 /// <summary>
@@ -189,6 +202,19 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </para>
     /// </remarks>
     public const long MaxFilesTotalBytes = 60L * 1024 * 1024;
+
+    /// <summary>«Qayerdan bilgan» aniqligining eng katta uzunligi — bazadagi ustun bilan bir xil.</summary>
+    public const int MaxReferralDetailLength = 200;
+
+    /// <summary>Kanal tanlanmagan — yangi nomzodda va kanali bor nomzodni tozalashda.</summary>
+    public static Error ReferralRequired { get; } = Error.Validation(
+        "qayerdan.majburiy",
+        "Ish haqida qayerdan bilgani tanlanishi shart.");
+
+    /// <summary>Aniqlik matni chegaradan uzun.</summary>
+    public static Error ReferralDetailTooLong { get; } = Error.Validation(
+        "qayerdan.izoh_uzun",
+        "Aniqlik 200 belgidan oshmasligi kerak.");
 
     private Candidate(
         Guid id,
@@ -475,6 +501,31 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// <see cref="CandidateQuestionnaire"/> da).
     /// </remarks>
     public CandidateQuestionnaire? Questionnaire { get; private set; }
+
+    /// <summary>
+    /// Ish haqida qayerdan bilgan — «Qayerdan bilgan» ma'lumotnomasidan (SPEC-qayerdan-bilgan §4).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega anketada emas, nomzodning O'ZIDA.</b> Ilgari bu javob faqat bot anketasida
+    /// turardi (<c>candidate_questionnaires.referral_source</c>), ya'ni HR qo'lda kiritgan
+    /// nomzodda umuman yo'q edi va «qaysi kanal qancha odam olib keldi» hisobotiga faqat bot
+    /// arizalari tushardi. Endi u har bir nomzodda — kanal qaysi bo'lishidan qat'i nazar.
+    /// </para>
+    /// <para>
+    /// <c>null</c> — faqat ESKI yozuvlarda (Jobster ko'chirmasi, HR ning eski nomzodlari) va
+    /// Excel arxivida. Yangi nomzodda use-case uni majburiy qiladi; bir marta qo'yilgan kanalni
+    /// tozalab bo'lmaydi (<see cref="SetReferral"/> faqat qiymat qabul qiladi), faqat
+    /// almashtirish mumkin — HR xatoni tuzatadi.
+    /// </para>
+    /// </remarks>
+    public Guid? ReferralChannelId { get; private set; }
+
+    /// <summary>
+    /// Aniqlik: «kim tavsiya qildi / qaysi manba». Faqat kanal shuni so'raganda
+    /// (<c>ReferralChannel.AsksDetail</c>).
+    /// </summary>
+    public string? ReferralDetail { get; private set; }
 
     /// <summary>Voronkada faolmi.</summary>
     public bool IsActive => Status == CandidateStatus.InProgress;
@@ -1275,6 +1326,49 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </para>
     /// </remarks>
     public void SetNextContactDate(DateOnly? date) => NextContactDate = date;
+
+    /// <summary>
+    /// «Ish haqida qayerdan bilgan» kanalini va aniqligini qo'yadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Tozalash yo'li ATAYLAB yo'q</b>: kanal faqat almashtiriladi. Statistika har bir
+    /// nomzodning kanaliga tayanadi — HR uni xato tanlagan bo'lsa tuzatadi, lekin bo'sh
+    /// qoldirib «ko'rsatilmagan» qatoriga qaytara olmaydi (SPEC §5, «HR edit»).
+    /// </para>
+    /// <para>
+    /// Kanalning faolligi va «aniqlik so'ralsin» bayrog'i bu yerda TEKSHIRILMAYDI — ular
+    /// ma'lumotnomada, nomzod agregati esa uni ko'rmaydi. Ikkalasini use-case qatlami
+    /// (<c>ReferralChannelChoice</c>) tekshiradi; bu yerda faqat nomzodning o'z qoidalari:
+    /// kanal ko'rsatilgan, aniqlik chegarasidan oshmagan.
+    /// </para>
+    /// <para>
+    /// Uzun aniqlik QIRQILMAYDI, rad etiladi (<see cref="ReferralDetailTooLong"/>): matnni
+    /// HR, onlayn anketa yoki bot yozadi va har uchalasi chegarani maydonning o'zida
+    /// ushlaydi — chegaradan oshgani ikki tomon kelishmaganining belgisi.
+    /// </para>
+    /// </remarks>
+    /// <param name="channelId">Tanlangan kanal.</param>
+    /// <param name="detail">Aniqlik; bo'sh matn — <c>null</c>.</param>
+    public Result SetReferral(Guid channelId, string? detail)
+    {
+        if (channelId == Guid.Empty)
+        {
+            return ReferralRequired;
+        }
+
+        var text = Trim(detail);
+
+        if (text is { Length: > MaxReferralDetailLength })
+        {
+            return ReferralDetailTooLong;
+        }
+
+        ReferralChannelId = channelId;
+        ReferralDetail = text;
+
+        return Result.Success();
+    }
 
     /// <summary>Voronkadan chiqarish — barcha yakunlar uchun umumiy qoida.</summary>
     /// <remarks>

@@ -98,49 +98,44 @@ export function McpSection() {
     () => [
       connectionHelper.accessor('userName', {
         header: t('settings.mcp.columnPerson'),
-        // Yagona moslashuvchan ustun — qolganlari qat'iy `width`.
+        /*
+          Yagona moslashuvchan ustun — qolganlari qat'iy `width`. Qator BIR
+          QATORDA (egasi 2026-10-22): ism kesilmaydi, ustun o'zi kengayadi.
+        */
         meta: { minWidth: '200px' },
         cell: ({ row }) => {
           const item = row.original
           const inactive = item.status !== 'active'
 
           return (
-            <div className="min-w-0">
-              <p className={cn('truncate-1 font-medium', inactive && muted)} title={item.userName}>
-                {item.userName}
-              </p>
+            <span className="flex items-baseline gap-2">
+              <span className={cn('font-medium', inactive && muted)}>{item.userName}</span>
 
               {/*
                 Telefon kengligida AI ilovasi va oxirgi so'rov ustunlari
-                yashiriladi — ular ismning ostiga tushadi. `md:hidden`
-                ALOHIDA o'ramda (sababi `api-keys-section.tsx` da).
+                yashiriladi — ular shu qatorga, ismdan keyin qo'shiladi.
               */}
-              <div className="md:hidden">
-                <p className="truncate-1 text-footnote text-[var(--fg-tertiary)]">
-                  {item.clientName}
-                  {' · '}
-                  {item.lastUsedAt === null
-                    ? t('settings.mcp.neverUsed')
-                    : dateTime(item.lastUsedAt)}
-                </p>
-              </div>
-            </div>
+              <span className="text-footnote text-[var(--fg-tertiary)] md:hidden">
+                {item.clientName}
+                {' · '}
+                {item.lastUsedAt === null
+                  ? t('settings.mcp.neverUsed')
+                  : dateTime(item.lastUsedAt)}
+              </span>
+            </span>
           )
         },
       }),
 
       connectionHelper.accessor('clientName', {
         header: t('settings.mcp.columnClient'),
-        // «Claude», «ChatGPT» — qisqa; uzun nom kesiladi, to'lig'i `title` da.
+        // «Claude», «ChatGPT» — qisqa; uzunrog'ida ustun o'zi kengayadi (katak `nowrap`).
         meta: { width: '160px', hideOnMobile: true },
         cell: ({ row }) => {
           const item = row.original
 
           return (
-            <span
-              className={cn('truncate-1', item.status === 'active' ? 'text-[var(--fg-secondary)]' : muted)}
-              title={item.clientName}
-            >
+            <span className={item.status === 'active' ? 'text-[var(--fg-secondary)]' : muted}>
               {item.clientName}
             </span>
           )
@@ -283,20 +278,16 @@ export function McpSection() {
           const item = row.original
 
           return (
-            <div className="min-w-0">
-              <p className="truncate-1 font-medium" title={item.userName}>
-                {item.userName}
-              </p>
+            <span className="flex items-baseline gap-2">
+              <span className="font-medium">{item.userName}</span>
 
-              {/* Telefonda: nima so'ralgani va qachon — ismning ostida. */}
-              <div className="md:hidden">
-                <p className="truncate-1 text-footnote text-[var(--fg-tertiary)]">
-                  {toolLabel(item.tool)}
-                  {' · '}
-                  <span className="tabular">{dateTime(item.at)}</span>
-                </p>
-              </div>
-            </div>
+              {/* Telefonda: nima so'ralgani va qachon — shu qatorda, ismdan keyin. */}
+              <span className="text-footnote text-[var(--fg-tertiary)] md:hidden">
+                {toolLabel(item.tool)}
+                {' · '}
+                <span className="tabular">{dateTime(item.at)}</span>
+              </span>
+            </span>
           )
         },
       }),
@@ -305,9 +296,7 @@ export function McpSection() {
         header: t('settings.mcp.columnClient'),
         meta: { width: '140px', hideOnMobile: true },
         cell: ({ row }) => (
-          <span className="truncate-1 text-[var(--fg-secondary)]" title={row.original.clientName}>
-            {row.original.clientName}
-          </span>
+          <span className="text-[var(--fg-secondary)]">{row.original.clientName}</span>
         ),
       }),
 
@@ -320,9 +309,7 @@ export function McpSection() {
 
           return (
             // Xom nom `title` da — backend loglari bilan solishtirish uchun.
-            <span className="truncate-1" title={tool}>
-              {toolLabel(tool)}
-            </span>
+            <span title={tool}>{toolLabel(tool)}</span>
           )
         },
       }),
@@ -364,15 +351,15 @@ export function McpSection() {
           const item = row.original
 
           return (
-            <div className="tabular">
-              <p className="text-[var(--fg-secondary)]">
+            <span className="tabular inline-flex items-baseline gap-2">
+              <span className="text-[var(--fg-secondary)]">
                 {item.rowCount === null ? '—' : num(item.rowCount)}
-              </p>
-              {/* Qancha vaqt olgani — ikkinchi darajali, sekin so'rovni topish uchun. */}
-              <p className="text-caption1 text-[var(--fg-tertiary)]">
+              </span>
+              {/* Qancha vaqt olgani — ikkinchi darajali, sekin so'rovni topish uchun; yonida, bir qatorda. */}
+              <span className="text-caption1 text-[var(--fg-tertiary)]">
                 {t('settings.mcp.durationMs', { ms: num(item.durationMs) })}
-              </p>
-            </div>
+              </span>
+            </span>
           )
         },
       }),

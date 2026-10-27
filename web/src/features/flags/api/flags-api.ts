@@ -59,6 +59,24 @@ export async function fetchFlagged(
   range: DateRange,
   signal?: AbortSignal,
 ): Promise<FlaggedEmployee[]> {
+  const params = flaggedListParams(type, onlyActive, search, range)
+
+  const { data } = await api.get<unknown>('/api/employees/flagged', { params, signal })
+
+  return Array.isArray(data) ? data.map(toFlagged) : []
+}
+
+/**
+ * Ro'yxat so'rovining parametrlari — ro'yxat ham, Excel eksporti ham AYNAN
+ * shu funksiyadan (`docs/SPEC-excel-eksport.md` §3). Ro'yxat sahifalanmaydi,
+ * ya'ni fayl ekrandagi qatorlarning o'zi.
+ */
+export function flaggedListParams(
+  type: EmployeeFlagType,
+  onlyActive: boolean,
+  search: string,
+  range: DateRange,
+): Record<string, unknown> {
   const params: Record<string, unknown> = { type: typeName(type), onlyActive }
 
   // Bo'sh qidiruv YUBORILMAYDI: «?search=» manzilni ham, so'rov keshini
@@ -67,9 +85,7 @@ export async function fetchFlagged(
   if (range.from !== '') params['from'] = range.from
   if (range.to !== '') params['to'] = range.to
 
-  const { data } = await api.get<unknown>('/api/employees/flagged', { params, signal })
-
-  return Array.isArray(data) ? data.map(toFlagged) : []
+  return params
 }
 
 /* ─────────────────────────────────────────────────── xaritalash (map) */

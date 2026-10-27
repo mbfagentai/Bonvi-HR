@@ -197,6 +197,19 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             candidates = candidates.Where(candidate => candidate.ClosedAt <= closedTo);
         }
 
+        // «Qayerdan bilgan» (SPEC-qayerdan-bilgan §6) — ikkala shart ham tashqi kalit
+        // indeksiga (`ix_candidates_referral_channel_id`) tushadi. Birga berilsa ikkalasi ham
+        // qo'llanadi va natija bo'sh (filtr izohi).
+        if (filter.ReferralChannelId is { } referralChannelId)
+        {
+            candidates = candidates.Where(candidate => candidate.ReferralChannelId == referralChannelId);
+        }
+
+        if (filter.ReferralMissing)
+        {
+            candidates = candidates.Where(candidate => candidate.ReferralChannelId == null);
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             // Qidiruv qoidasi bitta joyda — `CandidateSearchQuery`. Uning
@@ -215,9 +228,15 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
             join stage in _context.PipelineStages.AsNoTracking()
                 on candidate.CurrentStageId equals stage.Id into stageGroup
             from stage in stageGroup.DefaultIfEmpty()
+            join referral in _context.ReferralChannels.AsNoTracking()
+                on candidate.ReferralChannelId equals referral.Id into referralGroup
+            from referral in referralGroup.DefaultIfEmpty()
             select new
             {
                 Candidate = candidate,
+
+                // Kanal nomi — faolsizlantirilgani ham; kanalsiz eski yozuvda `null`
+                ReferralChannelName = referral != null ? referral.Name : null,
                 // Nomzod qatorida ko'rinadigan «vakansiya» — endi E'LON
                 // NOMI, lavozim emas: vakansiyada lavozim qolmadi
                 // (sababi `Vacancy` izohida).
@@ -335,7 +354,10 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                     : null,
                 row.Candidate.NextContactDate,
                 row.Candidate.ClosedAt,
-                row.Candidate.ClosingNote)),
+                row.Candidate.ClosingNote,
+                row.Candidate.ReferralChannelId,
+                row.ReferralChannelName,
+                row.Candidate.ReferralDetail)),
         ];
 
         return new CandidatePage(items, total);

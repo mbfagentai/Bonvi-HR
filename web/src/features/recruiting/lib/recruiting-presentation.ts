@@ -2,6 +2,7 @@ import {
   Bookmark,
   Bot,
   CircleSlash,
+  ClipboardPen,
   DoorOpen,
   FileSpreadsheet,
   Hourglass,
@@ -120,6 +121,8 @@ export const SOURCE_LOOK: Readonly<Record<CandidateSource, StatusLook>> = {
   Manual: { key: 'manual', tone: 'neutral', icon: Keyboard },
   TelegramBot: { key: 'telegramBot', tone: 'info', icon: Bot },
   Excel: { key: 'excel', tone: 'neutral', icon: FileSpreadsheet },
+  // The public HR-F02 form, tablet or phone (`docs/SPEC-planshet-anketa.md`).
+  OnlineForm: { key: 'onlineForm', tone: 'purple', icon: ClipboardPen },
 }
 
 /* ═══════════════════════════════════════════════════════════════ SANALAR */

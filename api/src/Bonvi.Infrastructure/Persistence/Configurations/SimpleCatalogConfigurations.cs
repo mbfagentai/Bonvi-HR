@@ -58,6 +58,29 @@ public sealed class AbsenceTypeConfiguration : IEntityTypeConfiguration<AbsenceT
 }
 
 /// <summary>
+/// <see cref="ReferralChannel"/> uchun jadval konfiguratsiyasi (<c>referral_channels</c>).
+/// </summary>
+/// <remarks>
+/// Sakkizta boshlang'ich kanal migratsiyada QAT'IY identifikatorlar bilan yoziladi
+/// (<c>QayerdanBilgan</c>): bot anketalaridagi eski javoblar aynan shu identifikatorlarga
+/// ko'chiriladi, ya'ni ko'chirish har bazada bir xil natija beradi. Shu sababli bu
+/// ma'lumotnoma urug' faylidan (<c>CatalogSeeder</c>) to'ldirilmaydi.
+/// </remarks>
+public sealed class ReferralChannelConfiguration : IEntityTypeConfiguration<ReferralChannel>
+{
+    public void Configure(EntityTypeBuilder<ReferralChannel> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ConfigureReference("referral_channels");
+
+        // Bazadagi sukut `false` faqat migratsiyada — `AbsenceTypeConfiguration` dagi sabab.
+        builder.Property(channel => channel.AsksDetail)
+            .IsRequired();
+    }
+}
+
+/// <summary>
 /// <see cref="AwardType"/> uchun jadval konfiguratsiyasi (<c>award_types</c>).
 /// </summary>
 public sealed class AwardTypeConfiguration : IEntityTypeConfiguration<AwardType>

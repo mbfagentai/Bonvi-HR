@@ -12,6 +12,9 @@ namespace Bonvi.Api.Common;
 ///   <item>HTTP so'rovi yo'q (ishga tushish, Hangfire) → <see cref="AuditActorKind.System"/>;</item>
 ///   <item>qurilma endpointi (<see cref="DeviceEndpointMetadata"/>) → <see cref="AuditActorKind.Device"/> —
 ///         u yerda JWT umuman yo'q, himoya qurilma tokenida;</item>
+///   <item>ochiq onlayn anketa (<see cref="OnlineFormEndpointMetadata"/>) → <see cref="AuditActorKind.Anonymous"/>
+///         «Onlayn anketa» nomi bilan — token tekshirilmaydi: brauzerda qolgan HR sessiyasi anketani
+///         HR nomidan yozmasin;</item>
 ///   <item>HR tokeni → <see cref="AuditActorKind.User"/>;</item>
 ///   <item>xodim ilovasi tokeni → <see cref="AuditActorKind.EmployeeAccount"/> (u tokenda
 ///         <c>NameIdentifier</c> yo'q, ya'ni HR tokeni bilan adashmaydi);</item>
@@ -25,6 +28,9 @@ namespace Bonvi.Api.Common;
 /// </remarks>
 public sealed class HttpAuditActorSource : IAuditActorSource
 {
+    private static readonly AuditPrincipal OnlineForm =
+        new(AuditActorKind.Anonymous, Name: OnlineFormEndpointMetadata.ActorName);
+
     private readonly IHttpContextAccessor _accessor;
     private readonly ICurrentUser _currentUser;
     private readonly ICurrentEmployee _currentEmployee;
@@ -50,9 +56,16 @@ public sealed class HttpAuditActorSource : IAuditActorSource
                 return AuditPrincipal.System;
             }
 
-            if (http.GetEndpoint()?.Metadata.GetMetadata<DeviceEndpointMetadata>() is not null)
+            var metadata = http.GetEndpoint()?.Metadata;
+
+            if (metadata?.GetMetadata<DeviceEndpointMetadata>() is not null)
             {
                 return AuditPrincipal.Device;
+            }
+
+            if (metadata?.GetMetadata<OnlineFormEndpointMetadata>() is not null)
+            {
+                return OnlineForm;
             }
 
             if (_currentUser.UserId is { } userId)

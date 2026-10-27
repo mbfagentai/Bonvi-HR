@@ -10,6 +10,9 @@ import { useCallback, useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 
 import { useAuth } from '@/features/auth'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportError } from '@/features/reports/components/list-export'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
@@ -27,10 +30,10 @@ import {
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
-import type { Vacancy } from '../api/recruiting-api'
+import { vacancyListParams, type Vacancy, type VacancyListFilters } from '../api/recruiting-api'
 import { useChangeVacancyStatus, useVacancies } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
-import { RECRUITING_MANAGE, VACANCY_LOOK } from '../lib/recruiting-presentation'
+import { RECRUITING_MANAGE, RECRUITING_VIEW, VACANCY_LOOK } from '../lib/recruiting-presentation'
 import {
   DEFAULT_SORT,
   filtersToSearch,
@@ -82,6 +85,8 @@ export function VacanciesPage() {
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
   const canManage = hasPermission(RECRUITING_MANAGE)
+  // Eksport — ro'yxatni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = hasPermission(RECRUITING_VIEW) && hasPermission(REPORTS_EXPORT)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -111,13 +116,20 @@ export function VacanciesPage() {
   */
   const searchText = filters.search.trim()
 
-  const query = useVacancies({
+  /*
+    Filtr va saralash sahifasiz — ro'yxat ham, Excel eksporti ham AYNAN
+    shundan (`employees-page.tsx` dagi `listFilters` naqshi).
+  */
+  const listFilters: VacancyListFilters = {
     ...(filters.status === '' ? {} : { status: filters.status }),
     ...(searchText === '' ? {} : { search: searchText }),
-    page,
-    pageSize,
     sort,
-  })
+  }
+
+  const query = useVacancies({ ...listFilters, page, pageSize })
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
 
   /** Standart holatda `replace` — filtr aniqlashtirish, alohida qadam emas. */
   const setSearch = useCallback(
@@ -250,10 +262,10 @@ export function VacanciesPage() {
           YAGONA `minWidth`li ustun — qoidaga ko'ra jadvalda bittadan
           ortiq bo'lmasligi kerak (`data-table.tsx`). E'lon nomlarining
           uzunligi oldindan noma'lum, shu sababli ortgan joyni aynan shu
-          ustun oladi.
+          ustun oladi. Nom to'liq, bir qatorda (egasi 2026-10-22).
         */
         meta: { minWidth: '260px' },
-        cell: ({ row }) => <p className="truncate-1 font-medium">{row.original.title}</p>,
+        cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
       }),
 
       helper.accessor('status', {
@@ -460,7 +472,23 @@ export function VacanciesPage() {
       )}
 
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
-        <VacanciesToolbar filters={filters} onChange={changeFilters} />
+        <VacanciesToolbar
+          filters={filters}
+          onChange={changeFilters}
+          onExport={
+            canExport
+              ? () =>
+                  exportList.mutate({
+                    path: '/api/recruiting/vacancies/export',
+                    params: vacancyListParams(listFilters),
+                    slug: 'vakansiyalar',
+                  })
+              : undefined
+          }
+          exporting={exportList.isPending}
+        />
+
+        <ListExportError error={exportList.error} />
 
         <DataTable
           columns={columns}

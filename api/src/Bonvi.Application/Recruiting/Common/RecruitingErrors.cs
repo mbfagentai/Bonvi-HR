@@ -183,6 +183,28 @@ public static class RecruitingErrors
         "nomzod.rezyume_yaroqsiz",
         "Rezyume PDF, JPEG, PNG yoki WebP emas (yoki buzilgan).");
 
+    // ---------- «Qayerdan bilgan» (SPEC-qayerdan-bilgan §5) ----------
+    //
+    // «Tanlanmagan» va «aniqlik uzun» — nomzodning o'z qoidasi, ular domenda
+    // (`Candidate.ReferralRequired`, `Candidate.ReferralDetailTooLong`). Bu
+    // yerdagi ikkitasi ma'lumotnomani ko'radi, nomzod agregati esa uni ko'rmaydi.
+
+    /// <summary>Kanal topilmadi yoki faolsizlantirilgan — YANGI tanlovda.</summary>
+    /// <remarks>
+    /// 404 emas, 400: mijoz forma maydonini to'ldirgan va uning qiymati yaroqsiz — odatda
+    /// HR ro'yxatni ochganidan keyin kanalni boshqa HR faolsizlantirgan. Forma ro'yxatni
+    /// yangilab, boshqasini tanlatadi. Ikki holat bitta kodda: nomzod uchun ikkalasining
+    /// yechimi bir xil.
+    /// </remarks>
+    public static Error ReferralChannelNotFound { get; } = Error.Validation(
+        "qayerdan.topilmadi",
+        "Tanlangan «qayerdan bilgan» kanali topilmadi yoki endi ishlatilmaydi — boshqasini tanlang.");
+
+    /// <summary>Kanal aniqlik so'raydi («Tanishlar orqali» — kim?), aniqlik esa bo'sh.</summary>
+    public static Error ReferralDetailRequired { get; } = Error.Validation(
+        "qayerdan.izoh_majburiy",
+        "Bu kanal uchun aniqlik kiritilishi shart: kim tavsiya qildi yoki qaysi manba.");
+
     // ---------- Nomzod surati ----------
     //
     // Kodlar `xodim.rasm_*` dan ATAYLAB alohida, holbuki quvur bitta

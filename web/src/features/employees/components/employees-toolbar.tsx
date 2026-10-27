@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Button, DateField, Input, SegmentedControl, Select } from '@/shared/ui'
+import { Button, DateRangeField, Input, SegmentedControl, Select } from '@/shared/ui'
 import type { FilterOptions } from '../api/employees-queries'
 /*
  * Filtr holatining shakli manzil (URL) bilan bir joyda turadi.
@@ -211,6 +211,24 @@ export function EmployeesToolbar({
           )}
         </Button>
 
+        {/*
+          Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+          alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+        */}
+        {(count > 0 || filters.search !== '' || filters.needsReview) && (
+          <Button
+            type="button"
+            pill
+            variant="ghost"
+            title={t('employees.clearFilters')}
+            aria-label={t('employees.clearFilters')}
+            onClick={clearAll}
+          >
+            <X />
+            <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+          </Button>
+        )}
+
         {/* Eksport — «Filtrlar» yonida va bu ataylab: fayl aynan shu
             panelda yig'ilgan filtrga tushadi, ya'ni ikkalasi bitta
             fikrning davomi. Sarlavhadagi «Ishga qabul» yonida turgan
@@ -250,6 +268,7 @@ export function EmployeesToolbar({
         <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Select
+              size="sm"
               label={t('employee.department')}
               placeholder={t('employees.anyDepartment')}
               options={options.departments}
@@ -257,6 +276,7 @@ export function EmployeesToolbar({
               onChange={(event) => set('departmentId', event.target.value)}
             />
             <Select
+              size="sm"
               label={t('employee.position')}
               placeholder={t('employees.anyPosition')}
               options={options.positions}
@@ -264,6 +284,7 @@ export function EmployeesToolbar({
               onChange={(event) => set('positionId', event.target.value)}
             />
             <Select
+              size="sm"
               label={t('employee.direction')}
               placeholder={t('employees.anyDirection')}
               options={options.directions}
@@ -271,6 +292,7 @@ export function EmployeesToolbar({
               onChange={(event) => set('directionId', event.target.value)}
             />
             <Select
+              size="sm"
               label={t('employee.legalEntity')}
               placeholder={t('employees.anyLegalEntity')}
               options={options.legalEntities}
@@ -278,6 +300,7 @@ export function EmployeesToolbar({
               onChange={(event) => set('legalEntityId', event.target.value)}
             />
             <Select
+              size="sm"
               label={t('employee.status')}
               placeholder={t('employees.anyStatus')}
               options={statusOptions}
@@ -287,28 +310,16 @@ export function EmployeesToolbar({
               }
             />
             {/* Teskari oraliqni sahifa ushlaydi va so'rov yubormaydi (`employees-page.tsx`) */}
-            <DateField
-              label={t(terminated ? 'employees.leftFrom' : 'employees.hiredFrom')}
-              value={filters.from}
-              max={filters.to === '' ? undefined : filters.to}
-              onChange={(value) => set('from', value)}
-            />
-            <DateField
-              label={t(terminated ? 'employees.leftTo' : 'employees.hiredTo')}
-              value={filters.to}
-              min={filters.from === '' ? undefined : filters.from}
-              onChange={(value) => set('to', value)}
+            <DateRangeField
+              label={t(terminated ? 'dateRange.left' : 'dateRange.hired')}
+              fromLabel={t(terminated ? 'employees.leftFrom' : 'employees.hiredFrom')}
+              toLabel={t(terminated ? 'employees.leftTo' : 'employees.hiredTo')}
+              from={filters.from}
+              to={filters.to}
+              onFromChange={(value) => set('from', value)}
+              onToChange={(value) => set('to', value)}
             />
           </div>
-
-          {(count > 0 || filters.search !== '' || filters.needsReview) && (
-            <div className="mt-3.5 flex justify-end">
-              <Button type="button" size="sm" variant="ghost" onClick={clearAll}>
-                <X />
-                {t('employees.clearFilters')}
-              </Button>
-            </div>
-          )}
         </div>
       )}
     </div>

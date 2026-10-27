@@ -185,11 +185,12 @@ export function actorView(fmt: AuditFormatter, actor: AuditActor): ActorView {
       }
 
     case AuditActorKind.Anonymous: {
-      // Notanish login bilan kirish urinishi — normallashgan telefon raqami
-      const login = actor.login === null ? null : formatPhone(actor.login)
-      return login === null
+      // Ochiq onlayn anketa — o'z nomi («Onlayn anketa»); notanish login bilan kirish
+      // urinishi — normallashgan telefon raqami. Excel nusxasi: AuditEntryText.cs
+      const label = actor.name ?? (actor.login === null ? null : formatPhone(actor.login))
+      return label === null
         ? { name: fmt.t('audit.actorAnonymous'), secondary: null, person: false }
-        : { name: login, secondary: fmt.t('audit.actorAnonymous'), person: false }
+        : { name: label, secondary: fmt.t('audit.actorAnonymous'), person: false }
     }
 
     default: {

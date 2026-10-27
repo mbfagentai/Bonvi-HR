@@ -4,14 +4,17 @@ import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
-import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
+import { isDateRangeInverted, toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
   Badge,
   Button,
   Card,
   DataTable,
-  DateField,
+  DateRangeField,
   EmptyState,
   IconTile,
   Input,
@@ -20,7 +23,11 @@ import {
   type DataColumn,
 } from '@/shared/ui'
 
-import type { ExitInterview } from '../api/exit-interviews-api'
+import {
+  exitInterviewListParams,
+  type ExitInterview,
+  type ExitInterviewFilters,
+} from '../api/exit-interviews-api'
 import { useExitInterviews } from '../api/exit-interviews-queries'
 import { FEEDBACK_MANAGE, FEEDBACK_VIEW, RECOMMENDATION_LOOK } from '../lib/feedback-presentation'
 import { ExitInterviewDeleteDialog } from './exit-interview-delete-dialog'
@@ -56,6 +63,8 @@ export function ExitInterviewsPage() {
 
   const canView = hasPermission(FEEDBACK_VIEW)
   const canManage = hasPermission(FEEDBACK_MANAGE)
+  // Eksport — jurnalni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = canView && hasPermission(REPORTS_EXPORT)
 
   const searchParams = route.useSearch()
   const navigate = route.useNavigate()
@@ -78,11 +87,20 @@ export function ExitInterviewsPage() {
 
   // `canView` yo'q bo'lsa ham so'rov chaqiriladi — `incidents-page.tsx`
   // dagi bilan bir xil naqsh (`users-page.tsx`dan meros).
-  const list = useExitInterviews({
+  /*
+    Filtr — ro'yxat ham, Excel eksporti ham AYNAN shundan (ro'yxat
+    sahifalanmaydi, ya'ni fayl ekrandagi qatorlarning o'zi).
+  */
+  const listFilters: ExitInterviewFilters = {
     from: filters.from === '' ? undefined : filters.from,
     to: filters.to === '' ? undefined : filters.to,
     search: search === '' ? undefined : search,
-  })
+  }
+
+  const list = useExitInterviews(listFilters)
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
   const rows = canView ? (list.data ?? EMPTY) : EMPTY
 
   const openCreate = () => {
@@ -99,41 +117,58 @@ export function ExitInterviewsPage() {
     const definitions: Array<DataColumn<ExitInterview>> = [
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
-        // `incidents-page.tsx` dagi bilan bir xil hisob — uch ro'yxatda
-        // bir xil odam bir xil kenglikda ko'rinsin.
+        /*
+          `incidents-page.tsx` dagi bilan bir xil: rasm va to'liq ism BIR
+          QATORDA (egasi 2026-10-22 — jadval qatori ikkiga bo'linmaydi).
+          300px — pastki chegara, uzun ismda ustun o'zi kengayadi.
+        */
         meta: { width: '300px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-3">
             <EmployeePhoto
               employeeId={row.original.employeeId ?? ''}
               photoKey={row.original.photoKey}
               name={row.original.employeeName ?? ''}
-              size="lg"
+              size="md"
             />
-            <p className="truncate-1 font-medium">{row.original.employeeName ?? '—'}</p>
+            <span className="font-medium">{row.original.employeeName ?? '—'}</span>
           </div>
         ),
       }),
 
+      /*
+        Ish joyi — bo'lim va lavozim endi IKKI ustunda (ilgari bo'lim
+        ostiga lavozim tushardi). Xodimlar ro'yxatidagi tartib bilan bir xil.
+      */
       helper.display({
-        id: 'workplace',
-        header: t('feedback.workplace'),
+        id: 'department',
+        header: t('employee.department'),
         enableSorting: false,
-        // 200px − katak to'ldirishi (32px) = 168px: bo'lim nomi bitta
-        // qatorda (`truncate-1`), ostida lavozim — ikkalasi ham odatiy
-        // uzunlikda (`positions.department` ustuni bilan bir xil taxmin,
-        // `catalog-page.tsx`).
-        meta: { width: '200px', hideOnMobile: true },
-        cell: ({ row }) => (
-          <div className="min-w-0">
-            <p className="truncate-1">{row.original.departmentName ?? row.original.legalEntityName ?? '—'}</p>
-            {row.original.positionName !== null && (
-              <p className="truncate-1 text-caption1 text-[var(--fg-tertiary)]">
-                {row.original.positionName}
-              </p>
-            )}
-          </div>
-        ),
+        // Pastki chegara 160px, yuqorisi 260px (`maxWidth` — uzunrog'i «…», to'liq nomi `title` da)
+        meta: { width: '160px', maxWidth: '260px', hideOnMobile: true },
+        cell: ({ row }) => {
+          const value = row.original.departmentName ?? row.original.legalEntityName
+          return value === null ? (
+            <span className="text-[var(--fg-tertiary)]">—</span>
+          ) : (
+            <span title={value} className="text-[var(--fg-secondary)]">{value}</span>
+          )
+        },
+      }),
+
+      helper.display({
+        id: 'position',
+        header: t('employee.position'),
+        enableSorting: false,
+        meta: { width: '160px', maxWidth: '260px', hideOnMobile: true },
+        cell: ({ row }) =>
+          row.original.positionName === null ? (
+            <span className="text-[var(--fg-tertiary)]">—</span>
+          ) : (
+            <span title={row.original.positionName} className="text-[var(--fg-secondary)]">
+              {row.original.positionName}
+            </span>
+          ),
       }),
 
       helper.accessor('terminationDate', {
@@ -179,11 +214,14 @@ export function ExitInterviewsPage() {
         enableSorting: false,
         // Ortgan joyni shu ustun oladi — sabab erkin matn, ko'pincha bir
         // necha jumla (`flags.reason` ustuni bilan bir xil naqsh,
-        // `flag-list-page.tsx`). 220px pastki chegara.
-        meta: { minWidth: '220px' },
+        // `flag-list-page.tsx`). 180px pastki chegara. Bir qatorda, ustunga
+        // sig'magani kesiladi — to'lig'i `title` da va tahrirlash oynasida.
+        // `absolute` qatlam — matn ustunning eng kichik kengligiga qo'shilmasin
+        // (`audit-list.tsx` dagi o'zgarishlar ustuni bilan bir xil naqsh).
+        meta: { minWidth: '180px' },
         cell: ({ getValue }) => (
-          <span className="truncate-2 text-[var(--fg-secondary)]" title={getValue()}>
-            {getValue()}
+          <span className="relative block h-5" title={getValue()}>
+            <span className="absolute inset-0 truncate leading-5 text-[var(--fg-secondary)]">{getValue()}</span>
           </span>
         ),
       }),
@@ -259,8 +297,13 @@ export function ExitInterviewsPage() {
     )
   }
 
+  /*
+    Ro'yxat ramkasi (`data-list-frame`, `app-shell.tsx`): sahifa ekranning
+    butun eniga yoyiladi, qatorlar esa kartaning ichida aylanadi — jadval
+    bir qatorli bo'lgach (egasi 2026-10-22) u 1400px ga sig'masdi.
+  */
   return (
-    <div className="space-y-6">
+    <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
       <PageHeader
         title={
           <span className="flex items-center gap-3">
@@ -279,38 +322,57 @@ export function ExitInterviewsPage() {
         }
       />
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         {/*
-          Qidiruv sana oralig'idan YUQORIDA va butun kenglikda: HR bu
-          jurnalga «falonchi nima degan edi» degan savol bilan keladi,
-          sana oralig'i esa kamdan-kam ishlatiladi.
+          Qidiruv va sana oralig'i BITTA qatorda (ilgari ikki qator — jadvaldan
+          joy olardi). Qidiruv birinchi va eng keng: HR bu jurnalga «falonchi
+          nima degan edi» degan savol bilan keladi, sana oralig'i esa
+          kamdan-kam ishlatiladi.
         */}
-        <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
-          <Input
-            icon={Search}
-            shape="pill"
-            type="search"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t('common.searchPlaceholder')}
-            aria-label={t('common.search')}
+        <div className="flex flex-wrap items-end gap-3 border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
+          <div className="min-w-[240px] flex-1">
+            <Input
+              icon={Search}
+              shape="pill"
+              type="search"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={t('common.searchPlaceholder')}
+              aria-label={t('common.search')}
+            />
+          </div>
+          <DateRangeField
+            label={t('dateRange.date')}
+            fromLabel={t('common.dateFrom')}
+            toLabel={t('common.dateTo')}
+            from={filters.from}
+            to={filters.to}
+            onFromChange={(value) => setFilters({ ...filters, from: value })}
+            onToChange={(value) => setFilters({ ...filters, to: value })}
+            className="w-full sm:w-[340px]"
           />
+
+          {/* Eksport — filtr qatorining oxirida: fayl aynan shu qidiruv va oraliqqa tushadi */}
+          {canExport && (
+            <ListExportButton
+              onClick={() =>
+                exportList.mutate({
+                  path: '/api/exit-interviews/export',
+                  params: exitInterviewListParams(listFilters),
+                  slug: 'qayta_aloqa',
+                })
+              }
+              pending={exportList.isPending}
+              // Teskari oraliqqa hech narsa mos kelmaydi — bo'sh fayl yuklashning ma'nosi yo'q
+              disabled={isDateRangeInverted(filters)}
+            />
+          )}
         </div>
 
-        <div className="grid gap-3 border-b border-[var(--border)] px-4 py-3.5 sm:grid-cols-2 sm:px-5">
-          <DateField
-            label={t('common.dateFrom')}
-            value={filters.from}
-            onChange={(value) => setFilters({ ...filters, from: value })}
-          />
-          <DateField
-            label={t('common.dateTo')}
-            value={filters.to}
-            onChange={(value) => setFilters({ ...filters, to: value })}
-          />
-        </div>
+        <ListExportError error={exportList.error} />
 
         <DataTable
+          fill
           columns={columns}
           data={rows}
           getRowId={(item) => item.id}

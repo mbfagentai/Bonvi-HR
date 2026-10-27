@@ -24,16 +24,21 @@ public interface IAuditActorSource
     AuditPrincipal Current { get; }
 }
 
-/// <summary>Audit bajaruvchisining shaxsi — nomsiz (nomni saqlash qatlami qo'shadi).</summary>
+/// <summary>Audit bajaruvchisining shaxsi — odam va xodimning ismini saqlash qatlami qo'shadi.</summary>
 /// <param name="Kind">Bajaruvchi turi.</param>
 /// <param name="UserId">Tizim foydalanuvchisi (<see cref="AuditActorKind.User"/> da).</param>
 /// <param name="Login">Tokendagi login — foydalanuvchi bazada topilmasa ham iz qolsin.</param>
 /// <param name="EmployeeId">Xodim ilovasi egasi (<see cref="AuditActorKind.EmployeeAccount"/> da).</param>
+/// <param name="Name">
+/// Hisobi yo'q bajaruvchining tayyor nomi — masalan ochiq onlayn anketa («Onlayn anketa»). Odam
+/// va xodim uchun BERILMAYDI: ularning ismi saqlash paytida bazadan o'qiladi.
+/// </param>
 public sealed record AuditPrincipal(
     AuditActorKind Kind,
     Guid? UserId = null,
     string? Login = null,
-    Guid? EmployeeId = null)
+    Guid? EmployeeId = null,
+    string? Name = null)
 {
     /// <summary>Tizimning o'zi.</summary>
     public static AuditPrincipal System { get; } = new(AuditActorKind.System);

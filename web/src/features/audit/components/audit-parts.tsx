@@ -60,22 +60,42 @@ export function AuditActorCell({
   fmt,
   actor,
   size = 'sm',
+  inline = false,
   className,
 }: {
   fmt: AuditFormatter
   actor: AuditActor
   size?: 'sm' | 'md'
+  /**
+   * Jadval qatori: ism va rol BIR QATORDA (egasi 2026-10-22 — jadvalda
+   * qator ikkiga bo'linmaydi). Kartalar va oyna avvalgidek ikki qatorli.
+   */
+  inline?: boolean
   className?: string
 }) {
   const view = actorView(fmt, actor)
 
+  const icon = view.person ? (
+    <Avatar name={view.name} size={size} />
+  ) : (
+    <IconTile icon={ACTOR_ICON[actor.kind]} tone="gray" size={size === 'md' ? 'md' : 'sm'} />
+  )
+
+  if (inline) {
+    return (
+      <div className={cn('flex items-center gap-2.5', className)}>
+        {icon}
+        <span className="text-subhead font-medium">{view.name}</span>
+        {view.secondary !== null && (
+          <span className="text-caption1 text-[var(--fg-tertiary)]">{view.secondary}</span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={cn('flex min-w-0 items-center gap-2.5', className)}>
-      {view.person ? (
-        <Avatar name={view.name} size={size} />
-      ) : (
-        <IconTile icon={ACTOR_ICON[actor.kind]} tone="gray" size={size === 'md' ? 'md' : 'sm'} />
-      )}
+      {icon}
 
       <div className="min-w-0">
         <p className="truncate-1 text-subhead font-medium" title={view.name}>

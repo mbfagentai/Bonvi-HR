@@ -12,6 +12,15 @@ namespace Bonvi.Bot.Bonvi;
 /// <summary>Ochiq vakansiya — botda ko'rsatiladigan minimal ma'lumot.</summary>
 public sealed record OpenVacancy(Guid Id, string Title);
 
+/// <summary>
+/// «Ish haqida qayerdan bilgan» kanali — 20-qadamning bitta tugmasi
+/// (serverdagi «Qayerdan bilgan» ma'lumotnomasidan, SPEC-qayerdan-bilgan §5).
+/// </summary>
+/// <param name="Id">Kanal — arizada <c>referralChannelId</c> bo'lib ketadi.</param>
+/// <param name="Name">Nom — ma'lumotnomadagidek (tarjima qilinmaydi).</param>
+/// <param name="AsksDetail">Tanlanganda «kim tavsiya qildi / qaysi manba?» so'raladimi.</param>
+public sealed record ReferralChannel(Guid Id, string Name, bool AsksDetail);
+
 /// <summary>Botning tizimdan olinadigan sozlamalari.</summary>
 /// <remarks>
 /// Maydonlar <c>GET /api/settings/bot</c> javobidagi nomlar bilan
@@ -139,8 +148,10 @@ public sealed record ApplicationCheck(
 /// <param name="Education">Ma'lumot darajasi.</param>
 /// <param name="MaritalStatus">Oilaviy holati.</param>
 /// <param name="RussianLevel">Rus tili darajasi.</param>
-/// <param name="ExpectedSalary">Kutilayotgan maosh oralig'i.</param>
-/// <param name="ReferralSource">Ish haqida qayerdan bilgan.</param>
+/// <param name="ExpectedSalary">
+/// Kutilayotgan maosh oralig'i. «Qayerdan bilgan» bu blokda ENDI YO'Q — u arizaning o'zida
+/// (<see cref="CandidateRegistration.ReferralChannelId"/>), server ham uni nomzodga yozadi.
+/// </param>
 /// <param name="OfferAcceptedAt">
 /// Ommaviy oferta bilan rozilik VAQTI. Server uni o'zi UTC ga
 /// keltiradi, ya'ni siljish qanday bo'lishi ahamiyatsiz.
@@ -163,7 +174,6 @@ public sealed record QuestionnaireAnswers(
     MaritalAnswer MaritalStatus,
     RussianLevelAnswer RussianLevel,
     SalaryAnswer ExpectedSalary,
-    ReferralAnswer ReferralSource,
     DateTimeOffset? OfferAcceptedAt,
     string? WorkExperience = null,
     string? OtherLanguages = null,
@@ -203,6 +213,8 @@ public sealed record QuestionnaireAnswers(
 /// <param name="ChatId">Telegram suhbatining raqami.</param>
 /// <param name="Language">Nomzod tanlagan til kodi.</param>
 /// <param name="Questionnaire">Anketa javoblari.</param>
+/// <param name="ReferralChannelId">«Qayerdan bilgan» kanali — server uni MAJBURIY qiladi.</param>
+/// <param name="ReferralDetail">Aniqlik — faqat kanal so'raganda, aks holda <c>null</c>.</param>
 public sealed record CandidateRegistration(
     Guid? VacancyId,
     string LastName,
@@ -214,7 +226,9 @@ public sealed record CandidateRegistration(
     string? Speciality,
     long ChatId,
     string Language,
-    QuestionnaireAnswers Questionnaire);
+    QuestionnaireAnswers Questionnaire,
+    Guid ReferralChannelId,
+    string? ReferralDetail);
 
 /// <summary>
 /// Rad etilgan, lekin xabarni hali olmagan nomzod.
@@ -441,6 +455,42 @@ public sealed partial class BonviClient : IDisposable
             .. page.Items
                 .Where(item => !string.IsNullOrWhiteSpace(item.Title))
                 .Select(item => new OpenVacancy(item.Id, item.Title!)),
+        ];
+    }
+
+    /// <summary>
+    /// «Qayerdan bilgan» kanallari — 20-qadamning tugmalari, FAOLLARI, alifbo tartibida.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ro'yxat ma'lumotnomada va uni HR tahrirlaydi (SPEC-qayerdan-bilgan §5): bot har safar
+    /// so'raydi, keshlamaydi — yangi kanal darhol ko'rinadi, faolsizlantirilgani yo'qoladi.
+    /// Endpoint rekruting guruhida (<c>recruiting.view</c>) — bot hisobining huquqlari
+    /// kengaytirilmadi (<c>catalog.view</c> unda yo'q).
+    /// </para>
+    /// <para>
+    /// Javob kelmasa — BO'SH ro'yxat; bot savolni «qayta urinish» tugmasi bilan chizadi.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<ReferralChannel>> GetReferralChannelsAsync(CancellationToken cancellationToken)
+    {
+        var items = await SendAsync<List<ReferralChannelItem>>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/recruiting/referral-channels", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (items is null)
+        {
+            return [];
+        }
+
+        return
+        [
+            .. items
+                .Where(item => item.IsActive != false && !string.IsNullOrWhiteSpace(item.Name))
+                .Select(item => new ReferralChannel(item.Id, item.Name!, item.AsksDetail == true)),
         ];
     }
 
@@ -771,13 +821,17 @@ public sealed partial class BonviClient : IDisposable
             telegramChatId = registration.ChatId,
             telegramLanguage = registration.Language,
 
+            // «Qayerdan bilgan» — nomzodning o'z maydoni (anketa blokida emas), server uni
+            // HAR BIR yangi nomzodda majburiy qiladi. Aniqlik bo'sh bo'lsa tanaga tushmaydi.
+            referralChannelId = registration.ReferralChannelId,
+            referralDetail = registration.ReferralDetail,
+
             questionnaire = new
             {
                 form.Education,
                 form.MaritalStatus,
                 form.RussianLevel,
                 form.ExpectedSalary,
-                form.ReferralSource,
                 form.OfferAcceptedAt,
                 form.WorkExperience,
                 form.OtherLanguages,
@@ -1095,6 +1149,8 @@ public sealed partial class BonviClient : IDisposable
     private sealed record VacancyPage(List<VacancyItem>? Items);
 
     private sealed record VacancyItem(Guid Id, string? Title);
+
+    private sealed record ReferralChannelItem(Guid Id, string? Name, bool? IsActive, bool? AsksDetail);
 
     private sealed record CandidatePage(List<CandidateItem>? Items);
 

@@ -9,6 +9,7 @@ using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Employees.Flags;
 using Bonvi.Application.Employees.Photos;
 using Bonvi.Application.Employees.Queries;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -79,6 +80,8 @@ public sealed record SaveCompetencyRequest(
 /// </remarks>
 public static class EmployeeEndpoints
 {
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     public static IEndpointRouteBuilder MapEmployeeEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -608,6 +611,44 @@ public static class EmployeeEndpoints
             .Produces<IReadOnlyList<FlaggedEmployeeDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/flagged/export", async (
+                EmployeeFlagType type,
+                bool? onlyActive,
+                string? search,
+                DateOnly? from,
+                DateOnly? to,
+                ExportFlaggedEmployeesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/employees/flagged» bilan AYNAN bir xil.
+                var natija = await handler
+                    .HandleAsync(new ListFlaggedQuery(type, onlyActive ?? true, search, from, to), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ro'yxatni ko'rish (`lists.view`) va
+            // tizimdan fayl olib chiqish (`reports.export`).
+            .RequireAuthorization(Permissions.ListsView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportFlaggedEmployeesToExcel")
+            .WithSummary("Belgilar — Excel eksport")
+            .WithDescription(
+                "Parametrlar «GET /api/employees/flagged» bilan AYNAN bir xil («type» = Reserve | " +
+                "Blacklist | Monitoring | Capable, majburiy) — eksport ekranda ko'ringan ro'yxatni " +
+                "(Rezerv / Qora ro'yxatning «Xodimlar» bo'limi, Nazoratdagilar, Qobiliyatlilar), o'sha " +
+                "tartibda qaytaradi. Ustunlar: F.I.Sh., sabab, qo'yilgan va yopilgan sana, belgi, " +
+                "holat (faol / yopilgan / boshlanmagan). Fayl nomi belgi turidan " +
+                "(«Bonvi_qora_royxat_…»). Eng ko'pi 5000 qator: kattaroq natija «eksport.juda_kop» " +
+                "(400) bilan rad etiladi. Ruxsat: «lists.view» VA «reports.export». Har bir eksport " +
+                "audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/{id:guid}/flags", async (
                 Guid id,

@@ -11,13 +11,16 @@ using Bonvi.Application.Me;
 using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.PublicApi.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
+using Bonvi.Application.Recruiting.Forms;
 using Bonvi.Application.Reports.Abstractions;
+using Bonvi.Application.Reports.Export;
 using Bonvi.Application.System.Queries.GetSystemInfo;
 using Bonvi.Infrastructure.Identity;
 using Bonvi.Infrastructure.Persistence.Auditing;
 using Bonvi.Infrastructure.Persistence.ReadModels;
 using Bonvi.Infrastructure.Persistence.Seed;
 using Bonvi.Infrastructure.Reports;
+using Bonvi.Infrastructure.Reports.Pdf;
 using Bonvi.Infrastructure.Security;
 using Bonvi.Infrastructure.Repositories;
 using Bonvi.Domain.Abstractions;
@@ -85,6 +88,39 @@ public static class DependencyInjection
         // sababli bitta nusxa yetarli (xuddi `IImageProcessor` kabi).
         services.AddSingleton<IEmployeeExcelWriter, EmployeeExcelWriter>();
         services.AddSingleton<IIncentiveExcelWriter, IncentiveExcelWriter>();
+        // Qolgan ro'yxatlarning eksporti — bitta umumiy jadval yozuvchisi (SPEC-excel-eksport)
+        services.AddSingleton<IExcelTableWriter, ExcelTableWriter>();
+
+        // Planshet anketasining PDF'i (SPEC-planshet-anketa §6.3) — holatsiz,
+        // shriftlar jarayonga bir marta o'rnatiladi.
+        services.AddSingleton<IQuestionnairePdfRenderer, QuestionnairePdfRenderer>();
+        services.AddSingleton<IQuestionnaireFormJournal, QuestionnaireFormJournal>();
+        services.AddQuestionnaireBotCheck(configuration);
+
+        return services;
+    }
+
+    /// <summary>
+    /// Onlayn anketaning bot tekshiruvi — Cloudflare Turnstile (SPEC-planshet-anketa §2.3.2).
+    /// </summary>
+    /// <remarks>
+    /// Kalitlar berilmasa tekshiruv o'chiq (<see cref="TurnstileOptions"/>), lekin ro'yxatga olish
+    /// HAR DOIM bir xil — seans javobi ochiq kalitni shu port orqali o'qiydi. Muddat 5 soniya
+    /// (<see cref="TurnstileBotCheck.Timeout"/>); <c>HttpClient</c> ning o'z so'rov jurnali o'chiq
+    /// (sababi <see cref="TurnstileBotCheck"/> izohida).
+    /// </remarks>
+    private static IServiceCollection AddQuestionnaireBotCheck(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddOptions<TurnstileOptions>()
+            .Bind(configuration.GetSection(TurnstileOptions.SectionName));
+
+        services
+            .AddHttpClient<IQuestionnaireBotCheck, TurnstileBotCheck>(
+                TurnstileBotCheck.HttpClientName,
+                client => client.Timeout = TurnstileBotCheck.Timeout)
+            .RemoveAllLoggers();
 
         return services;
     }
@@ -285,6 +321,7 @@ public static class DependencyInjection
         services.AddScoped<IPipelineStageRepository, PipelineStageRepository>();
         services.AddScoped<IVacancyRepository, VacancyRepository>();
         services.AddScoped<ICandidateRepository, CandidateRepository>();
+        services.AddScoped<ICandidateFormRepository, CandidateFormRepository>();
 
         services.AddScoped<IRecruitingReadModel, RecruitingReadModel>();
 

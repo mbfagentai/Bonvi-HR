@@ -36,6 +36,13 @@ export interface DataColumnMeta {
   minWidth?: string
   /** Tor ekranda yashiriladi — telefonda faqat eng muhim ustunlar qoladi. */
   hideOnMobile?: boolean
+  /**
+   * Matn ustunining YUQORI chegarasi (`'260px'`): undan uzun qiymat bir qatorda
+   * «…» bilan kesiladi, to'liq matn sichqoncha ostida (`title`). Qatorlar bir
+   * qatorli (egasi 2026-10-22) — bitta juda uzun lavozim nomi butun ustunni
+   * va jadvalni kengaytirib, harakat tugmalarini ekrandan chiqarib yuborardi.
+   */
+  maxWidth?: string
 }
 
 /**

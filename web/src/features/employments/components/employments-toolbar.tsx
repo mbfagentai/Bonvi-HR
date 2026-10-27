@@ -6,9 +6,10 @@ import {
   type EmploymentEventType,
 } from '@/features/employees/api/employees-api'
 import type { FilterOptions } from '@/features/employees/api/employees-queries'
+import { ListExportButton } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
-import { Button, DateField, Input, Select } from '@/shared/ui'
+import { Button, DateRangeField, Input, Select } from '@/shared/ui'
 /*
  * Filtr holatining shakli manzil bilan bir joyda turadi
  * (`employees-toolbar.tsx` dagi bilan bir xil sabab).
@@ -37,10 +38,22 @@ export function EmploymentsToolbar({
   filters,
   onChange,
   options,
+  onExport,
+  exporting = false,
+  exportDisabled = false,
 }: {
   filters: EmploymentEventsFilterState
   onChange: (next: EmploymentEventsFilterState) => void
   options: FilterOptions
+  /**
+   * «Excelga yuklash». `undefined` — tugma umuman chizilmaydi (ruxsat yo'q).
+   * So'rov sahifada: fayl ro'yxat bilan BITTA filtr obyektidan quriladi
+   * (`EmployeesToolbar` izohi).
+   */
+  onExport?: () => void
+  exporting?: boolean
+  /** Teskari sana oralig'ida — server 400 qaytarardi. */
+  exportDisabled?: boolean
 }) {
   const { t } = useLocale()
 
@@ -114,12 +127,36 @@ export function EmploymentsToolbar({
             </span>
           )}
         </Button>
+
+        {/*
+          Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+          alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+        */}
+        {(count > 0 || filters.search !== '') && (
+          <Button
+            type="button"
+            pill
+            variant="ghost"
+            title={t('employees.clearFilters')}
+            aria-label={t('employees.clearFilters')}
+            onClick={clearAll}
+          >
+            <X />
+            <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+          </Button>
+        )}
+
+        {/* Eksport — «Filtrlar» yonida: fayl aynan shu filtrga tushadi (xodimlar ro'yxatidagi joy) */}
+        {onExport !== undefined && (
+          <ListExportButton onClick={onExport} pending={exporting} disabled={exportDisabled} />
+        )}
       </div>
 
       {open && (
         <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Select
+              size="sm"
               label={t('employments.type')}
               options={typeOptions}
               value={filters.type}
@@ -128,6 +165,7 @@ export function EmploymentsToolbar({
               }
             />
             <Select
+              size="sm"
               label={t('employee.department')}
               placeholder={t('employees.anyDepartment')}
               options={options.departments}
@@ -135,32 +173,23 @@ export function EmploymentsToolbar({
               onChange={(event) => set('departmentId', event.target.value)}
             />
             <Select
+              size="sm"
               label={t('employee.legalEntity')}
               placeholder={t('employees.anyLegalEntity')}
               options={options.legalEntities}
               value={filters.legalEntityId}
               onChange={(event) => set('legalEntityId', event.target.value)}
             />
-            <DateField
-              label={t('employments.dateFrom')}
-              value={filters.from}
-              onChange={(value) => set('from', value)}
-            />
-            <DateField
-              label={t('employments.dateTo')}
-              value={filters.to}
-              onChange={(value) => set('to', value)}
+            <DateRangeField
+              label={t('dateRange.date')}
+              fromLabel={t('employments.dateFrom')}
+              toLabel={t('employments.dateTo')}
+              from={filters.from}
+              to={filters.to}
+              onFromChange={(value) => set('from', value)}
+              onToChange={(value) => set('to', value)}
             />
           </div>
-
-          {(count > 0 || filters.search !== '') && (
-            <div className="mt-3.5 flex justify-end">
-              <Button type="button" size="sm" variant="ghost" onClick={clearAll}>
-                <X />
-                {t('employees.clearFilters')}
-              </Button>
-            </div>
-          )}
         </div>
       )}
     </div>

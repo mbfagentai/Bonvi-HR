@@ -478,19 +478,35 @@ function useExceptionColumns(
   const { t, date } = useLocale()
 
   return useMemo(() => {
+    /*
+      ⭐ BIR QATOR (egasi 2026-10-22): rasm va ism bitta chiziqda, bo'lim va
+      lavozim — o'z ustunlarida (ilgari ism ostida ikkinchi qator edi).
+    */
     const employee = exceptionHelper.display({
       id: 'employee',
       header: t('attendance.employee'),
-      meta: { minWidth: '280px' },
       cell: ({ row }) => (
         <EmployeeCell
           employeeId={row.original.employeeId}
           name={row.original.employeeName}
           photoKey={row.original.photoKey}
-          detail={[row.original.department, row.original.position].filter(Boolean).join(' · ')}
           linked={canOpenEmployee}
         />
       ),
+    })
+
+    const department = exceptionHelper.display({
+      id: 'department',
+      header: t('employee.department'),
+      meta: { maxWidth: '260px', hideOnMobile: true },
+      cell: ({ row }) => <PlainCell value={row.original.department} />,
+    })
+
+    const position = exceptionHelper.display({
+      id: 'position',
+      header: t('employee.position'),
+      meta: { maxWidth: '260px', hideOnMobile: true },
+      cell: ({ row }) => <PlainCell value={row.original.position} />,
     })
 
     const day = exceptionHelper.display({
@@ -543,21 +559,22 @@ function useExceptionColumns(
     const status = exceptionHelper.display({
       id: 'status',
       header: t('employee.status'),
-      meta: { width: '180px' },
       cell: ({ row }) => <DayStatusBadge status={row.original.status} />,
     })
 
+    const who = [employee, department, position]
+
     switch (kind) {
       case 'Late':
-        return [employee, day, planStart, firstIn, late, worked, status]
+        return [...who, day, planStart, firstIn, late, worked, status]
       case 'EarlyLeave':
-        return [employee, day, planEnd, lastOut, early, worked, status]
+        return [...who, day, planEnd, lastOut, early, worked, status]
       case 'Shortfall':
-        return [employee, day, firstIn, lastOut, shortfall, worked, status]
+        return [...who, day, firstIn, lastOut, shortfall, worked, status]
       case 'Absent':
-        return [employee, day, planStart, planEnd, status]
+        return [...who, day, planStart, planEnd, status]
       case 'Missing':
-        return [employee, day, planStart, planEnd, firstIn, lastOut, worked, status]
+        return [...who, day, planStart, planEnd, firstIn, lastOut, worked, status]
     }
   }, [kind, t, date, canOpenEmployee])
 }
@@ -639,16 +656,25 @@ function useSummaryColumns(canOpenEmployee: boolean): Array<DataColumn<Attendanc
       summaryHelper.display({
         id: 'employee',
         header: t('attendance.employee'),
-        meta: { minWidth: '280px' },
         cell: ({ row }) => (
           <EmployeeCell
             employeeId={row.original.employeeId}
             name={row.original.employeeName}
             photoKey={row.original.photoKey}
-            detail={[row.original.department, row.original.position].filter(Boolean).join(' · ')}
             linked={canOpenEmployee}
           />
         ),
+      }),
+      /*
+        Faqat bo'lim — lavozim ATAYLAB yo'q: xulosa 13 ta sonli ustun, ism
+        ortidan yana ikki matn ustuni sonlarni ekrandan o'ngga surib
+        yuborardi. Lavozim bo'yicha kesim — filtrda.
+      */
+      summaryHelper.display({
+        id: 'department',
+        header: t('employee.department'),
+        meta: { maxWidth: '260px', hideOnMobile: true },
+        cell: ({ row }) => <PlainCell value={row.original.department} />,
       }),
       count('plannedDays', t('attendance.plannedDays')),
       count('presentDays', t('attendance.presentDays')),
@@ -674,42 +700,46 @@ function useSummaryColumns(canOpenEmployee: boolean): Array<DataColumn<Attendanc
  * ismi kartaga havola: hisobotdan «bu kim edi» degan savolga bir bosishda
  * o'tiladi. `employees.view` bo'lmasa ism — oddiy matn: 403 ga olib
  * boradigan havola bajarilmaydigan va'da bo'lardi.
+ *
+ * Bir qatorda: bo'lim va lavozim alohida ustunlarda.
  */
 function EmployeeCell({
   employeeId,
   name,
   photoKey,
-  detail,
   linked,
 }: {
   employeeId: string
   name: string
   photoKey: string | null
-  detail: string
   linked: boolean
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <EmployeePhoto employeeId={employeeId} photoKey={photoKey} name={name} size="lg" />
-      <div className="min-w-0">
-        {linked ? (
-          <Link
-            to="/xodimlar/$employeeId"
-            params={{ employeeId }}
-            search={{ tab: 'attendance' }}
-            className="truncate-1 font-medium hover:text-[var(--accent-text)]"
-          >
-            {name}
-          </Link>
-        ) : (
-          <p className="truncate-1 font-medium">{name}</p>
-        )}
-        {detail !== '' && (
-          <p className="truncate-1 text-caption1 text-[var(--fg-tertiary)]">{detail}</p>
-        )}
-      </div>
+    <div className="flex items-center gap-3">
+      <EmployeePhoto employeeId={employeeId} photoKey={photoKey} name={name} size="md" />
+      {linked ? (
+        <Link
+          to="/xodimlar/$employeeId"
+          params={{ employeeId }}
+          search={{ tab: 'attendance' }}
+          className="font-medium hover:text-[var(--accent-text)]"
+        >
+          {name}
+        </Link>
+      ) : (
+        <span className="font-medium">{name}</span>
+      )}
     </div>
   )
+}
+
+/** Bo'sh katak chiziqcha bilan — «yuklanmadimi?» degan savol tug'ilmasin. */
+function PlainCell({ value }: { value: string | null | undefined }) {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-[var(--fg-tertiary)]">—</span>
+  }
+  // `title` — `maxWidth` li ustunda kesilgan uzun nom sichqoncha ostida to'liq ko'rinadi
+  return <span title={value} className="text-[var(--fg-secondary)]">{value}</span>
 }
 
 /** Daqiqa — «0:12» emas, «12 daq.»: kechikish qisqa va daqiqada o'ylanadi. */

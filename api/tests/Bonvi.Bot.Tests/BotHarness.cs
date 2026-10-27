@@ -98,6 +98,32 @@ public sealed class BotHarness : IDisposable
     /// <summary>Ochiq vakansiyalar — bo'sh ro'yxat «ochiq ish o'rni yo'q» degani.</summary>
     public List<OpenVacancy> Vacancies { get; } = [];
 
+    /// <summary>«Telegram» kanali — serverdagi seed identifikatori.</summary>
+    public static readonly Guid TelegramChannel = Guid.Parse("0199f0a0-5e1d-7c00-8000-000000000005");
+
+    /// <summary>«Tanishlar orqali» — aniqlik so'raydi.</summary>
+    public static readonly Guid AcquaintanceChannel = Guid.Parse("0199f0a0-5e1d-7c00-8000-000000000001");
+
+    /// <summary>«OLX.uz».</summary>
+    public static readonly Guid OlxChannel = Guid.Parse("0199f0a0-5e1d-7c00-8000-000000000003");
+
+    /// <summary>
+    /// «Qayerdan bilgan» kanallari — <c>GET /api/recruiting/referral-channels</c> javobi
+    /// (server tartibida, ya'ni alifbo bo'yicha).
+    /// </summary>
+    public List<ReferralChannel> ReferralChannels { get; } =
+    [
+        new(OlxChannel, "OLX.uz", false),
+        new(AcquaintanceChannel, "Tanishlar orqali", true),
+        new(TelegramChannel, "Telegram", false),
+    ];
+
+    /// <summary>Kanallar ro'yxati so'rovi javob beradimi (<c>false</c> — 500).</summary>
+    public bool ReferralChannelsSucceed { get; set; } = true;
+
+    /// <summary>«Qayerdan bilgan» tugmasining ma'lumoti.</summary>
+    public static string Referral(Guid channel) => "src:" + channel.ToString("N");
+
     /// <summary>Sozlamadagi ommaviy oferta havolasi.</summary>
     public string OfferUrl { get; set; } = string.Empty;
 
@@ -341,6 +367,21 @@ public sealed class BotHarness : IDisposable
                     $$"""{"id":"{{vacancy.Id}}","title":{{JsonSerializer.Serialize(vacancy.Title)}}}"""));
 
             return Json($$"""{"items":[{{items}}],"total":{{Vacancies.Count}}}""");
+        }
+
+        if (path == "/api/recruiting/referral-channels")
+        {
+            if (!ReferralChannelsSucceed)
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("xato") };
+            }
+
+            var items = string.Join(
+                ',',
+                ReferralChannels.Select(channel =>
+                    $$"""{"id":"{{channel.Id}}","name":{{JsonSerializer.Serialize(channel.Name)}},"isActive":true,"asksDetail":{{(channel.AsksDetail ? "true" : "false")}}}"""));
+
+            return Json($"[{items}]");
         }
 
         if (path == "/api/recruiting/candidates/application-check")

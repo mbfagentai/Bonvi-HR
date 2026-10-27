@@ -2513,6 +2513,7 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
                 stageId = bosqichId,
                 telegramChatId = suhbatId,
                 source = manba,
+                referralChannelId = ReferralSeeds.Telegram,
             },
             TestContext.Current.CancellationToken);
 

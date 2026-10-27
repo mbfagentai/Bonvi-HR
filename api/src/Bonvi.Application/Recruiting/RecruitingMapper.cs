@@ -3,6 +3,7 @@ using Bonvi.Application.Recruiting.Common;
 using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Recruiting;
@@ -41,6 +42,7 @@ public sealed class RecruitingMapper
     private readonly IVacancyRepository _vacancies;
     private readonly ICandidateRepository _candidates;
     private readonly IEmploymentRepository _employments;
+    private readonly IReferenceRepository<ReferralChannel> _referralChannels;
 
     private readonly SystemSettingsReader _settings;
 
@@ -49,12 +51,14 @@ public sealed class RecruitingMapper
         IVacancyRepository vacancies,
         ICandidateRepository candidates,
         IEmploymentRepository employments,
+        IReferenceRepository<ReferralChannel> referralChannels,
         SystemSettingsReader settings)
     {
         _stages = stages;
         _vacancies = vacancies;
         _candidates = candidates;
         _employments = employments;
+        _referralChannels = referralChannels;
         _settings = settings;
     }
 
@@ -158,6 +162,12 @@ public sealed class RecruitingMapper
             ? await _employments.FindByCandidateAsync(candidate.Id, cancellationToken).ConfigureAwait(false)
             : null;
 
+        // Kanal nomi — faolsizlantirilgani ham (eski nomzod o'sha kanal bilan qoladi).
+        // Kanalsiz eski yozuvda so'rov yuborilmaydi.
+        var referral = candidate.ReferralChannelId is { } channelId
+            ? await _referralChannels.GetByIdAsync(channelId, cancellationToken).ConfigureAwait(false)
+            : null;
+
         IReadOnlyList<CandidateStageEntryDto> stages =
         [
             .. candidate.StageEntries.Select(entry => new CandidateStageEntryDto(
@@ -212,7 +222,10 @@ public sealed class RecruitingMapper
             stages,
             files,
             notes,
-            ToDto(candidate.Questionnaire));
+            ToDto(candidate.Questionnaire),
+            candidate.ReferralChannelId,
+            referral?.Name,
+            candidate.ReferralDetail);
     }
 
     /// <summary>Anketa — qo'shimcha so'rovsiz, nomzod bilan birga yuklangan.</summary>
@@ -237,7 +250,6 @@ public sealed class RecruitingMapper
                 questionnaire.HasDriverLicense,
                 questionnaire.DriverLicenseCategories,
                 questionnaire.ExpectedSalary,
-                questionnaire.ReferralSource,
                 questionnaire.OfferAcceptedAt);
 
     /// <summary>Bosqich nomlari: identifikator → nom.</summary>

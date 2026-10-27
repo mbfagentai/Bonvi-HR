@@ -22,7 +22,7 @@ import { VirtualRowContext, type VirtualRowState } from './virtual-row'
 const VIRTUALIZE_FROM = 150
 
 /** Qator balandligining taxmini — haqiqiy balandlik chizilgach o'lchanadi. */
-const ESTIMATED_ROW_HEIGHT = 53
+const ESTIMATED_ROW_HEIGHT = 45
 
 export function DataTable<TData extends RowData>({
   columns,
@@ -236,7 +236,7 @@ export function DataTable<TData extends RowData>({
                       }
                       style={headerWidthStyle(meta, noRows)}
                       className={cn(
-                        'border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-2.5',
+                        'border-b border-[var(--border)] bg-[var(--bg-sunken)] px-3 py-2.5 first:pl-4 last:pr-4',
                         'text-caption2 font-semibold tracking-wider whitespace-nowrap',
                         'text-[var(--fg-secondary)] uppercase',
                         meta?.align === 'end' && 'text-right',
@@ -256,7 +256,9 @@ export function DataTable<TData extends RowData>({
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
                           className={cn(
-                            'inline-flex items-center gap-1.5 rounded-xs transition-colors',
+                            // `uppercase` qayta: Tailwind asosi tugmada `text-transform: none`
+                            // qiladi — saralanadigan sarlavha qolganlaridan farq qilardi
+                            'inline-flex items-center gap-1.5 rounded-xs uppercase transition-colors',
                             'hover:text-[var(--fg)]',
                             meta?.align === 'end' && 'flex-row-reverse',
                             sorted !== false && 'text-[var(--fg)]',
@@ -280,7 +282,7 @@ export function DataTable<TData extends RowData>({
               Array.from({ length: skeletonRows }, (_, index) => (
                 <tr key={`skeleton-${index}`} className="border-b border-[var(--border)]">
                   {Array.from({ length: columnCount }, (__, cell) => (
-                    <td key={`skeleton-cell-${cell}`} className="px-4 py-3.5">
+                    <td key={`skeleton-cell-${cell}`} className="px-3 py-3 first:pl-4 last:pr-4">
                       {/* Kenglik ustundan ustunga o'zgaradi — bir xil to'rtburchaklar
                           qatori jadvalga emas, yuklanish chizig'iga o'xshab qoladi */}
                       <Skeleton
@@ -331,15 +333,35 @@ export function DataTable<TData extends RowData>({
                       return (
                         <td
                           key={cell.id}
+                          /*
+                            ⭐ BIR QATOR (egasi 2026-10-22): katakdagi matn qatorga
+                            bo'linmaydi — ism, lavozim, yo'nalish bir chiziqda.
+                            Ustun matnga yetguncha kengayadi, sig'magan jadval
+                            esa gorizontal aylanadi (tepadagi rels). HR katta
+                            ekranda ishlaydi: eni muammo emas, 2 qatorga bo'lingan
+                            yozuvlar esa ekranga ikki barobar kam odam sig'dirardi.
+                            Uzun erkin matn (izoh, sabab) ustunning o'zida
+                            `max-w-* truncate` bilan kesiladi.
+                          */
                           className={cn(
-                            'px-4 py-3 text-subhead align-middle',
+                            'px-3 py-2 text-subhead whitespace-nowrap align-middle first:pl-4 last:pr-4',
                             meta?.align === 'end' && 'text-right',
                             meta?.hideOnMobile === true && 'hidden md:table-cell',
                           )}
                         >
                           {/* Virtual qatorda og'ir so'rov kechiktiriladi (`virtual-row.ts`) */}
                           <VirtualRowContext value={rowState}>
-                            <table.FlexRender cell={cell} />
+                            {meta?.maxWidth === undefined ? (
+                              <table.FlexRender cell={cell} />
+                            ) : (
+                              <div
+                                className="truncate"
+                                style={{ maxWidth: meta.maxWidth }}
+                                title={titleOf(cell.getValue())}
+                              >
+                                <table.FlexRender cell={cell} />
+                              </div>
+                            )}
                           </VirtualRowContext>
                         </td>
                       )
@@ -354,6 +376,11 @@ export function DataTable<TData extends RowData>({
       </div>
     </div>
   )
+}
+
+/** Kesilgan katakning to'liq matni — faqat qiymat matn bo'lsa. */
+function titleOf(value: unknown): string | undefined {
+  return typeof value === 'string' && value !== '' ? value : undefined
 }
 
 /** Virtual ro'yxatda ko'rinmayotgan qatorlar o'rnidagi bo'sh joy. */

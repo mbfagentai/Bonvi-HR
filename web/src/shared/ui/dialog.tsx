@@ -237,7 +237,10 @@ export function Dialog({
           <footer
             className={cn(
               'flex shrink-0 items-center justify-end gap-2.5 border-t border-[var(--border)]',
-              'rounded-b-2xl bg-[var(--bg-sunken)] px-6 py-4',
+              // Pastki chekka: telefonda varaq ekran tagiga tegadi — «uy» chizig'i ostida
+              // qolmasin. `env()` faqat `viewport-fit=cover` sahifada (`/anketa`) noldan
+              // katta, qolgan joyda bu oddiy `py-4`.
+              'rounded-b-2xl bg-[var(--bg-sunken)] px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
             )}
           >
             {footer}

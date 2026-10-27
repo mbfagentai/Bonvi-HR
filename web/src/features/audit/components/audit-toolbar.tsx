@@ -1,10 +1,11 @@
 import { ListFilter, X } from 'lucide-react'
 import { useState } from 'react'
 
+import { ListExportButton } from '@/features/reports/components/list-export'
 import { useRoleLabels } from '@/features/roles/lib/role-presentation'
 import type { AuditAction } from '@/shared/api/generated/model'
 import { useLocale } from '@/shared/i18n/use-locale'
-import { Button, DateField, SegmentedControl, Select, type SelectOption } from '@/shared/ui'
+import { Button, DateRangeField, SegmentedControl, Select, type SelectOption } from '@/shared/ui'
 
 import type { AuditActorOption } from '../api/audit-queries'
 import { actionLabel, entityTypeLabel, useAuditFormatter } from '../lib/audit-format'
@@ -55,6 +56,9 @@ export function AuditToolbar({
   onKind,
   onChange,
   onClear,
+  onExport,
+  exporting = false,
+  exportDisabled = false,
 }: {
   kind: AuditKind
   canSeeSecurity: boolean
@@ -75,6 +79,14 @@ export function AuditToolbar({
   onKind: (kind: AuditKind) => void
   onChange: (patch: AuditFilterPatch) => void
   onClear: () => void
+  /**
+   * «Excelga yuklash». `undefined` — tugma umuman chizilmaydi (ruxsat yo'q).
+   * So'rov sahifada: fayl ro'yxat bilan BITTA parametr obyektidan quriladi.
+   */
+  onExport?: () => void
+  exporting?: boolean
+  /** Davr noto'g'ri — ro'yxat ham so'ralmaydi, server 400 qaytarardi. */
+  exportDisabled?: boolean
 }) {
   const { t } = useLocale()
   const fmt = useAuditFormatter()
@@ -129,30 +141,23 @@ export function AuditToolbar({
           hisoblangan qiymat (`effectivePeriod`), ya'ni maydonda ko'ringan
           sana va kelgan ro'yxat hech qachon farq qilmaydi.
         */}
-        <div
-          role="group"
-          aria-label={t('audit.filterPeriod')}
-          className="grid min-w-0 flex-1 grid-cols-2 gap-2.5 sm:max-w-[400px]"
-        >
-          <DateField
-            label={t('common.dateFrom')}
-            value={from}
-            max={today}
-            onChange={(value) => {
-              // Chala yozilgan sana — bo'sh qiymat: uni manzilga yozmaymiz,
-              // aks holda maydon har harfda standart sanaga sakrardi.
-              if (value !== '') onChange({ from: value })
-            }}
-          />
-          <DateField
-            label={t('common.dateTo')}
-            value={to}
-            max={today}
-            onChange={(value) => {
-              if (value !== '') onChange({ to: value })
-            }}
-          />
-        </div>
+        <DateRangeField
+          label={t('audit.filterPeriod')}
+          fromLabel={t('common.dateFrom')}
+          toLabel={t('common.dateTo')}
+          from={from}
+          to={to}
+          max={today}
+          // Chala yozilgan sana — bo'sh qiymat: uni manzilga yozmaymiz,
+          // aks holda maydon har harfda standart sanaga sakrardi.
+          onFromChange={(value) => {
+            if (value !== '') onChange({ from: value })
+          }}
+          onToChange={(value) => {
+            if (value !== '') onChange({ to: value })
+          }}
+          className="min-w-0 flex-1 sm:max-w-[340px]"
+        />
 
         <Button
           type="button"
@@ -181,6 +186,11 @@ export function AuditToolbar({
             {t('employees.clearFilters')}
           </Button>
         )}
+
+        {/* Eksport — «Filtrlar» yonida: fayl aynan shu davr, ko'rinish va filtrga tushadi */}
+        {onExport !== undefined && (
+          <ListExportButton onClick={onExport} pending={exporting} disabled={exportDisabled} />
+        )}
       </div>
 
       {/*
@@ -197,6 +207,7 @@ export function AuditToolbar({
         <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Select
+              size="sm"
               label={t('audit.filterActor')}
               placeholder={t('audit.anyActor')}
               options={actorOptions}
@@ -207,6 +218,7 @@ export function AuditToolbar({
             {!security && (
               <>
                 <Select
+                  size="sm"
                   label={t('audit.filterModule')}
                   placeholder={t('audit.anyModule')}
                   options={moduleOptions}
@@ -218,6 +230,7 @@ export function AuditToolbar({
                   }}
                 />
                 <Select
+                  size="sm"
                   label={t('audit.filterEntity')}
                   placeholder={t('audit.anyEntity')}
                   options={entityOptions}
@@ -233,6 +246,7 @@ export function AuditToolbar({
             )}
 
             <Select
+              size="sm"
               label={t('audit.filterAction')}
               placeholder={t('audit.anyAction')}
               options={actionOptions}
@@ -243,7 +257,6 @@ export function AuditToolbar({
               }}
             />
           </div>
-
         </div>
       )}
     </div>

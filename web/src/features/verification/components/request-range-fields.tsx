@@ -1,6 +1,6 @@
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import type { DateRange } from '@/shared/lib/list-search'
-import { Alert, DateField } from '@/shared/ui'
+import { Alert, DateRangeField } from '@/shared/ui'
 
 import { isRangeInverted } from '../lib/attendance-search'
 
@@ -8,14 +8,14 @@ import { isRangeInverted } from '../lib/attendance-search'
  * So'rovlar navbatining «sanadan–sanagacha» maydonlari — IKKALA navbatda
  * (yo'qlik va jadval o'zgarishi) bir xil.
  *
- * Fragment qaytaradi: maydonlar chaqiruvchining o'z panjarasiga
- * (`grid`) tushadi — yo'qlik navbatida tur va shakl tanlovi yonida,
- * jadval navbatida esa yolg'iz.
+ * Bitta katak: yorliq «Davr», ostida ikki sana yonma-yon (`DateRangeField`,
+ * egasi 2026-10-22 — sana filtri hamma ro'yxatda bir xil). Chaqiruvchining
+ * o'z panjarasiga (`grid`) tushadi — yo'qlik navbatida tur va shakl tanlovi
+ * yonida, jadval navbatida esa yolg'iz.
  *
- * Yorliqlar UMUMIY («Sanadan» / «Sanagacha», hisobotlar sahifasidagi
- * kabi), ma'nosi esa ostidagi izohda (<see cref="RequestRangeNote"/>):
- * oraliq so'rov DAVRIGA qisman tegsa ham so'rov chiqadi — buni bitta
- * yorliqqa sig'dirib bo'lmaydi.
+ * Ma'nosi ostidagi izohda (<see cref="RequestRangeNote"/>): oraliq so'rov
+ * DAVRIGA qisman tegsa ham so'rov chiqadi — buni bitta yorliqqa sig'dirib
+ * bo'lmaydi.
  */
 export function RequestRangeFields({
   range,
@@ -26,23 +26,17 @@ export function RequestRangeFields({
 }) {
   const { t } = useLocale()
 
+  // Qo'lda terilgan teskari oraliqni izoh ushlaydi va so'rov yuborilmaydi
   return (
-    <>
-      {/* Chegaralar bir-birini taqvimda cheklaydi; qo'lda terilgan teskari
-          oraliqni izoh ushlaydi va so'rov yuborilmaydi */}
-      <DateField
-        label={t('common.dateFrom')}
-        value={range.from}
-        max={range.to === '' ? undefined : range.to}
-        onChange={(value) => onChange({ ...range, from: value })}
-      />
-      <DateField
-        label={t('common.dateTo')}
-        value={range.to}
-        min={range.from === '' ? undefined : range.from}
-        onChange={(value) => onChange({ ...range, to: value })}
-      />
-    </>
+    <DateRangeField
+      label={t('attendance.requestPeriod')}
+      fromLabel={t('common.dateFrom')}
+      toLabel={t('common.dateTo')}
+      from={range.from}
+      to={range.to}
+      onFromChange={(value) => onChange({ ...range, from: value })}
+      onToChange={(value) => onChange({ ...range, to: value })}
+    />
   )
 }
 

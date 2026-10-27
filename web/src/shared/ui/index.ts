@@ -8,6 +8,7 @@ export { Checkbox } from './checkbox'
 export { DangerRow } from './danger-row'
 export { DataTable } from './data-table'
 export { DateField } from './date-field'
+export { DateRangeField } from './date-range-field'
 export {
   dataColumnHelper,
   dataTableFeatures,
@@ -20,6 +21,7 @@ export { EmptyState } from './empty-state'
 export { IconTile, type IconTone } from './icon-tile'
 export { Input } from './input'
 export { PageHeader } from './page-header'
+export { PageHeaderSlotContext, type PageHeaderSlots } from './page-header-slot'
 export { Pagination } from './pagination'
 export { PhotoCropper } from './photo-cropper'
 export { SegmentedControl, type SegmentOption } from './segmented-control'

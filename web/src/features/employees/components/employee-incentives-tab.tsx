@@ -66,10 +66,8 @@ export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
         bo'lmasligi kerak. Tur nomi ma'lumotnomadan (admin kiritadi,
         uzunligi taxminan ma'lum), lekin baribir eng uzun kutilgan qiymat
         («Қўшимча ҳақ тўланадиган таътил», ~31 belgi) qat'iy kenglikka
-        sig'maydi. 200px = katak to'ldirishi (32px) + IconTile "sm" (32px)
-        + oraliq (gap-2.5 = 10px) = 74px xizmat uchun, ~126px matnga —
-        odatiy 15-18 belgili nom (masalan «Пул мукофоти», «Ҳайфсан»)
-        erkin sig'adi, uzunroqlari `truncate-1` + `title` bilan qoplanadi.
+        sig'maydi — ustun nomgacha kengayadi. Nom va nishon (rag'bat /
+        jarima) BIR qatorda (egasi 2026-10-22: jadval qatori bir qator).
       */
       helper.accessor('typeName', {
         header: t('incentives.type'),
@@ -80,16 +78,12 @@ export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
           const name = row.original.typeName ?? '—'
 
           return (
-            <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex items-center gap-2.5">
               <IconTile icon={look.icon} tone={look.iconTone} size="sm" />
-              <div className="min-w-0">
-                <p className="truncate-1 text-subhead font-medium" title={name}>
-                  {name}
-                </p>
-                <Badge tone={look.tone} size="sm">
-                  {t(look.labelKey)}
-                </Badge>
-              </div>
+              <span className="text-subhead font-medium">{name}</span>
+              <Badge tone={look.tone} size="sm">
+                {t(look.labelKey)}
+              </Badge>
             </div>
           )
         },
@@ -118,17 +112,16 @@ export function EmployeeIncentivesTab({ employeeId }: { employeeId: string }) {
       }),
 
       helper.accessor((row) => row.reason ?? row.giftDescription, {
-        // Flags jadvalidagi «sabab» ustuni bilan bir xil kenglik (220px):
-        // erkin matn, ikki qatorda kesiladi, to'lig'i `title`da.
+        // Erkin matn: bir qatorda, 320px da kesiladi, to'lig'i `title` da
+        // (flags jadvalidagi «sabab» ustuni bilan bir xil qoida).
         id: 'note',
         header: t('incentives.columnNote'),
         enableSorting: false,
-        meta: { width: '220px' },
         cell: ({ row }) => {
           const value = row.original.reason ?? row.original.giftDescription
           if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
           return (
-            <span className="truncate-2 text-[var(--fg-secondary)]" title={value}>
+            <span className="block max-w-[320px] truncate text-[var(--fg-secondary)]" title={value}>
               {value}
             </span>
           )

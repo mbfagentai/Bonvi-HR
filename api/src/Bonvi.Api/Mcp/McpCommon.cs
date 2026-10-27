@@ -1,7 +1,7 @@
 using System.Globalization;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using Bonvi.Api.Common;
 
 namespace Bonvi.Api.Mcp;
 
@@ -279,27 +279,20 @@ public static class McpText
 public static class McpNet
 {
     /// <summary>
-    /// Tezlik cheklovining kaliti: IPv6 /64 bo'yicha (bitta abonent butun /64
-    /// oladi — manzil bo'yicha bo'linma osongina aylanib o'tiladi), IPv4 o'zi.
+    /// Tezlik cheklovining kaliti: mijozning HAQIQIY IP'si, IPv6 /64 bo'yicha (bitta abonent butun
+    /// /64 oladi — manzil bo'yicha bo'linma osongina aylanib o'tiladi), IPv4 o'zi.
     /// </summary>
+    /// <remarks>
+    /// <see cref="ClientIp"/> dan (SPEC-planshet-anketa §2.3.3): <c>/oauth/authorize</c> — HR'ning
+    /// parol formasi, qolganlari (ro'yxatdan o'tish, token, <c>/mcp</c> ning kirishdan oldingi
+    /// byudjeti) — AI mijozining serveri. Ilgari ulanish manzili edi va prod'da u Cloudflare chekkasi:
+    /// bir chekkadan kelgan begona so'rovlar egasining AI ulanishini ham 429 bilan to'sardi.
+    /// </remarks>
     public static string Partition(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var ip = context.Connection.RemoteIpAddress;
-        if (ip is null)
-        {
-            return "nomalum";
-        }
-
-        if (ip.IsIPv4MappedToIPv6)
-        {
-            ip = ip.MapToIPv4();
-        }
-
-        return ip.AddressFamily == AddressFamily.InterNetworkV6
-            ? Convert.ToHexString(ip.GetAddressBytes(), 0, 8) + "/64"
-            : ip.ToString();
+        return ClientIp.PartitionKey(context);
     }
 }
 

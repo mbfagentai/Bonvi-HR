@@ -1,3 +1,4 @@
+using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
@@ -184,6 +185,9 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         builder.Property(candidate => candidate.TelegramLanguage)
             .HasMaxLength(16);
 
+        builder.Property(candidate => candidate.ReferralDetail)
+            .HasMaxLength(Candidate.MaxReferralDetailLength);
+
         // ────────────────────────────────────────────────────────────
         //  Bosqichlar tarixi — nomzod agregatining ICHIDA
         // ────────────────────────────────────────────────────────────
@@ -261,6 +265,15 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         builder.HasOne<PipelineStage>()
             .WithMany()
             .HasForeignKey(candidate => candidate.CurrentStageId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // «Qayerdan bilgan» — ma'lumotnomaga havola (SPEC-qayerdan-bilgan §4). `Restrict`:
+        // kanal o'chirilmaydi, faqat faolsizlantiriladi; nomzodi bor kanalni bazadan
+        // qo'lda o'chirishga ham yo'l qo'yilmaydi — statistika yetim qolardi. Tashqi kalit
+        // indeksi (`ix_candidates_referral_channel_id`) hisobot va filtr uchun ham yetadi.
+        builder.HasOne<ReferralChannel>()
+            .WithMany()
+            .HasForeignKey(candidate => candidate.ReferralChannelId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // ────────────────────────────────────────────────────────────
@@ -427,8 +440,8 @@ public sealed class CandidateQuestionnaireConfiguration : IEntityTypeConfigurati
         builder.Property(form => form.ExpectedSalary)
             .IsRequired();
 
-        builder.Property(form => form.ReferralSource)
-            .IsRequired();
+        // «Qayerdan bilgan» (`referral_source`) bu jadvalda ENDI YO'Q — nomzodning o'zida
+        // (`candidates.referral_channel_id`, migratsiya `QayerdanBilgan`).
 
         /*
           `OfferAcceptedAt` ro'yxatda YO'Q va bu ATAYLAB: u yagona
@@ -558,5 +571,83 @@ public sealed class CandidateNoteConfiguration : IEntityTypeConfiguration<Candid
 
         // Izohlar DOIM nomzod bo'yicha va yozilgan tartibda o'qiladi.
         builder.HasIndex(note => new { note.CandidateId, note.CreatedAt });
+    }
+}
+
+/// <summary>
+/// Onlayn anketalar (<c>candidate_forms</c>, SPEC-planshet-anketa §6.1).
+/// </summary>
+/// <remarks>
+/// <para>
+/// <c>answers</c> — <c>jsonb</c>: javoblar butun hujjat bo'lib yashaydi va
+/// bazada o'qiladigan bo'lsin (nosozlikni tekshirishda SQL bilan ko'rish mumkin).
+/// </para>
+/// <para>
+/// Nomzod o'chirilsa anketa ham o'chadi (CASCADE) — bola jadvallardagidek: anketa
+/// nomzodsiz ma'nosiz. Ikkita unikal indeks: «Anketa №» va formaning yuborish
+/// identifikatori (takroriy yuborishdan himoya).
+/// </para>
+/// </remarks>
+public sealed class CandidateFormConfiguration : IEntityTypeConfiguration<CandidateForm>
+{
+    /// <summary>«Anketa №» ketma-ketligi.</summary>
+    public const string NumberSequence = "candidate_form_number_seq";
+
+    public void Configure(EntityTypeBuilder<CandidateForm> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("candidate_forms");
+
+        builder.HasKey(form => form.Id);
+
+        builder.Ignore(form => form.DomainEvents);
+
+        builder.HasOne<Candidate>()
+            .WithMany()
+            .HasForeignKey(form => form.CandidateId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(form => form.Number)
+            .IsRequired();
+
+        builder.HasIndex(form => form.Number)
+            .IsUnique();
+
+        builder.Property(form => form.FormCode)
+            .HasMaxLength(CandidateForm.MaxFormCodeLength)
+            .IsRequired();
+
+        builder.Property(form => form.FormVersion)
+            .HasMaxLength(CandidateForm.MaxFormVersionLength)
+            .IsRequired();
+
+        builder.Property(form => form.Answers)
+            .HasColumnType("jsonb")
+            .IsRequired();
+
+        builder.Property(form => form.Language)
+            .HasMaxLength(CandidateForm.MaxLanguageLength)
+            .IsRequired();
+
+        builder.Property(form => form.PhotoKey)
+            .HasMaxLength(CandidateForm.MaxKeyLength)
+            .IsRequired();
+
+        builder.Property(form => form.SignatureKey)
+            .HasMaxLength(CandidateForm.MaxKeyLength)
+            .IsRequired();
+
+        builder.Property(form => form.ClientSubmissionId)
+            .IsRequired();
+
+        builder.HasIndex(form => form.ClientSubmissionId)
+            .IsUnique();
+
+        builder.Property(form => form.SubmittedAt)
+            .IsRequired();
+
+        // Karta nomzodning anketalarini yangisidan eskisiga o'qiydi
+        builder.HasIndex(form => new { form.CandidateId, form.SubmittedAt });
     }
 }

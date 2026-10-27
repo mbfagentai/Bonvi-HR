@@ -241,31 +241,47 @@ export function AttendancePassesPage() {
         cell: ({ row }) => <PassFacePair pass={row.original} />,
       }),
 
+      /*
+        ⭐ BIR QATOR (egasi 2026-10-22): vaqt va sana yonma-yon, ism bitta
+        chiziqda, bo'lim va lavozim — o'z ustunlarida, telefon belgisi
+        qurilma nomining yonida. Ilgari har katak ikki qatorli edi va
+        jurnal ekranga yarim odam sig'dirardi.
+      */
       helper.accessor('occurredAt', {
         header: t('attendance.time'),
         enableSorting: false,
-        meta: { width: '104px' },
         cell: ({ row }) => <TimeCell value={row.original.occurredAt} />,
       }),
 
       helper.display({
         id: 'employee',
         header: t('attendance.employee'),
-        meta: { minWidth: '240px' },
         cell: ({ row }) => <EmployeeCell pass={row.original} />,
+      }),
+
+      helper.accessor('department', {
+        header: t('employee.department'),
+        enableSorting: false,
+        meta: { maxWidth: '260px', hideOnMobile: true },
+        cell: ({ getValue }) => <PlainCell value={getValue()} />,
+      }),
+
+      helper.accessor('position', {
+        header: t('employee.position'),
+        enableSorting: false,
+        meta: { maxWidth: '260px', hideOnMobile: true },
+        cell: ({ getValue }) => <PlainCell value={getValue()} />,
       }),
 
       helper.accessor('deviceName', {
         header: t('attendance.device'),
         enableSorting: false,
-        meta: { width: '200px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
-          <span className="block min-w-0 leading-tight">
-            <span className="truncate-1 block text-[var(--fg-secondary)]">
-              {row.original.deviceName ?? '—'}
-            </span>
+          <span className="flex items-center gap-2">
+            <span className="text-[var(--fg-secondary)]">{row.original.deviceName ?? '—'}</span>
             {/* Telefon belgisi — obyekt, masofa va aniqlik (SPEC-xodim-ilovasi §F). */}
-            <MobileEvidenceLine pass={row.original} />
+            <MobileEvidenceLine pass={row.original} className="mt-0" />
           </span>
         ),
       }),
@@ -273,8 +289,6 @@ export function AttendancePassesPage() {
       helper.accessor('direction', {
         header: t('attendance.direction'),
         enableSorting: false,
-        // «Noma'lum» (eng uzun yorliq) + ikonka + ichki bo'shliq ≈ 100 px + 32 px
-        meta: { width: '136px' },
         cell: ({ row }) => <PassDirectionBadge
             direction={row.original.direction}
             inferred={row.original.directionSource === 'Alternation'}
@@ -284,7 +298,7 @@ export function AttendancePassesPage() {
       helper.accessor('method', {
         header: t('attendance.method'),
         enableSorting: false,
-        meta: { width: '128px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
           <span className="text-[var(--fg-secondary)]">
             {t(METHOD_LABEL_KEY[row.original.method])}
@@ -295,7 +309,7 @@ export function AttendancePassesPage() {
       helper.display({
         id: 'flags',
         header: t('attendance.skewWarning'),
-        meta: { width: '200px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => <PassFlags pass={row.original} />,
       }),
     ],
@@ -414,6 +428,27 @@ export function AttendancePassesPage() {
               )}
             </Button>
 
+            {/*
+              Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+              alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+            */}
+            {!isDefault && (
+              <Button
+                type="button"
+                pill
+                variant="ghost"
+                title={t('employees.clearFilters')}
+                aria-label={t('employees.clearFilters')}
+                onClick={() => {
+                  changeFilters(defaultFilters())
+                  setDraft('')
+                }}
+              >
+                <X />
+                <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+              </Button>
+            )}
+
             {canExport && (
               <Button
                 type="button"
@@ -436,6 +471,7 @@ export function AttendancePassesPage() {
             <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <Select
+                  size="sm"
                   label={t('attendance.direction')}
                   placeholder={t('common.all')}
                   options={directionOptions}
@@ -443,6 +479,7 @@ export function AttendancePassesPage() {
                   onChange={(event) => set('direction', event.target.value as PassDirection | '')}
                 />
                 <Select
+                  size="sm"
                   label={t('attendance.method')}
                   placeholder={t('common.all')}
                   options={methodOptions}
@@ -450,6 +487,7 @@ export function AttendancePassesPage() {
                   onChange={(event) => set('method', event.target.value as PassMethod | '')}
                 />
                 <Select
+                  size="sm"
                   label={t('attendance.matchStatus')}
                   placeholder={t('common.all')}
                   options={[
@@ -463,6 +501,7 @@ export function AttendancePassesPage() {
                 />
                 {canManage && (
                   <Select
+                    size="sm"
                     label={t('attendance.device')}
                     placeholder={t('common.all')}
                     options={deviceOptions}
@@ -471,6 +510,7 @@ export function AttendancePassesPage() {
                   />
                 )}
                 <Select
+                  size="sm"
                   label={t('employee.legalEntity')}
                   placeholder={t('employees.anyLegalEntity')}
                   options={options.legalEntities}
@@ -478,6 +518,7 @@ export function AttendancePassesPage() {
                   onChange={(event) => set('legalEntityId', event.target.value)}
                 />
                 <Select
+                  size="sm"
                   label={t('employee.department')}
                   placeholder={t('employees.anyDepartment')}
                   options={options.departments}
@@ -485,23 +526,6 @@ export function AttendancePassesPage() {
                   onChange={(event) => set('departmentId', event.target.value)}
                 />
               </div>
-
-              {!isDefault && (
-                <div className="mt-3.5 flex justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      changeFilters(defaultFilters())
-                      setDraft('')
-                    }}
-                  >
-                    <X />
-                    {t('employees.clearFilters')}
-                  </Button>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -592,8 +616,8 @@ function PageTitle() {
 }
 
 /**
- * Vaqt — katta, sana — ostida kichik. Ikkalasi ham TOSHKENT vaqtida
- * (`formatPassTime` / `date` bitta formatlagichdan).
+ * Vaqt — qalin, sana — yonida xira, BIR QATORDA. Ikkalasi ham TOSHKENT
+ * vaqtida (`formatPassTime` / `date` bitta formatlagichdan).
  *
  * Sana har qatorda turadi: sukutda jurnal bitta kunni ko'rsatadi, lekin
  * oraliq kengaytirilganda qator qaysi kunga tegishli ekani ustundan
@@ -603,13 +627,19 @@ function TimeCell({ value }: { value: string }) {
   const { date } = useLocale()
 
   return (
-    <span className="block leading-tight">
-      <span className="tabular block text-subhead font-semibold">{formatPassTime(value)}</span>
-      <span className="tabular mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
-        {date(value)}
-      </span>
+    <span className="tabular flex items-baseline gap-2">
+      <span className="text-subhead font-semibold">{formatPassTime(value)}</span>
+      <span className="text-caption1 text-[var(--fg-tertiary)]">{date(value)}</span>
     </span>
   )
+}
+
+/** Bo'sh katak chiziqcha bilan — «yuklanmadimi?» degan savol tug'ilmasin. */
+function PlainCell({ value }: { value: string | null | undefined }) {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-[var(--fg-tertiary)]">—</span>
+  }
+  return <span className="text-[var(--fg-secondary)]">{value}</span>
 }
 
 /**
@@ -624,7 +654,7 @@ function EmployeeCell({ pass }: { pass: AttendancePass }) {
 
   if (pass.employeeId === null) {
     return (
-      <span className="flex min-w-0 flex-col items-start gap-1">
+      <span className="flex items-center gap-2">
         <span className="text-subhead text-[var(--fg-secondary)]">
           {t('attendance.unknownPerson')}
         </span>
@@ -635,16 +665,6 @@ function EmployeeCell({ pass }: { pass: AttendancePass }) {
     )
   }
 
-  const org = [pass.department, pass.position].filter(Boolean).join(' · ')
-
-  return (
-    <span className="block min-w-0">
-      <span className="truncate-1 block font-medium">{pass.employeeName}</span>
-      {org !== '' && (
-        <span className="truncate-1 mt-0.5 block text-caption1 text-[var(--fg-tertiary)]">
-          {org}
-        </span>
-      )}
-    </span>
-  )
+  // Bo'lim va lavozim — o'z ustunlarida (`department`, `position`)
+  return <span className="font-medium">{pass.employeeName}</span>
 }

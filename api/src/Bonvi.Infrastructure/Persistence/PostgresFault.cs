@@ -74,6 +74,9 @@ internal sealed class PostgresFault : IDatabaseFault
     /// </remarks>
     private const string ScheduleChangeDayIndex = "ix_schedule_change_request_days_request_id_date";
 
+    /// <summary>Onlayn anketaning yuborish identifikatori — <c>CandidateFormConfiguration</c> dagi (konvensiya) nom.</summary>
+    private const string FormSubmissionIndex = "ix_candidate_forms_client_submission_id";
+
     public bool IsDuplicateName(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -142,6 +145,13 @@ internal sealed class PostgresFault : IDatabaseFault
             && concurrency.Entries.Count > 0
             && concurrency.Entries.All(entry =>
                 entry.Entity is AbsenceRequest or ScheduleChangeRequest or ScheduleChangeDay);
+    }
+
+    public bool IsDuplicateFormSubmission(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return string.Equals(UniqueViolation(exception)?.ConstraintName, FormSubmissionIndex, StringComparison.Ordinal);
     }
 
     /// <summary>Unikallik buzilishi bo'lsa — drayver istisnosi, aks holda <c>null</c>.</summary>

@@ -154,7 +154,11 @@ function toIncident(raw: unknown): Incident {
   }
 }
 
-function listParams(filters: IncidentFilters): Record<string, unknown> {
+/**
+ * Ro'yxat so'rovining parametrlari — ro'yxat ham, Excel eksporti ham AYNAN
+ * shu funksiyadan (`docs/SPEC-excel-eksport.md` §3). Ro'yxat sahifalanmaydi.
+ */
+export function incidentListParams(filters: IncidentFilters): Record<string, unknown> {
   const params: Record<string, unknown> = {}
   if (filters.from) params['from'] = filters.from
   if (filters.to) params['to'] = filters.to
@@ -176,7 +180,7 @@ export async function fetchIncidents(
   signal?: AbortSignal,
 ): Promise<Incident[]> {
   const { data } = await api.get<unknown>('/api/safety/incidents', {
-    params: listParams(filters),
+    params: incidentListParams(filters),
     signal,
   })
   return Array.isArray(data) ? data.map(toIncident) : []

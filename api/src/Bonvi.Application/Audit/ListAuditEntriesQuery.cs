@@ -57,8 +57,43 @@ public sealed class ListAuditEntriesQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var viewer = AuditVisibility.ViewerOf(_currentUser);
+        var (page, pageSize) = AuditFilterRules.Paging(query.Page, query.PageSize);
 
+        var filter = BuildFilter(query, AuditVisibility.ViewerOf(_currentUser), _readModel, _clock.Today, page, pageSize);
+        if (filter.IsFailure)
+        {
+            return filter.Error;
+        }
+
+        var found = await _readModel.ListAsync(filter.Value, cancellationToken).ConfigureAwait(false);
+
+        return AuditFilterRules.ToPaged(found, page, pageSize);
+    }
+
+    /// <summary>
+    /// So'rovni tekshiradi va filtrga aylantiradi — jurnal ham, Excel eksporti ham AYNAN shu
+    /// metodni chaqiradi.
+    /// </summary>
+    /// <remarks>
+    /// <c>internal</c>: <see cref="Reports.Queries.ExportAuditEntriesQueryHandler"/> o'z nusxasini
+    /// yozmaydi — ko'rinish qoidasi (xavfsizlik hodisalari faqat <c>users.manage</c> bilan) ham
+    /// shu yerda, ya'ni fayl ekrandan ko'proq qator ololmaydi. Sahifa tashqaridan: ekran uni
+    /// 200 bilan qisadi, eksport esa chegara + 1 so'raydi.
+    /// </remarks>
+    /// <param name="query">Ekrandagi so'rov.</param>
+    /// <param name="viewer">So'rovchining ko'rinishi (<see cref="AuditVisibility.ViewerOf"/>).</param>
+    /// <param name="readModel">Entity nomini kanonik ko'rinishga keltirish uchun.</param>
+    /// <param name="today">Bugun (Toshkent) — davr berilmaganda.</param>
+    /// <param name="page">Sahifa, 1 dan.</param>
+    /// <param name="pageSize">Sahifa hajmi.</param>
+    internal static Result<AuditListFilter> BuildFilter(
+        ListAuditEntriesQuery query,
+        AuditViewer viewer,
+        IAuditReadModel readModel,
+        DateOnly today,
+        int page,
+        int pageSize)
+    {
         var kind = AuditFilterRules.ParseKind(query.Kind);
         if (kind.IsFailure)
         {
@@ -86,7 +121,7 @@ public sealed class ListAuditEntriesQueryHandler
         string? entity = null;
         if (!string.IsNullOrWhiteSpace(query.Entity))
         {
-            entity = _readModel.FindEntityName(query.Entity.Trim());
+            entity = readModel.FindEntityName(query.Entity.Trim());
             if (entity is null)
             {
                 return AuditErrors.InvalidFilter("entity");
@@ -105,15 +140,13 @@ public sealed class ListAuditEntriesQueryHandler
             return AuditErrors.InvalidPeriod;
         }
 
-        var to = query.To ?? _clock.Today;
+        var to = query.To ?? today;
         var from = query.From ?? to.AddDays(-(DefaultPeriodDays - 1));
 
         if (from > to)
         {
             return AuditErrors.InvalidPeriod;
         }
-
-        var (page, pageSize) = AuditFilterRules.Paging(query.Page, query.PageSize);
 
         // `security`/`all` — faqat `users.manage` bilan; ruxsatsiz so'rov xato emas,
         // `changes` bo'lib ishlaydi (SPEC §8.3): segment yashirin bo'lgan eski havola
@@ -124,7 +157,7 @@ public sealed class ListAuditEntriesQueryHandler
             (changes, security) = (true, false);
         }
 
-        var filter = new AuditListFilter(
+        return new AuditListFilter(
             viewer,
             StartOfDay(from),
             StartOfDay(to.AddDays(1)),
@@ -139,10 +172,6 @@ public sealed class ListAuditEntriesQueryHandler
             string.IsNullOrWhiteSpace(query.EntityId) ? null : query.EntityId.Trim(),
             page,
             pageSize);
-
-        var found = await _readModel.ListAsync(filter, cancellationToken).ConfigureAwait(false);
-
-        return AuditFilterRules.ToPaged(found, page, pageSize);
     }
 
     /// <summary>Toshkent kunining boshi — UTC lahza (Npgsql <c>timestamptz</c> ga faqat UTC yozadi).</summary>

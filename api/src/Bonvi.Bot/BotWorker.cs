@@ -144,8 +144,8 @@ public sealed partial class BotWorker : BackgroundService
       o'zidan ko'rinadi (eski xabardagi tugma bosilganda bu muhim), va
       ma'lumotni ko'rgan odam uning nimani bildirishini o'qiy oladi.
 
-      Telegram chegarasi 64 bayt — eng uzun qiymat («src:SocialNetwork»)
-      undan uzoq.
+      Telegram chegarasi 64 bayt — eng uzun qiymat («src:» + kanal
+      identifikatori, 36 bayt) undan uzoq.
     */
     private const string SkipData = "skip";
     private const string EducationPrefix = "edu:";
@@ -155,7 +155,25 @@ public sealed partial class BotWorker : BackgroundService
     private const string LicenseNoData = "lic:no";
     private const string LicenseCategoryPrefix = "cat:";
     private const string SalaryPrefix = "sal:";
+    /// <summary>
+    /// «Qayerdan bilgan» tugmasi: «src:<c>guid</c>» — kanal serverdagi ma'lumotnomadan.
+    /// </summary>
+    /// <remarks>
+    /// Identifikator bo'lmagan qiymat (deploydan oldingi xabardagi «src:Telegram» yoki
+    /// <see cref="ReferralRetryData"/>) savolni YANGI tugmalar bilan qayta chizadi.
+    /// </remarks>
     private const string ReferralPrefix = "src:";
+
+    /// <summary>Kanallar ro'yxati yuklanmaganda — «Qayta urinish».</summary>
+    private const string ReferralRetryData = ReferralPrefix + "retry";
+
+    /// <summary>
+    /// Server shu kodlar bilan qaytarsa — «qayerdan bilgan» javobi yaroqsiz: kanal shu
+    /// orada faolsizlantirilgan yoki aniqlik yetishmaydi. Nomzoddan faqat shu savol qayta
+    /// so'raladi.
+    /// </summary>
+    private static readonly HashSet<string> ReferralErrorCodes =
+        new(StringComparer.Ordinal) { "qayerdan.majburiy", "qayerdan.topilmadi", "qayerdan.izoh_majburiy" };
     private const string OfferData = "offer";
     private const string SubmitData = "submit";
     private const string StartOverData = "restart";
@@ -859,9 +877,8 @@ public sealed partial class BotWorker : BackgroundService
                     .ConfigureAwait(false);
                 break;
 
-            case ConversationStep.ReferralSource
-                when ParseAnswer<ReferralAnswer>(data, ReferralPrefix) is { } referral:
-                await AcceptAsync(chatId, state with { ReferralSource = referral }, cancellationToken)
+            case ConversationStep.ReferralSource when data.StartsWith(ReferralPrefix, StringComparison.Ordinal):
+                await ChooseReferralAsync(chatId, state, data[ReferralPrefix.Length..], cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
@@ -888,6 +905,52 @@ public sealed partial class BotWorker : BackgroundService
             default:
                 break;
         }
+    }
+
+    /// <summary>
+    /// «Qayerdan bilgan» kanali tanlandi (20-qadam).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kanal serverdagi FAOL ro'yxatdan qayta tekshiriladi: tugma bosilguncha HR uni
+    /// faolsizlantirgan bo'lishi mumkin, server esa bunday tanlovni rad etardi —
+    /// anketaning OXIRIDA. Topilmasa (yoki tugma deploydan oldingi «src:Telegram»
+    /// bo'lsa) savol yangi tugmalar bilan qayta chiziladi.
+    /// </para>
+    /// <para>
+    /// Aniqlik har yangi tanlovda TOZALANADI: «Tanishlar orqali — Rustamov» dan keyin
+    /// «Telegram» tanlansa, eski ism xulosada qolib ketmasin.
+    /// </para>
+    /// </remarks>
+    private async Task ChooseReferralAsync(
+        long chatId,
+        ConversationState state,
+        string rawId,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ReferralChannel> channels = Guid.TryParse(rawId, out var channelId)
+            ? await _bonvi.GetReferralChannelsAsync(cancellationToken).ConfigureAwait(false)
+            : [];
+
+        if (channels.FirstOrDefault(channel => channel.Id == channelId) is not { } chosen)
+        {
+            await ContinueAsync(chatId, state, ConversationStep.ReferralSource, cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        await AcceptAsync(
+                chatId,
+                state with
+                {
+                    ReferralChannelId = chosen.Id,
+                    ReferralChannelName = chosen.Name,
+                    ReferralAsksDetail = chosen.AsksDetail,
+                    ReferralDetail = null,
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>Vakansiya tanlandi.</summary>
@@ -1113,15 +1176,23 @@ public sealed partial class BotWorker : BackgroundService
 
     /// <summary>Shu qadam nomzodga ko'rsatiladimi.</summary>
     /// <remarks>
+    /// <para>
     /// Vakansiya qadami bu yerda YO'Q: uning javobi ochiq vakansiyalar
     /// ro'yxatiga bog'liq, ro'yxat esa API so'rovi — ya'ni javob bu
     /// sinxron funksiyada berilib bo'lmaydi (<see cref="ContinueAsync"/>).
+    /// </para>
+    /// <para>
+    /// Oferta allaqachon qabul qilingan bo'lsa qayta so'ralmaydi: bunga faqat «qayerdan
+    /// bilgan» savoli tasdiq qadamidan QAYTA so'ralganda kelinadi
+    /// (<see cref="SubmitAsync"/>) — nomzod ofertani bir necha daqiqa oldin ko'rgan.
+    /// </para>
     /// </remarks>
     private static bool Applies(ConversationStep step, ConversationState state, BotSettings? settings)
         => step switch
         {
             ConversationStep.DriverLicenseCategory => state.HasDriverLicense == true,
-            ConversationStep.Offer => !string.IsNullOrWhiteSpace(settings?.OfferUrl),
+            ConversationStep.ReferralDetail => state.ReferralAsksDetail,
+            ConversationStep.Offer => !string.IsNullOrWhiteSpace(settings?.OfferUrl) && state.OfferAcceptedAt is null,
             _ => true,
         };
 
@@ -1327,13 +1398,27 @@ public sealed partial class BotWorker : BackgroundService
                 break;
 
             case ConversationStep.ReferralSource:
+            {
+                // Tugmalar ma'lumotnomadan — har safar yangisi (`GetReferralChannelsAsync` izohi).
+                // Ro'yxat kelmasa savolsiz qolmasin: bitta «Qayta urinish» tugmasi.
+                var channels = await _bonvi.GetReferralChannelsAsync(cancellationToken).ConfigureAwait(false);
+
                 await SendAsync(
                         chatId,
-                        BotTexts.AskReferralSource(language),
-                        Choices(
-                            Enum.GetValues<ReferralAnswer>(),
-                            ReferralPrefix,
-                            answer => BotTexts.ReferralLabel(language, answer)),
+                        channels.Count == 0 ? BotTexts.ReferralUnavailable(language) : BotTexts.AskReferralSource(language),
+                        channels.Count == 0
+                            ? [[new InlineButton(BotTexts.RetryButton(language), ReferralRetryData)]]
+                            : ReferralButtons(channels),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                break;
+            }
+
+            case ConversationStep.ReferralDetail:
+                await SendAsync(
+                        chatId,
+                        BotTexts.AskReferralDetail(language, state.ReferralChannelName ?? string.Empty),
+                        null,
                         cancellationToken)
                     .ConfigureAwait(false);
                 break;
@@ -1394,6 +1479,17 @@ public sealed partial class BotWorker : BackgroundService
         [
             .. answers.Select(answer => (IReadOnlyList<InlineButton>)
                 [new InlineButton(label(answer), prefix + answer.ToString())]),
+        ];
+
+    /// <summary>«Qayerdan bilgan» kanallarining tugmalari — har biri alohida qatorda.</summary>
+    /// <remarks>
+    /// Nom saqlanganidek, uchala tilda ham (<see cref="BotTexts.AskReferralSource"/> izohi).
+    /// </remarks>
+    private static List<IReadOnlyList<InlineButton>> ReferralButtons(IReadOnlyList<ReferralChannel> channels)
+        =>
+        [
+            .. channels.Select(channel => (IReadOnlyList<InlineButton>)
+                [new InlineButton(channel.Name, ReferralPrefix + channel.Id.ToString("N"))]),
         ];
 
     /// <summary>Ochiq vakansiyalarning tugmalari.</summary>
@@ -1540,6 +1636,18 @@ public sealed partial class BotWorker : BackgroundService
 
             case ConversationStep.Photo:
                 await HandlePhotoAsync(chatId, state, message, cancellationToken).ConfigureAwait(false);
+                break;
+
+            // «Kim tavsiya qildi?» — majburiy: bo'sh javobda savol qayta beriladi
+            case ConversationStep.ReferralDetail:
+                await SaveTextAsync(
+                        chatId,
+                        state,
+                        message.Text,
+                        Answers.MaxReferralDetailLength,
+                        (current, value) => current with { ReferralDetail = value },
+                        cancellationToken)
+                    .ConfigureAwait(false);
                 break;
 
             default:
@@ -1899,8 +2007,7 @@ public sealed partial class BotWorker : BackgroundService
             || state.Education is not { } education
             || state.MaritalStatus is not { } marital
             || state.RussianLevel is not { } russianLevel
-            || state.ExpectedSalary is not { } expectedSalary
-            || state.ReferralSource is not { } referralSource)
+            || state.ExpectedSalary is not { } expectedSalary)
         {
             /*
               Majburiy javob yo'q. Bunga faqat holat buzilganda kelib
@@ -1916,12 +2023,28 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
+        /*
+          «Qayerdan bilgan» yo'q — anketaning QOLGANI joyida, shu sababli boshidan emas,
+          faqat SHU savol qayta so'raladi. Bunga ikki yo'l bilan kelinadi: deploydan oldin
+          boshlangan suhbat (Redis'dagi nusxada eski sanoq qiymati turibdi va u endi
+          tanilmaydi — `ConversationState.ReferralChannelId` izohi) va buzilgan holat
+          (aniqlik so'ralgan, lekin yo'q). Javobdan keyin oferta qayta so'ralmaydi
+          (`Applies`), nomzod darhol yana tasdiq qadamiga qaytadi.
+        */
+        if (state.ReferralChannelId is not { } referralChannelId
+            || (state.ReferralAsksDetail && string.IsNullOrWhiteSpace(state.ReferralDetail)))
+        {
+            await ContinueAsync(chatId, WithoutReferral(state), ConversationStep.ReferralSource, cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         var answers = new QuestionnaireAnswers(
             education,
             marital,
             russianLevel,
             expectedSalary,
-            referralSource,
 
             /*
               ⭐ Oferta qadami O'TKAZIB YUBORILGAN bo'lsa (havola
@@ -1954,7 +2077,9 @@ public sealed partial class BotWorker : BackgroundService
             state.Speciality,
             chatId,
             BotLanguages.Code(state.Language),
-            answers);
+            answers,
+            referralChannelId,
+            state.ReferralAsksDetail ? state.ReferralDetail : null);
 
         /*
           ⭐ TAKRORIY YUBORISHDAN HIMOYA.
@@ -2021,6 +2146,18 @@ public sealed partial class BotWorker : BackgroundService
                 .ConfigureAwait(false);
         }
 
+        if (result.CandidateId is null && result.ErrorCode is { } code && ReferralErrorCodes.Contains(code))
+        {
+            /*
+              Kanal anketa to'ldirilayotganda faolsizlantirilgan (yoki aniqlik yetishmadi) —
+              server arizani yozmadi. Faqat shu savol qayta so'raladi, qolgan javoblar joyida.
+            */
+            await ContinueAsync(chatId, WithoutReferral(state), ConversationStep.ReferralSource, cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         if (result.CandidateId is null && result.ErrorCode == GeneralPoolUnavailableCode)
         {
             /*
@@ -2075,6 +2212,15 @@ public sealed partial class BotWorker : BackgroundService
 
         LogApplication(state.VacancyId is null || closedVacancy ? GeneralPoolLabel : state.VacancyTitle);
     }
+
+    /// <summary>«Qayerdan bilgan» javobi tozalangan holat — savol qayta so'raladi.</summary>
+    private static ConversationState WithoutReferral(ConversationState state) => state with
+    {
+        ReferralChannelId = null,
+        ReferralChannelName = null,
+        ReferralAsksDetail = false,
+        ReferralDetail = null,
+    };
 
     /// <summary>
     /// Arizani yuboradi — server VAQTINCHA javob bermasa, kutib qayta uradi.

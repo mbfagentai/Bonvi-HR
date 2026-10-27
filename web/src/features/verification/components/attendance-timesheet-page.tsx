@@ -386,6 +386,27 @@ export function AttendanceTimesheetPage() {
                 </span>
               )}
             </Button>
+
+            {/*
+              Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+              alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+            */}
+            {filtered && (
+              <Button
+                type="button"
+                pill
+                variant="ghost"
+                title={t('employees.clearFilters')}
+                aria-label={t('employees.clearFilters')}
+                onClick={() => {
+                  changeOrg(NO_ORG_FILTERS)
+                  setDraft('')
+                }}
+              >
+                <X />
+                <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+              </Button>
+            )}
           </div>
 
           {panelOpen && (
@@ -413,23 +434,6 @@ export function AttendanceTimesheetPage() {
                   onChange={(event) => changeOrg({ ...org, positionId: event.target.value })}
                 />
               </div>
-
-              {filtered && (
-                <div className="mt-3.5 flex justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      changeOrg(NO_ORG_FILTERS)
-                      setDraft('')
-                    }}
-                  >
-                    <X />
-                    {t('employees.clearFilters')}
-                  </Button>
-                </div>
-              )}
             </div>
           )}
         </div>

@@ -2,7 +2,10 @@ import { useNavigate } from '@tanstack/react-router'
 import { ListFilter, Search, SearchX, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
-import { FLAG_LOOK } from '@/features/employees/lib/employee-presentation'
+import { useAuth } from '@/features/auth'
+import { FLAG_LOOK, REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   NO_DATE_RANGE,
@@ -18,7 +21,7 @@ import {
   Button,
   Card,
   DataTable,
-  DateField,
+  DateRangeField,
   EmptyState,
   IconTile,
   Input,
@@ -27,9 +30,14 @@ import {
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
-import type { CandidateListItem } from '../api/recruiting-api'
+import {
+  candidateListParams,
+  type CandidateListFilters,
+  type CandidateListItem,
+} from '../api/recruiting-api'
 import { useCandidates } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
+import { RECRUITING_VIEW } from '../lib/recruiting-presentation'
 
 const helper = dataColumnHelper<CandidateListItem>()
 
@@ -81,6 +89,9 @@ export function ReserveCandidatesPage({
   const errorMessage = useErrorMessage()
   const navigate = useNavigate()
   const look = FLAG_LOOK.reserve
+  const { hasPermission } = useAuth()
+  // Eksport — nomzodlarni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = hasPermission(RECRUITING_VIEW) && hasPermission(REPORTS_EXPORT)
 
   const [draft, setDraft] = useSearchDraft(search, onSearchChange)
 
@@ -107,19 +118,23 @@ export function ReserveCandidatesPage({
     ro'yxatida rezerv endi umuman ko'rinmaydi, ya'ni bayroqsiz bu qatorlar
     tizimning hech bir ekranida chiqmasdi.
   */
-  const query = useCandidates(
-    {
-      status: 'Reserve',
-      includeArchive: true,
-      closedDate: true,
-      search: search === '' ? undefined : search,
-      from: range.from === '' ? undefined : range.from,
-      to: range.to === '' ? undefined : range.to,
-      page,
-      pageSize,
-    },
-    !rangeInvalid,
-  )
+  /*
+    Filtr sahifasiz — ro'yxat ham, Excel eksporti ham AYNAN shundan: fayl
+    ekrandagi bo'limdan boshqa nomzodni olib ketolmaydi.
+  */
+  const listFilters: CandidateListFilters = {
+    status: 'Reserve',
+    includeArchive: true,
+    closedDate: true,
+    search: search === '' ? undefined : search,
+    from: range.from === '' ? undefined : range.from,
+    to: range.to === '' ? undefined : range.to,
+  }
+
+  const query = useCandidates({ ...listFilters, page, pageSize }, !rangeInvalid)
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
   // Teskari oraliqda eski sahifa ko'rinib qolmasin — u boshqa filtrniki
   const rows = rangeInvalid ? EMPTY : (query.data?.items ?? EMPTY)
   const total = rangeInvalid ? 0 : (query.data?.total ?? 0)
@@ -132,14 +147,14 @@ export function ReserveCandidatesPage({
       helper.accessor('fullName', {
         header: t('employee.fullName'),
         enableSorting: false,
+        // Ism to'liq, bir qatorda (egasi 2026-10-22) — ustun ismgacha kengayadi
         meta: { minWidth: '260px' },
-        cell: ({ getValue }) => <p className="truncate-1 font-medium">{getValue()}</p>,
+        cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
       }),
 
       helper.accessor('vacancy', {
         header: t('recruiting.vacancy'),
         enableSorting: false,
-        meta: { width: '200px' },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
@@ -147,7 +162,7 @@ export function ReserveCandidatesPage({
       helper.accessor('currentStage', {
         header: t('recruiting.stage'),
         enableSorting: false,
-        meta: { width: '170px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
@@ -191,7 +206,8 @@ export function ReserveCandidatesPage({
             ? t('flags.subtitle', { n: num(total) })
             : t('flags.page.reserve.hint')
         }
-        actions={tabs}
+        // Tablar sahifada, avvalgi joyida qoladi (egasi 2026-10-22)
+        toolbar={tabs}
       />
 
       {query.isError && (
@@ -227,39 +243,55 @@ export function ReserveCandidatesPage({
               </span>
             )}
           </Button>
+
+          {/*
+            Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+            alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+          */}
+          {hasDateRange(range) && (
+            <Button
+              type="button"
+              pill
+              variant="ghost"
+              title={t('employees.clearFilters')}
+              aria-label={t('employees.clearFilters')}
+              onClick={() => onRangeChange(NO_DATE_RANGE)}
+            >
+              <X />
+              <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+            </Button>
+          )}
+
+          {/* Eksport — «Filtrlar» yonida: fayl aynan shu qidiruv va oraliqqa tushadi */}
+          {canExport && (
+            <ListExportButton
+              onClick={() =>
+                exportList.mutate({
+                  path: '/api/recruiting/candidates/export',
+                  params: candidateListParams(listFilters),
+                  slug: 'rezerv_nomzodlar',
+                })
+              }
+              pending={exportList.isPending}
+              disabled={rangeInvalid}
+            />
+          )}
         </div>
 
         {rangeOpen && (
           <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {/* Nomzodlarda oraliq ARIZA kuni bo'yicha — yorliq shuni aytadi */}
-              <DateField
-                label={t('recruiting.reservedFrom')}
-                value={range.from}
-                max={range.to === '' ? undefined : range.to}
-                onChange={(value) => onRangeChange({ ...range, from: value })}
-              />
-              <DateField
-                label={t('recruiting.reservedTo')}
-                value={range.to}
-                min={range.from === '' ? undefined : range.from}
-                onChange={(value) => onRangeChange({ ...range, to: value })}
+              <DateRangeField
+                label={t('dateRange.reserved')}
+                fromLabel={t('recruiting.reservedFrom')}
+                toLabel={t('recruiting.reservedTo')}
+                from={range.from}
+                to={range.to}
+                onFromChange={(value) => onRangeChange({ ...range, from: value })}
+                onToChange={(value) => onRangeChange({ ...range, to: value })}
               />
             </div>
-
-            {hasDateRange(range) && (
-              <div className="mt-3.5 flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onRangeChange(NO_DATE_RANGE)}
-                >
-                  <X />
-                  {t('employees.clearFilters')}
-                </Button>
-              </div>
-            )}
           </div>
         )}
 
@@ -268,6 +300,8 @@ export function ReserveCandidatesPage({
             <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
           </div>
         )}
+
+        <ListExportError error={exportList.error} />
 
         <DataTable
           fill
@@ -340,20 +374,10 @@ export function ReserveCandidatesPage({
   )
 }
 
+/** Qiymat to'liq, bir qatorda — jadval katagi qatorga bo'linmaydi (`DataTable`). */
 function TextCell({ value, tabular = false }: { value: string | null; tabular?: boolean }) {
   if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-  return (
-    <span
-      className={
-        tabular
-          ? 'tabular whitespace-nowrap text-[var(--fg-secondary)]'
-          : 'truncate-1 text-[var(--fg-secondary)]'
-      }
-      title={value}
-    >
-      {value}
-    </span>
-  )
+  return <span className={tabular ? 'tabular text-[var(--fg-secondary)]' : 'text-[var(--fg-secondary)]'}>{value}</span>
 }
 
 function DateCell({ value }: { value: string | null }) {

@@ -83,9 +83,17 @@ export interface CandidatesSearch {
    */
   from?: string
   to?: string
+  /**
+   * «Qayerdan bilgan» filter (SPEC-qayerdan-bilgan §6): a catalog channel id,
+   * or `none` — «Ko'rsatilmagan» (legacy and Excel candidates without one).
+   */
+  referral?: string
   sort?: CandidatesSortParam
   view?: CandidatesView
 }
+
+/** `referral=none` in the address — candidates without a channel (`referralMissing=true`). */
+export const REFERRAL_MISSING = 'none'
 
 /** `table` — jadval (standart), `funnel` — bosqichlar bo'yicha ustunlar. */
 export type CandidatesView = 'table' | 'funnel'
@@ -131,6 +139,8 @@ export interface CandidatesFilterState {
   /** Sana oralig'i — bo'sh satr «chegara yo'q» (`CandidatesSearch.from` izohi). */
   from: string
   to: string
+  /** `''` — any, `REFERRAL_MISSING` — none recorded, otherwise a channel id. */
+  referral: string
 }
 
 export const DEFAULT_FILTERS: CandidatesFilterState = {
@@ -142,6 +152,7 @@ export const DEFAULT_FILTERS: CandidatesFilterState = {
   contactDue: false,
   from: '',
   to: '',
+  referral: '',
 }
 
 /**
@@ -161,6 +172,7 @@ export function validateCandidatesSearch(search: Record<string, unknown>): Candi
     rejected: readFlag(search['rejected']),
     from: readDate(search['from']),
     to: readDate(search['to']),
+    referral: readReferral(search['referral']),
     sort: normalizeSort(search['sort']),
     view: readView(search['view']),
   }
@@ -176,6 +188,7 @@ export function searchToFilters(search: CandidatesSearch): CandidatesFilterState
     contactDue: search.due ?? false,
     from: search.from ?? '',
     to: search.to ?? '',
+    referral: search.referral ?? '',
   }
 }
 
@@ -200,7 +213,8 @@ export function isFiltered(search: CandidatesSearch): boolean {
     search.source !== undefined ||
     search.due !== undefined ||
     search.from !== undefined ||
-    search.to !== undefined
+    search.to !== undefined ||
+    search.referral !== undefined
   )
 }
 
@@ -229,7 +243,20 @@ export function filtersToSearch(
     due: filters.contactDue ? true : undefined,
     from: emptyToUndefined(filters.from),
     to: emptyToUndefined(filters.to),
+    referral: emptyToUndefined(filters.referral),
   }
+}
+
+/**
+ * The «Qayerdan bilgan» filter as list/export parameters — one place, so the
+ * table, the funnel and the Excel file filter the same way.
+ */
+export function referralFilter(referral: string): {
+  referralChannelId?: string
+  referralMissing?: boolean
+} {
+  if (referral === '') return {}
+  return referral === REFERRAL_MISSING ? { referralMissing: true } : { referralChannelId: referral }
 }
 
 /** `employees-search.ts` dagi `normalizeSort` bilan bir xil qoida. */
@@ -320,6 +347,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function readId(value: unknown): string | undefined {
   return typeof value === 'string' && UUID.test(value) ? value : undefined
+}
+
+/** A channel id or `none`; anything else is dropped. */
+function readReferral(value: unknown): string | undefined {
+  return value === REFERRAL_MISSING ? REFERRAL_MISSING : readId(value)
 }
 
 function emptyToUndefined(value: string): string | undefined {

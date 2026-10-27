@@ -14,15 +14,16 @@ namespace Bonvi.Bot.Conversation;
 /// kerakli joyiga qo'yiladi.
 /// </para>
 /// <para>
-/// <b>Uchta qadam SHARTLI</b> va ular shu yerda emas, chizish paytida
+/// <b>To'rtta qadam SHARTLI</b> va ular shu yerda emas, chizish paytida
 /// tekshiriladi: vakansiya (ochiq ish o'rni bo'lmasa), guvohnoma
-/// toifasi (guvohnoma yo'q bo'lsa) va ommaviy oferta (havola
+/// toifasi (guvohnoma yo'q bo'lsa), «qayerdan bilgan» aniqligi (tanlangan
+/// kanal uni so'ramasa, 2026-10-26) va ommaviy oferta (havola
 /// sozlanmagan bo'lsa).
 /// </para>
 /// <para>
-/// <b>Qiymatlar XOTIRADA ishlatiladi</b>, hech qayerda saqlanmaydi
-/// (<see cref="ConversationStore"/> izohi) — ya'ni raqamlarni
-/// o'zgartirish hech qanday ma'lumotni buzmaydi.
+/// <b>Raqamlar XOTIRADA ishlatiladi</b> (<c>NextStep</c> — «+ 1»), Redis'dagi nusxada
+/// esa qadam NOMI bilan yoziladi (<c>RedisConversationBackup</c>) — ya'ni raqamlarni
+/// surish saqlangan suhbatni buzmaydi, NOMNI o'zgartirish esa buzadi.
 /// </para>
 /// </remarks>
 public enum ConversationStep
@@ -84,14 +85,21 @@ public enum ConversationStep
     /// <summary>19-qadam: kutilayotgan maosh.</summary>
     ExpectedSalary = 18,
 
-    /// <summary>20-qadam: ish haqida qayerdan bilgan.</summary>
+    /// <summary>20-qadam: ish haqida qayerdan bilgan — tugmalar serverdagi ma'lumotnomadan.</summary>
+    /// <remarks>Nomi o'zgarmadi: Redis'dagi eski suhbatlar shu nom bilan saqlangan.</remarks>
     ReferralSource = 19,
 
+    /// <summary>
+    /// 20a-qadam: «kim tavsiya qildi / qaysi manba?» — faqat tanlangan kanal aniqlik
+    /// so'rasa (<c>asksDetail</c>, masalan «Tanishlar orqali»). Majburiy, o'tkazib bo'lmaydi.
+    /// </summary>
+    ReferralDetail = 20,
+
     /// <summary>21-qadam: ommaviy oferta — faqat havola sozlangan bo'lsa.</summary>
-    Offer = 20,
+    Offer = 21,
 
     /// <summary>22-qadam: to'ldirilgan anketa va «Yuborish».</summary>
-    Confirm = 21,
+    Confirm = 22,
 }
 
 /// <summary>
@@ -197,8 +205,27 @@ public sealed record ConversationState
     /// <summary>Kutilayotgan maosh oralig'i.</summary>
     public SalaryAnswer? ExpectedSalary { get; init; }
 
-    /// <summary>Ish haqida qayerdan bilgan.</summary>
-    public ReferralAnswer? ReferralSource { get; init; }
+    /// <summary>
+    /// Ish haqida qayerdan bilgan — serverdagi «Qayerdan bilgan» kanalining identifikatori.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Nomi ATAYLAB yangi (eski xossa — <c>ReferralSource</c>, sanoq edi). Deploy paytida
+    /// Redis'da qolgan eski suhbatning <c>"referralSource":"Telegram"</c> kaliti endi
+    /// tanilmaydi va jimgina tashlanadi — nusxa o'qiladi, nomzod esa yuborishda shu bitta
+    /// savolga qayta javob beradi (<c>BotWorker.SubmitAsync</c>). Xossa eski nom bilan qolsa,
+    /// «Telegram» matni identifikatorga o'qilmay butun nusxa yiqilardi va anketa boshidan
+    /// boshlanardi.
+    /// </remarks>
+    public Guid? ReferralChannelId { get; init; }
+
+    /// <summary>Tanlangan kanalning nomi — yakuniy xulosa uchun (server qayta so'ralmasin).</summary>
+    public string? ReferralChannelName { get; init; }
+
+    /// <summary>Tanlangan kanal aniqlik so'raydimi — 20a-qadam shundan.</summary>
+    public bool ReferralAsksDetail { get; init; }
+
+    /// <summary>Aniqlik: «kim tavsiya qildi / qaysi manba» — faqat kanal so'rasa.</summary>
+    public string? ReferralDetail { get; init; }
 
     /// <summary>
     /// Ommaviy oferta bilan rozilik VAQTI.

@@ -190,11 +190,18 @@ function buildColumns(fmt: AuditFormatter, variant: AuditListVariant): Array<Dat
   const { t, num, dateTime } = fmt
 
   return [
+    /*
+      ⭐ Har qator BIR QATORDA (egasi 2026-10-22): kim + rol, amal + amal
+      nomi, nima + turi — yonma-yon, ustma-ust emas. `width` lar endi
+      PASTKI chegara: katak `nowrap`, ustun mazmunga yetguncha o'zi
+      kengayadi (`data-table.tsx`), lekin ortgan joyni olmaydi — uni
+      o'zgarishlar ustuni oladi va xulosa o'sha joyga sig'guncha kesiladi.
+    */
     helper.display({
       id: 'time',
       header: t('audit.columnTime'),
-      // «12.10.2026 14:30» — 16 belgi tabular ≈ 110px + to'ldirish (32px).
-      meta: { width: '145px' },
+      // «12.10.2026 14:30» — 16 belgi tabular ≈ 110px + to'ldirish (24px).
+      meta: { width: '140px' },
       cell: ({ row }) => {
         const item = row.original
         if (item.kind === 'child') return <GroupRail />
@@ -219,7 +226,7 @@ function buildColumns(fmt: AuditFormatter, variant: AuditListVariant): Array<Dat
         if (item.kind === 'child') return null
 
         const entry = item.kind === 'head' ? item.group.entries[0] : item.entry
-        return entry === undefined ? null : <AuditActorCell fmt={fmt} actor={entry.actor} />
+        return entry === undefined ? null : <AuditActorCell fmt={fmt} actor={entry.actor} inline />
       },
     }),
 
@@ -235,26 +242,24 @@ function buildColumns(fmt: AuditFormatter, variant: AuditListVariant): Array<Dat
           if (first === undefined) return null
 
           return (
-            <div className="min-w-0">
-              <p className="truncate-1 text-subhead font-semibold">{entryTitle(fmt, first)}</p>
-              <p className="text-caption1 text-[var(--fg-tertiary)]">
+            <span className="flex items-baseline gap-2">
+              <span className="text-subhead font-semibold">{entryTitle(fmt, first)}</span>
+              <span className="text-caption1 text-[var(--fg-tertiary)]">
                 {t('audit.groupCount', { n: num(item.group.entries.length) })}
-              </p>
-            </div>
+              </span>
+            </span>
           )
         }
 
         const operation = item.kind === 'single' ? operationLabel(fmt, item.entry.operation) : null
 
         return (
-          <div className="min-w-0 space-y-1">
+          <span className="flex items-center gap-2">
             <AuditActionBadge fmt={fmt} action={item.entry.action} operation={item.entry.operation} />
             {operation !== null && (
-              <p className="truncate-1 text-caption1 text-[var(--fg-secondary)]" title={operation}>
-                {operation}
-              </p>
+              <span className="text-caption1 text-[var(--fg-secondary)]">{operation}</span>
             )}
-          </div>
+          </span>
         )
       },
     }),
@@ -292,8 +297,12 @@ function buildColumns(fmt: AuditFormatter, variant: AuditListVariant): Array<Dat
       /*
         YAGONA `minWidth`li ustun (`data-table.tsx` qoidasi): o'zgarishlar
         xulosasi uzunligi oldindan noma'lum, ortgan joyni shu ustun oladi.
-        Jami ≈ 955px — 1280px ekranda yon menyu (264px) va chetlar (64px)
-        bilan sig'adi, ya'ni jadval gorizontal aylantirishsiz o'qiladi.
+        Matn bir qatorda, ustunga sig'magani uch nuqta bilan kesiladi —
+        to'lig'i `title` da va yozuv oynasida. Ichki `absolute` qatlam
+        matnni ustunning eng kichik kengligiga QO'SHMAYDI: aks holda bitta
+        uzun xulosa (katak `nowrap`) butun jadvalni ekrandan chiqarib
+        yuborardi; endi ustun ortgan joyni oladi, tor ekranda 200px gacha
+        qisiladi.
       */
       meta: { minWidth: '200px' },
       cell: ({ row }) => {
@@ -304,8 +313,10 @@ function buildColumns(fmt: AuditFormatter, variant: AuditListVariant): Array<Dat
         if (summary === '') return <span className="text-[var(--fg-tertiary)]">—</span>
 
         return (
-          <span className="truncate-1 text-footnote text-[var(--fg-secondary)]" title={summary}>
-            {summary}
+          <span className="relative block h-5" title={summary}>
+            <span className="absolute inset-0 truncate text-footnote leading-5 text-[var(--fg-secondary)]">
+              {summary}
+            </span>
           </span>
         )
       },
@@ -318,18 +329,15 @@ function GroupRail() {
   return <span aria-hidden className="ml-2 block h-8 w-0.5 rounded-full bg-[var(--border-strong)]" />
 }
 
+/** Nima — nomi va (bo'lsa) yozuv turi bir qatorda: «Abdullayev Ahad · Xodim». */
 function WhatCell({ primary, secondary }: { primary: string; secondary: string | null }) {
   return (
-    <div className="min-w-0">
-      <p className="truncate-1 font-medium" title={primary}>
-        {primary}
-      </p>
+    <span className="flex items-baseline gap-2">
+      <span className="font-medium">{primary}</span>
       {secondary !== null && (
-        <p className="truncate-1 text-caption1 text-[var(--fg-tertiary)]" title={secondary}>
-          {secondary}
-        </p>
+        <span className="text-caption1 text-[var(--fg-tertiary)]">{secondary}</span>
       )}
-    </div>
+    </span>
   )
 }
 

@@ -2,6 +2,7 @@ using Bonvi.Api.Extensions;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Application.Recruiting.Vacancies;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Identity;
 
 namespace Bonvi.Api.Endpoints;
@@ -42,6 +43,8 @@ public sealed record CloseVacancyRequest(DateOnly? ClosedAt = null, string? Reas
 /// </remarks>
 public static class VacancyEndpoints
 {
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     public static IEndpointRouteBuilder MapVacancyEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -92,6 +95,50 @@ public static class VacancyEndpoints
             .Produces<PagedResult<VacancyDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/export", async (
+                string? status,
+                string? search,
+                string? sort,
+                bool? excludeGeneralPool,
+                ExportVacanciesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/recruiting/vacancies» bilan AYNAN bir xil
+                // (sahifadan tashqari).
+                var natija = await handler
+                    .HandleAsync(
+                        new ListVacanciesQuery(
+                            status,
+                            search,
+                            Page: null,
+                            PageSize: null,
+                            sort,
+                            excludeGeneralPool ?? false),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ro'yxatni ko'rish (`recruiting.view`) va
+            // tizimdan fayl olib chiqish (`reports.export`).
+            .RequireAuthorization(Permissions.RecruitingView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportVacanciesToExcel")
+            .WithSummary("Vakansiyalar — Excel eksport")
+            .WithDescription(
+                "Filtr va saralash parametrlari «GET /api/recruiting/vacancies» bilan AYNAN bir xil — " +
+                "eksport ekranda ko'ringan vakansiyalarni, o'sha tartibda, sahifasiz qaytaradi. " +
+                "Ustunlar: vakansiya nomi, holat, to'ldirildi (ishga olinganlar soni), o'rinlar soni, " +
+                "nomzodlar soni, ochilgan sana. Eng ko'pi 5000 qator: kattaroq natija " +
+                "«eksport.juda_kop» (400) bilan rad etiladi. Ruxsat: «recruiting.view» VA " +
+                "«reports.export». Har bir eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/{id:guid}", async (
                 Guid id,

@@ -1,6 +1,7 @@
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Feedback;
 using Bonvi.Application.Feedback.Dtos;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Feedback;
 using Bonvi.Domain.Identity;
 
@@ -48,6 +49,8 @@ public sealed record UpdateExitInterviewRequest(
 /// </remarks>
 public static class ExitInterviewEndpoints
 {
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     public static IEndpointRouteBuilder MapExitInterviewEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -77,6 +80,43 @@ public static class ExitInterviewEndpoints
                 "ro'yxatidagi bilan aynan bir xil qoida; suhbat MATNI qidiruvga kirmaydi.")
             .Produces<IReadOnlyList<ExitInterviewDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        // «/export» «/{id:guid}» bilan to'qnashmaydi (marshrut cheklovi GUID talab qiladi).
+        group.MapGet("/export", async (
+                DateOnly? from,
+                DateOnly? to,
+                string? search,
+                ExportExitInterviewsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/exit-interviews» bilan AYNAN bir xil.
+                var natija = await handler
+                    .HandleAsync(new ListExitInterviewsQuery(from, to, search), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(
+                        natija.Value.Content,
+                        XlsxContentType,
+                        natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ko'rish (`feedback.view`) va tizimdan fayl olib chiqish
+            // (`reports.export`) — boshqa eksportlar bilan bir xil.
+            .RequireAuthorization(Permissions.FeedbackView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportExitInterviewsToExcel")
+            .WithSummary("Qayta aloqa — Excel eksport")
+            .WithDescription(
+                "Parametrlar «GET /api/exit-interviews» bilan AYNAN bir xil — ekrandagi suhbatlar, o'sha " +
+                "tartibda (suhbat sanasi bo'yicha kamayish), bitta faylda. Ustunlar: F.I.Sh., bo'lim, " +
+                "lavozim, ketgan sana, suhbat sanasi, tavsiya qilarmidi, ketish sababi. Eng ko'pi 5000 " +
+                "qator — «eksport.juda_kop» (400). Ruxsat: «feedback.view» VA «reports.export». Har bir " +
+                "eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/by-employee/{employeeId:guid}", async (
                 Guid employeeId,

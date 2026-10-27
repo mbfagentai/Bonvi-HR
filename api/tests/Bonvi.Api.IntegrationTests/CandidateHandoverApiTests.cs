@@ -174,7 +174,7 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
     /// bo'lib tushadi (ekranda daraja bilan ko'rinadi), xodim tomonida
     /// o'rni yo'q javoblar esa tayyor matnga yig'iladi — ta'lim
     /// darajasi, ish tajribasi, oilaviy holat, oylik kutilmasi va ishni
-    /// qayerdan eshitgani.
+    /// qayerdan eshitgani (u endi nomzodning o'z maydonidan — kanal nomi va aniqlik).
     /// </para>
     /// <para>
     /// Matnning O'ZI ham tekshiriladi: yorliqsiz yoki tarjimasiz qator
@@ -215,7 +215,9 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
         profil.CandidateNote.ShouldContain("Oilali");
         profil.CandidateNote.ShouldContain("3 yil savdoda");
         profil.CandidateNote.ShouldContain("2-3 mln so'm");
-        profil.CandidateNote.ShouldContain("Tanishlar orqali");
+        profil.CandidateNote.ShouldContain(
+            "Ish haqida qayerdan bilgan: Tanishlar orqali — Рустамов Баҳодир",
+            customMessage: "kanal nomi va aniqlik — nomzodning o'z maydonidan, anketadan emas");
         profil.CandidateNote.ShouldNotContain("Married", customMessage: "enum nomi ekranga chiqmasligi kerak");
 
         // ⚠️ Kompyuter FOIZI bo'sh qoladi: anketada bu matn, bu yerda esa
@@ -429,6 +431,10 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
                 lastName = "Кўчувчи " + Belgi(),
                 firstName = "Азиз",
                 phone = "905066666",
+
+                // «Qayerdan bilgan» — nomzodning o'zida va majburiy (SPEC-qayerdan-bilgan §5)
+                referralChannelId = ReferralSeeds.Acquaintance,
+                referralDetail = "Рустамов Баҳодир",
             },
             bekorQilish);
 
@@ -515,7 +521,6 @@ public sealed class CandidateHandoverApiTests : IClassFixture<BonviApiFactory>
             MaritalStatus.Married,
             LanguageLevel.Advanced,
             SalaryExpectation.From2To3Million,
-            ReferralSource.Acquaintance,
             offerAcceptedAt: null,
             workExperience: "3 yil savdoda",
             otherLanguages: "Ingliz tili — o'rta",

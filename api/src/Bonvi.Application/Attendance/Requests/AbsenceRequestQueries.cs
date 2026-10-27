@@ -48,28 +48,17 @@ public sealed class SearchAbsenceRequestsQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        if (query.From is { } from && query.To is { } to && from > to)
-        {
-            return AttendanceErrors.PeriodReversed;
-        }
-
         var page = AttendanceQueryParsing.Page(query.Page);
         var pageSize = AttendanceQueryParsing.PageSize(query.PageSize);
 
+        var filter = BuildFilter(query, page, pageSize);
+        if (filter.IsFailure)
+        {
+            return filter.Error;
+        }
+
         var found = await _readModel
-            .SearchAbsenceRequestsAsync(
-                new AbsenceRequestFilter(
-                    query.EmployeeId,
-                    query.Status,
-                    query.Decided,
-                    query.From,
-                    query.To,
-                    string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
-                    page,
-                    pageSize,
-                    query.AbsenceTypeId,
-                    query.Mode),
-                cancellationToken)
+            .SearchAbsenceRequestsAsync(filter.Value, cancellationToken)
             .ConfigureAwait(false);
 
         return new PagedResult<AbsenceRequestDto>(
@@ -78,6 +67,35 @@ public sealed class SearchAbsenceRequestsQueryHandler
             pageSize,
             found.Total,
             AttendanceQueryParsing.PageCount(found.Total, pageSize));
+    }
+
+    /// <summary>
+    /// So'rovni filtrga aylantiradi — ekran ham, Excel eksporti ham AYNAN shu metodni chaqiradi.
+    /// </summary>
+    /// <remarks>
+    /// <c>internal</c>: <see cref="Reports.Queries.ExportAbsenceRequestsQueryHandler"/> o'z
+    /// nusxasini yozmaydi (<see cref="Queries.SearchPassesQueryHandler"/> precedenti) — aks
+    /// holda yangi filtr faqat ekranga qo'shilib, Excel eskirib qolardi. Sahifa hajmi
+    /// tashqaridan: ekran uni 200 bilan qisadi, eksport esa chegara + 1 so'raydi.
+    /// </remarks>
+    internal static Result<AbsenceRequestFilter> BuildFilter(SearchAbsenceRequestsQuery query, int page, int pageSize)
+    {
+        if (query.From is { } from && query.To is { } to && from > to)
+        {
+            return AttendanceErrors.PeriodReversed;
+        }
+
+        return new AbsenceRequestFilter(
+            query.EmployeeId,
+            query.Status,
+            query.Decided,
+            query.From,
+            query.To,
+            string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
+            page,
+            pageSize,
+            query.AbsenceTypeId,
+            query.Mode);
     }
 }
 

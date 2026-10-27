@@ -32,3 +32,31 @@ public sealed record TurnoverMonthDto(
 /// <param name="IsVoluntary">Xodimning o'z tashabbusi bilanmi. Noma'lum bo'lsa — <c>null</c>.</param>
 /// <param name="Count">Shu sabab bilan ketganlar soni.</param>
 public sealed record TurnoverReasonDto(Guid? ReasonId, string ReasonName, bool? IsVoluntary, int Count);
+
+/// <summary>
+/// «Nomzodlar qayerdan bilgan» hisoboti — API javobi (SPEC-qayerdan-bilgan §7).
+/// </summary>
+/// <remarks>
+/// Foiz YO'Q — <see cref="TurnoverDto"/> bilan bir xil qaror: ikkala son ham javobda,
+/// ulushni ko'rinish qatlami hisoblaydi (nolga bo'linish va yaxlitlash o'sha yerda).
+/// </remarks>
+/// <param name="Rows">Kanallar — nomzodlar soni bo'yicha kamayish tartibida; bo'sh kanal yo'q.</param>
+/// <param name="TotalCandidates">Davrdagi barcha nomzodlar (qatorlar yig'indisi).</param>
+/// <param name="TotalHired">Ulardan ishga olinganlar.</param>
+public sealed record CandidateReferralReportDto(
+    IReadOnlyList<CandidateReferralRowDto> Rows,
+    int TotalCandidates,
+    int TotalHired);
+
+/// <summary>Bitta kanal qatori.</summary>
+/// <param name="ChannelId">Kanal. <c>null</c> — «Ko'rsatilmagan» (kanalsiz eski nomzodlar).</param>
+/// <param name="ChannelName">Kanal nomi; «Ko'rsatilmagan» qatorida <c>null</c> — yorliqni ekran qo'yadi.</param>
+/// <param name="IsActive">Kanal faolmi; «Ko'rsatilmagan» qatorida <c>false</c> (kanal yo'q).</param>
+/// <param name="Candidates">Davrda shu kanal orqali ariza bergan nomzodlar.</param>
+/// <param name="Hired">Ulardan ishga olinganlar (holati «ishga olingan»).</param>
+public sealed record CandidateReferralRowDto(
+    Guid? ChannelId,
+    string? ChannelName,
+    bool IsActive,
+    int Candidates,
+    int Hired);

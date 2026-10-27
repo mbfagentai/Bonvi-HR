@@ -31,6 +31,7 @@
     "awardTypes": "Award types",
     "penaltyTypes": "Penalty types",
     "documentTypes": "Document types",
+    "referralChannels": "Referral channels",
     "settings": "Settings",
     "users": "Users",
     "roles": "Roles",
@@ -420,7 +421,7 @@
     "daysValue": "{{n}} days",
     "overdue": "{{n}} days overdue",
     "endingSoonTitle": "{{n}} probation periods ending",
-    "endingSoonText": "{{days}} days or fewer remain — time to record the conclusion.",
+    "endingSoonText": "{{days}} days or fewer remain — time to record the conclusion. If no result is recorded by the end date, the employee automatically passes and becomes permanent.",
     "showActive": "Only in progress",
     "emptyTitle": "No employees on probation",
     "emptyText": "A probation period opens automatically when someone is hired.",
@@ -542,6 +543,9 @@
     "employeeRequestHintOn": "The employee can pick this kind in the app and send the request themselves.",
     "employeeRequestHintOff": "The app does not offer this kind — only HR enters the request on the employee’s behalf.",
     "employeeRequestBadge": "HR only",
+    "asksDetailTitle": "Ask for details",
+    "asksDetailHint": "For example, “Through acquaintances” — asks who recommended them",
+    "asksDetailBadge": "Asks details",
     "activate": "Activate",
     "deactivate": "Deactivate",
     "statusTitle": "Record status",
@@ -601,6 +605,10 @@
       "absenceTypes": {
         "title": "Absence kinds",
         "subtitle": "The reasons that can be chosen in attendance requests"
+      },
+      "referralChannels": {
+        "title": "Referral channels",
+        "subtitle": "The list candidates choose from for “How did you hear about the job?” — in the bot, the online form and when HR adds them"
       }
     },
     "departments": {
@@ -881,6 +889,11 @@
     "nomzod.anketa_bor": "The candidate already has a questionnaire.",
     "nomzod.anketa_begona": "The questionnaire belongs to another candidate.",
     "nomzod.umumiy_anketa_yoq": "The «General questionnaire» vacancy is not configured or is closed — questionnaires without a vacancy are not accepted.",
+    "qayerdan.majburiy": "Choose how the candidate heard about the job.",
+    "qayerdan.topilmadi": "The chosen source was not found or is inactive.",
+    "qayerdan.izoh_majburiy": "Please specify (for example, who recommended them).",
+    "qayerdan.izoh_uzun": "The detail is too long — 200 characters at most.",
+    "qayerdan.nom_bosh": "Enter the source name.",
     "anketa.nomzod_yoq": "A candidate must be given for the questionnaire.",
     "anketa.malumot_notogri": "Invalid education level.",
     "anketa.oila_notogri": "Invalid marital status.",
@@ -1040,7 +1053,20 @@
     "audit.filtr_notogri": "Invalid filter value.",
     "sinov.bekor_qilinmaydi": "Probation cannot be completed as «cancelled»: choose «passed», «failed» or «left early».",
     "sinov.bosatish_kerak": "An employee who failed probation or left on their own is dismissed right here — enter the termination date.",
-    "sinov.bosatish_otganga_yoq": "Dismissal can only be sent with the «failed» or «left early» result."
+    "sinov.bosatish_otganga_yoq": "Dismissal can only be sent with the «failed» or «left early» result.",
+    "anketa.notogri": "The form is incomplete or filled in incorrectly.",
+    "anketa.json": "The form answers could not be read. Please submit again.",
+    "anketa.topilmadi": "The candidate has no such form.",
+    "anketa.majburiy": "A required field is empty.",
+    "anketa.uzun": "The text is longer than allowed.",
+    "anketa.rozilik": "Every consent item must be ticked.",
+    "anketa.imzo_ism": "The name typed as the signature does not match the last and first name in the form.",
+    "anketa.rasm_yoq": "No photo was taken.",
+    "anketa.imzo_yoq": "No signature was drawn.",
+    "anketa.imzo_yaroqsiz": "The signature could not be read. Draw it again.",
+    "anketa.rasm_yaroqsiz": "The photo could not be accepted: JPEG or PNG only, up to 5 MB. Please take it again.",
+    "anketa.belgi": "The text contains a character that is not allowed. Remove it and type again.",
+    "anketa.bot_tekshiruvi": "The check did not pass. Reload the page and submit again."
   },
   "language": {
     "en": "English",
@@ -1413,7 +1439,6 @@
     "recommendYes": "Yes",
     "subtitle": "{{n}} records",
     "terminationDate": "Left on",
-    "workplace": "Workplace",
     "wouldRecommend": "Would recommend"
   },
   "incentives": {
@@ -1615,6 +1640,7 @@
       "PenaltyType": "Penalty type",
       "DocumentType": "Document type",
       "AbsenceType": "Absence type",
+      "ReferralChannel": "Referral channel",
       "Department": "Department",
       "Position": "Position",
       "PositionDuty": "Position duty",
@@ -1637,6 +1663,7 @@
       "CandidateNote": "Candidate note",
       "CandidateFile": "Candidate file",
       "CandidateQuestionnaire": "Questionnaire",
+      "CandidateForm": "Online form",
       "AbsenceRequest": "Absence request",
       "ScheduleChangeRequest": "Schedule change request",
       "ScheduleChangeDay": "Schedule change request day",
@@ -1648,7 +1675,9 @@
       "AttendanceIdentity": "Terminal person ID",
       "WorkSite": "Work site",
       "EmployeeAccount": "Employee app account",
-      "Endpoint": "Request endpoint"
+      "Endpoint": "Request endpoint",
+      "AttendanceDay": "Attendance day",
+      "AuditLog": "Audit log"
     },
     "fields": {
       "FullName_LastName": "Last name",
@@ -1748,6 +1777,9 @@
       "StageId": "Stage",
       "Source": "Source",
       "NextContactDate": "Next contact date",
+      "ReferralChannelId": "How they heard about the job",
+      "ReferralDetail": "Referral detail",
+      "AsksDetail": "Ask for details",
       "InterviewAt": "Interview time",
       "ClosedAt": "Closed on",
       "ClosingNote": "Closing note",
@@ -1886,7 +1918,19 @@
       "Logout": "Sign-out",
       "RefreshSession": "Session refresh",
       "ExportEmployeesToExcel": "Employees exported to Excel",
-      "ExportIncentivesToExcel": "Awards and penalties exported to Excel"
+      "ExportIncentivesToExcel": "Awards and penalties exported to Excel",
+      "ExportCandidatesToExcel": "Candidates exported to Excel",
+      "ExportVacanciesToExcel": "Vacancies exported to Excel",
+      "ExportProbationsToExcel": "Probations exported to Excel",
+      "ExportEmploymentEventsToExcel": "Orders exported to Excel",
+      "ExportFlaggedEmployeesToExcel": "Flag list exported to Excel",
+      "ExportAbsenceRequestsToExcel": "Absence requests exported to Excel",
+      "ExportScheduleChangeRequestsToExcel": "Schedule requests exported to Excel",
+      "ExportAttendanceDashboardToExcel": "Attendance statistics exported to Excel",
+      "ExportAuditEntriesToExcel": "Audit log exported to Excel",
+      "ExportExitInterviewsToExcel": "Exit interviews exported to Excel",
+      "ExportIncidentsToExcel": "Incidents exported to Excel",
+      "SubmitKioskQuestionnaire": "Online form submitted"
     }
   },
   "reports": {
@@ -1915,7 +1959,24 @@
     "voluntaryUnknown": "Unknown",
     "noAccessTitle": "You don't have access to this section",
     "noAccessText": "Reports are only available to employees with the relevant permission.",
-    "loadFailed": "Could not load the report"
+    "loadFailed": "Could not load the report",
+    "referrals": {
+      "title": "How candidates heard about us",
+      "hint": "How many candidates each source brought and how many of them were hired",
+      "columnChannel": "Source",
+      "columnCandidates": "Candidates",
+      "columnHired": "Hired",
+      "columnRateHint": "Share hired among the candidates from this source",
+      "total": "Total",
+      "missing": "Not recorded",
+      "inactive": "Inactive",
+      "legendCandidates": "Share of all candidates",
+      "legendHired": "Hired",
+      "emptyTitle": "No candidates",
+      "emptyText": "No applications yet.",
+      "emptyFilteredText": "No applications for the chosen period and vacancy. Try a wider period.",
+      "shareHint": "{{percent}} of all candidates"
+    }
   },
   "recruiting": {
     "status": "Status",
@@ -2055,7 +2116,8 @@
     "source": {
       "manual": "Manual",
       "telegramBot": "Telegram bot",
-      "excel": "Excel archive"
+      "excel": "Excel archive",
+      "onlineForm": "Online form"
     },
     "startStage": "Starting stage",
     "startStageDefault": "— First stage of the funnel —",
@@ -2148,14 +2210,16 @@
       "secondarySchool": "Secondary (school)",
       "vocationalSchool": "Vocational (college, lyceum)",
       "higherComplete": "Higher (bachelor)",
-      "higherIncomplete": "Higher (incomplete)"
+      "higherIncomplete": "Higher (incomplete)",
+      "higherMaster": "Higher (master)"
     },
     "workExperienceLabel": "Work experience",
     "maritalLabel": "Marital status",
     "marital": {
       "married": "Married",
       "unmarried": "Single",
-      "divorced": "Divorced"
+      "divorced": "Divorced",
+      "widowed": "Widowed"
     },
     "russianLevelLabel": "Russian level",
     "otherLanguagesLabel": "Other languages",
@@ -2170,17 +2234,20 @@
       "from1To2Million": "1–2 million UZS",
       "from2To3Million": "2–3 million UZS",
       "from3To4Million": "3–4 million UZS",
-      "from5To7Million": "5–7 million UZS"
+      "from5To7Million": "5–7 million UZS",
+      "from4To5Million": "4–5 million UZS",
+      "from7Million": "Over 7 million UZS"
     },
     "referralLabel": "How they heard about the job",
-    "referral": {
-      "acquaintance": "Through acquaintances",
-      "socialNetwork": "Instagram / Facebook",
-      "olx": "OLX.uz",
-      "headHunter": "hh.uz",
-      "telegram": "Telegram",
-      "other": "Other source"
-    },
+    "referralInactive": "{{name}} (inactive)",
+    "chooseReferral": "— Choose a source —",
+    "referralLoadFailed": "Could not load the list of sources",
+    "referralLegacyHint": "Older record — no source was recorded. Choose one if you know it.",
+    "referralDetailLabel": "Who recommended / which source?",
+    "referralDetailPlaceholder": "For example, Bahodir Rustamov",
+    "referralFilter": "Heard from",
+    "anyReferral": "All",
+    "referralMissing": "Not recorded",
     "offerAccepted": "Public offer: accepted on {{date}}",
     "photoTitle": "Candidate photo",
     "photoDeleteText": "The photo will be removed for good — the card falls back to initials.",
@@ -2203,7 +2270,16 @@
     "blacklistSearchHint": "⛔ Candidates matching this search in the “Blacklist”: {{n}}",
     "phoneMatchTitle": "Candidates with this phone number: {{n}}",
     "phoneMatchHint": "Saving is not blocked — check the card to make sure it is not the same person.",
-    "phoneMatchFailed": "Could not check whether this number is already in the database — you can still save."
+    "phoneMatchFailed": "Could not check whether this number is already in the database — you can still save.",
+    "forms": {
+      "title": "Online form",
+      "subtitle": "The form the candidate filled in online (HR-F02)",
+      "number": "Form No. {{n}}",
+      "notAttached": "The PDF is not attached to the files — download it here",
+      "pdf": "PDF"
+    },
+    "questionnaireHintOnlineForm": "From the candidate’s answers in the online form (HR-F02)",
+    "consentGivenOnlineForm": "Consent to personal data processing (in the online form): {{date}}"
   },
   "attendance": {
     "statsTitle": "Employee attendance statistics",
@@ -3006,5 +3082,375 @@
   "dashboard.birthdaysAge": "turns {{n}}",
   "dashboard.birthdaysLoadFailed": "Could not load the list",
   "dashboard.birthdaysEmpty": "No birthdays today",
-  "dashboard.birthdaysEmptyText": "None of the working employees has a birthday today."
+  "dashboard.birthdaysEmptyText": "None of the working employees has a birthday today.",
+  "dateRange": {
+    "date": "Date",
+    "hired": "Hire date",
+    "left": "Leave date",
+    "marked": "Date raised",
+    "probationEnd": "Probation end",
+    "blacklisted": "Date blacklisted",
+    "rejected": "Date rejected",
+    "applied": "Date applied",
+    "reserved": "Date added to reserve"
+  },
+  "kiosk": {
+    "yes": "Yes",
+    "no": "No",
+    "choose": "— Choose —",
+    "addEducation": "Add a school",
+    "addJob": "Add a job",
+    "addReference": "Add a referee",
+    "addFamilyMember": "Add a family member",
+    "row": {
+      "edit": "Edit",
+      "remove": "Remove",
+      "invalid": "Incomplete — open and fix",
+      "present": "present",
+      "save": "Save",
+      "cancel": "Cancel",
+      "done": "Done",
+      "notSet": "Not set",
+      "clear": "Clear",
+      "untitled": "Untitled"
+    },
+    "sheet": {
+      "education": "School",
+      "job": "Job",
+      "reference": "Referee",
+      "family": "Family member"
+    },
+    "error": {
+      "required": "Required",
+      "tooLong": "At most {{max}} characters",
+      "invalidDate": "Invalid date",
+      "age": "Age must be between 16 and 70",
+      "pastDate": "The date cannot be before today",
+      "phone": "The phone number is incomplete",
+      "telegram": "Telegram name: 5–32 Latin letters, digits or _",
+      "email": "Invalid e-mail",
+      "range": "From {{min}} to {{max}}",
+      "yearOrder": "The end year cannot be before the start year",
+      "month": "Format: mm.yyyy (e.g. 03.2021)",
+      "monthOrder": "The end month cannot be before the start month",
+      "categories": "Choose at least one category",
+      "languageLevels": "Mark all three levels",
+      "otherLanguageName": "Enter the language name",
+      "familyMin": "Add at least one family member",
+      "consent": "Tick the consent",
+      "signatureName": "The name must match the surname and first name above",
+      "signature": "Please sign",
+      "photo": "Take a photo",
+      "vacancy": "Choose a position"
+    },
+    "screen": {
+      "vacancy": "Vacancy and photo",
+      "personal": "Personal details",
+      "address": "Address",
+      "contacts": "Contacts",
+      "marital": "Marital status and military service",
+      "license": "Driving licence and car",
+      "education": "Education",
+      "school": "School and courses",
+      "languages": "Languages",
+      "computer": "Computer skills",
+      "work": "Work history",
+      "references": "Referees",
+      "family": "Family members",
+      "referral": "About the vacancy",
+      "salary": "Salary and start date",
+      "conditions": "Working conditions",
+      "terms": "Other terms",
+      "health": "Health",
+      "background": "Other details",
+      "about": "About you",
+      "aboutSuccess": "Success and ideas",
+      "aboutHard": "Difficult situations",
+      "aboutTeam": "Team and plans",
+      "consent": "Declaration and consent",
+      "signature": "Signature"
+    },
+    "vacancy": {
+      "label": "Which position are you applying for?",
+      "placeholder": "— Choose a position —",
+      "general": "General (any position)",
+      "hint": "If you have no specific position in mind, choose «General»."
+    },
+    "photo": {
+      "label": "Your photo",
+      "alt": "Candidate photo",
+      "hint": "Your photo — your face must be clearly visible",
+      "take": "Take a photo",
+      "retake": "Retake",
+      "failed": "The photo could not be read. Please try again."
+    },
+    "signature": {
+      "label": "Signature",
+      "pad": "Signature area",
+      "placeholder": "Sign here with your finger or the mouse",
+      "clear": "Clear"
+    },
+    "field": {
+      "lastName": "Surname",
+      "firstName": "First name",
+      "middleName": "Patronymic",
+      "birthDate": "Date of birth",
+      "registeredAddress": "Registered address (propiska)",
+      "sameAddress": "My actual address is the same",
+      "actualAddress": "Actual address",
+      "housingType": "Housing type",
+      "mahalla": "Mahalla name",
+      "phone": "Phone number",
+      "contactPhone": "Phone number",
+      "phoneExtra": "Additional phone (a relative)",
+      "telegram": "Telegram",
+      "email": "E-mail",
+      "maritalStatus": "Marital status",
+      "childrenCount": "Number of children",
+      "militaryService": "Military service (for men)",
+      "militaryServiceMonths": "Length of service (months)",
+      "hasDriverLicense": "Do you have a driving licence?",
+      "driverLicenseCategories": "Licence category",
+      "hasCar": "Do you have a car?",
+      "carModel": "Car make",
+      "educationLevel": "Education level",
+      "educations": "Where you studied",
+      "institution": "School / university name",
+      "faculty": "Faculty / speciality",
+      "startYear": "Start year",
+      "endYear": "End year",
+      "diplomaNumber": "Diploma / certificate No.",
+      "schoolName": "School you graduated from (No., district)",
+      "strongSubjects": "Which school subjects were you good at?",
+      "courses": "Courses, certificates, trade grade (welder, machinist, electrician, etc.)",
+      "computerSkillsOther": "Other software and programming languages",
+      "organization": "Organisation",
+      "position": "Position",
+      "jobFrom": "From (mm.yyyy)",
+      "jobTo": "To (mm.yyyy)",
+      "jobCurrent": "I still work here",
+      "leaveReason": "Reason for leaving",
+      "totalExperience": "Total work experience",
+      "years": "years",
+      "months": "months",
+      "fullName": "Full name",
+      "organizationPosition": "Organisation, position",
+      "relation": "Relation",
+      "birthYear": "Year of birth",
+      "workplace": "Workplace, position",
+      "address": "Address",
+      "referralSource": "Where did you hear about this vacancy?",
+      "referralPlaceholder": "— Choose —",
+      "referralDetail": "Please specify",
+      "referralDetailPlaceholder": "Who recommended it / which source?",
+      "hasAcquaintances": "Do any acquaintances or relatives of yours work at our company?",
+      "acquaintancesDetail": "Who are they? (full name, department)",
+      "lastSalary": "What was your salary at your last job?",
+      "expectedSalary": "What salary do you expect?",
+      "availableFrom": "When can you start?",
+      "canWorkShifts": "Can you work shifts or 12-hour days?",
+      "canWorkOvertime": "Can you stay after hours when needed?",
+      "canTravel": "Do you agree to business trips?",
+      "agreesToTrial": "Do you agree to a one-week trial (internship)?",
+      "hasOtherJob": "Do you have a part-time job elsewhere or your own business?",
+      "otherJobDetail": "What job or business?",
+      "hasLoan": "Do you currently repay a loan?",
+      "loanMonthlyPayment": "Monthly loan payment",
+      "agreesParentsInvite": "Do you agree that we may invite your parents to the company if needed?",
+      "startConditions": "What are your conditions for starting?",
+      "hasHealthRestriction": "Do you have any health restriction for this position? (including work with gas cylinders)",
+      "healthHint": "The final conclusion is given at the medical examination.",
+      "healthRestrictionDetail": "What restriction?",
+      "hasFamilyPatient": "Is there a family member who needs constant care?",
+      "hasConviction": "Have you ever been convicted?",
+      "convictionDetail": "Details",
+      "relativesConviction": "Have any of your close relatives been convicted?",
+      "relativesConvictionDetail": "Details",
+      "abroadTrips": "Have you been abroad? (when, which country, for what purpose)",
+      "signatureName": "Instead of a signature: write your full name",
+      "signatureNameHint": "Surname, first name and patronymic — as above"
+    },
+    "housing": {
+      "apartment": "Apartment block",
+      "house": "House with a yard"
+    },
+    "marital": {
+      "married": "Married",
+      "unmarried": "Single",
+      "divorced": "Divorced",
+      "widowed": "Widowed"
+    },
+    "military": {
+      "served": "Served",
+      "reserve": "In reserve",
+      "deferred": "Deferred",
+      "notServed": "Not served"
+    },
+    "education": {
+      "secondarySchool": "Secondary (school)",
+      "vocationalSchool": "Vocational (college, technical school, lyceum)",
+      "higherIncomplete": "Higher (incomplete)",
+      "higherComplete": "Higher (bachelor)",
+      "higherMaster": "Higher (master)"
+    },
+    "language": {
+      "uzbek": "Uzbek",
+      "russian": "Russian",
+      "english": "English",
+      "chinese": "Chinese",
+      "other": "Other language"
+    },
+    "languages": {
+      "legend": "For each language mark the level of speaking, reading and writing. Russian is required; leave languages you do not know empty.",
+      "scale": "0 – none, 1 – beginner, 2 – intermediate, 3 – upper-intermediate, 4 – advanced (fluent), 5 – native",
+      "otherName": "Language name",
+      "speaking": "Speaking",
+      "reading": "Reading",
+      "writing": "Writing",
+      "add": "Add another language"
+    },
+    "computer": {
+      "legend": "Mark your level in the software you know and leave the rest empty. Tap a chosen number again to clear it.",
+      "scale": "1 – beginner, 2 – intermediate, 3 – good, 4 – expert",
+      "otherPlaceholder": "For example: Python, SAP, Linux",
+      "group": {
+        "os": "Operating system",
+        "office": "Office software",
+        "special": "Specialised software"
+      },
+      "skill": {
+        "windows": "Windows",
+        "mobileOs": "Smartphone (Android / iOS)",
+        "msWord": "MS Word",
+        "msExcel": "MS Excel",
+        "msPowerPoint": "MS PowerPoint",
+        "googleWorkspace": "Google Docs / Sheets",
+        "oneC": "1C",
+        "didox": "Didox, soliq.uz portals",
+        "crm": "CRM (AmoCRM, Bitrix24)",
+        "autocad": "AutoCAD",
+        "photoshop": "Photoshop / Canva / CorelDraw"
+      }
+    },
+    "work": {
+      "hint": "Start with your most recent job. Leave empty if this is your first job."
+    },
+    "references": {
+      "hint": "A manager or colleague who knows you well from a previous job. HR may contact them."
+    },
+    "family": {
+      "hint": "Parents, spouse, brothers and sisters. At least one person."
+    },
+    "relation": {
+      "father": "Father",
+      "mother": "Mother",
+      "spouse": "Spouse",
+      "brother": "Brother",
+      "sister": "Sister",
+      "child": "Child",
+      "other": "Other"
+    },
+    "about": {
+      "hint": "Answer briefly and honestly. There are no right or wrong answers. Questions marked * are required.",
+      "q": {
+        "motivation": "Why do you work? What drives you to work?",
+        "whyUs": "Why did you choose our company?",
+        "strengths": "What are your strongest points?",
+        "weaknesses": "What do you think your weak points are?",
+        "motivators": "What motivates you most?",
+        "successDefinition": "What does success mean to you?",
+        "lastJobAchievement": "What was your biggest achievement at your last job?",
+        "bestIdea": "What useful idea did you bring to a previous job, and what was the result?",
+        "biggestChallenge": "What was the biggest difficulty you faced at work, and how did you solve it?",
+        "stressHandling": "How do you deal with stress at work?",
+        "unfairnessToYou": "What do you do if you are treated unfairly at work?",
+        "unfairnessToCompany": "What do you do if you witness unfairness towards the company?",
+        "teamwork": "Can you work in a large team? What does teamwork mean to you?",
+        "previousTeamOpinion": "Your opinion of the team and management at your previous job",
+        "studentWorkExperience": "Did you apprentice or work anywhere while studying?",
+        "fiveYearPlan": "Where do you see yourself in 5 years?",
+        "extraNote": "Anything else: what else would you like us to know about you?"
+      }
+    },
+    "consent": {
+      "intro": "I, {{name}}:",
+      "consentAccuracy": "confirm that all information in this form is complete and true. I understand that false information is a ground for terminating the employment contract.",
+      "consentPersonalData": "agree to the processing of my personal data for recruitment and employment under the Law of the Republic of Uzbekistan «On Personal Data».",
+      "consentReferenceCheck": "agree to background checks with my previous employers and the referees I named.",
+      "consentNotifyChanges": "will inform HR in good time if any information in this form changes after I am hired.",
+      "consentConfidentiality": "undertake not to disclose the company's confidential information for 2 years after leaving, and agree to legal measures if I break this undertaking.",
+      "date": "Date: {{date}}"
+    },
+    "wizard": {
+      "progress": "{{n}} / {{total}}",
+      "cancel": "Cancel",
+      "back": "Back",
+      "next": "Next",
+      "submit": "Submit",
+      "sending": "Sending…",
+      "checking": "Checking…",
+      "fixErrors": "Please fix the fields marked in red.",
+      "cancelTitle": "Cancel the form?",
+      "cancelText": "Everything you entered will be deleted.",
+      "cancelNo": "Continue",
+      "cancelYes": "Yes, cancel"
+    },
+    "submit": {
+      "offline": "No internet connection. Check the connection and tap «Submit» again — the form will not be sent twice.",
+      "rejected": "The form could not be accepted. Check your answers and submit again."
+    },
+    "idle": {
+      "title": "Are you still there?",
+      "text": "In {{n}} seconds the form will be cleared and start over.",
+      "continue": "Continue"
+    },
+    "start": {
+      "title": "Candidate form",
+      "subtitle": "Fill in the form to apply for a job. Choose a language and start.",
+      "vacancy": "Position: {{title}}",
+      "begin": "Start the form",
+      "noVacancies": "There are no open vacancies right now. Please ask HR.",
+      "resume": "Continue the unfinished form",
+      "duration": "About 15–20 minutes.",
+      "requiredNote": "Questions marked * are required.",
+      "tabletMode": "Tablet mode"
+    },
+    "done": {
+      "title": "Thank you!",
+      "text": "Your form has been received.",
+      "number": "Form No. {{n}}",
+      "contact": "HR will get in touch with you.",
+      "again": "Fill in another form",
+      "returnTablet": "Please return the tablet to HR.",
+      "finish": "Finish ({{n}})"
+    },
+    "offline": {
+      "title": "No connection to the server",
+      "text": "Check the internet connection and try again.",
+      "retry": "Try again"
+    },
+    "unavailable": {
+      "title": "The form is not available right now",
+      "text": "Please try again a little later."
+    },
+    "link": {
+      "button": "Form link",
+      "title": "Form link",
+      "subtitle": "Send this link to the candidate — they fill in the form on a phone or computer. The completed form lands in the candidate list by itself.",
+      "public": "Link",
+      "tablet": "For the office tablet",
+      "tabletHint": "Open this link on the tablet once. From then on the tablet clears the form and returns to the start after each candidate.",
+      "tabletHintFormSite": "Open this link on the tablet once. From then on the tablet clears the form and returns to the start after each candidate. Only the form opens at this address — the tablet cannot reach the HR system.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "Could not copy — the link is selected, copy it with Ctrl+C.",
+      "open": "Open"
+    },
+    "hrSession": {
+      "title": "An HR account is signed in on this browser",
+      "text": "Tablet mode must not give access to the HR system. If you continue, the HR account in this browser will be signed out.",
+      "continue": "Sign out of HR and continue",
+      "back": "Back to the HR system"
+    }
+  }
 }

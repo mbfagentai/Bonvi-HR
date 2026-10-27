@@ -31,9 +31,94 @@ public static class ReportsEndpoints
         var group = app.MapGroup("/api/reports").WithTags("Reports");
 
         MapTurnover(group);
+        MapCandidateReferrals(group);
         MapEmployeeExport(group);
 
         return app;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Nomzodlar qayerdan bilgan (SPEC-qayerdan-bilgan §7)
+    // ════════════════════════════════════════════════════════════
+
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Ruxsat — ikkita.</b> Hisobot sahifasining o'zi <c>reports.view</c> bilan
+    /// ochiladi (kadrlar oqimi kabi), lekin bu sonlar NOMZODLARDAN hosil bo'ladi:
+    /// <c>reports.view</c> egasi nomzodlarni ko'rmasligi mumkin va ularning
+    /// statistikasini ham ko'rmasligi kerak — bosh sahifadagi rekruting bloki bilan bir
+    /// xil qoida (<c>DashboardEndpoints</c>: «recruiting» faqat <c>recruiting.view</c>
+    /// borlarga). Shu sababli <c>reports.view</c> VA <c>recruiting.view</c>.
+    /// </para>
+    /// <para>
+    /// Excel — ko'rish ruxsatlari USTIGA <c>reports.export</c> (ro'yxat eksportlaridagi
+    /// qoida: «ko'ra olganingni olib chiqasan», masalan nomzodlar eksporti
+    /// <c>recruiting.view</c> + <c>reports.export</c>) va eksport tezlik cheklovi.
+    /// </para>
+    /// </remarks>
+    private static void MapCandidateReferrals(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/candidate-referrals", async (
+                DateOnly? from,
+                DateOnly? to,
+                Guid? vacancyId,
+                GetCandidateReferralsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetCandidateReferralsQuery(from, to, vacancyId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.ReportsView, Permissions.RecruitingView)
+            .WithName("GetCandidateReferralsReport")
+            .WithSummary("Hisobotlar — nomzodlar qayerdan bilgan")
+            .WithDescription(
+                "Davrda ARIZA bergan nomzodlar (ariza sanasi, Toshkent kuni; «from»/«to» — yyyy-MM-dd, " +
+                "ikkalasi ham kiradi, istalgani berilmasligi mumkin; teskari oraliq — " +
+                "«royxat.sana_oraligi_notogri», 400) «qayerdan bilgan» kanali bo'yicha: nomzodlar soni va " +
+                "ulardan ishga olinganlar (holati «Hired» — voronka hisobotidagi ta'rif). «vacancyId» — " +
+                "faqat shu vakansiya. Qatorlar nomzodlar soni bo'yicha kamayish tartibida; " +
+                "faolsizlantirilgan kanal qatori («isActive=false») bo'lsa chiqadi; kanalsiz nomzodlar " +
+                "«channelId=null» qatorida (ekranda «Ko'rsatilmagan»), u ham faqat bo'sh bo'lmasa. " +
+                "Excel kengash arxivi kirmaydi. Foiz yo'q — ikkala son ham javobda. " +
+                "Ruxsat: «reports.view» VA «recruiting.view».")
+            .Produces<CandidateReferralReportDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/candidate-referrals/export", async (
+                DateOnly? from,
+                DateOnly? to,
+                Guid? vacancyId,
+                ExportCandidateReferralsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetCandidateReferralsQuery(from, to, vacancyId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(
+                        natija.Value.Content,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        natija.Value.FileName);
+            })
+            .RequireAuthorization(Permissions.ReportsView, Permissions.RecruitingView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportCandidateReferralsToExcel")
+            .WithSummary("Hisobotlar — nomzodlar qayerdan bilgan, Excel")
+            .WithDescription(
+                "Parametrlar «GET /api/reports/candidate-referrals» bilan AYNAN bir xil. Ustunlar: kanal, " +
+                "nomzodlar, ishga olingan, ishga olingan % (bir xona); oxirgi qator — «Jami». " +
+                "Ruxsat: «reports.view», «recruiting.view» VA «reports.export». Har bir eksport audit " +
+                "jurnaliga yoziladi.")
+            .Produces(StatusCodes.Status200OK, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
     }
 
     // ════════════════════════════════════════════════════════════

@@ -201,21 +201,20 @@ export function IncentivesPage() {
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
         /*
-          Boshqa ro'yxatlar (flags, probations, buyruqlar) bilan BIR XIL
-          300px: 300px − katak to'ldirishi (px-4 × 2 = 32px) = 268px;
-          − rasm (size="lg" = 48px) − oraliq (gap-3 = 12px) = 208px sof
-          matnga. To'rt ro'yxatda bir xil odam bir xil kenglikda ko'rinsin.
+          ⭐ BIR QATOR (egasi 2026-10-22): rasm va to'liq ism bir chiziqda,
+          ism kesilmaydi — ustun eng uzun ismgacha kengayadi (`DataTable` —
+          `whitespace-nowrap`). Boshqa ro'yxatlar (flags, probations,
+          buyruqlar) bilan bir xil ko'rinish.
         */
-        meta: { width: '300px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-3">
             <EmployeePhoto
               employeeId={row.original.employeeId}
               photoKey={row.original.photoKey}
               name={row.original.employeeName}
-              size="lg"
+              size="md"
             />
-            <p className="truncate-1 font-medium">{row.original.employeeName}</p>
+            <span className="font-medium">{row.original.employeeName}</span>
           </div>
         ),
       }),
@@ -237,9 +236,7 @@ export function IncentivesPage() {
           ortiq bo'lmasligi kerak. Tur nomi ma'lumotnomadan (admin
           kiritadi), eng uzun kutilgan qiymat ~30 belgi va qat'iy
           kenglikka sig'maydi, shu sababli ortgan joyni aynan shu ustun
-          oladi (`data-table.tsx` qoidasi). 240px = katak to'ldirishi
-          (32px) + IconTile "sm" (32px) + oraliq (gap-2.5 = 10px) = 74px
-          xizmat uchun, ~166px matnga.
+          oladi (`data-table.tsx` qoidasi).
         */
         meta: { minWidth: '240px' },
         cell: ({ row }) => {
@@ -247,22 +244,18 @@ export function IncentivesPage() {
           const name = row.original.typeName ?? '—'
 
           return (
-            <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex items-center gap-2.5">
               <IconTile icon={look.icon} tone={look.iconTone} size="sm" />
-              <div className="min-w-0">
-                <p className="truncate-1 text-subhead font-medium" title={name}>
-                  {name}
-                </p>
-                {/*
-                  Nishon tur nomining OSTIDA, yonida emas: «Ташаккурнома»
-                  va «Мукофот» ikkalasi ham rag'bat, lekin ma'lumotnoma
-                  nomiga qarab buni bilib bo'lmaydi — nishon shu savolga
-                  javob beradi va uni nomdan ajratib turish kerak.
-                */}
-                <Badge tone={look.tone} size="sm">
-                  {t(look.labelKey)}
-                </Badge>
-              </div>
+              <span className="text-subhead font-medium">{name}</span>
+              {/*
+                Nishon (rag'bat / jarima) — nom bilan BIR qatorda (egasi
+                2026-10-22), ilgari ostida edi. «Ташаккурнома» va «Мукофот»
+                ikkalasi ham rag'bat, lekin ma'lumotnoma nomiga qarab buni
+                bilib bo'lmaydi — nishon shu savolga javob beradi.
+              */}
+              <Badge tone={look.tone} size="sm">
+                {t(look.labelKey)}
+              </Badge>
             </div>
           )
         },

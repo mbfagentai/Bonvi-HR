@@ -74,10 +74,20 @@ export async function fetchEmploymentEvents(
 }
 
 function listParams(filters: EmploymentEventFilters): Record<string, unknown> {
-  const params: Record<string, unknown> = {
-    page: filters.page,
-    pageSize: filters.pageSize,
-  }
+  return { ...employmentEventListParams(filters), page: filters.page, pageSize: filters.pageSize }
+}
+
+/** Ro'yxat filtri sahifasiz — Excel eksporti shu bilan so'raladi. */
+export type EmploymentEventListFilters = Omit<EmploymentEventFilters, 'page' | 'pageSize'>
+
+/**
+ * Ro'yxat so'rovining filtr parametrlari — ro'yxat ham, Excel eksporti ham
+ * AYNAN shu funksiyadan (`docs/SPEC-excel-eksport.md` §3).
+ */
+export function employmentEventListParams(
+  filters: EmploymentEventListFilters,
+): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
 
   if (filters.search) params['search'] = filters.search
   if (filters.from) params['from'] = filters.from

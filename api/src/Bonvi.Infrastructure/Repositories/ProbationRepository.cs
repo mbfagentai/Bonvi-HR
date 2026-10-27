@@ -50,4 +50,23 @@ public sealed class ProbationRepository : Repository<Probation>, IProbationRepos
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Faqat identifikatorlar: har bir sinov vazifada alohida o'qiladi va alohida
+    /// saqlanadi. Shart <c>(status, end_date)</c> indeksiga tushadi; eng eski
+    /// muddat birinchi.
+    /// </remarks>
+    public async Task<IReadOnlyList<Guid>> GetExpiredIdsAsync(
+        DateOnly today,
+        CancellationToken cancellationToken = default)
+        => await Set
+            .AsNoTracking()
+            .Where(probation =>
+                probation.Status == ProbationStatus.InProgress &&
+                probation.EndDate < today)
+            .OrderBy(probation => probation.EndDate)
+            .Select(probation => probation.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 }

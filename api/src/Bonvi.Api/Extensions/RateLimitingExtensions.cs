@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
+using Bonvi.Api.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -47,6 +48,29 @@ public static class RateLimitPolicies
     /// hujumchiga har so'rovda yangi «bo'linma» ochish imkonini berardi.
     /// </remarks>
     public const string Ingest = "ingest";
+
+    /// <summary>
+    /// Ochiq onlayn anketa (<c>/api/kiosk/*</c>, SPEC-planshet-anketa §2) — MIJOZ IP'si bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Login ham, kalit ham yo'q — bo'lishga faqat IP qoladi. U <see cref="ClientIp"/> dan
+    /// (Caddy bergan haqiqiy mijoz): <c>RemoteIpAddress</c> prod'da Cloudflare chekkasi va hamma
+    /// nomzod bitta-ikkita bo'linmaga tushardi. Daqiqasiga 60 — seans ochilishi va vaqti-vaqti
+    /// bilan yangilanishi uchun keng, ketma-ket so'rov bilan bazani band qilish uchun tor.
+    /// </remarks>
+    public const string Questionnaire = "questionnaire";
+
+    /// <summary>
+    /// Anketa YUBORISH — o'z, ancha tor oynasi: bitta mijoz IP'siga soatiga 20 ta.
+    /// </summary>
+    /// <remarks>
+    /// Har yuborish nomzod yozuvi, to'rtta fayl va PDF chizish — eng qimmat amal. Ofisdagi
+    /// planshetlar bitta IP'dan chiqadi, lekin bitta anketa kamida 10 daqiqa: 20 ta yetadi.
+    /// Endpoint darajasidagi siyosat guruhnikini almashtiradi, ya'ni yuborish faqat shu
+    /// oynaga tushadi. Ustiga — barcha IP'lar uchun umumiy kunlik chegara
+    /// (<see cref="RateLimitingOptions.QuestionnaireDaily"/>).
+    /// </remarks>
+    public const string QuestionnaireSubmit = "questionnaire-submit";
 }
 
 /// <summary>
@@ -167,6 +191,30 @@ public sealed class RateLimitingOptions
     /// </para>
     /// </remarks>
     public RateLimitWindow Ingest { get; set; } = new() { PermitLimit = 300, WindowSeconds = 60 };
+
+    /// <summary>Onlayn anketa seansi — bitta mijoz IP'siga daqiqada 60 (<see cref="RateLimitPolicies.Questionnaire"/>).</summary>
+    public RateLimitWindow Questionnaire { get; set; } = new() { PermitLimit = 60, WindowSeconds = 60 };
+
+    /// <summary>Onlayn anketa yuborish — bitta mijoz IP'siga soatiga 20 (<see cref="RateLimitPolicies.QuestionnaireSubmit"/>).</summary>
+    public RateLimitWindow QuestionnaireSubmit { get; set; } = new() { PermitLimit = 20, WindowSeconds = 3600 };
+
+    /// <summary>
+    /// Onlayn anketa — BARCHA IP'lar uchun bitta umumiy chegara: kuniga 500 ta QABUL QILINGAN anketa.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// IP bo'yicha oyna ko'p manzildan kelgan oqimni to'xtatmaydi: tarqoq hujum voronkani soxta
+    /// nomzodlar bilan, diskni esa surat va PDF bilan to'ldirardi. Haqiqiy oqim kuniga o'nlab.
+    /// </para>
+    /// <para>
+    /// Faqat QABUL QILINGAN (201) anketa sanaladi: rad etilgan yoki takroriy yuborish hech narsa
+    /// yozmaydi, ularni sanash esa arzon xato so'rovlar bilan formani butun kunga yopishga yo'l
+    /// ochardi. Chegara to'lsa — barcha IP'larga 429 (o'sha <c>rate_limit.oshib_ketdi</c>).
+    /// Endpoint filtri (<see cref="RateLimitingExtensions.RequireQuestionnaireDailyCap{TBuilder}"/>),
+    /// global zanjirda emas — Testing muhitida ham ishlaydi.
+    /// </para>
+    /// </remarks>
+    public RateLimitWindow QuestionnaireDaily { get; set; } = new() { PermitLimit = 500, WindowSeconds = 86_400 };
 
     /// <summary>
     /// Xodim kirishining parol tekshiruvi navbati — IP'dan qat'i nazar, HR nikidan ALOHIDA.
@@ -336,11 +384,11 @@ public static class RateLimitingExtensions
             }
 
             // Kirish uchun cheklov qat'iyroq, chunki bu yagona parol tanlash
-            // mumkin bo'lgan nuqta. Kalit — IP: hujumchida hali foydalanuvchi
-            // identifikatori yo'q, shu sababli faqat manba manzili bo'yicha ajratamiz.
+            // mumkin bo'lgan nuqta. Kalit — mijoz IP'si: hujumchida hali foydalanuvchi
+            // identifikatori yo'q, shu sababli faqat manzil bo'yicha ajratamiz.
             options.AddPolicy(RateLimitPolicies.Login, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    "login:" + Manba(context),
+                    "login:" + Mijoz(context),
                     _ => QatiyOyna(sozlama.Login)));
 
             options.AddPolicy(RateLimitPolicies.Api, context =>
@@ -393,6 +441,17 @@ public static class RateLimitingExtensions
                     "ingest:" + Manba(context),
                     _ => QatiyOyna(sozlama.Ingest)));
 
+            // Ochiq onlayn anketa — mijoz IP'si bo'yicha (RateLimitPolicies.Questionnaire izohi)
+            options.AddPolicy(RateLimitPolicies.Questionnaire, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    "anketa:" + ClientIp.PartitionKey(context),
+                    _ => QatiyOyna(sozlama.Questionnaire)));
+
+            options.AddPolicy(RateLimitPolicies.QuestionnaireSubmit, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    "anketa-yuborish:" + ClientIp.PartitionKey(context),
+                    _ => QatiyOyna(sozlama.QuestionnaireSubmit)));
+
             options.OnRejected = RadEtildiAsync;
         });
 
@@ -411,7 +470,62 @@ public static class RateLimitingExtensions
             PartitionedRateLimiter.Create<string, string>(kalit =>
                 RateLimitPartition.GetFixedWindowLimiter(kalit, _ => QatiyOyna(sozlama.RefreshToken)))));
 
+        // Onlayn anketaning kunlik umumiy chegarasi — bitta hisoblagich, barcha IP'larga
+        // (izohi `RateLimitingOptions.QuestionnaireDaily` da)
+        services.AddSingleton(new QuestionnaireDailyCap(new FixedWindowRateLimiter(QatiyOyna(sozlama.QuestionnaireDaily))));
+
         return services;
+    }
+
+    /// <summary>
+    /// Anketa yuborishga barcha IP'lar uchun umumiy KUNLIK chegara qo'yadi
+    /// (<see cref="RateLimitingOptions.QuestionnaireDaily"/>).
+    /// </summary>
+    /// <remarks>
+    /// Avval faqat TEKSHIRADI (0 ruxsat so'rash hech narsani yemaydi), ruxsat esa anketa
+    /// qabul qilingandan (201) KEYIN olinadi. Bir lahzada kelgan ikki anketa chegarani bittaga
+    /// oshirib yuborishi mumkin — zararsiz, chegara aniq son emas, to'siq.
+    /// </remarks>
+    /// <typeparam name="TBuilder">Endpoint quruvchisi.</typeparam>
+    /// <param name="builder">Endpoint.</param>
+    public static TBuilder RequireQuestionnaireDailyCap<TBuilder>(this TBuilder builder)
+        where TBuilder : IEndpointConventionBuilder
+        => builder.AddEndpointFilter(KunlikChegaraAsync);
+
+    private static async ValueTask<object?> KunlikChegaraAsync(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        var httpContext = context.HttpContext;
+        var limiter = httpContext.RequestServices.GetRequiredService<QuestionnaireDailyCap>().Limiter;
+
+        using (var tekshiruv = limiter.AttemptAcquire(0))
+        {
+            if (!tekshiruv.IsAcquired)
+            {
+                var kutish = KutishVaqti(tekshiruv);
+
+                httpContext.Response.Headers.RetryAfter = kutish.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture);
+
+                TezlikLoglari.CheklovOshdi(
+                    httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Bonvi.Api.RateLimiting"),
+                    httpContext.Request.Method,
+                    httpContext.Request.Path.Value ?? "/",
+                    "anketa-kunlik");
+
+                return TypedResults.Problem(RadEtishJavobi(httpContext, kutish));
+            }
+        }
+
+        var natija = await next(context).ConfigureAwait(false);
+
+        // Faqat qabul qilingan anketa sanaladi (RateLimitingOptions.QuestionnaireDaily izohi)
+        if (natija is IStatusCodeHttpResult { StatusCode: StatusCodes.Status201Created })
+        {
+            limiter.AttemptAcquire(1).Dispose();
+        }
+
+        return natija;
     }
 
     /// <summary>
@@ -463,7 +577,7 @@ public static class RateLimitingExtensions
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Bonvi.Api.RateLimiting"),
             httpContext.Request.Method,
             httpContext.Request.Path.Value ?? "/",
-            Manba(httpContext));
+            Mijoz(httpContext));
 
         return TypedResults.Problem(RadEtishJavobi(httpContext, kutish));
     }
@@ -514,7 +628,7 @@ public static class RateLimitingExtensions
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Bonvi.Api.RateLimiting"),
             httpContext.Request.Method,
             httpContext.Request.Path.Value ?? "/",
-            Manba(httpContext));
+            Mijoz(httpContext));
 
         return TypedResults.Problem(RadEtishJavobi(httpContext, kutish));
     }
@@ -539,13 +653,13 @@ public static class RateLimitingExtensions
             if (YolMoslashadimi(yol, sozlama.EmployeeLoginPaths))
             {
                 return RateLimitPartition.GetFixedWindowLimiter(
-                    "employee-login:" + Manba(context),
+                    "employee-login:" + Mijoz(context),
                     _ => QatiyOyna(sozlama.EmployeeLogin));
             }
 
             return YolMoslashadimi(yol, sozlama.LoginPaths)
                 ? RateLimitPartition.GetFixedWindowLimiter(
-                    "login:" + Manba(context),
+                    "login:" + Mijoz(context),
                     _ => QatiyOyna(sozlama.Login))
                 : RateLimitPartition.GetNoLimiter<string>("chetlab-otildi");
         });
@@ -578,7 +692,7 @@ public static class RateLimitingExtensions
 
             return YolMoslashadimi(yol, sozlama.EmployeeSessionPaths)
                 ? RateLimitPartition.GetFixedWindowLimiter(
-                    "employee-session:" + Manba(context),
+                    "employee-session:" + Mijoz(context),
                     _ => QatiyOyna(sozlama.EmployeeSession))
                 : RateLimitPartition.GetSlidingWindowLimiter(
                     "api:" + Kim(context),
@@ -612,7 +726,7 @@ public static class RateLimitingExtensions
     //  Kalit yasash
     // ────────────────────────────────────────────────────────────
 
-    /// <summary>Autentifikatsiyadan o'tgan foydalanuvchi, aks holda manba IP.</summary>
+    /// <summary>Autentifikatsiyadan o'tgan foydalanuvchi, aks holda mijoz IP'si (<see cref="Mijoz"/>).</summary>
     /// <remarks>
     /// <para>
     /// Foydalanuvchi bo'yicha ajratish adolatliroq: bitta ofisdagi 50 xodim
@@ -637,20 +751,40 @@ public static class RateLimitingExtensions
             ?? context.User.FindFirstValue("sub");
 
         return string.IsNullOrEmpty(foydalanuvchi)
-            ? "ip:" + Manba(context)
+            ? "ip:" + Mijoz(context)
             : "u:" + foydalanuvchi;
     }
 
     /// <summary>
-    /// Haqiqiy manba IP.
+    /// Ulanish manzili (<c>RemoteIpAddress</c>) — faqat qurilma qabuli va kalitsiz tashqi API uchun.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>UseForwardedHeaders</c> konveyerda BIRINCHI turishi shart: aks holda
     /// Caddy orqasida hamma so'rov proksining IP'si bilan keladi va bitta
     /// bo'linmaga tushib, butun tashkilotni birdaniga bloklaydi.
+    /// </para>
+    /// <para>
+    /// Prod'da bu Cloudflare chekkasi. Qurilmalar uchun ATAYLAB shunday qoldi (SPEC-planshet-anketa
+    /// §2.3.3 — terminallarning xulqi o'zgarmasin); tashqi API'ni boshqa loyihalarning serverlari
+    /// chaqiradi, odam emas. Odamga tegishli hamma bo'linma — <see cref="Mijoz"/>.
+    /// </para>
     /// </remarks>
     private static string Manba(HttpContext context)
         => context.Connection.RemoteIpAddress?.ToString() ?? "nomalum";
+
+    /// <summary>
+    /// Mijozning HAQIQIY IP'si (<see cref="ClientIp"/>) — odamga tegishli bo'linmalar: HR va xodim
+    /// kirishi, sessiya yangilash, anonim so'rovlar (SPEC-planshet-anketa §2.3.3).
+    /// </summary>
+    /// <remarks>
+    /// Ilgari bu yerda ham ulanish manzili edi va prod'da u Cloudflare chekkasi: bir-biriga begona
+    /// odamlarning kirish urinishlari bitta bo'linmaga tushardi — bitta odamning parol terishi
+    /// boshqalarni ham 429 bilan to'sardi. Caddy sarlavhani har API proksisida o'zi o'rnatadi va
+    /// mijoz yuborganini o'chiradi; sarlavha bo'lmasa (dev, ichki tarmoq: bot, ISUP shlyuzi) —
+    /// ulanish manzili. IPv6 — /64 tarmog'i (<see cref="ClientIp.PartitionKey"/>).
+    /// </remarks>
+    private static string Mijoz(HttpContext context) => ClientIp.PartitionKey(context);
 
     /// <summary>Rasm baytlarini o'qish: <c>GET /api/…/photo</c> (xodim, nomzod, o'tish, «men»).</summary>
     private static bool RasmOqishimi(HttpContext context)
@@ -696,12 +830,12 @@ public static class RateLimitingExtensions
             .CreateLogger("Bonvi.Api.RateLimiting");
 
         // Bu log xavfsizlik uchun: ketma-ket 429 lar parol tanlash urinishining
-        // asosiy belgisi. Audit uchun manba IP saqlanadi.
+        // asosiy belgisi. Tergov uchun mijozning haqiqiy IP'si saqlanadi.
         TezlikLoglari.CheklovOshdi(
             logger,
             httpContext.Request.Method,
             httpContext.Request.Path.Value ?? "/",
-            Manba(httpContext));
+            Mijoz(httpContext));
 
         await httpContext.Response
             .WriteAsJsonAsync(
@@ -762,6 +896,10 @@ public sealed record PasswordHashingLanes(bool Enabled, ConcurrencyLimiter Emplo
     /// <param name="queue">Qaysi navbat.</param>
     public ConcurrencyLimiter For(PasswordHashingLane queue) => queue == PasswordHashingLane.Hr ? Hr : Employee;
 }
+
+/// <summary>Onlayn anketaning kunlik umumiy chegarasi — bitta nusxa (singleton), barcha IP'larga bitta oyna.</summary>
+/// <param name="Limiter">Qat'iy oyna — <see cref="RateLimitingOptions.QuestionnaireDaily"/>.</param>
+public sealed record QuestionnaireDailyCap(FixedWindowRateLimiter Limiter);
 
 /// <summary>Token xeshi bo'yicha bo'lingan cheklovchi — bitta nusxa (singleton).</summary>
 /// <param name="Limiter">Kalit — tokenning qisqartirilgan xeshi.</param>

@@ -173,13 +173,9 @@ export function UsersPage() {
         header: t('users.columnUser'),
         /*
           Yagona moslashuvchan ustun (`minWidth`, boshqalari qat'iy `width`).
-          Xrom: avatar (size="lg" = 48px) + oraliq (gap-3 = 12px) + katak
-          to'ldirishi (px-4 × 2 = 32px) = 92px. Qolgan 208px matnga: F.I.Sh.
-          bitta qatorda (`truncate-1`, uzuni kesiladi — to'lig'i `title`
-          atributida), ostida telefon («+998 90 508 88 88», 17 belgi,
-          text-footnote 13px) — bemalol sig'adi. 300px — xodimlar
-          ro'yxatidagi xuddi shu konstruksiya bilan bir xil: u yerda ham
-          rasm HAQIQIY va ism yonida ko'proq joy talab qiladi.
+          Rasm va to'liq ism BIR QATORDA (egasi 2026-10-22 — jadval qatori
+          ikkiga bo'linmaydi): telefon endi ism ostida emas, o'z ustunida.
+          Ism kesilmaydi — ustun o'zi kengayadi (katak `nowrap`).
         */
         meta: { minWidth: '300px' },
         cell: ({ row }) => {
@@ -196,30 +192,31 @@ export function UsersPage() {
                 userId={item.id}
                 photoKey={item.photoKey}
                 name={item.fullName}
-                size="lg"
+                size="md"
               />
-              <div className="min-w-0">
-                <p className="truncate-1 font-medium" title={item.fullName}>
-                  {item.fullName}
-                </p>
-                <p className="tabular truncate-1 text-footnote text-[var(--fg-secondary)]">
-                  {formatFullPhone(item.login)}
-                </p>
-              </div>
+              <span className="font-medium">{item.fullName}</span>
             </div>
           )
         },
+      }),
+
+      helper.accessor('login', {
+        header: t('employee.phone'),
+        enableSorting: false,
+        // «+998 90 508 88 88» — 17 belgi, tabular; kenglik mazmundan
+        cell: ({ getValue }) => (
+          <span className="tabular text-[var(--fg-secondary)]">{formatFullPhone(getValue())}</span>
+        ),
       }),
 
       helper.display({
         id: 'role',
         header: t('users.columnRole'),
         /*
-          190px − katak to'ldirishi (32px) = 158px matnga. Tizim rollari
-          shunga sig'adi: «HR menejeri» (11 belgi), «Bosh rahbar»
-          (11 belgi), «Super administrator» (19 belgi, ~162px 15px shriftda
-          ~8.5px/belgi hisobida). Egasi yozgan uzun nom («Kadr bo'limi
-          boshlig'i») kesiladi, to'lig'i esa `title` atributida.
+          190px — pastki chegara. Tizim rollari shunga sig'adi: «HR
+          menejeri», «Bosh rahbar», «Super administrator» (19 belgi). Egasi
+          yozgan uzunroq nomda («Kadr bo'limi boshlig'i») ustun o'zi
+          kengayadi — nom kesilmaydi (katak `nowrap`).
         */
         meta: { width: '190px', hideOnMobile: true },
         cell: ({ row }) => {
@@ -233,9 +230,7 @@ export function UsersPage() {
           */
           const label = roleDisplayName(t, { code, name: row.original.roleName ?? code })
           return (
-            <span className="truncate-1 block text-[var(--fg-secondary)]" title={label}>
-              {label}
-            </span>
+            <span className="text-[var(--fg-secondary)]">{label}</span>
           )
         },
       }),
@@ -243,8 +238,8 @@ export function UsersPage() {
       helper.display({
         id: 'status',
         header: t('users.columnStatus'),
-        // «Faolsiz» (7 belgi) + ixtiyoriy «Bloklangan» yorlig'i (10 belgi,
-        // pastda, kichikroq) — ikkalasi ham 77px dan tor. 120px kifoya.
+        // «Faolsiz» + ixtiyoriy «Bloklangan» yorlig'i YONMA-YON, bir qatorda.
+        // 120px — pastki chegara: ikkala yorliqli qatorda ustun o'zi kengayadi.
         meta: { width: '120px' },
         cell: ({ row }) => {
           const item = row.original
@@ -252,7 +247,7 @@ export function UsersPage() {
           const locked = lockedUntil !== null && new Date(lockedUntil).getTime() > Date.now()
 
           return (
-            <div className="flex flex-col items-start gap-1">
+            <div className="flex items-center gap-1.5">
               <Badge tone={item.isActive ? 'success' : 'neutral'} size="sm">
                 {item.isActive ? t('users.active') : t('users.inactive')}
               </Badge>

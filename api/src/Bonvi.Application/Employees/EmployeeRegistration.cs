@@ -79,6 +79,8 @@ internal static class EmployeeRegistration
         services.AddScoped<ListProbationsQueryHandler>();
         services.AddScoped<GetProbationsEndingSoonQueryHandler>();
         services.AddScoped<ResolveProbationCommandHandler>();
+        // Muddati tugagan sinov — avtomatik «o'tdi» (egasi 2026-10-22, Hangfire vazifasi)
+        services.AddScoped<ProbationAutoPassJob>();
         services.AddScoped<ExtendProbationCommandHandler>();
         services.AddScoped<ListMissingProbationsQueryHandler>();
         services.AddScoped<ConfirmMissingProbationsCommandHandler>();

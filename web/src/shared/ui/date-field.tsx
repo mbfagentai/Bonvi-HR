@@ -67,7 +67,9 @@ interface DateFieldProps {
   autoFocus?: boolean
   className?: string
   variant?: 'outlined' | 'filled'
-  size?: 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg'
+  /** Ko'rinadigan yorliqsiz maydon uchun (`DateRangeField` — «…sanadan»). */
+  ariaLabel?: string
 }
 
 /**
@@ -121,6 +123,7 @@ export function DateField({
   className,
   variant = 'outlined',
   size = 'md',
+  ariaLabel,
 }: DateFieldProps) {
   const { t } = useLocale()
 
@@ -295,6 +298,7 @@ export function DateField({
         autoFocus={autoFocus}
         variant={variant}
         size={size}
+        aria-label={ariaLabel}
         placeholder={DATE_MASK}
         inputMode="numeric"
         autoComplete="off"

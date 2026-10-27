@@ -55,6 +55,11 @@ export const RECRUITING_ERROR_FIELD: Readonly<Record<string, string>> = {
   'ism.uzun': 'lastName',
   'nomzod.tugilgan_sana': 'birthDate',
   'nomzod.vakansiya_yoq': 'vacancyId',
+  // «Ish haqida qayerdan bilgan» (SPEC-qayerdan-bilgan §5)
+  'qayerdan.majburiy': 'referralChannelId',
+  'qayerdan.topilmadi': 'referralChannelId',
+  'qayerdan.izoh_majburiy': 'referralDetail',
+  'qayerdan.izoh_uzun': 'referralDetail',
   /*
     Telefon xatolari (`telefon.*`) — `Phone` qiymat obyektidan keladi va
     ular xodimlar modulida ham xuddi shu maydonga tushadi. Nomzodda

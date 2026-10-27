@@ -216,3 +216,40 @@ public sealed class CandidateRepository : Repository<Candidate>, ICandidateRepos
         return counts is null ? (0, 0) : (counts.Total, counts.Hired);
     }
 }
+
+/// <summary><see cref="ICandidateFormRepository"/> — PostgreSQL.</summary>
+public sealed class CandidateFormRepository : Repository<CandidateForm>, ICandidateFormRepository
+{
+    public CandidateFormRepository(AppDbContext context) : base(context) { }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>nextval</c> tranzaksiyadan tashqarida — raqamda «teshik» qolishi zararsiz
+    /// (<c>DevicePersonNumbers</c> izohida batafsil).
+    /// </remarks>
+    public async Task<int> NextNumberAsync(CancellationToken cancellationToken = default)
+    {
+        var values = await Context.Database
+            .SqlQuery<int>($"SELECT nextval('candidate_form_number_seq')::int AS \"Value\"")
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return values[0];
+    }
+
+    /// <inheritdoc />
+    public Task<CandidateForm?> FindBySubmissionAsync(Guid clientSubmissionId, CancellationToken cancellationToken = default)
+        => Set
+            .AsNoTracking()
+            .FirstOrDefaultAsync(form => form.ClientSubmissionId == clientSubmissionId, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CandidateForm>> ListByCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default)
+        => await Set
+            .AsNoTracking()
+            .Where(form => form.CandidateId == candidateId)
+            .OrderByDescending(form => form.SubmittedAt)
+            .ThenByDescending(form => form.Number)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+}

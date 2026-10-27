@@ -232,6 +232,11 @@ public enum VacancySortField
 /// to'ldirilishini handler hal qiladi.
 /// </param>
 /// <param name="ClosedTo">Voronkadan chiqqan sananing yuqori chegarasi — kiradi.</param>
+/// <param name="ReferralChannelId">«Qayerdan bilgan» kanali bo'yicha filtr (faolsizlantirilgani ham).</param>
+/// <param name="ReferralMissing">
+/// Faqat kanali KO'RSATILMAGAN nomzodlar (eski yozuvlar). <see cref="ReferralChannelId"/> bilan
+/// birga berilsa ikkalasi ham qo'llanadi — natija bo'sh (ikki shart bir-birini istisno qiladi).
+/// </param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -266,7 +271,9 @@ public sealed record CandidateSearchFilter(
     DateTimeOffset? CreatedFrom = null,
     DateTimeOffset? CreatedBefore = null,
     DateOnly? ClosedFrom = null,
-    DateOnly? ClosedTo = null)
+    DateOnly? ClosedTo = null,
+    Guid? ReferralChannelId = null,
+    bool ReferralMissing = false)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
@@ -520,6 +527,9 @@ public sealed record CandidatePage(IReadOnlyList<CandidateRow> Items, int Total)
 /// </param>
 /// <param name="ClosedAt">Voronkadan chiqqan sana.</param>
 /// <param name="ClosingNote">Chiqish sababi (qora ro'yxat tabi uchun).</param>
+/// <param name="ReferralChannelId">«Qayerdan bilgan» kanali.</param>
+/// <param name="ReferralChannelName">Kanal nomi.</param>
+/// <param name="ReferralDetail">Aniqlik.</param>
 public sealed record CandidateRow(
     Guid Id,
     string LastName,
@@ -540,7 +550,10 @@ public sealed record CandidateRow(
     Guid? HiredEmployeeId,
     DateOnly? NextContactDate,
     DateOnly? ClosedAt,
-    string? ClosingNote);
+    string? ClosingNote,
+    Guid? ReferralChannelId,
+    string? ReferralChannelName,
+    string? ReferralDetail);
 
 /// <summary>
 /// Vakansiyalar ro'yxatining filtri.

@@ -34,6 +34,11 @@ export const SIMPLE_CATALOG_KINDS = [
     chiziladi.
   */
   'absence-types',
+  /*
+    Where candidates heard about the job (docs/SPEC-qayerdan-bilgan.md §3).
+    Same shape as absence types: a name plus one behaviour flag.
+  */
+  'referral-channels',
 ] as const
 
 export type SimpleCatalogKind = (typeof SIMPLE_CATALOG_KINDS)[number]
@@ -58,6 +63,11 @@ export interface CatalogItem {
    * (SPEC-jadval-sorovi §A). `false` — turni faqat HR kiritadi.
    */
   employeeCanRequest?: boolean
+  /**
+   * Referral channels only: choosing this channel asks the candidate for a
+   * free-text detail («Tanishlar orqali» → who recommended them).
+   */
+  asksDetail?: boolean
 }
 
 /**
@@ -71,6 +81,8 @@ export interface CatalogItemInput {
   countsAsWorkTime?: boolean
   /** Faqat yo'qlik turi uchun — `countsAsWorkTime` bilan bir xil qoida. */
   employeeCanRequest?: boolean
+  /** Referral channels only — sent with every save of that kind, ignored by the others. */
+  asksDetail?: boolean
 }
 
 export interface DepartmentItem extends CatalogItem {

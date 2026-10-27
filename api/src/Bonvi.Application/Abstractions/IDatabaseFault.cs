@@ -111,4 +111,11 @@ public interface IDatabaseFault
     /// </para>
     /// </remarks>
     bool IsStaleRequestWrite(Exception exception);
+
+    /// <summary>
+    /// Ikkita onlayn anketa bir xil <c>client_submission_id</c> bilan yozilmoqchi bo'ldi —
+    /// javobi yo'qolgan va qayta yuborilgan so'rov birinchisi hali yozilayotganda keldi.
+    /// </summary>
+    /// <remarks>Chaqiruvchi birinchisini qayta o'qib, xuddi takroriy yuborishdagidek javob beradi.</remarks>
+    bool IsDuplicateFormSubmission(Exception exception);
 }

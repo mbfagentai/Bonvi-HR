@@ -250,6 +250,7 @@ export type NotificationMetaItem =
 const SOURCE_KEY: Readonly<Record<string, string>> = {
   Manual: 'recruiting.source.manual',
   TelegramBot: 'recruiting.source.telegramBot',
+  OnlineForm: 'recruiting.source.onlineForm',
 }
 
 /**

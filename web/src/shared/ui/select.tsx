@@ -25,6 +25,7 @@ export function Select({
   error,
   options,
   placeholder,
+  size = 'md',
   className,
   id,
   ...select
@@ -35,13 +36,18 @@ export function Select({
   options: readonly SelectOption[]
   /** Bo'sh qiymat uchun birinchi qator. Berilmasa — bo'sh qiymat yo'q. */
   placeholder?: string
+  /**
+   * `sm` — ro'yxat paneli qatorida, qidiruv maydoni yonida (`Input`, h-10,
+   * 15 px). Standart `md` — forma maydoni (`TextField` bilan bir xil, h-12, 17 px).
+   */
+  size?: 'md' | 'sm'
 }) {
   const generatedId = useId()
   const fieldId = id ?? generatedId
   const messageId = `${fieldId}-message`
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn(size === 'sm' ? 'space-y-1.5' : 'space-y-2', className)}>
       {label !== undefined && (
         <label
           htmlFor={fieldId}
@@ -57,7 +63,8 @@ export function Select({
           aria-invalid={error ? true : undefined}
           aria-describedby={error || hint ? messageId : undefined}
           className={cn(
-            'h-12 w-full appearance-none rounded-md border pr-10 pl-3.5 text-body',
+            'w-full appearance-none rounded-md border',
+            size === 'sm' ? 'h-10 pr-9 pl-3 text-subhead' : 'h-12 pr-10 pl-3.5 text-body',
             'bg-[var(--bg-elevated)] text-[var(--fg)]',
             'transition-all duration-200 ease-[var(--ease-ios)] outline-none',
             error
@@ -84,7 +91,10 @@ export function Select({
 
         <ChevronDown
           aria-hidden
-          className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-[var(--fg-tertiary)]"
+          className={cn(
+            'pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-[var(--fg-tertiary)]',
+            size === 'sm' ? 'right-3' : 'right-3.5',
+          )}
           strokeWidth={2.5}
         />
       </div>

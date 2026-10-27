@@ -88,13 +88,19 @@ api.interceptors.response.use(
 
     if (!token) {
       authStorage.clear()
-      window.location.assign(loginUrl())
+      // Ochiq anketa — HR sahifasi emas: planshet brauzerida qolib ketgan
+      // eskirgan HR sessiyasi shunchaki tozalanadi, nomzod anketada qoladi.
+      if (!isPublicFormPath(window.location.pathname)) window.location.assign(loginUrl())
       return Promise.reject(error)
     }
 
     return api(original)
   },
 )
+
+function isPublicFormPath(pathname: string): boolean {
+  return pathname === '/anketa' || pathname.startsWith('/anketa/')
+}
 
 /**
  * Kirish sahifasining manzili, ochilgan sahifa eslab qolingan holda.

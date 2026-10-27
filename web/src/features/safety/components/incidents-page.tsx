@@ -4,14 +4,17 @@ import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
-import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
+import { isDateRangeInverted, toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
 import {
   Badge,
   Button,
   Card,
   DataTable,
-  DateField,
+  DateRangeField,
   EmptyState,
   IconTile,
   Input,
@@ -21,7 +24,13 @@ import {
   type DataColumn,
 } from '@/shared/ui'
 
-import { INCIDENT_SEVERITIES, type Incident, type IncidentSeverityValue } from '../api/incidents-api'
+import {
+  INCIDENT_SEVERITIES,
+  incidentListParams,
+  type Incident,
+  type IncidentFilters,
+  type IncidentSeverityValue,
+} from '../api/incidents-api'
 import { useIncidents } from '../api/incidents-queries'
 import { SAFETY_MANAGE, SAFETY_VIEW, SEVERITY_LOOK } from '../lib/safety-presentation'
 import { IncidentConcludeDialog } from './incident-conclude-dialog'
@@ -67,6 +76,8 @@ export function IncidentsPage() {
 
   const canView = hasPermission(SAFETY_VIEW)
   const canManage = hasPermission(SAFETY_MANAGE)
+  // Eksport — jurnalni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = canView && hasPermission(REPORTS_EXPORT)
 
   const searchParams = route.useSearch()
   const navigate = route.useNavigate()
@@ -93,12 +104,21 @@ export function IncidentsPage() {
    * `useUsers()` bilan bir xil naqsh: server baribir 403 qaytaradi, bu
    * yerda faqat natija ko'rsatilmaydi (pastdagi `!canView` bo'limi).
    */
-  const list = useIncidents({
+  /*
+    Filtr — ro'yxat ham, Excel eksporti ham AYNAN shundan (ro'yxat
+    sahifalanmaydi, ya'ni fayl ekrandagi qatorlarning o'zi).
+  */
+  const listFilters: IncidentFilters = {
     from: filters.from === '' ? undefined : filters.from,
     to: filters.to === '' ? undefined : filters.to,
     severity: filters.severity === '' ? undefined : filters.severity,
     search: search === '' ? undefined : search,
-  })
+  }
+
+  const list = useIncidents(listFilters)
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
   const rows = canView ? (list.data ?? EMPTY) : EMPTY
 
   const openCreate = () => {
@@ -116,21 +136,21 @@ export function IncidentsPage() {
       helper.accessor('employeeName', {
         header: t('employee.fullName'),
         /*
-          `flag-list-page.tsx` dagi bilan bir xil hisob va sabab: 300px −
-          katak to'ldirishi (32px) − rasm (48px) − oraliq (12px) = 208px sof
-          matnga. Uch ro'yxatda (belgilar, sinov, bu yerda) bir xil odam bir
-          xil kenglikda ko'rinsin — HR ko'zi shu o'lchamga o'rgangan.
+          Rasm va to'liq ism BIR QATORDA (egasi 2026-10-22 — jadval qatori
+          ikkiga bo'linmaydi). 300px — pastki chegara, uch ro'yxatda
+          (belgilar, sinov, bu yerda) bir xil; uzun ismda ustun o'zi
+          kengayadi — ism kesilmaydi.
         */
         meta: { width: '300px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-3">
             <EmployeePhoto
               employeeId={row.original.employeeId}
               photoKey={row.original.photoKey}
               name={row.original.employeeName ?? ''}
-              size="lg"
+              size="md"
             />
-            <p className="truncate-1 font-medium">{row.original.employeeName}</p>
+            <span className="font-medium">{row.original.employeeName}</span>
           </div>
         ),
       }),
@@ -167,11 +187,11 @@ export function IncidentsPage() {
         enableSorting: false,
         // Ortgan joyni shu ustun oladi — joy nomi erkin matn, uzunligi
         // oldindan noma'lum (`catalog-page.tsx` dagi «nom» ustuni bilan bir
-        // xil naqsh). 220px — pastki chegara, odatiy joy nomi (sex, ombor
-        // nomi) bir qatorga sig'adi.
+        // xil naqsh). 220px — pastki chegara; bir qatorda, 360px dan uzuni
+        // kesiladi — to'lig'i `title` da.
         meta: { minWidth: '220px' },
         cell: ({ getValue }) => (
-          <span className="truncate-1 block text-[var(--fg-secondary)]" title={getValue()}>
+          <span className="block max-w-[360px] truncate text-[var(--fg-secondary)]" title={getValue()}>
             {getValue()}
           </span>
         ),
@@ -326,30 +346,51 @@ export function IncidentsPage() {
           jurnalga «falonchi bilan nima bo'lgan edi» degan savol bilan
           kelinadi, qolgan ikkitasi esa kamdan-kam ishlatiladi.
         */}
-        <div className="border-b border-[var(--border)] px-4 py-3.5 sm:px-5">
-          <Input
-            icon={Search}
-            shape="pill"
-            type="search"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t('common.searchPlaceholder')}
-            aria-label={t('common.search')}
-          />
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] px-4 py-3.5 sm:gap-3 sm:px-5">
+          <div className="min-w-[200px] flex-1">
+            <Input
+              icon={Search}
+              shape="pill"
+              type="search"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={t('common.searchPlaceholder')}
+              aria-label={t('common.search')}
+            />
+          </div>
+
+          {/*
+            Eksport — yuqori filtr qatorida, qidiruv yonida (xodimlar ro'yxatidagi
+            joy): fayl aynan shu qidiruv, sana va darajaga tushadi.
+          */}
+          {canExport && (
+            <ListExportButton
+              onClick={() =>
+                exportList.mutate({
+                  path: '/api/safety/incidents/export',
+                  params: incidentListParams(listFilters),
+                  slug: 'baxtsiz_hodisalar',
+                })
+              }
+              pending={exportList.isPending}
+              // Teskari oraliqqa hech narsa mos kelmaydi — bo'sh fayl yuklashning ma'nosi yo'q
+              disabled={isDateRangeInverted(filters)}
+            />
+          )}
         </div>
 
         <div className="grid gap-3 border-b border-[var(--border)] px-4 py-3.5 sm:grid-cols-3 sm:px-5">
-          <DateField
-            label={t('common.dateFrom')}
-            value={filters.from}
-            onChange={(value) => setFilters({ ...filters, from: value })}
-          />
-          <DateField
-            label={t('common.dateTo')}
-            value={filters.to}
-            onChange={(value) => setFilters({ ...filters, to: value })}
+          <DateRangeField
+            label={t('dateRange.date')}
+            fromLabel={t('common.dateFrom')}
+            toLabel={t('common.dateTo')}
+            from={filters.from}
+            to={filters.to}
+            onFromChange={(value) => setFilters({ ...filters, from: value })}
+            onToChange={(value) => setFilters({ ...filters, to: value })}
           />
           <Select
+            size="sm"
             label={t('safety.severity')}
             options={severityOptions}
             value={filters.severity}
@@ -358,6 +399,8 @@ export function IncidentsPage() {
             }
           />
         </div>
+
+        <ListExportError error={exportList.error} />
 
         <DataTable
           columns={columns}

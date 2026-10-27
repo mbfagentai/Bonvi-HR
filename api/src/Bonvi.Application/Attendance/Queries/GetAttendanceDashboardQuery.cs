@@ -66,16 +66,7 @@ public sealed class GetAttendanceDashboardQueryHandler
         var page = AttendanceQueryParsing.Page(query.Page);
         var pageSize = AttendanceQueryParsing.PageSize(query.PageSize ?? AttendanceQueryParsing.DashboardPageSize);
 
-        var filter = new DashboardFilter(
-            query.Date ?? _clock.Today,
-            query.LegalEntityId,
-            query.DepartmentId,
-            query.PositionId,
-            AttendanceQueryParsing.Normalize(query.Search),
-            query.Status,
-            AttendanceQueryParsing.DashboardDescending(query.Sort),
-            page,
-            pageSize);
+        var filter = BuildFilter(query, _clock.Today, page, pageSize);
 
         var found = await _readModel.GetDashboardAsync(filter, cancellationToken).ConfigureAwait(false);
 
@@ -96,4 +87,29 @@ public sealed class GetAttendanceDashboardQueryHandler
             AttendanceQueryParsing.PageCount(found.TotalItems, pageSize),
             AttendanceDeviceHealth.Of(devices, _clock.UtcNow));
     }
+
+    /// <summary>
+    /// So'rovni filtrga aylantiradi — panel ham, Excel eksporti ham AYNAN shu metodni chaqiradi.
+    /// </summary>
+    /// <remarks>
+    /// <c>internal</c>: <see cref="Reports.Queries.ExportAttendanceDashboardQueryHandler"/> o'z
+    /// nusxasini yozmaydi (<see cref="SearchPassesQueryHandler.BuildFilter"/> precedenti).
+    /// Qidiruv va holat ham shu yerda — ular jadvalni SERVERDA toraytiradi, ya'ni fayl
+    /// ekrandagi qatorlarni oladi, butun to'plamni emas.
+    /// </remarks>
+    internal static DashboardFilter BuildFilter(
+        GetAttendanceDashboardQuery query,
+        DateOnly today,
+        int page,
+        int pageSize)
+        => new(
+            query.Date ?? today,
+            query.LegalEntityId,
+            query.DepartmentId,
+            query.PositionId,
+            AttendanceQueryParsing.Normalize(query.Search),
+            query.Status,
+            AttendanceQueryParsing.DashboardDescending(query.Sort),
+            page,
+            pageSize);
 }

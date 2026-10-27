@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 
 import type { PagedResult } from '@/features/employees/api/employees-api'
+import { useListReferralChannelOptions } from '@/shared/api/generated/recruiting/recruiting'
+import type { ReferralChannelOptionDto } from '@/shared/api/generated/model'
 import { fileNameFromDisposition, saveBlobAs } from '@/shared/lib/download'
 import { UZ_PHONE_LENGTH, uzPhoneDigits } from '@/shared/lib/phone'
 import type { SelectOption } from '@/shared/ui'
@@ -13,6 +15,8 @@ import {
   deleteVacancy,
   fetchCandidate,
   fetchCandidateFile,
+  fetchCandidateFormPdf,
+  fetchCandidateForms,
   fetchCandidatePhoneMatches,
   fetchCandidatePhoto,
   fetchCandidates,
@@ -90,6 +94,8 @@ export const recruitingKeys = {
   vacancies: (filters: VacancyFilters) => ['recruiting', 'vacancies', filters] as const,
   candidates: (filters: CandidateFilters) => ['recruiting', 'candidates', filters] as const,
   candidate: (id: string) => ['recruiting', 'candidate', id] as const,
+  /** Online HR-F02 forms of one candidate (`docs/SPEC-planshet-anketa.md`). */
+  forms: (id: string) => ['recruiting', 'candidate-forms', id] as const,
   phoneMatches: (phone: string, exceptId: string | null) =>
     ['recruiting', 'phone-matches', phone, exceptId] as const,
 
@@ -245,6 +251,23 @@ export function useVacancyOptions(status?: 'Open'): { options: SelectOption[]; i
   )
 
   return { options, isPending: list.isPending }
+}
+
+/* ══════════════════════════════════════════════════════ qayerdan bilgan */
+
+/** One «Qayerdan bilgan» channel as recruiting screens see it (generated contract). */
+export type ReferralChannelOption = ReferralChannelOptionDto
+
+/**
+ * «Qayerdan bilgan» channels for the candidate dialog and the list filter —
+ * `GET /api/recruiting/referral-channels`, gated by `recruiting.view` (not
+ * `catalog.view`: a recruiter who never opens the catalogs must still be able
+ * to add a candidate). Inactive rows included: the filter needs them, and the
+ * dialog keeps an older candidate's inactive channel; new choices offer only
+ * the active ones. Alphabetical — the server's order.
+ */
+export function useReferralChannelOptions() {
+  return useListReferralChannelOptions({ includeInactive: true })
 }
 
 /* ═════════════════════════════════════════════════════════════ nomzodlar */
@@ -740,6 +763,31 @@ export function useDeleteCandidatePhoto(candidateId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recruitingKeys.candidate(candidateId) })
       queryClient.removeQueries({ queryKey: recruitingKeys.photo(candidateId) })
+    },
+  })
+}
+
+/* ─────────────────────────────────────────────────────── planshet anketasi */
+
+/** Online forms of the candidate — usually none or one. */
+export function useCandidateForms(candidateId: string) {
+  return useQuery({
+    queryKey: recruitingKeys.forms(candidateId),
+    queryFn: ({ signal }) => fetchCandidateForms(candidateId, signal),
+    enabled: candidateId !== '',
+  })
+}
+
+/**
+ * Downloads the form's PDF. A mutation for the same reason as
+ * `useDownloadCandidateFile`: bytes are needed on a click, not on page load.
+ */
+export function useDownloadCandidateFormPdf() {
+  return useMutation({
+    meta: { readOnly: true },
+    mutationFn: async ({ id, formId, fallbackName }: { id: string; formId: string; fallbackName: string }) => {
+      const { blob, disposition } = await fetchCandidateFormPdf(id, formId)
+      saveBlobAs(blob, fileNameFromDisposition(disposition) ?? fallbackName)
     },
   })
 }

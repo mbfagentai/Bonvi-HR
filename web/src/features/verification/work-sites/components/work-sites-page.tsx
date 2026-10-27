@@ -85,46 +85,34 @@ export function WorkSitesPage() {
 
   const columns = useMemo<Array<DataColumn<WorkSite>>>(
     () => [
+      /*
+        ⭐ BIR QATOR (egasi 2026-10-22): izoh nom ostida emas, o'z ustunida;
+        uzun manzil va izoh kesiladi, to'liq matn sichqoncha ostida.
+      */
       helper.accessor('name', {
         header: t('attendance.workSites.columnName'),
-        meta: { minWidth: '240px' },
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <p
-              className={cn(
-                'truncate-1 font-medium',
-                !row.original.isActive && 'text-[var(--fg-secondary)]',
-              )}
-            >
-              {row.original.name}
-            </p>
-            {row.original.note !== null && row.original.note !== '' && (
-              <p className="truncate-1 mt-0.5 text-caption1 text-[var(--fg-tertiary)]">
-                {row.original.note}
-              </p>
-            )}
-          </div>
+          <span className={cn('font-medium', !row.original.isActive && 'text-[var(--fg-secondary)]')}>
+            {row.original.name}
+          </span>
         ),
       }),
 
       helper.accessor('address', {
         header: t('attendance.workSites.columnAddress'),
-        meta: { width: '32%', hideOnMobile: true },
-        cell: ({ row }) => (
-          <span
-            className={cn(
-              'truncate-1',
-              row.original.address === null ? 'text-[var(--fg-tertiary)]' : 'text-[var(--fg-secondary)]',
-            )}
-          >
-            {row.original.address ?? '—'}
-          </span>
-        ),
+        meta: { hideOnMobile: true },
+        cell: ({ row }) => <LongText value={row.original.address} />,
+      }),
+
+      helper.accessor('note', {
+        header: t('employees.note'),
+        enableSorting: false,
+        meta: { hideOnMobile: true },
+        cell: ({ row }) => <LongText value={row.original.note} />,
       }),
 
       helper.accessor('shape', {
         header: t('attendance.workSites.columnShape'),
-        meta: { width: '220px' },
         cell: ({ row }) => (
           <span className="tabular text-[var(--fg-secondary)]">
             {row.original.shape === WorkSiteShape.Circle
@@ -140,7 +128,6 @@ export function WorkSitesPage() {
 
       helper.accessor('isActive', {
         header: t('attendance.workSites.columnStatus'),
-        meta: { width: '120px' },
         cell: ({ row }) => (
           <Badge tone={row.original.isActive ? 'success' : 'neutral'} size="sm">
             {row.original.isActive
@@ -281,5 +268,15 @@ export function WorkSitesPage() {
         activeCount={activeCount}
       />
     </div>
+  )
+}
+
+/** Erkin matn (manzil, izoh) — bir qatorda, uzun bo'lsa kesiladi, to'liq matn `title` da. */
+function LongText({ value }: { value: string | null }) {
+  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
+  return (
+    <span className="block max-w-[360px] truncate text-[var(--fg-secondary)]" title={value}>
+      {value}
+    </span>
   )
 }

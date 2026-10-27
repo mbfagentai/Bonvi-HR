@@ -1,4 +1,6 @@
 using Bonvi.Application.Recruiting.Candidates;
+using Bonvi.Application.Recruiting.Forms;
+using Bonvi.Application.Recruiting.Referrals;
 using Bonvi.Application.Recruiting.Stages;
 using Bonvi.Application.Recruiting.Vacancies;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,11 @@ internal static class RecruitingRegistration
     public static IServiceCollection AddRecruiting(this IServiceCollection services)
     {
         services.AddScoped<RecruitingMapper>();
+
+        // «Qayerdan bilgan» — tanlov qoidasi (HR formasi, bot, onlayn anketa) va
+        // rekruting ruxsati bilan o'qiladigan ro'yxat (SPEC-qayerdan-bilgan §5).
+        services.AddScoped<ReferralChannelChoice>();
+        services.AddScoped<ListReferralChannelOptionsQueryHandler>();
 
         // Voronka bosqichlari — ma'lumotnoma, lekin O'Z handlerlari bilan
         // (tartib va qayta tartiblash umumiy ma'lumotnoma mexanizmida yo'q).
@@ -80,6 +87,14 @@ internal static class RecruitingRegistration
         services.AddScoped<UploadCandidatePhotoCommandHandler>();
         services.AddScoped<GetCandidatePhotoQueryHandler>();
         services.AddScoped<DeleteCandidatePhotoCommandHandler>();
+
+        // Nomzod anketasi HR-F02 (SPEC-planshet-anketa): ochiq onlayn forma (seans,
+        // yuborish) va kartadagi anketalar/PDF. PDF chizuvchisi va jurnal
+        // Infrastructure'da ro'yxatga olingan.
+        services.AddScoped<GetKioskSessionQueryHandler>();
+        services.AddScoped<SubmitQuestionnaireFormCommandHandler>();
+        services.AddScoped<ListCandidateFormsQueryHandler>();
+        services.AddScoped<GetCandidateFormPdfQueryHandler>();
 
         return services;
     }

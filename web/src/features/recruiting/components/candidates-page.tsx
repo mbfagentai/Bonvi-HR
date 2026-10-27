@@ -1,9 +1,13 @@
 import { Link, getRouteApi } from '@tanstack/react-router'
-import { ArrowRight, Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
+import { ArrowRight, Link2, Paperclip, Plus, SearchX, UserPlus, UserRoundX } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 
 import { useAuth } from '@/features/auth'
+import { AnketaLinkDialog } from '@/features/kiosk/components/anketa-link-dialog'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportError } from '@/features/reports/components/list-export'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { isDateRangeInverted } from '@/shared/lib/list-search'
@@ -24,13 +28,26 @@ import {
   dataColumnHelper,
   type DataColumn,
 } from '@/shared/ui'
-import type { CandidateFilters, CandidateListItem, PipelineStage } from '../api/recruiting-api'
-import { useCandidates, useStages, useVacancyOptions } from '../api/recruiting-queries'
+import {
+  candidateListParams,
+  type CandidateFilters,
+  type CandidateListFilters,
+  type CandidateListItem,
+  type PipelineStage,
+} from '../api/recruiting-api'
+import {
+  useCandidates,
+  useReferralChannelOptions,
+  useStages,
+  useVacancyOptions,
+  type ReferralChannelOption,
+} from '../api/recruiting-queries'
 import {
   DEFAULT_SORT,
   filtersToSearch,
   isFiltered,
   normalizeSort,
+  referralFilter,
   searchToFilters,
   type CandidatesFilterState,
   type CandidatesSearch,
@@ -40,6 +57,7 @@ import { recruitingErrorCode } from '../lib/recruiting-error'
 import {
   CANDIDATE_LOOK,
   RECRUITING_MANAGE,
+  RECRUITING_VIEW,
   SOURCE_LOOK,
 } from '../lib/recruiting-presentation'
 import { CandidateFormDialog } from './candidate-form-dialog'
@@ -51,6 +69,7 @@ const helper = dataColumnHelper<CandidateListItem>()
 /** Modul darajasida — har render'da yangi massiv jadval modelini buzadi. */
 const EMPTY: CandidateListItem[] = []
 const NO_STAGES: PipelineStage[] = []
+const NO_CHANNELS: ReferralChannelOption[] = []
 
 const route = getRouteApi('/_app/nomzodlar/')
 
@@ -77,6 +96,9 @@ export function CandidatesPage() {
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
   const canManage = hasPermission(RECRUITING_MANAGE)
+  const canView = hasPermission(RECRUITING_VIEW)
+  // Eksport — ro'yxatni ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = hasPermission(RECRUITING_VIEW) && hasPermission(REPORTS_EXPORT)
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -95,6 +117,7 @@ export function CandidatesPage() {
   const frame = view === 'table'
 
   const [creating, setCreating] = useState(false)
+  const [anketaLink, setAnketaLink] = useState(false)
 
   /**
    * ⭐ «RAD ETILGANLAR» BO'LIMI — menyudagi alohida band shu manzilni
@@ -164,6 +187,23 @@ export function CandidatesPage() {
     [activeStages.data],
   )
 
+  /*
+    «Qayerdan bilgan» filter — EVERY channel, inactive ones too: old
+    candidates keep a channel HR has since switched off, and the filter must
+    still find them (SPEC-qayerdan-bilgan §6). Inactive rows are marked.
+  */
+  const referralChannels = useReferralChannelOptions()
+  const referralOptions = useMemo(
+    () =>
+      (referralChannels.data ?? NO_CHANNELS).map((channel) => ({
+        value: channel.id,
+        label: channel.isActive
+          ? channel.name
+          : t('recruiting.referralInactive', { name: channel.name }),
+      })),
+    [referralChannels.data, t],
+  )
+
   /** Jadval va voronka uchun umumiy filtr — bosqich, sahifa va hajmsiz. */
   const sharedFilters = useMemo<Omit<CandidateFilters, 'stageId' | 'page' | 'pageSize'>>(
     () => ({
@@ -182,6 +222,8 @@ export function CandidatesPage() {
       */
       ...(filters.from === '' ? {} : { from: filters.from }),
       ...(filters.to === '' ? {} : { to: filters.to }),
+      // Table, funnel and the Excel file — the same channel filter
+      ...referralFilter(filters.referral),
       /*
         ⭐ Qidiruvda rad etilganlar va o'zi voz kechganlar HAM chiqadi
         (egasi, 2026-10-15: «qidirilsa rad etilgan nomzodlardan ham
@@ -233,13 +275,25 @@ export function CandidatesPage() {
   */
   const rangeInvalid = isDateRangeInverted(filters)
 
-  const query = useCandidates(
-    {
+  /**
+   * Jadval filtri sahifasiz — ro'yxat ham, Excel eksporti ham AYNAN shundan
+   * (`employees-page.tsx` dagi `listFilters` naqshi): ekranda nima bo'lsa,
+   * faylda ham shu, saralash bilan birga.
+   */
+  const listFilters = useMemo<CandidateListFilters>(
+    () => ({
       ...sharedFilters,
       ...(filters.stageId === '' ? {} : { stageId: filters.stageId }),
+      sort,
+    }),
+    [sharedFilters, filters.stageId, sort],
+  )
+
+  const query = useCandidates(
+    {
+      ...listFilters,
       page,
       pageSize,
-      sort,
     },
     // Voronkada bu so'rov KERAK EMAS: ustunlar o'z so'rovlarini
     // yuboradi va bu yerdagi natija hech qayerda chizilmaydi. Uni
@@ -247,6 +301,21 @@ export function CandidatesPage() {
     // so'rov degani.
     view === 'table' && !rangeInvalid,
   )
+
+  /*
+    Excelga yuklash. Jadvalda — jadval filtri (bosqich va saralash bilan);
+    voronkada — taxtaning o'z filtri: u bosqich tanlovini e'tiborsiz qoldiradi
+    va holat tanlanmasa faqat jarayondagilarni ko'rsatadi, fayl ham shunday.
+    Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi
+    (`employees-page.tsx` dagi `exportList` izohi).
+  */
+  const exportList = useListExport()
+  const exportCandidates = () =>
+    exportList.mutate({
+      path: '/api/recruiting/candidates/export',
+      params: candidateListParams(view === 'funnel' ? funnelFilters : listFilters),
+      slug: rejectedSection ? 'rad_etilgan_nomzodlar' : 'nomzodlar',
+    })
 
   /**
    * ⭐ «Rezervda ham bor» izohi — qidiruv REZERVDAGI nomzodga ham mos
@@ -424,11 +493,15 @@ export function CandidatesPage() {
         // (`normalizeSort` faqat serverning uchta kalitini qabul qiladi).
         id: 'name',
         header: t('employee.fullName'),
-        /* YAGONA `minWidth`li ustun — ortgan joyni F.I.Sh. oladi. */
+        /*
+          YAGONA `minWidth`li ustun — ortgan joyni F.I.Sh. oladi. Ism
+          kesilmaydi va qatorga bo'linmaydi (egasi 2026-10-22: har yozuv bir
+          qatorda) — ustun eng uzun ismgacha kengayadi.
+        */
         meta: { minWidth: '260px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate-1 font-medium">{row.original.fullName}</p>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{row.original.fullName}</span>
 
             {/*
               Rezyume bor-yo'qligi — kichik qisqich ikonasi. Alohida
@@ -449,14 +522,12 @@ export function CandidatesPage() {
       helper.accessor('vacancy', {
         header: t('recruiting.vacancy'),
         enableSorting: false,
-        meta: { width: '200px' },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
       helper.accessor('currentStage', {
         id: 'stage',
         header: t('recruiting.stage'),
-        meta: { width: '170px' },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
@@ -490,10 +561,10 @@ export function CandidatesPage() {
       helper.accessor('source', {
         header: t('recruiting.sourceLabel'),
         enableSorting: false,
-        // 130px. Manba ro'yxatda ATAYLAB ko'rinib turadi — keyingi
-        // bosqichda Telegram boti ulanadi va farq darhol sezilishi
-        // kerak (`SOURCE_LOOK` izohi).
-        meta: { width: '130px', hideOnMobile: true },
+        // Manba ro'yxatda ATAYLAB ko'rinib turadi — keyingi bosqichda
+        // Telegram boti ulanadi va farq darhol sezilishi kerak
+        // (`SOURCE_LOOK` izohi). Kenglik mazmundan.
+        meta: { hideOnMobile: true },
         cell: ({ row }) => {
           const look = SOURCE_LOOK[row.original.source]
           const Icon = look.icon
@@ -509,8 +580,7 @@ export function CandidatesPage() {
       helper.accessor('phone', {
         header: t('employee.phone'),
         enableSorting: false,
-        // 170px — formatlangan raqam («+998 90 123 45 67», 17 belgi) bir
-        // qatorga sig'ishi uchun; 150px da u ikkiga bo'linib qolardi
+        // 170px — formatlangan raqam («+998 90 123 45 67», 17 belgi)
         meta: { width: '170px', hideOnMobile: true },
         cell: ({ getValue }) => {
           const value = getValue()
@@ -562,6 +632,8 @@ export function CandidatesPage() {
   return (
     <div
       data-list-frame={frame ? '' : undefined}
+      // Voronka ham ekranning butun eni — ustunlar ko'proq sig'adi (`app-shell.tsx`)
+      data-wide-list={frame ? undefined : ''}
       className={cn('space-y-6', frame && 'frame:flex frame:h-full frame:flex-col')}
     >
       <PageHeader
@@ -579,36 +651,56 @@ export function CandidatesPage() {
             {t(rejectedSection ? 'nav.rejectedCandidates' : 'nav.candidates')}
           </span>
         }
+        // Voronkada son yo'q (ro'yxat bosqichlar bo'yicha yuklanadi) — panelda faqat sarlavha
         subtitle={
           view === 'funnel'
-            ? t('recruiting.funnelSubtitle')
+            ? undefined
             : firstLoad
               ? t('common.loading')
               : t('recruiting.candidateSubtitle', { n: num(total) })
         }
+        description={view === 'funnel' ? t('recruiting.funnelSubtitle') : undefined}
+        // Ko'rinish almashtirgichi — sahifada, avvalgi joyida (egasi 2026-10-22)
+        toolbar={
+          <SegmentedControl
+            value={view}
+            onChange={changeView}
+            options={viewOptions}
+            size="sm"
+            aria-label={t('recruiting.view')}
+          />
+        }
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <SegmentedControl
-              value={view}
-              onChange={changeView}
-              options={viewOptions}
-              size="sm"
-              aria-label={t('recruiting.view')}
-            />
-
-            {/*
-              «Nomzod qo'shish» rad etilganlar bo'limida ATAYLAB yo'q:
-              yangi nomzod har doim `InProgress` bo'lib tug'iladi, ya'ni
-              u shu ro'yxatga tushmasdi — HR qo'shgan odam ko'z oldida
-              yo'q bo'lib qolardi.
-            */}
-            {canManage && !rejectedSection && (
-              <Button variant="create" onClick={() => setCreating(true)}>
-                <Plus />
-                {t('recruiting.candidateCreate')}
-              </Button>
-            )}
-          </div>
+          /*
+            «Nomzod qo'shish» rad etilganlar bo'limida ATAYLAB yo'q:
+            yangi nomzod har doim `InProgress` bo'lib tug'iladi, ya'ni
+            u shu ro'yxatga tushmasdi — HR qo'shgan odam ko'z oldida
+            yo'q bo'lib qolardi.
+          */
+          (canView || canManage) && !rejectedSection ? (
+            <>
+              {/* The public HR-F02 form link (`docs/SPEC-planshet-anketa.md` §8) */}
+              {canView && (
+                // Icon only on a phone: the header row already carries the view switch and «+».
+                <Button
+                  variant="secondary"
+                  pill
+                  onClick={() => setAnketaLink(true)}
+                  title={t('kiosk.link.button')}
+                  className="max-sm:size-10 max-sm:px-0"
+                >
+                  <Link2 />
+                  <span className="max-sm:sr-only">{t('kiosk.link.button')}</span>
+                </Button>
+              )}
+              {canManage && (
+                <Button variant="create" onClick={() => setCreating(true)}>
+                  <Plus />
+                  {t('recruiting.candidateCreate')}
+                </Button>
+              )}
+            </>
+          ) : undefined
         }
       />
 
@@ -663,7 +755,11 @@ export function CandidatesPage() {
           onChange={changeFilters}
           vacancies={allVacancies.options}
           stages={stageOptions}
+          referralChannels={referralOptions}
           rejectedSection={rejectedSection}
+          onExport={canExport ? exportCandidates : undefined}
+          exporting={exportList.isPending}
+          exportDisabled={rangeInvalid}
         />
 
         {rangeInvalid && (
@@ -671,6 +767,9 @@ export function CandidatesPage() {
             <Alert tone="warning">{errorMessage('royxat.sana_oraligi_notogri')}</Alert>
           </div>
         )}
+
+        {/* Eksport xatosi — tugmaning ostida, kartaning ichida (xodimlar ro'yxatidagi joy) */}
+        <ListExportError error={exportList.error} />
 
         {view === 'funnel' ? (
           rangeInvalid ? null : (
@@ -746,6 +845,8 @@ export function CandidatesPage() {
         )}
       </Card>
 
+      {canView && <AnketaLinkDialog open={anketaLink} onClose={() => setAnketaLink(false)} />}
+
       <CandidateFormDialog
         open={creating}
         item={null}
@@ -766,11 +867,7 @@ export function CandidatesPage() {
 /** Bo'sh katak chiziqcha bilan — «yuklanmadimi?» degan savol tug'ilmasin. */
 function TextCell({ value }: { value: string | null }) {
   if (value === null) return <span className="text-[var(--fg-tertiary)]">—</span>
-  return (
-    <span className="truncate-1 text-[var(--fg-secondary)]" title={value}>
-      {value}
-    </span>
-  )
+  return <span className="text-[var(--fg-secondary)]">{value}</span>
 }
 
 /**

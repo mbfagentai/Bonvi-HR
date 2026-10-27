@@ -22,6 +22,13 @@ public enum EducationLevel
 
     /// <summary>Oliy — tugallanmagan.</summary>
     HigherIncomplete = 4,
+
+    /// <summary>Oliy — magistratura.</summary>
+    /// <remarks>
+    /// Onlayn anketadan (HR-F02, 2026-10-24) keladi; bot uni hech qachon
+    /// yubormaydi. OXIRIGA qo'shildi — bazadagi eski qiymatlar siljimaydi.
+    /// </remarks>
+    HigherMaster = 5,
 }
 
 /// <summary>Nomzodning oilaviy holati.</summary>
@@ -39,6 +46,10 @@ public enum MaritalStatus
 
     /// <summary>Ajrashgan.</summary>
     Divorced = 3,
+
+    /// <summary>Beva.</summary>
+    /// <remarks>Onlayn anketadan (HR-F02); bot yubormaydi. OXIRIGA qo'shildi.</remarks>
+    Widowed = 4,
 }
 
 /// <summary>
@@ -72,32 +83,19 @@ public enum SalaryExpectation
 
     /// <summary>5–7 million so'm.</summary>
     From5To7Million = 4,
-}
 
-/// <summary>Nomzod ish haqida qayerdan bilgan.</summary>
-/// <remarks>
-/// Bu — reklama byudjeti haqidagi yagona o'lchov. Qaysi kanal nomzod
-/// olib kelayotganini boshqa hech qayerdan bilib bo'lmaydi.
-/// </remarks>
-public enum ReferralSource
-{
-    /// <summary>Tanishlar orqali.</summary>
-    Acquaintance = 1,
+    /// <summary>4–5 million so'm.</summary>
+    /// <remarks>
+    /// Eski oraliqlardagi «teshik» (3–4 dan keyin darhol 5–7). Onlayn
+    /// anketa ANIQ summa so'raydi va uni oraliqqa o'giradi — 4,5 mln
+    /// so'ragan odam hech qaysi eski oraliqqa to'g'ri tushmasdi. Izohdagi
+    /// qoida bo'yicha yangi qiymat QO'SHILDI, eskilari o'zgarmadi.
+    /// </remarks>
+    From4To5Million = 5,
 
-    /// <summary>Instagram yoki Facebook.</summary>
-    SocialNetwork = 2,
-
-    /// <summary>OLX.uz.</summary>
-    Olx = 3,
-
-    /// <summary>hh.uz.</summary>
-    HeadHunter = 4,
-
-    /// <summary>Telegram.</summary>
-    Telegram = 5,
-
-    /// <summary>Boshqa manba.</summary>
-    Other = 6,
+    /// <summary>7 million so'm va undan yuqori.</summary>
+    /// <remarks>Onlayn anketadan; bot yubormaydi.</remarks>
+    From7Million = 6,
 }
 
 /// <summary>
@@ -217,8 +215,12 @@ public sealed class CandidateQuestionnaire : Entity
     /// <summary>Kutilayotgan maosh oralig'i.</summary>
     public SalaryExpectation ExpectedSalary { get; private set; }
 
-    /// <summary>Ish haqida qayerdan bilgan.</summary>
-    public ReferralSource ReferralSource { get; private set; }
+    /*
+      «Ish haqida qayerdan bilgan» ENDI BU YERDA EMAS — nomzodning o'zida
+      (`Candidate.ReferralChannelId`, SPEC-qayerdan-bilgan §4): u HAR BIR
+      nomzodga kerak, anketa esa faqat bot va onlayn anketada bor.
+      Migratsiya `QayerdanBilgan` eski javoblarni o'sha yerga ko'chirgan.
+    */
 
     /// <summary>
     /// Ommaviy oferta bilan rozilik VAQTI.
@@ -267,7 +269,6 @@ public sealed class CandidateQuestionnaire : Entity
         MaritalStatus maritalStatus,
         LanguageLevel russianLevel,
         SalaryExpectation expectedSalary,
-        ReferralSource referralSource,
         DateTimeOffset? offerAcceptedAt,
         string? workExperience = null,
         string? otherLanguages = null,
@@ -302,11 +303,6 @@ public sealed class CandidateQuestionnaire : Entity
             return Error.Validation("anketa.maosh_notogri", "Kutilayotgan maosh oralig'i noto'g'ri.");
         }
 
-        if (!Enum.IsDefined(referralSource))
-        {
-            return Error.Validation("anketa.manba_notogri", "Manba noto'g'ri.");
-        }
-
         /*
           Guvohnoma YO'Q bo'lsa toifa ham bo'lmaydi — qiymat jimgina
           tashlanadi, xato qaytarilmaydi. Sabab: bu holat mijozning
@@ -323,7 +319,6 @@ public sealed class CandidateQuestionnaire : Entity
             MaritalStatus = maritalStatus,
             RussianLevel = russianLevel,
             ExpectedSalary = expectedSalary,
-            ReferralSource = referralSource,
             OfferAcceptedAt = offerAcceptedAt,
             WorkExperience = Cut(workExperience, MaxWorkExperienceLength),
             OtherLanguages = Cut(otherLanguages, MaxOtherLanguagesLength),

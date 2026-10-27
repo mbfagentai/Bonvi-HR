@@ -64,6 +64,16 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
     setDialogOpen(true)
   }, [])
 
+  /*
+    «Izoh» ustuni faqat kamida bitta yozuvda izoh bo'lsa chiziladi — ko'p
+    ma'lumotnomada izoh umuman yo'q, bo'sh ustun esa «nimadir yuklanmadi»
+    degan taassurot berardi.
+  */
+  const hasNotes = useMemo(
+    () => (list.data ?? EMPTY).some((item) => item.note !== null && item.note !== ''),
+    [list.data],
+  )
+
   const columns = useMemo<Array<DataColumn<CatalogItem>>>(() => {
     const definitions: Array<DataColumn<CatalogItem>> = [
       // Ortgan joyni shu ustun oladi — nom yozuvni tanishning birdan-bir
@@ -81,54 +91,79 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
       //
       // 300px — pastki chegara: real ma'lumotnomalardagi nomlarning aksari
       // (oltala ma'lumotnoma, eng uzuni ~35 belgi) shu kenglikda bir
-      // qatorga sig'adi, faqat eng uzun uchtasi biroz kesiladi.
+      // qatorga sig'adi; uzunrog'ida ustun o'zi kengayadi — nom kesilmaydi
+      // (katak `nowrap`, `data-table.tsx`).
       helper.accessor('name', {
         header: t('catalog.columnName'),
         meta: { minWidth: '300px' },
+        /*
+          Nom va yorliqlar BIR QATORDA; izoh endi nom ostida emas, o'z
+          ustunida (egasi 2026-10-22 — jadval qatori ikkiga bo'linmaydi).
+        */
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <p
-                className={cn(
-                  'truncate-1 font-medium',
-                  // Faol emas yozuv o'chirilmagan — shunchaki so'ndirilgan
-                  !row.original.isActive && 'text-[var(--fg-secondary)]',
-                )}
-              >
-                {row.original.name}
-              </p>
-
-              {row.original.countsAsWorkTime === true && (
-                <Badge tone="info" size="sm" className="shrink-0">
-                  {t('catalog.workTimeBadge')}
-                </Badge>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                'font-medium',
+                // Faol emas yozuv o'chirilmagan — shunchaki so'ndirilgan
+                !row.original.isActive && 'text-[var(--fg-secondary)]',
               )}
+            >
+              {row.original.name}
+            </span>
 
-              {/*
-                Faqat `false` da: maydon boshqa ma'lumotnomalarda umuman yo'q
-                (`undefined`) va ular «Faqat HR» bo'lib ko'rinmasligi kerak.
-              */}
-              {row.original.employeeCanRequest === false && (
-                <Badge tone="neutral" size="sm" className="shrink-0">
-                  {t('catalog.employeeRequestBadge')}
-                </Badge>
-              )}
+            {row.original.countsAsWorkTime === true && (
+              <Badge tone="info" size="sm" className="shrink-0">
+                {t('catalog.workTimeBadge')}
+              </Badge>
+            )}
 
-              {!row.original.isActive && (
-                <Badge tone="neutral" size="sm" className="shrink-0">
-                  {t('catalog.statusInactive')}
-                </Badge>
-              )}
-            </div>
-            {row.original.note !== null && row.original.note !== '' && (
-              <p className="truncate-1 mt-0.5 text-caption1 text-[var(--fg-tertiary)]">
-                {row.original.note}
-              </p>
+            {/*
+              Faqat `false` da: maydon boshqa ma'lumotnomalarda umuman yo'q
+              (`undefined`) va ular «Faqat HR» bo'lib ko'rinmasligi kerak.
+            */}
+            {row.original.employeeCanRequest === false && (
+              <Badge tone="neutral" size="sm" className="shrink-0">
+                {t('catalog.employeeRequestBadge')}
+              </Badge>
+            )}
+
+            {/* Referral channels: the candidate is asked who / which source after choosing it */}
+            {row.original.asksDetail === true && (
+              <Badge tone="info" size="sm" className="shrink-0">
+                {t('catalog.asksDetailBadge')}
+              </Badge>
+            )}
+
+            {!row.original.isActive && (
+              <Badge tone="neutral" size="sm" className="shrink-0">
+                {t('catalog.statusInactive')}
+              </Badge>
             )}
           </div>
         ),
       }),
     ]
+
+    if (hasNotes) {
+      definitions.push(
+        helper.accessor('note', {
+          header: t('catalog.fieldNote'),
+          enableSorting: false,
+          meta: { hideOnMobile: true },
+          // Erkin matn — bir qatorda, uzuni kesiladi; to'lig'i `title` da va tahrirlash oynasida
+          cell: ({ getValue }) => {
+            const note = getValue()
+            if (note === null || note === '') return null
+            return (
+              <span className="block max-w-[420px] truncate text-footnote text-[var(--fg-tertiary)]" title={note}>
+                {note}
+              </span>
+            )
+          },
+        }),
+      )
+    }
 
     // Ruxsat yo'q bo'lsa ustunning o'zi ham chiqmaydi — bo'sh ustun
     // «bu yerda nimadir bo'lishi kerak edi» degan taassurot qoldiradi
@@ -156,7 +191,7 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
     }
 
     return definitions
-  }, [t, canManage])
+  }, [t, canManage, hasNotes])
 
   const rows = useMemo(() => {
     const source = list.data ?? EMPTY
@@ -184,7 +219,7 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
             {t(`catalog.kinds.${meta.i18nKey}.title`)}
           </span>
         }
-        subtitle={t(`catalog.kinds.${meta.i18nKey}.subtitle`)}
+        description={t(`catalog.kinds.${meta.i18nKey}.subtitle`)}
         actions={
           canManage ? (
             <Button variant="create" onClick={openCreate}>

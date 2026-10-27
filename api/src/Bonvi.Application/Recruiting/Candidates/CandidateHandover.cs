@@ -1,4 +1,5 @@
 using Bonvi.Application.Common.Photos;
+using Bonvi.Application.Recruiting.Referrals;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
@@ -94,6 +95,7 @@ public sealed class CandidateHandover
     public const string DocumentTypeName = "Номзодлик ҳужжатлари";
 
     private readonly IReferenceRepository<DocumentType> _documentTypes;
+    private readonly IReferenceRepository<ReferralChannel> _referralChannels;
     private readonly IEmployeeDocumentRepository _documents;
     private readonly IEmployeeCompetencyRepository _competencies;
     private readonly IPipelineStageRepository _stages;
@@ -102,6 +104,7 @@ public sealed class CandidateHandover
 
     public CandidateHandover(
         IReferenceRepository<DocumentType> documentTypes,
+        IReferenceRepository<ReferralChannel> referralChannels,
         IEmployeeDocumentRepository documents,
         IEmployeeCompetencyRepository competencies,
         IPipelineStageRepository stages,
@@ -109,6 +112,7 @@ public sealed class CandidateHandover
         IClock clock)
     {
         _documentTypes = documentTypes;
+        _referralChannels = referralChannels;
         _documents = documents;
         _competencies = competencies;
         _stages = stages;
@@ -284,8 +288,9 @@ public sealed class CandidateHandover
     {
         var anketa = candidate.Questionnaire;
         var remarks = await RemarksAsync(candidate, cancellationToken).ConfigureAwait(false);
+        var referral = await ReferralAsync(candidate, cancellationToken).ConfigureAwait(false);
 
-        if (anketa is null && remarks is null)
+        if (anketa is null && remarks is null && referral is null)
         {
             return false;
         }
@@ -318,7 +323,7 @@ public sealed class CandidateHandover
         // izohlari anketa javoblaridan KEYIN, bo'sh qator bilan.
         if (string.IsNullOrWhiteSpace(competency.CandidateNote))
         {
-            var parts = new[] { anketa is null ? null : Summary(anketa), remarks }
+            var parts = new[] { Summary(anketa, referral), remarks }
                 .Where(part => part is not null)
                 .ToArray();
 
@@ -475,15 +480,29 @@ public sealed class CandidateHandover
     /// xil narsani o'qiydi.
     /// </para>
     /// </remarks>
-    private static string? Summary(CandidateQuestionnaire anketa)
+    /// <param name="anketa">Anketa — bo'lmasligi mumkin (HR qo'lda kiritgan nomzod).</param>
+    /// <param name="referral">
+    /// «Qayerdan bilgan» matni — nomzodning o'z maydonidan (SPEC-qayerdan-bilgan §6), anketadan
+    /// emas: anketasiz nomzodda ham u bor.
+    /// </param>
+    private static string? Summary(CandidateQuestionnaire? anketa, string? referral)
     {
+        if (anketa is null)
+        {
+            return referral is null ? null : $"Ish haqida qayerdan bilgan: {referral}";
+        }
+
         var lines = new List<string>(6)
         {
             $"Ma'lumoti: {Education(anketa.Education)}",
             $"Oilaviy holati: {Marital(anketa.MaritalStatus)}",
             $"Kutilayotgan maosh: {ExpectedSalary(anketa.ExpectedSalary)}",
-            $"Ish haqida qayerdan bilgan: {Referral(anketa.ReferralSource)}",
         };
+
+        if (referral is not null)
+        {
+            lines.Add($"Ish haqida qayerdan bilgan: {referral}");
+        }
 
         if (!string.IsNullOrWhiteSpace(anketa.WorkExperience))
         {
@@ -509,6 +528,7 @@ public sealed class CandidateHandover
         EducationLevel.VocationalSchool => "O'rta maxsus (kollej, litsey)",
         EducationLevel.HigherComplete => "Oliy (bakalavr)",
         EducationLevel.HigherIncomplete => "Oliy (tugallanmagan)",
+        EducationLevel.HigherMaster => "Oliy (magistr)",
         _ => "ko'rsatilmagan",
     };
 
@@ -517,6 +537,7 @@ public sealed class CandidateHandover
         MaritalStatus.Married => "Oilali",
         MaritalStatus.Unmarried => "Bo'ydoq",
         MaritalStatus.Divorced => "Ajrashgan",
+        MaritalStatus.Widowed => "Beva",
         _ => "ko'rsatilmagan",
     };
 
@@ -526,19 +547,29 @@ public sealed class CandidateHandover
         SalaryExpectation.From2To3Million => "2-3 mln so'm",
         SalaryExpectation.From3To4Million => "3-4 mln so'm",
         SalaryExpectation.From5To7Million => "5-7 mln so'm",
+        SalaryExpectation.From4To5Million => "4-5 mln so'm",
+        SalaryExpectation.From7Million => "7 mln so'm dan yuqori",
         _ => "ko'rsatilmagan",
     };
 
-    private static string Referral(ReferralSource source) => source switch
+    /// <summary>
+    /// «Qayerdan bilgan» — kanal nomi va aniqlik («Tanishlar orqali — Rustamov Bahodir»).
+    /// </summary>
+    /// <remarks>
+    /// Nom ma'lumotnomadan, faolsizlantirilgani ham. Kanalsiz eski nomzodda <c>null</c> —
+    /// qator umuman yozilmaydi («ko'rsatilmagan» degan qator hech narsa aytmasdi).
+    /// </remarks>
+    private async Task<string?> ReferralAsync(Candidate candidate, CancellationToken cancellationToken)
     {
-        ReferralSource.Acquaintance => "Tanishlar orqali",
-        ReferralSource.SocialNetwork => "Instagram / Facebook",
-        ReferralSource.Olx => "OLX.uz",
-        ReferralSource.HeadHunter => "hh.uz",
-        ReferralSource.Telegram => "Telegram",
-        ReferralSource.Other => "Boshqa manba",
-        _ => "ko'rsatilmagan",
-    };
+        if (candidate.ReferralChannelId is not { } channelId)
+        {
+            return null;
+        }
+
+        var channel = await _referralChannels.GetByIdAsync(channelId, cancellationToken).ConfigureAwait(false);
+
+        return ReferralChannelChoice.Label(channel?.Name, candidate.ReferralDetail);
+    }
 
     /// <summary>
     /// Kompyuter va haydovchilik ko'nikmalarini bitta matnga yig'adi.

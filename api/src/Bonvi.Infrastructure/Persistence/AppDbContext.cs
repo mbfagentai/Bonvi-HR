@@ -198,6 +198,9 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Yo'qlik turlari — davomat so'rovlari shu ro'yxatdan tanlanadi.</summary>
     public DbSet<AbsenceType> AbsenceTypes => Set<AbsenceType>();
 
+    /// <summary>«Qayerdan bilgan» kanallari — nomzod ish haqida qayerdan bilgani (<c>referral_channels</c>).</summary>
+    public DbSet<ReferralChannel> ReferralChannels => Set<ReferralChannel>();
+
     /// <summary>Jadval so'rovlari (SPEC-verifikatsiya-jadval-sorovi §C).</summary>
     public DbSet<ScheduleChangeRequest> ScheduleChangeRequests => Set<ScheduleChangeRequest>();
 
@@ -288,6 +291,9 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Botda to'ldirilgan anketalar (<c>candidate_questionnaires</c>).</summary>
     public DbSet<CandidateQuestionnaire> CandidateQuestionnaires => Set<CandidateQuestionnaire>();
+
+    /// <summary>Ochiq onlayn formada to'ldirilgan anketalar — HR-F02 (<c>candidate_forms</c>).</summary>
+    public DbSet<CandidateForm> CandidateForms => Set<CandidateForm>();
 
     // ────────────────────────────────────────────────────────────
     //  DAVOMAT / VERIFIKATSIYA (3-bosqich)
@@ -450,6 +456,13 @@ public class AppDbContext : DbContext, IUnitOfWork
             .StartsAt(1)
             .IncrementsBy(1)
             .HasMax(99_999_999);
+
+        // «Anketa №» (SPEC-planshet-anketa §6.1) — xuddi shu sabab: «eng kattasi + 1»
+        // bir vaqtda yuborilgan ikki anketaga bir xil raqam berardi.
+        modelBuilder
+            .HasSequence<int>(Configurations.CandidateFormConfiguration.NumberSequence)
+            .StartsAt(1)
+            .IncrementsBy(1);
 
         base.OnModelCreating(modelBuilder);
     }

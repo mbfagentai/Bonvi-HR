@@ -5,6 +5,8 @@ using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Application.Recruiting.Dtos;
+using Bonvi.Application.Recruiting.Referrals;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Recruiting;
 using Microsoft.AspNetCore.Mvc;
@@ -31,6 +33,15 @@ namespace Bonvi.Api.Endpoints;
 /// Botda to'ldirilgan anketa — IXTIYORIY blok. Berilmasa so'rov AYNAN
 /// avvalgidek ishlaydi (batafsil sabab <c>CandidateQuestionnaireInput</c>
 /// izohida).
+/// </param>
+/// <param name="ReferralChannelId">
+/// «Ish haqida qayerdan bilgan» — MAJBURIY: faol kanal identifikatori
+/// («/api/recruiting/referral-channels» ro'yxatidan). Yo'q — «qayerdan.majburiy» (400),
+/// topilmadi yoki faolsizlantirilgan — «qayerdan.topilmadi» (400).
+/// </param>
+/// <param name="ReferralDetail">
+/// Aniqlik («kim tavsiya qildi / qaysi manba»), ≤ 200 belgi. Kanal so'rasa
+/// (<c>asksDetail</c>) majburiy — «qayerdan.izoh_majburiy»; so'ramasa saqlanmaydi.
 /// </param>
 public sealed record RegisterCandidateRequest(
     string? LastName,
@@ -70,16 +81,40 @@ public sealed record RegisterCandidateRequest(
     /*
       Anketa — botning 22 qadamli oqimidagi javoblar. Blok BUTUNLIGICHA
       ixtiyoriy: deploy tartibi «avval API, keyin bot» va oraliqda eski
-      bot shu maydonsiz so'rov yuboradi.
+      bot shu maydonsiz so'rov yuboradi. (⚠️ «referralChannelId» esa
+      2026-10-26 dan majburiy — bot va API birga deploy qilinadi.)
 
       Tur Application qatlamidan olinadi va API'da qayta e'lon
       qilinmaydi — `LanguageSkill` bilan bir xil qaror: ikkita bir xil
       record bo'lganida ular vaqt o'tib bir-biridan uzoqlashardi va
       farqi faqat prod'da ko'rinardi.
     */
-    CandidateQuestionnaireInput? Questionnaire = null);
+    CandidateQuestionnaireInput? Questionnaire = null,
+
+    /*
+      «Qayerdan bilgan» — anketa blokida EMAS, nomzodning o'zida: HR formasi ham
+      yuboradi (SPEC-qayerdan-bilgan §5). `Guid?` — majburiyligi Application
+      qatlamida tekshiriladi va yo'qligi aniq kod bilan qaytadi; `= default` esa
+      OpenAPI hujjatini yiqitardi (yuqoridagi izoh).
+    */
+    Guid? ReferralChannelId = null,
+    string? ReferralDetail = null);
 
 /// <summary>Nomzod ma'lumotini tuzatish so'rovi tanasi — vakansiya va manba o'zgarmaydi.</summary>
+/// <param name="LastName">Familiya.</param>
+/// <param name="FirstName">Ism.</param>
+/// <param name="MiddleName">Otasining ismi.</param>
+/// <param name="BirthDate">Tug'ilgan sana.</param>
+/// <param name="Phone">Telefon.</param>
+/// <param name="Address">Manzil.</param>
+/// <param name="Speciality">Mutaxassisligi.</param>
+/// <param name="Note">Izoh.</param>
+/// <param name="ReferralChannelId">
+/// «Qayerdan bilgan» kanali. <c>null</c> FAQAT kanalsiz eski nomzodda mumkin (HR boshqa
+/// maydonni tuzatyapti); kanali bor nomzodni tozalab bo'lmaydi — «qayerdan.majburiy».
+/// YANGI tanlov faol kanal bo'lishi shart; o'zgarmagan (keyin faolsizlantirilgan) kanal saqlanadi.
+/// </param>
+/// <param name="ReferralDetail">Aniqlik — <see cref="RegisterCandidateRequest.ReferralDetail"/> dagi qoida.</param>
 public sealed record UpdateCandidateRequest(
     string? LastName,
     string? FirstName,
@@ -88,7 +123,9 @@ public sealed record UpdateCandidateRequest(
     string? Phone = null,
     string? Address = null,
     string? Speciality = null,
-    string? Note = null);
+    string? Note = null,
+    Guid? ReferralChannelId = null,
+    string? ReferralDetail = null);
 
 /// <summary>Nomzodni boshqa vakansiyaga o'tkazish so'rovi tanasi.</summary>
 /// <param name="VacancyId">
@@ -357,12 +394,15 @@ public static class CandidateEndpoints
     /// <summary>Surat so'rovining chegarasi — rasm chegarasi + multipart «konverti».</summary>
     private const long MaxPhotoRequestBytes = PhotoLimits.MaxBytes + (64 * 1024);
 
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     public static IEndpointRouteBuilder MapCandidateEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
         var group = app.MapGroup("/api/recruiting/candidates").WithTags("Recruiting");
 
+        MapReferralChannels(app);
         MapReads(group);
         MapWrites(group);
         MapFunnel(group);
@@ -371,6 +411,41 @@ public static class CandidateEndpoints
         MapPhoto(group);
 
         return app;
+    }
+
+    /// <summary>
+    /// «Qayerdan bilgan» tanlash ro'yxati — rekruting ruxsati bilan (SPEC-qayerdan-bilgan §5).
+    /// </summary>
+    /// <remarks>
+    /// Ma'lumotnoma endpointi (<c>/api/catalog/referral-channels</c>) <c>catalog.view</c> bilan
+    /// ochiladi; bu ro'yxat esa nomzod kiritadigan har kimga kerak — bot hisobiga ham
+    /// (unda faqat <c>recruiting.*</c> bor) va ma'lumotnomalarni ko'rmaydigan rekruterga ham.
+    /// </remarks>
+    private static void MapReferralChannels(IEndpointRouteBuilder app)
+    {
+        app.MapGet("/api/recruiting/referral-channels", async (
+                bool? includeInactive,
+                ListReferralChannelOptionsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListReferralChannelOptionsQuery(includeInactive ?? false), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithTags("Recruiting")
+            .RequireAuthorization(Permissions.RecruitingView)
+            .WithName("ListReferralChannelOptions")
+            .WithSummary("«Qayerdan bilgan» — tanlash ro'yxati")
+            .WithDescription(
+                "Sukut — faqat FAOL kanallar (yangi nomzod formasi, bot), alifbo tartibida. " +
+                "«includeInactive=true» — faolsizlantirilganlari ham (nomzodlar ro'yxatining filtri: " +
+                "eski nomzodlar o'sha kanal bilan qolgan). Har qatorda «asksDetail» — tanlanganda " +
+                "aniqlik («kim / qaysi manba») majburiy. Ruxsat: «recruiting.view».")
+            .Produces<IReadOnlyList<ReferralChannelOptionDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 
     private static void MapReads(IEndpointRouteBuilder group)
@@ -398,6 +473,8 @@ public static class CandidateEndpoints
                 DateOnly? from,
                 DateOnly? to,
                 bool? closedDate,
+                Guid? referralChannelId,
+                bool? referralMissing,
                 SearchCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -406,7 +483,8 @@ public static class CandidateEndpoints
                         new SearchCandidatesQuery(
                             search, vacancyId, stageId, status, source, page, pageSize, sort,
                             includeArchive ?? false, contactDue ?? false, rejected ?? false,
-                            includeRejected ?? false, from, to, closedDate ?? false),
+                            includeRejected ?? false, from, to, closedDate ?? false,
+                            referralChannelId, referralMissing ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -458,12 +536,69 @@ public static class CandidateEndpoints
                 "«rejected=true» bo'limida — voronkadan chiqqan sana («closedAt»: rad etilgan / voz " +
                 "kechgan kun), qolgan hamma joyda — ariza sanasi («createdAt», TOSHKENT kuni bo'yicha); " +
                 "sanoq («total») ham shu filtr bilan. «from» > «to» — «royxat.sana_oraligi_notogri» (400). " +
+                "«referralChannelId» — «qayerdan bilgan» kanali bo'yicha (faolsizlantirilgani ham), " +
+                "«referralMissing=true» — kanali ko'rsatilmagan (eski) nomzodlar; ikkalasi birga berilsa natija bo'sh. " +
                 "Har qatorda «hasResume» (kamida bitta FAYL biriktirilganmi), " +
-                "«hasPhoto» va «nextContactDate» bor; ANKETA ro'yxatga QO'SHILMAYDI — " +
-                "u og'ir va faqat kartada kerak.")
+                "«hasPhoto», «nextContactDate» va «referralChannelId/referralChannelName/referralDetail» bor; " +
+                "ANKETA ro'yxatga QO'SHILMAYDI — u og'ir va faqat kartada kerak.")
             .Produces<PagedResult<CandidateListItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/export", async (
+                string? search,
+                Guid? vacancyId,
+                Guid? stageId,
+                string? status,
+                string? source,
+                string? sort,
+                bool? includeArchive,
+                bool? contactDue,
+                bool? rejected,
+                bool? includeRejected,
+                DateOnly? from,
+                DateOnly? to,
+                bool? closedDate,
+                Guid? referralChannelId,
+                bool? referralMissing,
+                ExportCandidatesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                // Parametrlar «GET /api/recruiting/candidates» bilan AYNAN bir xil
+                // (sahifadan tashqari): eksport ekrandagi filtrlar bilan mos
+                // keladigan HAMMA nomzodni bitta faylda beradi.
+                var natija = await handler
+                    .HandleAsync(
+                        new SearchCandidatesQuery(
+                            search, vacancyId, stageId, status, source, Page: null, PageSize: null, sort,
+                            includeArchive ?? false, contactDue ?? false, rejected ?? false,
+                            includeRejected ?? false, from, to, closedDate ?? false,
+                            referralChannelId, referralMissing ?? false),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: ro'yxatni ko'rish (`recruiting.view`) va
+            // tizimdan fayl olib chiqish (`reports.export`).
+            .RequireAuthorization(Permissions.RecruitingView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportCandidatesToExcel")
+            .WithSummary("Nomzodlar — Excel eksport")
+            .WithDescription(
+                "Filtr va saralash parametrlari «GET /api/recruiting/candidates» bilan AYNAN bir xil — " +
+                "eksport ekranda ko'ringan nomzodlarni (Nomzodlar, Rad etilganlar, Rezerv va Qora " +
+                "ro'yxatning «Nomzodlar» bo'limi), o'sha tartibda, sahifasiz qaytaradi. Ustunlar: " +
+                "F.I.Sh., vakansiya, bosqich, holat, manba, telefon, kiritilgan vaqt, «qayerdan bilgan» " +
+                "(kanal va « — aniqlik»), keyingi aloqa, ro'yxatga tushgan (yopilgan) sana va sabab. Eng ko'pi 5000 qator: kattaroq natija " +
+                "«eksport.juda_kop» (400) bilan rad etiladi. Ruxsat: «recruiting.view» VA " +
+                "«reports.export». Har bir eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/phone-matches", async (
                 string? phone,
@@ -521,7 +656,9 @@ public static class CandidateEndpoints
                 "Botda to'ldirilgan anketa «questionnaire» blokida qaytadi; u " +
                 "«null» BO'LISHI ODATIY hol (HR qo'lda kiritgan yoki eski bot " +
                 "yozuvi) va o'shanda interfeys anketa bo'limini umuman chizmaydi. " +
-                "«hasPhoto» — surat bor-yo'qligi; rasmning o'zi «/photo» orqali olinadi.")
+                "«hasPhoto» — surat bor-yo'qligi; rasmning o'zi «/photo» orqali olinadi. " +
+                "«referralChannelId» / «referralChannelName» / «referralDetail» — ish haqida qayerdan " +
+                "bilgani (nomzodning o'zida, anketada emas); eski yozuvda bo'sh bo'lishi mumkin.")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
@@ -549,7 +686,9 @@ public static class CandidateEndpoints
                             request.Source,
                             request.TelegramChatId,
                             request.TelegramLanguage,
-                            request.Questionnaire),
+                            request.Questionnaire,
+                            request.ReferralChannelId,
+                            request.ReferralDetail),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -573,10 +712,13 @@ public static class CandidateEndpoints
                 "Anketadagi «offerAcceptedAt» IXTIYORIY: berilmasa nomzoddan ommaviy " +
                 "oferta bilan rozilik SO'RALMAGAN degani (oferta havolasi sozlanmagan " +
                 "bo'lsa bot 21-qadamni umuman chizmaydi) va maydon bo'sh saqlanadi. " +
+                "«referralChannelId» MAJBURIY (faol kanal, «/api/recruiting/referral-channels»), " +
+                "«referralDetail» — kanal «asksDetail» bo'lsa majburiy, aks holda saqlanmaydi (≤ 200). " +
                 "Xatolar: «bosqich.faol_emas» (409), «bosqich.faol_yoq» (409), " +
                 "«ism.familiya_bosh» / «ism.ism_bosh» / «telefon.*» (400), " +
+                "«qayerdan.majburiy» / «qayerdan.topilmadi» / «qayerdan.izoh_majburiy» / «qayerdan.izoh_uzun» (400), " +
                 "«anketa.malumot_notogri» / «anketa.oila_notogri» / «anketa.til_notogri» / " +
-                "«anketa.maosh_notogri» / «anketa.manba_notogri» (400).")
+                "«anketa.maosh_notogri» (400).")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -599,7 +741,9 @@ public static class CandidateEndpoints
                             request.Phone,
                             request.Address,
                             request.Speciality,
-                            request.Note),
+                            request.Note,
+                            request.ReferralChannelId,
+                            request.ReferralDetail),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -611,7 +755,11 @@ public static class CandidateEndpoints
             .WithDescription(
                 "Vakansiya va MANBA bu yerdan o'zgarmaydi: vakansiya uchun " +
                 "«/reassign» bor, manba esa tarixiy fakt (bot samaradorligi " +
-                "hisoboti unga tayanadi).")
+                "hisoboti unga tayanadi). «Qayerdan bilgan»: «referralChannelId» bo'sh qoldirilishi " +
+                "faqat kanalsiz eski nomzodda mumkin, kanali bor nomzodni tozalab bo'lmaydi " +
+                "(«qayerdan.majburiy»); YANGI kanal faol bo'lishi shart («qayerdan.topilmadi»), " +
+                "o'zgarmagan (keyin faolsizlantirilgan) kanal saqlanadi; aniqlik so'raydigan " +
+                "kanalda bor aniqlikni bo'shatib bo'lmaydi («qayerdan.izoh_majburiy»).")
             .Produces<CandidateDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);

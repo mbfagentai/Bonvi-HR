@@ -73,6 +73,19 @@ public sealed record AbsenceTypeDto(
     bool CountsAsWorkTime,
     bool EmployeeCanRequest);
 
+/// <summary>«Qayerdan bilgan» kanali — nomzod ish haqida qayerdan bilgani (SPEC-qayerdan-bilgan §3).</summary>
+/// <param name="Id">Identifikator.</param>
+/// <param name="Name">Nom.</param>
+/// <param name="IsActive">Faolmi — faol emasi yangi nomzodda tanlanmaydi, eskilarida qoladi.</param>
+/// <param name="Note">Izoh.</param>
+/// <param name="AsksDetail">Tanlanganda aniqlik so'raladimi («kim tavsiya qildi / qaysi manba»).</param>
+public sealed record ReferralChannelDto(
+    Guid Id,
+    string Name,
+    bool IsActive,
+    string? Note,
+    bool AsksDetail);
+
 /// <summary>Jarima turi.</summary>
 /// <param name="Id">Identifikator.</param>
 /// <param name="Name">Nom.</param>

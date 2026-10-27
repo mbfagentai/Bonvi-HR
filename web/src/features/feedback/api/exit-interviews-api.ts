@@ -143,7 +143,11 @@ function toExitInterview(raw: unknown): ExitInterview {
   }
 }
 
-function listParams(filters: ExitInterviewFilters): Record<string, unknown> {
+/**
+ * Ro'yxat so'rovining parametrlari — ro'yxat ham, Excel eksporti ham AYNAN
+ * shu funksiyadan (`docs/SPEC-excel-eksport.md` §3). Ro'yxat sahifalanmaydi.
+ */
+export function exitInterviewListParams(filters: ExitInterviewFilters): Record<string, unknown> {
   const params: Record<string, unknown> = {}
   if (filters.from) params['from'] = filters.from
   if (filters.to) params['to'] = filters.to
@@ -164,7 +168,7 @@ export async function fetchExitInterviews(
   signal?: AbortSignal,
 ): Promise<ExitInterview[]> {
   const { data } = await api.get<unknown>('/api/exit-interviews', {
-    params: listParams(filters),
+    params: exitInterviewListParams(filters),
     signal,
   })
   return Array.isArray(data) ? data.map(toExitInterview) : []

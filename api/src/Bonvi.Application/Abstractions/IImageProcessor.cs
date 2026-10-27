@@ -82,4 +82,22 @@ public interface IImageProcessor
     /// holat emas.
     /// </returns>
     Task<ProcessedImage?> ToBoundedAsync(Stream source, int maxEdge, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Barmoq bilan chizilgan imzoni QAYTA CHIZADI: faqat PNG, o'lchami
+    /// <paramref name="maxWidth"/>×<paramref name="maxHeight"/> dan oshmaydi,
+    /// shaffof joylari oq fonga yotqiziladi, natija — serverning o'zi kodlagan PNG.
+    /// </summary>
+    /// <remarks>
+    /// Mijoz yuborgan baytlar HECH QACHON saqlanmaydi: imzo keyin har safar HR PDF'ni
+    /// ochganda dekodlanadi va kichik fayl ichida ulkan o'lcham e'lon qilgan PNG
+    /// («bomba») server xotirasini tugatardi. O'lcham sarlavhadan, dekodlashdan OLDIN
+    /// tekshiriladi.
+    /// </remarks>
+    /// <param name="source">Manba oqimi.</param>
+    /// <param name="maxWidth">Eng katta eni (piksel).</param>
+    /// <param name="maxHeight">Eng katta bo'yi (piksel).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    /// <returns>Oq fondagi PNG; PNG bo'lmasa, buzilgan yoki o'lchamdan katta bo'lsa — <c>null</c>.</returns>
+    Task<ProcessedImage?> ToFlatPngAsync(Stream source, int maxWidth, int maxHeight, CancellationToken cancellationToken = default);
 }

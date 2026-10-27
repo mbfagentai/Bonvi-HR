@@ -631,26 +631,17 @@ public sealed class SearchScheduleChangeRequestsQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        if (query.From is { } from && query.To is { } to && from > to)
-        {
-            return AttendanceErrors.PeriodReversed;
-        }
-
         var page = AttendanceQueryParsing.Page(query.Page);
         var pageSize = AttendanceQueryParsing.PageSize(query.PageSize);
 
+        var filter = BuildFilter(query, page, pageSize);
+        if (filter.IsFailure)
+        {
+            return filter.Error;
+        }
+
         var found = await _readModel
-            .SearchScheduleChangeRequestsAsync(
-                new ScheduleChangeRequestFilter(
-                    query.EmployeeId,
-                    query.Status,
-                    query.Decided,
-                    query.From,
-                    query.To,
-                    string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
-                    page,
-                    pageSize),
-                cancellationToken)
+            .SearchScheduleChangeRequestsAsync(filter.Value, cancellationToken)
             .ConfigureAwait(false);
 
         return new PagedResult<ScheduleChangeRequestDto>(
@@ -659,6 +650,35 @@ public sealed class SearchScheduleChangeRequestsQueryHandler
             pageSize,
             found.Total,
             AttendanceQueryParsing.PageCount(found.Total, pageSize));
+    }
+
+    /// <summary>
+    /// So'rovni filtrga aylantiradi — ekran ham, Excel eksporti ham AYNAN shu metodni chaqiradi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SearchAbsenceRequestsQueryHandler.BuildFilter"/> bilan bir xil sabab:
+    /// <see cref="Reports.Queries.ExportScheduleChangeRequestsQueryHandler"/> filtrning
+    /// ikkinchi nusxasini yozmaydi.
+    /// </remarks>
+    internal static Result<ScheduleChangeRequestFilter> BuildFilter(
+        SearchScheduleChangeRequestsQuery query,
+        int page,
+        int pageSize)
+    {
+        if (query.From is { } from && query.To is { } to && from > to)
+        {
+            return AttendanceErrors.PeriodReversed;
+        }
+
+        return new ScheduleChangeRequestFilter(
+            query.EmployeeId,
+            query.Status,
+            query.Decided,
+            query.From,
+            query.To,
+            string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
+            page,
+            pageSize);
     }
 }
 

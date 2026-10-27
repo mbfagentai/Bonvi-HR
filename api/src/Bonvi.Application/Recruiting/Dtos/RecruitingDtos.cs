@@ -357,6 +357,13 @@ public sealed record InterviewNoticeDto(
 /// Chiqish sababi. Ro'yxatga «Qora ro'yxat → Nomzodlar» tabi uchun qo'shildi
 /// (2026-10-07): u yerda SABAB — eng muhim ustun («nega bu odam olinmaydi»).
 /// </param>
+/// <param name="ReferralChannelId">
+/// «Qayerdan bilgan» kanali (SPEC-qayerdan-bilgan §6). <c>null</c> — ko'rsatilmagan (eski
+/// yozuv yoki Excel arxivi). Ro'yxatda alohida USTUN yo'q (qator bir qatorli) — maydon
+/// filtrlangan ro'yxat va eksport bilan bir xil shaklda bo'lishi uchun.
+/// </param>
+/// <param name="ReferralChannelName">Kanal nomi — faolsizlantirilgani ham.</param>
+/// <param name="ReferralDetail">Aniqlik: «kim tavsiya qildi / qaysi manba».</param>
 public sealed record CandidateListItemDto(
     Guid Id,
     string FullName,
@@ -376,7 +383,10 @@ public sealed record CandidateListItemDto(
     Guid? HiredEmployeeId,
     DateOnly? NextContactDate,
     DateOnly? ClosedAt,
-    string? ClosingNote);
+    string? ClosingNote,
+    Guid? ReferralChannelId,
+    string? ReferralChannelName,
+    string? ReferralDetail);
 
 /// <summary>
 /// Nomzodning botda to'ldirgan anketasi — nomzod kartasining bir qismi.
@@ -407,8 +417,13 @@ public sealed record CandidateListItemDto(
 /// <param name="ExtraNote">Nomzodning o'zi haqida qo'shimcha aytgani.</param>
 /// <param name="HasDriverLicense">Haydovchilik guvohnomasi bormi.</param>
 /// <param name="DriverLicenseCategories">Guvohnoma toifasi: B, BC, BCE, BCED.</param>
-/// <param name="ExpectedSalary">Kutilayotgan maosh ORALIG'I.</param>
-/// <param name="ReferralSource">Ish haqida qayerdan bilgan.</param>
+/// <param name="ExpectedSalary">
+/// Kutilayotgan maosh ORALIG'I.
+/// <para>
+/// «Ish haqida qayerdan bilgan» bu blokda ENDI YO'Q — u nomzodning o'zida
+/// (<see cref="CandidateDto.ReferralChannelName"/>), chunki har bir nomzodga kerak.
+/// </para>
+/// </param>
 /// <param name="OfferAcceptedAt">
 /// Ommaviy oferta bilan rozilik VAQTI — huquqiy fakt, bayroq emas.
 /// <c>null</c> bo'lishi ODATIY hol: oferta havolasi sozlanmaganda bot
@@ -427,7 +442,6 @@ public sealed record CandidateQuestionnaireDto(
     bool HasDriverLicense,
     string? DriverLicenseCategories,
     SalaryExpectation ExpectedSalary,
-    ReferralSource ReferralSource,
     DateTimeOffset? OfferAcceptedAt);
 
 /// <summary>Yuklangan nomzod suratining saqlash kaliti.</summary>
@@ -515,6 +529,14 @@ public sealed record CandidatePhotoDto(string PhotoKey);
 /// kiritgan nomzodda ham, bu funksiya paydo bo'lgunicha yozilgan
 /// nomzodlarda ham u yo'q.
 /// </param>
+/// <param name="ReferralChannelId">
+/// «Ish haqida qayerdan bilgan» kanali (SPEC-qayerdan-bilgan §4). <c>null</c> faqat eski
+/// yozuvda va Excel arxivida — yangi nomzodda u majburiy.
+/// </param>
+/// <param name="ReferralChannelName">
+/// Kanal nomi — faolsizlantirilgan bo'lsa ham (eski nomzod o'sha kanal bilan qoladi).
+/// </param>
+/// <param name="ReferralDetail">Aniqlik: «kim tavsiya qildi / qaysi manba».</param>
 public sealed record CandidateDto(
     Guid Id,
     string LastName,
@@ -544,7 +566,10 @@ public sealed record CandidateDto(
     IReadOnlyList<CandidateStageEntryDto> Stages,
     IReadOnlyList<CandidateFileDto> Files,
     IReadOnlyList<CandidateNoteDto> Notes,
-    CandidateQuestionnaireDto? Questionnaire);
+    CandidateQuestionnaireDto? Questionnaire,
+    Guid? ReferralChannelId,
+    string? ReferralChannelName,
+    string? ReferralDetail);
 
 /// <summary>
 /// To'g'ridan-to'g'ri ishga olishning natijasi: yopilgan nomzod va

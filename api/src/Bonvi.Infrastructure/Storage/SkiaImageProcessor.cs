@@ -72,11 +72,10 @@ public sealed class SkiaImageProcessor : IImageProcessor
     /// qo'shardi. Chegara ikkalasini ham bitta shart bilan yopadi.
     /// </para>
     /// <para>
-    /// ⚠️ <see cref="ToSquareAsync"/> bu tekshiruvni ATAYLAB olmadi: u
-    /// avvaldan shunday ishlaydi va uni o'zgartirish bu topshiriqning
-    /// doirasidan tashqarida. Tekshiruv alohida metodda
-    /// (<see cref="ExceedsPixelBudget"/>) turishi kerakli paytda uni bitta
-    /// qator bilan o'sha yo'lga ham qo'shish imkonini beradi.
+    /// <see cref="ToSquareAsync"/> ham 2026-10-24 dan shu tekshiruvdan o'tadi:
+    /// onlayn anketa suratni internetdan ochiq yo'l orqali qabul qiladi va
+    /// xavfsizlik ko'rigi kichik fayldagi ulkan o'lcham API jarayonini o'ldirishini
+    /// ko'rsatdi. Haqiqiy suratlar (≤ 50 MP) bunga tegmaydi.
     /// </para>
     /// </remarks>
     private const long MaxSourcePixels = 80L * 1000 * 1000;
@@ -118,6 +117,21 @@ public sealed class SkiaImageProcessor : IImageProcessor
         return bytes is null ? null : RenderBounded(bytes, maxEdge);
     }
 
+    public async Task<ProcessedImage?> ToFlatPngAsync(
+        Stream source,
+        int maxWidth,
+        int maxHeight,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxWidth, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxHeight, 1);
+
+        var bytes = await BufferAsync(source, cancellationToken).ConfigureAwait(false);
+
+        return bytes is null ? null : RenderFlatPng(bytes, maxWidth, maxHeight);
+    }
+
     /// <summary>Oqimni xotiraga o'qiydi; bo'sh bo'lsa — <c>null</c>.</summary>
     /// <remarks>
     /// Skia sinxron va tasodifiy murojaat qiladigan buferni talab qiladi,
@@ -141,6 +155,12 @@ public sealed class SkiaImageProcessor : IImageProcessor
         using var codec = SKCodec.Create(data);
 
         if (codec is null || !IsSupported(codec.EncodedFormat))
+        {
+            return null;
+        }
+
+        // Piksel hisobi SARLAVHADAN — «bomba» fayl dekodlashdan oldin to'xtaydi
+        if (ExceedsPixelBudget(codec.Info))
         {
             return null;
         }
@@ -315,6 +335,59 @@ public sealed class SkiaImageProcessor : IImageProcessor
         var result = new MemoryStream(encoded.ToArray(), writable: false);
 
         return new ProcessedImage(result, "image/jpeg", width, height);
+    }
+
+    /// <summary>PNG imzoni oq fonga yotqizib qayta kodlaydi (<see cref="ToFlatPngAsync"/>).</summary>
+    /// <remarks>
+    /// EXIF burilishi va masshtab yo'q: imzo kanvasdan keladi, ya'ni o'lchami va
+    /// yo'nalishi allaqachon to'g'ri. O'lcham sarlavhadan tekshiriladi — chegaradan
+    /// katta fayl umuman dekodlanmaydi.
+    /// </remarks>
+    private static ProcessedImage? RenderFlatPng(byte[] bytes, int maxWidth, int maxHeight)
+    {
+        using var data = SKData.CreateCopy(bytes);
+        using var codec = SKCodec.Create(data);
+
+        if (codec is null || codec.EncodedFormat != SKEncodedImageFormat.Png)
+        {
+            return null;
+        }
+
+        var width = codec.Info.Width;
+        var height = codec.Info.Height;
+
+        if (width <= 0 || height <= 0 || width > maxWidth || height > maxHeight)
+        {
+            return null;
+        }
+
+        using var image = SKImage.FromEncodedData(data);
+        if (image is null)
+        {
+            return null;
+        }
+
+        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using var surface = SKSurface.Create(info);
+
+        if (surface is null)
+        {
+            return null;
+        }
+
+        // Shaffof PNG PDF'da kulrang chegara qoldirardi — oq fon blankadagi qog'oz rangi
+        surface.Canvas.Clear(SKColors.White);
+        surface.Canvas.DrawImage(image, 0, 0);
+
+        using var snapshot = surface.Snapshot();
+        using var encoded = snapshot.Encode(SKEncodedImageFormat.Png, 100);
+
+        if (encoded is null)
+        {
+            return null;
+        }
+
+        return new ProcessedImage(new MemoryStream(encoded.ToArray(), writable: false), "image/png", width, height);
     }
 
     /// <summary>E'lon qilingan o'lcham piksel chegarasidan oshadimi.</summary>

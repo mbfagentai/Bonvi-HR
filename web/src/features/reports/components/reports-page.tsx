@@ -3,6 +3,7 @@ import { ChartColumn, LogOut, Percent, TrendingDown, TrendingUp } from 'lucide-r
 import { useCallback, useMemo } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { RECRUITING_VIEW } from '@/features/recruiting/lib/recruiting-presentation'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
@@ -25,10 +26,14 @@ import {
   TURNOVER_PERIODS,
   periodFromSearch,
   periodToSearch,
+  referralFiltersFromSearch,
+  referralFiltersToSearch,
   toPeriod,
+  type ReferralFilters,
   type TurnoverPeriod,
 } from '../lib/reports-search'
 import { periodTotals } from '../lib/turnover-math'
+import { CandidateReferrals } from './candidate-referrals'
 import { TurnoverChart } from './turnover-chart'
 import { TurnoverReasons } from './turnover-reasons'
 
@@ -67,6 +72,13 @@ export function ReportsPage() {
   const period = periodFromSearch(search)
 
   const canView = hasPermission(REPORTS_VIEW)
+  /*
+    «Nomzodlar qayerdan bilgan» counts candidates — shown only to someone who
+    may see recruiting data at all (SPEC-qayerdan-bilgan §7: the report must
+    not widen access to candidate data).
+  */
+  const canSeeReferrals = canView && hasPermission(RECRUITING_VIEW)
+  const referralFilters = useMemo(() => referralFiltersFromSearch(search), [search])
 
   /*
    * `canView` yo'q bo'lsa ham so'rov chaqiriladi — `incidents-page.tsx`
@@ -101,7 +113,24 @@ export function ReportsPage() {
    */
   const changePeriod = useCallback(
     (next: TurnoverPeriod) => {
-      void navigate({ to: '/hisobotlar', search: periodToSearch(next), replace: true })
+      // The referral section's own filters stay as they are
+      void navigate({
+        to: '/hisobotlar',
+        search: (previous) => ({ ...previous, ...periodToSearch(next) }),
+        replace: true,
+      })
+    },
+    [navigate],
+  )
+
+  /** The referral section's period and vacancy — in the address too, same `replace` rule. */
+  const changeReferralFilters = useCallback(
+    (next: ReferralFilters) => {
+      void navigate({
+        to: '/hisobotlar',
+        search: (previous) => ({ ...previous, ...referralFiltersToSearch(next) }),
+        replace: true,
+      })
     },
     [navigate],
   )
@@ -114,8 +143,9 @@ export function ReportsPage() {
           {t('nav.reports')}
         </span>
       }
-      subtitle={t('reports.subtitle')}
-      actions={
+      description={t('reports.subtitle')}
+      // Davr — sahifada qoladi (egasi 2026-10-22), panelga faqat tugmalar chiqadi
+      toolbar={
         canView ? (
           <SegmentedControl
             /*
@@ -266,6 +296,9 @@ export function ReportsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ---------- Nomzodlar qayerdan bilgan (SPEC-qayerdan-bilgan §7) ---------- */}
+      {canSeeReferrals && <CandidateReferrals filters={referralFilters} onChange={changeReferralFilters} />}
     </div>
   )
 }

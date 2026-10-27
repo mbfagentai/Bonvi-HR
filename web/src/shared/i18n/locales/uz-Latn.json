@@ -31,6 +31,7 @@
     "awardTypes": "Rag‘bat turlari",
     "penaltyTypes": "Jarima turlari",
     "documentTypes": "Hujjat turlari",
+    "referralChannels": "Qayerdan bilgan",
     "settings": "Sozlamalar",
     "users": "Foydalanuvchilar",
     "roles": "Rollar",
@@ -420,7 +421,7 @@
     "daysValue": "{{n}} kun",
     "overdue": "{{n}} kun o‘tdi",
     "endingSoonTitle": "{{n}} ta sinov muddati tugayapti",
-    "endingSoonText": "Muddat tugashiga {{days}} kun yoki undan kam qoldi — xulosa kiritish vaqti keldi.",
+    "endingSoonText": "Muddat tugashiga {{days}} kun yoki undan kam qoldi — xulosa kiritish vaqti keldi. Muddat tugaguncha natija kiritilmasa, xodim avtomatik «O‘tdi» bo‘lib doimiy xodimga o‘tadi.",
     "showActive": "Faqat davom etayotganlar",
     "emptyTitle": "Sinov muddatidagi xodim yo‘q",
     "emptyText": "Ishga qabul qilinganda sinov muddati avtomatik ochiladi.",
@@ -542,6 +543,9 @@
     "employeeRequestHintOn": "Xodim bu turni ilovada tanlab, so‘rovni o‘zi yubora oladi.",
     "employeeRequestHintOff": "Ilovada bu tur chiqmaydi — so‘rovni faqat HR xodim nomidan kiritadi.",
     "employeeRequestBadge": "Faqat HR",
+    "asksDetailTitle": "Aniqlik so‘ralsin",
+    "asksDetailHint": "Masalan, «Tanishlar orqali» — kim tavsiya qilgani so‘raladi",
+    "asksDetailBadge": "Aniqlik so‘raladi",
     "activate": "Faollashtirish",
     "deactivate": "Faolsizlantirish",
     "statusTitle": "Yozuv holati",
@@ -601,6 +605,10 @@
       "absenceTypes": {
         "title": "Yo‘qlik turlari",
         "subtitle": "Davomat so‘rovlarida tanlanadigan sabablar ro‘yxati"
+      },
+      "referralChannels": {
+        "title": "Qayerdan bilgan",
+        "subtitle": "Nomzod «Ish haqida qayerdan bildingiz?» savoliga shu ro‘yxatdan tanlaydi — botda, onlayn anketada va HR qo‘shganda"
       }
     },
     "departments": {
@@ -881,6 +889,11 @@
     "nomzod.anketa_bor": "Nomzodda anketa allaqachon bor.",
     "nomzod.anketa_begona": "Anketa boshqa nomzodga tegishli.",
     "nomzod.umumiy_anketa_yoq": "«Umumiy anketa» vakansiyasi sozlanmagan yoki ochiq emas — vakansiyasiz anketa qabul qilinmaydi.",
+    "qayerdan.majburiy": "Ish haqida qayerdan bilganini tanlang.",
+    "qayerdan.topilmadi": "Tanlangan manba topilmadi yoki nofaol.",
+    "qayerdan.izoh_majburiy": "Aniqroq yozing (masalan, kim tavsiya qilgani).",
+    "qayerdan.izoh_uzun": "Aniqlik juda uzun — 200 belgidan oshmasligi kerak.",
+    "qayerdan.nom_bosh": "Manba nomi kiritilishi shart.",
     "anketa.nomzod_yoq": "Anketa uchun nomzod ko‘rsatilishi shart.",
     "anketa.malumot_notogri": "Ma’lumot darajasi noto‘g‘ri.",
     "anketa.oila_notogri": "Oilaviy holat noto‘g‘ri.",
@@ -1040,7 +1053,20 @@
     "audit.filtr_notogri": "Filtr qiymati noto‘g‘ri.",
     "sinov.bekor_qilinmaydi": "Sinovni «bekor qilindi» deb yakunlab bo‘lmaydi: «o‘tdi», «o‘tmadi» yoki «o‘zi ketdi»ni tanlang.",
     "sinov.bosatish_kerak": "Sinovdan o‘tmagan yoki o‘zi ketgan xodim shu yerning o‘zida ishdan bo‘shatiladi — ketish sanasini kiriting.",
-    "sinov.bosatish_otganga_yoq": "Ishdan bo‘shatish faqat «o‘tmadi» yoki «o‘zi ketdi» natijasi bilan yuboriladi."
+    "sinov.bosatish_otganga_yoq": "Ishdan bo‘shatish faqat «o‘tmadi» yoki «o‘zi ketdi» natijasi bilan yuboriladi.",
+    "anketa.notogri": "Anketa to‘liq emas yoki noto‘g‘ri to‘ldirilgan.",
+    "anketa.json": "Anketa javoblarini o‘qib bo‘lmadi. Qayta yuboring.",
+    "anketa.topilmadi": "Nomzodning bunday anketasi yo‘q.",
+    "anketa.majburiy": "Majburiy maydon to‘ldirilmagan.",
+    "anketa.uzun": "Matn ruxsat etilganidan uzun.",
+    "anketa.rozilik": "Tilxatning barcha bandlariga rozilik belgilanishi shart.",
+    "anketa.imzo_ism": "Imzo o‘rniga yozilgan ism anketadagi familiya va ism bilan mos kelmadi.",
+    "anketa.rasm_yoq": "Rasm olinmagan.",
+    "anketa.imzo_yoq": "Imzo chizilmagan.",
+    "anketa.imzo_yaroqsiz": "Imzoni o‘qib bo‘lmadi. Qayta chizing.",
+    "anketa.rasm_yaroqsiz": "Rasmni qabul qilib bo‘lmadi: faqat JPEG yoki PNG, 5 MB gacha. Qayta oling.",
+    "anketa.belgi": "Matnda ruxsat etilmagan belgi bor. Uni o‘chirib, qayta yozing.",
+    "anketa.bot_tekshiruvi": "Tekshiruvdan o‘tmadi. Sahifani yangilab, qayta yuboring."
   },
   "language": {
     "en": "English",
@@ -1413,7 +1439,6 @@
     "recommendYes": "Ha",
     "subtitle": "{{n}} ta yozuv",
     "terminationDate": "Ketgan sana",
-    "workplace": "Ish joyi",
     "wouldRecommend": "Tavsiya qilarmidi"
   },
   "incentives": {
@@ -1615,6 +1640,7 @@
       "PenaltyType": "Jarima turi",
       "DocumentType": "Hujjat turi",
       "AbsenceType": "Yo‘qlik turi",
+      "ReferralChannel": "Qayerdan bilgan manbasi",
       "Department": "Bo‘lim",
       "Position": "Lavozim",
       "PositionDuty": "Lavozim vazifasi",
@@ -1637,6 +1663,7 @@
       "CandidateNote": "Nomzod izohi",
       "CandidateFile": "Nomzod fayli",
       "CandidateQuestionnaire": "Anketa",
+      "CandidateForm": "Onlayn anketa",
       "AbsenceRequest": "Yo‘qlik so‘rovi",
       "ScheduleChangeRequest": "Jadval so‘rovi",
       "ScheduleChangeDay": "Jadval so‘rovining kuni",
@@ -1648,7 +1675,9 @@
       "AttendanceIdentity": "Terminaldagi shaxs raqami",
       "WorkSite": "Ish joylashuvi",
       "EmployeeAccount": "Xodim ilovasi hisobi",
-      "Endpoint": "So‘rov manzili"
+      "Endpoint": "So‘rov manzili",
+      "AttendanceDay": "Davomat kuni",
+      "AuditLog": "Audit jurnali"
     },
     "fields": {
       "FullName_LastName": "Familiya",
@@ -1748,6 +1777,9 @@
       "StageId": "Bosqich",
       "Source": "Manba",
       "NextContactDate": "Keyingi aloqa sanasi",
+      "ReferralChannelId": "Ish haqida qayerdan bilgan",
+      "ReferralDetail": "Qayerdan bilgan — aniqlik",
+      "AsksDetail": "Aniqlik so‘ralsin",
       "InterviewAt": "Suhbat vaqti",
       "ClosedAt": "Yopilgan sana",
       "ClosingNote": "Yopish izohi",
@@ -1886,7 +1918,19 @@
       "Logout": "Tizimdan chiqish",
       "RefreshSession": "Sessiyani yangilash",
       "ExportEmployeesToExcel": "Xodimlarni Excelga yuklash",
-      "ExportIncentivesToExcel": "Rag‘bat va jarimani Excelga yuklash"
+      "ExportIncentivesToExcel": "Rag‘bat va jarimani Excelga yuklash",
+      "ExportCandidatesToExcel": "Nomzodlarni Excelga yuklash",
+      "ExportVacanciesToExcel": "Vakansiyalarni Excelga yuklash",
+      "ExportProbationsToExcel": "Sinov muddatlarini Excelga yuklash",
+      "ExportEmploymentEventsToExcel": "Buyruqlarni Excelga yuklash",
+      "ExportFlaggedEmployeesToExcel": "Belgilar ro‘yxatini Excelga yuklash",
+      "ExportAbsenceRequestsToExcel": "Yo‘qlik so‘rovlarini Excelga yuklash",
+      "ExportScheduleChangeRequestsToExcel": "Jadval so‘rovlarini Excelga yuklash",
+      "ExportAttendanceDashboardToExcel": "Davomat statistikasini Excelga yuklash",
+      "ExportAuditEntriesToExcel": "Audit jurnalini Excelga yuklash",
+      "ExportExitInterviewsToExcel": "Qayta aloqani Excelga yuklash",
+      "ExportIncidentsToExcel": "Baxtsiz hodisalarni Excelga yuklash",
+      "SubmitKioskQuestionnaire": "Onlayn anketa to‘ldirildi"
     }
   },
   "reports": {
@@ -1915,7 +1959,24 @@
     "voluntaryUnknown": "Noma’lum",
     "noAccessTitle": "Bu yerga kirish huquqingiz yo‘q",
     "noAccessText": "Hisobotlar faqat maxsus ruxsati bor xodimlarga ochiq.",
-    "loadFailed": "Hisobotni yuklab bo‘lmadi"
+    "loadFailed": "Hisobotni yuklab bo‘lmadi",
+    "referrals": {
+      "title": "Nomzodlar qayerdan bilgan",
+      "hint": "Har bir manbadan nechta nomzod ariza bergani va ulardan nechtasi ishga olingani",
+      "columnChannel": "Manba",
+      "columnCandidates": "Nomzodlar",
+      "columnHired": "Ishga olingan",
+      "columnRateHint": "Ishga olinganlar ulushi — shu manbadan kelgan nomzodlar ichida",
+      "total": "Jami",
+      "missing": "Ko‘rsatilmagan",
+      "inactive": "Faol emas",
+      "legendCandidates": "Barcha nomzodlardagi ulushi",
+      "legendHired": "Ishga olinganlar",
+      "emptyTitle": "Nomzod yo‘q",
+      "emptyText": "Hali birorta nomzod ariza bermagan.",
+      "emptyFilteredText": "Tanlangan davr va vakansiya bo‘yicha ariza yo‘q. Davrni kengaytirib ko‘ring.",
+      "shareHint": "Barcha nomzodlarning {{percent}}"
+    }
   },
   "recruiting": {
     "status": "Holati",
@@ -2055,7 +2116,8 @@
     "source": {
       "manual": "Qo‘lda",
       "telegramBot": "Telegram bot",
-      "excel": "Excel arxivi"
+      "excel": "Excel arxivi",
+      "onlineForm": "Onlayn anketa"
     },
     "startStage": "Boshlang‘ich bosqich",
     "startStageDefault": "— Voronkaning birinchi bosqichi —",
@@ -2148,14 +2210,16 @@
       "secondarySchool": "O‘rta (maktab)",
       "vocationalSchool": "O‘rta maxsus (kollej, litsey)",
       "higherComplete": "Oliy (bakalavr)",
-      "higherIncomplete": "Oliy (tugallanmagan)"
+      "higherIncomplete": "Oliy (tugallanmagan)",
+      "higherMaster": "Oliy (magistr)"
     },
     "workExperienceLabel": "Ish tajribasi",
     "maritalLabel": "Oilaviy holati",
     "marital": {
       "married": "Oilali",
       "unmarried": "Bo‘ydoq",
-      "divorced": "Ajrashgan"
+      "divorced": "Ajrashgan",
+      "widowed": "Beva"
     },
     "russianLevelLabel": "Rus tili darajasi",
     "otherLanguagesLabel": "Boshqa tillar",
@@ -2170,17 +2234,20 @@
       "from1To2Million": "1–2 mln so‘m",
       "from2To3Million": "2–3 mln so‘m",
       "from3To4Million": "3–4 mln so‘m",
-      "from5To7Million": "5–7 mln so‘m"
+      "from5To7Million": "5–7 mln so‘m",
+      "from4To5Million": "4–5 mln so‘m",
+      "from7Million": "7 mln so‘mdan yuqori"
     },
     "referralLabel": "Ish haqida qayerdan bilgan",
-    "referral": {
-      "acquaintance": "Tanishlar orqali",
-      "socialNetwork": "Instagram / Facebook",
-      "olx": "OLX.uz",
-      "headHunter": "hh.uz",
-      "telegram": "Telegram",
-      "other": "Boshqa manba"
-    },
+    "referralInactive": "{{name}} (nofaol)",
+    "chooseReferral": "— Manbani tanlang —",
+    "referralLoadFailed": "Manbalar ro‘yxatini yuklab bo‘lmadi",
+    "referralLegacyHint": "Eski yozuv — manba kiritilmagan. Bilsangiz, tanlang.",
+    "referralDetailLabel": "Kim tavsiya qildi / qaysi manba?",
+    "referralDetailPlaceholder": "Masalan, Rustamov Bahodir",
+    "referralFilter": "Qayerdan bilgan",
+    "anyReferral": "Hammasi",
+    "referralMissing": "Ko‘rsatilmagan",
     "offerAccepted": "Ommaviy oferta: rozilik berilgan, {{date}}",
     "photoTitle": "Nomzod surati",
     "photoDeleteText": "Surat butunlay o‘chiriladi — kartada yana bosh harflar ko‘rinadi.",
@@ -2203,7 +2270,16 @@
     "blacklistSearchHint": "⛔ Qidiruvga mos {{n}} ta nomzod «Qora ro‘yxat» da",
     "phoneMatchTitle": "Bu raqam bilan {{n}} ta nomzod bor",
     "phoneMatchHint": "Saqlash to‘xtatilmaydi — bu o‘sha odam emasligini kartasidan tekshirib ko‘ring.",
-    "phoneMatchFailed": "Bu raqam bazada bor-yo‘qligini tekshirib bo‘lmadi — saqlash baribir mumkin."
+    "phoneMatchFailed": "Bu raqam bazada bor-yo‘qligini tekshirib bo‘lmadi — saqlash baribir mumkin.",
+    "forms": {
+      "title": "Onlayn anketa",
+      "subtitle": "Nomzod onlayn to‘ldirgan anketa (HR-F02)",
+      "number": "Anketa № {{n}}",
+      "notAttached": "PDF fayllar ro‘yxatiga biriktirilmagan — shu yerdan yuklab oling",
+      "pdf": "PDF"
+    },
+    "questionnaireHintOnlineForm": "Nomzod onlayn anketada (HR-F02) bergan javoblardan",
+    "consentGivenOnlineForm": "Shaxsga doir ma’lumotlarni ishlashga rozilik (onlayn anketada): {{date}}"
   },
   "attendance": {
     "statsTitle": "Xodimlar davomati statistikasi",
@@ -3006,5 +3082,375 @@
   "dashboard.birthdaysAge": "{{n}} yosh",
   "dashboard.birthdaysLoadFailed": "Ro‘yxatni yuklab bo‘lmadi",
   "dashboard.birthdaysEmpty": "Bugun tug‘ilgan kun yo‘q",
-  "dashboard.birthdaysEmptyText": "Ishlayotgan xodimlar orasida bugun tug‘ilgan kuni bo‘lgani yo‘q."
+  "dashboard.birthdaysEmptyText": "Ishlayotgan xodimlar orasida bugun tug‘ilgan kuni bo‘lgani yo‘q.",
+  "dateRange": {
+    "date": "Sana",
+    "hired": "Ishga kirgan sana",
+    "left": "Ishdan ketgan sana",
+    "marked": "Belgi qo‘yilgan sana",
+    "probationEnd": "Sinov tugash sanasi",
+    "blacklisted": "Qora ro‘yxatga qo‘yilgan sana",
+    "rejected": "Rad etilgan sana",
+    "applied": "Ariza kelgan sana",
+    "reserved": "Rezervga qo‘yilgan sana"
+  },
+  "kiosk": {
+    "yes": "Ha",
+    "no": "Yo‘q",
+    "choose": "— Tanlang —",
+    "addEducation": "O‘quv yurti qo‘shish",
+    "addJob": "Ish joyi qo‘shish",
+    "addReference": "Tavsiya beruvchi qo‘shish",
+    "addFamilyMember": "Oila a’zosi qo‘shish",
+    "row": {
+      "edit": "Tahrirlash",
+      "remove": "O‘chirish",
+      "invalid": "Ma’lumot to‘liq emas — oching va to‘g‘rilang",
+      "present": "hozir",
+      "save": "Saqlash",
+      "cancel": "Bekor qilish",
+      "done": "Tayyor",
+      "notSet": "Belgilanmagan",
+      "clear": "Tozalash",
+      "untitled": "Nomi yozilmagan"
+    },
+    "sheet": {
+      "education": "O‘quv yurti",
+      "job": "Ish joyi",
+      "reference": "Tavsiya beruvchi",
+      "family": "Oila a’zosi"
+    },
+    "error": {
+      "required": "Majburiy maydon",
+      "tooLong": "Eng ko‘pi {{max}} belgi",
+      "invalidDate": "Sana noto‘g‘ri",
+      "age": "Yosh 16 dan 70 gacha bo‘lishi kerak",
+      "pastDate": "Bugundan oldingi sana bo‘lishi mumkin emas",
+      "phone": "Telefon raqami to‘liq emas",
+      "telegram": "Telegram nomi: 5–32 ta lotin harfi, raqam yoki _",
+      "email": "E-mail noto‘g‘ri",
+      "range": "{{min}} dan {{max}} gacha",
+      "yearOrder": "Tugatgan yil boshlagan yildan oldin bo‘lmasin",
+      "month": "Format: oy.yil (masalan, 03.2021)",
+      "monthOrder": "Tugatgan oy boshlagan oydan oldin bo‘lmasin",
+      "categories": "Kamida bitta toifani tanlang",
+      "languageLevels": "Uchala darajani ham belgilang",
+      "otherLanguageName": "Til nomini yozing",
+      "familyMin": "Kamida bitta oila a’zosini yozing",
+      "consent": "Rozilikni belgilang",
+      "signatureName": "Familiya va ismingiz anketadagidek bo‘lishi kerak",
+      "signature": "Imzo qo‘ying",
+      "photo": "Rasmga tushing",
+      "vacancy": "Lavozimni tanlang"
+    },
+    "screen": {
+      "vacancy": "Vakansiya va rasm",
+      "personal": "Shaxsiy ma’lumotlar",
+      "address": "Manzil",
+      "contacts": "Aloqa",
+      "marital": "Oilaviy holat va harbiy xizmat",
+      "license": "Guvohnoma va avtomobil",
+      "education": "Ma’lumoti",
+      "school": "Maktab va kurslar",
+      "languages": "Til bilish darajasi",
+      "computer": "Kompyuter savodxonligi",
+      "work": "Mehnat faoliyati",
+      "references": "Tavsiya beruvchilar",
+      "family": "Oila a’zolari",
+      "referral": "Vakansiya haqida",
+      "salary": "Maosh va ishga chiqish",
+      "conditions": "Ish sharoitlari",
+      "terms": "Qo‘shimcha shartlar",
+      "health": "Sog‘liq",
+      "background": "Qo‘shimcha ma’lumotlar",
+      "about": "O‘zingiz haqingizda",
+      "aboutSuccess": "Muvaffaqiyat va g‘oyalar",
+      "aboutHard": "Qiyin vaziyatlar",
+      "aboutTeam": "Jamoa va rejalar",
+      "consent": "Tilxat va rozilik",
+      "signature": "Imzo"
+    },
+    "vacancy": {
+      "label": "Qaysi lavozimga ariza topshiryapsiz?",
+      "placeholder": "— Lavozimni tanlang —",
+      "general": "Umumiy (istalgan lavozim)",
+      "hint": "Aniq lavozim tanlamagan bo‘lsangiz, «Umumiy»ni tanlang."
+    },
+    "photo": {
+      "label": "Rasmingiz",
+      "alt": "Nomzod rasmi",
+      "hint": "Rasmingiz — yuzingiz aniq ko‘rinsin",
+      "take": "Rasmga olish",
+      "retake": "Qayta olish",
+      "failed": "Rasmni o‘qib bo‘lmadi. Qayta urinib ko‘ring."
+    },
+    "signature": {
+      "label": "Imzo",
+      "pad": "Imzo maydoni",
+      "placeholder": "Shu yerga barmog‘ingiz yoki sichqoncha bilan imzo qo‘ying",
+      "clear": "Tozalash"
+    },
+    "field": {
+      "lastName": "Familiyangiz",
+      "firstName": "Ismingiz",
+      "middleName": "Otangizning ismi",
+      "birthDate": "Tug‘ilgan sanangiz",
+      "registeredAddress": "Doimiy ro‘yxatdagi manzilingiz (propiska)",
+      "sameAddress": "Haqiqiy yashash manzilim shu bilan bir xil",
+      "actualAddress": "Haqiqiy yashash manzilingiz",
+      "housingType": "Uy turi",
+      "mahalla": "Mahalla (MFY) nomi",
+      "phone": "Telefon raqamingiz",
+      "contactPhone": "Telefon raqami",
+      "phoneExtra": "Qo‘shimcha telefon (yaqiningiz)",
+      "telegram": "Telegram",
+      "email": "E-mail",
+      "maritalStatus": "Oilaviy holatingiz",
+      "childrenCount": "Farzandlaringiz soni",
+      "militaryService": "Harbiy xizmat (erkaklar uchun)",
+      "militaryServiceMonths": "Harbiy xizmat muddati (oy)",
+      "hasDriverLicense": "Haydovchilik guvohnomangiz bormi?",
+      "driverLicenseCategories": "Guvohnoma toifasi",
+      "hasCar": "Shaxsiy avtomobilingiz bormi?",
+      "carModel": "Avtomobil rusumi",
+      "educationLevel": "Ma’lumot darajangiz",
+      "educations": "O‘qigan joylaringiz",
+      "institution": "O‘quv yurti nomi",
+      "faculty": "Fakultet / mutaxassislik",
+      "startYear": "Boshlagan yili",
+      "endYear": "Tugatgan yili",
+      "diplomaNumber": "Diplom / sertifikat №",
+      "schoolName": "Tamomlagan maktabingiz (№, tuman)",
+      "strongSubjects": "Maktabda qaysi fanlardan yaxshi o‘qigansiz?",
+      "courses": "Kurslar, sertifikatlar, malaka razryadi (payvandchi, stanokchi, elektrik va h.k.)",
+      "computerSkillsOther": "Boshqa dasturlar va dasturlash tillari",
+      "organization": "Tashkilot nomi",
+      "position": "Lavozimi",
+      "jobFrom": "Boshlagan (oy.yil)",
+      "jobTo": "Tugatgan (oy.yil)",
+      "jobCurrent": "Hozir ham shu yerda ishlayman",
+      "leaveReason": "Ishdan ketish sababi",
+      "totalExperience": "Umumiy ish tajribangiz",
+      "years": "yil",
+      "months": "oy",
+      "fullName": "F.I.Sh.",
+      "organizationPosition": "Tashkilot, lavozimi",
+      "relation": "Qarindoshligi",
+      "birthYear": "Tug‘ilgan yili",
+      "workplace": "Ish joyi, lavozimi",
+      "address": "Yashash manzili",
+      "referralSource": "Bu vakansiya haqida qayerdan bildingiz?",
+      "referralPlaceholder": "— Tanlang —",
+      "referralDetail": "Aniqroq yozing",
+      "referralDetailPlaceholder": "Kim tavsiya qildi / qaysi manba?",
+      "hasAcquaintances": "Korxonamizda tanishlaringiz yoki qarindoshlaringiz ishlaydimi?",
+      "acquaintancesDetail": "Ular kim? (F.I.Sh., bo‘limi)",
+      "lastSalary": "Oxirgi ish joyingizda oylik maoshingiz qancha bo‘lgan?",
+      "expectedSalary": "Qancha oylik maoshga ishlamoqchisiz?",
+      "availableFrom": "Ishga qachondan chiqa olasiz?",
+      "canWorkShifts": "Smenali yoki 12 soatlik ish rejimida ishlay olasizmi?",
+      "canWorkOvertime": "Zarurat bo‘lsa, ish vaqtidan keyin qolib ishlay olasizmi?",
+      "canTravel": "Xizmat safarlariga (komandirovka) chiqishga rozimisiz?",
+      "agreesToTrial": "1 haftalik amaliy sinov (stajirovka) davrini o‘tashga rozimisiz?",
+      "hasOtherJob": "Boshqa joyda yarim stavka ishingiz yoki shaxsiy biznesingiz bormi?",
+      "otherJobDetail": "Qanday ish yoki biznes?",
+      "hasLoan": "Hozirda kredit to‘lovlaringiz bormi?",
+      "loanMonthlyPayment": "Oylik kredit to‘lovi",
+      "agreesParentsInvite": "Zarurat bo‘lsa, ota-onangizni korxonaga taklif qilishimizga rozimisiz?",
+      "startConditions": "Ishni boshlash uchun qanday shartlaringiz bor?",
+      "hasHealthRestriction": "Ushbu lavozimda ishlashingizga sog‘lig‘ingiz bo‘yicha cheklov bormi? (jumladan, gaz ballonlari bilan ishlash)",
+      "healthHint": "Yakuniy xulosa tibbiy ko‘rikda beriladi.",
+      "healthRestrictionDetail": "Qanday cheklov?",
+      "hasFamilyPatient": "Oilangizda doimiy parvarishga muhtoj bemor bormi?",
+      "hasConviction": "Sudlanganmisiz?",
+      "convictionDetail": "Izoh",
+      "relativesConviction": "Yaqin qarindoshlaringiz orasida sudlanganlar bormi?",
+      "relativesConvictionDetail": "Izoh",
+      "abroadTrips": "Chet elda bo‘lganmisiz? (qachon, qaysi davlatda, qanday maqsadda)",
+      "signatureName": "Imzo o‘rniga: to‘liq ismingizni yozing",
+      "signatureNameHint": "Familiya, ism va otangizning ismi — anketadagidek"
+    },
+    "housing": {
+      "apartment": "Ko‘p qavatli uy",
+      "house": "Hovli"
+    },
+    "marital": {
+      "married": "Oilali",
+      "unmarried": "Bo‘ydoq / turmush qurmagan",
+      "divorced": "Ajrashgan",
+      "widowed": "Beva"
+    },
+    "military": {
+      "served": "O‘tagan",
+      "reserve": "Zaxirada",
+      "deferred": "Kechiktirilgan",
+      "notServed": "O‘tamagan"
+    },
+    "education": {
+      "secondarySchool": "O‘rta (maktab)",
+      "vocationalSchool": "O‘rta maxsus (kollej, texnikum, litsey)",
+      "higherIncomplete": "Oliy (tugallanmagan)",
+      "higherComplete": "Oliy (bakalavr)",
+      "higherMaster": "Oliy (magistr)"
+    },
+    "language": {
+      "uzbek": "O‘zbek tili",
+      "russian": "Rus tili",
+      "english": "Ingliz tili",
+      "chinese": "Xitoy tili",
+      "other": "Boshqa til"
+    },
+    "languages": {
+      "legend": "Har bir til uchun so‘zlashuv, o‘qish va yozish darajasini belgilang. Rus tili majburiy, bilmagan tilingizni bo‘sh qoldiring.",
+      "scale": "0 – bilmayman, 1 – boshlang‘ich, 2 – o‘rta, 3 – o‘rtadan yuqori, 4 – yuqori (erkin), 5 – ona tili",
+      "otherName": "Til nomi",
+      "speaking": "So‘zlashuv",
+      "reading": "O‘qish",
+      "writing": "Yozish",
+      "add": "Boshqa til qo‘shish"
+    },
+    "computer": {
+      "legend": "Biladigan dasturlaringiz darajasini belgilang, bilmaganlarini bo‘sh qoldiring. Belgini olib tashlash uchun raqamni yana bosing.",
+      "scale": "1 – boshlang‘ich, 2 – o‘rta, 3 – yaxshi, 4 – mukammal",
+      "otherPlaceholder": "Masalan: Python, SAP, Linux",
+      "group": {
+        "os": "Operatsion tizim",
+        "office": "Ofis dasturlari",
+        "special": "Maxsus dasturlar"
+      },
+      "skill": {
+        "windows": "Windows",
+        "mobileOs": "Smartfon (Android / iOS)",
+        "msWord": "MS Word",
+        "msExcel": "MS Excel",
+        "msPowerPoint": "MS PowerPoint",
+        "googleWorkspace": "Google Docs / Sheets",
+        "oneC": "1C",
+        "didox": "Didox, soliq.uz portallari",
+        "crm": "CRM (AmoCRM, Bitrix24)",
+        "autocad": "AutoCAD",
+        "photoshop": "Photoshop / Canva / CorelDraw"
+      }
+    },
+    "work": {
+      "hint": "Oxirgi ish joyingizdan boshlab yozing. Birinchi ishingiz bo‘lsa, bo‘sh qoldiring."
+    },
+    "references": {
+      "hint": "Sizni avvalgi ish joyingizdan yaxshi taniydigan rahbar yoki hamkasbingiz. HR bo‘limi ular bilan bog‘lanishi mumkin."
+    },
+    "family": {
+      "hint": "Ota-onangiz, turmush o‘rtog‘ingiz, aka-uka va opa-singillaringiz. Kamida bitta kishi."
+    },
+    "relation": {
+      "father": "Otasi",
+      "mother": "Onasi",
+      "spouse": "Turmush o‘rtog‘i",
+      "brother": "Akasi / ukasi",
+      "sister": "Opasi / singlisi",
+      "child": "Farzandi",
+      "other": "Boshqa"
+    },
+    "about": {
+      "hint": "Qisqa va samimiy javob bering. To‘g‘ri yoki noto‘g‘ri javob yo‘q. * belgili savollar majburiy.",
+      "q": {
+        "motivation": "Nima uchun ishlaysiz? Sizni ishlashga nima undaydi?",
+        "whyUs": "Nima uchun aynan bizning korxonani tanladingiz?",
+        "strengths": "Eng kuchli tomonlaringiz nimada?",
+        "weaknesses": "Zaif tomonlaringiz nimada deb o‘ylaysiz?",
+        "motivators": "Sizni ko‘proq nima rag‘batlantiradi?",
+        "successDefinition": "Muvaffaqiyat deganda nimani tushunasiz?",
+        "lastJobAchievement": "Oxirgi ish joyingizdagi eng katta muvaffaqiyatingiz nima bo‘lgan?",
+        "bestIdea": "Avvalgi ish joyingizga qanday foydali g‘oya bergansiz va u qanday natija bergan?",
+        "biggestChallenge": "Ishda duch kelgan eng katta qiyinchiligingiz nima bo‘lgan va uni qanday hal qilgansiz?",
+        "stressHandling": "Ishdagi stressga qanday munosabatdasiz, u bilan qanday kurashasiz?",
+        "unfairnessToYou": "Ish joyingizda sizga nisbatan nohaqlik qilinsa, qanday yo‘l tutasiz?",
+        "unfairnessToCompany": "Korxonaga nisbatan nohaqlik qilinayotganiga guvoh bo‘lsangiz, nima qilasiz?",
+        "teamwork": "Katta jamoada ishlay olasizmi? Jamoaviy ish deganda nimani tushunasiz?",
+        "previousTeamOpinion": "Avvalgi ish joyingizdagi jamoa va rahbariyat haqida fikringiz",
+        "studentWorkExperience": "O‘qish davrida biror joyda shogird bo‘lganmisiz yoki ishlaganmisiz?",
+        "fiveYearPlan": "5 yildan keyin o‘zingizni qayerda ko‘rasiz?",
+        "extraNote": "Qo‘shimcha ma’lumot: o‘zingiz haqingizda yana nimani bilishimizni istaysiz?"
+      }
+    },
+    "consent": {
+      "intro": "Men, {{name}}:",
+      "consentAccuracy": "Ushbu anketada keltirgan barcha ma’lumotlarim to‘liq va to‘g‘ri ekanini tasdiqlayman. Ma’lumotlar noto‘g‘ri ekani aniqlansa, bu mehnat shartnomasini bekor qilish uchun asos bo‘lishini bilaman.",
+      "consentPersonalData": "Shaxsga doir ma’lumotlarim ishga qabul qilish va mehnat munosabatlari maqsadida O‘zbekiston Respublikasining «Shaxsga doir ma’lumotlar to‘g‘risida»gi Qonuniga muvofiq ishlanishiga roziman.",
+      "consentReferenceCheck": "Avvalgi ish joylarim va men ko‘rsatgan tavsiya beruvchilar orqali surishtiruv o‘tkazilishiga roziman.",
+      "consentNotifyChanges": "Ishga qabul qilinsam, anketadagi ma’lumotlarim o‘zgarganda bu haqda HR bo‘limini o‘z vaqtida xabardor qilaman.",
+      "consentConfidentiality": "Ishdan bo‘shaganimdan keyin 2 yil davomida korxona sirlarini oshkor qilmaslikka majburiyat olaman. Bu majburiyat buzilgan taqdirda menga nisbatan qonuniy choralar ko‘rilishiga roziman.",
+      "date": "Sana: {{date}}"
+    },
+    "wizard": {
+      "progress": "{{n}} / {{total}}",
+      "cancel": "Bekor qilish",
+      "back": "Orqaga",
+      "next": "Keyingi",
+      "submit": "Yuborish",
+      "sending": "Yuborilmoqda…",
+      "checking": "Tekshirilmoqda…",
+      "fixErrors": "Qizil bilan belgilangan maydonlarni to‘g‘rilang.",
+      "cancelTitle": "Anketani bekor qilasizmi?",
+      "cancelText": "Kiritilgan barcha ma’lumotlar o‘chadi.",
+      "cancelNo": "Davom etish",
+      "cancelYes": "Ha, bekor qilish"
+    },
+    "submit": {
+      "offline": "Internet bilan aloqa yo‘q. Ulanishni tekshirib, «Yuborish»ni qayta bosing — anketa ikki marta yuborilmaydi.",
+      "rejected": "Anketani qabul qilib bo‘lmadi. Javoblarni tekshirib, qayta yuboring."
+    },
+    "idle": {
+      "title": "Davom etasizmi?",
+      "text": "{{n}} soniyadan keyin anketa tozalanadi va boshidan boshlanadi.",
+      "continue": "Davom etish"
+    },
+    "start": {
+      "title": "Nomzod anketasi",
+      "subtitle": "Ishga qabul qilish uchun anketani to‘ldiring. Tilni tanlang va boshlang.",
+      "vacancy": "Lavozim: {{title}}",
+      "begin": "Anketani boshlash",
+      "noVacancies": "Hozir ochiq vakansiya yo‘q. HR xodimiga murojaat qiling.",
+      "resume": "Tugallanmagan anketani davom ettirish",
+      "duration": "Taxminan 15–20 daqiqa.",
+      "requiredNote": "* bilan belgilangan savollar majburiy.",
+      "tabletMode": "Planshet rejimi"
+    },
+    "done": {
+      "title": "Rahmat!",
+      "text": "Anketangiz qabul qilindi.",
+      "number": "Anketa № {{n}}",
+      "contact": "HR bo‘limi siz bilan bog‘lanadi.",
+      "again": "Yangi anketa to‘ldirish",
+      "returnTablet": "Planshetni HR xodimiga qaytaring.",
+      "finish": "Yakunlash ({{n}})"
+    },
+    "offline": {
+      "title": "Server bilan aloqa yo‘q",
+      "text": "Internet ulanishini tekshiring va qayta urinib ko‘ring.",
+      "retry": "Qayta urinish"
+    },
+    "unavailable": {
+      "title": "Anketa hozir ochilmayapti",
+      "text": "Birozdan keyin qayta urinib ko‘ring."
+    },
+    "link": {
+      "button": "Anketa havolasi",
+      "title": "Anketa havolasi",
+      "subtitle": "Nomzodga shu havolani yuboring — u anketani telefonida yoki kompyuterida to‘ldiradi. To‘ldirilgan anketa nomzodlar ro‘yxatiga o‘zi tushadi.",
+      "public": "Havola",
+      "tablet": "Ofis plansheti uchun",
+      "tabletHint": "Planshetda shu havolani bir marta oching. Shundan keyin planshet har nomzoddan so‘ng anketani tozalab, boshiga qaytadi.",
+      "tabletHintFormSite": "Planshetda shu havolani bir marta oching. Shundan keyin planshet har nomzoddan so‘ng anketani tozalab, boshiga qaytadi. Bu manzilda faqat anketa ochiladi — planshetdan HR tizimiga o‘tib bo‘lmaydi.",
+      "copy": "Nusxa olish",
+      "copied": "Nusxa olindi",
+      "copyFailed": "Nusxa olib bo‘lmadi — havola belgilandi, Ctrl+C bilan oling.",
+      "open": "Ochish"
+    },
+    "hrSession": {
+      "title": "Bu brauzerda HR hisobi ochiq",
+      "text": "Planshet rejimida HR tizimiga kirib bo‘lmasligi kerak. Davom etsangiz, shu brauzerdagi HR hisobidan chiqiladi.",
+      "continue": "HR hisobidan chiqish va davom etish",
+      "back": "HR tizimiga qaytish"
+    }
+  }
 }

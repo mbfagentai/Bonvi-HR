@@ -70,8 +70,9 @@ export function UserMenu() {
           >
             <AccountPhoto name={name} size="sm" />
 
-            {/* Tor ekranda faqat avatar qoladi */}
-            <span className="hidden min-w-0 text-left leading-tight lg:block">
+            {/* Tor ekranda faqat avatar qoladi; 1280 px dan kichikda ham — panelda
+                sahifa sarlavhasi va harakatlariga joy kerak */}
+            <span className="hidden min-w-0 text-left leading-tight xl:block">
               <span className="block max-w-[140px] truncate text-footnote font-medium">
                 {name}
               </span>
@@ -81,7 +82,7 @@ export function UserMenu() {
             </span>
 
             <ChevronDown
-              className="hidden size-3 shrink-0 text-[var(--fg-tertiary)] transition-transform duration-200 group-data-[state=open]:rotate-180 lg:block"
+              className="hidden size-3 shrink-0 text-[var(--fg-tertiary)] transition-transform duration-200 group-data-[state=open]:rotate-180 xl:block"
               strokeWidth={2.5}
             />
           </button>

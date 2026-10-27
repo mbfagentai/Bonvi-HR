@@ -100,21 +100,21 @@ export function PositionsPage() {
       // 300px'da ~30 belgi bir qatorga sig'adi (o'lchangan: 30 belgili
       // haqiqiy nom «Ички бухгалтерия бўлим бошлиғи» 256px matn talab
       // qiladi, +32px karra to'ldirish = 288px, 300px kichik zaxira bilan).
-      // Undan uzunroqlari (10-foiz, 68 belgigacha) kesiladi — bu qabul
-      // qilingan: to'liq nom tahrirlash oynasida ko'rinadi.
+      // Undan uzunroqlarida (10-foiz, 68 belgigacha) ustun o'zi kengayadi —
+      // nom kesilmaydi va qatorga bo'linmaydi (katak `nowrap`, egasi 2026-10-22).
       helper.accessor('name', {
         header: t('catalog.columnName'),
         meta: { minWidth: '300px' },
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-2">
-            <p
+          <div className="flex items-center gap-2">
+            <span
               className={cn(
-                'truncate-1 font-medium',
+                'font-medium',
                 !row.original.isActive && 'text-[var(--fg-secondary)]',
               )}
             >
               {row.original.name}
-            </p>
+            </span>
 
             {!row.original.isActive && (
               <Badge tone="neutral" size="sm" className="shrink-0">
@@ -128,13 +128,14 @@ export function PositionsPage() {
       helper.accessor((row) => departmentNames.get(row.departmentId ?? '') ?? '', {
         id: 'department',
         header: t('catalog.positions.department'),
+        // Pastki chegara: uzun bo'lim nomida ustun o'zi kengayadi (katak `nowrap`)
         meta: { width: '260px', hideOnMobile: true },
         cell: ({ getValue }) => {
           const value = getValue()
           return value === '' ? (
             <span className="text-[var(--fg-tertiary)]">—</span>
           ) : (
-            <span className="truncate-1 text-[var(--fg-secondary)]">{value}</span>
+            <span className="text-[var(--fg-secondary)]">{value}</span>
           )
         },
       }),
@@ -209,7 +210,7 @@ export function PositionsPage() {
             {t('catalog.kinds.positions.title')}
           </span>
         }
-        subtitle={t('catalog.kinds.positions.subtitle')}
+        description={t('catalog.kinds.positions.subtitle')}
         actions={
           canManage ? (
             <Button variant="create" onClick={openCreate}>

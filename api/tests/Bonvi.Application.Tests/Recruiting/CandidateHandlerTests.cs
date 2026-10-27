@@ -13,6 +13,7 @@ public sealed class CandidateHandlerTests
         _context.Candidates,
         _context.Vacancies,
         _context.Stages,
+        _context.ReferralChoice,
         _context.Mapper,
         _context.Settings,
         _context.Clock,
@@ -92,7 +93,9 @@ public sealed class CandidateHandlerTests
         _context.Funnel(anketa, telefon);
 
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id, Phone: "905088888"),
+            new RegisterCandidateCommand(
+                "Каримов", "Азиз", vakansiya.Id, Phone: "905088888",
+                ReferralChannelId: _context.ExistingReferralChannel().Id),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
@@ -154,7 +157,8 @@ public sealed class CandidateHandlerTests
 
         var natija = await Kiritish.HandleAsync(
             new RegisterCandidateCommand(
-                "Каримов", "Азиз", vakansiya.Id, Source: CandidateSource.TelegramBot),
+                "Каримов", "Азиз", vakansiya.Id, Source: CandidateSource.TelegramBot,
+                ReferralChannelId: _context.ExistingReferralChannel().Id),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue();
@@ -172,7 +176,7 @@ public sealed class CandidateHandlerTests
         _context.Funnel(_context.ExistingStage());
 
         var natija = await Kiritish.HandleAsync(
-            new RegisterCandidateCommand("Каримов", "Азиз"),
+            new RegisterCandidateCommand("Каримов", "Азиз", ReferralChannelId: _context.ExistingReferralChannel().Id),
             TestContext.Current.CancellationToken);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
@@ -210,6 +214,177 @@ public sealed class CandidateHandlerTests
 
         natija.IsFailure.ShouldBeTrue();
         natija.Error.Code.ShouldBe("nomzod.umumiy_anketa_yoq");
+    }
+
+    // ────────────────────── «Qayerdan bilgan» (SPEC-qayerdan-bilgan §5) ──────────────────────
+
+    private UpdateCandidateCommandHandler Tahrir => new(
+        _context.Candidates,
+        _context.ReferralChoice,
+        _context.Mapper,
+        _context.UnitOfWork);
+
+    [Fact]
+    public async Task Kanalsiz_yangi_nomzod_kiritilmaydi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        _context.Funnel(_context.ExistingStage());
+
+        var natija = await Kiritish.HandleAsync(
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("qayerdan.majburiy");
+        _context.Candidates.DidNotReceive().Add(Arg.Any<Candidate>());
+    }
+
+    [Fact]
+    public async Task Faolsizlantirilgan_yoki_nomalum_kanal_bilan_kiritilmaydi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        _context.Funnel(_context.ExistingStage());
+        var eski = _context.ExistingReferralChannel("Gazeta", active: false);
+
+        foreach (var kanal in new[] { eski.Id, Guid.CreateVersion7() })
+        {
+            var natija = await Kiritish.HandleAsync(
+                new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id, ReferralChannelId: kanal),
+                TestContext.Current.CancellationToken);
+
+            natija.IsFailure.ShouldBeTrue();
+            natija.Error.Code.ShouldBe("qayerdan.topilmadi");
+            natija.Error.Type.ShouldBe(Bonvi.Domain.Common.ErrorType.Validation, "400 — forma maydoni yaroqsiz");
+        }
+    }
+
+    [Fact]
+    public async Task Aniqlik_soraydigan_kanalda_aniqlik_majburiy()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        _context.Funnel(_context.ExistingStage());
+        var tanishlar = _context.ExistingReferralChannel("Tanishlar orqali", asksDetail: true);
+
+        var aniqliksiz = await Kiritish.HandleAsync(
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id, ReferralChannelId: tanishlar.Id, ReferralDetail: " "),
+            TestContext.Current.CancellationToken);
+
+        aniqliksiz.IsFailure.ShouldBeTrue();
+        aniqliksiz.Error.Code.ShouldBe("qayerdan.izoh_majburiy");
+
+        var bilan = await Kiritish.HandleAsync(
+            new RegisterCandidateCommand(
+                "Каримов", "Азиз", vakansiya.Id, ReferralChannelId: tanishlar.Id, ReferralDetail: "  Рустамов Баҳодир "),
+            TestContext.Current.CancellationToken);
+
+        bilan.IsSuccess.ShouldBeTrue(bilan.IsFailure ? bilan.Error.Code : null);
+        bilan.Value.ReferralChannelId.ShouldBe(tanishlar.Id);
+        bilan.Value.ReferralChannelName.ShouldBe("Tanishlar orqali");
+        bilan.Value.ReferralDetail.ShouldBe("Рустамов Баҳодир");
+    }
+
+    [Fact]
+    public async Task Aniqlik_soramaydigan_kanalda_aniqlik_saqlanmaydi()
+    {
+        var vakansiya = _context.ExistingVacancy();
+        _context.Funnel(_context.ExistingStage());
+        var telegram = _context.ExistingReferralChannel();
+
+        var natija = await Kiritish.HandleAsync(
+            new RegisterCandidateCommand("Каримов", "Азиз", vakansiya.Id, ReferralChannelId: telegram.Id, ReferralDetail: "eski matn"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.ReferralDetail.ShouldBeNull("«Telegram — eski matn» degan yolg'on qator chiqmasin");
+    }
+
+    [Fact]
+    public async Task Kanalsiz_eski_nomzod_kanalsiz_tahrirlanadi()
+    {
+        var nomzod = _context.ExistingCandidate(_context.ExistingVacancy());
+
+        var natija = await Tahrir.HandleAsync(
+            new UpdateCandidateCommand(nomzod.Id, "Каримов", "Азиз", Note: "Qayta qo'ng'iroq"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code : null);
+        natija.Value.ReferralChannelId.ShouldBeNull();
+        natija.Value.Note.ShouldBe("Qayta qo'ng'iroq");
+    }
+
+    [Fact]
+    public async Task Kanali_bor_nomzodning_kanali_tozalanmaydi()
+    {
+        var nomzod = _context.ExistingCandidate(_context.ExistingVacancy());
+        nomzod.SetReferral(_context.ExistingReferralChannel().Id, null).IsSuccess.ShouldBeTrue();
+
+        var natija = await Tahrir.HandleAsync(
+            new UpdateCandidateCommand(nomzod.Id, "Каримов", "Азиз"),
+            TestContext.Current.CancellationToken);
+
+        natija.IsFailure.ShouldBeTrue();
+        natija.Error.Code.ShouldBe("qayerdan.majburiy");
+        await _context.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Ozgarmagan_faolsizlantirilgan_kanal_saqlanadi_yangisi_esa_faol_bolishi_shart()
+    {
+        var nomzod = _context.ExistingCandidate(_context.ExistingVacancy());
+        var eski = _context.ExistingReferralChannel("Gazeta");
+        nomzod.SetReferral(eski.Id, null).IsSuccess.ShouldBeTrue();
+        eski.Deactivate();
+
+        var ozgarmagan = await Tahrir.HandleAsync(
+            new UpdateCandidateCommand(nomzod.Id, "Каримов", "Азиз", ReferralChannelId: eski.Id),
+            TestContext.Current.CancellationToken);
+
+        ozgarmagan.IsSuccess.ShouldBeTrue(ozgarmagan.IsFailure ? ozgarmagan.Error.Code : null);
+        ozgarmagan.Value.ReferralChannelId.ShouldBe(eski.Id);
+
+        var boshqaEski = _context.ExistingReferralChannel("Radio", active: false);
+
+        var yangi = await Tahrir.HandleAsync(
+            new UpdateCandidateCommand(nomzod.Id, "Каримов", "Азиз", ReferralChannelId: boshqaEski.Id),
+            TestContext.Current.CancellationToken);
+
+        yangi.IsFailure.ShouldBeTrue();
+        yangi.Error.Code.ShouldBe("qayerdan.topilmadi");
+
+        var faol = _context.ExistingReferralChannel("OLX.uz");
+
+        var almashtirish = await Tahrir.HandleAsync(
+            new UpdateCandidateCommand(nomzod.Id, "Каримов", "Азиз", ReferralChannelId: faol.Id),
+            TestContext.Current.CancellationToken);
+
+        almashtirish.IsSuccess.ShouldBeTrue("HR xatoni tuzatadi — almashtirish mumkin");
+        almashtirish.Value.ReferralChannelName.ShouldBe("OLX.uz");
+    }
+
+    [Fact]
+    public async Task Aniqligi_bor_nomzodda_aniqlik_bosh_qoldirilmaydi_eskisida_esa_mumkin()
+    {
+        var tanishlar = _context.ExistingReferralChannel("Tanishlar orqali", asksDetail: true);
+
+        // Bot anketasidan ko'chgan «Tanishlar orqali» — aniqliksiz (bot uni so'ramagan)
+        var eski = _context.ExistingCandidate(_context.ExistingVacancy());
+        eski.SetReferral(tanishlar.Id, null).IsSuccess.ShouldBeTrue();
+
+        var eskiTahrir = await Tahrir.HandleAsync(
+            new UpdateCandidateCommand(eski.Id, "Каримов", "Азиз", ReferralChannelId: tanishlar.Id),
+            TestContext.Current.CancellationToken);
+
+        eskiTahrir.IsSuccess.ShouldBeTrue(eskiTahrir.IsFailure ? eskiTahrir.Error.Code : null);
+
+        var yangi = _context.ExistingCandidate(_context.ExistingVacancy());
+        yangi.SetReferral(tanishlar.Id, "Рустамов").IsSuccess.ShouldBeTrue();
+
+        var tozalash = await Tahrir.HandleAsync(
+            new UpdateCandidateCommand(yangi.Id, "Каримов", "Азиз", ReferralChannelId: tanishlar.Id),
+            TestContext.Current.CancellationToken);
+
+        tozalash.IsFailure.ShouldBeTrue();
+        tozalash.Error.Code.ShouldBe("qayerdan.izoh_majburiy");
     }
 
     // ────────────────────── Voronka ──────────────────────

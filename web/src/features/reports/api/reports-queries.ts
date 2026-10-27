@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { fetchCandidateReferrals, type CandidateReferralsParams } from './candidate-referrals-api'
 import { fetchTurnover } from './turnover-api'
 
 /**
@@ -13,6 +14,8 @@ import { fetchTurnover } from './turnover-api'
 export const reportKeys = {
   root: ['reports'] as const,
   turnover: (months: number) => ['reports', 'turnover', months] as const,
+  candidateReferrals: (params: CandidateReferralsParams) =>
+    ['reports', 'candidate-referrals', params] as const,
 }
 
 /**
@@ -40,6 +43,22 @@ export function useTurnover(months: number) {
      * o'zgartirmaydi. Ya'ni tez-tez qayta so'rash faqat og'ir yig'ma
      * so'rovni bekorga takrorlash bo'lardi.
      */
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * «Nomzodlar qayerdan bilgan» (SPEC-qayerdan-bilgan §7). Same caching as the
+ * turnover: the previous numbers stay on screen while a new period loads, so
+ * the card does not jump. `enabled` — off for an inverted date range (the
+ * server would answer 400) and without the recruiting permission.
+ */
+export function useCandidateReferrals(params: CandidateReferralsParams, enabled: boolean) {
+  return useQuery({
+    queryKey: reportKeys.candidateReferrals(params),
+    queryFn: ({ signal }) => fetchCandidateReferrals(params, signal),
+    enabled,
+    placeholderData: (previous) => previous,
     staleTime: 5 * 60_000,
   })
 }

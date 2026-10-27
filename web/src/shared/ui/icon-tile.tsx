@@ -47,7 +47,8 @@ export function IconTile({
   className,
 }: VariantProps<typeof tile> & { icon: LucideIcon; className?: string }) {
   return (
-    <span className={cn(tile({ tone, size }), className)}>
+    // `data-icon-tile` — yuqori paneldagi ixcham sarlavha uni yashiradi (`page-header.tsx`)
+    <span data-icon-tile className={cn(tile({ tone, size }), className)}>
       <Icon strokeWidth={2} />
     </span>
   )

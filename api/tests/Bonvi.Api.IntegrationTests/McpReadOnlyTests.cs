@@ -37,7 +37,7 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         "candidate_questionnaires", "candidate_stage_entries", "departments", "directions", "document_types",
         "employee_competencies", "employee_competency_languages", "employee_flags", "employment_events",
         "employments", "exit_interviews", "incentives", "incidents", "legal_entities", "mobile_check_ins",
-        "penalty_types", "pipeline_stages", "position_duties", "positions", "probations", "roles",
+        "penalty_types", "pipeline_stages", "position_duties", "positions", "probations", "referral_channels", "roles",
         "schedule_assignments", "termination_reasons", "vacancies", "work_schedule_dates",
         "work_schedule_days", "work_schedules", "work_sites",
     ];
@@ -108,6 +108,8 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         "SELECT first_name, last_name, phone, birth_date FROM employees LIMIT 1",
         "SELECT id, employee_id, document_type_id, created_at FROM employee_documents LIMIT 1",
         "SELECT id, first_name, last_name, status FROM candidates LIMIT 1",
+        "SELECT id, referral_channel_id, referral_detail FROM candidates LIMIT 1",
+        "SELECT * FROM referral_channels LIMIT 1",
         "SELECT id, first_name, last_name, is_active FROM users LIMIT 1",
         "SELECT * FROM departments LIMIT 1",
         "SELECT * FROM roles LIMIT 1",

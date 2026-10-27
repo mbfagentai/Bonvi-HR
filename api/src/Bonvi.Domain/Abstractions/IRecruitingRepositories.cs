@@ -105,3 +105,21 @@ public interface ICandidateRepository : IRepository<Candidate>
         Guid vacancyId,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>Onlayn anketalar (<see cref="CandidateForm"/>) uchun saqlash porti.</summary>
+public interface ICandidateFormRepository : IRepository<CandidateForm>
+{
+    /// <summary>Navbatdagi «Anketa №» — bazadagi ketma-ketlikdan.</summary>
+    /// <remarks>
+    /// Tranzaksiyadan TASHQARIDA: qaytarib olinmaydi, ya'ni bekor qilingan
+    /// yuborish raqamda «teshik» qoldiradi — bu zararsiz, raqam faqat unikal
+    /// bo'lishi kerak.
+    /// </remarks>
+    Task<int> NextNumberAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Forma yuborgan identifikator bo'yicha — takroriy yuborishni tanish uchun.</summary>
+    Task<CandidateForm?> FindBySubmissionAsync(Guid clientSubmissionId, CancellationToken cancellationToken = default);
+
+    /// <summary>Nomzodning anketalari — yangisidan eskisiga.</summary>
+    Task<IReadOnlyList<CandidateForm>> ListByCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default);
+}

@@ -53,7 +53,7 @@ internal sealed class AuditActorResolver
                         : null,
                     RoleName: null),
 
-            _ => new ResolvedActor(principal.Kind, principal.UserId, principal.Login, Name: null, RoleName: null),
+            _ => new ResolvedActor(principal.Kind, principal.UserId, principal.Login, principal.Name, RoleName: null),
         };
 
         _cache[principal] = resolved;

@@ -173,6 +173,7 @@ export const AUDIT_MODULE_ENTITIES: Readonly<Record<AuditModuleKey, readonly Aud
     'CandidateNote',
     'CandidateFile',
     'CandidateQuestionnaire',
+    'CandidateForm',
     'PipelineStage',
   ],
   attendance: [
@@ -197,6 +198,7 @@ export const AUDIT_MODULE_ENTITIES: Readonly<Record<AuditModuleKey, readonly Aud
     'PenaltyType',
     'DocumentType',
     'AbsenceType',
+    'ReferralChannel',
   ],
   reports: [],
   users: ['User'],
@@ -255,6 +257,7 @@ export const AUDIT_ENTITY_NAMES = [
   'PenaltyType',
   'DocumentType',
   'AbsenceType',
+  'ReferralChannel',
   'Department',
   'Position',
   'PositionDuty',
@@ -277,7 +280,9 @@ export const AUDIT_ENTITY_NAMES = [
   'CandidateNote',
   'CandidateFile',
   'CandidateQuestionnaire',
+  'CandidateForm',
   'AbsenceRequest',
+  'ScheduleChangeRequest',
   'WorkSchedule',
   'WorkScheduleDay',
   'WorkScheduleDate',
@@ -287,6 +292,9 @@ export const AUDIT_ENTITY_NAMES = [
   'WorkSite',
   'EmployeeAccount',
   'Endpoint',
+  // Eksport yozuvlarining obyekti (davomat statistikasi, audit jurnali — SPEC-excel-eksport)
+  'AttendanceDay',
+  'AuditLog',
 ] as const
 
 export type AuditEntityName = (typeof AUDIT_ENTITY_NAMES)[number]
@@ -408,6 +416,9 @@ export const AUDIT_FIELD_KEYS = [
   'StageId',
   'Source',
   'NextContactDate',
+  'ReferralChannelId',
+  'ReferralDetail',
+  'AsksDetail',
   'InterviewAt',
   'ClosedAt',
   'ClosingNote',
@@ -558,6 +569,18 @@ export const AUDIT_OPERATION_NAMES = [
   'RefreshSession',
   'ExportEmployeesToExcel',
   'ExportIncentivesToExcel',
+  'ExportCandidatesToExcel',
+  'ExportVacanciesToExcel',
+  'ExportProbationsToExcel',
+  'ExportEmploymentEventsToExcel',
+  'ExportFlaggedEmployeesToExcel',
+  'ExportAbsenceRequestsToExcel',
+  'ExportScheduleChangeRequestsToExcel',
+  'ExportAttendanceDashboardToExcel',
+  'ExportAuditEntriesToExcel',
+  'ExportExitInterviewsToExcel',
+  'ExportIncidentsToExcel',
+  'SubmitKioskQuestionnaire',
 ] as const
 
 /* ──────────────────────────────────────────────── hodisa tafsilotlari */

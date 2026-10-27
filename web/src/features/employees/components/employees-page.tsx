@@ -237,66 +237,49 @@ export function EmployeesPage() {
     setSearch((previous) => ({ ...previous, page: lastPage <= 1 ? undefined : lastPage }))
   }, [query.data, query.isPlaceholderData, page, pageSize, setSearch])
 
+  /*
+    Ro'yxat bir nechta holatni aralash ko'rsatadimi. «Ishdan ketganlar» yoki
+    faqat «Sinovda» filtrida holat yorlig'i har qatorda bir xil — ortiqcha
+    (egasi 2026-10-22: «ortiqcha ma'lumot»), u faqat aralash ro'yxatda kerak.
+  */
+  const mixedStatus = filters.status === 'employed' || filters.status === ''
+
   const columns = useMemo<Array<DataColumn<EmployeeListItem>>>(
     () => [
       helper.accessor('fullName', {
         header: t('employee.fullName'),
         /*
-          Ortib qolgan joyni shu ustun oladi — o'zbekcha to'liq ism uzun
-          («Абдуқодиров Шерзод Нурмат ўғли»), HR esa odamni aynan ismidan
-          taniydi. 340px — pastki chegara: rasm (44px) + ism ikki qatorda
-          + yo'nalish yorliqlari shundan tor joyga sig'maydi. Undan
-          qisilmaydi, jadval o'rniga o'ngga suriladi.
+          ⭐ BIR QATOR (egasi 2026-10-22): rasm, to'liq ism, «tekshirish kerak»
+          belgisi va holat yorlig'i bir chiziqda. Ilgari ism ikki qatorga,
+          holat va yo'nalishlar yana alohida qatorlarga tushib, bitta odam
+          ikki odamlik joyni egallardi. Ism kesilmaydi — ustun eng uzun
+          ismgacha kengayadi (`DataTable` — `whitespace-nowrap`), yo'nalishlar
+          esa o'z ustunida.
         */
-        meta: { width: '340px' },
         cell: ({ row }) => {
           const employee = row.original
 
           return (
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex items-center gap-3">
               <EmployeePhoto
                 employeeId={employee.id}
                 photoKey={employee.photoKey}
                 name={employee.fullName}
-                size="lg"
+                size="md"
               />
 
-              <div className="min-w-0">
-                <p className="truncate-2 flex items-center gap-1.5 font-medium">
-                  {employee.fullName}
-                  {employee.needsReview && <NeedsReviewMark compact />}
-                </p>
+              <span className="font-medium">{employee.fullName}</span>
+              {employee.needsReview && <NeedsReviewMark compact />}
 
-                {/*
-                  ⭐ Holat yorlig'i — FAQAT doimiy bo'lmaganda.
-
-                  Ro'yxatda endi sinovdagilar ham turadi (standart filtr
-                  `employed`), ya'ni qator qaysi holatda ekani ko'rinib
-                  turishi kerak: sariq — sinovda, kulrang — ishdan
-                  ketgan. «Ishlayapti» yorlig'i esa CHIZILMAYDI: u
-                  qatorlarning ko'pchiligida takrorlanib, shovqin bo'lardi
-                  va aynan ajratib turishi kerak bo'lgan sarig'ini
-                  ko'mib yuborardi.
-                */}
-                {employee.status !== 'active' && (
-                  <span className="mt-1 flex">
-                    <StatusBadge status={employee.status} size="sm" />
-                  </span>
-                )}
-
-                {employee.directions.length > 0 && (
-                  <span className="mt-1 flex flex-wrap items-center gap-1">
-                    {employee.directions.slice(0, 2).map((direction) => (
-                      <DirectionBadge key={direction.id} name={direction.name} />
-                    ))}
-                    {employee.directions.length > 2 && (
-                      <span className="text-caption2 text-[var(--fg-tertiary)]">
-                        +{employee.directions.length - 2}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
+              {/*
+                Holat yorlig'i — FAQAT doimiy bo'lmaganda va FAQAT aralash
+                ro'yxatda: sariq — sinovda, kulrang — ishdan ketgan.
+                «Ishlayapti» qatorlarning ko'pchiligida takrorlanib, aynan
+                ajratib turishi kerak bo'lgan sarig'ini ko'mib yuborardi.
+              */}
+              {mixedStatus && employee.status !== 'active' && (
+                <StatusBadge status={employee.status} size="sm" />
+              )}
             </div>
           )
         },
@@ -305,21 +288,52 @@ export function EmployeesPage() {
       helper.accessor('positionName', {
         header: t('employee.position'),
         enableSorting: false,
-        meta: { width: '224px' },
+        // Juda uzun lavozim «…» bilan, to'liq nomi `title` da (`DataTable` — `maxWidth`)
+        meta: { maxWidth: '260px' },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
       helper.accessor('departmentName', {
         header: t('employee.department'),
         enableSorting: false,
-        meta: { width: '216px', hideOnMobile: true },
+        meta: { maxWidth: '260px', hideOnMobile: true },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
+      }),
+
+      /*
+        Yo'nalishlar — o'z ustunida, bir qatorda. Ko'pi bilan ikkitasi
+        yorliq, qolgani «+N» (to'liq ro'yxat `title` da — sichqoncha ustida) —
+        5 ta yo'nalishli odam ustunni butun jadvaldan keng qilib yubormasin.
+      */
+      helper.display({
+        id: 'directions',
+        header: t('employee.direction'),
+        enableSorting: false,
+        meta: { hideOnMobile: true },
+        cell: ({ row }) => {
+          const directions = row.original.directions
+          if (directions.length === 0) return <span className="text-[var(--fg-tertiary)]">—</span>
+
+          return (
+            <span
+              className="flex items-center gap-1"
+              title={directions.map((direction) => direction.name).join(', ')}
+            >
+              {directions.slice(0, 2).map((direction) => (
+                <DirectionBadge key={direction.id} name={direction.name} />
+              ))}
+              {directions.length > 2 && (
+                <span className="text-caption2 text-[var(--fg-tertiary)]">+{directions.length - 2}</span>
+              )}
+            </span>
+          )
+        },
       }),
 
       helper.accessor('legalEntityName', {
         header: t('employee.legalEntity'),
         enableSorting: false,
-        meta: { width: '196px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ getValue }) => <TextCell value={getValue()} />,
       }),
 
@@ -352,10 +366,9 @@ export function EmployeesPage() {
         id: 'flags',
         header: t('employee.flags'),
         enableSorting: false,
-        // Bitta yorliq («Qora ro'yxat») bir qatorga sig'adigan kenglik
-        meta: { width: '172px' },
+        // Kenglik mazmundan: ko'p qatorda belgi yo'q — bo'sh ustun joy yemasin
         cell: ({ row }) => (
-          <span className="flex flex-wrap items-center gap-1.5">
+          <span className="flex items-center gap-1.5">
             {row.original.activeFlags.map((flag) => (
               <FlagBadge key={flag} type={flag} size="sm" />
             ))}
@@ -367,7 +380,7 @@ export function EmployeesPage() {
         id: 'open',
         header: '',
         enableSorting: false,
-        meta: { align: 'end', width: '56px' },
+        meta: { align: 'end', width: '40px' },
         cell: () => (
           // iOS ro'yxatidagi «ochiladi» belgisi
           <ChevronRight
@@ -377,7 +390,7 @@ export function EmployeesPage() {
         ),
       }),
     ],
-    [t],
+    [mixedStatus, t],
   )
 
   // Teskari oraliqda eski sahifa ko'rinib qolmasin — u boshqa filtrniki
@@ -591,7 +604,7 @@ function TextCell({ value }: { value: string | null }) {
   if (value === null || value === '') {
     return <span className="text-[var(--fg-tertiary)]">—</span>
   }
-  return <span className="truncate-1 text-[var(--fg-secondary)]">{value}</span>
+  return <span className="text-[var(--fg-secondary)]">{value}</span>
 }
 
 function DateCell({ value }: { value: string | null }) {

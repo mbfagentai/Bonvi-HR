@@ -1,9 +1,12 @@
-import { Check, Inbox, Pencil, Plus, SearchX, X } from 'lucide-react'
+import { Check, Inbox, Pencil, Plus, SearchX, Smartphone, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { NO_DATE_RANGE, hasDateRange, type DateRange } from '@/shared/lib/list-search'
 import {
@@ -21,12 +24,14 @@ import {
 
 import {
   ABSENCE_REQUEST_MODES,
+  attendanceExportParams,
   type AbsenceRequest,
   type AbsenceRequestMode,
 } from '../api/attendance-api'
 import { useAbsenceRequests } from '../api/attendance-queries'
 import {
   ATTENDANCE_REQUESTS_MANAGE,
+  ATTENDANCE_VIEW,
   REQUEST_MODE_LABEL_KEY,
   REQUEST_STATUS_LOOK,
 } from '../lib/attendance-presentation'
@@ -96,6 +101,12 @@ export function AbsenceRequestsList({
   const { hasPermission } = useAuth()
 
   const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE)
+  /*
+    Excelga yuklash — faqat umumiy navbatda (filtr paneli bor joyda), ro'yxatni
+    ko'rish VA `reports.export` bilan (SPEC-excel-eksport §1). Xodim kartasida
+    tugma yo'q: u yerda filtr qatori ham yo'q.
+  */
+  const canExport = showFilters && hasPermission(ATTENDANCE_VIEW) && hasPermission(REPORTS_EXPORT)
 
   const [pendingPage, setPendingPage] = useState(1)
   const [decidedPage, setDecidedPage] = useState(1)
@@ -155,6 +166,20 @@ export function AbsenceRequestsList({
     to: range.to === '' ? undefined : range.to,
   }
 
+  /*
+    Fayl — IKKALA jadval birga: o'sha filtr, holatsiz (kutayotganlar ham,
+    qaror qabul qilinganlar ham). Parametrlar ro'yxatlar bilan bitta
+    obyektdan (`query`), faqat sahifasiz. Xato mutatsiyada qoladi
+    (`employees-page.tsx` izohi).
+  */
+  const exportList = useListExport()
+  const exportRequests = () =>
+    exportList.mutate({
+      path: '/api/attendance/requests/export',
+      params: attendanceExportParams(query),
+      slug: 'yoqlik_sorovlari',
+    })
+
   const pending = useAbsenceRequests(
     {
       ...query,
@@ -206,30 +231,39 @@ export function AbsenceRequestsList({
   const columns = useMemo<Array<DataColumn<AbsenceRequest>>>(() => {
     const list: Array<DataColumn<AbsenceRequest>> = []
 
+    /*
+      ⭐ BIR QATOR (egasi 2026-10-22): har bir qator — bitta chiziq. Ilgari
+      ism ostida lavozim, izoh ostida «ilovadan» va «o'zgartirilgan», qaror
+      izohi ostida kim va qachon turardi — bitta so'rov ikki-uch qatorlik
+      joyni olardi. Endi bo'lim — o'z ustunida, izohlar bir chiziqda (uzun
+      matn kesiladi, to'liq matn sichqoncha ostida), «ilovadan» — telefon
+      belgisi. Lavozim ustuni ATAYLAB yo'q: navbat 1920 px ekranga sig'ishi
+      va tasdiqlash tugmalari o'ngda aylantirmasdan ko'rinishi kerak; odamni
+      bo'lim bilan birga ism yetarlicha ajratadi, lavozim — kartada.
+    */
     if (showEmployee) {
       list.push(
         helper.display({
           id: 'employee',
           header: t('attendance.requestEmployee'),
-          meta: { minWidth: '220px' },
           cell: ({ row }) => (
-            <span className="flex min-w-0 items-center gap-2.5">
+            <span className="flex items-center gap-2.5">
               <EmployeePhoto
                 employeeId={row.original.employeeId}
                 photoKey={row.original.employeePhotoKey}
                 name={row.original.employeeName}
                 size="sm"
               />
-              <span className="min-w-0">
-                <span className="truncate-1 block font-medium">{row.original.employeeName}</span>
-                {row.original.positionName !== null && (
-                  <span className="truncate-1 block text-caption2 text-[var(--fg-tertiary)]">
-                    {row.original.positionName}
-                  </span>
-                )}
-              </span>
+              <span className="font-medium">{row.original.employeeName}</span>
             </span>
           ),
+        }),
+
+        helper.accessor('departmentName', {
+          header: t('employee.department'),
+          enableSorting: false,
+          meta: { maxWidth: '260px', hideOnMobile: true },
+          cell: ({ getValue }) => <PlainCell value={getValue()} />,
         }),
       )
     }
@@ -238,34 +272,35 @@ export function AbsenceRequestsList({
       helper.accessor('absenceTypeName', {
         header: t('attendance.requestKind'),
         enableSorting: false,
-        meta: { minWidth: '160px' },
-        cell: ({ getValue }) => <span className="truncate-1 block">{getValue()}</span>,
+        cell: ({ getValue }) => getValue(),
       }),
 
       helper.display({
         id: 'period',
         header: t('attendance.requestPeriod'),
-        meta: { width: '200px' },
         cell: ({ row }) => <PeriodCell request={row.original} />,
       }),
 
       helper.accessor('note', {
         header: t('attendance.requestNote'),
         enableSorting: false,
-        meta: { minWidth: '200px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
-          <span className="block leading-tight">
-            <span className="truncate-2 block text-[var(--fg-secondary)]">
-              {row.original.note ?? '—'}
-            </span>
+          <span className="flex items-center gap-2">
+            <NoteText value={row.original.note} />
             {/* Xodimning O'ZI ilovadan yuborgan — HR kiritmagan (SPEC-so'rovlar §B2). */}
             {row.original.submittedByEmployee === true && (
-              <span className="mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
-                {t('attendance.requestFromApp')}
+              <span
+                role="img"
+                title={t('attendance.requestFromApp')}
+                aria-label={t('attendance.requestFromApp')}
+                className="text-[var(--fg-tertiary)]"
+              >
+                <Smartphone className="size-3.5" strokeWidth={2} />
               </span>
             )}
             {/* Yuborilgandan keyin tahrirlangan — HR qarordan oldin ko'rsin (SPEC-sorov-tahriri §3.5) */}
-            <RequestEditedNote request={row.original} className="mt-0.5" />
+            <RequestEditedNote request={row.original} />
           </span>
         ),
       }),
@@ -273,21 +308,23 @@ export function AbsenceRequestsList({
       helper.display({
         id: 'decision',
         header: t('attendance.requestDecisionNote'),
-        meta: { minWidth: '180px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => (
-          <span className="block leading-tight">
-            <span className="truncate-2 block text-[var(--fg-secondary)]">
-              {row.original.decisionNote ?? '—'}
-            </span>
+          <span className="flex items-center gap-2">
+            {/* Izohsiz qarorda chiziqcha yo'q — kim va qachon yozuvining o'zi yetadi */}
+            {(row.original.decisionNote !== null && row.original.decisionNote !== '') ||
+            row.original.decidedByName === null ? (
+              <NoteText value={row.original.decisionNote} />
+            ) : null}
             {row.original.decidedByName !== null && (
-              <span className="truncate-1 mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+              <span className="text-caption2 text-[var(--fg-tertiary)]">
                 {row.original.decidedByName}
                 {row.original.decidedAt !== null && ` · ${date(row.original.decidedAt)}`}
               </span>
             )}
             {/* Xodim o'zi ilovadan qaytarib olgan — HR foydalanuvchisi emas. */}
             {row.original.cancelledByEmployee === true && (
-              <span className="truncate-1 mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+              <span className="text-caption2 text-[var(--fg-tertiary)]">
                 {t('attendance.requestCancelledByEmployee')}
                 {row.original.decidedAt !== null && ` · ${date(row.original.decidedAt)}`}
               </span>
@@ -299,7 +336,6 @@ export function AbsenceRequestsList({
       helper.accessor('status', {
         header: t('attendance.statsColStatus'),
         enableSorting: false,
-        meta: { width: '148px' },
         cell: ({ row }) => {
           const look = REQUEST_STATUS_LOOK[row.original.status]
           return <Badge tone={look.tone}>{t(look.labelKey)}</Badge>
@@ -312,7 +348,7 @@ export function AbsenceRequestsList({
         helper.display({
           id: 'actions',
           header: '',
-          meta: { width: '180px' },
+          meta: { align: 'end' },
           cell: ({ row }) => (
             <RowActions
               request={row.original}
@@ -357,6 +393,10 @@ export function AbsenceRequestsList({
           range={range}
           onRangeChange={onRangeChange === undefined ? undefined : changeRange}
           onClear={clearFilters}
+          onExport={canExport ? exportRequests : undefined}
+          exporting={exportList.isPending}
+          exportDisabled={rangeInvalid}
+          exportError={exportList.error}
         />
       )}
 
@@ -506,6 +546,10 @@ function RequestFilterBar({
   range,
   onRangeChange,
   onClear,
+  onExport,
+  exporting,
+  exportDisabled,
+  exportError,
 }: {
   value: RequestListFilters
   onChange: (next: RequestListFilters) => void
@@ -513,6 +557,13 @@ function RequestFilterBar({
   /** Berilmasa — sana maydonlari chizilmaydi. */
   onRangeChange: ((next: DateRange) => void) | undefined
   onClear: () => void
+  /** «Excelga yuklash». `undefined` — tugma umuman chizilmaydi (ruxsat yo'q). */
+  onExport: (() => void) | undefined
+  exporting: boolean
+  /** Teskari oraliqda — ro'yxat ham so'ralmaydi. */
+  exportDisabled: boolean
+  /** Eksport xatosi — shu kartaning ichida, filtr qatori ostida. */
+  exportError: unknown
 }) {
   const { t } = useLocale()
   const types = useCatalogList('absence-types', false)
@@ -532,17 +583,18 @@ function RequestFilterBar({
   return (
     <Card className="px-4 py-3.5 sm:px-5">
       {/*
-        Sana maydonlari bilan beshta katak: telefonda bittadan, planshetda
-        ikkitadan, keng ekranda bitta qatorda (tur, shakl, ikki sana, tozalash).
+        Sana oralig'i bilan to'rtta katak: telefonda bittadan, planshetda
+        ikkitadan, keng ekranda bitta qatorda (tur, shakl, davr, tozalash).
       */}
       <div
         className={
           onRangeChange === undefined
             ? 'grid items-end gap-3 sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]'
-            : 'grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,260px)_minmax(0,220px)_minmax(0,180px)_minmax(0,180px)_auto]'
+            : 'grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,260px)_minmax(0,220px)_minmax(0,340px)_auto]'
         }
       >
         <Select
+          size="sm"
           label={t('attendance.requestKind')}
           placeholder={t('common.all')}
           options={typeOptions}
@@ -553,6 +605,7 @@ function RequestFilterBar({
           error={types.isError ? t('catalog.loadFailed') : undefined}
         />
         <Select
+          size="sm"
           label={t('attendance.requestMode')}
           placeholder={t('common.all')}
           options={modeOptions}
@@ -564,17 +617,26 @@ function RequestFilterBar({
           <RequestRangeFields range={range} onChange={onRangeChange} />
         )}
 
-        {active && (
-          <div className="flex sm:justify-start">
-            <Button type="button" variant="ghost" onClick={onClear}>
-              <X />
-              {t('employees.clearFilters')}
-            </Button>
+        {/* Tozalash va eksport — qatorning oxirida, bitta katakda («Filtrlar» tugmasi bu yerda yo'q) */}
+        {(active || onExport !== undefined) && (
+          <div className="flex flex-wrap items-center gap-2 sm:justify-start">
+            {active && (
+              <Button type="button" variant="ghost" onClick={onClear}>
+                <X />
+                {t('employees.clearFilters')}
+              </Button>
+            )}
+
+            {onExport !== undefined && (
+              <ListExportButton onClick={onExport} pending={exporting} disabled={exportDisabled} />
+            )}
           </div>
         )}
       </div>
 
       {onRangeChange !== undefined && <RequestRangeNote range={range} />}
+
+      <ListExportError error={exportError} className="mt-3.5" />
     </Card>
   )
 }
@@ -585,28 +647,49 @@ function toMode(value: string): AbsenceRequestMode | '' {
 }
 
 /**
- * Davr katagi: «15.09.2026» yoki «15.09.2026, 08:30–11:57» yoki
- * «12.09.2026 – 16.09.2026».
+ * Davr katagi, bir qatorda: «15.09.2026 · Butun kun», «15.09.2026 ·
+ * 08:30 – 11:57» yoki «12.09.2026 – 16.09.2026». Vaqt xira — sana asosiy.
  */
 function PeriodCell({ request }: { request: AbsenceRequest }) {
   const { t, date } = useLocale()
 
   if (request.fromDate !== request.toDate) {
     return (
-      <span className="tabular block">
+      <span className="tabular">
         {date(request.fromDate)} – {date(request.toDate)}
       </span>
     )
   }
 
   return (
-    <span className="block leading-tight">
-      <span className="tabular block">{date(request.fromDate)}</span>
-      <span className="tabular mt-0.5 block text-caption2 text-[var(--fg-tertiary)]">
+    <span className="tabular">
+      {date(request.fromDate)}
+      <span className="text-[var(--fg-tertiary)]">
+        {' · '}
         {request.fromTime === null || request.toTime === null
           ? t('attendance.requestWholeDay')
           : `${request.fromTime.slice(0, 5)} – ${request.toTime.slice(0, 5)}`}
       </span>
+    </span>
+  )
+}
+
+/** Bo'sh katak chiziqcha bilan — «yuklanmadimi?» degan savol tug'ilmasin. */
+function PlainCell({ value }: { value: string | null }) {
+  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
+  return <span className="text-[var(--fg-secondary)]">{value}</span>
+}
+
+/**
+ * Erkin matn (izoh, qaror izohi) — BIR QATOR: uzun bo'lsa kesiladi, to'liq
+ * matn sichqoncha ostida (`title`). Ustun eng uzun izohgacha cho'zilib,
+ * jadvalni ekrandan chiqarib yubormasligi kerak.
+ */
+function NoteText({ value }: { value: string | null }) {
+  if (value === null || value === '') return <span className="text-[var(--fg-tertiary)]">—</span>
+  return (
+    <span className="block max-w-[220px] truncate text-[var(--fg-secondary)]" title={value}>
+      {value}
     </span>
   )
 }

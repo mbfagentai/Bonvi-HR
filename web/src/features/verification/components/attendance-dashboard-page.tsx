@@ -26,7 +26,9 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
-import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
+import { EMPLOYEES_VIEW, REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { useListExport } from '@/features/reports/api/list-export'
+import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -49,14 +51,15 @@ import {
   type SelectOption,
 } from '@/shared/ui'
 
-import type {
-  BirthdayFilters,
-  DashboardItem,
-  DashboardFilters,
-  DashboardSort,
-  DashboardStatus,
-  TrendDay,
-  TrendFilters,
+import {
+  attendanceExportParams,
+  type BirthdayFilters,
+  type DashboardItem,
+  type DashboardFilters,
+  type DashboardSort,
+  type DashboardStatus,
+  type TrendDay,
+  type TrendFilters,
 } from '../api/attendance-api'
 import {
   useAttendanceDashboard,
@@ -237,6 +240,8 @@ export function AttendanceDashboardPage() {
     boradigan havola bajarilmaydigan va'da bo'lardi.
   */
   const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
+  // Jadvalning Excel eksporti — statistikani ko'rish VA `reports.export` (SPEC-excel-eksport §1)
+  const canExport = canView && hasPermission(REPORTS_EXPORT)
 
   const titleId = useId()
   const search = route.useSearch()
@@ -341,7 +346,13 @@ export function AttendanceDashboardPage() {
 
   const options = useFilterOptions()
 
-  const filters = useMemo<DashboardFilters>(
+  /*
+    Jadval filtri SAHIFASIZ — ekrandagi jadval ham, Excel eksporti ham AYNAN
+    shundan: kun, firma/bo'lim/lavozim, holat chipi, qidiruv va tartib.
+    Sahifa raqami va hajmi faqat ekranga qo'shiladi (`employees-page.tsx`
+    dagi `listFilters` naqshi).
+  */
+  const listFilters = useMemo<Omit<DashboardFilters, 'page' | 'pageSize'>>(
     () => ({
       // Bugun berilmasa server o'zi oladi — yarim tundan keyin kalit ham,
       // javob ham o'zi yangi kunga o'tadi. Shu sababli bu yerda AYNAN
@@ -354,8 +365,6 @@ export function AttendanceDashboardPage() {
       positionId: search.position,
       status: search.status,
       sort: search.sort,
-      page,
-      pageSize,
     }),
     [
       dayDate,
@@ -366,10 +375,16 @@ export function AttendanceDashboardPage() {
       search.position,
       search.status,
       search.sort,
-      page,
-      pageSize,
     ],
   )
+
+  const filters = useMemo<DashboardFilters>(
+    () => ({ ...listFilters, page, pageSize }),
+    [listFilters, page, pageSize],
+  )
+
+  // Xato mutatsiyada qoladi — keyingi bosish uni o'zi tozalaydi (`employees-page.tsx`)
+  const exportList = useListExport()
 
   /*
     Davr rejimida ishlatiladi. Kun rejimida ham hisoblanadi (hook shartli
@@ -441,10 +456,10 @@ export function AttendanceDashboardPage() {
 
   const columns = useMemo<Array<DataColumn<DashboardItem>>>(() => {
     const list: Array<DataColumn<DashboardItem>> = [
+      // ⭐ Jadvalda BIR QATOR (egasi 2026-10-22): familiya qalin, ism yonida
       helper.accessor('fullName', {
         header: t('attendance.statsColName'),
-        meta: { minWidth: '200px' },
-        cell: ({ row }) => <EmployeeName item={row.original} linked={canOpenEmployee} />,
+        cell: ({ row }) => <EmployeeName item={row.original} linked={canOpenEmployee} inline />,
       }),
     ]
 
@@ -453,11 +468,8 @@ export function AttendanceDashboardPage() {
         helper.accessor('positionName', {
           header: t(COLUMN_LABEL_KEY.position),
           enableSorting: false,
-          meta: { minWidth: '140px' },
           cell: ({ row }) => (
-            <span className="truncate-2 text-[var(--fg-secondary)]">
-              {row.original.positionName ?? '—'}
-            </span>
+            <span className="text-[var(--fg-secondary)]">{row.original.positionName ?? '—'}</span>
           ),
         }),
       )
@@ -490,7 +502,6 @@ export function AttendanceDashboardPage() {
         helper.accessor('status', {
           header: t(COLUMN_LABEL_KEY.status),
           enableSorting: false,
-          meta: { width: '180px' },
           cell: ({ row }) => <StatusText item={row.original} />,
         }),
       )
@@ -909,6 +920,26 @@ export function AttendanceDashboardPage() {
                       />
                     </div>
 
+                    {/*
+                      Eksport — «Filtrlar» yonida: fayl aynan shu kun, filtr, holat
+                      chipi va qidiruvga tushadi. Faqat kun rejimida — davr
+                      grafigida bu jadval umuman chizilmaydi.
+                    */}
+                    {canExport && (
+                      <ListExportButton
+                        onClick={() =>
+                          exportList.mutate({
+                            path: '/api/attendance/dashboard/export',
+                            params: attendanceExportParams(listFilters),
+                            slug: 'davomat_statistika',
+                          })
+                        }
+                        pending={exportList.isPending}
+                        // Qator zich: yorliq faqat juda keng ekranda, aks holda asboblar ikkinchi qatorga tushardi
+                        labelClassName="hidden 2xl:inline"
+                      />
+                    )}
+
                     <Button
                       type="button"
                       variant={pinned ? 'soft' : 'ghost'}
@@ -947,6 +978,8 @@ export function AttendanceDashboardPage() {
                     <ColumnsMenu hidden={hidden} onChange={prefs.setColumnVisible} />
                   </div>
                 </div>
+
+                <ListExportError error={exportList.error} className="px-3 pb-3 sm:px-4" />
 
                 {/*
                   Holat chiplari — UCHALA ko'rinishda ham (SPEC C4).
@@ -1996,18 +2029,23 @@ function MenuCheck() {
 /* ═══════════════════════════════════════════════════════ jadval kataklari */
 
 /**
- * Rasm va ism: birinchi qatorda familiya, ostida ism va otasining ismi
- * (Verifix'dagi ko'rinish). HR odamni YUZIDAN taniydi — shu sababli
- * haqiqiy rasm (`EmployeePhoto`), bosh harflar faqat rasm yo'q bo'lsa.
+ * Rasm va ism: familiya qalin, ism va otasining ismi xira (Verifix'dagi
+ * ko'rinish). HR odamni YUZIDAN taniydi — shu sababli haqiqiy rasm
+ * (`EmployeePhoto`), bosh harflar faqat rasm yo'q bo'lsa.
+ *
+ * `inline` — jadvalda BIR QATOR (egasi 2026-10-22): ism familiyaning
+ * yonida. Tor ekrandagi kartada esa ikki qator — u yerda en tor.
  */
 function EmployeeName({
   item,
   linked,
   size = 'md',
+  inline = false,
 }: {
   item: DashboardItem
   linked: boolean
   size?: AvatarSize
+  inline?: boolean
 }) {
   const [surname = item.fullName, ...rest] = item.fullName.trim().split(/\s+/u)
   const given = rest.join(' ')
@@ -2020,19 +2058,26 @@ function EmployeeName({
         name={item.fullName}
         size={size}
       />
-      <span className="min-w-0">
-        <span
-          className={cn(
-            'truncate-1 block font-semibold',
-            linked && 'text-[var(--accent-text)]',
-          )}
-        >
-          {surname}
+      {inline ? (
+        <span>
+          <span className={cn('font-semibold', linked && 'text-[var(--accent-text)]')}>{surname}</span>
+          {given !== '' && <span className="text-[var(--fg-secondary)]"> {given}</span>}
         </span>
-        {given !== '' && (
-          <span className="truncate-1 block text-footnote text-[var(--fg-secondary)]">{given}</span>
-        )}
-      </span>
+      ) : (
+        <span className="min-w-0">
+          <span
+            className={cn(
+              'truncate-1 block font-semibold',
+              linked && 'text-[var(--accent-text)]',
+            )}
+          >
+            {surname}
+          </span>
+          {given !== '' && (
+            <span className="truncate-1 block text-footnote text-[var(--fg-secondary)]">{given}</span>
+          )}
+        </span>
+      )}
     </>
   )
 

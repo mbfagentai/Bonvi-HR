@@ -2,15 +2,20 @@ import { ListFilter, Search, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
+import { ListExportButton } from '@/features/reports/components/list-export'
 import { useSearchDraft } from '@/shared/lib/list-search'
-import { Button, Checkbox, DateField, Input, Select, type SelectOption } from '@/shared/ui'
+import { Button, Checkbox, DateRangeField, Input, Select, type SelectOption } from '@/shared/ui'
 import {
   CANDIDATE_SOURCES,
   CANDIDATE_STATUSES,
   type CandidateSource,
   type CandidateStatus,
 } from '../api/recruiting-api'
-import { DEFAULT_FILTERS, type CandidatesFilterState } from '../lib/candidates-search'
+import {
+  DEFAULT_FILTERS,
+  REFERRAL_MISSING,
+  type CandidatesFilterState,
+} from '../lib/candidates-search'
 
 /**
  * Qidiruvdan tashqari nechta filtr yoqilgan — tugmadagi sanoq uchun.
@@ -28,6 +33,7 @@ function activeFilterCount(filters: CandidatesFilterState): number {
     filters.source,
     filters.from,
     filters.to,
+    filters.referral,
   ].filter((value) => value !== '').length
 
   return filters.contactDue ? chosen + 1 : chosen
@@ -51,12 +57,21 @@ export function CandidatesToolbar({
   onChange,
   vacancies,
   stages,
+  referralChannels,
   rejectedSection = false,
+  onExport,
+  exporting = false,
+  exportDisabled = false,
 }: {
   filters: CandidatesFilterState
   onChange: (next: CandidatesFilterState) => void
   vacancies: SelectOption[]
   stages: SelectOption[]
+  /**
+   * «Qayerdan bilgan» — every catalog channel, inactive ones too (old
+   * candidates keep them); the «Ko'rsatilmagan» row is added here.
+   */
+  referralChannels: SelectOption[]
   /**
    * «Rad etilganlar» bo'limimi — faqat sana YORLIG'I uchun: u yerda
    * oraliq rad etilgan kun bo'yicha, boshqa joyda ariza kelgan kun
@@ -65,6 +80,15 @@ export function CandidatesToolbar({
    * rad etilganlar»ni olardi.
    */
   rejectedSection?: boolean
+  /**
+   * «Excelga yuklash». `undefined` — tugma umuman chizilmaydi (ruxsat yo'q).
+   * So'rov sahifada: fayl ro'yxat bilan BITTA filtr obyektidan quriladi,
+   * saralash esa manzilda va toolbar unga tegmaydi (`EmployeesToolbar` izohi).
+   */
+  onExport?: () => void
+  exporting?: boolean
+  /** Teskari sana oralig'ida — ro'yxat ham so'ralmaydi, server 400 qaytarardi. */
+  exportDisabled?: boolean
 }) {
   const { t } = useLocale()
 
@@ -98,6 +122,11 @@ export function CandidatesToolbar({
       value: status,
       label: t(`recruiting.candidateStatus.${status.charAt(0).toLowerCase()}${status.slice(1)}`),
     })),
+  ]
+
+  const referralOptions: SelectOption[] = [
+    ...referralChannels,
+    { value: REFERRAL_MISSING, label: t('recruiting.referralMissing') },
   ]
 
   const sourceOptions = [
@@ -144,12 +173,36 @@ export function CandidatesToolbar({
             </span>
           )}
         </Button>
+
+        {/*
+          Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
+          alohida qator ro'yxatdan joy olardi (egasi 2026-10-22).
+        */}
+        {(count > 0 || filters.search !== '') && (
+          <Button
+            type="button"
+            pill
+            variant="ghost"
+            title={t('employees.clearFilters')}
+            aria-label={t('employees.clearFilters')}
+            onClick={clearAll}
+          >
+            <X />
+            <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+          </Button>
+        )}
+
+        {/* Eksport — «Filtrlar» yonida: fayl aynan shu filtrga tushadi (xodimlar ro'yxatidagi joy) */}
+        {onExport !== undefined && (
+          <ListExportButton onClick={onExport} pending={exporting} disabled={exportDisabled} />
+        )}
       </div>
 
       {open && (
         <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Select
+              size="sm"
               label={t('recruiting.vacancy')}
               placeholder={t('recruiting.anyVacancy')}
               options={vacancies}
@@ -157,6 +210,7 @@ export function CandidatesToolbar({
               onChange={(event) => set('vacancyId', event.target.value)}
             />
             <Select
+              size="sm"
               label={t('recruiting.stage')}
               placeholder={t('recruiting.anyStage')}
               options={stages}
@@ -170,7 +224,8 @@ export function CandidatesToolbar({
               etilganlar va o'zi voz kechganlar (`HideHired`,
               `HideRejected`, `HideWithdrawn`). Izoh shu sababli bor —
               usiz HR ulardan birini qidirib topolmay, «yozuv yo'qolibdi»
-              degan xulosaga kelardi.
+              degan xulosaga kelardi. U sichqoncha ostida (`title`): panel
+              ostidagi to'rt qatorli matn ortiqcha joy olardi (egasi 2026-10-22).
 
               Ro'yxatning O'ZI esa har uchtasini ham tanlashga ruxsat
               beradi va bu talabning ikkinchi yarmi: «Rad etilganlar»
@@ -183,74 +238,69 @@ export function CandidatesToolbar({
               bo'lganda shu yerdan chaqiramiz» degani.
             */}
             <Select
+              size="sm"
               label={t('recruiting.status')}
-              hint={t('recruiting.statusFilterHint')}
+              title={t('recruiting.statusFilterHint')}
               options={statusOptions}
               value={filters.status}
               onChange={(event) => set('status', event.target.value as CandidateStatus | '')}
             />
             <Select
+              size="sm"
               label={t('recruiting.sourceLabel')}
               options={sourceOptions}
               value={filters.source}
               onChange={(event) => set('source', event.target.value as CandidateSource | '')}
+            />
+            {/* Where the candidate heard about the job (SPEC-qayerdan-bilgan §6) — no list column, only the filter */}
+            <Select
+              size="sm"
+              label={t('recruiting.referralFilter')}
+              placeholder={t('recruiting.anyReferral')}
+              options={referralOptions}
+              value={filters.referral}
+              onChange={(event) => set('referral', event.target.value)}
             />
             {/*
               Chegaralar bir-birini taqvimda cheklaydi (`min`/`max`); qo'lda
               terilgan teskari oraliqni esa sahifa ushlaydi va so'rov
               yubormaydi (`candidates-page.tsx`).
             */}
-            <DateField
-              label={t(rejectedSection ? 'recruiting.rejectedFrom' : 'recruiting.appliedFrom')}
-              value={filters.from}
-              max={filters.to === '' ? undefined : filters.to}
-              onChange={(value) => set('from', value)}
+            <DateRangeField
+              label={t(rejectedSection ? 'dateRange.rejected' : 'dateRange.applied')}
+              fromLabel={t(rejectedSection ? 'recruiting.rejectedFrom' : 'recruiting.appliedFrom')}
+              toLabel={t(rejectedSection ? 'recruiting.rejectedTo' : 'recruiting.appliedTo')}
+              from={filters.from}
+              to={filters.to}
+              onFromChange={(value) => set('from', value)}
+              onToChange={(value) => set('to', value)}
             />
-            <DateField
-              label={t(rejectedSection ? 'recruiting.rejectedTo' : 'recruiting.appliedTo')}
-              value={filters.to}
-              min={filters.from === '' ? undefined : filters.from}
-              onChange={(value) => set('to', value)}
-            />
-          </div>
 
-          {/*
-            ⭐ «Bugun aloqa kerak» — mijozning aynan shu so'zlari bilan
-            aytilgan talab: HR qo'ng'iroq qiladi, nomzod «5-6 kundan keyin
-            kelaman» deydi, va ertalab ro'yxatni ochgan HR bugun kim bilan
-            gaplashishi kerakligini KO'RISHI kerak.
+            {/*
+              ⭐ «Bugun aloqa kerak» — mijozning aynan shu so'zlari bilan
+              aytilgan talab: HR qo'ng'iroq qiladi, nomzod «5-6 kundan keyin
+              kelaman» deydi, va ertalab ro'yxatni ochgan HR bugun kim bilan
+              gaplashishi kerakligini KO'RISHI kerak.
 
-            Katakcha, `Switch` EMAS: o'tkirgich sozlama («shu ko'rinish
-            yoqilgan») ma'nosini beradi, bu esa filtr — bir marta belgilanib,
-            ish tugagach bo'shatiladi.
+              Katakcha, `Switch` EMAS: o'tkirgich sozlama («shu ko'rinish
+              yoqilgan») ma'nosini beradi, bu esa filtr — bir marta belgilanib,
+              ish tugagach bo'shatiladi.
 
-            Panelning ICHIDA, `Select`lar qatoridan keyin: u ro'yxatni eng
-            qattiq qisqartiradigan filtr, lekin kundalik qidiruv emas —
-            birinchi qatorga chiqarilsa (xodimlardagi «tekshirish kerak»
-            kabi) ekranning eng qimmat joyini har kuni bir marta bosiladigan
-            tugmaga berardi.
-          */}
-          <div className="mt-3.5 space-y-1.5">
-            <Checkbox
-              checked={filters.contactDue}
-              onChange={(checked) => set('contactDue', checked)}
-              label={t('recruiting.contactDue')}
-            />
-            {/* Chapdan 30px — katakcha (20px) va oraliq (10px) kengligi:
-                izoh yorliq matni bilan bir tekislikda turadi. */}
-            <p className="pl-[30px] text-footnote text-[var(--fg-tertiary)]">
-              {t('recruiting.contactDueHint')}
-            </p>
-          </div>
-
-          {(count > 0 || filters.search !== '') && (
-            <div className="mt-3.5 flex justify-end">
-              <Button type="button" size="sm" variant="ghost" onClick={clearAll}>
-                <X />
-                {t('employees.clearFilters')}
-              </Button>
+              Panelning ICHIDA, sana oralig'i yonida: u
+              ro'yxatni eng qattiq qisqartiradigan filtr, lekin kundalik qidiruv
+              emas — birinchi qatorga chiqarilsa (xodimlardagi «tekshirish kerak»
+              kabi) ekranning eng qimmat joyini har kuni bir marta bosiladigan
+              tugmaga berardi. Izoh («bugun yoki muddati o'tgan») sichqoncha
+              ostida — panel ixcham (egasi 2026-10-22).
+            */}
+            <div className="flex items-end pb-2.5" title={t('recruiting.contactDueHint')}>
+              <Checkbox
+                checked={filters.contactDue}
+                onChange={(checked) => set('contactDue', checked)}
+                label={t('recruiting.contactDue')}
+              />
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

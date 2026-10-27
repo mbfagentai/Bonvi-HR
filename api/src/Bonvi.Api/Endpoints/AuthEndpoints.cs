@@ -45,7 +45,7 @@ public static class AuthEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new LoginCommand(request.Login, request.Password, ClientIp(http)),
+                        new LoginCommand(request.Login, request.Password, MijozIp(http)),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -69,7 +69,7 @@ public static class AuthEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new RefreshSessionCommand(request.RefreshToken, ClientIp(http)),
+                        new RefreshSessionCommand(request.RefreshToken, MijozIp(http)),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -91,7 +91,7 @@ public static class AuthEndpoints
             {
                 var natija = await handler
                     .HandleAsync(
-                        new LogoutCommand(request.RefreshToken, request.AllSessions, ClientIp(http)),
+                        new LogoutCommand(request.RefreshToken, request.AllSessions, MijozIp(http)),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -238,13 +238,13 @@ public static class AuthEndpoints
     }
 
     /// <summary>
-    /// Mijozning haqiqiy IP manzili.
+    /// Mijozning haqiqiy IP manzili — yangilash tokeni yozuviga (kim, qayerdan kirgan).
     /// </summary>
     /// <remarks>
-    /// Caddy orqasida ishlaganda <c>RemoteIpAddress</c> proksi manzilini beradi.
-    /// <c>ForwardedHeaders</c> middleware'i uni to'g'rilaydi — bu yerda esa
-    /// allaqachon to'g'rilangan qiymat o'qiladi.
+    /// <see cref="ClientIp"/> dan (Caddy bergan <c>X-Bonvi-Client-Ip</c>, SPEC-planshet-anketa
+    /// §2.3.3). Ilgari <c>RemoteIpAddress</c> edi — prod'da Cloudflare chekkasi, ya'ni sessiyalar
+    /// ro'yxatidagi IP'lar tergovga yaramasdi.
     /// </remarks>
-    private static string? ClientIp(HttpContext http)
-        => http.Connection.RemoteIpAddress?.ToString();
+    private static string? MijozIp(HttpContext http)
+        => ClientIp.Resolve(http)?.ToString();
 }

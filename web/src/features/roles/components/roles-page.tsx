@@ -121,10 +121,10 @@ export function RolesPage() {
       helper.accessor('name', {
         header: t('roleEditor.columnRole'),
         /*
-          Yagona moslashuvchan ustun. Ikona (40px) + oraliq (12px) +
-          katak to'ldirishi (32px) = 84px; qolgan joy nomga. Egasi yozgan
-          nom 100 belgigacha bo'lishi mumkin — uzuni kesiladi, to'lig'i
-          `title` atributida.
+          Yagona moslashuvchan ustun. Ikona, nom va ruxsatlar soni BIR
+          QATORDA (egasi 2026-10-22 — jadval qatori ikkiga bo'linmaydi).
+          Egasi yozgan nom 100 belgigacha bo'lishi mumkin — ustun o'zi
+          kengayadi (katak `nowrap`).
         */
         meta: { minWidth: '280px' },
         cell: ({ row }) => {
@@ -132,28 +132,24 @@ export function RolesPage() {
           const name = roleDisplayName(t, role)
 
           return (
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex items-center gap-3">
               <IconTile
                 icon={role.isProtected ? Lock : ShieldCheck}
                 tone={role.isProtected ? 'gray' : 'brand'}
               />
-              <div className="min-w-0">
-                <p className="truncate-1 font-medium" title={name}>
-                  {name}
-                </p>
-                <p className="tabular truncate-1 text-footnote text-[var(--fg-secondary)]">
-                  {t('roleEditor.permissionCount', { n: num(role.permissions.length) })}
-                  {/*
-                    Telefonda «Foydalanuvchilar» ustuni yashiriladi —
-                    sanoq nom ostiga tushadi. Rolni o'chirish mumkinmi
-                    degan savolga javob aynan shu raqamda.
-                  */}
-                  <span className="md:hidden">
-                    {' · '}
-                    {t('roleEditor.userCount', { n: num(role.userCount) })}
-                  </span>
-                </p>
-              </div>
+              <span className="font-medium">{name}</span>
+              <span className="tabular text-footnote text-[var(--fg-secondary)]">
+                {t('roleEditor.permissionCount', { n: num(role.permissions.length) })}
+                {/*
+                  Telefonda «Foydalanuvchilar» ustuni yashiriladi —
+                  sanoq shu yerga qo'shiladi. Rolni o'chirish mumkinmi
+                  degan savolga javob aynan shu raqamda.
+                */}
+                <span className="md:hidden">
+                  {' · '}
+                  {t('roleEditor.userCount', { n: num(role.userCount) })}
+                </span>
+              </span>
             </div>
           )
         },
@@ -174,18 +170,19 @@ export function RolesPage() {
         id: 'badges',
         header: '',
         /*
-          Ikkita yorliq ustma-ust sig'ishi kerak: «Himoyalangan» va
-          «Sizning rolingiz» (eng uzuni ruscha «Ваша роль» emas,
-          o'zbekchasi — 16 belgi ≈ 120px). Oxirida strelka (16px).
+          Ikkala yorliq — «Himoyalangan» va «Sizning rolingiz» — YONMA-YON,
+          bir qatorda. `width` — faqat pastki chegara (strelka): yorliqli
+          qatorda ustun o'zi kengayadi (katak `nowrap`), ortgan joyni esa
+          nom ustuni oladi.
         */
-        meta: { width: '200px', align: 'end' },
+        meta: { width: '64px', align: 'end' },
         cell: ({ row }) => {
           const role = row.original
           const isOwn = user?.roles.includes(role.code) ?? false
 
           return (
             <span className="flex items-center justify-end gap-2">
-              <span className="flex flex-col items-end gap-1">
+              <span className="flex items-center gap-1.5">
                 {role.isProtected && (
                   <Badge tone="neutral" size="sm">
                     <Lock className="size-2.5" strokeWidth={2.5} />

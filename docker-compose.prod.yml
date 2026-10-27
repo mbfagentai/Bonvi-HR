@@ -149,6 +149,18 @@ services:
       # ----------------------------------------------------------
       Mcp__DbPassword: ${MCP_DB_PASSWORD:-}
       Mcp__PublicBaseUrl: ${MCP_PUBLIC_BASE_URL:-}
+
+      # ----------------------------------------------------------
+      #  Onlayn anketaning bot tekshiruvi — Cloudflare Turnstile
+      #  (`docs/SPEC-planshet-anketa.md` §2.3.2).
+      #
+      #  ATAYLAB `:-` bilan: ikkalasi bo'sh — tekshiruv o'chiq va anketa
+      #  avvalgidek ishlaydi. Egasi Cloudflare'da vidjet yaratib, ikkala
+      #  kalitni prod `.env` ga O'ZI yozadi. Faqat bittasi berilsa ham
+      #  o'chiq — API ishga tushishda ogohlantiradi.
+      # ----------------------------------------------------------
+      Turnstile__SiteKey: ${TURNSTILE__SITEKEY:-}
+      Turnstile__SecretKey: ${TURNSTILE__SECRETKEY:-}
       # ----------------------------------------------------------
       #  CORS — sukut bo'yicha BO'SH va bu to'g'ri.
       #
@@ -490,6 +502,9 @@ services:
         # `real` — haqiqiy API. `mock` faqat namoyish uchun
         # (`.env` da APP_API_MODE=mock).
         APP_API_MODE: ${APP_API_MODE:-real}
+        # Onlayn anketaning qisqa manzili HR'ning «Anketa havolasi» oynasida
+        # (masalan `https://anketa.bonvi.uz`). Bo'sh — `<sayt>/anketa`.
+        VITE_ANKETA_URL: ${VITE_ANKETA_URL:-}
     restart: always
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
@@ -499,6 +514,9 @@ services:
       # ISUP yuz rasmlari uchun alohida nom (RSA sertifikat) — `web/Caddyfile` izohi.
       # Sukut `:9997` — tashqariga chiqarilmagan port, blok o'lik.
       ISUP_FACE_SITE: ${ISUP_FACE_SITE:-:9997}
+      # Faqat anketa sayti (`anketa.bonvi.uz`: forma va `/api/kiosk/*`, qolgani 404) —
+      # `web/Caddyfile` izohi. Sukut `:9998` — tashqariga chiqarilmagan port, blok o'lik.
+      ANKETA_SITE: ${ANKETA_SITE:-:9998}
     ports:
       - "80:80"
       - "443:443"

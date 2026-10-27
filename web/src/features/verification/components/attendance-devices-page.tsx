@@ -157,46 +157,53 @@ export function AttendanceDevicesPage() {
 
   const columns = useMemo<Array<DataColumn<AttendanceDevice>>>(() => {
     const definitions: Array<DataColumn<AttendanceDevice>> = [
+      /*
+        ⭐ BIR QATOR (egasi 2026-10-22): nom o'z ustunida, model, seriya va
+        terminal seriyasi — yonidagi ustunda bitta chiziqda (ilgari nom
+        ostida yana ikki qator edi).
+      */
       helper.accessor('name', {
         header: t('attendance.deviceName'),
-        meta: { width: '260px' },
+        cell: ({ row }) => (
+          <span className={cn('font-medium', !row.original.isActive && 'text-[var(--fg-tertiary)]')}>
+            {row.original.name}
+          </span>
+        ),
+      }),
+
+      helper.accessor('model', {
+        header: `${t('attendance.model')} · ${t('attendance.serialNumber')}`,
+        enableSorting: false,
+        meta: { hideOnMobile: true },
         cell: ({ row }) => {
           const device = row.original
           return (
-            <div className="min-w-0">
-              <p className={cn('truncate-1 font-medium', !device.isActive && 'text-[var(--fg-tertiary)]')}>
-                {device.name}
-              </p>
-              <p className="truncate-1 font-mono text-caption2 text-[var(--fg-tertiary)]">
-                {[device.model, device.serialNumber].filter(Boolean).join(' · ') || '—'}
-              </p>
+            <span className="flex items-center gap-2 font-mono text-caption1 text-[var(--fg-tertiary)]">
+              <span>{[device.model, device.serialNumber].filter(Boolean).join(' · ') || '—'}</span>
               {/*
                 Agent o'qigan seriya — token shu terminalga bog'langan (SPEC-agent §L).
                 Terminal almashtirilsa, tokenni yangilash bog'lanishni tozalaydi.
               */}
               {device.terminalSerial !== null && (
-                <p
-                  className="truncate-1 font-mono text-caption2 text-[var(--fg-tertiary)]"
-                  title={t('attendance.terminalSerialHint')}
-                >
+                <span title={t('attendance.terminalSerialHint')}>
                   {t('attendance.terminalSerial', { serial: device.terminalSerial })}
-                </p>
+                </span>
               )}
-            </div>
+            </span>
           )
         },
       }),
 
       helper.accessor('directionRole', {
         header: t('attendance.directionRole'),
-        meta: { width: '160px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => {
           const look = DIRECTION_ROLE_LOOK[row.original.directionRole]
           const Icon = look.icon
           return (
             <span className="flex items-center gap-1.5 text-[var(--fg-secondary)]">
               <Icon className="size-4 shrink-0" />
-              <span className="truncate-1">{t(look.labelKey)}</span>
+              <span>{t(look.labelKey)}</span>
             </span>
           )
         },
@@ -227,7 +234,6 @@ export function AttendanceDevicesPage() {
 
       helper.accessor('lastSeenAt', {
         header: t('attendance.lastSeen'),
-        meta: { width: '180px' },
         cell: ({ row }) => <LastSeen device={row.original} />,
       }),
 
@@ -248,7 +254,7 @@ export function AttendanceDevicesPage() {
 
       helper.accessor('clockOffsetSeconds', {
         header: t('attendance.clock'),
-        meta: { width: '140px', hideOnMobile: true },
+        meta: { hideOnMobile: true },
         cell: ({ row }) => <ClockBadge device={row.original} />,
       }),
 
@@ -490,6 +496,8 @@ export function AttendanceDevicesPage() {
  *
  * Terminal gaplashyapti-yu, hodisalari rad etilyapti (`eventsRejected` —
  * aynan rad etilgan so'rovdan, jimlikdan taxmin qilinmaydi) — sariq izoh.
+ *
+ * Izohlar vaqtning YONIDA, bir qatorda (egasi 2026-10-22).
  */
 function LastSeen({ device }: { device: AttendanceDevice }) {
   const { t, num, dateTime } = useLocale()
@@ -514,21 +522,21 @@ function LastSeen({ device }: { device: AttendanceDevice }) {
             : t('attendance.agoHours', { n: num(parts.value) })
 
   return (
-    <div className="min-w-0">
-      <p
+    <span className="flex items-baseline gap-2">
+      <span
         className={cn(
-          'tabular truncate-1',
+          'tabular',
           problem !== null ? 'text-ios-red' : parts === null && 'text-ios-orange',
         )}
         title={seenAt === null ? undefined : dateTime(seenAt)}
       >
         {label}
-      </p>
-      {problem !== null && <p className="truncate-1 text-caption1 text-ios-red">{t(problem)}</p>}
+      </span>
+      {problem !== null && <span className="text-caption1 text-ios-red">{t(problem)}</span>}
       {device.eventsRejected && (
-        <p className="truncate-1 text-caption1 text-ios-orange">{t('attendance.eventsRejected')}</p>
+        <span className="text-caption1 text-ios-orange">{t('attendance.eventsRejected')}</span>
       )}
-    </div>
+    </span>
   )
 }
 

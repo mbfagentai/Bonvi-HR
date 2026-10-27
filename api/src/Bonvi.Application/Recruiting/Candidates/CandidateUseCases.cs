@@ -4,6 +4,7 @@ using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Common;
 using Bonvi.Application.Recruiting.Dtos;
+using Bonvi.Application.Recruiting.Referrals;
 using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
@@ -107,6 +108,8 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// <c>true</c> — oraliq ro'yxatga TUSHGAN sana (<c>closed_at</c>) bo'yicha: «Rezerv» va «Qora ro'yxat»
 /// bo'limlari (egasi, 2026-10-21). «Rad etilganlar» da (<paramref name="Rejected"/>) u o'zi shunday.
 /// </param>
+/// <param name="ReferralChannelId">«Qayerdan bilgan» kanali bo'yicha filtr (SPEC-qayerdan-bilgan §6).</param>
+/// <param name="ReferralMissing">Faqat kanali ko'rsatilmagan nomzodlar — filtrdagi «Ko'rsatilmagan».</param>
 public sealed record SearchCandidatesQuery(
     string? Search = null,
     Guid? VacancyId = null,
@@ -122,7 +125,9 @@ public sealed record SearchCandidatesQuery(
     bool IncludeRejected = false,
     DateOnly? From = null,
     DateOnly? To = null,
-    bool ByClosedDate = false);
+    bool ByClosedDate = false,
+    Guid? ReferralChannelId = null,
+    bool ReferralMissing = false);
 
 public sealed record GetCandidateQuery(Guid CandidateId);
 
@@ -137,6 +142,12 @@ public sealed record GetCandidateQuery(Guid CandidateId);
 /// so'rov yuboradi va u AYNAN avvalgidek ishlashi shart. Shu sababli
 /// bu yerda hech qanday majburiy maydon paydo bo'lmaydi — «anketa yo'q»
 /// xato emas, odatiy hol.
+/// </para>
+/// <para>
+/// ⚠️ 2026-10-26 dan arizaning O'ZIDA majburiy maydon bor —
+/// <see cref="RegisterCandidateCommand.ReferralChannelId"/> (SPEC-qayerdan-bilgan §5):
+/// eski bot uni yubormaydi va 400 oladi, ya'ni bot va API endi BIRGA deploy
+/// qilinadi. Anketa blokining ixtiyoriyligi o'zgarmadi.
 /// </para>
 /// <para>
 /// <b>Nega alohida record, buyruqqa o'n uchta parametr qo'shilmadi.</b>
@@ -155,8 +166,14 @@ public sealed record GetCandidateQuery(Guid CandidateId);
 /// <param name="Education">Ma'lumot darajasi.</param>
 /// <param name="MaritalStatus">Oilaviy holati.</param>
 /// <param name="RussianLevel">Rus tilini bilish darajasi.</param>
-/// <param name="ExpectedSalary">Kutilayotgan maosh oralig'i.</param>
-/// <param name="ReferralSource">Ish haqida qayerdan bilgan.</param>
+/// <param name="ExpectedSalary">
+/// Kutilayotgan maosh oralig'i.
+/// <para>
+/// «Ish haqida qayerdan bilgan» bu blokda ENDI YO'Q — u nomzodning o'z maydoni
+/// (<see cref="RegisterCandidateCommand.ReferralChannelId"/>): HR formasi ham uni so'raydi.
+/// Eski bot yuboradigan <c>referralSource</c> kaliti endi tanilmaydi va e'tiborsiz qoladi.
+/// </para>
+/// </param>
 /// <param name="OfferAcceptedAt">
 /// Ommaviy oferta bilan rozilik VAQTI. <c>null</c> — oferta havolasi
 /// sozlanmagan, ya'ni nomzoddan rozilik SO'RALMAGAN (sababi domenda).
@@ -176,7 +193,6 @@ public sealed record CandidateQuestionnaireInput(
     MaritalStatus MaritalStatus,
     LanguageLevel RussianLevel,
     SalaryExpectation ExpectedSalary,
-    ReferralSource ReferralSource,
 
     /*
       ⚠️ `DateTimeOffset?` va `= null`, `= default` EMAS. So'rov
@@ -230,8 +246,13 @@ public sealed record CandidateQuestionnaireInput(
 /// </param>
 /// <param name="Questionnaire">
 /// Botda to'ldirilgan anketa. Bo'sh bo'lsa nomzod anketasiz yaratiladi —
-/// HR formasi va ESKI bot aynan shunday yuboradi.
+/// HR formasi aynan shunday yuboradi.
 /// </param>
+/// <param name="ReferralChannelId">
+/// «Ish haqida qayerdan bilgan» — MAJBURIY, faol kanal (SPEC-qayerdan-bilgan §5): HR formasi
+/// ham, bot ham yuboradi. Tur <c>Guid?</c> — yo'qligi «qayerdan.majburiy» bo'lib qaytsin.
+/// </param>
+/// <param name="ReferralDetail">Aniqlik — kanal so'rasa majburiy, ≤ 200 belgi.</param>
 public sealed record RegisterCandidateCommand(
     string? LastName,
     string? FirstName,
@@ -246,9 +267,25 @@ public sealed record RegisterCandidateCommand(
     CandidateSource Source = CandidateSource.Manual,
     long? TelegramChatId = null,
     string? TelegramLanguage = null,
-    CandidateQuestionnaireInput? Questionnaire = null);
+    CandidateQuestionnaireInput? Questionnaire = null,
+    Guid? ReferralChannelId = null,
+    string? ReferralDetail = null);
 
 /// <summary>Nomzodning shaxsiy ma'lumotini tuzatish. Vakansiya va manba o'zgarmaydi.</summary>
+/// <param name="CandidateId">Nomzod.</param>
+/// <param name="LastName">Familiya.</param>
+/// <param name="FirstName">Ism.</param>
+/// <param name="MiddleName">Otasining ismi.</param>
+/// <param name="BirthDate">Tug'ilgan sana.</param>
+/// <param name="Phone">Telefon.</param>
+/// <param name="Address">Manzil.</param>
+/// <param name="Speciality">Mutaxassisligi.</param>
+/// <param name="Note">Izoh.</param>
+/// <param name="ReferralChannelId">
+/// «Qayerdan bilgan» kanali. Bo'sh qoldirish FAQAT kanalsiz eski nomzodda mumkin; kanali bor
+/// nomzodni tozalab bo'lmaydi, almashtirish mumkin (qoidalar <see cref="ReferralChannelChoice.ApplyEditAsync"/> da).
+/// </param>
+/// <param name="ReferralDetail">Aniqlik.</param>
 public sealed record UpdateCandidateCommand(
     Guid CandidateId,
     string? LastName,
@@ -258,7 +295,9 @@ public sealed record UpdateCandidateCommand(
     string? Phone = null,
     string? Address = null,
     string? Speciality = null,
-    string? Note = null);
+    string? Note = null,
+    Guid? ReferralChannelId = null,
+    string? ReferralDetail = null);
 
 /// <summary>Nomzodni boshqa vakansiyaga o'tkazish.</summary>
 /// <param name="CandidateId">Nomzod.</param>
@@ -549,7 +588,9 @@ public sealed class SearchCandidatesQueryHandler
                     CreatedFrom: byClosedDate ? null : ListDateRange.StartUtc(query.From),
                     CreatedBefore: byClosedDate ? null : ListDateRange.EndUtcExclusive(query.To),
                     ClosedFrom: byClosedDate ? query.From : null,
-                    ClosedTo: byClosedDate ? query.To : null),
+                    ClosedTo: byClosedDate ? query.To : null,
+                    ReferralChannelId: query.ReferralChannelId,
+                    ReferralMissing: query.ReferralMissing),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -589,7 +630,10 @@ public sealed class SearchCandidatesQueryHandler
             row.HiredEmployeeId,
             row.NextContactDate,
             row.ClosedAt,
-            row.ClosingNote);
+            row.ClosingNote,
+            row.ReferralChannelId,
+            row.ReferralChannelName,
+            row.ReferralDetail);
     }
 }
 
@@ -659,6 +703,7 @@ public sealed class RegisterCandidateCommandHandler
     private readonly ICandidateRepository _candidates;
     private readonly IVacancyRepository _vacancies;
     private readonly IPipelineStageRepository _stages;
+    private readonly ReferralChannelChoice _referral;
     private readonly RecruitingMapper _mapper;
     private readonly SystemSettingsReader _settings;
     private readonly IClock _clock;
@@ -668,6 +713,7 @@ public sealed class RegisterCandidateCommandHandler
         ICandidateRepository candidates,
         IVacancyRepository vacancies,
         IPipelineStageRepository stages,
+        ReferralChannelChoice referral,
         RecruitingMapper mapper,
         SystemSettingsReader settings,
         IClock clock,
@@ -676,6 +722,7 @@ public sealed class RegisterCandidateCommandHandler
         _candidates = candidates;
         _vacancies = vacancies;
         _stages = stages;
+        _referral = referral;
         _mapper = mapper;
         _settings = settings;
         _clock = clock;
@@ -728,6 +775,22 @@ public sealed class RegisterCandidateCommandHandler
         }
 
         var candidate = registered.Value;
+
+        /*
+          «Qayerdan bilgan» — HAR BIR yangi nomzodda majburiy (SPEC-qayerdan-bilgan §5):
+          HR formasi ham, bot ham, qayta ariza ham. Tekshiruv vakansiya, bosqich va
+          shaxsiy maydonlardan KEYIN: mavjud xatolar (`vakansiya.qabul_qilmaydi` va h.k.)
+          avvalgidek birinchi chiqadi. Nomzod hali saqlanmagan — xato qaytsa hech narsa
+          yozilmaydi.
+        */
+        var referral = await _referral
+            .ApplyNewAsync(candidate, command.ReferralChannelId, command.ReferralDetail, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (referral.IsFailure)
+        {
+            return referral.Error;
+        }
 
         /*
           Telegram suhbatining raqami — FAQAT botdan kelgan nomzodda.
@@ -848,7 +911,6 @@ public sealed class RegisterCandidateCommandHandler
             form.MaritalStatus,
             form.RussianLevel,
             form.ExpectedSalary,
-            form.ReferralSource,
             form.OfferAcceptedAt?.ToUniversalTime(),
             form.WorkExperience,
             form.OtherLanguages,
@@ -904,15 +966,18 @@ public sealed class RegisterCandidateCommandHandler
 public sealed class UpdateCandidateCommandHandler
 {
     private readonly ICandidateRepository _candidates;
+    private readonly ReferralChannelChoice _referral;
     private readonly RecruitingMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateCandidateCommandHandler(
         ICandidateRepository candidates,
+        ReferralChannelChoice referral,
         RecruitingMapper mapper,
         IUnitOfWork unitOfWork)
     {
         _candidates = candidates;
+        _referral = referral;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
     }
@@ -955,6 +1020,18 @@ public sealed class UpdateCandidateCommandHandler
         if (updated.IsFailure)
         {
             return updated.Error;
+        }
+
+        // Kanal: tozalab bo'lmaydi, eski kanalsiz yozuv esa shundayligicha qolishi mumkin
+        // (qoidalar `ReferralChannelChoice.ApplyEditAsync` da). Xato bo'lsa hech narsa
+        // saqlanmaydi — yuqoridagi o'zgarishlar ham.
+        var referral = await _referral
+            .ApplyEditAsync(candidate, command.ReferralChannelId, command.ReferralDetail, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (referral.IsFailure)
+        {
+            return referral.Error;
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

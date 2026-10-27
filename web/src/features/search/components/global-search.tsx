@@ -273,6 +273,8 @@ export function GlobalSearch() {
             // `backdrop-filter` tufayli `fixed` uchun asos bo'ladi)
             'fixed inset-x-3 top-[4.25rem] max-h-[calc(100dvh-5.5rem)]',
             'sm:absolute sm:inset-x-0 sm:top-full sm:mt-2 sm:max-h-[min(70vh,600px)]',
+            // Maydon panelda ixcham — natijalar (ism + lavozim + bo'lim) siqilmasin
+            'lg:right-auto lg:w-[max(100%,36rem)]',
           )}
           style={{ transformOrigin: 'top center' }}
         >

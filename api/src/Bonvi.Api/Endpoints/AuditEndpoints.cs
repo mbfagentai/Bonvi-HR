@@ -1,6 +1,7 @@
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Audit;
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Identity;
 
 namespace Bonvi.Api.Endpoints;
@@ -27,6 +28,8 @@ namespace Bonvi.Api.Endpoints;
 /// </remarks>
 public static class AuditEndpoints
 {
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     public static IEndpointRouteBuilder MapAuditEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -95,6 +98,66 @@ public static class AuditEndpoints
             .Produces<PagedResult<AuditEntryDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        // «/export» ham «/{id:guid}» bilan to'qnashmaydi. Ko'rinish va yashirish — ro'yxatning
+        // o'zidan (`ListAuditEntriesQueryHandler.BuildFilter`), ya'ni fayl ekrandan ko'p bermaydi.
+        group.MapGet("/export", async (
+                DateOnly? from,
+                DateOnly? to,
+                string? actor,
+                string? module,
+                string? action,
+                Guid? employeeId,
+                string? entity,
+                string? entityId,
+                string? kind,
+                ExportAuditEntriesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new ListAuditEntriesQuery(
+                            from,
+                            to,
+                            actor,
+                            module,
+                            action,
+                            employeeId,
+                            entity,
+                            entityId,
+                            kind,
+                            Page: null,
+                            PageSize: null),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(
+                        natija.Value.Content,
+                        XlsxContentType,
+                        natija.Value.FileName);
+            })
+            // Ikkala ruxsat ham kerak: jurnalni ochish (`audit.view`) va tizimdan fayl olib
+            // chiqish (`reports.export`) — boshqa eksportlar bilan bir xil.
+            .RequireAuthorization(Permissions.AuditView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportAuditEntriesToExcel")
+            .WithSummary("Audit jurnali — Excel eksport")
+            .WithDescription(
+                "Filtr parametrlari «GET /api/audit» bilan AYNAN bir xil (sahifasiz) — ekrandagi yozuvlar, " +
+                "o'sha tartibda (eng yangisi birinchi), bitta faylda; davr berilmasa — o'sha 30 kun. " +
+                "KO'RINISH ham ro'yxatniki: ko'rinmaydigan bo'lim qatorlari tushmaydi, «kind=security|all» " +
+                "faqat «users.manage» bilan (usiz — «changes»), oklad va shaxsiy maydonlar ruxsatsiz «•••». " +
+                "Ustunlar: vaqt (Toshkent), kim, roli (o'sha lahzadagi), amal, nima, yozuv turi, " +
+                "o'zgarishlar (ekrandagi bir qatorlik xulosa). IP manzil yo'q — u ro'yxat qatorida emas. " +
+                "Eng ko'pi 5000 qator — «eksport.juda_kop» (400); filtr xatolari ro'yxatdagidek " +
+                "(«audit.filtr_notogri», «audit.davr_notogri»). Ruxsat: «audit.view» VA «reports.export». " +
+                "Har bir eksport audit jurnaliga yoziladi.")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         // «/actors» «/{id:guid}» bilan to'qnashmaydi (marshrut cheklovi GUID talab qiladi).
         group.MapGet("/actors", async (

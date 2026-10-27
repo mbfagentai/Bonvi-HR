@@ -26,19 +26,22 @@ public sealed record QuestionnaireResponse(
     bool HasDriverLicense,
     string? DriverLicenseCategories,
     string ExpectedSalary,
-    string ReferralSource,
 
     // Rozilik vaqti — so'ralmagan bo'lsa `null` (izohi domenda).
     DateTimeOffset? OfferAcceptedAt);
 
 /// <summary>Nomzod kartasi — anketa va surat testlariga kerakli qismi.</summary>
+/// <remarks>«Qayerdan bilgan» — nomzodning o'zida, anketada emas (SPEC-qayerdan-bilgan §4).</remarks>
 public sealed record QuestionnaireCandidateResponse(
     Guid Id,
     string FullName,
     Guid VacancyId,
     string? Vacancy,
     bool HasPhoto,
-    QuestionnaireResponse? Questionnaire);
+    QuestionnaireResponse? Questionnaire,
+    Guid? ReferralChannelId = null,
+    string? ReferralChannelName = null,
+    string? ReferralDetail = null);
 
 /// <summary>Ro'yxat qatori — bayroqlar tekshiriladi, anketa esa u yerda BO'LMASLIGI kerak.</summary>
 public sealed record CandidateFlagsRowResponse(Guid Id, bool HasResume, bool HasPhoto);
@@ -84,7 +87,12 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
     //  Eski bot bilan moslik
     // ────────────────────────────────────────────────────────────
 
-    /// <summary>Anketasiz, ESKI shakldagi so'rov o'zgarishsiz ishlaydi.</summary>
+    /// <summary>Anketasiz so'rov o'zgarishsiz ishlaydi — anketa bloki ixtiyoriyligicha qoladi.</summary>
+    /// <remarks>
+    /// 2026-10-26 dan «qayerdan bilgan» kanali HAR BIR yangi nomzodda majburiy (SPEC-qayerdan-bilgan §5),
+    /// ya'ni so'rov shu maydon bilan; anketa bloki esa avvalgidek butunlay ixtiyoriy. Kanalsiz eski shakl
+    /// endi rad etiladi — <see cref="Kanalsiz_eski_shakldagi_sorov_endi_rad_etiladi"/>.
+    /// </remarks>
     [Fact]
     public async Task Anketasiz_eski_shakldagi_sorov_avvalgidek_ishlaydi()
     {
@@ -93,7 +101,7 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
         using var mijoz = await AdminMijozAsync();
         var vakansiya = await VakansiyaAsync(mijoz);
 
-        // Tanada «questionnaire» kaliti UMUMAN yo'q — eski bot aynan shunday yuboradi.
+        // Tanada «questionnaire» kaliti UMUMAN yo'q — anketasiz ariza.
         using var yaratish = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/candidates", UriKind.Relative),
             new
@@ -105,6 +113,7 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
                 source = "TelegramBot",
                 telegramChatId = 123456789L,
                 telegramLanguage = "uz-Latn",
+                referralChannelId = ReferralSeeds.Telegram,
             },
             bekorQilish);
 
@@ -119,6 +128,49 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
         var karta = await KartaAsync(mijoz, nomzod.Id);
         karta.Questionnaire.ShouldBeNull();
         karta.HasPhoto.ShouldBeFalse();
+        karta.ReferralChannelId.ShouldBe(ReferralSeeds.Telegram);
+        karta.ReferralChannelName.ShouldBe("Telegram");
+    }
+
+    /// <summary>
+    /// Deploydan oldingi bot shakli — kanal yo'q, manba anketa ichida (<c>referralSource</c>) —
+    /// endi 400 va nomzod YOZILMAYDI: bot va API birga deploy qilinadi (SPEC-qayerdan-bilgan §9).
+    /// </summary>
+    [Fact]
+    public async Task Kanalsiz_eski_shakldagi_sorov_endi_rad_etiladi()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        using var mijoz = await AdminMijozAsync();
+        var vakansiya = await VakansiyaAsync(mijoz);
+
+        using var yaratish = await mijoz.PostAsJsonAsync(
+            new Uri("/api/recruiting/candidates", UriKind.Relative),
+            new
+            {
+                vacancyId = vakansiya,
+                lastName = "Эскибот",
+                firstName = "Азиз",
+                source = "TelegramBot",
+                questionnaire = new
+                {
+                    education = "SecondarySchool",
+                    maritalStatus = "Married",
+                    russianLevel = "Elementary",
+                    expectedSalary = "From1To2Million",
+                    referralSource = "Telegram",
+                },
+            },
+            bekorQilish);
+
+        yaratish.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(yaratish));
+        (await XatoKodiAsync(yaratish)).ShouldBe("qayerdan.majburiy");
+
+        using var royxat = await mijoz.GetAsync(
+            new Uri($"/api/recruiting/candidates?vacancyId={vakansiya}", UriKind.Relative),
+            bekorQilish);
+
+        (await royxat.Content.ReadFromJsonAsync<CandidateFlagsPageResponse>(bekorQilish))!.Total.ShouldBe(0);
     }
 
     // ────────────────────────────────────────────────────────────
@@ -150,13 +202,13 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
                 firstName = "Нилуфар",
                 phone = "905066666",
                 source = "TelegramBot",
+                referralChannelId = ReferralSeeds.Telegram,
                 questionnaire = new
                 {
                     education = "HigherComplete",
                     maritalStatus = "Unmarried",
                     russianLevel = "UpperIntermediate",
                     expectedSalary = "From3To4Million",
-                    referralSource = "Telegram",
                     offerAcceptedAt = rozilikVaqti,
                     workExperience = "MBF, sotuvchi, 2 yil",
                     otherLanguages = "Ingliz tili — o'rta",
@@ -186,8 +238,12 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
         anketa.MaritalStatus.ShouldBe("Unmarried");
         anketa.RussianLevel.ShouldBe("UpperIntermediate");
         anketa.ExpectedSalary.ShouldBe("From3To4Million");
-        anketa.ReferralSource.ShouldBe("Telegram");
         anketa.OfferAcceptedAt.ShouldBe(rozilikVaqti);
+
+        // «Qayerdan bilgan» — kartaning o'zida, anketa blokida emas
+        karta.ReferralChannelId.ShouldBe(ReferralSeeds.Telegram);
+        karta.ReferralChannelName.ShouldBe("Telegram");
+        karta.ReferralDetail.ShouldBeNull();
 
         // Bot vaqtni Toshkent siljishi bilan yuboradi («+05:00»). Npgsql esa
         // `timestamptz` ga faqat NOL siljishli qiymat yozadi — normallashtirish
@@ -242,13 +298,13 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
                 vacancyId = vakansiya,
                 lastName = "Сафаров",
                 firstName = "Жасур",
+                referralChannelId = ReferralSeeds.Olx,
                 questionnaire = new
                 {
                     education = 99,
                     maritalStatus = "Married",
                     russianLevel = "Elementary",
                     expectedSalary = "From1To2Million",
-                    referralSource = "Olx",
                     offerAcceptedAt = DateTimeOffset.UtcNow,
                 },
             },
@@ -259,38 +315,61 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
         }
 
         /*
-          2. Manba sanog'ida bo'lmagan qiymat.
+          2. Maosh sanog'ida bo'lmagan qiymat.
 
-          ⚠️ Bu yerda ilgari «ommaviy oferta vaqti yo'q» holati turgan
-          edi va u 400 kutardi. Endi u XATO EMAS: bo'sh qiymat «rozilik
-          so'ralmagan» degan haqiqiy ma'noga ega (sababi
-          `CandidateQuestionnaire.OfferAcceptedAt` izohida) va uning
-          uchun alohida test bor — `Ofertasiz_anketa_qabul_qilinadi`.
-          Testning MAQSADI o'zgarmadi: yaroqsiz anketa yozuvni yarim
-          holatda qoldirmasligi kerak, shu sababli o'rniga boshqa
-          yaroqsiz qiymat qo'yildi.
+          ⚠️ Bu yerda ilgari «ommaviy oferta vaqti yo'q» holati, keyin esa manba
+          sanog'idagi yaroqsiz qiymat (`anketa.manba_notogri`) turgan edi. Birinchisi
+          XATO EMAS bo'lib qoldi (`Ofertasiz_anketa_qabul_qilinadi`), ikkinchisi —
+          sanoq butunlay olib tashlandi: «qayerdan bilgan» endi ma'lumotnoma va
+          nomzodning o'z maydoni (SPEC-qayerdan-bilgan §4, yaroqsiz kanal — 3-holat).
+          Testning MAQSADI o'zgarmadi: yaroqsiz anketa yozuvni yarim holatda
+          qoldirmasligi kerak, shu sababli o'rniga boshqa yaroqsiz qiymat qo'yildi.
         */
-        using (var notogriManba = await mijoz.PostAsJsonAsync(
+        using (var notogriMaosh = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/candidates", UriKind.Relative),
             new
             {
                 vacancyId = vakansiya,
                 lastName = "Сафаров",
                 firstName = "Жасур",
+                referralChannelId = ReferralSeeds.Olx,
+                questionnaire = new
+                {
+                    education = "SecondarySchool",
+                    maritalStatus = "Married",
+                    russianLevel = "Elementary",
+                    expectedSalary = 42,
+                    offerAcceptedAt = DateTimeOffset.UtcNow,
+                },
+            },
+            bekorQilish))
+        {
+            notogriMaosh.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(notogriMaosh));
+            (await XatoKodiAsync(notogriMaosh)).ShouldBe("anketa.maosh_notogri");
+        }
+
+        // 3. Noma'lum «qayerdan bilgan» kanali — anketa to'g'ri bo'lsa ham nomzod yozilmaydi
+        using (var notogriKanal = await mijoz.PostAsJsonAsync(
+            new Uri("/api/recruiting/candidates", UriKind.Relative),
+            new
+            {
+                vacancyId = vakansiya,
+                lastName = "Сафаров",
+                firstName = "Жасур",
+                referralChannelId = Guid.CreateVersion7(),
                 questionnaire = new
                 {
                     education = "SecondarySchool",
                     maritalStatus = "Married",
                     russianLevel = "Elementary",
                     expectedSalary = "From1To2Million",
-                    referralSource = 42,
                     offerAcceptedAt = DateTimeOffset.UtcNow,
                 },
             },
             bekorQilish))
         {
-            notogriManba.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(notogriManba));
-            (await XatoKodiAsync(notogriManba)).ShouldBe("anketa.manba_notogri");
+            notogriKanal.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(notogriKanal));
+            (await XatoKodiAsync(notogriKanal)).ShouldBe("qayerdan.topilmadi");
         }
 
         // Vakansiya BU test uchun yangi yaratilgan — unda bironta yozuv
@@ -338,13 +417,13 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
                 lastName = "Офертасиз",
                 firstName = "Номзод",
                 source = "TelegramBot",
+                referralChannelId = ReferralSeeds.Telegram,
                 questionnaire = new
                 {
                     education = "SecondarySchool",
                     maritalStatus = "Unmarried",
                     russianLevel = "Elementary",
                     expectedSalary = "From1To2Million",
-                    referralSource = "Telegram",
                 },
             },
             bekorQilish);
@@ -390,13 +469,14 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
                 lastName = "Умумий",
                 firstName = "Номзод",
                 source = "TelegramBot",
+                referralChannelId = ReferralSeeds.Acquaintance,
+                referralDetail = "Рустамов Баҳодир",
                 questionnaire = new
                 {
                     education = "VocationalSchool",
                     maritalStatus = "Married",
                     russianLevel = "Intermediate",
                     expectedSalary = "From2To3Million",
-                    referralSource = "Acquaintance",
                     offerAcceptedAt = DateTimeOffset.UtcNow,
                 },
             },
@@ -663,13 +743,13 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
                 vacancyId = vakansiya,
                 lastName = "Рухсатсиз",
                 firstName = "Номзод",
+                referralChannelId = ReferralSeeds.Olx,
                 questionnaire = new
                 {
                     education = "SecondarySchool",
                     maritalStatus = "Married",
                     russianLevel = "Elementary",
                     expectedSalary = "From1To2Million",
-                    referralSource = "Olx",
                     offerAcceptedAt = DateTimeOffset.UtcNow,
                 },
             },
@@ -740,6 +820,7 @@ public sealed class CandidateQuestionnaireApiTests : IClassFixture<BonviApiFacto
                 vacancyId = vakansiyaId,
                 lastName = familiya,
                 firstName = "Номзод",
+                referralChannelId = ReferralSeeds.Telegram,
             },
             bekorQilish);
 

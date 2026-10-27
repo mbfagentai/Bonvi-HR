@@ -85,31 +85,11 @@ public enum SalaryAnswer
     From5To7Million = 4,
 }
 
-/// <summary>Ish haqida qayerdan bilgan — 20-qadamning tugmalari.</summary>
-/// <remarks>
-/// Bu — reklama byudjeti haqidagi yagona o'lchov: qaysi kanal nomzod
-/// olib kelayotganini boshqa hech qayerdan bilib bo'lmaydi.
-/// </remarks>
-public enum ReferralAnswer
-{
-    /// <summary>Tanishlar orqali.</summary>
-    Acquaintance = 1,
-
-    /// <summary>Instagram yoki Facebook.</summary>
-    SocialNetwork = 2,
-
-    /// <summary>OLX.uz.</summary>
-    Olx = 3,
-
-    /// <summary>hh.uz.</summary>
-    HeadHunter = 4,
-
-    /// <summary>Telegram.</summary>
-    Telegram = 5,
-
-    /// <summary>Boshqa manba.</summary>
-    Other = 6,
-}
+/*
+  «Ish haqida qayerdan bilgan» (20-qadam) ENDI SANOQ EMAS: tugmalar serverdagi
+  «Qayerdan bilgan» ma'lumotnomasidan keladi (`BonviClient.GetReferralChannelsAsync`,
+  SPEC-qayerdan-bilgan §5) — HR yangi kanal qo'shsa, bot o'zgarishsiz uni ko'rsatadi.
+*/
 
 /// <summary>
 /// Anketa javoblarining umumiy qoidalari: chegaralar va toifalar.
@@ -150,6 +130,15 @@ public static class Answers
 
     /// <summary>Qo'shimcha ma'lumot.</summary>
     public const int MaxExtraNoteLength = 2000;
+
+    /// <summary>
+    /// «Qayerdan bilgan» aniqligi («kim tavsiya qildi») — <c>candidates.referral_detail</c>.
+    /// </summary>
+    /// <remarks>
+    /// Server bu matnni QIRQMAYDI, rad etadi (<c>qayerdan.izoh_uzun</c>) — shu sababli bot
+    /// o'zi qirqadi: aks holda nomzod oxirgi qadamda «ariza yuborilmadi» ni olardi.
+    /// </remarks>
+    public const int MaxReferralDetailLength = 200;
 
     /// <summary>
     /// Haydovchilik guvohnomasi toifalari — 17-qadamning tugmalari.

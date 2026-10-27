@@ -79,6 +79,13 @@ public static class CatalogEndpoints
         MapSimpleReference<AbsenceType, AbsenceTypeDto>(
             group, "absence-types", "AbsenceTypes", "AbsenceType", "Yo'qlik turlari");
 
+        // «Qayerdan bilgan» — nomzod ish haqida qayerdan bilgani (SPEC-qayerdan-bilgan §3).
+        // Yo'qlik turlari bilan bir xil sabab: rekrutingga tegishli bo'lsa ham, ma'lumotnoma
+        // HR uni qidiradigan joyda. Tanlash ro'yxati rekruting ruxsati bilan alohida —
+        // `/api/recruiting/referral-channels` (bot va rekruter `catalog.view` siz o'qiydi).
+        MapSimpleReference<ReferralChannel, ReferralChannelDto>(
+            group, "referral-channels", "ReferralChannels", "ReferralChannel", "Qayerdan bilgan");
+
         // ---------- Daraxt va vazifalar: o'z qoidalari bor ----------
         MapDepartments(group);
         MapPositions(group);

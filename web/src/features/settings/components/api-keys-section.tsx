@@ -90,49 +90,32 @@ export function ApiKeysSection() {
       helper.accessor('name', {
         header: t('settings.apiKeys.columnName'),
         /*
-          Yagona moslashuvchan ustun (qolganlari qat'iy `width`). 220px —
-          «BonviCall» kabi qisqa nomlar uchun bemalol, uzuni kesiladi va
-          to'lig'i `title` atributida qoladi.
+          Yagona moslashuvchan ustun (qolganlari qat'iy `width`). Nom va
+          yorliq BIR QATORDA (egasi 2026-10-22 — jadval qatori ikkiga
+          bo'linmaydi); uzun nomda ustun o'zi kengayadi (katak `nowrap`).
         */
         meta: { minWidth: '220px' },
         cell: ({ row }) => {
           const item = row.original
 
           return (
-            <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-2">
-                <p
-                  className={cn('truncate-1 font-medium', !item.isActive && muted)}
-                  title={item.name}
-                >
-                  {item.name}
-                </p>
-                {/* Kengroq doira ko'zga tashlansin — u tizimdagi deyarli hamma narsani o'qiydi. */}
-                {item.scope === 'FullRead' && (
-                  <Badge tone="warning" size="sm" className="shrink-0">
-                    {t('settings.apiKeys.badgeFull')}
-                  </Badge>
-                )}
-              </div>
+            <div className="flex items-center gap-2">
+              <span className={cn('font-medium', !item.isActive && muted)}>{item.name}</span>
+              {/* Kengroq doira ko'zga tashlansin — u tizimdagi deyarli hamma narsani o'qiydi. */}
+              {item.scope === 'FullRead' && (
+                <Badge tone="warning" size="sm" className="shrink-0">
+                  {t('settings.apiKeys.badgeFull')}
+                </Badge>
+              )}
 
               {/*
-                Telefon kengligida prefiks ustuni yashiriladi — u ismning
-                ostiga tushadi. Kalitni tanib olishning yagona yo'li shu
-                prefiks, ya'ni tor ekranda ham ko'rinishi kerak.
-
-                ⚠️ `md:hidden` ALOHIDA o'ramda, `truncate-1` bilan bitta
-                elementda EMAS. Sabab: `truncate-1` globals.css dagi
-                `@layer utilities` blokida turadi va u Tailwind'ning o'z
-                utilitalaridan KEYIN keladi — bir xil xoslikda keyingisi
-                yutadi, ya'ni uning `display: -webkit-box` i `hidden` ning
-                `display: none` ini bosib ketardi (tekshirilgan: qator
-                keng ekranda ham ko'rinib turardi).
+                Telefon kengligida prefiks ustuni yashiriladi — u shu
+                qatorga, nomdan keyin qo'shiladi. Kalitni tanib olishning
+                yagona yo'li shu prefiks, ya'ni tor ekranda ham ko'rinishi kerak.
               */}
-              <div className="md:hidden">
-                <p className="tabular truncate-1 text-footnote text-[var(--fg-tertiary)]">
-                  {keyLabel(item.prefix)}
-                </p>
-              </div>
+              <span className="tabular text-footnote text-[var(--fg-tertiary)] md:hidden">
+                {keyLabel(item.prefix)}
+              </span>
             </div>
           )
         },
@@ -172,10 +155,11 @@ export function ApiKeysSection() {
       helper.accessor('lastUsedAt', {
         header: t('settings.apiKeys.columnLastUsed'),
         /*
-          «18.09.2026 14:30» (17 belgi) va ostida IP — 180px. Vaqt
-          TOSHKENT mintaqasida (`formatDateTime`), brauzernikida emas:
-          xavfsizlik tekshiruvida «kalit qachon ishlatilgan» degan savolga
-          HR o'zining soati bilan javob beradi.
+          «18.09.2026 14:30» va yonida IP — bir qatorda; 180px pastki
+          chegara, IP bilan ustun o'zi kengayadi. Vaqt TOSHKENT mintaqasida
+          (`formatDateTime`), brauzernikida emas: xavfsizlik tekshiruvida
+          «kalit qachon ishlatilgan» degan savolga HR o'zining soati bilan
+          javob beradi.
         */
         meta: { width: '180px', hideOnMobile: true },
         cell: ({ row }) => {
@@ -190,10 +174,10 @@ export function ApiKeysSection() {
           }
 
           return (
-            <div className="min-w-0">
-              <p className={cn('tabular', item.isActive ? 'text-[var(--fg-secondary)]' : muted)}>
+            <span className="flex items-baseline gap-2">
+              <span className={cn('tabular', item.isActive ? 'text-[var(--fg-secondary)]' : muted)}>
                 {dateTime(item.lastUsedAt)}
-              </p>
+              </span>
 
               {/*
                 So'rov kelgan IP — kalit sizib chiqqanda birinchi
@@ -201,11 +185,9 @@ export function ApiKeysSection() {
                 kichikroq va xiraroq.
               */}
               {item.lastUsedIp !== null && (
-                <p className="tabular truncate-1 text-caption1 text-[var(--fg-tertiary)]">
-                  {item.lastUsedIp}
-                </p>
+                <span className="tabular text-caption1 text-[var(--fg-tertiary)]">{item.lastUsedIp}</span>
               )}
-            </div>
+            </span>
           )
         },
       }),

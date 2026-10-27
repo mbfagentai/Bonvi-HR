@@ -279,6 +279,46 @@ public sealed class AbsenceTypeDefinition : ReferenceDefinition<AbsenceType, Abs
     }
 }
 
+/// <summary>«Qayerdan bilgan» ma'lumotnomasining ta'rifi.</summary>
+/// <remarks>
+/// Yagona qo'shimcha maydon — «aniqlik so'ralsin» (SPEC-qayerdan-bilgan §3). U o'zgarganda
+/// eski nomzodlarga hech narsa qilinmaydi: aniqliksiz eski yozuv eski holicha qoladi, qoida
+/// faqat YANGI tanlovga qo'llanadi (<c>ReferralChannelChoice</c>).
+/// </remarks>
+public sealed class ReferralChannelDefinition : ReferenceDefinition<ReferralChannel, ReferralChannelDto>
+{
+    /// <inheritdoc />
+    public override ReferralChannelDto ToDto(ReferralChannel entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        return new ReferralChannelDto(
+            entity.Id,
+            entity.Name,
+            entity.IsActive,
+            entity.Note,
+            entity.AsksDetail);
+    }
+
+    /// <inheritdoc />
+    public override Result<ReferralChannel> Create(SaveReferenceCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return ReferralChannel.Create(command.Name);
+    }
+
+    /// <inheritdoc />
+    protected override Result ApplySpecific(ReferralChannel entity, SaveReferenceCommand command)
+    {
+        if (command.AsksDetail is { } asksDetail)
+        {
+            entity.SetAsksDetail(asksDetail);
+        }
+
+        return Result.Success();
+    }
+}
+
 /// <summary>Rag'bat turi ma'lumotnomasining ta'rifi.</summary>
 public sealed class AwardTypeDefinition : ReferenceDefinition<AwardType, AwardTypeDto>
 {

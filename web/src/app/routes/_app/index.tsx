@@ -76,8 +76,9 @@ function Dashboard() {
     <div className="space-y-6">
       <PageHeader
         title={t('dashboard.title')}
-        subtitle={t('dashboard.subtitle', { company: t('app.company') })}
-        actions={
+        description={t('dashboard.subtitle', { company: t('app.company') })}
+        // Davr — sahifada, avvalgi joyida (egasi 2026-10-22: sana filtrlari panelga chiqmaydi)
+        toolbar={
           <SegmentedControl
             value={period}
             onChange={setPeriod}

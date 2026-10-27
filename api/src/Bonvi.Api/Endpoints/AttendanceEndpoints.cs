@@ -10,6 +10,7 @@ using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Schedules;
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Application.Reports.Queries;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Identity;
@@ -2110,6 +2111,128 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — xulosa, Excel")
             .WithDescription(
                 "Parametrlar «GET /reports/summary» bilan AYNAN bir xil (sahifasiz). Eng ko'pi 20 000 qator.")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        // ── Ro'yxat eksportlari (SPEC-excel-eksport.md §2 #6–#8) ─────────────
+        // Manzil — «<ro'yxat>/export», «/export/…» emas: hamma ro'yxatda bitta qoida. Ular
+        // «/requests/{id:guid}» va «/schedule-requests/{id:guid}» bilan to'qnashmaydi —
+        // «export» GUID emas. Chegara — umumiy 5 000 («eksport.juda_kop»), audit yoziladi.
+
+        group.MapGet("/requests/export", async (
+                Guid? employeeId,
+                AbsenceRequestStatus? status,
+                bool? decided,
+                DateOnly? from,
+                DateOnly? to,
+                string? search,
+                Guid? absenceTypeId,
+                AbsenceRequestMode? mode,
+                ExportAbsenceRequestsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new SearchAbsenceRequestsQuery(
+                            employeeId, status, decided, from, to, search,
+                            Page: null, PageSize: null, absenceTypeId, mode),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            .RequireAuthorization(Permissions.AttendanceView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportAbsenceRequestsToExcel")
+            .WithSummary("Davomat — yo'qlik so'rovlari, Excel")
+            .WithDescription(
+                "Parametrlar «GET /requests» bilan AYNAN bir xil (sahifasiz) — ekrandagi filtr bilan mos " +
+                "keladigan HAMMA so'rov, o'sha tartibda (yangisi birinchi). Ekrandagi ikki jadval — " +
+                "«status=Pending» va «decided=true»; ikkalasisiz — butun navbat. Ustunlar: xodim, bo'lim, " +
+                "yo'qlik turi, sanadan, sanagacha, vaqt (yoki «Butun kun»), izoh, holat, qaror izohi, qaror " +
+                "qilgan, qaror sanasi, ilovadan (Ha/Yo'q). Eng ko'pi 5000 qator — «eksport.juda_kop» (400); " +
+                "«from» > «to» — «davomat.davr_notogri» (400). Ruxsat: «attendance.view» VA «reports.export». " +
+                "Har bir eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        group.MapGet("/schedule-requests/export", async (
+                Guid? employeeId,
+                AbsenceRequestStatus? status,
+                bool? decided,
+                DateOnly? from,
+                DateOnly? to,
+                string? search,
+                ExportScheduleChangeRequestsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new SearchScheduleChangeRequestsQuery(
+                            employeeId, status, decided, from, to, search, Page: null, PageSize: null),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            .RequireAuthorization(Permissions.AttendanceView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportScheduleChangeRequestsToExcel")
+            .WithSummary("Davomat — jadval so'rovlari, Excel")
+            .WithDescription(
+                "Parametrlar «GET /schedule-requests» bilan AYNAN bir xil (sahifasiz), o'sha tartibda. Bitta " +
+                "qator — bitta so'rov; uning sanalari, ish vaqti va tanaffusi katak ICHIDA, kun sayin bir " +
+                "qatordan (almashtirishda — juftlar). Ustunlar: xodim, bo'lim, so'rov turi, sanalar, ish " +
+                "vaqti, tanaffus, izoh, holat, qaror izohi, qaror qilgan, qaror sanasi, ilovadan. Eng ko'pi " +
+                "5000 qator — «eksport.juda_kop» (400); «from» > «to» — «davomat.davr_notogri» (400). Ruxsat: " +
+                "«attendance.view» VA «reports.export». Har bir eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
+            .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        group.MapGet("/dashboard/export", async (
+                DateOnly? date,
+                string? search,
+                Guid? legalEntityId,
+                Guid? departmentId,
+                Guid? positionId,
+                AttendanceDashboardStatus? status,
+                string? sort,
+                ExportAttendanceDashboardQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetAttendanceDashboardQuery(
+                            date, search, legalEntityId, departmentId, positionId, status, sort, Page: null, PageSize: null),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : Results.File(natija.Value.Content, XlsxContentType, natija.Value.FileName);
+            })
+            .RequireAuthorization(Permissions.AttendanceView, Permissions.ReportsExport)
+            .RequireRateLimiting(RateLimitPolicies.Export)
+            .WithName("ExportAttendanceDashboardToExcel")
+            .WithSummary("Davomat — statistika jadvali, Excel")
+            .WithDescription(
+                "Parametrlar «GET /dashboard» bilan AYNAN bir xil (sahifasiz): bitta sana (berilmasa — bugun), " +
+                "firma/bo'lim/lavozim, holat («status») va qidiruv («search») — jadvaldagidek SERVERDA " +
+                "qo'llanadi, saralash — ism bo'yicha. Davr (grafik) eksport qilinmaydi: unda jadval yo'q. " +
+                "Ustunlar: F.I.Sh., lavozim, bo'lim, kelgan, ketgan (jadvalsiz kunning avtomatik 22:00 si — " +
+                "«(avto)» izohi bilan matn), holat, kechikish (daq.). Fayl nomidagi sana — jadval sanasi. " +
+                "Eng ko'pi 5000 qator — «eksport.juda_kop» (400). Ruxsat: «attendance.view» VA " +
+                "«reports.export». Har bir eksport audit jurnaliga yoziladi (qidiruv matnisiz).")
             .Produces(StatusCodes.Status200OK, contentType: XlsxContentType)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)

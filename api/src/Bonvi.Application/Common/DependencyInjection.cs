@@ -63,6 +63,27 @@ public static class DependencyInjection
         services.AddScoped<ExportEmployeesQueryHandler>();
         services.AddScoped<ExportIncentivesQueryHandler>();
 
+        // «Nomzodlar qayerdan bilgan» (SPEC-qayerdan-bilgan §7) — hisobot va uning Excel'i.
+        services.AddScoped<GetCandidateReferralsQueryHandler>();
+        services.AddScoped<ExportCandidateReferralsQueryHandler>();
+
+        // Ro'yxatlarning Excel eksporti (SPEC-excel-eksport.md §2 #1–#5) — har biri
+        // o'z ro'yxat handler'ini chaqiradi, filtr nusxasi yozilmaydi.
+        services.AddScoped<ExportCandidatesQueryHandler>();
+        services.AddScoped<ExportVacanciesQueryHandler>();
+        services.AddScoped<ExportProbationsQueryHandler>();
+        services.AddScoped<ExportEmploymentEventsQueryHandler>();
+        services.AddScoped<ExportFlaggedEmployeesQueryHandler>();
+
+        // #6–#11 — so'rovlar, statistika, audit, qayta aloqa, hodisalar. Sahifasi 200 bilan
+        // qisiladigan ro'yxatlar handler'ning `BuildFilter` ini, qolganlari handler'ning o'zini.
+        services.AddScoped<ExportAbsenceRequestsQueryHandler>();
+        services.AddScoped<ExportScheduleChangeRequestsQueryHandler>();
+        services.AddScoped<ExportAttendanceDashboardQueryHandler>();
+        services.AddScoped<ExportAuditEntriesQueryHandler>();
+        services.AddScoped<ExportExitInterviewsQueryHandler>();
+        services.AddScoped<ExportIncidentsQueryHandler>();
+
         // Kvadrat surat quvuri — xodim rasmi ham, hisob rasmi ham shundan o'tadi.
         // Umumiy `Common` da, chunki u bironta bo'limga tegishli emas.
         services.AddScoped<SquarePhotoStore>();

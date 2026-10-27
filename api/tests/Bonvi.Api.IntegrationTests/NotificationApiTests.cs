@@ -677,7 +677,7 @@ public sealed class NotificationApiTests : IClassFixture<BonviApiFactory>
 
         using var javob = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/candidates", UriKind.Relative),
-            new { vacancyId = vakansiyaId, lastName = familiya, firstName = "Азиз", phone = telefon },
+            new { vacancyId = vakansiyaId, lastName = familiya, firstName = "Азиз", phone = telefon, referralChannelId = ReferralSeeds.Telegram },
             bekorQilish);
 
         javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));

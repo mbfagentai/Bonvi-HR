@@ -275,7 +275,11 @@ public static class ApiKeyAuthenticationExtensions
             .AddPolicy(PublicApiPolicy, policy => policy
                 .AddAuthenticationSchemes(ApiKeyAuthenticationHandler.SchemeName)
                 .RequireAuthenticatedUser()
-                .RequireClaim(ApiKeyClaims.Prefix))
+                .RequireClaim(ApiKeyClaims.Prefix)
+
+                // Faqat ma'lum doiralar: bazada noma'lum `scope` qiymatli kalit (masalan
+                // yangiroq versiya yozgan) tashqi API'ni o'qiy olmasin
+                .RequireClaim(ApiKeyClaims.Scope, nameof(ApiKeyScope.Basic), nameof(ApiKeyScope.FullRead)))
 
             // «To'liq o'qish» — yuqoridagi shartlar USTIGA doira claim'i.
             .AddPolicy(Endpoints.PublicFullReadEndpoints.Policy, policy => policy

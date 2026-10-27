@@ -24,6 +24,11 @@ COPY . .
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
 
+# Onlayn anketaning qisqa manzili (`https://anketa.bonvi.uz`) — HR'ning
+# «Anketa havolasi» oynasi uni ko'rsatadi. Bo'sh — `<sayt>/anketa`.
+ARG VITE_ANKETA_URL=""
+ENV VITE_ANKETA_URL=${VITE_ANKETA_URL}
+
 RUN pnpm build
 
 # ------------------------------------------------------------

@@ -2,6 +2,186 @@
 # Domen olingach {$SITE_ADDRESS} ni haqiqiy domenga almashtiring —
 # Caddy HTTPS sertifikatini avtomatik oladi.
 
+# ──────────────────────────────────────────────────────────
+#  Mijozning HAQIQIY IP'si — Cloudflare ortida (2026-10-26)
+#
+#  NEGA: 2026-10-12 dan `hr.bonvi.uz` Cloudflare proksisi ortida va
+#  ulanish manzili (remote IP) — Cloudflare chekkasi. Tezlik cheklovi
+#  (anketa, HR va xodim kirishi, sessiya yangilash, anonim so'rovlar),
+#  audit IP'si va sessiyalarda saqlanadigan IP HAQIQIY mijoz bo'yicha
+#  bo'lishi kerak (SPEC-planshet-anketa §2, §2.3.3).
+#
+#  QANDAY: Caddy faqat Cloudflare diapazonlaridan kelgan so'rovda
+#  `Cf-Connecting-Ip` ga ishonadi va `{client_ip}` shundan olinadi;
+#  boshqa manzildan kelgan so'rovda sarlavha e'tiborsiz qoladi
+#  (`{client_ip}` = ulanish manzili). API'ga u `X-Bonvi-Client-Ip`
+#  bo'lib boradi (`api_proxy` snippet'i).
+#
+#  NIMA O'ZGARMAYDI: API'ning `X-Forwarded-For` qoidasi (`ForwardLimit`
+#  = 1, eng o'ngdagi manzil — Cloudflare chekkasi) va qurilma, qabul,
+#  ISUP, davomat agenti yo'llari — ular avvalgidek ulanish manzilini
+#  oladi (IP ro'yxati shunga qarab tekshiriladi). Jurnalda `client_ip`
+#  maydoni endi haqiqiy mijoz (`remote_ip` — avvalgidek chekka).
+#
+#  Diapazonlar manbasi: https://www.cloudflare.com/ips-v4 va
+#  https://www.cloudflare.com/ips-v6 — 2026-10-26 holati (IPv4 15 ta,
+#  IPv6 7 ta). Cloudflare ro'yxatni kamdan-kam o'zgartiradi; yangi
+#  diapazon qo'shilsa, undan kelgan so'rovda faqat `client_ip` chekka
+#  bo'lib qoladi (cheklov qattiqlashadi, hech narsa ochilmaydi).
+# ──────────────────────────────────────────────────────────
+{
+	servers {
+		trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+		client_ip_headers Cf-Connecting-Ip
+	}
+}
+
+# ══════════════════════════════════════════════════════════
+#  UMUMIY QISMLAR (snippet) — HR sayti VA anketa sayti (2026-10-27)
+#
+#  NEGA: `anketa.bonvi.uz` (pastda) HR saytining ozgina qismini beradi,
+#  lekin xavfsizlik sarlavhalari, CSP, jurnal tozalash va mijoz IP'si
+#  qoidasi IKKALASIDA aynan bir xil bo'lishi shart. Nusxa ko'chirilsa,
+#  ertami-kechmi biri yangilanib, ikkinchisi eskicha qolardi — shu
+#  sababli ular BITTA joyda va ikkala sayt `import` qiladi.
+# ══════════════════════════════════════════════════════════
+
+# API — backend konteyneriga.
+#
+# `X-Bonvi-Client-Ip` — mijozning haqiqiy IP'si (fayl boshidagi
+# `servers` bloki). `header_up` uni O'RNATADI: mijoz o'zi yuborgan
+# qiymat ustidan yoziladi va API'ga hech qachon yetmaydi. API uni
+# kirish va sessiya cheklovlarida, audit va sessiya IP'sida, ochiq
+# anketada o'qiydi (`ClientIp`); qurilma yo'llari uni o'qimaydi.
+(api_proxy) {
+	reverse_proxy api:8080 {
+		header_up X-Bonvi-Client-Ip {client_ip}
+	}
+}
+
+# HR SPA build'ining fayllari (`web/Dockerfile`: `dist` → `/srv`).
+# `try_files` / `rewrite` har saytda o'zi — qaysi yo'l index.html'ga
+# tushishi saytga qarab farq qiladi.
+(spa_files) {
+	root * /srv
+	file_server
+}
+
+# Saytning umumiy qoidalari: siqish, mijoz IP'si, jurnal, sarlavhalar.
+(site_common) {
+	encode zstd gzip
+
+	# Mijoz o'zi yuborgan `X-Bonvi-Client-Ip` ENG BOSHIDA o'chiriladi —
+	# qaysi `handle` blokiga tushishidan qat'i nazar. NEGA: yo'l hiylasi
+	# (`/health%2Fx/../api/...`) Caddy'da `/health/*` ga tushadi, API esa
+	# uni `/api/...` deb normallashtiradi; agar sarlavha faqat `/api/*`
+	# blokida yozilsa, shu yo'l bilan soxta IP anketa cheklovini chetlab
+	# o'tardi (xavfsizlik tekshiruvi H1, 2026-10-26). API'ga boradigan har
+	# blok uni qaytadan `{client_ip}` bilan o'rnatadi (`api_proxy`).
+	request_header -X-Bonvi-Client-Ip
+
+	# ──────────────────────────────────────────────────────────
+	#  So'rovlar jurnali — kim (IP), qachon, qaysi yo'l (2026-10-12)
+	#
+	#  NEGA: konsol logi konteyner qayta yaratilganda (har deploy) yo'qoladi
+	#  va «bu o'zgarish qaysi IP'dan kelgan?» degan savolga javob qolmaydi
+	#  (12-oktabr okladi — IP faqat kirish seanslaridan bilvosita topildi).
+	#  Fayl xostda (`LOG_DIR/caddy`), 30 kun, 20 MB'dan bo'linadi. Ikkala
+	#  sayt BITTA faylga yozadi — qator `request>host` bilan ajraladi.
+	#
+	#  SIR VA SHAXSIY MA'LUMOT JURNALGA TUSHMAYDI:
+	#  * yo'l ichidagi qurilma tokeni (`/api/attendance/ingest/<token>`) va
+	#    bir martalik rasm tokeni (`/isup-face/<token>`) → `***`;
+	#  * so'rov satri (`?search=<ism|JSHSHIR>`, `?q=`) butunlay olib tashlanadi —
+	#    API'ning Serilog jurnali bilan bir xil qoida (`Program.cs`);
+	#  * `Authorization`, `Cookie`, tashqi API kaliti (`X-Api-Key`), qurilma
+	#    agentining tokeni, imzosi va seriyasi (`X-Bonvi-*`), `Referer` (unda
+	#    sahifa manzili qidiruv matni bilan) o'chiriladi; javob sarlavhalari
+	#    umuman yozilmaydi (OAuth `Location` ichidagi bir martalik kod ham).
+	#  So'rov TANASI Caddy jurnaliga hech qachon yozilmaydi (anketa javoblari,
+	#  bot tekshiruvi tokeni ham).
+	#
+	#  ⚠️ `request>uri` uchun filtr BITTA bo'lishi shart: bir maydonga ikki
+	#  qator yozilsa, ikkinchisi birinchisini jimgina bekor qiladi (filtrlar
+	#  maydon nomi bo'yicha lug'atda). Shu sababli hammasi `multi_regexp` da.
+	# ──────────────────────────────────────────────────────────
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 20MiB
+			roll_keep 30
+			roll_keep_for 720h
+		}
+		format filter {
+			request>uri multi_regexp {
+				regexp ^/api/attendance/ingest/[^/?]+ /api/attendance/ingest/***
+				regexp ^/isup-face/[^/?]+ /isup-face/***
+				regexp \?.*$ ""
+			}
+			request>headers>Authorization delete
+			request>headers>Cookie delete
+			request>headers>X-Api-Key delete
+			request>headers>X-Bonvi-Device-Token delete
+			request>headers>X-Bonvi-Signature delete
+			request>headers>X-Bonvi-Terminal-Serial delete
+			request>headers>X-Bonvi-Client-Ip delete
+			request>headers>Referer delete
+			resp_headers delete
+			wrap json
+		}
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+
+		# Kontent siyosati — XSS ning oxirgi to'sig'i.
+		#
+		# `script-src 'self'`: sahifaga qo'yilgan begona skript
+		# ISHLAMAYDI. Bu tizimda hal qiluvchi, chunki HR kiritadigan
+		# matn (xulosa, izoh, sabab) ekranda qayta ko'rsatiladi.
+		#
+		# `'unsafe-inline'` FAQAT uslub uchun: Vite CSS ni ajratadi,
+		# lekin React ba'zi elementlarga `style=""` qo'yadi va usiz
+		# ular chizilmaydi. Skriptda esa u YO'Q — aynan shu farq
+		# siyosatga ma'no beradi.
+		#
+		# `connect-src 'self'`: API bir xil domenda (`handle /api/*`),
+		# ya'ni tashqi manzilga so'rov kerak emas — ma'lumot sizib
+		# chiqadigan yo'l yopiladi.
+		#
+		# Map tiles (Verifikatsiya → Joylashuvlar, SPEC-joylashuvlar §D):
+		# OSM and Esri satellite images are allowed in `img-src`, and
+		# Nominatim address search in `connect-src` — nothing else
+		# external. Nominatim gets only the search text, never a token.
+		#
+		# Bot tekshiruvi — Cloudflare Turnstile (SPEC-planshet-anketa
+		# §2.3.2): anketaning oxirgi ekrani `challenges.cloudflare.com`
+		# dan skriptni yuklaydi (`script-src`) va vidjet o'sha manzildan
+		# iframe bo'lib chiziladi (`frame-src`). Boshqa hech narsa kerak
+		# emas — vidjetning o'z so'rovlari o'z iframe'i ichida. `frame-src`
+		# ilgari yozilmagan va `default-src 'self'` ga tushardi — `'self'`
+		# shu sababli saqlangan (xulq o'zgarmasin).
+		#
+		# `frame-ancestors 'none'` — `X-Frame-Options` ning zamonaviy
+		# shakli; ikkalasi ham qoldirilgan, eski brauzerlar uchun.
+		#
+		# ⚠️ CSP pastdagi alohida `header @spaCsp` da — `/oauth/*` ga
+		# TEGMAYDI (sababi o'sha yerda).
+	}
+
+	# SPA va xodim ilovasining CSP'si (izohi yuqorida).
+	#
+	# `/oauth/*` CHIQARILGAN: AI ulanish sahifasi o'z CSP'sini API'dan oladi.
+	# Caddy'niki ham qo'shilsa, brauzer IKKALASINI birga qo'llaydi va
+	# `form-action 'self'` rozilik formasidan keyingi AI mijoziga (claude.ai)
+	# yo'naltirishni to'sib qo'yardi — ulanish hech qachon tugamasdi.
+	# (Anketa saytida `/oauth/*` yo'q — u yerda 404, CSP bilan.)
+	@spaCsp not path /oauth/*
+	header @spaCsp Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org; frame-src 'self' https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+}
+
 # ⚠️ VAQTINCHALIK: eski IP manzilini domenga yo'naltirish.
 #
 # 2026-09-12 gacha xodimlar tizimga `http://189.74.98.57` orqali
@@ -22,6 +202,82 @@
 # shu blok ham, prod `.env` dagi `LEGACY_ADDRESS` ham.
 {$LEGACY_ADDRESS::9999} {
 	redir https://hr.bonvi.uz{uri} 302
+}
+
+# ──────────────────────────────────────────────────────────
+#  Faqat anketa sayti — `anketa.bonvi.uz` (2026-10-27, SPEC-planshet-anketa §2.3.1)
+#
+#  NEGA: havolani eslab qolib, keyin qayta kiradigan odamlar bo'ladi
+#  (egasi). Bu nomda forma BITTA anketa yuborishdan boshqa hech narsa
+#  bermaydi va nomzod HR tizimining manzilini umuman ko'rmaydi.
+#  (2026-10-26 dagi `hr.bonvi.uz/anketa` ga yo'naltirish o'rniga.)
+#
+#  NIMA OCHIQ — faqat shular, QOLGAN HAMMASI 404:
+#  * `/` → 302 `/anketa` (so'rov satri — `?vakansiya=<id>`, `?planshet=1` —
+#    saqlanadi; `{?query}` «?» ni faqat so'rov satri bo'lsa qo'yadi);
+#  * `/anketa`, `/anketa/*` → SPA'ning index.html'i (forma marshruti);
+#  * build chiqargan statik fayllar: `/assets/*` (Vite JS/CSS — shrift
+#    fayllari bo'lsa ham shu yerda), `/brand/*` (ikonkalar);
+#  * `/api/kiosk/*` → API (`api_proxy`, haqiqiy mijoz IP'si bilan).
+#  `/kirish`, boshqa `/api/*`, `/mcp`, `/oauth/*`, `/.well-known/*`,
+#  `/health/*`, `/ilova/*`, `/isup-face/*`, `/qollanma/*` — 404.
+#
+#  ⚠️ YO'L HIYLASI. Caddy yo'lni moslashdan OLDIN tozalaydi (`%2F` →
+#  `/`, `..` qisqaradi), API'ga esa so'rov YO'LINI O'ZGARTIRMAY uzatadi;
+#  API (Kestrel) `..` ni qisqartiradi, lekin `%2F` ni ajratgich deb
+#  bilmaydi. Natijada `/api/kiosk%2Fx/../auth/login` Caddy'ga
+#  `/api/kiosk/auth/login` (kiosk!), API'ga esa `/api/auth/login` bo'lib
+#  ko'rinardi. Shu sababli API'ga faqat yo'li HARFMA-HARF toza so'rov
+#  o'tadi: `{http.request.uri}` (aynan API'ga yuboriladigan qator)
+#  `/api/kiosk/` bilan boshlanib, faqat harf, raqam, `/`, `_`, `-` dan
+#  iborat — nuqta ham, `%` ham yo'q. Formaning ikkala yo'li
+#  (`/questionnaire/session`, `/questionnaire`) shunday.
+#
+#  Sarlavhalar, CSP (Turnstile bilan), jurnal tozalash va mijoz IP'si —
+#  HR saytidagi bilan BIR XIL (`site_common`).
+#
+#  Sukut `:9998` — tashqariga chiqarilmagan port, blok o'lik. Yoqish:
+#  egasi Cloudflare'da `anketa` DNS yozuvini (proksi yoqiq) qo'shadi va
+#  prod `.env` ga `ANKETA_SITE=anketa.bonvi.uz` yoziladi.
+#
+#  ⚠️ Sukut port ISUP blokinikidan (`:9997`) KATTA bo'lishi shart: hostsiz
+#  blok kichikroq portda tursa va `ISUP_FACE_SITE` berilmagan bo'lsa,
+#  Caddy ISUP'ning `tls` siyosati bilan to'qnashuv topib ishga tushmaydi
+#  («automation policy … is also default/catch-all policy»; `:9996` bilan
+#  sinalgan, 2.11.4).
+# ──────────────────────────────────────────────────────────
+{$ANKETA_SITE::9998} {
+	import site_common
+
+	@root path /
+	handle @root {
+		redir * /anketa{?query} 302
+	}
+
+	@kioskApi {
+		path /api/kiosk/*
+		vars_regexp {http.request.uri} ^/api/kiosk/[A-Za-z0-9/_-]+(\?.*)?$
+	}
+	handle @kioskApi {
+		import api_proxy
+	}
+
+	# Forma marshruti — har doim index.html (boshqa fayl berilmaydi)
+	@formPage path /anketa /anketa/*
+	handle @formPage {
+		rewrite * /index.html
+		import spa_files
+	}
+
+	# `try_files` YO'Q: yo'q fayl — 404, index.html emas
+	@formFiles path /assets/* /brand/*
+	handle @formFiles {
+		import spa_files
+	}
+
+	handle {
+		respond 404
+	}
 }
 
 # ──────────────────────────────────────────────────────────
@@ -53,7 +309,16 @@
 		}
 	}
 
-	handle /isup-face/* {
+	# Faqat aniq shakldagi rasm havolasi (`<32 hex>.jpg`) — XOM so'rov
+	# satri bo'yicha. Caddy yo'lni tozalab tekshiradi, lekin shlyuzga xom
+	# yo'lni uzatadi: `/isup-face%2Fx/../health` aks holda shlyuzning ichki
+	# `/health` sahifasiga (terminal ID, seriya, IP) yetib borardi
+	# (xavfsizlik tekshiruvi, 2026-10-27).
+	@isupFace {
+		path /isup-face/*
+		vars_regexp {http.request.uri} ^/isup-face/[0-9a-f]{32}\.jpg$
+	}
+	handle @isupFace {
 		header -Server
 		reverse_proxy isup-gateway:8091
 	}
@@ -64,58 +329,12 @@
 }
 
 {$SITE_ADDRESS::80} {
-	encode zstd gzip
+	# Siqish, mijoz IP'si, jurnal, xavfsizlik sarlavhalari va CSP —
+	# anketa sayti bilan umumiy (yuqoridagi snippet'lar).
+	import site_common
 
-	# ──────────────────────────────────────────────────────────
-	#  So'rovlar jurnali — kim (IP), qachon, qaysi yo'l (2026-10-12)
-	#
-	#  NEGA: konsol logi konteyner qayta yaratilganda (har deploy) yo'qoladi
-	#  va «bu o'zgarish qaysi IP'dan kelgan?» degan savolga javob qolmaydi
-	#  (12-oktabr okladi — IP faqat kirish seanslaridan bilvosita topildi).
-	#  Fayl xostda (`LOG_DIR/caddy`), 30 kun, 20 MB'dan bo'linadi.
-	#
-	#  SIR VA SHAXSIY MA'LUMOT JURNALGA TUSHMAYDI:
-	#  * yo'l ichidagi qurilma tokeni (`/api/attendance/ingest/<token>`) va
-	#    bir martalik rasm tokeni (`/isup-face/<token>`) → `***`;
-	#  * so'rov satri (`?search=<ism|JSHSHIR>`, `?q=`) butunlay olib tashlanadi —
-	#    API'ning Serilog jurnali bilan bir xil qoida (`Program.cs`);
-	#  * `Authorization`, `Cookie`, tashqi API kaliti (`X-Api-Key`), qurilma
-	#    agentining tokeni, imzosi va seriyasi (`X-Bonvi-*`), `Referer` (unda
-	#    sahifa manzili qidiruv matni bilan) o'chiriladi; javob sarlavhalari
-	#    umuman yozilmaydi (OAuth `Location` ichidagi bir martalik kod ham).
-	#  So'rov TANASI Caddy jurnaliga hech qachon yozilmaydi.
-	#
-	#  ⚠️ `request>uri` uchun filtr BITTA bo'lishi shart: bir maydonga ikki
-	#  qator yozilsa, ikkinchisi birinchisini jimgina bekor qiladi (filtrlar
-	#  maydon nomi bo'yicha lug'atda). Shu sababli hammasi `multi_regexp` da.
-	# ──────────────────────────────────────────────────────────
-	log {
-		output file /var/log/caddy/access.log {
-			roll_size 20MiB
-			roll_keep 30
-			roll_keep_for 720h
-		}
-		format filter {
-			request>uri multi_regexp {
-				regexp ^/api/attendance/ingest/[^/?]+ /api/attendance/ingest/***
-				regexp ^/isup-face/[^/?]+ /isup-face/***
-				regexp \?.*$ ""
-			}
-			request>headers>Authorization delete
-			request>headers>Cookie delete
-			request>headers>X-Api-Key delete
-			request>headers>X-Bonvi-Device-Token delete
-			request>headers>X-Bonvi-Signature delete
-			request>headers>X-Bonvi-Terminal-Serial delete
-			request>headers>Referer delete
-			resp_headers delete
-			wrap json
-		}
-	}
-
-	# API — backend konteyneriga
 	handle /api/* {
-		reverse_proxy api:8080
+		import api_proxy
 	}
 	# Holat tekshiruvi.
 	#
@@ -131,7 +350,7 @@
 	#   ready — baza va kesh javob beryapti (yiqilsa konteyner tirik
 	#           qoladi, faqat trafik yuborilmaydi).
 	handle /health/* {
-		reverse_proxy api:8080
+		import api_proxy
 	}
 
 	# ──────────────────────────────────────────────────────────
@@ -148,7 +367,7 @@
 	# ──────────────────────────────────────────────────────────
 	@mcp path /mcp /mcp/* /oauth/* /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/* /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
 	handle @mcp {
-		reverse_proxy api:8080
+		import api_proxy
 	}
 
 	# ──────────────────────────────────────────────────────────
@@ -158,8 +377,17 @@
 	#  Shlyuz yoqilmagan bo'lsa (`profiles: isup`) — 502, boshqa narsaga
 	#  ta'siri yo'q.
 	# ──────────────────────────────────────────────────────────
-	handle /isup-face/* {
+	# Shakl tekshiruvi ISUP saytidagi bilan bir xil (o'sha yerdagi izoh);
+	# mos kelmagan har qanday `/isup-face/...` — 404.
+	@isupFaceMain {
+		path /isup-face/*
+		vars_regexp {http.request.uri} ^/isup-face/[0-9a-f]{32}\.jpg$
+	}
+	handle @isupFaceMain {
 		reverse_proxy isup-gateway:8091
+	}
+	handle /isup-face/* {
+		respond 404
 	}
 
 	# ──────────────────────────────────────────────────────────
@@ -182,7 +410,7 @@
 	#  `geolocation=()` — `SecurityHeadersMiddleware` — hujjat emas, JSON
 	#  javobga tegishli, ya'ni ilova sahifasiga ta'sir qilmaydi.)
 	#
-	#  Pastdagi umumiy `header` bloki (CSP va boshqalar) bu yerga ham
+	#  Umumiy `header` bloki (CSP va boshqalar, `site_common`) bu yerga ham
 	#  tegadi va ilovaga yetarli: so'rovlar shu domendagi `/api/*` ga
 	#  (`connect-src 'self'`), manifest va service worker shu domendan
 	#  (`default-src`/`script-src 'self'` ga tushadi), rasm — `'self'`,
@@ -225,50 +453,7 @@
 
 	# Qolgani — SPA statik fayllari
 	handle {
-		root * /srv
 		try_files {path} /index.html
-		file_server
+		import spa_files
 	}
-
-	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
-		Referrer-Policy strict-origin-when-cross-origin
-		-Server
-
-		# Kontent siyosati — XSS ning oxirgi to'sig'i.
-		#
-		# `script-src 'self'`: sahifaga qo'yilgan begona skript
-		# ISHLAMAYDI. Bu tizimda hal qiluvchi, chunki HR kiritadigan
-		# matn (xulosa, izoh, sabab) ekranda qayta ko'rsatiladi.
-		#
-		# `'unsafe-inline'` FAQAT uslub uchun: Vite CSS ni ajratadi,
-		# lekin React ba'zi elementlarga `style=""` qo'yadi va usiz
-		# ular chizilmaydi. Skriptda esa u YO'Q — aynan shu farq
-		# siyosatga ma'no beradi.
-		#
-		# `connect-src 'self'`: API bir xil domenda (yuqoridagi
-		# `handle /api/*`), ya'ni tashqi manzilga so'rov kerak emas —
-		# ma'lumot sizib chiqadigan yo'l yopiladi.
-		#
-		# Map tiles (Verifikatsiya → Joylashuvlar, SPEC-joylashuvlar §D):
-		# OSM and Esri satellite images are allowed in `img-src`, and
-		# Nominatim address search in `connect-src` — nothing else
-		# external. Nominatim gets only the search text, never a token.
-		#
-		# `frame-ancestors 'none'` — `X-Frame-Options` ning zamonaviy
-		# shakli; ikkalasi ham qoldirilgan, eski brauzerlar uchun.
-		#
-		# ⚠️ CSP pastdagi alohida `header @spaCsp` da — `/oauth/*` ga
-		# TEGMAYDI (sababi o'sha yerda).
-	}
-
-	# SPA va xodim ilovasining CSP'si (izohi yuqorida).
-	#
-	# `/oauth/*` CHIQARILGAN: AI ulanish sahifasi o'z CSP'sini API'dan oladi.
-	# Caddy'niki ham qo'shilsa, brauzer IKKALASINI birga qo'llaydi va
-	# `form-action 'self'` rozilik formasidan keyingi AI mijoziga (claude.ai)
-	# yo'naltirishni to'sib qo'yardi — ulanish hech qachon tugamasdi.
-	@spaCsp not path /oauth/*
-	header @spaCsp Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 }

@@ -83,7 +83,12 @@ export const CANDIDATE_STATUSES = [
 ] as const
 export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number]
 
-export const CANDIDATE_SOURCES = ['Manual', 'TelegramBot', 'Excel'] as const
+/*
+ * `OnlineForm` — the public HR-F02 form (`/anketa`, `docs/SPEC-planshet-anketa.md`),
+ * on the office tablet or the candidate's own phone. Appended last, like the
+ * server enum (value 4). `./bonvi gen` brings the same value into the generated model.
+ */
+export const CANDIDATE_SOURCES = ['Manual', 'TelegramBot', 'Excel', 'OnlineForm'] as const
 export type CandidateSource = (typeof CANDIDATE_SOURCES)[number]
 
 /*
@@ -142,10 +147,12 @@ export const EDUCATION_LEVELS = [
   'VocationalSchool',
   'HigherComplete',
   'HigherIncomplete',
+  // Values below come only from the tablet form (HR-F02); the bot never sends them.
+  'HigherMaster',
 ] as const
 export type EducationLevel = (typeof EDUCATION_LEVELS)[number]
 
-export const MARITAL_STATUSES = ['Married', 'Unmarried', 'Divorced'] as const
+export const MARITAL_STATUSES = ['Married', 'Unmarried', 'Divorced', 'Widowed'] as const
 export type MaritalStatus = (typeof MARITAL_STATUSES)[number]
 
 /**
@@ -161,18 +168,17 @@ export const SALARY_EXPECTATIONS = [
   'From2To3Million',
   'From3To4Million',
   'From5To7Million',
+  // Appended for the exact amount asked by the tablet form (the old ranges skipped 4–5 mln).
+  'From4To5Million',
+  'From7Million',
 ] as const
 export type SalaryExpectation = (typeof SALARY_EXPECTATIONS)[number]
 
-export const REFERRAL_SOURCES = [
-  'Acquaintance',
-  'SocialNetwork',
-  'Olx',
-  'HeadHunter',
-  'Telegram',
-  'Other',
-] as const
-export type ReferralSource = (typeof REFERRAL_SOURCES)[number]
+/*
+ * «Ish haqida qayerdan bilgan» is no longer a closed set here: it is the
+ * editable «Qayerdan bilgan» catalog (`referral-channels`) and lives on the
+ * candidate itself, not in the questionnaire (docs/SPEC-qayerdan-bilgan.md).
+ */
 
 /* ═══════════════════════════════════════════════════════════════ tiplar */
 
@@ -309,6 +315,15 @@ export interface CandidateListItem {
    * «nega bu odam olinmaydi» (2026-10-07).
    */
   closingNote: string | null
+  /**
+   * Where the candidate heard about the job — a `referral-channels` catalog row.
+   * `null` only for legacy and Excel-imported candidates. The name comes from
+   * the server so an inactive channel still reads correctly.
+   */
+  referralChannelId: string | null
+  referralChannelName: string | null
+  /** «Tanishlar orqali» → who recommended them; only for channels that ask for it. */
+  referralDetail: string | null
 }
 
 /**
@@ -347,7 +362,6 @@ export interface CandidateQuestionnaire {
   /** Faqat `hasDriverLicense = true` da: B, BC, BCE, BCED. */
   driverLicenseCategories: string | null
   expectedSalary: SalaryExpectation | null
-  referralSource: ReferralSource | null
   /** Ommaviy oferta bilan rozilik VAQTI — huquqiy fakt, bayroq emas. */
   offerAcceptedAt: string | null
 }
@@ -424,6 +438,10 @@ export interface Candidate {
   note: string | null
   closedAt: string | null
   closingNote: string | null
+  /** Same as `CandidateListItem.referralChannelId` — the catalog row, `null` on legacy candidates. */
+  referralChannelId: string | null
+  referralChannelName: string | null
+  referralDetail: string | null
   /**
    * ⭐ Keyingi aloqa sanasi — kalendar sanasi (`YYYY-MM-DD`, Toshkent),
    * vaqt YO'Q. `null` — reja qo'yilmagan.
@@ -544,6 +562,14 @@ export interface CandidateInput {
   address: string | null
   speciality: string | null
   note: string | null
+  /**
+   * Required on create (`qayerdan.majburiy`); an ACTIVE channel for a new
+   * choice (`qayerdan.topilmadi`). On edit a legacy candidate may keep `null`,
+   * but a candidate that has a channel cannot be cleared back to `null`.
+   */
+  referralChannelId: string | null
+  /** Required (≤ 200) when the channel asks for it (`qayerdan.izoh_majburiy`), otherwise `null`. */
+  referralDetail: string | null
 }
 
 /** Yaratishda vakansiya, boshlang'ich bosqich va manba ham beriladi. */
@@ -676,6 +702,10 @@ export interface CandidateFilters {
    */
   from?: string
   to?: string
+  /** «Qayerdan bilgan» filter — one catalog channel (active or not). */
+  referralChannelId?: string
+  /** «Ko'rsatilmagan» — candidates without a channel (legacy, Excel). Wins over `referralChannelId`. */
+  referralMissing?: boolean
 }
 
 /**
@@ -870,6 +900,9 @@ function toCandidateRow(raw: unknown): CandidateListItem {
     nextContactDate: text(box['nextContactDate']),
     closedAt: text(box['closedAt']),
     closingNote: text(box['closingNote']),
+    referralChannelId: text(box['referralChannelId']),
+    referralChannelName: text(box['referralChannelName']),
+    referralDetail: text(box['referralDetail']),
   }
 }
 
@@ -936,7 +969,6 @@ function toQuestionnaire(raw: unknown): CandidateQuestionnaire | null {
     hasDriverLicense: box['hasDriverLicense'] === true,
     driverLicenseCategories: text(box['driverLicenseCategories']),
     expectedSalary: enumOrNull(box['expectedSalary'], SALARY_EXPECTATIONS),
-    referralSource: enumOrNull(box['referralSource'], REFERRAL_SOURCES),
     offerAcceptedAt: text(box['offerAcceptedAt']),
   }
 }
@@ -963,6 +995,9 @@ function toCandidate(raw: unknown): Candidate {
     note: text(box['note']),
     closedAt: text(box['closedAt']),
     closingNote: text(box['closingNote']),
+    referralChannelId: text(box['referralChannelId']),
+    referralChannelName: text(box['referralChannelName']),
+    referralDetail: text(box['referralDetail']),
     nextContactDate: text(box['nextContactDate']),
     hasPhoto: box['hasPhoto'] === true,
     hiredEmployeeId: text(box['hiredEmployeeId']),
@@ -1057,18 +1092,28 @@ export async function fetchStages(
 
 const VACANCIES = '/api/recruiting/vacancies'
 
+/** Vakansiyalar filtri sahifasiz — Excel eksporti shu bilan so'raladi. */
+export type VacancyListFilters = Omit<VacancyFilters, 'page' | 'pageSize'>
+
+/**
+ * Ro'yxat so'rovining filtr va saralash parametrlari — ro'yxat ham, Excel
+ * eksporti ham AYNAN shu funksiyadan (`docs/SPEC-excel-eksport.md` §3):
+ * yangi filtr qo'shilsa, u faylga ham o'zi tushadi.
+ */
+export function vacancyListParams(filters: VacancyListFilters): Record<string, unknown> {
+  return params({
+    status: filters.status,
+    search: filters.search,
+    sort: filters.sort,
+  })
+}
+
 export async function fetchVacancies(
   filters: VacancyFilters,
   signal?: AbortSignal,
 ): Promise<PagedResult<Vacancy>> {
   const { data } = await api.get<unknown>(VACANCIES, {
-    params: params({
-      status: filters.status,
-      search: filters.search,
-      page: filters.page,
-      pageSize: filters.pageSize,
-      sort: filters.sort,
-    }),
+    params: { ...vacancyListParams(filters), page: filters.page, pageSize: filters.pageSize },
     signal,
   })
 
@@ -1124,34 +1169,48 @@ export async function deleteVacancy(id: string): Promise<void> {
 
 const CANDIDATES = '/api/recruiting/candidates'
 
+/** Nomzodlar filtri sahifasiz — Excel eksporti shu bilan so'raladi. */
+export type CandidateListFilters = Omit<CandidateFilters, 'page' | 'pageSize'>
+
+/**
+ * Ro'yxat so'rovining filtr va saralash parametrlari — ro'yxat ham, Excel
+ * eksporti ham AYNAN shu funksiyadan (`docs/SPEC-excel-eksport.md` §3).
+ * Rezerv, qora ro'yxat va «Rad etilganlar» bayroqlari ham shu yerda — fayl
+ * ekrandagi bo'limdan boshqa nomzodlarni olib ketolmaydi.
+ */
+export function candidateListParams(filters: CandidateListFilters): Record<string, unknown> {
+  return params({
+    search: filters.search,
+    vacancyId: filters.vacancyId,
+    stageId: filters.stageId,
+    status: filters.status,
+    source: filters.source,
+    sort: filters.sort,
+    /*
+      Ikkala bayroq FAQAT `true` bo'lganda yuboriladi. `false` ni
+      yuborish serverda hech narsani o'zgartirmasdi (u `bool?` ni
+      `?? false` bilan o'qiydi), lekin so'rov satrida keraksiz shovqin
+      qoldirardi — `params` izohidagi qoida.
+    */
+    contactDue: filters.contactDue === true ? true : undefined,
+    rejected: filters.rejected === true ? true : undefined,
+    includeRejected: filters.includeRejected === true ? true : undefined,
+    closedDate: filters.closedDate === true ? true : undefined,
+    includeArchive: filters.includeArchive === true ? true : undefined,
+    from: filters.from,
+    to: filters.to,
+    // «Ko'rsatilmagan» and one channel are exclusive — the missing flag wins
+    referralMissing: filters.referralMissing === true ? true : undefined,
+    referralChannelId: filters.referralMissing === true ? undefined : filters.referralChannelId,
+  })
+}
+
 export async function fetchCandidates(
   filters: CandidateFilters,
   signal?: AbortSignal,
 ): Promise<PagedResult<CandidateListItem>> {
   const { data } = await api.get<unknown>(CANDIDATES, {
-    params: params({
-      search: filters.search,
-      vacancyId: filters.vacancyId,
-      stageId: filters.stageId,
-      status: filters.status,
-      source: filters.source,
-      page: filters.page,
-      pageSize: filters.pageSize,
-      sort: filters.sort,
-      /*
-        Ikkala bayroq FAQAT `true` bo'lganda yuboriladi. `false` ni
-        yuborish serverda hech narsani o'zgartirmasdi (u `bool?` ni
-        `?? false` bilan o'qiydi), lekin so'rov satrida keraksiz shovqin
-        qoldirardi — `params` izohidagi qoida.
-      */
-      contactDue: filters.contactDue === true ? true : undefined,
-      rejected: filters.rejected === true ? true : undefined,
-      includeRejected: filters.includeRejected === true ? true : undefined,
-      closedDate: filters.closedDate === true ? true : undefined,
-      includeArchive: filters.includeArchive === true ? true : undefined,
-      from: filters.from,
-      to: filters.to,
-    }),
+    params: { ...candidateListParams(filters), page: filters.page, pageSize: filters.pageSize },
     signal,
   })
 
@@ -1573,4 +1632,62 @@ export async function uploadCandidatePhoto(id: string, file: File): Promise<void
 /** Suratni o'chirish. Server idempotent: surat bo'lmasa ham `204` qaytaradi. */
 export async function deleteCandidatePhoto(id: string): Promise<void> {
   await api.delete(`${CANDIDATES}/${id}/photo`)
+}
+
+/* ───────────────────────────────────────────────────── onlayn anketa */
+
+/**
+ * `GET /api/recruiting/candidates/{id}/forms` — HR-F02 forms the candidate
+ * filled through the public form (`docs/SPEC-planshet-anketa.md` §2.2), newest
+ * first. The answers themselves are not sent here: HR reads them as the PDF.
+ */
+export interface CandidateForm {
+  id: string
+  /** «Anketa №» — sequential across all candidates. */
+  number: number
+  formCode: string
+  formVersion: string
+  submittedAt: string
+  /** The language the candidate filled the form in: `uz-Latn` | `uz-Cyrl` | `ru`. */
+  language: string
+  /**
+   * The PDF attached to the candidate's files. `null` — not attached (the
+   * files cap was full, or HR deleted the file); the PDF endpoint still works.
+   */
+  fileId: string | null
+}
+
+function toCandidateForm(raw: unknown): CandidateForm {
+  const box = (raw ?? {}) as Record<string, unknown>
+
+  return {
+    id: text(box['id']) ?? '',
+    number: count(box['number']),
+    formCode: text(box['formCode']) ?? 'HR-F02',
+    formVersion: text(box['formVersion']) ?? '',
+    submittedAt: text(box['submittedAt']) ?? '',
+    language: text(box['language']) ?? '',
+    fileId: text(box['fileId']),
+  }
+}
+
+export async function fetchCandidateForms(id: string, signal?: AbortSignal): Promise<CandidateForm[]> {
+  const { data } = await api.get<unknown>(`${CANDIDATES}/${id}/forms`, { signal })
+  return Array.isArray(data) ? data.map(toCandidateForm) : []
+}
+
+/**
+ * The form as a PDF, rendered fresh from the stored answers. A blob for the
+ * same reason as `fetchCandidateFile`: the bearer header cannot ride on a link.
+ */
+export async function fetchCandidateFormPdf(
+  id: string,
+  formId: string,
+): Promise<{ blob: Blob; disposition: string | null }> {
+  const response = await api.get<Blob>(`${CANDIDATES}/${id}/forms/${formId}/pdf`, { responseType: 'blob' })
+
+  return {
+    blob: response.data,
+    disposition: response.headers['content-disposition'] as string | null,
+  }
 }

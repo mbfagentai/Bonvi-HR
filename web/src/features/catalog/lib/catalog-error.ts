@@ -27,6 +27,7 @@ export const CATALOG_ERROR_FIELD: Readonly<Record<string, string>> = {
   'malumotnoma.nom_bosh': 'name',
   'malumotnoma.nom_uzun': 'name',
   'malumotnoma.nom_band': 'name',
+  'qayerdan.nom_bosh': 'name',
   'bolim.nom_bosh': 'name',
   'lavozim.nom_bosh': 'name',
   // `lavozim.daraja` ataylab yo'q: daraja maydoni formadan olib tashlangan,

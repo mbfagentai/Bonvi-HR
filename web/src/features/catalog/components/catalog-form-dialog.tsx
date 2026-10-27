@@ -63,6 +63,15 @@ export function CatalogFormDialog({
   */
   const [employeeCanRequest, setEmployeeCanRequest] = useState(true)
 
+  /*
+    Referral channel's «Aniqlik so'ralsin» (docs/SPEC-qayerdan-bilgan.md §3):
+    when on, choosing the channel asks the candidate who / which source.
+    Saved with «Saqlash», like the absence-type flags. Off for a new channel —
+    most channels («Telegram», «OLX.uz») need no follow-up question.
+  */
+  const isReferralChannel = kind === 'referral-channels'
+  const [asksDetail, setAsksDetail] = useState(false)
+
   const {
     register,
     handleSubmit,
@@ -84,6 +93,7 @@ export function CatalogFormDialog({
     reset(toValues(item))
     setCountsAsWorkTime(item?.countsAsWorkTime ?? false)
     setEmployeeCanRequest(item?.employeeCanRequest ?? true)
+    setAsksDetail(item?.asksDetail ?? false)
   }, [open, item, reset])
 
   const onSubmit = handleSubmit(async (values) => {
@@ -96,6 +106,7 @@ export function CatalogFormDialog({
           name: values.name.trim(),
           note: toTextOrNull(values.note),
           ...(isAbsenceType ? { countsAsWorkTime, employeeCanRequest } : {}),
+          ...(isReferralChannel ? { asksDetail } : {}),
         },
       })
       onClose()
@@ -167,6 +178,19 @@ export function CatalogFormDialog({
                   ? t('catalog.employeeRequestHintOn')
                   : t('catalog.employeeRequestHintOff')
               }
+            />
+          </div>
+        )}
+
+        {isReferralChannel && (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)]">
+            <Switch
+              className="px-4 py-3"
+              checked={asksDetail}
+              disabled={isSubmitting}
+              onChange={setAsksDetail}
+              label={t('catalog.asksDetailTitle')}
+              hint={t('catalog.asksDetailHint')}
             />
           </div>
         )}

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { LoaderCircle } from 'lucide-react'
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { uzPhoneDigits } from '@/shared/lib/phone'
@@ -19,13 +19,21 @@ import {
 import type { Candidate, CandidatePhoneMatch } from '../api/recruiting-api'
 import {
   useCandidatePhoneMatches,
+  useReferralChannelOptions,
   useRegisterCandidate,
   useUpdateCandidate,
+  type ReferralChannelOption,
 } from '../api/recruiting-queries'
 import { RECRUITING_ERROR_FIELD, recruitingErrorCode } from '../lib/recruiting-error'
 import { CANDIDATE_LOOK, orNull } from '../lib/recruiting-presentation'
 
 const FORM_ID = 'candidate-form'
+
+/** `CandidateQuestionnaire`'s and the bot's limit for the referral detail (SPEC-qayerdan-bilgan §3). */
+const REFERRAL_DETAIL_MAX = 200
+
+/** Module-level — a fresh `[]` on every render would re-run the option memo. */
+const NO_CHANNELS: ReferralChannelOption[] = []
 
 /**
  * Nomzodni voronkaga kiritish va shaxsiy ma'lumotini tuzatish —
@@ -85,6 +93,8 @@ export function CandidateFormDialog({
   const [note, setNote] = useState('')
   const [vacancyId, setVacancyId] = useState('')
   const [stageId, setStageId] = useState('')
+  const [referralChannelId, setReferralChannelId] = useState('')
+  const [referralDetail, setReferralDetail] = useState('')
 
   const [failure, setFailure] = useState<string | null>(null)
   const [fieldError, setFieldError] = useState<{ field: string; code: string } | null>(null)
@@ -95,6 +105,52 @@ export function CandidateFormDialog({
     unga alohida beriladi.
   */
   const phoneMatches = useCandidatePhoneMatches(phone, item?.id ?? null, open)
+
+  /*
+    «Ish haqida qayerdan bilgan» — the «Qayerdan bilgan» catalog, ALL rows:
+    the inactive ones are needed to show (and keep) the channel an older
+    candidate already has. Only active channels are offered for a new choice
+    (SPEC-qayerdan-bilgan §5). The server sends the list alphabetically.
+  */
+  const channels = useReferralChannelOptions()
+  const channelList = channels.data ?? NO_CHANNELS
+  const savedChannelId = item?.referralChannelId ?? null
+  const savedChannelName = item?.referralChannelName ?? null
+
+  const channelOptions = useMemo<SelectOption[]>(() => {
+    const options: SelectOption[] = channelList
+      .filter((channel) => channel.isActive || channel.id === savedChannelId)
+      .map((channel) => ({
+        value: channel.id,
+        label: channel.isActive
+          ? channel.name
+          : t('recruiting.referralInactive', { name: channel.name }),
+      }))
+
+    /*
+      The candidate's channel is missing from the catalog list (removed, or the
+      list is still loading) — still show it as the selected value, by the name
+      the candidate DTO carries, so the field never looks empty or changes.
+    */
+    if (
+      savedChannelId !== null &&
+      savedChannelName !== null &&
+      channels.isSuccess &&
+      !options.some((option) => option.value === savedChannelId)
+    ) {
+      options.push({
+        value: savedChannelId,
+        label: t('recruiting.referralInactive', { name: savedChannelName }),
+      })
+    }
+
+    return options
+  }, [channelList, channels.isSuccess, savedChannelId, savedChannelName, t])
+
+  const chosenChannel = channelList.find((channel) => channel.id === referralChannelId)
+  const needsDetail = chosenChannel?.asksDetail === true
+  // The saved channel is not in the catalog list any more: send it back unchanged, detail and all
+  const keepsSavedReferral = chosenChannel === undefined && referralChannelId !== '' && referralChannelId === savedChannelId
 
   useEffect(() => {
     if (!open) return
@@ -113,13 +169,25 @@ export function CandidateFormDialog({
     setNote(item?.note ?? '')
     setVacancyId(item?.vacancyId ?? defaultVacancyId)
     setStageId('')
+    setReferralChannelId(item?.referralChannelId ?? '')
+    setReferralDetail(item?.referralDetail ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item])
 
   if (!open) return null
 
+  /*
+    The channel is required for a NEW candidate; on edit a legacy candidate
+    without one may stay empty (a candidate that has one cannot clear it —
+    the select then offers no empty row). The detail is required whenever the
+    chosen channel asks for it.
+  */
   const incomplete =
-    lastName.trim() === '' || firstName.trim() === '' || (!isEdit && vacancyId === '')
+    lastName.trim() === '' ||
+    firstName.trim() === '' ||
+    (!isEdit && vacancyId === '') ||
+    (!isEdit && referralChannelId === '') ||
+    (needsDetail && referralDetail.trim() === '')
 
   const fieldMessage = (field: string): string | undefined =>
     fieldError?.field === field ? errorMessage(fieldError.code) : undefined
@@ -145,6 +213,13 @@ export function CandidateFormDialog({
       address: orNull(address),
       speciality: orNull(speciality),
       note: orNull(note),
+      referralChannelId: referralChannelId === '' ? null : referralChannelId,
+      // A detail typed for another channel is not sent once the channel no longer asks for it
+      referralDetail: needsDetail
+        ? orNull(referralDetail)
+        : keepsSavedReferral
+          ? (item?.referralDetail ?? null)
+          : null,
     }
 
     if (isEdit) {
@@ -290,6 +365,44 @@ export function CandidateFormDialog({
         ) : phoneMatches.data !== undefined && phoneMatches.data.length > 0 ? (
           <PhoneMatchesAlert matches={phoneMatches.data} onOpen={onClose} />
         ) : null}
+
+        {/*
+          After the phone: HR asks «how did you hear about us?» while the person
+          is still on the line or at the desk. Placeholder row only while
+          nothing is chosen — once a channel is set it cannot be cleared.
+        */}
+        <Select
+          label={t('recruiting.referralLabel')}
+          placeholder={
+            referralChannelId === '' || savedChannelId === null
+              ? channels.isPending
+                ? t('common.loading')
+                : t('recruiting.chooseReferral')
+              : undefined
+          }
+          options={channelOptions}
+          value={referralChannelId}
+          error={
+            fieldMessage('referralChannelId') ??
+            (channels.isError ? t('recruiting.referralLoadFailed') : undefined)
+          }
+          hint={isEdit && savedChannelId === null ? t('recruiting.referralLegacyHint') : undefined}
+          disabled={mutation.isPending || channels.isPending}
+          onChange={(event) => setReferralChannelId(event.target.value)}
+        />
+
+        {needsDetail && (
+          <TextField
+            label={t('recruiting.referralDetailLabel')}
+            placeholder={t('recruiting.referralDetailPlaceholder')}
+            autoComplete="off"
+            maxLength={REFERRAL_DETAIL_MAX}
+            value={referralDetail}
+            error={fieldMessage('referralDetail')}
+            disabled={mutation.isPending}
+            onChange={(event) => setReferralDetail(event.target.value)}
+          />
+        )}
 
         <TextField
           label={t('employee.speciality')}

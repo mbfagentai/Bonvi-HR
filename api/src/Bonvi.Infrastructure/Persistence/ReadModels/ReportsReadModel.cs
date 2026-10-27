@@ -1,4 +1,5 @@
 using Bonvi.Application.Reports.Abstractions;
+using Bonvi.Domain.Recruiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bonvi.Infrastructure.Persistence.ReadModels;
@@ -185,5 +186,73 @@ public sealed class ReportsReadModel : IReportsReadModel
         }
 
         return boundaries;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// IKKI so'rov: sanoq bazada bitta <c>GROUP BY referral_channel_id</c> bilan (nomzodlar
+    /// minglab, kanallar o'nlab — qatorlarni xotiraga tortish shart emas), kanal nomlari esa
+    /// alohida (faolsizlantirilganlari ham). Shart <c>created_at</c> ni to'g'ridan-to'g'ri
+    /// solishtiradi — chegaralar Toshkent kunining UTC lahzalari bo'lib tayyor keladi.
+    /// </para>
+    /// <para>
+    /// Excel kengash arxivi chiqariladi — sababi <c>GetCandidateReferralsQueryHandler</c> izohida.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<CandidateReferralBucket>> GetCandidateReferralsAsync(
+        CandidateReferralFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+
+        var candidates = _context.Candidates
+            .AsNoTracking()
+            .Where(candidate => candidate.Source != CandidateSource.Excel);
+
+        if (filter.CreatedFrom is { } from)
+        {
+            candidates = candidates.Where(candidate => candidate.CreatedAt >= from);
+        }
+
+        if (filter.CreatedBefore is { } before)
+        {
+            candidates = candidates.Where(candidate => candidate.CreatedAt < before);
+        }
+
+        if (filter.VacancyId is { } vacancyId)
+        {
+            candidates = candidates.Where(candidate => candidate.VacancyId == vacancyId);
+        }
+
+        var counts = await candidates
+            .GroupBy(candidate => candidate.ReferralChannelId)
+            .Select(group => new
+            {
+                ChannelId = group.Key,
+                Candidates = group.Count(),
+                Hired = group.Count(candidate => candidate.Status == CandidateStatus.Hired),
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var channelIds = counts
+            .Select(row => row.ChannelId)
+            .OfType<Guid>()
+            .ToList();
+
+        var channels = await _context.ReferralChannels
+            .AsNoTracking()
+            .Where(channel => channelIds.Contains(channel.Id))
+            .Select(channel => new { channel.Id, channel.Name, channel.IsActive })
+            .ToDictionaryAsync(channel => channel.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. counts.Select(row => row.ChannelId is { } id && channels.TryGetValue(id, out var channel)
+                ? new CandidateReferralBucket(id, channel.Name, channel.IsActive, row.Candidates, row.Hired)
+                : new CandidateReferralBucket(row.ChannelId, null, false, row.Candidates, row.Hired)),
+        ];
     }
 }
