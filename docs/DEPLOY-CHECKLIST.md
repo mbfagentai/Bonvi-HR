@@ -3,6 +3,24 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `6b572c0` — «Jamoa»: bo'lim boshlig'i xodim ilovasida o'z jamoasi davomatini ko'radi — 2026-10-27 22:54 (Toshkent)
+
+Prod `f85ab96` → `6b572c0` (`jamoam` branchi fast-forward bilan main'ga; kontrakt `docs/SPEC-jamoam.md`). Migratsiya
+YO'Q (bo'lim boshlig'i ustuni avvaldan bor) — nusxada sinov kerak bo'lmadi. Rollback: image tegi `rollback-f85ab96`
+(api, bot, web — ishlab turgan image ID'lar bo'yicha; bot `55e5d97`), zaxira stamp `2026-10-27_174158`. Deploy'dan oldin:
+to'liq backend to'plami 3553/3553, web va ilova build'i lokal o'tdi. HR 3 soat jim edi (faqat bot nomzodlari); image'lar
+oldindan qurildi (`/root/prebuild-6b572c0.sh`, 22:43–22:51), deploy.sh 22:52–22:54. Deploy'dan keyin: API/bot jurnalida
+ERR/FTL yo'q, Caddy'da 5xx yo'q; `/`, `/kirish`, `/ilova/`, `/ilova/jamoa`, `/health/ready` 200; `/api/me/team*` 401
+(endpoint bor); web va ilova bundle'ida yangi matnlar bor. Bot konteyneri QAYTA YARATILMADI (bot kodi o'zgarmagan).
+
+Kutilgan holat: prod'da hech bir bo'limga boshliq tayinlanmagan — HR tayinlamaguncha «Jamoa» tabi hech kimda ko'rinmaydi
+va tizim avvalgidek ishlaydi. Prod'da ish jadvali ~2 xodimga biriktirilgan, shuning uchun boshliq ekranida asosan
+«Keldi»/«Jadval yo'q» chiqadi; «Kechikdi»/«Kelmadi» uchun xodimlarga jadval biriktirilishi kerak.
+
+### Bu reliz bo'yicha ochiq qadamlar (egasi)
+- «Ma'lumotnomalar → Bo'limlar» da boshliqni tayinlash (tayinlovchida `catalog.manage` va `attendance.view` bo'lishi
+  shart). Boshliqning o'zi xodim ilovasiga kira olishi kerak (ilova hisobi faol).
+
 ## ✅ Reliz `f85ab96` — HR-F02 v3.1 (HR rahbari o'zgarishlari) — 2026-10-27 15:18 (Toshkent)
 
 Prod `02e7d49` → `f85ab96`. Migratsiya YO'Q (javoblar jsonb'da; nusxada sinov kerak bo'lmadi). Rollback: image tegi
