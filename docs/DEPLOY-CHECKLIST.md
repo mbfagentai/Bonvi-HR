@@ -11,6 +11,12 @@ ko'rsatadi va `git pull --ff-only` to'xtaydi. Avval: `git -C /opt/bonvi-hr check
 Web konteyneridagi Caddyfile ham qo'lda almashtirilgan (`/root/hotfix-2026-10-27/`, zaxiralar `*.bak`) — yangi image
 uni o'zi bilan almashtiradi, alohida qadam kerak emas.
 
+⚠️ **Zaxiradan rollback (prod nusxasida sinalgan 2026-10-27):** oddiy `pg_restore --clean` YETMAYDI — yangi jadvallar
+(`referral_channels`, `candidate_forms`) dump'da yo'q, ularning FK'si tufayli `candidates` o'chmaydi va yangi ustunlar
+qoladi (7 xato). To'g'ri yo'l: api/bot to'xtatiladi → `DROP DATABASE bonvi_hr WITH (FORCE); CREATE DATABASE bonvi_hr
+OWNER bonvi;` → `pg_restore --no-owner` → rollback image'lar (`rollback-eebe3df`). Shu yo'l nusxada asl holatni aynan
+berdi (69 migratsiya, 5215 nomzod, 2045 xodim, 282 bot javobi).
+
 Migratsiyalar: IKKITA (`20261026072156_PlanshetAnketasi`, `20261026101017_QayerdanBilgan`) — pastdagi anketa va
 «Qayerdan bilgan» bandlariga qarang. Yangi Hangfire vazifasi `probations:auto-pass` (har kuni 19:05 UTC = 00:05 Toshkent): deploy'dan keyin
 birinchi yurishda oxirgi kuni o'tib ketgan HAMMA «sinovda»gi sinov «o'tdi» bo'ladi va xodim «faol»ga o'tadi (2026-10-22 da
