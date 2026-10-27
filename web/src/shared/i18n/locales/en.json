@@ -630,7 +630,7 @@
       "headHint": "In the employee app the head sees attendance and phone numbers of everyone in this department and all departments inside it.",
       "headClear": "Remove head",
       "headHidden": "A head is assigned, but their card could not be opened.",
-      "headNoAccess": "Choosing a head requires permission to view the employee list.",
+      "headNoAccess": "Choosing a head requires permission to view the employee list and attendance.",
       "headUnknown": "The current head could not be read, so saving is disabled. Reload the page and try again.",
       "headTitle": "Department head: {{name}}"
     },
@@ -1077,7 +1077,8 @@
     "bolim.boshliq_topilmadi": "The employee chosen as head was not found or has been deleted. Choose someone else.",
     "jamoa.boshliq_emas": "The employee does not head any department — the team view is closed.",
     "jamoa.xodim_topilmadi": "The employee was not found in the head’s team.",
-    "jamoa.bolim_topilmadi": "The department was not found in the head’s team."
+    "jamoa.bolim_topilmadi": "The department was not found in the head’s team.",
+    "jamoa.sana_notogri": "Invalid date: it must be between 2000-01-01 and today."
   },
   "language": {
     "en": "English",

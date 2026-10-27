@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth'
 import type { EmployeeDetails } from '@/features/employees/api/employees-api'
 import { useEmployee } from '@/features/employees/api/employees-queries'
 import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
+import { ATTENDANCE_VIEW } from '@/features/verification/lib/attendance-presentation'
 import {
   AttendanceEmployeePicker,
   type PickedEmployee,
@@ -116,8 +117,9 @@ export function DepartmentFormDialog({
   const currentFresh = item === null || !departments.isFetching
 
   const { hasPermission } = useAuth()
-  // Tanlagich xodimlar ro'yxatidan qidiradi — `employees.view` siz u ishlamaydi
-  const canPickEmployee = hasPermission(EMPLOYEES_VIEW)
+  // Tanlagich xodimlar ro'yxatidan qidiradi — `employees.view` siz u ishlamaydi.
+  // Boshliq tayinlash — davomatni ko'rish huquqini berish: server `attendance.view` ni ham talab qiladi
+  const canPickEmployee = hasPermission(EMPLOYEES_VIEW) && hasPermission(ATTENDANCE_VIEW)
 
   const [head, setHead] = useState<HeadState>(UNTOUCHED)
   const [headError, setHeadError] = useState<string | null>(null)

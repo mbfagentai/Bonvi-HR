@@ -630,7 +630,7 @@
       "headHint": "Boshliq xodim ilovasida shu bo‘lim va uning ichki bo‘limlari xodimlarining davomatini va telefon raqamlarini ko‘radi.",
       "headClear": "Boshliqni olib tashlash",
       "headHidden": "Boshliq belgilangan, lekin uning kartasini ochib bo‘lmadi.",
-      "headNoAccess": "Boshliqni tanlash uchun xodimlar ro‘yxatini ko‘rish ruxsati kerak.",
+      "headNoAccess": "Boshliqni tanlash uchun xodimlar ro‘yxatini va davomatni ko‘rish ruxsati kerak.",
       "headUnknown": "Joriy boshliqni o‘qib bo‘lmadi, shu sababli saqlash yopiq. Sahifani yangilab, qayta urinib ko‘ring.",
       "headTitle": "Bo‘lim boshlig‘i: {{name}}"
     },
@@ -1077,7 +1077,8 @@
     "bolim.boshliq_topilmadi": "Boshliq qilib tanlangan xodim topilmadi yoki o‘chirilgan. Boshqasini tanlang.",
     "jamoa.boshliq_emas": "Xodim hech qaysi bo‘limning boshlig‘i emas — jamoa paneli yopiq.",
     "jamoa.xodim_topilmadi": "Xodim boshliq jamoasida topilmadi.",
-    "jamoa.bolim_topilmadi": "Bo‘lim boshliq jamoasida topilmadi."
+    "jamoa.bolim_topilmadi": "Bo‘lim boshliq jamoasida topilmadi.",
+    "jamoa.sana_notogri": "Sana noto‘g‘ri: 2000-01-01 dan bugungacha bo‘lishi kerak."
   },
   "language": {
     "en": "English",
