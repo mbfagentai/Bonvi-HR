@@ -215,14 +215,14 @@ public static partial class MeEndpoints
                 // (`EmployeeEndpoints` dagi rasm endpointi bilan bir xil).
                 return natija.IsFailure
                     ? natija.ToHttpResult()
-                    : PhotoHttp.Write(context, natija.Value);
+                    : PhotoHttp.WriteRevalidated(context, natija.Value);
             })
             .WithName("GetMyEmployeePhoto")
             .WithSummary("Xodim — o'z rasmi")
             .WithDescription(
                 "Tokendagi xodimning O'Z rasmi — manzilda identifikator YO'Q, ya'ni boshqa odamning " +
                 "rasmini so'rab bo'lmaydi. Baytlar (image/jpeg), «ETag» + «If-None-Match» → 304, kesh " +
-                "SHAXSIY (private). Rasm yo'q bo'lsa: «xodim.rasm_yoq» (404).")
+                "SHAXSIY va har safar qayta tekshiriladi («private, no-cache»). Rasm yo'q bo'lsa: «xodim.rasm_yoq» (404).")
             .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
             .Produces(StatusCodes.Status304NotModified)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -590,7 +590,8 @@ public static partial class MeEndpoints
     /// <para>
     /// Guruhning qolgani bilan bir xil: faqat xodim sxemasi (HR tokeni — 401), «hali ham
     /// xodimmi» filtri (ishdan ketgan boshliq — <c>xodim.hisob_faol_emas</c>) va umumiy tezlik
-    /// cheklovi (§C7 — alohida siyosat yo'q).
+    /// cheklovi. Panelning USTIGA o'z siyosati bor — hisobga daqiqada 30
+    /// (<see cref="RateLimitPolicies.TeamBoard"/>): u eng qimmat so'rov.
     /// </para>
     /// </remarks>
     private static void MapTeam(IEndpointRouteBuilder group)
@@ -630,6 +631,7 @@ public static partial class MeEndpoints
 
                 return natija.ToHttpResult();
             })
+            .RequireRateLimiting(RateLimitPolicies.TeamBoard)
             .WithName("GetTeamBoard")
             .WithSummary("Jamoam — kunlik panel")
             .WithDescription(
@@ -637,12 +639,16 @@ public static partial class MeEndpoints
                 "sanoqlar bitta — boshliq qamrovida. «date» — Toshkent sanasi (sukut: bugun); «departmentId» " +
                 "— qamrovdagi bo'lim (ichki bo'limlari bilan, sukut: butun qamrov); «status», «search», " +
                 "«page», «pageSize» (sukut 50, eng ko'pi 200) — paneldagidek. Qatorda rasm KALITI emas, " +
-                "«hasPhoto»; telefon bor. Xatolar: «jamoa.boshliq_emas» (403), «jamoa.bolim_topilmadi» (404).")
+                "«hasPhoto»; telefon — faqat a'zo BUGUN qamrovda bo'lsa. Qamrov SANA bo'yicha: o'sha kuni bo'limi " +
+                "qamrovda bo'lgan odam. Xatolar: «jamoa.boshliq_emas» (403), «jamoa.sana_notogri» (400 — " +
+                "2000-01-01 dan bugungacha), «jamoa.bolim_topilmadi» (404), «rate_limit.oshib_ketdi» (429 — " +
+                "hisobga daqiqada 30).")
             .Produces<TeamBoardDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/team/members/{employeeId:guid}/attendance", async (
                 Guid employeeId,
@@ -660,11 +666,13 @@ public static partial class MeEndpoints
             .WithName("GetTeamMemberAttendance")
             .WithSummary("Jamoam — a'zoning oyi")
             .WithDescription(
-                "«attendance» — «GET /api/me/attendance» ning AYNAN o'zi: a'zoning oyi uning o'z ilovasidagidek. " +
-                "A'zo — shu oyga tegadigan, bo'limi qamrovda bo'lgan munosabati bor xodim. Ko'rish audit " +
-                "jurnaliga yoziladi (boshliq va a'zo bo'yicha 10 daqiqada bir marta). Xatolar: " +
-                "«jamoa.boshliq_emas» (403), «davomat.oy_notogri» (400), «jamoa.xodim_topilmadi» (404 — " +
-                "qamrovdan tashqari ham, umuman yo'q ham).")
+                "«attendance» — {year, month, days, totals}: kunlar «GET /api/me/attendance» dagi bilan bir xil, " +
+                "lekin faqat bo'limi O'SHA KUNI qamrovda bo'lgan kunlar; qolganlari «NotEmployed» kabi bo'sh va " +
+                "jamiga kirmaydi. «current» (jonli holat) YO'Q. Telefon va «hasPhoto» — faqat a'zo BUGUN " +
+                "qamrovda bo'lsa. Ko'rish audit jurnaliga yoziladi (boshliq, a'zo va oy bo'yicha 10 daqiqada bir " +
+                "marta). Xatolar: «jamoa.boshliq_emas» (403), «davomat.oy_notogri» (400 — noto'g'ri yoki kelgusi " +
+                "oy), «jamoa.xodim_topilmadi» (404 — oyning bugungacha bo'lgan HECH BIR kuni qamrovda emas, yoki " +
+                "umuman yo'q).")
             .Produces<TeamMemberAttendanceDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -686,13 +694,13 @@ public static partial class MeEndpoints
                 // JSON emas — BAYT: `ToHttpResult()` faqat xato yo'lida («/api/me/photo» bilan bir xil).
                 return natija.IsFailure
                     ? natija.ToHttpResult()
-                    : PhotoHttp.Write(context, natija.Value);
+                    : PhotoHttp.WriteRevalidated(context, natija.Value);
             })
             .WithName("GetTeamMemberPhoto")
             .WithSummary("Jamoam — a'zoning rasmi")
             .WithDescription(
                 "A'zo BUGUN qamrovda bo'lishi kerak. Baytlar (image/jpeg), «ETag» + «If-None-Match» → 304, " +
-                "kesh SHAXSIY (private) — «/api/me/photo» dagidek. Xatolar: «jamoa.boshliq_emas» (403), " +
+                "kesh SHAXSIY va har safar qayta tekshiriladi («private, no-cache») — «/api/me/photo» dagidek. Xatolar: «jamoa.boshliq_emas» (403), " +
                 "«jamoa.xodim_topilmadi» (404), «xodim.rasm_yoq» (404).")
             .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
             .Produces(StatusCodes.Status304NotModified)

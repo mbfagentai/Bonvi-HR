@@ -34,14 +34,23 @@ public sealed record GetTeamBoardQuery(
 /// </para>
 /// <para>
 /// Qamrov filtrga SERVERDA qo'yiladi (<c>DepartmentRoots</c>); mijozdan kelgan bo'lim faqat
-/// qamrov ICHIDA toraytiradi. Qatorga faqat telefon qo'shiladi — bitta so'rov, sahifadagilar
-/// uchun.
+/// qamrov ICHIDA toraytiradi. A'zolik — SANADAGI bo'lim bo'yicha (<see cref="TeamScope.CoversOn"/>
+/// qoidasi, o'qish modelida): o'tgan kunni ochgan boshliq o'sha kuni jamoada bo'lganlarni ko'radi.
+/// </para>
+/// <para>
+/// ⚠️ Qatorga telefon qo'shiladi va rasm belgisi qoladi — faqat BUGUN ham qamrovdagi odamda
+/// (<see cref="TeamBoardItemDto"/> izohi). Buning uchun sahifadagilarning munosabatlari bitta
+/// so'rov bilan qayta o'qiladi (ko'pi bilan 200 kishi).
 /// </para>
 /// </remarks>
 public sealed class GetTeamBoardQueryHandler
 {
+    /// <summary>Panel ochiladigan eng erta sana — tabel yili chegarasi (<c>AttendanceQueryParsing.MinYear</c>).</summary>
+    private static readonly DateOnly MinDate = new(AttendanceQueryParsing.MinYear, 1, 1);
+
     private readonly TeamAccess _access;
     private readonly IAttendanceReadModel _readModel;
+    private readonly IAttendanceComputationSource _employments;
     private readonly ITeamReadModel _team;
     private readonly TeamViewAudit _audit;
     private readonly IClock _clock;
@@ -49,12 +58,14 @@ public sealed class GetTeamBoardQueryHandler
     public GetTeamBoardQueryHandler(
         TeamAccess access,
         IAttendanceReadModel readModel,
+        IAttendanceComputationSource employments,
         ITeamReadModel team,
         TeamViewAudit audit,
         IClock clock)
     {
         _access = access;
         _readModel = readModel;
+        _employments = employments;
         _team = team;
         _audit = audit;
         _clock = clock;
@@ -73,6 +84,12 @@ public sealed class GetTeamBoardQueryHandler
         }
 
         var scope = caller.Value.Scope;
+        var today = _clock.Today;
+
+        if (query.Date is { } requested && (requested < MinDate || requested > today))
+        {
+            return TeamErrors.DateInvalid;
+        }
 
         if (query.DepartmentId is { } departmentId && !scope.Contains(departmentId))
         {
@@ -88,7 +105,7 @@ public sealed class GetTeamBoardQueryHandler
             Search: query.Search,
             Status: query.Status);
 
-        var filter = GetAttendanceDashboardQueryHandler.BuildFilter(dashboard, _clock.Today, page, pageSize) with
+        var filter = GetAttendanceDashboardQueryHandler.BuildFilter(dashboard, today, page, pageSize) with
         {
             DepartmentRoots = query.DepartmentId is { } narrowed ? [narrowed] : scope.Roots,
             SearchNameAndPhoneOnly = true,
@@ -96,16 +113,22 @@ public sealed class GetTeamBoardQueryHandler
 
         var found = await _readModel.GetDashboardAsync(filter, cancellationToken).ConfigureAwait(false);
 
-        var phones = await _team
-            .PhonesAsync([.. found.Items.Select(item => item.EmployeeId)], cancellationToken)
-            .ConfigureAwait(false);
+        // «Bugun ham qamrovda» — butun qamrov bo'yicha, mijoz tanlagan bo'lim bo'yicha emas:
+        // boshliqning boshqa sexiga o'tgan odam hali ham uning odami.
+        var pageIds = found.Items.Select(item => item.EmployeeId).ToList();
+        var employments = await _employments.LoadEmploymentsAsync(pageIds, cancellationToken).ConfigureAwait(false);
+        var inScopeToday = pageIds
+            .Where(id => scope.CoversOn(employments.GetValueOrDefault(id) ?? [], today))
+            .ToHashSet();
+
+        var phones = await _team.PhonesAsync(inScopeToday, cancellationToken).ConfigureAwait(false);
 
         IReadOnlyList<TeamBoardItemDto> items =
         [
             .. found.Items.Select(item => new TeamBoardItemDto(
                 item.EmployeeId,
                 item.FullName,
-                item.PhotoKey is not null,
+                inScopeToday.Contains(item.EmployeeId) && item.PhotoKey is not null,
                 item.PositionName,
                 item.DepartmentName,
                 item.ArrivedAt,
@@ -116,7 +139,9 @@ public sealed class GetTeamBoardQueryHandler
                 phones.TryGetValue(item.EmployeeId, out var phone) ? phone.Formatted : null)),
         ];
 
-        await _audit.BoardViewedAsync(caller.Value.Ids).ConfigureAwait(false);
+        await _audit
+            .BoardViewedAsync(caller.Value.Ids, found.Date, query.DepartmentId, query.Status, filter.Search is not null)
+            .ConfigureAwait(false);
 
         return new TeamBoardDto(
             found.Date,

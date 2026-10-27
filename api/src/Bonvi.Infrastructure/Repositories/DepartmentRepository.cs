@@ -137,4 +137,17 @@ public sealed class DepartmentRepository : ReferenceRepository<Department>, IDep
             await entry.ReloadAsync(cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Kuzatuv ATAYLAB yoqiq (<see cref="ReferenceRepository{TEntity}.ListAsync"/> dan farqli):
+    /// chaqiruvchi boshliqni olib tashlaydi va o'zgarish shu ish birligida saqlanadi.
+    /// </remarks>
+    public async Task<IReadOnlyList<Department>> GetHeadedByAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default)
+        => await Set
+            .Where(department => department.HeadEmployeeId == employeeId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 }

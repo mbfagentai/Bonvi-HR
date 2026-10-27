@@ -1,3 +1,4 @@
+using Bonvi.Application.Attendance.Scheduling;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Organization;
 
@@ -56,26 +57,69 @@ public sealed class TeamScope
     public bool Contains(Guid departmentId) => _departmentIds.Contains(departmentId);
 
     /// <summary>
-    /// Xodim qamrovdami: bo'limi qamrovda bo'lgan va davrga TEGADIGAN munosabati bormi.
+    /// Xodim davrning KAMIDA BITTA kunida qamrovdami (<see cref="CoversOn"/> qoidasi bilan).
     /// </summary>
-    /// <remarks>
-    /// Panelning bo'lim filtri bilan bir xil qoida (§B): munosabat asosiy bo'lishi shart emas,
-    /// ishdan ketish kuni ham qamraladi (<c>PrimaryEmployment.Covers</c>).
-    /// </remarks>
-    /// <param name="employments">Bitta xodimning munosabatlari.</param>
+    /// <param name="employments">Bitta xodimning munosabatlari — hodisalari bilan.</param>
     /// <param name="from">Davr boshi (kiradi).</param>
     /// <param name="to">Davr oxiri (kiradi).</param>
-    public bool Covers(IEnumerable<Employment> employments, DateOnly from, DateOnly to)
+    public bool Covers(IReadOnlyCollection<Employment> employments, DateOnly from, DateOnly to)
     {
         ArgumentNullException.ThrowIfNull(employments);
 
-        return employments.Any(employment =>
-            employment.DeletedAt is null &&
-            employment.DepartmentId is { } departmentId &&
-            Contains(departmentId) &&
-            employment.HireDate <= to &&
-            (employment.TerminationDate is not { } terminated || terminated >= from));
+        for (var date = from; date <= to; date = date.AddDays(1))
+        {
+            if (CoversOn(employments, date))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
+
+    /// <summary>Davrning xodim qamrovda bo'lgan kunlari (<see cref="CoversOn"/> qoidasi bilan).</summary>
+    /// <param name="employments">Bitta xodimning munosabatlari — hodisalari bilan.</param>
+    /// <param name="from">Davr boshi (kiradi).</param>
+    /// <param name="to">Davr oxiri (kiradi).</param>
+    public IReadOnlySet<DateOnly> DaysCovered(IReadOnlyCollection<Employment> employments, DateOnly from, DateOnly to)
+    {
+        ArgumentNullException.ThrowIfNull(employments);
+
+        var days = new HashSet<DateOnly>();
+
+        for (var date = from; date <= to; date = date.AddDays(1))
+        {
+            if (CoversOn(employments, date))
+            {
+                days.Add(date);
+            }
+        }
+
+        return days;
+    }
+
+    /// <summary>
+    /// Xodim shu KUNI qamrovdami (SPEC-jamoam §B): shu kunni qamraydigan munosabatlaridan
+    /// birining SHU SANADAGI bo'limi qamrovda.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega joriy bo'lim emas.</b> Ko'chirish (<c>Employment.Transfer</c>) bo'limni JOYIDA
+    /// almashtiradi, tarix esa faqat mehnat yo'li hodisalarida. Joriy bo'lim bo'yicha qaralsa,
+    /// yangi boshliq odamning boshqa bo'limda o'tgan oylarini ko'rardi, eski boshliq esa o'z
+    /// bo'limida ishlagan kunlarini ham yo'qotardi. Qoida —
+    /// <see cref="EmploymentPlacement.AnyIn"/>; boshliq paneli (<c>DashboardFilter.DepartmentRoots</c>)
+    /// ham aynan shuni chaqiradi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Munosabatlar hodisalari BILAN yuklangan bo'lishi shart — aks holda qoida jimgina joriy
+    /// bo'limga qaytadi (<see cref="EmploymentPlacement"/> izohi).
+    /// </para>
+    /// </remarks>
+    /// <param name="employments">Bitta xodimning munosabatlari — hodisalari bilan.</param>
+    /// <param name="date">Toshkent sanasi.</param>
+    public bool CoversOn(IEnumerable<Employment> employments, DateOnly date)
+        => EmploymentPlacement.AnyIn(employments, date, _departmentIds);
 
     /// <summary>Xodimning qamrovini bo'limlar ro'yxatidan yig'adi.</summary>
     /// <param name="employeeId">Boshliq bo'lishi mumkin bo'lgan xodim.</param>

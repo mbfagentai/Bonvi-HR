@@ -784,7 +784,30 @@ public sealed record TimesheetTotalsDto(
     int LateMinutes,
     int EarlyLeaveMinutes,
     int ShortfallMinutes = 0,
-    int PersonalMinutes = 0);
+    int PersonalMinutes = 0)
+{
+    /// <summary>Kataklarning jami — tabel qatori va boshliq ko'radigan oy uchun BITTA hisob.</summary>
+    /// <remarks>
+    /// Reja ham kataklardan: saqlangan katakda u kun yozuvining rejasi, hosil qilinganida 0
+    /// (<see cref="TimesheetCellDto.PlannedMinutes"/> sukuti) — ya'ni «tabel saqlanmagan narsani
+    /// jamlamaydi» qoidasi shu yerda ham turadi.
+    /// </remarks>
+    /// <param name="cells">Bitta xodimning kataklari.</param>
+    public static TimesheetTotalsDto Of(IReadOnlyCollection<TimesheetCellDto> cells)
+    {
+        ArgumentNullException.ThrowIfNull(cells);
+
+        return new TimesheetTotalsDto(
+            cells.Sum(cell => cell.WorkedMinutes),
+            cells.Sum(cell => cell.PlannedMinutes),
+            cells.Count(cell => cell.Status == AttendanceDayStatus.Present),
+            cells.Count(cell => cell.Status == AttendanceDayStatus.Absent),
+            cells.Sum(cell => cell.LateMinutes),
+            cells.Sum(cell => cell.EarlyLeaveMinutes),
+            cells.Sum(cell => cell.ShortfallMinutes),
+            cells.Sum(cell => cell.PersonalMinutes));
+    }
+}
 
 /// <summary>Tabelning bitta qatori — bitta xodim, oyning barcha kunlari.</summary>
 /// <param name="EmployeeId">Xodim.</param>

@@ -1087,14 +1087,24 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 cancellationToken)
             .ConfigureAwait(false);
 
-        // Boshliq qamrovi (SPEC-jamoam §C2) — bo'lim filtrining o'zi, bir nechta ildiz bilan.
+        // Boshliq qamrovi (SPEC-jamoam §C2) — SANADAGI bo'lim bo'yicha (`EmploymentPlacement.AnyIn`).
+        // SQL faqat USTMA-UST to'plamni oladi: sanadagi bo'lim joriy bo'lim yoki biror ko'chirish
+        // hodisasining «eski»/«yangi» bo'limi, ya'ni shulardan biri qamrovda bo'lmagan odam a'zo
+        // bo'la olmaydi. Aniq qoida xotirada, munosabatlar hodisalari bilan yuklangach.
         // Bo'sh to'plam bo'sh panel beradi: `Contains` hech kimga rost bo'lmaydi.
+        HashSet<Guid>? teamDepartments = null;
+
         if (filter.DepartmentRoots is { } roots)
         {
             var scope = await BranchUnionAsync(roots, cancellationToken).ConfigureAwait(false);
+            teamDepartments = [.. scope];
 
             covering = covering.Where(employment =>
-                employment.DepartmentId != null && scope.Contains(employment.DepartmentId.Value));
+                (employment.DepartmentId != null && scope.Contains(employment.DepartmentId.Value)) ||
+                employment.Events.Any(item =>
+                    (item.Type == EmploymentEventType.Transfer || item.Type == EmploymentEventType.Promotion) &&
+                    ((item.FromDepartmentId != null && scope.Contains(item.FromDepartmentId.Value)) ||
+                     (item.ToDepartmentId != null && scope.Contains(item.ToDepartmentId.Value)))));
         }
 
         var coveringEmployeeIds = covering.Select(employment => employment.EmployeeId);
@@ -1121,10 +1131,10 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         var populationIds = people.Select(person => person.Id).ToList();
 
         // Qidiruv sharti barcha ro'yxatlardagi bilan AYNAN bir xil (`EmployeeSearchQuery`);
-        // boshliq panelida — JSHSHIR va pasportsiz (`DashboardFilter.SearchNameAndPhoneOnly`).
+        // boshliq panelida — faqat ism va asosiy telefon (`DashboardFilter.SearchNameAndPhoneOnly`).
         HashSet<Guid>? matching = filter.Search is { } search
             ? [.. await (filter.SearchNameAndPhoneOnly
-                    ? EmployeeSearchQuery.MatchingPublic(_context, search)
+                    ? EmployeeSearchQuery.MatchingTeam(_context, search)
                     : EmployeeSearchQuery.Matching(_context, search))
                 .Where(employee => populationIds.Contains(employee.Id))
                 .Select(employee => employee.Id)
@@ -1179,6 +1189,24 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 continue;
             }
 
+            // HR panelida bo'lim va lavozim — joriy (o'zgarmagan xatti-harakat). Boshliq panelida
+            // esa a'zolik ham, ko'rsatiladigan bo'lim ham SANADAGISI: o'tgan kunni ochgan boshliq
+            // odamni o'sha kuni qaysi bo'limda bo'lgan bo'lsa, o'sha bo'lim bilan ko'radi.
+            var departmentId = primary.DepartmentId;
+            var positionId = primary.PositionId;
+
+            if (teamDepartments is not null)
+            {
+                if (!EmploymentPlacement.AnyIn(personEmployments, date, teamDepartments))
+                {
+                    continue;
+                }
+
+                var placement = EmploymentPlacement.On(primary, date);
+                departmentId = placement.DepartmentId;
+                positionId = placement.PositionId;
+            }
+
             DateTimeOffset? arrivedAt = null;
             DateTimeOffset? leftAt = null;
             ComputedAttendanceDay? day = null;
@@ -1199,8 +1227,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 person.Id,
                 FullName.FromTrusted(person.LastName, person.FirstName, person.MiddleName).Full,
                 person.PhotoKey,
-                primary.DepartmentId,
-                primary.PositionId,
+                departmentId,
+                positionId,
                 arrivedAt,
                 leftAt,
                 DashboardStatusRule.Classify(
@@ -2282,18 +2310,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                             MobileMarks: mobileMarks.GetValueOrDefault((employee.Id, date)))),
                 ];
 
-                var plannedMinutes = monthDays.Sum(date =>
-                    storedDays.TryGetValue((employee.Id, date), out var stored) ? stored.PlannedMinutes : 0);
-
-                var totals = new TimesheetTotalsDto(
-                    cells.Sum(cell => cell.WorkedMinutes),
-                    plannedMinutes,
-                    cells.Count(cell => cell.Status == AttendanceDayStatus.Present),
-                    cells.Count(cell => cell.Status == AttendanceDayStatus.Absent),
-                    cells.Sum(cell => cell.LateMinutes),
-                    cells.Sum(cell => cell.EarlyLeaveMinutes),
-                    cells.Sum(cell => cell.ShortfallMinutes),
-                    cells.Sum(cell => cell.PersonalMinutes));
+                // Reja — saqlangan kataklarniki, hosil qilinganlarida 0 (`TimesheetTotalsDto.Of`).
+                var totals = TimesheetTotalsDto.Of(cells);
 
                 var display = displayEmployments[employee.Id];
                 var snapshot = latestSnapshots.GetValueOrDefault(employee.Id);

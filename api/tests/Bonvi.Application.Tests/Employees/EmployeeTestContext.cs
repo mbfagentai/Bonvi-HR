@@ -58,6 +58,11 @@ internal sealed class EmployeeTestContext
             .GetActiveByEmployeeAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<Employment>());
 
+        // Sukut bo'yicha xodim hech qaysi bo'limning boshlig'i emas (sababi yuqoridagi bilan bir xil).
+        Departments
+            .GetHeadedByAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<Department>());
+
         LegalEntities.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         TerminationReasons.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         Departments.ExistsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);

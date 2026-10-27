@@ -195,6 +195,100 @@ public sealed class TeamScopeTests
         qamrov.Covers([munosabat], new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31)).ShouldBeFalse();
     }
 
+    // ────────── Har bir sanadagi bo'lim ──────────
+
+    /// <summary>
+    /// Qo'shni zavoddan 15-oktabrda kelgan: yangi boshliq faqat 15-dan boshlab ko'radi —
+    /// odamning qo'shni zavodda o'tgan kunlari unga tegishli emas.
+    /// </summary>
+    [Fact]
+    public void Qamrovga_kochib_kelgan_xodim_faqat_kochish_kunidan_boshlab_qamraladi()
+    {
+        var daraxt = new Daraxt();
+        daraxt.Metan.AssignHead(Boshliq);
+        var qamrov = TeamScope.Of(Boshliq, daraxt.Hammasi);
+
+        var munosabat = Munosabat(daraxt.Propan.Id, new DateOnly(2026, 1, 1));
+        munosabat.Transfer(new DateOnly(2026, 10, 15), daraxt.Plazma.Id, newPositionId: null).IsSuccess.ShouldBeTrue();
+
+        qamrov.CoversOn([munosabat], new DateOnly(2026, 10, 14)).ShouldBeFalse();
+        qamrov.CoversOn([munosabat], new DateOnly(2026, 10, 15)).ShouldBeTrue("ko'chish kuni — allaqachon yangi joy");
+
+        qamrov.DaysCovered([munosabat], new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31))
+            .Order().ShouldBe(Kunlar(new DateOnly(2026, 10, 15), new DateOnly(2026, 10, 31)));
+
+        // Sentabr butunlay qo'shni zavodda — oy umuman qamrovda emas.
+        qamrov.Covers([munosabat], new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)).ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// Qamrovdan 15-oktabrda chiqib ketgan: eski boshliq 14-gacha bo'lgan kunlarni ko'radi,
+    /// keyingilarini yo'q — joriy bo'lim qo'shni zavod bo'lsa ham.
+    /// </summary>
+    [Fact]
+    public void Qamrovdan_kochib_ketgan_xodim_kochishgacha_qamraladi_keyin_yoq()
+    {
+        var daraxt = new Daraxt();
+        daraxt.Metan.AssignHead(Boshliq);
+        var qamrov = TeamScope.Of(Boshliq, daraxt.Hammasi);
+
+        var munosabat = Munosabat(daraxt.Kesish.Id, new DateOnly(2026, 1, 1));
+        munosabat.Transfer(new DateOnly(2026, 10, 15), daraxt.Propan.Id, newPositionId: null).IsSuccess.ShouldBeTrue();
+
+        qamrov.Contains(munosabat.DepartmentId!.Value).ShouldBeFalse("joriy bo'lim — qo'shni zavod");
+
+        qamrov.CoversOn([munosabat], new DateOnly(2026, 10, 14)).ShouldBeTrue();
+        qamrov.CoversOn([munosabat], new DateOnly(2026, 10, 15)).ShouldBeFalse();
+
+        qamrov.DaysCovered([munosabat], new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31))
+            .Order().ShouldBe(Kunlar(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 14)));
+
+        qamrov.Covers([munosabat], new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Qamrov_ichida_kochgan_xodim_butun_oy_qamraladi()
+    {
+        var daraxt = new Daraxt();
+        daraxt.Metan.AssignHead(Boshliq);
+        var qamrov = TeamScope.Of(Boshliq, daraxt.Hammasi);
+
+        var munosabat = Munosabat(daraxt.Kesish.Id, new DateOnly(2026, 1, 1));
+        munosabat.Transfer(new DateOnly(2026, 10, 15), daraxt.Smena.Id, newPositionId: null).IsSuccess.ShouldBeTrue();
+
+        qamrov.DaysCovered([munosabat], new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31))
+            .Count.ShouldBe(31);
+    }
+
+    /// <summary>
+    /// Ikki munosabat: biri qamrovda, ikkinchisi qo'shni zavodda — qamrovdagisining kunlari
+    /// yetadi (o'rindoshlik ham a'zolik).
+    /// </summary>
+    [Fact]
+    public void Bir_nechta_munosabatdan_qamrovdagisi_yetadi()
+    {
+        var daraxt = new Daraxt();
+        daraxt.Metan.AssignHead(Boshliq);
+        var qamrov = TeamScope.Of(Boshliq, daraxt.Hammasi);
+
+        var asosiy = Munosabat(daraxt.Propan.Id, new DateOnly(2026, 1, 1));
+        var orindosh = Munosabat(daraxt.Plazma.Id, new DateOnly(2026, 10, 20));
+
+        qamrov.DaysCovered([asosiy, orindosh], new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31))
+            .Order().ShouldBe(Kunlar(new DateOnly(2026, 10, 20), new DateOnly(2026, 10, 31)));
+    }
+
+    private static List<DateOnly> Kunlar(DateOnly from, DateOnly to)
+    {
+        var kunlar = new List<DateOnly>();
+        for (var kun = from; kun <= to; kun = kun.AddDays(1))
+        {
+            kunlar.Add(kun);
+        }
+
+        return kunlar;
+    }
+
     private static Employment Munosabat(Guid? bolimId, DateOnly qabul)
         => Employment.Hire(Guid.NewGuid(), Firma, qabul, bolimId).Value;
 }

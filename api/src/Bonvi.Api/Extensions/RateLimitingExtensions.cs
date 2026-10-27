@@ -71,6 +71,17 @@ public static class RateLimitPolicies
     /// (<see cref="RateLimitingOptions.QuestionnaireDaily"/>).
     /// </remarks>
     public const string QuestionnaireSubmit = "questionnaire-submit";
+
+    /// <summary>
+    /// «Jamoam» kunlik paneli (<c>GET /api/me/team/board</c>) — xodim HISOBI bo'yicha.
+    /// </summary>
+    /// <remarks>
+    /// Har so'rov qamrov daraxti ustida HR panelining to'liq hisobini yuradi (jadval, o'tishlar,
+    /// yo'qliklar) — umumiy «daqiqada 120» uni qidiruv maydonidan tinimsiz chaqirishga yetarlicha
+    /// keng. Bo'linma — hisob (<c>sub</c>), IP emas: zavodning hamma telefoni bitta Wi-Fi'dan chiqadi.
+    /// Endpoint siyosati global zanjirga QO'SHIMCHA — ikkalasi ham sanaydi.
+    /// </remarks>
+    public const string TeamBoard = "team-board";
 }
 
 /// <summary>
@@ -197,6 +208,16 @@ public sealed class RateLimitingOptions
 
     /// <summary>Onlayn anketa yuborish — bitta mijoz IP'siga soatiga 20 (<see cref="RateLimitPolicies.QuestionnaireSubmit"/>).</summary>
     public RateLimitWindow QuestionnaireSubmit { get; set; } = new() { PermitLimit = 20, WindowSeconds = 3600 };
+
+    /// <summary>
+    /// «Jamoam» paneli — bitta xodim hisobiga daqiqada 30 (<see cref="RateLimitPolicies.TeamBoard"/>).
+    /// </summary>
+    /// <remarks>
+    /// Ilova panelni ochilganda, sana/bo'lim/holat almashganda va qidiruvda (kechikish bilan)
+    /// so'raydi — odam qo'li bilan daqiqada 30 ga yetib bo'lmaydi, skript bilan esa bazani band
+    /// qilishning oldi olinadi.
+    /// </remarks>
+    public RateLimitWindow TeamBoard { get; set; } = new() { PermitLimit = 30, WindowSeconds = 60 };
 
     /// <summary>
     /// Onlayn anketa — BARCHA IP'lar uchun bitta umumiy chegara: kuniga 500 ta QABUL QILINGAN anketa.
@@ -451,6 +472,12 @@ public static class RateLimitingExtensions
                 RateLimitPartition.GetFixedWindowLimiter(
                     "anketa-yuborish:" + ClientIp.PartitionKey(context),
                     _ => QatiyOyna(sozlama.QuestionnaireSubmit)));
+
+            // «Jamoam» paneli — xodim hisobi bo'yicha (RateLimitPolicies.TeamBoard izohi)
+            options.AddPolicy(RateLimitPolicies.TeamBoard, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    "jamoa-panel:" + Kim(context),
+                    _ => QatiyOyna(sozlama.TeamBoard)));
 
             options.OnRejected = RadEtildiAsync;
         });

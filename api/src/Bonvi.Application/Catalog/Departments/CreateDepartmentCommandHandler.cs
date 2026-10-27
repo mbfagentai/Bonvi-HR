@@ -1,7 +1,9 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Catalog.Common;
 using Bonvi.Application.Catalog.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
 using FluentValidation;
 
@@ -27,6 +29,7 @@ public sealed class CreateDepartmentCommandHandler
     private readonly IEmployeeRepository _employees;
     private readonly IReferenceDefinition<Department, DepartmentDto> _definition;
     private readonly IValidator<SaveReferenceCommand> _validator;
+    private readonly ICurrentUser _currentUser;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateDepartmentCommandHandler(
@@ -34,12 +37,14 @@ public sealed class CreateDepartmentCommandHandler
         IEmployeeRepository employees,
         IReferenceDefinition<Department, DepartmentDto> definition,
         IValidator<SaveReferenceCommand> validator,
+        ICurrentUser currentUser,
         IUnitOfWork unitOfWork)
     {
         _departments = departments;
         _employees = employees;
         _definition = definition;
         _validator = validator;
+        _currentUser = currentUser;
         _unitOfWork = unitOfWork;
     }
 
@@ -62,6 +67,13 @@ public sealed class CreateDepartmentCommandHandler
             {
                 return CatalogErrors.ParentDepartmentNotFound;
             }
+        }
+
+        // Boshliq tayinlash — davomatni ko'rish huquqini berish (CatalogErrors.HeadPermissionRequired).
+        // Mavjudlik tekshiruvidan OLDIN: ruxsatsiz odam 400/403 farqidan xodim bor-yo'qligini bilmasin.
+        if (command.HeadEmployeeId is not null && !_currentUser.HasPermission(Permissions.AttendanceView))
+        {
+            return CatalogErrors.HeadPermissionRequired;
         }
 
         // Boshliq — mavjud, o'chirilmagan xodim (SPEC-jamoam §E).

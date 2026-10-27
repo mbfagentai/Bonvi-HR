@@ -1,7 +1,9 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Catalog.Common;
 using Bonvi.Application.Catalog.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
+using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
 using FluentValidation;
 
@@ -30,6 +32,7 @@ public sealed class UpdateDepartmentCommandHandler
     private readonly IEmployeeRepository _employees;
     private readonly IReferenceDefinition<Department, DepartmentDto> _definition;
     private readonly IValidator<SaveReferenceCommand> _validator;
+    private readonly ICurrentUser _currentUser;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateDepartmentCommandHandler(
@@ -37,12 +40,14 @@ public sealed class UpdateDepartmentCommandHandler
         IEmployeeRepository employees,
         IReferenceDefinition<Department, DepartmentDto> definition,
         IValidator<SaveReferenceCommand> validator,
+        ICurrentUser currentUser,
         IUnitOfWork unitOfWork)
     {
         _departments = departments;
         _employees = employees;
         _definition = definition;
         _validator = validator;
+        _currentUser = currentUser;
         _unitOfWork = unitOfWork;
     }
 
@@ -63,6 +68,14 @@ public sealed class UpdateDepartmentCommandHandler
         if (department is null)
         {
             return CatalogErrors.DepartmentNotFound;
+        }
+
+        // Boshliqni o'zgartirish (olib tashlash ham) — davomatni ko'rish huquqi bilan
+        // (CatalogErrors.HeadPermissionRequired). O'zgarmagan boshliq — oddiy qayta nomlash, ruxsat kerak emas.
+        if (command.HeadEmployeeId != department.HeadEmployeeId
+            && !_currentUser.HasPermission(Permissions.AttendanceView))
+        {
+            return CatalogErrors.HeadPermissionRequired;
         }
 
         // Boshliq — mavjud, o'chirilmagan xodim (SPEC-jamoam §E). Faqat O'ZGARGANDA tekshiriladi:

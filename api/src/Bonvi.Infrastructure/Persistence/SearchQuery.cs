@@ -260,6 +260,58 @@ internal static class EmployeeSearchQuery
 
         return employees.Where(employee => matching.Contains(employee.Id));
     }
+
+    /// <summary>
+    /// Bo'lim boshlig'i paneli uchun qidiruv — faqat F.I.Sh. va ASOSIY telefon (SPEC-jamoam §C2).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega <see cref="MatchingPublic"/> dan ham tor.</b> Boshliq ekranida faqat ism va
+    /// asosiy telefon ko'rinadi; ikkinchi telefon hech qayerda chiqmaydi. Qidiruv ko'rinmaydigan
+    /// ustun bo'yicha ham topsa, boshliq qo'lidagi raqamni yuborib «bu raqam kimniki» degan
+    /// savolga javob olardi — sizib chiqadigan narsa qiymat emas, MOSLIK faktining o'zi
+    /// (<see cref="MatchingPublic"/> dagi JSHSHIR mulohazasi bilan bir xil).
+    /// </para>
+    /// <para>
+    /// Ism va asosiy telefon shartlari <see cref="MatchingPublic"/> dagi bilan AYNAN bir xil —
+    /// ikkisi birga o'zgaradi. Tashqi API qoidasi ataylab tegilmagan: u egasining alohida qarori.
+    /// </para>
+    /// </remarks>
+    public static IQueryable<Employee> MatchingTeam(AppDbContext context, string? search)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var employees = context.Employees.AsNoTracking();
+
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return employees;
+        }
+
+        var namePattern = SearchPattern.For(search);
+        var phoneDigits = SearchFolding.ForPhone(search);
+
+        var matching = phoneDigits.Length == 0
+            ? context.Employees
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM employees AS x
+                     WHERE x.search_key LIKE search_key({namePattern})
+                     """)
+                .Select(employee => employee.Id)
+            : context.Employees
+                .FromSql(
+                    $"""
+                     SELECT x.*
+                     FROM employees AS x
+                     WHERE x.search_key LIKE search_key({namePattern})
+                        OR regexp_replace(x.phone, '\D', '', 'g') ILIKE {SearchPattern.For(phoneDigits)}
+                     """)
+                .Select(employee => employee.Id);
+
+        return employees.Where(employee => matching.Contains(employee.Id));
+    }
 }
 
 /// <summary>

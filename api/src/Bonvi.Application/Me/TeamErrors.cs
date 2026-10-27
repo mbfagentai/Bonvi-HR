@@ -27,4 +27,21 @@ public static class TeamErrors
     /// <summary>Berilgan bo'lim qamrovdan tashqarida (yoki yo'q) — xuddi shu sababdan bitta javob.</summary>
     public static Error DepartmentNotFound { get; } =
         Error.NotFound("jamoa.bolim_topilmadi", "Bo'lim topilmadi.");
+
+    /// <summary>Panel sanasi [2000-01-01, bugun (Toshkent)] dan tashqarida.</summary>
+    /// <remarks>
+    /// Kelajak sanasida panel hech narsa bilmaydi, 2000-yildan oldingisi esa haqiqatga to'g'ri
+    /// kelmaydi (<c>AttendanceQueryParsing.MinYear</c>) — ikkalasi ham bo'sh panel qaytarib,
+    /// xatoni yashirardi. <c>9999-12-31</c> esa sana arifmetikasida 500 berardi.
+    /// </remarks>
+    public static Error DateInvalid { get; } =
+        Error.Validation("jamoa.sana_notogri", "Sana 2000-01-01 dan bugungacha bo'lishi kerak.");
+
+    /// <summary>So'ralgan oy joriy Toshkent oyidan keyin.</summary>
+    /// <remarks>
+    /// Kod tabel oyi xatosi bilan BIR XIL (<c>davomat.oy_notogri</c>) — ilova uni allaqachon
+    /// tarjima qiladi; matn esa aniqroq.
+    /// </remarks>
+    public static Error FutureMonth { get; } =
+        Error.Validation("davomat.oy_notogri", "Kelgusi oyni ko'rib bo'lmaydi.");
 }

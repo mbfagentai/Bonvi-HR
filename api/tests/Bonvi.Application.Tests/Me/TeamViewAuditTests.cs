@@ -1,4 +1,5 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Me;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
@@ -31,42 +32,64 @@ public sealed class TeamViewAuditTests
     private TeamViewAudit Audit => new(_auditLogger, _unitOfWork, _window, _journal);
 
     [Fact]
-    public async Task Azoni_korish_10_daqiqada_bir_marta_yoziladi_boshqa_azo_alohida()
+    public async Task Azoni_korish_oy_boyicha_10_daqiqada_bir_marta_yoziladi_boshqa_oy_va_azo_alohida()
     {
         var azo = Guid.NewGuid();
         var boshqa = Guid.NewGuid();
 
         await Audit.MemberViewedAsync(_boshliq, azo, 2026, 10);
-        await Audit.MemberViewedAsync(_boshliq, azo, 2026, 9);   // boshqa oy — baribir o'sha juftlik
+        await Audit.MemberViewedAsync(_boshliq, azo, 2026, 10);  // o'sha oyni yangilash — yozilmaydi
+        await Audit.MemberViewedAsync(_boshliq, azo, 2026, 9);   // boshqa oy — boshqa ochilgan narsa
         await Audit.MemberViewedAsync(_boshliq, boshqa, 2026, 10);
 
-        Yozuvlar("Employee", azo).ShouldBe(["""{"action":"team_member_viewed","year":2026,"month":10}"""]);
+        Yozuvlar("Employee", azo).ShouldBe(
+        [
+            """{"action":"team_member_viewed","year":2026,"month":10}""",
+            """{"action":"team_member_viewed","year":2026,"month":9}""",
+        ]);
         Yozuvlar("Employee", boshqa).Count.ShouldBe(1);
 
         // 9 daqiqa 59 soniya — hali oynada; 10 daqiqa — yangi qator.
         _clock.UtcNow.Returns(Boshi + TeamViewWindow.MemberWindow - TimeSpan.FromSeconds(1));
         await Audit.MemberViewedAsync(_boshliq, azo, 2026, 10);
-        Yozuvlar("Employee", azo).Count.ShouldBe(1);
+        Yozuvlar("Employee", azo).Count.ShouldBe(2);
 
         _clock.UtcNow.Returns(Boshi + TeamViewWindow.MemberWindow);
         await Audit.MemberViewedAsync(_boshliq, azo, 2026, 10);
-        Yozuvlar("Employee", azo).Count.ShouldBe(2);
+        Yozuvlar("Employee", azo).Count.ShouldBe(3);
     }
 
+    /// <summary>
+    /// Panel — sana va bo'lim bo'yicha 30 daqiqada bir marta; holat va qidiruv yangi qator emas,
+    /// qidiruv MATNI esa umuman yo'q (faqat «searched»).
+    /// </summary>
     [Fact]
-    public async Task Panelni_korish_30_daqiqada_bir_marta_hisob_ustida_yoziladi()
+    public async Task Panelni_korish_sana_va_bolim_boyicha_30_daqiqada_bir_marta_qidiruv_matnisiz()
     {
-        await Audit.BoardViewedAsync(_boshliq);
+        var bugun = new DateOnly(2026, 10, 27);
+        var sex = Guid.NewGuid();
 
+        await Audit.BoardViewedAsync(_boshliq, bugun, null, null, searched: false);
+
+        // O'sha panelning filtri — holat va qidiruv yangi qator emas.
         _clock.UtcNow.Returns(Boshi + TimeSpan.FromMinutes(29));
-        await Audit.BoardViewedAsync(_boshliq);
+        await Audit.BoardViewedAsync(_boshliq, bugun, null, AttendanceDashboardStatus.Absent, searched: true);
 
-        Yozuvlar("EmployeeAccount", _boshliq.AccountId).ShouldBe(["""{"action":"team_board_viewed"}"""]);
+        // Boshqa sana va boshqa bo'lim — boshqa ochilgan narsa.
+        await Audit.BoardViewedAsync(_boshliq, bugun.AddDays(-1), null, null, searched: false);
+        await Audit.BoardViewedAsync(_boshliq, bugun, sex, AttendanceDashboardStatus.Late, searched: true);
+
+        Yozuvlar("EmployeeAccount", _boshliq.AccountId).ShouldBe(
+        [
+            """{"action":"team_board_viewed","date":"2026-10-27","departmentId":null,"status":null,"searched":false}""",
+            """{"action":"team_board_viewed","date":"2026-10-26","departmentId":null,"status":null,"searched":false}""",
+            $$"""{"action":"team_board_viewed","date":"2026-10-27","departmentId":"{{sex}}","status":"Late","searched":true}""",
+        ]);
 
         _clock.UtcNow.Returns(Boshi + TeamViewWindow.BoardWindow);
-        await Audit.BoardViewedAsync(_boshliq);
+        await Audit.BoardViewedAsync(_boshliq, bugun, null, null, searched: false);
 
-        Yozuvlar("EmployeeAccount", _boshliq.AccountId).Count.ShouldBe(2);
+        Yozuvlar("EmployeeAccount", _boshliq.AccountId).Count.ShouldBe(4);
     }
 
     [Fact]

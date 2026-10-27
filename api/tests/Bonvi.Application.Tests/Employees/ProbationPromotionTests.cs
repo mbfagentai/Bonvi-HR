@@ -50,6 +50,7 @@ public sealed class ProbationPromotionTests
             _context.Probations,
             _context.TerminationReasons,
             _context.Flags,
+            _context.Departments,
             _context.FlagGuard,
             _context.Mapper,
             _context.Clock,

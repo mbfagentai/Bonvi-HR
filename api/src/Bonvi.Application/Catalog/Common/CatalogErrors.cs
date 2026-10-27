@@ -44,6 +44,26 @@ public static class CatalogErrors
         Error.Validation("bolim.boshliq_topilmadi", "Bo'lim boshlig'i qilib tanlangan xodim topilmadi.");
 
     /// <summary>
+    /// Bo'lim boshlig'ini o'zgartirish — <c>catalog.manage</c> ustiga <c>attendance.view</c> ham kerak.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Boshliq «Jamoam» orqali bo'limidagi odamlarning davomatini ko'radi, ya'ni boshliq tayinlash —
+    /// davomatni ko'rish huquqini BERISH. O'zida bo'lmagan huquqni boshqaga berib bo'lmasin: aks holda
+    /// faqat ma'lumotnoma yurituvchi o'zini yoki tanishini boshliq qilib, davomatni aylanma yo'l bilan
+    /// ko'rardi.
+    /// </para>
+    /// <para>
+    /// Kod ATAYLAB umumiy <c>auth.ruxsat_yoq</c> (403) — <c>EmployeeErrors.SalaryPermissionRequired</c>
+    /// bilan bir xil sabab: tekshiruv so'rov TANASIGA bog'liq, <c>RequireAuthorization</c> uni ko'rmaydi.
+    /// </para>
+    /// </remarks>
+    public static Error HeadPermissionRequired { get; } =
+        Error.Forbidden(
+            "auth.ruxsat_yoq",
+            "Bo'lim boshlig'ini o'zgartirish uchun «attendance.view» ruxsati ham kerak.");
+
+    /// <summary>
     /// Bo'limni o'z avlodiga ko'chirishga urinish — halqa.
     /// </summary>
     /// <remarks>

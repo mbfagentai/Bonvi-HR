@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
 
@@ -38,10 +40,10 @@ public interface ITeamViewJournal
 /// </remarks>
 public sealed class TeamViewWindow
 {
-    /// <summary>Bitta a'zoning oyi — boshliq va a'zo jufti bo'yicha.</summary>
+    /// <summary>Bitta a'zoning oyi — boshliq, a'zo va oy bo'yicha.</summary>
     public static readonly TimeSpan MemberWindow = TimeSpan.FromMinutes(10);
 
-    /// <summary>Panel — boshliq bo'yicha (sana va bo'limdan qat'i nazar).</summary>
+    /// <summary>Panel — boshliq, sana va bo'lim bo'yicha (holat va qidiruvdan qat'i nazar).</summary>
     public static readonly TimeSpan BoardWindow = TimeSpan.FromMinutes(30);
 
     /// <summary>Lug'at shu hajmdan oshsa, muddati o'tganlar tozalanadi.</summary>
@@ -118,7 +120,17 @@ public sealed class TeamViewWindow
 /// <para>
 /// Bajaruvchi — boshliqning ilova hisobi (<c>HttpAuditActorSource</c> uni tokendan qo'yadi).
 /// Amal turi <see cref="AuditAction.Export"/> — parolni ko'rishdagi kabi: ma'lumot tizimdan
-/// HR bo'lmagan odamga chiqdi. Tafsilotda faqat amal nomi va oy — ism, telefon yo'q.
+/// HR bo'lmagan odamga chiqdi. Tafsilotda faqat amal nomi va NIMA ochilgani (oy; panelda sana,
+/// bo'lim, holat filtri) — ism, telefon yo'q.
+/// </para>
+/// <para>
+/// ⚠️ <b>Qidiruv MATNI yozilmaydi</b> — faqat «qidirilganmi» belgisi. Matn ism yoki telefon
+/// raqamining bo'lagi bo'ladi va audit jurnalidan o'chirib bo'lmaydi: uni yozish jurnalni
+/// shaxsiy ma'lumot omboriga aylantirardi.
+/// </para>
+/// <para>
+/// Takror yozilmaslik kaliti — ochilgan NARSA: boshqa oy yoki boshqa sana/bo'lim — yangi
+/// yozuv, o'shaning o'zini yangilash esa yo'q (<see cref="TeamViewWindow"/>).
 /// </para>
 /// <para>
 /// ⚠️ <b>Yozib bo'lmasa — log, va javob O'ZGARMAYDI</b> (§C6). Saqlash so'rov bekor qilinishiga
@@ -158,7 +170,7 @@ public sealed class TeamViewAudit
         ArgumentNullException.ThrowIfNull(head);
 
         return RecordAsync(
-            $"member:{head.EmployeeId:N}:{memberId:N}",
+            string.Create(CultureInfo.InvariantCulture, $"member:{head.EmployeeId:N}:{memberId:N}:{year:D4}-{month:D2}"),
             TeamViewWindow.MemberWindow,
             MemberViewed,
             "Employee",
@@ -169,20 +181,41 @@ public sealed class TeamViewAudit
     /// <summary>Boshliq panelni ko'rdi — yozuvning obyekti boshliqning o'z ilova hisobi.</summary>
     /// <remarks>
     /// Panel bir nechta bo'limni qamrashi mumkin, ya'ni «bitta obyekt» yo'q; hisob —
-    /// <c>password_viewed</c> dagi bilan bir xil yozuv turi.
+    /// <c>password_viewed</c> dagi bilan bir xil yozuv turi. Holat va «qidirilganmi» — oynadagi
+    /// BIRINCHI so'rovniki: ular kalitga kirmaydi, aks holda filtr tugmasini bosish yangi qator
+    /// bo'lardi.
     /// </remarks>
     /// <param name="head">Boshliq.</param>
-    public Task BoardViewedAsync(CurrentEmployeeIds head)
+    /// <param name="date">Ochilgan sana.</param>
+    /// <param name="departmentId">Mijoz tanlagan bo'lim; <c>null</c> — butun qamrov.</param>
+    /// <param name="status">Holat filtri.</param>
+    /// <param name="searched">Qidiruv berilganmi (matnning o'zi YOZILMAYDI).</param>
+    public Task BoardViewedAsync(
+        CurrentEmployeeIds head,
+        DateOnly date,
+        Guid? departmentId,
+        AttendanceDashboardStatus? status,
+        bool searched)
     {
         ArgumentNullException.ThrowIfNull(head);
 
+        var day = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var department = departmentId is { } id ? id.ToString("N") : "all";
+
         return RecordAsync(
-            $"board:{head.EmployeeId:N}",
+            $"board:{head.EmployeeId:N}:{day}:{department}",
             TeamViewWindow.BoardWindow,
             BoardViewed,
             "EmployeeAccount",
             head.AccountId.ToString(),
-            JsonSerializer.Serialize(new { action = BoardViewed }));
+            JsonSerializer.Serialize(new
+            {
+                action = BoardViewed,
+                date = day,
+                departmentId,
+                status = status?.ToString(),
+                searched,
+            }));
     }
 
     private async Task RecordAsync(

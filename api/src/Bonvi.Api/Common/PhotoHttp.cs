@@ -23,9 +23,27 @@ internal static class PhotoHttp
     /// proksida saqlanmasligi kerak.
     /// </remarks>
     public static IResult Write(HttpContext context, PhotoContent photo)
+        => Write(context, photo, "private, max-age=86400");
+
+    /// <summary>
+    /// Xodim ilovasi uchun: <see cref="Write(HttpContext, PhotoContent)"/> ning o'zi, lekin kesh
+    /// HAR SAFAR serverdan so'raladi (<c>private, no-cache</c>).
+    /// </summary>
+    /// <remarks>
+    /// Telefon nusxani saqlaydi, lekin ishlatishdan oldin <c>If-None-Match</c> bilan so'raydi —
+    /// rasm o'zgarmagan bo'lsa javob baribir baytsiz 304, ya'ni arzon. Bir kunlik
+    /// <c>max-age</c> esa huquq olingandan keyin ham ishlardi: boshliqlikdan olingan yoki
+    /// qamrovdan chiqqan odamning rasmi, ishdan ketgan xodimning o'z rasmi bir kun davomida
+    /// so'rovsiz ko'rinib turardi — rad etish (403/404) faqat so'rovda ishlaydi. HR rasmlari
+    /// o'zgarmaydi (<see cref="Write(HttpContext, PhotoContent)"/>).
+    /// </remarks>
+    public static IResult WriteRevalidated(HttpContext context, PhotoContent photo)
+        => Write(context, photo, "private, no-cache");
+
+    private static IResult Write(HttpContext context, PhotoContent photo, string cacheControl)
     {
         context.Response.Headers.ETag = $"\"{photo.Version}\"";
-        context.Response.Headers.CacheControl = "private, max-age=86400";
+        context.Response.Headers.CacheControl = cacheControl;
 
         return photo.Content is null
             ? Results.StatusCode(StatusCodes.Status304NotModified)

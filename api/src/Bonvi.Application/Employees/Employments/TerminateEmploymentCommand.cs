@@ -52,6 +52,7 @@ public sealed class TerminateEmploymentCommandHandler
     private readonly IProbationRepository _probations;
     private readonly IReferenceRepository<TerminationReason> _reasons;
     private readonly IEmployeeFlagRepository _flags;
+    private readonly IDepartmentRepository _departments;
     private readonly EmployeeFlagGuard _flagGuard;
     private readonly EmployeeMapper _mapper;
     private readonly IClock _clock;
@@ -62,6 +63,7 @@ public sealed class TerminateEmploymentCommandHandler
         IProbationRepository probations,
         IReferenceRepository<TerminationReason> reasons,
         IEmployeeFlagRepository flags,
+        IDepartmentRepository departments,
         EmployeeFlagGuard flagGuard,
         EmployeeMapper mapper,
         IClock clock,
@@ -71,6 +73,7 @@ public sealed class TerminateEmploymentCommandHandler
         _probations = probations;
         _reasons = reasons;
         _flags = flags;
+        _departments = departments;
         _flagGuard = flagGuard;
         _mapper = mapper;
         _clock = clock;
@@ -174,12 +177,19 @@ public sealed class TerminateEmploymentCommandHandler
         // Ketish belgilari (rezerv, qora ro'yxat) BU YERDA qo'yilmaydi:
         // ular HR ning qarori, tizimning taxmini emas. Bo'shatgandan keyin
         // xodim kartasida tanlanadi (`EmployeeFlagStage` izohi).
-        var closed = await CloseEmployedFlagsAsync(employment, terminationDate, cancellationToken)
+        var leavesCompletely = await LeavesCompletelyAsync(employment, cancellationToken).ConfigureAwait(false);
+
+        var closed = await CloseEmployedFlagsAsync(employment, terminationDate, leavesCompletely, cancellationToken)
             .ConfigureAwait(false);
 
         if (closed.IsFailure)
         {
             return closed.Error;
+        }
+
+        if (leavesCompletely)
+        {
+            await ReleaseHeadshipsAsync(employment.EmployeeId, cancellationToken).ConfigureAwait(false);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -190,20 +200,57 @@ public sealed class TerminateEmploymentCommandHandler
     }
 
     /// <summary>
-    /// Xodim BUTUNLAY ketganda ishlab turganlar uchun qo'yilgan belgilarni yopadi.
+    /// Bu munosabat xodimning OXIRGI faol munosabatimi — ya'ni u BUTUNLAY ketyaptimi.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>Faqat OXIRGI munosabat tugaganda.</b> O'rindosh xodim ikkinchi
-    /// firmadan ketsa ham bizda ishlashda davom etadi va nazorat kuchda
-    /// qolishi kerak — belgi SHAXSGA qo'yilgan, munosabatga emas.
-    /// </para>
-    /// <para>
     /// <b>Nega joriy munosabat <c>Id</c> bo'yicha chiqarib tashlanadi.</b>
     /// <c>GetActiveByEmployeeAsync</c> — <c>AsNoTracking</c> so'rov, ya'ni
     /// u BAZANI o'qiydi. Hozirgina xotirada tugatilgan munosabat esa hali
     /// saqlanmagan va so'rovga «faol» bo'lib qaytadi. Uni ajratmasak,
-    /// belgi hech qachon yopilmasdi.
+    /// xodim hech qachon «butunlay ketgan» bo'lmasdi.
+    /// </remarks>
+    private async Task<bool> LeavesCompletelyAsync(Employment employment, CancellationToken cancellationToken)
+    {
+        var others = await _employments
+            .GetActiveByEmployeeAsync(employment.EmployeeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return !others.Any(other => other.Id != employment.Id);
+    }
+
+    /// <summary>
+    /// Butunlay ketgan xodimni boshliq bo'lgan barcha bo'limlaridan bo'shatadi — shu ish birligida.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// O'qish yo'llari ketgan boshliqni baribir tashlab ketadi (uning tokeni
+    /// <c>xodim.hisob_faol_emas</c>, «Rahbar» undan yuqoriga yuradi), lekin bo'lim formasida
+    /// ketgan odam boshliq bo'lib turaverardi va HR yangisini tayinlash kerakligini ko'rmasdi
+    /// (SPEC-jamoam). O'zgarish bo'limning audit yozuviga tushadi.
+    /// </para>
+    /// <para>
+    /// ⚠️ Kelajak sana bilan bo'shatilganda ham DARHOL: munosabat ham darhol «yakunlangan»
+    /// bo'ladi (<c>Status</c>), ish oxirigacha esa yangi boshliqni tayinlash HR ning ishi.
+    /// </para>
+    /// </remarks>
+    private async Task ReleaseHeadshipsAsync(Guid employeeId, CancellationToken cancellationToken)
+    {
+        var headed = await _departments.GetHeadedByAsync(employeeId, cancellationToken).ConfigureAwait(false);
+
+        foreach (var department in headed)
+        {
+            department.AssignHead(null);
+        }
+    }
+
+    /// <summary>
+    /// Xodim BUTUNLAY ketganda ishlab turganlar uchun qo'yilgan belgilarni yopadi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Faqat OXIRGI munosabat tugaganda</b> (<see cref="LeavesCompletelyAsync"/>). O'rindosh
+    /// xodim ikkinchi firmadan ketsa ham bizda ishlashda davom etadi va nazorat kuchda
+    /// qolishi kerak — belgi SHAXSGA qo'yilgan, munosabatga emas.
     /// </para>
     /// <para>
     /// <b>Nega belgilar KECHROQ sana bo'yicha izlanadi.</b>
@@ -220,13 +267,10 @@ public sealed class TerminateEmploymentCommandHandler
     private async Task<Result> CloseEmployedFlagsAsync(
         Employment employment,
         DateOnly terminationDate,
+        bool leavesCompletely,
         CancellationToken cancellationToken)
     {
-        var others = await _employments
-            .GetActiveByEmployeeAsync(employment.EmployeeId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (others.Any(other => other.Id != employment.Id))
+        if (!leavesCompletely)
         {
             return Result.Success();
         }

@@ -75,6 +75,29 @@ public readonly record struct EmploymentPlacement(Guid? DepartmentId, Guid? Posi
             ValueOn(date, employment.PositionId, moves, item => (item.FromPositionId, item.ToPositionId)));
     }
 
+    /// <summary>
+    /// Shu sanani qamraydigan munosabatlardan birining SHU SANADAGI bo'limi to'plamdami.
+    /// </summary>
+    /// <remarks>
+    /// Munosabat asosiy bo'lishi shart emas, ishdan ketish kuni ham qamraladi
+    /// (<see cref="PrimaryEmployment.Covers"/>); o'chirilgani hisobga olinmaydi. Bo'lim
+    /// boshlig'ining «a'zomi» qoidasi (SPEC-jamoam §B) — ilova ham, panel ham shu metoddan.
+    /// </remarks>
+    /// <param name="employments">Bitta xodimning munosabatlari — hodisalari bilan.</param>
+    /// <param name="date">Toshkent sanasi.</param>
+    /// <param name="departmentIds">Bo'limlar to'plami.</param>
+    public static bool AnyIn(IEnumerable<Employment> employments, DateOnly date, IReadOnlySet<Guid> departmentIds)
+    {
+        ArgumentNullException.ThrowIfNull(employments);
+        ArgumentNullException.ThrowIfNull(departmentIds);
+
+        return employments.Any(employment =>
+            employment.DeletedAt is null &&
+            PrimaryEmployment.Covers(employment, date) &&
+            On(employment, date).DepartmentId is { } departmentId &&
+            departmentIds.Contains(departmentId));
+    }
+
     /// <summary>Bitta maydonning sanadagi qiymati — sinf izohidagi to'rt qadam.</summary>
     private static Guid? ValueOn(
         DateOnly date,

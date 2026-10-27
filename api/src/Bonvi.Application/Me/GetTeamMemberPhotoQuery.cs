@@ -1,3 +1,4 @@
+using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Photos;
@@ -29,13 +30,13 @@ public sealed record GetTeamMemberPhotoQuery(Guid EmployeeId, string? KnownVersi
 public sealed class GetTeamMemberPhotoQueryHandler
 {
     private readonly TeamAccess _access;
-    private readonly IEmploymentRepository _employments;
+    private readonly IAttendanceComputationSource _employments;
     private readonly GetEmployeePhotoQueryHandler _photos;
     private readonly IClock _clock;
 
     public GetTeamMemberPhotoQueryHandler(
         TeamAccess access,
-        IEmploymentRepository employments,
+        IAttendanceComputationSource employments,
         GetEmployeePhotoQueryHandler photos,
         IClock clock)
     {
@@ -57,12 +58,12 @@ public sealed class GetTeamMemberPhotoQueryHandler
             return caller.Error;
         }
 
+        // Bugungi bo'lim — ko'chirish hodisalaridan (`TeamScope.CoversOn`), shu sababli hodisalari bilan.
         var employments = await _employments
-            .GetByEmployeeAsync(query.EmployeeId, cancellationToken)
+            .LoadEmploymentsAsync([query.EmployeeId], cancellationToken)
             .ConfigureAwait(false);
 
-        var today = _clock.Today;
-        if (!caller.Value.Scope.Covers(employments, today, today))
+        if (!caller.Value.Scope.CoversOn(employments.GetValueOrDefault(query.EmployeeId) ?? [], _clock.Today))
         {
             return TeamErrors.MemberNotFound;
         }

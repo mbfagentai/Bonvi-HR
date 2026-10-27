@@ -1,3 +1,4 @@
+using Bonvi.Application.Abstractions;
 using Bonvi.Application.Catalog.Commands;
 using Bonvi.Application.Catalog.Common;
 using Bonvi.Application.Catalog.Departments;
@@ -49,6 +50,9 @@ public sealed class CatalogWiringTests
 
         // Bo'lim boshlig'i mavjudligini tekshirish uchun (SPEC-jamoam §E).
         services.AddScoped(_ => Substitute.For<IEmployeeRepository>());
+
+        // Boshliqni almashtirish «attendance.view» ni ham talab qiladi — joriy foydalanuvchi kerak.
+        services.AddScoped(_ => Substitute.For<ICurrentUser>());
 
         // Infrastructure buni ochiq generik sifatida ro'yxatga oladi;
         // testda esa har bir tip alohida ko'rsatiladi.

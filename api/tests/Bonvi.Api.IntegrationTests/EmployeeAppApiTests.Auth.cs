@@ -307,11 +307,18 @@ public sealed partial class EmployeeAppApiTests
             javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
             javob.Content.Headers.ContentType!.MediaType.ShouldBe("image/jpeg");
             javob.Headers.CacheControl!.Private.ShouldBeTrue("surat — shaxsiy ma'lumot");
+
+            // Har ochilishda qayta tekshiriladi (ETag bilan 304): HR rasmni almashtirsa yoki hisob
+            // yopilsa, telefonda bir kunlik eski nusxa qolmasin.
+            javob.Headers.CacheControl.NoCache.ShouldBeTrue();
+            javob.Headers.CacheControl.MaxAge.ShouldBeNull();
             ozRasmi = await javob.Content.ReadAsByteArrayAsync(ct);
         }
 
         using (var hrNusxa = await admin.GetAsync(new Uri($"/api/employees/{rasmli.Id}/photo", UriKind.Relative), ct))
         {
+            // HR rasmlari o'zgarmagan — bir kunlik shaxsiy kesh.
+            hrNusxa.Headers.CacheControl!.MaxAge.ShouldBe(TimeSpan.FromDays(1));
             (await hrNusxa.Content.ReadAsByteArrayAsync(ct)).ShouldBe(ozRasmi, "aynan o'sha fayl");
         }
 

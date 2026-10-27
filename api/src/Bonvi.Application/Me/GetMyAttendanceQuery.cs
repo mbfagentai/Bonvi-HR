@@ -83,17 +83,33 @@ public sealed class GetMyAttendanceQueryHandler
             return EmployeeAccountErrors.AccountInactive;
         }
 
-        return await BuildAsync(account.EmployeeId, query.Year, query.Month, cancellationToken).ConfigureAwait(false);
+        var (days, totals) = await MonthAsync(account.EmployeeId, query.Year, query.Month, cancellationToken)
+            .ConfigureAwait(false);
+
+        // «Hozir» — so'ralgan oydan qat'i nazar: belgilash kartasi keyingi
+        // yo'nalishni va joriy smena katagini shundan oladi (MyCurrentState).
+        var now = _clock.UtcNow;
+        var recent = await _readModel
+            .RecentMarksAsync(account.EmployeeId, now.AddHours(-AttendanceRules.BoardLookbackHours), cancellationToken)
+            .ConfigureAwait(false);
+
+        return new MyAttendanceDto(
+            query.Year,
+            query.Month,
+            days,
+            totals,
+            MyCurrentState.From(recent, now, _clock.Today));
     }
 
     /// <summary>
-    /// Bitta xodimning oyi — <c>/api/me/attendance</c> ning O'ZI, xodim identifikatori bilan.
+    /// Bitta xodimning oyi — kunlari va jami; <c>/api/me/attendance</c> ning O'ZI, xodim identifikatori bilan.
     /// </summary>
     /// <remarks>
     /// <para>
     /// ⭐ Bo'lim boshlig'i a'zoning oyini ham SHU metod orqali oladi
     /// (SPEC-jamoam §C3): a'zoning oyi uning o'z ilovasidagidek ko'rinishi kerak,
-    /// ikkinchi nusxa esa bir kun kelib boshqacha ko'rsatardi.
+    /// ikkinchi nusxa esa bir kun kelib boshqacha ko'rsatardi. «Hozir» bu yerda
+    /// ATAYLAB yo'q — u oyning emas, xodimning BUGUNGI holati va boshliqqa berilmaydi.
     /// </para>
     /// <para>
     /// ⚠️ Ruxsat bu yerda TEKSHIRILMAYDI va oy ham: chaqiruvchi oyni
@@ -106,7 +122,7 @@ public sealed class GetMyAttendanceQueryHandler
     /// <param name="year">Yil (tekshirilgan).</param>
     /// <param name="month">Oy (tekshirilgan).</param>
     /// <param name="cancellationToken">Bekor qilish belgisi.</param>
-    internal async Task<MyAttendanceDto> BuildAsync(
+    internal async Task<(IReadOnlyList<MyAttendanceDayDto> Days, TimesheetTotalsDto Totals)> MonthAsync(
         Guid employeeId,
         int year,
         int month,
@@ -145,19 +161,7 @@ public sealed class GetMyAttendanceQueryHandler
                     marks.TryGetValue(cell.Date, out var list) ? list : [])),
             ];
 
-        // «Hozir» — so'ralgan oydan qat'i nazar: belgilash kartasi keyingi
-        // yo'nalishni va joriy smena katagini shundan oladi (MyCurrentState).
-        var now = _clock.UtcNow;
-        var recent = await _readModel
-            .RecentMarksAsync(employeeId, now.AddHours(-AttendanceRules.BoardLookbackHours), cancellationToken)
-            .ConfigureAwait(false);
-
-        return new MyAttendanceDto(
-            year,
-            month,
-            days,
-            row?.Totals ?? EmptyTotals,
-            MyCurrentState.From(recent, now, _clock.Today));
+        return (days, row?.Totals ?? EmptyTotals);
     }
 
     /// <summary>Qatori yo'q oy uchun nollar — <c>null</c> emas.</summary>

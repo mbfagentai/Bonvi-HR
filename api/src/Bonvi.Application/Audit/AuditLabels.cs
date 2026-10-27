@@ -204,9 +204,13 @@ internal static class AuditLabels
         ["filters"] = "Filtrlar",
         ["action"] = "Amal",
 
-        // «Jamoam» — boshliq ko'rgan oy (SPEC-jamoam §C6)
+        // «Jamoam» — boshliq ko'rgan oy va panel (SPEC-jamoam §C6)
         ["year"] = "Yil",
         ["month"] = "Oy",
+        ["date"] = "Sana",
+        ["departmentId"] = "Bo'lim",
+        ["status"] = "Holat",
+        ["searched"] = "Qidiruv bilan",
     };
 
     /// <summary>Biznes amallari (endpoint nomi bo'yicha) — <c>audit.operations</c>.</summary>

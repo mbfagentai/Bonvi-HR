@@ -270,7 +270,7 @@ public sealed class TeamApiTests : IClassFixture<BonviApiFactory>
         await XatoKutAsync(notogri, HttpStatusCode.BadRequest, "davomat.oy_notogri");
     }
 
-    /// <summary>A'zoning oyi — «/api/me/attendance» ning AYNAN o'zi; sarlavhada telefon va «hasPhoto».</summary>
+    /// <summary>A'zoning oyi — «/api/me/attendance» ning kunlari va jami, «current» siz; sarlavhada telefon va «hasPhoto».</summary>
     [Fact]
     public async Task Azoning_oyi_uning_oz_ilovasidagi_bilan_bir_xil()
     {
@@ -287,8 +287,15 @@ public sealed class TeamApiTests : IClassFixture<BonviApiFactory>
         ozidan.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(ozidan));
 
         var javob = await JsonAsync(jamoadan);
+        var oyi = javob.GetProperty("attendance");
+        var ozi = await JsonAsync(ozidan);
 
-        javob.GetProperty("attendance").GetRawText().ShouldBe((await JsonAsync(ozidan)).GetRawText());
+        // Kunlar va jami — aynan o'zi (a'zo butun oy qamrovda); «hozir» (current) esa YO'Q (§C3).
+        oyi.GetProperty("year").GetInt32().ShouldBe(yil);
+        oyi.GetProperty("month").GetInt32().ShouldBe(oy);
+        oyi.GetProperty("days").GetRawText().ShouldBe(ozi.GetProperty("days").GetRawText());
+        oyi.GetProperty("totals").GetRawText().ShouldBe(ozi.GetProperty("totals").GetRawText());
+        oyi.TryGetProperty("current", out _).ShouldBeFalse("bugungi holat oy ko'rish huquqiga kirmaydi");
 
         var sarlavha = javob.GetProperty("employee");
         sarlavha.GetProperty("employeeId").GetGuid().ShouldBe(dunyo.Azo.Id);
@@ -318,6 +325,10 @@ public sealed class TeamApiTests : IClassFixture<BonviApiFactory>
             javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
             javob.Content.Headers.ContentType!.MediaType.ShouldBe("image/jpeg");
             javob.Headers.CacheControl!.Private.ShouldBeTrue();
+
+            // Har ochilishda qayta tekshiriladi: odam jamoadan ketsa, eski nusxa telefonda qolmasin.
+            javob.Headers.CacheControl.NoCache.ShouldBeTrue();
+            javob.Headers.CacheControl.MaxAge.ShouldBeNull();
             belgi = javob.Headers.ETag!.Tag;
         }
 

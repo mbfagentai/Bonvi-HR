@@ -448,10 +448,11 @@ public sealed record BoardFilter(
 /// degani emas.
 /// </param>
 /// <param name="SearchNameAndPhoneOnly">
-/// Qidiruv FAQAT F.I.Sh. va telefon bo'yicha — JSHSHIR va pasportsiz (tashqi API'dagi
-/// <c>MatchingPublic</c> qoidasi). Bo'lim boshlig'i paneli uchun: aks holda boshliq qo'lidagi
-/// JSHSHIR yoki pasport raqamini yuborib, «bu odam mening jamoamdami» degan savolga javob
-/// olardi — sizib chiqadigan narsa qiymat emas, MOSLIK faktining o'zi.
+/// Qidiruv FAQAT F.I.Sh. va ASOSIY telefon bo'yicha — JSHSHIR, pasport va ikkinchi telefonsiz
+/// (<c>EmployeeSearchQuery.MatchingTeam</c>). Bo'lim boshlig'i paneli uchun: aks holda boshliq
+/// qo'lidagi JSHSHIR, pasport yoki ekranda ko'rinmaydigan raqamni yuborib, «bu odam mening
+/// jamoamdami» degan savolga javob olardi — sizib chiqadigan narsa qiymat emas, MOSLIK
+/// faktining o'zi.
 /// </param>
 public sealed record DashboardFilter(
     DateOnly Date,
