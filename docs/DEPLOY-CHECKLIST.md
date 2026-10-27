@@ -5,7 +5,14 @@
 
 ## ⏸ Navbatdagi reliz — ixcham sarlavha + bir qatorli jadvallar, Excel eksport (11 ro'yxat), sinovni avtomatik «o'tdi» (deploy — EGASI AYTGANDA)
 
-Migratsiya YO'Q. Yangi Hangfire vazifasi `probations:auto-pass` (har kuni 19:05 UTC = 00:05 Toshkent): deploy'dan keyin
+⚠️ **Deploy'dan OLDIN (2026-10-27 hotfix):** prod'da `infra/isup-face/nginx.conf` qo'lda yangilangan (ISUP yo'l hiylasi
+yopildi; mazmuni `9775052` dan keyingi commit'dagi bilan AYNAN bir xil), shuning uchun `git status` uni o'zgargan
+ko'rsatadi va `git pull --ff-only` to'xtaydi. Avval: `git -C /opt/bonvi-hr checkout -- infra/isup-face/nginx.conf`.
+Web konteyneridagi Caddyfile ham qo'lda almashtirilgan (`/root/hotfix-2026-10-27/`, zaxiralar `*.bak`) — yangi image
+uni o'zi bilan almashtiradi, alohida qadam kerak emas.
+
+Migratsiyalar: IKKITA (`20261026072156_PlanshetAnketasi`, `20261026101017_QayerdanBilgan`) — pastdagi anketa va
+«Qayerdan bilgan» bandlariga qarang. Yangi Hangfire vazifasi `probations:auto-pass` (har kuni 19:05 UTC = 00:05 Toshkent): deploy'dan keyin
 birinchi yurishda oxirgi kuni o'tib ketgan HAMMA «sinovda»gi sinov «o'tdi» bo'ladi va xodim «faol»ga o'tadi (2026-10-22 da
 prod'da muddati o'tgan 0 ta, 7 kun ichida tugaydigan 10 ta). Oldin (faqat o'qish):
 `select count(*) from probations where status = 1 and end_date < current_date` — sonini egasiga ayting.
