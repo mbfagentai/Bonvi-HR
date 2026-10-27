@@ -625,7 +625,14 @@
       "collapseAll": "Collapse all",
       "childCount": "{{n}} inside",
       "emptyTitle": "The structure is empty",
-      "emptyText": "Add the first department, then nest the subordinate ones inside it."
+      "emptyText": "Add the first department, then nest the subordinate ones inside it.",
+      "head": "Department head",
+      "headHint": "In the employee app the head sees attendance and phone numbers of everyone in this department and all departments inside it.",
+      "headClear": "Remove head",
+      "headHidden": "A head is assigned, but their card could not be opened.",
+      "headNoAccess": "Choosing a head requires permission to view the employee list.",
+      "headUnknown": "The current head could not be read, so saving is disabled. Reload the page and try again.",
+      "headTitle": "Department head: {{name}}"
     },
     "positions": {
       "create": "New position",
@@ -1066,7 +1073,11 @@
     "anketa.imzo_yaroqsiz": "The signature could not be read. Draw it again.",
     "anketa.rasm_yaroqsiz": "The photo could not be accepted: JPEG or PNG only, up to 5 MB. Please take it again.",
     "anketa.belgi": "The text contains a character that is not allowed. Remove it and type again.",
-    "anketa.bot_tekshiruvi": "The check did not pass. Reload the page and submit again."
+    "anketa.bot_tekshiruvi": "The check did not pass. Reload the page and submit again.",
+    "bolim.boshliq_topilmadi": "The employee chosen as head was not found or has been deleted. Choose someone else.",
+    "jamoa.boshliq_emas": "The employee does not head any department — the team view is closed.",
+    "jamoa.xodim_topilmadi": "The employee was not found in the head’s team.",
+    "jamoa.bolim_topilmadi": "The department was not found in the head’s team."
   },
   "language": {
     "en": "English",
@@ -1078,6 +1089,7 @@
     "anyDepartment": "All departments",
     "anyDirection": "All directions",
     "anyLegalEntity": "All legal entities",
+    "manager": "Manager",
     "anyPosition": "All positions",
     "anyStatus": "All statuses",
     "checks": "Checks",
@@ -1611,6 +1623,9 @@
     "allSessions": "From all devices",
     "passwordViewed": "Employee app password viewed",
     "actionRevealed": "Password viewed",
+    "actionViewed": "Viewed",
+    "teamMemberViewed": "Team: employee attendance viewed",
+    "teamBoardViewed": "Team board viewed",
     "actions": {
       "create": "Created",
       "update": "Changed",
@@ -1801,7 +1816,9 @@
       "path": "Path",
       "rows": "Rows",
       "filters": "Filters",
-      "action": "Action"
+      "action": "Action",
+      "year": "Year",
+      "month": "Month"
     },
     "operations": {
       "HireEmployee": "Hire",
@@ -1888,6 +1905,8 @@
       "CreateApiKey": "API key created",
       "RevokeApiKey": "API key revoked",
       "RevealEmployeePassword": "Employee password viewed",
+      "GetTeamBoard": "Team board",
+      "GetTeamMemberAttendance": "Team: employee attendance",
       "RegenerateEmployeePassword": "New employee password",
       "SetEmployeePassword": "Employee password set",
       "SetMobileCheckInAllowed": "Phone check-in permission",

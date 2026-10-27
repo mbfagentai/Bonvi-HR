@@ -1,5 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useMemo } from 'react'
 
+import { fetchEmployee } from '@/features/employees/api/employees-api'
+import { employeeKeys } from '@/features/employees/api/employees-queries'
 import {
   addDuty,
   createCatalogItem,
@@ -14,6 +17,7 @@ import {
   type CatalogItem,
   type CatalogItemInput,
   type CatalogKind,
+  type DepartmentItem,
   type PositionDuty,
 } from './catalog-api'
 
@@ -47,6 +51,73 @@ export function useDepartmentTree(onlyActive: boolean) {
     queryKey: catalogKeys.tree(onlyActive),
     queryFn: ({ signal }) => fetchDepartmentTree(onlyActive, signal),
   })
+}
+
+/**
+ * Bo'limlarning TEKIS ro'yxati — boshliq va yuridik shaxs shu yerda bor,
+ * daraxt tugunida esa yo'q (SPEC-jamoam §E). Faolsizlari ham: daraxt ham
+ * ularni ko'rsatadi.
+ */
+export function useDepartmentList() {
+  return useCatalogList<DepartmentItem>('departments', false)
+}
+
+/**
+ * Boshliq ismlari — `bo'lim id → ism`, daraxtdagi xira yozuv uchun.
+ *
+ * NEGA yangi API'siz: bo'lim faqat boshliq IDENTIFIKATORINI biladi, ism esa
+ * xodim kartasida (`GET /api/employees/{id}`). Har bir HAR XIL boshliq uchun
+ * bitta so'rov; kesh kaliti xodim kartasiniki bilan bir xil, ya'ni kartani
+ * ochgan HR uni qayta yuklamaydi. Boshliqlar soni bo'limlardan ko'p bo'lmaydi
+ * (prod'da 105 bo'lim).
+ *
+ * `enabled = false` (masalan `employees.view` ruxsati yo'q) — ism so'ralmaydi,
+ * daraxt boshliqsiz chiziladi.
+ */
+export function useDepartmentHeadNames(enabled: boolean): ReadonlyMap<string, string> {
+  const list = useDepartmentList()
+
+  const headIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const item of list.data ?? []) {
+      if (item.headEmployeeId) ids.add(item.headEmployeeId)
+    }
+    return [...ids]
+  }, [list.data])
+
+  // Barqaror `combine` — natijalar o'zgarmasa, xarita ham o'sha (daraxt qayta chizilmaydi)
+  const combine = useCallback(
+    (results: ReadonlyArray<{ data?: { fullName: string } | undefined }>) => {
+      const names = new Map<string, string>()
+      results.forEach((result, index) => {
+        const id = headIds[index]
+        if (id !== undefined && result.data) names.set(id, result.data.fullName)
+      })
+      return names
+    },
+    [headIds],
+  )
+
+  const namesById = useQueries({
+    queries: headIds.map((id) => ({
+      queryKey: employeeKeys.details(id),
+      queryFn: ({ signal }: { signal: AbortSignal }) => fetchEmployee(id, signal),
+      enabled,
+      // Ism kamdan-kam o'zgaradi; yiqilsa (o'chirilgan xodim) — shunchaki yozuvsiz
+      staleTime: 5 * 60_000,
+      retry: false,
+    })),
+    combine,
+  })
+
+  return useMemo(() => {
+    const byDepartment = new Map<string, string>()
+    for (const item of list.data ?? []) {
+      const name = item.headEmployeeId ? namesById.get(item.headEmployeeId) : undefined
+      if (name) byDepartment.set(item.id, name)
+    }
+    return byDepartment
+  }, [list.data, namesById])
 }
 
 /**

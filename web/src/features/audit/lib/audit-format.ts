@@ -110,15 +110,27 @@ export function actionLabel(fmt: AuditFormatter, action: AuditAction): string {
   return fmt.t(`audit.actions.${auditActionKey(action)}`)
 }
 
+/** Bo'lim boshlig'ining ilovadagi ko'rishlari (SPEC-jamoam §C6) — ular ham `Export` bo'lib yoziladi. */
+const TEAM_VIEW_OPERATIONS: ReadonlySet<string> = new Set(['GetTeamBoard', 'GetTeamMemberAttendance'])
+
+/** Eksport tafsilotidagi `action` qiymatlari — o'z jumlasi bilan. */
+const EXPORT_ACTION_TEXT: ReadonlyMap<string, string> = new Map([
+  ['password_viewed', 'audit.passwordViewed'],
+  ['team_member_viewed', 'audit.teamMemberViewed'],
+  ['team_board_viewed', 'audit.teamBoardViewed'],
+])
+
 /**
- * Qatordagi amal yorlig'i. Yagona istisno: xodim ilovasi parolini KO'RISH
- * ham `Export` bo'lib yoziladi (ma'lumot tizimdan chiqdi), lekin unga
- * «Excelga yuklandi» deyish yolg'on bo'lardi.
+ * Qatordagi amal yorlig'i. Istisnolar: xodim ilovasi parolini KO'RISH va
+ * boshliqning jamoa davomatini ko'rishi ham `Export` bo'lib yoziladi
+ * (ma'lumot tizimdan chiqdi), lekin ularga «Excelga yuklandi» deyish yolg'on bo'lardi.
  */
 export function entryActionLabel(fmt: AuditFormatter, action: AuditAction, operation: string | null): string {
-  return action === AuditAction.Export && operation === 'RevealEmployeePassword'
-    ? fmt.t('audit.actionRevealed')
-    : actionLabel(fmt, action)
+  if (action === AuditAction.Export && operation === 'RevealEmployeePassword') return fmt.t('audit.actionRevealed')
+  if (action === AuditAction.Export && operation !== null && TEAM_VIEW_OPERATIONS.has(operation)) {
+    return fmt.t('audit.actionViewed')
+  }
+  return actionLabel(fmt, action)
 }
 
 /** Entity turining yorlig'i («Buyruq», «Xodim kartasi»); notanishi — xom nom. */
@@ -347,7 +359,8 @@ function textValue(fmt: AuditFormatter, field: string, value: unknown): string |
   if (value === '') return null
 
   if (field === 'reason' && LOGIN_REASONS.has(value)) return fmt.t(`audit.reasons.${value}`)
-  if (field === 'action' && value === 'password_viewed') return fmt.t('audit.passwordViewed')
+  const exportText = field === 'action' ? EXPORT_ACTION_TEXT.get(value) : undefined
+  if (exportText !== undefined) return fmt.t(exportText)
   if (PHONE_FIELDS.has(field)) return formatPhone(value) ?? value
 
   return value
@@ -497,7 +510,9 @@ function eventSummary(fmt: AuditFormatter, entry: AuditEntry): string | null {
       return ''
 
     case AuditAction.Export: {
-      if (valueOf('action') === 'password_viewed') return fmt.t('audit.passwordViewed')
+      const exportAction = valueOf('action')
+      const exportText = typeof exportAction === 'string' ? EXPORT_ACTION_TEXT.get(exportAction) : undefined
+      if (exportText !== undefined) return fmt.t(exportText)
       const rows = valueOf('rows')
       return typeof rows === 'number' ? fmt.t('audit.rows', { n: fmt.num(rows) }) : ''
     }

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -344,6 +344,20 @@ function EmployeeCardPage() {
               <p className="mt-1.5 text-subhead text-[var(--fg-secondary)]">
                 {primary.position.name}
                 {primary.department != null && ` · ${primary.department.name}`}
+              </p>
+            )}
+
+            {/* «Rahbar» — Verifix'dagi qator (SPEC-jamoam §D): bo'lim daraxtida yuqoriga birinchi boshliq */}
+            {person.manager !== null && (
+              <p className="mt-1 text-subhead text-[var(--fg-secondary)]">
+                {t('employees.manager')}:{' '}
+                <Link
+                  to="/xodimlar/$employeeId"
+                  params={{ employeeId: person.manager.employeeId }}
+                  className="text-[var(--accent)] hover:underline"
+                >
+                  {person.manager.fullName}
+                </Link>
               </p>
             )}
 

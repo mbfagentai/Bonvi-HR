@@ -64,6 +64,7 @@ export function AttendanceEmployeePicker({
   label,
   error,
   disabled = false,
+  employedOnly = false,
 }: {
   value: PickedEmployee | null
   onChange: (next: PickedEmployee | null) => void
@@ -71,6 +72,8 @@ export function AttendanceEmployeePicker({
   /** Tayyor, tarjima qilingan matn. */
   error?: string
   disabled?: boolean
+  /** Faqat ishlayotganlar — ishdan ketgan odamni tanlash ma'nosiz bo'lgan joyda (bo'lim boshlig'i). */
+  employedOnly?: boolean
 }) {
   const { t, num } = useLocale()
   const errorMessage = useErrorMessage()
@@ -85,6 +88,7 @@ export function AttendanceEmployeePicker({
       pageSize: PICKER_PAGE_SIZE,
       sort: 'fullName',
       search: search.trim() === '' ? undefined : search.trim(),
+      ...(employedOnly ? { status: 'employed' as const } : {}),
     },
     // Tanlov qilingach ro'yxat yashiriladi — so'rov ham to'xtaydi
     value === null && !disabled,

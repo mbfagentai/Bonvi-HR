@@ -91,6 +91,14 @@ export interface DepartmentItem extends CatalogItem {
   level: number
   /** To'liq yo'l: «7-Departament / Metan zavod / Plazma bo'limi». */
   path: string | null
+  /**
+   * Bo'lim boshlig'i (xodim) — SPEC-jamoam §E. Faqat TEKIS ro'yxatda va
+   * bitta yozuvda keladi (`DepartmentDto`); daraxt tugunida yo'q
+   * (`DepartmentTreeNodeDto`) — shu sababli ixtiyoriy.
+   */
+  headEmployeeId?: string | null
+  /** Yuridik shaxs — `headEmployeeId` bilan bir xil: daraxtda yo'q. */
+  legalEntityId?: string | null
 }
 
 /** Daraxt tugunlari `children` orqali bog'lanadi (serverda yig'iladi). */
@@ -101,6 +109,15 @@ export interface DepartmentNode extends DepartmentItem {
 export interface DepartmentInput extends CatalogItemInput {
   /** Server buni FAQAT yaratishda qabul qiladi; keyin — `move` amali. */
   parentId?: string | null
+  /**
+   * ⚠️ Bo'limda bu ikkisi «yuborilmasa — o'zgarmaydi» EMAS: server ularni har
+   * saqlashda buyruqdan YOZADI (`DepartmentDefinition.ApplySpecific`), ya'ni
+   * tanada yo'q maydon `null` bo'lib qoladi. Forma ularni har doim joriy
+   * qiymati bilan yuboradi — aks holda oddiy qayta nomlash boshliqni jimgina
+   * olib tashlardi (SPEC-jamoam §E).
+   */
+  headEmployeeId?: string | null
+  legalEntityId?: string | null
 }
 
 export interface PositionItem extends CatalogItem {

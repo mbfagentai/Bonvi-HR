@@ -2,6 +2,7 @@ import { ListTree, Plus, SearchX } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   Alert,
@@ -12,7 +13,7 @@ import {
   PageHeader,
   Skeleton,
 } from '@/shared/ui'
-import { useDepartmentTree } from '../api/catalog-queries'
+import { useDepartmentHeadNames, useDepartmentTree } from '../api/catalog-queries'
 import type { DepartmentNode } from '../api/catalog-api'
 import { catalogErrorCode } from '../lib/catalog-error'
 import { CATALOG_MANAGE_PERMISSION, DEPARTMENTS_META } from '../lib/catalog-kinds'
@@ -52,6 +53,9 @@ export function DepartmentsPage() {
    * bo'limlar ham ko'rinmay qolardi va tuzilma buzilgandek tuyulardi.
    */
   const tree = useDepartmentTree(false)
+
+  // Boshliq ismi xodim kartasidan — kartani ko'rish ruxsati bo'lsagina (SPEC-jamoam §E)
+  const headNames = useDepartmentHeadNames(hasPermission(EMPLOYEES_VIEW))
 
   const searching = query.trim() !== ''
 
@@ -192,6 +196,7 @@ export function DepartmentsPage() {
             canManage={canManage}
             onSelect={openEdit}
             onAddChild={(parent) => openCreate(parent.id)}
+            headNames={headNames}
           />
         )}
 

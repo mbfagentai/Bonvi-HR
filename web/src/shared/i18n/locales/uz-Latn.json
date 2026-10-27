@@ -625,7 +625,14 @@
       "collapseAll": "Hammasini yopish",
       "childCount": "{{n}} ta ichki",
       "emptyTitle": "Tuzilma hali tuzilmagan",
-      "emptyText": "Birinchi bo‘limni qo‘shing, so‘ng uning ichiga ichki bo‘limlarni joylashtiring."
+      "emptyText": "Birinchi bo‘limni qo‘shing, so‘ng uning ichiga ichki bo‘limlarni joylashtiring.",
+      "head": "Bo‘lim boshlig‘i",
+      "headHint": "Boshliq xodim ilovasida shu bo‘lim va uning ichki bo‘limlari xodimlarining davomatini va telefon raqamlarini ko‘radi.",
+      "headClear": "Boshliqni olib tashlash",
+      "headHidden": "Boshliq belgilangan, lekin uning kartasini ochib bo‘lmadi.",
+      "headNoAccess": "Boshliqni tanlash uchun xodimlar ro‘yxatini ko‘rish ruxsati kerak.",
+      "headUnknown": "Joriy boshliqni o‘qib bo‘lmadi, shu sababli saqlash yopiq. Sahifani yangilab, qayta urinib ko‘ring.",
+      "headTitle": "Bo‘lim boshlig‘i: {{name}}"
     },
     "positions": {
       "create": "Yangi lavozim",
@@ -1066,7 +1073,11 @@
     "anketa.imzo_yaroqsiz": "Imzoni o‘qib bo‘lmadi. Qayta chizing.",
     "anketa.rasm_yaroqsiz": "Rasmni qabul qilib bo‘lmadi: faqat JPEG yoki PNG, 5 MB gacha. Qayta oling.",
     "anketa.belgi": "Matnda ruxsat etilmagan belgi bor. Uni o‘chirib, qayta yozing.",
-    "anketa.bot_tekshiruvi": "Tekshiruvdan o‘tmadi. Sahifani yangilab, qayta yuboring."
+    "anketa.bot_tekshiruvi": "Tekshiruvdan o‘tmadi. Sahifani yangilab, qayta yuboring.",
+    "bolim.boshliq_topilmadi": "Boshliq qilib tanlangan xodim topilmadi yoki o‘chirilgan. Boshqasini tanlang.",
+    "jamoa.boshliq_emas": "Xodim hech qaysi bo‘limning boshlig‘i emas — jamoa paneli yopiq.",
+    "jamoa.xodim_topilmadi": "Xodim boshliq jamoasida topilmadi.",
+    "jamoa.bolim_topilmadi": "Bo‘lim boshliq jamoasida topilmadi."
   },
   "language": {
     "en": "English",
@@ -1078,6 +1089,7 @@
     "anyDepartment": "Barcha bo‘limlar",
     "anyDirection": "Barcha yo‘nalishlar",
     "anyLegalEntity": "Barcha firmalar",
+    "manager": "Rahbar",
     "anyPosition": "Barcha lavozimlar",
     "anyStatus": "Barcha holatlar",
     "checks": "Tekshiruvlar",
@@ -1611,6 +1623,9 @@
     "allSessions": "Barcha qurilmalardan",
     "passwordViewed": "Xodim ilovasi paroli ko‘rildi",
     "actionRevealed": "Parol ko‘rildi",
+    "actionViewed": "Ko‘rildi",
+    "teamMemberViewed": "Jamoa: xodim davomati ko‘rildi",
+    "teamBoardViewed": "Jamoa paneli ko‘rildi",
     "actions": {
       "create": "Yaratildi",
       "update": "O‘zgartirildi",
@@ -1801,7 +1816,9 @@
       "path": "Manzil",
       "rows": "Qatorlar soni",
       "filters": "Filtrlar",
-      "action": "Amal"
+      "action": "Amal",
+      "year": "Yil",
+      "month": "Oy"
     },
     "operations": {
       "HireEmployee": "Ishga qabul",
@@ -1888,6 +1905,8 @@
       "CreateApiKey": "API kalit yaratish",
       "RevokeApiKey": "API kalitni bekor qilish",
       "RevealEmployeePassword": "Xodim parolini ko‘rish",
+      "GetTeamBoard": "Jamoa paneli",
+      "GetTeamMemberAttendance": "Jamoa: xodim davomati",
       "RegenerateEmployeePassword": "Xodimga yangi parol",
       "SetEmployeePassword": "Xodim parolini o‘rnatish",
       "SetMobileCheckInAllowed": "Telefondan belgilash ruxsati",

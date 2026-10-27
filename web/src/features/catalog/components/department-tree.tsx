@@ -1,4 +1,4 @@
-import { ChevronRight, Plus } from 'lucide-react'
+import { ChevronRight, Plus, UserRound } from 'lucide-react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -27,6 +27,7 @@ export function DepartmentTree({
   canManage,
   onSelect,
   onAddChild,
+  headNames,
 }: {
   items: readonly FlatDepartment[]
   collapsed: ReadonlySet<string>
@@ -34,6 +35,8 @@ export function DepartmentTree({
   canManage: boolean
   onSelect: (node: DepartmentNode) => void
   onAddChild: (parent: DepartmentNode) => void
+  /** Bo'lim → boshlig'ining ismi (SPEC-jamoam §E); yo'q bo'lim — yozuvsiz. */
+  headNames?: ReadonlyMap<string, string>
 }) {
   const { t } = useLocale()
 
@@ -43,6 +46,7 @@ export function DepartmentTree({
         const children = node.children ?? []
         const hasChildren = children.length > 0
         const open = hasChildren && !collapsed.has(node.id)
+        const headName = headNames?.get(node.id)
 
         return (
           <li
@@ -105,6 +109,18 @@ export function DepartmentTree({
                   <Badge tone="neutral" size="sm" className="shrink-0">
                     {t('catalog.statusInactive')}
                   </Badge>
+                )}
+
+                {/* Boshliq — xira, nomdan keyin: daraxt bo'lim nomi bilan o'qiladi, boshliq ikkinchi */}
+                {headName !== undefined && (
+                  <span
+                    className="hidden min-w-0 shrink-[3] items-center gap-1 text-caption1 text-[var(--fg-tertiary)] sm:flex"
+                    title={t('catalog.departments.headTitle', { name: headName })}
+                  >
+                    <UserRound className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                    <span className="sr-only">{t('catalog.departments.head')}:</span>
+                    <span className="truncate-1">{headName}</span>
+                  </span>
                 )}
 
                 {hasChildren && (

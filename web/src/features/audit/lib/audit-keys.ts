@@ -441,6 +441,8 @@ export const AUDIT_FIELD_KEYS = [
   'rows',
   'filters',
   'action',
+  'year',
+  'month',
 ] as const
 
 /* ────────────────────────────────────────────────────────── amal nomlari */
@@ -538,6 +540,8 @@ export const AUDIT_OPERATION_NAMES = [
   'CreateApiKey',
   'RevokeApiKey',
   'RevealEmployeePassword',
+  'GetTeamBoard',
+  'GetTeamMemberAttendance',
   'RegenerateEmployeePassword',
   'SetEmployeePassword',
   'SetMobileCheckInAllowed',

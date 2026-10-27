@@ -221,6 +221,11 @@ export interface EmployeeDetails {
   /** Nima tekshirilishi kerakligi — ETL hisobotidan kelgan matn. */
   reviewNote: string | null
   employments: EmploymentSummary[]
+  /**
+   * «Rahbar» — bugungi asosiy bo'limdan yuqoriga birinchi boshliq, o'zi emas
+   * (SPEC-jamoam §D). Konvertda keladi, shaxs ichida emas; tahrirlash javobida yo'q.
+   */
+  manager: { employeeId: string; fullName: string } | null
 }
 
 /**
@@ -930,7 +935,16 @@ function toDetails(raw: unknown): EmployeeDetails {
     employments: Array.isArray(envelope['employments'])
       ? envelope['employments'].map(toEmployment)
       : [],
+    manager: toManager(envelope['manager']),
   }
+}
+
+function toManager(raw: unknown): EmployeeDetails['manager'] {
+  const box = (raw ?? {}) as Record<string, unknown>
+  const employeeId = text(box['employeeId'])
+  const fullName = text(box['fullName'])
+
+  return employeeId === null || fullName === null ? null : { employeeId, fullName }
 }
 
 /**
