@@ -3,6 +3,22 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `f85ab96` — HR-F02 v3.1 (HR rahbari o'zgarishlari) — 2026-10-27 15:18 (Toshkent)
+
+Prod `02e7d49` → `f85ab96`. Migratsiya YO'Q (javoblar jsonb'da; nusxada sinov kerak bo'lmadi). Rollback: image tegi
+`rollback-02e7d49` (api, bot, web), zaxira stamp `2026-10-27_100554`. Anketa shu kuni ertalabdan prod'da ishlatilgan
+(13:51 da birinchi haqiqiy anketa), shuning uchun reliz OCHIQ qolgan 3.0 sahifalarni ham qabul qiladi (3.0 qoidasi,
+`form_version = 3.0`) — egasi: «serverga chiqarishda uzilish bo'lmasin». Tartib: image'lar oldindan qurildi
+(`/root/prebuild-f85ab96.sh`, 15:07–15:15, konteynerlarga tegmaydi), HR 13:55 dan beri jim edi, deploy.sh 15:16–15:18.
+API almashuvi 15:16:28–15:16:45 — shu oraliqda faqat orqa fondagi `/api/notifications/stream` qayta ulanishlari 502
+oldi; boshqa 5xx yo'q, API/bot jurnalida xato yo'q (stream 500 — zararsiz). Bot konteyneri QAYTA YARATILMADI (eski image
+bilan qoldi, bot kodi o'zgarmagan). Tekshirildi: `/`, `/kirish`, `/anketa` 200; `/api/auth/me` 401; sessiya
+`formVersion: 3.1`, 12 vakansiya, 8 kanal; prod `anketa-*.js` da yangi forma (`FifteenDays`) va qayta yuklash bor.
+
+### Bu reliz bo'yicha ochiq qadamlar (egasi)
+- Ofis planshetini/kompyuterlarini BIR MARTA yangilash (eski 3.0 sahifa o'zini yangilay olmaydi; keyingi relizlardan
+  boshlab forma buni o'zi qiladi). Yangilanmagan sahifadan kelgan anketa ham qabul qilinadi, lekin 3.0 savollari bilan.
+
 ## ✅ Reliz `02e7d49` — onlayn anketa HR-F02, «Qayerdan bilgan», Excel eksport, haqiqiy IP — 2026-10-27 11:02 (Toshkent)
 
 Prod `eebe3df` → `02e7d49` (9775052, 0c58b34, 02e7d49). Migratsiyalar: `20261026072156_PlanshetAnketasi`,
