@@ -451,9 +451,40 @@
 		}
 	}
 
-	# Qolgani — SPA statik fayllari
-	handle {
-		try_files {path} /index.html
+	# ──────────────────────────────────────────────────────────
+	#  HR SPA keshlash — xodim ilovasidagi qoida bilan bir xil (2026-10-28)
+	#
+	#  NEGA: Caddy `Cache-Control` bermasdi va Cloudflare o'zining 4 soatlik
+	#  sukutini qo'yardi: ertalab birinchi ochilishda brauzer ~37 JS/CSS
+	#  faylning hammasini Cloudflare orqali qayta tekshirardi (har biri
+	#  ~0.7 s). Vite fayllari xeshli (`index-DyUaEKTb.js`) — nomi mazmun
+	#  bilan o'zgaradi, ya'ni bir yil keshlash xavfsiz.
+	#
+	#  ⚠️ `/assets/*` da `try_files` ATAYLAB YO'Q: eski xeshli fayl so'ralsa
+	#  404 qaytishi kerak — index.html ga qaytsa, HTML «immutable» bo'lib
+	#  bir yilga JS o'rniga keshlanib qolardi. Sarlavha faqat BOR faylga
+	#  (`file` matcher) — 404 bir yilga keshlanmasin.
+	# ──────────────────────────────────────────────────────────
+	handle /assets/* {
+		@hashedAsset file
+		header @hashedAsset Cache-Control "public, max-age=31536000, immutable"
 		import spa_files
+	}
+
+	# Qolgani — SPA statik fayllari.
+	#
+	# index.html — `no-cache` (har safar ETag bilan tekshiriladi): u eski
+	# qolsa, deploy'dan keyin brauzer yo'q bo'lib ketgan eski xeshli
+	# fayllarni so'rardi. `route` — tartib yozilganidek bo'lsin: sarlavha
+	# `try_files` index.html ga qaytargandan KEYIN qo'yiladi (aks holda
+	# `header` yo'l o'zgarishidan oldin ishlab, SPA marshrutlariga tegmasdi).
+	# `/brand/*`, `/qollanma/*` — avvalgidek, sarlavhasiz.
+	handle {
+		route {
+			root * /srv
+			try_files {path} /index.html
+			header /index.html Cache-Control "no-cache"
+			file_server
+		}
 	}
 }
