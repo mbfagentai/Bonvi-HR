@@ -409,6 +409,15 @@ function ScheduleCard({
               in: num(schedule.graceInMinutes),
               out: num(schedule.graceOutMinutes),
             })}
+            {(Number(schedule.earlyArrivalThresholdMinutes) > 0 || Number(schedule.lateDepartureThresholdMinutes) > 0) && (
+              <>
+                {' · '}
+                {t('attendance.thresholdSummary', {
+                  early: num(schedule.earlyArrivalThresholdMinutes),
+                  late: num(schedule.lateDepartureThresholdMinutes),
+                })}
+              </>
+            )}
           </p>
         </div>
 

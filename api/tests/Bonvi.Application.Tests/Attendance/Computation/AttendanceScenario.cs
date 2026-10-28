@@ -99,7 +99,9 @@ internal sealed class AttendanceScenario
         int breakMinutes = 120,
         string? breakStart = "12:00",
         string? breakEnd = "14:00",
-        int? requiredMinutes = null)
+        int? requiredMinutes = null,
+        int earlyThreshold = 0,
+        int lateThreshold = 0)
         => Schedule(
         [
             .. Enumerable.Range(1, WorkSchedule.WeeklyDayCount)
@@ -108,7 +110,9 @@ internal sealed class AttendanceScenario
                     IsFlexible = true,
                     RequiredMinutes = requiredMinutes,
                 }),
-        ]);
+        ],
+        earlyThreshold: earlyThreshold,
+        lateThreshold: lateThreshold);
 
     /// <summary>Toshkent soatidagi lahza.</summary>
     public static DateTimeOffset At(DateOnly date, string time)
@@ -125,7 +129,9 @@ internal sealed class AttendanceScenario
         string? breakEnd = null,
         int graceIn = 10,
         int graceOut = 10,
-        IReadOnlyCollection<int>? daysOff = null)
+        IReadOnlyCollection<int>? daysOff = null,
+        int earlyThreshold = 0,
+        int lateThreshold = 0)
     {
         var days = Enumerable.Range(1, WorkSchedule.WeeklyDayCount)
             .Select(index => daysOff?.Contains(index) == true
@@ -133,17 +139,24 @@ internal sealed class AttendanceScenario
                 : WorkingDay(index, start, end, breakMinutes, breakStart, breakEnd))
             .ToList();
 
-        return Schedule(days, graceIn, graceOut);
+        return Schedule(days, graceIn, graceOut, earlyThreshold, lateThreshold);
     }
 
     /// <summary>Kunlari alohida berilgan jadval.</summary>
-    public static WorkSchedule Schedule(IReadOnlyCollection<WorkScheduleDayInput> days, int graceIn = 10, int graceOut = 10)
+    public static WorkSchedule Schedule(
+        IReadOnlyCollection<WorkScheduleDayInput> days,
+        int graceIn = 10,
+        int graceOut = 10,
+        int earlyThreshold = 0,
+        int lateThreshold = 0)
     {
         var result = WorkSchedule.Create(
             $"Jadval {Guid.CreateVersion7()}",
             days,
             graceInMinutes: graceIn,
-            graceOutMinutes: graceOut);
+            graceOutMinutes: graceOut,
+            earlyArrivalThresholdMinutes: earlyThreshold,
+            lateDepartureThresholdMinutes: lateThreshold);
 
         result.IsSuccess.ShouldBeTrue("sahnadagi jadval domen tekshiruvidan o'tishi kerak");
         return result.Value;

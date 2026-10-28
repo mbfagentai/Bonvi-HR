@@ -1087,6 +1087,12 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
+                    b.Property<int>("EarlyArrivalThresholdMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("early_arrival_threshold_minutes");
+
                     b.Property<int>("GraceInMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("grace_in_minutes");
@@ -1102,6 +1108,12 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.Property<int>("Kind")
                         .HasColumnType("integer")
                         .HasColumnName("kind");
+
+                    b.Property<int>("LateDepartureThresholdMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("late_departure_threshold_minutes");
 
                     b.Property<string>("Name")
                         .IsRequired()

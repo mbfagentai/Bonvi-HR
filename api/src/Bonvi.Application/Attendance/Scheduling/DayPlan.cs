@@ -40,6 +40,8 @@ public sealed class DayPlan
         Date = date;
         GraceInMinutes = schedule.GraceInMinutes;
         GraceOutMinutes = schedule.GraceOutMinutes;
+        EarlyArrivalThresholdMinutes = schedule.EarlyArrivalThresholdMinutes;
+        LateDepartureThresholdMinutes = schedule.LateDepartureThresholdMinutes;
     }
 
     /// <summary>Qaysi sana uchun (smena BOSHLANADIGAN Toshkent sanasi).</summary>
@@ -106,6 +108,47 @@ public sealed class DayPlan
 
     /// <summary>Ketishdagi yon berish (daqiqa).</summary>
     public int GraceOutMinutes { get; }
+
+    /// <summary>Erta kelish chegarasi (daqiqa) — <see cref="WorkSchedule.EarlyArrivalThresholdMinutes"/>.</summary>
+    public int EarlyArrivalThresholdMinutes { get; }
+
+    /// <summary>Kech ketish chegarasi (daqiqa) — <see cref="WorkSchedule.LateDepartureThresholdMinutes"/>.</summary>
+    public int LateDepartureThresholdMinutes { get; }
+
+    /// <summary>
+    /// Ishlangan vaqtga QO'SHILMAYDIGAN bo'laklar (UTC): <c>[PlanStart − erta, PlanStart)</c> va
+    /// <c>[PlanEnd, PlanEnd + kech)</c>. Chegarasi 0 bo'lgan tomon ro'yxatga tushmaydi.
+    /// </summary>
+    /// <remarks>
+    /// Faqat QAT'IY ish kunida. Dam olish kunida reja yo'q — u yerdagi ish to'liq ortiqcha;
+    /// erkin kunda esa borliq oynaga kesilmaydi (egasining qarori, 2026-10-20). Bo'laklar
+    /// smena tashqarisida, tanaffus oynasi esa doim smena ichida
+    /// (<c>WorkScheduleDay.ValidateBreakWindow</c>) — ya'ni ular tanaffus hisobiga tegmaydi.
+    /// </remarks>
+    public IReadOnlyList<(DateTimeOffset From, DateTimeOffset To)> UncountedBands
+    {
+        get
+        {
+            if (this is not { IsWorking: true, IsFlexible: false, PlanStartAt: { } planStart, PlanEndAt: { } planEnd })
+            {
+                return [];
+            }
+
+            var bands = new List<(DateTimeOffset From, DateTimeOffset To)>(2);
+
+            if (EarlyArrivalThresholdMinutes > 0)
+            {
+                bands.Add((planStart.AddMinutes(-EarlyArrivalThresholdMinutes), planStart));
+            }
+
+            if (LateDepartureThresholdMinutes > 0)
+            {
+                bands.Add((planEnd, planEnd.AddMinutes(LateDepartureThresholdMinutes)));
+            }
+
+            return bands;
+        }
+    }
 
     /// <summary>Tanaffus oynasi belgilanganmi. Yo'q bo'lsa — tanaffus UMUMAN ayrilmaydi (SPEC §5.5.1).</summary>
     public bool HasBreakWindow => BreakWindowStartAt is not null && BreakWindowEndAt is not null;

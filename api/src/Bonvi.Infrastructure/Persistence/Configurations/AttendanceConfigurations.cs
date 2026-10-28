@@ -414,6 +414,15 @@ public sealed class WorkScheduleConfiguration : IEntityTypeConfiguration<WorkSch
         builder.Property(schedule => schedule.GraceOutMinutes)
             .IsRequired();
 
+        // Sukut 0 — mavjud jadvallar avvalgidek hisoblanadi (hamma borliq sanaladi).
+        builder.Property(schedule => schedule.EarlyArrivalThresholdMinutes)
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(schedule => schedule.LateDepartureThresholdMinutes)
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.Property(schedule => schedule.IsActive)
             .IsRequired();
 

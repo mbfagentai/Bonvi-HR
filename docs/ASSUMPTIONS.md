@@ -1270,3 +1270,7 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-10-27] «Rahbar» → today's primary employment's department, walk up, first head that is not the employee and is employed today → self-head goes to the parent; a fired or deleted head is skipped.
 - [2026-10-27] App team cards → «Vaqtida» and «Jadval yo‘q» show only when non-zero or selected; «Keldi» = `Arrived` (came, no schedule), as on the HR dashboard → the SPEC's six cards would hide on-time and no-schedule people; one day must not read two ways.
 - [2026-10-27] Team member month (C3) header position/department → as of min(today, month end); team photo (C4) → in scope today → the month view follows the member's history, the photo is a live lookup.
+- [2026-10-28] Arrival/departure threshold upper bound → 240 minutes each → grace is capped at 120; four hours on either side covers any realistic «sat in the office» window without letting a typo erase a whole shift.
+- [2026-10-28] Thresholds on flexible days, days off, unscheduled days → not applied → a flexible day is not clipped to its window (2026-10-20) and a day off has no shift to measure from.
+- [2026-10-28] Thresholds on a schedule-change (override) day → the schedule's own thresholds are applied to the overridden shift → the request changes the hours, not the counting rule.
+- [2026-10-28] Existing schedules → thresholds default to 0 → nothing changes until HR sets them; editing a schedule does not recompute past days, HR runs «Qayta hisoblash» (same as every other schedule edit).

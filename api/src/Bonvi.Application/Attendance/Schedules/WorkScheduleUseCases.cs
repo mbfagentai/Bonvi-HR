@@ -12,12 +12,16 @@ namespace Bonvi.Application.Attendance.Schedules;
 /// <param name="GraceOutMinutes">Ketishdagi yon berish (0…120).</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="Days">Yettala kun, har biri bir martadan.</param>
+/// <param name="EarlyArrivalThresholdMinutes">Erta kelish chegarasi (0…240).</param>
+/// <param name="LateDepartureThresholdMinutes">Kech ketish chegarasi (0…240).</param>
 public sealed record WorkScheduleSettings(
     string? Name,
     int GraceInMinutes,
     int GraceOutMinutes,
     string? Note,
-    IReadOnlyList<WorkScheduleDayInput>? Days);
+    IReadOnlyList<WorkScheduleDayInput>? Days,
+    int EarlyArrivalThresholdMinutes = 0,
+    int LateDepartureThresholdMinutes = 0);
 
 /// <summary>Yangi haftalik jadval.</summary>
 /// <param name="Settings">Maydonlar.</param>
@@ -74,7 +78,9 @@ public sealed class CreateWorkScheduleCommandHandler
             WorkScheduleKind.Weekly,
             settings.GraceInMinutes,
             settings.GraceOutMinutes,
-            settings.Note);
+            settings.Note,
+            settings.EarlyArrivalThresholdMinutes,
+            settings.LateDepartureThresholdMinutes);
 
         if (created.IsFailure)
         {
@@ -129,7 +135,9 @@ public sealed class UpdateWorkScheduleCommandHandler
             settings.Days ?? [],
             settings.GraceInMinutes,
             settings.GraceOutMinutes,
-            settings.Note);
+            settings.Note,
+            settings.EarlyArrivalThresholdMinutes,
+            settings.LateDepartureThresholdMinutes);
 
         if (updated.IsFailure)
         {

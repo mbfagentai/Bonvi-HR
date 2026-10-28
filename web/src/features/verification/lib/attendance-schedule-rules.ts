@@ -33,6 +33,9 @@ import type {
 /** `WorkSchedule.MaxGraceMinutes` (SPEC §2.4). */
 export const MAX_GRACE_MINUTES = 120
 
+/** `WorkSchedule.MaxThresholdMinutes` — erta kelish va kech ketish chegarasi (2026-10-28). */
+export const MAX_THRESHOLD_MINUTES = 240
+
 /** `WorkScheduleDay.MaxBreakMinutes` (SPEC §2.4). */
 export const MAX_BREAK_MINUTES = 480
 
@@ -185,6 +188,11 @@ function validateRequired(day: WorkScheduleDayInput): string | null {
 /** Imtiyoz daqiqalari: butun son, `0 … 120` (`davomat.jadval_yon_berish`). */
 export function isValidGrace(value: number): boolean {
   return Number.isInteger(value) && value >= 0 && value <= MAX_GRACE_MINUTES
+}
+
+/** Chegara daqiqalari: butun son, `0 … 240` (`davomat.jadval_chegara`). */
+export function isValidThreshold(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_THRESHOLD_MINUTES
 }
 
 /**

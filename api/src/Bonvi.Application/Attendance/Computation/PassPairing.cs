@@ -10,7 +10,10 @@ namespace Bonvi.Application.Attendance.Computation;
 /// <param name="IgnoredPassCount">Sakrash deb tashlanganlari.</param>
 /// <param name="FirstInAt">Birinchi kirish (UTC).</param>
 /// <param name="LastOutAt">Oxirgi chiqish (UTC).</param>
-/// <param name="ClosedMinutes">Yopilgan oraliqlar yig'indisi, tanaffus ayrilmasdan.</param>
+/// <param name="ClosedMinutes">
+/// Yopilgan oraliqlar yig'indisi, tanaffus ayrilmasdan — erta kelish va kech ketish chegaralari
+/// (<see cref="DayPlan.UncountedBands"/>) kesib tashlangandan keyin.
+/// </param>
 /// <param name="BreakTakenMinutes">Tanaffus oynasi ichida binodan tashqarida o'tgan daqiqalar.</param>
 /// <param name="PresentInWindowMinutes">Tanaffus oynasi ichida binoda o'tgan daqiqalar (faqat yopilgan oraliqlar).</param>
 /// <param name="BreakDeductionMinutes">Ishlangan vaqtdan ayrilgan tanaffus.</param>
@@ -22,8 +25,9 @@ namespace Bonvi.Application.Attendance.Computation;
 /// <see cref="AttendanceRules.NoScheduleAutoExitTime"/>); yopilmagan bo'lsa <c>null</c>.
 /// </param>
 /// <param name="ClosedIntervals">
-/// Yopilgan oraliqlarning o'zi (UTC), vaqt tartibida — «ish vaqti» so'rovi shular bilan
-/// birlashtiriladi (<see cref="WorkCreditRule.Apply"/>). Saqlanmaydi.
+/// Yopilgan oraliqlarning HISOBLANADIGAN qismlari (UTC), vaqt tartibida — chegara bo'laklari
+/// kesilgan. «Ish vaqti» so'rovi va shaxsiy vaqt shular bilan ishlaydi
+/// (<see cref="WorkCreditRule.Apply"/>, <see cref="PersonalTimeRule.Apply"/>). Saqlanmaydi.
 /// </param>
 public sealed record PairingResult(
     int PassCount,
@@ -107,6 +111,13 @@ public static class PassPairing
     /// yo'q (SPEC §5.5.1).
     /// </para>
     /// <para>
+    /// ⭐ <b>Erta kelish va kech ketish chegarasi</b> (egasining qarori, 2026-10-28): reja
+    /// boshlanishidan oldingi va tugashidan keyingi chegara bo'laklari
+    /// (<see cref="DayPlan.UncountedBands"/>) yopilgan oraliqlardan kesib tashlanadi — ular na
+    /// ishlangan vaqtga, na ortiqcha ishga tushadi. Kelish, ketish, kechikish va erta ketish
+    /// lahzalari o'zgarmaydi: chegara faqat SANALADIGAN daqiqalarga tegadi.
+    /// </para>
+    /// <para>
     /// ⚠️ Har bir yig'indi AVVAL aniq lahzalarda (tick) qo'shiladi, KEYIN
     /// bir marta butun daqiqaga kesiladi (<see cref="WholeMinutes"/>).
     /// Bo'laklarni alohida kesish nafaqat daqiqalarni yo'qotadi, balki
@@ -136,6 +147,7 @@ public static class PassPairing
         BreakWindow? window = plan is { BreakWindowStartAt: { } windowFrom, BreakWindowEndAt: { } windowTo }
             ? new BreakWindow(windowFrom, windowTo, plan.BreakMinutes)
             : null;
+        var uncounted = plan?.UncountedBands ?? [];
 
         DateTimeOffset? openedAt = null;
         DateTimeOffset? leftAt = null;
@@ -181,8 +193,7 @@ public static class PassPairing
                 presentInWindowTicks += breakWindow.OverlapTicks(enteredAt, pass.At);
             }
 
-            closedTicks += (pass.At - enteredAt).Ticks;
-            closedIntervals.Add((enteredAt, pass.At));
+            closedTicks += AddCounted(closedIntervals, enteredAt, pass.At, uncounted);
             leftAt = pass.At;
             openedAt = null;
         }
@@ -203,8 +214,7 @@ public static class PassPairing
                     presentInWindowTicks += breakWindow.OverlapTicks(stillOpen, closeAt);
                 }
 
-                closedTicks += (closeAt - stillOpen).Ticks;
-                closedIntervals.Add((stillOpen, closeAt));
+                closedTicks += AddCounted(closedIntervals, stillOpen, closeAt, uncounted);
                 lastOutAt = closeAt;
                 autoExitAt = closeAt;
             }
@@ -364,6 +374,60 @@ public static class PassPairing
         }
 
         return directed;
+    }
+
+    /// <summary>
+    /// Oraliqning chegara bo'laklaridan tashqaridagi qismlarini <paramref name="counted"/> ga qo'shadi
+    /// va ularning uzunligini (tick) qaytaradi.
+    /// </summary>
+    /// <remarks>
+    /// 09:00–18:00 smena, chegaralar 30 va 60 daqiqa: 08:00–18:30 oralig'idan 08:00–08:30 va
+    /// 09:00–18:00 qoladi — 08:30–09:00 va 18:00–18:30 sanalmaydi. Bo'laklar reja tashqarisida
+    /// va bir-birini kesmaydi, shuning uchun ketma-ket kesish yetadi.
+    /// </remarks>
+    private static long AddCounted(
+        List<(DateTimeOffset From, DateTimeOffset To)> counted,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        IReadOnlyList<(DateTimeOffset From, DateTimeOffset To)> uncounted)
+    {
+        var pieces = new List<(DateTimeOffset From, DateTimeOffset To)> { (from, to) };
+
+        foreach (var band in uncounted)
+        {
+            var rest = new List<(DateTimeOffset From, DateTimeOffset To)>(pieces.Count + 1);
+
+            foreach (var piece in pieces)
+            {
+                if (band.To <= piece.From || band.From >= piece.To)
+                {
+                    rest.Add(piece);
+                    continue;
+                }
+
+                if (piece.From < band.From)
+                {
+                    rest.Add((piece.From, band.From));
+                }
+
+                if (band.To < piece.To)
+                {
+                    rest.Add((band.To, piece.To));
+                }
+            }
+
+            pieces = rest;
+        }
+
+        long ticks = 0;
+
+        foreach (var piece in pieces)
+        {
+            ticks += (piece.To - piece.From).Ticks;
+            counted.Add(piece);
+        }
+
+        return ticks;
     }
 
     private readonly record struct DirectedPass(DateTimeOffset At, PassDirection Direction);

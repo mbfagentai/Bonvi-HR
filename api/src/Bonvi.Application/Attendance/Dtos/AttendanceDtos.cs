@@ -1304,6 +1304,8 @@ public sealed record ScheduleYearDto(
 /// <param name="IsActive">Faolmi.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="Days">Kunlar, <c>DayIndex</c> tartibida.</param>
+/// <param name="EarlyArrivalThresholdMinutes">Erta kelish chegarasi — reja boshlanishidan oldingi shuncha vaqt hisoblanmaydi.</param>
+/// <param name="LateDepartureThresholdMinutes">Kech ketish chegarasi — reja tugashidan keyingi shuncha vaqt hisoblanmaydi.</param>
 public sealed record WorkScheduleDto(
     Guid Id,
     string Name,
@@ -1312,7 +1314,9 @@ public sealed record WorkScheduleDto(
     int GraceOutMinutes,
     bool IsActive,
     string? Note,
-    IReadOnlyList<WorkScheduleDayDto> Days);
+    IReadOnlyList<WorkScheduleDayDto> Days,
+    int EarlyArrivalThresholdMinutes,
+    int LateDepartureThresholdMinutes);
 
 /// <summary>Jadval biriktirmasi.</summary>
 /// <remarks>

@@ -22,6 +22,7 @@ import {
   FLEXIBLE_REQUIRED_CODE,
   MAX_BREAK_MINUTES,
   MAX_GRACE_MINUTES,
+  MAX_THRESHOLD_MINUTES,
   NOT_FLEXIBLE,
   SCHEDULE_NAME_MAX,
   SCHEDULE_NOTE_MAX,
@@ -29,6 +30,7 @@ import {
   clockMinutes,
   flexibleDraftOf,
   isValidGrace,
+  isValidThreshold,
   maxRequiredMinutes,
   plannedDayMinutes,
   requiredMinutesOf,
@@ -72,6 +74,9 @@ const DEFAULT_WORKDAY = {
 
 const DEFAULT_GRACE = '10'
 
+/** Chegara sukuti 0 — hamma borliq sanaladi (mavjud jadvallardagidek). */
+const DEFAULT_THRESHOLD = '0'
+
 /** Seshanba–juma: «dushanbani nusxalash» shu kunlarga yoziladi. */
 const WEEKDAYS_AFTER_MONDAY: readonly WeekdayIndex[] = [2, 3, 4, 5]
 
@@ -81,10 +86,13 @@ const WEEKDAYS_AFTER_MONDAY: readonly WeekdayIndex[] = [2, 3, 4, 5]
  * kod) — ular tepadagi ogohlantirishga tushadi va klient tekshiruvi o'sha
  * kodni bergan kun qizil bilan belgilanadi.
  */
-const HEADER_FIELD_OF_CODE: Readonly<Record<string, 'name' | 'grace'>> = {
+type HeaderField = 'name' | 'grace' | 'threshold'
+
+const HEADER_FIELD_OF_CODE: Readonly<Record<string, HeaderField>> = {
   'davomat.jadval_nom_bosh': 'name',
   'davomat.jadval_nom_takror': 'name',
   'davomat.jadval_yon_berish': 'grace',
+  'davomat.jadval_chegara': 'threshold',
 }
 
 /**
@@ -125,13 +133,13 @@ export function AttendanceScheduleFormDialog({
   const [nameTouched, setNameTouched] = useState(false)
   const [graceIn, setGraceIn] = useState(DEFAULT_GRACE)
   const [graceOut, setGraceOut] = useState(DEFAULT_GRACE)
+  const [earlyThreshold, setEarlyThreshold] = useState(DEFAULT_THRESHOLD)
+  const [lateThreshold, setLateThreshold] = useState(DEFAULT_THRESHOLD)
   const [note, setNote] = useState('')
   const [drafts, setDrafts] = useState<DayDraft[]>(() => defaultDrafts())
 
   const [failure, setFailure] = useState<string | null>(null)
-  const [headerError, setHeaderError] = useState<{ field: 'name' | 'grace'; code: string } | null>(
-    null,
-  )
+  const [headerError, setHeaderError] = useState<{ field: HeaderField; code: string } | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -139,6 +147,8 @@ export function AttendanceScheduleFormDialog({
     setNameTouched(false)
     setGraceIn(String(schedule?.graceInMinutes ?? DEFAULT_GRACE))
     setGraceOut(String(schedule?.graceOutMinutes ?? DEFAULT_GRACE))
+    setEarlyThreshold(String(schedule?.earlyArrivalThresholdMinutes ?? DEFAULT_THRESHOLD))
+    setLateThreshold(String(schedule?.lateDepartureThresholdMinutes ?? DEFAULT_THRESHOLD))
     setNote(schedule?.note ?? '')
     setDrafts(schedule === null ? defaultDrafts() : draftsOf(schedule))
     setFailure(null)
@@ -154,9 +164,13 @@ export function AttendanceScheduleFormDialog({
   const graceInValue = parseMinutes(graceIn)
   const graceOutValue = parseMinutes(graceOut)
   const graceInvalid = !isValidGrace(graceInValue) || !isValidGrace(graceOutValue)
+  const earlyThresholdValue = parseMinutes(earlyThreshold)
+  const lateThresholdValue = parseMinutes(lateThreshold)
+  const thresholdInvalid = !isValidThreshold(earlyThresholdValue) || !isValidThreshold(lateThresholdValue)
   const nameEmpty = name.trim() === ''
 
-  const hasClientErrors = nameEmpty || graceInvalid || dayErrors.some((code) => code !== null)
+  const hasClientErrors =
+    nameEmpty || graceInvalid || thresholdInvalid || dayErrors.some((code) => code !== null)
   const pending = save.isPending
 
   const updateDay = (dayIndex: WeekdayIndex, patch: Partial<DayDraft>) =>
@@ -215,6 +229,8 @@ export function AttendanceScheduleFormDialog({
           name: name.trim(),
           graceInMinutes: graceInValue,
           graceOutMinutes: graceOutValue,
+          earlyArrivalThresholdMinutes: earlyThresholdValue,
+          lateDepartureThresholdMinutes: lateThresholdValue,
           note: note.trim() === '' ? null : note.trim(),
           days,
         },
@@ -248,6 +264,15 @@ export function AttendanceScheduleFormDialog({
       : undefined
   const graceOutError = !isValidGrace(graceOutValue)
     ? errorMessage('davomat.jadval_yon_berish')
+    : undefined
+
+  // Chegara xatosi ham shu naqshda: kod bitta, maydon ikkita
+  const earlyThresholdError =
+    !isValidThreshold(earlyThresholdValue) || (headerError?.field === 'threshold' && !thresholdInvalid)
+      ? errorMessage(headerError?.field === 'threshold' ? headerError.code : 'davomat.jadval_chegara')
+      : undefined
+  const lateThresholdError = !isValidThreshold(lateThresholdValue)
+    ? errorMessage('davomat.jadval_chegara')
     : undefined
 
   const hours = summary.plannedMinutes / 60
@@ -320,6 +345,34 @@ export function AttendanceScheduleFormDialog({
             />
           </div>
           <p className="text-footnote text-[var(--fg-tertiary)]">{t('attendance.graceHint')}</p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              label={t('attendance.earlyArrivalThreshold')}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={MAX_THRESHOLD_MINUTES}
+              value={earlyThreshold}
+              disabled={pending}
+              error={earlyThresholdError}
+              onChange={(event) => setEarlyThreshold(event.target.value)}
+            />
+            <TextField
+              label={t('attendance.lateDepartureThreshold')}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={MAX_THRESHOLD_MINUTES}
+              value={lateThreshold}
+              disabled={pending}
+              error={lateThresholdError}
+              onChange={(event) => setLateThreshold(event.target.value)}
+            />
+          </div>
+          <p className="text-footnote text-[var(--fg-tertiary)]">{t('attendance.thresholdHint')}</p>
         </div>
 
         {/* ───────────────────────── hafta */}

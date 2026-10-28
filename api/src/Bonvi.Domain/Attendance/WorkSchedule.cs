@@ -72,6 +72,14 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public const int MaxGraceMinutes = 120;
 
+    /// <summary>Hisoblanmaydigan chegaraning eng katta qiymati (daqiqa).</summary>
+    /// <remarks>
+    /// To'rt soat — kun oynasidan (<see cref="AttendanceRules.DayWindowPreHours"/>)
+    /// kichik. Undan kattasi smenadan oldingi yoki keyingi butun borliqni
+    /// o'chirib qo'yardi: bu chegara emas, boshqa smena.
+    /// </remarks>
+    public const int MaxThresholdMinutes = 240;
+
     private readonly List<WorkScheduleDay> _days = [];
 
     private WorkSchedule(Guid id, string name, WorkScheduleKind kind)
@@ -106,6 +114,28 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
     /// <summary>Ketishdagi yon berish (daqiqa).</summary>
     public int GraceOutMinutes { get; private set; }
 
+    /// <summary>
+    /// Erta kelish chegarasi (daqiqa): reja boshlanishidan OLDINGI shuncha vaqt ishlangan
+    /// vaqtga qo'shilmaydi, undan oldingisi qo'shiladi. 0 — hammasi hisoblanadi.
+    /// </summary>
+    /// <remarks>
+    /// Egasining qarori (2026-10-28): «09:00 lik smena, chegara 30 daqiqa — 08:40 da kelgan
+    /// odamga 0, 08:00 da kelganga 30 daqiqa (08:00–08:30)». Chegara eshik emas, CHEGIRMA:
+    /// oshgach ham uning o'zi hisoblanmaydi. Faqat qat'iy ish kunida — erkin kunda borliq
+    /// oynaga kesilmaydi (<c>DayPlan.IsFlexible</c>).
+    /// </remarks>
+    public int EarlyArrivalThresholdMinutes { get; private set; }
+
+    /// <summary>
+    /// Kech ketish chegarasi (daqiqa): reja tugashidan KEYINGI shuncha vaqt hisoblanmaydi,
+    /// undan keyingisi hisoblanadi. 0 — hammasi hisoblanadi.
+    /// </summary>
+    /// <remarks>
+    /// Egasining misoli (2026-10-28): 18:00 da ketishi kerak, chegara 1 soat — 19:00 gacha
+    /// o'tirsa ham hisoblanmaydi, 19:30 da ketsa 30 daqiqa.
+    /// </remarks>
+    public int LateDepartureThresholdMinutes { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public string? Note { get; private set; }
@@ -127,7 +157,9 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
         WorkScheduleKind kind = WorkScheduleKind.Weekly,
         int graceInMinutes = AttendanceRules.DefaultGraceInMinutes,
         int graceOutMinutes = AttendanceRules.DefaultGraceOutMinutes,
-        string? note = null)
+        string? note = null,
+        int earlyArrivalThresholdMinutes = 0,
+        int lateDepartureThresholdMinutes = 0)
     {
         var trimmedName = Trim(name);
         if (trimmedName is null)
@@ -142,7 +174,10 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
                 "Hozircha faqat haftalik jadval qo'llab-quvvatlanadi.");
         }
 
-        var check = Result.Combine(ValidateGrace(graceInMinutes, graceOutMinutes), ValidateDays(days));
+        var check = Result.Combine(
+            ValidateGrace(graceInMinutes, graceOutMinutes),
+            ValidateThresholds(earlyArrivalThresholdMinutes, lateDepartureThresholdMinutes),
+            ValidateDays(days));
         if (check.IsFailure)
         {
             return check.Error;
@@ -152,6 +187,8 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
         {
             GraceInMinutes = graceInMinutes,
             GraceOutMinutes = graceOutMinutes,
+            EarlyArrivalThresholdMinutes = earlyArrivalThresholdMinutes,
+            LateDepartureThresholdMinutes = lateDepartureThresholdMinutes,
             Note = Trim(note),
         };
 
@@ -183,7 +220,9 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
         IReadOnlyCollection<WorkScheduleDayInput> days,
         int graceInMinutes,
         int graceOutMinutes,
-        string? note = null)
+        string? note = null,
+        int earlyArrivalThresholdMinutes = 0,
+        int lateDepartureThresholdMinutes = 0)
     {
         var trimmedName = Trim(name);
         if (trimmedName is null)
@@ -191,7 +230,10 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
             return Error.Validation("davomat.jadval_nom_bosh", "Jadval nomi kiritilishi shart.");
         }
 
-        var check = Result.Combine(ValidateGrace(graceInMinutes, graceOutMinutes), ValidateDays(days));
+        var check = Result.Combine(
+            ValidateGrace(graceInMinutes, graceOutMinutes),
+            ValidateThresholds(earlyArrivalThresholdMinutes, lateDepartureThresholdMinutes),
+            ValidateDays(days));
         if (check.IsFailure)
         {
             return check.Error;
@@ -200,6 +242,8 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
         Name = trimmedName;
         GraceInMinutes = graceInMinutes;
         GraceOutMinutes = graceOutMinutes;
+        EarlyArrivalThresholdMinutes = earlyArrivalThresholdMinutes;
+        LateDepartureThresholdMinutes = lateDepartureThresholdMinutes;
         Note = Trim(note);
 
         foreach (var input in days)
@@ -227,6 +271,13 @@ public sealed class WorkSchedule : AggregateRoot, IAuditable, ISoftDeletable
             ? Error.Validation(
                 "davomat.jadval_yon_berish",
                 $"Yon berish 0 dan {MaxGraceMinutes} daqiqagacha bo'lishi kerak.")
+            : Result.Success();
+
+    private static Result ValidateThresholds(int earlyArrivalMinutes, int lateDepartureMinutes)
+        => earlyArrivalMinutes is < 0 or > MaxThresholdMinutes || lateDepartureMinutes is < 0 or > MaxThresholdMinutes
+            ? Error.Validation(
+                "davomat.jadval_chegara",
+                $"Erta kelish va kech ketish chegarasi 0 dan {MaxThresholdMinutes} daqiqagacha bo'lishi kerak.")
             : Result.Success();
 
     /// <summary>

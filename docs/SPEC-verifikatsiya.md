@@ -1619,6 +1619,19 @@ ascending, ties broken by `id`.
    whole number of minutes against a whole number of minutes. **AMENDED
    2026-09-17:** the `max(0, …)` stays as a guard but **cannot fire** —
    `breakDeduction` never exceeds the closed-interval sum (§5.5.1).
+   *AMENDED 2026-10-28 (owner):* each schedule has two thresholds,
+   `early_arrival_threshold_minutes` and `late_departure_threshold_minutes`
+   (0…240, default 0 = the rule above unchanged). On a **fixed working day**
+   the bands `[plan_start − early, plan_start)` and `[plan_end, plan_end + late)`
+   are cut out of every closed interval before summing — time inside a band is
+   never counted, only time beyond it («Faqat chegaradan keyingisi»). Owner's
+   example, 09:00–18:00, early 30, late 60: in at 08:40 → 0 extra; in at 08:00
+   → 30 (08:00–08:30); out at 18:50 → 0; out at 19:30 → 30 (19:00–19:30).
+   The cut intervals are what `ClosedIntervals` returns, so work credit and
+   personal time see the same minutes. Flexible days, days off and
+   unscheduled days are not cut. A schedule-change day applies the schedule's
+   thresholds to the overridden shift. `first_in_at`, `last_out_at`,
+   `late_minutes` and `early_leave_minutes` are unaffected.
 6. **`planned_minutes`** = `(plan_end − plan_start) − break_minutes`; `0` when
    there is no schedule or the day is non-working. **Unchanged by the
    amendment** — and that is the point: plan and fact now exclude the break on
@@ -1646,6 +1659,9 @@ ascending, ties broken by `id`.
     summary report's overtime column was inflated by exactly the days whose
     norm is unknown. Work on a scheduled day off still counts in full — that
     one has a plan, and the plan is zero.
+    *AMENDED 2026-10-28 (owner):* the formula is unchanged; it simply runs on
+    the threshold-cut `worked_minutes` of step 5, so time inside a band never
+    becomes overtime.
 
 #### 5.5.1 The break deduction — AMENDED 2026-09-17 (owner's answer to §13 #1)
 

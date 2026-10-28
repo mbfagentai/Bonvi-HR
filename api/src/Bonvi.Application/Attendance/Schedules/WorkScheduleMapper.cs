@@ -20,7 +20,9 @@ public static class WorkScheduleMapper
             schedule.GraceOutMinutes,
             schedule.IsActive,
             schedule.Note,
-            [.. schedule.Days.OrderBy(day => day.DayIndex).Select(ToDto)]);
+            [.. schedule.Days.OrderBy(day => day.DayIndex).Select(ToDto)],
+            schedule.EarlyArrivalThresholdMinutes,
+            schedule.LateDepartureThresholdMinutes);
     }
 
     /// <summary>Bitta kun.</summary>

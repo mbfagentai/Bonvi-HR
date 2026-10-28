@@ -275,12 +275,16 @@ public sealed record WorkScheduleDayRequest(
 /// <param name="GraceOutMinutes">Ketishdagi yon berish.</param>
 /// <param name="Note">Izoh.</param>
 /// <param name="Days">Yettala kun.</param>
+/// <param name="EarlyArrivalThresholdMinutes">Erta kelish chegarasi (0…240), berilmasa 0.</param>
+/// <param name="LateDepartureThresholdMinutes">Kech ketish chegarasi (0…240), berilmasa 0.</param>
 public sealed record WorkScheduleRequest(
     string? Name,
     int GraceInMinutes,
     int GraceOutMinutes,
     string? Note,
-    IReadOnlyList<WorkScheduleDayRequest>? Days)
+    IReadOnlyList<WorkScheduleDayRequest>? Days,
+    int EarlyArrivalThresholdMinutes = 0,
+    int LateDepartureThresholdMinutes = 0)
 {
     /// <summary>Use-case maydonlariga.</summary>
     internal WorkScheduleSettings ToSettings() => new(
@@ -301,7 +305,9 @@ public sealed record WorkScheduleRequest(
                     day.BreakEnd,
                     day.IsFlexible,
                     day.RequiredMinutes)),
-            ]);
+            ],
+        EarlyArrivalThresholdMinutes,
+        LateDepartureThresholdMinutes);
 }
 
 /// <summary>Jadval biriktirish tanasi.</summary>
@@ -934,9 +940,13 @@ public static class AttendanceEndpoints
                 "«davomat.jadval_nom_bosh», «davomat.jadval_kun_takror», «davomat.jadval_kun_yetishmaydi», " +
                 "«davomat.jadval_vaqt_bosh», «davomat.jadval_vaqt_teng», «davomat.jadval_yon_berish», " +
                 "«davomat.jadval_tanaffus_toliq_emas», «davomat.jadval_tanaffus_oynasi», " +
-                "«davomat.jadval_tanaffus_uzunligi», «davomat.jadval_erkin_vaqti» (400); «davomat.jadval_nom_takror» (409). " +
+                "«davomat.jadval_tanaffus_uzunligi», «davomat.jadval_erkin_vaqti», «davomat.jadval_chegara» (400); " +
+                "«davomat.jadval_nom_takror» (409). " +
                 "«isFlexible» — erkin ish jadvali: kechikish va erta ketish yo'q, kun «requiredMinutes» (ish vaqti) " +
-                "bilan baholanadi; «requiredMinutes» bo'sh bo'lsa — smena − tanaffus. Dam olish kunida bayroq tozalanadi.")
+                "bilan baholanadi; «requiredMinutes» bo'sh bo'lsa — smena − tanaffus. Dam olish kunida bayroq tozalanadi. " +
+                "«earlyArrivalThresholdMinutes» / «lateDepartureThresholdMinutes» (0…240, sukut 0) — reja boshlanishidan " +
+                "oldingi va tugashidan keyingi shuncha vaqt ishlangan vaqtga qo'shilmaydi, undan tashqarisi qo'shiladi; " +
+                "faqat qat'iy ish kunida.")
             .Produces<WorkScheduleDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
