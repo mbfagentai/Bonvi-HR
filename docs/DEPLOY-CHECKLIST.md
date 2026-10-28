@@ -3,6 +3,25 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `3457ee1` — HR SPA keshlash (faqat web) — 2026-10-28 09:23 (Toshkent)
+
+Prod `6b572c0` → `3457ee1`, faqat `web/Caddyfile`: HR `/assets/*` — `public, max-age=31536000, immutable` (faqat bor
+faylga), eski xeshli fayl 404 (avval index.html qaytardi); index.html — `no-cache`. Sabab: egasi «kirish sekin,
+birinchi ochilish 5-10 s» — Caddy `Cache-Control` bermasdi va Cloudflare 4 soatlik sukutini qo'yardi. Egasi ish
+vaqtida deploy qilishni so'radi («ha hozir deploy qil»). Rollback: `bonvi-hr-prod-web:rollback-6b572c0` (85ad48b),
+zaxira stamp `2026-10-28_041309`. Faqat web image qurildi (`/root/webbuild-3457ee1.sh`, 09:14–09:16; orval
+klienti oldingi prebuild'dan, API o'zgarmagan), HR yozuvlari bir daqiqa jim bo'lgach `up -d --no-deps web`.
+api, bot, baza — tegilmadi. Tekshirildi: origin'da asset immutable, eski xesh 404, HTML no-cache, `/brand/*`
+sarlavhasiz (avvalgidek); `/`, `/kirish`, `/ilova/`, `/health/ready` 200; Caddy'da xato va 5xx yo'q.
+
+⚠️ **Uzilish ~12 s bo'ldi** (09:23:08–09:23:20, kutilgani 2–5 s). Ehtimoliy sabab: Caddy to'xtashda ochiq
+ulanishlarni (`/api/notifications/stream` SSE) kutadi va Docker'ning 10 s `stop` muddati tugashiga qadar yopilmaydi.
+Keyingi web almashtirishda `up -d --no-deps -t 3 web` (yoki Caddy global `grace_period`) bilan sinash kerak —
+tekshirilmagan.
+
+Kutilgan holat: Cloudflare chekkasida eski nusxalar (`max-age=14400`) o'z muddati tugaguncha qoladi — yangi sarlavha
+bir necha soat ichida hammaga yetadi (tezroq kerak bo'lsa: Cloudflare'da «Purge cache», egasida).
+
 ## ✅ Reliz `6b572c0` — «Jamoa»: bo'lim boshlig'i xodim ilovasida o'z jamoasi davomatini ko'radi — 2026-10-27 22:54 (Toshkent)
 
 Prod `f85ab96` → `6b572c0` (`jamoam` branchi fast-forward bilan main'ga; kontrakt `docs/SPEC-jamoam.md`). Migratsiya
