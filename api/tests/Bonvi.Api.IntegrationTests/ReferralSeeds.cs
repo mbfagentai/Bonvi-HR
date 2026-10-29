@@ -59,7 +59,7 @@ internal static class ReferralSeeds
     public static IReadOnlyList<ReferralChannelOptionDto> Options { get; } =
         [.. All.Select(channel => new ReferralChannelOptionDto(channel.Id, channel.Name, true, channel.AsksDetail))];
 
-    /// <summary>PDF'dagi «qayerdan bildingiz?» variantlari — <paramref name="chosen"/> ☒.</summary>
+    /// <summary>PDF'dagi «qayerdan bildingiz?» variantlari — <paramref name="chosen"/> ☑.</summary>
     public static IReadOnlyList<QuestionnairePdfChoice> PdfChoices(Guid? chosen)
         => [.. All.OrderBy(channel => channel.Name, StringComparer.Ordinal).Select(channel => new QuestionnairePdfChoice(channel.Name, channel.Id == chosen))];
 }

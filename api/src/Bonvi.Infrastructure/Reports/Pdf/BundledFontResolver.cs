@@ -15,7 +15,7 @@ namespace Bonvi.Infrastructure.Reports.Pdf;
 /// <para>
 /// <b>Liberation Sans</b> — Arial bilan metrikasi bir xil (blanka Arial'da
 /// terilgan), ya'ni qatorlar qog'ozdagidek sinadi. <b>DejaVu Sans</b> — faqat
-/// ☐ ☒ belgilari uchun: Liberation'da ular yo'q. Har qanday boshqa oila nomi
+/// ☐ ☑ belgilari uchun: Liberation'da ular yo'q. Har qanday boshqa oila nomi
 /// (Arial, Helvetica) Liberation Sans'ga tushadi — bo'sh kvadrat chizilgandan
 /// ko'ra yaqin shrift yaxshi.
 /// </para>
@@ -30,7 +30,7 @@ internal sealed class BundledFontResolver : IFontResolver
     /// <summary>Asosiy matn oilasi.</summary>
     public const string Sans = "Liberation Sans";
 
-    /// <summary>☐ ☒ belgilari uchun oila.</summary>
+    /// <summary>☐ ☑ belgilari uchun oila.</summary>
     public const string Symbols = "DejaVu Sans";
 
     private const string Regular = "LiberationSans-Regular";

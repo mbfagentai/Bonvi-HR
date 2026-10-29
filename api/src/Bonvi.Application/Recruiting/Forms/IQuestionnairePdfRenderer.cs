@@ -3,7 +3,7 @@ using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Application.Recruiting.Forms;
 
-/// <summary>Bitta variant — PDF'da «☒ Telegram» yoki «☐ OLX.uz».</summary>
+/// <summary>Bitta variant — PDF'da «☑ Telegram» yoki «☐ OLX.uz».</summary>
 /// <param name="Label">Variant matni.</param>
 /// <param name="Chosen">Nomzod shuni tanlaganmi.</param>
 public sealed record QuestionnairePdfChoice(string Label, bool Chosen)
@@ -14,7 +14,7 @@ public sealed record QuestionnairePdfChoice(string Label, bool Chosen)
     /// </summary>
     /// <remarks>
     /// Ro'yxat chizish PAYTIDAGI ma'lumotnomadan: HR keyin PDF'ni ochganda yangi qo'shilgan
-    /// kanal ☐ bo'lib chiqadi, tanlangani esa nomi o'zgargan bo'lsa ham ☒ — identifikator
+    /// kanal ☐ bo'lib chiqadi, tanlangani esa nomi o'zgargan bo'lsa ham ☑ — identifikator
     /// bo'yicha. Kanallar o'chirilmaydi (faqat faolsizlantiriladi), ya'ni tanlangan kanal
     /// doim topiladi.
     /// </remarks>

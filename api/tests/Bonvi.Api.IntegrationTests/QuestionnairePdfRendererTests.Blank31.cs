@@ -11,18 +11,18 @@ namespace Bonvi.Api.IntegrationTests;
 public sealed partial class QuestionnairePdfRendererTests
 {
     private const string StartChoicesTenDays =
-        "☐ Qabul qilingan kundan ☐ Qabul qilingandan 1 hafta keyin ☒ Qabul qilingandan 10 kun keyin ☐ Qabul qilingandan 15 kun keyin";
+        "☐ Qabul qilingan kundan ☐ Qabul qilingandan 1 hafta keyin ☑ Qabul qilingandan 10 kun keyin ☐ Qabul qilingandan 15 kun keyin";
 
     [Fact]
     public async Task Avval_ishlagan_ishga_chiqish_tanlovi_va_kredit_tolovi_chiziladi()
     {
         var matn = Matn(await _renderer.RenderAsync(Model(QuestionnaireSamples.Full(Bugun), photo: null, signature: null), TestContext.Current.CancellationToken));
 
-        matn.ShouldContain("5. MEHNAT FAOLIYATI Avval ishlaganmisiz? ☒ Ha ☐ Yo‘q", Case.Sensitive, "tanlov bo'lim boshida");
+        matn.ShouldContain("5. MEHNAT FAOLIYATI Avval ishlaganmisiz? ☑ Ha ☐ Yo‘q", Case.Sensitive, "tanlov bo'lim boshida");
         matn.ShouldContain("«Metan Gaz» MChJ");
         matn.ShouldContain("Karimov Anvar");
         matn.ShouldContain(StartChoicesTenDays, Case.Sensitive);
-        matn.ShouldContain("☐ Yo‘q ☒ Ha, oylik to‘lov: 1 200 000 so‘m", Case.Sensitive);
+        matn.ShouldContain("☐ Yo‘q ☑ Ha, oylik to‘lov: 1 200 000 so‘m", Case.Sensitive);
         matn.ShouldContain("Brak ulushini 3 oyda ikki baravar kamaytirdik.");
 
         matn.ShouldNotContain("Umumiy ish tajribangiz", Case.Sensitive, "3.1 da bu qator yo'q");
@@ -34,11 +34,11 @@ public sealed partial class QuestionnairePdfRendererTests
     {
         var matn = Matn(await _renderer.RenderAsync(Model(QuestionnaireSamples.Minimal(Bugun), photo: null, signature: null), TestContext.Current.CancellationToken));
 
-        matn.ShouldContain("Avval ishlaganmisiz? ☐ Ha ☒ Yo‘q", Case.Sensitive);
+        matn.ShouldContain("Avval ishlaganmisiz? ☐ Ha ☑ Yo‘q", Case.Sensitive);
         matn.ShouldContain(
-            "☒ Qabul qilingan kundan ☐ Qabul qilingandan 1 hafta keyin ☐ Qabul qilingandan 10 kun keyin ☐ Qabul qilingandan 15 kun keyin",
+            "☑ Qabul qilingan kundan ☐ Qabul qilingandan 1 hafta keyin ☐ Qabul qilingandan 10 kun keyin ☐ Qabul qilingandan 15 kun keyin",
             Case.Sensitive);
-        matn.ShouldContain("☒ Yo‘q ☐ Ha, oylik to‘lov: ________ so‘m", Case.Sensitive);
+        matn.ShouldContain("☑ Yo‘q ☐ Ha, oylik to‘lov: ________ so‘m", Case.Sensitive);
 
         // Jadvallar qog'ozdagidek bo'sh qatorlar bilan qoladi (ish joylari 4, tavsiya beruvchilar 2)
         matn.ShouldContain("Ishdan ketish sababi 1 2 3 4 6. TAVSIYA BERUVCHILAR", Case.Sensitive);

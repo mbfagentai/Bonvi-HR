@@ -15,7 +15,7 @@ public sealed partial class QuestionnairePdfRendererTests
         var pdf = await _renderer.RenderAsync(Model(javoblar, photo: null, signature: null), TestContext.Current.CancellationToken);
         var matn = Matn(pdf);
 
-        matn.ShouldContain("☒ Tanishlar orqali, kim/qaysi: Karimov Anvar (sex boshlig‘i)", Case.Sensitive);
+        matn.ShouldContain("☑ Tanishlar orqali, kim/qaysi: Karimov Anvar (sex boshlig‘i)", Case.Sensitive);
 
         foreach (var kanal in ReferralSeeds.All.Where(kanal => kanal.Id != ReferralSeeds.Acquaintance))
         {
@@ -31,7 +31,7 @@ public sealed partial class QuestionnairePdfRendererTests
     {
         var javoblar = QuestionnaireSamples.Minimal(Bugun);
 
-        // Chizish paytidagi ro'yxat: tanlangan kanal faolsizlantirilgan — u baribir ☒ bo'lib turadi
+        // Chizish paytidagi ro'yxat: tanlangan kanal faolsizlantirilgan — u baribir ☑ bo'lib turadi
         IReadOnlyList<QuestionnairePdfChoice> variantlar =
         [
             .. ReferralSeeds.PdfChoices(chosen: null),
@@ -45,7 +45,7 @@ public sealed partial class QuestionnairePdfRendererTests
 
         var matn = Matn(await _renderer.RenderAsync(model, TestContext.Current.CancellationToken));
 
-        matn.ShouldContain("☒ Gazeta", Case.Sensitive);
+        matn.ShouldContain("☑ Gazeta", Case.Sensitive);
         matn.ShouldContain("☐ Telegram", Case.Sensitive);
     }
 }

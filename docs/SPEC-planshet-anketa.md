@@ -343,7 +343,7 @@ documents like every other candidate file (the paper rule «ishga qabul qilinsa,
 
 Engine: **PDFsharp-MigraDoc 6.2.4** (MIT). Pin it: **6.5.0 and later are AGPL-3.0** — never upgrade past
 6.2.x without a licence decision. Fonts embedded as resources: Liberation Sans (Regular/Bold/Italic/BoldItalic,
-SIL OFL — metric-compatible with Arial, which the blank uses) and DejaVu Sans for the ☐ ☒ glyphs. Licence
+SIL OFL — metric-compatible with Arial, which the blank uses) and DejaVu Sans for the ☐ ☑ glyphs. Licence
 files go next to the fonts. Logo: the PNG from the docx (`word/media/…png`, MBF Company).
 
 Match the blank (A4, margins ≈ 1.5 cm):
@@ -358,8 +358,8 @@ Match the blank (A4, margins ≈ 1.5 cm):
 - Instruction line in gray italic. «A QISM  NOMZOD TOMONIDAN TO'LDIRILADI» navy bar with white bold text.
 - Sections 1–11 with the paper's tables: label cells filled `#F2F5F9` bold, table headers navy with white bold
   text, borders light gray, section titles navy bold uppercase, hints gray italic (`#6B7686`).
-- Choices print every option: ☒ for the chosen one, ☐ for the rest, exactly the paper's option texts.
-  Conditional extras inline («☒ O'tagan, muddati: 12 oy», «☒ Bor, toifasi: B, C»).
+- Choices print every option: ☑ for the chosen one, ☐ for the rest, exactly the paper's option texts.
+  Conditional extras inline («☑ O'tagan, muddati: 12 oy», «☑ Bor, toifasi: B, C»).
 - Section 5 starts with «Avval ishlaganmisiz?» ☐ Ha ☐ Yo‘q; the «Umumiy ish tajribangiz» row is gone (3.1).
   Section 8 question 5 prints the four `startAfter` choices one per line; a 3.0 form (no `startAfter`, a stored
   `availableFrom`) prints its date as before.
@@ -371,8 +371,8 @@ Match the blank (A4, margins ≈ 1.5 cm):
 - Section 11: the full consent text with the candidate's full name filled in, «Sana: 24.10.2026», and the
   drawn signature image on the «Imzo» line. Under it a small gray provenance line:
   «Onlayn to'ldirildi: 24.10.2026 14:41 · Til: uz-Latn».
-- B part (12–14) printed as the blank has it, empty, with two ticks pre-set: «Rasm (3 × 4)» ☒ (izoh
-  «Onlayn olingan») and «Imzolangan anketa (A qism)» ☒ (izoh «Onlayn imzolangan»).
+- B part (12–14) printed as the blank has it, empty, with two ticks pre-set: «Rasm (3 × 4)» ☑ (izoh
+  «Onlayn olingan») and «Imzolangan anketa (A qism)» ☑ (izoh «Onlayn imzolangan»).
 - Final gray line «Saqlash: …» as on the blank.
 - Labels are always Uzbek Latin (the company blank). Answers are printed as typed.
 

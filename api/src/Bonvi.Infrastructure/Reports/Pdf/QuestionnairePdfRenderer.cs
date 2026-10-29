@@ -23,7 +23,7 @@ namespace Bonvi.Infrastructure.Reports.Pdf;
 /// ko'rmasin: ikkalasi ham bitta yig'majildga tushadi.
 /// </para>
 /// <para>
-/// Barcha variantlar chiziladi: tanlangani ☒, qolgani ☐ — qog'ozda nomzod
+/// Barcha variantlar chiziladi: tanlangani ☑, qolgani ☐ — qog'ozda nomzod
 /// shunday belgilaydi. Jadvallar kamida qog'ozdagi qatorlar soni bilan
 /// chiziladi va javob ko'p bo'lsa o'sadi.
 /// </para>
@@ -40,8 +40,9 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
     private static readonly Color Muted = new(0x6B, 0x76, 0x86);
     private static readonly Color Rule = new(0xAE, 0xB8, 0xC6);
     private static readonly Color Ink = new(0x1A, 0x1F, 0x2B);
+    private static readonly Color Tick = new(0x1E, 0x8E, 0x3E);
 
-    private const string Checked = "☒";
+    private const string Checked = "☑";
     private const string Unchecked = "☐";
     private const string Blank = "__________";
 
@@ -1127,7 +1128,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             answer(row.Cells[2]);
         }
 
-        /// <summary>Variantlar: har ichki ro'yxat — bitta qator, tanlangan ☒.</summary>
+        /// <summary>Variantlar: har ichki ro'yxat — bitta qator, tanlangan ☑.</summary>
         private static void Choices(Cell cell, (string Label, bool Chosen)[][] lines)
         {
             var paragraph = cell.AddParagraph();
@@ -1169,7 +1170,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
         /// <summary>
         /// «Qayerdan bildingiz?» variantlari — «Qayerdan bilgan» ma'lumotnomasidan
-        /// (SPEC-qayerdan-bilgan §5): hammasi ☐/☒, tanlanganidan keyin «, kim/qaysi: …».
+        /// (SPEC-qayerdan-bilgan §5): hammasi ☐/☑, tanlanganidan keyin «, kim/qaysi: …».
         /// </summary>
         /// <remarks>
         /// Ro'yxat qog'ozdagidek qat'iy emas (HR kanal qo'shadi), shu sababli qatorlarga
@@ -1222,6 +1223,12 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             var box = paragraph.AddFormattedText(chosen ? Checked : Unchecked);
             box.Font.Name = BundledFontResolver.Symbols;
             box.Font.Bold = false;
+
+            // Tanlangani yashil ☑ (egasi, 2026-10-29: ☑ «g'alati ko'rinadi», ✅ ga o'xshasin)
+            if (chosen)
+            {
+                box.Font.Color = Tick;
+            }
         }
 
         private void Title(string text)

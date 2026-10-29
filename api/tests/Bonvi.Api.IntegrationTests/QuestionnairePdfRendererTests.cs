@@ -161,7 +161,7 @@ public sealed partial class QuestionnairePdfRendererTests
     /// Testga yetarli soddalashtirish, umumiy PDF o'quvchi emas. MigraDoc har so'zni alohida
     /// <c>Tj</c> bilan chizadi (chiziqchadan keyin ham bo'ladi: «HR-» «F02» — ular qayta
     /// qo'shiladi). WinAnsi shriftidagi satr — Windows-1252 baytlari; Identity-H (<c>Type0</c>)
-    /// shriftida (kirill, №, ☐ ☒) — ikki baytli glif raqamlari, ular shriftning
+    /// shriftida (kirill, №, ☐ ☑) — ikki baytli glif raqamlari, ular shriftning
     /// <c>/ToUnicode</c> jadvali orqali harfga aylanadi. API testlari ham HR yuklagan PDF'ni shu bilan o'qiydi.
     /// </remarks>
     internal static string Matn(byte[] pdf) => string.Join(' ', Sahifalar(pdf));
