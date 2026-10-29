@@ -245,10 +245,12 @@ Akasi / ukasi, Opasi / singlisi, Farzandi, Boshqa). `birthYear` 1920–today's y
 - `relativesConviction?`; `relativesConvictionDetail?` only when `true` (the paper has «Ha: ____»)
 - `abroadTrips?` (long)
 
-**10. About you** — long texts. Required: `motivation, whyUs, strengths, weaknesses`, and (3.1, «Muvaffaqiyat va
-g'oyalar») `motivators, successDefinition`. `lastJobAchievement, bestIdea` — required when
-`hasWorkExperience = true`, dropped when `false`. Optional: `biggestChallenge, stressHandling, unfairnessToYou,
-unfairnessToCompany, teamwork, previousTeamOpinion, studentWorkExperience, fiveYearPlan, extraNote`.
+**10. About you** — long texts. Since 2026-10-29 (owner: candidates left them blank or typed «.») **every**
+question is required and an answer needs at least 2 letters (`MinAnswerLetters`; «Ha» passes, «.», «-», «5» do
+not) — a letterless answer is `anketa.majburiy` at that field, so a page left open from before still shows it.
+`lastJobAchievement, bestIdea, previousTeamOpinion` — asked and required only when `hasWorkExperience = true`,
+dropped when `false`. A 3.0 page keeps its own rules: the first four required (no letter rule), the rest
+optional.
 
 **11. Consent** — `consentAccuracy, consentPersonalData, consentReferenceCheck, consentNotifyChanges,
 consentConfidentiality` must all be `true`. `signatureName` (required) must contain both `lastName` and

@@ -358,6 +358,7 @@ public sealed class QuestionnaireFormValidatorTests
             References = [new FormReference(" ", null, "abc")],
             LastJobAchievement = "Qoralamada qolgan matn",
             BestIdea = new string('x', 1001),
+            PreviousTeamOpinion = "Qoralamadagi jamoa",
         }, Bugun, Kanallar);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
@@ -368,12 +369,14 @@ public sealed class QuestionnaireFormValidatorTests
         a.References.ShouldBeEmpty();
         a.LastJobAchievement.ShouldBeNull();
         a.BestIdea.ShouldBeNull();
+        a.PreviousTeamOpinion.ShouldBeNull();
         a.Motivators.ShouldBe("Adolatli baholash", "rag'bat va muvaffaqiyat ta'rifi — hammaga");
         a.SuccessDefinition.ShouldBe("Ishni vaqtida bajarish");
 
         var saqlanadi = QuestionnaireFormJson.Write(a);
         saqlanadi.ShouldNotContain("MBF");
         saqlanadi.ShouldNotContain("Qoralamada qolgan matn");
+        saqlanadi.ShouldNotContain("Qoralamadagi jamoa");
         saqlanadi.ShouldNotContain("\"lastJobAchievement\"", Case.Sensitive);
         saqlanadi.ShouldNotContain("\"bestIdea\"", Case.Sensitive);
         saqlanadi.ShouldContain("\"hasWorkExperience\":false", Case.Sensitive);
@@ -389,9 +392,27 @@ public sealed class QuestionnaireFormValidatorTests
             References = null,
             LastJobAchievement = null,
             BestIdea = null,
+            PreviousTeamOpinion = null,
         }, Bugun, Kanallar);
 
         natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.ToString() : null);
+    }
+
+    /// <summary>
+    /// «O'zingiz haqingizda»: qisqa, lekin so'z bilan yozilgan javob o'tadi (kirill ham, tutuq belgisi
+    /// bilan ham); faqat belgi yoki raqam — javob emas (alohida holatlar xatolar jadvalida).
+    /// </summary>
+    [Theory]
+    [InlineData("Ha")]
+    [InlineData("Йўқ")]
+    [InlineData("yo‘q")]
+    [InlineData("5 yildan keyin — usta")]
+    public void Qisqa_soz_bilan_javob_otadi(string javob)
+    {
+        var natija = QuestionnaireFormValidator.Validate(Toliq() with { Teamwork = javob, Weaknesses = javob }, Bugun, Kanallar);
+
+        natija.IsSuccess.ShouldBeTrue(natija.IsFailure ? natija.Error.Code + " @ " + natija.Error.Details["field"] : null);
+        natija.Value.Teamwork.ShouldBe(javob);
     }
 
     [Theory]
@@ -553,6 +574,20 @@ public sealed class QuestionnaireFormValidatorTests
         { "ishlagan, oxirgi ishdagi yutuq yo'q", Toliq() with { LastJobAchievement = null }, "anketa.majburiy", "lastJobAchievement" },
         { "ishlagan, foydali g'oya yo'q", Toliq() with { BestIdea = "" }, "anketa.majburiy", "bestIdea" },
         { "ishlagan, foydali g'oya uzun", Toliq() with { BestIdea = new string('x', 1001) }, "anketa.uzun", "bestIdea" },
+        { "zaif tomoni nuqta", Toliq() with { Weaknesses = "." }, "anketa.majburiy", "weaknesses" },
+        { "rag'bat — tire va bo'shliq", Toliq() with { Motivators = " - " }, "anketa.majburiy", "motivators" },
+        { "bitta harf", Toliq() with { SuccessDefinition = "x." }, "anketa.majburiy", "successDefinition" },
+        { "faqat raqam", Toliq() with { FiveYearPlan = "5" }, "anketa.majburiy", "fiveYearPlan" },
+        { "qiyinchilik yo'q", Toliq() with { BiggestChallenge = null }, "anketa.majburiy", "biggestChallenge" },
+        { "stress yo'q", Toliq() with { StressHandling = "" }, "anketa.majburiy", "stressHandling" },
+        { "nohaqlik (o'ziga) yo'q", Toliq() with { UnfairnessToYou = null }, "anketa.majburiy", "unfairnessToYou" },
+        { "nohaqlik (korxonaga) yo'q", Toliq() with { UnfairnessToCompany = null }, "anketa.majburiy", "unfairnessToCompany" },
+        { "jamoa yo'q", Toliq() with { Teamwork = "..." }, "anketa.majburiy", "teamwork" },
+        { "ishlagan, avvalgi jamoa haqida yo'q", Toliq() with { PreviousTeamOpinion = null }, "anketa.majburiy", "previousTeamOpinion" },
+        { "o'qish davrida ish yo'q", Toliq() with { StudentWorkExperience = null }, "anketa.majburiy", "studentWorkExperience" },
+        { "5 yil yo'q", Toliq() with { FiveYearPlan = null }, "anketa.majburiy", "fiveYearPlan" },
+        { "qo'shimcha ma'lumot yo'q", Toliq() with { ExtraNote = " " }, "anketa.majburiy", "extraNote" },
+        { "qo'shimcha ma'lumot uzun", Toliq() with { ExtraNote = new string('x', 2001) }, "anketa.uzun", "extraNote" },
         { "rozilik yo'q", Toliq() with { ConsentConfidentiality = false }, "anketa.rozilik", "consentConfidentiality" },
         { "imzo ismi yo'q", Toliq() with { SignatureName = null }, "anketa.majburiy", "signatureName" },
         { "imzo boshqa odam", Toliq() with { SignatureName = "Karimov Aziz" }, "anketa.imzo_ism", "signatureName" },
@@ -762,6 +797,15 @@ public sealed class QuestionnaireFormValidatorTests
         SuccessDefinition = "Ishni vaqtida bajarish",
         LastJobAchievement = "Brak ulushini kamaytirdik",
         BestIdea = "Tekshiruv shabloni",
+        BiggestChallenge = "Muddatli buyurtma",
+        StressHandling = "Tinch",
+        UnfairnessToYou = "Rahbar bilan gaplashaman",
+        UnfairnessToCompany = "Xabar beraman",
+        Teamwork = "Ha",
+        PreviousTeamOpinion = "Yaxshi jamoa",
+        StudentWorkExperience = "Yo‘q",
+        FiveYearPlan = "Usta",
+        ExtraNote = "Yo‘q",
         ConsentAccuracy = true,
         ConsentPersonalData = true,
         ConsentReferenceCheck = true,

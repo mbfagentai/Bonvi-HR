@@ -28,8 +28,7 @@ export function AboutScreen({
           path={`about.${key}`}
           label={`${ABOUT_QUESTIONS.indexOf(key) + 1}. ${t(`kiosk.about.q.${key}`)}`}
           required={REQUIRED_ABOUT.includes(key)}
-          // Optional questions start smaller so a screen of them stays short on a phone; the box grows by hand.
-          rows={REQUIRED_ABOUT.includes(key) ? 3 : 2}
+          rows={3}
           value={draft.about[key]}
           maxLength={key === 'extraNote' ? LIMITS.extraNote : LIMITS.long}
           onChange={(value) => patch({ about: { ...draft.about, [key]: value } })}

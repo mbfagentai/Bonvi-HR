@@ -52,6 +52,9 @@ public static class QuestionnaireFormValidator
     /// <summary>«Qo'shimcha ma'lumot» — egasining ro'yxatida alohida chegara.</summary>
     public const int MaxExtraNoteLength = 2000;
 
+    /// <summary>«O'zingiz haqingizda» javobidagi eng kam harf soni («Ha» o'tadi, «.» o'tmaydi).</summary>
+    public const int MinAnswerLetters = 2;
+
     /// <summary>Pul summasining yuqori chegarasi (so'm).</summary>
     public const long MaxMoney = 1_000_000_000;
 
@@ -511,32 +514,40 @@ public static class QuestionnaireFormValidator
             var abroad = Optional(a.AbroadTrips, "abroadTrips", MaxLongLength);
 
             // ── 10. O'zingiz haqingizda ──
-            var motivation = Required(a.Motivation, "motivation", MaxLongLength);
-            var whyUs = Required(a.WhyUs, "whyUs", MaxLongLength);
-            var strengths = Required(a.Strengths, "strengths", MaxLongLength);
-            var weaknesses = Required(a.Weaknesses, "weaknesses", MaxLongLength);
+            // 2026-10-29 (egasi): HAMMA savol majburiy va javobda harf bo'lishi shart — nomzodlar
+            // bo'sh qoldirib yoki «.» yozib o'tib ketardi (Answer). Avvalgi ish haqidagi uchtasi — faqat
+            // avval ishlaganga (ishlamaganda kelgan matn saqlanmaydi, 5-bo'limdagi qoida).
+            // 3.0 sahifadan kelganda — avvalgi qoidalar: birinchi to'rttasi majburiy, qolgani ixtiyoriy.
+            string? Open(string? value, string path, int limit = MaxLongLength)
+                => legacy ? Optional(value, path, limit) : Answer(value, path, limit);
 
-            // «Muvaffaqiyat va g'oyalar» (3.1): ikkisi hammaga majburiy, ishga oid ikkisi — faqat
-            // avval ishlaganga (ishlamaganda kelgan matn saqlanmaydi, 5-bo'limdagi qoida)
-            // 3.0 sahifadan kelganda — to'rttasi ham avvalgidek ixtiyoriy
-            var motivators = legacy
-                ? Optional(a.Motivators, "motivators", MaxLongLength)
-                : Required(a.Motivators, "motivators", MaxLongLength);
-            var successDefinition = legacy
-                ? Optional(a.SuccessDefinition, "successDefinition", MaxLongLength)
-                : Required(a.SuccessDefinition, "successDefinition", MaxLongLength);
-            var lastJobAchievement = hasWorkExperience switch
+            string? AboutWork(string? value, string path) => hasWorkExperience switch
             {
-                true => Required(a.LastJobAchievement, "lastJobAchievement", MaxLongLength),
-                null => Optional(a.LastJobAchievement, "lastJobAchievement", MaxLongLength),
+                true => Answer(value, path, MaxLongLength),
+                null => Optional(value, path, MaxLongLength),
                 false => null,
             };
-            var bestIdea = hasWorkExperience switch
-            {
-                true => Required(a.BestIdea, "bestIdea", MaxLongLength),
-                null => Optional(a.BestIdea, "bestIdea", MaxLongLength),
-                false => null,
-            };
+
+            string First(string? value, string path)
+                => legacy ? Required(value, path, MaxLongLength) : Answer(value, path, MaxLongLength);
+
+            var motivation = First(a.Motivation, "motivation");
+            var whyUs = First(a.WhyUs, "whyUs");
+            var strengths = First(a.Strengths, "strengths");
+            var weaknesses = First(a.Weaknesses, "weaknesses");
+            var motivators = Open(a.Motivators, "motivators");
+            var successDefinition = Open(a.SuccessDefinition, "successDefinition");
+            var lastJobAchievement = AboutWork(a.LastJobAchievement, "lastJobAchievement");
+            var bestIdea = AboutWork(a.BestIdea, "bestIdea");
+            var biggestChallenge = Open(a.BiggestChallenge, "biggestChallenge");
+            var stressHandling = Open(a.StressHandling, "stressHandling");
+            var unfairnessToYou = Open(a.UnfairnessToYou, "unfairnessToYou");
+            var unfairnessToCompany = Open(a.UnfairnessToCompany, "unfairnessToCompany");
+            var teamwork = Open(a.Teamwork, "teamwork");
+            var previousTeamOpinion = AboutWork(a.PreviousTeamOpinion, "previousTeamOpinion");
+            var studentWorkExperience = Open(a.StudentWorkExperience, "studentWorkExperience");
+            var fiveYearPlan = Open(a.FiveYearPlan, "fiveYearPlan");
+            var extraNote = Open(a.ExtraNote, "extraNote", MaxExtraNoteLength);
 
             // ── 11. Tilxat ──
             Consent(a.ConsentAccuracy, "consentAccuracy");
@@ -617,15 +628,15 @@ public static class QuestionnaireFormValidator
                 SuccessDefinition = successDefinition,
                 LastJobAchievement = lastJobAchievement,
                 BestIdea = bestIdea,
-                BiggestChallenge = Optional(a.BiggestChallenge, "biggestChallenge", MaxLongLength),
-                StressHandling = Optional(a.StressHandling, "stressHandling", MaxLongLength),
-                UnfairnessToYou = Optional(a.UnfairnessToYou, "unfairnessToYou", MaxLongLength),
-                UnfairnessToCompany = Optional(a.UnfairnessToCompany, "unfairnessToCompany", MaxLongLength),
-                Teamwork = Optional(a.Teamwork, "teamwork", MaxLongLength),
-                PreviousTeamOpinion = Optional(a.PreviousTeamOpinion, "previousTeamOpinion", MaxLongLength),
-                StudentWorkExperience = Optional(a.StudentWorkExperience, "studentWorkExperience", MaxLongLength),
-                FiveYearPlan = Optional(a.FiveYearPlan, "fiveYearPlan", MaxLongLength),
-                ExtraNote = Optional(a.ExtraNote, "extraNote", MaxExtraNoteLength),
+                BiggestChallenge = biggestChallenge,
+                StressHandling = stressHandling,
+                UnfairnessToYou = unfairnessToYou,
+                UnfairnessToCompany = unfairnessToCompany,
+                Teamwork = teamwork,
+                PreviousTeamOpinion = previousTeamOpinion,
+                StudentWorkExperience = studentWorkExperience,
+                FiveYearPlan = fiveYearPlan,
+                ExtraNote = extraNote,
                 SignatureName = signature,
             };
         }
@@ -701,6 +712,23 @@ public static class QuestionnaireFormValidator
             }
 
             return text!;
+        }
+
+        /// <summary>
+        /// «O'zingiz haqingizda» javobi: majburiy va kamida <see cref="MinAnswerLetters"/> ta harf —
+        /// «.», «-» yoki «1» javob emas (nomzodlar shunday yozib o'tib ketardi, 2026-10-29). Kod —
+        /// «majburiy»: yangilanmagan ochiq sahifa ham uni taniydi va savolni ochib beradi.
+        /// </summary>
+        private static string Answer(string? value, string path, int limit)
+        {
+            var text = Required(value, path, limit);
+
+            if (text.Count(char.IsLetter) < MinAnswerLetters)
+            {
+                Missing(path);
+            }
+
+            return text;
         }
 
         private static void Consent(bool? value, string path)

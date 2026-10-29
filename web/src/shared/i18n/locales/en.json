@@ -3167,7 +3167,8 @@
       "signatureName": "The name must match the surname and first name above",
       "signature": "Please sign",
       "photo": "Take a photo",
-      "vacancy": "Choose a position"
+      "vacancy": "Choose a position",
+      "answer": "Write your answer in words"
     },
     "screen": {
       "vacancy": "Vacancy and photo",
@@ -3381,7 +3382,7 @@
       "other": "Other"
     },
     "about": {
-      "hint": "Answer briefly and honestly. There are no right or wrong answers. Questions marked * are required.",
+      "hint": "Answer briefly and honestly. There are no right or wrong answers. Please answer every question.",
       "q": {
         "motivation": "Why do you work? What drives you to work?",
         "whyUs": "Why did you choose our company?",

@@ -14,6 +14,7 @@ import {
   CONSENTS,
   DRIVER_LICENSE_CATEGORIES,
   FIXED_LANGUAGES,
+  MIN_ANSWER_LETTERS,
   REQUIRED_ABOUT,
   SCREEN_FIELDS,
   WIZARD_SCREENS,
@@ -424,6 +425,7 @@ export const KIOSK_ERROR_CODES = [
   'signature',
   'photo',
   'vacancy',
+  'answer',
 ] as const
 export type KioskErrorCode = (typeof KIOSK_ERROR_CODES)[number]
 
@@ -457,6 +459,12 @@ class Collector {
     const text = value.trim()
     if (text === '') this.add(path, 'required')
     else this.max(path, text, limit)
+  }
+
+  /** An open question: required, and «.» or «-» is not an answer. */
+  answer(path: string, value: string, limit: number): void {
+    this.required(path, value, limit)
+    if (value.trim() !== '' && (value.match(/\p{L}/gu)?.length ?? 0) < MIN_ANSWER_LETTERS) this.add(path, 'answer')
   }
 
   max(path: string, value: string, limit: number): void {
@@ -749,7 +757,7 @@ export function validateAll(draft: KioskDraft, context: ValidationContext): Fiel
     if (!isAboutAsked(key, draft.hasWorkExperience)) continue
 
     const limit = key === 'extraNote' ? LIMITS.extraNote : LIMITS.long
-    if (REQUIRED_ABOUT.includes(key)) check.required(`about.${key}`, draft.about[key], limit)
+    if (REQUIRED_ABOUT.includes(key)) check.answer(`about.${key}`, draft.about[key], limit)
     else check.max(`about.${key}`, draft.about[key], limit)
   }
 
@@ -978,7 +986,7 @@ export function toAnswers(draft: KioskDraft, context: Pick<ValidationContext, 'r
     unfairnessToYou: about.unfairnessToYou,
     unfairnessToCompany: about.unfairnessToCompany,
     teamwork: about.teamwork,
-    previousTeamOpinion: about.previousTeamOpinion,
+    previousTeamOpinion: worked ? about.previousTeamOpinion : undefined,
     studentWorkExperience: about.studentWorkExperience,
     fiveYearPlan: about.fiveYearPlan,
     extraNote: about.extraNote,

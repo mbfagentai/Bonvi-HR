@@ -130,7 +130,8 @@ internal static class QuestionnaireSamples
     };
 
     /// <summary>
-    /// Faqat majburiy maydonlar — PDF bo'sh kataklari qog'ozdagidek qolsin. Harbiy xizmat
+    /// Faqat majburiy maydonlar — PDF bo'sh kataklari qog'ozdagidek qolsin (10-bo'lim 2026-10-29 dan
+    /// butunlay majburiy, faqat avvalgi ish haqidagi uchtasi so'ralmaydi). Harbiy xizmat
     /// ham yo'q (2026-10-26 dan hammaga ixtiyoriy). Avval ishlamagan (3.1): ish joyi, tavsiya
     /// beruvchi va ishga oid ikki savol so'ralmaydi.
     /// </summary>
@@ -166,6 +167,14 @@ internal static class QuestionnaireSamples
         Weaknesses = "Тажрибам кам.",
         Motivators = "Яхши жамоа.",
         SuccessDefinition = "Ишни вақтида бажариш.",
+        BiggestChallenge = "Имтиҳонга тайёрланиш.",
+        StressHandling = "Тинчланиб оламан.",
+        UnfairnessToYou = "Раҳбарга айтаман.",
+        UnfairnessToCompany = "Хабар бераман.",
+        Teamwork = "Ҳа.",
+        StudentWorkExperience = "Йўқ.",
+        FiveYearPlan = "Мутахассис бўлиб.",
+        ExtraNote = "Йўқ.",
         ConsentAccuracy = true,
         ConsentPersonalData = true,
         ConsentReferenceCheck = true,

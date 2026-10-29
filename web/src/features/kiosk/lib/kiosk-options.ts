@@ -112,25 +112,20 @@ export const ABOUT_QUESTIONS = [
 export type AboutQuestion = (typeof ABOUT_QUESTIONS)[number]
 
 /**
- * Required whenever the question is shown — the first four and, since form
- * v3.1 (2026-10-27), the whole «Muvaffaqiyat va g'oyalar» screen.
+ * Required whenever the question is shown — every one since 2026-10-29
+ * (owner: candidates left them blank or typed «.»). An answer needs letters,
+ * see `MIN_ANSWER_LETTERS`.
  */
-export const REQUIRED_ABOUT: readonly AboutQuestion[] = [
-  'motivation',
-  'whyUs',
-  'strengths',
-  'weaknesses',
-  'motivators',
-  'successDefinition',
-  'lastJobAchievement',
-  'bestIdea',
-]
+export const REQUIRED_ABOUT: readonly AboutQuestion[] = ABOUT_QUESTIONS
+
+/** Letters an «O'zingiz haqingizda» answer needs — «Ha» passes, «.» does not (server: `MinAnswerLetters`). */
+export const MIN_ANSWER_LETTERS = 2
 
 /**
  * About a previous job: neither shown nor sent when the candidate answered
  * «Avval biror joyda ishlaganmisiz?» with «Yo'q».
  */
-export const WORK_ONLY_ABOUT: readonly AboutQuestion[] = ['lastJobAchievement', 'bestIdea']
+export const WORK_ONLY_ABOUT: readonly AboutQuestion[] = ['lastJobAchievement', 'bestIdea', 'previousTeamOpinion']
 
 /** Section 11 — every consent must be ticked. */
 export const CONSENTS = [

@@ -3167,7 +3167,8 @@
       "signatureName": "Familiya va ismingiz anketadagidek bo‘lishi kerak",
       "signature": "Imzo qo‘ying",
       "photo": "Rasmga tushing",
-      "vacancy": "Lavozimni tanlang"
+      "vacancy": "Lavozimni tanlang",
+      "answer": "Javobni so‘z bilan yozing"
     },
     "screen": {
       "vacancy": "Vakansiya va rasm",
@@ -3381,7 +3382,7 @@
       "other": "Boshqa"
     },
     "about": {
-      "hint": "Qisqa va samimiy javob bering. To‘g‘ri yoki noto‘g‘ri javob yo‘q. * belgili savollar majburiy.",
+      "hint": "Qisqa va samimiy javob bering. To‘g‘ri yoki noto‘g‘ri javob yo‘q. Hamma savolga javob bering.",
       "q": {
         "motivation": "Nima uchun ishlaysiz? Sizni ishlashga nima undaydi?",
         "whyUs": "Nima uchun aynan bizning korxonani tanladingiz?",
