@@ -618,3 +618,46 @@ public sealed record CandidatePhoneMatchDto(
     CandidateStatus Status,
     string? VacancyTitle,
     DateTimeOffset CreatedAt);
+
+/// <summary>
+/// Bo'lim boshlig'ining vakansiya so'rovi — «Vakansiya so'rovlari» ro'yxatining qatori.
+/// </summary>
+/// <param name="Id">So'rov.</param>
+/// <param name="DepartmentId">Bo'lim.</param>
+/// <param name="DepartmentName">Bo'lim nomi.</param>
+/// <param name="DepartmentPath">Bo'limning to'liq yo'li (ota bo'limlar bilan).</param>
+/// <param name="RequestedByEmployeeId">So'rovchi boshliq.</param>
+/// <param name="RequestedByName">So'rovchining F.I.Sh.</param>
+/// <param name="Title">Lavozim.</param>
+/// <param name="Openings">Nechta odam.</param>
+/// <param name="NeededBy">Qachondan kerak.</param>
+/// <param name="Note">Sabab va talablar.</param>
+/// <param name="Status">Holat.</param>
+/// <param name="CreatedAt">Yuborilgan lahza.</param>
+/// <param name="DecidedAt">HR qarori lahzasi.</param>
+/// <param name="DecidedByName">Qaror qilgan HR.</param>
+/// <param name="DecisionNote">Rad etish sababi.</param>
+/// <param name="VacancyId">Ochilgan vakansiya.</param>
+/// <param name="VacancyTitle">Ochilgan vakansiya nomi.</param>
+/// <param name="CandidateCount">Ochilgan vakansiyadagi nomzodlar.</param>
+/// <param name="HiredCount">Ulardan ishga olinganlar.</param>
+public sealed record VacancyRequestDto(
+    Guid Id,
+    Guid DepartmentId,
+    string DepartmentName,
+    string? DepartmentPath,
+    Guid RequestedByEmployeeId,
+    string RequestedByName,
+    string Title,
+    int Openings,
+    DateOnly? NeededBy,
+    string? Note,
+    VacancyRequestStatus Status,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? DecidedAt,
+    string? DecidedByName,
+    string? DecisionNote,
+    Guid? VacancyId,
+    string? VacancyTitle,
+    int CandidateCount,
+    int HiredCount);

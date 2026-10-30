@@ -321,10 +321,12 @@ public static class DependencyInjection
     {
         services.AddScoped<IPipelineStageRepository, PipelineStageRepository>();
         services.AddScoped<IVacancyRepository, VacancyRepository>();
+        services.AddScoped<IVacancyRequestRepository, VacancyRequestRepository>();
         services.AddScoped<ICandidateRepository, CandidateRepository>();
         services.AddScoped<ICandidateFormRepository, CandidateFormRepository>();
 
         services.AddScoped<IRecruitingReadModel, RecruitingReadModel>();
+        services.AddScoped<IVacancyRequestReadModel, VacancyRequestReadModel>();
 
         return services;
     }

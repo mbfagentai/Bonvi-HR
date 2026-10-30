@@ -39,6 +39,7 @@
     "systemSettings": "Tizim sozlamalari",
     "recruiting": "Rekruting",
     "vacancies": "Vakansiyalar",
+    "vacancyRequests": "Vakansiya so‘rovlari",
     "candidates": "Nomzodlar",
     "rejectedCandidates": "Rad etilganlar",
     "verification": "Verifikatsiya",
@@ -1103,7 +1104,20 @@
     "jamoa.boshliq_emas": "Xodim hech qaysi bo‘limning boshlig‘i emas — jamoa paneli yopiq.",
     "jamoa.xodim_topilmadi": "Xodim boshliq jamoasida topilmadi.",
     "jamoa.bolim_topilmadi": "Bo‘lim boshliq jamoasida topilmadi.",
-    "jamoa.sana_notogri": "Sana noto‘g‘ri: 2000-01-01 dan bugungacha bo‘lishi kerak."
+    "jamoa.sana_notogri": "Sana noto‘g‘ri: 2000-01-01 dan bugungacha bo‘lishi kerak.",
+    "vakansiya_sorovi.topilmadi": "Vakansiya so‘rovi topilmadi.",
+    "vakansiya_sorovi.bolim_kerak": "Bo‘limni tanlang.",
+    "vakansiya_sorovi.bolim_topilmadi": "Bo‘lim topilmadi.",
+    "vakansiya_sorovi.boshliq_yoq": "Bu bo‘limda boshliq belgilanmagan — so‘ragan xodimni tanlang.",
+    "vakansiya_sorovi.boshliq_topilmadi": "So‘ragan xodim topilmadi.",
+    "vakansiya_sorovi.nom_kerak": "Lavozimni yozing.",
+    "vakansiya_sorovi.nom_uzun": "Lavozim nomi juda uzun.",
+    "vakansiya_sorovi.soni_notogri": "Odamlar soni 1 dan 100 gacha bo‘lishi kerak.",
+    "vakansiya_sorovi.izoh_uzun": "Izoh juda uzun.",
+    "vakansiya_sorovi.sabab_kerak": "Rad etish sababini yozing.",
+    "vakansiya_sorovi.qaror_qilingan": "Bu so‘rov bo‘yicha qaror allaqachon qabul qilingan.",
+    "vakansiya_sorovi.holat_notogri": "So‘rov holati noto‘g‘ri.",
+    "vakansiya_sorovi.vakansiya_yoq": "Ochilgan vakansiya ko‘rsatilmagan."
   },
   "language": {
     "en": "English",
@@ -1699,6 +1713,7 @@
       "Incident": "Baxtsiz hodisa",
       "PipelineStage": "Voronka bosqichi",
       "Vacancy": "Vakansiya",
+      "VacancyRequest": "Vakansiya so‘rovi",
       "Candidate": "Nomzod",
       "CandidateStageEntry": "Bosqich yozuvi",
       "CandidateNote": "Nomzod izohi",
@@ -1901,6 +1916,10 @@
       "UpdateVacancy": "Vakansiyani tahrirlash",
       "ReopenVacancy": "Vakansiyani qayta ochish",
       "CloseVacancy": "Vakansiyani yopish",
+      "CreateVacancyRequest": "Vakansiya so‘rovini kiritish",
+      "ApproveVacancyRequest": "So‘rov bo‘yicha vakansiya ochish",
+      "RejectVacancyRequest": "Vakansiya so‘rovini rad etish",
+      "CancelVacancyRequest": "Vakansiya so‘rovini bekor qilish",
       "DeleteVacancy": "Vakansiyani o‘chirish",
       "CreatePipelineStage": "Voronka bosqichini qo‘shish",
       "UpdatePipelineStage": "Voronka bosqichini tahrirlash",
@@ -1966,6 +1985,7 @@
       "ExportIncentivesToExcel": "Rag‘bat va jarimani Excelga yuklash",
       "ExportCandidatesToExcel": "Nomzodlarni Excelga yuklash",
       "ExportVacanciesToExcel": "Vakansiyalarni Excelga yuklash",
+      "ExportVacancyRequestsToExcel": "Vakansiya so‘rovlarini Excelga yuklash",
       "ExportProbationsToExcel": "Sinov muddatlarini Excelga yuklash",
       "ExportEmploymentEventsToExcel": "Buyruqlarni Excelga yuklash",
       "ExportFlaggedEmployeesToExcel": "Belgilar ro‘yxatini Excelga yuklash",
@@ -2330,6 +2350,51 @@
     },
     "questionnaireHintOnlineForm": "Nomzod onlayn anketada (HR-F02) bergan javoblardan",
     "consentGivenOnlineForm": "Shaxsga doir ma’lumotlarni ishlashga rozilik (onlayn anketada): {{date}}"
+  },
+  "vacancyRequests": {
+    "title": "Vakansiya so‘rovlari",
+    "subtitle": "{{n}} ta so‘rov",
+    "create": "Yangi so‘rov",
+    "createTitle": "Yangi vakansiya so‘rovi",
+    "createText": "Bo‘lim boshlig‘i kimni so‘rayotganini yozing — HR ko‘rib chiqib vakansiya ochadi.",
+    "chooseDepartment": "Bo‘limni tanlang",
+    "requestedBy": "So‘ragan",
+    "requestedByHint": "Tanlanmasa — bo‘lim boshlig‘i yoziladi.",
+    "position": "Lavozim",
+    "positionPlaceholder": "Masalan: Payvandchi",
+    "openings": "Nechta odam",
+    "neededBy": "Qachondan kerak",
+    "note": "Izoh",
+    "notePlaceholder": "Sabab va talablar: tajriba, smena, ko‘nikmalar…",
+    "status": "Holati",
+    "createdAt": "Yuborilgan",
+    "decidedAt": "Qaror",
+    "rejectReason": "Rad etish sababi",
+    "rejectReasonHint": "Sabab bo‘lim boshlig‘iga aytiladi.",
+    "vacancy": "Ochilgan vakansiya",
+    "vacancyProgress": "nomzodlar: {{candidates}}, ishga olingan: {{hired}}",
+    "openVacancy": "Vakansiya ochish",
+    "approveTitle": "Vakansiya ochish",
+    "approveText": "So‘rovdan to‘ldirildi — nomni, o‘rinlar sonini va izohni tekshirib saqlang. Saqlangach vakansiya ochiladi.",
+    "reject": "Rad etish",
+    "cancelRequest": "So‘rovni bekor qilish",
+    "searchPlaceholder": "Lavozim, bo‘lim yoki so‘ragan xodim",
+    "emptyTitle": "So‘rov yo‘q",
+    "emptyText": "Bo‘lim boshlig‘i yangi xodim so‘rasa, «Yangi so‘rov» bilan kiriting.",
+    "notFoundTitle": "Hech narsa topilmadi",
+    "notFoundText": "Qidiruv yoki sana oralig‘ini o‘zgartirib ko‘ring.",
+    "tabs": {
+      "Pending": "Yangi",
+      "Approved": "Vakansiya ochilgan",
+      "Rejected": "Rad etilgan",
+      "Cancelled": "Bekor qilingan"
+    },
+    "statuses": {
+      "Pending": "Yangi",
+      "Approved": "Vakansiya ochildi",
+      "Rejected": "Rad etildi",
+      "Cancelled": "Bekor qilindi"
+    }
   },
   "attendance": {
     "statsTitle": "Xodimlar davomati statistikasi",
@@ -3131,6 +3196,10 @@
       "candidateReapplied": {
         "title": "Anketa to‘ldirdi",
         "text": "{{name}} onlayn anketa to‘ldirdi — avval {{date}} da ariza bergan. Anketa uning kartasiga qo‘shildi."
+      },
+      "vacancyRequested": {
+        "title": "Vakansiya so‘rovi",
+        "text": "{{name}} yangi vakansiya so‘radi: {{title}} — {{openings}} kishi."
       }
     },
     "moreArrived": "Yana {{n}} ta yangi bildirishnoma"

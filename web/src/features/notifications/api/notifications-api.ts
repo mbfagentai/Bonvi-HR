@@ -60,6 +60,8 @@ export const NOTIFICATION_TYPES = [
   'CandidateInterviewSoon',
   // Mavjud nomzod onlayn anketa to'ldirdi — anketa uning kartasiga qo'shildi (2026-10-30)
   'CandidateReapplied',
+  // Bo'lim boshlig'ining vakansiya so'rovi HR qarorini kutmoqda (2026-10-30)
+  'VacancyRequested',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
@@ -82,6 +84,7 @@ export const NOTIFICATION_ROUTES = [
   'Probations',
   'MissingProbations',
   'Candidate',
+  'VacancyRequests',
 ] as const
 
 export type NotificationRoute = (typeof NOTIFICATION_ROUTES)[number]
@@ -239,6 +242,7 @@ const TYPE_BY_NUMBER: Readonly<Record<number, NotificationType>> = {
   12: 'CandidateContactOverdue',
   13: 'CandidateInterviewSoon',
   14: 'CandidateReapplied',
+  15: 'VacancyRequested',
 }
 
 /**

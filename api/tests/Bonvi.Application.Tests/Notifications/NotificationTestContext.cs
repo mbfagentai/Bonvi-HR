@@ -235,6 +235,8 @@ internal sealed class FakeNotificationSource : INotificationReadModel
     /// <summary>Kartasiga onlayn anketa qo'shilgan nomzodlar.</summary>
     public List<ReappliedCandidateRow> Reapplied { get; } = [];
 
+    public List<PendingVacancyRequestRow> VacancyRequests { get; } = [];
+
     /// <summary>Qayta murojaat so'rovidagi oxirgi «since».</summary>
     public DateOnly? LastReappliedSince { get; private set; }
 
@@ -321,6 +323,10 @@ internal sealed class FakeNotificationSource : INotificationReadModel
         LastReappliedSince = since;
         return Task.FromResult<IReadOnlyList<ReappliedCandidateRow>>([.. Reapplied]);
     }
+
+    public Task<IReadOnlyList<PendingVacancyRequestRow>> ListPendingVacancyRequestsAsync(
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<PendingVacancyRequestRow>>([.. VacancyRequests]);
 
     public Task<IReadOnlyList<CandidateContactRow>> ListCandidateContactsAsync(
         DateOnly until,

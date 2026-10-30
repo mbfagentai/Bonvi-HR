@@ -49,5 +49,10 @@ export function navigateToNotification(navigate: Navigate, item: AppNotification
     case 'MissingProbations':
       void navigate({ to: '/sinov', search: {} })
       return
+
+    // So'rovlar ro'yxati — «Yangi» tabida (sukut), kutayotgan so'rov aynan shu yerda
+    case 'VacancyRequests':
+      void navigate({ to: '/vakansiya-sorovlari', search: {} })
+      return
   }
 }

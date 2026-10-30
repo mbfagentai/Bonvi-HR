@@ -27,6 +27,7 @@ import { Route as AppRezervRouteImport } from './routes/_app/rezerv'
 import { Route as AppRollarRouteImport } from './routes/_app/rollar'
 import { Route as AppSinovRouteImport } from './routes/_app/sinov'
 import { Route as AppSozlamalarRouteImport } from './routes/_app/sozlamalar'
+import { Route as AppVakansiyaSorovlariRouteImport } from './routes/_app/vakansiya-sorovlari'
 import { Route as AppVakansiyalarRouteImport } from './routes/_app/vakansiyalar'
 import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/malumotnomalar/bolimlar'
 import { Route as AppMalumotnomalarHujjatTurlariRouteImport } from './routes/_app/malumotnomalar/hujjat-turlari'
@@ -139,6 +140,11 @@ const AppSinovRoute = AppSinovRouteImport.update({
 const AppSozlamalarRoute = AppSozlamalarRouteImport.update({
   id: '/sozlamalar',
   path: '/sozlamalar',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVakansiyaSorovlariRoute = AppVakansiyaSorovlariRouteImport.update({
+  id: '/vakansiya-sorovlari',
+  path: '/vakansiya-sorovlari',
   getParentRoute: () => AppRoute,
 } as any)
 const AppVakansiyalarRoute = AppVakansiyalarRouteImport.update({
@@ -297,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/rollar': typeof AppRollarRoute
   '/sinov': typeof AppSinovRoute
   '/sozlamalar': typeof AppSozlamalarRoute
+  '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
@@ -339,6 +346,7 @@ export interface FileRoutesByTo {
   '/rollar': typeof AppRollarRoute
   '/sinov': typeof AppSinovRoute
   '/sozlamalar': typeof AppSozlamalarRoute
+  '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/': typeof AppIndexRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
@@ -384,6 +392,7 @@ export interface FileRoutesById {
   '/_app/rollar': typeof AppRollarRoute
   '/_app/sinov': typeof AppSinovRoute
   '/_app/sozlamalar': typeof AppSozlamalarRoute
+  '/_app/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/_app/vakansiyalar': typeof AppVakansiyalarRoute
   '/_app/': typeof AppIndexRoute
   '/_app/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
@@ -430,6 +439,7 @@ export interface FileRouteTypes {
     | '/rollar'
     | '/sinov'
     | '/sozlamalar'
+    | '/vakansiya-sorovlari'
     | '/vakansiyalar'
     | '/malumotnomalar/bolimlar'
     | '/malumotnomalar/hujjat-turlari'
@@ -472,6 +482,7 @@ export interface FileRouteTypes {
     | '/rollar'
     | '/sinov'
     | '/sozlamalar'
+    | '/vakansiya-sorovlari'
     | '/vakansiyalar'
     | '/'
     | '/malumotnomalar/bolimlar'
@@ -516,6 +527,7 @@ export interface FileRouteTypes {
     | '/_app/rollar'
     | '/_app/sinov'
     | '/_app/sozlamalar'
+    | '/_app/vakansiya-sorovlari'
     | '/_app/vakansiyalar'
     | '/_app/'
     | '/_app/malumotnomalar/bolimlar'
@@ -675,6 +687,13 @@ declare module '@tanstack/react-router' {
       path: '/sozlamalar'
       fullPath: '/sozlamalar'
       preLoaderRoute: typeof AppSozlamalarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vakansiya-sorovlari': {
+      id: '/_app/vakansiya-sorovlari'
+      path: '/vakansiya-sorovlari'
+      fullPath: '/vakansiya-sorovlari'
+      preLoaderRoute: typeof AppVakansiyaSorovlariRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/vakansiyalar': {
@@ -863,6 +882,7 @@ interface AppRouteChildren {
   AppRollarRoute: typeof AppRollarRoute
   AppSinovRoute: typeof AppSinovRoute
   AppSozlamalarRoute: typeof AppSozlamalarRoute
+  AppVakansiyaSorovlariRoute: typeof AppVakansiyaSorovlariRoute
   AppVakansiyalarRoute: typeof AppVakansiyalarRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMalumotnomalarBolimlarRoute: typeof AppMalumotnomalarBolimlarRoute
@@ -905,6 +925,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRollarRoute: AppRollarRoute,
   AppSinovRoute: AppSinovRoute,
   AppSozlamalarRoute: AppSozlamalarRoute,
+  AppVakansiyaSorovlariRoute: AppVakansiyaSorovlariRoute,
   AppVakansiyalarRoute: AppVakansiyalarRoute,
   AppIndexRoute: AppIndexRoute,
   AppMalumotnomalarBolimlarRoute: AppMalumotnomalarBolimlarRoute,

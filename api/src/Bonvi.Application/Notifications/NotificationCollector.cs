@@ -94,6 +94,12 @@ public static class NotificationParams
 
     /// <summary>Nomzod manbai: <c>Manual</c> yoki <c>TelegramBot</c>.</summary>
     public const string Source = "source";
+
+    /// <summary>Vakansiya so'rovidagi lavozim.</summary>
+    public const string Title = "title";
+
+    /// <summary>Nechta odam so'ralgan.</summary>
+    public const string Openings = "openings";
 }
 
 /// <summary>
@@ -212,6 +218,7 @@ public sealed class NotificationCollector
         await AddMissingProbationsAsync(items, cancellationToken).ConfigureAwait(false);
         await AddBirthdaysAsync(items, today, cancellationToken).ConfigureAwait(false);
         await AddNewCandidatesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
+        await AddVacancyRequestsAsync(items, cancellationToken).ConfigureAwait(false);
         await AddReappliedCandidatesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
         await AddCandidateContactsAsync(items, today, cancellationToken).ConfigureAwait(false);
         await AddCandidateInterviewsAsync(items, settings, cancellationToken).ConfigureAwait(false);
@@ -448,6 +455,40 @@ public sealed class NotificationCollector
                 occursOn,
                 parameters,
                 new NotificationLinkDto(NotificationRoute.Employee, row.EmployeeId)));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Rekruting: bo'lim boshlig'ining vakansiya so'rovi
+    // ════════════════════════════════════════════════════════════
+
+    private async Task AddVacancyRequestsAsync(List<NotificationDto> items, CancellationToken cancellationToken)
+    {
+        if (!Allowed(NotificationType.VacancyRequested))
+        {
+            return;
+        }
+
+        var rows = await _source.ListPendingVacancyRequestsAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var row in rows)
+        {
+            var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [NotificationParams.Title] = row.Title,
+                [NotificationParams.Openings] = row.Openings.ToString(CultureInfo.InvariantCulture),
+                [NotificationParams.DepartmentName] = row.DepartmentName,
+                [NotificationParams.EmployeeName] = row.RequestedByName,
+            };
+
+            // Sariq: so'rov HR harakatini kutadi — ko'rib chiqilmaguncha turadi.
+            items.Add(new NotificationDto(
+                NotificationKey.For(NotificationType.VacancyRequested, row.RequestId, row.CreatedAt),
+                NotificationType.VacancyRequested,
+                NotificationSeverity.Warning,
+                row.CreatedAt.TashkentDate(),
+                parameters,
+                new NotificationLinkDto(NotificationRoute.VacancyRequests, row.RequestId)));
         }
     }
 

@@ -62,6 +62,9 @@ public interface IVacancyRepository : IRepository<Vacancy>
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Bo'lim boshliqlarining vakansiya so'rovlari uchun saqlash porti.</summary>
+public interface IVacancyRequestRepository : IRepository<VacancyRequest>;
+
 /// <summary>Nomzodlar uchun saqlash porti.</summary>
 public interface ICandidateRepository : IRepository<Candidate>
 {

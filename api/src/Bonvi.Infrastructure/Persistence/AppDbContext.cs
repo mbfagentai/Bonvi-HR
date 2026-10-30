@@ -270,6 +270,8 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Ochilgan ish o'rinlari (<c>vacancies</c>).</summary>
     public DbSet<Vacancy> Vacancies => Set<Vacancy>();
 
+    public DbSet<VacancyRequest> VacancyRequests => Set<VacancyRequest>();
+
     /// <summary>Nomzodlar (<c>candidates</c>).</summary>
     public DbSet<Candidate> Candidates => Set<Candidate>();
 

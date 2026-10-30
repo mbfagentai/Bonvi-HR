@@ -37,6 +37,12 @@ internal static class RecruitingQueryParsing
             // qoldirardi.
             "Holat noto'g'ri. Ruxsat etilgan qiymatlar: Open, Closed.");
 
+    public static Result<VacancyRequestStatus?> ParseVacancyRequestStatus(string? raw)
+        => ParseEnum<VacancyRequestStatus>(
+            raw,
+            "vakansiya_sorovi.holat_notogri",
+            "Holat noto'g'ri. Ruxsat etilgan qiymatlar: Pending, Approved, Rejected, Cancelled.");
+
     public static Result<CandidateStatus?> ParseCandidateStatus(string? raw)
         => ParseEnum<CandidateStatus>(
             raw,

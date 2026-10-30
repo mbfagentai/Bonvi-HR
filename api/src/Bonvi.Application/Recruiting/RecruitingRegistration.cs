@@ -3,6 +3,7 @@ using Bonvi.Application.Recruiting.Forms;
 using Bonvi.Application.Recruiting.Referrals;
 using Bonvi.Application.Recruiting.Stages;
 using Bonvi.Application.Recruiting.Vacancies;
+using Bonvi.Application.Recruiting.VacancyRequests;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Recruiting;
@@ -36,6 +37,11 @@ internal static class RecruitingRegistration
 
         // Vakansiyalar
         services.AddScoped<ListVacanciesQueryHandler>();
+        services.AddScoped<ListVacancyRequestsQueryHandler>();
+        services.AddScoped<CreateVacancyRequestCommandHandler>();
+        services.AddScoped<CancelVacancyRequestCommandHandler>();
+        services.AddScoped<ApproveVacancyRequestCommandHandler>();
+        services.AddScoped<RejectVacancyRequestCommandHandler>();
         services.AddScoped<GetVacancyQueryHandler>();
         services.AddScoped<GetGeneralPoolStatusQueryHandler>();
         services.AddScoped<OpenVacancyCommandHandler>();

@@ -4,6 +4,7 @@ import {
   Cake,
   CalendarClock,
   ClipboardCheck,
+  ClipboardList,
   Gift,
   PhoneCall,
   PhoneMissed,
@@ -50,6 +51,7 @@ export const NOTIFICATION_TEXT_KEYS = [
   'candidateContactOverdue',
   'candidateInterviewSoon',
   'candidateReapplied',
+  'vacancyRequested',
 ] as const
 
 export type NotificationTextKey = (typeof NOTIFICATION_TEXT_KEYS)[number]
@@ -85,6 +87,7 @@ const TEXT_KEY: Readonly<Record<NotificationType, NotificationTextKey>> = {
   CandidateContactOverdue: 'candidateContactOverdue',
   CandidateInterviewSoon: 'candidateInterviewSoon',
   CandidateReapplied: 'candidateReapplied',
+  VacancyRequested: 'vacancyRequested',
 }
 
 /** Bildirishnoma turiga mos matn kaliti. */
@@ -131,6 +134,13 @@ export type NotificationValues = {
    * `notificationValues` ichida.
    */
   time?: string
+  /** Vakansiya so'rovidagi lavozim (`VacancyRequested`). */
+  title?: string
+  /**
+   * Nechta odam so'ralgan (`VacancyRequested`). Nomi `count` EMAS: i18next uni ko'plik
+   * shakli uchun son deb kutadi (yuqoridagi izoh).
+   */
+  openings?: string
 }
 
 /**
@@ -221,6 +231,17 @@ export function notificationValues(
   const rawTime = item.params['time'] ?? item.params['interviewTime']
   if (rawTime !== undefined && rawTime.trim() !== '') {
     values.time = rawTime.trim()
+  }
+
+  const rawTitle = item.params['title']
+  if (rawTitle !== undefined && rawTitle.trim() !== '') {
+    values.title = rawTitle.trim()
+  }
+
+  const rawOpenings = item.params['openings']
+  const openings = Number(rawOpenings)
+  if (rawOpenings !== undefined && Number.isFinite(openings)) {
+    values.openings = fmt.num(openings)
   }
 
   return values
@@ -386,6 +407,9 @@ export const TYPE_ICON: Readonly<Record<NotificationType, LucideIcon>> = {
 
   // Anketa — to'ldirilgan varaq: «yangi odam» (`UserPlus`) emas, mavjud odamning qaytishi
   CandidateReapplied: ClipboardCheck,
+
+  // Bo'lim boshlig'ining so'rovi — menyudagi «Vakansiya so'rovlari» bandi bilan bir xil ikonka
+  VacancyRequested: ClipboardList,
 }
 
 /**

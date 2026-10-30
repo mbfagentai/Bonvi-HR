@@ -181,7 +181,8 @@ export function NotificationsDialog({
   const canOpen = (item: AppNotification): boolean =>
     item.link.id !== null ||
     item.link.route === 'Probations' ||
-    item.link.route === 'MissingProbations'
+    item.link.route === 'MissingProbations' ||
+    item.link.route === 'VacancyRequests'
 
   /**
    * «Kirib ko'rish»: o'qildi deb belgilanadi, oyna yopiladi, ekran ochiladi.

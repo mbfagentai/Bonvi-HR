@@ -261,6 +261,15 @@ public static class AuditCatalog
         Audit<PipelineStage>(AccessModuleKeys.Recruiting).Label(row => row.Name),
         Audit<Vacancy>(AccessModuleKeys.Recruiting).Label(row => row.Title),
 
+        // Bo'lim boshlig'ining so'rovi (SPEC-vakansiya-sorovi): kim so'radi, kim qaror qildi.
+        Audit<VacancyRequest>(AccessModuleKeys.Recruiting)
+            .Label(row => row.Title)
+            .Ref(AuditRefTarget.Department, nameof(VacancyRequest.DepartmentId))
+            .Ref(AuditRefTarget.Employee, nameof(VacancyRequest.RequestedByEmployeeId))
+            .Ref(AuditRefTarget.User, nameof(VacancyRequest.DecidedBy))
+            .Ref(AuditRefTarget.Vacancy, nameof(VacancyRequest.VacancyId)),
+
+
         Audit<Candidate>(AccessModuleKeys.Recruiting)
             .Label(row => row.FullName.Full)
             .Ref(AuditRefTarget.Vacancy, nameof(Candidate.VacancyId))

@@ -42,6 +42,9 @@ public enum NotificationRoute
 
     /// <summary>Nomzod kartasi. <c>Id</c> — nomzod.</summary>
     Candidate = 4,
+
+    /// <summary>«Vakansiya so'rovlari» ro'yxati — <c>Id</c> so'rovning o'zi.</summary>
+    VacancyRequests = 5,
 }
 
 /// <summary>«Kirib ko'rish» havolasi — tiplangan manzil.</summary>

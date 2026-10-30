@@ -221,6 +221,43 @@ public sealed class NotificationReadModel : INotificationReadModel
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<PendingVacancyRequestRow>> ListPendingVacancyRequestsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await (
+                from request in _context.VacancyRequests.AsNoTracking()
+                where request.Status == VacancyRequestStatus.Pending
+                join department in _context.Departments.IgnoreQueryFilters().AsNoTracking()
+                    on request.DepartmentId equals department.Id
+                join employee in _context.Employees.IgnoreQueryFilters().AsNoTracking()
+                    on request.RequestedByEmployeeId equals employee.Id
+                select new
+                {
+                    request.Id,
+                    request.Title,
+                    request.Openings,
+                    DepartmentName = department.Name,
+                    employee.FullName.LastName,
+                    employee.FullName.FirstName,
+                    employee.FullName.MiddleName,
+                    request.CreatedAt,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new PendingVacancyRequestRow(
+                row.Id,
+                row.Title,
+                row.Openings,
+                row.DepartmentName,
+                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
+                row.CreatedAt)),
+        ];
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<CandidateContactRow>> ListCandidateContactsAsync(
         DateOnly until,
         CancellationToken cancellationToken = default)

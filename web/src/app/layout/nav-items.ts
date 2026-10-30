@@ -217,6 +217,10 @@ export const NAV: NavSection[] = [
         children: [
           { key: 'vacancies',  to: '/vakansiyalar', icon: BriefcaseBusiness,
             permission: 'recruiting.view' },
+          // Bo'lim boshliqlarining so'rovlari (egasi, 2026-10-30) — vakansiyalar yonida:
+          // tasdiqlangan so'rov aynan vakansiyaga aylanadi.
+          { key: 'vacancyRequests', to: '/vakansiya-sorovlari', icon: ClipboardList,
+            permission: 'recruiting.view' },
           { key: 'candidates', to: '/nomzodlar',    icon: UserPlus,
             permission: 'recruiting.view' },
           /*

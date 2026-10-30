@@ -39,6 +39,7 @@
     "systemSettings": "System settings",
     "recruiting": "Recruiting",
     "vacancies": "Vacancies",
+    "vacancyRequests": "Vacancy requests",
     "candidates": "Candidates",
     "rejectedCandidates": "Rejected",
     "verification": "Verification",
@@ -1103,7 +1104,20 @@
     "jamoa.boshliq_emas": "The employee does not head any department — the team view is closed.",
     "jamoa.xodim_topilmadi": "The employee was not found in the head’s team.",
     "jamoa.bolim_topilmadi": "The department was not found in the head’s team.",
-    "jamoa.sana_notogri": "Invalid date: it must be between 2000-01-01 and today."
+    "jamoa.sana_notogri": "Invalid date: it must be between 2000-01-01 and today.",
+    "vakansiya_sorovi.topilmadi": "Vacancy request not found.",
+    "vakansiya_sorovi.bolim_kerak": "Choose a department.",
+    "vakansiya_sorovi.bolim_topilmadi": "Department not found.",
+    "vakansiya_sorovi.boshliq_yoq": "This department has no head — choose who requested it.",
+    "vakansiya_sorovi.boshliq_topilmadi": "Requester not found.",
+    "vakansiya_sorovi.nom_kerak": "Enter the position.",
+    "vakansiya_sorovi.nom_uzun": "The position name is too long.",
+    "vakansiya_sorovi.soni_notogri": "The number of people must be between 1 and 100.",
+    "vakansiya_sorovi.izoh_uzun": "The note is too long.",
+    "vakansiya_sorovi.sabab_kerak": "Enter the rejection reason.",
+    "vakansiya_sorovi.qaror_qilingan": "A decision on this request has already been made.",
+    "vakansiya_sorovi.holat_notogri": "Invalid request status.",
+    "vakansiya_sorovi.vakansiya_yoq": "No opened vacancy given."
   },
   "language": {
     "en": "English",
@@ -1699,6 +1713,7 @@
       "Incident": "Incident",
       "PipelineStage": "Funnel stage",
       "Vacancy": "Vacancy",
+      "VacancyRequest": "Vacancy request",
       "Candidate": "Candidate",
       "CandidateStageEntry": "Stage entry",
       "CandidateNote": "Candidate note",
@@ -1901,6 +1916,10 @@
       "UpdateVacancy": "Vacancy edited",
       "ReopenVacancy": "Vacancy reopened",
       "CloseVacancy": "Vacancy closed",
+      "CreateVacancyRequest": "Vacancy request recorded",
+      "ApproveVacancyRequest": "Vacancy opened from request",
+      "RejectVacancyRequest": "Vacancy request rejected",
+      "CancelVacancyRequest": "Vacancy request cancelled",
       "DeleteVacancy": "Vacancy deleted",
       "CreatePipelineStage": "Funnel stage added",
       "UpdatePipelineStage": "Funnel stage edited",
@@ -1966,6 +1985,7 @@
       "ExportIncentivesToExcel": "Awards and penalties exported to Excel",
       "ExportCandidatesToExcel": "Candidates exported to Excel",
       "ExportVacanciesToExcel": "Vacancies exported to Excel",
+      "ExportVacancyRequestsToExcel": "Vacancy requests exported to Excel",
       "ExportProbationsToExcel": "Probations exported to Excel",
       "ExportEmploymentEventsToExcel": "Orders exported to Excel",
       "ExportFlaggedEmployeesToExcel": "Flag list exported to Excel",
@@ -2330,6 +2350,51 @@
     },
     "questionnaireHintOnlineForm": "From the candidate’s answers in the online form (HR-F02)",
     "consentGivenOnlineForm": "Consent to personal data processing (in the online form): {{date}}"
+  },
+  "vacancyRequests": {
+    "title": "Vacancy requests",
+    "subtitle": "{{n}} requests",
+    "create": "New request",
+    "createTitle": "New vacancy request",
+    "createText": "Record whom the department head is asking for — HR reviews it and opens the vacancy.",
+    "chooseDepartment": "Choose a department",
+    "requestedBy": "Requested by",
+    "requestedByHint": "If left empty, the department head is recorded.",
+    "position": "Position",
+    "positionPlaceholder": "For example: Welder",
+    "openings": "How many people",
+    "neededBy": "Needed from",
+    "note": "Note",
+    "notePlaceholder": "Reason and requirements: experience, shift, skills…",
+    "status": "Status",
+    "createdAt": "Sent",
+    "decidedAt": "Decision",
+    "rejectReason": "Rejection reason",
+    "rejectReasonHint": "The reason is passed on to the department head.",
+    "vacancy": "Opened vacancy",
+    "vacancyProgress": "candidates: {{candidates}}, hired: {{hired}}",
+    "openVacancy": "Open vacancy",
+    "approveTitle": "Open vacancy",
+    "approveText": "Pre-filled from the request — check the title, openings and note, then save. The vacancy opens on save.",
+    "reject": "Reject",
+    "cancelRequest": "Cancel request",
+    "searchPlaceholder": "Position, department or requester",
+    "emptyTitle": "No requests",
+    "emptyText": "When a department head asks for a new hire, record it with «New request».",
+    "notFoundTitle": "Nothing found",
+    "notFoundText": "Try another search or date range.",
+    "tabs": {
+      "Pending": "New",
+      "Approved": "Vacancy opened",
+      "Rejected": "Rejected",
+      "Cancelled": "Cancelled"
+    },
+    "statuses": {
+      "Pending": "New",
+      "Approved": "Vacancy opened",
+      "Rejected": "Rejected",
+      "Cancelled": "Cancelled"
+    }
   },
   "attendance": {
     "statsTitle": "Employee attendance statistics",
@@ -3131,6 +3196,10 @@
       "candidateReapplied": {
         "title": "Filled in the form",
         "text": "{{name}} filled in the online form — first applied on {{date}}. The form was added to their card."
+      },
+      "vacancyRequested": {
+        "title": "Vacancy request",
+        "text": "{{name}} asks for a new vacancy: {{title}} — {{openings}} people."
       }
     },
     "moreArrived": "{{n}} more new notifications"

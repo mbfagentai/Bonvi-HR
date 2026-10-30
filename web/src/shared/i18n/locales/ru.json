@@ -39,6 +39,7 @@
     "systemSettings": "Настройки системы",
     "recruiting": "Рекрутинг",
     "vacancies": "Вакансии",
+    "vacancyRequests": "Заявки на вакансии",
     "candidates": "Кандидаты",
     "rejectedCandidates": "Отказано",
     "verification": "Верификация",
@@ -1103,7 +1104,20 @@
     "jamoa.boshliq_emas": "Сотрудник не руководит ни одним отделом — панель команды закрыта.",
     "jamoa.xodim_topilmadi": "Сотрудник не найден в команде руководителя.",
     "jamoa.bolim_topilmadi": "Отдел не найден в команде руководителя.",
-    "jamoa.sana_notogri": "Неверная дата: допустимо с 2000-01-01 по сегодняшний день."
+    "jamoa.sana_notogri": "Неверная дата: допустимо с 2000-01-01 по сегодняшний день.",
+    "vakansiya_sorovi.topilmadi": "Заявка на вакансию не найдена.",
+    "vakansiya_sorovi.bolim_kerak": "Выберите отдел.",
+    "vakansiya_sorovi.bolim_topilmadi": "Отдел не найден.",
+    "vakansiya_sorovi.boshliq_yoq": "У отдела не назначен руководитель — выберите заявителя.",
+    "vakansiya_sorovi.boshliq_topilmadi": "Заявитель не найден.",
+    "vakansiya_sorovi.nom_kerak": "Укажите должность.",
+    "vakansiya_sorovi.nom_uzun": "Слишком длинное название должности.",
+    "vakansiya_sorovi.soni_notogri": "Число человек должно быть от 1 до 100.",
+    "vakansiya_sorovi.izoh_uzun": "Слишком длинный комментарий.",
+    "vakansiya_sorovi.sabab_kerak": "Укажите причину отказа.",
+    "vakansiya_sorovi.qaror_qilingan": "По этой заявке решение уже принято.",
+    "vakansiya_sorovi.holat_notogri": "Неверный статус заявки.",
+    "vakansiya_sorovi.vakansiya_yoq": "Не указана открытая вакансия."
   },
   "language": {
     "en": "English",
@@ -1699,6 +1713,7 @@
       "Incident": "Несчастный случай",
       "PipelineStage": "Этап воронки",
       "Vacancy": "Вакансия",
+      "VacancyRequest": "Заявка на вакансию",
       "Candidate": "Кандидат",
       "CandidateStageEntry": "Запись этапа",
       "CandidateNote": "Заметка о кандидате",
@@ -1901,6 +1916,10 @@
       "UpdateVacancy": "Изменение вакансии",
       "ReopenVacancy": "Повторное открытие вакансии",
       "CloseVacancy": "Закрытие вакансии",
+      "CreateVacancyRequest": "Заявка на вакансию внесена",
+      "ApproveVacancyRequest": "Вакансия открыта по заявке",
+      "RejectVacancyRequest": "Заявка на вакансию отклонена",
+      "CancelVacancyRequest": "Заявка на вакансию отменена",
       "DeleteVacancy": "Удаление вакансии",
       "CreatePipelineStage": "Добавление этапа воронки",
       "UpdatePipelineStage": "Изменение этапа воронки",
@@ -1966,6 +1985,7 @@
       "ExportIncentivesToExcel": "Выгрузка поощрений и взысканий в Excel",
       "ExportCandidatesToExcel": "Выгрузка кандидатов в Excel",
       "ExportVacanciesToExcel": "Выгрузка вакансий в Excel",
+      "ExportVacancyRequestsToExcel": "Выгрузка заявок на вакансии в Excel",
       "ExportProbationsToExcel": "Выгрузка испытательных сроков в Excel",
       "ExportEmploymentEventsToExcel": "Выгрузка приказов в Excel",
       "ExportFlaggedEmployeesToExcel": "Выгрузка списка отметок в Excel",
@@ -2330,6 +2350,51 @@
     },
     "questionnaireHintOnlineForm": "Из ответов кандидата в онлайн-анкете (HR-F02)",
     "consentGivenOnlineForm": "Согласие на обработку персональных данных (в онлайн-анкете): {{date}}"
+  },
+  "vacancyRequests": {
+    "title": "Заявки на вакансии",
+    "subtitle": "Заявок: {{n}}",
+    "create": "Новая заявка",
+    "createTitle": "Новая заявка на вакансию",
+    "createText": "Запишите, кого просит руководитель отдела — HR рассмотрит и откроет вакансию.",
+    "chooseDepartment": "Выберите отдел",
+    "requestedBy": "Заявитель",
+    "requestedByHint": "Если не выбран — записывается руководитель отдела.",
+    "position": "Должность",
+    "positionPlaceholder": "Например: Сварщик",
+    "openings": "Сколько человек",
+    "neededBy": "С какой даты",
+    "note": "Комментарий",
+    "notePlaceholder": "Причина и требования: опыт, смена, навыки…",
+    "status": "Статус",
+    "createdAt": "Отправлено",
+    "decidedAt": "Решение",
+    "rejectReason": "Причина отказа",
+    "rejectReasonHint": "Причина будет сообщена руководителю отдела.",
+    "vacancy": "Открытая вакансия",
+    "vacancyProgress": "кандидатов: {{candidates}}, принято: {{hired}}",
+    "openVacancy": "Открыть вакансию",
+    "approveTitle": "Открыть вакансию",
+    "approveText": "Заполнено из заявки — проверьте название, число мест и комментарий и сохраните. После сохранения вакансия откроется.",
+    "reject": "Отклонить",
+    "cancelRequest": "Отменить заявку",
+    "searchPlaceholder": "Должность, отдел или заявитель",
+    "emptyTitle": "Заявок нет",
+    "emptyText": "Когда руководитель отдела просит нового сотрудника, внесите это через «Новая заявка».",
+    "notFoundTitle": "Ничего не найдено",
+    "notFoundText": "Измените поиск или диапазон дат.",
+    "tabs": {
+      "Pending": "Новые",
+      "Approved": "Вакансия открыта",
+      "Rejected": "Отклонённые",
+      "Cancelled": "Отменённые"
+    },
+    "statuses": {
+      "Pending": "Новая",
+      "Approved": "Вакансия открыта",
+      "Rejected": "Отклонена",
+      "Cancelled": "Отменена"
+    }
   },
   "attendance": {
     "statsTitle": "Статистика посещений сотрудников",
@@ -3131,6 +3196,10 @@
       "candidateReapplied": {
         "title": "Заполнил анкету",
         "text": "{{name}} заполнил онлайн-анкету — ранее подал заявку {{date}}. Анкета добавлена в его карточку."
+      },
+      "vacancyRequested": {
+        "title": "Заявка на вакансию",
+        "text": "{{name}} просит новую вакансию: {{title}} — {{openings}} чел."
       }
     },
     "moreArrived": "Ещё {{n}} новых уведомлений"

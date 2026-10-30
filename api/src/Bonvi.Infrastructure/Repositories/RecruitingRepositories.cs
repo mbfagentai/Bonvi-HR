@@ -81,6 +81,11 @@ public sealed class PipelineStageRepository : ReferenceRepository<PipelineStage>
 }
 
 /// <summary><see cref="IVacancyRepository"/> ning EF Core orqali amalga oshirilishi.</summary>
+public sealed class VacancyRequestRepository : Repository<VacancyRequest>, IVacancyRequestRepository
+{
+    public VacancyRequestRepository(AppDbContext context) : base(context) { }
+}
+
 public sealed class VacancyRepository : Repository<Vacancy>, IVacancyRepository
 {
     public VacancyRepository(AppDbContext context) : base(context) { }

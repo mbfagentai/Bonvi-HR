@@ -4467,6 +4467,107 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("vacancies", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.VacancyRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<DateOnly?>("NeededBy")
+                        .HasColumnType("date")
+                        .HasColumnName("needed_by");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("Openings")
+                        .HasColumnType("integer")
+                        .HasColumnName("openings");
+
+                    b.Property<Guid>("RequestedByEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by_employee_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid?>("VacancyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vacancy_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vacancy_requests");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_vacancy_requests_department_id");
+
+                    b.HasIndex("RequestedByEmployeeId")
+                        .HasDatabaseName("ix_vacancy_requests_requested_by_employee_id");
+
+                    b.HasIndex("VacancyId")
+                        .HasDatabaseName("ix_vacancy_requests_vacancy_id");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_vacancy_requests_status_created_at");
+
+                    b.ToTable("vacancy_requests", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Safety.Incident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5132,6 +5233,29 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_candidate_stage_entries_pipeline_stages_stage_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.VacancyRequest", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Organization.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vacancy_requests_departments_department_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vacancy_requests_employees_requested_by_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Recruiting.Vacancy", null)
+                        .WithMany()
+                        .HasForeignKey("VacancyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_vacancy_requests_vacancies_vacancy_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Safety.Incident", b =>

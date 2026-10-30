@@ -336,6 +336,7 @@ if (app.Configuration.GetValue(EmployeeAppEnabledKey, defaultValue: true))
 // ishga olish. Oxirgi qadam 1-bosqichning ishga qabul oqimiga ulanadi.
 app.MapPipelineStageEndpoints();
 app.MapVacancyEndpoints();
+app.MapVacancyRequestEndpoints();
 app.MapCandidateEndpoints();
 
 // Nomzod anketasi HR-F02: ochiq onlayn forma (login ham, kalit ham yo'q — ofis

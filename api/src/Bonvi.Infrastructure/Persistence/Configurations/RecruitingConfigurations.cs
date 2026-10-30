@@ -1,5 +1,6 @@
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Employees;
+using Bonvi.Domain.Organization;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -95,6 +96,72 @@ public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
         // Nom bo'yicha indeks ATAYLAB yo'q: takror tekshiruvi
         // (`lower(title)`) va qidiruv bir necha o'nlab qatorni ko'radi —
         // to'liq skanerlash millisekunddan ham tez.
+    }
+}
+
+/// <summary>
+/// Bo'lim boshliqlarining vakansiya so'rovlari (docs/SPEC-vakansiya-sorovi.md).
+/// </summary>
+/// <remarks>
+/// Uchala bog'lanish <c>Restrict</c>: so'rov tarix yozuvi, uning bo'limi, boshlig'i yoki
+/// ochilgan vakansiyasi qattiq o'chirilmaydi (hammasi yumshoq o'chiriladi).
+/// </remarks>
+public sealed class VacancyRequestConfiguration : IEntityTypeConfiguration<VacancyRequest>
+{
+    public void Configure(EntityTypeBuilder<VacancyRequest> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("vacancy_requests");
+
+        builder.HasKey(request => request.Id);
+
+        builder.Ignore(request => request.DomainEvents);
+
+        // Collation ATAYLAB yo'q: ro'yxat nom bo'yicha saralanmaydi, qidiruv esa `ILIKE` —
+        // nondeterministik collation bilan Postgres `LIKE` ni umuman bajarmaydi.
+        builder.Property(request => request.Title)
+            .HasMaxLength(VacancyRequest.MaxTitleLength)
+            .IsRequired();
+
+        builder.Property(request => request.Openings).IsRequired();
+
+        builder.Property(request => request.Status).IsRequired();
+
+        builder.Property(request => request.Note)
+            .HasMaxLength(VacancyRequest.MaxNoteLength);
+
+        builder.Property(request => request.DecisionNote)
+            .HasMaxLength(VacancyRequest.MaxNoteLength);
+
+        builder.HasOne<Department>()
+            .WithMany()
+            .HasForeignKey(request => request.DepartmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Employee>()
+            .WithMany()
+            .HasForeignKey(request => request.RequestedByEmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Vacancy>()
+            .WithMany()
+            .HasForeignKey(request => request.VacancyId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ────────────────────────────────────────────────────────────
+        //  Indekslar
+        // ────────────────────────────────────────────────────────────
+
+        // HR ro'yxati: holat tabi + «yangidan eskiga».
+        builder.HasIndex(request => new { request.Status, request.CreatedAt });
+
+        // Boshliqning ro'yxati — bo'lim bo'yicha (qamrov daraxti).
+        builder.HasIndex(request => request.DepartmentId);
+
+        builder.HasIndex(request => request.RequestedByEmployeeId);
+
+        builder.HasIndex(request => request.VacancyId);
     }
 }
 

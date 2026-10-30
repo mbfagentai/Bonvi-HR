@@ -116,6 +116,11 @@ public interface INotificationReadModel
         DateOnly since,
         CancellationToken cancellationToken = default);
 
+    /// <summary>HR qarorini kutayotgan vakansiya so'rovlari (docs/SPEC-vakansiya-sorovi.md §3).</summary>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<PendingVacancyRequestRow>> ListPendingVacancyRequestsAsync(
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Keyingi aloqa sanasi kelib qolgan (yoki o'tib ketgan) nomzodlar —
     /// holati <c>InProgress</c> YOKI <c>Reserve</c>.
@@ -251,3 +256,18 @@ public sealed record CandidateInterviewRow(
     Guid CandidateId,
     string CandidateName,
     DateTimeOffset InterviewAt);
+
+/// <summary>HR qarorini kutayotgan vakansiya so'rovi.</summary>
+/// <param name="RequestId">So'rov — kalit va havola.</param>
+/// <param name="Title">Lavozim.</param>
+/// <param name="Openings">Nechta odam.</param>
+/// <param name="DepartmentName">Bo'lim.</param>
+/// <param name="RequestedByName">So'ragan xodim.</param>
+/// <param name="CreatedAt">Kiritilgan lahza.</param>
+public sealed record PendingVacancyRequestRow(
+    Guid RequestId,
+    string Title,
+    int Openings,
+    string DepartmentName,
+    string RequestedByName,
+    DateTimeOffset CreatedAt);

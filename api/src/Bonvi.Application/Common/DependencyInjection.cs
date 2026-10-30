@@ -71,6 +71,7 @@ public static class DependencyInjection
         // o'z ro'yxat handler'ini chaqiradi, filtr nusxasi yozilmaydi.
         services.AddScoped<ExportCandidatesQueryHandler>();
         services.AddScoped<ExportVacanciesQueryHandler>();
+        services.AddScoped<ExportVacancyRequestsQueryHandler>();
         services.AddScoped<ExportProbationsQueryHandler>();
         services.AddScoped<ExportEmploymentEventsQueryHandler>();
         services.AddScoped<ExportFlaggedEmployeesQueryHandler>();

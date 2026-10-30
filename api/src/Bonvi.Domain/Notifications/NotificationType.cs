@@ -216,6 +216,13 @@ public enum NotificationType
     /// </para>
     /// </remarks>
     CandidateReapplied = 14,
+
+    /// <summary>Bo'lim boshlig'ining yangi vakansiya so'rovi HR qarorini kutmoqda.</summary>
+    /// <remarks>
+    /// Egasi, 2026-10-30 (docs/SPEC-vakansiya-sorovi.md §3). Har bir yangi so'rov — bitta
+    /// bildirishnoma; HR vakansiya ochsa, rad etsa yoki so'rov bekor qilinsa, yo'qoladi.
+    /// </remarks>
+    VacancyRequested = 15,
 }
 
 /// <summary>Bildirishnomaning muhimlik darajasi.</summary>
@@ -300,7 +307,8 @@ public static class NotificationAccess
             or NotificationType.CandidateContactDue
             or NotificationType.CandidateContactOverdue
             or NotificationType.CandidateInterviewSoon
-            or NotificationType.CandidateReapplied => Permissions.RecruitingView,
+            or NotificationType.CandidateReapplied
+            or NotificationType.VacancyRequested => Permissions.RecruitingView,
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(type),
