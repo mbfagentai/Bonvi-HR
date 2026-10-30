@@ -113,6 +113,12 @@ export const employeeKeys = {
 
   /** Hujjatlar tabi (S6). */
   documents: (id: string) => ['employees', 'documents', id] as const,
+  /**
+   * Hujjat baytlari — ko'rish oynasi uchun (`FileViewer`). Ildiz `-photo` bilan tugaydi:
+   * `providers.tsx` muvaffaqiyatli yozuvdan keyin keshni bekor qilganda bu guruhga tegmaydi —
+   * fayl o'zgarmaydi (tahrir faqat tur va izohni almashtiradi), qayta yuklash ortiqcha.
+   */
+  documentFile: (id: string, documentId: string) => ['employee-document-file-photo', id, documentId] as const,
 
   /**
    * Rasm keshi ATAYLAB `employees` ildizidan tashqarida turadi.
@@ -791,6 +797,17 @@ export function useDeleteDocument(employeeId: string) {
  * yuklanayotganini chaqiruvchi `variables?.id` bilan aniqlaydi (`incentives`
  * uslubidagi kabi alohida holat kerak emas).
  */
+/** Hujjatni ko'rish uchun baytlar — `useEmployeeCheckFileContent` bilan bir xil qoida. */
+export function useDocumentFileBlob(employeeId: string, documentId: string | null) {
+  return useQuery({
+    queryKey: employeeKeys.documentFile(employeeId, documentId ?? ''),
+    queryFn: ({ signal }) => fetchDocumentFile(employeeId, documentId ?? '', signal),
+    enabled: employeeId !== '' && documentId !== null,
+    staleTime: Infinity,
+    retry: false,
+  })
+}
+
 export function useDownloadDocument(employeeId: string) {
   return useMutation({
     mutationFn: (doc: EmployeeDocument) =>

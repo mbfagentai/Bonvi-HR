@@ -1,9 +1,10 @@
-import { ClipboardPen, FileText, LoaderCircle } from 'lucide-react'
+import { ClipboardPen, Download, Eye, LoaderCircle } from 'lucide-react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { LOCALE_CODES, localeMeta } from '@/shared/i18n/locales'
-import { Alert, Button, Card, CardContent, CardDivider, CardHeader } from '@/shared/ui'
-import { useCandidateForms, useDownloadCandidateFormPdf } from '../api/recruiting-queries'
+import { Alert, Button, Card, CardContent, CardDivider, CardHeader, FileViewer, useViewerList } from '@/shared/ui'
+import type { CandidateForm } from '../api/recruiting-api'
+import { useCandidateFormPdfBlob, useCandidateForms, useDownloadCandidateFormPdf } from '../api/recruiting-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
 
 /** «O'zbekcha», «Ўзбекча», «Русский» — the language in its own name; an unknown code as is. */
@@ -25,6 +26,16 @@ export function CandidateFormsCard({ candidateId }: { candidateId: string }) {
   const errorMessage = useErrorMessage()
   const forms = useCandidateForms(candidateId)
   const download = useDownloadCandidateFormPdf()
+
+  // PDF'i biriktirilganlar orasida ← / → (biriktirilmagan anketada ham PDF bor — server yasaydi)
+  const viewer = useViewerList(forms.data ?? NO_FORMS)
+
+  const startDownload = (form: CandidateForm) =>
+    download.mutate({
+      id: candidateId,
+      formId: form.id,
+      fallbackName: `Anketa-${form.formCode}-${form.number}.pdf`,
+    })
 
   if (forms.data === undefined || forms.data.length === 0) return null
 
@@ -71,27 +82,84 @@ export function CandidateFormsCard({ candidateId }: { candidateId: string }) {
                   )}
                 </div>
 
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={pending}
-                  onClick={() =>
-                    download.mutate({
-                      id: candidateId,
-                      formId: form.id,
-                      fallbackName: `Anketa-${form.formCode}-${form.number}.pdf`,
-                    })
-                  }
-                >
-                  {pending ? <LoaderCircle className="animate-spin" /> : <FileText />}
-                  {t('recruiting.forms.pdf')}
-                </Button>
+                {/* Ko'rish — asosiy amal (egasi, 2026-10-30): yuklab olmasdan, to'liq oynada */}
+                <div className="flex items-center gap-1.5">
+                  <Button type="button" size="sm" variant="secondary" onClick={() => viewer.open(form.id)}>
+                    <Eye />
+                    {t('viewer.open')}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    title={t('documents.download')}
+                    aria-label={t('documents.download')}
+                    disabled={pending}
+                    onClick={() => startDownload(form)}
+                  >
+                    {pending ? <LoaderCircle className="animate-spin" /> : <Download />}
+                  </Button>
+                </div>
               </li>
             )
           })}
         </ul>
       </CardContent>
+
+      <FormPdfViewer
+        candidateId={candidateId}
+        form={viewer.current}
+        onClose={viewer.close}
+        position={viewer.position}
+        onPrevious={viewer.onPrevious}
+        onNext={viewer.onNext}
+        onDownload={startDownload}
+        downloading={download.isPending && download.variables?.formId === viewer.current?.id}
+      />
     </Card>
+  )
+}
+
+const NO_FORMS: CandidateForm[] = []
+
+/** Anketa PDF'i — to'liq ekranli ko'rish oynasida. */
+function FormPdfViewer({
+  candidateId,
+  form,
+  onClose,
+  position,
+  onPrevious,
+  onNext,
+  onDownload,
+  downloading,
+}: {
+  candidateId: string
+  form: CandidateForm | null
+  onClose: () => void
+  position: { index: number; total: number } | undefined
+  onPrevious: (() => void) | undefined
+  onNext: (() => void) | undefined
+  onDownload: (form: CandidateForm) => void
+  downloading: boolean
+}) {
+  const { t, dateTime } = useLocale()
+  const pdf = useCandidateFormPdfBlob(candidateId, form?.id ?? '', form !== null)
+
+  return (
+    <FileViewer
+      open={form !== null}
+      onClose={onClose}
+      title={form === null ? '' : t('recruiting.forms.number', { n: form.number })}
+      subtitle={form === null || form.submittedAt === '' ? undefined : dateTime(form.submittedAt)}
+      kind="pdf"
+      blob={pdf.data ?? null}
+      error={pdf.isError}
+      onDownload={form === null ? undefined : () => onDownload(form)}
+      downloading={downloading}
+      position={position}
+      onPrevious={onPrevious}
+      onNext={onNext}
+    />
   )
 }

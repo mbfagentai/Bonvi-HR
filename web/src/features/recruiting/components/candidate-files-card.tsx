@@ -1,6 +1,6 @@
 import {
   Download,
-  Expand,
+  Eye,
   FileText,
   Image as ImageIcon,
   LoaderCircle,
@@ -12,7 +12,6 @@ import { useEffect, useRef, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { useObjectUrl } from '@/shared/lib/use-object-url'
 import {
   Alert,
   Button,
@@ -20,8 +19,10 @@ import {
   CardDivider,
   CardHeader,
   Dialog,
+  FileViewer,
   IconTile,
-  Skeleton,
+  useViewerList,
+  viewerKind,
 } from '@/shared/ui'
 import type { Candidate, CandidateFile } from '../api/recruiting-api'
 import {
@@ -53,14 +54,12 @@ import {
  * xodim hujjatlaridagidek teskari qilinsa karta o'qilmas holga tushadi
  * (SPEC §4.3.4). Ikki xil tartib bo'lmasligi kerak.
  *
- * <b>Rasmga bosish — uni KATTA KO'RISH, yuklash emas.</b> Bu qoida
- * loyihada allaqachon bor (`candidate-photo-editor.tsx`, 2026-09-08
- * talabi: HR suratni kattaroq ko'rmoqchi bo'lib bosardi va o'zini fayl
- * tanlash oynasida topib olardi) va endi biriktirilgan RASMLARGA ham
- * tarqaldi. PDF esa aksincha, YUKLAB OLINADI: ilovada PDF ko'ruvchi yo'q
- * va brauzer/tizim yuklangan faylni o'zi ochadi — ya'ni PDF uchun yuklab
- * olish ko'rish ehtiyojini ham qamrab oladi (`employee-documents-tab.tsx`
- * dagi bilan bir xil mulohaza).
+ * <b>Faylga bosish — uni KO'RISH, yuklab olish emas</b> — rasm ham, PDF ham
+ * (egasi, 2026-10-30: «tortib olib keyin ochib ko'ramiz, vaqtni olyapti»).
+ * To'liq ekranli `FileViewer` ochiladi: kattalashtirish, sahifalar va
+ * ← / → bilan keyingi faylga o'tish (pasport 1-2-3 varaq). Ilgari faqat
+ * rasm oynada ochilardi, PDF esa yuklab olinardi. Yuklab olish — alohida
+ * tugma, qatorda ham, oynada ham.
  *
  * <b>Ro'yxatda MINIATYURA yo'q</b> va bu ataylab: o'nta miniatyura o'nta
  * autentifikatsiyalangan so'rov degani va u karta ochilganda ekrandagi
@@ -106,7 +105,7 @@ export function CandidateFilesCard({
   /** Ketma-ket yuklash davom etmoqda. Mutatsiyaning `isPending` i so'rovlar orasida uzilib turadi. */
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState<CandidateFile | null>(null)
-  const [viewing, setViewing] = useState<CandidateFile | null>(null)
+  const viewer = useViewerList(candidate.files)
 
   /*
     Nomzod almashsa (kartadan kartaga o'tish) oldingi holat qolib
@@ -117,7 +116,7 @@ export function CandidateFilesCard({
   useEffect(() => {
     setFailures([])
     setDeleting(null)
-    setViewing(null)
+    viewer.close()
     download.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidate.id])
@@ -335,7 +334,6 @@ export function CandidateFilesCard({
           <CardDivider />
           <ul className="divide-y divide-[var(--border)]">
             {files.map((file) => {
-              const image = isImage(file.contentType)
               const busy = download.isPending && download.variables?.fileId === file.id
 
               return (
@@ -349,8 +347,9 @@ export function CandidateFilesCard({
                   */}
                   <button
                     type="button"
-                    onClick={() => (image ? setViewing(file) : startDownload(file))}
-                    aria-label={image ? t('photo.view') : t('documents.download')}
+                    onClick={() => viewer.open(file.id)}
+                    aria-label={t('viewer.open')}
+                    title={t('viewer.open')}
                     className="press group flex min-w-0 flex-1 items-start gap-3 text-left"
                   >
                     <span className="relative shrink-0">
@@ -366,11 +365,7 @@ export function CandidateFilesCard({
                           'group-hover:opacity-100 group-focus-visible:opacity-100',
                         )}
                       >
-                        {image ? (
-                          <Expand className="size-3.5 text-white" strokeWidth={2.5} />
-                        ) : (
-                          <Download className="size-3.5 text-white" strokeWidth={2.5} />
-                        )}
+                        <Eye className="size-3.5 text-white" strokeWidth={2.5} />
                       </span>
                     </span>
 
@@ -433,10 +428,16 @@ export function CandidateFilesCard({
         </>
       )}
 
-      <FileImageDialog
+      <CandidateFileViewer
         candidateId={candidate.id}
-        file={viewing}
-        onClose={() => setViewing(null)}
+        file={viewer.current}
+        onClose={viewer.close}
+        position={viewer.position}
+        onPrevious={viewer.onPrevious}
+        onNext={viewer.onNext}
+        size={(bytes) => sizeText(bytes, num)}
+        onDownload={startDownload}
+        downloading={download.isPending && download.variables?.fileId === viewer.current?.id}
       />
 
       <DeleteFileDialog
@@ -455,89 +456,62 @@ interface UploadFailure {
 }
 
 /**
- * Biriktirilgan RASMNI katta ko'rish.
+ * Biriktirilgan faylni ko'rish — to'liq ekranli `FileViewer` da.
  *
  * Baytlar `useCandidateFileBlob` dan keladi — kalit ildizi `-photo` bilan
- * tugaydi, ya'ni kartada yozilgan har bir izoh ochiq turgan rasmni qaytadan
- * yuklashga majbur qilmaydi (sabab `recruitingKeys` da).
+ * tugaydi, ya'ni kartada yozilgan har bir izoh ochiq turgan faylni qaytadan
+ * yuklashga majbur qilmaydi (sabab `recruitingKeys` da). Fayllar o'zgarmaydi,
+ * shuning uchun ← / → bilan qaytilgan fayl keshdan darhol chiqadi.
  *
- * Rasm TO'RTBURCHAK va to'liq ko'rinadi, kesilmaydi: saqlangan fayl kvadrat
- * emas (nomzod suratidan farqi shu) va oynaning butun maqsadi — varaqni
- * o'qish. Uchta holat ham chiziladi: yuklanish (skelet), xato (tugma esa
- * baribir ishlaydi — faylni yuklab olib ko'rish mumkin) va rasmning o'zi.
+ * Yuklab olishning xatosi oynani yopmaydi va ko'rinib turgan faylni yashirmaydi —
+ * u kartadagi xato qatorida chiqadi (oyna yopilgach ko'rinadi).
  */
-function FileImageDialog({
+function CandidateFileViewer({
   candidateId,
   file,
   onClose,
+  position,
+  onPrevious,
+  onNext,
+  size,
+  onDownload,
+  downloading,
 }: {
   candidateId: string
   /** `null` — oyna yopiq. So'rov ham yuborilmaydi. */
   file: CandidateFile | null
   onClose: () => void
+  position: { index: number; total: number } | undefined
+  onPrevious: (() => void) | undefined
+  onNext: (() => void) | undefined
+  size: (bytes: number) => string
+  /** Kartaning o'z mutatsiyasi — xatosi kartadagi xato qatorida chiqadi. */
+  onDownload: (file: CandidateFile) => void
+  downloading: boolean
 }) {
-  const { t } = useLocale()
-  const errorMessage = useErrorMessage()
-  const download = useDownloadCandidateFile()
+  const { dateTime } = useLocale()
 
   /*
-    Hook'lar SHARTSIZ chaqiriladi va `null` tekshiruvi ulardan KEYIN
-    turadi (`employee-documents-tab.tsx` dagi `DeleteDocumentDialog` bilan
-    bir xil): erta qaytish hook'lar sonini o'zgartirib, React ni
-    yiqitardi. So'rovni to'xtatib turadigan narsa — `enabled`.
+    Hook'lar SHARTSIZ chaqiriladi (`employee-documents-tab.tsx` dagi `DeleteDocumentDialog`
+    bilan bir xil): so'rovni to'xtatib turadigan narsa — `enabled`.
   */
   const blob = useCandidateFileBlob(candidateId, file?.id ?? '', file !== null)
-  const src = useObjectUrl(blob.data ?? null)
-
-  if (file === null) return null
 
   return (
-    <Dialog
-      open
+    <FileViewer
+      open={file !== null}
       onClose={onClose}
-      size="lg"
-      title={t('recruiting.filesViewTitle')}
-      description={file.fileName}
-      footer={
-        <Button
-          type="button"
-          disabled={download.isPending}
-          onClick={() =>
-            download.mutate({ id: candidateId, fileId: file.id, fallbackName: file.fileName })
-          }
-        >
-          {download.isPending ? <LoaderCircle className="animate-spin" /> : <Download />}
-          {t('documents.download')}
-        </Button>
-      }
-    >
-      <div className="space-y-4">
-        {/*
-          Yuklab olishning xatosi rasmni YASHIRMAYDI: ikkisi boshqa-boshqa
-          so'rov va ko'rinib turgan rasmni «saqlab bo'lmadi» degan sabab
-          bilan olib qo'yish foydalanuvchidan ko'rgan narsasini tortib
-          olardi.
-        */}
-        {download.isError && (
-          <Alert tone="danger">{errorMessage(recruitingErrorCode(download.error))}</Alert>
-        )}
-
-        {blob.isError ? (
-          <Alert tone="danger">{errorMessage(recruitingErrorCode(blob.error))}</Alert>
-        ) : src === null ? (
-          // Skelet — rasmning O'RNIDA: oyna bo'yi sakramasin.
-          <Skeleton className="h-72 w-full" />
-        ) : (
-          <div className="flex justify-center">
-            <img
-              src={src}
-              alt={file.fileName}
-              className="max-h-[70vh] w-auto rounded-md object-contain"
-            />
-          </div>
-        )}
-      </div>
-    </Dialog>
+      title={file?.fileName ?? ''}
+      subtitle={file === null ? undefined : `${size(file.sizeBytes)} · ${dateTime(file.uploadedAt)}`}
+      kind={viewerKind(file?.contentType)}
+      blob={blob.data ?? null}
+      error={blob.isError}
+      onDownload={file === null ? undefined : () => onDownload(file)}
+      downloading={downloading}
+      position={position}
+      onPrevious={onPrevious}
+      onNext={onNext}
+    />
   )
 }
 
@@ -618,7 +592,7 @@ function DeleteFileDialog({
  *
  * Server `isImage` bayrog'i qaytarmaydi va kerak ham emas: `contentType`
  * MAZMUNDAN aniqlangan, ya'ni bu tekshiruv kengaytmaga emas, haqiqiy
- * turga tayanadi. Rasm — oynada ochiladi, qolgani (PDF) — yuklab olinadi.
+ * turga tayanadi. Ikonani tanlash uchun — ko'rish oynasi turni o'zi biladi (`viewerKind`).
  */
 function isImage(contentType: string): boolean {
   return contentType.startsWith('image/')

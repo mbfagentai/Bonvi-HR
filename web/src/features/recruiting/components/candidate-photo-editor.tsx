@@ -7,8 +7,9 @@ import { cn } from '@/shared/lib/cn'
 import { PHOTO_ACCEPT, photoFileError, toMegabytes } from '@/shared/lib/photo'
 import { croppedOrOriginal, type CropArea } from '@/shared/lib/photo-crop'
 import { useObjectUrl } from '@/shared/lib/use-object-url'
-import { Alert, Button, Dialog, PhotoCropper } from '@/shared/ui'
+import { Alert, Button, Dialog, FileViewer, PhotoCropper } from '@/shared/ui'
 import {
+  useCandidatePhoto,
   useDeleteCandidatePhoto,
   useUploadCandidatePhoto,
 } from '../api/recruiting-queries'
@@ -65,6 +66,8 @@ export function CandidatePhotoEditor({
   const [deleteFailure, setDeleteFailure] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [viewing, setViewing] = useState(false)
+  // Ko'rish oynasi uchun — avatar bilan bir kesh (`useCandidatePhoto`), ikkinchi so'rov yo'q
+  const viewingPhoto = useCandidatePhoto(candidateId, hasPhoto && viewing)
 
   const upload = useUploadCandidatePhoto(candidateId)
   const remove = useDeleteCandidatePhoto(candidateId)
@@ -238,51 +241,34 @@ export function CandidatePhotoEditor({
         </Button>
       )}
 
-      {/* ───────── Suratni katta ko'rish ───────── */}
-      <Dialog
+      {/* ───────── Suratni katta ko'rish ─────────
+          To'liq ekranli ko'rish oynasi (egasi, 2026-10-30: «yanada kattalashtirib ko'rish
+          mumkin bo'lsin»): g'ildirak, chimchilash, ikki marta bosish va sudrash. Surat
+          TO'RTBURCHAK, doira emas — oynaning maqsadi uni to'liq ko'rsatish. «Rasmni
+          almashtirish» yuqori panelda qoldi: HR «bu boshqa odam ekan» desa, oynani yopib
+          izlashi shart emas. Oyna avval yopiladi — fayl tanlash oynasi ustidan chiqmasin. */}
+      <FileViewer
         open={viewing}
         onClose={() => setViewing(false)}
-        size="sm"
-        title={t('recruiting.photoTitle')}
-        description={name}
-        footer={
-          /*
-            Yuklash tugmasi oynaning ICHIDA ham turadi: HR suratni ko'rib
-            «bu boshqa odam ekan» degan xulosaga kelsa, oynani yopib
-            qaytadan izlashi shart emas. Oyna avval yopiladi — fayl
-            tanlash oynasi ustidan chiqsa, ikkitasi bir-birini to'sardi.
-          */
-          <Button
+        title={name}
+        subtitle={t('recruiting.photoTitle')}
+        kind="image"
+        blob={viewingPhoto.data ?? null}
+        error={viewingPhoto.isError}
+        actions={
+          <button
             type="button"
             onClick={() => {
               setViewing(false)
               openPicker()
             }}
+            className="press flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-subhead font-medium transition-colors hover:bg-white/20"
           >
-            <Camera />
-            {t('photo.change')}
-          </Button>
+            <Camera className="size-4" />
+            <span className="max-sm:sr-only">{t('photo.change')}</span>
+          </button>
         }
-      >
-        {/*
-          Bu yerda surat TO'RTBURCHAK ko'rinadi, doira emas: serverda u
-          512×512 kvadrat bo'lib yotadi va doira uning chetlarini kesib
-          qo'yardi. Oynaning butun maqsadi — suratni TO'LIQ ko'rsatish.
-
-          Yuklashdan oldingi ko'rib chiqish esa aksincha, DOIRA shaklida
-          qoladi: u kartada qanday chiqishini va'da qiladi (izohi
-          o'sha oynada).
-        */}
-        <div className="flex justify-center">
-          <CandidatePhoto
-            candidateId={candidateId}
-            hasPhoto={hasPhoto}
-            name={name}
-            size="xl"
-            className="size-64 rounded-lg text-largetitle"
-          />
-        </div>
-      </Dialog>
+      />
 
       {/* ───────── Ko'rib chiqish va yuklash ───────── */}
       <Dialog

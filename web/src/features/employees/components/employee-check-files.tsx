@@ -1,5 +1,4 @@
 import {
-  ChevronLeft,
   ChevronRight,
   FileText,
   Image as ImageIcon,
@@ -14,8 +13,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useAuth } from '@/features/auth'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { useObjectUrl } from '@/shared/lib/use-object-url'
-import { Alert, Button, Dialog, Skeleton } from '@/shared/ui'
+import { Alert, Button, Dialog, FileViewer, Skeleton, viewerKind } from '@/shared/ui'
 
 import type { EmployeeCheckFile } from '../api/employees-api'
 import {
@@ -282,7 +280,8 @@ function metaText(
 }
 
 /**
- * Materialni ko'rish oynasi — fayl FAQAT shu yerda chiziladi.
+ * Materialni ko'rish oynasi — umumiy to'liq ekranli `FileViewer` da (2026-10-30): rasm
+ * kattalashadi, PDF sahifalari PDF.js bilan chiziladi.
  *
  * Bir nechta material bo'lsa oyna ichida varaqlanadi (tugmalar va ←/→
  * klavishalari): HR odatda hammasini ketma-ket ko'rib chiqadi va har
@@ -307,105 +306,23 @@ function CheckFileViewer({
   const item = index === -1 ? null : (items[index] ?? null)
 
   const content = useEmployeeCheckFileContent(employeeId, item?.id ?? null)
-  const src = useObjectUrl(content.data ?? null)
 
   const previous = index > 0 ? items[index - 1] : undefined
   const next = index !== -1 && index < items.length - 1 ? items[index + 1] : undefined
 
-  useEffect(() => {
-    if (item === null) return
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft' && previous !== undefined) onNavigate(previous.id)
-      if (event.key === 'ArrowRight' && next !== undefined) onNavigate(next.id)
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [item, previous, next, onNavigate])
-
-  if (item === null) return null
-
-  /*
-    Tur ro'yxatdan olinadi, blob'dan emas: u server tomonda MAZMUN
-    bo'yicha aniqlangan va javobdan oldin ma'lum — PDF ni `<img>` ga
-    berib, singan rasm belgisini chizish xavfi yo'q.
-  */
-  const isPdf = item.contentType === 'application/pdf'
-
   return (
-    <Dialog
-      open
+    <FileViewer
+      open={item !== null}
       onClose={onClose}
-      size="lg"
-      title={<span className="block truncate">{item.fileName}</span>}
-      description={`${metaText(item, num, date)} · ${t('employees.checkFilesViewHint')}`}
-      footer={
-        <div className="flex w-full flex-wrap items-center justify-between gap-2">
-          {items.length > 1 ? (
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => previous !== undefined && onNavigate(previous.id)}
-                disabled={previous === undefined}
-              >
-                <ChevronLeft />
-                {t('employees.checkFilesPrev')}
-              </Button>
-
-              <span className="tabular text-footnote text-[var(--fg-secondary)]">
-                {t('employees.checkFilesPosition', { n: num(index + 1), total: num(items.length) })}
-              </span>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => next !== undefined && onNavigate(next.id)}
-                disabled={next === undefined}
-              >
-                {t('employees.checkFilesNext')}
-                <ChevronRight />
-              </Button>
-            </div>
-          ) : (
-            <span />
-          )}
-
-          <Button type="button" onClick={onClose}>
-            {t('common.close')}
-          </Button>
-        </div>
-      }
-    >
-      {content.isError ? (
-        <Alert tone="danger">{t('employees.checkFilesLoadFailed')}</Alert>
-      ) : src === null ? (
-        <Skeleton className="h-64 w-full" />
-      ) : isPdf ? (
-        /*
-          PDF `<iframe>` da: brauzerning o'z ko'ruvchisi varaqlash va
-          kattalashtirishni bepul beradi.
-        */
-        <iframe
-          src={src}
-          title={item.fileName}
-          className="h-[70vh] w-full rounded-md border border-[var(--border)]"
-        />
-      ) : (
-        /*
-          `object-contain` — rasm QIRQILMAYDI: skrinshotning butun ma'nosi
-          undagi matnning to'liq o'qilishida.
-        */
-        <img
-          src={src}
-          alt={item.fileName}
-          className="max-h-[70vh] w-full rounded-md border border-[var(--border)] object-contain"
-        />
-      )}
-    </Dialog>
+      title={item?.fileName ?? ''}
+      subtitle={item === null ? undefined : `${metaText(item, num, date)} · ${t('employees.checkFilesViewHint')}`}
+      kind={viewerKind(item?.contentType)}
+      blob={content.data ?? null}
+      error={content.isError}
+      position={index === -1 ? undefined : { index, total: items.length }}
+      onPrevious={previous === undefined ? undefined : () => onNavigate(previous.id)}
+      onNext={next === undefined ? undefined : () => onNavigate(next.id)}
+    />
   )
 }
 

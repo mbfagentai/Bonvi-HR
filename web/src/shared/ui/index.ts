@@ -18,6 +18,7 @@ export {
 } from './data-table-columns'
 export { Dialog } from './dialog'
 export { EmptyState } from './empty-state'
+export { FileViewer, useViewerList, viewerKind, type ViewerKind } from './file-viewer'
 export { IconTile, type IconTone } from './icon-tile'
 export { Input } from './input'
 export { PageHeader } from './page-header'

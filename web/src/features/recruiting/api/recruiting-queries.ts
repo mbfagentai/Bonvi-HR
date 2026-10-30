@@ -125,6 +125,9 @@ export const recruitingKeys = {
    */
   fileBlob: (candidateId: string, fileId: string) =>
     ['candidate-file-photo', candidateId, fileId] as const,
+  /** Anketa PDF'ining baytlari — ko'rish oynasi uchun; `-photo` ildizi `fileBlob` dagi sabab bilan. */
+  formPdfBlob: (candidateId: string, formId: string) =>
+    ['candidate-form-pdf-photo', candidateId, formId] as const,
 }
 
 /* ═══════════════════════════════════════════════════════════ bosqichlar */
@@ -782,6 +785,20 @@ export function useCandidateForms(candidateId: string) {
  * Downloads the form's PDF. A mutation for the same reason as
  * `useDownloadCandidateFile`: bytes are needed on a click, not on page load.
  */
+/**
+ * Anketa PDF'i — ko'rish oynasi uchun (`FileViewer`). Imzolangan anketa o'zgarmaydi, ya'ni
+ * bir marta olingani yetadi (`useCandidateFileBlob` bilan bir xil qoida).
+ */
+export function useCandidateFormPdfBlob(candidateId: string, formId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: recruitingKeys.formPdfBlob(candidateId, formId),
+    queryFn: async () => (await fetchCandidateFormPdf(candidateId, formId)).blob,
+    enabled: enabled && candidateId !== '' && formId !== '',
+    staleTime: Infinity,
+    retry: false,
+  })
+}
+
 export function useDownloadCandidateFormPdf() {
   return useMutation({
     meta: { readOnly: true },
