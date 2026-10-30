@@ -3,6 +3,12 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `d70de8c` — «Buyruqlar» qatori xodim kartasini ochadi — 2026-10-30 16:29 (Toshkent)
+
+Faqat web (`a421892` → `d70de8c`). Rollback: `bonvi-hr-prod-web:rollback-a421892`, zaxira 16:2x da olindi. HR 5,8 daqiqa
+jim edi. `up -d --no-deps -t 3 web` bilan almashtirildi, o'lchangan uzilish ~5 s (16:29:44–16:29:48, 0,5 s probe):
+`-t 3` oldingi ~12 s ni qisqartirdi. Faqat uzilgan SSE `/notifications/stream` 500, boshqa ERR yo'q.
+
 ## ✅ Reliz `a421892` — botda takroriy ariza F.I. + tug'ilgan sana bo'yicha ham to'siladi — 2026-10-30 16:05 (Toshkent)
 
 Prod `f99f5fe` → `a421892`. Migratsiyasiz (faqat api va bot). Rollback: image tegi `rollback-f99f5fe`, zaxira stamp
