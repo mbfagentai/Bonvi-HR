@@ -3,19 +3,23 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
-## ⏸ Navbatdagi reliz (main'da, prod'ga YO'Q)
+## ✅ Reliz `db91233` — qayta murojaat, ko'rish oynasi, 15 s takror, jadval chegaralari — 2026-10-30 11:18 (Toshkent)
 
-Prod `3457ee1` dan keyin yig'ilgan, egasi «deploy qil» deyishini kutadi:
-- `b17a40c` — jadvalda erta kelish / kech ketish chegarasi. **Migratsiya** `20261028050323_KelishKetishChegarasi`
-  (2 ustun, default 0).
-- `31406ed`, `b512b16` — HR-F02: «O'zingiz haqingizda» hammasi majburiy; PDF'da yashil ☑. Migratsiyasiz.
-- Qayta murojaat + ko'rish oynasi (2026-10-30). **Migratsiya** `20261030042005_NomzodQaytaMurojaat` (nullable
-  `candidates.reapplied_at` + bir martalik UPDATE: anketalardan to'ldirish). Yangi npm paket `pdfjs-dist` 5.7.284 —
-  web image qayta quriladi. Bot kodi o'zgarmagan.
+Prod `3457ee1` → `db91233` (b17a40c, 31406ed, b512b16, c2a3173, a414951, db91233). Migratsiyalar
+`20261028050323_KelishKetishChegarasi`, `20261030042005_NomzodQaytaMurojaat` — prod nusxasida (`bonvi_migtest`)
+Up → Down → Up sinaldi: 71 → 73, nomzodlar 5239 o'zgarmadi, `reapplied_at` 2 ta bot nomzodiga yozildi; nusxa o'chirildi.
+⚠️ Saboq: eski prebuild skriptining OpenAPI uchun vaqtinchalik `Development` API'si migratsiyani PROD bazasiga qo'llab
+yuborardi — bu safar u nusxaga ulandi (`/root/prebuild-a414951.sh`, `ConnectionStrings__Default` → bonvi_migtest).
+Rollback: image tegi `rollback-3457ee1` (api 507e605, bot 55e5d97, web d3bb733), zaxira stamp `2026-10-30_054901`;
+zaxiradan qaytarish — FAQAT DROP/CREATE DATABASE bilan. Build keshi tozalandi (disk 89% → 66%).
+Deploy HR 5 daqiqa jim bo'lganda (`/root/quiet.py`): API almashuvi 11:16:07–11:16:25 (~18 s, faqat fon polling 502),
+web almashuvi xatosiz. Tekshirildi: ERR/FTL yo'q, `/`, `/kirish`, `/ilova/`, `/anketa`, `/health/ready` 200,
+`pdf-view-*.js` va `pdf.worker.min-*.mjs` web image'da.
 
-Deploy'dan oldin: ikkala migratsiyani prod nusxasida sinash (UPDATE nechta qatorga tegishini yozib qo'yish),
-rollback tegi + zaxira. Deploy'dan keyin: nomzodlar ro'yxati «Murojaat» ustuni, «Anketa to'ldirganlar» filtri,
-hujjatni bosganda ko'rish oynasi (PDF va rasm), `/assets/pdf.worker.min-*.mjs` 200 va `text/javascript`.
+### Bu reliz bo'yicha ochiq qadamlar
+- 15 soniyalik takror qoidasi faqat yangi hisoblanadigan kunlarga: Propan-Rispetto xodimlarining o'tgan kunlari
+  «Qayta hisoblash»dan keyin tuzaladi (egasi qaror qiladi).
+- Jadval chegaralari 0 — HR jadvalda qo'ymaguncha hech narsa o'zgarmaydi.
 
 ## ✅ Reliz `3457ee1` — HR SPA keshlash (faqat web) — 2026-10-28 09:23 (Toshkent)
 
