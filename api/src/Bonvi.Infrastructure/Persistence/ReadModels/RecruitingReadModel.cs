@@ -408,36 +408,52 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
     public async Task<CandidateApplicationRow?> FindLatestApplicationAsync(
         string phoneDigits,
         long? telegramChatId,
+        CandidatePersonKey? person = null,
         CancellationToken cancellationToken = default)
     {
-        var candidates = _context.Candidates.AsNoTracking();
-
         /*
-          Ikkita kalit, OR bilan: telefon va Telegram hisobi. Faqat
-          telefon yetmaydi — bir odamda ikkita SIM bo'lishi mumkin va u
-          o'sha hisobdan yangi raqam bilan qaytib kelardi
+          Uchta kalit, BIRLASHMA bilan: telefon, Telegram hisobi va F.I. +
+          tug'ilgan sana. Faqat telefon yetmaydi — bir odamda ikkita SIM
+          bo'lishi mumkin; telefon va hisob ham yetmadi — prod'da odam
+          ikkalasini ham almashtirib uch marta topshirgan
           (`IRecruitingReadModel` izohi).
 
-          Kalitlardan biri bo'lmasligi MUMKIN: o'shanda shunchaki
-          ikkinchisi bo'yicha qidiriladi. Ikkalasi ham bo'sh bo'lsa
-          tekshiradigan narsa yo'q va javob `null` — to'siqsiz.
+          Kalitlardan biri bo'lmasligi MUMKIN: o'shanda qolganlari bo'yicha
+          qidiriladi. Hammasi bo'sh bo'lsa tekshiradigan narsa yo'q va
+          javob `null` — to'siqsiz.
         */
+        IQueryable<Guid>? matching = null;
+
         if (phoneDigits.Length > 0)
         {
-            var matching = CandidateSearchQuery.WithPhone(_context, phoneDigits);
+            matching = CandidateSearchQuery.WithPhone(_context, phoneDigits);
+        }
 
-            candidates = candidates.Where(
-                candidate => matching.Contains(candidate.Id)
-                    || (telegramChatId != null && candidate.TelegramChatId == telegramChatId));
-        }
-        else if (telegramChatId is { } chatId)
+        if (telegramChatId is { } chatId)
         {
-            candidates = candidates.Where(candidate => candidate.TelegramChatId == chatId);
+            var byChat = _context.Candidates
+                .Where(candidate => candidate.TelegramChatId == chatId)
+                .Select(candidate => candidate.Id);
+
+            matching = matching is null ? byChat : matching.Union(byChat);
         }
-        else
+
+        if (person is not null)
+        {
+            var byPerson = CandidateSearchQuery.WithPerson(
+                _context, person.LastName, person.FirstName, person.BirthDate);
+
+            matching = matching is null ? byPerson : matching.Union(byPerson);
+        }
+
+        if (matching is null)
         {
             return null;
         }
+
+        var candidates = _context.Candidates
+            .AsNoTracking()
+            .Where(candidate => matching.Contains(candidate.Id));
 
         var rows =
             from candidate in candidates

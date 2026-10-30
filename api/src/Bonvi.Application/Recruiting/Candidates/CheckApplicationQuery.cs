@@ -46,7 +46,20 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// qaytib kelardi. Ikkala kalit birga tekshirilgani uchun bunday
 /// aylanma yo'l yopiq.
 /// </param>
-public sealed record CheckApplicationQuery(string? Phone, long? TelegramChatId = null);
+/// <param name="LastName">
+/// Familiya — UCHINCHI kalit, ism va tug'ilgan sana bilan birga
+/// (2026-10-30). Prod'da bir odam uch marta topshirgan: har safar boshqa
+/// raqam VA boshqa Telegram hisobi bilan. Uchalasidan biri bo'sh bo'lsa,
+/// bu kalit ishlatilmaydi.
+/// </param>
+/// <param name="FirstName">Ism.</param>
+/// <param name="BirthDate">Tug'ilgan sana.</param>
+public sealed record CheckApplicationQuery(
+    string? Phone,
+    long? TelegramChatId = null,
+    string? LastName = null,
+    string? FirstName = null,
+    DateOnly? BirthDate = null);
 
 public sealed class CheckApplicationQueryHandler
 {
@@ -73,7 +86,7 @@ public sealed class CheckApplicationQueryHandler
         var digits = PhoneDigits(query.Phone);
 
         var latest = await _readModel
-            .FindLatestApplicationAsync(digits, query.TelegramChatId, cancellationToken)
+            .FindLatestApplicationAsync(digits, query.TelegramChatId, PersonKey(query), cancellationToken)
             .ConfigureAwait(false);
 
         if (latest is null)
@@ -122,6 +135,25 @@ public sealed class CheckApplicationQueryHandler
                 latest.StageName,
                 availableFrom)
             : ApplicationCheckDto.Allow();
+    }
+
+    /// <summary>
+    /// «Odam» kaliti — faqat uchala qism ham bo'lsa.
+    /// </summary>
+    /// <remarks>
+    /// Chala kalit (masalan, faqat familiya va sana) ATAYLAB ishlatilmaydi:
+    /// u bir familiyali aka-uka yoki egizaklarni bir odam deb to'sib qo'yardi.
+    /// </remarks>
+    private static CandidatePersonKey? PersonKey(CheckApplicationQuery query)
+    {
+        var lastName = query.LastName?.Trim();
+        var firstName = query.FirstName?.Trim();
+
+        return string.IsNullOrEmpty(lastName)
+            || string.IsNullOrEmpty(firstName)
+            || query.BirthDate is not { } birthDate
+            ? null
+            : new CandidatePersonKey(lastName, firstName, birthDate);
     }
 
     /// <summary>

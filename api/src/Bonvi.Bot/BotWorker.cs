@@ -1855,12 +1855,15 @@ public sealed partial class BotWorker : BackgroundService
           jarayondagi ariza va qayta ariza muddati — va ikkinchisining
           qoidasi sozlamadan o'zgaradi.
 
+          F.I. va tug'ilgan sana ham ketadi (ular 3–4-qadamda olingan):
+          odam raqamni VA Telegram hisobini almashtirib qaytib kelardi.
+
           `null` — javob umuman kelmadi. Unda O'TKAZAMIZ: server
           yiqilganida odamni yolg'on to'siq bilan qaytarishdan ko'ra
           anketani davom ettirgan yaxshiroq.
         */
         var check = await _bonvi
-            .CheckApplicationAsync(phone, chatId, cancellationToken)
+            .CheckApplicationAsync(phone, chatId, state.Name, state.BirthDate, cancellationToken)
             .ConfigureAwait(false);
 
         if (check is { Allowed: false })
@@ -2094,7 +2097,7 @@ public sealed partial class BotWorker : BackgroundService
         */
         if (state.SubmitStartedAt is not null)
         {
-            var check = await _bonvi.CheckApplicationAsync(phone, chatId, cancellationToken).ConfigureAwait(false);
+            var check = await _bonvi.CheckApplicationAsync(phone, chatId, state.Name, state.BirthDate, cancellationToken).ConfigureAwait(false);
 
             if (check is { Allowed: false, Reason: ApplicationBlockReason.Active })
             {

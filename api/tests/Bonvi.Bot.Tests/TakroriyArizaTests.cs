@@ -216,6 +216,28 @@ public sealed class TakroriyArizaTests
         bot.State.ShouldNotBeNull().Phone.ShouldBe("+998901234567");
     }
 
+    [Fact]
+    public async Task Tekshiruvga_FISH_va_tugilgan_sana_ham_ketadi()
+    {
+        /*
+          ⭐ 2026-10-30: prod'da bir odam uch marta topshirgan — har safar
+          boshqa raqam VA boshqa Telegram hisobi bilan. Server uni faqat
+          F.I. va tug'ilgan sana bo'yicha taniy oladi, ya'ni bot ularni
+          yubormasa to'siq jimgina ishlamay qoladi.
+        */
+        using var bot = new BotHarness();
+
+        await ReachPhoneAsync(bot);
+
+        var query = bot.CheckQueries.ShouldHaveSingleItem();
+        query.ShouldContain("phone=+998901234567");
+        query.ShouldContain("lastName=Karimov");
+        query.ShouldContain("firstName=Aziz");
+
+        // Kun qiymati — siljitilmaydi va madaniyatga bog'liq emas.
+        query.ShouldContain("birthDate=1990-10-10");
+    }
+
     /// <summary>Anketani 6-qadamgacha — telefon raqamigacha — olib boradi.</summary>
     /// <remarks>
     /// Tekshiruv AYNAN shu qadamda bo'lishi kerak: uni oxirga

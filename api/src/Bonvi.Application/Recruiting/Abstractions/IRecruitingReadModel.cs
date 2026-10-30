@@ -64,9 +64,16 @@ public interface IRecruitingReadModel
     /// muammoni qaytarardi.
     /// </para>
     /// </remarks>
+    /// <para>
+    /// ⭐ <b>Uchinchi kalit — F.I. + tug'ilgan sana (2026-10-30).</b> Prod'da
+    /// bir odam uch marta topshirgan: har safar BOSHQA raqam va BOSHQA
+    /// Telegram hisobi bilan. Ikkala kalit ham begona edi, ism va sana
+    /// esa bir xil. Shart <see cref="CandidatePersonKey"/> izohida.
+    /// </para>
     Task<CandidateApplicationRow?> FindLatestApplicationAsync(
         string phoneDigits,
         long? telegramChatId,
+        CandidatePersonKey? person = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -469,6 +476,27 @@ public sealed record CandidateSearchFilter(
     /// </remarks>
     private bool ArchiveRequested => IncludeArchive || Source == CandidateSource.Excel;
 }
+
+/// <summary>
+/// Takroriy ariza tekshiruvining «odam» kaliti: familiya, ism va tug'ilgan sana.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Ism lotin/kirill farqsiz solishtiriladi (bazadagi <c>search_key()</c>):
+/// «Valiyev Ali» va «Валиев Али» bitta odam. Familiya va ism o'rni
+/// almashgani ham tanildi — botda odam ko'pincha avval ismini yozadi.
+/// </para>
+/// <para>
+/// ⚠️ Otasining ismi ATAYLAB solishtirilmaydi: prod'dagi takror
+/// juftliklarning yarmida u bir arizada bor, ikkinchisida yo'q yoki
+/// «o'g'li» bilan yozilgan. Tug'ilgan sana bilan birga F.I. ikki begona
+/// odamni adashtirmaydigan darajada tor.
+/// </para>
+/// </remarks>
+/// <param name="LastName">Familiya — qanday yozilgan bo'lsa.</param>
+/// <param name="FirstName">Ism.</param>
+/// <param name="BirthDate">Tug'ilgan sana.</param>
+public sealed record CandidatePersonKey(string LastName, string FirstName, DateOnly BirthDate);
 
 /// <summary>
 /// Takroriy ariza tekshiruvi uchun kerakli MINIMUM.

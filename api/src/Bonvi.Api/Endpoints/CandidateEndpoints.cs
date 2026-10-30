@@ -934,11 +934,16 @@ public static class CandidateEndpoints
         group.MapGet("/application-check", async (
                 string? phone,
                 long? telegramChatId,
+                string? lastName,
+                string? firstName,
+                DateOnly? birthDate,
                 CheckApplicationQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new CheckApplicationQuery(phone, telegramChatId), cancellationToken)
+                    .HandleAsync(
+                        new CheckApplicationQuery(phone, telegramChatId, lastName, firstName, birthDate),
+                        cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();
@@ -951,9 +956,11 @@ public static class CandidateEndpoints
                 "qat'i nazar; (2) qayta ariza muddati — «recruiting.reapplyMonths» " +
                 "sozlamasi (sukut 6 oy), hisob oxirgi arizaning YOPILGAN " +
                 "sanasidan ketadi. " +
-                "Ikkita kalit bo'yicha qidiriladi: telefon VA Telegram hisobi — " +
-                "bir odamda ikkita SIM bo'lishi mumkin va u o'sha hisobdan yangi " +
-                "raqam bilan qaytib kelardi. " +
+                "Uchta kalit bo'yicha qidiriladi: telefon, Telegram hisobi VA " +
+                "familiya + ism + tug'ilgan sana («lastName», «firstName», " +
+                "«birthDate» — uchalasi birga; ism lotin/kirill farqsiz, o'rni " +
+                "almashgani ham taniladi, otasining ismi solishtirilmaydi). Odam " +
+                "raqamni ham, Telegram hisobini ham almashtirib qaytib kelardi. " +
                 "Vakansiya bo'yicha AJRATILMAYDI: to'siq odamga qo'yiladi, arizaga " +
                 "emas — aks holda bir odam har kuni boshqa vakansiyaga anketa " +
                 "tashlayverardi. " +

@@ -1745,6 +1745,56 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         begona.Reason.ShouldBe("None");
     }
 
+    /// <summary>To'siq F.I. + TUG'ILGAN SANA bo'yicha ham ishlaydi.</summary>
+    /// <remarks>
+    /// ⭐ 2026-10-30, prod: bir odam uch marta topshirgan — har safar BOSHQA
+    /// raqam va BOSHQA Telegram hisobi bilan. Ikkala eski kalit ham begona
+    /// edi; uni faqat ism va sana tanidi. Ism lotin/kirill farqsiz va
+    /// familiya bilan ism o'rni almashgani ham tanilishi kerak — botda odam
+    /// har safar boshqacha yozadi.
+    /// </remarks>
+    [Fact]
+    public async Task Tekshiruv_FISH_va_TUGILGAN_SANA_boyicha_ham_tosadi()
+    {
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var (kirill, lotin) = Familiya();
+        var sana = new DateOnly(1999, 3, 14);
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+
+        await NomzodAsync(
+            admin, vakansiya.Id, familiya: kirill, telefon: Raqam(), suhbatId: SuhbatRaqami(), ism: "Азиз", tugilgan: sana);
+
+        // 1. Yangi raqam, yangi hisob, LOTINDA va O'RNI ALMASHGAN ism — baribir to'siladi.
+        var almashgan = await TekshiruvAsync(
+            bot, Sorov(Raqam(), SuhbatRaqami()) + Odam("Aziz", lotin, sana));
+
+        almashgan.Allowed.ShouldBeFalse("raqam va hisobni almashtirish yordam bermaydi");
+        almashgan.Reason.ShouldBe("Active");
+
+        // 2. Kirillda, odatdagi tartibda — ham to'siladi.
+        var odatdagi = await TekshiruvAsync(
+            bot, Sorov(Raqam(), SuhbatRaqami()) + Odam(kirill, "Азиз", sana));
+
+        odatdagi.Reason.ShouldBe("Active");
+
+        // 3. Nazorat: boshqa tug'ilgan sana — boshqa odam, yo'l ochiq.
+        var boshqaSana = await TekshiruvAsync(
+            bot, Sorov(Raqam(), SuhbatRaqami()) + Odam(kirill, "Азиз", sana.AddDays(1)));
+
+        boshqaSana.Allowed.ShouldBeTrue("adashlar bir-birini to'smasligi kerak");
+
+        // 4. Chala kalit (ismsiz) ishlatilmaydi — aka-ukani bir odam deb to'sardi.
+        var chala = await TekshiruvAsync(
+            bot,
+            Sorov(Raqam(), SuhbatRaqami())
+                + "&lastName=" + Uri.EscapeDataString(kirill)
+                + "&birthDate=" + sana.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+
+        chala.Allowed.ShouldBeTrue("faqat familiya va sana — odam kaliti emas");
+    }
+
     /// <summary>Jarayondagi ariza muddatdan QAT'I NAZAR to'sadi.</summary>
     /// <remarks>
     /// Bu — botdagi eng eski qoida va u saqlanishi kerak: ikkinchi yozuv
@@ -2387,6 +2437,9 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
     /// <summary>Telegram suhbati hisoblagichi.</summary>
     private static int _suhbatHisoblagichi;
 
+    /// <summary>Familiya hisoblagichi — izohi <see cref="Familiya"/> da.</summary>
+    private static int _familiyaHisoblagichi;
+
     /// <summary>
     /// Yuridik shaxs va lavozimni to'g'ridan-to'g'ri bazaga qo'yadi.
     /// </summary>
@@ -2498,7 +2551,9 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         string familiya = "Каримов",
         string telefon = "905088888",
         long? suhbatId = null,
-        string manba = "Manual")
+        string manba = "Manual",
+        string ism = "Азиз",
+        DateOnly? tugilgan = null)
     {
         using var javob = await mijoz.PostAsJsonAsync(
             new Uri("/api/recruiting/candidates", UriKind.Relative),
@@ -2506,10 +2561,10 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
             {
                 vacancyId = vakansiyaId,
                 lastName = familiya,
-                firstName = "Азиз",
+                firstName = ism,
                 phone = telefon,
                 speciality = "Иқтисодчи",
-                birthDate = new DateOnly(1995, 5, 20),
+                birthDate = tugilgan ?? new DateOnly(1995, 5, 20),
                 stageId = bosqichId,
                 telegramChatId = suhbatId,
                 source = manba,
@@ -2681,6 +2736,32 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
         return suhbatId is { } id
             ? sorov + "&telegramChatId=" + id.ToString(CultureInfo.InvariantCulture)
             : sorov;
+    }
+
+    /// <summary>Tekshiruv so'rovining «odam» qismi: F.I. va tug'ilgan sana.</summary>
+    private static string Odam(string familiya, string ism, DateOnly tugilgan)
+        => "&lastName=" + Uri.EscapeDataString(familiya)
+            + "&firstName=" + Uri.EscapeDataString(ism)
+            + "&birthDate=" + tugilgan.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    /// <summary>Har chaqiruvda BOSHQA familiya — kirill va lotin ko'rinishi bilan.</summary>
+    /// <remarks>
+    /// Odam kaliti F.I. + sana bo'yicha, ya'ni bitta familiyani ikkita test
+    /// ishlatsa, biri ikkinchisiga urilardi. Qo'shimcha harflar ikkala
+    /// yozuvda bir xil o'qiladiganlardan olingan (б/b, д/d, …), shu sababli
+    /// lotin ko'rinishi kirillnikining aynan transliteratsiyasi.
+    /// </remarks>
+    private static (string Kirill, string Lotin) Familiya()
+    {
+        const string kirillHarflar = "абдлмнрстф";
+        const string lotinHarflar = "abdlmnrstf";
+
+        var son = Interlocked.Increment(ref _familiyaHisoblagichi)
+            .ToString("D4", CultureInfo.InvariantCulture);
+
+        return (
+            "Такрор" + string.Concat(son.Select(raqam => kirillHarflar[raqam - '0'])),
+            "Takror" + string.Concat(son.Select(raqam => lotinHarflar[raqam - '0'])));
     }
 
     /// <summary>Botning savoli: «bu odam anketa topshira oladimi?».</summary>

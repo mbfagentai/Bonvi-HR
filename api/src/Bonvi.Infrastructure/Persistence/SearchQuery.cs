@@ -488,6 +488,46 @@ internal static class CandidateSearchQuery
                  """)
             .Select(candidate => candidate.Id);
     }
+
+    /// <summary>
+    /// Familiyasi, ismi va tug'ilgan sanasi mos keladigan nomzodlar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="WithPhone"/> egizagi — bu ham QIDIRUV emas, TEKSHIRUV:
+    /// naqsh yo'q, kalitlar qat'iy teng. Ism kaliti qidiruvdagi bilan bir
+    /// xil funksiya (<c>search_key()</c>), ya'ni lotin/kirill va «қ/к»
+    /// farqi to'siqni chetlab o'tishga yaramaydi.
+    /// </para>
+    /// <para>
+    /// Ikki tartib birga: «Familiya Ism» va «Ism Familiya». Otasining ismi
+    /// kirmaydi (<c>CandidatePersonKey</c> izohi). Tug'ilgan sana birinchi
+    /// sharoit — u qatorlarni darhol bir nechtaga qisqartiradi va kalit
+    /// faqat ular uchun hisoblanadi.
+    /// </para>
+    /// </remarks>
+    public static IQueryable<Guid> WithPerson(
+        AppDbContext context,
+        string lastName,
+        string firstName,
+        DateOnly birthDate)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var direct = lastName + " " + firstName;
+        var swapped = firstName + " " + lastName;
+
+        return context.Candidates
+            .FromSql(
+                $"""
+                 SELECT x.*
+                 FROM candidates AS x
+                 WHERE x.birth_date = {birthDate}
+                   AND search_key(x.last_name || ' ' || x.first_name)
+                       IN (search_key({direct}), search_key({swapped}))
+                 """)
+            .Select(candidate => candidate.Id);
+    }
 }
 
 /// <summary>

@@ -539,13 +539,31 @@ public sealed partial class BonviClient : IDisposable
         return status?.IsOpen;
     }
 
+    /// <summary>
+    /// Bu odam yangi ariza topshira oladimi — qarorni server beradi.
+    /// </summary>
+    /// <remarks>
+    /// F.I. va tug'ilgan sana UCHINCHI kalit (2026-10-30): odam raqamni ham,
+    /// Telegram hisobini ham almashtirib qaytib kelardi. Ular ma'lum
+    /// bo'lmasa (eski suhbat) so'rovga qo'shilmaydi va server faqat
+    /// qolgan ikki kalit bo'yicha qaraydi.
+    /// </remarks>
     public async Task<ApplicationCheck?> CheckApplicationAsync(
         string phone,
         long chatId,
+        PersonName? name,
+        DateOnly? birthDate,
         CancellationToken cancellationToken)
     {
         var query = $"api/recruiting/candidates/application-check"
             + $"?phone={Uri.EscapeDataString(phone)}&telegramChatId={chatId}";
+
+        if (name is not null && birthDate is { } date)
+        {
+            query += $"&lastName={Uri.EscapeDataString(name.LastName)}"
+                + $"&firstName={Uri.EscapeDataString(name.FirstName)}"
+                + $"&birthDate={date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}";
+        }
 
         return await SendAsync<ApplicationCheck>(
                 () => new HttpRequestMessage(HttpMethod.Get, new Uri(query, UriKind.Relative)),

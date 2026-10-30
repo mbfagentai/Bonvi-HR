@@ -95,6 +95,9 @@ public sealed class BotHarness : IDisposable
     /// </remarks>
     public List<string> ApiCalls { get; } = [];
 
+    /// <summary>Takroriy ariza tekshiruviga ketgan so'rov satrlari (qochirilmagan).</summary>
+    public List<string> CheckQueries { get; } = [];
+
     /// <summary>Ochiq vakansiyalar — bo'sh ro'yxat «ochiq ish o'rni yo'q» degani.</summary>
     public List<OpenVacancy> Vacancies { get; } = [];
 
@@ -386,6 +389,8 @@ public sealed class BotHarness : IDisposable
 
         if (path == "/api/recruiting/candidates/application-check")
         {
+            CheckQueries.Add(Uri.UnescapeDataString(request.RequestUri?.Query ?? string.Empty));
+
             return CheckSucceeds
                 ? Json(ApplicationCheck())
                 : new HttpResponseMessage(HttpStatusCode.InternalServerError)
