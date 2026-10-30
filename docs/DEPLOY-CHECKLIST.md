@@ -3,6 +3,17 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `f99f5fe` — bo'lim davomati API kaliti (rahbar boti) — 2026-10-30 11:59 (Toshkent)
+
+Prod `db91233` → `f99f5fe`. Migratsiya `20261030063527_BolimDavomatiKaliti` (`api_keys.department_id` + indeks + FK) —
+prod nusxasida Up 73→74 / Down / Up, kalitlar 8 o'zgarmadi; nusxa o'chirildi (`/root/prebuild-f99f5fe.sh`).
+Rollback: image tegi `rollback-db91233`, zaxira stamp `2026-10-30_064524`. HR 19 daqiqa jim edi; API almashuvi ~11:57:10–11:57:25,
+web 11:59:31; ERR/FTL yo'q, 11:58 dan keyin 5xx yo'q; `/api/public/v1/team` kalitsiz 401. Bot QAYTA YARATILMADI.
+
+### Ochiq qadamlar
+- Sozlamalar → Tashqi API → «Bo'lim davomati» → «Риспетто велосипед заводи»: kalitni yaratib, rahbarning dasturchisiga
+  `docs/API-TASHQI.md` (oxirgi bo'lim) bilan berish.
+
 ## ✅ Reliz `db91233` — qayta murojaat, ko'rish oynasi, 15 s takror, jadval chegaralari — 2026-10-30 11:18 (Toshkent)
 
 Prod `3457ee1` → `db91233` (b17a40c, 31406ed, b512b16, c2a3173, a414951, db91233). Migratsiyalar
