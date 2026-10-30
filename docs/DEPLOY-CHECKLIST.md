@@ -3,6 +3,15 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `a421892` — botda takroriy ariza F.I. + tug'ilgan sana bo'yicha ham to'siladi — 2026-10-30 16:05 (Toshkent)
+
+Prod `f99f5fe` → `a421892`. Migratsiyasiz (faqat api va bot). Rollback: image tegi `rollback-f99f5fe`, zaxira stamp
+`2026-10-30_105018`. HR 14 daqiqa jim edi; API va bot ~16:04 da almashdi, web tegilmadi. Deploy daqiqasidagi xatolar
+zararsiz: `/notifications/stream` 500/502 (uzilgan SSE), `/api/mcp/*` 500 (OperationCanceled) va bitta
+`ux_attendance_passes_device_dedupe` (terminal o'tishni qayta yubordi, ingest 200). Shundan keyin ERR yo'q, health 200.
+⚠️ `/root/prebuild-a421892.sh` `git pull` dan keyin to'xtadi: `set -e` ostidagi ortiqcha `ls src` sabab bo'ldi.
+Build qo'lda yakunlandi.
+
 ## ✅ Reliz `f99f5fe` — bo'lim davomati API kaliti (rahbar boti) — 2026-10-30 11:59 (Toshkent)
 
 Prod `db91233` → `f99f5fe`. Migratsiya `20261030063527_BolimDavomatiKaliti` (`api_keys.department_id` + indeks + FK) —
