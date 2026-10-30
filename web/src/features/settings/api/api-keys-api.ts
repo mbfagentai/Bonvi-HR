@@ -22,7 +22,7 @@ import { api } from '@/shared/api/http-client'
  * `FullRead` — barcha bo'limlar, `/api/public/v1/full` (pasport, JSHSHIR va
  * fayllarsiz). Yaratilgandan keyin o'zgarmaydi.
  */
-export type ApiKeyScope = 'Basic' | 'FullRead'
+export type ApiKeyScope = 'Basic' | 'FullRead' | 'DepartmentAttendance'
 
 /**
  * Ro'yxatdagi bitta kalit.
@@ -51,6 +51,9 @@ export interface ApiKeySummary {
   /** Serverning xulosasi: kalit hozir ishlaydimi. */
   isActive: boolean
   scope: ApiKeyScope
+  /** `DepartmentAttendance` kalitining bo'limi (2026-10-30); boshqa doiralarda `null`. */
+  departmentId?: string | null
+  departmentName?: string | null
 }
 
 /**
@@ -77,8 +80,17 @@ export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKeySummary[
   return Array.isArray(data) ? (data as ApiKeySummary[]) : []
 }
 
-export async function createApiKey(name: string, scope: ApiKeyScope): Promise<CreatedApiKey> {
-  const { data } = await api.post<CreatedApiKey>('/api/api-keys', { name, scope })
+export async function createApiKey(
+  name: string,
+  scope: ApiKeyScope,
+  departmentId?: string,
+): Promise<CreatedApiKey> {
+  const { data } = await api.post<CreatedApiKey>('/api/api-keys', {
+    name,
+    scope,
+    // Faqat bo'lim kalitida — boshqa doirada server uni e'tiborsiz qoldiradi, lekin yubormaymiz
+    ...(scope === 'DepartmentAttendance' ? { departmentId } : {}),
+  })
   return data
 }
 

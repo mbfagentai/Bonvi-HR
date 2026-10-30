@@ -391,6 +391,7 @@ app.MapBonviMcp();
   ═══════════════════════════════════════════════════════════
 */
 app.MapPublicApiEndpoints();
+app.MapPublicTeamEndpoints();
 
 // Takroriy vazifalar jadvali (SPEC §9.2). Dashboard marshruti ATAYLAB yo'q.
 app.UseBonviRecurringJobs();

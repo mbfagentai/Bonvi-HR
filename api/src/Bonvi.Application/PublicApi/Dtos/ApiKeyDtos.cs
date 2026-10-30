@@ -18,7 +18,9 @@ namespace Bonvi.Application.PublicApi.Dtos;
 /// <param name="LastUsedIp">So'rov kelgan oxirgi IP.</param>
 /// <param name="RevokedAt">Bekor qilingan vaqti. <c>null</c> — kalit kuchda.</param>
 /// <param name="IsActive">Kalit hozir ishlaydimi.</param>
-/// <param name="Scope">Doira: Basic — xodimlar va ma'lumotnomalar; FullRead — barcha bo'limlar (pasport, JSHSHIR, fayllarsiz).</param>
+/// <param name="Scope">Doira: Basic — xodimlar va ma'lumotnomalar; FullRead — barcha bo'limlar (pasport, JSHSHIR, fayllarsiz); DepartmentAttendance — bitta bo'limning davomati.</param>
+/// <param name="DepartmentId">Bo'lim davomati kalitining bo'limi; boshqa doiralarda <c>null</c>.</param>
+/// <param name="DepartmentName">Shu bo'limning nomi (o'chirilgan bo'lsa <c>null</c>).</param>
 public sealed record ApiKeyDto(
     Guid Id,
     string Name,
@@ -28,7 +30,9 @@ public sealed record ApiKeyDto(
     string? LastUsedIp,
     DateTimeOffset? RevokedAt,
     bool IsActive,
-    ApiKeyScope Scope);
+    ApiKeyScope Scope,
+    Guid? DepartmentId = null,
+    string? DepartmentName = null);
 
 /// <summary>
 /// Endigina yaratilgan kalit — <b>kalit matni bir marta ko'rinadigan yagona joy</b>.
@@ -49,4 +53,11 @@ public sealed record ApiKeyDto(
 /// <param name="Prefix">Kalitning ochiq qismi — keyin ham ko'rinadi.</param>
 /// <param name="Key">TO'LIQ kalit. FAQAT shu javobda.</param>
 /// <param name="Scope">Kalit doirasi.</param>
-public sealed record ApiKeyCreatedDto(Guid Id, string Name, string Prefix, string Key, ApiKeyScope Scope);
+/// <param name="DepartmentId">Bo'lim davomati kalitining bo'limi.</param>
+public sealed record ApiKeyCreatedDto(
+    Guid Id,
+    string Name,
+    string Prefix,
+    string Key,
+    ApiKeyScope Scope,
+    Guid? DepartmentId = null);

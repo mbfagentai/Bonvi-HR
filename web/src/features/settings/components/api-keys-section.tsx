@@ -108,6 +108,13 @@ export function ApiKeysSection() {
                 </Badge>
               )}
 
+              {/* Bo'lim kaliti — qaysi bo'lim uchun ekani darhol ko'rinsin */}
+              {item.scope === 'DepartmentAttendance' && (
+                <Badge tone="info" size="sm" className="shrink-0">
+                  {t('settings.apiKeys.badgeDepartment', { name: item.departmentName ?? '—' })}
+                </Badge>
+              )}
+
               {/*
                 Telefon kengligida prefiks ustuni yashiriladi — u shu
                 qatorga, nomdan keyin qo'shiladi. Kalitni tanib olishning

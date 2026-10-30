@@ -60,6 +60,13 @@ public sealed class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
             .HasConversion<int>()
             .IsRequired();
 
+        // Bo'lim davomati kalitining bo'limi (2026-10-30). Restrict: bo'lim yumshoq o'chiriladi,
+        // qattiq o'chirishda esa kalit jimgina «hech narsa ko'rmaydigan» bo'lib qolmasin.
+        builder.HasOne<Bonvi.Domain.Organization.Department>()
+            .WithMany()
+            .HasForeignKey(key => key.DepartmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Kalitni tekshirishning YAGONA so'rovi — shu indeks bo'yicha.
         // Unikal: ikkita kalit bir xil prefiks bilan yashasa, tekshiruv
         // qaysi biriga tegishli ekanini bilmasdi.

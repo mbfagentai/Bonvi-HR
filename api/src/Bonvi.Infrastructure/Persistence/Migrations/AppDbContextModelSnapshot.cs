@@ -3795,6 +3795,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
                     b.Property<byte[]>("KeyHash")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -3844,6 +3848,9 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_api_keys");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_api_keys_department_id");
 
                     b.HasIndex("KeyPrefix")
                         .IsUnique()
@@ -5037,6 +5044,15 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_position_duties_positions_position_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.PublicApi.ApiKey", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Organization.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_api_keys_departments_department_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.Candidate", b =>

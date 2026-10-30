@@ -240,3 +240,101 @@ Ishlab chiqish muhitida to'liq OpenAPI hujjati:
 * `/openapi/public.json` — mashina uchun;
 * `/scalar` — brauzerda ochiladigan ko'rinish («Tashqi API» hujjatini
   tanlang).
+
+---
+
+## Bo'lim davomati kaliti — bo'lim rahbarining boti uchun
+
+> 2026-10-30 dan. Kalit **bitta bo'limga** bog'lanadi va faqat shu bo'lim hamda uning ichidagi
+> bo'limlar xodimlarining keldi-ketdisini ko'radi. Xodim ilovasidagi «Jamoa» tabi bilan aynan bir
+> xil ma'lumot. Pasport, JSHSHIR, oklad va boshqa bo'limlar **berilmaydi**. Bu kalit bilan
+> `/employees`, `/ping`, `/reference/*`, `/full` — **403**.
+
+**Kalit olish:** Sozlamalar → Tashqi API → Yangi kalit → doira «Bo'lim davomati» → bo'limni tanlang.
+Kalit bir marta ko'rsatiladi. Uni bot serveridagi muhit o'zgaruvchisida saqlang.
+
+Barcha so'rovlar `GET`, sarlavha `X-API-Key: bonvi_…`, vaqtlar UTC (`+00:00`), Toshkent = UTC+5.
+
+### `GET /api/public/v1/team` — qamrov
+
+Ulanishni tekshirish uchun. Kalit ko'radigan bo'limlar ro'yxati:
+
+```json
+{ "departments": [ { "id": "…", "name": "Риспетто велосипед заводи", "path": "…", "level": 0, "parentId": null }, … ] }
+```
+
+### `GET /api/public/v1/team/board` — kunlik holat
+
+Parametrlar (hammasi ixtiyoriy): `date=2026-10-30` (sukut — bugun), `departmentId` (qamrovdagi bo'lim),
+`status`, `search` (ism yoki telefon), `page`, `pageSize` (sukut 50, eng ko'pi 200).
+
+```json
+{
+  "date": "2026-10-30", "isToday": true, "asOf": "2026-10-30T06:20:00+00:00", "total": 74,
+  "counts": { "...": "holatlar bo'yicha sanoq" },
+  "items": [
+    {
+      "employeeId": "…", "fullName": "Назаров Асилхон Ахроржон ўғли",
+      "hasPhoto": true, "positionName": "…", "departmentName": "Конвеер бўлими",
+      "arrivedAt": "2026-10-30T03:50:13+00:00", "leftAt": null,
+      "status": "Arrived", "lateMinutes": null, "leftAuto": false,
+      "phone": "+998 90 123 45 67"
+    }
+  ],
+  "page": 1, "pageSize": 50, "totalItems": 74, "pageCount": 2
+}
+```
+
+`status`: `OnTime` (vaqtida), `Late` (kechikdi, `lateMinutes`), `Absent` (kelmadi), `Arrived`
+(keldi, jadval yo'q), `NoSchedule`, `DayOff`, `OnLeave`, `Excused`, `Left` va boshqalar.
+«Kechikdi» va «Kelmadi» faqat xodimga ish jadvali biriktirilgan bo'lsa chiqadi.
+
+### `GET /api/public/v1/team/passes?after=…` — yangi o'tishlar (bot uchun asosiy so'rov)
+
+Bot har **1–2 daqiqada** so'raydi:
+
+1. Birinchi marta — `after`siz: bugun (Toshkent) boshidan.
+2. Javobdagi `next` ni saqlang va keyingi so'rovda `?after=<next>` qilib bering.
+3. `hasMore: true` bo'lsa, darhol yana so'rang.
+
+```json
+{
+  "items": [
+    {
+      "id": "…", "employeeId": "…", "fullName": "…",
+      "positionName": "…", "departmentName": "…",
+      "at": "2026-10-30T03:50:13+00:00", "date": "2026-10-30",
+      "direction": "In", "source": "Terminal"
+    }
+  ],
+  "next": "t638…", "hasMore": false
+}
+```
+
+- `direction`: `In` (keldi) yoki `Out` (ketdi), tabel bilan bir xil hisob. Yo'nalish bermaydigan
+  terminalda navbat bilan, 15 soniya ichidagi takror o'qish birinchisining yo'nalishida keladi.
+- Kursor serverga **kelish** tartibida: terminal yoki agent uzilib qolib keyin yuborsa, bunday
+  o'tishning `at` i eski bo'ladi, lekin u baribir keladi.
+- `id` bo'yicha takrorni ushlang: bot qayta ishga tushsa, xabar ikki marta ketmasin.
+
+### `GET /api/public/v1/team/members/{employeeId}/attendance?year=2026&month=10` — xodimning oyi
+
+Xodim (F.I.Sh., lavozim, bo'lim, telefon) va oy bo'yicha har kun: holat, kelgan/ketgan vaqt,
+ishlangan daqiqa, kechikish, erta ketish va o'sha kunning o'tishlari. `attendance.totals` — oy jami.
+
+### `GET /api/public/v1/team/members/{employeeId}/photo` — xodimning rasmi
+
+`image/jpeg`, `ETag` va `If-None-Match` → 304. Faqat bugun qamrovdagi xodim.
+
+### Xatolar
+
+| Kod | HTTP | Ma'nosi |
+|---|---|---|
+| `tashqi.kalit_notogri` | 401 | Kalit yo'q, noto'g'ri yoki bekor qilingan. |
+| `tashqi.doira_yetmaydi` | 403 | Bu kalit bu yo'lga kira olmaydi. |
+| `tashqi.bolim_topilmadi` | 404 | Kalitning bo'limi o'chirilgan yoki `departmentId` qamrovda emas. |
+| `tashqi.xodim_topilmadi` | 404 | Xodim qamrovda emas yoki umuman yo'q. |
+| `tashqi.kursor_notogri` | 400 | `after` o'zgartirilgan — javobdagi `next` ni o'zgartirmasdan bering. |
+| `jamoa.sana_notogri` | 400 | `date` kelajakda yoki 2000-yildan oldin. |
+| `davomat.oy_notogri` | 400 | Noto'g'ri yoki kelgusi oy. |
+| `rate_limit.oshib_ketdi` | 429 | So'rovlar juda ko'p, biroz kuting. |

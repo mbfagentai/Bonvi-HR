@@ -36,13 +36,14 @@ public sealed class ApiKey : AggregateRoot, IAuditable
     /// <summary>Oxirgi ishlatilgan IP uzunligining chegarasi (IPv6 + zona).</summary>
     public const int MaxIpLength = 64;
 
-    private ApiKey(Guid id, string name, string keyPrefix, byte[] keyHash, ApiKeyScope scope)
+    private ApiKey(Guid id, string name, string keyPrefix, byte[] keyHash, ApiKeyScope scope, Guid? departmentId = null)
         : base(id)
     {
         Name = name;
         KeyPrefix = keyPrefix;
         KeyHash = keyHash;
         Scope = scope;
+        DepartmentId = departmentId;
     }
 
     /// <summary>EF Core uchun.</summary>
@@ -68,6 +69,13 @@ public sealed class ApiKey : AggregateRoot, IAuditable
     /// Shunda «bu kalit qachondan beri hammasini o'qiydi» degan savolga yaratilgan vaqtning o'zi javob.
     /// </remarks>
     public ApiKeyScope Scope { get; private set; } = ApiKeyScope.Basic;
+
+    /// <summary>
+    /// <see cref="ApiKeyScope.DepartmentAttendance"/> kalitining bo'limi — kalit shu bo'lim va uning
+    /// ichidagi bo'limlarni ko'radi. Boshqa doiralarda <c>null</c>. Doira kabi O'ZGARMAYDI:
+    /// boshqa bo'lim kerak bo'lsa — yangi kalit.
+    /// </summary>
+    public Guid? DepartmentId { get; private set; }
 
     /// <summary>Kalit oxirgi marta qachon ishlatilgan.</summary>
     /// <remarks>
@@ -103,13 +111,29 @@ public sealed class ApiKey : AggregateRoot, IAuditable
     /// use-case qatlamida va bazadagi qisman unikal indeksda
     /// (<c>ix_api_keys_name_active</c>) — ikkalasi birga.
     /// </remarks>
-    public static Result<ApiKey> Issue(string? name, ApiKeySecret secret, ApiKeyScope scope = ApiKeyScope.Basic)
+    public static Result<ApiKey> Issue(
+        string? name,
+        ApiKeySecret secret,
+        ApiKeyScope scope = ApiKeyScope.Basic,
+        Guid? departmentId = null)
     {
         ArgumentNullException.ThrowIfNull(secret);
 
         if (!Enum.IsDefined(scope))
         {
-            return Error.Validation("tashqi.doira_notogri", "Kalit doirasi noto'g'ri: Basic yoki FullRead.");
+            return Error.Validation("tashqi.doira_notogri", "Kalit doirasi noto'g'ri: Basic, FullRead yoki DepartmentAttendance.");
+        }
+
+        // Bo'lim faqat bo'lim kalitida va unda SHART: bo'limsiz bo'lim kaliti hech narsani ko'rmasdi,
+        // boshqa doiradagi bo'lim esa «faqat shu bo'lim» degan yolg'on taassurot berardi.
+        if (scope == ApiKeyScope.DepartmentAttendance && (departmentId is null || departmentId == Guid.Empty))
+        {
+            return Error.Validation("tashqi.bolim_kerak", "Bo'lim davomati kaliti uchun bo'lim tanlanishi shart.");
+        }
+
+        if (scope != ApiKeyScope.DepartmentAttendance)
+        {
+            departmentId = null;
         }
 
         var trimmed = name?.Trim();
@@ -123,7 +147,7 @@ public sealed class ApiKey : AggregateRoot, IAuditable
             ? Error.Validation(
                 "tashqi.kalit_nomi_uzun",
                 $"Kalit nomi {MaxNameLength} belgidan oshmasligi kerak.")
-            : new ApiKey(NewId(), trimmed, secret.Prefix, secret.Hash, scope);
+            : new ApiKey(NewId(), trimmed, secret.Prefix, secret.Hash, scope, departmentId);
     }
 
     /// <summary>

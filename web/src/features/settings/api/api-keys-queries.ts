@@ -39,7 +39,8 @@ export function useCreateApiKey() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ name, scope }: { name: string; scope: ApiKeyScope }) => createApiKey(name, scope),
+    mutationFn: ({ name, scope, departmentId }: { name: string; scope: ApiKeyScope; departmentId?: string }) =>
+      createApiKey(name, scope, departmentId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.root })
     },

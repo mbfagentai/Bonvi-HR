@@ -129,7 +129,8 @@ public static class AuditCatalog
             .Label(key => key.Name)
             .Mask(nameof(ApiKey.KeyHash))
             .Exclude(nameof(ApiKey.LastUsedAt), nameof(ApiKey.LastUsedIp))
-            .Ref(AuditRefTarget.User, nameof(ApiKey.RevokedBy)),
+            .Ref(AuditRefTarget.User, nameof(ApiKey.RevokedBy))
+            .Ref(AuditRefTarget.Department, nameof(ApiKey.DepartmentId)),
 
         // ---------- Ma'lumotnomalar ----------
         Audit<LegalEntity>(AccessModuleKeys.Catalog).Label(row => row.Name),

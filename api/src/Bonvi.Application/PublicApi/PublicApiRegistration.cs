@@ -1,5 +1,6 @@
 using Bonvi.Application.PublicApi.Keys;
 using Bonvi.Application.PublicApi.Queries;
+using Bonvi.Application.PublicApi.Team;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.PublicApi;
@@ -29,6 +30,14 @@ internal static class PublicApiRegistration
         services.AddScoped<GetPublicEmployeePhotoQueryHandler>();
         services.AddScoped<ListPublicDeletionsQueryHandler>();
         services.AddScoped<ListPublicReferenceQueryHandler>();
+
+        // Bo'lim davomati kaliti — bo'lim rahbarining boti (2026-10-30), «Jamoa» bilan bir xil ma'lumot
+        services.AddScoped<PublicTeamAccess>();
+        services.AddScoped<GetPublicTeamQueryHandler>();
+        services.AddScoped<GetPublicTeamBoardQueryHandler>();
+        services.AddScoped<GetPublicTeamMemberAttendanceQueryHandler>();
+        services.AddScoped<GetPublicTeamMemberPhotoQueryHandler>();
+        services.AddScoped<GetPublicTeamPassesQueryHandler>();
 
         return services;
     }

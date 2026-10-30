@@ -1,17 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, Copy, KeyRound, LoaderCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Button, Dialog, SegmentedControl, TextField } from '@/shared/ui'
+import { useDepartmentTree } from '@/features/catalog/api/catalog-queries'
+import type { DepartmentNode } from '@/features/catalog/api/catalog-api'
+import { flattenTree } from '@/features/catalog/lib/tree'
+import { Alert, Button, Dialog, SegmentedControl, Select, TextField, type SelectOption } from '@/shared/ui'
 
 import { API_KEY_NAME_MAX_LENGTH, type ApiKeyScope, type CreatedApiKey } from '../api/api-keys-api'
 import { useCreateApiKey } from '../api/api-keys-queries'
 
 const FORM_ID = 'api-key-create-form'
+
+const EMPTY_TREE: DepartmentNode[] = []
 
 /**
  * Nom — yagona maydon.
@@ -67,6 +72,23 @@ export function ApiKeyCreateDialog({ onClose }: { onClose: () => void }) {
    */
   const [scope, setScope] = useState<ApiKeyScope>('Basic')
 
+  /*
+    Bo'lim davomati kaliti (2026-10-30) — bo'lim rahbarining boti: kalit faqat shu bo'lim va
+    uning ichidagilarining davomati va telefonlarini ko'radi. Bo'limsiz yuborilmaydi.
+  */
+  const [departmentId, setDepartmentId] = useState('')
+  const [departmentMissing, setDepartmentMissing] = useState(false)
+  const departments = useDepartmentTree(false)
+  const departmentOptions = useMemo<SelectOption[]>(
+    () =>
+      flattenTree(departments.data ?? EMPTY_TREE).map((row) => ({
+        value: row.node.id,
+        label: row.node.name,
+        depth: row.depth,
+      })),
+    [departments.data],
+  )
+
   /** Yaratilgan kalit. `null` — birinchi qadam (nom formasi) ko'rinadi. */
   const [created, setCreated] = useState<CreatedApiKey | null>(null)
 
@@ -98,8 +120,19 @@ export function ApiKeyCreateDialog({ onClose }: { onClose: () => void }) {
   )
 
   const onSubmit = handleSubmit(async (values) => {
+    if (scope === 'DepartmentAttendance' && departmentId === '') {
+      setDepartmentMissing(true)
+      return
+    }
+
     try {
-      setCreated(await create.mutateAsync({ name: values.name.trim(), scope }))
+      setCreated(
+        await create.mutateAsync({
+          name: values.name.trim(),
+          scope,
+          ...(scope === 'DepartmentAttendance' ? { departmentId } : {}),
+        }),
+      )
     } catch {
       // Xato `create.error` da — formaning tepasida server kodi bilan chiqadi.
     }
@@ -183,6 +216,7 @@ export function ApiKeyCreateDialog({ onClose }: { onClose: () => void }) {
               options={[
                 { value: 'Basic', label: t('settings.apiKeys.scopeBasic') },
                 { value: 'FullRead', label: t('settings.apiKeys.scopeFull') },
+                { value: 'DepartmentAttendance', label: t('settings.apiKeys.scopeDepartment') },
               ]}
               value={scope}
               onChange={setScope}
@@ -192,9 +226,27 @@ export function ApiKeyCreateDialog({ onClose }: { onClose: () => void }) {
             <p className="text-footnote text-[var(--fg-tertiary)]">
               {scope === 'Basic'
                 ? t('settings.apiKeys.scopeBasicHint')
-                : t('settings.apiKeys.scopeFullHint')}
+                : scope === 'FullRead'
+                  ? t('settings.apiKeys.scopeFullHint')
+                  : t('settings.apiKeys.scopeDepartmentHint')}
             </p>
           </div>
+
+          {scope === 'DepartmentAttendance' && (
+            <Select
+              label={t('settings.apiKeys.department')}
+              placeholder={t('settings.apiKeys.departmentPlaceholder')}
+              hint={t('settings.apiKeys.departmentHint')}
+              options={departmentOptions}
+              disabled={isSubmitting}
+              value={departmentId}
+              onChange={(event) => {
+                setDepartmentId(event.target.value)
+                setDepartmentMissing(false)
+              }}
+              error={departmentMissing ? t('settings.apiKeys.departmentRequired') : undefined}
+            />
+          )}
 
           {scope === 'FullRead' && (
             <Alert tone="warning" title={t('settings.apiKeys.scopeFullWarning')}>

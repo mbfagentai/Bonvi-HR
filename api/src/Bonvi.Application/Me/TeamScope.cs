@@ -168,6 +168,29 @@ public sealed class TeamScope
     /// bo'lmasligi kerak (ko'chirish amali tekshiradi), lekin <c>GetDepartmentTreeQuery</c>
     /// dagi kabi himoya baribir turadi.
     /// </remarks>
+    /// <summary>
+    /// Bitta bo'lim daraxti — bo'lim davomati API kaliti uchun (<c>ApiKey.DepartmentId</c>, 2026-10-30).
+    /// </summary>
+    /// <remarks>
+    /// Boshliqning qamrovi bilan AYNAN bir xil qoida (bo'lim + barcha ichidagilari, faolsizlari ham),
+    /// faqat ildiz boshliqlikdan emas, kalitdan keladi. Bo'lim o'chirilgan bo'lsa — bo'sh qamrov.
+    /// </remarks>
+    public static TeamScope OfRoot(Guid rootId, IReadOnlyList<Department> departments)
+    {
+        ArgumentNullException.ThrowIfNull(departments);
+
+        var root = departments.FirstOrDefault(department => department.Id == rootId);
+        if (root is null)
+        {
+            return Empty;
+        }
+
+        var ordered = new List<Department>();
+        Collect(root, departments.ToLookup(department => department.ParentId), [], ordered);
+
+        return new TeamScope([root.Id], ordered);
+    }
+
     private static void Collect(
         Department department,
         ILookup<Guid?, Department> children,

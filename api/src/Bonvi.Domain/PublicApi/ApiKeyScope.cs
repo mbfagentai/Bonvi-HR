@@ -24,6 +24,18 @@ public enum ApiKeyScope
 
     /// <summary>Barcha bo'limlarni o'qish — pasport, JSHSHIR va fayllardan tashqari.</summary>
     FullRead = 2,
+
+    /// <summary>
+    /// Bitta bo'lim (va uning ichidagilari) xodimlarining DAVOMATI — bo'lim rahbarining boti uchun.
+    /// </summary>
+    /// <remarks>
+    /// Egasining qarori (2026-10-30): Rispetto zavodi rahbari o'z botida xodimlarining
+    /// keldi-ketdisini ko'rmoqchi. Kalit yaratilganda bo'lim tanlanadi
+    /// (<see cref="ApiKey.DepartmentId"/>) va kalit xodim ilovasidagi «Jamoa» tabi bilan AYNAN
+    /// bir xil ma'lumotni oladi: F.I.Sh., lavozim, bo'lim, telefon, kelish/ketish, holat, oylik
+    /// tabel. <c>/employees</c> va <c>/full</c> bu kalitga YOPIQ; pasport, JSHSHIR, oklad yo'q.
+    /// </remarks>
+    DepartmentAttendance = 3,
 }
 
 /// <summary>Doiralarning mazmuni — kim nimani o'qiydi va kim nimani bera oladi.</summary>
@@ -66,6 +78,16 @@ public static class ApiKeyScopes
     /// <see cref="Identity.Permissions.McpConnect"/> qo'shimcha: ma'lumotni AI
     /// provayderiga chiqarish shu ruxsat bilan cheklangan (egasining qoidasi).
     /// </remarks>
+    /// <summary>
+    /// <see cref="ApiKeyScope.DepartmentAttendance"/> kalitini chiqarish uchun kerakli ruxsatlar —
+    /// kalit davomat va telefonni ko'rsatadi, berayotgan odamning o'zi ularni ko'ra olishi shart.
+    /// </summary>
+    public static readonly IReadOnlyList<string> RequiredToIssueDepartmentAttendance =
+    [
+        Identity.Permissions.AttendanceView,
+        Identity.Permissions.EmployeesView,
+    ];
+
     public static IEnumerable<string> RequiredToIssueFullRead =>
         FullReadPermissions.Append(Identity.Permissions.McpConnect);
 }

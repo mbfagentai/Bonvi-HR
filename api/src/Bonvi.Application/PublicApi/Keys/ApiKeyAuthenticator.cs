@@ -16,7 +16,12 @@ namespace Bonvi.Application.PublicApi.Keys;
 /// cheklovining bo'linmasi va loglar uchun.
 /// <paramref name="Scope"/> — <c>/full</c> (barcha bo'limlarni o'qish) ochiqmi.
 /// </remarks>
-public sealed record ApiKeyIdentity(Guid Id, string Name, string Prefix, ApiKeyScope Scope = ApiKeyScope.Basic);
+public sealed record ApiKeyIdentity(
+    Guid Id,
+    string Name,
+    string Prefix,
+    ApiKeyScope Scope = ApiKeyScope.Basic,
+    Guid? DepartmentId = null);
 
 /// <summary>
 /// <c>X-API-Key</c> sarlavhasini tekshiradi.
@@ -91,6 +96,6 @@ public sealed class ApiKeyAuthenticator
         // Yozuv so'rovni KUTMAYDI va yiqilsa ham o'qishga tegmaydi.
         _usage.Schedule(key.Id, sourceIp);
 
-        return new ApiKeyIdentity(key.Id, key.Name, key.KeyPrefix, key.Scope);
+        return new ApiKeyIdentity(key.Id, key.Name, key.KeyPrefix, key.Scope, key.DepartmentId);
     }
 }

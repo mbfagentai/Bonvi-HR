@@ -21,8 +21,13 @@ public sealed record ListApiKeysQuery;
 public sealed class ListApiKeysQueryHandler
 {
     private readonly IApiKeyRepository _keys;
+    private readonly IDepartmentRepository _departments;
 
-    public ListApiKeysQueryHandler(IApiKeyRepository keys) => _keys = keys;
+    public ListApiKeysQueryHandler(IApiKeyRepository keys, IDepartmentRepository departments)
+    {
+        _keys = keys;
+        _departments = departments;
+    }
 
     public async Task<Result<IReadOnlyList<ApiKeyDto>>> HandleAsync(
         ListApiKeysQuery query,
@@ -32,12 +37,21 @@ public sealed class ListApiKeysQueryHandler
 
         var found = await _keys.ListAsync(cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyList<ApiKeyDto> items = [.. found.Select(ToDto)];
+        // Bo'lim kalitining bo'lim NOMI — ro'yxatda «qaysi zavod uchun» darhol ko'rinsin
+        var names = found.Any(key => key.DepartmentId is not null)
+            ? (await _departments.ListAsync(onlyActive: false, cancellationToken).ConfigureAwait(false))
+                .ToDictionary(department => department.Id, department => department.Name)
+            : [];
+
+        IReadOnlyList<ApiKeyDto> items =
+        [
+            .. found.Select(key => ToDto(key, key.DepartmentId is { } id ? names.GetValueOrDefault(id) : null)),
+        ];
 
         return Result.Success(items);
     }
 
-    internal static ApiKeyDto ToDto(ApiKey key) => new(
+    internal static ApiKeyDto ToDto(ApiKey key, string? departmentName = null) => new(
         key.Id,
         key.Name,
         key.KeyPrefix,
@@ -46,13 +60,16 @@ public sealed class ListApiKeysQueryHandler
         key.LastUsedIp,
         key.RevokedAt,
         !key.IsRevoked,
-        key.Scope);
+        key.Scope,
+        key.DepartmentId,
+        departmentName);
 }
 
 /// <summary>Yangi kalit yaratish.</summary>
 /// <param name="Name">Qaysi loyihaga beriladi («BonviCall»).</param>
 /// <param name="Scope">Doira; <c>null</c> — <see cref="ApiKeyScope.Basic"/>.</param>
-public sealed record CreateApiKeyCommand(string? Name, ApiKeyScope? Scope = null);
+/// <param name="DepartmentId">Bo'lim davomati kalitida — bo'lim (shart); boshqa doiralarda e'tiborsiz.</param>
+public sealed record CreateApiKeyCommand(string? Name, ApiKeyScope? Scope = null, Guid? DepartmentId = null);
 
 /// <summary>
 /// Kalit yaratadi va uni <b>bir marta</b> qaytaradi.
@@ -76,12 +93,18 @@ public sealed class CreateApiKeyCommandHandler
     private readonly IApiKeyRepository _keys;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
+    private readonly IDepartmentRepository _departments;
 
-    public CreateApiKeyCommandHandler(IApiKeyRepository keys, IUnitOfWork unitOfWork, ICurrentUser currentUser)
+    public CreateApiKeyCommandHandler(
+        IApiKeyRepository keys,
+        IUnitOfWork unitOfWork,
+        ICurrentUser currentUser,
+        IDepartmentRepository departments)
     {
         _keys = keys;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _departments = departments;
     }
 
     public async Task<Result<ApiKeyCreatedDto>> HandleAsync(
@@ -100,6 +123,21 @@ public sealed class CreateApiKeyCommandHandler
             return PublicApiErrors.FullReadNotAllowed;
         }
 
+        // Bo'lim kaliti davomat va telefonni tashqariga beradi — beruvchi ularni o'zi ko'ra olsin
+        if (command.Scope == ApiKeyScope.DepartmentAttendance)
+        {
+            if (!ApiKeyScopes.RequiredToIssueDepartmentAttendance.All(_currentUser.HasPermission))
+            {
+                return PublicApiErrors.DepartmentKeyNotAllowed;
+            }
+
+            if (command.DepartmentId is { } departmentId
+                && await _departments.GetByIdAsync(departmentId, cancellationToken).ConfigureAwait(false) is null)
+            {
+                return PublicApiErrors.DepartmentNotFound;
+            }
+        }
+
         var name = command.Name?.Trim();
 
         if (!string.IsNullOrWhiteSpace(name)
@@ -110,7 +148,7 @@ public sealed class CreateApiKeyCommandHandler
 
         var secret = ApiKeyFormat.Generate();
 
-        var created = ApiKey.Issue(name, secret, command.Scope ?? ApiKeyScope.Basic);
+        var created = ApiKey.Issue(name, secret, command.Scope ?? ApiKeyScope.Basic, command.DepartmentId);
         if (created.IsFailure)
         {
             return created.Error;
@@ -126,7 +164,8 @@ public sealed class CreateApiKeyCommandHandler
             created.Value.Name,
             created.Value.KeyPrefix,
             secret.PlainKey,
-            created.Value.Scope));
+            created.Value.Scope,
+            created.Value.DepartmentId));
     }
 }
 

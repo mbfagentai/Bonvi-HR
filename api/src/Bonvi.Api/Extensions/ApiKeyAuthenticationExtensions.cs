@@ -41,6 +41,9 @@ public static class ApiKeyClaims
 
     /// <summary>Kalit doirasi (<c>Basic</c> yoki <c>FullRead</c>) — <c>/full</c> shu bo'yicha ochiladi.</summary>
     public const string Scope = "tashqi.doira";
+
+    /// <summary>Bo'lim davomati kalitining bo'limi — <c>/team</c> qamrovining ildizi.</summary>
+    public const string DepartmentId = "tashqi.bolim";
 }
 
 /// <summary>
@@ -141,6 +144,9 @@ public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAu
                 new Claim(ApiKeyClaims.KeyName, identity.Name),
                 new Claim(ApiKeyClaims.Prefix, identity.Prefix),
                 new Claim(ApiKeyClaims.Scope, identity.Scope.ToString()),
+                .. identity.DepartmentId is { } departmentId
+                    ? [new Claim(ApiKeyClaims.DepartmentId, departmentId.ToString())]
+                    : Array.Empty<Claim>(),
             ],
             SchemeName,
 
@@ -282,6 +288,13 @@ public static class ApiKeyAuthenticationExtensions
                 .RequireClaim(ApiKeyClaims.Scope, nameof(ApiKeyScope.Basic), nameof(ApiKeyScope.FullRead)))
 
             // «To'liq o'qish» — yuqoridagi shartlar USTIGA doira claim'i.
+            .AddPolicy(Endpoints.PublicTeamEndpoints.Policy, policy => policy
+                .AddAuthenticationSchemes(ApiKeyAuthenticationHandler.SchemeName)
+                .RequireAuthenticatedUser()
+                .RequireClaim(ApiKeyClaims.Prefix)
+                .RequireClaim(ApiKeyClaims.Scope, nameof(ApiKeyScope.DepartmentAttendance))
+                .RequireClaim(ApiKeyClaims.DepartmentId))
+
             .AddPolicy(Endpoints.PublicFullReadEndpoints.Policy, policy => policy
                 .AddAuthenticationSchemes(ApiKeyAuthenticationHandler.SchemeName)
                 .RequireAuthenticatedUser()

@@ -13,9 +13,11 @@ namespace Bonvi.Api.Endpoints;
 /// </param>
 /// <param name="Scope">
 /// Doira: «Basic» (sukut — xodimlar va ma'lumotnomalar) yoki «FullRead» (barcha
-/// bo'limlarni o'qish, «/api/public/v1/full»; pasport, JSHSHIR va fayllarsiz).
+/// bo'limlarni o'qish, «/api/public/v1/full»; pasport, JSHSHIR va fayllarsiz) yoki
+/// «DepartmentAttendance» (bitta bo'limning davomati, «/api/public/v1/team»).
 /// </param>
-public sealed record CreateApiKeyRequest(string? Name, ApiKeyScope? Scope);
+/// <param name="DepartmentId">«DepartmentAttendance» kalitining bo'limi — shu doirada shart.</param>
+public sealed record CreateApiKeyRequest(string? Name, ApiKeyScope? Scope, Guid? DepartmentId = null);
 
 /// <summary>
 /// Tashqi API kalitlarini boshqarish — <b>ICHKI</b> endpoint'lar.
@@ -81,7 +83,7 @@ public static class ApiKeyEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var natija = await handler
-                    .HandleAsync(new CreateApiKeyCommand(request.Name, request.Scope), cancellationToken)
+                    .HandleAsync(new CreateApiKeyCommand(request.Name, request.Scope, request.DepartmentId), cancellationToken)
                     .ConfigureAwait(false);
 
                 return natija.ToHttpResult();

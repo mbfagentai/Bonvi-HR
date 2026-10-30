@@ -181,6 +181,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
         services.AddScoped<IPublicApiReadModel, PublicApiReadModel>();
+        services.AddScoped<IPublicTeamReadModel, PublicTeamReadModel>();
         services.AddSingleton<IApiKeyUsageTracker, ApiKeyUsageTracker>();
 
         return services;

@@ -64,6 +64,19 @@ public static class PublicApiErrors
         "Xodimning rasmi yo'q.");
 
     /// <summary>Kalit topilmadi (ichki boshqaruv endpoint'i) — 404.</summary>
+    public static Error DepartmentKeyNotAllowed => Error.Forbidden(
+        "tashqi.bolim_ruxsat_yoq",
+        "Bo'lim davomati kalitini faqat davomat va xodimlarni ko'rish ruxsati bor odam yarata oladi.");
+
+    public static Error DepartmentNotFound => Error.NotFound(
+        "tashqi.bolim_topilmadi",
+        "Bo'lim topilmadi.");
+
+    /// <summary>Bo'lim kalitining doirasidan tashqaridagi xodim — «yo'q» va «sizniki emas» bir xil javob.</summary>
+    public static Error TeamMemberNotFound => Error.NotFound(
+        "tashqi.xodim_topilmadi",
+        "Xodim topilmadi.");
+
     public static Error KeyNotFound => Error.NotFound(
         "tashqi.kalit_topilmadi",
         "API kaliti topilmadi.");
