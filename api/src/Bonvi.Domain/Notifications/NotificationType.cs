@@ -201,6 +201,21 @@ public enum NotificationType
     /// </para>
     /// </remarks>
     CandidateInterviewSoon = 13,
+
+    /// <summary>Mavjud nomzod onlayn anketa to'ldirdi — anketa uning kartasiga qo'shildi.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nima uchun</b> (egasi, 2026-10-30). Botdan 10 kun oldin ariza tashlagan odam bugun
+    /// ofisga kelib anketa to'ldiradi; anketa o'sha kartaga qo'shiladi va «yangi nomzod»
+    /// bildirishnomasi chiqmaydi (yangi karta yo'q). HR esa aynan shu odamni izlaydi — bu
+    /// bildirishnoma uni kartasiga olib boradi.
+    /// </para>
+    /// <para>
+    /// Kalit anketa lahzasiga bog'langan: yana bir anketa — yana bir bildirishnoma, o'qilgani
+    /// yangisini yashirmaydi. Oyna — <c>notifications.newCandidateDays</c> (yangi nomzoddagi bilan bir xil).
+    /// </para>
+    /// </remarks>
+    CandidateReapplied = 14,
 }
 
 /// <summary>Bildirishnomaning muhimlik darajasi.</summary>
@@ -284,7 +299,8 @@ public static class NotificationAccess
             or NotificationType.CandidateFromBot
             or NotificationType.CandidateContactDue
             or NotificationType.CandidateContactOverdue
-            or NotificationType.CandidateInterviewSoon => Permissions.RecruitingView,
+            or NotificationType.CandidateInterviewSoon
+            or NotificationType.CandidateReapplied => Permissions.RecruitingView,
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(type),

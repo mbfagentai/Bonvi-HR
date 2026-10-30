@@ -3,6 +3,7 @@ import {
   Bot,
   Cake,
   CalendarClock,
+  ClipboardCheck,
   Gift,
   PhoneCall,
   PhoneMissed,
@@ -48,6 +49,7 @@ export const NOTIFICATION_TEXT_KEYS = [
   'candidateContactDue',
   'candidateContactOverdue',
   'candidateInterviewSoon',
+  'candidateReapplied',
 ] as const
 
 export type NotificationTextKey = (typeof NOTIFICATION_TEXT_KEYS)[number]
@@ -82,6 +84,7 @@ const TEXT_KEY: Readonly<Record<NotificationType, NotificationTextKey>> = {
   CandidateContactDue: 'candidateContactDue',
   CandidateContactOverdue: 'candidateContactOverdue',
   CandidateInterviewSoon: 'candidateInterviewSoon',
+  CandidateReapplied: 'candidateReapplied',
 }
 
 /** Bildirishnoma turiga mos matn kaliti. */
@@ -380,6 +383,9 @@ export const TYPE_ICON: Readonly<Record<NotificationType, LucideIcon>> = {
   CandidateContactDue: PhoneCall,
   CandidateContactOverdue: PhoneMissed,
   CandidateInterviewSoon: AlarmClock,
+
+  // Anketa — to'ldirilgan varaq: «yangi odam» (`UserPlus`) emas, mavjud odamning qaytishi
+  CandidateReapplied: ClipboardCheck,
 }
 
 /**

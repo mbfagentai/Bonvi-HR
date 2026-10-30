@@ -57,6 +57,8 @@ export interface CandidatesSearch {
    * manzilda ko'rinmaydi (`readView` bilan bir xil qoida).
    */
   due?: true
+  /** «Anketa to'ldirganlar» — kartasiga keyin onlayn anketa qo'shilganlar (2026-10-30). */
+  reapplied?: true
   /**
    * ⭐ «Rad etilganlar» BO'LIMI: `Rejected` VA `Withdrawn`
    * (`rejected=true` so'rov parametri, SPEC §4.7).
@@ -136,6 +138,7 @@ export interface CandidatesFilterState {
    * «filtrlarni tozalash» HR ni bo'limdan chiqarib yuborardi.
    */
   contactDue: boolean
+  reapplied: boolean
   /** Sana oralig'i — bo'sh satr «chegara yo'q» (`CandidatesSearch.from` izohi). */
   from: string
   to: string
@@ -150,6 +153,7 @@ export const DEFAULT_FILTERS: CandidatesFilterState = {
   status: '',
   source: '',
   contactDue: false,
+  reapplied: false,
   from: '',
   to: '',
   referral: '',
@@ -169,6 +173,7 @@ export function validateCandidatesSearch(search: Record<string, unknown>): Candi
     status: readOneOf(search['status'], CANDIDATE_STATUSES),
     source: readOneOf(search['source'], CANDIDATE_SOURCES),
     due: readFlag(search['due']),
+    reapplied: readFlag(search['reapplied']),
     rejected: readFlag(search['rejected']),
     from: readDate(search['from']),
     to: readDate(search['to']),
@@ -186,6 +191,7 @@ export function searchToFilters(search: CandidatesSearch): CandidatesFilterState
     status: search.status ?? '',
     source: search.source ?? '',
     contactDue: search.due ?? false,
+    reapplied: search.reapplied ?? false,
     from: search.from ?? '',
     to: search.to ?? '',
     referral: search.referral ?? '',
@@ -212,6 +218,7 @@ export function isFiltered(search: CandidatesSearch): boolean {
     search.status !== undefined ||
     search.source !== undefined ||
     search.due !== undefined ||
+    search.reapplied !== undefined ||
     search.from !== undefined ||
     search.to !== undefined ||
     search.referral !== undefined
@@ -241,6 +248,7 @@ export function filtersToSearch(
     // Katakcha bo'shatilganda `undefined` YOZILISHI kerak — u avvalgi
     // manzildagi `due=true` ni o'chiradi.
     due: filters.contactDue ? true : undefined,
+    reapplied: filters.reapplied ? true : undefined,
     from: emptyToUndefined(filters.from),
     to: emptyToUndefined(filters.to),
     referral: emptyToUndefined(filters.referral),

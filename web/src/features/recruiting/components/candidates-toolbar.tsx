@@ -36,7 +36,7 @@ function activeFilterCount(filters: CandidatesFilterState): number {
     filters.referral,
   ].filter((value) => value !== '').length
 
-  return filters.contactDue ? chosen + 1 : chosen
+  return chosen + (filters.contactDue ? 1 : 0) + (filters.reapplied ? 1 : 0)
 }
 
 /**
@@ -300,6 +300,21 @@ export function CandidatesToolbar({
                 label={t('recruiting.contactDue')}
               />
             </div>
+
+            {/*
+              «Anketa to'ldirganlar» — avval botdan yozib, keyin ofisga kelib onlayn anketa
+              to'ldirganlar (egasi, 2026-10-30). «Rad etilganlar» bo'limida ma'nosiz: anketa faqat
+              jarayondagi kartaga qo'shiladi.
+            */}
+            {!rejectedSection && (
+              <div className="flex items-end pb-2.5" title={t('recruiting.reappliedHint')}>
+                <Checkbox
+                  checked={filters.reapplied}
+                  onChange={(checked) => set('reapplied', checked)}
+                  label={t('recruiting.reappliedFilter')}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -25,6 +25,11 @@ namespace Bonvi.Infrastructure.Persistence.ReadModels;
 /// </remarks>
 public sealed class RecruitingReadModel : IRecruitingReadModel
 {
+    // Bir tomoni ochiq sana oralig'ining chegaralari — ikki ustunli shartni bitta ifodada yozish
+    // uchun (`SearchCandidatesAsync`). UTC: Npgsql `timestamptz` ga faqat nol siljish yozadi.
+    private static readonly DateTimeOffset OpenRangeStart = new(1900, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset OpenRangeEnd = new(3000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
     private readonly AppDbContext _context;
 
     public RecruitingReadModel(AppDbContext context) => _context = context;
@@ -177,14 +182,23 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         // uchun kun qiymati. Qaysi juftlik to'lishi — handlerning qarori
         // (`SearchCandidatesQueryHandler`). Ustun o'girilmaydi, ya'ni shart
         // `created_at` ni to'g'ridan-to'g'ri solishtiradi.
-        if (filter.CreatedFrom is { } createdFrom)
+        //
+        // ⭐ Ariza kuni — IKKALA murojaatdan biri (egasi, 2026-10-30): karta ochilgan kun
+        // YOKI anketa shu kartaga qo'shilgan kun (`Candidate.ReappliedAt`). «Bugun» — bugun
+        // ofisga kelib anketa to'ldirgan bot nomzodi ham; uning birinchi kuni ham uni topadi.
+        if (filter.CreatedFrom is not null || filter.CreatedBefore is not null)
         {
-            candidates = candidates.Where(candidate => candidate.CreatedAt >= createdFrom);
+            var from = filter.CreatedFrom ?? OpenRangeStart;
+            var before = filter.CreatedBefore ?? OpenRangeEnd;
+
+            candidates = candidates.Where(candidate =>
+                (candidate.CreatedAt >= from && candidate.CreatedAt < before)
+                || (candidate.ReappliedAt != null && candidate.ReappliedAt >= from && candidate.ReappliedAt < before));
         }
 
-        if (filter.CreatedBefore is { } createdBefore)
+        if (filter.Reapplied)
         {
-            candidates = candidates.Where(candidate => candidate.CreatedAt < createdBefore);
+            candidates = candidates.Where(candidate => candidate.ReappliedAt != null);
         }
 
         if (filter.ClosedFrom is { } closedFrom)
@@ -296,9 +310,12 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                     .OrderBy(row => row.Candidate.NextContactDate == null)
                     .ThenBy(row => row.Candidate.NextContactDate),
 
+            // «createdAt» kaliti — OXIRGI MUROJAAT (2026-10-30): bugun anketa to'ldirgan bot
+            // nomzodi tepada (`Candidate.ReappliedAt` izohi). Kalit nomi o'zgarmadi — saqlangan
+            // havolalar va eksport parametri avvalgidek ishlaydi.
             _ => filter.Descending
-                ? joined.OrderByDescending(row => row.Candidate.CreatedAt)
-                : joined.OrderBy(row => row.Candidate.CreatedAt),
+                ? joined.OrderByDescending(row => row.Candidate.ReappliedAt ?? row.Candidate.CreatedAt)
+                : joined.OrderBy(row => row.Candidate.ReappliedAt ?? row.Candidate.CreatedAt),
         };
 
         var page = await ordered
@@ -357,7 +374,8 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 row.Candidate.ClosingNote,
                 row.Candidate.ReferralChannelId,
                 row.ReferralChannelName,
-                row.Candidate.ReferralDetail)),
+                row.Candidate.ReferralDetail,
+                row.Candidate.ReappliedAt)),
         ];
 
         return new CandidatePage(items, total);

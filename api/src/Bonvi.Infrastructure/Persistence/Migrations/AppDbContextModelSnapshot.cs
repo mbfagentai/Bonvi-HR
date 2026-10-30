@@ -3927,6 +3927,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("photo_key");
 
+                    b.Property<DateTimeOffset?>("ReappliedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reapplied_at");
+
                     b.Property<Guid?>("ReferralChannelId")
                         .HasColumnType("uuid")
                         .HasColumnName("referral_channel_id");

@@ -3,6 +3,20 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏸ Navbatdagi reliz (main'da, prod'ga YO'Q)
+
+Prod `3457ee1` dan keyin yig'ilgan, egasi «deploy qil» deyishini kutadi:
+- `b17a40c` — jadvalda erta kelish / kech ketish chegarasi. **Migratsiya** `20261028050323_KelishKetishChegarasi`
+  (2 ustun, default 0).
+- `31406ed`, `b512b16` — HR-F02: «O'zingiz haqingizda» hammasi majburiy; PDF'da yashil ☑. Migratsiyasiz.
+- Qayta murojaat + ko'rish oynasi (2026-10-30). **Migratsiya** `20261030042005_NomzodQaytaMurojaat` (nullable
+  `candidates.reapplied_at` + bir martalik UPDATE: anketalardan to'ldirish). Yangi npm paket `pdfjs-dist` 5.7.284 —
+  web image qayta quriladi. Bot kodi o'zgarmagan.
+
+Deploy'dan oldin: ikkala migratsiyani prod nusxasida sinash (UPDATE nechta qatorga tegishini yozib qo'yish),
+rollback tegi + zaxira. Deploy'dan keyin: nomzodlar ro'yxati «Murojaat» ustuni, «Anketa to'ldirganlar» filtri,
+hujjatni bosganda ko'rish oynasi (PDF va rasm), `/assets/pdf.worker.min-*.mjs` 200 va `text/javascript`.
+
 ## ✅ Reliz `3457ee1` — HR SPA keshlash (faqat web) — 2026-10-28 09:23 (Toshkent)
 
 Prod `6b572c0` → `3457ee1`, faqat `web/Caddyfile`: HR `/assets/*` — `public, max-age=31536000, immutable` (faqat bor

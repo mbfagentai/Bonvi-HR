@@ -107,6 +107,16 @@ public interface INotificationReadModel
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Kartasiga shu sanadan beri onlayn anketa qo'shilgan, hamon voronkadagi nomzodlar
+    /// (<c>Candidate.ReappliedAt</c>).
+    /// </summary>
+    /// <param name="since">Shu Toshkent kunidan boshlab (o'zi ham kiradi).</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<IReadOnlyList<ReappliedCandidateRow>> ListReappliedCandidatesAsync(
+        DateOnly since,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Keyingi aloqa sanasi kelib qolgan (yoki o'tib ketgan) nomzodlar —
     /// holati <c>InProgress</c> YOKI <c>Reserve</c>.
     /// </summary>
@@ -196,6 +206,21 @@ public sealed record NewCandidateRow(
     string CandidateName,
     string? VacancyTitle,
     CandidateSource Source,
+    DateOnly AddedOn);
+
+/// <summary>Kartasiga onlayn anketa qo'shilgan nomzod.</summary>
+/// <param name="CandidateId">Nomzod — kalitning va havolaning asosi.</param>
+/// <param name="CandidateName">To'liq F.I.Sh.</param>
+/// <param name="VacancyTitle">Vakansiya nomi (anketada boshqasi tanlangan bo'lsa — o'sha). O'chirilgan bo'lsa — <c>null</c>.</param>
+/// <param name="Source">Karta qayerdan ochilgan (odatda Telegram bot).</param>
+/// <param name="ReappliedAt">Anketa qo'shilgan lahza — kalit shunga bog'lanadi.</param>
+/// <param name="AddedOn">Karta ochilgan kun (Toshkent vaqti bo'yicha).</param>
+public sealed record ReappliedCandidateRow(
+    Guid CandidateId,
+    string CandidateName,
+    string? VacancyTitle,
+    CandidateSource Source,
+    DateTimeOffset ReappliedAt,
     DateOnly AddedOn);
 
 /// <summary>Keyingi aloqa sanasi kelib qolgan nomzod.</summary>

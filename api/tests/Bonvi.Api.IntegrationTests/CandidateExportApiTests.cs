@@ -96,7 +96,7 @@ public sealed class CandidateExportApiTests : IClassFixture<BonviApiFactory>
         Sarlavhalar(varaq).ShouldBe(
         [
             "F.I.Sh.", "Vakansiya", "Bosqich", "Holati", "Manba", "Telefon raqami", "Kiritilgan",
-            "Keyingi aloqa", "Yopilgan sana", "Sabab", "Qayerdan bilgan",
+            "Keyingi aloqa", "Yopilgan sana", "Sabab", "Qayerdan bilgan", "Anketa to'ldirgan",
         ]);
 
         Ustun(varaq, 1).ShouldBe(ekran.Items.Select(qator => qator.FullName), "fayl — ekrandagi qatorlar, o'sha tartibda");
@@ -108,6 +108,7 @@ public sealed class CandidateExportApiTests : IClassFixture<BonviApiFactory>
         varaq.Cell(2, 6).GetString().ShouldBe("+998 90 111 22 33");
         varaq.Cell(2, 7).GetDateTime().ShouldBe(new DateTime(2026, 10, 10, 10, 0, 0), "05:00 UTC = 10:00 Toshkent");
         varaq.Cell(2, 9).IsEmpty().ShouldBeTrue("jarayondagi nomzod yopilmagan");
+        varaq.Cell(2, 12).IsEmpty().ShouldBeTrue("kartaga keyin onlayn anketa qo'shilmagan");
 
         // 2-qator — eski nomzod: telefonsiz, UTC kuni Toshkentda ertasiga o'tadi.
         varaq.Cell(3, 6).IsEmpty().ShouldBeTrue();

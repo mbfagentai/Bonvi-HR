@@ -36,7 +36,7 @@ import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { formatPhone } from '@/shared/lib/phone'
 import { Alert, Badge, Button, Dialog, EmptyState, Skeleton } from '@/shared/ui'
-import type { CandidateListItem, PipelineStage } from '../api/recruiting-api'
+import { lastAppliedAt, type CandidateListItem, type PipelineStage } from '../api/recruiting-api'
 import {
   useCandidate,
   useFunnelCardFinder,
@@ -729,8 +729,9 @@ function CardFace({ item, showVacancy }: CardProps) {
             {date(item.nextContactDate)}
           </span>
         ) : (
-          <span className="tabular ml-auto shrink-0" title={t('recruiting.createdAt')}>
-            {date(item.createdAt)}
+          // Oxirgi murojaat — jadvaldagi sana ustuni bilan bir xil (`lastAppliedAt`)
+          <span className="tabular ml-auto shrink-0" title={t('recruiting.lastAppliedAt')}>
+            {date(lastAppliedAt(item))}
           </span>
         )}
       </span>

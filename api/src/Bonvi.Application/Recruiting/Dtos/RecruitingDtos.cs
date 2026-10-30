@@ -364,6 +364,10 @@ public sealed record InterviewNoticeDto(
 /// </param>
 /// <param name="ReferralChannelName">Kanal nomi — faolsizlantirilgani ham.</param>
 /// <param name="ReferralDetail">Aniqlik: «kim tavsiya qildi / qaysi manba».</param>
+/// <param name="ReappliedAt">
+/// Kartaga keyin onlayn anketa qo'shilgan oxirgi lahza (<c>Candidate.ReappliedAt</c>); <c>null</c> —
+/// qayta murojaat yo'q. Ro'yxatdagi sana ustuni va sukut tartibi — <c>reappliedAt ?? createdAt</c>.
+/// </param>
 public sealed record CandidateListItemDto(
     Guid Id,
     string FullName,
@@ -386,7 +390,8 @@ public sealed record CandidateListItemDto(
     string? ClosingNote,
     Guid? ReferralChannelId,
     string? ReferralChannelName,
-    string? ReferralDetail);
+    string? ReferralDetail,
+    DateTimeOffset? ReappliedAt = null);
 
 /// <summary>
 /// Nomzodning botda to'ldirgan anketasi — nomzod kartasining bir qismi.

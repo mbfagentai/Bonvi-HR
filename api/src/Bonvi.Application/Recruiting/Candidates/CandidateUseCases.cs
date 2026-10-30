@@ -110,6 +110,7 @@ namespace Bonvi.Application.Recruiting.Candidates;
 /// </param>
 /// <param name="ReferralChannelId">«Qayerdan bilgan» kanali bo'yicha filtr (SPEC-qayerdan-bilgan §6).</param>
 /// <param name="ReferralMissing">Faqat kanali ko'rsatilmagan nomzodlar — filtrdagi «Ko'rsatilmagan».</param>
+/// <param name="Reapplied">Faqat botdan (yoki boshqa yo'l bilan) kelib, keyin onlayn anketa to'ldirganlar.</param>
 public sealed record SearchCandidatesQuery(
     string? Search = null,
     Guid? VacancyId = null,
@@ -127,7 +128,8 @@ public sealed record SearchCandidatesQuery(
     DateOnly? To = null,
     bool ByClosedDate = false,
     Guid? ReferralChannelId = null,
-    bool ReferralMissing = false);
+    bool ReferralMissing = false,
+    bool Reapplied = false);
 
 public sealed record GetCandidateQuery(Guid CandidateId);
 
@@ -590,7 +592,8 @@ public sealed class SearchCandidatesQueryHandler
                     ClosedFrom: byClosedDate ? query.From : null,
                     ClosedTo: byClosedDate ? query.To : null,
                     ReferralChannelId: query.ReferralChannelId,
-                    ReferralMissing: query.ReferralMissing),
+                    ReferralMissing: query.ReferralMissing,
+                    Reapplied: query.Reapplied),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -633,7 +636,8 @@ public sealed class SearchCandidatesQueryHandler
             row.ClosingNote,
             row.ReferralChannelId,
             row.ReferralChannelName,
-            row.ReferralDetail);
+            row.ReferralDetail,
+            row.ReappliedAt);
     }
 }
 

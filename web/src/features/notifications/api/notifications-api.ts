@@ -58,6 +58,8 @@ export const NOTIFICATION_TYPES = [
   'CandidateContactDue',
   'CandidateContactOverdue',
   'CandidateInterviewSoon',
+  // Mavjud nomzod onlayn anketa to'ldirdi — anketa uning kartasiga qo'shildi (2026-10-30)
+  'CandidateReapplied',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
@@ -236,6 +238,7 @@ const TYPE_BY_NUMBER: Readonly<Record<number, NotificationType>> = {
   11: 'CandidateContactDue',
   12: 'CandidateContactOverdue',
   13: 'CandidateInterviewSoon',
+  14: 'CandidateReapplied',
 }
 
 /**

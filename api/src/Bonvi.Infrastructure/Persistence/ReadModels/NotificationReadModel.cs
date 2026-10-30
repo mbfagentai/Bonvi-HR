@@ -178,6 +178,49 @@ public sealed class NotificationReadModel : INotificationReadModel
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<ReappliedCandidateRow>> ListReappliedCandidatesAsync(
+        DateOnly since,
+        CancellationToken cancellationToken = default)
+    {
+        // Chegara — Toshkent yarim tuni, UTC'da (`ListNewCandidatesAsync` dagi izoh)
+        var boundary = new DateTimeOffset(since.ToDateTime(TimeOnly.MinValue), BonviTime.TashkentOffset)
+            .ToUniversalTime();
+
+        var rows = await (
+                from candidate in _context.Candidates.AsNoTracking()
+                where candidate.Status == CandidateStatus.InProgress
+                    && candidate.ReappliedAt != null
+                    && candidate.ReappliedAt >= boundary
+                join vacancy in _context.Vacancies.AsNoTracking()
+                    on candidate.VacancyId equals vacancy.Id into vacancyMatch
+                from vacancy in vacancyMatch.DefaultIfEmpty()
+                select new
+                {
+                    CandidateId = candidate.Id,
+                    candidate.FullName.LastName,
+                    candidate.FullName.FirstName,
+                    candidate.FullName.MiddleName,
+                    VacancyTitle = vacancy!.Title,
+                    candidate.Source,
+                    ReappliedAt = candidate.ReappliedAt!.Value,
+                    candidate.CreatedAt,
+                })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new ReappliedCandidateRow(
+                row.CandidateId,
+                FullName.FromTrusted(row.LastName, row.FirstName, row.MiddleName).Full,
+                row.VacancyTitle,
+                row.Source,
+                row.ReappliedAt,
+                DateOnly.FromDateTime(row.CreatedAt.ToOffset(BonviTime.TashkentOffset).DateTime))),
+        ];
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<CandidateContactRow>> ListCandidateContactsAsync(
         DateOnly until,
         CancellationToken cancellationToken = default)

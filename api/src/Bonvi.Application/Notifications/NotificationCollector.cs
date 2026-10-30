@@ -212,6 +212,7 @@ public sealed class NotificationCollector
         await AddMissingProbationsAsync(items, cancellationToken).ConfigureAwait(false);
         await AddBirthdaysAsync(items, today, cancellationToken).ConfigureAwait(false);
         await AddNewCandidatesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
+        await AddReappliedCandidatesAsync(items, today, settings, cancellationToken).ConfigureAwait(false);
         await AddCandidateContactsAsync(items, today, cancellationToken).ConfigureAwait(false);
         await AddCandidateInterviewsAsync(items, settings, cancellationToken).ConfigureAwait(false);
 
@@ -447,6 +448,53 @@ public sealed class NotificationCollector
                 occursOn,
                 parameters,
                 new NotificationLinkDto(NotificationRoute.Employee, row.EmployeeId)));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Rekruting: mavjud nomzod anketa to'ldirdi
+    // ════════════════════════════════════════════════════════════
+
+    private async Task AddReappliedCandidatesAsync(
+        List<NotificationDto> items,
+        DateOnly today,
+        SystemSettings settings,
+        CancellationToken cancellationToken)
+    {
+        if (!Allowed(NotificationType.CandidateReapplied))
+        {
+            return;
+        }
+
+        var since = today.AddDays(-settings.Number(SystemSettingKeys.NewCandidateDays));
+        var rows = await _source
+            .ListReappliedCandidatesAsync(since, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var row in rows)
+        {
+            var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [NotificationParams.CandidateName] = row.CandidateName,
+                // Birinchi murojaat kuni — matnda «avval 20.10 da botdan»
+                [NotificationParams.AddedOn] = Iso(row.AddedOn),
+                [NotificationParams.Source] = row.Source.ToString(),
+            };
+
+            AddIfPresent(parameters, NotificationParams.VacancyTitle, row.VacancyTitle);
+
+            /*
+              Ko'k (Info), sariq emas: anketani ofisda HR o'zi boshlab beradi — odam allaqachon
+              ko'z oldida, «javobsiz qolgan ariza» emas. Bildirishnomaning vazifasi — kartani
+              tez topish.
+            */
+            items.Add(new NotificationDto(
+                NotificationKey.For(NotificationType.CandidateReapplied, row.CandidateId, row.ReappliedAt),
+                NotificationType.CandidateReapplied,
+                NotificationSeverity.Info,
+                row.ReappliedAt.TashkentDate(),
+                parameters,
+                new NotificationLinkDto(NotificationRoute.Candidate, row.CandidateId)));
         }
     }
 

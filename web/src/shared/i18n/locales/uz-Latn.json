@@ -301,6 +301,19 @@
     "manual": "Qo‘llanma",
     "manualHint": "Tizim bilan ishlash bo‘yicha to‘liq qo‘llanma — PDF"
   },
+  "viewer": {
+    "open": "Ko‘rish",
+    "zoomIn": "Kattalashtirish",
+    "zoomOut": "Kichraytirish",
+    "fit": "Ekranga sig‘dirish",
+    "previous": "Oldingisi",
+    "next": "Keyingisi",
+    "position": "{{n}} / {{total}}",
+    "pagePosition": "{{n}} / {{total}} bet",
+    "loadFailed": "Faylni ochib bo‘lmadi. Yuklab olib ko‘ring.",
+    "pdfFailed": "PDF faylni ko‘rsatib bo‘lmadi — u buzilgan yoki parol bilan himoyalangan bo‘lishi mumkin. Yuklab olib ko‘ring.",
+    "unsupported": "Bu turdagi faylni oynada ko‘rib bo‘lmaydi. Yuklab olib oching."
+  },
   "photo": {
     "subtitle": "JPEG, PNG yoki WebP · 10 MB gacha",
     "choose": "Rasm tanlash",
@@ -2044,6 +2057,11 @@
     "nextContactDue": "Aloqa muddati keldi",
     "contactDue": "Bugun aloqa kerak",
     "contactDueHint": "Bugun yoki muddati o‘tgan",
+    "lastAppliedAt": "Murojaat",
+    "firstAppliedHint": "Birinchi murojaat: {{date}}",
+    "reappliedBadge": "Anketa",
+    "reappliedFilter": "Anketa to‘ldirganlar",
+    "reappliedHint": "Avval botdan yoki boshqa yo‘l bilan kelib, keyin onlayn anketa to‘ldirganlar",
     "anyStatus": "Barcha holatlar",
     "statusFilterHint": "Ishga olinganlar, rad etilganlar va o‘zi voz kechganlar bu ro‘yxatda ko‘rsatilmaydi — ularni ko‘rish uchun shu filtrdan holatni tanlang",
     "anySource": "Barcha manbalar",
@@ -3098,6 +3116,10 @@
       "candidateInterviewSoon": {
         "title": "Suhbat yaqinlashdi",
         "text": "{{name}} — suhbat soat {{time}} da boshlanadi."
+      },
+      "candidateReapplied": {
+        "title": "Anketa to‘ldirdi",
+        "text": "{{name}} onlayn anketa to‘ldirdi — avval {{date}} da ariza bergan. Anketa uning kartasiga qo‘shildi."
       }
     },
     "moreArrived": "Yana {{n}} ta yangi bildirishnoma"

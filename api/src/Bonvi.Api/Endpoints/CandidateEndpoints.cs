@@ -475,6 +475,7 @@ public static class CandidateEndpoints
                 bool? closedDate,
                 Guid? referralChannelId,
                 bool? referralMissing,
+                bool? reapplied,
                 SearchCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -484,7 +485,7 @@ public static class CandidateEndpoints
                             search, vacancyId, stageId, status, source, page, pageSize, sort,
                             includeArchive ?? false, contactDue ?? false, rejected ?? false,
                             includeRejected ?? false, from, to, closedDate ?? false,
-                            referralChannelId, referralMissing ?? false),
+                            referralChannelId, referralMissing ?? false, reapplied ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -538,6 +539,10 @@ public static class CandidateEndpoints
                 "sanoq («total») ham shu filtr bilan. «from» > «to» — «royxat.sana_oraligi_notogri» (400). " +
                 "«referralChannelId» — «qayerdan bilgan» kanali bo'yicha (faolsizlantirilgani ham), " +
                 "«referralMissing=true» — kanali ko'rsatilmagan (eski) nomzodlar; ikkalasi birga berilsa natija bo'sh. " +
+                "«reapplied=true» — faqat kartasiga KEYIN onlayn anketa qo'shilganlar (avval botdan, keyin ofisda). " +
+                "Sukut tartib («createdAt») va ariza sanasi oralig'i OXIRGI MUROJAATGA qaraydi: qatordagi " +
+                "«reappliedAt» (anketa shu kartaga qo'shilgan lahza) bo'lsa — o'sha, bo'lmasa «createdAt»; " +
+                "oraliq ikkalasidan biri tushsa mos keladi. " +
                 "Har qatorda «hasResume» (kamida bitta FAYL biriktirilganmi), " +
                 "«hasPhoto», «nextContactDate» va «referralChannelId/referralChannelName/referralDetail» bor; " +
                 "ANKETA ro'yxatga QO'SHILMAYDI — u og'ir va faqat kartada kerak.")
@@ -561,6 +566,7 @@ public static class CandidateEndpoints
                 bool? closedDate,
                 Guid? referralChannelId,
                 bool? referralMissing,
+                bool? reapplied,
                 ExportCandidatesQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -573,7 +579,7 @@ public static class CandidateEndpoints
                             search, vacancyId, stageId, status, source, Page: null, PageSize: null, sort,
                             includeArchive ?? false, contactDue ?? false, rejected ?? false,
                             includeRejected ?? false, from, to, closedDate ?? false,
-                            referralChannelId, referralMissing ?? false),
+                            referralChannelId, referralMissing ?? false, reapplied ?? false),
                         cancellationToken)
                     .ConfigureAwait(false);
 

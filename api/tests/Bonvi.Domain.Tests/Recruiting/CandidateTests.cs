@@ -1085,4 +1085,24 @@ public sealed class CandidateTests
 
         nomzod.Notes.ShouldBeEmpty();
     }
+
+    [Fact]
+    public void Qayta_murojaat_faqat_oldinga_yuradi_va_oxirgi_murojaatni_belgilaydi()
+    {
+        var nomzod = Nomzod();
+        nomzod.CreatedAt = new DateTimeOffset(2026, 10, 20, 6, 0, 0, TimeSpan.Zero);
+
+        nomzod.ReappliedAt.ShouldBeNull();
+        nomzod.LastAppliedAt.ShouldBe(nomzod.CreatedAt, "qayta murojaat yo'q — karta ochilgan lahza");
+
+        var anketa = new DateTimeOffset(2026, 10, 30, 6, 0, 0, TimeSpan.Zero);
+        nomzod.MarkReapplied(anketa);
+        nomzod.LastAppliedAt.ShouldBe(anketa);
+
+        // Kechikib yetgan eski lahza yangisining ustidan yozilmaydi
+        nomzod.MarkReapplied(anketa.AddDays(-3));
+        nomzod.ReappliedAt.ShouldBe(anketa);
+
+        nomzod.CreatedAt.ShouldBe(new DateTimeOffset(2026, 10, 20, 6, 0, 0, TimeSpan.Zero), "birinchi murojaat o'zgarmaydi");
+    }
 }

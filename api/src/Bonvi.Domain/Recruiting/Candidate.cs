@@ -527,6 +527,28 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </summary>
     public string? ReferralDetail { get; private set; }
 
+    /// <summary>
+    /// Mavjud kartaga keyingi murojaat — onlayn anketa (HR-F02) shu kartaga qo'shilgan oxirgi lahza.
+    /// <c>null</c> — karta ochilgandan beri qayta murojaat bo'lmagan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⭐ <b>Nega kerak</b> (egasi, 2026-10-30). Odam 10 kun oldin botdan ariza tashlaydi, bugun
+    /// ofisga kelib anketa to'ldiradi — anketa o'sha bot kartasiga qo'shiladi (telefon + ism mos,
+    /// <c>SubmitQuestionnaireFormCommandHandler</c>). Ro'yxat esa karta OCHILGAN sana bo'yicha
+    /// tartiblanardi va bugun kelgan odam 10 kun oldingi qatorlar orasida qolib, HR uni topa olmasdi.
+    /// Endi ro'yxatning sukut tartibi va sana filtri <see cref="LastAppliedAt"/> ga qaraydi.
+    /// </para>
+    /// <para>
+    /// <see cref="CreatedAt"/> o'zgartirilmaydi — «birinchi marta qachon keldi» tarixiy fakt va
+    /// hisobotlar (kanal samaradorligi, davr bo'yicha arizalar) aynan shunga tayanadi.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? ReappliedAt { get; private set; }
+
+    /// <summary>Oxirgi murojaat: qayta murojaat bo'lsa — o'sha, bo'lmasa karta ochilgan lahza.</summary>
+    public DateTimeOffset LastAppliedAt => ReappliedAt ?? CreatedAt;
+
     /// <summary>Voronkada faolmi.</summary>
     public bool IsActive => Status == CandidateStatus.InProgress;
 
@@ -1237,6 +1259,18 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// chaqiruvchining ishi.
     /// </remarks>
     public void SetPhoto(string? photoKey) => PhotoKey = photoKey;
+
+    /// <summary>Mavjud kartaga qayta murojaatni yozadi (<see cref="ReappliedAt"/>).</summary>
+    /// <remarks>
+    /// Faqat oldinga: kechikib yetgan eski lahza yangisining ustidan yozilmaydi.
+    /// </remarks>
+    public void MarkReapplied(DateTimeOffset at)
+    {
+        if (ReappliedAt is null || at > ReappliedAt)
+        {
+            ReappliedAt = at;
+        }
+    }
 
     /// <summary>
     /// Anketani biriktiradi.

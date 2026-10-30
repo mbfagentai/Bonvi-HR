@@ -125,7 +125,10 @@ public interface IRecruitingReadModel
 /// </remarks>
 public enum CandidateSortField
 {
-    /// <summary>Kiritilgan vaqt (sukut bo'yicha, yangidan eskiga).</summary>
+    /// <summary>
+    /// Oxirgi murojaat (sukut bo'yicha, yangidan eskiga): kartaga anketa keyin qo'shilgan bo'lsa —
+    /// o'sha lahza, bo'lmasa karta ochilgan vaqt (<c>Candidate.LastAppliedAt</c>, 2026-10-30).
+    /// </summary>
     CreatedAt = 0,
 
     /// <summary>Familiya, ism.</summary>
@@ -237,6 +240,10 @@ public enum VacancySortField
 /// Faqat kanali KO'RSATILMAGAN nomzodlar (eski yozuvlar). <see cref="ReferralChannelId"/> bilan
 /// birga berilsa ikkalasi ham qo'llanadi — natija bo'sh (ikki shart bir-birini istisno qiladi).
 /// </param>
+/// <param name="Reapplied">
+/// Faqat mavjud kartasiga keyin onlayn anketa qo'shilganlar (<c>Candidate.ReappliedAt</c>) —
+/// «avval botdan, keyin ofisda anketa» (egasi, 2026-10-30).
+/// </param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -273,7 +280,8 @@ public sealed record CandidateSearchFilter(
     DateOnly? ClosedFrom = null,
     DateOnly? ClosedTo = null,
     Guid? ReferralChannelId = null,
-    bool ReferralMissing = false)
+    bool ReferralMissing = false,
+    bool Reapplied = false)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;
@@ -530,6 +538,7 @@ public sealed record CandidatePage(IReadOnlyList<CandidateRow> Items, int Total)
 /// <param name="ReferralChannelId">«Qayerdan bilgan» kanali.</param>
 /// <param name="ReferralChannelName">Kanal nomi.</param>
 /// <param name="ReferralDetail">Aniqlik.</param>
+/// <param name="ReappliedAt">Kartaga keyin onlayn anketa qo'shilgan lahza (<c>Candidate.ReappliedAt</c>).</param>
 public sealed record CandidateRow(
     Guid Id,
     string LastName,
@@ -553,7 +562,8 @@ public sealed record CandidateRow(
     string? ClosingNote,
     Guid? ReferralChannelId,
     string? ReferralChannelName,
-    string? ReferralDetail);
+    string? ReferralDetail,
+    DateTimeOffset? ReappliedAt = null);
 
 /// <summary>
 /// Vakansiyalar ro'yxatining filtri.

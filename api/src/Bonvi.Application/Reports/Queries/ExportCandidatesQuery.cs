@@ -62,6 +62,9 @@ public sealed class ExportCandidatesQueryHandler
         // kartada esa bor; shakl kartadagidek: «Tanishlar orqali — Rustamov Bahodir». OXIRIDA:
         // mavjud ustunlarning o'rni o'zgarmasin (HR fayllarni o'z jadvallariga ko'chiradi).
         new("Qayerdan bilgan", row => ReferralChannelChoice.Label(row.ReferralChannelName, row.ReferralDetail)),
+
+        // Mavjud kartaga keyin qo'shilgan onlayn anketa (2026-10-30) — shu sabab bilan OXIRIDA
+        new("Anketa to'ldirgan", row => row.ReappliedAt, ExcelCellKind.DateTime),
     ];
 
     private readonly SearchCandidatesQueryHandler _list;
@@ -199,7 +202,8 @@ public sealed class ExportCandidatesQueryHandler
         DateOnly? To,
         bool? ByClosedDate,
         Guid? ReferralChannelId,
-        bool? ReferralMissing)
+        bool? ReferralMissing,
+        bool? Reapplied)
     {
         public static ExportAuditFilters Of(SearchCandidatesQuery query) => new(
             string.IsNullOrWhiteSpace(query.Search) ? null : true,
@@ -216,7 +220,8 @@ public sealed class ExportCandidatesQueryHandler
             query.To,
             OnlyTrue(query.ByClosedDate),
             query.ReferralChannelId,
-            OnlyTrue(query.ReferralMissing));
+            OnlyTrue(query.ReferralMissing),
+            OnlyTrue(query.Reapplied));
 
         private static bool? OnlyTrue(bool flag) => flag ? true : null;
     }

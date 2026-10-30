@@ -324,6 +324,17 @@ export interface CandidateListItem {
   referralChannelName: string | null
   /** «Tanishlar orqali» → who recommended them; only for channels that ask for it. */
   referralDetail: string | null
+  /**
+   * ⭐ Kartaga KEYIN onlayn anketa qo'shilgan oxirgi lahza (egasi, 2026-10-30): odam avval botdan
+   * yozgan, keyin ofisga kelib anketa to'ldirgan. `null` — qayta murojaat yo'q. Ro'yxatning sana
+   * ustuni va sukut tartibi — `reappliedAt ?? createdAt` (`lastAppliedAt`).
+   */
+  reappliedAt: string | null
+}
+
+/** Oxirgi murojaat — ro'yxatdagi sana ustuni va sukut tartibining kaliti (server ham shunday saralaydi). */
+export function lastAppliedAt(candidate: Pick<CandidateListItem, 'createdAt' | 'reappliedAt'>): string {
+  return candidate.reappliedAt ?? candidate.createdAt
 }
 
 /**
@@ -697,7 +708,7 @@ export interface CandidateFilters {
    *
    * Ma'nosi SERVERDA tanlanadi: `rejected=true` bo'limida — rad etilgan /
    * voz kechgan kun (`closedAt`), qolgan hamma joyda — ariza kelgan kun
-   * (`createdAt`, Toshkent kuni). `from > to` — `royxat.sana_oraligi_notogri`
+   * (`createdAt` YOKI `reappliedAt` — ikkalasidan biri, Toshkent kuni). `from > to` — `royxat.sana_oraligi_notogri`
    * (400); ekran bunday oraliqni oldindan ushlaydi va so'rov yubormaydi.
    */
   from?: string
@@ -706,6 +717,11 @@ export interface CandidateFilters {
   referralChannelId?: string
   /** «Ko'rsatilmagan» — candidates without a channel (legacy, Excel). Wins over `referralChannelId`. */
   referralMissing?: boolean
+  /**
+   * Faqat kartasiga keyin onlayn anketa qo'shilganlar — «avval botdan, keyin ofisda anketa»
+   * (`reappliedAt`, egasi 2026-10-30).
+   */
+  reapplied?: boolean
 }
 
 /**
@@ -903,6 +919,7 @@ function toCandidateRow(raw: unknown): CandidateListItem {
     referralChannelId: text(box['referralChannelId']),
     referralChannelName: text(box['referralChannelName']),
     referralDetail: text(box['referralDetail']),
+    reappliedAt: text(box['reappliedAt']),
   }
 }
 
@@ -1202,6 +1219,7 @@ export function candidateListParams(filters: CandidateListFilters): Record<strin
     // «Ko'rsatilmagan» and one channel are exclusive — the missing flag wins
     referralMissing: filters.referralMissing === true ? true : undefined,
     referralChannelId: filters.referralMissing === true ? undefined : filters.referralChannelId,
+    reapplied: filters.reapplied === true ? true : undefined,
   })
 }
 

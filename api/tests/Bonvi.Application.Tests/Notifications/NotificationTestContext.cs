@@ -135,6 +135,21 @@ internal sealed class NotificationTestContext
         return row;
     }
 
+    /// <summary>Kartasiga onlayn anketa qo'shilgan nomzodni qo'shadi.</summary>
+    public ReappliedCandidateRow Reapplied(DateTimeOffset at, string name = "Karimov Aziz")
+    {
+        var row = new ReappliedCandidateRow(
+            Guid.CreateVersion7(),
+            name,
+            "Omborchi",
+            CandidateSource.TelegramBot,
+            at,
+            Today.AddDays(-10));
+
+        Source.Reapplied.Add(row);
+        return row;
+    }
+
     /// <summary>Keyingi aloqa sanasi kelib qolgan nomzodni qo'shadi.</summary>
     /// <param name="daysUntil">
     /// Sananing bugunga nisbati: <c>0</c> — bugun bog'lanish kerak,
@@ -217,6 +232,12 @@ internal sealed class FakeNotificationSource : INotificationReadModel
 
     public List<NewCandidateRow> Candidates { get; } = [];
 
+    /// <summary>Kartasiga onlayn anketa qo'shilgan nomzodlar.</summary>
+    public List<ReappliedCandidateRow> Reapplied { get; } = [];
+
+    /// <summary>Qayta murojaat so'rovidagi oxirgi «since».</summary>
+    public DateOnly? LastReappliedSince { get; private set; }
+
     /// <summary>Keyingi aloqa sanasi kelib qolgan nomzodlar.</summary>
     public List<CandidateContactRow> Contacts { get; } = [];
 
@@ -291,6 +312,14 @@ internal sealed class FakeNotificationSource : INotificationReadModel
         CandidateCalls++;
         LastCandidateSince = since;
         return Task.FromResult<IReadOnlyList<NewCandidateRow>>([.. Candidates]);
+    }
+
+    public Task<IReadOnlyList<ReappliedCandidateRow>> ListReappliedCandidatesAsync(
+        DateOnly since,
+        CancellationToken cancellationToken = default)
+    {
+        LastReappliedSince = since;
+        return Task.FromResult<IReadOnlyList<ReappliedCandidateRow>>([.. Reapplied]);
     }
 
     public Task<IReadOnlyList<CandidateContactRow>> ListCandidateContactsAsync(

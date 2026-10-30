@@ -299,18 +299,22 @@ public sealed class SubmitQuestionnaireFormCommandHandler
 
             stored.Add(photoKey);
 
-            // Nomzodda surat bo'lmasa — shu surat unga ham; anketaga esa MUSTAQIL nusxa
-            var formPhotoKey = photoKey;
+            /*
+              ⭐ Anketa surati nomzodning PROFIL suratiga ham — bor bo'lsa ham ALMASHADI (egasi,
+              2026-10-30): anketani HR boshlab beradi va suratni o'zi sifatli qilib oladi, botdagi
+              (Telegram) surat esa odatda tasodifiy. Anketaga MUSTAQIL nusxa — profil surati
+              keyin almashsa yoki o'chirilsa ham imzolangan anketa o'z suratini saqlaydi.
+              Eski profil surati diskdan faqat saqlash muvaffaqiyatli bo'lgach o'chiriladi
+              (`UploadCandidatePhotoCommandHandler` dagi tartib).
+            */
+            var replacedPhotoKey = candidate.PhotoKey;
 
-            if (candidate.PhotoKey is null)
+            candidate.SetPhoto(photoKey);
+            var formPhotoKey = await _photos.CopyAsync(photoKey, cancellationToken).ConfigureAwait(false) ?? photoKey;
+
+            if (formPhotoKey != photoKey)
             {
-                candidate.SetPhoto(photoKey);
-                formPhotoKey = await _photos.CopyAsync(photoKey, cancellationToken).ConfigureAwait(false) ?? photoKey;
-
-                if (formPhotoKey != photoKey)
-                {
-                    stored.Add(formPhotoKey);
-                }
+                stored.Add(formPhotoKey);
             }
 
             using var signatureStream = new MemoryStream(signature.Value);
@@ -402,6 +406,11 @@ public sealed class SubmitQuestionnaireFormCommandHandler
             {
                 _candidates.Add(candidate);
             }
+            else
+            {
+                // Mavjud kartaga qayta murojaat — ro'yxatda tepaga chiqadi (`Candidate.ReappliedAt`)
+                candidate.MarkReapplied(submittedAt);
+            }
 
             _forms.Add(form.Value);
 
@@ -428,6 +437,11 @@ public sealed class SubmitQuestionnaireFormCommandHandler
                 return Repeated(winner);
             }
 
+            // Almashtirilgan profil surati — saqlangandan KEYIN (yuqoridagi izoh). Shu yerdan
+            // keyin `stored` dagi fayllar bazada yozilgan: pastdagi xato ularni o'chirmasligi kerak.
+            stored.Clear();
+            await DeleteReplacedPhotoAsync(candidate.Id, replacedPhotoKey, CancellationToken.None).ConfigureAwait(false);
+
             return new QuestionnaireSubmission(new QuestionnaireSubmittedDto(number, submittedAt), Created: true);
         }
         catch
@@ -453,8 +467,40 @@ public sealed class SubmitQuestionnaireFormCommandHandler
             return vacancy.Error;
         }
 
-        if (await FindSamePersonAsync(answers, cancellationToken).ConfigureAwait(false) is { } existing)
+        if (await FindSamePersonAsync(answers, vacancy.Value.Id, cancellationToken).ConfigureAwait(false) is { } existing)
         {
+            /*
+              ⭐ Anketada BOSHQA vakansiya tanlangan bo'lsa — karta o'sha vakansiyaga o'tadi
+              (egasi, 2026-10-30): botda «Kassir» ga yozgan odam ofisda «Omborchi» ni tanlasa,
+              uning hozirgi niyati — anketadagisi. Ilgari karta eski vakansiyada qolardi va
+              yangi tanlov hech qayerda ko'rinmasdi. Bosqichlar tarixi o'zgarmaydi
+              (`Candidate.Reassign`), kartada «Boshqa vakansiyaga o'tkazildi» izohi qoladi.
+
+              «Umumiy anketa» (vakansiya tanlanmagan) aniq vakansiyaning o'rnini OLMAYDI —
+              bu tanlov emas, tanlovning yo'qligi.
+            */
+            var chosen = vacancy.Value;
+
+            if (chosen.Id != existing.VacancyId && chosen.Id != poolId)
+            {
+                var previousTitle = existing.VacancyId == poolId
+                    ? GeneralPoolLabel
+                    : (await _vacancies.GetByIdAsync(existing.VacancyId, cancellationToken).ConfigureAwait(false))?.Title
+                        ?? GeneralPoolLabel;
+
+                var reassigned = existing.Reassign(chosen.Id);
+                if (reassigned.IsFailure)
+                {
+                    return reassigned.Error;
+                }
+
+                existing.AddNote(
+                    CandidateNoteKind.Reassign,
+                    $"Onlayn anketada «{chosen.Title}» tanlandi. Avvalgi vakansiya: «{previousTitle}».");
+
+                return (existing, false, chosen.Title);
+            }
+
             var title = existing.VacancyId == poolId
                 ? GeneralPoolLabel
                 : (await _vacancies.GetByIdAsync(existing.VacancyId, cancellationToken).ConfigureAwait(false))?.Title
@@ -511,7 +557,17 @@ public sealed class SubmitQuestionnaireFormCommandHandler
     /// «Karimov Aziz» (onlayn anketa) bitta odam. Otasining ismi solishtirilmaydi: bot uni
     /// ko'pincha so'ramagan.
     /// </remarks>
-    private async Task<Candidate?> FindSamePersonAsync(QuestionnaireFormAnswers answers, CancellationToken cancellationToken)
+    /// <param name="answers">Forma javoblari.</param>
+    /// <param name="chosenVacancyId">
+    /// Anketada tanlangan vakansiya: odamning bir nechta jarayondagi kartasi bo'lsa, AYNAN shu
+    /// vakansiyadagisi olinadi — boshqa karta jimgina ko'chirilib, bitta vakansiyada ikkita karta
+    /// qolmasin (qa-review 2026-10-30).
+    /// </param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    private async Task<Candidate?> FindSamePersonAsync(
+        QuestionnaireFormAnswers answers,
+        Guid chosenVacancyId,
+        CancellationToken cancellationToken)
     {
         // Kanonik qiymat «+998901234567» — qidiruv raqamlar bo'yicha
         var digits = answers.Phone![1..];
@@ -523,6 +579,8 @@ public sealed class SubmitQuestionnaireFormCommandHandler
         var lastName = QuestionnaireFormValidator.Fold(answers.LastName);
         var firstName = QuestionnaireFormValidator.Fold(answers.FirstName);
 
+        Candidate? first = null;
+
         foreach (var match in matches.Where(match => match.Status == CandidateStatus.InProgress))
         {
             var candidate = await _candidates.GetWithStagesAsync(match.Id, cancellationToken).ConfigureAwait(false);
@@ -531,11 +589,16 @@ public sealed class SubmitQuestionnaireFormCommandHandler
                 && string.Equals(QuestionnaireFormValidator.Fold(candidate.FullName.LastName), lastName, StringComparison.Ordinal)
                 && string.Equals(QuestionnaireFormValidator.Fold(candidate.FullName.FirstName), firstName, StringComparison.Ordinal))
             {
-                return candidate;
+                if (candidate.VacancyId == chosenVacancyId)
+                {
+                    return candidate;
+                }
+
+                first ??= candidate;
             }
         }
 
-        return null;
+        return first;
     }
 
     /// <summary>
@@ -776,6 +839,36 @@ public sealed class SubmitQuestionnaireFormCommandHandler
             await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
 
             return buffer.ToArray();
+        }
+    }
+
+    /// <summary>Onlayn anketa almashtirgan profil suratini diskdan o'chiradi.</summary>
+    /// <remarks>
+    /// Kalit nomzodning biror anketasida ham turgan bo'lsa — o'chirilmaydi: nusxa olish yiqilgan
+    /// eski yozuvlarda anketa va profil BITTA faylni bo'lishgan (<c>CopyAsync</c> <c>null</c>).
+    /// Baza yoki disk xatosi javobni buzmaydi — anketa allaqachon saqlangan, yetim fayl esa zararsiz.
+    /// </remarks>
+    private async Task DeleteReplacedPhotoAsync(Guid candidateId, string? key, CancellationToken cancellationToken)
+    {
+        if (key is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var forms = await _forms.ListByCandidateAsync(candidateId, cancellationToken).ConfigureAwait(false);
+            if (forms.Any(form => form.PhotoKey == key))
+            {
+                return;
+            }
+
+            await _photos.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Yetim fayl qoladi — anketa allaqachon yozilgan; 500 bilan javob berish nomzodni
+            // qayta yuborishga majburlardi
         }
     }
 

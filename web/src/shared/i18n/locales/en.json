@@ -301,6 +301,19 @@
     "manual": "Manual",
     "manualHint": "Complete guide to working with the system — PDF"
   },
+  "viewer": {
+    "open": "View",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to screen",
+    "previous": "Previous",
+    "next": "Next",
+    "position": "{{n}} / {{total}}",
+    "pagePosition": "Page {{n}} / {{total}}",
+    "loadFailed": "Could not open the file. Try downloading it.",
+    "pdfFailed": "Could not display the PDF — it may be damaged or password-protected. Try downloading it.",
+    "unsupported": "This file type can't be previewed. Download it to open."
+  },
   "photo": {
     "subtitle": "JPEG, PNG or WebP · up to 10 MB",
     "choose": "Choose a photo",
@@ -2044,6 +2057,11 @@
     "nextContactDue": "Contact due",
     "contactDue": "Contact needed today",
     "contactDueHint": "Today or overdue",
+    "lastAppliedAt": "Applied",
+    "firstAppliedHint": "First applied: {{date}}",
+    "reappliedBadge": "Form",
+    "reappliedFilter": "Filled in the form",
+    "reappliedHint": "Came through the bot or another way first, then filled in the online form",
     "anyStatus": "All statuses",
     "statusFilterHint": "Hired, rejected and withdrawn candidates are not shown in this list — pick a status here to see them",
     "anySource": "All sources",
@@ -3098,6 +3116,10 @@
       "candidateInterviewSoon": {
         "title": "Interview soon",
         "text": "{{name}} — interview starts at {{time}}."
+      },
+      "candidateReapplied": {
+        "title": "Filled in the form",
+        "text": "{{name}} filled in the online form — first applied on {{date}}. The form was added to their card."
       }
     },
     "moreArrived": "{{n}} more new notifications"

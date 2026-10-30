@@ -30,6 +30,7 @@ import {
 } from '@/shared/ui'
 import {
   candidateListParams,
+  lastAppliedAt,
   type CandidateFilters,
   type CandidateListFilters,
   type CandidateListItem,
@@ -92,7 +93,7 @@ const route = getRouteApi('/_app/nomzodlar/')
  * ko'rinish turishi kerak, eng ko'rkam emas.
  */
 export function CandidatesPage() {
-  const { t, num } = useLocale()
+  const { t, num, date } = useLocale()
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
   const canManage = hasPermission(RECRUITING_MANAGE)
@@ -214,6 +215,7 @@ export function CandidatesPage() {
       // Ikkala bayroq faqat YOQILGANDA qo'shiladi — `false` so'rovda
       // hech narsani o'zgartirmagan holda kesh kalitini ikkiga bo'lardi.
       ...(filters.contactDue ? { contactDue: true } : {}),
+      ...(filters.reapplied && !rejectedSection ? { reapplied: true } : {}),
       ...(rejectedSection ? { rejected: true } : {}),
       /*
         Sana oralig'i jadvalga HAM, voronkaga HAM: ikkalasi bitta ro'yxatning
@@ -569,9 +571,24 @@ export function CandidatesPage() {
           const look = SOURCE_LOOK[row.original.source]
           const Icon = look.icon
           return (
-            <span className="flex items-center gap-1.5 text-caption1 text-[var(--fg-secondary)]">
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-caption1 text-[var(--fg-secondary)]">
               <Icon className="size-3.5 shrink-0" strokeWidth={2} />
               {t(`recruiting.source.${look.key}`)}
+
+              {/*
+                ⭐ «→ Anketa» — karta ochilgandan keyin odam (odatda botdan kelgan) ofisda onlayn
+                anketa to'ldirgan (egasi, 2026-10-30). Manbaning o'zi o'zgarmaydi — u tarixiy
+                fakt; belgi faqat keyingi murojaatni ko'rsatadi va «Anketa to'ldirganlar» filtri
+                bilan aynan bir xil qoida (`reappliedAt`).
+              */}
+              {row.original.reappliedAt !== null && (
+                <>
+                  <ArrowRight className="size-3 shrink-0 text-[var(--fg-tertiary)]" strokeWidth={2} aria-hidden />
+                  <Badge tone="info" size="sm">
+                    {t('recruiting.reappliedBadge')}
+                  </Badge>
+                </>
+              )}
             </span>
           )
         },
@@ -593,13 +610,28 @@ export function CandidatesPage() {
         },
       }),
 
+      /*
+        ⭐ Sana — OXIRGI MUROJAAT (2026-10-30): botdan 10 kun oldin yozib, bugun anketa
+        to'ldirgan odam bugungi sana bilan va ro'yxat tepasida (server ham shu bo'yicha
+        saralaydi, kalit `createdAt` bo'lib qoldi). Birinchi murojaat kuni — sichqoncha ostida.
+      */
       helper.accessor('createdAt', {
-        header: t('recruiting.createdAt'),
+        header: t('recruiting.lastAppliedAt'),
         meta: { width: '130px' },
-        cell: ({ getValue }) => <DateCell value={getValue()} />,
+        cell: ({ row }) => (
+          <span
+            title={
+              row.original.reappliedAt === null
+                ? undefined
+                : t('recruiting.firstAppliedHint', { date: date(row.original.createdAt) })
+            }
+          >
+            <DateCell value={lastAppliedAt(row.original)} />
+          </span>
+        ),
       }),
     ],
-    [t],
+    [t, date],
   )
 
   // Teskari oraliqda eski sahifa ko'rinib qolmasin — u boshqa filtrniki

@@ -97,6 +97,7 @@ public static class NotificationKey
             [NotificationType.CandidateContactDue] = "nomzod.aloqa_bugun",
             [NotificationType.CandidateContactOverdue] = "nomzod.aloqa_kechikkan",
             [NotificationType.CandidateInterviewSoon] = "nomzod.suhbat_yaqin",
+            [NotificationType.CandidateReapplied] = "nomzod.anketa_toldirdi",
         };
 
     /// <summary>Prefiksdan turga — <see cref="TypeOf"/> uchun teskari jadval.</summary>
