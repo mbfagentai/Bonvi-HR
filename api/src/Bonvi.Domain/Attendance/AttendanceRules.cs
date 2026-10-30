@@ -45,6 +45,20 @@ public static class AttendanceRules
     /// </remarks>
     public const int BounceSeconds = 60;
 
+    /// <summary>
+    /// Yo'nalishi NOMA'LUM terminalda bir odamning shu soniya ichidagi takror o'qishi — bitta
+    /// o'tish (egasining qarori, 2026-10-30).
+    /// </summary>
+    /// <remarks>
+    /// Bitta umumiy terminal (Propan-Rispetto) har kuni 20–26 kishini 3–10 soniya farq bilan
+    /// ikki marta o'qirdi va navbat bilan ajratish ularni «kirdi-chiqdi» qilib, kunning qolgan
+    /// juftligini siljitardi (kechki chiqish «kirish» bo'lib qolardi). 15 soniyada odam
+    /// turniketdan o'tib, qaytib kela olmaydi. Takror o'chirilmaydi — jurnalda qoladi va
+    /// <c>ignored_pass_count</c> ga tushadi. Ilgarigi «noma'lum hech narsani yutmaydi» qarori
+    /// (2026-09-27) shu oynadan tashqarida amalda qoladi.
+    /// </remarks>
+    public const int UnknownRepeatSeconds = 15;
+
     /// <summary>Qurilma soati shu chegaragacha og'sa — normal holat.</summary>
     /// <remarks>
     /// Besh daqiqa — terminal NTP'siz bir necha oyda to'playdigan tabiiy

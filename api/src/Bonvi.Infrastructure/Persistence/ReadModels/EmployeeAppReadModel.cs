@@ -274,13 +274,35 @@ internal sealed class EmployeeAppReadModel : IEmployeeAppReadModel
                 : localDate;
         }
 
+        var cells = passes.ToDictionary(pass => pass.Id, pass => CellOf(pass.LocalDate, pass.OccurredAt));
+
+        /*
+          ⭐ Yo'nalish — hisob-kitobdagi (samarali) yo'nalish, HR saytidagi «O'tishlar» bilan bir
+          xil (egasi, 2026-10-30): yo'nalishni bermaydigan terminalda (Propan-Rispetto) har
+          qatorda navbat bilan Kirish/Chiqish. Ilgari xom `Unknown` yuborilardi va ilova uni
+          «Chiqish» deb chizardi — «Chiqish, Chiqish». Katak (tabel kuni) bo'yicha hisoblanadi —
+          tabel ham shunday juftlaydi. `since` bilan kesilgan eng eski katak to'liq bo'lmasligi
+          mumkin; ilova faqat joriy smenani ko'rsatadi, u esa qarash oynasiga to'liq sig'adi.
+        */
+        var directions = new Dictionary<Guid, PassDirection>();
+        foreach (var cell in passes.GroupBy(pass => cells[pass.Id]))
+        {
+            var effective = PassPairing.EffectiveDirections(
+                cell.Select(pass => new PassReading(pass.Id, employeeId, pass.OccurredAt, pass.Direction)));
+
+            foreach (var (id, direction) in effective)
+            {
+                directions[id] = direction;
+            }
+        }
+
         return
         [
             .. passes.Select(pass => new MyAttributedMark(
-                CellOf(pass.LocalDate, pass.OccurredAt),
+                cells[pass.Id],
                 new MyMarkDto(
                     pass.OccurredAt,
-                    pass.Direction,
+                    directions.GetValueOrDefault(pass.Id, pass.Direction),
                     pass.Method == PassMethod.Mobile ? MarkSource.Mobile : MarkSource.Terminal,
                     pass.Method == PassMethod.Mobile ? siteNames.GetValueOrDefault(pass.Id) : null))),
         ];

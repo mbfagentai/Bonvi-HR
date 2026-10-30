@@ -291,9 +291,12 @@ public static class PassPairing
     /// <see cref="PairingResult.IgnoredPassCount"/> ga tushadi.
     /// </para>
     /// <para>
-    /// ⚠️ <b>Yo'nalishi <c>Unknown</c> o'qish hech narsani yutmaydi va yutilmaydi</b>
-    /// — 20 soniya farq bilan bo'lsa ham (egasining qarori, o'sha kuni): bitta
-    /// umumiy terminalda navbat bilan kirish/chiqish bo'laveradi. Ma'lum va
+    /// ⚠️ <b>Yo'nalishi <c>Unknown</c> o'qish ma'lum yo'nalishni yutmaydi va undan yutilmaydi</b>
+    /// (egasining qarori, 2026-09-27): bitta umumiy terminalda navbat bilan kirish/chiqish
+    /// bo'laveradi. <b>Bitta istisno</b> (egasi, 2026-10-30): oldingi o'qish ham noma'lum va
+    /// orasi <see cref="AttendanceRules.UnknownRepeatSeconds"/> (15 s) dan oshmasa — bu bitta
+    /// o'tishning takror o'qilishi, tashlanadi (zanjir: har o'qish o'zidan oldingisi bilan
+    /// solishtiriladi). 20 soniya farq — hamon ikki o'tish. Ma'lum va
     /// noma'lum yo'nalish aralash kelgan holat (telefonda «Kirish», keyin
     /// umumiy terminal) ham o'zgartirilmadi — u ochiq savol
     /// (<c>docs/ASSUMPTIONS.md</c>, 2026-09-27).
@@ -302,9 +305,22 @@ public static class PassPairing
     private static List<PassReading> CollapseBounces(List<PassReading> ordered)
     {
         var kept = new List<PassReading>(ordered.Count);
+        PassReading? previous = null;
 
         foreach (var pass in ordered)
         {
+            var repeat = previous is { } prior
+                && pass.Direction == PassDirection.Unknown
+                && prior.Direction == PassDirection.Unknown
+                && pass.OccurredAt - prior.OccurredAt <= TimeSpan.FromSeconds(AttendanceRules.UnknownRepeatSeconds);
+
+            previous = pass;
+
+            if (repeat)
+            {
+                continue;
+            }
+
             if (kept.Count > 0
                 && pass.Direction != PassDirection.Unknown
                 && pass.Direction == kept[^1].Direction)
@@ -348,6 +364,16 @@ public static class PassPairing
             var direction = pass.Direction == PassDirection.Unknown ? expected : pass.Direction;
             expected = direction == PassDirection.In ? PassDirection.Out : PassDirection.In;
             result[pass.Id] = direction;
+        }
+
+        // Tashlangan noma'lum takror — o'zidan oldingi o'qishning yo'nalishida: 08:50:13 «Kirish»
+        // bo'lsa, 08:50:16 dagi takror ham «Kirish» (ro'yxatda «Noma'lum» emas)
+        for (var index = 1; index < ordered.Count; index++)
+        {
+            if (result[ordered[index].Id] == PassDirection.Unknown)
+            {
+                result[ordered[index].Id] = result[ordered[index - 1].Id];
+            }
         }
 
         return result;

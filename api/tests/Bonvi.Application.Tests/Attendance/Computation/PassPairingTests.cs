@@ -320,6 +320,7 @@ public sealed class PassPairingTests
     /// <summary>
     /// ⭐ Egasining qarori (2026-09-27), ATAYLAB: bitta umumiy terminal (yo'nalish noma'lum) —
     /// 20 soniya farqli ikki o'qish ham navbat bilan kirish va chiqish bo'laveradi, birlashtirilmaydi.
+    /// 2026-10-30 dan faqat 15 soniya ichidagi takror bitta o'tish — 20 s hamon ikkita.
     /// </summary>
     [Fact]
     public void Nomalum_yonalish_hech_narsani_yutmaydi()
@@ -328,6 +329,71 @@ public sealed class PassPairingTests
 
         natija.IgnoredPassCount.ShouldBe(0);
         natija.MissingExit.ShouldBeFalse("navbat bilan kirish va chiqish bo'ldi");
+    }
+
+    /// <summary>
+    /// ⭐ Egasining qarori (2026-10-30): noma'lum terminalda 15 soniya ichidagi takror o'qish — bitta
+    /// o'tish. Propan-Rispetto'dagi haqiqiy hol: 08:50:13 va 08:50:16, keyin 18:05 da ketdi.
+    /// Ilgari 08:50:16 «chiqish», 18:05 esa «kirish» bo'lib, kun bo'sh qolardi.
+    /// </summary>
+    [Fact]
+    public void Nomalum_terminalda_15_soniyalik_takror_bitta_otish()
+    {
+        var natija = Pair(
+            P("08:50:13", PassDirection.Unknown),
+            P("08:50:16", PassDirection.Unknown),
+            P("18:05:00", PassDirection.Unknown));
+
+        natija.IgnoredPassCount.ShouldBe(1);
+        natija.MissingExit.ShouldBeFalse();
+        natija.MissingEntry.ShouldBeFalse();
+        natija.WorkedMinutes.ShouldBe(9 * 60 + 14, "08:50:13 dan 18:05 gacha");
+    }
+
+    /// <summary>Chegara: aynan 15 soniya — takror; 16 soniya — ikkinchi o'tish.</summary>
+    [Fact]
+    public void Nomalum_takror_chegarasi_15_soniya()
+    {
+        Pair(P("09:00:00", PassDirection.Unknown), P("09:00:15", PassDirection.Unknown))
+            .IgnoredPassCount.ShouldBe(1);
+        Pair(P("09:00:00", PassDirection.Unknown), P("09:00:16", PassDirection.Unknown))
+            .IgnoredPassCount.ShouldBe(0);
+    }
+
+    /// <summary>Zanjir: har o'qish o'zidan oldingisi bilan solishtiriladi — 0, 10, 20 s bitta o'tish.</summary>
+    [Fact]
+    public void Nomalum_takror_zanjiri_bitta_otish()
+    {
+        var natija = Pair(
+            P("09:00:00", PassDirection.Unknown),
+            P("09:00:10", PassDirection.Unknown),
+            P("09:00:20", PassDirection.Unknown));
+
+        natija.IgnoredPassCount.ShouldBe(2);
+        natija.MissingExit.ShouldBeTrue("bitta kirish — chiqish yo'q");
+    }
+
+    /// <summary>Ma'lum yo'nalish aralashsa 15 soniyalik qoida qo'llanmaydi (telefonda «Kirish», keyin terminal).</summary>
+    [Fact]
+    public void Malum_va_nomalum_aralashsa_15_soniyalik_qoida_yoq()
+    {
+        Pair(P("09:00:00", PassDirection.In), P("09:00:05", PassDirection.Unknown))
+            .IgnoredPassCount.ShouldBe(0);
+    }
+
+    /// <summary>Ro'yxatdagi yo'nalish: tashlangan takror oldingi o'qishning yo'nalishida, «Noma'lum» emas.</summary>
+    [Fact]
+    public void Samarali_yonalishda_takror_oldingisining_yonalishida()
+    {
+        var birinchi = P("08:50:13", PassDirection.Unknown);
+        var takror = P("08:50:16", PassDirection.Unknown);
+        var ketdi = P("18:05:00", PassDirection.Unknown);
+
+        var yonalish = PassPairing.EffectiveDirections([birinchi, takror, ketdi]);
+
+        yonalish[birinchi.Id].ShouldBe(PassDirection.In);
+        yonalish[takror.Id].ShouldBe(PassDirection.In);
+        yonalish[ketdi.Id].ShouldBe(PassDirection.Out);
     }
 
     /// <summary>Ochiq oraliq tekshiruvi juftlash bilan bir xil qadamlardan o'tadi.</summary>
