@@ -441,7 +441,7 @@
     "daysValue": "{{n}} days",
     "overdue": "{{n}} days overdue",
     "endingSoonTitle": "{{n}} probation periods ending",
-    "endingSoonText": "{{days}} days or fewer remain — time to record the conclusion. If no result is recorded by the end date, the employee automatically passes and becomes permanent.",
+    "endingSoonText": "{{days}} days or fewer remain — time to record the conclusion. After the end date the employee stays on probation and a warning stays up — HR records the result.",
     "showActive": "Only in progress",
     "emptyTitle": "No employees on probation",
     "emptyText": "A probation period opens automatically when someone is hired.",

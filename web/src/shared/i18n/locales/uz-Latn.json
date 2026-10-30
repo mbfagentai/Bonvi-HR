@@ -441,7 +441,7 @@
     "daysValue": "{{n}} kun",
     "overdue": "{{n}} kun o‘tdi",
     "endingSoonTitle": "{{n}} ta sinov muddati tugayapti",
-    "endingSoonText": "Muddat tugashiga {{days}} kun yoki undan kam qoldi — xulosa kiritish vaqti keldi. Muddat tugaguncha natija kiritilmasa, xodim avtomatik «O‘tdi» bo‘lib doimiy xodimga o‘tadi.",
+    "endingSoonText": "Muddat tugashiga {{days}} kun yoki undan kam qoldi — xulosa kiritish vaqti keldi. Muddat tugagach ham xodim «sinovda» qoladi va ogohlantirish chiqib turadi — natijani HR kiritadi.",
     "showActive": "Faqat davom etayotganlar",
     "emptyTitle": "Sinov muddatidagi xodim yo‘q",
     "emptyText": "Ishga qabul qilinganda sinov muddati avtomatik ochiladi.",

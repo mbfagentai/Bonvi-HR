@@ -58,7 +58,10 @@ public static class BackgroundJobs
     /// <summary>Hisobi yo'q xodimlarga ilova hisobini avtomatik ochish.</summary>
     public const string ProvisionEmployeeAccountsJobId = "employee-app:provision-accounts";
 
-    /// <summary>Muddati tugagan sinovni avtomatik «o'tdi» qilish (<c>ProbationAutoPassJob</c>).</summary>
+    /// <summary>
+    /// Muddati tugagan sinovni avtomatik «o'tdi» qilish (<c>ProbationAutoPassJob</c>) — 2026-10-30 dan
+    /// REJADA YO'Q; identifikator eski yozuvni o'chirish uchun qoldi.
+    /// </summary>
     public const string ProbationAutoPassJobId = "probations:auto-pass";
 
     /// <summary>Hangfire serverini va navbat portini ulaydi — yoki <c>Testing</c> da sinxron navbatni.</summary>
@@ -179,14 +182,11 @@ public static class BackgroundJobs
             "8-59/15 * * * *",
             utc);
 
-        // 19:05 UTC = 00:05 Toshkent — kun almashgach, kechagi kun tugagan sinovlar.
-        // Server o'sha paytda o'chiq bo'lsa, Hangfire o'tkazib yuborilgan yurishni
-        // ko'tarilishda o'zi bajaradi; natija sanasi baribir tugash kuni.
-        jobs.AddOrUpdate<ProbationAutoPassJob>(
-            ProbationAutoPassJobId,
-            job => job.RunAsync(CancellationToken.None),
-            "5 19 * * *",
-            utc);
+        // ⛔ Sinovni avtomatik «o'tdi» qilish O'CHIRILDI (egasi, 2026-10-30): muddat tugasa
+        // xodim «sinovda» qoladi va «Sinov muddati o'tib ketgan» ogohlantirishi chiqib turadi —
+        // natijani HR o'zi kiritadi. Prod Hangfire bazasidagi eski jadval yozuvi ham o'chiriladi,
+        // aks holda u yangi kod bilan ham har kecha ishlayverardi.
+        jobs.RemoveIfExists(ProbationAutoPassJobId);
 
         // ⭐ Ishga tushishda ham — NAVBATGA qo'yiladi, shu yerda bajarilmaydi:
         // birinchi yurish ~540 ta parolni xeshlaydi (bir necha o'n soniya) va

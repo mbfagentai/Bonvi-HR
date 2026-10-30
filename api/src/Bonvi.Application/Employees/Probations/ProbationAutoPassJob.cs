@@ -10,6 +10,12 @@ namespace Bonvi.Application.Employees.Probations;
 /// </summary>
 /// <remarks>
 /// <para>
+/// ⛔ <b>2026-10-30 dan REJADA YO'Q</b> (egasi: «sinov muddati tugasa ham tugadi deb ogohlantirib
+/// chiqib tursa yetarli»): <c>BackgroundJobs</c> jadval yozuvini o'chiradi. Muddati o'tgan sinov
+/// «Sinov muddati o'tib ketgan» bildirishnomasi bilan turadi, natijani HR kiritadi. Klass qaytarish
+/// oson bo'lishi uchun qoldirilgan.
+/// </para>
+/// <para>
 /// <b>Egasining qarori (2026-10-22):</b> «sinov muddat tugasa avtomatik active
 /// xodimga aylansin». Bu 2026-10-14 dagi «muddat tabiiy o'tib ketganlar avtomatik
 /// o'tmaydi — HR qaror qiladi» qoidasini BEKOR qiladi. HR «o'tmadi» / «o'zi ketdi»
