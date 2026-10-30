@@ -153,6 +153,18 @@ export function EmploymentEventsPage() {
   )
   useClampPage(page, pageSize, query.isPlaceholderData ? undefined : query.data?.total, clampPage)
 
+  /**
+   * Qator bosilsa — xodim kartasi (egasi 2026-10-30): «Xodimlar» ro'yxatidagi
+   * bilan bir xil yo'l (`incentives-page.tsx` ham shunday). Buyruq odam
+   * haqidagi savolni boshlaydi, kartada esa uning butun mehnat yo'li bor.
+   */
+  const openEmployee = useCallback(
+    (event: EmploymentEventItem) => {
+      void navigate({ to: '/xodimlar/$employeeId', params: { employeeId: event.employeeId } })
+    },
+    [navigate],
+  )
+
   const columns = useMemo<Array<DataColumn<EmploymentEventItem>>>(
     () => [
       helper.accessor('employeeName', {
@@ -309,6 +321,7 @@ export function EmploymentEventsPage() {
           getRowId={(event) => event.id}
           loading={firstLoad}
           skeletonRows={8}
+          onRowClick={openEmployee}
           rowLabel={(event) => event.employeeName}
           empty={
             listEmpty ? (
