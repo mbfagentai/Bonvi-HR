@@ -634,6 +634,20 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     }
 
     /// <summary>
+    /// Faqat telefonni almashtiradi — onlayn anketa F.I. va tug'ilgan sana bo'yicha qo'shilganda
+    /// (egasi, 2026-10-31): anketadagi raqam yangiroq, botdagisi lentada qoladi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Update"/> emas: u butun shaxsiy ma'lumotni qayta yozadi, anketa esa boshqa
+    /// maydonlarga faqat bo'sh bo'lsa tegadi.
+    /// </remarks>
+    public void ChangePhone(PhoneNumber phone)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+        Phone = phone;
+    }
+
+    /// <summary>
     /// Nomzodni boshqa vakansiyaga o'tkazadi.
     /// </summary>
     /// <remarks>

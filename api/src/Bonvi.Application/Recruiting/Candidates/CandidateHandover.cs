@@ -459,6 +459,7 @@ public sealed class CandidateHandover
         CandidateNoteKind.Withdrawn => "O'zi voz kechdi",
         CandidateNoteKind.Reserved => "Rezervga o'tkazildi",
         CandidateNoteKind.Blacklisted => "Qora ro'yxatga olindi",
+        CandidateNoteKind.OtherPhone => "Telefon anketadagisiga almashdi",
         _ => "Izoh",
     };
 

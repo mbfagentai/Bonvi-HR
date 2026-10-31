@@ -482,6 +482,26 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
         return await rows.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Guid>> FindInProgressByPersonAsync(
+        CandidatePersonKey person,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(person);
+
+        var matching = CandidateSearchQuery.WithPerson(_context, person.LastName, person.FirstName, person.BirthDate);
+
+        return await _context.Candidates
+            .AsNoTracking()
+            .Where(candidate => matching.Contains(candidate.Id) && candidate.Status == CandidateStatus.InProgress)
+            .OrderByDescending(candidate => candidate.CreatedAt)
+            .Select(candidate => candidate.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<CandidatePhoneMatchDto>> FindPhoneMatchesAsync(
         string phoneDigits,
         Guid? exceptId,

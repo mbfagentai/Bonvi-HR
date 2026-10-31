@@ -3,6 +3,16 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ `anketa.bonvi.uz` yoqildi — 2026-10-31 15:08 (Toshkent), kod o'zgarmadi
+
+Egasi Cloudflare'da `anketa` A yozuvini qo'shdi (proxied). Prod `.env` ga `ANKETA_SITE=anketa.bonvi.uz` va
+`VITE_ANKETA_URL=https://anketa.bonvi.uz` (nusxa `.env.bak-2026-10-31-anketa`), faqat `web` qayta build qilinib
+almashtirildi (`up -d --no-deps web`, ~16 s), HR 7,5 daq jim edi. Sertifikat HTTP-01 bilan olindi (TLS-ALPN Cloudflare
+ortida yiqiladi — kutilgan). Tekshirildi: `anketa.bonvi.uz/` → `/anketa` 200, `?planshet=1` saqlanadi, `/kirish` va
+boshqa `/api/*` 404, `/api/kiosk/questionnaire/session` 200; eski `hr.bonvi.uz/anketa`, `/`, `/ilova/` 200.
+Rollback: `.env` nusxasini qaytarib, `docker tag bonvi-hr-prod-web:rollback-pre-anketa bonvi-hr-prod-web:latest` →
+`up -d --no-deps web`.
+
 ## ✅ Reliz `e94969b` — boshliq vakansiya so'raydi (ilova + bot), boshliq xodim kartasidan, sinov avtomatik o'tmaydi — 2026-10-31 10:45 (Toshkent)
 
 Prod `d70de8c` → `e94969b` (406b1a5, a4f0e60, d4403ee, e94969b). Migratsiya `20261030131219_VakansiyaSorovlari`

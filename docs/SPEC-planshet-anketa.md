@@ -266,6 +266,7 @@ The tablet mirrors the same rules so server errors are rare.
 | Situation | Result |
 |---|---|
 | A candidate with the same phone digits **and** the same last and first name (compared Latin/Cyrillic-insensitive, apostrophes ignored) is **InProgress** (e.g. applied via the bot and came for the interview) | The form is attached to that candidate (the newest such). No new candidate. Vacancy and stage are not changed. |
+| **(2026-10-31, owner)** No phone match, but an **InProgress** candidate with the same last name, first name **and birth date** (the bot's third key `CandidatePersonKey`: `search_key()`, Latin/Cyrillic-insensitive, last/first may be swapped, middle name ignored) | The form is attached to that candidate (the one on the chosen vacancy, else the newest). The card's phone is **replaced** with the form's number and the old one is kept in an `OtherPhone` note («Onlayn anketadagi telefon qo'yildi: … Avvalgi telefon: …»). Reason: the bot sends the Telegram account's number, the form the one the person uses now. |
 | No such InProgress candidate (new walk-in; same phone but another name — a mistyped digit must not file one person's passport, convictions and health under another; or a closed/rejected/reserve/blacklisted older record) | A new candidate is registered: source `OnlineForm`, chosen vacancy (or general pool), first active stage, like the bot. The card's existing phone-match warning shows HR the history. The page never says anything about it. |
 
 The chosen vacancy is validated **first, on both paths** (404 `vakansiya.topilmadi`, 409

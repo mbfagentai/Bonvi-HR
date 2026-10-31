@@ -69,6 +69,12 @@ public enum CandidateNoteKind
 
     /// <summary>Qora ro'yxatga olindi — sababi bilan (2026-10-07).</summary>
     Blacklisted = 7,
+
+    /// <summary>
+    /// Onlayn anketa shu kartaga F.I. va tug'ilgan sana bo'yicha qo'shildi va telefon anketadagisiga
+    /// almashdi (egasi, 2026-10-31) — izohda avvalgi raqam qoladi.
+    /// </summary>
+    OtherPhone = 8,
 }
 
 /// <summary>

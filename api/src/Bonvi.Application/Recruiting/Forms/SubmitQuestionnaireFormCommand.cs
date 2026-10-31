@@ -70,6 +70,14 @@ public sealed record QuestionnaireSubmission(QuestionnaireSubmittedDto Result, b
 /// Formaga esa bu haqda hech narsa aytilmaydi — endpoint ochiq.
 /// </para>
 /// <para>
+/// ⭐ <b>Ikkinchi kalit — F.I. + tug'ilgan sana</b> (egasi, 2026-10-31): telefon bo'yicha topilmasa,
+/// familiya, ism va tug'ilgan sanasi bir xil JARAYONDAGI nomzod olinadi — botning uchinchi kaliti
+/// (<see cref="CandidatePersonKey"/>). Prod'da odam botga bir raqam bilan yozib, anketaga boshqasini
+/// kiritgan va ikkinchi karta ochilgan edi. Kartadagi telefon anketadagisiga ALMASHADI (egasi: anketa
+/// yangiroq), avvalgisi <see cref="CandidateNoteKind.OtherPhone"/> izohi bo'lib lentada qoladi — bu HR
+/// uchun belgi ham: begona odam F.I. va sanani bilib anketa qo'shsa, almashish shu yerda ko'rinadi.
+/// </para>
+/// <para>
 /// <b>Vakansiya HAR IKKALA yo'lda birinchi tekshiriladi</b>: javob (404/409) telefon
 /// mos kelgan-kelmaganiga bog'liq bo'lmasin — aks holda ataylab yopiq vakansiya bilan
 /// yuborib, raqam voronkada bor-yo'qligini bilib olish mumkin edi.
@@ -467,7 +475,25 @@ public sealed class SubmitQuestionnaireFormCommandHandler
             return vacancy.Error;
         }
 
-        if (await FindSamePersonAsync(answers, vacancy.Value.Id, cancellationToken).ConfigureAwait(false) is { } existing)
+        var existing = await FindSamePersonAsync(answers, vacancy.Value.Id, cancellationToken).ConfigureAwait(false);
+
+        if (existing is null
+            && await FindByPersonKeyAsync(answers, vacancy.Value.Id, cancellationToken).ConfigureAwait(false) is { } byPerson)
+        {
+            existing = byPerson;
+
+            // Telefon anketadagisiga almashadi, avvalgisi lentada (sinf izohi)
+            if (!string.Equals(byPerson.Phone?.Value, answers.Phone, StringComparison.Ordinal))
+            {
+                var previous = byPerson.Phone?.Value ?? "yo'q";
+                byPerson.ChangePhone(PhoneNumber.FromTrusted(answers.Phone!));
+                byPerson.AddNote(
+                    CandidateNoteKind.OtherPhone,
+                    $"Onlayn anketadagi telefon qo'yildi: {answers.Phone}. Avvalgi telefon: {previous}.");
+            }
+        }
+
+        if (existing is not null)
         {
             /*
               ⭐ Anketada BOSHQA vakansiya tanlangan bo'lsa — karta o'sha vakansiyaga o'tadi
@@ -596,6 +622,53 @@ public sealed class SubmitQuestionnaireFormCommandHandler
 
                 first ??= candidate;
             }
+        }
+
+        return first;
+    }
+
+    /// <summary>
+    /// F.I. va tug'ilgan sanasi mos JARAYONDAGI nomzod — telefon bo'yicha topilmaganda (sinf izohi).
+    /// </summary>
+    /// <remarks>
+    /// Bir nechta bo'lsa, anketada tanlangan vakansiyadagisi, bo'lmasa eng yangisi —
+    /// <see cref="FindSamePersonAsync"/> dagi qoidaning o'zi.
+    /// </remarks>
+    private async Task<Candidate?> FindByPersonKeyAsync(
+        QuestionnaireFormAnswers answers,
+        Guid chosenVacancyId,
+        CancellationToken cancellationToken)
+    {
+        if (answers.BirthDate is not { } birthDate
+            || string.IsNullOrWhiteSpace(answers.LastName)
+            || string.IsNullOrWhiteSpace(answers.FirstName))
+        {
+            return null;
+        }
+
+        var ids = await _readModel
+            .FindInProgressByPersonAsync(
+                new CandidatePersonKey(answers.LastName.Trim(), answers.FirstName.Trim(), birthDate),
+                limit: 5,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        Candidate? first = null;
+
+        foreach (var id in ids)
+        {
+            var candidate = await _candidates.GetWithStagesAsync(id, cancellationToken).ConfigureAwait(false);
+            if (candidate is null)
+            {
+                continue;
+            }
+
+            if (candidate.VacancyId == chosenVacancyId)
+            {
+                return candidate;
+            }
+
+            first ??= candidate;
         }
 
         return first;

@@ -101,6 +101,19 @@ public interface IRecruitingReadModel
         int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F.I. va tug'ilgan sanasi mos JARAYONDAGI nomzodlar — eng yangisi birinchi.
+    /// </summary>
+    /// <remarks>
+    /// Onlayn anketa uchun (egasi, 2026-10-31): odam botga bir raqam bilan yozib, anketaga boshqasini
+    /// kiritsa, telefon kaliti ushlamaydi va ikkinchi karta ochilardi. Kalit botdagi uchinchi kalitning
+    /// o'zi (<see cref="CandidatePersonKey"/>).
+    /// </remarks>
+    Task<IReadOnlyList<Guid>> FindInProgressByPersonAsync(
+        CandidatePersonKey person,
+        int limit,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RejectionNoticeDto>> ListPendingRejectionNoticesAsync(
         int limit,
         CancellationToken cancellationToken = default);

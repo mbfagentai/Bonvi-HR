@@ -18,7 +18,7 @@ internal static class QuestionnaireSamples
         LastName = "G‘ulomov",
         FirstName = "Sardor",
         MiddleName = "Baxtiyor o‘g‘li",
-        BirthDate = today.AddYears(-27).AddDays(-40),
+        BirthDate = today.AddYears(-27).AddDays(-40 - Spread(phone)),
         RegisteredAddress = "Toshkent sh., Yunusobod tumani, 11-mavze, 23-uy, 45-xonadon",
         ActualAddress = "Toshkent vil., Qibray tumani, Bobur MFY, Navro‘z ko‘chasi 7-uy",
         HousingType = FormHousingType.House,
@@ -139,7 +139,7 @@ internal static class QuestionnaireSamples
     {
         LastName = "Каримова",
         FirstName = "Ойдин",
-        BirthDate = today.AddYears(-19),
+        BirthDate = today.AddYears(-19).AddDays(-Spread(phone)),
         RegisteredAddress = "Тошкент ш., Чилонзор тумани",
         ActualAddress = "Тошкент ш., Чилонзор тумани",
         Phone = phone,
@@ -233,4 +233,14 @@ internal static class QuestionnaireSamples
 
         return data.ToArray();
     }
+
+    /// <summary>
+    /// Telefonga bog'liq 0–999 kun: har test o'z telefoni bilan o'z tug'ilgan sanasini oladi.
+    /// </summary>
+    /// <remarks>
+    /// 2026-10-31 dan onlayn anketa F.I. + tug'ilgan sana bo'yicha ham eski kartani topadi — bir xil
+    /// sanali namunalar bir umumiy test bazasida bir-birining kartasiga qo'shilib ketardi.
+    /// </remarks>
+    private static int Spread(string phone)
+        => int.Parse(phone[^3..], System.Globalization.CultureInfo.InvariantCulture);
 }
