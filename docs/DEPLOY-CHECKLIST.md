@@ -3,6 +3,14 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `b9aa1d4` — ma'lumotnomalarda «Faol / Faol emas», anketa F.I. + sana bilan ham topadi — 2026-10-31 16:34 (Toshkent)
+
+Prod `e94969b` → `b9aa1d4` (9c3cd8a, b9aa1d4). Migratsiya YO'Q (75 ta, o'zgarmadi). Rollback: image tegi
+`rollback-e94969b` (api b03f989af4f7, bot 68bd0060d847, web a4d8c8b996d6), zaxira stamp `2026-10-31_112047`.
+HR 17 daq jim edi; `infra/deploy.sh` 16:30–16:34. Bot qayta yaratilmadi (image o'zgarmagan). Tekshirildi: `/`, `/kirish`,
+`/ilova/`, `hr.bonvi.uz/anketa`, `anketa.bonvi.uz/anketa` 200, kiosk sessiyasi 200, yangi `/usage` kalitsiz 401.
+Jurnal: faqat SSE 500 va `ux_attendance_passes_device_dedupe` (terminal takrori, ushlanadi, 200 — avvaldan bor, 14k+ marta).
+
 ## ✅ `anketa.bonvi.uz` yoqildi — 2026-10-31 15:08 (Toshkent), kod o'zgarmadi
 
 Egasi Cloudflare'da `anketa` A yozuvini qo'shdi (proxied). Prod `.env` ga `ANKETA_SITE=anketa.bonvi.uz` va
