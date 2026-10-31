@@ -22,6 +22,7 @@ import type { DepartmentNode, PositionItem } from '../api/catalog-api'
 import { catalogErrorCode } from '../lib/catalog-error'
 import { CATALOG_MANAGE_PERMISSION, POSITIONS_META } from '../lib/catalog-kinds'
 import { flattenTree } from '../lib/tree'
+import { CatalogStatusTabs, type CatalogStatusTab } from './catalog-status-tabs'
 import { CatalogToolbar } from './catalog-toolbar'
 import { PositionFormDialog } from './position-form-dialog'
 
@@ -48,11 +49,18 @@ export function PositionsPage() {
   const canManage = hasPermission(CATALOG_MANAGE_PERMISSION)
 
   const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<CatalogStatusTab>('active')
   const [editing, setEditing] = useState<PositionItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  /** Faol emas lavozimlar ham ko'rinadi — nomi yonidagi yorliq bilan. */
+  /** Hammasi bitta so'rovda — «Faol» / «Faol emas» tablari ekranda ajratadi (egasi, 2026-10-31). */
   const list = useCatalogList<PositionItem>('positions', false)
+
+  const counts = useMemo(() => {
+    const source = list.data ?? EMPTY
+    const active = source.filter((item) => item.isActive).length
+    return { active, inactive: source.length - active }
+  }, [list.data])
 
   /**
    * Bo'lim nomi lavozim yozuvida yo'q — faqat `departmentId` keladi.
@@ -116,11 +124,6 @@ export function PositionsPage() {
               {row.original.name}
             </span>
 
-            {!row.original.isActive && (
-              <Badge tone="neutral" size="sm" className="shrink-0">
-                {t('catalog.statusInactive')}
-              </Badge>
-            )}
           </div>
         ),
       }),
@@ -185,7 +188,7 @@ export function PositionsPage() {
   }, [t, num, canManage, departmentNames])
 
   const rows = useMemo(() => {
-    const source = list.data ?? EMPTY
+    const source = (list.data ?? EMPTY).filter((item) => item.isActive === (tab === 'active'))
     const needle = query.trim()
     if (needle === '') return source
 
@@ -197,7 +200,7 @@ export function PositionsPage() {
         matchesSearch(item.name, needle) ||
         matchesSearch(departmentNames.get(item.departmentId ?? '') ?? '', needle),
     )
-  }, [list.data, query, departmentNames])
+  }, [list.data, query, departmentNames, tab])
 
   const searching = query.trim() !== ''
 
@@ -227,6 +230,13 @@ export function PositionsPage() {
         </Alert>
       )}
 
+      <CatalogStatusTabs
+        value={tab}
+        onChange={setTab}
+        activeCount={list.isPending ? null : counts.active}
+        inactiveCount={list.isPending ? null : counts.inactive}
+      />
+
       <Card className="overflow-hidden">
         <CatalogToolbar query={query} onQueryChange={setQuery} />
 
@@ -243,6 +253,12 @@ export function PositionsPage() {
                 icon={SearchX}
                 title={t('catalog.notFoundTitle')}
                 description={t('catalog.notFoundText', { query: query.trim() })}
+              />
+            ) : tab === 'inactive' ? (
+              <EmptyState
+                icon={POSITIONS_META.icon}
+                title={t('catalog.inactiveEmptyTitle')}
+                description={t('catalog.inactiveEmptyText')}
               />
             ) : (
               <EmptyState

@@ -5,6 +5,7 @@ using Bonvi.Application.Catalog.Departments;
 using Bonvi.Application.Catalog.Dtos;
 using Bonvi.Application.Catalog.Positions;
 using Bonvi.Application.Catalog.Queries;
+using Bonvi.Application.Catalog.Usage;
 using Bonvi.Application.Common;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
@@ -54,6 +55,11 @@ public sealed class CatalogWiringTests
         // Boshliqni almashtirish «attendance.view» ni ham talab qiladi — joriy foydalanuvchi kerak.
         services.AddScoped(_ => Substitute.For<ICurrentUser>());
 
+        // Faol emas qilishdan oldin biriktirilgan xodimlar va ularni o'tkazish (SPEC-malumotnoma-faolsizlantirish)
+        services.AddScoped(_ => Substitute.For<IReferenceUsageReadModel>());
+        services.AddScoped(_ => Substitute.For<IEmploymentRepository>());
+        services.AddScoped(_ => Substitute.For<IClock>());
+
         // Infrastructure buni ochiq generik sifatida ro'yxatga oladi;
         // testda esa har bir tip alohida ko'rsatiladi.
         services.AddScoped(_ => Substitute.For<IReferenceRepository<LegalEntity>>());
@@ -101,6 +107,13 @@ public sealed class CatalogWiringTests
 
         // Bo'lim va lavozim ham umumiy amallardan foydalanadi
         sp.GetRequiredService<DeactivateReferenceCommandHandler<Department>>().ShouldNotBeNull();
+
+        // Kim biriktirilgan va xodimlarni o'tkazib faol emas qilish
+        sp.GetRequiredService<GetReferenceUsageQueryHandler<Department>>().ShouldNotBeNull();
+        sp.GetRequiredService<GetReferenceUsageQueryHandler<AwardType>>().ShouldNotBeNull();
+        sp.GetRequiredService<ReassignDepartmentCommandHandler>().ShouldNotBeNull();
+        sp.GetRequiredService<ReassignPositionCommandHandler>().ShouldNotBeNull();
+        sp.GetRequiredService<ReassignDirectionCommandHandler>().ShouldNotBeNull();
     }
 
     [Fact]

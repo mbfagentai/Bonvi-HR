@@ -9,6 +9,14 @@ public interface IEmployeeRepository : IRepository<Employee>
     /// <summary>JSHSHIR bo'yicha topadi — asosiy identifikator.</summary>
     Task<Employee?> FindByPinflAsync(Pinfl pinfl, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Shu yo'nalish biriktirilgan, hozir ishlayotgan (faol munosabati bor) xodimlar. KUZATUVDA:
+    /// yo'nalish faol emas qilinishidan oldin ularga boshqa yo'nalish qo'yish uchun.
+    /// </summary>
+    Task<IReadOnlyList<Employee>> GetWorkingWithDirectionAsync(
+        Guid directionId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Pasport bo'yicha topadi (JSHSHIR bo'lmaganda zaxira yo'l).</summary>
     Task<Employee?> FindByPassportAsync(PassportSeries passport, CancellationToken cancellationToken = default);
 
@@ -50,6 +58,22 @@ public interface IEmploymentRepository : IRepository<Employment>
     /// <summary>Xodimning hozir faol munosabatlari.</summary>
     Task<IReadOnlyList<Employment>> GetActiveByEmployeeAsync(
         Guid employeeId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Faol (sinovdagi yoki doimiy) munosabatlar — shu bo'limlardan birida turganlari. KUZATUVDA:
+    /// bo'lim faol emas qilinishidan oldin hammasini bir yo'la boshqa bo'limga o'tkazish uchun.
+    /// </summary>
+    Task<IReadOnlyList<Employment>> GetActiveInDepartmentsAsync(
+        IReadOnlyCollection<Guid> departmentIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Faol munosabatlar — shu lavozimda turganlari. KUZATUVDA: lavozim faol emas qilinishidan oldin
+    /// hammasini boshqa lavozimga o'tkazish uchun.
+    /// </summary>
+    Task<IReadOnlyList<Employment>> GetActiveInPositionAsync(
+        Guid positionId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

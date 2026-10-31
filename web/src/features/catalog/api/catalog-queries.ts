@@ -7,9 +7,11 @@ import {
   addDuty,
   createCatalogItem,
   fetchCatalog,
+  fetchCatalogUsage,
   fetchDepartmentTree,
   fetchDuties,
   moveDepartment,
+  reassignCatalogItem,
   removeDuty,
   reorderDuties,
   setCatalogItemActive,
@@ -20,6 +22,8 @@ import {
   type CatalogKind,
   type DepartmentItem,
   type PositionDuty,
+  type ReassignCatalogInput,
+  type ReassignCatalogKind,
 } from './catalog-api'
 
 /**
@@ -35,6 +39,7 @@ export const catalogKeys = {
     ['catalog', kind, 'list', onlyActive] as const,
   tree: (onlyActive: boolean) => ['catalog', 'departments', 'tree', onlyActive] as const,
   duties: (positionId: string) => ['catalog', 'positions', positionId, 'duties'] as const,
+  usage: (kind: CatalogKind, id: string) => ['catalog', kind, 'usage', id] as const,
 }
 
 export function useCatalogList<T extends CatalogItem = CatalogItem>(
@@ -151,6 +156,31 @@ export function useToggleCatalogItem(kind: CatalogKind) {
       setCatalogItemActive(kind, id, active),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.root })
+    },
+  })
+}
+
+/** Faol emas qilish oynasi ochilganda — yozuvda kim qolgani (har ochilishda yangidan). */
+export function useCatalogUsage(kind: CatalogKind, id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: catalogKeys.usage(kind, id),
+    queryFn: ({ signal }) => fetchCatalogUsage(kind, id, signal),
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+/** Xodimlarni o'tkazib faol emas qilish — keyin ma'lumotnomalar ham, xodimlar ham qayta o'qiladi. */
+export function useReassignCatalogItem(kind: ReassignCatalogKind) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ReassignCatalogInput }) =>
+      reassignCatalogItem(kind, id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.root })
+      void queryClient.invalidateQueries({ queryKey: employeeKeys.root })
     },
   })
 }

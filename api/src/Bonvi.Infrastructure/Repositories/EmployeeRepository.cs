@@ -21,6 +21,21 @@ public sealed class EmployeeRepository : Repository<Employee>, IEmployeeReposito
     public EmployeeRepository(AppDbContext context) : base(context) { }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<Employee>> GetWorkingWithDirectionAsync(
+        Guid directionId,
+        CancellationToken cancellationToken = default)
+    {
+        var working = Context.Employments
+            .Where(employment => employment.Status != EmploymentStatus.Terminated)
+            .Select(employment => employment.EmployeeId);
+
+        return await Set
+            .Where(employee => employee.DirectionIds.Contains(directionId) && working.Contains(employee.Id))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public Task<Employee?> FindByPinflAsync(Pinfl pinfl, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(pinfl);

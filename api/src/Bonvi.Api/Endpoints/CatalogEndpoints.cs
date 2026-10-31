@@ -5,6 +5,7 @@ using Bonvi.Application.Catalog.Departments;
 using Bonvi.Application.Catalog.Dtos;
 using Bonvi.Application.Catalog.Positions;
 using Bonvi.Application.Catalog.Queries;
+using Bonvi.Application.Catalog.Usage;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
@@ -27,6 +28,13 @@ public sealed record MoveDepartmentRequest(Guid? NewParentId);
 /// <summary>Bo'lim boshlig'ini almashtirish tanasi.</summary>
 /// <param name="EmployeeId">Yangi boshliq. <c>null</c> — boshliqni olib tashlash.</param>
 public sealed record SetDepartmentHeadRequest(Guid? EmployeeId);
+
+/// <summary>Faol emas qilinadigan yozuvdagi xodimlar o'tadigan joy (docs/SPEC-malumotnoma-faolsizlantirish.md §C).</summary>
+public sealed record ReassignReferenceRequest(
+    Guid TargetId,
+    DateOnly? EffectiveDate,
+    string? OrderNo,
+    DateOnly? OrderDate);
 
 /// <summary>
 /// Ma'lumotnomalar endpoint'lari.
@@ -62,6 +70,10 @@ public static class CatalogEndpoints
 
         MapSimpleReference<Direction, DirectionDto>(
             group, "directions", "Directions", "Direction", "Yo'nalishlar");
+
+        MapReassign<ReassignDirectionCommandHandler>(
+            group, "directions", "Direction", "Yo'nalish",
+            (handler, command, cancellationToken) => handler.HandleAsync(command, cancellationToken));
 
         MapSimpleReference<TerminationReason, TerminationReasonDto>(
             group, "termination-reasons", "TerminationReasons", "TerminationReason", "Ishdan ketish sabablari");
@@ -239,8 +251,30 @@ public static class CatalogEndpoints
             .WithSummary(title + " — faolsizlantirish")
             .WithDescription(
                 "Yozuv O'CHIRILMAYDI, faqat yangi formalarda tanlanmaydigan bo'ladi. " +
-                "«reason» — nima uchun, izohga yoziladi.")
+                "«reason» — nima uchun, izohga yoziladi. Ishlayotgan xodim biriktirilgan bo'lsa — 409 " +
+                "(«malumotnoma.faol_xodim_bor»); bo'lim quyi bo'limlari bilan birga faol emas bo'ladi.")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapGet("/" + path + "/{id:guid}/usage", async (
+                Guid id,
+                GetReferenceUsageQueryHandler<TEntity> handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetReferenceUsageQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.CatalogManage)
+            .WithName("Get" + singular + "Usage")
+            .WithSummary(title + " — kim biriktirilgan")
+            .WithDescription(
+                "Faol emas qilishdan oldin: yozuvga biriktirilgan, hozir ishlayotgan xodimlar. " +
+                "Ular bor ekan, «deactivate» 409 qaytaradi; bo'lim, lavozim va yo'nalishda ular «reassign» bilan o'tkaziladi.")
+            .Produces<ReferenceUsageDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/" + path + "/{id:guid}/activate", async (
@@ -262,6 +296,43 @@ public static class CatalogEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
+    /// <summary>
+    /// Ishlayotgan xodimlarni boshqa yozuvga o'tkazib, keyin faol emas qilish (egasi, 2026-10-31).
+    /// </summary>
+    /// <remarks>Qo'shimcha huquq (o'tkazish yoki xodimni tahrirlash) handler ichida tekshiriladi.</remarks>
+    private static void MapReassign<THandler>(
+        IEndpointRouteBuilder group,
+        string path,
+        string singular,
+        string title,
+        Func<THandler, ReassignReferenceCommand, CancellationToken, Task<Result>> handle)
+        where THandler : notnull
+    {
+        group.MapPost("/" + path + "/{id:guid}/reassign", async (
+                Guid id,
+                ReassignReferenceRequest request,
+                THandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var command = new ReassignReferenceCommand(
+                    id, request.TargetId, request.EffectiveDate, request.OrderNo, request.OrderDate);
+
+                var natija = await handle(handler, command, cancellationToken).ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.CatalogManage)
+            .WithName("Reassign" + singular)
+            .WithSummary(title + " — xodimlarni o'tkazib, faol emas qilish")
+            .WithDescription(
+                "Hozir ishlayotgan hamma biriktirilgan xodim «targetId» ga o'tadi (bo'lim va lavozimda — har biriga " +
+                "o'tkazish yozuvi), keyin yozuv faol emas bo'ladi. Hammasi bitta saqlashda.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
     // ════════════════════════════════════════════════════════════
     //  Bo'limlar — daraxt
     // ════════════════════════════════════════════════════════════
@@ -271,6 +342,10 @@ public static class CatalogEndpoints
         // O'qish va holat — umumiy shtamp bilan
         MapReads<Department, DepartmentDto>(group, "departments", "Departments", "Department", "Bo'limlar");
         MapState<Department>(group, "departments", "Departments", "Department", "Bo'limlar");
+
+        MapReassign<ReassignDepartmentCommandHandler>(
+            group, "departments", "Department", "Bo'lim",
+            (handler, command, cancellationToken) => handler.HandleAsync(command, cancellationToken));
 
         group.MapGet("/departments/tree", async (
                 bool? onlyActive,
@@ -383,6 +458,10 @@ public static class CatalogEndpoints
     private static void MapPositions(IEndpointRouteBuilder group)
     {
         MapState<Position>(group, "positions", "Positions", "Position", "Lavozimlar");
+
+        MapReassign<ReassignPositionCommandHandler>(
+            group, "positions", "Position", "Lavozim",
+            (handler, command, cancellationToken) => handler.HandleAsync(command, cancellationToken));
 
         group.MapGet("/positions", async (
                 bool? onlyActive,

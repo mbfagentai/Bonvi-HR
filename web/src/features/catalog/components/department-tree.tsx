@@ -131,7 +131,8 @@ export function DepartmentTree({
               </button>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                {canManage && (
+                {/* Faol emas bo'lim ichiga yangi bo'lim ochilmaydi — avval uning o'zi yoqiladi */}
+                {canManage && node.isActive && (
                   <Button
                     variant="ghost"
                     size="icon-sm"

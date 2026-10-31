@@ -69,3 +69,30 @@ export function filterTree(
 export function countTree(nodes: readonly DepartmentNode[]): number {
   return nodes.reduce((total, node) => total + 1 + countTree(node.children ?? []), 0)
 }
+
+/**
+ * «Faol» / «Faol emas» tablari uchun daraxt (egasi, 2026-10-31).
+ *
+ * Boshqa holatdagi tugun faqat ichida kerakli holatdagi bo'lim bo'lsa qoladi — daraxtdagi joyi
+ * yo'qolmasin (`filterTree` dagi qoidaning o'zi). Masalan, «Faol emas» tabida yopilgan quyi bo'lim
+ * o'zining faol ota bo'limi ostida ko'rinadi.
+ */
+export function filterTreeByStatus(
+  nodes: readonly DepartmentNode[],
+  active: boolean,
+): DepartmentNode[] {
+  return nodes.flatMap((node) => {
+    const children = filterTreeByStatus(node.children ?? [], active)
+    if (node.isActive !== active && children.length === 0) return []
+    return [{ ...node, children }]
+  })
+}
+
+/** Tanlangan holatdagi tugunlar soni (yo'l uchun qolgan boshqa holatdagilar sanalmaydi). */
+export function countTreeByStatus(nodes: readonly DepartmentNode[], active: boolean): number {
+  return nodes.reduce(
+    (total, node) =>
+      total + (node.isActive === active ? 1 : 0) + countTreeByStatus(node.children ?? [], active),
+    0,
+  )
+}

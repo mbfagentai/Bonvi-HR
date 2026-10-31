@@ -672,6 +672,27 @@
       "moveDown": "Move down",
       "dutiesEmpty": "No duties yet. They are filled in automatically when hiring.",
       "dutiesAfterSave": "Duties can be added once the position is saved."
+    },
+    "statusTabs": "Record status",
+    "tabActive": "Active",
+    "tabInactive": "Inactive",
+    "inactiveEmptyTitle": "No inactive records",
+    "inactiveEmptyText": "Deactivated records stay here — you can activate them again.",
+    "retire": {
+      "moveAndDeactivate": "Move and deactivate",
+      "subdepartments": "Its {{n}} sub-departments will be deactivated too.",
+      "mustMove": "«{{name}}» has {{n}} working employees. They must be moved before deactivating.",
+      "blocked": "«{{name}}» has {{n}} working employees. Changing the legal entity means a new employment contract — process each employee from their card, then deactivate.",
+      "namesHidden": "You need permission to view employees to see their names.",
+      "more": "… and {{n}} more",
+      "effectiveDate": "Transfer date",
+      "historyHint": "A transfer record is added to each employee's history.",
+      "targetPlaceholder": "Select…",
+      "target": {
+        "departments": "Move to department",
+        "positions": "Move to position",
+        "directions": "Assign direction"
+      }
     }
   },
   "auth": {
@@ -1118,7 +1139,10 @@
     "vakansiya_sorovi.qaror_qilingan": "A decision on this request has already been made.",
     "vakansiya_sorovi.holat_notogri": "Invalid request status.",
     "vakansiya_sorovi.vakansiya_yoq": "No opened vacancy given.",
-    "tashqi.boshliq_yoq": "The department has no head — assign one in «Departments» or on the employee card."
+    "tashqi.boshliq_yoq": "The department has no head — assign one in «Departments» or on the employee card.",
+    "malumotnoma.faol_xodim_bor": "This record has working employees — move them first.",
+    "malumotnoma.otkazish_joyi_notogri": "Employees can only be moved to another active record.",
+    "bolim.ota_faol_emas": "The parent department is inactive — activate it first."
   },
   "language": {
     "en": "English",
@@ -2234,7 +2258,8 @@
       "rejected": "Rejected",
       "withdrawn": "Withdrew",
       "reserved": "Moved to the reserve",
-      "blacklisted": "Added to the blacklist"
+      "blacklisted": "Added to the blacklist",
+      "otherPhone": "Phone replaced with the form number"
     },
     "filesTitle": "Files",
     "filesEmpty": "No files attached",

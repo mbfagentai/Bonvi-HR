@@ -4,6 +4,7 @@ using Bonvi.Application.Catalog.Departments;
 using Bonvi.Application.Catalog.Dtos;
 using Bonvi.Application.Catalog.Positions;
 using Bonvi.Application.Catalog.Queries;
+using Bonvi.Application.Catalog.Usage;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Organization;
@@ -29,6 +30,7 @@ internal static class CatalogRegistration
         services.AddReferenceDefinitions();
         services.AddDepartmentUseCases();
         services.AddPositionUseCases();
+        services.AddReferenceUsage();
 
         return services;
     }
@@ -91,6 +93,26 @@ internal static class CatalogRegistration
         services.AddScoped<UpdateDepartmentCommandHandler>();
         services.AddScoped<MoveDepartmentCommandHandler>();
         services.AddScoped<SetDepartmentHeadCommandHandler>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Faol emas qilish qoidalari va xodimlarni o'tkazish (docs/SPEC-malumotnoma-faolsizlantirish.md).
+    /// </summary>
+    private static IServiceCollection AddReferenceUsage(this IServiceCollection services)
+    {
+        services.AddScoped(typeof(GetReferenceUsageQueryHandler<>));
+
+        services.AddScoped<DepartmentStateRule>();
+        services.AddScoped<IReferenceStateRule<Department>>(provider => provider.GetRequiredService<DepartmentStateRule>());
+        services.AddScoped<IReferenceStateRule<Position>, AssignedEmployeesRule<Position>>();
+        services.AddScoped<IReferenceStateRule<LegalEntity>, AssignedEmployeesRule<LegalEntity>>();
+        services.AddScoped<IReferenceStateRule<Direction>, AssignedEmployeesRule<Direction>>();
+
+        services.AddScoped<ReassignDepartmentCommandHandler>();
+        services.AddScoped<ReassignPositionCommandHandler>();
+        services.AddScoped<ReassignDirectionCommandHandler>();
 
         return services;
     }

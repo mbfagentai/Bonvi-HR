@@ -672,6 +672,27 @@
       "moveDown": "Pastga",
       "dutiesEmpty": "Vazifa hali qo‘shilmagan. Ishga qabul qilishda ular avtomatik yuklanadi.",
       "dutiesAfterSave": "Vazifalarni lavozim saqlangandan keyin qo‘shish mumkin."
+    },
+    "statusTabs": "Yozuv holati",
+    "tabActive": "Faol",
+    "tabInactive": "Faol emas",
+    "inactiveEmptyTitle": "Faol emas yozuv yo‘q",
+    "inactiveEmptyText": "Faol emas qilingan yozuvlar shu yerda turadi — ularni qayta faol qilish mumkin.",
+    "retire": {
+      "moveAndDeactivate": "O‘tkazish va faol emas qilish",
+      "subdepartments": "Ichidagi {{n}} ta quyi bo‘lim ham birga faol emas bo‘ladi.",
+      "mustMove": "«{{name}}» da {{n}} ta ishlayotgan xodim bor. Faol emas qilishdan oldin ular boshqasiga o‘tkaziladi.",
+      "blocked": "«{{name}}» da {{n}} ta ishlayotgan xodim bor. Yuridik shaxsni almashtirish yangi mehnat shartnomasi — har bir xodimni kartasidan rasmiylashtiring, keyin faol emas qiling.",
+      "namesHidden": "Ismlarni ko‘rish uchun xodimlarni ko‘rish ruxsati kerak.",
+      "more": "… yana {{n}} ta",
+      "effectiveDate": "O‘tkazish sanasi",
+      "historyHint": "Har bir xodim tarixiga o‘tkazish yozuvi tushadi.",
+      "targetPlaceholder": "Tanlang…",
+      "target": {
+        "departments": "Qaysi bo‘limga o‘tkaziladi",
+        "positions": "Qaysi lavozimga o‘tkaziladi",
+        "directions": "Qaysi yo‘nalish qo‘yiladi"
+      }
     }
   },
   "auth": {
@@ -1118,7 +1139,10 @@
     "vakansiya_sorovi.qaror_qilingan": "Bu so‘rov bo‘yicha qaror allaqachon qabul qilingan.",
     "vakansiya_sorovi.holat_notogri": "So‘rov holati noto‘g‘ri.",
     "vakansiya_sorovi.vakansiya_yoq": "Ochilgan vakansiya ko‘rsatilmagan.",
-    "tashqi.boshliq_yoq": "Bo‘limga boshliq tayinlanmagan — uni «Bo‘limlar» yoki xodim kartasida belgilang."
+    "tashqi.boshliq_yoq": "Bo‘limga boshliq tayinlanmagan — uni «Bo‘limlar» yoki xodim kartasida belgilang.",
+    "malumotnoma.faol_xodim_bor": "Bu yozuvda ishlayotgan xodimlar bor — avval ularni boshqasiga o‘tkazing.",
+    "malumotnoma.otkazish_joyi_notogri": "Xodimlarni faqat boshqa, faol yozuvga o‘tkazish mumkin.",
+    "bolim.ota_faol_emas": "Yuqori bo‘lim faol emas — avval uni faol qiling."
   },
   "language": {
     "en": "English",
@@ -2234,7 +2258,8 @@
       "rejected": "Rad etildi",
       "withdrawn": "O‘zi voz kechdi",
       "reserved": "Rezervga o‘tkazildi",
-      "blacklisted": "Qora ro‘yxatga olindi"
+      "blacklisted": "Qora ro‘yxatga olindi",
+      "otherPhone": "Telefon anketadagisiga almashdi"
     },
     "filesTitle": "Fayllar",
     "filesEmpty": "Fayl biriktirilmagan",

@@ -17,7 +17,8 @@ import { useDepartmentHeadNames, useDepartmentTree } from '../api/catalog-querie
 import type { DepartmentNode } from '../api/catalog-api'
 import { catalogErrorCode } from '../lib/catalog-error'
 import { CATALOG_MANAGE_PERMISSION, DEPARTMENTS_META } from '../lib/catalog-kinds'
-import { countTree, filterTree, flattenTree } from '../lib/tree'
+import { countTreeByStatus, filterTree, filterTreeByStatus, flattenTree } from '../lib/tree'
+import { CatalogStatusTabs, type CatalogStatusTab } from './catalog-status-tabs'
 import { CatalogToolbar } from './catalog-toolbar'
 import { DepartmentFormDialog } from './department-form-dialog'
 import { DepartmentTree } from './department-tree'
@@ -41,6 +42,7 @@ export function DepartmentsPage() {
   const canManage = hasPermission(CATALOG_MANAGE_PERMISSION)
 
   const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<CatalogStatusTab>('active')
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -48,21 +50,23 @@ export function DepartmentsPage() {
   const [parentForNew, setParentForNew] = useState<string | null>(null)
 
   /*
-   * Butun daraxt, faol emas bo'limlar bilan birga. Faollik filtri ekrandan
-   * olib tashlandi: yopilgan bo'lim daraxtdan g'oyib bo'lsa, uning ichidagi
-   * bo'limlar ham ko'rinmay qolardi va tuzilma buzilgandek tuyulardi.
+   * Butun daraxt bitta so'rovda; «Faol» / «Faol emas» tablari uni ekranda ajratadi (egasi,
+   * 2026-10-31). Boshqa holatdagi bo'lim faqat ichidagilarning joyini ko'rsatish uchun qoladi
+   * (`filterTreeByStatus`) — tuzilma buzilgandek tuyulmasin.
    */
   const tree = useDepartmentTree(false)
+
+  const byStatus = useMemo(
+    () => filterTreeByStatus(tree.data ?? EMPTY, tab === 'active'),
+    [tree.data, tab],
+  )
 
   // Boshliq ismi xodim kartasidan — kartani ko'rish ruxsati bo'lsagina (SPEC-jamoam §E)
   const headNames = useDepartmentHeadNames(hasPermission(EMPLOYEES_VIEW))
 
   const searching = query.trim() !== ''
 
-  const filtered = useMemo(
-    () => filterTree(tree.data ?? EMPTY, query),
-    [tree.data, query],
-  )
+  const filtered = useMemo(() => filterTree(byStatus, query), [byStatus, query])
   const flat = useMemo(() => flattenTree(filtered), [filtered])
 
   // Qidiruv paytida daraxt to'liq ochiladi: topilgan bo'lim yopiq
@@ -100,8 +104,9 @@ export function DepartmentsPage() {
     setDialogOpen(true)
   }, [])
 
-  const total = countTree(tree.data ?? EMPTY)
-  const shown = countTree(filtered)
+  const total = countTreeByStatus(tree.data ?? EMPTY, tab === 'active')
+  const shown = countTreeByStatus(filtered, tab === 'active')
+  const otherTotal = countTreeByStatus(tree.data ?? EMPTY, tab !== 'active')
 
   return (
     <div className="space-y-6">
@@ -128,6 +133,13 @@ export function DepartmentsPage() {
           {errorMessage(catalogErrorCode(tree.error))}
         </Alert>
       )}
+
+      <CatalogStatusTabs
+        value={tab}
+        onChange={setTab}
+        activeCount={tree.isPending ? null : tab === 'active' ? total : otherTotal}
+        inactiveCount={tree.isPending ? null : tab === 'active' ? otherTotal : total}
+      />
 
       <Card className="overflow-hidden">
         <CatalogToolbar
@@ -172,7 +184,15 @@ export function DepartmentsPage() {
           />
         )}
 
-        {!tree.isPending && visible.length === 0 && !searching && (
+        {!tree.isPending && visible.length === 0 && !searching && tab === 'inactive' && (
+          <EmptyState
+            icon={ListTree}
+            title={t('catalog.inactiveEmptyTitle')}
+            description={t('catalog.inactiveEmptyText')}
+          />
+        )}
+
+        {!tree.isPending && visible.length === 0 && !searching && tab === 'active' && (
           <EmptyState
             icon={ListTree}
             title={t('catalog.departments.emptyTitle')}

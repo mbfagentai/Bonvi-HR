@@ -1,4 +1,5 @@
 using Bonvi.Application.Catalog.Common;
+using Bonvi.Application.Catalog.Usage;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 
@@ -32,13 +33,17 @@ public sealed class DeactivateReferenceCommandHandler<TEntity>
 {
     private readonly IReferenceRepository<TEntity> _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IReadOnlyList<IReferenceStateRule<TEntity>> _rules;
 
     public DeactivateReferenceCommandHandler(
         IReferenceRepository<TEntity> repository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IEnumerable<IReferenceStateRule<TEntity>>? rules = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        // Qoidasi yo'q ma'lumotnoma — bo'sh ro'yxat (SPEC-malumotnoma-faolsizlantirish §B)
+        _rules = rules is null ? [] : [.. rules];
     }
 
     public async Task<Result> HandleAsync(
@@ -51,6 +56,15 @@ public sealed class DeactivateReferenceCommandHandler<TEntity>
         if (entity is null)
         {
             return CatalogErrors.NotFound;
+        }
+
+        foreach (var rule in _rules)
+        {
+            var allowed = await rule.BeforeDeactivateAsync(entity, cancellationToken).ConfigureAwait(false);
+            if (allowed.IsFailure)
+            {
+                return allowed.Error;
+            }
         }
 
         entity.Deactivate(command.Reason);
@@ -77,13 +91,16 @@ public sealed class ActivateReferenceCommandHandler<TEntity>
 {
     private readonly IReferenceRepository<TEntity> _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IReadOnlyList<IReferenceStateRule<TEntity>> _rules;
 
     public ActivateReferenceCommandHandler(
         IReferenceRepository<TEntity> repository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IEnumerable<IReferenceStateRule<TEntity>>? rules = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _rules = rules is null ? [] : [.. rules];
     }
 
     public async Task<Result> HandleAsync(
@@ -96,6 +113,15 @@ public sealed class ActivateReferenceCommandHandler<TEntity>
         if (entity is null)
         {
             return CatalogErrors.NotFound;
+        }
+
+        foreach (var rule in _rules)
+        {
+            var allowed = await rule.BeforeActivateAsync(entity, cancellationToken).ConfigureAwait(false);
+            if (allowed.IsFailure)
+            {
+                return allowed.Error;
+            }
         }
 
         entity.Activate();

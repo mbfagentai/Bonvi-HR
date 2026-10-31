@@ -211,6 +211,57 @@ export async function setCatalogItemActive(
   await api.post(`${base(kind)}/${id}/${active ? 'activate' : 'deactivate'}`)
 }
 
+/** Ishlayotgan xodim biriktiriladigan ma'lumotnomalar (SPEC-malumotnoma-faolsizlantirish §A). */
+export const USAGE_CATALOG_KINDS = ['departments', 'positions', 'legal-entities', 'directions'] as const
+
+/** Xodimlarni oynaning o'zida boshqasiga o'tkazib bo'ladiganlari — yuridik shaxs emas (yangi shartnoma). */
+export const REASSIGN_CATALOG_KINDS = ['departments', 'positions', 'directions'] as const
+export type ReassignCatalogKind = (typeof REASSIGN_CATALOG_KINDS)[number]
+
+export interface ReferenceUser {
+  employeeId: string
+  employmentId: string | null
+  fullName: string
+  departmentName: string | null
+  positionName: string | null
+}
+
+/** Faol emas qilishdan oldin — yozuvda kim qolgani. */
+export interface ReferenceUsage {
+  activeEmployees: number
+  employees: ReferenceUser[]
+  /** `employees.view` ruxsatisiz — faqat son. */
+  employeesHidden: boolean
+  /** Bo'lim uchun: birga faol emas bo'ladigan faol quyi bo'limlar. */
+  activeSubdepartments: number
+  canReassign: boolean
+}
+
+export async function fetchCatalogUsage(
+  kind: CatalogKind,
+  id: string,
+  signal?: AbortSignal,
+): Promise<ReferenceUsage> {
+  const { data } = await api.get<ReferenceUsage>(`${base(kind)}/${id}/usage`, { signal })
+  return data
+}
+
+export interface ReassignCatalogInput {
+  targetId: string
+  effectiveDate: string | null
+  orderNo: string | null
+  orderDate: string | null
+}
+
+/** Ishlayotgan xodimlar `targetId` ga o'tadi, keyin yozuv faol emas bo'ladi — bitta saqlashda. */
+export async function reassignCatalogItem(
+  kind: ReassignCatalogKind,
+  id: string,
+  input: ReassignCatalogInput,
+): Promise<void> {
+  await api.post(`${base(kind)}/${id}/reassign`, input)
+}
+
 /* ---------------------------------------------------------------- bo'limlar */
 
 export async function fetchDepartmentTree(

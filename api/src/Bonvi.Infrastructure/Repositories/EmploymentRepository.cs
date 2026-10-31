@@ -88,6 +88,35 @@ public sealed class EmploymentRepository : Repository<Employment>, IEmploymentRe
             .ConfigureAwait(false);
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<Employment>> GetActiveInDepartmentsAsync(
+        IReadOnlyCollection<Guid> departmentIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(departmentIds);
+
+        var ids = departmentIds.ToList();
+
+        return await Set
+            .Where(employment =>
+                employment.DepartmentId != null &&
+                ids.Contains(employment.DepartmentId.Value) &&
+                employment.Status != EmploymentStatus.Terminated)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Employment>> GetActiveInPositionAsync(
+        Guid positionId,
+        CancellationToken cancellationToken = default)
+        => await Set
+            .Where(employment =>
+                employment.PositionId == positionId &&
+                employment.Status != EmploymentStatus.Terminated)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
     /// <remarks>
     /// <para>
     /// So'rov ishga qabul HODISASI orqali ketadi: bog'lanish aynan o'sha

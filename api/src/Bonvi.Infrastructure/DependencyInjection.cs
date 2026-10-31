@@ -3,6 +3,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Audit;
+using Bonvi.Application.Catalog.Usage;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
@@ -327,6 +328,7 @@ public static class DependencyInjection
 
         services.AddScoped<IRecruitingReadModel, RecruitingReadModel>();
         services.AddScoped<IVacancyRequestReadModel, VacancyRequestReadModel>();
+        services.AddScoped<IReferenceUsageReadModel, ReferenceUsageReadModel>();
 
         return services;
     }

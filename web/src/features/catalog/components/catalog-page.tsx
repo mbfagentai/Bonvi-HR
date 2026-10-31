@@ -22,6 +22,7 @@ import type { CatalogItem } from '../api/catalog-api'
 import { catalogErrorCode } from '../lib/catalog-error'
 import { CATALOG_MANAGE_PERMISSION, type CatalogKindMeta } from '../lib/catalog-kinds'
 import { CatalogFormDialog } from './catalog-form-dialog'
+import { CatalogStatusTabs, type CatalogStatusTab } from './catalog-status-tabs'
 import { CatalogToolbar } from './catalog-toolbar'
 
 const helper = dataColumnHelper<CatalogItem>()
@@ -44,15 +45,21 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
   const canManage = hasPermission(CATALOG_MANAGE_PERMISSION)
 
   const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<CatalogStatusTab>('active')
   const [editing, setEditing] = useState<CatalogItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   /*
-   * Ro'yxatda HAMMA yozuv: faol emaslari ham. Ilgari bu «Faqat faollar»
-   * filtriga bog'liq edi, endi filtr yo'q — yozuv qayerga ketganini
-   * qidirishga hojat qolmasin.
+   * Bitta so'rovda HAMMA yozuv, tablar uni ekranda ajratadi (egasi, 2026-10-31): menyu
+   * «Faol» da ochiladi, faol emaslari o'z tabida — yo'qolmaydi va o'sha yerdan qayta yoqiladi.
    */
   const list = useCatalogList(meta.kind, false)
+
+  const counts = useMemo(() => {
+    const source = list.data ?? EMPTY
+    const active = source.filter((item) => item.isActive).length
+    return { active, inactive: source.length - active }
+  }, [list.data])
 
   const openCreate = useCallback(() => {
     setEditing(null)
@@ -135,11 +142,6 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
               </Badge>
             )}
 
-            {!row.original.isActive && (
-              <Badge tone="neutral" size="sm" className="shrink-0">
-                {t('catalog.statusInactive')}
-              </Badge>
-            )}
           </div>
         ),
       }),
@@ -194,7 +196,7 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
   }, [t, canManage, hasNotes])
 
   const rows = useMemo(() => {
-    const source = list.data ?? EMPTY
+    const source = (list.data ?? EMPTY).filter((item) => item.isActive === (tab === 'active'))
     const needle = query.trim()
     if (needle === '') return source
 
@@ -206,7 +208,7 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
     // klaviaturada «Кукон» yozsa ham «Қўқон» topiladi. Usiz ma'lumotnoma
     // tizimdagi yagona «boshqacha qidiradigan» ekran bo'lib qolardi.
     return source.filter((item) => matchesSearch(item.name, needle))
-  }, [list.data, query])
+  }, [list.data, query, tab])
 
   const searching = query.trim() !== ''
 
@@ -236,6 +238,13 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
         </Alert>
       )}
 
+      <CatalogStatusTabs
+        value={tab}
+        onChange={setTab}
+        activeCount={list.isPending ? null : counts.active}
+        inactiveCount={list.isPending ? null : counts.inactive}
+      />
+
       <Card className="overflow-hidden">
         <CatalogToolbar query={query} onQueryChange={setQuery} />
 
@@ -252,6 +261,12 @@ export function CatalogPage({ meta }: { meta: CatalogKindMeta }) {
                 icon={SearchX}
                 title={t('catalog.notFoundTitle')}
                 description={t('catalog.notFoundText', { query: query.trim() })}
+              />
+            ) : tab === 'inactive' ? (
+              <EmptyState
+                icon={meta.icon}
+                title={t('catalog.inactiveEmptyTitle')}
+                description={t('catalog.inactiveEmptyText')}
               />
             ) : (
               <EmptyState
