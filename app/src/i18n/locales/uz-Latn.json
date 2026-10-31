@@ -337,6 +337,35 @@
       "noSchedule": "Jadval yo‘q"
     }
   },
+  "teamVacancy": {
+    "title": "Vakansiya so‘rovlari",
+    "new": "So‘rash",
+    "newTitle": "Vakansiya so‘rash",
+    "emptyTitle": "So‘rov yo‘q",
+    "emptyText": "Yangi odam kerak bo‘lsa, «So‘rash» ni bosing — so‘rov HR bo‘limiga boradi.",
+    "rowTitle": "{{title}} — {{n}} kishi",
+    "neededByShort": "{{date}} gacha",
+    "rejectReason": "Rad etildi: {{reason}}",
+    "approvedInfo": "Vakansiya ochildi · nomzodlar: {{candidates}}, ishga olindi: {{hired}}",
+    "cancelTitle": "So‘rovni qaytarib olasizmi?",
+    "cancelConfirm": "Qaytarib olish",
+    "cancelled": "So‘rov qaytarib olindi",
+    "position": "Lavozim",
+    "positionPlaceholder": "Masalan: payvandchi",
+    "titleRequired": "Lavozimni yozing",
+    "openings": "Nechta odam",
+    "openingsRange": "1 dan {{max}} gacha son kiriting",
+    "departmentRequired": "Bo‘limni tanlang",
+    "departmentHelper": "Tanlanmasa — {{name}}",
+    "hasDeadline": "Muddat bor",
+    "neededBy": "Qachongacha kerak",
+    "note": "Izoh",
+    "noteHelper": "Sabab va talablar — HR shunga qarab vakansiya ochadi.",
+    "notePlaceholder": "Nega kerak, qanday odam kerak",
+    "sent": "So‘rov HR bo‘limiga yuborildi",
+    "sendFailed": "So‘rov yuborilmadi",
+    "hint": "HR so‘rovni ko‘rib, vakansiya ochadi yoki sababini yozib rad etadi. Natija shu yerda ko‘rinadi."
+  },
   "profile": {
     "title": "Profil",
     "mobileCheckIn": "Telefondan belgilash",
@@ -547,7 +576,14 @@
     "jamoa.boshliq_emas": "Siz bo‘lim boshlig‘i emassiz — jamoa paneli yopildi. Savol bo‘lsa, HR bo‘limiga murojaat qiling.",
     "jamoa.xodim_topilmadi": "Bu xodim tanlangan oyda jamoangizda bo‘lmagan yoki boshqa bo‘limga o‘tgan.",
     "jamoa.bolim_topilmadi": "Bu bo‘lim endi jamoangizda emas. Butun jamoani ko‘ring.",
-    "jamoa.sana_notogri": "Sana noto‘g‘ri tanlangan."
+    "jamoa.sana_notogri": "Sana noto‘g‘ri tanlangan.",
+    "vakansiya_sorovi.nom_kerak": "Lavozimni yozing.",
+    "vakansiya_sorovi.nom_uzun": "Lavozim nomi juda uzun.",
+    "vakansiya_sorovi.soni_notogri": "Odamlar soni 1 dan 100 gacha bo‘lishi kerak.",
+    "vakansiya_sorovi.izoh_uzun": "Izoh juda uzun.",
+    "vakansiya_sorovi.bolim_kerak": "Bo‘limni tanlang.",
+    "vakansiya_sorovi.topilmadi": "So‘rov topilmadi.",
+    "vakansiya_sorovi.qaror_qilingan": "HR bu so‘rov bo‘yicha qaror qabul qilib bo‘lgan."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

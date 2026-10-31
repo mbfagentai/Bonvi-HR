@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Bonvi.Api.Extensions;
 using Bonvi.Application.Abstractions;
 using Bonvi.Domain.Auditing;
 
@@ -18,6 +20,7 @@ namespace Bonvi.Api.Common;
 ///   <item>HR tokeni → <see cref="AuditActorKind.User"/>;</item>
 ///   <item>xodim ilovasi tokeni → <see cref="AuditActorKind.EmployeeAccount"/> (u tokenda
 ///         <c>NameIdentifier</c> yo'q, ya'ni HR tokeni bilan adashmaydi);</item>
+///   <item>tashqi API kaliti → <see cref="AuditActorKind.Anonymous"/> «Tashqi API: kalit nomi» bilan;</item>
 ///   <item>qolgani (kirish sahifasi, ochiq endpoint) → <see cref="AuditActorKind.Anonymous"/>.</item>
 /// </list>
 /// <para>
@@ -76,6 +79,13 @@ public sealed class HttpAuditActorSource : IAuditActorSource
             if (_currentEmployee.AccountId is not null)
             {
                 return new AuditPrincipal(AuditActorKind.EmployeeAccount, EmployeeId: _currentEmployee.EmployeeId);
+            }
+
+            // Tashqi API kaliti (rahbar botining vakansiya so'rovi, 2026-10-31) — odam emas, lekin
+            // jurnalda qaysi kalit ekani ko'rinsin.
+            if (http.User.FindFirstValue(ApiKeyClaims.KeyName) is { Length: > 0 } keyName)
+            {
+                return new AuditPrincipal(AuditActorKind.Anonymous, Name: $"Tashqi API: {keyName}");
             }
 
             return AuditPrincipal.Anonymous;

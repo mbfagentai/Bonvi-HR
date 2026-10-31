@@ -561,3 +561,41 @@ export interface LoginResult {
   expiresAt: string
   refreshToken: string
 }
+
+/** Vakansiya so'rovi holati — server `VacancyRequestStatus`. */
+export type VacancyRequestStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled'
+
+/**
+ * Boshliqning vakansiya so'rovi — `VacancyRequestDto` (HR menyusidagi bilan bir xil shakl,
+ * `GET /api/me/team/vacancy-requests`). Rad etilganida `decisionNote` — HR sababi.
+ */
+export interface TeamVacancyRequestDto {
+  id: string
+  departmentId: string
+  departmentName: string
+  departmentPath: string | null
+  requestedByEmployeeId: string
+  requestedByName: string
+  title: string
+  openings: number
+  neededBy: string | null
+  note: string | null
+  status: VacancyRequestStatus
+  createdAt: string
+  decidedAt: string | null
+  decidedByName: string | null
+  decisionNote: string | null
+  vacancyId: string | null
+  vacancyTitle: string | null
+  candidateCount: number
+  hiredCount: number
+}
+
+/** `POST /api/me/team/vacancy-requests` tanasi. `departmentId: null` — boshliqning yagona bo'limi. */
+export interface CreateTeamVacancyRequest {
+  departmentId: string | null
+  title: string
+  openings: number
+  neededBy: string | null
+  note: string | null
+}

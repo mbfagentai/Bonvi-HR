@@ -91,11 +91,19 @@ public sealed class OpenApiDocumentTests : IClassFixture<BonviApiFactory>, IDisp
         yollar.ShouldNotBeEmpty();
         yollar.ShouldAllBe(yol => yol.StartsWith("/api/public/v1", StringComparison.Ordinal));
 
-        // Ommaviy hujjatda FAQAT `get` bo'lishi kerak — SPEC §1.
+        // Ommaviy hujjatda FAQAT `get` bo'lishi kerak — SPEC §1. Yagona istisno: rahbar botining
+        // vakansiya so'rovi (egasi, 2026-10-31; SPEC-vakansiya-sorovi §5) — yozish faqat shu yo'lda.
         foreach (var yol in hujjat.RootElement.GetProperty("paths").EnumerateObject())
         {
+            var vakansiyaSorovi = yol.Name.StartsWith("/api/public/v1/team/vacancy-requests", StringComparison.Ordinal);
+
             foreach (var metod in yol.Value.EnumerateObject())
             {
+                if (vakansiyaSorovi && metod.Name == "post")
+                {
+                    continue;
+                }
+
                 metod.Name.ShouldBe("get", $"«{yol.Name}» da faqat GET bo'lishi kerak");
             }
         }

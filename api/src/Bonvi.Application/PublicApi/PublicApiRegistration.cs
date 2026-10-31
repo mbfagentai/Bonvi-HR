@@ -38,6 +38,9 @@ internal static class PublicApiRegistration
         services.AddScoped<GetPublicTeamMemberAttendanceQueryHandler>();
         services.AddScoped<GetPublicTeamMemberPhotoQueryHandler>();
         services.AddScoped<GetPublicTeamPassesQueryHandler>();
+        services.AddScoped<ListPublicTeamVacancyRequestsQueryHandler>();
+        services.AddScoped<SubmitPublicTeamVacancyRequestCommandHandler>();
+        services.AddScoped<CancelPublicTeamVacancyRequestCommandHandler>();
 
         return services;
     }

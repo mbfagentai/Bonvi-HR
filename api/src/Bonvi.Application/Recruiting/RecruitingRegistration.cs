@@ -42,6 +42,7 @@ internal static class RecruitingRegistration
         services.AddScoped<CancelVacancyRequestCommandHandler>();
         services.AddScoped<ApproveVacancyRequestCommandHandler>();
         services.AddScoped<RejectVacancyRequestCommandHandler>();
+        services.AddScoped<TeamVacancyRequests>();
         services.AddScoped<GetVacancyQueryHandler>();
         services.AddScoped<GetGeneralPoolStatusQueryHandler>();
         services.AddScoped<OpenVacancyCommandHandler>();

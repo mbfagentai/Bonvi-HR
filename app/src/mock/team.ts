@@ -1,5 +1,6 @@
 import type {
   AttendanceMarkDto,
+  CreateTeamVacancyRequest,
   MyAttendanceDayDto,
   TeamBoardCountsDto,
   TeamBoardDto,
@@ -9,6 +10,7 @@ import type {
   TeamDepartmentDto,
   TeamMemberAttendanceDto,
   TeamMemberDto,
+  TeamVacancyRequestDto,
   TimesheetCellDto,
   TimesheetTotalsDto,
 } from '@/api/types'
@@ -502,4 +504,79 @@ export function mockTeamMemberMonth(
 /** Rasm bormi — `GET /api/me/team/members/{id}/photo` 404 yoki bayt. */
 export function mockTeamHasPhoto(employeeId: string): boolean {
   return MEMBERS.some((item) => item.employeeId === employeeId && item.hasPhoto)
+}
+
+/* ─────────────────────────────────────────────── vakansiya so'rovlari */
+
+/** Namoyish uchun — bitta rad etilgan so'rov bilan boshlanadi (sabab qanday ko'rinishi uchun). */
+let vacancyRequests: TeamVacancyRequestDto[] = [
+  {
+    id: 'vs-1',
+    departmentId: 'dep-2',
+    departmentName: '1-smena',
+    departmentPath: 'Ishlab chiqarish bo‘limi / 1-smena',
+    requestedByEmployeeId: MOCK_ME.employeeId,
+    requestedByName: MOCK_ME.fullName,
+    title: 'Omborchi',
+    openings: 1,
+    neededBy: null,
+    note: null,
+    status: 'Rejected',
+    createdAt: new Date(Date.now() - 6 * 86_400_000).toISOString(),
+    decidedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+    decidedByName: 'HR bo‘limi',
+    decisionNote: 'Bu lavozim shtatda yo‘q.',
+    vacancyId: null,
+    vacancyTitle: null,
+    candidateCount: 0,
+    hiredCount: 0,
+  },
+]
+let nextVacancyRequestNo = 2
+
+export function mockTeamVacancyRequests(): TeamVacancyRequestDto[] {
+  return vacancyRequests.slice()
+}
+
+export function mockCreateTeamVacancyRequest(request: CreateTeamVacancyRequest): MockTeamResult<TeamVacancyRequestDto> {
+  const departmentId = request.departmentId ?? 'dep-1'
+  const department = MOCK_TEAM_DEPARTMENTS.filter((item) => item.id === departmentId)[0]
+  if (!department) return { ok: false, status: 404, code: 'jamoa.bolim_topilmadi' }
+  if (request.title.trim() === '') return { ok: false, status: 400, code: 'vakansiya_sorovi.nom_kerak' }
+  if (request.openings < 1 || request.openings > 100) return { ok: false, status: 400, code: 'vakansiya_sorovi.soni_notogri' }
+
+  const created: TeamVacancyRequestDto = {
+    id: `vs-${nextVacancyRequestNo}`,
+    departmentId,
+    departmentName: department.name,
+    departmentPath: department.path,
+    requestedByEmployeeId: MOCK_ME.employeeId,
+    requestedByName: MOCK_ME.fullName,
+    title: request.title.trim(),
+    openings: request.openings,
+    neededBy: request.neededBy,
+    note: request.note,
+    status: 'Pending',
+    createdAt: new Date().toISOString(),
+    decidedAt: null,
+    decidedByName: null,
+    decisionNote: null,
+    vacancyId: null,
+    vacancyTitle: null,
+    candidateCount: 0,
+    hiredCount: 0,
+  }
+  nextVacancyRequestNo += 1
+  vacancyRequests = [created, ...vacancyRequests]
+  return { ok: true, value: created }
+}
+
+export function mockCancelTeamVacancyRequest(id: string): MockTeamResult<TeamVacancyRequestDto> {
+  const found = vacancyRequests.filter((item) => item.id === id)[0]
+  if (!found) return { ok: false, status: 404, code: 'vakansiya_sorovi.topilmadi' }
+  if (found.status !== 'Pending') return { ok: false, status: 409, code: 'vakansiya_sorovi.qaror_qilingan' }
+
+  const cancelled: TeamVacancyRequestDto = { ...found, status: 'Cancelled' }
+  vacancyRequests = vacancyRequests.map((item) => (item.id === id ? cancelled : item))
+  return { ok: true, value: cancelled }
 }

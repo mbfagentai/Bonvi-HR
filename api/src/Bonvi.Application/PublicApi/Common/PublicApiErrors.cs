@@ -72,6 +72,11 @@ public static class PublicApiErrors
         "tashqi.bolim_topilmadi",
         "Bo'lim topilmadi.");
 
+    /// <summary>Vakansiya so'rovi: bo'limga (va ustki bo'limlarga) boshliq tayinlanmagan — so'rovchi yo'q.</summary>
+    public static Error DepartmentHeadMissing => Error.Validation(
+        "tashqi.boshliq_yoq",
+        "Bo'limga boshliq tayinlanmagan — HR «Bo'limlar» bo'limida boshliqni belgilashi kerak.");
+
     /// <summary>Bo'lim kalitining doirasidan tashqaridagi xodim — «yo'q» va «sizniki emas» bir xil javob.</summary>
     public static Error TeamMemberNotFound => Error.NotFound(
         "tashqi.xodim_topilmadi",

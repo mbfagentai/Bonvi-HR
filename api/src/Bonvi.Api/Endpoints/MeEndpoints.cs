@@ -7,6 +7,8 @@ using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Identity.EmployeeAuth;
 using Bonvi.Application.Me;
+using Bonvi.Application.Recruiting.Dtos;
+using Bonvi.Application.Recruiting.VacancyRequests;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Common;
 
@@ -83,6 +85,19 @@ public sealed record MyScheduleChangeRequestBody(
     ScheduleChangeKind Kind,
     IReadOnlyList<ScheduleChangeDayBody>? Days = null,
     IReadOnlyList<ScheduleSwapBody>? Swaps = null,
+    string? Note = null);
+
+/// <summary>«Jamoa» tabidan vakansiya so'rovi tanasi (egasi, 2026-10-31).</summary>
+/// <param name="DepartmentId">Qamrovdagi bo'lim; bo'sh — boshliqning yagona bo'limi.</param>
+/// <param name="Title">Lavozim.</param>
+/// <param name="Openings">Nechta odam.</param>
+/// <param name="NeededBy">Qachondan kerak.</param>
+/// <param name="Note">Sabab va talablar.</param>
+public sealed record TeamVacancyRequestBody(
+    Guid? DepartmentId,
+    string? Title,
+    int Openings = 1,
+    DateOnly? NeededBy = null,
     string? Note = null);
 
 /// <summary>Xodim o'z kutayotgan jadval so'rovini o'zgartiradigan tana (SPEC-verifikatsiya-sorov-tahriri §6.1).</summary>
@@ -578,7 +593,7 @@ public static partial class MeEndpoints
     // ════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// <c>/api/me/team/*</c> — faqat o'qish, faqat davomat.
+    /// <c>/api/me/team/*</c> — davomatni o'qish va vakansiya so'rovi (2026-10-31).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -707,6 +722,81 @@ public static partial class MeEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapGet("/team/vacancy-requests", async (
+                string? status,
+                int? page,
+                int? pageSize,
+                ListMyTeamVacancyRequestsQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListTeamVacancyRequestsQuery(status, page, pageSize), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("GetMyTeamVacancyRequests")
+            .WithSummary("Jamoam — vakansiya so'rovlarim")
+            .WithDescription(
+                "Boshliq qamrovidagi bo'limlarning vakansiya so'rovlari — yangidan eskiga. «status» — Pending | " +
+                "Approved | Rejected | Cancelled (sukut: hammasi); «page», «pageSize» (sukut 50, eng ko'pi 200). " +
+                "Rad etilganida «decisionNote» — HR sababi. Xatolar: «jamoa.boshliq_emas» (403), " +
+                "«vakansiya_sorovi.holat_notogri» (400).")
+            .Produces<PagedResult<VacancyRequestDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/team/vacancy-requests", async (
+                TeamVacancyRequestBody request,
+                SubmitMyTeamVacancyRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new SubmitTeamVacancyRequestCommand(
+                            request.DepartmentId,
+                            request.Title,
+                            request.Openings,
+                            request.NeededBy,
+                            request.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("CreateMyTeamVacancyRequest")
+            .WithSummary("Jamoam — vakansiya so'rash")
+            .WithDescription(
+                "So'rov HR «Vakansiya so'rovlari» menyusiga «Yangi» holatida tushadi, so'rovchi — boshliqning o'zi. " +
+                "«departmentId» — qamrovdagi bo'lim (bitta bo'limli boshliqda bo'sh qoldirsa bo'ladi). Xatolar: " +
+                "«jamoa.boshliq_emas» (403), «vakansiya_sorovi.bolim_kerak», «vakansiya_sorovi.nom_kerak», " +
+                "«vakansiya_sorovi.nom_uzun», «vakansiya_sorovi.soni_notogri», «vakansiya_sorovi.izoh_uzun» (400), " +
+                "«jamoa.bolim_topilmadi» (404).")
+            .Produces<VacancyRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/team/vacancy-requests/{id:guid}/cancel", async (
+                Guid id,
+                CancelMyTeamVacancyRequestCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+                return natija.ToHttpResult();
+            })
+            .WithName("CancelMyTeamVacancyRequest")
+            .WithSummary("Jamoam — vakansiya so'rovini qaytarib olish")
+            .WithDescription(
+                "Faqat qaror qilinmagan so'rov. Xatolar: «jamoa.boshliq_emas» (403), «vakansiya_sorovi.topilmadi» " +
+                "(404 — qamrovda emas yoki yo'q), «vakansiya_sorovi.qaror_qilingan» (409).")
+            .Produces<VacancyRequestDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     // ════════════════════════════════════════════════════════════

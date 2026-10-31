@@ -43,7 +43,16 @@ import {
   type MockDay,
 } from './data'
 import { readScenario } from './scenario'
-import { mockTeamBoard, mockTeamHasPhoto, mockTeamMemberMonth, mockTeamScope, type MockTeamResult } from './team'
+import {
+  mockCancelTeamVacancyRequest,
+  mockCreateTeamVacancyRequest,
+  mockTeamBoard,
+  mockTeamHasPhoto,
+  mockTeamMemberMonth,
+  mockTeamScope,
+  mockTeamVacancyRequests,
+  type MockTeamResult,
+} from './team'
 
 /**
  * Mock server — namoyish va qo'lda sinash uchun (`VITE_API_MODE=mock`).
@@ -518,6 +527,25 @@ export const mockApi: EmployeeApi = {
   getTeamMemberMonth: (employeeId, year, month) => teamReply(() => mockTeamMemberMonth(employeeId, year, month)),
 
   // Hamma rasmli a'zoga bitta namuna rasm — namoyish uchun yetarli
+  getTeamVacancyRequests: (page, pageSize) =>
+    teamReply(() => {
+      const all = mockTeamVacancyRequests()
+      return {
+        ok: true,
+        value: {
+          items: all.slice((page - 1) * pageSize, page * pageSize),
+          page,
+          pageSize,
+          total: all.length,
+          pageCount: Math.max(1, Math.ceil(all.length / pageSize)),
+        },
+      }
+    }),
+
+  createTeamVacancyRequest: (request) => teamReply(() => mockCreateTeamVacancyRequest(request)),
+
+  cancelTeamVacancyRequest: (id) => teamReply(() => mockCancelTeamVacancyRequest(id)),
+
   getTeamMemberPhoto: (employeeId) =>
     isTeamLead() && mockTeamHasPhoto(employeeId)
       ? window

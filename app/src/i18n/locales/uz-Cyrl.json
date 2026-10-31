@@ -337,6 +337,35 @@
       "noSchedule": "Жадвал йўқ"
     }
   },
+  "teamVacancy": {
+    "title": "Вакансия сўровлари",
+    "new": "Сўраш",
+    "newTitle": "Вакансия сўраш",
+    "emptyTitle": "Сўров йўқ",
+    "emptyText": "Янги одам керак бўлса, «Сўраш» ни босинг — сўров HR бўлимига боради.",
+    "rowTitle": "{{title}} — {{n}} киши",
+    "neededByShort": "{{date}} гача",
+    "rejectReason": "Рад этилди: {{reason}}",
+    "approvedInfo": "Вакансия очилди · номзодлар: {{candidates}}, ишга олинди: {{hired}}",
+    "cancelTitle": "Сўровни қайтариб оласизми?",
+    "cancelConfirm": "Қайтариб олиш",
+    "cancelled": "Сўров қайтариб олинди",
+    "position": "Лавозим",
+    "positionPlaceholder": "Масалан: пайвандчи",
+    "titleRequired": "Лавозимни ёзинг",
+    "openings": "Нечта одам",
+    "openingsRange": "1 дан {{max}} гача сон киритинг",
+    "departmentRequired": "Бўлимни танланг",
+    "departmentHelper": "Танланмаса — {{name}}",
+    "hasDeadline": "Муддат бор",
+    "neededBy": "Қачонгача керак",
+    "note": "Изоҳ",
+    "noteHelper": "Сабаб ва талаблар — HR шунга қараб вакансия очади.",
+    "notePlaceholder": "Нега керак, қандай одам керак",
+    "sent": "Сўров HR бўлимига юборилди",
+    "sendFailed": "Сўров юборилмади",
+    "hint": "HR сўровни кўриб, вакансия очади ёки сабабини ёзиб рад этади. Натижа шу ерда кўринади."
+  },
   "profile": {
     "title": "Профил",
     "mobileCheckIn": "Телефондан белгилаш",
@@ -547,7 +576,14 @@
     "jamoa.boshliq_emas": "Сиз бўлим бошлиғи эмассиз — жамоа панели ёпилди. Савол бўлса, HR бўлимига мурожаат қилинг.",
     "jamoa.xodim_topilmadi": "Бу ходим танланган ойда жамоангизда бўлмаган ёки бошқа бўлимга ўтган.",
     "jamoa.bolim_topilmadi": "Бу бўлим энди жамоангизда эмас. Бутун жамоани кўринг.",
-    "jamoa.sana_notogri": "Сана нотўғри танланган."
+    "jamoa.sana_notogri": "Сана нотўғри танланган.",
+    "vakansiya_sorovi.nom_kerak": "Лавозимни ёзинг.",
+    "vakansiya_sorovi.nom_uzun": "Лавозим номи жуда узун.",
+    "vakansiya_sorovi.soni_notogri": "Одамлар сони 1 дан 100 гача бўлиши керак.",
+    "vakansiya_sorovi.izoh_uzun": "Изоҳ жуда узун.",
+    "vakansiya_sorovi.bolim_kerak": "Бўлимни танланг.",
+    "vakansiya_sorovi.topilmadi": "Сўров топилмади.",
+    "vakansiya_sorovi.qaror_qilingan": "HR бу сўров бўйича қарор қабул қилиб бўлган."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

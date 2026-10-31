@@ -14,6 +14,7 @@ import type {
   TeamBoardQuery,
   TeamMemberAttendanceDto,
   TeamScopeDto,
+  TeamVacancyRequestDto,
 } from './types'
 
 /**
@@ -99,6 +100,17 @@ export const realApi: EmployeeApi = {
       // (`jamoa.xodim_topilmadi`) — ikkalasi ham 404, ikkalasida ham bosh harflar.
       if (cause instanceof ApiError && cause.status === 404) return null
       throw cause
+    }),
+
+  getTeamVacancyRequests: (page, pageSize) =>
+    request<PagedResult<TeamVacancyRequestDto>>(`/api/me/team/vacancy-requests?page=${page}&pageSize=${pageSize}`),
+
+  createTeamVacancyRequest: (body) =>
+    request<TeamVacancyRequestDto>('/api/me/team/vacancy-requests', { method: 'POST', body }),
+
+  cancelTeamVacancyRequest: (id) =>
+    request<TeamVacancyRequestDto>(`/api/me/team/vacancy-requests/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
     }),
 }
 

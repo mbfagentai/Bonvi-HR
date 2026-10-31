@@ -24,13 +24,15 @@ public interface IVacancyRequestReadModel
 /// <param name="CreatedBefore">Yuborilgan sana — oxiri (UTC, kirmaydi).</param>
 /// <param name="Page">Sahifa (1 dan).</param>
 /// <param name="PageSize">Sahifa hajmi.</param>
+/// <param name="DepartmentIds">Faqat shu bo'limlar («Jamoa» va bo'lim kaliti qamrovi); <c>null</c> — hammasi.</param>
 public sealed record VacancyRequestFilter(
     VacancyRequestStatus? Status,
     string? Search,
     DateTimeOffset? CreatedFrom,
     DateTimeOffset? CreatedBefore,
     int Page,
-    int PageSize)
+    int PageSize,
+    IReadOnlyList<Guid>? DepartmentIds = null)
 {
     /// <summary>O'tkazib yuboriladigan qatorlar.</summary>
     public int Skip => (Page - 1) * PageSize;

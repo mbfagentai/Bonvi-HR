@@ -31,6 +31,12 @@ public sealed class VacancyRequestReadModel : IVacancyRequestReadModel
             query = query.Where(request => request.Status == status);
         }
 
+        if (filter.DepartmentIds is { } departmentIds)
+        {
+            var scoped = departmentIds.ToList();
+            query = query.Where(request => scoped.Contains(request.DepartmentId));
+        }
+
         if (filter.CreatedFrom is { } from)
         {
             query = query.Where(request => request.CreatedAt >= from);

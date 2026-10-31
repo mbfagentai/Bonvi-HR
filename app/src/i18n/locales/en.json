@@ -337,6 +337,35 @@
       "noSchedule": "No schedule"
     }
   },
+  "teamVacancy": {
+    "title": "Vacancy requests",
+    "new": "Request",
+    "newTitle": "Request a vacancy",
+    "emptyTitle": "No requests",
+    "emptyText": "Need a new person? Tap «Request» — it goes to HR.",
+    "rowTitle": "{{title}} — {{n}} people",
+    "neededByShort": "by {{date}}",
+    "rejectReason": "Rejected: {{reason}}",
+    "approvedInfo": "Vacancy opened · candidates: {{candidates}}, hired: {{hired}}",
+    "cancelTitle": "Withdraw the request?",
+    "cancelConfirm": "Withdraw",
+    "cancelled": "Request withdrawn",
+    "position": "Position",
+    "positionPlaceholder": "For example: welder",
+    "titleRequired": "Enter the position",
+    "openings": "How many people",
+    "openingsRange": "Enter a number from 1 to {{max}}",
+    "departmentRequired": "Choose a department",
+    "departmentHelper": "If not chosen — {{name}}",
+    "hasDeadline": "Has a deadline",
+    "neededBy": "Needed by",
+    "note": "Note",
+    "noteHelper": "Reason and requirements — HR opens the vacancy from this.",
+    "notePlaceholder": "Why, and what kind of person",
+    "sent": "Request sent to HR",
+    "sendFailed": "Request not sent",
+    "hint": "HR reviews the request and opens a vacancy or rejects it with a reason. The result shows here."
+  },
   "profile": {
     "title": "Profile",
     "mobileCheckIn": "Phone check-in",
@@ -547,7 +576,14 @@
     "jamoa.boshliq_emas": "You are no longer a department head — the team view is closed. Contact the HR department with any questions.",
     "jamoa.xodim_topilmadi": "This employee was not in your team in the selected month, or has moved to another department.",
     "jamoa.bolim_topilmadi": "This department is no longer in your team. Open the whole team.",
-    "jamoa.sana_notogri": "The date is not valid."
+    "jamoa.sana_notogri": "The date is not valid.",
+    "vakansiya_sorovi.nom_kerak": "Enter the position.",
+    "vakansiya_sorovi.nom_uzun": "The position name is too long.",
+    "vakansiya_sorovi.soni_notogri": "The number of people must be 1 to 100.",
+    "vakansiya_sorovi.izoh_uzun": "The note is too long.",
+    "vakansiya_sorovi.bolim_kerak": "Choose a department.",
+    "vakansiya_sorovi.topilmadi": "Request not found.",
+    "vakansiya_sorovi.qaror_qilingan": "HR has already decided on this request."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

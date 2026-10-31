@@ -326,6 +326,39 @@ ishlangan daqiqa, kechikish, erta ketish va o'sha kunning o'tishlari. `attendanc
 
 `image/jpeg`, `ETag` va `If-None-Match` → 304. Faqat bugun qamrovdagi xodim.
 
+### Vakansiya so'rovi — `POST /api/public/v1/team/vacancy-requests`
+
+Rahbar boti HR'dan yangi odam so'raydi. So'rov HR panelidagi «Vakansiya so'rovlari» menyusiga
+«Yangi» holatida tushadi va HR'ga bildirishnoma chiqadi. HR vakansiya ochadi yoki sababini yozib
+rad etadi.
+
+```json
+{ "departmentId": null, "title": "Payvandchi", "openings": 2, "neededBy": "2026-12-01", "note": "Yangi liniya" }
+```
+
+- `departmentId` — qamrovdagi bo'lim. Bo'sh qolsa, kalitning bo'limi olinadi.
+- `title` — lavozim (majburiy, 200 belgigacha). `openings` — 1–100, sukut 1.
+- `neededBy` — qachongacha kerak (`YYYY-MM-DD`, ixtiyoriy). `note` — sabab va talablar (2000 belgigacha).
+- So'rovchi — bo'limning boshlig'i. Bo'limda boshliq bo'lmasa, qamrov ichidagi eng yaqin ustki
+  bo'limning boshlig'i olinadi. Hech qayerda boshliq bo'lmasa — `tashqi.boshliq_yoq`.
+- Maosh so'ralmaydi.
+
+Javob — so'rovning o'zi: `id`, `status` (`Pending`), `departmentName`, `requestedByName`,
+`title`, `openings`, `neededBy`, `note`, `createdAt` va boshqalar.
+
+### `GET /api/public/v1/team/vacancy-requests?status=&page=&pageSize=` — so'rovlar holati
+
+Qamrovdagi so'rovlar, yangidan eskiga (`{ items, page, pageSize, total, pageCount }`).
+`status` — `Pending` | `Approved` | `Rejected` | `Cancelled` (sukut: hammasi). Bot natijani shu
+yerdan oladi:
+
+- `Rejected` — `decisionNote` da HR yozgan sabab;
+- `Approved` — `vacancyTitle`, `candidateCount` (nomzodlar) va `hiredCount` (ishga olinganlar).
+
+### `POST /api/public/v1/team/vacancy-requests/{id}/cancel` — so'rovni qaytarib olish
+
+Faqat HR hali qaror qilmagan so'rovni. Qaror qilingan bo'lsa — `vakansiya_sorovi.qaror_qilingan` (409).
+
 ### Xatolar
 
 | Kod | HTTP | Ma'nosi |
@@ -337,4 +370,8 @@ ishlangan daqiqa, kechikish, erta ketish va o'sha kunning o'tishlari. `attendanc
 | `tashqi.kursor_notogri` | 400 | `after` o'zgartirilgan — javobdagi `next` ni o'zgartirmasdan bering. |
 | `jamoa.sana_notogri` | 400 | `date` kelajakda yoki 2000-yildan oldin. |
 | `davomat.oy_notogri` | 400 | Noto'g'ri yoki kelgusi oy. |
+| `tashqi.boshliq_yoq` | 400 | Vakansiya so'rovi: bo'limga boshliq tayinlanmagan, HR uni «Bo'limlar» da belgilashi kerak. |
+| `vakansiya_sorovi.nom_kerak` / `nom_uzun` / `soni_notogri` / `izoh_uzun` | 400 | Vakansiya so'rovi maydonlari noto'g'ri. |
+| `vakansiya_sorovi.topilmadi` | 404 | So'rov qamrovda emas yoki umuman yo'q. |
+| `vakansiya_sorovi.qaror_qilingan` | 409 | HR so'rov bo'yicha qaror qabul qilib bo'lgan. |
 | `rate_limit.oshib_ketdi` | 429 | So'rovlar juda ko'p, biroz kuting. |

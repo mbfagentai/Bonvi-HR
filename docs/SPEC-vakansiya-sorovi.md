@@ -55,3 +55,20 @@ HR panel:
   (pre-filled vacancy form) and «Rad etish» (reason).
 - «+ Yangi so'rov» in the same page: department, requester (pre-set to the department head), position,
   count, needed-by, note.
+
+## 5. Heads send requests themselves (owner, 2026-10-31)
+
+The owner reversed the «HR menu only» decision: heads send from the employee app «Jamoa» tab and from
+their bot. Both surfaces share `TeamVacancyRequests` (scope check, requester, list, cancel).
+
+| Surface | Endpoints | Scope | Requester |
+|---|---|---|---|
+| Employee app «Jamoa» | `GET/POST /api/me/team/vacancy-requests`, `POST …/{id}/cancel` | the head's departments (`TeamAccess`) | the head |
+| Head's bot | `GET/POST /api/public/v1/team/vacancy-requests`, `POST …/{id}/cancel` | the key's department subtree | department head, else nearest ancestor head in the subtree; none → `tashqi.boshliq_yoq` (400) |
+
+- `departmentId` may be omitted when the scope has one root.
+- Out-of-scope department → `jamoa.bolim_topilmadi` / `tashqi.bolim_topilmadi` (404); out-of-scope
+  request → `vakansiya_sorovi.topilmadi` (404) — same answer as «does not exist».
+- The HR flow (§2–§4) is unchanged; the `VacancyRequested` notification fires for these too.
+- App: a «Vakansiya so'rovlari» card on the «Jamoa» screen (status, HR reason, candidates/hired) and the
+  form `/jamoa/vakansiya/yangi`; tapping a pending row withdraws it.

@@ -34,6 +34,7 @@ import { TextInput } from '@/ui/form'
 import { Icon } from '@/ui/icon'
 import { Sheet } from '@/ui/sheet'
 import { StatusChip } from '@/ui/status-chip'
+import { TeamVacancyCard } from './team-vacancy'
 
 /**
  * JAMOA — bo'lim boshlig'ining paneli (SPEC-jamoam §F).
@@ -378,6 +379,9 @@ export function TeamScreen() {
           </>
         ) : null}
       </Card>
+
+      {/* Vakansiya so'rovi — boshliq HR'dan odam so'raydi (egasi, 2026-10-31) */}
+      <TeamVacancyCard />
 
       <DateSheet
         open={dateOpen}

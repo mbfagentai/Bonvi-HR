@@ -8,6 +8,7 @@ import type {
   CheckInResult,
   CreateAbsenceRequest,
   CreateScheduleChangeRequest,
+  CreateTeamVacancyRequest,
   DayPlanDto,
   LoginRequest,
   LoginResult,
@@ -18,6 +19,7 @@ import type {
   TeamBoardQuery,
   TeamMemberAttendanceDto,
   TeamScopeDto,
+  TeamVacancyRequestDto,
   UpdateAbsenceRequest,
   UpdateScheduleChangeRequest,
 } from './types'
@@ -85,6 +87,12 @@ export interface EmployeeApi {
   getTeamMemberMonth: (employeeId: string, year: number, month: number) => Promise<TeamMemberAttendanceDto>
   /** `GET /api/me/team/members/{id}/photo` — rasm yo'q bo'lsa `null`. */
   getTeamMemberPhoto: (employeeId: string) => Promise<Blob | null>
+  /** `GET /api/me/team/vacancy-requests?page&pageSize` — qamrovdagi vakansiya so'rovlari, yangidan eskiga. */
+  getTeamVacancyRequests: (page: number, pageSize: number) => Promise<PagedResult<TeamVacancyRequestDto>>
+  /** `POST /api/me/team/vacancy-requests` — so'rov HR «Vakansiya so'rovlari» menyusiga tushadi. */
+  createTeamVacancyRequest: (request: CreateTeamVacancyRequest) => Promise<TeamVacancyRequestDto>
+  /** `POST /api/me/team/vacancy-requests/{id}/cancel` — 409 `vakansiya_sorovi.qaror_qilingan`. */
+  cancelTeamVacancyRequest: (id: string) => Promise<TeamVacancyRequestDto>
 }
 
 /** Qaysi amalga oshirish ulangan — ekranlar faqat sinov belgisi uchun o'qiydi. */

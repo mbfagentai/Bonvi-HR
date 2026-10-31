@@ -200,6 +200,9 @@ public static class DependencyInjection
         services.AddScoped<TeamViewAudit>();
         services.AddScoped<TeamAccess>();
         services.AddScoped<GetMyTeamQueryHandler>();
+        services.AddScoped<ListMyTeamVacancyRequestsQueryHandler>();
+        services.AddScoped<SubmitMyTeamVacancyRequestCommandHandler>();
+        services.AddScoped<CancelMyTeamVacancyRequestCommandHandler>();
         services.AddScoped<GetTeamBoardQueryHandler>();
         services.AddScoped<GetTeamMemberAttendanceQueryHandler>();
         services.AddScoped<GetTeamMemberPhotoQueryHandler>();

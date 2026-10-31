@@ -337,6 +337,35 @@
       "noSchedule": "Нет графика"
     }
   },
+  "teamVacancy": {
+    "title": "Заявки на вакансии",
+    "new": "Запросить",
+    "newTitle": "Запрос вакансии",
+    "emptyTitle": "Заявок нет",
+    "emptyText": "Если нужен новый сотрудник, нажмите «Запросить» — заявка уйдёт в отдел кадров.",
+    "rowTitle": "{{title}} — {{n}} чел.",
+    "neededByShort": "до {{date}}",
+    "rejectReason": "Отклонено: {{reason}}",
+    "approvedInfo": "Вакансия открыта · кандидатов: {{candidates}}, принято: {{hired}}",
+    "cancelTitle": "Отозвать заявку?",
+    "cancelConfirm": "Отозвать",
+    "cancelled": "Заявка отозвана",
+    "position": "Должность",
+    "positionPlaceholder": "Например: сварщик",
+    "titleRequired": "Укажите должность",
+    "openings": "Сколько человек",
+    "openingsRange": "Введите число от 1 до {{max}}",
+    "departmentRequired": "Выберите отдел",
+    "departmentHelper": "Если не выбрать — {{name}}",
+    "hasDeadline": "Есть срок",
+    "neededBy": "Нужен к",
+    "note": "Комментарий",
+    "noteHelper": "Причина и требования — по ним HR откроет вакансию.",
+    "notePlaceholder": "Зачем нужен, какой нужен человек",
+    "sent": "Заявка отправлена в отдел кадров",
+    "sendFailed": "Заявка не отправлена",
+    "hint": "HR рассмотрит заявку: откроет вакансию или отклонит с причиной. Результат появится здесь."
+  },
   "profile": {
     "title": "Профиль",
     "mobileCheckIn": "Отметка с телефона",
@@ -547,7 +576,14 @@
     "jamoa.boshliq_emas": "Вы больше не руководитель отдела — панель команды закрыта. По вопросам обратитесь в отдел HR.",
     "jamoa.xodim_topilmadi": "Этот сотрудник не был в вашей команде в выбранном месяце или перешёл в другой отдел.",
     "jamoa.bolim_topilmadi": "Этот отдел больше не входит в вашу команду. Откройте всю команду.",
-    "jamoa.sana_notogri": "Неверно выбрана дата."
+    "jamoa.sana_notogri": "Неверно выбрана дата.",
+    "vakansiya_sorovi.nom_kerak": "Укажите должность.",
+    "vakansiya_sorovi.nom_uzun": "Слишком длинное название должности.",
+    "vakansiya_sorovi.soni_notogri": "Количество человек — от 1 до 100.",
+    "vakansiya_sorovi.izoh_uzun": "Слишком длинный комментарий.",
+    "vakansiya_sorovi.bolim_kerak": "Выберите отдел.",
+    "vakansiya_sorovi.topilmadi": "Заявка не найдена.",
+    "vakansiya_sorovi.qaror_qilingan": "HR уже принял решение по этой заявке."
   },
   "language": {
     "uz-Latn": "O‘zbekcha",

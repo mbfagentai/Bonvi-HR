@@ -9,6 +9,7 @@ import type {
   TeamDepartmentDto,
   TeamMemberDto,
   TeamScopeDto,
+  TeamVacancyRequestDto,
   TimesheetCellDto,
   TimesheetTotalsDto,
 } from '@/api/types'
@@ -217,6 +218,20 @@ export function knownMember(employeeId: string): TeamMemberDto | null {
 /** Boshliqning qamrovi. `enabled: false` — so'rov ketmaydi (boshliq emas). */
 export function useTeamScope(enabled: boolean): QueryResult<TeamScopeDto> {
   return useQuery(enabled ? 'jamoa' : null, () => api.getTeam())
+}
+
+/**
+ * Vakansiya so'rovlari (egasi, 2026-10-31) — boshliq «Jamoa» tabidan HR'ga yuboradi.
+ * Oyiga o'nlab bo'ladi: bitta sahifa (50) yetadi, eskisi HR menyusida.
+ */
+export function useTeamVacancyRequests(enabled: boolean): QueryResult<TeamVacancyRequestDto[]> {
+  return useQuery(enabled ? 'jamoa-vakansiya' : null, () =>
+    api.getTeamVacancyRequests(1, TEAM_PAGE_SIZE).then((page) => page.items),
+  )
+}
+
+export function invalidateTeamVacancyRequests(): void {
+  invalidateQuery('jamoa-vakansiya')
 }
 
 export interface TeamBoardFilter {
@@ -454,6 +469,7 @@ export function invalidateTeam(): void {
   invalidateQuery('jamoa')
   invalidateQuery('jamoa-panel')
   invalidateQuery('jamoa-xodim')
+  invalidateQuery('jamoa-vakansiya')
   invalidateQuery('me')
   clearTeamCache()
   revokedListeners.slice().forEach((listener) => listener())

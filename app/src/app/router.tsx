@@ -24,6 +24,7 @@ import { ScheduleRequestNewScreen } from '@/screens/schedule-request-new'
 import { SettingsScreen } from '@/screens/settings'
 import { TeamScreen } from '@/screens/team'
 import { TeamMemberScreen } from '@/screens/team-member'
+import { TeamVacancyNewScreen } from '@/screens/team-vacancy'
 import { TabBar } from '@/ui/app-shell'
 import { useSession } from './session'
 import { UpdateToast } from './update'
@@ -85,6 +86,8 @@ export function AppRouter() {
           <Route path="/sorovlar/:id/ozgartirish" element={<RequestNewScreen />} />
           {/* Jamoa a'zosining oyi — `?oy=YYYY-MM&kun=` taqvimdagidek */}
           <Route path="/jamoa/:employeeId" element={<TeamMemberScreen />} />
+          {/* Boshliqning vakansiya so'rovi — uch bo'lakli manzil `:employeeId` ga tushmaydi */}
+          <Route path="/jamoa/vakansiya/yangi" element={<TeamVacancyNewScreen />} />
           <Route path="/profil/sozlamalar" element={<SettingsScreen />} />
           <Route path="/joylashuv" element={<LocationHelpScreen />} />
         </Route>
