@@ -3,6 +3,21 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ✅ Reliz `e94969b` — boshliq vakansiya so'raydi (ilova + bot), boshliq xodim kartasidan, sinov avtomatik o'tmaydi — 2026-10-31 10:45 (Toshkent)
+
+Prod `d70de8c` → `e94969b` (406b1a5, a4f0e60, d4403ee, e94969b). Migratsiya `20261030131219_VakansiyaSorovlari`
+(yangi `vacancy_requests` jadvali) — prod nusxasida (`bonvi_migtest`) Up → Down → Up: 74 → 75 → 74 → 75, xodimlar 2048,
+vakansiyalar 40, bo'limlar 105 o'zgarmadi; nusxa o'chirildi (`/root/prebuild-e94969b.sh`). Rollback: image tegi
+`rollback-d70de8c` (api 60e522531dfe, bot 4bc641765c42, web c510c2a4f8ec), zaxira stamp `2026-10-31_052454`.
+Disk 94% edi: eski rollback teglari (oxirgi uchtasi — db91233, f99f5fe, a421892 — qoldi), osilgan image'lar va build
+keshi tozalandi → 67%, build'dan keyin 81%. HR 12 daqiqa jim edi; deploy 10:42:44–10:45:16, bot qayta yaratildi.
+Tekshirildi: faqat uzilgan SSE `/notifications/stream` 500, boshqa ERR/FTL yo'q (api, bot); `/`, `/kirish`, `/ilova/`,
+`/anketa`, `/health/ready` 200; yangi yo'llar kalitsiz 401. Deploy'dan keyin HR va ilova xatosiz ishladi.
+
+### Ochiq qadamlar
+- Prod'da birorta bo'limga boshliq tayinlanmagan — HR xodim kartasidan («Davomat» → «Ilova» → «Bo'lim boshlig'i»)
+  yoki «Bo'limlar» dan tayinlamaguncha ilovada «Jamoa» yo'q, bot esa vakansiya so'rovida `tashqi.boshliq_yoq` oladi.
+
 ## ✅ Reliz `d70de8c` — «Buyruqlar» qatori xodim kartasini ochadi — 2026-10-30 16:29 (Toshkent)
 
 Faqat web (`a421892` → `d70de8c`). Rollback: `bonvi-hr-prod-web:rollback-a421892`, zaxira 16:2x da olindi. HR 5,8 daqiqa
