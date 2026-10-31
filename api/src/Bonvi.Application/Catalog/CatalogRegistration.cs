@@ -90,6 +90,7 @@ internal static class CatalogRegistration
         services.AddScoped<CreateDepartmentCommandHandler>();
         services.AddScoped<UpdateDepartmentCommandHandler>();
         services.AddScoped<MoveDepartmentCommandHandler>();
+        services.AddScoped<SetDepartmentHeadCommandHandler>();
 
         return services;
     }

@@ -2,6 +2,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, DoorOpen } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { CATALOG_MANAGE_PERMISSION } from '@/features/catalog/lib/catalog-kinds'
 import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -29,6 +30,7 @@ import {
   WEEKDAY_LABEL_KEY,
   WEEKDAY_SHORT_KEY,
   ATTENDANCE_MANAGE,
+  ATTENDANCE_VIEW,
   formatDuration,
   formatPassTime,
   isWeekend,
@@ -44,6 +46,7 @@ import {
 import { AbsenceRequestsList } from './absence-requests-list'
 import { MobileEvidenceLine } from './attendance-mobile-evidence'
 import { EmployeeAppAccessTab } from './employee-app-access-tab'
+import { EmployeeTeamLeadSection } from './employee-team-lead-section'
 import { ScheduleRequestsList } from './schedule-requests-list'
 import {
   AttendancePassPhotoDialog,
@@ -89,6 +92,8 @@ export function EmployeeAttendanceTab({
   const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
   // «Ilova» segmenti — faqat `attendance.manage` (server ham shu ruxsatni so'raydi)
   const canManageApp = hasPermission(ATTENDANCE_MANAGE)
+  // «Bo'lim boshlig'i» bloki — server ham shu ikkalasini so'raydi (2026-10-31)
+  const canAssignHead = hasPermission(CATALOG_MANAGE_PERMISSION) && hasPermission(ATTENDANCE_VIEW)
 
   /*
     Ichki ko'rinish — komponent holatida, manzilda EMAS (tab va oydan
@@ -207,6 +212,11 @@ export function EmployeeAttendanceTab({
           */
           <div className="px-4 pb-4 sm:px-5">
             <EmployeeAppAccessTab employeeId={employeeId} canOpenEmployee={canOpenEmployee} />
+            {canAssignHead && (
+              <div className="mt-4">
+                <EmployeeTeamLeadSection employeeId={employeeId} />
+              </div>
+            )}
           </div>
         ) : view === 'requests' ? (
           /*

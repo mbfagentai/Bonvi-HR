@@ -236,6 +236,14 @@ export async function moveDepartment(
   await api.post(`/api/catalog/departments/${id}/move`, { newParentId })
 }
 
+/**
+ * Faqat boshliqni almashtiradi — xodim kartasidan (2026-10-31). `null` — olib
+ * tashlash. Bo'lim formasidan farqi: nom va yuridik shaxs yuborilmaydi.
+ */
+export async function setDepartmentHead(id: string, employeeId: string | null): Promise<void> {
+  await api.put(`/api/catalog/departments/${id}/head`, { employeeId })
+}
+
 /* --------------------------------------------------------------- lavozimlar */
 
 /**

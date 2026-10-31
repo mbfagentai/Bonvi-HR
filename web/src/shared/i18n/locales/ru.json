@@ -1117,7 +1117,8 @@
     "vakansiya_sorovi.sabab_kerak": "Укажите причину отказа.",
     "vakansiya_sorovi.qaror_qilingan": "По этой заявке решение уже принято.",
     "vakansiya_sorovi.holat_notogri": "Неверный статус заявки.",
-    "vakansiya_sorovi.vakansiya_yoq": "Не указана открытая вакансия."
+    "vakansiya_sorovi.vakansiya_yoq": "Не указана открытая вакансия.",
+    "tashqi.boshliq_yoq": "У отдела нет руководителя — назначьте его в «Отделах» или в карточке сотрудника."
   },
   "language": {
     "en": "English",
@@ -3126,7 +3127,16 @@
     "scheduleRequestCancelConfirm": "Отменить запрос? Если он одобрен, даты вернутся к плану графика и будут пересчитаны.",
     "scheduleRequestsQueueEmptyText": "Когда сотрудник попросит перенести перерыв или поменять дни, запрос появится здесь.",
     "scheduleRequestsEmptyText": "Решённых запросов на изменение графика пока нет.",
-    "resolveDayFromRequest": "Одобренный запрос на изменение графика"
+    "resolveDayFromRequest": "Одобренный запрос на изменение графика",
+    "teamLeadTitle": "Руководитель отдела",
+    "teamLeadHint": "Руководитель видит посещаемость своего отдела во вкладке «Команда» приложения и запрашивает вакансии у HR. В отделе один руководитель.",
+    "teamLeadNone": "Не руководит ни одним отделом.",
+    "teamLeadRemove": "Снять",
+    "teamLeadDepartment": "Отдел",
+    "teamLeadDepartmentPlaceholder": "Выберите отдел",
+    "teamLeadAssign": "Назначить руководителем",
+    "teamLeadReplaces": "Сейчас руководитель этого отдела — {{name}}. При сохранении он будет заменён.",
+    "teamLeadAnother": "другой сотрудник"
   },
   "notifications": {
     "unreadSummary": "Непрочитанных: {{n}}",

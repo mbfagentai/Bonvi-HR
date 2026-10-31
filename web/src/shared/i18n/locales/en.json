@@ -1117,7 +1117,8 @@
     "vakansiya_sorovi.sabab_kerak": "Enter the rejection reason.",
     "vakansiya_sorovi.qaror_qilingan": "A decision on this request has already been made.",
     "vakansiya_sorovi.holat_notogri": "Invalid request status.",
-    "vakansiya_sorovi.vakansiya_yoq": "No opened vacancy given."
+    "vakansiya_sorovi.vakansiya_yoq": "No opened vacancy given.",
+    "tashqi.boshliq_yoq": "The department has no head — assign one in «Departments» or on the employee card."
   },
   "language": {
     "en": "English",
@@ -3126,7 +3127,16 @@
     "scheduleRequestCancelConfirm": "Cancel the request? If it was approved, the dates return to the schedule’s own plan and are recalculated.",
     "scheduleRequestsQueueEmptyText": "When an employee asks to move a break or swap days, the request appears here.",
     "scheduleRequestsEmptyText": "No decided schedule change requests yet.",
-    "resolveDayFromRequest": "Approved schedule change request"
+    "resolveDayFromRequest": "Approved schedule change request",
+    "teamLeadTitle": "Department head",
+    "teamLeadHint": "The head sees their department’s attendance in the app’s «Team» tab and requests vacancies from HR. A department has one head.",
+    "teamLeadNone": "Not the head of any department.",
+    "teamLeadRemove": "Remove",
+    "teamLeadDepartment": "Department",
+    "teamLeadDepartmentPlaceholder": "Choose a department",
+    "teamLeadAssign": "Make head",
+    "teamLeadReplaces": "The current head of this department is {{name}}. Saving replaces them.",
+    "teamLeadAnother": "another employee"
   },
   "notifications": {
     "unreadSummary": "{{n}} unread",

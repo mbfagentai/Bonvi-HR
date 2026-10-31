@@ -1117,7 +1117,8 @@
     "vakansiya_sorovi.sabab_kerak": "Rad etish sababini yozing.",
     "vakansiya_sorovi.qaror_qilingan": "Bu so‘rov bo‘yicha qaror allaqachon qabul qilingan.",
     "vakansiya_sorovi.holat_notogri": "So‘rov holati noto‘g‘ri.",
-    "vakansiya_sorovi.vakansiya_yoq": "Ochilgan vakansiya ko‘rsatilmagan."
+    "vakansiya_sorovi.vakansiya_yoq": "Ochilgan vakansiya ko‘rsatilmagan.",
+    "tashqi.boshliq_yoq": "Bo‘limga boshliq tayinlanmagan — uni «Bo‘limlar» yoki xodim kartasida belgilang."
   },
   "language": {
     "en": "English",
@@ -3126,7 +3127,16 @@
     "scheduleRequestCancelConfirm": "So‘rov bekor qilinsinmi? Tasdiqlangan bo‘lsa, sanalar jadvalning o‘z rejasiga qaytadi va qayta hisoblanadi.",
     "scheduleRequestsQueueEmptyText": "Xodim tanaffusni ko‘chirish yoki kun almashtirishni so‘rasa, so‘rov shu yerda paydo bo‘ladi.",
     "scheduleRequestsEmptyText": "Qaror qabul qilingan jadval so‘rovi hali yo‘q.",
-    "resolveDayFromRequest": "Tasdiqlangan jadval so‘rovi"
+    "resolveDayFromRequest": "Tasdiqlangan jadval so‘rovi",
+    "teamLeadTitle": "Bo‘lim boshlig‘i",
+    "teamLeadHint": "Boshliq ilovadagi «Jamoa» tabida o‘z bo‘limi davomatini ko‘radi va HR’dan vakansiya so‘raydi. Bo‘limda bitta boshliq bo‘ladi.",
+    "teamLeadNone": "Hech qaysi bo‘limning boshlig‘i emas.",
+    "teamLeadRemove": "Olib tashlash",
+    "teamLeadDepartment": "Bo‘lim",
+    "teamLeadDepartmentPlaceholder": "Bo‘limni tanlang",
+    "teamLeadAssign": "Boshliq qilish",
+    "teamLeadReplaces": "Bu bo‘limning hozirgi boshlig‘i — {{name}}. Saqlansa, u almashtiriladi.",
+    "teamLeadAnother": "boshqa xodim"
   },
   "notifications": {
     "unreadSummary": "{{n}} ta o‘qilmagan",

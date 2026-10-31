@@ -1117,7 +1117,8 @@
     "vakansiya_sorovi.sabab_kerak": "Рад этиш сабабини ёзинг.",
     "vakansiya_sorovi.qaror_qilingan": "Бу сўров бўйича қарор аллақачон қабул қилинган.",
     "vakansiya_sorovi.holat_notogri": "Сўров ҳолати нотўғри.",
-    "vakansiya_sorovi.vakansiya_yoq": "Очилган вакансия кўрсатилмаган."
+    "vakansiya_sorovi.vakansiya_yoq": "Очилган вакансия кўрсатилмаган.",
+    "tashqi.boshliq_yoq": "Бўлимга бошлиқ тайинланмаган — уни «Бўлимлар» ёки ходим картасида белгиланг."
   },
   "language": {
     "en": "English",
@@ -3126,7 +3127,16 @@
     "scheduleRequestCancelConfirm": "Сўров бекор қилинсинми? Тасдиқланган бўлса, саналар жадвалнинг ўз режасига қайтади ва қайта ҳисобланади.",
     "scheduleRequestsQueueEmptyText": "Ходим танаффусни кўчириш ёки кун алмаштиришни сўраса, сўров шу ерда пайдо бўлади.",
     "scheduleRequestsEmptyText": "Қарор қабул қилинган жадвал сўрови ҳали йўқ.",
-    "resolveDayFromRequest": "Тасдиқланган жадвал сўрови"
+    "resolveDayFromRequest": "Тасдиқланган жадвал сўрови",
+    "teamLeadTitle": "Бўлим бошлиғи",
+    "teamLeadHint": "Бошлиқ иловадаги «Жамоа» табида ўз бўлими давоматини кўради ва HR’дан вакансия сўрайди. Бўлимда битта бошлиқ бўлади.",
+    "teamLeadNone": "Ҳеч қайси бўлимнинг бошлиғи эмас.",
+    "teamLeadRemove": "Олиб ташлаш",
+    "teamLeadDepartment": "Бўлим",
+    "teamLeadDepartmentPlaceholder": "Бўлимни танланг",
+    "teamLeadAssign": "Бошлиқ қилиш",
+    "teamLeadReplaces": "Бу бўлимнинг ҳозирги бошлиғи — {{name}}. Сақланса, у алмаштирилади.",
+    "teamLeadAnother": "бошқа ходим"
   },
   "notifications": {
     "unreadSummary": "{{n}} та ўқилмаган",

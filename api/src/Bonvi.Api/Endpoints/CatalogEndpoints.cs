@@ -24,6 +24,10 @@ public sealed record AddDutyRequest(string? Text);
 /// <param name="NewParentId">Yangi ota bo'lim. <c>null</c> — eng yuqori daraja.</param>
 public sealed record MoveDepartmentRequest(Guid? NewParentId);
 
+/// <summary>Bo'lim boshlig'ini almashtirish tanasi.</summary>
+/// <param name="EmployeeId">Yangi boshliq. <c>null</c> — boshliqni olib tashlash.</param>
+public sealed record SetDepartmentHeadRequest(Guid? EmployeeId);
+
 /// <summary>
 /// Ma'lumotnomalar endpoint'lari.
 /// </summary>
@@ -346,6 +350,30 @@ public static class CatalogEndpoints
             .Produces<DepartmentDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/departments/{id:guid}/head", async (
+                Guid id,
+                SetDepartmentHeadRequest request,
+                SetDepartmentHeadCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new SetDepartmentHeadCommand(id, request.EmployeeId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.CatalogManage)
+            .WithName("SetDepartmentHead")
+            .WithSummary("Bo'limlar — boshliqni almashtirish")
+            .WithDescription(
+                "Faqat boshliq o'zgaradi (xodim kartasidan). «employeeId: null» — boshliqni olib tashlash. " +
+                "Bo'limda boshqa boshliq bo'lsa, u almashtiriladi. «catalog.manage» ustiga «attendance.view» ham kerak. " +
+                "Xatolar: «auth.ruxsat_yoq» (403), «bolim.topilmadi» (404), «bolim.boshliq_topilmadi» (400).")
+            .Produces<DepartmentDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     // ════════════════════════════════════════════════════════════

@@ -13,6 +13,7 @@ import {
   removeDuty,
   reorderDuties,
   setCatalogItemActive,
+  setDepartmentHead,
   updateCatalogItem,
   type CatalogItem,
   type CatalogItemInput,
@@ -160,6 +161,19 @@ export function useMoveDepartment() {
   return useMutation({
     mutationFn: ({ id, parentId }: { id: string; parentId: string | null }) =>
       moveDepartment(id, parentId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.root })
+    },
+  })
+}
+
+/** Bo'lim boshlig'ini xodim kartasidan almashtirish — keyin bo'limlar ro'yxati qayta o'qiladi. */
+export function useSetDepartmentHead() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ departmentId, employeeId }: { departmentId: string; employeeId: string | null }) =>
+      setDepartmentHead(departmentId, employeeId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.root })
     },
