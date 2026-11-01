@@ -15,7 +15,23 @@ public sealed class HrMentorWatchDelayTests
     [InlineData(3, 10)]
     [InlineData(100, 300)]
     public void Sinxronlangandan_keyin_darhol_ketma_ket_bolsa_sekinlashadi(int ketmaKet, int soniya)
-        => HrMentorWatchDelay.After(HrMentorWatchOutcome.Synced, ketmaKet).ShouldBe(TimeSpan.FromSeconds(soniya));
+    {
+        HrMentorWatchDelay.After(HrMentorWatchOutcome.Synced, ketmaKet).ShouldBe(TimeSpan.FromSeconds(soniya));
+        HrMentorWatchDelay.After(HrMentorWatchOutcome.SyncedWithError, ketmaKet).ShouldBe(TimeSpan.FromSeconds(soniya), "doimiy xato qolgan sinxronlash ham sinxronlash");
+    }
+
+    [Theory]
+    [InlineData("hrmentor.texts_invalid", true)]
+    [InlineData("hrmentor.definition_invalid", true)]
+    [InlineData("hrmentor.blank_checksum", true)]
+    [InlineData("hrmentor.blank_too_large", true)]
+    [InlineData("hrmentor.unreachable", false)]
+    [InlineData("hrmentor.timeout", false)]
+    [InlineData("hrmentor.server_error", false)]
+    [InlineData("hrmentor.rejected", false)]
+    [InlineData("hrmentor.busy", false)]
+    public void Faqat_HR_saqlagan_narsadan_kelgan_xato_doimiy(string kod, bool doimiy)
+        => HrMentorErrors.IsLasting(kod).ShouldBe(doimiy);
 
     [Fact]
     public void Ozgarishsiz_javobdan_keyin_qisqa_tanaffus()

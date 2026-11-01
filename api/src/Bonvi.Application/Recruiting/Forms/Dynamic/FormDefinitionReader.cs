@@ -108,7 +108,8 @@ public static class FormDefinitionReader
                 Optional(pdf["instruction"]),
                 Optional(pdf["candidate_part"]),
                 Optional(pdf["office_part"]),
-                Optional(pdf["footer"])),
+                Optional(pdf["footer"]),
+                Optional(pdf["head_department"])),
             sections);
     }
 

@@ -147,6 +147,21 @@ public sealed class FormDefinitionTests
     }
 
     [Fact]
+    public void Sarlavhadagi_bolim_katagi_nomi_ixtiyoriy_va_qisqa()
+    {
+        // Qog'oz HR-F02 v2.0 sarlavhasida «Yo'nalish» (HRMentor SPEC §19.3).
+        var taRif = Urug();
+        FormDefinitionReader.Read(taRif).Value.Pdf.HeadDepartment.ShouldBeNull("berilmasa — o'rnatilgan «Bo'lim»");
+
+        taRif["pdf"]!["head_department"] = "Yo‘nalish";
+        Muammolar(taRif).ShouldBeEmpty();
+        FormDefinitionReader.Read(taRif).Value.Pdf.HeadDepartment.ShouldBe("Yo‘nalish");
+
+        taRif["pdf"]!["head_department"] = new string('x', 61);
+        Muammolar(taRif).ShouldBe([new FormIssue("forms.text_invalid", "pdf.head_department")]);
+    }
+
+    [Fact]
     public void Shart_va_boglanish_qoidalari()
     {
         var taRif = Urug();

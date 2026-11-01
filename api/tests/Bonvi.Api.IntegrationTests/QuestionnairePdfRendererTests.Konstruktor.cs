@@ -33,7 +33,8 @@ public sealed partial class QuestionnairePdfRendererTests
 
         matn.ShouldContain($"HR-F02 · Nomzod anketasi · v{yorliq}");
         matn.ShouldContain($"Blanka HR-F02 · Versiya {yorliq}");
-        matn.ShouldContain("Anketa № 1024 Sana 24.10.2026 Lavozim Payvandchi (Metan zavodi)");
+        matn.ShouldContain("Anketa № 1024 Sana 24.10.2026 So‘rov № (HR-F01)");
+        matn.ShouldContain("Lavozim Payvandchi (Metan zavodi) Bo‘lim", Case.Sensitive, "qog'oz blanka sarlavhasi: so'rov № va bo'lim HR qo'lda yozadi");
         matn.ShouldContain("A QISM NOMZOD TOMONIDAN TO‘LDIRILADI 1. SHAXSIY MA’LUMOTLAR Familiyasi G‘ulomov Ismi Sardor");
 
         // Tanlovlar — hamma variant katakchasi bilan, tanlangani belgilangan
@@ -85,6 +86,7 @@ public sealed partial class QuestionnairePdfRendererTests
         var taRif = AnketaKonstruktoriSyncApiTests.Tarif("4.2");
         var sogliq = taRif["sections"]!.AsArray().Select(section => section!.AsObject()).First(section => section["id"]!.GetValue<string>() == "health");
         sogliq["pdf_title"] = "Sog‘lig‘ingiz haqida";
+        taRif["pdf"]!["head_department"] = "Yo‘nalish";
 
         var tarif = FormDefinitionReader.Read(taRif).Value;
         var javoblar = DynamicFormValidator.Validate(DynamicFormSamples.From(QuestionnaireSamples.Full(Bugun)), tarif, Bugun, ReferralSeeds.Options).Value;
@@ -95,6 +97,7 @@ public sealed partial class QuestionnairePdfRendererTests
         matn.ShouldContain("HR-F02 · Nomzod anketasi · v4.2");
         matn.ShouldContain("Blanka HR-F02 · Versiya 4.2");
         matn.ShouldContain("9. SOG‘LIG‘INGIZ HAQIDA", Case.Sensitive, "bo'lim raqami tartibdan, nomi HR dan");
+        matn.ShouldContain("Lavozim Payvandchi (Metan zavodi) Yo‘nalish", Case.Sensitive, "sarlavhadagi katak nomi HR dan (qog'oz HR-F02 v2.0)");
     }
 
     [Fact]

@@ -176,7 +176,10 @@ parts: start, done, photo capture, signature pad, bot check, idle dialog, `Kiosk
 house style of the built-in PDF (SPEC-planshet-anketa §6.3):
 - header «MBF Company — HR hujjatlar paketi» / «{printed_code} · {title} · v{label}», footer «Sahifa X / Y»;
 - title block: logo, `pdf.title`, `pdf.subtitle`, «Blanka {printed_code} · Versiya {label}», photo box;
-- info table Anketa № | Sana | Lavozim; `pdf.instruction`; the `candidate_part` bar;
+- info table Anketa № | Sana | So'rov № «(HR-F01)» / Lavozim | Bo'lim, as the built-in PDF and the paper
+  HR-F02 v2.0 print it (2026-11-01; the request number and the department are written by hand); the last
+  cell's name is `pdf.head_department` when HR set it (the paper v2.0 says «Yo'nalish», ≤ 60 characters,
+  HRMentor SPEC §19.3), otherwise «Bo'lim»; `pdf.instruction`; the `candidate_part` bar;
 - sections numbered «1. SHAXSIY MA'LUMOTLAR» (`pdf_title` or the Latin title, upper-case);
 - scalar fields as label | value rows (label cells shaded); `choice` / `multi_choice` / `yes_no` print every
   option ☑ / ☐; `repeat` as a table with the column headers and max(`print_rows`, rows) rows; `levels` as a

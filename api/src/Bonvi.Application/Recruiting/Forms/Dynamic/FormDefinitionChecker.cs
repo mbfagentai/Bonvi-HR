@@ -51,7 +51,13 @@ public sealed partial class FormDefinitionChecker
     public const int MaxPrintedCode = 20;
 
     private static readonly string[] PdfRequired = ["printed_code", "title"];
-    private static readonly string[] PdfOptional = ["subtitle", "instruction", "candidate_part", "office_part", "footer"];
+    private static readonly string[] PdfOptional = ["subtitle", "instruction", "candidate_part", "office_part", "footer", "head_department"];
+
+    /// <summary>
+    /// <c>MaxHint</c> dan qisqa chegarali PDF so'zlari: <c>head_department</c> — sarlavhadagi katak nomi
+    /// (HRMentor SPEC §19.3; matnlar katalogidagi o'sha so'z bilan bir xil 60).
+    /// </summary>
+    private static readonly Dictionary<string, int> PdfLimits = new(StringComparer.Ordinal) { ["head_department"] = 60 };
 
     private static readonly HashSet<string> DefinitionKeys = Set("schema", "code", "label", "title", "pdf", "sections");
     private static readonly HashSet<string> PdfKeys = Set([.. PdfRequired, .. PdfOptional]);
@@ -211,7 +217,7 @@ public sealed partial class FormDefinitionChecker
 
         foreach (var key in PdfOptional)
         {
-            Line(pdf[key], $"pdf.{key}", MaxHint);
+            Line(pdf[key], $"pdf.{key}", PdfLimits.GetValueOrDefault(key, MaxHint));
         }
     }
 

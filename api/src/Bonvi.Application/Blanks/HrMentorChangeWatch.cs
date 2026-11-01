@@ -42,6 +42,13 @@ public enum HrMentorWatchOutcome
 
     /// <summary>Kutish so'rovining o'zi yiqildi (tarmoq, vaqt, server).</summary>
     Failed = 7,
+
+    /// <summary>
+    /// Reviziya yangi edi, sinxronlash o'tdi, lekin bir qadam doimiy xato berdi
+    /// (<see cref="HrMentorErrors.IsLasting"/>): reviziya olinadi — keyingi o'zgarish ham soniyalarda
+    /// keladi; o'sha qadamni besh daqiqalik yurish qayta tekshiradi.
+    /// </summary>
+    SyncedWithError = 8,
 }
 
 /// <summary>Bitta qadamning natijasi.</summary>
@@ -59,8 +66,11 @@ public sealed record HrMentorWatchStep(HrMentorWatchOutcome Outcome, string? Sin
 /// <remarks>
 /// <para>
 /// <b>Hech narsa o'tkazib yuborilmaydi.</b> Reviziya holatning izi, hodisa emas: HRMentor yoki biz
-/// qayta ishga tushsak, birinchi javob baribir yangi holatni aytadi. Sinxronlash yiqilsa reviziya
-/// YANGILANMAYDI — keyingi qadam yana sinab ko'radi (oraliq <see cref="HrMentorWatchDelay"/> da).
+/// qayta ishga tushsak, birinchi javob baribir yangi holatni aytadi. Sinxronlash o'tkinchi xato bilan
+/// yiqilsa reviziya YANGILANMAYDI — keyingi qadam yana sinab ko'radi (oraliq <see cref="HrMentorWatchDelay"/>
+/// da). Xato faqat doimiy bo'lsa (HR saqlagan narsani qabul qila olmadik) reviziya olinadi: xuddi shu
+/// holatni qayta sinash foyda bermaydi, kutish esa HR ning keyingi o'zgarishini besh daqiqagacha
+/// kechiktirardi.
 /// </para>
 /// <para>
 /// <b>Reviziya HRMentor da faqat HR ishidan o'zgaradi</b> — bizning katalog, profil va hisobotimiz uni
@@ -124,9 +134,14 @@ public sealed class HrMentorChangeWatch
             return new HrMentorWatchStep(HrMentorWatchOutcome.SyncFailed, since, run.Error.Code);
         }
 
-        return run.Value.ErrorCode is { } code
-            ? new HrMentorWatchStep(HrMentorWatchOutcome.SyncFailed, since, code)
-            : new HrMentorWatchStep(HrMentorWatchOutcome.Synced, revision);
+        if (run.Value.ErrorCode is not { } code)
+        {
+            return new HrMentorWatchStep(HrMentorWatchOutcome.Synced, revision);
+        }
+
+        return run.Value.ErrorsLasting
+            ? new HrMentorWatchStep(HrMentorWatchOutcome.SyncedWithError, revision, code)
+            : new HrMentorWatchStep(HrMentorWatchOutcome.SyncFailed, since, code);
     }
 }
 
@@ -161,14 +176,15 @@ public static class HrMentorWatchDelay
     /// va <see cref="HrMentorWatchOutcome.Failed"/> — bitta tur).
     /// </param>
     /// <remarks>
-    /// Sinxronlashdan keyin birinchi marta darhol; orasida «o'zgarmadi» bo'lmay ketma-ket kelsa —
+    /// Sinxronlashdan keyin (doimiy xato qolgan bo'lsa ham) birinchi marta darhol; orasida «o'zgarmadi»
+    /// bo'lmay ketma-ket kelsa —
     /// xatodagidek 5 s dan ikki barobar: har safar yangi reviziya qaytaradigan nosoz server
     /// to'xtovsiz sinxronlashga majbur qilolmaydi. HR ketma-ket bir necha marta saqlasa ham
     /// kechikish soniyalarda qoladi.
     /// </remarks>
     public static TimeSpan After(HrMentorWatchOutcome outcome, int inARow) => outcome switch
     {
-        HrMentorWatchOutcome.Synced => inARow <= 1 ? TimeSpan.Zero : Retry(inARow - 1),
+        HrMentorWatchOutcome.Synced or HrMentorWatchOutcome.SyncedWithError => inARow <= 1 ? TimeSpan.Zero : Retry(inARow - 1),
         HrMentorWatchOutcome.Unchanged => AfterUnchanged,
         HrMentorWatchOutcome.NotConnected => NotConnected,
         HrMentorWatchOutcome.NotReady => NotReady,

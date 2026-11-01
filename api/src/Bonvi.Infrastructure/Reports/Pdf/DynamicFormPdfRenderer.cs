@@ -332,10 +332,14 @@ public sealed partial class DynamicFormPdfRenderer : IDynamicFormPdfRenderer
             Spacer(6);
         }
 
-        /// <summary>Anketa № | Sana | Lavozim. Namunada raqam o'rnida «Namuna».</summary>
+        /// <summary>
+        /// Anketa № | Sana | So'rov № — Lavozim | Bo'lim (o'rnatilgan PDF va qog'oz blanka sarlavhasi).
+        /// Namunada raqam o'rnida «Namuna»; so'rov raqami va bo'lim HR qo'lda yozadi; «Bo'lim» katagi
+        /// nomini HR ta'rifda o'zgartiradi (<c>pdf.head_department</c>).
+        /// </summary>
         private void InfoTable()
         {
-            var table = Grid(2.29, 2.2, 1.3, 2.6, 2.0, 7.61);
+            var table = Grid(2.29, 3.17, 1.59, 5.11, 1.94, 3.89);
 
             var row = Row(table);
             Label(row.Cells[0], Words.Pdf("pdf.head.number"));
@@ -353,8 +357,15 @@ public sealed partial class DynamicFormPdfRenderer : IDynamicFormPdfRenderer
 
             Label(row.Cells[2], Words.Pdf("pdf.head.date"));
             Value(row.Cells[3], Day(model.SubmittedAt));
-            Label(row.Cells[4], Words.Pdf("pdf.head.vacancy"));
-            Value(row.Cells[5], model.VacancyTitle);
+            Label(row.Cells[4], Words.Pdf("pdf.head.request"));
+            Value(row.Cells[5], "(HR-F01)").Format.Font.Color = Muted;
+
+            var second = Row(table);
+            Label(second.Cells[0], Words.Pdf("pdf.head.vacancy"));
+            Value(second.Cells[1], model.VacancyTitle);
+            second.Cells[1].MergeRight = 2;
+            Label(second.Cells[4], _definition.Pdf.HeadDepartment ?? Words.Pdf("pdf.head.department"));
+            Value(second.Cells[5], null);
         }
 
         private void Instruction(string text)

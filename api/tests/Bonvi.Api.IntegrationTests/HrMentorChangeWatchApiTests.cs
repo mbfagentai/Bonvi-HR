@@ -24,6 +24,8 @@ public sealed class HrMentorChangeWatchApiTests : IClassFixture<BonviApiFactory>
 {
     private static readonly string Ikki = new('2', 64);
     private static readonly string Uch = new('3', 64);
+    private static readonly string Tort = new('4', 64);
+    private static readonly string Besh = new('5', 64);
 
     private readonly BonviApiFactory _factory;
 
@@ -89,6 +91,25 @@ public sealed class HrMentorChangeWatchApiTests : IClassFixture<BonviApiFactory>
         }
 
         hrMentor.ReportedHoldings.Count.ShouldBe(hisobotlar);
+
+        // ── HR saqlagan narsani qabul qila olmadik (doimiy xato): reviziya olinadi — keyingisi ham
+        //    soniyalarda keladi; qolgan qadamlar bajarildi, xatoni besh daqiqalik yurish qayta tekshiradi
+        hrMentor.ChangesAnswer = null;
+        hrMentor.Revision = Tort;
+        hrMentor.ServedTexts = "salom";
+        qadam = await QadamAsync(fabrika, Uch);
+        qadam.ShouldBe(new HrMentorWatchStep(HrMentorWatchOutcome.SyncedWithError, Tort, HrMentorErrors.TextsInvalid.Code));
+        hrMentor.ReportedHoldings.Count.ShouldBe(hisobotlar + 1, "blankalar qadami bajarildi");
+
+        // ── Doimiy xato bilan birga o'tkinchisi ham bo'lsa — eski reviziya qoladi, qayta urinadi
+        hrMentor.Revision = Besh;
+        hrMentor.HoldingsAnswer = HrMentorErrors.ServerError;
+        qadam = await QadamAsync(fabrika, Tort);
+        qadam.ShouldBe(new HrMentorWatchStep(HrMentorWatchOutcome.SyncFailed, Tort, HrMentorErrors.TextsInvalid.Code));
+
+        hrMentor.HoldingsAnswer = null;
+        hrMentor.ServedTexts = null;
+        (await QadamAsync(fabrika, Tort)).ShouldBe(new HrMentorWatchStep(HrMentorWatchOutcome.Synced, Besh));
     }
 
     private static async Task<HrMentorWatchStep> QadamAsync(WebApplicationFactory<Program> fabrika, string? since)

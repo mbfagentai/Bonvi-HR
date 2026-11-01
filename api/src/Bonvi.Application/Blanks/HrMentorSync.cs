@@ -126,11 +126,13 @@ public sealed class HrMentorSync
 
         var startedAt = _clock.UtcNow;
         string? firstError = null;
+        var passing = false;
 
         void Fail(HrMentorSyncStep step, Error error)
         {
             _journal.StepFailed(step, error.Code);
             firstError ??= error.Code;
+            passing |= !HrMentorErrors.IsLasting(error.Code);
         }
 
         // 1. Katalog — faqat xeshi o'zgarganda.
@@ -220,7 +222,8 @@ public sealed class HrMentorSync
             blanks.Removed,
             firstError,
             profilePushed,
-            definition.IsSuccess ? definition.Value : null);
+            definition.IsSuccess ? definition.Value : null,
+            ErrorsLasting: firstError is not null && !passing);
 
         if (report.Changed)
         {
@@ -252,6 +255,12 @@ public sealed class HrMentorSync
         if (shaped.IsFailure)
         {
             return shaped.Error;
+        }
+
+        // Reviziya 0 — HR matnlarni hali saqlamagan: o'rnatilgan matnlar amalda qoladi.
+        if (shaped.Value.Revision == 0)
+        {
+            return Result.Success<int?>(null);
         }
 
         var latest = await _snapshots.LatestAsync(FormCode, cancellationToken).ConfigureAwait(false);

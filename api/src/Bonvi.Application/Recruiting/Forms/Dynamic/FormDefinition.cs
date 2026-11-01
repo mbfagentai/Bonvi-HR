@@ -293,7 +293,10 @@ public sealed record FormSection(
     public IEnumerable<FormField> Fields => Screens.SelectMany(screen => screen.Fields);
 }
 
-/// <summary>PDF ning o'z so'zlari (faqat lotin).</summary>
+/// <summary>
+/// PDF ning o'z so'zlari (faqat lotin). <c>HeadDepartment</c> — sarlavhadagi «Lavozim» yonidagi katak
+/// nomi (qog'oz HR-F02 v2.0 da «Yo'nalish»); bo'lmasa «Bo'lim».
+/// </summary>
 public sealed record FormPdf(
     string PrintedCode,
     string Title,
@@ -301,7 +304,8 @@ public sealed record FormPdf(
     string? Instruction,
     string? CandidatePart,
     string? OfficePart,
-    string? Footer);
+    string? Footer,
+    string? HeadDepartment = null);
 
 /// <summary>Tekshirilgan ta'rif.</summary>
 public sealed class FormDefinition

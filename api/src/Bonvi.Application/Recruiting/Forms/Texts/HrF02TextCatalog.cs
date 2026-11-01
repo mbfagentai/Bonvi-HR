@@ -378,8 +378,9 @@ public sealed partial class HrF02TextCatalog
     /// keltiradi (SPEC-blankalar-hrmentor §3.2).
     /// </summary>
     /// <remarks>
-    /// <para>Javob <b>shakli</b> buzuq (reviziya yo'q, obyekt emas) — <see cref="HrMentorErrors.TextsInvalid"/>,
-    /// hech narsa saqlanmaydi.</para>
+    /// <para>Javob <b>shakli</b> buzuq (reviziya yo'q yoki manfiy, obyekt emas) — <see cref="HrMentorErrors.TextsInvalid"/>,
+    /// hech narsa saqlanmaydi. Reviziya 0 — HR matnlarni hali hech saqlamagan (HRMentor SPEC §18:
+    /// reviziya 0 dan boshlanadi): javob yaroqli, lekin saqlanadigan narsa yo'q.</para>
     /// <para>Alohida <b>matn</b> yaroqsiz — u tashlanadi, qolgani qabul qilinadi: noma'lum kalit;
     /// bo'sh; katalog chegarasidan uzun; o'rin belgilari (<c>{{nom}}</c>) asl matnnikidan farqli
     /// (i18next yoki PDF qiymatni qo'ya olmasdi). Qator ko'chirish bo'shliqqa aylanadi; lotin
@@ -404,7 +405,7 @@ public sealed partial class HrF02TextCatalog
 
         if (root["revision"] is not JsonValue revisionNode
             || !revisionNode.TryGetValue<int>(out var revision)
-            || revision < 1
+            || revision < 0
             || (root["code"] is { } code && code.GetValueKind() == JsonValueKind.String && code.GetValue<string>() != CandidateForm.HrF02))
         {
             return HrMentorErrors.TextsInvalid;

@@ -84,6 +84,12 @@ public sealed class HrMentorSyncApiTests : IClassFixture<BonviApiFactory>
 
         await UlaAsync(admin);
 
+        // ── HR matnlarni hali saqlamagan (reviziya 0, HRMentor SPEC §18): xato emas, hech narsa saqlanmaydi
+        hrMentor.ServedTexts = Xizmat(0, "Anketa (o'rnatilgan)");
+        var boshlangich = await SyncAsync(admin);
+        boshlangich.LastError.ShouldBeNull("reviziya 0 — yaroqli javob");
+        boshlangich.TextsRevision.ShouldBeNull();
+
         var a = Guid.NewGuid();
         var b = Guid.NewGuid();
         var aBirinchi = Encoding.UTF8.GetBytes("HR-F01 v1");

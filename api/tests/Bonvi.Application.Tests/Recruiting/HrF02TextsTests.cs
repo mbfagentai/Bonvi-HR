@@ -105,7 +105,7 @@ public sealed class HrF02TextsTests
     [InlineData("salom")]
     [InlineData("[]")]
     [InlineData("""{"texts":{}}""")]
-    [InlineData("""{"revision":0}""")]
+    [InlineData("""{"revision":-1}""")]
     [InlineData("""{"revision":"3"}""")]
     [InlineData("""{"revision":3,"code":"HR-F09"}""")]
     public void Buzuq_javob_texts_invalid_va_hech_narsa_saqlanmaydi(string javob)
@@ -114,6 +114,16 @@ public sealed class HrF02TextsTests
 
         natija.IsFailure.ShouldBeTrue(javob);
         natija.Error.ShouldBe(HrMentorErrors.TextsInvalid);
+    }
+
+    [Fact]
+    public void Reviziya_0_yaroqli_lekin_hech_qanday_matn_ozgarmaydi()
+    {
+        // HRMentor SPEC §18: HR matnlarni hali saqlamagan bo'lsa reviziya 0 beriladi.
+        var natija = Katalog.Shape("""{"revision":0,"code":"HR-F02","texts":{},"lists":{}}""");
+
+        natija.IsSuccess.ShouldBeTrue();
+        natija.Value.Revision.ShouldBe(0);
     }
 
     [Fact]

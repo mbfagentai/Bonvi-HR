@@ -61,8 +61,14 @@ public sealed partial class HrMentorChangeWatcher : BackgroundService
 
             since = step.Since;
 
-            // Xatolar bitta tur: sinxronlash yiqilishi va so'rov yiqilishi bir oraliqni o'stiradi.
-            var kind = step.Outcome == HrMentorWatchOutcome.SyncFailed ? HrMentorWatchOutcome.Failed : step.Outcome;
+            // Xatolar bitta tur: sinxronlash yiqilishi va so'rov yiqilishi bir oraliqni o'stiradi;
+            // doimiy xato qolgan sinxronlash — sinxronlash: ketma-ket kelsa birga sekinlashadi.
+            var kind = step.Outcome switch
+            {
+                HrMentorWatchOutcome.SyncFailed => HrMentorWatchOutcome.Failed,
+                HrMentorWatchOutcome.SyncedWithError => HrMentorWatchOutcome.Synced,
+                _ => step.Outcome,
+            };
             inARow = kind == lastKind ? inARow + 1 : 1;
             lastKind = kind;
 
@@ -70,9 +76,13 @@ public sealed partial class HrMentorChangeWatcher : BackgroundService
             {
                 LogSynced();
             }
+            else if (step.Outcome == HrMentorWatchOutcome.SyncedWithError)
+            {
+                LogSyncedWithError(step.ErrorCode ?? "-");
+            }
             else if (step.Outcome == HrMentorWatchOutcome.Unchanged)
             {
-                if (last is not (null or HrMentorWatchOutcome.Synced or HrMentorWatchOutcome.Unchanged))
+                if (last is not (null or HrMentorWatchOutcome.Synced or HrMentorWatchOutcome.SyncedWithError or HrMentorWatchOutcome.Unchanged))
                 {
                     LogResumed();
                 }
@@ -107,6 +117,12 @@ public sealed partial class HrMentorChangeWatcher : BackgroundService
         Level = LogLevel.Information,
         Message = "HRMentor: o'zgarish keldi — sinxronlandi")]
     private partial void LogSynced();
+
+    [LoggerMessage(
+        EventId = 4814,
+        Level = LogLevel.Warning,
+        Message = "HRMentor: o'zgarish keldi — sinxronlandi, lekin {ErrorCode} qoldi (HR saqlagan narsa qabul qilinmadi); uni besh daqiqalik yurish qayta tekshiradi")]
+    private partial void LogSyncedWithError(string errorCode);
 
     [LoggerMessage(
         EventId = 4811,

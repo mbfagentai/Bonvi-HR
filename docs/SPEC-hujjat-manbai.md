@@ -106,6 +106,12 @@ yangilanganini bilib o'zlarini zudlik yangi xujjatlar bilan yangilab olishlari k
   minutes for a run in progress rather than skipping it. Only a clean run moves `since` to the new revision;
   a failed or busy run keeps the old one, so the next step tries again. On start `since` is empty, so the
   first answer syncs: nothing that changed while hr.bonvi.uz was down is missed.
+- **A lasting error does not hold the wait back** (2026-11-01). When every failed step failed on what HR
+  saved — texts or definition we cannot accept, a blank file that does not match its list or is too large
+  (`HrMentorErrors.IsLasting`) — asking the same state again gives the same answer, so the step is
+  `SyncedWithError`: `since` moves on, the rest of the run is applied, and the five-minute job re-checks the
+  failed step. Network, timeout, 5xx, other 4xx and busy stay transient and keep the old `since`. Measured
+  before: one invalid texts answer held every HR change for up to five minutes.
 - **Our own writes never wake us.** The catalog, the profile and the holdings report change none of the
   fields HRMentor's revision covers (§21.4 R1), so a sync does not call the next.
 - **Back-off** (`HrMentorWatchDelay`): after a sync, wait again at once — but syncs in a row with no

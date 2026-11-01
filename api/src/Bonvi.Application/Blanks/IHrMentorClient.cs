@@ -261,4 +261,14 @@ public static class HrMentorErrors
     /// <summary>Boshqa yangilash hali tugamagan.</summary>
     public static readonly Error Busy =
         Error.Conflict("hrmentor.busy", "Yangilash allaqachon ketyapti — birozdan keyin qayta urining.");
+
+    /// <summary>
+    /// Xato HRMentor dagi <b>shu holatning o'zidan</b>mi: biz HR saqlagan narsani qabul qila olmadik
+    /// (matnlar, ta'rif, blanka fayli). Xuddi shu holatni qayta so'rash xuddi shu javobni beradi —
+    /// faqat HR ning keyingi o'zgarishi yoki bizning tuzatish yordam beradi. Tarmoq, vaqt, 5xx, boshqa
+    /// 4xx va band — o'tkinchi: qayta urinish yordam berishi mumkin.
+    /// </summary>
+    /// <param name="code">Xato kodi.</param>
+    public static bool IsLasting(string code)
+        => code == TextsInvalid.Code || code == DefinitionInvalid.Code || code == BlankChecksum.Code || code == BlankTooLarge.Code;
 }

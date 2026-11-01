@@ -32,6 +32,10 @@ public sealed record HrMentorDefinitionSwitch(int? Version);
 /// <param name="ErrorCode">Birinchi yiqilgan qadamning kodi; hammasi o'tsa <c>null</c>.</param>
 /// <param name="ProfilePushed">Profil shu yurishda yuborildimi.</param>
 /// <param name="Definition">Amaldagi anketa almashgan bo'lsa — qaysi versiyaga; aks holda <c>null</c>.</param>
+/// <param name="ErrorsLasting">
+/// Yiqilgan qadamlarning hammasi doimiy xato bilan (<see cref="HrMentorErrors.IsLasting"/>) — xuddi shu
+/// holatni qayta sinash foyda bermaydi. Xato bo'lmasa <c>false</c>.
+/// </param>
 public sealed record HrMentorSyncReport(
     bool CatalogPushed,
     int? TextsRevision,
@@ -40,7 +44,8 @@ public sealed record HrMentorSyncReport(
     int BlanksRemoved,
     string? ErrorCode,
     bool ProfilePushed = false,
-    HrMentorDefinitionSwitch? Definition = null)
+    HrMentorDefinitionSwitch? Definition = null,
+    bool ErrorsLasting = false)
 {
     /// <summary>Shu yurishda biror narsa o'zgardimi.</summary>
     public bool Changed => CatalogPushed || ProfilePushed || TextsRevision is not null || Definition is not null
