@@ -83,3 +83,6 @@ uploads/
 
 # Claude Code agent worktree nusxalari — alohida git repozitoriylar
 .claude/worktrees/
+
+# Bonvi VM: Cloudflare Tunnel token (docker-compose.server.yml) — server only
+cloudflared/
