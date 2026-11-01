@@ -169,6 +169,20 @@ public interface IHrMentorClient
         HrMentorConnection connection,
         IReadOnlyList<HrMentorHolding> holdings,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <c>GET /api/v1/platform/changes</c> — HRMentor da biz oladigan narsa o'zgarishini kutish
+    /// (HRMentor SPEC §21, SPEC-hujjat-manbai §7). Javob — platformaning reviziyasi (64 ta hex):
+    /// <paramref name="since"/> yo'q yoki eskirgan bo'lsa darhol, aks holda o'zgarish bo'lishi
+    /// bilanoq yoki <paramref name="wait"/> (≤ 30 s) tugaganda. Xatolar ro'yxatniki kabi:
+    /// <see cref="HrMentorErrors.PlatformNotReady"/> (kalit bog'lanmagan yoki HRMentor bu yo'lni
+    /// bilmaydi), <see cref="HrMentorErrors.PlatformOff"/>.
+    /// </summary>
+    Task<Result<string>> WaitForChangesAsync(
+        HrMentorConnection connection,
+        string? since,
+        TimeSpan wait,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>

@@ -42,6 +42,9 @@ public sealed class HrMentorClient : IHrMentorClient
     /// <summary>Fayl yuklashning vaqti (<c>HttpClient.Timeout</c>).</summary>
     public static readonly TimeSpan FileTimeout = TimeSpan.FromSeconds(120);
 
+    /// <summary>HRMentor kutishga beradigan eng uzun vaqt (HRMentor SPEC §21.4 R2).</summary>
+    public static readonly TimeSpan MaxChangesWait = TimeSpan.FromSeconds(30);
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
@@ -297,6 +300,43 @@ public sealed class HrMentorClient : IHrMentorClient
         }
     }
 
+    public async Task<Result<string>> WaitForChangesAsync(
+        HrMentorConnection connection,
+        string? since,
+        TimeSpan wait,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var seconds = (int)Math.Clamp(Math.Ceiling(wait.TotalSeconds), 0, MaxChangesWait.TotalSeconds);
+        var path = string.Create(CultureInfo.InvariantCulture, $"platform/changes?wait={seconds}");
+        if (since is not null && HrMentorRevision.IsValid(since))
+        {
+            path += "&since=" + since;
+        }
+
+        // Kutish + oddiy JSON vaqti: HRMentor «o'zgarmadi» deb vaqtida javob beradi, qolgani — tarmoq.
+        using var request = Request(HttpMethod.Get, connection, path);
+        var answer = await SendPlatformJsonAsync(request, cancellationToken, TimeSpan.FromSeconds(seconds) + JsonTimeout)
+            .ConfigureAwait(false);
+        if (answer.IsFailure)
+        {
+            return answer.Error;
+        }
+
+        try
+        {
+            var body = JsonSerializer.Deserialize<ChangesBody>(answer.Value, Json);
+            return body?.Revision is { } revision && HrMentorRevision.IsValid(revision)
+                ? revision
+                : HrMentorErrors.BadResponse;
+        }
+        catch (JsonException)
+        {
+            return HrMentorErrors.BadResponse;
+        }
+    }
+
     private static HttpRequestMessage Request(HttpMethod method, HrMentorConnection connection, string path)
     {
         var request = new HttpRequestMessage(method, new Uri($"{connection.BaseUrl.AbsoluteUri.TrimEnd('/')}/api/v1/{path}"));
@@ -358,14 +398,18 @@ public sealed class HrMentorClient : IHrMentorClient
     }
 
     /// <summary>
-    /// Platforma ro'yxati so'rovi (≤ 2 MB, 20 s). 403 tanasidagi KOD o'qiladi: kalit hali
-    /// bog'lanmagan yoki ruxsat yo'q, yoki yo'l yo'q (404) — <see cref="HrMentorErrors.PlatformNotReady"/>
-    /// (eski ro'yxatga o'tish belgisi), platforma o'chirilgan — <see cref="HrMentorErrors.PlatformOff"/>.
+    /// Platforma ro'yxati so'rovi (≤ 2 MB, 20 s; kutishda — <paramref name="timeout"/>). 403
+    /// tanasidagi KOD o'qiladi: kalit hali bog'lanmagan yoki ruxsat yo'q, yoki yo'l yo'q (404) —
+    /// <see cref="HrMentorErrors.PlatformNotReady"/> (eski ro'yxatga o'tish belgisi), platforma
+    /// o'chirilgan — <see cref="HrMentorErrors.PlatformOff"/>.
     /// </summary>
-    private async Task<Result<string>> SendPlatformJsonAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    private async Task<Result<string>> SendPlatformJsonAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken,
+        TimeSpan? timeout = null)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(JsonTimeout);
+        deadline.CancelAfter(timeout ?? JsonTimeout);
 
         try
         {
@@ -535,6 +579,8 @@ public sealed class HrMentorClient : IHrMentorClient
 
     /// <summary>HRMentor xato tanasi: <c>{"error": {"code", "message", "details"}}</c>.</summary>
     private sealed record ErrorBody([property: JsonPropertyName("error")] ErrorPart? Error);
+
+    private sealed record ChangesBody([property: JsonPropertyName("revision")] string? Revision);
 
     private sealed record ErrorPart([property: JsonPropertyName("code")] string? Code);
 }

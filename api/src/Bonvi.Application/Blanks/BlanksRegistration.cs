@@ -11,6 +11,7 @@ internal static class BlanksRegistration
     {
         services.AddScoped<HrMentorSync>();
         services.AddScoped<HrMentorSyncJob>();
+        services.AddScoped<HrMentorChangeWatch>();
         services.AddScoped<FormTextsReader>();
         services.AddScoped<FormDefinitionsReader>();
 

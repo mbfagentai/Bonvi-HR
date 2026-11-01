@@ -185,6 +185,27 @@ internal sealed class HrMentorFake : IHrMentorClient
         return Task.FromResult(Result.Success(new HrMentorHoldingsReport(recorded, holdings.Count - recorded)));
     }
 
+    /// <summary>Platformaning hozirgi reviziyasi (<c>/platform/changes</c> javobi).</summary>
+    public string Revision { get; set; } = new('1', 64);
+
+    /// <summary>Kutish so'rovi shu xato bilan qaytadi; <c>null</c> — ro'yxat javobiga ergashadi.</summary>
+    public Error? ChangesAnswer { get; set; }
+
+    /// <summary>Kutishga berilgan <c>since</c> lar, tartib bilan.</summary>
+    public ConcurrentQueue<string?> ChangesAsked { get; } = new();
+
+    public Task<Result<string>> WaitForChangesAsync(HrMentorConnection connection, string? since, TimeSpan wait, CancellationToken cancellationToken)
+    {
+        LastConnection = connection;
+        ChangesAsked.Enqueue(since);
+        if ((Down ?? ChangesAnswer ?? PlatformAnswer) is { } error)
+        {
+            return Task.FromResult(Result.Failure<string>(error));
+        }
+
+        return Task.FromResult(Result.Success(Revision));
+    }
+
     /// <summary>Soxta platformaning identifikatori.</summary>
     public static readonly Guid PlatformId = Guid.Parse("0193aaaa-0000-7000-8000-000000000001");
 }

@@ -98,6 +98,11 @@ public static class BackgroundJobs
 
         builder.Services.AddHangfireBackgroundJobQueue();
 
+        // HRMentor dagi o'zgarishni kutib turadi (SPEC-hujjat-manbai §7): HR saqlashi bilan
+        // sinxronlash darhol. Besh daqiqalik `hrmentor:sync` xavfsizlik to'ri bo'lib qoladi.
+        // `Testing` da yo'q — testlar qadamni (`HrMentorChangeWatch`) o'zi chaqiradi.
+        builder.Services.AddHostedService<HrMentorChangeWatcher>();
+
         return builder;
     }
 
@@ -193,8 +198,9 @@ public static class BackgroundJobs
         jobs.RemoveIfExists(ProbationAutoPassJobId);
 
         // Har 5 daqiqada (…:01, :06, :11, …) — 15 daqiqalik davomat vazifalari bilan bir
-        // daqiqaga tushmasin. HRMentor ulanmagan bo'lsa yurish hech narsa qilmaydi; HR matnni
-        // o'zgartirsa anketa va PDF uni ko'pi bilan 5 daqiqada oladi.
+        // daqiqaga tushmasin. HRMentor ulanmagan bo'lsa yurish hech narsa qilmaydi. HR o'zgarishini
+        // odatda `HrMentorChangeWatcher` soniyalarda olib keladi (SPEC-hujjat-manbai §7); bu yurish —
+        // xavfsizlik to'ri: halqa ishlamasa ham o'zgarish ko'pi bilan 5 daqiqada keladi.
         jobs.AddOrUpdate<HrMentorSyncJob>(
             HrMentorSyncJobId,
             job => job.RunAsync(CancellationToken.None),

@@ -81,8 +81,43 @@ mounts it read-only at `/repo` (`BONVI_REPO_DIR`); on a host checkout the root i
 - Sync: 403 `platforms.key_not_bound`, 403 without the permission, 404 → legacy list, `blanksSource =
   legacy`; any other error is the step's error as today (no fallback that hides a real failure).
 - The guard of §3, proven red once by adding a PDF type and a template file.
+- The change wait of §7: not connected → nothing asked; first answer → sync; same revision → no sync; a new
+  revision → sync at once; a failed sync keeps the old revision; not ready / off / network errors keep it
+  and name the code; the loop starts, syncs on a change and stops cleanly; the client's query, bounds and
+  error mapping; the back-off steps.
 
 ## 6. Rollout
 
 Local only until the owner says otherwise. Order: HRMentor first (its §20.12), then this system, then bind
 the key; the fallback keeps the page full in between.
+
+## 7. Hearing of a change at once (HRMentor `docs/SPEC.md` §21, added 2026-11-01)
+
+The owner, the same day: «hrmentorda xujjat yangilansa barcha platforma va loyihalar avtomatik tarzda xujjat
+yangilanganini bilib o'zlarini zudlik yangi xujjatlar bilan yangilab olishlari kerak». The five-minute
+`hrmentor:sync` alone means 0–5 minutes of delay; this section takes it to seconds.
+
+- **The wait.** A hosted service, `HrMentorChangeWatcher` (Api), keeps one `GET /api/v1/platform/changes`
+  open (`wait=25`, `since=<last revision>`). Each step runs in its own scope through `HrMentorChangeWatch`
+  (Application). HRMentor answers at once when what this platform would pull — its documents, their
+  assignment, the HR-F02 texts revision or the published definition — is not what `since` names, and
+  otherwise after 25 s.
+- **A new revision → sync now.** The same `HrMentorSync` run as the five-minute job, waiting up to two
+  minutes for a run in progress rather than skipping it. Only a clean run moves `since` to the new revision;
+  a failed or busy run keeps the old one, so the next step tries again. On start `since` is empty, so the
+  first answer syncs: nothing that changed while hr.bonvi.uz was down is missed.
+- **Our own writes never wake us.** The catalog, the profile and the holdings report change none of the
+  fields HRMentor's revision covers (§21.4 R1), so a sync does not call the next.
+- **Back-off** (`HrMentorWatchDelay`): after a sync, wait again at once — but syncs in a row with no
+  unchanged answer between them slow down like errors (5 s doubling to 5 min), so an HRMentor that answers
+  a new revision every time cannot drive a sync loop; after an unchanged answer, 1 s;
+  not connected 30 s (and `since` is dropped — the next connection may be another platform); key not bound
+  or an HRMentor without the route (404) 5 min; platform switched off 1 min; any other error 5 s doubling to
+  5 min.
+- **The safety net stays.** `hrmentor:sync` keeps running every five minutes; if the wait breaks, a change
+  still arrives within five minutes. The legacy `/blanks` list (key not bound) is served only by that job.
+- **Journal:** EventId 4810 synced, 4811 a state change (code only), 4812 a crashed step (exception type
+  only), 4813 resumed. No key, address or body is written.
+- **Not in `Testing`.** The service is registered only where Hangfire is; tests drive the step and the loop
+  themselves.
+

@@ -135,6 +135,66 @@ public sealed class HrMentorClientPlatformTests
         (await client.ReportHoldingsAsync(Ulanish, [], Ct)).Error.ShouldBe(HrMentorErrors.Forbidden);
     }
 
+    [Fact]
+    public async Task Kutish_reviziya_va_vaqt_bilan_sorab_reviziyani_qaytaradi()
+    {
+        var eski = new string('a', 64);
+        var yangi = new string('b', 64);
+        var stub = new Stub(_ => Javob(HttpStatusCode.OK, $$"""{"revision": "{{yangi}}"}"""));
+        var client = new HrMentorClient(new HttpClient(stub));
+
+        var natija = await client.WaitForChangesAsync(Ulanish, eski, TimeSpan.FromSeconds(25), Ct);
+
+        natija.Value.ShouldBe(yangi);
+        var sorov = stub.Requests.ShouldHaveSingleItem();
+        sorov.Method.ShouldBe(HttpMethod.Get);
+        sorov.RequestUri!.AbsolutePath.ShouldBe("/api/v1/platform/changes");
+        sorov.RequestUri.Query.ShouldBe($"?wait=25&since={eski}");
+        sorov.Headers.Authorization!.Scheme.ShouldBe("Bearer");
+    }
+
+    [Theory]
+    [InlineData(null, 25, "?wait=25")]
+    [InlineData("noto'g'ri&since=x", 25, "?wait=25")]
+    [InlineData(null, 600, "?wait=30")]
+    [InlineData(null, -5, "?wait=0")]
+    public async Task Kutish_sorovi_chegarada(string? since, int soniya, string kutilgan)
+    {
+        var stub = new Stub(_ => Javob(HttpStatusCode.OK, $$"""{"revision": "{{new string('c', 64)}}"}"""));
+        var client = new HrMentorClient(new HttpClient(stub));
+
+        (await client.WaitForChangesAsync(Ulanish, since, TimeSpan.FromSeconds(soniya), Ct)).IsSuccess.ShouldBeTrue();
+
+        stub.Requests.ShouldHaveSingleItem().RequestUri!.Query.ShouldBe(kutilgan);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden, "platforms.key_not_bound", "hrmentor.platform_not_ready")]
+    [InlineData(HttpStatusCode.NotFound, null, "hrmentor.platform_not_ready")]
+    [InlineData(HttpStatusCode.Forbidden, "platforms.platform_inactive", "hrmentor.platform_off")]
+    [InlineData(HttpStatusCode.Unauthorized, "app.not_authenticated", "hrmentor.unauthorized")]
+    [InlineData(HttpStatusCode.UnprocessableEntity, "app.validation_error", "hrmentor.rejected")]
+    [InlineData(HttpStatusCode.BadGateway, null, "hrmentor.server_error")]
+    public async Task Kutish_xatosi_royxatniki_kabi(HttpStatusCode holat, string? kod, string kutilgan)
+    {
+        var client = new HrMentorClient(new HttpClient(new Stub(_ => Javob(holat, kod is null ? "<html/>" : Xato(kod)))));
+
+        (await client.WaitForChangesAsync(Ulanish, null, TimeSpan.FromSeconds(25), Ct)).Error.Code.ShouldBe(kutilgan);
+    }
+
+    [Theory]
+    [InlineData("""{"revision": "QISQA"}""")]
+    [InlineData("""{"revision": null}""")]
+    [InlineData("""{}""")]
+    [InlineData("""[]""")]
+    [InlineData("""{not json""")]
+    public async Task Kutish_javobi_shaklsiz_bolsa_tushunarsiz(string tana)
+    {
+        var client = new HrMentorClient(new HttpClient(new Stub(_ => Javob(HttpStatusCode.OK, tana))));
+
+        (await client.WaitForChangesAsync(Ulanish, null, TimeSpan.FromSeconds(25), Ct)).Error.ShouldBe(HrMentorErrors.BadResponse);
+    }
+
     private static JsonObject Qator(Guid hujjat, Guid versiya) => new()
     {
         ["document_id"] = hujjat,
