@@ -1,6 +1,8 @@
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Recruiting.Common;
+using Bonvi.Application.Recruiting.Forms.Dynamic;
+using Bonvi.Application.Recruiting.Forms.Texts;
 using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
@@ -100,6 +102,16 @@ public sealed class ListCandidateFormsQueryHandler
 /// Surat va imzo yo'qolgan bo'lsa (disk tiklanmagan) — PDF ular siz chiziladi,
 /// xato berilmaydi.
 /// </para>
+/// <para>
+/// <b>Matnlar — anketa yuborilgan paytdagi reviziya</b> (<see cref="CandidateForm.TextsRevision"/>,
+/// SPEC-blankalar-hrmentor §5.3): HR keyin savolni o'zgartirsa ham imzolangan anketa o'z so'zlari
+/// bilan chiqadi. Reviziyasiz (eski) anketa — o'rnatilgan matnlar.
+/// </para>
+/// <para>
+/// <b>Konstruktor anketasi</b> (<see cref="CandidateForm.DefinitionVersion"/>) — o'z versiyasining
+/// saqlangan ta'rifidan (SPEC-anketa-konstruktori R4): keyin qancha versiya chiqsa ham imzolangan
+/// anketa o'z bo'limlari va savollari bilan chiqadi.
+/// </para>
 /// </remarks>
 public sealed class GetCandidateFormPdfQueryHandler
 {
@@ -113,6 +125,9 @@ public sealed class GetCandidateFormPdfQueryHandler
     private readonly SquarePhotoStore _photos;
     private readonly IFileStorage _storage;
     private readonly IQuestionnairePdfRenderer _pdf;
+    private readonly FormTextsReader _texts;
+    private readonly FormDefinitionsReader _definitions;
+    private readonly IDynamicFormPdfRenderer _dynamicPdf;
 
     public GetCandidateFormPdfQueryHandler(
         ICandidateRepository candidates,
@@ -122,7 +137,10 @@ public sealed class GetCandidateFormPdfQueryHandler
         SystemSettingsReader settings,
         SquarePhotoStore photos,
         IFileStorage storage,
-        IQuestionnairePdfRenderer pdf)
+        IQuestionnairePdfRenderer pdf,
+        FormTextsReader texts,
+        FormDefinitionsReader definitions,
+        IDynamicFormPdfRenderer dynamicPdf)
     {
         _candidates = candidates;
         _forms = forms;
@@ -132,6 +150,9 @@ public sealed class GetCandidateFormPdfQueryHandler
         _photos = photos;
         _storage = storage;
         _pdf = pdf;
+        _texts = texts;
+        _definitions = definitions;
+        _dynamicPdf = dynamicPdf;
     }
 
     public async Task<Result<CandidateFormPdf>> HandleAsync(
@@ -147,7 +168,21 @@ public sealed class GetCandidateFormPdfQueryHandler
             return CandidateFormErrors.NotFound;
         }
 
-        var answers = QuestionnaireFormJson.Read(form.Answers);
+        // Konstruktor anketasi — o'z versiyasi bilan (sinf izohi); o'rnatilgan — o'z yozuvidan
+        DynamicFormAnswers? dynamicAnswers = null;
+        QuestionnaireFormAnswers? answers;
+
+        if (form.DefinitionVersion is { } version)
+        {
+            var definition = await _definitions.FindAsync(version, cancellationToken).ConfigureAwait(false);
+            dynamicAnswers = definition is null ? null : DynamicFormAnswers.Read(definition.Definition, form.Answers);
+            answers = dynamicAnswers is null ? null : DynamicFormMapping.Person(dynamicAnswers);
+        }
+        else
+        {
+            answers = QuestionnaireFormJson.Read(form.Answers);
+        }
+
         if (answers is null)
         {
             return CandidateFormErrors.NotFound;
@@ -180,19 +215,35 @@ public sealed class GetCandidateFormPdfQueryHandler
         // Variantlar BUGUNGI ma'lumotnomadan: faollari va tanlangani (u faolsizlantirilgan
         // bo'lsa ham) — `QuestionnairePdfChoice.ReferralChannels` izohi
         var referralChannels = await _referralChannels.ListAsync(onlyActive: false, cancellationToken).ConfigureAwait(false);
+        var texts = await _texts.ForRevisionAsync(form.TextsRevision, cancellationToken).ConfigureAwait(false);
 
-        var pdf = await _pdf.RenderAsync(
-            new QuestionnairePdfModel(
-                answers,
-                form.Number,
-                form.SubmittedAt.ToTashkent(),
-                title,
-                form.Language,
-                photoBytes,
-                signatureBytes,
-                QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId),
-                form.FormVersion),
-            cancellationToken).ConfigureAwait(false);
+        var referralChoices = QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId);
+
+        var pdf = dynamicAnswers is not null
+            ? await _dynamicPdf.RenderAsync(
+                new DynamicFormPdfModel(
+                    dynamicAnswers,
+                    form.Number,
+                    form.SubmittedAt.ToTashkent(),
+                    title,
+                    form.Language,
+                    photoBytes,
+                    signatureBytes,
+                    referralChoices),
+                cancellationToken).ConfigureAwait(false)
+            : await _pdf.RenderAsync(
+                new QuestionnairePdfModel(
+                    answers,
+                    form.Number,
+                    form.SubmittedAt.ToTashkent(),
+                    title,
+                    form.Language,
+                    photoBytes,
+                    signatureBytes,
+                    referralChoices,
+                    form.FormVersion,
+                    texts),
+                cancellationToken).ConfigureAwait(false);
 
         return new CandidateFormPdf(SubmitQuestionnaireFormCommandHandler.FileName(form.Number, answers), pdf);
     }

@@ -12,6 +12,7 @@ import {
   Compass,
   Cpu,
   DoorOpen,
+  FileStack,
   FileText,
   Gauge,
   Gavel,
@@ -409,6 +410,8 @@ export const NAV: NavSection[] = [
       // `permission` izohiga qarang).
       { key: 'incidents',  to: '/hodisalar',    icon: HeartPulse,    permission: 'safety.view' },
       { key: 'feedback',   to: '/qayta-aloqa',  icon: MessageSquareQuote, permission: 'feedback.view' },
+      // HRMentor dan keladigan blankalar — o'qish va yuklab olish (SPEC-blankalar-hrmentor §6)
+      { key: 'blanks',     to: '/blankalar',    icon: FileStack,     permission: 'employees.view' },
     ],
   },
   {

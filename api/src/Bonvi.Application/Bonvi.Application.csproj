@@ -23,4 +23,13 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 
+  <!--
+    HRMentor katalogi uchun kiosk matnlari (SPEC-blankalar-hrmentor §4). Qo'lda tahrirlanmaydi:
+    node web/scripts/export-kiosk-texts.mjs — eskirganini `./bonvi check` sezadi.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Recruiting\Forms\Texts\kiosk-texts.json"
+                      LogicalName="Bonvi.Application.Recruiting.Forms.Texts.kiosk-texts.json" />
+  </ItemGroup>
+
 </Project>

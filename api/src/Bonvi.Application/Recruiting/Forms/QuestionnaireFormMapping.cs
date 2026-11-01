@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bonvi.Application.Recruiting.Forms.Texts;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Recruiting;
@@ -60,10 +61,15 @@ public static class QuestionnaireFormMapping
     /// <param name="candidateId">Nomzod.</param>
     /// <param name="answers">TEKSHIRILGAN javoblar.</param>
     /// <param name="consentAt">Shaxsiy ma'lumotga rozilik lahzasi — yuborilgan vaqt.</param>
+    /// <param name="texts">
+    /// Anketa yuborilgan paytdagi HR matnlari — ofis dasturlarining nomi PDF'dagidek
+    /// (SPEC-blankalar-hrmentor §5.3); <c>null</c> — o'rnatilgan nomlar.
+    /// </param>
     public static Result<CandidateQuestionnaire> ToQuestionnaire(
         Guid candidateId,
         QuestionnaireFormAnswers answers,
-        DateTimeOffset consentAt)
+        DateTimeOffset consentAt,
+        FormTexts? texts = null)
     {
         ArgumentNullException.ThrowIfNull(answers);
 
@@ -78,7 +84,7 @@ public static class QuestionnaireFormMapping
             consentAt.ToUniversalTime(),
             workExperience: WorkExperience(answers),
             otherLanguages: OtherLanguages(answers),
-            officeSkills: OfficeSkills(answers),
+            officeSkills: OfficeSkills(answers, texts ?? FormTexts.Empty),
             lastSalary: answers.LastSalary is { } last ? Money(last) : null,
             extraNote: answers.ExtraNote,
             hasDriverLicense: answers.HasDriverLicense == true,
@@ -172,7 +178,7 @@ public static class QuestionnaireFormMapping
         return lines.Count == 0 ? null : string.Join('\n', lines);
     }
 
-    private static string? OfficeSkills(QuestionnaireFormAnswers answers)
+    private static string? OfficeSkills(QuestionnaireFormAnswers answers, FormTexts texts)
     {
         var skills = answers.ComputerSkills;
         if (skills is null || skills.Count == 0)
@@ -180,7 +186,8 @@ public static class QuestionnaireFormMapping
             return null;
         }
 
-        var parts = QuestionnaireFormCatalog.OfficeGroup.Items
+        // Ofis ustuni — QuestionnaireFormCatalog.OfficeGroup bilan bir o'rinda (ikkinchisi)
+        var parts = texts.ComputerGroups(skills)[1].Items
             .Where(item => skills.ContainsKey(item.Key))
             .Select(item => $"{item.Label} — {skills[item.Key]}")
             .ToList();

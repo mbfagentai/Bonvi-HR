@@ -14,14 +14,14 @@ import {
   type DraftLanguage,
 } from '../../lib/kiosk-draft'
 import {
-  COMPUTER_GROUPS,
   COMPUTER_LEVELS,
   COMPUTER_SKILLS,
   EDUCATION_OPTIONS,
+  FIXED_LANGUAGES,
   LANGUAGE_ASPECTS,
   lowerFirst,
-  type ComputerSkillKey,
 } from '../../lib/kiosk-options'
+import { COMPUTER_LIST, computerRows, useKioskList, visibleValues } from '../../lib/kiosk-texts'
 import {
   ChoiceGroup,
   DigitsField,
@@ -43,6 +43,7 @@ const LANGUAGE_LEVELS = [0, 1, 2, 3, 4, 5] as const
 export function EducationScreen(props: ScreenProps) {
   const { draft, patch, errors } = props
   const { t } = useLocale()
+  const levels = useKioskList('education')
   const fieldError = useFieldError(errors)
   const editor = useRowEditor('educations', props, emptyEducation)
   const sheetError = useFieldError(editor.errors)
@@ -59,7 +60,10 @@ export function EducationScreen(props: ScreenProps) {
         value={draft.educationLevel}
         onChange={(educationLevel) => patch({ educationLevel })}
         error={fieldError('educationLevel')}
-        options={EDUCATION_OPTIONS.map((value) => ({ value, label: t(`kiosk.education.${lowerFirst(value)}`) }))}
+        options={visibleValues(levels, EDUCATION_OPTIONS, (value) => value === draft.educationLevel).map((value) => ({
+          value,
+          label: t(`kiosk.education.${lowerFirst(value)}`),
+        }))}
       />
 
       <section className="space-y-2.5">
@@ -190,6 +194,7 @@ export function SchoolScreen({ draft, patch, errors }: ScreenProps) {
  */
 export function LanguagesScreen({ draft, patch, errors }: ScreenProps) {
   const { t } = useLocale()
+  const languageList = useKioskList('language')
   const fieldError = useFieldError(errors)
   // `shown` outlives `open` so the sheet keeps its content while it slides away.
   const [shown, setShown] = useState<number | null>(null)
@@ -200,6 +205,19 @@ export function LanguagesScreen({ draft, patch, errors }: ScreenProps) {
   }
 
   const languages = draft.languages
+
+  /*
+    The four fixed rows in HR's order (the PDF prints them the same way), the
+    «Other» rows after them; the draft keeps its own order, only the display
+    follows HR — every handler still works with the row's draft index.
+  */
+  const fixedOrder: readonly string[] = visibleValues(languageList, FIXED_LANGUAGES)
+  const rank = (row: DraftLanguage) => {
+    const at = fixedOrder.indexOf(row.language)
+    return row.language === 'Other' || at < 0 ? fixedOrder.length : at
+  }
+  const ordered = languages.map((row, index) => ({ row, index })).sort((a, b) => rank(a.row) - rank(b.row))
+
   const otherCount = languages.filter((row) => row.language === 'Other').length
   const open = isOpen ? shown : null
   const current = shown === null ? undefined : languages[shown]
@@ -235,7 +253,7 @@ export function LanguagesScreen({ draft, patch, errors }: ScreenProps) {
       <ScreenHint>{t('kiosk.languages.legend')}</ScreenHint>
 
       <div className="space-y-2.5">
-        {languages.map((row, index) => {
+        {ordered.map(({ row, index }) => {
           const blank = row.speaking === null && row.reading === null && row.writing === null
           const rowBase = `languages.${index}`
 
@@ -342,10 +360,14 @@ export function LanguagesScreen({ draft, patch, errors }: ScreenProps) {
  * level is «does not know»; tapping the chosen level again clears it.
  */
 export function ComputerScreen({ draft, patch, errors }: ScreenProps) {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const fieldError = useFieldError(errors)
+  const list = useKioskList(COMPUTER_LIST)
 
-  const setSkill = (key: ComputerSkillKey, level: number | null) => {
+  // HR's order and HR-added skills; a hidden skill stays while it has a level
+  const groups = computerRows(list, COMPUTER_SKILLS, t, locale, (key) => draft.computerSkills[key] !== undefined)
+
+  const setSkill = (key: string, level: number | null) => {
     const next = { ...draft.computerSkills }
     if (level === null) delete next[key]
     else next[key] = level
@@ -359,13 +381,12 @@ export function ComputerScreen({ draft, patch, errors }: ScreenProps) {
         <p className="text-subhead font-medium text-balance text-[var(--fg-secondary)]">{t('kiosk.computer.scale')}</p>
       </div>
 
-      {COMPUTER_GROUPS.map((group) => (
+      {groups.filter((group) => group.skills.length > 0).map(({ id: group, skills }) => (
         <section key={group} className="space-y-2.5">
           <h2 className="text-body font-medium">{t(`kiosk.computer.group.${group}`)}</h2>
 
           <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border-strong)] bg-[var(--bg-elevated)]">
-            {COMPUTER_SKILLS[group].map((key) => {
-              const label = t(`kiosk.computer.skill.${key}`)
+            {skills.map(({ key, label }) => {
               // «Google Docs / Sheets» wraps after the slash, never before it.
               const shown = label.replaceAll(' / ', '\u00a0/ ')
 

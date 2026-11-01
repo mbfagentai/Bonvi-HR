@@ -21,7 +21,6 @@ import {
   isAboutAsked,
   isComputerSkillKey,
   type AboutQuestion,
-  type ComputerSkillKey,
   type ConsentKey,
   type DriverLicenseCategory,
   type WizardScreen,
@@ -111,7 +110,8 @@ export interface KioskDraft {
   courses: string
 
   languages: DraftLanguage[]
-  computerSkills: Partial<Record<ComputerSkillKey, number>>
+  /** Built-in keys and HR-added ones (`x-…`, SPEC-blankalar-hrmentor §5.2). */
+  computerSkills: Partial<Record<string, number>>
   computerSkillsOther: string
 
   /**
@@ -180,7 +180,7 @@ export const MAX_OTHER_LANGUAGES = 3
 
 /* ─────────────────────────────────────────────────────────── factories */
 
-function newId(): string {
+export function newId(): string {
   // `crypto.randomUUID` needs a secure context — the tablet opens the site over HTTPS,
   // the fallback only keeps plain-HTTP dev setups working.
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
@@ -360,18 +360,26 @@ export const draftStorage = {
   },
 }
 
+/** An HR-added computer skill key — the shape the server accepts on an open list. */
+const ADDED_SKILL = /^x-[A-Za-z0-9_.-]{1,78}$/
+
 /**
  * Only the skills the form still asks, each with a level of the scale. The
  * server rejects any other key (SPEC §3.4), so a removed skill from an older
  * draft (`python`, `linux`, …) is dropped here instead of failing the submit.
+ *
+ * HR-added skills (`x-…`): with `offered` — only those HR's list still has
+ * (sending); without it — any of that shape (restoring a draft before the
+ * session is known; the send filters again).
  */
-export function knownComputerSkills(value: unknown): Partial<Record<ComputerSkillKey, number>> {
+export function knownComputerSkills(value: unknown, offered?: ReadonlySet<string>): Partial<Record<string, number>> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
 
   const levels: readonly number[] = COMPUTER_LEVELS
-  const skills: Partial<Record<ComputerSkillKey, number>> = {}
+  const skills: Partial<Record<string, number>> = {}
   for (const [key, level] of Object.entries(value)) {
-    if (isComputerSkillKey(key) && typeof level === 'number' && levels.includes(level)) skills[key] = level
+    const known = isComputerSkillKey(key) || (offered === undefined ? ADDED_SKILL.test(key) : offered.has(key))
+    if (known && typeof level === 'number' && levels.includes(level)) skills[key] = level
   }
   return skills
 }
@@ -426,6 +434,19 @@ export const KIOSK_ERROR_CODES = [
   'photo',
   'vacancy',
   'answer',
+  // Constructor form only (SPEC-anketa-konstruktori §7) — limits come from the definition
+  'ageRange',
+  'notBeforeToday',
+  'phoneAny',
+  'monthFuture',
+  'selectedMin',
+  'selectedMax',
+  'levelsAll',
+  'otherName',
+  'rowsMin',
+  'rowsMax',
+  'characters',
+  'invalid',
 ] as const
 export type KioskErrorCode = (typeof KIOSK_ERROR_CODES)[number]
 
@@ -446,6 +467,11 @@ export interface ValidationContext {
   hasSignature: boolean
   /** Active referral channels of the session: id → `asksDetail`. */
   referralChannels: ReadonlyMap<string, boolean>
+  /**
+   * Every computer key HR's list offers (hidden ones too). Absent — the
+   * built-in texts: only the built-in keys go to the server.
+   */
+  computerKeys?: ReadonlySet<string>
 }
 
 class Collector {
@@ -852,7 +878,10 @@ function optBool(value: boolean | null): boolean | undefined {
  * `null`s are asserted here, conditional fields are dropped when their
  * condition is off (a «Yo'q» answer never carries a stale detail).
  */
-export function toAnswers(draft: KioskDraft, context: Pick<ValidationContext, 'referralChannels'>): QuestionnaireAnswers {
+export function toAnswers(
+  draft: KioskDraft,
+  context: Pick<ValidationContext, 'referralChannels' | 'computerKeys'>,
+): QuestionnaireAnswers {
   const must = <T>(value: T | null): T => {
     if (value === null) throw new Error('Draft is not validated')
     return value
@@ -911,7 +940,7 @@ export function toAnswers(draft: KioskDraft, context: Pick<ValidationContext, 'r
         reading: row.reading ?? 0,
         writing: row.writing ?? 0,
       })),
-    computerSkills: knownComputerSkills(draft.computerSkills),
+    computerSkills: knownComputerSkills(draft.computerSkills, context.computerKeys ?? new Set()),
     computerSkillsOther: opt(draft.computerSkillsOther),
 
     // «Yo'q» sends no jobs and no referees, whatever an earlier «Ha» left in the draft.

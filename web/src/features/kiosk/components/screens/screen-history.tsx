@@ -14,6 +14,7 @@ import {
   type DraftJob,
 } from '../../lib/kiosk-draft'
 import { FAMILY_RELATIONS, lowerFirst } from '../../lib/kiosk-options'
+import { useKioskList, visibleValues } from '../../lib/kiosk-texts'
 import {
   CheckRow,
   DigitsField,
@@ -246,6 +247,8 @@ export function FamilyScreen(props: ScreenProps) {
   const { base } = editor
   const row = editor.editing?.value
 
+  const relations = useKioskList('relation')
+
   const relationLabel = (relation: FamilyRelation | '') =>
     relation === '' ? '' : t(`kiosk.relation.${lowerFirst(relation)}`)
 
@@ -284,7 +287,10 @@ export function FamilyScreen(props: ScreenProps) {
               <Select
                 label={<Label required>{t('kiosk.field.relation')}</Label>}
                 placeholder={t('kiosk.choose')}
-                options={FAMILY_RELATIONS.map((value) => ({ value, label: relationLabel(value) }))}
+                options={visibleValues(relations, FAMILY_RELATIONS, (value) => value === row.relation).map((value) => ({
+                  value,
+                  label: relationLabel(value),
+                }))}
                 value={row.relation}
                 onChange={(event) => editor.set({ relation: event.target.value as FamilyRelation | '' })}
                 error={sheetError(`${base}.relation`)}

@@ -3,7 +3,7 @@ import axios from 'axios'
 import type { KioskReferralChannelDto } from '@/shared/api/generated/model'
 import { api } from '@/shared/api/http-client'
 import { authStorage } from '@/shared/lib/auth-storage'
-import type { ComputerSkillKey } from '../lib/kiosk-options'
+import { parseDefinition, type KioskDefinition } from '../dynamic/definition'
 
 /**
  * Candidate questionnaire HR-F02 — the public side of
@@ -47,6 +47,43 @@ export interface KioskSession {
    * stayed open — the start screen reloads. Absent on an older server.
    */
   formVersion?: string
+  /**
+   * HR's wording from HRMentor (SPEC-blankalar-hrmentor §5.1): only the texts
+   * and lists HR changed. `null` — the built-in texts (integration off, no
+   * revision yet, or an older server).
+   */
+  texts: KioskTexts | null
+  /**
+   * The form HR built in HRMentor's constructor (SPEC-anketa-konstruktori §5.3):
+   * when present, `/anketa` renders it instead of the built-in form and sends
+   * its `version` back as `definitionVersion`. `null` — the built-in form.
+   */
+  definition: KioskDefinition | null
+}
+
+/** One option of an HR list — HR's order, its label per language, hidden or not. */
+export interface KioskTextOption {
+  value: string
+  /** Only on the computer list: `os`, `office`, `special`. */
+  group: string | null
+  label: Partial<Record<KioskLanguage, string>>
+  /** Not offered on a new form; a value already chosen stays and is accepted. */
+  hidden: boolean
+}
+
+/** An HR list as a whole: group titles (computer list) and the options in HR's order. */
+export interface KioskTextList {
+  groups: Record<string, Partial<Record<KioskLanguage, string>>>
+  options: KioskTextOption[]
+}
+
+export interface KioskTexts {
+  /** Sent back with the form (`textsRevision`) — the PDF keeps this revision's wording. */
+  revision: number
+  /** Language → `kiosk.*` key → HR's text. */
+  strings: Partial<Record<KioskLanguage, Record<string, string>>>
+  /** List id (`housing`, `computer`, …) → HR's whole list. */
+  lists: Record<string, KioskTextList>
 }
 
 /** The HR-F02 version this build of the form fills in. */
@@ -164,7 +201,8 @@ export interface QuestionnaireAnswers {
 
   languages: LanguageRow[]
   /** Level 1–4 per known skill; an absent key = does not know (SPEC §3.4). */
-  computerSkills: Partial<Record<ComputerSkillKey, number>>
+  /** Built-in keys (`msWord`) and HR-added ones (`x-…`) the session's list offers. */
+  computerSkills: Partial<Record<string, number>>
   computerSkillsOther?: string
 
   /**
@@ -248,6 +286,8 @@ export interface KioskSubmission {
   website: string
   /** Turnstile token — only when the bot check is on; the part is left out otherwise. */
   turnstileToken?: string | undefined
+  /** The HR texts revision the form was shown with; left out with the built-in texts. */
+  textsRevision?: number | undefined
 }
 
 /** The server's answer to a missing, invalid or expired Turnstile token (SPEC §2.3 item 2). */
@@ -257,7 +297,11 @@ export const BOT_CHECK_FAILED = 'anketa.bot_tekshiruvi'
 
 export async function fetchKioskSession(signal?: AbortSignal): Promise<KioskSession> {
   const { data } = await kioskApi.get<KioskSession>('/api/kiosk/questionnaire/session', { signal })
+  return parseKioskSession(data)
+}
 
+/** The session payload, read defensively (the preview page reads the same shape). */
+export function parseKioskSession(data: KioskSession | undefined): KioskSession {
   return {
     today: typeof data?.today === 'string' ? data.today : '',
     vacancies: Array.isArray(data?.vacancies)
@@ -280,7 +324,75 @@ export async function fetchKioskSession(signal?: AbortSignal): Promise<KioskSess
         ? data.turnstileSiteKey.trim()
         : null,
     ...(typeof data?.formVersion === 'string' && data.formVersion !== '' ? { formVersion: data.formVersion } : {}),
+    texts: parseTexts((data as { texts?: unknown } | undefined)?.texts),
+    definition: parseDefinition((data as { definition?: unknown } | undefined)?.definition),
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** Per-language labels; anything that is not a string of a form language is dropped. */
+function parseLabels(value: unknown): Partial<Record<KioskLanguage, string>> {
+  const labels: Partial<Record<KioskLanguage, string>> = {}
+  if (!isRecord(value)) return labels
+
+  for (const language of KIOSK_LANGUAGES) {
+    const text = value[language]
+    if (typeof text === 'string' && text.trim() !== '') labels[language] = text
+  }
+  return labels
+}
+
+/**
+ * The server shaped these texts against the catalog already; this only keeps
+ * a broken or foreign payload from reaching i18n. Strings outside `kiosk.*`
+ * are dropped: the overlay touches the form's own keys and nothing else.
+ */
+function parseTexts(value: unknown): KioskTexts | null {
+  if (!isRecord(value) || typeof value['revision'] !== 'number' || !Number.isInteger(value['revision'])) return null
+
+  const strings: KioskTexts['strings'] = {}
+  const rawStrings = value['strings']
+  if (isRecord(rawStrings)) {
+    for (const language of KIOSK_LANGUAGES) {
+      const bag = rawStrings[language]
+      if (!isRecord(bag)) continue
+      strings[language] = Object.fromEntries(
+        Object.entries(bag).filter(
+          (entry): entry is [string, string] => entry[0].startsWith('kiosk.') && typeof entry[1] === 'string',
+        ),
+      )
+    }
+  }
+
+  const lists: KioskTexts['lists'] = {}
+  const rawLists = value['lists']
+  if (isRecord(rawLists)) {
+    for (const [id, list] of Object.entries(rawLists)) {
+      if (!isRecord(list) || !Array.isArray(list['options'])) continue
+
+      const groups: KioskTextList['groups'] = {}
+      if (isRecord(list['groups'])) {
+        for (const [group, labels] of Object.entries(list['groups'])) groups[group] = parseLabels(labels)
+      }
+
+      lists[id] = {
+        groups,
+        options: (list['options'] as unknown[])
+          .filter((option): option is Record<string, unknown> => isRecord(option) && typeof option['value'] === 'string')
+          .map((option) => ({
+            value: option['value'] as string,
+            group: typeof option['group'] === 'string' ? option['group'] : null,
+            label: parseLabels(option['label']),
+            hidden: option['hidden'] === true,
+          })),
+      }
+    }
+  }
+
+  return { revision: value['revision'], strings, lists }
 }
 
 /**
@@ -290,6 +402,44 @@ export async function fetchKioskSession(signal?: AbortSignal): Promise<KioskSess
 export async function submitQuestionnaire(submission: KioskSubmission): Promise<KioskSubmitResult> {
   const form = new FormData()
   form.append('answers', JSON.stringify(submission.answers))
+  form.append('clientSubmissionId', submission.clientSubmissionId)
+  form.append('language', submission.language)
+  form.append('photo', submission.photo, 'photo.jpg')
+  form.append('signature', submission.signature, 'signature.png')
+  form.append('website', submission.website)
+  if (submission.turnstileToken) form.append('turnstileToken', submission.turnstileToken)
+  if (submission.textsRevision !== undefined) form.append('textsRevision', String(submission.textsRevision))
+
+  const { data } = await kioskApi.post<KioskSubmitResult>('/api/kiosk/questionnaire', form)
+
+  return {
+    formNumber: typeof data?.formNumber === 'number' ? data.formNumber : 0,
+    submittedAt: typeof data?.submittedAt === 'string' ? data.submittedAt : '',
+  }
+}
+
+/** The constructor's form being sent (SPEC-anketa-konstruktori §6). */
+export interface DynamicSubmission {
+  /** `{ fieldId: value }` (HRMentor §19.3 value shapes). */
+  answers: Record<string, unknown>
+  /** The version the candidate filled — the server validates against exactly that one (§5.3). */
+  definitionVersion: number
+  clientSubmissionId: string
+  language: KioskLanguage
+  photo: Blob
+  signature: Blob
+  website: string
+  turnstileToken?: string | undefined
+}
+
+/** The server no longer knows the version this page rendered (§5.3) — the page must reload. */
+export const DEFINITION_VERSION_UNKNOWN = 'anketa.versiya'
+
+/** Same endpoint and parts as the built-in form, plus `definitionVersion` and no `textsRevision`. */
+export async function submitDynamicQuestionnaire(submission: DynamicSubmission): Promise<KioskSubmitResult> {
+  const form = new FormData()
+  form.append('answers', JSON.stringify(submission.answers))
+  form.append('definitionVersion', String(submission.definitionVersion))
   form.append('clientSubmissionId', submission.clientSubmissionId)
   form.append('language', submission.language)
   form.append('photo', submission.photo, 'photo.jpg')

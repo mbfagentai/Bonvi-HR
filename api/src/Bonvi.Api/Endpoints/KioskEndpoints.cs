@@ -1,6 +1,7 @@
 using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Recruiting.Forms;
+using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,6 +28,11 @@ namespace Bonvi.Api.Endpoints;
 ///   <item>
 ///     <c>/api/recruiting/candidates/{id}/forms</c> — HR nomzod kartasida anketani
 ///     va uning PDF'ini ko'radi (<c>recruiting.view</c>).
+///   </item>
+///   <item>
+///     <c>/api/kiosk/questionnaire/preview</c> — HR HRMentor konstruktoridagi qoralamani nomzod
+///     ko'radigandek ko'radi va namuna PDF oladi (<c>recruiting.view</c>, SPEC-anketa-konstruktori
+///     §9). Prefiks ochiq formaniki, lekin guruh ALOHIDA — ochiqlik bu yerga o'tmaydi.
 ///   </item>
 /// </list>
 /// </remarks>
@@ -65,6 +71,7 @@ public static class KioskEndpoints
 
         MapPublicForm(app);
         MapForms(app);
+        MapPreview(app);
 
         return app;
     }
@@ -106,6 +113,9 @@ public static class KioskEndpoints
                 "(tug'ilgan sana va ishga chiqish sanasi chegaralari shundan). «turnstileSiteKey» — bot " +
                 "tekshiruvi (Cloudflare Turnstile) vidjetining OCHIQ kaliti: bo'lsa forma oxirgi ekranda " +
                 "vidjetni chizadi va yuborishda «turnstileToken» qismini yuboradi; null — tekshiruv o'chiq. " +
+                "«texts» — HR ning HRMentor da o'zgartirgan anketa matnlari: «{ revision, strings: { til: " +
+                "{ kalit: matn } }, lists: { ro'yxat: { groups, options: [{ value, group, label, hidden }] } } }» " +
+                "yoki null (o'rnatilgan matnlar); forma yuborishda «textsRevision» ni qaytaradi. " +
                 "Javobda nomzodlar haqida HECH NARSA yo'q. Tezlik: bitta mijoz IP'siga daqiqada 60 — " +
                 "«rate_limit.oshib_ketdi» (429).")
             .Produces<KioskSessionDto>(StatusCodes.Status200OK)
@@ -117,6 +127,8 @@ public static class KioskEndpoints
                 [FromForm] string? language,
                 [FromForm] string? website,
                 [FromForm] string? turnstileToken,
+                [FromForm] string? textsRevision,
+                [FromForm] string? definitionVersion,
                 IFormFile? photo,
                 IFormFile? signature,
                 HttpContext http,
@@ -139,7 +151,9 @@ public static class KioskEndpoints
                             signature?.Length ?? 0,
                             website,
                             turnstileToken,
-                            ClientIp.Resolve(http)?.ToString()),
+                            ClientIp.Resolve(http)?.ToString(),
+                            textsRevision,
+                            definitionVersion),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -178,7 +192,12 @@ public static class KioskEndpoints
                 "faqat seansda «turnstileSiteKey» bo'lsa majburiy; yo'q, yaroqsiz, muddati o'tgan yoki " +
                 "Cloudflare javob bermasa — «anketa.bot_tekshiruvi» (400, «field: turnstileToken») va hech " +
                 "narsa yozilmaydi; allaqachon qabul qilingan «clientSubmissionId» qayta kelsa token " +
-                "so'ralmaydi). «answers» 256 KB gacha. Avval vakansiya " +
+                "so'ralmaydi), «textsRevision» (seansdagi «texts.revision» — PDF nomzod ko'rgan matnlar bilan " +
+                "chiziladi; yo'q yoki noma'lum bo'lsa hozirgisi), «definitionVersion» (seansdagi " +
+                "«definition.version» — HRMentor konstruktorida yig'ilgan anketa: «answers» shu ta'rifning " +
+                "«{ maydon: qiymat }» javoblari, tekshiruv va PDF AYNAN shu versiya bilan; bazada yo'q — " +
+                "«anketa.versiya» (400, «field: definitionVersion»), forma sahifani yangilaydi; yo'q — " +
+                "o'rnatilgan anketa). «answers» 256 KB gacha. Avval vakansiya " +
                 "tekshiriladi (javob telefon mosligiga bog'liq emas), keyin telefoni VA familiya-ismi bir " +
                 "xil JARAYONDAGI nomzod bo'lsa anketani unga yozadi (faqat bo'sh maydonlarini to'ldiradi), " +
                 "aks holda yangi nomzod ochadi (manba «OnlineForm», birinchi bosqich); bot anketasi " +
@@ -192,7 +211,7 @@ public static class KioskEndpoints
                 "«anketa.json», «anketa.majburiy», «anketa.notogri», «anketa.uzun», «anketa.belgi», " +
                 "«anketa.bot_tekshiruvi», " +
                 "«anketa.rozilik», «anketa.imzo_ism», «anketa.rasm_yoq», «anketa.rasm_yaroqsiz», " +
-                "«anketa.imzo_yoq», «anketa.imzo_yaroqsiz», «telefon.*». Vakansiya yopilib qolgan bo'lsa: «vakansiya.topilmadi» " +
+                "«anketa.imzo_yoq», «anketa.imzo_yaroqsiz», «anketa.versiya», «telefon.*». Vakansiya yopilib qolgan bo'lsa: «vakansiya.topilmadi» " +
                 "(404), «vakansiya.qabul_qilmaydi» / «nomzod.umumiy_anketa_yoq» (409) — «field: vacancyId».")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<QuestionnaireSubmittedDto>(StatusCodes.Status201Created)
@@ -257,5 +276,126 @@ public static class KioskEndpoints
             .Produces(StatusCodes.Status200OK, contentType: "application/pdf")
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  HR — konstruktor anketasining ko'rinishi (saqlamaydi)
+    // ════════════════════════════════════════════════════════════
+
+    private static void MapPreview(IEndpointRouteBuilder app)
+    {
+        // ALOHIDA guruh: ochiq formaning AllowAnonymous / IP cheklovi / «Onlayn anketa» audit belgisi
+        // bu yerga tegmaydi — bajaruvchi kirgan HR
+        var group = app.MapGroup(Prefix + "/questionnaire/preview")
+            .WithTags("Kiosk")
+            .RequireAuthorization(Permissions.RecruitingView);
+
+        group.MapGet(string.Empty, async (
+                GetFormPreviewQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler.HandleAsync(new GetFormPreviewQuery(), cancellationToken).ConfigureAwait(false);
+
+                return natija.IsFailure ? PreviewProblem(natija.Error) : Results.Ok(natija.Value);
+            })
+            .WithName("GetQuestionnairePreview")
+            .WithSummary("Anketa ko'rinishi — konstruktordagi qoralama")
+            .WithDescription(
+                "Onlayn anketa seansi (vakansiyalar, kanallar, bugungi sana) — lekin «definition» HRMentor " +
+                "konstruktoridagi QORALAMA (har safar jonli, 20 soniya; «version» — 0, «label» — qoralama " +
+                "yorlig'i yoki «draft»). «turnstileSiteKey» va «texts» — null. Hech narsa saqlanmaydi. " +
+                "Xatolar: «hrmentor.not_connected» (409); HRMentor tomoni — «hrmentor.*» (502): " +
+                "«hrmentor.not_found» (qoralama yo'q), «hrmentor.definition_invalid» (qoralamada muammo " +
+                "bor yoki BonviHR tekshiruvidan o'tmadi; «field» — joyi), «hrmentor.timeout» va boshqalar.")
+            .Produces<KioskSessionDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status502BadGateway);
+
+        group.MapPost("/pdf", async (
+                [FromForm] string? answers,
+                [FromForm] string? language,
+                IFormFile? photo,
+                IFormFile? signature,
+                PreviewQuestionnairePdfCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                await using var photoStream = photo?.OpenReadStream();
+                await using var signatureStream = signature?.OpenReadStream();
+
+                var natija = await handler
+                    .HandleAsync(
+                        new PreviewQuestionnairePdfCommand(
+                            answers,
+                            language,
+                            photoStream,
+                            photo?.Length ?? 0,
+                            signatureStream,
+                            signature?.Length ?? 0),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.IsFailure
+                    ? PreviewProblem(natija.Error)
+                    : Results.File(natija.Value.Content, "application/pdf", natija.Value.FileName);
+            })
+
+            // CSRF himoyasi ortiqcha — JWT sarlavhada, sessiya cookie'da emas (nomzod fayllaridagidek)
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(MaxSubmitRequestBytes))
+            .WithFormOptions(
+                valueCountLimit: MaxFormValueCount,
+                valueLengthLimit: MaxFormValueBytes,
+                multipartBodyLengthLimit: MaxSubmitRequestBytes)
+            .RequireRateLimiting(RateLimitPolicies.FormPreviewPdf)
+            .WithName("PreviewQuestionnairePdf")
+            .WithSummary("Anketa ko'rinishi — namuna PDF")
+            .WithDescription(
+                "«multipart/form-data» — yuborishdagidek: «answers» (qoralama bo'yicha «{ maydon: qiymat }» " +
+                "JSON, 256 KB gacha), «language», «photo» va «signature» (IXTIYORIY; berilsa yuborishdagi " +
+                "chegaralar). Javoblar qoralama bo'yicha AYNAN yuborishdagidek tekshiriladi va PDF qaytadi " +
+                "(«Anketa №» o'rnida «Namuna»). Nomzod, anketa, fayl — HECH NARSA yozilmaydi. Tezlik: bitta " +
+                "HR hisobiga soatiga 30 — «rate_limit.oshib_ketdi» (429). Xatolar: anketa kodlari (400, " +
+                "«field» — maydon yo'li), «hrmentor.not_connected» (409), «hrmentor.*» (502).")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces(StatusCodes.Status200OK, contentType: "application/pdf")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status502BadGateway);
+    }
+
+    /// <summary>
+    /// Ko'rinish xatolari: ulanmagan — 409 (HR sozlamani to'g'rilaydi); HRMentor tomonidagi har qanday
+    /// xato — 502 (BonviHR emas, bog'langan tizim); qolgani — umumiy jadval bo'yicha.
+    /// </summary>
+    private static IResult PreviewProblem(Error error)
+    {
+        int? status = error.Code switch
+        {
+            "hrmentor.not_connected" => StatusCodes.Status409Conflict,
+            _ when error.Code.StartsWith("hrmentor.", StringComparison.Ordinal) => StatusCodes.Status502BadGateway,
+            _ => null,
+        };
+
+        if (status is null)
+        {
+            return Result.Failure(error).ToHttpResult();
+        }
+
+        var problem = new ProblemDetails
+        {
+            Status = status,
+            Title = error.Code,
+            Detail = error.Message,
+        };
+
+        foreach (var (key, value) in error.Details)
+        {
+            problem.Extensions[key] = value;
+        }
+
+        return Results.Problem(problem);
     }
 }

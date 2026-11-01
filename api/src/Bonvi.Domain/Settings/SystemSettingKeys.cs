@@ -749,6 +749,90 @@ public static class SystemSettingKeys
     /// </remarks>
     public const string McpEnabled = "mcp.enabled";
 
+    /// <summary>
+    /// HRMentor manzili (<c>https://docs.bonvi.uz</c>) — blankalar va anketa matnlari shu
+    /// yerdan olinadi (SPEC-blankalar-hrmentor §2).
+    /// </summary>
+    /// <remarks>
+    /// Manzil va <see cref="HrMentorApiKey"/> ikkalasi qo'yilsa ulanish yoqiladi; biri bo'sh
+    /// bo'lsa — o'chiq: anketa dasturdagi asl matnlar bilan ishlaydi, «Blankalar» sahifasi
+    /// «HRMentor ulanmagan» deydi. HRMentor bizga hech qachon o'zi murojaat qilmaydi.
+    /// </remarks>
+    public const string HrMentorBaseUrl = "hrmentor.baseUrl";
+
+    /// <summary>
+    /// HRMentor API kaliti — faqat <c>forms:sync</c> ruxsati bilan (SPEC-blankalar-hrmentor §2).
+    /// </summary>
+    /// <remarks>
+    /// Bot tokeni kabi shifrlanadi va hech qachon qaytarilmaydi. Naqsh HRMentor kaliti
+    /// shaklida (<see cref="HrMentorApiKeyPattern"/>): chala nusxa olingan kalit saqlashda
+    /// ushlanadi, aks holda xato faqat sinxronlash jurnalida qolardi.
+    /// </remarks>
+    public const string HrMentorApiKey = "hrmentor.apiKey";
+
+    /// <summary>
+    /// Oxirgi yuborilgan katalogning SHA-256 xeshi. Serverning O'ZI yozadi
+    /// (<see cref="SystemSettingKind.Hidden"/>): katalog o'zgarmasa qayta yuborilmaydi.
+    /// </summary>
+    public const string HrMentorCatalogHash = "hrmentor.catalogHash";
+
+    /// <summary>Oxirgi sinxronlash urinishi (ISO 8601 UTC). Serverning O'ZI yozadi.</summary>
+    public const string HrMentorLastAttemptAt = "hrmentor.lastAttemptAt";
+
+    /// <summary>Oxirgi XATOSIZ sinxronlash (ISO 8601 UTC). Serverning O'ZI yozadi.</summary>
+    public const string HrMentorLastSuccessAt = "hrmentor.lastSuccessAt";
+
+    /// <summary>
+    /// Oxirgi urinishning xato KODI («hrmentor.unauthorized», …) yoki bo'sh. Serverning O'ZI
+    /// yozadi. Faqat kod — hech qachon javob tanasi yoki sir.
+    /// </summary>
+    public const string HrMentorLastError = "hrmentor.lastError";
+
+    /// <summary>
+    /// Amaldagi konstruktor anketasining versiyasi (SPEC-anketa-konstruktori §5.1) yoki bo'sh —
+    /// dasturdagi o'rnatilgan anketa. Serverning O'ZI yozadi: HRMentor e'lonni qaytarib olsa
+    /// bo'shatiladi, saqlangan versiyalar esa qoladi.
+    /// </summary>
+    public const string HrMentorDefinitionVersion = "hrmentor.definitionVersion";
+
+    /// <summary>
+    /// Oxirgi yuborilgan profilning (bog'lanishlar + urug') SHA-256 i. Serverning O'ZI yozadi:
+    /// profil o'zgarmasa qayta yuborilmaydi.
+    /// </summary>
+    public const string HrMentorProfileHash = "hrmentor.profileHash";
+
+    /// <summary>
+    /// Blankalar qayerdan olingani (SPEC-hujjat-manbai §2): <see cref="HrMentorBlanksFromPlatform"/>
+    /// — HRMentor da shu platformaga biriktirilganlar, <see cref="HrMentorBlanksFromLegacy"/> —
+    /// kalit hali platformaga bog'lanmagan, eski umumiy ro'yxat; bo'sh — hali olinmagan.
+    /// Serverning O'ZI yozadi.
+    /// </summary>
+    public const string HrMentorBlanksSource = "hrmentor.blanksSource";
+
+    /// <summary><see cref="HrMentorBlanksSource"/> qiymati: platforma ro'yxati.</summary>
+    public const string HrMentorBlanksFromPlatform = "platform";
+
+    /// <summary><see cref="HrMentorBlanksSource"/> qiymati: eski <c>/blanks</c> ro'yxati.</summary>
+    public const string HrMentorBlanksFromLegacy = "legacy";
+
+    /// <summary>HRMentor API kalitining shakli: <c>hrm_</c> + 256 bit (43 belgi, URL-xavfsiz base64).</summary>
+    public const string HrMentorApiKeyPattern = @"^hrm_[A-Za-z0-9_-]{43}$";
+
+    /// <summary>
+    /// HRMentor manzili: <c>https://</c>, yoki <c>http://</c> faqat shu mashinaning
+    /// o'zidagi manzil (localhost, 127.0.0.1, [::1], host.docker.internal).
+    /// </summary>
+    /// <remarks>
+    /// Kalit so'rov sarlavhasida ketadi — tashqi tarmoqda faqat shifrlangan ulanish.
+    /// Mashina ichidagi http lokal sinov va bir serverdagi ikki dastur uchun:
+    /// trafik mashinadan chiqmaydi. Xuddi shu qoida <c>HrMentorConnection.From</c> da.
+    /// </remarks>
+    public const string HrMentorUrlPattern =
+        @"^(https://\S{3,}|http://(localhost|127\.0\.0\.1|\[::1\]|host\.docker\.internal)(:[0-9]{1,5})?(/\S*)?)$";
+
+    /// <summary>Lahza sozlamalarining shakli (ISO 8601, «o»).</summary>
+    public const string HrMentorMomentFormat = "o";
+
     /// <summary>Sirning eng katta uzunligi.</summary>
     /// <remarks>
     /// Telegram tokeni ~46 belgi. 200 — zaxira bilan: chegara bu yerda
@@ -1055,6 +1139,15 @@ public static class SystemSettingKeys
             Min: 1,
             Max: 120),
 
+        // HRMentor ulanishi (SPEC-blankalar-hrmentor §2): manzil va faqat `forms:sync` kaliti.
+        new(HrMentorBaseUrl, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: HrMentorUrlPattern),
+        new(
+            HrMentorApiKey,
+            SystemSettingKind.Secret,
+            string.Empty,
+            MaxLength: MaxSecretLength,
+            Pattern: HrMentorApiKeyPattern),
+
         // Yashirin qiymat ro'yxatning OXIRIDA: u ekranga chiqmaydi,
         // ya'ni tartibda joyi ham yo'q. Bot va bildirishnoma
         // guruhlarining orasiga tushib qolsa, keyingi sozlama
@@ -1067,6 +1160,19 @@ public static class SystemSettingKeys
 
         // «true» / «false» — 5 belgi.
         new(McpEnabled, SystemSettingKind.Hidden, "false", MaxLength: 5),
+
+        // HRMentor holati (SPEC-blankalar-hrmentor §2) — sinxronlash vazifasi yozadi.
+        new(HrMentorCatalogHash, SystemSettingKind.Hidden, string.Empty, MaxLength: 64),
+        new(HrMentorLastAttemptAt, SystemSettingKind.Hidden, string.Empty, MaxLength: 40),
+        new(HrMentorLastSuccessAt, SystemSettingKind.Hidden, string.Empty, MaxLength: 40),
+        new(HrMentorLastError, SystemSettingKind.Hidden, string.Empty, MaxLength: 80),
+
+        // Konstruktor anketasi (SPEC-anketa-konstruktori §5.1) — sinxronlash vazifasi yozadi.
+        new(HrMentorDefinitionVersion, SystemSettingKind.Hidden, string.Empty, MaxLength: 10),
+        new(HrMentorProfileHash, SystemSettingKind.Hidden, string.Empty, MaxLength: 64),
+
+        // Blankalar manbai (SPEC-hujjat-manbai §2) — «platform» yoki «legacy».
+        new(HrMentorBlanksSource, SystemSettingKind.Hidden, string.Empty, MaxLength: 10),
     ];
 
     /// <summary>

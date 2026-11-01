@@ -716,5 +716,14 @@ public sealed class CandidateFormConfiguration : IEntityTypeConfiguration<Candid
 
         // Karta nomzodning anketalarini yangisidan eskisiga o'qiydi
         builder.HasIndex(form => new { form.CandidateId, form.SubmittedAt });
+
+        // Konstruktor anketasi o'z versiyasiga bog'langan: versiya hech qachon o'chirilmaydi
+        // (SPEC-anketa-konstruktori §5.1). NULL — o'rnatilgan anketa, FK tekshirilmaydi.
+        builder.HasOne<FormDefinitionSnapshot>()
+            .WithMany()
+            .HasForeignKey(form => new { form.FormCode, form.DefinitionVersion })
+            .HasPrincipalKey(snapshot => new { snapshot.FormCode, snapshot.Version })
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

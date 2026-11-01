@@ -1,6 +1,7 @@
 using System.Globalization;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Auditing;
+using Bonvi.Domain.Blanks;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
@@ -409,6 +410,9 @@ public static class AuditCatalog
         [typeof(McpAuthCode)] = "bir martalik OAuth kodi — sir, bir necha daqiqa yashaydi",
         [typeof(McpToken)] = "OAuth tokeni — sir, har yangilashda almashadi",
         [typeof(McpAuditEntry)] = "AI chaqiruvlarining o'z jurnali (mcp_audit)",
+        [typeof(HrBlank)] = "HRMentor dagi blanka faylining nusxasi — mashina har sinxronda oladi; kim nimani o'zgartirgani HRMentor jurnalida, olish izi sinxron jurnalida (SPEC-hujjat-manbai §1)",
+        [typeof(FormDefinitionSnapshot)] = "HRMentor da e'lon qilingan anketa ta'rifi versiyasining nusxasi — mashina oladi, o'zgarmaydi; tahrir izi HRMentor jurnalida",
+        [typeof(FormTextSnapshot)] = "HRMentor dagi HR-F02 matnlari reviziyasining nusxasi — mashina oladi, o'zgarmaydi; tahrir izi HRMentor jurnalida",
     };
 
     /// <summary>Yoziladigan entity'lar va ularning qoidalari.</summary>

@@ -1,3 +1,4 @@
+using Bonvi.Application.Recruiting.Forms.Texts;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Recruiting;
 
@@ -53,6 +54,10 @@ public sealed record QuestionnairePdfChoice(string Label, bool Chosen)
 /// Sarlavhadagi blanka versiyasi. Bazadagi anketa O'Z versiyasi bilan chiziladi — 3.0 anketasi
 /// keyin ham «v3.0» (nomzod qaysi blankani to'ldirgani o'zgarmasin); sukut — joriy versiya.
 /// </param>
+/// <param name="Texts">
+/// HR matnlari (SPEC-blankalar-hrmentor §5.3) — anketa YUBORILGAN paytdagi reviziya, shunda
+/// imzolangan anketa keyin so'zini o'zgartirmaydi. <c>null</c> — o'rnatilgan matnlar.
+/// </param>
 public sealed record QuestionnairePdfModel(
     QuestionnaireFormAnswers Answers,
     int Number,
@@ -62,7 +67,8 @@ public sealed record QuestionnairePdfModel(
     byte[]? Photo,
     byte[]? Signature,
     IReadOnlyList<QuestionnairePdfChoice> ReferralChoices,
-    string FormVersion = CandidateForm.HrF02Version);
+    string FormVersion = CandidateForm.HrF02Version,
+    FormTexts? Texts = null);
 
 /// <summary>
 /// HR-F02 anketasini qog'oz blanka ko'rinishida PDF qiladi (SPEC §6.3).

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { CloudAlert, LoaderCircle, LogOut, ShieldAlert, WifiOff } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { DEFAULT_LOCALE } from '@/shared/i18n/locales'
@@ -15,8 +15,12 @@ import {
   kioskFailure,
   type KioskSession,
 } from '../api/kiosk-api'
+import { candidateFields, type KioskDefinition } from '../dynamic/definition'
+import { dynamicDraftStorage, emptyDynamicDraft, type DynamicDraft } from '../dynamic/dynamic-draft'
+import { DynamicWizard } from '../dynamic/dynamic-wizard'
 import { draftStorage, emptyDraft, type KioskDraft } from '../lib/kiosk-draft'
 import { resolveKioskRules } from '../lib/kiosk-mode'
+import { KioskListsContext, applyKioskTexts, restoreKioskTexts } from '../lib/kiosk-texts'
 import { isFormOnlySite } from '../lib/kiosk-site'
 import { useIdle } from '../lib/use-idle'
 import { KioskDone } from './kiosk-done'
@@ -29,6 +33,8 @@ const SESSION_REFRESH_MS = 10 * 60 * 1000
 type Phase =
   | { name: 'start' }
   | { name: 'wizard'; draft: KioskDraft }
+  /** The constructor's form (SPEC-anketa-konstruktori §7), pinned for the whole walk. */
+  | { name: 'dynamic'; definition: KioskDefinition; draft: DynamicDraft }
   | { name: 'done'; formNumber: number }
 
 /**
@@ -51,6 +57,8 @@ export function KioskPage({
   const [phase, setPhase] = useState<Phase>({ name: 'start' })
   const [savedDraft, setSavedDraft] = useState(() => draftStorage.load(rules.draftMaxAgeMs))
   const [hrSession, setHrSession] = useState(() => rules.tablet && hasHrSession())
+  /** The constructor form's saved draft — stored under its version, so read once the version is known. */
+  const [dynamicSaved, setDynamicSaved] = useState<{ version: number; draft: DynamicDraft | null } | null>(null)
 
   usePhoneViewport()
 
@@ -67,27 +75,53 @@ export function KioskPage({
     refetchInterval: phase.name === 'start' ? SESSION_REFRESH_MS : false,
   })
 
+  // A published constructor form replaces the built-in one; the definition is data, so a new
+  // version needs no reload — the next «Boshlash» takes it (the walk in progress keeps its own).
+  const definition = session.data?.definition ?? null
+  if (definition !== null && dynamicSaved?.version !== definition.version) {
+    setDynamicSaved({ version: definition.version, draft: dynamicDraftStorage.load(definition.version, rules.draftMaxAgeMs) })
+  }
+  const savedDynamic = definition !== null && dynamicSaved?.version === definition.version ? dynamicSaved.draft : null
+
+  const dropDrafts = useCallback(() => {
+    draftStorage.clear()
+    setSavedDraft(null)
+    dynamicDraftStorage.clear()
+    setDynamicSaved((current) => (current === null ? null : { ...current, draft: null }))
+  }, [])
+
   // Tablet mode: a draft nobody resumes is dropped — the next person must not be able to open it.
   useIdle(
     rules.startIdleMs ?? 0,
-    () => {
-      draftStorage.clear()
-      setSavedDraft(null)
-    },
-    rules.startIdleMs !== null && phase.name === 'start' && savedDraft !== null,
+    dropDrafts,
+    rules.startIdleMs !== null && phase.name === 'start' && (savedDraft !== null || savedDynamic !== null),
   )
+
+  const texts = session.data?.texts ?? null
+  const lists = useMemo(() => texts?.lists ?? {}, [texts])
+
+  /*
+    HR's texts go over the bundle WHILE rendering (idempotent per revision),
+    so the first frame already shows them; the effect covers a remount after
+    a cleanup (StrictMode) and puts the bundle back when the form is left.
+  */
+  applyKioskTexts(texts)
+  const [, rerender] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => {
+    if (applyKioskTexts(texts)) rerender()
+  }, [texts])
+  useEffect(() => () => void restoreKioskTexts(), [])
 
   const refetchSession = session.refetch
 
   const reset = useCallback(() => {
-    draftStorage.clear()
-    setSavedDraft(null)
+    dropDrafts()
     if (rules.tablet) setLocale(DEFAULT_LOCALE)
     setPhase({ name: 'start' })
     window.scrollTo({ top: 0 })
     // The next candidate starts here — ask whether a newer form went live meanwhile
     void refetchSession()
-  }, [rules.tablet, setLocale, refetchSession])
+  }, [dropDrafts, rules.tablet, setLocale, refetchSession])
 
   // A newer blank went live while this page stayed open (the office tablet is
   // never reloaded by hand): reload on the start screen, where nobody is
@@ -118,13 +152,32 @@ export function KioskPage({
 
   if (phase.name === 'wizard') {
     return (
-      <KioskWizard
+      <KioskListsContext.Provider value={lists}>
+        <KioskWizard
+          session={session.data}
+          initialDraft={phase.draft}
+          rules={rules}
+          onDone={(result) => {
+            draftStorage.clear()
+            setSavedDraft(null)
+            setPhase({ name: 'done', formNumber: result.formNumber })
+            window.scrollTo({ top: 0 })
+          }}
+          onCancel={reset}
+        />
+      </KioskListsContext.Provider>
+    )
+  }
+
+  if (phase.name === 'dynamic') {
+    return (
+      <DynamicWizard
         session={session.data}
+        definition={phase.definition}
         initialDraft={phase.draft}
         rules={rules}
         onDone={(result) => {
-          draftStorage.clear()
-          setSavedDraft(null)
+          dropDrafts()
           setPhase({ name: 'done', formNumber: result.formNumber })
           window.scrollTo({ top: 0 })
         }}
@@ -142,16 +195,26 @@ export function KioskPage({
   return (
     <KioskStart
       tablet={rules.tablet}
-      hasDraft={savedDraft !== null}
+      hasDraft={definition === null ? savedDraft !== null : savedDynamic !== null}
       noVacancies={session.data.vacancies.length === 0 && !session.data.generalPoolAvailable}
       presetVacancy={preset?.title ?? null}
       onStart={() => {
-        draftStorage.clear()
-        setSavedDraft(null)
-        setPhase({ name: 'wizard', draft: { ...emptyDraft(), vacancy: preset?.id ?? '' } })
+        dropDrafts()
+        if (definition !== null) {
+          setPhase({ name: 'dynamic', definition, draft: dynamicStart(definition, preset?.id ?? null) })
+        } else {
+          setPhase({ name: 'wizard', draft: { ...emptyDraft(), vacancy: preset?.id ?? '' } })
+        }
       }}
       onResume={() => {
         // Re-read: the draft may have aged past its limit while the start screen was open.
+        if (definition !== null) {
+          const fresh = dynamicDraftStorage.load(definition.version, rules.draftMaxAgeMs)
+          setDynamicSaved({ version: definition.version, draft: fresh })
+          if (fresh !== null) setPhase({ name: 'dynamic', definition, draft: fresh })
+          return
+        }
+
         const fresh = draftStorage.load(rules.draftMaxAgeMs)
         setSavedDraft(fresh)
         if (fresh !== null) setPhase({ name: 'wizard', draft: fresh })
@@ -178,6 +241,13 @@ function reloadOnceFor(version: string): void {
   window.location.reload()
 }
 
+/** A fresh constructor draft; `?vakansiya=` lands in the form's vacancy question. */
+function dynamicStart(definition: KioskDefinition, vacancyId: string | null): DynamicDraft {
+  const draft = emptyDynamicDraft()
+  const vacancy = candidateFields(definition).find((field) => field.kind === 'vacancy')
+  return vacancy === undefined || vacancyId === null ? draft : { ...draft, values: { [vacancy.id]: vacancyId } }
+}
+
 function presetVacancy(session: KioskSession, id: string | undefined): { id: string; title: string } | null {
   if (id === undefined) return null
   return session.vacancies.find((vacancy) => vacancy.id === id) ?? null
@@ -190,7 +260,7 @@ function presetVacancy(session: KioskSession, id: string | undefined): { id: str
  * view clear of them (`scroll-padding`). Only while `/anketa` is open; the HR
  * app keeps its own viewport.
  */
-function usePhoneViewport(): void {
+export function usePhoneViewport(): void {
   useEffect(() => {
     const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
     const previous = meta?.getAttribute('content') ?? null

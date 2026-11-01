@@ -1,5 +1,6 @@
 using System.Globalization;
 using Bonvi.Application.Recruiting.Forms;
+using Bonvi.Application.Recruiting.Forms.Texts;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,13 @@ namespace Bonvi.Infrastructure.Reports.Pdf;
 /// <para>
 /// B qism (12–14) bo'sh chiziladi — uni hozircha HR qo'lda to'ldiradi. Faqat
 /// ikki belgi tayyor: surat va imzolangan A qism onlayn olingan.
+/// </para>
+/// <para>
+/// <b>Matnlar HRMentor dan</b> (SPEC-blankalar-hrmentor §5.3): har bir o'zbekcha matn
+/// <see cref="FormTexts.Pdf(string)"/> orqali — HR o'zgartirgan bo'lsa uniki, aks holda
+/// <see cref="QuestionnairePdfTexts"/> dagi asl matn (PDF avvalgidek, bayt-baytigacha).
+/// Variantlar qatori (uy turi, ma'lumot, …) HR ro'yxati bo'yicha: tartib va nom HR niki,
+/// yashirilgan variant faqat tanlangan bo'lsa chiqadi.
 /// </para>
 /// </remarks>
 public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
@@ -66,7 +74,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
     /// 2 yadroli. Cheklovsiz bir lahzada kelgan o'nta so'rov HR ishini sekinlatardi. Uchinchisi
     /// navbatda kutadi — rad etilmaydi.
     /// </remarks>
-    private static readonly SemaphoreSlim RenderGate = new(2, 2);
+    internal static readonly SemaphoreSlim RenderGate = new(2, 2);
 
     private readonly ILogger<QuestionnairePdfRenderer> _logger;
 
@@ -143,10 +151,11 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             signature);
     }
 
-    private static string Base64(byte[] bytes) => "base64:" + Convert.ToBase64String(bytes);
+    /// <remarks>Konstruktor anketasi (<see cref="DynamicFormPdfRenderer"/>) ham shundan foydalanadi.</remarks>
+    internal static string Base64(byte[] bytes) => "base64:" + Convert.ToBase64String(bytes);
 
     /// <summary>Kvadrat suratni markazdan 3:4 (eni:bo'yi) ga qirqadi.</summary>
-    private static byte[] PortraitJpeg(byte[] source)
+    internal static byte[] PortraitJpeg(byte[] source)
     {
         EnsureWithin(source, MaxPhotoEdge, MaxPhotoEdge, "surat");
 
@@ -170,7 +179,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
     }
 
     /// <summary>Imzoni oq fonga yotqizadi — PDF'da shaffoflik chegarasi qolmasin.</summary>
-    private static byte[] FlatPng(byte[] source)
+    internal static byte[] FlatPng(byte[] source)
     {
         EnsureWithin(source, MaxSignatureWidth, MaxSignatureHeight, "imzo");
 
@@ -213,6 +222,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
     private sealed class Builder(QuestionnairePdfModel model, PdfImages images)
     {
         private readonly QuestionnaireFormAnswers _a = model.Answers;
+        private readonly FormTexts _t = model.Texts ?? FormTexts.Empty;
         private readonly Document _document = new();
         private Section _section = null!;
 
@@ -225,8 +235,8 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             InfoTable();
             Instruction();
 
-            Bar("A QISM", "NOMZOD TOMONIDAN TO‘LDIRILADI");
-            Hint("Barcha savollarga o‘zingiz javob bering.");
+            Bar(T("pdf.head.partA"), T("pdf.head.partAText"));
+            Hint(T("pdf.head.partAHint"));
 
             Personal();
             Education();
@@ -285,14 +295,14 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             header.Format.Font.Color = Muted;
 
             var headerRow = header.AddRow();
-            headerRow.Cells[0].AddParagraph("MBF Company — HR hujjatlar paketi");
+            headerRow.Cells[0].AddParagraph(T("pdf.head.company"));
             var right = headerRow.Cells[1].AddParagraph();
             right.Format.Alignment = ParagraphAlignment.Right;
             right.AddText("HR-F02");
             right.AddSpace(2);
             right.AddText("·");
             right.AddSpace(2);
-            right.AddText("Nomzod anketasi");
+            right.AddText(T("pdf.head.formName"));
             right.AddSpace(2);
             right.AddText("·");
             right.AddSpace(2);
@@ -302,7 +312,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             footer.Format.Alignment = ParagraphAlignment.Center;
             footer.Format.Font.Size = 8;
             footer.Format.Font.Color = Muted;
-            footer.AddText("Sahifa ");
+            footer.AddText(T("pdf.head.page") + " ");
             footer.AddPageField();
             footer.AddText(" / ");
             footer.AddNumPagesField();
@@ -329,17 +339,17 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
             var title = row.Cells[1].AddParagraph();
             title.Format.Alignment = ParagraphAlignment.Center;
-            var titleText = title.AddFormattedText("NOMZOD ANKETASI", TextFormat.Bold);
+            var titleText = title.AddFormattedText(T("pdf.head.title"), TextFormat.Bold);
             titleText.Font.Size = 17;
             titleText.Font.Color = Navy;
 
-            Centered(row.Cells[1], "Ishga qabul qilish uchun", 9, Muted).Format.SpaceBefore = 3;
-            var form = Centered(row.Cells[1], "Blanka HR-F02", 8, Muted);
+            Centered(row.Cells[1], T("pdf.head.subtitle"), 9, Muted).Format.SpaceBefore = 3;
+            var form = Centered(row.Cells[1], T("pdf.head.blank"), 8, Muted);
             form.Format.SpaceBefore = 2;
             form.AddSpace(2);
             form.AddText("·");
             form.AddSpace(2);
-            form.AddText("Versiya " + model.FormVersion);
+            form.AddText(T("pdf.head.version") + " " + model.FormVersion);
 
             var photo = row.Cells[2];
             photo.Borders.Visible = true;
@@ -356,8 +366,8 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             else
             {
                 var label = photo.AddParagraph();
-                label.AddFormattedText("Rasm", TextFormat.Bold).Font.Color = Muted;
-                Centered(photo, "3 × 4 sm", 8, Muted);
+                label.AddFormattedText(T("pdf.head.photo"), TextFormat.Bold).Font.Color = Muted;
+                Centered(photo, T("pdf.head.photoSize"), 8, Muted);
             }
 
             Spacer(6);
@@ -368,18 +378,18 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             var table = Grid(2.29, 3.17, 1.59, 5.11, 1.94, 3.89);
 
             var first = Row(table, 0.74);
-            Label(first.Cells[0], "Anketa №");
+            Label(first.Cells[0], T("pdf.head.number"));
             Value(first.Cells[1], model.Number.ToString(Invariant)).Format.Font.Bold = true;
-            Label(first.Cells[2], "Sana");
+            Label(first.Cells[2], T("pdf.head.date"));
             Value(first.Cells[3], Date(DateOnly.FromDateTime(model.SubmittedAt.DateTime)));
-            Label(first.Cells[4], "So‘rov №");
+            Label(first.Cells[4], T("pdf.head.request"));
             Value(first.Cells[5], "(HR-F01)").Format.Font.Color = Muted;
 
             var second = Row(table, 0.74);
-            Label(second.Cells[0], "Lavozim");
+            Label(second.Cells[0], T("pdf.head.vacancy"));
             Value(second.Cells[1], model.VacancyTitle);
             second.Cells[1].MergeRight = 2;
-            Label(second.Cells[4], "Bo‘lim");
+            Label(second.Cells[4], T("pdf.head.department"));
             Value(second.Cells[5], null);
         }
 
@@ -390,97 +400,113 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             text.Format.Font.Size = 8;
             text.Format.Font.Italic = true;
             text.Format.Font.Color = Muted;
-            text.AddText("Anketani aniq va to‘liq to‘ldiring. Javob variantlaridan keraklisini belgilang (");
+            var (before, after) = _t.PdfAround("pdf.head.instruction", "box");
+            text.AddText(before);
             Box(text, true);
-            text.AddText("). Sizga tegishli bo‘lmagan savolga «yo‘q» yoki «—» deb yozing. A qismni nomzod, B qismni HR bo‘limi to‘ldiradi.");
+            text.AddText(after);
         }
 
         // ════════════════════════════════════════════════ 1. shaxsiy
 
         private void Personal()
         {
-            Title("1. SHAXSIY MA’LUMOTLAR");
+            Title(T("pdf.personal.title"));
 
             var table = Grid(3.79, 5.21, 3.79, 5.21);
 
-            Pair(table, "Familiyasi", _a.LastName, "Ismi", _a.FirstName);
-            Pair(table, "Otasining ismi", _a.MiddleName, "Tug‘ilgan sanasi", _a.BirthDate is { } birth ? Date(birth) : null);
+            Pair(table, T("pdf.personal.lastName"), _a.LastName, T("pdf.personal.firstName"), _a.FirstName);
+            Pair(table, T("pdf.personal.middleName"), _a.MiddleName, T("pdf.personal.birthDate"), _a.BirthDate is { } birth ? Date(birth) : null);
 
             // Blankadagi «Jinsi / JSHSHIR» va «Pasport / Kim tomonidan va qachon berilgan» qatorlari
             // ATAYLAB yo'q (egasi, 2026-10-26): pasport kengash suhbatidan keyin olinadi. B qismdagi
             // «Pasport nusxasi» belgisi esa HR'ning o'z ro'yxati — u qoladi.
-            Wide(table, "Doimiy ro‘yxatdagi manzil (propiska)", _a.RegisteredAddress);
-            Wide(table, "Haqiqiy yashash manzili", _a.ActualAddress);
+            Wide(table, T("pdf.personal.registeredAddress"), _a.RegisteredAddress);
+            Wide(table, T("pdf.personal.actualAddress"), _a.ActualAddress);
 
             var housing = Row(table);
-            Label(housing.Cells[0], "Uy turi");
-            Choices(housing.Cells[1], [[("Ko‘p qavatli uy", _a.HousingType == FormHousingType.Apartment), ("Hovli", _a.HousingType == FormHousingType.House)]]);
-            Label(housing.Cells[2], "Mahalla (MFY) nomi");
+            Label(housing.Cells[0], T("pdf.personal.housing"));
+            var housingType = _a.HousingType?.ToString();
+            Choices(housing.Cells[1], Options(
+                HrF02TextCatalog.HousingList,
+                [[(nameof(FormHousingType.Apartment), "Ko‘p qavatli uy"), (nameof(FormHousingType.House), "Hovli")]],
+                value => value == housingType));
+            Label(housing.Cells[2], T("pdf.personal.mahalla"));
             Value(housing.Cells[3], _a.Mahalla);
 
-            Pair(table, "Telefon raqami", Phone(_a.Phone) ?? "+998", "Qo‘shimcha telefon (yaqiningiz)", Phone(_a.PhoneExtra) ?? "+998");
-            Pair(table, "Telegram", "@" + _a.Telegram, "E-mail", _a.Email);
+            Pair(table, T("pdf.personal.phone"), Phone(_a.Phone) ?? "+998", T("pdf.personal.phoneExtra"), Phone(_a.PhoneExtra) ?? "+998");
+            Pair(table, T("pdf.personal.telegram"), "@" + _a.Telegram, T("pdf.personal.email"), _a.Email);
 
             var marital = Row(table);
-            Label(marital.Cells[0], "Oilaviy holati");
-            Choices(marital.Cells[1],
-            [
-                [("Oilali", _a.MaritalStatus == MaritalStatus.Married), ("Bo‘ydoq / turmush qurmagan", _a.MaritalStatus == MaritalStatus.Unmarried)],
-                [("Ajrashgan", _a.MaritalStatus == MaritalStatus.Divorced), ("Beva", _a.MaritalStatus == MaritalStatus.Widowed)],
-            ]);
-            Label(marital.Cells[2], "Farzandlar soni");
+            Label(marital.Cells[0], T("pdf.personal.marital"));
+            var maritalStatus = _a.MaritalStatus?.ToString();
+            Choices(marital.Cells[1], Options(
+                HrF02TextCatalog.MaritalList,
+                [
+                    [(nameof(MaritalStatus.Married), "Oilali"), (nameof(MaritalStatus.Unmarried), "Bo‘ydoq / turmush qurmagan")],
+                    [(nameof(MaritalStatus.Divorced), "Ajrashgan"), (nameof(MaritalStatus.Widowed), "Beva")],
+                ],
+                value => value == maritalStatus));
+            Label(marital.Cells[2], T("pdf.personal.children"));
             Value(marital.Cells[3], _a.ChildrenCount?.ToString(Invariant));
 
             var military = Row(table);
-            Label(military.Cells[0], "Harbiy xizmat (erkaklar uchun)");
+            Label(military.Cells[0], T("pdf.personal.military"));
             var served = _a.MilitaryService == FormMilitaryService.Served;
             var months = served && _a.MilitaryServiceMonths is { } m ? m.ToString(Invariant) : "____";
-            Choices(military.Cells[1],
-            [[
-                ($"O‘tagan, muddati: {months} oy", served),
-                ("Zaxirada", _a.MilitaryService == FormMilitaryService.Reserve),
-                ("Kechiktirilgan", _a.MilitaryService == FormMilitaryService.Deferred),
-                ("O‘tamagan", _a.MilitaryService == FormMilitaryService.NotServed),
-            ]]);
+            var militaryService = _a.MilitaryService?.ToString();
+            Choices(military.Cells[1], Options(
+                HrF02TextCatalog.MilitaryList,
+                [[
+                    (nameof(FormMilitaryService.Served), "O‘tagan"),
+                    (nameof(FormMilitaryService.Reserve), "Zaxirada"),
+                    (nameof(FormMilitaryService.Deferred), "Kechiktirilgan"),
+                    (nameof(FormMilitaryService.NotServed), "O‘tamagan"),
+                ]],
+                value => value == militaryService,
+                (value, label) => value == nameof(FormMilitaryService.Served)
+                    ? _t.Pdf("pdf.personal.militaryServed", ("label", label), ("months", months))
+                    : label));
             military.Cells[1].MergeRight = 2;
 
             var license = Row(table);
-            Label(license.Cells[0], "Haydovchilik guvohnomasi");
+            Label(license.Cells[0], T("pdf.personal.license"));
             var categories = _a.DriverLicenseCategories is { Count: > 0 } chosen ? string.Join(", ", chosen) : "________";
-            Choices(license.Cells[1], [[("Yo‘q", _a.HasDriverLicense == false), ($"Bor, toifasi: {categories}", _a.HasDriverLicense == true)]]);
-            Label(license.Cells[2], "Shaxsiy avtomobil");
+            Choices(license.Cells[1], [[(T("pdf.common.no"), _a.HasDriverLicense == false), (_t.Pdf("pdf.personal.licenseYes", ("categories", categories)), _a.HasDriverLicense == true)]]);
+            Label(license.Cells[2], T("pdf.personal.car"));
             var car = _a.HasCar == true && _a.CarModel is { } carModel ? carModel : "_____";
-            Choices(license.Cells[3], [[("Yo‘q", _a.HasCar == false), ($"Bor, rusumi: {car}", _a.HasCar == true)]]);
+            Choices(license.Cells[3], [[(T("pdf.common.no"), _a.HasCar == false), (_t.Pdf("pdf.personal.carYes", ("car", car)), _a.HasCar == true)]]);
         }
 
         // ════════════════════════════════════════════════ 2. ma'lumoti
 
         private void Education()
         {
-            Title("2. MA’LUMOTI");
+            Title(T("pdf.education.title"));
 
             var level = Grid(3.79, 5.21, 3.79, 5.21);
             var row = Row(level);
-            Label(row.Cells[0], "Ma’lumot darajasi");
-            var chosen = _a.EducationLevel;
-            Choices(row.Cells[1],
-            [
+            Label(row.Cells[0], T("pdf.education.level"));
+            var chosen = _a.EducationLevel?.ToString();
+            Choices(row.Cells[1], Options(
+                HrF02TextCatalog.EducationList,
                 [
-                    ("O‘rta (maktab)", chosen == EducationLevel.SecondarySchool),
-                    ("O‘rta maxsus (kollej, texnikum, litsey)", chosen == EducationLevel.VocationalSchool),
-                    ("Oliy (tugallanmagan)", chosen == EducationLevel.HigherIncomplete),
+                    [
+                        (nameof(EducationLevel.SecondarySchool), "O‘rta (maktab)"),
+                        (nameof(EducationLevel.VocationalSchool), "O‘rta maxsus (kollej, texnikum, litsey)"),
+                        (nameof(EducationLevel.HigherIncomplete), "Oliy (tugallanmagan)"),
+                    ],
+                    [
+                        (nameof(EducationLevel.HigherComplete), "Oliy (bakalavr)"),
+                        (nameof(EducationLevel.HigherMaster), "Oliy (magistr)"),
+                    ],
                 ],
-                [
-                    ("Oliy (bakalavr)", chosen == EducationLevel.HigherComplete),
-                    ("Oliy (magistr)", chosen == EducationLevel.HigherMaster),
-                ],
-            ]);
+                value => value == chosen));
             row.Cells[1].MergeRight = 2;
 
             Spacer(5);
 
             var schools = Grid(0.79, 5.82, 5.03, 2.91, 3.45);
-            Header(schools, "№", "O‘quv yurti nomi", "Fakultet / mutaxassislik", "O‘qigan yillari (dan – gacha)", "Diplom / sertifikat №");
+            Header(schools, "№", T("pdf.education.institution"), T("pdf.education.faculty"), T("pdf.education.years"), T("pdf.education.diploma"));
 
             var educations = _a.Educations ?? [];
             for (var index = 0; index < Math.Max(3, educations.Count); index++)
@@ -497,37 +523,37 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             Spacer(5);
 
             var extra = Grid(3.79, 5.21, 3.79, 5.21);
-            Pair(extra, "Tamomlagan maktabingiz (№, tuman)", _a.SchoolName, "Qaysi fanlardan yaxshi o‘qigansiz", _a.StrongSubjects);
-            Wide(extra, "Kurslar, sertifikatlar, malaka razryadi (payvandchi, stanokchi, elektrik va h.k.)", _a.Courses);
+            Pair(extra, T("pdf.education.school"), _a.SchoolName, T("pdf.education.subjects"), _a.StrongSubjects);
+            Wide(extra, T("pdf.education.courses"), _a.Courses);
         }
 
         // ════════════════════════════════════════════════ 3. tillar
 
         private void Languages()
         {
-            Title("3. TIL BILISH DARAJASI");
-            Hint("Darajani raqam bilan yozing:  0 – bilmayman,  1 – boshlang‘ich,  2 – o‘rta,  3 – o‘rtadan yuqori,  4 – yuqori (erkin),  5 – ona tili.");
+            Title(T("pdf.languages.title"));
+            Hint(T("pdf.languages.scale"));
 
             var table = Grid(0.79, 5.57, 3.88, 3.88, 3.88);
-            Header(table, "№", "Til", "So‘zlashuv", "O‘qish", "Yozish");
+            Header(table, "№", T("pdf.languages.language"), T("pdf.languages.speaking"), T("pdf.languages.reading"), T("pdf.languages.writing"));
 
             var rows = _a.Languages ?? [];
             var lines = new List<(string Name, FormLanguageSkill? Skill)>();
 
-            foreach (var language in QuestionnaireFormCatalog.FixedLanguages)
+            foreach (var (language, label) in FixedLanguageRows())
             {
-                lines.Add((QuestionnaireFormCatalog.LanguageLabel(language), rows.FirstOrDefault(row => row.Language == language)));
+                lines.Add((label, rows.FirstOrDefault(row => row.Language == language)));
             }
 
             var others = rows.Where(row => row.Language == FormLanguage.Other).ToList();
             foreach (var other in others)
             {
-                lines.Add(($"Boshqa: {other.OtherName}", other));
+                lines.Add((_t.Pdf("pdf.languages.other", ("name", other.OtherName ?? string.Empty)), other));
             }
 
             if (others.Count == 0)
             {
-                lines.Add(("Boshqa: ______________", null));
+                lines.Add((_t.Pdf("pdf.languages.other", ("name", "______________")), null));
             }
 
             for (var index = 0; index < lines.Count; index++)
@@ -553,11 +579,12 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
         /// </remarks>
         private void Computer()
         {
-            Title("4. KOMPYUTER SAVODXONLIGI");
-            Hint("Darajani raqam bilan yozing:  1 – boshlang‘ich,  2 – o‘rta,  3 – yaxshi,  4 – mukammal.  Bilmagan dasturingizni bo‘sh qoldiring.");
+            Title(T("pdf.computer.title"));
+            Hint(T("pdf.computer.scale"));
 
             var table = Grid(4.94, 1.06, 4.94, 1.06, 4.94, 1.06);
-            var groups = QuestionnaireFormCatalog.ComputerGroups;
+            var skills = _a.ComputerSkills ?? new Dictionary<string, int>();
+            var groups = ComputerColumns(skills);
 
             var header = table.AddRow();
             header.HeadingFormat = true;
@@ -572,7 +599,6 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
                 cell.MergeRight = 1;
             }
 
-            var skills = _a.ComputerSkills ?? new Dictionary<string, int>();
             var rows = Math.Max(5, groups.Max(group => group.Items.Count));
 
             // Kichik jadval sahifa chegarasida bo'linmasin — sarlavha qatorlari bilan birga
@@ -596,7 +622,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
             var other = _section.AddParagraph();
             other.Format.SpaceBefore = 4;
-            other.AddText("Boshqa dasturlar va dasturlash tillari: ");
+            other.AddText(T("pdf.computer.other") + " ");
 
             if (_a.ComputerSkillsOther is { } text)
             {
@@ -617,20 +643,20 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
         /// </remarks>
         private void Work()
         {
-            Title("5. MEHNAT FAOLIYATI");
+            Title(T("pdf.work.title"));
 
             var experience = Grid(3.79, 5.21, 3.79, 5.21);
             var question = Row(experience);
-            Label(question.Cells[0], "Avval ishlaganmisiz?");
+            Label(question.Cells[0], T("pdf.work.experience"));
             YesNo(question.Cells[1], _a.HasWorkExperience);
             question.Cells[2].Borders.Visible = false;
             question.Cells[3].Borders.Visible = false;
 
             Spacer(5);
-            Hint("Oxirgi ish joyingizdan boshlab yozing.");
+            Hint(T("pdf.work.hint"));
 
             var table = Grid(0.79, 4.76, 3.35, 3.0, 6.1);
-            Header(table, "№", "Tashkilot nomi", "Lavozimi", "Davri (oy.yil – oy.yil)", "Ishdan ketish sababi");
+            Header(table, "№", T("pdf.work.organization"), T("pdf.work.position"), T("pdf.work.period"), T("pdf.work.leaveReason"));
 
             var jobs = _a.Jobs ?? [];
             for (var index = 0; index < Math.Max(4, jobs.Count); index++)
@@ -649,11 +675,11 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
         private void References()
         {
-            Title("6. TAVSIYA BERUVCHILAR (AVVALGI ISH JOYIDAN SURISHTIRUV UCHUN)");
-            Hint("Sizni avvalgi ish joyingizdan yaxshi taniydigan rahbar yoki hamkasbingiz. HR bo‘limi ular bilan bog‘lanishi mumkin.");
+            Title(T("pdf.references.title"));
+            Hint(T("pdf.references.hint"));
 
             var table = Grid(0.79, 5.64, 6.1, 5.47);
-            Header(table, "№", "F.I.Sh.", "Tashkilot, lavozimi", "Telefon raqami");
+            Header(table, "№", T("pdf.references.fullName"), T("pdf.references.organizationPosition"), T("pdf.references.phone"));
 
             var references = _a.References ?? [];
             for (var index = 0; index < Math.Max(2, references.Count); index++)
@@ -671,11 +697,19 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
         private void Family()
         {
-            Title("7. OILA A’ZOLARI HAQIDA MA’LUMOT");
-            Hint("Ota-onangiz, turmush o‘rtog‘ingiz, aka-uka va opa-singillaringiz.");
+            Title(T("pdf.family.title"));
+            Hint(T("pdf.family.hint"));
 
             var table = Grid(0.71, 2.56, 3.53, 1.94, 3.62, 2.38, 3.27);
-            Header(table, "№", "Qarindoshligi", "F.I.Sh.", "Tug‘ilgan yili", "Ish joyi, lavozimi", "Telefon raqami", "Yashash manzili");
+            Header(
+                table,
+                "№",
+                T("pdf.family.relation"),
+                T("pdf.family.fullName"),
+                T("pdf.family.birthYear"),
+                T("pdf.family.workplace"),
+                T("pdf.family.phone"),
+                T("pdf.family.address"));
 
             var family = _a.FamilyMembers ?? [];
             for (var index = 0; index < Math.Max(5, family.Count); index++)
@@ -683,7 +717,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
                 var member = index < family.Count ? family[index] : null;
                 var row = Row(table, 0.85);
                 Number(row.Cells[0], index + 1);
-                Value(row.Cells[1], member?.Relation is { } relation ? QuestionnaireFormCatalog.RelationLabel(relation) : null);
+                Value(row.Cells[1], member?.Relation is { } relation ? RelationName(relation) : null);
                 Value(row.Cells[2], member?.FullName);
                 Value(row.Cells[3], member?.BirthYear?.ToString(Invariant));
                 Value(row.Cells[4], member?.Workplace);
@@ -696,44 +730,44 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
         private void Conditions()
         {
-            Title("8. ISH SHAROITLARI VA KUTILMALAR");
+            Title(T("pdf.conditions.title"));
 
             var table = Grid(0.79, 9.17, 8.04);
-            Header(table, "№", "Savol", "Javob");
+            Header(table, "№", T("pdf.common.question"), T("pdf.common.answer"));
 
-            Question(table, 1, "Bu vakansiya haqida qayerdan bildingiz?", cell =>
+            Question(table, 1, T("pdf.conditions.referral"), cell =>
                 Choices(cell, ReferralLines(model.ReferralChoices, _a.ReferralDetail)));
 
-            Question(table, 2, "Korxonamizda tanishlaringiz yoki qarindoshlaringiz ishlaydimi? (F.I.Sh., bo‘limi)", cell =>
-                YesNoDetail(cell, _a.HasAcquaintances, _a.AcquaintancesDetail, "Ha"));
+            Question(table, 2, T("pdf.conditions.acquaintances"), cell =>
+                YesNoDetail(cell, _a.HasAcquaintances, _a.AcquaintancesDetail, T("pdf.common.yes")));
 
-            Question(table, 3, "Oxirgi ish joyingizda oylik maoshingiz qancha bo‘lgan?", cell =>
-                Text(cell, _a.LastSalary is { } last ? QuestionnaireFormMapping.Money(last) : "______________ so‘m"));
+            Question(table, 3, T("pdf.conditions.lastSalary"), cell =>
+                Text(cell, _a.LastSalary is { } last ? QuestionnaireFormMapping.Money(last) : T("pdf.conditions.salaryBlank")));
 
-            Question(table, 4, "Qancha oylik maoshga ishlamoqchisiz?", cell =>
-                Text(cell, _a.ExpectedSalary is { } expected ? QuestionnaireFormMapping.Money(expected) : "______________ so‘m"));
+            Question(table, 4, T("pdf.conditions.expectedSalary"), cell =>
+                Text(cell, _a.ExpectedSalary is { } expected ? QuestionnaireFormMapping.Money(expected) : T("pdf.conditions.salaryBlank")));
 
-            Question(table, 5, "Ishga qachondan chiqa olasiz?", cell => StartAfter(cell));
+            Question(table, 5, T("pdf.conditions.startAfter"), cell => StartAfter(cell));
 
-            Question(table, 6, "Smenali yoki 12 soatlik ish rejimida ishlay olasizmi?", cell => YesNo(cell, _a.CanWorkShifts));
-            Question(table, 7, "Zarurat bo‘lsa, ish vaqtidan keyin qolib ishlay olasizmi?", cell => YesNo(cell, _a.CanWorkOvertime));
-            Question(table, 8, "Xizmat safarlariga (komandirovka) chiqishga rozimisiz?", cell => YesNo(cell, _a.CanTravel));
+            Question(table, 6, T("pdf.conditions.shifts"), cell => YesNo(cell, _a.CanWorkShifts));
+            Question(table, 7, T("pdf.conditions.overtime"), cell => YesNo(cell, _a.CanWorkOvertime));
+            Question(table, 8, T("pdf.conditions.travel"), cell => YesNo(cell, _a.CanTravel));
 
-            Question(table, 9, "Boshqa joyda yarim stavka ishingiz yoki shaxsiy biznesingiz bormi?", cell =>
-                YesNoDetail(cell, _a.HasOtherJob, _a.OtherJobDetail, "Ha"));
+            Question(table, 9, T("pdf.conditions.otherJob"), cell =>
+                YesNoDetail(cell, _a.HasOtherJob, _a.OtherJobDetail, T("pdf.common.yes")));
 
-            Question(table, 10, "Hozirda kredit to‘lovlaringiz bormi?", cell =>
+            Question(table, 10, T("pdf.conditions.loan"), cell =>
             {
                 var payment = _a.HasLoan == true && _a.LoanMonthlyPayment is { } amount
                     ? QuestionnaireFormMapping.Money(amount)
-                    : "________ so‘m";
+                    : T("pdf.conditions.loanBlank");
 
-                Choices(cell, [[("Yo‘q", _a.HasLoan == false), ($"Ha, oylik to‘lov: {payment}", _a.HasLoan == true)]]);
+                Choices(cell, [[(T("pdf.common.no"), _a.HasLoan == false), (_t.Pdf("pdf.conditions.loanYes", ("payment", payment)), _a.HasLoan == true)]]);
             });
 
-            Question(table, 11, "1 haftalik amaliy sinov (stajirovka) davrini o‘tashga rozimisiz?", cell => YesNo(cell, _a.AgreesToTrial));
-            Question(table, 12, "Zarurat bo‘lsa, ota-onangizni korxonaga taklif qilishimizga rozimisiz?", cell => YesNo(cell, _a.AgreesParentsInvite));
-            Question(table, 13, "Ishni boshlash uchun qanday shartlaringiz bor?", cell => Text(cell, _a.StartConditions));
+            Question(table, 11, T("pdf.conditions.trial"), cell => YesNo(cell, _a.AgreesToTrial));
+            Question(table, 12, T("pdf.conditions.parents"), cell => YesNo(cell, _a.AgreesParentsInvite));
+            Question(table, 13, T("pdf.conditions.startConditions"), cell => Text(cell, _a.StartConditions));
         }
 
         /// <summary>
@@ -751,73 +785,76 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
                 return;
             }
 
-            Choices(cell,
-            [
-                [("Qabul qilingan kundan", _a.StartAfter == FormStartAfter.OnHireDay)],
-                [("Qabul qilingandan 1 hafta keyin", _a.StartAfter == FormStartAfter.OneWeek)],
-                [("Qabul qilingandan 10 kun keyin", _a.StartAfter == FormStartAfter.TenDays)],
-                [("Qabul qilingandan 15 kun keyin", _a.StartAfter == FormStartAfter.FifteenDays)],
-            ]);
+            var startAfter = _a.StartAfter?.ToString();
+            Choices(cell, Options(
+                HrF02TextCatalog.StartAfterList,
+                [
+                    [(nameof(FormStartAfter.OnHireDay), "Qabul qilingan kundan")],
+                    [(nameof(FormStartAfter.OneWeek), "Qabul qilingandan 1 hafta keyin")],
+                    [(nameof(FormStartAfter.TenDays), "Qabul qilingandan 10 kun keyin")],
+                    [(nameof(FormStartAfter.FifteenDays), "Qabul qilingandan 15 kun keyin")],
+                ],
+                value => value == startAfter));
         }
 
         // ════════════════════════════════════════════════ 9. sog'liq
 
         private void Health()
         {
-            Title("9. SOG‘LIQ VA QO‘SHIMCHA MA’LUMOTLAR");
+            Title(T("pdf.health.title"));
 
             var table = Grid(0.79, 9.17, 8.04);
-            Header(table, "№", "Savol", "Javob");
+            Header(table, "№", T("pdf.common.question"), T("pdf.common.answer"));
 
-            Question(table, 1, "Ushbu lavozimda ishlashingizga sog‘lig‘ingiz bo‘yicha cheklov bormi? (jumladan, xavfli ishlab chiqarish: gaz ballonlari bilan ishlash)", cell =>
+            Question(table, 1, T("pdf.health.restriction"), cell =>
             {
-                YesNoDetail(cell, _a.HasHealthRestriction, _a.HealthRestrictionDetail, "Bor");
-                var hint = cell.AddParagraph("Yakuniy xulosa tibbiy ko‘rikda beriladi.");
+                YesNoDetail(cell, _a.HasHealthRestriction, _a.HealthRestrictionDetail, T("pdf.common.has"));
+                var hint = cell.AddParagraph(T("pdf.health.restrictionHint"));
                 hint.Format.Font.Size = 7.5;
                 hint.Format.Font.Italic = true;
                 hint.Format.Font.Color = Muted;
             });
 
-            Question(table, 2, "Oilangizda doimiy parvarishga muhtoj bemor bormi?", cell =>
-                Choices(cell, [[("Yo‘q", _a.HasFamilyPatient == false), ("Bor", _a.HasFamilyPatient == true)]]));
+            Question(table, 2, T("pdf.health.patient"), cell =>
+                Choices(cell, [[(T("pdf.common.no"), _a.HasFamilyPatient == false), (T("pdf.common.has"), _a.HasFamilyPatient == true)]]));
 
-            Question(table, 3, "Sudlanganmisiz?", cell => YesNoDetail(cell, _a.HasConviction, _a.ConvictionDetail, "Ha"));
+            Question(table, 3, T("pdf.health.conviction"), cell => YesNoDetail(cell, _a.HasConviction, _a.ConvictionDetail, T("pdf.common.yes")));
 
-            Question(table, 4, "Yaqin qarindoshlaringiz orasida sudlanganlar bormi?", cell =>
-                YesNoDetail(cell, _a.RelativesConviction, _a.RelativesConvictionDetail, "Ha"));
+            Question(table, 4, T("pdf.health.relativesConviction"), cell =>
+                YesNoDetail(cell, _a.RelativesConviction, _a.RelativesConvictionDetail, T("pdf.common.yes")));
 
-            Question(table, 5, "Chet elda bo‘lganmisiz? (qachon, qaysi davlatda, qanday maqsadda)", cell => Text(cell, _a.AbroadTrips));
+            Question(table, 5, T("pdf.health.abroad"), cell => Text(cell, _a.AbroadTrips));
         }
 
         // ════════════════════════════════════════════════ 10. o'zingiz haqingizda
 
         private void AboutYou()
         {
-            Title("10. O‘ZINGIZ HAQINGIZDA");
-            Hint("Qisqa va samimiy javob bering. To‘g‘ri yoki noto‘g‘ri javob yo‘q.");
+            Title(T("pdf.about.title"));
+            Hint(T("pdf.about.hint"));
 
             var table = Grid(0.79, 7.58, 9.62);
-            Header(table, "№", "Savol", "Javob");
+            Header(table, "№", T("pdf.common.question"), T("pdf.common.answer"));
 
             (string Question, string? Answer)[] questions =
             [
-                ("Nima uchun ishlaysiz? Sizni ishlashga nima undaydi?", _a.Motivation),
-                ("Nima uchun aynan bizning korxonani tanladingiz?", _a.WhyUs),
-                ("Eng kuchli tomonlaringiz nimada?", _a.Strengths),
-                ("Zaif tomonlaringiz nimada deb o‘ylaysiz?", _a.Weaknesses),
-                ("Sizni ko‘proq nima rag‘batlantiradi?", _a.Motivators),
-                ("Muvaffaqiyat deganda nimani tushunasiz?", _a.SuccessDefinition),
-                ("Oxirgi ish joyingizdagi eng katta muvaffaqiyatingiz nima bo‘lgan? (avval ishlaganlar uchun)", _a.LastJobAchievement),
-                ("Avvalgi ish joyingizga qanday foydali g‘oya bergansiz va u qanday natija bergan? (avval ishlaganlar uchun)", _a.BestIdea),
-                ("Ishda duch kelgan eng katta qiyinchiligingiz nima bo‘lgan va uni qanday hal qilgansiz?", _a.BiggestChallenge),
-                ("Ishdagi stressga qanday munosabatdasiz, u bilan qanday kurashasiz?", _a.StressHandling),
-                ("Ish joyingizda sizga nisbatan nohaqlik qilinsa, qanday yo‘l tutasiz?", _a.UnfairnessToYou),
-                ("Korxonaga nisbatan nohaqlik qilinayotganiga guvoh bo‘lsangiz, nima qilasiz?", _a.UnfairnessToCompany),
-                ("Katta jamoada ishlay olasizmi? Jamoaviy ish deganda nimani tushunasiz?", _a.Teamwork),
-                ("Avvalgi ish joyingizdagi jamoa va rahbariyat haqida fikringiz.", _a.PreviousTeamOpinion),
-                ("O‘qish davrida biror joyda shogird bo‘lganmisiz yoki ishlaganmisiz?", _a.StudentWorkExperience),
-                ("5 yildan keyin o‘zingizni qayerda ko‘rasiz?", _a.FiveYearPlan),
-                ("Qo‘shimcha ma’lumot: o‘zingiz haqingizda yana nimani bilishimizni istaysiz?", _a.ExtraNote),
+                (T("pdf.about.motivation"), _a.Motivation),
+                (T("pdf.about.whyUs"), _a.WhyUs),
+                (T("pdf.about.strengths"), _a.Strengths),
+                (T("pdf.about.weaknesses"), _a.Weaknesses),
+                (T("pdf.about.motivators"), _a.Motivators),
+                (T("pdf.about.successDefinition"), _a.SuccessDefinition),
+                (T("pdf.about.lastJobAchievement"), _a.LastJobAchievement),
+                (T("pdf.about.bestIdea"), _a.BestIdea),
+                (T("pdf.about.biggestChallenge"), _a.BiggestChallenge),
+                (T("pdf.about.stressHandling"), _a.StressHandling),
+                (T("pdf.about.unfairnessToYou"), _a.UnfairnessToYou),
+                (T("pdf.about.unfairnessToCompany"), _a.UnfairnessToCompany),
+                (T("pdf.about.teamwork"), _a.Teamwork),
+                (T("pdf.about.previousTeamOpinion"), _a.PreviousTeamOpinion),
+                (T("pdf.about.studentWorkExperience"), _a.StudentWorkExperience),
+                (T("pdf.about.fiveYearPlan"), _a.FiveYearPlan),
+                (T("pdf.about.extraNote"), _a.ExtraNote),
             ];
 
             for (var index = 0; index < questions.Length; index++)
@@ -834,25 +871,26 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
 
         private void Consent()
         {
-            Title("11. TILXAT (ROZILIK VA TASDIQ)");
+            Title(T("pdf.consent.title"));
 
             var fullName = string.Join(' ', new[] { _a.LastName, _a.FirstName, _a.MiddleName }.Where(part => !string.IsNullOrEmpty(part)));
 
             // Tilxat bo'linmasin: sarlavha, matn va imzo bitta sahifada (qog'ozdagidek)
             var intro = _section.AddParagraph();
             intro.Format.KeepWithNext = true;
-            intro.AddText("Men, ");
+            var (before, after) = _t.PdfAround("pdf.consent.intro", "name");
+            intro.AddText(before);
             var name = intro.AddFormattedText(fullName, TextFormat.Bold | TextFormat.Underline);
             name.Font.Color = Ink;
-            intro.AddText(" (F.I.Sh.):");
+            intro.AddText(after);
 
             string[] items =
             [
-                "Ushbu anketada keltirgan barcha ma’lumotlarim to‘liq va to‘g‘ri ekanini tasdiqlayman. Ma’lumotlar noto‘g‘ri ekani aniqlansa, bu mehnat shartnomasini bekor qilish uchun asos bo‘lishini bilaman.",
-                "Shaxsga doir ma’lumotlarim ishga qabul qilish va mehnat munosabatlari maqsadida O‘zbekiston Respublikasining «Shaxsga doir ma’lumotlar to‘g‘risida»gi Qonuniga muvofiq ishlanishiga roziman.",
-                "Avvalgi ish joylarim va men ko‘rsatgan tavsiya beruvchilar orqali surishtiruv o‘tkazilishiga roziman.",
-                "Ishga qabul qilinsam, anketadagi ma’lumotlarim o‘zgarganda bu haqda HR bo‘limini o‘z vaqtida xabardor qilaman.",
-                "Ishdan bo‘shaganimdan keyin 2 yil davomida korxona sirlarini oshkor qilmaslikka majburiyat olaman. Bu majburiyat buzilgan taqdirda menga nisbatan qonuniy choralar ko‘rilishiga roziman.",
+                T("pdf.consent.accuracy"),
+                T("pdf.consent.personalData"),
+                T("pdf.consent.referenceCheck"),
+                T("pdf.consent.notifyChanges"),
+                T("pdf.consent.confidentiality"),
             ];
 
             for (var index = 0; index < items.Length; index++)
@@ -882,11 +920,11 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             row.VerticalAlignment = VerticalAlignment.Bottom;
 
             var date = row.Cells[0].AddParagraph();
-            date.AddText("Sana: ");
+            date.AddText(T("pdf.consent.date") + " ");
             date.AddFormattedText(Date(DateOnly.FromDateTime(model.SubmittedAt.DateTime)), TextFormat.Underline);
 
             var sign = row.Cells[1].AddParagraph();
-            sign.AddText("Imzo: ");
+            sign.AddText(T("pdf.consent.signature") + " ");
 
             if (images.Signature is { } signature)
             {
@@ -903,30 +941,32 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             origin.Format.SpaceBefore = 6;
             origin.Format.Font.Size = 7.5;
             origin.Format.Font.Color = Muted;
-            origin.AddText(
-                $"Onlayn to‘ldirildi: {model.SubmittedAt.ToString("dd.MM.yyyy HH:mm", Invariant)}  ·  Til: {model.Language}");
+            origin.AddText(_t.Pdf(
+                "pdf.consent.origin",
+                ("date", model.SubmittedAt.ToString("dd.MM.yyyy HH:mm", Invariant)),
+                ("language", model.Language)));
         }
 
         // ════════════════════════════════════════════════ B qism
 
         private void HrPart()
         {
-            Bar("B QISM", "HR BO‘LIMI TOMONIDAN TO‘LDIRILADI");
-            Hint("Nomzod bu qismni to‘ldirmaydi.");
+            Bar(T("pdf.hr.part"), T("pdf.hr.partText"));
+            Hint(T("pdf.hr.hint"));
 
-            Title("12. HUJJATLAR NAZORATI");
+            Title(T("pdf.hr.documentsTitle"));
             var documents = Grid(0.79, 8.82, 2.82, 5.57);
-            Header(documents, "№", "Hujjat", "Topshirildi", "Izoh");
+            Header(documents, "№", T("pdf.hr.document"), T("pdf.hr.submitted"), T("pdf.hr.note"));
 
             (string Name, bool Done, string? Note)[] papers =
             [
-                ("Rasm (3 × 4)", true, "Onlayn olingan"),
-                ("Pasport / ID-karta nusxasi", false, null),
-                ("Diplom / sertifikat nusxasi", false, null),
-                ("Haydovchilik guvohnomasi nusxasi (bo‘lsa)", false, null),
-                ("Sudlanmaganlik haqida ma’lumotnoma", false, null),
-                ("Harbiy hisob hujjati (erkaklar)", false, null),
-                ("Imzolangan anketa (A qism)", true, "Onlayn imzolangan"),
+                (T("pdf.hr.photo"), true, T("pdf.hr.photoNote")),
+                (T("pdf.hr.passport"), false, null),
+                (T("pdf.hr.diploma"), false, null),
+                (T("pdf.hr.license"), false, null),
+                (T("pdf.hr.noConviction"), false, null),
+                (T("pdf.hr.military"), false, null),
+                (T("pdf.hr.signedForm"), true, T("pdf.hr.signedNote")),
             ];
 
             for (var index = 0; index < papers.Length; index++)
@@ -941,27 +981,27 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
                 Value(row.Cells[3], note).Format.Font.Color = Muted;
             }
 
-            Title("13. TEST VA SINOVLAR");
+            Title(T("pdf.hr.testsTitle"));
             var tests = Grid(0.79, 6.35, 4.59, 6.27);
-            Header(tests, "№", "Sinov", "Natija", "Izoh");
+            Header(tests, "№", T("pdf.hr.test"), T("pdf.hr.result"), T("pdf.hr.note"));
 
-            TestRow(tests, 1, "Professional test", cell => Text(cell, "________ ball"));
-            TestRow(tests, 2, "DISC test", cell => Choices(cell, [[("D", false), ("I", false), ("S", false), ("C", false)]]));
-            TestRow(tests, 3, "Unumdorlik (produktivlik) testi", cell => Text(cell, "________ ball"));
-            TestRow(tests, 4, "Rus tili (og‘zaki tekshiruv)", cell => Text(cell, "Daraja: ____ (0–5)"));
-            TestRow(tests, 5, "Excel (amaliy tekshiruv)", cell => Text(cell, "Daraja: ____ (1–4)"));
-            TestRow(tests, 6, "Amaliy sinov (usta bahosi, sana)", _ => { });
+            TestRow(tests, 1, T("pdf.hr.professional"), cell => Text(cell, T("pdf.hr.points")));
+            TestRow(tests, 2, T("pdf.hr.disc"), cell => Choices(cell, [[("D", false), ("I", false), ("S", false), ("C", false)]]));
+            TestRow(tests, 3, T("pdf.hr.productivity"), cell => Text(cell, T("pdf.hr.points")));
+            TestRow(tests, 4, T("pdf.hr.russian"), cell => Text(cell, T("pdf.hr.russianLevel")));
+            TestRow(tests, 5, T("pdf.hr.excel"), cell => Text(cell, T("pdf.hr.excelLevel")));
+            TestRow(tests, 6, T("pdf.hr.practical"), _ => { });
 
-            Title("14. DASTLABKI SUHBAT XULOSASI");
+            Title(T("pdf.hr.interviewTitle"));
             var interview = Grid(0.79, 6.61, 2.47, 8.12);
-            Header(interview, "№", "Mezon", "Baho (1–5)", "Izoh");
+            Header(interview, "№", T("pdf.hr.criterion"), T("pdf.hr.score"), T("pdf.hr.note"));
 
             string[] criteria =
             [
-                "Talablarga mosligi (HR-F01, 2-bo‘lim)",
-                "Tajriba va malaka",
-                "Muloqot va motivatsiya",
-                "Amaliy sinov natijasi",
+                T("pdf.hr.fit"),
+                T("pdf.hr.experience"),
+                T("pdf.hr.communication"),
+                T("pdf.hr.practicalResult"),
             ];
 
             for (var index = 0; index < criteria.Length; index++)
@@ -972,10 +1012,10 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             }
 
             var decision = Row(interview, 1.0);
-            Label(decision.Cells[0], "Qaror");
+            Label(decision.Cells[0], T("pdf.hr.decision"));
             decision.Cells[0].MergeRight = 1;
-            Choices(decision.Cells[2], [[("Kengashga (HR-F04)", false), ("Zaxira bazaga", false), ("Rad etildi", false)]]);
-            decision.Cells[2].AddParagraph("Rad etish sababi: ______________________________");
+            Choices(decision.Cells[2], [[(T("pdf.hr.council"), false), (T("pdf.hr.reserve"), false), (T("pdf.hr.rejected"), false)]]);
+            decision.Cells[2].AddParagraph(T("pdf.hr.rejectReason"));
             decision.Cells[2].MergeRight = 1;
 
             Spacer(24);
@@ -987,19 +1027,106 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             signatures.AddColumn(Unit.FromCentimeter(5.65));
 
             var line = signatures.AddRow();
-            line.Cells[0].AddParagraph("HR mutaxassisi: ______________________");
-            line.Cells[1].AddParagraph("Imzo: ______________");
-            line.Cells[2].AddParagraph("Sana: ______________");
+            line.Cells[0].AddParagraph(T("pdf.hr.specialist"));
+            line.Cells[1].AddParagraph(T("pdf.hr.sign"));
+            line.Cells[2].AddParagraph(T("pdf.hr.date"));
 
             var storage = _section.AddParagraph();
             storage.Format.SpaceBefore = 8;
             storage.Format.Font.Size = 7.5;
             storage.Format.Font.Italic = true;
             storage.Format.Font.Color = Muted;
-            storage.AddText(
-                "Saqlash: ishga qabul qilinsa, xodimning shaxsiy ish yig‘majildida; qabul qilinmasa, 6 oy. " +
-                "Reglament: HR-R02 «Ishga qabul». Keyingi blankalar: HR-F03 «Surishtiruv», HR-F04 «Kengash».");
+            storage.AddText(T("pdf.hr.storage"));
         }
+
+        // ════════════════════════════════════════════════ HR matnlari va ro'yxatlari
+
+        /// <summary>PDF matni: HR niki ?? asl matn.</summary>
+        private string T(string key) => _t.Pdf(key);
+
+        /// <summary>
+        /// Variantlar qatori HR ro'yxati bo'yicha (SPEC-blankalar-hrmentor §5.3).
+        /// </summary>
+        /// <param name="listId">Ro'yxat.</param>
+        /// <param name="layout">Qog'ozdagi tartib: (qiymat, asl nom), qatorlar bo'yicha.</param>
+        /// <param name="chosen">Qiymat tanlanganmi.</param>
+        /// <param name="decorate">Nomga qo'shimcha («O'tagan» → «O'tagan, muddati: 12 oy»).</param>
+        /// <remarks>
+        /// HR ro'yxatni o'zgartirmagan bo'lsa — qog'ozdagi tartib va nomlar AYNAN (PDF avvalgidek).
+        /// O'zgartirgan bo'lsa — HR tartibi; nom HR o'zgartirgani, aks holda qog'ozdagi
+        /// (<see cref="FormTexts.ChangedLatin"/>); yashirilgani faqat tanlangan bo'lsa; qatorlarga
+        /// qog'ozdagi qator uzunliklari bo'yicha bo'linadi (oxirgisi takrorlanadi).
+        /// </remarks>
+        private (string Label, bool Chosen)[][] Options(
+            string listId,
+            (string Value, string Label)[][] layout,
+            Func<string, bool> chosen,
+            Func<string, string, string>? decorate = null)
+        {
+            string Decorate(string value, string label) => decorate is null ? label : decorate(value, label);
+
+            if (!_t.HasList(listId))
+            {
+                return [.. layout.Select(line => line.Select(option => (Decorate(option.Value, option.Label), chosen(option.Value))).ToArray())];
+            }
+
+            var paper = layout.SelectMany(line => line).ToDictionary(option => option.Value, option => option.Label, StringComparer.Ordinal);
+            var options = _t.Options(listId)
+                .Where(option => !option.Hidden || chosen(option.Value))
+                .Select(option => (
+                    Decorate(
+                        option.Value,
+                        FormTexts.ChangedLatin(listId, option) ?? paper.GetValueOrDefault(option.Value) ?? option.Label[FormTexts.Latin]),
+                    chosen(option.Value)))
+                .ToList();
+
+            var lines = new List<(string Label, bool Chosen)[]>();
+            var index = 0;
+            while (index < options.Count)
+            {
+                var size = layout[Math.Min(lines.Count, layout.Length - 1)].Length;
+                lines.Add([.. options.Skip(index).Take(size)]);
+                index += size;
+            }
+
+            return [.. lines];
+        }
+
+        /// <summary>Til jadvalining qat'iy qatorlari (o'zbek, rus, ingliz, xitoy) — HR tartibi va nomi bilan.</summary>
+        private IEnumerable<(FormLanguage Language, string Label)> FixedLanguageRows()
+        {
+            if (!_t.HasList(HrF02TextCatalog.LanguageList))
+            {
+                return QuestionnaireFormCatalog.FixedLanguages.Select(language => (language, QuestionnaireFormCatalog.LanguageLabel(language)));
+            }
+
+            var ordered = _t.Options(HrF02TextCatalog.LanguageList)
+                .Select(option => (Parsed: Enum.TryParse<FormLanguage>(option.Value, out var language) ? language : (FormLanguage?)null, option))
+                .Where(row => row.Parsed is { } language && QuestionnaireFormCatalog.FixedLanguages.Contains(language))
+                .Select(row => (
+                    row.Parsed!.Value,
+                    FormTexts.ChangedLatin(HrF02TextCatalog.LanguageList, row.option) ?? QuestionnaireFormCatalog.LanguageLabel(row.Parsed!.Value)))
+                .ToList();
+
+            // Yopiq ro'yxat — har til bor (Shape). Shunga qaramay biror til tushib qolsa — asl nomi bilan oxirida.
+            ordered.AddRange(QuestionnaireFormCatalog.FixedLanguages
+                .Where(language => ordered.All(row => row.Item1 != language))
+                .Select(language => (language, QuestionnaireFormCatalog.LanguageLabel(language))));
+
+            return ordered;
+        }
+
+        /// <summary>Qarindoshlik nomi: HR o'zgartirgani ?? qog'ozdagi.</summary>
+        private string RelationName(FormFamilyRelation relation)
+            => (_t.HasList(HrF02TextCatalog.RelationList)
+                    && _t.Options(HrF02TextCatalog.RelationList).FirstOrDefault(option => option.Value == relation.ToString()) is { } option
+                    ? FormTexts.ChangedLatin(HrF02TextCatalog.RelationList, option)
+                    : null)
+                ?? QuestionnaireFormCatalog.RelationLabel(relation);
+
+        /// <summary>Kompyuter jadvalining uch ustuni — <see cref="FormTexts.ComputerGroups"/>.</summary>
+        private IReadOnlyList<ComputerSkillGroup> ComputerColumns(IReadOnlyDictionary<string, int> skills)
+            => _t.ComputerGroups(skills);
 
         private static void TestRow(Table table, int number, string name, Action<Cell> result)
         {
@@ -1176,7 +1303,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
         /// Ro'yxat qog'ozdagidek qat'iy emas (HR kanal qo'shadi), shu sababli qatorlarga
         /// uzunlik bo'yicha teriladi: qisqa nomlar yonma-yon, uzunlari yangi qatorda.
         /// </remarks>
-        private static (string Label, bool Chosen)[][] ReferralLines(
+        private (string Label, bool Chosen)[][] ReferralLines(
             IReadOnlyList<QuestionnairePdfChoice> choices,
             string? detail)
         {
@@ -1187,7 +1314,7 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             foreach (var choice in choices)
             {
                 var label = choice.Chosen && !string.IsNullOrWhiteSpace(detail)
-                    ? $"{choice.Label}, kim/qaysi: {detail.Trim()}"
+                    ? _t.Pdf("pdf.conditions.referralDetail", ("label", choice.Label), ("detail", detail.Trim()))
                     : choice.Label;
 
                 // Belgi, bo'shliq va oraliq — har variantga ~4 belgi
@@ -1212,11 +1339,11 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             return [.. lines];
         }
 
-        private static void YesNo(Cell cell, bool? value)
-            => Choices(cell, [[("Ha", value == true), ("Yo‘q", value == false)]]);
+        private void YesNo(Cell cell, bool? value)
+            => Choices(cell, [[(T("pdf.common.yes"), value == true), (T("pdf.common.no"), value == false)]]);
 
-        private static void YesNoDetail(Cell cell, bool? value, string? detail, string yes)
-            => Choices(cell, [[("Yo‘q", value == false), ($"{yes}: {(value == true && detail is not null ? detail : Blank)}", value == true)]]);
+        private void YesNoDetail(Cell cell, bool? value, string? detail, string yes)
+            => Choices(cell, [[(T("pdf.common.no"), value == false), ($"{yes}: {(value == true && detail is not null ? detail : Blank)}", value == true)]]);
 
         private static void Box(Paragraph paragraph, bool chosen)
         {
@@ -1309,10 +1436,10 @@ public sealed partial class QuestionnairePdfRenderer : IQuestionnairePdfRenderer
             ({ } start, { } end) => $"{start.ToString(Invariant)} – {end.ToString(Invariant)}",
         };
 
-        private static string Period(FormJob job)
+        private string Period(FormJob job)
         {
             var from = job.From is null ? "____" : QuestionnaireFormMapping.Month(job.From);
-            var to = job.Current ? "hozir" : job.To is null ? "____" : QuestionnaireFormMapping.Month(job.To);
+            var to = job.Current ? T("pdf.work.present") : job.To is null ? "____" : QuestionnaireFormMapping.Month(job.To);
 
             return $"{from} – {to}";
         }

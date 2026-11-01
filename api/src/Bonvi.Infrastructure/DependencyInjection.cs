@@ -3,6 +3,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Audit;
+using Bonvi.Application.Blanks;
 using Bonvi.Application.Catalog.Usage;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
@@ -13,6 +14,7 @@ using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.PublicApi.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Forms;
+using Bonvi.Application.Recruiting.Forms.Dynamic;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.Reports.Export;
 using Bonvi.Application.System.Queries.GetSystemInfo;
@@ -76,6 +78,7 @@ public static class DependencyInjection
         services.AddNotificationServices();
         services.AddSettingsServices(configuration);
         services.AddPublicApiServices();
+        services.AddHrMentorServices();
 
         // Bosh sahifa sanoqlari — bironta bo'limga tegishli emas (xodimlar
         // ham, ma'lumotnomalar ham), shu sababli shu yerda turadi.
@@ -95,6 +98,7 @@ public static class DependencyInjection
         // Planshet anketasining PDF'i (SPEC-planshet-anketa §6.3) — holatsiz,
         // shriftlar jarayonga bir marta o'rnatiladi.
         services.AddSingleton<IQuestionnairePdfRenderer, QuestionnairePdfRenderer>();
+        services.AddSingleton<IDynamicFormPdfRenderer, DynamicFormPdfRenderer>();
         services.AddSingleton<IQuestionnaireFormJournal, QuestionnaireFormJournal>();
         services.AddQuestionnaireBotCheck(configuration);
 
@@ -121,6 +125,32 @@ public static class DependencyInjection
             .AddHttpClient<IQuestionnaireBotCheck, TurnstileBotCheck>(
                 TurnstileBotCheck.HttpClientName,
                 client => client.Timeout = TurnstileBotCheck.Timeout)
+            .RemoveAllLoggers();
+
+        return services;
+    }
+
+    /// <summary>
+    /// HRMentor blankalari va anketa matnlari (SPEC-blankalar-hrmentor §3).
+    /// </summary>
+    /// <remarks>
+    /// <c>HttpClient</c> ning o'z so'rov jurnali o'chiq — Authorization sarlavhasi jurnalga
+    /// tushmasin. Yo'naltirish kuzatilmaydi: kalit boshqa manzilga ketib qolmasin (sababi
+    /// <see cref="HrMentorClient"/> izohida). Umumiy vaqt — fayl yuklashniki (120 s); JSON
+    /// so'rovlari o'zining 20 soniyasini qo'yadi.
+    /// </remarks>
+    private static IServiceCollection AddHrMentorServices(this IServiceCollection services)
+    {
+        services.AddScoped<IHrBlankRepository, HrBlankRepository>();
+        services.AddScoped<IFormTextSnapshotRepository, FormTextSnapshotRepository>();
+        services.AddScoped<IFormDefinitionRepository, FormDefinitionRepository>();
+        services.AddSingleton<IHrMentorSyncJournal, HrMentorSyncJournal>();
+
+        services
+            .AddHttpClient<IHrMentorClient, HrMentorClient>(
+                HrMentorClient.HttpClientName,
+                client => client.Timeout = HrMentorClient.FileTimeout)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false })
             .RemoveAllLoggers();
 
         return services;

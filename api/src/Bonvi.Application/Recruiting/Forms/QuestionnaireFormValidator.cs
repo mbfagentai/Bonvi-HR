@@ -104,15 +104,20 @@ public static class QuestionnaireFormValidator
     /// «Qayerdan bilgan» ning FAOL kanallari — seansda formaga berilgan ro'yxat. Tekshiruvchi
     /// bazani ko'rmaydi: ro'yxatni chaqiruvchi beradi, qoida esa shu yerda qoladi.
     /// </param>
+    /// <param name="extraComputerKeys">
+    /// Koddagi 11 tadan tashqari qabul qilinadigan dastur kalitlari — HR ning HRMentor dagi
+    /// kompyuter ro'yxati (SPEC-blankalar-hrmentor §5.2), yashirilganlari ham. Boshqa kalit — 400.
+    /// </param>
     public static Result<QuestionnaireFormAnswers> Validate(
         QuestionnaireFormAnswers answers,
         DateOnly today,
-        IReadOnlyCollection<ReferralChannelOptionDto> referralChannels)
+        IReadOnlyCollection<ReferralChannelOptionDto> referralChannels,
+        IReadOnlySet<string>? extraComputerKeys = null)
     {
         ArgumentNullException.ThrowIfNull(answers);
         ArgumentNullException.ThrowIfNull(referralChannels);
 
-        var check = new Check(today, referralChannels);
+        var check = new Check(today, referralChannels, extraComputerKeys ?? new HashSet<string>(StringComparer.Ordinal));
 
         try
         {
@@ -280,7 +285,10 @@ public static class QuestionnaireFormValidator
     /// «xato bo'lsa qaytar» shartini yozish kodni uch barobar uzaytirardi va
     /// bittasini unutish oson edi. Istisno sinf tashqarisiga chiqmaydi.
     /// </remarks>
-    private sealed class Check(DateOnly today, IReadOnlyCollection<ReferralChannelOptionDto> referralChannels)
+    private sealed class Check(
+        DateOnly today,
+        IReadOnlyCollection<ReferralChannelOptionDto> referralChannels,
+        IReadOnlySet<string> extraComputerKeys)
     {
         public Result<QuestionnaireFormAnswers> Run(QuestionnaireFormAnswers a)
         {
@@ -938,7 +946,7 @@ public static class QuestionnaireFormValidator
             return value;
         }
 
-        private static Dictionary<string, int> Computer(IReadOnlyDictionary<string, int>? skills)
+        private Dictionary<string, int> Computer(IReadOnlyDictionary<string, int>? skills)
         {
             var result = new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -951,7 +959,7 @@ public static class QuestionnaireFormValidator
             {
                 var path = $"computerSkills.{key}";
 
-                Ensure(QuestionnaireFormCatalog.ComputerKeys.Contains(key), path);
+                Ensure(QuestionnaireFormCatalog.ComputerKeys.Contains(key) || extraComputerKeys.Contains(key), path);
                 Ensure(level is >= 1 and <= 4, path);
 
                 result[key] = level;

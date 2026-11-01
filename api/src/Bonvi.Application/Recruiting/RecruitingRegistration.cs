@@ -103,6 +103,11 @@ internal static class RecruitingRegistration
         services.AddScoped<ListCandidateFormsQueryHandler>();
         services.AddScoped<GetCandidateFormPdfQueryHandler>();
 
+        // Konstruktor anketasining ko'rinishi (SPEC-anketa-konstruktori §9) — HR uchun, saqlamaydi
+        services.AddScoped<FormDraftReader>();
+        services.AddScoped<GetFormPreviewQueryHandler>();
+        services.AddScoped<PreviewQuestionnairePdfCommandHandler>();
+
         return services;
     }
 }

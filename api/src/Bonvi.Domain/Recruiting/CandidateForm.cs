@@ -144,6 +144,27 @@ public sealed class CandidateForm : AggregateRoot
     /// <summary>Yuborilgan lahza.</summary>
     public DateTimeOffset SubmittedAt { get; private set; }
 
+    /// <summary>
+    /// Topshirish paytida amalda bo'lgan HR matnlari reviziyasi (<see cref="FormTextSnapshot"/>).
+    /// </summary>
+    /// <remarks>
+    /// PDF keyin ham AYNAN shu reviziya bilan chiziladi (SPEC-blankalar-hrmentor §5.3):
+    /// imzolangan anketaning savollari HR matnni o'zgartirgani uchun o'zgarmasligi kerak.
+    /// <c>null</c> — HRMentor ulanmagan edi yoki eski anketa: dasturdagi asl matnlar.
+    /// </remarks>
+    public int? TextsRevision { get; private set; }
+
+    /// <summary>
+    /// HRMentor konstruktorida yig'ilgan anketa versiyasi (<see cref="FormDefinitionSnapshot"/>,
+    /// SPEC-anketa-konstruktori §5.1).
+    /// </summary>
+    /// <remarks>
+    /// <c>null</c> — dasturdagi o'rnatilgan anketa (3.0 / 3.1). Qiymat bo'lsa
+    /// <see cref="FormVersion"/> — o'sha versiyaning yorlig'i, <see cref="TextsRevision"/> esa
+    /// <c>null</c>: matnlar ta'rifning o'zida.
+    /// </remarks>
+    public int? DefinitionVersion { get; private set; }
+
     /// <summary>Anketani yozadi.</summary>
     /// <remarks>
     /// Javoblarning MAZMUNI bu yerda tekshirilmaydi — u Application'dagi
@@ -160,7 +181,9 @@ public sealed class CandidateForm : AggregateRoot
         Guid clientSubmissionId,
         Guid? fileId,
         DateTimeOffset submittedAt,
-        string formVersion = HrF02Version)
+        string formVersion = HrF02Version,
+        int? textsRevision = null,
+        int? definitionVersion = null)
     {
         if (candidateId == Guid.Empty)
         {
@@ -175,7 +198,8 @@ public sealed class CandidateForm : AggregateRoot
             || string.IsNullOrWhiteSpace(signatureKey)
             || clientSubmissionId == Guid.Empty
             || string.IsNullOrWhiteSpace(formVersion)
-            || formVersion.Length > MaxFormVersionLength)
+            || formVersion.Length > MaxFormVersionLength
+            || definitionVersion is <= 0)
         {
             return Error.Validation("anketa.notogri", "Anketa yozuvi to'liq emas.");
         }
@@ -192,6 +216,8 @@ public sealed class CandidateForm : AggregateRoot
             FileId = fileId,
             SubmittedAt = submittedAt,
             FormVersion = formVersion,
+            TextsRevision = definitionVersion is null && textsRevision is > 0 ? textsRevision : null,
+            DefinitionVersion = definitionVersion,
         };
     }
 }

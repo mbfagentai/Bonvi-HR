@@ -1,5 +1,6 @@
 using Bonvi.Application.Attendance.Recompute;
 using Bonvi.Application.Attendance.Retention;
+using Bonvi.Application.Blanks;
 using Bonvi.Application.Employees.Probations;
 using Bonvi.Application.Identity.EmployeeAccounts;
 using Bonvi.Infrastructure;
@@ -63,6 +64,9 @@ public static class BackgroundJobs
     /// REJADA YO'Q; identifikator eski yozuvni o'chirish uchun qoldi.
     /// </summary>
     public const string ProbationAutoPassJobId = "probations:auto-pass";
+
+    /// <summary>HRMentor: katalog, anketa matnlari va blankalar (SPEC-blankalar-hrmentor §3).</summary>
+    public const string HrMentorSyncJobId = "hrmentor:sync";
 
     /// <summary>Hangfire serverini va navbat portini ulaydi — yoki <c>Testing</c> da sinxron navbatni.</summary>
     /// <param name="builder">Ilova quruvchisi.</param>
@@ -187,6 +191,15 @@ public static class BackgroundJobs
         // natijani HR o'zi kiritadi. Prod Hangfire bazasidagi eski jadval yozuvi ham o'chiriladi,
         // aks holda u yangi kod bilan ham har kecha ishlayverardi.
         jobs.RemoveIfExists(ProbationAutoPassJobId);
+
+        // Har 5 daqiqada (…:01, :06, :11, …) — 15 daqiqalik davomat vazifalari bilan bir
+        // daqiqaga tushmasin. HRMentor ulanmagan bo'lsa yurish hech narsa qilmaydi; HR matnni
+        // o'zgartirsa anketa va PDF uni ko'pi bilan 5 daqiqada oladi.
+        jobs.AddOrUpdate<HrMentorSyncJob>(
+            HrMentorSyncJobId,
+            job => job.RunAsync(CancellationToken.None),
+            "1-59/5 * * * *",
+            utc);
 
         // ⭐ Ishga tushishda ham — NAVBATGA qo'yiladi, shu yerda bajarilmaydi:
         // birinchi yurish ~540 ta parolni xeshlaydi (bir necha o'n soniya) va

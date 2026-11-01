@@ -892,7 +892,7 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.ToTable("schedule_assignments", null, t =>
                         {
-                            t.HasCheckConstraint("ck_schedule_assignments_scope", "(scope = 1 AND employee_id IS NOT NULL AND position_id IS NULL AND department_id IS NULL) OR\n(scope = 2 AND position_id IS NOT NULL AND employee_id IS NULL AND department_id IS NULL) OR\n(scope = 3 AND department_id IS NOT NULL AND employee_id IS NULL AND position_id IS NULL) OR\n(scope = 4 AND employee_id IS NULL AND position_id IS NULL AND department_id IS NULL)");
+                            t.HasCheckConstraint("ck_schedule_assignments_scope", "(scope = 1 AND employee_id IS NOT NULL AND position_id IS NULL AND department_id IS NULL) OR\r\n(scope = 2 AND position_id IS NOT NULL AND employee_id IS NULL AND department_id IS NULL) OR\r\n(scope = 3 AND department_id IS NOT NULL AND employee_id IS NULL AND position_id IS NULL) OR\r\n(scope = 4 AND employee_id IS NULL AND position_id IS NULL AND department_id IS NULL)");
                         });
                 });
 
@@ -1272,7 +1272,7 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.ToTable("work_schedule_days", null, t =>
                         {
-                            t.HasCheckConstraint("ck_work_schedule_days_break_window", "(break_start IS NULL AND break_end IS NULL)\nOR (is_working\n    AND break_start IS NOT NULL\n    AND break_end IS NOT NULL\n    AND break_start <> break_end)");
+                            t.HasCheckConstraint("ck_work_schedule_days_break_window", "(break_start IS NULL AND break_end IS NULL)\r\nOR (is_working\r\n    AND break_start IS NOT NULL\r\n    AND break_end IS NOT NULL\r\n    AND break_start <> break_end)");
 
                             t.HasCheckConstraint("ck_work_schedule_days_flexible", "(NOT is_flexible AND required_minutes IS NULL) OR (is_flexible AND required_minutes IS NOT NULL AND required_minutes BETWEEN 1 AND 1440)");
                         });
@@ -1479,6 +1479,84 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasFilter("subject_employee_id IS NOT NULL");
 
                     b.ToTable("audit_logs", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.HrBlank", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("content_type");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<string>("FileKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("file_name");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("sha256")
+                        .IsFixedLength();
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<DateTimeOffset>("SyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("synced_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("VersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("version_id");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_blanks");
+
+                    b.HasIndex("DocumentId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_blanks_document_id");
+
+                    b.ToTable("hr_blanks", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Catalog.AbsenceType", b =>
@@ -4115,6 +4193,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("client_submission_id");
 
+                    b.Property<int?>("DefinitionVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("definition_version");
+
                     b.Property<Guid?>("FileId")
                         .HasColumnType("uuid")
                         .HasColumnName("file_id");
@@ -4157,6 +4239,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("submitted_at");
 
+                    b.Property<int?>("TextsRevision")
+                        .HasColumnType("integer")
+                        .HasColumnName("texts_revision");
+
                     b.HasKey("Id")
                         .HasName("pk_candidate_forms");
 
@@ -4170,6 +4256,9 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CandidateId", "SubmittedAt")
                         .HasDatabaseName("ix_candidate_forms_candidate_id_submitted_at");
+
+                    b.HasIndex("FormCode", "DefinitionVersion")
+                        .HasDatabaseName("ix_candidate_forms_form_code_definition_version");
 
                     b.ToTable("candidate_forms", (string)null);
                 });
@@ -4333,6 +4422,90 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_candidate_stage_entries_candidate_id_recorded_at");
 
                     b.ToTable("candidate_stage_entries", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.FormDefinitionSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Definition")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("definition");
+
+                    b.Property<string>("FormCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("form_code");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("label");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("sha256")
+                        .IsFixedLength();
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_form_definitions");
+
+                    b.HasAlternateKey("FormCode", "Version")
+                        .HasName("ak_form_definitions_form_code_version");
+
+                    b.ToTable("form_definitions", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.FormTextSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<string>("FormCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("form_code");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision");
+
+                    b.HasKey("Id")
+                        .HasName("pk_form_text_snapshots");
+
+                    b.HasIndex("FormCode", "Revision")
+                        .IsUnique()
+                        .HasDatabaseName("ix_form_text_snapshots_form_code_revision");
+
+                    b.ToTable("form_text_snapshots", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.PipelineStage", b =>
@@ -5196,6 +5369,13 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_candidate_forms_candidates_candidate_id");
+
+                    b.HasOne("Bonvi.Domain.Recruiting.FormDefinitionSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("FormCode", "DefinitionVersion")
+                        .HasPrincipalKey("FormCode", "Version")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_candidate_forms_form_definitions_form_code_definition_versi");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CandidateNote", b =>

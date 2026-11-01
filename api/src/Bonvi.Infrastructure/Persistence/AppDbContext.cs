@@ -3,6 +3,7 @@ using System.Reflection;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Auditing;
+using Bonvi.Domain.Blanks;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
@@ -436,6 +437,17 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Har bir vosita chaqiruvining jurnali (<c>mcp_audit</c>).</summary>
     public DbSet<McpAuditEntry> McpAudit => Set<McpAuditEntry>();
+
+    // ────────────────────────────────────────────────────────────
+    //  HRMENTOR — `docs/SPEC-blankalar-hrmentor.md`.
+    //  Ikkalasi ham OYNA: egasi HRMentor, bu yerni faqat sinxronlash yozadi.
+    // ────────────────────────────────────────────────────────────
+
+    public DbSet<HrBlank> HrBlanks => Set<HrBlank>();
+
+    public DbSet<FormTextSnapshot> FormTextSnapshots => Set<FormTextSnapshot>();
+
+    public DbSet<FormDefinitionSnapshot> FormDefinitions => Set<FormDefinitionSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

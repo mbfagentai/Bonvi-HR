@@ -363,6 +363,10 @@ app.MapReportsEndpoints();
 // bor: `/api/settings/bot` botning ruxsati bilan ochiladi.
 app.MapSettingsEndpoints();
 
+// HRMentor blankalari (SPEC-blankalar-hrmentor §6) — ko'rish «employees.view», «Hozir
+// yangilash» esa «settings.manage».
+app.MapBlankEndpoints();
+
 // Tashqi API kalitlari — ICHKI boshqaruv (JWT + «settings.manage»).
 // Sozlamalar bilan yonma-yon, chunki ekranda ular bitta bo'limda.
 app.MapApiKeyEndpoints();

@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.Text;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Common;
+using Bonvi.Application.Recruiting.Forms.Dynamic;
+using Bonvi.Application.Recruiting.Forms.Texts;
 using Bonvi.Application.Recruiting.Referrals;
 using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
@@ -32,6 +35,15 @@ namespace Bonvi.Application.Recruiting.Forms;
 /// </param>
 /// <param name="TurnstileToken">Bot tekshiruvi tokeni (SPEC §2.3.2) — faqat tekshiruv yoqiq bo'lsa majburiy.</param>
 /// <param name="ClientIp">Mijozning haqiqiy IP'si (<c>X-Bonvi-Client-Ip</c>) — bot tekshiruviga beriladi.</param>
+/// <param name="TextsRevision">
+/// Forma ko'rsatgan HR matnlari reviziyasi (seansdagi <c>texts.revision</c>, SPEC-blankalar-hrmentor §5.3);
+/// yo'q, o'qib bo'lmaydigan yoki bazada topilmagani — hozirgi reviziya.
+/// </param>
+/// <param name="DefinitionVersion">
+/// Konstruktor anketasining forma ko'rsatgan versiyasi (SPEC-anketa-konstruktori §5.3): bor bo'lsa
+/// javoblar <c>{ maydon: qiymat }</c> va AYNAN shu versiya bilan tekshiriladi va chiziladi; bazada
+/// yo'q — <c>anketa.versiya</c>; umuman yo'q — o'rnatilgan anketa.
+/// </param>
 public sealed record SubmitQuestionnaireFormCommand(
     string? Answers,
     string? ClientSubmissionId,
@@ -43,7 +55,9 @@ public sealed record SubmitQuestionnaireFormCommand(
     long SignatureSizeBytes,
     string? Website,
     string? TurnstileToken,
-    string? ClientIp);
+    string? ClientIp,
+    string? TextsRevision = null,
+    string? DefinitionVersion = null);
 
 /// <summary>Formaga qaytadigan javob — nomzod yozuvi haqida HECH NARSA yo'q (endpoint ochiq).</summary>
 /// <param name="FormNumber">«Anketa №».</param>
@@ -103,6 +117,19 @@ public sealed record QuestionnaireSubmission(QuestionnaireSubmittedDto Result, b
 /// eskirgan bo'lishi mumkin) → bot tekshiruvi (Turnstile, yoqiq bo'lsa) → qolgan hamma ish.
 /// Bot tekshiruvidan o'tmagan so'rov bazaga ham, diskka ham hech narsa yozmaydi.
 /// </para>
+/// <para>
+/// <b>HR matnlari</b> (SPEC-blankalar-hrmentor §5): nomzod ko'rgan reviziya (forma qaytargan
+/// <c>textsRevision</c>, bazada bo'lsa) yoki hozirgisi. Shu reviziya anketaga yoziladi
+/// (<see cref="CandidateForm.TextsRevision"/>), PDF va anketa xulosasi shu matnlar bilan
+/// yasaladi, HR qo'shgan dasturlar shu ro'yxatdan qabul qilinadi.
+/// </para>
+/// <para>
+/// ⭐ <b>Konstruktor anketasi</b> (SPEC-anketa-konstruktori §6): <c>definitionVersion</c> kelsa
+/// javoblar o'sha saqlangan versiya bilan tekshiriladi (<see cref="DynamicFormValidator"/>), bog'langan
+/// javoblar <see cref="DynamicFormMapping"/> orqali shu klassning UMUMIY yo'liga tushadi (nomzodni
+/// topish, ro'yxatga olish, fayllar, bitta saqlash), PDF esa o'sha versiyadan chiziladi. Kelmasa —
+/// o'rnatilgan anketa, o'zgarishsiz.
+/// </para>
 /// </remarks>
 public sealed class SubmitQuestionnaireFormCommandHandler
 {
@@ -154,6 +181,9 @@ public sealed class SubmitQuestionnaireFormCommandHandler
     private readonly IDatabaseFault _fault;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly FormTextsReader _texts;
+    private readonly FormDefinitionsReader _definitions;
+    private readonly IDynamicFormPdfRenderer _dynamicPdf;
 
     public SubmitQuestionnaireFormCommandHandler(
         ICandidateRepository candidates,
@@ -173,7 +203,10 @@ public sealed class SubmitQuestionnaireFormCommandHandler
         IImageProcessor images,
         IDatabaseFault fault,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        FormTextsReader texts,
+        FormDefinitionsReader definitions,
+        IDynamicFormPdfRenderer dynamicPdf)
     {
         _candidates = candidates;
         _forms = forms;
@@ -193,6 +226,9 @@ public sealed class SubmitQuestionnaireFormCommandHandler
         _fault = fault;
         _clock = clock;
         _unitOfWork = unitOfWork;
+        _texts = texts;
+        _definitions = definitions;
+        _dynamicPdf = dynamicPdf;
     }
 
     public async Task<Result<QuestionnaireSubmission>> HandleAsync(
@@ -240,48 +276,92 @@ public sealed class SubmitQuestionnaireFormCommandHandler
             return QuestionnaireFormErrors.Invalid.At("language");
         }
 
-        if (QuestionnaireFormJson.Read(command.Answers) is not { } raw)
+        // ── Konstruktor anketasi: forma ko'rsatgan versiya (SPEC-anketa-konstruktori §5.3) ──
+        StoredFormDefinition? definition = null;
+
+        if (!string.IsNullOrWhiteSpace(command.DefinitionVersion))
         {
-            return QuestionnaireFormErrors.Unreadable;
+            definition = int.TryParse(command.DefinitionVersion, NumberStyles.None, CultureInfo.InvariantCulture, out var version)
+                ? await _definitions.FindAsync(version, cancellationToken).ConfigureAwait(false)
+                : null;
+
+            if (definition is null)
+            {
+                return QuestionnaireFormErrors.DefinitionOutdated.At("definitionVersion");
+            }
         }
 
         // «Qayerdan bilgan» kanallari BITTA so'rovda: faollari — tekshiruvchiga (yangi tanlov
         // faqat ulardan), hammasi — PDF'ga (SPEC-qayerdan-bilgan §5)
         var referralChannels = await _referralChannels.ListAsync(onlyActive: false, cancellationToken).ConfigureAwait(false);
+        IReadOnlyCollection<ReferralChannelOptionDto> activeChannels =
+        [
+            .. referralChannels
+                .Where(channel => channel.IsActive)
+                .Select(channel => new ReferralChannelOptionDto(channel.Id, channel.Name, channel.IsActive, channel.AsksDetail)),
+        ];
 
-        var validated = QuestionnaireFormValidator.Validate(
-            raw,
-            _clock.Today,
-            [
-                .. referralChannels
-                    .Where(channel => channel.IsActive)
-                    .Select(channel => new ReferralChannelOptionDto(channel.Id, channel.Name, channel.IsActive, channel.AsksDetail)),
-            ]);
+        QuestionnaireFormAnswers answers;
+        DynamicFormAnswers? dynamicAnswers = null;
+        FormTexts texts;
 
-        if (validated.IsFailure)
+        if (definition is not null)
         {
-            return validated.Error;
+            // Konstruktor anketasi: javoblar ta'rif bo'yicha, HR matnlari ishlatilmaydi (so'zlar ta'rifda)
+            if (FormDefinitionReader.Parse(command.Answers) is not { } given)
+            {
+                return QuestionnaireFormErrors.Unreadable;
+            }
+
+            var checkedDynamic = DynamicFormValidator.Validate(given, definition.Definition, _clock.Today, activeChannels);
+            if (checkedDynamic.IsFailure)
+            {
+                return checkedDynamic.Error;
+            }
+
+            dynamicAnswers = checkedDynamic.Value;
+            answers = DynamicFormMapping.Person(dynamicAnswers);
+            texts = FormTexts.Empty;
+        }
+        else
+        {
+            if (QuestionnaireFormJson.Read(command.Answers) is not { } raw)
+            {
+                return QuestionnaireFormErrors.Unreadable;
+            }
+
+            texts = await TextsAsync(command.TextsRevision, cancellationToken).ConfigureAwait(false);
+
+            var validated = QuestionnaireFormValidator.Validate(raw, _clock.Today, activeChannels, texts.ComputerValues());
+
+            if (validated.IsFailure)
+            {
+                return validated.Error;
+            }
+
+            answers = validated.Value;
         }
 
-        var answers = validated.Value;
+        // Umumiy yo'lning xatosi konstruktor anketasida o'z maydoniga (DynamicFormMapping.Path)
+        Error Located(Error error) => dynamicAnswers is null ? error : DynamicFormMapping.Path(error, dynamicAnswers.Definition);
 
         var photoUpload = await ReadPhotoAsync(command, cancellationToken).ConfigureAwait(false);
         if (photoUpload.IsFailure)
         {
-            return photoUpload.Error;
+            return Located(photoUpload.Error);
         }
 
         var signature = await ReadSignatureAsync(command, cancellationToken).ConfigureAwait(false);
         if (signature.IsFailure)
         {
-            return signature.Error;
+            return Located(signature.Error);
         }
 
         // ── Nomzod: jarayondagisi yoki yangisi ──
         var target = await ResolveCandidateAsync(answers, cancellationToken).ConfigureAwait(false);
         if (target.IsFailure)
         {
-            return target.Error;
+            return Located(target.Error);
         }
 
         var (candidate, isNew, vacancyTitle) = target.Value;
@@ -302,7 +382,7 @@ public sealed class SubmitQuestionnaireFormCommandHandler
             if (photo.Key is not { } photoKey)
             {
                 // Formaga bitta kod (QuestionnaireFormErrors.PhotoInvalid izohi)
-                return QuestionnaireFormErrors.PhotoInvalid.At("photo");
+                return Located(QuestionnaireFormErrors.PhotoInvalid.At("photo"));
             }
 
             stored.Add(photoKey);
@@ -341,13 +421,14 @@ public sealed class SubmitQuestionnaireFormCommandHandler
 
             // «Qayerdan bilgan» — yangi nomzodda doim, mavjudida faqat bo'sh bo'lsa (bot yoki HR
             // qo'ygan kanal ustidan yozilmaydi). Kanal va aniqlik tekshiruvchidan o'tgan.
-            if (candidate.ReferralChannelId is null)
+            // Konstruktor anketasida savol ixtiyoriy bo'lishi mumkin — javob yo'q bo'lsa tegilmaydi.
+            if (candidate.ReferralChannelId is null && answers.ReferralChannelId is { } channelId)
             {
-                var referral = candidate.SetReferral(answers.ReferralChannelId!.Value, answers.ReferralDetail);
+                var referral = candidate.SetReferral(channelId, answers.ReferralDetail);
                 if (referral.IsFailure)
                 {
                     await DeleteAsync(stored, cancellationToken).ConfigureAwait(false);
-                    return referral.Error.At("referralDetail");
+                    return Located(referral.Error.At("referralDetail"));
                 }
             }
 
@@ -358,7 +439,9 @@ public sealed class SubmitQuestionnaireFormCommandHandler
 
             if (candidate.Questionnaire is null)
             {
-                var questionnaire = QuestionnaireFormMapping.ToQuestionnaire(candidate.Id, answers, submittedAt);
+                var questionnaire = dynamicAnswers is null
+                    ? QuestionnaireFormMapping.ToQuestionnaire(candidate.Id, answers, submittedAt, texts)
+                    : DynamicFormMapping.ToQuestionnaire(candidate.Id, dynamicAnswers, submittedAt);
                 var attached = questionnaire.IsFailure ? Result.Failure(questionnaire.Error) : candidate.AttachQuestionnaire(questionnaire.Value);
 
                 if (attached.IsFailure)
@@ -372,37 +455,57 @@ public sealed class SubmitQuestionnaireFormCommandHandler
 
             var squarePhoto = await ReadAsync(_photos.OpenAsync(formPhotoKey, null, cancellationToken), cancellationToken).ConfigureAwait(false);
 
-            // Deploy paytida ochiq qolgan eski sahifadan kelgan anketa — o'z versiyasi bilan (IsLegacy izohi)
-            var formVersion = QuestionnaireFormValidator.IsLegacy(answers)
-                ? CandidateForm.HrF02LegacyVersion
-                : CandidateForm.HrF02Version;
+            // Deploy paytida ochiq qolgan eski sahifadan kelgan anketa — o'z versiyasi bilan (IsLegacy izohi);
+            // konstruktor anketasi — ta'rifning yorlig'i («4.0»)
+            var formVersion = definition is not null
+                ? definition.Label
+                : QuestionnaireFormValidator.IsLegacy(answers)
+                    ? CandidateForm.HrF02LegacyVersion
+                    : CandidateForm.HrF02Version;
 
-            var pdf = await _pdf.RenderAsync(
-                new QuestionnairePdfModel(
-                    answers,
-                    number,
-                    submittedAt.ToTashkent(),
-                    vacancyTitle,
-                    language,
-                    squarePhoto,
-                    signature.Value,
-                    QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId),
-                    formVersion),
-                cancellationToken).ConfigureAwait(false);
+            var referralChoices = QuestionnairePdfChoice.ReferralChannels(referralChannels, answers.ReferralChannelId);
+
+            var pdf = dynamicAnswers is not null
+                ? await _dynamicPdf.RenderAsync(
+                    new DynamicFormPdfModel(
+                        dynamicAnswers,
+                        number,
+                        submittedAt.ToTashkent(),
+                        vacancyTitle,
+                        language,
+                        squarePhoto,
+                        signature.Value,
+                        referralChoices),
+                    cancellationToken).ConfigureAwait(false)
+                : await _pdf.RenderAsync(
+                    new QuestionnairePdfModel(
+                        answers,
+                        number,
+                        submittedAt.ToTashkent(),
+                        vacancyTitle,
+                        language,
+                        squarePhoto,
+                        signature.Value,
+                        referralChoices,
+                        formVersion,
+                        texts),
+                    cancellationToken).ConfigureAwait(false);
 
             var fileId = await AttachPdfAsync(candidate, number, answers, pdf, stored, cancellationToken).ConfigureAwait(false);
 
             var form = CandidateForm.Submit(
                 candidate.Id,
                 number,
-                QuestionnaireFormJson.Write(answers),
+                dynamicAnswers?.Write() ?? QuestionnaireFormJson.Write(answers),
                 language,
                 formPhotoKey,
                 signatureFile.Key,
                 submissionId,
                 fileId,
                 submittedAt,
-                formVersion);
+                formVersion,
+                definition is null ? texts.Revision : null,
+                definition?.Version);
 
             if (form.IsFailure)
             {
@@ -805,6 +908,29 @@ public sealed class SubmitQuestionnaireFormCommandHandler
     /// </remarks>
     private static QuestionnaireSubmission Repeated(CandidateForm earlier)
         => new(new QuestionnaireSubmittedDto(earlier.Number, earlier.SubmittedAt), Created: false);
+
+    /// <summary>
+    /// Anketaning HR matnlari: forma ko'rsatgan reviziya (bazada bo'lsa) yoki hozirgisi.
+    /// </summary>
+    /// <remarks>
+    /// Nomzod anketani to'ldirayotganda HR yangi reviziya chiqargan bo'lsa ham PDF nomzod O'QIGAN
+    /// savollar bilan chiziladi. Mijoz bergan raqam faqat bazadagi reviziyani tanlaydi — har
+    /// reviziyani HR yozgan va shakli tekshirilgan, ya'ni begona matn kirita olmaydi.
+    /// </remarks>
+    private async Task<FormTexts> TextsAsync(string? revision, CancellationToken cancellationToken)
+    {
+        if (int.TryParse(revision, NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+            && number > 0)
+        {
+            var shown = await _texts.ForRevisionAsync(number, cancellationToken).ConfigureAwait(false);
+            if (shown.Revision is not null)
+            {
+                return shown;
+            }
+        }
+
+        return await _texts.CurrentAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Suratni o'qiydi: 5 MB gacha, MAZMUNI bo'yicha JPEG yoki PNG (e'lon qilingan turga ishonilmaydi).

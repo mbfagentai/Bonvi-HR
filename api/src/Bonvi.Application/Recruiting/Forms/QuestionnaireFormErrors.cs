@@ -74,6 +74,14 @@ public static class QuestionnaireFormErrors
     public static Error BotCheckFailed { get; } =
         Error.Validation("anketa.bot_tekshiruvi", "Tekshiruvdan o'tmadi. Sahifani yangilab, qayta yuboring.");
 
+    /// <remarks>
+    /// Konstruktor anketasi (SPEC-anketa-konstruktori §5.3): forma yuborgan <c>definitionVersion</c>
+    /// bazada yo'q. Forma sahifani yangilaydi, qoralama saqlanib qoladi. <c>field</c> —
+    /// <c>definitionVersion</c>.
+    /// </remarks>
+    public static Error DefinitionOutdated { get; } =
+        Error.Validation("anketa.versiya", "Anketa yangilandi. Sahifani yangilang.");
+
     /// <summary>Xatoga maydon yo'lini qo'shadi.</summary>
     /// <remarks>
     /// ⭐ Yo'l IKKI joyda: javobning <c>detail</c> ida (forma shu bo'yicha tegishli

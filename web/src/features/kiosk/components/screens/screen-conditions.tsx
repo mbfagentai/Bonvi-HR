@@ -2,6 +2,7 @@ import { useLocale } from '@/shared/i18n/use-locale'
 import { MoneyInput, Select } from '@/shared/ui'
 import { LIMITS } from '../../lib/kiosk-draft'
 import { START_AFTER_OPTIONS, lowerFirst } from '../../lib/kiosk-options'
+import { useKioskList, visibleValues } from '../../lib/kiosk-texts'
 import { ChoiceGroup, KioskField, KioskText, KioskTextArea, Label, YesNo, useFieldError } from '../kiosk-fields'
 import type { ScreenProps } from './screen-props'
 
@@ -89,6 +90,7 @@ export function ReferralScreen({ draft, patch, errors, session }: ScreenProps) {
 /** Salary, when the candidate can start (counted from the hire day) and loans. */
 export function SalaryScreen({ draft, patch, errors }: ScreenProps) {
   const { t } = useLocale()
+  const startAfter = useKioskList('startAfter')
   const fieldError = useFieldError(errors)
 
   return (
@@ -118,7 +120,10 @@ export function SalaryScreen({ draft, patch, errors }: ScreenProps) {
         value={draft.startAfter}
         onChange={(startAfter) => patch({ startAfter })}
         error={fieldError('startAfter')}
-        options={START_AFTER_OPTIONS.map((value) => ({ value, label: t(`kiosk.startAfter.${lowerFirst(value)}`) }))}
+        options={visibleValues(startAfter, START_AFTER_OPTIONS, (value) => value === draft.startAfter).map((value) => ({
+          value,
+          label: t(`kiosk.startAfter.${lowerFirst(value)}`),
+        }))}
       />
 
       <YesNo

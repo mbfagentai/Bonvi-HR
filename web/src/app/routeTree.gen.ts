@@ -14,6 +14,7 @@ import { Route as AnketaRouteImport } from './routes/anketa'
 import { Route as KirishRouteImport } from './routes/kirish'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppBlankalarRouteImport } from './routes/_app/blankalar'
 import { Route as AppBuyruqlarRouteImport } from './routes/_app/buyruqlar'
 import { Route as AppFoydalanuvchilarRouteImport } from './routes/_app/foydalanuvchilar'
 import { Route as AppHisobotlarRouteImport } from './routes/_app/hisobotlar'
@@ -29,6 +30,7 @@ import { Route as AppSinovRouteImport } from './routes/_app/sinov'
 import { Route as AppSozlamalarRouteImport } from './routes/_app/sozlamalar'
 import { Route as AppVakansiyaSorovlariRouteImport } from './routes/_app/vakansiya-sorovlari'
 import { Route as AppVakansiyalarRouteImport } from './routes/_app/vakansiyalar'
+import { Route as AnketaKorinishRouteImport } from './routes/anketa_.korinish'
 import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/malumotnomalar/bolimlar'
 import { Route as AppMalumotnomalarHujjatTurlariRouteImport } from './routes/_app/malumotnomalar/hujjat-turlari'
 import { Route as AppMalumotnomalarJarimaTurlariRouteImport } from './routes/_app/malumotnomalar/jarima-turlari'
@@ -75,6 +77,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBlankalarRoute = AppBlankalarRouteImport.update({
+  id: '/blankalar',
+  path: '/blankalar',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBuyruqlarRoute = AppBuyruqlarRouteImport.update({
@@ -151,6 +158,11 @@ const AppVakansiyalarRoute = AppVakansiyalarRouteImport.update({
   id: '/vakansiyalar',
   path: '/vakansiyalar',
   getParentRoute: () => AppRoute,
+} as any)
+const AnketaKorinishRoute = AnketaKorinishRouteImport.update({
+  id: '/anketa_/korinish',
+  path: '/anketa/korinish',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppMalumotnomalarBolimlarRoute =
   AppMalumotnomalarBolimlarRouteImport.update({
@@ -290,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/audit': typeof AppAuditRoute
+  '/blankalar': typeof AppBlankalarRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
@@ -305,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
+  '/anketa/korinish': typeof AnketaKorinishRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
@@ -333,6 +347,7 @@ export interface FileRoutesByTo {
   '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/audit': typeof AppAuditRoute
+  '/blankalar': typeof AppBlankalarRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
@@ -348,6 +363,7 @@ export interface FileRoutesByTo {
   '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
+  '/anketa/korinish': typeof AnketaKorinishRoute
   '/': typeof AppIndexRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
@@ -379,6 +395,7 @@ export interface FileRoutesById {
   '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/_app/audit': typeof AppAuditRoute
+  '/_app/blankalar': typeof AppBlankalarRoute
   '/_app/buyruqlar': typeof AppBuyruqlarRoute
   '/_app/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/_app/hisobotlar': typeof AppHisobotlarRoute
@@ -394,6 +411,7 @@ export interface FileRoutesById {
   '/_app/sozlamalar': typeof AppSozlamalarRoute
   '/_app/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/_app/vakansiyalar': typeof AppVakansiyalarRoute
+  '/anketa_/korinish': typeof AnketaKorinishRoute
   '/_app/': typeof AppIndexRoute
   '/_app/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/_app/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
@@ -426,6 +444,7 @@ export interface FileRouteTypes {
     | '/anketa'
     | '/kirish'
     | '/audit'
+    | '/blankalar'
     | '/buyruqlar'
     | '/foydalanuvchilar'
     | '/hisobotlar'
@@ -441,6 +460,7 @@ export interface FileRouteTypes {
     | '/sozlamalar'
     | '/vakansiya-sorovlari'
     | '/vakansiyalar'
+    | '/anketa/korinish'
     | '/malumotnomalar/bolimlar'
     | '/malumotnomalar/hujjat-turlari'
     | '/malumotnomalar/jarima-turlari'
@@ -469,6 +489,7 @@ export interface FileRouteTypes {
     | '/anketa'
     | '/kirish'
     | '/audit'
+    | '/blankalar'
     | '/buyruqlar'
     | '/foydalanuvchilar'
     | '/hisobotlar'
@@ -484,6 +505,7 @@ export interface FileRouteTypes {
     | '/sozlamalar'
     | '/vakansiya-sorovlari'
     | '/vakansiyalar'
+    | '/anketa/korinish'
     | '/'
     | '/malumotnomalar/bolimlar'
     | '/malumotnomalar/hujjat-turlari'
@@ -514,6 +536,7 @@ export interface FileRouteTypes {
     | '/anketa'
     | '/kirish'
     | '/_app/audit'
+    | '/_app/blankalar'
     | '/_app/buyruqlar'
     | '/_app/foydalanuvchilar'
     | '/_app/hisobotlar'
@@ -529,6 +552,7 @@ export interface FileRouteTypes {
     | '/_app/sozlamalar'
     | '/_app/vakansiya-sorovlari'
     | '/_app/vakansiyalar'
+    | '/anketa_/korinish'
     | '/_app/'
     | '/_app/malumotnomalar/bolimlar'
     | '/_app/malumotnomalar/hujjat-turlari'
@@ -559,6 +583,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AnketaRoute: typeof AnketaRoute
   KirishRoute: typeof KirishRoute
+  AnketaKorinishRoute: typeof AnketaKorinishRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -596,6 +621,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/blankalar': {
+      id: '/_app/blankalar'
+      path: '/blankalar'
+      fullPath: '/blankalar'
+      preLoaderRoute: typeof AppBlankalarRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/buyruqlar': {
@@ -702,6 +734,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/vakansiyalar'
       preLoaderRoute: typeof AppVakansiyalarRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/anketa_/korinish': {
+      id: '/anketa_/korinish'
+      path: '/anketa/korinish'
+      fullPath: '/anketa/korinish'
+      preLoaderRoute: typeof AnketaKorinishRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/malumotnomalar/bolimlar': {
       id: '/_app/malumotnomalar/bolimlar'
@@ -869,6 +908,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
+  AppBlankalarRoute: typeof AppBlankalarRoute
   AppBuyruqlarRoute: typeof AppBuyruqlarRoute
   AppFoydalanuvchilarRoute: typeof AppFoydalanuvchilarRoute
   AppHisobotlarRoute: typeof AppHisobotlarRoute
@@ -912,6 +952,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
+  AppBlankalarRoute: AppBlankalarRoute,
   AppBuyruqlarRoute: AppBuyruqlarRoute,
   AppFoydalanuvchilarRoute: AppFoydalanuvchilarRoute,
   AppHisobotlarRoute: AppHisobotlarRoute,
@@ -959,6 +1000,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AnketaRoute: AnketaRoute,
   KirishRoute: KirishRoute,
+  AnketaKorinishRoute: AnketaKorinishRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

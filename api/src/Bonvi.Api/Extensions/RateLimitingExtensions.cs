@@ -82,6 +82,17 @@ public static class RateLimitPolicies
     /// Endpoint siyosati global zanjirga QO'SHIMCHA — ikkalasi ham sanaydi.
     /// </remarks>
     public const string TeamBoard = "team-board";
+
+    /// <summary>
+    /// Konstruktor anketasining namuna PDF i (<c>POST /api/kiosk/questionnaire/preview/pdf</c>) — HR
+    /// HISOBI bo'yicha, soatiga 30 (SPEC-anketa-konstruktori §9).
+    /// </summary>
+    /// <remarks>
+    /// Har so'rov HRMentor dan qoralamani oladi va PDF chizadi (jarayon bo'yicha ikkita chizish
+    /// navbati onlayn anketa bilan umumiy) — HR bir necha marta tekshiradi, skript esa navbatni
+    /// band qilolmaydi. Global zanjirga QO'SHIMCHA.
+    /// </remarks>
+    public const string FormPreviewPdf = "form-preview-pdf";
 }
 
 /// <summary>
@@ -218,6 +229,9 @@ public sealed class RateLimitingOptions
     /// qilishning oldi olinadi.
     /// </remarks>
     public RateLimitWindow TeamBoard { get; set; } = new() { PermitLimit = 30, WindowSeconds = 60 };
+
+    /// <summary>Anketa namuna PDF i — bitta HR hisobiga soatiga 30 (<see cref="RateLimitPolicies.FormPreviewPdf"/>).</summary>
+    public RateLimitWindow FormPreviewPdf { get; set; } = new() { PermitLimit = 30, WindowSeconds = 3600 };
 
     /// <summary>
     /// Onlayn anketa — BARCHA IP'lar uchun bitta umumiy chegara: kuniga 500 ta QABUL QILINGAN anketa.
@@ -478,6 +492,12 @@ public static class RateLimitingExtensions
                 RateLimitPartition.GetFixedWindowLimiter(
                     "jamoa-panel:" + Kim(context),
                     _ => QatiyOyna(sozlama.TeamBoard)));
+
+            // Anketa namuna PDF i — HR hisobi bo'yicha (RateLimitPolicies.FormPreviewPdf izohi)
+            options.AddPolicy(RateLimitPolicies.FormPreviewPdf, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    "anketa-namuna:" + Kim(context),
+                    _ => QatiyOyna(sozlama.FormPreviewPdf)));
 
             options.OnRejected = RadEtildiAsync;
         });

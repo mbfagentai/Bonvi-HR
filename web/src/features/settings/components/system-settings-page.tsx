@@ -1,4 +1,4 @@
-import { Bell, Bot, ImagePlus, KeyRound, LoaderCircle, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Bell, Bot, FileStack, ImagePlus, KeyRound, LoaderCircle, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
@@ -113,6 +113,22 @@ const GROUPS: readonly {
       'notifications.readRetentionDays': 'settings.system.readRetentionDays',
     },
   },
+  {
+    /*
+      HRMentor — blankalar va anketa matnlari shu yerdan keladi
+      (SPEC-blankalar-hrmentor §3). Manzil va kalit ikkalasi qo'yilganda
+      ulanish yoqiladi; biri bo'sh bo'lsa — o'chiq va anketa o'rnatilgan
+      matnlar bilan ishlaydi.
+    */
+    titleKey: 'settings.system.groupHrMentor',
+    hintKey: 'settings.system.groupHrMentorHint',
+    icon: FileStack,
+    tone: 'teal',
+    fields: {
+      'hrmentor.baseUrl': 'settings.system.hrMentorBaseUrl',
+      'hrmentor.apiKey': 'settings.system.hrMentorApiKey',
+    },
+  },
 ]
 
 /**
@@ -148,6 +164,31 @@ const SINGLE_LINE_TEXT: Readonly<Record<string, string>> = {
     ko'rsatilmaydi va matn ham aynan shuni aytadi.
   */
   'bot.offerUrl': 'settings.system.botOfferUrlHint',
+  'hrmentor.baseUrl': 'settings.system.hrMentorBaseUrlHint',
+}
+
+/**
+ * Sirning o'z matnlari: bo'sh maydondagi taklif, izoh va o'chirish tasdig'i.
+ *
+ * Sukut — Telegram tokeni (sahifadagi birinchi sir). HRMentor kaliti boshqa
+ * narsa: uni @BotFather emas, HRMentor beradi va o'chirilsa bot emas,
+ * blankalar va anketa matnlari yangilanishi to'xtaydi. Kalitlar aniq
+ * xaritada — `GROUPS` izohidagi sabab bilan.
+ */
+const SECRET_TEXTS: Readonly<Record<string, { enter: string; hint: string; clearTitle: string; clearText: string }>> = {
+  'hrmentor.apiKey': {
+    enter: 'settings.system.hrMentorApiKeyEnter',
+    hint: 'settings.system.hrMentorApiKeyHint',
+    clearTitle: 'settings.system.hrMentorClearTitle',
+    clearText: 'settings.system.hrMentorClearText',
+  },
+}
+
+const BOT_SECRET_TEXTS = {
+  enter: 'settings.system.secretEnter',
+  hint: 'settings.system.botTokenHint',
+  clearTitle: 'settings.system.clearTitle',
+  clearText: 'settings.system.clearText',
 }
 
 /**
@@ -429,7 +470,7 @@ export function SystemSettingsPage() {
         onClose={() => setClearing(null)}
         size="sm"
         dismissible={!save.isPending}
-        title={t('settings.system.clearTitle')}
+        title={t((clearing === null ? undefined : SECRET_TEXTS[clearing.key])?.clearTitle ?? BOT_SECRET_TEXTS.clearTitle)}
         footer={
           <>
             <Button type="button" onClick={() => setClearing(null)} disabled={save.isPending}>
@@ -449,7 +490,7 @@ export function SystemSettingsPage() {
         }
       >
         <p className="text-subhead text-[var(--fg-secondary)]">
-          {t('settings.system.clearText')}
+          {t((clearing === null ? undefined : SECRET_TEXTS[clearing.key])?.clearText ?? BOT_SECRET_TEXTS.clearText)}
         </p>
       </Dialog>
     </div>
@@ -729,6 +770,7 @@ function SecretField({
   onClear: () => void
 }) {
   const { t } = useLocale()
+  const texts = SECRET_TEXTS[setting.key] ?? BOT_SECRET_TEXTS
 
   return (
     <div className="space-y-2">
@@ -776,8 +818,8 @@ function SecretField({
         maxLength={setting.maxLength ?? undefined}
         placeholder={setting.isSet
           ? t('settings.system.secretReplace')
-          : t('settings.system.secretEnter')}
-        hint={t('settings.system.botTokenHint')}
+          : t(texts.enter)}
+        hint={t(texts.hint)}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

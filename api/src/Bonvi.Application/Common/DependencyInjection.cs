@@ -1,6 +1,7 @@
 using System.Reflection;
 using Bonvi.Application.Attendance;
 using Bonvi.Application.Audit;
+using Bonvi.Application.Blanks;
 using Bonvi.Application.Catalog;
 using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
@@ -233,6 +234,10 @@ public static class DependencyInjection
         // ahamiyatsiz, lekin o'qiyotgan odam uchun bog'liqlik yo'nalishi
         // shu tartibda ko'rinib turadi.
         services.AddSettings();
+
+        // HRMentor blankalari va anketa matnlari (SPEC-blankalar-hrmentor) — sozlamalardan
+        // (`SystemSettingsReader`) keyin: ulanish manzili va kaliti o'sha yerda.
+        services.AddBlanks();
 
         // Bildirishnomalar — bironta bo'limga tegishli emas: ular sinov
         // muddati, xodim va nomzod ma'lumotlarini BIRGA o'qiydi.

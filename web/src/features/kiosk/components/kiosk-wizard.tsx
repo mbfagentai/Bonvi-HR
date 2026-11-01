@@ -26,6 +26,7 @@ import {
 } from '../lib/kiosk-draft'
 import type { KioskRules } from '../lib/kiosk-mode'
 import { aboutQuestionsOf, activeScreens, type WizardScreen } from '../lib/kiosk-options'
+import { offeredComputerKeys } from '../lib/kiosk-texts'
 import { scrollToFirstError } from '../lib/scroll-to-error'
 import { useIdle } from '../lib/use-idle'
 import { BotCheck, type BotCheckState } from './bot-check'
@@ -130,6 +131,7 @@ export function KioskWizard({
       hasPhoto: photo !== null,
       hasSignature: signature !== null,
       referralChannels: new Map(session.referralChannels.map((channel) => [channel.id, channel.asksDetail])),
+      computerKeys: offeredComputerKeys(session.texts?.lists ?? {}),
     }),
     [today, session, photo, signature],
   )
@@ -233,6 +235,8 @@ export function KioskWizard({
         signature,
         website,
         turnstileToken,
+        // The wording the candidate saw — the PDF keeps it (SPEC-blankalar-hrmentor §5.3)
+        textsRevision: session.texts?.revision,
       })
       onDone(result)
     } catch (error) {

@@ -25,6 +25,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { buildKioskTexts, kioskTextsTarget } from './export-kiosk-texts.mjs'
 
 const DIR = new URL('../src/shared/i18n/locales/', import.meta.url).pathname
 const REFERENCE = 'uz-Latn.json'
@@ -799,6 +800,34 @@ if (!apiReachable) {
   console.error('  Har to\'rtala tilga qo\'shing: ' + files.join(', '))
 } else {
   console.log(`✓ backend xato kodlari: ${errorCodes.size} ta, hammasi tarjimalangan`)
+}
+
+// ────────────────────────────────────────────────────────────
+//  HRMentor katalogi uchun kiosk matnlari (SPEC-blankalar-hrmentor §4)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Backend HR ga katalogni `kiosk-texts.json` dan yuboradi. Kiosk tarjimasi o'zgarib, fayl
+ * qayta eksport qilinmasa — HR eski matnni «asl» deb ko'radi va tahrir qiladi. Shu sababli
+ * fayl hozirgi tarjimalardan qayta yig'iladi va harfma-harf solishtiriladi.
+ */
+if (!apiReachable) {
+  console.log('⚠ kiosk-texts.json TEKSHIRILMADI — backend ko\'rinmayapti (./bonvi check).')
+} else {
+  try {
+    const target = kioskTextsTarget(API_DIR)
+    const stored = existsSync(target) ? readFileSync(target, 'utf8').replace(/\r\n/g, '\n') : null
+    if (stored !== buildKioskTexts()) {
+      failed = true
+      console.error('\n✗ kiosk-texts.json eskirgan — kiosk tarjimasi o\'zgargan.')
+      console.error('  Qayta eksport:  node web/scripts/export-kiosk-texts.mjs')
+    } else {
+      console.log('✓ kiosk-texts.json: kiosk tarjimalari bilan bir xil')
+    }
+  } catch (error) {
+    failed = true
+    console.error(`\n✗ ${error.message}`)
+  }
 }
 
 if (failed) {

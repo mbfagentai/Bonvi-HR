@@ -237,7 +237,8 @@ public sealed record QuestionnaireFormAnswers
 
     /// <summary>
     /// Dastur kaliti → daraja (1–4). Kalit yo'q — bilmaydi. Kalitlar faqat
-    /// <see cref="QuestionnaireFormCatalog.ComputerGroups"/> dagi 11 ta, boshqasi — 400.
+    /// <see cref="QuestionnaireFormCatalog.ComputerGroups"/> dagi 11 ta va HR ning HRMentor dagi
+    /// kompyuter ro'yxatidagilar (<c>x-…</c>, SPEC-blankalar-hrmentor §5.2), boshqasi — 400.
     /// </summary>
     public IReadOnlyDictionary<string, int>? ComputerSkills { get; init; }
 

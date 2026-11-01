@@ -8,6 +8,7 @@ import {
   MILITARY_OPTIONS,
   lowerFirst,
 } from '../../lib/kiosk-options'
+import { useKioskList, visibleValues } from '../../lib/kiosk-texts'
 import {
   CheckRow,
   ChoiceGroup,
@@ -131,6 +132,7 @@ export function PersonalScreen({ draft, patch, errors, today, tablet }: ScreenPr
 
 export function AddressScreen({ draft, patch, errors, tablet }: ScreenProps) {
   const { t } = useLocale()
+  const housing = useKioskList('housing')
   const fieldError = useFieldError(errors)
 
   return (
@@ -174,7 +176,10 @@ export function AddressScreen({ draft, patch, errors, tablet }: ScreenProps) {
         value={draft.housingType}
         onChange={(housingType) => patch({ housingType })}
         error={fieldError('housingType')}
-        options={HOUSING_TYPES.map((value) => ({ value, label: t(`kiosk.housing.${lowerFirst(value)}`) }))}
+        options={visibleValues(housing, HOUSING_TYPES, (value) => value === draft.housingType).map((value) => ({
+          value,
+          label: t(`kiosk.housing.${lowerFirst(value)}`),
+        }))}
       />
 
       <KioskText
@@ -248,6 +253,8 @@ export function ContactsScreen({ draft, patch, errors, tablet }: ScreenProps) {
  */
 export function MaritalScreen({ draft, patch, errors }: ScreenProps) {
   const { t } = useLocale()
+  const marital = useKioskList('marital')
+  const military = useKioskList('military')
   const fieldError = useFieldError(errors)
 
   return (
@@ -260,7 +267,10 @@ export function MaritalScreen({ draft, patch, errors }: ScreenProps) {
         value={draft.maritalStatus}
         onChange={(maritalStatus) => patch({ maritalStatus })}
         error={fieldError('maritalStatus')}
-        options={MARITAL_OPTIONS.map((value) => ({ value, label: t(`kiosk.marital.${lowerFirst(value)}`) }))}
+        options={visibleValues(marital, MARITAL_OPTIONS, (value) => value === draft.maritalStatus).map((value) => ({
+          value,
+          label: t(`kiosk.marital.${lowerFirst(value)}`),
+        }))}
       />
 
       <DigitsField
@@ -280,7 +290,10 @@ export function MaritalScreen({ draft, patch, errors }: ScreenProps) {
         value={draft.militaryService}
         onChange={(militaryService) => patch({ militaryService })}
         error={fieldError('militaryService')}
-        options={MILITARY_OPTIONS.map((value) => ({ value, label: t(`kiosk.military.${lowerFirst(value)}`) }))}
+        options={visibleValues(military, MILITARY_OPTIONS, (value) => value === draft.militaryService).map((value) => ({
+          value,
+          label: t(`kiosk.military.${lowerFirst(value)}`),
+        }))}
       />
       {draft.militaryService === 'Served' && (
         <DigitsField
@@ -300,6 +313,7 @@ export function MaritalScreen({ draft, patch, errors }: ScreenProps) {
 /** Driver licence and car. */
 export function LicenseScreen({ draft, patch, errors }: ScreenProps) {
   const { t } = useLocale()
+  const categories = useKioskList('driverLicense')
   const fieldError = useFieldError(errors)
 
   return (
@@ -317,7 +331,9 @@ export function LicenseScreen({ draft, patch, errors }: ScreenProps) {
           path="driverLicenseCategories"
           label={t('kiosk.field.driverLicenseCategories')}
           required
-          options={DRIVER_LICENSE_CATEGORIES}
+          options={visibleValues(categories, DRIVER_LICENSE_CATEGORIES, (value) =>
+            draft.driverLicenseCategories.includes(value),
+          )}
           value={draft.driverLicenseCategories}
           onChange={(driverLicenseCategories) => patch({ driverLicenseCategories })}
           error={fieldError('driverLicenseCategories')}
