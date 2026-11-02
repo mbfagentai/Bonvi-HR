@@ -135,10 +135,11 @@ public sealed class HrMentorSync
             passing |= !HrMentorErrors.IsLasting(error.Code);
         }
 
-        // 1. Katalog — faqat xeshi o'zgarganda.
         var catalog = HrF02TextCatalog.Current;
-        var catalogPushed = false;
-        if (!string.Equals(settings.Hidden(SystemSettingKeys.HrMentorCatalogHash), catalog.Hash, StringComparison.Ordinal))
+        var profile = FormProfile.Json(HrF02Seed.Build());
+        var profileHash = CanonicalJson.Sha256(profile);
+
+        async Task<bool> SendCatalogAsync()
         {
             var pushed = await _client
                 .PushCatalogAsync(connection, FormCode, catalog.Json, cancellationToken)
@@ -147,19 +148,14 @@ public sealed class HrMentorSync
             if (pushed.IsFailure)
             {
                 Fail(HrMentorSyncStep.Catalog, pushed.Error);
+                return false;
             }
-            else
-            {
-                await WriteAsync(SystemSettingKeys.HrMentorCatalogHash, catalog.Hash, cancellationToken).ConfigureAwait(false);
-                catalogPushed = true;
-            }
+
+            await WriteAsync(SystemSettingKeys.HrMentorCatalogHash, catalog.Hash, cancellationToken).ConfigureAwait(false);
+            return true;
         }
 
-        // 1a. Profil — faqat xeshi o'zgarganda (katalogdan keyin: undan oldin HRMentor 404 beradi).
-        var profilePushed = false;
-        var profile = FormProfile.Json(HrF02Seed.Build());
-        var profileHash = CanonicalJson.Sha256(profile);
-        if (!string.Equals(settings.Hidden(SystemSettingKeys.HrMentorProfileHash), profileHash, StringComparison.Ordinal))
+        async Task<bool> SendProfileAsync()
         {
             var pushed = await _client
                 .PushProfileAsync(connection, FormCode, profile.ToJsonString(), cancellationToken)
@@ -168,16 +164,38 @@ public sealed class HrMentorSync
             if (pushed.IsFailure)
             {
                 Fail(HrMentorSyncStep.Profile, pushed.Error);
+                return false;
             }
-            else
-            {
-                await WriteAsync(SystemSettingKeys.HrMentorProfileHash, profileHash, cancellationToken).ConfigureAwait(false);
-                profilePushed = true;
-            }
+
+            await WriteAsync(SystemSettingKeys.HrMentorProfileHash, profileHash, cancellationToken).ConfigureAwait(false);
+            return true;
         }
+
+        // 1. Katalog — faqat xeshi o'zgarganda.
+        var catalogCached = string.Equals(settings.Hidden(SystemSettingKeys.HrMentorCatalogHash), catalog.Hash, StringComparison.Ordinal);
+        var catalogPushed = !catalogCached && await SendCatalogAsync().ConfigureAwait(false);
+
+        // 1a. Profil — faqat xeshi o'zgarganda (katalogdan keyin: undan oldin HRMentor 404 beradi).
+        var profilePushed = !string.Equals(settings.Hidden(SystemSettingKeys.HrMentorProfileHash), profileHash, StringComparison.Ordinal)
+            && await SendProfileAsync().ConfigureAwait(false);
 
         // 2. HR matnlari — yangi reviziya bo'lsa.
         var texts = await PullTextsAsync(connection, catalog, cancellationToken).ConfigureAwait(false);
+
+        // 2b. Xesh «yuborilgan» deydi, HRMentor esa formani bilmaydi (404): uning bazasi tiklangan
+        // yoki forma qayta ulangan. Xeshlar eskirgan — katalog va profil shu yurishda qayta
+        // yuboriladi, aks holda konstruktor HR-F02 ni hech qachon ko'rmaydi (2026-11-02, lokal
+        // tiklashda topildi). Katalog shu yurishda yuborilgan bo'lsa qaytarilmaydi — aylanma yo'q.
+        if (texts.IsSuccess && texts.Value.FormUnknown && catalogCached)
+        {
+            catalogPushed = await SendCatalogAsync().ConfigureAwait(false);
+            if (catalogPushed)
+            {
+                profilePushed = await SendProfileAsync().ConfigureAwait(false) || profilePushed;
+                texts = await PullTextsAsync(connection, catalog, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         if (texts.IsFailure)
         {
             Fail(HrMentorSyncStep.Texts, texts.Error);
@@ -216,7 +234,7 @@ public sealed class HrMentorSync
 
         var report = new HrMentorSyncReport(
             catalogPushed,
-            texts.IsSuccess ? texts.Value : null,
+            texts.IsSuccess ? texts.Value.Saved : null,
             blanks.Added,
             blanks.Updated,
             blanks.Removed,
@@ -233,8 +251,11 @@ public sealed class HrMentorSync
         return report;
     }
 
-    /// <summary>Yangi reviziya saqlansa — uning raqami; o'zgarish yo'q bo'lsa <c>null</c>.</summary>
-    private async Task<Result<int?>> PullTextsAsync(
+    /// <summary>
+    /// Yangi reviziya saqlansa — uning raqami (<see cref="TextsPull.Saved"/>); o'zgarish yo'q bo'lsa
+    /// <c>null</c>. HRMentor formani bilmasa (404) — <see cref="TextsPull.FormUnknown"/>.
+    /// </summary>
+    private async Task<Result<TextsPull>> PullTextsAsync(
         HrMentorConnection connection,
         HrF02TextCatalog catalog,
         CancellationToken cancellationToken)
@@ -248,7 +269,7 @@ public sealed class HrMentorSync
         // 404 — katalog hali qabul qilinmagan: HR hech narsa o'zgartira olmagan.
         if (served.Value is not { } json)
         {
-            return Result.Success<int?>(null);
+            return new TextsPull(null, FormUnknown: true);
         }
 
         var shaped = catalog.Shape(json);
@@ -260,20 +281,23 @@ public sealed class HrMentorSync
         // Reviziya 0 — HR matnlarni hali saqlamagan: o'rnatilgan matnlar amalda qoladi.
         if (shaped.Value.Revision == 0)
         {
-            return Result.Success<int?>(null);
+            return new TextsPull(null, FormUnknown: false);
         }
 
         var latest = await _snapshots.LatestAsync(FormCode, cancellationToken).ConfigureAwait(false);
         if (latest is not null && latest.Revision >= shaped.Value.Revision)
         {
-            return Result.Success<int?>(null);
+            return new TextsPull(null, FormUnknown: false);
         }
 
         _snapshots.Add(FormTextSnapshot.Create(FormCode, shaped.Value.Revision, shaped.Value.PayloadJson, _clock.UtcNow));
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return Result.Success<int?>(shaped.Value.Revision);
+        return new TextsPull(shaped.Value.Revision, FormUnknown: false);
     }
+
+    /// <summary>Matnlar qadamining natijasi: saqlangan reviziya va HRMentor formani bilmasligi.</summary>
+    private readonly record struct TextsPull(int? Saved, bool FormUnknown);
 
     /// <summary>
     /// E'lon qilingan ta'rifni oladi (SPEC-anketa-konstruktori §5.2). Amaldagi anketa almashsa —

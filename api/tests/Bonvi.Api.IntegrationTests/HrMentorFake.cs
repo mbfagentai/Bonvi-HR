@@ -13,10 +13,19 @@ internal sealed class HrMentorFake : IHrMentorClient
 {
     private readonly ConcurrentDictionary<Guid, byte[]> _files = new();
 
+    /// <summary>
+    /// HRMentor HR-F02 ni biladimi: katalog qabul qilingach — ha, <see cref="Forget"/> dan keyin — yo'q.
+    /// Haqiqiy HRMentor ham shunday: forma yo'q bo'lsa matnlar va ta'rif 404, bor bo'lsa — 200.
+    /// </summary>
+    private volatile bool _formKnown;
+
     /// <summary>Hamma chaqiruv shu xato bilan qaytadi (HRMentor o'chiq); <c>null</c> — ishlaydi.</summary>
     public Error? Down { get; set; }
 
-    /// <summary><c>GET …/texts</c> javobi; <c>null</c> — 404 (katalog hali yo'q).</summary>
+    /// <summary>
+    /// <c>GET …/texts</c> javobi; <c>null</c> — HR hali saqlamagan (reviziya 0). Forma noma'lum
+    /// bo'lsa (katalog hali yo'q yoki <see cref="Forget"/>) — 404.
+    /// </summary>
     public string? ServedTexts { get; set; }
 
     /// <summary>Yuborilgan kataloglar.</summary>
@@ -25,7 +34,7 @@ internal sealed class HrMentorFake : IHrMentorClient
     /// <summary>Yuborilgan profillar (SPEC-anketa-konstruktori §3).</summary>
     public ConcurrentQueue<string> PushedProfiles { get; } = new();
 
-    /// <summary><c>GET …/definition</c> javobi; <c>null</c> — 404 (katalog hali yo'q).</summary>
+    /// <summary><c>GET …/definition</c> javobi; <c>null</c> yoki forma noma'lum — 404.</summary>
     public string? PublishedDefinition { get; set; }
 
     /// <summary><c>GET …/draft</c> javobi; <c>null</c> — 404.</summary>
@@ -102,6 +111,7 @@ internal sealed class HrMentorFake : IHrMentorClient
         }
 
         PushedCatalogs.Enqueue(catalogJson);
+        _formKnown = true;
         return Task.FromResult(Result.Success());
     }
 
@@ -118,13 +128,21 @@ internal sealed class HrMentorFake : IHrMentorClient
     }
 
     public Task<Result<string?>> GetPublishedDefinitionAsync(HrMentorConnection connection, string formCode, CancellationToken cancellationToken)
-        => Task.FromResult(Down is { } error ? Result.Failure<string?>(error) : Result.Success(PublishedDefinition));
+        => Task.FromResult(Down is { } error ? Result.Failure<string?>(error) : Result.Success(_formKnown ? PublishedDefinition : null));
 
     public Task<Result<string?>> GetDraftDefinitionAsync(HrMentorConnection connection, string formCode, CancellationToken cancellationToken)
         => Task.FromResult(Down is { } error ? Result.Failure<string?>(error) : Result.Success(DraftDefinition));
 
     public Task<Result<string?>> GetServedTextsAsync(HrMentorConnection connection, string formCode, CancellationToken cancellationToken)
-        => Task.FromResult(Down is { } error ? Result.Failure<string?>(error) : Result.Success(ServedTexts));
+        => Task.FromResult(Down is { } error
+            ? Result.Failure<string?>(error)
+            : Result.Success(_formKnown ? ServedTexts ?? UntouchedTexts : null));
+
+    /// <summary>HRMentor bazasi tiklandi yoki forma qayta ulandi: HR-F02 endi unda yo'q.</summary>
+    public void Forget() => _formKnown = false;
+
+    /// <summary>Forma bor, HR hali hech narsa saqlamagan (HRMentor SPEC §18.5, reviziya 0).</summary>
+    private const string UntouchedTexts = """{"code":"HR-F02","revision":0,"texts":{},"lists":{}}""";
 
     public Task<Result<IReadOnlyList<HrMentorBlankItem>>> ListBlanksAsync(HrMentorConnection connection, CancellationToken cancellationToken)
         => Task.FromResult(Down is { } error
