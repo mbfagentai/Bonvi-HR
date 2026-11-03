@@ -10,4 +10,8 @@
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Shart va computed vektorlari — veb (TS) testi ham shu faylni o'qiydi (SPEC-blankalar §4.5) -->
+    <None Include="Blanks\computed-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
