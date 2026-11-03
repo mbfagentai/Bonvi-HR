@@ -117,7 +117,9 @@ public sealed class BlankPrefillSource : IBlankPrefillSource
 
         if (wanted.Contains(BlankPrefillKeys.SubjectPriorF13Count12m))
         {
-            var since = new DateTimeOffset(today.AddMonths(-12).ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(5));
+            // Npgsql «timestamptz» ga faqat UTC (offset 0) yozadi — Toshkent yarim tuni UTC ga o'giriladi.
+            var since = new DateTimeOffset(today.AddMonths(-12).ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(5))
+                .ToUniversalTime();
             var count = await _context.BlankSubmissions
                 .AsNoTracking()
                 .CountAsync(

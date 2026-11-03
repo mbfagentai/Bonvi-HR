@@ -144,6 +144,9 @@ public sealed class BlankSubmissionStep : Entity
 
     internal void Open() => State = BlankStepState.Open;
 
+    /// <summary>Navbati kelganda sharti bajarilmadi — o'tkazib yuboriladi (§4.11 p.3).</summary>
+    internal void Skip() => State = BlankStepState.Skipped;
+
     internal void Sign(BlankStepAct act, DateTimeOffset at)
     {
         State = BlankStepState.Signed;
