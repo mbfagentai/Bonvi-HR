@@ -1406,7 +1406,8 @@
     "tabHistory": "Ўзгаришлар тарихи",
     "correctedAt": "Тузатилган: {{date}}",
     "showCorrections": "Тузатишларни кўриш",
-    "probationAlreadyOver": "Синов муддати {{date}} да тугаган — ходим дарҳол доимий бўлиб қўшилади."
+    "probationAlreadyOver": "Синов муддати {{date}} да тугаган — ходим дарҳол доимий бўлиб қўшилади.",
+    "tabBlanks": "Бланкалар"
   },
   "employments": {
     "anyType": "Барча турлар",
@@ -3847,6 +3848,54 @@
       "cancelTitle": "Бланкани бекор қилиш",
       "cancelText": "Бекор қилинган бланкани қайта очиб бўлмайди.",
       "cancelReason": "Сабаб"
+    },
+    "steps": {
+      "group": "{{n}}-босқич",
+      "parallel": "параллел",
+      "due": "Муддат: {{date}}",
+      "methodElectronic": "Электрон",
+      "methodInPerson": "Қўлда имзоланган",
+      "operator": "Оператор: {{name}}",
+      "decision": "Қарор",
+      "comment": "Изоҳ",
+      "approve": "Тасдиқлаш",
+      "signInPerson": "Қўлда имзолатиш",
+      "return": "Қайтариш",
+      "reject": "Рад этиш",
+      "signature": "Имзо",
+      "signatureFailed": "Имзони юклаб бўлмади",
+      "chooseDecision": "Қарорни танланг",
+      "decisionRequired": "Қарорни танланг",
+      "extraRequired": "Бу майдон мажбурий",
+      "commentOptional": "Изоҳ (ихтиёрий)",
+      "commentRequired": "Изоҳ (мажбурий)",
+      "approveTitle": "«{{step}}» — тасдиқлаш",
+      "approveText": "Тасдиқлаганингиз сизнинг номингиз ва вақт билан бланкага ёзилади.",
+      "signTitle": "«{{step}}» — қўлда имзолаш",
+      "signText": "Имзоловчи: {{actor}}. Имзони шу қурилмада чиздиринг.",
+      "sign": "Имзолаш",
+      "signerName": "Имзоловчининг Ф.И.Ш.",
+      "signerNameOptional": "Имзоловчининг Ф.И.Ш. (ихтиёрий)",
+      "signerNameRequired": "Имзоловчининг Ф.И.Ш. ни ёзинг",
+      "signatureRequired": "Имзо чизилмаган",
+      "returnTitle": "«{{step}}» — қораламага қайтариш",
+      "returnText": "Бланка тўлдирувчига қайтади: рақами сақланади, имзолар қайтадан йиғилади. Изоҳда нимани тузатиш кераклигини ёзинг.",
+      "rejectTitle": "«{{step}}» — рад этиш",
+      "rejectText": "Рад этилган бланка якуний ҳолатда қолади, уни қайта очиб бўлмайди.",
+      "actor": {
+        "subjectEmployee": "Ходимнинг ўзи",
+        "departmentHead": "Бўлим бошлиғи",
+        "witness": "Гувоҳ",
+        "candidate": "Номзод"
+      }
+    },
+    "view": {
+      "due": "Муддат: {{date}}",
+      "save": "Сақлаш",
+      "pdf": "PDF",
+      "yourTurn": "Сизнинг имзоингиз кутилмоқда — пастдаги «Имзо қадамлари» бўлимида.",
+      "subjectEmptyTitle": "Бланка йўқ",
+      "subjectEmptyText": "Бу ходим ҳақида ҳали бланка очилмаган."
     }
   }
 }

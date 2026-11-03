@@ -9,13 +9,15 @@
  *   · `status: string` → the `BlankSubmissionStatus` union;
  *   · `JsonElement` → the definition / answers types of `lib/definition-types.ts`.
  *
+ * Steps #12–#15 use the generated calls; #16 (signature PNG) is a hand-written blob GET
+ * because the generated function is typed `void` (no `responseType: 'blob'`).
+ *
  * TODO seams (endpoints built in parallel, not in the OpenAPI document yet):
- *   · steps #12–#16 — input types only (`BlankStepApproveInput`, `BlankStepCommentInput`);
- *     the next slice (S12) adds the calls after `./bonvi gen`.
  *   · files #17–#20 — hand-written wrappers on the SPEC contract below, marked
  *     `TODO(S7)`; replace with the generated functions once they exist.
  */
 import {
+  approveBlankStep,
   cancelBlankSubmission,
   createBlankSubmission,
   getBlankSubmission,
@@ -23,15 +25,20 @@ import {
   listBlankRoles,
   listBlankSubmissions,
   listBlankTemplates,
+  rejectBlankStep,
+  returnBlankStep,
   saveBlankAnswers,
   setBlankRoleUsers,
   setBlankTemplateActive,
+  signBlankStepInPerson,
   submitBlankSubmission,
 } from '@/shared/api/generated/blanks/blanks'
 import type {
+  ApproveBlankStepBody,
   BlankCanDto,
   BlankCurrentStepDto,
   BlankRoleDto,
+  BlankStepCommentBody,
   BlankStepDto,
   BlankSubjectDto,
   BlankSubmissionDetailDto,
@@ -49,6 +56,7 @@ import type {
   BlankSubmissionStatus,
   BlankTemplateVersionDto,
   ComputedValues,
+  JsonValue,
 } from '../lib/definition-types'
 
 export const BLANK_STATUSES = ['Draft', 'InApproval', 'Approved', 'Rejected', 'Cancelled'] as const satisfies readonly BlankSubmissionStatus[]
@@ -131,17 +139,22 @@ export interface BlankCreateInput {
   clientRequestId: string
 }
 
-/** TODO(S6): body of #12 `steps/{stepCode}/approve` — calls land with the steps slice. */
-export interface BlankStepApproveInput {
+/** Body of #12 `steps/{stepCode}/approve` — the generated body with the UI types. */
+export interface BlankStepApproveInput
+  extends Omit<ApproveBlankStepBody, 'expectedVersion' | 'decisionExtra' | 'answers'> {
   expectedVersion: number
-  decision?: string | null
-  decisionExtra?: string | null
-  comment?: string | null
-  answers?: Answers | null
+  decisionExtra: JsonValue | null
+  /** The step's own sections only (server: full replacement of those sections). */
+  answers: Answers | null
 }
 
-/** TODO(S6): body of #14 `return` and #15 `reject` (comment required). */
-export interface BlankStepCommentInput {
+/** JSON `payload` of #13 `sign-in-person` = #12 body + the typed signer name (witness: required). */
+export interface BlankStepSignInput extends BlankStepApproveInput {
+  signerName: string | null
+}
+
+/** Body of #14 `return` and #15 `reject` (comment required). */
+export interface BlankStepCommentInput extends Omit<BlankStepCommentBody, 'expectedVersion' | 'comment'> {
   expectedVersion: number
   comment: string
 }
@@ -262,7 +275,46 @@ export async function postBlankCancel(id: string, expectedVersion: number, reaso
   return toSubmission(await cancelBlankSubmission(id, { expectedVersion, reason }))
 }
 
-/* ═════════════════════════════════════ TODO(S7): files #17–#19, SPEC contract */
+/* ═══════════════════════════════════════════════════════════════ steps #12–#16 */
+
+export async function postBlankStepApprove(id: string, stepCode: string, body: BlankStepApproveInput): Promise<BlankSubmission> {
+  return toSubmission(await approveBlankStep(id, stepCode, body))
+}
+
+/** #13: `payload` = JSON of the act, `signature` = the PNG from the pad. */
+export async function postBlankStepSignInPerson(
+  id: string,
+  stepCode: string,
+  body: BlankStepSignInput,
+  signature: Blob,
+): Promise<BlankSubmission> {
+  return toSubmission(await signBlankStepInPerson(id, stepCode, { payload: JSON.stringify(body), signature }))
+}
+
+export async function postBlankStepReturn(id: string, stepCode: string, body: BlankStepCommentInput): Promise<BlankSubmission> {
+  return toSubmission(await returnBlankStep(id, stepCode, body))
+}
+
+export async function postBlankStepReject(id: string, stepCode: string, body: BlankStepCommentInput): Promise<BlankSubmission> {
+  return toSubmission(await rejectBlankStep(id, stepCode, body))
+}
+
+/** #16 — hand-written: the generated `getBlankStepSignature` is typed `void` and reads text. */
+export async function fetchBlankStepSignature(id: string, stepCode: string, signal?: AbortSignal): Promise<Blob> {
+  const { data } = await api.get<Blob>(`${BASE}/submissions/${id}/steps/${encodeURIComponent(stepCode)}/signature`, {
+    responseType: 'blob',
+    signal,
+  })
+  return data
+}
+
+/** `waitingForMe` total for the nav counter — one row is enough, only `total` is read. */
+export async function fetchBlankWaitingCount(signal?: AbortSignal): Promise<number> {
+  const page = await listBlankSubmissions({ waitingForMe: true, page: 1, pageSize: 1 }, signal)
+  return toNumber(page.total)
+}
+
+/* ═════════════════════════════════════ TODO(S7): files #17–#20, SPEC contract */
 
 /** TODO(S7): replace with the generated #17 call after `./bonvi gen`. */
 export async function uploadBlankAttachment(
@@ -292,9 +344,16 @@ export async function deleteBlankAttachment(
 }
 
 /** TODO(S7): replace with the generated #19 call after `./bonvi gen`. */
-export async function fetchBlankAttachment(submissionId: string, attachmentId: string): Promise<Blob> {
+export async function fetchBlankAttachment(submissionId: string, attachmentId: string, signal?: AbortSignal): Promise<Blob> {
   const { data } = await api.get<Blob>(`${BASE}/submissions/${submissionId}/attachments/${attachmentId}`, {
     responseType: 'blob',
+    signal,
   })
+  return data
+}
+
+/** TODO(S7): replace with the generated #20 call after `./bonvi gen` — the PDF is rendered fresh. */
+export async function fetchBlankPdf(submissionId: string, signal?: AbortSignal): Promise<Blob> {
+  const { data } = await api.get<Blob>(`${BASE}/submissions/${submissionId}/pdf`, { responseType: 'blob', signal })
   return data
 }
