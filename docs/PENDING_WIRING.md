@@ -1362,3 +1362,12 @@ YO'Q — o'rniga xodim kartasi → «Davomat» → «Ilova» segmenti.
 `…/app-access/deactivate`, `…/app-access/activate`,
 `POST /api/employee-auth/password` (va uning tezlik cheklovi yo'li
 `EmployeePasswordPaths`).
+
+## Blankalar web (W2, 2026-11-03) — open seams
+
+| What | Where | Owner |
+|---|---|---|
+| Nav count «Menga kutilmoqda» (`waitingForMe` total, `countTone: 'warning'` already on the item) | `web/src/app/layout/sidebar.tsx` counts map — shared file, not touched | wiring (S13) |
+| Step actions #12–#16 (approve / sign-in-person / return / reject / signature) | `blanks-api.ts` has only `BlankStepApproveInput` / `BlankStepCommentInput`; the fill page shows a read-only steps list marked `TODO(S12)` | S12 after `./bonvi gen` |
+| Files #17–#19 | hand-written wrappers `uploadBlankAttachment` / `deleteBlankAttachment` / `fetchBlankAttachment` marked `TODO(S7)` — swap for the generated calls after `./bonvi gen`; `openFile` downloads until `FileViewer` (S12) | S7 → S12 |
+| PDF #20 button, `<BlankViewPage>` for non-Draft, employee card tab | route `blankalar/$submissionId.tsx` (`TODO(S12)`) | S12 |

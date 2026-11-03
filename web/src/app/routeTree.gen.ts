@@ -29,6 +29,8 @@ import { Route as AppSinovRouteImport } from './routes/_app/sinov'
 import { Route as AppSozlamalarRouteImport } from './routes/_app/sozlamalar'
 import { Route as AppVakansiyaSorovlariRouteImport } from './routes/_app/vakansiya-sorovlari'
 import { Route as AppVakansiyalarRouteImport } from './routes/_app/vakansiyalar'
+import { Route as AppBlankalarIndexRouteImport } from './routes/_app/blankalar/index'
+import { Route as AppBlankalarSubmissionIdRouteImport } from './routes/_app/blankalar/$submissionId'
 import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/malumotnomalar/bolimlar'
 import { Route as AppMalumotnomalarHujjatTurlariRouteImport } from './routes/_app/malumotnomalar/hujjat-turlari'
 import { Route as AppMalumotnomalarJarimaTurlariRouteImport } from './routes/_app/malumotnomalar/jarima-turlari'
@@ -152,6 +154,17 @@ const AppVakansiyalarRoute = AppVakansiyalarRouteImport.update({
   path: '/vakansiyalar',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBlankalarIndexRoute = AppBlankalarIndexRouteImport.update({
+  id: '/blankalar/',
+  path: '/blankalar/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBlankalarSubmissionIdRoute =
+  AppBlankalarSubmissionIdRouteImport.update({
+    id: '/blankalar/$submissionId',
+    path: '/blankalar/$submissionId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppMalumotnomalarBolimlarRoute =
   AppMalumotnomalarBolimlarRouteImport.update({
     id: '/malumotnomalar/bolimlar',
@@ -305,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/sozlamalar': typeof AppSozlamalarRoute
   '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
+  '/blankalar/$submissionId': typeof AppBlankalarSubmissionIdRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
@@ -326,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/verifikatsiya/sorovlar': typeof AppVerifikatsiyaSorovlarRoute
   '/verifikatsiya/tabel': typeof AppVerifikatsiyaTabelRoute
   '/xodimlar/$employeeId': typeof AppXodimlarEmployeeIdRoute
+  '/blankalar/': typeof AppBlankalarIndexRoute
   '/nomzodlar/': typeof AppNomzodlarIndexRoute
   '/xodimlar/': typeof AppXodimlarIndexRoute
 }
@@ -349,6 +364,7 @@ export interface FileRoutesByTo {
   '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/': typeof AppIndexRoute
+  '/blankalar/$submissionId': typeof AppBlankalarSubmissionIdRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
@@ -370,6 +386,7 @@ export interface FileRoutesByTo {
   '/verifikatsiya/sorovlar': typeof AppVerifikatsiyaSorovlarRoute
   '/verifikatsiya/tabel': typeof AppVerifikatsiyaTabelRoute
   '/xodimlar/$employeeId': typeof AppXodimlarEmployeeIdRoute
+  '/blankalar': typeof AppBlankalarIndexRoute
   '/nomzodlar': typeof AppNomzodlarIndexRoute
   '/xodimlar': typeof AppXodimlarIndexRoute
 }
@@ -395,6 +412,7 @@ export interface FileRoutesById {
   '/_app/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/_app/vakansiyalar': typeof AppVakansiyalarRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/blankalar/$submissionId': typeof AppBlankalarSubmissionIdRoute
   '/_app/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/_app/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
   '/_app/malumotnomalar/jarima-turlari': typeof AppMalumotnomalarJarimaTurlariRoute
@@ -416,6 +434,7 @@ export interface FileRoutesById {
   '/_app/verifikatsiya/sorovlar': typeof AppVerifikatsiyaSorovlarRoute
   '/_app/verifikatsiya/tabel': typeof AppVerifikatsiyaTabelRoute
   '/_app/xodimlar/$employeeId': typeof AppXodimlarEmployeeIdRoute
+  '/_app/blankalar/': typeof AppBlankalarIndexRoute
   '/_app/nomzodlar/': typeof AppNomzodlarIndexRoute
   '/_app/xodimlar/': typeof AppXodimlarIndexRoute
 }
@@ -441,6 +460,7 @@ export interface FileRouteTypes {
     | '/sozlamalar'
     | '/vakansiya-sorovlari'
     | '/vakansiyalar'
+    | '/blankalar/$submissionId'
     | '/malumotnomalar/bolimlar'
     | '/malumotnomalar/hujjat-turlari'
     | '/malumotnomalar/jarima-turlari'
@@ -462,6 +482,7 @@ export interface FileRouteTypes {
     | '/verifikatsiya/sorovlar'
     | '/verifikatsiya/tabel'
     | '/xodimlar/$employeeId'
+    | '/blankalar/'
     | '/nomzodlar/'
     | '/xodimlar/'
   fileRoutesByTo: FileRoutesByTo
@@ -485,6 +506,7 @@ export interface FileRouteTypes {
     | '/vakansiya-sorovlari'
     | '/vakansiyalar'
     | '/'
+    | '/blankalar/$submissionId'
     | '/malumotnomalar/bolimlar'
     | '/malumotnomalar/hujjat-turlari'
     | '/malumotnomalar/jarima-turlari'
@@ -506,6 +528,7 @@ export interface FileRouteTypes {
     | '/verifikatsiya/sorovlar'
     | '/verifikatsiya/tabel'
     | '/xodimlar/$employeeId'
+    | '/blankalar'
     | '/nomzodlar'
     | '/xodimlar'
   id:
@@ -530,6 +553,7 @@ export interface FileRouteTypes {
     | '/_app/vakansiya-sorovlari'
     | '/_app/vakansiyalar'
     | '/_app/'
+    | '/_app/blankalar/$submissionId'
     | '/_app/malumotnomalar/bolimlar'
     | '/_app/malumotnomalar/hujjat-turlari'
     | '/_app/malumotnomalar/jarima-turlari'
@@ -551,6 +575,7 @@ export interface FileRouteTypes {
     | '/_app/verifikatsiya/sorovlar'
     | '/_app/verifikatsiya/tabel'
     | '/_app/xodimlar/$employeeId'
+    | '/_app/blankalar/'
     | '/_app/nomzodlar/'
     | '/_app/xodimlar/'
   fileRoutesById: FileRoutesById
@@ -701,6 +726,20 @@ declare module '@tanstack/react-router' {
       path: '/vakansiyalar'
       fullPath: '/vakansiyalar'
       preLoaderRoute: typeof AppVakansiyalarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/blankalar/': {
+      id: '/_app/blankalar/'
+      path: '/blankalar'
+      fullPath: '/blankalar/'
+      preLoaderRoute: typeof AppBlankalarIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/blankalar/$submissionId': {
+      id: '/_app/blankalar/$submissionId'
+      path: '/blankalar/$submissionId'
+      fullPath: '/blankalar/$submissionId'
+      preLoaderRoute: typeof AppBlankalarSubmissionIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/malumotnomalar/bolimlar': {
@@ -885,6 +924,7 @@ interface AppRouteChildren {
   AppVakansiyaSorovlariRoute: typeof AppVakansiyaSorovlariRoute
   AppVakansiyalarRoute: typeof AppVakansiyalarRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppBlankalarSubmissionIdRoute: typeof AppBlankalarSubmissionIdRoute
   AppMalumotnomalarBolimlarRoute: typeof AppMalumotnomalarBolimlarRoute
   AppMalumotnomalarHujjatTurlariRoute: typeof AppMalumotnomalarHujjatTurlariRoute
   AppMalumotnomalarJarimaTurlariRoute: typeof AppMalumotnomalarJarimaTurlariRoute
@@ -906,6 +946,7 @@ interface AppRouteChildren {
   AppVerifikatsiyaSorovlarRoute: typeof AppVerifikatsiyaSorovlarRoute
   AppVerifikatsiyaTabelRoute: typeof AppVerifikatsiyaTabelRoute
   AppXodimlarEmployeeIdRoute: typeof AppXodimlarEmployeeIdRoute
+  AppBlankalarIndexRoute: typeof AppBlankalarIndexRoute
   AppNomzodlarIndexRoute: typeof AppNomzodlarIndexRoute
   AppXodimlarIndexRoute: typeof AppXodimlarIndexRoute
 }
@@ -928,6 +969,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppVakansiyaSorovlariRoute: AppVakansiyaSorovlariRoute,
   AppVakansiyalarRoute: AppVakansiyalarRoute,
   AppIndexRoute: AppIndexRoute,
+  AppBlankalarSubmissionIdRoute: AppBlankalarSubmissionIdRoute,
   AppMalumotnomalarBolimlarRoute: AppMalumotnomalarBolimlarRoute,
   AppMalumotnomalarHujjatTurlariRoute: AppMalumotnomalarHujjatTurlariRoute,
   AppMalumotnomalarJarimaTurlariRoute: AppMalumotnomalarJarimaTurlariRoute,
@@ -949,6 +991,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppVerifikatsiyaSorovlarRoute: AppVerifikatsiyaSorovlarRoute,
   AppVerifikatsiyaTabelRoute: AppVerifikatsiyaTabelRoute,
   AppXodimlarEmployeeIdRoute: AppXodimlarEmployeeIdRoute,
+  AppBlankalarIndexRoute: AppBlankalarIndexRoute,
   AppNomzodlarIndexRoute: AppNomzodlarIndexRoute,
   AppXodimlarIndexRoute: AppXodimlarIndexRoute,
 }
