@@ -1,6 +1,7 @@
 using System.Globalization;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Auditing;
+using Bonvi.Domain.Blanks;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
@@ -307,6 +308,48 @@ public static class AuditCatalog
                 nameof(CandidateForm.FileId))
             .Ref(AuditRefTarget.Candidate, nameof(CandidateForm.CandidateId)),
 
+        // ---------- Blankalar (SPEC-blankalar §13) ----------
+        // Javoblar (Answers, Computed, Missing) jurnalga TUSHMAYDI — ularda intizom va ketish
+        // sabablari bor, `audit.view` esa boshqa auditoriya. Huquqiy iz — har qadamning
+        // `answers_patch` i (u ham jurnalda yo'q, faqat blankaning o'zida).
+        Audit<BlankTemplate>(AccessModuleKeys.Blanks).Label(row => row.Code + " — " + row.Title),
+
+        Audit<BlankTemplateVersion>(AccessModuleKeys.Blanks)
+            .Label(row => row.Version)
+            .Exclude(nameof(BlankTemplateVersion.Definition), nameof(BlankTemplateVersion.DefinitionSha256))
+            .Ref(AuditRefTarget.User, nameof(BlankTemplateVersion.PublishedBy)),
+
+        Audit<BlankSubmission>(AccessModuleKeys.Blanks)
+            .Subject(nameof(BlankSubmission.EmployeeId))
+            .Label(row => row.Number == null ? row.TemplateCode : row.TemplateCode + " №" + row.Number)
+            .Exclude(
+                nameof(BlankSubmission.Answers),
+                nameof(BlankSubmission.Computed),
+                nameof(BlankSubmission.Missing),
+                nameof(BlankSubmission.MissingCount),
+                nameof(BlankSubmission.Version),
+                nameof(BlankSubmission.ClientRequestId),
+                nameof(BlankSubmission.FinalPdfStorageKey))
+            .Ref(AuditRefTarget.Employee, nameof(BlankSubmission.EmployeeId))
+            .Ref(AuditRefTarget.Employment, nameof(BlankSubmission.EmploymentId))
+            .Ref(AuditRefTarget.Candidate, nameof(BlankSubmission.CandidateId))
+            .Ref(AuditRefTarget.Department, nameof(BlankSubmission.DepartmentId)),
+
+        Audit<BlankSubmissionStep>(AccessModuleKeys.Blanks)
+            .Label(row => row.Title)
+            .Exclude(nameof(BlankSubmissionStep.SignatureStorageKey), nameof(BlankSubmissionStep.AnswersPatch))
+            .Ref(AuditRefTarget.User, nameof(BlankSubmissionStep.ActedByUserId))
+            .Ref(AuditRefTarget.Employee, nameof(BlankSubmissionStep.SignerEmployeeId)),
+
+        Audit<BlankAttachment>(AccessModuleKeys.Blanks)
+            .Label(row => row.FileName)
+            .Exclude(nameof(BlankAttachment.StorageKey), nameof(BlankAttachment.ContentSha256))
+            .Ref(AuditRefTarget.User, nameof(BlankAttachment.UploadedBy), nameof(BlankAttachment.RemovedBy)),
+
+        Audit<BlankRoleAssignment>(AccessModuleKeys.Blanks)
+            .Label(row => row.RoleCode)
+            .Ref(AuditRefTarget.User, nameof(BlankRoleAssignment.UserId)),
+
         // ---------- Davomat (SPEC §14.5) ----------
         Audit<AbsenceRequest>(AccessModuleKeys.Attendance)
             .Subject(nameof(AbsenceRequest.EmployeeId))
@@ -416,6 +459,7 @@ public static class AuditCatalog
         [typeof(McpAuthCode)] = "bir martalik OAuth kodi — sir, bir necha daqiqa yashaydi",
         [typeof(McpToken)] = "OAuth tokeni — sir, har yangilashda almashadi",
         [typeof(McpAuditEntry)] = "AI chaqiruvlarining o'z jurnali (mcp_audit)",
+        [typeof(BlankNumberCounter)] = "texnik hisoblagich — blanka raqamining o'zi blanka qatorida jurnalga tushadi",
     };
 
     /// <summary>Yoziladigan entity'lar va ularning qoidalari.</summary>

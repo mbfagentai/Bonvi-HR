@@ -40,6 +40,14 @@
     <EmbeddedResource Include="Reports/Pdf/Assets/*.png" />
   </ItemGroup>
 
+  <!--
+    Blankalar shablonlari (docs/SPEC-blankalar.md §4.10) — urug' ma'lumotlari bilan bir xil
+    sabab: ta'rif kod bilan bir versiyada yuradi. Fayllar hali yo'q bo'lsa Include bo'sh qoladi.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Blanks/Templates/*.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />

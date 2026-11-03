@@ -3,6 +3,7 @@ using System.Reflection;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Auditing;
+using Bonvi.Domain.Blanks;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
@@ -296,6 +297,31 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Ochiq onlayn formada to'ldirilgan anketalar — HR-F02 (<c>candidate_forms</c>).</summary>
     public DbSet<CandidateForm> CandidateForms => Set<CandidateForm>();
+
+    // ────────────────────────────────────────────────────────────
+    //  Blankalar (docs/SPEC-blankalar.md §3)
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Blanka shablonlari (<c>blank_templates</c>).</summary>
+    public DbSet<BlankTemplate> BlankTemplates => Set<BlankTemplate>();
+
+    /// <summary>Shablon versiyalari — JSON ta'rif (<c>blank_template_versions</c>).</summary>
+    public DbSet<BlankTemplateVersion> BlankTemplateVersions => Set<BlankTemplateVersion>();
+
+    /// <summary>To'ldirilgan blankalar (<c>blank_submissions</c>).</summary>
+    public DbSet<BlankSubmission> BlankSubmissions => Set<BlankSubmission>();
+
+    /// <summary>Imzo qadamlari (<c>blank_submission_steps</c>) — yozish faqat blanka agregati orqali.</summary>
+    public DbSet<BlankSubmissionStep> BlankSubmissionSteps => Set<BlankSubmissionStep>();
+
+    /// <summary>Blanka fayllari (<c>blank_attachments</c>) — yozish faqat blanka agregati orqali.</summary>
+    public DbSet<BlankAttachment> BlankAttachments => Set<BlankAttachment>();
+
+    /// <summary>Lavozim rollarini biriktirish (<c>blank_role_assignments</c>).</summary>
+    public DbSet<BlankRoleAssignment> BlankRoleAssignments => Set<BlankRoleAssignment>();
+
+    /// <summary>Blanka raqamlari hisoblagichi (<c>blank_number_counters</c>).</summary>
+    public DbSet<BlankNumberCounter> BlankNumberCounters => Set<BlankNumberCounter>();
 
     // ────────────────────────────────────────────────────────────
     //  DAVOMAT / VERIFIKATSIYA (3-bosqich)

@@ -59,6 +59,14 @@ public static class PermissionCatalog
         Module(AccessModuleKeys.Safety, view: [Permissions.SafetyView], edit: [Permissions.SafetyManage]),
         Module(AccessModuleKeys.Recruiting, view: [Permissions.RecruitingView], edit: [Permissions.RecruitingManage]),
 
+        // Blankalar (SPEC-blankalar §6.3): imzolash — alohida amal, to'ldirishdan mustaqil.
+        Module(
+            AccessModuleKeys.Blanks,
+            view: [Permissions.BlanksView],
+            edit: [Permissions.BlanksFill],
+            full: [Permissions.BlanksManage],
+            actions: [Permissions.BlanksApprove]),
+
         // Davomat (verifikatsiya) — SPEC-rollar-va-audit §14.2: «o'zgartirish» —
         // so'rovlar bo'yicha qaror (yo'qlik VA jadvalni o'zgartirish — bitta xodimning
         // bitta sanasi); «to'liq» — qurilma, jadval va moslik (tabelning MA'NOSINI

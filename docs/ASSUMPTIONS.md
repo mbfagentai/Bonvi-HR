@@ -1319,3 +1319,9 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-03] Blank answers in the audit journal → excluded; each step stores its own `answers_patch` as the legal trail → answers hold discipline and exit details; `audit.view` is a different audience.
 - [2026-11-03] Final PDF → rendered on demand always; snapshot stored at Approved in blank storage, NOT attached to employee documents → attaching would write into the employee documents module.
 - [2026-11-03] F13 «draft» legal status → published with `legalStatus: draft` (PDF prints «Loyiha») pending the owner's answer → the record is internal procedure; the order itself is still issued by HR-2.
+- [2026-11-03] Blanks S1: SPEC §12 says hr_manager defaults go in `IdentitySeeder.cs` → added to `SystemRoles.Defaults` in `Permissions.cs` instead (view + fill + approve), IdentitySeeder untouched → the seeder reads defaults from there and only uses them on a new DB, so this is the one place.
+- [2026-11-03] Blanks S1: enum columns `smallint` (SPEC §3) while older tables use `integer` → blank enums are `short`-based → SPEC is explicit; nothing else changes.
+- [2026-11-03] Blanks S1: `completed_at` meaning → set on Approved AND Rejected (decision reached), not on Cancelled (`cancelled_at`) → one column answers «when did the approval chain end».
+- [2026-11-03] Blanks S1: `SetFinalPdf` does not bump `version` → technical write after Approved, not a user change; bumping would 409 a user who still has the page open for nothing.
+- [2026-11-03] Blanks S1: domain attachment kind enum named `BlankAttachmentKind` (Domain) → S4's `Application/Blanks/Files/BlankFileKind` must map to it (same numbers 1..7) or reuse it → Domain cannot reference Application.
+- [2026-11-03] Blanks S1: `BlankSubmission` audit label → «HR-F07 №12» (code only while no number), subject = EmployeeId → readable in the journal without exposing answers.

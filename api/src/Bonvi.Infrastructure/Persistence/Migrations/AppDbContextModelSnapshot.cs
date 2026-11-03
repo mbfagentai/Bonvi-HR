@@ -1530,6 +1530,548 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("audit_logs", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("content_sha256")
+                        .IsFixedLength();
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<string>("FieldPath")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("field_path");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<short>("Kind")
+                        .HasColumnType("smallint")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
+
+                    b.Property<Guid?>("RemovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("removed_by");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.Property<DateTimeOffset>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_blank_attachments");
+
+                    b.HasIndex("SubmissionId")
+                        .HasDatabaseName("ix_blank_attachments_submission_id");
+
+                    b.ToTable("blank_attachments", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankNumberCounter", b =>
+                {
+                    b.Property<string>("TemplateCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("template_code");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_number");
+
+                    b.HasKey("TemplateCode")
+                        .HasName("pk_blank_number_counters");
+
+                    b.ToTable("blank_number_counters", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankRoleAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("RoleCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("role_code");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_blank_role_assignments");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_blank_role_assignments_user_id");
+
+                    b.HasIndex("RoleCode", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_blank_role_assignments_role_code_user_id");
+
+                    b.ToTable("blank_role_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankSubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Answers")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("answers");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("cancel_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<Guid?>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<Guid?>("ClientRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_request_id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("Computed")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("computed");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<Guid?>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<Guid?>("EmploymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employment_id");
+
+                    b.Property<string>("FinalPdfStorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("final_pdf_storage_key");
+
+                    b.Property<string>("Missing")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("missing");
+
+                    b.Property<int>("MissingCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("missing_count");
+
+                    b.Property<int?>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<string>("ReturnComment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("return_comment");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint")
+                        .HasColumnName("status");
+
+                    b.Property<short>("SubjectKind")
+                        .HasColumnType("smallint")
+                        .HasColumnName("subject_kind");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<string>("TemplateCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("template_code");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<Guid>("TemplateVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_version_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_blank_submissions");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_blank_submissions_candidate_id");
+
+                    b.HasIndex("ClientRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_blank_submissions_client_request_id");
+
+                    b.HasIndex("CreatedAt")
+                        .IsDescending()
+                        .HasDatabaseName("ix_blank_submissions_created_at");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_blank_submissions_department_id");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_blank_submissions_employee_id");
+
+                    b.HasIndex("EmploymentId")
+                        .HasDatabaseName("ix_blank_submissions_employment_id");
+
+                    b.HasIndex("TemplateId")
+                        .HasDatabaseName("ix_blank_submissions_template_id");
+
+                    b.HasIndex("TemplateVersionId")
+                        .HasDatabaseName("ix_blank_submissions_template_version_id");
+
+                    b.HasIndex("Status", "TemplateCode")
+                        .HasDatabaseName("ix_blank_submissions_status_template_code");
+
+                    b.HasIndex("TemplateCode", "MissingCount")
+                        .HasDatabaseName("ix_blank_submissions_template_code_missing_count");
+
+                    b.HasIndex("TemplateCode", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_blank_submissions_template_code_number")
+                        .HasFilter("number IS NOT NULL");
+
+                    b.ToTable("blank_submissions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_blank_submissions_subject", "(subject_kind = 1 AND employee_id IS NOT NULL AND candidate_id IS NULL) OR (subject_kind = 2 AND candidate_id IS NOT NULL AND employee_id IS NULL) OR (subject_kind = 3 AND employee_id IS NULL AND candidate_id IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankSubmissionStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ActedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acted_at");
+
+                    b.Property<Guid?>("ActedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("acted_by_user_id");
+
+                    b.Property<string>("ActorRole")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("actor_role");
+
+                    b.Property<string>("AnswersPatch")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("answers_patch");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("comment");
+
+                    b.Property<string>("Decision")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("decision");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<short?>("Method")
+                        .HasColumnType("smallint")
+                        .HasColumnName("method");
+
+                    b.Property<short>("Mode")
+                        .HasColumnType("smallint")
+                        .HasColumnName("mode");
+
+                    b.Property<int>("OrderNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_no");
+
+                    b.Property<string>("SignatureStorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("signature_storage_key");
+
+                    b.Property<Guid?>("SignerEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("signer_employee_id");
+
+                    b.Property<string>("SignerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("signer_name");
+
+                    b.Property<short>("State")
+                        .HasColumnType("smallint")
+                        .HasColumnName("state");
+
+                    b.Property<string>("StepCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("step_code");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_blank_submission_steps");
+
+                    b.HasIndex("ActedByUserId")
+                        .HasDatabaseName("ix_blank_submission_steps_acted_by_user_id");
+
+                    b.HasIndex("SignerEmployeeId")
+                        .HasDatabaseName("ix_blank_submission_steps_signer_employee_id");
+
+                    b.HasIndex("SubmissionId", "StepCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_blank_submission_steps_submission_id_step_code");
+
+                    b.ToTable("blank_submission_steps", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<short>("SubjectKind")
+                        .HasColumnType("smallint")
+                        .HasColumnName("subject_kind");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_blank_templates");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_blank_templates_code");
+
+                    b.ToTable("blank_templates", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankTemplateVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Definition")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("definition");
+
+                    b.Property<string>("DefinitionSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("definition_sha256")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<Guid?>("PublishedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("published_by");
+
+                    b.Property<short>("Source")
+                        .HasColumnType("smallint")
+                        .HasColumnName("source");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_blank_template_versions");
+
+                    b.HasIndex("TemplateId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_blank_template_versions_published")
+                        .HasFilter("status = 2");
+
+                    b.HasIndex("TemplateId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_blank_template_versions_template_id_version");
+
+                    b.ToTable("blank_template_versions", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Catalog.AbsenceType", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4975,6 +5517,99 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_work_schedule_days_work_schedules_work_schedule_id");
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankAttachment", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Blanks.BlankSubmission", null)
+                        .WithMany("Attachments")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_blank_attachments_blank_submissions_submission_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankRoleAssignment", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_blank_role_assignments_users_user_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankSubmission", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_blank_submissions_candidates_candidate_id");
+
+                    b.HasOne("Bonvi.Domain.Organization.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_blank_submissions_departments_department_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_blank_submissions_employees_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employment", null)
+                        .WithMany()
+                        .HasForeignKey("EmploymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_blank_submissions_employments_employment_id");
+
+                    b.HasOne("Bonvi.Domain.Blanks.BlankTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_blank_submissions_blank_templates_template_id");
+
+                    b.HasOne("Bonvi.Domain.Blanks.BlankTemplateVersion", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_blank_submissions_blank_template_versions_template_version_");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankSubmissionStep", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_blank_submission_steps_users_acted_by_user_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("SignerEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_blank_submission_steps_employees_signer_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Blanks.BlankSubmission", null)
+                        .WithMany("Steps")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_blank_submission_steps_blank_submissions_submission_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankTemplateVersion", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Blanks.BlankTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_blank_template_versions_blank_templates_template_id");
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCheckFile", b =>
                 {
                     b.HasOne("Bonvi.Domain.Employees.Employee", null)
@@ -5348,6 +5983,13 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Bonvi.Domain.Attendance.WorkSchedule", b =>
                 {
                     b.Navigation("Days");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Blanks.BlankSubmission", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Employees.EmployeeCompetency", b =>

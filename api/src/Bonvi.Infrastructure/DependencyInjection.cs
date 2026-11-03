@@ -16,6 +16,7 @@ using Bonvi.Application.Recruiting.Forms;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.Reports.Export;
 using Bonvi.Application.System.Queries.GetSystemInfo;
+using Bonvi.Infrastructure.Blanks;
 using Bonvi.Infrastructure.Identity;
 using Bonvi.Infrastructure.Persistence.Auditing;
 using Bonvi.Infrastructure.Persistence.ReadModels;
@@ -73,6 +74,7 @@ public static class DependencyInjection
         services.AddSafetyServices();
         services.AddAttendanceServices();
         services.AddRecruitingServices();
+        services.AddBlanksInfrastructure();
         services.AddNotificationServices();
         services.AddSettingsServices(configuration);
         services.AddPublicApiServices();
