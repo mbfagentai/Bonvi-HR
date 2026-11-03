@@ -1,5 +1,7 @@
 using Bonvi.Application.Blanks.Files;
+using Bonvi.Application.Blanks.Pdf;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Infrastructure.Blanks.Pdf;
 using Bonvi.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,6 +28,9 @@ public static class BlanksInfrastructureRegistration
 
         // Fayl turini tarkibidan aniqlaydi (SPEC §8) — holatsiz.
         services.AddSingleton<IBlankFileInspector, BlankFileInspector>();
+
+        // Generic blank PDF (SPEC §10) — stateless; fonts come from the shared bundled resolver.
+        services.AddSingleton<IBlankPdfRenderer, BlankPdfRenderer>();
 
         return services;
     }
