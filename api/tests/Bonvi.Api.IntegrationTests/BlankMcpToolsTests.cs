@@ -27,7 +27,7 @@ namespace Bonvi.Api.IntegrationTests;
 public sealed class BlankMcpToolsTests : IClassFixture<McpHost>
 {
     private const string F07Definition = """
-        {"schema":1,"code":"HR-F07","version":"1.0","title":"Sinov bahosi","subject":"employee",
+        {"schema":1,"code":"HR-F07","version":"9.9","title":"Sinov bahosi","subject":"employee",
          "sections":[
           {"id":"hdr","title":"Xodim","fields":[
             {"id":"employee","type":"ref","refKind":"employee","label":"Xodim F.I.Sh."},
@@ -51,6 +51,9 @@ public sealed class BlankMcpToolsTests : IClassFixture<McpHost>
         """;
 
     private static int _raqam = Random.Shared.Next(100_000, 900_000);
+
+    /// <summary>Seeder bilan to'qnashmaydigan test versiya raqamlari (fixture bazasi ichida yagona).</summary>
+    private static int _testVersiya;
 
     private readonly McpHost _host;
 
@@ -84,7 +87,7 @@ public sealed class BlankMcpToolsTests : IClassFixture<McpHost>
         natija.IsError.ShouldBeFalse(natija.Text);
         var f07 = Json(natija.Text)["items"]!.AsArray().Single(item => item!["code"]!.GetValue<string>() == "HR-F07")!;
 
-        f07["version"]!.GetValue<string>().ShouldBe("1.0");
+        f07["version"]!.GetValue<string>().ShouldBe("9.9");
         f07["subject"]!.GetValue<string>().ShouldBe("Employee");
 
         var maydonlar = f07["fields"]!.AsArray();
@@ -148,7 +151,7 @@ public sealed class BlankMcpToolsTests : IClassFixture<McpHost>
         var blanka = Json(natija.Text);
 
         blanka["status"]!.GetValue<string>().ShouldBe("Approved");
-        blanka["templateVersion"]!.GetValue<string>().ShouldBe("1.0");
+        blanka["templateVersion"]!.GetValue<string>().ShouldBe("9.9");
 
         var javoblar = blanka["answers"]!.AsArray();
         JsonNode Javob(string id) => javoblar.Single(item => item!["field"]!.GetValue<string>() == id)!;
@@ -438,10 +441,32 @@ public sealed class BlankMcpToolsTests : IClassFixture<McpHost>
         var version = await db.BlankTemplateVersions
             .FirstOrDefaultAsync(item => item.TemplateId == template.Id && item.Status == BlankTemplateVersionStatus.Published, Ct);
 
+        /*
+          Ishga tushishda seeder haqiqiy shablonni (masalan HR-F07 v1.0) allaqachon chiqargan bo'ladi.
+          Bu test o'z kichik ta'rifiga tayanadi: fixture'ning O'Z bazasida haqiqiy versiya iste'foga
+          chiqariladi va test ta'rifi o'z versiyasi bilan chiqariladi.
+        */
+        var definitionSha = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(definition)));
+
+        // Xesh bo'yicha: saqlangan ta'rif kanonik shaklda (bo'shliqsiz), matnni to'g'ridan-to'g'ri solishtirib bo'lmaydi.
+        if (version is not null && version.DefinitionSha256 != definitionSha)
+        {
+            version.Retire().IsSuccess.ShouldBeTrue();
+            await db.SaveChangesAsync(Ct);
+            version = null;
+        }
+
         if (version is null)
         {
             var sha = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(definition)));
-            version = BlankTemplateVersion.Create(template.Id, "1.0", definition, sha, BlankTemplateSource.Seed).Value;
+            var number = System.Text.Json.Nodes.JsonNode.Parse(definition)!["version"]!.GetValue<string>();
+
+            // Seeder shu raqamli versiyani allaqachon yozgan bo'lsa — test versiyasi alohida raqam oladi.
+            if (await db.BlankTemplateVersions.AnyAsync(item => item.TemplateId == template.Id && item.Version == number, Ct))
+            {
+                number = "9." + Interlocked.Increment(ref _testVersiya).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            version = BlankTemplateVersion.Create(template.Id, number, definition, sha, BlankTemplateSource.Seed).Value;
             version.Publish(null, DateTimeOffset.UtcNow).IsSuccess.ShouldBeTrue();
             db.Add(version);
         }
