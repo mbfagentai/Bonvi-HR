@@ -208,6 +208,23 @@ public sealed class BlankSubmission : AggregateRoot, IAuditable
     public Result CheckVersion(int expected)
         => expected == Version ? Result.Success() : BlankErrors.Stale;
 
+    /// <summary>
+    /// Qadam amalidan keyin to'liqlik (<c>missing</c>) va muddatni yangilaydi — qadamlar grafi siljigach
+    /// Application qayta hisoblaydi (§5.3). Javoblar o'zgarmaydi deb kutiladi; versiya oshmaydi (amal o'zi oshirgan).
+    /// </summary>
+    public Result RefreshCompleteness(BlankAnswersState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        if (Validate(state) is { } invalid)
+        {
+            return invalid;
+        }
+
+        Apply(state);
+        return Result.Success();
+    }
+
     /// <summary>Javoblarni saqlaydi — qoralamada yoki kelishuvda (qaysi bo'lim — Application biladi).</summary>
     /// <param name="state">Yangi holat.</param>
     public Result SaveAnswers(BlankAnswersState state)
@@ -293,7 +310,16 @@ public sealed class BlankSubmission : AggregateRoot, IAuditable
     /// <param name="act">Imzo ma'lumoti.</param>
     /// <param name="state">Bajaruvchi bo'limi qo'shilgan javoblar holati (o'zgarmasa <c>null</c>).</param>
     /// <param name="at">Lahza.</param>
-    public Result SignStep(Guid stepId, BlankStepAct act, BlankAnswersState? state, DateTimeOffset at)
+    /// <param name="isStepDue">
+    /// Qadam sharti (<c>when</c>) — guruh navbati kelganda qayta baholanadi (SPEC §4.11 p.3): <c>false</c> bo'lgan
+    /// qadam <see cref="BlankStepState.Skipped"/> bo'ladi. <c>null</c> — hamma qadam kerak.
+    /// </param>
+    public Result SignStep(
+        Guid stepId,
+        BlankStepAct act,
+        BlankAnswersState? state,
+        DateTimeOffset at,
+        Func<string, bool>? isStepDue = null)
     {
         ArgumentNullException.ThrowIfNull(act);
 
@@ -333,7 +359,7 @@ public sealed class BlankSubmission : AggregateRoot, IAuditable
             Apply(state);
         }
 
-        Advance(at);
+        Advance(at, isStepDue);
         Version++;
         return Result.Success();
     }
@@ -519,14 +545,33 @@ public sealed class BlankSubmission : AggregateRoot, IAuditable
     /// Guruh qoidasi: ochiq qadam qolmagan bo'lsa, keyingi kutayotgan guruh (eng kichik tartib)
     /// ochiladi; kutayotgan ham qolmasa — blanka tasdiqlanadi.
     /// </summary>
-    private void Advance(DateTimeOffset at)
+    private void Advance(DateTimeOffset at, Func<string, bool>? isStepDue = null)
     {
         if (_steps.Exists(step => step.State == BlankStepState.Open))
         {
             return;
         }
 
+        // Navbati kelgan guruhning sharti bajarilmagan qadamlari o'tkazib yuboriladi; guruh butunlay
+        // o'tkazilsa — keyingi guruhga (§4.11 p.3: HR-F13 guvohlari, tushuntirish yozilgan bo'lsa).
         var waiting = _steps.Where(step => step.State == BlankStepState.Waiting).ToList();
+        while (isStepDue is not null && waiting.Count > 0)
+        {
+            var due = waiting.Min(step => step.OrderNo);
+            var group = waiting.Where(step => step.OrderNo == due).ToList();
+            foreach (var step in group.Where(step => !isStepDue(step.StepCode)))
+            {
+                step.Skip();
+            }
+
+            if (group.Exists(step => step.State == BlankStepState.Waiting))
+            {
+                break;
+            }
+
+            waiting.RemoveAll(step => step.OrderNo == due);
+        }
+
         if (waiting.Count == 0)
         {
             Status = BlankSubmissionStatus.Approved;

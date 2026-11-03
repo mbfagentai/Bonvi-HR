@@ -345,7 +345,7 @@ public sealed class SaveBlankAnswersCommandHandler
     /// boshqa maydon so'rovda bo'lsa-yu QIYMATI o'zgargan bo'lsa — 409 <c>blanka.maydon_tahrirlanmaydi</c>
     /// (o'zgarmagan nusxa e'tiborsiz: forma butun javoblarni qaytarib yuboradi).
     /// </summary>
-    private static Result<JsonObject> Merge(
+    internal static Result<JsonObject> Merge(
         BlankDefinition definition,
         JsonObject before,
         JsonObject incoming,
