@@ -20,8 +20,11 @@ const FORM_ID = 'blank-create-form'
  * `clientRequestId` is fixed for the lifetime of the dialog: a double click or a retry
  * after a dropped response returns the SAME draft (server idempotency, SPEC §5).
  * Candidate-subject templates arrive in Phase 2 — they are listed but disabled.
+ *
+ * `employee` presets the subject (employee card «Blankalar» tab): only employee-subject
+ * templates are offered and the picker is locked to that person.
  */
-export function BlankCreateDialog({ onClose }: { onClose: () => void }) {
+export function BlankCreateDialog({ onClose, employee: preset }: { onClose: () => void; employee?: PickedEmployee }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const navigate = useNavigate()
@@ -31,12 +34,15 @@ export function BlankCreateDialog({ onClose }: { onClose: () => void }) {
 
   const [clientRequestId] = useState(() => crypto.randomUUID())
   const [templateCode, setTemplateCode] = useState('')
-  const [employee, setEmployee] = useState<PickedEmployee | null>(null)
+  const [employee, setEmployee] = useState<PickedEmployee | null>(preset ?? null)
   const [failure, setFailure] = useState<string | null>(null)
 
   const available = useMemo(
-    () => (templates.data ?? []).filter((item) => item.isActive && item.versionId !== null),
-    [templates.data],
+    () =>
+      (templates.data ?? []).filter(
+        (item) => item.isActive && item.versionId !== null && (preset === undefined || item.subjectKind === 'Employee'),
+      ),
+    [preset, templates.data],
   )
   const options = useMemo(
     () =>
@@ -123,7 +129,7 @@ export function BlankCreateDialog({ onClose }: { onClose: () => void }) {
             value={employee}
             onChange={setEmployee}
             employedOnly
-            disabled={create.isPending}
+            disabled={create.isPending || preset !== undefined}
           />
         )}
       </form>

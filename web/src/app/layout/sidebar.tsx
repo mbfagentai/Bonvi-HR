@@ -3,6 +3,7 @@ import { ChevronRight, Clock, PanelLeftClose, PanelLeftOpen } from 'lucide-react
 import { useEffect, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { useBlankWaitingCount } from '@/features/blanks/api/blanks-queries'
 import { useDashboardStats } from '@/features/dashboard/api/dashboard-queries'
 import {
   useFormerEmployeeAlerts,
@@ -96,6 +97,11 @@ export function Sidebar({
   }
   if (pendingRequests > 0) {
     counts['attendanceRequests'] = pendingRequests
+  }
+  // «Blankalar»: steps waiting for the caller (`waitingForMe` total, SPEC-blankalar §12)
+  const blanksWaiting = useBlankWaitingCount(hasPermission('blanks.view')).data ?? 0
+  if (blanksWaiting > 0) {
+    counts['blanks'] = blanksWaiting
   }
 
   /** Band + uning jonli sanog'i (bo'lsa). Statik `NAV` massivi o'zgartirilmaydi. */

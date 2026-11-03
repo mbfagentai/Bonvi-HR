@@ -1406,7 +1406,8 @@
     "tabHistory": "Change history",
     "correctedAt": "Corrected: {{date}}",
     "showCorrections": "Show corrections",
-    "probationAlreadyOver": "The probation period ended on {{date}} — the employee will be added as permanent right away."
+    "probationAlreadyOver": "The probation period ended on {{date}} — the employee will be added as permanent right away.",
+    "tabBlanks": "Blanks"
   },
   "employments": {
     "anyType": "All types",
@@ -3847,6 +3848,54 @@
       "cancelTitle": "Cancel blank",
       "cancelText": "A cancelled blank cannot be reopened.",
       "cancelReason": "Reason"
+    },
+    "steps": {
+      "group": "Stage {{n}}",
+      "parallel": "parallel",
+      "due": "Due: {{date}}",
+      "methodElectronic": "Electronic",
+      "methodInPerson": "Signed in person",
+      "operator": "Operator: {{name}}",
+      "decision": "Decision",
+      "comment": "Comment",
+      "approve": "Approve",
+      "signInPerson": "Sign in person",
+      "return": "Return",
+      "reject": "Reject",
+      "signature": "Signature",
+      "signatureFailed": "Could not load the signature",
+      "chooseDecision": "Choose a decision",
+      "decisionRequired": "Choose a decision",
+      "extraRequired": "This field is required",
+      "commentOptional": "Comment (optional)",
+      "commentRequired": "Comment (required)",
+      "approveTitle": "«{{step}}» — approval",
+      "approveText": "Your approval is recorded on the blank with your name and time.",
+      "signTitle": "«{{step}}» — in-person signature",
+      "signText": "Signer: {{actor}}. The signature is drawn on this device.",
+      "sign": "Sign",
+      "signerName": "Signer full name",
+      "signerNameOptional": "Signer full name (optional)",
+      "signerNameRequired": "Enter the signer full name",
+      "signatureRequired": "No signature drawn",
+      "returnTitle": "«{{step}}» — return to draft",
+      "returnText": "The blank goes back to the filler: the number is kept, signatures are collected again. Say what needs fixing.",
+      "rejectTitle": "«{{step}}» — rejection",
+      "rejectText": "A rejected blank stays final and cannot be reopened.",
+      "actor": {
+        "subjectEmployee": "The employee",
+        "departmentHead": "Department head",
+        "witness": "Witness",
+        "candidate": "Candidate"
+      }
+    },
+    "view": {
+      "due": "Due: {{date}}",
+      "save": "Save",
+      "pdf": "PDF",
+      "yourTurn": "Your signature is waiting — see «Signing steps» below.",
+      "subjectEmptyTitle": "No blanks",
+      "subjectEmptyText": "No blank has been opened for this employee yet."
     }
   }
 }

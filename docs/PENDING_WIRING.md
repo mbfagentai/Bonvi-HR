@@ -1367,7 +1367,7 @@ YO'Q — o'rniga xodim kartasi → «Davomat» → «Ilova» segmenti.
 
 | What | Where | Owner |
 |---|---|---|
-| Nav count «Menga kutilmoqda» (`waitingForMe` total, `countTone: 'warning'` already on the item) | `web/src/app/layout/sidebar.tsx` counts map — shared file, not touched | wiring (S13) |
-| Step actions #12–#16 (approve / sign-in-person / return / reject / signature) | `blanks-api.ts` has only `BlankStepApproveInput` / `BlankStepCommentInput`; the fill page shows a read-only steps list marked `TODO(S12)` | S12 after `./bonvi gen` |
-| Files #17–#19 | hand-written wrappers `uploadBlankAttachment` / `deleteBlankAttachment` / `fetchBlankAttachment` marked `TODO(S7)` — swap for the generated calls after `./bonvi gen`; `openFile` downloads until `FileViewer` (S12) | S7 → S12 |
-| PDF #20 button, `<BlankViewPage>` for non-Draft, employee card tab | route `blankalar/$submissionId.tsx` (`TODO(S12)`) | S12 |
+| Nav count «Menga kutilmoqda» | DONE (S12): `useBlankWaitingCount` → `counts['blanks']` in `sidebar.tsx` (list #6 `waitingForMe`, `pageSize=1`) | — |
+| Step actions #12–#16 | DONE (S12): generated calls #12–#15; #16 hand-written blob GET (generated fn is typed `void`) | — |
+| Files #17–#20 | still hand-written `TODO(S7)`: `uploadBlankAttachment` / `deleteBlankAttachment` / `fetchBlankAttachment` / `fetchBlankPdf` in `blanks-api.ts` — swap for generated calls after S7 merges + `./bonvi gen`; attachments already open in `FileViewer` | S7 → wiring |
+| PDF button, `<BlankViewPage>`, employee card tab «Blankalar» | DONE (S12); the PDF viewer shows an error until #20 is merged | — |

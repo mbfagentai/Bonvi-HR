@@ -4,13 +4,11 @@ import { ArrowLeft, Ban, CircleCheck, FileText, LoaderCircle, RefreshCw, Send } 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { saveBlobAs } from '@/shared/lib/download'
 import { useReturnTo } from '@/shared/lib/return-to'
 import { Alert, Badge, Button, Card, Dialog, EmptyState, IconTile, PageHeader, Skeleton, TextArea } from '@/shared/ui'
 
 import {
   deleteBlankAttachment,
-  fetchBlankAttachment,
   fetchBlankSubmission,
   putBlankAnswers,
   uploadBlankAttachment,
@@ -36,6 +34,7 @@ import type {
   BlankStepState,
   ComputedValues,
 } from '../lib/definition-types'
+import { useBlankAttachmentViewer } from './blank-attachment-viewer'
 import { BlankForm, type BlankServerError } from './renderer/blank-form'
 import type { RemoveFile, UploadFile } from './renderer/renderer-context'
 
@@ -61,10 +60,8 @@ const STEP_TONE: Record<BlankStepState, 'neutral' | 'warning' | 'success' | 'dan
  * with `expectedVersion`; 409 `blanka.ozgargan` freezes editing behind a «reload» banner (the
  * other save is never overwritten); submit validates the editable sections with
  * `requireFilled` first, flushes the pending save, then POST #10.
- * Any other status → the same form read-only plus the steps region.
- *
- * TODO(S12): the steps panel with approve / sign-in-person / return / reject, the PDF button
- * and `FileViewer` for attachments replace the placeholder region and `openFile` below.
+ * The route opens `<BlankViewPage>` (steps, signing, PDF) for every other status; this page
+ * still renders read-only if it is ever given one (e.g. the draft was just cancelled).
  */
 export function BlankFillPage({ submissionId }: { submissionId: string }) {
   const { t, num, dateTime } = useLocale()
@@ -259,12 +256,8 @@ export function BlankFillPage({ submissionId }: { submissionId: string }) {
     [flush, refreshAfterFileChange, submissionId],
   )
 
-  const openFile = useCallback(
-    (attachment: BlankAttachmentDto) => {
-      void fetchBlankAttachment(submissionId, attachment.id).then((blob) => saveBlobAs(blob, attachment.fileName))
-    },
-    [submissionId],
-  )
+  const viewer = useBlankAttachmentViewer(submissionId, attachments)
+  const openFile = viewer.open
 
   /* ── states ─────────────────────────────────────────────────────────── */
   if (detail.isError || version.isError) {
@@ -390,7 +383,7 @@ export function BlankFillPage({ submissionId }: { submissionId: string }) {
         openFile={openFile}
       />
 
-      {/* TODO(S12): replace this region with <BlankStepsPanel> (approve / sign / return / reject). */}
+      {/* Read-only fallback — a Draft has no steps; the route shows <BlankViewPage> otherwise. */}
       {submission.steps.length > 0 && (
         <Card className="p-5">
           <h2 className="mb-3 text-headline font-semibold">{t('blanks.fill.steps')}</h2>
@@ -427,6 +420,7 @@ export function BlankFillPage({ submissionId }: { submissionId: string }) {
           expectedVersion={() => versionRef.current}
         />
       )}
+      {viewer.element}
     </div>
   )
 }
@@ -452,7 +446,8 @@ function SaveIndicator({ state }: { state: SaveState }) {
   )
 }
 
-function CancelDialog({
+/** Cancel with a required reason — POST #11 (shared with the view page). */
+export function CancelDialog({
   submission,
   expectedVersion,
   onClose,
