@@ -182,6 +182,9 @@ public sealed class McpLeakTests : IClassFixture<McpHost>
             "vacancyid" or "vacancy" => dunyo.VacancyId,
             "legalentityid" or "legalentity" => dunyo.LegalEntityId,
             "departmentid" or "department" => dunyo.DepartmentId,
+            // `blank` — blanka identifikatori; bu dunyoda blanka yo'q (blankalar sizmasligi
+            // o'z urug'i bilan BlankMcpToolsTests da tekshiriladi), shuning uchun taxmin qilinadi.
+            "id" when vosita == "blank" => null,
             "id" => nomzodVositasi ? dunyo.CandidateId
                 : vosita.Contains("vacanc", StringComparison.Ordinal) ? dunyo.VacancyId
                 : dunyo.EmployeeId,
