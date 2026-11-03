@@ -517,7 +517,7 @@ function DayCell({ cell, today, onOpen }: { cell: TimesheetCell; today: string; 
           Chegara HAR BIR katakda, holatidan qat'i nazar: bo'sh kun ham o'z joyiga ega
           bo'lishi kerak (ilgari «ishlagan» kunlar oq fonda katak bo'lib ko'rinmasdi).
         */
-        'min-h-[92px] w-full cursor-pointer rounded-md border border-[var(--border)] p-1.5 text-left transition-shadow hover:shadow-[0_0_0_2px_var(--accent)] focus-visible:shadow-[0_0_0_2px_var(--accent)] focus-visible:outline-none',
+        'flex min-h-[92px] w-full cursor-pointer flex-col justify-start rounded-md border border-[var(--border)] p-1.5 text-left transition-shadow hover:shadow-[0_0_0_2px_var(--accent)] focus-visible:shadow-[0_0_0_2px_var(--accent)] focus-visible:outline-none',
         look.cellClass,
         isToday && 'ring-2 ring-[var(--accent)] ring-inset',
       )}
