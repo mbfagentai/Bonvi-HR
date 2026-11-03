@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "code": "HR-F08",
+  "version": "1.0",
+  "title": "Chiqish suhbati varag'i (exit interview)",
+  "subject": "employee",
+  "legalStatus": "final",
+  "dueDate": { "field": "leaveDate" },
+  "sections": [
+    {
+      "id": "hdr",
+      "title": "Xodim",
+      "fields": [
+        { "id": "employee", "type": "ref", "refKind": "employee", "label": "Xodim F.I.Sh.", "prefill": "subject.fullName", "readOnly": true },
+        { "id": "position", "type": "text", "label": "Lavozim / bo'lim / yo'nalish", "prefill": "subject.positionName" },
+        { "id": "hireDate", "type": "date", "label": "Ishga kirgan", "required": true, "prefill": "subject.hireDate" },
+        { "id": "leaveDate", "type": "date", "label": "Ketish sanasi", "required": true, "prefill": "subject.terminationDate" },
+        { "id": "stajDays", "type": "computed", "label": "Staj (kun)", "valueType": "number",
+          "expr": { "op": "diffDays", "args": [ { "ref": "hireDate" }, { "ref": "leaveDate" } ] } },
+        { "id": "initiative", "type": "choice", "label": "Ketish tashabbusi", "required": true, "options": [
+          { "value": "employee", "label": "xodim" },
+          { "value": "company", "label": "korxona" }
+        ] }
+      ]
+    },
+    {
+      "id": "reasons",
+      "title": "Ketish sababi (asosiy — bitta, qo'shimcha — ko'pi bilan ikkita)",
+      "fields": [
+        { "id": "mainReason", "type": "choice", "label": "Asosiy", "required": true, "options": [
+          { "value": "k01", "label": "K01 Ish haqi kam / kechikadi" },
+          { "value": "k02", "label": "K02 Ish sharoiti og'ir (issiq, og'irlik, xavf, jihoz)" },
+          { "value": "k03", "label": "K03 Ish rejimi (12 soat, smena, dam olish kunlari)" },
+          { "value": "k04", "label": "K04 Usta / rahbar bilan munosabat" },
+          { "value": "k05", "label": "K05 Ish yoqmadi / kutganim boshqa edi" },
+          { "value": "k06", "label": "K06 Boshqa ish topdi", "extra": { "type": "text", "label": "qayer, nima yaxshi", "required": false } },
+          { "value": "k07", "label": "K07 Chet elga ketdi" },
+          { "value": "k08", "label": "K08 Oilaviy sabab / yashash joyi uzoq" },
+          { "value": "k09", "label": "K09 Sog'liq (tafsilot yozilmaydi)" },
+          { "value": "k10", "label": "K10 Korxona tashabbusi — intizom buzilishi" },
+          { "value": "k11", "label": "K11 Korxona tashabbusi — malaka yetarli emas / sinovdan o'tmadi" },
+          { "value": "k12", "label": "K12 Shtat qisqarishi / ish hajmi kamayishi" }
+        ] },
+        { "id": "extraReasons", "type": "multi", "label": "Qo'shimcha", "maxSelected": 2, "options": [
+          { "value": "k01", "label": "K01 Ish haqi kam / kechikadi" },
+          { "value": "k02", "label": "K02 Ish sharoiti og'ir (issiq, og'irlik, xavf, jihoz)" },
+          { "value": "k03", "label": "K03 Ish rejimi (12 soat, smena, dam olish kunlari)" },
+          { "value": "k04", "label": "K04 Usta / rahbar bilan munosabat" },
+          { "value": "k05", "label": "K05 Ish yoqmadi / kutganim boshqa edi" },
+          { "value": "k06", "label": "K06 Boshqa ish topdi", "extra": { "type": "text", "label": "qayer, nima yaxshi", "required": false } },
+          { "value": "k07", "label": "K07 Chet elga ketdi" },
+          { "value": "k08", "label": "K08 Oilaviy sabab / yashash joyi uzoq" },
+          { "value": "k09", "label": "K09 Sog'liq (tafsilot yozilmaydi)" },
+          { "value": "k10", "label": "K10 Korxona tashabbusi — intizom buzilishi" },
+          { "value": "k11", "label": "K11 Korxona tashabbusi — malaka yetarli emas / sinovdan o'tmadi" },
+          { "value": "k12", "label": "K12 Shtat qisqarishi / ish hajmi kamayishi" }
+        ] }
+      ]
+    },
+    {
+      "id": "interview",
+      "title": "Suhbat savollari (xodim ketishi tashabbusi bo'lganda)",
+      "hint": "Javob (qisqa, xodim so'zi bilan)",
+      "fields": [
+        { "id": "q1WhatToChange", "type": "longtext", "label": "Qolishingiz uchun nima o'zgarishi kerak edi?",
+          "when": { "field": "initiative", "eq": "employee" } },
+        { "id": "q2Market", "type": "choice", "label": "Ish haqi bozorga nisbatan qanday (kam / teng / yuqori)?", "options": [
+          { "value": "low", "label": "kam" },
+          { "value": "equal", "label": "teng" },
+          { "value": "high", "label": "yuqori" }
+        ] },
+        { "id": "q2Offers", "type": "text", "label": "Qayerda qancha taklif qilishdi?", "maxLength": 500 },
+        { "id": "q3Manager", "type": "score", "label": "Rahbaringiz/ustangiz bilan ishlash qanday bo'ldi (1–5)?" },
+        { "id": "q4Training", "type": "text", "label": "Birinchi oyda sizga yetarli o'rgatishdimi?", "maxLength": 500 },
+        { "id": "q5Problem", "type": "text", "label": "Ish sharoitida eng katta muammo nima?", "maxLength": 500 },
+        { "id": "q6Return", "type": "yesno", "label": "Korxonaga qaytishga tayyormisiz (sharoit o'zgarsa)?", "hint": "ha bo'lsa zaxira bazaga" },
+        { "id": "q7Recommend", "type": "yesno", "label": "Tanishlaringizga bu yerda ishlashni tavsiya qilasizmi?" },
+        { "id": "q7Why", "type": "text", "label": "nega", "maxLength": 500 }
+      ]
+    },
+    {
+      "id": "handover",
+      "title": "Topshirish holati (HR-3 to'ldiradi)",
+      "fill": { "at": "step", "step": "hr3Status" },
+      "fields": [
+        { "id": "f09", "type": "docRef", "templateCodes": [ "HR-F09" ], "label": "Topshirish-qabul qilish akti (HR-F09) №" },
+        { "id": "f09Status", "type": "choice", "label": "Topshirish-qabul qilish akti (HR-F09)", "required": true, "options": [
+          { "value": "done", "label": "tugallandi" },
+          { "value": "in_progress", "label": "jarayonda" },
+          { "value": "not_opened", "label": "ochilmagan", "extra": { "type": "text", "label": "sabab", "required": true } }
+        ] },
+        { "id": "materialStatus", "type": "choice", "label": "Moddiy javobgarlik (inventarizatsiya)", "options": [
+          { "value": "closed", "label": "yopildi" },
+          { "value": "not_required", "label": "talab qilinmaydi" }
+        ] },
+        { "id": "accessReturned", "type": "check", "label": "Kirish huquqlari, kalitlar, texnika qaytarildi" }
+      ]
+    },
+    {
+      "id": "registry",
+      "title": "Reestr",
+      "fill": { "at": "open" },
+      "fields": [
+        { "id": "registryCoded", "type": "check", "label": "Reestrga kod kiritildi (HR-3 tekshiradi, 5-ish kuni)" }
+      ]
+    }
+  ],
+  "steps": [
+    { "id": "hr3Status", "title": "Topshirish holati (HR-3)", "order": 1, "actor": "hr3", "mode": "electronic" },
+    { "id": "signEmployee", "title": "Xodim (suhbat o'tkazildi)", "order": 2, "actor": "subjectEmployee", "mode": "either" },
+    { "id": "signHr4", "title": "HR-4", "order": 2, "actor": "hr4", "mode": "electronic" }
+  ]
+}
