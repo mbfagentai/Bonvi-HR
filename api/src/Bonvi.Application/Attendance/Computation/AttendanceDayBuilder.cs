@@ -305,14 +305,12 @@ public sealed class AttendanceDayBuilder
         var plan = schedule?.Day;
 
         /*
-          Jadvalsiz kun — standart 24 soat (egasining qarori, 2026-10-12): terminaldan
-          o'tmay ketgan odamning ochiq kirishi 22:00 da «ketdi» bo'lib yopiladi. Bugun
-          faqat 22:00 o'tgach — undan oldin u hali ishda bo'lishi mumkin.
+          Jadvalsiz kunda ochiq kirish AVTOMATIK YOPILMAYDI (egasining qarori, 2026-11-03 —
+          2026-10-12 dagi «22:00 da ketdi» qoidasi bekor qilindi): chiqishi yozilmagan oraliq
+          ishlangan vaqtga qo'shilmaydi, kun ochiq qoladi. Tungi ishchiga tungi smena jadvali
+          biriktiriladi — u holda kun oynasi ertangi chiqishni o'zi qamraydi.
         */
-        var autoExitAt = employment is not null && plan is null
-            ? AttendanceRules.NoScheduleAutoExitAt(date)
-            : (DateTimeOffset?)null;
-        var pairing = PassPairing.Pair(passes, plan, autoExitAt <= now ? autoExitAt : null);
+        var pairing = PassPairing.Pair(passes, plan);
 
         var planned = 0;
         var late = 0;

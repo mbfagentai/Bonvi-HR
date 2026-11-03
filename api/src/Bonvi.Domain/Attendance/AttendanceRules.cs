@@ -129,10 +129,15 @@ public static class AttendanceRules
     public const int BoardLookbackHours = 18;
 
     /// <summary>
-    /// Jadvalsiz kunda chiqishi yozilmagan odam shu soatda (Toshkent) «ketdi» deb yopiladi
-    /// (egasining qarori, 2026-10-12).
+    /// Jadvalsiz kunda chiqishi yozilmagan odam shu soatda (Toshkent) «ketdi» deb yopilardi
+    /// (egasining qarori, 2026-10-12) — ⚠️ 2026-11-03 dan BEKOR: hisoblash endi yopmaydi.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Qoida 2026-10-12..11-03 da hisoblangan va hali qayta hisoblanmagan kunlarda saqlangan
+    /// natija sifatida qoladi — shuning uchun «avto» belgisini taniydigan metodlar
+    /// (<see cref="IsNoScheduleAutoExit"/>) ekran va Excel uchun saqlanadi.
+    /// </para>
     /// <para>
     /// Grafik biriktirilmagan xodimning kuni — standart 24 soat (kalendar kuni). U terminaldan
     /// o'tmay ketib qolsa, kun ochiq qolmaydi: oxirgi ochiq kirish 22:00 da yopiladi va shu

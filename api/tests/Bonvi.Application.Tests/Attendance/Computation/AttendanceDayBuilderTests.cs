@@ -312,11 +312,11 @@ public sealed class AttendanceDayBuilderTests
     }
 
     /// <summary>
-    /// Jadvalsiz kun — standart 24 soat (egasining qarori, 2026-10-12): o'tmay ketgan odam
-    /// 22:00 da «ketdi», oraliq ishlangan vaqtga qo'shiladi.
+    /// 22:00 dagi avtomatik «ketdi» bekor (egasining qarori, 2026-11-03): jadvalsiz kunda
+    /// chiqishsiz kirish ochiq qoladi va uning oralig'i ishlangan vaqtga qo'shilmaydi.
     /// </summary>
     [Fact]
-    public void Jadvalsiz_kunda_chiqishsiz_kirish_22_00_da_yopiladi()
+    public void Jadvalsiz_kunda_chiqishsiz_kirish_avtomatik_yopilmaydi()
     {
         var sahna = new AttendanceScenario();
         sahna.Employ();
@@ -326,28 +326,24 @@ public sealed class AttendanceDayBuilderTests
 
         kun.Facts.Status.ShouldBe(AttendanceDayStatus.NoSchedule);
         kun.Facts.FirstInAt.ShouldBe(At(Monday, "09:00"));
-        kun.Facts.LastOutAt.ShouldBe(At(Monday, "22:00"));
-        AttendanceRules.IsNoScheduleAutoExit(Monday, kun.Facts.LastOutAt).ShouldBeTrue();
-        kun.Facts.WorkedMinutes.ShouldBe(240 + 480);
+        kun.Facts.LastOutAt.ShouldBe(At(Monday, "13:00"));
+        AttendanceRules.IsNoScheduleAutoExit(Monday, kun.Facts.LastOutAt).ShouldBeFalse();
+        kun.Facts.WorkedMinutes.ShouldBe(240);
         kun.Facts.OvertimeMinutes.ShouldBe(0);
     }
 
     [Fact]
-    public void Jadvalsiz_bugun_22_00_gacha_kun_ochiq_turadi()
+    public void Jadvalsiz_kun_22_00_dan_keyin_ham_ochiq_turadi()
     {
         var sahna = new AttendanceScenario();
         sahna.Employ();
         sahna.Unknowns(Monday, "09:00");
-        sahna.Now(Monday, "21:59");
+        sahna.Now(Monday.AddDays(2), "12:00");
 
         var kun = sahna.Day(Monday);
 
         kun.Facts.LastOutAt.ShouldBeNull();
         kun.Facts.WorkedMinutes.ShouldBe(0);
-
-        sahna.Now(Monday, "22:00");
-
-        sahna.Day(Monday).Facts.LastOutAt.ShouldBe(At(Monday, "22:00"));
     }
 
     [Fact]
