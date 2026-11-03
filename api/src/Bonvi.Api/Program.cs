@@ -344,6 +344,10 @@ app.MapCandidateEndpoints();
 // (SPEC-planshet-anketa).
 app.MapKioskEndpoints();
 
+// «Blankalar» — HR qog'oz blankalari (HR-F01…F19) onlayn: shablonlar, rollar,
+// to'ldirish, yuborish, imzo qadamlari va fayllar (docs/SPEC-blankalar.md §7).
+app.MapBlankEndpoints();
+
 // Bildirishnomalar — yuqori paneldagi qo'ng'iroq. Bironta bo'limga
 // tegishli emas: sinov, xodim va nomzod ma'lumotlarini BIRGA
 // o'qiydi va har bir foydalanuvchiga o'z ro'yxatini beradi.

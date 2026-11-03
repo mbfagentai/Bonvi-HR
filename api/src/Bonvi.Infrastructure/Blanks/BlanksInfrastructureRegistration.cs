@@ -1,5 +1,8 @@
+using Bonvi.Application.Blanks.Definitions;
 using Bonvi.Application.Blanks.Files;
+using Bonvi.Application.Blanks.Submissions;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Infrastructure.Persistence.ReadModels;
 using Bonvi.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,6 +26,8 @@ public static class BlanksInfrastructureRegistration
         services.AddScoped<IBlankSubmissionRepository, BlankSubmissionRepository>();
         services.AddScoped<IBlankRoleAssignmentRepository, BlankRoleAssignmentRepository>();
         services.AddScoped<IBlankNumberCounter, BlankNumberCounterStore>();
+        services.AddScoped<IBlankReadModel, BlankReadModel>();
+        services.AddScoped<IBlankPrefillSource, BlankPrefillSource>();
 
         // Fayl turini tarkibidan aniqlaydi (SPEC §8) — holatsiz.
         services.AddSingleton<IBlankFileInspector, BlankFileInspector>();
