@@ -129,6 +129,8 @@ public interface IDatabaseFault
     /// <summary>
     /// Blanka boshqa so'rov tomonidan o'zgartirilgan — <c>version</c> parallellik belgisi mos kelmadi
     /// (409 <c>blanka.ozgargan</c>). Faqat blanka agregati (blanka, qadam, fayl) uchun «ha».
+    /// Parallel yuborishda ikkinchi so'rov qadam qatorlarini birinchi bo'lib yozadi va
+    /// <c>(submission_id, step_code)</c> unikalligiga uriladi — bu ham eskirgan yozuv.
     /// </summary>
     bool IsStaleBlankWrite(Exception exception);
 }

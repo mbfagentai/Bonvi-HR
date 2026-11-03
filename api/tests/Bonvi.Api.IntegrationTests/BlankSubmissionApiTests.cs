@@ -369,7 +369,13 @@ public sealed class BlankSubmissionApiTests : IClassFixture<BonviApiFactory>
         var qoralama = await YaratAsync(hr, dunyo);
         var yuborilgan = await YuborilganAsync(hr, dunyo);
         var boshqaXodim = await XodimAsync("Boshqa" + dunyo.Kod);
+        // To'liq qoralama: «incomplete» filtridan tushib qolishi kerak.
         var boshqasi = await YaratAsync(hr, dunyo with { Xodim = boshqaXodim });
+        boshqasi = await SaqlaAsync(hr, boshqasi, new { employee = Ref(boshqasi), reason = "To'liq" });
+        boshqasi.Missing.ShouldBeEmpty();
+
+        // §5.3 (b): ochiq HR qadamining majburiy maydoni bo'sh — yuborilgan blanka ham to'liq emas.
+        yuborilgan.Missing.ShouldContain("hrNote");
 
         async Task<List<Guid>> IdlarAsync(HttpClient mijoz, string sorov)
             => (await mijoz.GetFromJsonAsync<SahifaJavobi>($"{Yol}/submissions?templateCode={dunyo.Kod}{sorov}", Ct))!
@@ -379,7 +385,7 @@ public sealed class BlankSubmissionApiTests : IClassFixture<BonviApiFactory>
         (await IdlarAsync(hr, "&status=InApproval")).ShouldBe([yuborilgan.Id]);
         (await IdlarAsync(hr, "&status=draft")).ShouldBe([boshqasi.Id, qoralama.Id]);
         (await IdlarAsync(hr, $"&employeeId={boshqaXodim}")).ShouldBe([boshqasi.Id]);
-        (await IdlarAsync(hr, "&incomplete=true")).ShouldBe([boshqasi.Id, qoralama.Id]);
+        (await IdlarAsync(hr, "&incomplete=true")).ShouldBe([yuborilgan.Id, qoralama.Id]);
         (await IdlarAsync(hr, $"&search={yuborilgan.Number}")).ShouldBe([yuborilgan.Id]);
         (await IdlarAsync(hr, $"&search=Boshqa{dunyo.Kod}")).ShouldBe([boshqasi.Id]);
         (await IdlarAsync(tasdiqlovchi, "&waitingForMe=true")).ShouldBe([yuborilgan.Id]);
@@ -517,7 +523,9 @@ public sealed class BlankSubmissionApiTests : IClassFixture<BonviApiFactory>
 
     private async Task<Dunyo> DunyoAsync()
     {
-        var kod = "T" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        // Faqat harflar: kod xodim familiyasiga ham kiradi, raqam bo'lsa «search=<raqam>» ism bo'yicha ham topib qoladi.
+        var kod = "T" + string.Concat(Guid.NewGuid().ToString("N")[..8]
+            .Select(belgi => (char)('A' + Convert.ToInt32(belgi.ToString(), 16))));
 
         await using var qamrov = _factory.Services.CreateAsyncScope();
         var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
