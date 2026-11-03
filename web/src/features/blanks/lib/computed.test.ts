@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { HR_F06_EXAMPLE } from '../components/renderer/renderer-demo-definition'
+import vectorsFile from './__fixtures__/computed-vectors.json'
 import { answersLookup, evaluateComputed, evaluateExpr } from './computed'
-import type { Answers, Expr, JsonValue } from './definition-types'
+import { evalCondition } from './conditions'
+import type { Answers, Condition, Expr, JsonValue } from './definition-types'
 
 const run = (expr: Expr, answers: Answers = {}) => evaluateExpr(expr, answersLookup(answers, {}))
 
@@ -130,32 +132,40 @@ describe('computed — SPEC §4.5 examples', () => {
 })
 
 /*
- * TODO(blanks-merge): shared C#/TS vectors — SPEC §4.5. The file is written by
- * slice S2 (`api/tests/Bonvi.Application.Tests/Blanks/computed-vectors.json`).
- * Until it exists (or when the web runs in Docker with only `web/` mounted) the
- * glob is empty and the test is skipped. Expected shape — adjust here at merge
- * if S2 chose another: `[{ name, expr, answers, expected }]` or `{ vectors: [...] }`.
+ * Shared C#/TS vectors — SPEC §4.5. `__fixtures__/computed-vectors.json` is a byte-identical
+ * copy of `api/tests/Bonvi.Application.Tests/Blanks/computed-vectors.json` (the C# engine is
+ * the reference); `BlankComputedVectorsMirrorTests` fails if the two drift. The copy exists
+ * because the web container mounts only `web/`.
  */
-const vectorFiles = import.meta.glob<{ default: unknown }>(
-  '../../../../../api/tests/Bonvi.Application.Tests/Blanks/computed-vectors.json',
-  { eager: true },
-)
-interface Vector {
+interface ConditionVector {
+  name: string
+  when: Condition
+  answers: Answers
+  expected: boolean
+}
+interface ComputedVector {
   name: string
   expr: Expr
-  answers?: Answers
+  answers: Answers
   expected: JsonValue
 }
-const vectorFile = Object.values(vectorFiles)[0]?.default
-const vectors: Vector[] = Array.isArray(vectorFile)
-  ? (vectorFile as Vector[])
-  : ((vectorFile as { vectors?: Vector[] } | undefined)?.vectors ?? [])
+const shared = vectorsFile as unknown as { conditions: ConditionVector[]; computed: ComputedVector[] }
 
-describe.skipIf(vectors.length === 0)('computed — shared vectors (computed-vectors.json)', () => {
-  it.each(vectors.map((v) => [v.name, v] as const))('%s', (_, vector) => {
-    const actual = run(vector.expr, vector.answers ?? {})
-    if (typeof vector.expected === 'number' && typeof actual === 'number')
-      expect(actual).toBeCloseTo(vector.expected, 9)
-    else expect(actual).toEqual(vector.expected)
+describe('shared vectors — conditions (computed-vectors.json)', () => {
+  it('has cases', () => expect(shared.conditions.length).toBeGreaterThan(10))
+  it.each(shared.conditions.map((v) => [v.name, v] as const))('%s', (_, vector) => {
+    const lookup = answersLookup(vector.answers, {})
+    expect(evalCondition(vector.when, lookup)).toBe(vector.expected)
+  })
+})
+
+describe('shared vectors — computed (computed-vectors.json)', () => {
+  it('has cases', () => expect(shared.computed.length).toBeGreaterThan(10))
+  it.each(shared.computed.map((v) => [v.name, v] as const))('%s', (_, vector) => {
+    const actual = run(vector.expr, vector.answers)
+    if (typeof vector.expected === 'number') {
+      expect(typeof actual).toBe('number')
+      expect(actual as number).toBeCloseTo(vector.expected, 9)
+    } else expect(actual).toEqual(vector.expected)
   })
 })

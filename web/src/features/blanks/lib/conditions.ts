@@ -21,11 +21,12 @@ import type {
  *   pass in definition order is enough.
  */
 
-/** Empty = null, undefined, "" (after trim), [] (§5.3). */
+/** Empty = null, undefined, "" (after trim), [], {} (§5.3; C# `BlankValues.IsEmpty`). */
 export function isEmptyValue(value: JsonValue | undefined): boolean {
   if (value === null || value === undefined) return true
   if (typeof value === 'string') return value.trim() === ''
   if (Array.isArray(value)) return value.length === 0
+  if (typeof value === 'object') return Object.keys(value).length === 0
   return false
 }
 

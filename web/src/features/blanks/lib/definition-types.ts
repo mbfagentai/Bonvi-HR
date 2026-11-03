@@ -32,17 +32,24 @@ export interface Band {
 }
 
 export type AggregateOp = 'avg' | 'sum' | 'count' | 'min' | 'max'
-export type ArithmeticOp = 'sub' | 'add' | 'mul' | 'div'
-export type CompareOp = 'gte' | 'lt' | 'eq'
+/** `round`: args = [value, digits 0–10], half away from zero. */
+export type ArithmeticOp = 'sub' | 'add' | 'mul' | 'div' | 'round'
+export type CompareOp = 'gte' | 'gt' | 'lte' | 'lt' | 'eq'
+/** [date, integer count] → date. */
+export type DateShiftOp = 'addDays' | 'addMonths' | 'addWorkingDays'
+/** [from, to] → whole days; working days count (from; to], Monday–Friday. */
+export type DateDiffOp = 'diffDays' | 'diffWorkingDays'
 
 export type Expr =
   | { ref: string }
   | { const: JsonPrimitive }
   | { op: AggregateOp; args: Expr[] }
   | { op: ArithmeticOp; args: [Expr, Expr] }
-  | { op: 'addDays'; args: [Expr, Expr] }
-  | { op: 'diffDays'; args: [Expr, Expr] }
+  | { op: DateShiftOp; args: [Expr, Expr] }
+  | { op: DateDiffOp; args: [Expr, Expr] }
   | { op: CompareOp; args: [Expr, Expr] }
+  | { op: 'and' | 'or'; args: Expr[] }
+  | { op: 'not'; args: [Expr] }
   | { op: 'band'; value: Expr; bands: Band[] }
   | { op: 'if'; args: [Expr, Expr, Expr] }
 

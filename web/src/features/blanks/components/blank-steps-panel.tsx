@@ -168,7 +168,9 @@ function StepRow({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-footnote text-[var(--fg-secondary)]">
           {signer !== null && <span className="font-medium text-[var(--fg)]">{signer}</span>}
           <span className="tabular">{dateTime(step.actedAt)}</span>
-          {step.method !== null && <span>{t(step.method === 'InPerson' ? 'blanks.steps.methodInPerson' : 'blanks.steps.methodElectronic')}</span>}
+          {step.method !== null && (
+            <span>{step.method === 'InPerson' ? t('blanks.steps.methodInPerson') : t('blanks.steps.methodElectronic')}</span>
+          )}
           {step.method === 'InPerson' && step.actedByName !== null && step.actedByName !== signer && (
             <span>{t('blanks.steps.operator', { name: step.actedByName })}</span>
           )}

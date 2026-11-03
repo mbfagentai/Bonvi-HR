@@ -36,9 +36,9 @@ describe('conditions — SPEC §4.4', () => {
     expect(check({ not: { field: 'note', filled: true } })).toBe(true)
   })
 
-  it('isEmptyValue: null, "", [] are empty; false and 0 are not', () => {
-    expect([null, undefined, '', ' ', []].every((v) => isEmptyValue(v))).toBe(true)
-    expect([false, 0, {}].some((v) => isEmptyValue(v))).toBe(false)
+  it('isEmptyValue: null, "", [], {} are empty; false and 0 are not (C# BlankValues.IsEmpty)', () => {
+    expect([null, undefined, '', ' ', [], {}].every((v) => isEmptyValue(v))).toBe(true)
+    expect([false, 0, { value: 'x' }].some((v) => isEmptyValue(v))).toBe(false)
   })
 
   it('a hidden field counts as empty for later conditions; values are dropped', () => {

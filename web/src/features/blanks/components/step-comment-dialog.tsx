@@ -48,8 +48,12 @@ export function StepCommentDialog({
       open
       onClose={onClose}
       dismissible={!mutation.isPending}
-      title={t(kind === 'return' ? 'blanks.steps.returnTitle' : 'blanks.steps.rejectTitle', { step: step.title })}
-      description={t(kind === 'return' ? 'blanks.steps.returnText' : 'blanks.steps.rejectText')}
+      title={
+        kind === 'return'
+          ? t('blanks.steps.returnTitle', { step: step.title })
+          : t('blanks.steps.rejectTitle', { step: step.title })
+      }
+      description={kind === 'return' ? t('blanks.steps.returnText') : t('blanks.steps.rejectText')}
       footer={
         <>
           <Button type="button" onClick={onClose} disabled={mutation.isPending}>
@@ -61,7 +65,7 @@ export function StepCommentDialog({
             disabled={mutation.isPending || comment.trim() === ''}
           >
             {mutation.isPending ? <LoaderCircle className="animate-spin" /> : kind === 'reject' ? <XCircle /> : <Undo2 />}
-            {t(kind === 'return' ? 'blanks.steps.return' : 'blanks.steps.reject')}
+            {kind === 'return' ? t('blanks.steps.return') : t('blanks.steps.reject')}
           </Button>
         </>
       }

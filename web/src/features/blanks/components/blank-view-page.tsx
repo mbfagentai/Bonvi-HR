@@ -100,7 +100,7 @@ export function BlankViewPage({ submissionId }: { submissionId: string }) {
     }
   }, [detail])
 
-  /* ── files (TODO(S7): #17–#19 land in parallel) ─────────────────────── */
+  /* ── files (#17–#19) ─────────────────────────────────────────────────── */
   const refreshAfterFileChange = useCallback(async () => {
     adopt(await fetchBlankSubmission(submissionId))
   }, [adopt, submissionId])
@@ -124,7 +124,7 @@ export function BlankViewPage({ submissionId }: { submissionId: string }) {
 
   const viewer = useBlankAttachmentViewer(submissionId, submission?.attachments ?? [])
 
-  /* ── PDF (#20, TODO(S7)) ─────────────────────────────────────────────── */
+  /* ── PDF (#20) ───────────────────────────────────────────────────────── */
   const [pdfOpen, setPdfOpen] = useState(false)
   const pdf = useBlankPdf(submissionId, submission?.version ?? 0, pdfOpen && submission !== undefined)
 

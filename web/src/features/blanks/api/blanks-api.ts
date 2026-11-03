@@ -9,12 +9,9 @@
  *   · `status: string` → the `BlankSubmissionStatus` union;
  *   · `JsonElement` → the definition / answers types of `lib/definition-types.ts`.
  *
- * Steps #12–#15 use the generated calls; #16 (signature PNG) is a hand-written blob GET
- * because the generated function is typed `void` (no `responseType: 'blob'`).
- *
- * TODO seams (endpoints built in parallel, not in the OpenAPI document yet):
- *   · files #17–#20 — hand-written wrappers on the SPEC contract below, marked
- *     `TODO(S7)`; replace with the generated functions once they exist.
+ * Steps #12–#15 and files #17–#18 use the generated calls; the blob downloads
+ * #16 (signature PNG), #19 (attachment) and #20 (PDF) are hand-written GETs because
+ * the generated functions are typed `void` (no `responseType: 'blob'`).
  */
 import {
   approveBlankStep,
@@ -26,12 +23,14 @@ import {
   listBlankSubmissions,
   listBlankTemplates,
   rejectBlankStep,
+  removeBlankAttachment,
   returnBlankStep,
   saveBlankAnswers,
   setBlankRoleUsers,
   setBlankTemplateActive,
   signBlankStepInPerson,
   submitBlankSubmission,
+  uploadBlankAttachment as generatedUploadBlankAttachment,
 } from '@/shared/api/generated/blanks/blanks'
 import type {
   ApproveBlankStepBody,
@@ -314,36 +313,31 @@ export async function fetchBlankWaitingCount(signal?: AbortSignal): Promise<numb
   return toNumber(page.total)
 }
 
-/* ═════════════════════════════════════ TODO(S7): files #17–#20, SPEC contract */
+/* ═════════════════════════════════════════════════════════════ files #17–#20 */
 
-/** TODO(S7): replace with the generated #17 call after `./bonvi gen`. */
+/** #17 — `POST /api/blanks/submissions/{id}/attachments` (multipart: `fieldPath`, `file`). */
 export async function uploadBlankAttachment(
   submissionId: string,
   fieldPath: string,
   file: File,
 ): Promise<BlankAttachmentDto> {
-  const form = new FormData()
-  form.append('fieldPath', fieldPath)
-  form.append('file', file)
-  const { data } = await api.post<BlankAttachmentDto & { sizeBytes: number | string }>(
-    `${BASE}/submissions/${submissionId}/attachments`,
-    form,
-  )
+  const data = await generatedUploadBlankAttachment(submissionId, { fieldPath, file })
   return { ...data, sizeBytes: toNumber(data.sizeBytes) }
 }
 
-/** TODO(S7): replace with the generated #18 call after `./bonvi gen`. */
+/** #18 — `DELETE /api/blanks/submissions/{id}/attachments/{attachmentId}?expectedVersion=`. */
 export async function deleteBlankAttachment(
   submissionId: string,
   attachmentId: string,
   expectedVersion: number,
 ): Promise<void> {
-  await api.delete(`${BASE}/submissions/${submissionId}/attachments/${attachmentId}`, {
-    params: { expectedVersion },
-  })
+  await removeBlankAttachment(submissionId, attachmentId, { expectedVersion })
 }
 
-/** TODO(S7): replace with the generated #19 call after `./bonvi gen`. */
+/**
+ * #19 — `GET /api/blanks/submissions/{id}/attachments/{attachmentId}`. Hand-written blob GET:
+ * the generated `downloadBlankAttachment` is typed `void` (no `responseType: 'blob'`).
+ */
 export async function fetchBlankAttachment(submissionId: string, attachmentId: string, signal?: AbortSignal): Promise<Blob> {
   const { data } = await api.get<Blob>(`${BASE}/submissions/${submissionId}/attachments/${attachmentId}`, {
     responseType: 'blob',
@@ -352,7 +346,10 @@ export async function fetchBlankAttachment(submissionId: string, attachmentId: s
   return data
 }
 
-/** TODO(S7): replace with the generated #20 call after `./bonvi gen` — the PDF is rendered fresh. */
+/**
+ * #20 — `GET /api/blanks/submissions/{id}/pdf`, rendered fresh in any status. Hand-written blob GET:
+ * the generated `getBlankPdf` is typed `void`.
+ */
 export async function fetchBlankPdf(submissionId: string, signal?: AbortSignal): Promise<Blob> {
   const { data } = await api.get<Blob>(`${BASE}/submissions/${submissionId}/pdf`, { responseType: 'blob', signal })
   return data

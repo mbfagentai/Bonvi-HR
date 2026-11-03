@@ -19,6 +19,7 @@ import type {
  * - every other operator returns null when any input is null (or of the wrong
  *   type); `div` by zero = null;
  * - dates are `yyyy-MM-dd` strings (a longer ISO string is cut to its date);
+ *   working days are Monday–Friday (no holiday calendar), as in C#;
  * - `{"ref":"t[*].c"}` reads column `c` of every row of table `t` (an array);
  * - choice answers read as their `.value`, ref answers as their `.id`;
  * - a computed COLUMN of a table resolves bare refs against its own row first,
@@ -64,10 +65,67 @@ function flatten(values: JsonValue[]): JsonValue[] {
   return values.flatMap((v) => (Array.isArray(v) ? flatten(v) : [scalar(v)]))
 }
 
+/** Numbers compare as numbers, ISO dates as dates; anything else is not comparable (C# `Compare`). */
 function compare(a: JsonValue, b: JsonValue): number | null {
   if (typeof a === 'number' && typeof b === 'number') return a - b
-  if (typeof a === 'string' && typeof b === 'string') return a < b ? -1 : a > b ? 1 : 0
-  return null
+  const left = dayNumber(a)
+  const right = dayNumber(b)
+  return left === null || right === null ? null : left - right
+}
+
+/** Calendar parts of an ISO date, or null. */
+function dateParts(value: JsonValue): { y: number; m: number; d: number } | null {
+  if (dayNumber(value) === null || typeof value !== 'string') return null
+  const [, y, m, d] = ISO_DATE.exec(value) as RegExpExecArray
+  return { y: Number(y), m: Number(m), d: Number(d) }
+}
+
+/** .NET `DateOnly.AddMonths`: same day, clamped to the last day of the target month. */
+function addMonths(value: JsonValue, n: number): string | null {
+  const parts = dateParts(value)
+  if (!parts) return null
+  const monthIndex = parts.y * 12 + (parts.m - 1) + n
+  const year = Math.floor(monthIndex / 12)
+  const month = monthIndex - year * 12
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return isoFromDayNumber(Math.round(Date.UTC(year, month, Math.min(parts.d, lastDay)) / DAY_MS))
+}
+
+/** Monday–Friday; day 0 (1970-01-01) was a Thursday. */
+function isWorkingDay(day: number): boolean {
+  const weekday = (((day + 4) % 7) + 7) % 7 // 0 = Sunday
+  return weekday !== 0 && weekday !== 6
+}
+
+/** n working days forward (negative: backward); n = 0 keeps the date. */
+function addWorkingDays(day: number, n: number): number {
+  const step = n < 0 ? -1 : 1
+  let current = day
+  for (let left = Math.abs(n); left > 0; ) {
+    current += step
+    if (isWorkingDay(current)) left--
+  }
+  return current
+}
+
+/** Working days in (from; to]; negative when to < from. */
+function diffWorkingDays(from: number, to: number): number {
+  if (to < from) return -diffWorkingDays(to, from)
+  let count = 0
+  for (let day = from + 1; day <= to; day++) if (isWorkingDay(day)) count++
+  return count
+}
+
+/**
+ * Decimal-faithful half-away-from-zero rounding (C# `MidpointRounding.AwayFromZero`):
+ * shifting through the shortest decimal string keeps 2.345 → 2.35 (binary 2.34499… would give 2.34).
+ */
+function roundHalfAwayFromZero(value: number, digits: number): number {
+  const sign = value < 0 ? -1 : 1
+  const text = String(Math.abs(value))
+  if (text.includes('e')) return (sign * Math.round(Math.abs(value) * 10 ** digits)) / 10 ** digits
+  const shifted = Math.round(Number(`${text}e${digits}`))
+  return sign * Number(`${shifted}e-${digits}`)
 }
 
 export function evaluateExpr(expr: Expr, lookup: Lookup): JsonValue {
@@ -96,36 +154,60 @@ export function evaluateExpr(expr: Expr, lookup: Lookup): JsonValue {
     case 'add':
     case 'sub':
     case 'mul':
-    case 'div': {
+    case 'div':
+    case 'round': {
       const a = asNumber(evaluateExpr(expr.args[0], lookup))
       const b = asNumber(evaluateExpr(expr.args[1], lookup))
       if (a === null || b === null) return null
       if (expr.op === 'add') return a + b
       if (expr.op === 'sub') return a - b
       if (expr.op === 'mul') return a * b
+      if (expr.op === 'round') return Number.isInteger(b) && b >= 0 && b <= 10 ? roundHalfAwayFromZero(a, b) : null
       return b === 0 ? null : a / b
     }
-    case 'addDays': {
-      const day = dayNumber(evaluateExpr(expr.args[0], lookup))
+    case 'addDays':
+    case 'addMonths':
+    case 'addWorkingDays': {
+      const date = evaluateExpr(expr.args[0], lookup)
+      const day = dayNumber(date)
       const n = asNumber(evaluateExpr(expr.args[1], lookup))
       if (day === null || n === null || !Number.isInteger(n)) return null
-      return isoFromDayNumber(day + n)
+      if (expr.op === 'addMonths') return addMonths(date, n)
+      return isoFromDayNumber(expr.op === 'addDays' ? day + n : addWorkingDays(day, n))
     }
-    case 'diffDays': {
+    case 'diffDays':
+    case 'diffWorkingDays': {
       const from = dayNumber(evaluateExpr(expr.args[0], lookup))
       const to = dayNumber(evaluateExpr(expr.args[1], lookup))
-      return from === null || to === null ? null : to - from
+      if (from === null || to === null) return null
+      return expr.op === 'diffDays' ? to - from : diffWorkingDays(from, to)
     }
-    case 'gte':
-    case 'lt':
     case 'eq': {
       const a = evaluateExpr(expr.args[0], lookup)
       const b = evaluateExpr(expr.args[1], lookup)
-      if (a === null || b === null || Array.isArray(a) || Array.isArray(b)) return null
-      if (expr.op === 'eq') return a === b
-      const diff = compare(a, b)
+      if (a === null || b === null) return null
+      return !Array.isArray(a) && !Array.isArray(b) && typeof a !== 'object' && a === b
+    }
+    case 'gte':
+    case 'gt':
+    case 'lte':
+    case 'lt': {
+      const diff = compare(evaluateExpr(expr.args[0], lookup), evaluateExpr(expr.args[1], lookup))
       if (diff === null) return null
-      return expr.op === 'gte' ? diff >= 0 : diff < 0
+      if (expr.op === 'gte') return diff >= 0
+      if (expr.op === 'gt') return diff > 0
+      if (expr.op === 'lte') return diff <= 0
+      return diff < 0
+    }
+    case 'and':
+    case 'or': {
+      const flags = expr.args.map((a) => evaluateExpr(a, lookup))
+      if (!flags.every((f): f is boolean => typeof f === 'boolean')) return null
+      return expr.op === 'and' ? flags.every(Boolean) : flags.some(Boolean)
+    }
+    case 'not': {
+      const flag = evaluateExpr(expr.args[0], lookup)
+      return typeof flag === 'boolean' ? !flag : null
     }
     case 'band': {
       const value = asNumber(evaluateExpr(expr.value, lookup))

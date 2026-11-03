@@ -228,7 +228,7 @@ export function BlankFillPage({ submissionId }: { submissionId: string }) {
     )
   }, [adopt, definition, editableSections, flush, queryClient, submission, submissionId, submitBlank])
 
-  /* ── files (TODO(S7): endpoints land in parallel) ───────────────────── */
+  /* ── files (#17–#19) ─────────────────────────────────────────────────── */
   const refreshAfterFileChange = useCallback(async () => {
     const fresh = await fetchBlankSubmission(submissionId)
     // The bump is our own upload/removal — keep local answers, take the new version
