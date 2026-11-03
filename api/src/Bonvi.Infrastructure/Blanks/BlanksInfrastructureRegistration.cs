@@ -1,3 +1,4 @@
+using Bonvi.Application.Blanks.Files;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +15,7 @@ namespace Bonvi.Infrastructure.Blanks;
 /// </remarks>
 public static class BlanksInfrastructureRegistration
 {
-    /// <summary>Repozitoriylar va raqam hisoblagichi.</summary>
+    /// <summary>Repozitoriylar, raqam hisoblagichi va fayl tekshiruvchi.</summary>
     public static IServiceCollection AddBlanksInfrastructure(this IServiceCollection services)
     {
         services.AddScoped<IBlankTemplateRepository, BlankTemplateRepository>();
@@ -22,6 +23,9 @@ public static class BlanksInfrastructureRegistration
         services.AddScoped<IBlankSubmissionRepository, BlankSubmissionRepository>();
         services.AddScoped<IBlankRoleAssignmentRepository, BlankRoleAssignmentRepository>();
         services.AddScoped<IBlankNumberCounter, BlankNumberCounterStore>();
+
+        // Fayl turini tarkibidan aniqlaydi (SPEC §8) — holatsiz.
+        services.AddSingleton<IBlankFileInspector, BlankFileInspector>();
 
         return services;
     }

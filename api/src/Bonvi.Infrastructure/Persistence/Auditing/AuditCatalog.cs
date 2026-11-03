@@ -312,17 +312,25 @@ public static class AuditCatalog
         // Javoblar (Answers, Computed, Missing) jurnalga TUSHMAYDI — ularda intizom va ketish
         // sabablari bor, `audit.view` esa boshqa auditoriya. Huquqiy iz — har qadamning
         // `answers_patch` i (u ham jurnalda yo'q, faqat blankaning o'zida).
+        // Ota yozuv identifikatorlari (TemplateId, TemplateVersionId, SubmissionId) havola sifatida
+        // yozilmaydi — ular uchun havola turi yo'q va yaratilgandan keyin o'zgarmaydi (ScheduleChangeDay
+        // namunasi); blanka kodi yorliqda ko'rinadi.
         Audit<BlankTemplate>(AccessModuleKeys.Blanks).Label(row => row.Code + " — " + row.Title),
 
         Audit<BlankTemplateVersion>(AccessModuleKeys.Blanks)
             .Label(row => row.Version)
-            .Exclude(nameof(BlankTemplateVersion.Definition), nameof(BlankTemplateVersion.DefinitionSha256))
+            .Exclude(
+                nameof(BlankTemplateVersion.TemplateId),
+                nameof(BlankTemplateVersion.Definition),
+                nameof(BlankTemplateVersion.DefinitionSha256))
             .Ref(AuditRefTarget.User, nameof(BlankTemplateVersion.PublishedBy)),
 
         Audit<BlankSubmission>(AccessModuleKeys.Blanks)
             .Subject(nameof(BlankSubmission.EmployeeId))
             .Label(row => row.Number == null ? row.TemplateCode : row.TemplateCode + " №" + row.Number)
             .Exclude(
+                nameof(BlankSubmission.TemplateId),
+                nameof(BlankSubmission.TemplateVersionId),
                 nameof(BlankSubmission.Answers),
                 nameof(BlankSubmission.Computed),
                 nameof(BlankSubmission.Missing),
@@ -337,13 +345,19 @@ public static class AuditCatalog
 
         Audit<BlankSubmissionStep>(AccessModuleKeys.Blanks)
             .Label(row => row.Title)
-            .Exclude(nameof(BlankSubmissionStep.SignatureStorageKey), nameof(BlankSubmissionStep.AnswersPatch))
+            .Exclude(
+                nameof(BlankSubmissionStep.SubmissionId),
+                nameof(BlankSubmissionStep.SignatureStorageKey),
+                nameof(BlankSubmissionStep.AnswersPatch))
             .Ref(AuditRefTarget.User, nameof(BlankSubmissionStep.ActedByUserId))
             .Ref(AuditRefTarget.Employee, nameof(BlankSubmissionStep.SignerEmployeeId)),
 
         Audit<BlankAttachment>(AccessModuleKeys.Blanks)
             .Label(row => row.FileName)
-            .Exclude(nameof(BlankAttachment.StorageKey), nameof(BlankAttachment.ContentSha256))
+            .Exclude(
+                nameof(BlankAttachment.SubmissionId),
+                nameof(BlankAttachment.StorageKey),
+                nameof(BlankAttachment.ContentSha256))
             .Ref(AuditRefTarget.User, nameof(BlankAttachment.UploadedBy), nameof(BlankAttachment.RemovedBy)),
 
         Audit<BlankRoleAssignment>(AccessModuleKeys.Blanks)

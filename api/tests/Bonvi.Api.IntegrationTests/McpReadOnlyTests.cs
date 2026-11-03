@@ -40,6 +40,10 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         "penalty_types", "pipeline_stages", "position_duties", "positions", "probations", "referral_channels", "roles",
         "schedule_assignments", "termination_reasons", "vacancies", "work_schedule_dates",
         "work_schedule_days", "work_schedules", "work_sites",
+
+        // SPEC-blankalar §11: fayl kaliti/nomi va imzo kaliti naqsh bilan yopiq.
+        "blank_attachments", "blank_role_assignments", "blank_submission_steps", "blank_submissions",
+        "blank_template_versions", "blank_templates",
     ];
 
     /// <summary>§4 — faqat ustun darajasida ochiq jadvallar va ULARDA YOPIQ bo'lishi shart ustunlar.</summary>
@@ -100,6 +104,11 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         "SELECT * FROM mcp_clients LIMIT 1",
         "SELECT * FROM mcp_audit LIMIT 1",
         "SELECT * FROM \"__EFMigrationsHistory\" LIMIT 1",
+        "SELECT storage_key FROM blank_attachments LIMIT 1",
+        "SELECT file_name FROM blank_attachments LIMIT 1",
+        "SELECT signature_storage_key FROM blank_submission_steps LIMIT 1",
+        "SELECT final_pdf_storage_key FROM blank_submissions LIMIT 1",
+        "SELECT * FROM blank_number_counters LIMIT 1",
     ];
 
     /// <summary>Rol ko'ra olishi kerak bo'lgan ma'lumotlar (vositalar shular bilan ishlaydi).</summary>
@@ -115,6 +124,10 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         "SELECT * FROM roles LIMIT 1",
         "SELECT * FROM employments LIMIT 1",
         "SELECT * FROM vacancies LIMIT 1",
+        "SELECT id, template_code, status, answers, computed, missing, return_comment FROM blank_submissions LIMIT 1",
+        "SELECT id, kind, content_type, size_bytes FROM blank_attachments LIMIT 1",
+        "SELECT id, step_code, actor_role, decision, signer_name, answers_patch FROM blank_submission_steps LIMIT 1",
+        "SELECT * FROM blank_template_versions LIMIT 1",
     ];
 
     private readonly McpHost _host;

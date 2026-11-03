@@ -124,10 +124,19 @@ public sealed class PermissionCatalogTests
             [Permissions.AttendanceView, Permissions.AttendanceRequestsManage, Permissions.AttendanceManage]);
         davomat.Actions.ShouldBeEmpty();
 
+        // Blankalar (SPEC-blankalar §6.3): ko'rish → to'ldirish → boshqarish; imzolash — alohida amal.
+        var blankalar = Bolim("blanks");
+        blankalar.Levels.Select(level => level.Key).ShouldBe([PermissionCatalog.View, PermissionCatalog.Edit, PermissionCatalog.Full]);
+        Daraja(blankalar, PermissionCatalog.View).ShouldBe([Permissions.BlanksView]);
+        Daraja(blankalar, PermissionCatalog.Edit).ShouldBe([Permissions.BlanksView, Permissions.BlanksFill]);
+        Daraja(blankalar, PermissionCatalog.Full).ShouldBe(
+            [Permissions.BlanksView, Permissions.BlanksFill, Permissions.BlanksManage]);
+        blankalar.Actions.ShouldBe([Permissions.BlanksApprove]);
+
         PermissionCatalog.Modules.Select(module => module.Key).ShouldBe(
         [
             "employees", "employment", "lists", "incentives", "feedback", "safety",
-            "recruiting", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
+            "recruiting", "blanks", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
         ]);
 
         PermissionCatalog.Extras.ShouldBe(
