@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "code": "HR-F09",
+  "version": "1.0",
+  "title": "Ishlarni topshirish-qabul qilish akti (obxodnoy o'rniga)",
+  "subject": "employee",
+  "legalStatus": "final",
+  "dueDate": { "field": "mustCompleteBy" },
+  "sections": [
+    {
+      "id": "hdr",
+      "title": "Akt",
+      "fields": [
+        { "id": "openedDate", "type": "date", "label": "Ochilgan sana", "required": true, "prefill": "today" },
+        { "id": "mustCompleteBy", "type": "date", "label": "Tugallanishi kerak", "required": true },
+        { "id": "kind", "type": "choice", "label": "Turi", "required": true, "options": [
+          { "value": "dismissal", "label": "bo'shatish" },
+          { "value": "transfer", "label": "ichki o'tkazish" },
+          { "value": "long_leave", "label": "uzoq ta'til/kasallik (30+ kun)" }
+        ] },
+        { "id": "employee", "type": "ref", "refKind": "employee", "label": "Topshiruvchi F.I.Sh.", "prefill": "subject.fullName", "readOnly": true },
+        { "id": "position", "type": "text", "label": "Lavozim / bo'lim", "prefill": "subject.positionName" },
+        { "id": "receiver", "type": "ref", "refKind": "employee", "label": "Qabul qiluvchi F.I.Sh.", "required": true },
+        { "id": "receiverPosition", "type": "text", "label": "Lavozim (zaxira xodim yoki yangi xodim yoki rahbar)" }
+      ]
+    },
+    {
+      "id": "s1",
+      "title": "Tugallanmagan ishlar va majburiyatlar",
+      "fields": [
+        { "id": "tasks", "type": "table", "label": "Tugallanmagan ishlar va majburiyatlar", "minRows": 0, "maxRows": 50, "columns": [
+          { "id": "task", "type": "text", "label": "Ish / topshiriq / shartnoma", "maxLength": 500, "pdfWidth": 3 },
+          { "id": "taskState", "type": "text", "label": "Holati (% yoki bosqich)", "pdfWidth": 2 },
+          { "id": "nextStep", "type": "text", "label": "Keyingi qadam va muddat", "maxLength": 500, "pdfWidth": 3 },
+          { "id": "nextStepDue", "type": "date", "label": "Muddat", "pdfWidth": 1 },
+          { "id": "handTo", "type": "ref", "refKind": "employee", "label": "Kimga o'tadi", "pdfWidth": 2 }
+        ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Fayllar, hujjatlar, jurnallar (lavozim pasportining 3-bo'limi bo'yicha)",
+      "fields": [
+        { "id": "documents", "type": "table", "label": "Fayllar, hujjatlar, jurnallar", "minRows": 0, "maxRows": 50, "columns": [
+          { "id": "docName", "type": "text", "label": "Nomi (fayl, papka, jurnal, reestr)", "pdfWidth": 3 },
+          { "id": "docLocation", "type": "text", "label": "Qayerda (yo'l / shkaf)", "pdfWidth": 3 },
+          { "id": "docUpdated", "type": "date", "label": "Oxirgi yangilangan", "pdfWidth": 1 },
+          { "id": "docHanded", "type": "check", "label": "Topshirildi", "pdfWidth": 1 }
+        ] }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Kirish huquqlari, kalitlar, texnika (lavozim pasportining 4-bo'limi bo'yicha)",
+      "fields": [
+        { "id": "access", "type": "table", "label": "Kirish huquqlari, kalitlar, texnika", "minRows": 0, "maxRows": 50, "columns": [
+          { "id": "accessItem", "type": "text", "label": "Nomi (tizim login, Telegram guruh admin, kalit, muhr, telefon, noutbuk, transport)", "pdfWidth": 4 },
+          { "id": "accessReturned", "type": "check", "label": "Qaytarildi / o'tkazildi", "pdfWidth": 1 },
+          { "id": "accessReceiver", "type": "ref", "refKind": "employee", "label": "Kim qabul qildi", "pdfWidth": 2 },
+          { "id": "accessDate", "type": "date", "label": "Sana", "pdfWidth": 1 }
+        ] }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Tashqi va ichki kontaktlar (mijoz, yetkazib beruvchi, davlat organi, ichki bo'limlar)",
+      "fields": [
+        { "id": "contacts", "type": "table", "label": "Tashqi va ichki kontaktlar", "minRows": 0, "maxRows": 50, "columns": [
+          { "id": "contactParty", "type": "text", "label": "Tashkilot / shaxs", "pdfWidth": 3 },
+          { "id": "contactIssue", "type": "text", "label": "Masala", "maxLength": 500, "pdfWidth": 3 },
+          { "id": "contactChannel", "type": "text", "label": "Telefon / kanal", "pdfWidth": 2 },
+          { "id": "contactIntroduced", "type": "check", "label": "Qabul qiluvchi tanishtirildi", "pdfWidth": 1 }
+        ] }
+      ]
+    },
+    {
+      "id": "s5",
+      "title": "Moddiy javobgarlik (moddiy javobgar lavozimlar uchun)",
+      "fields": [
+        { "id": "inventory", "type": "choice", "label": "Inventarizatsiya o'tkazildi", "options": [
+          { "value": "yes", "label": "ha", "extra": { "type": "text", "label": "dalolatnoma № , sana", "required": true } },
+          { "value": "not_required", "label": "talab qilinmaydi" }
+        ] },
+        { "id": "shortage", "type": "choice", "label": "Kamomad", "options": [
+          { "value": "no", "label": "yo'q" },
+          { "value": "yes", "label": "bor", "extra": { "type": "text", "label": "bor", "required": true } }
+        ] },
+        { "id": "shortageResponsible", "type": "ref", "refKind": "employee", "label": "F.I.SH", "hint": "buxgalteriya bilan hal qilinadi" },
+        { "id": "transportDebt", "type": "choice", "label": "Transport va DAN bo'yicha qarzdorlik haqida ma'lumot", "options": [
+          { "value": "no", "label": "yo'q" },
+          { "value": "yes", "label": "bor", "extra": { "type": "text", "label": "bor", "required": true } }
+        ] },
+        { "id": "transportDebtResponsible", "type": "ref", "refKind": "employee", "label": "F.I.SH" },
+        { "id": "propertyHandover", "type": "choice", "label": "Mol-mulk xisobchisi moddiy javovgaliklarni topshirganligi", "options": [
+          { "value": "no", "label": "yo'q" },
+          { "value": "yes", "label": "bor", "extra": { "type": "text", "label": "bor", "required": true } }
+        ] },
+        { "id": "propertyResponsible", "type": "ref", "refKind": "employee", "label": "F.I.SH" },
+        { "id": "payrollDebt", "type": "choice", "label": "Oylik xisobchisidan umumiy qarzdorligi to'g'risida ma'lumot", "options": [
+          { "value": "no", "label": "yo'q" },
+          { "value": "yes", "label": "bor", "extra": { "type": "text", "label": "bor", "required": true } }
+        ] },
+        { "id": "payrollResponsible", "type": "ref", "refKind": "employee", "label": "F.I.SH" }
+      ]
+    },
+    {
+      "id": "s6",
+      "title": "Lavozim pasporti yangilandi",
+      "fields": [
+        { "id": "passportUpdate", "type": "choice", "label": "Topshiruvchi lavozim pasportidagi eskirgan ma'lumotlarni (jarayon, fayl, kontakt) ko'rsatdi", "options": [
+          { "value": "no_change", "label": "o'zgarish yo'q" },
+          { "value": "handed", "label": "o'zgarishlar HR-8/HR-1 ga berildi", "extra": { "type": "date", "label": "sana", "required": true } }
+        ] }
+      ]
+    }
+  ],
+  "steps": [
+    { "id": "handedOver", "title": "Topshirdim", "order": 1, "actor": "subjectEmployee", "mode": "either" },
+    { "id": "received", "title": "Qabul qildim", "order": 2, "actor": "field:receiver", "mode": "either" },
+    { "id": "signHead", "title": "Bo'lim rahbari", "order": 3, "actor": "departmentHead", "mode": "either" },
+    { "id": "hr3Control", "title": "HR-3 (nazorat)", "order": 4, "actor": "hr3", "mode": "electronic" },
+    { "id": "signHr1", "title": "HR-1", "order": 5, "actor": "hr1", "mode": "electronic" },
+    { "id": "hr3Clearance", "title": "HR-2 uchun belgi: akt tugallangan — bo'shatish buyrug'iga ruxsat", "order": 6, "actor": "hr3", "mode": "electronic",
+      "when": { "field": "kind", "eq": "dismissal" } }
+  ]
+}

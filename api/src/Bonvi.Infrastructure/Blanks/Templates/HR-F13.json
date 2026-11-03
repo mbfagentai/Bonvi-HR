@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "code": "HR-F13",
+  "version": "1.0",
+  "title": "Mehnat intizomi: tushuntirish xati talabi, dalolatnoma va intizomiy chora loyihasi",
+  "subject": "employee",
+  "legalStatus": "draft",
+  "sections": [
+    {
+      "id": "part1",
+      "title": "1-qism. Buzilishni qayd etish",
+      "fields": [
+        { "id": "employee", "type": "ref", "refKind": "employee", "label": "Xodim F.I.Sh.", "prefill": "subject.fullName", "readOnly": true },
+        { "id": "position", "type": "text", "label": "Lavozim / bo'lim", "prefill": "subject.positionName" },
+        { "id": "violationAt", "type": "datetime", "label": "Buzilish sanasi, vaqti", "required": true },
+        { "id": "recordedBy", "type": "ref", "refKind": "employee", "label": "Qayd etdi (lavozim)", "prefill": "currentUser.employeeId" },
+        { "id": "violationTypes", "type": "multi", "label": "Buzilish turi", "required": true, "options": [
+          { "value": "late", "label": "kechikish", "extra": { "type": "int", "label": "daqiqa", "required": true } },
+          { "value": "absent", "label": "sababsiz kelmaslik" },
+          { "value": "away", "label": "ish vaqtida ish joyida yo'q" },
+          { "value": "safety", "label": "mehnat muhofazasi qoidasi" },
+          { "value": "task", "label": "topshiriq bajarilmadi" },
+          { "value": "drunk", "label": "mast holat" },
+          { "value": "other", "label": "boshqa", "extra": { "type": "text", "label": "boshqa", "required": true } }
+        ] },
+        { "id": "whatHappened", "type": "longtext", "label": "Nima bo'ldi (aniq, guvohlar)", "required": true },
+        { "id": "evidence", "type": "file", "label": "Dalil (davomat tizimi, foto, hujjat)", "accept": [ "image", "pdf" ], "capture": "environment", "maxFiles": 10 },
+        { "id": "evidenceNote", "type": "text", "label": "Dalil (davomat tizimi, foto, hujjat) — izoh", "maxLength": 500 }
+      ]
+    },
+    {
+      "id": "part2",
+      "title": "2-qism. Tushuntirish xati talabi (xodimga topshiriladi)",
+      "fields": [
+        { "id": "demandText", "type": "static", "text": "Hurmatli {{employee}}! {{violationAt}} sodir bo'lgan {{violationTypes}} yuzasidan 2 ish kuni ichida yozma tushuntirish berishingizni so'rayman. (olishdan bosh tortsa — 3-qism)" }
+      ]
+    },
+    {
+      "id": "explanationSec",
+      "title": "Xodim tushuntirishi (o'z qo'li bilan yoki ilova)",
+      "fill": { "at": "step", "step": "signEmployee" },
+      "fields": [
+        { "id": "explanation", "type": "longtext", "label": "Xodim tushuntirishi (o'z qo'li bilan yoki ilova)", "maxLength": 4000 },
+        { "id": "explanationFile", "type": "file", "label": "Ilova", "accept": [ "pdf", "image", "office" ], "capture": "environment", "maxFiles": 5 }
+      ]
+    },
+    {
+      "id": "part3",
+      "title": "3-qism. Dalolatnoma (tushuntirish berilmaganda yoki hujjat olishdan bosh tortilganda)",
+      "when": { "not": { "any": [
+        { "field": "explanation", "filled": true },
+        { "field": "explanationFile", "filled": true }
+      ] } },
+      "fill": { "at": "step", "step": "witness1" },
+      "fields": [
+        { "id": "actDate", "type": "date", "label": "Sana", "required": true, "max": "today" },
+        { "id": "actReason", "type": "choice", "label": "Holat", "required": true, "options": [
+          { "value": "no_explanation", "label": "tushuntirish xatini 2 ish kuni ichida bermaganini" },
+          { "value": "refused", "label": "hujjat bilan tanishishdan / olishdan bosh tortganini",
+            "extra": { "type": "text", "label": "hujjat", "required": true } }
+        ] },
+        { "id": "actText", "type": "static", "text": "Biz, quyida imzo chekuvchilar, {{actDate}} xodim {{employee}} yuqorida belgilangan holatni tasdiqlaymiz. Hujjat mazmuni og'zaki tushuntirildi." },
+        { "id": "witness1Position", "type": "text", "label": "1. (lavozim)" },
+        { "id": "witness2Position", "type": "text", "label": "2. (lavozim)" }
+      ]
+    },
+    {
+      "id": "part4",
+      "title": "4-qism. Intizomiy chora loyihasi (HR-3 tayyorlaydi, HR-1 ko'rib chiqadi)",
+      "fill": { "at": "step", "step": "hr3Measure" },
+      "fields": [
+        { "id": "prior12m", "type": "int", "label": "Oldingi 12 oyda buzilishlar (reestr bo'yicha)", "min": 0, "prefill": "subject.priorF13Count12m", "readOnly": true },
+        { "id": "excusable", "type": "yesno", "label": "Xodim tushuntirishida keltirilgan sabab uzrlimi" },
+        { "id": "damage", "type": "text", "label": "Zarar (bo'lsa)", "maxLength": 500 },
+        { "id": "measure", "type": "choice", "label": "Taklif qilinadigan chora", "required": true, "options": [
+          { "value": "verbal", "label": "og'zaki ogohlantirish (buyruqsiz)" },
+          { "value": "reprimand", "label": "hayfsan" },
+          { "value": "bonus_cut", "label": "mukofotni kamaytirish (HR-F12 orqali)" },
+          { "value": "termination", "label": "mehnat shartnomasini bekor qilish (faqat yurist xulosasi bilan)" }
+        ] }
+      ]
+    },
+    {
+      "id": "orderSec",
+      "title": "Buyruq (HR-2)",
+      "fill": { "at": "step", "step": "hr2Order" },
+      "fields": [
+        { "id": "disciplineOrder", "type": "order", "label": "Buyruq № / sana (HR-2)", "required": true }
+      ]
+    }
+  ],
+  "steps": [
+    { "id": "hr3Demand", "title": "Talabni topshirdi", "order": 1, "actor": "hr3", "mode": "electronic" },
+    { "id": "signEmployee", "title": "Xodim oldim", "order": 2, "actor": "subjectEmployee", "mode": "inPerson",
+      "decision": { "required": true, "options": [
+        { "value": "received", "label": "oldim" },
+        { "value": "refused", "label": "olishdan bosh tortdi" }
+      ] } },
+    { "id": "witness1", "title": "Guvoh 1 (lavozim, imzo)", "order": 3, "actor": "witness", "mode": "inPerson",
+      "when": { "not": { "any": [
+        { "field": "explanation", "filled": true },
+        { "field": "explanationFile", "filled": true }
+      ] } } },
+    { "id": "witness2", "title": "Guvoh 2 (lavozim, imzo)", "order": 3, "actor": "witness", "mode": "inPerson",
+      "when": { "not": { "any": [
+        { "field": "explanation", "filled": true },
+        { "field": "explanationFile", "filled": true }
+      ] } } },
+    { "id": "hr3Measure", "title": "HR-3: intizomiy chora loyihasi", "order": 4, "actor": "hr3", "mode": "electronic" },
+    { "id": "hr1Decision", "title": "HR-1 qarori", "order": 5, "actor": "hr1", "mode": "electronic", "canReject": true,
+      "decision": { "required": true, "options": [
+        { "value": "approve", "label": "tasdiqlayman" },
+        { "value": "changed", "label": "chora o'zgartirildi", "extra": { "type": "text", "label": "chora o'zgartirildi", "required": true } },
+        { "value": "none", "label": "chora qo'llanmaydi", "extra": { "type": "text", "label": "sabab", "required": true } }
+      ] } },
+    { "id": "hr2Order", "title": "Buyruq (HR-2)", "order": 6, "actor": "hr2", "mode": "electronic" }
+  ]
+}
