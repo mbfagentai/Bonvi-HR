@@ -32,6 +32,9 @@ public static class BlanksInfrastructureRegistration
         // Fayl turini tarkibidan aniqlaydi (SPEC §8) — holatsiz.
         services.AddSingleton<IBlankFileInspector, BlankFileInspector>();
 
+        // Ichiga joylangan shablonlarni ishga tushishda bazaga yozadi (SPEC §14 S3).
+        services.AddScoped<BlankTemplateSeeder>();
+
         return services;
     }
 }

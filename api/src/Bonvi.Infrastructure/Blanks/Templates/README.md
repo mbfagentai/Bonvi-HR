@@ -133,6 +133,20 @@ Judgement calls:
 ☑ `fill.step` → existing steps ☑ placeholders → earlier fields ☑ option values ☑ no nesting ☑ `witness` steps
 inPerson ☑ actors/prefill valid (`currentUser.employeeId`, `subject.priorF13Count12m`) ☑ limits.
 
+## Validator run (S3b, 2026-11-03)
+
+All five files pass `BlankDefinitionValidator.Validate(json, code, "1.0")` with **zero errors** on the first run
+(`api/tests/Bonvi.Application.Tests/Blanks/WaveOneTemplatesTests.cs`, files linked into the test output).
+No JSON was changed and no engine fix was needed: the S2 engine already implements §4.11 — row-relative refs
+(`BlankScope.Resolve`), forward refs with a cycle check, and `BlankConditions.EvaluateStepCondition`. The same test
+file pins two template semantics end to end: F07 `testResults[i].testPassed` is computed per row (80 → true,
+60 → false), and F13 `witness1/2` evaluate to skipped once `explanation` is filled. Gaps 1–3 below are therefore
+resolved by SPEC §4.11; the rest stand.
+
+Seeding (`BlankTemplateSeeder`): hash = SHA-256 of canonical JSON (keys ordinal-sorted, no whitespace), so
+re-indenting a file is not a change. A content change under the same `version` is logged as an error and NOT
+written — bump `version` instead; the previous Published version then becomes Retired.
+
 ## SPEC gaps (for the SPEC owner / validator author — nothing here invents a key)
 
 1. **Row-scoped refs in table computed columns.** §4.10 asks for a computed «pass» per F07 test row, but §4.5 only
