@@ -25,6 +25,9 @@ import axios from 'axios'
 
 import {
   activateAttendanceDevice,
+  addManualAttendancePass,
+  deleteManualAttendancePass,
+  getAttendanceDayPasses,
   activateWorkSchedule,
   approveDeviceRemovals,
   confirmAttendanceIdentityImport,
@@ -108,6 +111,8 @@ import {
   type AttendanceDeviceRequest as AttendanceDeviceRequestBody,
   type AttendanceExceptionDto,
   type AttendanceIdentityDto,
+  type AttendanceDayPassDto,
+  type AttendanceDayPassesDto,
   type AttendancePassDto,
   type AttendanceRecomputeAcceptedDto,
   type AttendanceSummaryDto,
@@ -1103,6 +1108,46 @@ export async function postAbsenceDecision(id: string, body: AbsenceDecisionInput
 
 export async function postAbsenceCancel(id: string) {
   await cancelAbsenceRequest(id)
+}
+
+/* ═══════════════════════════════════ kun oynasi va qo'lda belgi (SPEC-qolda-belgi) */
+
+/** Tabel katagidagi bitta belgi: yo'nalish — hisob-kitobdagi, `counted: false` — tashlangan takror. */
+export type AttendanceDayPass = AsSent<AttendanceDayPassDto>
+
+export type AttendanceDayPasses = AsSent<AttendanceDayPassesDto>
+
+/** HR qo'shadigan belgi: sana va vaqt Toshkentda, vaqt «HH:mm». */
+export interface ManualPassInput {
+  employeeId: string
+  date: string
+  time: string
+  direction: 'In' | 'Out'
+  note: string
+}
+
+export async function fetchDayPasses(
+  employeeId: string,
+  date: string,
+  signal?: AbortSignal,
+): Promise<AttendanceDayPasses> {
+  return asSent(await getAttendanceDayPasses(employeeId, date, signal))
+}
+
+export async function postManualPass(input: ManualPassInput): Promise<AttendancePass> {
+  return asSent(
+    await addManualAttendancePass(input.employeeId, {
+      date: input.date,
+      // Server `TimeOnly` ni «HH:mm:ss» shaklida kutadi; soniyalar baribir tashlanadi
+      time: `${input.time}:00`,
+      direction: input.direction,
+      note: input.note,
+    }),
+  )
+}
+
+export async function removeManualPass(passId: string) {
+  await deleteManualAttendancePass(passId)
 }
 
 /* ═════════════════════════════════════ jadval so'rovlari (SPEC-jadval-sorovi §C) */

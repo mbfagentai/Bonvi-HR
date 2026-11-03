@@ -260,6 +260,64 @@ public sealed class AttendancePass : AggregateRoot
         };
     }
 
+    /// <summary>
+    /// HR qo'lda qo'shgan belgi (SPEC-qolda-belgi §A) — «HR (qo'lda)» qurilmasida, xodimga darhol bog'langan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Record"/> dan farqi bitta: <see cref="AttendanceRules.MaxClockSkewDays"/> (30 kun)
+    /// cheklovi YO'Q. U «qurilma soati absurd» degan himoya, bu yerda esa vaqtni odam ataylab
+    /// o'tgan kun uchun yozadi; chegara chaqiruvchida — <see cref="AttendanceRules.MaxRecomputeDays"/>.
+    /// </para>
+    /// <para>
+    /// <see cref="ReceivedAt"/> — haqiqiy qo'shilgan lahza (tashqi API o'tishlar oqimi shu kursor
+    /// bilan yuradi va o'tgan kunga yozilgan belgini ham ko'rishi kerak). Soat siljishi 0 deb
+    /// yoziladi: vaqtni server soati emas, odam bergan — «qurilma soati og'gan» ogohlantirishi
+    /// ma'nosiz bo'lardi.
+    /// </para>
+    /// </remarks>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="occurredAt">Belgi lahzasi (istalgan siljishda).</param>
+    /// <param name="receivedAt">Qo'shilgan lahza.</param>
+    /// <param name="direction">Kirish yoki chiqish.</param>
+    public static Result<AttendancePass> RecordByHr(
+        Guid employeeId,
+        DateTimeOffset occurredAt,
+        DateTimeOffset receivedAt,
+        PassDirection direction)
+    {
+        if (direction is not (PassDirection.In or PassDirection.Out))
+        {
+            return Error.Validation("davomat.yonalish_notogri", "Yo'nalish «Kirish» yoki «Chiqish» bo'lishi kerak.");
+        }
+
+        var local = occurredAt.ToTashkent();
+        var dedupeKey = string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"hr:{employeeId:N}:{local:yyyyMMddHHmm}:{(direction == PassDirection.In ? "in" : "out")}");
+
+        var pass = new AttendancePass(
+            NewId(),
+            AttendanceDevice.HrManualId,
+            AttendanceIdentityProvider.HrManual,
+            employeeId.ToString(),
+            local,
+            receivedAt,
+            dedupeKey)
+        {
+            Direction = direction,
+            DirectionSource = DirectionSource.Hr,
+            Method = PassMethod.Manual,
+            ClockOffsetSeconds = 0,
+        };
+
+        pass.Resolve(employeeId, receivedAt);
+        return pass;
+    }
+
+    /// <summary>HR qo'lda qo'shgan belgimi (SPEC-qolda-belgi §B) — faqat shularni o'chirish mumkin.</summary>
+    public bool IsHrManual => DeviceId == AttendanceDevice.HrManualId && Method == PassMethod.Manual;
+
     /// <summary>Xodimni biriktiradi — qabulda yoki moslik kechroq kiritilganda.</summary>
     public void Resolve(Guid employeeId, DateTimeOffset at)
     {

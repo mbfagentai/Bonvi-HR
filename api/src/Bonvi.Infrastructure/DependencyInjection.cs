@@ -238,6 +238,7 @@ public static class DependencyInjection
         services.AddScoped<IAbsenceTypeLookup, AbsenceTypeLookup>();
         services.AddScoped<IAttendanceIdentityRepository, AttendanceIdentityRepository>();
         services.AddScoped<IAttendancePassRepository, AttendancePassRepository>();
+        services.AddScoped<IAttendanceManualPassRepository, AttendanceManualPassRepository>();
         services.AddScoped<IWorkScheduleRepository, WorkScheduleRepository>();
         services.AddScoped<IScheduleAssignmentRepository, ScheduleAssignmentRepository>();
         services.AddScoped<IAttendanceDayRepository, AttendanceDayRepository>();

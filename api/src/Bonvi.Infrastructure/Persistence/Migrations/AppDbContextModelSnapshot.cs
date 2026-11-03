@@ -538,6 +538,55 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("attendance_identities", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceManualPass", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("integer")
+                        .HasColumnName("direction");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_attendance_manual_passes");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_attendance_manual_passes_employee_id");
+
+                    b.ToTable("attendance_manual_passes", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Attendance.AttendancePass", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4782,6 +4831,23 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_attendance_identities_employees_employee_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Attendance.AttendanceManualPass", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attendance_manual_passes_employees_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Attendance.AttendancePass", null)
+                        .WithOne()
+                        .HasForeignKey("Bonvi.Domain.Attendance.AttendanceManualPass", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_attendance_manual_passes_attendance_passes_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Attendance.AttendancePass", b =>

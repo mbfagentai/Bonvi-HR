@@ -323,6 +323,13 @@ public static class AuditCatalog
             // saqlaydi (SPEC-sorov-tahriri §3.5); ularni ko'rsatish har qarorda shovqin bo'lardi.
             .Exclude(nameof(AbsenceRequest.Version), nameof(AbsenceRequest.EditedAt)),
 
+        // HR qo'lda qo'shgan belgi (SPEC-qolda-belgi §A): o'tishning o'zi auditdan tashqarida,
+        // qo'shish va o'chirish shu dalil qatori orqali «kim, qachon, nega» bilan yoziladi.
+        Audit<AttendanceManualPass>(AccessModuleKeys.Attendance)
+            .Subject(nameof(AttendanceManualPass.EmployeeId))
+            .LabelFromSubject()
+            .Ref(AuditRefTarget.Employee, nameof(AttendanceManualPass.EmployeeId)),
+
         // Jadval so'rovi (SPEC-verifikatsiya-jadval-sorovi §C) — yo'qlik so'rovining egizagi.
         Audit<ScheduleChangeRequest>(AccessModuleKeys.Attendance)
             .Subject(nameof(ScheduleChangeRequest.EmployeeId))

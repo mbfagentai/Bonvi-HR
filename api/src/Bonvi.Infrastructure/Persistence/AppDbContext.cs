@@ -323,6 +323,8 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Xom o'tishlar (<c>attendance_passes</c>).</summary>
     public DbSet<AttendancePass> AttendancePasses => Set<AttendancePass>();
 
+    public DbSet<AttendanceManualPass> AttendanceManualPasses => Set<AttendanceManualPass>();
+
     /// <summary>Ish jadvallari (<c>work_schedules</c>).</summary>
     public DbSet<WorkSchedule> WorkSchedules => Set<WorkSchedule>();
 

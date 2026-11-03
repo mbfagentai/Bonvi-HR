@@ -97,6 +97,10 @@ namespace Bonvi.Application.Attendance.Dtos;
 /// qancha masofada, qanday aniqlik bilan qabul qilingan. Faqat
 /// <c>Method = Mobile</c> o'tishda to'ladi; terminal o'tishida <c>null</c>.
 /// </param>
+/// <param name="Manual">
+/// HR QO'LDA qo'shgan belgining dalili (SPEC-qolda-belgi §A) — izoh, kim va qachon. Faqat
+/// <c>Method = Manual</c> o'tishda to'ladi.
+/// </param>
 public sealed record AttendancePassDto(
     Guid Id,
     DateTimeOffset OccurredAt,
@@ -122,7 +126,34 @@ public sealed record AttendancePassDto(
     string? PhotoKey,
     DateTimeOffset? PhotoPurgedAt,
     int? LateMinutes,
-    MobilePassEvidenceDto? Mobile = null);
+    MobilePassEvidenceDto? Mobile = null,
+    ManualPassEvidenceDto? Manual = null);
+
+/// <summary>HR qo'lda qo'shgan belgining dalili (SPEC-qolda-belgi §A).</summary>
+/// <param name="Note">HR yozgan sabab.</param>
+/// <param name="CreatedAt">Qo'shilgan lahza.</param>
+/// <param name="CreatedByName">Qo'shgan foydalanuvchi; topilmasa <c>null</c>.</param>
+public sealed record ManualPassEvidenceDto(
+    string Note,
+    DateTimeOffset CreatedAt,
+    string? CreatedByName);
+
+/// <summary>Kun oynasidagi bitta belgi (SPEC-qolda-belgi §B).</summary>
+/// <param name="Pass">O'tish — yo'nalishi HISOB-KITOBDAGI (samarali) yo'nalish.</param>
+/// <param name="Counted">
+/// Hisob-kitobda ishlatildimi. <c>false</c> — tashlangan takror (15 soniya ichidagi qayta o'qish yoki
+/// ketma-ket bir xil yo'nalish, <c>PassPairing</c>): u jurnalda qoladi, lekin juftlanmaydi.
+/// </param>
+public sealed record AttendanceDayPassDto(AttendancePassDto Pass, bool Counted);
+
+/// <summary>Tabel KATAGIGA tushgan barcha belgilar (SPEC-qolda-belgi §B).</summary>
+/// <param name="EmployeeId">Xodim.</param>
+/// <param name="Date">Katak sanasi (smena boshlangan kun).</param>
+/// <param name="Items">Vaqt tartibida.</param>
+public sealed record AttendanceDayPassesDto(
+    Guid EmployeeId,
+    DateOnly Date,
+    IReadOnlyList<AttendanceDayPassDto> Items);
 
 /// <summary>
 /// Telefon belgisining dalili — qaror lahzasidagi MUZLATILGAN sonlar.
@@ -738,6 +769,10 @@ public sealed record AbsenceRequestCountDto(int Pending);
 /// «Shaxsiy vaqt» — tasdiqlangan vaqtli shaxsiy so'rov soatlari (SPEC-sorov-tahriri §5): sababli, lekin
 /// <paramref name="WorkedMinutes"/> ga kirmaydi. Hosil qilingan katakda 0.
 /// </param>
+/// <param name="OvertimeMinutes">
+/// Ortiqcha ish (daqiqa) — kun yozuvidagi son (SPEC-qolda-belgi §C: kalendar katagida yashil «+»).
+/// Hosil qilingan katakda 0.
+/// </param>
 public sealed record TimesheetCellDto(
     DateOnly Date,
     AttendanceDayStatus Status,
@@ -756,7 +791,8 @@ public sealed record TimesheetCellDto(
     bool IsFlexible = false,
     int PlannedMinutes = 0,
     int ShortfallMinutes = 0,
-    int PersonalMinutes = 0);
+    int PersonalMinutes = 0,
+    int OvertimeMinutes = 0);
 
 /// <summary>
 /// Bir xodimning oy bo'yicha jami ko'rsatkichlari.

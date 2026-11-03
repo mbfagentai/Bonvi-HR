@@ -323,6 +323,7 @@ export const METHOD_LABEL_KEY: Readonly<Record<PassMethod, string>> = {
   Password: 'attendance.methodPassword',
   Other: 'attendance.methodOther',
   Mobile: 'attendance.methodMobile',
+  Manual: 'attendance.methodManual',
   Unknown: 'attendance.methodUnknown',
 }
 
