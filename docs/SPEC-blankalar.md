@@ -288,6 +288,19 @@ percent) and the «open» mentor-notes section (rows 1–7, 8–30, 31–60 as l
 | F09 | employee | hdr (type choice, receiver ref field `receiver`, `mustCompleteBy` date = `dueDate`), §1–§4 tables (maxRows 50), §5 choices with extra, §6 | 1: subjectEmployee «Topshirdim», either · 2: field:receiver, either · 3: departmentHead, either · 4: hr3, electronic · 5: hr1, electronic · 6: hr3 «akt tugallangan — bo'shatish buyrug'iga ruxsat», electronic | §2–§4 prefill from F10 is Phase 3 (no F10 yet) |
 | F13 | employee | part 1 (datetime, violation multi + lateness minutes extra, longtext, `evidence` file accept image+pdf, capture environment, maxFiles 10) | 1: hr3 «talabni topshirdi», electronic · 2: subjectEmployee fills part 2 explanation (longtext or `explanationFile`), inPerson, decision received/refused · 3 (`when` explanation empty): witness ×2 (`witness1`, `witness2`, inPerson, typed names) — part 3 · 4: hr3 fills part 4 (measure choice), electronic · 5: hr1, electronic, decision approve/changed/none (+text), canReject · 6: hr2 order (`order` field), electronic | `legalStatus: draft` (owner Q2); computed `prior12m` comes from the server-side prefill `subject.priorF13Count12m` (§4.6); witnesses = 2 (INTAKE Q14) |
 
+### 4.11 Amendments after authoring the wave-1 templates (2026-11-03, binding)
+1. **Row-relative refs.** In a computed expression or `when` that belongs to a TABLE COLUMN, `{"ref":"<key>"}` resolves
+   first to the column `<key>` of the SAME row, then to a top-level field path. Outside tables `ref` is top-level only.
+2. **Forward references allowed.** §4.8 checks that every referenced field/step/section EXISTS anywhere in the
+   definition and that computed/condition dependencies are ACYCLIC — not that the target is defined earlier
+   (`fill.step` naturally points to steps listed after the sections).
+3. **Step `when` is lazy.** Steps are materialized at submit, but a step's `when` is (re)evaluated when its group
+   becomes due; a step whose condition is false at that moment becomes `Skipped` (e.g. HR-F13 witness steps are
+   skipped if the explanation was filled by then). Application exposes a pure `EvaluateStepCondition`.
+4. **Option values** are lowercase snake_case.
+5. Other authoring gaps are listed in `api/src/Bonvi.Infrastructure/Blanks/Templates/README.md` («SPEC gaps»); they
+   are handled in later slices or phase 2 and do not change the wave-1 schema.
+
 ## 5. Submission state machine
 
 ```
