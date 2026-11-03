@@ -52,7 +52,8 @@
     "attendanceDevices": "Қурилмалар",
     "attendanceSites": "Жойлашувлар",
     "absenceTypes": "Йўқлик турлари",
-    "attendanceRequests": "Сўровлар"
+    "attendanceRequests": "Сўровлар",
+    "blanks": "Бланкалар"
   },
   "roles": {
     "hr_manager": "HR менежери",
@@ -66,6 +67,7 @@
       "feedback": "Қайта алоқа",
       "safety": "Бахтсиз ҳодисалар",
       "recruiting": "Рекрутинг",
+      "blanks": "Бланкалар",
       "attendance": "Верификация",
       "catalog": "Маълумотномалар",
       "reports": "Ҳисоботлар",
@@ -94,7 +96,8 @@
       "employment.terminate": "Ишдан бўшатиш",
       "employment.probation.extend": "Синов муддатини узайтириш",
       "employment.probation.complete": "Синов муддатини якунлаш",
-      "employment.correct": "Ёзувни тузатиш"
+      "employment.correct": "Ёзувни тузатиш",
+      "blanks.approve": "Бланкаларни тасдиқлаш"
     },
     "extra": {
       "salary.view": "Окладни кўриш",
@@ -1149,7 +1152,40 @@
     "davomat.belgi_ishlamagan": "Ходим бу санада ишламаган — белги қўйиб бўлмайди.",
     "davomat.belgi_takror": "Шу дақиқада шу йўналишдаги белги аллақачон бор.",
     "davomat.belgi_izoh_bosh": "Изоҳ мажбурий — нега қўлда қўшилаётганини ёзинг.",
-    "davomat.belgi_izoh_uzun": "Изоҳ 500 белгидан ошмасин."
+    "davomat.belgi_izoh_uzun": "Изоҳ 500 белгидан ошмасин.",
+    "blanka.topilmadi": "Бланка топилмади.",
+    "blanka.shablon_topilmadi": "Бланка тури топилмади.",
+    "blanka.qadam_topilmadi": "Қадам топилмади.",
+    "blanka.fayl_topilmadi": "Файл топилмади.",
+    "blanka.shablon_faol_emas": "Бу бланка тури фаол эмас — янги бланка очиб бўлмайди.",
+    "blanka.subyekt_notogri": "Бланка ким ҳақида экани нотўғри танланган.",
+    "blanka.xodim_topilmadi": "Ходим топилмади.",
+    "blanka.nomzod_topilmadi": "Номзод топилмади.",
+    "blanka.rol_notogri": "Бундай имзо роли йўқ.",
+    "blanka.foydalanuvchi_topilmadi": "Фойдаланувчи топилмади.",
+    "blanka.holat_notogri": "Бланканинг ҳозирги ҳолатида бу амални бажариб бўлмайди.",
+    "blanka.ozgargan": "Бланка бошқа жойда ўзгартирилди. Саҳифани қайта юкланг.",
+    "blanka.majburiy": "Мажбурий майдон тўлдирилмаган.",
+    "blanka.notogri": "Қиймат нотўғри.",
+    "blanka.json": "Жавобларни ўқиб бўлмади.",
+    "blanka.juda_katta": "Бланка жуда катта — матнни қисқартиринг.",
+    "blanka.maydon_tahrirlanmaydi": "Бу майдонни ҳозир ўзгартириб бўлмайди.",
+    "blanka.qadam_ochiq_emas": "Бу қадам ҳозир очиқ эмас.",
+    "blanka.qadam_ruxsat_yoq": "Бу қадамни имзолашга ҳуқуқингиз йўқ.",
+    "blanka.ruxsat_yoq": "Бошқа ходимнинг қораламасини бекор қилишга ҳуқуқингиз йўқ.",
+    "blanka.qaror_kerak": "Қарорни танланг.",
+    "blanka.sabab_kerak": "Сабабни ёзинг.",
+    "blanka.imzo_kerak": "Имзо қўйилмаган.",
+    "blanka.imzo_yaroqsiz": "Имзо расми яроқсиз.",
+    "blanka.imzochi_kerak": "Имзо қўйувчининг исмини ёзинг.",
+    "blanka.rad_mumkin_emas": "Бу қадамда рад этиб бўлмайди.",
+    "blanka.qaytarish_mumkin_emas": "Бу қадамда қайтариб бўлмайди.",
+    "blanka.fayl_turi": "Бу турдаги файлни юклаб бўлмайди.",
+    "blanka.fayl_eski_format": "Эски форматдаги файл (.doc, .xls) — янги форматда сақлаб юкланг.",
+    "blanka.fayl_makro": "Макросли файлларни юклаб бўлмайди.",
+    "blanka.fayl_katta": "Файл ҳажми рухсат этилганидан катта.",
+    "blanka.fayl_soni": "Бу майдонга бошқа файл қўшиб бўлмайди.",
+    "blanka.fayl_bosh": "Файл бўш."
   },
   "language": {
     "en": "English",
@@ -3728,6 +3764,89 @@
         "fileUpload": "«{{name}}» юкланмади. Қайта уриниб кўринг.",
         "fileRemove": "«{{name}}» ўчирилмади. Қайта уриниб кўринг."
       }
+    },
+    "list": {
+      "title": "Бланкалар",
+      "subtitle": "{{n}} та бланка",
+      "create": "Янги бланка",
+      "number": "Рақам",
+      "template": "Бланка тури",
+      "subject": "Ким ҳақида",
+      "status": "Ҳолати",
+      "currentStep": "Жорий қадам",
+      "missing": "Тўлдирилмаган",
+      "missingN": "{{n}} та майдон бўш",
+      "dueDate": "Муддат",
+      "createdAt": "Яратилган",
+      "employee": "Ходим",
+      "employeeSelected": "Танланган ходим",
+      "searchPlaceholder": "Рақам ёки Ф.И.Ш.",
+      "flags": {
+        "waiting": "Менга кутилмоқда",
+        "incomplete": "Тўлиқ эмас",
+        "overdue": "Муддати ўтган"
+      },
+      "notFoundTitle": "Ҳеч нарса топилмади",
+      "notFoundText": "Қидирув ёки филтрларни ўзгартириб кўринг.",
+      "emptyTitle": "Бланка йўқ",
+      "emptyText": "«Янги бланка» билан биринчи бланкани очинг."
+    },
+    "create": {
+      "title": "Янги бланка",
+      "text": "Бланка турини ва ким ҳақида эканини танланг — қоралама очилади.",
+      "submit": "Очиш",
+      "chooseTemplate": "Бланка турини танланг",
+      "noTemplates": "Фаол бланка тури йўқ.",
+      "employee": "Ходим"
+    },
+    "roles": {
+      "button": "Имзо роллари",
+      "title": "Имзо роллари",
+      "text": "Ҳар бир рол қадамини ким имзолай олишини белгиланг.",
+      "role": "Рол",
+      "anyApprover": "Ҳеч ким бириктирилмаган — «Бланкаларни тасдиқлаш» ҳуқуқи бор ҳар ким имзолай олади.",
+      "selectedN": "{{n}} та фойдаланувчи бириктирилган",
+      "searchUser": "Фойдаланувчини қидириш",
+      "noUsers": "Фойдаланувчи топилмади",
+      "saved": "Сақланди",
+      "tooMany": "{{max}} тадан кўп фойдаланувчи бириктириб бўлмайди.",
+      "codes": {
+        "hr1": "HR-1",
+        "hr2": "HR-2",
+        "hr3": "HR-3",
+        "hr4": "HR-4",
+        "hr5": "HR-5",
+        "hr8": "HR-8",
+        "payrollAccountant": "Ҳисобчи (иш ҳақи)",
+        "chiefAccountant": "Бош ҳисобчи",
+        "director": "Директор",
+        "lawyer": "Юрист"
+      }
+    },
+    "fill": {
+      "loadFailed": "Бланкани очиб бўлмади",
+      "cancel": "Бекор қилиш",
+      "submit": "Юбориш",
+      "conflict": "Бу бланка бошқа жойда ўзгартирилди. Охирги ҳолатини юкланг — сизнинг сақланмаган ўзгаришларингиз йўқолади.",
+      "reload": "Қайта юклаш",
+      "returned": "Қайтарилди: {{comment}}",
+      "cancelledReason": "Бекор қилиш сабаби: {{reason}}",
+      "fixErrors": "{{n}} та майдонни тўғриланг ёки тўлдиринг.",
+      "steps": "Имзо қадамлари",
+      "stepState": {
+        "Waiting": "Навбатда",
+        "Open": "Кутилмоқда",
+        "Signed": "Имзоланди",
+        "Skipped": "Ўтказиб юборилди",
+        "Rejected": "Рад этилди"
+      },
+      "saving": "Сақланмоқда…",
+      "saved": "Сақланди",
+      "saveFailed": "Сақланмади",
+      "unsaved": "Сақланмаган ўзгаришлар",
+      "cancelTitle": "Бланкани бекор қилиш",
+      "cancelText": "Бекор қилинган бланкани қайта очиб бўлмайди.",
+      "cancelReason": "Сабаб"
     }
   }
 }
