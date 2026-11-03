@@ -3172,8 +3172,6 @@
     "dayDialog": "Day marks",
     "dayMarks": "Marks",
     "dayStats": "Day statistics",
-    "marksAll": "All",
-    "marksCounted": "Counted only",
     "marksLoadFailed": "Could not load the marks.",
     "marksEmpty": "No marks on this day.",
     "dayPlan": "Plan",

@@ -3172,8 +3172,6 @@
     "dayDialog": "Отметки дня",
     "dayMarks": "Отметки",
     "dayStats": "Статистика дня",
-    "marksAll": "Все отметки",
-    "marksCounted": "Только учтённые",
     "marksLoadFailed": "Не удалось загрузить отметки.",
     "marksEmpty": "В этот день отметок нет.",
     "dayPlan": "План",

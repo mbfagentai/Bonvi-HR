@@ -58,7 +58,6 @@ export function AttendanceDayDialog({
 }) {
   const { t, date } = useLocale()
   const [tab, setTab] = useState<'marks' | 'stats'>('marks')
-  const [onlyCounted, setOnlyCounted] = useState(false)
   const [adding, setAdding] = useState(false)
 
   const passes = useDayPasses(employeeId, cell?.date ?? null)
@@ -66,7 +65,6 @@ export function AttendanceDayDialog({
   // Har ochilishda boshidan: oldingi kunning ochiq formasi yangi kunga o'tib ketmasin
   useEffect(() => {
     setTab('marks')
-    setOnlyCounted(false)
     setAdding(false)
   }, [cell?.date])
 
@@ -75,7 +73,7 @@ export function AttendanceDayDialog({
   }
 
   const look = DAY_STATUS_LOOK[cell.status]
-  const items = (passes.data?.items ?? []).filter((item) => !onlyCounted || item.counted)
+  const items = passes.data?.items ?? []
 
   return (
     <Dialog
@@ -111,17 +109,12 @@ export function AttendanceDayDialog({
           <DayStats cell={cell} />
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <SegmentedControl
-                size="sm"
-                value={onlyCounted ? 'counted' : 'all'}
-                onChange={(value) => setOnlyCounted(value === 'counted')}
-                aria-label={t('attendance.dayMarks')}
-                options={[
-                  { value: 'all', label: t('attendance.marksAll') },
-                  { value: 'counted', label: t('attendance.marksCounted') },
-                ]}
-              />
+            {/*
+              «Hammasi / Faqat hisobga olinganlar» filtri YO'Q (egasi, 2026-11-03): kunda bir
+              necha qator bo'ladi, hisobga olinmagani esa «Yo'q» ustuni va xira qator bilan
+              allaqachon ajralib turadi.
+            */}
+            <div className="flex justify-end">
               {canManage && !adding && (
                 <Button type="button" size="sm" variant="soft" onClick={() => setAdding(true)}>
                   <Plus />
