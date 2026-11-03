@@ -1,6 +1,7 @@
 using Bonvi.Application.Blanks.Definitions;
 using Bonvi.Application.Blanks.Files;
 using Bonvi.Application.Blanks.Pdf;
+using Bonvi.Application.Blanks.Steps;
 using Bonvi.Application.Blanks.Submissions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Infrastructure.Blanks.Pdf;
@@ -39,6 +40,9 @@ public static class BlanksInfrastructureRegistration
 
         // Umumiy blanka PDF (SPEC §10) — holatsiz; shriftlar umumiy bundled resolver'dan.
         services.AddSingleton<IBlankPdfRenderer, BlankPdfRenderer>();
+
+        // Tasdiqlanganda yakuniy PDF (SPEC §10) — oddiy Add: Application'dagi TryAdd no-op'dan ustun.
+        services.AddScoped<IBlankApprovedHook, BlankFinalPdfApprovedHook>();
 
         return services;
     }

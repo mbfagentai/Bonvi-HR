@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Blanks.Definitions;
+using Bonvi.Application.Blanks.Steps;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Blanks;
 using Bonvi.Domain.Common;
@@ -395,6 +396,7 @@ public sealed class SubmitBlankSubmissionCommandHandler
     private readonly IDatabaseFault _fault;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBlankApprovedHook _approved;
 
     public SubmitBlankSubmissionCommandHandler(
         IBlankSubmissionRepository submissions,
@@ -404,7 +406,8 @@ public sealed class SubmitBlankSubmissionCommandHandler
         BlankSubmissionDetails details,
         IDatabaseFault fault,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IBlankApprovedHook approved)
     {
         _submissions = submissions;
         _numbers = numbers;
@@ -414,6 +417,7 @@ public sealed class SubmitBlankSubmissionCommandHandler
         _fault = fault;
         _clock = clock;
         _unitOfWork = unitOfWork;
+        _approved = approved;
     }
 
     public async Task<Result<BlankSubmissionDetailDto>> HandleAsync(
@@ -441,9 +445,19 @@ public sealed class SubmitBlankSubmissionCommandHandler
             return BlankErrors.Stale;
         }
 
-        return submitted.IsFailure
-            ? submitted.Error
-            : await _details.GetAsync(command.SubmissionId, cancellationToken).ConfigureAwait(false);
+        if (submitted.IsFailure)
+        {
+            return submitted.Error;
+        }
+
+        // No steps (or all skipped) → Approved at submit: the final PDF hook runs after the commit, as for step actions.
+        var detail = await _details.GetAsync(command.SubmissionId, cancellationToken).ConfigureAwait(false);
+        if (detail.IsSuccess && detail.Value.Status == nameof(BlankSubmissionStatus.Approved))
+        {
+            await _approved.OnApprovedAsync(command.SubmissionId, cancellationToken).ConfigureAwait(false);
+        }
+
+        return detail;
     }
 
     private async Task<Result> SubmitAsync(SubmitBlankSubmissionCommand command, CancellationToken cancellationToken)

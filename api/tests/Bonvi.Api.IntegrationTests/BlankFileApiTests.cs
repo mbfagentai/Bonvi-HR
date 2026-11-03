@@ -350,6 +350,49 @@ public sealed class BlankFileApiTests : IClassFixture<BonviApiFactory>
         (await KodAsync(javob)).ShouldBe("blanka.holat_notogri");
     }
 
+    [Fact]
+    public async Task Yakuniy_pdf_qadam_tasdigi_va_qadamsiz_yuborishda_yoziladi()
+    {
+        // Qadamlar API orqali: «hr» elektron tasdiqlanadi → Approved → hook yakuniy PDF yozadi.
+        var dunyo = await DunyoAsync();
+        using var hr = await MijozAsync("blanks.view", "blanks.fill", "blanks.approve");
+        var blanka = await YaratAsync(hr, dunyo);
+        await YuklaOkAsync(hr, blanka.Id, "evidence", Pdf(), "dalil.pdf");
+        var yuborilgan = await YuborishAsync(hr, await OlAsync(hr, blanka.Id));
+
+        using (var javob = await hr.PostAsJsonAsync(
+                   new Uri($"{Yol}/submissions/{blanka.Id}/steps/hr/approve", UriKind.Relative),
+                   new { expectedVersion = yuborilgan.Version },
+                   Ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await javob.Content.ReadAsStringAsync(Ct));
+            (await javob.Content.ReadFromJsonAsync<BlankaJavobi>(Ct))!.Status.ShouldBe("Approved");
+        }
+
+        await YakuniyPdfBorAsync(blanka.Id);
+
+        // Qadamsiz shablon: yuborish darhol Approved → o'sha hook.
+        var qadamsiz = await DunyoAsync(qadamlar: false);
+        var ikkinchi = await YaratAsync(hr, qadamsiz);
+        await YuklaOkAsync(hr, ikkinchi.Id, "evidence", Pdf(), "dalil.pdf");
+        (await YuborishAsync(hr, await OlAsync(hr, ikkinchi.Id))).Status.ShouldBe("Approved");
+
+        await YakuniyPdfBorAsync(ikkinchi.Id);
+    }
+
+    private async Task YakuniyPdfBorAsync(Guid blanka)
+    {
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+        var kalit = (await kontekst.BlankSubmissions.AsNoTracking().SingleAsync(row => row.Id == blanka, Ct)).FinalPdfStorageKey;
+        kalit.ShouldNotBeNull();
+
+        await using var fayl = (await qamrov.ServiceProvider.GetRequiredService<IFileStorage>().OpenAsync(kalit, Ct))!;
+        var bosh = new byte[5];
+        await fayl.ReadExactlyAsync(bosh, Ct);
+        Encoding.ASCII.GetString(bosh).ShouldBe("%PDF-");
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Yordamchilar
     // ────────────────────────────────────────────────────────────
@@ -479,7 +522,7 @@ public sealed class BlankFileApiTests : IClassFixture<BonviApiFactory>
     /// Qoralama bo'limi: majburiy PDF dalil (≤ 2 ta, ≤ 1 MB), Office hujjatlar, fayl ustunli jadval;
     /// HR qadami bo'limida yana bir fayl maydoni; bitta qadam (planshetda ham).
     /// </summary>
-    private static string Tarif(string kod) => $$"""
+    private static string Tarif(string kod, bool qadamlar) => $$"""
         { "schema": 1, "code": "{{kod}}", "version": "1.0", "subject": "employee", "title": "Fayl sinovi",
           "sections": [
             { "id": "hdr", "title": "Xodim", "fields": [
@@ -489,14 +532,19 @@ public sealed class BlankFileApiTests : IClassFixture<BonviApiFactory>
               { "id": "docs", "type": "file", "label": "Hujjatlar", "accept": ["office"], "maxFiles": 3 },
               { "id": "items", "type": "table", "label": "Topshirilgan", "columns": [
                 { "id": "name", "type": "text", "label": "Nomi" },
-                { "id": "doc", "type": "file", "label": "Fayl", "accept": ["pdf", "image"], "maxFiles": 1 } ] } ] },
-            { "id": "hrPart", "title": "HR", "fill": { "at": "step", "step": "hr" }, "fields": [
-              { "id": "hrFile", "type": "file", "label": "HR fayli", "accept": ["pdf"] } ] } ],
-          "steps": [
-            { "id": "hr", "title": "HR", "order": 1, "actor": "hr1", "mode": "either" } ] }
+                { "id": "doc", "type": "file", "label": "Fayl", "accept": ["pdf", "image"], "maxFiles": 1 } ] } ] }{{(qadamlar ? HrBolimi : "")}} ],
+          "steps": {{(qadamlar ? Qadam : "[]")}} }
         """;
 
-    private async Task<Dunyo> DunyoAsync()
+    private const string HrBolimi = """
+        ,
+            { "id": "hrPart", "title": "HR", "fill": { "at": "step", "step": "hr" }, "fields": [
+              { "id": "hrFile", "type": "file", "label": "HR fayli", "accept": ["pdf"] } ] }
+        """;
+
+    private const string Qadam = """[ { "id": "hr", "title": "HR", "order": 1, "actor": "hr5", "mode": "either" } ]""";
+
+    private async Task<Dunyo> DunyoAsync(bool qadamlar = true)
     {
         var kod = "F" + string.Concat(Guid.NewGuid().ToString("N")[..8]
             .Select(belgi => (char)('A' + Convert.ToInt32(belgi.ToString(), 16))));
@@ -506,7 +554,7 @@ public sealed class BlankFileApiTests : IClassFixture<BonviApiFactory>
 
         var shablon = BlankTemplate.Create(kod, "Fayl sinovi " + kod, BlankSubjectKind.Employee).Value;
         shablon.Activate();
-        var versiya = BlankTemplateVersion.Create(shablon.Id, "1.0", Tarif(kod), new string('a', 64), BlankTemplateSource.Seed).Value;
+        var versiya = BlankTemplateVersion.Create(shablon.Id, "1.0", Tarif(kod, qadamlar), new string('a', 64), BlankTemplateSource.Seed).Value;
         versiya.Publish(null, DateTimeOffset.UtcNow).IsSuccess.ShouldBeTrue();
         var xodim = Employee.Create(FullName.Create("Xodim" + kod, "Ali", null).Value).Value;
 
