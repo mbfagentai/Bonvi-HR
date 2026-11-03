@@ -52,7 +52,8 @@
     "attendanceDevices": "Qurilmalar",
     "attendanceSites": "Joylashuvlar",
     "absenceTypes": "Yo'qlik turlari",
-    "attendanceRequests": "So‘rovlar"
+    "attendanceRequests": "So‘rovlar",
+    "blanks": "Blankalar"
   },
   "roles": {
     "hr_manager": "HR menejeri",
@@ -66,6 +67,7 @@
       "feedback": "Qayta aloqa",
       "safety": "Baxtsiz hodisalar",
       "recruiting": "Rekruting",
+      "blanks": "Blankalar",
       "attendance": "Verifikatsiya",
       "catalog": "Ma’lumotnomalar",
       "reports": "Hisobotlar",
@@ -94,7 +96,8 @@
       "employment.terminate": "Ishdan bo‘shatish",
       "employment.probation.extend": "Sinov muddatini uzaytirish",
       "employment.probation.complete": "Sinov muddatini yakunlash",
-      "employment.correct": "Yozuvni tuzatish"
+      "employment.correct": "Yozuvni tuzatish",
+      "blanks.approve": "Blankalarni tasdiqlash"
     },
     "extra": {
       "salary.view": "Okladni ko‘rish",
@@ -1149,7 +1152,40 @@
     "davomat.belgi_ishlamagan": "Xodim bu sanada ishlamagan — belgi qo‘yib bo‘lmaydi.",
     "davomat.belgi_takror": "Shu daqiqada shu yo‘nalishdagi belgi allaqachon bor.",
     "davomat.belgi_izoh_bosh": "Izoh majburiy — nega qo‘lda qo‘shilayotganini yozing.",
-    "davomat.belgi_izoh_uzun": "Izoh 500 belgidan oshmasin."
+    "davomat.belgi_izoh_uzun": "Izoh 500 belgidan oshmasin.",
+    "blanka.topilmadi": "Blanka topilmadi.",
+    "blanka.shablon_topilmadi": "Blanka turi topilmadi.",
+    "blanka.qadam_topilmadi": "Qadam topilmadi.",
+    "blanka.fayl_topilmadi": "Fayl topilmadi.",
+    "blanka.shablon_faol_emas": "Bu blanka turi faol emas — yangi blanka ochib bo‘lmaydi.",
+    "blanka.subyekt_notogri": "Blanka kim haqida ekani noto‘g‘ri tanlangan.",
+    "blanka.xodim_topilmadi": "Xodim topilmadi.",
+    "blanka.nomzod_topilmadi": "Nomzod topilmadi.",
+    "blanka.rol_notogri": "Bunday imzo roli yo‘q.",
+    "blanka.foydalanuvchi_topilmadi": "Foydalanuvchi topilmadi.",
+    "blanka.holat_notogri": "Blankaning hozirgi holatida bu amalni bajarib bo‘lmaydi.",
+    "blanka.ozgargan": "Blanka boshqa joyda o‘zgartirildi. Sahifani qayta yuklang.",
+    "blanka.majburiy": "Majburiy maydon to‘ldirilmagan.",
+    "blanka.notogri": "Qiymat noto‘g‘ri.",
+    "blanka.json": "Javoblarni o‘qib bo‘lmadi.",
+    "blanka.juda_katta": "Blanka juda katta — matnni qisqartiring.",
+    "blanka.maydon_tahrirlanmaydi": "Bu maydonni hozir o‘zgartirib bo‘lmaydi.",
+    "blanka.qadam_ochiq_emas": "Bu qadam hozir ochiq emas.",
+    "blanka.qadam_ruxsat_yoq": "Bu qadamni imzolashga huquqingiz yo‘q.",
+    "blanka.ruxsat_yoq": "Boshqa xodimning qoralamasini bekor qilishga huquqingiz yo‘q.",
+    "blanka.qaror_kerak": "Qarorni tanlang.",
+    "blanka.sabab_kerak": "Sababni yozing.",
+    "blanka.imzo_kerak": "Imzo qo‘yilmagan.",
+    "blanka.imzo_yaroqsiz": "Imzo rasmi yaroqsiz.",
+    "blanka.imzochi_kerak": "Imzo qo‘yuvchining ismini yozing.",
+    "blanka.rad_mumkin_emas": "Bu qadamda rad etib bo‘lmaydi.",
+    "blanka.qaytarish_mumkin_emas": "Bu qadamda qaytarib bo‘lmaydi.",
+    "blanka.fayl_turi": "Bu turdagi faylni yuklab bo‘lmaydi.",
+    "blanka.fayl_eski_format": "Eski formatdagi fayl (.doc, .xls) — yangi formatda saqlab yuklang.",
+    "blanka.fayl_makro": "Makrosli fayllarni yuklab bo‘lmaydi.",
+    "blanka.fayl_katta": "Fayl hajmi ruxsat etilganidan katta.",
+    "blanka.fayl_soni": "Bu maydonga boshqa fayl qo‘shib bo‘lmaydi.",
+    "blanka.fayl_bosh": "Fayl bo‘sh."
   },
   "language": {
     "en": "English",
@@ -3728,6 +3764,89 @@
         "fileUpload": "«{{name}}» yuklanmadi. Qayta urinib ko‘ring.",
         "fileRemove": "«{{name}}» o‘chirilmadi. Qayta urinib ko‘ring."
       }
+    },
+    "list": {
+      "title": "Blankalar",
+      "subtitle": "{{n}} ta blanka",
+      "create": "Yangi blanka",
+      "number": "Raqam",
+      "template": "Blanka turi",
+      "subject": "Kim haqida",
+      "status": "Holati",
+      "currentStep": "Joriy qadam",
+      "missing": "To‘ldirilmagan",
+      "missingN": "{{n}} ta maydon bo‘sh",
+      "dueDate": "Muddat",
+      "createdAt": "Yaratilgan",
+      "employee": "Xodim",
+      "employeeSelected": "Tanlangan xodim",
+      "searchPlaceholder": "Raqam yoki F.I.Sh.",
+      "flags": {
+        "waiting": "Menga kutilmoqda",
+        "incomplete": "To‘liq emas",
+        "overdue": "Muddati o‘tgan"
+      },
+      "notFoundTitle": "Hech narsa topilmadi",
+      "notFoundText": "Qidiruv yoki filtrlarni o‘zgartirib ko‘ring.",
+      "emptyTitle": "Blanka yo‘q",
+      "emptyText": "«Yangi blanka» bilan birinchi blankani oching."
+    },
+    "create": {
+      "title": "Yangi blanka",
+      "text": "Blanka turini va kim haqida ekanini tanlang — qoralama ochiladi.",
+      "submit": "Ochish",
+      "chooseTemplate": "Blanka turini tanlang",
+      "noTemplates": "Faol blanka turi yo‘q.",
+      "employee": "Xodim"
+    },
+    "roles": {
+      "button": "Imzo rollari",
+      "title": "Imzo rollari",
+      "text": "Har bir rol qadamini kim imzolay olishini belgilang.",
+      "role": "Rol",
+      "anyApprover": "Hech kim biriktirilmagan — «Blankalarni tasdiqlash» huquqi bor har kim imzolay oladi.",
+      "selectedN": "{{n}} ta foydalanuvchi biriktirilgan",
+      "searchUser": "Foydalanuvchini qidirish",
+      "noUsers": "Foydalanuvchi topilmadi",
+      "saved": "Saqlandi",
+      "tooMany": "{{max}} tadan ko‘p foydalanuvchi biriktirib bo‘lmaydi.",
+      "codes": {
+        "hr1": "HR-1",
+        "hr2": "HR-2",
+        "hr3": "HR-3",
+        "hr4": "HR-4",
+        "hr5": "HR-5",
+        "hr8": "HR-8",
+        "payrollAccountant": "Hisobchi (ish haqi)",
+        "chiefAccountant": "Bosh hisobchi",
+        "director": "Direktor",
+        "lawyer": "Yurist"
+      }
+    },
+    "fill": {
+      "loadFailed": "Blankani ochib bo‘lmadi",
+      "cancel": "Bekor qilish",
+      "submit": "Yuborish",
+      "conflict": "Bu blanka boshqa joyda o‘zgartirildi. Oxirgi holatini yuklang — sizning saqlanmagan o‘zgarishlaringiz yo‘qoladi.",
+      "reload": "Qayta yuklash",
+      "returned": "Qaytarildi: {{comment}}",
+      "cancelledReason": "Bekor qilish sababi: {{reason}}",
+      "fixErrors": "{{n}} ta maydonni to‘g‘rilang yoki to‘ldiring.",
+      "steps": "Imzo qadamlari",
+      "stepState": {
+        "Waiting": "Navbatda",
+        "Open": "Kutilmoqda",
+        "Signed": "Imzolandi",
+        "Skipped": "O‘tkazib yuborildi",
+        "Rejected": "Rad etildi"
+      },
+      "saving": "Saqlanmoqda…",
+      "saved": "Saqlandi",
+      "saveFailed": "Saqlanmadi",
+      "unsaved": "Saqlanmagan o‘zgarishlar",
+      "cancelTitle": "Blankani bekor qilish",
+      "cancelText": "Bekor qilingan blankani qayta ochib bo‘lmaydi.",
+      "cancelReason": "Sabab"
     }
   }
 }

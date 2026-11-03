@@ -52,7 +52,8 @@
     "attendanceDevices": "Devices",
     "attendanceSites": "Locations",
     "absenceTypes": "Absence kinds",
-    "attendanceRequests": "Requests"
+    "attendanceRequests": "Requests",
+    "blanks": "Blanks"
   },
   "roles": {
     "hr_manager": "HR manager",
@@ -66,6 +67,7 @@
       "feedback": "Exit interviews",
       "safety": "Incidents",
       "recruiting": "Recruiting",
+      "blanks": "Blanks",
       "attendance": "Verification",
       "catalog": "Catalogue",
       "reports": "Reports",
@@ -94,7 +96,8 @@
       "employment.terminate": "Termination",
       "employment.probation.extend": "Extend probation",
       "employment.probation.complete": "Complete probation",
-      "employment.correct": "Correct a record"
+      "employment.correct": "Correct a record",
+      "blanks.approve": "Approve blanks"
     },
     "extra": {
       "salary.view": "See salaries",
@@ -1149,7 +1152,40 @@
     "davomat.belgi_ishlamagan": "The employee was not employed on that date.",
     "davomat.belgi_takror": "A mark with this minute and direction already exists.",
     "davomat.belgi_izoh_bosh": "A note is required — say why the mark is added.",
-    "davomat.belgi_izoh_uzun": "The note must be at most 500 characters."
+    "davomat.belgi_izoh_uzun": "The note must be at most 500 characters.",
+    "blanka.topilmadi": "Blank not found.",
+    "blanka.shablon_topilmadi": "Blank type not found.",
+    "blanka.qadam_topilmadi": "Step not found.",
+    "blanka.fayl_topilmadi": "File not found.",
+    "blanka.shablon_faol_emas": "This blank type is inactive — a new blank cannot be opened.",
+    "blanka.subyekt_notogri": "The blank subject is wrong for this type.",
+    "blanka.xodim_topilmadi": "Employee not found.",
+    "blanka.nomzod_topilmadi": "Candidate not found.",
+    "blanka.rol_notogri": "No such signing role.",
+    "blanka.foydalanuvchi_topilmadi": "User not found.",
+    "blanka.holat_notogri": "This action is not allowed in the blank’s current status.",
+    "blanka.ozgargan": "The blank was changed elsewhere. Reload the page.",
+    "blanka.majburiy": "A required field is empty.",
+    "blanka.notogri": "Invalid value.",
+    "blanka.json": "Could not read the answers.",
+    "blanka.juda_katta": "The blank is too large — shorten the text.",
+    "blanka.maydon_tahrirlanmaydi": "This field cannot be changed now.",
+    "blanka.qadam_ochiq_emas": "This step is not open.",
+    "blanka.qadam_ruxsat_yoq": "You may not sign this step.",
+    "blanka.ruxsat_yoq": "You may not cancel someone else’s draft.",
+    "blanka.qaror_kerak": "Choose a decision.",
+    "blanka.sabab_kerak": "Write the reason.",
+    "blanka.imzo_kerak": "The signature is missing.",
+    "blanka.imzo_yaroqsiz": "The signature image is invalid.",
+    "blanka.imzochi_kerak": "Enter the signer’s name.",
+    "blanka.rad_mumkin_emas": "This step cannot be rejected.",
+    "blanka.qaytarish_mumkin_emas": "This step cannot be returned.",
+    "blanka.fayl_turi": "Files of this type cannot be uploaded.",
+    "blanka.fayl_eski_format": "Old file format (.doc, .xls) — save it in the new format.",
+    "blanka.fayl_makro": "Files with macros cannot be uploaded.",
+    "blanka.fayl_katta": "The file is larger than allowed.",
+    "blanka.fayl_soni": "No more files can be added to this field.",
+    "blanka.fayl_bosh": "The file is empty."
   },
   "language": {
     "en": "English",
@@ -3728,6 +3764,89 @@
         "fileUpload": "“{{name}}” was not uploaded. Try again.",
         "fileRemove": "“{{name}}” was not removed. Try again."
       }
+    },
+    "list": {
+      "title": "Blanks",
+      "subtitle": "{{n}} blanks",
+      "create": "New blank",
+      "number": "Number",
+      "template": "Blank type",
+      "subject": "Subject",
+      "status": "Status",
+      "currentStep": "Current step",
+      "missing": "Missing",
+      "missingN": "{{n}} empty fields",
+      "dueDate": "Due",
+      "createdAt": "Created",
+      "employee": "Employee",
+      "employeeSelected": "Selected employee",
+      "searchPlaceholder": "Number or full name",
+      "flags": {
+        "waiting": "Waiting for me",
+        "incomplete": "Incomplete",
+        "overdue": "Overdue"
+      },
+      "notFoundTitle": "Nothing found",
+      "notFoundText": "Try changing the search or filters.",
+      "emptyTitle": "No blanks",
+      "emptyText": "Open the first one with «New blank»."
+    },
+    "create": {
+      "title": "New blank",
+      "text": "Choose the blank type and its subject — a draft opens.",
+      "submit": "Open",
+      "chooseTemplate": "Choose a blank type",
+      "noTemplates": "No active blank types.",
+      "employee": "Employee"
+    },
+    "roles": {
+      "button": "Signing roles",
+      "title": "Signing roles",
+      "text": "Choose who may sign the steps of each role.",
+      "role": "Role",
+      "anyApprover": "Nobody assigned — anyone with «Approve blanks» may sign.",
+      "selectedN": "{{n}} users assigned",
+      "searchUser": "Search users",
+      "noUsers": "No users found",
+      "saved": "Saved",
+      "tooMany": "At most {{max}} users can be assigned.",
+      "codes": {
+        "hr1": "HR-1",
+        "hr2": "HR-2",
+        "hr3": "HR-3",
+        "hr4": "HR-4",
+        "hr5": "HR-5",
+        "hr8": "HR-8",
+        "payrollAccountant": "Payroll accountant",
+        "chiefAccountant": "Chief accountant",
+        "director": "Director",
+        "lawyer": "Lawyer"
+      }
+    },
+    "fill": {
+      "loadFailed": "Could not open the blank",
+      "cancel": "Cancel blank",
+      "submit": "Submit",
+      "conflict": "This blank was changed elsewhere. Reload the latest version — your unsaved changes will be lost.",
+      "reload": "Reload",
+      "returned": "Returned: {{comment}}",
+      "cancelledReason": "Cancel reason: {{reason}}",
+      "fixErrors": "Fix or fill {{n}} fields.",
+      "steps": "Signing steps",
+      "stepState": {
+        "Waiting": "Queued",
+        "Open": "Waiting",
+        "Signed": "Signed",
+        "Skipped": "Skipped",
+        "Rejected": "Rejected"
+      },
+      "saving": "Saving…",
+      "saved": "Saved",
+      "saveFailed": "Not saved",
+      "unsaved": "Unsaved changes",
+      "cancelTitle": "Cancel blank",
+      "cancelText": "A cancelled blank cannot be reopened.",
+      "cancelReason": "Reason"
     }
   }
 }

@@ -1349,3 +1349,6 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-03] Blank PDF `retention` → printed verbatim as the last line, no «Saqlash:» prefix → authored wave-1 strings already carry their own lead («Nusxalar: …»).
 - [2026-11-03] Blank PDF signatures block with no materialized steps (Draft) → definition steps whose `when` holds are printed with empty name/date/signature cells → reads like the paper form; Skipped steps print «O'tkazib yuborildi».
 - [2026-11-03] Blank PDF long text → a `longtext` answer over 600 chars leaves the label/value grid and flows as a bordered paragraph → MigraDoc never splits a table row across pages, so a huge cell would be clipped.
+- [2026-11-03] Blankalar web: an attachment upload/removal bumps `version` — does the fill page reload answers? → No: it re-reads the submission, takes only the new `version` and attachment list, keeps the local answers → the bump is the user's own action; reloading answers would drop unsaved typing.
+- [2026-11-03] Blankalar web: candidate-subject templates in the create dialog → listed but disabled → candidate subject is Phase 2 (SPEC §14); `ref` search for kind `candidate` returns nothing until then.
+- [2026-11-03] Blankalar web: unknown `status` string from the server → treated as `InApproval` → read-only everywhere is the harmless fallback; an unknown value never becomes an editable draft.

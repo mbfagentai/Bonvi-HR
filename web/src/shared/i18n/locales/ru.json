@@ -52,7 +52,8 @@
     "attendanceDevices": "Устройства",
     "attendanceSites": "Локации",
     "absenceTypes": "Виды отсутствия",
-    "attendanceRequests": "Запросы"
+    "attendanceRequests": "Запросы",
+    "blanks": "Бланки"
   },
   "roles": {
     "hr_manager": "HR-менеджер",
@@ -66,6 +67,7 @@
       "feedback": "Обратная связь",
       "safety": "Несчастные случаи",
       "recruiting": "Рекрутинг",
+      "blanks": "Бланки",
       "attendance": "Верификация",
       "catalog": "Справочники",
       "reports": "Отчёты",
@@ -94,7 +96,8 @@
       "employment.terminate": "Увольнение",
       "employment.probation.extend": "Продление испытательного срока",
       "employment.probation.complete": "Завершение испытательного срока",
-      "employment.correct": "Исправление записи"
+      "employment.correct": "Исправление записи",
+      "blanks.approve": "Согласование бланков"
     },
     "extra": {
       "salary.view": "Просмотр оклада",
@@ -1149,7 +1152,40 @@
     "davomat.belgi_ishlamagan": "Сотрудник в эту дату не работал — отметку поставить нельзя.",
     "davomat.belgi_takror": "Отметка с этим временем и типом уже есть.",
     "davomat.belgi_izoh_bosh": "Комментарий обязателен — укажите причину.",
-    "davomat.belgi_izoh_uzun": "Комментарий не длиннее 500 символов."
+    "davomat.belgi_izoh_uzun": "Комментарий не длиннее 500 символов.",
+    "blanka.topilmadi": "Бланк не найден.",
+    "blanka.shablon_topilmadi": "Вид бланка не найден.",
+    "blanka.qadam_topilmadi": "Шаг не найден.",
+    "blanka.fayl_topilmadi": "Файл не найден.",
+    "blanka.shablon_faol_emas": "Этот вид бланка не активен — новый бланк открыть нельзя.",
+    "blanka.subyekt_notogri": "Неверно указано, о ком бланк.",
+    "blanka.xodim_topilmadi": "Сотрудник не найден.",
+    "blanka.nomzod_topilmadi": "Кандидат не найден.",
+    "blanka.rol_notogri": "Такой роли подписи нет.",
+    "blanka.foydalanuvchi_topilmadi": "Пользователь не найден.",
+    "blanka.holat_notogri": "В текущем статусе бланка это действие недоступно.",
+    "blanka.ozgargan": "Бланк изменён в другом месте. Обновите страницу.",
+    "blanka.majburiy": "Обязательное поле не заполнено.",
+    "blanka.notogri": "Неверное значение.",
+    "blanka.json": "Не удалось прочитать ответы.",
+    "blanka.juda_katta": "Бланк слишком большой — сократите текст.",
+    "blanka.maydon_tahrirlanmaydi": "Это поле сейчас нельзя изменить.",
+    "blanka.qadam_ochiq_emas": "Этот шаг сейчас не открыт.",
+    "blanka.qadam_ruxsat_yoq": "У вас нет права подписывать этот шаг.",
+    "blanka.ruxsat_yoq": "У вас нет права отменять чужой черновик.",
+    "blanka.qaror_kerak": "Выберите решение.",
+    "blanka.sabab_kerak": "Укажите причину.",
+    "blanka.imzo_kerak": "Подпись не поставлена.",
+    "blanka.imzo_yaroqsiz": "Изображение подписи недействительно.",
+    "blanka.imzochi_kerak": "Укажите имя подписывающего.",
+    "blanka.rad_mumkin_emas": "На этом шаге нельзя отклонить.",
+    "blanka.qaytarish_mumkin_emas": "На этом шаге нельзя вернуть.",
+    "blanka.fayl_turi": "Файлы этого типа загружать нельзя.",
+    "blanka.fayl_eski_format": "Файл старого формата (.doc, .xls) — сохраните в новом формате.",
+    "blanka.fayl_makro": "Файлы с макросами загружать нельзя.",
+    "blanka.fayl_katta": "Файл больше допустимого размера.",
+    "blanka.fayl_soni": "В это поле нельзя добавить ещё файл.",
+    "blanka.fayl_bosh": "Файл пустой."
   },
   "language": {
     "en": "English",
@@ -3728,6 +3764,89 @@
         "fileUpload": "«{{name}}» не загружен. Попробуйте ещё раз.",
         "fileRemove": "«{{name}}» не удалён. Попробуйте ещё раз."
       }
+    },
+    "list": {
+      "title": "Бланки",
+      "subtitle": "{{n}} бланков",
+      "create": "Новый бланк",
+      "number": "Номер",
+      "template": "Вид бланка",
+      "subject": "О ком",
+      "status": "Статус",
+      "currentStep": "Текущий шаг",
+      "missing": "Не заполнено",
+      "missingN": "Пустых полей: {{n}}",
+      "dueDate": "Срок",
+      "createdAt": "Создан",
+      "employee": "Сотрудник",
+      "employeeSelected": "Выбранный сотрудник",
+      "searchPlaceholder": "Номер или ФИО",
+      "flags": {
+        "waiting": "Ждут меня",
+        "incomplete": "Неполные",
+        "overdue": "Просроченные"
+      },
+      "notFoundTitle": "Ничего не найдено",
+      "notFoundText": "Измените поиск или фильтры.",
+      "emptyTitle": "Бланков нет",
+      "emptyText": "Откройте первый бланк кнопкой «Новый бланк»."
+    },
+    "create": {
+      "title": "Новый бланк",
+      "text": "Выберите вид бланка и о ком он — откроется черновик.",
+      "submit": "Открыть",
+      "chooseTemplate": "Выберите вид бланка",
+      "noTemplates": "Нет активных видов бланков.",
+      "employee": "Сотрудник"
+    },
+    "roles": {
+      "button": "Роли подписи",
+      "title": "Роли подписи",
+      "text": "Укажите, кто может подписывать шаги каждой роли.",
+      "role": "Роль",
+      "anyApprover": "Никто не назначен — подписать может любой с правом «Согласование бланков».",
+      "selectedN": "Назначено пользователей: {{n}}",
+      "searchUser": "Поиск пользователя",
+      "noUsers": "Пользователи не найдены",
+      "saved": "Сохранено",
+      "tooMany": "Нельзя назначить больше {{max}} пользователей.",
+      "codes": {
+        "hr1": "HR-1",
+        "hr2": "HR-2",
+        "hr3": "HR-3",
+        "hr4": "HR-4",
+        "hr5": "HR-5",
+        "hr8": "HR-8",
+        "payrollAccountant": "Бухгалтер по зарплате",
+        "chiefAccountant": "Главный бухгалтер",
+        "director": "Директор",
+        "lawyer": "Юрист"
+      }
+    },
+    "fill": {
+      "loadFailed": "Не удалось открыть бланк",
+      "cancel": "Отменить",
+      "submit": "Отправить",
+      "conflict": "Бланк изменён в другом месте. Загрузите последнюю версию — ваши несохранённые изменения пропадут.",
+      "reload": "Обновить",
+      "returned": "Возвращён: {{comment}}",
+      "cancelledReason": "Причина отмены: {{reason}}",
+      "fixErrors": "Исправьте или заполните поля: {{n}}.",
+      "steps": "Шаги подписания",
+      "stepState": {
+        "Waiting": "В очереди",
+        "Open": "Ожидает",
+        "Signed": "Подписан",
+        "Skipped": "Пропущен",
+        "Rejected": "Отклонён"
+      },
+      "saving": "Сохранение…",
+      "saved": "Сохранено",
+      "saveFailed": "Не сохранено",
+      "unsaved": "Есть несохранённые изменения",
+      "cancelTitle": "Отмена бланка",
+      "cancelText": "Отменённый бланк нельзя открыть снова.",
+      "cancelReason": "Причина"
     }
   }
 }
