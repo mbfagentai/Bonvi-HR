@@ -66,6 +66,15 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public static readonly Guid MobileAppId = Guid.Parse("01996f00-0000-7000-8000-00000000b071");
 
+    /// <summary>
+    /// «HR (qo'lda)» — HR qo'lda qo'shgan belgilarning SINTETIK qurilma qatori (SPEC-qolda-belgi §A).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MobileAppId"/> bilan AYNAN bir xil sabab va bir xil qoida: faolsiz,
+    /// tokeni o'lik, migratsiya yaratadi. Qiymat qat'iy yozilgan.
+    /// </remarks>
+    public static readonly Guid HrManualId = Guid.Parse("01996f00-0000-7000-8000-00000000b072");
+
     /// <summary>Ekranda ko'rsatiladigan boshlang'ich belgilar soni.</summary>
     /// <remarks>
     /// Tokenning o'zi bir marta — berilgan lahzada — ko'rsatiladi va
@@ -343,7 +352,7 @@ public sealed class AttendanceDevice : AggregateRoot, IAuditable, ISoftDeletable
     /// ekranda boshqaruv tugmalarisiz ko'rsatiladi: uni tahrirlab, yoqib
     /// yoki o'chirib bo'lmaydi.
     /// </remarks>
-    public bool IsSynthetic => Id == MobileAppId || Provider == AttendanceProvider.Mobile;
+    public bool IsSynthetic => Id == MobileAppId || Id == HrManualId || Provider == AttendanceProvider.Mobile;
 
     /// <summary>
     /// Soat ogohlantirishi: faol, so'nggi sutkada gapirgan va soati chegaradan og'gan.

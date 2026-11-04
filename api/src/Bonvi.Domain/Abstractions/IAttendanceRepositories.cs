@@ -116,10 +116,11 @@ public interface IAttendanceIdentityRepository : IRepository<AttendanceIdentity>
 /// <para>
 /// ⚠️ <c>Remove</c> amalda ISHLATILMAYDI: o'tish mashina yozuvi va
 /// o'chirish endpointi yo'q (SPEC §1.2 #5). U asosdan meros bo'lib
-/// keladi, xolos. O'tishni o'chiradigan YAGONA yo'l — saqlash muddati
+/// keladi, xolos. O'tishni o'chiradigan yo'llar — saqlash muddati
 /// siyosati (<see cref="DeleteExpiredAsync"/>, tungi vazifa, §9.2.1):
 /// u bitta qatorni tanlab emas, sanadan eski hammasini bir xil qoida
-/// bilan o'chiradi.
+/// bilan o'chiradi; va HR QO'LDA qo'shgan belgini o'chirish
+/// (SPEC-qolda-belgi §B) — faqat <c>method = Manual</c> qatorlar.
 /// </para>
 /// </remarks>
 public interface IAttendancePassRepository : IRepository<AttendancePass>
@@ -609,4 +610,9 @@ public interface IDevicePersonNumbers
 {
     /// <summary>Keyingi bo'sh tartib raqami.</summary>
     Task<long> NextAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>HR qo'lda qo'shgan belgilarning dalili (SPEC-qolda-belgi §A); identifikatori — o'tishniki.</summary>
+public interface IAttendanceManualPassRepository : IRepository<AttendanceManualPass>
+{
 }

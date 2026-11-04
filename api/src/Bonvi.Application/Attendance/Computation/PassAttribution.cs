@@ -188,6 +188,40 @@ public static class PassAttribution
     }
 
     /// <summary>
+    /// Oynasiz CHIQISH kechagi oynasiz kunning (jadvalsiz yoki dam olish) tungi chiqishi bo'la
+    /// oladigan sana (kecha); bo'la olmasa <c>null</c> (egasining qarori, 2026-11-04).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Faqat REJA va YO'NALISH bo'yicha shartlar: o'tish chiqish terminalidan (yo'nalishi
+    /// <see cref="PassDirection.Out"/> — taxmin qilingan emas, qurilma aytgan) va kechaning
+    /// kun oynasi yo'q. Kecha kirish terminalidagi kirish bilan tugaganini va oraliq
+    /// <see cref="Domain.Attendance.AttendanceRules.OvernightExitMaxHours"/> dan oshmasligini
+    /// chaqiruvchi o'tishlar bo'yicha tekshiradi.
+    /// </para>
+    /// <para>
+    /// Noma'lum yo'nalish hech qachon tungi chiqish bo'lmaydi: yo'nalishsiz terminalda bitta
+    /// tushib qolgan o'qish keyingi kunlarning hammasini teskari qilardi (2026-11-03 da 16 soatlik
+    /// zanjir shu sababli rad etilgan).
+    /// </para>
+    /// </remarks>
+    /// <param name="pass">Hech bir kun oynasiga va kech chiqishga tushmagan o'tish.</param>
+    /// <param name="planFor">Xodimning sanadagi rejasi.</param>
+    public static DateOnly? OvernightExitDateFor(PassReading pass, Func<DateOnly, DayPlan?> planFor)
+    {
+        ArgumentNullException.ThrowIfNull(planFor);
+
+        if (pass.Direction != PassDirection.Out)
+        {
+            return null;
+        }
+
+        var previous = pass.LocalDate.AddDays(-1);
+
+        return planFor(previous) is { AttributionFrom: not null } ? null : previous;
+    }
+
+    /// <summary>
     /// Reja lahzalaridan kun oynasi: [boshlanish − 6 soat, tugash + 6 soat] (SPEC §5.3).
     /// </summary>
     /// <remarks>

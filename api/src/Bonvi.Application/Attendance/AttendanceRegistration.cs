@@ -113,6 +113,9 @@ internal static class AttendanceRegistration
         // Telefondan belgilash — bitta ishlovchi, butun oqim shunda
         // (SPEC-xodim-ilovasi §E).
         services.AddScoped<MobileCheckInCommandHandler>();
+        services.AddScoped<Manual.AddManualPassCommandHandler>();
+        services.AddScoped<Manual.DeleteManualPassCommandHandler>();
+        services.AddScoped<Manual.GetDayPassesQueryHandler>();
 
         // Qurilmalar
         services.AddScoped<AttendanceDeviceRules>();

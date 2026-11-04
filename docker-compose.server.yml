@@ -1,0 +1,90 @@
+# Server overlay for the shared Bonvi VM (bonvi-srv), on top of docker-compose.prod.yml
+# (~/Documents/Projects/BONVI_SERVER.md, «Deploying a new app on the VM»):
+#
+#   docker compose -p bonvi-hr -f docker-compose.prod.yml -f docker-compose.server.yml --env-file .env up -d
+#   (or simply infra/deploy-server.sh)
+#
+# The VM also runs Bonvi-platform, HRMentor, BonviCall, BonviImzo and AIAgents, so this overlay only
+# narrows the prod stack:
+#   1. No public ports. Caddy (`web`) serves plain HTTP and publishes ONLY 127.0.0.1:8320; the public
+#      entry is this app's own Cloudflare Tunnel (`tunnel`, hostnames → http://web:80). In `.env` the site
+#      addresses carry the `http://` scheme (`SITE_ADDRESS=http://hr.bonvi.uz`, `ANKETA_SITE=http://anketa.bonvi.uz`)
+#      so Caddy never asks for a certificate — TLS ends at Cloudflare.
+#   2. ISUP (terminal TCP 7660/7661) cannot go through a tunnel; it stays off here (`COMPOSE_PROFILES`
+#      without `isup`) until the owner decides how terminals reach the VM.
+#   3. The bot polls Telegram with the production token — two pollers on one token fight, so here it
+#      runs only with the `bot` profile, switched on at cut-over after the old server's bot is stopped.
+#   4. Bulk files on the data disk (HDD, /srv/data/bonvi-hr): uploads, backups, logs. The database
+#      stays on the SSD (named volume).
+#   5. Memory caps, so this stack can never starve the others.
+#   6. The tunnel token lives only on the server in ./cloudflared/tunnel.env (TUNNEL_TOKEN=…, 0600),
+#      never in git; the tunnel is created and routed in the Cloudflare dashboard (new account — the VM's
+#      cert.pem belongs to the old one).
+
+services:
+  postgres:
+    volumes: !override
+      - postgres-data:/var/lib/postgresql
+      - /srv/data/bonvi-hr/backups:/backups
+    deploy:
+      resources:
+        limits: {memory: 768m, cpus: "2.0"}
+
+  backup:
+    volumes: !override
+      - /srv/data/bonvi-hr/backups:/backups
+      - ./infra/backup:/scripts:ro
+      - uploads-data:/uploads:ro
+    deploy:
+      resources:
+        limits: {memory: 256m, cpus: "1.0"}
+
+  backup-files:
+    volumes: !override
+      - uploads-data:/uploads
+      - /srv/data/bonvi-hr/backups:/backups
+      - ./infra/backup:/scripts:ro
+
+  redis:
+    deploy:
+      resources:
+        limits: {memory: 128m}
+
+  api:
+    deploy:
+      resources:
+        limits: {memory: 1g, cpus: "2.0"}
+
+  bot:
+    profiles: ["bot"]
+    deploy:
+      resources:
+        limits: {memory: 256m}
+
+  web:
+    ports: !override
+      - "127.0.0.1:8320:80"
+    deploy:
+      resources:
+        limits: {memory: 128m}
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.0
+    profiles: ["tunnel"]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    env_file: ./cloudflared/tunnel.env
+    restart: unless-stopped
+    depends_on: [web]
+    networks: [bonvi]
+    deploy:
+      resources:
+        limits: {memory: 64m}
+
+volumes:
+  # Files on the data disk; the directory is created (owner 2000 = the api user) by infra/deploy-server.sh.
+  uploads-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /srv/data/bonvi-hr/uploads

@@ -129,10 +129,33 @@ public static class AttendanceRules
     public const int BoardLookbackHours = 18;
 
     /// <summary>
-    /// Jadvalsiz kunda chiqishi yozilmagan odam shu soatda (Toshkent) «ketdi» deb yopiladi
-    /// (egasining qarori, 2026-10-12).
+    /// Jadvalsiz (yoki dam olish) kunining kechki KIRISHini ertangi CHIQISH bilan juftlashda
+    /// ikkisi orasidagi eng ko'p soat (egasining qarori, 2026-11-04).
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Faqat yo'nalishi ma'lum terminallar uchun (alohida kirish va chiqish terminali, masalan
+    /// Metan zavod): 19:00 da kirib ertasi 08:00 da chiqqan tungi ishchi — 13 soat. Yo'nalishsiz
+    /// terminalda (Propan-Rispetto) bu qoida ishlamaydi: u yerda kirish/chiqish faqat navbat bilan
+    /// taxmin qilinadi va bitta tushib qolgan o'qish butun zanjirni teskari qilardi.
+    /// </para>
+    /// <para>
+    /// 16 soat — eng uzun tungi smenadan keyin ham zaxira; undan uzoq oraliq (masalan juma kuni
+    /// chiqishni unutib, dushanba chiqqan odam) juftlanmaydi va kun ochiq qoladi.
+    /// </para>
+    /// </remarks>
+    public const int OvernightExitMaxHours = 16;
+
+    /// <summary>
+    /// Jadvalsiz kunda chiqishi yozilmagan odam shu soatda (Toshkent) «ketdi» deb yopilardi
+    /// (egasining qarori, 2026-10-12) — ⚠️ 2026-11-03 dan BEKOR: hisoblash endi yopmaydi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Qoida 2026-10-12..11-03 da hisoblangan va hali qayta hisoblanmagan kunlarda saqlangan
+    /// natija sifatida qoladi — shuning uchun «avto» belgisini taniydigan metodlar
+    /// (<see cref="IsNoScheduleAutoExit"/>) ekran va Excel uchun saqlanadi.
+    /// </para>
     /// <para>
     /// Grafik biriktirilmagan xodimning kuni — standart 24 soat (kalendar kuni). U terminaldan
     /// o'tmay ketib qolsa, kun ochiq qolmaydi: oxirgi ochiq kirish 22:00 da yopiladi va shu

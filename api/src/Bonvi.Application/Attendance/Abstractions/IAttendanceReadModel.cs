@@ -65,6 +65,20 @@ public interface IAttendanceReadModel
         Guid passId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Tabel katagiga tushgan barcha belgilar — kun oynasi uchun (SPEC-qolda-belgi §B).</summary>
+    /// <remarks>
+    /// Katakka taqsimlash xodim ilovasidagi bilan AYNAN bir qoida: saqlangan kun rejasining
+    /// oynasi, oynasiz o'tish — kechagi kunning saqlangan oxirgi chiqishi bo'lsa kechaga,
+    /// aks holda o'z sanasiga. Yo'nalish — katak ichidagi samarali yo'nalish.
+    /// </remarks>
+    /// <param name="employeeId">Xodim.</param>
+    /// <param name="date">Katak sanasi.</param>
+    /// <param name="cancellationToken">Bekor qilish belgisi.</param>
+    Task<AttendanceDayPassesDto> GetDayPassesAsync(
+        Guid employeeId,
+        DateOnly date,
+        CancellationToken cancellationToken = default);
+
     // ── 2. Jonli taxta ──────────────────────────────────────────────
 
     /// <summary>«Hozir kim ishda» — to'g'ridan-to'g'ri o'tishlardan, kun yozuvlaridan EMAS.</summary>

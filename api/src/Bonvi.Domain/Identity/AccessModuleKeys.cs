@@ -26,6 +26,7 @@ public static class AccessModuleKeys
     public const string Feedback = "feedback";
     public const string Safety = "safety";
     public const string Recruiting = "recruiting";
+    public const string Blanks = "blanks";
     public const string Attendance = "attendance";
     public const string Catalog = "catalog";
     public const string Reports = "reports";
@@ -37,7 +38,7 @@ public static class AccessModuleKeys
     /// <summary>Hamma kalitlar — muharrirdagi tartibda.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
-        Employees, Employment, Lists, Incentives, Feedback, Safety, Recruiting,
+        Employees, Employment, Lists, Incentives, Feedback, Safety, Recruiting, Blanks,
         Attendance, Catalog, Reports, Users, Roles, Audit, Settings,
     ];
 }

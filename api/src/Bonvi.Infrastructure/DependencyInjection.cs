@@ -18,6 +18,7 @@ using Bonvi.Application.Recruiting.Forms.Dynamic;
 using Bonvi.Application.Reports.Abstractions;
 using Bonvi.Application.Reports.Export;
 using Bonvi.Application.System.Queries.GetSystemInfo;
+using Bonvi.Infrastructure.Blanks;
 using Bonvi.Infrastructure.Identity;
 using Bonvi.Infrastructure.Persistence.Auditing;
 using Bonvi.Infrastructure.Persistence.ReadModels;
@@ -75,6 +76,7 @@ public static class DependencyInjection
         services.AddSafetyServices();
         services.AddAttendanceServices();
         services.AddRecruitingServices();
+        services.AddBlanksInfrastructure();
         services.AddNotificationServices();
         services.AddSettingsServices(configuration);
         services.AddPublicApiServices();
@@ -268,6 +270,7 @@ public static class DependencyInjection
         services.AddScoped<IAbsenceTypeLookup, AbsenceTypeLookup>();
         services.AddScoped<IAttendanceIdentityRepository, AttendanceIdentityRepository>();
         services.AddScoped<IAttendancePassRepository, AttendancePassRepository>();
+        services.AddScoped<IAttendanceManualPassRepository, AttendanceManualPassRepository>();
         services.AddScoped<IWorkScheduleRepository, WorkScheduleRepository>();
         services.AddScoped<IScheduleAssignmentRepository, ScheduleAssignmentRepository>();
         services.AddScoped<IAttendanceDayRepository, AttendanceDayRepository>();

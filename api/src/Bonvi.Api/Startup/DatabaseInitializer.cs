@@ -243,6 +243,15 @@ public sealed partial class DatabaseInitializer : IHostedService
 
         LogCatalogSeeded(catalog.Created, catalog.Skipped, catalog.MissingFiles);
 
+        // ---------- Blanka shablonlari (SPEC-blankalar §14 S3) ----------
+        // Yangi versiya e'lon qilinadi, o'sha versiya boshqa xesh bilan — faqat xato logi.
+        using (auditScope.Use("startup:blank-templates"))
+        {
+            await provider.GetRequiredService<Bonvi.Infrastructure.Blanks.BlankTemplateSeeder>()
+                .SeedAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         // ---------- «Umumiy anketa» vakansiyasi ----------
         using (auditScope.Use("startup:general-pool"))
         {

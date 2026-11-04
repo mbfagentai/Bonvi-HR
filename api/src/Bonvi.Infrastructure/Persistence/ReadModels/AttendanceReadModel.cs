@@ -285,6 +285,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
 
         var evidence = await MobileEvidenceAsync(rows, cancellationToken).ConfigureAwait(false);
 
+        var manual = await ManualEvidenceAsync(rows, cancellationToken).ConfigureAwait(false);
+
         var inferred = await InferredDirectionsAsync(rows, cancellationToken).ConfigureAwait(false);
 
         return
@@ -336,9 +338,143 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                     row.PhotoKey,
                     row.PhotoPurgedAt,
                     lateness.TryGetValue(row.Id, out var lateMinutes) ? lateMinutes : null,
-                    evidence.GetValueOrDefault(row.Id));
+                    evidence.GetValueOrDefault(row.Id),
+                    manual.GetValueOrDefault(row.Id));
             }),
         ];
+    }
+
+    /// <summary>Sahifadagi HR qo'lda qo'shgan belgilarning dalili (SPEC-qolda-belgi §A).</summary>
+    /// <remarks>Faqat <c>method = Manual</c> qator bo'lsa so'rov yuboriladi.</remarks>
+    private async Task<Dictionary<Guid, ManualPassEvidenceDto>> ManualEvidenceAsync(
+        List<PassRow> rows,
+        CancellationToken cancellationToken)
+    {
+        var ids = rows.Where(row => row.Method == PassMethod.Manual).Select(row => row.Id).ToList();
+
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var notes = await _context.AttendanceManualPasses
+            .AsNoTracking()
+            .Where(manual => ids.Contains(manual.Id))
+            .Select(manual => new { manual.Id, manual.Note, manual.CreatedAt, manual.CreatedBy })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var authorIds = notes.Where(note => note.CreatedBy is not null).Select(note => note.CreatedBy!.Value).Distinct().ToList();
+
+        var authors = authorIds.Count == 0
+            ? []
+            : await _context.Users
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(user => authorIds.Contains(user.Id))
+                .Select(user => new { user.Id, Name = user.FullName.Full })
+                .ToDictionaryAsync(user => user.Id, user => user.Name, cancellationToken)
+                .ConfigureAwait(false);
+
+        return notes.ToDictionary(
+            note => note.Id,
+            note => new ManualPassEvidenceDto(
+                note.Note,
+                note.CreatedAt,
+                note.CreatedBy is { } author ? authors.GetValueOrDefault(author) : null));
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// O'tishlar [D − 1, D + 1] dan, reja suratlari [D − 2, D + 2] dan: qo'shni sanadagi o'tishning
+    /// katagi o'sha sananing qo'shnilariga qarab aniqlanadi (<c>EmployeeAppReadModel</c> bilan
+    /// AYNAN bir xil qoida — HR va xodim bitta kunni bir xil ko'rishi kerak).
+    /// </para>
+    /// <para>
+    /// Yo'nalish katak ichida qayta hisoblanadi (<see cref="PassPairing.EffectiveDirections"/>):
+    /// jurnaldagi kalendar kuni bo'yicha navbat tungi smenada boshqacha chiqishi mumkin, kun
+    /// oynasi esa tabel juftlagandek ko'rsatishi kerak.
+    /// </para>
+    /// </remarks>
+    public async Task<AttendanceDayPassesDto> GetDayPassesAsync(
+        Guid employeeId,
+        DateOnly date,
+        CancellationToken cancellationToken = default)
+    {
+        var from = date.AddDays(-1);
+        var to = date.AddDays(1);
+
+        var rows = await _context.AttendancePasses
+            .AsNoTracking()
+            .Where(pass => pass.ResolvedEmployeeId == employeeId && pass.LocalDate >= from && pass.LocalDate <= to)
+            .OrderBy(pass => pass.OccurredAt)
+            .ThenBy(pass => pass.Id)
+            .Select(PassRowProjection)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (rows.Count == 0)
+        {
+            return new AttendanceDayPassesDto(employeeId, date, []);
+        }
+
+        var planFrom = date.AddDays(-2);
+        var planTo = date.AddDays(2);
+
+        var plans = await _context.AttendanceDays
+            .AsNoTracking()
+            .Where(day => day.EmployeeId == employeeId && day.LocalDate >= planFrom && day.LocalDate <= planTo)
+            .Select(day => new { day.LocalDate, day.PlanStartAt, day.PlanEndAt, day.LastOutAt })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var windows = plans.ToDictionary(day => day.LocalDate, day => PassAttribution.WindowOf(day.PlanStartAt, day.PlanEndAt));
+        var lastOuts = plans
+            .Where(day => day.LastOutAt is not null)
+            .ToDictionary(day => day.LocalDate, day => day.LastOutAt!.Value);
+
+        DateOnly CellOf(PassRow row)
+        {
+            if (PassAttribution.WindowDateFor(row.LocalDate, row.OccurredAt, day => windows.GetValueOrDefault(day)) is { } windowDate)
+            {
+                return windowDate;
+            }
+
+            var previous = row.LocalDate.AddDays(-1);
+
+            return lastOuts.TryGetValue(previous, out var lastOut) && lastOut == row.OccurredAt ? previous : row.LocalDate;
+        }
+
+        var mine = rows.Where(row => CellOf(row) == date).ToList();
+
+        if (mine.Count == 0)
+        {
+            return new AttendanceDayPassesDto(employeeId, date, []);
+        }
+
+        var readings = mine.Select(row => new PassReading(row.Id, employeeId, row.OccurredAt, row.Direction)).ToList();
+        var directions = PassPairing.EffectiveDirections(readings);
+        var counted = PassPairing.CountedPassIds(readings);
+
+        var dtos = await ToPassDtosAsync(mine, cancellationToken).ConfigureAwait(false);
+
+        return new AttendanceDayPassesDto(
+            employeeId,
+            date,
+            [
+                .. dtos.Select(dto =>
+                {
+                    var raw = mine.First(row => row.Id == dto.Id).Direction;
+                    var effective = directions.GetValueOrDefault(dto.Id, raw);
+
+                    var shown = raw == PassDirection.Unknown && effective != PassDirection.Unknown
+                        ? dto with { Direction = effective, DirectionSource = DirectionSource.Alternation }
+                        : dto;
+
+                    return new AttendanceDayPassDto(shown, counted.Contains(dto.Id));
+                }),
+            ]);
     }
 
     /// <summary>
@@ -2085,7 +2221,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         int CreditedMinutes,
         bool IsFlexible,
         int ShortfallMinutes,
-        int PersonalMinutes);
+        int PersonalMinutes,
+        int OvertimeMinutes);
 
     /// <inheritdoc />
     /// <remarks>
@@ -2211,7 +2348,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 day.CreditedMinutes,
                 day.IsFlexible,
                 day.ShortfallMinutes,
-                day.PersonalMinutes))
+                day.PersonalMinutes,
+                day.OvertimeMinutes))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -2290,7 +2428,8 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                             stored.IsFlexible,
                             stored.PlannedMinutes,
                             stored.ShortfallMinutes,
-                            stored.PersonalMinutes)
+                            stored.PersonalMinutes,
+                            stored.OvertimeMinutes)
                         // Hosil qilingan katakda reja ham YO'Q: u hali
                         // hisoblanmagan kun (§5.7.1) va rejasini shu yerda
                         // qayta hisoblash tungi hisoblashning ikkinchi

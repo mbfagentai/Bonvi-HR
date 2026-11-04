@@ -25,7 +25,11 @@ import {
   fetchExceptions,
   fetchFormerEmployeeAlerts,
   fetchIdentities,
+  fetchDayPasses,
   fetchPass,
+  postManualPass,
+  removeManualPass,
+  type ManualPassInput,
   fetchPassPhoto,
   fetchPasses,
   fetchSchedule,
@@ -139,6 +143,8 @@ export const attendanceKeys = {
   passes: (filters: PassListFilters) => ['attendance', 'passes', filters] as const,
   /** Bitta o'tish — `?passId=` havolasi uchun (ro'yxat keshidan ALOHIDA). */
   pass: (id: string) => ['attendance', 'pass', id] as const,
+  /** Tabel katagining belgilari — kun oynasi (SPEC-qolda-belgi §C). */
+  dayPasses: (employeeId: string, date: string) => ['attendance', 'day-passes', employeeId, date] as const,
   dashboard: (filters: DashboardFilters) => ['attendance', 'dashboard', filters] as const,
   trend: (filters: TrendFilters) => ['attendance', 'dashboard-trend', filters] as const,
   /**
@@ -993,4 +999,25 @@ export function useApproveRemovals() {
   return useMutation({
     mutationFn: (deviceId: string) => postApproveRemovals(deviceId),
   })
+}
+
+/* ═══════════════════════════════════ kun oynasi va qo'lda belgi (SPEC-qolda-belgi) */
+
+/** Tabel katagining barcha belgilari — kun oynasi ochilganda. */
+export function useDayPasses(employeeId: string, date: string | null) {
+  return useQuery({
+    queryKey: attendanceKeys.dayPasses(employeeId, date ?? ''),
+    queryFn: ({ signal }) => fetchDayPasses(employeeId, date ?? '', signal),
+    enabled: date !== null,
+  })
+}
+
+/** HR qo'lda belgi qo'shadi — kesh `providers.tsx` da umumiy bekor qilinadi. */
+export function useAddManualPass() {
+  return useMutation({ mutationFn: (input: ManualPassInput) => postManualPass(input) })
+}
+
+/** HR qo'shgan belgini o'chiradi. */
+export function useRemoveManualPass() {
+  return useMutation({ mutationFn: (passId: string) => removeManualPass(passId) })
 }

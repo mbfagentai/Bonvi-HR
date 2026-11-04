@@ -217,6 +217,27 @@ public static class Permissions
 
     public const string RecruitingManage = "recruiting.manage";
 
+    // ---------- Blankalar ----------
+
+    /// <summary>
+    /// «Blankalar» (docs/SPEC-blankalar.md §6.3): menyu, ro'yxatlar, blanka, PDF, fayllarni
+    /// yuklab olish, xodim kartasidagi tab va AI vositalari.
+    /// </summary>
+    /// <remarks>
+    /// O'z qadamini (xodimning o'zi, bo'lim boshlig'i) elektron imzolash uchun shu ruxsat
+    /// yetarli — foydalanuvchining kartasi qadamdagi shaxsga bog'langan bo'lsa (§6.2).
+    /// </remarks>
+    public const string BlanksView = "blanks.view";
+
+    /// <summary>Blanka ochish, to'ldirish, yuborish, fayl biriktirish, qo'lda imzo olish, o'z qoralamasini bekor qilish.</summary>
+    public const string BlanksFill = "blanks.fill";
+
+    /// <summary>Rollarni biriktirish, istalgan blankani bekor qilish, shablonni yoqish/o'chirish.</summary>
+    public const string BlanksManage = "blanks.manage";
+
+    /// <summary>Lavozim rollari qadamlarini elektron imzolash, qaytarish, rad etish (amal).</summary>
+    public const string BlanksApprove = "blanks.approve";
+
     // ---------- Davomat (verifikatsiya) ----------
 
     /// <summary>
@@ -385,6 +406,7 @@ public static class Permissions
         FeedbackView, FeedbackManage,
         SafetyView, SafetyManage,
         RecruitingView, RecruitingManage,
+        BlanksView, BlanksFill, BlanksManage, BlanksApprove,
         AttendanceView, AttendanceManage, AttendanceRequestsManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
@@ -609,6 +631,10 @@ public static class SystemRoles
                 Permissions.FeedbackView, Permissions.FeedbackManage,
                 Permissions.SafetyView, Permissions.SafetyManage,
                 Permissions.RecruitingView, Permissions.RecruitingManage,
+
+                // Blankalar (SPEC-blankalar §6.3): HR to'ldiradi va imzolaydi; rollarni
+                // biriktirish va boshqaning blankasini bekor qilish (`blanks.manage`) — egasi beradi.
+                Permissions.BlanksView, Permissions.BlanksFill, Permissions.BlanksApprove,
 
                 /*
                   Davomat IKKALA ruxsati ham HR menejerida — ataylab

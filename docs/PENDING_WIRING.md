@@ -1362,3 +1362,15 @@ YO'Q — o'rniga xodim kartasi → «Davomat» → «Ilova» segmenti.
 `…/app-access/deactivate`, `…/app-access/activate`,
 `POST /api/employee-auth/password` (va uning tezlik cheklovi yo'li
 `EmployeePasswordPaths`).
+
+## Blankalar web (W2, 2026-11-03) — open seams
+
+| What | Where | Owner |
+|---|---|---|
+| Nav count «Menga kutilmoqda» | DONE (S12): `useBlankWaitingCount` → `counts['blanks']` in `sidebar.tsx` (list #6 `waitingForMe`, `pageSize=1`) | — |
+| Step actions #12–#16 | DONE (S12): generated calls #12–#15; #16 hand-written blob GET (generated fn is typed `void`) | — |
+| Files #17–#20 | DONE (S13): #17 upload / #18 remove use the generated `uploadBlankAttachment` / `removeBlankAttachment`; #19 attachment and #20 PDF stay hand-written blob GETs (generated fns are typed `void`) | — |
+| PDF button, `<BlankViewPage>`, employee card tab «Blankalar» | DONE (S12); #20 live since S7 | — |
+| Shared C#/TS computed vectors | DONE (S13): `web/src/features/blanks/lib/__fixtures__/computed-vectors.json` is a byte copy of `api/tests/Bonvi.Application.Tests/Blanks/computed-vectors.json`; `BlankComputedVectorsMirrorTests` fails on drift (`./bonvi test` mounts `web/src` read-only at `/web`, `BONVI_WEB_DIR=/web`). TS evaluator now covers `round`, `addMonths`, `addWorkingDays`, `diffWorkingDays`, `gt`, `lte`, `and`, `or`, `not`; `{}` counts as empty (C# `BlankValues.IsEmpty`) | — |
+| `upgrade head` on a prod-copy DB (SPEC §14 S13) | NOT DONE in S13 — needs a prod backup restored into a scratch DB; do it as part of the pre-deploy routine (rollback tag + backup + copy test) | deploy |
+| Phase 2/3 (SPEC §14) | not started: F03/F05 (candidate subject + candidate card), F11/F12/F14/F19, Excel export, builder UI, import seam, employee-app channel, F01 (owner Q1) | later briefs |

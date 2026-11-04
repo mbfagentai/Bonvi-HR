@@ -1004,3 +1004,45 @@ internal static class FlexibleDayCheck
         "(NOT is_flexible AND required_minutes IS NULL) " +
         "OR (is_flexible AND required_minutes IS NOT NULL AND required_minutes BETWEEN 1 AND 1440)";
 }
+
+/// <summary>
+/// <see cref="AttendanceManualPass"/> uchun jadval konfiguratsiyasi (<c>attendance_manual_passes</c>,
+/// SPEC-qolda-belgi §A).
+/// </summary>
+public sealed class AttendanceManualPassConfiguration : IEntityTypeConfiguration<AttendanceManualPass>
+{
+    public void Configure(EntityTypeBuilder<AttendanceManualPass> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("attendance_manual_passes");
+
+        builder.HasKey(manual => manual.Id);
+
+        // Identifikator — o'tishning o'zi (1:1), baza yaratmaydi.
+        builder.Property(manual => manual.Id).ValueGeneratedNever();
+
+        builder.Ignore(manual => manual.DomainEvents);
+
+        builder.Property(manual => manual.Note)
+            .HasMaxLength(AttendanceManualPass.NoteMaxLength)
+            .IsRequired();
+
+        /*
+          CASCADE — `mobile_check_ins` dagi bilan bir xil sabab: o'tishlar saqlash muddati
+          bilan `ExecuteDeleteAsync` orqali HAQIQATAN o'chiriladi va dalil qatori o'zi bilan
+          ketishi kerak, aks holda tozalash vazifasi tashqi kalit xatosi bilan yiqilardi.
+        */
+        builder.HasOne<AttendancePass>()
+            .WithOne()
+            .HasForeignKey<AttendanceManualPass>(manual => manual.Id)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Employee>()
+            .WithMany()
+            .HasForeignKey(manual => manual.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(manual => manual.EmployeeId);
+    }
+}

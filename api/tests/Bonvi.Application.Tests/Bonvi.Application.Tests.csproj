@@ -10,4 +10,10 @@
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Shart va computed vektorlari — veb (TS) testi ham shu faylni o'qiydi (SPEC-blankalar §4.5) -->
+    <None Include="Blanks\computed-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 1-to'lqin shablonlari (Infrastructure'da embedded) — har biri tekshiruvdan o'tishi shart (SPEC-blankalar §14 S3) -->
+    <None Include="..\..\src\Bonvi.Infrastructure\Blanks\Templates\*.json" Link="Blanks\Templates\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

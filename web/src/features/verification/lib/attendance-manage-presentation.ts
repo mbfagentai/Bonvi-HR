@@ -45,6 +45,8 @@ export function identityProviderLabel(
       return t('attendance.identityProviderManual')
     case 'Mobile':
       return t('attendance.identityProviderMobile')
+    case 'HrManual':
+      return t('attendance.identityProviderHrManual')
   }
 }
 

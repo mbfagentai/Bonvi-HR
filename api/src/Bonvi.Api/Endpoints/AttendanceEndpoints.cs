@@ -5,6 +5,7 @@ using Bonvi.Application.Attendance.Agent;
 using Bonvi.Application.Attendance.Devices;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Identities;
+using Bonvi.Application.Attendance.Manual;
 using Bonvi.Application.Attendance.Queries;
 using Bonvi.Application.Attendance.Requests;
 using Bonvi.Application.Attendance.Recompute;
@@ -121,6 +122,13 @@ public sealed record ScheduleDatesBody(
 /// <summary>Yilni haftalik naqshdan to'ldirish tanasi.</summary>
 /// <param name="Year">Qaysi yil (2000–2100).</param>
 public sealed record ScheduleYearFillBody(int Year);
+
+/// <summary>HR qo'lda qo'shadigan belgi (SPEC-qolda-belgi §B).</summary>
+/// <param name="Date">Toshkent sanasi.</param>
+/// <param name="Time">Toshkent vaqti — «HH:mm:ss», soniyalar tashlanadi.</param>
+/// <param name="Direction">In yoki Out.</param>
+/// <param name="Note">Sabab — majburiy.</param>
+public sealed record ManualPassBody(DateOnly Date, TimeOnly Time, PassDirection Direction, string? Note);
 
 /// <summary>Yo'qlik so'rovining tanasi — yaratish va tahrirlash uchun bitta shakl.</summary>
 /// <remarks>
@@ -1287,6 +1295,81 @@ public static class AttendanceEndpoints
                 "Jurnal qatori bilan bir xil shakl — ishdan ketganlar ogohlantirishidagi havola uchun. " +
                 "Yo'q yoki saqlash muddati tugab o'chirilgan — «davomat.otish_topilmadi» (404).")
             .Produces<AttendancePassDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // ── HR qo'lda belgi + kun oynasi (SPEC-qolda-belgi §B) ─────────
+        group.MapGet("/employees/{employeeId:guid}/days/{date}/passes", async (
+                Guid employeeId,
+                DateOnly date,
+                GetDayPassesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetDayPassesQuery(employeeId, date), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView)
+            .WithName("GetAttendanceDayPasses")
+            .WithSummary("Davomat — tabel katagining barcha belgilari")
+            .WithDescription(
+                "Tabel shu katakka qo'ygan o'tishlar (tungi smenaning ertalabki chiqishi ham), vaqt tartibida. " +
+                "«direction» — hisob-kitobdagi (samarali) yo'nalish; «counted: false» — tashlangan takror. " +
+                "Xodim yo'q — «davomat.xodim_topilmadi» (404).")
+            .Produces<AttendanceDayPassesDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/employees/{employeeId:guid}/manual-passes", async (
+                Guid employeeId,
+                ManualPassBody body,
+                AddManualPassCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new AddManualPassCommand(employeeId, body.Date, body.Time, body.Direction, body.Note),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("AddManualAttendancePass")
+            .WithSummary("Davomat — HR qo'lda belgi qo'shadi")
+            .WithDescription(
+                "Terminal o'tishi tahrirlanmaydi — tuzatish faqat YANGI belgi bilan. «date» + «time» Toshkent vaqtida " +
+                "(daqiqagacha), «direction» — In yoki Out, «note» majburiy (≤ 500). Kunlar (±1) shu yerda qayta " +
+                "hisoblanadi. Xatolar: «davomat.belgi_kelajakda», «davomat.belgi_juda_eski» (92 kun), " +
+                "«davomat.belgi_ishlamagan», «davomat.belgi_izoh_bosh», «davomat.belgi_izoh_uzun», " +
+                "«davomat.yonalish_notogri» (400); «davomat.xodim_topilmadi» (404); «davomat.belgi_takror» (409).")
+            .Produces<AttendancePassDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapDelete("/manual-passes/{passId:guid}", async (
+                Guid passId,
+                DeleteManualPassCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new DeleteManualPassCommand(passId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceRequestsManage)
+            .WithName("DeleteManualAttendancePass")
+            .WithSummary("Davomat — HR qo'shgan belgini o'chirish")
+            .WithDescription(
+                "Faqat HR qo'lda qo'shgan belgi; terminal yoki telefon belgisi — «davomat.belgi_qolda_emas» (400). " +
+                "Yo'q — «davomat.otish_topilmadi» (404). Kunlar (±1) qayta hisoblanadi.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 

@@ -884,3 +884,9 @@ public sealed class DevicePersonNumbers : IDevicePersonNumbers
         return values[0];
     }
 }
+
+/// <summary>HR qo'lda qo'shgan belgilarning dalili (SPEC-qolda-belgi §A).</summary>
+public sealed class AttendanceManualPassRepository : Repository<AttendanceManualPass>, IAttendanceManualPassRepository
+{
+    public AttendanceManualPassRepository(AppDbContext context) : base(context) { }
+}

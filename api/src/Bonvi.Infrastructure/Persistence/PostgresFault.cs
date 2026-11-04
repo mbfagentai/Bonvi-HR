@@ -1,5 +1,6 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Domain.Attendance;
+using Bonvi.Domain.Blanks;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -77,6 +78,11 @@ internal sealed class PostgresFault : IDatabaseFault
     /// <summary>Onlayn anketaning yuborish identifikatori — <c>CandidateFormConfiguration</c> dagi (konvensiya) nom.</summary>
     private const string FormSubmissionIndex = "ix_candidate_forms_client_submission_id";
 
+    /// <summary>Blanka yaratish identifikatori — <c>BlankSubmissionConfiguration</c> dagi (konvensiya) nom.</summary>
+    private const string BlankRequestIndex = "ix_blank_submissions_client_request_id";
+
+    private const string BlankStepIndex = "ix_blank_submission_steps_submission_id_step_code";
+
     public bool IsDuplicateName(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -152,6 +158,30 @@ internal sealed class PostgresFault : IDatabaseFault
         ArgumentNullException.ThrowIfNull(exception);
 
         return string.Equals(UniqueViolation(exception)?.ConstraintName, FormSubmissionIndex, StringComparison.Ordinal);
+    }
+
+    public bool IsDuplicateBlankRequest(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return string.Equals(UniqueViolation(exception)?.ConstraintName, BlankRequestIndex, StringComparison.Ordinal);
+    }
+
+    public bool IsStaleBlankWrite(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        // Parallel yuborish: ikkinchi tranzaksiya UPDATE ... WHERE version dan oldin qadamlarni
+        // INSERT qiladi va birinchisi yozgan qadamlarga uriladi — natija bir xil: blanka eskirgan.
+        if (string.Equals(UniqueViolation(exception)?.ConstraintName, BlankStepIndex, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return exception is DbUpdateConcurrencyException concurrency
+            && concurrency.Entries.Count > 0
+            && concurrency.Entries.All(entry =>
+                entry.Entity is BlankSubmission or BlankSubmissionStep or BlankAttachment);
     }
 
     /// <summary>Unikallik buzilishi bo'lsa — drayver istisnosi, aks holda <c>null</c>.</summary>

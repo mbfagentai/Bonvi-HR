@@ -27,6 +27,9 @@ public sealed class McpToolsTests : IClassFixture<McpHost>
         "probations", "list_flags", "incentives", "exit_interviews", "incidents", "vacancies",
         "search_candidates", "get_candidate", "recruiting_funnel", "attendance_day", "attendance_summary",
         "absence_requests", "upcoming", "missing_documents",
+
+        // docs/SPEC-blankalar.md §11.
+        "blank_templates", "blanks", "blank", "blank_gaps",
     ];
 
     private readonly McpHost _host;

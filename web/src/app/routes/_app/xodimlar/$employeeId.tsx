@@ -3,6 +3,8 @@ import { ArrowLeft, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { EmployeeHistoryTab } from '@/features/audit/components/employee-history-tab'
+import { SubjectBlanksTab } from '@/features/blanks/components/subject-blanks-tab'
+import { BLANKS_VIEW } from '@/features/blanks/lib/blank-permissions'
 import { AUDIT_VIEW } from '@/features/audit/lib/audit-keys'
 import { useAuth } from '@/features/auth'
 
@@ -98,6 +100,7 @@ const TABS = [
   'incentives',
   'flags',
   'attendance',
+  'blanks',
   'history',
 ] as const
 
@@ -181,6 +184,7 @@ function EmployeeCardPage() {
   const canViewDocuments = hasPermission(EMPLOYEES_VIEW)
   const canViewIncentives = hasPermission(INCENTIVES_VIEW)
   const canViewAttendance = hasPermission(ATTENDANCE_VIEW)
+  const canViewBlanks = hasPermission(BLANKS_VIEW)
   /*
     «O'zgarishlar tarixi» — server ikkala ruxsatni ham talab qiladi
     (`GET /api/employees/{id}/history`: `audit.view` VA `employees.view`).
@@ -309,6 +313,10 @@ function EmployeeCardPage() {
   */
   if (canViewAttendance) {
     tabOptions.push({ value: 'attendance', label: t('employees.tabAttendance') })
+  }
+  // «Blankalar» (SPEC-blankalar §12) — only with `blanks.view`, same rule as the tabs above
+  if (canViewBlanks) {
+    tabOptions.push({ value: 'blanks', label: t('employees.tabBlanks') })
   }
   /*
     «O'zgarishlar tarixi» — ENG OXIRIDA (SPEC §9.6) va faqat `audit.view`
@@ -453,6 +461,18 @@ function EmployeeCardPage() {
 
       {tab === 'attendance' && canViewAttendance && (
         <EmployeeAttendanceTab employeeId={person.id} month={month} onMonth={setMonth} />
+      )}
+
+      {tab === 'blanks' && canViewBlanks && (
+        <SubjectBlanksTab
+          employee={{
+            id: person.id,
+            fullName: person.fullName,
+            photoKey: person.photoKey,
+            position: primary?.position?.name ?? null,
+            department: primary?.department?.name ?? null,
+          }}
+        />
       )}
 
       {tab === 'history' && canViewHistory && <EmployeeHistoryTab employeeId={person.id} />}

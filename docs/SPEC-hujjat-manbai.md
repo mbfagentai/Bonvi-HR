@@ -52,13 +52,18 @@ with the first non-form assignment (trigger, not built now).
 
 1. **PDF templates.** Every type that depends on `PdfSharp` or `MigraDoc` is on a list: permanent —
    `DynamicFormPdfRenderer` (prints HRMentor's published definition), `BundledFontResolver` (fonts); debt —
-   `QuestionnairePdfRenderer` (D1). A new type fails.
+   `QuestionnairePdfRenderer` (D1), `BlankPdfRenderer` (D6). A new type fails.
 2. **Template files.** Office, PDF and RTF files (`.doc .docx .dotx .odt .pdf .rtf .xls .xlsx .xltx`) under
    `api/src`, `web/src`, `web/public`, `app/src`, `app/public` are on a list: debt — the two manual PDFs
    (D5). A new file fails.
 3. **Built-in form sources.** The debt types `HrF02Seed`, `HrF02TextCatalog`, `QuestionnairePdfTexts` and
-   the file `Bonvi.Bot/Conversation/BotTexts.cs` still exist while they are listed.
+   the file `Bonvi.Bot/Conversation/BotTexts.cs` still exist while they are listed; so does
+   `BlankTemplateSeeder` (D6).
 4. **Ratchet.** A debt item that is gone but still listed fails too, so the list only shrinks.
+5. **Built-in blank definitions (D6, added 2026-11-04).** The generic «Blankalar» engine (`docs/SPEC-blankalar.md`,
+   merged from main on 2026-11-03) seeds its definitions from embedded `Blanks/Templates/*.json`. Every such
+   file under `api/src` is on a list: debt — HR-F06, F07, F08, F09, F13. A new definition file fails: a new
+   blank is made in HRMentor.
 
 Reflection covers the four assemblies the test project references; a source scan of `api/src` (code lines,
 not comments) covers the rest (Bot, DeviceAgent, …). The file checks read the repository root: `./bonvi test`
@@ -73,6 +78,7 @@ mounts it read-only at `/repo` (`BONVI_REPO_DIR`); on a host checkout the root i
 | D3 | `HrF02Seed` | One-time import; never the source after HRMentor's first publish | with D1 |
 | D4 | The bot questionnaire (`BotTexts.cs`) | The bot asks HRMentor's published definition (own SPEC); until then no new bot question is added in code | the next change of the bot's questions |
 | D5 | `web/public/qollanma/*.pdf` | HR uploads the manual to HRMentor and assigns it to hr.bonvi.uz; the help link opens the pulled copy | the next manual update |
+| D6 | The «Blankalar» engine's built-in definitions HR-F06/F07/F08/F09/F13 (`Blanks/Templates/*.json`, `BlankTemplateSeeder`) and their PDF (`BlankPdfRenderer`) | The engine takes each definition from HRMentor's published form (§20 there) and prints it with the definition-driven renderer; each file leaves the list when its blank is served from HRMentor | owner's decision (CEO), recorded 2026-11-04 |
 
 ## 5. Tests (must pass before «done»)
 

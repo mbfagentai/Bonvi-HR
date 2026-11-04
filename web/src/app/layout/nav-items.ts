@@ -362,6 +362,17 @@ export const NAV: NavSection[] = [
     ],
   },
   {
+    /*
+      Blankalar — HR paper forms F01–F19 moved into the platform (docs/SPEC-blankalar.md §12).
+      Own untitled group like «Verifikatsiya»: the item itself is the heading. `blanks.view`
+      gates it — without it the server refuses the list anyway.
+      The `countTone: 'warning'` count = `waitingForMe` total (`useBlankWaitingCount` in `sidebar.tsx`).
+    */
+    items: [
+      { key: 'blanks', to: '/blankalar', icon: FileText, permission: 'blanks.view', countTone: 'warning' },
+    ],
+  },
+  {
     key: 'sectionPeople',
     items: [
       { key: 'employees',    to: '/xodimlar',      icon: Users },

@@ -34,8 +34,23 @@ public sealed class HujjatManbaiQulfiTests
     /// <summary>
     /// Qarz D1: dasturga yozilgan HR-F02 v3.1 anketasining PDF i. HRMentor ta'rifi ishlamay qolsa
     /// (S2) zaxira; HR-F02 HRMentor da 60 kun xizmat qilgach olib tashlash hal qilinadi.
+    /// Qarz D6: umumiy «Blankalar» motori (SPEC-blankalar) — dasturdagi JSON ta'rifni o'zi PDF ga
+    /// chiqaradi; ta'riflar HRMentor dan olinguncha.
     /// </summary>
-    private static readonly string[] PdfQarz = ["QuestionnairePdfRenderer"];
+    private static readonly string[] PdfQarz = ["QuestionnairePdfRenderer", "BlankPdfRenderer"];
+
+    /// <summary>
+    /// Qarz D6: «Blankalar» motorining dasturga joylangan ta'riflari (1-to'lqin). Yangi blanka bu yerga
+    /// qo'shilmaydi — HRMentor da tuziladi; ro'yxat faqat qisqaradi.
+    /// </summary>
+    private static readonly string[] BlankaShablonQarz =
+    [
+        "api/src/Bonvi.Infrastructure/Blanks/Templates/HR-F06.json",
+        "api/src/Bonvi.Infrastructure/Blanks/Templates/HR-F07.json",
+        "api/src/Bonvi.Infrastructure/Blanks/Templates/HR-F08.json",
+        "api/src/Bonvi.Infrastructure/Blanks/Templates/HR-F09.json",
+        "api/src/Bonvi.Infrastructure/Blanks/Templates/HR-F13.json",
+    ];
 
     /// <summary>Qarz D5: qo'llanma PDF lari — HRMentor ga yuklanib, shu saytga biriktirilguncha.</summary>
     private static readonly string[] ShablonFaylQarz =
@@ -44,8 +59,8 @@ public sealed class HujjatManbaiQulfiTests
         "web/public/qollanma/bonvi-hr-qollanma-uz-Latn.pdf",
     ];
 
-    /// <summary>Qarz D1–D3: dasturdagi HR-F02 manbalari (urug', matnlar, PDF matnlari).</summary>
-    private static readonly string[] IchkiManbaQarzTurlar = ["HrF02Seed", "HrF02TextCatalog", "QuestionnairePdfTexts"];
+    /// <summary>Qarz D1–D3: dasturdagi HR-F02 manbalari (urug', matnlar, PDF matnlari); D6: blanka ta'riflari urug'i.</summary>
+    private static readonly string[] IchkiManbaQarzTurlar = ["HrF02Seed", "HrF02TextCatalog", "QuestionnairePdfTexts", "BlankTemplateSeeder"];
 
     /// <summary>Qarz D4: botning anketa savollari — bot HRMentor ta'rifini so'ramaguncha.</summary>
     private static readonly string[] IchkiManbaQarzFayllar = ["api/src/Bonvi.Bot/Conversation/BotTexts.cs"];
@@ -132,6 +147,25 @@ public sealed class HujjatManbaiQulfiTests
             topildi,
             ShablonFaylQarz,
             "Hujjat yoki blanka fayli dasturga qo'yilmaydi — HRMentor ga yuklanadi va shu saytga biriktiriladi (SPEC-hujjat-manbai §3.2)");
+    }
+
+    [Fact]
+    public void Blanka_tariflari_dasturda_faqat_qarz_royxatida()
+    {
+        // D6: «Blankalar» motori ta'rifni ichiga joylangan JSON dan oladi (EmbeddedResource
+        // Blanks/Templates/*.json). Shu papkada yangi ta'rif — yangi ichki shablon.
+        var root = Ildiz();
+        var topildi = Fayllar(Path.Combine(root, "api", "src"))
+            .Where(path => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Where(path => path.Contains("/Blanks/Templates/", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        Solishtir(
+            topildi,
+            BlankaShablonQarz,
+            "Blanka ta'rifi dasturga qo'yilmaydi — HRMentor da tuziladi va shu saytga biriktiriladi (SPEC-hujjat-manbai §3.5, qarz D6)");
     }
 
     [Fact]

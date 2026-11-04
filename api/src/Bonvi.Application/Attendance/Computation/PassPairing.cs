@@ -341,6 +341,22 @@ public static class PassPairing
     }
 
     /// <summary>
+    /// Hisob-kitobda ishlatiladigan o'tishlar — <see cref="Pair"/> ning 2-qadamidan o'tganlari (SPEC-qolda-belgi §B).
+    /// </summary>
+    /// <remarks>
+    /// Tashlangan takrorlar (15 soniyalik qayta o'qish, ketma-ket bir xil ma'lum yo'nalish) bu
+    /// to'plamga kirmaydi — kun oynasida ular «hisobga olinmagan» bo'lib ko'rinadi.
+    /// </remarks>
+    /// <param name="passes">Bitta xodimning bitta kundagi o'tishlari (tartib shart emas).</param>
+    public static IReadOnlySet<Guid> CountedPassIds(IEnumerable<PassReading> passes)
+    {
+        ArgumentNullException.ThrowIfNull(passes);
+
+        var ordered = passes.OrderBy(pass => pass.OccurredAt).ThenBy(pass => pass.Id).ToList();
+        return CollapseBounces(ordered).Select(pass => pass.Id).ToHashSet();
+    }
+
+    /// <summary>
     /// Har bir o'tishning hisob-kitobdagi yo'nalishi — <see cref="Pair"/> bilan AYNAN bir xil qadamlar.
     /// </summary>
     /// <remarks>

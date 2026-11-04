@@ -42,6 +42,7 @@ export const ROLE_MODULE_KEYS = [
   'feedback',
   'safety',
   'recruiting',
+  'blanks',
   'attendance',
   'catalog',
   'reports',
@@ -67,6 +68,7 @@ export const ROLE_ACTION_CODES = [
   'employment.probation.extend',
   'employment.probation.complete',
   'employment.correct',
+  'blanks.approve',
 ] as const
 
 /**

@@ -95,6 +95,16 @@ public enum AttendanceIdentityProvider
     /// </para>
     /// </remarks>
     Mobile = 5,
+
+    /// <summary>
+    /// HR qo'lda qo'shgan belgi (SPEC-qolda-belgi §A) — raqam sifatida XODIMNING O'Z identifikatori.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Mobile"/> bilan bir xil sabab: belgi terminaldan emas, odam allaqachon
+    /// ma'lum. <see cref="Manual"/> ga qo'shilmadi — u terminal raqamlarining «sinov va
+    /// tuzatish» fazasi, HR belgilari esa ishlab chiqarish ma'lumoti.
+    /// </remarks>
+    HrManual = 6,
 }
 
 /// <summary>Qurilma qaysi yo'nalishni bildiradi.</summary>
@@ -210,6 +220,15 @@ public enum DirectionSource
     /// juftlash bilan bir xil qoida (`PassPairing`).
     /// </summary>
     Alternation = 5,
+
+    /// <summary>
+    /// Yo'nalishni HR aytdi — xodim kartasidagi «Belgi qo'shish» (SPEC-qolda-belgi §A).
+    /// </summary>
+    /// <remarks>
+    /// Turniket ham, odamning o'zi ham emas: dalil — HR yozgan izoh va kim qo'shgani
+    /// (<c>attendance_manual_passes</c>).
+    /// </remarks>
+    Hr = 6,
 }
 
 /// <summary>Shaxs qanday tasdiqlangan.</summary>
@@ -248,6 +267,11 @@ public enum PassMethod
     /// o'tishini telefon belgisidan qo'shimcha so'rovsiz ajratadi.
     /// </remarks>
     Mobile = 7,
+
+    /// <summary>
+    /// HR qo'lda qo'shgan belgi (SPEC-qolda-belgi §A) — turniket o'qimagan, HR yozgan.
+    /// </summary>
+    Manual = 8,
 }
 
 /// <summary>Ish jadvalining turi.</summary>

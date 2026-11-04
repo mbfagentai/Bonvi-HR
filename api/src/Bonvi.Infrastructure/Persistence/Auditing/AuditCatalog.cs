@@ -308,6 +308,62 @@ public static class AuditCatalog
                 nameof(CandidateForm.FileId))
             .Ref(AuditRefTarget.Candidate, nameof(CandidateForm.CandidateId)),
 
+        // ---------- Blankalar (SPEC-blankalar §13) ----------
+        // Javoblar (Answers, Computed, Missing) jurnalga TUSHMAYDI — ularda intizom va ketish
+        // sabablari bor, `audit.view` esa boshqa auditoriya. Huquqiy iz — har qadamning
+        // `answers_patch` i (u ham jurnalda yo'q, faqat blankaning o'zida).
+        // Ota yozuv identifikatorlari (TemplateId, TemplateVersionId, SubmissionId) havola sifatida
+        // yozilmaydi — ular uchun havola turi yo'q va yaratilgandan keyin o'zgarmaydi (ScheduleChangeDay
+        // namunasi); blanka kodi yorliqda ko'rinadi.
+        Audit<BlankTemplate>(AccessModuleKeys.Blanks).Label(row => row.Code + " — " + row.Title),
+
+        Audit<BlankTemplateVersion>(AccessModuleKeys.Blanks)
+            .Label(row => row.Version)
+            .Exclude(
+                nameof(BlankTemplateVersion.TemplateId),
+                nameof(BlankTemplateVersion.Definition),
+                nameof(BlankTemplateVersion.DefinitionSha256))
+            .Ref(AuditRefTarget.User, nameof(BlankTemplateVersion.PublishedBy)),
+
+        Audit<BlankSubmission>(AccessModuleKeys.Blanks)
+            .Subject(nameof(BlankSubmission.EmployeeId))
+            .Label(row => row.Number == null ? row.TemplateCode : row.TemplateCode + " №" + row.Number)
+            .Exclude(
+                nameof(BlankSubmission.TemplateId),
+                nameof(BlankSubmission.TemplateVersionId),
+                nameof(BlankSubmission.Answers),
+                nameof(BlankSubmission.Computed),
+                nameof(BlankSubmission.Missing),
+                nameof(BlankSubmission.MissingCount),
+                nameof(BlankSubmission.Version),
+                nameof(BlankSubmission.ClientRequestId),
+                nameof(BlankSubmission.FinalPdfStorageKey))
+            .Ref(AuditRefTarget.Employee, nameof(BlankSubmission.EmployeeId))
+            .Ref(AuditRefTarget.Employment, nameof(BlankSubmission.EmploymentId))
+            .Ref(AuditRefTarget.Candidate, nameof(BlankSubmission.CandidateId))
+            .Ref(AuditRefTarget.Department, nameof(BlankSubmission.DepartmentId)),
+
+        Audit<BlankSubmissionStep>(AccessModuleKeys.Blanks)
+            .Label(row => row.Title)
+            .Exclude(
+                nameof(BlankSubmissionStep.SubmissionId),
+                nameof(BlankSubmissionStep.SignatureStorageKey),
+                nameof(BlankSubmissionStep.AnswersPatch))
+            .Ref(AuditRefTarget.User, nameof(BlankSubmissionStep.ActedByUserId))
+            .Ref(AuditRefTarget.Employee, nameof(BlankSubmissionStep.SignerEmployeeId)),
+
+        Audit<BlankAttachment>(AccessModuleKeys.Blanks)
+            .Label(row => row.FileName)
+            .Exclude(
+                nameof(BlankAttachment.SubmissionId),
+                nameof(BlankAttachment.StorageKey),
+                nameof(BlankAttachment.ContentSha256))
+            .Ref(AuditRefTarget.User, nameof(BlankAttachment.UploadedBy), nameof(BlankAttachment.RemovedBy)),
+
+        Audit<BlankRoleAssignment>(AccessModuleKeys.Blanks)
+            .Label(row => row.RoleCode)
+            .Ref(AuditRefTarget.User, nameof(BlankRoleAssignment.UserId)),
+
         // ---------- Davomat (SPEC §14.5) ----------
         Audit<AbsenceRequest>(AccessModuleKeys.Attendance)
             .Subject(nameof(AbsenceRequest.EmployeeId))
@@ -323,6 +379,13 @@ public static class AuditCatalog
             // Hisoblagich va tahrir lahzasi — texnik: audit yozuvining o'zi lahzani va muallifni
             // saqlaydi (SPEC-sorov-tahriri §3.5); ularni ko'rsatish har qarorda shovqin bo'lardi.
             .Exclude(nameof(AbsenceRequest.Version), nameof(AbsenceRequest.EditedAt)),
+
+        // HR qo'lda qo'shgan belgi (SPEC-qolda-belgi §A): o'tishning o'zi auditdan tashqarida,
+        // qo'shish va o'chirish shu dalil qatori orqali «kim, qachon, nega» bilan yoziladi.
+        Audit<AttendanceManualPass>(AccessModuleKeys.Attendance)
+            .Subject(nameof(AttendanceManualPass.EmployeeId))
+            .LabelFromSubject()
+            .Ref(AuditRefTarget.Employee, nameof(AttendanceManualPass.EmployeeId)),
 
         // Jadval so'rovi (SPEC-verifikatsiya-jadval-sorovi §C) — yo'qlik so'rovining egizagi.
         Audit<ScheduleChangeRequest>(AccessModuleKeys.Attendance)
@@ -413,6 +476,7 @@ public static class AuditCatalog
         [typeof(HrBlank)] = "HRMentor dagi blanka faylining nusxasi — mashina har sinxronda oladi; kim nimani o'zgartirgani HRMentor jurnalida, olish izi sinxron jurnalida (SPEC-hujjat-manbai §1)",
         [typeof(FormDefinitionSnapshot)] = "HRMentor da e'lon qilingan anketa ta'rifi versiyasining nusxasi — mashina oladi, o'zgarmaydi; tahrir izi HRMentor jurnalida",
         [typeof(FormTextSnapshot)] = "HRMentor dagi HR-F02 matnlari reviziyasining nusxasi — mashina oladi, o'zgarmaydi; tahrir izi HRMentor jurnalida",
+        [typeof(BlankNumberCounter)] = "texnik hisoblagich — blanka raqamining o'zi blanka qatorida jurnalga tushadi",
     };
 
     /// <summary>Yoziladigan entity'lar va ularning qoidalari.</summary>

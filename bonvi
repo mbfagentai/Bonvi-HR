@@ -190,15 +190,19 @@ case "$cmd" in
       until $DC exec -T postgres pg_isready -U "${POSTGRES_USER}" >/dev/null 2>&1; do sleep 1; done
     fi
     # Ombor ildizi /repo ga faqat o'qish uchun: HujjatManbaiQulfiTests web/ va app/ dagi
-    # shablon fayllarini ham ko'radi (SPEC-hujjat-manbai §3).
+    # shablon fayllarini ham ko'radi (SPEC-hujjat-manbai §3). web/src esa /web/src da ham:
+    # C#/TS umumiy vektorlari (blankalar) ikki nusxada bir xil ekanini
+    # BlankComputedVectorsMirrorTests tekshiradi.
     docker run --rm $(tty_flag) \
       -v "$PWD/api:/src" \
       -v "$PWD:/repo:ro" \
+      -v "$PWD/web/src:/web/src:ro" \
       -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
       -v ${PROJECT}_api-artifacts:/src/artifacts \
       -w /src \
       -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
       -e BONVI_REPO_DIR=/repo \
+      -e BONVI_WEB_DIR=/web \
       -e TEST_POSTGRES="Host=postgres;Port=5432;Database=postgres;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
       --network "$NETWORK" \
       "$SDK_IMAGE" dotnet test "$@"

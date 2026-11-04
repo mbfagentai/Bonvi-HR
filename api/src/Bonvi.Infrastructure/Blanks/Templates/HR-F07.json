@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "code": "HR-F07",
+  "version": "1.0",
+  "title": "Sinov muddati yakuniy bahosi",
+  "subject": "employee",
+  "legalStatus": "final",
+  "dueDate": { "field": "probationEnd" },
+  "sections": [
+    {
+      "id": "hdr",
+      "title": "Xodim",
+      "fields": [
+        { "id": "employee", "type": "ref", "refKind": "employee", "label": "Xodim F.I.Sh.", "prefill": "subject.fullName", "readOnly": true },
+        { "id": "position", "type": "text", "label": "Lavozim / bo'lim", "prefill": "subject.positionName" },
+        { "id": "hireDate", "type": "date", "label": "Ishga chiqqan sana", "prefill": "subject.hireDate" },
+        { "id": "probationEnd", "type": "date", "label": "Sinov tugash sanasi", "prefill": "subject.probationEndDate" },
+        { "id": "head", "type": "ref", "refKind": "employee", "label": "Bo'lim rahbari", "prefill": "subject.departmentHeadId" },
+        { "id": "mentor", "type": "ref", "refKind": "employee", "label": "Ustoz", "required": true },
+        { "id": "f06", "type": "docRef", "templateCodes": [ "HR-F06" ], "label": "Moslashtirish rejasi (HR-F06)" }
+      ]
+    },
+    {
+      "id": "crit",
+      "title": "Rahbar bahosi (1 — juda past, 5 — a'lo)",
+      "fill": { "at": "step", "step": "signHead" },
+      "fields": [
+        { "id": "criteria", "type": "table", "label": "Mezon", "columns": [
+          { "id": "score", "type": "score", "label": "Baho", "required": true, "pdfWidth": 1 },
+          { "id": "note", "type": "text", "label": "Izoh (misol bilan)", "maxLength": 500, "pdfWidth": 3 }
+        ], "fixedRows": [
+          { "id": "c1", "label": "Lavozim pasportidagi vazifalarni bilish va bajarish" },
+          { "id": "c2", "label": "Ish sifati (brak, xatolar, qayta ishlash)" },
+          { "id": "c3", "label": "Ish hajmi va tezligi (me'yorga nisbatan)" },
+          { "id": "c4", "label": "Mehnat intizomi (kechikish, davomat, tartib-qoidalar)" },
+          { "id": "c5", "label": "Mehnat muhofazasi qoidalariga rioya" },
+          { "id": "c6", "label": "Jamoada ishlash, ustoz va rahbar bilan munosabat" },
+          { "id": "c7", "label": "Mustaqillik (nazoratsiz ishlay oladimi)" }
+        ] },
+        { "id": "avgScore", "type": "computed", "label": "O'rtacha ball", "valueType": "number",
+          "expr": { "op": "avg", "args": [ { "ref": "criteria[*].score" } ] } },
+        { "id": "avgBand", "type": "computed", "label": "O'rtacha ball bo'yicha tavsiya",
+          "hint": "≥ 3,5 — o'tdi; 3,0–3,4 — shartli (qo'shimcha o'qitish bilan); < 3,0 — o'tmadi",
+          "valueType": "text",
+          "expr": { "op": "band", "value": { "ref": "avgScore" }, "bands": [
+            { "from": 3.5, "label": "o'tdi" },
+            { "from": 3.0, "label": "shartli (qo'shimcha o'qitish bilan)" },
+            { "from": null, "label": "o'tmadi" }
+          ] } }
+      ]
+    },
+    {
+      "id": "tests",
+      "title": "Testlar (HR-4 to'ldiradi)",
+      "fill": { "at": "step", "step": "hr4Tests" },
+      "fields": [
+        { "id": "testResults", "type": "table", "label": "Test", "columns": [
+          { "id": "testDate", "type": "date", "label": "Sana" },
+          { "id": "testPercent", "type": "percent", "label": "Natija (%)", "passAt": 70, "required": true },
+          { "id": "testPassed", "type": "computed", "label": "O'tish ≥ 70%", "valueType": "bool",
+            "expr": { "op": "gte", "args": [ { "ref": "testPercent" }, { "const": 70 } ] } }
+        ], "fixedRows": [
+          { "id": "d7", "label": "7-kun" },
+          { "id": "d85", "label": "85-kun" }
+        ] }
+      ]
+    },
+    {
+      "id": "concl",
+      "title": "Rahbar xulosasi",
+      "fill": { "at": "step", "step": "signHead" },
+      "fields": [
+        { "id": "conclusion", "type": "choice", "label": "Rahbar xulosasi", "required": true, "options": [
+          { "value": "passed", "label": "Sinov muddatidan o'tdi — doimiy ishga tavsiya qilinadi" },
+          { "value": "conditional", "label": "Shartli — qo'shimcha o'qitish rejasi (nima, qachongacha)",
+            "extra": { "type": "longtext", "label": "Reja", "required": true } },
+          { "value": "failed", "label": "Sinov muddatidan o'tmadi — sabab (aniq, misollar bilan)",
+            "extra": { "type": "longtext", "label": "Sabab", "required": true } }
+        ] }
+      ]
+    },
+    {
+      "id": "ack",
+      "title": "Xodim bilan tanishtirish",
+      "fill": { "at": "step", "step": "signEmployee" },
+      "fields": [
+        { "id": "ackText", "type": "static", "text": "Baho bilan tanishdim." }
+      ]
+    },
+    {
+      "id": "hr1",
+      "title": "HR-1 qarori",
+      "fill": { "at": "step", "step": "hr1Decision" },
+      "fields": [
+        { "id": "registered", "type": "check", "label": "Reestrga kiritildi (HR-X02)" }
+      ]
+    }
+  ],
+  "steps": [
+    { "id": "signHead", "title": "Bo'lim rahbari", "order": 1, "actor": "departmentHead", "mode": "either" },
+    { "id": "signMentor", "title": "Ustoz", "order": 1, "actor": "field:mentor", "mode": "either" },
+    { "id": "hr4Tests", "title": "Testlar (HR-4 to'ldiradi)", "order": 2, "actor": "hr4", "mode": "electronic" },
+    { "id": "signEmployee", "title": "Xodim bilan tanishtirish", "order": 3, "actor": "subjectEmployee", "mode": "either",
+      "decision": { "required": true, "options": [
+        { "value": "agree", "label": "roziman" },
+        { "value": "object", "label": "e'tirozim bor", "extra": { "type": "text", "label": "E'tiroz", "required": true } }
+      ] } },
+    { "id": "hr1Decision", "title": "HR-1 qarori", "order": 4, "actor": "hr1", "mode": "electronic", "canReject": true,
+      "decision": { "required": true, "options": [
+        { "value": "approve", "label": "Tasdiqlayman" },
+        { "value": "extra_interview", "label": "Qo'shimcha suhbat" },
+        { "value": "lawyer", "label": "Yuristga (shartnomani bekor qilish tartibi)" }
+      ] } }
+  ]
+}

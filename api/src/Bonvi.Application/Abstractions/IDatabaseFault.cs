@@ -118,4 +118,19 @@ public interface IDatabaseFault
     /// </summary>
     /// <remarks>Chaqiruvchi birinchisini qayta o'qib, xuddi takroriy yuborishdagidek javob beradi.</remarks>
     bool IsDuplicateFormSubmission(Exception exception);
+
+    /// <summary>
+    /// Ikkita blanka yaratish so'rovi bir xil <c>client_request_id</c> bilan yozilmoqchi bo'ldi
+    /// (SPEC-blankalar §5 «create» idempotentligi).
+    /// </summary>
+    /// <remarks>Chaqiruvchi g'olib yaratgan blankani qaytaradi.</remarks>
+    bool IsDuplicateBlankRequest(Exception exception);
+
+    /// <summary>
+    /// Blanka boshqa so'rov tomonidan o'zgartirilgan — <c>version</c> parallellik belgisi mos kelmadi
+    /// (409 <c>blanka.ozgargan</c>). Faqat blanka agregati (blanka, qadam, fayl) uchun «ha».
+    /// Parallel yuborishda ikkinchi so'rov qadam qatorlarini birinchi bo'lib yozadi va
+    /// <c>(submission_id, step_code)</c> unikalligiga uriladi — bu ham eskirgan yozuv.
+    /// </summary>
+    bool IsStaleBlankWrite(Exception exception);
 }

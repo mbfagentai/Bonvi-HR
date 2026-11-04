@@ -177,7 +177,7 @@ public sealed class RoleApiTests : IClassFixture<BonviApiFactory>
         bolimlar.Select(bolim => bolim.GetProperty("key").GetString()).ShouldBe(
         [
             "employees", "employment", "lists", "incentives", "feedback", "safety",
-            "recruiting", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
+            "recruiting", "blanks", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
         ]);
 
         var davomat = bolimlar.Single(bolim => bolim.GetProperty("key").GetString() == "attendance");

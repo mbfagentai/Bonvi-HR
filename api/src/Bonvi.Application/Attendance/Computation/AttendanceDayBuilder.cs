@@ -239,6 +239,11 @@ public sealed class AttendanceDayBuilder
         var anchors = new Dictionary<DateOnly, List<PassReading>>();
         var lateExits = new List<(PassReading Pass, DateOnly Previous)>();
 
+        // Oynasiz kunlarning o'z sanasida qolgan o'tishlari — tungi chiqish uchun (2026-11-04).
+        // `anchors` ga qo'shilmaydi: rejali kunning kech chiqish qarori avvalgidek qoladi.
+        var bare = new Dictionary<DateOnly, List<PassReading>>();
+        var overnightExits = new List<(PassReading Pass, DateOnly Previous)>();
+
         foreach (var pass in passes)
         {
             if (PassAttribution.WindowDateFor(pass, calendar.PlanFor) is { } windowDate)
@@ -259,7 +264,14 @@ public sealed class AttendanceDayBuilder
                 continue;
             }
 
+            if (PassAttribution.OvernightExitDateFor(pass, calendar.PlanFor) is { } night)
+            {
+                overnightExits.Add((pass, night));
+                continue;
+            }
+
             Add(byDate, pass.LocalDate, pass);
+            Add(bare, pass.LocalDate, pass);
         }
 
         foreach (var (pass, previous) in lateExits.OrderBy(item => item.Pass.OccurredAt).ThenBy(item => item.Pass.Id))
@@ -275,7 +287,46 @@ public sealed class AttendanceDayBuilder
             }
         }
 
+        /*
+          Tungi chiqish (egasining qarori, 2026-11-04): kirish va chiqish terminali alohida
+          bo'lgan joyda jadval bor-yo'qligidan qat'i nazar «kirish → keyingi chiqish» birga-bir
+          juftlanadi. Kecha (oynasiz kun) KIRISH terminalidagi kirish bilan tugagan va oraliq
+          ≤ OvernightExitMaxHours bo'lsa — ertalabki chiqish kechaga. VAQT TARTIBIDA: birinchi
+          chiqish kechani yopadi, ikkinchisi o'z sanasida qoladi.
+
+          Yuklash shartnomasi (±1 kun) bilan qaror bir xil: kechaning OXIRGI o'tishigina
+          qaraladi; kechaga o'tib ketishi mumkin bo'lgan ertalabki chiqishlar (undan oldingi
+          kunning) oxirgi o'tish kirish bo'lishini o'zgartirmaydi.
+        */
+        foreach (var (pass, previous) in overnightExits.OrderBy(item => item.Pass.OccurredAt).ThenBy(item => item.Pass.Id))
+        {
+            if (EndsWithEntry(bare.GetValueOrDefault(previous), pass))
+            {
+                Add(byDate, previous, pass);
+                Add(bare, previous, pass);
+            }
+            else
+            {
+                Add(byDate, pass.LocalDate, pass);
+                Add(bare, pass.LocalDate, pass);
+            }
+        }
+
         return byDate;
+
+        static bool EndsWithEntry(List<PassReading>? dayPasses, PassReading exit)
+        {
+            if (dayPasses is null || dayPasses.Count == 0)
+            {
+                return false;
+            }
+
+            var last = dayPasses.MaxBy(item => (item.OccurredAt, item.Id));
+
+            return last.Direction == PassDirection.In
+                && last.OccurredAt < exit.OccurredAt
+                && exit.OccurredAt - last.OccurredAt <= TimeSpan.FromHours(Domain.Attendance.AttendanceRules.OvernightExitMaxHours);
+        }
 
         static void Add(Dictionary<DateOnly, List<PassReading>> target, DateOnly date, PassReading pass)
         {
@@ -305,14 +356,12 @@ public sealed class AttendanceDayBuilder
         var plan = schedule?.Day;
 
         /*
-          Jadvalsiz kun — standart 24 soat (egasining qarori, 2026-10-12): terminaldan
-          o'tmay ketgan odamning ochiq kirishi 22:00 da «ketdi» bo'lib yopiladi. Bugun
-          faqat 22:00 o'tgach — undan oldin u hali ishda bo'lishi mumkin.
+          Jadvalsiz kunda ochiq kirish AVTOMATIK YOPILMAYDI (egasining qarori, 2026-11-03 —
+          2026-10-12 dagi «22:00 da ketdi» qoidasi bekor qilindi): chiqishi yozilmagan oraliq
+          ishlangan vaqtga qo'shilmaydi, kun ochiq qoladi. Alohida kirish/chiqish terminalida esa
+          ertangi chiqish shu kunga juftlanadi (Attribute — tungi chiqish, 2026-11-04).
         */
-        var autoExitAt = employment is not null && plan is null
-            ? AttendanceRules.NoScheduleAutoExitAt(date)
-            : (DateTimeOffset?)null;
-        var pairing = PassPairing.Pair(passes, plan, autoExitAt <= now ? autoExitAt : null);
+        var pairing = PassPairing.Pair(passes, plan);
 
         var planned = 0;
         var late = 0;

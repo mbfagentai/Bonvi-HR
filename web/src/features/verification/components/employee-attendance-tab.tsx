@@ -1,5 +1,5 @@
 import { CalendarDays, ChevronLeft, ChevronRight, DoorOpen } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { CATALOG_MANAGE_PERMISSION } from '@/features/catalog/lib/catalog-kinds'
@@ -25,11 +25,11 @@ import { useAttendancePasses, useTimesheet } from '../api/attendance-queries'
 import { deviceProviderLabel } from '../lib/attendance-manage-presentation'
 import {
   DAY_STATUS_LOOK,
-  LATE_BAR_CLASS,
   METHOD_LABEL_KEY,
   WEEKDAY_LABEL_KEY,
   WEEKDAY_SHORT_KEY,
   ATTENDANCE_MANAGE,
+  ATTENDANCE_REQUESTS_MANAGE,
   ATTENDANCE_VIEW,
   formatDuration,
   formatPassTime,
@@ -44,6 +44,7 @@ import {
   type MonthValue,
 } from '../lib/attendance-search'
 import { AbsenceRequestsList } from './absence-requests-list'
+import { AttendanceDayDialog } from './attendance-day-dialog'
 import { MobileEvidenceLine } from './attendance-mobile-evidence'
 import { EmployeeAppAccessTab } from './employee-app-access-tab'
 import { EmployeeTeamLeadSection } from './employee-team-lead-section'
@@ -94,6 +95,8 @@ export function EmployeeAttendanceTab({
   const canManageApp = hasPermission(ATTENDANCE_MANAGE)
   // «Bo'lim boshlig'i» bloki — server ham shu ikkalasini so'raydi (2026-10-31)
   const canAssignHead = hasPermission(CATALOG_MANAGE_PERMISSION) && hasPermission(ATTENDANCE_VIEW)
+  // Kun oynasida «Belgi qo'shish» / «O'chirish» — server ham shu ruxsatni so'raydi (SPEC-qolda-belgi §B)
+  const canManageMarks = hasPermission(ATTENDANCE_REQUESTS_MANAGE)
 
   /*
     Ichki ko'rinish — komponent holatida, manzilda EMAS (tab va oydan
@@ -105,6 +108,8 @@ export function EmployeeAttendanceTab({
   const [view, setView] = useState<'calendar' | 'passes' | 'requests' | 'app'>('calendar')
   const [page, setPage] = useState(1)
   const [openPass, setOpenPass] = useState<AttendancePass | null>(null)
+  // Ochiq kun oynasi — katakning SANASI; katakning o'zi har safar yangi tabeldan olinadi
+  const [openDate, setOpenDate] = useState<string | null>(null)
 
   const range = monthRange(month)
   const now = currentMonth()
@@ -135,6 +140,8 @@ export function EmployeeAttendanceTab({
   )
 
   const row: TimesheetRow | null = timesheet.data?.items[0] ?? null
+  // Belgi qo'shilgach tabel qayta so'raladi — oynadagi statistika ham yangi katakdan
+  const openCell = openDate === null ? null : (row?.cells.find((cell) => cell.date === openDate) ?? null)
 
   const changeMonth = (value: MonthValue) => {
     onMonth(value)
@@ -263,7 +270,7 @@ export function EmployeeAttendanceTab({
               />
             </div>
           ) : (
-            <MonthCalendar cells={row.cells} />
+            <MonthCalendar cells={row.cells} onOpenDay={setOpenDate} />
           )
         ) : (
           <PassMonth
@@ -277,6 +284,14 @@ export function EmployeeAttendanceTab({
           />
         )}
       </Card>
+
+      <AttendanceDayDialog
+        employeeId={employeeId}
+        cell={openPass === null ? openCell : null}
+        canManage={canManageMarks}
+        onOpenPass={setOpenPass}
+        onClose={() => setOpenDate(null)}
+      />
 
       <AttendancePassPhotoDialog
         passId={openPass?.id ?? null}
@@ -377,17 +392,23 @@ function Total({
  *
  * <b>Rang — holatning O'ZI</b> va u tabel gridi bilan BITTA xaritadan
  * (`DAY_STATUS_LOOK`): bir xil kun ikki ekranda ikki xil rangda
- * ko'rinmasligi kerak. Kechikish (erkin kunda — kam ishlangan) esa rang
- * emas, katakning pastki qirrasidagi sariq chiziq (`LATE_BAR_CLASS`) —
- * tabeldagi qoidaning o'zi: «kechikdi, lekin keldi» ikki xabar va ular
- * bir-birini bosmasligi kerak.
+ * ko'rinmasligi kerak. Kechikish, erta ketish va ortiqcha ish esa rang
+ * emas, alohida punktir lavhalar (Verifix uslubi, 2026-11-03): «kechikdi,
+ * lekin keldi» ikki xabar va ular bir-birini bosmasligi kerak.
  *
- * Katak ichida ikki qator: REJA (ko'k lavha — jadval nima degan) va
- * HAQIQIY (qalin matn — turniket nima degan). Reja kun yozuvidagi
+ * Katak ichida: REJA (ko'k lavha — jadval nima degan), HAQIQIY (yashil
+ * lavha — turniket nima degan) va chetlanishlar. Reja kun yozuvidagi
  * SURATDAN keladi, bugungi jadvaldan qayta hisoblanmaydi — o'tgan oyning
  * kalendari jadval o'zgargani uchun o'zgarib qolmaydi.
  */
-function MonthCalendar({ cells }: { cells: readonly TimesheetCell[] }) {
+function MonthCalendar({
+  cells,
+  onOpenDay,
+}: {
+  cells: readonly TimesheetCell[]
+  /** Katak bosilganda — kun oynasi (SPEC-qolda-belgi §C). */
+  onOpenDay: (date: string) => void
+}) {
   const { t } = useLocale()
 
   const first = cells[0]
@@ -418,14 +439,14 @@ function MonthCalendar({ cells }: { cells: readonly TimesheetCell[] }) {
         ))}
 
         {cells.map((cell) => (
-          <DayCell key={cell.date} cell={cell} today={today} />
+          <DayCell key={cell.date} cell={cell} today={today} onOpen={() => onOpenDay(cell.date)} />
         ))}
       </div>
     </div>
   )
 }
 
-function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
+function DayCell({ cell, today, onOpen }: { cell: TimesheetCell; today: string; onOpen: () => void }) {
   const { t, num } = useLocale()
 
   /*
@@ -478,97 +499,114 @@ function DayCell({ cell, today }: { cell: TimesheetCell; today: string }) {
           cell.autoExit ? ` ${t('attendance.autoExit')}` : ''
         }`
 
+  const overtime = cell.overtimeMinutes ?? 0
+
+  /*
+    Verifix uslubi (egasi, 2026-11-03, «Календарь» skrinshotlari): REJA — to'q ko'k lavha,
+    HAQIQIY — yashil lavha, chetlanishlar — punktir chegarali kichik lavhalar (kechikish va
+    erta ketish qizil, ortiqcha ish yashil, erkin kunda kam ishlangan to'q sariq). Katak —
+    TUGMA: bosilganda shu kunning barcha belgilari ochiladi (SPEC-qolda-belgi §C).
+  */
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${dayNumber} — ${t('attendance.dayDialog')}`}
       className={cn(
         /*
-          Chegara HAR BIR katakda, holatidan qat'i nazar. Ilgari u yo'q
-          edi va «ishlagan» kunning foni oq bo'lgani uchun o'sha kunlar
-          katak bo'lib ko'rinmasdi — to'r faqat qizil va kulrang
-          kunlardan iborat bo'lib chiqardi. Kalendarda esa kun — bu
-          KATAK: bo'sh kun ham o'z joyiga ega bo'lishi kerak.
+          Chegara HAR BIR katakda, holatidan qat'i nazar: bo'sh kun ham o'z joyiga ega
+          bo'lishi kerak (ilgari «ishlagan» kunlar oq fonda katak bo'lib ko'rinmasdi).
         */
-        'min-h-[92px] rounded-md border border-[var(--border)] p-2',
+        'flex min-h-[92px] w-full cursor-pointer flex-col justify-start rounded-md border border-[var(--border)] p-1.5 text-left transition-shadow hover:shadow-[0_0_0_2px_var(--accent)] focus-visible:shadow-[0_0_0_2px_var(--accent)] focus-visible:outline-none',
         look.cellClass,
-        (cell.lateMinutes > 0 || shortfall > 0) && LATE_BAR_CLASS,
         isToday && 'ring-2 ring-[var(--accent)] ring-inset',
       )}
     >
-      <div className="flex items-center justify-between gap-1">
+      <div className="flex items-center justify-between gap-1 px-0.5">
         <span className="tabular text-caption1 font-semibold opacity-70">{dayNumber}</span>
 
-        {/*
-          Holat NOMI faqat vaqt bo'lmagan kunda: «Kelmadi», «Dam olish
-          kuni», «Jadval yo'q». Vaqt bor kunda u ortiqcha — 08:50–19:19
-          ning yonida «Ishladi» degan yozuv hech narsa qo'shmaydi, katak
-          esa shovqinga to'ladi. Rang baribir holatni aytib turadi.
-        */}
+        {/* Holat NOMI faqat vaqt bo'lmagan kunda — rang baribir holatni aytib turadi */}
         {actual === null && (
           <span className="truncate text-caption2 opacity-70">{t(look.labelKey)}</span>
         )}
       </div>
 
       {plan !== null && (
-        <span className="tabular mt-1.5 block truncate rounded-sm bg-ios-blue/12 px-1.5 py-0.5 text-caption2 text-ios-blue">
+        <span className="tabular mt-1 block truncate rounded-sm bg-ios-blue px-1.5 py-0.5 text-center text-caption2 font-medium text-white">
           {plan}
         </span>
       )}
 
       {actual !== null && (
-        <span className="tabular mt-1 block truncate px-1.5 text-caption1 font-semibold text-[var(--fg)]">
+        <span className="tabular mt-1 block truncate rounded-sm bg-ios-green px-1.5 py-0.5 text-center text-caption2 font-semibold text-white">
           {actual}
         </span>
       )}
 
-      {/*
-        Ishlangan vaqtning bir qismi tasdiqlangan «ish vaqti» so'rovidan
-        (SPEC-so'rovlar §B3 AMENDED): o'tishsiz kun ham «Ishladi» bo'lishi
-        mumkin va HR uning sababini katakning o'zida ko'rishi kerak.
-      */}
+      {/* Tasdiqlangan «ish vaqti» so'rovidan — o'tishsiz kun ham «Ishladi» bo'lishi mumkin */}
       {(cell.creditedMinutes ?? 0) > 0 && (
-        <span className="mt-1 block px-1.5 text-caption2 leading-tight text-ios-blue">
-          {t('attendance.creditedShort')}
-          <span className="tabular block font-semibold">{minutes(cell.creditedMinutes ?? 0)}</span>
+        <span className="mt-1 block px-1 text-caption2 leading-tight text-ios-blue">
+          {t('attendance.creditedShort')}{' '}
+          <span className="tabular font-semibold">{minutes(cell.creditedMinutes ?? 0)}</span>
         </span>
       )}
 
-      {/*
-        Tasdiqlangan shaxsiy so'rov soatlari (SPEC-sorov-tahriri §5): sababli,
-        lekin ishlangan vaqtga kirmaydi — neytral rangda, chetlanish emas.
-      */}
+      {/* Shaxsiy so'rov soatlari — sababli, lekin ishlangan vaqtga kirmaydi: neytral */}
       {(cell.personalMinutes ?? 0) > 0 && (
-        <span className="mt-1 block px-1.5 text-caption2 leading-tight text-[var(--fg-secondary)]">
+        <span className="mt-1 block px-1 text-caption2 leading-tight text-[var(--fg-secondary)]">
           {t('attendance.personalShort')}{' '}
           <span className="tabular font-semibold">{formatDuration(cell.personalMinutes ?? 0)}</span>
         </span>
       )}
 
-      {/*
-        Chetlanish — daqiqada. Kechikish va erta ketish ALOHIDA
-        ko'rsatiladi (bitta songa qo'shilmaydi): ular boshqa-boshqa
-        suhbat — biri kelishi, ikkinchisi ketishi haqida.
-      */}
+      {/* Chetlanishlar ALOHIDA: kelish va ketish — ikki boshqa suhbat */}
       {flexible ? (
-        shortfall > 0 && (
-          <span className="mt-1 block px-1.5 text-caption2 text-ios-orange">
-            {t('attendance.shortfallMinutes')} {minutes(shortfall)}
-          </span>
-        )
+        shortfall > 0 && <DeviationChip tone="warning">− {minutes(shortfall)}</DeviationChip>
       ) : (
         <>
           {cell.lateMinutes > 0 && (
-            <span className="mt-1 block px-1.5 text-caption2 text-ios-orange">
-              {t('attendance.lateMinutes')} {minutes(cell.lateMinutes)}
-            </span>
+            <DeviationChip tone="danger" title={t('attendance.lateMinutes')}>
+              − {minutes(cell.lateMinutes)}
+            </DeviationChip>
           )}
           {cell.earlyLeaveMinutes > 0 && (
-            <span className="mt-0.5 block px-1.5 text-caption2 text-ios-red">
-              {t('attendance.earlyLeaveMinutes')} {minutes(cell.earlyLeaveMinutes)}
-            </span>
+            <DeviationChip tone="danger" title={t('attendance.earlyLeaveMinutes')}>
+              − {minutes(cell.earlyLeaveMinutes)}
+            </DeviationChip>
           )}
         </>
       )}
-    </div>
+      {overtime > 0 && (
+        <DeviationChip tone="success" title={t('attendance.overtimeMinutes')}>
+          + {minutes(overtime)}
+        </DeviationChip>
+      )}
+    </button>
+  )
+}
+
+/** Chetlanish lavhasi — punktir chegara (Verifix'dagi «- 2 ч 32 мин» kabi). */
+function DeviationChip({
+  tone,
+  title,
+  children,
+}: {
+  tone: 'danger' | 'success' | 'warning'
+  title?: string
+  children: ReactNode
+}) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        'tabular mt-1 block truncate rounded-sm border border-dashed px-1.5 py-0.5 text-center text-caption2 font-medium',
+        tone === 'danger' && 'border-ios-red text-ios-red',
+        tone === 'success' && 'border-ios-green text-ios-green',
+        tone === 'warning' && 'border-ios-orange text-ios-orange',
+      )}
+    >
+      {children}
+    </span>
   )
 }
 
