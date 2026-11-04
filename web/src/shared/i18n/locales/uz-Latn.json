@@ -3790,7 +3790,9 @@
       "notFoundTitle": "Hech narsa topilmadi",
       "notFoundText": "Qidiruv yoki filtrlarni o‘zgartirib ko‘ring.",
       "emptyTitle": "Blanka yo‘q",
-      "emptyText": "«Yangi blanka» bilan birinchi blankani oching."
+      "emptyText": "«Yangi blanka» bilan birinchi blankani oching.",
+      "allTemplates": "Barcha blankalar",
+      "allStatuses": "Barcha holatlar"
     },
     "create": {
       "title": "Yangi blanka",

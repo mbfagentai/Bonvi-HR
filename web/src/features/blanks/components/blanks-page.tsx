@@ -1,5 +1,5 @@
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { FileText, Inbox, Plus, Search, SearchX, UsersRound } from 'lucide-react'
+import { FileText, Inbox, ListFilter, Plus, Search, SearchX, UsersRound, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
@@ -70,7 +70,6 @@ export function BlanksPage() {
 
   const [creating, setCreating] = useState(false)
   const [editingRoles, setEditingRoles] = useState(false)
-  // The picker needs a name; the address bar keeps only the id
 
   const templates = useBlankTemplates()
   const options = useFilterOptions()
@@ -125,18 +124,19 @@ export function BlanksPage() {
       helper.accessor('templateTitle', {
         header: t('blanks.list.template'),
         enableSorting: false,
-        meta: { maxWidth: '260px' },
+        meta: { maxWidth: '220px' },
         cell: ({ getValue }) => <span title={getValue()}>{getValue()}</span>,
       }),
       helper.display({
         id: 'subject',
         header: t('blanks.list.subject'),
+        meta: { maxWidth: '260px' },
         cell: ({ row }) => <span className="font-medium">{row.original.subject.fullName ?? '—'}</span>,
       }),
       helper.accessor('departmentName', {
         header: t('employee.department'),
         enableSorting: false,
-        meta: { maxWidth: '260px', hideOnMobile: true },
+        meta: { maxWidth: '200px', hideOnMobile: true },
         cell: ({ getValue }) => (
           <span className="text-[var(--fg-secondary)]" title={getValue() ?? undefined}>
             {getValue() ?? '—'}
@@ -199,13 +199,29 @@ export function BlanksPage() {
   )
 
   const templateOptions = useMemo(
-    () => (templates.data ?? []).map((item) => ({ value: item.code, label: `${item.code} · ${item.title}` })),
-    [templates.data],
+    () => [
+      { value: '', label: t('blanks.list.allTemplates') },
+      ...(templates.data ?? []).map((item) => ({ value: item.code, label: `${item.code} · ${item.title}` })),
+    ],
+    [templates.data, t],
   )
   const statusOptions = useMemo(
-    () => BLANK_STATUSES.map((status) => ({ value: status, label: t(STATUS_KEY[status]) })),
+    () => [
+      { value: '', label: t('blanks.list.allStatuses') },
+      ...BLANK_STATUSES.map((status) => ({ value: status, label: t(STATUS_KEY[status]) })),
+    ],
     [t],
   )
+  const departmentOptions = useMemo(
+    () => [{ value: '', label: t('common.all') }, ...options.departments],
+    [options.departments, t],
+  )
+
+  // Panel fields: department, created range, the three flags
+  const panelCount = [search.department, search.from, search.to, ...FLAGS.map((flag) => search[flag])].filter(
+    (value) => value !== undefined,
+  ).length
+  const [panelOpen, setPanelOpen] = useState(panelCount > 0)
 
   const items = query.data?.items ?? EMPTY
   const total = query.data?.total ?? 0
@@ -243,8 +259,8 @@ export function BlanksPage() {
       {query.isError && <Alert tone="danger">{errorMessage(blankErrorCode(query.error))}</Alert>}
 
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
-        <div className="flex flex-wrap items-end gap-2.5 border-b border-[var(--border)] px-4 py-3.5 sm:gap-3 sm:px-5">
-          <div className="min-w-[200px] flex-1 self-center">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] p-4 sm:gap-3">
+          <div className="min-w-[200px] flex-1">
             <Input
               icon={Search}
               shape="pill"
@@ -255,58 +271,94 @@ export function BlanksPage() {
               aria-label={t('common.search')}
             />
           </div>
-          <div className="w-full sm:w-56">
-            <Select
-              label={t('blanks.list.template')}
-              placeholder={t('common.all')}
-              options={templateOptions}
-              value={search.template ?? ''}
-              onChange={(event) => patch({ template: event.target.value === '' ? undefined : event.target.value })}
-            />
-          </div>
-          <div className="w-full sm:w-44">
-            <Select
-              label={t('blanks.list.status')}
-              placeholder={t('common.all')}
-              options={statusOptions}
-              value={search.status ?? ''}
-              onChange={(event) => {
-                const value = event.target.value
-                patch({ status: BLANK_STATUSES.find((status) => status === value) })
+
+          <Select
+            size="sm"
+            aria-label={t('blanks.list.template')}
+            options={templateOptions}
+            value={search.template ?? ''}
+            onChange={(event) => patch({ template: event.target.value === '' ? undefined : event.target.value })}
+            className="w-full sm:w-[260px]"
+          />
+
+          <Select
+            size="sm"
+            aria-label={t('blanks.list.status')}
+            options={statusOptions}
+            value={search.status ?? ''}
+            onChange={(event) => {
+              const value = event.target.value
+              patch({ status: BLANK_STATUSES.find((status) => status === value) })
+            }}
+            className="w-full sm:w-[200px]"
+          />
+
+          {/* «Filtrlar» — the rarely changed ones live in a collapsible panel (`probations-page.tsx` pattern) */}
+          <Button
+            type="button"
+            pill
+            variant={panelOpen ? 'soft' : 'secondary'}
+            aria-expanded={panelOpen}
+            onClick={() => setPanelOpen((previous) => !previous)}
+          >
+            <ListFilter />
+            <span className="hidden sm:inline">{t('common.filters')}</span>
+            {panelCount > 0 && (
+              <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
+                {num(panelCount)}
+              </span>
+            )}
+          </Button>
+
+          {isBlanksFiltered(search) && (
+            <Button
+              type="button"
+              pill
+              variant="ghost"
+              title={t('employees.clearFilters')}
+              aria-label={t('employees.clearFilters')}
+              onClick={() => {
+                setDraft('')
+                setSearch(() => ({}))
               }}
-            />
-          </div>
-          <div className="w-full sm:w-56">
-            <Select
-              label={t('employee.department')}
-              placeholder={t('common.all')}
-              options={options.departments}
-              value={search.department ?? ''}
-              onChange={(event) => patch({ department: event.target.value === '' ? undefined : event.target.value })}
-            />
-          </div>
-          <div className="w-full sm:w-auto">
-            <DateRangeField
-              label={t('blanks.list.createdAt')}
-              fromLabel={t('employments.dateFrom')}
-              toLabel={t('employments.dateTo')}
-              from={search.from ?? ''}
-              to={search.to ?? ''}
-              onFromChange={(value) => patch({ from: value === '' ? undefined : value })}
-              onToChange={(value) => patch({ to: value === '' ? undefined : value })}
-            />
-          </div>
-          <div className="flex w-full flex-wrap items-center gap-x-5 gap-y-2 self-center">
-            {FLAGS.map((flag) => (
-              <Checkbox
-                key={flag}
-                checked={search[flag] === true}
-                onChange={(checked) => patch({ [flag]: checked ? true : undefined })}
-                label={t(`blanks.list.flags.${flag}`)}
-              />
-            ))}
-          </div>
+            >
+              <X />
+              <span className="hidden xl:inline">{t('employees.clearFilters')}</span>
+            </Button>
+          )}
         </div>
+
+        {panelOpen && (
+          <div className="space-y-4 border-b border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Select
+                label={t('employee.department')}
+                options={departmentOptions}
+                value={search.department ?? ''}
+                onChange={(event) => patch({ department: event.target.value === '' ? undefined : event.target.value })}
+              />
+              <DateRangeField
+                label={t('blanks.list.createdAt')}
+                fromLabel={t('employments.dateFrom')}
+                toLabel={t('employments.dateTo')}
+                from={search.from ?? ''}
+                to={search.to ?? ''}
+                onFromChange={(value) => patch({ from: value === '' ? undefined : value })}
+                onToChange={(value) => patch({ to: value === '' ? undefined : value })}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              {FLAGS.map((flag) => (
+                <Checkbox
+                  key={flag}
+                  checked={search[flag] === true}
+                  onChange={(checked) => patch({ [flag]: checked ? true : undefined })}
+                  label={t(`blanks.list.flags.${flag}`)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         <DataTable
           fill

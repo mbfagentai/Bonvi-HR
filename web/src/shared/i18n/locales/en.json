@@ -3790,7 +3790,9 @@
       "notFoundTitle": "Nothing found",
       "notFoundText": "Try changing the search or filters.",
       "emptyTitle": "No blanks",
-      "emptyText": "Open the first one with «New blank»."
+      "emptyText": "Open the first one with «New blank».",
+      "allTemplates": "All blanks",
+      "allStatuses": "All statuses"
     },
     "create": {
       "title": "New blank",
