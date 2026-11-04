@@ -31,7 +31,7 @@ const helper = dataColumnHelper<Blank>()
 const EMPTY: Blank[] = []
 
 /**
- * Blankalar — HR bo'limining amaldagi hujjat shakllari (SPEC-blankalar-hrmentor §6).
+ * Blanka fayllari — HR bo'limining amaldagi hujjat shakllari (SPEC-blankalar-hrmentor §6).
  *
  * Blankalar HRMentor da yuritiladi; Bonvi HR ularni har soatda o'zi oladi
  * va o'z omborida saqlaydi, shu sababli HRMentor o'chiq bo'lsa ham
@@ -40,7 +40,7 @@ const EMPTY: Blank[] = []
  * «Hozir yangilash» — faqat `settings.manage` da (sinxronlash HRMentor ga
  * so'rov yuboradi va katalogni yozadi); qolganlar uchun ro'yxatning o'zi.
  */
-export function BlanksPage() {
+export function HrMentorBlanksPage() {
   const { t, num, dateTime } = useLocale()
   const errorMessage = useErrorMessage()
   const { hasPermission } = useAuth()
@@ -57,25 +57,25 @@ export function BlanksPage() {
   const columns = useMemo<Array<DataColumn<Blank>>>(
     () => [
       helper.accessor('code', {
-        header: t('blanks.columnCode'),
+        header: t('hrMentorBlanks.columnCode'),
         meta: { width: '120px' },
         cell: ({ getValue }) => <span className="tabular font-medium">{getValue()}</span>,
       }),
       helper.accessor('title', {
-        header: t('blanks.columnTitle'),
+        header: t('hrMentorBlanks.columnTitle'),
         meta: { minWidth: '260px' },
       }),
       helper.accessor('versionNo', {
-        header: t('blanks.columnVersion'),
+        header: t('hrMentorBlanks.columnVersion'),
         meta: { width: '110px' },
         cell: ({ getValue }) => (
           <Badge tone="neutral" size="sm">
-            {t('blanks.version', { number: num(getValue()) })}
+            {t('hrMentorBlanks.version', { number: num(getValue()) })}
           </Badge>
         ),
       }),
       helper.accessor('publishedAt', {
-        header: t('blanks.columnUpdated'),
+        header: t('hrMentorBlanks.columnUpdated'),
         meta: { width: '170px', hideOnMobile: true },
         cell: ({ getValue }) => {
           const value = getValue()
@@ -83,7 +83,7 @@ export function BlanksPage() {
         },
       }),
       helper.accessor('sizeBytes', {
-        header: t('blanks.columnSize'),
+        header: t('hrMentorBlanks.columnSize'),
         meta: { width: '100px', align: 'end', hideOnMobile: true },
         cell: ({ getValue }) => {
           const { value, unit } = fileSizeParts(getValue())
@@ -102,10 +102,10 @@ export function BlanksPage() {
               variant="soft"
               onClick={() => download.mutate(row.original)}
               disabled={busy}
-              aria-label={t('blanks.downloadOne', { code: row.original.code })}
+              aria-label={t('hrMentorBlanks.downloadOne', { code: row.original.code })}
             >
               {busy ? <LoaderCircle className="animate-spin" /> : <Download />}
-              {t('blanks.download')}
+              {t('hrMentorBlanks.download')}
             </Button>
           )
         },
@@ -131,15 +131,15 @@ export function BlanksPage() {
         title={
           <span className="flex items-center gap-3">
             <IconTile icon={FileStack} tone="teal" size="lg" />
-            {t('blanks.title')}
+            {t('hrMentorBlanks.title')}
           </span>
         }
-        description={t('blanks.subtitle')}
+        description={t('hrMentorBlanks.subtitle')}
         actions={
           canSync && state?.connected === true ? (
             <Button variant="secondary" onClick={() => sync.mutate()} disabled={sync.isPending}>
               {sync.isPending ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
-              {sync.isPending ? t('blanks.syncing') : t('blanks.syncNow')}
+              {sync.isPending ? t('hrMentorBlanks.syncing') : t('hrMentorBlanks.syncNow')}
             </Button>
           ) : undefined
         }
@@ -147,12 +147,12 @@ export function BlanksPage() {
 
       {!canView ? (
         <Card>
-          <EmptyState icon={FileStack} title={t('blanks.noAccessTitle')} description={t('blanks.noAccessText')} />
+          <EmptyState icon={FileStack} title={t('hrMentorBlanks.noAccessTitle')} description={t('hrMentorBlanks.noAccessText')} />
         </Card>
       ) : blanks.isPending ? (
         <Skeleton className="h-96 w-full" />
       ) : blanks.isError || state === undefined ? (
-        <Alert tone="danger" title={t('blanks.loadFailed')}>
+        <Alert tone="danger" title={t('hrMentorBlanks.loadFailed')}>
           {errorMessage(problemCode(blanks.error))}
         </Alert>
       ) : (
@@ -169,12 +169,12 @@ export function BlanksPage() {
             <Card>
               <EmptyState
                 icon={PlugZap}
-                title={t('blanks.notConnectedTitle')}
-                description={t('blanks.notConnectedText')}
+                title={t('hrMentorBlanks.notConnectedTitle')}
+                description={t('hrMentorBlanks.notConnectedText')}
                 action={
                   canSync ? (
                     <Link to="/sozlamalar" className={buttonVariants({ variant: 'secondary' })}>
-                      {t('blanks.openSettings')}
+                      {t('hrMentorBlanks.openSettings')}
                     </Link>
                   ) : undefined
                 }
@@ -185,8 +185,8 @@ export function BlanksPage() {
           {state.connected && <SyncStatus lastSuccessAt={state.lastSuccessAt} lastError={state.lastError} />}
 
           {state.connected && state.source === 'legacy' && (
-            <Alert tone="info" title={t('blanks.legacySourceTitle')}>
-              {t('blanks.legacySourceText')}
+            <Alert tone="info" title={t('hrMentorBlanks.legacySourceTitle')}>
+              {t('hrMentorBlanks.legacySourceText')}
             </Alert>
           )}
 
@@ -200,7 +200,7 @@ export function BlanksPage() {
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder={t('blanks.searchPlaceholder')}
+                    placeholder={t('hrMentorBlanks.searchPlaceholder')}
                     aria-label={t('common.search')}
                   />
                 </div>
@@ -215,11 +215,11 @@ export function BlanksPage() {
                   searching ? (
                     <EmptyState
                       icon={SearchX}
-                      title={t('blanks.notFoundTitle')}
-                      description={t('blanks.notFoundText', { query: query.trim() })}
+                      title={t('hrMentorBlanks.notFoundTitle')}
+                      description={t('hrMentorBlanks.notFoundText', { query: query.trim() })}
                     />
                   ) : (
-                    <EmptyState icon={FileStack} title={t('blanks.emptyTitle')} description={t('blanks.emptyText')} />
+                    <EmptyState icon={FileStack} title={t('hrMentorBlanks.emptyTitle')} description={t('hrMentorBlanks.emptyText')} />
                   )
                 }
               />
@@ -244,12 +244,12 @@ function SyncStatus({ lastSuccessAt, lastError }: { lastSuccessAt: string | null
     <div className="space-y-3">
       <p className="text-footnote text-[var(--fg-secondary)]">
         {lastSuccessAt === null
-          ? t('blanks.neverSynced')
-          : t('blanks.lastSync', { time: dateTime(lastSuccessAt) })}
+          ? t('hrMentorBlanks.neverSynced')
+          : t('hrMentorBlanks.lastSync', { time: dateTime(lastSuccessAt) })}
       </p>
 
       {lastError !== null && (
-        <Alert tone="warning" title={t('blanks.lastErrorTitle')}>
+        <Alert tone="warning" title={t('hrMentorBlanks.lastErrorTitle')}>
           {errorMessage(lastError)}
         </Alert>
       )}

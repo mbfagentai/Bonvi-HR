@@ -150,7 +150,7 @@ public sealed class HrMentorChangeWatchApiTests : IClassFixture<BonviApiFactory>
     }
 
     private static async Task<ManbaliBlanksResponse> BlankalarAsync(HttpClient admin)
-        => (await admin.GetFromJsonAsync<ManbaliBlanksResponse>(new Uri("/api/blanks", UriKind.Relative), Ct))!;
+        => (await admin.GetFromJsonAsync<ManbaliBlanksResponse>(new Uri("/api/hrmentor/blanks", UriKind.Relative), Ct))!;
 }
 
 /// <summary>

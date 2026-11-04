@@ -207,7 +207,7 @@ Built-in forms (3.0, 3.1) keep their own renderer; their PDFs never change.
 | `GET /api/recruiting/candidates/{id}/forms/{formId}/pdf` | `recruiting.view` | renders a dynamic form from its snapshot |
 | `GET /api/kiosk/questionnaire/preview` | `recruiting.view` | the draft from HRMentor (live, 20 s timeout) + the session data; `definition.version` = 0, label «draft» when unset; `turnstileSiteKey` and `texts` null; 409 `hrmentor.not_connected`, 502 `hrmentor.*` (a draft with HRMentor issues or failing BonviHR's checker → `hrmentor.definition_invalid`) |
 | `POST /api/kiosk/questionnaire/preview/pdf` | `recruiting.view` | multipart like submit; validates against the draft and returns the PDF; nothing stored; rate limit 30 / hour per user |
-| `GET /api/blanks` | `employees.view` | + `form: { version, label, receivedAt } \| null` for the status line «Anketa: HRMentor v4.0» / «Ichki anketa v3.1» |
+| `GET /api/hrmentor/blanks` | `employees.view` | + `form: { version, label, receivedAt } \| null` for the status line «Anketa: HRMentor v4.0» / «Ichki anketa v3.1» |
 
 ## 10. Rules register
 

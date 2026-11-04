@@ -22,7 +22,7 @@
     "incentives": "Rag‘bat va jarima",
     "incidents": "Baxtsiz hodisalar",
     "feedback": "Qayta aloqa",
-    "blanks": "Blankalar",
+    "hrMentorBlanks": "Blanka fayllari",
     "reports": "Hisobotlar",
     "legalEntities": "Yuridik shaxslar",
     "directions": "Yo‘nalishlar",
@@ -1121,7 +1121,7 @@
     "anketa.notogri": "Anketa to‘liq emas yoki noto‘g‘ri to‘ldirilgan.",
     "anketa.json": "Anketa javoblarini o‘qib bo‘lmadi. Qayta yuboring.",
     "anketa.topilmadi": "Nomzodning bunday anketasi yo‘q.",
-    "blanka.topilmadi": "Blanka topilmadi — ro‘yxatni yangilang.",
+    "hrmentor.blank_not_found": "Blanka topilmadi — ro‘yxatni yangilang.",
     "hrmentor.not_connected": "HRMentor ulanmagan. Tizim sozlamalari → HRMentor bo‘limida manzil va kalitni kiriting.",
     "hrmentor.unreachable": "HRMentor’ga ulanib bo‘lmadi. Manzilni va internetni tekshiring.",
     "hrmentor.timeout": "HRMentor vaqtida javob bermadi. Birozdan keyin qayta urinib ko‘ring.",
@@ -3284,8 +3284,8 @@
     "applied": "Ariza kelgan sana",
     "reserved": "Rezervga qo‘yilgan sana"
   },
-  "blanks": {
-    "title": "Blankalar",
+  "hrMentorBlanks": {
+    "title": "Blanka fayllari",
     "subtitle": "HR bo‘limining amaldagi hujjat shakllari. Ular HRMentor’da yuritiladi va bu yerga har soatda o‘zi keladi.",
     "columnCode": "Kod",
     "columnTitle": "Nomi",

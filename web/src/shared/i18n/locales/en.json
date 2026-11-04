@@ -22,7 +22,7 @@
     "incentives": "Rewards & penalties",
     "incidents": "Incidents",
     "feedback": "Exit interviews",
-    "blanks": "Blanks",
+    "hrMentorBlanks": "Blank files",
     "reports": "Reports",
     "legalEntities": "Legal entities",
     "directions": "Directions",
@@ -1121,7 +1121,7 @@
     "anketa.notogri": "The form is incomplete or filled in incorrectly.",
     "anketa.json": "The form answers could not be read. Please submit again.",
     "anketa.topilmadi": "The candidate has no such form.",
-    "blanka.topilmadi": "Blank not found — refresh the list.",
+    "hrmentor.blank_not_found": "Blank not found — refresh the list.",
     "hrmentor.not_connected": "HRMentor is not connected. Enter the address and key in System settings → HRMentor.",
     "hrmentor.unreachable": "Could not reach HRMentor. Check the address and the internet connection.",
     "hrmentor.timeout": "HRMentor did not answer in time. Try again shortly.",
@@ -3284,8 +3284,8 @@
     "applied": "Date applied",
     "reserved": "Date added to reserve"
   },
-  "blanks": {
-    "title": "Blanks",
+  "hrMentorBlanks": {
+    "title": "Blank files",
     "subtitle": "The HR department's current document forms. They are maintained in HRMentor and arrive here on their own every hour.",
     "columnCode": "Code",
     "columnTitle": "Title",

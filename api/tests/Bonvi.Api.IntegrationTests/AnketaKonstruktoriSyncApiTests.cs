@@ -25,8 +25,8 @@ public sealed record BlanksFormResponse(string? LastError, BlankFormResponse? Fo
 /// </summary>
 public sealed class AnketaKonstruktoriSyncApiTests : IClassFixture<BonviApiFactory>
 {
-    private const string BlanksPath = "/api/blanks";
-    private const string SyncPath = "/api/blanks/sync";
+    private const string BlanksPath = "/api/hrmentor/blanks";
+    private const string SyncPath = "/api/hrmentor/blanks/sync";
 
     private readonly BonviApiFactory _factory;
 

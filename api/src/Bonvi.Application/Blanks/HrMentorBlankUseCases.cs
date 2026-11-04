@@ -30,7 +30,7 @@ public sealed class HrMentorSyncJob
 }
 
 /// <summary>Bitta blanka — «Blankalar» sahifasining qatori.</summary>
-public sealed record BlankDto(
+public sealed record HrMentorBlankDto(
     Guid Id,
     string Code,
     string Title,
@@ -44,7 +44,7 @@ public sealed record BlankDto(
 /// <param name="Version">HRMentor dagi versiya raqami.</param>
 /// <param name="Label">Yorliq.</param>
 /// <param name="ReceivedAt">Olingan lahza.</param>
-public sealed record BlankFormDto(int Version, string Label, DateTimeOffset ReceivedAt);
+public sealed record HrMentorBlankFormDto(int Version, string Label, DateTimeOffset ReceivedAt);
 
 /// <summary>«Blankalar» sahifasi: ulanish holati va blankalar (SPEC-blankalar-hrmentor §6).</summary>
 /// <param name="Connected">Manzil va kalit ikkalasi qo'yilganmi.</param>
@@ -55,28 +55,28 @@ public sealed record BlankFormDto(int Version, string Label, DateTimeOffset Rece
 /// <param name="Items">Blankalar — kod bo'yicha.</param>
 /// <param name="Form">Amaldagi konstruktor anketasi; <c>null</c> — dasturdagi o'rnatilgan anketa.</param>
 /// <param name="Source">Blankalar manbai: «platform», «legacy» (kalit hali platformaga bog'lanmagan) yoki <c>null</c>.</param>
-public sealed record BlanksDto(
+public sealed record HrMentorBlanksDto(
     bool Connected,
     DateTimeOffset? LastAttemptAt,
     DateTimeOffset? LastSuccessAt,
     string? LastError,
     int? TextsRevision,
-    IReadOnlyList<BlankDto> Items,
-    BlankFormDto? Form = null,
+    IReadOnlyList<HrMentorBlankDto> Items,
+    HrMentorBlankFormDto? Form = null,
     string? Source = null);
 
 /// <summary>Sahifa so'rovi.</summary>
-public sealed record GetBlanksQuery;
+public sealed record GetHrMentorBlanksQuery;
 
-/// <summary><c>GET /api/blanks</c>.</summary>
-public sealed class GetBlanksQueryHandler
+/// <summary><c>GET /api/hrmentor/blanks</c>.</summary>
+public sealed class GetHrMentorBlanksQueryHandler
 {
     private readonly SystemSettingsReader _settings;
     private readonly IHrBlankRepository _blanks;
     private readonly IFormTextSnapshotRepository _snapshots;
     private readonly FormDefinitionsReader _definitions;
 
-    public GetBlanksQueryHandler(
+    public GetHrMentorBlanksQueryHandler(
         SystemSettingsReader settings,
         IHrBlankRepository blanks,
         IFormTextSnapshotRepository snapshots,
@@ -88,7 +88,7 @@ public sealed class GetBlanksQueryHandler
         _definitions = definitions;
     }
 
-    public async Task<Result<BlanksDto>> HandleAsync(GetBlanksQuery query, CancellationToken cancellationToken = default)
+    public async Task<Result<HrMentorBlanksDto>> HandleAsync(GetHrMentorBlanksQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -104,13 +104,13 @@ public sealed class GetBlanksQueryHandler
         var error = settings.Hidden(SystemSettingKeys.HrMentorLastError);
         var form = await _definitions.CurrentAsync(cancellationToken).ConfigureAwait(false);
 
-        return new BlanksDto(
+        return new HrMentorBlanksDto(
             connected,
             Moment(settings.Hidden(SystemSettingKeys.HrMentorLastAttemptAt)),
             Moment(settings.Hidden(SystemSettingKeys.HrMentorLastSuccessAt)),
             string.IsNullOrWhiteSpace(error) ? null : error,
             latest?.Revision,
-            [.. rows.Select(row => new BlankDto(
+            [.. rows.Select(row => new HrMentorBlankDto(
                 row.Id,
                 row.Code,
                 row.Title,
@@ -119,7 +119,7 @@ public sealed class GetBlanksQueryHandler
                 row.FileName,
                 row.ContentType,
                 row.SizeBytes))],
-            form is null ? null : new BlankFormDto(form.Version, form.Label, form.ReceivedAt),
+            form is null ? null : new HrMentorBlankFormDto(form.Version, form.Label, form.ReceivedAt),
             Source(settings.Hidden(SystemSettingKeys.HrMentorBlanksSource)));
     }
 
@@ -138,27 +138,27 @@ public sealed class GetBlanksQueryHandler
 }
 
 /// <summary>Bitta blankaning fayli.</summary>
-public sealed record GetBlankFileQuery(Guid Id);
+public sealed record GetHrMentorBlankFileQuery(Guid Id);
 
 /// <summary>Yuklab olinadigan fayl.</summary>
-public sealed record BlankFile(string FileName, string ContentType, Stream Content);
+public sealed record HrMentorBlankFile(string FileName, string ContentType, Stream Content);
 
-/// <summary><c>GET /api/blanks/{id}/file</c>.</summary>
-public sealed class GetBlankFileQueryHandler
+/// <summary><c>GET /api/hrmentor/blanks/{id}/file</c>.</summary>
+public sealed class GetHrMentorBlankFileQueryHandler
 {
     /// <summary>Blanka (yoki uning fayli) topilmadi.</summary>
-    public static readonly Error NotFound = Error.NotFound("blanka.topilmadi", "Blanka topilmadi.");
+    public static readonly Error NotFound = Error.NotFound("hrmentor.blank_not_found", "Blanka topilmadi.");
 
     private readonly IHrBlankRepository _blanks;
     private readonly IFileStorage _storage;
 
-    public GetBlankFileQueryHandler(IHrBlankRepository blanks, IFileStorage storage)
+    public GetHrMentorBlankFileQueryHandler(IHrBlankRepository blanks, IFileStorage storage)
     {
         _blanks = blanks;
         _storage = storage;
     }
 
-    public async Task<Result<BlankFile>> HandleAsync(GetBlankFileQuery query, CancellationToken cancellationToken = default)
+    public async Task<Result<HrMentorBlankFile>> HandleAsync(GetHrMentorBlankFileQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -174,32 +174,32 @@ public sealed class GetBlankFileQueryHandler
             return NotFound;
         }
 
-        return new BlankFile(blank.FileName, blank.ContentType, content);
+        return new HrMentorBlankFile(blank.FileName, blank.ContentType, content);
     }
 }
 
 /// <summary>«Hozir yangilash».</summary>
-public sealed record SyncBlanksCommand;
+public sealed record SyncHrMentorBlanksCommand;
 
 /// <summary>
-/// <c>POST /api/blanks/sync</c> — o'sha yurish darhol, keyin sahifa javobi. Boshqa yurish
+/// <c>POST /api/hrmentor/blanks/sync</c> — o'sha yurish darhol, keyin sahifa javobi. Boshqa yurish
 /// ketayotgan bo'lsa uning tugashini kutadi (ko'pi bilan <see cref="Wait"/>).
 /// </summary>
-public sealed class SyncBlanksCommandHandler
+public sealed class SyncHrMentorBlanksCommandHandler
 {
     /// <summary>Ketayotgan yurishni kutish chegarasi.</summary>
     public static readonly TimeSpan Wait = TimeSpan.FromSeconds(120);
 
     private readonly HrMentorSync _sync;
-    private readonly GetBlanksQueryHandler _query;
+    private readonly GetHrMentorBlanksQueryHandler _query;
 
-    public SyncBlanksCommandHandler(HrMentorSync sync, GetBlanksQueryHandler query)
+    public SyncHrMentorBlanksCommandHandler(HrMentorSync sync, GetHrMentorBlanksQueryHandler query)
     {
         _sync = sync;
         _query = query;
     }
 
-    public async Task<Result<BlanksDto>> HandleAsync(SyncBlanksCommand command, CancellationToken cancellationToken = default)
+    public async Task<Result<HrMentorBlanksDto>> HandleAsync(SyncHrMentorBlanksCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
@@ -209,6 +209,6 @@ public sealed class SyncBlanksCommandHandler
             return run.Error;
         }
 
-        return await _query.HandleAsync(new GetBlanksQuery(), cancellationToken).ConfigureAwait(false);
+        return await _query.HandleAsync(new GetHrMentorBlanksQuery(), cancellationToken).ConfigureAwait(false);
     }
 }

@@ -5,7 +5,7 @@ import { saveBlobAs } from '@/shared/lib/download'
 import { downloadBlank, fetchBlanks, syncBlanks, type Blank } from './blanks-api'
 
 export const blanksKeys = {
-  root: ['blanks'] as const,
+  root: ['hrmentor-blanks'] as const,
 }
 
 /** Blankalar ro'yxati; `enabled` — ruxsat tekshiruvi chaqiruvchida (ruxsatsiz so'rov yuborilmaydi). */

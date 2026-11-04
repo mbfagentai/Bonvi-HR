@@ -16,7 +16,7 @@ namespace Bonvi.Application.Blanks;
 /// <summary>
 /// HRMentor bilan bitta sinxronlash yurishi (SPEC-blankalar-hrmentor §3): katalog → profil →
 /// matnlar → anketa ta'rifi → blankalar (profil va ta'rif — SPEC-anketa-konstruktori §3, §5.2). Har besh daqiqada <see cref="HrMentorSyncJob"/>, qo'lda esa «Hozir yangilash»
-/// (<see cref="SyncBlanksCommandHandler"/>) — ikkalasi ham SHU kod.
+/// (<see cref="SyncHrMentorBlanksCommandHandler"/>) — ikkalasi ham SHU kod.
 /// </summary>
 /// <remarks>
 /// <para>

@@ -20,7 +20,7 @@ namespace Bonvi.Api.IntegrationTests;
 /// </summary>
 public sealed class HrMentorFormaUnutilsaApiTests : IClassFixture<BonviApiFactory>
 {
-    private const string SyncPath = "/api/blanks/sync";
+    private const string SyncPath = "/api/hrmentor/blanks/sync";
 
     private readonly BonviApiFactory _factory;
 

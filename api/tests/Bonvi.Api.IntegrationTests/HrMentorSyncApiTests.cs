@@ -32,8 +32,8 @@ public sealed record BlanksResponse(
 /// </summary>
 public sealed class HrMentorSyncApiTests : IClassFixture<BonviApiFactory>
 {
-    private const string BlanksPath = "/api/blanks";
-    private const string SyncPath = "/api/blanks/sync";
+    private const string BlanksPath = "/api/hrmentor/blanks";
+    private const string SyncPath = "/api/hrmentor/blanks/sync";
 
     private readonly BonviApiFactory _factory;
 
@@ -61,7 +61,7 @@ public sealed class HrMentorSyncApiTests : IClassFixture<BonviApiFactory>
 
         using var topilmadi = await korish.GetAsync(new Uri(fayl, UriKind.Relative), Ct);
         topilmadi.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        (await topilmadi.Content.ReadAsStringAsync(Ct)).ShouldContain("blanka.topilmadi");
+        (await topilmadi.Content.ReadAsStringAsync(Ct)).ShouldContain("hrmentor.blank_not_found");
     }
 
     [Fact]

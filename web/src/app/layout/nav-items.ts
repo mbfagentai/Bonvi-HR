@@ -411,7 +411,7 @@ export const NAV: NavSection[] = [
       { key: 'incidents',  to: '/hodisalar',    icon: HeartPulse,    permission: 'safety.view' },
       { key: 'feedback',   to: '/qayta-aloqa',  icon: MessageSquareQuote, permission: 'feedback.view' },
       // HRMentor dan keladigan blankalar — o'qish va yuklab olish (SPEC-blankalar-hrmentor §6)
-      { key: 'blanks',     to: '/blankalar',    icon: FileStack,     permission: 'employees.view' },
+      { key: 'hrMentorBlanks', to: '/blanka-fayllari', icon: FileStack, permission: 'employees.view' },
     ],
   },
   {

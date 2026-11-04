@@ -45,20 +45,20 @@ export interface BlanksState {
 }
 
 export async function fetchBlanks(signal?: AbortSignal): Promise<BlanksState> {
-  const { data } = await api.get<BlanksState>('/api/blanks', { signal })
+  const { data } = await api.get<BlanksState>('/api/hrmentor/blanks', { signal })
   return { ...data, items: Array.isArray(data.items) ? data.items : [] }
 }
 
 /** «Hozir yangilash» — server HRMentor dan oladi (≤ 120 s) va yangi holatni qaytaradi. */
 export async function syncBlanks(): Promise<BlanksState> {
-  const { data } = await api.post<BlanksState>('/api/blanks/sync', null, { timeout: 150_000 })
+  const { data } = await api.post<BlanksState>('/api/hrmentor/blanks/sync', null, { timeout: 150_000 })
   return { ...data, items: Array.isArray(data.items) ? data.items : [] }
 }
 
 /** Blanka fayli — nomi serverning `Content-Disposition` idan, bo'lmasa ro'yxatdagisi. */
 export async function downloadBlank(blank: Blank): Promise<{ blob: Blob; fileName: string }> {
   try {
-    const response = await api.get<Blob>(`/api/blanks/${blank.id}/file`, { responseType: 'blob' })
+    const response = await api.get<Blob>(`/api/hrmentor/blanks/${blank.id}/file`, { responseType: 'blob' })
     const disposition = response.headers['content-disposition']
 
     return {
@@ -66,7 +66,7 @@ export async function downloadBlank(blank: Blank): Promise<{ blob: Blob; fileNam
       fileName: fileNameFromDisposition(typeof disposition === 'string' ? disposition : null) ?? blank.fileName,
     }
   } catch (error) {
-    // Xato tanasi ham Blob bo'lib keladi — «blanka.topilmadi» kodi o'qilsin
+    // Xato tanasi ham Blob bo'lib keladi — «hrmentor.blank_not_found» kodi o'qilsin
     await revealProblemDetails(error)
     throw error
   }

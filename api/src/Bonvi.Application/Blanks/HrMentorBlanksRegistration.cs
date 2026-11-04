@@ -5,9 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Bonvi.Application.Blanks;
 
 /// <summary>HRMentor blankalari va anketa matnlari (SPEC-blankalar-hrmentor).</summary>
-internal static class BlanksRegistration
+internal static class HrMentorBlanksRegistration
 {
-    public static IServiceCollection AddBlanks(this IServiceCollection services)
+    public static IServiceCollection AddHrMentorBlanks(this IServiceCollection services)
     {
         services.AddScoped<HrMentorSync>();
         services.AddScoped<HrMentorSyncJob>();
@@ -15,9 +15,9 @@ internal static class BlanksRegistration
         services.AddScoped<FormTextsReader>();
         services.AddScoped<FormDefinitionsReader>();
 
-        services.AddScoped<GetBlanksQueryHandler>();
-        services.AddScoped<GetBlankFileQueryHandler>();
-        services.AddScoped<SyncBlanksCommandHandler>();
+        services.AddScoped<GetHrMentorBlanksQueryHandler>();
+        services.AddScoped<GetHrMentorBlankFileQueryHandler>();
+        services.AddScoped<SyncHrMentorBlanksCommandHandler>();
 
         return services;
     }

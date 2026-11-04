@@ -25,7 +25,7 @@ public sealed record ManbaliBlanksResponse(
 /// </summary>
 public sealed class HujjatManbaiSyncApiTests : IClassFixture<BonviApiFactory>
 {
-    private const string SyncPath = "/api/blanks/sync";
+    private const string SyncPath = "/api/hrmentor/blanks/sync";
 
     private readonly BonviApiFactory _factory;
 

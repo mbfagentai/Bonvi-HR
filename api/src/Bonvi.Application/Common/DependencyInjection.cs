@@ -237,7 +237,7 @@ public static class DependencyInjection
 
         // HRMentor blankalari va anketa matnlari (SPEC-blankalar-hrmentor) — sozlamalardan
         // (`SystemSettingsReader`) keyin: ulanish manzili va kaliti o'sha yerda.
-        services.AddBlanks();
+        services.AddHrMentorBlanks();
 
         // Bildirishnomalar — bironta bo'limga tegishli emas: ular sinov
         // muddati, xodim va nomzod ma'lumotlarini BIRGA o'qiydi.

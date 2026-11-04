@@ -19,7 +19,7 @@
 - **S6.** The §18 catalog and the §19.4 profile stay in our code: they describe what this system can render
   and store, they are not documents.
 
-## 2. Pulling our documents (sync step 3, «Blankalar»)
+## 2. Pulling our documents (sync step 3, «Blanka fayllari»)
 
 `HrMentorSync` step 3 asks HRMentor for **this platform's** documents — `GET /api/v1/platform/documents` —
 and downloads changed files from `GET /api/v1/platform/documents/{id}/file` (same size and SHA-256 checks,
@@ -32,7 +32,7 @@ Transition: the key gets `platform:sync` and is bound to the platform «hr.bonvi
 (HRMentor §20.12). Until then HRMentor answers 403 `platforms.key_not_bound`, or 403 when the key lacks the
 permission, or 404 when HRMentor predates §20; in each of those cases the step falls back to the old
 `GET /api/v1/blanks` and records the source in the Hidden setting `hrmentor.blanksSource` (`platform` |
-`legacy`). The «Blankalar» page then says «HRMentor kaliti hali platformaga bog'lanmagan — blankalar eski
+`legacy`). The «Blanka fayllari» page then says «HRMentor kaliti hali platformaga bog'lanmagan — blankalar eski
 ro'yxatdan olinmoqda». The fallback is removed with HRMentor's `/blanks` (no later than 2027-01-31).
 
 An empty platform list on the first switch counts as «not ready» too: while the last good list did not come

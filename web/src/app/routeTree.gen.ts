@@ -14,7 +14,7 @@ import { Route as AnketaRouteImport } from './routes/anketa'
 import { Route as KirishRouteImport } from './routes/kirish'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
-import { Route as AppBlankalarRouteImport } from './routes/_app/blankalar'
+import { Route as AppBlankaFayllariRouteImport } from './routes/_app/blanka-fayllari'
 import { Route as AppBuyruqlarRouteImport } from './routes/_app/buyruqlar'
 import { Route as AppFoydalanuvchilarRouteImport } from './routes/_app/foydalanuvchilar'
 import { Route as AppHisobotlarRouteImport } from './routes/_app/hisobotlar'
@@ -79,9 +79,9 @@ const AppAuditRoute = AppAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
-const AppBlankalarRoute = AppBlankalarRouteImport.update({
-  id: '/blankalar',
-  path: '/blankalar',
+const AppBlankaFayllariRoute = AppBlankaFayllariRouteImport.update({
+  id: '/blanka-fayllari',
+  path: '/blanka-fayllari',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBuyruqlarRoute = AppBuyruqlarRouteImport.update({
@@ -302,7 +302,7 @@ export interface FileRoutesByFullPath {
   '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/audit': typeof AppAuditRoute
-  '/blankalar': typeof AppBlankalarRoute
+  '/blanka-fayllari': typeof AppBlankaFayllariRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
@@ -347,7 +347,7 @@ export interface FileRoutesByTo {
   '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/audit': typeof AppAuditRoute
-  '/blankalar': typeof AppBlankalarRoute
+  '/blanka-fayllari': typeof AppBlankaFayllariRoute
   '/buyruqlar': typeof AppBuyruqlarRoute
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
@@ -395,7 +395,7 @@ export interface FileRoutesById {
   '/anketa': typeof AnketaRoute
   '/kirish': typeof KirishRoute
   '/_app/audit': typeof AppAuditRoute
-  '/_app/blankalar': typeof AppBlankalarRoute
+  '/_app/blanka-fayllari': typeof AppBlankaFayllariRoute
   '/_app/buyruqlar': typeof AppBuyruqlarRoute
   '/_app/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/_app/hisobotlar': typeof AppHisobotlarRoute
@@ -444,7 +444,7 @@ export interface FileRouteTypes {
     | '/anketa'
     | '/kirish'
     | '/audit'
-    | '/blankalar'
+    | '/blanka-fayllari'
     | '/buyruqlar'
     | '/foydalanuvchilar'
     | '/hisobotlar'
@@ -489,7 +489,7 @@ export interface FileRouteTypes {
     | '/anketa'
     | '/kirish'
     | '/audit'
-    | '/blankalar'
+    | '/blanka-fayllari'
     | '/buyruqlar'
     | '/foydalanuvchilar'
     | '/hisobotlar'
@@ -536,7 +536,7 @@ export interface FileRouteTypes {
     | '/anketa'
     | '/kirish'
     | '/_app/audit'
-    | '/_app/blankalar'
+    | '/_app/blanka-fayllari'
     | '/_app/buyruqlar'
     | '/_app/foydalanuvchilar'
     | '/_app/hisobotlar'
@@ -623,11 +623,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/blankalar': {
-      id: '/_app/blankalar'
-      path: '/blankalar'
-      fullPath: '/blankalar'
-      preLoaderRoute: typeof AppBlankalarRouteImport
+    '/_app/blanka-fayllari': {
+      id: '/_app/blanka-fayllari'
+      path: '/blanka-fayllari'
+      fullPath: '/blanka-fayllari'
+      preLoaderRoute: typeof AppBlankaFayllariRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/buyruqlar': {
@@ -908,7 +908,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
-  AppBlankalarRoute: typeof AppBlankalarRoute
+  AppBlankaFayllariRoute: typeof AppBlankaFayllariRoute
   AppBuyruqlarRoute: typeof AppBuyruqlarRoute
   AppFoydalanuvchilarRoute: typeof AppFoydalanuvchilarRoute
   AppHisobotlarRoute: typeof AppHisobotlarRoute
@@ -952,7 +952,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
-  AppBlankalarRoute: AppBlankalarRoute,
+  AppBlankaFayllariRoute: AppBlankaFayllariRoute,
   AppBuyruqlarRoute: AppBuyruqlarRoute,
   AppFoydalanuvchilarRoute: AppFoydalanuvchilarRoute,
   AppHisobotlarRoute: AppHisobotlarRoute,

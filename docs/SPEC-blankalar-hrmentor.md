@@ -38,7 +38,7 @@ Server-written state (Hidden settings): `hrmentor.catalogHash` (last pushed), `h
 ## 3. Sync job
 
 Hangfire recurring job `HrMentorSyncJob`, every 5 minutes, one at a time (`DisableConcurrentExecution`), and
-`POST /api/blanks/sync` runs the same code at once. Three independent steps; a failed step logs a warning, records
+`POST /api/hrmentor/blanks/sync` runs the same code at once. Three independent steps; a failed step logs a warning, records
 `lastError` and leaves its last good data, the others still run.
 
 1. **Catalog** — build it (§4); when its SHA-256 differs from `hrmentor.catalogHash`, `PUT /api/v1/digital-forms/HR-F02/catalog`,
@@ -108,11 +108,12 @@ Placeholders keep the i18next form `{{name}}`; PDF texts with values use the sam
 
 ## 6. Blanks page (HR)
 
-- `GET /api/blanks` (`employees.view`) → `{ connected, lastAttemptAt, lastSuccessAt, lastError, textsRevision, items:
+- `GET /api/hrmentor/blanks` (`employees.view`) → `{ connected, lastAttemptAt, lastSuccessAt, lastError, textsRevision, items:
   [ { id, code, title, versionNo, publishedAt, fileName, contentType, sizeBytes } ] }`, by code.
-- `GET /api/blanks/{id}/file` (`employees.view`) → the stored file, `Content-Disposition: attachment` (RFC 5987 name).
-- `POST /api/blanks/sync` (`settings.manage`) → runs the job now (≤ 120 s) and returns the GET body.
-- Web: route `/blankalar`, menu item «Blankalar»; a searchable table — Kod, Nomi, Versiya, Yangilangan, Hajmi,
+- `GET /api/hrmentor/blanks/{id}/file` (`employees.view`) → the stored file, `Content-Disposition: attachment` (RFC 5987 name).
+- `POST /api/hrmentor/blanks/sync` (`settings.manage`) → runs the job now (≤ 120 s) and returns the GET body.
+- Web: route `/blanka-fayllari`, menu item «Blanka fayllari» (renamed 2026-11-04 from `/blankalar` «Blankalar»,
+  which the generic blank engine of `docs/SPEC-blankalar.md` took; API moved from `/api/blanks` the same day); a searchable table — Kod, Nomi, Versiya, Yangilangan, Hajmi,
   «Yuklab olish»; the line «HRMentor dan oxirgi yangilanish: 10:41»; «Hozir yangilash» for `settings.manage`; when not
   connected a card pointing to Sozlamalar → HRMentor.
 

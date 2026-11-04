@@ -526,7 +526,7 @@ public sealed class AnketaKonstruktoriSubmitApiTests : IClassFixture<BonviApiFac
 
     private static async Task SyncAsync(HttpClient admin)
     {
-        using var javob = await admin.PostAsync(new Uri("/api/blanks/sync", UriKind.Relative), null, Ct);
+        using var javob = await admin.PostAsync(new Uri("/api/hrmentor/blanks/sync", UriKind.Relative), null, Ct);
         javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
 
         using var natija = JsonDocument.Parse(await MatnAsync(javob));

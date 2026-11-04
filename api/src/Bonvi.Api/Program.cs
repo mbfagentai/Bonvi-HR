@@ -365,7 +365,7 @@ app.MapSettingsEndpoints();
 
 // HRMentor blankalari (SPEC-blankalar-hrmentor §6) — ko'rish «employees.view», «Hozir
 // yangilash» esa «settings.manage».
-app.MapBlankEndpoints();
+app.MapHrMentorBlankEndpoints();
 
 // Tashqi API kalitlari — ICHKI boshqaruv (JWT + «settings.manage»).
 // Sozlamalar bilan yonma-yon, chunki ekranda ular bitta bo'limda.
