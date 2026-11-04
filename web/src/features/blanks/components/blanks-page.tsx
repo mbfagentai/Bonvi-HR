@@ -4,10 +4,6 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
-import {
-  AttendanceEmployeePicker,
-  type PickedEmployee,
-} from '@/features/verification/components/attendance-employee-picker'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { useSearchDraft } from '@/shared/lib/list-search'
 import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
@@ -75,7 +71,6 @@ export function BlanksPage() {
   const [creating, setCreating] = useState(false)
   const [editingRoles, setEditingRoles] = useState(false)
   // The picker needs a name; the address bar keeps only the id
-  const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null)
 
   const templates = useBlankTemplates()
   const options = useFilterOptions()
@@ -212,13 +207,6 @@ export function BlanksPage() {
     [t],
   )
 
-  const employeeValue: PickedEmployee | null =
-    search.employee === undefined
-      ? null
-      : pickedEmployee?.id === search.employee
-        ? pickedEmployee
-        : { id: search.employee, fullName: t('blanks.list.employeeSelected'), photoKey: null, position: null, department: null }
-
   const items = query.data?.items ?? EMPTY
   const total = query.data?.total ?? 0
   const firstLoad = query.isPending
@@ -295,16 +283,6 @@ export function BlanksPage() {
               options={options.departments}
               value={search.department ?? ''}
               onChange={(event) => patch({ department: event.target.value === '' ? undefined : event.target.value })}
-            />
-          </div>
-          <div className="w-full sm:w-64">
-            <AttendanceEmployeePicker
-              label={t('blanks.list.employee')}
-              value={employeeValue}
-              onChange={(next) => {
-                setPickedEmployee(next)
-                patch({ employee: next?.id })
-              }}
             />
           </div>
           <div className="w-full sm:w-auto">
