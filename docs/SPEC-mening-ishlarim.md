@@ -30,7 +30,7 @@ users after login. All 19 blanks HR-F01…F19 and regulations HR-R01…R08 live 
 | Phase | Content |
 |---|---|
 | 0 (exists) | Blanks wave 1 (F06 F07 F08 F09 F13) — code done, prod deploy is the owner's call; F02 = `CandidateForm` (planshet anketa) |
-| **1 (this SPEC, full detail)** | Engine (templates, cases, steps, reconciler, gates, overrides), three tabs + case detail + settings page, flows 1–4 (§3.2–§3.6), new blanks F03 F04 F05 F11, F01 = link to `VacancyRequest`, candidate-subject blanks enabled in web, MCP tools, «Tartib» cards |
+| **1 (this SPEC, full detail)** | Engine (templates, cases, steps, reconciler, gates, overrides), three tabs + case detail + settings page, flows 1–4 (§3.2–§3.6), F01 = link to `VacancyRequest`, MCP tools, «Tartib» cards. F03 F04 F05 F11 are **made in HRMentor** (§1.5); until they are served, their steps close by the manual fallback |
 | 2 | Monthly close (F18 auto-filled from attendance, F12 flow on `Incentive`, F15 auto report), flow 6 discipline, Telegram reminders + «Eslatish», `process_reminders` |
 | 3 | F10 F14 F19 F16 F17, flows 5/7/8, D2 (employee one-time code / kiosk PIN) and D3 (E-IMZO), guided tour + glossary, transfer gate (§18 Q7), position profiles |
 
@@ -50,6 +50,24 @@ users after login. All 19 blanks HR-F01…F19 and regulations HR-R01…R08 live 
   `POST /api/blanks/submissions` on the user's click — that is a user action with the user's permission, not an engine write.)
 - No employee-app channel, no D2/D3 signatures, no Telegram (Phase 2/3).
 - No visual process builder: templates are JSON files in the repo, versioned and seeded like blank templates.
+
+### 1.5 HRMentor is the only source of documents (owner 2026-11-01, CEO D6 2026-11-04 — binding)
+`docs/SPEC-hujjat-manbai.md`: no blank or regulation is authored in this repository; the built-in blank definitions
+F06 F07 F08 F09 F13 are frozen debt D6 and `HujjatManbaiQulfiTests` fails on any new `Blanks/Templates/*.json`.
+Consequences for this SPEC (owner, 2026-11-04):
+- New blanks (F03 F04 F05 F11 in Phase 1, all later ones) are created in HRMentor and reach the blank engine
+  through the engine owner's HRMentor work. This SPEC does **not** author them (§5.2 is the contract the HRMentor
+  definitions must keep so the facts can read them).
+- Until a blank is served, every step that reads it has a **manual fallback** (`manual.allowed`, inputs below) and
+  the fact also accepts the served blank once it exists — no code change at switch-over. Steps: r02-8 (F03: input
+  `outcome` choice `ok`/`watch`/`notRecommended`), r02-9 (F04 list: no input), r02-10 (F04 decision: input
+  `decision` choice `accept`/`conditional`/`reserve`/`reject`, `councilDate` date), r02-11 (F05 offer: input
+  `startDate` date when accept), r02-12 (no input), r01-2 (input `docs` checklist, as direct hire), r02-13 (F11:
+  no input). Gate Q01 reads the manual r02-10 decision the same as an F04 decision.
+- Process definitions (steps, roles, due rules, gates) are system logic, not documents: they stay in code
+  (`Processes/Templates/*.json`), like the §18 catalog in SPEC-hujjat-manbai S6. The «Nima qilaman?» guide lines
+  are regulation text: Phase 1 ships the chef's prototype lines as a temporary default; serving them from HRMentor
+  is a Phase 2 item (same pattern as HR-F02 texts, `docs/SPEC-blankalar-hrmentor.md`).
 
 ## 2. Overlap with existing data (LINK, never duplicate or sync)
 
@@ -262,15 +280,15 @@ starters ship in their phase.
 |---|---|---|---|
 | F01 | hire-request · r02-1…3 | Bo'lim rahbari → HR-1 (chief accountant for a new position: outside) | **link** `VacancyRequest` (no blank) |
 | F02 | hire-candidate · r02-6/7 | Nomzod; HR-4 | exists (`CandidateForm`) |
-| F03 | hire-candidate · r02-8 | Nomzod (I) → HR-4 (II–IV) → HR-1 | **new, Phase 1** |
-| F04 | hire-candidate · r02-9/10; C2 | HR-4 / HR-1 (kotib) → Rais + Kotib | **new, Phase 1** |
-| F05 | hire-candidate · r02-11/12; hire-formalise · r01-2 | HR-4 → Nomzod; Nomzod + HR-2 | **new, Phase 1** (parts 1–2) |
+| F03 | hire-candidate · r02-8 | Nomzod (I) → HR-4 (II–IV) → HR-1 | new — **HRMentor**; manual fallback until served |
+| F04 | hire-candidate · r02-9/10; C2 | HR-4 / HR-1 (kotib) → Rais + Kotib | new — **HRMentor**; manual fallback until served |
+| F05 | hire-candidate · r02-11/12; hire-formalise · r01-2 | HR-4 → Nomzod; Nomzod + HR-2 | new — **HRMentor** (parts 1–2); manual fallback until served |
 | F06 | probation · p03-0…85 | HR-4 + rahbar; ustoz → … HR-1 (day 90) | built (wave 1) |
 | F07 | probation · p03-85/88 | Rahbar + ustoz → HR-4 → Xodim → HR-1 | built (wave 1) |
 | F08 | dismissal · ex-3 | HR-3 → Xodim + HR-4 | built (wave 1) |
 | F09 | dismissal · ex-2…7, ex-11; transfer | HR-3 opens; topshiruvchi → qabul qiluvchi → rahbar → HR-3 → HR-1 → HR-3 | built (wave 1) |
 | F10 | passport-reserve; (r02-1 check) | Rahbar + egasi → HR-8/HR-1 → HR-1 | new, Phase 3 |
-| F11 | hire-candidate · r02-13; passport-reserve; transfer | HR-2/HR-4 → Xodim | **new, Phase 1** |
+| F11 | hire-candidate · r02-13; passport-reserve; transfer | HR-2/HR-4 → Xodim | new — **HRMentor**; manual fallback until served |
 | F12 | discipline; monthly-close | Bo'lim rahbari → HR-3 → HR-1 → hisobchi | **link** `Incentive` (+ extra-field blank), Phase 2 |
 | F13 | discipline | HR-3 → Xodim → guvohlar → HR-3 → HR-1 → HR-2 | built (wave 1) |
 | F14 | passport-reserve | Rahbar → HR-1 | new, Phase 3 |
@@ -280,10 +298,10 @@ starters ship in their phase.
 | F18 | hire-formalise · r01-9; dismissal · ex-9; monthly-close | HR-3 → hisobchi → bosh buxgalter | new, Phase 2 |
 | F19 | transfer | Qabul qiluvchi rahbar → … → direktor | new, Phase 3 |
 
-### 5.2 Phase 1 blank templates (authoring contract)
-Authored as `api/src/Bonvi.Infrastructure/Blanks/Templates/HR-F03.json`, `HR-F04.json`, `HR-F05.json`, `HR-F11.json`
-(definition language of SPEC-blankalar §4; labels verbatim from INTAKE §2; `legalStatus: draft` for F03 and F05 —
-lawyer pending). The ids below are **load-bearing** (facts read them); everything else follows INTAKE.
+### 5.2 Phase 1 blank contract (definitions are made in HRMentor, §1.5 — NOT in this repo)
+The HRMentor definitions of HR-F03, HR-F04, HR-F05, HR-F11 must keep the ids below (facts read them); everything
+else follows INTAKE §2 (`legalStatus: draft` for F03 and F05 — lawyer pending). Until served, the steps use the manual
+fallback of §1.5.
 | Blank | Subject | Engine-relevant fields | Steps (id · order · actor · mode · decision options) |
 |---|---|---|---|
 | HR-F03 | candidate | `refs` table min 2 (I); `consentEmployer`, `consentRefs` choice `agree`/`refuse` | `consent` · 1 · candidate · inPerson · — ; `hr4Check` · 2 · hr4 · electronic · `ok` «Ishga olish mumkin — e'tiroz yo'q», `watch` «… kuzatuv bilan», `notRecommended` «Ishga olish tavsiya etilmaydi» (`decisionExtra` text required for watch/notRecommended); `hr1Approve` · 3 · hr1 · electronic · — |
@@ -663,13 +681,14 @@ audited where it happened). `/audit` shows process entries under «Jarayonlar».
 | C10 | blanks `addWorkingDays` ignores holidays | processes use `IWorkingDayCalendar`; blanks unchanged in Phase 1 |
 | C11 | r02-7 condition «ishchi kasblar» needs a position; candidates have only a vacancy title | optional + skippable by HR |
 | C12 | F05 part 3 (first-day checklist) | is the `hire-formalise` case, not a blank section |
+| C13 | This SPEC first planned F03 F04 F05 F11 as repo JSON; SPEC-hujjat-manbai S1 / D6 forbids it | made in HRMentor; manual fallback until served (§1.5) |
 
 ## 16. Build plan (slices for subagents; one slice ≈ 40–60 tool calls)
 | Slice | Content | Depends on |
 |---|---|---|
 | **P1** Domain + persistence | entities §6 (`Bonvi.Domain/Processes/*`), enums, `ProcessErrors`, repositories, EF configs, migration `./bonvi migrate Processes` (+ grants §12; read it, drop spurious DROPs), H1–H7, H12 | — |
 | **P2** Definitions + calendar + seeder | definition records, `ProcessDefinitionValidator`, `IWorkingDayCalendar` + `process_holidays` seed, the 5 template JSONs of §3 (guide lines from the prototype), `ProcessTemplateSeeder`, H10, H16; validator + calendar unit tests | P1 |
-| **P3** Blank templates F03 F04 F05 F11 | §5.2 JSONs in `Blanks/Templates`, seeded by the existing blank seeder; integration test «candidate in-person sign»; H17 only if it fails | — |
+| ~~P3~~ | moved to the HRMentor work (§1.5); not built here | — |
 | **P4** Facts, starters, reconciler, job | `IProcessFactSource` (§7.2), starters §7.3, pass §7.4–§7.7, Hangfire job H15, dormant mode; scenario tests per flow | P2 |
 | **P5** Gates + overrides | `IProcessGate` impl, H13, H14, override endpoints #14–#15, error codes; tests: block, warn, legacy, off, dormant, override consumed once | P4 |
 | **P6** Read API | #1–#8, holder resolution, «Tartib» cards, H11 | P4 |
@@ -679,10 +698,12 @@ audited where it happened). `/audit` shows process entries under «Jarayonlar».
 | **P10** Tab «Mening ishlarim» | §11.2 + step panel §11.5 | P9 |
 | **P11** Board + case detail | §11.3, §11.5 page | P9 |
 | **P12** «Kim kechikdi» + settings | §11.4, §11.7 | P9 |
-| **P13** Candidate blanks in web | W5–W7 | — |
+| **P13** Candidate blanks in web | W5–W7 — only once a candidate-subject blank is served from HRMentor (deferred) | HRMentor |
 | **P14** QA | `qa-review`, `test-migration`, browser pass of the three tabs | all |
 
-Parallel waves: **[P1 ∥ P3 ∥ P13] → P2 → P4 → [P5 ∥ P6] → P7 → [P8 ∥ P9] → [P10 ∥ P11 ∥ P12] → P14**.
+Parallel waves: **[P1 ∥ P2a ∥ P4a] → [P2b ∥ P4b] → [P5 ∥ P6] → P7 → [P8 ∥ P9] → [P10 ∥ P11 ∥ P12] → P14**, where
+P2a = definitions, validator, calendar logic, the 5 template JSONs (no DB); P2b = holidays table use + seeder;
+P4a = `IProcessFactSource` (§7.2, reads existing tables only); P4b = starters, pass, job.
 
 ## 17. Tests (Definition of Done)
 - `./bonvi test` green, no test deleted or weakened; existing hire/terminate integration tests pass unchanged

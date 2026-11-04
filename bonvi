@@ -35,6 +35,9 @@ set -a; . ./.env; set +a
 
 PROJECT="${COMPOSE_PROJECT_NAME:-bonvi-hr}"
 NETWORK="${PROJECT}_bonvi"
+# Build output volume: a parallel worktree sets BONVI_ARTIFACTS_VOLUME in its own .env so two
+# builds never write the same obj/bin (the database and network stay shared).
+ARTIFACTS_VOLUME="${BONVI_ARTIFACTS_VOLUME:-${PROJECT}_api-artifacts}"
 
 # Interaktiv TTY faqat terminal bo'lsa (skriptda/CI'da -it yiqiladi)
 tty_flag() { [ -t 0 ] && echo "-it" || echo "-i"; }
@@ -44,7 +47,7 @@ dotnet_solo() {
   docker run --rm $(tty_flag) \
     -v "$PWD/api:/src" \
     -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
-    -v ${PROJECT}_api-artifacts:/src/artifacts \
+    -v ${ARTIFACTS_VOLUME}:/src/artifacts \
     -w /src \
     -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     -e DOTNET_NOLOGO=1 \
@@ -58,7 +61,7 @@ dotnet_net() {
   docker run --rm $(tty_flag) \
     -v "$PWD/api:/src" \
     -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
-    -v ${PROJECT}_api-artifacts:/src/artifacts \
+    -v ${ARTIFACTS_VOLUME}:/src/artifacts \
     -w /src \
     -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     -e DOTNET_NOLOGO=1 \
@@ -81,7 +84,7 @@ ef() {
   docker run --rm $(tty_flag) \
     -v "$PWD/api:/src" \
     -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
-    -v ${PROJECT}_api-artifacts:/src/artifacts \
+    -v ${ARTIFACTS_VOLUME}:/src/artifacts \
     -w /src \
     -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
     -e ConnectionStrings__Default="Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
@@ -198,7 +201,7 @@ case "$cmd" in
       -v "$PWD:/repo:ro" \
       -v "$PWD/web/src:/web/src:ro" \
       -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
-      -v ${PROJECT}_api-artifacts:/src/artifacts \
+      -v ${ARTIFACTS_VOLUME}:/src/artifacts \
       -w /src \
       -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
       -e BONVI_REPO_DIR=/repo \
@@ -339,7 +342,7 @@ case "$cmd" in
       -v "$PWD/api:/src" \
       -v "$PWD/data:/data" \
       -v ${PROJECT}_nuget-cache:/root/.nuget/packages \
-      -v ${PROJECT}_api-artifacts:/src/artifacts \
+      -v ${ARTIFACTS_VOLUME}:/src/artifacts \
       -w /src \
       -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
       --network "$NETWORK" \
